@@ -82,6 +82,11 @@ rozhraní, ale prostě skupina lidí, které hráč označil.
   říkáš“). Jí dál ze zásob vsi jako doma – výprava nic neveze ([výjezd](lord-control.md) – Zásoby
   a zima).
 - Správce skupiny nevysílá ani neruší (návrh Clauda).
+- **Kdo je na výpravě, ze vsi neodejde** (návrh Clauda po recenzi 15. 11. 2026 – v jiné vsi by
+  ho výprava nenašla a byl by tam pryč navždy): domácnost s ním neodejde („Někdo z domácnosti je
+  na výpravě.“), syn vojvody nevede odchod, je-li někdo z jeho dílu venku, ves nejde postoupit
+  („Někdo z postupovaných vsí je na výpravě.“) a muž rodu jde vládnout jinam (i povýšený), až
+  bude s rodinou doma.
 
 ### Co platí dál z výjezdu
 
@@ -142,11 +147,12 @@ Návrh Clauda.
 
 ## Čísla
 
-| Co                | Hodnota                              | Odkud                                 |
-| ----------------- | ------------------------------------ | ------------------------------------- |
-| věk pro výpravu   | od 12 let                            | Martin 14. 11. 2026 (k návrhu Clauda) |
-| čekání bez pohybu | 3 herní dny                          | Martin 12. a 14. 11. 2026             |
-| tempo             | ≈ 3,5 m/s, jezdci × 1,5, sníh × 0,75 | [válka](war.md)                       |
+| Co                | Hodnota                                                                                         | Odkud                                                                             |
+| ----------------- | ----------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| věk pro výpravu   | od 12 let                                                                                       | Martin 14. 11. 2026 (k návrhu Clauda)                                             |
+| čekání bez pohybu | 3 herní dny                                                                                     | Martin 12. a 14. 11. 2026                                                         |
+| tempo             | ≈ 3,5 m/s, jezdci × 1,5, sníh × 0,75                                                            | [válka](war.md)                                                                   |
+| osedlání doma     | cesta vesničana do ohrady a s koňmi k jezdcům tempem pěšího + 10 s; sesednutí: k jezdcům + 10 s | návrh Clauda (plán 2026-11-14 – Rozhodnutí 7); 10 s – [koně](horses.md), Ve scéně |
 
 ## Na stavitelovi
 

@@ -92,8 +92,16 @@ describe('playerNoticeLine', () => {
       payload: { journeyId: 'j1', leader: 'Bořivoj' },
     });
     expect(playerNoticeLine(back).text).toBe('Bořivoj se vrátil.');
+    expect(
+      playerNoticeLine(
+        notice({ kind: 'journey-returned', payload: { leader: 'Dobrava', female: true } }),
+      ).text,
+    ).toBe('Dobrava se vrátila.');
+    expect(
+      playerNoticeLine(notice({ kind: 'journey-returned', payload: { leader: '' } })).text,
+    ).toBe('Výprava se vrátila.');
     expect(playerNoticeLine(notice({ kind: 'journey-returned', payload: {} })).text).toBe(
-      'Vojvoda se vrátil.',
+      'Výprava se vrátila.',
     );
     expect(noticePanel('journey-returned')).toBeNull();
   });

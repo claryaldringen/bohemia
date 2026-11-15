@@ -7,7 +7,7 @@
 // villager-plan.ts z rozdělení práce dne, pohyb je čistá funkce času (villager-motion.ts).
 import { dogPlansKey, type DogPlan } from './dogs';
 import { FishingLines, fishingLine } from './fishing-lines';
-import type { JourneyYard } from './journey-departure';
+import type { ChoreoPeople, ExpeditionYard } from './expedition-choreo';
 import { isRiding, rideArea, ridePlansKey, type RidePlan } from './riders';
 import type { HuntSpotFn } from './villager-plan-lord';
 import '@babylonjs/core/Meshes/thinInstanceMesh';
@@ -186,6 +186,9 @@ interface Kind {
   looks: Float32Array;
 }
 
+/** Postava s menším měřítkem je dítě – dospělá má 0,95–1,05 × `FIGURE_SCALE`. */
+const ADULT_SCALE = 0.9 * FIGURE_SCALE;
+
 /**
  * Lidé ve vsi: `update` je rozmístí podle vsi (modely se stáhnou s prvním člověkem), `animate`
  * je posune v čase – jen v záběru, jako zvířata.
@@ -225,6 +228,9 @@ export class VillageVillagers {
   /** Vybraný člověk (id) a jeho kroužek pod nohama (jedna instance – villagers.md). */
   private selected: number | null = null;
   private ring: SelectionRing | null = null;
+  /** Další vybraní lidé (víc lidí – expeditions.md, Výběr): jen kroužky pod postavami. */
+  private more: readonly number[] = [];
+  private moreRings: SelectionRing[] = [];
   private personState: PersonFigureState | null = null;
   /** Spřežení a vozy dne, které kreslí ves (village-renderer.ts – `draftCrews`). */
   private draft: DraftCrews = { teams: 0, carts: [] };
@@ -368,9 +374,49 @@ export class VillageVillagers {
     return this.crew.rides ?? [];
   }
 
-  /** Místa dvorce pro odjezd a příjezd výjezdu vojvody (journey-departure.ts); bez cvičiště null. */
-  yard(): JourneyYard | null {
+  /** Místa dvorce pro odjezd a příjezd výjezdu vojvody (expedition-choreo.ts); bez cvičiště null. */
+  yard(): ExpeditionYard | null {
     return this.crew.yard ?? null;
+  }
+
+  /** Lidé, které kreslí scénář výprav (expedition-choreo.ts) – jejich postavy vsi se nekreslí. */
+  private scripted: ReadonlySet<number> = new Set();
+
+  /** Postavy vsi pro scénáře výprav: kde je kdo nakreslený a kdo je dospělý doma. */
+  choreoPeople(): ChoreoPeople {
+    return {
+      figureAt: (id) => {
+        const at = this.spotOf(id);
+        return at ? { x: at.x, z: at.z } : null;
+      },
+      adultNear: (at, skip) => {
+        let best: { id: number; at: { x: number; z: number } } | null = null;
+        let bestD = Infinity;
+        this.people.forEach((p, i) => {
+          const o = i * 3;
+          const x = this.spots[o];
+          const z = this.spots[o + 2];
+          if (p.person === undefined || skip.has(p.person) || p.scale < ADULT_SCALE) return;
+          if (x === undefined || z === undefined || Number.isNaN(x)) return;
+          const d = Math.hypot(x - at.x, z - at.z);
+          if (d < bestD) {
+            bestD = d;
+            best = { id: p.person, at: { x, z } };
+          }
+        });
+        return best;
+      },
+    };
+  }
+
+  /**
+   * Lidé, které kreslí scénář výprav místo jejich postavy vsi (schovají se hned, bez přestavby plánu);
+   * true – změna (je co překreslit).
+   */
+  setScripted(ids: readonly number[]): boolean {
+    if (ids.length === this.scripted.size && ids.every((id) => this.scripted.has(id))) return false;
+    this.scripted = new Set(ids);
+    return true;
   }
 
   /** Psi dvorce dne (dogs.ts – z plánu postav) – kreslí je livestock.ts. */
@@ -400,8 +446,45 @@ export class VillageVillagers {
     return true;
   }
 
+  /**
+   * Další vybraní lidé vedle „hlavního“ (`select`): každý má jen žlutý kroužek pod postavou, který
+   * ji sleduje. Vrátí true, když se výběr změnil.
+   */
+  selectMore(ids: readonly number[]): boolean {
+    if (ids.length === this.more.length && ids.every((id, k) => id === this.more[k])) return false;
+    this.more = ids;
+    this.showMore();
+    return true;
+  }
+
+  /** Kroužky dalších vybraných podle posledních poloh postav. */
+  private showMore(): void {
+    let used = 0;
+    for (const id of this.more) {
+      const shown = selectedFigure(this.people, id, (i) => Number.isNaN(this.spots[i * 3] ?? NaN));
+      const figure = shown ? this.people[shown.index] : undefined;
+      if (!figure || !shown || shown.hidden) continue;
+      const o = shown.index * 3;
+      const ring = (this.moreRings[used] ??= new SelectionRing(
+        this.scene,
+        `villagers-ring-${used + 1}`,
+      ));
+      ring.show(
+        this.env.groundHeight,
+        this.spots[o]!,
+        this.spots[o + 1]!,
+        this.spots[o + 2]!,
+        RING_SIZE_M * figure.scale,
+      );
+      used++;
+    }
+    for (let k = used; k < this.moreRings.length; k++) this.moreRings[k]!.hide();
+  }
+
   dispose(): void {
     this.disposed = true;
+    for (const ring of this.moreRings) ring.dispose();
+    this.moreRings = [];
     this.lines?.dispose();
     for (const kind of this.kinds.values()) {
       kind.mesh.material?.dispose();
@@ -501,6 +584,7 @@ export class VillageVillagers {
     // rybář s rozvrhem přijde k vodě a odejde – vlasce se překreslí, jen když se změní, kdo rybaří
     if (fishing !== this.fishingKey) this.setFishingLines(t);
     if (selected !== null) this.showSelected(t, herds);
+    if (this.more.length > 0 || this.moreRings.length > 0) this.showMore();
   }
 
   /** Kroužek a stav vybraného člověka podle posledních poloh postav (bez nového pohybu). */
@@ -805,6 +889,7 @@ export class VillageVillagers {
         const mount = this.mountedAt(id, t);
         if (mount) mount.pose(t, herds, pose);
         else if (this.crewJobs.has(id)) pose.hidden = true;
+        if (this.scripted.has(id)) pose.hidden = true;
         return pose;
       });
       kind = figure.kind;

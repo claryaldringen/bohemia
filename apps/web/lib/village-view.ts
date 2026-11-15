@@ -93,7 +93,7 @@ import { wildlifeView, type VillageWildlife } from './wildlife-view';
 import { disasterChronicleFields, weatherView, type WeatherView } from './disasters-view';
 import { personPortrait, scenePersons, type DwellingResident } from './person-view';
 import { ROLE_NAMES } from './person-roles';
-import { dynastyView } from './dynasty-view';
+import { dynastyView, expeditionsAway } from './dynasty-view';
 import { horsesView, type VillageHorses } from './horse-view';
 
 import { dugSitesField } from './ore-site-view';
@@ -537,6 +537,7 @@ export function buildVillageView(
     commonLaborPerDay: summary.commonLaborPerDay,
     lord: state.labor?.lord ?? null,
     dynasty: dynastyView(state, day),
+    ...(expeditionsAway(state, day) ? { expeditionsAway: true as const } : {}),
     steward: { on: isStewardOn(state), built: [...(state.steward?.built ?? [])] },
     fullHousehold: summary.fullHousehold,
     build: buildOptions(state, landscape, summary.crafts.coverage, day),

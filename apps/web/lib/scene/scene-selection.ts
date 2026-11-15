@@ -40,9 +40,9 @@ export class SceneSelection {
     this.selected = target;
   }
 
-  /** Vybraný člověk (id), nebo null. */
+  /** Vybraný člověk vsi scény (id), nebo null – člověk jiné vsi (`villageId`) tu postavu nemá. */
   get personId(): number | null {
-    return this.selected?.kind === 'person' ? this.selected.id : null;
+    return this.selected?.kind === 'person' && !this.selected.villageId ? this.selected.id : null;
   }
 
   onPersonState(listener: PersonListener): () => void {
@@ -76,7 +76,8 @@ export class SceneSelection {
   syncDraft(): void {
     const target = this.selected;
     const villagers = this.deps.villagers();
-    const job = target?.kind === 'person' ? (villagers?.crewJob(target.id) ?? null) : null;
+    const id = this.personId;
+    const job = id !== null ? (villagers?.crewJob(id) ?? null) : null;
     this.deps.villageRenderer()?.selectDraft(draftSelectionFor(target, job));
     this.publishDraft();
   }

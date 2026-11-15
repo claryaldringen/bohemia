@@ -420,18 +420,14 @@ describe('souběh vsí a výjezdu – domovská ves v bariéře', () => {
         seed: 7,
         playerId: 'c',
         houseId: (await createHouseRepository(setup).activeOf('c'))!.id,
-        leaderName: 'Bořivoj',
         home: { villageId: home, name: 'daleko', cell: { x: 9, y: 9 }, pos: { x: -50, z: -50 } },
-        members: [
+        recruits: [
           {
             ref: { villageId: home, personId: lord.id },
             lord: true,
-            mounted: false,
             strength: 1,
             fight: 50,
-            health: 100,
-            wounded: false,
-            status: 'active',
+            name: 'Bořivoj',
           },
         ],
         startMs: msOf(T0),

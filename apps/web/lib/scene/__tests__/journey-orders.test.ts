@@ -1,16 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { EDGE_BAND_M, edgeDirection, lordClick, orderFromClick } from '../journey-orders';
+import { EDGE_BAND_M, edgeDirection, orderClick, orderFromClick } from '../journey-orders';
 
 const MAP = 1920;
 const H = MAP / 2;
 const cell = { x: 3, y: -2 };
-const click = (point: { x: number; z: number } | null, lordSelected = true) =>
-  orderFromClick({ lordSelected, point, mapSizeM: MAP, cell });
+const click = (point: { x: number; z: number } | null, selected = true) =>
+  orderFromClick({ selected, point, mapSizeM: MAP, cell });
 
 describe('orderFromClick', () => {
   it('uprostřed mapy dá go na bod kliknutí', () => {
-    expect(click({ x: 120, z: -40 })).toEqual({ kind: 'go', pos: { x: 120, z: -40 } });
-    expect(click({ x: 0, z: 0 })).toEqual({ kind: 'go', pos: { x: 0, z: 0 } });
+    expect(click({ x: 120, z: -40 })).toEqual({ kind: 'go', pos: { x: 120, z: -40 }, cell });
+    expect(click({ x: 0, z: 0 })).toEqual({ kind: 'go', pos: { x: 0, z: 0 }, cell });
   });
 
   it.each([
@@ -31,7 +31,7 @@ describe('orderFromClick', () => {
     expect(click({ x: H - EDGE_BAND_M - 0.1, z: 0 })?.kind).toBe('go');
   });
 
-  it('klik mimo terén nebo bez vybraného vojvody nedá rozkaz', () => {
+  it('klik mimo terén nebo bez vybraných lidí nedá rozkaz', () => {
     expect(click(null)).toBeNull();
     expect(click({ x: 10, z: 10 }, false)).toBeNull();
     expect(click({ x: H - 1, z: 0 }, false)).toBeNull();
@@ -46,28 +46,34 @@ describe('edgeDirection', () => {
   });
 });
 
-describe('lordClick', () => {
+describe('orderFromClick – mapa rozkazu', () => {
+  it('go nese mapu, kterou scéna ukazuje', () => {
+    const order = orderFromClick({
+      selected: true,
+      point: { x: 5, z: 6 },
+      mapSizeM: MAP,
+      cell: { x: 2, y: 3 },
+    });
+    expect(order).toEqual({ kind: 'go', pos: { x: 5, z: 6 }, cell: { x: 2, y: 3 } });
+  });
+});
+
+describe('orderClick', () => {
   const order = { kind: 'go', pos: { x: 1, z: 2 } } as const;
   it('bez odepření rozkaz odešle', () => {
-    expect(lordClick({ order, loading: false, refusal: null })).toEqual({ kind: 'send', order });
+    expect(orderClick({ order, refusal: null })).toEqual({ kind: 'send', order });
   });
-  it('během čekání na odpověď vyslání další kliknutí nic neodešle (dvojité pravé kliknutí)', () => {
-    expect(lordClick({ order, loading: false, refusal: null, launching: true })).toEqual({
-      kind: 'none',
-    });
-    expect(lordClick({ order, loading: false, refusal: null, launching: false })).toEqual({
-      kind: 'send',
-      order,
-    });
+  it('během čekání na odpověď další kliknutí nic neodešle (dvojité pravé kliknutí)', () => {
+    expect(orderClick({ order, refusal: null, sending: true })).toEqual({ kind: 'none' });
+    expect(orderClick({ order, refusal: null, sending: false })).toEqual({ kind: 'send', order });
   });
-  it('odepřený výjezd ukáže důvod a nic neodešle', () => {
-    expect(lordClick({ order, loading: false, refusal: 'Vojvoda je raněný.' })).toEqual({
+  it('odepřený rozkaz ukáže důvod a nic neodešle', () => {
+    expect(orderClick({ order, refusal: 'Od 12 let.' })).toEqual({
       kind: 'refuse',
-      text: 'Vojvoda je raněný.',
+      text: 'Od 12 let.',
     });
   });
-  it('při načítání kandidátů a mimo terén nic', () => {
-    expect(lordClick({ order, loading: true, refusal: null })).toEqual({ kind: 'none' });
-    expect(lordClick({ order: null, loading: false, refusal: 'x' })).toEqual({ kind: 'none' });
+  it('mimo terén nic', () => {
+    expect(orderClick({ order: null, refusal: 'x' })).toEqual({ kind: 'none' });
   });
 });

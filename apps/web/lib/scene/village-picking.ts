@@ -111,9 +111,16 @@ export type VillageTarget =
   | { kind: 'church'; id: number }
   /**
    * Člověk vsi (id – villagers.md, Výběr postavy): klik na jeho postavu; výběr zůstane, i když
-   * postava zmizí (vejde domů, za kraj mapy).
+   * postava zmizí (vejde domů, za kraj mapy). Id osoby je jedinečné jen ve vsi: `villageId` nese
+   * člověk jiné vsi hráče (člen její výpravy ve scéně); chybí – ves scény.
    */
-  | { kind: 'person'; id: number }
+  | { kind: 'person'; id: number; villageId?: string }
+  /**
+   * Víc lidí jedné domovské vsi (expeditions.md – Výběr a skupina): Shift + klik, nebo klik na
+   * člena skupiny venku (vybere se celá skupina). Pravé tlačítko jim dá rozkaz. `villageId` jako
+   * u `person` (chybí – ves scény).
+   */
+  | { kind: 'people'; ids: readonly number[]; villageId?: string }
   /**
    * Spřežení volů s rádlem na poli (oxen.md – Výběr spřežení): pořadí spřežení dne
    * (plough-team-renderer.ts) – klik na voly nebo rádlo.
@@ -613,7 +620,11 @@ export function targetExists(village: SceneVillage, target: VillageTarget): bool
   if (target.kind === 'grain-pit') {
     return (village.grainPits ?? []).some((p) => p.id === target.id);
   }
-  if (target.kind === 'person') return personExists(village, target.id);
+  // člověk jiné vsi (`villageId`) ve vsi scény není
+  if (target.kind === 'person') return !target.villageId && personExists(village, target.id);
+  if (target.kind === 'people') {
+    return !target.villageId && target.ids.some((id) => personExists(village, id));
+  }
   if (target.kind === 'plough-team') return ploughsToday(village);
   if (target.kind === 'cart') return (village.carts ?? []).some((c) => c.id === target.id);
   // zvíře ve scéně hlídá jeho vlastní výběr (W10); druh zvěře existuje, dokud ves má zvěř

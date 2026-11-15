@@ -212,6 +212,11 @@ export const WAR = {
  */
 export const JOURNEY = {
   /**
+   * expeditions.md – Kdo smí jít: na výpravu kdokoli ze vsi od tolika let, i vojvoda (Martin
+   * 14. 11. 2026); `WAR.army.minAge` platí jen pro vojsko a sílu do meče.
+   */
+  minAge: 12,
+  /**
    * lord-control.md – Na místě a návrat: po dojetí skupina stojí; nepřijde-li do tolika herních dní
    * nový rozkaz, jede domů sama (Martin 12. 11. 2026).
    */
@@ -223,4 +228,10 @@ export const JOURNEY = {
    * tolika metrech si skupina zapíše další bod, od kterého viděla.
    */
   trailStepM: 20,
+  /**
+   * horses.md – Ve scéně: „10 s stojí, jezdec nasedne“ – po příchodu koně (osedlání) i vesničana
+   * (sesednutí doma) skupina tolik sekund stojí (expeditions.md – Čísla; plán 2026-11-14 –
+   * Rozhodnutí 7).
+   */
+  mountWaitS: 10,
 } as const;

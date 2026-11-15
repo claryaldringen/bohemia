@@ -7,13 +7,17 @@ import {
   canInviteLodge,
   canInviteMaster,
   currentLord,
+  expeditionRecruit,
+  type ExpeditionPersonRefusal,
   ennobleBlock,
   isAway,
   isChristian,
   MASON_CRAFTS,
   villageManorId,
+  recruitOf,
   type Craft,
   type MasonCraft,
+  type Person,
   type MasonryCircle,
   type Sex,
   type VillageState,
@@ -79,6 +83,19 @@ export function lodgeView(state: VillageState, day: number): LodgeView {
   };
 }
 
+/**
+ * Výprava člověka (expeditions.md – Kdo smí jít; Výběr a skupina), počítá server ze stavu vsi:
+ * `refusal` – proč nesmí jít (mladší 12 let, raněný, na tažení, pryč), `rider` – má jezdeckého
+ * koně, `inParty` – je ve skupině výpravy (`away: journey`), `strength` – síla do meče (na koni se
+ * svým koněm `strengthMounted`; ženy a děti 0).
+ */
+export interface SceneExpedition {
+  refusal?: ExpeditionPersonRefusal;
+  rider?: true;
+  inParty?: true;
+  strength: number;
+}
+
 export interface ScenePerson {
   id: number;
   age: number;
@@ -106,6 +123,8 @@ export interface ScenePerson {
   lodgeCircle?: MasonryCircle;
   /** Kněz kostela (churches.md). */
   priest?: true;
+  /** Výprava člověka – důvod, proč nejde, jezdec, člen skupiny a síla; jen s plným stavem vsi. */
+  expedition?: SceneExpedition;
   /** Huť a mistři u vojvody vsi (tlačítka „Pozvat stavební huť“ a „Pozvat mistra“). */
   lodge?: LodgeView;
 }
@@ -114,6 +133,7 @@ export interface ScenePerson {
  * Lidé vsi pro scénu v den `day` (věk ke dni) seřazení podle id. Ves uložená před pohlavím
  * (`Person.sex` chybí) má pohlaví střídavě podle id – jako průvod pohřbu (funeral-view.ts).
  * `baptizable` – vojvoda vsi (role vojvody) se smí nechat pokřtít (`VillageAccess.baptizable`).
+ * `village` – plný stav vsi: lidé pak nesou `expedition` (jádro `expeditionRecruit`).
  */
 export function scenePersons(
   state: Pick<VillageState, 'people' | 'dwellings' | 'manorId' | 'constructions'> &
@@ -121,6 +141,7 @@ export function scenePersons(
   day: number,
   baptizable = false,
   lodge: LodgeView | null = null,
+  village: VillageState | null = null,
 ): ScenePerson[] {
   const crafts = new Map<number, Craft>();
   for (const d of state.dwellings) if (d.workshop) crafts.set(d.id, d.workshop.craft);
@@ -161,6 +182,9 @@ export function scenePersons(
   const masons = new Map(state.people.flatMap((p) => (p.mason ? [[p.id, p.mason] as const] : [])));
   const priests = new Set(state.people.flatMap((p) => (p.priest ? [p.id] : [])));
   const away = new Set(state.people.flatMap((p) => (isAway(p, day) ? [p.id] : [])));
+  const expeditions = new Map(
+    village ? state.people.map((p) => [p.id, expeditionOf(village, p, day)] as const) : [],
+  );
   return people
     .map((p) => ({
       id: p.id,
@@ -181,8 +205,25 @@ export function scenePersons(
         : {}),
       ...(priests.has(p.id) ? { priest: true as const } : {}),
       ...(lodge && p.id === lordId ? { lodge } : {}),
+      ...(expeditions.has(p.id) ? { expedition: expeditions.get(p.id)! } : {}),
     }))
     .sort((a, b) => a.id - b.id);
+}
+
+/** Výprava člověka `person` vsi `village` ke dni `day` (`ScenePerson.expedition`). */
+function expeditionOf(village: VillageState, person: Person, day: number): SceneExpedition {
+  // vrátil se (`untilDay` uplynul), jen záznam ještě nezmizel – už ve skupině není
+  const inParty = person.away?.kind === 'journey' && isAway(person, day);
+  const recruit = expeditionRecruit(village, person, day);
+  // pryč (i na výpravě) a mladí nemají co ukazovat jako důvod – skupina je `inParty`
+  const refusal = typeof recruit === 'string' && !inParty ? recruit : undefined;
+  const data = typeof recruit === 'string' ? recruitOf(village, person, day) : recruit;
+  return {
+    ...(refusal ? { refusal } : {}),
+    ...(data.horseId !== undefined ? { rider: true as const } : {}),
+    ...(inParty ? { inParty: true as const } : {}),
+    strength: data.strengthMounted ?? data.strength,
+  };
 }
 
 /** Dovednosti pro rozhraní: celá čísla v mezích 0–100. */

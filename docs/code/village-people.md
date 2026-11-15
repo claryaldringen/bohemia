@@ -360,8 +360,8 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
 - **Odchod syna vojvody s poměrnou částí vsi** (lord.md – Dělení vsi, #9 fáze 2;
   `son-departure.ts`): `checkSonLeader(state, sonId, day)` → `PlacementCheck` – syn
   `dynasty.lordId` (muž rodu) ve vsi, od `LORD.leaveMinAge` let, ne nástupce (`successorOf`),
-  se jménem, rodina si nestaví dům (`SUCCESSOR_STAYS`, `SON_NAME_MISSING`, `LEAD_TOO_YOUNG`,
-  `LEAD_NOT_SON`…); `leadingSons` – synové od 16 let s kontrolou pro řadu ikon v panelu.
+  se jménem, rodina si nestaví dům, nikdo z dílu (`sonShare`) není na výpravě – `onExpedition`
+  (`SUCCESSOR_STAYS`, `SON_NAME_MISSING`, `LEAD_TOO_YOUNG`, `LEAD_NOT_SON`, `SON_SHARE_AWAY`…); `leadingSons` – synové od 16 let s kontrolou pro řadu ikon v panelu.
   `sonShare(state, sonId, day)` → `SonShare` (dílníci = žijící vojvoda + synové od 16 let, cíl
   lidé ÷ dílníci, `familyIds` – `sonFamily`: syn, `wivesOf`, svobodné děti –, `dwellingIds` celých
   domácností od nejbližšího domu syna / dvorce podle čtverce vzdálenosti, při shodě nižší id, dokud
@@ -657,15 +657,28 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
 
 ## Nepřítomnost na výjezdu (lord-control.md – Kdo jede; plán 2026-11-13 – Úloha 2)
 
-- `AwayKind` má druh `journey` (types-people.ts): vojvoda a družina na výjezdu zůstávají ve stavu
+- `AwayKind` má druh `journey` (types-people.ts): vojvoda a jeho lidé na výpravě zůstávají ve stavu
   domovské vsi s `away: { kind: 'journey', refId: <id výjezdu> }` bez `untilDay` – návrat ukončí
   událost výjezdu `away-ends`. Doma nepracují (`isAway`, `laborPerDay`) a nejdou na tažení
   (`lineCandidates` je přeskočí), ale **jedí dál ze zásob vsi** – `foodNeedPerDay` pro druh `journey`
   vrací obvyklou potřebu (výjezd neveze zásoby), na rozdíl od tažení a ostatních druhů (jedí jinde).
-  Vyslání a výběr družiny: `docs/code/journey.md` – Vyslání.
+  Vyslání lidí na výpravu (výběr, příkaz): `docs/code/journey.md` – Rozkaz vybraným lidem; starý výběr družiny mužů rodu zanikl v Úloze 12 výprav.
 - Kdo je pryč (`isAway`, jakýkoli druh – tažení, výjezd, uprchlík, posel…), se nekreslí doma u rodiny
   ani při práci: `sceneLord` ho vyřadí ze dvorku, cvičiště a jízdy, `ScenePerson.away` ho nechá v panelu a výběru,
   ale `DayRoster` mu doma nedá postavu.
+
+## Nepřítomnost na výpravě (každý od 12 let – expeditions.md; plán 2026-11-14 – Úloha 2)
+
+- Výprava (`docs/code/journey.md`) posílá kohokoli od 12 let (ženy, děti od 12, vesničany, muže rodu). Každý člen má jako dřív `away: { kind: 'journey', refId: <id výpravy> }`; jedí dál doma (`foodNeedPerDay`), ale nepracují (`laborPerDay` = 0 přes `isAway`).
+- **Návrat po hloučcích:** událost `away-ends` nese volitelné `personIds` (`VillageEventBody`, `inbox.ts`) a `endAway(state, refId, untilDay, personIds?)` (`vassalage/guests.ts`) nastaví den návratu jen těm lidem; ostatní se stejným `refId` zůstávají pryč. Bez `personIds` všichni jako dosud (ochrana).
+- **Kdo ve vsi chybí při výběru práce** (`isAway`, výsledek vsi bez lidí pryč se nemění):
+  - `isYoungster` (`herding.ts`) – výrostek 12–13 let pryč nepase (`youngsterCount`, pletí `weedingChildren`, noční hlídači `nightGuards`; staří pryč také nehlídají);
+  - `villagersToday` (`morning-water.ts`) – pryč nenosí vodu domů;
+  - `smithBellows` (`iron.ts`) – pryč nešlape měch;
+  - `nextFamily` / `nextSingle` (`people-trade.ts`) – ves pryč nikoho sousedovi nevymění;
+  - `lordRides` (`lord.ts`) – jezdec pryč neobjíždí pole (hlídka polí `riderPatrol` ho nepočítá);
+  - `lineCandidates` / `villagerCandidates` (`muster.ts`) a `laborPerDay` už `isAway` znaly.
+- Koně venku: `docs/code/village-livestock.md` – Koně venku s výpravou.
 
 ## Jezdec a výcvik (klipy a rekvizity `man.glb` – lord-horses Úloha 8; luk a boj kreslí Úloha 9)
 
@@ -784,7 +797,10 @@ arrivesDay } }` (volitelné). Nastaví ho `succeedLord` (`succession.ts`), když
 - **Doména** `domain/village/people/appoint-lord.ts` (čisté funkce): `appointCandidate(villages,
 targetVillageId, day, exclude)` – nejstarší muž rodu od `APPOINT_LORD.minAge` (16) let v jiné
   živé vsi, který není vojvodou své vsi, jejím nástupcem (`successorOf`) ani v `exclude` (hráčův
-  muž); shoda → nižší id osoby, pak vsi; ves bez vojvody kandidáty nedává. `departAppointee(state,
+  muž), a nikdo z jeho rodiny není pryč (`familyAway(state, personId, day)` – `isAway`; výprava,
+  tažení…); shoda → nižší id osoby, pak vsi; ves bez vojvody kandidáty nedává. `finishDeparture`
+  (use-case) s odchodem čeká, dokud `familyAway`; `checkEnnoble` odmítne `familyAway`.
+  `rehomePeople` obranně maže `away` druhu `journey` (expeditions.md – Doma mezitím). `departAppointee(state,
 day, personId, toVillageName)` – muž, jeho manželky a svobodné děti (`AppointeeParty`), jídlo
   `leavingFood` (25 kg na člověka od 7 let, nejvýš zásoby vsi), `removePeople`, kronika `lord-sent`.
   `settleAppointee(state, day, party)` (mutuje) – nová id z `nextId`, vazby uvnitř družiny

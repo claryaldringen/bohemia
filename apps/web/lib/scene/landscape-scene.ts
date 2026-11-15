@@ -60,7 +60,7 @@ import { hitPart } from './scene-perf';
 import {
   ScenePointer,
   type GatePick,
-  type LordOrderMode,
+  type OrderMode,
   type HoverListener,
   type SelectListener,
 } from './scene-pointer';
@@ -72,7 +72,7 @@ import {
 } from './scene-projection';
 import { SceneSelection, type DraftListener, type PersonListener } from './scene-selection';
 import { SceneWarView } from './scene-war';
-import { withoutMen } from './journey-departure';
+import { withoutMen } from './expedition-choreo';
 import { journeyHorseIds, type SceneJourney } from './journey-riders';
 import { ShadowCasters } from './shadow-casters';
 import { chunkGrid } from './scenery-chunks';
@@ -95,6 +95,7 @@ import { HoldingsOverlay, type HoldingsOverlaySector } from './holdings-overlay'
 import type { SceneWar } from './army-renderer';
 import { SelectionHighlight } from './selection-highlight';
 import type { VillageTarget } from './village-picking';
+import { selectedPeopleIds, selectedPeopleVillage } from './village-selection';
 import type { ActivePlacement } from './village-placement';
 import { ChurchPlacer } from './church-placer';
 import { createPlacement } from './placement-factory';
@@ -197,7 +198,7 @@ export class LandscapeScene {
   /** Výjezdy vojvody na mapě a koně jejich jezdců (ohrada je nekreslí). */
   private journeyList: readonly SceneJourney[] = [];
   private journeyHorses: ReadonlySet<number> = new Set();
-  /** Muži vsi, kteří přijíždějí z výjezdu do dvorce (journey-departure.ts) – den rodiny je nekreslí. */
+  /** Muži vsi, kteří přijíždějí z výjezdu do dvorce (expedition-choreo.ts) – den rodiny je nekreslí. */
   private arrivingMen: ReadonlySet<number> = new Set();
   /** Koně, které ohrada naposled nekreslila (e2e). */
   private awayHorses: ReadonlySet<number> = new Set();
@@ -552,8 +553,9 @@ export class LandscapeScene {
         if (this.livestock?.setDogs(this.villagers?.dogs() ?? [], Date.now())) {
           this.loop.renderWhenReady();
         }
-        // odjezd a příjezd výjezdu vojvody (journey-departure.ts) – místa dvorce z plánu postav
-        this.war.setJourneyYard(this.villagers?.yard() ?? null);
+        // odjezd a příjezd výjezdu vojvody (expedition-choreo.ts) – místa dvorce z plánu postav
+        this.war.setExpeditionYard(this.villagers?.yard() ?? null);
+        this.war.setChoreoPeople(this.villagers?.choreoPeople() ?? null);
       },
       // lovci jdou k okraji lesa u zvěře (wildlife.md – Ve scéně) – zvěř se plánuje před postavami
       huntSpot: (target) => this.wildlife?.huntSpot(target) ?? null,
@@ -714,7 +716,7 @@ export class LandscapeScene {
     return { ...this.war.journeyStats(), awayHorses: [...this.awayHorses] };
   }
 
-  /** Ves pro postavy – bez mužů, kteří přijíždějí z výjezdu do dvorce (journey-departure.ts). */
+  /** Ves pro postavy – bez mužů, kteří přijíždějí z výjezdu do dvorce (expedition-choreo.ts). */
   private peopleVillage(): SceneVillage | null {
     return this.villageState ? withoutMen(this.villageState, this.arrivingMen) : null;
   }
@@ -980,11 +982,11 @@ export class LandscapeScene {
   }
 
   /**
-   * Zapne ovládání vybraného vojvody (lord-control.md): pravé kliknutí do krajiny pošle bod terénu
+   * Zapne ovládání vybraných lidí (expeditions.md): pravé kliknutí do krajiny pošle bod terénu
    * `mode.order`, pohyb kurzoru `mode.hover`; `null` vrací běžné pravé tlačítko (zrušení výběru).
    */
-  setLordMode(mode: LordOrderMode | null): void {
-    this.pointer.setLordMode(mode);
+  setOrderMode(mode: OrderMode | null): void {
+    this.pointer.setOrderMode(mode);
   }
 
   /**
@@ -994,9 +996,15 @@ export class LandscapeScene {
   setSelection(target: VillageTarget | null): void {
     this.selection.target = target;
     this.highlight?.show(this.villageState, target, this.logPile?.pickable() ?? []);
-    this.villagers?.select(target?.kind === 'person' ? target.id : null);
-    // vojvoda a muži na výjezdu – kroužek jede s jezdcem (journey.md – Výběr)
-    this.war.selectJourneyMan(target?.kind === 'person' ? target.id : null);
+    // lidé: první je „vybraný“ (stav a panel), ostatní mají jen kroužek (expeditions.md – Výběr)
+    const people = selectedPeopleIds(target);
+    // lidé jiné vsi hráče (`villageId`) postavy ve vsi scény nemají – id osoby platí jen ve vsi
+    const village = selectedPeopleVillage(target);
+    const home = village === undefined ? people : [];
+    this.villagers?.select(home[0] ?? null);
+    this.villagers?.selectMore(home.slice(1));
+    // lidé na výpravě – kroužek jede s jezdcem (journey.md – Výběr)
+    this.war.selectJourneyMen(people, village);
     this.selection.syncDraft();
     this.loop.renderWhenReady();
   }
@@ -1412,9 +1420,11 @@ export class LandscapeScene {
     // koně mužů na výjezdu vojvody jsou pryč i s jezdci (journey-riders.ts)
     const riding = ridingHorseIds(this.villagers?.rides() ?? [], epochMs);
     for (const id of this.journeyHorses) riding.add(id);
-    // odjezd a příjezd: kůň mezi ohradou a kůlem, muži cestou do dvorce (journey-departure.ts)
+    // odjezd a příjezd: kůň mezi ohradou a kůlem, muži cestou do dvorce (expedition-choreo.ts)
     const away = this.war.journeyAway();
     for (const id of away.horses) riding.add(id);
+    // lidé ve scénáři výprav nemají postavu vsi (sedlání, připojení, návrat)
+    if (this.villagers?.setScripted(away.hidden)) animated = hitPart(hit, 'lidé');
     this.awayHorses = riding;
     if (this.village?.setRidingHorses(riding)) {
       animated = hitPart(hit, 'jízda');

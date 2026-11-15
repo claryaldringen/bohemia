@@ -104,10 +104,18 @@ export function dismissGuests(
 
 /**
  * Lidé pryč s odkazem `refId` bez dne návratu (ochrana do odvolání) se vrátí na začátku dne
- * `untilDay` (mutuje stav; `returnHome`). Kdo den návratu už má, zůstane u něj.
+ * `untilDay` (mutuje stav; `returnHome`). Kdo den návratu už má, zůstane u něj. S `personIds`
+ * (výprava – návrat po hloučcích, expeditions.md) jen tito lidé, ostatní se stejným `refId` zůstávají.
  */
-export function endAway(state: VillageState, refId: string, untilDay: number): void {
+export function endAway(
+  state: VillageState,
+  refId: string,
+  untilDay: number,
+  personIds?: readonly number[],
+): void {
+  const only = personIds === undefined ? undefined : new Set(personIds);
   for (const p of state.people) {
+    if (only && !only.has(p.id)) continue;
     if (p.away?.refId === refId && p.away.untilDay === undefined) p.away.untilDay = untilDay;
   }
 }

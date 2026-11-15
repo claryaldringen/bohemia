@@ -24,11 +24,13 @@ export interface PredatorHit {
 }
 
 /**
- * Los dne pro skupinu na začátku dne. Nic, když skupina nestojí v hustém lese, je větší než
+ * Los dne pro hlouček na začátku dne. Nic, když hlouček nestojí v hustém lese, je větší než
  * `JOURNEY.predatorGroupMax` (počítají se živí) nebo na mapě šelma není. Útočí medvěd (zranění
  * 5 % × (1 − boj ÷ 200), smrt 0,3 % × (2 − boj ÷ 100)), jinak vlci čísly lovu prasat (0,5 %,
- * 0,02 % × (2 − boj ÷ 100)); pěšky smrt × 2. Každý muž dostane vždy oba losy v pořadí podle
+ * 0,02 % × (2 − boj ÷ 100)); pěšky smrt × 2. Každý člověk dostane vždy oba losy v pořadí podle
  * indexu (zranění, smrt), ať pořadí losů nezávisí na výsledku; smrt má přednost před zraněním.
+ * Proud `predators:<den>` u hloučku 0 (výjezdy před výpravami beze změny), jinak
+ * `predators:<den>:<id hloučku>` (plán 2026-11-14 – Rozhodnutí 9).
  */
 export function predatorDay(input: {
   members: readonly JourneyMember[];
@@ -36,13 +38,16 @@ export function predatorDay(input: {
   wildlife: MapWildlife;
   seed: number;
   day: number;
+  /** Id hloučku (`JourneyGroup.id`); chybí = 0. */
+  group?: number;
 }): PredatorHit[] {
   const { members, wildlife } = input;
   if (!input.inForest || (!wildlife.bear && !wildlife.wolves)) return [];
   if (members.filter((m) => m.status === 'active').length > JOURNEY.predatorGroupMax) return [];
   const by = wildlife.bear ? 'bear' : 'wolves';
   const rules = wildlife.bear ? HUNT_RISK.bear : HUNT_RISK.boar;
-  const random = createRandom(deriveSeed(input.seed, 'predators:' + input.day));
+  const stream = input.group ? `predators:${input.day}:${input.group}` : 'predators:' + input.day;
+  const random = createRandom(deriveSeed(input.seed, stream));
   const hits: PredatorHit[] = [];
   members.forEach((m, index) => {
     const injuryRoll = random.next();

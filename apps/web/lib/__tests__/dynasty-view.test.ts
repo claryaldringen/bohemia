@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Person, VillageState } from '@bohemia/game';
-import { dynastyView } from '../dynasty-view';
+import { dynastyView, expeditionsAway } from '../dynasty-view';
 import { foundVillage } from './departure-fixtures';
 
 // Rod vojvody pro rozhraní jmen (lord.md – Jména): kdo čeká na jméno (vojvoda první, pak od
@@ -52,7 +52,33 @@ describe('dynastyView', () => {
 });
 
 describe('dynastyView – výjezd vojvody (lord-control.md)', () => {
-  it('journeyAway jen když je někdo pryč na výjezdu', () => {
+  it('expeditionsAway je i bez vojvody; journeyAway jen s vojvodou pryč', () => {
+    const state: VillageState = {
+      ...foundVillage(),
+      people: [man(1, 40, { name: 'Bořivoj' }), man(2, 30)],
+      dynasty: { lordId: 1, lords: [{ id: 1, fromDay: 0 }] },
+    };
+    expect(expeditionsAway(state, DAY)).toBe(false);
+    state.people[1]!.away = { kind: 'journey', refId: 'j1' };
+    expect(expeditionsAway(state, DAY)).toBe(true);
+    expect(dynastyView(state, DAY)?.journeyAway).toBeUndefined();
+  });
+
+  it('od dne `untilDay` (návrat) odznak ani dotazování nejsou, i když záznam `away` ještě trvá', () => {
+    // hlouček došel domů v den DAY – ves záznam smaže až `returnHome(DAY + 2)`
+    const state: VillageState = {
+      ...foundVillage(),
+      people: [man(1, 40, { name: 'Bořivoj' }), man(2, 30)],
+      dynasty: { lordId: 1, lords: [{ id: 1, fromDay: 0 }] },
+    };
+    for (const p of state.people) p.away = { kind: 'journey', refId: 'j1', untilDay: DAY + 1 };
+    expect(expeditionsAway(state, DAY)).toBe(true);
+    expect(dynastyView(state, DAY)?.journeyAway).toBe(true);
+    expect(expeditionsAway(state, DAY + 1)).toBe(false);
+    expect(dynastyView(state, DAY + 1)?.journeyAway).toBeUndefined();
+  });
+
+  it('journeyAway jen když je vojvoda pryč na výjezdu', () => {
     const state: VillageState = {
       ...foundVillage(),
       people: [man(1, 40, { name: 'Bořivoj' })],

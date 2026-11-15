@@ -2,7 +2,7 @@
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { useJourney } from '../use-journey';
+import { useExpeditions } from '../use-journey';
 
 let host: HTMLDivElement;
 let root: Root;
@@ -23,20 +23,29 @@ afterEach(() => {
 });
 
 function Probe({ running, onEnded }: { running: boolean; onEnded: () => void }): null {
-  useJourney(running, onEnded);
+  useExpeditions(running, onEnded);
   return null;
 }
 
-const view = { journeyId: 'j', tick: 1, cell: { x: 0, y: 0 }, group: { pos: { x: 0, z: 0 } } };
+const party = (id: number, groups: number[]): unknown => ({
+  id,
+  groups: groups.map((g) => ({ id: g, cell: { x: 0, y: 0 }, pos: { x: 0, z: 0 } })),
+});
+const expedition = (tick: number, parties: unknown[]): unknown => ({
+  journeyId: 'j',
+  tick,
+  parties,
+});
+const views = [expedition(1, [party(0, [0, 1])])];
 const ok = (body: unknown): Response => ({ json: () => Promise.resolve(body) }) as Response;
 
-describe('useJourney', () => {
+describe('useExpeditions', () => {
   it('výpadek sítě dotazování nezastaví', async () => {
     vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     const fetchMock = vi
       .fn()
       .mockRejectedValueOnce(new Error('síť'))
-      .mockResolvedValue(ok({ view }));
+      .mockResolvedValue(ok({ views }));
     vi.stubGlobal('fetch', fetchMock);
     act(() => root.render(<Probe running onEnded={() => undefined} />));
     await act(async () => {
@@ -45,12 +54,27 @@ describe('useJourney', () => {
     expect(fetchMock.mock.calls.length).toBeGreaterThanOrEqual(2);
   });
 
-  it('po zmizení pohledu ohlásí konec; bez running se neptá', async () => {
+  it('zmizí hlouček (druhý zůstává) – konec jednou a dotazování běží dál', async () => {
     const onEnded = vi.fn();
     const fetchMock = vi
       .fn()
-      .mockResolvedValueOnce(ok({ view }))
-      .mockResolvedValue(ok({ view: null }));
+      .mockResolvedValueOnce(ok({ views }))
+      .mockResolvedValue(ok({ views: [expedition(2, [party(0, [0])])] }));
+    vi.stubGlobal('fetch', fetchMock);
+    act(() => root.render(<Probe running onEnded={onEnded} />));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3000);
+    });
+    expect(onEnded).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls.length).toBeGreaterThanOrEqual(4);
+  });
+
+  it('po zmizení všech pohledů ohlásí konec; bez running se neptá', async () => {
+    const onEnded = vi.fn();
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(ok({ views }))
+      .mockResolvedValue(ok({ views: [] }));
     vi.stubGlobal('fetch', fetchMock);
     act(() => root.render(<Probe running onEnded={onEnded} />));
     await act(async () => {

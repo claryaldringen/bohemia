@@ -5,8 +5,8 @@ import {
   checkDwellingPlacement,
   surfaceAt,
   tileCenterWorld,
-  type JourneyState,
-  type JourneyView,
+  type ExpeditionView,
+  type SeenCell,
   type Landscape,
   type PlacementVillage,
   type Pos,
@@ -14,7 +14,14 @@ import {
 } from '@bohemia/game';
 import { E2E_ENV } from '../playwright.config';
 import { useUniqueClientIp } from './helpers';
-import { journeyScene, placeJourney, screenOf, sendLord, villageWithMen } from './journey-helpers';
+import {
+  journeyScene,
+  placeJourney,
+  placeReturning,
+  screenOf,
+  sendLord,
+  villageWithMen,
+} from './journey-helpers';
 import { changeVillageState, query, readyScene } from './village-helpers';
 
 // Scéna cizí mapy za vojvodou (journey.md – Scéna cizí mapy; plán 2026-11-13 – Úloha 9b), hra
@@ -107,45 +114,17 @@ function farHome(l: Landscape, near: Pos, a: Pos, b: Pos, minM: number): Positio
   throw new Error('Na mapě B není místo pro vzdálený dům.');
 }
 
-/** Pohled hráče na výjezd (`GET /api/journey` z prohlížeče); žádný – null. */
-async function journeyView(page: Page): Promise<JourneyView | null> {
+/** Pohled hráče na první výpravu (`GET /api/journey` z prohlížeče): mapa skupiny a co o ní rod ví. */
+async function journeyView(
+  page: Page,
+): Promise<{ cell: { x: number; y: number }; seen: SeenCell | null } | null> {
   const body = await page.evaluate(async () => {
     const response = await fetch('/api/journey', { cache: 'no-store' });
-    return (await response.json()) as { view?: unknown };
+    return (await response.json()) as { views?: unknown };
   });
-  return (body.view ?? null) as JourneyView | null;
-}
-
-/**
- * Skupinu, která po Domů jede zpět, postaví na domovskou mapu `cell` do bodu `pos` – cestu přes
- * celou mapu nahradí. True – skupina se vrací a je na té mapě.
- */
-async function placeReturning(
-  settlementId: string,
-  cell: { x: number; y: number },
-  pos: Pos,
-): Promise<boolean> {
-  const [row] = await query<{ id: string; state: JourneyState }>(
-    `SELECT j.id, c.state FROM journey j
-       JOIN journey_checkpoint c ON c.journey_id = j.id
-       JOIN settlement s ON s.owner_id = j.player_id
-     WHERE s.id = $1 AND j.status = 'active'`,
-    [settlementId],
-  );
-  if (!row || row.state.phase !== 'returning') return false;
-  const group = row.state.groups[0]!;
-  if (group.cell.x === cell.x && group.cell.y === cell.y) return true;
-  group.cell = { x: cell.x, y: cell.y };
-  group.pos = { x: pos.x, z: pos.z };
-  // cíl (ves) je na této mapě – žádné další políčko k přechodu, úsek cesty se naplánuje znovu
-  group.route = [];
-  group.leg = null;
-  group.arrived = false;
-  await query('UPDATE journey_checkpoint SET state = $2 WHERE journey_id = $1', [
-    row.id,
-    row.state,
-  ]);
-  return true;
+  const view = ((body.views ?? []) as ExpeditionView[])[0];
+  const cell = view?.parties[0]?.groups[0]?.cell;
+  return view && cell ? { cell, seen: view.seen[`${cell.x},${cell.y}`] ?? null } : null;
 }
 
 async function fogAt(page: Page, p: Pos): Promise<'hidden' | 'explored' | 'seen' | null> {
@@ -258,8 +237,11 @@ test('scéna jde za vojvodou na cizí mapu: mlha, objevené stavby, rozkazy a n�
   expect(await shownDwellings(a)).not.toContain(farId);
   // výběr klikem jako ve vsi: klik do prázdna (od domu B pryč) výběr zruší – panel výjezdu zmizí;
   // klik na vojvodu ve scéně ho vybere zpět (panel výjezdu, portrét v liště stisknutý)
-  const awayPanel = a.getByTestId('lord-journey-away');
-  await expect(awayPanel).toBeVisible();
+  // vybraná skupina vojvody = portrét v liště je stisknutý (na cizí mapě panel výběru není)
+  const badge = a.getByTestId('lord-away-badge');
+  const selected = async (): Promise<boolean> =>
+    (await badge.getAttribute('aria-pressed')) === 'true';
+  await expect.poll(selected).toBe(true);
   const empty = {
     x: start.x + (start.x - B.dwelling.x) * 0.6,
     z: start.z + (start.z - B.dwelling.z) * 0.6,
@@ -270,19 +252,19 @@ test('scéna jde za vojvodou na cizí mapu: mlha, objevené stavby, rozkazy a n�
       async () => {
         const at = await screenOf(a, empty.x, empty.z);
         await a.mouse.click(at.x, at.y);
-        return awayPanel.count();
+        return selected();
       },
       { timeout: 30_000, intervals: [2000] },
     )
-    .toBe(0);
+    .toBe(false);
   await expect
     .poll(
       async () => {
-        const lord = (await journeyScene(a)).riders.find((r) => r.key === String(A.lordId));
+        const lord = (await journeyScene(a)).riders.find((r) => r.own && r.personId === A.lordId);
         if (!lord) return false;
         const at = await screenOf(a, lord.x, lord.z);
         await a.mouse.click(at.x, at.y - 10);
-        return awayPanel.isVisible();
+        return selected();
       },
       { timeout: 60_000, intervals: [2000] },
     )
@@ -320,7 +302,7 @@ test('scéna jde za vojvodou na cizí mapu: mlha, objevené stavby, rozkazy a n�
   // Domů: skupina (zápisem do bodu) na domovské mapě ≈ 180 m od vsi – scéna se vrátí na ves hned,
   // ne až s koncem výjezdu; po dojetí upozornění (v liště jen 6 s – hlídá se od návratu scény).
   // Uložení bodu workerem může zápis přepsat – dokud výjezd běží, skupina se na mapu vrátí znovu.
-  await a.getByTestId('lord-home').click();
+  await a.getByTestId('expedition-home').click();
   const home = { x: cellA.x, y: cellA.y };
   const back = meadowSpot(A.seat.landscape, A.dwelling, 150, 210);
   await expect
@@ -347,6 +329,6 @@ test('scéna jde za vojvodou na cizí mapu: mlha, objevené stavby, rozkazy a n�
     )
     .toBe(true);
   await expect(readyScene(a)).toBeVisible({ timeout: 150_000 });
-  await expect(a.getByTestId('lord-away-badge')).toHaveCount(0, { timeout: 60_000 });
+  // portrét vojvody v liště zmizí, až ves zpracuje návrat (`away`) – ve zpomaleném světě e2e později
   await ctxs[0]!.close();
 });

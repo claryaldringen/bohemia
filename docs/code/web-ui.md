@@ -358,9 +358,11 @@ villageId)`. Z levných otisků (`stampsOf` – `last_day`, `asleep`) se dopočt
   | Tab                    |                                                                  | pozemek: místo domu (varianta)  |                                    |
   | další                  |                                                                  | Enter postaví                   | Backspace / Ctrl+Z vrátí, Enter    |
 
-  **Vojvoda** (výjezd – `docs/code/journey.md`, Ovládání): s vybraným vojvodou (klik na něj, nebo na
-  jeho portrét v liště, je-li pryč) dá pravé tlačítko rozkaz místo zrušení výběru – Esc a klik
-  jinam výběr ruší jako dřív.
+  **Lidé a výprava** (`docs/code/journey.md`, Ovládání): klik na člověka ho vybere, **Shift (Ctrl) +
+  klik** přidá nebo ubere dalšího (jako jednotky v 0 A.D.), klik na člena skupiny venku vybere celou
+  skupinu. S vybranými lidmi dá **pravé tlačítko** rozkaz do krajiny místo zrušení výběru (doma se
+  z nich stane skupina, venku se přesměruje; u okraje mapy přes okraj) – Esc a klik jinam výběr
+  ruší jako dřív.
 
   Vždy: WASD / šipky a kurzor u okraje okna posouvají, kolečko i rozevření prstů na trackpadu
   (Ctrl + kolečko, v Safari `gesturechange`) přibližují, Q/E otáčí, R vrátí pohled na ves
@@ -1074,10 +1076,9 @@ se vykreslí i v testech bez serveru.
   (`WAR_SCENE_POLL_MS`), jinak po 5 s (`WAR_SCENE_IDLE_MS`); nový stav jen s novým taktem.
   `undefined` = server ještě neodpověděl, `null` = na mapě nic.
 
-## Výjezd vojvody – akce, cesta API a dotazování (plán 2026-11-13 – Úloha 7)
+## Výjezd vojvody a výpravy – akce, cesta API a dotazování (plán 2026-11-13 – Úloha 7)
 
-Server actions `getJourneyCandidates`, `launchJourney`, `commandJourney` (`app/game/actions/journey.ts`),
-`GET /api/journey` (pohled, `?map=`, `?visitors=`) a `useJourney(running)` (`hooks/use-journey.ts`) –
+Server action `commandExpedition` (`app/game/actions/journey.ts`), `GET /api/journey` (`{ views }`, `?map=`, `?visitors=`) a `useExpeditions(running)` (`hooks/use-journey.ts`) –
 podrobně v [journey.md](journey.md) – Web. Rozhraní ve scéně staví Úlohy 8 a 9.
 
 ## Cizí mapa ve scéně (`ForeignWarScene.tsx`, `hooks/use-army.ts`, `lib/war-scene-view.ts`)
@@ -1120,7 +1121,7 @@ na které stojí.
 - **Výjezd vojvody** jde za vojvodou stejně – `ForeignJourneyScene` (journey.md – Scéna cizí mapy).
   **Známá mapa z domova** (journey.md – Známá mapa): oko `KnownMapEye` u rodu v panelu Rod a vazalové
   a u cíle v panelu Vojsko otevře táž scéna (`ForeignJourneyScene` s `known`, `GET /api/journey?known=x,y`)
-  bez jezdců; stav drží `useKnownMap`, e2e `journey.spec.ts`.
+  bez jezdců; stav drží `useKnownMap`, e2e `expeditions.spec.ts`.
 
 ## Postoj vsi ve dvorci (úloha 6.9, `hud/ManorPanel.tsx`)
 

@@ -9,7 +9,9 @@ export const ARRIVAL_HOME = -1;
  * Převede skupinu lidí do cílové vsi (mutuje jen `state.nextId`): každý dostane nové místní id
  * (v pořadí starých id), vazby uvnitř skupiny (manželé, rodiče a děti) se přepíšou na nová id,
  * vazby na lidi mimo skupinu se přeruší (jejich id patří jiné vsi). Ostatní údaje (pohlaví, den
- * narození, jméno, zdraví, praxe, dovednosti) zůstávají. Lidé mají `dwellingId = ARRIVAL_HOME`;
+ * narození, jméno, zdraví, praxe, dovednosti) zůstávají; nepřítomnost na výpravě (`away: journey`)
+ * do nové vsi nepatří – události výpravy chodí do staré vsi, záznam by nikdo neukončil (obranně;
+ * odchod během výpravy se blokuje). Lidé mají `dwellingId = ARRIVAL_HOME`;
  * do vsi je nepřidává – to dělá volající. `idMap` vrací staré id → nové.
  */
 export function rehomePeople(
@@ -22,6 +24,7 @@ export function rehomePeople(
     id === undefined ? undefined : idMap.get(id);
   const arrivals = people.map((p): Person => {
     const { motherId, fatherId, spouseId, ...rest } = structuredClone(p);
+    if (rest.away?.kind === 'journey') delete rest.away;
     const mother = mapped(motherId);
     const father = mapped(fatherId);
     const spouse = mapped(spouseId);

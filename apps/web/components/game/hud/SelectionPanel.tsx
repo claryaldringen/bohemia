@@ -17,7 +17,8 @@ import { ROAD_KIND_NAMES, SACRED_BUILDING_NAMES } from '@/lib/village-view';
 import { AbandonPartButton } from './AbandonPartButton';
 import { StructureUseButtons, type StructureUseActions } from './StructureUseButtons';
 import { CancelConstructionButton } from './RelocationControls';
-import type { LordJourneyUi } from './LordJourneyPanel';
+import type { ExpeditionCommand } from '@bohemia/game';
+import { GroupBody } from './selection/expedition';
 import { Tooltip } from './Tooltip';
 import { StewardBuiltMark } from './StewardToggle';
 import {
@@ -124,11 +125,12 @@ export function SelectionPanel({
   onAbandonPart,
   onStructureUse,
   onOrderQuarrying,
-  lordJourney,
+  expeditionCommand,
 }: {
   details: SelectionDetails | null;
-  /** Ovládání výjezdu vybraného vojvody (`useLordJourney`); u jiného cíle chybí. */
-  lordJourney?: LordJourneyUi | null;
+  /** Příkaz vybraným lidem – Osedlat, Sesednout, Domů (`useExpeditionOrders`); jinak chybí. */
+  expeditionCommand?:
+    ((c: ExpeditionCommand, screen?: { x: number; y: number }) => void) | undefined;
   /** Nalámat do zásoby `m3` kamene v lomu (server action – fortifications.md, Kámen). */
   onOrderQuarrying?: (outcropId: number, m3: number) => Promise<void>;
   /** Opustí díl pole, nebo ho vrátí do osevu (server action – fields.md, Opuštěný díl). */
@@ -228,7 +230,7 @@ export function SelectionPanel({
         onBaptize={onBaptize}
         onInviteLodge={onInviteLodge}
         onInviteMaster={onInviteMaster}
-        lordJourney={lordJourney}
+        expeditionCommand={expeditionCommand}
       />
     );
   } else if (details.kind === 'plough-team') {
@@ -390,6 +392,15 @@ export function SelectionPanel({
           <Bar value={details.demolition} name="Bourání" testId="selection-demolition" />
         )}
       </div>
+    );
+  } else if (details.kind === 'people') {
+    portrait = <PersonPortrait icon="man" name={`Lidé (${details.people.length})`} />;
+    body = (
+      <GroupBody
+        details={details}
+        onSelectTarget={onSelectTarget}
+        expeditionCommand={expeditionCommand}
+      />
     );
   } else if (details.kind === 'dwellings') {
     portrait = <Portrait icon="zemnice" name={`Obydlí (${details.ids.length})`} />;

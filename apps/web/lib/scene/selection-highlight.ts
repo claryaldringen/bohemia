@@ -320,7 +320,12 @@ export function targetOutline(
 ): Point[][] {
   // vybraná postava, spřežení a vůz mají žlutý kroužek, který je sleduje (villagers.ts,
   // plough-team-renderer.ts, cart-renderer.ts) – rámeček na zemi ne
-  if (target.kind === 'person' || target.kind === 'plough-team' || target.kind === 'cart') {
+  if (
+    target.kind === 'person' ||
+    target.kind === 'people' ||
+    target.kind === 'plough-team' ||
+    target.kind === 'cart'
+  ) {
     return [];
   }
   if (target.kind === 'field-part') {

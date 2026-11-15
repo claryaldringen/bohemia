@@ -27,6 +27,7 @@ function man(index: number, extra: Partial<JourneyMember> = {}): JourneyMember {
     health: 100,
     wounded: false,
     status: 'active',
+    group: 0,
     ...extra,
   };
 }
@@ -170,6 +171,7 @@ function worldOf(map: CampaignMap, home: VillageState = homeVillage()): Campaign
   };
 }
 
+/** Výprava – lidé `members` jako nováčci skupiny 0 (boj a kůň z nich). */
 function journey(seed: number, members: JourneyMember[]): JourneyState {
   return newJourney(
     {
@@ -177,9 +179,14 @@ function journey(seed: number, members: JourneyMember[]): JourneyState {
       seed,
       playerId: 'p1',
       houseId: 'h1',
-      leaderName: 'Bořivoj',
       home: HOME,
-      members,
+      recruits: members.map((m) => ({
+        ref: m.ref,
+        lord: m.lord,
+        strength: m.strength,
+        fight: m.fight,
+        ...(m.mounted ? { mounted: true as const } : {}),
+      })),
       startMs: msOfTick(LAUNCH, clock),
       order: { kind: 'go', pos: { x: 305, z: 5 } },
     },
@@ -202,8 +209,19 @@ describe('výjezd a šelmy', { timeout: 180_000 }, () => {
       for (const e of events) {
         const body = e.body;
         if (body.kind !== 'journey-casualty') continue;
-        const m = step.state.members.find((x) => x.ref.personId === body.personId)!;
-        if (body.outcome === 'dead') expect(m.status).toBe('fallen');
+        // stav v taktu útoku – kdo doma dojde, ze stavu zmizí; hlouček bez živých taky
+        const tick = Number(e.ref!.split(':')[2]);
+        const at = stepJourney(
+          journey(seed, [man(0, { fight: 0 }), man(1, { fight: 0 })]),
+          tick,
+          [],
+          worldOf(forestMap()),
+        ).state;
+        const m = at.members.find((x) => x.ref.personId === body.personId);
+        if (m === undefined) {
+          expect(body.outcome).toBe('dead');
+          expect(at.members.some((x) => x.status === 'active')).toBe(false);
+        } else if (body.outcome === 'dead') expect(m.status).toBe('fallen');
         else {
           expect(m.wounded).toBe(true);
           expect(m.woundedDay).toBeGreaterThan(0);
@@ -263,9 +281,17 @@ describe('výjezd a šelmy', { timeout: 180_000 }, () => {
         [],
         worldOf(forestMap()),
       );
-      const lord = step.state.members[0]!;
-      if (lord.status !== 'fallen' || step.state.members[1]!.status !== 'active') continue;
-      expect(step.state.phase === 'returning' || step.state.phase === 'done').toBe(true);
+      // lidé, kteří doma dojdou, ze stavu zmizí – kdo padl, říkají události vsi
+      const dead = (personId: number): boolean =>
+        step.villageEvents.some(
+          (e) =>
+            e.body.kind === 'journey-casualty' &&
+            e.body.personId === personId &&
+            e.body.outcome === 'dead',
+        );
+      if (!dead(1) || dead(2)) continue;
+      const phase = step.state.phase === 'done' ? 'done' : step.state.parties[0]!.phase;
+      expect(phase === 'returning' || phase === 'done').toBe(true);
       return;
     }
     throw new Error('vojvoda nepadl ani při 3000 seedech');

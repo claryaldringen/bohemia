@@ -1,4 +1,4 @@
-import { ageGroup, ageYears } from '../people/people';
+import { ageGroup, ageYears, isAway } from '../people/people';
 import { FORGE, REFINE, SMELT } from './iron-rates';
 import { CRAFT_NEEDS, IRON } from '../rules';
 import { craftHands, smithHead, smithSons } from './smith-supply';
@@ -127,12 +127,19 @@ export function smithBellows(
   const head = smithHead(members, day);
   // měch šlape muž (řemeslo dělá jen řemeslník a synové – crafts.md); žena z domácnosti ne
   const adults = craftHands(members, day)
-    .filter((p) => p.id !== head?.id && ageGroup(p, day) === 'adult')
+    .filter((p) => p.id !== head?.id && ageGroup(p, day) === 'adult' && !isAway(p, day))
     .sort((a, b) => b.bornDay - a.bornDay || a.id - b.id);
   const adult = adults[0];
   if (adult) return helper(adult, day, 'adult');
   const son = smithSons(state, smithId, day).find(
-    (s) => s.age >= IRON.bellowsFromAge && !busy.has(s.id) && isChild(members, s.id, day),
+    (s) =>
+      s.age >= IRON.bellowsFromAge &&
+      !busy.has(s.id) &&
+      isChild(members, s.id, day) &&
+      !isAway(
+        members.find((p) => p.id === s.id)!,
+        day,
+      ),
   );
   if (!son) return null;
   return helper(

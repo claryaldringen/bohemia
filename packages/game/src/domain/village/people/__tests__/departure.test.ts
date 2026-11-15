@@ -186,9 +186,9 @@ describe('departVillage', () => {
 
   it('odejít nejde z prázdného domu, s domácností, která se stěhuje, ani dvakrát', () => {
     const s = twoHouseholds();
-    expect(departureBlock(s, [])).not.toBeNull();
-    expect(departureBlock(s, [999])).not.toBeNull();
-    expect(departureBlock(s, [1, 1])).not.toBeNull();
+    expect(departureBlock(s, [], DAY)).not.toBeNull();
+    expect(departureBlock(s, [999], DAY)).not.toBeNull();
+    expect(departureBlock(s, [1, 1], DAY)).not.toBeNull();
     s.woodLogs = 20;
     const moving = startReplacement(
       s,
@@ -198,10 +198,24 @@ describe('departVillage', () => {
       { x: 120, z: 0, rotation: 0 },
       0,
     );
-    expect(departureBlock(moving, [sonHome(s)])).toMatch(/staví nový dům/);
+    expect(departureBlock(moving, [sonHome(s)], DAY)).toMatch(/staví nový dům/);
     expect(() => departVillage(moving, DAY, [sonHome(s)])).toThrow(RangeError);
     const { state } = departVillage(s, DAY, [1, sonHome(s)]);
-    expect(departureBlock(state, [1])).not.toBeNull();
+    expect(departureBlock(state, [1], DAY)).not.toBeNull();
+  });
+
+  it('domácnost s člověkem na výpravě odejít nemůže; po návratu (`untilDay`) už ano', () => {
+    const s = twoHouseholds();
+    const member = s.people.find((p) => p.dwellingId === sonHome(s))!;
+    member.away = { kind: 'journey', refId: 'j1' };
+    expect(departureBlock(s, [sonHome(s)], DAY)).toBe('Někdo z domácnosti je na výpravě.');
+    expect(() => departVillage(s, DAY, [sonHome(s)])).toThrow(RangeError);
+    // jiný druh nepřítomnosti odchod neblokuje (beze změny)
+    member.away = { kind: 'service', refId: 'r1', untilDay: DAY + 30 };
+    expect(departureBlock(s, [sonHome(s)], DAY)).toBeNull();
+    // hlouček došel domů – od `untilDay` je doma, i když záznam ještě trvá
+    member.away = { kind: 'journey', refId: 'j1', untilDay: DAY };
+    expect(departureBlock(s, [sonHome(s)], DAY)).toBeNull();
   });
 });
 

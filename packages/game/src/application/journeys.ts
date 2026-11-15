@@ -19,9 +19,11 @@ export interface JourneyRepository {
   create(state: JourneyState, createdAt: Date): Promise<void>;
   /** Id výjezdů, které se počítají – běžící, nebo s nedoručenými událostmi. */
   active(): Promise<string[]>;
-  /** Id běžícího výjezdu hráče; hráč má nejvýš jeden. */
-  activeOf(playerId: string): Promise<string | null>;
-  /** Id běžících výjezdů, jejichž skupina stojí na políčku světa `cell`. */
+  /** Id běžící výpravy hráče z domovské vsi `villageId`; z jedné vsi má hráč nejvýš jednu. */
+  activeIn(playerId: string, villageId: string): Promise<string | null>;
+  /** Id všech běžících výprav hráče (z různých vsí), podle založení a id. */
+  activeOfPlayer(playerId: string): Promise<string[]>;
+  /** Id běžících výjezdů, jejichž hlouček stojí na políčku světa `cell`. */
   onCell(cell: GridCell): Promise<string[]>;
   checkpoint(journeyId: string): Promise<JourneyCheckpoint | null>;
   /** Záměry s taktem větším než `tick`, podle taktu a `seq`. */

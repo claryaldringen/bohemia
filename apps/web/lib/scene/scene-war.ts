@@ -3,8 +3,13 @@ import type { Camera } from '@babylonjs/core/Cameras/camera';
 import type { Scene } from '@babylonjs/core/scene';
 import { surfaceAt, type Landscape } from '@bohemia/game';
 import { ArmyRenderer, type SceneWar } from './army-renderer';
-import type { JourneyScenePhase, JourneyYard } from './journey-departure';
-import { JourneyMarker, journeyMarks } from './journey-marker';
+import type { ChoreoPeople, ExpeditionScenePhase, ExpeditionYard } from './expedition-choreo';
+import {
+  JourneyMarker,
+  journeyMarks,
+  selectedPartyKeys,
+  type JourneyMarks,
+} from './journey-marker';
 import type { RiderPose, SceneJourney } from './journey-riders';
 import type { Project } from './villager-pick';
 
@@ -30,10 +35,13 @@ export class SceneWarView {
   private journeys: readonly SceneJourney[] = [];
   /** Praporek cíle vlastního výjezdu (journey-marker.ts). */
   private marker: JourneyMarker | null = null;
-  /** Místa dvorce pro odjezd a příjezd výjezdu (journey-departure.ts). */
-  private yard: JourneyYard | null = null;
+  /** Místa dvorce pro odjezd a příjezd výjezdu (expedition-choreo.ts). */
+  private yard: ExpeditionYard | null = null;
+  private people: ChoreoPeople | null = null;
   /** Vybraná osoba vsi – kroužek výběru pod ní, je-li mužem vlastního výjezdu. */
-  private selectedMan: number | null = null;
+  private selectedMen: readonly number[] = [];
+  /** Ves vybraných lidí, není-li to ves scény (`VillageTarget.villageId`). */
+  private selectedVillage: string | undefined = undefined;
   /** Stopa rodu pro mlhu cizí mapy výjezdu; null – bez mlhy výjezdu (army-renderer.ts). */
   private trail: readonly (readonly [number, number])[] | null = null;
 
@@ -58,12 +66,13 @@ export class SceneWarView {
     });
     this.marker?.dispose();
     this.marker = new JourneyMarker(this.deps.scene, decalHeight);
-    this.army.setJourneyYard(this.yard);
-    this.army.selectJourneyMan(this.selectedMan);
+    this.army.setExpeditionYard(this.yard);
+    this.army.setChoreoPeople(this.people);
+    this.army.selectJourneyMen(this.selectedMen, this.selectedVillage);
     if (this.war) this.army.set(this.war, Date.now(), this.deps.reducedMotion(), null);
     if (this.journeys.length > 0) {
       this.army.setJourneys(this.journeys, Date.now(), this.deps.reducedMotion(), null);
-      this.marker.set(journeyMarks(this.journeys));
+      this.marker.set(this.marks());
     }
     if (this.trail) this.army.setJourneyFog(this.trail);
   }
@@ -94,8 +103,16 @@ export class SceneWarView {
       this.deps.reducedMotion(),
       this.deps.camera(),
     );
-    const marks = this.marker?.set(journeyMarks(list));
+    const marks = this.marker?.set(this.marks());
     if (army || marks) this.deps.requestRender();
+  }
+
+  /** Praporek jen u vybrané skupiny (journey-marker.ts). */
+  private marks(): JourneyMarks {
+    return journeyMarks(
+      this.journeys,
+      selectedPartyKeys(this.journeys, this.selectedMen, this.selectedVillage),
+    );
   }
 
   /** Muž výjezdu pod kurzorem (CSS px) – výběr klikem; nic – null. */
@@ -104,26 +121,36 @@ export class SceneWarView {
   }
 
   /**
-   * Místa dvorce pro odjezd a příjezd výjezdu (villager-plan-lord.ts – `journeyYard`); domov, od
-   * kterého se odjezd a příjezd měří, nese výjezd ze serveru (journey-departure.ts).
+   * Místa dvorce pro odjezd a příjezd výjezdu (villager-plan-lord.ts – `expeditionYard`); domov, od
+   * kterého se odjezd a příjezd měří, nese výjezd ze serveru (expedition-choreo.ts).
    */
-  setJourneyYard(yard: JourneyYard | null): void {
+  setExpeditionYard(yard: ExpeditionYard | null): void {
     this.yard = yard;
-    this.army?.setJourneyYard(yard);
+    this.army?.setExpeditionYard(yard);
+  }
+
+  /** Postavy vsi, ze kterých scénáře výprav začínají (villagers.ts). */
+  setChoreoPeople(people: ChoreoPeople | null): void {
+    this.people = people;
+    this.army?.setChoreoPeople(people);
   }
 
   /**
-   * Vybraná osoba vsi (null – nikdo): muž vlastního výjezdu má pod sebou kroužek výběru, který jede
-   * s ním – vojvoda zůstane vybraný i po odjezdu z vsi (journey.md – Výběr).
+   * Vybraní lidé vsi `villageId` (chybí – ves scény; prázdné – nikdo): muž vlastní výpravy má pod
+   * sebou kroužek výběru, který jede s ním – vybraný zůstane vybraný i po odjezdu z vsi (journey.md
+   * – Výběr).
    */
-  selectJourneyMan(personId: number | null): void {
-    this.selectedMan = personId;
-    if (this.army?.selectJourneyMan(personId)) this.deps.requestRender();
+  selectJourneyMen(personIds: readonly number[], villageId?: string): void {
+    this.selectedMen = personIds;
+    this.selectedVillage = villageId;
+    const ring = this.army?.selectJourneyMen(personIds, villageId);
+    const banner = this.marker?.set(this.marks());
+    if (ring || banner) this.deps.requestRender();
   }
 
   /** Koně a muži vsi, kteří odjíždějí nebo přijíždějí – ohrada a den rodiny je nekreslí. */
-  journeyAway(): { horses: number[]; men: number[] } {
-    return this.army?.journeyAway() ?? { horses: [], men: [] };
+  journeyAway(): { horses: number[]; men: number[]; hidden: number[] } {
+    return this.army?.journeyAway() ?? { horses: [], men: [], hidden: [] };
   }
 
   /**
@@ -133,8 +160,9 @@ export class SceneWarView {
   journeyStats(): {
     riders: readonly RiderPose[];
     banner: { x: number; z: number } | null;
-    phase: JourneyScenePhase | null;
+    phase: ExpeditionScenePhase | null;
     led: { x: number; z: number }[];
+    groom: { x: number; z: number } | null;
     gate: { x: number; z: number } | null;
     selected: { x: number; z: number } | null;
   } {
@@ -144,6 +172,7 @@ export class SceneWarView {
       ...marks,
       phase: this.army?.journeyPhase() ?? null,
       led: (this.army?.journeyLed() ?? []).map((h) => ({ x: h.x, z: h.z })),
+      groom: this.army?.journeyGroom() ?? null,
       gate: this.yard ? { ...this.yard.gate } : null,
       selected: this.army?.journeyRing() ?? null,
     };

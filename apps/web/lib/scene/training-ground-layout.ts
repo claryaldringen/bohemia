@@ -41,7 +41,7 @@ export interface TrainingGround {
   post: TrainingSpot;
   /**
    * Brána dvorce uprostřed konce dvora, čelem ven (homestead-layout.ts – `MANOR_FENCE`) – tudy
-   * vyjíždí a přijíždí výjezd vojvody (journey-departure.ts). Bez dvorce chybí – zemnice plot nemá.
+   * vyjíždí a přijíždí výjezd vojvody (expedition-choreo.ts). Bez dvorce chybí – zemnice plot nemá.
    */
   gate?: TrainingSpot;
 }

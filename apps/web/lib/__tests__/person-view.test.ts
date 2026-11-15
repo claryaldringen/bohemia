@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import type { Dwelling, Person } from '@bohemia/game';
+import type { Dwelling, Person, VillageState } from '@bohemia/game';
+import {
+  horse,
+  horseVillage,
+  LORD_ID,
+  SON_ID,
+  START,
+  YOUTH_ID,
+} from '../../../../packages/game/src/domain/village/__tests__/horse-fixtures';
 import { scenePersons } from '../person-view';
 
 // Lidé vsi pro scénu (villagers.md – Výběr postavy): úsporně id, věk, pohlaví, domácnost a role.
@@ -70,5 +78,49 @@ describe('scenePersons', () => {
     expect(role(5)).toBe('voivode-grandson');
     expect(list.find((p) => p.id === 5)?.arms).toEqual({ bow: 12, combat: 0, riding: 0 });
     expect(list.find((p) => p.id === 3)?.arms).toBeUndefined();
+  });
+});
+
+describe('scenePersons – výprava (expeditions.md – Kdo smí jít)', () => {
+  /** Dvorec: vojvoda 10, žena 11, syn 12 (17, jezdecký kůň 1), snacha 13, syn 14 (11); vesničané 20–23. */
+  const village = (): VillageState => {
+    const s = horseVillage([{ ...horse(1, 6), riderId: SON_ID }, horse(2, 1)], 1, 4);
+    for (const p of s.people)
+      if (p.id === LORD_ID || p.id === SON_ID || p.id === YOUTH_ID) p.line = true;
+    s.dynasty = { lordId: LORD_ID, lords: [] };
+    return s;
+  };
+  const expeditionOf = (s: VillageState, id: number) =>
+    scenePersons(s, START, false, null, s).find((p) => p.id === id)?.expedition;
+
+  it('dítě 11 let nejde (young) a má sílu 0', () => {
+    expect(expeditionOf(village(), YOUTH_ID)).toEqual({ refusal: 'young', strength: 0 });
+  });
+
+  it('syn s jezdeckým koněm je jezdec se silou na koni', () => {
+    const s = village();
+    const son = expeditionOf(s, SON_ID)!;
+    expect(son.rider).toBe(true);
+    expect(son.refusal).toBeUndefined();
+    expect(son.strength).toBeGreaterThan(0);
+  });
+
+  it('člen výpravy je inParty bez důvodu; žena má sílu 0', () => {
+    const s = village();
+    s.people.find((p) => p.id === 21)!.away = { kind: 'journey', refId: 'j1' };
+    expect(expeditionOf(s, 21)).toEqual({ inParty: true, strength: 0 });
+    expect(expeditionOf(s, 11)?.strength).toBe(0);
+    expect(expeditionOf(s, 20)?.strength).toBeGreaterThan(0);
+  });
+
+  it('raněný a muž na tažení mají důvod', () => {
+    const s = village();
+    s.people.find((p) => p.id === 20)!.away = { kind: 'campaign', untilDay: START + 30 };
+    expect(expeditionOf(s, 20)?.refusal).toBe('campaign');
+  });
+
+  it('bez plného stavu vsi lidé výpravu nenesou', () => {
+    const s = village();
+    expect(scenePersons(s, START).every((p) => p.expedition === undefined)).toBe(true);
   });
 });

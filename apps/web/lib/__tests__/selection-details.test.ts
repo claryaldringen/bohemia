@@ -959,3 +959,69 @@ describe('selectionDetails – hromada klád (forest.md – Mýcení a hromada k
     expect(selectionDetails(view, scene, target)).toBeNull();
   });
 });
+
+describe('selectionDetails – víc vybraných lidí', () => {
+  const person = (id: number, role: 'villager' | 'wife', expedition?: object): object => ({
+    id,
+    age: 30,
+    sex: role === 'wife' ? 'female' : 'male',
+    home: 1,
+    role,
+    ...(expedition ? { expedition } : {}),
+  });
+
+  it('jezdec na koni a žena: síla = strengthMounted + 0, řada portrétů a stavy tlačítek', () => {
+    const withPeople = {
+      ...scene,
+      labor: {
+        persons: [
+          person(5, 'villager', { rider: true, inParty: true, strength: 3 }),
+          person(6, 'wife', { strength: 0 }),
+        ],
+      },
+    } as unknown as SceneVillage;
+    const parties = [
+      {
+        id: 1,
+        phase: 'out',
+        controllable: true,
+        leaderId: 5,
+        waitDaysLeft: null,
+        horseWork: null,
+        groups: [{ id: 0, cell: { x: 2, y: 2 }, pos: { x: 0, z: 0 }, goal: null, arrived: true }],
+        people: [
+          {
+            personId: 5,
+            group: 0,
+            lord: false,
+            rider: true,
+            mounted: true,
+            horse: 'ridden',
+            horseId: 9,
+            wounded: false,
+            strength: 4.5,
+            female: false,
+            child: false,
+          },
+        ],
+      },
+    ] as unknown as Parameters<typeof selectionDetails>[5];
+    const details = selectionDetails(
+      view,
+      withPeople,
+      { kind: 'people', ids: [5, 6] },
+      null,
+      null,
+      parties,
+      [],
+      { x: 1, y: 1 },
+    );
+    expect(details).toMatchObject({ kind: 'people', strength: 4.5 });
+    if (details?.kind !== 'people') throw new Error('people');
+    expect(details.people.map((p) => p.id)).toEqual([5, 6]);
+    expect(details.states).toEqual([
+      expect.objectContaining({ personId: 5, mounted: true, inParty: true, atHomeMap: false }),
+      expect.objectContaining({ personId: 6, rider: false, inParty: false }),
+    ]);
+  });
+});
