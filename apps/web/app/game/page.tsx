@@ -22,7 +22,7 @@ export default async function GamePage(): Promise<ReactElement> {
   ]);
   const village = await villageViewForEntry(entry, today, session.user.id);
   const languageChoice = await languageChoiceForPlayer(session.user.id, entry.villageId !== null);
-  // válka a jezdci na mapě – scéna se na ně ptá jen tehdy (D62)
+  // jezdci na mapě – scéna se na ně ptá jen tehdy (D62); válku nese událost `war`
   const watch =
     entry.villageId === null
       ? MAP_WATCH_QUIET

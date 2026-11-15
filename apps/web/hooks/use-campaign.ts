@@ -43,6 +43,12 @@ export function useCampaign(campaignId: string | null): CampaignHandle {
   const receivedRef = useRef(0);
   const spanRef = useRef(CAMPAIGN_SPAN_MAX_MS);
   const idRef = useRef(campaignId);
+  /**
+   * Počet událostí `campaign` – odpověď dotazu, během kterého přišla událost, se zahodí (jako ve
+   * `useWarScene`): událost je stejně čerstvá nebo novější, takže pohled spočtený před koncem
+   * tažení nevrátí mapu v témž taktu na pochod (revize Úlohy 5).
+   */
+  const eventsRef = useRef(0);
   const [view, setView] = useState<CampaignView | null>(null);
   const [gone, setGone] = useState(false);
   const on = campaignId !== null && !gone;
@@ -85,6 +91,7 @@ export function useCampaign(campaignId: string | null): CampaignHandle {
 
   const load = useCallback(async (): Promise<void> => {
     if (campaignId === null) return;
+    const seen = eventsRef.current;
     // výpadek sítě nebo vadná odpověď nesmí nic rozbít – stav doplní další událost nebo obnova
     let status: number;
     let body: CampaignResponse;
@@ -96,8 +103,8 @@ export function useCampaign(campaignId: string | null): CampaignHandle {
       console.warn('Tažení se nepodařilo načíst.', error);
       return;
     }
-    // odpověď k jinému tažení (hráč mezitím přepnul) se zahodí
-    if (idRef.current !== campaignId) return;
+    // odpověď k jinému tažení (hráč mezitím přepnul), nebo mezitím přišla událost – ta má přednost
+    if (idRef.current !== campaignId || eventsRef.current !== seen) return;
     if ('error' in body) {
       if (status === 404) setGone(true);
       return;
@@ -115,6 +122,7 @@ export function useCampaign(campaignId: string | null): CampaignHandle {
   // událost platí vždy, když sedí tažení – server ji posílá jen spojení s tímto tažením v rozsahu
   useServerEvent('campaign', (event) => {
     if (event.campaignId !== idRef.current) return;
+    eventsRef.current++;
     if (event.view === null) setGone(true);
     else apply(event.view);
   });

@@ -106,6 +106,29 @@ export function scopeWantsTask(scope: ConnectionScope, task: ComputeTask): boole
 }
 
 /**
+ * Stav rozsahu, který spojení dostane hned při připojení a po `resync` (revize Úlohy 5): válka na
+ * vlastní mapě (`war-home`), na cizí mapě (`war-scene`) a otevřené tažení (`campaign`). První
+ * výsledek spojení jde vždy – kdyby šel až s první směrovanou změnou, osamělé `war: null` by
+ * prozradilo, že se políčka vsi něčeho dotklo (mlha války); dotaz prohlížeče při otevření navíc
+ * běží dřív, než je spojení v rozbočovači, a změnu mezi tím by nikdo neposlal. Výpravy a hosté ne.
+ */
+export function scopeTasks(scope: ConnectionScope): ComputeTask[] {
+  const { playerId } = scope;
+  const tasks: ComputeTask[] = [];
+  if (scope.settlementId !== null) {
+    tasks.push({ what: 'war-home', playerId, settlementId: scope.settlementId });
+  }
+  if (scope.scene !== null) {
+    const { campaignId, cell } = scope.scene;
+    tasks.push({ what: 'war-scene', playerId, campaignId, cell });
+  }
+  if (scope.campaignId !== null) {
+    tasks.push({ what: 'campaign', playerId, campaignId: scope.campaignId });
+  }
+  return tasks;
+}
+
+/**
  * Signály a výpočty pro změnu (Rozhodnutí 4):
  * - `v` a `s` – `village` hráči `p` (`op`) a spojením se zobrazenou vsí `id`;
  * - `n` – `notices`, `x` – `skip` hráči `p`;

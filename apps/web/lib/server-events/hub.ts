@@ -6,6 +6,7 @@ import { serverComputers } from './pushers';
 import {
   computeKey,
   routeChange,
+  scopeTasks,
   scopeWantsTask,
   type ComputeTask,
   type ConnectionScope,
@@ -14,7 +15,8 @@ import {
 // Rozbočovač událostí ze serveru (docs/code/server-events.md – Rozbočovač; plán 2026-11-15): drží
 // otevřená spojení SSE procesu webu, změny z LISTEN rozešle podle rozsahu spojení (`routeChange`).
 // Signály jdou hned, stav (výpravy, tažení, válka) se počítá jednou na hráče a předmět přes
-// slučovač a spojení ho dostane jen při změně klíče proti tomu, co mu bylo naposled posláno.
+// slučovač a spojení ho dostane jen při změně klíče proti tomu, co mu bylo naposled posláno. Stav
+// války a tažení v rozsahu (`scopeTasks`) dostane spojení hned při připojení a po `resync`.
 
 /**
  * Nejvýš spojení na hráče – další nejstaršímu pošle `evicted` a zavře ho (Rozhodnutí 6, limit 6
@@ -47,7 +49,10 @@ export type Computers = Partial<
 >;
 
 export interface Hub {
-  /** Přidá spojení; páté spojení hráče pošle nejstaršímu `evicted` a zavře ho. */
+  /**
+   * Přidá spojení a spočte mu stav rozsahu (`scopeTasks`); páté spojení hráče pošle nejstaršímu
+   * `evicted` a zavře ho.
+   */
   add(sink: Omit<Sink, 'id'>): Sink;
   /** Odebere spojení (opakované odebrání nevadí). */
   remove(id: number): void;
@@ -55,7 +60,7 @@ export interface Hub {
   dispatch(change: DbChange): void;
   /**
    * Po obnově LISTEN – `sync` všem spojením (mezitím mohla nějaká změna uniknout); paměť klíčů se
-   * smaže, další výsledek výpočtu jde znovu.
+   * smaže a stav rozsahu (`scopeTasks`) se spočte všem znovu, další výsledek výpočtu jde znovu.
    */
   resync(): void;
   /** Počet otevřených spojení. */
@@ -133,6 +138,13 @@ export function createHub(deps: {
     }
   };
 
+  /** Výpočet přes slučovač (jeden na klíč), výsledek dostanou všechna spojení s předmětem. */
+  const schedule = (task: ComputeTask): void => {
+    const computer = deps.computers[task.what];
+    if (!computer) return;
+    coalescer.run(computeKey(task), async () => deliver(task, await computer(task)));
+  };
+
   return {
     add(input): Sink {
       const sink: Sink = {
@@ -160,6 +172,9 @@ export function createHub(deps: {
           }
         }
       }
+      // stav rozsahu hned – nové spojení nemá v paměti klíčů nic, první výsledek dostane vždy
+      // (revize Úlohy 5: jinak by ho dostalo až s první změnou, která se dotkne jeho rozsahu)
+      for (const task of scopeTasks(sink.scope)) schedule(task);
       return sink;
     },
     remove,
@@ -169,16 +184,16 @@ export function createHub(deps: {
         const sink = sinks.get(sinkId);
         if (sink) send(sink, name, data);
       }
-      for (const task of computes) {
-        const computer = deps.computers[task.what];
-        if (!computer) continue;
-        coalescer.run(computeKey(task), async () => deliver(task, await computer(task)));
-      }
+      for (const task of computes) schedule(task);
     },
     resync(): void {
-      // prohlížeč po `sync` dočte vše přes routes – další výsledek výpočtu jde znovu všem
+      // prohlížeč po `sync` dočte vše přes routes – další výsledek výpočtu jde znovu všem; stav
+      // rozsahu se spočte hned, ať první výsledek nepřijde až s první změnou (jako při připojení)
       sentKeys.clear();
       for (const sink of sinks.values()) send(sink, 'sync', { protocol: SERVER_EVENTS_PROTOCOL });
+      for (const sink of [...sinks.values()]) {
+        for (const task of scopeTasks(sink.scope)) schedule(task);
+      }
     },
     size: () => sinks.size,
   };

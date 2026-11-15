@@ -244,7 +244,8 @@ test('válka dvou hráčů: A přepadne B, B uteče do lesa i s dobytkem, kronik
     `INSERT INTO campaign_checkpoint (campaign_id, tick, state) VALUES ($1, $2, $3::jsonb)`,
     [campaignId, tick, JSON.stringify(state)],
   );
-  // tažení vzniklo přímo v databázi – klient se o válce na mapě dozví s dotazem na ves (D62)
+  // tažení vzniklo přímo v databázi – válku na mapě přinese událost `war` (trigger bodu tažení,
+  // server-events.md – Válka), dotaz na ves dočte stav vsí
   for (const page of [a, b]) if (!page.isClosed()) await pollVillage(page);
 
   let worker = await startWorker();
@@ -643,7 +644,8 @@ test('nájezd na ves s palisádou s ochozem: obránci na hradbě, útočníci p�
     `INSERT INTO campaign_checkpoint (campaign_id, tick, state) VALUES ($1, $2, $3::jsonb)`,
     [campaignId, tick, JSON.stringify(state)],
   );
-  // tažení vzniklo přímo v databázi – klient se o válce na mapě dozví s dotazem na ves (D62)
+  // tažení vzniklo přímo v databázi – válku na mapě přinese událost `war` (trigger bodu tažení,
+  // server-events.md – Válka), dotaz na ves dočte stav vsí
   for (const page of [a, b]) if (!page.isClosed()) await pollVillage(page);
 
   let worker = await startWorker();
@@ -823,7 +825,8 @@ test('útočník sleduje vojsko ve 3D na mapě napadené vsi i na sousední, po 
     `INSERT INTO campaign_checkpoint (campaign_id, tick, state) VALUES ($1, $2, $3::jsonb)`,
     [campaignId, tick, JSON.stringify(onMap(placeB.cell, at))],
   );
-  // tažení vzniklo přímo v databázi – klient se o válce na mapě dozví s dotazem na ves (D62)
+  // tažení vzniklo přímo v databázi – válku na mapě přinese událost `war` (trigger bodu tažení,
+  // server-events.md – Válka), dotaz na ves dočte stav vsí
   for (const page of [a, b]) if (!page.isClosed()) await pollVillage(page);
 
   try {
@@ -1049,7 +1052,8 @@ test('útočník vidí na mapě cíle, co rod zná – známý dům a odkrytou s
     `INSERT INTO campaign_checkpoint (campaign_id, tick, state) VALUES ($1, $2, $3::jsonb)`,
     [campaignId, tick, JSON.stringify(state)],
   );
-  // tažení vzniklo přímo v databázi – klient se o válce na mapě dozví s dotazem na ves (D62)
+  // tažení vzniklo přímo v databázi – válku na mapě přinese událost `war` (trigger bodu tažení,
+  // server-events.md – Válka), dotaz na ves dočte stav vsí
   for (const page of [a, b]) if (!page.isClosed()) await pollVillage(page);
 
   try {
@@ -1310,7 +1314,8 @@ test('obránce za hradbou s branou rozkáže „Probít se“ – záměr v taž
     `INSERT INTO campaign_checkpoint (campaign_id, tick, state) VALUES ($1, $2, $3::jsonb)`,
     [campaignId, tick, JSON.stringify(state)],
   );
-  // tažení vzniklo přímo v databázi – klient se o válce na mapě dozví s dotazem na ves (D62)
+  // tažení vzniklo přímo v databázi – válku na mapě přinese událost `war` (trigger bodu tažení,
+  // server-events.md – Válka), dotaz na ves dočte stav vsí
   for (const page of [a, b]) if (!page.isClosed()) await pollVillage(page);
 
   try {
@@ -1496,7 +1501,8 @@ test('varovaná ves – průvod uprchlíků se stádem a posel ve scéně obrán
     `INSERT INTO campaign_checkpoint (campaign_id, tick, state) VALUES ($1, $2, $3::jsonb)`,
     [campaignId, tick, JSON.stringify(state)],
   );
-  // tažení vzniklo přímo v databázi – klient se o válce na mapě dozví s dotazem na ves (D62)
+  // tažení vzniklo přímo v databázi – válku na mapě přinese událost `war` (trigger bodu tažení,
+  // server-events.md – Válka), dotaz na ves dočte stav vsí
   for (const page of [a, b]) if (!page.isClosed()) await pollVillage(page);
 
   try {
@@ -1711,8 +1717,8 @@ test('ves B varovaná utíká do hradiště pána a po odtažení vojska se vrá
     `INSERT INTO campaign_checkpoint (campaign_id, tick, state) VALUES ($1, $2, $3::jsonb)`,
     [campaignId, tick, JSON.stringify(state)],
   );
-  // o válce na mapě se klienti dozví s dotazem na ves (D62) až po startu workeru (`notices`) – dotaz
-  // hned po vložení tažení (dopočet vsí webem před prvním kolem) varování B v tomto testu zdržel
+  // válku na mapě přinese klientům událost `war` (trigger bodu tažení), na ves se tu hned po vložení
+  // tažení neptáme – dopočet vsí webem před prvním kolem workeru varování B v tomto testu zdržel
 
   let worker = await startWorker();
   /** Uloží do kontrolního bodu změnu `edit` (worker stojí). */

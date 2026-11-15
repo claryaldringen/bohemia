@@ -181,6 +181,84 @@ describe('rozbočovač událostí', () => {
     expect(sink.log).toEqual(['journeys', 'sync', 'journeys']);
   });
 
+  it('nové spojení dostane stav rozsahu hned, pak jen při změně klíče – žádné osamělé war: null (revize Úlohy 5)', async () => {
+    const war = (key: string) =>
+      vi.fn(async (): Promise<ComputeResult> => ({
+        name: 'war',
+        data: { key, war: null },
+        key: 'none',
+      }));
+    const home = war('s:s1');
+    const onMap = war('c:c2@5,5');
+    const campaign = vi.fn(async (): Promise<ComputeResult> => ({
+      name: 'campaign',
+      data: { campaignId: 'c1', view: null },
+      key: 'none',
+    }));
+    const { hub } = hubWith({ 'war-home': home, 'war-scene': onMap, campaign });
+    const sink = recorder(
+      scope({
+        playerId: 'p',
+        villageId: 'v1',
+        settlementId: 's1',
+        cell: { x: 1, y: 1 },
+        campaignId: 'c1',
+        scene: { campaignId: 'c2', cell: { x: 5, y: 5 } },
+      }),
+    );
+    const plain = recorder(scope({ playerId: 'q' }));
+    hub.add(sink);
+    hub.add(plain);
+    await vi.advanceTimersByTimeAsync(COALESCE_MS);
+    expect(home).toHaveBeenCalledTimes(1);
+    expect(onMap).toHaveBeenCalledTimes(1);
+    expect(campaign).toHaveBeenCalledTimes(1);
+    expect(sink.sent).toEqual(
+      expect.arrayContaining([
+        { name: 'war', data: { key: 's:s1', war: null } },
+        { name: 'war', data: { key: 'c:c2@5,5', war: null } },
+        { name: 'campaign', data: { campaignId: 'c1', view: null } },
+      ]),
+    );
+    expect(sink.sent).toHaveLength(3);
+    expect(plain.sent).toEqual([]);
+    // tažení cizího hráče se dotkne políčka vsi – stav se nezměnil, spojení nic nedostane
+    hub.dispatch({ k: 'c', id: 'c9', t: 5, c: [[1, 1]], a: [], big: false });
+    await vi.advanceTimersByTimeAsync(COALESCE_MS);
+    expect(home).toHaveBeenCalledTimes(2);
+    expect(sink.sent).toHaveLength(3);
+  });
+
+  it('konec tažení mezi dotazem prohlížeče a připojením přijde novému spojení hned (revize Úlohy 5)', async () => {
+    // prohlížeč se zeptal ještě starým spojením a dostal pochod; tažení pak skončilo – další změna
+    // z databáze už nepřijde
+    const campaign = vi.fn(async (): Promise<ComputeResult> => ({
+      name: 'campaign',
+      data: { campaignId: 'c1', view: null },
+      key: 'none',
+    }));
+    const { hub } = hubWith({ campaign });
+    const sink = recorder(scope({ playerId: 'p', campaignId: 'c1' }));
+    hub.add(sink);
+    await vi.advanceTimersByTimeAsync(COALESCE_MS);
+    expect(sink.sent).toEqual([{ name: 'campaign', data: { campaignId: 'c1', view: null } }]);
+  });
+
+  it('po resync dostane každé spojení stav rozsahu znovu i bez změny z databáze', async () => {
+    const home = vi.fn(async (): Promise<ComputeResult> => ({
+      name: 'war',
+      data: { key: 's:s1', war: null },
+      key: 'none',
+    }));
+    const { hub } = hubWith({ 'war-home': home });
+    const sink = recorder(scope({ playerId: 'p', villageId: 'v1', settlementId: 's1' }));
+    hub.add(sink);
+    await vi.advanceTimersByTimeAsync(COALESCE_MS);
+    hub.resync();
+    await vi.advanceTimersByTimeAsync(COALESCE_MS);
+    expect(sink.log).toEqual(['war', 'sync', 'war']);
+  });
+
   it('páté spojení hráče pošle nejstaršímu evicted a zavře ho', () => {
     const { hub } = hubWith();
     const own = Array.from({ length: MAX_CONNECTIONS_PER_PLAYER + 1 }, () =>

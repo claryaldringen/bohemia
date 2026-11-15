@@ -27,13 +27,17 @@ CREATE OR REPLACE FUNCTION bohemia_change_cells(state jsonb) RETURNS jsonb AS $$
   WHERE q.x IS NOT NULL AND q.y IS NOT NULL
 $$ LANGUAGE sql IMMUTABLE;
 --> statement-breakpoint
--- Varované vsi a cíl tažení (jen uuid), bez opakování.
+-- Vsi, které o tažení vědí (jen uuid), bez opakování: varované od taktu varování (`warnTick` ≤ takt
+-- bodu) a cíl jen s bitvou (obránce ji vidí celou, padlí leží do konce dne). Cíl bez bitvy ani
+-- kandidáti hradišť (`hosts`) ne – signál `alarm` by vsi prozradil tažení dřív, než ho spatří.
 CREATE OR REPLACE FUNCTION bohemia_change_alarmed(state jsonb) RETURNS jsonb AS $$
   SELECT coalesce(jsonb_agg(DISTINCT a.id), '[]'::jsonb)
   FROM jsonb_array_elements_text(
-    coalesce(jsonb_path_query_array(state->'alarm', '$.villages[*].villageId'), '[]'::jsonb)
-    || coalesce(jsonb_path_query_array(state->'alarm', '$.villages[*].hosts[*]'), '[]'::jsonb)
-    || coalesce(jsonb_path_query_array(state, '$.target.villageId'), '[]'::jsonb)
+    coalesce(jsonb_path_query_array(state->'alarm', '$.villages[*] ? (@.warnTick <= $t).villageId',
+      jsonb_build_object('t', state->'tick')), '[]'::jsonb)
+    || CASE WHEN jsonb_typeof(state->'battle') = 'object'
+            THEN coalesce(jsonb_path_query_array(state, '$.target.villageId'), '[]'::jsonb)
+            ELSE '[]'::jsonb END
   ) a(id)
   WHERE a.id ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
 $$ LANGUAGE sql IMMUTABLE;
@@ -133,7 +137,7 @@ CREATE TRIGGER journey_change_notify AFTER UPDATE OF status ON journey
   FOR EACH ROW WHEN (OLD.status IS DISTINCT FROM NEW.status)
   EXECUTE FUNCTION journey_change_notify();
 --> statement-breakpoint
--- Bod tažení: takt, políčka a varované vsi (u UPDATE sjednocení starého a nového stavu).
+-- Bod tažení: takt, políčka a vsi, které o tažení vědí (u UPDATE sjednocení starého a nového stavu).
 CREATE OR REPLACE FUNCTION campaign_checkpoint_change_notify() RETURNS trigger AS $$
 DECLARE
   cells jsonb;

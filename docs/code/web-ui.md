@@ -1292,7 +1292,8 @@ cizích vsí v dohledu vlastních mužů (`CampaignView.flights`, jen na ukázan
 dvorce zmenšenými na 110 m mapy (`FlightMarks`: uprchlíci se stádem `alarm-all`, jen lidé
 `alarm-people`, posel `alarm-messenger`); počty lidí a dobytka jen v popisku (`title`),
 `interpolateCampaign` je posouvá mezi dotazy jako muže. Test `hud/__tests__/CampaignMap.test.tsx`.
-**Dotazování na varování** (každé 2 s) čte stavy vsi a hradiště z paměti přes dotazy
+**Dotaz na varování** (`use-alarm.ts` – při výběru vsi, na `sync` a na událost `alarm`, tedy
+≈ s každým uložením bodu tažení, o kterém ves ví – server-events.md – Válka) čte stavy vsi a hradiště z paměti přes dotazy
 (`VillageMemory` 8 vsí – `withVillageMemory` v `lib/alarm.ts`, platnost hlídá otisk verze jako
 `withVillageCache`) a mřížky pochodu z `MarchGridMemo` (`AlarmViewDeps.grids`) – u vsi velikosti
 Vlkova 76 → 4 ms na dotaz (worker.md – Výkon – Pohled na varování). E2E `multiplayer-war.spec.ts` –

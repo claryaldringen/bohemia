@@ -36,6 +36,7 @@ const JOURNEY = '00000000-0000-4000-8000-0000000000f1';
 const CAMPAIGN = '00000000-0000-4000-8000-0000000000f2';
 const VILLAGE_V = '00000000-0000-4000-8000-0000000000a1';
 const TARGET_T = '00000000-0000-4000-8000-0000000000a2';
+const HOST_H = '00000000-0000-4000-8000-0000000000a3';
 
 let listener: Client;
 let raw: string[] = [];
@@ -233,14 +234,16 @@ describe('triggery oznamující změny', () => {
     expect(changes.at(-1)).toMatchObject({ k: 'j', id: JOURNEY, t: null, p: 'a' });
   });
 
-  it('tažení: políčka skupin, poslů a uprchlíků, varované vsi a cíl; konec t null', async () => {
+  it('tažení: políčka skupin, poslů a uprchlíků, varované vsi; konec t null', async () => {
+    // bez bitvy a bez varování cíl v a není – napadená ves se o tažení nesmí dozvědět při vyslání
     await campaigns.create(campaignState(100), NOW);
     expect(await flush()).toEqual([
-      { k: 'c', id: CAMPAIGN, t: 100, c: [[1, 1]], a: [TARGET_T], big: false },
+      { k: 'c', id: CAMPAIGN, t: 100, c: [[1, 1]], a: [], big: false },
     ]);
     seen = [];
     const alarm = {
-      villages: [{ villageId: VILLAGE_V, hosts: [], seenTick: 1 }],
+      // kandidát hradiště (hosts) v a není – vlastní záznam dostane až od posla
+      villages: [{ villageId: VILLAGE_V, hosts: [HOST_H], seenTick: 1, warnTick: 105 }],
       messengers: [
         { status: 'running', ...cell(2, 1) },
         { status: 'arrived', ...cell(9, 9) },
@@ -265,7 +268,7 @@ describe('triggery oznamující změny', () => {
       ]),
     );
     expect(change.c).not.toContainEqual([9, 9]);
-    expect(change.a).toEqual(expect.arrayContaining([VILLAGE_V, TARGET_T]));
+    expect(change.a).toEqual([VILLAGE_V]);
     seen = [];
     await db
       .update(schema.campaign)
@@ -273,20 +276,46 @@ describe('triggery oznamující změny', () => {
       .where(eq(schema.campaign.id, CAMPAIGN));
     const ended = (await flush()).at(-1);
     expect(ended).toMatchObject({ k: 'c', id: CAMPAIGN, t: null, big: false });
-    expect(ended?.k === 'c' && ended.a).toEqual(expect.arrayContaining([VILLAGE_V, TARGET_T]));
+    expect(ended?.k === 'c' && ended.a).toEqual([VILLAGE_V]);
   });
 
-  it('UPDATE bodu tažení nese sjednocení starého a nového stavu (políčka, vsi, cíl)', async () => {
+  it('cíl tažení je v a jen s bitvou, varovaná ves až od taktu, kdy o vojsku ví', async () => {
+    const alarm = {
+      villages: [{ villageId: VILLAGE_V, warnTick: 103 }],
+      messengers: [],
+      flights: [],
+    };
+    const battle = { outcome: 'ongoing' };
+    await campaigns.create(campaignState(100, { battle, alarm }), NOW);
+    // vesničan vojsko spatřil, ves to ví až v taktu 103 (doběhne domů)
+    expect((await flush()).at(-1)).toMatchObject({ k: 'c', t: 100, a: [TARGET_T] });
+    seen = [];
+    await campaigns.saveCheckpoint(CAMPAIGN, {
+      fromTick: 100,
+      seenIntents: 0,
+      state: campaignState(103, { battle: { outcome: 'won' }, alarm }),
+      outbox: null,
+    });
+    const [change] = await flush();
+    if (change?.k !== 'c') throw new Error('čekal se druh c');
+    expect([...change.a].sort()).toEqual([TARGET_T, VILLAGE_V].sort());
+  });
+
+  it('UPDATE bodu tažení nese sjednocení starého a nového stavu (políčka, vsi, cíl s bitvou)', async () => {
     const OLD_V = '00000000-0000-4000-8000-0000000000b1';
     const NEW_V = '00000000-0000-4000-8000-0000000000b2';
     const NEW_T = '00000000-0000-4000-8000-0000000000b3';
     const alarm = (villageId: string): Record<string, unknown> => ({
-      villages: [{ villageId, hosts: [] }],
+      villages: [{ villageId, hosts: [], warnTick: 90 }],
       messengers: [],
       flights: [],
       nextRef: 0,
     });
-    await campaigns.create(campaignState(100, { alarm: alarm(OLD_V) }), NOW);
+    // starý stav s bitvou u cíle TARGET_T, nový míří na NEW_T bez bitvy
+    await campaigns.create(
+      campaignState(100, { alarm: alarm(OLD_V), battle: { outcome: 'won' } }),
+      NOW,
+    );
     await flush();
     seen = [];
     await campaigns.saveCheckpoint(CAMPAIGN, {
@@ -305,7 +334,7 @@ describe('triggery oznamující změny', () => {
       [1, 1],
       [7, 7],
     ]);
-    expect([...change.a].sort()).toEqual([OLD_V, NEW_V, TARGET_T, NEW_T].sort());
+    expect([...change.a].sort()).toEqual([OLD_V, NEW_V, TARGET_T].sort());
   });
 
   it('podivné políčko v bodu zápis neshodí – uloží se a oznámení se vynechá nebo zkrátí', async () => {
@@ -336,6 +365,7 @@ describe('triggery oznamující změny', () => {
     const many = Array.from({ length: 300 }, (_, i) => ({
       villageId: `00000000-0000-4000-8000-${String(i).padStart(12, '0')}`,
       hosts: [],
+      warnTick: 100,
     }));
     await campaigns.create(
       campaignState(100, { alarm: { villages: many, messengers: [], flights: [] } }),

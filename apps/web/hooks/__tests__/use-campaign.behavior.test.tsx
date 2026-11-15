@@ -91,6 +91,27 @@ describe('useCampaign', () => {
     expect(handle.view?.phase).toBe('done');
   });
 
+  it('odpověď dotazu, během kterého přišla událost, se zahodí – konec se nevrátí na pochod (revize Úlohy 5)', async () => {
+    let answer: (response: Response) => void = () => {};
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        () =>
+          new Promise<Response>((resolve) => {
+            answer = resolve;
+          }),
+      ),
+    );
+    render('c1');
+    act(() => events.emit('campaign', { campaignId: 'c1', view: view(80, { phase: 'done' }) }));
+    expect(handle.view?.phase).toBe('done');
+    // dotaz spočtený před koncem odpoví pochod v témž taktu
+    answer(ok({ view: view(80) }));
+    await flush();
+    expect(handle.view?.phase).toBe('done');
+    expect(handle.sample(performance.now())?.phase).toBe('done');
+  });
+
   it('polohy mezi dvěma body se interpolují po dobu mezi nimi (nejvýš 15 s)', async () => {
     const man = (x: number): CampaignView['men'][number] =>
       ({ member: 1, cell: { x: 0, y: 0 }, pos: { x, z: 0 } }) as CampaignView['men'][number];

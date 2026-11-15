@@ -73,6 +73,8 @@
    | `x` | průběh přeskoku času (posílá web, ne trigger)                          | `{ k, p, progress }`                                        |
    - `c` = políčka `[x, y]`: skupiny, běžící poslové (jako `cells` ve `village-holds.ts`) a skupiny uprchlíků (`alarm.flights[*].cell`).
    - `a` = varované vsi (`alarm.villages[*].villageId` a `hosts`) a cíl `target.villageId`, jen uuid.
+     _Změna po revizi úlohy 5:_ jen vsi, které o tažení vědí – varované od `warnTick` ≤ takt bodu a cíl
+     jen s bitvou (`state.battle`); `hosts` ne (docs/code/server-events.md – Oznámení v databázi).
    - U UPDATE je `c` i `a` sjednocení starého a nového stavu. Odchod z mapy tak dostane událost bez paměti rozbočovače.
    - Samotný `outbox` (`clearOutbox`) neoznamuje.
 

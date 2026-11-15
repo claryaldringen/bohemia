@@ -18,7 +18,10 @@ import type { CampaignSummary, CampaignView } from './campaign-view';
 // composition root – use-casy `campaignViewFor` a `commandCampaign` nad skutečnými repozitáři.
 // Herní logika je v `packages/game/src/application/campaign-view.ts`.
 
-/** Mřížky mapy cíle pro dohled v lese – pohled se ptá 2× za sekundu, mřížka se mění po dnech. */
+/**
+ * Mřížky mapy cíle pro dohled v lese – pohled se počítá s každou změnou bodu tažení (událost
+ * `campaign`, server-events.md – Válka), mřížka se mění po dnech.
+ */
 const SIGHT_GRIDS = new LruCache<string, MarchGrid>(4);
 /** Obydlí cílových vsí po herních dnech – celý stav vsi se nečte při každém dotazu pohledu. */
 const TARGETS = new LruCache<string, readonly TargetDwelling[]>(16);

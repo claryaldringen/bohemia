@@ -45,8 +45,8 @@ export async function chooseLanguageAction(
  * načte stránku znovu. S `known` (otisk pohledu, který klient má – `VillageView.stamp`) vrátí
  * `{ unchanged: true }`, když se od něj nic nezměnilo. S `withNotices: true` přidá do odpovědi
  * (i `unchanged`) `playerNotices` – dosud nepřečtená upozornění mezi hráči, která tím označí
- * za přečtená (doručují se jen jednou), a `watch` – válka a jezdci na mapě vsi, na které se scéna
- * pak ptá zvlášť (D62 – bez nich se neptá).
+ * za přečtená (doručují se jen jednou), a `watch` – jezdci na mapě vsi, na které se scéna pak ptá
+ * zvlášť (D62 – bez nich se neptá); válku na mapě nese událost `war` (server-events.md – Válka).
  */
 export async function getVillageView(
   input: unknown,

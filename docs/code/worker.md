@@ -490,7 +490,8 @@ paměť bodu, jedno měření při load ≈ 20: opevněné 593, varování 1 357
 (`search`) 38 %, `cloneObject` 32 %, `(anonymní)` 9–10 % (dřív 61 %); nájezd – `(anonymní)`
 18–19 % (bod se ukládá a čte často – události), `distanceToSegment` 15 %, `cloneObject` 14 %.
 
-**Pohled na varování** – panel dvorce se při varování ptá každé 2 s (`use-alarm.ts`) a server
+**Pohled na varování** – panel dvorce se při varování ptá na událost `alarm` (`use-alarm.ts` – ≈ s
+každým uložením bodu tažení, o kterém ves ví, tedy ≈ každých 10 s; server-events.md – Válka) a server
 pokaždé spočte `villageAlarmView`: přístup k vsi, Vrátit se, tažení s varováním (kontrolní bod),
 kandidáti hradišť, mapy políček a volby (`alarmChoices`). `apps/worker/scripts/measure-alarm-view.ts`
 – nad skutečnou databází `bohemia_measure_alarm` (vytvoří a zmigruje; zdroj = největší ves `bohemia`,

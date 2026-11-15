@@ -18,7 +18,10 @@ import type { MapWatchView } from './journey-view';
 // Válka ve scéně vlastní mapy (war.md – Ve scéně – napojení na hru): composition root use-casu
 // `warSceneFor`. Herní logika i mlha války jsou v `packages/game` (`domain/war/scene-view.ts`).
 
-/** Mřížky mapy napadené vsi pro dohled v lese – scéna se ptá 2× za sekundu. */
+/**
+ * Mřížky mapy napadené vsi pro dohled v lese – válka se počítá s každou změnou bodu tažení (událost
+ * `war`, server-events.md – Válka) i s dotazem scény.
+ */
 const SIGHT_GRIDS = new LruCache<string, MarchGrid>(4);
 /** Domy a opevnění napadených vsí po herních dnech – stav vsi se nečte při každém dotazu. */
 const DEFENDERS = new LruCache<string, WarSceneDefender>(16);

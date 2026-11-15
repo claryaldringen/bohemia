@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import type { DbChange } from '@bohemia/db';
-import { computeKey, routeChange, type ComputeTask, type ConnectionScope } from '../routing';
+import {
+  computeKey,
+  routeChange,
+  scopeTasks,
+  type ComputeTask,
+  type ConnectionScope,
+} from '../routing';
 
 const V_OWN = 'v-own';
 const V_OTHER = 'v-other';
@@ -185,5 +191,23 @@ describe('směrování změn na spojení (Rozhodnutí 4)', () => {
       ).map(computeKey),
     );
     expect(keys.size).toBe(7);
+  });
+
+  it('scopeTasks – stav rozsahu při připojení: válka na vlastní i cizí mapě a tažení (revize Úlohy 5)', () => {
+    expect(scopeTasks(scope({ playerId: 'p' }))).toEqual([]);
+    expect(scopeTasks(inVillage('p', V_OWN, null))).toEqual([
+      { what: 'war-home', playerId: 'p', settlementId: `s-${V_OWN}` },
+    ]);
+    const full = scope({
+      ...inVillage('p', V_OWN, { x: 1, y: 1 }),
+      campaignId: CAMPAIGN,
+      scene: { campaignId: 'c-2', cell: { x: 5, y: 5 } },
+    });
+    // výpravy a hosté ne – jejich první výsledek nic o válce neprozradí
+    expect(scopeTasks(full)).toEqual([
+      { what: 'war-home', playerId: 'p', settlementId: `s-${V_OWN}` },
+      { what: 'war-scene', playerId: 'p', campaignId: 'c-2', cell: { x: 5, y: 5 } },
+      { what: 'campaign', playerId: 'p', campaignId: CAMPAIGN },
+    ]);
   });
 });

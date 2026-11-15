@@ -52,7 +52,9 @@ export function useWarWatch({
   homeCell: GridCell | null;
   /** Zobrazená ves (rozkaz „Probít se“). */
   villageId: string | null;
-  /** Zeptá se na ves hned – po vyslání vojska se tak hned dozví o válce na mapě. */
+  /**
+   * Zeptá se na ves hned – po vyslání vojska (muži odešli); vojsko na mapě přinese událost `war`.
+   */
   refreshVillage: () => void;
 }): WarWatch {
   // Válka na mapě sídla ve scéně (war.md – Ve scéně – napojení na hru): napadená ves i vlastní

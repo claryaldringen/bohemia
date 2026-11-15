@@ -22,9 +22,14 @@ adaptérů – oznámí tak každá cesta zápisu (web, worker, e2e pomocníci s
 | `x` | průběh přeskoku času (posílá web, ne trigger)                          | `{ k, p, progress }`                                        |
 
 - `c` = políčka `[x, y]`: skupiny, běžící poslové (jako `cells` ve `village-holds.ts`) a skupiny
-  uprchlíků (`alarm.flights[*].cell`). `a` = varované vsi (`alarm.villages[*].villageId` a
-  `hosts`) a cíl `target.villageId`, jen uuid. U UPDATE je `c` i `a` sjednocení starého a nového
-  stavu, takže odchod z mapy dostane událost bez paměti rozbočovače.
+  uprchlíků (`alarm.flights[*].cell`). `a` = vsi, které o tažení vědí, jen uuid (revize Úlohy 5):
+  varované (`alarm.villages[*].villageId`) až od taktu varování (`warnTick` ≤ takt bodu – vesničan
+  musí doběhnout domů) a cíl `target.villageId` jen s bitvou (`state.battle` – obránce ji vidí celou,
+  rozhodnutá leží u cíle do konce dne, `shownBattle`). Cíl bez bitvy ani kandidáti hradišť (`hosts`)
+  v `a` nejsou – `a` dává signál `alarm` a výpočet `war-home`, takže by napadená ves (či hradiště
+  pána) poznala tažení dřív, než ho spatří; vlastní záznam dostane hradiště až od posla
+  (`warnByMessenger`), uprchlíky a posly k němu nese `c`. U UPDATE je `c` i `a` sjednocení starého
+  a nového stavu, takže odchod z mapy dostane událost bez paměti rozbočovače.
 - Samotný `outbox` (`clearOutbox`) neoznamuje. Neoznamuje se ani schránka vsi, záměry a jednání.
 - Náklad nad 7900 B (limit `NOTIFY` je 8000 B, měří se `octet_length`) nahradí funkce
   `bohemia_change_notify` krátkým `{ k, id, t, p, big: true }`; `big` znamená „všechna spojení
@@ -77,10 +82,15 @@ s jejím sídlem a políčkem světa, otevřené tažení a cizí mapa ve scén�
   Výpočet jde přes slučovač (`coalesce.ts` – `createCoalescer`): začne po `COALESCE_MS = 50`, pro
   klíč běží nejvýš jeden naráz a volání během běhu dají nejvýš jeden další. Výsledek
   `{ name, data, key }` jde spojením hráče se shodným předmětem (`scopeWantsTask`) – každému,
-  jehož vlastní naposled poslaný `key` se liší; první výsledek spojení jde vždy. Paměť klíčů je
+  jehož vlastní naposled poslaný `key` se liší; první výsledek spojení jde vždy. Proto `add`
+  spočte novému spojení hned stav rozsahu (`scopeTasks` – `war-home`, `war-scene`, `campaign`;
+  revize Úlohy 5): první výsledek tak nepřijde až s první změnou, která se dotkne rozsahu (osamělé
+  `war: null` by prozradilo, že se políčka vsi něco dotklo), a změna mezi dotazem prohlížeče při
+  otevření a vstupem spojení do rozbočovače se neztratí (konec tažení). Paměť klíčů je
   po spojení (smaže se v `remove`), ne po hráči – návrat na ves nebo výměna rozsahu by jinak při
   shodném klíči nedostaly nic a pohled by zůstal zastaralý (revize Úlohy 2). `resync` paměť
-  všech spojení smaže. Výpočet zůstává sdílený přes klíč slučovače.
+  všech spojení smaže a stav rozsahu spočte všem znovu (jako `add`). Výpočet zůstává sdílený přes
+  klíč slučovače.
 - **Spojení:** `add` / `remove`, nejvýš `MAX_CONNECTIONS_PER_PLAYER = 4` na hráče – páté pošle
   nejstaršímu `evicted` a zavře ho (i kvůli limitu 6 spojení HTTP/1.1 na původ). Bez `evicted` by
   se zavřený EventSource po `retry` připojil sám a vyhodil další panel, s 5+ panely dokola –
@@ -232,10 +242,11 @@ zobrazené vsi i všechny posluchače.
   `MapWatch.war` (D62) byl pravda už od začátku cizího tažení proti vsi a síťová odpověď dotazu na
   ves tak prozradila vojsko dřív, než ho ve vsi kdo spatřil – prohlížeči se už neposílá
   (`MapWatchView` v `lib/journey-view.ts` – jen `riders`, `mapWatchForPlayer`); use-case `mapWatchFor` ho dál počítá
-  (`packages/game` se v tomto plánu nemění). Zbývá časový signál: první výsledek spojení jde vždy,
-  takže spojení vsi dostane jednou `war: null`, když se poprvé změní bod tažení s vsí v `a`,
-  a signál `alarm` chodí s každým uložením bodu tažení proti vsi (trigger dává do `a` i cíl) –
-  obsah nic neprozradí, četnost ano (k řešení v routování signálu `alarm`).
+  (`packages/game` se v tomto plánu nemění). Časový signál (revize Úlohy 5): stav války dostane
+  spojení hned při připojení (`scopeTasks`), dál jen při změně klíče, takže osamělé `war: null` nic
+  neprozradí; signál `alarm` a výpočet `war-home` přes `a` jdou jen vsím, které o tažení vědí
+  (varované od `warnTick`, cíl s bitvou – Oznámení v databázi). Vojsko na mapě vsi dává výpočet
+  přes `c`, výsledek ale jde jen při změně toho, co ves vidí.
 - **Přítomnost vůdce:** spojení s tažením v rozsahu (`ConnectionScope.campaignId`, otevřená
   `CampaignMap`) v každém tepu i při připojení zavolá `campaignPresence` – route
   `commandCampaignForPlayer(hráč, tažení, { kind: 'presence' })`; odmítnutí (hráč nevede živě,
@@ -245,7 +256,8 @@ zobrazené vsi i všechny posluchače.
   - `useCampaign(campaignId)` (`hooks/use-campaign.ts`) – jeden `GET /api/campaign/<id>?since=-1`
     při otevření, na `sync` a `refresh`; událost `campaign` téhož id se použije jako dřív tělo
     dotazu (starší nebo týž takt se zahodí, v témž taktu jen jiná fáze projde), `view: null`
-    i 404 dají `gone`. Interpolace s rozpětím
+    i 404 dají `gone`. Odpověď dotazu, během kterého přišla událost, se zahodí (`eventsRef` jako
+    `useWarScene`) – pohled spočtený před koncem tažení nevrátí mapu v témž taktu na pochod. Interpolace s rozpětím
     `clamp(now − received, FRAME_MS, CAMPAIGN_SPAN_MAX_MS)` (15 s – body tažení chodí po ≥ 40
     taktech ≈ 10 s); snímek po 100 ms zůstává místní. Rozsah `campaignId` nastaví `CampaignMap`
     (`useEventScope`).
