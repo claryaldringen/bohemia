@@ -1,11 +1,9 @@
 import 'server-only';
 import {
-  mapWatchFor,
   orderBreakout,
   warSceneFor,
   warSceneOnMap,
   type GridCell,
-  type MapWatch,
   type MarchGrid,
   type OrderBreakoutDeps,
   type WarSceneDefender,
@@ -18,7 +16,10 @@ import { gameDeps, playerToday, villageRightsDeps } from './game';
 // Válka ve scéně vlastní mapy (war.md – Ve scéně – napojení na hru): composition root use-casu
 // `warSceneFor`. Herní logika i mlha války jsou v `packages/game` (`domain/war/scene-view.ts`).
 
-/** Mřížky mapy napadené vsi pro dohled v lese – scéna se ptá 2× za sekundu. */
+/**
+ * Mřížky mapy napadené vsi pro dohled v lese – válka se počítá s každou změnou bodu tažení (událost
+ * `war`, server-events.md – Válka) i s dotazem scény.
+ */
 const SIGHT_GRIDS = new LruCache<string, MarchGrid>(4);
 /** Domy a opevnění napadených vsí po herních dnech – stav vsi se nečte při každém dotazu. */
 const DEFENDERS = new LruCache<string, WarSceneDefender>(16);
@@ -45,23 +46,6 @@ export function warSceneForPlayer(
   settlementId: string,
 ): Promise<WarSceneView | null> {
   return warSceneFor(warSceneDeps(), { playerId, settlementId });
-}
-
-/**
- * Válka a jezdci na mapě vsi hráče (D62) – scéna se na válku a jezdce ptá jen tehdy; přichází
- * s dotazem na ves (i nezměněnou) a s prvním pohledem stránky.
- */
-export function mapWatchForPlayer(playerId: string, villageId: string): Promise<MapWatch> {
-  const deps = gameDeps();
-  return mapWatchFor(
-    {
-      settlements: deps.settlements,
-      villages: deps.villages,
-      campaigns: deps.campaigns,
-      journeys: deps.journeys,
-    },
-    { playerId, villageId },
-  );
 }
 
 /**

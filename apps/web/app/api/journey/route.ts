@@ -9,8 +9,8 @@ import {
 import type { JourneyResponse } from '@/lib/journey-view';
 import { parseVillageId } from '@/lib/village-input';
 
-// Pohled na výpravy (expeditions.md; plán 2026-11-14 – Úloha 7): prohlížeč se ptá 2× za
-// sekundu. Route Handler, ne server action – Next řadí server actions jednoho klienta za sebe,
+// Pohled na výpravy (expeditions.md; plán 2026-11-14 – Úloha 7): pohyb nese událost serveru `journeys`
+// (server-events.md); route zůstává pro dotaz při otevření, po `sync` a pro pojistku. Route Handler, ne server action – Next řadí server actions jednoho klienta za sebe,
 // takže by dotaz čekal za rozkazem hráče. Hráč vidí jen své výpravy; cizí i neexistující = stejná
 // odpověď (nic se neprozradí).
 //   GET /api/journey                  → { views } – pohledy na všechny výpravy hráče (prázdné = žádnou nemá)

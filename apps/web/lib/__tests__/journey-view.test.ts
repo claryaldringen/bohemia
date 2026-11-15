@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import type { ExpeditionView, PartyView, SeenCell } from '@bohemia/game';
 import {
   expeditionReason,
+  expeditionsKey,
+  visitorsKey,
   interpolateExpeditions,
   lordJourneyViewOf,
   knownEyeState,
@@ -138,5 +140,24 @@ describe('knownEyeState', () => {
       cell: { x: 1, y: 0 },
     });
     expect(knownEyeState('ready', known, 'c', null)).toEqual({ kind: 'unknown' });
+  });
+});
+
+describe('klíče pro události serveru', () => {
+  it('expeditionsKey: stejné takty = stejný klíč, nový takt ho změní, nic = prázdný', () => {
+    const a = view({ x: 0, z: 0 }, { x: 1, y: 1 }, 10);
+    expect(expeditionsKey([a])).toBe(expeditionsKey([{ ...a }]));
+    expect(expeditionsKey([a])).not.toBe(
+      expeditionsKey([view({ x: 0, z: 0 }, { x: 1, y: 1 }, 11)]),
+    );
+    expect(expeditionsKey([])).toBe('');
+  });
+
+  it('visitorsKey: skupiny, takty a počty lidí; prázdný seznam = prázdný klíč', () => {
+    const v = { journeyId: 'j', partyId: 1, tick: 5, people: [{}, {}] } as never;
+    const w = { journeyId: 'j', partyId: 1, tick: 5, people: [{}] } as never;
+    expect(visitorsKey([v])).toBe('j:1:5:2');
+    expect(visitorsKey([v])).not.toBe(visitorsKey([w]));
+    expect(visitorsKey([])).toBe('');
   });
 });

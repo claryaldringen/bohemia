@@ -2,24 +2,19 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  JOURNEY_POLL_MS,
-  VISITORS_IDLE_MS,
+  visitorsKey,
   type ExpeditionVisitor,
   type JourneyVisitorsResponse,
 } from '@/lib/journey-view';
-import { usePolling } from './use-polling';
+import { useSerialRefresh, useServerEvent, useServerResync } from './use-server-events';
 
-// Jezdci na mapě vsi (lord-control.md – Soused; journey.md – Scéna vsi): `GET /api/journey?visitors=`
-// – vlastní výjezd vždy, cizí jen v dohledu domů. S jezdci na mapě 2× za sekundu, jinak po 5 s
-// (jako válka ve scéně – use-war-scene.ts); jen když dotaz na ves hlásí výpravu na mapě
-// (`MapWatch.riders`, D62 – `enabled`), jinak vůbec. Nový seznam jen při změně taktu nebo výjezdů.
+// Jezdci na mapě vsi (lord-control.md – Soused; journey.md – Scéna vsi): vlastní výjezd vždy, cizí
+// jen v dohledu domů. Seznam nese událost serveru `visitors` (server-events.md – Výpravy); jeden
+// `GET /api/journey?visitors=` jde při zapnutí (`enabled` – scéna už je), změně vsi a na obnovu po
+// mezeře (`sync`). Hráč s otevřenou vsí dostane stav i při připojení (`scopeTasks`). Nový seznam
+// jen při změně taktu nebo výjezdů.
 
 const NONE: ExpeditionVisitor[] = [];
-
-/** Klíč seznamu – skupiny a jejich takty (stejný klíč = scéna se nepřekresluje). */
-function visitorsKey(list: readonly ExpeditionVisitor[]): string {
-  return list.map((v) => `${v.journeyId}:${v.partyId}:${v.tick}:${v.people.length}`).join('|');
-}
 
 /** Jezdci na mapě vsi `villageId`; vypnuté dotazování nebo bez vsi = prázdno. */
 export function useJourneyVisitors(
@@ -29,16 +24,30 @@ export function useJourneyVisitors(
   const [visitors, setVisitors] = useState<ExpeditionVisitor[]>(NONE);
   // klíč posledního seznamu; null – server ještě neodpověděl
   const keyRef = useRef<string | null>(null);
+  const villageRef = useRef(villageId);
+  // počet událostí – odpověď dotazu, během kterého přišla událost, je starší a zahodí se
+  const eventsRef = useRef(0);
+  const onRef = useRef(enabled && villageId !== null);
+  onRef.current = enabled && villageId !== null;
 
-  // jiná ves nebo vypnuté dotazování – po zapnutí se zeptá hned (ne až po 5 s)
+  // jiná ves – seznam se zahodí; přepnutí `enabled` ho nemění (událost platí vždy)
   useEffect(() => {
+    villageRef.current = villageId;
     keyRef.current = null;
     setVisitors(NONE);
-  }, [villageId, enabled]);
+  }, [villageId]);
 
-  const poll = useCallback(async (): Promise<void> => {
+  const apply = useCallback((list: readonly ExpeditionVisitor[]): void => {
+    const key = visitorsKey(list);
+    if (key === keyRef.current) return;
+    keyRef.current = key;
+    setVisitors(list.length > 0 ? [...list] : NONE);
+  }, []);
+
+  const load = useCallback(async (): Promise<void> => {
     if (villageId === null) return;
-    // výpadek sítě nebo vadná odpověď nesmí zastavit dotazování – zkusí se znovu za chvíli
+    const seen = eventsRef.current;
+    // výpadek sítě nebo vadná odpověď nesmí nic rozbít – stav doplní další událost nebo obnova
     let body: JourneyVisitorsResponse;
     try {
       const response = await fetch(`/api/journey?visitors=${encodeURIComponent(villageId)}`, {
@@ -50,18 +59,24 @@ export function useJourneyVisitors(
       return;
     }
     if ('error' in body || !Array.isArray(body.visitors)) return;
-    const key = visitorsKey(body.visitors);
-    if (key === keyRef.current) return;
-    keyRef.current = key;
-    setVisitors(body.visitors.length > 0 ? body.visitors : NONE);
-  }, [villageId]);
+    // odpověď k jiné vsi (hráč mezitím přepnul) nebo starší než poslední událost se zahodí
+    if (villageRef.current === villageId && eventsRef.current === seen) apply(body.visitors);
+  }, [villageId, apply]);
 
-  // s jezdci na mapě 2× za sekundu, jinak po 5 s (poprvé hned po otevření mapy)
-  const delay = useCallback(
-    (): number => (keyRef.current !== '' ? JOURNEY_POLL_MS : VISITORS_IDLE_MS),
-    [],
-  );
+  const ask = useSerialRefresh(load, 'Jezdce na mapě se nepodařilo načíst.');
+  const refresh = useCallback((): void => {
+    if (onRef.current) ask();
+  }, [ask]);
   const on = enabled && villageId !== null;
-  usePolling(poll, delay, on);
-  return on ? visitors : NONE;
+  useEffect(() => {
+    if (on) ask();
+  }, [on, villageId, ask]);
+  // událost platí vždy, když sedí ves; `enabled` řídí jen dotaz
+  useServerEvent('visitors', (event) => {
+    if (event.villageId !== villageRef.current) return;
+    eventsRef.current++;
+    apply(event.visitors);
+  });
+  useServerResync(refresh);
+  return villageId !== null ? visitors : NONE;
 }

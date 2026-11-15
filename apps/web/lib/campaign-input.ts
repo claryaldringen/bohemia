@@ -83,11 +83,3 @@ export function parseSurrenderedInput(
     command: { kind: 'surrendered', group: value.group, choice: value.choice as SurrenderOrder },
   };
 }
-
-/** `{ campaignId }` – přítomnost hráče u tažení (`presence`), jinak null. */
-export function parsePresenceInput(
-  value: unknown,
-): { campaignId: string; command: CampaignCommand } | null {
-  if (!isRecord(value) || !isCampaignId(value.campaignId)) return null;
-  return { campaignId: value.campaignId, command: { kind: 'presence' } };
-}

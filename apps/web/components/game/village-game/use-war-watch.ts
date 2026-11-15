@@ -10,12 +10,12 @@ import {
   launchArmyCampaign,
   orderBreakout,
   planArmyCampaign,
-  presence,
   setGroupOrder,
 } from '@/app/game/actions';
 import type { ArmyActions, SceneWatch } from '@/hooks/use-army';
 import { useWarScene } from '@/hooks/use-war-scene';
 import type { LandscapeScene } from '@/lib/scene/landscape-scene';
+import { warKeyOfSettlement } from '@/lib/server-events/protocol';
 import { breakoutOf, sceneWarOf, type WatchedMap } from '@/lib/war-scene-view';
 import { CONNECTION_FAILED } from './village-data';
 
@@ -43,7 +43,6 @@ export function useWarWatch({
   world,
   homeCell,
   villageId,
-  watchWar,
   refreshVillage,
 }: {
   scene: LandscapeScene | null;
@@ -53,20 +52,23 @@ export function useWarWatch({
   homeCell: GridCell | null;
   /** Zobrazená ves (rozkaz „Probít se“). */
   villageId: string | null;
-  /** Válka na mapě podle dotazu na ves (`MapWatch.war`) – jinak se na válku vůbec neptá (D62). */
-  watchWar: boolean;
-  /** Zeptá se na ves hned – po vyslání vojska se tak hned dozví o válce na mapě. */
+  /**
+   * Zeptá se na ves hned – po vyslání vojska (muži odešli); vojsko na mapě přinese událost `war`.
+   */
   refreshVillage: () => void;
 }): WarWatch {
   // Válka na mapě sídla ve scéně (war.md – Ve scéně – napojení na hru): napadená ves i vlastní
-  // vojsko na mapě; co je vidět, rozhodl server (mlha války), scéna jen kreslí. Ptá se jen, když
-  // dotaz na ves hlásí válku na mapě (D62).
-  const warScene = useWarScene(
+  // vojsko na mapě; co je vidět, rozhodl server (mlha války), scéna jen kreslí. Stav nese událost
+  // `war` (server-events.md – Válka), jeden dotaz jde se scénou, při jiném sídle a po mezeře.
+  // Po konci hry se válka nekreslí (přes vše je obrazovka porážky).
+  const received = useWarScene(
+    warKeyOfSettlement(settlementId),
     `/api/war-scene/${settlementId}`,
-    scene !== null && !gameOver && watchWar,
+    scene !== null && !gameOver,
   );
+  const warScene = gameOver ? null : (received ?? null);
   useEffect(() => {
-    scene?.setWar(sceneWarOf(warScene ?? null, world));
+    scene?.setWar(sceneWarOf(warScene, world));
   }, [scene, warScene, world]);
   // Rozkaz „Probít se“ obráncům za hradbou (fortifications.md – Obrana bez násobku 3): tlačítko
   // jen u boje u vsi s opevněním s branou; jde-li, rozhodl server
@@ -102,7 +104,6 @@ export function useWarWatch({
         lead: (input) => commandLeader(input),
         order: (input) => setGroupOrder(input),
         surrendered: (input) => chooseSurrendered(input),
-        presence: (campaignId) => presence({ campaignId }),
       },
       scene: sceneWatch,
     }),

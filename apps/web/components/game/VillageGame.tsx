@@ -1,14 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
-import {
-  MAP_QUIET,
-  shiftWorldClock,
-  type GridCell,
-  type MapWatch,
-  type PlayerNotice,
-  type WorldClock,
-} from '@bohemia/game';
+import { shiftWorldClock, type GridCell, type PlayerNotice, type WorldClock } from '@bohemia/game';
 import { ArmyActionsContext } from '@/hooks/use-army';
 import { PanelOptionsContext } from '@/hooks/use-panel-options';
 import { usePlacement } from '@/hooks/use-placement';
@@ -103,7 +96,6 @@ export function VillageGame({
   initialNowMs,
   languageChoice = false,
   homeCell = null,
-  initialWatch = MAP_QUIET,
 }: {
   landscape: LandscapeTransfer;
   /** Seed krajiny sídla – podle něj hra navrhne jméno vsi. */
@@ -125,8 +117,6 @@ export function VillageGame({
   languageChoice?: boolean;
   /** Políčko sídla v mřížce světa (null – odříznuté) – vojsko na něm ukazuje scéna vsi sama. */
   homeCell?: GridCell | null;
-  /** Válka a jezdci na mapě při načtení (`mapWatchForPlayer`) – dál je hlásí dotaz na ves (D62). */
-  initialWatch?: MapWatch;
 }): ReactElement {
   const decoded = useMemo(() => decodeLandscape(landscape), [landscape]);
   const [scene, setScene] = useState<LandscapeScene | null>(null);
@@ -152,10 +142,8 @@ export function VillageGame({
     runAction,
     runBuildAction,
     refresh: refreshVillage,
-    watch,
   } = useVillageSync({
     initialVillage,
-    initialWatch,
     landscape,
     decoded,
     settlementId,
@@ -195,7 +183,6 @@ export function VillageGame({
     world,
     homeCell,
     villageId: view?.id ?? null,
-    watchWar: watch.war,
     refreshVillage,
   });
   // Po konci hry je přes všechno obrazovka porážky – nabídka se neukáže.
@@ -281,7 +268,6 @@ export function VillageGame({
     villageId: view?.id ?? null,
     cell: homeCell,
     own: expeditions.latest,
-    watchRiders: watch.riders,
   });
   const alarmActions = useAlarmActions({ view, selected, pushNotice });
   const wagonPlan = useWagonPreview({ scene, current, view, sceneVillage });

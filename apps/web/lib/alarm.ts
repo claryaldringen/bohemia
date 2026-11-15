@@ -23,7 +23,7 @@ import { commandAlarmActionForPlayer, returnFromRefugeActionForPlayer } from './
 
 /**
  * Paměť dotazování na varování (docs/code/worker.md – Výkon – Pohled na varování): panel se ptá
- * každé 2 s nad týmž stavem vsi a hradiště. Stavy vsí přežijí dotaz (platnost hlídá otisk verze –
+ * při každé změně vsi (událost `alarm` / `village`) nad týmž stavem vsi a hradiště. Stavy vsí přežijí dotaz (platnost hlídá otisk verze –
  * jinak 2 × 3 MB JSON velké vsi a hradiště v každém dotazu), mřížky pochodu podle identity stavu
  * a dne. Nejvýš 8 vsí – varovaná ves a její hradiště pro pár hráčů najednou.
  */

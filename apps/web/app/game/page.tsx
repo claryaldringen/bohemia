@@ -1,13 +1,12 @@
 import { redirect } from 'next/navigation';
-import { MAP_QUIET } from '@bohemia/game';
 import type { ReactElement } from 'react';
+import { ServerEventsProvider } from '@/components/game/ServerEventsProvider';
 import { VillageGame } from '@/components/game/VillageGame';
 import { gameEntryForPlayer, languageChoiceForPlayer, playerToday } from '@/lib/game';
 import { encodeLandscape } from '@/lib/landscape-transfer';
 import { getSession } from '@/lib/session';
 import { villageViewForEntry } from '@/lib/village';
 import { selectedVillageId } from '@/lib/village-cookie';
-import { mapWatchForPlayer } from '@/lib/war-scene';
 import { currentWorld } from '@/lib/world';
 
 export default async function GamePage(): Promise<ReactElement> {
@@ -21,32 +20,29 @@ export default async function GamePage(): Promise<ReactElement> {
   ]);
   const village = await villageViewForEntry(entry, today, session.user.id);
   const languageChoice = await languageChoiceForPlayer(session.user.id, entry.villageId !== null);
-  // válka a jezdci na mapě – scéna se na ně ptá jen tehdy (D62)
-  const watch =
-    entry.villageId === null
-      ? MAP_QUIET
-      : await mapWatchForPlayer(session.user.id, entry.villageId);
 
   return (
     <main className="h-screen overflow-hidden select-none">
-      <VillageGame
-        landscape={encodeLandscape(entry.landscape)}
-        seed={entry.settlement.landscapeSeed}
-        settlementId={entry.settlement.id}
-        initialVillage={village}
-        world={currentWorld()}
-        timeOffsetDays={today.ok ? today.offsetDays : 0}
-        devMode={session.user.devMode === true}
-        email={session.user.email}
-        languageChoice={languageChoice}
-        homeCell={
-          entry.settlement.worldCell
-            ? { x: entry.settlement.worldCell.x, y: entry.settlement.worldCell.y }
-            : null
-        }
-        initialNowMs={Date.now()}
-        initialWatch={watch}
-      />
+      {/* jedno spojení událostí ze serveru na panel – hra se na změny ptá, jen když server řekne */}
+      <ServerEventsProvider>
+        <VillageGame
+          landscape={encodeLandscape(entry.landscape)}
+          seed={entry.settlement.landscapeSeed}
+          settlementId={entry.settlement.id}
+          initialVillage={village}
+          world={currentWorld()}
+          timeOffsetDays={today.ok ? today.offsetDays : 0}
+          devMode={session.user.devMode === true}
+          email={session.user.email}
+          languageChoice={languageChoice}
+          homeCell={
+            entry.settlement.worldCell
+              ? { x: entry.settlement.worldCell.x, y: entry.settlement.worldCell.y }
+              : null
+          }
+          initialNowMs={Date.now()}
+        />
+      </ServerEventsProvider>
     </main>
   );
 }

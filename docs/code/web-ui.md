@@ -19,8 +19,8 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `components/game/VillageGame.tsx` jen skládá hooky a panely z `components/game/village-game/`
   (props i pořadí prvků v DOM jako dřív). Hooky podle skutečných vazeb mezi stavy:
   `use-village-sync.ts` (`useVillageSync` – stav vsi, `viewRef`, `applyVillage` s trasami vozů
-  z `cartRouter`, `poll` + `usePolling`, fronta `runAction` / `runBuildAction`, háčky
-  `cartRoutes` a `pollVillage`), `use-notice-lines.ts` (mizející řádky nahoře – `pushNotice`,
+  z `cartRouter`, `poll` + `refreshNow` z událostí serveru a hlídače dne, fronta `runAction` /
+  `runBuildAction`, háčky `cartRoutes` a `pollVillage`), `use-notice-lines.ts` (mizející řádky nahoře – `pushNotice`,
   `mergeNotices`), `use-house.ts` (`useHouse` – pohled rodu, `refreshHouse`, stav nováčka
   a nové načtení po umístění, odúmrti, pozvánky, `negotiate`), `use-panels.ts` (`usePanels` –
   nabídka, rod, válka a odvody se střídají; průchody, ochrana, `warAction`, dialog Odvody),
@@ -43,7 +43,10 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `CONNECTION_FAILED`). Komponenty: `VillagePanels.tsx` (nabídka, válka, kronika, upozornění,
   rod, odúmrť, odvody – v tomto pořadí), `FoundingPanels.tsx` (jazyk, nováček, jména),
   `GameOverScreen.tsx`. **Pořadí hooků = pořadí efektů scény** (válka → hodiny → ves → R →
-  výběr → náhled vozové cesty → brána) – nový hook se scénou zařadit podle toho. Cyklus „dotaz
+  výběr → náhled vozové cesty → brána) – nový hook se scénou zařadit podle toho. Celé
+  `VillageGame` obaluje `ServerEventsProvider` (`app/game/page.tsx`; server-events.md – Klient):
+  efekty hooků hry (rozsah spojení, posluchači událostí) běží dřív než jeho efekt, který spojení
+  pustí – první spojení tak má hned rozsah zobrazené vsi. Cyklus „dotaz
   na ves potřebuje obsluhu upozornění, panely potřebují `viewRef`“ řeší ref
   `playerNoticesRef` ve `VillageGame` (jako dřív `openAlarmRef`). ESLint hlídá hooky
   i v `apps/web/components/**/*.ts`.
@@ -131,8 +134,8 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `restartGameForPlayer`, akce v `actOn`, založení vsi a odchod/usazení řadí do fronty podle
   klíče `player:<id>` (`dynastyStatus` dopočítává všechny vsi hráče, ne jednu): další volání počká
   na dokončení předchozího (i chybou – nepřilepí se) a načte už dopočítanou ves, takže dopočte jen
-  zbytek do svého dne. Mapa je v `globalThis`, po dokončení se klíč uklidí. Klientský
-  `usePolling` už běží po jednom dotazu (další až po dokončení), takže nic nemění. Průběh skoku
+  zbytek do svého dne. Mapa je v `globalThis`, po dokončení se klíč uklidí. Klientské
+  dotazy (`useSerialRefresh`) jdou po jednom (další až po dokončení), takže nic nemění. Průběh skoku
   v čase se čte mimo frontu i mimo server actions – Route Handler `GET /api/dev/skip-progress`
   (accounts.md, Průběh přeskoku).
   - **Zámek hráče v DB (i proti workeru):** fronta v procesu je první vrstva; uvnitř ní se bere
@@ -213,9 +216,15 @@ villageId)`. Z levných otisků (`stampsOf` – `last_day`, `asleep`) se dopočt
   hráč, spící vsi, chyba jednoho hráče, po 1 / 3 / 10 dnech i se zbytkem ve webu = dopočet
   najednou, schránka, příjezd se správcem, konec rodu jen ze stejného dne),
   `world-queue.db.test.ts`.
-- **Dotazování na ves** (`village-game/use-village-sync.ts` + `hooks/use-polling.ts`): klient se zeptá na začátku
-  dalšího herního dne hráče (`nextPollDelayMs` v `lib/village-polling.ts` – začátek dne po dni
-  pohledu přes `realTimeOf` + 1 s, nejdřív za 5 s, nejpozději za 86 s; po návratu do panelu hned). Pošle
+- **Obnova pohledu vsi (události)** (`village-game/use-village-sync.ts`; server-events.md –
+  Klient, Den bez workeru): klient se na ves neptá periodicky – jen když server řekne. Dotaz
+  (`refreshNow`) přijde na událost `village` s novou verzí vsi hráče (`villageEventIsNews` proti
+  `VillageView.versions`), na `notices`, na obnovu po mezeře spojení (`sync`, kolo pojistky po
+  30 s) a z hlídače dne (`nextDayCheckMs` v `lib/village-day-check.ts` – začátek dalšího dne
+  s odkladem 10 s, jen když pohled nového dne nepřišel; svět bez workeru). Dotazy jdou po jednom
+  (`useSerialRefresh` – nejvýš jeden další po běžícím, 10 událostí za 50 ms = nejvýš 2 dotazy);
+  během akce se obnova odloží za ni a ověří s pohledem akce, takže událost vlastního uložení
+  druhý dotaz nevyvolá. Spojení nese zobrazenou ves (`useEventScope`). Po konci hry nic. Pošle
   `{ villageId, known }` – `known` = `VillageView.stamp`, otisk pohledu (`villageViewStamp`
   v `application/village-stamp.ts`: vybraná ves, den, id + jméno + verze všech vsí hráče –
   pohled je čistá funkce těchto údajů). Server (`villageViewIfChanged`) nejdřív levně
@@ -226,8 +235,8 @@ villageId)`. Z levných otisků (`stampsOf` – `last_day`, `asleep`) se dopočt
   dne je pro frontu workeru; `stampsOf` Vlkova z ≈ 6,2 ms na ≈ 0,15 ms, protože se JSON nerozbaluje) a při shodě, když by pohled nic nepočítal (zobrazená ves na
   dnešku, každá jiná nespící ves nejvýš `WORKER_LAG_DAYS` pozadu – `lagsBehindWorker`; spící vsi
   se nepočítají), vrátí `{ unchanged: true }` bez načtení stavů (Vlkov: celý řádek ≈ 830 kB / 50 ms, dotaz na
-  něj jde v celé cestě 3×). Když worker uloží jinou ves, otisk se změní (verze) a pohled se pošle
-  znovu – zhruba jednou za herní den, jako dřív. `dynastyStatus` bere id vsí z levných otisků (`stampsOf`, v pořadí
+  něj jde v celé cestě 3×). Když worker uloží jinou ves, otisk se změní (verze), přijde událost
+  a pohled se pošle znovu – zhruba jednou za herní den, jako dřív. `dynastyStatus` bere id vsí z levných otisků (`stampsOf`, v pořadí
   založení) – stav každé vsi načte jen `loadVillage`, jednou. Akce a přeskok času vracejí vždy celý pohled.
   **Paměť vsí na jeden požadavek** (`packages/server/src/village-cache.ts` – identity map): server actions
   (`villageAction`, `getVillageView`, výběr a založení vsi, skok v čase) a první pohled běží ve
@@ -236,8 +245,10 @@ villageId)`. Z levných otisků (`stampsOf` – `last_day`, `asleep`) se dopočt
   paměť obnoví a neúspěšné uložení ji pro ves zahodí (optimistický zámek a opakování platí dál).
   Akce tak načte každou ves jednou místo ověření vsi + dopočtu + use-case + pohledu (≥ 4×)
   (dopočet všech vsí hráče je načítá stejně). Změna jména verzi
-  nemění, proto je jméno v otisku zvlášť. e2e testy po přímé změně uložené vsi volají háček
-  `pollVillage` (`lib/e2e-hooks.ts`) – sám by dotaz přišel až s dalším herním dnem.
+  nemění, proto je jméno v otisku zvlášť (událost samotného přejmenování se známou verzí se
+  zahodí – jméno ukáže nejbližší nová verze). e2e testy po přímé změně uložené vsi volají háček
+  `pollVillage` (`lib/e2e-hooks.ts` → `refreshNow`) – záloha „zeptej se hned“: přímý zápis
+  oznámí i trigger, háček jen nečeká na doručení události.
 
 - **Uložení vsi** (`save`) vrací jen id, sídlo, jméno a verzi – záznam nese předaný stav (ne kopii
   z databáze).
@@ -1085,14 +1096,17 @@ se vykreslí i v testech bez serveru.
   mapě z pohledu útočníka – `warSceneOnMapForPlayer`, cizí tažení i mapa bez vojska = `null`).
   Cizí i neexistující tažení = stejná 404. Route Handler, ne server
   action – server actions jednoho klienta jdou za sebou a dotaz by čekal za pokynem.
-- **`useCampaign(id, presence)`**: dotaz 2× za sekundu (`CAMPAIGN_POLL_MS`, `usePolling` – ve
-  skrytém panelu prohlížeče stojí), polohy mezi dvěma stavy interpoluje `interpolateCampaign`
-  (`lib/campaign-view.ts` – typy z jádra pro scénu); `view` se překreslí po 100 ms, scéna si bere
-  `sample(performance.now())`. Vůdce otevřeného tažení posílá `presence` hned a pak po 20 s
-  (`PRESENCE_EVERY_MS`) jen při viditelném panelu – zavřená stránka = žádná přítomnost.
+- **`useCampaign(id)`** (plán 2026-11-15 – Úloha 5; server-events.md – Válka): pohled nese událost
+  serveru `campaign`, jeden `GET /api/campaign/<id>?since=-1` jde při otevření, na obnovu po mezeře
+  (`sync`) a na `refresh` (po pokynu) – bez dotazování; starší nebo týž takt se zahodí. Polohy mezi
+  dvěma stavy interpoluje `interpolateCampaign` (`lib/campaign-view.ts` – typy z jádra pro scénu)
+  po dobu mezi body, nejvýš `CAMPAIGN_SPAN_MAX_MS` (15 s); `view` se překreslí po 100 ms, scéna si
+  bere `sample(performance.now())`. `CampaignMap` dá tažení do rozsahu spojení událostí
+  (`useEventScope({ campaignId })`) – přítomnost vůdce pak hlásí server z tepu spojení (záměr
+  `presence` při připojení a po 20 s); skrytý panel prohlížeče spojení nemá = žádná přítomnost.
 - **Server actions** (`app/game/actions.ts`, vstup `lib/campaign-input.ts`, composition root
   `lib/campaign.ts`): `getMyCampaigns`, `commandLeader` (`{ campaignId, target }`), `setGroupOrder`,
-  `chooseSurrendered`, `presence`; přijatý pokyn `{ ok: true, tick }` (takt záměru), odmítnutí
+  `chooseSurrendered`; přijatý pokyn `{ ok: true, tick }` (takt záměru), odmítnutí
   „Rozkaz nelze dát.“ (nic neprozradí) – kromě místa, kam skupina velitele nedojde vůbec
   (`commandCampaign` → `unreachable`): „Tam vojsko nedojde.“ (war.md – Pohyb – Cíl v neprůchodné
   buňce).
@@ -1109,27 +1123,27 @@ se vykreslí i v testech bez serveru.
   vlastních mužů: políčko, poloha, lidí, kusů, posel na koni); ikonu na `CampaignMap` doplní práce
   na rozhraní (ikony Ú13).
 
-- **Válka ve scéně** (`hooks/use-war-scene.ts`, war.md – Ve scéně – napojení na hru):
-  `useWarScene(url, enabled)` – vlastní mapa `GET /api/war-scene/<sídlo>`, cizí mapa
-  `GET /api/campaign/<id>?scene=x,y`; po otevření (a po zapnutí) hned, při válce na mapě 2× za
-  sekundu (`WAR_SCENE_POLL_MS`), jinak po 5 s (`WAR_SCENE_IDLE_MS`); nový stav jen s novým taktem.
-  `undefined` = server ještě neodpověděl, `null` = na mapě nic. **Vlastní mapa jen, když na ni
-  míří nebo na ní je vojsko** (D62, Martin 15. 11. 2026: „klient nemůže pollovat server každou
-  půlvteřinu kvůli válce, která teď ani nemůže nastat“): `useWarWatch` ho zapne podle
-  `MapWatch.war`, jinak se na válku vůbec neptá. `MapWatch` (`mapWatchFor` v
-  `application/war-scene.ts`, web `mapWatchForPlayer`) – `war`: hráč má tažení (`activeOf`), nebo
-  běží cizí tažení proti vsi, s jejím varováním či s uprchlíky v ní (`activeAlarming`); `riders`:
-  na mapě stojí skupina výpravy (`JourneyRepository.onCell`) – podle něj se zapne
-  `useJourneyVisitors` (journey.md). Levné (otisk vsi, sídlo, seznamy id – bez stavů); přijde
-  s prvním pohledem stránky (`initialWatch`) a s každou odpovědí dotazu na ves (`watch` vedle
-  `playerNotices`, i u `unchanged`), po vyslání vojska se `useWarWatch` na ves zeptá hned
-  (výprava – `onCommanded` jako dřív). Zjištění D62: Vlkov válku neměl (v DB `bohemia` žádná
-  válka ani tažení), server vracel `{ war: null }` a klient se ptal po 5 s – po ½ s se ptal jen
-  na jezdce při výjezdech vojvody. Test `use-war-scene.behavior.test.tsx`.
+- **Válka ve scéně** (`hooks/use-war-scene.ts`, war.md – Ve scéně – napojení na hru; plán
+  2026-11-15 – Úloha 5, server-events.md – Válka): `useWarScene(key, url, enabled)` – stav nese
+  událost serveru `war` s klíčem mapy (vlastní `warKeyOfSettlement(sídlo)`, cizí
+  `warKeyOfScene(tažení, políčko)`), po mlze války. Jeden dotaz na `url` (vlastní mapa
+  `GET /api/war-scene/<sídlo>`, cizí `GET /api/campaign/<id>?scene=x,y`) jde při zapnutí, změně
+  klíče a na `sync`; `enabled` řídí jen dotaz, událost svého klíče platí vždy. Nový stav jen
+  s novým taktem nebo jiným tažením (`warSceneKey`); odpověď dotazu, během kterého přišla událost,
+  se zahodí. `undefined` = ještě nic nepřišlo, `null` = na mapě nic. Dotazování po ½ s a po 5 s
+  (D62, Martin 15. 11. 2026: „klient nemůže pollovat server každou půlvteřinu kvůli válce, která
+  teď ani nemůže nastat“) je pryč. `useWarWatch` dotaz zapne se scénou a bez konce hry.
+  `MapWatch.war` ani `MapWatch.riders` (use-case mapWatchFor, mapWatchForPlayer, `watch`
+  v odpovědi dotazu na ves, initialWatch) už neexistují (návrh Clauda, plán 2026-11-15 – Úloha 6):
+  `war` byl pravda už od začátku cizího tažení proti vsi (`activeAlarming`) a `riders` počítal
+  vlastní i cizí výpravy na políčku vsi bez zkoušky dohledu – obojí by vojsko a výpravy prozradilo
+  dřív, než je ve vsi kdo spatří. Válku nese událost `war` po mlze války, jezdce událost `visitors`
+  (`scopeTasks` ji spočte hned při připojení a po `sync`; journey.md).
+  Testy `use-war-scene.behavior.test.tsx`, `use-campaign.behavior.test.tsx`.
 
 ## Výjezd vojvody a výpravy – akce, cesta API a dotazování (plán 2026-11-13 – Úloha 7)
 
-Server action `commandExpedition` (`app/game/actions/journey.ts`), `GET /api/journey` (`{ views }`, `?map=`, `?visitors=`) a `useExpeditions(running)` (`hooks/use-journey.ts`) –
+Server action `commandExpedition` (`app/game/actions/journey.ts`), `GET /api/journey` (`{ views }`, `?map=`, `?visitors=`) a `useExpeditions(running)` (`hooks/use-journey.ts`, od plánu 2026-11-15 z událostí serveru) –
 podrobně v [journey.md](journey.md) – Web. Rozhraní ve scéně staví Úlohy 8 a 9.
 
 ## Cizí mapa ve scéně (`ForeignWarScene.tsx`, `hooks/use-army.ts`, `lib/war-scene-view.ts`)
@@ -1145,7 +1159,8 @@ na které stojí.
   tlačítko chybí): `VillageGame` při `watching` vrátí místo hry jen `ForeignWarScene` – scéna a rozhraní
   vsi se odpojí (dvě scény Babylonu naráz ne – návrh Clauda), návrat ji načte znovu.
 - **`ForeignWarScene`** (`foreign-scene`, `data-cell`): krajina z `?map=x,y` (404 = zpět) do
-  `GameView`, válka z `useWarScene(…?scene=x,y)` → `sceneWarOf(war, world, true)` – se závojem
+  `GameView`, válka z `useWarScene(warKeyOfScene(…), …?scene=x,y)` (rozsah spojení
+  `useEventScope({ scene })` – dál ji nese událost `war`) → `sceneWarOf(war, world, true)` – se závojem
   mlhy strany hráče; objevené domy `foreignVillageOf` → `setVillage` (jen stojící domy, bez lidí,
   polí a všeho dalšího; přestaví se jen novým objevem; co rod zná – níž). Kamera poprvé na vojsko (`armyFocusOf`,
   R se k němu vrací). Rozhraní: ⌂ zpět na ves (`foreign-back`), ⚔ mapa tažení (`CampaignMap` –
@@ -1225,8 +1240,11 @@ každý, kdo ves vidí (i bez práva `war` – ikony zašedne důvod práva), ci
   `alarmOptionText` (důvod u kurzoru – „Nestihnou to – vojsko tu bude za ≈ 2 dny, z mapy jim to
   potrvá ≈ 3 dny.“, nebo odhad „Do hradiště Hradec ≈ 3 dny – vojsko tu bude za ≈ 2 dny.“),
   `daysText` („méně než den“, „≈ 1 den“, „≈ 3 dny“, „≈ 5 dní“), `runnerText`, `flightText`,
-  `returnText`, `alarmPollMs`. Hook `hooks/use-alarm.ts` (`useAlarm(villageId)` → `{ view, error,
-refresh }`): první dotaz hned, pak při varování nebo s lidmi na útěku každé 2 s, jinak 10 s.
+  `returnText`. Hook `hooks/use-alarm.ts` (`useAlarm(villageId)` → `{ view, error, refresh }`):
+  bez dotazování (server-events.md – Klient) – dotaz hned při změně vsi, na událost `alarm` téže
+  vsi (bod tažení ji má mezi varovanými), na `village` téže vsi (jen když už je pohled), na
+  obnovu po mezeře spojení a na `refresh`; po jednom (`useSerialRefresh`). Test
+  `hooks/__tests__/use-alarm.behavior.test.tsx`.
   Upozornění varování nesou `villageId` – `alarmNoticeVillage` (`lib/player-notices.ts`) pro klik na
   panel dvorce vsi. Test `lib/__tests__/alarm-view.test.ts` (odhad ve dnech, texty, vstup akcí).
 
@@ -1277,7 +1295,8 @@ cizích vsí v dohledu vlastních mužů (`CampaignView.flights`, jen na ukázan
 dvorce zmenšenými na 110 m mapy (`FlightMarks`: uprchlíci se stádem `alarm-all`, jen lidé
 `alarm-people`, posel `alarm-messenger`); počty lidí a dobytka jen v popisku (`title`),
 `interpolateCampaign` je posouvá mezi dotazy jako muže. Test `hud/__tests__/CampaignMap.test.tsx`.
-**Dotazování na varování** (každé 2 s) čte stavy vsi a hradiště z paměti přes dotazy
+**Dotaz na varování** (`use-alarm.ts` – při výběru vsi, na `sync` a na událost `alarm`, tedy
+≈ s každým uložením bodu tažení, o kterém ves ví – server-events.md – Válka) čte stavy vsi a hradiště z paměti přes dotazy
 (`VillageMemory` 8 vsí – `withVillageMemory` v `lib/alarm.ts`, platnost hlídá otisk verze jako
 `withVillageCache`) a mřížky pochodu z `MarchGridMemo` (`AlarmViewDeps.grids`) – u vsi velikosti
 Vlkova 76 → 4 ms na dotaz (worker.md – Výkon – Pohled na varování). E2E `multiplayer-war.spec.ts` –

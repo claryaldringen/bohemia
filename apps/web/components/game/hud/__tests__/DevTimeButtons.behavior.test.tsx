@@ -3,17 +3,22 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import type { TimeSkip } from '@bohemia/game';
-import { SKIP_PROGRESS_POLL_MS, SKIP_PROGRESS_URL } from '@/hooks/use-skip-progress';
+import { SKIP_PROGRESS_URL } from '@/hooks/use-skip-progress';
+import {
+  fakeServerEvents,
+  type FakeServerEvents,
+} from '@/hooks/__tests__/server-events-test-utils';
 import { DevTimeButtons } from '../TopBar';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 // Martin 1. 11. 2026: „Když hru posunu o rok, pořád to dost trvá. Můžeš udělat nějaký progressbar,
-// abych viděl průběh přepočtu?“ – během přeskoku se tlačítka ptají serveru na průběh a pod nimi
-// běží tenký ukazatel; procenta a dny jsou jen v popisku.
+// abych viděl průběh přepočtu?“ – během přeskoku tlačítka dostávají průběh od serveru (dotaz při
+// zapnutí, pak události `skip`) a pod nimi běží tenký ukazatel; procenta a dny jsou jen v popisku.
 
 let host: HTMLDivElement;
 let root: Root;
+let events: FakeServerEvents;
 let answers: unknown[];
 const fetchMock = vi.fn(async (): Promise<Response> => {
   const body = answers.length > 1 ? answers.shift() : answers[0];
@@ -25,6 +30,7 @@ beforeEach(() => {
   vi.stubGlobal('fetch', fetchMock);
   fetchMock.mockClear();
   answers = [{ progress: null }];
+  events = fakeServerEvents();
   host = document.createElement('div');
   document.body.appendChild(host);
   root = createRoot(host);
@@ -38,34 +44,38 @@ afterEach(() => {
 });
 
 function render(pending: TimeSkip | null): void {
-  act(() => root.render(<DevTimeButtons pending={pending} onSkip={() => {}} />));
+  act(() => root.render(events.wrap(<DevTimeButtons pending={pending} onSkip={() => {}} />)));
 }
 
-async function poll(): Promise<void> {
+async function flush(): Promise<void> {
   await act(async () => {
-    await vi.advanceTimersByTimeAsync(SKIP_PROGRESS_POLL_MS);
+    await vi.advanceTimersByTimeAsync(0);
   });
+}
+
+function skip(progress: { doneDays: number; totalDays: number } | null): void {
+  act(() => events.emit('skip', { progress }));
 }
 
 const bar = (): HTMLElement | null => host.querySelector('[data-testid="dev-skip-progress"]');
 const tips = (): string[] =>
   [...host.querySelectorAll('[role="tooltip"]')].map((tip) => tip.textContent ?? '');
 
-it('během přeskoku ukazuje průběh ze serveru, po konci ukazatel zmizí a dotazy přestanou', async () => {
+it('během přeskoku ukazuje průběh ze serveru, po konci ukazatel zmizí a nic se neptá', async () => {
   render(null);
   expect(bar()).toBeNull();
   expect(tips()).toEqual(['+1 měsíc', '+1 rok', '+10 let']);
-  await poll();
+  await flush();
   expect(fetchMock).not.toHaveBeenCalled();
 
   render('year');
   // před první odpovědí prázdný ukazatel
   expect(bar()?.getAttribute('aria-valuenow')).toBe('0');
-  answers = [{ progress: null }, { progress: { doneDays: 146, totalDays: 365 } }];
-  await poll();
+  await flush();
+  expect(fetchMock).toHaveBeenCalledTimes(1);
   expect(fetchMock).toHaveBeenCalledWith(SKIP_PROGRESS_URL, { cache: 'no-store' });
   expect(bar()?.getAttribute('aria-valuenow')).toBe('0');
-  await poll();
+  skip({ doneDays: 146, totalDays: 365 });
   expect(bar()?.getAttribute('aria-valuenow')).toBe('40');
   expect(bar()?.querySelector('span')?.style.width).toBe('40%');
   // bez textu – procenta a dny jen v popisku
@@ -75,16 +85,14 @@ it('během přeskoku ukazuje průběh ze serveru, po konci ukazatel zmizí a dot
   render(null);
   expect(bar()).toBeNull();
   expect(tips()).toEqual(['+1 měsíc', '+1 rok', '+10 let']);
-  const calls = fetchMock.mock.calls.length;
-  await poll();
-  await poll();
-  expect(fetchMock.mock.calls.length).toBe(calls);
+  await flush();
+  expect(fetchMock).toHaveBeenCalledTimes(1);
 });
 
 it('další přeskok začíná od nuly – průběh minulého se neukáže', async () => {
   render('year');
-  answers = [{ progress: { doneDays: 365, totalDays: 365 } }];
-  await poll();
+  await flush();
+  skip({ doneDays: 365, totalDays: 365 });
   expect(bar()?.getAttribute('aria-valuenow')).toBe('100');
   render(null);
   render('month');
@@ -94,10 +102,21 @@ it('další přeskok začíná od nuly – průběh minulého se neukáže', asy
 
 it('nesmyslnou odpověď (chyba, špatná čísla) ignoruje', async () => {
   render('decade');
-  answers = [{ progress: { doneDays: 50, totalDays: 10 } }];
-  await poll();
+  skip({ doneDays: 50, totalDays: 10 });
   expect(bar()?.getAttribute('aria-valuenow')).toBe('0');
-  fetchMock.mockResolvedValueOnce(new Response('{}', { status: 403 }));
-  await poll();
+  await flush();
+  expect(bar()?.getAttribute('aria-valuenow')).toBe('0');
+});
+
+it('odpověď 403 (mimo vývojový režim) průběh nenastaví, i kdyby nesla čísla', async () => {
+  fetchMock.mockImplementationOnce(
+    async (): Promise<Response> =>
+      new Response(JSON.stringify({ progress: { doneDays: 200, totalDays: 365 } }), {
+        status: 403,
+      }),
+  );
+  render('year');
+  await flush();
+  expect(fetchMock).toHaveBeenCalledTimes(1);
   expect(bar()?.getAttribute('aria-valuenow')).toBe('0');
 });

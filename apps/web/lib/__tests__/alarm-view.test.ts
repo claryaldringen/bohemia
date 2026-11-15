@@ -2,11 +2,8 @@ import type { AlarmView, AlarmViewOption } from '@bohemia/game';
 import { describe, expect, it } from 'vitest';
 import { parseAlarmCommand, parseAlarmVillage } from '../alarm-input';
 import {
-  ALARM_IDLE_POLL_MS,
   ALARM_LABELS,
-  ALARM_POLL_MS,
   alarmOptionText,
-  alarmPollMs,
   daysBadge,
   daysText,
   domainSendText,
@@ -19,7 +16,7 @@ import {
 
 // Varování a útěk v rozhraní (war.md – Varování, poslové a útěk do hradiště; plán 2026-11-09 –
 // Úloha 12): odhad ve dnech, důvody u kurzoru („Pán nemá hradiště“, „Nestihnou to“ s odhadem),
-// popisky, jak často se ptát, a tvar vstupu server actions.
+// popisky a tvar vstupu server actions.
 
 const ok = (o: Partial<AlarmViewOption> = {}): AlarmViewOption => ({ blocked: null, ...o });
 
@@ -154,13 +151,6 @@ describe('posel, skupina a návrat', () => {
       'Lidé budou doma za ≈ 3 dny.',
     );
     expect(returnText({ blocked: null, backInDays: 0 }).detail).toBe('Lidé budou doma dnes.');
-  });
-
-  it('dotaz 2 s při varování a útěku, jinak 10 s', () => {
-    expect(alarmPollMs(null)).toBe(ALARM_IDLE_POLL_MS);
-    expect(alarmPollMs(view())).toBe(ALARM_POLL_MS);
-    expect(alarmPollMs(view({ warned: false }))).toBe(ALARM_IDLE_POLL_MS);
-    expect(alarmPollMs(view({ warned: false, ret: { blocked: null } }))).toBe(ALARM_POLL_MS);
   });
 });
 

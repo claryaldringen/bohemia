@@ -7,20 +7,11 @@ import {
 } from '@bohemia/game';
 
 // Varování a útěk v rozhraní (war.md – Varování, poslové a útěk do hradiště; plán 2026-11-09 –
-// Úloha 12): texty popisků a důvodů u kurzoru, odhady ve dnech, jak často se ptát. Čistý modul –
-// smí do prohlížeče; ikony v panelu vsi (Úloha 13) berou texty odtud.
+// Úloha 12): texty popisků a důvodů u kurzoru, odhady ve dnech. Kdy se ptát, řídí události ze
+// serveru (`useAlarm`). Čistý modul – smí do prohlížeče; ikony v panelu vsi (Úloha 13) berou
+// texty odtud.
 
 export type { AlarmChoice, AlarmView } from '@bohemia/game';
-
-/** Dotaz při varování (posel, skupina, lhůta hráče – rozhoduje se v sekundách). */
-export const ALARM_POLL_MS = 2_000;
-/** Dotaz, když ves o vojsku neví (nové varování ohlásí i upozornění). */
-export const ALARM_IDLE_POLL_MS = 10_000;
-
-/** Jak často se ptát: při varování nebo s lidmi na útěku 2 s, jinak 10 s. */
-export function alarmPollMs(view: AlarmView | null): number {
-  return view !== null && (view.warned || view.ret !== null) ? ALARM_POLL_MS : ALARM_IDLE_POLL_MS;
-}
 
 /** Názvy ikon – doslovně ze specu (war.md – Rozhraní). */
 export const ALARM_LABELS: Readonly<Record<AlarmChoice | 'return', string>> = {

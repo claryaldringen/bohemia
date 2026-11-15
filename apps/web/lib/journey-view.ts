@@ -24,8 +24,11 @@ export type {
   SeenCell,
 } from '@bohemia/game';
 
-/** Jak často se prohlížeč ptá na běžící výjezd – 2× za sekundu jako u tažení. */
-export const JOURNEY_POLL_MS = 500;
+/**
+ * Jak často přibývá nový stav výpravy ze serveru – kolo workeru, které ukládá jedoucí skupinu
+ * (journey.md – Worker); podle toho se mezi dvěma stavy interpoluje.
+ */
+export const JOURNEY_PUSH_MS = 1_000;
 
 /** Odpověď `GET /api/journey` – pohledy na výpravy hráče (prázdné = žádnou nemá), nebo chyba. */
 export type JourneyResponse = { views: ExpeditionView[] } | { error: string };
@@ -244,7 +247,7 @@ export const sceneManKey = (journeyId: string, personId: number): string =>
 /**
  * Hloučky výprav na mapě vsi `cell` pro scénu (journey.md – Scéna vsi): jeden `SceneJourney` na
  * hlouček (klíč `${journeyId}:${groupId}`, `partyId` skupiny – praporek a výběr celé skupiny), muži
- * z lidí hloučku (klíč `sceneManKey`). Vlastní hloučky z pohledů `own` (2× za sekundu, s fází a dny
+ * z lidí hloučku (klíč `sceneManKey`). Vlastní hloučky z pohledů `own` (stav z události `journeys`, s fází a dny
  * čekání), ostatní z návštěvníků vsi (cizí v dohledu domů, vlastní z jiné vsi rodu). Jméno vůdce
  * a rod vlastní skupiny dodá její záznam mezi návštěvníky. Vlastní skupina jiné vsi než `villageId`
  * (ves scény, jejíž výběr se drží) nese svou ves (`SceneJourney.villageId` – id lidí platí jen v ní).
@@ -346,8 +349,15 @@ export function sceneJourneysOf(input: {
 /** Odpověď `GET /api/journey?visitors=<ves>` – jezdci na mapě vsi, nebo chyba. */
 export type JourneyVisitorsResponse = { visitors: ExpeditionVisitor[] } | { error: string };
 
-/** Bez jezdců na mapě se prohlížeč na návštěvníky ptá po 5 s (s nimi 2× za sekundu). */
-export const VISITORS_IDLE_MS = 5000;
+/** Klíč pohledů na výpravy – stejné takty = nic nového (worker ukládá kontrolní bod zřídka). */
+export function expeditionsKey(views: readonly ExpeditionView[]): string {
+  return views.map((v) => `${v.journeyId}@${v.tick}`).join('|');
+}
+
+/** Klíč seznamu jezdců – skupiny a jejich takty (stejný klíč = scéna se nepřekresluje). */
+export function visitorsKey(list: readonly ExpeditionVisitor[]): string {
+  return list.map((v) => `${v.journeyId}:${v.partyId}:${v.tick}:${v.people.length}`).join('|');
+}
 
 /** Stav seznamu známých map ve hře: načítá se, dotaz selhal, nebo je načtený. */
 export type KnownStatus = 'loading' | 'error' | 'ready';

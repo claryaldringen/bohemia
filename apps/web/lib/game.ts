@@ -12,6 +12,8 @@ import {
   createStewardshipRepository,
   createTimeOffsetRepository,
   createVillageRepository,
+  notifyChange,
+  type DbChange,
 } from '@bohemia/db';
 import {
   LANDSCAPE_CACHE_SIZE,
@@ -137,8 +139,8 @@ const presenceNoted = new Map<string, number>();
 
 /**
  * Hráč je právě u hry (war.md – Hráč ve vsi a mimo ni): zapíše `player_presence.seen_at`, nejvýš
- * jednou za `PRESENCE_NOTE_MS` a proces. Volá ho `notePlayerActive` (akce, dotaz na ves, pohled
- * na varování) a dotaz scény války.
+ * jednou za `PRESENCE_NOTE_MS` a proces. Volá ho `notePlayerActive` (akce, tep spojení událostí
+ * ze serveru, pohled na varování).
  */
 export async function notePlayerPresent(playerId: string, now: Date = new Date()): Promise<void> {
   const last = presenceNoted.get(playerId);
@@ -476,6 +478,9 @@ export async function restartGameForPlayer(
   return { ok: true };
 }
 
+/** Oznámí průběh přeskoku času prohlížeči hráče (server-events.md – Přeskok času). */
+const announceSkip = (change: DbChange): Promise<void> => notifyChange(getDatabase(), change);
+
 /**
  * Vývojový režim: přeskočí čas hráče o měsíc, nebo rok (use-case `skipTime` – bez `devMode`
  * odmítne) a dopočítá jeho vsi do nového dneška. Vrátí nový posun času, nebo chybu česky.
@@ -497,12 +502,12 @@ export async function skipTimeForPlayer(
         {
           ...dynastyDeps(),
           offsets: timeOffsets(),
-          onProgress: (progress) => reportSkipProgress(playerId, progress),
+          onProgress: (progress) => reportSkipProgress(playerId, progress, announceSkip),
         },
         { playerId, devMode, worldDay: world.day, skip },
       );
     } finally {
-      clearSkipProgress(playerId);
+      clearSkipProgress(playerId, announceSkip);
     }
   });
   return result.ok

@@ -148,20 +148,25 @@ export async function expeditionVisitorsOn(
   deps: VisitorsDeps,
   input: { playerId: string; villageId: string },
 ): Promise<ExpeditionVisitor[]> {
-  const own = await findPlayerVillage(deps, input);
-  const cell = own?.settlement.worldCell;
-  if (!own || !cell) return [];
+  // napřed levně: vlastník a políčko z otisku vsi a sídla (bez stavu vsi), pak seznam jezdců na mapě
+  const [stamp] = await deps.villages.stampsOfVillages([input.villageId]);
+  const settlement = stamp ? await deps.settlements.find(stamp.settlementId) : null;
+  if (!settlement || settlement.ownerId !== input.playerId || !settlement.worldCell) return [];
+  const cell: GridCell = { x: settlement.worldCell.x, y: settlement.worldCell.y };
   const states: JourneyState[] = [];
   for (const id of await deps.journeys.onCell(cell)) {
     const point = await deps.journeys.checkpoint(id);
     if (point) states.push(upgradeJourney(point.state));
   }
   if (states.length === 0) return [];
-  const village = own.village.state;
-  const eyes = village.dwellings.map((d) => ({ x: d.position.x, z: d.position.z }));
-  const grid = states.some((s) => s.playerId !== input.playerId)
-    ? await mapGrid(deps, cell, village.lastDay)
-    : null;
+  // stav vsi (domy a den pro dohled) jen když je co ověřovat – cizí skupina na mapě
+  const foreign = states.some((s) => s.playerId !== input.playerId);
+  const own = foreign ? await findPlayerVillage(deps, input) : null;
+  if (foreign && !own) return [];
+  const eyes = own
+    ? own.village.state.dwellings.map((d) => ({ x: d.position.x, z: d.position.z }))
+    : [];
+  const grid = own ? await mapGrid(deps, cell, own.village.state.lastDay) : null;
   const visitors: ExpeditionVisitor[] = [];
   for (const state of states) {
     const mine = state.playerId === input.playerId;
