@@ -245,6 +245,11 @@ export class VillageVillagers {
    * jeho rozvrh napříč dny. Bez lidí ve scéně (ukázky bez `persons`) null – postavy dne jako dřív.
    */
   private timetable: Timetable | null = null;
+  /**
+   * Staveniště posledního obsazení (herní den a klíč – `siteKey`): když se týž den změní (nová
+   * stavba, zrušená – D68), nové obsazení platí od teď (`Timetable.setDay` – `since`).
+   */
+  private sites: { day: number; key: string } | null = null;
   /** Lidé s postavou podle rozvrhu (id). */
   private scheduled = new Set<number>();
   /** Postavy dne bez rozvrhu: cizí (`STRANGER`) a ukázky bez lidí ve scéně. */
@@ -854,7 +859,17 @@ export class VillageVillagers {
     timetable.setWet(flooded ? (x, z, at) => flooded(x, z, at * 1000 + LIVESTOCK_EPOCH_MS) : null);
     const day = village.labor!.day;
     const window = this.env.dayWindow?.(day) ?? null;
-    timetable.setDay(day, window ? villagerSeconds(window.startMs) : t, plan.tasks);
+    // změna staveb uprostřed dne (D68 – nová stavba, zrušená): nové obsazení platí od teď –
+    // stavitelé nové stavby se k ní hned vydají z místa, kde jsou, od zrušené odejdou
+    const sites = siteKey(village);
+    const changed = this.sites !== null && this.sites.day === day && this.sites.key !== sites;
+    this.sites = { day, key: sites };
+    timetable.setDay(
+      day,
+      window ? villagerSeconds(window.startMs) : t,
+      plan.tasks,
+      changed ? t : undefined,
+    );
     timetable.retain(new Set(persons.map((p) => p.id)));
     this.lords = new Set(persons.filter((p) => p.role === 'voivode').map((p) => p.id));
     return timetable;
@@ -1315,6 +1330,15 @@ function unionExtent(...extents: (Extent | null)[]): Extent | null {
       : { ...e };
   }
   return out;
+}
+
+/** Staveniště domů a dílen (id podle velikosti) – jejich změnu během dne řeší rozvrh od teď (D68). */
+function siteKey(village: SceneVillage): string {
+  return village.dwellings
+    .filter((d) => !d.built)
+    .map((d) => d.id)
+    .sort((a, b) => a - b)
+    .join(',');
 }
 
 /** Náhoda postav podle vsi – první obydlí (stejná ves = stejní lidé). */

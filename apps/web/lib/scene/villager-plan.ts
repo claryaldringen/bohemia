@@ -63,6 +63,7 @@ import {
   roadApples,
   roadWork,
   wagonWork,
+  withNewSites,
 } from './villager-plan-sites';
 import {
   craftsmen,
@@ -163,8 +164,8 @@ export function planVillagersWithCrew(
   length: (a: Point, b: Point) => number;
 } {
   const crew: DraftCrew = { teams: [], carts: [] };
-  const labor = village.labor;
-  if (!labor || village.dwellings.length === 0) {
+  const today = village.labor;
+  if (!today || village.dwellings.length === 0) {
     const walk: WalkRouteFn = () => null;
     const length = (a: Point, b: Point): number => Math.hypot(b.x - a.x, b.z - a.z);
     return {
@@ -178,6 +179,12 @@ export function planVillagersWithCrew(
       length,
     };
   }
+  // stavba založená dnes – jádro jí práci dá až zítra, scéna na ni pošle hned dnešní volnou práci
+  // mužů (D68 – `withNewSites`); stavitele vybere jako zítra (podíl na místě, kam ho dá jádro –
+  // zítra tak stavitelé zůstanou) a ti se ke staveništi vydají hned
+  const sites = withNewSites(today, village.dwellings);
+  const fresh = sites.fresh;
+  const labor = fresh.size > 0 ? { ...today, shares: sites.shares } : today;
   const ctx = context(
     village,
     ground,
@@ -358,6 +365,12 @@ export function planVillagersWithCrew(
   // muž uhlíře u vchodu zemnice – z těch, kdo zbyli po práci dne
   const sitters = campSitters(ctx);
   const people: PlannedVillager[] = slots.flatMap((list) => list.filter(Boolean));
+  // stavitelé stavby založené dnes přeruší, co právě dělají (villager-schedule.ts – `interrupt`)
+  const urgent = new Set(
+    slots.flatMap((list, s) =>
+      fresh.has(labor.shares[s]!) ? list.filter(Boolean).map((f) => f.key) : [],
+    ),
+  );
   const winter = WINTER_MONTHS.includes(labor.month);
   const tending = herderKinds(labor, options.herds);
   const elderHerders = tending.filter((kind) => kind === 'elder').length;
@@ -409,6 +422,7 @@ export function planVillagersWithCrew(
       // fáze činností (villager-phases.ts): role podle podílu a stavu vsi, odnos a pomoc o žních
       planPhases(ctx, people, dayStartS(options, labor.day)),
       options.herdPlaces,
+      urgent,
     ),
     doors,
     entrances,
