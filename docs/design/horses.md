@@ -199,14 +199,18 @@ Tři řádky v panelu obchodu jako u dobytka ([obchod](trade.md) – Dobytek ve 
   vrátí a do ohrady vejde u branky (ohrada ho mezitím nekreslí). Dřív se u kůlu objevil.
 - **Koně vede podkoní (D69, Martin 15. 11. 2026: „Zdá se mi to, nebo se po Vlkově toulá
   bezprizorní kůň?“ – „Koně by měl nějaký podkoní (rolník) přivést ke dvorci“):** kůň se nikdy
-  nehýbe bez člověka u sebe. Před jízdou dojde **podkoní** – rolník, dospělý muž vsi mimo rodinu
-  vojvody – k brance ohrady, koně vyvede za uzdu ke kůlu u dvorce (jde u jeho hlavy, krokem koně),
-  podrží ho, než jezdec nasedne, a vrátí se ke své práci (přes domov jako po jiné události); po
-  jízdě si pro koně ke kůlu dojde včas a odvede ho do ohrady. Je-li jízda krátká, počká u kůlu.
-  Podkoního volá rozvrh dne 90 s před vyvedením koně (návrh Clauda) – přeruší, co dělá, a dojde
-  z místa, kde je. Přednost má ten, koho rozvrh dne má u koní (péče o koně – koňák), jinak volný
-  muž s obydlím nejblíž ke kůlu (jako vesničan, který koně přivede výpravě); kdo je na události,
-  u spřežení či vozu, nejde. Ves bez rolníků (nebo víc koní než rolníků): jezdec dojde pro koně
+  nehýbe bez člověka u sebe. Před jízdou dojde **podkoní** – rolník: dospělý muž vsi (i
+  patnáctiletý) mimo rodinu vojvody a mimo domácnost dílny (řemeslo dělají muži domácnosti) –
+  k brance ohrady, koně vyvede za uzdu ke kůlu u dvorce (jde u jeho hlavy, krokem koně), podrží
+  ho, než jezdec nasedne, a vrátí se ke své práci (přes domov jako po jiné události); po jízdě si
+  pro koně ke kůlu dojde a odvede ho do ohrady. Je-li jízda krátká, počká u kůlu.
+  **Podkoní dojde vždy včas** (návrh Clauda): rozvrh ho zavolá podle cesty z míst, kde podle
+  rozvrhu může být (domov, místa jeho práce) – u branky je aspoň 10 s dřív, než kůň vyjde, a po
+  jízdě u kůlu dřív, než jezdec sesedne; kdo dojde dřív, počká. Zavolání rozhoduje jen to, co
+  rozvrh ví do té chvíle, takže ho nový den zpětně nezmění. Přednost má ten, koho rozvrh dne má
+  u koní (péče o koně – koňák), pak volný muž s obydlím nejblíž ke kůlu (jako vesničan, který koně
+  přivede výpravě), pak kdo hlídá stádo či staví a nakonec i kdo je na svatbě či pohřbu; od
+  spřežení a vozu se nechodí. Ves bez rolníků (nebo víc koní než rolníků): jezdec dojde pro koně
   k brance a odvede ho sám jako u výjezdu vojvody, když nikdo není doma. Jen podívaná – péči
   o koně počítá jádro dál stejně.
 - **Kdy jsou jezdci venku (návrh Clauda, 24. 10. 2026):** scéna ukazuje to, co simuluje jádro

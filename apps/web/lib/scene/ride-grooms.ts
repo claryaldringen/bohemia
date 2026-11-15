@@ -23,18 +23,28 @@ import type { CastSpan, DayCast, PersonTask } from './villager-schedule';
 import type { Duties } from './villager-timetable';
 
 /**
- * Podkoní je odvolán od své práce tolik s před vyvedením koně – dojde z místa, kde je, a u branky
- * koně chystá (návrh Clauda; rozvrh jde chůzí ≈ 1,3 m/s, tedy ze vzdálenosti přes 100 m).
+ * Podkoní je u branky (před vyvedením koně) a u kůlu (před sesednutím) aspoň tolik s dřív (D69,
+ * návrh Clauda – kůň nikdy nejde sám, podkoní radši chvíli počká).
  */
-export const GROOM_CALL_S = 90;
-/** Mezi nasednutím a odvoláním pro koně po jízdě aspoň tolik s – jinak podkoní počká u kůlu. */
+export const GROOM_RESERVE_S = 10;
+/** Nejdřív tolik s před vyvedením koně se podkoní vybírá a smí být zavolán (≈ 750 m chůze). */
+export const GROOM_MAX_CALL_S = 600;
+/** Mezi nasednutím a zavoláním pro koně po jízdě aspoň tolik s – jinak podkoní počká u kůlu. */
 export const GROOM_GAP_S = 60;
+/** Krok hledání chvíle zavolání (s). */
+const CALL_STEP_S = 2;
+/** Kde člověk může být: místa jeho úloh obsazení za tolik s zpět (práce na místě nejvýš 8 minut). */
+const LOOKBACK_S = 600;
+/** Rezerva odhadu chůze – trasa po pěšinách bývá delší než odhad. */
+const WALK_MARGIN = 1.1;
 /** U kůlu přejde na stranu, odkud koně po jízdě povede zpět, za tolik s. */
 const GROOM_STEP_S = 3;
 /** Nejvýš tolik opakování jízdy se prohledá dopředu (dál už platí nejnovější obsazení). */
 const MAX_SCAN = 8;
 /** Tempo nohou podkoního – jde krokem koně (`LEAD_M_S`). */
 const LEAD_PACE = LEAD_M_S / walkSpeed('man', 'walk', FIGURE_SCALE);
+/** Tempo chůze rozvrhu bez odhadu po pěšinách (m/s). */
+const WALK_M_S = 1.25;
 
 /** Druh okna podkoního: vyvede koně, odvede ho, nebo obojí (krátká jízda – počká u kůlu). */
 export type GroomDutyKind = 'fetch' | 'return' | 'both';
@@ -62,14 +72,17 @@ export interface GroomCandidate {
 }
 
 /**
- * Kdo smí vést koně (D69): dospělý muž vsi, dnes doma, mimo rodinu vojvody (role `voivode…`,
- * obydlí dvorce, cvičící, domácnost a jezdci), starce, kněze a mistry huti. Bez nikoho vede koně
- * jezdec sám.
+ * Kdo smí vést koně (D69 – podkoní je rolník): dospělý muž vsi (i patnáctiletý), dnes doma, mimo
+ * rodinu vojvody (role `voivode…`, obydlí dvorce, cvičící, domácnost a jezdci) a mimo domácnost
+ * dílny (`dwellings` s řemeslem – řemeslo dělají muži domácnosti, jádro `craftHands`), bez starců,
+ * kněží a mistrů huti. Bez nikoho vede koně jezdec sám.
  */
 export function groomCandidates(
   persons: readonly ScenePerson[],
   lord: SceneLord | null | undefined,
+  dwellings: SceneVillage['dwellings'] = [],
 ): ScenePerson[] {
+  const workshops = new Set(dwellings.filter((d) => d.craft !== undefined).map((d) => d.id));
   const family = new Set<number>([
     ...(lord?.trainees ?? []).map((t) => t.id),
     ...(lord?.household ?? []),
@@ -86,6 +99,7 @@ export function groomCandidates(
       p.role !== 'old-man' &&
       !p.role.startsWith('voivode') &&
       p.home !== lord?.home &&
+      !workshops.has(p.home) &&
       !family.has(p.id),
   );
 }
@@ -115,25 +129,6 @@ export function groomRides(
       penId:
         (village.pens ?? []).find((p) => p.horses?.some((h) => h.id === plan.horseId))?.id ?? null,
     }));
-}
-
-/**
- * Okna podkoního v opakování `n` jízdy `plan`: odvolání `GROOM_CALL_S` před vyvedením koně až do
- * nasednutí a od odvolání před sesednutím do návratu koně k brance; jsou-li od sebe méně než
- * `GROOM_GAP_S`, jedno okno – podkoní počká u kůlu.
- */
-export function groomWindows(plan: RidePlan, ride: number, n: number): GroomWindow[] {
-  const w = leadTimes(plan, n);
-  if (!w) return [];
-  const fetch = w.out - GROOM_CALL_S;
-  const back = w.dismount - GROOM_CALL_S;
-  if (back - w.mount < GROOM_GAP_S) {
-    return [{ ride, n, kind: 'both', from: fetch, until: w.back, times: w }];
-  }
-  return [
-    { ride, n, kind: 'fetch', from: fetch, until: w.mount, times: w },
-    { ride, n, kind: 'return', from: back, until: w.back, times: w },
-  ];
 }
 
 /**
@@ -180,16 +175,17 @@ export function groomPose(lead: RideLead, w: LeadTimes, kind: GroomDutyKind): Po
   };
 }
 
-/** Úloha, kvůli které člověk podkoním být nemůže: událost, spřežení či vůz, rodina vojvody. */
-function busy(task: PersonTask): boolean {
-  return task.interrupt !== undefined || task.pose === null || task.job.kind === 'lord';
+/** Úloha, od které podkoní odejít nemůže: u spřežení či vozu (postavu kreslí ony), rodina vojvody. */
+function bound(task: PersonTask): boolean {
+  return task.pose === null || task.job.kind === 'lord';
 }
 
 /**
- * Podkoní okna z obsazení `cast` v jeho začátku (D69): přednostně ten, koho rozvrh dne má u koní
- * (péče o koně – u ohrady tohoto koně, pak jinde), pak volný (doma, pochůzka či práce na místě),
- * nakonec kdo drží úlohu u objektu (stádo, stavba); událost, spřežení a vůz ne. Při shodě
- * nejbližší dveře obydlí ke kůlu (jako vesničan výpravy – `pickGroom` v jádru), pak nižší id.
+ * Podkoní opakování jízdy z obsazení `cast` (D69): přednostně ten, koho rozvrh dne má u koní (péče
+ * o koně – u ohrady tohoto koně, pak jinde), pak volný (doma, pochůzka či práce na místě), pak kdo
+ * drží úlohu u objektu (stádo, stavba) a nakonec i kdo je na události – kůň nikdy nejde sám, je-li
+ * kdo; spřežení a vůz ne. Při shodě nejbližší dveře obydlí ke kůlu (jako vesničan výpravy –
+ * `pickGroom` v jádru), pak nižší id.
  */
 export function pickRideGroom(
   candidates: readonly GroomCandidate[],
@@ -202,16 +198,18 @@ export function pickRideGroom(
   for (const c of candidates) {
     if (taken.has(c.id)) continue;
     const task = cast.get(c.id);
-    if (task && busy(task)) continue;
+    if (task && bound(task)) continue;
     const job = task?.job;
     const care = job?.kind === 'share' && job.activity === 'horse-care';
     const tier = care
       ? job.target.kind === 'pen' && job.target.id === ride.penId
         ? 0
         : 1
-      : task?.kind === 'hold'
-        ? 3
-        : 2;
+      : task?.interrupt !== undefined
+        ? 4
+        : task?.kind === 'hold'
+          ? 3
+          : 2;
     const d = c.door ? Math.hypot(c.door.x - hitch.x, c.door.z - hitch.z) : Infinity;
     if (
       best &&
@@ -224,21 +222,39 @@ export function pickRideGroom(
   return best?.id ?? null;
 }
 
+/** Opakování jízdy pro podkoní: časy vedení, chvíle výběru, podkoní a jeho okna. */
+interface GroomRepeat {
+  times: LeadTimes;
+  anchor: number;
+  groom: number | null;
+  windows: GroomWindow[];
+}
+
 /**
- * Úlohy podkoních pro rozvrh (villager-timetable.ts – `Duties`): kdo vede koně kterého okna, určí
- * obsazení v začátku okna (`pickRideGroom`) – okno, které už běží, tak podkoního nezmění, ani když
- * přijde nový den. Každý kůň má v okně svého podkoního (jízdy napřed mají přednost).
+ * Úlohy podkoních pro rozvrh (villager-timetable.ts – `Duties`). Podkoního opakování jízdy vybere
+ * obsazení v chvíli výběru (`GROOM_MAX_CALL_S` před vyvedením koně – `pickRideGroom`); každý kůň
+ * má v témž čase jiného. Kdy ho zavolat, spočítá `callTime` z míst, kde podle rozvrhu může být –
+ * u branky a u kůlu je vždy včas. Obojí rozhoduje jen obsazení do té chvíle, takže zavolání, které
+ * už proběhlo, nový den nezmění (podkoní nepřeskočí).
  */
 export class RideGrooms implements Duties {
   private readonly ids: ReadonlySet<number>;
-  private readonly picked = new Map<string, { cast: DayCast; groom: number | null }>();
+  private readonly doors: ReadonlyMap<number, Point | null>;
+  /** Branky a kůly jízd – odtud jde podkoní po vedení domů. */
+  private readonly spots: readonly Point[];
+  private readonly repeats = new Map<string, GroomRepeat | null>();
   private readonly tasks = new Map<string, PersonTask>();
 
   constructor(
     private readonly rides: readonly GroomRide[],
     private readonly candidates: readonly GroomCandidate[],
+    /** Chůze rozvrhu (s) z bodu do bodu – stejný odhad jako `Timetable` (bez sítě rovně). */
+    private readonly walkS: (a: Point, b: Point) => number = (a, b) =>
+      Math.hypot(b.x - a.x, b.z - a.z) / WALK_M_S,
   ) {
     this.ids = new Set(rides.length > 0 ? candidates.map((c) => c.id) : []);
+    this.doors = new Map(candidates.map((c) => [c.id, c.door]));
+    this.spots = rides.flatMap((r) => [r.plan.lead!.points[0]!, r.plan.hitch]);
   }
 
   at(
@@ -254,21 +270,20 @@ export class RideGrooms implements Duties {
       const first = plan.period ? leadRepeat(plan, t) - 1 : 0;
       let done = false;
       for (let n = first; n < first + MAX_SCAN && !done; n++) {
-        for (const w of groomWindows(plan, r, n)) {
-          const groom = this.groomOf(w, base);
-          if (w.until <= t) {
-            if (groom === person) from = Math.max(from, w.until);
-          } else if (w.from <= t) {
-            if (groom === person) return { task: this.taskOf(w), from: w.from, until: w.until };
-          } else if (groom === person) {
-            until = Math.min(until, w.from);
-            done = true;
-            break;
-          } else if (base(w.from).until === Infinity) {
-            // nejnovější obsazení – další opakování vyberou stejně
-            done = true;
-            break;
+        const rep = this.repeat(r, n, base);
+        if (rep?.groom === person) {
+          for (const w of rep.windows) {
+            if (w.until <= t) from = Math.max(from, w.until);
+            else if (w.from <= t) return { task: this.taskOf(w), from: w.from, until: w.until };
+            else {
+              until = Math.min(until, w.from);
+              done = true;
+              break;
+            }
           }
+        } else if (rep && rep.anchor > t && base(rep.anchor).until === Infinity) {
+          // nejnovější obsazení – další opakování vyberou stejně
+          done = true;
         }
         if (!plan.period) break;
       }
@@ -276,27 +291,115 @@ export class RideGrooms implements Duties {
     return { task: null, from, until };
   }
 
-  /** Podkoní okna `w` (podle obsazení v jeho začátku); podkoní jízd napřed v témž čase jsou zabraní. */
-  private groomOf(w: GroomWindow, base: (t: number) => CastSpan): number | null {
-    const cast = base(w.from).cast;
-    const key = `${w.ride}:${w.n}:${w.kind}`;
-    const hit = this.picked.get(key);
-    if (hit && hit.cast === cast) return hit.groom;
-    const taken = new Set<number>();
-    for (let r = 0; r < w.ride; r++) {
-      const plan = this.rides[r]!.plan;
-      const n0 = leadRepeat(plan, w.from);
-      for (const n of plan.period ? [n0 - 1, n0, n0 + 1] : [0]) {
-        for (const o of groomWindows(plan, r, n)) {
-          if (o.from >= w.until || o.until <= w.from) continue;
-          const g = this.groomOf(o, base);
-          if (g !== null) taken.add(g);
+  /** Opakování `n` jízdy `r`: podkoní z obsazení v chvíli výběru a jeho okna; jízda se nejede – null. */
+  private repeat(r: number, n: number, base: (t: number) => CastSpan): GroomRepeat | null {
+    const key = `${r}:${n}`;
+    const known = this.repeats.get(key);
+    if (known !== undefined) return known;
+    const ride = this.rides[r]!;
+    const times = leadTimes(ride.plan, n);
+    let rep: GroomRepeat | null = null;
+    if (times) {
+      const anchor = times.out - GROOM_MAX_CALL_S;
+      // zabraní: podkoní jiných jízd v témž čase vybraní dřív (při shodě jízdy napřed)
+      const taken = new Set<number>();
+      for (let q = 0; q < this.rides.length; q++) {
+        const other = this.rides[q]!.plan;
+        if (q === r) continue;
+        const m0 = leadRepeat(other, anchor);
+        for (const m of other.period ? [m0 - 1, m0, m0 + 1] : [0]) {
+          const o = leadTimes(other, m);
+          if (!o) continue;
+          const at = o.out - GROOM_MAX_CALL_S;
+          if (at >= times.back || o.back <= anchor || at > anchor || (at === anchor && q > r)) {
+            continue;
+          }
+          const g = this.repeat(q, m, base)?.groom;
+          if (g !== undefined && g !== null) taken.add(g);
         }
       }
+      const groom = pickRideGroom(this.candidates, base(anchor).cast, ride, taken);
+      rep = {
+        times,
+        anchor,
+        groom,
+        windows: groom === null ? [] : this.windowsFor(r, n, times, anchor, groom, base),
+      };
     }
-    const groom = pickRideGroom(this.candidates, cast, this.rides[w.ride]!, taken);
-    this.picked.set(key, { cast, groom });
-    return groom;
+    this.repeats.set(key, rep);
+    return rep;
+  }
+
+  /**
+   * Okna podkoního: od zavolání k brance do nasednutí a od zavolání ke kůlu do návratu koně
+   * k brance; když by pro koně musel být zavolán dřív než `GROOM_GAP_S` po nasednutí, jedno okno –
+   * počká u kůlu.
+   */
+  private windowsFor(
+    r: number,
+    n: number,
+    times: LeadTimes,
+    anchor: number,
+    groom: number,
+    base: (t: number) => CastSpan,
+  ): GroomWindow[] {
+    const lead = this.rides[r]!.plan.lead!;
+    const gate = leaderSpot(lead, 0, false, { x: 0, z: 0, headingX: 0, headingZ: 1 });
+    const hitch = leaderSpot(lead, lead.length, true, { x: 0, z: 0, headingX: 0, headingZ: 1 });
+    const fetch = this.callTime(groom, gate, times.out, anchor, base);
+    const gap = times.mount + GROOM_GAP_S;
+    const back = this.callTime(groom, hitch, times.dismount, gap, base);
+    if (back <= gap) return [{ ride: r, n, kind: 'both', from: fetch, until: times.back, times }];
+    return [
+      { ride: r, n, kind: 'fetch', from: fetch, until: times.mount, times },
+      { ride: r, n, kind: 'return', from: back, until: times.back, times },
+    ];
+  }
+
+  /**
+   * Kdy podkoního zavolat, aby byl u `target` aspoň `GROOM_RESERVE_S` před `deadline` (D69): krok
+   * po kroku od `from` – zavolá se v první chvíli, kdy by po dalším kroku čekání z některého místa,
+   * kde podle rozvrhu může být (`reach`), nedošel včas. Za krok dojde nejvýš o krok dál, takže
+   * zavolaný dojde vždy včas (u branky či u kůlu pak počká). Rozhoduje jen obsazení do té chvíle.
+   */
+  private callTime(
+    person: number,
+    target: Point,
+    deadline: number,
+    from: number,
+    base: (t: number) => CastSpan,
+  ): number {
+    for (let c = from; c < deadline; c += CALL_STEP_S) {
+      const reach = this.reach(person, c, target, base);
+      if (c + reach + 2 * CALL_STEP_S + GROOM_RESERVE_S >= deadline) return c;
+    }
+    return from;
+  }
+
+  /**
+   * Nejdelší chůze k `target` (s, s rezervou odhadu) z míst, kde člověk v `c` podle rozvrhu může
+   * být: dveře domu, místa jeho úloh v obsazení za `LOOKBACK_S` zpět (cesta mezi nimi je blíž než
+   * dál z nich) a branky a kůly jízd (od koní jde domů).
+   */
+  private reach(person: number, c: number, target: Point, base: (t: number) => CastSpan): number {
+    let worst = 0;
+    const add = (p: Point | null | undefined): void => {
+      if (p) worst = Math.max(worst, this.walkS(p, target));
+    };
+    add(this.doors.get(person));
+    for (const s of this.spots) add(s);
+    let t = c;
+    for (let k = 0; k < 64; k++) {
+      const span = base(t);
+      const task = span.cast.get(person);
+      if (task) {
+        add(task.at);
+        for (const p of Object.values(task.places ?? {})) add(p);
+      }
+      if (span.from <= c - LOOKBACK_S) break;
+      t = span.from - 1e-6;
+    }
+    return worst * WALK_MARGIN;
   }
 
   /** Úloha podkoního v okně `w` – péče o koně u jeho ohrady, přeruší, co právě dělá. */

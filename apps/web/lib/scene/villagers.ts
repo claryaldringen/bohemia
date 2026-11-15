@@ -861,14 +861,19 @@ export class VillageVillagers {
     timetable.setWet(flooded ? (x, z, at) => flooded(x, z, at * 1000 + LIVESTOCK_EPOCH_MS) : null);
     // podkoní (D69 – ride-grooms.ts): rolník vyvede koně jízd dne z ohrady ke kůlu a po jízdě je
     // odvede zpět – úloha navíc rozvrhu, dojde z místa, kde je; na koho nezbude, vede jezdec sám
-    const candidates = groomCandidates(persons, village.labor!.lord).map((p) => ({
-      id: p.id,
-      door: plan.doors.get(p.home) ?? null,
-    }));
+    const candidates = groomCandidates(persons, village.labor!.lord, village.dwellings).map(
+      (p) => ({
+        id: p.id,
+        door: plan.doors.get(p.home) ?? null,
+      }),
+    );
     const rides = plan.crew.rides ?? [];
     const groomed = groomedHorses(rides, candidates.length);
     const grooms = groomRides(rides, village).filter((r) => groomed.has(r.plan.horseId));
-    timetable.setDuties(grooms.length > 0 ? new RideGrooms(grooms, candidates) : null);
+    // kdy podkoního zavolat – ze stejného odhadu chůze jako rozvrh (dojde vždy včas)
+    const walkS = (a: { x: number; z: number }, b: { x: number; z: number }): number =>
+      plan.length(a, b) / SCHEDULE_WALK_M_S;
+    timetable.setDuties(grooms.length > 0 ? new RideGrooms(grooms, candidates, walkS) : null);
     const day = village.labor!.day;
     const window = this.env.dayWindow?.(day) ?? null;
     // změna staveb uprostřed dne (D68 – nová stavba, zrušená): nové obsazení platí od teď –

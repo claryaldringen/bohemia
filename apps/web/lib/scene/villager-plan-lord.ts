@@ -389,7 +389,7 @@ export function lordFigures(
   // koně vyvede a odvede podkoní (D69 – ride-grooms.ts); na koho nezbude rolník, vede jezdec sám
   const groomed = groomedHorses(
     rides,
-    groomCandidates(ctx.village.labor?.persons ?? [], lord).length,
+    groomCandidates(ctx.village.labor?.persons ?? [], lord, ctx.village.dwellings).length,
   );
   const selfLed = (r: RidePlan | undefined): RidePlan | null =>
     r?.lead && r.span && !groomed.has(r.horseId) ? r : null;

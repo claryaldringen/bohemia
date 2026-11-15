@@ -15,6 +15,8 @@ import {
   createRideState,
   isLed,
   isRiding,
+  leaderSpot,
+  leadTimes,
   rideHorsePose,
   ridePlans,
   riderPose,
@@ -63,16 +65,60 @@ function ledPlan(hours: number): RidePlan {
 
 /** Rolník 300 žne na poli 40 m od dveří (práce na místě). */
 const DOOR = { x: 40, z: 30 };
-function reapTask(): PersonTask {
+function reapTask(at = { x: 60, z: -10 }): PersonTask {
   return {
     key: 'share:harvest:0',
     job: { kind: 'share', activity: 'harvest', target: { kind: 'field', id: 4 } },
     kind: 'bout',
     range: 'long',
-    pose: stand(60, -10, 1, 0, 'reap'),
+    pose: stand(at.x, at.z, 1, 0, 'reap'),
     errand: null,
-    at: { x: 60, z: -10 },
+    at,
   };
+}
+
+/** Rozvrh rolníka 300 (dveře `door`, žne na `work`) s podkoním jízdy `plan`. */
+function groomTable(plan: RidePlan, door = DOOR, work?: { x: number; z: number }): Timetable {
+  const tt = new Timetable(3, 1.25);
+  tt.setDoors(new Map([[300, door]]));
+  tt.setDuties(new RideGrooms(groomRides([plan], PENS), [{ id: 300, door }]));
+  tt.setDay(1, 0, new Map([[300, reapTask(work)]]));
+  return tt;
+}
+
+const STEP = 0.25;
+
+/**
+ * Projde jízdu cyklu 3 po `STEP` s: kůň na cestě z ohrady a do ní má u sebe podkoního (u hlavy,
+ * viditelného) a podkoní nikde nepřeskočí (z domu vyjde a vejde ve dveřích `door`). Vrátí, kolik
+ * kroků byl kůň veden a kolik z nich jako úloha podkoního.
+ */
+function followRide(plan: RidePlan, tt: Timetable, door: { x: number; z: number }): number[] {
+  const length = plan.lead!.length;
+  const rideS = (plan.span![1] - plan.span![0]) / 1000;
+  const state = createRideState();
+  let prev: { x: number; z: number; hidden: boolean } | null = null;
+  let led = 0;
+  let duty = 0;
+  for (let t = ride(-length / 1.2 - 700); t < ride(rideS + length / 1.2 + 300); t += STEP) {
+    const p = tt.pose(300, t, [], createVillagerPose());
+    const hidden = p.hidden === true;
+    if (isLed(plan, t) && !isRiding(plan, t)) {
+      led++;
+      const horse = rideHorsePose(plan, t, state, createLivestockPose());
+      expect(hidden, `${t}`).toBe(false);
+      expect(dist(p, horse), `${t}`).toBeLessThan(1.5);
+      if (tt.activity(300, t).task?.key.startsWith('groom:')) duty++;
+    }
+    if (prev && !prev.hidden && !hidden) {
+      // chůze, žádný přeskok (rozvrh jde nejvýš 1,8× tempem chůze)
+      expect(dist(p, prev) / STEP, `${t}`).toBeLessThan(3);
+    } else if (prev && prev.hidden !== hidden) {
+      expect(dist(hidden ? prev : p, door), `${t}`).toBeLessThan(1);
+    }
+    prev = { x: p.x, z: p.z, hidden };
+  }
+  return [led, duty];
 }
 
 const dist = (a: { x: number; z: number }, b: { x: number; z: number }): number =>
@@ -85,50 +131,39 @@ describe('podkoní vede koně z ohrady ke kůlu a zpět (D69)', () => {
   ] as const) {
     it(`kůň má po celé cestě u sebe podkoního, ten dojde z místa, kde je, bez přeskoku (${label})`, () => {
       const plan = ledPlan(hours);
-      const tt = new Timetable(3, 1.25);
-      tt.setDoors(new Map([[300, DOOR]]));
-      tt.setDuties(new RideGrooms(groomRides([plan], PENS), [{ id: 300, door: DOOR }]));
-      tt.setDay(1, 0, new Map([[300, reapTask()]]));
-      const length = plan.lead!.length;
-      const rideS = (plan.span![1] - plan.span![0]) / 1000;
-      const state = createRideState();
-      let prev: { x: number; z: number; hidden: boolean } | null = null;
-      let led = 0;
-      let ledDuty = 0;
-      const step = 0.25;
-      for (let t = ride(-length / 1.2 - 200); t < ride(rideS + length / 1.2 + 200); t += step) {
-        const p = tt.pose(300, t, [], createVillagerPose());
-        const hidden = p.hidden === true;
-        if (isLed(plan, t) && !isRiding(plan, t)) {
-          led++;
-          const horse = rideHorsePose(plan, t, state, createLivestockPose());
-          // u koně – u jeho hlavy, ne kdesi u práce
-          expect(hidden, `${t}`).toBe(false);
-          expect(dist(p, horse), `${t}`).toBeLessThan(1.5);
-          const a = tt.activity(300, t);
-          if (a.task?.key.startsWith('groom:')) ledDuty++;
-        }
-        if (prev && !prev.hidden && !hidden) {
-          // chůze, žádný přeskok (rozvrh jde nejvýš 1,8× tempem chůze)
-          expect(dist(p, prev) / step, `${t}`).toBeLessThan(3);
-        } else if (prev && prev.hidden !== hidden) {
-          // z domu vyjde a do něj vejde ve dveřích
-          expect(dist(hidden ? prev : p, DOOR), `${t}`).toBeLessThan(1);
-        }
-        prev = { x: p.x, z: p.z, hidden };
-      }
+      const [led, duty] = followRide(plan, groomTable(plan), DOOR);
       // tam i zpět krokem koně a celou dobu jako podkoní (péče o koně)
-      expect(led * step).toBeGreaterThan((2 * length) / 1.2);
-      expect(ledDuty).toBe(led);
+      expect(led! * STEP).toBeGreaterThan((2 * plan.lead!.length) / 1.2);
+      expect(duty).toBe(led);
     });
   }
 
+  it('podkoní 300 m od branky je u ní dřív, než kůň vyjde, a po jízdě u kůlu dřív, než jezdec sesedne', () => {
+    const plan = ledPlan(2);
+    const door = { x: 330, z: 20 };
+    const work = { x: 330, z: 60 };
+    const tt = groomTable(plan, door, work);
+    const w = leadTimes(plan, 3)!;
+    const spot = { x: 0, z: 0, headingX: 0, headingZ: 1 };
+    const gate = { ...leaderSpot(plan.lead!, 0, false, spot) };
+    const hitch = { ...leaderSpot(plan.lead!, plan.lead!.length, true, spot) };
+    for (const [t, at] of [
+      [w.out - 1, gate],
+      [w.dismount - 1, hitch],
+    ] as const) {
+      const p = tt.pose(300, t, [], createVillagerPose());
+      expect(p.hidden ?? false, `${t}`).toBe(false);
+      expect(dist(p, at), `${t}`).toBeLessThan(0.5);
+      expect(tt.activity(300, t).task?.key.startsWith('groom:'), `${t}`).toBe(true);
+    }
+    const [led, duty] = followRide(plan, groomTable(plan, door, work), door);
+    expect(led! * STEP).toBeGreaterThan((2 * plan.lead!.length) / 1.2);
+    expect(duty).toBe(led);
+  });
+
   it('mimo okna dělá podkoní svou práci a panel ho při vedení ukáže u koní', () => {
     const plan = ledPlan(2);
-    const tt = new Timetable(3, 1.25);
-    tt.setDoors(new Map([[300, DOOR]]));
-    tt.setDuties(new RideGrooms(groomRides([plan], PENS), [{ id: 300, door: DOOR }]));
-    tt.setDay(1, 0, new Map([[300, reapTask()]]));
+    const tt = groomTable(plan);
     // uprostřed jízdy (mezi vyvedením a odvedením) žne, nebo jde od dvorce k práci a domů
     const mid = tt.activity(300, ride(100));
     expect(mid.task?.key.startsWith('groom:') ?? false).toBe(false);
@@ -155,14 +190,18 @@ describe('kdo je podkoní (D69)', () => {
       man(21, 2, 'child', 8),
       { ...man(22, 3), sex: 'female' as const },
       man(23, 4, 'old-man', 70),
+      man(24, 5, 'smith'),
+      man(25, 2, 'farmer-son', 15),
     ];
-    expect(groomCandidates(persons, lord).map((p) => p.id)).toEqual([20]);
+    const dwellings = [{ id: 5, craft: 'smith' }] as never;
+    // řemeslník (domácnost dílny) ne, patnáctiletý syn rolníka ano
+    expect(groomCandidates(persons, lord, dwellings).map((p) => p.id)).toEqual([20, 25]);
     expect(groomCandidates(persons.slice(0, 2), lord)).toEqual([]);
     expect(groomedHorses([ledPlan(2)], 0).size).toBe(0);
     expect([...groomedHorses([ledPlan(2)], 1)]).toEqual([1]);
   });
 
-  it('přednost má ten, koho rozvrh dne má u koní; událost a spřežení ne; jinak nejbližší', () => {
+  it('přednost má ten, koho rozvrh dne má u koní, jinak nejbližší volný; spřežení ne', () => {
     const ride = groomRides([ledPlan(2)], PENS)[0]!;
     const task = (job: PersonTask['job'], extra: Partial<PersonTask> = {}): PersonTask => ({
       ...reapTask(),
@@ -179,16 +218,18 @@ describe('kdo je podkoní (D69)', () => {
     const funeral = task({ kind: 'funeral' } as PersonTask['job'], { interrupt: 'all' });
     const plough = task({ kind: 'plough', team: 0, role: 'ploughman' }, { pose: null });
     expect(pickRideGroom(cands, new Map([[1, funeral]]), ride)).toBe(2);
-    expect(
+    // kůň sám nejde: i ze svatby či pohřbu, když nikdo jiný není; od spřežení ne
+    const pick = (a: PersonTask, b: PersonTask): number | null =>
       pickRideGroom(
         cands,
         new Map([
-          [1, plough],
-          [2, funeral],
+          [1, a],
+          [2, b],
         ]),
         ride,
-      ),
-    ).toBeNull();
+      );
+    expect(pick(plough, funeral)).toBe(2);
+    expect(pick(plough, plough)).toBeNull();
   });
 });
 
