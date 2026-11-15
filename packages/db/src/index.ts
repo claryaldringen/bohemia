@@ -38,5 +38,9 @@ export {
   createWorldQueue,
   createAlarmOwners,
   playerLockHash,
+  listenChanges,
+  type ChangeHandlers,
+  type ChangeListener,
   type PlayerLockOptions,
 } from './adapters';
+export { CHANGE_CHANNEL, notifyChange, parseChange, type Cell, type DbChange } from './changes';

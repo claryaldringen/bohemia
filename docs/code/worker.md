@@ -18,6 +18,8 @@ vstupní bod (composition root) jako web – žádná herní logika, jen plánov
 
 ## Soubory
 
+Zápisy workeru (stav vsi, bod výpravy a tažení, upozornění) oznamují triggery v databázi, worker pro to nic nevolá (`docs/code/server-events.md` – Oznámení v databázi).
+
 - `src/main.ts` – skládání: pool hlavní a pool zámků (`WORKER_LOCK_POOL_SIZE` = 2),
   `createGameDeps` (obsahuje i `queue` = `createWorldQueue`), signály, zavření poolů.
 - `src/loop.ts` – `runLoop(deps, options, signal)`: kolo `advanceWorldStep` → při práci pauza

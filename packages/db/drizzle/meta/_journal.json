@@ -365,6 +365,13 @@
       "when": 1794690371641,
       "tag": "0052_journey_home_village",
       "breakpoints": true
+    },
+    {
+      "idx": 53,
+      "version": "7",
+      "when": 1794749694604,
+      "tag": "0053_change_notify",
+      "breakpoints": true
     }
   ]
 }
