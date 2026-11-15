@@ -11,9 +11,11 @@ import { craftCoverage } from '../../crafts/crafts';
 import { STEWARD } from '../../rules/rules-steward';
 import { planSettlement } from '../steward-plan';
 import { newSteward } from '../steward-state';
-import { startBestWorkshop, type StewardContext } from '../steward';
+import { startBestWorkshop, tileCell, type StewardContext } from '../steward';
 import { dateOfDayIndex } from '../../../calendar';
 import { withBuiltFirstDwelling } from '../../__tests__/village-fixtures';
+import type { HouseType } from '../../buildings/log-house';
+import { checkWorkshopPlacement, placementVillageOf } from '../../placement/placement';
 import type { Craft, VillageState } from '../../types';
 
 // workshops.md – Správce staví nejlepší dílnu, kterou už jde (od 800 roubenou, od 750 vypletenou,
@@ -92,5 +94,47 @@ describe('správce – nadzemní dílna', () => {
     const ctx = { ...context(s, Y810), obstacles: { ...obstacles, count: 0 } };
     expect(startBestWorkshop(s, ctx, 'smith')).toBe(true);
     expect(workshops(s)).toEqual(['vypleteny']);
+  });
+});
+
+describe('správce – slot dílny po typech (workshops.md – Správce)', () => {
+  /** Ves roku 810 s opuštěnou zemnicí uhlíře `dx` m na +x od prvního slotu dílny plánu. */
+  function campBeside(dx: number): { s: VillageState; slot: number; at: { x: number; z: number } } {
+    const s = village(Y810);
+    const slot = s.steward!.plan!.slots.workshop![0]!;
+    const cell = tileCell(landscape, slot);
+    const at = tileCenterWorld(landscape, cell.x, cell.y);
+    s.campRemnants = [
+      { id: s.nextId++, burnerId: 0, x: at.x + dx, z: at.z, rotation: 0, day: Y810 },
+    ];
+    return { s, slot, at: { x: at.x, z: at.z } };
+  }
+
+  /** Které typy dílny se na místo vejdou (kontrola místa jako u hráče). */
+  const fits = (s: VillageState, at: { x: number; z: number }): Record<string, boolean> => {
+    const placement = placementVillageOf(s, Y810);
+    const position = { ...at, rotation: 0 };
+    const check = (type?: HouseType): boolean =>
+      checkWorkshopPlacement(landscape, placement, 'smith', position, obstacles, type).ok;
+    return { srub: check('srub'), vypleteny: check('vypleteny'), today: check() };
+  };
+
+  it('slot, kam se vejde jen dnešní dílna, dostane dnešní dílnu a z plánu nezmizí', () => {
+    // zemnice 4,6 m na +x zasáhne jen přístřešek nadzemní dílny
+    const { s, slot, at } = campBeside(4.6);
+    expect(fits(s, at)).toEqual({ srub: false, vypleteny: false, today: true });
+    expect(startBestWorkshop(s, context(s, Y810), 'smith')).toBe(true);
+    const built = s.constructions.find((c) => c.craft === 'smith');
+    expect(built?.dwellingType).toBe('polozemnice');
+    expect(built?.position).toMatchObject(at);
+    expect(s.steward!.plan!.slots.workshop).toContain(slot);
+  });
+
+  it('slot, kam se nevejde ani dnešní dílna, se zahodí – roubená vyroste na dalším', () => {
+    const { s, slot, at } = campBeside(0);
+    expect(fits(s, at)).toEqual({ srub: false, vypleteny: false, today: false });
+    expect(startBestWorkshop(s, context(s, Y810), 'smith')).toBe(true);
+    expect(workshops(s)).toEqual(['srub']);
+    expect(s.steward!.plan!.slots.workshop).not.toContain(slot);
   });
 });

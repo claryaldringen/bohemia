@@ -50,9 +50,10 @@ Martin 14. 11. 2026:
   osídlí ji rodina jako dnešní dílnu, přednost mají dočasně ubytovaní. Rozestavěná nadzemní dílna
   se počítá mezi stavby, na které čeká rodina, ne mezi nadzemní domy správce.
 - **Přestavba** (návrh Clauda): dosloužilá dílna se přestaví na týž typ za cenu dílny toho typu.
-- **Správce** (návrh Clauda): zkouší typy od nejlepšího, který už jde (od 800 roubená, od 750
-  vypletená), a nakonec dnešní dílnu; postaví první, na kterou má cenu předem a místo – vypletená
-  chce méně dřeva než dnešní dílna.
+- **Správce** (návrh Clauda): na každém slotu dílny zkouší typy od nejlepšího, který už jde (od 800
+  roubená, od 750 vypletená), a nakonec dnešní dílnu; postaví první, na kterou má cenu předem
+  a místo – vypletená chce méně dřeva než dnešní dílna. Slot zahodí, jen když se na něj nevejde
+  ani dnešní dílna (přístřešek nadzemní dílny chce víc místa).
 
 ## Uhlíř – zemnice u milíře
 

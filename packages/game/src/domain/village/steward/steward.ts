@@ -434,12 +434,18 @@ function usableSlots(plan: StewardPlan, kind: StewardSlotKind): number[] {
  * ukončí. Slot, který `accepts` nevezme (hodí se jen jiné stavbě téhož slotu), se přeskočí, ale
  * nezahodí – počítá se do pokusů. Vrací, zda stavba začala; `tried` = zda byl aspoň jeden slot
  * k mání.
+ *
+ * `intentOf` smí vrátit víc variant stavby od nejlepší (dílna: roubená → vypletená → dnešní; na
+ * každém slotu ve stejném pořadí): na slotu se zkoušejí po řadě a slot se zahodí, jen když na něm
+ * neprošla žádná a poslední – nejskromnější, tu ověřuje plán sídla – kvůli místu. Varianta
+ * odmítnutá z důvodu, za který místo nemůže, se na dalších slotech už nezkouší; když takhle
+ * vypadnou všechny, pokusy končí.
  */
 export function trySlots(
   state: VillageState,
   ctx: StewardContext,
   kind: StewardSlotKind,
-  intentOf: (tile: number) => BuildIntent,
+  intentOf: (tile: number) => BuildIntent | BuildIntent[],
   accepts?: (tile: number) => boolean,
 ): { started: boolean; tried: boolean } {
   const plan = state.steward?.plan;
@@ -451,18 +457,27 @@ export function trySlots(
     return { started: false, tried: false };
   }
   const failed: number[] = [];
+  // varianty (pořadí), za jejichž odmítnutí místo nemůže – další slot by dopadl stejně
+  const notTheSlot = new Set<number>();
   let tries = 0;
   for (const tile of free) {
     if (tries++ >= STEWARD.slotTries) break;
     // slot, který se hodí jinému druhu stavby téhož slotu (ohrada jiného zvířete), zůstane v plánu
     if (accepts && !accepts(tile)) continue;
-    const built = startStewardBuild(state, ctx, intentOf(tile));
-    if (built.ok) {
-      dropSlots(state, kind, failed);
-      return { started: true, tried: true };
+    const variants = [intentOf(tile)].flat();
+    let placeFailed = false;
+    for (const [k, intent] of variants.entries()) {
+      if (notTheSlot.has(k)) continue;
+      const built = startStewardBuild(state, ctx, intent);
+      if (built.ok) {
+        dropSlots(state, kind, failed);
+        return { started: true, tried: true };
+      }
+      if (NOT_THE_SLOT.has(built.reason)) notTheSlot.add(k);
+      else placeFailed = k === variants.length - 1;
     }
-    if (NOT_THE_SLOT.has(built.reason)) break;
-    failed.push(tile);
+    if (placeFailed) failed.push(tile);
+    if (notTheSlot.size === variants.length) break;
   }
   dropSlots(state, kind, failed);
   return { started: false, tried: true };
@@ -873,29 +888,26 @@ function workshopStep(state: VillageState, ctx: StewardContext): boolean {
 }
 
 /**
- * Začne dílnu řemesla `craft` na slotu plánu: workshops.md – Správce (návrh Clauda): nejlepší typ,
- * který už jde (od 800 roubená, od 750 vypletená), a nakonec dnešní dílna; postaví první, na
- * kterou má cenu předem a místo.
+ * Začne dílnu řemesla `craft` na slotu plánu: workshops.md – Správce (návrh Clauda): na každém
+ * slotu nejlepší typ, který už jde (od 800 roubená, od 750 vypletená), a nakonec dnešní dílna;
+ * postaví první, na kterou má cenu předem a místo. Slot zahodí, jen když se na něj nevejde ani
+ * dnešní dílna (`trySlots` – varianty) – plán sloty ověřuje jen pro ni.
  */
 export function startBestWorkshop(state: VillageState, ctx: StewardContext, craft: Craft): boolean {
   const types: (HouseType | undefined)[] = [
     ...HOUSE_TYPES_BEST_FIRST.filter((t) => dwellingYearReason(t, ctx.day) === null),
     undefined,
   ];
-  for (const type of types) {
-    const started = trySlots(state, ctx, 'workshop', (tile) => {
-      const cell = tileCell(ctx.landscape, tile);
-      const c = tileCenterWorld(ctx.landscape, cell.x, cell.y);
-      return {
-        kind: 'workshop',
-        craft,
-        position: { x: c.x, z: c.z, rotation: 0 },
-        ...(type ? { type } : {}),
-      };
-    }).started;
-    if (started) return true;
-  }
-  return false;
+  return trySlots(state, ctx, 'workshop', (tile) => {
+    const cell = tileCell(ctx.landscape, tile);
+    const c = tileCenterWorld(ctx.landscape, cell.x, cell.y);
+    return types.map((type): BuildIntent => ({
+      kind: 'workshop',
+      craft,
+      position: { x: c.x, z: c.z, rotation: 0 },
+      ...(type ? { type } : {}),
+    }));
+  }).started;
 }
 
 /**
