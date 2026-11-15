@@ -58,10 +58,24 @@ describe('dynastyView – výjezd vojvody (lord-control.md)', () => {
       people: [man(1, 40, { name: 'Bořivoj' }), man(2, 30)],
       dynasty: { lordId: 1, lords: [{ id: 1, fromDay: 0 }] },
     };
-    expect(expeditionsAway(state)).toBe(false);
+    expect(expeditionsAway(state, DAY)).toBe(false);
     state.people[1]!.away = { kind: 'journey', refId: 'j1' };
-    expect(expeditionsAway(state)).toBe(true);
+    expect(expeditionsAway(state, DAY)).toBe(true);
     expect(dynastyView(state, DAY)?.journeyAway).toBeUndefined();
+  });
+
+  it('od dne `untilDay` (návrat) odznak ani dotazování nejsou, i když záznam `away` ještě trvá', () => {
+    // hlouček došel domů v den DAY – ves záznam smaže až `returnHome(DAY + 2)`
+    const state: VillageState = {
+      ...foundVillage(),
+      people: [man(1, 40, { name: 'Bořivoj' }), man(2, 30)],
+      dynasty: { lordId: 1, lords: [{ id: 1, fromDay: 0 }] },
+    };
+    for (const p of state.people) p.away = { kind: 'journey', refId: 'j1', untilDay: DAY + 1 };
+    expect(expeditionsAway(state, DAY)).toBe(true);
+    expect(dynastyView(state, DAY)?.journeyAway).toBe(true);
+    expect(expeditionsAway(state, DAY + 1)).toBe(false);
+    expect(dynastyView(state, DAY + 1)?.journeyAway).toBeUndefined();
   });
 
   it('journeyAway jen když je vojvoda pryč na výjezdu', () => {

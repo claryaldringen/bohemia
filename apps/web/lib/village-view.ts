@@ -537,7 +537,7 @@ export function buildVillageView(
     commonLaborPerDay: summary.commonLaborPerDay,
     lord: state.labor?.lord ?? null,
     dynasty: dynastyView(state, day),
-    ...(expeditionsAway(state) ? { expeditionsAway: true as const } : {}),
+    ...(expeditionsAway(state, day) ? { expeditionsAway: true as const } : {}),
     steward: { on: isStewardOn(state), built: [...(state.steward?.built ?? [])] },
     fullHousehold: summary.fullHousehold,
     build: buildOptions(state, landscape, summary.crafts.coverage, day),
