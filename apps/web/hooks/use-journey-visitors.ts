@@ -10,8 +10,8 @@ import { useSerialRefresh, useServerEvent, useServerResync } from './use-server-
 
 // Jezdci na mapě vsi (lord-control.md – Soused; journey.md – Scéna vsi): vlastní výjezd vždy, cizí
 // jen v dohledu domů. Seznam nese událost serveru `visitors` (server-events.md – Výpravy); jeden
-// `GET /api/journey?visitors=` jde při zapnutí, změně vsi a na obnovu po mezeře (`sync`). Jen když
-// dotaz na ves hlásí výpravu na mapě (`MapWatch.riders`, D62 – `enabled`), jinak vůbec. Nový seznam
+// `GET /api/journey?visitors=` jde při zapnutí (`enabled` – scéna už je), změně vsi a na obnovu po
+// mezeře (`sync`). Hráč s otevřenou vsí dostane stav i při připojení (`scopeTasks`). Nový seznam
 // jen při změně taktu nebo výjezdů.
 
 const NONE: ExpeditionVisitor[] = [];
@@ -68,8 +68,7 @@ export function useJourneyVisitors(
   useEffect(() => {
     if (on) ask();
   }, [on, villageId, ask]);
-  // událost platí vždy, když sedí ves: `MapWatch` přichází jen s pohledem vsi, cizí jezdec by byl
-  // až o herní den neviditelný; `enabled` řídí jen dotaz
+  // událost platí vždy, když sedí ves; `enabled` řídí jen dotaz
   useServerEvent('visitors', (event) => {
     if (event.villageId === villageRef.current) apply(event.visitors);
   });

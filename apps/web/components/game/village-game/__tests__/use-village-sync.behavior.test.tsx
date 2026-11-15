@@ -10,7 +10,6 @@ import {
 import type { LandscapeTransfer } from '@/lib/landscape-transfer';
 import { DAY_CHECK_GRACE_MS } from '@/lib/village-day-check';
 import type { VillageView } from '@/lib/village-view';
-import type { MapWatchView } from '@/lib/journey-view';
 import { useVillageSync, type VillageSync } from '../use-village-sync';
 
 // Stav vsi ze serveru (web-ui.md – Obnova pohledu vsi (události)): na trasy vozů nic nečeká (D63 –
@@ -39,7 +38,6 @@ let sync: VillageSync;
 let events: FakeServerEvents;
 
 const WORLD = { startMs: 0, endMs: 365 * 86_400_000 };
-const QUIET: MapWatchView = { riders: false };
 /** Začátek herního dne `day` ve světě testu. */
 const dayStart = (day: number): number => realTimeOf(dateOfDayIndex(day), WORLD);
 
@@ -70,7 +68,6 @@ function Probe({ initial = view(1) }: { initial?: VillageView }): null {
     clock: WORLD,
     pushNotice: () => undefined,
     playerNotices: { current: () => undefined },
-    initialWatch: QUIET,
   });
   return null;
 }
@@ -146,22 +143,18 @@ describe('useVillageSync – trasy vozů mimo kritickou cestu (D63)', () => {
     expect(sync.view?.dayIndex).toBe(3);
   });
 
-  it('dotaz na ves pohled použije bez tras a převezme jezdce na mapě (D62)', async () => {
+  it('dotaz na ves pohled použije bez tras', async () => {
     act(() => root.render(<Probe />));
-    expect(sync.watch).toEqual(QUIET);
-    getVillageView.mockResolvedValue({ ...view(4, true), watch: { riders: true } });
+    getVillageView.mockResolvedValue(view(4, true));
     act(() => sync.refresh());
     await flush();
     expect(getVillageView).toHaveBeenCalledTimes(1);
     expect(sync.view?.dayIndex).toBe(4);
     expect(routes).toHaveBeenCalledTimes(1);
-    expect(sync.watch).toEqual({ riders: true });
-    // nezměněný pohled nese jezdce taky
-    getVillageView.mockResolvedValue({ unchanged: true, watch: QUIET });
+    getVillageView.mockResolvedValue({ unchanged: true });
     act(() => sync.refresh());
     await flush();
     expect(getVillageView).toHaveBeenCalledTimes(2);
-    expect(sync.watch).toEqual(QUIET);
     expect(sync.view?.dayIndex).toBe(4);
   });
 });

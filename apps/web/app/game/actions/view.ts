@@ -24,8 +24,6 @@ import {
   type VillageView,
 } from '@/lib/village';
 import { villageIdOf } from '@/lib/village-input';
-import { mapWatchForPlayer } from '@/lib/war-scene';
-import { MAP_WATCH_QUIET, type MapWatchView } from '@/lib/journey-view';
 import { NOT_SIGNED_IN, INVALID_INPUT, playerId } from './_shared';
 
 /** Volba jazyka skupiny před založením vsi (účty přes Google – newcomers.md); chyba česky. */
@@ -45,15 +43,12 @@ export async function chooseLanguageAction(
  * načte stránku znovu. S `known` (otisk pohledu, který klient má – `VillageView.stamp`) vrátí
  * `{ unchanged: true }`, když se od něj nic nezměnilo. S `withNotices: true` přidá do odpovědi
  * (i `unchanged`) `playerNotices` – dosud nepřečtená upozornění mezi hráči, která tím označí
- * za přečtená (doručují se jen jednou), a `watch` – jezdci na mapě vsi, na které se scéna pak ptá
- * zvlášť (D62 – bez nich se neptá); válku na mapě nese událost `war` (server-events.md – Válka).
+ * za přečtená (doručují se jen jednou).
  */
 export async function getVillageView(
   input: unknown,
 ): Promise<
-  | (WithPlayerNotices<VillageView | VillageUnchanged | VillageNone> & { watch?: MapWatchView })
-  | null
-  | { error: string }
+  WithPlayerNotices<VillageView | VillageUnchanged | VillageNone> | null | { error: string }
 > {
   const result = await withVillageCache(() => villageViewOf(input));
   if ((result !== null && 'error' in result) || !wantsPlayerNotices(input)) return result;
@@ -68,12 +63,8 @@ export async function getVillageView(
   }
   // Doručení = vyzvednutí a označení za přečtená naráz. Výsledek se kopíruje – objekt z dopočtu
   // se nikdy nedoplňuje (mohl by být sdílený).
-  // válka a jezdci na mapě zobrazené vsi – i u nezměněného pohledu (ten se mění jen s vsí); před
-  // vyzvednutím upozornění, ať chyba dotazu žádné nespolkne
-  const shown = 'unchanged' in result ? villageIdOf(input) : result.id;
-  const watch = shown === null ? MAP_WATCH_QUIET : await mapWatchForPlayer(id, shown);
   const playerNotices = await gameDeps().notices.takeUnread(id, NOTICE_BATCH);
-  return { ...result, playerNotices, watch };
+  return { ...result, playerNotices };
 }
 
 async function villageViewOf(

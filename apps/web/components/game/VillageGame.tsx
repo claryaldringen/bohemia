@@ -9,7 +9,6 @@ import { fortVariantsBlocked } from '@/lib/build-items';
 import { decodeLandscape, type LandscapeTransfer } from '@/lib/landscape-transfer';
 import type { LandscapeScene } from '@/lib/scene/landscape-scene';
 import { selectionDetails } from '@/lib/selection-details';
-import { MAP_WATCH_QUIET, type MapWatchView } from '@/lib/journey-view';
 import { ForeignJourneyScene } from './ForeignJourneyScene';
 import { KnownMapContext } from './hud/KnownMapEye';
 import { ForeignWarScene } from './ForeignWarScene';
@@ -97,7 +96,6 @@ export function VillageGame({
   initialNowMs,
   languageChoice = false,
   homeCell = null,
-  initialWatch = MAP_WATCH_QUIET,
 }: {
   landscape: LandscapeTransfer;
   /** Seed krajiny sídla – podle něj hra navrhne jméno vsi. */
@@ -119,8 +117,6 @@ export function VillageGame({
   languageChoice?: boolean;
   /** Políčko sídla v mřížce světa (null – odříznuté) – vojsko na něm ukazuje scéna vsi sama. */
   homeCell?: GridCell | null;
-  /** Jezdci na mapě při načtení (`mapWatchForPlayer`) – dál je hlásí dotaz na ves (D62). */
-  initialWatch?: MapWatchView;
 }): ReactElement {
   const decoded = useMemo(() => decodeLandscape(landscape), [landscape]);
   const [scene, setScene] = useState<LandscapeScene | null>(null);
@@ -146,10 +142,8 @@ export function VillageGame({
     runAction,
     runBuildAction,
     refresh: refreshVillage,
-    watch,
   } = useVillageSync({
     initialVillage,
-    initialWatch,
     landscape,
     decoded,
     settlementId,
@@ -274,7 +268,6 @@ export function VillageGame({
     villageId: view?.id ?? null,
     cell: homeCell,
     own: expeditions.latest,
-    watchRiders: watch.riders,
   });
   const alarmActions = useAlarmActions({ view, selected, pushNotice });
   const wagonPlan = useWagonPreview({ scene, current, view, sceneVillage });

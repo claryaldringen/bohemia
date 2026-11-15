@@ -134,8 +134,8 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `restartGameForPlayer`, akce v `actOn`, založení vsi a odchod/usazení řadí do fronty podle
   klíče `player:<id>` (`dynastyStatus` dopočítává všechny vsi hráče, ne jednu): další volání počká
   na dokončení předchozího (i chybou – nepřilepí se) a načte už dopočítanou ves, takže dopočte jen
-  zbytek do svého dne. Mapa je v `globalThis`, po dokončení se klíč uklidí. Klientský
-  `usePolling` už běží po jednom dotazu (další až po dokončení), takže nic nemění. Průběh skoku
+  zbytek do svého dne. Mapa je v `globalThis`, po dokončení se klíč uklidí. Klientské
+  dotazy (`useSerialRefresh`) jdou po jednom (další až po dokončení), takže nic nemění. Průběh skoku
   v čase se čte mimo frontu i mimo server actions – Route Handler `GET /api/dev/skip-progress`
   (accounts.md, Průběh přeskoku).
   - **Zámek hráče v DB (i proti workeru):** fronta v procesu je první vrstva; uvnitř ní se bere
@@ -1129,13 +1129,12 @@ se vykreslí i v testech bez serveru.
   se zahodí. `undefined` = ještě nic nepřišlo, `null` = na mapě nic. Dotazování po ½ s a po 5 s
   (D62, Martin 15. 11. 2026: „klient nemůže pollovat server každou půlvteřinu kvůli válce, která
   teď ani nemůže nastat“) je pryč. `useWarWatch` dotaz zapne se scénou a bez konce hry.
-  **`MapWatch.war` se prohlížeči neposílá** (návrh Clauda): byl pravda už od začátku cizího tažení
-  proti vsi (`activeAlarming`) a síťová odpověď by vojsko prozradila dřív, než ho ve vsi kdo
-  spatří. Prohlížeč dostane `MapWatchView` (`lib/journey-view.ts`) – jen `riders`: na mapě stojí
-  skupina výpravy (`JourneyRepository.onCell`) – podle něj se zapne `useJourneyVisitors`
-  (journey.md). Levné (otisk vsi, sídlo, seznamy id – bez stavů); přijde s prvním pohledem
-  stránky (`initialWatch`) a s každou odpovědí dotazu na ves (`watch` vedle `playerNotices`, i
-  u `unchanged`); `mapWatchForPlayer` z výsledku use-casu `mapWatchFor` vezme jen `riders`.
+  `MapWatch.war` ani `MapWatch.riders` (use-case mapWatchFor, mapWatchForPlayer, `watch`
+  v odpovědi dotazu na ves, initialWatch) už neexistují (návrh Clauda, plán 2026-11-15 – Úloha 6):
+  `war` byl pravda už od začátku cizího tažení proti vsi (`activeAlarming`) a `riders` počítal
+  vlastní i cizí výpravy na políčku vsi bez zkoušky dohledu – obojí by vojsko a výpravy prozradilo
+  dřív, než je ve vsi kdo spatří. Válku nese událost `war` po mlze války, jezdce událost `visitors`
+  (`scopeTasks` ji spočte hned při připojení a po `sync`; journey.md).
   Testy `use-war-scene.behavior.test.tsx`, `use-campaign.behavior.test.tsx`.
 
 ## Výjezd vojvody a výpravy – akce, cesta API a dotazování (plán 2026-11-13 – Úloha 7)

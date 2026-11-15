@@ -28,7 +28,7 @@ import { journeyActionForPlayer } from './village';
 // `musterExpedition`, `expeditionViewsFor` a `expeditionVisitorsOn` nad skutečnými repozitáři.
 // Herní logika je v `packages/game/src/application/{expedition,expedition-view,journey-view}.ts`.
 
-/** Mřížky mapy skupiny pro ověření rozkazu – pohled se ptá 2× za sekundu, mřížka se mění po dnech. */
+/** Mřížky mapy skupiny pro ověření rozkazu – pohled se počítá při každé změně výpravy, mřížka se mění po dnech. */
 const GRIDS = new LruCache<string, MarchGrid>(4);
 
 function launchDeps(): ExpeditionDeps {

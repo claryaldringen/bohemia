@@ -298,4 +298,6 @@ nenasazovat ani nepřipravovat produkční infrastrukturu.
   Až se bude nasazovat, popsat v `docs/deployment.md`. Nezapomenout: skutečné odesílání
   e-mailů, `BETTER_AUTH_SECRET` a `DATABASE_URL` v produkci, Google redirect URI pro produkční
   doménu a `advanced.ipAddress` v Better Auth (za Caddy věřit jen jeho `X-Forwarded-For`, jinak
-  jde omezení pokusů o přihlášení obejít podvrženou IP).
+  jde omezení pokusů o přihlášení obejít podvrženou IP), SSE `/api/events` za Caddy bez bufferování (ověřit, že `encode`
+  odpověď nedrží) a `LISTEN` mimo PgBouncer v režimu transakcí (`docs/code/server-events.md` –
+  Nasazení).

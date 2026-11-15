@@ -7,8 +7,6 @@ import { encodeLandscape } from '@/lib/landscape-transfer';
 import { getSession } from '@/lib/session';
 import { villageViewForEntry } from '@/lib/village';
 import { selectedVillageId } from '@/lib/village-cookie';
-import { mapWatchForPlayer } from '@/lib/war-scene';
-import { MAP_WATCH_QUIET } from '@/lib/journey-view';
 import { currentWorld } from '@/lib/world';
 
 export default async function GamePage(): Promise<ReactElement> {
@@ -22,11 +20,6 @@ export default async function GamePage(): Promise<ReactElement> {
   ]);
   const village = await villageViewForEntry(entry, today, session.user.id);
   const languageChoice = await languageChoiceForPlayer(session.user.id, entry.villageId !== null);
-  // jezdci na mapě – scéna se na ně ptá jen tehdy (D62); válku nese událost `war`
-  const watch =
-    entry.villageId === null
-      ? MAP_WATCH_QUIET
-      : await mapWatchForPlayer(session.user.id, entry.villageId);
 
   return (
     <main className="h-screen overflow-hidden select-none">
@@ -48,7 +41,6 @@ export default async function GamePage(): Promise<ReactElement> {
               : null
           }
           initialNowMs={Date.now()}
-          initialWatch={watch}
         />
       </ServerEventsProvider>
     </main>

@@ -5,8 +5,8 @@ import { foreignMapForPlayer } from '@/lib/foreign-map';
 import { warSceneOnMapForPlayer } from '@/lib/war-scene';
 import type { WarSceneResponse } from '@/lib/war-scene-view';
 
-// Pohled na tažení (war.md – Mlha války; plán 2026-11-03 – Úloha 6.14): prohlížeč se ptá 2× za
-// sekundu. Route Handler, ne server action – Next řadí server actions jednoho klienta za sebe,
+// Pohled na tažení (war.md – Mlha války; plán 2026-11-03 – Úloha 6.14): pohled nese událost serveru `campaign`
+// (server-events.md); route zůstává pro dotaz při otevření, po `sync` a pro pojistku. Route Handler, ne server action – Next řadí server actions jednoho klienta za sebe,
 // takže by dotaz čekal za pokynem hráče. Hráč vidí jen tažení, ve kterém vede nebo má muže;
 // cizí tažení i neexistující = stejná odpověď 404 (nic se neprozradí).
 //   GET /api/campaign/<id>?since=<takt>   → { view }

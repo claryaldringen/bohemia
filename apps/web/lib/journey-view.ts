@@ -4,7 +4,6 @@ import type {
   ExpeditionVisitor,
   GridCell,
   JourneyView,
-  MapWatch,
   PartyView,
   Pos,
   SeenCell,
@@ -30,18 +29,6 @@ export type {
  * (journey.md – Worker); podle toho se mezi dvěma stavy interpoluje.
  */
 export const JOURNEY_PUSH_MS = 1_000;
-
-/**
- * Co se děje na mapě zobrazené vsi, jak to dostane prohlížeč (`getVillageView`, první pohled
- * stránky): jen jezdci výprav (`MapWatch.riders` – podle nich se jednou zeptá `useJourneyVisitors`).
- * `MapWatch.war` se neposílá (návrh Clauda, plán 2026-11-15 – Úloha 5): je pravda už od začátku
- * cizího tažení proti vsi, takže by síťová odpověď prozradila vojsko dřív, než ho ve vsi kdo spatří
- * (D62). Válku ve scéně nese událost `war` po mlze války (server-events.md – Válka).
- */
-export type MapWatchView = Pick<MapWatch, 'riders'>;
-
-/** Na mapě vsi nic (hráč bez vsi). */
-export const MAP_WATCH_QUIET: MapWatchView = { riders: false };
 
 /** Odpověď `GET /api/journey` – pohledy na výpravy hráče (prázdné = žádnou nemá), nebo chyba. */
 export type JourneyResponse = { views: ExpeditionView[] } | { error: string };
@@ -260,7 +247,7 @@ export const sceneManKey = (journeyId: string, personId: number): string =>
 /**
  * Hloučky výprav na mapě vsi `cell` pro scénu (journey.md – Scéna vsi): jeden `SceneJourney` na
  * hlouček (klíč `${journeyId}:${groupId}`, `partyId` skupiny – praporek a výběr celé skupiny), muži
- * z lidí hloučku (klíč `sceneManKey`). Vlastní hloučky z pohledů `own` (2× za sekundu, s fází a dny
+ * z lidí hloučku (klíč `sceneManKey`). Vlastní hloučky z pohledů `own` (stav z události `journeys`, s fází a dny
  * čekání), ostatní z návštěvníků vsi (cizí v dohledu domů, vlastní z jiné vsi rodu). Jméno vůdce
  * a rod vlastní skupiny dodá její záznam mezi návštěvníky. Vlastní skupina jiné vsi než `villageId`
  * (ves scény, jejíž výběr se drží) nese svou ves (`SceneJourney.villageId` – id lidí platí jen v ní).

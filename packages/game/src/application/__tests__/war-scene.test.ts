@@ -6,14 +6,7 @@ import { campaign, member, world } from '../../domain/war/__tests__/campaign-fix
 import type { House } from '../houses';
 import type { Settlement } from '../settlements';
 import type { VillageRecord, VillageStamp } from '../villages';
-import {
-  mapWatchFor,
-  warSceneFor,
-  warSceneOnMap,
-  type MapWatchDeps,
-  type WarSceneDefender,
-  type WarSceneDeps,
-} from '../war-scene';
+import { warSceneFor, warSceneOnMap, type WarSceneDefender, type WarSceneDeps } from '../war-scene';
 import { InMemoryCampaigns } from './in-memory-campaigns';
 import { InMemoryKnowledge } from './in-memory-knowledge';
 
@@ -610,76 +603,5 @@ describe('warSceneFor – vojvoda doma vidí celé vojsko', () => {
     const view = await warSceneFor(deps, { playerId: 'p9', settlementId: 's9' });
     expect(view?.campaignId).toBe('c2');
     expect(view?.battle).not.toBeNull();
-  });
-});
-
-describe('mapWatchFor – válka a jezdci na mapě vsi (D62)', () => {
-  /** Kněžice (p9, políčko 1,0) a Lhota (p1, políčko 0,0); výpravy na políčcích `riders`. */
-  async function watchDeps(
-    states: CampaignState[],
-    riders: { x: number; y: number }[] = [],
-  ): Promise<MapWatchDeps> {
-    const campaigns = new InMemoryCampaigns();
-    for (const state of states) await campaigns.create(state);
-    const settlements: Record<string, Settlement> = {
-      s9: settlement('s9', 'p9', 1),
-      s1: settlement('s1', 'p1', 0),
-    };
-    const stamps: Record<string, VillageStamp> = {
-      knezice: { id: 'knezice', settlementId: 's9' } as VillageStamp,
-      lhota: { id: 'lhota', settlementId: 's1' } as VillageStamp,
-    };
-    return {
-      settlements: { find: (id) => Promise.resolve(settlements[id] ?? null) },
-      villages: {
-        stampsOfVillages: (ids) => Promise.resolve(ids.flatMap((id) => stamps[id] ?? [])),
-      },
-      campaigns,
-      journeys: {
-        onCell: (cell) =>
-          Promise.resolve(riders.some((r) => r.x === cell.x && r.y === cell.y) ? ['j1'] : []),
-      },
-    };
-  }
-
-  it('bez tažení a výprav na mapě nic – scéna se na válku ani jezdce neptá', async () => {
-    const deps = await watchDeps([]);
-    expect(await mapWatchFor(deps, { playerId: 'p9', villageId: 'knezice' })).toEqual({
-      war: false,
-      riders: false,
-    });
-  });
-
-  it('cizí vojsko na mapě vsi i tažení, které na ni teprve míří – válka', async () => {
-    const raid = raiding([defender(101, { x: 100, z: 0 })]);
-    expect(
-      await mapWatchFor(await watchDeps([raid]), { playerId: 'p9', villageId: 'knezice' }),
-    ).toEqual({ war: true, riders: false });
-    // vojsko stojí ještě na shromaždišti ve Lhotě – co z něj je vidět, rozhodne až `warSceneFor`
-    const away = campaign({ members: [member(1, 0, true)] });
-    const deps = await watchDeps([away]);
-    expect(await mapWatchFor(deps, { playerId: 'p9', villageId: 'knezice' })).toEqual({
-      war: true,
-      riders: false,
-    });
-    const scene = await setup(away, [house(7, 60, 0)]);
-    expect(await warSceneFor(scene.deps, { playerId: 'p9', settlementId: 's9' })).toBeNull();
-  });
-
-  it('vlastní tažení – válka (vojsko může stát na mapě); výprava na mapě – jezdci', async () => {
-    const away = campaign({ members: [member(1, 0, true)] });
-    const deps = await watchDeps([away], [{ x: 0, y: 0 }]);
-    expect(await mapWatchFor(deps, { playerId: 'p1', villageId: 'lhota' })).toEqual({
-      war: true,
-      riders: true,
-    });
-  });
-
-  it('ves na sídle jiného hráče – nic', async () => {
-    const deps = await watchDeps([raiding([])], [{ x: 1, y: 0 }]);
-    expect(await mapWatchFor(deps, { playerId: 'p1', villageId: 'knezice' })).toEqual({
-      war: false,
-      riders: false,
-    });
   });
 });

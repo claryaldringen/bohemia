@@ -1680,8 +1680,8 @@ alarm.owner.lordId, den)` (`people` ve `WarSceneDefender` z téže mezipaměti);
 - **Web:** route `GET /api/war-scene/<sídlo>` (`lib/war-scene.ts`, `no-store`) → `{ war }`; cizí
   sídlo i mapa bez války = `{ war: null }`. Stav nese událost serveru `war` (klíč
   `warKeyOfSettlement`, počítá ji týž `warSceneForPlayer` – po mlze války; server-events.md –
-  Válka), dotaz jde jen se scénou, při jiném sídle a po mezeře spojení. `MapWatch.war` se
-  prohlížeči neposílá (návrh Clauda – prozradil by cizí tažení proti vsi dřív, než ho ves spatří;
+  Válka), dotaz jde jen se scénou, při jiném sídle a po mezeře spojení. `MapWatch` (D62) už
+  neexistuje (návrh Clauda – `war` by prozradil cizí tažení proti vsi dřív, než ho ves spatří;
   web-ui.md – Válka ve scéně). `useWarScene` (web-ui.md – Dotazování na tažení) a `sceneWarOf`
   (`lib/war-scene-view.ts`) → `LandscapeScene.setWar` v `useWarWatch`. Na vlastní
   mapě bez závoje mlhy (svou zem hráč zná; cizí mimo dohled server neposlal), padlí do konce dne.

@@ -213,7 +213,7 @@ interface Glide {
 
 /**
  * Přehrávání drží tolik taktů za posledním stavem ze serveru (D49 – stálé tempo): worker ukládá
- * jedoucí skupinu v kolech ≈ 1 s (déle, když má práci se vsemi), prohlížeč se ptá po 500 ms – zásoba
+ * jedoucí skupinu v kolech ≈ 1 s (déle, když má práci se vsemi), server pošle stav při každém uložení – zásoba
  * 2 s pohltí nepravidelné příchody stavů, takže muž nezastaví ani nedohání (návrh Clauda).
  */
 export const PLAY_LAG_TICKS = 8;

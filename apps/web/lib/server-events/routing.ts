@@ -107,10 +107,13 @@ export function scopeWantsTask(scope: ConnectionScope, task: ComputeTask): boole
 
 /**
  * Stav rozsahu, který spojení dostane hned při připojení a po `resync` (revize Úlohy 5): válka na
- * vlastní mapě (`war-home`), na cizí mapě (`war-scene`) a otevřené tažení (`campaign`). První
+ * vlastní mapě (`war-home`), na cizí mapě (`war-scene`), otevřené tažení (`campaign`) a jezdci na
+ * mapě zobrazené vsi (`visitors` – návrh Clauda: bez `MapWatch.riders`, který cizí výpravy
+ * prozrazoval bez zkoušky dohledu). První
  * výsledek spojení jde vždy – kdyby šel až s první směrovanou změnou, osamělé `war: null` by
  * prozradilo, že se políčka vsi něčeho dotklo (mlha války); dotaz prohlížeče při otevření navíc
- * běží dřív, než je spojení v rozbočovači, a změnu mezi tím by nikdo neposlal. Výpravy a hosté ne.
+ * běží dřív, než je spojení v rozbočovači, a změnu mezi tím by nikdo neposlal. Vlastní výpravy (`journeys`)
+ * dotaz prohlížeče při otevření pokryje a každá změna je pošle.
  */
 export function scopeTasks(scope: ConnectionScope): ComputeTask[] {
   const { playerId } = scope;
@@ -124,6 +127,9 @@ export function scopeTasks(scope: ConnectionScope): ComputeTask[] {
   }
   if (scope.campaignId !== null) {
     tasks.push({ what: 'campaign', playerId, campaignId: scope.campaignId });
+  }
+  if (scope.villageId !== null) {
+    tasks.push({ what: 'visitors', playerId, villageId: scope.villageId });
   }
   return tasks;
 }

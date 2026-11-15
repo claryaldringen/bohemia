@@ -42,7 +42,7 @@ adaptérů – oznámí tak každá cesta zápisu (web, worker, e2e pomocníci s
 ### Kód
 
 - `packages/db/src/changes.ts` – `DbChange`, `Cell`, `parseChange` (neznámý druh nebo vadný tvar
-  = null), `notifyChange(db, change)` (`pg_notify`; v plánu ji volá jen Úloha 6 pro `x`).
+  = null), `notifyChange(db, change)` (`pg_notify`; v plánu ji volá jen `lib/skip-progress.ts` pro `x`).
 - `packages/db/src/adapters/change-listener.ts` – `listenChanges(url, handlers, options)`: vlastní
   `pg.Client` (`keepAlive`, `application_name` výchozí `bohemia-change-listener`) mimo pool,
   `LISTEN bohemia_change`. Po chybě nebo konci spojení se připojí znovu s odklady
@@ -218,8 +218,9 @@ zobrazené vsi i všechny posluchače.
   událost `journeys` se použije vždy (na `running` čeká jen dotaz) jako dřív tělo dotazu (`apply` – interpolace s
   rozpětím `clamp(now − received, FRAME_MS, 4 × JOURNEY_PUSH_MS)`, `onPartyEnded` při zmizelém
   hlouččku); snímek po 100 ms zůstává místní. `useJourneyVisitors(villageId, enabled)`
-  (`hooks/use-journey-visitors.ts`) – jeden dotaz při zapnutí (`MapWatch.riders`), změně vsi a na
-  `sync`; událost `visitors` platí vždy, když sedí ves (nezávisle na `enabled`), jiné vsi se zahodí, stejný klíč se nepřekreslí. Dotazy jdou přes
+  (`hooks/use-journey-visitors.ts`) – jeden dotaz při zapnutí (`enabled` = scéna už je), změně vsi a na
+  `sync`; událost `visitors` platí vždy, když sedí ves (nezávisle na `enabled`), jiné vsi se zahodí, stejný klíč se nepřekreslí.
+  Stav jezdců dostane spojení i při připojení a po `sync` (`scopeTasks` – `visitors` pro zobrazenou ves). Dotazy jdou přes
   `useSerialRefresh`.
 - Testy: `lib/server-events/__tests__/push-journeys.test.ts`, `hooks/__tests__/use-journey.behavior.test.tsx`,
   `use-journey-visitors.behavior.test.tsx`, `lib/__tests__/journey-view.test.ts` (klíče).
@@ -240,9 +241,11 @@ zobrazené vsi i všechny posluchače.
 - **Mlha války** (návrh Clauda, plán 2026-11-15 – Úloha 5): `war` počítá `warSceneFor` po mlze
   války – vojsko jen v dohledu domů a mužů, s varováním, které už do vsi dorazilo. Dřívější
   `MapWatch.war` (D62) byl pravda už od začátku cizího tažení proti vsi a síťová odpověď dotazu na
-  ves tak prozradila vojsko dřív, než ho ve vsi kdo spatřil – prohlížeči se už neposílá
-  (`MapWatchView` v `lib/journey-view.ts` – jen `riders`, `mapWatchForPlayer`); use-case `mapWatchFor` ho dál počítá
-  (`packages/game` se v tomto plánu nemění). Časový signál (revize Úlohy 5): stav války dostane
+  ves tak prozradila vojsko dřív, než ho ve vsi kdo spatřil; `MapWatch.riders` zase počítal vlastní
+  i cizí výpravy na políčku vsi bez zkoušky dohledu. Oboje je pryč včetně use-casu mapWatchFor,
+  mapWatchForPlayer a pole `watch` v odpovědi dotazu na ves (návrh Clauda, plán 2026-11-15 –
+  Úloha 6; výjimka z „`packages/game` se nemění“ – mrtvý kód a únik). Jezdce nese událost
+  `visitors`, jejíž stav počítají tytéž funkce jako `GET /api/journey?visitors=`. Časový signál (revize Úlohy 5): stav války dostane
   spojení hned při připojení (`scopeTasks`), dál jen při změně klíče, takže osamělé `war: null` nic
   neprozradí; signál `alarm` a výpočet `war-home` přes `a` jdou jen vsím, které o tažení vědí
   (varované od `warnTick`, cíl s bitvou – Oznámení v databázi). Vojsko na mapě vsi dává výpočet
@@ -284,3 +287,66 @@ workerem přijde událost dřív (worker se budí do 1 s po začátku dne) a dot
 viditelném panelu (skrytý dočte vše po návratu) a bez `gameOver`; odklad nad 2^31 − 1 ms (limit
 `setTimeout`) se nastaví po kouscích. Testy `lib/__tests__/village-day-check.test.ts` a hlídač dne
 v `use-village-sync.behavior.test.tsx`.
+
+## Přeskok času
+
+`lib/skip-progress.ts` (vývojový režim, accounts.md – Průběh přeskoku): `reportSkipProgress` a
+`clearSkipProgress` kromě zápisu do paměti procesu oznámí `notifyChange(db, { k: 'x', p, progress })`
+(`announceSkip` v `lib/game.ts` je composition root). Hlášení se oznamují nejvýš jednou za
+`SKIP_ANNOUNCE_MS = 250` na hráče (první hned), konec (`progress: null`) vždy a nuluje odstup;
+chyba oznámení se zaloguje a přeskok neovlivní. Směrování `x` → `skip` jde hráči `p` (Úloha 2).
+`useSkipProgress(active)` (`hooks/use-skip-progress.ts`): jeden dotaz na `/api/dev/skip-progress`
+při zapnutí a po `sync` (přeskok mohl běžet už před otevřením panelu), jinak jen událost `skip`;
+pozdní odpověď dotazu, který začal před novější událostí, se zahodí. konstanta intervalu dotazů
+a use-polling.ts jsou pryč. Testy: `lib/__tests__/skip-progress.test.ts`,
+`hooks/__tests__/use-skip-progress.behavior.test.tsx`, `DevTimeButtons.behavior.test.tsx`.
+
+## Měření
+
+Nečinný panel (e2e `server-events.spec.ts`, „bez změn žádné dotazy“, projekt `chromium` bez
+workeru): po načtení hry, `open` a 3 s na první kolo po `sync` se 15 s počítají požadavky `/api/*`
+mimo `/api/events` a server actions (hlavička `next-action`) – 0; spojení `/api/events` je od
+načtení právě jedno.
+
+| Dotazy nečinného panelu            | před (za minutu)                    | po                                                   |
+| ---------------------------------- | ----------------------------------- | ---------------------------------------------------- |
+| ves (`getVillageView`)             | ≈ 0,7                               | 0, plus jeden dotaz za herní den po uložení workerem |
+| jezdci (`/api/journey?visitors=`)  | 12                                  | 0                                                    |
+| válka (`/api/war-scene`)           | 12                                  | 0                                                    |
+| varování (`getAlarmView`)          | 6                                   | 0                                                    |
+| při válce a výpravě navíc          | 120 (pohled tažení) + 120 (výprava) | 0, pohyb přichází jen jako události                  |
+| průběh přeskoku (jen při přeskoku) | 150 (každých 400 ms)                | jeden dotaz, dál události `skip` (≤ 4 za sekundu)    |
+
+Čísla „před“ jsou z plánu (brief Úlohy 6); přeskok: 60 s / 0,4 s = 150 dotazů za minutu.
+
+## Co ještě běží po časovači
+
+`git grep -n "setInterval" apps/web` (mimo testy a vývojové stránky) smí najít jen místní časovače
+v prohlížeči, které se na server neptají:
+
+- snímky interpolace pohybu – `hooks/use-journey.ts`, `hooks/use-campaign.ts` (100 ms);
+- hodiny – `TopBar.tsx` (datum), `NewcomerPanel.tsx` (odpočet);
+- `ScenePerfPanel.tsx` (ladicí čítač), `lib/scene/ambient-sound.ts` (plánovač zvuků);
+- vývojové stránky `app/dev/landscape/`.
+
+Na serveru zůstává `lib/server-events/stream.ts` (tep `SSE_HEARTBEAT_MS` a přezkoušení session).
+Dotazování po taktu v kódu nezbylo; pojistka po 30 s a hlídač dne jsou časovače
+`setTimeout`, ne dotazování po taktu.
+
+## Nasazení
+
+Až bude `docs/deployment.md` (CLAUDE.md – Lokální vývoj a nasazení):
+
+- **Caddy:** `reverse_proxy` musí `/api/events` propouštět bez bufferování; ověřit, že `encode`
+  odpověď nedrží, jinak cestu z `encode` vyjmout. Hlavičky `no-transform` a `X-Accel-Buffering: no`
+  už server posílá.
+- **Postgres:** `LISTEN` potřebuje přímé spojení (ne PgBouncer v režimu transakcí); posluchač drží
+  jedno spojení na proces webu.
+- **HTTP/2** odstraní limit 6 spojení HTTP/1.1 na původ.
+- Změřit `NOTIFY` při zátěži (≈ 35 uložení vsí za sekundu při 1000 hráčích × 3 vsi).
+- Víc procesů webu funguje samo – každý má své `LISTEN`.
+
+## Rozhodnutí
+
+- **Jméno vsi** (Martin 15. 11. 2026): přejmenování vsi verzi nezvedá, takže ostatní panely ukážou
+  nové jméno až s další změnou vsi – „Jméno je ok. Vždycky chvíli trvá, než si lidi zvyknou :)“.

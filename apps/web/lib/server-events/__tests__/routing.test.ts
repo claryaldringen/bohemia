@@ -197,17 +197,19 @@ describe('směrování změn na spojení (Rozhodnutí 4)', () => {
     expect(scopeTasks(scope({ playerId: 'p' }))).toEqual([]);
     expect(scopeTasks(inVillage('p', V_OWN, null))).toEqual([
       { what: 'war-home', playerId: 'p', settlementId: `s-${V_OWN}` },
+      { what: 'visitors', playerId: 'p', villageId: V_OWN },
     ]);
     const full = scope({
       ...inVillage('p', V_OWN, { x: 1, y: 1 }),
       campaignId: CAMPAIGN,
       scene: { campaignId: 'c-2', cell: { x: 5, y: 5 } },
     });
-    // výpravy a hosté ne – jejich první výsledek nic o válce neprozradí
+    // jezdci na mapě vsi jdou taky (bez `MapWatch.riders`); vlastní výpravy ne – pokryje je dotaz
     expect(scopeTasks(full)).toEqual([
       { what: 'war-home', playerId: 'p', settlementId: `s-${V_OWN}` },
       { what: 'war-scene', playerId: 'p', campaignId: 'c-2', cell: { x: 5, y: 5 } },
       { what: 'campaign', playerId: 'p', campaignId: CAMPAIGN },
+      { what: 'visitors', playerId: 'p', villageId: V_OWN },
     ]);
   });
 });

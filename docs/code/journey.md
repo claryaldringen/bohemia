@@ -492,7 +492,7 @@ female?)`** („Od 12 let.“, „Je raněný.“ / „Je raněná.“, „Je na
   serveru `journeys` (server-events.md – Výpravy), použitá vždy (server ji posílá jen vlastníkovi);
   na `running` (ves má `expeditionsAway`, nebo právě vyslal) čeká jen dotaz – jeden `GET /api/journey`, když `running` začne platit, na obnovu po mezeře (`sync`)
   a na `refresh()`. Stejné takty pohled nepřepíšou; rozpětí interpolace = `clamp(now − received,
-  FRAME_MS, 4 × JOURNEY_PUSH_MS)`; `views` (interpolované, překreslení po 100 ms je místní),
+FRAME_MS, 4 × JOURNEY_PUSH_MS)`; `views` (interpolované, překreslení po 100 ms je místní),
   `latest`, `sample(nowMs)`. Zmizí-li skupina nebo hlouček, `onPartyEnded` (jednou za stav) obnoví
   ves; události platí, dokud ves neřekne, že nikdo pryč není.
 - **Ves a osoby** – `VillageView.expeditionsAway` (někdo má `away: journey` a v den pohledu je
@@ -580,7 +580,7 @@ inParty, atHomeMap, horseWork }`, `ButtonState` = `'hidden' | 'enabled' | { disa
   muž jde mezi stavy rovně ze své nakreslené polohy na nové místo a hledí, kam jde (hlouček se
   v zatáčce neotočí skokem); nový muž a skok přes mapu stojí rovnou. `JourneyGlide` – stavy po
   výjezdech se **přehrávají podle taktů se zpožděním** `PLAY_LAG_TICKS` (8 taktů = 2 s; D49, Martin 15. 11. 2026: „cestou měnil rychlost“): muž jde mezi stavy tempem jádra, i když worker ukládá
-  v nepravidelných kolech (≈ 1 s, déle s prací vsí) a prohlížeč se ptá po 500 ms; přehrávání drží
+  v nepravidelných kolech (≈ 1 s, déle s prací vsí) a server stav pošle při každém uložení; přehrávání drží
   zásobu zrychlením či zpomalením nejvýš o `PLAY_SLACK` (6 %). Dřív každý nový stav spustil nový
   posun z nakreslené polohy za `glideMs` – muž střídavě stál a dobíhal (měření: 0–10,5 m/s při
   jádru 5,25 m/s). Hlouček, který stál (poslední dva stavy na místě), se rozjede s prvním stavem
@@ -610,11 +610,9 @@ inParty, atHomeMap, horseWork }`, `ButtonState` = `'hidden' | 'enabled' | { disa
   `sceneJourneysOf` (`lib/journey-view.ts`) – vlastní hloučky z `useExpeditions(...).latest` (poslední
   pohled bez interpolace – muže posouvá scéna), je-li skupina na mapě vsi; ostatní z
   `useJourneyVisitors` (`hooks/use-journey-visitors.ts` – seznam nese událost serveru `visitors`
-  své vsi; jeden `GET /api/journey?visitors=` při zapnutí, změně vsi a na obnovu po mezeře; výpadek
+  své vsi; jeden `GET /api/journey?visitors=` při zapnutí, změně vsi a na obnovu po mezeře, stav ves dostane i při připojení; výpadek
   sítě ani chyba serveru nic nerozbije, událost jiné vsi se zahodí, stejný `visitorsKey` scénu
-  nepřekreslí). Událost platí vždy, když sedí ves (`MapWatch` přichází jen s pohledem vsi, cizí jezdec by byl
-  až o herní den neviditelný); na `MapWatch.riders` (`JourneyRepository.onCell`; D62, web-ui.md –
-  Válka ve scéně) čeká jen dotaz. Jméno a rod vlastního vojvody dodá jeho záznam mezi návštěvníky.
+  nepřekreslí). Událost platí vždy, když sedí ves; `MapWatch.riders` (D62) je pryč (server-events.md – Výpravy). Jméno a rod vlastního vojvody dodá jeho záznam mezi návštěvníky.
 - **Výběr** – klik na vlastního muže vybere člověka vsi (`person` – panel z Úlohy 8a), na cizího
   `VillageTarget` `visitor` (`journeyId`): panel ukáže portrét koně se jménem vojvody, rod (ikona
   praporu) a počet jezdců a pěších (`selectionDetails(…, visitors)`, `visitor-panel`). Vybraný muž

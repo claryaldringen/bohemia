@@ -79,8 +79,9 @@ value }`, `parseDevDisasterInput`) → use-cases `forceBadYear` / `forceDisaster
   zapisuje průběh do paměti procesu (`lib/skip-progress.ts`, `globalThis`) a po konci ho smaže –
   obojí uvnitř fronty hráče. Čte ho **Route Handler** `GET /api/dev/skip-progress` (jen přihlášený
   s `devMode`, jen vlastní průběh, `no-store`) – server action to být nemůže, Next řadí server
-  actions jednoho klienta za sebe a dotaz by čekal za přeskokem. `DevTimeButtons` se během skoku
-  ptá každých 400 ms (`useSkipProgress`, `usePolling`) a pod šipkami běží tenký ukazatel
+  actions jednoho klienta za sebe a dotaz by čekal za přeskokem. `DevTimeButtons` během skoku
+  dostává průběh jako událost serveru `skip` (`useSkipProgress` – jeden dotaz při zapnutí a po
+  obnovení spojení, jinak jen události; server-events.md – Přeskok času) a pod šipkami běží tenký ukazatel
   (`dev-skip-progress`, `role="progressbar"`) bez textu – „Přepočet 40 %“ a dny jsou v popisku šipek.
   Skok o rok Vlkova (paměťové repozitáře, `computePause`): ≈ 4,1 s s hlášením i bez něj (rozdíl
   v šumu, studený start ≈ 6,2 s).

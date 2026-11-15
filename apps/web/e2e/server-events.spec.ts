@@ -196,3 +196,39 @@ test('hra z událostí: jméno vsi a upozornění bez háčku, výpadek spojení
     expect(requests.length).toBe(before + 1);
   });
 });
+
+// Měření nečinného panelu (server-events.md – Měření): po načtení hry a prvním kole po `sync` se
+// 15 s nic neptá – žádný požadavek `/api/*` mimo `/api/events` ani server action (hlavička
+// `next-action`), a spojení událostí je od načtení přesně jedno. Projekt bez workeru: herní den
+// e2e světa trvá ≈ 4,8 h, takže v těch 15 s nic nového nepřijde.
+test('bez změn žádné dotazy: 15 s po načtení jen jedno spojení událostí', async ({ page }) => {
+  const { seat } = await newPlayer(page, 'events-idle');
+  await found(page, villageSpots(seat.landscape).dwelling);
+  await expect.poll(async () => (await connection(page)).status, { timeout: 10_000 }).toBe('open');
+
+  const events: string[] = [];
+  const queries: string[] = [];
+  page.on('request', (request) => {
+    const { pathname } = new URL(request.url());
+    if (pathname === '/api/events') events.push(pathname);
+    else if (pathname.startsWith('/api/') || 'next-action' in request.headers()) {
+      queries.push(`${request.method()} ${pathname}`);
+    }
+  });
+  // čerstvé načtení hry – počítá se od něj
+  await page.goto('/game');
+  await expect(page.getByTestId('village-name')).toBeVisible({ timeout: 60_000 });
+  await expect.poll(async () => (await connection(page)).status, { timeout: 10_000 }).toBe('open');
+  // dotazy při otevření (válka, jezdci) jdou se scénou, která v softwarově kreslené scéně naběhne
+  // později než spojení – nejdřív počkat na scénu (její háček), pak 3 s na první kolo po `sync`
+  await expect
+    .poll(() => page.evaluate(() => window.__bohemiaE2E?.journeyScene !== undefined), {
+      timeout: 60_000,
+    })
+    .toBe(true);
+  await page.waitForTimeout(3_000);
+  queries.length = 0;
+  await page.waitForTimeout(15_000);
+  expect(queries).toEqual([]);
+  expect(events).toHaveLength(1);
+});

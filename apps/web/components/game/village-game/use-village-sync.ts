@@ -27,7 +27,6 @@ import { DAY_CHECK_GRACE_MS, nextDayCheckMs } from '@/lib/village-day-check';
 import { villageEventIsNews } from '@/lib/village-events';
 import { newNotices } from '@/lib/village-notices';
 import type { VillageView } from '@/lib/village-view';
-import type { MapWatchView } from '@/lib/journey-view';
 import type { NoticeLine } from '../hud/NoticeLines';
 import {
   CONNECTION_FAILED,
@@ -52,8 +51,6 @@ export interface VillageSync {
   runBuildAction: (action: () => Promise<ActionResult>) => Promise<void>;
   /** Zeptá se na ves hned (i s upozorněními) – např. po návratu vojvody z výjezdu. */
   refresh: () => void;
-  /** Jezdci na mapě vsi – jen tehdy se scéna na jezdce zeptá (D62; válku nese událost `war`). */
-  watch: MapWatchView;
 }
 
 /** Odložená obnova, která platí vždy (upozornění, obnova po mezeře, hlídač dne, `refresh`). */
@@ -64,7 +61,7 @@ const ALWAYS = (): boolean => true;
  * `village` s novou verzí (`villageEventIsNews`), `notices`, obnova po mezeře spojení – a na
  * hlídač dne (svět bez workeru); dotazy jdou po jednom, náraz dá nejvýš jeden další. Nový pohled
  * se použije hned a trasy vozů z Web Workeru (`cartRouter`), až dojdou; pořadí odpovědí a fronta
- * akcí. Odpověď dotazu řekne i, jestli je na mapě válka nebo jezdci (`watch`). Upozornění mezi
+ * akcí. Upozornění mezi
  * hráči z odpovědi předá `playerNotices` (ref – obsluhu skládají panely, které potřebují
  * `viewRef`), nová upozornění vsi `pushNotice`.
  */
@@ -76,11 +73,8 @@ export function useVillageSync({
   clock,
   pushNotice,
   playerNotices,
-  initialWatch,
 }: {
   initialVillage: VillageData;
-  /** Jezdci na mapě při načtení stránky (`mapWatchForPlayer`). */
-  initialWatch: MapWatchView;
   landscape: LandscapeTransfer;
   decoded: Landscape;
   settlementId: string;
@@ -92,8 +86,6 @@ export function useVillageSync({
   // pohled v hlavním vlákně (jednou při načtení stránky)
   const [first] = useState(() => firstVillage(initialVillage, decoded));
   const [village, setVillage] = useState<VillageData>(first.village);
-  // Jsou na mapě vsi jezdci, na které se scéna ptá zvlášť? Řekne dotaz na ves (D62).
-  const [watch, setWatch] = useState<MapWatchView>(initialWatch);
   const view = isVillageView(village) ? village : null;
   const villageError = village !== null && 'error' in village ? village.error : null;
   const gameOver = view?.gameOver === true;
@@ -204,11 +196,6 @@ export function useVillageSync({
     });
     // Server upozornění už označil za přečtená – ukázat i z odpovědi, která se jinak zahodí.
     if (result !== null && 'playerNotices' in result) playerNotices.current(result.playerNotices);
-    // jezdci na mapě vsi – i z nezměněného pohledu (D62)
-    if (result !== null && 'watch' in result && result.watch) {
-      const fresh = result.watch;
-      setWatch((old) => (old.riders === fresh.riders ? old : fresh));
-    }
     if (busyRef.current || seq < appliedSeq.current) return;
     appliedSeq.current = seq;
     // Hráč ještě nemá ves – dorazila jen upozornění; ves, kterou jsme měli, zmizela (jako null).
@@ -340,7 +327,6 @@ export function useVillageSync({
     runAction,
     runBuildAction,
     refresh: refreshNow,
-    watch,
   };
 }
 
