@@ -186,7 +186,7 @@ function manorModel(
 }
 export const MANOR_AT = { x: -82, z: -4 };
 /**
- * Nadzemní dům na pozemku (zadní roh – střecha nesmí přečnívat přes plot) a srubový dvorec od
+ * Srub na pozemku (zadní roh – střecha nesmí přečnívat přes plot) a srubový dvorec od
  * roku 800 vedle dvorce (log-house.md – Scéna).
  */
 export const LOG_HOUSE_AT = { x: -46, z: -10 };
@@ -271,7 +271,7 @@ export const SHOWCASE_BUILDINGS: readonly ShowcaseBuilding[] = [
   },
   {
     id: 'srub',
-    label: 'Nadzemní dům',
+    label: 'Srub',
     models: [plotModel(LOG_HOUSE_AT.x, LOG_HOUSE_AT.z, 'back-left', 'srub')],
     focus: { x: LOG_HOUSE_AT.x, z: LOG_HOUSE_AT.z - 1.5, radius: 24 },
   },

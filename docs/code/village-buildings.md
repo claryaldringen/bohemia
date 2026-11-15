@@ -464,7 +464,7 @@ Nové typy vznikají jen novou stavbou nebo přestavbou, převod starších vsí
   `relocationPlot`, `checkPlotPlacement` (pozemek se dvorem), `isManorTarget`, `demolishReplaced`.
 - **Kdo bydlí:** prázdný srub obsadí jen lidé z pořadí (`settleLogHouse`, `logHouseFamilies` –
   [village-people.md](village-people.md) – Domácnosti – nadzemní dům).
-- **Web:** tlačítko „Nadzemní dům“ (klávesa 1) a scéna s vlastními modely – `docs/code/web-ui.md`
+- **Web:** tlačítko „Srub“ (klávesa 1) a scéna s vlastními modely – `docs/code/web-ui.md`
   (zkratky staveb) a `docs/code/scene-village.md` – Nadzemní dům ve scéně.
 
 ## Vypletený dům od roku 750 ([log-house.md](../design/log-house.md) – Dům s vypletenými stěnami)

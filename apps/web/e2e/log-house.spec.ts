@@ -19,7 +19,7 @@ import {
   villageState,
 } from './village-helpers';
 
-// Nadzemní dům (log-house.md – Dům; plán 2026-11-12-log-house – Úloha 5): do roku 800 je tlačítko
+// Srub (log-house.md – Dům; plán 2026-11-12-log-house – Úloha 5): do roku 800 je tlačítko
 // zašedlé s důvodem „Od roku 800“, po posunu času hráče do roku 800 jde umístit klávesou 1.
 test('nadzemní dům – do roku 800 zašedlý, pak klávesa 1 a umístění na pozemku', async ({
   page,
@@ -30,7 +30,7 @@ test('nadzemní dům – do roku 800 zašedlý, pak klávesa 1 a umístění na 
   await found(page, spots.dwelling);
 
   const grid = page.getByTestId('build-grid');
-  const srub = await dwellingVariant(page, 'Nadzemní dům');
+  const srub = await dwellingVariant(page, 'Srub');
   await expect(srub).toBeDisabled();
   await srub.hover({ force: true });
   // popisek u kurzoru (Tooltip mimo mřížku) – důvod zašednutí
@@ -57,7 +57,7 @@ test('nadzemní dům – do roku 800 zašedlý, pak klávesa 1 a umístění na 
   }));
   await page.reload();
   await expect(readyScene(page)).toBeVisible({ timeout: 120_000 });
-  await expect(await dwellingVariant(page, 'Nadzemní dům')).toBeEnabled({ timeout: 60_000 });
+  await expect(await dwellingVariant(page, 'Srub')).toBeEnabled({ timeout: 60_000 });
 
   // pozemek pro srub u první zemnice (stejná kontrola jako server)
   const state = await villageState(s.settlementId);
