@@ -237,7 +237,7 @@ hráč)`) a rod s `house.placed_at` null. Pozvaný je na mapě hned (`placed_at`
   všech vsí rodu, `ref` `rod-baptized:<rod>:<ves>`), pak `markBaptized`. Vsi rodu: NPC rod –
   spravované vsi (`listByStewardHouse`, `npc`), hráč – všechny vsi aktivních sídel i ty, které řídí
   NPC rod, ves vojvody (`House.lord`) s `lord`. Co ves s událostí udělá (`baptizeVillage`) a křest
-  hráčova rodu (`baptizeLord`): `village-people.md` – Křest a víra. Výpis rodů
+  hráčova rodu (`baptizeLord`, ves vojvody pokřtí hned): `village-people.md` – Křest a víra. Výpis rodů
   bez nové metody portu: hráčovy `playerHousesSince(new Date(0))` a `waitingNewcomers()`, NPC přes
   `vassalages.allActive()`. Rod hráče losuje do roku **svého dne**
   (`playerDay(den světa, offsets.offsetOf(hráč))` – posun času hráče, `accounts.md`), NPC rod do

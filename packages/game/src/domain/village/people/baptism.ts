@@ -3,6 +3,7 @@
 // schránky, idempotentní – druhá událost téhož rodu nic nezmění.
 import { currentLord, mainWifeOf, wivesOf } from './dynasty';
 import { ensureMainWives } from './dynasty-wives';
+import { chronicleEstate } from './estate';
 import { isChristian } from './faith';
 import type { ChronicleEvent, Person, VillageState } from '../types';
 
@@ -52,17 +53,22 @@ export function baptizeVillage(
  * hlavní manželka a ostatní jsou propuštěné – bez `spouseId`, zůstávají ve svých domech, mohou se
  * znovu vdát (`isSingle`). Jejich děti s vojvodou zůstávají, jak jsou (synové `line`). Zemřela-li
  * hlavní manželka a nová ještě není, vybere se dřív (`ensureMainWives`). Kronika `lord-baptized`
- * a `wives-released` s počtem.
+ * a `wives-released` s počtem; oba se jménem a postavením vojvody (D77).
  */
 function baptizeLord(state: VillageState, day: number, lord: Person): ChronicleEvent[] {
   if (isChristian(lord)) return [];
   lord.faith = 'christian';
-  const events: ChronicleEvent[] = [{ day, kind: 'lord-baptized' }];
+  const who = {
+    ...(lord.name === undefined ? {} : { name: lord.name }),
+    estate: chronicleEstate(state, lord, day),
+  };
+  const events: ChronicleEvent[] = [{ day, kind: 'lord-baptized', ...who }];
   if (!mainWifeOf(state, lord) && wivesOf(state, lord).length > 0) {
     events.push(...ensureMainWives(state, day));
   }
   const released = wivesOf(state, lord).filter((w) => w.id !== lord.spouseId);
   for (const wife of released) delete wife.spouseId;
-  if (released.length > 0) events.push({ day, kind: 'wives-released', count: released.length });
+  if (released.length > 0)
+    events.push({ day, kind: 'wives-released', count: released.length, ...who });
   return events;
 }

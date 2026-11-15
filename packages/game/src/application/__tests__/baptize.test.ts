@@ -10,6 +10,7 @@ import {
   type VillageState,
 } from '../../domain/village';
 import { BAPTIZE_REASONS, baptizeLord, type BaptizeDeps } from '../baptize';
+import { makeLandscape } from '../../domain/village/__tests__/placement-fixtures';
 import { villageAccess } from '../rights';
 import { InMemoryHouses } from './in-memory-houses';
 import { InMemorySettlements } from './in-memory-settlements';
@@ -22,6 +23,7 @@ import { InMemoryVillages } from './in-memory-villages';
 const PLAYER = 'hrac-1';
 const TODAY = dayIndexOf({ year: 700, month: 3, day: 1 });
 const FOUNDED = TODAY - 30;
+const landscape = makeLandscape();
 
 interface Setup {
   deps: BaptizeDeps;
@@ -70,7 +72,7 @@ describe('baptizeLord', () => {
   it('rod, který křesťanství nezná, se pokřtít nemůže', async () => {
     const s = await setup(false);
     expect(
-      await baptizeLord(s.deps, { playerId: PLAYER, villageId: s.seat, today: TODAY }),
+      await baptizeLord(s.deps, { playerId: PLAYER, villageId: s.seat, today: TODAY, landscape }),
     ).toEqual({ ok: false, reason: BAPTIZE_REASONS.unknown });
     expect(s.villages.inbox.events).toEqual([]);
   });
@@ -81,6 +83,7 @@ describe('baptizeLord', () => {
       playerId: PLAYER,
       villageId: s.other,
       today: TODAY,
+      landscape,
     });
     expect(result).toEqual({ ok: false, reason: BAPTIZE_REASONS.lordAway });
     expect((await s.houses.byId(s.houseId))!.baptizedDay).toBeNull();
@@ -88,7 +91,7 @@ describe('baptizeLord', () => {
 
   it('pokřtí rod, obě vsi rodu dostanou den křtu, vojvoda je křesťan; podruhé důvod', async () => {
     const s = await setup(true);
-    const input = { playerId: PLAYER, villageId: s.seat, today: TODAY };
+    const input = { playerId: PLAYER, villageId: s.seat, today: TODAY, landscape };
     expect(await baptizeLord(s.deps, input)).toEqual({ ok: true });
     expect((await s.houses.byId(s.houseId))!.baptizedDay).toBe(TODAY);
     expect(await baptizeLord(s.deps, input)).toEqual({
@@ -98,6 +101,8 @@ describe('baptizeLord', () => {
     const events = s.villages.inbox.events;
     expect(events.map((e) => e.villageId).sort()).toEqual([s.seat, s.other].sort());
     const seat = await afterInbox(s, s.seat);
+    // ves vojvody byla pokřtěná už hned, zpráva ze schránky ji nezdvojila
+    expect(seat.chronicle.filter((e) => e.kind === 'lord-baptized')).toHaveLength(1);
     const other = await afterInbox(s, s.other);
     for (const state of [seat, other]) {
       expect(state.faith?.rodBaptizedDay).toBe(TODAY);
@@ -121,7 +126,33 @@ describe('villageAccess – baptizable', () => {
     const s = await setup(true);
     expect(await access(s, s.seat)).toBe(true);
     expect(await access(s, s.other)).toBeUndefined();
-    await baptizeLord(s.deps, { playerId: PLAYER, villageId: s.seat, today: TODAY });
+    await baptizeLord(s.deps, { playerId: PLAYER, villageId: s.seat, today: TODAY, landscape });
     expect(await access(s, s.seat)).toBeUndefined();
+  });
+});
+
+// D76 (Martin 15. 11. 2026): ves vojvody se pokřtí hned, ne až na začátku dalšího dne.
+describe('baptizeLord – ves vojvody hned', () => {
+  it('po akci je ves vojvody pokřtěná, kronika se jménem, ostatní vsi čekají na schránku', async () => {
+    const s = await setup(true);
+    await baptizeLord(s.deps, { playerId: PLAYER, villageId: s.seat, today: TODAY, landscape });
+    const seat = (await s.villages.find(s.seat))!.state;
+    expect(rodBaptized(seat)).toBe(true);
+    expect(isChristian(currentLord(seat)!)).toBe(true);
+    const baptized = seat.chronicle.filter((e) => e.kind === 'lord-baptized');
+    expect(baptized).toHaveLength(1);
+    expect(baptized[0]).toMatchObject({ estate: { title: 'voivode', kin: 'head' } });
+    expect(rodBaptized((await s.villages.find(s.other))!.state)).toBe(false);
+  });
+
+  it('opakování po pádu (rod už pokřtěný, ves ne) nic nezdvojí', async () => {
+    const s = await setup(true);
+    const input = { playerId: PLAYER, villageId: s.seat, today: TODAY, landscape };
+    await baptizeLord(s.deps, input);
+    const once = JSON.stringify((await s.villages.find(s.seat))!.state);
+    expect(await baptizeLord(s.deps, input)).toEqual({ ok: false, reason: BAPTIZE_REASONS.done });
+    expect(JSON.stringify((await s.villages.find(s.seat))!.state)).toBe(once);
+    const later = await afterInbox(s, s.seat);
+    expect(later.chronicle.filter((e) => e.kind === 'lord-baptized')).toHaveLength(1);
   });
 });

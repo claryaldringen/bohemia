@@ -1963,13 +1963,6 @@ test('křest rodu – tlačítko u vojvody, potvrzení, zápis v kronice a kří
   // Zápis vsi zvedne verzi – další dotaz sestaví pohled znovu, už se změněným rodem.
   await changeVillageState(s.settlementId, (v) => v);
   const lordId = (await villageState(s.settlementId)).dynasty!.lordId!;
-  const villageIdOf = async (settlementId: string): Promise<string | undefined> =>
-    (
-      await query<{ id: string }>(
-        `SELECT id FROM village WHERE settlement_id = $1 ORDER BY created_at, id LIMIT 1`,
-        [settlementId],
-      )
-    )[0]?.id;
   await page.waitForFunction(() => typeof window.__bohemiaE2E?.pollVillage === 'function', null, {
     timeout: 120_000,
   });
@@ -2007,17 +2000,7 @@ test('křest rodu – tlačítko u vojvody, potvrzení, zápis v kronice a kří
   await expect.poll(async () => (await houseOf())[0]?.baptized ?? null).not.toBeNull();
   await expect(button).toHaveCount(0);
 
-  // ves vojvody se pokřtí na začátku svého dne (den po křtu; pohled vsi ji dopočítá do dneška)
-  // Zpráva o křtu platí od zítřka a den v testovacím světě trvá hodiny – zpráva se přesune na dnešek
-  // a uložená ves se vrátí o den (zápis zvýší verzi a zahodí dopočtenou paměť), ves křest dopočte.
-  await query(
-    `UPDATE village_inbox SET day = day - 1
-      WHERE village_id = $1 AND body->>'kind' = 'rod-baptized'`,
-    [(await villageIdOf(s.settlementId)) ?? ''],
-  );
-  const rewound = await villageState(s.settlementId);
-  rewound.lastDay -= 1;
-  await writeVillageState(s.settlementId, rewound);
+  // ves vojvody je pokřtěná hned (D76), kronika nese jméno vojvody (D77)
   const entry = page
     .getByTestId('chronicle-panel')
     .locator('[data-testid="chronicle-entry"][data-kind="lord-baptized"]');
@@ -2031,7 +2014,7 @@ test('křest rodu – tlačítko u vojvody, potvrzení, zápis v kronice a kří
       { timeout: 120_000, intervals: [2_000] },
     )
     .toBeGreaterThan(0);
-  await expect(entry).toHaveText(/Vojvoda se dal pokřtít\.$/);
+  await expect(entry).toHaveText(/^Vojvoda( \S+)? se dal pokřtít\.$/);
   await page.keyboard.press('Escape');
   await page.evaluate((id) => window.__bohemiaE2E!.selectPerson!(id), lordId);
   const christian = selection.getByTestId('selection-person-christian');

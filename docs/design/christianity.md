@@ -170,6 +170,14 @@ Návrh Clauda při implementaci (plán – poznámky „Provedeno jinak“):
 - **Změna držitele vsi:** křest se přepočte podle nového rodu (Vsi rodu výš). Ves převzatá v den
   mezi křtem starého rodu a jeho zápisem do vsi (zpráva platí od zítřka) by si křest starého rodu
   ještě zapsala – okno jednoho dne se neřeší.
+- **Křest platí ve vsi vojvody hned (D76):** Martin 15. 11. 2026: „Pokřtil jsem Lutobora. Vidím to
+  někde? A proč nemohu pozvat cizí mistry?“ Zpráva ve schránce platí až od zítřka, takže kříž,
+  propuštění manželek i pozvání huti se objevily po ≈ 86 s. Návrh Clauda: `baptizeLord` pokřtí ves
+  vojvody hned (`baptizeVillage` pod zámkem vsi) a ostatní vsi rodu dál přes schránku; zpráva vsi
+  vojvody pak nic nezdvojí (`baptizeVillage` je idempotentní podle `faith.rodBaptizedDay`).
+- **Kronika se jménem (D77):** zápisy křtu a propuštění manželek nesou jméno a postavení vojvody
+  jako zápisy o ženách (Martin 15. 11. 2026): „Vojvoda Lutobor se dal pokřtít.“, „Vojvoda Lutobor
+  propustil vedlejší manželky (2).“; starší zápisy bez jména zůstávají postaru.
 
 ## Otevřené otázky
 

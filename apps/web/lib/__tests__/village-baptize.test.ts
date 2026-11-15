@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 // a odmítnutí use-casu vrátí jako chybu česky.
 
 const state = vi.hoisted(() => ({
-  calls: [] as { playerId: string; villageId: string; today: number }[],
+  calls: [] as { playerId: string; villageId: string; today: number; landscape: unknown }[],
   rights: [] as string[],
   result: { ok: false, reason: 'Rod křesťanství nezná.' } as
     { ok: true } | { ok: false; reason: string },
@@ -26,7 +26,7 @@ vi.mock('@bohemia/game', async (importOriginal) => ({
   ...(await importOriginal<object>()),
   baptizeLord: (
     _deps: unknown,
-    input: { playerId: string; villageId: string; today: number },
+    input: { playerId: string; villageId: string; today: number; landscape: unknown },
   ): Promise<unknown> => {
     state.calls.push(input);
     return Promise.resolve(state.result);
@@ -58,7 +58,9 @@ describe('baptizeLordForPlayer', () => {
     state.result = { ok: false, reason: 'Rod křesťanství nezná.' };
     const result = await baptizeLordForPlayer('hrac', 'v1');
     expect(result).toEqual({ error: 'Rod křesťanství nezná.' });
-    expect(state.calls).toEqual([{ playerId: 'hrac', villageId: 'v1', today: 4321 }]);
+    expect(state.calls).toEqual([
+      { playerId: 'hrac', villageId: 'v1', today: 4321, landscape: expect.anything() },
+    ]);
     // právo rozhodnutí rodu jako u povýšení – správce ani nesenior nekřtí
     expect(state.rights).toEqual(['ennoble']);
   });

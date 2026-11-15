@@ -41,6 +41,16 @@ describe('kronika – vojvodova rodina', () => {
     );
   });
 
+  it('křest se jménem a postavením vojvody (D77, Martin 15. 11. 2026)', () => {
+    const estate = { title: 'voivode', kin: 'head' } as const;
+    expect(chronicleText({ day: 8, kind: 'lord-baptized', name: 'Lutobor', estate }, 'Ves')).toBe(
+      'Vojvoda Lutobor se dal pokřtít.',
+    );
+    expect(
+      chronicleText({ day: 8, kind: 'wives-released', count: 2, name: 'Lutobor', estate }, 'Ves'),
+    ).toBe('Vojvoda Lutobor propustil vedlejší manželky (2).');
+  });
+
   it('jméno muže rodu v 1. pádu (lord.md – Jména)', () => {
     expect(chronicleText({ day: 3, kind: 'line-named', name: 'Mrdomír' }, 'Ves')).toBe(
       'Muž rodu dostal jméno – Mrdomír.',
