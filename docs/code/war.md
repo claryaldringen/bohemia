@@ -1841,10 +1841,12 @@ seen_at)`, jeden řádek na hráče (migrace `0051_player_presence`). Port `Pres
 nepřepíše novější), `lastSeen(playerIds)` vrací mapu ms jen pro hráče se zápisem; adaptér
 `adapters/presence-repository.ts`. Zapisuje web: `notePlayerPresent` (`apps/web/lib/game.ts`) s procesní
 mapou, nejvýš jednou za `PRESENCE_NOTE_MS` (10 s, návrh Clauda); volá ho `notePlayerActive` (akce,
-dotaz na ves, pohled na varování) a `GET /api/war-scene/<sídlo>` (scéna se ptá po 5 s, dokud na mapu
-míří nebo na ní je vojsko – `MapWatch.war`, web-ui.md – Válka ve scéně; jinak přítomnost zapíše dotaz
-na ves; dřív se scéna ptala, dokud byla hra
-otevřená). Přítomnost je po hráči, ne po vsi. Čte ji worker (Odpověď workeru níž).
+dotaz na ves, pohled na varování) a hlavně tep spojení událostí `/api/events` – při připojení
+a každých `SSE_HEARTBEAT_MS` (20 s), dokud má hráč hru otevřenou ve viditelném panelu
+(`absentTicks` je 1 herní den ≈ 86 s, tep ho bezpečně drží; server-events.md – Spojení
+`/api/events`). `GET /api/war-scene/<sídlo>` přítomnost zapíše už jen při dotazu (scéna se ptá,
+dokud na mapu míří nebo na ní je vojsko – `MapWatch.war`, web-ui.md – Válka ve scéně), zdrojem
+přítomnosti už není. Přítomnost je po hráči, ne po vsi. Čte ji worker (Odpověď workeru níž).
 
 **Vojvoda doma (`war/lord-home.ts`).** `AlarmOwner.lordId` = hráčův muž (`house.lord_person_id`) jen
 u sídelní vsi rodu (`house.lord_village_id`); jiná ves rodu a NPC ves ho nemají. `ownerOf`
