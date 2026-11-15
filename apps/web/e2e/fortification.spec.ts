@@ -7,6 +7,7 @@ import {
   fortificationOutline,
   obstaclesOf,
   outlineOf,
+  outlinePointAt,
   proposeFortification,
   startFortification,
   startSectionDemolition,
@@ -547,7 +548,7 @@ test('brána, úsek a celé opevnění – klik na bránu, klik zvýrazní úsek
   }
 });
 
-test('úsek jinudy – brána u zbořeného úseku nabídne Postavit jinudy, tah bodu ven, kladivo založí staveniště', async ({
+test('úsek od brány k bráně – brána má Opustit a Zbořit bez Postavit jinudy, běžná stavba plotu u mezery, tah bodu ven, kladivo založí staveniště', async ({
   page,
 }) => {
   test.setTimeout(300_000);
@@ -590,7 +591,7 @@ test('úsek jinudy – brána u zbořeného úseku nabídne Postavit jinudy, tah
   await writeVillageState(settlementId, now);
   await pollVillage(page);
 
-  // zbořený úsek je mezera (klik ho nevybere) – Postavit jinudy nese brána u něj
+  // panel brány u zbořeného úseku: Opustit a Zbořit, Postavit jinudy ne (Martin 14. 11. 2026)
   const panel = page.getByTestId('selection-panel');
   const mids = fortSegments(outlineOf(landscape, fort)!).map((x): Pt => [x.mid[0], x.mid[1]]);
   const c = centroid(mids);
@@ -612,15 +613,30 @@ test('úsek jinudy – brána u zbořeného úseku nabídne Postavit jinudy, tah
       { timeout: 30_000 },
     )
     .toBe('fortification-gate');
-  const reroute = panel.getByTestId('fort-reroute');
-  await expect(reroute).toBeEnabled();
-  await reroute.click();
+  await expect(panel.getByTestId('fort-gate-abandon')).toBeEnabled();
+  await expect(panel.getByTestId('fort-gate-demolish')).toBeEnabled();
+  await expect(panel.getByTestId('fort-reroute')).toHaveCount(0);
+  await page.keyboard.press('Escape');
 
-  // editor trasy: konce v okrajích bran, mezi nimi body úseku – prostřední 6 m ven
+  // běžná stavba plotu s kurzorem u mezery: návrh je nový úsek s konci v okrajích bran
+  const gapMid = fortSegments(outlineOf(landscape, fort)!)[section.segments[1]!]!.mid;
+  await closeUp(page, [gapMid[0], gapMid[1]]);
+  const grid = page.getByTestId('build-grid');
+  await page.keyboard.press('p');
+  await expect(grid).toHaveAttribute('data-group', 'fortification');
+  await grid.getByRole('button', { name: 'Polský plot' }).click();
   await page.mouse.move(640, 360);
   await page.mouse.move(650, 365);
-  await expect.poll(async () => (await fortPoints(page)).length).toBeGreaterThanOrEqual(3);
+  await expect
+    .poll(async () => (await fortPoints(page)).length, { timeout: 20_000 })
+    .toBeGreaterThanOrEqual(3);
   const route = await fortPoints(page);
+  const span = fortSectionSpans(
+    fortSegments(outlineOf(landscape, fort)!).map((x) => x.lengthM),
+    fort.gates,
+  ).find((x) => x.gateSegment === section.gateSegment)!;
+  const startEdge = outlinePointAt(outlineOf(landscape, fort)!, span.fromM);
+  expect(Math.hypot(route[0]![0] - startEdge[0], route[0]![1] - startEdge[1])).toBeLessThan(1e-6);
   const pick = Math.floor(route.length / 2);
   const from = route[pick]!;
   const len = Math.hypot(from[0] - c[0], from[1] - c[1]);

@@ -3,16 +3,9 @@
  * a vylepšeními, úsek mezi branami (klik) se zbořením a brána (klik jako na křižovatku).
  */
 import { useState, type ReactElement } from 'react';
-import {
-  FORT_UNDER_ATTACK,
-  type AssaultMethod,
-  type FortKind,
-  type GateLevel,
-  type WallKind,
-} from '@bohemia/game';
+import { type AssaultMethod, type FortKind, type GateLevel, type WallKind } from '@bohemia/game';
 import type { SelectionDetails } from '@/lib/selection-details';
 import {
-  FORT_BUSY_TEXT,
   type FortAssaultIcon,
   type FortAssaultView,
   type FortDemolishOption,
@@ -81,7 +74,11 @@ export type FortAction =
   | { kind: 'upgrade'; target: WallKind }
   | { kind: 'rampart' }
   | { kind: 'moat' }
-  | { kind: 'gate'; level: GateLevel };
+  | { kind: 'gate'; level: GateLevel }
+  /** Opustit (`abandoned` true) nebo Vrátit bránu (demolition.md – Rozhodnutí). */
+  | { kind: 'gate-abandon'; abandoned: boolean }
+  /** Zbořit bránu – zbyde mezera (demolition.md – Rozhodnutí). */
+  | { kind: 'gate-demolish' };
 
 /** Zadá akci nad opevněním `fortificationId` u dílu `segment` (null – celé opevnění). */
 export type FortActionHandler = (
@@ -621,37 +618,40 @@ export function FortSectionBody({
   );
 }
 
+/** Ikony Opustit a Vrátit jako u staveb (`StructureUseButtons`), Zbořit jako u úseku. */
+const GATE_ABANDON_ICON = '/icons/resources/abandon-structure.png';
+const GATE_RESTORE_ICON = '/icons/resources/restore.png';
+
 /**
  * Brána opevnění (klik jako na křižovatku – fortifications.md, Brány): stav a stáří dílu, ve
- * kterém stojí, a cesta, která jí vede (klik ji vybere). Druh brány je v portrétu. Zrušit bránu
- * zatím nejde.
+ * kterém stojí, a cesta, která jí vede (klik ji vybere). Druh brány je v portrétu. Příkazy:
+ * klešťová brána, věž, Opustit / Vrátit a Zbořit (demolition.md – Rozhodnutí, Martin 14. 11.
+ * 2026) – zbořená i shnilá opuštěná brána nechá mezeru, kterou hráč zastaví běžnou stavbou
+ * opevnění od brány k bráně.
  */
 export function FortGateBody({
   details,
   onSelectTarget,
-  onReroute,
   onAction,
 }: {
   details: Extract<SelectionDetails, { kind: 'fortification-gate' }>;
   onSelectTarget?: ((target: VillageTarget) => void) | undefined;
-  /** Klešťová brána či věž (server action) – hotovo, až se vrátí. */
+  /** Klešťová brána či věž, Opustit / Vrátit a Zbořit (server action) – hotovo, až se vrátí. */
   onAction?: FortActionHandler;
-  /**
-   * Postaví zbořený úsek s dílem `segment` jinudy (demolition.md – Rozhodnutí) – otevře editor
-   * trasy s konci v branách.
-   */
-  onReroute?: (fortificationId: number, segment: number, target: WallKind) => void;
 }): ReactElement {
   const { gate, road } = details;
   const denied = useRightDenied('build');
   const { busy, run } = useFortAction(details.id, onAction);
-  const reroutes = details.reroutes ?? [];
   const levels = (
     [
       ['pincer', gate.pincer, 'Klešťová brána', '/icons/resources/gate-pincer.png'],
       ['tower', gate.tower, 'Věž nad branou', '/icons/resources/gate-tower.png'],
     ] as const
   ).filter((x) => x[1] !== null);
+  const abandonName = gate.abandoned
+    ? 'Vrátit bránu – zase se bude udržovat'
+    : 'Opustit bránu – přestane se udržovat a rozpadne se na mezeru';
+  const demolishName = 'Zbořit bránu';
   const body = (
     <div className="flex min-w-0 flex-col justify-center gap-1.5">
       <div className={ROW}>
@@ -682,7 +682,6 @@ export function FortGateBody({
       </div>
     </div>
   );
-  if (reroutes.length === 0 && levels.length === 0) return body;
   return (
     <div className="hud-split">
       {body}
@@ -700,38 +699,35 @@ export function FortGateBody({
             onClick={() => run?.(gate.segment, { kind: 'gate', level })}
           />
         ))}
-        {reroutes.map((r) =>
-          [{ target: r.target, blocked: null as string | null }, ...r.others].map(
-            ({ target, blocked }, k) => {
-              const name = `Postavit úsek jinudy – ${FORT_NAMES[target].toLowerCase()}`;
-              const reason =
-                blocked ??
-                (details.contested ? FORT_UNDER_ATTACK : details.busy ? FORT_BUSY_TEXT : null);
-              return (
-                <CommandButton
-                  key={`${r.segment}-${target}`}
-                  testId={k === 0 ? 'fort-reroute' : `fort-reroute-${target}`}
-                  name={`${name}, body od brány k bráně`}
-                  icon={FORT_ICON_SRC[target]}
-                  tooltip={
-                    <span className="flex flex-col gap-0.5">
-                      <span>{name}</span>
-                      {reason && (
-                        <span data-testid="fort-blocked" className="font-semibold text-red-400">
-                          {reason}
-                        </span>
-                      )}
-                    </span>
-                  }
-                  disabled={reason !== null || !onReroute}
-                  busy={false}
-                  denied={denied}
-                  onClick={() => onReroute?.(details.id, r.segment, target)}
-                />
-              );
-            },
-          ),
-        )}
+        <CommandButton
+          testId={gate.abandoned ? 'fort-gate-restore' : 'fort-gate-abandon'}
+          name={abandonName}
+          icon={gate.abandoned ? GATE_RESTORE_ICON : GATE_ABANDON_ICON}
+          tooltip={
+            <span className="flex flex-col gap-0.5">
+              <span>{abandonName}</span>
+              {gate.abandonBlocked && (
+                <span data-testid="fort-blocked" className="font-semibold text-red-400">
+                  {gate.abandonBlocked}
+                </span>
+              )}
+            </span>
+          }
+          disabled={gate.abandonBlocked !== null || busy || !run}
+          busy={busy}
+          denied={denied}
+          onClick={() => run?.(gate.segment, { kind: 'gate-abandon', abandoned: !gate.abandoned })}
+        />
+        <CommandButton
+          testId="fort-gate-demolish"
+          name={demolishName}
+          icon="/icons/resources/demolish.png"
+          tooltip={<DemolishTooltip name={demolishName} option={gate.demolish} />}
+          disabled={gate.demolish.blocked !== null || busy || !run}
+          busy={busy}
+          denied={denied}
+          onClick={() => run?.(gate.segment, { kind: 'gate-demolish' })}
+        />
       </Commands>
     </div>
   );

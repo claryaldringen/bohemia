@@ -183,8 +183,11 @@ export interface Construction {
    * a postup vylepšení). Chybí = starší stavby: `upgrade` na palisádu, `top` = `Fortification.top`.
    */
   fortTarget?: WallKind;
-  /** Stavba u brány (`fortWork` `gate`): úsek brány a klešťová brána, nebo věž. Jinak chybí. */
-  fortGate?: { segment: number; level: 'pincer' | 'tower' };
+  /**
+   * Stavba u brány: úsek brány a klešťová brána, nebo věž (`fortWork` `gate`), nebo zboření brány
+   * (`fortWork` `demolish`, `level` `demolish` – demolition.md, Rozhodnutí). Jinak chybí.
+   */
+  fortGate?: { segment: number; level: 'pincer' | 'tower' | 'demolish' };
   /**
    * Úseky stavby opevnění v pořadí práce (od brány nejblíž dvorci po směru hodin) a práce každého
    * (čd). Práce stavby jde napřed do kácení dřeva (`wood`), pak do úseků jeden po druhém – úsek je
@@ -207,6 +210,8 @@ export interface Construction {
     lengthM: number;
     gates?: [ChronicleFortGate, ChronicleFortGate];
     around?: true;
+    /** Zboření brány (demolition.md – Rozhodnutí), ne úseku. */
+    gate?: true;
   };
   /**
    * Lom (fortifications.md – Kámen): stavba lomu (`quarry`) a lámání do zásoby (`quarrying`) –

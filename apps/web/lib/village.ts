@@ -42,6 +42,8 @@ import {
   upgradeFortification,
   addFortificationGate,
   demolishFortificationSection,
+  demolishFortificationGate,
+  abandonFortificationGate,
   rerouteFortificationSection,
   addFortificationRampart,
   fillFortificationMoat,
@@ -1104,6 +1106,50 @@ export function demolishFortificationSectionForPlayer(
         today: ctx.day,
         fortificationId: input.fortificationId,
         segment: input.segment,
+      },
+    ),
+  );
+}
+
+/**
+ * Zboření brány (demolition.md – Rozhodnutí): brána dílu `segment` – práci a klády spočítá server
+ * znovu (`gateDemolition`).
+ */
+export function demolishFortificationGateForPlayer(
+  playerId: string,
+  villageId: string,
+  input: { fortificationId: number; segment: number },
+): Promise<VillageActionResult> {
+  return actOn(playerId, villageId, 'demolishFortificationGate', (ctx) =>
+    demolishFortificationGate(
+      { villages: villages() },
+      {
+        villageId: ctx.villageId,
+        landscape: ctx.landscape,
+        today: ctx.day,
+        fortificationId: input.fortificationId,
+        segment: input.segment,
+      },
+    ),
+  );
+}
+
+/** Opustit (`abandoned` true) nebo Vrátit bránu dílu `segment` (demolition.md – Rozhodnutí). */
+export function abandonFortificationGateForPlayer(
+  playerId: string,
+  villageId: string,
+  input: { fortificationId: number; segment: number; abandoned: boolean },
+): Promise<VillageActionResult> {
+  return actOn(playerId, villageId, 'abandonFortificationGate', (ctx) =>
+    abandonFortificationGate(
+      { villages: villages() },
+      {
+        villageId: ctx.villageId,
+        landscape: ctx.landscape,
+        today: ctx.day,
+        fortificationId: input.fortificationId,
+        segment: input.segment,
+        abandoned: input.abandoned,
       },
     ),
   );

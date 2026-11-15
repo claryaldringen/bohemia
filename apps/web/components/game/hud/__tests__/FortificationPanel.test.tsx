@@ -178,6 +178,9 @@ describe('SelectionPanel – opevnění', () => {
         pincer: null,
         tower: null,
         assault: [],
+        abandoned: false,
+        abandonBlocked: null,
+        demolish: { work: 'demolish', cost: { laborManDays: 2, logs: 1 }, blocked: null },
       },
       road: { id: 40, segment: 41, roadKind: 'improved' },
     };

@@ -30,7 +30,7 @@ import {
   FORT_SECTION_STANDS,
   rerouteFortification,
   rerouteProposal,
-  rerouteTarget,
+  sectionIsGap,
   type FortReroute,
 } from '../reroute';
 import { FORT_GATE_HALF_M, fortSectionSpans } from '../section-spans';
@@ -258,8 +258,13 @@ describe('úsek od brány k bráně jinudy – tvar', () => {
     const { fort } = reroute(s, proposal.slice(1, -1));
     expect(Math.abs(outlineOf(landscape, fort)!.lengthM - outline.lengthM)).toBeLessThan(1);
     expect(fort.segments).toHaveLength(old.segments.length);
-    // nový úsek naváže na hradbu brány: palisáda
-    expect(rerouteTarget(old, gate)).toBe('palisade');
+  });
+
+  it('mezera od brány k bráně: jen úsek, ve kterém nic nestojí', () => {
+    const s = demolishedMiddle();
+    const old = fortOf(s);
+    expect(sectionIsGap(old, landscape, sectionOf(old, old.gates[1]!.segment)!)).toBe(true);
+    expect(sectionIsGap(old, landscape, sectionOf(old, old.gates[2]!.segment)!)).toBe(false);
   });
 
   it('trasa křížící obvod – důvod', () => {

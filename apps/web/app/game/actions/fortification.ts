@@ -5,6 +5,8 @@ import {
   upgradeFortificationForPlayer,
   addFortificationGateForPlayer,
   demolishFortificationSectionForPlayer,
+  demolishFortificationGateForPlayer,
+  abandonFortificationGateForPlayer,
   rerouteFortificationSectionForPlayer,
   addFortificationRampartForPlayer,
   fillFortificationMoatForPlayer,
@@ -16,6 +18,7 @@ import {
   parseUpgradeFortificationInput,
   parseAddFortificationGateInput,
   parseDemolishFortificationSectionInput,
+  parseAbandonFortificationGateInput,
   parseRerouteFortificationSectionInput,
   parseFortificationRampartInput,
   parseFortificationGateUpgradeInput,
@@ -56,6 +59,30 @@ export async function demolishFortificationSection(input: unknown): Promise<Vill
     input,
     parseDemolishFortificationSectionInput,
     demolishFortificationSectionForPlayer,
+  );
+}
+
+/**
+ * Zboření brány (demolition.md – Rozhodnutí): `{ villageId, fortificationId, segment }` – díl
+ * s branou; zbyde mezera.
+ */
+export async function demolishFortificationGate(input: unknown): Promise<VillageActionResult> {
+  return villageAction(
+    input,
+    parseDemolishFortificationSectionInput,
+    demolishFortificationGateForPlayer,
+  );
+}
+
+/**
+ * Opustit / Vrátit bránu (demolition.md – Rozhodnutí): `{ villageId, fortificationId, segment,
+ * abandoned }`.
+ */
+export async function abandonFortificationGate(input: unknown): Promise<VillageActionResult> {
+  return villageAction(
+    input,
+    parseAbandonFortificationGateInput,
+    abandonFortificationGateForPlayer,
   );
 }
 

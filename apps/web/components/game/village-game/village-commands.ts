@@ -27,6 +27,8 @@ import {
   setSteward,
   upgradeFortification,
   upgradeFortificationGate,
+  abandonFortificationGate,
+  demolishFortificationGate,
   upgradeRoad,
 } from '@/app/game/actions';
 import type { LandscapeScene } from '@/lib/scene/landscape-scene';
@@ -257,6 +259,16 @@ export function villageCommands({
             : runBuildAction(() =>
                 upgradeFortificationGate({ ...at, segment, level: action.level }),
               );
+        case 'gate-abandon':
+          return segment === null
+            ? Promise.resolve()
+            : runBuildAction(() =>
+                abandonFortificationGate({ ...at, segment, abandoned: action.abandoned }),
+              );
+        case 'gate-demolish':
+          return segment === null
+            ? Promise.resolve()
+            : runBuildAction(() => demolishFortificationGate({ ...at, segment }));
       }
     },
     onFortDemolish: (fortificationId, segment) =>

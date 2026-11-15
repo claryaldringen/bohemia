@@ -70,10 +70,12 @@ const gate = (over: Partial<Gate['gate']> = {}): Gate => ({
     pincer: { cost: { laborManDays: 108, logs: 19 }, blocked: null },
     tower: { cost: NO_COST, blocked: 'Věž stojí jen na klešťové bráně.' },
     assault: ASSAULT.slice(0, 3),
+    abandoned: false,
+    abandonBlocked: null,
+    demolish: { work: 'demolish', cost: { laborManDays: 2, logs: 1 }, blocked: null },
     ...over,
   },
   road: null,
-  reroutes: [],
 });
 
 let host: HTMLDivElement;

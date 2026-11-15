@@ -364,6 +364,12 @@ function fortDemolishedText(
   event: Extract<ChronicleEvent, { kind: 'fortification-demolished' }>,
 ): string {
   const level = event.level === true;
+  // zbořená brána (demolition.md – Rozhodnutí)
+  if (event.gate === true) {
+    return event.lord !== undefined
+      ? `Vojvoda ${event.lord} přikázal zbořit bránu.`
+      : 'Zbořili bránu.';
+  }
   if (event.lengthM === undefined) {
     return level ? 'Val úseku opevnění byl srovnán.' : 'Úsek opevnění byl zbořen.';
   }

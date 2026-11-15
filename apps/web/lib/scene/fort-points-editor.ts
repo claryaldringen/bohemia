@@ -73,7 +73,7 @@ interface Press {
  * rozběhnutý tah nebo návrh zahodí, Backspace / Ctrl+Z vrátí poslední úpravu, pravé kliknutí
  * zruší jako u ostatních staveb. Obrys pásu je zelený (projde) / červený (neprojde) a místo
  * problému z kontroly jádra svítí červeně; cena a útočiště jdou do bubliny u kurzoru. S pevnými
- * konci (`mode.fixedEnds` – úsek jinudy, demolition.md – Rozhodnutí) jsou body otevřená trasa
+ * konci (`mode.fixedEnds` – úsek od brány k bráně, demolition.md – Rozhodnutí) jsou body otevřená trasa
  * od brány k bráně: konce nejdou chytit ani ubrat, bod přibude jen na trase.
  */
 export class FortPointsEditor implements ActivePlacement {

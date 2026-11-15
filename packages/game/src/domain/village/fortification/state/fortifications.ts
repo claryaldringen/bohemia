@@ -21,6 +21,7 @@ import {
   completeUpgrade,
   gatePartView,
   pieceBusy,
+  removeGate,
   storeGatePart,
   dropGateWork,
   finishMoatFill,
@@ -914,12 +915,17 @@ function sectionUpgrade(
 function segmentDone(
   fort: Fortification,
   s: FortSegment,
-  c: Pick<Construction, 'fortWork' | 'startedDay' | 'fortTarget'>,
+  c: Pick<Construction, 'fortWork' | 'startedDay' | 'fortTarget' | 'fortGate'>,
   part?: 'before' | 'after',
 ): boolean {
   // vylepšení úseku s cílovou hradbou (Hradby a obrana – Druhy a postup vylepšení)
   if (sectionUpgrade(c)) return upgradeDone(fort, s, c.fortTarget, part);
   if (c.fortWork === 'level') return pieceGone(s, part);
+  // zboření brány – hotovo, když brána zmizela (demolition.md – Rozhodnutí)
+  if (c.fortGate?.level === 'demolish') {
+    const gate = fort.gates.find((g) => g.segment === c.fortGate!.segment);
+    return !gate || gate.demolishedDay !== undefined;
+  }
   // přestavba kusu dílu s branou s vlastní hradbou – hotovo podle kusu
   if (part !== undefined && c.fortWork !== 'demolish') {
     return segmentDone(fort, gatePartView(s, part), c);
@@ -966,6 +972,12 @@ export function workFortification(state: VillageState, c: Construction, day: num
     }
     const s = fort.segments.find((x) => x.index === w.index);
     if (!s || segmentDone(fort, s, c, w.part)) continue;
+    // zboření brány – brána zmizí, hradba dílu stojí dál (`removeGate`)
+    if (c.fortGate?.level === 'demolish') {
+      const gate = fort.gates.find((g) => g.segment === c.fortGate!.segment);
+      if (gate) removeGate(gate, day);
+      continue;
+    }
     if (c.fortWork === 'demolish' || c.fortWork === 'level') {
       demolishSegment(fort, s, day, w.part);
       continue;

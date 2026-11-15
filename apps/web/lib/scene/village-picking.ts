@@ -449,6 +449,8 @@ export function fortTargetAt(
   }
   let gate: { segment: number; d: number } | null = null;
   for (const g of fort.gates) {
+    // zbořená brána je mezera – klik ji nevybere (jako zbořený úsek)
+    if (g.demolishedDay !== undefined) continue;
     const d = loopDistanceM(at.s, gateCenterM(perimeter, g), perimeter.total);
     if (d <= FORT_GATE_HALF_M + FORT_GATE_PICK_MARGIN_M && (!gate || d < gate.d)) {
       gate = { segment: g.segment, d };
@@ -614,7 +616,9 @@ export function targetExists(village: SceneVillage, target: VillageTarget): bool
   }
   if (target.kind === 'fortification-gate') {
     return (village.forts ?? []).some(
-      (f) => f.id === target.id && f.gates.some((g) => g.segment === target.segment),
+      (f) =>
+        f.id === target.id &&
+        f.gates.some((g) => g.segment === target.segment && g.demolishedDay === undefined),
     );
   }
   if (target.kind === 'grain-pit') {

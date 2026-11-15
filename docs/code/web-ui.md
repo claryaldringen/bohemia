@@ -32,7 +32,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `use-scene-sync.ts` (hodiny, ves a návrat R do scény; e2e háčky scény), `use-selection.ts`
   (výběr, `followConstruction` při vykreslení, postava a spřežení, `sonPreview`),
   `use-wagon-preview.ts`, `use-gate-mode.ts` (`gateFort`), `use-build-mode.ts`
-  (`useBuildMode` – `SUBMIT_SQUARES`, `buildGroup`, `startBuild`, `startReroute`, konec
+  (`useBuildMode` – `SUBMIT_SQUARES`, `buildGroup`, `startBuild` – u mezery opevnění úsek od brány k bráně, konec
   umisťování ve vymřelé vsi), `use-village-hotkeys.ts` (F10, Esc, Ctrl + A, zkratky staveb přes
   ref), `use-village-switch.ts` (`switchVillage`, výběr dvorce z upozornění varování),
   `use-alarm-actions.ts`, `use-dev-controls.ts`, `use-panel-source.ts`, `use-premium-intro.ts`,
@@ -975,13 +975,15 @@ segment | null, FortAction)` (`upgrade` s `target`, `rampart`, `moat`, `gate` s 
   `parseUpgradeFortificationInput`, `parseFortificationRampartInput`,
   `parseDemolishFortificationSectionInput`, `parseFortificationGateUpgradeInput`; práva `build`).
   Ikony druhů `FORT_ICON_SRC` (celá cesta; ochoz, roštová a komorová vlastní SVG), ikony akcí
-  a postupů vlastní SVG (CC0) v `public/icons/resources/`. **Postavit jinudy** v panelu brány
-  nabízí i druh nového úseku (`reroutes[].others` – plot, palisáda, roštová, komorová kromě výchozí
-  `rerouteTarget`; `fort-reroute-<druh>`, roštová a komorová před svým rokem zašedlé s důvodem
-  `wallYearReason`).
+  a postupů vlastní SVG (CC0) v `public/icons/resources/`. ~~**Postavit jinudy** v panelu brány~~ zmizelo (Martin 14. 11. 2026, D28): mezeru od brány
+  k bráně hráč zastaví **běžnou stavbou** – rozcestník opevnění a druh u mezery spustí editor
+  s konci v branách (`fortGapNear`, village-fortifications.md – Úsek od brány k bráně). Panel brány
+  má Opustit / Vrátit (`fort-gate-abandon` / `fort-gate-restore`) a Zbořit (`fort-gate-demolish`) –
+  village-fortifications.md – Brána: Opustit a Zbořit.
 - Testy: `lib/__tests__/build-items-fortification.test.ts` (návrh, tažení mění cenu, místo problému),
   `components/game/hud/__tests__/FortificationPanel.test.tsx`, `FortSection.behavior.test.tsx` (nabídka
-  Vylepšit, val, příkop, postupy, obsazení, brána), `lib/__tests__/scene-fortifications.test.ts`
+  Vylepšit, val, příkop, postupy, obsazení, brána), `FortGate.behavior.test.tsx` (Opustit, Vrátit,
+  Zbořit, bez Postavit jinudy), `lib/__tests__/scene-fortifications.test.ts`
   (panel úseku plotu), `lib/scene/__tests__/fort-picking.test.ts`;
   `lib/__tests__/fort-points.test.ts` (přidání, ubrání, nejméně 4 body, posun);
   e2e `e2e/fortification.spec.ts` (návrh palisády kolem zemnice přes pevnou cestu, posun bodu

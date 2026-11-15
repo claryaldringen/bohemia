@@ -14,6 +14,7 @@ import {
   FORT_PINCER_DONE,
   FORT_RAMPART_DONE,
   FORT_TOWER_DONE,
+  gateDemolition,
   gateUpgrade,
   obstaclesOf,
   sectionUpgrades,
@@ -281,6 +282,12 @@ export interface VillageFortGate {
   tower: FortWorkOption | null;
   /** Postupy útočníka přes bránu. */
   assault: FortAssaultView[];
+  /** Opuštěná brána (demolition.md – Rozhodnutí) – v panelu Vrátit místo Opustit. */
+  abandoned: boolean;
+  /** Proč bránu nejde opustit ani vrátit (díl brány nestojí); null – jde. */
+  abandonBlocked: string | null;
+  /** Zboření brány: práce a klády zpět na hromadu, nebo důvod, proč nejde. */
+  demolish: FortDemolishOption;
 }
 
 /** Opevnění pro panel výběru (fortifications.md – Rozhraní). */
@@ -458,6 +465,8 @@ export function sceneFortifications(
     const bySegment = new Map<number, { progress: number; work: FortBuildWork }>();
     const byPart = new Map<string, { progress: number; work: FortBuildWork }>();
     for (const c of sites) {
+      // zboření brány nebourá díl – hradba dílu stojí, brána zmizí až s koncem stavby
+      if (c.fortGate?.level === 'demolish') continue;
       const parts = new Map<string, number>();
       for (const [index, p] of fortSegmentProgress(c, parts)) {
         if (!bySegment.has(index))
@@ -823,11 +832,18 @@ export function fortificationViews(
             : {}),
         };
       }),
-      gateViews: [...fort.gates]
+      // zbořená brána je mezera – panel nemá (klik ji nevybere)
+      gateViews: fort.gates
+        .filter((gate) => gate.demolishedDay === undefined)
         .sort((a, b) => a.segment - b.segment)
         .map((gate) => {
           const seg = fort.segments.find((x) => x.index === gate.segment);
           const stands = seg !== undefined && segmentBuilt(seg);
+          const demolition = gateDemolition(state, {
+            fortificationId: fort.id,
+            segment: gate.segment,
+          });
+          const blocked = 'reason' in demolition ? demolition.reason : null;
           return {
             segment: gate.segment,
             state: stands ? segmentState(fort, seg, day) : 1,
@@ -838,6 +854,20 @@ export function fortificationViews(
             pincer: gateOption(ctx, fort.id, gate.segment, 'pincer', FORT_PINCER_DONE),
             tower: gateOption(ctx, fort.id, gate.segment, 'tower', FORT_TOWER_DONE),
             assault: seg ? assaultViews(fort, [seg], day, true) : [],
+            abandoned: gate.abandonedDay !== undefined,
+            abandonBlocked: blocked === FORT_BUSY ? null : blocked,
+            demolish:
+              'reason' in demolition
+                ? {
+                    work: 'demolish' as const,
+                    cost: { laborManDays: 0, logs: 0 },
+                    blocked: blocked === FORT_BUSY ? FORT_BUSY_TEXT : blocked,
+                  }
+                : {
+                    work: 'demolish' as const,
+                    cost: { laborManDays: demolition.laborManDays, logs: demolition.logs },
+                    blocked: null,
+                  },
           };
         }),
       ...(work
