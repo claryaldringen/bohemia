@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   displacedCount,
   freePlaces,
+  housingPlaces,
   lodgingShortfall,
   noRoomReason,
   rehouseDisplaced,
@@ -11,6 +12,7 @@ import { availableSettlers, occupyEmptyDwellings } from '../households';
 import { occupants } from '../people';
 import { abandonStructure, disuseBlock } from '../../buildings/structure-use';
 import type { Dwelling, DwellingType, Person, VillageState } from '../../types';
+import { DWELLINGS } from '../../rules';
 import { Y1, YEAR, village } from '../../__tests__/abandonment-fixtures';
 
 // Dočasné ubytování vystěhovaných obyvatel (demolition.md – Obydlí s obyvateli).
@@ -234,5 +236,17 @@ describe('Vystěhování obydlí', () => {
       ['zemnice', 6],
     ]);
     expect(vacateDwelling(s, Y1, 1)).toBe(3);
+  });
+});
+
+describe('housingPlaces – místa k bydlení vsi (D80)', () => {
+  it('součet kapacity obydlí v provozu včetně dvorce, opuštěná se nepočítají', () => {
+    const s = village(Y1);
+    s.dwellings = [
+      dwelling(1, 'zemnice', 0, 0),
+      dwelling(2, 'zemnice', 10, 0),
+      { ...dwelling(3, 'zemnice', 20, 0), disusedDay: Y1 },
+    ];
+    expect(housingPlaces(s)).toBe(2 * DWELLINGS.zemnice.capacity);
   });
 });

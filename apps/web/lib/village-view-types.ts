@@ -560,6 +560,8 @@ export interface VillageView {
    * pole v oběhu (ha) a průměrná přirozená úrodnost; bez pole nebo lidí null.
    */
   fieldCapacity?: Pick<FieldCapacity, 'people' | 'rotationHa' | 'fertility' | 'soil'> | null;
+  /** Místa k bydlení v obydlích v provozu (lišta: lidé na hranici / přes kapacitu). */
+  housingPlaces?: number;
   commonLaborPerDay: number;
   /**
    * Vojvodova rodina dnes (lord.md – Co hráč vidí): kolik jich cvičí, je na poli a vede domácnost;

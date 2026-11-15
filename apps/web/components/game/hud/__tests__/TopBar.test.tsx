@@ -7,6 +7,9 @@ import {
   LaborTooltip,
   SatiationTooltip,
   fieldCapacityShort,
+  housingState,
+  PeopleCount,
+  PeopleTooltip,
   peopleLabel,
   TopBar,
   dairyName,
@@ -220,7 +223,7 @@ describe('Lidé a kolik jich pole uživí v jedné ikoně (Martin 24. 10. 2026)'
       />,
     );
     expect(html).toContain('data-testid="village-people"');
-    expect(html).toContain('31 / ≈ 22');
+    expect(html.replace(/<[^>]+>/g, '')).toContain('31 / ≈ 22');
     for (const id of [
       'village-fields',
       'village-field-capacity',
@@ -251,5 +254,41 @@ describe('HappinessTooltip – víra', () => {
     expect(html).toMatch(/data-testid="happiness-christians"[^>]*>.*Křesťané 25 %/);
     expect(html).toContain('src="/icons/house/faith-cross.png"');
     expect(html).toMatch(/data-testid="happiness-desecration"[^>]*>.*−15/);
+  });
+});
+
+describe('Lidé podle míst k bydlení (D80, Martin 15. 11. 2026)', () => {
+  const view = (people: number, places: number, field?: number): VillageView =>
+    ({
+      people: { children: 0, adults: people, elders: 0 },
+      housingPlaces: places,
+      fieldCapacity: field ? { people: field, rotationHa: 1, fertility: 50, soil: 1 } : null,
+    }) as VillageView;
+  const count = (v: VillageView): string => renderToStaticMarkup(<PeopleCount view={v} />);
+
+  it('volné místo: bez barvy', () => {
+    expect(housingState(view(30, 32))).toBe('ok');
+    expect(count(view(30, 32))).not.toMatch(/text-(amber|red)/);
+  });
+
+  it('plno: žlutooranžově', () => {
+    expect(housingState(view(32, 32))).toBe('full');
+    expect(count(view(32, 32))).toMatch(/data-testid="people-count"[^>]*text-amber-300/);
+  });
+
+  it('přeplněno: červeně', () => {
+    expect(housingState(view(33, 32))).toBe('over');
+    expect(count(view(33, 32))).toMatch(/data-testid="people-count"[^>]*text-red-400/);
+  });
+
+  it('pole zvlášť: červená část polí nebarví číslo lidí', () => {
+    const html = count(view(20, 32, 10));
+    expect(html).toMatch(/<span class="text-red-400">\s*\/ ≈ 10<\/span>|text-red-400">[^<]*≈ 10/);
+    expect(html).not.toMatch(/people-count"[^>]*text-red-400/);
+  });
+
+  it('tooltip: řádek Bydlení', () => {
+    const html = renderToStaticMarkup(<PeopleTooltip view={view(31, 32)} />);
+    expect(html).toContain('Bydlení 31 / 32 míst');
   });
 });

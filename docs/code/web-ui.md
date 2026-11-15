@@ -515,7 +515,11 @@ Pravidla: `docs/design/lord.md` – Konec rodu. Základ obrazovky popisuje `docs
 ## Pole uživí ≈ N lidí
 
 Horní lišta (`hud/TopBar.tsx`): ikona lidí (`village-people`) ukazuje „lidí / ≈ N“ (`peopleLabel`),
-tooltip `FieldCapacityTooltip`, červeně při `fieldCapacityShort` (lidí víc než N). Rozloha polí
+tooltip `FieldCapacityTooltip`, část „/ ≈ N“ červeně při `fieldCapacityShort` (lidí víc než N). Číslo lidí
+(`PeopleCount`) se barví zvlášť podle ubytování (`housingState`, D80, Martin 15. 11. 2026): plno
+(lidé = místa) `text-amber-300`, přeplněno `text-red-400`; místa je `view.housingPlaces` z jádra
+`housingPlaces` (`people/displaced.ts` – kapacita obydlí v provozu včetně dvorce, opuštěná ne);
+tooltip má řádek „Bydlení 31 / 32 míst“ (`housing-places`). Rozloha polí
 v liště není – ukazuje ji panel pole. Hodnota je `view.fieldCapacity` (`lib/village-view.ts`, `fieldCapacityView`)
 z jádra `fieldCapacity` (`packages/game/src/domain/village/fields/field-capacity.ts`; tam i `ROTATION`,
 `ROTATION_FACTOR`, `netYieldPerHa`, které kalkulačka přebírá přes `scripts/lib/steady-state.ts`).

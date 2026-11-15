@@ -276,9 +276,71 @@ export function peopleLabel(view: Pick<VillageView, 'people' | 'fieldCapacity'>)
   return view.fieldCapacity ? `${people} / ≈ ${formatInteger(view.fieldCapacity.people)}` : people;
 }
 
-/** Tooltip lidí: kolik jich je a kolik jich uživí pole (podrobnosti viz `FieldCapacityTooltip`). */
+/**
+ * Ubytování lidí (D80, Martin 15. 11. 2026): `full` = lidé právě zaplnili místa (žádné volné),
+ * `over` = lidí je víc než míst, jinak `ok` (nebo `unknown` bez údaje o místech).
+ */
+export function housingState(
+  view: Pick<VillageView, 'people' | 'housingPlaces'>,
+): 'ok' | 'full' | 'over' | 'unknown' {
+  const places = view.housingPlaces;
+  if (places === undefined) return 'unknown';
+  const people = villagePeople(view);
+  return people > places ? 'over' : people === places ? 'full' : 'ok';
+}
+
+/** Barva čísla lidí podle ubytování: plno žlutooranžově, přeplněno červeně. */
+export function housingClass(
+  view: Pick<VillageView, 'people' | 'housingPlaces'>,
+): string | undefined {
+  const state = housingState(view);
+  return state === 'over' ? 'text-red-400' : state === 'full' ? 'text-amber-300' : undefined;
+}
+
+/** Řádek tooltipu „Bydlení 31 / 32 míst“ (ikona lidí, barva jako číslo v liště). */
+function HousingLine({ view }: { view: VillageView }): ReactElement | null {
+  if (view.housingPlaces === undefined) return null;
+  const cls = housingClass(view);
+  return (
+    <span
+      data-testid="housing-places"
+      className={`mt-0.5 flex items-center gap-1 tabular-nums ${cls ? `font-semibold ${cls}` : 'text-[#bfa77a]'}`}
+    >
+      <img src="/icons/resources/people.png" alt="Bydlení" width={16} height={16} />
+      Bydlení {formatInteger(villagePeople(view))} / {formatInteger(view.housingPlaces)} míst
+    </span>
+  );
+}
+
+/**
+ * Počet lidí v liště: číslo lidí podle ubytování (plno žlutooranžově, přeplněno červeně), část
+ * „/ ≈ N“ podle polí – barvy se nemíchají.
+ */
+export function PeopleCount({ view }: { view: VillageView }): ReactElement {
+  const label = peopleLabel(view);
+  const head = formatInteger(villagePeople(view));
+  return (
+    <>
+      <span data-testid="people-count" className={housingClass(view)}>
+        {head}
+      </span>
+      <span className={fieldCapacityShort(view) ? 'text-red-400' : undefined}>
+        {label.slice(head.length)}
+      </span>
+    </>
+  );
+}
+
+/** Tooltip lidí: kolik jich je, kolik míst k bydlení a kolik jich uživí pole (`FieldCapacityTooltip`). */
 export function PeopleTooltip({ view }: { view: VillageView }): ReactElement {
-  if (!view.fieldCapacity) return <span>Lidé</span>;
+  if (!view.fieldCapacity) {
+    return (
+      <span className="block">
+        <span className="font-semibold">Lidé</span>
+        <HousingLine view={view} />
+      </span>
+    );
+  }
   return <FieldCapacityTooltip view={view} />;
 }
 
@@ -303,6 +365,7 @@ export function FieldCapacityTooltip({ view }: { view: VillageView }): ReactElem
         pole v oběhu {formatDecimal(capacity.rotationHa, 1)} ha · úrodnost{' '}
         {formatInteger(capacity.fertility)}
       </span>
+      <HousingLine view={view} />
       <span
         data-testid="field-capacity-soil"
         className="mt-0.5 flex items-center gap-1 text-[#bfa77a] tabular-nums"
@@ -796,9 +859,7 @@ export function TopBar({
       {view && (
         <div className="ml-2 flex items-center gap-1 border-l border-[#5c4526] pl-2">
           <Resource icon="people" name={<PeopleTooltip view={view} />} testId="village-people">
-            <span className={fieldCapacityShort(view) ? 'text-red-400' : undefined}>
-              {peopleLabel(view)}
-            </span>
+            <PeopleCount view={view} />
           </Resource>
           <StockBreakdown
             icon="food"
