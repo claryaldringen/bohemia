@@ -139,8 +139,8 @@ const presenceNoted = new Map<string, number>();
 
 /**
  * Hráč je právě u hry (war.md – Hráč ve vsi a mimo ni): zapíše `player_presence.seen_at`, nejvýš
- * jednou za `PRESENCE_NOTE_MS` a proces. Volá ho `notePlayerActive` (akce, dotaz na ves, pohled
- * na varování) a dotaz scény války.
+ * jednou za `PRESENCE_NOTE_MS` a proces. Volá ho `notePlayerActive` (akce, tep spojení událostí
+ * ze serveru, pohled na varování).
  */
 export async function notePlayerPresent(playerId: string, now: Date = new Date()): Promise<void> {
   const last = presenceNoted.get(playerId);

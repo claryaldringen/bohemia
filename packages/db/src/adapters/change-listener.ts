@@ -7,6 +7,11 @@ import { CHANGE_CHANNEL, parseChange, type DbChange } from '../changes';
 // mezitím mohla nějaká změna uniknout.
 
 const DEFAULT_RETRY_MS: readonly number[] = [1000, 2000, 5000, 10000, 30000];
+/** Jak často posluchač ověří, že spojení k databázi žije (tichý výpadek sítě jinak OS pozná za hodiny). */
+const PING_INTERVAL_MS = 30_000;
+/** Jak dlouho smí ověření trvat, než se spojení považuje za ztracené. */
+const PING_TIMEOUT_MS = 10_000;
+const PING_QUERY = 'SELECT 1';
 const DEFAULT_APPLICATION_NAME = 'bohemia-change-listener';
 
 export interface ChangeHandlers {
@@ -28,10 +33,20 @@ export interface ChangeListener {
 export function listenChanges(
   url: string,
   handlers: ChangeHandlers,
-  options: { retryMs?: readonly number[]; applicationName?: string } = {},
+  options: {
+    retryMs?: readonly number[];
+    applicationName?: string;
+    /** Jen pro testy – interval, limit a dotaz ověření spojení. */
+    pingMs?: number;
+    pingTimeoutMs?: number;
+    pingQuery?: string;
+  } = {},
 ): ChangeListener {
   const retryMs = options.retryMs?.length ? options.retryMs : DEFAULT_RETRY_MS;
   const applicationName = options.applicationName ?? DEFAULT_APPLICATION_NAME;
+  const pingMs = options.pingMs ?? PING_INTERVAL_MS;
+  const pingTimeoutMs = options.pingTimeoutMs ?? PING_TIMEOUT_MS;
+  const pingQuery = options.pingQuery ?? PING_QUERY;
   let closed = false;
   let current: Client | null = null;
   let timer: ReturnType<typeof setTimeout> | null = null;
@@ -70,9 +85,12 @@ export function listenChanges(
     });
     current = client;
     let lost = false;
+    let pinger: ReturnType<typeof setInterval> | null = null;
     const lose = (error?: Error): void => {
       if (lost) return;
       lost = true;
+      if (pinger) clearInterval(pinger);
+      pinger = null;
       if (error) report(error);
       if (current === client) current = null;
       client.end().catch(() => {});
@@ -96,6 +114,8 @@ export function listenChanges(
     try {
       await client.connect();
       await client.query(`LISTEN ${CHANGE_CHANNEL}`);
+      // posluchač je jinak jen tichý – server ho nesmí odpojit pro nečinnost (PostgreSQL 14+)
+      await client.query('SET idle_session_timeout = 0').catch(() => {});
     } catch (error) {
       lose(error instanceof Error ? error : new Error(String(error)));
       return;
@@ -105,6 +125,19 @@ export function listenChanges(
       return;
     }
     failures = 0;
+    // posluchač sám nic neposílá: bez ověření by tiše spadlé spojení nikdo nepoznal
+    pinger = setInterval(() => {
+      let timeout: ReturnType<typeof setTimeout> | undefined;
+      const expired = new Promise<never>((_, reject) => {
+        timeout = setTimeout(
+          () => reject(new Error('Spojení posluchače neodpovídá.')),
+          pingTimeoutMs,
+        );
+      });
+      Promise.race([client.query(pingQuery), expired])
+        .catch((error: unknown) => lose(error instanceof Error ? error : new Error(String(error))))
+        .finally(() => clearTimeout(timeout));
+    }, pingMs);
     if (everReady) {
       try {
         handlers.onReconnect();

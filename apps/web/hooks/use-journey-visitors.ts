@@ -25,6 +25,8 @@ export function useJourneyVisitors(
   // klíč posledního seznamu; null – server ještě neodpověděl
   const keyRef = useRef<string | null>(null);
   const villageRef = useRef(villageId);
+  // počet událostí – odpověď dotazu, během kterého přišla událost, je starší a zahodí se
+  const eventsRef = useRef(0);
   const onRef = useRef(enabled && villageId !== null);
   onRef.current = enabled && villageId !== null;
 
@@ -44,6 +46,7 @@ export function useJourneyVisitors(
 
   const load = useCallback(async (): Promise<void> => {
     if (villageId === null) return;
+    const seen = eventsRef.current;
     // výpadek sítě nebo vadná odpověď nesmí nic rozbít – stav doplní další událost nebo obnova
     let body: JourneyVisitorsResponse;
     try {
@@ -56,8 +59,8 @@ export function useJourneyVisitors(
       return;
     }
     if ('error' in body || !Array.isArray(body.visitors)) return;
-    // odpověď k jiné vsi (hráč mezitím přepnul) se zahodí
-    if (villageRef.current === villageId) apply(body.visitors);
+    // odpověď k jiné vsi (hráč mezitím přepnul) nebo starší než poslední událost se zahodí
+    if (villageRef.current === villageId && eventsRef.current === seen) apply(body.visitors);
   }, [villageId, apply]);
 
   const ask = useSerialRefresh(load, 'Jezdce na mapě se nepodařilo načíst.');
@@ -70,7 +73,9 @@ export function useJourneyVisitors(
   }, [on, villageId, ask]);
   // událost platí vždy, když sedí ves; `enabled` řídí jen dotaz
   useServerEvent('visitors', (event) => {
-    if (event.villageId === villageRef.current) apply(event.visitors);
+    if (event.villageId !== villageRef.current) return;
+    eventsRef.current++;
+    apply(event.visitors);
   });
   useServerResync(refresh);
   return villageId !== null ? visitors : NONE;

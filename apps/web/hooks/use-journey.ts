@@ -57,6 +57,8 @@ export function useExpeditions(running: boolean, onPartyEnded?: () => void): Exp
   const receivedRef = useRef(0);
   const spanRef = useRef(JOURNEY_PUSH_MS);
   const runningRef = useRef(running);
+  // počet událostí – odpověď dotazu, během kterého přišla událost, je starší a zahodí se
+  const eventsRef = useRef(0);
   const [views, setViews] = useState<ExpeditionView[]>(NONE);
   const [latest, setLatest] = useState<ExpeditionView[]>(NONE);
 
@@ -111,6 +113,8 @@ export function useExpeditions(running: boolean, onPartyEnded?: () => void): Exp
   );
 
   const load = useCallback(async (): Promise<void> => {
+    if (!runningRef.current) return;
+    const seen = eventsRef.current;
     // výpadek sítě nebo vadná odpověď nesmí nic rozbít – stav doplní další událost nebo obnova
     let body: JourneyResponse;
     try {
@@ -121,6 +125,8 @@ export function useExpeditions(running: boolean, onPartyEnded?: () => void): Exp
       return;
     }
     if ('error' in body || !Array.isArray(body.views)) return;
+    // mezitím přišla událost (nebo se dotazování vypnulo) – odpověď je starší
+    if (eventsRef.current !== seen || !runningRef.current) return;
     apply(body.views);
   }, [apply]);
 
@@ -133,7 +139,10 @@ export function useExpeditions(running: boolean, onPartyEnded?: () => void): Exp
     if (running) ask();
   }, [running, ask]);
   // událost platí vždy (server ji posílá jen vlastníkovi); na `running` čeká jen dotaz
-  useServerEvent('journeys', (event) => apply(event.views));
+  useServerEvent('journeys', (event) => {
+    eventsRef.current++;
+    apply(event.views);
+  });
   useServerResync(refresh);
 
   // plynulý pohyb mezi dotazy

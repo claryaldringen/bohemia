@@ -107,3 +107,16 @@ it('nesmyslnou odpověď (chyba, špatná čísla) ignoruje', async () => {
   await flush();
   expect(bar()?.getAttribute('aria-valuenow')).toBe('0');
 });
+
+it('odpověď 403 (mimo vývojový režim) průběh nenastaví, i kdyby nesla čísla', async () => {
+  fetchMock.mockImplementationOnce(
+    async (): Promise<Response> =>
+      new Response(JSON.stringify({ progress: { doneDays: 200, totalDays: 365 } }), {
+        status: 403,
+      }),
+  );
+  render('year');
+  await flush();
+  expect(fetchMock).toHaveBeenCalledTimes(1);
+  expect(bar()?.getAttribute('aria-valuenow')).toBe('0');
+});

@@ -138,4 +138,20 @@ describe('useExpeditions', () => {
     });
     expect(fetchMock).toHaveBeenCalledTimes(3);
   });
+
+  it('odpověď dotazu, během kterého přišla událost, se zahodí', async () => {
+    let answer: (r: Response) => void = () => undefined;
+    const fetchMock = vi
+      .fn()
+      .mockReturnValue(new Promise<Response>((resolve) => (answer = resolve)));
+    vi.stubGlobal('fetch', fetchMock);
+    render(true);
+    // výprava odjela (prázdný seznam) dřív, než se vrátil starý GET se seznamem
+    emit([]);
+    await act(async () => {
+      answer(ok({ views }));
+      await vi.advanceTimersByTimeAsync(10);
+    });
+    expect(handle.latest).toEqual([]);
+  });
 });

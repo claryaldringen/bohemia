@@ -1319,7 +1319,7 @@ test('obránce za hradbou s branou rozkáže „Probít se“ – záměr v taž
   for (const page of [a, b]) if (!page.isClosed()) await pollVillage(page);
 
   try {
-    // B vidí boj u své vsi a ikonu „Probít se“ (scéna se ptá na válku nejdéle po 5 s)
+    // B vidí boj u své vsi a ikonu „Probít se“ (válku scéna dostane událostí ze serveru)
     const breakout = b.getByTestId('breakout');
     await expect(breakout).toBeVisible({ timeout: 30_000 });
     await expect(breakout).toBeEnabled();
@@ -1506,7 +1506,7 @@ test('varovaná ves – průvod uprchlíků se stádem a posel ve scéně obrán
   for (const page of [a, b]) if (!page.isClosed()) await pollVillage(page);
 
   try {
-    // B vidí ve scéně deset uprchlíků a posla – vojsko na mapě není (scéna se ptá nejdéle po 5 s)
+    // B vidí ve scéně deset uprchlíků a posla – vojsko na mapě není (válku scéna dostane událostí ze serveru)
     const canvas = b.locator('canvas[data-scene]');
     await expect(canvas).toHaveAttribute('data-war-refugees', '11', { timeout: 30_000 });
     await expect(canvas).not.toHaveAttribute('data-war-men', /.*/);

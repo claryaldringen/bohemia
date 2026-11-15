@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { OFFICIAL_WORLD } from '../../domain/calendar';
 import { CURRENT_LAYER_VERSIONS } from '../../domain/landscape';
 import { horse, horseVillage } from '../../domain/village/__tests__/horse-fixtures';
@@ -170,5 +170,13 @@ describe('expeditionVisitorsOn', () => {
     expect(await expeditionVisitorsOn(w.deps, { playerId: 'pa', villageId: w.hostId })).toEqual([]);
     expect(await expeditionVisitorsOn(w.deps, { playerId: 'pb', villageId: w.homeId })).toEqual([]);
     expect(await expeditionVisitorsOn(w.deps, { playerId: 'pb', villageId: 'nic' })).toEqual([]);
+  });
+
+  it('bez jezdců na mapě stav vsi vůbec nenačte', async () => {
+    const w = await setup();
+    // výprava hráče pa stojí na jeho mapě, hostitelova mapa je prázdná
+    const find = vi.spyOn(w.deps.villages, 'find');
+    expect(await expeditionVisitorsOn(w.deps, { playerId: 'pb', villageId: w.hostId })).toEqual([]);
+    expect(find).not.toHaveBeenCalled();
   });
 });

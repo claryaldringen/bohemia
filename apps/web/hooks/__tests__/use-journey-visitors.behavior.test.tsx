@@ -153,4 +153,19 @@ describe('useJourneyVisitors', () => {
     expect(fetchMock).not.toHaveBeenCalled();
     expect(seen).toEqual([]);
   });
+
+  it('odpověď dotazu, během kterého přišla událost, se zahodí', async () => {
+    let answer: (r: Response) => void = () => undefined;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockReturnValue(new Promise<Response>((resolve) => (answer = resolve))),
+    );
+    render('v1');
+    act(() => events.emit('visitors', { villageId: 'v1', visitors: [] }));
+    await act(async () => {
+      answer(ok({ visitors: [visitor] }));
+      await vi.advanceTimersByTimeAsync(10);
+    });
+    expect(seen).toEqual([]);
+  });
 });

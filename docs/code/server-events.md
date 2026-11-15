@@ -45,7 +45,8 @@ adaptérů – oznámí tak každá cesta zápisu (web, worker, e2e pomocníci s
   = null), `notifyChange(db, change)` (`pg_notify`; v plánu ji volá jen `lib/skip-progress.ts` pro `x`).
 - `packages/db/src/adapters/change-listener.ts` – `listenChanges(url, handlers, options)`: vlastní
   `pg.Client` (`keepAlive`, `application_name` výchozí `bohemia-change-listener`) mimo pool,
-  `LISTEN bohemia_change`. Po chybě nebo konci spojení se připojí znovu s odklady
+  `LISTEN bohemia_change` a `SET idle_session_timeout = 0`; každých `PING_INTERVAL_MS = 30 s` pošle `SELECT 1`
+  s limitem `PING_TIMEOUT_MS = 10 s` (tiše spadlé spojení jinak nikdo nepozná) a při chybě spojení obnoví. Po chybě nebo konci spojení se připojí znovu s odklady
   `[1000, 2000, 5000, 10000, 30000]` ms (poslední se opakuje), po obnově zavolá `onReconnect`
   (po prvním připojení ne). Vadný náklad jde do `onError`. `close()` další pokus zruší.
 - Testy: `changes.test.ts`, `adapters/__tests__/change-notify.db.test.ts` (triggery),
@@ -83,7 +84,7 @@ s jejím sídlem a políčkem světa, otevřené tažení a cizí mapa ve scén�
   klíč běží nejvýš jeden naráz a volání během běhu dají nejvýš jeden další. Výsledek
   `{ name, data, key }` jde spojením hráče se shodným předmětem (`scopeWantsTask`) – každému,
   jehož vlastní naposled poslaný `key` se liší; první výsledek spojení jde vždy. Proto `add`
-  spočte novému spojení hned stav rozsahu (`scopeTasks` – `war-home`, `war-scene`, `campaign`;
+  spočte novému spojení hned stav rozsahu (`scopeTasks` – `war-home`, `war-scene`, `campaign`, `visitors`;
   revize Úlohy 5): první výsledek tak nepřijde až s první změnou, která se dotkne rozsahu (osamělé
   `war: null` by prozradilo, že se políčka vsi něco dotklo), a změna mezi dotazem prohlížeče při
   otevření a vstupem spojení do rozbočovače se neztratí (konec tažení). Paměť klíčů je
@@ -177,7 +178,7 @@ zobrazené vsi i všechny posluchače.
   `stamp`; u spravované vsi chybí – každá událost je novinka), takže událost uložení, které udělala
   vlastní akce, druhý dotaz nevyvolá (Rozhodnutí 5); přijde-li během akce, ověří se po ní
   s pohledem akce. Změna samotného jména vsi verzi nemění – událost se zahodí a jméno ukáže
-  nejbližší nová verze (jako dřív otisk s dalším dnem; návrh Clauda).
+  nejbližší nová verze (jako dřív otisk s dalším dnem; rozhodnutí Martina 15. 11. 2026, viz Rozhodnutí).
 - **Varování** (`useAlarm`): dotaz hned při změně vsi, na `alarm` téže vsi, na `village` téže
   vsi (jen když už je pohled), na obnovu po mezeře a na `refresh`, po jednom (`useSerialRefresh`).
 - e2e háčky `serverEvents` (`{ status, received }`) a `dropServerEvents` (`drop()` – jako výpadek
@@ -221,7 +222,9 @@ zobrazené vsi i všechny posluchače.
   (`hooks/use-journey-visitors.ts`) – jeden dotaz při zapnutí (`enabled` = scéna už je), změně vsi a na
   `sync`; událost `visitors` platí vždy, když sedí ves (nezávisle na `enabled`), jiné vsi se zahodí, stejný klíč se nepřekreslí.
   Stav jezdců dostane spojení i při připojení a po `sync` (`scopeTasks` – `visitors` pro zobrazenou ves). Dotazy jdou přes
-  `useSerialRefresh`.
+  `useSerialRefresh`. `expeditionVisitorsOn` napřed levně ověří vlastníka a políčko (otisk vsi, sídlo)
+  a seznam jezdců na mapě; stav vsi načte jen při cizí skupině na mapě. Odpověď dotazu (`useExpeditions`,
+  `useJourneyVisitors`), během kterého přišla událost, se zahodí; `useExpeditions` se bez `running` neptá.
 - Testy: `lib/server-events/__tests__/push-journeys.test.ts`, `hooks/__tests__/use-journey.behavior.test.tsx`,
   `use-journey-visitors.behavior.test.tsx`, `lib/__tests__/journey-view.test.ts` (klíče).
 
@@ -297,7 +300,7 @@ v `use-village-sync.behavior.test.tsx`.
 chyba oznámení se zaloguje a přeskok neovlivní. Směrování `x` → `skip` jde hráči `p` (Úloha 2).
 `useSkipProgress(active)` (`hooks/use-skip-progress.ts`): jeden dotaz na `/api/dev/skip-progress`
 při zapnutí a po `sync` (přeskok mohl běžet už před otevřením panelu), jinak jen událost `skip`;
-pozdní odpověď dotazu, který začal před novější událostí, se zahodí. konstanta intervalu dotazů
+pozdní odpověď dotazu, který začal před novější událostí, se zahodí. Konstanta intervalu dotazů
 a use-polling.ts jsou pryč. Testy: `lib/__tests__/skip-progress.test.ts`,
 `hooks/__tests__/use-skip-progress.behavior.test.tsx`, `DevTimeButtons.behavior.test.tsx`.
 

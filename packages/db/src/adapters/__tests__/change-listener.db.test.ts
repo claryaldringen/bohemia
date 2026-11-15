@@ -85,6 +85,31 @@ describe('listenChanges', () => {
     }
   });
 
+  it('ověření spojení, které neodpoví včas, spustí obnovu a onReconnect', async () => {
+    const name = `test-listener-${process.pid}-ping`;
+    const errors: Error[] = [];
+    let reconnects = 0;
+    const listener = listenChanges(
+      testDatabaseUrl(),
+      { onChange: () => {}, onReconnect: () => (reconnects += 1), onError: (e) => errors.push(e) },
+      // „zaseknutý“ dotaz ověření: pg_sleep přes limit
+      {
+        applicationName: name,
+        retryMs: [50],
+        pingMs: 50,
+        pingTimeoutMs: 100,
+        pingQuery: 'SELECT pg_sleep(30)',
+      },
+    );
+    try {
+      await listener.ready;
+      await until(() => reconnects >= 1);
+      expect(errors.some((e) => e.message.includes('neodpovídá'))).toBe(true);
+    } finally {
+      await listener.close();
+    }
+  });
+
   it('close() skončí bez dalšího pokusu o připojení', async () => {
     const name = `test-listener-${process.pid}-c`;
     let reconnects = 0;

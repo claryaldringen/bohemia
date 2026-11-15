@@ -77,7 +77,7 @@ do gitu (po smazání by ho vytvořil znovu).
 apps/web/            Next.js – úvodní stránka, registrace, přihlášení, herní plocha (/game)
   app/api/auth/      Better Auth endpointy
   components/        React komponenty (auth/ formuláře, game/ herní plocha a ves, game/hud/ rozhraní)
-  hooks/             React hooky (umisťování staveb ve scéně, dotazování na ves)
+  hooks/             React hooky (umisťování staveb ve scéně, události ze serveru)
   lib/               serverová a pomocná logika (auth, session, db, game a village – composition root)
   lib/scene/         3D scéna krajiny v Babylonu – čisté TS třídy bez Reactu
   public/models/     modely stromů, dekorací, zvířat a lidí a atlas impostorů z 0 A.D. (licence v LICENSES.md)
@@ -131,7 +131,7 @@ název). Pravidla a rozhodnutí jsou v `docs/design/`.
 | `docs/code/server-events.md`          | události ze serveru – triggery a kanál, posluchač, rozbočovač a `/api/events`, klient, pojistka, měření, nasazení                                                             |
 | `docs/code/world.md`                  | svět pro víc hráčů – mřížka a umístění, rod hráče, adresář rodů (co je veřejné), schránka vsi, vstup nováčka, kostra světa                                                    |
 | `docs/code/vassalage.md`              | vazalství – makrokomodity, výhled přebytku vsi a rodu, doprava dávek do cílové vsi, podmínky, vypovězení, neplnění, schránka účinků jednání                                   |
-| `docs/code/web-ui.md`                 | server actions, dotazování na ves, rozhraní jako 0 A.D., katalog staveb, ovládání, e2e                                                                                        |
+| `docs/code/web-ui.md`                 | server actions, události ze serveru a načtení vsi, rozhraní jako 0 A.D., katalog staveb, ovládání, e2e                                                                                        |
 
 **Nová mechanika nebo změna:** zapiš ji do příslušného souboru v `docs/code/` (a pravidla do
 `docs/design/`), **ne sem**. Sem patří jen pravidla, která platí napříč celým kódem.
