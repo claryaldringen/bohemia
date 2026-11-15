@@ -79,6 +79,10 @@ export interface E2EHooks {
   pollVillage?: () => void;
   /** Vybere člověka vsi (id), jako by hráč klikl na jeho postavu – postavy ve scéně chodí. */
   selectPerson?: (id: number) => void;
+  /** Vybere víc lidí vsi najednou (výsledek Shift + kliku) – postavy chodí a v e2e bývají uvnitř domů. */
+  selectPeople?: (ids: readonly number[]) => void;
+  /** Postava člověka vsi (id) na obrazovce v CSS px, nebo null, když není vidět – kam kliknout (i se Shiftem). */
+  personOnScreen?: (id: number) => { x: number; y: number } | null;
   /** Vybere cestu hráče (id kteréhokoli úseku) – úzký pás cesty se v softwarovém kreslení špatně trefuje. */
   selectRoad?: (id: number) => void;
   /** Lomené čáry zvýraznění výběru na zemi (x, z) – co scéna právě kreslí; nic nevybráno – []. */

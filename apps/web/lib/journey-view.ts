@@ -3,7 +3,6 @@ import type {
   ExpeditionView,
   ExpeditionVisitor,
   GridCell,
-  JourneyRefusal,
   JourneyView,
   PartyView,
   Pos,
@@ -22,10 +21,8 @@ export type {
   JourneyView,
   JourneyVisitor,
   JourneyOrder,
-  JourneyRefusal,
   SeenCell,
 } from '@bohemia/game';
-export type { JourneyCommandResult } from '@bohemia/game';
 
 /** Jak často se prohlížeč ptá na běžící výjezd – 2× za sekundu jako u tažení. */
 export const JOURNEY_POLL_MS = 500;
@@ -62,27 +59,6 @@ export function nextKnownCell(
   if (cells.length === 0) return null;
   const at = last ? cells.findIndex((c) => c.x === last.x && c.y === last.y) : -1;
   return cells[(at + 1) % cells.length] ?? null;
-}
-
-/** Důvod odmítnutí vyslání nebo rozkazu (`refused` = rozkaz, který nedává smysl). */
-export type JourneyReason = JourneyRefusal | 'refused';
-
-const REASONS: Record<JourneyReason, string> = {
-  'no-lord': 'Vojvoda tu není.',
-  'lord-young': 'Vojvoda je ještě mladý.',
-  'lord-wounded': 'Vojvoda je raněný.',
-  'lord-away': 'Vojvoda je na tažení.',
-  'village-attacked': 'Ves je napadena.',
-  'journey-active': 'Vojvoda už je na cestě.',
-  'bad-retinue': 'Tuhle družinu nelze vyslat.',
-  unreachable: 'Tam vojvoda nedojde.',
-  'war-there': 'Tam je válka.',
-  refused: 'Rozkaz nelze dát.',
-};
-
-/** Text důvodu u kurzoru (docs/design/lord-control.md – Co hráč vidí). */
-export function journeyReason(reason: JourneyReason): string {
-  return REASONS[reason];
 }
 
 /** Důvod odmítnutí příkazu výpravě (`refused` = rozkaz, který nedává smysl). */

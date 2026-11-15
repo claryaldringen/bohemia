@@ -1,7 +1,6 @@
 import 'server-only';
 import { randomUUID } from 'node:crypto';
 import {
-  commandJourney,
   commandParty,
   expeditionViewsFor,
   expeditionVisitorsOn,
@@ -9,14 +8,11 @@ import {
   knownVillagesOf,
   musterExpedition,
   type ExpeditionCommand,
+  type ExpeditionDeps,
   type ExpeditionResult,
   type ExpeditionView,
   type ExpeditionVisitor,
   type GridCell,
-  type JourneyCommandDeps,
-  type JourneyCommandResult,
-  type JourneyOrder,
-  type LaunchJourneyDeps,
   type MarchGrid,
   type SeenCell,
   type VisitorsDeps,
@@ -28,27 +24,14 @@ import type { ForeignMap } from './foreign-map';
 import { encodeLandscape } from './landscape-transfer';
 import { journeyActionForPlayer } from './village';
 
-// Výjezd vojvody (lord-control.md; plán 2026-11-13 – Úloha 7): composition root – use-casy
-// `commandParty`, `musterExpedition`, `journeyViewFor`, `commandJourney` a `visitorsOn` nad
-// skutečnými repozitáři. Herní logika je v `packages/game/src/application/{launch-journey,
-// journey-view}.ts`.
+// Výpravy (expeditions.md; plán 2026-11-14 – Úloha 7): composition root – use-casy `commandParty`,
+// `musterExpedition`, `expeditionViewsFor` a `expeditionVisitorsOn` nad skutečnými repozitáři.
+// Herní logika je v `packages/game/src/application/{expedition,expedition-view,journey-view}.ts`.
 
 /** Mřížky mapy skupiny pro ověření rozkazu – pohled se ptá 2× za sekundu, mřížka se mění po dnech. */
 const GRIDS = new LruCache<string, MarchGrid>(4);
 
-function commandDeps(): JourneyCommandDeps {
-  const deps = gameDeps();
-  return {
-    journeys: deps.journeys,
-    world: currentWorld(),
-    cells: campaignCells(),
-    villages: deps.villages,
-    grids: GRIDS,
-    atWar: deps.atWar,
-  };
-}
-
-function launchDeps(): LaunchJourneyDeps {
+function launchDeps(): ExpeditionDeps {
   const deps = gameDeps();
   return {
     settlements: deps.settlements,
@@ -74,14 +57,6 @@ function visitorsDeps(): VisitorsDeps {
     cells: campaignCells(),
     grids: GRIDS,
   };
-}
-
-/** Rozkaz hráče do jeho běžícího výjezdu – takt záměru, nebo odmítnutí. */
-export function commandJourneyForPlayer(
-  playerId: string,
-  command: JourneyOrder,
-): Promise<JourneyCommandResult> {
-  return commandJourney(commandDeps(), { playerId, command, nowMs: Date.now() });
 }
 
 /**

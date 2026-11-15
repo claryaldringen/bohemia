@@ -419,19 +419,6 @@ describe('Osedlat doma (Rozhodnutí 7)', () => {
       { kind: 'journey-horse', journeyId: 'j1', personId: 2, horseId: 51 },
     ]);
   });
-
-  it('nový člověk ze starého adaptéru na koni s horseId – hned ridden a journey-horse', () => {
-    const order: JourneyCommand = {
-      kind: 'order',
-      order: { kind: 'go', pos: A },
-      recruits: [rider(2, 51, { mounted: true })],
-    };
-    const step = stepJourney(start([rider(1)]), T, [at(T, 1, order)], worldOf());
-    expect(memberOf(step.state, 2)).toMatchObject({ mounted: true, horse: 'ridden', horseId: 51 });
-    expect(horseEvents(step)).toEqual([
-      { kind: 'journey-horse', journeyId: 'j1', personId: 2, horseId: 51 },
-    ]);
-  });
 });
 
 describe('Osedlat a Sesednout mimo ves', () => {

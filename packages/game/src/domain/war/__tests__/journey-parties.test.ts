@@ -50,6 +50,13 @@ function person(personId: number, extra: Partial<JourneyRecruit> = {}): JourneyR
 }
 
 /** Výprava s lidmi `recruits` ve skupině 0 doma; bez rozkazu stojí. */
+/** Osobu `personId` posadí na koně (stav, ve kterém výprava po osedlání jede). */
+function ridden(s: JourneyState, personId: number): void {
+  const m = s.members.find((x) => x.ref.personId === personId)!;
+  m.mounted = true;
+  m.horse = 'ridden';
+}
+
 function start(recruits: JourneyRecruit[], order?: JourneyOrder): JourneyState {
   return newJourney(
     {
@@ -171,7 +178,8 @@ describe('spojení', () => {
       order(LAUNCH + 1, 2, go(B), [2]),
       order(T, 3, go(C), [1, 2]),
     ];
-    const begin = start([person(1, { mounted: true }), person(2)]);
+    const begin = start([person(1), person(2)]);
+    ridden(begin, 1);
     const before = stepJourney(begin, T - 1, intents, worldOf()).state;
     const joined = stepJourney(begin, T, intents, worldOf()).state;
     expect(joined.parties).toHaveLength(1);
@@ -443,7 +451,11 @@ describe('determinismus', () => {
     order(LAUNCH + 900, 4, { kind: 'home' }, [3]),
   ];
   const END = LAUNCH + 2600;
-  const begin = (): JourneyState => start([person(1, { mounted: true }), person(2), person(3)]);
+  const begin = (): JourneyState => {
+    const s = start([person(1), person(2), person(3)]);
+    ridden(s, 1);
+    return s;
+  };
 
   it('vcelku = po 7 taktech přes JSON (stav, události, upozornění)', () => {
     const whole = stepJourney(begin(), END, intents, worldOf());

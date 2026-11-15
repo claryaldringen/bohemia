@@ -68,7 +68,6 @@ export function dynastyView(state: VillageState, day: number): DynastyView | nul
   return {
     lordId: state.dynasty?.lordId ?? null,
     ...(journeyAway ? { journeyAway } : {}),
-    ...(expeditionsAway(state) ? { expeditionsAway: true as const } : {}),
     ...(lord?.name !== undefined ? { lordName: lord.name } : {}),
     unnamed,
     taken: men.flatMap((p) => (p.name === undefined ? [] : [p.name])),

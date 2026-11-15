@@ -54,6 +54,7 @@ import { useVillageSync } from './village-game/use-village-sync';
 import { useWagonPreview } from './village-game/use-wagon-preview';
 import { useWarWatch } from './village-game/use-war-watch';
 import { partiesOf } from '@/lib/journey-view';
+import type { PartyOf, VillageOf } from '@/lib/scene/village-selection';
 import { useJourneyScene } from './village-game/use-journey-scene';
 import { villageCommands } from './village-game/village-commands';
 import type { VillageData } from './village-game/village-data';
@@ -219,6 +220,7 @@ export function VillageGame({
     sceneVillage,
     home: view?.scene.dwellings[0]?.position ?? null,
   });
+  const partiesRef = useRef<{ partyOf: PartyOf; villageOf: VillageOf } | null>(null);
   const {
     selected,
     setSelected,
@@ -227,7 +229,7 @@ export function VillageGame({
     draftState,
     sceneVillageRef,
     setSonPreview,
-  } = useSelection({ scene, sceneVillage, viewRef });
+  } = useSelection({ scene, sceneVillage, viewRef, partiesRef });
   const knownMap = useKnownMap();
   const { expeditions, markSent } = useExpeditionPolling(
     view?.expeditionsAway === true,
@@ -257,6 +259,9 @@ export function VillageGame({
       refreshVillage();
     },
   });
+  useEffect(() => {
+    partiesRef.current = { partyOf: orders.partyOf, villageOf: orders.villageOf };
+  }, [orders.partyOf, orders.villageOf]);
   const journeys = useJourneyScene({
     scene,
     villageId: view?.id ?? null,

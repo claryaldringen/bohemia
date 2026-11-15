@@ -37,13 +37,13 @@ export default defineConfig({
     // Hra bez workeru – web dopočítává sám (záložní cesta, plán workeru – Globální omezení).
     {
       name: 'chromium',
-      testIgnore: /\/(worker|journey|journey-worker)\.spec\.ts$/,
+      testIgnore: /\/(worker|expeditions|journey-worker)\.spec\.ts$/,
       use: { ...devices['Desktop Chrome'] },
     },
     // Hra s workerem: spec ho pustí vedle `next start` se stejným prostředím a na konci čistě ukončí.
     {
       name: 'worker',
-      testMatch: /\/(worker|journey|journey-worker)\.spec\.ts$/,
+      testMatch: /\/(worker|expeditions|journey-worker)\.spec\.ts$/,
       use: { ...devices['Desktop Chrome'] },
     },
   ],

@@ -22,7 +22,12 @@ import type { ScenePerson } from '@/lib/person-view';
 import { edgeDirection, orderClick, orderFromClick } from '@/lib/scene/journey-orders';
 import type { LandscapeScene } from '@/lib/scene/landscape-scene';
 import type { VillageTarget } from '@/lib/scene/village-picking';
-import { peopleTarget, selectedPeopleIds } from '@/lib/scene/village-selection';
+import {
+  peopleTarget,
+  selectedPeopleIds,
+  type PartyOf,
+  type VillageOf,
+} from '@/lib/scene/village-selection';
 
 // Rozkazy vybraným lidem ve scéně (expeditions.md – Výběr a skupina; jako jednotky v 0 A.D.):
 // vybraní lidé (klik, Shift + klik, klik na člena skupiny venku vybere celou skupinu) dostanou
@@ -58,6 +63,9 @@ export interface ForeignLordScene {
 }
 
 export interface ExpeditionOrders {
+  /** Skupina člověka venku a domovská ves člověka – klik na člena skupiny vybere celou skupinu. */
+  partyOf: PartyOf;
+  villageOf: VillageOf;
   /** Popisek u kurzoru: „Na sousední mapu“ u okraje, nebo důvod odmítnutí rozkazu. */
   note: CursorNote | null;
   /** Cizí mapa, kterou scéna ukazuje; null – scéna vsi. */
@@ -345,5 +353,16 @@ export function useExpeditionOrders({
         : null,
     [lord, lordSelected, setSelected, partyOf],
   );
-  return { note, watching, followed, back, bindForeign, away, buttons, command };
+  return {
+    note,
+    watching,
+    followed,
+    back,
+    bindForeign,
+    away,
+    buttons,
+    command,
+    partyOf,
+    villageOf,
+  };
 }

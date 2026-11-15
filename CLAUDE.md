@@ -106,31 +106,31 @@ Podrobnosti mechanik (soubory, funkce, datové toky, scéna) jsou v `docs/code/`
 na oblast, čti jen ten, který se úkolu týká, a v něm jen potřebnou sekci** (`grep -n` na
 název). Pravidla a rozhodnutí jsou v `docs/design/`.
 
-| Soubor                                | Co v něm je                                                                                                                                                         |
-| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `docs/code/accounts.md`               | herní kalendář, účty, dev mód a skok v čase                                                                                                                         |
-| `docs/code/landscape.md`              | generování krajiny, verze vrstev, skály u potoka, uložený seed, vrstva překážek (nová verze vrstvy), prémiové krajiny                                               |
-| `docs/code/scene.md`                  | scéna krajiny – kreslení jen při změně, smyčka, terén, voda, dekorace, ořez po čtvercích, světlo, roční období, den a noc, zvuky                                    |
-| `docs/code/scene-village.md`          | scéna vsi – domácí zvířata, obydlí a jámy, pozemky a plot, hřbitov, sad, posvátná místa, dílny                                                                      |
-| `docs/code/village-core.md`           | jádro simulace – API, pořadí práce dne, hlad, determinismus, dopočet, čísla, meze, štěstí, les, dřevo, překážky, upozornění, převody                                |
-| `docs/code/village-buildings.md`      | stavby – rozpad a chátrání, hřbitov, sad, stavba v lese, varianty rozměrů, stavby na poli, natočené stavby, stavby po čtvercích                                     |
-| `docs/code/village-crafts.md`         | řemesla – dílny, uhlíř a milíř, kovář (uhlí, ruda), hrnčíř (hlína), nákup u sousedů, učení, tesař, vozy, kování                                                     |
-| `docs/code/village-fields.md`         | pole – ozim a jař, osev, postup práce po čtvercích, hospodářství, zarůstání, pole ve scéně, výběr dílu                                                              |
-| `docs/code/village-livestock.md`      | strava a dobytek, ohrady, voli a spřežení, orba rádlem, vozy se spřežením ve scéně                                                                                  |
-| `docs/code/village-people.md`         | příbuzenství, domácnosti, sňatky, stěhování, víc vsí, odchod, postavy ve scéně, křest a víra                                                                        |
-| `docs/code/village-roads.md`          | pěšiny, pevné cesty, vylepšení, vozová síť, cesta přes pole, jabloně u cest, vozová cesta                                                                           |
-| `docs/code/village-trade.md`          | dvorec vojvody, zemská stezka, sousedé a obchod, dobytek, výměna lidí                                                                                               |
-| `docs/code/village-steward.md`        | správce vsi – stav, příkaz stavby, mapa hodnot a plán, den správce, přestavba a veto, synové a schránka odchodů, rozhraní, měření                                   |
-| `docs/code/village-masonry.md`        | kamenné zdivo – stavební huť, vápno a malta, kostel – geometrie a cena, stavba, kněz a hřbitůvek                                                                    |
-| `docs/code/village-wildlife.md`       | divoká zvěř – stav, stropy z krajiny, roční přepočet, škody na polích, šelmy, psi a lov rodu, hlídky polí, ryby a oka, převod, Vlkov                                |
-| `docs/code/village-disasters.md`      | počasí kraje – seed počasí mapy, roční los, shlukování, povodeň kraje, odhalení, ochrana nové vsi                                                                   |
-| `docs/code/village-fortifications.md` | opevnění – obvod a pás, druhy hradeb a vrstvy, cena komplet, vylepšení po úsecích, val a vodní příkop, klešťová brána a věž, údržba                                 |
-| `docs/code/war.md`                    | válka – síla, tažení po taktech, boj muž po muži, žebříky a prolomení, obránci na hradbě, brány v bitvě, kořist, zajetí, NPC velitel                                |
-| `docs/code/journey.md`                | výjezd vojvody – stav a krok, vyslání, úložiště, worker, rozkazy a pohled, objevování, web, ovládání, scéna vsi, odjezd, cizí mapa, znalost rodu, známá mapa, šelmy |
-| `docs/code/worker.md`                 | worker – smyčka, odklady, spánek do dalšího dne, uspání nečinných, konfigurace, spuštění a ukončení                                                                 |
-| `docs/code/world.md`                  | svět pro víc hráčů – mřížka a umístění, rod hráče, adresář rodů (co je veřejné), schránka vsi, vstup nováčka, kostra světa                                          |
-| `docs/code/vassalage.md`              | vazalství – makrokomodity, výhled přebytku vsi a rodu, doprava dávek do cílové vsi, podmínky, vypovězení, neplnění, schránka účinků jednání                         |
-| `docs/code/web-ui.md`                 | server actions, dotazování na ves, rozhraní jako 0 A.D., katalog staveb, ovládání, e2e                                                                              |
+| Soubor                                | Co v něm je                                                                                                                                                                   |
+| ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `docs/code/accounts.md`               | herní kalendář, účty, dev mód a skok v čase                                                                                                                                   |
+| `docs/code/landscape.md`              | generování krajiny, verze vrstev, skály u potoka, uložený seed, vrstva překážek (nová verze vrstvy), prémiové krajiny                                                         |
+| `docs/code/scene.md`                  | scéna krajiny – kreslení jen při změně, smyčka, terén, voda, dekorace, ořez po čtvercích, světlo, roční období, den a noc, zvuky                                              |
+| `docs/code/scene-village.md`          | scéna vsi – domácí zvířata, obydlí a jámy, pozemky a plot, hřbitov, sad, posvátná místa, dílny                                                                                |
+| `docs/code/village-core.md`           | jádro simulace – API, pořadí práce dne, hlad, determinismus, dopočet, čísla, meze, štěstí, les, dřevo, překážky, upozornění, převody                                          |
+| `docs/code/village-buildings.md`      | stavby – rozpad a chátrání, hřbitov, sad, stavba v lese, varianty rozměrů, stavby na poli, natočené stavby, stavby po čtvercích                                               |
+| `docs/code/village-crafts.md`         | řemesla – dílny, uhlíř a milíř, kovář (uhlí, ruda), hrnčíř (hlína), nákup u sousedů, učení, tesař, vozy, kování                                                               |
+| `docs/code/village-fields.md`         | pole – ozim a jař, osev, postup práce po čtvercích, hospodářství, zarůstání, pole ve scéně, výběr dílu                                                                        |
+| `docs/code/village-livestock.md`      | strava a dobytek, ohrady, voli a spřežení, orba rádlem, vozy se spřežením ve scéně                                                                                            |
+| `docs/code/village-people.md`         | příbuzenství, domácnosti, sňatky, stěhování, víc vsí, odchod, postavy ve scéně, křest a víra                                                                                  |
+| `docs/code/village-roads.md`          | pěšiny, pevné cesty, vylepšení, vozová síť, cesta přes pole, jabloně u cest, vozová cesta                                                                                     |
+| `docs/code/village-trade.md`          | dvorec vojvody, zemská stezka, sousedé a obchod, dobytek, výměna lidí                                                                                                         |
+| `docs/code/village-steward.md`        | správce vsi – stav, příkaz stavby, mapa hodnot a plán, den správce, přestavba a veto, synové a schránka odchodů, rozhraní, měření                                             |
+| `docs/code/village-masonry.md`        | kamenné zdivo – stavební huť, vápno a malta, kostel – geometrie a cena, stavba, kněz a hřbitůvek                                                                              |
+| `docs/code/village-wildlife.md`       | divoká zvěř – stav, stropy z krajiny, roční přepočet, škody na polích, šelmy, psi a lov rodu, hlídky polí, ryby a oka, převod, Vlkov                                          |
+| `docs/code/village-disasters.md`      | počasí kraje – seed počasí mapy, roční los, shlukování, povodeň kraje, odhalení, ochrana nové vsi                                                                             |
+| `docs/code/village-fortifications.md` | opevnění – obvod a pás, druhy hradeb a vrstvy, cena komplet, vylepšení po úsecích, val a vodní příkop, klešťová brána a věž, údržba                                           |
+| `docs/code/war.md`                    | válka – síla, tažení po taktech, boj muž po muži, žebříky a prolomení, obránci na hradbě, brány v bitvě, kořist, zajetí, NPC velitel                                          |
+| `docs/code/journey.md`                | výjezd vojvody a výpravy – stav a krok, vyslání, úložiště, worker, rozkazy a pohled, objevování, web, ovládání, scéna vsi, odjezd, cizí mapa, znalost rodu, známá mapa, šelmy |
+| `docs/code/worker.md`                 | worker – smyčka, odklady, spánek do dalšího dne, uspání nečinných, konfigurace, spuštění a ukončení                                                                           |
+| `docs/code/world.md`                  | svět pro víc hráčů – mřížka a umístění, rod hráče, adresář rodů (co je veřejné), schránka vsi, vstup nováčka, kostra světa                                                    |
+| `docs/code/vassalage.md`              | vazalství – makrokomodity, výhled přebytku vsi a rodu, doprava dávek do cílové vsi, podmínky, vypovězení, neplnění, schránka účinků jednání                                   |
+| `docs/code/web-ui.md`                 | server actions, dotazování na ves, rozhraní jako 0 A.D., katalog staveb, ovládání, e2e                                                                                        |
 
 **Nová mechanika nebo změna:** zapiš ji do příslušného souboru v `docs/code/` (a pravidla do
 `docs/design/`), **ne sem**. Sem patří jen pravidla, která platí napříč celým kódem.

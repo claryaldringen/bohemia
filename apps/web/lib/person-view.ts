@@ -212,7 +212,8 @@ export function scenePersons(
 
 /** Výprava člověka `person` vsi `village` ke dni `day` (`ScenePerson.expedition`). */
 function expeditionOf(village: VillageState, person: Person, day: number): SceneExpedition {
-  const inParty = person.away?.kind === 'journey';
+  // vrátil se (`untilDay` uplynul), jen záznam ještě nezmizel – už ve skupině není
+  const inParty = person.away?.kind === 'journey' && isAway(person, day);
   const recruit = expeditionRecruit(village, person, day);
   // pryč (i na výpravě) a mladí nemají co ukazovat jako důvod – skupina je `inParty`
   const refusal = typeof recruit === 'string' && !inParty ? recruit : undefined;

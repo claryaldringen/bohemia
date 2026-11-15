@@ -10,6 +10,9 @@ import {
   describeTarget,
   followConstruction,
   nextSelection,
+  peopleTarget,
+  type PartyOf,
+  type VillageOf,
   presentTarget,
 } from '@/lib/scene/village-selection';
 import type { SceneVillage, VillageView } from '@/lib/village-view';
@@ -40,10 +43,13 @@ export function useSelection({
   scene,
   sceneVillage,
   viewRef,
+  partiesRef,
 }: {
   scene: LandscapeScene | null;
   sceneVillage: SceneVillage;
   viewRef: RefObject<VillageView | null>;
+  /** Kdo je ve které skupině venku (klik na člena vybere celou skupinu; plní `VillageGame`). */
+  partiesRef?: RefObject<{ partyOf: PartyOf; villageOf: VillageOf } | null>;
 }): Selection {
   const [selected, setSelected] = useState<VillageTarget | null>(null);
   // Výběr kliknutím do scény (s Ctrl / Shift přidá nebo ubere obydlí; klik na pole či sad vybere
@@ -58,9 +64,18 @@ export function useSelection({
             '[výběr]',
             describeTarget(target, sceneVillageRef.current, viewRef.current?.roads),
           );
-        setSelected((prev) => nextSelection(prev, target, additive, double));
+        setSelected((prev) =>
+          nextSelection(
+            prev,
+            target,
+            additive,
+            double,
+            partiesRef?.current?.partyOf,
+            partiesRef?.current?.villageOf,
+          ),
+        );
       }),
-    [scene, viewRef],
+    [scene, viewRef, partiesRef],
   );
   // Dostavěné staveniště (jako v 0 A.D.): výběr přejde ze základů na hotové obydlí hned při
   // obnovení vsi – už během vykreslení, ať panel výběru neblikne (web-ui.md – Výběr)
@@ -98,10 +113,17 @@ export function useSelection({
   }, [scene, current, sonPreview]);
 
   useEffect(() => {
+    setE2EHook('personOnScreen', (id) => scene?.projectPerson(id) ?? null);
+    return () => setE2EHook('personOnScreen', undefined);
+  }, [scene]);
+
+  useEffect(() => {
     setE2EHook('selectPerson', (id) => setSelected({ kind: 'person', id }));
+    setE2EHook('selectPeople', (ids) => setSelected(peopleTarget(ids)));
     setE2EHook('selectRoad', (id) => setSelected({ kind: 'road', id }));
     return () => {
       setE2EHook('selectPerson', undefined);
+      setE2EHook('selectPeople', undefined);
       setE2EHook('selectRoad', undefined);
     };
   }, []);

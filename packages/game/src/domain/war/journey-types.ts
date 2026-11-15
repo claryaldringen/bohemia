@@ -14,7 +14,7 @@ import type { KnowledgeOut, SeenCell } from './seen';
 
 /**
  * Fáze skupiny, jak ji vidí hráč: venku (jde nebo čeká na místě) → návrat domů → konec (pohled
- * `journeyViewFor`; fáze celého stavu ve starších bodech).
+ * `expeditionViewsFor`; fáze celého stavu ve starších bodech).
  */
 export type JourneyPhase = 'out' | 'returning' | 'done';
 
@@ -178,12 +178,11 @@ export type JourneyOrder =
 
 /**
  * Nový člověk ze vsi do výpravy – data z vyslání; jezdec nese `horseId` a `strengthMounted`.
- * `mounted` jen starý adaptér (`launchJourney`) – vyjede rovnou na koni.
  */
 export type JourneyRecruit = Pick<
   JourneyMember,
   'ref' | 'lord' | 'strength' | 'fight' | 'name' | 'female' | 'bornDay'
-> & { mounted?: true; horseId?: number; strengthMounted?: number };
+> & { horseId?: number; strengthMounted?: number };
 
 /**
  * Příkaz kroku výpravy: rozkaz lidem `people` (id osob; chybí = všem, koho hráč řídí) s novými lidmi

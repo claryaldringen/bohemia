@@ -1067,10 +1067,9 @@ se vykreslí i v testech bez serveru.
   (`WAR_SCENE_POLL_MS`), jinak po 5 s (`WAR_SCENE_IDLE_MS`); nový stav jen s novým taktem.
   `undefined` = server ještě neodpověděl, `null` = na mapě nic.
 
-## Výjezd vojvody – akce, cesta API a dotazování (plán 2026-11-13 – Úloha 7)
+## Výjezd vojvody a výpravy – akce, cesta API a dotazování (plán 2026-11-13 – Úloha 7)
 
-Server actions `commandJourney` (`app/game/actions/journey.ts`),
-`commandExpedition`, `GET /api/journey` (`{ views }`, `?map=`, `?visitors=`) a `useExpeditions(running)` (`hooks/use-journey.ts`) –
+Server action `commandExpedition` (`app/game/actions/journey.ts`), `GET /api/journey` (`{ views }`, `?map=`, `?visitors=`) a `useExpeditions(running)` (`hooks/use-journey.ts`) –
 podrobně v [journey.md](journey.md) – Web. Rozhraní ve scéně staví Úlohy 8 a 9.
 
 ## Cizí mapa ve scéně (`ForeignWarScene.tsx`, `hooks/use-army.ts`, `lib/war-scene-view.ts`)
@@ -1113,7 +1112,7 @@ na které stojí.
 - **Výjezd vojvody** jde za vojvodou stejně – `ForeignJourneyScene` (journey.md – Scéna cizí mapy).
   **Známá mapa z domova** (journey.md – Známá mapa): oko `KnownMapEye` u rodu v panelu Rod a vazalové
   a u cíle v panelu Vojsko otevře táž scéna (`ForeignJourneyScene` s `known`, `GET /api/journey?known=x,y`)
-  bez jezdců; stav drží `useKnownMap`, e2e `journey.spec.ts`.
+  bez jezdců; stav drží `useKnownMap`, e2e `expeditions.spec.ts`.
 
 ## Postoj vsi ve dvorci (úloha 6.9, `hud/ManorPanel.tsx`)
 

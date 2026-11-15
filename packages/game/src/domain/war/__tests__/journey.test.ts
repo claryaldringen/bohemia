@@ -116,8 +116,10 @@ function journey(
     clock,
   );
   state.members.forEach((m, n) => {
-    const { health, wounded, woundedDay, status } = members[n]!;
+    const { health, wounded, woundedDay, status, mounted } = members[n]!;
     Object.assign(m, { health, wounded, status }, woundedDay === undefined ? {} : { woundedDay });
+    // jezdec jede na koni (výprava osedlá koně až příkazem – tady stav po osedlání)
+    if (mounted) Object.assign(m, { mounted: true, horse: 'ridden' as const });
   });
   return state;
 }
@@ -130,7 +132,6 @@ function recruitOf(m: JourneyMember): JourneyRecruit {
     strength: m.strength,
     fight: m.fight,
     ...(m.name === undefined ? {} : { name: m.name }),
-    ...(m.mounted ? { mounted: true as const } : {}),
   };
 }
 

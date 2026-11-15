@@ -1,3 +1,4 @@
+import type { WorldClock } from '../domain/calendar';
 import type { Landscape } from '../domain/landscape';
 import { villageManor, villageManorId } from '../domain/village/people/manor';
 import { sameCell, type GridCell } from '../domain/village/people/world-grid';
@@ -26,10 +27,17 @@ import {
 } from '../domain/war';
 import { recruitMember } from '../domain/war/journey-parties';
 import { mapGrid } from './campaign-view';
+import type { CampaignCells, CampaignRepository } from './campaigns';
+import type { HouseRepository } from './houses';
 import { orderAim } from './journey-order';
 import type { JourneyRepository } from './journeys';
-import type { LaunchJourneyDeps } from './launch-journey';
-import { editVillage, findPlayerVillage, type PlayerVillage } from './player-villages';
+import {
+  editVillage,
+  findPlayerVillage,
+  type PlayerVillage,
+  type PlayerVillagesDeps,
+} from './player-villages';
+import type { SeedSource } from './settlements';
 import { villagePlace } from './plan-campaign';
 import type { VillageRepository } from './villages';
 
@@ -73,8 +81,20 @@ export interface ExpeditionInput {
   now: Date;
 }
 
-export interface ExpeditionDeps extends LaunchJourneyDeps {
+export interface ExpeditionDeps extends PlayerVillagesDeps {
+  /** Cizí vojsko na mapě vsi (`activeAgainst`). */
+  campaigns: Pick<CampaignRepository, 'activeAgainst'>;
+  houses: Pick<HouseRepository, 'activeOf'>;
+  villages: VillageRepository;
   journeys: Pick<JourneyRepository, 'activeIn' | 'checkpoint' | 'create' | 'addIntent'>;
+  /** Mapy políček – krajina a překážky pro ověření rozkazu a domov výpravy. */
+  cells: CampaignCells;
+  world: WorldClock;
+  seeds: SeedSource;
+  /** Nové id výpravy (uuid). */
+  newId: () => string;
+  /** Je rod hráče ve válce s rodem, kterému patří ves na políčku (`houseAtWarOn`)? */
+  atWar: (playerId: string, cell: GridCell) => Promise<boolean>;
 }
 
 /** Nejvíc lidí v jednom výběru – ochrana vstupu (návrh Clauda), ne pravidlo hry. */
@@ -90,7 +110,7 @@ export async function commandParty(
   deps: ExpeditionDeps,
   input: ExpeditionInput,
 ): Promise<ExpeditionResult | { ok: false; reason: 'recruits' }> {
-  const picked = await select(deps, input, false);
+  const picked = await select(deps, input);
   if (!picked.ok) return picked;
   if (picked.chosen.recruits.length > 0) return { ok: false, reason: 'recruits' };
   // jen členové – výprava běží a domov je její
@@ -120,42 +140,23 @@ export async function musterExpedition(
   deps: ExpeditionDeps,
   input: ExpeditionInput,
 ): Promise<ExpeditionResult> {
-  return muster(deps, input, false);
-}
-
-/**
- * Jen starý adaptér `launchJourney` (do Úlohy 12): jako `musterExpedition`, ale jezdci ze vsi
- * vyjedou rovnou na koni (`mounted`, síla na koni) – dnešní výjezd bez osedlání.
- */
-export async function musterMounted(
-  deps: ExpeditionDeps,
-  input: ExpeditionInput,
-): Promise<ExpeditionResult> {
-  return muster(deps, input, true);
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const picked = await select(deps, input);
+    if (!picked.ok) return picked;
+    const plan = await homeOf(deps, input, picked);
+    if (!plan.ok) return plan;
+    const refusal = await verify(deps, input, plan);
+    if (refusal !== null) return { ok: false, reason: refusal };
+    const done = await carryOut(deps, input, plan);
+    if (done !== 'ended') return done;
+  }
+  return NOBODY;
 }
 
 const NOBODY = { ok: false, reason: 'nobody' } as const;
 
 function journeyOk(journeyId: string): { ok: true; journeyId: string } {
   return { ok: true, journeyId };
-}
-
-async function muster(
-  deps: ExpeditionDeps,
-  input: ExpeditionInput,
-  mounted: boolean,
-): Promise<ExpeditionResult> {
-  for (let attempt = 0; attempt < 2; attempt++) {
-    const picked = await select(deps, input, mounted);
-    if (!picked.ok) return picked;
-    const plan = await homeOf(deps, input, picked);
-    if (!plan.ok) return plan;
-    const refusal = await verify(deps, input, plan);
-    if (refusal !== null) return { ok: false, reason: refusal };
-    const done = await carryOut(deps, input, plan, mounted);
-    if (done !== 'ended') return done;
-  }
-  return NOBODY;
 }
 
 /** Ves hráče a běžící výprava její domovské vsi (kontrolní bod, starší převede `upgradeJourney`). */
@@ -196,7 +197,6 @@ interface Plan extends Picked {
 async function select(
   deps: ExpeditionDeps,
   input: ExpeditionInput,
-  mounted: boolean,
 ): Promise<Picked | { ok: false; reason: ExpeditionRefusal }> {
   if (!validPeople(input.people)) return NOBODY;
   const own = await findPlayerVillage(deps, input);
@@ -210,7 +210,7 @@ async function select(
     journeyId: journey ? id : null,
     journey,
   };
-  const split = splitPeople(situation, input.people, mounted);
+  const split = splitPeople(situation, input.people);
   const chosen = chooseFor(input.command, split, journey);
   if (chosen.members.length === 0 && chosen.recruits.length === 0) {
     return { ok: false, reason: split.refusal ?? 'nobody' };
@@ -258,13 +258,11 @@ function validPeople(people: unknown): people is number[] {
  * Rozdělení výběru (Rozhodnutí 3): člen = osoba s `away: journey` běžící výpravy, která je v jejím
  * bodu živá a jejíž skupina hráče poslouchá (ne `leaderless`); ostatní přes `expeditionRecruit` –
  * nezpůsobilí vypadnou (první důvod se pamatuje). Kdo z hloučku právě došel domů (v bodu už není,
- * ves ho má pryč do `away-ends`), je tak `away`. Id, které ve vsi není, se přeskočí. Adaptér
- * `launchJourney` (`mounted`): jezdec ze vsi vyjede na koni se silou na koni.
+ * ves ho má pryč do `away-ends`), je tak `away`. Id, které ve vsi není, se přeskočí.
  */
 function splitPeople(
   situation: Situation,
   people: readonly number[],
-  mounted: boolean,
 ): Chosen & { refusal: ExpeditionPersonRefusal | null } {
   const { own, day, journey } = situation;
   const state = own.village.state;
@@ -287,7 +285,7 @@ function splitPeople(
     }
     const recruit = expeditionRecruit(state, person, day, own.village.id);
     if (typeof recruit === 'string') out.refusal ??= recruit;
-    else out.recruits.push(mounted ? onHorse(recruit) : recruit);
+    else out.recruits.push(recruit);
   }
   return out;
 }
@@ -301,12 +299,6 @@ function commandable(s: JourneyState): Map<number, JourneyMember> {
       .filter((m) => m.status === 'active' && !leaderless.has(partyOf.get(m.group)!))
       .map((m) => [m.ref.personId, m]),
   );
-}
-
-/** Starý výjezd: jezdec (`horseId`) vyjede rovnou na koni se silou na koni (do Úlohy 12). */
-function onHorse(recruit: JourneyRecruit): JourneyRecruit {
-  if (recruit.horseId === undefined) return recruit;
-  return { ...recruit, mounted: true, strength: recruit.strengthMounted ?? recruit.strength };
 }
 
 /**
@@ -444,7 +436,6 @@ async function carryOut(
   deps: ExpeditionDeps,
   input: ExpeditionInput,
   plan: Plan,
-  mounted: boolean,
 ): Promise<ExpeditionResult | 'ended'> {
   const { situation, chosen } = plan;
   if (chosen.recruits.length === 0) {
@@ -459,7 +450,7 @@ async function carryOut(
     deps.villages,
     villageId,
     (fresh) => {
-      const again = freshRecruits(fresh, chosen.recruits, input.command, villageId, mounted);
+      const again = freshRecruits(fresh, chosen.recruits, input.command, villageId);
       if (typeof again === 'string') return again;
       sendAway(
         fresh,
@@ -524,7 +515,6 @@ function freshRecruits(
   recruits: readonly JourneyRecruit[],
   command: ExpeditionCommand,
   villageId: string,
-  mounted: boolean,
 ): JourneyRecruit[] | ExpeditionRefusal {
   const day = state.lastDay;
   const out: JourneyRecruit[] = [];
@@ -533,7 +523,7 @@ function freshRecruits(
     const now = person ? expeditionRecruit(state, person, day, villageId) : 'away';
     if (typeof now === 'string') return now;
     if (command.kind === 'saddle' && now.horseId === undefined) return 'nobody';
-    out.push(mounted ? onHorse(now) : now);
+    out.push(now);
   }
   return out;
 }

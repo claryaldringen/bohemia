@@ -1,8 +1,8 @@
 import type { JourneyOrder } from '@bohemia/game';
 
-// Vstup server actions výjezdu vojvody (lord-control.md – Rozkazy; plán 2026-11-13 – Úloha 7) –
+// Vstup server action výprav (expeditions.md; lord-control.md – Rozkazy) –
 // jen tvar. Co rozkaz znamená (bod na mapě, soused, dosažitelnost), ověřují use-casy
-// `commandJourney`.
+// `commandExpedition` (`commandParty`).
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);

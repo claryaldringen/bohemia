@@ -37,8 +37,7 @@ export function expeditionRecruit(
 }
 
 /**
- * Data člověka na výpravu bez ověření, smí-li jít (`expeditionRecruit`; starý pohled
- * `journeyCandidates`): vojvoda (`currentLord`), boj `arms.combat` (proti šelmám – kdo bránit
+ * Data člověka na výpravu bez ověření, smí-li jít (`expeditionRecruit`): vojvoda (`currentLord`), boj `arms.combat` (proti šelmám – kdo bránit
  * neumí, má vyšší riziko), jméno, žena, den narození a síla do meče (Rozhodnutí 8; war.md – Síla:
  * bojují muži od 16 let): muž rodu `lineManStrength` pěšky, na svém jezdeckém koni
  * `strengthMounted`; vesničan `villagerStrength` podle štěstí vsi (jako nábor); ženy a mladší 0.

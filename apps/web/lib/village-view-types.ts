@@ -1043,8 +1043,6 @@ export interface DynastyView {
    * pryč a panel vojvody řídí výjezd. Chybí – ne.
    */
   journeyAway?: boolean;
-  /** Někdo z vsi je pryč na výpravě – totéž co `VillageView.expeditionsAway` (ta platí i bez rodu). */
-  expeditionsAway?: true;
   /** Jméno dnešního vojvody; chybí – vojvoda jméno ještě nemá. */
   lordName?: string;
   /**

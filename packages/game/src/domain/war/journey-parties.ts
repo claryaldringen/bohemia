@@ -500,16 +500,14 @@ export function samePlace(a: JourneyGroup, b: JourneyGroup): boolean {
 }
 
 /**
- * Nový člověk výpravy v hloučku `group`: zdravý, živý; jezdec s `horseId` a `strengthMounted`. Na
- * koni (`horse: 'ridden'`) jen ze starého adaptéru (`mounted`) – jinak je kůň v ohradě, dokud ho
- * jezdec neosedlá.
+ * Nový člověk výpravy v hloučku `group`: zdravý, živý; jezdec s `horseId` a `strengthMounted`. Kůň
+ * je v ohradě, dokud ho jezdec neosedlá.
  */
 export function recruitMember(recruit: JourneyRecruit, group: number): JourneyMember {
   return {
     ref: { ...recruit.ref },
     lord: recruit.lord,
-    mounted: recruit.mounted === true,
-    ...(recruit.mounted ? { horse: 'ridden' as const } : {}),
+    mounted: false,
     ...(recruit.horseId === undefined ? {} : { horseId: recruit.horseId }),
     strength: recruit.strength,
     ...(recruit.strengthMounted === undefined ? {} : { strengthMounted: recruit.strengthMounted }),

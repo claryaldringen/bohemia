@@ -89,13 +89,14 @@ describe('expeditionViewsFor', () => {
 
   it('jezdec na koni má sílu na koni; pěšky základní; dítě a žena příznaky', async () => {
     const journeys = new InMemoryJourneys();
-    await journeys.create(
-      expedition('j1', 'lhota', [
-        person(1, { mounted: true, horseId: 4, strengthMounted: 5 }),
-        person(2, { horseId: 6, strengthMounted: 5 }),
-        person(3, { female: true, strength: 0, bornDay: bornDay(12) }),
-      ]),
-    );
+    const state = expedition('j1', 'lhota', [
+      person(1, { horseId: 4, strengthMounted: 5 }),
+      person(2, { horseId: 6, strengthMounted: 5 }),
+      person(3, { female: true, strength: 0, bornDay: bornDay(12) }),
+    ]);
+    // osoba 1 už sedí na koni (po osedlání), osoba 2 jde pěšky
+    Object.assign(state.members[0]!, { mounted: true, horse: 'ridden' as const });
+    await journeys.create(state);
     const [view] = await expeditionViewsFor(deps(journeys), { playerId: 'pa' });
     const [rider, walker, girl] = view!.parties[0]!.people;
     expect(rider).toMatchObject({

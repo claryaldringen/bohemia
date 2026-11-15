@@ -57,12 +57,11 @@ const SECOND_EAST = {
   },
 };
 
-/** Muž výjezdu – osoba 1 je vojvoda Bořivoj, oba na koni. */
+/** Muž výjezdu – osoba 1 je vojvoda Bořivoj. */
 function man(personId: number): JourneyRecruit {
   return {
     ref: { villageId: 'lhota', personId },
     lord: personId === 1,
-    mounted: true,
     strength: 2,
     fight: 50,
     ...(personId === 1 ? { name: 'Bořivoj' } : {}),
@@ -78,7 +77,7 @@ const HOME_STATE: VillageState = village(
 
 /** Výjezd hráče `pa` z Lhoty, první rozkaz 300 m na východ (na domovské mapě). */
 function journey(overrides: Partial<NewJourney> = {}): JourneyState {
-  return newJourney(
+  const state = newJourney(
     {
       id: 'j1',
       seed: 42,
@@ -92,6 +91,9 @@ function journey(overrides: Partial<NewJourney> = {}): JourneyState {
     },
     world,
   );
+  // oba jedou na koni (výprava osedlá koně až příkazem – tady stav po osedlání)
+  for (const m of state.members) Object.assign(m, { mounted: true, horse: 'ridden' as const });
+  return state;
 }
 
 /** Svět výpočtu vcelku – tytéž mapy a vsi jako porty v paměti. */

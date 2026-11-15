@@ -646,12 +646,12 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
 
 ## Nepřítomnost na výjezdu (lord-control.md – Kdo jede; plán 2026-11-13 – Úloha 2)
 
-- `AwayKind` má druh `journey` (types-people.ts): vojvoda a družina na výjezdu zůstávají ve stavu
+- `AwayKind` má druh `journey` (types-people.ts): vojvoda a jeho lidé na výpravě zůstávají ve stavu
   domovské vsi s `away: { kind: 'journey', refId: <id výjezdu> }` bez `untilDay` – návrat ukončí
   událost výjezdu `away-ends`. Doma nepracují (`isAway`, `laborPerDay`) a nejdou na tažení
   (`lineCandidates` je přeskočí), ale **jedí dál ze zásob vsi** – `foodNeedPerDay` pro druh `journey`
   vrací obvyklou potřebu (výjezd neveze zásoby), na rozdíl od tažení a ostatních druhů (jedí jinde).
-  Vyslání a výběr družiny: `docs/code/journey.md` – Vyslání.
+  Vyslání lidí na výpravu (výběr, příkaz): `docs/code/journey.md` – Rozkaz vybraným lidem; starý výběr družiny mužů rodu zanikl v Úloze 12 výprav.
 - Kdo je pryč (`isAway`, jakýkoli druh – tažení, výjezd, uprchlík, posel…), se nekreslí doma u rodiny
   ani při práci: `sceneLord` ho vyřadí ze dvorku, cvičiště a jízdy, `ScenePerson.away` ho nechá v panelu a výběru,
   ale `DayRoster` mu doma nedá postavu.

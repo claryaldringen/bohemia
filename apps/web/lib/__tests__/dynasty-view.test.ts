@@ -62,7 +62,6 @@ describe('dynastyView – výjezd vojvody (lord-control.md)', () => {
     state.people[1]!.away = { kind: 'journey', refId: 'j1' };
     expect(expeditionsAway(state)).toBe(true);
     expect(dynastyView(state, DAY)?.journeyAway).toBeUndefined();
-    expect(dynastyView(state, DAY)?.expeditionsAway).toBe(true);
   });
 
   it('journeyAway jen když je vojvoda pryč na výjezdu', () => {

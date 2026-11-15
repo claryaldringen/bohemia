@@ -3,40 +3,11 @@ import type { ExpeditionView, PartyView, SeenCell } from '@bohemia/game';
 import {
   expeditionReason,
   interpolateExpeditions,
-  journeyReason,
   lordJourneyViewOf,
   knownEyeState,
   nextKnownCell,
   UNKNOWN_MAP,
 } from '../journey-view';
-
-describe('journeyReason', () => {
-  it('vrací přesně texty z rozhraní', () => {
-    expect(journeyReason('unreachable')).toBe('Tam vojvoda nedojde.');
-    expect(journeyReason('lord-wounded')).toBe('Vojvoda je raněný.');
-    expect(journeyReason('lord-away')).toBe('Vojvoda je na tažení.');
-    expect(journeyReason('village-attacked')).toBe('Ves je napadena.');
-    expect(journeyReason('war-there')).toBe('Tam je válka.');
-  });
-
-  it('každý důvod má český text bez dlouhé pomlčky', () => {
-    for (const r of [
-      'no-lord',
-      'lord-young',
-      'lord-wounded',
-      'lord-away',
-      'village-attacked',
-      'journey-active',
-      'bad-retinue',
-      'unreachable',
-      'war-there',
-      'refused',
-    ] as const) {
-      expect(journeyReason(r)).toMatch(/\S.*\.$/);
-      expect(journeyReason(r)).not.toContain('—');
-    }
-  });
-});
 
 const person = (personId: number, group: number, lord = false): PartyView['people'][number] => ({
   personId,
