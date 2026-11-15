@@ -26,10 +26,13 @@ import {
 // kovárna ↔ milíř (`basketManDaysPerKg`) – a každý z dvojice nese polovinu: uhlíř a jeho syn od
 // 14 let z práce dílny uhlíře, syn 12–13 let ten den nepase a nešlape měch, kovář a jeho syn od
 // 14 z práce kovárny (odpočívající kovář z práce vsi). Uhlíř bez syna si pro kováře jednou za den
-// dojde z práce dílny. Nic nemutuje, deterministicky.
+// dojde z práce dílny. Kovář i jeho syn nese týž den jen s jedním uhlířem (návrh Clauda) – další
+// uhlíř si vezme jiného syna kováře, kováře, nebo ten den nenese. Nic nemutuje, deterministicky.
 
 /** Tolerance proti chybám desetinných čísel. */
 const EPSILON = 1e-9;
+/** Kdo dnes s kterým uhlířem nese (id člověka → id dílny uhlíře) – zatím nikdo. */
+const NO_ONE_TAKEN: ReadonlyMap<number, number> = new Map();
 /** Délka pracovního dne v sekundách – jako nošení v koších (smith-supply.ts). */
 const DAY_S = WATER_FETCHING.dayHours * 3600;
 
@@ -78,18 +81,21 @@ export function poleBurner(
 /**
  * Syn domácnosti `dwellingId` k tyči (`smithSons` – od nejstaršího): napřed nejstarší z výrostků
  * 12–13 let (jejich práce není práce dílny), jinak nejmladší syn od 14 let (jako měchař – dospělý
- * je v práci dílny); kdo je pryč, nejde. Bez syna null.
+ * je v práci dílny); kdo je pryč nebo dnes nese s jiným uhlířem (`free`), nejde. Bez syna null.
  */
 function sonAtPole(
   state: Pick<VillageState, 'people'>,
   day: number,
   dwellingId: number,
   kind: 'burner-son' | 'smith-son',
+  free: (personId: number) => boolean,
 ): PolePartner | null {
   const members = new Map(
     state.people.filter((p) => p.dwellingId === dwellingId).map((p) => [p.id, p]),
   );
-  const sons = smithSons(state, dwellingId, day).filter((s) => atPole(members.get(s.id), day));
+  const sons = smithSons(state, dwellingId, day).filter(
+    (s) => free(s.id) && atPole(members.get(s.id), day),
+  );
   const son = sons.find((s) => s.age < AGE.adult) ?? sons[sons.length - 1];
   return son ? { personId: son.id, age: son.age, dwellingId, kind } : null;
 }
@@ -97,19 +103,26 @@ function sonAtPole(
 /**
  * Kdo dnes nese s uhlířem `burnerId` uhlí do kovárny `smithId` (plán Rozhodnutí 9): syn uhlíře
  * 12–13 let (nejstarší z nich), syn uhlíře od 14 let, syn kováře 12–13, syn kováře od 14, kovář.
- * Syn jde k tyči od CHARCOAL_POLE.sonFromAge let, kdo je pryč (`isAway`), nejde. Bez nikoho null.
+ * Syn jde k tyči od CHARCOAL_POLE.sonFromAge let, kdo je pryč (`isAway`), nejde. Kdo dnes už nese
+ * s jiným uhlířem (`taken` – id člověka → id dílny uhlíře), nejde taky – s týmž uhlířem ano (víc
+ * milířů). Bez nikoho null.
  */
 export function polePartner(
   state: Pick<VillageState, 'people'>,
   day: number,
   burnerId: number,
   smithId: number,
+  taken: ReadonlyMap<number, number> = NO_ONE_TAKEN,
 ): PolePartner | null {
+  const free = (personId: number): boolean => (taken.get(personId) ?? burnerId) === burnerId;
   const partner =
-    sonAtPole(state, day, burnerId, 'burner-son') ?? sonAtPole(state, day, smithId, 'smith-son');
+    sonAtPole(state, day, burnerId, 'burner-son', free) ??
+    sonAtPole(state, day, smithId, 'smith-son', free);
   if (partner) return partner;
   const smith = headAtPole(state, day, smithId);
-  return smith ? { personId: smith.id, age: smith.age, dwellingId: smithId, kind: 'smith' } : null;
+  return smith && free(smith.id)
+    ? { personId: smith.id, age: smith.age, dwellingId: smithId, kind: 'smith' }
+    : null;
 }
 
 /** Cesta uhlíře pro kováře (čd): `walkM` m od milíře ke kovárně rychlostí nošení. */
@@ -174,8 +187,9 @@ function addWork(work: Map<number, number>, id: number, manDays: number): void {
  * Kdo dnes nese uhlí do kováren (workshops.md – Uhlíř – odnos uhlí na tyči): uhlí, které uhlíři
  * vytahali (`deliveries`) a vůz nepřiveze (`carts`), nese uhlíř s druhým (`polePartner`) – jen
  * do kováren, které dnes pracují se vsí (`restingOnly` – před rozdělením práce vsi), nebo jen do
- * těch, které pracují v dílně. Cesta pro kováře jednou za den za uhlíře a kovárnu. Bez uhlíře
- * nebo druhého u tyče se nenese.
+ * těch, které pracují v dílně. Cesta pro kováře jednou za den za uhlíře a kovárnu. Kovář i jeho
+ * syn nese jen s prvním uhlířem, se kterým jde (`polePartner` – `taken`; lidé kovárny jsou jen
+ * v její fázi, takže stačí pro jedno volání). Bez uhlíře nebo druhého u tyče se nenese.
  */
 export function charcoalCarryDay(
   state: Pick<VillageState, 'people'>,
@@ -187,6 +201,7 @@ export function charcoalCarryDay(
 ): CharcoalCarryDay {
   const out: CharcoalCarryDay = { pairs: [], burners: new Map(), smiths: new Map(), busy: [] };
   const fetched = new Set<string>();
+  const taken = new Map<number, number>();
   for (const d of deliveries) {
     if (resting.has(d.smithId) !== restingOnly) continue;
     const carted = carts.charcoal
@@ -196,8 +211,9 @@ export function charcoalCarryDay(
     const manDays = kg * basketManDaysPerKg(d.walkM, SMITH_SUPPLY.basketKg.charcoal);
     if (manDays <= EPSILON) continue;
     const burner = poleBurner(state, day, d.burnerId);
-    const partner = burner ? polePartner(state, day, d.burnerId, d.smithId) : null;
+    const partner = burner ? polePartner(state, day, d.burnerId, d.smithId, taken) : null;
     if (!burner || !partner) continue;
+    taken.set(partner.personId, d.burnerId);
     const key = `${d.burnerId}:${d.smithId}`;
     const fetchWalk = fromSmithy(partner) && !fetched.has(key) ? fetchWalkManDays(d.walkM) : 0;
     if (fromSmithy(partner)) fetched.add(key);
@@ -246,7 +262,8 @@ export function mergeCarryDays(
 /**
  * Odnos z milíře `kiln` v plánu uhlíře (`burnerPlans` – vůz se rozhoduje až z vytahaného uhlí,
  * plán počítá s nošením pěšky): kovárna jako u `charcoalDeliveries` (nejbližší z `smiths`),
- * vzdálenost chůze uložená u milíře, jinak vzdušně. Vrací kovárnu, práci dílny uhlíře na kg
+ * vzdálenost chůze uložená u milíře, jinak vzdušně; kdo už nese s jiným uhlířem (`taken` – jako
+ * u `charcoalCarryDay`), nejde. Vrací kovárnu, druhého u tyče, práci dílny uhlíře na kg
  * (`burnerPoleShare` z nošení v koších) a cestu pro kováře (čd – jen když nese kovář nebo jeho
  * syn); bez kovárny, uhlíře nebo druhého u tyče null.
  */
@@ -256,11 +273,12 @@ export function plannedPoleCarry(
   burner: Dwelling,
   kiln: CharcoalKiln,
   smiths: readonly Dwelling[],
-): { smithId: number; perKg: number; fetchWalk: number } | null {
+  taken: ReadonlyMap<number, number> = NO_ONE_TAKEN,
+): { smithId: number; partnerId: number; perKg: number; fetchWalk: number } | null {
   if (smiths.length === 0 || !poleBurner(state, day, burner.id)) return null;
   const at = kilnPoint(burner, kiln);
   const smith = nearestSmith(smiths, at);
-  const partner = polePartner(state, day, burner.id, smith.id);
+  const partner = polePartner(state, day, burner.id, smith.id, taken);
   if (!partner) return null;
   const walkM =
     kiln.carry?.smithId === smith.id
@@ -268,6 +286,7 @@ export function plannedPoleCarry(
       : length2(smith.position.x - at.x, smith.position.z - at.z);
   return {
     smithId: smith.id,
+    partnerId: partner.personId,
     perKg: basketManDaysPerKg(walkM, SMITH_SUPPLY.basketKg.charcoal) * burnerPoleShare(partner),
     fetchWalk: fromSmithy(partner) ? fetchWalkManDays(walkM) : 0,
   };

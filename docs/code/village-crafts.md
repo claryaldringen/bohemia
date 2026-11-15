@@ -142,7 +142,9 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   odnosu se nemění – kg × `basketManDaysPerKg` (koš 15 kg, cesta kovárna ↔ milíř), každý z dvojice
   nese polovinu. Uhlíř `poleBurner` (hlava domácnosti `smithHead`), druhý `polePartner`: syn
   uhlíře 12–13 (nejstarší), syn uhlíře od 14 (nejmladší), syn kováře 12–13, syn kováře od 14,
-  kovář – od `CHARCOAL_POLE.sonFromAge`, kdo je pryč (`isAway`), nejde. Den: `charcoalCarryDay`
+  kovář – od `CHARCOAL_POLE.sonFromAge`, kdo je pryč (`isAway`), nejde; kdo už dnes nese s jiným
+  uhlířem (`taken` – id člověka → uhlíř; plán `burnerPlans` → `plannedPoleCarry` i den ho vedou
+  ve stejném pořadí), taky ne – kovář i jeho syn nese jen s jedním uhlířem. Den: `charcoalCarryDay`
   ve dvou fázích jako dřív nošení – odpočívající kovárny v `dayCartJobs` (`restingFetch`, díl
   kováren `restingCarry` z kapacity `allocateDay`), ostatní ve `smithHerdingTravel` s vozy
   zaplacenými `paySmithCarts`; `mergeCarryDays` → `DayTravel.fetchPlans` → `SmithSupply.carry`.

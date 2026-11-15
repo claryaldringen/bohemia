@@ -111,7 +111,8 @@ Martin 14. 11. 2026:
   - **Kdo jde k tyči:** uhlíř (hlava domácnosti dílny) a druhý v tomto pořadí – syn uhlíře
     12–13 let (nejstarší z nich), syn uhlíře od 14 let (nejmladší, jako měchař), syn kováře 12–13,
     syn kováře od 14, kovář. Od 12 let i syn kováře – tyč chce dva dost velké. Kdo je pryč (výjezd,
-    výprava), k tyči nejde.
+    výprava), k tyči nejde. Kovář i jeho syn nese týž den jen s jedním uhlířem (návrh Clauda) –
+    další uhlíř si vezme jiného syna kováře nebo kováře; když nikdo nezbude, ten den nevytahá.
   - **Odkud jde práce:** polovina uhlíře a polovina jeho syna od 14 let z práce dílny uhlíře; syn
     12–13 (uhlíře i kováře) ten den nepase a nešlape měch; polovina kováře nebo jeho syna od 14 let
     z práce kovárny, u kováře, který ten den pracuje se vsí, z práce vsi (jako dřív).

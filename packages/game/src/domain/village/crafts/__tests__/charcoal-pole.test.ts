@@ -227,3 +227,58 @@ describe('odnos dne (workshops.md – Uhlíř – odnos uhlí na tyči)', () => 
     expect(carry(gone).burners.size).toBe(0);
   });
 });
+
+describe('kovář i jeho syn nese týž den jen s jedním uhlířem (workshops.md – odnos na tyči)', () => {
+  /** Druhý uhlíř (obydlí 52, hlava 520 bez syna). */
+  const OTHER = 52;
+  const twoBurners = (smithSons: number[]): Pick<VillageState, 'people'> => {
+    const s = folk([], smithSons);
+    s.people.push(
+      person(520, 38, OTHER, { sex: 'male' }),
+      person(521, 35, OTHER, { sex: 'female' }),
+    );
+    return s;
+  };
+  const OTHER_DELIVERY: CharcoalDelivery = { ...DELIVERY, burnerId: OTHER, kilnId: 992 };
+
+  it('kdo už nese s jiným uhlířem, nejde – s týmž uhlířem ano', () => {
+    const s = folk([], [13, 12]);
+    const firstTaken = new Map([[SMITH_HEAD + 2, OTHER]]);
+    expect(polePartner(s, DAY, BURNER, SMITH, firstTaken)).toMatchObject({
+      personId: SMITH_HEAD + 3,
+      kind: 'smith-son',
+    });
+    const ours = new Map([[SMITH_HEAD + 2, BURNER]]);
+    expect(polePartner(s, DAY, BURNER, SMITH, ours)).toMatchObject({ personId: SMITH_HEAD + 2 });
+    const all = new Map([
+      [SMITH_HEAD, OTHER],
+      [SMITH_HEAD + 2, OTHER],
+      [SMITH_HEAD + 3, OTHER],
+    ]);
+    expect(polePartner(s, DAY, BURNER, SMITH, all)).toBeNull();
+  });
+
+  it('syn kováře nese s prvním uhlířem, s druhým kovář – práce každého jednou', () => {
+    const day = carry(twoBurners([12]), { deliveries: [DELIVERY, OTHER_DELIVERY] });
+    expect(day.pairs.map((p) => [p.burnerId, p.partner.personId])).toEqual([
+      [BURNER, SMITH_HEAD + 2],
+      [OTHER, SMITH_HEAD],
+    ]);
+    expect(day.busy).toEqual([SMITH_HEAD + 2]);
+    expect(day.smiths.get(SMITH)).toBeCloseTo(MAN_DAYS / 2, 12);
+  });
+
+  it('kovář pryč, jediný syn nese z obou milířů prvního uhlíře – druhý dnes nenese', () => {
+    const s = twoBurners([12]);
+    s.people.find((p) => p.id === SMITH_HEAD)!.away = { kind: 'campaign' };
+    const day = carry(s, {
+      deliveries: [DELIVERY, OTHER_DELIVERY, { ...DELIVERY, kilnId: 991 }],
+    });
+    expect(day.pairs.map((p) => [p.burnerId, p.partner.personId])).toEqual([
+      [BURNER, SMITH_HEAD + 2],
+      [BURNER, SMITH_HEAD + 2],
+    ]);
+    expect(day.burners.has(OTHER)).toBe(false);
+    expect(day.busy).toEqual([SMITH_HEAD + 2]);
+  });
+});

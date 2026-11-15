@@ -830,4 +830,23 @@ describe('plán uhlíře s odnosem na tyči (workshops.md – Uhlíř – odnos 
     expect(drawn(s)).toBe(0);
     expect(burnerPlans(s, s.lastDay + 1, NO_CRAFTS, 1).get(BURNER)!.orderKg).toBeGreaterThan(0);
   });
+
+  it('jediný syn kováře nese jen s jedním uhlířem – druhý bez nosiče nevytahá', () => {
+    // druhý uhlíř (obydlí 52, lidé 90 a 91) se stejně plným milířem; kovář je pryč
+    const s = burnerVillage([], [12]);
+    const OTHER = 52;
+    withWorkshop(s, 'burner', OTHER, { x: -40, z: 40, rotation: 0 }, 90);
+    s.people.find((p) => p.id === 90)!.sex = 'male';
+    const first = s.dwellings.find((d) => d.id === BURNER)!.workshop!;
+    const other = s.dwellings.find((d) => d.id === OTHER)!.workshop!;
+    other.kilns = [{ ...first.kilns![0]!, id: 991 }];
+    other.charcoalOrderKg = first.charcoalOrderKg;
+    s.people.find((p) => p.id === 70)!.away = { kind: 'campaign' };
+    const plans = burnerPlans(s, s.lastDay + 1, NO_CRAFTS, 1);
+    expect(plans.get(BURNER)!.draws).toHaveLength(1);
+    expect(plans.get(OTHER)!.draws).toEqual([]);
+    // kovář doma – s druhým uhlířem nese on
+    delete s.people.find((p) => p.id === 70)!.away;
+    expect(burnerPlans(s, s.lastDay + 1, NO_CRAFTS, 1).get(OTHER)!.draws).toHaveLength(1);
+  });
 });

@@ -597,7 +597,8 @@ export interface KilnDraw {
  *   nejstaršího vypáleného milíře, nejvýš kolik dnes stihne i s odnosem na tyči pěšky
  *   (`plannedPoleCarry` – vůz se rozhoduje až z vytahaného uhlí; workshops.md, Uhlíř – odnos uhlí
  *   na tyči): jeho polovina nošení (se synem od 14 let celé) a cesta pro kováře; bez druhého
- *   u tyče nevytahá; pálící milíř hlídá celý den a nevytahá,
+ *   u tyče (kovář i jeho syn nese jen s jedním uhlířem) nevytahá; pálící milíř hlídá celý den
+ *   a nevytahá,
  * - **uhlíř začne další milíř včas** (`startsNextKiln`): bez milíře vždy, jinak když uhlí ve vsi
  *   (u kováren, ve vypálených milířích a v rozdělaných milířích – i těch, které dnes začne uhlíř
  *   před ním) stačí jen na dobu jeho cyklu milíře (`kilnCycleDays`) a rezervu.
@@ -630,6 +631,8 @@ export function burnerPlans(
     const kiln = kilnInProgress(d.workshop!);
     if (kiln) stock += kilnYieldKg(kiln);
   }
+  // kdo s kterým uhlířem dnes nese – kovář i jeho syn jen s jedním (jako `charcoalCarryDay`)
+  const poleTaken = new Map<number, number>();
   for (const d of burners) {
     const workshop = d.workshop!;
     const kilns = workshopKilns(workshop);
@@ -655,7 +658,7 @@ export function burnerPlans(
       const fetched = new Set<number>();
       for (const kiln of full) {
         if (want <= EPSILON || capacity <= EPSILON) break;
-        const carry = plannedPoleCarry(state, day, d, kiln, smiths);
+        const carry = plannedPoleCarry(state, day, d, kiln, smiths, poleTaken);
         if (!carry) continue;
         const walk = fetched.has(carry.smithId) ? 0 : carry.fetchWalk * work.skill;
         const perKg =
@@ -663,6 +666,7 @@ export function burnerPlans(
         const kg = Math.min(want, kilnCharcoalKg(kiln), (capacity - walk) / perKg);
         if (kg <= EPSILON) continue;
         if (walk > 0) fetched.add(carry.smithId);
+        poleTaken.set(carry.partnerId, d.id);
         draws.push({ ...(kiln.id !== undefined ? { kilnId: kiln.id } : {}), kg });
         want -= kg;
         capacity -= kg * perKg + walk;
