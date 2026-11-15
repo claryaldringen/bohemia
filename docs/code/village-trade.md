@@ -96,7 +96,9 @@ směr)` – stálá povaha podle druhu souseda (`neighbourKind` – obilnáři, 
   s karavanou (`caravanExtent`). Ukázka `/dev/landscape` – **Karavana**. Use-case `sendExpedition`,
   server action `sendExpedition` (`{ villageId, direction, give, get, givePeople?, getPeople? }` –
   `parseSendExpeditionInput`).
-  Web: `VillageManor.neighbours` (`neighbourViews`), panel `hud/TradePanel.tsx` (soused a směr,
+  Web: `VillageManor.neighbours` (`neighbourViews` – ceny řádků × `goodWorth` jako na serveru, jinak
+  by po zlém roce kraje náhled ukázal férovou výměnu, kterou server odmítne), panel
+  `hud/TradePanel.tsx` (soused a směr,
   bilance pro souseda ikonou vah `resources/balance.png` – zeleně ≥ 0, červeně záporná –, dva
   sloupce v `hud-inset` s viditelnými hlavičkami „Dáš“ / „Dostaneš“ a portrétem dvorce, řádky
   `TradeRow` s popiskem „Soused shání – vezme ještě …“ / „Soused nabízí – má ještě …“

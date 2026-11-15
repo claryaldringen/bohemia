@@ -12,6 +12,7 @@ import {
   emigrantGroups,
   expeditionTo,
   familyBuyPrice,
+  goodWorth,
   horseTradeRoom,
   isHorseGood,
   canDeclareHunt,
@@ -261,16 +262,18 @@ export function neighbourViews(
           sheepFurs: Math.floor(state.wares?.sheepFurs ?? 0),
         },
         // pastevec v roce bez koní nabízí zásobu 0 – řádek se neukazuje (horses.md – Nákup a prodej)
+        // ceny i po zlém roce kraje (`goodWorth` – disasters.md, Obchod) jako na serveru
+        // (`tradeQuote`), jinak náhled ukáže férovou výměnu, kterou server odmítne
         offers: neighbour.offers
           .map((good) => ({
             good,
-            price: Math.round(buyPrice(good) * 100) / 100,
+            price: round2(buyPrice(good) * goodWorth(state, good, day)),
             left: Math.max(0, stock.supply[good] ?? 0),
           }))
           .filter((row) => !isHorseGood(row.good) || row.left > 0),
         demands: neighbour.demands.map((good) => ({
           good,
-          price: Math.round(sellPrice(good) * 100) / 100,
+          price: round2(sellPrice(good) * goodWorth(state, good, day)),
           left: Math.max(0, stock.demand[good] ?? 0),
           have: villageGoodStock(state, good, day),
         })),

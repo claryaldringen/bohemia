@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
+  buyPrice,
   dayIndexOf,
   foundVillage,
+  goodWorth,
   neighbourOf,
+  sellPrice,
   tradeSeason,
   type Person,
   type VillageState,
@@ -116,6 +119,29 @@ describe('výměna lidí v panelu obchodu (trade.md – Výměna lidí)', () => 
     );
     expect(preview.credit).toBe(1260);
     expect(preview.blocked).toBeNull();
+  });
+});
+
+// Po zlém roce kraje bere soused zboží levněji (disasters.md – Obchod) – náhled musí počítat jako
+// server, jinak ukáže férovou výměnu, kterou server odmítne (Martin 15. 11. 2026: 231 kg masa za
+// dva muže – v panelu +2, server „Za to by soused prodělal“).
+describe('ceny v panelu obchodu po zlém roce kraje', () => {
+  it('zboží za obilí za cenu jako na serveru (`goodWorth`)', () => {
+    const base = village();
+    const worse = Array.from({ length: 200 }, (_, i) => ({ ...base, weatherSeed: i + 1 })).find(
+      (s) => goodWorth(s, 'meat', DAY) < 1,
+    )!;
+    expect(worse).toBeDefined();
+    const [n] = neighbourViews(worse, DAY);
+    const rows = [...n!.offers, ...n!.demands];
+    expect(rows.some((row) => row.good !== 'grain')).toBe(true);
+    for (const row of n!.offers) {
+      expect(row.price).toBeCloseTo(buyPrice(row.good) * goodWorth(worse, row.good, DAY), 2);
+    }
+    for (const row of n!.demands) {
+      expect(row.price).toBeCloseTo(sellPrice(row.good) * goodWorth(worse, row.good, DAY), 2);
+      if (row.good !== 'grain') expect(row.price).toBeLessThan(sellPrice(row.good));
+    }
   });
 });
 
