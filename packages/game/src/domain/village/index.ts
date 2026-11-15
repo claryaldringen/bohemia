@@ -87,7 +87,7 @@ export * from './fields/field-progress';
 export * from './fields/field-outlook';
 export * from './fields/part-rotation';
 export * from './core/labor';
-export { LABOR_TREES_SHOWN, laborReport } from './core/labor-report';
+export { LABOR_TREES_SHOWN, laborReport, startingShares } from './core/labor-report';
 export * from './people/population';
 export * from './people/kinship';
 export * from './people/dynasty';

@@ -164,8 +164,8 @@ export function planVillagersWithCrew(
   length: (a: Point, b: Point) => number;
 } {
   const crew: DraftCrew = { teams: [], carts: [] };
-  const today = village.labor;
-  if (!today || village.dwellings.length === 0) {
+  const labor = village.labor;
+  if (!labor || village.dwellings.length === 0) {
     const walk: WalkRouteFn = () => null;
     const length = (a: Point, b: Point): number => Math.hypot(b.x - a.x, b.z - a.z);
     return {
@@ -179,12 +179,6 @@ export function planVillagersWithCrew(
       length,
     };
   }
-  // stavba založená dnes – jádro jí práci dá až zítra, scéna na ni pošle hned dnešní volnou práci
-  // mužů (D68 – `withNewSites`); stavitele vybere jako zítra (podíl na místě, kam ho dá jádro –
-  // zítra tak stavitelé zůstanou) a ti se ke staveništi vydají hned
-  const sites = withNewSites(today, village.dwellings);
-  const fresh = sites.fresh;
-  const labor = fresh.size > 0 ? { ...today, shares: sites.shares } : today;
   const ctx = context(
     village,
     ground,
@@ -201,11 +195,17 @@ export function planVillagersWithCrew(
   const dayWindow = options.dayWindow?.(labor.day) ?? null;
   const weddings = activeWeddings(options.weddings ?? [], dayWindow);
   const celebrating = weddings.reduce((sum, plan) => sum + weddingVillagersIn(plan, dayWindow), 0);
-  const counts = shareCounts(
-    labor.shares,
-    labor.month,
-    Math.max(0, (options.maxWorkers ?? MAX_WORKERS) - mourning - celebrating),
+  const maxWorkers = Math.max(0, (options.maxWorkers ?? MAX_WORKERS) - mourning - celebrating);
+  const counts = shareCounts(labor.shares, labor.month, maxWorkers);
+  // stavby založené dnes – jádro jim práci dá až zítra, scéna na ně pošle hned dnešní volnou práci
+  // mužů (D68, D71 – `withNewSites`): kolik stavitelů dostanou, jako by jejich podíl stál před
+  // nečinnými, kam ho zítra dá jádro; vybere je `freshBuilders` až po všech ostatních postavách
+  const sites = withNewSites(labor);
+  const siteCounts = sites.fresh.size > 0 ? shareCounts(sites.shares, labor.month, maxWorkers) : [];
+  const fresh = sites.shares.flatMap((share, s) =>
+    sites.fresh.has(share) ? [{ share, count: siteCounts[s] ?? 0 }] : [],
   );
+  const cancelled = options.cancelled ?? new Set<number>();
   // lidé svateb a pohřbů dne – kněz a mistr, který jde na obřad, nestojí zároveň u práce
   const atEvents = new Set<number>(
     [...funerals, ...weddings].flatMap((plan) =>
@@ -297,6 +297,9 @@ export function planVillagersWithCrew(
       (sex) => shareWorker(ctx, share, i, sex, age),
     );
     if (!c) return;
+    // stavba zrušená dnes (D71): člověk zůstane obsazený bez postavy – od stavby odejde domů
+    // a ostatním se nic nezmění (kdo by ho vzal místo něj, toho by odvolal od jeho práce)
+    if (share.construction !== undefined && cancelled.has(share.construction)) return;
     // u stavby musí někdo stát, i když zvláštní místo (strom, řada, plot) nevyšlo
     const pose =
       place(i, c.who) ?? (isConstructionShare(share) ? builderNearby(ctx, share, i, c.who) : null);
@@ -365,17 +368,17 @@ export function planVillagersWithCrew(
   // muž uhlíře u vchodu zemnice – z těch, kdo zbyli po práci dne
   const sitters = campSitters(ctx);
   const people: PlannedVillager[] = slots.flatMap((list) => list.filter(Boolean));
-  // stavitelé stavby založené dnes přeruší, co právě dělají (villager-schedule.ts – `interrupt`)
-  const urgent = new Set(
-    slots.flatMap((list, s) =>
-      fresh.has(labor.shares[s]!) ? list.filter(Boolean).map((f) => f.key) : [],
-    ),
-  );
   const winter = WINTER_MONTHS.includes(labor.month);
   const tending = herderKinds(labor, options.herds);
   const elderHerders = tending.filter((kind) => kind === 'elder').length;
   people.push(...elders(ctx, elderCount(Math.max(0, labor.people.elders - elderHerders), winter)));
   people.push(...herders(ctx, tending, herding));
+  // stavitelé staveb založených dnes – nečinní muži až po všech ostatních postavách (D71); přeruší,
+  // co právě dělají (villager-schedule.ts – `interrupt`)
+  const idlers = new Set(
+    slots.flatMap((list, s) => (labor.shares[s]!.activity === 'idle' ? list.filter(Boolean) : [])),
+  );
+  const urgent = freshBuilders(ctx, fresh, people, idlers, builders);
   people.push(...watching);
   people.push(...caravanPeople);
   people.push(...family.people);
@@ -594,6 +597,65 @@ export function firstBuilders(
     out.push(s);
   });
   return out;
+}
+
+/**
+ * Stavitelé staveb založených dnes (D68, D71 – `withNewSites`): napřed muži z nečinných postav
+ * (`idlers` – postava přejde ke stavbě), pak muži, na které dnes postava nezbyla (doma; jen s lidmi
+ * ve scéně – jinak se nikdo nevymýšlí). Vybírají se až po všech ostatních postavách, takže ostatní
+ * postavy i jejich klíče zůstanou, jako by stavba nebyla – založení stavby nikoho neodvolá od jiné
+ * práce. Komu místo u stavby nevyjde, zůstane, kde byl (u stavby, u které scéna stavitele nekreslí,
+ * tak nikdo). Mění postavy v `people`; první stavitel každé stavby drží úlohu (`holds`). Vrátí klíče
+ * stavitelů – přeruší, co právě dělají (villager-schedule.ts – `interrupt`).
+ */
+function freshBuilders(
+  ctx: Context,
+  fresh: readonly { share: SceneLaborShare; count: number }[],
+  people: PlannedVillager[],
+  idlers: ReadonlySet<PlannedVillager>,
+  holds: Set<string>,
+): Set<string> {
+  const urgent = new Set<string>();
+  if (fresh.length === 0) return urgent;
+  const persons = new Map((ctx.village.labor?.persons ?? []).map((p) => [p.id, p]));
+  const man = (f: PlannedVillager): boolean =>
+    f.person !== undefined ? persons.get(f.person)?.sex === 'male' : f.kind === 'man';
+  // nečinní muži v pořadí postav (index v `people`)
+  const idle = people.flatMap((f, at) => (idlers.has(f) && man(f) ? [at] : []));
+  let next = 0;
+  for (const { share, count } of fresh) {
+    const place = placer(ctx, share, count);
+    let first = true;
+    for (let i = 0; i < count; i++) {
+      const at = idle[next];
+      const idler = at !== undefined ? people[at]! : null;
+      if (!idler && !ctx.roster) break;
+      const key = `${share.activity}:${targetKey(share.target)}:${i}`;
+      const c = cast(ctx, key, { women: 0, child: false }, () =>
+        idler
+          ? idler.person !== undefined
+            ? (persons.get(idler.person) ?? null)
+            : null
+          : ctx.roster!.take({ ...ADULTS, onlySex: 'male' }),
+      );
+      // nikdo volný
+      if (!c) break;
+      const pose = place(i, c.who) ?? builderNearby(ctx, share, i, c.who);
+      if (!pose) {
+        if (!idler && c.person) ctx.roster?.release(c.person.id);
+        continue;
+      }
+      const builder = figure(c, pose, adultHair(c.who, ctx.sexes.married), shareJob(share));
+      if (idler && at !== undefined) {
+        people[at] = builder;
+        next++;
+      } else people.push(builder);
+      urgent.add(key);
+      if (first) holds.add(key);
+      first = false;
+    }
+  }
+  return urgent;
 }
 
 /** Lehčí polní práce, které smějí dělat i ženy řemeslníků (jako `LIGHT_LABOR_TASKS` v jádře). */

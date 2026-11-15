@@ -247,10 +247,13 @@ export class VillageVillagers {
    */
   private timetable: Timetable | null = null;
   /**
-   * Staveniště posledního obsazení (herní den a klíč – `siteKey`): když se týž den změní (nová
-   * stavba, zrušená – D68), nové obsazení platí od teď (`Timetable.setDay` – `since`).
+   * Stavby posledního plánu (herní den, klíč – `siteKey` – a stavby viděné ten den): když se klíč
+   * týž den změní (nová stavba, zrušená – D68, D71), nové obsazení platí od teď
+   * (`Timetable.setDay` – `since`); stavby, které dnes zmizely, jsou zrušené (`trackSites`).
    */
-  private sites: { day: number; key: string } | null = null;
+  private sites: { seed: number; day: number; key: string; seen: Set<number> } | null = null;
+  /** Změnily se stavby týž den od posledního plánu (`trackSites`)? */
+  private sitesChanged = false;
   /** Lidé s postavou podle rozvrhu (id). */
   private scheduled = new Set<number>();
   /** Postavy dne bez rozvrhu: cizí (`STRANGER`) a ukázky bez lidí ve scéně. */
@@ -739,9 +742,12 @@ export class VillageVillagers {
       return had;
     }
     const t = villagerSeconds(nowMs);
+    // stavby zrušené dnes (D71) – jejich lidé zůstanou bez postavy, ostatní postavy beze změny
+    const cancelled = this.trackSites(village);
     const plan = planVillagersWithCrew(village, ground, {
       seed: villageSeed(village),
       nowMs,
+      ...(cancelled.size > 0 ? { cancelled } : {}),
       // pasák jen u stád na pastvě – ta jsou v plánu napřed (livestock-placement.ts)
       herds: herds.filter((h) => h.tended !== false).length,
       herdPlaces: herds,
@@ -826,6 +832,26 @@ export class VillageVillagers {
   }
 
   /**
+   * Stavby vsi pro plán (D71): změnily se týž den od posledního plánu (`sitesChanged` – nové
+   * obsazení platí od teď) a které dnes zmizely – zrušené (hotové stavby zmizí jen s novým dnem).
+   * Bez rozdělení práce beze změny.
+   */
+  private trackSites(village: SceneVillage): ReadonlySet<number> {
+    this.sitesChanged = false;
+    const labor = village.labor;
+    if (!labor) return new Set();
+    const key = siteKey(village);
+    const seed = villageSeed(village);
+    const same = this.sites?.day === labor.day && this.sites.seed === seed ? this.sites : null;
+    this.sitesChanged = same !== null && same.key !== key;
+    const now = new Set(labor.constructions ?? []);
+    const seen = same?.seen ?? new Set<number>();
+    for (const id of now) seen.add(id);
+    this.sites = { seed, day: labor.day, key, seen };
+    return new Set([...seen].filter((id) => !now.has(id)));
+  }
+
+  /**
    * Obsazení dne do rozvrhů (villager-timetable.ts): den práce vsi od začátku jeho okna (bez hodin
    * od teď), dveře domů lidí a vojvoda. Jiná ves (seed) – nové rozvrhy.
    */
@@ -876,16 +902,13 @@ export class VillageVillagers {
     timetable.setDuties(grooms.length > 0 ? new RideGrooms(grooms, candidates, walkS) : null);
     const day = village.labor!.day;
     const window = this.env.dayWindow?.(day) ?? null;
-    // změna staveb uprostřed dne (D68 – nová stavba, zrušená): nové obsazení platí od teď –
-    // stavitelé nové stavby se k ní hned vydají z místa, kde jsou, od zrušené odejdou
-    const sites = siteKey(village);
-    const changed = this.sites !== null && this.sites.day === day && this.sites.key !== sites;
-    this.sites = { day, key: sites };
+    // změna staveb uprostřed dne (D68, D71 – nová stavba, zrušená – `trackSites`): nové obsazení
+    // platí od teď – stavitelé nové stavby se k ní hned vydají z místa, kde jsou, od zrušené odejdou
     timetable.setDay(
       day,
       window ? villagerSeconds(window.startMs) : t,
       plan.tasks,
-      changed ? t : undefined,
+      this.sitesChanged ? t : undefined,
     );
     timetable.retain(new Set(persons.map((p) => p.id)));
     this.lords = new Set(persons.filter((p) => p.role === 'voivode').map((p) => p.id));
@@ -1349,13 +1372,12 @@ function unionExtent(...extents: (Extent | null)[]): Extent | null {
   return out;
 }
 
-/** Staveniště domů a dílen (id podle velikosti) – jejich změnu během dne řeší rozvrh od teď (D68). */
+/**
+ * Rozestavěné stavby vsi (id vzestupně – `SceneLabor.constructions`) – jejich změnu během dne
+ * (založení, zrušení) řeší rozvrh od teď (D68, D71).
+ */
 function siteKey(village: SceneVillage): string {
-  return village.dwellings
-    .filter((d) => !d.built)
-    .map((d) => d.id)
-    .sort((a, b) => a - b)
-    .join(',');
+  return (village.labor?.constructions ?? []).join(',');
 }
 
 /** Náhoda postav podle vsi – první obydlí (stejná ves = stejní lidé). */
