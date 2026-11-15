@@ -260,7 +260,7 @@ test('scéna jde za vojvodou na cizí mapu: mlha, objevené stavby, rozkazy a n�
   await expect
     .poll(
       async () => {
-        const lord = (await journeyScene(a)).riders.find((r) => r.key === String(A.lordId));
+        const lord = (await journeyScene(a)).riders.find((r) => r.own && r.personId === A.lordId);
         if (!lord) return false;
         const at = await screenOf(a, lord.x, lord.z);
         await a.mouse.click(at.x, at.y - 10);

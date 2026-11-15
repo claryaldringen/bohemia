@@ -39,7 +39,10 @@ export interface E2EHooks {
     riders: {
       journeyId: string;
       own: boolean;
+      /** Klíč muže ve scéně (`sceneManKey` – výprava:osoba u vlastních). */
       key: string;
+      /** Id osoby ve vsi (jen vlastní výprava). */
+      personId: number | null;
       x: number;
       z: number;
       mounted: boolean;

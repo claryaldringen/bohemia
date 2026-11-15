@@ -53,6 +53,7 @@ export function journeySceneHook(scene: LandscapeScene): NonNullable<E2EHooks['j
         journeyId: p.journeyId,
         own: p.own,
         key: p.key,
+        personId: p.personId,
         x: p.x,
         z: p.z,
         mounted: p.mounted,
