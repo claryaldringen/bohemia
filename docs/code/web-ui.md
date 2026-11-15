@@ -57,7 +57,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `findPlayerVillage`); `getVillageView({ villageId: null })` = první ves hráče (zakládá-li ves,
   null), založení první vsi jde na sídelní sídlo. Odpověď dotazu na ves (`getVillageView` s `withNotices: true`) nese i nepřečtená upozornění mezi hráči (`playerNotices`) a při doručení je označí za přečtená (`docs/code/world.md`). Rod vojvody (lord.md – Jména): `foundVillage`
   přijímá volitelné `lordName` (`parseFoundVillageInput`; písmena ověří use-case, bez jména vojvoda
-  čeká) a ves zakládá vždy vojvoda s manželkami; `nameLineMan({ villageId, personId, name })`
+  čeká) a ves zakládá vždy vojvoda s manželkami a syny; `nameLineMan({ villageId, personId, name })`
   pojmenuje vojvodu nebo jeho syna (`parseNameLineManInput` → `nameLineManForPlayer` → use-case
   `nameLineManInVillage`); `declareHunt({ villageId })` vyhlásí lov navíc na zítřek
   (`parseDeclareHuntInput` → `declareHuntForPlayer` → `declareHuntInVillage`, tlačítko

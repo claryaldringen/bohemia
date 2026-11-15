@@ -547,11 +547,12 @@ test('nájezd na ves s palisádou s ochozem: obránci na hradbě, útočníci p�
   }
   // Boj bez luků: v pomalém světě e2e (herní den ≈ 4,8 h) trvá výroba žebříku (4 herní hodiny)
   // ≈ 11 500 taktů boje – souboj luků mužů rodu přes hradbu se za tu dobu rozhodne dřív, než žebřík
-  // stojí (los taktu, tedy hodina spuštění testu). Hradbu tak brání tři vesničané a pán vsi B je
-  // raněný doma; vojsko A jsou jen vesničané.
+  // stojí (los taktu, tedy hodina spuštění testu). Hradbu tak brání tři vesničané a muži rodu vsi B
+  // (pán a jeho 4 synové ze zakladatelů – lord.md – Zakladatelé) jsou ranění doma; vojsko A jsou jen
+  // vesničané.
   const nextId = Math.max(...stateB.people.map((p) => p.id)) + 1;
   const lordB = stateB.people.find((p) => p.line === true)!;
-  lordB.woundedUntil = stateB.lastDay + 365;
+  for (const p of stateB.people) if (p.line === true) p.woundedUntil = stateB.lastDay + 365;
   for (let i = 0; i < 3; i++) {
     stateB.people.push({
       id: nextId + i,

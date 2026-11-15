@@ -38,7 +38,10 @@ dědictví, sňatky a nástupnictví potřebují vědět, kdo je čí. Postavy v
   muž ji navštěvuje (Martin, 24. 10. 2026 – [vojvodova rodina](lord.md), Manželky).
 - Zakladatelé vsi: dva páry – muž a žena v každém (návrh Clauda; dnes 4 lidé). **Návrh issue #9
   fáze 1** (Martin, 24. 10. 2026): vojvoda se 4 manželkami – hlavní a 3 vedlejšími, bez
-  konkubín (Martin je týž den zrušil) – [vojvodova rodina](lord.md) – Rod vojvody, Zakladatelé.
+  konkubín (Martin je týž den zrušil) – a od 15. 11. 2026 i se **4 dospělými syny** (Martin: „aby
+  měl vojvoda minimálně 4 dospělé (alespoň 16 let) syny“): synové 20 a 18 let hlavní manželky,
+  17 a 16 let druhé manželky; otcem je vojvoda (`fatherId`), matkou jejich matka (`motherId`) –
+  [vojvodova rodina](lord.md) – Rod vojvody, Zakladatelé.
 - **Starší vsi** (lidé bez pohlaví): pohlaví se jednou doplní deterministicky (střídavě podle
   věku tak, aby dvojice v domě byly muž a žena, kde to jde); rodiče neznámí = nepříbuzní;
   manželé se doplní z dnešních párů v domě (nejstarší muž s nejstarší ženou…) – návrh Clauda.

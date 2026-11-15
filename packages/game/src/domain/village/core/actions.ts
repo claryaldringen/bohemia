@@ -42,7 +42,7 @@ import type { Walk } from '../paths/walking';
 import { ageGroup } from '../people/people';
 import { faithOfSettlers, settlersMaxId, type Settlers } from '../people/departure';
 import { isLineMan } from '../people/dynasty';
-import { checkPersonName, normalizePersonName } from '../people/dynasty-names';
+import { checkPersonName, generatedLineName, normalizePersonName } from '../people/dynasty-names';
 import { replacementAffordability, relocationBlock } from '../people/relocation';
 import {
   CRAFTS,
@@ -369,17 +369,22 @@ function addField(state: VillageState, day: number, field: FieldInput): void {
 
 /**
  * Zakladatelé rodu (lord.md – Zakladatelé; Martin 24. 10. 2026: „Vesnici zakládá vojvoda a jeho
- * rodina.“): vojvoda a jeho manželky podle `LORD.founders` od id `lordId` – vojvoda, hlavní
- * manželka, vedlejší od nejstarší. Rodiče neznámí, bez dětí; všechny manželky porodí nejdřív za
- * 9 měsíců jako po svatbě. Vojvoda má příznak rodu a jméno, je-li zadané.
+ * rodina.“, 15. 11. 2026: „aby měl vojvoda minimálně 4 dospělé (alespoň 16 let) syny“): vojvoda,
+ * jeho manželky a synové podle `LORD.founders` od id `lordId` – vojvoda, hlavní manželka, vedlejší
+ * od nejstarší, synové od nejstaršího. Rodiče vojvody a manželek neznámí; všechny manželky porodí
+ * nejdřív za 9 měsíců jako po svatbě. Vojvoda má příznak rodu a jméno, je-li zadané. Synové jsou
+ * vojvodovi, matky podle `mother`: příznak rodu, syn hlavní manželky `mainWifeSon` (elitu jim dá
+ * denní pravidlo `markElite`) a jméno vygenerované jako vnukům (`generatedLineName`) – dal ho rod,
+ * hráč ho smí jednou přepsat (`nameByHouse`, absence.md – Jména synů).
  */
 function dynastyFounders(
   lordId: number,
   dwellingId: number,
   day: number,
   name: string | undefined,
+  seed: number,
 ): { people: Person[]; dynasty: DynastyState } {
-  const { lordAge, wifeAges } = LORD.founders;
+  const { lordAge, wifeAges, sons } = LORD.founders;
   const bornDay = (age: number): number => day - Math.ceil(age * DAYS_PER_YEAR);
   const lord: Person = {
     id: lordId,
@@ -399,8 +404,25 @@ function dynastyFounders(
     // první dítě nejdřív za 9 měsíců jako po svatbě (population.md – rozestup porodů)
     nextBirthFrom: day + BIRTH_SPACING.afterWeddingDays,
   }));
+  const people = [lord, ...wives];
+  sons.forEach(({ age, mother }, i) => {
+    const id = lordId + 1 + wifeAges.length + i;
+    people.push({
+      id,
+      bornDay: bornDay(age),
+      dwellingId,
+      sex: 'male',
+      motherId: lordId + 1 + mother,
+      fatherId: lordId,
+      line: true,
+      ...(mother === 0 ? { mainWifeSon: true as const } : {}),
+      // jméno, které nenosí žádný muž rodu mezi zakladateli (vojvoda, starší bratři)
+      name: generatedLineName({ seed, people }, day, id),
+      nameByHouse: true,
+    });
+  });
   return {
-    people: [lord, ...wives],
+    people,
     dynasty: {
       lordId,
       lords: [{ id: lordId, ...(name === undefined ? {} : { name }), fromDay: day }],
@@ -457,10 +479,10 @@ export interface VillageFounding {
    */
   settlers?: Settlers;
   /**
-   * Ves zakládá vojvoda s manželkami (lord.md – Zakladatelé) – `name` jméno vojvody (jen písmena,
-   * `checkPersonName`); bez jména na ně vojvoda čeká. Bez `lord` ves bez rodu se dvěma páry (testy,
-   * starší varianty kalibrace). S osadníky se nepoužije – zakladatele nemění (vojvodou je nejstarší
-   * muž rodu mezi nimi, s vůdcem odchodu `settlers.lordId` on).
+   * Ves zakládá vojvoda s manželkami a syny (lord.md – Zakladatelé) – `name` jméno vojvody (jen
+   * písmena, `checkPersonName`); bez jména na ně vojvoda čeká. Bez `lord` ves bez rodu se dvěma páry
+   * (testy, starší varianty kalibrace). S osadníky se nepoužije – zakladatele nemění (vojvodou je
+   * nejstarší muž rodu mezi nimi, s vůdcem odchodu `settlers.lordId` on).
    */
   lord?: { name?: string };
 }
@@ -500,8 +522,8 @@ export function foundVillage(input: VillageFounding): VillageState {
   const constructionId = settlers ? householdId + 1 : householdId + 1 + people.length;
   const annualNeed = people.reduce((sum, p) => sum + FOOD_NEED_KG_PER_YEAR[ageGroup(p, day)], 0);
   const food = settlers?.food;
-  // zakladatelé první vsi (vojvoda s manželkami) nesou velkou zásobu jídla a osiva jen na setí
-  // (fields.md – Zásoby a nasycení, Start; FOUNDERS_STORES – jako praotec Čech)
+  // zakladatelé první vsi (vojvoda s manželkami a syny) nesou velkou zásobu jídla a osiva jen na
+  // setí (fields.md – Zásoby a nasycení, Start; FOUNDERS_STORES – jako praotec Čech)
   const foundersSeedKg = founders ? annualNeed * FOUNDERS_STORES.seedYears : 0;
   const state: VillageState = {
     seed,
@@ -597,6 +619,7 @@ function foundingPeople(
           householdId,
           day,
           lordName === undefined ? undefined : normalizePersonName(lordName),
+          input.seed,
         )
       : null;
   // zakladatelé jsou dva páry (kinship.md – Pohlaví): manželé 25 let a chlapec s dívkou, kteří

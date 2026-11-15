@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../../calendar';
-import { foundVillage } from '../../core/actions';
+import { foundVillage, startNewDwelling } from '../../core/actions';
+import { isOvercrowded } from '../../buildings/dwellings';
 import type { Settlers } from '../departure';
 import {
   NO_DYNASTY,
@@ -13,6 +14,7 @@ import {
 import { checkPersonName, normalizePersonName } from '../dynasty-names';
 import { foundingLivestock } from '../../livestock/livestock';
 import { familyTrains } from '../lord';
+import { successorOf } from '../succession';
 import { ageGroup, ageYears } from '../people';
 import {
   BIRTH_SPACING,
@@ -37,13 +39,21 @@ const found = (lord?: { name?: string }): VillageState =>
 const byId = (s: VillageState, id: number): Person => s.people.find((p) => p.id === id)!;
 
 describe('zakladatelé rodu', () => {
-  it('ves zakládá vojvoda (25) s hlavní (22) a vedlejšími (20, 18, 16) manželkami', () => {
+  it('ves zakládá vojvoda (42) s hlavní (38) a vedlejšími (35, 25, 20) manželkami a 4 syny', () => {
     const s = found({ name: 'Bořivoj' });
+    expect(s.people.map((p) => ageYears(p.bornDay, DAY))).toEqual([
+      42, 38, 35, 25, 20, 20, 18, 17, 16,
+    ]);
     expect(s.people.map((p) => ageYears(p.bornDay, DAY))).toEqual([
       LORD.founders.lordAge,
       ...LORD.founders.wifeAges,
+      ...LORD.founders.sons.map((son) => son.age),
     ]);
-    expect(s.people.map((p) => p.sex)).toEqual(['male', 'female', 'female', 'female', 'female']);
+    expect(s.people.map((p) => p.sex)).toEqual([
+      'male',
+      ...Array<string>(4).fill('female'),
+      ...Array<string>(4).fill('male'),
+    ]);
     const lord = currentLord(s)!;
     expect(lord.id).toBe(2);
     expect(lord).toMatchObject({ line: true, name: 'Bořivoj', spouseId: 3 });
@@ -55,13 +65,43 @@ describe('zakladatelé rodu', () => {
       true,
       true,
     ]);
-    // rodiče neznámí, manželky bez příznaku rodu, žádné děti
-    for (const p of s.people) {
-      expect(p.fatherId).toBeUndefined();
-      expect(p.motherId).toBeUndefined();
+    // vojvoda a manželky – rodiče neznámí, manželky bez příznaku rodu
+    for (const id of [2, 3, 4, 5, 6]) {
+      expect(byId(s, id).fatherId).toBeUndefined();
+      expect(byId(s, id).motherId).toBeUndefined();
     }
-    expect(s.people.filter((p) => p.line).map((p) => p.id)).toEqual([2]);
+    expect(s.people.filter((p) => p.line).map((p) => p.id)).toEqual([2, 7, 8, 9, 10]);
     expect(s.dynasty).toEqual({ lordId: 2, lords: [{ id: 2, name: 'Bořivoj', fromDay: DAY }] });
+  });
+
+  it('4 dospělí synové vojvody (aspoň 16 let) – matkou hlavní a druhá manželka, jméno od rodu', () => {
+    const s = found({ name: 'Bořivoj' });
+    const sons = s.people.filter((p) => p.fatherId === 2);
+    // Martin 15. 11. 2026: „aby měl vojvoda minimálně 4 dospělé (alespoň 16 let) syny“
+    expect(sons.filter((p) => p.sex === 'male' && ageYears(p.bornDay, DAY) >= 16)).toHaveLength(4);
+    expect(sons.map((p) => [p.id, p.motherId])).toEqual([
+      [7, 3],
+      [8, 3],
+      [9, 4],
+      [10, 4],
+    ]);
+    // muži rodu, syn hlavní manželky má přednost v nástupnictví (elitu mu dá denní pravidlo)
+    for (const son of sons) expect(son).toMatchObject({ line: true, dwellingId: 1 });
+    expect(sons.filter((p) => p.mainWifeSon).map((p) => p.id)).toEqual([7, 8]);
+    expect(sons.some((p) => p.elite || p.spouseId !== undefined)).toBe(false);
+    // jména vygenerovaná jako vnukům – různá, bez jména vojvody; hráč je smí jednou přepsat
+    const names = sons.map((p) => p.name);
+    expect(names.every((n) => n !== undefined && checkPersonName(n).ok)).toBe(true);
+    expect(new Set([...names, 'Bořivoj']).size).toBe(5);
+    expect(sons.every((p) => p.nameByHouse === true)).toBe(true);
+    expect(found({ name: 'Bořivoj' }).people.map((p) => p.name)).toEqual(
+      s.people.map((p) => p.name),
+    );
+    const renamed = nameLineMan(s, 7, 'Mrdomír', DAY);
+    expect(renamed.ok && byId(renamed.state, 7).name).toBe('Mrdomír');
+    // synové od 16 let – nástupce je nejstarší syn hlavní manželky, odchod smí vést ostatní
+    expect(successorOf(s, 2)?.id).toBe(7);
+    expect(sons.every((p) => ageYears(p.bornDay, DAY) >= LORD.leaveMinAge)).toBe(true);
   });
 
   it('jméno se znormalizuje; bez jména vojvoda na jméno čeká', () => {
@@ -73,14 +113,18 @@ describe('zakladatelé rodu', () => {
     expect(() => found({ name: 'Bořivoj II' })).toThrow(RangeError);
   });
 
-  it('všichni na staveništi první zemnice, zásoby a stáda podle potřeby pěti lidí', () => {
+  it('všichni na staveništi první zemnice, zásoby a stáda podle potřeby devíti lidí', () => {
     const s = found({ name: 'Bořivoj' });
     const zemnice = s.constructions[0]!;
-    expect(zemnice).toMatchObject({ id: 7, kind: 'dwelling', dwellingId: 1 });
+    expect(zemnice).toMatchObject({ id: 11, kind: 'dwelling', dwellingId: 1 });
     expect(s.people.every((p) => p.dwellingId === 1)).toBe(true);
     expect(s.manorId).toBe(1);
-    expect(s.nextId).toBe(8);
+    expect(s.nextId).toBe(12);
     const need = s.people.reduce((sum, p) => sum + FOOD_NEED_KG_PER_YEAR[ageGroup(p, DAY)], 0);
+    // 9 dospělých × 180 kg (lord.md – Zakladatelé): 4 860 kg jídla a 3 240 kg osiva
+    expect(need).toBe(9 * FOOD_NEED_KG_PER_YEAR.adult);
+    expect(s.storesKg).toBeCloseTo(4_860 + 3_240, 6);
+    expect(s.reservedSeedKg).toBeCloseTo(3_240, 6);
     // velká zásoba zakladatelů (FOUNDERS_STORES): jídlo na víc let a osivo jen na setí
     const seedKg = need * FOUNDERS_STORES.seedYears;
     expect(s.storesKg).toBeCloseTo(need * FOUNDERS_STORES.foodYears + seedKg, 6);
@@ -113,9 +157,73 @@ describe('zakladatelé rodu', () => {
     expect(later.chronicle.filter((e) => e.kind === 'birth' || e.kind === 'line-birth')).toEqual(
       [],
     );
-    // po dostavění první zemnice bydlí všech pět v ní (5 ze 6 míst – dvorec není přeplněný)
+    // po dostavění první zemnice bydlí všech devět v ní (9 ze 6 míst – dvorec je přeplněný)
     expect(later.dwellings.map((d) => d.id)).toContain(1);
-    expect(later.people.filter((p) => p.dwellingId === 1)).toHaveLength(5);
+    expect(later.people.filter((p) => p.dwellingId === 1)).toHaveLength(9);
+    expect(isOvercrowded(later, 1, later.lastDay)).toBe(true);
+  });
+
+  it('z přeplněného dvorce odejde do dalšího obydlí druhá manželka se syny 17 a 16 let', () => {
+    // bez dalšího obydlí zůstanou všichni v dvorci (lord.md – Manželky, Bydlení)
+    const crowded = advanceVillage(found({ name: 'Bořivoj' }), DAY + 60, null);
+    expect(crowded.dwellings.map((d) => d.id)).toEqual([1]);
+    expect(crowded.people.filter((p) => p.dwellingId === 1)).toHaveLength(9);
+    // vedlejší manželka s nejstarším synem, který by se mohl starat o dům, je rodinou k osídlení –
+    // hráč smí stavět obydlí hned
+    const building = startNewDwelling(
+      crowded,
+      DAY + 60,
+      'zemnice',
+      { x: 40, z: 0, rotation: 0 },
+      0,
+    );
+    const settled = advanceVillage(building, DAY + 150, null);
+    const home = settled.dwellings.find((d) => d.id !== 1)!;
+    const at = (dwellingId: number): number[] =>
+      settled.people.filter((p) => p.dwellingId === dwellingId).map((p) => p.id);
+    expect(at(home.id)).toEqual(expect.arrayContaining([4, 9, 10]));
+    // v dvorci vojvoda, hlavní manželka se syny 20 a 18 let a dvě mladší manželky – 6 ze 6 míst
+    expect(at(1)).toEqual(expect.arrayContaining([2, 3, 5, 6, 7, 8]));
+    expect(at(1).filter((id) => id <= 10)).toHaveLength(6);
+  });
+
+  it('první zemnici a pole staví 5 mužů – stojí dřív než s vojvodou bez synů (D24)', () => {
+    const start = dayIndexOf({ year: 600, month: 3, day: 15 });
+    // pole ≈ 1,7 ha – 75 dílů po 225 m² (jako simulate-fixtures)
+    const parts = Array.from({ length: 75 }, (_, i) => ({
+      areaM2: 225,
+      distanceM: 50 + Math.round((50 * i) / 74),
+      naturalFertility: 70,
+      surface: 'meadow' as const,
+      obstacleCost: 0,
+    }));
+    const founding = (sons: boolean): VillageState => {
+      const s = foundVillage({
+        seed: 7,
+        day: start,
+        dwellingPosition: AT,
+        firstField: {
+          outline: [
+            [0, 0],
+            [10, 0],
+            [10, 10],
+          ],
+          parts,
+        },
+        lord: { name: 'Bořivoj' },
+      });
+      // zakladatelé do 15. 11. 2026 – vojvoda s manželkami, jediný muž
+      if (!sons) s.people = s.people.filter((p) => p.fatherId === undefined);
+      return s;
+    };
+    const withSons = advanceVillage(founding(true), start + 30, null);
+    const alone = advanceVillage(founding(false), start + 30, null);
+    // měření 15. 11. 2026: se syny zemnice 23. den a pole 47. den, vojvoda sám 97. a 212. den
+    expect(withSons.dwellings.map((d) => d.id)).toEqual([1]);
+    expect(alone.dwellings).toEqual([]);
+    const field = (s: VillageState): boolean => s.constructions.some((c) => c.kind === 'field');
+    expect(field(advanceVillage(withSons, start + 60, null))).toBe(false);
+    expect(field(advanceVillage(alone, start + 60, null))).toBe(true);
   });
 
   it('bez vojvody založí ves bez rodu se dvěma páry jako dřív', () => {
@@ -193,12 +301,15 @@ describe('checkPersonName', () => {
 });
 
 describe('nameLineMan', () => {
-  /** Ves rodu bez jména vojvody; syn 8 hlavní manželky čeká na jméno, vnuk 9 už jméno má. */
+  /**
+   * Ves rodu bez jména vojvody; syn 12 hlavní manželky čeká na jméno, vnuk 13 už jméno má, 14 je
+   * dcera (id za zakladateli a stavbou zemnice 11).
+   */
   function withSons(): VillageState {
     const s = found({});
     s.people.push(
       {
-        id: 8,
+        id: 12,
         bornDay: DAY - 400,
         dwellingId: 1,
         sex: 'male',
@@ -207,19 +318,19 @@ describe('nameLineMan', () => {
         line: true,
         mainWifeSon: true,
       },
-      { id: 9, bornDay: DAY - 10, dwellingId: 1, sex: 'male', line: true, name: 'Radim' },
-      { id: 10, bornDay: DAY - 300, dwellingId: 1, sex: 'female', fatherId: 2, motherId: 4 },
+      { id: 13, bornDay: DAY - 10, dwellingId: 1, sex: 'male', line: true, name: 'Radim' },
+      { id: 14, bornDay: DAY - 300, dwellingId: 1, sex: 'female', fatherId: 2, motherId: 4 },
     );
-    s.nextId = 11;
+    s.nextId = 15;
     return s;
   }
 
   it('pojmenuje žijícího muže rodu bez jména – trvale, s kronikou', () => {
     const s = withSons();
-    const named = nameLineMan(s, 8, ' Mrdomír ', DAY + 1);
+    const named = nameLineMan(s, 12, ' Mrdomír ', DAY + 1);
     expect(named.ok).toBe(true);
     if (!named.ok) return;
-    expect(byId(named.state, 8).name).toBe('Mrdomír');
+    expect(byId(named.state, 12).name).toBe('Mrdomír');
     expect(named.state.chronicle.at(-1)).toEqual({
       day: DAY + 1,
       kind: 'line-named',
@@ -227,9 +338,9 @@ describe('nameLineMan', () => {
       who: 'son',
     });
     // vstupní stav se nemění, záznam vojvodů jen u vojvody
-    expect(byId(s, 8).name).toBeUndefined();
+    expect(byId(s, 12).name).toBeUndefined();
     expect(named.state.dynasty).toEqual(s.dynasty);
-    expect(nameLineMan(named.state, 8, 'Bořivoj', DAY + 2)).toEqual({
+    expect(nameLineMan(named.state, 12, 'Bořivoj', DAY + 2)).toEqual({
       ok: false,
       reason: 'Jméno už má – nejde ho změnit.',
     });
@@ -246,14 +357,14 @@ describe('nameLineMan', () => {
   it('odmítne ženu, muže mimo rod, zemřelého, pojmenovaného a neplatné jméno', () => {
     const s = withSons();
     const notLine = { ok: false, reason: 'Jméno dává vojvoda jen mužům rodu.' };
-    expect(nameLineMan(s, 10, 'Mrdomír', DAY)).toEqual(notLine);
+    expect(nameLineMan(s, 14, 'Mrdomír', DAY)).toEqual(notLine);
     expect(nameLineMan(s, 3, 'Mrdomír', DAY)).toEqual(notLine);
     expect(nameLineMan(s, 99, 'Mrdomír', DAY)).toEqual(notLine);
-    expect(nameLineMan(s, 9, 'Mrdomír', DAY)).toEqual({
+    expect(nameLineMan(s, 13, 'Mrdomír', DAY)).toEqual({
       ok: false,
       reason: 'Jméno už má – nejde ho změnit.',
     });
-    expect(nameLineMan(s, 8, 'Bo-ři', DAY)).toEqual({ ok: false, reason: 'Jen písmena.' });
-    expect(nameLineMan(s, 8, ' ', DAY)).toEqual({ ok: false, reason: 'Syn potřebuje jméno.' });
+    expect(nameLineMan(s, 12, 'Bo-ři', DAY)).toEqual({ ok: false, reason: 'Jen písmena.' });
+    expect(nameLineMan(s, 12, ' ', DAY)).toEqual({ ok: false, reason: 'Syn potřebuje jméno.' });
   });
 });
