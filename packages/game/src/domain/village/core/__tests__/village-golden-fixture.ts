@@ -13,8 +13,10 @@ import { newSteward } from '../../steward/steward-state';
 import type { VillageState } from '../../types';
 
 // Společný základ zlatého otisku celé vsi (village-golden.test.ts a village-golden-long.test.ts):
-// ves ze seedu, kterou od založení řídí správce – po 20 letech má 10 polí, stáda, uhlíře, hrnčíře
-// a kováře (železo), 14 lidí a dynastii. Nic se nenačítá z JSONu, ves vyroste jen z kódu.
+// ves ze seedu, kterou od založení řídí správce – po 20 letech (únor 523) má dvorec, zemnici,
+// 20 polí, stáda, 13 lidí, dynastii a zásoby řemeslného zboží, ale žádnou dílnu: otisk tak
+// řemeslníky (uhlíře s milířem, zemnicí u milíře a odnosem uhlí na tyči, hrnčíře, kováře) nehlídá
+// (ověřeno 15. 11. 2026). Nic se nenačítá z JSONu, ves vyroste jen z kódu.
 
 export const YEAR = 365;
 const SETUP_YEARS = 20;
