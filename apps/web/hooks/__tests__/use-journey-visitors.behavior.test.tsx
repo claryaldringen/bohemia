@@ -4,13 +4,16 @@ import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ExpeditionVisitor } from '@bohemia/game';
 import { useJourneyVisitors } from '../use-journey-visitors';
+import { fakeServerEvents, type FakeServerEvents } from './server-events-test-utils';
 
-// Jezdci na mapě vsi (journey.md – Scéna vsi): s jezdci 2× za sekundu, jinak po 5 s; výpadek sítě
-// dotazování nezastaví ani nevyhodí výjimku.
+// Jezdci na mapě vsi (journey.md – Scéna vsi): jeden dotaz při zapnutí, změně vsi a `sync`, dál je
+// nese událost `visitors`; událost jiné vsi se zahodí, stejný klíč se nepřekreslí.
 
 let host: HTMLDivElement;
 let root: Root;
 let seen: ExpeditionVisitor[] = [];
+let renders = 0;
+let events: FakeServerEvents;
 
 beforeEach(() => {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -19,6 +22,8 @@ beforeEach(() => {
   document.body.append(host);
   root = createRoot(host);
   seen = [];
+  renders = 0;
+  events = fakeServerEvents();
 });
 
 afterEach(() => {
@@ -30,8 +35,11 @@ afterEach(() => {
 
 function Probe({ villageId }: { villageId: string | null }): null {
   seen = useJourneyVisitors(villageId, true);
+  renders++;
   return null;
 }
+const render = (villageId: string | null): void =>
+  act(() => root.render(events.wrap(<Probe villageId={villageId} />)));
 
 const visitor: ExpeditionVisitor = {
   journeyId: 'j2',
@@ -47,51 +55,80 @@ const visitor: ExpeditionVisitor = {
   ],
 };
 const ok = (body: unknown): Response => ({ json: () => Promise.resolve(body) }) as Response;
+const flush = async (): Promise<void> => {
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(10);
+  });
+};
 
 describe('useJourneyVisitors', () => {
-  it('bez jezdců se ptá po 5 s, s jezdci 2× za sekundu', async () => {
+  it('bez událostí jeden dotaz', async () => {
     const fetchMock = vi.fn().mockResolvedValue(ok({ visitors: [] }));
     vi.stubGlobal('fetch', fetchMock);
-    act(() => root.render(<Probe villageId="v1" />));
+    render('v1');
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(11_000);
+      await vi.advanceTimersByTimeAsync(60_000);
     });
-    // poprvé hned po otevření mapy (0,5 s), pak po 5 s
-    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(fetchMock.mock.calls[0]![0]).toBe('/api/journey?visitors=v1');
-    fetchMock.mockResolvedValue(ok({ visitors: [visitor] }));
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(5000);
-    });
-    expect(seen).toEqual([visitor]);
-    const calls = fetchMock.mock.calls.length;
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(2000);
-    });
-    expect(fetchMock.mock.calls.length - calls).toBeGreaterThanOrEqual(3);
   });
 
-  it('výpadek sítě a chyba serveru dotazování nezastaví a nechají poslední jezdce', async () => {
+  it('událost téže vsi nastaví jezdce, stejný klíč nepřekreslí', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(ok({ visitors: [] })));
+    render('v1');
+    await flush();
+    act(() => events.emit('visitors', { villageId: 'v1', visitors: [visitor] }));
+    expect(seen).toEqual([visitor]);
+    const before = renders;
+    act(() => events.emit('visitors', { villageId: 'v1', visitors: [{ ...visitor }] }));
+    expect(renders).toBe(before);
+  });
+
+  it('událost jiné vsi se zahodí', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(ok({ visitors: [] })));
+    render('v1');
+    await flush();
+    act(() => events.emit('visitors', { villageId: 'v2', visitors: [visitor] }));
+    expect(seen).toEqual([]);
+  });
+
+  it('prázdný seznam po neprázdném vrátí []', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(ok({ visitors: [] })));
+    render('v1');
+    await flush();
+    act(() => events.emit('visitors', { villageId: 'v1', visitors: [visitor] }));
+    expect(seen).toEqual([visitor]);
+    act(() => events.emit('visitors', { villageId: 'v1', visitors: [] }));
+    expect(seen).toEqual([]);
+  });
+
+  it('výpadek sítě a chyba serveru nechají poslední jezdce; sync se zeptá znovu', async () => {
     vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(ok({ visitors: [visitor] }))
       .mockRejectedValueOnce(new Error('síť'))
-      .mockResolvedValueOnce(ok({ error: 'Nejste přihlášen.' }))
-      .mockResolvedValue(ok({ visitors: [visitor] }));
+      .mockResolvedValueOnce(ok({ error: 'Nejste přihlášen.' }));
     vi.stubGlobal('fetch', fetchMock);
-    act(() => root.render(<Probe villageId="v1" />));
+    render('v1');
+    await flush();
+    expect(seen).toEqual([visitor]);
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(3000);
+      events.resync();
+      await vi.advanceTimersByTimeAsync(10);
     });
-    expect(fetchMock.mock.calls.length).toBeGreaterThanOrEqual(4);
+    await act(async () => {
+      events.resync();
+      await vi.advanceTimersByTimeAsync(10);
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(3);
     expect(seen).toEqual([visitor]);
   });
 
   it('bez vsi se neptá', async () => {
     const fetchMock = vi.fn().mockResolvedValue(ok({ visitors: [] }));
     vi.stubGlobal('fetch', fetchMock);
-    act(() => root.render(<Probe villageId={null} />));
+    render(null);
     await act(async () => {
       await vi.advanceTimersByTimeAsync(6000);
     });

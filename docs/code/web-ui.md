@@ -1132,11 +1132,11 @@ se vykreslí i v testech bez serveru.
   `playerNotices`, i u `unchanged`), po vyslání vojska se `useWarWatch` na ves zeptá hned
   (výprava – `onCommanded` jako dřív). Zjištění D62: Vlkov válku neměl (v DB `bohemia` žádná
   válka ani tažení), server vracel `{ war: null }` a klient se ptal po 5 s – po ½ s se ptal jen
-  na jezdce při výjezdech vojvody. Test `use-war-scene.behavior.test.tsx`.
+  na jezdce při výjezdech vojvody (dnes jezdce nese událost `visitors`). Test `use-war-scene.behavior.test.tsx`.
 
 ## Výjezd vojvody a výpravy – akce, cesta API a dotazování (plán 2026-11-13 – Úloha 7)
 
-Server action `commandExpedition` (`app/game/actions/journey.ts`), `GET /api/journey` (`{ views }`, `?map=`, `?visitors=`) a `useExpeditions(running)` (`hooks/use-journey.ts`) –
+Server action `commandExpedition` (`app/game/actions/journey.ts`), `GET /api/journey` (`{ views }`, `?map=`, `?visitors=`) a `useExpeditions(running)` (`hooks/use-journey.ts`, od plánu 2026-11-15 z událostí serveru) –
 podrobně v [journey.md](journey.md) – Web. Rozhraní ve scéně staví Úlohy 8 a 9.
 
 ## Cizí mapa ve scéně (`ForeignWarScene.tsx`, `hooks/use-army.ts`, `lib/war-scene-view.ts`)

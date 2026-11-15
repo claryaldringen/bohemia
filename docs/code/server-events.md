@@ -72,8 +72,8 @@ s jejím sídlem a políčkem světa, otevřené tažení a cizí mapa ve scén�
 | `c`   | spojení se vsí v `a`                                                       | signál `alarm { villageId }`                 |
 
 - `big` – `c` a `a` platí pro všechna spojení s políčkem / vsí.
-- **Výpočty:** počítadla `Computers` podle druhu úlohy (`pushers.ts` – `serverComputers()`, zatím
-  prázdné; výpravy doplní Úloha 4, tažení a válku Úloha 5), úloha bez počítadla se přeskočí.
+- **Výpočty:** počítadla `Computers` podle druhu úlohy (`pushers.ts` – `serverComputers()`, bez tažení
+  a války, ty doplní Úloha 5; výpravy viz Výpravy níž), úloha bez počítadla se přeskočí.
   Výpočet jde přes slučovač (`coalesce.ts` – `createCoalescer`): začne po `COALESCE_MS = 50`, pro
   klíč běží nejvýš jeden naráz a volání během běhu dají nejvýš jeden další. Výsledek
   `{ name, data, key }` jde spojením hráče se shodným předmětem (`scopeWantsTask`) – každému,
@@ -191,6 +191,28 @@ zobrazené vsi i všechny posluchače.
 - **`evicted`** (páté spojení hráče vyhodilo nejstarší): žádné odklady – nové spojení by vyhodilo
   další panel a tak dokola. Zůstane pojistka a nové spojení přijde s jejím prvním kolem (30 s),
   nebo hned při dalším návratu do panelu.
+
+## Výpravy
+
+- **Počítadla** `createJourneyComputers(deps)` (`lib/server-events/push-journeys.ts`, `serverComputers()`
+  jim v `pushers.ts` předá `expeditionViewsForPlayer` a `expeditionVisitorsOnVillage` z `lib/journey.ts`
+  – tytéž funkce jako `GET /api/journey`, takže hráč nedostane nic, co by přes route neviděl):
+  - `journeys` → `{ name: 'journeys', data: { views }, key: expeditionsKey(views) }`;
+  - `visitors` → `{ name: 'visitors', data: { villageId, visitors }, key: villageId + visitorsKey(visitors) }`.
+  - Klíče (`lib/journey-view.ts`, čisté): takt každé výpravy, resp. skupina + takt + počet lidí –
+    stejný stav spojení podruhé nejde. Prázdný stav má klíč `''`, takže i „nic“ spojení dojde.
+- **Náraz:** worker ukládá jedoucí skupinu zhruba každou sekundu (`JOURNEY_PUSH_MS = 1_000`); pět
+  změn téže výpravy v řadě dá přes slučovač (`COALESCE_MS = 50`) nejvýš dva výpočty `views`.
+- **Klient:** `useExpeditions(running, onPartyEnded)` (`hooks/use-journey.ts`) – jeden
+  `GET /api/journey`, když `running` začne platit, na `sync` (jen s `running`) a na `refresh`;
+  událost `journeys` se při `running` použije jako dřív tělo dotazu (`apply` – interpolace s
+  rozpětím `clamp(now − received, FRAME_MS, 4 × JOURNEY_PUSH_MS)`, `onPartyEnded` při zmizelém
+  hlouččku); snímek po 100 ms zůstává místní. `useJourneyVisitors(villageId, enabled)`
+  (`hooks/use-journey-visitors.ts`) – jeden dotaz při zapnutí (`MapWatch.riders`), změně vsi a na
+  `sync`; událost `visitors` jiné vsi se zahodí, stejný klíč se nepřekreslí. Dotazy jdou přes
+  `useSerialRefresh`.
+- Testy: `lib/server-events/__tests__/push-journeys.test.ts`, `hooks/__tests__/use-journey.behavior.test.tsx`,
+  `use-journey-visitors.behavior.test.tsx`, `lib/__tests__/journey-view.test.ts` (klíče).
 
 ## Den bez workeru
 
