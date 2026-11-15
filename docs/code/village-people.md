@@ -407,8 +407,10 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `SceneLaborShare.parts`, jinak rozpracovaný díl a za ním další; řada stojí hned za čarou práce
   a jde podél řádků), po přeplánování dojde postava na nové místo pěšky (`walkThen`),
   nosiči polem ↔ obydlí (`walkRoute` obchází domy), stavitelé za
-  staveništěm (`siteBox` = vyklízená plocha), dřevorubci u vyhrazených stromů, sad, obvod
-  hřbitova, výmlat u vsi, ženy u vchodu, starší (šediny) u domů a děti u stád (`herdViews`
+  staveništěm (`siteBox` = vyklízená plocha; nadzemní dům bez jámy – srub, vypletený – se nekope:
+  stavitelé po pořadí staví, nosí klády z nejbližší hromady do `SITE_LOG_HAUL_M` a tesají –
+  `TIMBER_ROLES`, D60; všichni stavitelé drží úlohu u stavby – `HOLD_SHARES`), dřevorubci u vyhrazených stromů, sad, obvod
+  hřbitova, výmlat u vsi, nečinní ve dvojicích u domu na straně bez hromady klád (`IDLE_LOG_CLEAR_M`), ženy u vchodu, starší (šediny) u domů a děti u stád (`herdViews`
   ze zvířat). Nikdo nestojí ve vodě (schůdná země se stejnými mezemi jako rastr zvířat, ale přes
   celou krajinu – `walkGroundFor`),
   v domě se šíjí, na pozemku polozemnice ani na hrobech. Pohyb `villager-motion.ts` – čisté funkce skutečného času

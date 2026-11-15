@@ -563,8 +563,12 @@ const HOLD_JOBS: ReadonlySet<PersonJob['kind']> = new Set([
   'fire',
 ]);
 
-/** Práce podílu u objektu dne: kování koně u kůlu, parta porážky u stanoviště. */
-const HOLD_SHARES: ReadonlySet<string> = new Set(['horse-shoeing', 'slaughter']);
+/**
+ * Práce podílu u objektu dne: kování koně u kůlu, parta porážky u stanoviště a stavba – všichni
+ * stavitelé stavby s dnešní prací u ní zůstanou, dokud jim ji obsazení dne dává, nechodí mezi
+ * dávkami domů (Martin 15. 11. 2026: „Proč jde tenhle rolník domů? Měl by stavět.“).
+ */
+const HOLD_SHARES: ReadonlySet<string> = new Set(['horse-shoeing', 'slaughter', 'build']);
 
 /** Kratší práce na místě (`WORK_RANGE_S.short`): domácí práce, nečinní. */
 const SHORT_SHARES: ReadonlySet<string> = new Set(['domestic', 'idle']);

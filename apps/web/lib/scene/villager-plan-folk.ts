@@ -139,21 +139,37 @@ export function domestic(ctx: Context): Placer {
   };
 }
 
-/** Nečinní (společná práce bez staveb): dvojice u domů natočené k sobě. */
+/**
+ * Kolem hromady klád (m od jejího středu) nečinní nepostávají – vypadali by jako stavitelé, kteří
+ * nic nedělají (Martin 15. 11. 2026: „u klád stojí 2 rolníci a nic nedělají“).
+ */
+export const IDLE_LOG_CLEAR_M = 6;
+
+/**
+ * Nečinní (společná práce bez staveb): dvojice u domů natočené k sobě – na straně domu bez
+ * hromady klád (`IDLE_LOG_CLEAR_M`); kde jsou klády u obou stran, dvojice není.
+ */
 export function idlers(ctx: Context): Placer {
   const homes = [...ctx.homes].sort((a, b) => a.id - b.id);
+  const stacks = ctx.village.logStacks ?? [];
+  const nearLogs = (x: number, z: number): boolean =>
+    stacks.some((s) => Math.hypot(s.x - x, s.z - z) < IDLE_LOG_CLEAR_M);
   return (i) => {
     const home = homes[Math.floor(i / 2) % homes.length];
     if (!home) return null;
     const pair = Math.floor(i / (2 * homes.length));
-    const side = pair % 2 === 0 ? 1 : -1;
-    const edge = side > 0 ? home.box.maxX + 2.4 : home.box.minX - 2.4;
-    const base = worldPoint(home.position, edge, 0.5 - pair);
     const across = unit(Math.cos(home.position.rotation), -Math.sin(home.position.rotation));
     const k = i % 2 === 0 ? -gap(0.7) : gap(0.7);
-    const spot = nearestFree(ctx, base.x + across.x * k, base.z + across.z * k, 2);
-    if (!spot) return null;
-    return stand(spot.x, spot.z, -across.x * Math.sign(k), -across.z * Math.sign(k), 'idle');
+    // napřed strana podle dvojice, u klád druhá strana domu
+    for (const flip of [false, true]) {
+      const side = (pair % 2 === 0) !== flip ? 1 : -1;
+      const edge = side > 0 ? home.box.maxX + 2.4 : home.box.minX - 2.4;
+      const base = worldPoint(home.position, edge, 0.5 - pair);
+      const spot = nearestFree(ctx, base.x + across.x * k, base.z + across.z * k, 2);
+      if (!spot || nearLogs(spot.x, spot.z)) continue;
+      return stand(spot.x, spot.z, -across.x * Math.sign(k), -across.z * Math.sign(k), 'idle');
+    }
+    return null;
   };
 }
 

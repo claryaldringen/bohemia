@@ -1067,11 +1067,11 @@ describe('obsazení dne jako člověk → úloha (villagers.md – Divadlo)', ()
       if (kind === 'plough' || kind === 'cart') expect(t.pose).toBeNull();
       else expect(t.at).not.toBeNull();
     }
-    // první stavitel u stavby drží úlohu, další stavitel pracuje na místě
+    // stavitelé u stavby drží úlohu – nechodí mezi dávkami domů (Martin 15. 11. 2026)
     const build = [...tasks.values()].filter(
       (t) => t.job.kind === 'share' && t.job.activity === 'build',
     );
-    expect(build.map((t) => t.kind).sort()).toEqual(['bout', 'hold']);
+    expect(build.map((t) => t.kind)).toEqual(['hold', 'hold']);
   });
 
   it('role fází z plánu dne (villager-phases.ts): žnec váže snopy, starší a nečinní o žních na pole', () => {
