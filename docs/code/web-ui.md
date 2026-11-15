@@ -91,10 +91,19 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
     → `cartRoutesOf` → `withCartRouteResult`. `applyVillage` posílá požadavek Web Workeru
     (`lib/cart-router.ts` → `lib/cart-routes.worker.ts`, `new Worker(new URL(…, import.meta.url))`
     – Turbopack ho sbalí jako vlastní chunk); worker dostane krajinu jednou (`LandscapeTransfer`)
-    a paměť mřížek žije v něm. Pohled se použije až s trasami dne (`applyTicket` – novější pohled
-    má přednost, akce vrátí výsledek až po použití); bez `Worker`, po jeho chybě nebo když
-    neodpoví do `CART_ROUTES_TIMEOUT_MS` (5 s – mlčící Worker by navždy zastavil frontu akcí
-    i dotazování na ves; D60) se totéž spočítá v hlavním vlákně. První pohled spočítá hlavní vlákno (jednou při načtení stránky).
+    a paměť mřížek žije v něm. **Na trasy nic nečeká** (D63, Martin 15. 11. 2026: „Výpočet tras
+    vozů přece nemůže zablokovat hru“): `applyVillage` použije pohled hned s posledními známými
+    trasami (`carriedCartRoutes` – vůz se stejným id, druhem a cílem po své poslední trase,
+    spřežení se stejnými cíli po poslední cestě, jinak zatím bez trasy; paměť `CartRoutesMemo`)
+    a s trasami z Workeru ho použije znovu, jen když mezitím nepřišel novější pohled
+    (`applyTicket`). Dotazování na ves ani fronta akcí tak na Worker nečekají – dřív mlčící Worker
+    (D60) zastavil obojí a akce se vůbec neodeslala; časový limit z D60 je pryč. Router platí jen
+    pro poslední požadavek (dřívější, na který Worker neodpověděl, skončí `null`; po `dispose`
+    taky), mlčící Worker tak drží nejvýš jeden požadavek a vozy zůstanou u posledních tras. Bez
+    `Worker` nebo po jeho chybě se totéž spočítá v hlavním vlákně. První pohled spočítá hlavní
+    vlákno (jednou při načtení stránky) a dá první paměť tras. Testy `cart-router.test.ts`,
+    `cart-routes.test.ts` (`carriedCartRoutes`), `use-village-sync.behavior.test.tsx` (akce
+    i dotaz projdou, i když Worker nikdy neodpoví).
 - **Nabídky panelů až na vyžádání** (`lib/panel-options.ts`, server action `getPanelOptions`,
   `panelOptionsForPlayer`): kompas zemských stezek (`trailOptions` – 8 plánů tras se dřevem
   a průseky) a „Vysadit jabloně“ u cesty (`roadApplesOption`) se v pohledu nepočítají – stály ≈ 90 ms
@@ -1095,9 +1104,21 @@ se vykreslí i v testech bez serveru.
 
 - **Válka ve scéně** (`hooks/use-war-scene.ts`, war.md – Ve scéně – napojení na hru):
   `useWarScene(url, enabled)` – vlastní mapa `GET /api/war-scene/<sídlo>`, cizí mapa
-  `GET /api/campaign/<id>?scene=x,y`; po otevření hned, při válce na mapě 2× za sekundu
-  (`WAR_SCENE_POLL_MS`), jinak po 5 s (`WAR_SCENE_IDLE_MS`); nový stav jen s novým taktem.
-  `undefined` = server ještě neodpověděl, `null` = na mapě nic.
+  `GET /api/campaign/<id>?scene=x,y`; po otevření (a po zapnutí) hned, při válce na mapě 2× za
+  sekundu (`WAR_SCENE_POLL_MS`), jinak po 5 s (`WAR_SCENE_IDLE_MS`); nový stav jen s novým taktem.
+  `undefined` = server ještě neodpověděl, `null` = na mapě nic. **Vlastní mapa jen, když na ni
+  míří nebo na ní je vojsko** (D62, Martin 15. 11. 2026: „klient nemůže pollovat server každou
+  půlvteřinu kvůli válce, která teď ani nemůže nastat“): `useWarWatch` ho zapne podle
+  `MapWatch.war`, jinak se na válku vůbec neptá. `MapWatch` (`mapWatchFor` v
+  `application/war-scene.ts`, web `mapWatchForPlayer`) – `war`: hráč má tažení (`activeOf`), nebo
+  běží cizí tažení proti vsi, s jejím varováním či s uprchlíky v ní (`activeAlarming`); `riders`:
+  na mapě stojí skupina výpravy (`JourneyRepository.onCell`) – podle něj se zapne
+  `useJourneyVisitors` (journey.md). Levné (otisk vsi, sídlo, seznamy id – bez stavů); přijde
+  s prvním pohledem stránky (`initialWatch`) a s každou odpovědí dotazu na ves (`watch` vedle
+  `playerNotices`, i u `unchanged`), po vyslání vojska se `useWarWatch` na ves zeptá hned
+  (výprava – `onCommanded` jako dřív). Zjištění D62: Vlkov válku neměl (v DB `bohemia` žádná
+  válka ani tažení), server vracel `{ war: null }` a klient se ptal po 5 s – po ½ s se ptal jen
+  na jezdce při výjezdech vojvody. Test `use-war-scene.behavior.test.tsx`.
 
 ## Výjezd vojvody a výpravy – akce, cesta API a dotazování (plán 2026-11-13 – Úloha 7)
 

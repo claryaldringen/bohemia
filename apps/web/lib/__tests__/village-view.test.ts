@@ -107,7 +107,10 @@ async function fakeWorkerRoutes(
   scope.Worker = FakeWorker;
   try {
     const router = cartRouter({} as LandscapeTransfer, decoded);
-    return await Promise.all(requests.map((r) => router.routes(r)));
+    // router platí jen pro poslední požadavek – ptát se po jednom
+    const results: CartRoutesResult[] = [];
+    for (const r of requests) results.push((await router.routes(r))!);
+    return results;
   } finally {
     delete scope.Worker;
     delete scope.self;
@@ -3077,7 +3080,7 @@ describe('buildVillageView – tesař a vozy (wagons.md)', () => {
       JSON.stringify(buildVillageView(record(s), landscape, DAY).scene),
     ) as SceneVillage;
     const request = cartRoutesRequest(viewed)!;
-    const plain = await cartRouter({} as LandscapeTransfer, landscape).routes(request);
+    const plain = (await cartRouter({} as LandscapeTransfer, landscape).routes(request))!;
     expect(withCartRouteResult(viewed, plain)).toEqual(routedScene(s));
     const fake = await fakeWorkerRoutes(landscape, [request, request]);
     expect(fake).toEqual([plain, plain]);

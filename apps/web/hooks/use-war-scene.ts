@@ -11,7 +11,8 @@ import { usePolling } from './use-polling';
 
 // Válka ve scéně (war.md – Ve scéně – napojení na hru; web-ui.md – Dotazování na válku ve scéně):
 // vlastní mapa `GET /api/war-scene/<sídlo>`, cizí mapa `GET /api/campaign/<id>?scene=x,y` – při
-// válce na mapě 2× za sekundu, jinak po 5 s. Nový stav jen při novém taktu nebo jiném tažení
+// válce na mapě 2× za sekundu, jinak po 5 s; vlastní mapa jen, když dotaz na ves hlásí válku na mapě
+// (`MapWatch.war`, D62 – `enabled`), jinak vůbec. Nový stav jen při novém taktu nebo jiném tažení
 // (scéna se zbytečně nepřekresluje).
 
 /**
@@ -22,10 +23,11 @@ export function useWarScene(url: string, enabled: boolean): WarSceneView | null 
   const [war, setWar] = useState<WarSceneView | null | undefined>(undefined);
   const lastRef = useRef<WarSceneView | null | undefined>(undefined);
 
+  // jiná mapa nebo vypnuté dotazování – po zapnutí se zeptá hned (ne až po 5 s)
   useEffect(() => {
     lastRef.current = undefined;
     setWar(undefined);
-  }, [url]);
+  }, [url, enabled]);
 
   const poll = useCallback(async (): Promise<void> => {
     const response = await fetch(url, { cache: 'no-store' });

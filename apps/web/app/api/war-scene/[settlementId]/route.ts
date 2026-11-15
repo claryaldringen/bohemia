@@ -21,7 +21,8 @@ export async function GET(
       headers: NO_STORE,
     });
   }
-  // scéna se ptá po 5 s, dokud je hra otevřená – hráč je u hry (war.md – Hráč ve vsi a mimo ni)
+  // scéna se ptá po 5 s, dokud na mapu míří nebo na ní je vojsko (`MapWatch.war`) – hráč je u hry
+  // (war.md – Hráč ve vsi a mimo ni); jinak přítomnost zapíše dotaz na ves
   await notePlayerPresent(session.user.id);
   const { settlementId } = await context.params;
   // id sídla je uuid – cokoli jiného se do úložiště vůbec neposílá

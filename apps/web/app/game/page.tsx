@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation';
+import { MAP_QUIET } from '@bohemia/game';
 import type { ReactElement } from 'react';
 import { VillageGame } from '@/components/game/VillageGame';
 import { gameEntryForPlayer, languageChoiceForPlayer, playerToday } from '@/lib/game';
@@ -6,6 +7,7 @@ import { encodeLandscape } from '@/lib/landscape-transfer';
 import { getSession } from '@/lib/session';
 import { villageViewForEntry } from '@/lib/village';
 import { selectedVillageId } from '@/lib/village-cookie';
+import { mapWatchForPlayer } from '@/lib/war-scene';
 import { currentWorld } from '@/lib/world';
 
 export default async function GamePage(): Promise<ReactElement> {
@@ -19,6 +21,11 @@ export default async function GamePage(): Promise<ReactElement> {
   ]);
   const village = await villageViewForEntry(entry, today, session.user.id);
   const languageChoice = await languageChoiceForPlayer(session.user.id, entry.villageId !== null);
+  // válka a jezdci na mapě – scéna se na ně ptá jen tehdy (D62)
+  const watch =
+    entry.villageId === null
+      ? MAP_QUIET
+      : await mapWatchForPlayer(session.user.id, entry.villageId);
 
   return (
     <main className="h-screen overflow-hidden select-none">
@@ -38,6 +45,7 @@ export default async function GamePage(): Promise<ReactElement> {
             : null
         }
         initialNowMs={Date.now()}
+        initialWatch={watch}
       />
     </main>
   );

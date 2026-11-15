@@ -1,10 +1,17 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react';
-import type { Landscape, PlayerNotice, WorldClock } from '@bohemia/game';
+import type { Landscape, MapWatch, PlayerNotice, WorldClock } from '@bohemia/game';
 import { getVillageView } from '@/app/game/actions';
 import { usePolling } from '@/hooks/use-polling';
-import { cartRoutesRequest, withCartRouteResult, withCartRoutes } from '@/lib/cart-routes';
+import {
+  carriedCartRoutes,
+  cartRoutesMemo,
+  cartRoutesOf,
+  cartRoutesRequest,
+  withCartRouteResult,
+  type CartRoutesMemo,
+} from '@/lib/cart-routes';
 import { cartRouter } from '@/lib/cart-router';
 import { setE2EHook } from '@/lib/e2e-hooks';
 import type { LandscapeTransfer } from '@/lib/landscape-transfer';
@@ -24,7 +31,7 @@ import {
 } from './village-data';
 
 export interface VillageSync {
-  /** Poslední použitý stav vsi ze serveru (s trasami vozů dne). */
+  /** Poslední použitý stav vsi ze serveru (s trasami vozů – do dopočtu nových s posledními). */
   village: VillageData;
   /** Pohled na ves, nebo null (ještě nezaložená, chyba). */
   view: VillageView | null;
@@ -38,12 +45,15 @@ export interface VillageSync {
   runBuildAction: (action: () => Promise<ActionResult>) => Promise<void>;
   /** Zeptá se na ves hned (i s upozorněními) – např. po návratu vojvody z výjezdu. */
   refresh: () => void;
+  /** Válka nebo jezdci na mapě vsi – jen tehdy se scéna ptá na válku a jezdce (D62). */
+  watch: MapWatch;
 }
 
 /**
  * Stav vsi ze serveru (web-ui.md – Dotazování na ves): dotaz na začátku dalšího herního dne
- * (`usePolling`), použití nového pohledu s trasami vozů z Web Workeru (`cartRouter`), pořadí
- * odpovědí a fronta akcí. Upozornění mezi hráči z odpovědi předá `playerNotices` (ref – obsluhu
+ * (`usePolling`), použití nového pohledu hned a tras vozů z Web Workeru (`cartRouter`), až dojdou,
+ * pořadí odpovědí a fronta akcí. Odpověď dotazu řekne i, jestli je na mapě válka nebo jezdci
+ * (`watch`). Upozornění mezi hráči z odpovědi předá `playerNotices` (ref – obsluhu
  * skládají panely, které potřebují `viewRef`), nová upozornění vsi `pushNotice`.
  */
 export function useVillageSync({
@@ -54,8 +64,11 @@ export function useVillageSync({
   clock,
   pushNotice,
   playerNotices,
+  initialWatch,
 }: {
   initialVillage: VillageData;
+  /** Válka a jezdci na mapě při načtení stránky (`mapWatchForPlayer`). */
+  initialWatch: MapWatch;
   landscape: LandscapeTransfer;
   decoded: Landscape;
   settlementId: string;
@@ -63,12 +76,12 @@ export function useVillageSync({
   pushNotice: (notice: Omit<NoticeLine, 'id'>) => void;
   playerNotices: RefObject<(received: readonly PlayerNotice[] | undefined) => void>;
 }): VillageSync {
-  // trasy vozů a spřežení spočítá prohlížeč z cílů, které poslal server (cart-routes.ts)
-  const [village, setVillage] = useState<VillageData>(() =>
-    isVillageView(initialVillage)
-      ? { ...initialVillage, scene: withCartRoutes(initialVillage.scene, decoded) }
-      : initialVillage,
-  );
+  // trasy vozů a spřežení spočítá prohlížeč z cílů, které poslal server (cart-routes.ts); první
+  // pohled v hlavním vlákně (jednou při načtení stránky)
+  const [first] = useState(() => firstVillage(initialVillage, decoded));
+  const [village, setVillage] = useState<VillageData>(first.village);
+  // Děje se na mapě vsi něco, na co se scéna ptá zvlášť (válka, jezdci)? Řekne dotaz na ves (D62).
+  const [watch, setWatch] = useState<MapWatch>(initialWatch);
   const view = isVillageView(village) ? village : null;
   const villageError = village !== null && 'error' in village ? village.error : null;
   const gameOver = view?.gameOver === true;
@@ -98,13 +111,17 @@ export function useVillageSync({
     return () => setE2EHook('cartRoutes', undefined);
   }, [router]);
   const applyTicket = useRef(0);
+  // poslední spočítané trasy – nový pohled jede s nimi, než dojdou jeho vlastní
+  const routesMemo = useRef<CartRoutesMemo | null>(first.memo);
 
   /**
-   * Použije nový stav vsi a ohlásí upozornění, která mezitím nově vznikla. Pohled se použije až
-   * s trasami vozů dne (z Workeru); novější pohled, který mezitím přišel, má přednost.
+   * Použije nový stav vsi hned a ohlásí upozornění, která mezitím nově vznikla. Trasy vozů dne
+   * počítá Web Worker mimo kritickou cestu (D63): do té doby pohled jede s posledními známými
+   * trasami (`carriedCartRoutes`), s novými se použije znovu – jen když mezitím nepřišel novější
+   * pohled. Na trasy tak nečeká dotazování na ves ani fronta akcí.
    */
   const applyVillage = useCallback(
-    async (received: VillageData): Promise<void> => {
+    (received: VillageData): void => {
       const ticket = ++applyTicket.current;
       // kusy pohledu, které server vynechal (klient je má), se doplní z posledního pohledu
       // (view-pieces.ts); trasy vozů a spřežení spočítá prohlížeč z cílů dne (cart-routes.ts)
@@ -113,14 +130,24 @@ export function useVillageSync({
         : { view: null, lost: false };
       let next: VillageData = received;
       if (unpacked.view) {
-        const scene = keepSceneData(unpacked.view.scene, viewRef.current?.scene);
+        const view = unpacked.view;
+        const scene = keepSceneData(view.scene, viewRef.current?.scene);
         const request = cartRoutesRequest(scene);
-        next = {
-          ...unpacked.view,
-          scene: request ? withCartRouteResult(scene, await router.routes(request)) : scene,
-        };
+        if (request) {
+          const carried = carriedCartRoutes(scene, request, routesMemo.current);
+          const applied: VillageView = { ...view, scene: withCartRouteResult(scene, carried) };
+          next = applied;
+          void router.routes(request).then((result) => {
+            if (result === null) return;
+            routesMemo.current = cartRoutesMemo(scene, request, result);
+            if (ticket !== applyTicket.current) return;
+            const routed: VillageView = { ...view, scene: withCartRouteResult(scene, result) };
+            if (viewRef.current === applied) viewRef.current = routed;
+            if (noticedRef.current === applied) noticedRef.current = routed;
+            setVillage(routed);
+          });
+        } else next = { ...view, scene };
       }
-      if (ticket !== applyTicket.current) return;
       setVillage(next);
       if (!isVillageView(next)) return;
       // zahozená trasy nebo vyšlapanost: další dotaz bez otisku, ať doručí plný pohled hned
@@ -151,6 +178,11 @@ export function useVillageSync({
     });
     // Server upozornění už označil za přečtená – ukázat i z odpovědi, která se jinak zahodí.
     if (result !== null && 'playerNotices' in result) playerNotices.current(result.playerNotices);
+    // co se děje na mapě vsi (válka, jezdci) – i z nezměněného pohledu (D62)
+    if (result !== null && 'watch' in result && result.watch) {
+      const fresh = result.watch;
+      setWatch((old) => (old.war === fresh.war && old.riders === fresh.riders ? old : fresh));
+    }
     if (busyRef.current || seq < appliedSeq.current) return;
     appliedSeq.current = seq;
     // Hráč ještě nemá ves – dorazila jen upozornění; ves, kterou jsme měli, zmizela (jako null).
@@ -169,7 +201,7 @@ export function useVillageSync({
     // Chyba (např. odhlášení v jiném panelu) poslední pohled na ves nesmaže – jen se ohlásí.
     if (result !== null && 'error' in result && viewRef.current) {
       pushNotice({ kind: 'error', tone: 'error', text: result.error });
-    } else await applyVillage(result);
+    } else applyVillage(result);
   }, [applyVillage, playerNotices, pushNotice, settlementId]);
   // Další dotaz na začátku dalšího herního dne hráče (nejdřív za 5 s, nejpozději za 86 s) – ves
   // se dopočítává po dnech, akce vracejí čerstvou ves samy.
@@ -195,7 +227,7 @@ export function useVillageSync({
           const result = await action();
           if (result !== null && 'error' in result) return result.error;
           appliedSeq.current = Math.max(appliedSeq.current, seq);
-          await applyVillage(result);
+          applyVillage(result);
           return null;
         } catch (error) {
           console.error('Akce vsi selhala.', error);
@@ -219,5 +251,28 @@ export function useVillageSync({
     [runAction, pushNotice],
   );
 
-  return { village, view, villageError, viewRef, runAction, runBuildAction, refresh: pollNow };
+  return {
+    village,
+    view,
+    villageError,
+    viewRef,
+    runAction,
+    runBuildAction,
+    refresh: pollNow,
+    watch,
+  };
+}
+
+/** První pohled s trasami vozů z hlavního vlákna a paměť tras pro další pohledy. */
+function firstVillage(
+  initial: VillageData,
+  decoded: Landscape,
+): { village: VillageData; memo: CartRoutesMemo | null } {
+  const request = isVillageView(initial) ? cartRoutesRequest(initial.scene) : null;
+  if (!isVillageView(initial) || !request) return { village: initial, memo: null };
+  const result = cartRoutesOf(request, decoded);
+  return {
+    village: { ...initial, scene: withCartRouteResult(initial.scene, result) },
+    memo: cartRoutesMemo(initial.scene, request, result),
+  };
 }

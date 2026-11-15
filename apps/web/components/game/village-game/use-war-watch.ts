@@ -43,6 +43,8 @@ export function useWarWatch({
   world,
   homeCell,
   villageId,
+  watchWar,
+  refreshVillage,
 }: {
   scene: LandscapeScene | null;
   settlementId: string;
@@ -51,10 +53,18 @@ export function useWarWatch({
   homeCell: GridCell | null;
   /** Zobrazená ves (rozkaz „Probít se“). */
   villageId: string | null;
+  /** Válka na mapě podle dotazu na ves (`MapWatch.war`) – jinak se na válku vůbec neptá (D62). */
+  watchWar: boolean;
+  /** Zeptá se na ves hned – po vyslání vojska se tak hned dozví o válce na mapě. */
+  refreshVillage: () => void;
 }): WarWatch {
   // Válka na mapě sídla ve scéně (war.md – Ve scéně – napojení na hru): napadená ves i vlastní
-  // vojsko na mapě; co je vidět, rozhodl server (mlha války), scéna jen kreslí.
-  const warScene = useWarScene(`/api/war-scene/${settlementId}`, scene !== null && !gameOver);
+  // vojsko na mapě; co je vidět, rozhodl server (mlha války), scéna jen kreslí. Ptá se jen, když
+  // dotaz na ves hlásí válku na mapě (D62).
+  const warScene = useWarScene(
+    `/api/war-scene/${settlementId}`,
+    scene !== null && !gameOver && watchWar,
+  );
   useEffect(() => {
     scene?.setWar(sceneWarOf(warScene ?? null, world));
   }, [scene, warScene, world]);
@@ -82,7 +92,11 @@ export function useWarWatch({
     () => ({
       load: (input) => getArmyPanel(input),
       plan: (plan) => planArmyCampaign({ plan }),
-      launch: (plan) => launchArmyCampaign({ plan }),
+      launch: async (plan) => {
+        const launched = await launchArmyCampaign({ plan });
+        if (!('error' in launched)) refreshVillage();
+        return launched;
+      },
       campaigns: () => getMyCampaigns(),
       campaign: {
         lead: (input) => commandLeader(input),
@@ -92,7 +106,7 @@ export function useWarWatch({
       },
       scene: sceneWatch,
     }),
-    [sceneWatch],
+    [sceneWatch, refreshVillage],
   );
   return { breakout, orderDefenderBreakout, watching, backHome, armyActions };
 }

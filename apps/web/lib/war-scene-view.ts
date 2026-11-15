@@ -31,7 +31,10 @@ export type WarSceneResponse = { war: WarSceneView | null } | { error: string };
 
 /** Dotaz při válce na mapě 2× za sekundu (takty boje jsou 4 za sekundu – jako tažení). */
 export const WAR_SCENE_POLL_MS = 500;
-/** Bez války na mapě jednou za 5 s – vojsko jde po mapě minuty, pozdní začátek nevadí. */
+/**
+ * Válka na mapu míří (`MapWatch.war`), ale vidět ještě není – jednou za 5 s (vojsko jde po mapě
+ * minuty, pozdní začátek nevadí). Bez války na mapě se vlastní mapa neptá vůbec (D62).
+ */
 export const WAR_SCENE_IDLE_MS = 5_000;
 
 /** Odpověď `GET /api/campaign/[id]?map=x,y` – krajina cizí mapy, nebo chyba (404 – mapu nezná). */

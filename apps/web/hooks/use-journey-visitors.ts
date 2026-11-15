@@ -11,7 +11,8 @@ import { usePolling } from './use-polling';
 
 // Jezdci na mapě vsi (lord-control.md – Soused; journey.md – Scéna vsi): `GET /api/journey?visitors=`
 // – vlastní výjezd vždy, cizí jen v dohledu domů. S jezdci na mapě 2× za sekundu, jinak po 5 s
-// (jako válka ve scéně – use-war-scene.ts). Nový seznam jen při změně taktu nebo výjezdů.
+// (jako válka ve scéně – use-war-scene.ts); jen když dotaz na ves hlásí výpravu na mapě
+// (`MapWatch.riders`, D62 – `enabled`), jinak vůbec. Nový seznam jen při změně taktu nebo výjezdů.
 
 const NONE: ExpeditionVisitor[] = [];
 
@@ -29,10 +30,11 @@ export function useJourneyVisitors(
   // klíč posledního seznamu; null – server ještě neodpověděl
   const keyRef = useRef<string | null>(null);
 
+  // jiná ves nebo vypnuté dotazování – po zapnutí se zeptá hned (ne až po 5 s)
   useEffect(() => {
     keyRef.current = null;
     setVisitors(NONE);
-  }, [villageId]);
+  }, [villageId, enabled]);
 
   const poll = useCallback(async (): Promise<void> => {
     if (villageId === null) return;

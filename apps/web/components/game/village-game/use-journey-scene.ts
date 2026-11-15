@@ -18,14 +18,17 @@ export function useJourneyScene({
   villageId,
   cell,
   own,
+  watchRiders,
 }: {
   scene: LandscapeScene | null;
+  /** Výprava na mapě podle dotazu na ves (`MapWatch.riders`) – jinak se na jezdce neptá (D62). */
+  watchRiders: boolean;
   villageId: string | null;
   /** Políčko světa vsi ve scéně. */
   cell: GridCell | null;
   own: readonly ExpeditionView[];
 }): SceneJourney[] {
-  const visitors = useJourneyVisitors(villageId, scene !== null);
+  const visitors = useJourneyVisitors(villageId, scene !== null && watchRiders);
   const journeys = useMemo(
     () => sceneJourneysOf({ own, visitors, cell, villageId }),
     [own, visitors, cell, villageId],

@@ -1677,7 +1677,8 @@ alarm.owner.lordId, den)` (`people` ve `WarSceneDefender` z téže mezipaměti);
   > pak ukáže skupiny, bojovníky i průvody a posly bez ohledu na dohled domů, takže vojsko, které ves
   > jen míjí, je s vojvodou doma vidět celé. S vojvodou na výjezdu platí mlha jako dřív.
 - **Web:** route `GET /api/war-scene/<sídlo>` (`lib/war-scene.ts`, `no-store`) → `{ war }`; cizí
-  sídlo i mapa bez války = `{ war: null }`. `useWarScene` (web-ui.md – Dotazování na tažení)
+  sídlo i mapa bez války = `{ war: null }`. Klient se ptá jen s `MapWatch.war` (`mapWatchFor` – vlastní
+  tažení nebo cizí tažení proti vsi; D62, web-ui.md – Válka ve scéně). `useWarScene` (web-ui.md – Dotazování na tažení)
   a `sceneWarOf` (`lib/war-scene-view.ts`) → `LandscapeScene.setWar` v `useWarWatch`. Na vlastní
   mapě bez závoje mlhy (svou zem hráč zná; cizí mimo dohled server neposlal), padlí do konce dne.
   Útěk `flightOf` – `planFlight` po okrajích lesa, `startMs = msOfTick(startTick)` (null → −∞,
@@ -1840,7 +1841,9 @@ seen_at)`, jeden řádek na hráče (migrace `0051_player_presence`). Port `Pres
 nepřepíše novější), `lastSeen(playerIds)` vrací mapu ms jen pro hráče se zápisem; adaptér
 `adapters/presence-repository.ts`. Zapisuje web: `notePlayerPresent` (`apps/web/lib/game.ts`) s procesní
 mapou, nejvýš jednou za `PRESENCE_NOTE_MS` (10 s, návrh Clauda); volá ho `notePlayerActive` (akce,
-dotaz na ves, pohled na varování) a `GET /api/war-scene/<sídlo>` (scéna se ptá po 5 s, dokud je hra
+dotaz na ves, pohled na varování) a `GET /api/war-scene/<sídlo>` (scéna se ptá po 5 s, dokud na mapu
+míří nebo na ní je vojsko – `MapWatch.war`, web-ui.md – Válka ve scéně; jinak přítomnost zapíše dotaz
+na ves; dřív se scéna ptala, dokud byla hra
 otevřená). Přítomnost je po hráči, ne po vsi. Čte ji worker (Odpověď workeru níž).
 
 **Vojvoda doma (`war/lord-home.ts`).** `AlarmOwner.lordId` = hráčův muž (`house.lord_person_id`) jen
