@@ -290,6 +290,16 @@ a `food` (kg obilí ze zásob shromaždiště).
   v cíli cíl varuje: do schránky cílové vsi jde `threat-signal` s `army-seen` (den po dni dezerce;
   body `army-seen` vlastní schránka zatím nemá – signál hrozby je stávající tělo). Dezerce z hladu
   živě vedeného tažení a odchod dezertéra z bojiště: Hráč ve vsi a mimo ni – Živé vedení bez rozkazu.
+- **Dezertér jde domů hned** (Martin 15. 11. 2026; `sendHome` v `campaign.ts`, `deserterHomeDay`
+  v `desertion.ts`): v den dezerce (hlad i nucení) dostane jeho ves den nato `away-ends`
+  (`refId` = id tažení, `personIds`, `untilDay`) – ve vsi je pryč jen do dne dezerce + cesta domů
+  (`endAway`, `returnHome` – kronika „vrátil se domů z tažení“). Cesta = `walkDays` (vzdušnou čarou
+  tempem pěšího jako `daysHome`; návrh Clauda) z místa jeho skupiny do jeho vsi (`homes`, jinak
+  shromaždiště), nejméně 1 den; strana mapy je konstanta `LANDSCAPE_SIZE × CELL_SIZE_M`, mapy se
+  nečtou. Dezertéři téže vsi se stejným dnem jdou jednou událostí. Den si nese
+  `CampaignMember.homeDay` a návrat tažení (`returnOf`) takového dezertéra už nevrací; dezertér ze
+  staršího bodu bez `homeDay` se vrací s koncem tažení jako dřív. Raněný dezertér (`wounded`) přijde
+  domů zdravý (`returnOf.wounded` bere jen aktivní) – neměněno.
 - Právo: `ACTION_RIGHTS` `planCampaign` a `launchCampaign` = `war`; ve web `lib/village.ts`
   `planCampaignActionForPlayer` / `launchCampaignActionForPlayer` (přes `guardedAction`),
   `lib/army.ts` je skládá s `LaunchDeps` (`GameDeps.campaigns`).
@@ -1251,8 +1261,9 @@ co se stalo, a pošle to do schránek vsí na **následující den** (rozhodnut�
 - **Kořist s vojskem**: `CampaignLoot.detail` (rozpis), `people` (snímky odvedených ke dni nájezdu),
   `foodKg`/`herd` součty (stádo zpomalí návrat); odvedení i v `captives`.
 - **`campaign-return`** (`finish` – každé domovské vsi mužů, kořist a odvedení jen vsi
-  shromaždiště): `applyCampaignReturn` zruší `away` tažení mužům `back` (aktivní a dezertéři, ne
-  zajatí), raněným dá 60 dní od `CampaignMember.woundedDay` a los smrti, padlí vesničané zemřou bez
+  shromaždiště): `applyCampaignReturn` zruší `away` tažení mužům `back` (aktivní a dezertéři ze
+  starších bodů bez `homeDay` – ostatní šli domů hned, Ú6.6 Dezertér jde domů hned; ne zajatí),
+  raněným dá 60 dní od `CampaignMember.woundedDay` a los smrti, padlí vesničané zemřou bez
   pohřbu, kořist do zásob a stád, odvedení přijdou s novými id (`rehomePeople`; rodina do
   `newcomerHome`, děti k rodičům).
 - Testy: `war/__tests__/raid-apply.test.ts` (bilance, útočiště, jámy, ztráty, nástupnictví, ranění,
@@ -1959,8 +1970,9 @@ po bitu stejná jako dřív.
 
 - **Dezertér** (`desert`): `status: 'deserted'`. Jeho bojovník v probíhajícím boji z bojiště zmizí
   hned (`slipAway` v `rout.ts` – stav `fled`, nikdo ho nepronásleduje). Platí i pro nuceného, který
-  by jinak na bojišti dál bojoval. Domů ho vrátí návrat tažení stejně jako muže při rozpadu:
-  `campaign-return` jeho domovské vsi (`returnOf` – `back` bere `active` i `deserted`), právě jednou.
+  by jinak na bojišti dál bojoval. Domů jde hned (Martin 15. 11. 2026): jeho ves dostane den nato
+  `away-ends` s dnem dezerce + cesta domů a návrat tažení (`campaign-return`) ho už nevrací – Ú6.6,
+  Dezertér jde domů hned.
 - **Zůstane jen vůdce:** když po dezerci hladového dne nezbývá jiný muž na nohou, `dailyStep` zavolá
   `disband`. Kronika a upozornění „Výprava se rozpadla.“ (`campaign-disbanded`) jdou jednou, vůdce
   jde domů jako při rozpadu. Výprava jen s vůdcem se tak rozpadne první hladový den.
@@ -1968,9 +1980,11 @@ po bitu stejná jako dřív.
   cestu domů. Na pochodu se vojsko obrátí, když jídlo dojde (i živě vedené – Martin 2. 11. 2026).
 
 Testy: `hunger-desertion.test.ts` (los ≈ 5 %, vůdce ne, nucený s přičtenou šancí; nájezd za palisádou:
-dezerce podle losu, bojovník pryč, žádný obrat ani útok, rozpad s jedním upozorněním, návrat
-dezertérů domů právě jednou, po kouscích 1 / 37 / 400 s kontrolním bodem; jídlo nad cestou domů;
-pochod; NPC a zástupce beze změny).
+dezerce podle losu, bojovník pryč, žádný obrat ani útok, rozpad s jedním upozorněním; dezertér domů
+hned – `away-ends` den nato s dnem dezerce + cesta (blízká Lhota i vzdálený Brod), konec tažení ho
+nevrátí podruhé, ve vsi pryč jen do dne návratu (`returnHome` + `applyInboxDay` den po dni), vůdce
+do konce tažení; po kouscích 1 / 37 / 400 s kontrolním bodem; jídlo nad cestou domů; pochod; NPC
+a zástupce beze změny).
 
 ## Měření tažení a e2e celé války (Ú6.17)
 

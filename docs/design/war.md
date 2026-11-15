@@ -171,7 +171,10 @@ přítomný hráč velí obraně sám; mřížka map s přechodem okrajem.
     bod štěstí nad 50, ves s hladem víc (kořist), čerstvě vdovská domácnost méně;
   - **rozkaz:** ostatním může hráč nařídit, aby šli – nucení mají nízkou bojovou hodnotu (Síla),
     **dezertují** (≈ 5 % denně, s příbuznými v cíli ≈ 15 %; dezertér s příbuznými v cíli může cíl
-    varovat), při bodu zlomu utečou první a nařídit muži útok na jeho příbuzné sníží štěstí vsi
+    varovat; **dezertér jde domů hned** – Martin 15. 11. 2026: „Dezertér jde domů hned… k čemu by
+    mu dezerce byla, když by čekal na konec tažení?“ – doma je v den dezerce + cesta z místa vojska
+    do jeho vsi vzdušnou čarou tempem pěšího, jako cesta domů tažení, nejdřív den nato; návrh
+    Clauda), při bodu zlomu utečou první a nařídit muži útok na jeho příbuzné sníží štěstí vsi
     (≈ −5 na rok za každého) (Martin: „Můžu si tak, lidově řečeno, nasrat do bot.“);
   - hráč vidí počet dobrovolníků a ochotných / neochotných (ikony + čísla), ne jména.
 - **Muži vazalů ve službě** – jen muži rodu, Martin 2. 11. 2026: „**vazal musí poslat muže schopné
@@ -314,7 +317,7 @@ a 12 vesničanů (8 dobrovolníků po 0,4, 4 nucení po 0,2 = 4,0), s kovárnou 
     se obránci zavřou v útočišti a hráč nic nerozkáže: „ne, vojácí tam budou stepovat, dokud jim
     nezačnou docházet zásoby a pak začnou postupně dezertovat. Výprava se prostě časem sama
     rozpadne“): tažení vedené živě se samo neobrátí ani nenapadne. Návrh Clauda (Martin 14. 11. 2026 – „Jo zkusme to takto“): jakmile jídlo klesne pod jídlo na cestu domů, dezertuje každý den ≈ 5 % mužů (jako
-    nucení); dezertér jde domů jako při rozpadu. Až zůstane jen vůdce, výprava se rozpadne
+    nucení); dezertér jde domů hned, ne s koncem tažení (Martin 15. 11. 2026 – Vojsko, rozkaz). Až zůstane jen vůdce, výprava se rozpadne
     (upozornění „Výprava se rozpadla.“). U nuceného se šance přičte k jeho dezerci (jeden los na
     muže a den) a dezertér z bojiště zmizí hned, v noci (návrh Clauda).
 - **Příklad** (návrh Clauda): Bořivoj táhne ze Lhoty na Kněžice o 2 políčka dál, v létě. Ze Lhoty
