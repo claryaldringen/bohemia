@@ -11,6 +11,7 @@ import {
   outlinePointAt,
   placementVillageOf,
   proposeFortification,
+  removeGate,
   startFortification,
   startSectionDemolition,
   villageFortifications,
@@ -689,6 +690,68 @@ test('úsek od brány k bráně – brána má Opustit a Zbořit bez Postavit ji
   const whole = c2.fortSegments!.filter((w) => w.part === undefined);
   expect(whole.length).toBeGreaterThan(0);
   for (const w of whole) expect(next.segments[w.index]!.demolishedDay).toBeDefined();
+  await expect(page.getByTestId('fort-confirm')).toHaveCount(0);
+  await expect(page.locator('[data-testid="village-notice"][data-kind="error"]')).toHaveCount(0);
+});
+
+test('otvor po zbořené bráně – běžná stavba plotu u otvoru navrhne jen jeho konce, kladivo založí stavbu otvoru (D45)', async ({
+  page,
+}) => {
+  test.setTimeout(300_000);
+  const { settlementId, state, home, landscape } = await villageWithRoad(page, 'otvor');
+  // hotový polský plot z návrhu kolem vsi (brány na cestě), jedna brána zbořená – otvor mezi
+  // stojící hradbou
+  const proposal = proposeFortification(
+    state,
+    state.lastDay,
+    landscape,
+    obstaclesOf(landscape),
+    'fence',
+    { x: home[0], z: home[1] },
+  );
+  const started = startFortification(state, state.lastDay, landscape, obstaclesOf(landscape), {
+    points: proposal.points,
+    kind: 'fence',
+  });
+  if (!started.ok) throw new Error(started.reason);
+  const built = started.state;
+  built.constructions = built.constructions.filter((c) => c.kind !== 'fortification');
+  const fort = villageFortifications(built)[0]!;
+  for (const seg of fort.segments) {
+    seg.builtDay = built.lastDay;
+    seg.state = 1;
+  }
+  const gate = fort.gates[0]!;
+  removeGate(gate, built.lastDay);
+  await writeVillageState(settlementId, built);
+  await pollVillage(page);
+
+  // běžná stavba plotu s kurzorem u otvoru: návrh jsou jen konce otvoru (šířka brány)
+  await closeUp(page, [gate.x, gate.z]);
+  const grid = page.getByTestId('build-grid');
+  await page.keyboard.press('p');
+  await expect(grid).toHaveAttribute('data-group', 'fortification');
+  await grid.getByRole('button', { name: 'Polský plot' }).click();
+  await page.mouse.move(640, 360);
+  await page.mouse.move(650, 365);
+  await expect.poll(async () => (await fortPoints(page)).length, { timeout: 20_000 }).toBe(2);
+  const [a, b] = await fortPoints(page);
+  expect(Math.hypot(a![0] - b![0], a![1] - b![1])).toBeCloseTo(4, 0);
+  await expect(page.getByTestId('fort-confirm')).toHaveAttribute('aria-disabled', 'false');
+  await page.getByTestId('fort-confirm').click();
+
+  // stavba otvoru na dílu brány – tvar obvodu stejný, brána zmizí až s koncem stavby
+  await expect
+    .poll(
+      async () =>
+        (await villageState(settlementId)).constructions.find((x) => x.kind === 'fortification')
+          ?.fortGate ?? null,
+      { timeout: 20_000 },
+    )
+    .toEqual({ segment: gate.segment, level: 'fill' });
+  const saved = villageFortifications(await villageState(settlementId))[0]!;
+  expect(saved.points).toEqual(fort.points);
+  expect(saved.gates.find((g) => g.segment === gate.segment)?.demolishedDay).toBeDefined();
   await expect(page.getByTestId('fort-confirm')).toHaveCount(0);
   await expect(page.locator('[data-testid="village-notice"][data-kind="error"]')).toHaveCount(0);
 });

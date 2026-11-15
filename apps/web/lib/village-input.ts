@@ -352,6 +352,19 @@ export function parseRerouteFortificationSectionInput(value: unknown): {
   return target ? { ...section, points, target } : null;
 }
 
+/**
+ * Vstup zastavení otvoru po zbořené bráně `{ fortificationId, segment, target }` (D45) – díl brány
+ * a druh z rozcestníku opevnění, jinak null.
+ */
+export function parseFillFortificationGateGapInput(
+  value: unknown,
+): { fortificationId: number; segment: number; target: FortKind } | null {
+  const gate = parseDemolishFortificationSectionInput(value);
+  if (!gate || !isRecord(value)) return null;
+  const target = FORT_KINDS.find((k) => k === value.target);
+  return target ? { ...gate, target } : null;
+}
+
 /** Vstup vylepšení pevné cesty `{ roadId, upgrade }` (roads.md), jinak null. */
 export function parseUpgradeRoadInput(
   value: unknown,

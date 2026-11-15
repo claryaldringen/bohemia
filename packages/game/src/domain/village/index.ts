@@ -62,6 +62,7 @@ export * from './fortification/state/fortification-upgrade';
 export * from './fortification/state/fortification-rampart';
 export * from './fortification/state/fortification-gate';
 export * from './fortification/state/fortification-gate-use';
+export * from './fortification/state/fortification-gate-gap';
 export * from './fortification/state/fortification-proposal';
 export * from './fortification/state/fortification-reroute';
 export { fortDefenders } from './steward/steward-fortification';

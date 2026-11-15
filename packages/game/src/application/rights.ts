@@ -85,6 +85,7 @@ export const ACTION_RIGHTS = {
   demolishFortificationGate: 'build',
   // úsek od brány k bráně jinudy (demolition.md – Rozhodnutí) – jako stavba
   rerouteFortificationSection: 'build',
+  fillFortificationGateGap: 'build',
   // panel úseku a brány (fortifications.md – Hradby a obrana, Rozhraní a scéna) – jako stavba
   addFortificationRampart: 'build',
   fillFortificationMoat: 'build',

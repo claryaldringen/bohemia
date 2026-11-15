@@ -6,6 +6,7 @@ import {
   pincerArmKind,
   segmentBuilt,
   segmentKind,
+  segmentRampart,
   segmentWall,
   type FortGate,
 } from '..';
@@ -23,7 +24,8 @@ import {
 // Opustit a zbořit bránu (demolition.md – Rozhodnutí, Martin 14. 11. 2026; návrh Clauda):
 // zbořená brána nechá mezeru šířky brány, opuštěná se přestane udržovat a po shnití zbyde mezera.
 // Hradba dílu kolem brány stojí dál („Hradba je hradba, brána je brána.“ se mění jen tím, že brána
-// má vlastní Opustit a Zbořit). Mezeru hráč zastaví běžnou stavbou opevnění od brány k bráně.
+// má vlastní Opustit a Zbořit). Mezeru hráč zastaví běžnou stavbou opevnění od brány k bráně,
+// otvor po bráně mezi stojící hradbou taky (`fortification-gate-gap.ts`).
 
 /** Brána zmizela (zbořená nebo shnilá) – v rozhraní důvod u Zbořit a Opustit. */
 export const FORT_GATE_GONE = 'Brána už je zbořená.';
@@ -33,6 +35,11 @@ const FORT_GATE_NOT_BUILT = 'Brána ještě nestojí.';
 const FORT_GATE_ABANDONED = 'Brána už je opuštěná.';
 /** Vrátit bránu, která opuštěná není. */
 const FORT_GATE_IN_USE = 'Brána není opuštěná.';
+/**
+ * Brána ve valu bez hradby nechátrá – opuštěná by nikdy nezmizela (D45, návrh Clauda): Opustit
+ * nejde, jen Zbořit.
+ */
+export const FORT_GATE_NO_DECAY = 'Brána v holém valu nechátrá – jde jen zbořit.';
 
 /** Vstup Opustit / Vrátit / Zbořit bránu – brána dílu `segment`. */
 export interface GateUseInput {
@@ -154,6 +161,19 @@ export function startGateDemolition(
 }
 
 /**
+ * Proč bránu nejde opustit, i když stojí (D45, návrh Clauda): brána v holém valu (val bez hradby
+ * na dílu) nechátrá – val nehnije, opuštěná by stála navždy; Zbořit jde. Jinak null.
+ */
+export function gateAbandonBlock(
+  fort: Pick<Fortification, 'kind' | 'top' | 'rampartHeight'>,
+  seg: FortSegment,
+): string | null {
+  return segmentRampart(fort, seg) !== null && segmentWall(fort, seg) === null
+    ? FORT_GATE_NO_DECAY
+    : null;
+}
+
+/**
  * Hráč bránu opustí (`abandoned` true), nebo vrátí (demolition.md – Rozhodnutí): opuštěnou bránu
  * obyvatelé nepřestaví (díl brány ani věž – `decideFortRebuilds`, `decideTowerRebuilds`), shnije
  * a zbyde mezera (`settleAbandonedGates` v `decay.ts`). Vrácená se zase udržuje. Vstupní stav nemění.
@@ -169,6 +189,8 @@ export function setGateAbandoned(
   if (abandoned === (found.gate.abandonedDay !== undefined)) {
     return { ok: false, reason: abandoned ? FORT_GATE_ABANDONED : FORT_GATE_IN_USE };
   }
+  const block = abandoned ? gateAbandonBlock(found.fort, found.seg) : null;
+  if (block) return { ok: false, reason: block };
   const next = cloneState(state);
   const gate = villageFortifications(next)
     .find((f) => f.id === input.fortificationId)!

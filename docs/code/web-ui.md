@@ -977,7 +977,9 @@ segment | null, FortAction)` (`upgrade` s `target`, `rampart`, `moat`, `gate` s 
   Ikony druhů `FORT_ICON_SRC` (celá cesta; ochoz, roštová a komorová vlastní SVG), ikony akcí
   a postupů vlastní SVG (CC0) v `public/icons/resources/`. ~~**Postavit jinudy** v panelu brány~~ zmizelo (Martin 14. 11. 2026, D28): mezeru od brány
   k bráně hráč zastaví **běžnou stavbou** – rozcestník opevnění a druh u mezery spustí editor
-  s konci v branách (`fortGapNear`, village-fortifications.md – Úsek od brány k bráně). Panel brány
+  s konci v branách (`fortGapNear`, village-fortifications.md – Úsek od brány k bráně), u otvoru po
+  zbořené bráně konce otvoru bez přidávání bodů (`fixedRoute`, `fillFortificationGateGap` –
+  village-fortifications.md – Otvor po zbořené bráně). Panel brány
   má Opustit / Vrátit (`fort-gate-abandon` / `fort-gate-restore`) a Zbořit (`fort-gate-demolish`) –
   village-fortifications.md – Brána: Opustit a Zbořit.
 - Testy: `lib/__tests__/build-items-fortification.test.ts` (návrh, tažení mění cenu, místo problému),

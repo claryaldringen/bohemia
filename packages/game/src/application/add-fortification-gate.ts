@@ -1,5 +1,5 @@
-import type { Landscape } from '../domain/landscape';
-import { addGateToFortification, type RoadPoint } from '../domain/village';
+import { obstaclesOf, type Landscape } from '../domain/landscape';
+import { addGateOrRebuild, villageRoadWalk, type RoadPoint } from '../domain/village';
 import { updateLivingVillage } from './update-village';
 import type { VillageRepository, VillageResult } from './villages';
 
@@ -16,7 +16,8 @@ export interface AddFortificationGateInput {
 
 /**
  * Hráč přidá bránu kliknutím na obvod (fortifications.md – Brány): nejvýš jedna na úsek, nic
- * navíc nestojí.
+ * navíc nestojí; do dílu se zbořenou branou se brána postaví znovu do otvoru za cenu hradby šířky
+ * brány (`addGateOrRebuild`, D45).
  */
 export function addFortificationGate(
   deps: { villages: VillageRepository },
@@ -28,6 +29,13 @@ export function addFortificationGate(
     input.today,
     input.landscape,
     (state) =>
-      addGateToFortification(state, input.landscape, input.fortificationId, input.position),
+      addGateOrRebuild(
+        state,
+        state.lastDay,
+        input.landscape,
+        obstaclesOf(input.landscape),
+        { fortificationId: input.fortificationId, position: input.position },
+        villageRoadWalk(state, input.landscape),
+      ),
   );
 }
