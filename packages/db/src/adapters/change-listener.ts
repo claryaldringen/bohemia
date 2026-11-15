@@ -113,9 +113,10 @@ export function listenChanges(
     });
     try {
       await client.connect();
-      await client.query(`LISTEN ${CHANGE_CHANNEL}`);
-      // posluchač je jinak jen tichý – server ho nesmí odpojit pro nečinnost (PostgreSQL 14+)
+      // posluchač je jinak jen tichý – server ho nesmí odpojit pro nečinnost (PostgreSQL 14+);
+      // napřed, aby poslední dotaz spojení zůstal `LISTEN` (e2e podle toho pozná, že naslouchá)
       await client.query('SET idle_session_timeout = 0').catch(() => {});
+      await client.query(`LISTEN ${CHANGE_CHANNEL}`);
     } catch (error) {
       lose(error instanceof Error ? error : new Error(String(error)));
       return;

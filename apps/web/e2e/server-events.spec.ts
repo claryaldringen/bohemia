@@ -57,7 +57,7 @@ async function listening(): Promise<boolean> {
   const [row] = await query<{ n: number }>(
     `SELECT count(*)::int AS n FROM pg_stat_activity
       WHERE datname = current_database() AND application_name = 'bohemia-change-listener'
-        AND state = 'idle' AND query ILIKE 'LISTEN%'`,
+        AND state = 'idle' AND (query ILIKE 'LISTEN%' OR query = 'SELECT 1')`,
     [],
   );
   return (row?.n ?? 0) > 0;
