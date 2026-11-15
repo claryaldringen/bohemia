@@ -104,6 +104,7 @@ export * from './rules/rules-steward';
 export * from './people/households';
 export {
   displacedCount,
+  housingPlaces,
   lodgersIn,
   lodgingShortfall,
   noRoomReason,

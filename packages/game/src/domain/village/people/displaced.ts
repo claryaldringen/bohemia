@@ -24,6 +24,16 @@ export function freePlaces(state: VillageState, exceptId: number): number {
   return total;
 }
 
+/**
+ * Místa k bydlení vsi: součet kapacity obydlí v provozu včetně dvorce (jeho rodina v něm bydlí);
+ * opuštěná se nepočítají (D80, Martin 15. 11. 2026: lišta svítí podle ubytovacích kapacit).
+ */
+export function housingPlaces(state: Pick<VillageState, 'dwellings'>): number {
+  let total = 0;
+  for (const d of state.dwellings) if (!isDisused(d)) total += DWELLINGS[d.type].capacity;
+  return total;
+}
+
 function hosts(state: VillageState, exceptId: number): Dwelling[] {
   const manor = villageManorId(state);
   return state.dwellings.filter(
