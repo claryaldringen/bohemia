@@ -249,7 +249,11 @@ villageId)`. Z levných otisků (`stampsOf` – `last_day`, `asleep`) se dopočt
   dobytka (`village-livestock`) součet kusů skotu, volů, ovcí, koz, prasat a koní
   (`livestockTotal` z `view.livestock` a `view.horses`); klik na ně otevře u ikony panel
   s rozpisem (`StockBreakdown`, `<testId>-toggle` / `<testId>-panel`, řádky `grainStockRows` /
-  `livestockRows` – sloupec řádků ikona + název + číslo zarovnané vpravo, panel `w-max` podle nejdelšího řádku, bez zalamování; dobytek jen druhy, které ves má), další klik,
+  `livestockRows` – sloupec řádků ikona + název + číslo zarovnané vpravo, panel `w-max` podle nejdelšího řádku, bez zalamování; dobytek jen druhy, které ves má; pod rozpisem plodin řádek
+  `footer` – `FoodLastsRow`, `village-stores-last`: přesýpací hodiny a na jak dlouho vystačí jídlo
+  vsi, `VillageView.foodLastsDays` ze serveru – `foodLastsDays` jádra, doba `formatGameDuration`
+  „1 rok 3 měsíce“ / „4 měsíce“ / „12 dní“, v popisku `foodLastsTooltip` „Zásoby vystačí do 14. června 888 – bez sklizně, při plném přídělu.“ s posledním dnem plného přídělu; když nikdo
+  nejí, řádek chybí – Martin 15. 11. 2026, D56), další klik,
   Esc nebo stisk mimo ho zavře jako panel u data; dokud je rozpis otevřený, popisek ikony je vypnutý (`Resource tooltipOff`), aby nepřekryl čísla; Martin 14. 11. 2026. Samostatné ikony luštěnin a ovoce
   v liště nejsou – pokrývá je rozpis, Martin 14. 11. 2026 „ano“, D19),
   `GameMenu` (nabídka hry jako v 0 A.D., F10 – modální okno uprostřed obrazovky se ztmaveným

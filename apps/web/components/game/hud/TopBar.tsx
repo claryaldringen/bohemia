@@ -1,10 +1,23 @@
 'use client';
 
 import { useEffect, useRef, useState, type ReactElement, type ReactNode } from 'react';
-import { getWorldState, type ComputeProgress, type TimeSkip, type WorldClock } from '@bohemia/game';
+import {
+  dateOfDayIndex,
+  getWorldState,
+  type ComputeProgress,
+  type TimeSkip,
+  type WorldClock,
+} from '@bohemia/game';
 import { useDismiss } from '@/hooks/use-dismiss';
 import { useSkipProgress } from '@/hooks/use-skip-progress';
-import { clockHandAngle, dateRefreshDelay, dayPartLabel, formatWorldState } from '@/lib/game-date';
+import {
+  clockHandAngle,
+  dateRefreshDelay,
+  dayPartLabel,
+  formatGameDate,
+  formatGameDuration,
+  formatWorldState,
+} from '@/lib/game-date';
 import { dayHourAt } from '@/lib/scene/day-light';
 import { MENU_HOTKEY } from '@/lib/game-menu';
 import { PANEL_HOTKEYS } from '@/lib/panel-keys';
@@ -137,6 +150,7 @@ export function StockBreakdown({
   total,
   rows,
   testId,
+  footer = null,
 }: {
   icon: string;
   name: string;
@@ -144,6 +158,8 @@ export function StockBreakdown({
   rows: readonly StockRow[];
   /** Číslo celku má `testId`, tlačítko `<testId>-toggle`, panel `<testId>-panel`. */
   testId: string;
+  /** Řádek pod rozpisem (u plodin na jak dlouho vystačí zásoby – `FoodLastsRow`). */
+  footer?: ReactNode;
 }): ReactElement {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLSpanElement>(null);
@@ -194,9 +210,49 @@ export function StockBreakdown({
               </span>
             </span>
           ))}
+          {footer}
         </span>
       )}
     </span>
+  );
+}
+
+/**
+ * Popisek řádku zásob (D56): do kdy zásoby vystačí – poslední den plného přídělu (`dayIndex` +
+ * `days`) z herního kalendáře.
+ */
+export function foodLastsTooltip(dayIndex: number, days: number): string {
+  if (days <= 0) return 'Zásoby nevystačí ani na den – bez sklizně, při plném přídělu.';
+  const until = formatGameDate(dateOfDayIndex(dayIndex + days));
+  return `Zásoby vystačí do ${until} – bez sklizně, při plném přídělu.`;
+}
+
+/**
+ * Řádek pod rozpisem plodin (Martin 15. 11. 2026: „dolů do panelu s plodinami napiš, na jak
+ * dlouho vystačí zásoby“): přesýpací hodiny a doba („1 rok 3 měsíce“), slova jen v popisku.
+ */
+export function FoodLastsRow({ dayIndex, days }: { dayIndex: number; days: number }): ReactElement {
+  return (
+    <Tooltip content={foodLastsTooltip(dayIndex, days)} placement="below-right" block>
+      <span
+        tabIndex={0}
+        className="mt-0.5 flex w-full items-center gap-2 border-t border-[#5c4526] px-1 pt-1"
+      >
+        <img
+          src="/icons/resources/hourglass.png"
+          alt=""
+          width={22}
+          height={22}
+          className="h-[22px] w-[22px] shrink-0"
+        />
+        <span
+          data-testid="village-stores-last"
+          className="ml-auto min-w-10 pl-3 text-right font-semibold tabular-nums"
+        >
+          {formatGameDuration(dayIndex, dayIndex + days)}
+        </span>
+      </span>
+    </Tooltip>
   );
 }
 
@@ -750,6 +806,11 @@ export function TopBar({
             total={grainStockTotal(view)}
             rows={grainStockRows(view)}
             testId="village-stores"
+            footer={
+              view.foodLastsDays !== undefined && (
+                <FoodLastsRow dayIndex={view.dayIndex} days={view.foodLastsDays} />
+              )
+            }
           />
           {view.threshing?.sheavesKg !== undefined && (
             <Resource icon="sheaves" name={sheavesName()} testId="village-sheaves">
