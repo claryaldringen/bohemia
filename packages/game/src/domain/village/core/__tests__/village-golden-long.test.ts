@@ -20,8 +20,11 @@ import { goldenWorld, stateFingerprint, YEAR } from './village-golden-fixture';
 // v uloženém stavu; dřív ebdc645e3e62b846 a 6ad042796fa46459
 // 15. 11. 2026 – správce zakládá pole spíš čtvercová (oxen.md – Orba rádlem křížem; steward.md –
 // Blok pole): jiná políčka polí ze 20 let pod správcem; dřív 661ac775bc7e6967 a b75848dca0cbb5c0
-const EXPECTED_YEAR_2 = '2d83c6aef0fd4e1f';
-const EXPECTED_YEAR_3 = 'fdb154bca6bd33dc';
+// 15. 11. 2026 – výhled jídla počítá se ztrátami obilí skladováním do žní (fields.md – Přídělový
+// systém, Martin „Ano“): jiný příděl a přežívací zásoba – jiné zásoby a osev; dřív
+// 2d83c6aef0fd4e1f a fdb154bca6bd33dc
+const EXPECTED_YEAR_2 = '8dce05322fad129e';
+const EXPECTED_YEAR_3 = 'da411ec1fa2f9cb4';
 
 describe('zlatý otisk vsi – delší běh', () => {
   it('po 2. a 3. roce dopočtu dá zapsané otisky', () => {

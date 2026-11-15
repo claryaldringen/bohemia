@@ -81,7 +81,11 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   a vejce, maso rovným dílem do zkažení 31. 8. (`daysUntilMeatEnd`; 1. 9. ráno se zbytek zkazí –
   `spoilMeat`, kronika `meat-spoiled`, upozornění; maso ze září a října do porážky – Martin:
   „uzené maso určitě také nevydrží 3 roky“), sýr do 1. 5. (`daysUntilMilking`), obilí
-  dorovná; stropy ovoce 25 %, maso 40 %, mléko a sýr 30 %, luštěniny 25 % potřeby energie
+  dorovná – výhled do sklizně (`DietResult.outlook`, `grainSpareKg`, obrácený
+  `grainAheadForOutlookKg`) počítá obilí i snopy po ztrátách skladováním do dne, kdy se snědí
+  (`grainEatenShare` – rovným dílem od dneška, po zkažení ovoce od jeho konce; fields.md –
+  Přídělový systém, Martin 15. 11. 2026), takže příděl se do žní nekloní; stropy ovoce 25 %,
+  maso 40 %, mléko a sýr 30 %, luštěniny 25 % potřeby energie
   (`DIET`); luštěniny (`legumes.ts`) rovným dílem do sklizně 31. 7. (`daysUntilLegumeHarvest`).
   **Bílkoviny** (Martin 18. 10. 2026): 1,6 g na kg tělesné váhy (`PROTEIN`, `proteinNeedPerDay`
   – 20 / 60 / 58 kg), nasycení = energie × kvalita (`dietQuality` = 0,6 + 0,34 × bílkoviny +

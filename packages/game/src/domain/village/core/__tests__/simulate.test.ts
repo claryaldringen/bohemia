@@ -246,9 +246,11 @@ describe('advanceVillage – dopočítání', () => {
       .map((e) => e.crop ?? 'spring');
     expect(crops).toContain('winter');
     expect(crops.filter((c) => c === 'spring').length).toBe(2);
-    // nanejvýš den na hraně plného přídělu (zaokrouhlení) – nikdo nehladoví (fields.md – Osivo bez
-    // cíle osevu: osivo na všechny díly na řadě, zbytek je jídlo)
-    expect(count(s, 'hunger-began')).toBeLessThanOrEqual(1);
+    // nikdo nehladoví (fields.md – Osivo bez cíle osevu: osivo na všechny díly na řadě, zbytek je
+    // jídlo); ves šetří nanejvýš dvakrát na hraně plného přídělu: 1. 9. 601 dva dny a od 1. 10. 601
+    // ≈ 3 týdny (příděl 0,97 → 1), dokud hromada osiva ozimu drží zrno – výhled zná ztráty obilí
+    // skladováním do žní (fields.md – Přídělový systém, 15. 11. 2026); dřív 1. 9. jen dva dny
+    expect(count(s, 'hunger-began')).toBeLessThanOrEqual(2);
     expect(s.starvationDays ?? 0).toBe(0);
     expect(s.hungry).toBe(false);
   });

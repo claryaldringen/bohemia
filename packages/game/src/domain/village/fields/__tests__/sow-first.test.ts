@@ -96,11 +96,12 @@ describe('osev má přednost (fields.md – Osivo ze zásob; Martin 6. 11. 2026)
     // obrácený výhled: s tímhle zrnem dá jídlo dne právě cílový příděl
     const grainKg = (ahead - (input.sheavesGrainKg ?? 0)) / grainKeepPerDay(input);
     expect(eatDiet({ ...input, grainKg }).outlook).toBeCloseTo(target, 6);
-    // přežívací zásoba je větší o ztráty skladováním do žní – příděl pod plný, nad cílový
+    // přežívací zásoba (zásoby ze včerejška) je větší o dnešní ztrátu skladováním – ztráty do žní
+    // zná už výhled (fields.md – Přídělový systém): příděl pod plný, aspoň cílový (bez zaokrouhlení)
     expect(keep).toBeGreaterThan(ahead);
     const outlook = eatDiet({ ...input, grainKg: keep }).outlook;
     expect(outlook).toBeLessThan(1);
-    expect(outlook).toBeGreaterThanOrEqual(target);
+    expect(outlook).toBeGreaterThan(target - 1e-9);
     // nahromaděný hlad ves zná – s ním si nechá víc; s osivem jen na setí nejvýš do prahu, od
     // kterého by ho ves snědla (SEED_BUYING)
     expect(seedKeepKg({ ...s, starvationDays: 6 }, START)).toBeGreaterThan(keep);

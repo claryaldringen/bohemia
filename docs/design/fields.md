@@ -1688,8 +1688,9 @@ na vlnu – oděv, [diet.md](diet.md) – Oděv). Pravidla **návrh Clauda** pod
       a čerstvé maso zimní porážky (kusy už vybrané k porážce), vejce, luštěniny v zásobě a ve
       snopech, jablka do zkažení. Odhad nemá **maso z podzimní porážky, která teprve přijde**
       (kusy se vyberou 1. 11.), jablka z úrody sadu, která ještě nedozrála, a ryby a zvěřina
-      (úlovek dne se nedá dopředu) – s těmi nepočítá, jsou rezerva navíc. K zrnu přidá ztráty
-      skladováním do žní (zrno leží v průměru půl doby do žní). Dřív počítala jen s potřebou
+      (úlovek dne se nedá dopředu) – s těmi nepočítá, jsou rezerva navíc. Ztráty skladováním do
+      žní zná už výhled (Přídělový systém, od 15. 11. 2026), k zrnu přidá jen dnešní ztrátu (dřív
+      odhadem ztráty do žní – zrno leží v průměru půl doby do žní). Dřív počítala jen s potřebou
       z pole (0,9 × denní potřeba z pole × (dny do žní − `slack`)) – mléko a maso byly rezerva navíc
       a ves s mlékem a masem si nechala víc zrna, než potřebovala.
     - **Ostatní zrno je osivo:** smí do země bez stropu podle potřeby jídla – ves oře a seje díly
@@ -1810,7 +1811,10 @@ na vlnu – oděv, [diet.md](diet.md) – Oděv). Pravidla **návrh Clauda** pod
 - **Přídělový systém:** dokud zásoby vystačí do příští sklizně, jí ves dosyta (nasycení 1).
   Když nevystačí, obyvatelé rozdělí to, co zbývá, rovnoměrně do sklizně – nasycení je podíl
   zásob a potřeby do sklizně (návrh Clauda). Ves tak hladoví postupně, ne ze dne na den.
-  Příští sklizní je **sklizeň ozimu 31. 7.**, když ji ves čeká a podle odhadu uživí ves v srpnu
+  Zásoby se přitom počítají **po ztrátách skladováním do dne, kdy se snědí** (stejné ztráty jako
+  výše), takže příděl je od začátku přesný a do žní se drží rovně (Martin 15. 11. 2026: „Ano“;
+  dřív se zásoby dělily bez ztrát – příděl byl zpočátku štědřejší a pak pomalu klesal a ves na
+  hraně hladu po vymírání sklouzla zpět do hladu). Příští sklizní je **sklizeň ozimu 31. 7.**, když ji ves čeká a podle odhadu uživí ves v srpnu
   do sklizně jaře; jinak sklizeň jaře 31. 8. (viz Ozim a jař).
 - **Start:** osadníci přinesli zásoby na **18 měsíců** potřeby (návrh Clauda) a k nim osivo na
   první osev – **půl roční potřeby** (od 27. 10. 2026, kdy osivo bere setí ze zásob; návrh Clauda)

@@ -616,7 +616,8 @@ zásoby ≈ 3,6 t na ≈ 4,2 t potřeby do žní, jí 94 % přídělu – a při
   1. 9. napřed z letošních selat (ubývají jim kus za kus), teprve zbytek porážky ubere dospělým;
      ostatní mláďata ubývají s jejich stádem poměrně.
 - **Kolik:** nejméně masa, se kterým výhled vyjde **i s rezervou 5 % potřeby energie do
-  sklizně**. Výhled nezná ztráty zásob skladováním ani úbytek masa uzením – bez rezervy by ves
+  sklizně**. Výhled nezná úbytek masa uzením (ztráty obilí skladováním zná od 15. 11. 2026 –
+  [pole](fields.md), Přídělový systém) – bez rezervy by ves
   porážela den co den po kouscích, s ní obvykle jednou za zimu (Vlkov: jednou, 23 prasat). Zabitím
   dojnic ubude i mléka do sklizně, výhled s tím počítá.
 - **Maso** jde do zásoby jako z podzimní porážky – stejná výtěžnost (prase 50, koza 12, kráva

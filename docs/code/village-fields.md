@@ -262,8 +262,10 @@ store, keepKg, needed)` = `reservedSeedKg` (jen `needed`) + max(hromada, běžn�
   `seedKeepKg` = přežívací zásoba do žní (zásoby i snopy; `slack` = nejnižší `STARVATION.threshold`
   skupin ve vsi – s `reservedSeedKg` nejvýš `SEED_BUYING.eatFromStarvationDays` –
   − `SEED_STORES.marginDays` − `starvationDays`; cílový příděl 0,9 × (1 − `slack` / dny do žní),
-  zrno na něj `grainAheadForOutlookKg` nad `baseMealInput` (`meal-input.ts`) ÷ `grainKeepPerDay`
-  ^ ((dny + 1) / 2)). `grainSeedTakenKg` – osivo obilí, které letošní nutná práce vzala.
+  zrno na něj `grainAheadForOutlookKg` nad `baseMealInput` (`meal-input.ts`) – i se ztrátami
+  skladováním do žní (`grainEatenShare`, od 15. 11. 2026; dřív ÷ `grainKeepPerDay` ^ ((dny + 1) / 2))
+  – ÷ `grainKeepPerDay` za dnešní ztrátu). `grainSeedTakenKg` – osivo obilí, které letošní nutná
+  práce vzala.
 - **Hromada osiva okna** (fields.md – Osivo bez cíle osevu; Martin 9. 11. 2026):
   `VillageState.sowingSeed` (`SowingSeed` – `crop` ozim / jař, `totalKg`, `days`, `kg`) – jen
   v okně setí (`sowingWindowCrop`: ozim září–říjen, jař březen–duben a po dlouhé zimě do 14. 5. –
