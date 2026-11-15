@@ -102,7 +102,7 @@ describe('useExpeditions', () => {
     expect(handle.latest).toEqual([]);
   });
 
-  it('running: false událost ignoruje a nic nedotazuje', async () => {
+  it('running: false – událost se použije, dotaz se nepošle', async () => {
     const fetchMock = vi.fn().mockResolvedValue(ok({ views }));
     vi.stubGlobal('fetch', fetchMock);
     render(false);
@@ -111,7 +111,7 @@ describe('useExpeditions', () => {
       await vi.advanceTimersByTimeAsync(5000);
     });
     expect(fetchMock).not.toHaveBeenCalled();
-    expect(handle.latest).toEqual([]);
+    expect(handle.latest).toEqual(views);
   });
 
   it('sync (mezera) s running zavolá dotaz, bez running ne; refresh se ptá hned', async () => {

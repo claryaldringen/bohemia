@@ -25,16 +25,15 @@ export function useJourneyVisitors(
   // klíč posledního seznamu; null – server ještě neodpověděl
   const keyRef = useRef<string | null>(null);
   const villageRef = useRef(villageId);
-  const on = enabled && villageId !== null;
-  const onRef = useRef(on);
+  const onRef = useRef(enabled && villageId !== null);
+  onRef.current = enabled && villageId !== null;
 
-  // jiná ves nebo vypnuté sledování – po zapnutí se zeptá hned
+  // jiná ves – seznam se zahodí; přepnutí `enabled` ho nemění (událost platí vždy)
   useEffect(() => {
     villageRef.current = villageId;
-    onRef.current = on;
     keyRef.current = null;
     setVisitors(NONE);
-  }, [villageId, on]);
+  }, [villageId]);
 
   const apply = useCallback((list: readonly ExpeditionVisitor[]): void => {
     const key = visitorsKey(list);
@@ -58,19 +57,22 @@ export function useJourneyVisitors(
     }
     if ('error' in body || !Array.isArray(body.visitors)) return;
     // odpověď k jiné vsi (hráč mezitím přepnul) se zahodí
-    if (villageRef.current === villageId && onRef.current) apply(body.visitors);
+    if (villageRef.current === villageId) apply(body.visitors);
   }, [villageId, apply]);
 
   const ask = useSerialRefresh(load, 'Jezdce na mapě se nepodařilo načíst.');
   const refresh = useCallback((): void => {
     if (onRef.current) ask();
   }, [ask]);
+  const on = enabled && villageId !== null;
   useEffect(() => {
     if (on) ask();
   }, [on, villageId, ask]);
+  // událost platí vždy, když sedí ves: `MapWatch` přichází jen s pohledem vsi, cizí jezdec by byl
+  // až o herní den neviditelný; `enabled` řídí jen dotaz
   useServerEvent('visitors', (event) => {
-    if (onRef.current && event.villageId === villageRef.current) apply(event.visitors);
+    if (event.villageId === villageRef.current) apply(event.visitors);
   });
   useServerResync(refresh);
-  return on ? visitors : NONE;
+  return villageId !== null ? visitors : NONE;
 }

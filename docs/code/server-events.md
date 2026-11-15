@@ -205,11 +205,11 @@ zobrazené vsi i všechny posluchače.
   změn téže výpravy v řadě dá přes slučovač (`COALESCE_MS = 50`) nejvýš dva výpočty `views`.
 - **Klient:** `useExpeditions(running, onPartyEnded)` (`hooks/use-journey.ts`) – jeden
   `GET /api/journey`, když `running` začne platit, na `sync` (jen s `running`) a na `refresh`;
-  událost `journeys` se při `running` použije jako dřív tělo dotazu (`apply` – interpolace s
+  událost `journeys` se použije vždy (na `running` čeká jen dotaz) jako dřív tělo dotazu (`apply` – interpolace s
   rozpětím `clamp(now − received, FRAME_MS, 4 × JOURNEY_PUSH_MS)`, `onPartyEnded` při zmizelém
   hlouččku); snímek po 100 ms zůstává místní. `useJourneyVisitors(villageId, enabled)`
   (`hooks/use-journey-visitors.ts`) – jeden dotaz při zapnutí (`MapWatch.riders`), změně vsi a na
-  `sync`; událost `visitors` jiné vsi se zahodí, stejný klíč se nepřekreslí. Dotazy jdou přes
+  `sync`; událost `visitors` platí vždy, když sedí ves (nezávisle na `enabled`), jiné vsi se zahodí, stejný klíč se nepřekreslí. Dotazy jdou přes
   `useSerialRefresh`.
 - Testy: `lib/server-events/__tests__/push-journeys.test.ts`, `hooks/__tests__/use-journey.behavior.test.tsx`,
   `use-journey-visitors.behavior.test.tsx`, `lib/__tests__/journey-view.test.ts` (klíče).

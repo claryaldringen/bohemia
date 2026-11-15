@@ -489,8 +489,8 @@ female?)`** („Od 12 let.“, „Je raněný.“ / „Je raněná.“, „Je na
   výpravě jeho vsi), **`partiesOf`**, `JOURNEY_PUSH_MS` (1000 – kolo workeru, které ukládá jedoucí skupinu; rozpětí
   interpolace), `expeditionsKey` a `visitorsKey` (klíče stavu pro události serveru).
 - **Hook** `hooks/use-journey.ts` – **`useExpeditions(running, onPartyEnded)`**: stav nese událost
-  serveru `journeys` (server-events.md – Výpravy), jen s `running` (ves má `expeditionsAway`, nebo
-  právě vyslal); jeden `GET /api/journey`, když `running` začne platit, na obnovu po mezeře (`sync`)
+  serveru `journeys` (server-events.md – Výpravy), použitá vždy (server ji posílá jen vlastníkovi);
+  na `running` (ves má `expeditionsAway`, nebo právě vyslal) čeká jen dotaz – jeden `GET /api/journey`, když `running` začne platit, na obnovu po mezeře (`sync`)
   a na `refresh()`. Stejné takty pohled nepřepíšou; rozpětí interpolace = `clamp(now − received,
   FRAME_MS, 4 × JOURNEY_PUSH_MS)`; `views` (interpolované, překreslení po 100 ms je místní),
   `latest`, `sample(nowMs)`. Zmizí-li skupina nebo hlouček, `onPartyEnded` (jednou za stav) obnoví
@@ -612,8 +612,9 @@ inParty, atHomeMap, horseWork }`, `ButtonState` = `'hidden' | 'enabled' | { disa
   `useJourneyVisitors` (`hooks/use-journey-visitors.ts` – seznam nese událost serveru `visitors`
   své vsi; jeden `GET /api/journey?visitors=` při zapnutí, změně vsi a na obnovu po mezeře; výpadek
   sítě ani chyba serveru nic nerozbije, událost jiné vsi se zahodí, stejný `visitorsKey` scénu
-  nepřekreslí). Zapíná se jen, když dotaz na ves hlásí výpravu na mapě (`MapWatch.riders` –
-  `JourneyRepository.onCell`; D62, web-ui.md – Válka ve scéně), jinak vůbec. Jméno a rod vlastního vojvody dodá jeho záznam mezi návštěvníky.
+  nepřekreslí). Událost platí vždy, když sedí ves (`MapWatch` přichází jen s pohledem vsi, cizí jezdec by byl
+  až o herní den neviditelný); na `MapWatch.riders` (`JourneyRepository.onCell`; D62, web-ui.md –
+  Válka ve scéně) čeká jen dotaz. Jméno a rod vlastního vojvody dodá jeho záznam mezi návštěvníky.
 - **Výběr** – klik na vlastního muže vybere člověka vsi (`person` – panel z Úlohy 8a), na cizího
   `VillageTarget` `visitor` (`journeyId`): panel ukáže portrét koně se jménem vojvody, rod (ikona
   praporu) a počet jezdců a pěších (`selectionDetails(…, visitors)`, `visitor-panel`). Vybraný muž

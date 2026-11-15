@@ -13,7 +13,7 @@ import { useSerialRefresh, useServerEvent, useServerResync } from './use-server-
 // Výpravy (expeditions.md; plán 2026-11-14 – Úloha 7; plán 2026-11-15 – Úloha 4): stav nese událost
 // serveru `journeys` (server-events.md – Výpravy), polohy hloučků mezi dvěma stavy se interpolují.
 // Jeden `GET /api/journey` jde, když `running` začne platit, na obnovu po mezeře (`sync`) a na
-// `refresh`. Události se používají jen s `running` (ves má lidi pryč, nebo právě vyslal rozkaz).
+// `refresh`. Dotaz čeká na `running` (ves má lidi pryč, nebo právě vyslal rozkaz), událost se použije vždy.
 
 /** Jak často se překreslí interpolovaný pohled (scéna si bere `sample` sama). */
 const FRAME_MS = 100;
@@ -121,7 +121,7 @@ export function useExpeditions(running: boolean, onPartyEnded?: () => void): Exp
       return;
     }
     if ('error' in body || !Array.isArray(body.views)) return;
-    if (runningRef.current) apply(body.views);
+    apply(body.views);
   }, [apply]);
 
   const ask = useSerialRefresh(load, 'Výpravy se nepodařilo načíst.');
@@ -132,9 +132,8 @@ export function useExpeditions(running: boolean, onPartyEnded?: () => void): Exp
   useEffect(() => {
     if (running) ask();
   }, [running, ask]);
-  useServerEvent('journeys', (event) => {
-    if (runningRef.current) apply(event.views);
-  });
+  // událost platí vždy (server ji posílá jen vlastníkovi); na `running` čeká jen dotaz
+  useServerEvent('journeys', (event) => apply(event.views));
   useServerResync(refresh);
 
   // plynulý pohyb mezi dotazy

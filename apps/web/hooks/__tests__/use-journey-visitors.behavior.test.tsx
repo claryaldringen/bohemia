@@ -33,13 +33,19 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-function Probe({ villageId }: { villageId: string | null }): null {
-  seen = useJourneyVisitors(villageId, true);
+function Probe({
+  villageId,
+  enabled = true,
+}: {
+  villageId: string | null;
+  enabled?: boolean;
+}): null {
+  seen = useJourneyVisitors(villageId, enabled);
   renders++;
   return null;
 }
-const render = (villageId: string | null): void =>
-  act(() => root.render(events.wrap(<Probe villageId={villageId} />)));
+const render = (villageId: string | null, enabled = true): void =>
+  act(() => root.render(events.wrap(<Probe villageId={villageId} enabled={enabled} />)));
 
 const visitor: ExpeditionVisitor = {
   journeyId: 'j2',
@@ -122,6 +128,18 @@ describe('useJourneyVisitors', () => {
       await vi.advanceTimersByTimeAsync(10);
     });
     expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(seen).toEqual([visitor]);
+  });
+
+  it('enabled=false – událost jezdce ukáže, dotaz se neposílá; přepnutí enabled seznam nesmaže', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(ok({ visitors: [] }));
+    vi.stubGlobal('fetch', fetchMock);
+    render('v1', false);
+    await flush();
+    expect(fetchMock).not.toHaveBeenCalled();
+    act(() => events.emit('visitors', { villageId: 'v1', visitors: [visitor] }));
+    expect(seen).toEqual([visitor]);
+    render('v1', true);
     expect(seen).toEqual([visitor]);
   });
 
