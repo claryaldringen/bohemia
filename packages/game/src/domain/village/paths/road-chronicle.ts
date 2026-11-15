@@ -4,8 +4,16 @@
 // uloží do zápisu, ať popis sedí i po pozdější přestavbě sítě. Jen čtení stavu a celá čísla dnů.
 
 import type { Landscape } from '../../landscape';
-import type { ChronicleRoadEnd, VillageState } from '../types';
-import { roadChainEnds, roadEndsNetwork, type RoadEnd, type RoadEndsNetwork } from './road-ends';
+import type { ChronicleLandmark, ChronicleRoadEnd, VillageState } from '../types';
+import { roadChain } from './road-chains';
+import {
+  chainEnds,
+  roadChainEnds,
+  roadEndsNetwork,
+  type RoadEnd,
+  type RoadEndsNetwork,
+} from './road-ends';
+import { roadEndLandmarks } from './road-landmarks';
 import { DAYS_PER_YEAR } from './roads-geometry';
 
 /** Přírodní cíle tras – chodí se k nim od založení vsi (předpona klíče trasy). */
@@ -47,14 +55,21 @@ function placeNote(state: VillageState, place: string): ChronicleRoadEnd {
   return { kind: 'place', place: prefix };
 }
 
-/** Konec cesty pro kroniku; konec nikam (porušení pravidla 11) null. */
-function endNote(state: VillageState, end: RoadEnd): ChronicleRoadEnd | null {
+/**
+ * Konec cesty pro kroniku; konec nikam (porušení pravidla 11) null. Křižovatka s významným místem
+ * u ní (`near` – D66, `roadEndLandmarks`).
+ */
+function endNote(
+  state: VillageState,
+  end: RoadEnd,
+  near: ChronicleLandmark | null,
+): ChronicleRoadEnd | null {
   switch (end.kind) {
     case 'place':
       return placeNote(state, end.place);
     case 'junction': {
       const junction = (state.roads?.junctions ?? []).find((j) => j.id === end.id);
-      return { kind: 'junction', shape: junction?.shape ?? 'cross' };
+      return { kind: 'junction', shape: junction?.shape ?? 'cross', ...(near ? { near } : {}) };
     }
     case 'edge':
       return { kind: 'edge', direction: end.direction };
@@ -114,6 +129,19 @@ function walkedSince(state: VillageState, end: RoadEnd): number | null | undefin
   }
 }
 
+/** Oba konce cesty pro kroniku; s koncem nikam null. */
+function endNotes(
+  state: VillageState,
+  net: RoadEndsNetwork,
+  ends: readonly [RoadEnd, RoadEnd],
+): [ChronicleRoadEnd, ChronicleRoadEnd] | null {
+  if (ends[0].kind === 'none' || ends[1].kind === 'none') return null;
+  const near = roadEndLandmarks(state, net, ends);
+  const a = endNote(state, ends[0], near[0]);
+  const b = endNote(state, ends[1], near[1]);
+  return a && b ? [a, b] : null;
+}
+
 /** Konce cesty hráče s úsekem `roadId` pro kroniku; bez úseku nebo s koncem nikam null. */
 export function chronicleRoadEnds(
   state: VillageState,
@@ -121,10 +149,29 @@ export function chronicleRoadEnds(
   roadId: number,
 ): [ChronicleRoadEnd, ChronicleRoadEnd] | null {
   const ends = roadChainEnds(net, roadId);
-  if (!ends) return null;
-  const a = endNote(state, ends[0]);
-  const b = endNote(state, ends[1]);
-  return a && b ? [a, b] : null;
+  return ends ? endNotes(state, net, ends) : null;
+}
+
+/**
+ * Zarůstající úsek `roadId` pro kroniku (D67; Martin 15. 11. 2026: „Nepoužívaná cesta zarostla. –
+ * tohle také neříká nic o tom, která to byla cesta.“): konce cesty hráče, do které patří, ještě
+ * před zánikem (`cutDeadRoads` je bere napřed) a id úseků té cesty – zarostla-li jen část.
+ * Opuštěný kus (pod stavbou) do cesty hráče nepatří – nese konce cesty z řezu (`Road.formerEnds`).
+ */
+export function overgrownRoadNote(
+  state: VillageState,
+  net: RoadEndsNetwork,
+  roadId: number,
+): { ends?: [ChronicleRoadEnd, ChronicleRoadEnd]; chain: number[]; part?: true } {
+  const chain = roadChain(net.roads, roadId);
+  if (chain.length === 0) {
+    // opuštěný kus pod stavbou – konce cesty, ze které se vyřízl (`Road.formerEnds`)
+    const former = net.roads.find((r) => r.id === roadId)?.formerEnds;
+    return former ? { chain: [], ends: former, part: true } : { chain: [] };
+  }
+  const found = chainEnds(net, chain);
+  const ends = found ? endNotes(state, net, found) : null;
+  return { chain: chain.map((link) => link.road.id), ...(ends ? { ends } : {}) };
 }
 
 /**
@@ -140,10 +187,10 @@ export function roadFormedNote(
 ): { ends?: [ChronicleRoadEnd, ChronicleRoadEnd]; years?: number } {
   const ends = roadChainEnds(net, roadId);
   if (!ends) return {};
-  const a = endNote(state, ends[0]);
-  const b = endNote(state, ends[1]);
-  const note: { ends?: [ChronicleRoadEnd, ChronicleRoadEnd]; years?: number } =
-    a && b ? { ends: [a, b] } : {};
+  const notes = endNotes(state, net, ends);
+  const note: { ends?: [ChronicleRoadEnd, ChronicleRoadEnd]; years?: number } = notes
+    ? { ends: notes }
+    : {};
   const since = ends.map((end) => walkedSince(state, end));
   if (since.some((s) => s === undefined)) return note;
   const known = since.filter((s): s is number => s !== null);

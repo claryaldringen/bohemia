@@ -80,6 +80,14 @@ describe('roadEndView', () => {
       name: 'Křižovatka',
       target: { kind: 'junction', id: 565 },
     });
+    // podle významného místa u ní (D66)
+    const junction = { kind: 'junction', id: 565 } as const;
+    expect(
+      roadEndView(state, roads, junction, { kind: 'dwelling', type: 'dvorec', at: 'below' }),
+    ).toMatchObject({ name: 'Křižovatka pod dvorcem', target: { kind: 'junction', id: 565 } });
+    expect(
+      roadEndView(state, roads, junction, { kind: 'place', place: 'water', at: 'at' }).name,
+    ).toBe('Křižovatka u potoka');
     // cesta přes kraj mapy se jmenuje podle souseda, ke kterému vede (Martin 15. 11. 2026)
     const north = neighbourOf(state.seed, 'N').name;
     expect(roadEndView(state, roads, { kind: 'edge', direction: 'N' })).toMatchObject({

@@ -44,7 +44,11 @@ import { advanceChunked, goldenWorld, stateFingerprint, YEAR } from './village-g
 // po roce 1841ac157f2d4e93); dřív 8c854b210fec84e7
 // 15. 11. 2026 – sloučení: jména všech lidí a zápisy vylepšení cest s konci a vojvodou (D59)
 // – obojí jen nová pole stavu a záznamů; přepočteno po sloučení
-const EXPECTED_YEAR_1 = '7d3b0f17cb6b855b';
+// 15. 11. 2026 – D66 a D67 (web-ui.md – Panel Kronika): křižovatky v koncích cest nesou významné
+// místo (`near`), zarostlé cesty konce (`ends`, `part`) a opuštěné kusy pod stavbou konce cesty
+// z řezu (`Road.formerEnds`) – jen nová pole záznamů a úseků; stav bez nich má týž otisk jako dřív
+// (7d3b0f17cb6b855b)
+const EXPECTED_YEAR_1 = 'ce5c6d3603f17799';
 
 describe('zlatý otisk vsi', () => {
   const world = goldenWorld();

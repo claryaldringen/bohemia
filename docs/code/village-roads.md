@@ -753,11 +753,14 @@ cellM)` (`road-condition.ts`, index buněk tras v `WeakMap` podle pole tras) –
   (1. dne v měsíci, po `settleVillageWear`, **před** vznikem `formRoadsKept`): `cutDeadRoads`
   (`roads-overgrow.ts`) – kus na nule pryč, celá cesta pryč, jinak `reshapeRoad` rozřízne úsek
   (první živý zbytek si nechá id, místa na stromy a jabloně jdou k nejbližšímu živému, `cutEnds`),
-  kronika `road-overgrown`, pak `mergeRoadChains`; `abandonBlockedStretches` – kus osy v
+  kronika `road-overgrown` (s konci cesty hráče zjištěnými napřed – `noteOf` z `roadsMonth`,
+  `overgrownRoadNote` v `road-chronicle.ts`; `part`, když se úsek rozřízl nebo cesta má úsek, který
+  nezanikl celý – D67), pak `mergeRoadChains`; `abandonBlockedStretches` – kus osy v
   neprůchodné ploše hotových staveb (`villageBlockedAt` v `village.ts`: mřížka sítě pěšin, buňky
   `Infinity` mimo brány; pozemek, ohrada, hřbitov, okrsek svatyně, dům) se vyřízne jako
   `Road.abandoned` (řez o vzorek od stavby, zbytek < `MIN_ROAD_M` se přidá), celá cesta pod stavbou
-  zůstane jedním opuštěným úsekem. Drží jen práce na cestě (`Construction.roadIds` – vylepšení,
+  zůstane jedním opuštěným úsekem; opuštěný kus si nese konce cesty hráče z řezu
+  (`Road.formerEnds` – `noteOf`, D67), kronika pak „Část nepoužívané cesty mezi … zarostla.“ Drží jen práce na cestě (`Construction.roadIds` – vylepšení,
   stezka ve stavbě), **úsek hotové zemské stezky ne** (Vlkov 24. 10. 2026: upravená cesta 4, úsek
   stezky 2178, vedla přes dvorec 1985 a polozemnici 2008 postavené po ní – `fixedRoadIds` ji
   vyňalo navždy); `retrailPieces` pak vede stezku po živých zbytcích v jejím pořadí od vsi ven

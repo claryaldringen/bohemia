@@ -146,6 +146,47 @@ describe('zarůstání podle druhů (paths.md – Zarůstání)', () => {
     expect(roads.cutEnds).toBeDefined();
   });
 
+  it('kronika: opuštěný kus pod stavbou si nese konce cesty z řezu (D67)', () => {
+    const ends = [
+      { kind: 'dwelling', type: 'dvorec' },
+      { kind: 'place', place: 'water' },
+    ] as const;
+    const noteOf = (roadId: number) => ({ chain: [roadId], ends: [...ends] as [never, never] });
+    const roads = roadsOf(road(1, 'trodden', 0, 100));
+    const blocked = (_x: number, z: number): boolean => z >= 40 && z <= 60;
+    expect(abandonBlockedStretches(roads, [], undefined, blocked, noteOf)).toBe(true);
+    const abandoned = roads.roads.filter((r) => r.abandoned);
+    expect(abandoned).toHaveLength(1);
+    expect(abandoned[0]!.formerEnds).toEqual([...ends]);
+    expect(roads.roads.filter((r) => !r.abandoned && r.formerEnds)).toHaveLength(0);
+  });
+
+  it('kronika: konce cesty před zánikem, část cesty jen u rozříznutí (D67)', () => {
+    const ends = [
+      { kind: 'dwelling', type: 'dvorec' },
+      { kind: 'place', place: 'water' },
+    ] as const;
+    const noteOf = (roadId: number) => ({ chain: [roadId], ends: [...ends] as [never, never] });
+    const whole = roadsOf(road(1, 'trodden', 0, 100));
+    const cut = roadsOf(road(1, 'trodden', 0, 200));
+    const field = trafficAlong(0, 300, 100);
+    const events: unknown[] = [];
+    const cutEvents: unknown[] = [];
+    for (let day = 0; day < 8 * YEAR; day += 30) {
+      settleRoadCondition(whole, [], undefined, NO_TRAFFIC, [], day, day + 30);
+      events.push(...cutDeadRoads(whole, [], undefined, day + 30, noteOf));
+      settleRoadCondition(cut, [], undefined, field, [], day, day + 30);
+      cutEvents.push(...cutDeadRoads(cut, [], undefined, day + 30, noteOf));
+    }
+    expect(events).toEqual([
+      expect.objectContaining({ kind: 'road-overgrown', roadId: 1, ends: [...ends] }),
+    ]);
+    expect(events[0]).not.toHaveProperty('part');
+    expect(cutEvents).toEqual([
+      expect.objectContaining({ kind: 'road-overgrown', ends: [...ends], part: true }),
+    ]);
+  });
+
   it('dopočet po 1, 7 a 30 dnech dá totéž co najednou (bit po bitu)', () => {
     const run = (step: number): VillageRoads => {
       const roads = roadsOf(road(1, 'trodden', 0, 150));

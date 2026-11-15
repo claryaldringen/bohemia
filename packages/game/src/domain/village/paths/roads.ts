@@ -47,7 +47,7 @@ import {
   wearRoadDue,
 } from './roads-form';
 import { annualCartNetwork, markCartRoads, takeOverCartRoads } from './roads-carts';
-import { abandonBlockedStretches, cutDeadRoads } from './roads-overgrow';
+import { abandonBlockedStretches, cutDeadRoads, type OvergrownNote } from './roads-overgrow';
 import { accessDue, accessRoads, gateGuardOf, type GateGuard } from './roads-access';
 import { fixedRoadIds, nearEntrance } from './road-condition';
 import { updateJunctions } from './junctions';
@@ -61,7 +61,8 @@ import {
 } from './roads-tidy';
 import { SpotContext, plantingBlocker, rootTrees } from './roads-trees';
 import { type RoadAnchors, roadAnchors } from './road-anchors';
-import { noteFormedRoads } from './road-chronicle';
+import { noteFormedRoads, overgrownRoadNote } from './road-chronicle';
+import { roadEndsNetwork, type RoadEndsNetwork } from './road-ends';
 import { type RouteCode, routeLine } from './routes';
 import { pathCellM, trailTerrain } from './terrain';
 import { type FenceOutline } from './entrances';
@@ -361,13 +362,23 @@ function* roadsMonthRunSteps(
   // zánik: kusy na nule pryč, kus pod hotovou stavbou opuštěný – napřed, aby souběžnost se starou
   // cestou zmizela dřív, než z vyšlapané objížďky vznikne cesta (paths.md – Stavba přes cestu)
   if (roads && roads.roads.length > 0) {
-    const gone = cutDeadRoads(roads, state.constructions, state.trails, day);
+    // konce zarůstající či opuštěné cesty pro kroniku (D67) – síť konců jen, když je třeba
+    let net: RoadEndsNetwork | null = null;
+    const noteOf = (roadId: number): OvergrownNote =>
+      overgrownRoadNote(state, (net ??= roadEndsNetwork(state, landscape)), roadId);
+    const gone = cutDeadRoads(roads, state.constructions, state.trails, day, noteOf);
     state.chronicle.push(...gone);
     // odbočka zarostla – falešné rozcestí se spojí
-    if (gone.length > 0) mergeRoadChains(roads, state.constructions, state.trails);
+    if (gone.length > 0) {
+      mergeRoadChains(roads, state.constructions, state.trails);
+      // slučování může pole úseků nahradit – síť konců pro opuštěné kusy znovu
+      net = null;
+    }
     if (roads.roads.some((r) => !r.abandoned)) {
       const blocked = villageBlockedAt(state, day, landscape);
-      if (blocked) abandonBlockedStretches(roads, state.constructions, state.trails, blocked);
+      if (blocked) {
+        abandonBlockedStretches(roads, state.constructions, state.trails, blocked, noteOf);
+      }
     }
   }
   yield;

@@ -52,12 +52,35 @@ export type ChronicleRoadEnd =
   | { kind: 'dwelling'; type: DwellingType; craft?: Craft }
   /** Jiné místo – předpona klíče trasy (`cemetery`, `pen`, `field`, `water`, `wood`, `idol`…). */
   | { kind: 'place'; place: string }
-  /** Křižovatka nebo rozcestí (tvar). */
-  | { kind: 'junction'; shape: JunctionShape }
+  /**
+   * Křižovatka nebo rozcestí (tvar) a nejbližší významné místo u ní (`near` – `roadEndLandmarks`;
+   * starší zápisy ho nemají).
+   */
+  | { kind: 'junction'; shape: JunctionShape; near?: ChronicleLandmark }
   /** Kraj mapy – směr. */
   | { kind: 'edge'; direction: Direction8 }
   /** Jiná cesta bez křižovatky. */
   | { kind: 'road' };
+
+/** Kde leží křižovatka vůči významnému místu: u něj, pod ním (níž), nad ním (výš). */
+export type LandmarkRelation = 'at' | 'below' | 'above';
+
+/**
+ * Významné místo u křižovatky (D66; Martin 15. 11. 2026: „Podél cesty mezi křižovatkou a rozcestím
+ * byly vysazeny jabloně – nešly by ty koncové body líp specifikovat? Třeba poblíž kterého
+ * významného místa se nacházejí?“): nejbližší stavba, voda, brána nebo kraj mapy do `LANDMARK_M`
+ * („rozcestí u kovárny“, „křižovatka pod dvorcem“, „rozcestí u hranice s Lhotskými“), bez nich
+ * poloha vůči vsi („uprostřed vsi“, „na severní straně vsi“, „severně od vsi“).
+ */
+export type ChronicleLandmark =
+  /** Dvorec nebo dílna (řemeslo). */
+  | { kind: 'dwelling'; type: DwellingType; craft?: Craft; at: LandmarkRelation }
+  /** Stavba nebo voda – `church`, `cemetery`, `threshing-floor`, `pen`, `orchard`, `quarry`, `idol`, `shrine`, `gate`, `water`, `water:river`. */
+  | { kind: 'place'; place: string; at: LandmarkRelation }
+  /** Kraj mapy – soused v tom směru. */
+  | { kind: 'edge'; direction: Direction8 }
+  /** Nic z toho blízko: směr od středu vsi (uprostřed vsi bez směru), `outside` = mimo zástavbu. */
+  | { kind: 'village'; direction?: Direction8; outside?: true };
 
 /**
  * Brána na konci zbořeného úseku opevnění v kronice (demolition.md – Opevnění): s věží, směr od
@@ -625,8 +648,17 @@ export type ChronicleEvent = { day: number } & (
       ends?: [ChronicleRoadEnd, ChronicleRoadEnd];
       years?: number;
     }
-  /** Nepoužívaná vyšlapaná cesta zarostla (roads.md – Zarůstání) – id úseku. */
-  | { kind: 'road-overgrown'; roadId: number }
+  /**
+   * Nepoužívaná vyšlapaná cesta zarostla (roads.md – Zarůstání) – id úseku. Konce cesty hráče
+   * před zánikem (D67, Martin 15. 11. 2026: „tohle také neříká nic o tom, která to byla cesta“)
+   * a `part` – zarostla jen část cesty (zbytek žije); starší zápisy je nemají.
+   */
+  | {
+      kind: 'road-overgrown';
+      roadId: number;
+      ends?: [ChronicleRoadEnd, ChronicleRoadEnd];
+      part?: true;
+    }
   /** Zemská stezka ke kraji mapy je dostavěná – obchod se sousedem (trade.md). */
   | { kind: 'trail-built'; trailId: number; direction: Direction8 }
   /**

@@ -32,8 +32,11 @@ import { goldenWorld, stateFingerprint, YEAR } from './village-golden-fixture';
 // kroniky, simulace beze změny (village-golden.test.ts); dřív ba92a0936e30252b a 2053f8f0078f2fb6
 // 15. 11. 2026 – sloučení: jména všech lidí a zápisy vylepšení cest s konci a vojvodou (D59)
 // – obojí jen nová pole stavu a záznamů; přepočteno po sloučení
-const EXPECTED_YEAR_2 = '2e53d16e130cecd7';
-const EXPECTED_YEAR_3 = 'cb4fa09a11e5ad7e';
+// 15. 11. 2026 – D66 a D67: jen nová pole záznamů kroniky a opuštěných úseků (`near`, `ends`,
+// `part`, `Road.formerEnds`); stav bez nich má týž otisk jako dřív (2e53d16e130cecd7,
+// cb4fa09a11e5ad7e)
+const EXPECTED_YEAR_2 = '4ae0bce6720eb749';
+const EXPECTED_YEAR_3 = 'b6f24d22b7474e65';
 
 describe('zlatý otisk vsi – delší běh', () => {
   it('po 2. a 3. roce dopočtu dá zapsané otisky', () => {

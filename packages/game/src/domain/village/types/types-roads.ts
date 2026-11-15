@@ -1,7 +1,7 @@
 // Typy stavu vsi – Pevné cesty, stromy u cest a vozová síť.
 // Rozcestník je `types.ts`; tento soubor jen drží část typů.
 
-import type { LaborTarget } from './types-chronicle';
+import type { ChronicleRoadEnd, LaborTarget } from './types-chronicle';
 
 /** Bod osy pevné cesty ve světě (m, na centimetry). */
 export interface RoadPoint {
@@ -77,6 +77,11 @@ export interface Road {
    * není řetězem, partnerem souběžné cesty ani cílem napojení – a jen bledne, dokud nezmizí.
    */
   abandoned?: true;
+  /**
+   * Opuštěný kus: konce cesty hráče, ze které se vyřízl (D67 – kronika „Část nepoužívané cesty mezi
+   * kovárnou a potokem zarostla.“, až kus zaroste). Kusy opuštěné dřív ho nemají.
+   */
+  formerEnds?: [ChronicleRoadEnd, ChronicleRoadEnd];
   /**
    * Vozová cesta (wagons.md – Vyjeté cesty): vyjetá vozy, širší, ve scéně dvě koleje, vůz po ní
    * projede i lesem. Chybí = pěší cesta.

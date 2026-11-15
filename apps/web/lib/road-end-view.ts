@@ -5,6 +5,7 @@
 import {
   neighbourOf,
   roadChainIds,
+  type ChronicleLandmark,
   type Road,
   type RoadEnd,
   type VillageState,
@@ -12,7 +13,7 @@ import {
 import type { VillageTarget } from './scene/village-picking';
 import { DIRECTION_NAMES } from './trade-names';
 import { toVillage } from './village-name-cases';
-import { DWELLING_NAMES } from './village-view-chronicle';
+import { DWELLING_NAMES, landmarkPhrase } from './village-view-chronicle';
 
 /**
  * Název a portrét křižovatky podle tvaru (paths.md – Křižovatky): hvězda (pět ramen) je kříž
@@ -136,11 +137,15 @@ function placeView(state: VillageState, place: string): VillageRoadEnd {
   };
 }
 
-/** Konec cesty pro panel – název, ikona, cíl výběru a výpis do konzole. */
+/**
+ * Konec cesty pro panel – název, ikona, cíl výběru a výpis do konzole. Křižovatka s významným
+ * místem u ní (`near` – `roadEndLandmarks`, D66): „Rozcestí u kovárny“, „Křižovatka pod dvorcem“.
+ */
 export function roadEndView(
   state: VillageState,
   roads: readonly Road[],
   end: RoadEnd,
+  near?: ChronicleLandmark | null,
 ): VillageRoadEnd {
   switch (end.kind) {
     case 'place':
@@ -148,9 +153,10 @@ export function roadEndView(
     case 'junction': {
       const junction = (state.roads?.junctions ?? []).find((j) => j.id === end.id);
       const shape = junction?.shape ?? 'cross';
+      const where = near ? landmarkPhrase(near, state.seed) : null;
       return {
         kind: 'junction',
-        name: JUNCTION_NAMES[shape],
+        name: where === null ? JUNCTION_NAMES[shape] : `${JUNCTION_NAMES[shape]} ${where}`,
         icon: build(JUNCTION_ICONS[shape]),
         arrow: null,
         target: { kind: 'junction', id: end.id },

@@ -461,7 +461,10 @@ describe('slučování v roční kontrole', () => {
     withBranch(s);
     s.roads!.wear ??= { day: Y1, cells: '', labor: [] };
     roadsMonth(s, NOV1(601), LANDSCAPE, null);
-    expect(s.chronicle).toContainEqual({ day: NOV1(601), kind: 'road-overgrown', roadId: 502 });
+    // zápis nese i konce cesty před zánikem (D67)
+    expect(s.chronicle).toContainEqual(
+      expect.objectContaining({ day: NOV1(601), kind: 'road-overgrown', roadId: 502 }),
+    );
     const side = s.roads!.roads.filter((r) => r.points.every((p) => p.z === -120));
     expect(side.map((r) => r.id)).toEqual([500]);
     expect(side[0]!.points.map((p) => p.x)).toEqual([-60, 0, 130]);
