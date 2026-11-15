@@ -86,7 +86,8 @@ export function baseMealInput(
     eggsKg: dailyEggsKg(state),
     legumesKg: villageLegumesKg(state),
     daysToLegumeHarvest: daysUntilLegumeHarvest(day),
-    // med z klátů (i dnešní – `waresDay` ráno) pevným přídělem (hides-honey.md – Klát u obydlí)
+    // med z klátů (i dnešní – `waresDay` ráno) pevným přídělem, v hladu i zásoba (hides-honey.md –
+    // Klát u obydlí, Med v hladu)
     honeyKg: state.wares?.honeyKg ?? 0,
     honeyRationKg: villageHoneyRationKg(state, day),
     needPerDay: need,

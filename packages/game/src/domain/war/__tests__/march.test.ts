@@ -14,6 +14,7 @@ import {
 import { addGate, areaOutline, fortificationArea, fortSegments } from '../../village';
 import type { Fortification } from '../../village/fortification/types';
 import type { FortKind, FortTop, Road, TileCell, VillageState } from '../../village/types';
+import { dwellingGatePoint } from '../../village/paths/network-grid';
 import { dwelling, village } from '../../village/__tests__/kin-fixtures';
 import { horsePen } from '../../village/__tests__/horse-fixtures';
 import {
@@ -29,6 +30,7 @@ import {
   marchGrid,
   MarchGridMemo,
   type MarchGrid,
+  type Pos,
 } from '../march-grid';
 import {
   marchPath,
@@ -541,6 +543,28 @@ describe('stavby vsi pochod blokují (war.md – Pohyb – Terén)', () => {
     expect(into).not.toBeNull();
     expect(into!.points[into!.points.length - 1]).toEqual({ x: 0, z: 0 });
     expect(marchPath(grid, { x: 0, z: 0 }, E)).not.toBeNull();
+  });
+
+  it('z branky dvorce k místu 42 m za dvorem rovně, ze středu domu zdí a obloukem (D49)', () => {
+    // dvorec s dvorem jako Vlkov: dům uprostřed políčka vchodem ke dvoru, branka za dvorem (+x)
+    const land = flat();
+    const manor = {
+      ...dwelling(1, 'dvorec'),
+      position: { x: 7.5, z: 7.5, rotation: Math.PI / 2 },
+      plot: { cell: { x: 64, y: 64 }, variant: 'center' as const, yard: { x: 65, y: 64 } },
+    };
+    const grid = marchGrid(land, null, village([], [manor]));
+    const center = { x: 7.5, z: 7.5 };
+    const gate = dwellingGatePoint(land, manor);
+    expect(gate.x).toBeCloseTo(center.x + 23.5, 6);
+    const goal = { x: center.x + 42, z: center.z + 2.4 };
+    const air = (a: Pos, b: Pos): number => Math.hypot(b.x - a.x, b.z - a.z);
+    // příčina: ze středu domu vede trasa nejbližší volnou buňkou mimo pozemek a kolem něj
+    expect(marchPath(grid, center, goal)!.lengthM).toBeGreaterThan(1.25 * air(center, goal));
+    // z branky rovně – i celá cesta od domu dvorem a brankou je ≈ vzdušná čára
+    const out = marchPath(grid, gate, goal)!;
+    expect(out.lengthM).toBeLessThanOrEqual(1.2 * air(gate, goal));
+    expect(air(center, gate) + out.lengthM).toBeLessThanOrEqual(1.2 * air(center, goal));
   });
 
   it('ohrada je neprůchodná, pole průchozí tempem louky', () => {

@@ -264,6 +264,7 @@ store, keepKg, needed)` = `reservedSeedKg` (jen `needed`) + max(hromada, běžn�
   − `SEED_STORES.marginDays` − `starvationDays`; cílový příděl 0,9 × (1 − `slack` / dny do žní),
   zrno na něj `grainAheadForOutlookKg` nad `baseMealInput` (`meal-input.ts`) – i se ztrátami
   skladováním do žní (`grainEatenShare`, od 15. 11. 2026; dřív ÷ `grainKeepPerDay` ^ ((dny + 1) / 2))
+  a s celou zásobou medu (hides-honey.md – Med v hladu; dřív med jen pevným přídělem)
   – ÷ `grainKeepPerDay` za dnešní ztrátu). `grainSeedTakenKg` – osivo obilí, které letošní nutná
   práce vzala.
 - **Hromada osiva okna** (fields.md – Osivo bez cíle osevu; Martin 9. 11. 2026):

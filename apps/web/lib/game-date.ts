@@ -8,6 +8,7 @@ import {
   type WorldClock,
   type WorldState,
 } from '@bohemia/game';
+import { plural } from './village-format';
 
 const MONTHS_GENITIVE = [
   'ledna',
@@ -53,6 +54,31 @@ function formatWorldStart(startMs: number): string {
 /** Herní datum jako „12. dubna 503“. */
 export function formatGameDate({ day, month, year }: CalendarDate): string {
   return `${day}. ${MONTHS_GENITIVE[month - 1]} ${year}`;
+}
+
+const MONTHS_PER_YEAR = 12;
+
+/**
+ * Doba od herního dne `from` do dne `to` podle kalendáře – „1 rok 3 měsíce“, „4 měsíce“, „12 dní“:
+ * celé roky a měsíce, pod měsíc dny (D56 – na jak dlouho vystačí zásoby).
+ */
+export function formatGameDuration(from: number, to: number): string {
+  const start = dateOfDayIndex(from);
+  const end = dateOfDayIndex(Math.max(from, to));
+  const months =
+    (end.year - start.year) * MONTHS_PER_YEAR +
+    (end.month - start.month) -
+    (end.day < start.day ? 1 : 0);
+  if (months < 1) {
+    const days = Math.max(0, to - from);
+    return `${days} ${plural(days, 'den', 'dny', 'dní')}`;
+  }
+  const years = Math.floor(months / MONTHS_PER_YEAR);
+  const rest = months % MONTHS_PER_YEAR;
+  const monthsText = `${rest} ${plural(rest, 'měsíc', 'měsíce', 'měsíců')}`;
+  if (years === 0) return monthsText;
+  const yearsText = `${years} ${plural(years, 'rok', 'roky', 'let')}`;
+  return rest > 0 ? `${yearsText} ${monthsText}` : yearsText;
 }
 
 export function formatWorldState(state: WorldState, world: WorldClock): string {

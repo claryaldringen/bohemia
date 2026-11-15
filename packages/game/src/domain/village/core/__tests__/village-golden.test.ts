@@ -32,9 +32,13 @@ import { advanceChunked, goldenWorld, stateFingerprint, YEAR } from './village-g
 // 15. 11. 2026 – výhled jídla počítá se ztrátami obilí skladováním do žní (fields.md – Přídělový
 // systém, Martin „Ano“): příděl na hraně je od začátku nižší a rovný, přežívací zásoba přesná –
 // jiné zásoby, osev a koně; dřív 07df9ad582db4c65
-// 06d3b66a5e3247d8 (15. 11. 2026, kronika – úmrtí s postavením: zápis `death` nese `estate`; bez
-// něj beze změny 49a0f7b2264963f2 – simulace se nezměnila)
-const EXPECTED_YEAR_1 = '06d3b66a5e3247d8';
+// 15. 11. 2026 – hladová ves sní i zásobu medu (hides-honey.md – Med v hladu, Martin „Ano – jsou
+// to kalorie jako každé jiné.“): zlatá ves za rok nešetří ani den (medu ≈ 120 kg), ale přežívací
+// zásoba obilí (`seedKeepKg` – `grainAheadForOutlookKg`) počítá s celou zásobou medu, ne jen
+// s pevným přídělem – drží až o ≈ 100 kg obilí méně, jiné osivo a zásoby; dřív 49a0f7b2264963f2
+// 15. 11. 2026 – sloučení: zápisy úmrtí nesou postavení (`estate`, kronika C) a hladová ves
+// jí i zásobu medu – obojí mění stav; přepočteno po sloučení
+const EXPECTED_YEAR_1 = '8c854b210fec84e7';
 
 describe('zlatý otisk vsi', () => {
   const world = goldenWorld();

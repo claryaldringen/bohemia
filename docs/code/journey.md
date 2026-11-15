@@ -224,8 +224,12 @@ untilTick, pen }`: vesničan `groomId` (null = nikdo doma), jezdci (id osob), ta
   - Starý výjezd vojvody s družinou (výběr družiny mužů rodu, jezdci vyjížděli rovnou na koni) zanikl v Úloze 12 výprav: vojvoda je člověk jako ostatní a na koni
     sedí až po Osedlat.
 - **Domov výjezdu** (`journeyHome`) – `home.pos`, odkud skupina vyjede a kam ji Domů a návrat po
-  čekání vedou, je dvorec vsi (`villageManor`; dokud zakladatelé první zemnici staví, její
-  staveniště; ves bez obydlí – `villagePlace`). Hráč staví ves, kde chce – místo vsi krajiny
+  čekání vedou, je **branka pozemku dvorce** (`dwellingGatePoint` – odkud z něj vychází síť pěšin;
+  dvorec bez pozemku: před vchodem domu; dokud zakladatelé první zemnici staví, její staveniště;
+  ves bez obydlí – `villagePlace`). Dřív střed dvorce: mřížka pochodu blokuje celý pozemek i
+  s brankou, trasa proto vedla ze středu domu rovně zdí k nejbližší volné buňce a kolem pozemku –
+  Vlkov k místu 42 m za dvorem 102 m obloukem, z branky 18,8 m rovně (D49, Martin 15. 11. 2026:
+  „vyběhl boční stěnou domu a velkým obloukem…“; výprava založená dřív má domov uložený ve stavu). Hráč staví ves, kde chce – místo vsi krajiny
   (`villageSite`) od ní může ležet daleko (Martinův Vlkov ≈ 430 m): skupina pak vyjížděla odtamtud,
   pobíhala po mapě a Domů jela „někam do prdele“ (Martin 14. 11. 2026). Odtud ověřuje dosažitelnost
   i první rozkaz. Pohled ho nese jako `JourneyView.homePos` (scéna od něj měří odjezd a příjezd).
@@ -571,9 +575,15 @@ inParty, atHomeMap, horseWork }`, `ButtonState` = `'hidden' | 'enabled' | { disa
   `phase`, `waitDaysLeft`). `journeyFormation` – hlouček kolem `group.pos` jako pochod vojska
   (`huddleSlots`: jezdci vpředu, vojvoda uprostřed, pěší za nimi, ranění vzadu). `ridersAt` – každý
   muž jde mezi stavy rovně ze své nakreslené polohy na nové místo a hledí, kam jde (hlouček se
-  v zatáčce neotočí skokem); nový muž a skok přes mapu stojí rovnou. `JourneyGlide` – stav po
-  výjezdech: nový takt nebo jiní muži = nový posun za dobu taktů mezi stavy (`glideMs`), stejný takt
-  pohyb nepřeruší, omezený pohyb stojí na novém místě. `headingOf` – směr z posunu, jinak k cíli.
+  v zatáčce neotočí skokem); nový muž a skok přes mapu stojí rovnou. `JourneyGlide` – stavy po
+  výjezdech se **přehrávají podle taktů se zpožděním** `PLAY_LAG_TICKS` (8 taktů = 2 s; D49, Martin 15. 11. 2026: „cestou měnil rychlost“): muž jde mezi stavy tempem jádra, i když worker ukládá
+  v nepravidelných kolech (≈ 1 s, déle s prací vsí) a prohlížeč se ptá po 500 ms; přehrávání drží
+  zásobu zrychlením či zpomalením nejvýš o `PLAY_SLACK` (6 %). Dřív každý nový stav spustil nový
+  posun z nakreslené polohy za `glideMs` – muž střídavě stál a dobíhal (měření: 0–10,5 m/s při
+  jádru 5,25 m/s). Hlouček, který stál (poslední dva stavy na místě), se rozjede s prvním stavem
+  v pohybu (pohyb k němu jako dřív `glideMs`) o tolik později, aby měl zásobu; zásoba nad 40 taktů
+  se zahodí. Stejný takt pohyb nepřeruší, omezený pohyb stojí na novém místě. Tempo jádra se mění
+  jen s terénem (cesta × 1,5, les – war.md – Pohyb vojska). `headingOf` – směr z posunu, jinak k cíli.
   `SceneJourney.men[]` nese `look` (`line` muž rodu, `man` / `woman` vesničan a vesničanka, `child`;
   `lookOf` v `journey-view.ts`) a `led` (jezdec vede koně). `journeyFigures` – jezdci
   (`ARMY_LOOKS.line`, `ride` / `ride-trot` / `ride-idle`) a pěší jako postavy vsi
@@ -619,7 +629,8 @@ inParty, atHomeMap, horseWork }`, `ButtonState` = `'hidden' | 'enabled' | { disa
   (praporek na souši) závisel na náhodné krajině a byl nestabilní – kryje ho unit test
   `journey.test.ts` (posunutý `group.goal` leží na souši) a `journey-marker.test.ts` (praporek na
   `group.goal`).
-- **Testy** – `lib/scene/__tests__/journey-riders.test.ts`, `journey-marker.test.ts`,
+- **Testy** – `lib/scene/__tests__/journey-riders.test.ts` (i stálé tempo při nepravidelných
+  stavech – D49), `journey-marker.test.ts`,
   `lib/__tests__/journey-scene.test.ts`, `hooks/__tests__/use-journey-visitors.behavior.test.tsx`.
 
 ## Sedlání, připojení a návrat (výpravy – plán 2026-11-14, Úloha 11 – `apps/web`)
@@ -638,8 +649,10 @@ hlouček. Nahradilo dřívější odjezd a příjezd výjezdu vojvody z dvorce.
     (`LedScript.back`) a vrátí se, odkud přišel. **Tempo:** trasa se natáhne nebo stáhne
     (`tickMs(untilTick) − nowMs`, nejméně 1 s), příchod ke koním a k jezdcům padne na `untilTick`.
   - `joinScripts(people, ctx)` + `chasePose` – nový člověk jde od místa, kde je jeho postava vsi
-    nakreslená (jinak od vchodu obydlí), na své místo v hloučku tempem `CATCH_M_S` (pěší 3 m/s,
-    jezdec 4,5 m/s – návrh Clauda), odstup se stahuje rovnoměrně, na konci přesně ve stavu
+    nakreslená (jinak od vchodu obydlí), **po cestě postav** (`Chase.via` – `yard.leg`, z domu
+    dveřmi a brankou pozemku; D49 – dřív rovně zdí) tam, kde ho hlouček nakreslil (u domova branka
+    dvorce), pak stahuje odstup od svého místa (`Chase.tail` – zapíše první snímek po cestě);
+    tempem `CATCH_M_S` (pěší 3 m/s, jezdec 4,5 m/s – návrh Clauda), na konci přesně ve stavu
     `JourneyGlide`.
   - `arrivalScript(group, ctx)` – hlouček, který zmizí u domova: jezdci (i pěšáci s vedeným koněm)
     dojdou ke kůlu dvorce a sesednou, koně odvede nejbližší dospělý doma (`adultNear`), jinak
@@ -671,7 +684,7 @@ hlouček. Nahradilo dřívější odjezd a příjezd výjezdu vojvody z dvorce.
   `arriving`), `led` (koně bez jezdce), `groom` (vesničan, který vede koně), bránu (`gate`)
   a koně mimo ohradu (`awayHorses`). E2e: `e2e/expeditions.spec.ts` – „dva vesničané“ (Shift + klik, výběr jede se skupinou, Domů), „vojvoda a syn“ (Osedlat, přes okraj, Sesednout, Domů – kůň v ohradě).
 - **Testy** – `lib/scene/__tests__/expedition-choreo.test.ts` (sedlání s vesničanem i bez, tempo,
-  sesednutí, připojení bez skoku, příjezd s dospělým i bez, vedený kůň, načtení uprostřed, omezený
+  sesednutí, připojení bez skoku, z domu dveřmi a brankou, příjezd s dospělým i bez, vedený kůň, načtení uprostřed, omezený
   pohyb).
 - **Známé omezení** – vesničan vedoucí koně je vždy `man` (pohlaví scéna nezná) a po scénáři se
   objeví tam, kde ho má plán dne; rozkaz ven během příjezdu příjezd nepřeruší.

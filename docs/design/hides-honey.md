@@ -29,11 +29,28 @@ Nové zboží vsi. Martin 14. 11. 2026:
 - **Med se jí jen málo a hromadí se** – Martin 14. 11. 2026: „Med se nekazí, takže se dá dlouho
   skladovat a hromadit. Na druhou stranu – med se většinou přidával do sladkého pečiva nebo se
   z něj dělala medovina – samotného medu totiž člověk moc nesní.“ Návrh Clauda: příděl **0,5 kg na
-  člověka za rok** (sladké pečivo), zbytek zůstává v zásobě na prodej; medovina později.
+  člověka za rok** (sladké pečivo), zbytek zůstává v zásobě na prodej; medovina později. Hladová
+  ves sní i zásobu (Med v hladu).
 - Med a vosk přibývají denně od května do září – za rok z klátu **≈ 6 kg medu a ≈ 0,4 kg vosku**
   (středověký klát dával 5–10 kg medu, vosk ≈ 6–8 % medu). Bez rojení a úhynu včel.
 - Prémiová krajina „Brtě a lesní včely“: brtě v lese dají každá jako klát; vybírá je práce vsi
   (cesta do lesa jako pro dřevo).
+
+## Med v hladu
+
+Martin 15. 11. 2026 (na otázku, jestli má hladová ves sníst i zásobu medu, ne jen příděl): „Ano –
+jsou to kalorie jako každé jiné.“
+
+- Když ves nemá do sklizně dost jídla – šetří přídělem nebo hladoví –, je **celá zásoba medu jídlo
+  jako obilí** (0,9 kg obilí na kg, jen energie): výhled do sklizně s ní počítá celou a ves ji jí,
+  kolik je do sklizně potřeba k doplnění přídělu, nejvýš celou zásobu. Stačí-li med k plnému
+  přídělu, ves nešetří a zbytek medu zůstane.
+- Když jídla dost je, platí dál pevný příděl 0,5 kg na člověka za rok a zbytek se hromadí (Klát
+  u obydlí).
+- Návrh Clauda: hladová ves jí med s obilím jedním přídělem – med svým dílem, aby obilí i med vyšly
+  na den sklizně. Obilí se tak sní rovným dílem, jak výhled se ztrátami skladováním počítá
+  ([pole](fields.md) – Přídělový systém); med se nekazí. S celou zásobou medu počítá i přežívací
+  zásoba obilí při setí ([pole](fields.md) – Osivo ze zásob) – je to příděl pro ves, která šetří.
 
 ## Lov drobné zvěře – kdykoli je čas
 

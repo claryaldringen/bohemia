@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { TICK_MS } from '@bohemia/game';
+import { TICK_MS, type Pos } from '@bohemia/game';
 import { CHILD_FIGURE_SCALE } from '../refugee-march';
 import {
   JourneyGlide,
+  PLAY_LAG_TICKS,
   headingOf,
   journeyFigures,
   journeyFormation,
@@ -111,16 +112,18 @@ describe('ridersAt – každý muž jde plynule, ne jen střed skupiny', () => {
 });
 
 describe('JourneyGlide – plynule mezi stavy ze serveru', () => {
-  it('muži jdou k novému stavu tak dlouho, kolik taktů uběhlo', () => {
+  it('hlouček, který stál, se rozjede se zásobou PLAY_LAG_TICKS a jde tempem jádra', () => {
     const glide = new JourneyGlide();
     expect(glide.set([journey()], 0, false)).toBe(true);
     const start = glide.at(0, false).poses;
-    // 4 takty po 250 ms = 1 s; dotaz přišel po 1 s
+    // 4 takty po 250 ms; dotaz přišel po 1 s – rozjede se o 4 takty později (zásoba 8 taktů)
     expect(glide.set([journey({ tick: 104, pos: { x: 10, z: 23 } })], 1000, false)).toBe(true);
-    const mid = glide.at(1000 + 2 * TICK_MS, false);
+    expect(PLAY_LAG_TICKS).toBe(8);
+    expect(glide.at(1000 + 4 * TICK_MS, false).poses[0]!.z).toBeCloseTo(start[0]!.z, 6);
+    const mid = glide.at(1000 + 6 * TICK_MS, false);
     expect(mid.moving).toBe(true);
     expect(mid.poses[0]!.z).toBeCloseTo(start[0]!.z + 1.5, 6);
-    const end = glide.at(1000 + 4 * TICK_MS, false);
+    const end = glide.at(1000 + 8 * TICK_MS, false);
     expect(end.poses[0]!.z).toBeCloseTo(23, 6);
     expect(end.moving).toBe(false);
   });
@@ -130,11 +133,46 @@ describe('JourneyGlide – plynule mezi stavy ze serveru', () => {
     glide.set([journey()], 0, false);
     glide.set([journey({ tick: 104, pos: { x: 10, z: 24 } })], 1000, false);
     expect(glide.set([journey({ tick: 104, pos: { x: 10, z: 24 } })], 1200, false)).toBe(false);
-    expect(glide.at(1500, false).poses[0]!.z).toBeCloseTo(22, 6);
+    expect(glide.at(1000 + 6 * TICK_MS, false).poses[0]!.z).toBeCloseTo(22, 6);
     const frozen = new JourneyGlide();
     frozen.set([journey()], 0, true);
     frozen.set([journey({ tick: 104, pos: { x: 10, z: 24 } })], 1000, true);
     expect(frozen.at(1100, true).poses[0]!.z).toBeCloseTo(24, 6);
+  });
+
+  it('stavy chodí nepravidelně – muž jde stálým tempem (± 10 %) a nestojí (D49)', () => {
+    // jezdec 5,25 m/s rovně; worker ukládá po 1–1,5 s, prohlížeč se ptá po 500 ms – dřív muž
+    // střídavě stál a dobíhal (0–10,5 m/s)
+    const speed = 5.25;
+    const state = (tick: number): SceneJourney =>
+      journey({ tick, pos: { x: 10, z: 20 + ((tick - 100) * speed * TICK_MS) / 1000 } });
+    const arrivals: [number, number][] = [
+      [1000, 104],
+      [2000, 108],
+      [3500, 113],
+      [4500, 117],
+      [5500, 121],
+      [7000, 127],
+      [8000, 130],
+      [9000, 134],
+      [10000, 138],
+    ];
+    const glide = new JourneyGlide();
+    glide.set([state(100)], 0, false);
+    let k = 0;
+    let prev: Pos | null = null;
+    const speeds: number[] = [];
+    for (let t = 0; t <= 10_000; t += 100) {
+      while (k < arrivals.length && arrivals[k]![0] <= t) {
+        glide.set([state(arrivals[k]![1])], arrivals[k]![0], false);
+        k++;
+      }
+      const p = glide.at(t, false).poses[0]!;
+      if (prev && t > 2100) speeds.push(Math.hypot(p.x - prev.x, p.z - prev.z) / 0.1);
+      prev = p;
+    }
+    expect(speeds.length).toBeGreaterThan(70);
+    for (const v of speeds) expect(Math.abs(v - speed) / speed).toBeLessThanOrEqual(0.1);
   });
 
   it('zmizelý výjezd scéna nekreslí', () => {

@@ -140,6 +140,13 @@ export interface Chase {
   off: Pos;
   /** Kdy dohánění začalo (s od začátku scénáře). */
   start: number;
+  /**
+   * Cesta od postavy vsi k místu, kde ji hlouček nakreslil (D49 – z domu dveřmi a brankou, ne
+   * zdí; `ChoreoContext.yard.leg`), a za kolik s ji člověk ujde; po ní dohání odstup `tail`.
+   */
+  via?: { points: Pos[]; total: number };
+  /** Odstup od místa v hloučku na konci cesty `via` a za kolik s ho stáhne (zapíše první snímek po ní). */
+  tail?: { off: Pos; total: number };
 }
 
 /** Scénář jednoho hloučku (sedlání, sesednutí, připojení, návrat). */
@@ -409,32 +416,79 @@ export function horseWorkScript(
 
 /**
  * Připojení nových lidí `people` (jejich místa v hloučku): každý jde od místa, kde je jeho postava
- * vsi kreslená, na své místo tempem `CATCH_M_S` (jako dohánění skupiny) a bez skoku.
+ * vsi kreslená, po cestě postav (`yard.leg` – z domu dveřmi a brankou pozemku, D49) tam, kde ho
+ * hlouček nakreslil (u domova branka dvorce), pak dohání své místo; tempem `CATCH_M_S` a bez skoku.
  */
 export function joinScripts(people: readonly RiderPose[], ctx: ChoreoContext): Chase[] {
   return people.map((p): Chase => {
     const from =
       (p.personId === null ? null : (ctx.figureAt(p.personId) ?? ctx.yard.entryOf(p.personId))) ??
       ctx.yard.door;
-    const off = { x: from.x - p.x, z: from.z - p.z };
     const pace = p.mounted ? CATCH_M_S.mounted : CATCH_M_S.foot;
+    // ke hloučku po cestě postav (dveřmi a brankou dvorce – D49), ne rovně přes zdi a ploty
+    const points = route(ctx, from, { x: p.x, z: p.z });
+    let walked = 0;
+    for (let i = 1; i < points.length; i++) {
+      walked += Math.hypot(points[i]!.x - points[i - 1]!.x, points[i]!.z - points[i - 1]!.z);
+    }
+    const viaS = walked / pace;
     return {
       key: p.key,
       personId: p.personId,
       mounted: p.mounted,
-      total: Math.max(MIN_S, Math.hypot(off.x, off.z) / pace),
-      off,
+      // hlouček mezitím popojede – na dohnání stejně dlouho jako cesta (nejméně MIN_S)
+      total: viaS + Math.max(MIN_S, viaS),
+      off: { x: 0, z: 0 },
       start: 0,
+      via: { points, total: viaS },
     };
   });
 }
 
-/** Postava připojujícího se člověka v čase `s` (s od začátku) – na místě `g`, odkud dohání. */
+/** Bod a směr na lomené čáře `points` po `d` metrech. */
+function alongPoints(points: readonly Pos[], d: number): { at: Pos; dir: Pos } {
+  let left = d;
+  for (let i = 1; i < points.length; i++) {
+    const a = points[i - 1]!;
+    const b = points[i]!;
+    const len = Math.hypot(b.x - a.x, b.z - a.z);
+    if (len <= 0) continue;
+    const dir = { x: (b.x - a.x) / len, z: (b.z - a.z) / len };
+    if (left <= len || i === points.length - 1) {
+      const k = Math.min(left, len);
+      return { at: { x: a.x + dir.x * k, z: a.z + dir.z * k }, dir };
+    }
+    left -= len;
+  }
+  return { at: points[points.length - 1]!, dir: { x: 0, z: 1 } };
+}
+
+/**
+ * Postava připojujícího se člověka v čase `s` (s od začátku) – na místě `g`, odkud dohání. S cestou
+ * `via` ji napřed ujde (tempem dohánění), pak stahuje odstup od místa v hloučku; první snímek po
+ * cestě odstup zapíše do `chase.tail` (snímky jdou po sobě).
+ */
 export function chasePose(chase: Chase, g: RiderPose, s: number): RiderPose {
   const e = s - chase.start;
-  const u = e / chase.total;
+  const via = chase.via;
+  if (via && e < via.total) {
+    const pace = chase.mounted ? CATCH_M_S.mounted : CATCH_M_S.foot;
+    const { at, dir } = alongPoints(via.points, Math.max(0, e) * pace);
+    return { ...g, x: at.x, z: at.z, hx: dir.x, hz: dir.z, speed: pace };
+  }
+  if (via && !chase.tail) {
+    const end = via.points[via.points.length - 1]!;
+    const off = { x: end.x - g.x, z: end.z - g.z };
+    const pace = chase.mounted ? CATCH_M_S.mounted : CATCH_M_S.foot;
+    const total = Math.min(
+      Math.max(MIN_S, Math.hypot(off.x, off.z) / pace),
+      chase.total - via.total,
+    );
+    chase.tail = { off, total: Math.max(0.1, total) };
+  }
+  const { off, total } = chase.tail ?? chase;
+  const u = (e - (via ? via.total : 0)) / total;
   if (u >= 1) return g;
-  const { off, total } = chase;
   // rychlost = skupina + stahování odstupu
   const vx = g.hx * g.speed - off.x / total;
   const vz = g.hz * g.speed - off.z / total;

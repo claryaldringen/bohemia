@@ -160,7 +160,7 @@ describe('připojení', () => {
   it('nový člověk začne na poloze postavy vsi a dorazí na své místo bez skoku', () => {
     const target = pose('9', 0, 20);
     const [chase] = joinScripts([target], context());
-    expect(chase!.total).toBeCloseTo(dist({ x: -10, z: 5 }, target) / CATCH_M_S.foot, 5);
+    expect(chase!.via!.total).toBeCloseTo(dist({ x: -10, z: 5 }, target) / CATCH_M_S.foot, 5);
     const at0 = chasePose(chase!, target, 0);
     expect(dist(at0, { x: -10, z: 5 })).toBeLessThan(1e-6);
     let last = Infinity;
@@ -175,7 +175,26 @@ describe('připojení', () => {
 
   it('bez postavy vsi jde od vchodu obydlí', () => {
     const [chase] = joinScripts([pose('8', 0, 20)], context());
-    expect(chase!.off).toEqual({ x: 5, z: -20 });
+    expect(chase!.via!.points[0]).toEqual({ x: 5, z: 0 });
+  });
+
+  it('z domu dveřmi a brankou, ne zdí – pak dohání hlouček, který mezitím popojel (D49)', () => {
+    // cesta postav vede od dveří (−10, 5) brankou pozemku (0, 12) k hloučku před ní (0, 20)
+    const gate = { x: 0, z: 12 };
+    const ctx = context({ yard: { ...context().yard, leg: (a, b) => [a, gate, b] } });
+    const start = pose('9', 0, 20);
+    const [chase] = joinScripts([start], ctx);
+    expect(chase!.via!.points).toEqual([{ x: -10, z: 5 }, gate, { x: 0, z: 20 }]);
+    // první úsek ode dveří k brance, ne rovně k hloučku
+    const toGate = dist({ x: -10, z: 5 }, gate) / CATCH_M_S.foot;
+    const half = chasePose(chase!, start, toGate / 2);
+    expect(dist(half, { x: -5, z: 8.5 })).toBeLessThan(1e-6);
+    expect(dist(chasePose(chase!, start, toGate), gate)).toBeLessThan(1e-6);
+    // hlouček mezitím popojel o 10 m – po cestě člověk dohání bez skoku a dorazí na místo
+    const moved = { ...start, z: 30, speed: 3.5 };
+    const after = chasePose(chase!, moved, chase!.via!.total + 1e-6);
+    expect(dist(after, { x: 0, z: 20 })).toBeLessThan(1e-3);
+    expect(chasePose(chase!, moved, chase!.total)).toBe(moved);
   });
 });
 

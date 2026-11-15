@@ -52,6 +52,7 @@ import {
 } from '../people/happiness';
 import { dailyMilk, dairyDams, villageCheeseKg, yearlyMilk } from '../livestock/dairy';
 import { villageMeal, villageMeatKg } from './diet';
+import { foodLastsDays } from './food-lasts';
 import { villageHayKg } from '../livestock/hay';
 import { horsesInPlaces, villageHorses } from '../livestock/horses';
 import { villageLegumesKg } from '../fields/legumes';
@@ -474,6 +475,11 @@ export interface VillageSummary {
   pileLogs: number;
   /** Na kolik měsíců zásoby obilí vystačí při dnešní potřebě (bez lidí 0). */
   storesMonths: number;
+  /**
+   * Kolik dní od zítřka uživí dnešní zásoby jídla lidi plným přídělem bez sklizní a příjmů
+   * (`foodLastsDays` – diet.md, Na jak dlouho vystačí zásoby); nikdo nejí → null.
+   */
+  foodLastsDays: number | null;
   /** Nasycení příštího dne 0–1 podle přídělového systému (energie × pestrost – diet.md). */
   satiation: number;
   /** Jídlo příštího dne – energie, pestrost a podíly obilí, masa a ovoce (diet.md). */
@@ -876,6 +882,11 @@ export function summarizeVillage(
     pileLogs: pileLogs(state),
     storesMonths:
       needPerDay > 0 ? state.storesKg / ((needPerDay * DAYS_PER_YEAR) / MONTHS_PER_YEAR) : 0,
+    foodLastsDays: foodLastsDays(
+      state,
+      day,
+      craftCoverage(state, Math.min(day + 1, TOTAL_GAME_DAYS - 1)).pottery,
+    ),
     satiation: diet.satiation,
     diet,
     meatKg: villageMeatKg(state),

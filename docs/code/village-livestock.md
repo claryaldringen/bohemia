@@ -559,18 +559,27 @@ chybějící hodnota je 0, převod není potřeba. Jmenuje se `wares`, ne `goods
 
 ### Med ve stravě (`core/diet.ts`)
 
-Návrh: hides-honey.md – Klát u obydlí, diet.md – Pojmy. Čísla `HONEY` (`rules/rules-wares.ts`):
-energie 0,9 kg obilí na kg, pevný příděl 0,5 kg na člověka za rok.
+Návrh: hides-honey.md – Klát u obydlí a Med v hladu, diet.md – Pojmy. Čísla `HONEY`
+(`rules/rules-wares.ts`): energie 0,9 kg obilí na kg, pevný příděl 0,5 kg na člověka za rok.
 
 - `villageHoneyRationKg(state, day)` – příděl za den: každý, kdo dnes jí ze zásob vsi (lidé
   s `foodNeedPerDay > 0` a hosté do `untilDay`), × `HONEY.kgPerPersonYear ÷ 365`. Vstup jídla
   (`baseMealInput` v `core/meal-input.ts` i `villageMeal`) předá `honeyKg` (`wares.honeyKg`, i dnešní
   med z klátů – `waresDay` je ráno) a `honeyRationKg`.
-- `dietPlan`: sní se `min(zásoba, příděl)` – bez stropu, bez bílkovin a bez vlivu na kvalitu
-  stravy (`dietOf` – jen energie). Dnešní příděl jde do `today`, do výhledu do sklizně
-  `honeyUntilHarvest` – příděl jen na dny, kdy zásoba vydrží (`honeyDays`; jako maso do zkažení,
-  med, který klády dají do žní, výhled nezná) – v `eatDiet` i `grainAheadForOutlookKg`
-  (přežívací zásoba – `seedKeepKg`); po zkažení ovoce `honeyAfterRot`.
+- `dietPlan`: pevný příděl `honeyEaten` = `min(zásoba, příděl)` – bez stropu, bez bílkovin a bez
+  vlivu na kvalitu stravy (`dietOf` – jen energie); jde do `today` (`todayOther` = dnešní jídlo
+  bez medu), do sklizně `honeyUntilHarvest` – příděl jen na dny, kdy zásoba vydrží (`honeyDays`;
+  med, který klády dají do žní, výhled nezná). `honeyAll` = energie celé zásoby.
+- `eatDiet` (Med v hladu, Martin 15. 11. 2026): stačí-li obilí do sklizně s pevným přídělem
+  (`grainNeed` s `honeyUntilHarvest`), jí se příděl a obilí navíc (`grainSpareKg`) počítá s medem
+  jen v něm. Jinak je celá zásoba jídlo jako obilí: med, který obilí doplní na plný příděl
+  (`honeyNeed`), stačí-li `honeyAll`, ves jí dosyta; jinak výhled `even` s `honeyAll`. Dnešní
+  obilí a med jsou jeden příděl `pool` (příděl dne − `todayOther`; ve dnech jen ovoce 0), med
+  z něj podílem `honeyShare` = med ÷ (obilí do sklizně `aheadEaten` + med) – obilí i med tak
+  vyjdou na den sklizně a obilí se sní rovným dílem, jak počítá `grainEatenShare`; nejvýš celá
+  zásoba, zbytek dnešního přídělu obilí. `grainAheadForOutlookKg` (přežívací zásoba –
+  `seedKeepKg`) počítá s `honeyAll` vždy – s nejmenším obilím na příděl jídla s pevným přídělem
+  dost není (i plný příděl pak doplní celá zásoba).
 - `eat()` (`core/simulate-food.ts`) zapíše zbytek `state.wares.honeyKg = meal.honeyKg` – jen když
   `wares` existuje, kvůli jídlu nevznikne; med se nekazí.
 - Podíl `DietDay.shares.honey` jen, když se med jedl (jako `freshMeat`); `fieldShareOf`
