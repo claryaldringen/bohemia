@@ -3,7 +3,7 @@ import { daylightFactor } from '../daylight';
 import { dayIndexOf } from '../../../calendar';
 import { foundVillage } from '../actions';
 import type { PartInput } from '../actions';
-import { laborReport } from '../labor-report';
+import { laborReport, startingShares } from '../labor-report';
 import { laborPerDay } from '../../people/people';
 import { HARVEST_WORK_PER_HA } from '../../rules';
 import { advanceVillage } from '../simulate';
@@ -269,6 +269,41 @@ describe('laborReport – rozdělení práce dne', () => {
     for (const share of report.aside ?? []) {
       expect(share.target).not.toEqual({ kind: 'pen', id: 90 });
     }
+  });
+});
+
+describe('startingShares – stavby založené dnes (D68, D71)', () => {
+  it('místo první práce staveb založených v den rozdělení práce – kácení, jinak místo stavby', () => {
+    const day = at(600, 10, 1);
+    const s = advanceVillage(bare(day), day, null);
+    const labor = laborReport(s)!;
+    const fell = [101, 102].map((id) => ({ id, cost: 4 }));
+    s.constructions.push(
+      { ...dwellingSite(day, undefined), id: 92, startedDay: labor.day },
+      { ...dwellingSite(day, { trees: 2, fromPile: 0, fell, felled: 0 }), startedDay: labor.day },
+      { ...dwellingSite(day, undefined), id: 93, kind: 'pen', penId: 3, startedDay: labor.day },
+      // založená dřív – práci dnes dostala, nebo ji dostane podle rozdělení dne
+      { ...dwellingSite(day, undefined), id: 94 },
+    );
+    expect(startingShares(s)).toEqual([
+      {
+        activity: 'fell',
+        target: { kind: 'trees', ids: [101, 102] },
+        manDays: 0,
+        construction: 90,
+      },
+      { activity: 'build', target: { kind: 'site', id: 92 }, manDays: 0, construction: 92 },
+      { activity: 'pen', target: { kind: 'pen', id: 3 }, manDays: 0, construction: 93 },
+    ]);
+    // stavba, která dnes práci dostala (správce ji založil před rozdělením práce), ne
+    s.labor = {
+      ...labor,
+      shares: [
+        ...labor.shares,
+        { activity: 'build', target: { kind: 'site', id: 92 }, manDays: 1, construction: 92 },
+      ],
+    };
+    expect(startingShares(s).map((x) => x.construction)).toEqual([90, 93]);
   });
 });
 

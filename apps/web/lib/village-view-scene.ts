@@ -66,6 +66,7 @@ import {
   hayMeadowLooks,
   obstacleChangesAt,
   laborReport,
+  startingShares,
   ageGroup,
   trainingFamily,
   isAway,
@@ -534,12 +535,18 @@ export function sceneLabor(
   const shoeing = sceneShoeing(state, labor.day, landscape);
   // díl mužů na stavby posledního dne (D24) – scéna z něj staví hned stavbu založenou dnes
   const menBuild = Math.round((state.commonLaborHistory.at(-1) ?? 0) * 100) / 100;
+  // stavby založené dnes bez práce dne (místo jejich první práce) a všechny rozestavěné – podle
+  // jejich změny během dne scéna pozná založení a zrušení stavby (D68, D71)
+  const starting = startingShares(state);
+  const constructions = state.constructions.map((c) => c.id).sort((a, b) => a - b);
   return {
     day: labor.day,
     month: dateOfDayIndex(labor.day).month,
     people,
     shares,
     ...(menBuild > 0 ? { menBuild } : {}),
+    ...(starting.length > 0 ? { starting } : {}),
+    ...(constructions.length > 0 ? { constructions } : {}),
     ...(labor.herders ? { herders: { ...labor.herders } } : {}),
     ...(labor.slaughterHeads ? { slaughter: { ...labor.slaughterHeads } } : {}),
     ...(homes.length > 0 ? { homes } : {}),

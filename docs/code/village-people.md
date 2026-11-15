@@ -496,15 +496,25 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   se vybere, až skončí (`departAfter`), poprvé a po víc než `HISTORY_S` mimo záběr
   `scheduleAt(t − HISTORY_S)` (splyne s nepřetržitým během). Nový den rozběhnutou pochůzku ani
   práci na místě nemění – přepočítá jen, kdy vyjde, kdo je doma, a konec úloh u objektu.
-  **Stavba založená uprostřed dne** (D68, `villager-new-site.test.ts`): jádro jí práci dá až od
-  dalšího dne (`applyBuildIntent` nemění `state.labor`), proto `withNewSites`
-  (`villager-plan-sites.ts`) v `planVillagersWithCrew` přidá staveništi se `since` = dnešní den
-  a bez podílu dne podíl `build` z dílu mužů na stavby (`SceneLabor.menBuild` – poslední
-  `commonLaborHistory`, D24) bez dnešních staveb, nejvýš z nečinných, před nečinné (kam ho zítra dá
-  jádro – stavitelé jako zítra); jeho postavy mají `interrupt` `all` (`personTasks` – `urgent`).
-  `VillageVillagers.scheduleDay` při změně staveniště týž den (`siteKey`) volá
-  `Timetable.setDay(…, since)` – nový úsek obsazení od teď: stavitel nové stavby se v `since`
-  vydá k ní z místa, kde je (`settle` – přerušení), úloha u zrušené stavby v `since` skončí.
+  **Stavba založená uprostřed dne** (D68, D71, `villager-new-site.test.ts`): jádro jí práci dá až
+  od dalšího dne (akce stavby nemění `state.labor`). Pohled (`sceneLabor`) proto pošle
+  `SceneLabor.starting` – `startingShares` z jádra (`labor-report.ts`): stavby se `startedDay` =
+  den rozdělení práce bez podílu dne, místo jejich první práce jako v `constructionShares` pro
+  drobnou práci navíc (kácení jejich stromů, jinak místo stavby – každý druh stavby) – a
+  `SceneLabor.constructions` (id rozestavěných staveb). `withNewSites` (`villager-plan-sites.ts`)
+  jim dá díl mužů na stavby (`SceneLabor.menBuild` – poslední `commonLaborHistory`, D24) bez
+  dnešních staveb, nejvýš z nečinných, a podíly postaví před nečinné jen kvůli počtu stavitelů
+  (`shareCounts`). Obsazení ostatních postav `planVillagersWithCrew` spočítá z podílů jádra beze
+  změny; stavitele vybere `freshBuilders` až po všech ostatních (i starších a pasácích): napřed
+  muži z postav nečinných (postava přejde ke stavbě), pak muži bez postavy (`DayRoster.take`) – klíče
+  ostatních se tak nezmění. Komu místo nevyjde (`placer`, `builderNearby` – kostel, opevnění),
+  zůstane, kde byl. Stavitelé mají `interrupt` `all` (`personTasks` – `urgent`), první drží úlohu.
+  `VillageVillagers.trackSites` sleduje rozestavěné stavby dne (`siteKey`): při změně týž den volá
+  `scheduleDay` `Timetable.setDay(…, since)` – nový úsek obsazení od teď: stavitel nové stavby se
+  v `since` vydá k ní z místa, kde je (`settle` – přerušení), úloha u zrušené stavby v `since`
+  skončí. Stavby, které dnes zmizely, jdou do plánu jako `cancelled` (hotové stavby mizí jen
+  s novým dnem): lidé jejich podílů zůstanou obsazení bez postavy (`place`), takže je nikdo nevezme
+  jiné postavě.
   Úlohy navíc mimo obsazení dne (`Timetable.setDuties`, `Duties` – podkoní, D69, scene-village.md):
   `ScheduleInput.castOf(t, personId)` dá člověku v okně úlohu navíc a hranice oken.
   `VillageVillagers.rebuild` (`scheduleDay`, `personFigures`): postava každého člověka

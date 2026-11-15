@@ -1126,6 +1126,17 @@ export interface SceneLabor {
    */
   menBuild?: number;
   /**
+   * Stavby založené dnes, kterým jádro dá práci až od dalšího dne (D68, D71 – `startingShares`):
+   * místo jejich první práce (kácení jejich stromů nebo místo stavby), id stavby, 0 člověkodní.
+   * Bez údaje žádné.
+   */
+  starting?: SceneLaborShare[];
+  /**
+   * Rozestavěné stavby vsi (id stavby, vzestupně) – podle jejich změny během dne scéna pozná
+   * založení a zrušení stavby (villagers.ts – `siteKey`). Bez údaje žádné.
+   */
+  constructions?: number[];
+  /**
    * Výrostci 7–13 let, kteří dnes pasou (diet.md – Pasáci) – postavy u stád; starší (`elders`)
    * a dospělí pasáci (podíl `herding`) jen v rozdělení práce z doby před 19. 10. 2026. Bez údaje
    * (dřívější rozdělení práce) pasou děti.

@@ -260,6 +260,12 @@ export interface VillagerPlanOptions {
    * karavany) po svém konci nikoho neberou. Bez údaje se konec nehlídá.
    */
   nowMs?: number;
+  /**
+   * Stavby zrušené dnes (id – villagers.ts sleduje rozestavěné stavby dne, D71): lidé jejich podílů
+   * zůstanou obsazení bez postavy – od stavby odejdou a ostatním postavám se nic nezmění. Bez
+   * údaje žádné.
+   */
+  cancelled?: ReadonlySet<number>;
   /** Kolik stád se pase (pasáčci – jeden na stádo, když jsou děti). */
   herds: number;
   /** Stáda teď (poloha a stěhování) – místo pasáka, odkud se počítá chůze ode dveří. */
