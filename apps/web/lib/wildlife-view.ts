@@ -13,6 +13,7 @@ import {
   dogsWanted,
   fishingPools,
   huntPool,
+  isInjured,
   lordFamily,
   villageHerds,
   wildlifeCaps,
@@ -231,12 +232,16 @@ function sceneDefense(
 ): Pick<SceneWildlife, 'hunt' | 'dogs' | 'patrol' | 'watchParts' | 'pools'> {
   const out: Pick<SceneWildlife, 'hunt' | 'dogs' | 'patrol' | 'watchParts' | 'pools'> = {};
   const hunt = w.hunt?.today;
-  if (hunt && hunt.day === day && hunt.riders.length + hunt.foot.length > 0) {
+  // zraněný zůstává doma (D79) – i lovec, který se na lovu zranil, se ve scéně nekreslí
+  const hurt = new Set(state.people.filter((p) => isInjured(p, day)).map((p) => p.id));
+  const riders = hunt?.riders.filter((r) => !hurt.has(r.personId)) ?? [];
+  const foot = hunt?.foot.filter((id) => !hurt.has(id)) ?? [];
+  if (hunt && hunt.day === day && riders.length + foot.length > 0) {
     out.hunt = {
       day: hunt.day,
       target: hunt.target,
-      riders: hunt.riders.map((r) => ({ id: r.personId, horseId: r.horseId })),
-      foot: [...hunt.foot],
+      riders: riders.map((r) => ({ id: r.personId, horseId: r.horseId })),
+      foot,
       kills: hunt.kills ?? 0,
     };
   }

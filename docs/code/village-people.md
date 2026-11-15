@@ -709,6 +709,11 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
 - Kdo je pryč (`isAway`, jakýkoli druh – tažení, výjezd, uprchlík, posel…), se nekreslí doma u rodiny
   ani při práci: `sceneLord` ho vyřadí ze dvorku, cvičiště a jízdy, `ScenePerson.away` ho nechá v panelu a výběru,
   ale `DayRoster` mu doma nedá postavu.
+- Zraněný (`isInjured`, lov i válka; D79) zůstává doma stejnou cestou: `scenePersons` mu dá
+  `ScenePerson.injured`, `sceneLord` ho vyřadí z rodiny dne (jako `isAway`), `DayRoster` a podkoní
+  (`ride-grooms.ts`) ho nevezmou, `sceneDefense` (wildlife-view.ts) ho vyřadí z lovu dne a panel
+  (`selection-details.ts`) píše `INJURED_ACTIVITY` („léčí se ze zranění“). Jádro nepracuje s ním
+  už dřív (`laborPerDay`, `trainLordDay`, `huntPool`, `lordRides`).
 
 ## Nepřítomnost na výpravě (každý od 12 let – expeditions.md; plán 2026-11-14 – Úloha 2)
 

@@ -12,6 +12,7 @@ import {
   ennobleBlock,
   isAway,
   isChristian,
+  isInjured,
   MASON_CRAFTS,
   villageManorId,
   recruitOf,
@@ -106,6 +107,11 @@ export interface ScenePerson {
   name?: string;
   /** Dnes pryč (`isAway`): zůstává v panelu a výběru, ale doma ve vsi se nekreslí (roster ho nebere). */
   away?: true;
+  /**
+   * Dnes zraněný (`isInjured` – lov, válka; D79, Martin 15. 11. 2026): nepracuje, necvičí, nejezdí
+   * a nechodí na lov ani na pochůzky, zůstává doma – roster mu postavu nedá, panel píše „léčí se“.
+   */
+  injured?: true;
   arms?: ArmsView;
   horse?: true;
   /** Smí ho hráč povýšit do šlechtického stavu (vassalage.md): muž od 16 let mimo rod vojvody. */
@@ -182,6 +188,7 @@ export function scenePersons(
   const masons = new Map(state.people.flatMap((p) => (p.mason ? [[p.id, p.mason] as const] : [])));
   const priests = new Set(state.people.flatMap((p) => (p.priest ? [p.id] : [])));
   const away = new Set(state.people.flatMap((p) => (isAway(p, day) ? [p.id] : [])));
+  const injured = new Set(state.people.flatMap((p) => (isInjured(p, day) ? [p.id] : [])));
   const expeditions = new Map(
     village ? state.people.map((p) => [p.id, expeditionOf(village, p, day)] as const) : [],
   );
@@ -194,6 +201,7 @@ export function scenePersons(
       role: roles.get(p.id)!,
       ...(names.has(p.id) ? { name: names.get(p.id)! } : {}),
       ...(away.has(p.id) ? { away: true as const } : {}),
+      ...(injured.has(p.id) ? { injured: true as const } : {}),
       ...(arms.has(p.id) ? { arms: arms.get(p.id)! } : {}),
       ...(riders.has(p.id) ? { horse: true as const } : {}),
       ...(ennobleable.has(p.id) ? { ennobleable: true as const } : {}),

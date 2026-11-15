@@ -919,6 +919,15 @@ describe('vojvodova rodina na dvorku (lord.md – Ve scéně)', () => {
     }
   });
 
+  it('raněný muž i žena rodiny zůstanou doma – bez postavy, úlohy lord i jízdy (D79)', () => {
+    const v = manorVillage();
+    for (const p of v.labor!.persons!) if (p.id === 101 || p.id === 102) p.injured = true;
+    const people = plan(v);
+    expect(people.filter((p) => p.person === 101 || p.person === 102)).toHaveLength(0);
+    // zdravý syn dál cvičí
+    expect(people.filter((p) => p.person === 103 && p.job?.kind === 'lord')).toHaveLength(1);
+  });
+
   it('bez rodiny dne (`labor.lord` chybí) nikdo na dvorku nestojí', () => {
     const v = manorVillage();
     delete v.labor!.lord;

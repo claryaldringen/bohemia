@@ -211,6 +211,9 @@ const DWELLING_SITES: Record<string, string> = {
   dvorec: 'staví dvorec',
 };
 
+/** Zraněný zůstává doma (D79; návrh Clauda): místo činnosti se léčí. */
+export const INJURED_ACTIVITY = 'léčí se ze zranění';
+
 /**
  * Věta o tom, co člověk dělá: bez postavy dne „doma“, za krajem mapy „pryč – …“, doma mezi
  * pochůzkami „doma“; jinak podle úlohy a úseku pochůzky („jde pro vodu“ / „nese vodu“). Oráč,

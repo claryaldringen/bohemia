@@ -119,6 +119,19 @@ describe('scenePersons – výprava (expeditions.md – Kdo smí jít)', () => {
     expect(expeditionOf(s, 20)?.refusal).toBe('campaign');
   });
 
+  it('zraněný (lov, válka) nese injured, zdravý ne; po uplynutí zranění zmizí (D79)', () => {
+    const s = village();
+    s.people.find((p) => p.id === 20)!.injuredUntilDay = START + 10;
+    s.people.find((p) => p.id === 21)!.woundedUntil = START + 5;
+    const at = (day: number): number[] =>
+      scenePersons(s, day)
+        .filter((p) => p.injured === true)
+        .map((p) => p.id);
+    expect(at(START)).toEqual([20, 21]);
+    expect(at(START + 5)).toEqual([20]);
+    expect(at(START + 10)).toEqual([]);
+  });
+
   it('bez plného stavu vsi lidé výpravu nenesou', () => {
     const s = village();
     expect(scenePersons(s, START).every((p) => p.expedition === undefined)).toBe(true);
