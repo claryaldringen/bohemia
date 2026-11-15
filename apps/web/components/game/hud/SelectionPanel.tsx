@@ -298,7 +298,14 @@ export function SelectionPanel({
     body = <GrainPitBody details={details} />;
   } else if (details.kind === 'junction') {
     portrait = (
-      <Portrait icon={JUNCTION_ICONS[details.shape]} name={JUNCTION_NAMES[details.shape]} />
+      <Portrait
+        icon={JUNCTION_ICONS[details.shape]}
+        name={
+          details.place
+            ? `${JUNCTION_NAMES[details.shape]} ${details.place}`
+            : JUNCTION_NAMES[details.shape]
+        }
+      />
     );
     body = <JunctionBody details={details} />;
   } else if (details.kind === 'road') {

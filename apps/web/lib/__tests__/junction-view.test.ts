@@ -3,7 +3,11 @@ import { describe, expect, it } from 'vitest';
 import { junctionViews, junctionsField } from '../junction-view';
 
 const state = (junctions: unknown[] | undefined): VillageState =>
-  ({ roads: junctions ? { junctions } : undefined }) as unknown as VillageState;
+  ({
+    seed: 1,
+    dwellings: [],
+    roads: junctions ? { junctions } : undefined,
+  }) as unknown as VillageState;
 
 describe('křižovatky pro panel výběru (junction-view)', () => {
   const j = {
@@ -22,6 +26,19 @@ describe('křižovatky pro panel výběru (junction-view)', () => {
       { id: 5, shape: 'y', roads: 2, landmark: 'post', ageYears: 3 },
     ]);
     expect(junctionViews(state([j]), 50)[0]!.ageYears).toBe(0);
+  });
+
+  it('bez významného místa a krajiny nemá místo (nadpis zůstává „Rozcestí“)', () => {
+    expect(junctionViews(state([j]), 100)[0]!.place).toBeUndefined();
+  });
+
+  it('kovárna do 60 m: místo „u kovárny“ (stejná funkce jako konce cesty, D66)', () => {
+    const withSmithy = {
+      seed: 1,
+      dwellings: [{ id: 1, type: 'hut', position: { x: 10, z: 0 }, workshop: { craft: 'smith' } }],
+      roads: { junctions: [j] },
+    } as unknown as VillageState;
+    expect(junctionViews(withSmithy, 100)[0]!.place).toBe('u kovárny');
   });
 
   it('bez křižovatek pole chybí', () => {
