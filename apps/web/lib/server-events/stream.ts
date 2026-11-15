@@ -6,18 +6,18 @@ import {
   type ServerEventName,
   type ServerEvents,
 } from './protocol';
-import type { ConnectionScope } from './routing';
+import { sameScope, type ConnectionScope } from './routing';
 
 // Proud jednoho spojení SSE (docs/code/server-events.md – Spojení /api/events; plán 2026-11-15 –
 // Rozhodnutí 6, 7 a 10): `retry`, přidání do rozbočovače, `sync`, tep s přítomností hráče, kontrola
-// session. Úklid (rozbočovač, časovače) proběhne jednou – při odpojení, zrušení, chybě zápisu,
-// přetečení fronty, neplatné session i zavření rozbočovačem.
+// session a práv rozsahu. Úklid (rozbočovač, časovače) proběhne jednou – při odpojení, zrušení,
+// chybě zápisu, přetečení fronty, neplatné session, změně rozsahu i zavření rozbočovačem.
 
 /** Za jak dlouho se prohlížeč po přerušení připojí sám (`retry:`). */
 export const SSE_RETRY_MS = 3_000;
 /** Tep – komentář `: ping` drží spojení přes proxy a zapíše přítomnost hráče (`absentTicks` ≈ 86 s). */
 export const SSE_HEARTBEAT_MS = 20_000;
-/** Kontrola session z cookie zachycené při připojení. */
+/** Kontrola session z cookie zachycené při připojení a znovu ověření rozsahu (práva se mění). */
 export const SESSION_RECHECK_MS = 300_000;
 /** Nejvíc bajtů ve frontě nepřečtených událostí – pomalé spojení se nad ní zavře. */
 export const MAX_QUEUED_BYTES = 1_048_576;
@@ -30,6 +30,11 @@ export function openEventStream(input: {
   signal: AbortSignal;
   onHeartbeat(): Promise<void>;
   sessionValid(): Promise<boolean>;
+  /**
+   * Rozsah znovu ověřený (`resolveConnectionScope`) – sesazený správce, ztracené sídlo nebo
+   * skončené tažení; `'forbidden'` i jiný rozsah než při připojení spojení zavře (revize Úlohy 2).
+   */
+  rescope(): Promise<ConnectionScope | 'forbidden'>;
 }): ReadableStream<Uint8Array> {
   let controller: ReadableStreamDefaultController<Uint8Array> | null = null;
   let sink: Sink | null = null;
@@ -79,10 +84,15 @@ export function openEventStream(input: {
     }
   };
 
-  const checkSession = async (): Promise<void> => {
+  /** Session a pak práva rozsahu; neplatné spojení zavře (prohlížeč se připojí s čerstvým). */
+  const checkAccess = async (): Promise<void> => {
     let valid = true;
     try {
       valid = await input.sessionValid();
+      if (valid) {
+        const scope = await input.rescope();
+        valid = scope !== 'forbidden' && sameScope(input.scope, scope);
+      }
     } catch {
       // výpadek databáze – spojení zůstane, další kontrola za SESSION_RECHECK_MS
     }
@@ -114,7 +124,7 @@ export function openEventStream(input: {
           write(': ping\n\n');
           beat();
         }, SSE_HEARTBEAT_MS);
-        recheck = setInterval(() => void checkSession(), SESSION_RECHECK_MS);
+        recheck = setInterval(() => void checkAccess(), SESSION_RECHECK_MS);
         input.signal.addEventListener('abort', onAbort, { once: true });
       },
       cancel(): void {

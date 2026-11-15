@@ -38,7 +38,8 @@ export async function GET(request: Request): Promise<Response> {
   if (resolved === 'forbidden') {
     return Response.json({ error: NOT_PLAYER_VILLAGE }, { status: 403, headers: NO_STORE });
   }
-  // session se dál ověřuje z cookie zachycené při připojení (Rozhodnutí 10)
+  // session se dál ověřuje z cookie zachycené při připojení (Rozhodnutí 10), práva rozsahu
+  // s ní znovu (sesazený správce, ztracené sídlo – revize Úlohy 2)
   const cookie = request.headers.get('cookie') ?? '';
   const stream = openEventStream({
     hub: serverEventsHub(),
@@ -47,6 +48,7 @@ export async function GET(request: Request): Promise<Response> {
     onHeartbeat: () => notePlayerActive(playerId),
     sessionValid: async () =>
       (await getAuth().api.getSession({ headers: new Headers({ cookie }) })) !== null,
+    rescope: () => resolveConnectionScope(gameDeps(), playerId, scope),
   });
   return new Response(stream, { headers: SSE_HEADERS });
 }

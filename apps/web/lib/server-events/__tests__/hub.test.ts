@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { DbChange } from '@bohemia/db';
-import type { Computers } from '../hub';
+import type { ComputeResult, Computers } from '../hub';
 import type { ServerEventName } from '../protocol';
 import type { ComputeTask, ConnectionScope } from '../routing';
 
@@ -29,23 +29,30 @@ function scope(over: Partial<ConnectionScope> & { playerId: string }): Connectio
   };
 }
 
-/** Spojení, které si zapisuje, co dostalo. */
+/** Spojení, které si zapisuje, co dostalo (`log` – události i zavření v pořadí). */
 function recorder(s: ConnectionScope): {
   scope: ConnectionScope;
   send: (name: ServerEventName, data: unknown) => void;
   close: () => void;
   sent: { name: ServerEventName; data: unknown }[];
+  log: string[];
   closed: () => number;
 } {
   const sent: { name: ServerEventName; data: unknown }[] = [];
+  const log: string[] = [];
   let closed = 0;
   return {
     scope: s,
-    send: (name, data) => sent.push({ name, data }),
+    send: (name, data) => {
+      sent.push({ name, data });
+      log.push(name);
+    },
     close: () => {
       closed++;
+      log.push('close');
     },
     sent,
+    log,
     closed: () => closed,
   };
 }
@@ -59,6 +66,13 @@ function hubWith(computers: Computers = {}): {
 }
 
 const journeyChange: DbChange = { k: 'j', id: 'j-1', t: 1, p: 'p', c: [], big: false };
+
+/** Výpočet výprav, který vrací pořád týž klíč. */
+const sameJourneys = async (): Promise<ComputeResult> => ({
+  name: 'journeys',
+  data: { views: [] },
+  key: 'stejný',
+});
 
 describe('rozbočovač událostí', () => {
   it('dispatch pošle signály správným spojením', () => {
@@ -106,27 +120,68 @@ describe('rozbočovač událostí', () => {
     expect(second.sent).toHaveLength(2);
   });
 
-  it('paměť klíčů hráče se smaže s jeho posledním spojením – první výsledek jde vždy', async () => {
-    const journeys = async (): Promise<{ name: 'journeys'; data: unknown; key: string }> => ({
-      name: 'journeys',
-      data: { views: [] },
-      key: 'stejný',
-    });
-    const { hub } = hubWith({ journeys });
-    const before = hub.add(recorder(scope({ playerId: 'p' })));
+  it('nové spojení se stejným předmětem dostane první výsledek, i když má hráč jiné spojení', async () => {
+    const { hub } = hubWith({ journeys: sameJourneys });
+    const first = recorder(scope({ playerId: 'p' }));
+    hub.add(first);
     hub.dispatch(journeyChange);
     await vi.advanceTimersByTimeAsync(COALESCE_MS);
-    hub.remove(before.id);
-    expect(hub.size()).toBe(0);
 
-    const after = recorder(scope({ playerId: 'p' }));
-    hub.add(after);
+    const second = recorder(scope({ playerId: 'p' }));
+    hub.add(second);
     hub.dispatch(journeyChange);
     await vi.advanceTimersByTimeAsync(COALESCE_MS);
-    expect(after.sent).toEqual([{ name: 'journeys', data: { views: [] } }]);
+    expect(first.sent).toEqual([{ name: 'journeys', data: { views: [] } }]);
+    expect(second.sent).toEqual([{ name: 'journeys', data: { views: [] } }]);
   });
 
-  it('páté spojení hráče zavře nejstarší', () => {
+  it('návrat na ves dostane stav, i když hráč mezitím zůstal připojený jinde (revize)', async () => {
+    let key = 'K1';
+    const visitors = async (): Promise<ComputeResult> => ({
+      name: 'visitors',
+      data: { key },
+      key,
+    });
+    const { hub } = hubWith({ visitors });
+    const v1 = scope({ playerId: 'p', villageId: 'v1', settlementId: 's1', cell: { x: 1, y: 1 } });
+    const v2 = scope({ playerId: 'p', villageId: 'v2', settlementId: 's2', cell: { x: 2, y: 2 } });
+    // výprava cizího hráče na mapě vsi v1
+    const onV1: DbChange = { k: 'j', id: 'j-cizi', t: 1, p: 'cizi', c: [[1, 1]], big: false };
+    const step = async (next: string): Promise<void> => {
+      key = next;
+      hub.dispatch(onV1);
+      await vi.advanceTimersByTimeAsync(COALESCE_MS);
+    };
+
+    const a = recorder(v1);
+    const added = hub.add(a);
+    await step('K1');
+    await step('K0');
+    expect(a.sent.map((e) => e.data)).toEqual([{ key: 'K1' }, { key: 'K0' }]);
+    // hráč přepne na v2 – nové spojení napřed, staré skončí až po jeho `sync` (Rozhodnutí 7)
+    hub.add(recorder(v2));
+    hub.remove(added.id);
+    await step('K2');
+    // a vrátí se na v1 (stav K2 si po `sync` dočte přes route); výprava odjede – zase K0
+    const c = recorder(v1);
+    hub.add(c);
+    await step('K0');
+    expect(c.sent).toEqual([{ name: 'visitors', data: { key: 'K0' } }]);
+  });
+
+  it('po resync jde stejný klíč znovu', async () => {
+    const { hub } = hubWith({ journeys: sameJourneys });
+    const sink = recorder(scope({ playerId: 'p' }));
+    hub.add(sink);
+    hub.dispatch(journeyChange);
+    await vi.advanceTimersByTimeAsync(COALESCE_MS);
+    hub.resync();
+    hub.dispatch(journeyChange);
+    await vi.advanceTimersByTimeAsync(COALESCE_MS);
+    expect(sink.log).toEqual(['journeys', 'sync', 'journeys']);
+  });
+
+  it('páté spojení hráče pošle nejstaršímu evicted a zavře ho', () => {
     const { hub } = hubWith();
     const own = Array.from({ length: MAX_CONNECTIONS_PER_PLAYER + 1 }, () =>
       recorder(scope({ playerId: 'p' })),
@@ -135,13 +190,15 @@ describe('rozbočovač událostí', () => {
     hub.add(other);
     const added = own.map((sink) => hub.add(sink));
     expect(MAX_CONNECTIONS_PER_PLAYER).toBe(4);
-    expect(own[0]!.closed()).toBe(1);
+    // napřed událost (prohlížeč se znovu nepřipojí), pak zavření
+    expect(own[0]!.log).toEqual(['evicted', 'close']);
+    expect(own[0]!.sent).toEqual([{ name: 'evicted', data: {} }]);
     expect(own.slice(1).every((sink) => sink.closed() === 0)).toBe(true);
     expect(other.closed()).toBe(0);
     expect(hub.size()).toBe(MAX_CONNECTIONS_PER_PLAYER + 1);
-    // zavřené spojení už nic nedostane, odebrání podruhé nevadí
+    // vyhozené spojení už nic nedostane, odebrání podruhé nevadí
     hub.dispatch({ k: 'n', p: 'p' });
-    expect(own[0]!.sent).toEqual([]);
+    expect(own[0]!.log).toEqual(['evicted', 'close']);
     expect(own[1]!.sent).toEqual([{ name: 'notices', data: {} }]);
     hub.remove(added[0]!.id);
     expect(hub.size()).toBe(MAX_CONNECTIONS_PER_PLAYER + 1);

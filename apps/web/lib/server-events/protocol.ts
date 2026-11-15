@@ -47,6 +47,11 @@ export interface ServerEvents {
   war: { key: string; war: WarSceneView | null };
   /** Průběh přeskoku času (vývojový režim); null = žádný neběží. */
   skip: { progress: ComputeProgress | null };
+  /**
+   * Spojení vyhodil novější panel téhož hráče (nad `MAX_CONNECTIONS_PER_PLAYER`) a hned ho zavře –
+   * prohlížeč se znovu nepřipojí sám (vyhodil by další panel a tak dokola), přejde na pojistku.
+   */
+  evicted: Record<string, never>;
 }
 
 export type ServerEventName = keyof ServerEvents;

@@ -14,9 +14,12 @@ import {
 // Rozbočovač událostí ze serveru (docs/code/server-events.md – Rozbočovač; plán 2026-11-15): drží
 // otevřená spojení SSE procesu webu, změny z LISTEN rozešle podle rozsahu spojení (`routeChange`).
 // Signály jdou hned, stav (výpravy, tažení, válka) se počítá jednou na hráče a předmět přes
-// slučovač a pošle se jen při změně klíče proti naposled poslanému.
+// slučovač a spojení ho dostane jen při změně klíče proti tomu, co mu bylo naposled posláno.
 
-/** Nejvýš spojení na hráče – další zavře nejstarší (Rozhodnutí 6, limit 6 spojení HTTP/1.1). */
+/**
+ * Nejvýš spojení na hráče – další nejstaršímu pošle `evicted` a zavře ho (Rozhodnutí 6, limit 6
+ * spojení HTTP/1.1).
+ */
 export const MAX_CONNECTIONS_PER_PLAYER = 4;
 /** Čekání slučovače před výpočtem (Rozhodnutí 5). */
 export const COALESCE_MS = 50;
@@ -44,13 +47,16 @@ export type Computers = Partial<
 >;
 
 export interface Hub {
-  /** Přidá spojení; páté spojení hráče zavře jeho nejstarší. */
+  /** Přidá spojení; páté spojení hráče pošle nejstaršímu `evicted` a zavře ho. */
   add(sink: Omit<Sink, 'id'>): Sink;
   /** Odebere spojení (opakované odebrání nevadí). */
   remove(id: number): void;
   /** Rozešle změnu z databáze. */
   dispatch(change: DbChange): void;
-  /** Po obnově LISTEN – `sync` všem spojením (mezitím mohla nějaká změna uniknout). */
+  /**
+   * Po obnově LISTEN – `sync` všem spojením (mezitím mohla nějaká změna uniknout); paměť klíčů se
+   * smaže, další výsledek výpočtu jde znovu.
+   */
   resync(): void;
   /** Počet otevřených spojení. */
   size(): number;
@@ -80,8 +86,12 @@ export function createHub(deps: {
   const sinks = new Map<number, Sink>();
   /** Spojení hráče od nejstaršího. */
   const byPlayer = new Map<string, Set<number>>();
-  /** Naposled poslaný klíč výsledku podle hráče a `computeKey`. */
-  const sentKeys = new Map<string, Map<string, string>>();
+  /**
+   * Naposled poslaný klíč výsledku podle spojení a `computeKey` – po spojení, ne po hráči: nové
+   * spojení (návrat na ves, výměna rozsahu) dostane první výsledek, i když hráč mezitím zůstal
+   * připojený jinde (revize Úlohy 2).
+   */
+  const sentKeys = new Map<number, Map<string, string>>();
   const fail = errorLog(deps.log);
   const coalescer = createCoalescer({
     delayMs: deps.coalesceMs,
@@ -101,27 +111,26 @@ export function createHub(deps: {
     const sink = sinks.get(id);
     if (!sink) return;
     sinks.delete(id);
+    sentKeys.delete(id);
     const own = byPlayer.get(sink.scope.playerId);
     own?.delete(id);
-    if (own && own.size === 0) {
-      byPlayer.delete(sink.scope.playerId);
-      sentKeys.delete(sink.scope.playerId);
-    }
+    if (own && own.size === 0) byPlayer.delete(sink.scope.playerId);
   };
 
-  /** Výsledek jde spojením hráče se shodným předmětem, jen když se klíč změnil. */
+  /**
+   * Výsledek jde spojením hráče se shodným předmětem – každému, jehož vlastní naposled poslaný
+   * klíč se liší (první výsledek spojení jde vždy).
+   */
   const deliver = (task: ComputeTask, result: ComputeResult): void => {
-    const targets = [...sinks.values()].filter((sink) => scopeWantsTask(sink.scope, task));
     const id = computeKey(task);
-    const memory = sentKeys.get(task.playerId);
-    if (targets.length === 0) {
-      memory?.delete(id);
-      return;
+    for (const sink of [...sinks.values()]) {
+      if (!scopeWantsTask(sink.scope, task)) continue;
+      const memory = sentKeys.get(sink.id) ?? new Map<string, string>();
+      if (memory.get(id) === result.key) continue;
+      memory.set(id, result.key);
+      sentKeys.set(sink.id, memory);
+      send(sink, result.name, result.data);
     }
-    if (memory?.get(id) === result.key) return;
-    if (memory) memory.set(id, result.key);
-    else sentKeys.set(task.playerId, new Map([[id, result.key]]));
-    for (const sink of targets) send(sink, result.name, result.data);
   };
 
   return {
@@ -141,6 +150,9 @@ export function createHub(deps: {
         const oldest = oldestId === undefined ? undefined : sinks.get(oldestId);
         if (oldest) {
           remove(oldest.id);
+          // napřed `evicted` – zavřený EventSource by se po `retry` připojil sám a vyhodil další
+          // panel, s 5+ panely dokola; prohlížeč místo toho přejde na pojistku (revize Úlohy 2)
+          send(oldest, 'evicted', {});
           try {
             oldest.close();
           } catch (error) {
@@ -164,6 +176,8 @@ export function createHub(deps: {
       }
     },
     resync(): void {
+      // prohlížeč po `sync` dočte vše přes routes – další výsledek výpočtu jde znovu všem
+      sentKeys.clear();
       for (const sink of sinks.values()) send(sink, 'sync', { protocol: SERVER_EVENTS_PROTOCOL });
     },
     size: () => sinks.size,

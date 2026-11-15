@@ -63,6 +63,27 @@ function hasCell(cells: readonly (readonly [number, number])[], cell: GridCell):
   return cells.some(([x, y]) => x === cell.x && y === cell.y);
 }
 
+function sameOptionalCell(a: GridCell | null, b: GridCell | null): boolean {
+  return a === null || b === null ? a === b : sameCell(a, b);
+}
+
+/**
+ * Týž rozsah – přezkoušení práv (stream po `SESSION_RECHECK_MS`): jiný (užší, posunutý) rozsah
+ * spojení zavře, prohlížeč se připojí znovu s čerstvým.
+ */
+export function sameScope(a: ConnectionScope, b: ConnectionScope): boolean {
+  return (
+    a.playerId === b.playerId &&
+    a.villageId === b.villageId &&
+    a.settlementId === b.settlementId &&
+    sameOptionalCell(a.cell, b.cell) &&
+    a.campaignId === b.campaignId &&
+    (a.scene === null || b.scene === null
+      ? a.scene === b.scene
+      : a.scene.campaignId === b.scene.campaignId && sameCell(a.scene.cell, b.scene.cell))
+  );
+}
+
 /** Dostane spojení výsledek výpočtu? Hráč úlohy a týž předmět v rozsahu. */
 export function scopeWantsTask(scope: ConnectionScope, task: ComputeTask): boolean {
   if (scope.playerId !== task.playerId) return false;

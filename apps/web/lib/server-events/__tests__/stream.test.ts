@@ -29,15 +29,25 @@ const decoder = new TextDecoder();
 type Hub = ReturnType<typeof createHub>;
 type Sink = ReturnType<Hub['add']>;
 
-/** Otevřený proud s rozbočovačem bez počítadel, počítaným tepem a session. */
-function open(sessionValid: () => Promise<boolean> = async () => true): {
+type Rescope = () => Promise<ConnectionScope | 'forbidden'>;
+
+/** Otevřený proud s rozbočovačem bez počítadel, počítaným tepem, session a přezkoušením rozsahu. */
+function open(
+  options: {
+    scope?: ConnectionScope;
+    sessionValid?: () => Promise<boolean>;
+    rescope?: Rescope;
+    hub?: Hub;
+  } = {},
+): {
   hub: Hub;
   sink: () => Sink | null;
   reader: ReadableStreamDefaultReader<Uint8Array>;
   heartbeats: () => number;
   abort: () => void;
 } {
-  const real = createHub({ computers: {}, coalesceMs: 50, log: () => {} });
+  const scope = options.scope ?? SCOPE;
+  const real = options.hub ?? createHub({ computers: {}, coalesceMs: 50, log: () => {} });
   let added: Sink | null = null;
   // spojení, které proud přidal, si test podrží – jako by ho rozbočovač vybral pro událost
   const hub: Hub = {
@@ -48,12 +58,14 @@ function open(sessionValid: () => Promise<boolean> = async () => true): {
   let heartbeats = 0;
   const stream = openEventStream({
     hub,
-    scope: SCOPE,
+    scope,
     signal: controller.signal,
     onHeartbeat: async () => {
       heartbeats++;
     },
-    sessionValid,
+    sessionValid: options.sessionValid ?? (async () => true),
+    // bez změny práv vrací týž rozsah
+    rescope: options.rescope ?? (async () => ({ ...scope })),
   });
   return {
     hub,
@@ -62,6 +74,16 @@ function open(sessionValid: () => Promise<boolean> = async () => true): {
     heartbeats: () => heartbeats,
     abort: () => controller.abort(),
   };
+}
+
+/** Dočte proud do konce; vrátí text. */
+async function readAll(reader: ReadableStreamDefaultReader<Uint8Array>): Promise<string> {
+  let text = '';
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) return text;
+    text += decoder.decode(value);
+  }
 }
 
 /** Přečte aspoň `length` znaků (nebo do konce proudu). */
@@ -103,7 +125,7 @@ describe('proud událostí /api/events', () => {
 
   it('neplatná session po 5 min proud zavře a rozbočovač spojení zapomene', async () => {
     const sessionValid = vi.fn(async () => false);
-    const { reader, hub } = open(sessionValid);
+    const { reader, hub } = open({ sessionValid });
     expect(SESSION_RECHECK_MS).toBe(300_000);
     await vi.advanceTimersByTimeAsync(SESSION_RECHECK_MS - 1);
     expect(sessionValid).not.toHaveBeenCalled();
@@ -119,10 +141,12 @@ describe('proud událostí /api/events', () => {
 
   it('platná session proud nechá a chyba kontroly ho nezavře', async () => {
     let calls = 0;
-    const { hub } = open(async () => {
-      calls++;
-      if (calls === 1) throw new Error('databáze spí');
-      return true;
+    const { hub } = open({
+      sessionValid: async () => {
+        calls++;
+        if (calls === 1) throw new Error('databáze spí');
+        return true;
+      },
     });
     await vi.advanceTimersByTimeAsync(SESSION_RECHECK_MS * 2);
     expect(calls).toBe(2);
@@ -166,5 +190,52 @@ describe('proud událostí /api/events', () => {
     // další události už nic nezapíšou ani nevyhodí
     sink()?.send('notices', {});
     await expect(reader.read()).rejects.toThrow();
+  });
+
+  it('přezkoušení po 5 min ověří i rozsah – cizí ves (sesazený správce) proud zavře', async () => {
+    const rescope = vi.fn<Rescope>(async () => 'forbidden');
+    const { reader, hub } = open({ rescope });
+    await vi.advanceTimersByTimeAsync(SESSION_RECHECK_MS - 1);
+    expect(rescope).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(1);
+    expect(rescope).toHaveBeenCalledTimes(1);
+    expect(hub.size()).toBe(0);
+    expect(await readAll(reader)).toContain('event: sync');
+  });
+
+  it('užší rozsah (tažení skončilo) proud zavře, stejný rozsah ho nechá', async () => {
+    const withCampaign: ConnectionScope = { ...SCOPE, campaignId: 'c1' };
+    const narrower = open({
+      scope: withCampaign,
+      rescope: async () => ({ ...withCampaign, campaignId: null }),
+    });
+    const same = open({ scope: withCampaign });
+    await vi.advanceTimersByTimeAsync(SESSION_RECHECK_MS);
+    expect(narrower.hub.size()).toBe(0);
+    expect(same.hub.size()).toBe(1);
+    // chyba přezkoušení rozsahu (výpadek databáze) spojení nechá
+    const failing = open({
+      rescope: async () => {
+        throw new Error('databáze spí');
+      },
+    });
+    await vi.advanceTimersByTimeAsync(SESSION_RECHECK_MS);
+    expect(failing.hub.size()).toBe(1);
+  });
+
+  it('neplatná session rozsah už neověřuje', async () => {
+    const rescope = vi.fn<Rescope>(async () => ({ ...SCOPE }));
+    const { hub } = open({ sessionValid: async () => false, rescope });
+    await vi.advanceTimersByTimeAsync(SESSION_RECHECK_MS);
+    expect(hub.size()).toBe(0);
+    expect(rescope).not.toHaveBeenCalled();
+  });
+
+  it('páté spojení hráče: nejstarší proud dostane evicted a skončí', async () => {
+    const hub = createHub({ computers: {}, coalesceMs: 50, log: () => {} });
+    const streams = Array.from({ length: 5 }, () => open({ hub }));
+    const text = await readAll(streams[0]!.reader);
+    expect(text.endsWith('event: evicted\ndata: {}\n\n')).toBe(true);
+    expect(hub.size()).toBe(4);
   });
 });

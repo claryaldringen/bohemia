@@ -76,11 +76,15 @@ s jejím sídlem a políčkem světa, otevřené tažení a cizí mapa ve scén�
   prázdné; výpravy doplní Úloha 4, tažení a válku Úloha 5), úloha bez počítadla se přeskočí.
   Výpočet jde přes slučovač (`coalesce.ts` – `createCoalescer`): začne po `COALESCE_MS = 50`, pro
   klíč běží nejvýš jeden naráz a volání během běhu dají nejvýš jeden další. Výsledek
-  `{ name, data, key }` jde spojením hráče se shodným předmětem (`scopeWantsTask`), jen když se
-  `key` změnil proti naposled poslanému; první výsledek jde vždy. Paměť klíčů je po hráči a smaže
-  se s jeho posledním spojením.
-- **Spojení:** `add` / `remove`, nejvýš `MAX_CONNECTIONS_PER_PLAYER = 4` na hráče – páté zavře
-  nejstarší (i kvůli limitu 6 spojení HTTP/1.1 na původ). Chyby výpočtu, odeslání a posluchače
+  `{ name, data, key }` jde spojením hráče se shodným předmětem (`scopeWantsTask`) – každému,
+  jehož vlastní naposled poslaný `key` se liší; první výsledek spojení jde vždy. Paměť klíčů je
+  po spojení (smaže se v `remove`), ne po hráči – návrat na ves nebo výměna rozsahu by jinak při
+  shodném klíči nedostaly nic a pohled by zůstal zastaralý (revize Úlohy 2). `resync` paměť
+  všech spojení smaže. Výpočet zůstává sdílený přes klíč slučovače.
+- **Spojení:** `add` / `remove`, nejvýš `MAX_CONNECTIONS_PER_PLAYER = 4` na hráče – páté pošle
+  nejstaršímu `evicted` a zavře ho (i kvůli limitu 6 spojení HTTP/1.1 na původ). Bez `evicted` by
+  se zavřený EventSource po `retry` připojil sám a vyhodil další panel, s 5+ panely dokola –
+  prohlížeč se po `evicted` znovu nepřipojí a přejde na pojistku. Chyby výpočtu, odeslání a posluchače
   jdou do logu s předponou `[events]`, stejná nejvýš jednou za minutu (`errorLog`,
   `ERROR_LOG_INTERVAL_MS`).
 - **Protokol** (`protocol.ts`, čisté): `SERVER_EVENTS_PROTOCOL = 1` v `sync`, `EVENTS_PATH`,
@@ -88,6 +92,8 @@ s jejím sídlem a políčkem světa, otevřené tažení a cizí mapa ve scén�
   `-?\d{1,4}`; dvojí hodnota je vadná), `ServerEvents` (náklady událostí podle Rozhodnutí 3 plánu),
   `formatServerEvent` (`event: …\ndata: <json>\n\n`), klíče války `warKeyOfSettlement` /
   `warKeyOfScene`. Signál `village` ze změny sídla (`s`) nese `villageId: null, version: null`.
+  Událost `evicted` (`{}`) dostane spojení vyhozené novějším panelem téhož hráče těsně před
+  zavřením.
 - Testy: `apps/web/lib/server-events/__tests__/` – `protocol`, `routing`, `coalesce`, `hub`.
 
 ## Spojení `/api/events`
@@ -112,12 +118,17 @@ rozbočovače, `sync`, hned tep – v tomto pořadí, takže změna mezi přidá
 - Tep po `SSE_HEARTBEAT_MS = 20_000`: komentář `: ping` a `notePlayerActive(hráč)` – otevřené
   spojení je přítomnost hráče (war.md – Hráč ve vsi a mimo ni); chyba zápisu přítomnosti spojení
   nezavře.
-- Session se každých `SESSION_RECHECK_MS = 300_000` ověří z cookie zachycené při připojení;
-  neplatná proud zavře (chyba kontroly ne – další pokus za 5 min).
+- Session se každých `SESSION_RECHECK_MS = 300_000` ověří z cookie zachycené při připojení
+  a s ní znovu práva rozsahu (`rescope` – `resolveConnectionScope` nad původním dotazem). Neplatná
+  session, `'forbidden'` (sesazený správce, ztracené sídlo) i jiný rozsah než při připojení
+  (`sameScope` – třeba skončené tažení) proud zavřou; prohlížeč se připojí znovu s čerstvým
+  rozsahem, nebo dostane 401 / 403. Chyba kontroly spojení nezavře – další pokus za 5 min
+  (revize Úlohy 2).
 - Fronta nepřečtených událostí má mez `MAX_QUEUED_BYTES = 1_048_576` (`ByteLengthQueuingStrategy`)
   – nad ní se spojení zavře a fronta zahodí (pomalý prohlížeč se připojí znovu a dostane `sync`).
 - Úklid (rozbočovač, časovače) proběhne jednou: odpojení (`request.signal`), zrušení čtenářem,
-  chyba zápisu, přetečení fronty, neplatná session i zavření rozbočovačem (páté spojení hráče).
+  chyba zápisu, přetečení fronty, neplatná session nebo rozsah i zavření rozbočovačem (páté
+  spojení hráče – napřed `evicted`).
 - Testy: `stream.test.ts`, `scope.test.ts`; e2e kouř `apps/web/e2e/server-events.spec.ts`
   (produkční build – `sync`, změna vsi zápisem přímo SQL dorazí do 2 s, hlavičky bez komprese,
   400, cizí ves 403, bez přihlášení 401).
