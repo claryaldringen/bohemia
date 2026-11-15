@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { OFFICIAL_WORLD } from '../../domain/calendar';
+import { dwellingGatePoint } from '../../domain/village/paths/network-grid';
+import { villageManor } from '../../domain/village/people/manor';
 import { CURRENT_LAYER_VERSIONS } from '../../domain/landscape';
 import { horse, horseVillage, START, YEAR } from '../../domain/village/__tests__/horse-fixtures';
 import { isAway } from '../../domain/village/people/people';
@@ -140,10 +142,14 @@ describe('musterExpedition – přidání lidí ze vsi', () => {
       [{ villageId: w.homeId, personId: 22 }, 0, false],
     ]);
     expect(j.groups[0]!.goal).toEqual({ cell: { x: 0, y: 0 }, pos: { x: 100, z: 100 } });
+    // vyjíždí se brankou dvorce, ne ze středu domu (D49) – dvorec bez pozemku: před vchodem
+    const manor = villageManor(v)!;
+    const gate = dwellingGatePoint(MAP.landscape, manor);
+    expect(gate.z).toBeGreaterThan(manor.position.z + 4);
     expect(j.home).toMatchObject({
       villageId: w.homeId,
       cell: { x: 0, y: 0 },
-      pos: { x: 0, z: 0 },
+      pos: { x: gate.x, z: gate.z },
     });
   });
 

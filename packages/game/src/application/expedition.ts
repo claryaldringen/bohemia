@@ -1,5 +1,6 @@
 import type { WorldClock } from '../domain/calendar';
 import type { Landscape } from '../domain/landscape';
+import { dwellingGatePoint } from '../domain/village/paths/network-grid';
 import { villageManor, villageManorId } from '../domain/village/people/manor';
 import { sameCell, type GridCell } from '../domain/village/people/world-grid';
 import type { VillageState } from '../domain/village/types';
@@ -610,16 +611,31 @@ async function release(
 
 /**
  * Odkud výprava vyjíždí a kam se vrací (lord-control.md – Rozkazy: „Domů – nejkratší cestou do
- * vlastní vsi“; Ve scéně: odjezd branou dvorce): dvorec vsi. Hráč staví ves, kde chce – místo vsi
- * krajiny (`villagePlace`) od ní může ležet daleko (Martinův Vlkov ≈ 430 m). Dokud zakladatelé
- * první zemnici staví, staveniště dvorce; ves bez obydlí i staveniště – místo vsi krajiny.
+ * vlastní vsi“; Ve scéně: odjezd branou dvorce): branka pozemku dvorce (`dwellingGatePoint` – kde
+ * z něj vychází síť pěšin; bez pozemku před vchodem domu). Ze středu dvorce trasa vedla zdí domu
+ * a mřížka pochodu, která celý pozemek i s brankou blokuje, ji vyvedla nejbližší volnou buňkou
+ * a kolem pozemku (D49, Martin 15. 11. 2026: „vyběhl boční stěnou domu a velkým obloukem…“).
+ * Hráč staví ves, kde chce – místo vsi krajiny (`villagePlace`) od ní může ležet daleko (Martinův
+ * Vlkov ≈ 430 m). Dokud zakladatelé první zemnici staví, staveniště dvorce; ves bez obydlí
+ * i staveniště – místo vsi krajiny.
  */
 function journeyHome(state: VillageState, cell: GridCell, landscape: Landscape): Pos {
+  const manor = villageManor(state);
+  if (manor) {
+    const gate = dwellingGatePoint(landscape, {
+      type: manor.type,
+      position: manor.position,
+      ...(manor.plot ? { plot: manor.plot } : {}),
+      ...(manor.plainShape ? { plainShape: true } : {}),
+      ...(manor.workshop ? { craft: manor.workshop.craft } : {}),
+    });
+    return { x: gate.x, z: gate.z };
+  }
   const manorId = villageManorId(state);
   const site =
     manorId === null
       ? undefined
       : state.constructions.find((c) => c.kind === 'dwelling' && c.dwellingId === manorId);
-  const at = villageManor(state)?.position ?? site?.position;
+  const at = site?.position;
   return at ? { x: at.x, z: at.z } : villagePlace(cell, landscape).pos;
 }
