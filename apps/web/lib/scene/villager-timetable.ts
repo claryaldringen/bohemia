@@ -17,6 +17,7 @@ import {
   type Activity,
   type CastSpan,
   type DayCast,
+  type PersonTask,
   type ScheduleInput,
 } from './villager-schedule';
 import { activityPhases, phaseAt, type ActivityPhase, type PhaseName } from './villager-phases';
@@ -73,6 +74,23 @@ export function dayExtent(cast: DayCast, doors: Iterable<Point | null>): Extent 
   return out;
 }
 
+/**
+ * Úlohy navíc mimo obsazení dne (D69 – podkoní vyvede koně před jízdou a odvede ho po ní): člověk
+ * dostane v okně úlohu místo své práce a přeruší kvůli ní, co právě dělá (`interrupt`).
+ */
+export interface Duties {
+  /**
+   * Úloha navíc člověka `person` v okamžik `t` (`base` – obsazení dnů bez úloh navíc): v okně
+   * úloha a okno (s), mimo okna `task` null a nejbližší hranice jeho oken (`until` `Infinity`, když
+   * žádné další nemá). Kdo úlohu navíc nikdy nedostane – null (obsazení beze změny).
+   */
+  at(
+    person: number,
+    t: number,
+    base: (t: number) => CastSpan,
+  ): { task: PersonTask | null; from: number; until: number } | null;
+}
+
 /** Poslední činnost člověka, póza z ní (líně) a další činnost po návratu (doma – kdy vyjde). */
 interface Entry {
   act: Activity;
@@ -125,6 +143,10 @@ export function routeViaGate(
 export class Timetable {
   private days: { day: number; from: number; cast: DayCast }[] = [];
   private castOf: (t: number) => CastSpan = castTimeline([]);
+  private duties: Duties | null = null;
+  /** Obsazení dne s úlohou navíc (obsazení → úloha → nové obsazení) – stejný objekt pro stejné okno. */
+  private withDuty = new WeakMap<DayCast, Map<PersonTask, DayCast>>();
+  private readonly baseCast = (t: number): CastSpan => this.castOf(t);
   private doors: ReadonlyMap<number, Point | null> = new Map();
   private entrances: ReadonlyMap<number, Entrance | null> = new Map();
   private readonly entries = new Map<number, Entry>();
@@ -145,7 +167,7 @@ export class Timetable {
       this.estimate?.(a, b) ?? Math.hypot(b.x - a.x, b.z - a.z);
     this.input = {
       seed,
-      castOf: (t) => this.castOf(t),
+      castOf: (t, personId) => this.castFor(t, personId),
       lengthOf: (id, task, when) => {
         if (task.errand) {
           return { outS: task.errand.homeS / 2, endS: 0, backS: task.errand.homeS / 2 };
@@ -191,6 +213,35 @@ export class Timetable {
    */
   setWet(wet: ((x: number, z: number, t: number) => boolean) | null): void {
     this.wet = wet;
+  }
+
+  /**
+   * Úlohy navíc (podkoní – `Duties`); platí od dalšího výpočtu činností (nastavit před `setDay`,
+   * který rozběhnuté činnosti přepočítá). Null – žádné.
+   */
+  setDuties(duties: Duties | null): void {
+    this.duties = duties;
+  }
+
+  /** Obsazení v `t` pro člověka `person` – s jeho úlohou navíc a hranicemi jejích oken. */
+  private castFor(t: number, person?: number): CastSpan {
+    const base = this.castOf(t);
+    if (person === undefined || !this.duties) return base;
+    const duty = this.duties.at(person, t, this.baseCast);
+    if (!duty) return base;
+    const from = Math.max(base.from, duty.from);
+    const until = Math.min(base.until, duty.until);
+    if (!duty.task) {
+      return from === base.from && until === base.until ? base : { cast: base.cast, from, until };
+    }
+    let byTask = this.withDuty.get(base.cast);
+    if (!byTask) this.withDuty.set(base.cast, (byTask = new Map()));
+    let cast = byTask.get(duty.task);
+    if (!cast) {
+      cast = new Map(base.cast).set(person, duty.task);
+      byTask.set(duty.task, cast);
+    }
+    return { cast, from, until };
   }
 
   /** Počet známých úseků obsazení – dnů a změn staveb uprostřed dne (pro testy). */

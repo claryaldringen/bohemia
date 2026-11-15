@@ -9,6 +9,7 @@ import { dogPlansKey, type DogPlan } from './dogs';
 import { FishingLines, fishingLine } from './fishing-lines';
 import type { ChoreoPeople, ExpeditionYard } from './expedition-choreo';
 import { isRiding, rideArea, ridePlansKey, type RidePlan } from './riders';
+import { groomCandidates, groomedHorses, groomRides, RideGrooms } from './ride-grooms';
 import type { HuntSpotFn } from './villager-plan-lord';
 import '@babylonjs/core/Meshes/thinInstanceMesh';
 import '@babylonjs/loaders/glTF';
@@ -832,6 +833,7 @@ export class VillageVillagers {
     village: SceneVillage,
     persons: readonly ScenePerson[],
     plan: {
+      crew: { rides?: readonly RidePlan[] };
       tasks: Parameters<Timetable['setDay']>[2];
       doors: ReadonlyMap<number, { x: number; z: number }>;
       entrances: ReadonlyMap<
@@ -857,6 +859,16 @@ export class VillageVillagers {
     // povodeň – na rozlitou vodu se nechodí (villagers.md – Události)
     const flooded = this.env.flooded;
     timetable.setWet(flooded ? (x, z, at) => flooded(x, z, at * 1000 + LIVESTOCK_EPOCH_MS) : null);
+    // podkoní (D69 – ride-grooms.ts): rolník vyvede koně jízd dne z ohrady ke kůlu a po jízdě je
+    // odvede zpět – úloha navíc rozvrhu, dojde z místa, kde je; na koho nezbude, vede jezdec sám
+    const candidates = groomCandidates(persons, village.labor!.lord).map((p) => ({
+      id: p.id,
+      door: plan.doors.get(p.home) ?? null,
+    }));
+    const rides = plan.crew.rides ?? [];
+    const groomed = groomedHorses(rides, candidates.length);
+    const grooms = groomRides(rides, village).filter((r) => groomed.has(r.plan.horseId));
+    timetable.setDuties(grooms.length > 0 ? new RideGrooms(grooms, candidates) : null);
     const day = village.labor!.day;
     const window = this.env.dayWindow?.(day) ?? null;
     // změna staveb uprostřed dne (D68 – nová stavba, zrušená): nové obsazení platí od teď –

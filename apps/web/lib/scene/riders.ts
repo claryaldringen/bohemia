@@ -84,8 +84,9 @@ export interface RidePlan {
   tied?: readonly (readonly [number, number])[];
   /**
    * Cesta koně od branky jeho ohrady ke kůlu `hitch` (horses.md – Ve scéně; návrh Clauda): před
-   * každou jízdou (`span`) ji kůň dojde a u kůlu chvíli stojí, po jízdě se po ní vrátí do ohrady –
-   * z ohrady vyjde a do ní vejde u branky. Bez údaje se kůň objeví u kůlu.
+   * každou jízdou (`span`) ho po ní vyvede podkoní (ride-grooms.ts; bez rolníků jezdec sám – D69)
+   * a u kůlu chvíli stojí, po jízdě ho odvede zpět do ohrady – z ohrady vyjde a do ní vejde
+   * u branky. Bez údaje se kůň objeví u kůlu.
    */
   lead?: RideLead;
 }
@@ -98,7 +99,7 @@ export interface RideLead {
   heading: Point;
 }
 
-/** Kůň bez jezdce jde z ohrady ke kůlu a zpět krokem (m/s, návrh Clauda). */
+/** Kůň vedený za uzdu jde z ohrady ke kůlu a zpět krokem (m/s, návrh Clauda). */
 export const LEAD_M_S = 1.2;
 /** U kůlu stojí před jízdou (s) – jezdec nasedá na stojícího koně. */
 export const LEAD_WAIT_S = 10;
@@ -171,30 +172,108 @@ export function leadPose(
 }
 
 /**
+ * Vedení koně v jednom opakování jízdy (s – villagerSeconds; D69): kůň vyjde od branky (`out`),
+ * u kůlu je v `at`, jezdec nasedne v `mount` a sesedne v `dismount`, kůň je zpět u branky v `back`.
+ */
+export interface LeadTimes {
+  /** Opakování jízdy (`RidePlan.period`); bez opakování 0. */
+  n: number;
+  out: number;
+  at: number;
+  mount: number;
+  dismount: number;
+  back: number;
+}
+
+/**
+ * Vedení koně v opakování `n` jízdy `plan`: před jízdou krokem `LEAD_M_S` od branky ke kůlu
+ * a `LEAD_WAIT_S` stání, po jízdě zpět. Bez cesty z ohrady, bez opakování (jen `n` 0) nebo jízda,
+ * která se nejede (`except`) – null.
+ */
+export function leadTimes(plan: RidePlan, n: number): LeadTimes | null {
+  const lead = plan.lead;
+  if (!lead || !plan.span || (!plan.period && n !== 0)) return null;
+  const [from0, to0] = plan.span;
+  const from = from0 + n * (plan.period ?? 0);
+  const to = from + (to0 - from0);
+  if (plan.except && plan.except[0] < to && plan.except[1] > from) return null;
+  const walk = lead.length / LEAD_M_S;
+  const mount = (from - LIVESTOCK_EPOCH_MS) / 1000;
+  const dismount = (to - LIVESTOCK_EPOCH_MS) / 1000;
+  return {
+    n,
+    out: mount - LEAD_WAIT_S - walk,
+    at: mount - LEAD_WAIT_S,
+    mount,
+    dismount,
+    back: dismount + walk,
+  };
+}
+
+/** Opakování jízdy `plan`, do kterého spadá čas `t` (s) – nejbližší začaté (bez `period` 0). */
+export function leadRepeat(plan: RidePlan, t: number): number {
+  if (!plan.span || !plan.period) return 0;
+  return Math.floor((t * 1000 + LIVESTOCK_EPOCH_MS - plan.span[0]) / plan.period);
+}
+
+/**
  * Kde je kůň na cestě z ohrady ke kůlu v čase `t`: vzdálenost od branky (m; u kůlu `length`) a zda
  * jde zpět do ohrady – před jízdou dojde a `LEAD_WAIT_S` stojí u kůlu, po jízdě se vrátí. Mimo null.
  */
-function leadAt(plan: RidePlan, t: number): { d: number; back: boolean } | null {
+export function leadAt(plan: RidePlan, t: number): { d: number; back: boolean } | null {
   const lead = plan.lead;
   if (!lead || !plan.span) return null;
-  const walkMs = (lead.length / LEAD_M_S) * 1000;
-  const preMs = walkMs + LEAD_WAIT_S * 1000;
-  const ms = t * 1000 + LIVESTOCK_EPOCH_MS;
-  const [from0, to0] = plan.span;
-  const period = plan.period ?? 0;
-  const base = period ? Math.floor((ms - from0) / period) : 0;
-  for (const n of period ? [base, base + 1] : [0]) {
-    const from = from0 + n * period;
-    const to = from + (to0 - from0);
-    if (plan.except && plan.except[0] < to && plan.except[1] > from) continue;
-    if (ms >= from - preMs && ms < from) {
-      return { d: Math.min(lead.length, ((ms - from + preMs) / 1000) * LEAD_M_S), back: false };
+  const base = leadRepeat(plan, t);
+  for (const n of plan.period ? [base, base + 1] : [0]) {
+    const w = leadTimes(plan, n);
+    if (!w) continue;
+    if (t >= w.out && t < w.mount) {
+      return { d: Math.min(lead.length, (t - w.out) * LEAD_M_S), back: false };
     }
-    if (ms >= to && ms < to + walkMs) {
-      return { d: Math.max(0, lead.length - ((ms - to) / 1000) * LEAD_M_S), back: true };
+    if (t >= w.dismount && t < w.back) {
+      return { d: Math.max(0, lead.length - (t - w.dismount) * LEAD_M_S), back: true };
     }
   }
   return null;
+}
+
+/** Kdo vede koně, jde u jeho hlavy (m před středem koně) po pravé straně (m) – jezdec nasedá zleva. */
+const LEADER_AHEAD_M = 0.7;
+const LEADER_SIDE_M = 0.75;
+
+/**
+ * Člověk, který vede koně za uzdu (podkoní, bez něj jezdec sám – D69, Martin 15. 11. 2026): `d` m
+ * od branky po cestě `lead` (`back` – zpět do ohrady) u hlavy koně po jeho pravé straně, čelem po
+ * směru chůze. Směr bere z části cesty, ve které je – na koncích nestojí jinak než při chůzi, ať
+ * se při zastavení a otočce nepřenese (u kůlu se kůň natočí po směru jízdy sám).
+ */
+export function leaderSpot(
+  lead: RideLead,
+  d: number,
+  back: boolean,
+  out: { x: number; z: number; headingX: number; headingZ: number },
+): { x: number; z: number; headingX: number; headingZ: number } {
+  const pts = lead.points;
+  let rest = Math.min(lead.length, Math.max(0, d));
+  let a = pts[0]!;
+  let b = pts[1] ?? a;
+  for (let i = 1; i < pts.length; i++) {
+    a = pts[i - 1]!;
+    b = pts[i]!;
+    const len = Math.hypot(b.x - a.x, b.z - a.z);
+    if (rest <= len || i === pts.length - 1) break;
+    rest -= len;
+  }
+  const len = Math.hypot(b.x - a.x, b.z - a.z) || 1;
+  const f = Math.min(1, rest / len);
+  const s = back ? -1 : 1;
+  const fx = ((b.x - a.x) / len) * s;
+  const fz = ((b.z - a.z) / len) * s;
+  out.x = a.x + (b.x - a.x) * f + fx * LEADER_AHEAD_M + fz * LEADER_SIDE_M;
+  out.z = a.z + (b.z - a.z) * f + fz * LEADER_AHEAD_M - fx * LEADER_SIDE_M;
+  out.headingX = fx;
+  out.headingZ = fz;
+  return out;
 }
 
 /** Jde kůň v čase `t` z ohrady ke kůlu, stojí u něj před jízdou, nebo se vrací do ohrady? */

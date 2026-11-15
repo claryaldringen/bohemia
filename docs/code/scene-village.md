@@ -834,6 +834,20 @@ Kdo, kdy a na kterém koni jede, určuje jádro (`lordRides` → `SceneLord.ride
   `horseGate` + 1 m tam, kde jízda začne; `lordFigures` pro výcvikové jízdy i lov), `leadAt` /
   `isLed` – před jízdou krokem `LEAD_M_S` 1,2 m/s a `LEAD_WAIT_S` 10 s u kůlu, po jízdě zpět;
   `isAway` je zahrnuje (ohrada koně nekreslí), `rideHorsePose` kreslí cestu (`leadPose`), `livestock.ts` – `still`.
+  Časy vedení v opakování jízdy `leadTimes` (`out`, `at`, `mount`, `dismount`, `back`; `leadRepeat`).
+  **Podkoní** (D69 – horses.md, Koně vede podkoní; `ride-grooms.ts`): kůň jde jen s člověkem u hlavy
+  (`leaderSpot` – po pravé straně koně, směr z části cesty). `groomCandidates` – dospělí muži mimo
+  rodinu vojvody; `groomedHorses` – prvních tolik koní, kolik je rolníků, vede podkoní, ostatní jezdec
+  sám (`selfLead` ve villager-plan-lord.ts – `SELF_LEAD_BRIDGE_S` k brance a od ní, jinak den
+  rodiny). Podkoní jde z rozvrhu jako úloha navíc (`RideGrooms` → `Timetable.setDuties`, rozhraní
+  `Duties`; `ScheduleInput.castOf(t, personId)` – obsazení s úlohou navíc a hranicemi oken):
+  `groomWindows` – od `GROOM_CALL_S` před vyvedením do nasednutí a od `GROOM_CALL_S` před
+  sesednutím do návratu k brance (méně než `GROOM_GAP_S` mezi nimi – jedno okno, čeká u kůlu);
+  úloha péče o koně (`hold`, `interrupt` `all`, `placeAt`) s pózou `groomPose` přeruší, co dělá,
+  a dojde z místa, kde je; po okně jde domů a dál podle obsazení. Kdo vede koně okna, určí
+  obsazení v začátku okna (`pickRideGroom`: péče o koně u ohrady koně, jinde, volný, úloha
+  u objektu; událost, spřežení a vůz ne; nejbližší dveře ke kůlu, nižší id) – běžící okno nový
+  den nezmění; každý kůň má v okně jiného podkoního. Napojení: `VillageVillagers.scheduleDay`.
   Týž stroj (`leadPath`, `leadPose`, `leadGate`) vede koně z ohrady ke kůlu i při odjezdu a příjezdu
   výjezdu vojvody (journey.md – Sedlání, připojení a návrat; `expeditionYard`).
   Lov (`huntSpan`) začíná v chvíli výcvikové jízdy cyklu (`rideSlot`), aspoň `HUNT_BRIDGE_S` po
