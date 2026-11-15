@@ -2030,6 +2030,20 @@ def icon_rider_horse():
     return True
 
 
+def icon_expedition_saddle():
+    """Osedlat (expeditions.md – Co hráč vidí): jezdecký kůň s jezdcem v sedle."""
+    return icon_rider_horse()
+
+
+def icon_expedition_dismount():
+    """Sesednout (expeditions.md – Co hráč vidí): kůň a vedle něj muž stojící na zemi."""
+    horse = stand_animal("horse")
+    man = place_person("man", loc=(MARE_FOAL_X, MARE_FOAL_Y, 0.0), turn=RIDER_TURN)
+    sun(az=-50, el=48, strength=4.0)
+    camera(world_points(horse + man), az=0, el=16, margin=1.06)
+    return True
+
+
 def charcoal_lump(bm, centre, size, rot, rng):
     """Kus dřevěného uhlí: hranolek s nepravidelnými lomy (rozštípnuté poleno po pálení)."""
     first = len(bm.verts)
@@ -5873,6 +5887,8 @@ PANELS = {
     "war/alarm-return": icon_alarm_return,
     "war/alarm-domain": icon_alarm_domain,
     "war/alarm-done": icon_alarm_done,
+    "expedition/saddle": icon_expedition_saddle,
+    "expedition/dismount": icon_expedition_dismount,
     "newcomer/banner-crown": icon_banner_crown,
     "newcomer/banner-free": icon_banner_free,
 }

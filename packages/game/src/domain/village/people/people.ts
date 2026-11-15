@@ -53,6 +53,14 @@ export function isAway(person: Pick<Person, 'away'>, day: number): boolean {
 }
 
 /**
+ * Je člověk dnes pryč na výpravě (`away: journey` – expeditions.md, Odchod ze vsi)? Z vsi neodejde –
+ * události výpravy chodí do jeho vsi, v jiné by záznam nikdo neukončil.
+ */
+export function onExpedition(person: Pick<Person, 'away'>, day: number): boolean {
+  return person.away?.kind === 'journey' && isAway(person, day);
+}
+
+/**
  * Je člověk ukrytý v lese na mapě vsi (war.md – Varování, poslové a útěk do hradiště): uprchlík
  * (`away` druhu `refuge`) bez hradiště. Je pryč – nepracuje –, ale jí doma (`refugeFoodDay`).
  */

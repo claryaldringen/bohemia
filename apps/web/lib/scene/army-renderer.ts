@@ -69,7 +69,13 @@ import { createBakedFigure, createBlobShadow, type BakedKind } from './plough-te
 import { villagerSeconds } from './villager-motion';
 import { FIGURE_SCALE, fleeWalkAt, drivenHerd, type FleeWalk } from './villager-plan';
 import { alarmAt, alarmFigures, alarmMoving, type SceneAlarm } from './refugee-march';
-import { JourneyLeave, type JourneyScenePhase, type JourneyYard } from './journey-departure';
+import {
+  ExpeditionLeave,
+  type ChoreoContext,
+  type ChoreoPeople,
+  type ExpeditionScenePhase,
+  type ExpeditionYard,
+} from './expedition-choreo';
 import {
   JourneyGlide,
   journeyFigures,
@@ -223,15 +229,20 @@ export class ArmyRenderer {
   private disposed = false;
   /** Výjezdy vojvody na mapě (vlastní i návštěvníci) – jezdci stejnými instancemi jako vojsko. */
   private readonly journeys = new JourneyGlide();
-  /** Odjezd z dvorce a příjezd do něj (journey-departure.ts) – místo stavů `journeys`. */
-  private readonly leave = new JourneyLeave();
+  /** Sedlání, sesednutí, připojení a návrat výprav (expedition-choreo.ts) – upravuje stavy `journeys`. */
+  private readonly leave = new ExpeditionLeave();
+  /** Místa vsi a postavy vsi pro scénáře výprav (null – bez dvorce nic nezačne). */
+  private yard: ExpeditionYard | null = null;
+  private people: ChoreoPeople | null = null;
   /** Koně bez jezdce mezi ohradou a kůlem, jak jsou naposled nakreslení (e2e). */
   private led: ArmyAnimal[] = [];
   /** Muži výjezdů, jak jsou naposled nakreslení (výběr klikem, e2e). */
   private riders: RiderPose[] = [];
   /** Vybraná osoba vsi – je-li mužem vlastního výjezdu, kroužek výběru jede s ním. */
-  private selectedMan: number | null = null;
-  private ring: SelectionRing | null = null;
+  private selectedMen: readonly number[] = [];
+  private selectedVillage: string | undefined = undefined;
+  /** Kroužky výběru mužů výpravy (první – `journeyRing`). */
+  private rings: SelectionRing[] = [];
   /** Kde kroužek výběru jezdce právě leží (e2e); null – schovaný. */
   private ringAt: { x: number; z: number } | null = null;
 
@@ -370,20 +381,43 @@ export class ArmyRenderer {
   }
 
   /**
-   * Místa dvorce pro odjezd a příjezd výjezdu (villager-plan-lord.ts – `journeyYard`); null – bez
-   * odjezdu (muži se ukážou, kde je ukáže server).
+   * Místa vsi pro scénáře výprav (villager-plan-lord.ts – `expeditionYard`); null – bez scénářů
+   * (lidé se ukážou, kde je ukáže server).
    */
-  setJourneyYard(yard: JourneyYard | null): void {
-    this.leave.setYard(yard);
+  setExpeditionYard(yard: ExpeditionYard | null): void {
+    this.yard = yard;
+    this.leave.setContext(yard ? (nowMs) => this.choreoContext(yard, nowMs) : null);
+  }
+
+  /** Postavy vsi, ze kterých scénáře začínají (kde jsou nakreslené, kdo je dospělý doma). */
+  setChoreoPeople(people: ChoreoPeople | null): void {
+    this.people = people;
+  }
+
+  private choreoContext(yard: ExpeditionYard, nowMs: number): ChoreoContext {
+    return {
+      yard,
+      nowMs,
+      figureAt: (id) => this.people?.figureAt(id) ?? null,
+      riderAt: (id) => this.leave.drawnPose(id),
+      adultNear: (at, skip) => this.people?.adultNear(at, skip) ?? null,
+    };
   }
 
   /**
-   * Vybraná osoba vsi (null – nikdo): je-li mužem vlastního výjezdu, leží pod ním žlutý kroužek
-   * a jede s ním (jako jednotka v 0 A.D. – lord-control.md, Co hráč vidí). True – změna.
+   * Vybraní lidé vsi (prázdné – nikdo): kdo je mužem vlastní výpravy, má pod sebou žlutý kroužek,
+   * který jede s ním (jako jednotka v 0 A.D. – expeditions.md, Výběr a skupina). True – změna.
    */
-  selectJourneyMan(personId: number | null): boolean {
-    if (this.selectedMan === personId) return false;
-    this.selectedMan = personId;
+  selectJourneyMen(personIds: readonly number[], villageId?: string): boolean {
+    if (
+      this.selectedVillage === villageId &&
+      this.selectedMen.length === personIds.length &&
+      this.selectedMen.every((id, k) => id === personIds[k])
+    ) {
+      return false;
+    }
+    this.selectedMen = personIds;
+    this.selectedVillage = villageId;
     const was = this.ringAt;
     this.writeRing();
     return was !== null || this.ringAt !== null;
@@ -395,13 +429,23 @@ export class ArmyRenderer {
   }
 
   /** Fáze vlastního výjezdu ve scéně (odjíždí, jede, přijíždí); žádný – null. */
-  journeyPhase(): JourneyScenePhase | null {
+  journeyPhase(): ExpeditionScenePhase | null {
     return this.leave.ownPhase();
   }
 
-  /** Koně a muži vsi, kteří odjíždějí nebo přijíždějí – ohrada a den rodiny je nekreslí. */
-  journeyAway(): { horses: number[]; men: number[] } {
-    return { horses: this.leave.horsesOut(performance.now()), men: this.leave.menOut() };
+  /** Vesničan, který právě vede koně ve scénáři výprav; žádný – null (e2e). */
+  journeyGroom(): { x: number; z: number } | null {
+    return this.leave.groom();
+  }
+
+  /** Koně a lidé vsi ve scénářích výprav – ohrada, den rodiny a postavy vsi je nekreslí. */
+  journeyAway(): { horses: number[]; men: number[]; hidden: number[] } {
+    const out = this.leave.menOut();
+    return {
+      horses: this.leave.horsesOut(performance.now()),
+      men: out.arriving,
+      hidden: out.hidden,
+    };
   }
 
   /** Muž výjezdu pod kurzorem (CSS px) a vzdálenost průmětu – výběr klikem. */
@@ -425,8 +469,8 @@ export class ArmyRenderer {
 
   dispose(): void {
     this.disposed = true;
-    this.ring?.dispose();
-    this.ring = null;
+    for (const ring of this.rings) ring.dispose();
+    this.rings = [];
     for (const k of this.figures.values()) {
       k.mesh.material?.dispose(true, true);
       k.manager.texture?.dispose();
@@ -613,7 +657,7 @@ export class ArmyRenderer {
       moving ||= alarmMoving(alarm);
     }
     // výjezdy vojvody – každý muž plynule mezi stavy (journey-riders.ts)
-    // – z dvorce a do dvorce odjezdem a příjezdem (journey-departure.ts)
+    // – z dvorce a do dvorce odjezdem a příjezdem (expedition-choreo.ts)
     const perf = performance.now();
     const glide = this.journeys.at(perf, frozen);
     const journey = this.leave.at(glide.poses, perf, frozen);
@@ -894,25 +938,25 @@ export class ArmyRenderer {
     }
   }
 
-  /** Kroužek výběru pod vybraným mužem výjezdu, jak je nakreslený; jinak schovaný. */
+  /** Kroužky výběru pod vybranými muži výpravy, jak jsou nakreslení; nikdo – schované. */
   private writeRing(): void {
-    const pose = selectedRider(this.riders, this.selectedMan);
-    if (!pose) {
-      this.ring?.hide();
-      this.ringAt = null;
-      return;
-    }
-    const ring = (this.ring ??= new SelectionRing(this.scene, 'journey-ring'));
+    const poses = this.selectedMen
+      .map((id) => selectedRider(this.riders, id, this.selectedVillage))
+      .filter((pose): pose is RiderPose => pose !== null);
+    this.ringAt = poses[0] ? { x: poses[0].x, z: poses[0].z } : null;
     const ground = this.env.groundHeight;
     const size = RING_SIZE_M * FIGURE_SCALE;
-    // jezdec – elipsa podél koně
-    const length = pose.mounted ? size * RIDER_RING_LENGTH : size;
-    ring.show(ground, pose.x, ground(pose.x, pose.z), pose.z, length, size, pose.hx, pose.hz);
-    this.ringAt = { x: pose.x, z: pose.z };
+    poses.forEach((pose, k) => {
+      const ring = (this.rings[k] ??= new SelectionRing(this.scene, `journey-ring-${k}`));
+      // jezdec – elipsa podél koně
+      const length = pose.mounted ? size * RIDER_RING_LENGTH : size;
+      ring.show(ground, pose.x, ground(pose.x, pose.z), pose.z, length, size, pose.hx, pose.hz);
+    });
+    for (let k = poses.length; k < this.rings.length; k++) this.rings[k]!.hide();
   }
 
   private hideAll(): void {
-    this.ring?.hide();
+    for (const ring of this.rings) ring.hide();
     this.ringAt = null;
     for (const k of this.figures.values()) k.mesh.setEnabled(false);
     for (const a of this.animals.values()) a.mesh.setEnabled(false);

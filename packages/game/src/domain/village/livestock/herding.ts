@@ -1,7 +1,7 @@
 import { dateOfDayIndex } from '../../calendar';
 import { HAY_WINTER_MONTHS } from './hay';
 import { lordTraineeIds } from '../people/lord';
-import { ageGroup, ageYears } from '../people/people';
+import { ageGroup, ageYears, isAway } from '../people/people';
 import { AGE } from '../rules';
 import type { HerdSpecies, Person, VillageState } from '../types';
 
@@ -63,7 +63,12 @@ export function herdingDemand(
 
 /** Výrostek 7–13 let – pase (a obstará zvířata), do práce vsi nejde. */
 export function isYoungster(person: Person, day: number): boolean {
-  return ageGroup(person, day) === 'child' && ageYears(person.bornDay, day) >= AGE.olderChild;
+  // kdo je pryč (výprava od 12 let – expeditions.md), ves nepase, nepleje ani nehlídá
+  return (
+    ageGroup(person, day) === 'child' &&
+    ageYears(person.bornDay, day) >= AGE.olderChild &&
+    !isAway(person, day)
+  );
 }
 
 /** Co pasení ze vsi potřebuje – lidé a vojvodova rodina (její synové nepasou). */

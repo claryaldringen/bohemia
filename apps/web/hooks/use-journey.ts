@@ -2,63 +2,78 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  interpolateJourney,
+  interpolateExpeditions,
   JOURNEY_POLL_MS,
+  type ExpeditionView,
   type JourneyResponse,
-  type JourneyView,
 } from '@/lib/journey-view';
 import { usePolling } from './use-polling';
 
-// Dotazování na výjezd vojvody (plán 2026-11-13 – Úloha 7): 2× za sekundu `GET /api/journey`,
-// polohy mezi dvěma stavy se interpolují. Dotazuje se jen s `running` (hráč má výjezd – ví to
-// pohled na ves, nebo právě vyslal) a jen ve viditelném panelu prohlížeče (`usePolling`).
+// Dotazování na výpravy (expeditions.md; plán 2026-11-14 – Úloha 7): 2× za sekundu
+// `GET /api/journey`, polohy hloučků mezi dvěma stavy se interpolují. Dotazuje se jen s `running`
+// (ves má lidi pryč, nebo právě vyslal rozkaz) a jen ve viditelném panelu prohlížeče (`usePolling`).
 
 /** Jak často se překreslí interpolovaný pohled (scéna si bere `sample` sama). */
 const FRAME_MS = 100;
 
-export interface JourneyHandle {
-  /** Interpolovaný pohled; null = ještě nic, nebo žádný výjezd neběží. */
-  view: JourneyView | null;
+const NONE: ExpeditionView[] = [];
+
+export interface ExpeditionsHandle {
+  /** Interpolované pohledy na výpravy; prázdné = ještě nic, nebo žádná neběží. */
+  views: ExpeditionView[];
   /**
-   * Poslední pohled ze serveru bez interpolace (nový jen s novým taktem) – scéna vsi si mezi stavy
-   * posouvá muže sama (journey-riders.ts).
+   * Poslední pohledy ze serveru bez interpolace (nové jen s novým taktem) – scéna vsi si mezi
+   * stavy posouvá muže sama (journey-riders.ts).
    */
-  latest: JourneyView | null;
-  /** Pohled v okamžiku `nowMs` (`performance.now()`) – pro scénu, která kreslí ve své smyčce. */
-  sample: (nowMs: number) => JourneyView | null;
-  /** Zeptá se hned (po rozkazu nebo vyslání). */
+  latest: ExpeditionView[];
+  /** Pohledy v okamžiku `nowMs` (`performance.now()`) – pro scénu, která kreslí ve své smyčce. */
+  sample: (nowMs: number) => ExpeditionView[];
+  /** Zeptá se hned (po rozkazu). */
   refresh: () => void;
 }
 
+/** Klíče všech hloučků pohledů – výprava, skupina a hlouček. */
+function groupKeys(views: readonly ExpeditionView[]): Set<string> {
+  const keys = new Set<string>();
+  for (const v of views) {
+    for (const p of v.parties) for (const g of p.groups) keys.add(`${v.journeyId}:${p.id}:${g.id}`);
+  }
+  return keys;
+}
+
+/** Takty pohledů – stejné takty = nic nového (worker ukládá kontrolní bod zřídka). */
+const ticksOf = (views: readonly ExpeditionView[]): string =>
+  views.map((v) => `${v.journeyId}@${v.tick}`).join('|');
+
 /**
- * `onEnded` se zavolá, když pohled po běžícím výjezdu zmizí (skupina je doma) – volající obnoví ves
- * a přestane se ptát (`running: false`).
+ * `onPartyEnded` se zavolá, když po běžícím dotazu zmizí skupina nebo hlouček (je doma, padl,
+ * splynul) – volající obnoví ves a přestane se ptát (`running: false`), až nic neběží.
  */
-export function useJourney(running: boolean, onEnded?: () => void): JourneyHandle {
-  const endedRef = useRef(onEnded);
+export function useExpeditions(running: boolean, onPartyEnded?: () => void): ExpeditionsHandle {
+  const endedRef = useRef(onPartyEnded);
   useEffect(() => {
-    endedRef.current = onEnded;
-  }, [onEnded]);
-  const prevRef = useRef<JourneyView | null>(null);
-  const nextRef = useRef<JourneyView | null>(null);
+    endedRef.current = onPartyEnded;
+  }, [onPartyEnded]);
+  const prevRef = useRef<ExpeditionView[]>(NONE);
+  const nextRef = useRef<ExpeditionView[]>(NONE);
   const receivedRef = useRef(0);
   const spanRef = useRef(JOURNEY_POLL_MS);
-  const [view, setView] = useState<JourneyView | null>(null);
-  const [latest, setLatest] = useState<JourneyView | null>(null);
+  const [views, setViews] = useState<ExpeditionView[]>(NONE);
+  const [latest, setLatest] = useState<ExpeditionView[]>(NONE);
 
   useEffect(() => {
     if (running) return;
-    prevRef.current = null;
-    nextRef.current = null;
-    setView(null);
-    setLatest(null);
+    prevRef.current = NONE;
+    nextRef.current = NONE;
+    setViews(NONE);
+    setLatest(NONE);
   }, [running]);
 
-  const sample = useCallback((nowMs: number): JourneyView | null => {
+  const sample = useCallback((nowMs: number): ExpeditionView[] => {
     const next = nextRef.current;
-    if (next === null) return null;
+    if (next.length === 0) return NONE;
     const t = (nowMs - receivedRef.current) / spanRef.current;
-    return interpolateJourney(prevRef.current, next, t);
+    return interpolateExpeditions(prevRef.current, next, t);
   }, []);
 
   const poll = useCallback(async (): Promise<void> => {
@@ -68,32 +83,33 @@ export function useJourney(running: boolean, onEnded?: () => void): JourneyHandl
       const response = await fetch('/api/journey', { cache: 'no-store' });
       body = (await response.json()) as JourneyResponse;
     } catch (error) {
-      console.warn('Výjezd vojvody se nepodařilo načíst.', error);
+      console.warn('Výpravy se nepodařilo načíst.', error);
       return;
     }
-    if ('error' in body) return;
+    if ('error' in body || !Array.isArray(body.views)) return;
     const now = performance.now();
-    if (body.view === null) {
-      const wasRunning = nextRef.current !== null;
-      prevRef.current = null;
-      nextRef.current = null;
-      setView(null);
-      setLatest(null);
-      if (wasRunning) endedRef.current?.();
-      return;
+    const before = nextRef.current;
+    const fresh = body.views.length > 0 ? body.views : NONE;
+    // zmizela skupina nebo hlouček – ves se obnoví (lidé se vrátili), dotazování běží dál
+    const ended = [...groupKeys(before)].some((k) => !groupKeys(fresh).has(k));
+    if (fresh.length === 0) {
+      prevRef.current = NONE;
+      nextRef.current = NONE;
+      setViews(NONE);
+      setLatest(NONE);
+    } else if (ticksOf(before) !== ticksOf(fresh)) {
+      // nový stav: odtud se jde z místa, kde je kreslený teď, do nového za dobu mezi dotazy
+      prevRef.current = sample(now);
+      spanRef.current = Math.max(
+        FRAME_MS,
+        Math.min(4 * JOURNEY_POLL_MS, now - receivedRef.current || JOURNEY_POLL_MS),
+      );
+      receivedRef.current = now;
+      nextRef.current = fresh;
+      setLatest(fresh);
+      setViews(sample(now));
     }
-    // pohled se stejným taktem se neposouvá (worker ukládá kontrolní bod zřídka)
-    if (nextRef.current?.tick === body.view.tick) return;
-    // nový stav: odtud se jde z místa, kde je kreslený teď, do nového za dobu mezi dotazy
-    prevRef.current = sample(now);
-    spanRef.current = Math.max(
-      FRAME_MS,
-      Math.min(4 * JOURNEY_POLL_MS, now - receivedRef.current || JOURNEY_POLL_MS),
-    );
-    receivedRef.current = now;
-    nextRef.current = body.view;
-    setLatest(body.view);
-    setView(sample(now));
+    if (ended) endedRef.current?.();
   }, [sample]);
 
   const refresh = usePolling(poll, () => JOURNEY_POLL_MS, running);
@@ -102,10 +118,10 @@ export function useJourney(running: boolean, onEnded?: () => void): JourneyHandl
   useEffect(() => {
     if (!running) return;
     const timer = setInterval(() => {
-      if (nextRef.current !== null) setView(sample(performance.now()));
+      if (nextRef.current.length > 0) setViews(sample(performance.now()));
     }, FRAME_MS);
     return () => clearInterval(timer);
   }, [running, sample]);
 
-  return { view, latest, sample, refresh };
+  return { views, latest, sample, refresh };
 }

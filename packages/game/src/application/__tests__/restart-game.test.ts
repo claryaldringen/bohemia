@@ -13,7 +13,7 @@ import {
   msOfTick,
   newJourney,
   type CampaignMember,
-  type JourneyMember,
+  type JourneyRecruit,
   type JourneyState,
 } from '../../domain/war';
 import { campaign, LAUNCH, world } from '../../domain/war/__tests__/campaign-fixtures';
@@ -545,7 +545,7 @@ describe('restartGame s abandon (nabídka hry)', () => {
       { playerId: PLAYER, today: TODAY, abandon: true },
     );
     expect(result.ok).toBe(true);
-    expect(await journeys.activeOf(PLAYER)).toBeNull();
+    expect(await journeys.activeOfPlayer(PLAYER)).toEqual([]);
     expect(await journeys.active()).toEqual([]);
     // domov v archivu – událost do vsi nejde
     expect(villages.inbox.events.filter((e) => e.body.kind === 'away-ends')).toEqual([]);
@@ -560,31 +560,27 @@ describe('restartGame s abandon (nabídka hry)', () => {
       outbox: null,
     });
     expect(save).toBe('stale');
-    expect(await journeys.activeOf(PLAYER)).toBeNull();
+    expect(await journeys.activeOfPlayer(PLAYER)).toEqual([]);
   }, 30_000);
 });
 
 /** Běžící výjezd hráče z jeho vsi `villageId` (vojvoda je osoba 1). */
-function runningJourney(villageId: string): JourneyState {
-  const member: JourneyMember = {
+function runningJourney(villageId: string, id = 'j1'): JourneyState {
+  const member: JourneyRecruit = {
     ref: { villageId, personId: 1 },
     lord: true,
-    mounted: false,
     strength: 2,
     fight: 50,
-    health: 100,
-    wounded: false,
-    status: 'active',
+    name: 'Bořivoj',
   };
   return newJourney(
     {
-      id: 'j1',
+      id,
       seed: 1,
       playerId: PLAYER,
       houseId: 'h-1',
-      leaderName: 'Bořivoj',
       home: { villageId, name: 'Libice', cell: { x: 0, y: 0 }, pos: { x: -50, z: -50 } },
-      members: [member],
+      recruits: [member],
       startMs: msOfTick(LAUNCH, world),
       order: { kind: 'go', pos: { x: 100, z: -50 } },
     },
@@ -885,12 +881,36 @@ describe('Začít znovu obránce – ves pod nájezdem připadne útočníkovi (
         .filter((e) => e.body.kind === 'away-ends')
         .map((e) => [e.villageId, e.body.kind === 'away-ends' ? e.body.refId : null]);
     expect(ends()).toEqual([[w.villageId, 'j1']]);
-    expect(await journeys.activeOf(PLAYER)).toBeNull();
+    expect(await journeys.activeOfPlayer(PLAYER)).toEqual([]);
     // opakovaný restart (pád po převodu) nic nezdvojí
     expect((await restartGame(deps, input)).ok).toBe(true);
     expect(ends()).toHaveLength(1);
     // upozornění o návratu nikomu nejde
     expect(w.notices.notices.filter((n) => n.kind === 'journey-returned')).toEqual([]);
+  }, 30_000);
+
+  it('dvě výpravy hráče z různých vsí – restart ukončí obě a obě vsi dostanou away-ends', async () => {
+    const w = await defended(['marching']);
+    w.villages.archivedSettlements = w.settlements.archived;
+    const first = (await w.villages.find(w.villageId))!;
+    const second = await w.villages.add('settlement-hora', 'Hora', structuredClone(first.state));
+    const journeys = new InMemoryJourneys();
+    await journeys.create(runningJourney(w.villageId, 'j1'));
+    await journeys.create(runningJourney(second.id, 'j2'));
+    expect(await journeys.activeOfPlayer(PLAYER)).toEqual(['j1', 'j2']);
+    expect((await restartGame({ ...w.deps, journeys }, input)).ok).toBe(true);
+    expect(await journeys.activeOfPlayer(PLAYER)).toEqual([]);
+    expect(await journeys.active()).toEqual([]);
+    const ends = w.villages.inbox.events
+      .filter((e) => e.body.kind === 'away-ends')
+      .map((e) => [e.villageId, e.body.kind === 'away-ends' ? e.body.refId : null]);
+    expect(ends).toEqual(
+      expect.arrayContaining([
+        [w.villageId, 'j1'],
+        [second.id, 'j2'],
+      ]),
+    );
+    expect(ends).toHaveLength(2);
   }, 30_000);
 
   it('nájezd už na zpáteční cestě – ves jde do archivu jako dřív', async () => {

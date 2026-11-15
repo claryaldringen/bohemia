@@ -1,22 +1,18 @@
 import 'server-only';
 import { randomUUID } from 'node:crypto';
 import {
-  commandJourney,
-  journeyCandidates,
-  journeyViewFor,
+  commandParty,
+  expeditionViewsFor,
+  expeditionVisitorsOn,
   knownMapFor,
   knownVillagesOf,
-  launchJourney,
-  visitorsOn,
+  musterExpedition,
+  type ExpeditionCommand,
+  type ExpeditionDeps,
+  type ExpeditionResult,
+  type ExpeditionView,
+  type ExpeditionVisitor,
   type GridCell,
-  type JourneyCandidate,
-  type JourneyCommandDeps,
-  type JourneyCommandResult,
-  type JourneyOrder,
-  type JourneyRefusal,
-  type JourneyView,
-  type JourneyVisitor,
-  type LaunchJourneyDeps,
   type MarchGrid,
   type SeenCell,
   type VisitorsDeps,
@@ -28,27 +24,14 @@ import type { ForeignMap } from './foreign-map';
 import { encodeLandscape } from './landscape-transfer';
 import { journeyActionForPlayer } from './village';
 
-// Výjezd vojvody (lord-control.md; plán 2026-11-13 – Úloha 7): composition root – use-casy
-// `journeyCandidates`, `launchJourney`, `journeyViewFor`, `commandJourney` a `visitorsOn` nad
-// skutečnými repozitáři. Herní logika je v `packages/game/src/application/{launch-journey,
-// journey-view}.ts`.
+// Výpravy (expeditions.md; plán 2026-11-14 – Úloha 7): composition root – use-casy `commandParty`,
+// `musterExpedition`, `expeditionViewsFor` a `expeditionVisitorsOn` nad skutečnými repozitáři.
+// Herní logika je v `packages/game/src/application/{expedition,expedition-view,journey-view}.ts`.
 
 /** Mřížky mapy skupiny pro ověření rozkazu – pohled se ptá 2× za sekundu, mřížka se mění po dnech. */
 const GRIDS = new LruCache<string, MarchGrid>(4);
 
-function commandDeps(): JourneyCommandDeps {
-  const deps = gameDeps();
-  return {
-    journeys: deps.journeys,
-    world: currentWorld(),
-    cells: campaignCells(),
-    villages: deps.villages,
-    grids: GRIDS,
-    atWar: deps.atWar,
-  };
-}
-
-function launchDeps(): LaunchJourneyDeps {
+function launchDeps(): ExpeditionDeps {
   const deps = gameDeps();
   return {
     settlements: deps.settlements,
@@ -76,64 +59,54 @@ function visitorsDeps(): VisitorsDeps {
   };
 }
 
-/** Kandidáti na výjezd z vlastní vsi `villageId` (vojvoda, muži rodu doma) a důvod, proč nejde. */
-export function journeyCandidatesForPlayer(
+/**
+ * Příkaz hráče vybraným lidem vsi `villageId` (expeditions.md – Výběr a skupina): napřed rozkaz
+ * lidem, kteří už ve výpravě jsou (`commandParty`, jen záměr, bez zámku vsi); jsou-li ve výběru
+ * lidé ze vsi, pod zámkem hráče a úpravou vsi je přidá `musterExpedition`.
+ */
+export async function commandExpeditionForPlayer(
   playerId: string,
-  villageId: string,
-): Promise<
-  | { refusal: JourneyRefusal | null; lord: JourneyCandidate | null; men: JourneyCandidate[] }
-  | { error: string }
-> {
-  return journeyActionForPlayer(playerId, villageId, (ctx) =>
-    journeyCandidates(launchDeps(), { playerId, villageId, today: ctx.day }),
-  );
-}
-
-/** Vyšle vojvodu s družinou z vsi `villageId`; `{ ok }`, nebo důvod odmítnutí. */
-export function launchJourneyForPlayer(
-  playerId: string,
-  input: { villageId: string; retinue: number[]; order: JourneyOrder },
-): Promise<
-  { ok: true; journeyId: string } | { ok: false; reason: JourneyRefusal } | { error: string }
-> {
+  input: { villageId: string; people: number[]; command: ExpeditionCommand },
+): Promise<ExpeditionResult | { error: string }> {
+  const full = { ...input, playerId, now: new Date() };
+  const first = await commandParty(launchDeps(), full);
+  if (first.ok || first.reason !== 'recruits') return first;
   return journeyActionForPlayer(playerId, input.villageId, () =>
-    launchJourney(launchDeps(), { ...input, playerId, now: new Date() }),
+    musterExpedition(launchDeps(), { ...full, now: new Date() }),
   );
 }
 
-/** Rozkaz hráče do jeho běžícího výjezdu – takt záměru, nebo odmítnutí. */
-export function commandJourneyForPlayer(
-  playerId: string,
-  command: JourneyOrder,
-): Promise<JourneyCommandResult> {
-  return commandJourney(commandDeps(), { playerId, command, nowMs: Date.now() });
-}
-
-/** Pohled hráče na jeho běžící výjezd; null = žádný nemá. */
-export function journeyViewForPlayer(playerId: string): Promise<JourneyView | null> {
+/** Pohledy hráče na všechny jeho běžící výpravy (jedna za domovskou ves). */
+export function expeditionViewsForPlayer(playerId: string): Promise<ExpeditionView[]> {
   const deps = gameDeps();
-  return journeyViewFor(
+  return expeditionViewsFor(
     { journeys: deps.journeys, world: currentWorld(), knowledge: deps.knowledge },
     { playerId },
   );
 }
 
-/** Jezdci na mapě vsi hráče (vlastní vždy, cizí jen v dohledu); cizí ves = prázdno. */
-export function visitorsOnVillage(playerId: string, villageId: string): Promise<JourneyVisitor[]> {
-  return visitorsOn(visitorsDeps(), { playerId, villageId });
+/** Skupiny výprav na mapě vsi hráče (vlastní vždy, cizí jen v dohledu); cizí ves = prázdno. */
+export function expeditionVisitorsOnVillage(
+  playerId: string,
+  villageId: string,
+): Promise<ExpeditionVisitor[]> {
+  return expeditionVisitorsOn(visitorsDeps(), { playerId, villageId });
 }
 
 /**
- * Krajina políčka `cell` pro hráče s výjezdem: jen políčko, na kterém skupina stojí, a jeho
- * sousedé (8 směrů – kam může přejít). Jinak null, ať se nic neprozradí.
+ * Krajina políčka `cell` pro hráče s výpravou: jen políčka, na kterých stojí některý z jeho
+ * hloučků, a jejich sousedé (8 směrů – kam mohou přejít). Jinak null, ať se nic neprozradí.
  */
 export async function journeyMapForPlayer(
   playerId: string,
   cell: GridCell,
 ): Promise<ForeignMap | null> {
-  const view = await journeyViewForPlayer(playerId);
-  if (view === null) return null;
-  const near = Math.abs(view.cell.x - cell.x) <= 1 && Math.abs(view.cell.y - cell.y) <= 1;
+  const views = await expeditionViewsForPlayer(playerId);
+  const near = views.some((v) =>
+    v.parties.some((p) =>
+      p.groups.some((g) => Math.abs(g.cell.x - cell.x) <= 1 && Math.abs(g.cell.y - cell.y) <= 1),
+    ),
+  );
   if (!near) return null;
   const map = await campaignCells().mapOf(cell);
   return { cell: { x: cell.x, y: cell.y }, landscape: encodeLandscape(map.landscape) };

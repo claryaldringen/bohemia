@@ -2,10 +2,12 @@ import type { WorldClock } from '../domain/calendar';
 import { sameCell, type GridCell } from '../domain/village/people/world-grid';
 import {
   CHECKPOINT_TICKS,
+  commandOf,
   INTENT_LEAD_TICKS,
   journeyFinished,
   stepJourney,
   tickOfMs,
+  upgradeJourney,
   type CampaignOutbox,
   type JourneyIntent,
   type JourneyState,
@@ -30,8 +32,9 @@ import type { VillageRepository } from './villages';
 // – bod → doručit schránku → záměry → dopočet s načítáním map a vsí (`computeWithLoads`) → uložit
 // → doručit. Restart workeru pokračuje z bodu se stejným výsledkem; návrat do vsi (`away-ends`)
 // i upozornění se po pádu mezi uložením a doručením doručí z bodu v dalším kole. Navíc válka:
-// vjede-li skupina venku na mapu rodu, se kterým je hráčův rod ve válce, kolo za hráče přidá rozkaz
-// „Domů“ (lord-control.md – Pořadí zavedení: na mapu rodu ve válce vojvoda nevjede).
+// vjede-li hlouček skupiny venku na mapu rodu, se kterým je hráčův rod ve válce, kolo za hráče
+// přidá odvolání domů (`recall` – lord-control.md, Pořadí zavedení: na mapu rodu ve válce vojvoda
+// nevjede). Starší kontrolní bod (jedna skupina) převede `upgradeJourney`.
 
 export interface StepJourneysDeps {
   journeys: JourneyRepository;
@@ -91,7 +94,7 @@ async function stepOne(
 ): Promise<CampaignOutcome> {
   const checkpoint = await deps.journeys.checkpoint(journeyId);
   if (!checkpoint) return 'idle';
-  const from = checkpoint.state;
+  const from = upgradeJourney(checkpoint.state);
   // pád mezi uložením bodu a doručením – události bodu se doručí teď (`ref` podruhé zahozen)
   if (checkpoint.outbox) {
     await deliverOutbox(deps, checkpoint.outbox);
@@ -150,19 +153,46 @@ async function stepOne(
 }
 
 /**
- * Změnilo se od uloženého bodu, co hráč vidí (poloha, cíl nebo dojetí skupiny, fáze), nebo se v kole
- * uplatnil jeho záměr? Web čte pohled z kontrolního bodu – jedoucí skupina se proto ukládá každé
- * kolo (≈ 1 s), ať vojvoda na klik reaguje do vteřiny; stojící skupina zůstává na `CHECKPOINT_TICKS`.
+ * Změnilo se od uloženého bodu, co hráč vidí (poloha, cíl nebo dojetí hloučku, fáze výpravy
+ * i skupin), nebo se v kole uplatnil jeho záměr? Hloučky a skupiny se porovnávají podle id. Web čte
+ * pohled z kontrolního bodu – jedoucí hlouček se proto ukládá každé kolo (≈ 1 s), ať lidé na klik
+ * reagují do vteřiny; stojící zůstávají na `CHECKPOINT_TICKS`.
  */
-function playerSeesChange(
+export function playerSeesChange(
   from: JourneyState,
   to: JourneyState,
   intents: readonly JourneyIntent[],
 ): boolean {
   if (from.phase !== to.phase || from.groups.length !== to.groups.length) return true;
+  if (from.parties.length !== to.parties.length) return true;
   if (intents.some((i) => i.tick <= to.tick)) return true;
-  return to.groups.some((g, n) => {
-    const was = from.groups[n]!;
+  const parties = new Map(from.parties.map((p) => [p.id, p]));
+  if (
+    to.parties.some((p) => {
+      const was = parties.get(p.id);
+      return (
+        was?.phase !== p.phase ||
+        was.arrivedTick !== p.arrivedTick ||
+        JSON.stringify(was.horseWork) !== JSON.stringify(p.horseWork)
+      );
+    })
+  ) {
+    return true;
+  }
+  // kůň pod jezdcem (nasedl, sesedl, vede ho) – scéna ukazuje jezdce a koně
+  if (from.members.length !== to.members.length) return true;
+  if (
+    to.members.some((m, i) => {
+      const was = from.members[i]!;
+      return was.mounted !== m.mounted || was.horse !== m.horse || was.group !== m.group;
+    })
+  ) {
+    return true;
+  }
+  const groups = new Map(from.groups.map((g) => [g.id, g]));
+  return to.groups.some((g) => {
+    const was = groups.get(g.id);
+    if (!was || was.party !== g.party) return true;
     return (
       was.cell.x !== g.cell.x ||
       was.cell.y !== g.cell.y ||
@@ -178,29 +208,48 @@ function playerSeesChange(
 }
 
 /**
- * Vjezd na mapu rodu ve válce (lord-control.md – Pořadí zavedení; plán 2026-11-13 – Úloha 4): kolo
- * se ptá (`atWar`) jen tehdy, když skupina ve spočteném stavu `after` stojí na jiném políčku než ve
- * stavu `before`, od kterého kolo počítalo – jinak by se ptalo každou sekundu; začátek války, když
- * skupina už stojí, řeší `recallJourneysAtWar`. Při válce zapíše za hráče rozkaz „Domů“ s taktem
- * jako jeho rozkaz (teď + `INTENT_LEAD_TICKS`). Jednou: výjezd, který se vrací, ani výjezd
- * s čekajícím „Domů“ hráče se neptá.
+ * Vjezd na mapu rodu ve válce (lord-control.md – Pořadí zavedení; plán 2026-11-14 – Úloha 6): kolo
+ * se ptá (`atWar`) jen na políčka hloučků skupin venku (`out`), které ve spočteném stavu `after`
+ * stojí na jiném políčku než ve stavu `before`, od kterého kolo počítalo; nový hlouček (dělení
+ * skupiny) se porovnává s domovským políčkem – jinak by se ptalo každou sekundu. Začátek války,
+ * když hlouček už stojí, řeší `recallJourneysAtWar`. Políčka ve válce jdou v jednom záměru
+ * `recall` s taktem jako rozkaz hráče (teď + `INTENT_LEAD_TICKS`). Políčko s čekajícím odvoláním
+ * (nebo starým „Domů“ všem) se neptá, skupina, která se vrací, také ne.
  */
 async function homeFromWar(
   deps: Pick<StepJourneysDeps, 'journeys' | 'atWar'>,
-  before: JourneyState,
+  start: JourneyState,
   after: JourneyState,
   intents: readonly JourneyIntent[],
   toTick: number,
 ): Promise<void> {
-  const [was, group] = [before.groups[0], after.groups[0]];
-  if (after.phase !== 'out' || !group || (was && sameCell(was.cell, group.cell))) return;
-  const pending = intents.some(
-    (i) => i.body.kind === 'home' && i.tick > after.tick && i.byPlayer === after.playerId,
-  );
-  if (pending || !(await deps.atWar(after.playerId, group.cell))) return;
+  if (after.phase !== 'out') return;
+  const before = upgradeJourney(start);
+  const out = new Set(after.parties.filter((p) => p.phase === 'out').map((p) => p.id));
+  const was = new Map(before.groups.map((g) => [g.id, g.cell]));
+  const cells: GridCell[] = [];
+  for (const g of after.groups) {
+    if (!out.has(g.party) || sameCell(was.get(g.id) ?? before.home.cell, g.cell)) continue;
+    if (!cells.some((c) => sameCell(c, g.cell))) cells.push(g.cell);
+  }
+  const pending = intents.filter((i) => i.tick > after.tick && i.byPlayer === after.playerId);
+  const waiting = (cell: GridCell): boolean =>
+    pending.some((i) => {
+      const command = commandOf(i.body);
+      if (command.kind === 'recall') return command.cells.some((c) => sameCell(c, cell));
+      return (
+        command.kind === 'order' && command.order.kind === 'home' && command.people === undefined
+      );
+    });
+  const war: GridCell[] = [];
+  for (const cell of cells) {
+    if (waiting(cell) || !(await deps.atWar(after.playerId, cell))) continue;
+    war.push({ x: cell.x, y: cell.y });
+  }
+  if (war.length === 0) return;
   await deps.journeys.addIntent(after.id, {
     tick: toTick + INTENT_LEAD_TICKS,
     byPlayer: after.playerId,
-    body: { kind: 'home' },
+    body: { kind: 'recall', cells: war },
   });
 }

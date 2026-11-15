@@ -12,6 +12,8 @@ import type {
   JourneyIntent,
   JourneyMember,
   JourneyOrder,
+  JourneyPhase,
+  JourneyRecruit,
   JourneyState,
   JourneyStep,
 } from '../journey-types';
@@ -23,7 +25,8 @@ import { flat, LAUNCH, MEADOW, SUMMER, world as clock } from './campaign-fixture
 
 // Výjezd vojvody po taktech (lord-control.md – Rozkazy, Na místě a návrat, Pohyb, Zásoby a zima;
 // plán 2026-11-13 – Úloha 1): rozkazy, čekání a návrat, tempo, člen zemře doma, domovská ves
-// zanikne, po kouscích = vcelku.
+// zanikne, po kouscích = vcelku. Od výprav (plán 2026-11-14 – Úloha 1) jde o jednu skupinu 0 – fázi
+// a čekání čte `phaseOf` / `arrivedOf`, hlouček po návratu domů ze stavu zmizí.
 
 /** Domov – Lhota na políčku (0, 0); místo ve středu buňky mřížky pochodu (rovné úseky cesty). */
 const HOME = { villageId: 'lhota', name: 'Lhota', cell: { x: 0, y: 0 }, pos: { x: 5, z: 5 } };
@@ -37,7 +40,7 @@ const WINTER = dayIndexOf(WINTER_DATE);
 /** První celý takt zimního dne. */
 const WINTER_LAUNCH = Math.ceil((realTimeOf(WINTER_DATE, clock) - clock.startMs) / 250);
 
-/** Muž výjezdu – osoba 1 je vojvoda; všichni na koni, není-li řečeno jinak. */
+/** Muž výjezdu – osoba 1 je vojvoda Bořivoj; všichni na koni, není-li řečeno jinak. */
 function man(personId: number, extra: Partial<JourneyMember> = {}): JourneyMember {
   return {
     ref: { villageId: 'lhota', personId },
@@ -48,8 +51,20 @@ function man(personId: number, extra: Partial<JourneyMember> = {}): JourneyMembe
     health: 100,
     wounded: false,
     status: 'active',
+    group: 0,
+    ...(personId === 1 ? { name: 'Bořivoj' } : {}),
     ...extra,
   };
+}
+
+/** Fáze jako před výpravami: konec, jinak fáze (jediné) skupiny. */
+function phaseOf(state: JourneyState): JourneyPhase {
+  return state.phase === 'done' ? 'done' : state.parties[0]!.phase;
+}
+
+/** Takt dojetí (jediné) skupiny; skupina jde nebo už není – null. */
+function arrivedOf(state: JourneyState): number | null {
+  return state.parties[0]?.arrivedTick ?? null;
 }
 
 /** Domovská ves s muži `ids`. */
@@ -77,23 +92,70 @@ function worldOf(spec: WorldSpec = {}): CampaignWorld {
   };
 }
 
-/** Výjezd vojvody (1) s jedním mužem (2) na koních, první rozkaz 300 m na východ. */
-function journey(overrides: Partial<NewJourney> = {}): JourneyState {
-  return newJourney(
+/**
+ * Výjezd vojvody (1) s jedním mužem (2) na koních, první rozkaz 300 m na východ. Lidé `members`
+ * přijdou do `newJourney` jako nováčci; stav na cestě, který nováček nemít nemůže (raněný, padlý),
+ * se do výchozího stavu přepíše z nich.
+ */
+function journey(
+  overrides: Partial<Omit<NewJourney, 'recruits'>> & { members?: JourneyMember[] } = {},
+): JourneyState {
+  const { members = [man(1), man(2)], ...rest } = overrides;
+  const state = newJourney(
     {
       id: 'j1',
       seed: 42,
       playerId: 'p1',
       houseId: 'h1',
-      leaderName: 'Bořivoj',
       home: HOME,
-      members: [man(1), man(2)],
+      recruits: members.map(recruitOf),
       startMs: msOfTick(LAUNCH, clock),
       order: { kind: 'go', pos: NEAR },
-      ...overrides,
+      ...rest,
     },
     clock,
   );
+  state.members.forEach((m, n) => {
+    const { health, wounded, woundedDay, status, mounted } = members[n]!;
+    Object.assign(m, { health, wounded, status }, woundedDay === undefined ? {} : { woundedDay });
+    // jezdec jede na koni (výprava osedlá koně až příkazem – tady stav po osedlání)
+    if (mounted) Object.assign(m, { mounted: true, horse: 'ridden' as const });
+  });
+  return state;
+}
+
+/** Nováček výpravy z muže výjezdu. */
+function recruitOf(m: JourneyMember): JourneyRecruit {
+  return {
+    ref: { ...m.ref },
+    lord: m.lord,
+    strength: m.strength,
+    fight: m.fight,
+    ...(m.name === undefined ? {} : { name: m.name }),
+  };
+}
+
+/**
+ * Stav o takt dřív, než výprava doma skončí (hlouček je ve stavu naposled), a takt konce – po
+ * návratu hlouček ze stavu zmizí.
+ */
+function lastStand(
+  start: JourneyState,
+  toTick: number,
+  intents: readonly JourneyIntent[],
+  world: CampaignWorld,
+): { last: JourneyState; end: number } {
+  const end = stepJourney(start, toTick, intents, world).state;
+  expect(end.phase).toBe('done');
+  return { last: stepJourney(start, end.tick - 1, intents, world).state, end: end.tick };
+}
+
+/** Hlouček jde domů a v dalším taktu tam dojde (zbývá méně než takt cesty jezdců). */
+function arrivingHome(state: JourneyState): void {
+  const g = state.groups[0]!;
+  expect(g).toMatchObject({ cell: HOME.cell, goal: { cell: HOME.cell, pos: HOME.pos } });
+  const step = (1.5 * WAR.pace.metersPerSecond) / TICKS_PER_SECOND;
+  expect(Math.abs(g.pos.x - HOME.pos.x) + Math.abs(g.pos.z - HOME.pos.z)).toBeLessThan(2 * step);
 }
 
 function intent(tick: number, seq: number, body: JourneyOrder, byPlayer = 'p1'): JourneyIntent {
@@ -177,13 +239,15 @@ describe('newJourney', () => {
       phase: 'out',
       playerId: 'p1',
       houseId: 'h1',
-      leaderName: 'Bořivoj',
       home: HOME,
-      arrivedTick: null,
+      parties: [{ id: 0, phase: 'out', arrivedTick: null }],
+      nextId: 1,
     });
-    expect(start.members).toEqual([man(1), man(2)]);
+    // vyjeli na koni (starý adaptér – `mounted`): kůň u sebe, ves o něm neví (bez `horseId`)
+    expect(start.members).toEqual([man(1, { horse: 'ridden' }), man(2, { horse: 'ridden' })]);
     expect(start.groups).toHaveLength(1);
     expect(start.groups[0]).toMatchObject({
+      party: 0,
       cell: HOME.cell,
       pos: HOME.pos,
       goal: { cell: HOME.cell, pos: NEAR },
@@ -196,12 +260,12 @@ describe('newJourney', () => {
   it('první rozkaz přes okraj nebo domů; vstup se nesdílí se stavem', () => {
     const members = [man(1)];
     const across = journey({ members, order: { kind: 'cross', cell: EAST } });
-    expect(across.phase).toBe('out');
+    expect(phaseOf(across)).toBe('out');
     expect(across.groups[0]!.route).toEqual([EAST]);
     expect(across.groups[0]!.goal!.cell).toEqual(EAST);
-    expect(across.members[0]).not.toBe(members[0]);
+    expect(across.members[0]!.ref).not.toBe(members[0]!.ref);
     expect(across.home).not.toBe(HOME);
-    expect(journey({ order: { kind: 'home' } }).phase).toBe('returning');
+    expect(phaseOf(journey({ order: { kind: 'home' } }))).toBe('returning');
   });
 });
 
@@ -212,17 +276,17 @@ describe('rozkaz go', () => {
     expect(there.waiting).toBeNull();
     expect(there.state.tick).toBe(LAUNCH + 400);
     expect(there.state.throughDay).toBe(dayOfTick(LAUNCH + 401, clock) - 1);
-    expect(there.state.phase).toBe('out');
+    expect(phaseOf(there.state)).toBe('out');
     expect(there.state.groups[0]).toMatchObject({ cell: HOME.cell, pos: NEAR, arrived: true });
-    const at = there.state.arrivedTick!;
+    const at = arrivedOf(there.state)!;
     expect(at).toBeGreaterThan(LAUNCH + 200);
     expect(at).toBeLessThan(LAUNCH + 260);
     const before = stepJourney(start, at - 1, [], worldOf()).state;
     expect(before.groups[0]!.arrived).toBe(false);
-    expect(before.arrivedTick).toBeNull();
+    expect(arrivedOf(before)).toBeNull();
     const exactly = stepJourney(start, at, [], worldOf()).state;
     expect(exactly.groups[0]!.arrived).toBe(true);
-    expect(exactly.arrivedTick).toBe(at);
+    expect(arrivedOf(exactly)).toBe(at);
     expect(there.villageEvents).toEqual([]);
     expect(there.notices).toEqual([]);
   });
@@ -267,7 +331,7 @@ describe('rozkaz cross', () => {
     const start = journey({ order: { kind: 'cross', cell: EAST } });
     const there = stepJourney(start, LAUNCH + 900, [], worldOf());
     expect(there.waiting).toBeNull();
-    expect(there.state.phase).toBe('out');
+    expect(phaseOf(there.state)).toBe('out');
     // východním okrajem (x = 955) na západní okraj sousední mapy
     expect(there.state.groups[0]).toMatchObject({
       cell: EAST,
@@ -275,16 +339,16 @@ describe('rozkaz cross', () => {
       route: [],
       arrived: true,
     });
-    const at = there.state.arrivedTick!;
+    const at = arrivedOf(there.state)!;
     expect(at).toBeGreaterThan(LAUNCH + 700);
     const before = stepJourney(start, at - 1, [], worldOf()).state;
     expect(before.groups[0]!.cell).toEqual(HOME.cell);
-    expect(before.arrivedTick).toBeNull();
+    expect(arrivedOf(before)).toBeNull();
     // stojí – další takty polohu nemění, lhůta čekání běží od přechodu
     const later = stepJourney(there.state, at + WAIT, [], worldOf()).state;
     expect(later.groups[0]!.pos).toEqual({ x: -955, z: 5 });
-    expect(later.phase).toBe('out');
-    expect(stepJourney(later, at + WAIT + 1, [], worldOf()).state.phase).toBe('returning');
+    expect(phaseOf(later)).toBe('out');
+    expect(phaseOf(stepJourney(later, at + WAIT + 1, [], worldOf()).state)).toBe('returning');
   });
 
   it('cross na nesousední políčko (ani na vlastní) stav nezmění – za jízdy ani při čekání', () => {
@@ -311,53 +375,53 @@ describe('rozkaz cross', () => {
 describe('čekání na místě', () => {
   const start = journey();
   const arrived = stepJourney(start, LAUNCH + 400, [], worldOf()).state;
-  const at = arrived.arrivedTick!;
+  const at = arrivedOf(arrived)!;
 
   it('3 herní dny po dojetí bez rozkazu jede skupina domů sama', () => {
     expect(JOURNEY.waitDays).toBe(3);
     expect((WAIT * hoursPerTick(clock)) / 24).toBeCloseTo(3, 2);
     const still = stepJourney(arrived, at + WAIT, [], worldOf()).state;
-    expect(still.phase).toBe('out');
+    expect(phaseOf(still)).toBe('out');
     expect(still.groups[0]).toMatchObject({ pos: NEAR, arrived: true });
-    expect(still.arrivedTick).toBe(at);
+    expect(arrivedOf(still)).toBe(at);
     const turned = stepJourney(arrived, at + WAIT + 1, [], worldOf()).state;
-    expect(turned.phase).toBe('returning');
+    expect(phaseOf(turned)).toBe('returning');
     expect(turned.groups[0]!.goal).toEqual({ cell: HOME.cell, pos: HOME.pos });
     expect(turned.groups[0]!.arrived).toBe(false);
-    expect(turned.arrivedTick).toBeNull();
+    expect(arrivedOf(turned)).toBeNull();
   });
 
   it('rozkaz během čekání lhůtu zruší; po dalším dojetí běží znovu', () => {
     const again = [intent(at + 500, 1, { kind: 'go', pos: { x: 5, z: 305 } })];
     const moving = stepJourney(arrived, at + 500, again, worldOf()).state;
-    expect(moving.arrivedTick).toBeNull();
+    expect(arrivedOf(moving)).toBeNull();
     expect(moving.groups[0]!.arrived).toBe(false);
     // původní lhůta uplynula – skupina stojí na novém místě a domů nejede
     const second = stepJourney(arrived, at + WAIT + 1, again, worldOf()).state;
-    expect(second.phase).toBe('out');
+    expect(phaseOf(second)).toBe('out');
     expect(second.groups[0]).toMatchObject({ pos: { x: 5, z: 305 }, arrived: true });
-    const at2 = second.arrivedTick!;
+    const at2 = arrivedOf(second)!;
     expect(at2).toBeGreaterThan(at + 500);
-    expect(stepJourney(arrived, at2 + WAIT, again, worldOf()).state.phase).toBe('out');
-    expect(stepJourney(arrived, at2 + WAIT + 1, again, worldOf()).state.phase).toBe('returning');
+    expect(phaseOf(stepJourney(arrived, at2 + WAIT, again, worldOf()).state)).toBe('out');
+    expect(phaseOf(stepJourney(arrived, at2 + WAIT + 1, again, worldOf()).state)).toBe('returning');
   });
 
   it('rozkaz go během návratu vrátí fázi out', () => {
     const turned = stepJourney(arrived, at + WAIT + 50, [], worldOf()).state;
-    expect(turned.phase).toBe('returning');
+    expect(phaseOf(turned)).toBe('returning');
     const back = stepJourney(
       turned,
       at + WAIT + 60,
       [intent(at + WAIT + 60, 1, { kind: 'go', pos: NEAR })],
       worldOf(),
     ).state;
-    expect(back.phase).toBe('out');
+    expect(phaseOf(back)).toBe('out');
     expect(back.groups[0]!.goal).toEqual({ cell: HOME.cell, pos: NEAR });
-    expect(back.arrivedTick).toBeNull();
+    expect(arrivedOf(back)).toBeNull();
     // po dojetí zase čeká a pak jede domů
     const there = stepJourney(back, at + WAIT + 200, [], worldOf()).state;
     expect(there.groups[0]).toMatchObject({ pos: NEAR, arrived: true });
-    expect(there.phase).toBe('out');
+    expect(phaseOf(there)).toBe('out');
   });
 });
 
@@ -367,25 +431,30 @@ describe('návrat', () => {
   it('po dojetí domů done, právě jedna událost away-ends do domovské vsi a upozornění hráči', () => {
     const start = journey();
     const turned = stepJourney(start, LAUNCH + 300, HOMEWARD, worldOf());
-    expect(turned.state.phase).toBe('returning');
-    expect(turned.state.arrivedTick).toBeNull();
+    expect(phaseOf(turned.state)).toBe('returning');
+    expect(arrivedOf(turned.state)).toBeNull();
     expect(turned.villageEvents).toEqual([]);
     const done = stepJourney(start, LAUNCH + 700, HOMEWARD, worldOf());
     expect(done.waiting).toBeNull();
     expect(done.state.phase).toBe('done');
     expect(journeyFinished(done.state)).toBe(true);
-    expect(done.state.groups[0]).toMatchObject({ cell: HOME.cell, pos: HOME.pos, arrived: true });
+    // hlouček, který došel domů, ze stavu zmizí i s lidmi
+    expect(done.state.groups).toEqual([]);
+    expect(done.state.members).toEqual([]);
     // výjezd končí taktem dojetí; muži jsou doma od začátku dalšího dne (schránka den nato)
     const tick = done.state.tick;
     const day = done.state.day;
     expect(tick).toBeLessThan(LAUNCH + 700);
-    expect(done.state.arrivedTick).toBe(tick);
+    const { last, end } = lastStand(start, LAUNCH + 700, HOMEWARD, worldOf());
+    expect(end).toBe(tick);
+    arrivingHome(last);
     expect(day).toBe(dayOfTick(tick, clock));
     expect(done.villageEvents).toEqual([
       {
         villageId: 'lhota',
         day: day + 1,
         ref: `journey:j1:${tick}:0`,
+        // poslední hlouček – bez personIds: domů jde každý, kdo je s výjezdem pryč
         body: { kind: 'away-ends', refId: 'j1', untilDay: day + 1 },
       },
     ]);
@@ -435,7 +504,7 @@ describe('rozkazy hráče', () => {
       intent(LAUNCH + 40, 1, { kind: 'go', pos: there }),
     ];
     const at = stepJourney(journey(), LAUNCH + 40, both, worldOf()).state;
-    expect(at.phase).toBe('returning');
+    expect(phaseOf(at)).toBe('returning');
     expect(at.groups[0]!.goal).toEqual({ cell: HOME.cell, pos: HOME.pos });
   });
 
@@ -501,7 +570,7 @@ describe('bez zásob a mrazu', () => {
     const out = stepJourney(start, end, orders, worldOf());
     expect(out.waiting).toBeNull();
     expect(out.state.day - WINTER).toBe(30);
-    expect(out.state.phase).toBe('out');
+    expect(phaseOf(out.state)).toBe('out');
     expect(out.state.members.map((m) => [m.health, m.wounded, m.status])).toEqual([
       [100, false, 'active'],
       [100, false, 'active'],
@@ -509,11 +578,11 @@ describe('bez zásob a mrazu', () => {
     expect(out.villageEvents).toEqual([]);
     expect(out.notices).toEqual([]);
     // bez dalšího rozkazu se obrátí až po čekání od posledního dojetí
-    const last = stepJourney(out.state, end + 400, [], worldOf()).state.arrivedTick!;
+    const last = arrivedOf(stepJourney(out.state, end + 400, [], worldOf()).state)!;
     expect(last).toBeGreaterThan(orders[orders.length - 1]!.tick);
-    expect(stepJourney(out.state, last + WAIT, [], worldOf()).state.phase).toBe('out');
+    expect(phaseOf(stepJourney(out.state, last + WAIT, [], worldOf()).state)).toBe('out');
     const turned = stepJourney(out.state, last + WAIT + 1, [], worldOf()).state;
-    expect(turned.phase).toBe('returning');
+    expect(phaseOf(turned)).toBe('returning');
     expect(turned.members.every((m) => m.health === 100 && m.status === 'active')).toBe(true);
   });
 });
@@ -564,7 +633,10 @@ describe('brána', () => {
       fortified(true),
     );
     expect(home.state.phase).toBe('done');
-    expect(home.state.groups[0]!.pos).toEqual(HOME.pos);
+    arrivingHome(
+      lastStand(out, LAUNCH + 700, [intent(LAUNCH + 301, 1, { kind: 'home' })], fortified(true))
+        .last,
+    );
     expect(home.villageEvents.map((e) => e.body.kind)).toEqual(['away-ends']);
   });
 
@@ -661,7 +733,7 @@ describe('znalost do úložiště rodu (Úloha 10)', () => {
   it('po přechodu okrajem a dojetí vydá znalost mapy, na které skupina stojí', () => {
     const start = journey({ order: { kind: 'cross', cell: EAST } });
     const step = stepJourney(start, LAUNCH + 900, [], passingWorld());
-    expect(step.state.arrivedTick).not.toBeNull();
+    expect(arrivedOf(step.state)).not.toBeNull();
     expect(step.knowledge).toHaveLength(1);
     expect(step.knowledge![0]!.cell).toEqual(EAST);
     expect(step.knowledge![0]!.seen).toEqual(step.state.seen!['1,0']);
@@ -697,7 +769,7 @@ describe('determinismus (Review Focus 4)', () => {
   it('cesta na sousední mapu a zpět skončí doma', () => {
     expect(whole.waiting).toBeNull();
     expect(whole.state.phase).toBe('done');
-    expect(whole.state.groups[0]).toMatchObject({ cell: HOME.cell, pos: HOME.pos });
+    arrivingHome(lastStand(journey(), TRIP_END, TRIP, worldOf()).last);
     expect(whole.villageEvents).toHaveLength(1);
     expect(whole.notices).toHaveLength(1);
   });
@@ -794,7 +866,7 @@ describe('člen výjezdu zemře doma (Review Focus 1)', () => {
     expect(statuses(before)).toEqual(['active', 'active']);
     const at = stepJourney(journey(), DEATH, [], world);
     expect(statuses(at.state)).toEqual(['active', 'fallen']);
-    expect(at.state.phase).toBe('out');
+    expect(phaseOf(at.state)).toBe('out');
     expect(at.state.groups[0]).toMatchObject({ pos: NEAR, arrived: true });
     expect(at.villageEvents).toEqual([]);
     expect(at.notices).toEqual([]);
@@ -806,17 +878,17 @@ describe('člen výjezdu zemře doma (Review Focus 1)', () => {
       world,
     ).state;
     expect(ordered.groups[0]!.goal!.pos).toEqual(there);
-    expect(ordered.phase).toBe('out');
+    expect(phaseOf(ordered)).toBe('out');
   });
 
   it('zemře-li vojvoda, zbytek se vrací sám a rozkazy hráče se zahodí', () => {
     const world = dyingWorld([1]);
     const at = stepJourney(journey(), DEATH, [], world).state;
     expect(statuses(at)).toEqual(['fallen', 'active']);
-    expect(at.phase).toBe('returning');
+    expect(phaseOf(at)).toBe('returning');
     expect(at.groups[0]!.goal).toEqual({ cell: HOME.cell, pos: HOME.pos });
     expect(at.groups[0]!.arrived).toBe(false);
-    expect(at.arrivedTick).toBeNull();
+    expect(arrivedOf(at)).toBeNull();
     // rozkaz v taktu úmrtí i po něm se zahodí
     const orders = [
       intent(DEATH, 1, { kind: 'go', pos: { x: 5, z: 305 } }),
@@ -826,7 +898,7 @@ describe('člen výjezdu zemře doma (Review Focus 1)', () => {
     const plain = stepJourney(journey(), DEATH + 30, [], world).state;
     const ordered = stepJourney(journey(), DEATH + 30, orders, world).state;
     expect(JSON.stringify(ordered)).toBe(JSON.stringify(plain));
-    expect(ordered.phase).toBe('returning');
+    expect(phaseOf(ordered)).toBe('returning');
     // družina dojede domů: návrat do vsi ano, upozornění „Bořivoj se vrátil.“ ne – nevrátil se
     const done = stepJourney(journey(), DEATH + 400, orders, world);
     expect(done.state.phase).toBe('done');
@@ -842,7 +914,7 @@ describe('člen výjezdu zemře doma (Review Focus 1)', () => {
     const early = [intent(DEATH - 1, 1, { kind: 'go', pos: there })];
     const before = stepJourney(journey(), DEATH - 1, early, world).state;
     expect(before.groups[0]!.goal!.pos).toEqual(there);
-    expect(stepJourney(before, DEATH, early, world).state.phase).toBe('returning');
+    expect(phaseOf(stepJourney(before, DEATH, early, world).state)).toBe('returning');
   });
 
   it('bez živých členů venku výjezd skončí a vydá znalost mapy, kde stál', () => {
@@ -862,14 +934,16 @@ describe('člen výjezdu zemře doma (Review Focus 1)', () => {
     expect(done.knowledge![0]!.seen).toEqual(done.state.seen!['1,0']);
   });
 
-  it('bez živých členů done – bez událostí a upozornění', () => {
+  it('bez živých členů done – bez upozornění, jen away-ends bez personIds (kdo je ještě pryč)', () => {
     for (const members of [[man(1), man(2)], [man(1)]]) {
       const start = journey({ members });
       const step = stepJourney(start, DEATH + 400, [], dyingWorld([1, 2]));
       expect(step.state.phase).toBe('done');
       expect(step.state.tick).toBe(DEATH);
       expect(step.state.members.every((m) => m.status === 'fallen')).toBe(true);
-      expect(step.villageEvents).toEqual([]);
+      expect(step.villageEvents.map((e) => e.body)).toEqual([
+        { kind: 'away-ends', refId: 'j1', untilDay: step.state.day + 1 },
+      ]);
       expect(step.notices).toEqual([]);
       expect(step.waiting).toBeNull();
     }
@@ -890,7 +964,7 @@ describe('domovská ves (Review Focus 2)', () => {
   it('ves neexistuje → done bez událostí', () => {
     const world = worldOf({ villages: {} });
     // den vyslání se doma nekontroluje (muže ověřilo vyslání) – až první takt dalšího dne
-    expect(stepJourney(journey(), NEXT_DAY - 1, [], world).state.phase).toBe('out');
+    expect(phaseOf(stepJourney(journey(), NEXT_DAY - 1, [], world).state)).toBe('out');
     const step = stepJourney(journey(), LAUNCH + 2000, [], world);
     expect(step.state.phase).toBe('done');
     expect(step.state.tick).toBe(NEXT_DAY);
@@ -907,7 +981,7 @@ describe('domovská ves (Review Focus 2)', () => {
     const step = stepJourney(journey(), LAUNCH + 2000, [], behind);
     expect(step.waiting).toEqual({ cells: [], villageIds: ['lhota'] });
     expect(step.state.tick).toBe(firstTickOf(SUMMER + 2) - 1);
-    expect(step.state.phase).toBe('out');
+    expect(phaseOf(step.state)).toBe('out');
     expect(step.villageEvents).toEqual([]);
     const whole = stepJourney(journey(), LAUNCH + 2000, [], worldOf());
     const rest = stepJourney(step.state, LAUNCH + 2000, [], worldOf());
@@ -919,6 +993,6 @@ describe('domovská ves (Review Focus 2)', () => {
     const step = stepJourney(journey(), LAUNCH + 2000, [], world);
     expect(step.waiting).toEqual({ cells: [], villageIds: ['lhota'] });
     expect(step.state.tick).toBe(NEXT_DAY - 1);
-    expect(step.state.phase).toBe('out');
+    expect(phaseOf(step.state)).toBe('out');
   });
 });

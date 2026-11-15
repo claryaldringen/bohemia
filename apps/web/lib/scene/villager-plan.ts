@@ -73,7 +73,7 @@ import {
   smithFetchFigures,
 } from './villager-plan-crafts';
 import { trafficFigures } from './villager-plan-traffic';
-import { journeyYard, lordFigures } from './villager-plan-lord';
+import { expeditionYard, lordFigures } from './villager-plan-lord';
 import { priestFigures } from './villager-plan-priest';
 import { masterFigures } from './villager-plan-masons';
 import { quarryFigures } from './villager-plan-quarry';
@@ -232,8 +232,8 @@ export function planVillagersWithCrew(
   const family = lordFigures(ctx, labor, dayWindow, options.huntSpot ?? null, huntWindow);
   if (family.rides.length > 0) crew.rides = family.rides;
   if (family.dogs.length > 0) crew.dogs = family.dogs;
-  // odjezd a příjezd výjezdu vojvody (journey-departure.ts) – vchod, brána a koně u kůlu
-  const yard = journeyYard(ctx);
+  // odjezd a příjezd výjezdu vojvody (expedition-choreo.ts) – vchod, brána a koně u kůlu
+  const yard = expeditionYard(ctx);
   if (yard) crew.yard = yard;
   // kovář dne (horses.md – Kování, Ve scéně): dojde k brance ohrady koní a kuje koně u kůlu –
   // pevné místo dne; jeho podíl práce už postavu u plotu nemá

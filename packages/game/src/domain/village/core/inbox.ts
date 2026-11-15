@@ -9,6 +9,7 @@ import { cloneState } from './clone';
 import { settleNoble } from '../../vassalage/ennoble';
 import { dismissGuests, endAway, hostGuests } from '../../vassalage/guests';
 import { receiveShipment } from '../../vassalage/shipment';
+import { applyJourneyHorse } from '../livestock/horses-out';
 import { applyJourneyCasualty } from '../wildlife/beast-casualty';
 import { pruneThreats } from '../fortification/threat';
 import {
@@ -99,9 +100,12 @@ export type VillageEventBody =
   | { kind: 'guests-leave'; away: AwayKind; guests: PersonRef[] }
   /**
    * Muži pryč do odvolání (ochrana) mají den návratu (`endAway`): lidé s `away.refId` = `refId`
-   * bez dne návratu se vrátí na začátku dne `untilDay` (`returnHome`).
+   * bez dne návratu se vrátí na začátku dne `untilDay` (`returnHome`). Výprava (expeditions.md)
+   * vrací lidi po hloučcích – `personIds` jsou id lidí hloučku, který došel domů (`endAway`
+   * je vrátí, ostatní s týmž `refId` zůstávají pryč); chybí = všichni s `refId` (ochrana, starší
+   * události).
    */
-  | { kind: 'away-ends'; refId: string; untilDay: number }
+  | { kind: 'away-ends'; refId: string; untilDay: number; personIds?: number[] }
   /**
    * Šelma napadla muže výjezdu v hustém lese (lord-control.md – Nebezpečí; `applyJourneyCasualty`):
    * zraněný 60 dní nepracuje jako po lovu, zabitý zemře a nástupnictví běží běžnou cestou.
@@ -113,6 +117,12 @@ export type VillageEventBody =
       outcome: 'wounded' | 'dead';
       by: 'bear' | 'wolves';
     }
+  /**
+   * Kůň jezdce na výpravě (expeditions.md – Kůň; `applyJourneyHorse`): jezdec s `away` výpravy
+   * `journeyId` jede na koni `horseId` z ohrady (kůň je venku – chov a porážka ho přeskočí);
+   * `null` = sesedl doma, kůň je zase v ohradě. Idempotentní.
+   */
+  | { kind: 'journey-horse'; journeyId: string; personId: number; horseId: number | null }
   /**
    * Den nájezdu (war.md – Ves během nájezdu nepracuje; plán 2026-11-03 – Úloha 6.7): cizí vojsko je
    * dnes na mapě vsi – lidé se skrývají a ves dnes nepracuje (`VillageState.raidDay`). Tažení ho
@@ -320,10 +330,12 @@ function applyEvent(state: VillageState, day: number, body: VillageEventBody): C
       dismissGuests(state, body.away, body.guests);
       return [];
     case 'away-ends':
-      endAway(state, body.refId, Math.max(day, body.untilDay));
+      endAway(state, body.refId, Math.max(day, body.untilDay), body.personIds);
       return [];
     case 'journey-casualty':
       return applyJourneyCasualty(state, day, body);
+    case 'journey-horse':
+      return applyJourneyHorse(state, day, body);
     case 'raid-day':
       state.raidDay = day;
       return [];

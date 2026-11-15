@@ -39,17 +39,24 @@ export interface E2EHooks {
     riders: {
       journeyId: string;
       own: boolean;
+      /** Klíč muže ve scéně (`sceneManKey` – výprava:osoba u vlastních). */
       key: string;
+      /** Id osoby ve vsi (jen vlastní výprava). */
+      personId: number | null;
       x: number;
       z: number;
       mounted: boolean;
+      look: 'line' | 'man' | 'woman' | 'child';
+      led: boolean;
       speed: number;
     }[];
     banner: { x: number; z: number } | null;
-    /** Vlastní výjezd ve scéně: odjíždí z dvorce, jede se skupinou, přijíždí; žádný – null. */
-    phase: 'departing' | 'riding' | 'arriving' | null;
-    /** Koně bez jezdce mezi ohradou a kůlem (odjezd a příjezd). */
+    /** Vlastní výprava ve scéně: sedlá, sesedá, noví lidé se připojují, jede, přijíždí; žádná – null. */
+    phase: 'saddling' | 'unsaddling' | 'joining' | 'riding' | 'arriving' | null;
+    /** Koně bez jezdce mezi ohradou a jezdcem (sedlání, sesednutí, příjezd). */
     led: { x: number; z: number }[];
+    /** Vesničan, který vede koně (sedlání, sesednutí, příjezd); žádný – null. */
+    groom: { x: number; z: number } | null;
     /** Brána dvorce, kudy výjezd vyjíždí; ves bez cvičiště – null. */
     gate: { x: number; z: number } | null;
     /** Id koní, které ohrada teď nekreslí (na jízdě, na výjezdu, cestou mezi ohradou a kůlem). */
@@ -75,6 +82,10 @@ export interface E2EHooks {
   pollVillage?: () => void;
   /** Vybere člověka vsi (id), jako by hráč klikl na jeho postavu – postavy ve scéně chodí. */
   selectPerson?: (id: number) => void;
+  /** Vybere víc lidí vsi najednou (výsledek Shift + kliku) – postavy chodí a v e2e bývají uvnitř domů. */
+  selectPeople?: (ids: readonly number[]) => void;
+  /** Postava člověka vsi (id) na obrazovce v CSS px, nebo null, když není vidět – kam kliknout (i se Shiftem). */
+  personOnScreen?: (id: number) => { x: number; y: number } | null;
   /** Vybere cestu hráče (id kteréhokoli úseku) – úzký pás cesty se v softwarovém kreslení špatně trefuje. */
   selectRoad?: (id: number) => void;
   /** Lomené čáry zvýraznění výběru na zemi (x, z) – co scéna právě kreslí; nic nevybráno – []. */

@@ -1,8 +1,8 @@
 import type { GridCell } from '../domain/village/people/world-grid';
 import { reachableGoal, type JourneyOrder, type MarchGrid, type Pos } from '../domain/war';
 
-// Ověření rozkazu výjezdu (lord-control.md – Rozkazy), společné pro první rozkaz (`launchJourney`)
-// a pozdější rozkazy hráče (`commandJourney`): měří se vůči políčku a poloze, kde skupina je.
+// Ověření rozkazu výjezdu (lord-control.md – Rozkazy), společné pro první rozkaz (`musterExpedition`)
+// a pozdější rozkazy hráče (`commandParty`): měří se vůči políčku a poloze, kde skupina je.
 
 /** Rozkaz, který skupina nesplní: špatný vstup, nebo místo, kam nedojde. */
 export type OrderFault = 'invalid' | 'unreachable';

@@ -507,8 +507,9 @@ function craftText(t: LaborTarget, village: SceneVillage): string {
 }
 
 /**
- * Věta o výjezdu vojvody (lord-control.md – Co hráč vidí): jede „je na cestě“, na místě „čeká (N dny)“
- * podle zbývajících dnů do návratu, při návratu „vrací se domů“.
+ * Věta o člověku ve skupině výpravy (expeditions.md – Výběr a skupina; lord-control.md – Co hráč
+ * vidí): jede „je na cestě“, na místě „čeká (N dny)“ podle zbývajících dnů do návratu, při návratu
+ * „vrací se domů“ – podle skupiny osoby (`PartyView`).
  */
 export function journeyActivity(view: {
   phase: 'out' | 'returning' | 'done';

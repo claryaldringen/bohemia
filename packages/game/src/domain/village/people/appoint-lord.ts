@@ -13,7 +13,7 @@ import { currentLord, isLineMan, isDynastyTracked, moveIntoManor, wivesOf } from
 import { isVillageExtinct } from '../core/extinction';
 import { removePeople } from './kinship';
 import { villageManorId } from './manor';
-import { ageYears } from './people';
+import { ageYears, isAway } from './people';
 import { APPOINT_LORD } from '../rules/rules-lord';
 import { successorOf } from './succession';
 import { ARRIVAL_HOME, rehomePeople } from './transfer-people';
@@ -75,7 +75,8 @@ export function withAwaitingLord(state: VillageState): VillageState {
 /**
  * Kandidát na vojvodu vsi `targetVillageId` ke dni `day` (seniorate.md – Kdo): nejstarší (nejdřív
  * narozený) muž rodu od `APPOINT_LORD.minAge` let v jiné živé vsi rodu, který není vojvodou své
- * vsi, jejím nástupcem (`successorOf`), ani nikdo z `exclude` (hráčův muž). Při shodě stáří nižší
+ * vsi, jejím nástupcem (`successorOf`), ani nikdo z `exclude` (hráčův muž); kdo je s rodinou pryč
+ * (`familyAway` – výprava, tažení…), počká doma. Při shodě stáří nižší
  * id osoby, pak nižší id vsi. Bez kandidáta null (ves čeká, hledá se při každém dopočtu).
  */
 export function appointCandidate(
@@ -97,6 +98,7 @@ export function appointCandidate(
       if (ageYears(man.bornDay, day) < APPOINT_LORD.minAge) continue;
       if (man.id === lord.id || man.id === heir?.id) continue;
       if (exclude.some((e) => e.villageId === villageId && e.personId === man.id)) continue;
+      if (familyAway(state, man.id, day)) continue;
       const better =
         best === null ||
         man.bornDay < best.bornDay ||
@@ -110,7 +112,7 @@ export function appointCandidate(
 }
 
 /** Rodina muže: on, jeho manželky a jejich svobodné děti (kdekoli ve vsi). */
-function familyOf(state: VillageState, man: Person): Person[] {
+function familyOf(state: Pick<VillageState, 'people'>, man: Person): Person[] {
   const wives = wivesOf(state, man);
   const parents = new Set([man.id, ...wives.map((w) => w.id)]);
   const children = state.people.filter(
@@ -121,6 +123,20 @@ function familyOf(state: VillageState, man: Person): Person[] {
         (p.motherId !== undefined && parents.has(p.motherId))),
   );
   return [man, ...wives, ...children];
+}
+
+/**
+ * Je muž `personId` nebo někdo z jeho rodiny (`familyOf`) v den `day` pryč (výprava, tažení, robota…)?
+ * Vládnout pak neodejde – záznam `away` by si odnesl do nové vsi, kde by ho nikdo neukončil
+ * (expeditions.md – Odchod ze vsi); odchod počká, než je rodina doma. Muž, který ve vsi není, – false.
+ */
+export function familyAway(
+  state: Pick<VillageState, 'people'>,
+  personId: number,
+  day: number,
+): boolean {
+  const man = state.people.find((p) => p.id === personId);
+  return man !== undefined && familyOf(state, man).some((p) => isAway(p, day));
 }
 
 /**

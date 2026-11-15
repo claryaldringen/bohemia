@@ -15,7 +15,7 @@ import { isDynastyTracked, lineMen } from '../people/dynasty';
 import { familiesOf, unmarriedHeir } from '../people/households';
 import { villageManorId } from '../people/manor';
 import { isSingle } from '../people/marriage';
-import { ageGroup, householdBreaksUp, isFertile, occupants } from '../people/people';
+import { ageGroup, householdBreaksUp, isAway, isFertile, occupants } from '../people/people';
 import { DWELLINGS, PEOPLE_TRADE } from '../rules';
 import type {
   ChronicleEvent,
@@ -197,7 +197,9 @@ function keptByLine(state: VillageState): (p: Person) => boolean {
 function nextFamily(state: VillageState, day: number): EmigrantGroup | undefined {
   const kept = keptByLine(state);
   for (const dwelling of givingDwellings(state)) {
-    const family = familiesOf(state, dwelling, day).find((f) => !f.people.some(kept));
+    const family = familiesOf(state, dwelling, day).find(
+      (f) => !f.people.some((p) => kept(p) || isAway(p, day)),
+    );
     if (family) return group('family', dwelling.id, family.people, day);
   }
   return undefined;
@@ -216,7 +218,12 @@ function nextSingle(state: VillageState, day: number, sex: Sex): EmigrantGroup |
     const singles = members
       .filter(
         (p) =>
-          p !== heir && p.sex === sex && !kept(p) && isFertile(p, day) && isSingle(state, p, day),
+          p !== heir &&
+          p.sex === sex &&
+          !kept(p) &&
+          !isAway(p, day) &&
+          isFertile(p, day) &&
+          isSingle(state, p, day),
       )
       .sort(byAge);
     for (const p of singles) {

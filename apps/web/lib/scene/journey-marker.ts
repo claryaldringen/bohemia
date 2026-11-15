@@ -18,13 +18,50 @@ export interface JourneyMarks {
 }
 
 /**
- * Značky vlastního výjezdu (návrh Clauda): praporek, dokud skupina jede ven nebo na místě čeká
- * a cíl je na této mapě. Cizí výjezd ani návrat domů praporek nemají – cíl je rozkaz hráče.
+ * Klíč skupiny výpravy `${journeyId}:${partyId}` (výběr celé skupiny); `journeyId` hloučku je
+ * `${journeyId}:${groupId}` (journey-view.ts – `sceneJourneyKey`), skupina je v `partyId`.
  */
-export function journeyMarks(journeys: readonly SceneJourney[]): JourneyMarks {
-  const own = journeys.find((j) => j.own && j.phase !== null);
-  if (!own) return { goal: null };
-  return { goal: own.phase === 'out' && own.goal ? { x: own.goal.x, z: own.goal.z } : null };
+export function partyKeyOf(j: Pick<SceneJourney, 'journeyId' | 'partyId'>): string | null {
+  if (j.partyId === undefined) return null;
+  const cut = j.journeyId.lastIndexOf(':');
+  return `${cut < 0 ? j.journeyId : j.journeyId.slice(0, cut)}:${j.partyId}`;
+}
+
+/**
+ * Skupiny vlastních vybraných lidí: klíče skupin (`partyKeyOf`), v jejichž hloučcích je aspoň jeden
+ * z `personIds` vsi `villageId` (chybí – ves scény; id osoby je jedinečné jen ve vsi).
+ */
+export function selectedPartyKeys(
+  journeys: readonly SceneJourney[],
+  personIds: readonly number[],
+  villageId?: string,
+): Set<string> {
+  const out = new Set<string>();
+  if (personIds.length === 0) return out;
+  const ids = new Set(personIds);
+  for (const j of journeys) {
+    if (!j.own || j.villageId !== villageId) continue;
+    if (!j.men.some((m) => m.personId !== null && ids.has(m.personId))) continue;
+    const key = partyKeyOf(j);
+    if (key) out.add(key);
+  }
+  return out;
+}
+
+/**
+ * Značky vybrané skupiny vlastní výpravy (návrh Clauda; Martin 14. 11. 2026: praporek jen u vybrané
+ * skupiny): praporek na cíli jejího hloučku, dokud skupina jede ven nebo na místě čeká a cíl je na
+ * této mapě. Nevybraná skupina, cizí výjezd ani návrat domů praporek nemají – cíl je rozkaz hráče.
+ */
+export function journeyMarks(
+  journeys: readonly SceneJourney[],
+  selected: ReadonlySet<string>,
+): JourneyMarks {
+  const goal = journeys.find((j) => {
+    const key = partyKeyOf(j);
+    return j.own && j.phase === 'out' && j.goal !== null && key !== null && selected.has(key);
+  })?.goal;
+  return { goal: goal ? { x: goal.x, z: goal.z } : null };
 }
 
 /** Výška tyče praporku (m) – nad jezdce na koni, ať je cíl vidět i se skupinou na místě. */

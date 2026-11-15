@@ -36,11 +36,11 @@ export type SelectListener = (
 export type GatePick = (point: { x: number; z: number } | null) => void;
 
 /**
- * Ovládání vybraného vojvody (lord-control.md – Rozkazy): dokud je nastavené, pravé kliknutí do
+ * Ovládání vybraných lidí (expeditions.md – Výběr a skupina): dokud je nastavené, pravé kliknutí do
  * krajiny ohlásí bod terénu (místo zrušení výběru) a pohyb kurzoru hlásí bod a pixel plátna;
  * `hover` vrátí tvar kurzoru (CSS), `order` dostane bod, nebo null mimo terén.
  */
-export interface LordOrderMode {
+export interface OrderMode {
   order: (point: { x: number; z: number } | null, screen: { x: number; y: number }) => void;
   hover: (
     point: { x: number; z: number } | null,
@@ -73,7 +73,10 @@ export interface PointerDeps {
     x: number,
     y: number,
     project: Project,
-  ) => { pose: { journeyId: string; personId: number | null }; distance: number } | null;
+  ) => {
+    pose: { journeyId: string; personId: number | null; villageId?: string };
+    distance: number;
+  } | null;
 }
 
 /**
@@ -89,8 +92,8 @@ export class ScenePointer {
    * ohlásí bod terénu (místo výběru) a pravé zruší; null = běžný výběr.
    */
   private gatePick: GatePick | null = null;
-  /** Vybraný vojvoda (lord-control.md): pravé kliknutí dává rozkaz místo zrušení výběru. */
-  private lordMode: LordOrderMode | null = null;
+  /** Vybraní lidé (expeditions.md): pravé kliknutí dává rozkaz místo zrušení výběru. */
+  private orderMode: OrderMode | null = null;
   /** Stisknutá tlačítka myši nad plátnem: kde a jestli zrovna běželo umisťování. */
   private readonly downs = new Map<number, { x: number; y: number; placing: boolean }>();
   /** Poslední kliknutí levým tlačítkem mimo umisťování – dvojklik (`nextClick`). */
@@ -124,8 +127,8 @@ export class ScenePointer {
     this.deps.canvas.style.cursor = handler ? 'crosshair' : '';
   }
 
-  setLordMode(mode: LordOrderMode | null): void {
-    this.lordMode = mode;
+  setOrderMode(mode: OrderMode | null): void {
+    this.orderMode = mode;
     this.deps.canvas.style.cursor = '';
     this.repick();
   }
@@ -165,8 +168,8 @@ export class ScenePointer {
     const { pointerX, pointerY } = this.deps.scene;
     const point = this.pickGround(pointerX, pointerY);
     this.deps.placement()?.setCursor(point, point ? { x: pointerX, y: pointerY } : null);
-    if (this.lordMode) {
-      this.deps.canvas.style.cursor = this.lordMode.hover(
+    if (this.orderMode) {
+      this.deps.canvas.style.cursor = this.orderMode.hover(
         point ? { x: point[0], z: point[1] } : null,
         point ? { x: pointerX, y: pointerY } : null,
       );
@@ -205,7 +208,7 @@ export class ScenePointer {
     this.pointerInside = false;
     this.pointerMoved = false;
     this.deps.placement()?.setCursor(null, null);
-    this.lordMode?.hover(null, null);
+    this.orderMode?.hover(null, null);
     this.emit(null);
   };
 
@@ -238,9 +241,9 @@ export class ScenePointer {
       } else if (event.button === 2) this.gatePick(null);
       return;
     }
-    if (this.lordMode && event.button === 2) {
+    if (this.orderMode && event.button === 2) {
       const ground = this.pickGround(at.x, at.y);
-      this.lordMode.order(ground ? { x: ground[0], z: ground[1] } : null, at);
+      this.orderMode.order(ground ? { x: ground[0], z: ground[1] } : null, at);
       return;
     }
     if (event.button === 0) {
@@ -286,9 +289,11 @@ export class ScenePointer {
       (!draft || rider.distance < draft.distance)
     ) {
       const id = rider.pose.personId;
-      return id !== null
+      const village = rider.pose.villageId;
+      if (id === null) return { kind: 'visitor', journeyId: rider.pose.journeyId };
+      return village === undefined
         ? { kind: 'person', id }
-        : { kind: 'visitor', journeyId: rider.pose.journeyId };
+        : { kind: 'person', id, villageId: village };
     }
     if (person && (!draft || person.distance <= draft.distance)) {
       return { kind: 'person', id: person.person };

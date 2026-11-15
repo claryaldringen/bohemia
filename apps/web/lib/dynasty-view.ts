@@ -3,6 +3,7 @@
 import {
   ageYears,
   currentLord,
+  isAway,
   isDynastyTracked,
   leadingSons,
   lineMen,
@@ -28,6 +29,15 @@ function departingSons(state: VillageState, day: number): DepartingSon[] {
       horse: preview?.horse ?? false,
     };
   });
+}
+
+/**
+ * Je z vsi někdo v den `day` pryč na výpravě (`away: journey` – expeditions.md)? Hra se na výpravy
+ * ptá jen v tom případě (`VillageView.expeditionsAway`) – lidé pryč nejsou jen vojvoda s družinou.
+ * Kdo už je doma (`untilDay` – `isAway`), se nepočítá, i když záznam ves smaže až další den.
+ */
+export function expeditionsAway(state: Pick<VillageState, 'people'>, day: number): boolean {
+  return state.people.some((p) => p.away?.kind === 'journey' && isAway(p, day));
 }
 
 /** Rod vsi v den `day`; ves bez rodu null. */
@@ -56,7 +66,8 @@ export function dynastyView(state: VillageState, day: number): DynastyView | nul
         p.name !== undefined,
     )
     .map((p) => p.name!);
-  const journeyAway = state.people.some((p) => p.away?.kind === 'journey');
+  // doma od `untilDay` – záznam `away` ves smaže až další den (`returnHome` běží před schránkou)
+  const journeyAway = lord?.away?.kind === 'journey' && isAway(lord, day);
   return {
     lordId: state.dynasty?.lordId ?? null,
     ...(journeyAway ? { journeyAway } : {}),

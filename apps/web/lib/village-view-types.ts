@@ -563,6 +563,11 @@ export interface VillageView {
   lord?: { training: number; field: number; household: number } | null;
   /** Rod vojvody pro jména (lord.md – Jména); ves bez rodu null, starší pohled bez pole. */
   dynasty?: DynastyView | null;
+  /**
+   * Někdo z vsi je pryč na výpravě (`away: journey` – expeditions.md): hra se na výpravy ptá jen
+   * v tom případě. Chybí – nikdo.
+   */
+  expeditionsAway?: true;
   /** Správce vsi (steward.md – Co hráč vidí): zapnutý řídí stavby sám; ves bez stavu vypnutý. */
   steward: {
     on: boolean;
@@ -1038,8 +1043,8 @@ export interface UnnamedLineMan {
 export interface DynastyView {
   lordId: number | null;
   /**
-   * Vojvoda a družina jsou na výjezdu (`away: journey` – lord-control.md): hra se na výjezd ptá
-   * jen v tom případě a v liště ukáže portrét vojvody pryč. Chybí – ne.
+   * Vojvoda je na výjezdu (`away: journey` – lord-control.md): v liště ukáže portrét vojvody
+   * pryč a panel vojvody řídí výjezd. Chybí – ne.
    */
   journeyAway?: boolean;
   /** Jméno dnešního vojvody; chybí – vojvoda jméno ještě nemá. */

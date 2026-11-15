@@ -525,7 +525,7 @@ export function sceneLabor(
     return [{ ...share, manDays }];
   });
   const homes = sceneLaborHomes(state, labor.shares);
-  const persons = scenePersons(state, labor.day, baptizable, lodgeView(state, labor.day));
+  const persons = scenePersons(state, labor.day, baptizable, lodgeView(state, labor.day), state);
   const lord = sceneLord(state, labor.lord, labor.day);
   const shoeing = sceneShoeing(state, labor.day, landscape);
   return {

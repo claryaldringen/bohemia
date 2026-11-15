@@ -265,7 +265,7 @@ export type RestartGameResult =
 export type RestartGameDeps = DynastyDeps &
   EnterGameDeps & {
     /** Výjezdy vojvody – běžící výjezd hráče restart ukončí (`JourneyRepository.end`). */
-    journeys: Pick<JourneyRepository, 'activeOf' | 'end' | 'checkpoint'>;
+    journeys: Pick<JourneyRepository, 'activeOfPlayer' | 'end' | 'checkpoint'>;
     /**
      * Tažení – nájezd, který hráč vede, restart ukončí obratem domů (`turnBackLedCampaigns`); ves
      * pod nájezdem se vzdá jeho vůdci (`surrenderRaidedVillages`).
@@ -341,8 +341,7 @@ export async function restartGame(
   }
   // i bez vsí – opakovaný restart po pádu mezi archivem a koncem výjezdu ho ukončí; nová hra
   // výjezd mít nemůže (bez vsi není koho vyslat)
-  const journeyId = await deps.journeys.activeOf(input.playerId);
-  if (journeyId) {
+  for (const journeyId of await deps.journeys.activeOfPlayer(input.playerId)) {
     await endJourneyAtHome(deps, journeyId, input.today);
     await deps.journeys.end(journeyId);
   }

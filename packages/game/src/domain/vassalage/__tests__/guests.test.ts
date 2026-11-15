@@ -18,6 +18,7 @@ import {
   corveeStints,
   corveeWorkers,
   dispatchCorvee,
+  endAway,
   hostGuests,
   returnHome,
   sendAway,
@@ -183,6 +184,21 @@ describe('robota (dispatchCorvee, returnHome, hostGuests)', () => {
     const plain = receiver();
     expect(returnHome(plain, DAY)).toEqual([]);
     expect(plain.guests).toBeUndefined();
+  });
+
+  it('endAway s personIds vrátí jen vybrané; bez nich všechny se stejným refId', () => {
+    const s = sender();
+    sendAway(s, DAY, [34, 35, 36], { kind: 'journey', refId: 'j1' });
+    endAway(s, 'j1', DAY + 10, [34]);
+    const untilOf = (id: number): number | undefined =>
+      s.people.find((p) => p.id === id)!.away?.untilDay;
+    expect(untilOf(34)).toBe(DAY + 10);
+    expect(untilOf(35)).toBeUndefined();
+    expect(untilOf(36)).toBeUndefined();
+    endAway(s, 'j1', DAY + 12);
+    expect(untilOf(34)).toBe(DAY + 10);
+    expect(untilOf(35)).toBe(DAY + 12);
+    expect(untilOf(36)).toBe(DAY + 12);
   });
 
   it('starší ves bez hostů a nepřítomných se dopočítá bez nových částí stavu', () => {

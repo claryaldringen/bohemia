@@ -10,6 +10,7 @@ import {
   LEAD_NOT_SON,
   LEAD_TOO_YOUNG,
   SON_RELOCATING,
+  SON_SHARE_AWAY,
   SUCCESSOR_STAYS,
   checkSonLeader,
   departWithSon,
@@ -105,6 +106,11 @@ describe('kdo vede odchod (checkSonLeader)', () => {
     expect(checkSonLeader(s, 10, DAY).reason).toBe(LEAD_NOT_SON);
     delete s.people.find((p) => p.id === 40)!.name;
     expect(checkSonLeader(s, 40, DAY).reason).toBe(SON_NAME_MISSING);
+    // někdo z dílu syna je na výpravě – odchod počká (expeditions.md – Odchod ze vsi)
+    const son = s.people.find((p) => p.id === 30)!;
+    son.away = { kind: 'journey', refId: 'j1' };
+    expect(checkSonLeader(s, 30, DAY).reason).toBe(SON_SHARE_AWAY);
+    delete son.away;
     // řada synů v panelu: od nejstaršího, mladší 16 let chybí
     expect(leadingSons(s, DAY).map(({ son, check }) => [son.id, check.ok])).toEqual([
       [20, false],
