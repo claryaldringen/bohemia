@@ -33,7 +33,7 @@ describe('kronika – jména všech lidí (population.md – Jména)', () => {
         }),
         'Ves',
       ),
-    ).toBe('Ve věku 12 let zemřela dcera sedláka Bořivoje Mlada.');
+    ).toBe('Ve věku 12 let zemřela na nemoc dcera sedláka Bořivoje Mlada.');
     expect(chronicleText({ day: DAY, kind: 'birth', name: 'Radim' }, 'Ves')).toBe(
       'Narodil se Radim.',
     );
@@ -52,7 +52,7 @@ describe('kronika – úmrtí kronikářsky', () => {
       chronicleText(death({ group: 'elder', age: 64, estate: farmer, name: 'Bořivoj' }), 'Ves'),
     ).toBe('Ve věku 64 let zemřel sedlák Bořivoj.');
     expect(chronicleText(death({ age: 30, estate: farmer }), 'Ves')).toBe(
-      'Ve věku 30 let zemřel sedlák.',
+      'Ve věku 30 let zemřel na nemoc sedlák.',
     );
     expect(
       chronicleText(
@@ -65,7 +65,7 @@ describe('kronika – úmrtí kronikářsky', () => {
         death({ age: 50, estate: { title: 'voivode', kin: 'wife', female: true } }),
         'Ves',
       ),
-    ).toBe('Ve věku 50 let zemřela vojvodova žena.');
+    ).toBe('Ve věku 50 let zemřela na nemoc vojvodova žena.');
   });
 
   it('děti a příbuzní hlavy domu', () => {
@@ -80,19 +80,19 @@ describe('kronika – úmrtí kronikářsky', () => {
         }),
         'Ves',
       ),
-    ).toBe('Ve věku 12 let zemřel syn sedláka Bořivoje Radim.');
+    ).toBe('Ve věku 12 let zemřel na nemoc syn sedláka Bořivoje Radim.');
     expect(
       chronicleText(
         death({ group: 'child', age: 0, estate: { title: 'potter', kin: 'child', female: true } }),
         'Ves',
       ),
-    ).toBe('V prvním roce života zemřela dcera hrnčíře.');
+    ).toBe('V prvním roce života zemřela na nemoc dcera hrnčíře.');
     expect(
       chronicleText(
         death({ group: 'child', age: 1, estate: { title: 'farmer', kin: 'other' } }),
         'Ves',
       ),
-    ).toBe('Ve věku 1 roku zemřel chlapec.');
+    ).toBe('Ve věku 1 roku zemřel na nemoc chlapec.');
     expect(
       chronicleText(
         death({
@@ -133,7 +133,7 @@ describe('kronika – úmrtí kronikářsky', () => {
 
   it('starší zápisy bez postavení a bez věku', () => {
     expect(chronicleText(death({ age: 30 }), 'Ves')).toBe(
-      'Ve věku 30 let zemřel jeden z dospělých.',
+      'Ve věku 30 let zemřel na nemoc jeden z dospělých.',
     );
     expect(chronicleText(death({ group: 'child', age: 3, cause: 'flood' }), 'Ves')).toBe(
       'Ve věku 3 let utonulo při povodni dítě.',

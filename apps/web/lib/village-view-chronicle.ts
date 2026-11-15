@@ -262,7 +262,10 @@ function deathLine(event: Extract<ChronicleEvent, { kind: 'death' }>): string {
       case 'beast':
         return ['zahynul', 'na cestě'];
       default:
-        return ['zemřel'];
+        // přirozená smrt: starší stářím (příčinu nepsat), dítě a dospělý na nemoc – Martin
+        // 15. 11. 2026 k „Ve věku 31 let zemřel jeden z dospělých.“: „neříkali jsme, že tam dáme
+        // příčinu?“ (simulace nemoci nerozlišuje – návrh Clauda)
+        return event.group === 'elder' ? ['zemřel'] : ['zemřel', 'na nemoc'];
     }
   })();
   const died = `${verb}${ending}${rest === '' ? '' : ` ${rest}`}`;
