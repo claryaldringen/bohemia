@@ -230,7 +230,9 @@ describe('zakladatelé rodu', () => {
     const s = found();
     expect(s.dynasty).toEqual(NO_DYNASTY);
     expect(s.people.map((p) => ageYears(p.bornDay, DAY))).toEqual([...START_AGES]);
-    expect(s.people.some((p) => p.line || p.name !== undefined)).toBe(false);
+    expect(s.people.some((p) => p.line)).toBe(false);
+    // jména mají všichni od založení (population.md – Jména)
+    expect(s.people.every((p) => p.name !== undefined)).toBe(true);
   });
 
   it('osadníci – vojvodou je nejstarší muž rodu mezi nimi, bez něj ves bez rodu', () => {

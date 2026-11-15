@@ -3,6 +3,8 @@
 import { createRandom, deriveSeed } from '../../landscape/random';
 import type { PlacementCheck } from '../placement/placement';
 import { LORD } from '../rules';
+// seznam jmen mužů rodu je v pravidlech vedle jmen vesničanů (`rules-names.ts`)
+import { LINE_NAMES } from '../rules/rules-names';
 import type { VillageState } from '../types';
 
 /** Prázdné jméno vojvody (lord.md – Kde se jméno zadává: jméno vojvody při založení hry). */
@@ -33,75 +35,6 @@ export function checkPersonName(name: string, missing = LORD_NAME_MISSING): Plac
   }
   return { ok: true, reason: null };
 }
-
-/**
- * Předkřesťanská slovanská mužská jména (lord.md – Generovaná jména vnuků; seznam z návrhu doplnila
- * implementace – návrh Clauda). Data domény – stejný seznam bere i kostka v panelu jména.
- */
-export const LINE_NAMES: readonly string[] = [
-  'Bohuslav',
-  'Bolemír',
-  'Boleslav',
-  'Bořislav',
-  'Bořivoj',
-  'Branislav',
-  'Budivoj',
-  'Ctibor',
-  'Čáslav',
-  'Dalibor',
-  'Dobromil',
-  'Dobroslav',
-  'Domaslav',
-  'Drahomír',
-  'Hněvsa',
-  'Hostivít',
-  'Hostivoj',
-  'Chotěbor',
-  'Jaromír',
-  'Kazimír',
-  'Kojata',
-  'Křesomysl',
-  'Lubomír',
-  'Ludomír',
-  'Lutobor',
-  'Milhost',
-  'Miroslav',
-  'Mnata',
-  'Mojmír',
-  'Mstiboj',
-  'Mstislav',
-  'Myslibor',
-  'Neklan',
-  'Nezamysl',
-  'Ostoj',
-  'Přemysl',
-  'Přibyslav',
-  'Radim',
-  'Radoslav',
-  'Radslav',
-  'Ratibor',
-  'Rostislav',
-  'Slavibor',
-  'Slavoj',
-  'Soběslav',
-  'Spytihněv',
-  'Strachkvas',
-  'Svatobor',
-  'Svatopluk',
-  'Těšimír',
-  'Unislav',
-  'Velislav',
-  'Vítoslav',
-  'Vladimír',
-  'Vlastislav',
-  'Vnislav',
-  'Vojen',
-  'Vojtěch',
-  'Vratislav',
-  'Zbraslav',
-  'Zbyhněv',
-  'Zdeslav',
-];
 
 /** Jména, která nosí žijící muži rodu. */
 function lineNamesTaken(state: Pick<VillageState, 'people'>): Set<string> {

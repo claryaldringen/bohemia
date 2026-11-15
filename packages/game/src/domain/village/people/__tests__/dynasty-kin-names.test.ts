@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { nameLineMan } from '../dynasty';
 import { nameWaitingSons } from '../dynasty-kin-names';
-import { LINE_NAMES } from '../dynasty-names';
+import { LINE_NAMES } from '../../rules/rules-names';
 import { dayIndexOf } from '../../../calendar';
 import { foundVillage } from '../../core/actions';
 import { advanceVillage } from '../../core/simulate';

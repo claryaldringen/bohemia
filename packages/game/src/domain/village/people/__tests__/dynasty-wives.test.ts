@@ -8,7 +8,7 @@ import { removePeople } from '../kinship';
 import { isSingle } from '../marriage';
 import { emigrantGroups, emigrantList } from '../../trade/people-trade';
 import { populationDay } from '../population';
-import { BIRTH_SPACING } from '../../rules';
+import { BIRTH_SPACING, FEMALE_NAMES } from '../../rules';
 import { LORD } from '../../rules/rules-lord';
 import { advanceVillage } from '../../core/simulate';
 import type { ChronicleEvent, Person, VillageState } from '../../types';
@@ -57,7 +57,17 @@ describe('extraWivesDay – další manželky z okolí (lord.md – Manželky)',
       const age = (came - w.bornDay) / YEAR;
       expect(age).toBeGreaterThanOrEqual(LORD.extraWifeAge.from);
       expect(age).toBeLessThanOrEqual(LORD.extraWifeAge.to + 0.01);
+      // jméno při příchodu (population.md – Jména)
+      expect(FEMALE_NAMES).toContain(w.name);
     }
+    // zápis nese postavení muže a jméno ženy („Vojvoda Lutobor si vzal Dobravu.“)
+    const first = events.find((e) => e.kind === 'extra-wife');
+    expect(first).toEqual({
+      day: first?.day,
+      kind: 'extra-wife',
+      estate: { title: 'voivode', kin: 'head' },
+      wife: wives[1]?.name,
+    });
   });
 
   it('v hladu nepřijde', () => {
@@ -152,8 +162,12 @@ describe('ensureMainWives – nová hlavní manželka (lord.md – Nová hlavní
     const s = tracked(wivesSpecs);
     removePeople(s, new Set([11]));
     expect(byId(s, LORD_ID)?.spouseId).toBeUndefined();
+    byId(s, 12)!.name = 'Dobrava';
     const events = ensureMainWives(s, DAY);
-    expect(events).toEqual([{ day: DAY, kind: 'main-wife' }]);
+    // postavení muže a jméno ženy („Dobrava se stala hlavní manželkou vojvody Lutobora.“)
+    expect(events).toEqual([
+      { day: DAY, kind: 'main-wife', estate: { title: 'voivode', kin: 'head' }, wife: 'Dobrava' },
+    ]);
     expect(byId(s, LORD_ID)?.spouseId).toBe(12);
     expect(byId(s, 12)?.dwellingId).toBe(1);
     expect(byId(s, 22)?.dwellingId).toBe(1);

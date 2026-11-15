@@ -3,18 +3,38 @@
 // symetrie platí jen pro hlavní (docs/code/village-people.md – Příbuzenství). Kroky dne mutují stav.
 import { createRandom, deriveSeed } from '../../landscape/random';
 import { isDynastyTracked, isLineMan, wivesOf } from './dynasty';
+import { chronicleEstate } from './estate';
 import { rodBaptized } from './faith';
 import { neighbor, weddingChancePerDay } from './marriage';
 import { ageYears } from './people';
+import { personName } from './people-names';
 import { BIRTH_SPACING } from '../rules';
 import { LORD } from '../rules/rules-lord';
-import type { ChronicleEvent, Person, VillageState } from '../types';
+import type { ChronicleEstate, ChronicleEvent, Person, VillageState } from '../types';
 
 const DAYS_PER_YEAR = 365.25;
 
 /** Denní pravděpodobnost události, která nastane `perYear` ročně. */
 function perDay(perYear: number): number {
   return 1 - (1 - perYear) ** (1 / 365);
+}
+
+/**
+ * Kdo v zápisu o ženě muže rodu (Martin 15. 11. 2026: „Vojvoda Lutobor si vzal Dobravu.“,
+ * „Dobrava se stala hlavní manželkou vojvody Lutobora.“): jméno a postavení muže v den zápisu
+ * a jméno ženy.
+ */
+function wivesWho(
+  state: VillageState,
+  man: Person,
+  wife: Person,
+  day: number,
+): { name?: string; estate: ChronicleEstate; wife?: string } {
+  return {
+    ...(man.name === undefined ? {} : { name: man.name }),
+    estate: chronicleEstate(state, man, day),
+    ...(wife.name === undefined ? {} : { wife: wife.name }),
+  };
 }
 
 /** Od nejstaršího; při shodě data narození nižší id. */
@@ -80,7 +100,7 @@ export function extraWivesDay(
     if (home === undefined) continue;
     const { from, to } = LORD.extraWifeAge;
     const years = from + random.next() * (to - from);
-    state.people.push({
+    const wife: Person = {
       id: state.nextId++,
       bornDay: day - Math.ceil(years * DAYS_PER_YEAR),
       dwellingId: home,
@@ -88,9 +108,12 @@ export function extraWivesDay(
       spouseId: man.id,
       origin: neighbor(random.next()),
       nextBirthFrom: day + BIRTH_SPACING.afterWeddingDays,
-    });
+    };
+    // jméno při příchodu (population.md – Jména) – vlastní proud, losy vsi se nemění
+    wife.name = personName(state, wife);
+    state.people.push(wife);
     counts.set(man.id, count + 1);
-    events.push({ day, kind: 'extra-wife', ...(man.name === undefined ? {} : { name: man.name }) });
+    events.push({ day, kind: 'extra-wife', ...wivesWho(state, man, wife, day) });
   }
   return events;
 }
@@ -146,7 +169,7 @@ export function ensureMainWives(state: VillageState, day: number): ChronicleEven
         (p.id === main.id || (p.motherId === main.id && p.spouseId === undefined));
       if (from !== man.dwellingId && moves) p.dwellingId = man.dwellingId;
     }
-    events.push({ day, kind: 'main-wife', ...(man.name === undefined ? {} : { name: man.name }) });
+    events.push({ day, kind: 'main-wife', ...wivesWho(state, man, main, day) });
   }
   return events;
 }

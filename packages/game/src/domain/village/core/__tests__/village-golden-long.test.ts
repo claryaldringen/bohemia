@@ -28,8 +28,10 @@ import { goldenWorld, stateFingerprint, YEAR } from './village-golden-fixture';
 // dřív 8dce05322fad129e a da411ec1fa2f9cb4
 // 15. 11. 2026 – sloučení: zápisy úmrtí nesou postavení (`estate`, kronika C) a hladová ves
 // jí i zásobu medu – obojí mění stav; přepočteno po sloučení
-const EXPECTED_YEAR_2 = 'ba92a0936e30252b';
-const EXPECTED_YEAR_3 = '2053f8f0078f2fb6';
+// 15. 11. 2026 – jména všech lidí (population.md – Jména, Martin „Ano“): jména ve stavu a v zápisech
+// kroniky, simulace beze změny (village-golden.test.ts); dřív ba92a0936e30252b a 2053f8f0078f2fb6
+const EXPECTED_YEAR_2 = '0f802091bd135185';
+const EXPECTED_YEAR_3 = 'bbfdcba01754c9aa';
 
 describe('zlatý otisk vsi – delší běh', () => {
   it('po 2. a 3. roce dopočtu dá zapsané otisky', () => {

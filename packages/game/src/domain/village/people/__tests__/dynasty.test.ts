@@ -13,7 +13,8 @@ import {
   wivesOf,
   withDynasty,
 } from '../dynasty';
-import { LINE_NAMES, generatedLineName, suggestLineName } from '../dynasty-names';
+import { generatedLineName, suggestLineName } from '../dynasty-names';
+import { LINE_NAMES } from '../../rules/rules-names';
 import { advanceVillage } from '../../core/simulate';
 import type { Dwelling, Person, VillageState } from '../../types';
 import { withBuiltFirstDwelling } from '../../__tests__/village-fixtures';

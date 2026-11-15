@@ -43,6 +43,7 @@ import { ageGroup } from '../people/people';
 import { faithOfSettlers, settlersMaxId, type Settlers } from '../people/departure';
 import { isLineMan } from '../people/dynasty';
 import { checkPersonName, generatedLineName, normalizePersonName } from '../people/dynasty-names';
+import { nameUnnamed } from '../people/people-names';
 import { replacementAffordability, relocationBlock } from '../people/relocation';
 import {
   CRAFTS,
@@ -574,6 +575,8 @@ export function foundVillage(input: VillageFounding): VillageState {
   };
   settlersBelongings(state, settlers, people, day);
   firstFieldAndWood(state, input);
+  // zakladatelé mají jména od založení (population.md – Jména) – vojvoda bez jména čeká na hráče
+  nameUnnamed(state);
   // strop dovedností (war.md – Síla) platí od založení – dřív ho nové vsi dal až první dopočet
   // (převod `arms-caps`): dovednosti osadníků nad strop se srazí jako tehdy, ves dostane příznak
   return withArmsCaps(state);

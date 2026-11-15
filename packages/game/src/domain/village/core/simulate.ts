@@ -85,6 +85,7 @@ import { trainLordDay, updateLordTraining } from '../people/lord';
 import { dynastyDay } from '../people/succession';
 import { markSunnyOrchards, premiumSacredHappiness } from './premium-effects';
 import { noticeStatesDay } from './lasting-notices';
+import { nameUnnamed } from '../people/people-names';
 
 /**
  * Dopočítá ves do dne `toDay` včetně – den po dni od `lastDay + 1`. Vstup nemění.
@@ -154,6 +155,9 @@ export function* advanceVillageSteps(
     // úmrtí na rány z nájezdu (war.md – Ztráty) – nástupnictví po nich ještě týž den (`dynastyDay`)
     next.chronicle.push(...woundDeathsDay(next, day));
     yield* simulateDaySteps(next, day, obstacles, landscape);
+    // jméno každému, kdo dnes přišel bez jména (population.md – Jména) – na konci dne, ať výsledek
+    // nezávisí na kouscích dopočtu (narození a další manželky ho dostanou hned)
+    nameUnnamed(next);
     // pokřtěný rod: posvátné stromy, které dnes odstranilo zakládání polí, sadů a hřbitovů hráče
     // (christianity.md – Co křest rodu umožní)
     if (obstacles) recordFelledSacredOn(next, obstacles, day);

@@ -13,6 +13,7 @@ import {
   travellingVillage,
 } from '../departure';
 import { isGameOver } from '../../core/extinction';
+import { withPeopleNames } from '../people-names';
 import { ageGroup, ageYears, occupants } from '../people';
 import { CARTS, DWELLINGS, FOOD_NEED_KG_PER_YEAR, LEAVING } from '../../rules';
 import { advanceVillage } from '../../core/simulate';
@@ -253,7 +254,8 @@ describe('nová ves z osadníků', () => {
   });
 
   it('ves na cestě se nesimuluje; po příjezdu se založí ze svých osadníků', () => {
-    const s = twoHouseholds();
+    // lidé s jmény (population.md – Jména) – převod jmen při dopočtu nemá co měnit
+    const s = withPeopleNames(twoHouseholds());
     const { settlers } = departVillage(s, DAY, [sonHome(s)], 'E');
     const travelling = travellingVillage(settlers, 42, DAY, {
       direction: 'E',

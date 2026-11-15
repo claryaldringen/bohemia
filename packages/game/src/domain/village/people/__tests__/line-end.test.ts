@@ -10,6 +10,7 @@ import {
 import { NO_DYNASTY } from '../dynasty';
 import { isGameOver, isLineExtinct, lineEndDay, lineEndWhere } from '../../core/extinction';
 import { removePeople } from '../kinship';
+import { withPeopleNames } from '../people-names';
 import { advanceVillage } from '../../core/simulate';
 import { succeedLord } from '../succession';
 import type { Person, VillageState } from '../../types';
@@ -126,7 +127,8 @@ describe('konec hry vymřením rodu', () => {
 
 describe('ves opuštěná – rod vymřel (abandonForLineEnd)', () => {
   it('lidé zůstanou jako záznam, ves se dál nedopočítává, vstup se nemění', () => {
-    const s = lordVillage([{ id: 30, age: 30, sex: 'male', home: 2 }]);
+    // lidé s jmény (population.md – Jména) – převod jmen při dopočtu nemá co měnit
+    const s = withPeopleNames(lordVillage([{ id: 30, age: 30, sex: 'male', home: 2 }]));
     die(s, [10], DAY + 5);
     s.lastDay = DAY + 40;
     const before = structuredClone(s);
