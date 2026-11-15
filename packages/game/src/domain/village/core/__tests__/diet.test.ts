@@ -280,10 +280,85 @@ describe('eatDiet – příděl', () => {
     const meal = eatDiet(
       input({ grainKg: 400, meatKg: 6000, daysToHarvest: 60, daysToMeatEnd: 30 }),
     );
-    const grain = 400 * (1 - storageLossPerYear(NO_CRAFTS.pottery)) ** (1 / 365);
+    // obilí po ztrátách skladováním do dne, kdy se sní (rovným dílem do sklizně)
+    const grain = 400 * KEEP * eatenShare(KEEP, 0, 60);
     expect(meal.outlook).toBeCloseTo((grain + 4 * 30) / (NEED * 60), 9);
     // do zkažení dost
     expect(eatDiet(input({ grainKg: 400, meatKg: 6000, daysToHarvest: 60 })).outlook).toBe(1);
+  });
+});
+
+/** Denní podíl obilí, který zbude po ztrátě skladováním bez nádob (`grainKeepPerDay`). */
+const KEEP = (1 - storageLossPerYear(NO_CRAFTS.pottery)) ** (1 / 365);
+
+/** Podíl obilí, který se sní rovným dílem `count` dní od dne `from` – zbytek ztrácí `keep` za den. */
+function eatenShare(keep: number, from: number, count: number): number {
+  let stored = 0;
+  for (let j = from; j < from + count; j++) stored += keep ** -j;
+  return count / stored;
+}
+
+describe('výhled zná ztráty obilí skladováním do žní (fields.md – Přídělový systém; Martin 15. 11. 2026)', () => {
+  const DAYS = 300;
+  /** Ves se stálou potřebou a bez příjmu jídla jí den po dni do žní – výhledy dní a zbylé obilí. */
+  function untilHarvest(
+    over: Partial<DietInput>,
+    rotDays = 0,
+  ): { outlooks: number[]; energy: number[]; leftKg: number } {
+    let grainKg = over.grainKg ?? 0;
+    let fruitKg = over.fruitKg ?? 0;
+    const outlooks: number[] = [];
+    const energy: number[] = [];
+    for (let day = 0; day < DAYS; day++) {
+      const meal = eatDiet(
+        input({
+          ...over,
+          grainKg,
+          fruitKg,
+          daysToHarvest: DAYS - day,
+          daysToRot: Math.max(0, rotDays - day),
+        }),
+      );
+      outlooks.push(meal.outlook);
+      energy.push(meal.diet.energy);
+      grainKg = meal.grainKg;
+      fruitKg = meal.fruitKg;
+    }
+    return { outlooks, energy, leftKg: grainKg };
+  }
+  const spread = (xs: number[]): number => Math.max(...xs) - Math.min(...xs);
+
+  it('jen obilí: příděl je od začátku do žní rovný a zásoba vyjde právě na den žní', () => {
+    const grainKg = 0.5 * NEED * DAYS;
+    const run = untilHarvest({ grainKg });
+    // bez nádob ztrácí obilí nejvíc (STORAGE_LOSS_PER_YEAR) – dřív příděl klesal rychlostí ztrát
+    expect(spread(run.outlooks)).toBeLessThan(1e-9);
+    expect(spread(run.energy)).toBeLessThan(1e-9);
+    expect(run.outlooks[0]).toBeCloseTo(0.5 * KEEP * eatenShare(KEEP, 0, DAYS), 9);
+    expect(run.outlooks[0]).toBeLessThan(0.5 * KEEP);
+    expect(run.leftKg).toBeCloseTo(0, 6);
+    // obrácený výhled zná tytéž ztráty – na tentýž příděl chce právě tuto zásobu (po dnešní ztrátě)
+    const ahead = grainAheadForOutlookKg(input({ grainKg: 0, daysToHarvest: DAYS }), 0.4);
+    const atAhead = untilHarvest({ grainKg: ahead / KEEP });
+    expect(spread(atAhead.outlooks)).toBeLessThan(1e-9);
+    expect(atAhead.outlooks[0]).toBeCloseTo(0.4, 9);
+  });
+
+  it('s ovocem napřed: obilí počká na dobu po zkažení ovoce i se ztrátami do té doby', () => {
+    // ovoce na strop 25 % celých 100 dní do zkažení, cíl 20 % – do zkažení se jí jen ovoce
+    const fruitKg = (2 * DIET.caps.fruit * NEED * 100) / fruitEnergy(1);
+    const ahead = grainAheadForOutlookKg(
+      input({ grainKg: 0, fruitKg, daysToHarvest: DAYS, daysToRot: 100 }),
+      0.2,
+    );
+    const run = untilHarvest({ grainKg: ahead / KEEP, fruitKg }, 100);
+    expect(run.outlooks[0]).toBeCloseTo(0.2, 9);
+    expect(spread(run.outlooks)).toBeLessThan(1e-9);
+    // do zkažení jen ovoce (25 %), pak obilí na cílový příděl až do žní
+    expect(run.energy[99]).toBeCloseTo(DIET.caps.fruit, 9);
+    expect(spread(run.energy.slice(100))).toBeLessThan(1e-9);
+    expect(run.energy[DAYS - 1]).toBeCloseTo(0.2, 9);
+    expect(run.leftKg).toBeCloseTo(0, 6);
   });
 });
 
@@ -329,11 +404,11 @@ describe('med – pevný příděl (hides-honey.md – Klát u obydlí; diet.md 
 
   it('výhled do sklizně počítá s přídělem (`daily`) – jídlo dne i přežívací zásoba', () => {
     const honey = { honeyKg: 100, honeyRationKg: RATION };
-    // 0,09 kg obilí denně × 100 dní do sklizně
+    // 0,09 kg obilí denně × 100 dní do sklizně – dnešního obilí o ztráty skladováním víc
     expect(
       grainAheadForOutlookKg(input({ grainKg: 0 }), 1) -
         grainAheadForOutlookKg(input({ grainKg: 0, ...honey }), 1),
-    ).toBeCloseTo(9, 9);
+    ).toBeCloseTo(9 / eatenShare(KEEP, 0, 100), 9);
     const lean = eatDiet(input({ grainKg: 500 }));
     const leanHoney = eatDiet(input({ grainKg: 500, ...honey }));
     expect(lean.outlook).toBeLessThan(1);
@@ -341,12 +416,13 @@ describe('med – pevný příděl (hides-honey.md – Klát u obydlí; diet.md 
   });
 
   it('výhled počítá med jen, dokud zásoba vydrží (jako maso do zkažení)', () => {
-    // 5 kg vydrží 50 ze 100 dní do sklizně – výhled s ním počítá 4,5 kg obilí, ne 9
+    // 5 kg vydrží 50 ze 100 dní do sklizně – výhled s ním počítá 4,5 kg obilí, ne 9 (dnešního
+    // o ztráty skladováním víc)
     const honey = { honeyKg: 5, honeyRationKg: RATION };
     expect(
       grainAheadForOutlookKg(input({ grainKg: 0 }), 1) -
         grainAheadForOutlookKg(input({ grainKg: 0, ...honey }), 1),
-    ).toBeCloseTo(4.5, 9);
+    ).toBeCloseTo(4.5 / eatenShare(KEEP, 0, 100), 9);
     const lean = eatDiet(input({ grainKg: 500 }));
     const leanHoney = eatDiet(input({ grainKg: 500, ...honey }));
     expect(leanHoney.outlook - lean.outlook).toBeCloseTo(4.5 / (NEED * 100), 9);

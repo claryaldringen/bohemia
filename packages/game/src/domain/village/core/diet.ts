@@ -296,8 +296,9 @@ export interface DietResult {
    */
   outlook: number;
   /**
-   * Obilí, které po dnešním jídle zbude navíc do sklizně (kg, i se snopy) – lidé jedí napřed, z něj
-   * dostanou obilí koně (horses.md – Krmení); 0, když ves šetří.
+   * Obilí, které po dnešním jídle zbude navíc do sklizně (kg, i se snopy; po ztrátách skladováním do
+   * žní, jí-li se rovným dílem) – lidé jedí napřed, z něj dostanou obilí koně (horses.md – Krmení);
+   * 0, když ves šetří.
    */
   grainSpareKg: number;
 }
@@ -307,6 +308,20 @@ export function grainKeepPerDay(
   input: Pick<DietInput, 'grainKeepPerDay' | 'potteryCoverage'>,
 ): number {
   return input.grainKeepPerDay ?? (1 - storageLossPerYear(input.potteryCoverage)) ** (1 / 365);
+}
+
+/**
+ * Podíl dnešního obilí (po dnešní ztrátě), který se sní, když se jí rovným dílem `count` dní od
+ * dne `from` (0 = dnes) a zbytek do té doby dál ztrácí skladováním (`keep` – `grainKeepPerDay`):
+ * kilo snědené za j dní potřebuje dnes keep^−j kg, podíl je tedy count ÷ Σ keep^−j. Výhled do
+ * sklizně tak počítá se ztrátami do žní stejným pravidlem, jakým vzniknou (fields.md – Přídělový systém; Martin
+ * 15. 11. 2026) – příděl je od začátku přesný a nekloní se.
+ */
+function grainEatenShare(keep: number, from: number, count: number): number {
+  if (keep >= 1 || count <= 0) return 1;
+  const grow = 1 / keep;
+  // Σ grow^j pro j = from … from + count − 1 = grow^from × (grow^count − 1) ÷ (grow − 1)
+  return (count * (grow - 1)) / (grow ** from * (grow ** count - 1));
 }
 
 /** Zásoby dne po ztrátách a příděly jídla mimo obilí (energie v kg obilí) – část `eatDiet`. */
@@ -471,13 +486,16 @@ function honeyAfterRot(plan: DietPlan): number {
  * kterým výhled `eatDiet` dá příděl energie aspoň `outlook` (0–1) – s celou ostatní stravou
  * vstupu (ovoce, mléko a sýr, maso i čerstvé ze zimní porážky, vejce, luštěniny, med). Obrácený
  * výpočet výhledu: rovný příděl do sklizně, a když ostatní jídlo dnes dá víc než rovný příděl,
- * příděl po zkažení ovoce (fields.md – Osivo ze zásob, přežívací zásoba; návrh Clauda).
+ * příděl po zkažení ovoce (fields.md – Osivo ze zásob, přežívací zásoba; návrh Clauda) – i se
+ * ztrátami skladováním do žní jako v `eatDiet` (`grainEatenShare`).
  */
 export function grainAheadForOutlookKg(input: DietInput, outlook: number): number {
   const target = Math.min(1, outlook);
   if (input.needPerDay <= 0 || target <= 0) return 0;
   const plan = dietPlan(input);
   const { need, days, rotDays, daysAhead, today, daily, meatRation, meatDays } = plan;
+  const keep = grainKeepPerDay(input);
+  const evenShare = grainEatenShare(keep, 0, days);
   const other =
     plan.fruitRation * rotDays +
     plan.milkEnergy +
@@ -486,7 +504,7 @@ export function grainAheadForOutlookKg(input: DietInput, outlook: number): numbe
     plan.extraDairy +
     plan.honeyUntilHarvest;
   // rovný příděl do sklizně – ostatní jídlo dnes nedá víc než cílový příděl
-  if (target * need >= today) return Math.max(0, target * need * days - other);
+  if (target * need >= today) return Math.max(0, target * need * days - other) / evenShare;
   // jinak se do zkažení ovoce jí jen ostatní jídlo (dnes víc než cíl) a obilí drží příděl po
   // něm; dosáhne-li rovný příděl dnešního jídla dřív, stačí to
   const after = days - rotDays;
@@ -494,9 +512,10 @@ export function grainAheadForOutlookKg(input: DietInput, outlook: number): numbe
   const meatAfter = meatRation * Math.max(0, Math.min(days, meatDays) - rotDays);
   const later =
     after > 0
-      ? target * need * after - daily * after - laterDairy - meatAfter - honeyAfterRot(plan)
+      ? (target * need * after - daily * after - laterDairy - meatAfter - honeyAfterRot(plan)) /
+        grainEatenShare(keep, rotDays, after)
       : 0;
-  return Math.max(0, Math.min(later, today * days - other));
+  return Math.max(0, Math.min(later, (today * days - other) / evenShare));
 }
 
 /**
@@ -506,10 +525,12 @@ export function grainAheadForOutlookKg(input: DietInput, outlook: number): numbe
  * do svých stropů; med pevným přídělem z toho, co je (nekazí se); obilí dorovná potřebu energie.
  * Vystačí-li obilí do sklizně (s tím, co ještě přijde na řadu), jí se dosyta; jinak se energie
  * dělí rovně do sklizně – a když by ani tak obilí do zkažení ovoce nebylo potřeba, jí se do té
- * doby jen ostatní a obilí zůstane na dobu po něm.
+ * doby jen ostatní a obilí zůstane na dobu po něm. Obilí do sklizně (i snopy) se počítá po
+ * ztrátách skladováním do dne, kdy se sní (`grainEatenShare`).
  */
 export function eatDiet(input: DietInput): DietResult {
-  const grain = input.grainKg * grainKeepPerDay(input);
+  const keep = grainKeepPerDay(input);
+  const grain = input.grainKg * keep;
   const plan = dietPlan(input);
   const { meat, fresh, fruit, cheese, milkProtein, eggs, legumes, honey, need } = plan;
   // snopy, které ves vymlátí – výhled do sklizně s nimi počítá, jí se jen vymlácené
@@ -543,15 +564,18 @@ export function eatDiet(input: DietInput): DietResult {
     milkEnergy -
     extraDairy -
     honeyUntilHarvest;
+  // obilí, které se do sklizně opravdu sní – zbytek zásob mezitím ubude skladováním (rovným dílem
+  // od dneška; fields.md – Přídělový systém)
+  const aheadEaten = ahead * grainEatenShare(keep, 0, days);
   let outlook = 1;
   let grainToday: number;
   let grainSpareKg = 0;
-  if (ahead >= grainNeed) {
+  if (aheadEaten >= grainNeed) {
     grainToday = need - today;
-    grainSpareKg = ahead - grainNeed;
+    grainSpareKg = aheadEaten - grainNeed;
   } else {
     const even =
-      (ahead +
+      (aheadEaten +
         fruitRation * rotDays +
         milkEnergy +
         meatUntilHarvest +
@@ -563,15 +587,17 @@ export function eatDiet(input: DietInput): DietResult {
       outlook = even;
       grainToday = even * need - today;
     } else {
-      // do zkažení ovoce jen ostatní jídlo, obilí zůstane na dny po něm
+      // do zkažení ovoce jen ostatní jídlo, obilí zůstane na dny po něm (a do té doby ztrácí)
       grainToday = 0;
       const now = today / need;
       const after = days - rotDays;
       const laterDairy = daysAhead > 0 ? (extraDairy * after) / daysAhead : 0;
       const meatAfter = meatRation * Math.max(0, Math.min(days, meatDays) - rotDays);
+      const aheadLater = ahead * grainEatenShare(keep, rotDays, after);
       const later =
         after > 0
-          ? (ahead + daily * after + laterDairy + meatAfter + honeyAfterRot(plan)) / (need * after)
+          ? (aheadLater + daily * after + laterDairy + meatAfter + honeyAfterRot(plan)) /
+            (need * after)
           : now;
       outlook = Math.min(now, later);
     }

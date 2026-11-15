@@ -29,7 +29,10 @@ import { advanceChunked, goldenWorld, stateFingerprint, YEAR } from './village-g
 // 15. 11. 2026 – správce zakládá pole spíš čtvercová (oxen.md – Orba rádlem křížem; steward.md –
 // Blok pole): za 20 let pod správcem jiná políčka polí – jiná vzdálenost, úroda a práce; dřív
 // b7477b97a27c913e
-const EXPECTED_YEAR_1 = '07df9ad582db4c65';
+// 15. 11. 2026 – výhled jídla počítá se ztrátami obilí skladováním do žní (fields.md – Přídělový
+// systém, Martin „Ano“): příděl na hraně je od začátku nižší a rovný, přežívací zásoba přesná –
+// jiné zásoby, osev a koně; dřív 07df9ad582db4c65
+const EXPECTED_YEAR_1 = '49a0f7b2264963f2';
 
 describe('zlatý otisk vsi', () => {
   const world = goldenWorld();

@@ -180,8 +180,9 @@ export function foodUntilHarvestKg(state: VillageState, day: number): number {
  * den (fedFrom − příděl) / fedFrom dne hladu, ves tedy unese `slack` dní hladu: příděl energie do
  * žní aspoň fedFrom × (1 − slack / dny do žní). Obilí na něj spočte výhled jídla dne
  * (`grainAheadForOutlookKg`) s celou ostatní stravou ze vstupu jídla (`baseMealInput` – mléko stád
- * do sklizně, maso v zásobě a ze zimní porážky, sýr, vejce, luštěniny a ovoce); k tomu ztráty
- * skladováním do žní (zrno leží v průměru půl doby do žní). `input` – vstup jídla dne bez osiva,
+ * do sklizně, maso v zásobě a ze zimní porážky, sýr, vejce, luštěniny a ovoce) i se ztrátami
+ * skladováním do žní (výhled je zná – fields.md, Přídělový systém); k tomu dnešní ztráta (zásoby jsou ze
+ * včerejška, výhled až po dnešní ztrátě). `input` – vstup jídla dne bez osiva,
  * je-li po ruce (`dayMealInput`); jinak se spočte. Ves bez lidí 0.
  */
 export function seedKeepKg(state: VillageState, day: number, input?: DietInput): number {
@@ -196,8 +197,7 @@ export function seedKeepKg(state: VillageState, day: number, input?: DietInput):
   const days = Math.max(1, meal.daysToHarvest);
   const ration = STARVATION.fedFrom * Math.max(0, 1 - slack / days);
   if (ration <= EPSILON) return 0;
-  const aheadKg = grainAheadForOutlookKg(meal, ration);
-  return aheadKg / grainKeepPerDay(meal) ** ((days + 1) / 2);
+  return grainAheadForOutlookKg(meal, ration) / grainKeepPerDay(meal);
 }
 
 /** Osivo obilí, které letošní plán už vzal (kg – plány s osivem ze zásob). */

@@ -225,7 +225,10 @@ describe('zlatý otisk – výběr dílů a práce vsi k 2. 9.', () => {
     // jen práce mužů, která zbude po denní práci žen – méně dílů v plánu; dřív 152:21f1a713
     // (a 142:6739db1a)
     // 148:71cb4ea8 i po sloučení zboží vsi s D24 (14. 11. 2026): med plán osevu pod D24 nezmění
-    expect(fingerprint(plans)).toBe('148:71cb4ea8');
+    // 152:4c6912f4 (15. 11. 2026, výhled jídla počítá se ztrátami obilí skladováním do žní –
+    // fields.md, Přídělový systém): jiný příděl a přežívací zásoba – jiné zásoby a výběr dílů;
+    // dřív 148:71cb4ea8
+    expect(fingerprint(plans)).toBe('152:4c6912f4');
   });
 });
 
