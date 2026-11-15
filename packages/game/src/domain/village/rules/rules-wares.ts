@@ -25,7 +25,9 @@ export const BEE_TREE_HARVEST = { month: 10 } as const;
  * nekazí, takže se dá dlouho skladovat a hromadit. Na druhou stranu – med se většinou přidával do
  * sladkého pečiva nebo se z něj dělala medovina – samotného medu totiž člověk moc nesní.“):
  * energie 0,9 kg obilí na kg medu (≈ 3 040 proti 3 400 kcal), pevný příděl 0,5 kg na člověka za
- * rok – denně rovným dílem z toho, co je; zbytek se hromadí (návrh Clauda).
+ * rok – denně rovným dílem z toho, co je; zbytek se hromadí (návrh Clauda). Když jídla dost není,
+ * je celá zásoba jídlo jako obilí (hides-honey.md – Med v hladu; Martin 15. 11. 2026: „Ano – jsou
+ * to kalorie jako každé jiné.“).
  */
 export const HONEY = {
   energyPerKg: 0.9,
