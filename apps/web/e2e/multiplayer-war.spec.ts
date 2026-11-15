@@ -244,6 +244,8 @@ test('válka dvou hráčů: A přepadne B, B uteče do lesa i s dobytkem, kronik
     `INSERT INTO campaign_checkpoint (campaign_id, tick, state) VALUES ($1, $2, $3::jsonb)`,
     [campaignId, tick, JSON.stringify(state)],
   );
+  // tažení vzniklo přímo v databázi – klient se o válce na mapě dozví s dotazem na ves (D62)
+  for (const page of [a, b]) if (!page.isClosed()) await pollVillage(page);
 
   let worker = await startWorker();
   let shelter: ShelterReport | undefined;
@@ -641,6 +643,8 @@ test('nájezd na ves s palisádou s ochozem: obránci na hradbě, útočníci p�
     `INSERT INTO campaign_checkpoint (campaign_id, tick, state) VALUES ($1, $2, $3::jsonb)`,
     [campaignId, tick, JSON.stringify(state)],
   );
+  // tažení vzniklo přímo v databázi – klient se o válce na mapě dozví s dotazem na ves (D62)
+  for (const page of [a, b]) if (!page.isClosed()) await pollVillage(page);
 
   let worker = await startWorker();
   let raidDay = today;
@@ -819,6 +823,8 @@ test('útočník sleduje vojsko ve 3D na mapě napadené vsi i na sousední, po 
     `INSERT INTO campaign_checkpoint (campaign_id, tick, state) VALUES ($1, $2, $3::jsonb)`,
     [campaignId, tick, JSON.stringify(onMap(placeB.cell, at))],
   );
+  // tažení vzniklo přímo v databázi – klient se o válce na mapě dozví s dotazem na ves (D62)
+  for (const page of [a, b]) if (!page.isClosed()) await pollVillage(page);
 
   try {
     // dvorec → panel Vojsko → běžící tažení → mapa tažení → oko (Ve scéně)
@@ -1043,6 +1049,8 @@ test('útočník vidí na mapě cíle, co rod zná – známý dům a odkrytou s
     `INSERT INTO campaign_checkpoint (campaign_id, tick, state) VALUES ($1, $2, $3::jsonb)`,
     [campaignId, tick, JSON.stringify(state)],
   );
+  // tažení vzniklo přímo v databázi – klient se o válce na mapě dozví s dotazem na ves (D62)
+  for (const page of [a, b]) if (!page.isClosed()) await pollVillage(page);
 
   try {
     // dvorec → panel Vojsko → běžící tažení → mapa tažení → oko (Ve scéně)
@@ -1302,6 +1310,8 @@ test('obránce za hradbou s branou rozkáže „Probít se“ – záměr v taž
     `INSERT INTO campaign_checkpoint (campaign_id, tick, state) VALUES ($1, $2, $3::jsonb)`,
     [campaignId, tick, JSON.stringify(state)],
   );
+  // tažení vzniklo přímo v databázi – klient se o válce na mapě dozví s dotazem na ves (D62)
+  for (const page of [a, b]) if (!page.isClosed()) await pollVillage(page);
 
   try {
     // B vidí boj u své vsi a ikonu „Probít se“ (scéna se ptá na válku nejdéle po 5 s)
@@ -1486,6 +1496,8 @@ test('varovaná ves – průvod uprchlíků se stádem a posel ve scéně obrán
     `INSERT INTO campaign_checkpoint (campaign_id, tick, state) VALUES ($1, $2, $3::jsonb)`,
     [campaignId, tick, JSON.stringify(state)],
   );
+  // tažení vzniklo přímo v databázi – klient se o válce na mapě dozví s dotazem na ves (D62)
+  for (const page of [a, b]) if (!page.isClosed()) await pollVillage(page);
 
   try {
     // B vidí ve scéně deset uprchlíků a posla – vojsko na mapě není (scéna se ptá nejdéle po 5 s)
@@ -1699,6 +1711,8 @@ test('ves B varovaná utíká do hradiště pána a po odtažení vojska se vrá
     `INSERT INTO campaign_checkpoint (campaign_id, tick, state) VALUES ($1, $2, $3::jsonb)`,
     [campaignId, tick, JSON.stringify(state)],
   );
+  // tažení vzniklo přímo v databázi – klient se o válce na mapě dozví s dotazem na ves (D62)
+  for (const page of [a, b, c]) if (!page.isClosed()) await pollVillage(page);
 
   let worker = await startWorker();
   /** Uloží do kontrolního bodu změnu `edit` (worker stojí). */

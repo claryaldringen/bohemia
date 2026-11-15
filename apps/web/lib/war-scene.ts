@@ -1,9 +1,11 @@
 import 'server-only';
 import {
+  mapWatchFor,
   orderBreakout,
   warSceneFor,
   warSceneOnMap,
   type GridCell,
+  type MapWatch,
   type MarchGrid,
   type OrderBreakoutDeps,
   type WarSceneDefender,
@@ -43,6 +45,23 @@ export function warSceneForPlayer(
   settlementId: string,
 ): Promise<WarSceneView | null> {
   return warSceneFor(warSceneDeps(), { playerId, settlementId });
+}
+
+/**
+ * Válka a jezdci na mapě vsi hráče (D62) – scéna se na válku a jezdce ptá jen tehdy; přichází
+ * s dotazem na ves (i nezměněnou) a s prvním pohledem stránky.
+ */
+export function mapWatchForPlayer(playerId: string, villageId: string): Promise<MapWatch> {
+  const deps = gameDeps();
+  return mapWatchFor(
+    {
+      settlements: deps.settlements,
+      villages: deps.villages,
+      campaigns: deps.campaigns,
+      journeys: deps.journeys,
+    },
+    { playerId, villageId },
+  );
 }
 
 /**

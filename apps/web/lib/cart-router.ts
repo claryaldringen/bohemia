@@ -1,49 +1,48 @@
 // Výpočet tras vozů a spřežení ve Web Workeru (cart-routes.worker.ts), aby scéna při novém dni
 // nestála (u Vlkova 150–250 ms za den v hlavním vlákně). Kde Worker není (testy, starý prohlížeč)
 // nebo selže, spočítá se totéž v hlavním vlákně – výsledek je stejný, jen to chvíli trvá.
+// Na trasy nic nečeká (D63): pohled vsi se použije hned s posledními známými trasami
+// (`carriedCartRoutes`) a nové trasy scéna dostane, až dojdou – Worker, který mlčí, tak nezastaví
+// frontu akcí ani dotazování na ves, jen vozy zůstanou u posledních tras.
 import type { Landscape } from '@bohemia/game';
 import { cartRoutesOf, type CartRoutesRequest, type CartRoutesResult } from './cart-routes';
 import type { CartRoutesMessage, CartRoutesReply } from './cart-routes.worker';
 import type { LandscapeTransfer } from './landscape-transfer';
 
 export interface CartRouter {
-  /** Trasy k požadavku (ve Workeru, jinak v hlavním vlákně); pořadí odpovědí = pořadí požadavků. */
-  routes(request: CartRoutesRequest): Promise<CartRoutesResult>;
+  /**
+   * Trasy k požadavku (ve Workeru, jinak v hlavním vlákně). Platí jen poslední požadavek – scéna
+   * chce trasy nejnovějšího pohledu: dřívější, na který Worker ještě neodpověděl, skončí `null`;
+   * `null` i po `dispose`.
+   */
+  routes(request: CartRoutesRequest): Promise<CartRoutesResult | null>;
   /** Ukončí Worker (nová krajina, odchod ze hry). */
   dispose(): void;
 }
-
-/**
- * Nejdéle čekání na odpověď Workeru (ms). Worker, který mlčí (zaseknutý, nebo po výměně kódu ve
- * vývoji bez chyby `error`), by jinak navždy zastavil použití pohledu na ves – a s ním frontu akcí
- * (další stavba se neodešle) i dotazování na ves (D60, 15. 11. 2026). Pak počítá hlavní vlákno.
- */
-export const CART_ROUTES_TIMEOUT_MS = 5_000;
 
 export function cartRouter(transfer: LandscapeTransfer, landscape: Landscape): CartRouter {
   let worker: Worker | null = null;
   let broken = typeof Worker === 'undefined';
   let nextId = 0;
-  const waiting = new Map<
-    number,
-    {
-      request: CartRoutesRequest;
-      resolve: (r: CartRoutesResult) => void;
-      timer: ReturnType<typeof setTimeout>;
-    }
-  >();
+  /** Jediný požadavek, na jehož odpověď se čeká (poslední). */
+  let waiting: {
+    id: number;
+    request: CartRoutesRequest;
+    resolve: (r: CartRoutesResult | null) => void;
+  } | null = null;
   const local = (request: CartRoutesRequest): CartRoutesResult => cartRoutesOf(request, landscape);
-  // Worker selhal – čekající požadavky (a všechny další) se spočítají v hlavním vlákně
+  const settle = (result: (request: CartRoutesRequest) => CartRoutesResult | null): void => {
+    const w = waiting;
+    waiting = null;
+    w?.resolve(result(w.request));
+  };
+  // Worker selhal – čekající požadavek (a všechny další) se spočítají v hlavním vlákně
   const fallBack = (reason: unknown): void => {
     if (!broken) console.error('Worker tras vozů selhal, trasy počítá hlavní vlákno.', reason);
     broken = true;
     worker?.terminate();
     worker = null;
-    for (const [id, w] of waiting) {
-      waiting.delete(id);
-      clearTimeout(w.timer);
-      w.resolve(local(w.request));
-    }
+    settle(local);
   };
   const start = (): Worker | null => {
     try {
@@ -52,11 +51,9 @@ export function cartRouter(transfer: LandscapeTransfer, landscape: Landscape): C
       });
       created.onmessage = (event: MessageEvent<CartRoutesReply>): void => {
         const reply = event.data;
-        const w = waiting.get(reply.id);
-        if (!w) return;
-        waiting.delete(reply.id);
-        clearTimeout(w.timer);
-        w.resolve('result' in reply ? reply.result : local(w.request));
+        // odpověď na dřívější požadavek – mezitím přišel novější (ten už dostal `null`)
+        if (waiting?.id !== reply.id) return;
+        settle((request) => ('result' in reply ? reply.result : local(request)));
       };
       created.onerror = (event): void => fallBack(event.message);
       created.postMessage({ kind: 'landscape', landscape: transfer } satisfies CartRoutesMessage);
@@ -71,25 +68,18 @@ export function cartRouter(transfer: LandscapeTransfer, landscape: Landscape): C
       if (!broken && !worker) worker = start();
       const target = worker;
       if (broken || !target) return Promise.resolve(local(request));
+      // novější požadavek – na dřívější odpověď už nikdo nečeká
+      settle(() => null);
       const id = ++nextId;
       return new Promise((resolve) => {
-        // mlčící Worker: tento i další požadavky spočítá hlavní vlákno (`CART_ROUTES_TIMEOUT_MS`)
-        const timer = setTimeout(
-          () => fallBack(`bez odpovědi do ${CART_ROUTES_TIMEOUT_MS} ms`),
-          CART_ROUTES_TIMEOUT_MS,
-        );
-        waiting.set(id, { request, resolve, timer });
+        waiting = { id, request, resolve };
         target.postMessage({ kind: 'routes', id, request } satisfies CartRoutesMessage);
       });
     },
     dispose() {
       worker?.terminate();
       worker = null;
-      for (const [id, w] of waiting) {
-        waiting.delete(id);
-        clearTimeout(w.timer);
-        w.resolve(local(w.request));
-      }
+      settle(() => null);
     },
   };
 }

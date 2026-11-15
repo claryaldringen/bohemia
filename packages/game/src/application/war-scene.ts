@@ -29,6 +29,7 @@ import {
   type SightGridCache,
 } from './campaign-view';
 import { mayHandleCampaign, type CampaignCells, type CampaignRepository } from './campaigns';
+import type { JourneyRepository } from './journeys';
 import type { SettlementRepository } from './settlements';
 import type { VillageRepository } from './villages';
 
@@ -166,6 +167,55 @@ export async function warSceneFor(
     if (view) views.push(view);
   }
   return views.find((v) => v.battle !== null) ?? views[0] ?? null;
+}
+
+/**
+ * Co se na mapě vsi děje mimo ves samu – scéna se na válku (`warSceneFor`) a jezdce
+ * (`expeditionVisitorsOn`) ptá jen tehdy (D62, Martin 15. 11. 2026: „klient nemůže pollovat server
+ * každou půlvteřinu kvůli válce, která teď ani nemůže nastat“).
+ */
+export interface MapWatch {
+  /**
+   * Na mapu vsi míří nebo na ní je vojsko (Martin 15. 11. 2026): hráč má tažení (jeho vojsko může
+   * stát na mapě – shromaždiště, návrat), nebo běží cizí tažení proti vsi, s jejím varováním či
+   * s uprchlíky v ní (`activeAlarming`). Co z války je vidět, rozhodne až `warSceneFor` (mlha
+   * války); dotaz na válku zároveň zapisuje přítomnost hráče, takže je čerstvá od začátku tažení.
+   */
+  war: boolean;
+  /** Na mapě stojí skupina některé výpravy (vlastní i cizí – kdo je vidět, rozhodne dotaz na jezdce). */
+  riders: boolean;
+}
+
+export const MAP_QUIET: MapWatch = { war: false, riders: false };
+
+export interface MapWatchDeps {
+  settlements: Pick<SettlementRepository, 'find'>;
+  villages: Pick<VillageRepository, 'stampsOfVillages'>;
+  campaigns: Pick<CampaignRepository, 'activeOf' | 'activeAlarming'>;
+  journeys: Pick<JourneyRepository, 'onCell'>;
+}
+
+/**
+ * Válka a jezdci na mapě vsi `villageId` hráče – levně (otisk vsi, sídlo a seznamy aktivních
+ * tažení a výprav, bez stavů). Ves na sídle jiného hráče (i spravovaná) nic – scéna války ani
+ * jezdců ji neukazuje.
+ */
+export async function mapWatchFor(
+  deps: MapWatchDeps,
+  input: { playerId: string; villageId: string },
+): Promise<MapWatch> {
+  const [stamp] = await deps.villages.stampsOfVillages([input.villageId]);
+  const settlement = stamp ? await deps.settlements.find(stamp.settlementId) : null;
+  if (!settlement || settlement.ownerId !== input.playerId || !settlement.worldCell) {
+    return MAP_QUIET;
+  }
+  const cell: GridCell = { x: settlement.worldCell.x, y: settlement.worldCell.y };
+  const riders = (await deps.journeys.onCell(cell)).length > 0;
+  // vlastní vojsko proti vlastní vsi nejde – tažení proti vsi je vždy cizí
+  const war =
+    (await deps.campaigns.activeOf(input.playerId)).length > 0 ||
+    (await deps.campaigns.activeAlarming(input.villageId)).length > 0;
+  return { war, riders };
 }
 
 /**

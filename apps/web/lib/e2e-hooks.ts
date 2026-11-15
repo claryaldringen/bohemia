@@ -76,8 +76,11 @@ export interface E2EHooks {
    * kamery (scéna cizí mapy výjezdu – snímek mlhy).
    */
   moveCameraTo?: (x: number, z: number, radiusM?: number) => void;
-  /** Pošle požadavek na trasy vozů tím samým routerem jako hra (Web Worker, jinak hlavní vlákno). */
-  cartRoutes?: (request: CartRoutesRequest) => Promise<CartRoutesResult>;
+  /**
+   * Pošle požadavek na trasy vozů tím samým routerem jako hra (Web Worker, jinak hlavní vlákno);
+   * null – mezitím přišel novější požadavek (router platí jen pro poslední).
+   */
+  cartRoutes?: (request: CartRoutesRequest) => Promise<CartRoutesResult | null>;
   /** Zeptá se na ves hned (dotazování jinak čeká na další herní den – v testech ≈ 86 s). */
   pollVillage?: () => void;
   /** Vybere člověka vsi (id), jako by hráč klikl na jeho postavu – postavy ve scéně chodí. */

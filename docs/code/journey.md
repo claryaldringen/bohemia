@@ -608,7 +608,8 @@ inParty, atHomeMap, horseWork }`, `ButtonState` = `'hidden' | 'enabled' | { disa
   pohled bez interpolace – muže posouvá scéna), je-li skupina na mapě vsi; ostatní z
   `useJourneyVisitors` (`hooks/use-journey-visitors.ts` – `GET /api/journey?visitors=`, s jezdci na
   mapě 2× za sekundu, jinak po 5 s, poprvé hned; výpadek sítě ani chyba serveru dotazování
-  nezastaví). Jméno a rod vlastního vojvody dodá jeho záznam mezi návštěvníky.
+  nezastaví). Ptá se jen, když dotaz na ves hlásí výpravu na mapě (`MapWatch.riders` –
+  `JourneyRepository.onCell`; D62, web-ui.md – Válka ve scéně), jinak vůbec. Jméno a rod vlastního vojvody dodá jeho záznam mezi návštěvníky.
 - **Výběr** – klik na vlastního muže vybere člověka vsi (`person` – panel z Úlohy 8a), na cizího
   `VillageTarget` `visitor` (`journeyId`): panel ukáže portrét koně se jménem vojvody, rod (ikona
   praporu) a počet jezdců a pěších (`selectionDetails(…, visitors)`, `visitor-panel`). Vybraný muž

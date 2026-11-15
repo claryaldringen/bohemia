@@ -7,16 +7,18 @@ const LOCAL: CartRoutesResult = { carts: [[{ x: 1, z: 2 }]] } as unknown as Cart
 const cartRoutesOf = vi.fn((): CartRoutesResult => LOCAL);
 vi.mock('../cart-routes', () => ({ cartRoutesOf: (): CartRoutesResult => cartRoutesOf() }));
 
-import { CART_ROUTES_TIMEOUT_MS, cartRouter } from '../cart-router';
+import { cartRouter } from '../cart-router';
 
 /** Worker, který zprávy přijme, ale nikdy neodpoví (zaseknutý nebo rozbitý bez `error`). */
 class SilentWorker {
   static created = 0;
   static terminated = 0;
+  static last: SilentWorker | null = null;
   onmessage: ((event: MessageEvent) => void) | null = null;
   onerror: ((event: ErrorEvent) => void) | null = null;
   constructor() {
     SilentWorker.created++;
+    SilentWorker.last = this;
   }
   postMessage(): void {}
   terminate(): void {
@@ -43,23 +45,30 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe('cartRouter – Worker bez odpovědi (D60)', () => {
-  it('po CART_ROUTES_TIMEOUT_MS spočítá trasy hlavní vlákno – pohled ani fronta akcí nestojí', async () => {
+describe('cartRouter – platí jen poslední požadavek (D63)', () => {
+  it('mlčící Worker: dřívější požadavek skončí null s novějším, nic se nepočítá v hlavním vlákně', async () => {
     const r = router();
-    let result: CartRoutesResult | null = null;
-    void r.routes(REQUEST).then((value) => (result = value));
-    await vi.advanceTimersByTimeAsync(CART_ROUTES_TIMEOUT_MS - 1);
-    expect(result).toBeNull();
-    await vi.advanceTimersByTimeAsync(1);
-    expect(result).toBe(LOCAL);
+    const first = r.routes(REQUEST);
+    const second = r.routes(REQUEST);
+    await expect(first).resolves.toBeNull();
+    let last: CartRoutesResult | null | undefined;
+    void second.then((value) => (last = value));
+    // žádný časový limit – na trasy nic nečeká, takže Worker může mlčet libovolně dlouho
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(last).toBeUndefined();
+    r.dispose();
+    await expect(second).resolves.toBeNull();
+    expect(cartRoutesOf).not.toHaveBeenCalled();
+    expect(SilentWorker.created).toBe(1);
     expect(SilentWorker.terminated).toBe(1);
   });
 
-  it('další požadavky po mlčícím Workeru jdou rovnou do hlavního vlákna', async () => {
+  it('chyba Workeru: čekající i další požadavky spočítá hlavní vlákno', async () => {
     const r = router();
-    const first = r.routes(REQUEST);
-    await vi.advanceTimersByTimeAsync(CART_ROUTES_TIMEOUT_MS);
-    await expect(first).resolves.toBe(LOCAL);
+    const pending = r.routes(REQUEST);
+    const worker = SilentWorker.last!;
+    worker.onerror?.({ message: 'rozbitý' } as ErrorEvent);
+    await expect(pending).resolves.toBe(LOCAL);
     await expect(r.routes(REQUEST)).resolves.toBe(LOCAL);
     expect(SilentWorker.created).toBe(1);
     expect(cartRoutesOf).toHaveBeenCalledTimes(2);

@@ -236,6 +236,49 @@ export function withCartRouteResult(scene: SceneVillage, result: CartRoutesResul
   };
 }
 
+/** Poslední spočítané trasy – s požadavkem a id vozů scény, ke kterým patří (`carriedCartRoutes`). */
+export interface CartRoutesMemo {
+  cartIds: number[];
+  request: CartRoutesRequest;
+  result: CartRoutesResult;
+}
+
+export function cartRoutesMemo(
+  scene: SceneVillage,
+  request: CartRoutesRequest,
+  result: CartRoutesResult,
+): CartRoutesMemo {
+  return { cartIds: (scene.carts ?? []).map((c) => c.id), request, result };
+}
+
+/**
+ * Trasy, se kterými se nový pohled použije hned, než Web Worker spočítá jeho vlastní (D63 – pohled
+ * ani fronta akcí na trasy nečekají): vůz se stejným id, druhem a cílem jede po poslední spočítané
+ * trase, spřežení po poslední cestě tam / zpět se stejnými cíli; jinak zatím bez trasy (vůz stojí
+ * u ohrady, spřežení jako v den bez cesty).
+ */
+export function carriedCartRoutes(
+  scene: SceneVillage,
+  request: CartRoutesRequest,
+  memo: CartRoutesMemo | null,
+): CartRoutesResult {
+  const same = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.stringify(b);
+  const lastAt = new Map((memo?.cartIds ?? []).map((id, k) => [id, k]));
+  const kept = request.carts.map((c, i) => {
+    const id = scene.carts?.[i]?.id;
+    const k = id === undefined ? undefined : lastAt.get(id);
+    const last = k === undefined ? undefined : memo?.request.carts[k];
+    return c.goal !== null && last?.kind === c.kind && same(last.goal, c.goal) ? k! : null;
+  });
+  const vias = kept.map((k) => (k === null ? null : (memo?.result.vias?.[k] ?? null)));
+  return {
+    carts: kept.map((k) => (k === null ? null : (memo?.result.carts[k] ?? null))),
+    ...(vias.some((v) => v !== null) ? { vias } : {}),
+    out: memo && same(memo.request.outGoals, request.outGoals) ? memo.result.out : null,
+    home: memo && same(memo.request.homeGoals, request.homeGoals) ? memo.result.home : null,
+  };
+}
+
 /**
  * Valy vozových cest pro mřížku vozu ze zemních prací scény (tytéž profily a hotová délka, body
  * se stejným pořadím klíčů) – server je posílá jen, když se odtud nedají sestavit
