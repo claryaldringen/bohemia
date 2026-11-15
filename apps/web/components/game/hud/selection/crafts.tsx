@@ -253,29 +253,37 @@ export function SmithIronStats({
   );
 }
 
+/** Kdo nosí kovárně uhlí od milíře a rudu – bez uhlíře ve vsi se o uhlí od milíře nemluví. */
+function smithCarrier(
+  ore: NonNullable<SelectionWorkshop['ore']>,
+): { icon: string; name: string } | null {
+  if (ore.cart) {
+    return {
+      icon: 'cart',
+      name: ore.burner
+        ? 'Uhlí od milíře a rudu z rudiště přiveze sedlák s vozem, když to ušetří práci'
+        : 'Rudu z rudiště přiveze sedlák s vozem, když to ušetří práci',
+    };
+  }
+  return ore.burner
+    ? {
+        icon: 'man',
+        name: 'Uhlí od milíře nese uhlíř se synem na tyči – bez syna s kovářem nebo jeho synem',
+      }
+    : null;
+}
+
 /**
- * Kovárna (crafts.md – Uhlí a ruda kováře): zásoba rudy, rudiště (vzdálenost chůze) a kdo nosí
- * uhlí od milíře – synové 10–13 let, kovář sám, nebo vůz se sedlákem.
+ * Kovárna (crafts.md – Uhlí a ruda kováře): zásoba rudy, rudiště (vzdálenost chůze) a kdo nese
+ * uhlí od milíře – uhlíř na tyči (workshops.md – Uhlíř – odnos uhlí na tyči; jen když ves uhlíře
+ * má), nebo vůz se sedlákem.
  */
 export function SmithOreStats({
   ore,
 }: {
   ore: NonNullable<SelectionWorkshop['ore']>;
 }): ReactElement {
-  const sons = ore.sons.map((age) => `${age}`).join(', ');
-  const carrier = ore.cart
-    ? {
-        icon: 'cart',
-        name: 'Uhlí od milíře a rudu z rudiště přiveze sedlák s vozem, když to ušetří práci',
-        value: '',
-      }
-    : ore.sons.length > 0
-      ? {
-          icon: 'child',
-          name: `Uhlí od milíře nosí ${ore.sons.length > 1 ? 'synové' : 'syn'} (věk) – ten den nepasou`,
-          value: sons,
-        }
-      : { icon: 'man', name: 'Uhlí od milíře nosí kovář sám – ten den kove méně', value: '' };
+  const carrier = smithCarrier(ore);
   return (
     <>
       <Stat icon="ore" name="Ruda v kovárně (kg)" testId="selection-workshop-ore">
@@ -290,9 +298,11 @@ export function SmithOreStats({
           {`${formatInteger(ore.site.walkM)} m`}
         </Stat>
       )}
-      <Stat icon={carrier.icon} name={carrier.name} testId="selection-workshop-carrier">
-        {carrier.value}
-      </Stat>
+      {carrier && (
+        <Stat icon={carrier.icon} name={carrier.name} testId="selection-workshop-carrier">
+          {''}
+        </Stat>
+      )}
     </>
   );
 }
@@ -727,7 +737,13 @@ export function DugSiteBody({
 
 /** Kdo dnes nosí uhlí od milíře (tooltip). */
 export function kilnFetcherName(fetcher: KilnFetcher): string {
-  return `${fetcher.smith ? 'Kovář' : 'Syn kováře'} (věk) dnes nosí uhlí od milíře do kovárny`;
+  const who = {
+    burner: 'Uhlíř',
+    'burner-son': 'Syn uhlíře',
+    smith: 'Kovář',
+    'smith-son': 'Syn kováře',
+  }[fetcher.role];
+  return `${who} (věk) dnes nosí uhlí od milíře do kovárny na tyči`;
 }
 
 /** Co je s milířem teď – ikona, popisek a číslo (crafts.md – Milíř u skácených buků). */
@@ -832,7 +848,7 @@ export function KilnBody({
           )}
           {details.fetchers.map((fetcher) => (
             <Stat
-              key={`${fetcher.smith ? 'k' : 's'}${fetcher.age}`}
+              key={`${fetcher.role}${fetcher.age}`}
               icon={fetcher.age < AGE.adult ? 'child' : 'man'}
               name={kilnFetcherName(fetcher)}
               testId="selection-kiln-fetcher"

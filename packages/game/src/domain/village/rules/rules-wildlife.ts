@@ -191,8 +191,12 @@ export const SMALL_GAME = {
   hoursPerManDay: 10,
   /** Ryby (duben–listopad): kg za hodinu při plném stropu (× biomasa ÷ strop) a jedlý podíl. */
   fish: { kgPerHour: 0.4, edible: 0.6, fromMonth: 4, toMonth: 11 },
-  /** Oka (prosinec–březen): zajíců za hodinu při plném stropu a kg masa na zajíce. */
-  snares: { perHour: 0.05, meatKg: 2 },
+  /**
+   * Oka (prosinec–březen, bez podmínky – Martin 14. 11. 2026: „V létě se neloví – jednak je spousta
+   * práce s jinými věcmi a jednak nejsou kožešiny tak kvalitní jako v zimě“; hides-honey.md):
+   * zajíců za hodinu při plném stropu, kg masa na zajíce a lišek za hodinu při plném stropu.
+   */
+  snares: { perHour: 0.05, meatKg: 2, foxPerHour: 0.02 },
   /** Nejvýš tolik rybářů (i okařů) na tůň. */
   maxPerPool: 3,
   /**

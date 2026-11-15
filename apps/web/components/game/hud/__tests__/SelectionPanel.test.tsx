@@ -1112,7 +1112,7 @@ describe('SelectionPanel – hrnčíř a hlína (crafts.md – Hlína hrnčíře
 describe('SelectionPanel – kovárna (crafts.md – Uhlí a ruda kováře)', () => {
   const smith = (
     activity: 'producing' | 'digging',
-    ore: { sons: number[]; cart: boolean },
+    ore: { cart: boolean; burner?: boolean },
   ): SelectionDetails =>
     dwelling({
       type: 'polozemnice',
@@ -1128,23 +1128,32 @@ describe('SelectionPanel – kovárna (crafts.md – Uhlí a ruda kováře)', ()
         toPlant: 0,
         skill: { share: 1, years: 5, apprentices: [] },
         carpenter: null,
-        ore: { stockKg: 18, site: { walkM: 423, leftKg: 2200 }, heapKg: 0, ...ore },
+        ore: { stockKg: 18, site: { walkM: 423, leftKg: 2200 }, heapKg: 0, burner: true, ...ore },
       },
     });
 
-  it('zásoba rudy, cesta na rudiště a kdo nosí uhlí – syn, kovář, vůz', () => {
-    const son = render(smith('producing', { sons: [11], cart: false }));
-    expect(son).toMatch(/data-testid="selection-workshop-ore"[^>]*>18</);
-    expect(son).toMatch(/data-testid="selection-workshop-ore-site"[^>]*>423 m</);
-    expect(son).toContain('/icons/resources/ore.png');
-    expect(son).toMatch(/data-testid="selection-workshop-carrier"[^>]*>11</);
-    expect(son).toContain('/icons/resources/child.png');
-    const alone = render(smith('producing', { sons: [], cart: false }));
-    expect(alone).toContain('/icons/resources/man.png');
-    const cart = render(smith('digging', { sons: [11], cart: true }));
+  it('zásoba rudy, cesta na rudiště a kdo nese uhlí – uhlíř na tyči, vůz', () => {
+    const foot = render(smith('producing', { cart: false }));
+    expect(foot).toMatch(/data-testid="selection-workshop-ore"[^>]*>18</);
+    expect(foot).toMatch(/data-testid="selection-workshop-ore-site"[^>]*>423 m</);
+    expect(foot).toContain('/icons/resources/ore.png');
+    // synové kováře uhlí nenosí – nese ho uhlíř na tyči (workshops.md – Uhlíř – odnos uhlí na tyči)
+    expect(foot).toContain('/icons/resources/man.png');
+    expect(foot).toContain('Uhlí od milíře nese uhlíř se synem na tyči');
+    const cart = render(smith('digging', { cart: true }));
     expect(cart).toContain('/icons/resources/cart.png');
     expect(cart).toContain('data-activity="digging"');
     expect(cart).toContain('Kope rudu');
+    expect(cart).toContain('Uhlí od milíře a rudu z rudiště přiveze sedlák');
+  });
+
+  it('ves bez uhlíře – o tyči ani uhlí od milíře ani slovo', () => {
+    const foot = render(smith('producing', { cart: false, burner: false }));
+    expect(foot).not.toContain('selection-workshop-carrier');
+    expect(foot).not.toContain('na tyči');
+    const cart = render(smith('producing', { cart: true, burner: false }));
+    expect(cart).toContain('Rudu z rudiště přiveze sedlák s vozem');
+    expect(cart).not.toContain('Uhlí od milíře');
   });
 
   it('řetěz kovárny – houba, hřivny, vybavení domácností a měchař (production-chains.md)', () => {
@@ -1394,7 +1403,10 @@ describe('SelectionPanel – milíř (crafts.md – Milíř u skácených buků)
     yieldKg: 1800,
     burnerWalkM: 96,
     smithWalkM: 1183,
-    fetchers: [{ age: 11, smith: false }],
+    fetchers: [
+      { age: 38, role: 'burner' },
+      { age: 11, role: 'burner-son' },
+    ],
     cart: false,
     burnerHere: true,
     ...over,
@@ -1417,7 +1429,26 @@ describe('SelectionPanel – milíř (crafts.md – Milíř u skácených buků)
   it('kdo sem dnes chodí pro uhlí – syn s věkem, vůz; uhlíř tu pracuje', () => {
     const html = render(kiln());
     expect(html).toMatch(/child\.png.*data-testid="selection-kiln-fetcher"[^>]*>11</);
-    expect(html).toContain('Syn kováře (věk) dnes nosí uhlí od milíře do kovárny');
+    expect(html).toContain('Uhlíř (věk) dnes nosí uhlí od milíře do kovárny na tyči');
+    expect(html).toContain('Syn uhlíře (věk) dnes nosí uhlí od milíře do kovárny na tyči');
+    const smithPair = render(
+      kiln({
+        fetchers: [
+          { age: 38, role: 'burner' },
+          { age: 41, role: 'smith' },
+        ],
+      }),
+    );
+    expect(smithPair).toContain('Kovář (věk) dnes nosí uhlí od milíře do kovárny na tyči');
+    const smithSon = render(
+      kiln({
+        fetchers: [
+          { age: 38, role: 'burner' },
+          { age: 12, role: 'smith-son' },
+        ],
+      }),
+    );
+    expect(smithSon).toContain('Syn kováře (věk) dnes nosí uhlí od milíře do kovárny na tyči');
     expect(html).toContain('data-testid="selection-kiln-burner-here"');
     expect(html).not.toContain('selection-kiln-cart');
     const cart = render(kiln({ fetchers: [], cart: true, burnerHere: false }));

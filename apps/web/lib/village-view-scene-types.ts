@@ -63,6 +63,12 @@ export interface SceneDemolition {
 
 export interface SceneVillage {
   /**
+   * Klát a rámy s kůží u obydlí (hides-honey.md – Ve scéně): `beesOut` – včely dnes létají (klát
+   * se včelami u česna), `frames` – kolik rámů stojí před domy (kůže a kožešiny v práci, po celou
+   * dobu zpracování), `day` – herní den (střídání obydlí s rámem). Chybí = ves bez zboží.
+   */
+  wares?: { beesOut: boolean; frames: number; day: number };
+  /**
    * Hotová obydlí (`built: true`, id obydlí) i rozestavěná (`built: false`, id stavby); řemeslná
    * dílna nese řemeslo (`craft` – model dílny, u uhlíře i milíř).
    */
@@ -332,6 +338,11 @@ export interface SceneVillage {
   kilns?: SceneKiln[];
   /** Milířiště po rozebraných milířích – černá zem, která zarůstá. Bez údaje žádná. */
   kilnRemnants?: SceneKilnRemnant[];
+  /**
+   * Zemnice uhlířů u milířů (workshops.md – Uhlíř – zemnice u milíře) – hotové, rozestavěné
+   * i opuštěné; stavět přes ně nejde (`placementVillageFromScene` – `camps`). Bez údaje žádné.
+   */
+  burnerCamps?: SceneBurnerCamp[];
   /**
    * Otevřené obilné jámy (production-chains.md – Obilné jámy) – id, střed (m) a jak je plná:
    * kreslí je scéna a jdou vybrat; k otevřené jámě vede pěšina (domácnosti si berou zrno).
@@ -1282,6 +1293,24 @@ export interface SceneKilnRemnant {
   x: number;
   z: number;
   overgrowth: number;
+}
+
+/**
+ * Zemnice uhlíře u milíře ve scéně (workshops.md – Uhlíř – zemnice u milíře): id zemnice, dílna
+ * uhlíře (id obydlí), střed (m) a natočení (vchod k milíři).
+ */
+export interface SceneBurnerCamp {
+  id: number;
+  burnerId: number;
+  x: number;
+  z: number;
+  rotation: number;
+  /** Jak je postavená 0–1 po 5 % (dokud není hotová, leží na místě klády). */
+  built: number;
+  /** Hotová zemnice, zatímco milíř uhlíře pálí – uhlíř v ní přespává. */
+  occupied: boolean;
+  /** Opuštěná zemnice – jak zchátrala 0–1 po 5 % (sesedá a zarůstá); jinak null. */
+  overgrowth: number | null;
 }
 
 /**

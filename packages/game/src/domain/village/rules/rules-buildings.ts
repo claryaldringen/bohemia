@@ -10,6 +10,8 @@ export const DWELLING_FOOTPRINT_M: Record<DwellingType, { width: number; depth: 
   // log-house.md – Dům (tabulka): nadzemní srub 5 m napříč a 6 m podél hřebene, vchod na kratší
   // straně jako u dvorce (tools/blender/dwellings.py)
   srub: { width: 5, depth: 6 },
+  // log-house.md – Dům s vypletenými stěnami (tabulka): 5 × 6 m jako srub
+  vypleteny: { width: 5, depth: 6 },
   // trade.md – Dvorec (návrh Clauda): srub 5 × 8,4 m s valy – tools/blender/dwellings.py
   dvorec: { width: 6, depth: 9.6 },
   // log-house.md – Dvorec od roku 800 (tabulka): nadzemní srub se síní a komorou 7 × 11 m
@@ -33,6 +35,7 @@ export const DWELLING_SHAPE = {
   frontM: {
     zemnice: 1.98,
     polozemnice: 2.04,
+    vypleteny: 3,
     srub: 3,
     dvorec: 4.14,
     'dvorec-srub': 5.5,
@@ -58,6 +61,8 @@ export const DWELLING_CLEARING_M: Record<
   // log-house.md – srub a dvorec od 800: jako polozemnice a dvorec, posunuté o delší půdorys
   // (vpředu i vzadu stejný odstup od stěn) – návrh Clauda
   srub: { minX: -5.1, maxX: 5.1, minZ: -5.2, maxZ: 8 },
+  // log-house.md – Dům s vypletenými stěnami: půdorys jako srub (návrh Clauda)
+  vypleteny: { minX: -5.1, maxX: 5.1, minZ: -5.2, maxZ: 8 },
   dvorec: { minX: -5.4, maxX: 5.4, minZ: -6.4, maxZ: 9.5 },
   'dvorec-srub': { minX: -5.9, maxX: 5.9, minZ: -7.1, maxZ: 10.2 },
 };
@@ -76,6 +81,8 @@ export const PLOT_TYPES: Readonly<Record<DwellingType, boolean>> = {
   polozemnice: true,
   // log-house.md – Dům: nadzemní dům stojí na pozemku s plotem jako polozemnice (návrh Clauda)
   srub: true,
+  // log-house.md – Dům s vypletenými stěnami: na pozemku s plotem jako srub
+  vypleteny: true,
   dvorec: true,
   'dvorec-srub': true,
 };
@@ -137,6 +144,8 @@ export const DWELLING_TREES: Record<DwellingType, number> = {
   polozemnice: 18,
   // log-house.md – Dům (tabulka): nadzemní dům 28 stromů
   srub: 28,
+  // log-house.md – Dům s vypletenými stěnami (tabulka): kůly, krov a proutí – 14 stromů
+  vypleteny: 14,
   // trade.md – Dvorec: dřevo polozemnice × 1,5
   dvorec: 27,
   // log-house.md – Dvorec od roku 800 (tabulka): 40 stromů

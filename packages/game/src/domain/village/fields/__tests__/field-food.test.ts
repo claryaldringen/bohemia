@@ -85,6 +85,8 @@ describe('podíl jídla z pole', () => {
     // luštěniny a obilí jsou z pole – podíl neubírají
     expect(fieldShareOf(diet({ grain: 0.5, legumes: 0.25 }))).toBe(1);
     expect(fieldShareOf(diet({ meat: 0.4, dairy: 0.3, fruit: 0.25, eggs: 0.1 }))).toBe(0);
+    // med z klátů také není z pole (hides-honey.md – Klát u obydlí)
+    expect(fieldShareOf(diet({ grain: 0.99, honey: 0.01 }))).toBeCloseTo(0.99, 12);
   });
 
   it('plánovaný podíl: bez změřeného roku 1, jinak změřený, nejméně FIELD_FOOD.minShare', () => {

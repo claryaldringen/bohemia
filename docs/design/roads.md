@@ -723,7 +723,7 @@ takový růžek…“ Podrobnosti návrh Clauda.
 - **Rozjetý rok:** zmenšený díl ubere plánu osevu (i orbě rádlem), seči a založení podíl jako pod
   stavbou (`giveWayToRoads` jako `giveWayToBuilding` – hotová práce zůstane, zasetá plodina na ubrané ploše se nesklidí);
   vrácená půda je obdělaná jako zbytek dílu. Díl, kterému zbude méně než 20 % políčka, z pole
-  vypadne jako pod stavbou (kronika „Pole ustoupilo cestě“).
+  vypadne jako pod stavbou (zápis „Pole ustoupilo cestě“ panel Kronika neukazuje – Martin 14. 11. 2026).
 - **Starší vsi** dostanou plochu pod cestami při prvním dopočtu. **Kalibrace** (`--land real`)
   cesty má – 20 vsí na 20 let: žádný cíl nezměnil stav, rozdíly v desetinách (osev 1,52 → 1,53 ha
   na domácnost, bílkoviny 91,5 → 91,6 %).
@@ -795,8 +795,8 @@ Návrh Clauda (detaily, které návrh výš nechal otevřené – 18. 10. 2026):
   cesta](#cesta-je-cesta--povrch-pod-ní-a-zarůstání)).
 - **Stromy na poli** (Martin, 18. 10. 2026 – [fields.md](fields.md), Pole jako krajina; podrobnosti
   návrh Clauda): místa na stromy smí i na čtverce polí – leží 2,5–4 m od osy, na mezi podél cesty,
-  kam se neorá. Strom, který se na poli uchytí, vezme dílu 20 m² (úroda a práce úměrně, kronika
-  „Pole ustoupilo stromům u cesty“). Cesty, které vznikly dřív, mají místa určená bez polí – místa
+  kam se neorá. Strom, který se na poli uchytí, vezme dílu 20 m² (úroda a práce úměrně; zápis
+  „Pole ustoupilo stromům u cesty“ panel Kronika neukazuje). Cesty, které vznikly dřív, mají místa určená bez polí – místa
   se neurčují znovu, nové stromy na polích přibudou u nových cest.
 - **Kronika:** „Kudy se chodí léta, vyšlapala se pevná cesta.“ a „Nepoužívaná cesta zarostla.“
 - **Rychlost:** roční kontrola ≈ 6–8 ms (Node, ves 27 lidí, 6 úseků), přeskok 10 let

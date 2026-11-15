@@ -59,6 +59,7 @@ import {
   type VillageView,
 } from '../village-view';
 import { manorHousehold, visitedWives } from '../village-view-scene';
+import { campLook } from '../scene/burner-camp-layout';
 import { protectionLevel, sceneWeather } from '../weather-view';
 import type { SceneVillage, ScenePloughLegs } from '../village-view-scene-types';
 import type { ScenePerson } from '../person-view';
@@ -555,6 +556,15 @@ describe('buildVillageView', () => {
         blocked: null,
         affordable: false,
       },
+      // vypletený dům (log-house.md – Dům s vypletenými stěnami) – do roku 750 zašedlý
+      vypleteny: {
+        laborManDays: 260,
+        perHa: false,
+        perSquare: false,
+        upfront: [{ resource: 'wood', amount: 14, missing: 14 }],
+        blocked: 'Od roku 750',
+        affordable: false,
+      },
       // nadzemní dům (log-house.md) – do roku 800 zašedlý (`dwellingYearReason`)
       srub: {
         laborManDays: 300,
@@ -592,6 +602,20 @@ describe('buildVillageView', () => {
         upfront: [{ resource: 'wood', amount: 23, missing: 23 }],
         blocked: null,
         affordable: false,
+        variants: {
+          vypleteny: {
+            laborManDays: 326,
+            upfront: [{ resource: 'wood', amount: 19, missing: 19 }],
+            blocked: 'Od roku 750',
+            affordable: false,
+          },
+          srub: {
+            laborManDays: 366,
+            upfront: [{ resource: 'wood', amount: 33, missing: 33 }],
+            blocked: 'Od roku 800',
+            affordable: false,
+          },
+        },
       },
       smith: {
         laborManDays: 286,
@@ -600,6 +624,20 @@ describe('buildVillageView', () => {
         upfront: [{ resource: 'wood', amount: 23, missing: 23 }],
         blocked: null,
         affordable: false,
+        variants: {
+          vypleteny: {
+            laborManDays: 326,
+            upfront: [{ resource: 'wood', amount: 19, missing: 19 }],
+            blocked: 'Od roku 750',
+            affordable: false,
+          },
+          srub: {
+            laborManDays: 366,
+            upfront: [{ resource: 'wood', amount: 33, missing: 33 }],
+            blocked: 'Od roku 800',
+            affordable: false,
+          },
+        },
       },
       // uhlíř jako zemnice – milíř staví u dávky buků (crafts.md – Milíř u skácených buků)
       burner: {
@@ -609,6 +647,20 @@ describe('buildVillageView', () => {
         upfront: [{ resource: 'wood', amount: 7, missing: 7 }],
         blocked: null,
         affordable: false,
+        variants: {
+          vypleteny: {
+            laborManDays: 260,
+            upfront: [{ resource: 'wood', amount: 14, missing: 14 }],
+            blocked: 'Od roku 750',
+            affordable: false,
+          },
+          srub: {
+            laborManDays: 300,
+            upfront: [{ resource: 'wood', amount: 28, missing: 28 }],
+            blocked: 'Od roku 800',
+            affordable: false,
+          },
+        },
       },
       // tesař – polozemnice s přístřeškem jako hrnčíř a kovář (wagons.md)
       carpenter: {
@@ -618,6 +670,20 @@ describe('buildVillageView', () => {
         upfront: [{ resource: 'wood', amount: 23, missing: 23 }],
         blocked: null,
         affordable: false,
+        variants: {
+          vypleteny: {
+            laborManDays: 326,
+            upfront: [{ resource: 'wood', amount: 19, missing: 19 }],
+            blocked: 'Od roku 750',
+            affordable: false,
+          },
+          srub: {
+            laborManDays: 366,
+            upfront: [{ resource: 'wood', amount: 33, missing: 33 }],
+            blocked: 'Od roku 800',
+            affordable: false,
+          },
+        },
       },
       // ohrada s přístřeškem (oxen.md) – 40 čd a 6 stromů předem, osadníci ne
       pen: {
@@ -768,6 +834,47 @@ describe('buildVillageView', () => {
     const after = buildVillageView(record(late), landscape, day800).build.srub;
     expect(after.blocked).toBeNull();
     expect(after.affordable).toBe(true);
+  });
+
+  it('vypletený dům je do roku 750 zašedlý „Od roku 750“, od 1. 1. 750 povolený', () => {
+    const s = settled();
+    s.woodLogs = 40;
+    const before = buildVillageView(record(s), landscape, DAY).build.vypleteny;
+    expect(before.blocked).toBe('Od roku 750');
+    expect(before.affordable).toBe(false);
+    expect(before.upfront).toEqual([{ resource: 'wood', amount: 14, missing: 0 }]);
+    const day750 = dayIndexOf({ year: 750, month: 1, day: 1 });
+    const late = { ...s, lastDay: day750 };
+    const view = buildVillageView(record(late), landscape, day750).build;
+    expect(view.vypleteny.blocked).toBeNull();
+    expect(view.vypleteny.affordable).toBe(true);
+    expect(view.srub.blocked).toBe('Od roku 800');
+  });
+
+  it('řemeslné dílny mají varianty vypletená a roubená – cena domu s přístřeškem, rok (workshops.md)', () => {
+    const s = settled();
+    s.woodLogs = 40;
+    const day700 = dayIndexOf({ year: 700, month: 1, day: 1 });
+    const early = buildVillageView(record({ ...s, lastDay: day700 }), landscape, day700).build;
+    expect(early.smith.laborManDays).toBe(286);
+    expect(early.smith.variants?.vypleteny).toMatchObject({
+      laborManDays: 326,
+      upfront: [{ resource: 'wood', amount: 19, missing: 0 }],
+      blocked: 'Od roku 750',
+      affordable: false,
+    });
+    expect(early.burner.variants?.srub).toMatchObject({
+      laborManDays: 300,
+      blocked: 'Od roku 800',
+    });
+    const day760 = dayIndexOf({ year: 760, month: 1, day: 1 });
+    const mid = buildVillageView(record({ ...s, lastDay: day760 }), landscape, day760).build;
+    expect(mid.smith.variants?.vypleteny?.blocked).toBeNull();
+    expect(mid.smith.variants?.vypleteny?.affordable).toBe(true);
+    expect(mid.smith.variants?.srub?.blocked).toBe('Od roku 800');
+    expect(mid.smith.variants?.srub?.upfront).toEqual([
+      { resource: 'wood', amount: 33, missing: 0 },
+    ]);
   });
 
   it('s dostavěnou zemnicí: domácnost s věky obyvatel', () => {
@@ -1576,6 +1683,33 @@ describe('chronicleText', () => {
   });
 });
 
+describe('kronika – kůže, kožešiny, med a vosk v obchodě (hides-honey.md – Obchod)', () => {
+  it('výprava s kůžemi a kožešinami v kusech, medem a voskem v kg', () => {
+    expect(
+      chronicleText(
+        {
+          day: DAY,
+          kind: 'trade-departed',
+          direction: 'S',
+          give: { hides: 3, furs: 12 },
+        },
+        'X',
+      ),
+    ).toBe('Nosiči vyrazili po stezce na jih – nesou 3 ks kůží, 12 ks kožešin.');
+    expect(
+      chronicleText(
+        {
+          day: DAY,
+          kind: 'trade-returned',
+          direction: 'N',
+          get: { honey: 40, wax: 4 },
+        },
+        'X',
+      ),
+    ).toBe('Nosiči se vrátili ze severu – přinesli 40 kg medu, 4 kg vosku.');
+  });
+});
+
 describe('kronika – výměna lidí (trade.md – Výměna lidí)', () => {
   it('výprava s lidmi a lidé od souseda', () => {
     expect(
@@ -1661,16 +1795,15 @@ describe('kronika – opuštěné díly pole (fields.md – Opuštěný díl)', 
 });
 
 describe('kronika – zbořený úsek opevnění (demolition.md – Opevnění)', () => {
-  it('klády na hromadu, bez klád, srovnaný val', () => {
+  it('starší zápisy bez rozkazu – bez klád na hromadu', () => {
     const text = (logs: number, level?: true): string =>
       chronicleText(
         { day: DAY, kind: 'fortification-demolished', logs, ...(level ? { level } : {}) },
         'X',
       );
-    expect(text(1)).toBe('Úsek opevnění zbořen – 1 kláda na hromadu.');
-    expect(text(12)).toBe('Úsek opevnění zbořen – 12 klád na hromadu.');
-    expect(text(0)).toBe('Úsek opevnění zbořen.');
-    expect(text(0, true)).toBe('Val úseku opevnění srovnán.');
+    expect(text(12)).toBe('Úsek opevnění byl zbořen.');
+    expect(text(0)).toBe('Úsek opevnění byl zbořen.');
+    expect(text(0, true)).toBe('Val úseku opevnění byl srovnán.');
   });
 });
 
@@ -2532,6 +2665,52 @@ describe('buildVillageView – uhlíř (crafts.md – Milíř u skácených buk�
     ]);
   });
 
+  it('zemnice u milíře – ve scéně i v kontrole umístění stejně jako na serveru (workshops.md)', () => {
+    const s = burnerVillage([kiln(700, { x: 90, z: 10 })]);
+    const burner = s.dwellings.find((d) => d.id === 50)!;
+    burner.workshop!.camp = { id: 710, x: 100, z: 20, rotation: 1.25, done: 10, builtDay: DAY - 3 };
+    s.campRemnants = [
+      { id: 600, burnerId: 50, x: 60, z: -40, rotation: 0.5, day: DAY - Math.round(365 * 2.5) },
+    ];
+    const view = buildVillageView(record(s), landscape, DAY);
+    // hotová zemnice, milíř pálí – uhlíř v ní přespává; opuštěná napůl zchátralá
+    expect(view.scene.burnerCamps).toEqual([
+      {
+        id: 710,
+        burnerId: 50,
+        x: 100,
+        z: 20,
+        rotation: 1.25,
+        built: 1,
+        occupied: true,
+        overgrowth: null,
+      },
+      {
+        id: 600,
+        burnerId: 50,
+        x: 60,
+        z: -40,
+        rotation: 0.5,
+        built: 1,
+        occupied: false,
+        overgrowth: 0.5,
+      },
+    ]);
+    const server = placementVillageOf(s, DAY).camps;
+    expect(server).toHaveLength(2);
+    expect(placementVillageFromScene(view.scene).camps).toEqual(server);
+    // rozestavěná zemnice po 5 % a bez pálení neobsazená
+    burner.workshop!.camp = { id: 710, x: 100, z: 20, rotation: 1.25, done: 3.3 };
+    burner.workshop!.kilns![0]!.stage = 'build';
+    const building = buildVillageView(record(s), landscape, DAY).scene.burnerCamps![0]!;
+    expect(building).toMatchObject({ built: 0.3, occupied: false, overgrowth: null });
+    // opuštěná nedostavěná zemnice zůstane staveništěm (klády), jen zarůstá
+    s.campRemnants = [{ id: 600, burnerId: 50, x: 60, z: -40, rotation: 0.5, day: DAY, done: 7 }];
+    const left = buildVillageView(record(s), landscape, DAY).scene.burnerCamps![1]!;
+    expect(left).toMatchObject({ id: 600, built: 0.7, occupied: false, overgrowth: 0 });
+    expect(campLook(left).part).toBe('milir-zemnice-logs');
+  });
+
   it('mladé buky od uhlíře rostou – velikost podle stáří (za 60 let dospělé)', () => {
     const view = buildVillageView(record(burnerVillage([])), landscape, DAY);
     const sapling = view.scene.plantedSaplings?.find((p) => p.id === 7);
@@ -3109,21 +3288,54 @@ describe('placementVillageFromScene – stavby na poli založeném v lese (Marti
 });
 
 describe('kronika – nákup u sousedů (crafts.md)', () => {
-  it('co ves koupila, u koho a za kolik obilí', () => {
+  // seed vsi 4: soused na severovýchodě je Sedlec, seed 5 Hrušov, seed 10 na severu Mokrá
+  const bought = (
+    pay: { grainKg?: number; legumesKg?: number },
+    get: { toolsKg?: number; potteryKg?: number; woodToolsKg?: number },
+    direction: 'NE' | 'N' = 'NE',
+  ): ChronicleEvent => ({ day: DAY, kind: 'crafts-bought', direction, get, pay });
+
+  it('směna jménem obyvatel obou vsí, obě strany i s množstvím (Martin 14. 11. 2026)', () => {
+    expect(
+      chronicleText(bought({ grainKg: 575 }, { toolsKg: 9, woodToolsKg: 30 }), 'Libice', 4),
+    ).toBe('Libičtí směnili 575 kg obilí za 9 kg nástrojů a 30 kg dřevěného nářadí se Sedleckými.');
+    // zbytek pod půl kila se nepíše, půl kila je 1 kg
     expect(
       chronicleText(
-        {
-          day: DAY,
-          kind: 'crafts-bought',
-          direction: 'NE',
-          get: { toolsKg: 9, woodToolsKg: 30 },
-          pay: { grainKg: 575 },
-        },
-        'Libice',
+        bought({ grainKg: 393.6, legumesKg: 0.3 }, { potteryKg: 120.4, woodToolsKg: 0.6 }),
+        'Vlkov',
+        5,
       ),
     ).toBe(
-      'Vesničané koupili nástroje a dřevěné nářadí u souseda (severovýchod) – zaplatili 575 kg obilí.',
+      'Vlkovští směnili 394 kg obilí za 120 kg keramiky a 1 kg dřevěného nářadí s Hrušovskými.',
     );
+  });
+
+  it('jméno, které vzor nezná, i bez seedu vsi – opisem', () => {
+    expect(
+      chronicleText(bought({ grainKg: 50, legumesKg: 20 }, { potteryKg: 10 }, 'N'), 'Nová Ves', 10),
+    ).toBe(
+      'Obyvatelé vsi Nová Ves směnili 50 kg obilí a 20 kg luštěnin za 10 kg keramiky s obyvateli vsi Mokrá.',
+    );
+    expect(chronicleText(bought({ grainKg: 50 }, { potteryKg: 10 }), 'Vlkov')).toBe(
+      'Vlkovští směnili 50 kg obilí za 10 kg keramiky s obyvateli sousední vsi.',
+    );
+  });
+});
+
+describe('kronika – kování koní (horses.md – Kování)', () => {
+  it('vlastní kovář, kovář ze sousední vsi jménem, starší zápis bez směru', () => {
+    const shod = (own: boolean, direction?: 'NE'): ChronicleEvent => ({
+      day: DAY,
+      kind: 'horses-shod',
+      horses: 2,
+      own,
+      ...(direction ? { direction } : {}),
+    });
+    expect(chronicleText(shod(true), 'Vlkov', 5)).toBe('Kovář okul koně.');
+    expect(chronicleText(shod(false, 'NE'), 'Vlkov', 5)).toBe('Kovář z Hrušova okul koně.');
+    expect(chronicleText(shod(false, 'NE'), 'Vlkov', 4)).toBe('Kovář ze Sedlce okul koně.');
+    expect(chronicleText(shod(false), 'Vlkov', 5)).toBe('Kovář z jiné vsi okul koně.');
   });
 });
 

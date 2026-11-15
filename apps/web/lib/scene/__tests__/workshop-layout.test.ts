@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { MILIR } from '@bohemia/game';
+import {
+  DWELLING_CLEARING_M,
+  DWELLING_FOOTPRINT_M,
+  MILIR,
+  PLAIN_FRAME,
+  WORKSHOP_SIDE_M,
+  shapeFrame,
+  shapeRect,
+  type Craft,
+} from '@bohemia/game';
 import type { SceneVillage } from '../../village-view';
 import { ventSmokeStrength, smokeStrength } from '../smoke-schedule';
 import { CONSTRUCTION_PHASES, constructionState } from '../village-construction';
@@ -19,6 +28,8 @@ import {
   milirPlace,
   modelSpots,
   modelVents,
+  shedOrigin,
+  workshopModelKeys,
   workshopVents,
 } from '../workshop-layout';
 
@@ -186,5 +197,91 @@ describe('fáze milíře ve scéně (crafts.md – Milíř stojí vždy)', () =>
     const last = kilnLook({ stage: 'draw', progress: 0.98, charcoal: 0.02 });
     expect(last.model!.scaleY).toBeLessThan(half.model!.scaleY);
     expect(last.model!.scaleY).toBeGreaterThan(0);
+  });
+});
+
+describe('nadzemní dílny ve scéně (workshops.md – Ve scéně)', () => {
+  const CRAFTS = Object.keys(CRAFT_MODEL) as Craft[];
+  const TYPES = ['vypleteny', 'srub'] as const;
+  /** Dnešní tvar a dvě varianty rozměrů (population.md). */
+  const FRAMES = [
+    PLAIN_FRAME,
+    shapeFrame('srub', { area: 1.1, ratio: 0.9, height: 1.1 }),
+    shapeFrame('srub', { area: 0.9, ratio: 1.1, height: 0.9 }),
+  ];
+
+  it('dnešní dílna je jeden model, nadzemní dům typu a vedle přístřešek', () => {
+    expect(workshopModelKeys('smith', 'polozemnice')).toEqual({ house: 'kovar', side: null });
+    expect(workshopModelKeys('burner', 'zemnice')).toEqual({ house: 'uhlir', side: null });
+    expect(workshopModelKeys('smith', 'srub')).toEqual({
+      house: 'srub',
+      side: 'pristresek-kovar',
+    });
+    expect(workshopModelKeys('potter', 'vypleteny')).toEqual({
+      house: 'vypleteny',
+      side: 'pristresek-hrncir',
+    });
+  });
+
+  it('přístřešek má počátek na ose pravé boční stěny a s variantou rozměrů se posune s ní', () => {
+    expect(shedOrigin('srub', PLAIN_FRAME)).toEqual({ x: 2.5, z: 0 });
+    const wide = shapeFrame('srub', { area: 1.1, ratio: 0.9, height: 1 });
+    expect(shedOrigin('srub', wide).x).toBeGreaterThan(2.5 - 1e-9);
+    const { width } = DWELLING_FOOTPRINT_M.srub;
+    expect(shedOrigin('srub', wide).x).toBeCloseTo(
+      shapeRect(wide, { minX: -width / 2, maxX: width / 2, minZ: 0, maxZ: 0 }).maxX,
+      9,
+    );
+  });
+
+  it('řemeslníci stojí pod přístřeškem (nejvýš 1,8 m od něj), mimo dům a ve vyklízené ploše', () => {
+    for (const craft of CRAFTS) {
+      for (const type of TYPES) {
+        for (const frame of FRAMES) {
+          const spots = craftSpots(craft, TURNED, frame, type);
+          expect(spots.length, `${craft} ${type}`).toBeGreaterThanOrEqual(3);
+          const side = WORKSHOP_SIDE_M[craft];
+          const o = shedOrigin(type, frame);
+          const house = shapeRect(frame, {
+            minX: -DWELLING_FOOTPRINT_M[type].width / 2,
+            maxX: DWELLING_FOOTPRINT_M[type].width / 2,
+            minZ: -DWELLING_FOOTPRINT_M[type].depth / 2,
+            maxZ: DWELLING_FOOTPRINT_M[type].depth / 2,
+          });
+          const clearing = shapeRect(frame, DWELLING_CLEARING_M[type]);
+          for (const spot of spots) {
+            // zpět do osů domu
+            const dx = spot.x - TURNED.x;
+            const dz = spot.z - TURNED.z;
+            const c = Math.cos(TURNED.rotation);
+            const s = Math.sin(TURNED.rotation);
+            const lx = dx * c - dz * s;
+            const lz = dx * s + dz * c;
+            expect(lx, `${craft} ${type} pod přístřeškem`).toBeGreaterThan(o.x);
+            expect(lx, `${craft} ${type} pod přístřeškem`).toBeLessThan(o.x + side + 1.8);
+            expect(Math.abs(lz - o.z), `${craft} ${type} podél stěny`).toBeLessThanOrEqual(3 + 1.8);
+            // mimo dům, uvnitř vyklízené plochy s přístřeškem
+            expect(lx).toBeGreaterThan(house.maxX);
+            expect(lx).toBeLessThanOrEqual(clearing.maxX + side);
+            expect(lz).toBeGreaterThanOrEqual(clearing.minZ);
+            expect(lz).toBeLessThanOrEqual(clearing.maxZ);
+            expect(Math.hypot(spot.hx, spot.hz)).toBeCloseTo(1, 9);
+          }
+        }
+      }
+    }
+  });
+
+  it('dým nadzemní hrnčířské pece a výhně vychází zpod přístřešku, tesař a uhlíř nekouří', () => {
+    for (const type of TYPES) {
+      expect(workshopVents('potter', AT, PLAIN_FRAME, type)).toHaveLength(1);
+      expect(workshopVents('smith', AT, PLAIN_FRAME, type)).toHaveLength(1);
+      expect(workshopVents('carpenter', AT, PLAIN_FRAME, type)).toEqual([]);
+      expect(workshopVents('burner', AT, PLAIN_FRAME, type)).toEqual([]);
+    }
+    // před domem (dnešní dílna) dým beze změny
+    expect(workshopVents('smith', AT, PLAIN_FRAME, 'polozemnice')).toEqual(
+      workshopVents('smith', AT),
+    );
   });
 });

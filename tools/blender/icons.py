@@ -5,8 +5,10 @@ Celé jedním příkazem z kořene repa (Blender 5, ImageMagick `magick`, intern
     blender -b --factory-startup --python tools/blender/icons.py -- apps/web/public/icons [jen,vybrané,ikony]
 
 Výstup (128 × 128 PNG, průhledné rohy) – `build/` zemnice, polozemnice, srub (nadzemní dům –
-log-house.md, bez jámy), dvorec (dvorec vojvody –
+log-house.md, bez jámy), vypleteny (vypletený dům od roku 750 – log-house.md, bez jámy), dvorec (dvorec vojvody –
 trade.md), pole, hrbitov, hrbitov-kriz (křesťanský hřbitov s kříži – cemetery.md, Po křtu rodu),
+hrncir-vypleteny, hrncir-srub, kovar-vypleteny, … (nadzemní dílny – dům a vedle přístřešek z
+`apps/web/public/models/crafts/pristresek-*.glb`; vypleteny a srub × hrncir, kovar, tesar, uhlir),
 hrncir, kovar, tesar, uhlir (řemeslné dílny z `apps/web/public/models/crafts/`, tesař pod
 přístřeškem s kozlíky a koly – wagons.md, uhlíř s milířem), sad
 (jabloňový sad), modla, svatyne (posvátná místa z `apps/web/public/models/sacred/`), dub
@@ -16,7 +18,7 @@ z `apps/web/public/models/pen/`, kráva ze stáda vsi, stoh sena), cesta, cesta-
 cesta-upravena, hat a cesta-vozova (druhy pevné cesty – pás cesty, vyježděná se dvěma kolejemi,
 upravená širší, hať a lávka z `apps/web/public/models/roads/`, vozová cesta se zpevněnými
 kolejemi v úvozu)
-a jablone (jabloně s jablky střídavě podél cesty – tlačítko „Vysadit jabloně“), stezka (zemská
+dvorec-srub (dvorec ze srubu), a jablone (jabloně s jablky střídavě podél cesty – tlačítko „Vysadit jabloně“), stezka (zemská
 stezka od brány dvorce – trade.md), obchod (pytle obilí, hrnce, klády a sýr) a rudiste (jámy
 s vodou a valem, hromádka bahenní rudy a motyka – crafts.md, Uhlí a ruda kováře), humno (mlat pod
 širým nebem bez přístřešku, stoh slámy a cepy – production-chains.md, Humno), hliniste (jámy
@@ -374,6 +376,23 @@ def icon_craft(name):
         front = [o.matrix_world @ v.co for o in objs for v in o.data.vertices]
         front = [p for p in front if p.y < -0.5 and p.z > -0.1]
         camera(front, az=14, el=29, margin=1.04, shift=(0, -0.04))
+
+
+def icon_workshop(craft, house):
+    """Nadzemní dílna (tools/blender/crafts.py – přístřešek u boční stěny domu z dwellings.py):
+    dům varianty `house` (vypleteny / srub, bez jámy) a po jeho levé straně (−X) přístřešek
+    dílny. Počátek přístřešku leží na ose boční stěny (vypletený dům 2,22 m, srub 2,15 m od
+    osy). Pohled zleva zepředu, ať je pod střechou vidět pec / výheň / kozlíky / dřevo."""
+    objs = place_model(house)
+    shed = place_model(f"pristresek-{craft}", folder=CRAFTS)
+    axis = 2.22 if house == "vypleteny" else 2.15
+    for o in shed:
+        o.location.x -= axis
+    objs += shed
+    ground(12.5, mat("g", tex=f"{TEX}/grass-dirt.jpg", scale=0.22, tint=(0.8, 0.74, 0.6)), z=0.0, fade=0.6)
+    sun(az=-75, el=32, strength=5.0)
+    pts = [Vector((p.x, p.y, max(p.z, 0.0))) for p in world_points(objs)]
+    camera(pts + [Vector((0, 0, -0.2))], az=-62, el=14, margin=1.02, shift=(0, -0.02))
 
 
 def icon_pole():
@@ -2875,6 +2894,8 @@ BUILD = {
     "polozemnice": lambda: icon_dwelling("polozemnice"),
     "dvorec": lambda: icon_dwelling("dvorec"),
     "srub": lambda: icon_dwelling("srub", pit=False),
+    "dvorec-srub": lambda: icon_dwelling("dvorec-srub", pit=False),
+    "vypleteny": lambda: icon_dwelling("vypleteny", pit=False),
     "pole": icon_pole,
     "hrbitov": icon_hrbitov,
     "hrbitov-kriz": lambda: icon_hrbitov(christian=True),
@@ -2882,6 +2903,7 @@ BUILD = {
     "kovar": lambda: icon_craft("kovar"),
     "tesar": lambda: icon_craft("tesar"),
     "uhlir": lambda: icon_craft("uhlir"),
+    **{f"{craft}-{house}": (lambda c=craft, h=house: icon_workshop(c, h)) for craft in ("hrncir", "kovar", "tesar", "uhlir") for house in ("vypleteny", "srub")},
     "sad": icon_sad,
     "modla": icon_modla,
     "svatyne": icon_svatyne,
@@ -3326,7 +3348,117 @@ def icon_dearth():
     return True
 
 
+def icon_hide():
+    """Kůže: napnutá surová kůže na rámu z tyčí, svázaná provázky (tuhá, světle okrová)."""
+    rng = random.Random(5)
+    skin, frame, cord = bmesh.new(), bmesh.new(), bmesh.new()
+    # obrys kůže: čtyři „nohy“ a krk, poloměr kolísá podle úhlu
+    segs = 40
+    ring = []
+    for k in range(segs):
+        a = 2 * math.pi * k / segs
+        r = 0.72 + 0.16 * math.cos(4 * a + 0.8) + rng.uniform(-0.02, 0.02)
+        ring.append((math.cos(a) * r * 0.95, math.sin(a) * r, 0.0))
+    centre = skin.verts.new((0, 0, 0.03))
+    vs = [skin.verts.new(p) for p in ring]
+    for k in range(segs):
+        skin.faces.new((centre, vs[k], vs[(k + 1) % segs]))
+    bmesh.ops.recalc_face_normals(skin, faces=skin.faces)
+    # rám: čtyři tyče kolem a provázky ke kůži
+    h = 1.0
+    corners = [(-h, -h * 0.9, 0.0), (h, -h * 0.9, 0.0), (h, h * 0.9, 0.0), (-h, h * 0.9, 0.0)]
+    for i in range(4):
+        cyl(frame, corners[i], corners[(i + 1) % 4], 0.05, 0.05, 8)
+    for k in range(0, segs, 5):
+        p = Vector(ring[k])
+        q = Vector(ring[k]) * 1.28
+        cyl(cord, p + Vector((0, 0, 0.03)), q, 0.012, 0.012, 5)
+    to_obj(skin, "hide", mat("hide", (0.66, 0.5, 0.3), 0.7, noise=24, bump=0.3))
+    to_obj(frame, "frame", mat("pole", (0.34, 0.24, 0.15), 0.85, noise=16, bump=0.4))
+    to_obj(cord, "cord", mat("cord", (0.25, 0.18, 0.1), 0.9))
+    sun(az=-45, el=50, strength=4.3)
+    camera([Vector((-1.15, -1.05, -0.05)), Vector((1.15, 1.05, 0.15))], az=0, el=62, margin=1.04)
+    return True
+
+
+def icon_fur():
+    """Kožešina: pevně stočená role, srst ven, z jednoho konce viditelný spirálový řez."""
+    rng = random.Random(9)
+    roll, hair = bmesh.new(), bmesh.new()
+    axis_len = 1.5
+    cyl(roll, (0, -axis_len / 2, 0.7), (0, axis_len / 2, 0.7), 0.62, 0.62, 28)
+    for k in range(70):
+        y = rng.uniform(-axis_len / 2, axis_len / 2)
+        a = rng.uniform(0, 2 * math.pi)
+        base = Vector((math.cos(a) * 0.62, y, math.sin(a) * 0.62 + 0.7))
+        tip = base + Vector((math.cos(a) * 0.09, rng.uniform(-0.04, 0.04), math.sin(a) * 0.09))
+        cyl(hair, base, tip, 0.03, 0.0, 4)
+    ends, ties = bmesh.new(), bmesh.new()
+    for sgn in (-1, 1):
+        for j, r in enumerate((0.55, 0.42, 0.29, 0.16)):
+            cyl(ends, (0, sgn * (axis_len / 2 + 0.002 * j), 0.7), (0, sgn * (axis_len / 2 + 0.012 + 0.002 * j), 0.7), r, r, 24)
+    for y in (-0.35, 0.35):
+        cyl(ties, (0, y - 0.03, 0.7), (0, y + 0.03, 0.7), 0.655, 0.655, 28)
+    to_obj(roll, "fur", mat("fur", (0.42, 0.26, 0.14), 0.95, noise=60, bump=0.8))
+    to_obj(hair, "hair", mat("hair", (0.55, 0.37, 0.2), 0.95, noise=60, bump=0.4))
+    to_obj(ends, "ends", mat("leather-side", (0.76, 0.6, 0.4), 0.8, noise=20, bump=0.2))
+    to_obj(ties, "ties", mat("tie", (0.2, 0.14, 0.09), 0.9))
+    sun(az=-45, el=46, strength=4.3)
+    camera([Vector((-0.95, -0.9, 0.0)), Vector((0.95, 0.9, 1.35))], az=-30, el=22, margin=1.04)
+    return True
+
+
+def icon_honey():
+    """Med: hliněný hrnec s medem u okraje, zlatá kapka stékající po boku."""
+    pot, honey, drip = bmesh.new(), bmesh.new(), bmesh.new()
+    c, s = (0.0, 0.0, 0.0), 1.0
+    lathe(pot, POT_OUTER + POT_INNER, c, s)
+    # hladina medu v hrnci (kruh těsně pod okrajem) a stružka přes okraj
+    cyl(honey, (0, 0, 0.9), (0, 0, 0.93), 0.41, 0.41, 36)
+    blob(drip, ((0.4, -0.02, 0.9), (0, 0, 0)), (0.08, 0.1, 0.1), 10, 6)
+    cyl(drip, (0.52, -0.02, 0.95), (0.6, -0.02, 0.62), 0.055, 0.075, 10)
+    blob(drip, ((0.6, -0.02, 0.6), (0, 0, 0)), (0.095, 0.095, 0.13), 12, 7)
+    to_obj(pot, "pot", mat("clay-pot", (0.3, 0.2, 0.13), 0.8, noise=16, bump=0.3))
+    gold = mat("honey", (0.95, 0.58, 0.08), 0.15)
+    bsdf = next(n for n in gold.node_tree.nodes if n.type == "BSDF_PRINCIPLED")
+    bsdf.inputs["Emission Color"].default_value = (0.9, 0.45, 0.04, 1.0)
+    bsdf.inputs["Emission Strength"].default_value = 0.35
+    to_obj(honey, "honey", gold)
+    to_obj(drip, "drip", gold)
+    sun(az=-45, el=46, strength=4.3)
+    camera([Vector((-0.6, -0.6, 0.0)), Vector((0.7, 0.6, 1.05))], az=0, el=24, margin=1.04)
+    return True
+
+
+def icon_wax():
+    """Vosk: žlutý koláč s reliéfem plástve a menší odlomený kus vedle."""
+    cake, piece, comb = bmesh.new(), bmesh.new(), bmesh.new()
+    cyl(cake, (-0.18, 0.1, 0.0), (-0.18, 0.1, 0.34), 0.78, 0.74, 40)
+    cyl(piece, (0.72, -0.5, 0.0), (0.72, -0.5, 0.2), 0.34, 0.31, 6)
+    # plástev na horní ploše: šestiúhelníky z tenkých válečků
+    for q in range(-2, 3):
+        for r in range(-2, 3):
+            x = -0.18 + 0.27 * (q + 0.5 * (r % 2))
+            y = 0.1 + 0.235 * r
+            if (x + 0.18) ** 2 + (y - 0.1) ** 2 > 0.5 ** 2:
+                continue
+            ring = [(x + math.cos(math.pi / 6 + k * math.pi / 3) * 0.12, y + math.sin(math.pi / 6 + k * math.pi / 3) * 0.12) for k in range(6)]
+            for k in range(6):
+                a, b = ring[k], ring[(k + 1) % 6]
+                cyl(comb, (a[0], a[1], 0.345), (b[0], b[1], 0.345), 0.022, 0.022, 4)
+    to_obj(cake, "cake", mat("wax", (0.92, 0.74, 0.22), 0.45, noise=20, bump=0.2))
+    to_obj(piece, "piece", mat("wax2", (0.88, 0.68, 0.2), 0.5, noise=20, bump=0.2))
+    to_obj(comb, "comb", mat("comb", (0.74, 0.55, 0.12), 0.5))
+    sun(az=-45, el=46, strength=4.4)
+    camera([Vector((-1.0, -0.8, 0.0)), Vector((1.1, 0.9, 0.4))], az=0, el=34, margin=1.04)
+    return True
+
+
 RESOURCES = {
+    "hide": icon_hide,
+    "fur": icon_fur,
+    "honey": icon_honey,
+    "wax": icon_wax,
     "fort-fence": icon_fort_fence,
     "fort-palisade": icon_fort_palisade,
     "fort-rampart": icon_fort_rampart,

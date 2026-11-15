@@ -266,6 +266,101 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   (`chickensFor`). Ukázka staveb (`/dev/buildings`): nadzemní dům na pozemku v zadním rohu
   (`LOG_HOUSE_AT`) a srubový dvorec vedle dvorce (`LOG_MANOR_AT`).
 
+## Klát a rám s kůží (hides-honey.md – Ve scéně; plán 2026-11-14-hides-honey – Úloha 9)
+
+- **Data:** `SceneVillage.wares?: { beesOut, frames, day }` (`sceneWares` ve `village-view-scene.ts`).
+  `beesOut` = `beesFlying(day)` (květen–září), `frames` = `ceil` součtu kůží a kožešin ve všech
+  várkách `wares.curing` – kůže tedy visí na rámu po celou dobu zpracování, ne jen v den, kdy se
+  vzala do práce (návrh Clauda). `day` slouží jen k rotaci obydlí s rámem.
+- **Umístění** (`wares-placement.ts`, čisté funkce, tvar okapů je `DWELLING_EAVES` z
+  `dwelling-decor.ts`): `hivePlacement` – klát u boční stěny `eaveX + 0,8 m` za okapem, `0,6 m`
+  před zadním koncem střechy, česnem ven (−x modelu); kdyby stál v pásu slepic (`chickenBox`, u
+  dvorce), odsune se za jeho zadní okraj. `hideFramePlacement` – rám `1,5 m` před přední stěnou
+  (`frontY`), `eaveX − 0,6`, nejméně za předním okrajem pásu slepic. `hideFrameDwellings` – z
+  obývaných obydlí podle id od indexu `day mod n`, `min(n, frames)` obydlí.
+- **Kreslení** (`wares-renderer.ts`, vzor `ThreshingFloorRenderer`): modely
+  `models/wares/hive.glb`, `hive-bees.glb`, `hide-frame.glb` načtené líně jako sloučené meshe v
+  instancích (`thinInstanceSetBuffer`); klát u každého hotového obydlí (při `beesOut` model se
+  včelami), rám u vybraných. Přestaví se jen při změně klíče `waresKey` (domy, tvar, včely, počet
+  rámů, den při rámech) a vrátí `true` do `needsRender`.
+
+## Vypletený dům ve scéně (log-house.md – Dům s vypletenými stěnami)
+
+- **Model** `vypleteny.glb` / `vypleteny-construction.glb` (`build_wattle_house` v `dwellings.py`,
+  pátý argument `vypleteny`; `WATTLE_HOUSE` – stěny 4,6 × 5,6 m, kůly po ≈ 1,15 m vystupující
+  z mazanice, střecha jako srub – vpředu 0,8 m, vzadu 0,45 m): líně jako srub
+  (`LAZY_DWELLING_TYPES`), kosti variant rozměrů (`shapeableAs` – předpona `vypleteny`).
+- **Bez jámy** (`PIT_SHAPES.vypleteny` hloubka 0), okap a dýmník (`SHAPES`, `SMOKE_VENT`),
+  kopřivy, oheň a slepice jako srub; dům na pozemku `LOG_HOUSE_RECT_M` (`houseRectOf`).
+- **Stadia** (`CONSTRUCTION_PHASES.vypleteny`, `wattleHouseSchedule` – návrh Clauda): vytyčení,
+  drn, kůly (`piles`, fáze `posts`), krov, latě a výplet po řadách (`wattle-1` … `wattle-3` –
+  dvě řady stěn a štíty), omazání (`daub-k` nahradí `wattle-k`), došky (9 řad), hřeben, plot
+  a záhony. Proutí (`rods`) leží na staveništi, dokud se plete.
+- **Rozpad** (`wattleHouseRemains` v `dwelling-decay.ts` – návrh Clauda): sešlý a propadající se
+  stojí celý, zřícený jsou kůly a spodní řada mazanice sesutá níž, zbytek po zániku do poloviny
+  zarůstání jen hrouda mazanice. `remainsShown` čeká, až jsou díly zbytků načtené.
+
+## Nadzemní dílny ve scéně (workshops.md – Ve scéně; plán 2026-11-15-workshops – Úloha 5)
+
+- **Model:** dílna řemesla na obydlí `vypleteny` / `srub` je dům toho typu a vedle
+  `pristresek-<model>.glb` (`workshopModelKeys(craft, type)` ve `workshop-layout.ts` →
+  `{ house, side }`; dnešní dílna `{ house: CRAFT_MODEL[craft], side: null }`). Přístřešky jsou
+  v `CRAFT_MODEL_KEYS` (`crafts/`, načtou se s dílnami), `ModelKey` obsahuje `ShedModel`.
+  `loadLazyDwellings` načítá dům i u dílny (`houseModelOf`). Předpona `pristresek` nemá
+  `CONSTRUCTION_BASE`, takže `shapeableAs` přístřešek variantě rozměrů neprotahuje.
+- **Poloha přístřešku:** počátek na ose pravé boční stěny v polovině její délky (`shedOrigin(type,
+frame)` – `maxX` domu po variantě rozměrů, střed `minZ`…`maxZ`), `shedToWorld(position, frame, type,
+dx, dz)`: `dx` od stěny ven, `dz` podél ní. S variantou rozměrů se přístřešek nenatahuje, jen se
+  posune se stěnou (jádro `workshopFootprints`). Vyklízená plocha je o `workshopSideM` širší na +x
+  (`clearanceRect`, `houseArea`, `dwellingArea`, `dwellingHideShape` berou `craft`; ušlapaná tráva
+  `trampledArea` u nadzemní dílny nepřidává přístřešek vpředu).
+- **Místa řemeslníků** (`craftSpots(craft, position, frame, type)`, tabulka `SHED_SPOTS`): obsluha
+  stojí z vnější strany obsahu pod přístřeškem čelem ke stěně (kruh a pec hrnčíře, kovadlina a
+  měchy kováře, kozlíky a kolo tesaře, hromada dřeva uhlíře). `House.type` nese typ obydlí
+  dílny do plánu postav (`craftsmen`). Dým: `workshopVents(…, type)` (`SHED_FIRE`).
+- **Dvůr** (`craft-yard-layout.ts`): `CraftYardView.type` – u nadzemní dílny se souřadnice dvora před
+  přístřeškem dnešní dílny otočí o 90° a posunou za boční přístřešek (`at` a `direction`), takže
+  pec, houba, jáma s hlínou i rozdělaný vůz leží u přístřešku ve vyklízené ploše.
+- **Staveniště** (`workshopSiteParts` ve `village-construction.ts`): dům se staví v podílu práce
+  `workshopHouseShare = DWELLINGS[type].cost ÷ workshopCost(craft, type)` (nejvýš 0,9 – uhlíř
+  nemá přirážku), jako `constructionState(type, houseProgress)`; potom přibudou sloupky
+  (`pristresek-<model>-posts`), krokve, došky a obsah v pořadí `SHED_STEPS` (díly v
+  `crafts/construction.glb`). `siteKind` vrací typ domu, `houseProgress(d)` podíl domu; dílny se dál
+  nerozpadají po dílech.
+- **Umisťování:** duch je dům typu (`PlacementMode.type`) a vedle duch přístřešku
+  (`VillagePlacement.shed`); `PlacementResult` dílny nese `type`.
+- **Ukázka staveb** (`/dev/buildings`): osm dílen (4 řemesla × vypletená a roubená, `overgroundWorkshop`)
+  – `ShowcaseModel.shed` je hotový přístřešek vedle domu, staveniště ukazuje jen dům.
+
+## Zemnice u milíře a nosiči na tyči (workshops.md – Uhlíř; plán 2026-11-15-workshops – Úloha 6)
+
+- **Data:** `SceneVillage.burnerCamps` (`SceneBurnerCamp` – střed, natočení, `built` po 5 %,
+  `occupied` = hotová zemnice a milíř pálí, `overgrowth` opuštěné). Čisté funkce
+  `lib/scene/burner-camp-layout.ts`: `campLook` (rozestavěná = jen díl `milir-zemnice-logs` z
+  `construction-moss.glb`, hotová model `milir-zemnice`; opuštěná sesedá o `0,6 × overgrowth` m
+  a střecha se nakloní o `12° × overgrowth` – `campUp` dává svislou osu napříč vchodem),
+  `campsKey` (klíč překreslení – `occupied` ho nemění), `campEntrance` (před vchodem, osa +z
+  modelu – `CAMP_ENTRANCE_M`), `POLE_SPACING_M` (2,4 m).
+- **Kreslení** (`village-renderer.ts`): hotové a opuštěné zemnice jsou instance `milir-zemnice`
+  (`ModelKey`, `CRAFT_MODEL_KEYS`) v `updateModels`, rozestavěné klády instance dílu
+  `milir-zemnice-logs` v `updateConstruction`; obojí se přepočítá jen při změně `campsKey`.
+  Pata `campBaseHeight` = nižší z výšky středu a průměru rohů půdorysu.
+- **Postavy** (`villager-plan-crafts.ts`): `poleCarriers` (volá je `smithFetchFigures`; podíly
+  s `pole`) – dvě postavy po téže trase kovárna ↔ milíř (`walkRoute`), obě stejnou rychlostí
+  (pomalejší z nich); zadní jde o `POLE_SPACING_M` později po téže trase (`polePoses`).
+  K milíři `walk`, zpět `carry-pole` (přední) a `carry-pole-back` (zadní), v kovárně zmizí. S `pole`
+  `smith` / `smith-son` jde uhlíř nejdřív sám od milíře ke kovárně (`walk`), partner je do té
+  doby doma. `campSitters`: jeden muž domácnosti uhlíře, který po práci dne zbyl, sedí (`sit`)
+  u vchodu zemnice čelem k milíři, jen s hotovou zemnicí a pálícím milířem.
+- **Provoz** (`trafficRoutes` ve `villager-plan-traffic.ts`): s hotovou zemnicí a pálícím milířem
+  vychází proud uhlíře od vchodu zemnice (bez minimální vzdálenosti `KILN_COMMUTE_MIN_M`), jinak
+  od dílny ve vsi.
+- **Panel milíře** (`kiln-view.ts`, `KilnBody`): `KilnFetcher { age, role }` – dnešní dvojice
+  u tyče: uhlíř se synem, uhlíř s kovářem, uhlíř se synem kováře (věky z `LaborShare.ages`, role
+  z `pole`); vůz se sedlákem dál zvlášť.
+- **Zatím ne:** výběr zemnice kliknutím, zemnice v cizí mapě a při nájezdu, noc (uhlíř spí
+  v zemnici), keře a kameny pod zemnicí se neskrývají.
+
 ## Humno ve scéně (production-chains.md – Humno, Obilné jámy; úloha 5 výrobních řetězů)
 
 Humno je jen mlat bez přístřešku (Martin 21. 10. 2026), mlátí se **holemi** – cepy se tehdy

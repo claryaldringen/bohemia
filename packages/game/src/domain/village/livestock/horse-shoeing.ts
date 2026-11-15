@@ -183,7 +183,16 @@ export function finishShoeing(
     addGood(state, 'legumes', -plan.legumesKg, day);
   }
   state.shoeing.lastDay = day;
-  return [{ day, kind: 'horses-shod', horses: plan.horses, own: plan.own }];
+  return [
+    {
+      day,
+      kind: 'horses-shod',
+      horses: plan.horses,
+      own: plan.own,
+      // odkud cizí kovář přišel – kronika jménem vsi souseda
+      ...(plan.own || !plan.route ? {} : { direction: plan.route.direction }),
+    },
+  ];
 }
 
 /** Kování koní pro panel ohrady (horses.md – Kování, Co hráč vidí). */

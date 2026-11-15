@@ -3,7 +3,7 @@ import type { DogPlan } from './dogs';
 import type { ExpeditionYard } from './expedition-choreo';
 import type { RidePlan } from './riders';
 import type { HuntSpotFn } from './villager-plan-lord';
-import { type Craft, type Position, type ShapeFrame } from '@bohemia/game';
+import { type Craft, type DwellingType, type Position, type ShapeFrame } from '@bohemia/game';
 import type { LaborActivity, SceneCraftYard, SceneVillage } from '../village-view';
 import { type DayWindow } from './caravan';
 import { type FuneralPlan } from './funeral-plan';
@@ -357,6 +357,8 @@ export interface House {
   plot?: { x: number; z: number; size: number; rotation?: number };
   /** Řemeslná dílna (crafts.md) – řemeslníci stojí u pece, výhně nebo milíře. */
   craft?: Craft;
+  /** Obydlí dílny – nadzemní dílna má místa řemeslníků pod přístřeškem u boční stěny. */
+  type?: DwellingType;
   /** Varianta rozměrů domu (population.md – Varianty rozměrů) – místa řemeslníků s ní. */
   frame?: ShapeFrame;
   /**

@@ -18,9 +18,11 @@ import {
   fellDueTrees,
   partCenter,
 } from '../forest/forest-clearing';
-import { finishArd, finishPen } from '../livestock/oxen';
+import { finishArd, finishPen, penChronicleNote } from '../livestock/oxen';
 import { recordClearedObstacles } from './obstacles';
 import { mergeRoadChains } from '../paths/roads';
+import { chronicleRoadEnds } from '../paths/road-chronicle';
+import { roadEndsNetwork } from '../paths/road-ends';
 import { roadWalk, walkGroundOf } from '../paths/walking';
 import { finishRoadApples, workRoadApples, roadApplesNeed } from '../roads/road-apples';
 import { finishRoadUpgrade } from '../roads/road-upgrades';
@@ -42,6 +44,7 @@ import { villageManorId } from '../people/manor';
 import { finishTrail } from '../trade/trail';
 import { finishWagonRoad } from '../roads/wagon-road';
 import { recordRuins } from '../buildings/ruins';
+import { abandonCamp } from '../crafts/burner-camp';
 import { dwellingBuildLabor, workshopBuildLabor, workshopTrees } from '../rules';
 import type {
   ChronicleEvent,
@@ -100,12 +103,11 @@ export function decayEmptyDwellings(state: VillageState, day: number, occupied: 
     if (d.condition <= 0) gone.add(d.id);
   }
   if (gone.size === 0) return;
-  // na místě zaniklého obydlí zůstane zbytek jámy (ruins.ts)
-  recordRuins(
-    state,
-    state.dwellings.filter((d) => gone.has(d.id)),
-    day,
-  );
+  // na místě zaniklého obydlí zůstane zbytek jámy (ruins.ts); zemnice uhlíře u milíře zůstane
+  // opuštěná (workshops.md – Uhlíř – zemnice u milíře)
+  const vanished = state.dwellings.filter((d) => gone.has(d.id));
+  recordRuins(state, vanished, day);
+  for (const d of vanished) abandonCamp(state, d, day);
   state.dwellings = state.dwellings.filter((d) => !gone.has(d.id));
 }
 
@@ -417,7 +419,12 @@ export function isFinished(state: VillageState, c: Construction, founding: Found
  * nového obydlí se stěhuje mladý pár; když žádný není, osídlí ho ještě týž den dospělé děti
  * z přeplněné domácnosti (krok 6).
  */
-export function finishConstructions(state: VillageState, day: number): void {
+export function finishConstructions(
+  state: VillageState,
+  day: number,
+  /** Krajina pro konce cesty v kronice jabloní u cesty (`chronicleRoadEnds`); bez ní konce chybí. */
+  landscape?: Landscape,
+): void {
   const unfinished: Construction[] = [];
   const founding = foundingIndex(state);
   let roadUpgraded = false;
@@ -487,18 +494,27 @@ export function finishConstructions(state: VillageState, day: number): void {
     }
     if (c.kind === 'road-apples') {
       // jabloně podél cesty vysazené – péče a sklizeň se sady (roads.md)
+      // kronika: konce cesty v den výsadby (Martin 14. 11. 2026 – „Podél cesty mezi dvorcem
+      // a kovárnou byly vysazeny jabloně.“)
+      const roadId = c.roadIds?.find((id) => state.roads?.roads.some((r) => r.id === id));
+      const roadEnds =
+        landscape && roadId !== undefined
+          ? chronicleRoadEnds(state, roadEndsNetwork(state, landscape), roadId)
+          : null;
       finishRoadApples(state, c, day);
-      state.chronicle.push(finishedEvent(day, c, null));
+      state.chronicle.push({ ...finishedEvent(day, c, null), ...(roadEnds ? { roadEnds } : {}) });
       continue;
     }
     if (c.kind === 'pen' || c.kind === 'ard') {
       // dostavěná ohrada přijme dobytek, hotové rádlo orá s párem vycvičených volů (oxen.md)
+      // kronika: druh ohrady a rozšíření – před `finishPen`, který značky čtverců smaže
+      const pen = c.kind === 'pen' ? penChronicleNote(state, c) : {};
       if (c.kind === 'pen' && c.penId !== null && c.penId !== undefined) {
         // založení celé ohrady, nebo rozšíření o čtverce (oxen.md – Ohrady podle druhu)
         finishPen(state, c.penId, day, c.id);
       }
       if (c.kind === 'ard') finishArd(state);
-      state.chronicle.push(finishedEvent(day, c, null));
+      state.chronicle.push({ ...finishedEvent(day, c, null), ...pen });
       continue;
     }
     if (c.kind === 'quarry' || c.kind === 'quarrying') {
@@ -633,7 +649,7 @@ export function finishedEvent(
   day: number,
   c: Construction,
   dwellingId: number | null,
-): ChronicleEvent {
+): Extract<ChronicleEvent, { kind: 'construction-finished' }> {
   return {
     day,
     kind: 'construction-finished',
@@ -696,7 +712,7 @@ export function decideRebuilds(
     const plan = planDwellingWood(state, type, site?.position ?? d.position, day, {
       obstacles,
       ...(walk ? { walk } : {}),
-      ...(craft ? { trees: workshopTrees(craft) } : {}),
+      ...(craft ? { trees: workshopTrees(craft, d.type) } : {}),
       ...(site
         ? { clearedTrees: site.check.clearedTrees, clearedIds: site.check.obstacleIds }
         : {}),
@@ -708,7 +724,7 @@ export function decideRebuilds(
       kind: 'rebuild',
       startedDay: day,
       cost:
-        (craft ? workshopBuildLabor(craft) : dwellingBuildLabor(type)) +
+        (craft ? workshopBuildLabor(craft, type) : dwellingBuildLabor(type)) +
         (site?.check.obstacleCost ?? 0) +
         woodFellingCost(wood),
       done: 0,

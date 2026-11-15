@@ -118,10 +118,13 @@ variantu „a“: odebrat zboží zvenku). Detaily níž jsou návrh Clauda.
 
 - **Co se mění:** se sousedem se vyměňuje jen to, co ves sama má – obilí, luštěniny, maso, sýr,
   dobytek (od 20. 10. 2026 krávy, mladí a vycvičení voli – [Dobytek ve třech
-  druzích](#dobytek-ve-třech-druzích-20-10-2026)), klády, keramika, hřivny (dřív nástroje) a uhlí. Sůl, železo, med a kožešiny ve hře nejsou:
-  nejsou v zásobách vsi ani v horní liště, med se nejí (strava, osev podle stravy), sůl
-  a kožešiny nepřidávají štěstí a kovář nekuje z koupeného železa – železo si taví sám z bahenní
-  rudy, jak rozhodl Martin u [řemesel](crafts.md).
+  druzích](#dobytek-ve-třech-druzích-20-10-2026)), klády, keramika, hřivny (dřív nástroje) a uhlí. Sůl, železo, med a kožešiny zvenku ve hře nejsou:
+  nejsou v zásobách vsi ani v horní liště, sůl a kožešiny nepřidávají štěstí a kovář nekuje
+  z koupeného železa – železo si taví sám z bahenní rudy, jak rozhodl Martin u
+  [řemesel](crafts.md). ~~Med se nejí (strava, osev podle stravy).~~ Od 14. 11. 2026 má ves med
+  a kožešiny vlastní ([kůže, kožešiny, med a vosk](hides-honey.md)) – med z klátů jí pevným
+  přídělem ([strava](diet.md) – Pojmy), a tak ubírá i podíl jídla z pole ([pole](fields.md) –
+  Výhled zásob k sklizni).
 - **Čím se soused živí** (návrh Clauda): soused nabízí, co mu jeho hospodaření dává navíc, a shání,
   čeho sám nemá dost. Nabízí 2–3 druhy ze své nabídky (řemeslníci mají jen dva), shání 2–3 druhy –
   jeden vždy, zbytek ze svých potřeb; nabízené a sháněné se nepřekrývají.
@@ -142,6 +145,31 @@ variantu „a“: odebrat zboží zvenku). Detaily níž jsou návrh Clauda.
   a prodá za 60. Kámen váží 2 500 kg na m³, takže **jede jen na voze** (jako klády, jen 100×
   těžší): výprava s kamenem bez vozu chce 100 nosičů na m³, tedy v praxi nejde. Koupený kámen
   jde na hromadu u cesty (`addStone`), prodaný se bere z hromad (`takeStone`).
+- **Kůže, kožešiny, med a vosk** (14. 11. 2026, [kůže, kožešiny, med a vosk](hides-honey.md) –
+  Obchod; druhy sousedů, množství a ceny návrh Clauda): ves je má, proto je smí měnit.
+  - **Kdo je nabízí a shání:** pastevci a lesní ves je **nabízejí** (maso, kůže a kožešiny z lovu,
+    med z brtí), obilnáři a řemeslníci je **shánějí** (kožišnictví, svíčky, sladké pečivo).
+    Všechny čtyři druhy jdou stejnou stranou. Roční množství losem z vlastního proudu
+    `neighbour-wares:{směr}` (ostatní zboží souseda se nezměnilo – hlídá to otisk sousedů semene 1
+    v testu): **kůže 5–20 ks, kožešiny 10–40 ks, med 20–80 kg, vosk 2–8 kg**.
+  - **Ceny v kg obilí** (odvozeno od masa 3 a klády 40 = 1 čd práce):
+
+    | Zboží    | Hodnota | Nosnost | Odvození                                                                     |
+    | -------- | ------- | ------- | ---------------------------------------------------------------------------- |
+    | med      | 6 / kg  | 1 kg    | jediné sladidlo; klát dá ≈ 6 kg ročně, při příděle 0,5 kg na člověka přebývá |
+    | vosk     | 30 / kg | 1 kg    | klát dá jen ≈ 0,4 kg ročně a svíčky se bez něj nedají                        |
+    | kůže     | 20 / ks | 5 kg    | kůže skotu – 10 h zpracování, jako dvě třetiny kila masa za hodinu práce     |
+    | kožešina | 8 / ks  | 1 kg    | zaječí a liščí 1,5 h zpracování, ovčí 3 h                                    |
+
+  - **Kůže jsou jedno zboží v kusech kůže skotu** (návrh Clauda 14. 11. 2026): malé
+    kůže (kozí, prasečí) se přepočtou plochou 0,8 / 3 ≈ 0,27 kusu; prodej bere napřed velké kůže,
+    pak malé. Popisek řádku v panelu ukáže rozpis (velké a malé kůže).
+  - **Kožešiny jsou jedno zboží:** kožešiny z lovu a ovčí dohromady; prodej bere napřed z lovu,
+    pak ovčí, koupené se přidají ke kožešinám z lovu.
+  - **Kronika** (výprava, směna) píše kůže a kožešiny v kusech, med a vosk v kg.
+  - **Starší vsi:** uložený zbytek roku souseda nemá nové druhy, nesedí na jeho povahu
+    (`fitsNeighbour`) a při načtení se zahodí – soused dostane plný rok (zásoby i poptávku).
+    Výprava na cestě tím není dotčená. Vazalské makrokomodity nové zboží nedostaly – dávky později.
 - **Kolem vsi je každý druh souseda dvakrát** (8 směrů, rozdání ze seedu vsi) – každé zboží
   některý soused nabízí a některý shání. Zásoby a poptávka se nemění (600–1 500 a 800–2 000 kg
   obilí ročně, doplnění 1. 11.).
@@ -152,7 +180,8 @@ variantu „a“: odebrat zboží zvenku). Detaily níž jsou návrh Clauda.
   bez vlastního kováře a hrnčíře si tak zvedne produktivitu (meze produktivity, crafts.md).
 - **Starší vsi** (při načtení – `withoutForeignGoods`, jednou, idempotentně, před dopočtem):
   - zásoby soli, železa, medu a kožešin **propadnou** bez náhrady (hra ještě neběží ostře) a z
-    posledního jídla zmizí podíl medu;
+    posledního jídla zmizí podíl medu – jen ve vsi bez zboží vsi; ves se zbožím jí med z klátů
+    a podíl jí zůstane (převod běží při každém načtení – návrh Clauda 14. 11. 2026);
   - uložený zbytek roku souseda, který nesedí na jeho novou povahu, se zahodí – soused má do
     1. 11. plné roční zásoby a poptávku;
   - **výprava na cestě, která měla přinést zboží zvenku, se ruší celá: nosiči přinesou zpět, co
@@ -494,6 +523,8 @@ Návrh Clauda (18. 10. 2026) – detaily, které návrh výš nechal otevřené:
 | Jak je postavené: dvorec, pozemek se dvorem, trasa a úseky stezky, sousedé, ceny, doprava           | návrh Clauda                              |
 | Jen společné suroviny – se sousedem jen zboží, které má i ves; zboží zvenku pryč (19. 10.)          | Martin                                    |
 | Druhy sousedů (obilnáři, pastevci, lesní ves, řemeslníci), každý dvakrát kolem vsi                  | návrh Clauda                              |
+| Kůže, kožešiny, med a vosk v obchodě: pastevci a lesní ves nabízejí, obilnáři a řemeslníci shánějí  | návrh Clauda (14. 11. 2026)               |
+| Ceny: med 6, vosk 30, kůže skotu 20, kožešina 8 kg obilí; malé kůže plochou 0,8 / 3                 | návrh Clauda (14. 11. 2026)               |
 | Starší vsi: zboží zvenku propadne, výprava pro něj se ruší a nosiči vrátí, co nesli                 | návrh Clauda                              |
 | Výměna lidí se sousedem – celé rodiny i jen dospělí, podle nabídky (19. 10.)                        | Martin                                    |
 | Lidé souseda na rok (40 % navíc, 30 % shání), dospělý 360 kg obilí, dítě polovina                   | návrh Clauda                              |

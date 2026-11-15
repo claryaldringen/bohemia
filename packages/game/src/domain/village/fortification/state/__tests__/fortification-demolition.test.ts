@@ -317,11 +317,15 @@ describe('zboření valu', () => {
     if (!r.ok) throw new Error(r.reason);
     s = r.state;
     const before = woodLogs(s);
+    // jediná brána – srovnání obejde obvod od brány dokola zpět k ní (kronika)
     expect(finish(s)).toEqual({
       day: DAY + 10,
       kind: 'fortification-demolished',
       logs: 0,
       level: true,
+      lengthM: Math.round(pieces.reduce((sum, x) => sum + x.lengthM, 0) * 100) / 100,
+      gates: [{}, {}],
+      around: true,
     });
     expect(woodLogs(s)).toBe(before);
     // jediná brána: její díl má zbořený kus před bránou i za ní, brána bez hradby zmizí s opevněním
@@ -341,6 +345,52 @@ describe('zboření valu', () => {
       expect(seg.top).toBeUndefined();
       expect(seg.topBuiltDay).toBeUndefined();
     }
+  });
+});
+
+describe('kronika zboření (Martin 14. 11. 2026 – „Vojvoda Lutobor přikázal zbořit …“)', () => {
+  it('vojvoda v den rozkazu, délka kusů a brány na koncích úseku – věž bez směru, brány se směrem', () => {
+    const s = threeSections('palisade');
+    const lord = s.people[0]!;
+    lord.name = 'Lutobor';
+    s.dynasty = { lordId: lord.id, lords: [{ id: lord.id, name: 'Lutobor', fromDay: DAY }] };
+    const fort = fortOf(s);
+    const starts = fort.gates.map((g) => g.segment).sort((a, b) => a - b);
+    const to = fort.gates.find((g) => g.segment === starts[1])!;
+    to.towerDay = DAY - 5;
+    const r = startSectionDemolition(s, DAY, landscape, {
+      fortificationId: fort.id,
+      segment: (starts[0]! + 1) % fort.segments.length,
+    });
+    if (!r.ok) throw new Error(r.reason);
+    const note = work(r.state)!.fortNote!;
+    expect(note.lord).toBe('Lutobor');
+    expect(note.gates).toEqual([{ direction: expect.any(String) }, { tower: true }]);
+    expect(note.around).toBeUndefined();
+    // délka = úsek od okraje brány po okraj další brány (`fortSectionSpans`)
+    const span = fortSectionSpans(lengths(s), fort.gates).find((x) => x.gateSegment === starts[0])!;
+    expect(note.lengthM).toBeCloseTo(span.lengthM, 1);
+    // nový vojvoda před dokončením – v kronice zůstane ten z rozkazu
+    lord.name = 'Jiný';
+    expect(finish(r.state)).toMatchObject({
+      kind: 'fortification-demolished',
+      lord: 'Lutobor',
+      lengthM: note.lengthM,
+      gates: note.gates,
+    });
+  });
+
+  it('jediná brána – úsek dokola, bez vojvody bez jména', () => {
+    const s = built('palisade');
+    const fort = fortOf(s);
+    expect(fort.gates).toHaveLength(1);
+    const r = startSectionDemolition(s, DAY, landscape, {
+      fortificationId: fort.id,
+      segment: (fort.gates[0]!.segment + 1) % fort.segments.length,
+    });
+    if (!r.ok) throw new Error(r.reason);
+    expect(work(r.state)!.fortNote).toMatchObject({ gates: [{}, {}], around: true });
+    expect(work(r.state)!.fortNote!.lord).toBeUndefined();
   });
 });
 

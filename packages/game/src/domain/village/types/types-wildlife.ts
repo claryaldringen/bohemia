@@ -25,6 +25,8 @@ export interface WildlifeState {
   deer: { stags: number; hinds: number; calves: number };
   boar: { adults: number; piglets: number };
   hares: number;
+  /** Lišky v kraji; chybí = strop `foxCount(land)` (do ok se loví, 1. 5. se vrátí na strop). */
+  foxes?: number;
   wolves: number;
   /** Medvěd je v kraji; `backDay` = den, od kterého se po úlovku vrátí jiný (1. 5. po něm). */
   bear: { present: boolean; backDay: number | null };
@@ -50,6 +52,8 @@ export interface WildlifeState {
 export interface SmallGameYear {
   fishKg: number;
   hares: number;
+  /** Lišky z ok od 1. 5. (chybí = 0). */
+  foxes?: number;
   /** Maso ryb a zajíců od 1. 5. (kg; jí se čerstvé, bez práce porážky). */
   meatKg: number;
   /** Dny, kdy se chytalo. */
@@ -68,7 +72,7 @@ export interface SmallGameState {
    * Roční kvóta od 1. 5. (ryby: kg biomasy, zajíci: kusy) podle přírůstku; chybí = spočte se
    * při prvním chytání roku ze zásoby a úlovku.
    */
-  quota?: { fishKg: number; hares: number };
+  quota?: { fishKg: number; hares: number; foxes?: number };
   /** Maso ze zvěře (velký lov i drobná zvěř) minulého roku (kg). */
   lastWildMeatKg?: number;
 }

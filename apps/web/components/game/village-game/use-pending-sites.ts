@@ -7,6 +7,7 @@ import {
   type BuildableDwellingType,
   type Craft,
   type DwellingPlot,
+  type DwellingType,
   type Landscape,
   type Position,
   type SacredBuildingKind,
@@ -40,7 +41,7 @@ export interface PendingSites {
    * polozemnice na pozemku (`plot`).
    */
   buildDwelling: (type: BuildableDwellingType, position: Position, plot?: DwellingPlot) => void;
-  buildWorkshop: (craft: Craft, position: Position) => void;
+  buildWorkshop: (craft: Craft, position: Position, type?: DwellingType) => void;
   buildSacred: (type: SacredBuildingKind, position: Position) => void;
   buildThreshingFloor: (position: Position) => void;
   buildQuarry: (position: Position) => void;
@@ -120,20 +121,22 @@ export function usePendingSites({
   };
 
   /** Zahájí stavbu řemeslné dílny (crafts.md) – staveniště hned ve scéně. */
-  const buildWorkshop = (craft: Craft, position: Position): void => {
+  const buildWorkshop = (craft: Craft, position: Position, type?: DwellingType): void => {
+    // nadzemní dílna (workshops.md) nese vybraný typ domu, dnešní dílna ne
+    const house = type === 'vypleteny' || type === 'srub' ? type : undefined;
     const entry: PendingSite = {
       kind: 'dwelling',
       id: -1 - pendingId.current++,
-      type: CRAFT_BASE[craft],
+      type: house ?? CRAFT_BASE[craft],
       position,
       craft,
     };
     setPendingList([...pendingRef.current, entry]);
     const villageId = viewRef.current?.id;
     if (!villageId) return;
-    void runBuildAction(() => placeWorkshop({ villageId, craft, position })).finally(() =>
-      setPendingList(pendingRef.current.filter((d) => d.id !== entry.id)),
-    );
+    void runBuildAction(() =>
+      placeWorkshop({ villageId, craft, position, ...(house ? { type: house } : {}) }),
+    ).finally(() => setPendingList(pendingRef.current.filter((d) => d.id !== entry.id)));
   };
 
   /** Zahájí stavbu modly nebo svatyně (happiness.md) – staveniště hned ve scéně. */

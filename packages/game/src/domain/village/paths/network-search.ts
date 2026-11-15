@@ -1,7 +1,7 @@
 // Hledání tras „z domu“ (Dijkstra z brány domácnosti ke všem jejím cílům), sčítání provozu po buňkách.
 // Součást výpočtu sítě pěšin – rozcestník je network.ts (komentář k celku tam).
 
-import { HUMNO, ROUTE_HABIT, SACRED_BUILDINGS } from '../rules';
+import { BURNER_CAMP, HUMNO, ROUTE_HABIT, SACRED_BUILDINGS } from '../rules';
 import { pathCostFactor } from './walk-speed';
 import {
   ERRAND_REACH,
@@ -773,8 +773,8 @@ export function smoothTraffic(grid: Grid, traffic: Float32Array): Float32Array {
  * vstupu (deterministicky).
  */
 /**
- * Neprůchodné stavby vsi: obydlí, pozemky a staveniště (podle id obydlí), milíře uhlířů a modly.
- * Obydlí zvlášť (brány domácností) a všechny dohromady.
+ * Neprůchodné stavby vsi: obydlí, pozemky a staveniště (podle id obydlí), milíře uhlířů, jejich
+ * zemnice u milířů a modly. Obydlí zvlášť (brány domácností) a všechny dohromady.
  */
 export function villageBuildings(v: PathVillage): {
   dwellings: Map<number, Building>;
@@ -793,6 +793,13 @@ export function villageBuildings(v: PathVillage): {
       position: { x: k.x, z: k.z, rotation: 0 },
       box: { minX: -half, maxX: half, minZ: -half, maxZ: half },
     });
+  }
+  // zemnice uhlíře u milíře – i opuštěná, pěšina ji obejde (workshops.md – Uhlíř – zemnice
+  // u milíře)
+  for (const c of v.camps ?? []) {
+    const hx = BURNER_CAMP.footprintM.width / 2;
+    const hz = BURNER_CAMP.footprintM.depth / 2;
+    all.push({ position: c, box: { minX: -hx, maxX: hx, minZ: -hz, maxZ: hz } });
   }
   for (const b of v.sacred?.buildings ?? []) {
     if (b.kind !== 'idol') continue;

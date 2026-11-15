@@ -37,6 +37,7 @@ import {
   type SacredBuildingKind,
   type TileCell,
   type WorkshopActivity,
+  type WaresView,
 } from '@bohemia/game';
 import type { VillageChurch } from './church-view';
 import type { LeaveDirection } from './departure-view';
@@ -196,6 +197,8 @@ type SelectionKinds =
       workshop: SelectionWorkshop | null;
       /** Dvorec vojvody (trade.md) – vylepšení vsi; obyčejné obydlí null. */
       manor: VillageManor | null;
+      /** Zásoby zboží vsi na dvorci (hides-honey.md); jiné obydlí nebo ves bez zboží null. */
+      wares?: WaresView | null;
       /**
        * Popisek domu vedlejší manželky vojvody, který vojvodu jmenuje (lord.md – Kde se jméno
        * ukazuje); jiný dům null.
@@ -1103,6 +1106,7 @@ function selectionKinds(
         : null,
       workshop: view ? workshopDetails(view, household.dwellingId) : null,
       manor: view?.manor?.dwellingId === household.dwellingId ? view.manor : null,
+      ...(view?.manor?.dwellingId === household.dwellingId ? { wares: view.wares } : {}),
       lordWifeHome: lordWifeHome(view, scene, household.dwellingId),
       ...(view?.manor?.dwellingId === household.dwellingId && view.crafts.sources
         ? { buying: { sources: view.crafts.sources, purchases: view.purchases ?? [] } }

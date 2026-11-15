@@ -2,6 +2,7 @@
 // provedení, kovárny a pasení, společná práce (klády, stavby, opravy, pletí mužů, seč navíc,
 // drobná zvěř), dílny a jízdy vozů ke kovářům.
 import { smallGameDay, type SmallGameResult } from '../wildlife/small-game';
+import { waresWorkDay } from '../wares/wares-work';
 import { carpentryHelp, workCarpenters } from '../crafts/carpentry';
 import {
   addHaulTrips,
@@ -18,6 +19,7 @@ import { walkPurchases } from '../crafts/craft-buying';
 import { gainPractice } from '../crafts/craft-skill';
 import { ironTripShares } from '../crafts/cart-iron';
 import { smithBellowsToday, workCrafts, type SmithSupply } from '../crafts/crafts';
+import { charcoalCarryDay, mergeCarryDays } from '../crafts/charcoal-pole';
 import { mow, mowingRemaining, recordMowingLabor } from '../livestock/hay';
 import { herdingDay, recordHerding } from '../livestock/herding';
 import { workSlaughter } from '../livestock/livestock';
@@ -44,7 +46,6 @@ import {
   oreDemand,
   paySmithCarts,
   reachableFelling,
-  smithFetchPlans,
   taskCarryDemand,
   type CartJobsDay,
   type SmithCartsDay,
@@ -96,6 +97,11 @@ export interface CommonWork {
   readonly repairs: { dwellingId: number; manDays: number }[];
   readonly weedMen: number;
   readonly extraMow: number;
+  /**
+   * Práce na zboží ze zbytku práce (`waresWorkDay`; člověkodny): vybrání brtí a zpracování kůží
+   * a kožešin v domácnosti – to jen z volné práce žen (`womenFreeLabor`).
+   */
+  readonly wares: number;
   readonly game: SmallGameResult;
 }
 
@@ -288,12 +294,13 @@ export function smithHerdingTravel(
   // uhlí a ruda vozem (crafts.md – Uhlí a ruda kováře): sedlák jede z práce vsi – vozy v pořadí
   // přednosti, dokud na sedláka práce vsi zbyla; co vůz nepřiveze, donesou pěšky
   const smithCarts = paySmithCarts(jobs, allocation.carting);
-  // kdo dnes nosí uhlí do pracujících kováren – synové 10–13 ten den nepasou
-  const fetchPlans = new Map([
-    ...restingFetch,
-    ...smithFetchPlans(state, day, deliveries, smithCarts, resting, false),
-  ]);
-  const busy = new Set([...fetchPlans.values()].flatMap((f) => f.youngsters.ids));
+  // odnos uhlí na tyči do pracujících kováren (workshops.md – Uhlíř – odnos uhlí na tyči) – syn
+  // 12–13 u tyče ten den nepase ani nešlape měch
+  const fetchPlans = mergeCarryDays(
+    restingFetch,
+    charcoalCarryDay(state, day, deliveries, smithCarts, resting, false),
+  );
+  const busy = new Set(fetchPlans.busy);
   // měchař u tavby (production-chains.md – Kovář): syn 10–13, který šlape měch, ten den nepase
   const bellows = smithBellowsToday(state, day, resting, busy);
   for (const helper of bellows.values()) if (helper?.kind === 'son') busy.add(helper.personId);
@@ -375,7 +382,7 @@ function buildDay(
   labor: { common: number; men: number },
   fellingBefore: Map<Construction, { remaining: number; road: number }>,
   stone: StoneCarts,
-): Omit<CommonWork, 'weedMen' | 'extraMow' | 'game'> & { freeLabor: number } {
+): Omit<CommonWork, 'weedMen' | 'extraMow' | 'wares' | 'game'> & { freeLabor: number } {
   const { state, day, coverage, landscape, daylight, demand } = ctx;
   const { access } = carts;
   const { households, repairNeeds, repairNeed, productivity, resting } = people;
@@ -453,16 +460,19 @@ function churchSitesBefore(
  * Pletí jednou a rychle; Martin 9. 11. 2026: „pletí obstarají ženy a děti“) – co děti a ženy do
  * konce okna nestihnou; seč navíc pro růst stád (oxen.md – Seno, dvě seče; Martin 19. 10. 2026:
  * „pokud se něco staví, tak čas věnují primárně té stavbě“) – pěšky, bez vozů, co nestihne do
- * konce okna, zůstane neposečené; nehladovějící ves chytá ryby a zajíce ze zbytku.
+ * konce okna, zůstane neposečené; domácnosti ze zbytku zpracují kůže a kožešiny (hides-honey.md –
+ * Zpracování v domácnosti; i v hladu) – jen z volné práce žen `women` (`womenFreeLabor`) – a
+ * nehladovějící ves chytá ryby a zajíce z toho, co zbude.
  */
 function freeLaborDay(
   ctx: WorkDay,
   tasks: DayTaskList,
   allocation: DayAllocation,
   fieldWork: FieldWorkDone[],
-  freeLabor: number,
+  labor: { free: number; women: number | undefined },
   game: SmallGameResult,
-): { weedMen: number; extraMow: number; game: SmallGameResult } {
+): { weedMen: number; extraMow: number; wares: number; game: SmallGameResult } {
+  const { free: freeLabor, women } = labor;
   const { state, day } = ctx;
   const { dayTasks } = tasks;
   let weedMen = 0;
@@ -479,10 +489,12 @@ function freeLaborDay(
   }
   const extraMow = Math.max(0, Math.min(freeLabor - weedMen, mowingRemaining(state, day)));
   if (extraMow > EPSILON) mow(state, extraMow, day);
+  const rest = freeLabor - weedMen - extraMow;
+  const wares = waresWorkDay(state, day, rest, ctx.landscape, women);
   if (!state.hungry) {
-    game = smallGameDay(state, day, freeLabor - weedMen - extraMow, false);
+    game = smallGameDay(state, day, rest - wares, false);
   }
-  return { weedMen, extraMow, game };
+  return { weedMen, extraMow, wares, game };
 }
 
 /**
@@ -526,8 +538,36 @@ export function commonWorkDay(
     hauled.fellingBefore,
     stone,
   );
-  const free = freeLaborDay(ctx, tasks, allocation, applied.fieldWork, freeLabor, game);
+  const women = womenFreeLabor(people, allocation, common - menBuild);
+  const free = freeLaborDay(
+    ctx,
+    tasks,
+    allocation,
+    applied.fieldWork,
+    { free: freeLabor, women },
+    game,
+  );
   return { ...built, ...free };
+}
+
+/**
+ * Volná práce žen po jejich denních úlohách (population.md – Práce, Stavby staví muži; Martin
+ * 14. 11. 2026: „domácí zpracování kůže měly na starosti spíš ženy“) – jen z ní domácnosti
+ * zpracují kůže a kožešiny (`waresWorkDay`). Je to díl společné práce, který na stavby nejde
+ * (`notBuild` = `common − build` po vozech s kládami a drobné zvěři hladové vsi): ženy nesou napřed
+ * denní minimum a úlohy dne (`allocateDay`). Opravy obydlí, údržba opevnění, pletí mužů, seč navíc
+ * a brtě berou napřed ze zbytku práce mužů (návrh Clauda) – zpracování dostane nejvýš tenhle díl
+ * a nejvýš to, co ze zbytku zbude. Bez pohlaví (vsi před příbuzenstvím – `withKinship`) nebo bez
+ * dílu mužů (`build`) undefined – zpracování bere jako dřív z celého zbytku.
+ */
+function womenFreeLabor(
+  people: DayPeople,
+  allocation: DayAllocation,
+  notBuild: number,
+): number | undefined {
+  if (allocation.build === undefined) return undefined;
+  if (!people.villagers.some((p) => p.sex !== undefined)) return undefined;
+  return Math.max(0, notBuild);
 }
 
 /**
@@ -548,7 +588,7 @@ export function craftsDay(
   const { restingFetch } = cartJobs;
   const { fetchPlans, bellows, smithCarts } = travel;
   const supply: SmithSupply = {
-    fetch: fetchPlans,
+    carry: fetchPlans,
     burners,
     bellows,
     oreCarts: new Map(
@@ -582,9 +622,12 @@ export function craftsDay(
     addCartDemand(state, day, demand, ploughing);
   }
   // praxe řemeslníků a učňů (crafts.md – Učení řemesla): dílny, které dnes pracovaly, a kovárny,
-  // kde synové nosili uhlí, i když kovář pracoval se vsí
-  if (crafts.size > 0 || restingFetch.size > 0) {
-    gainPractice(state, day, crafts, restingFetch, travelling);
+  // jejichž kovář nebo syn nesl s uhlířem uhlí na tyči, i když kovář pracoval se vsí
+  const carried = new Set(
+    restingFetch.pairs.filter((p) => p.partner.kind !== 'burner-son').map((p) => p.smithId),
+  );
+  if (crafts.size > 0 || carried.size > 0) {
+    gainPractice(state, day, crafts, carried, travelling);
   }
   return workshops;
 }

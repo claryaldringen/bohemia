@@ -220,7 +220,7 @@ function dwellingShapes(
 ): Shape[] {
   const shapesOf = (d: PlacedDwelling): Shape[] => {
     const shape = dwellingShape(d);
-    if (d.craft) return workshopFootprints(d.craft, d.position, shape).map(freeShape);
+    if (d.craft) return workshopFootprints(d.craft, d.position, shape, d.type).map(freeShape);
     const footprint = freeShape(dwellingFootprint(d.type, d.position, shape));
     return d.plot ? [...plotShapes(landscape, d.plot), footprint] : [footprint];
   };

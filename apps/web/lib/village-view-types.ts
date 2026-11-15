@@ -110,15 +110,17 @@ export interface BuildOption {
   look?: { icon: string; name: string };
   /**
    * Cena druhu v rozcestníku, který se od stavby liší (ohrada koní: vyšší plot a koně zaplacení
-   * předem z přebytku (hřivny, zvířata, obilí) – horses.md, Koně se stavbou ohrady); klíč = id druhu.
+   * předem z přebytku (hřivny, zvířata, obilí) – horses.md, Koně se stavbou ohrady); u řemeslné
+   * dílny nadzemní varianty `vypleteny` a `srub` (workshops.md – cena domu + přístřešek, rok
+   * varianty v `blocked`); klíč = id druhu.
    */
   variants?: Record<
     string,
     Pick<BuildOption, 'laborManDays' | 'upfront' | 'affordable' | 'blocked'> & {
-      /** Čím ves koně zaplatí (hřivny, zvířata, obilí) – ikony s čísly; prázdné, když nestačí. */
-      payment: { good: TradeGood; amount: number }[];
-      /** Rozšíření existující ohrady platbu nechce – dostupné podle surovin předem. */
-      extendAffordable: boolean;
+      /** Ohrada koní: čím ves koně zaplatí (hřivny, zvířata, obilí) – ikony s čísly; prázdné, když nestačí. */
+      payment?: { good: TradeGood; amount: number }[];
+      /** Ohrada koní: rozšíření existující ohrady platbu nechce – dostupné podle surovin předem. */
+      extendAffordable?: boolean;
     }
   >;
 }
@@ -740,6 +742,8 @@ export interface VillageView {
    * a obchod se sousedy; dokud zakladatelé první zemnici staví, null.
    */
   manor: VillageManor | null;
+  /** Zásoby zboží – kůže, kožešiny, med, vosk (hides-honey.md); null = ves žádné nemá. */
+  wares: VillageSummary['wares'];
   /** Divoká zvěř vsi – hrubé stavy druhů a podklady upozornění (wildlife.md); chybí = ještě není. */
   wildlife?: VillageWildlife;
   /**

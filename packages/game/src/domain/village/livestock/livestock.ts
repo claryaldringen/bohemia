@@ -1,3 +1,4 @@
+import { addSlaughterWares } from '../wares/wares';
 import { dateOfDayIndex, dayIndexOf, isLeapYear } from '../../calendar';
 import { dairyDams, yearlyMilk } from './dairy';
 import { foxEggFactor } from '../wildlife/fox-eggs';
@@ -125,6 +126,7 @@ const SLAUGHTER_MONTH = 11;
 const CHICKENS_PER_DWELLING: Readonly<Record<DwellingType, number>> = {
   zemnice: 2,
   polozemnice: 3,
+  vypleteny: 3,
   srub: 3,
   dvorec: 4,
   'dvorec-srub': 4,
@@ -426,8 +428,9 @@ export function butcher(state: VillageState, kg: number): void {
 }
 
 /**
- * Zapíše kusy poražené dnes (`LivestockState.slaughtered` – jen hlášení pro scénu, simulace ho
- * nečte; mutuje stav). Nový den začíná znovu.
+ * Zapíše kusy poražené dnes (`LivestockState.slaughtered` – hlášení pro scénu) a přidá z nich
+ * kůže a kožešiny (`addSlaughterWares`, hides-honey.md – Zboží; mutuje stav). Nový den začíná
+ * znovu.
  */
 export function noteSlaughtered(
   state: VillageState,
@@ -436,6 +439,7 @@ export function noteSlaughtered(
   heads: number,
 ): void {
   if (heads <= EPSILON) return;
+  addSlaughterWares(state, species, heads);
   const livestock = ensureLivestock(state);
   if (livestock.slaughtered?.day !== day) livestock.slaughtered = { day, heads: {} };
   const today = livestock.slaughtered.heads;

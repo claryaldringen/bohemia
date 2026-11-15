@@ -21,6 +21,7 @@ import {
   unmarriedHere,
 } from './families';
 import { withKinship } from './kinship';
+import { HOUSE_TYPES_BEST_FIRST, isHouseType } from '../buildings/log-house';
 import { isEmptyLogHouse, isLogHouse, settleLogHouse } from './log-house-settle';
 import { moveIn } from './move-in';
 import {
@@ -157,17 +158,22 @@ export function settleNewDwelling(state: VillageState, day: number, dwellingId: 
 }
 
 /**
- * Krok 6 (kinship.md – Domácnosti): napřed prázdné nadzemní domy (podle id) – jen lidé z pořadí
- * (`settleLogHouse`, log-house.md – Kdo v domě bydlí; návrh Clauda: dřív než ostatní obydlí, aby
- * syn vojvody nezabral polozemnici, na kterou čeká obyčejná rodina, a obydlí, které tím uvolní,
- * osídlil ještě týž den). Ostatní úplně prázdná obydlí (podle id) osídlí rodiny ženatých synů
+ * Krok 6 (kinship.md – Domácnosti): napřed prázdné nadzemní domy od nejlepšího (srub, pak vypletený
+ * dům, každý druh podle id) – jen lidé z pořadí (`settleLogHouse`, log-house.md – Kdo v domě bydlí;
+ * návrh Clauda: dřív než ostatní obydlí, aby syn vojvody nezabral polozemnici, na kterou čeká
+ * obyčejná rodina, a obydlí, které tím uvolní, osídlil ještě týž den). Vypletený dům, ze kterého se
+ * elita přestěhuje do srubu, osídlí ještě týž den další z pořadí (log-house.md – Dům s vypletenými
+ * stěnami). Ostatní úplně prázdná obydlí (podle id) osídlí rodiny ženatých synů
  * (`settleNewDwelling`), co zůstane prázdné, svobodní synové z plných domů (`loneSons`) – až po
  * prvním kole, aby rodina měla přednost.
  */
 export function occupyEmptyDwellings(state: VillageState, day: number): void {
   pruneDisplaced(state);
-  for (const d of [...state.dwellings].sort((a, b) => a.id - b.id)) {
-    if (isEmptyLogHouse(state, d)) settleLogHouse(state, day, d.id);
+  for (const type of HOUSE_TYPES_BEST_FIRST) {
+    const houses = state.dwellings.filter((d) => d.type === type).sort((a, b) => a.id - b.id);
+    for (const d of houses) {
+      if (isEmptyLogHouse(state, d)) settleLogHouse(state, day, d.id);
+    }
   }
   const empty = (): Dwelling[] => {
     const occupied = new Set(state.people.map((p) => p.dwellingId));
@@ -216,7 +222,8 @@ export function availableSettlers(state: VillageState, day: number): number {
       c.kind === 'dwelling' &&
       c.dwellingId === null &&
       c.relocates === undefined &&
-      c.dwellingType !== 'srub',
+      // nadzemní dílna (s `craft`) je dílna – čeká na ni rodina jako na dnešní
+      (c.craft !== undefined || c.dwellingType === null || !isHouseType(c.dwellingType)),
   ).length;
   const empty = state.dwellings.filter(
     (d) => occupants(state, d.id).length === 0 && !isDisused(d) && !isLogHouse(d),

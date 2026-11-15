@@ -1,3 +1,4 @@
+import { waresDay } from '../wares/wares';
 import { recordFelledSacredOn } from '../people/desecration';
 import { TOTAL_GAME_DAYS, dateOfDayIndex } from '../../calendar';
 import type { Landscape, ObstacleLayer } from '../../landscape';
@@ -8,6 +9,7 @@ import { finishPurchases, startPurchases } from '../crafts/craft-buying';
 import { cartIronDay } from '../crafts/cart-iron';
 import { cloneState } from './clone';
 import { updateKilnRemnants } from '../crafts/charcoal';
+import { updateCampRemnants } from '../crafts/burner-camp';
 import { craftCoverage, wearCraftStocks } from '../crafts/crafts';
 import { updateHappiness } from '../people/happiness';
 import { occupyEmptyDwellings } from '../people/households';
@@ -310,6 +312,8 @@ function storesAndHerdsDay(
   state.chronicle.push(...overgrowthDay(state, day, obstacles ?? landscape));
   // stáda, seno a ohrady: mláďata, seč, porážka, vejce, zimní krmení, spřežení (diet.md, oxen.md)
   state.chronicle.push(...husbandryDay(state, day, coverage.tools, landscape, obstacles));
+  // zboží vsi: med a vosk z klátů (hides-honey.md)
+  waresDay(state, day, landscape);
 }
 
 /** Plán dne: posvátné duby, paměť hladu, obrácení, nový hospodářský rok a díly na řadě. Vrací díly, které čekají. */
@@ -397,7 +401,7 @@ function afterWorkDay(
   // kování vozů (wagons.md – Kování vozů): vůz s hotovou dřevěnou prací ze zásoby nástrojů, ves bez
   // kováře pošle tesaře nebo jeho syna do nejbližší vsi s kovářem; kdo se vrátil, vůz dokončí
   state.chronicle.push(...cartIronDay(state, day, landscape));
-  finishConstructions(state, day);
+  finishConstructions(state, day, landscape ?? undefined);
   // dvorec vojvody – po zániku dvorce nejstarší obydlí, starší ves dvorec dostane (trade.md)
   keepManor(state);
   decideRebuilds(state, day, obstacles, landscape);
@@ -420,7 +424,10 @@ function afterWorkDay(
   npcMasonryDay(state, day, landscape, obstacles);
 }
 
-/** Zbytky jam, rudišť a milířů; obilné jámy pod dnešními novými stavbami (`idsBefore`). */
+/**
+ * Zbytky jam, rudišť, milířů a zemnic uhlířů; obilné jámy pod dnešními novými stavbami
+ * (`idsBefore`).
+ */
 function remnantsDay(
   state: VillageState,
   day: number,
@@ -431,6 +438,8 @@ function remnantsDay(
   updateRuins(state, day, landscape);
   updateOrePits(state, day);
   updateKilnRemnants(state, day);
+  // opuštěné zemnice uhlířů u milířů chátrají a zmizí (workshops.md – Uhlíř – zemnice u milíře)
+  updateCampRemnants(state, day);
   // obilné jámy pod stavbou, kterou ves dnes začala, zmizí – vesničané zrno přendají
   // (production-chains.md – Obilné jámy). Podmínka: každá stavba, kterou ves založí sama, dostane
   // id z `nextId` a všechny kroky, které je zakládají, běží před touto kontrolou – obnova sadu

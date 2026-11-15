@@ -4,8 +4,10 @@ import { MultiMaterial } from '@babylonjs/core/Materials/multiMaterial';
 import { Mesh } from '@babylonjs/core/Meshes/mesh';
 import { VertexData } from '@babylonjs/core/Meshes/mesh.vertexData';
 import { WovenFenceRenderer } from './woven-fence-renderer';
+import { campLook, campUp, campsKey } from './burner-camp-layout';
 import type { Scene } from '@babylonjs/core/scene';
 import {
+  BURNER_CAMP,
   dateOfDayIndex,
   DRAFT_OXEN,
   OFFICIAL_WORLD,
@@ -17,6 +19,7 @@ import {
   type WorldClock,
 } from '@bohemia/game';
 import type {
+  SceneBurnerCamp,
   SceneKiln,
   SceneKilnRemnant,
   SceneThreshingFloor,
@@ -33,6 +36,7 @@ import { OreSiteRenderer } from './ore-sites';
 import { GrainPitRenderer } from './grain-pits';
 import { ThreshingFloorRenderer } from './threshing-floor-renderer';
 import { CraftYardRenderer } from './craft-yard-renderer';
+import { WaresRenderer } from './wares-renderer';
 import { smeltVents, type CraftYardView } from './craft-yard-layout';
 import { floorSiteLook } from './threshing-floor-layout';
 import {
@@ -110,7 +114,6 @@ import { houseFirePlumes } from './house-fire';
 import { gameDayAt } from './smoke-schedule';
 import type { SceneDwelling, SceneRuin } from './village-types';
 import {
-  CRAFT_MODEL,
   forestKilnAnchor,
   kilnLook,
   milirCircle,
@@ -118,6 +121,8 @@ import {
   kilnVents,
   milirHideShape,
   milirPlace,
+  shedOrigin,
+  workshopModelKeys,
   workshopVents,
   type KilnLook,
 } from './workshop-layout';
@@ -170,6 +175,9 @@ import {
   setInstances,
   shapeableAs,
   siteKind,
+  houseModelOf,
+  houseProgress,
+  workshopSiteOf,
 } from './village-renderer-shared';
 import {
   constructionSite,
@@ -251,6 +259,7 @@ export class VillageRenderer {
   private readonly threshing: ThreshingFloorRenderer;
   /** Dvory kovárny a hrnčíře – redukční pec, houba, hřivny, jáma s hlínou (craft-yard-renderer.ts). */
   private readonly craftYards: CraftYardRenderer;
+  private readonly wares: WaresRenderer;
   private readonly pegs: StakingPegs;
   private readonly orchards: OrchardRenderer;
   private readonly sacred: SacredRenderer;
@@ -348,6 +357,12 @@ export class VillageRenderer {
       prepareMaterial: prepareDwellingMaterial,
     });
     this.craftYards = new CraftYardRenderer(scene, { decalHeight: context.decalHeight });
+    this.wares = new WaresRenderer(scene, {
+      groundHeight: context.groundHeight,
+      addShadowCaster: (mesh) => context.addShadowCaster(mesh),
+      onAsyncChange: () => context.onAsyncChange(),
+      prepareMaterial: prepareDwellingMaterial,
+    });
     this.orchards = new OrchardRenderer(scene, context);
     this.plots = new HomesteadRenderer(scene, {
       groundHeight: context.groundHeight,
@@ -431,6 +446,7 @@ export class VillageRenderer {
     const floors = this.threshing.update(village.threshingFloors ?? []) || floorDecals;
     const ruins = this.updateRuins(village.ruins ?? []);
     const yards = this.craftYards.update(craftYardViews(village.dwellings));
+    const wares = this.wares.update({ dwellings: village.dwellings, wares: village.wares });
     if (dwellings || ruins) this.updatePitCuts();
     // ladicí orba za herní den: dnešní díly orby na začátku dne, zbytek přibývá brázdou za rádlem
     this.ploughDay = this.ploughDayOf(village);
@@ -475,7 +491,8 @@ export class VillageRenderer {
       kilns ||
       remnants ||
       floors ||
-      yards
+      yards ||
+      wares
     );
   }
 
@@ -961,15 +978,20 @@ export class VillageRenderer {
     return views;
   }
 
-  /** Kreslí srub stupně `stage` místo hotového modelu zbytky (díly staveniště už jsou načtené)? */
+  /**
+   * Kreslí nadzemní dům stupně `stage` místo hotového modelu zbytky (díly staveniště už jsou
+   * načtené)?
+   */
   private remainsShown(type: DwellingType, stage: DecayStage): boolean {
-    return logHouseRemains(type, stage) !== null && this.siteParts.has(`${type}-stones`);
+    const parts = logHouseRemains(type, stage);
+    return parts !== null && parts.every((r) => this.siteParts.has(r.part));
   }
 
   /** Načte modely obydlí ve vsi, které se nenačítají hned (`LAZY_DWELLING_TYPES`). */
   private loadLazyDwellings(dwellings: readonly Pick<SceneDwelling, 'type' | 'craft'>[]): void {
     for (const type of LAZY_DWELLING_TYPES) {
-      if (dwellings.some((d) => !d.craft && d.type === type)) void this.loadLazyDwelling(type);
+      // dům nadzemní dílny (workshops.md) je model domu toho typu
+      if (dwellings.some((d) => houseModelOf(d) === type)) void this.loadLazyDwelling(type);
     }
   }
 
@@ -996,6 +1018,21 @@ export class VillageRenderer {
     const [center, ...rim] = milirFootPoints(position);
     const mean = rim.reduce((sum, [x, z]) => sum + h(x, z), 0) / rim.length;
     return Math.min(h(center![0], center![1]), mean) - DWELLING_SINK_M;
+  }
+
+  /** Pata zemnice u milíře: nižší z výšky středu a průměru rohů půdorysu, kousek zapuštěná. */
+  private campBaseHeight(camp: Pick<SceneBurnerCamp, 'x' | 'z' | 'rotation'>): number {
+    const h = this.context.groundHeight;
+    const w = BURNER_CAMP.footprintM.width / 2;
+    const d = BURNER_CAMP.footprintM.depth / 2;
+    const corners = [
+      [-w, -d],
+      [w, -d],
+      [w, d],
+      [-w, d],
+    ].map(([lx, lz]) => localToWorld(camp, lx!, lz!));
+    const mean = corners.reduce((sum, [x, z]) => sum + h(x, z), 0) / corners.length;
+    return Math.min(h(camp.x, camp.z), mean) - DWELLING_SINK_M;
   }
 
   /**
@@ -1058,6 +1095,7 @@ export class VillageRenderer {
     this.grainPits.dispose();
     this.threshing.dispose();
     this.craftYards.dispose();
+    this.wares.dispose();
     this.plots.dispose();
     // ohrady uvolní své ploty – před sdílenými ploty
     this.pens.dispose();
@@ -1313,7 +1351,7 @@ export class VillageRenderer {
       if (current) for (const mesh of current.meshes) mesh.dispose();
       const state = dwelling.built
         ? null
-        : constructionState(siteKind(dwelling), dwelling.progress);
+        : constructionState(siteKind(dwelling), houseProgress(dwelling));
       // nadzemní srub stojí na zemi – terén pod ním zůstává celý (log-house.md – Scéna)
       const dug = hasPit(dwelling.type) && (!state || state.pitDepth > 0);
       // dílna uhlíře je jen zemnice – milíř je samostatná stavba u skácených buků (crafts.md –
@@ -1555,8 +1593,14 @@ export class VillageRenderer {
       // kovář při tavbě topí v redukční peci před kovárnou, ne ve výhni (craft-yard-layout.ts)
       const vents =
         d.craft === 'smith' && d.yard?.task === 'smelt'
-          ? smeltVents({ id: d.id, craft: d.craft, position: d.position, frame: sceneFrame(d) })
-          : workshopVents(d.craft, d.position, sceneFrame(d));
+          ? smeltVents({
+              id: d.id,
+              craft: d.craft,
+              position: d.position,
+              frame: sceneFrame(d),
+              type: d.type,
+            })
+          : workshopVents(d.craft, d.position, sceneFrame(d), d.type);
       for (const vent of vents) {
         const milir = vent.kind === 'milir';
         sources.push({
@@ -1634,17 +1678,33 @@ export class VillageRenderer {
     // milíře u dílen i v lese, které se chystají, nebo se rozebírají (koše na uhlí)
     const kilnSites = this.kilnPlaces().filter((k) => k.look.site !== null || k.look.baskets);
     const remains = this.logHouseRemainViews();
+    // rozestavěné zemnice u milíře – tři klády u jámy (workshops.md – Uhlíř, zemnice); opuštěné
+    // nedostavěné taky, klády zarůstají (sesedají jako opuštěná zemnice)
+    const campSites = (this.village.burnerCamps ?? []).filter(
+      (c) => campLook(c).part === 'milir-zemnice-logs',
+    );
     const key = [
       ...sites.map(dwellingKey),
       ...sacredSites.map(sacredBuildingKey),
       ...kilnSites.map((k) => k.key),
+      campsKey(campSites),
       ...remains.map((r) => r.key),
     ].join(';');
     if (key === this.siteKey) return false;
-    if (sites.length > 0 || sacredSites.length > 0 || kilnSites.length > 0 || remains.length > 0) {
+    if (
+      sites.length > 0 ||
+      sacredSites.length > 0 ||
+      kilnSites.length > 0 ||
+      remains.length > 0 ||
+      campSites.length > 0
+    ) {
       void this.loadConstruction();
     }
-    if (sites.some((d) => d.craft) || kilnSites.some((k) => k.look.site !== null)) {
+    if (
+      sites.some((d) => d.craft) ||
+      kilnSites.some((k) => k.look.site !== null) ||
+      campSites.length > 0
+    ) {
       void this.loadCraftConstruction();
     }
     this.loadLazyDwellings([...sites, ...remains.map((r) => r.at)]);
@@ -1658,7 +1718,8 @@ export class VillageRenderer {
     };
     for (const d of sites) {
       const kind = siteKind(d);
-      const state = constructionState(kind, d.progress);
+      const shedSite = d.craft ? workshopSiteOf(d.craft, d.type, d.progress) : null;
+      const state = constructionState(kind, shedSite?.houseProgress ?? d.progress);
       const base = this.baseHeight(d);
       const rotationY = d.position.rotation;
       const frame = sceneFrame(d);
@@ -1671,6 +1732,13 @@ export class VillageRenderer {
         shape: frame,
       };
       for (const part of state.parts) push(`${kind}-${part}`, house);
+      // přístřešek nadzemní dílny stojí u boční stěny, varianta rozměrů ho nenatahuje
+      if (shedSite && shedSite.shed.length > 0) {
+        const o = shedOrigin(d.type, frame);
+        const [sx, sz] = localToWorld(d.position, o.x, o.z);
+        const shed = { x: sx, y: base, z: sz, rotationY, scale: 1 };
+        for (const part of shedSite.shed) push(part, shed);
+      }
       const inward = d.plot ? plotInward(d.plot.variant) : undefined;
       for (const { prop, scale } of state.props) {
         // hromada hlíny je vlastní síť staveniště (leží na terénu, barvy jako jáma)
@@ -1729,6 +1797,15 @@ export class VillageRenderer {
           scale: pile,
         });
       }
+    }
+    for (const camp of campSites) {
+      push('milir-zemnice-logs', {
+        x: camp.x,
+        y: this.campBaseHeight(camp) - campLook(camp).sinkM,
+        z: camp.z,
+        rotationY: camp.rotation,
+        scale: 1,
+      });
     }
     for (const b of sacredSites) {
       const kind = SACRED_SITE_KIND[b.kind];
@@ -1824,10 +1901,16 @@ export class VillageRenderer {
     const built = this.village.dwellings.filter((d) => d.built);
     // milíře v lese, které už stojí – pálí se, nebo vypálené čekají a rozebírají se
     const kilns = (this.village.kilns ?? []).filter((k) => kilnLook(k).model !== null);
-    const key = [...built.map(dwellingKey), ...kilns.map(kilnKey)].join(';');
+    // hotové a opuštěné zemnice u milíře (rozestavěné jsou klády staveniště – `updateConstruction`)
+    const camps = (this.village.burnerCamps ?? []).filter(
+      (c) => campLook(c).part === 'milir-zemnice',
+    );
+    const key = [...built.map(dwellingKey), ...kilns.map(kilnKey), campsKey(camps)].join(';');
     if (key === this.builtKey) return false;
     if (built.length > 0 || kilns.length > 0) void this.loadModels();
-    if (built.some((d) => d.craft) || kilns.length > 0) void this.loadCraftModels();
+    if (built.some((d) => d.craft) || kilns.length > 0 || camps.length > 0) {
+      void this.loadCraftModels();
+    }
     this.loadLazyDwellings(built);
     if (!this.loading) return false;
     this.builtKey = key;
@@ -1842,8 +1925,12 @@ export class VillageRenderer {
     for (const d of built) {
       const stage = dwellingDecay(d);
       // zřícený nadzemní srub kreslí jeho zbytky z dílů staveniště (`logHouseRemains`)
-      if (hasPit(d.type) ? decayReady && stage > 0 : this.remainsShown(d.type, stage)) continue;
-      push(d.craft ? CRAFT_MODEL[d.craft] : d.type, {
+      // (zbytky srubu se u dílny nekreslí – `logHouseRemainViews`)
+      if (hasPit(d.type) ? decayReady && stage > 0 : !d.craft && this.remainsShown(d.type, stage)) {
+        continue;
+      }
+      const keys = d.craft ? workshopModelKeys(d.craft, d.type) : null;
+      push(keys ? keys.house : d.type, {
         x: d.position.x,
         y: this.baseHeight(d),
         z: d.position.z,
@@ -1851,9 +1938,32 @@ export class VillageRenderer {
         scale: 1,
         shape: sceneFrame(d),
       });
+      // přístřešek nadzemní dílny u boční stěny (workshops.md – Ve scéně)
+      if (keys?.side) {
+        const o = shedOrigin(d.type, sceneFrame(d));
+        const [sx, sz] = localToWorld(d.position, o.x, o.z);
+        push(keys.side, {
+          x: sx,
+          y: this.baseHeight(d),
+          z: sz,
+          rotationY: d.position.rotation,
+          scale: 1,
+        });
+      }
     }
     for (const kiln of kilns) {
       push('milir', this.milirInstance(forestKilnAnchor(kiln), kilnLook(kiln).model!));
+    }
+    for (const camp of camps) {
+      const look = campLook(camp);
+      push('milir-zemnice', {
+        x: camp.x,
+        y: this.campBaseHeight(camp) - look.sinkM,
+        z: camp.z,
+        rotationY: camp.rotation,
+        scale: 1,
+        ...(look.tiltDeg > 0 ? { up: campUp(camp, look.tiltDeg) } : {}),
+      });
     }
     for (const [model, mesh] of this.models) {
       if (mesh) setInstances(mesh, instances.get(model) ?? []);
@@ -1900,7 +2010,16 @@ export class VillageRenderer {
 function carpenterYardViews(dwellings: SceneVillage['dwellings']): CraftYardView[] {
   return dwellings.flatMap((d): CraftYardView[] =>
     d.built && d.craft === 'carpenter' && d.yard?.cart
-      ? [{ id: d.id, craft: d.craft, position: d.position, frame: sceneFrame(d), yard: d.yard }]
+      ? [
+          {
+            id: d.id,
+            craft: d.craft,
+            position: d.position,
+            frame: sceneFrame(d),
+            type: d.type,
+            yard: d.yard,
+          },
+        ]
       : [],
   );
 }
@@ -1914,6 +2033,7 @@ function craftYardViews(dwellings: SceneVillage['dwellings']): CraftYardView[] {
             craft: d.craft,
             position: d.position,
             frame: sceneFrame(d),
+            type: d.type,
             ...(d.yard ? { yard: d.yard } : {}),
           },
         ]

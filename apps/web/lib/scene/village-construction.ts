@@ -4,7 +4,13 @@
 // fázích obydlí (hrnčíř a kovář polozemnice, uhlíř zemnice) a přidávají své. Souřadnice modelu
 // jako `localToWorld` (x napříč, z k vchodu).
 import { PIT_SHAPES } from './dwelling-pit';
-import type { DwellingType, WallKind } from '@bohemia/game';
+import {
+  DWELLINGS,
+  workshopCost,
+  type Craft,
+  type DwellingType,
+  type WallKind,
+} from '@bohemia/game';
 
 /**
  * Řemeslné stavby (docs/design/crafts.md): hrnčíř, kovář, tesař (docs/design/wagons.md – Tesař),
@@ -44,6 +50,7 @@ export const CONSTRUCTION_BASE: Record<ConstructionKind, DwellingType | null> = 
   dvorec: 'dvorec',
   srub: 'srub',
   'dvorec-srub': 'dvorec-srub',
+  vypleteny: 'vypleteny',
   hrncir: 'polozemnice',
   kovar: 'polozemnice',
   tesar: 'polozemnice',
@@ -196,6 +203,21 @@ export const CONSTRUCTION_PHASES: Record<ConstructionKind, readonly Construction
     { id: 'fence', label: 'polský plot – kůly, pak proplétání větví', from: 0.84, to: 0.94 },
     { id: 'beds', label: 'záhony a zelenina', from: 0.94, to: 1 },
   ],
+  // vypletený dům (log-house.md – Dům s vypletenými stěnami, návrh Clauda): bez jámy – drn, kůly
+  // zaražené do země, krov, proutěný výplet stěn a štítů po řadách, omazání hlínou po řadách,
+  // došky, hřeben; pak pozemek jako polozemnice
+  vypleteny: [
+    { id: 'layout', label: 'vytyčení – kolíky a provázek', from: 0, to: 0.04 },
+    { id: 'turf', label: 'sejmutí drnu', from: 0.04, to: 0.08 },
+    { id: 'posts', label: 'kůly zaražené do země', from: 0.08, to: 0.2 },
+    { id: 'frame', label: 'vaznice, sloupy a krokve', from: 0.2, to: 0.3 },
+    { id: 'wattle', label: 'latě a proutěný výplet stěn a štítů', from: 0.3, to: 0.46 },
+    { id: 'daub', label: 'omazávání mazanicí', from: 0.46, to: 0.58 },
+    { id: 'thatch', label: 'došky po řadách', from: 0.58, to: 0.79 },
+    { id: 'finish', label: 'hřeben a kozy', from: 0.79, to: 0.85 },
+    { id: 'fence', label: 'polský plot – kůly, pak proplétání větví', from: 0.85, to: 0.94 },
+    { id: 'beds', label: 'záhony a zelenina', from: 0.94, to: 1 },
+  ],
   // srubový dvorec od roku 800: jako nadzemní dům, delší, řezby a plot pozemku se dvorem
   'dvorec-srub': [
     { id: 'layout', label: 'vytyčení – kolíky a provázek', from: 0, to: 0.03 },
@@ -285,6 +307,7 @@ export const THATCH_COURSES: Record<ConstructionKind, number> = {
   dvorec: 9,
   srub: 9,
   'dvorec-srub': 12,
+  vypleteny: 9,
   hrncir: 9,
   kovar: 9,
   tesar: 9,
@@ -368,6 +391,13 @@ export const SITE_PROP_PLACES: Record<ConstructionKind, PropPlaces> = {
   // drny, kmeny, sláma a nářadí mimo střechu, koš před vchodem až za okapem
   srub: {
     ...POLOZEMNICE_PLACES,
+    straw: { x: 1.4, z: -4.0, rotation: Math.PI / 2 },
+    basket: { x: -1.6, z: 4.2, rotation: 0 },
+  },
+  // vypletený dům: jako srub, proutí na výplet před přední stěnou mimo střechu
+  vypleteny: {
+    ...POLOZEMNICE_PLACES,
+    rods: { x: -1.6, z: -4.1, rotation: 0.1 },
     straw: { x: 1.4, z: -4.0, rotation: Math.PI / 2 },
     basket: { x: -1.6, z: 4.2, rotation: 0 },
   },
@@ -646,6 +676,10 @@ export function partSchedule(kind: ConstructionKind): PartRule[] {
     logHouseSchedule(kind, rules, within, series);
     return rules;
   }
+  if (kind === 'vypleteny') {
+    wattleHouseSchedule(rules, within, series);
+    return rules;
+  }
   if (base === null) {
     // milíř: kolíky po obvodu a fíra uprostřed, milířiště, věnec, polena, kryt, komín, průduchy
     rules.push({ part: 'stakes', from: 0, to: within('ring', 0.1) });
@@ -725,6 +759,43 @@ function logHouseSchedule(
   rules.push(...series('thatch', THATCH_COURSES[kind], 'thatch', 0.04, 0.92));
   rules.push({ part: 'ridge', from: within('finish', 0.1) });
   if (kind === 'dvorec-srub') rules.push({ part: 'carving', from: within('carve', 0.2) });
+}
+
+/** Řady proutěného výpletu a mazanice vypleteného domu – dvě řady stěn a štíty (dwellings.py). */
+const WATTLE_HOUSE_ROWS = 3;
+
+/**
+ * Díly vypleteného domu (build_wattle_house v tools/blender/dwellings.py): kolíky do kůlů, kůly
+ * stěn, krov, latě, proutěný výplet po řadách (stěny zdola, pak štíty), který zmizí pod mazanicí
+ * téže řady, ostění dveří s prahem, došky a hřeben. Valy ani kameny nemá.
+ */
+function wattleHouseSchedule(
+  rules: PartRule[],
+  within: (id: ConstructionPhaseId, t: number) => number,
+  series: (
+    name: string,
+    count: number,
+    id: ConstructionPhaseId,
+    from: number,
+    to: number,
+  ) => PartRule[],
+): void {
+  rules.push({ part: 'stakes', from: 0, to: within('posts', 0.1) });
+  rules.push({ part: 'piles', from: within('posts', 0.15) });
+  rules.push({ part: 'plates', from: within('frame', 0.05) });
+  rules.push({ part: 'posts', from: within('frame', 0.25) });
+  rules.push({ part: 'ridge-beam', from: within('frame', 0.4) });
+  rules.push(...series('rafters', RAFTER_PAIRS, 'frame', 0.5, 0.95));
+  rules.push({ part: 'laths', from: within('wattle', 0.05) });
+  rules.push({ part: 'doors', from: within('wattle', 0.1) });
+  for (let k = 1; k <= WATTLE_HOUSE_ROWS; k++) {
+    const t = (k - 1) / (WATTLE_HOUSE_ROWS - 1);
+    const daubFrom = within('daub', 0.1 + 0.7 * t);
+    rules.push({ part: `wattle-${k}`, from: within('wattle', 0.15 + 0.75 * t), to: daubFrom });
+    rules.push({ part: `daub-${k}`, from: daubFrom });
+  }
+  rules.push(...series('thatch', THATCH_COURSES.vypleteny, 'thatch', 0.04, 0.92));
+  rules.push({ part: 'ridge', from: within('finish', 0.1) });
 }
 
 /**
@@ -822,16 +893,17 @@ export function constructionState(kind: ConstructionKind, progress: number): Con
     };
   }
   const turf = phase('turf');
-  // nadzemní srub nekope – místo jámy kameny pod stěny; místo výpletu a mazanice prkenné štíty
+  // nadzemní srub nekope – místo jámy kameny pod stěny; místo výpletu a mazanice prkenné štíty;
+  // vypletený dům nekope ani nemá kameny – místo jámy kůly
   const pit = hasPhase(kind, 'dig');
-  const dig = phase(pit ? 'dig' : 'stones');
+  const dig = phase(pit ? 'dig' : hasPhase(kind, 'stones') ? 'stones' : 'posts');
   const frame = phase('frame');
   const wattle = phase(hasPhase(kind, 'wattle') ? 'wattle' : 'boards');
   const daub = phase(hasPhase(kind, 'daub') ? 'daub' : 'boards');
   const roof = phase(hasPhase(kind, 'moss') ? 'moss' : 'thatch');
   const finish = phase('finish');
-  // dřevo se začne brát se sloupy (zemnice), nebo s roubením (polozemnice)
-  const timberUse = base === 'zemnice' ? phase('posts') : phase('logs');
+  // dřevo se začne brát se sloupy (zemnice, kůly vypleteného domu), nebo s roubením (polozemnice)
+  const timberUse = base === 'zemnice' || !hasPhase(kind, 'logs') ? phase('posts') : phase('logs');
   const used = 1 - 0.6 * ramp(p, finish.from, finish.to);
   // polozemnice: zbytek hlíny se rozhrne na valy celý – na pozemku pak vyrostou záhony
   const fenced = hasPhase(kind, 'fence');
@@ -839,7 +911,11 @@ export function constructionState(kind: ConstructionKind, progress: number): Con
   add('spoil', pit && p >= dig.from, (0.3 + 0.7 * ramp(p, dig.from, dig.to)) * spoilLeft);
   add('turf', p >= turf.from, (0.4 + 0.6 * ramp(p, turf.from, turf.to)) * used);
   add('timber', p < frame.to, 1 - 0.65 * ramp(p, timberUse.from, frame.to));
-  add('rods', pit && p >= frame.from && p < wattle.to, 1 - 0.6 * ramp(p, wattle.from, wattle.to));
+  add(
+    'rods',
+    hasPhase(kind, 'wattle') && p >= frame.from && p < wattle.to,
+    1 - 0.6 * ramp(p, wattle.from, wattle.to),
+  );
   add('straw', p >= daub.from && p < roof.to, 1 - 0.7 * ramp(p, roof.from, roof.to));
   add('spade', p >= turf.from, 1);
   add('basket', p >= dig.from, 1);
@@ -955,5 +1031,79 @@ function sacredState(kind: SacredKind, p: number, parts: string[]): Construction
     trampled: 0.85 * ramp(p, 0.01, dig.from + 0.05),
     props,
     plot: PLOT_NONE,
+  };
+}
+
+/**
+ * Nejvyšší podíl práce nadzemní dílny, ve kterém se staví dům (workshops.md): uhlíř nemá přirážku
+ * za přístřešek, jeho přístřešek se přesto staví až na konci.
+ */
+const SHED_AFTER_HOUSE_MAX = 0.9;
+
+/** Podíl práce nadzemní dílny, ve kterém se staví dům – `DWELLINGS[type].cost ÷ workshopCost`. */
+export function workshopHouseShare(craft: Craft, type: DwellingType): number {
+  return Math.min(SHED_AFTER_HOUSE_MAX, DWELLINGS[type].cost / workshopCost(craft, type));
+}
+
+/** Díly přístřešku nadzemní dílny po sobě: [díl bez předpony „pristresek-<model>-“, od kdy 0–1]. */
+const SHED_STEPS: Record<Exclude<CraftKind, 'milir'>, readonly (readonly [string, number])[]> = {
+  hrncir: [
+    ['kiln-base', 0.6],
+    ['kiln-dome-1', 0.67],
+    ['kiln-dome-2', 0.74],
+    ['kiln-dome-3', 0.8],
+    ['kiln-mouth', 0.85],
+    ['shelf', 0.88],
+    ['wheel', 0.91],
+    ['pots', 0.94],
+    ['clay', 0.97],
+  ],
+  kovar: [
+    ['forge-hearth', 0.6],
+    ['forge-fire', 0.65],
+    ['forge-wall', 0.7],
+    ['forge-bellows', 0.75],
+    ['anvil', 0.8],
+    ['charcoal', 0.85],
+    ['trough', 0.9],
+    ['iron', 0.94],
+    ['yard', 0.97],
+  ],
+  tesar: [
+    ['trestles', 0.6],
+    ['beam', 0.7],
+    ['block', 0.78],
+    ['beams', 0.85],
+    ['wheels', 0.92],
+    ['chips', 0.97],
+  ],
+  uhlir: [['wood', 0.6]],
+};
+
+/**
+ * Staveniště nadzemní dílny (workshops.md – Ve scéně): dům se staví v podílu práce
+ * `workshopHouseShare` (`houseProgress` 0–1 pro `constructionState(type, …)`), pak přibudou
+ * sloupky přístřešku, krokve, došky a jeho obsah (`shed` – jména dílů v construction.glb
+ * „pristresek-<model>-…“). Hotová dílna je celá.
+ */
+export function workshopSiteParts(
+  craft: Craft,
+  type: DwellingType,
+  model: Exclude<CraftKind, 'milir'>,
+  progress: number,
+): { houseProgress: number; shed: string[] } {
+  const p = Math.min(1, Math.max(0, progress));
+  const share = workshopHouseShare(craft, type);
+  if (p < share) return { houseProgress: p / share, shed: [] };
+  const q = (p - share) / (1 - share);
+  const steps: readonly (readonly [string, number])[] = [
+    ['posts', 0],
+    ['rafters', 0.25],
+    ['thatch', 0.45],
+    ...SHED_STEPS[model],
+  ];
+  return {
+    houseProgress: 1,
+    shed: steps.filter(([, from]) => q >= from).map(([part]) => `pristresek-${model}-${part}`),
   };
 }

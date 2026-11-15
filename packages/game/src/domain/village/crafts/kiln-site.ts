@@ -1,8 +1,9 @@
 import { detCos, detSin, type Landscape, type ObstacleLayer } from '../../landscape';
 import { kilnViewBlockers } from './charcoal';
+import { campRotation, type CampSite } from './burner-camp';
 import { obstacleChangesAt, obstacleStatus } from '../core/obstacles';
-import { checkKilnSite, placementVillageOf } from '../placement/placement';
-import { KILN_SITE } from '../rules';
+import { checkCampSite, checkKilnSite, placementVillageOf } from '../placement/placement';
+import { BURNER_CAMP, KILN_SITE } from '../rules';
 import type { VillageState } from '../types';
 
 // Místo milíře u dávky buků (crafts.md – Milíř u skácených buků; Martin 20. 10. 2026: „uhlíř udělá
@@ -11,7 +12,8 @@ import type { VillageState } from '../types';
 // `checkKilnSite` (placement.ts – ne na poli, cestě, v sadu, na hřbitově, v ohradě, u domů, pod
 // posvátným dubem ani na háji). Přednost má místo, kde milíř bude vidět z výchozí kamery (od jihu
 // nezakrývá dospělý strom – `kilnViewBlockers`, KILN_SITE.view): okraj lesa, paseka, louka.
-// Deterministicky – body kružnic přes det-math.
+// Stejně se u milíře hledá místo zemnice uhlíře (workshops.md – Uhlíř – zemnice u milíře –
+// `findCampSite`, kontrola `checkCampSite`). Deterministicky – body kružnic přes det-math.
 
 /**
  * Místo milíře u dávky buků se středem `center` (m, na cm; `batch` – buky dávky, ty padnou):
@@ -56,4 +58,35 @@ export function findKilnSite(
   }
   const fallback = best as { p: { x: number; z: number } } | null;
   return fallback ? fallback.p : first;
+}
+
+/**
+ * Místo zemnice uhlíře u milíře se středem `kilnSite` (workshops.md – Uhlíř – zemnice u milíře,
+ * návrh Clauda): po kružnicích po BURNER_CAMP.stepM od BURNER_CAMP.minFromKilnM (mimo milířiště)
+ * do BURNER_CAMP.maxFromKilnM, body jako ve `findKilnSite` (od úhlu 0, na cm) – první místo, které
+ * projde `checkCampSite` (půda jako u milíře, bez stromů). Zemnice stojí vchodem k milíři
+ * (`campRotation`). Když žádné není, null – zemnice tentokrát nevznikne.
+ */
+export function findCampSite(
+  state: VillageState,
+  day: number,
+  landscape: Landscape,
+  obstacles: ObstacleLayer,
+  kilnSite: { x: number; z: number },
+): CampSite | null {
+  const village = placementVillageOf(state, day);
+  const { minFromKilnM, maxFromKilnM, stepM } = BURNER_CAMP;
+  for (let r = minFromKilnM; r <= maxFromKilnM + 1e-9; r += stepM) {
+    const count = Math.max(8, Math.round((2 * Math.PI * r) / stepM));
+    for (let i = 0; i < count; i++) {
+      const angle = (2 * Math.PI * i) / count;
+      const site = {
+        x: Math.round((kilnSite.x + r * detCos(angle)) * 100) / 100,
+        z: Math.round((kilnSite.z + r * detSin(angle)) * 100) / 100,
+        rotation: campRotation(angle),
+      };
+      if (checkCampSite(landscape, village, site, obstacles).ok) return site;
+    }
+  }
+  return null;
 }

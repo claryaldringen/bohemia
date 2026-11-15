@@ -254,6 +254,11 @@ export interface PathVillage {
    */
   kilns?: readonly { x: number; z: number; burnerId?: number }[];
   /**
+   * Zemnice uhlířů u milířů (workshops.md – Uhlíř – zemnice u milíře) – hotové, rozestavěné
+   * i opuštěné: střed (m) a natočení, pěšina je obejde. Bez údaje žádné.
+   */
+  camps?: readonly { x: number; z: number; rotation: number }[];
+  /**
    * Humna (production-chains.md – Humno) – hotová i rozestavěná: pěšina mlat obejde, k hotovému
    * se chodí vstupem na předku za výmlatem (nosí se snopy, odnáší zrno), ke staveništi ze všech
    * stran. Bez údaje žádná.

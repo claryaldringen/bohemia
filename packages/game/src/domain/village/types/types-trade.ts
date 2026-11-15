@@ -38,7 +38,11 @@ export type TradeGood =
   | 'pottery'
   | 'ironBars'
   | 'charcoal'
-  | 'stone';
+  | 'stone'
+  | 'honey'
+  | 'hides'
+  | 'furs'
+  | 'wax';
 
 /**
  * Zboží v povaze souseda (NEIGHBOURS.kinds): zboží obchodu, nebo dobytek vcelku (`cattle`) – ten

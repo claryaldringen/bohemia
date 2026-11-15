@@ -15,6 +15,7 @@ import {
   craftCoverage,
   craftNeeds,
   craftStocks,
+  occupiedWorkshops,
   smithIronSummary,
   workshopLabor,
   type CraftNeeds,
@@ -37,6 +38,7 @@ import {
   type SmithOreSummary,
 } from '../crafts/smith-supply';
 import { craftSkillSummary, type CraftSkillSummary } from '../crafts/craft-skill';
+import { hidesOnHand } from '../trade/trade';
 import { isFull, isOvercrowded } from '../buildings/dwellings';
 import { waitingHouseholds } from '../people/households';
 import { familyCounts, type FamilyCounts } from '../people/kinship';
@@ -261,8 +263,8 @@ export interface WorkshopSummary {
   /** Práce řemeslu za den po denním minimu (člověkodny, se štěstím). */
   laborPerDay: number;
   /**
-   * Kovář (crafts.md – Uhlí a ruda kováře): zásoba rudy, rudiště, hromada u jámy a kdo nosí uhlí;
-   * ostatní dílny null.
+   * Kovář (crafts.md – Uhlí a ruda kováře): zásoba rudy, rudiště, hromada u jámy a vůz pro uhlí
+   * a rudu; ostatní dílny null.
    */
   ore: SmithOreSummary | null;
   /**
@@ -439,7 +441,24 @@ export interface OxenSummary {
   ards: number;
 }
 
+/**
+ * Zásoby zboží pro panel dvorce (hides-honey.md): celé kusy a kg. Kůže jsou v kusech kůže skotu
+ * (malé kůže přepočtem plochou), `smallHides` je jejich počet zvlášť pro popisek; kožešiny
+ * dohromady (ovčí i lovné), `sheepFurs` z nich ovčí.
+ */
+export interface WaresView {
+  hides: number;
+  furs: number;
+  sheepFurs: number;
+  honeyKg: number;
+  waxKg: number;
+  /** Počet malých kůží (kozí, prasečí) v zásobě; chybí = žádné. */
+  smallHides?: number;
+}
+
 export interface VillageSummary {
+  /** Zásoby zboží; `null`, když ves žádné nemá (`wares` chybí). */
+  wares: WaresView | null;
   people: { children: number; adults: number; elders: number };
   /** Muži, ženy, děti, starší a páry celé vsi (kinship.md) – i pohlaví postav ve scéně. */
   family: FamilyCounts;
@@ -816,6 +835,20 @@ export function constructionsStalled(
   );
 }
 
+function waresView(state: VillageState): WaresView | null {
+  const w = state.wares;
+  if (!w) return null;
+  const small = Math.floor(w.smallHides ?? 0);
+  return {
+    hides: Math.floor(hidesOnHand(state)),
+    furs: Math.floor(w.wildFurs + w.sheepFurs),
+    sheepFurs: Math.floor(w.sheepFurs),
+    honeyKg: Math.floor(w.honeyKg),
+    waxKg: Math.floor(w.waxKg),
+    ...(small > 0 ? { smallHides: small } : {}),
+  };
+}
+
 /**
  * Souhrn vsi v den `day` (stav má být dopočítaný do tohoto dne); `landscape` – posvátné místo
  * prémiové krajiny ve štěstí (bez krajiny se nepočítá).
@@ -832,6 +865,7 @@ export function summarizeVillage(
   const deathsPerYear = recentDeathsPerYear(state, day);
   const starvationDays = state.starvationDays ?? 0;
   return {
+    wares: waresView(state),
     people: peopleByGroup(state, day),
     family: familyCounts(state.people, day),
     households: households(state, day),
@@ -895,6 +929,8 @@ function craftsSummary(state: VillageState, day: number): CraftsSummary {
   const coverage = craftCoverage(state, day);
   const away = cartsAway(state);
   const productivity = happinessLaborFactor(villageHappiness(state));
+  // uhlíř, který nese uhlí od milíře na tyči (workshops.md – Uhlíř – odnos uhlí na tyči)
+  const burner = occupiedWorkshops(state, 'burner').length > 0;
   return {
     // uhlí u kováře i ve vypálených milířích (crafts.md – Milíř stojí vždy)
     stocks: { ...craftStocks(state), charcoalKg: charcoalStockKg(state) },
@@ -917,7 +953,7 @@ function craftsSummary(state: VillageState, day: number): CraftsSummary {
               : 0,
           ore:
             workshop.craft === 'smith'
-              ? smithOreSummary(state, d, day, haulCartsToday(state, day, false) > 0)
+              ? smithOreSummary(d, haulCartsToday(state, day, false) > 0, burner)
               : null,
           iron: workshop.craft === 'smith' ? smithIronSummary(state, d, day) : null,
           clay:

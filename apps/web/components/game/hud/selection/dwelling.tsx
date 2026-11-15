@@ -14,6 +14,7 @@ import { TradePanel } from '../TradePanel';
 import { LeaveControls } from '../RelocationControls';
 import { Stat, Bar, ROW, Commands, WoodToFell } from './parts';
 import { ManorHunt } from './wildlife';
+import { WaresStock } from './wares';
 import { WorkshopRow, BuyingRow } from './crafts';
 import { SonsRow } from './sons';
 import { DemolitionBar } from '../StructureUseButtons';
@@ -122,6 +123,7 @@ export function DwellingBody({
         </div>
         <DwellingResidents residents={details.residents} onSelect={onSelectTarget} />
         {details.manor?.hunt && <ManorHunt hunt={details.manor.hunt} />}
+        {details.manor && <WaresStock wares={details.wares ?? null} />}
         {details.sons && details.sons.length > 0 && (
           <SonsRow sons={details.sons} onLeaveSon={onLeaveSon} onPreviewSon={onPreviewSon} />
         )}

@@ -19,6 +19,7 @@ import type {
   LaborDay,
   LaborShare,
   LaborTarget,
+  PolePartnerKind,
   StructureRepair,
   VillageState,
   FarmSeason,
@@ -102,6 +103,12 @@ export interface DayWork {
   weedMen?: number;
   /** Seč navíc z práce po stavbách (oxen.md – Seno, dvě seče; člověkodny). Bez údaje 0. */
   extraMow?: number;
+  /**
+   * Práce na zboží ze zbytku práce (`waresWorkDay`; hides-honey.md; člověkodny): vybrání brtí
+   * a zpracování kůží a kožešin v domácnosti – to jen z volné práce žen – domácí práce u domů.
+   * Bez údaje 0.
+   */
+  wares?: number;
   /** Ryby a oka vesničanů ze zbytku práce (W7; wildlife.md); bez údaje žádné. */
   smallGame?: { activity: LaborActivity; target: LaborTarget; manDays: number }[];
   /**
@@ -226,6 +233,7 @@ interface ShareBook {
     job?: CartJob,
     ages?: readonly number[],
     fourWheel?: number,
+    pole?: PolePartnerKind,
   ) => void;
   /** svoz vozy k cíli úlohy; vrací práci posádek */
   readonly haulTo: (job: HaulWork['job'], target: LaborTarget | null, limit?: number) => number;
@@ -251,6 +259,7 @@ function shareBook(work: DayWork): ShareBook {
       job?: CartJob,
       ages?: readonly number[],
       fourWheel?: number,
+      pole?: PolePartnerKind,
     ): void => {
       const rounded = Math.round(manDays * book.scale * 1000) / 1000;
       if (rounded < MIN_MAN_DAYS) return;
@@ -263,6 +272,7 @@ function shareBook(work: DayWork): ShareBook {
         ...(fourWheel ? { fourWheel } : {}),
         ...(job ? { job } : {}),
         ...(ages && ages.length > 0 ? { ages: [...ages] } : {}),
+        ...(pole ? { pole } : {}),
       });
     },
     haulTo: (job: HaulWork['job'], target: LaborTarget | null, limit = Infinity): number => {
@@ -446,8 +456,8 @@ function workshopShares(book: ShareBook, w: WorkshopDay): void {
       bellows.age,
     ]);
   }
-  // kovář: kopání rudy na rudišti, nošení uhlí od milíře a rudy z rudiště (crafts.md – Uhlí
-  // a ruda kováře) – kdo to dělá (věky); jízda s vozem pro rudu s vozem
+  // kovář: kopání rudy na rudišti a nošení rudy z rudiště (crafts.md – Uhlí a ruda kováře) – kdo
+  // to dělá (věky); jízda s vozem pro rudu s vozem
   if (w.ore) {
     const { manDays, ages, x, z } = w.ore;
     book.add(
@@ -473,8 +483,20 @@ function workshopShares(book: ShareBook, w: WorkshopDay): void {
       ages,
     );
   }
+  // nošení rudy a hlíny v koších a uhlíř s uhlím na tyči – dvojice a kdo nese s uhlířem (`pole`;
+  // workshops.md – Uhlíř – odnos uhlí na tyči)
   for (const f of w.fetch ?? []) {
-    book.add('fetch', f.target, f.manDays, undefined, f.cart ? 1 : undefined, undefined, f.ages);
+    book.add(
+      'fetch',
+      f.target,
+      f.manDays,
+      undefined,
+      f.cart ? 1 : undefined,
+      undefined,
+      f.ages,
+      undefined,
+      f.pole,
+    );
   }
   if (w.planting) {
     const stumps = w.plantedTrees ?? [];
@@ -493,7 +515,7 @@ function travelShares(book: ShareBook, work: DayWork): void {
   for (const p of work.purchases ?? []) book.add('trade', p.target, p.manDays);
 }
 
-/** Společná práce: drobná zvěř, stavby a nevyužitá práce (opravy, pletí mužů, seč navíc a honáci klád jsou v ní započtené). */
+/** Společná práce: zpracování kůží, drobná zvěř, stavby a nevyužitá práce (opravy, pletí mužů, seč navíc a honáci klád jsou v ní započtené). */
 function commonShares(book: ShareBook, state: VillageState, work: DayWork): void {
   const { allocation } = work;
   const hauls = work.hauls ?? [];
@@ -502,7 +524,10 @@ function commonShares(book: ShareBook, state: VillageState, work: DayWork): void
   let invested =
     work.repairs.reduce((sum, r) => sum + r.manDays, 0) +
     (work.weedMen ?? 0) +
-    (work.extraMow ?? 0);
+    (work.extraMow ?? 0) +
+    (work.wares ?? 0);
+  // kůže a kožešiny zpracují domácnosti u domů (hides-honey.md)
+  book.add('domestic', { kind: 'village' }, work.wares ?? 0);
   for (const g of work.smallGame ?? []) {
     invested += g.manDays;
     book.add(g.activity, g.target, g.manDays);

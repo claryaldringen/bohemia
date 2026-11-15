@@ -1,3 +1,4 @@
+import { addHides } from '../wares/wares';
 import { isDisused } from '../buildings/disused';
 import { cloneState } from '../core/clone';
 import { dateOfDayIndex } from '../../calendar';
@@ -20,6 +21,7 @@ import { fencedSquareEquivalents, newFenceSides, SQUARE_SIDES } from '../buildin
 import { copyGrid } from '../placement/square-grid';
 import type {
   ChronicleEvent,
+  Construction,
   Ox,
   Pen,
   PenSpecies,
@@ -299,6 +301,7 @@ export function oxenToEdit(pen: Pen): Ox[] {
 /** Voli došli na maso (mutuje stav). */
 function retireOxen(state: VillageState, oxen: number): void {
   butcher(state, oxen * LIVESTOCK.oxMeatKg);
+  addHides(state, oxen);
 }
 
 /**
@@ -883,6 +886,21 @@ export function startPen(
  * Dostavěná ohrada, nebo její rozšíření (mutuje stav): čtverce rozšíření stavby `constructionId`
  * se začnou počítat; jinak je hotová celá ohrada.
  */
+/**
+ * Ohrada stavby `c` v kronice (Martin 14. 11. 2026: „Byla postavena ohrada pro ovce.“): druh
+ * zvířat a rozšíření o čtverce stavby (ne nová ohrada). Volá se před `finishPen`, který značky
+ * čtverců smaže; bez ohrady nic.
+ */
+export function penChronicleNote(
+  state: Pick<VillageState, 'pens'>,
+  c: Pick<Construction, 'id' | 'penId'>,
+): { penSpecies?: PenSpecies; penExtended?: true } {
+  const pen = villagePens(state).find((p) => p.id === c.penId);
+  if (!pen) return {};
+  const extended = (pen.extraSquares ?? []).some((q) => q.constructionId === c.id);
+  return { penSpecies: penSpecies(pen), ...(extended ? { penExtended: true as const } : {}) };
+}
+
 export function finishPen(
   state: VillageState,
   penId: number,

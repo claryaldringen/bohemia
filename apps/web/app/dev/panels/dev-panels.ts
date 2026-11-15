@@ -72,6 +72,7 @@ const neighbours: VillageNeighbour[] = [
     expedition: null,
     carts: [],
     room: { cows: 38, oxen: 3, horses: 0 },
+    wares: { bigHides: 0, smallHides: 0, wildFurs: 0, sheepFurs: 0 },
   },
   {
     direction: 'E',
@@ -98,6 +99,7 @@ const neighbours: VillageNeighbour[] = [
     // ves má čtyřkolák a spřežení doma – náklad jde na vůz (wagons.md – Obchod)
     carts: ['four-wheel'],
     room: { cows: 38, oxen: 4, horses: 0 },
+    wares: { bigHides: 0, smallHides: 0, wildFurs: 0, sheepFurs: 0 },
   },
   {
     direction: 'S',
@@ -134,6 +136,7 @@ const neighbours: VillageNeighbour[] = [
     },
     carts: [],
     room: { cows: 38, oxen: 4, horses: 0 },
+    wares: { bigHides: 0, smallHides: 0, wildFurs: 0, sheepFurs: 0 },
   },
   {
     direction: 'W',
@@ -163,6 +166,7 @@ const neighbours: VillageNeighbour[] = [
     },
     carts: [],
     room: { cows: 38, oxen: 3, horses: 0 },
+    wares: { bigHides: 0, smallHides: 0, wildFurs: 0, sheepFurs: 0 },
   },
 ];
 
@@ -779,7 +783,10 @@ export const DEV_PANELS: readonly {
       yieldKg: 1800,
       burnerWalkM: 96,
       smithWalkM: 183,
-      fetchers: [{ age: 11, smith: false }],
+      fetchers: [
+        { age: 38, role: 'burner' },
+        { age: 11, role: 'burner-son' },
+      ],
       cart: false,
       burnerHere: true,
     },
@@ -822,8 +829,8 @@ export const DEV_PANELS: readonly {
       burnerWalkM: 96,
       smithWalkM: 183,
       fetchers: [
-        { age: 41, smith: true },
-        { age: 15, smith: false },
+        { age: 38, role: 'burner' },
+        { age: 41, role: 'smith' },
       ],
       cart: true,
       burnerHere: false,

@@ -188,8 +188,8 @@ má nějaké meze. Bez řemeslníků ber tu nejhorší hranici, s řemeslníky t
     překryvy staveb mezi sebou zůstávají zakázané. Les vsi a zarůstání beze změny. Kontrola
     v prohlížeči i na serveru jsou stejné funkce jádra; u kurzoru oranžově „Pole se zmenší“
     / „Pole zanikne“, u staveb po čtvercích i čtverce pole oranžově, u jabloní v nabídce na panelu
-    cesty. Kronika: pole ustoupilo sadu, hřbitovu, ohradě, modle, svatyni, jabloním nebo stromům
-    u cesty. Pole leží na krajině pod ním – na čtverci pole v lese (vymýceném) stavby smí jako
+    cesty. Ústup pole (sadu, hřbitovu, ohradě, modle, svatyni, jabloním nebo stromům u cesty) se
+    zapíše, ale panel Kronika ho neukazuje (Martin 14. 11. 2026: „nicneříkající“). Pole leží na krajině pod ním – na čtverci pole v lese (vymýceném) stavby smí jako
     jinde na poli a za les neplatí, pole ho už vymýtilo (Martin, 19. 10. 2026: „pokud jsem pole
     založil v lese, tak na něm nemohu postavit kovárnu“ – oprava, viz Stavby v lese níž).
 - **Stavby v lese** (Martin, 19. 10. 2026: „Oprav – obydlí může jít postavit i v lese – les se
@@ -2488,8 +2488,8 @@ Ovládání a vzhled jsou **návrh k potvrzení na náčrtech** (obydlí se umis
   `before` z `fieldPartLooks` – viz Postup práce po čtvercích) a frontu práce
   (`SceneLaborShare.parts`); scéna odhaduje z data jen starší příloh (louka na seno, pastvina).
 - **Kronika:** založení pole, sklizeň (kolik – ves s ozimem i jaří zvlášť sklizeň ozimu a jaře),
-  hlad, pole ustoupilo stavbě obydlí (o kolik m², nebo zaniklo), nepasený příloh zarostl lesem
-  a vypadl z pole (krátký řádek nahoře).
+  hlad, nepasený příloh zarostl lesem a vypadl z pole (krátký řádek nahoře). Ústup pole stavbě
+  obydlí či cestě panel Kronika neukazuje (Martin 14. 11. 2026: „nicneříkající“).
 - **Obydlí na poli:** u kurzoru oranžově „Pole se zmenší“ (poslední díl: „Pole zanikne“), pod
   vyklízenou plochou domu scéna nekreslí obilí ani obtisk pole.
 

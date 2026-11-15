@@ -3,7 +3,13 @@ import { Material } from '@babylonjs/core/Materials/material';
 import { PBRMaterial } from '@babylonjs/core/Materials/PBR/pbrMaterial';
 import { Color3 } from '@babylonjs/core/Maths/math.color';
 import { Mesh } from '@babylonjs/core/Meshes/mesh';
-import { PLAIN_FRAME, rotationCosSin, type DwellingType, type Landscape } from '@bohemia/game';
+import {
+  PLAIN_FRAME,
+  rotationCosSin,
+  type Craft,
+  type DwellingType,
+  type Landscape,
+} from '@bohemia/game';
 import type { SceneKiln, SceneKilnState } from '../village-view';
 import { DECAY_LOOKS, dwellingDecayStage, type DecayStage } from './dwelling-decay';
 import { type TuftModel } from './dwelling-decor';
@@ -21,6 +27,7 @@ import {
   constructionState,
   type ConstructionKind as SiteKind,
   type SiteProp,
+  workshopSiteParts,
 } from './village-construction';
 import {
   clearanceRect,
@@ -34,7 +41,14 @@ import {
 import { type HeightFn } from './village-meshes';
 import { applySeasonModel, applySeasonSnow } from './season-materials';
 import type { SceneDwelling, SceneRuin } from './village-types';
-import { CRAFT_MODEL, forestKilnAnchor, hasPorch, type WorkshopModel } from './workshop-layout';
+import {
+  CRAFT_MODEL,
+  forestKilnAnchor,
+  hasPorch,
+  workshopModelKeys,
+  type ShedModel,
+  type WorkshopModel,
+} from './workshop-layout';
 
 export const MODEL_BASE_URL = '/models/dwellings/';
 /** Modely a díly staveniště řemeslných dílen a milíře (tools/blender/crafts.py). */
@@ -46,9 +60,10 @@ export const DWELLING_TYPES: readonly DwellingType[] = ['zemnice', 'polozemnice'
 /**
  * Obydlí s modelem a díly staveniště načtenými až s prvním takovým obydlím ve vsi
  * (tools/blender/dwellings.py): dvorec vojvody (trade.md, „dvorec“), nadzemní dům a srubový dvorec
- * od roku 800 (log-house.md, „srub“) – `<typ>.glb` a `<typ>-construction.glb`.
+ * od roku 800 (log-house.md, „srub“) a vypletený dům od roku 750 („vypleteny“) – `<typ>.glb`
+ * a `<typ>-construction.glb`.
  */
-export const LAZY_DWELLING_TYPES = ['dvorec', 'srub', 'dvorec-srub'] as const;
+export const LAZY_DWELLING_TYPES = ['dvorec', 'srub', 'dvorec-srub', 'vypleteny'] as const;
 export type LazyDwellingType = (typeof LAZY_DWELLING_TYPES)[number];
 /** Načítá se model až s prvním takovým obydlím (`LAZY_DWELLING_TYPES`)? */
 export function isLazyDwelling(key: string): key is LazyDwellingType {
@@ -62,14 +77,22 @@ export function lazyDwellingUrls(type: LazyDwellingType): { model: string; site:
   };
 }
 /** Hotový model ve vsi: obydlí, řemeslná dílna (crafts.md), nebo milíř uhlíře. */
-export type ModelKey = DwellingType | WorkshopModel | 'milir';
-export const CRAFT_MODEL_KEYS: readonly (WorkshopModel | 'milir')[] = [
-  'hrncir',
-  'kovar',
-  'tesar',
-  'uhlir',
-  'milir',
-];
+export type ModelKey = DwellingType | WorkshopModel | ShedModel | 'milir' | 'milir-zemnice';
+export const CRAFT_MODEL_KEYS: readonly (WorkshopModel | ShedModel | 'milir' | 'milir-zemnice')[] =
+  [
+    'hrncir',
+    'kovar',
+    'tesar',
+    'uhlir',
+    'milir',
+    // zemnice uhlíře u milíře (workshops.md – Uhlíř, zemnice)
+    'milir-zemnice',
+    // přístřešky nadzemních dílen (workshops.md) – vedle domu vypletené a roubené dílny
+    'pristresek-hrncir',
+    'pristresek-kovar',
+    'pristresek-tesar',
+    'pristresek-uhlir',
+  ];
 /** Přístřešek hrnčíře a kováře sahá o tolik dál před obydlí (m) – ušlapaná tráva i před ním. */
 export const PORCH_EXTRA_M = 2.6;
 /** Rozvrh dýmu pece, výhně a milíře se liší od dýmníku obydlí (seed = id obydlí × 4 + druh). */
@@ -254,9 +277,35 @@ export function houseHideShape(r: SceneRuin): HideShape {
   return { bounds: polygonBounds(corners), contains: (x, z) => pointInPolygon(corners, x, z) };
 }
 
-/** Druh staveniště (fáze, díly): obydlí, nebo model řemeslné dílny. */
+/**
+ * Druh staveniště (fáze, díly): obydlí, nebo model řemeslné dílny; nadzemní dílna (workshops.md)
+ * se staví jako dům svého typu a přístřešek přibude až po něm (`workshopSiteParts`).
+ */
 export function siteKind(d: Pick<SceneDwelling, 'type' | 'craft'>): SiteKind {
-  return d.craft ? CRAFT_MODEL[d.craft] : d.type;
+  return d.craft ? workshopModelKeys(d.craft, d.type).house : d.type;
+}
+
+/** Model domu obydlí: dům nadzemní dílny je model domu toho typu, dnešní dílna model řemesla. */
+export function houseModelOf(
+  d: Pick<SceneDwelling, 'type' | 'craft'>,
+): DwellingType | WorkshopModel {
+  return d.craft ? workshopModelKeys(d.craft, d.type).house : d.type;
+}
+
+/** Staveniště nadzemní dílny: průběh domu a díly přístřešku; jiná stavba null. */
+export function workshopSiteOf(
+  craft: Craft,
+  type: DwellingType,
+  progress: number,
+): ReturnType<typeof workshopSiteParts> | null {
+  if (workshopModelKeys(craft, type).side === null) return null;
+  return workshopSiteParts(craft, type, CRAFT_MODEL[craft], progress);
+}
+
+/** Průběh stavby, který kreslí dům: u nadzemní dílny jen podíl domu (přístřešek přibude po něm). */
+export function houseProgress(d: Pick<SceneDwelling, 'type' | 'craft' | 'progress'>): number {
+  const site = d.craft ? workshopSiteOf(d.craft, d.type, d.progress) : null;
+  return site ? site.houseProgress : d.progress;
 }
 
 /**
@@ -271,7 +320,9 @@ export function shapeableAs(mesh: Mesh, name: string): void {
 }
 
 /** Je model dílnou nebo milířem (public/models/crafts)? */
-export function isCraftModel(key: ModelKey): key is WorkshopModel | 'milir' {
+export function isCraftModel(
+  key: ModelKey,
+): key is WorkshopModel | ShedModel | 'milir' | 'milir-zemnice' {
   return (CRAFT_MODEL_KEYS as readonly string[]).includes(key);
 }
 
@@ -295,7 +346,11 @@ export function trampledArea(d: SceneDwelling): Point[] {
   // staveniště podle varianty rozměrů domu (population.md)
   const c = clearanceRect(d);
   // dílny s přístřeškem (hrnčíř, kovář, tesař): ušlapáno i pod ním před domem
-  const porch = d.craft && hasPorch(CRAFT_MODEL[d.craft]) ? PORCH_EXTRA_M : 0;
+  // (nadzemní dílna přístřešek vpředu nemá – clearanceRect ji rozšiřuje o přístřešek u boku)
+  const porch =
+    d.craft && workshopModelKeys(d.craft, d.type).side === null && hasPorch(CRAFT_MODEL[d.craft])
+      ? PORCH_EXTRA_M
+      : 0;
   return [
     localToWorld(d.position, c.minX + inset, c.minZ + inset),
     localToWorld(d.position, c.maxX - inset, c.minZ + inset),

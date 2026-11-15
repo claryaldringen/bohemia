@@ -25,7 +25,7 @@ describe('kronika – jídlo domény', () => {
     expect(chronicleText(e, 'Ves')).toBe('Jídlo pro ves Lhota: 500 kg obilí a 2 ks dobytka.');
   });
 
-  it('příjemce: Jídlo z vsi {jméno}, dobytek poražen', () => {
+  it('příjemce: Jídlo ze vsi {jméno}, dobytek poražen', () => {
     const e: ChronicleEvent = {
       day: 1,
       kind: 'shipment-received',
@@ -34,14 +34,14 @@ describe('kronika – jídlo domény', () => {
       purpose: 'domain-food',
     };
     expect(chronicleText(e, 'Ves')).toBe(
-      'Jídlo z vsi Dub: 500 kg obilí a 2 ks dobytka, dobytek poražen.',
+      'Jídlo ze vsi Dub: 500 kg obilí a 2 ks dobytka, dobytek poražen.',
     );
   });
 
   it('obyčejná zásilka zůstává beze změny', () => {
     const e: ChronicleEvent = { day: 1, kind: 'shipment-received', villageName: 'Dub', goods };
     expect(chronicleText(e, 'Ves')).toBe(
-      'Zásilka z vsi Dub dorazila – 500 kg obilí a 2 ks dobytka.',
+      'Zásilka ze vsi Dub dorazila – 500 kg obilí a 2 ks dobytka.',
     );
   });
 });

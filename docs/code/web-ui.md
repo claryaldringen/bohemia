@@ -49,7 +49,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   i v `apps/web/components/**/*.ts`.
 - **Web:** server actions `app/game/actions.ts` (`getVillageView`, `selectVillage`, `foundVillage`,
   `placeDwelling`, `cancelConstruction`, `leaveVillage`,
-  `settleJourney`, `placeWorkshop`,
+  `settleJourney`, `placeWorkshop` (vstup `{ craft, position, type? }` – `type` `vypleteny` | `srub` je nadzemní dílna, `parsePlaceWorkshopInput`; nabídka staveb nese `BuildOption.variants.vypleteny` / `.srub` s cenou a rokem),
   `placeField`, `placeCemetery`, `placeOrchard`, `placeSacred`, `placePen`,
   `buildTrail`, `sendExpedition`, `declareHunt`, `renameVillage`, `nameLineMan` → `VillageView` / `null` / `{ error }`; `restartGame(input?)` → `{ ok: true }` /
   `{ error }`). **Každá akce nad vsí nese `villageId`** (UUID – `villageIdOf` v
@@ -312,8 +312,16 @@ villageId)`. Z levných otisků (`stampsOf` – `last_day`, `asleep`) se dopočt
   zkratek), druh spustí malování (`startBuild(kind, variant)`), Esc rozcestník zavře; u kurzoru
   ikona druhu (`PlacementPreview.variant`). **Obydlí** (Martin 14. 11. 2026) jsou jedno políčko –
   rozcestník `dwelling` (`placement: 'dwellings'`, `DWELLING_VARIANTS`: zemnice, polozemnice,
-  nadzemní dům; ikony `build/…`, `variantIconSrc` v `BuildGrid`); zemnice, polozemnice a srub zůstávají
+  vypletený dům, nadzemní dům; ikony `build/…`, `variantIconSrc` v `BuildGrid`); zemnice, polozemnice, vypletený dům a srub zůstávají
   záznamy katalogu s `hubOf: 'dwelling'` (kontrola, cena, zkratky), ale bez vlastního tlačítka.
+  **Řemeslné dílny** (workshops.md, Rozhodnutí 7): tlačítko F / G / H / T je od roku 750 rozcestník
+  (`placement: 'workshop'`, `WORKSHOP_VARIANTS(craft)` – dnešní dílna, Vypletená, Roubená; ikony
+  `build/<model>[-vypleteny|-srub]`, popisek „Kovář – Vypletená“); zašedlý druh nese důvod
+  z `BuildOption.variants[typ].blocked` („Od roku 800“), tlačítko řemesla je dostupné, když ves
+  zaplatí aspoň jeden druh. Do roku 750 `workshopChoice` (`build-items.ts`) přeskočí rozcestník
+  a klik i klávesa staví rovnou dnešní dílnu; zašedlý nebo neznámý druh nejde. Druh jde v
+  `PlacementMode.type` a ve `PlacementResult` do `buildWorkshop(craft, position, type)` →
+  `placeWorkshop({ …, type })`; cena u kurzoru `workshopPlacementCost(…, type)`.
   Rozcestník nemá zkratku (`NO_HOTKEY`), Z, X a 1 vyberou druh rovnou (`startBuild` je převede na
   `dwelling` + druh). Nabídku dává `dwellingHubOption` (`village-view.ts`): cena a důvod zašednutí
   (srub do roku 800) jsou v `variants` každého druhu, ikona tlačítka je nejlepší druh, na který ves
@@ -362,7 +370,7 @@ villageId)`. Z levných otisků (`stampsOf` – `last_day`, `asleep`) se dopočt
   (pak je mřížka zamčená), nad stavbou stejného druhu se malování chytí její mřížky (`gridAt`,
   drží ji i mimo ni – rozšíření), vybraná stavba dá mřížku hned (`PlacementMode.squares.grid`);
   natočená mřížka má čtverec pod kurzorem ve středu políčka. Ctrl ve výběru obydlí platí i jako Cmd; Ctrl / Shift + klik na cestu či
-  pole vybraná obydlí nezruší; Ctrl + A při umisťování nic nevybere. Zkratky staveb Z zemnice, X polozemnice, 1 nadzemní dům (číslice `Digit1` – písmena jsou obsazená; `hotkeyCode`; do roku 800 zašedlý s důvodem „Od roku 800“ – `VillageView.build.srub.blocked` z `dwellingYearReason` v `buildOptions`, log-house.md – Dům), C pole, V hřbitov, B sad,
+  pole vybraná obydlí nezruší; Ctrl + A při umisťování nic nevybere. Zkratky staveb Z zemnice, X polozemnice, 2 vypletený dům (od roku 750), 1 nadzemní dům (číslice `Digit2` a `Digit1` – písmena jsou obsazená; `hotkeyCode`; do roku 800 zašedlý s důvodem „Od roku 800“ – `VillageView.build.srub.blocked` z `dwellingYearReason` v `buildOptions`, log-house.md – Dům), C pole, V hřbitov, B sad,
   N modla, M svatyně, K humno, O ohrada, panely J Kronika a U Upozornění (`lib/panel-keys.ts`) (modla, svatyně a humno se umisťují půdorysem jako obydlí – `PlacementMode`
   `sacred` a `threshing-floor`; ohrada po čtvercích – O i tlačítko otevřou v mřížce rozcestník druhů zvířat (ovce,
   kozy, prasata, skot, spřežení – bez zkratek), nad ohradou téhož druhu se chytí její mřížky). V otevřené nabídce hry žádná klávesa hry neběží – F10 nebo Esc ji zavře (Tab jen
@@ -609,7 +617,8 @@ místa to jsou a moci je také označit.“ ([paths.md – Síť – kotvy](../d
   popisku, ikona, `target` pro výběr, `log` pro konzoli); klíče tras → `VillageTarget` (`d:` /
   `dwelling:` / `site:` obydlí – „Obydlí – polozemnice“, jinak `site:` humno; hřbitov, ohrada,
   humno, modla a svatyně – `sacred`, obilná jáma, pole, sad, posvátný dub, háj, milíř); voda, les,
-  louka a pastva bez výběru; jiná cesta → id cesty hráče (`roadChainIds`). `VillageRoad.ends`
+  louka a pastva bez výběru (voda se jmenuje „Potok“, u řeky „Řeka“ – klíč kotvy `water:river`,
+  `waterKindAt` v `paths/road-anchors.ts`: řeka, je-li nejbližší vodou řeka mapy; D44, Martin 14. 11. 2026: „teče tam přece potok“); jiná cesta → id cesty hráče (`roadChainIds`). `VillageRoad.ends`
   počítá `roadViews` (`village-view-roads.ts`); tam jsou i `JUNCTION_NAMES` / `JUNCTION_ICONS`.
 - **Panel** – `RoadEndIcon` (`selection/roads.tsx`) na začátku prvního řádku `RoadBody`: s cílem
   `TargetButton` (klik → `onSelectTarget`), kraj mapy šipka směru (`DIRECTION_NAMES`), nikam
@@ -1439,9 +1448,49 @@ nová pravidla (návrh Clauda).
   (`NOTICE_CHRONICLE_TEXTS` – začátek jako řádek upozornění s tečkou, konec „… zase …“, např.
   „Kovář nemá uhlí.“ / „Kovář má zase uhlí.“, „Ves hladoví.“ / „Hlad skončil.“, „Ves šetří na
   osivo.“ / „Ves už nešetří na osivo.“). Začátek má den
-  začátku stavu, i když se zapsal o týden později – stránka ho zařadí podle dne. Denní
-  `hunger-began` / `hunger-ended` panel neukazuje (`HIDDEN_KINDS` – návrh Clauda: hlad nesou
-  trvalé stavy, denní zápisy zůstávají pro deník vsí).
+  začátku stavu, i když se zapsal o týden později – stránka ho zařadí podle dne.
+- **Skryté zápisy** (`shownInChronicle`): denní `hunger-began` / `hunger-ended` (`HIDDEN_KINDS` –
+  návrh Clauda: hlad nesou trvalé stavy, denní zápisy zůstávají pro deník vsí), ústup pole či sadu
+  stavbě nebo cestě `land-taken` (Martin 14. 11. 2026: „nicneříkající“; varování u kurzoru
+  `landTakenWarning` zůstává) a návrat z výjezdu `people-back` druhu `journey` („1 člověk se vrátil
+  domů z cesty.“ – Martin 14. 11. 2026 ho nechce). Jádro je dál zapisuje – skryje se i uložený
+  starší zápis; `VillageView.chronicle` (8 zápisů pro upozornění) je nese dál.
+- **Jména sousedů** (`chronicleText(event, villageName, seed)` – `seed` vsi, `chroniclePage` ho
+  bere čtvrtým parametrem): kovář ze sousední vsi „Kovář z Hrušova okul koně.“ (`horses-shod`
+  s `direction`, starší zápis „Kovář z jiné vsi okul koně.“) a nákup u souseda jako směna
+  „Vlkovští směnili 394 kg obilí za 120 kg keramiky se Sedleckými.“ (`crafts-bought` – obě strany
+  v kg, zbytek pod půl kila se nepíše); jméno souseda `neighbourOf(seed, direction).name`. Pády jmen
+  vsí `lib/village-name-cases.ts` (`fromVillage` – „z Lhoty“, „ze Sedlce“; `villagersOf` –
+  „Vlkovští“; `withVillagersOf` – „s Lhotskými“): vzory podle konce jména z generátoru (-ice,
+  -any, -ov, -ín, -ec, -á, -í, -a) a výčet jmen, která konec nerozhodne (Libice v jednotném čísle,
+  Bělá, Dubá, Brod); jméno, které vzor nezná, opisem „ze vsi X“, „obyvatelé vsi X“, „s obyvateli
+  vsi X“. Testy `village-name-cases.test.ts` – každé jméno `VILLAGE_NAMES`. Odkud je cizí ves
+  bez skloňování, píše se „ze vsi X“ (nájezd, zásilka, hosté, mistr huti, upozornění na uprchlíky).
+- **Místa místo obecných vět** (Martin 14. 11. 2026; `village-view-chronicle-places.test.ts`):
+  - **Konce cesty** – `roadBetween` v 7. pádě („mezi dvorcem a kovárnou“, „mezi rozcestím
+    a polem“, „mezi křižovatkou a severovýchodním krajem mapy“, stejné konce „mezi polem a dalším
+    polem“) z `ChronicleRoadEnd` (jádro `paths/road-chronicle.ts` – `chronicleRoadEnds` podle
+    `roadChainEnds` jako panel cesty: obydlí podle druhu, dílna podle řemesla, místo podle předpony
+    klíče trasy, tvar křižovatky, směr kraje mapy); neznámé místo – věta bez konců.
+  - **Jabloně u cesty** (`construction-finished` s `roadEnds` – konce v den výsadby):
+    „Podél cesty mezi dvorcem a kovárnou byly vysazeny jabloně.“, starší zápis „Podél cesty byly
+    vysazeny jabloně.“
+  - **Vyšlapaná cesta** (`road-formed` s `ends` a `years` – `roadFormedNote` po úklidu měsíce,
+    `noteFormedRoads`): „Po 12 letech chůze lidé vyšlapali cestu mezi dvorcem a potokem.“ (u řeky „…a řekou“ – `water:river`; starší zápisy s `water` = potok), rok „Po
+    roce chůze …“, pod půl roku bez doby „Lidé vyšlapali cestu mezi …“, starší zápis „Lidé
+    vyšlapali pevnou cestu.“ Roky = od pozdějšího z konců (den dostavění stavby, vykopání jámy,
+    první výsadby sadu; voda, les, pastva, louka, dub, háj a kraj mapy od založení vsi; křižovatka
+    a jiná cesta nic neurčí); konec, jehož stáří stav nezná (pole, milíř, rudiště, hliniště), roky
+    nedá (návrh Clauda).
+  - **Zbořené opevnění** (`fortification-demolished` s `lord`, `lengthM`, `gates`, `around` –
+    z `Construction.fortNote` v den rozkazu): „Vojvoda Lutobor přikázal zbořit 26 loktů opevnění od
+    severní brány k věži.“ – pražský loket 0,5927 m, brána s dostavěnou věží je věž, světová strana
+    od středu obvodu jen u víc bran téhož druhu; jediná brána „od brány dokola zpět k bráně“, bez
+    brány bez místa; val bez nástavby „přikázal srovnat … loktů valu“; bez vojvody „Zbořili …“,
+    starší zápis „Úsek opevnění byl zbořen.“ (klády na hromadu věta neuvádí).
+  - **Ohrada** (`penSpecies`, `penExtended` – `penChronicleNote`): „Byla postavena ohrada pro
+    ovce.“ (kozy, prasata, skot, voly, koně), rozšíření „Ohrada pro skot byla rozšířena.“, zrušení
+    „Stavba ohrady pro ovce se zrušila.“; bez druhu „Byla postavena ohrada.“
 - **Obnova:** `useChronicle` načte první stránku při otevření, při jiné vsi a když v pohledu
   přibude zápis (`latest` = nejnovější zápis `VillageView.chronicle`); `mergeNewest` nahradí roky
   nové stránky a starší načtené roky ponechá, `appendOlder` připojí starší stránku.
@@ -1545,3 +1594,9 @@ war/alarm-messenger,war/alarm-forest,war/alarm-people,war/alarm-all,war/alarm-re
   `LanguageIcon`; vlajka je sama barvami, render látky by ji ve 24 × 16 px rozmazal).
 
 - **Ciferník u data** (Martin 14. 11. 2026; 24 hodin – návrh Clauda): `DayDial` v `hud/TopBar.tsx` místo ikony data, jedna ručička, poledne nahoře; hodina z `dayHourAt` (`lib/scene/day-light.ts`), obnova jednou za sekundu (`useDayHour`), úhel `clockHandAngle` a popisek `dayPartLabel` v `lib/game-date.ts`.
+
+## Kůže, kožešiny, med a vosk v rozhraní (hides-honey.md; plán 2026-11-14 – úloha 8, `hud/selection/wares.tsx`)
+
+- `WaresView` a `VillageSummary.wares` (`summary.ts`, `waresView`): celé kusy a kg (`floor`), `null`, když ves nemá `wares`. Kůže jsou jedno zboží v kusech kůže skotu – malé kůže se přepočtou plochou (`hidesOnHand`, `smallHideRatio` ≈ 0,27); jejich počet nese volitelné `smallHides` pro popisek. Kožešiny jsou ovčí i lovné dohromady, `sheepFurs` z nich ovčí.
+- `VillageView.wares` (`village-view.ts`) → `SelectionDetails` dvorce `wares` (`selection-details.ts`).
+- `WaresStock` (`dwelling.tsx` pod řádkem lovu, jen u dvorce): čtyři `Stat` ikony `hide`, `fur`, `honey`, `wax` s čísly, popisky „Kůže“ (u malých kůží s rozpisem), „Kožešiny – ovčí N“, „Med“, „Vosk“. `null` i samé nuly = nic. Test `hud/__tests__/WaresStock.test.tsx`.

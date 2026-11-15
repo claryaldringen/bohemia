@@ -4,6 +4,8 @@ import { describe, it, expect } from 'vitest';
 import { PLOT_HOUSE_OFFSET_M, PLOT_VARIANTS, type DwellingType } from '@bohemia/game';
 import { plotInward } from '../homestead-layout';
 import {
+  workshopHouseShare,
+  workshopSiteParts,
   CONSTRUCTION_PHASES,
   PLOT_BUILT,
   SITE_PROPS,
@@ -30,6 +32,56 @@ function glbNodes(file: string): string[] {
   };
   return json.nodes.filter((n) => n.mesh !== undefined).map((n) => n.name ?? '');
 }
+
+describe('staveniště nadzemní dílny (workshops.md – Ve scéně)', () => {
+  const MODELS = { potter: 'hrncir', smith: 'kovar', carpenter: 'tesar', burner: 'uhlir' } as const;
+  const SITE_FILES = ['crafts/construction.glb'] as const;
+  const shedNodes = new Set(SITE_FILES.flatMap((f) => glbNodes(f)));
+
+  it('roubená kovárna: v polovině podílu domu je srub v 50 %, přístřešek ještě nestojí', () => {
+    const share = workshopHouseShare('smith', 'srub');
+    expect(share).toBeGreaterThan(0.7);
+    expect(share).toBeLessThan(0.9);
+    const half = workshopSiteParts('smith', 'srub', 'kovar', share / 2);
+    expect(half.houseProgress).toBeCloseTo(0.5, 9);
+    expect(half.shed).toEqual([]);
+  });
+
+  it('po podílu domu přibude přístřešek a jeho obsah; dílny se nerozpadají po dílech', () => {
+    const share = workshopHouseShare('smith', 'srub');
+    const start = workshopSiteParts('smith', 'srub', 'kovar', share + 0.001);
+    expect(start.houseProgress).toBe(1);
+    expect(start.shed).toEqual(['pristresek-kovar-posts']);
+    const done = workshopSiteParts('smith', 'srub', 'kovar', 1);
+    expect(done.shed).toContain('pristresek-kovar-thatch');
+    expect(done.shed).toContain('pristresek-kovar-forge-hearth');
+    expect(done.shed).toContain('pristresek-kovar-yard');
+    // díly přibývají a neubývají
+    let last = 0;
+    for (let p = 0; p <= 1; p += 0.01) {
+      const { shed } = workshopSiteParts('smith', 'srub', 'kovar', p);
+      expect(shed.length).toBeGreaterThanOrEqual(last);
+      last = shed.length;
+    }
+  });
+
+  it('každý díl přístřešku každého řemesla je v crafts/construction.glb', () => {
+    for (const craft of Object.keys(MODELS) as (keyof typeof MODELS)[]) {
+      for (const type of ['vypleteny', 'srub'] as const) {
+        const { shed } = workshopSiteParts(craft, type, MODELS[craft], 1);
+        expect(shed.length).toBeGreaterThanOrEqual(4);
+        for (const part of shed) expect(shedNodes.has(part), part).toBe(true);
+      }
+    }
+  });
+
+  it('uhlíř nemá přirážku, přesto jeho přístřešek přibude na konci', () => {
+    expect(workshopHouseShare('burner', 'vypleteny')).toBeLessThan(1);
+    expect(workshopSiteParts('burner', 'vypleteny', 'uhlir', 1).shed).toContain(
+      'pristresek-uhlir-wood',
+    );
+  });
+});
 
 describe('fáze stavby', () => {
   it('aspoň 8 fází, navazují na sebe a pokryjí průběh 0–1', () => {
@@ -290,6 +342,71 @@ describe('nadzemní srub (log-house.md – Scéna)', () => {
         expect(Math.abs(x) > roof[kind].x || Math.abs(z) > roof[kind].z, `${kind} ${prop}`).toBe(
           true,
         );
+      }
+    }
+  });
+});
+
+describe('vypletený dům (log-house.md – Dům s vypletenými stěnami)', () => {
+  const at = (p: number): string[] => constructionState('vypleteny', p).parts;
+  const from = (part: string): number =>
+    partSchedule('vypleteny').find((rule) => rule.part === part)!.from;
+
+  it('fáze navazují: drn, kůly, krov, výplet, mazanice, došky – bez jámy a kamenů', () => {
+    const phases = CONSTRUCTION_PHASES.vypleteny;
+    expect(phases[0]!.from).toBe(0);
+    expect(phases[phases.length - 1]!.to).toBe(1);
+    for (let i = 1; i < phases.length; i++) expect(phases[i]!.from).toBe(phases[i - 1]!.to);
+    expect(phases.map((p) => p.id)).toEqual([
+      'layout',
+      'turf',
+      'posts',
+      'frame',
+      'wattle',
+      'daub',
+      'thatch',
+      'finish',
+      'fence',
+      'beds',
+    ]);
+  });
+
+  it('každý díl rozvrhu je ve vypleteny-construction.glb a žádný díl modelu nechybí v rozvrhu', () => {
+    const nodes = glbNodes('dwellings/vypleteny-construction.glb');
+    const parts = constructionParts('vypleteny').map((part) => `vypleteny-${part}`);
+    expect([...parts].sort()).toEqual([...nodes].sort());
+  });
+
+  it('kůly před krovem, výplet řady zmizí pod mazanicí téže řady, došky po omazání', () => {
+    expect(from('piles')).toBeLessThan(from('rafters-1'));
+    expect(from('rafters-5')).toBeLessThan(from('wattle-1'));
+    expect(from('wattle-3')).toBeLessThan(from('daub-1'));
+    expect(from('daub-3')).toBeLessThan(from('thatch-1'));
+    expect(at(0.4)).toContain('wattle-1');
+    expect(at(0.4)).not.toContain('daub-1');
+    expect(at(0.57)).toContain('daub-1');
+    expect(at(0.57)).not.toContain('wattle-1');
+    expect(at(1)).toEqual(expect.arrayContaining(['piles', 'daub-1', 'daub-2', 'daub-3', 'ridge']));
+    expect(at(1)).not.toContain('stakes');
+    for (let p = 0; p <= 1; p += 0.05) {
+      const state = constructionState('vypleteny', p);
+      expect(state.pitDepth).toBe(0);
+      expect(state.props.map((x) => x.prop)).not.toContain('spoil');
+    }
+    // proutí na výplet leží na staveništi, dokud se plete
+    expect(constructionState('vypleteny', 0.35).props.map((x) => x.prop)).toContain('rods');
+  });
+
+  it('rekvizity leží mimo dům i střechu a uvnitř místa, kde se skrývají stromy', () => {
+    const c = DWELLING_CLEARANCE_M.vypleteny;
+    for (const p of [0.25, 0.35, 0.5]) {
+      for (const { prop } of constructionState('vypleteny', p).props) {
+        const { x, z } = SITE_PROP_PLACES.vypleteny[prop];
+        expect(x).toBeGreaterThan(c.minX + 0.5);
+        expect(x).toBeLessThan(c.maxX - 0.5);
+        expect(z).toBeGreaterThan(c.minZ + 0.5);
+        expect(z).toBeLessThan(c.maxZ - 0.5);
+        expect(Math.abs(x) > 2.75 || Math.abs(z) > 3.6, prop).toBe(true);
       }
     }
   });

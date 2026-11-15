@@ -25,6 +25,7 @@ import {
   tradeCarts,
   trailCartPassable,
   trailTripDays,
+  smallHideRatio,
   villageGoodStock,
   villageManor,
   villageTrails,
@@ -132,6 +133,12 @@ export interface VillageNeighbour {
    * (`horseTradeRoom`).
    */
   room: { cows: number; oxen: number; horses: number };
+  /**
+   * Rozpis kůží a kožešin ve vsi (hides-honey.md – Obchod, popisek řádku): velké kůže skotu, malé
+   * kůže (kozí a prasečí) v kusech skotu přepočtem plochou, kožešiny z lovu a ovčí – prodej bere
+   * napřed velké a z lovu.
+   */
+  wares: { bigHides: number; smallHides: number; wildFurs: number; sheepFurs: number };
   /**
    * Kraj po zlém (`bad`) nebo krutém (`cruel`) roce – obilí u sousedů zdražilo (disasters.md – Kraj
    * kolem vsi, Co hráč vidí: ikona zdražení u obilí); obyčejný rok – chybí.
@@ -246,6 +253,12 @@ export function neighbourViews(
           cows: cattleRoom(state, 'cows'),
           oxen: cattleRoom(state, 'youngOxen'),
           horses: horseTradeRoom(state, day),
+        },
+        wares: {
+          bigHides: Math.floor(state.wares?.hides ?? 0),
+          smallHides: Math.floor((state.wares?.smallHides ?? 0) * smallHideRatio()),
+          wildFurs: Math.floor(state.wares?.wildFurs ?? 0),
+          sheepFurs: Math.floor(state.wares?.sheepFurs ?? 0),
         },
         // pastevec v roce bez koní nabízí zásobu 0 – řádek se neukazuje (horses.md – Nákup a prodej)
         offers: neighbour.offers

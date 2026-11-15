@@ -64,7 +64,8 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
 směr)` – stálá povaha podle druhu souseda (`neighbourKind` – obilnáři, pastevci, lesní ves,
   řemeslníci, každý dvakrát kolem vsi; `NEIGHBOURS.kinds`: 2–3 nabízí ze své nabídky, 2–3 shání –
   `always` vždy, zbytek z `needs`), roční zásoby a poptávka `NEIGHBOURS`, jméno
-  `suggestVillageName`), `neighbourStock` – zbytek roku obchodu
+  `suggestVillageName` – kronika ho skloňuje: kovář a směna se sousedem, web-ui.md – Panel
+  Kronika), `neighbourStock` – zbytek roku obchodu
   (`tradeSeason` – od 1. 11.), ukládá se jen `VillageTrade.neighbours`. Hodnoty zboží v kg obilí
   `TRADE_GOOD_VALUES` (rešerše `research/2026-10-18-trade-values.md`), ceny `sellPrice` / `buyPrice`
   (přirážka a příplatky `TRADE`), `tradeQuote` – kontrola a ocenění (bilance pro souseda ≥ 0,
@@ -120,6 +121,18 @@ směr)` – stálá povaha podle druhu souseda (`neighbourKind` – obilnáři, 
   idempotentně): zahodí `goods` a podíl medu v jídle, uložený zbytek roku souseda, který nesedí na
   jeho povahu, a výpravu na cestě pro zboží zvenku zruší – nosiči přinesou zpět, co nesli
   (`get` = `give`); z kroniky výprav zboží zvenku zmizí.
+
+- **Kůže, kožešiny, med a vosk** (trade.md – Jen společné suroviny; hides-honey.md – Obchod):
+  `TradeGood` += `honey` / `hides` / `furs` / `wax` (`TRADE_GOODS` za kamenem). Hodnoty v
+  `TRADE_GOOD_VALUES`, druhy sousedů a roční množství `NEIGHBOURS.waresKinds` / `waresAmounts`
+  (`rules-trade.ts`), losy `waresAmounts` v `neighbours.ts` z proudu `neighbour-wares:{směr}`.
+  Zásoba ve vsi `villageGoodStock` (`trade.ts`): `floor` z `hides` + `smallHides × smallHideRatio()`
+  (`HIDES.smallHideM2 / hideM2`), ze `sheepFurs + wildFurs`, z `honeyKg` a `waxKg`; `addGood` při
+  prodeji bere napřed velké kůže a kožešiny z lovu, nákup kůží jde do `hides`, kožešin do
+  `wildFurs` (`ensureWares`). Rozpis kůží a kožešin pro popisek: `VillageNeighbour.wares`
+  (`manor-view.ts`) → `waresNote` v `TradePanel.tsx`. Názvy a ikony: `TRADE_GOOD_NAMES`
+  (`trade-names.ts`); kronika je bere z `goodsText`. Zbytek roku souseda uložený bez nového zboží
+  zahodí `fitsNeighbour` (`withoutForeignGoods`) – soused dostane plný rok.
 
 - **Dobytek ve třech druzích** (trade.md – Dobytek ve třech druzích; Martin 20. 10. 2026: „s
   dobytkem by také mělo jít obchodovat. Představuju si tři kategorie - krávy, mladé voly (musí se

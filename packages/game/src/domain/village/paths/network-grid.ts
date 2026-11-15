@@ -519,6 +519,7 @@ export function dwellingBox(
 export const DWELLING_PATH_BOX_M: Record<DwellingType, PathBox> = {
   zemnice: { minX: -2.9, maxX: 2.9, minZ: -3.3, maxZ: 4.2 },
   polozemnice: { minX: -3.4, maxX: 3.4, minZ: -3.8, maxZ: 3.8 },
+  vypleteny: { minX: -3.4, maxX: 3.4, minZ: -4.3, maxZ: 4.3 },
   srub: { minX: -3.4, maxX: 3.4, minZ: -4.3, maxZ: 4.3 },
   dvorec: { minX: -3.8, maxX: 3.8, minZ: -5.9, maxZ: 5.9 },
   'dvorec-srub': { minX: -4.4, maxX: 4.4, minZ: -6.8, maxZ: 6.8 },

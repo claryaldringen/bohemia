@@ -131,6 +131,9 @@ describe('ves bez dílen beze změny (crafts.md – Učení řemesla)', () => {
       // ruce pro výmlat dne (production-chains.md – Humno, Výhled jídla; 2. 11. 2026) – podle nich
       // výhled výmlatu do konce okna
       'threshHands',
+      // zboží vsi – kůže, kožešiny, med a vosk (hides-honey.md): zásoby, potřeba a várky; práci
+      // na zpracování kůží hlídá zbytek otisku (oka a ryby z toho, co po ní zbude)
+      'wares',
     ]);
     // trvalé stavy z upozornění do kroniky (absence.md, 9. 11. 2026) – jen zápis, simulaci nemění
     const stripped = JSON.stringify(
@@ -153,8 +156,18 @@ describe('ves bez dílen beze změny (crafts.md – Učení řemesla)', () => {
     // hash 84a9a56 (10. 11. 2026, zima bez sena – diet.md a oxen.md, Zima bez sena): seč srpem
     // (menší seno z volné práce `mowCapacityKg`, dražší vůl `oxCost`), stádo žere jen ve sněhu
     // (`herdNeedKg`); stáda, lidé a zásoby beze změny; dřív 7450793f
+    // hash c4d44549 (14. 11. 2026, kůže a kožešiny – hides-honey.md, Zpracování v domácnosti):
+    // domácnosti v zimě zpracují kůže a kožešiny ze zbytku práce napřed, ryby a oka dostanou
+    // jen to, co zbude – jiný úlovek a jídlo; dřív 84a9a56
+    // hash f80dba91 (14. 11. 2026, ves jí med z klátů – hides-honey.md, Klát u obydlí): med šetří
+    // obilí (zásoby, jídlo) a ubírá podíl jídla z pole (výhled zásob k sklizni); dřív c4d44549
     // hash 37d0dc91 (14. 11. 2026, stavby staví muži – population.md, Práce, „D24 ano“): denní práci
     // nesou napřed ženy, na stavby jde jen práce mužů, která zbude; dřív 84a9a56 (a 950adf1f)
-    expect(hash(stripped)).toBe('37d0dc91');
+    // hash 5b765f59 (14. 11. 2026, sloučení zboží vsi s D24): obojí mění práci a jídlo vsi; dřív
+    // f80dba91 (zboží bez D24) a 37d0dc91 (D24 bez zboží)
+    // hash c8944200 (14. 11. 2026, kůže a kožešiny zpracují jen ženy z volného času – population.md,
+    // Práce, Stavby staví muži): zpracování čeká na volnou práci žen, oka a ryby dostanou volnou
+    // práci mužů – jiný úlovek a jídlo; dřív 5b765f59
+    expect(hash(stripped)).toBe('c8944200');
   }, 120_000);
 });

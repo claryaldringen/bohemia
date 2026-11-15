@@ -5,6 +5,7 @@ import { type Position, type VillageState } from '../types';
 import { type Walk, roadWalk, walkGroundOf } from '../paths/walking';
 import { ableTeams } from '../livestock/oxen';
 import { craftCoverage } from '../crafts/crafts';
+import { burnerCampSites } from '../crafts/burner-camp';
 import { obstacleChangesAt } from '../core/obstacles';
 import { reservedTrees } from '../forest/wood';
 import { sacredBuildingPlots } from '../people/sacred';
@@ -18,6 +19,7 @@ import { type PlacementVillage } from './placement-types';
  * vyhrazenými stavbami.
  */
 export function placementVillageOf(state: VillageState, day: number): PlacementVillage {
+  const camps = burnerCampSites(state);
   return {
     ...state,
     obstacleChanges: obstacleChangesAt(state, day),
@@ -27,6 +29,9 @@ export function placementVillageOf(state: VillageState, day: number): PlacementV
     ploughTeam: ableTeams(state, day) > 0,
     walkRoads: state.roads?.roads ?? [],
     kilns: activeKilnPoints(state),
+    // zemnice uhlířů u milířů – hotové, rozestavěné i opuštěné (workshops.md – Uhlíř – zemnice
+    // u milíře); ves bez nich beze změny
+    ...(camps.length > 0 ? { camps } : {}),
     // humna i rozestavěná (production-chains.md – Humno) – zabírají půdorys; obilné jámy kontrola
     // umístění nezná – hráč zavřenou jámu nevidí, stavba ji smí zabrat (Obilné jámy)
     ...(state.threshingFloors

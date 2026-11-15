@@ -66,6 +66,7 @@ import {
   penSpecies,
 } from '@bohemia/game';
 import type { PlacementCost, SquaresVariant } from './scene/village-types';
+import type { BuildOption } from './village-view-types';
 import type { ChurchBuildKind } from './church-view';
 import { churchPlacementCost } from './church-placement';
 import {
@@ -239,13 +240,19 @@ export type BuildItem =
       /** Řemeslná dílna (crafts.md) – volně u kurzoru jako zemnice, uhlíř i s milířem. */
       placement: 'workshop';
       craft: Craft;
-      /** Obydlí, na kterém dílna stojí (půdorys, jáma). */
+      /** Dnešní obydlí, na kterém dílna stojí (půdorys, jáma) – bez rozcestníku. */
       dwellingType: DwellingType;
+      /**
+       * Rozcestník řemesla od roku 750 (`WORKSHOP_VARIANTS` – workshops.md): dnešní dílna,
+       * vypletená a roubená; `check` dostane vybraný druh (`type`), bez něj dnešní dílnu.
+       */
+      variants: readonly (SquaresVariant & { id: BuildableDwellingType })[];
       check(
         landscape: Landscape,
         village: PlacementVillage,
         position: Position,
         woodLogs: number,
+        type?: BuildableDwellingType,
       ): FootprintCheck;
     })
   | (BuildItemBase & {
@@ -326,7 +333,10 @@ const church = (
   },
 });
 
-/** `KeyboardEvent.code` zkratky: písmeno `KeyX`, číslice `Digit1` (nadzemní dům – písmena jsou obsazená). */
+/**
+ * `KeyboardEvent.code` zkratky: písmeno `KeyX`, číslice `Digit1` (nadzemní dům) a `Digit2` (vypletený
+ * dům) – písmena jsou obsazená.
+ */
 const hotkeyCode = (label: string): string =>
   /^\d$/.test(label) ? `Digit${label}` : `Key${label}`;
 
@@ -439,9 +449,10 @@ export function workshopPlacementCost(
   check: Pick<DwellingPlacementCheck, 'obstacleCost' | 'obstacleIds' | 'clearedTrees'>,
   woodLogs: number,
   obstacles: ObstacleLayer = obstaclesOf(landscape),
+  type: DwellingType = CRAFT_BASE[craft],
 ): PlacementCost {
   const plan = planDwellingWoodFrom(
-    CRAFT_BASE[craft],
+    type,
     position,
     {
       logs: woodLogs,
@@ -452,15 +463,65 @@ export function workshopPlacementCost(
       obstacles,
       clearedTrees: check.clearedTrees,
       clearedIds: check.obstacleIds,
-      trees: workshopTrees(craft),
+      trees: workshopTrees(craft, type),
       walk: placementWalk(landscape, village),
     },
   );
   return {
-    laborManDays: workshopLaborManDays(craft, check.obstacleCost, plan),
+    laborManDays: workshopLaborManDays(craft, check.obstacleCost, plan, type),
     trees: plan.fell.length,
   };
 }
+
+/**
+ * Druhy řemeslné dílny v rozcestníku (workshops.md): dnešní dílna (polozemnice, u uhlíře zemnice),
+ * vypletená a roubená; ikony `build/<model>-<druh>` – model dílny je ikona řemesla (`icon`).
+ * Dostupnost a důvod zašednutí („Od roku 750“ / „Od roku 800“) dává nabídka staveb
+ * (`BuildOption.variants`).
+ */
+export function WORKSHOP_VARIANTS(
+  craft: Craft,
+): readonly (SquaresVariant & { id: BuildableDwellingType })[] {
+  const model = WORKSHOP_ICONS[craft];
+  return [
+    {
+      id: CRAFT_BASE[craft] as BuildableDwellingType,
+      icon: `build/${model}`,
+      name: craft === 'burner' ? 'Zemnice' : 'Polozemnice',
+    },
+    { id: 'vypleteny', icon: `build/${model}-vypleteny`, name: 'Vypletená' },
+    { id: 'srub', icon: `build/${model}-srub`, name: 'Roubená' },
+  ];
+}
+
+/**
+ * Co udělá tlačítko nebo klávesa řemesla (workshops.md): do roku 750, kdy nejde ani vypletená
+ * dílna (`option.variants.vypleteny.blocked`), staví rovnou dnešní dílnu – jako rozcestník
+ * obydlí s jediným druhem; pak otevře rozcestník (`hub`), druh z rozcestníku spustí umisťování
+ * (`start`). Neznámý nebo před svým rokem zašedlý druh (ruční volání) nejde (`denied`).
+ */
+export function workshopChoice(
+  item: BuildItem & { placement: 'workshop' },
+  option: { variants?: BuildOption['variants'] } | null | undefined,
+  variant?: string,
+): { kind: 'hub' } | { kind: 'start'; type: BuildableDwellingType } | { kind: 'denied' } {
+  const overground = option?.variants?.vypleteny;
+  const hubOpen = overground !== undefined && overground.blocked === null;
+  if (variant === undefined) {
+    return hubOpen ? { kind: 'hub' } : { kind: 'start', type: item.variants[0]!.id };
+  }
+  const chosen = item.variants.find((v) => v.id === variant);
+  if (!chosen || option?.variants?.[variant]?.blocked) return { kind: 'denied' };
+  return { kind: 'start', type: chosen.id };
+}
+
+/** Ikona řemesla v mřížce staveb (model dílny) – základ ikon druhů. */
+const WORKSHOP_ICONS: Readonly<Record<Craft, string>> = {
+  potter: 'hrncir',
+  smith: 'kovar',
+  burner: 'uhlir',
+  carpenter: 'tesar',
+};
 
 const workshop = (
   craft: Craft,
@@ -476,13 +537,24 @@ const workshop = (
   placement: 'workshop',
   craft,
   dwellingType: CRAFT_BASE[craft],
-  check: (landscape, village, position, woodLogs) => {
+  variants: WORKSHOP_VARIANTS(craft),
+  check: (landscape, village, position, woodLogs, type) => {
     const obstacles = obstaclesOf(landscape);
-    const check = checkWorkshopPlacement(landscape, village, craft, position, obstacles);
+    const house = type === 'vypleteny' || type === 'srub' ? type : undefined;
+    const check = checkWorkshopPlacement(landscape, village, craft, position, obstacles, house);
     return {
       ...check,
       cost: check.ok
-        ? workshopPlacementCost(landscape, village, craft, position, check, woodLogs, obstacles)
+        ? workshopPlacementCost(
+            landscape,
+            village,
+            craft,
+            position,
+            check,
+            woodLogs,
+            obstacles,
+            house ?? CRAFT_BASE[craft],
+          )
         : null,
     };
   },
@@ -797,13 +869,14 @@ export function fortPointsPlacement(
 const NO_HOTKEY = 'None';
 
 /**
- * Druhy obydlí v pořadí rozcestníku mřížky staveb: zemnice, polozemnice, nadzemní dům – ikony
- * `public/icons/build/`. Dostupnost a důvod zašednutí (nadzemní dům až od roku 800) dává
- * nabídka staveb (`BuildOption.variants`).
+ * Druhy obydlí v pořadí rozcestníku mřížky staveb: zemnice, polozemnice, vypletený dům, nadzemní
+ * dům – ikony `public/icons/build/`. Dostupnost a důvod zašednutí (vypletený dům až od roku 750,
+ * nadzemní dům až od roku 800) dává nabídka staveb (`BuildOption.variants`).
  */
 export const DWELLING_VARIANTS: readonly (SquaresVariant & { id: BuildableDwellingType })[] = [
   { id: 'zemnice', icon: 'build/zemnice', name: 'Zemnice' },
   { id: 'polozemnice', icon: 'build/polozemnice', name: 'Polozemnice' },
+  { id: 'vypleteny', icon: 'build/vypleteny', name: 'Vypletený dům' },
   { id: 'srub', icon: 'build/srub', name: 'Nadzemní dům' },
 ];
 
@@ -813,12 +886,15 @@ export const BUILD_ITEMS: readonly BuildItem[] = [
     name: 'Obydlí',
     icon: 'zemnice',
     hotkey: NO_HOTKEY,
-    hotkeyLabel: 'Z / X / 1',
+    hotkeyLabel: 'Z / X / 2 / 1',
     placement: 'dwellings',
     variants: DWELLING_VARIANTS,
   },
   dwelling('zemnice', 'Zemnice', 'Z'),
   dwelling('polozemnice', 'Polozemnice', 'X'),
+  // vypletený dům (log-house.md – Dům s vypletenými stěnami): do roku 750 zašedlý – důvod „Od roku
+  // 750“ dává server (`VillageView.build.vypleteny.blocked`)
+  dwelling('vypleteny', 'Vypletený dům', '2'),
   // nadzemní dům (log-house.md – Dům): do roku 800 zašedlý – důvod „Od roku 800“ dává server
   // (`VillageView.build.srub.blocked`)
   dwelling('srub', 'Nadzemní dům', '1'),

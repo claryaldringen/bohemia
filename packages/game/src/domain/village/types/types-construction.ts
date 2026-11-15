@@ -1,6 +1,7 @@
 // Typy stavu vsi – Stavby, dřevo a roční plán prací.
 // Rozcestník je `types.ts`; tento soubor jen drží část typů.
 
+import type { ChronicleFortGate } from './types-chronicle';
 import type { Craft } from './types-crafts';
 import type { ChurchSite } from './types-masonry';
 import type { FortBuildWork, FortSegmentWork } from '../fortification/types';
@@ -195,6 +196,18 @@ export interface Construction {
    * hromadu u cesty nejblíž (`addLogs`). U ostatních staveb chybí.
    */
   fortLogsAt?: { x: number; z: number };
+  /**
+   * Zboření či srovnání úseku opevnění – zápis do kroniky z rozkazu (demolition.md – Opevnění;
+   * Martin 14. 11. 2026: „Vojvoda Lutobor přikázal zbořit 26 loktů opevnění od severní brány
+   * k věži.“): jméno vojvody v den rozkazu, délka kusů (m) a brány na koncích úseku. U ostatních
+   * staveb a starších zboření chybí.
+   */
+  fortNote?: {
+    lord?: string;
+    lengthM: number;
+    gates?: [ChronicleFortGate, ChronicleFortGate];
+    around?: true;
+  };
   /**
    * Lom (fortifications.md – Kámen): stavba lomu (`quarry`) a lámání do zásoby (`quarrying`) –
    * id skalního výchozu, na kterém lom stojí; lámání nese i množství (m³).

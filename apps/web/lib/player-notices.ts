@@ -103,10 +103,10 @@ export function noticeOpener(
   return panel ? () => open.panel(panel) : undefined;
 }
 
-/** „ z vsi Kněžice“ (jméno vsi se neskloňuje); bez jména nic. */
+/** „ ze vsi Kněžice“ (jméno vsi se neskloňuje); bez jména nic. */
 function fromVillage(payload: Record<string, unknown>): string {
   const name = stringOf(payload.name);
-  return name === null ? '' : ` z vsi ${name}`;
+  return name === null ? '' : ` ze vsi ${name}`;
 }
 
 function nameOf(payload: Record<string, unknown>): string {

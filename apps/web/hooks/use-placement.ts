@@ -41,7 +41,12 @@ function checkResult(mode: PlacementMode, result: PlacementResult): PlacementChe
   if (mode.kind === 'sacred' && result.kind === 'sacred' && result.type === mode.type) {
     return mode.check(result.position);
   }
-  if (mode.kind === 'workshop' && result.kind === 'workshop' && result.craft === mode.craft) {
+  if (
+    mode.kind === 'workshop' &&
+    result.kind === 'workshop' &&
+    result.craft === mode.craft &&
+    result.type === mode.type
+  ) {
     return mode.check(result.position);
   }
   if (mode.kind === 'church' && result.kind === 'church' && result.type === mode.type) {

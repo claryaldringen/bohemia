@@ -590,7 +590,10 @@ part?, lengthM }[]` – kusy dílů téhož úseku: celé díly mezi branami a z
   (nástavbu valu boří jen celé díly – nástavba je údaj celého dílu). Plot a palisáda: `demolish` celého dílu; val s nástavbou: `demolish` jen
   dílů, kde nástavba stojí; val bez nástavby: `level`. Práce dílu `DEMOLITION.laborShare` × práce
   komplet podle délky (`fortificationFullCost(druh či nástavba, délka)` – „práce stavby“ je od 8. 11. cena komplet, návrh Clauda), val `rampartLaborShare` × práce valu. Klády dílu `logShare` × klády dílu × `seg.state` (necelé
-  v `FortSegmentWork.logs`), celé dolů jednou za stavbu; místo hromady `Construction.fortLogsAt`
+  v `FortSegmentWork.logs`), celé dolů jednou za stavbu; zápis do kroniky z rozkazu `Construction.fortNote` (jméno vojvody
+  v den rozkazu – `currentLord`, délka kusů v m, brány na koncích úseku `fortGateNotes` – věž,
+  směr od středu obvodu jen u víc bran téhož druhu, `around` u jediné brány; `finishFortification`
+  ho přenese do `fortification-demolished`, web-ui.md – Panel Kronika); místo hromady `Construction.fortLogsAt`
   (střed prostředního dílu). Důvody `FORT_BUSY` (na dílech úseku běží jiná stavba), `FORT_SECTION_GONE`
   („Úsek už je zbořený.“), `FORT_SECTION_GATE_ONLY` (úsek jen z dílu s branou), `FORT_UNKNOWN`.
 - **Práce** (`workFortification`, `demolishSegment`): díl hotový, když na něj dojde práce – val

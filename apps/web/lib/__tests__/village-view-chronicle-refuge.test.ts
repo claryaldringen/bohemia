@@ -16,7 +16,7 @@ describe('kronika – útěk do hradiště a posel', () => {
     expect(text({ day: 1, kind: 'refuge-hidden', people: 12 })).toBe('Lidé se ukryli v lese.');
     expect(
       text({ day: 1, kind: 'guests-came', away: 'refuge', people: 5, villageName: 'Lhota' }),
-    ).toBe('Z vsi Lhota přišlo 5 lidí do útočiště.');
+    ).toBe('Ze vsi Lhota přišlo 5 lidí do útočiště.');
     expect(text({ day: 1, kind: 'people-back', away: 'refuge', people: 5 })).toBe(
       '5 lidí se vrátilo domů z útočiště.',
     );

@@ -486,7 +486,7 @@ Návrh: `docs/design/horses.md` – Koně se stavbou ohrady.
 
 Návrh: `docs/design/horses.md` – Kování. Čísla: `HORSE_SHOEING` v `rules-livestock.ts`.
 
-- `horse-shoeing-term.ts` – `nextShoeingDay`, `isUnshod` (lehký modul bez cyklu). `horse-shoeing.ts` – `planShoeing` (plán dne: vlastní kovář, nebo platba cizímu; převod `state.shoeing`), `finishShoeing` (po rozdělení práce: odečte hřivny nebo platbu, posune termín, kronika `horses-shod`), `shoeingCosts` (člověkodny vlastní a cizí), `shoeingView` (panel). Cizí kovář: `nearestCraftsman` (`craft-buying.ts`) a `paymentPool`. Napřed levná kontrola: je-li už samo železo (`foreignIronKg`) nad tím, co ves z přebytku zaplatí (`payableKg` – obilí, pak luštěniny, s rezervou na zaokrouhlení), dnes se nekuje a drahá cena práce (`villageFoodCosts`) se nepočítá – jen zrychlení, rozhodnutí i platba týž (Vlkov bez kováře ≈ 200 marných pokusů za rok).
+- `horse-shoeing-term.ts` – `nextShoeingDay`, `isUnshod` (lehký modul bez cyklu). `horse-shoeing.ts` – `planShoeing` (plán dne: vlastní kovář, nebo platba cizímu; převod `state.shoeing`), `finishShoeing` (po rozdělení práce: odečte hřivny nebo platbu, posune termín, kronika `horses-shod` – u cizího kováře se směrem souseda `direction`, kronika ho píše jménem vsi), `shoeingCosts` (člověkodny vlastní a cizí), `shoeingView` (panel). Cizí kovář: `nearestCraftsman` (`craft-buying.ts`) a `paymentPool`. Napřed levná kontrola: je-li už samo železo (`foreignIronKg`) nad tím, co ves z přebytku zaplatí (`payableKg` – obilí, pak luštěniny, s rezervou na zaokrouhlení), dnes se nekuje a drahá cena práce (`villageFoodCosts`) se nepočítá – jen zrychlení, rozhodnutí i platba týž (Vlkov bez kováře ≈ 200 marných pokusů za rok).
 - Pořadí ve dni: v `work()` (`simulate-work.ts`) hned po výpočtu péče o koně `planShoeing`; práce vlastního kováře (`shoeing` v `labor.ts`) se bere z práce vsi hned za péčí o koně, před výpravami; po rozdělení práce `finishShoeing` (kování se povede jen s celou prací). Výcvik (`trainLordDay` → `trainHorsesDay`) běží až po `work()`, takže kůň podkutý dnes ještě jezdí. Práce kováře je z práce vsi (ne z dílny), protože výrobu dílny škáluje jen počet dní, ne zakázky.
 - Nepodkutý kůň (`isUnshod`): `trainHorsesDay` nic nepřidá a `lordRides` vrací null (scéna nevyvádí koně).
 - Kovárna drží hřivny i na kování (`shoeingBarsKg` v `smithBarsTargetKg`, `crafts.ts`) a kuje nástroje jen z hřiven nad touto rezervou (`workSmith`, krok 1). Cizí kovář se platí přes `paymentPool(state, day, coverage, true)` – i z pojistky, ne pod nulu zásob k příští sklizni (`leftKg`).
@@ -512,3 +512,87 @@ porazilo; zapisuje `noteSlaughtered` (`livestock.ts`) při porážce 1. 11. (jen
 čekající na zimu), v zimní porážce po dnech i zbytku 31. 3., při porážce pro seno a při nouzové
 porážce. Nový den přepíše starý. `laborDay` z něj dělá `LaborDay.slaughterHeads`, scéna
 `SceneLabor.slaughter`. Simulace ho nečte (nemění stav ani determinismus).
+
+## Kůže, kožešiny, med a vosk (`wares/`)
+
+Návrh: `docs/design/hides-honey.md`. Stav `VillageState.wares?: WaresState` (`types/types-wares.ts`:
+`hides`, `smallHides?`, `sheepFurs`, `wildFurs`, `honeyKg`, `waxKg`, kusy zlomkové jako stáda;
+`need?`, `curing?` – zpracování níž) vzniká líně (`ensureWares`, `wares/wares.ts`),
+chybějící hodnota je 0, převod není potřeba. Jmenuje se `wares`, ne `goods` – převod
+`foreign-goods` (`withoutForeignGoods`) maže `goods`.
+
+- Přírůstky: `addHides` (kůže skotu a jelení), `addSmallHides` (kozí, prasečí a divočákovy),
+  `addWildFurs`, `addSlaughterWares(state, species, heads)` (ovce dá `sheepFurs`, kráva `hides`,
+  koza a prase `smallHides`). Nulový přírůstek stav nezakládá.
+- Napojení: `noteSlaughtered` (`livestock.ts`, tedy i nouzová porážka) volá `addSlaughterWares`,
+  `retireOxen` (`oxen.ts`) `addHides(oxen)` – koně kůži nedávají; `huntDay` (`wildlife/hunt.ts`)
+  `addHides(deer)` a `addSmallHides(boar)` (vlk a medvěd kůži nedávají), `patrolHuntDay`
+  (`field-patrol.ts`) `addSmallHides(kills)`.
+- Klát: `HIVES` (`rules/rules-wares.ts`) – 6 kg medu a 0,4 kg vosku za rok na obydlí, přibývá
+  1. 5.–30. 9. (`beesFlying`, `seasonDays` = 153); `hivesDay` (`wares/hives.ts`) přidá denně
+     `dwellings.length × roční ÷ seasonDays`. Bez obydlí `wares` nevznikne.
+- Brtě (prémiová krajina „Brtě a lesní včely“, `wares/bee-trees.ts`): `beeTreeWalksM(landscape)` –
+  vzdálenosti (m, vzestupně) od středu vsi k `beeTreeSpots` přímo, ne po pěšinách; memo `WeakMap`
+  podle krajiny, jiný typ dá `[]`. `beeTreesDay` (z `waresDay`, jen s krajinou) přidá do
+  `wares.beeTrees` ({ honeyKg, waxKg }) každé brti denně jako klátu. `collectBeeTrees` (z
+  `waresWorkDay`, napřed před zpracováním kůží) od 1. 10. (`BEE_TREE_HARVEST`) přesune celou zásobu
+  do `honeyKg`/`waxKg`, když zbytek práce stačí na obchůzku všech brtí
+  (`Σ 2 × walk ÷ WATER_FETCHING.speedMps ÷ 3600 ÷ dayHours`) a vrátí ji; jinak 0 a med čeká dál.
+- Pořadí dne: `storesAndHerdsDay` (`core/simulate.ts`) volá `waresDay(state, day, landscape)` hned za
+  `husbandryDay` (porážka 1. 11. i zimní už proběhla): `finishCuring`, `hivesDay` a `setWaresNeed`.
+  Práce je až ve `freeLaborDay` (`core/simulate-work-apply.ts`) – `waresWorkDay`
+  (`wares/wares-work.ts`) ze zbytku `freeLabor − weedMen − extraMow`, i v hladu: brtě z celého
+  zbytku, zpracování kůží jen z volné práce žen (`women`, níž – Zpracování v domácnosti); ryby
+  a oka (`smallGameDay`) jen z toho, co po ní zbude.
+
+### Med ve stravě (`core/diet.ts`)
+
+Návrh: hides-honey.md – Klát u obydlí, diet.md – Pojmy. Čísla `HONEY` (`rules/rules-wares.ts`):
+energie 0,9 kg obilí na kg, pevný příděl 0,5 kg na člověka za rok.
+
+- `villageHoneyRationKg(state, day)` – příděl za den: každý, kdo dnes jí ze zásob vsi (lidé
+  s `foodNeedPerDay > 0` a hosté do `untilDay`), × `HONEY.kgPerPersonYear ÷ 365`. Vstup jídla
+  (`baseMealInput` v `core/meal-input.ts` i `villageMeal`) předá `honeyKg` (`wares.honeyKg`, i dnešní
+  med z klátů – `waresDay` je ráno) a `honeyRationKg`.
+- `dietPlan`: sní se `min(zásoba, příděl)` – bez stropu, bez bílkovin a bez vlivu na kvalitu
+  stravy (`dietOf` – jen energie). Dnešní příděl jde do `today`, do výhledu do sklizně
+  `honeyUntilHarvest` – příděl jen na dny, kdy zásoba vydrží (`honeyDays`; jako maso do zkažení,
+  med, který klády dají do žní, výhled nezná) – v `eatDiet` i `grainAheadForOutlookKg`
+  (přežívací zásoba – `seedKeepKg`); po zkažení ovoce `honeyAfterRot`.
+- `eat()` (`core/simulate-food.ts`) zapíše zbytek `state.wares.honeyKg = meal.honeyKg` – jen když
+  `wares` existuje, kvůli jídlu nevznikne; med se nekazí.
+- Podíl `DietDay.shares.honey` jen, když se med jedl (jako `freshMeat`); `fieldShareOf`
+  (`fields/field-food.ts`) ho počítá k jídlu mimo pole. Horní lišta (`TopBar`) ho neukazuje.
+- Past převodu: `withoutForeignGoods` (`trade/trade.ts`, převod `foreign-goods` běží při každém
+  načtení) maže podíl medu jen ve vsi bez `wares` – ves se zbožím vrátí týž objekt.
+
+### Zpracování v domácnosti (`wares/hides.ts`)
+
+Návrh: hides-honey.md – Zpracování v domácnosti. Čísla `HIDES` (`rules/rules-wares.ts`), hodiny na
+člověkoden `SMALL_GAME.hoursPerManDay`.
+
+- Jednotky: kůže v kůžích skotu – kozí a prasečí přepočtem plochou (`smallHideM2 / hideM2`),
+  kožešiny v kusech (`HidesFurs`).
+- `yearlyNeed(state, day)` – obuv `lidé ÷ 6`, řemení `householdCount ÷ 3`, postroje
+  `(trainedOxen ÷ OXEN.teamSize + dospělí koně) ÷ 5` kůží skotu; kožichy 0,7 na dospělého
+  a 0,35 na dítě (`ageGroup` `child`), čepice a rukavice 0,2 na člověka.
+- `setWaresNeed(state, day)` – v den `SLAUGHTER_DAY` (1. 11.) přepíše `need` roční potřebou;
+  nedodělek loňska propadá. Nedostatek nemá následky.
+- `processHidesDay(state, day, labor)` – listopad–březen (`curingSeason`): vezme do práce nejvýš
+  `openNeed` (potřeba bez várek v `curing`), zásobu a hodiny; napřed kůže skotu (10 h), pak kozí
+  a prasečí (4 h), pak ovčí kožešiny (3 h) a z lovu (1,5 h) jen do zbytku potřeby. Vzaté ubyde ze
+  zásoby a jde do várky `{ doneDay: day + cureDays, hides, furs }` (rámy ve scéně se kreslí z `curing`). Vrací spotřebované člověkodny.
+- `finishCuring(state, day)` – várky s `doneDay ≤ day` ubere z `need` a smaže (prázdné `curing`
+  zmizí); hotový výrobek domácnosti hned spotřebují, zásobu nemá.
+- Kdo zpracovává – **jen ženy z volného času** (population.md – Práce, Stavby staví muži;
+  Martin 14. 11. 2026: „domácí zpracování kůže měly na starosti spíš ženy“): `waresWorkDay`
+  s `women` dá `processHidesDay` nejvýš `women` (po brtích nejvýš zbytek). `women` spočte
+  `womenFreeLabor` v `commonWorkDay` (`core/simulate-work-apply.ts`) – díl
+  společné práce, který na stavby nejde (`common − build`; ženy nesou napřed denní minimum
+  a úlohy dne, `allocateDay`), po vozech s kládami a drobné zvěři hladové vsi. Opravy obydlí,
+  údržba opevnění, pletí mužů, seč navíc a brtě berou napřed ze zbytku práce mužů (návrh
+  Clauda), takže volná práce mužů zpracování neurychlí a ves bez žen kůže nezpracuje (várky
+  čekají). Bez pohlaví (`Person.sex` u vsí před příbuzenstvím) nebo bez `build` je `women`
+  undefined – zpracování bere jako dřív z celého zbytku.
+- Rozdělení práce: `CommonWork.wares` → `DayWork.wares` (`labor-report.ts`, `commonShares`) –
+  domácí práce `'domestic'` u vsi, ne nevyužitá.

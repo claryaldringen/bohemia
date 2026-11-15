@@ -1439,6 +1439,18 @@
           "wood": [0.06, 0.36, 0.14, 0.58],
           "mortar": [0.75, 0.78, 0.95, 0.86]
         }
+      },
+      {
+        "name": "pole-basket",
+        "procedural": "pole-basket",
+        "point": "prop-weapon_R",
+        "texture": "textures/skins/props/basket_iber_1.dds",
+        "uv": {
+          "wicker": [0.05, 0.1, 0.95, 0.6],
+          "coal": [0.68, 0.86, 0.84, 0.95]
+        },
+        "rotate_deg": [30, 9, 0],
+        "offset_m": [0.14, 0, 0]
       }
     ],
     "clips": [
@@ -2257,6 +2269,16 @@
             }
           ]
         }
+      },
+      {
+        "name": "carry-pole",
+        "animation": "animation/biped/gatherer/carry_meat_m.dae",
+        "props": ["head", "pole-basket"]
+      },
+      {
+        "name": "carry-pole-back",
+        "animation": "animation/biped/gatherer/carry_meat_m.dae",
+        "props": ["head"]
       }
     ]
   }

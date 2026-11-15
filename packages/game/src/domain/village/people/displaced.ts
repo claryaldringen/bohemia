@@ -1,5 +1,6 @@
 import { cloneState } from '../core/clone';
 import { isDisused } from '../buildings/disused';
+import { isLogHouse } from './log-house-settle';
 import { familiesOf } from './families';
 import { villageManorId } from './manor';
 import { occupants } from './people';
@@ -30,7 +31,7 @@ function hosts(state: VillageState, exceptId: number): Dwelling[] {
       d.id !== exceptId &&
       d.id !== manor &&
       !isDisused(d) &&
-      !(d.type === 'srub' && occupants(state, d.id).length === 0),
+      !(isLogHouse(d) && occupants(state, d.id).length === 0),
   );
 }
 

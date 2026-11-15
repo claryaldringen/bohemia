@@ -44,7 +44,8 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   dál berou práci vsi, nedodělek se jen neudělá; přestavbu rozhoduje jen stáří (`wantsRebuild`).
 
 - **Domácnosti – nadzemní dům** (`log-house-settle.ts`; [log-house.md](../design/log-house.md) –
-  Kdo v domě bydlí, Martin 12. 11. 2026): prázdný nadzemní dům (`isLogHouse` – typ `srub`;
+  Kdo v domě bydlí, Martin 12. 11. 2026): prázdný nadzemní dům (`isLogHouse` – typ `srub`
+  i `vypleteny` – `isHouseType`;
   `isEmptyLogHouse` – v provozu, bez dílny) obsadí **jen lidé z pořadí** – `logHouseFamilies`:
   mistři huti (`mason`) → kněz (`priest`) → synové hlavní manželky (muži rodu s `elite`) → synové
   vedlejších manželek (muži rodu bez `mainWifeSon`), ve skupině od nejstaršího (`byAge`). Dnešní
@@ -57,6 +58,13 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   id), teprve pak ostatní obydlí – do srubu nejde `rehouseDisplaced` ani `loneSons`. Host
   z `displaced` (mistr ve dvorci) se nastěhuje jako kdokoli z pořadí a `pruneDisplaced` ho ze
   seznamu hostů smaže. `logHouseWaiting` = počet rodin z `logHouseFamilies` (pro správce).
+  - **Elita v nejlepším volném domě** (log-house.md – Dům s vypletenými stěnami, Martin 14. 11.
+    2026): `logHouseFamilies(state, day, type)` vezme i muže z horšího nadzemního domu
+    (`DWELLING_QUALITY` – z vypleteného do srubu, ne naopak; bez `type` jen lidi bez nadzemního
+    domu). `occupyEmptyDwellings` osídlí napřed prázdné sruby, pak vypletené domy
+    (`HOUSE_TYPES_BEST_FIRST`, v druhu podle id) – vypletený dům, ze kterého se elita přestěhovala
+    do srubu, osídlí ještě týž den další z pořadí. Mistr z ciziny dostane napřed srub
+    (`emptyLogHouseId` – kvalita, pak id). Zemnice a polozemnice se obsazují jako dosud.
   - **Obyčejná rodina do srubu nejde:** `availableSettlers` nepočítá prázdný ani rozestavěný srub
     (`dwellingType` `srub`) – „Rodina čeká na dům“ trvá; prázdný srub nehostí vystěhované
     (`hosts` v `displaced.ts` – ani `freePlaces`) a rodina od souseda do něj nejde
@@ -64,7 +72,8 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   - **Mistr a kněz z ciziny** (`settleArrival` v `lodge.ts`): napřed prázdný srub
     (`emptyLogHouseId`, i když čeká vystěhovaná domácnost – ta do srubu nejde), pak volné obydlí,
     jinak host ve dvorci (`displaced`).
-  - **Testy:** `people/__tests__/log-house-settle.test.ts` (i vcelku = po kouscích).
+  - **Testy:** `people/__tests__/log-house-settle.test.ts` (i vcelku = po kouscích, vypletený dům
+    a stěhování do lepšího).
 
 - **Vojvodova rodina** ([lord.md](../design/lord.md)): `lord.ts` – `lordFamily` (ves bez rodu:
   vojvoda = `householdHead` dvorce, jen muž – dvorec vdovy vojvodu nemá; `trainees` potomci po
@@ -412,7 +421,9 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `keyed_frames` v `people_from_0ad.py`, CC0) `milk` (dojení na špalku – `milkers`), `spin`
   (předení – ženy u dveří, `SPIN_SHARE`), `sit` (starší), `wheel` (hrnčíř u kruhu –
   `PORCH_SPOTS`), `weave`, `pipe`, `drum` (tkaní a hudba – v GLB, zapojí úloha 12: stav,
-  hudebníci na svatbě). Špalek pod sedící postavou je volný prop `stump` (bod `seat` v počátku
+  hudebníci na svatbě), `carry-pole` (přední nosič uhlí na tyči – animace `carry_meat_m`, prop
+  `pole-basket`: tyč 2,6 m s košatinou) a `carry-pole-back` (zadní konec tyče, bez propu; scéna
+  ho staví ≈ 2,3 m za předního – `poleCarriers`, scene-village.md). Špalek pod sedící postavou je volný prop `stump` (bod `seat` v počátku
   postavy). VAT: half-float (`TEXTURETYPE_HALF_FLOAT`, kde ho engine neumí, float32 – `getCaps()
 .textureHalfFloat`), jedno pole rovnou ve formátu textury, peče se po kouscích
   `BAKE_SLICE_MS` (8 ms) mezi `requestIdleCallback` – žádná dlouhá úloha; zdrojový model je při

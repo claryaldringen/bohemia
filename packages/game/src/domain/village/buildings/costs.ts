@@ -74,12 +74,15 @@ export interface BuildCost {
   upfront: ResourceAmounts;
 }
 
-/** Cena řemeslné dílny – základní obydlí + 30 % práce i dřeva, domácnost k osídlení. */
-function workshopBuildCost(craft: Craft): BuildCost {
+/**
+ * Cena řemeslné dílny – základní obydlí + 30 % práce i dřeva, domácnost k osídlení; nadzemní dílna
+ * (`type` vypletený nebo roubený – workshops.md) stojí dům toho typu + přístřešek.
+ */
+export function workshopBuildCost(craft: Craft, type?: DwellingType): BuildCost {
   return {
-    laborManDays: workshopCost(craft),
+    laborManDays: workshopCost(craft, type),
     perHa: false,
-    upfront: { wood: workshopTrees(craft) },
+    upfront: { wood: workshopTrees(craft, type) },
   };
 }
 
@@ -104,6 +107,13 @@ export const BUILD_COSTS: Record<BuildKind, BuildCost> = {
     laborManDays: DWELLINGS.srub.cost,
     perHa: false,
     upfront: { wood: DWELLING_TREES.srub },
+  },
+  // log-house.md – Dům s vypletenými stěnami: hlína na mazanici jen jako práce, ne surovina (rok
+  // hlídá `dwellingYearReason`)
+  vypleteny: {
+    laborManDays: DWELLINGS.vypleteny.cost,
+    perHa: false,
+    upfront: { wood: DWELLING_TREES.vypleteny },
   },
   potter: workshopBuildCost('potter'),
   smith: workshopBuildCost('smith'),
@@ -133,6 +143,14 @@ export const BUILD_COSTS: Record<BuildKind, BuildCost> = {
   // fortifications.md – Kámen: lom na skalním výchozu ≈ 20 čd, bez dřeva (návrh Clauda)
   quarry: { laborManDays: STONE.quarryLaborManDays, perHa: false, upfront: {} },
 };
+
+/**
+ * `BUILD_COSTS` s cenou dílny `craft` daného typu (workshops.md) – pro `buildAffordability`
+ * a `payUpfront` při stavbě nadzemní dílny.
+ */
+export function workshopCosts(craft: Craft, type: DwellingType): Record<BuildKind, BuildCost> {
+  return { ...BUILD_COSTS, [craft]: workshopBuildCost(craft, type) };
+}
 
 /**
  * Práce na modle nebo svatyni bez kácení dubů – cena (happiness.md) v sobě má kácení blízkých
@@ -176,8 +194,11 @@ export function workshopLaborManDays(
   craft: Craft,
   obstacleCost: number,
   wood: Pick<WoodPlan, 'fell'>,
+  type?: DwellingType,
 ): number {
-  return workshopBuildLabor(craft) + obstacleCost + wood.fell.reduce((sum, t) => sum + t.cost, 0);
+  return (
+    workshopBuildLabor(craft, type) + obstacleCost + wood.fell.reduce((sum, t) => sum + t.cost, 0)
+  );
 }
 
 /**

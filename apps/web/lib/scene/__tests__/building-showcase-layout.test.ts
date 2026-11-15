@@ -41,12 +41,33 @@ describe('SHOWCASE_BUILDINGS', () => {
     }
   });
 
+  it('osm nadzemních dílen (4 řemesla × vypletená a roubená) s přístřeškem, bez překryvu', () => {
+    const workshops = SHOWCASE_BUILDINGS.filter((b) => b.models.some((m) => m.shed));
+    expect(workshops).toHaveLength(8);
+    expect(new Set(workshops.map((b) => b.id)).size).toBe(8);
+    const models = workshops.flatMap((b) => b.models);
+    for (const m of models) {
+      expect(m.kind === 'vypleteny' || m.kind === 'srub').toBe(true);
+      expect(m.shed!.url).toMatch(/\/models\/crafts\/pristresek-(hrncir|kovar|tesar|uhlir)\.glb$/);
+      // přístřešek stojí u boční stěny domu
+      expect(Math.hypot(m.shed!.x - m.x, m.shed!.z - m.z)).toBeCloseTo(2.5, 6);
+    }
+    for (let i = 0; i < models.length; i++) {
+      for (let j = i + 1; j < models.length; j++) {
+        const a = models[i]!;
+        const b = models[j]!;
+        // dům 5 × 6 m s přístřeškem 3,2 m a vyklízenou plochou kolem
+        expect(Math.hypot(a.x - b.x, a.z - b.z)).toBeGreaterThanOrEqual(20);
+      }
+    }
+  });
+
   it('pozemky polozemnic (15 × 15 m) se nepřekrývají a nezasahují do ostatních staveb', () => {
     const models = SHOWCASE_BUILDINGS.flatMap((b) => b.models);
-    // dvorec vojvody (trade.md) má pozemek dvou políček – jen pozemky polozemnic a nadzemního
-    // domu (log-house.md)
+    // dvorec vojvody (trade.md) má pozemek dvou políček – jen pozemky polozemnic a nadzemních
+    // domů – srubu i vypleteného (log-house.md)
     const plots = models.flatMap((m) => (m.plot && !m.plot.yard ? [m.plot] : []));
-    expect(plots.length).toBe(7);
+    expect(plots.length).toBe(8);
     expect(new Set(plots.map((p) => p.variant)).size).toBe(5);
     for (const p of plots) {
       for (const q of plots) {

@@ -75,6 +75,17 @@ export const PIT_SHAPES: Record<DwellingType, PitShape> = {
     steps: 0,
     roofEndZ: 3.55,
   },
+  // vypletený dům (log-house.md – Dům s vypletenými stěnami) stojí na zemi jako srub – líc
+  // mazanice WATTLE_HOUSE v dwellings.py, střecha vpředu přečnívá o 0,8 m
+  vypleteny: {
+    halfX: 2.3,
+    halfZ: 2.8,
+    rampHalfX: 0,
+    rampEndZ: 2.8,
+    depth: 0,
+    steps: 0,
+    roofEndZ: 3.6,
+  },
   'dvorec-srub': {
     halfX: 3.2,
     halfZ: 5.2,

@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { DWELLING_CLEARING_M, WORKSHOP_YARD_PATH_BOX_M } from '@bohemia/game';
+import {
+  DWELLING_CLEARING_M,
+  DWELLING_FOOTPRINT_M,
+  WORKSHOP_SIDE_M,
+  WORKSHOP_YARD_PATH_BOX_M,
+} from '@bohemia/game';
 import {
   BAR_PILE,
   BLOOMERY,
@@ -174,5 +179,40 @@ describe('dvůr kovárny a hrnčíře (production-chains.md – Kovář; crafts.
     // jiná práce než tavba dvůr nemění
     const forge = craftYardsKey([smith({ task: 'forge', bloom: 1 }), potter({ clay: 2 })]);
     expect(craftYardsKey([smith({ task: 'refine', bloom: 1 }), potter({ clay: 2 })])).toBe(forge);
+  });
+});
+
+describe('dvůr nadzemní dílny u bočního přístřešku (workshops.md – Ve scéně)', () => {
+  const house = (type: 'vypleteny' | 'srub', craft: 'smith' | 'potter'): CraftYardView => ({
+    id: 9,
+    craft,
+    position: { x: 4, z: 6, rotation: 0 },
+    type,
+    yard: { clay: 2 },
+  });
+
+  it('dvůr leží za přístřeškem v osách domu: napříč stěnou, mimo dům a ve vyklízené ploše', () => {
+    for (const type of ['vypleteny', 'srub'] as const) {
+      const view = house(type, 'smith');
+      const side = WORKSHOP_SIDE_M.smith;
+      const top = smeltVents(view)[0]!;
+      const lx = top.x - view.position.x;
+      const lz = top.z - view.position.z;
+      // pec leží za přístřeškem (0 A.D. dvůr: 1 m před okrajem) a před stěnou domu
+      expect(lx).toBeGreaterThan(DWELLING_FOOTPRINT_M[type].width / 2 + side);
+      expect(lx).toBeLessThan(DWELLING_CLEARING_M[type].maxX + side);
+      expect(Math.abs(lz)).toBeLessThan(DWELLING_CLEARING_M[type].maxZ);
+    }
+  });
+
+  it('klíč dvorů rozlišuje typ dílny', () => {
+    const smithOn = (type: 'vypleteny' | 'srub'): string => craftYardsKey([house(type, 'smith')]);
+    expect(smithOn('srub')).not.toBe(smithOn('vypleteny'));
+  });
+
+  it('dnešní dílna (bez typu) dvůr před přístřeškem nezměnila', () => {
+    const top = smeltVents(smith())[0]!;
+    const [x, z] = localToWorld(smith().position, BLOOMERY.lx, BLOOMERY.lz);
+    expect([top.x, top.z]).toEqual([x, z]);
   });
 });

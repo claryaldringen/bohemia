@@ -16,7 +16,10 @@ import { seededRandom, shapedToWorld, smoothstep, type DecalGrid } from './villa
  * Tvar obydlí v souřadnicích Blenderu: eaveX = kapková linie okapu (kam stéká voda ze střechy),
  * eaveHalf = polovina její délky, frontY = přední štít se dveřmi.
  */
-const SHAPES: Record<DwellingType, { eaveX: number; eaveHalf: number; frontY: number }> = {
+export const DWELLING_EAVES: Record<
+  DwellingType,
+  { eaveX: number; eaveHalf: number; frontY: number }
+> = {
   // okap leží na valu drnů (hřbet x ≈ 2,25, pata 2,7) – voda stéká po vnější straně valu;
   // střecha přečnívá štíty o 1,05 m (vpředu kryje šíji), hlína před vchodem začíná u jejího ústí
   zemnice: { eaveX: 2.5, eaveHalf: 3.1, frontY: -2.6 },
@@ -27,6 +30,8 @@ const SHAPES: Record<DwellingType, { eaveX: number; eaveHalf: number; frontY: nu
   // nadzemní dům a srubový dvorec (log-house.md, LOG_HOUSES v dwellings.py) – okap x_eave, střecha
   // přečnívá přední štít o 0,8 (dvorec 0,9) m, zadní srubu jen o 0,45 m (eaveHalf je kratší z nich)
   srub: { eaveX: 2.75, eaveHalf: 3.2, frontY: -2.75 },
+  // vypletený dům (WATTLE_HOUSE v dwellings.py) – okap 2,75 m, stěny ±2,8 m, vzadu přesah 0,45 m
+  vypleteny: { eaveX: 2.75, eaveHalf: 3.25, frontY: -2.8 },
   'dvorec-srub': { eaveX: 3.75, eaveHalf: 6.1, frontY: -5.2 },
 };
 
@@ -40,6 +45,8 @@ export const SMOKE_VENT: Record<DwellingType, { y: number; z: number }> = {
   dvorec: { y: 3.35, z: -4.3 },
   // nadzemní dům a srubový dvorec – dýmník mezi prkny zadního štítu pod vrcholem
   srub: { y: 3.8, z: -2.7 },
+  // vypletený dům – dýmník v omazaném zadním štítu pod vrcholem (nižší stěny než srub)
+  vypleteny: { y: 3.6, z: -2.7 },
   'dvorec-srub': { y: 4.45, z: -5.15 },
 };
 
@@ -83,7 +90,7 @@ export function eaveTufts(
   frame: ShapeFrame = PLAIN_FRAME,
 ): TuftPlacement[] {
   const rnd = seededRandom(1000 + seed * 7919);
-  const { eaveX, eaveHalf } = SHAPES[type];
+  const { eaveX, eaveHalf } = DWELLING_EAVES[type];
   const result: TuftPlacement[] = [];
   for (const side of [-1, 1]) {
     // řada přímo pod okapem (nejhustší a nejvyšší), za ní řidší
@@ -143,7 +150,7 @@ export function earthPatch(
 ): DecalGrid {
   const rnd = seededRandom(77 + seed * 104729 + layer.size * 1000);
   const phases = [rnd(), rnd(), rnd(), rnd()].map((v) => v * Math.PI * 2);
-  const { frontY } = SHAPES[type];
+  const { frontY } = DWELLING_EAVES[type];
   const cy = frontY - 1.3;
   const forward = 2.8 * layer.size;
   const back = 1.6 * layer.size;

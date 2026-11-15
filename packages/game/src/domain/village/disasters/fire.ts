@@ -16,6 +16,7 @@ import { occupants } from '../people/people';
 import { convexDistance, pointInPolygon, type Point } from '../placement/polygon';
 import { FIRE } from '../rules/rules-disasters';
 import { recordRuins } from '../buildings/ruins';
+import { abandonCamp } from '../crafts/burner-camp';
 import { looseGrainKg } from '../fields/grain-pits';
 import { obstacleChangesAt, obstacleStatus, type ObstacleStatus } from '../core/obstacles';
 import { villageLandSquares } from '../placement/squares';
@@ -49,7 +50,7 @@ export function dwellingFireChance(
 function footprints(d: Dwelling): Point[][] {
   const shape = dwellingShape(d);
   return d.workshop
-    ? workshopFootprints(d.workshop.craft, d.position, shape)
+    ? workshopFootprints(d.workshop.craft, d.position, shape, d.type)
     : [dwellingFootprint(d.type, d.position, shape)];
 }
 
@@ -332,6 +333,9 @@ export function collapseDwellings(state: VillageState, day: number, destroyed: D
     return !lost;
   });
   recordRuins(state, destroyed, day, true);
+  // zemnice uhlíře u milíře v lese neshoří – zůstane opuštěná (workshops.md – Uhlíř – zemnice
+  // u milíře)
+  for (const d of destroyed) abandonCamp(state, d, day);
   state.dwellings = homes;
 }
 

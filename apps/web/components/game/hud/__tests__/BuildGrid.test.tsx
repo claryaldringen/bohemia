@@ -170,6 +170,7 @@ describe('BuildGrid – rozcestník obydlí', () => {
   const build = {
     zemnice: option(),
     polozemnice: option(),
+    vypleteny: option({ affordable: false, blocked: 'Od roku 750' }),
     srub: option({ affordable: false, blocked: 'Od roku 800' }),
   };
   const render = (group: 'dwelling' | null): string =>
@@ -188,19 +189,27 @@ describe('BuildGrid – rozcestník obydlí', () => {
   it('zavřený: jediné tlačítko Obydlí s ikonou nejlepšího druhu, který ves postaví', () => {
     const html = render(null);
     expect(labels(html).filter((l) => /Obydlí|emnice|dům/.test(l))).toEqual(['Obydlí']);
-    // nadzemní dům je zašedlý (do roku 800), nejlepší dostupná je polozemnice
+    // nadzemní domy jsou zašedlé (do roku 750 a 800), nejlepší dostupná je polozemnice
     expect(dwellingHubOption(build).look).toEqual({ icon: 'polozemnice', name: 'Obydlí' });
     expect(html).toContain('/icons/build/polozemnice.png');
-    expect(html).toContain('Z / X / 1');
+    expect(html).toContain('Z / X / 2 / 1');
   });
 
-  it('otevřený: Obydlí (zpět) a tři druhy, zašedlý druh nese důvod', () => {
+  it('otevřený: Obydlí (zpět) a čtyři druhy, zašedlý druh nese důvod', () => {
     const html = render('dwelling');
-    expect(labels(html)).toEqual(['Obydlí', 'Zemnice', 'Polozemnice', 'Nadzemní dům']);
+    expect(labels(html)).toEqual([
+      'Obydlí',
+      'Zemnice',
+      'Polozemnice',
+      'Vypletený dům',
+      'Nadzemní dům',
+    ]);
     expect(html).toContain('data-group="dwelling"');
     expect(button(html, 'Zemnice')).not.toContain('disabled');
     expect(button(html, 'Polozemnice')).not.toContain('disabled');
+    expect(button(html, 'Vypletený dům')).toContain('disabled');
     expect(button(html, 'Nadzemní dům')).toContain('disabled');
+    expect(html).toContain('Od roku 750');
     expect(html).toContain('Od roku 800');
     expect(isBuildAffordable(dwellingHubOption(build), 'srub')).toBe(false);
     expect(isBuildAffordable(dwellingHubOption(build), 'zemnice')).toBe(true);
@@ -218,5 +227,80 @@ describe('BuildGrid – rozcestník obydlí', () => {
     );
     // hlavní tlačítko je rovnou zemnice (jediný druh)
     expect(labels(html)).toEqual(['Zemnice', 'Zemnice']);
+  });
+});
+
+describe('BuildGrid – rozcestník řemesla (workshops.md)', () => {
+  const option = (over: Partial<BuildOption> = {}): BuildOption => ({
+    laborManDays: 10,
+    perHa: false,
+    perSquare: false,
+    upfront: [],
+    blocked: null,
+    affordable: true,
+    ...over,
+  });
+  const smith = option({
+    variants: {
+      vypleteny: {
+        laborManDays: 12,
+        upfront: [],
+        affordable: true,
+        blocked: null,
+      },
+      srub: {
+        laborManDays: 14,
+        upfront: [],
+        affordable: false,
+        blocked: 'Od roku 800',
+      },
+    },
+  });
+  const render = (group: 'smith' | null, options = smith): string =>
+    renderToStaticMarkup(
+      <BuildGrid
+        options={{ ...OPTIONS, smith: options }}
+        active={null}
+        disabled={false}
+        group={group}
+        onBuild={() => undefined}
+      />,
+    );
+  const button = (html: string, label: string): string =>
+    html.match(new RegExp(`<button[^>]*aria-label="${label}"[^>]*>`))![0];
+
+  it('zavřený: Kovář je jediné tlačítko řemesla, druhy ne', () => {
+    const shown = labels(render(null));
+    expect(shown).toContain('Kovář');
+    expect(shown).not.toContain('Kovář – Vypletená');
+  });
+
+  it('otevřený: Kovář (zpět) a tři druhy, roubená zašedlá s důvodem', () => {
+    const html = render('smith');
+    expect(labels(html)).toEqual([
+      'Kovář',
+      'Kovář – Polozemnice',
+      'Kovář – Vypletená',
+      'Kovář – Roubená',
+    ]);
+    expect(html).toContain('data-group="smith"');
+    expect(button(html, 'Kovář – Polozemnice')).not.toContain('disabled');
+    expect(button(html, 'Kovář – Vypletená')).not.toContain('disabled');
+    expect(button(html, 'Kovář – Roubená')).toContain('disabled');
+    expect(html).toContain('Od roku 800');
+    expect(html).toContain('/icons/build/kovar-vypleteny.png');
+    expect(html).toContain('/icons/build/kovar-srub.png');
+  });
+
+  it('dnešní dílna nejde zaplatit, vypletená ano – tlačítko řemesla zůstane dostupné', () => {
+    const cheaper = option({ affordable: false, variants: smith.variants! });
+    expect(button(render(null, cheaper), 'Kovář')).not.toContain('disabled');
+    const none = option({
+      affordable: false,
+      variants: {
+        vypleteny: { laborManDays: 12, upfront: [], affordable: false, blocked: null },
+      },
+    });
+    expect(button(render(null, none), 'Kovář')).toContain('disabled');
   });
 });
