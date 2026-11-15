@@ -1711,8 +1711,8 @@ test('ves B varovaná utíká do hradiště pána a po odtažení vojska se vrá
     `INSERT INTO campaign_checkpoint (campaign_id, tick, state) VALUES ($1, $2, $3::jsonb)`,
     [campaignId, tick, JSON.stringify(state)],
   );
-  // tažení vzniklo přímo v databázi – klient se o válce na mapě dozví s dotazem na ves (D62)
-  for (const page of [a, b, c]) if (!page.isClosed()) await pollVillage(page);
+  // o válce na mapě se klienti dozví s dotazem na ves (D62) až po startu workeru (`notices`) – dotaz
+  // hned po vložení tažení (dopočet vsí webem před prvním kolem) varování B v tomto testu zdržel
 
   let worker = await startWorker();
   /** Uloží do kontrolního bodu změnu `edit` (worker stojí). */
