@@ -51,10 +51,13 @@ Raně středověká strava nebyla jen obilí. Plné nasycení potřebuje kombina
   přidával do sladkého pečiva nebo se z něj dělala medovina – samotného medu totiž člověk moc
   nesní.“ Návrh Clauda: **pevný příděl 0,5 kg na člověka za rok** (každý, kdo jí ze zásob vsi,
   i hosté), denně rovným dílem z toho, co je; zbytek se hromadí a nekazí se. Med dá jen energii –
-  bez bílkovin, bez stropu, bez štěstí a bez vlivu na kvalitu stravy. Příděl se počítá i do
-  výhledu do sklizně – jen na dny, kdy zásoba vydrží (jako maso do zkažení; med, který klády dají
-  do žní, výhled nezná) – a med jako jídlo mimo pole ubírá podíl jídla z pole
-  ([pole](fields.md) – Výhled zásob k sklizni). V horní liště podíl medu není. Medovina později.
+  bez bílkovin, bez stropu, bez štěstí a bez vlivu na kvalitu stravy. Když jídla do sklizně dost
+  není, je celá zásoba medu jídlo jako obilí – Martin 15. 11. 2026: „Ano – jsou to kalorie jako
+  každé jiné.“ Výhled do sklizně s ní počítá celou a ves ji jí s obilím jedním přídělem, kolik je
+  potřeba k doplnění přídělu, nejvýš celou ([kůže, kožešiny, med a vosk](hides-honey.md) – Med
+  v hladu); med, který klády dají do žní, výhled nezná. Med jako jídlo mimo pole ubírá podíl
+  jídla z pole ([pole](fields.md) – Výhled zásob k sklizni). V horní liště podíl medu není.
+  Medovina později.
 - **Bílkoviny** – kolik bílkovin lidé snědí proti potřebě 1,6 g na kg tělesné váhy (Martin).
 - **Nasycení** – co hráč vidí (0–100 %): energie **a** kvalita stravy z bílkovin a ovoce (níže).
 

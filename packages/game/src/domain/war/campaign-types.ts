@@ -57,6 +57,12 @@ export interface CampaignMember {
   /** Id skupiny (`CampaignGroup.id`). */
   group: number;
   status: CampaignMemberStatus;
+  /**
+   * Dezertér šel domů hned (Martin 15. 11. 2026): den, na jehož začátku je doma (`deserterHomeDay`)
+   * – jeho ves dostala `away-ends` v den dezerce a konec tažení ho už nevrací (`returnOf`). Chybí –
+   * nedezertoval, nebo dezertér ze staršího bodu (domů ho vrátí konec tažení jako dřív).
+   */
+  homeDay?: number;
 }
 
 /** Rozkaz skupiny (war.md – Boj; zapojí Ú6.8). */

@@ -21,7 +21,7 @@ import type {
   CampaignVillage,
   CampaignWorld,
 } from './campaign-types';
-import { deserters, starving } from './desertion';
+import { deserterHomeDay, deserters, starving } from './desertion';
 import {
   battleForts,
   battleTick,
@@ -406,7 +406,7 @@ function dailyStep(s: CampaignState, ctx: TickContext, out: TickOut): void {
   }
   if (!outside) return;
   const hungry = starving(s, ctx.world);
-  desert(s, hungry, out);
+  desert(s, hungry, ctx.world.clock, out);
   if (hungry && !s.members.some((m) => m.status === 'active' && !sameRef(m.ref, s.commander))) {
     disband(s, out);
   }
@@ -418,29 +418,65 @@ function dailyStep(s: CampaignState, ctx: TickContext, out: TickOut): void {
 
 /**
  * Dezerce nucených a z hladu (war.md – Vojsko; Zásoby tažení: Živé vedení bez rozkazu – `hungry`):
- * dezertér z boje odejde hned (`slipAway`) a domů ho jako při rozpadu vrátí návrat tažení
- * (`returnOf` – `deserted`). Raněný, který na bojišti leží (`down`), neuteče – los ho mine, zůstane,
- * kde padl (závěrečná recenze, drobný 4). Dezertér s příbuznými v cíli cíl varuje – ves dostane
- * signál `army-seen` dřív, než vojsko dorazí (jeden za den, ať se nezdvojí).
+ * dezertér z boje odejde hned (`slipAway`) a jde rovnou domů (Martin 15. 11. 2026 – `sendHome`).
+ * Raněný, který na bojišti leží (`down`), neuteče – los ho mine, zůstane, kde padl (závěrečná
+ * recenze, drobný 4). Dezertér s příbuznými v cíli cíl varuje – ves dostane signál `army-seen` dřív,
+ * než vojsko dorazí (jeden za den, ať se nezdvojí).
  */
-function desert(s: CampaignState, hungry: boolean, out: TickOut): void {
+function desert(s: CampaignState, hungry: boolean, clock: WorldClock, out: TickOut): void {
   let warns = false;
   const battle = s.battle?.outcome === 'ongoing' ? s.battle : null;
+  const gone: CampaignMember[] = [];
   for (const m of deserters(s, hungry)) {
     const f = battle?.fighters.find((x) => x.side === 'attack' && s.members[x.ref] === m);
     if (f?.state === 'down') continue;
     m.status = 'deserted';
+    gone.push(m);
     warns ||= m.kin === true;
     if (f && f.state !== 'fled') slipAway(f);
   }
-  if (!warns) return;
-  const day = s.day + 1;
-  out.events.push({
-    villageId: s.target.villageId,
-    day,
-    ref: `camp:${s.id}:${s.tick}:${out.events.length}`,
-    body: { kind: 'threat-signal', signal: { kind: 'army-seen', day: s.day } },
-  });
+  if (warns) {
+    const day = s.day + 1;
+    out.events.push({
+      villageId: s.target.villageId,
+      day,
+      ref: `camp:${s.id}:${s.tick}:${out.events.length}`,
+      body: { kind: 'threat-signal', signal: { kind: 'army-seen', day: s.day } },
+    });
+  }
+  sendHome(s, gone, clock, out);
+}
+
+/**
+ * Dezertéři jdou domů hned, ne s koncem tažení (Martin 15. 11. 2026: „Dezertér jde domů hned… k čemu
+ * by mu dezerce byla, když by čekal na konec tažení?“): domovská ves dostane den nato `away-ends` –
+ * kdo je pryč s tímto tažením, je doma od dne `homeDay` (den dezerce + cesta – `deserterHomeDay`;
+ * `endAway` ve vsi). Konec tažení ho už nevrací (`returnOf`). Dezertéři téže vsi se stejným dnem
+ * návratu jdou jednou událostí, v pořadí mužů tažení.
+ */
+function sendHome(
+  s: CampaignState,
+  gone: readonly CampaignMember[],
+  clock: WorldClock,
+  out: TickOut,
+): void {
+  const parties = new Map<string, { villageId: string; untilDay: number; personIds: number[] }>();
+  for (const m of gone) {
+    const untilDay = deserterHomeDay(s, m, clock);
+    m.homeDay = untilDay;
+    const key = `${m.ref.villageId}:${untilDay}`;
+    const party = parties.get(key);
+    if (party) party.personIds.push(m.ref.personId);
+    else parties.set(key, { villageId: m.ref.villageId, untilDay, personIds: [m.ref.personId] });
+  }
+  for (const p of parties.values()) {
+    post(s, out, p.villageId, {
+      kind: 'away-ends',
+      refId: s.id,
+      untilDay: p.untilDay,
+      personIds: p.personIds,
+    });
+  }
 }
 
 /**
@@ -1143,14 +1179,17 @@ function post(s: CampaignState, out: TickOut, villageId: string, body: VillageEv
   villageEvent(s, out, villageId, s.day + 1, body);
 }
 
-/** Návrat do vsi `villageId`: její muži zpět (ne zajatí), ranění, padlí vesničané, kořist. */
+/**
+ * Návrat do vsi `villageId`: její muži zpět (ne zajatí; ne dezertéři, kteří šli domů hned –
+ * `homeDay`, `sendHome`), ranění, padlí vesničané, kořist.
+ */
 function returnOf(s: CampaignState, villageId: string): CampaignReturn {
   const mine = s.members.filter((m) => m.ref.villageId === villageId);
   const home = villageId === s.assembly.villageId;
   return {
     campaignId: s.id,
     back: mine
-      .filter((m) => m.status === 'active' || m.status === 'deserted')
+      .filter((m) => m.status === 'active' || (m.status === 'deserted' && m.homeDay === undefined))
       .map((m) => m.ref.personId),
     wounded: mine
       .filter((m) => m.status === 'active' && m.wounded)

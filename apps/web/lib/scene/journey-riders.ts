@@ -3,6 +3,7 @@
 // koních vpředu, pěší za nimi (army.ts – `huddleSlots`). Mezi dvěma stavy ze serveru jde každý muž
 // plynule ze své nakreslené polohy na nové místo v hloučku, ne jen střed skupiny – hlouček se při
 // zatáčce neotočí skokem. Bez Babylonu; kreslí army-renderer.ts.
+import { TICK_MS } from '@bohemia/game';
 import type { HorseWork, JourneyPhase, JourneyView, JourneyVisitor, Pos } from '@bohemia/game';
 import {
   ARMY_LOOKS,
@@ -191,15 +192,35 @@ export function ridersAt(
   });
 }
 
+/** Stav k přehrání – rozestavení mužů v taktu `tick`. */
+interface Sample {
+  tick: number;
+  poses: RiderPose[];
+}
+
 /** Plynulý pohyb jednoho výjezdu mezi stavy. */
 interface Glide {
   journey: SceneJourney;
   heading: Pos;
-  from: RiderPose[] | null;
-  to: RiderPose[];
+  /** Stavy k přehrání: první = kde je hlouček nakreslený, dál stavy ze serveru (rostoucí takty). */
+  track: Sample[];
+  /** Přehrávání: takt `tick` v čase `ms` (výkonový), dál `rate` taktů za `TICK_MS`. */
+  play: { tick: number; ms: number; rate: number };
   receivedAt: number;
-  spanMs: number;
+  /** Hlouček se mezi posledními dvěma stavy posunul (jede); první stav – stojí. */
+  moved: boolean;
 }
+
+/**
+ * Přehrávání drží tolik taktů za posledním stavem ze serveru (D49 – stálé tempo): worker ukládá
+ * jedoucí skupinu v kolech ≈ 1 s (déle, když má práci se vsemi), prohlížeč se ptá po 500 ms – zásoba
+ * 2 s pohltí nepravidelné příchody stavů, takže muž nezastaví ani nedohání (návrh Clauda).
+ */
+export const PLAY_LAG_TICKS = 8;
+/** O kolik přehrávání zrychlí či zpomalí, aby drželo zásobu (podíl) – tempo postavy nejvýš ± 6 %. */
+export const PLAY_SLACK = 0.06;
+/** Zásoba nad tolik taktů (po přestávce, ve skrytém panelu) se zahodí – hlouček skočí blíž. */
+const PLAY_BEHIND_MAX_TICKS = 40;
 
 const samePos = (a: Pos | null, b: Pos | null): boolean =>
   a === b || (a !== null && b !== null && a.x === b.x && a.z === b.z);
@@ -217,10 +238,34 @@ const sameMen = (a: SceneJourney, b: SceneJourney): boolean =>
     );
   });
 
+/** Takt, který scéna v čase `nowMs` ukazuje – nejvýš poslední stav (pak hlouček stojí). */
+function playTick(g: Glide, nowMs: number): number {
+  const last = g.track[g.track.length - 1]!.tick;
+  const run = (Math.max(0, nowMs - g.play.ms) / TICK_MS) * g.play.rate;
+  return Math.min(last, g.play.tick + run);
+}
+
+/** Muži výjezdu v čase `nowMs` – mezi dvěma stavy podle taktu přehrávání (stálé tempo jádra). */
+function posesAt(g: Glide, nowMs: number): RiderPose[] {
+  const p = playTick(g, nowMs);
+  const track = g.track;
+  for (let i = 1; i < track.length; i++) {
+    const a = track[i - 1]!;
+    const b = track[i]!;
+    if (p >= b.tick) continue;
+    const span = b.tick - a.tick;
+    return ridersAt(a.poses, b.poses, (p - a.tick) / span, (span * TICK_MS) / 1000 / g.play.rate);
+  }
+  return track[track.length - 1]!.poses;
+}
+
 /**
- * Výjezdy ve scéně mezi stavy ze serveru: po každém novém stavu výjezdu (jiný takt nebo muži) jdou
- * muži z místa, kde jsou nakreslení, na nové místo tak dlouho, kolik taktů mezi stavy uběhlo
- * (army.ts – `glideMs`). Čas je výkonový (ms) a přichází parametrem – čistá logika bez Babylonu.
+ * Výjezdy ve scéně mezi stavy ze serveru (D49 – stálé tempo): stavy se přehrávají podle svých taktů
+ * se zpožděním `PLAY_LAG_TICKS` – muži jdou mezi nimi tempem jádra, i když stavy chodí nepravidelně
+ * (dřív každý nový stav spustil nový posun z nakreslené polohy a muž střídavě dobíhal a stál).
+ * Zpoždění drží přehrávání zrychlením či zpomalením nejvýš o `PLAY_SLACK`. Hlouček, který stál,
+ * se rozjede hned s prvním stavem v pohybu (pohyb potrvá jako dřív – `glideMs`). Čas je výkonový
+ * (ms) a přichází parametrem – čistá logika bez Babylonu.
  */
 export class JourneyGlide {
   private glides = new Map<string, Glide>();
@@ -252,16 +297,19 @@ export class JourneyGlide {
       changed = true;
       const heading = headingOf(was?.journey ?? null, j, was?.heading ?? null);
       const to = journeyFormation(j, heading);
-      const gap = was ? j.tick - was.journey.tick : 0;
-      const spanMs = !frozen && was && gap > 0 ? glideMs(gap, nowMs - was.receivedAt) : 0;
-      next.set(j.journeyId, {
-        journey: j,
-        heading,
-        from: spanMs > 0 && was ? this.posesOf(was, nowMs) : null,
-        to,
-        receivedAt: nowMs,
-        spanMs,
-      });
+      next.set(
+        j.journeyId,
+        was && !frozen
+          ? this.follow(was, j, heading, to, nowMs)
+          : {
+              journey: j,
+              heading,
+              track: [{ tick: j.tick, poses: to }],
+              play: { tick: j.tick, ms: nowMs, rate: 1 },
+              receivedAt: nowMs,
+              moved: false,
+            },
+      );
     }
     this.glides = next;
     return changed;
@@ -272,16 +320,53 @@ export class JourneyGlide {
     const poses: RiderPose[] = [];
     let moving = false;
     for (const g of this.glides.values()) {
-      const shown = frozen ? g.to : this.posesOf(g, nowMs);
+      const shown = frozen ? g.track[g.track.length - 1]!.poses : posesAt(g, nowMs);
       poses.push(...shown);
       moving ||= shown.some((p) => p.speed > 0);
     }
     return { poses, moving };
   }
 
-  private posesOf(g: Glide, nowMs: number): RiderPose[] {
-    if (g.spanMs <= 0 || !g.from) return g.to;
-    return ridersAt(g.from, g.to, (nowMs - g.receivedAt) / g.spanMs, g.spanMs / 1000);
+  /**
+   * Nový stav `j` výjezdu, který scéna kreslí: přehrávání pokračuje odtud, kde je hlouček nakreslený
+   * (první stav stopy), stavy mezi ním a novým zůstanou. Stál-li hlouček (poslední dva stavy na
+   * stejném místě), kdy se rozjel, nevíme – pohyb k novému stavu potrvá jako dřív (`glideMs`).
+   */
+  private follow(was: Glide, j: SceneJourney, heading: Pos, to: RiderPose[], nowMs: number): Glide {
+    const p = playTick(was, nowMs);
+    const drawn = posesAt(was, nowMs);
+    const between = was.track.filter((s) => s.tick > p && s.tick < j.tick);
+    let start = p;
+    // hlouček stál: rozjede se o tolik později, aby měl zásobu `PLAY_LAG_TICKS` (obvykle ≈ 1 s)
+    let hold = 0;
+    if (!was.moved && between.length === 0 && j.tick > p) {
+      start = Math.max(p, j.tick - glideMs(j.tick - p, nowMs - was.receivedAt) / TICK_MS);
+      hold = Math.max(0, PLAY_LAG_TICKS - (j.tick - start));
+    }
+    if (j.tick - start > PLAY_BEHIND_MAX_TICKS) start = j.tick - PLAY_LAG_TICKS;
+    // stavy za novým začátkem (po zahozené zásobě začíná přehrávání dál)
+    const ahead = between.filter((s) => s.tick > start);
+    const track: Sample[] =
+      j.tick > start
+        ? [
+            ...(hold > 0 ? [{ tick: start - hold, poses: drawn }] : []),
+            { tick: start, poses: drawn },
+            ...ahead,
+            { tick: j.tick, poses: to },
+          ]
+        : [{ tick: j.tick, poses: to }];
+    start -= hold;
+    const behind = j.tick - start;
+    const rate =
+      behind > PLAY_LAG_TICKS ? 1 + PLAY_SLACK : behind < PLAY_LAG_TICKS ? 1 - PLAY_SLACK : 1;
+    return {
+      journey: j,
+      heading,
+      track,
+      play: { tick: Math.min(start, j.tick), ms: nowMs, rate },
+      receivedAt: nowMs,
+      moved: !samePos(was.journey.pos, j.pos),
+    };
   }
 }
 

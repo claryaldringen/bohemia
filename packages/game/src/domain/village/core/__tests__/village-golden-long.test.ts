@@ -23,8 +23,11 @@ import { goldenWorld, stateFingerprint, YEAR } from './village-golden-fixture';
 // 15. 11. 2026 – výhled jídla počítá se ztrátami obilí skladováním do žní (fields.md – Přídělový
 // systém, Martin „Ano“): jiný příděl a přežívací zásoba – jiné zásoby a osev; dřív
 // 2d83c6aef0fd4e1f a fdb154bca6bd33dc
-const EXPECTED_YEAR_2 = '8dce05322fad129e';
-const EXPECTED_YEAR_3 = 'da411ec1fa2f9cb4';
+// 15. 11. 2026 – hladová ves sní i zásobu medu (hides-honey.md – Med v hladu): přežívací zásoba
+// obilí (`seedKeepKg`) počítá s celou zásobou medu – jiné osivo a zásoby (village-golden.test.ts);
+// dřív 8dce05322fad129e a da411ec1fa2f9cb4
+const EXPECTED_YEAR_2 = 'f6b7682b11df2f20';
+const EXPECTED_YEAR_3 = 'e8c39d25e87414cf';
 
 describe('zlatý otisk vsi – delší běh', () => {
   it('po 2. a 3. roce dopočtu dá zapsané otisky', () => {

@@ -1,8 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { createRandom, deriveSeed } from '../../landscape/random';
+import { CELL_SIZE_M, LANDSCAPE_SIZE } from '../../landscape/types';
+import { returnHome } from '../../vassalage/guests';
 import { areaOutline, fortificationArea, fortSegments } from '../../village';
+import { applyInboxDay, type VillageEvent } from '../../village/core/inbox';
 import type { Fortification } from '../../village/fortification/types';
 import { kin, village } from '../../village/__tests__/kin-fixtures';
+import { isAway } from '../../village/people/people';
 import type { TileCell, VillageState } from '../../village/types';
 import type { Fighter } from '../battle';
 import { stepCampaign } from '../campaign';
@@ -10,6 +14,7 @@ import type {
   CampaignIntent,
   CampaignMap,
   CampaignMember,
+  CampaignPlace,
   CampaignState,
   CampaignStep,
   CampaignWorld,
@@ -31,11 +36,13 @@ import {
 
 // Živé vedení bez rozkazu – dezerce při docházejících zásobách (war.md – Zásoby tažení: Živé vedení
 // bez rozkazu; Martin 14. 11. 2026; plán 2026-11-14 – Úloha 10). Jakmile jídlo klesne pod jídlo na
-// cestu domů, dezertuje denně ≈ 5 % mužů, vůdce ne; dezertér jde domů jako při rozpadu; zůstane-li
-// jen vůdce, výprava se rozpadne.
+// cestu domů, dezertuje denně ≈ 5 % mužů, vůdce ne; dezertér jde domů hned (Martin 15. 11. 2026);
+// zůstane-li jen vůdce, výprava se rozpadne.
 
 const TARGET: CampaignMap = { landscape: flat(), obstacles: null, villageIds: ['knezice'] };
 const OPEN: CampaignMap = { landscape: flat(), obstacles: null, villageIds: [] };
+/** Brod 4 políčka od shromaždiště – dezertér z něj jde domů déle, než zbytek tažení trvá. */
+const FAR_BROD: CampaignPlace = { cell: { x: 4, y: 0 }, pos: { x: 0, z: 0 } };
 
 /** Palisáda 4 × 4 políčka severovýchodně od domu Kněžic (−810…−750 m, 90…150 m). */
 function smallFort(day: number): Fortification {
@@ -194,7 +201,8 @@ describe('živé vedení bez rozkazu u vsi za palisádou', () => {
   // po rozpadu dojde vůdce domů (160 m) do 1 dne
   const END = LAUNCH + (last - SUMMER + 2) * DAY_TICKS;
   const INTENTS = liveUntil(END);
-  const start = raid(1, SEED);
+  // muž 2 je ze Lhoty (shromaždiště, 160 m), muž 11 z Brodu daleko
+  const start: CampaignState = { ...raid(1, SEED), homes: { brod: FAR_BROD } };
   const whole = stepCampaign(start, END, INTENTS, fortWorld);
 
   /** Stav na konci dne `day` (poslední takt dne). */
@@ -254,19 +262,100 @@ describe('živé vedení bez rozkazu u vsi za palisádou', () => {
     expect(whole.notices.some((n) => n.kind === 'campaign-returned')).toBe(false);
   });
 
-  it('dezertér jde domů jako při rozpadu – do domovské vsi právě jednou', () => {
+  /**
+   * Herní dny chůze pěšího vzdušnou čarou z místa skupiny muže `index` (stav před dnem `day`) do
+   * `home` – spočtené nezávisle na kódu (`Math.hypot`, tempo vojska po reálných sekundách).
+   */
+  const walkOf = (index: number, day: number, home: CampaignPlace): number => {
+    const g = atEndOf(day - 1).groups.find((x) => x.id === start.members[index]!.group)!;
+    const side = LANDSCAPE_SIZE * CELL_SIZE_M;
+    const dx = (g.cell.x - home.cell.x) * side + g.pos.x - home.pos.x;
+    const dz = (g.cell.y - home.cell.y) * side + g.pos.z - home.pos.z;
+    const secondsPerDay = 24 / hoursPerTick(world) / WAR.campaign.ticksPerSecond;
+    return Math.hypot(dx, dz) / (WAR.pace.metersPerSecond * secondsPerDay);
+  };
+
+  it('dezertér jde domů hned: den nato `away-ends`, doma ode dne dezerce + cesta (Martin 15. 11. 2026)', () => {
+    const cases = [
+      { index: 1, day: out2, home: start.assembly },
+      { index: 2, day: out11, home: FAR_BROD },
+    ];
+    for (const { index, day, home } of cases) {
+      const m = whole.state.members[index]!;
+      const until = day + Math.max(1, Math.ceil(walkOf(index, day, home)));
+      const ends = whole.villageEvents.filter(
+        (e) => e.body.kind === 'away-ends' && e.body.personIds?.includes(m.ref.personId),
+      );
+      expect(ends).toHaveLength(1);
+      expect(ends[0]).toMatchObject({
+        villageId: m.ref.villageId,
+        day: day + 1,
+        body: { refId: start.id, untilDay: until, personIds: [m.ref.personId] },
+      });
+      expect(m.homeDay).toBe(until);
+    }
+    // Lhota je 160 m od bojiště – doma den po dezerci; Brod daleko – až dlouho po konci tažení
+    expect(whole.state.members[1]!.homeDay).toBe(out2 + 1);
+    expect(whole.state.members[2]!.homeDay).toBeGreaterThan(whole.state.day + 10);
+  });
+
+  it('konec tažení dezertéra nevrátí podruhé, vůdce se vrací jako dřív', () => {
     const refs = whole.villageEvents.map((e) => e.ref);
     expect(new Set(refs).size).toBe(refs.length);
-    for (const m of whole.state.members) {
-      const back = whole.villageEvents.filter(
-        (e) => e.body.kind === 'campaign-return' && e.body.result.back.includes(m.ref.personId),
+    const backOf = (personId: number): string[] =>
+      whole.villageEvents
+        .filter((e) => e.body.kind === 'campaign-return' && e.body.result.back.includes(personId))
+        .map((e) => e.villageId);
+    expect(backOf(1)).toEqual(['lhota']);
+    expect(backOf(2)).toEqual([]);
+    expect(backOf(11)).toEqual([]);
+    // návrat tažení dostanou obě domovské vsi jednou (Brod prázdný – jeho muž už šel domů)
+    const returns = whole.villageEvents.filter((e) => e.body.kind === 'campaign-return');
+    expect(returns.map((e) => e.villageId).sort()).toEqual(['brod', 'lhota']);
+  });
+
+  it('ve vsi je dezertér pryč jen do dne dezerce + cesta, vůdce do konce tažení', () => {
+    /** Ves na tažení – její muži pryč s tímto tažením (jako po vyslání). */
+    const homeOf = (ids: readonly number[]): VillageState => {
+      const v = village(ids.map((id) => kin({ id, age: 25, sex: 'male' }, SUMMER)));
+      for (const p of v.people) p.away = { kind: 'campaign', refId: start.id };
+      return v;
+    };
+    /** Začátek dne den po dni jako `advanceVillageSteps`: návraty domů, pak události schránky. */
+    const replay = (
+      v: VillageState,
+      villageId: string,
+      to: number,
+      each: (day: number) => void,
+    ): void => {
+      const inbox: VillageEvent[] = whole.villageEvents
+        .filter((e) => e.villageId === villageId)
+        .map((e, seq) => ({ id: e.ref, villageId, day: e.day, seq, body: e.body }));
+      for (let day = SUMMER + 1; day <= to; day++) {
+        returnHome(v, day);
+        applyInboxDay(v, day, inbox);
+        each(day);
+      }
+    };
+    const away = (v: VillageState, id: number, day: number): boolean =>
+      isAway(
+        v.people.find((p) => p.id === id)!,
+        day,
       );
-      expect(back.map((e) => e.villageId)).toEqual([m.ref.villageId]);
-    }
-    // Brod (muž 11) dostane návrat, i když se do něj vojsko nevracelo
-    expect(
-      whole.villageEvents.some((e) => e.villageId === 'brod' && e.body.kind === 'campaign-return'),
-    ).toBe(true);
+    const ended = whole.villageEvents.find(
+      (e) => e.villageId === 'lhota' && e.body.kind === 'campaign-return',
+    )!.day;
+    const home11 = whole.state.members[2]!.homeDay!;
+    expect(ended).toBeLessThan(home11);
+    const lhota = homeOf([1, 2]);
+    replay(lhota, 'lhota', ended + 1, (day) => {
+      expect(away(lhota, 2, day)).toBe(day < out2 + 1);
+      expect(away(lhota, 1, day)).toBe(day < ended);
+    });
+    // návrat tažení do Brodu přijde dřív, ale dezertéra nevrátí – je doma až po cestě
+    const brod = homeOf([11]);
+    replay(brod, 'brod', home11 + 1, (day) => expect(away(brod, 11, day)).toBe(day < home11));
+    expect(brod.people[0]!.away).toBeUndefined();
   });
 
   it('po kouscích 1 / 37 / 400 taktů s kontrolním bodem = vcelku', { timeout: 60_000 }, () => {

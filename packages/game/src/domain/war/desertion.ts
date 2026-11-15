@@ -1,6 +1,8 @@
+import type { WorldClock } from '../calendar';
 import { createRandom, deriveSeed } from '../landscape/random';
+import { CELL_SIZE_M, LANDSCAPE_SIZE } from '../landscape/types';
 import type { CampaignMember, CampaignState, CampaignWorld } from './campaign-types';
-import { homeFoodKg } from './npc-commander';
+import { homeFoodKg, walkDays } from './npc-commander';
 import { WAR } from './rules-war';
 
 // Dezerce (war.md – Vojsko; Zásoby tažení: Živé vedení bez rozkazu): každý nucený muž na tažení
@@ -8,6 +10,7 @@ import { WAR } from './rules-war';
 // pod jídlo na cestu domů, utíká navíc ≈ 5 % mužů denně – kromě vůdce (Martin 14. 11. 2026). Los muže
 // je jeden na den, jen ze seedu tažení, dne a pořadí muže – výsledek nezávisí na tom, po jakých
 // kouscích taktů se tažení počítá; hlad šanci nuceného jen zvětší (kdo by utekl bez hladu, uteče).
+// Dezertér jde domů hned, ne s koncem tažení (Martin 15. 11. 2026) – `deserterHomeDay`.
 
 /**
  * Hlad živého vedení (war.md – Zásoby tažení: Živé vedení bez rozkazu): tažení na pochodu či
@@ -39,6 +42,27 @@ export function deserters(
     if (draw < chance) out.push(m);
   });
   return out;
+}
+
+/** Strana mapy políčka (m) – všechny mapy světa jsou stejně velké. */
+const MAP_SIDE_M = LANDSCAPE_SIZE * CELL_SIZE_M;
+
+/**
+ * Den, na jehož začátku je dezertér doma (war.md – Vojsko; Martin 15. 11. 2026: „Dezertér jde domů
+ * hned… k čemu by mu dezerce byla, když by čekal na konec tažení?“): den dezerce + dny chůze z místa
+ * jeho skupiny do jeho vsi (`homes`, chybí-li – shromaždiště) vzdušnou čarou tempem pěšího jako
+ * cesta domů tažení (`walkDays`; návrh Clauda), nejdřív den po dezerci – výsledky tažení jdou do vsi
+ * den nato. Mapy nečte (strana je všude stejná), výsledek tak nezávisí na tom, které jsou načtené.
+ */
+export function deserterHomeDay(
+  state: Pick<CampaignState, 'day' | 'groups' | 'homes' | 'assembly'>,
+  m: CampaignMember,
+  clock: WorldClock,
+): number {
+  const from = state.groups.find((g) => g.id === m.group) ?? state.groups[0];
+  const home = state.homes?.[m.ref.villageId] ?? state.assembly;
+  const days = from ? walkDays(from, home, MAP_SIDE_M, clock) : 0;
+  return state.day + Math.max(1, Math.ceil(days));
 }
 
 /** Denní šance nuceného na útěk (war.md – Vojsko); dobrovolník a muž rodu 0. */

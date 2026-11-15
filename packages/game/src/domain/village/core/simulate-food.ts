@@ -187,7 +187,8 @@ function eatsFull(input: DietInput): boolean {
 /**
  * Krok 8: jídlo dne ze zásob (diet.md) – ovoce přednostně do zkažení, čerstvé mléko (dojí se
  * vždy celé – ženy bokem, population.md – Práce) a vejce, maso do porážky, sýr do dojení,
- * luštěniny do sklizně a med pevným přídělem (hides-honey.md), obilí dorovná; vrací nasycení
+ * luštěniny do sklizně a med pevným přídělem, v hladu i zásoba (hides-honey.md – Med v hladu),
+ * obilí dorovná; vrací nasycení
  * (energie × kvalita stravy), energii, jestli se jedlo ovoce, a podíl energie z masa (štěstí)
  * a zapíše začátek a konec hladu. Hlad začíná
  * už tehdy, když příděl energie podle výhledu do sklizně klesne pod plný – i když se dnes jí

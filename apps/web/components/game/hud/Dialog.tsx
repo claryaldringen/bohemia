@@ -78,18 +78,22 @@ export function Dialog({
         <div className="flex items-center gap-1.5 pb-2">
           {icon}
           <h2 className="font-serif text-lg leading-6 text-[#f0c987]">{title}</h2>
-          <Tooltip content="Zavřít (Esc)">
-            <button
-              type="button"
-              aria-label="Zavřít"
-              data-testid={closeTestId ?? 'dialog-close'}
-              disabled={locked}
-              className="hud-icon-button ml-auto flex h-6 w-6 items-center justify-center disabled:opacity-40"
-              onClick={onClose}
-            >
-              <img src="/icons/house/cross.png" alt="" width={12} height={12} draggable={false} />
-            </button>
-          </Tooltip>
+          {/* křížek vpravo nahoře – `ml-auto` musí mít prvek řádku, ne tlačítko uvnitř obalu
+              popisku (obal je položka flexu, tlačítko v něm by zůstalo hned za titulkem) */}
+          <div className="ml-auto" data-testid="dialog-close-slot">
+            <Tooltip content="Zavřít (Esc)">
+              <button
+                type="button"
+                aria-label="Zavřít"
+                data-testid={closeTestId ?? 'dialog-close'}
+                disabled={locked}
+                className="hud-icon-button flex h-6 w-6 items-center justify-center disabled:opacity-40"
+                onClick={onClose}
+              >
+                <img src="/icons/house/cross.png" alt="" width={12} height={12} draggable={false} />
+              </button>
+            </Tooltip>
+          </div>
         </div>
         <div className="min-h-0 overflow-y-auto">{children}</div>
       </section>
