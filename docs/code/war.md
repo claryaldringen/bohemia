@@ -157,7 +157,8 @@ outside, day)` → `MemberDelta` (`health`, `vigor` = podíl plné síly): v zim
 - **Testy** – `domain/war/__tests__/march.test.ts` (tempo, les, brod, řeky kostry jen přes brod
   – umělé i mapa se soutokem, cíl ve vodě – posun na dosažitelný břeh, remíza, sevřené vojsko,
   opevnění, cesta, zima,
-  zlatá cesta na seedech 1–3 – otisk počtu brodů a trasy přes mapu, determinismus, paseka, okraj),
+  zlatá cesta na seedech 1–3 – otisk počtu brodů a trasy přes mapu, determinismus, paseka, okraj,
+  z branky dvorce rovně a ze středu domu obloukem – výprava, D49),
   `world-route.test.ts`, `application/__tests__/cell-landscape.test.ts`. Změna mřížky nebo A*
   změní zlatý otisk – zapsat nový jen se záměrem.
 
