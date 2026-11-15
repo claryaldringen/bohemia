@@ -158,7 +158,8 @@ export function PersonBody({
 }: {
   details: Extract<SelectionDetails, { kind: 'person' }>;
   /** Příkaz vybranému člověku – tlačítka Osedlat, Sesednout a Domů (`useExpeditionOrders`). */
-  expeditionCommand?: ((c: ExpeditionCommand) => void) | undefined;
+  expeditionCommand?:
+    ((c: ExpeditionCommand, screen?: { x: number; y: number }) => void) | undefined;
   onSelectTarget?: ((target: VillageTarget) => void) | undefined;
   ennoble?: EnnobleActions | undefined;
   /** Křest vojvody (server action) – vrací důvod odmítnutí, nebo null. */

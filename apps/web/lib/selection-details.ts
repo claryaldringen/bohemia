@@ -1046,6 +1046,8 @@ function selectionKinds(
   if (target.kind === 'premium-site') {
     return { kind: 'premium-site', type: target.type, site: target.site };
   }
+  // lidé jiné vsi hráče (`villageId` – člen její výpravy): pohled vsi scény o nich nic neví
+  if ((target.kind === 'person' || target.kind === 'people') && target.villageId) return null;
   if (target.kind === 'person')
     return personDetails(view, scene, target.id, person, draft, parties, homeCell);
   if (target.kind === 'plough-team') return teamDetails(scene, target.team, draft);

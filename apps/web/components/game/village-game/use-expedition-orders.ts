@@ -16,6 +16,7 @@ import {
   lordJourneyViewOf,
   partiesOf,
   partyJourneyViewOf,
+  partyMembersOf,
 } from '@/lib/journey-view';
 import type { JourneyView } from '@/lib/journey-view';
 import type { ScenePerson } from '@/lib/person-view';
@@ -25,8 +26,8 @@ import type { VillageTarget } from '@/lib/scene/village-picking';
 import {
   peopleTarget,
   selectedPeopleIds,
+  selectedPeopleVillage,
   type PartyOf,
-  type VillageOf,
 } from '@/lib/scene/village-selection';
 
 // Rozkazy vybraným lidem ve scéně (expeditions.md – Výběr a skupina; jako jednotky v 0 A.D.):
@@ -63,9 +64,8 @@ export interface ForeignLordScene {
 }
 
 export interface ExpeditionOrders {
-  /** Skupina člověka venku a domovská ves člověka – klik na člena skupiny vybere celou skupinu. */
+  /** Skupina člověka venku (ve výpravě jeho vsi) – klik na člena skupiny vybere celou skupinu. */
   partyOf: PartyOf;
-  villageOf: VillageOf;
   /** Popisek u kurzoru: „Na sousední mapu“ u okraje, nebo důvod odmítnutí rozkazu. */
   note: CursorNote | null;
   /** Cizí mapa, kterou scéna ukazuje; null – scéna vsi. */
@@ -80,8 +80,8 @@ export interface ExpeditionOrders {
   away: { name: string | null; selected: boolean; onSelect: () => void } | null;
   /** Vybraní lidé pro tlačítka Osedlat, Sesednout a Domů (na cizí mapě v horním rohu). */
   buttons: ExpeditionPersonState[];
-  /** Příkaz vybraným lidem (Domů, Osedlat, Sesednout…). */
-  command: (c: ExpeditionCommand) => void;
+  /** Příkaz vybraným lidem (Domů, Osedlat, Sesednout…); důvod odmítnutí u `screen` (místo kliknutí). */
+  command: (c: ExpeditionCommand, screen?: { x: number; y: number }) => void;
 }
 
 /** Vojvoda vsi pro horní lištu: id, jméno a jestli je pryč. */
@@ -162,39 +162,38 @@ export function useExpeditionOrders({
   const [bound, bindForeign] = useState<ForeignLordScene | null>(null);
   const foreign = foreignProp ?? bound;
   const ids = useMemo(() => selectedPeopleIds(selection), [selection]);
+  // Id osoby je jedinečné jen ve vsi (D2): vybraní lidé jsou z jiné vsi hráče (`villageId` výběru –
+  // člen její výpravy), nebo ze vsi scény. Skupiny, rozkaz i tlačítka jen z výpravy jejich vsi.
+  const chosenVillage = selectedPeopleVillage(selection);
+  const home = chosenVillage ?? villageId;
+  const homeViews = useMemo(() => views.filter((v) => v.villageId === home), [views, home]);
+  const sceneViews = useMemo(
+    () => views.filter((v) => v.villageId === villageId),
+    [views, villageId],
+  );
 
-  // kdo je ve které skupině a z které vsi
+  // kdo je ve které skupině
   const viewsRef = useRef(views);
-  const personsRef = useRef(persons);
   const villageIdRef = useRef(villageId);
+  const homeRef = useRef(home);
   useEffect(() => {
     viewsRef.current = views;
-    personsRef.current = persons;
     villageIdRef.current = villageId;
-  }, [views, persons, villageId]);
-  const partyOf = useCallback((personId: number): readonly number[] | null => {
-    for (const v of viewsRef.current) {
-      for (const party of v.parties) {
-        if (party.people.some((p) => p.personId === personId)) {
-          return party.people.map((p) => p.personId);
-        }
-      }
-    }
-    return null;
-  }, []);
-  const villageOf = useCallback((personId: number): string | null => {
-    for (const v of viewsRef.current) {
-      if (v.parties.some((p) => p.people.some((m) => m.personId === personId))) return v.villageId;
-    }
-    return personsRef.current.some((p) => p.id === personId) ? villageIdRef.current : null;
-  }, []);
+    homeRef.current = home;
+  }, [views, villageId, home]);
+  const partyOf = useCallback(
+    (personId: number, village: string | undefined): readonly number[] | null =>
+      partyMembersOf(viewsRef.current, village ?? villageIdRef.current, personId),
+    [],
+  );
 
   // Scéna za skupinou (expeditions.md – Scéna): klik na portrét vojvody v liště přepne scénu na
   // cizí mapu, kde je jeho skupina; scéna jde za hloučkem vůdce vybrané skupiny z mapy na mapu.
   const [following, setFollowing] = useState(false);
   const followed = useMemo(
-    () => (ids.length > 0 ? partyJourneyViewOf(views, ids) : null) ?? lordJourneyViewOf(views),
-    [views, ids],
+    () =>
+      (ids.length > 0 ? partyJourneyViewOf(homeViews, ids) : null) ?? lordJourneyViewOf(sceneViews),
+    [homeViews, sceneViews, ids],
   );
   const watching = watchedJourneyCell(following, followed);
   useEffect(() => {
@@ -211,11 +210,9 @@ export function useExpeditionOrders({
   useEffect(() => {
     if (!foreignScene) return;
     return foreignScene.onSelect((target, additive, double) =>
-      setSelected(
-        foreignJourneySelection(selectedRef.current, target, additive, double, partyOf, villageOf),
-      ),
+      setSelected(foreignJourneySelection(selectedRef.current, target, additive, double, partyOf)),
     );
-  }, [foreignScene, setSelected, partyOf, villageOf]);
+  }, [foreignScene, setSelected, partyOf]);
   // vybraní lidé mají i na cizí mapě kroužek, který jede s nimi (journey.md – Výběr)
   useEffect(() => {
     foreignScene?.setSelection(
@@ -238,8 +235,9 @@ export function useExpeditionOrders({
     [],
   );
 
-  // Proč nikdo z vybraných nemůže (bez dotazu na server): důvod prvního z nich
+  // Proč nikdo z vybraných nemůže (bez dotazu na server): důvod prvního z nich – lidé vsi scény
   const refusal = useMemo((): string | null => {
+    if (chosenVillage !== undefined) return null;
     const chosen = ids.map((id) => persons.find((p) => p.id === id));
     if (chosen.length === 0 || chosen.some((p) => p?.expedition?.refusal === undefined))
       return null;
@@ -247,7 +245,7 @@ export function useExpeditionOrders({
     return first?.expedition?.refusal
       ? expeditionReason(first.expedition.refusal, first.sex === 'female')
       : null;
-  }, [ids, persons]);
+  }, [ids, persons, chosenVillage]);
 
   // Rozkaz běží (dvojité pravé kliknutí nevyšle dvakrát)
   const sending = useRef(false);
@@ -258,11 +256,10 @@ export function useExpeditionOrders({
   const send = useCallback(
     (c: ExpeditionCommand, screen: { x: number; y: number }): void => {
       const people = idsRef.current;
-      const first = people[0];
-      const home = first === undefined ? villageIdRef.current : villageOf(first);
-      if (first === undefined || home === null || sending.current) return;
+      const village = homeRef.current;
+      if (people.length === 0 || village === null || sending.current) return;
       sending.current = true;
-      void commandExpedition({ villageId: home, people, command: inputOf(c) })
+      void commandExpedition({ villageId: village, people, command: inputOf(c) })
         .then((result) => {
           if ('error' in result) {
             showError(result.error, screen);
@@ -276,11 +273,11 @@ export function useExpeditionOrders({
           sending.current = false;
         });
     },
-    [villageOf, showError, onCommanded, refresh],
+    [showError, onCommanded, refresh],
   );
   const command = useCallback(
-    (c: ExpeditionCommand): void =>
-      send(c, { x: window.innerWidth / 2, y: window.innerHeight / 2 }),
+    (c: ExpeditionCommand, screen?: { x: number; y: number }): void =>
+      send(c, screen ?? { x: window.innerWidth / 2, y: window.innerHeight / 2 }),
     [send],
   );
 
@@ -324,34 +321,55 @@ export function useExpeditionOrders({
   }, [orderScene, active, orderMapSizeM, orderCell, send, showError]);
 
   const buttons = useMemo((): ExpeditionPersonState[] => {
-    const parties = partiesOf(views, null);
+    const parties = partiesOf(homeViews, home);
+    // lidé jiné vsi: jen podle její výpravy (lidi vsi scény `persons` nemají), doma = její mapa
+    const atHome = chosenVillage === undefined ? homeCell : (homeViews[0]?.home ?? null);
     return ids.flatMap((id) => {
-      const state = expeditionPersonState(
-        persons.find((p) => p.id === id),
-        id,
-        parties,
-        homeCell,
-      );
+      const person = chosenVillage === undefined ? persons.find((p) => p.id === id) : undefined;
+      const state = expeditionPersonState(person, id, parties, atHome);
       return state ? [state] : [];
     });
-  }, [ids, views, persons, homeCell]);
+  }, [ids, homeViews, home, chosenVillage, persons, homeCell]);
 
-  const lordSelected = lord !== null && ids.includes(lord.id);
+  // Odznak vojvody (D1): stráž konce jako dřív u výjezdu – skupina vojvody z pohledů zmizela
+  // (došel domů), ves to ale potvrdí až další den (`away.untilDay`); odznak do té doby nesvítí
+  const lordOut = useMemo(
+    () => lord !== null && partyMembersOf(views, villageId, lord.id) !== null,
+    [views, villageId, lord],
+  );
+  const lordSeen = useRef(false);
+  const [lordBack, setLordBack] = useState(false);
+  useEffect(() => {
+    if (lordOut) {
+      lordSeen.current = true;
+      setLordBack(false);
+    } else if (lordSeen.current) {
+      lordSeen.current = false;
+      setLordBack(true);
+    }
+  }, [lordOut]);
+  const lordAway = lord?.away === true;
+  useEffect(() => {
+    if (!lordAway) setLordBack(false);
+  }, [lordAway]);
+
+  const lordSelected = lord !== null && chosenVillage === undefined && ids.includes(lord.id);
   const away = useMemo(
     () =>
-      lord?.away
+      lord?.away && !lordBack
         ? {
             name: lord.name,
             selected: lordSelected,
             onSelect: (): void => {
-              setSelected(peopleTarget(partyOf(lord.id) ?? [lord.id]));
+              setSelected(peopleTarget(partyOf(lord.id, undefined) ?? [lord.id]));
               // skupina vojvody na cizí mapě – scéna jde za ní
-              const view = partyJourneyViewOf(viewsRef.current, [lord.id]);
+              const own = viewsRef.current.filter((v) => v.villageId === villageIdRef.current);
+              const view = partyJourneyViewOf(own, [lord.id]);
               if (watchedJourneyCell(true, view) !== null) setFollowing(true);
             },
           }
         : null,
-    [lord, lordSelected, setSelected, partyOf],
+    [lord, lordBack, lordSelected, setSelected, partyOf],
   );
   return {
     note,
@@ -363,6 +381,5 @@ export function useExpeditionOrders({
     buttons,
     command,
     partyOf,
-    villageOf,
   };
 }

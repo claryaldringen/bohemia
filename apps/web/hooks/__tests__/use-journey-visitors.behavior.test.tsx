@@ -37,6 +37,7 @@ const visitor: ExpeditionVisitor = {
   journeyId: 'j2',
   partyId: 0,
   own: false,
+  villageId: null,
   leaderName: 'Vratislav',
   houseName: 'Lučané',
   tick: 10,

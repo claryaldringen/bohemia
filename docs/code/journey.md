@@ -215,7 +215,7 @@ untilTick, pen }`: vesničan `groomId` (null = nikdo doma), jezdci (id osob), ta
     (nejdřív za bodem) bez zámku; s rekrutem `{ ok: false, reason: 'recruits' }` bez zápisu.
   - **`musterExpedition`** (zámek hráče) – rekruti odejdou ze vsi (`editVillage`, `sendAway`
     s `refId` výpravy, bez výpravy `newId()`; na čerstvém stavu se ověří znovu – kdo mezitím
-    nesmí, odmítne celý příkaz); bez výpravy `create(newJourney({ recruits, order }))` (Osedlat
+    nesmí, odmítne celý příkaz; zápis se nepovede ani po opakování – `busy`); bez výpravy `create(newJourney({ recruits, order }))` (Osedlat
     jako první příkaz: založí bez rozkazu a hned záměr `saddle` s jejich id); s výpravou záměr
     `{ ...příkaz, people, recruits }`. `addIntent` null (výprava mezitím skončila) – rekruti zpět
     (`release` – jen jim `away` zmizí) a jednou znovu od začátku, s novou výpravou; podruhé `nobody`.
@@ -372,8 +372,9 @@ untilTick, pen }`: vesničan `groomId` (null = nikdo doma), jezdci (id osob), ta
 - **`expeditionVisitorsOn(deps, { playerId, villageId })`** (`journey-view.ts`) – skupiny výprav
   na mapě vsi hráče. Hostitel vidí skupinu, když vidí aspoň jeden její hlouček na této mapě
   (`inSight`); vlastní skupiny vždy. Výsledek `ExpeditionVisitor`: id výpravy a skupiny, `own`,
-  jméno vůdce (`partyLeader`) a rodu, takt, hloučky na této mapě (cíl jen u vlastní skupiny) a jejich
-  lidé (vojvoda, kůň, vedený kůň, žena, dítě).
+  `villageId` (domovská ves vlastní skupiny, cizí null), jméno vůdce (`partyLeader`) a rodu, takt,
+  hloučky na této mapě (cíl jen u vlastní skupiny) a jejich lidé (vojvoda, kůň, vedený kůň, žena,
+  dítě; `personId` jen u vlastní skupiny, cizí null).
 
 ## Objevování (Úloha 6 – `domain/war/seen.ts`)
 
@@ -472,17 +473,25 @@ false`, bez stohu sena), zásoby a stohy, cesty a pěšiny (`since`), průběh r
   (`people[].group` = hlouček); `?known=` beze změny.
 - **Texty a pohled** `lib/journey-view.ts` – **`expeditionReason(reason,
 female?)`** („Od 12 let.“, „Je raněný.“ / „Je raněná.“, „Je na tažení.“, „Je pryč.“, „Tam
-  nedojde.“, „Tam je válka.“, „Kůň je doma.“, `nobody` / `refused` „Rozkaz nelze dát.“),
+  nedojde.“, „Tam je válka.“, „Kůň je doma.“, `busy` – zápis vsi se při souběhu nepovedl – „Zkus
+  to znovu.“, `nobody` / `refused` „Rozkaz nelze dát.“),
   **`interpolateExpeditions`** (poloha hloučků na téže mapě), **`lordJourneyViewOf`** (pohled na
   výjezd vojvody pro jeho panel z hloučku s vojvodou), **`sceneJourneysOf`** (jeden `SceneJourney`
-  na hlouček, klíč `journeyId` = `${výprava}:${hlouček}`, `partyId` skupiny, muži z lidí hloučku),
-  **`partiesOf`**, `JOURNEY_POLL_MS` (500).
+  na hlouček, klíč `journeyId` = `${výprava}:${hlouček}`, `partyId` skupiny, muži z lidí hloučku
+  s klíčem `sceneManKey` = `${výprava}:${osoba}` – id osoby je jedinečné jen ve vsi; vlastní skupina
+  jiné vsi než `villageId` vstupu (ves scény) nese `SceneJourney.villageId`, `home` – odjezd
+  a příjezd s postavami vsi – má jen skupina vsi scény na své domovské mapě; vlastní návštěvník bez
+  vsi se vybrat nedá), **`partyMembersOf(views, villageId, personId)`** (skupina člověka jen ve
+  výpravě jeho vsi), **`partiesOf`**, `JOURNEY_POLL_MS` (500).
 - **Hook** `hooks/use-journey.ts` – **`useExpeditions(running, onPartyEnded)`**: dotaz 2× za
   sekundu jen s `running` (ves má `expeditionsAway`, nebo právě vyslal) a ve viditelném panelu
   (`usePolling`); stejné takty pohled nepřepíšou; `views` (interpolované), `latest`, `sample(nowMs)`,
   `refresh()`. Zmizí-li skupina nebo hlouček, `onPartyEnded` (jednou za dotaz) obnoví ves a dotazy
   běží dál, dokud ves neřekne, že nikdo pryč není.
-- **Ves a osoby** – `VillageView.expeditionsAway` (někdo má `away: journey`; `dynasty.journeyAway` je jen vojvoda pryč); `ScenePerson.expedition` (`lib/person-view.ts`,
+- **Ves a osoby** – `VillageView.expeditionsAway` (někdo má `away: journey` a v den pohledu je
+  pryč – `isAway`, od `untilDay` už ne, i když záznam ves smaže až další den; `dynasty.journeyAway`
+  totéž jen pro vojvodu; odznak v liště má navíc stráž konce v `useExpeditionOrders` – skupina
+  vojvody z pohledů zmizela, ves to potvrdí až další den); `ScenePerson.expedition` (`lib/person-view.ts`,
   jen s plným stavem vsi 5. parametrem `scenePersons`): `refusal` (`young` / `wounded` /
   `campaign` / `away` z `expeditionRecruit`), `rider`, `inParty`, `strength` (na koni
   `strengthMounted`; ženy a děti 0).
@@ -498,14 +507,21 @@ female?)`** („Od 12 let.“, „Je raněný.“ / „Je raněná.“, „Je na
 
 ## Ovládání (Úloha 8 výprav – `apps/web`)
 
-- **Výběr lidí** – `VillageTarget` `{ kind: 'people'; ids }` (`village-picking.ts`);
-  `peopleTarget(ids)` (0 → null, 1 → `person`, víc → `people`) a `selectedPeopleIds(target)`
-  (`village-selection.ts`). `nextSelection(current, clicked, additive, double, partyOf?, villageOf?)`:
-  klik na člena skupiny venku vybere celou skupinu (`partyOf`), Shift / Ctrl + klik člověka přidá
-  nebo ubere (člena skupiny celou skupinu), člověk jiné domovské vsi (`villageOf`) výběr nahradí,
-  obydlí a lidé se nemíchají (člověk k obydlím výběr nahradí, jiný cíl s Shiftem lidi nezruší).
+- **Výběr lidí** – `VillageTarget` `{ kind: 'people'; ids; villageId? }` (`village-picking.ts`);
+  id osoby je jedinečné jen ve vsi, proto `person` i `people` nesou `villageId` člověka jiné vsi
+  hráče (klik na jezdce skupiny jiné vsi – `RiderPose.villageId`); chybí – ves scény.
+  `peopleTarget(ids, villageId?)` (0 → null, 1 → `person`, víc → `people`), `selectedPeopleIds`
+  a `selectedPeopleVillage(target)` (`village-selection.ts`). `nextSelection(current, clicked,
+additive, double, partyOf?)`: klik na člena skupiny venku vybere celou skupinu (`partyOf(id,
+villageId)` – jen ve výpravě jeho vsi), Shift / Ctrl + klik člověka přidá nebo ubere (člena
+  skupiny celou skupinu), člověk jiné vsi výběr nahradí, obydlí a lidé se nemíchají (člověk
+  k obydlím výběr nahradí, jiný cíl s Shiftem lidi nezruší). Lidé jiné vsi: `presentTarget` je
+  nechá, panel výběru nic neukáže (`selectionDetails` null), postavy vsi kroužek nedostanou.
   Kroužek má každý vybraný: `VillageVillagers.select` (první) + `selectMore` (ostatní), muži
-  výpravy `SceneWarView.selectJourneyMen(ids)` → `ArmyRenderer` (kroužek jede s jezdcem).
+  výpravy `SceneWarView.selectJourneyMen(ids, villageId)` → `ArmyRenderer` (kroužek jede
+  s jezdcem, `selectedRider` i `selectedPartyKeys` – praporek – podle vsi). Rozkaz, skupina za
+  níž jde scéna (`followed`), tlačítka a důvod odmítnutí berou jen výpravu vsi výběru
+  (`useExpeditionOrders`); tlačítka posílají místo kliknutí – důvod je u kurzoru.
   Panel výběru `people` (`SelectionDetails.kind: 'people'`): řada portrétů, síla a Osedlat / Sesednout / Domů (viz Rozhraní, Úloha 9).
 - **Rozkaz z kliknutí** – `lib/scene/journey-orders.ts`: `orderFromClick({ selected, point,
 mapSizeM, cell })` (čistá funkce) – bez vybraných lidí nebo mimo terén null; v okrajovém pásu

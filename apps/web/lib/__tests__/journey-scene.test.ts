@@ -7,6 +7,8 @@ import {
   type PartyView,
 } from '@bohemia/game';
 import { sceneJourneysOf } from '../journey-view';
+import { selectedPartyKeys } from '../scene/journey-marker';
+import { journeyFormation, selectedRider } from '../scene/journey-riders';
 import { sceneLabor } from '../village-view-scene';
 import { dayRoster } from '../scene/villager-plan';
 
@@ -68,6 +70,7 @@ function visitor(over: Partial<ExpeditionVisitor> = {}): ExpeditionVisitor {
     journeyId: 'j2',
     partyId: 0,
     own: false,
+    villageId: null,
     leaderName: 'Vratislav',
     houseName: 'Lučané',
     tick: 48,
@@ -84,10 +87,16 @@ describe('sceneJourneysOf', () => {
     const own = visitor({
       journeyId: 'j1',
       own: true,
+      villageId: 'v1',
       leaderName: 'Bořivoj',
       houseName: 'Kněžičtí',
     });
-    const list = sceneJourneysOf({ own: [view()], visitors: [own, visitor()], cell: HOME });
+    const list = sceneJourneysOf({
+      own: [view()],
+      visitors: [own, visitor()],
+      cell: HOME,
+      villageId: 'v1',
+    });
     expect(list).toHaveLength(2);
     expect(list[0]).toMatchObject({
       journeyId: 'j1:0',
@@ -105,7 +114,7 @@ describe('sceneJourneysOf', () => {
     });
     expect(list[0]!.men).toEqual([
       {
-        key: '7',
+        key: 'j1:7',
         personId: 7,
         lord: true,
         mounted: true,
@@ -114,7 +123,7 @@ describe('sceneJourneysOf', () => {
         led: false,
       },
       {
-        key: '9',
+        key: 'j1:9',
         personId: 9,
         lord: false,
         mounted: false,
@@ -151,7 +160,7 @@ describe('sceneJourneysOf', () => {
     const party = two.parties[0]!;
     party.groups.push({ id: 1, cell: HOME, pos: { x: 9, z: 9 }, goal: null, arrived: true });
     party.people = [person(7, 0), person(8, 1), person(9, 1)];
-    const list = sceneJourneysOf({ own: [two], visitors: [], cell: HOME });
+    const list = sceneJourneysOf({ own: [two], visitors: [], cell: HOME, villageId: 'v1' });
     expect(list.map((j) => j.journeyId)).toEqual(['j1:0', 'j1:1']);
     expect(list.map((j) => j.partyId)).toEqual([0, 0]);
     expect(list.map((j) => j.men.length)).toEqual([1, 2]);
@@ -165,19 +174,47 @@ describe('sceneJourneysOf', () => {
       person(3, 0),
       person(4, 0, { rider: true, horse: 'led' }),
     ];
-    const men = sceneJourneysOf({ own: [v], visitors: [], cell: HOME })[0]!.men;
+    const men = sceneJourneysOf({ own: [v], visitors: [], cell: HOME, villageId: 'v1' })[0]!.men;
     expect(men.map((m) => m.look)).toEqual(['woman', 'child', 'man', 'line']);
     expect(men.map((m) => m.led)).toEqual([false, false, false, true]);
+  });
+
+  it('dvě vsi hráče, stejné id osoby: skupina jiné vsi nese svou ves, klíče mužů se nepletou', () => {
+    const other = view({ journeyId: 'j3', villageId: 'v2' });
+    const list = sceneJourneysOf({
+      own: [view(), other],
+      visitors: [],
+      cell: HOME,
+      villageId: 'v1',
+    });
+    expect(list.map((j) => [j.journeyId, j.villageId])).toEqual([
+      ['j1:0', undefined],
+      ['j3:0', 'v2'],
+    ]);
+    expect(list[0]!.men.map((m) => m.key)).toEqual(['j1:7', 'j1:9']);
+    expect(list[1]!.men.map((m) => m.key)).toEqual(['j3:7', 'j3:9']);
+    // odjezd a příjezd s postavami vsi jen u skupiny vsi scény
+    expect(list.map((j) => j.home)).toEqual([{ x: 5, z: 5 }, null]);
+    // kroužek a praporek jen u skupiny vybrané vsi
+    const poses = list.flatMap((j) => journeyFormation(j, { x: 1, z: 0 }));
+    expect(selectedRider(poses, 7)?.journeyId).toBe('j1:0');
+    expect(selectedRider(poses, 7, 'v2')?.journeyId).toBe('j3:0');
+    expect([...selectedPartyKeys(list, [7])]).toEqual(['j1:0']);
+    expect([...selectedPartyKeys(list, [7], 'v2')]).toEqual(['j3:0']);
   });
 
   it('hlouček na jiné mapě se nekreslí, cíl na jiné mapě je null', () => {
     const away = view();
     away.parties[0]!.groups[0]!.cell = { x: 4, y: 4 };
-    expect(sceneJourneysOf({ own: [away], visitors: [], cell: HOME })).toEqual([]);
+    expect(sceneJourneysOf({ own: [away], visitors: [], cell: HOME, villageId: 'v1' })).toEqual([]);
     const crossing = view();
     crossing.parties[0]!.groups[0]!.goal = { cell: { x: 4, y: 4 }, pos: { x: 0, z: 0 } };
-    expect(sceneJourneysOf({ own: [crossing], visitors: [], cell: HOME })[0]!.goal).toBeNull();
-    expect(sceneJourneysOf({ own: [], visitors: [visitor()], cell: null })).toEqual([]);
+    expect(
+      sceneJourneysOf({ own: [crossing], visitors: [], cell: HOME, villageId: 'v1' })[0]!.goal,
+    ).toBeNull();
+    expect(
+      sceneJourneysOf({ own: [], visitors: [visitor()], cell: null, villageId: 'v1' }),
+    ).toEqual([]);
   });
 });
 

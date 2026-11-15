@@ -3,7 +3,12 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ExpeditionCommand } from '@bohemia/game';
-import { expeditionButtons, type ExpeditionPersonState } from '@/lib/expedition-buttons';
+import {
+  expeditionButtons,
+  expeditionPersonState,
+  type ExpeditionPersonState,
+} from '@/lib/expedition-buttons';
+import type { ScenePerson } from '@/lib/person-view';
 import { ExpeditionButtons } from '../ExpeditionButtons';
 
 // Osedlat, Sesednout a Domů v panelu vybraných (expeditions.md – Co hráč vidí): kdy se ukážou,
@@ -90,16 +95,22 @@ describe('ExpeditionButtons', () => {
     expect(q('expedition-dismount')).toBeNull();
     expect(q('expedition-home')).toBeNull();
     act(() => q('expedition-saddle')?.click());
-    expect(command).toHaveBeenCalledWith({ kind: 'saddle' });
+    expect(command).toHaveBeenCalledWith(
+      { kind: 'saddle' },
+      expect.objectContaining({ x: 0, y: 0 }),
+    );
   });
 
   it('ve skupině Domů pošle rozkaz domů, Sesednout dismount', async () => {
     const command = vi.fn();
     await mount([person({ mounted: true, horse: 'ridden', inParty: true })], command);
     act(() => q('expedition-home')?.click());
-    expect(command).toHaveBeenLastCalledWith({ kind: 'order', order: { kind: 'home' } });
+    expect(command).toHaveBeenLastCalledWith(
+      { kind: 'order', order: { kind: 'home' } },
+      expect.anything(),
+    );
     act(() => q('expedition-dismount')?.click());
-    expect(command).toHaveBeenLastCalledWith({ kind: 'dismount' });
+    expect(command).toHaveBeenLastCalledWith({ kind: 'dismount' }, expect.anything());
   });
 
   it('zašedlé Osedlat nese důvod a klik nic neposílá', async () => {
@@ -114,5 +125,31 @@ describe('ExpeditionButtons', () => {
   it('nikdo nic nemůže – nic se nevykreslí', async () => {
     await mount([person({ rider: false })]);
     expect(q('expedition-buttons')).toBeNull();
+  });
+});
+
+describe('expeditionPersonState', () => {
+  const villager: ScenePerson = {
+    id: 7,
+    age: 30,
+    sex: 'male',
+    home: 1,
+    role: 'smith',
+    expedition: { strength: 1, rider: true },
+  };
+
+  it('doma: jezdec bez skupiny – Osedlat ano, Domů ne', () => {
+    expect(expeditionPersonState(villager, 7, [], null)).toMatchObject({
+      rider: true,
+      inParty: false,
+    });
+  });
+
+  it('ves ho má ještě pryč, ale ve skupině není (hlouček došel domů) – tlačítka nemá', () => {
+    const back: ScenePerson = {
+      ...villager,
+      expedition: { strength: 1, rider: true, inParty: true },
+    };
+    expect(expeditionPersonState(back, 7, [], null)).toBeNull();
   });
 });

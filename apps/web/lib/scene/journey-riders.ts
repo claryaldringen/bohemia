@@ -53,6 +53,11 @@ export interface SceneJourney extends Pick<
 > {
   men: SceneJourneyMan[];
   /**
+   * Domovská ves vlastní skupiny, není-li to ves scény (id lidí jsou jedinečná jen ve vsi – výběr
+   * nese ves, `VillageTarget`); ves scény a cizí výprava – chybí.
+   */
+  villageId?: string;
+  /**
    * Skupina výpravy, do které hlouček patří (praporek a výběr celé skupiny); `journeyId` je klíč
    * hloučku `${journeyId}:${groupId}`.
    */
@@ -78,6 +83,8 @@ export interface RiderPose {
   own: boolean;
   key: string;
   personId: number | null;
+  /** Ves osoby `personId`, není-li to ves scény (`SceneJourney.villageId`). */
+  villageId?: string;
   x: number;
   z: number;
   /** Kam hledí (jednotkový vektor). */
@@ -127,6 +134,7 @@ export function journeyFormation(j: SceneJourney, heading: Pos): RiderPose[] {
     own: j.own,
     key: m.key,
     personId: m.personId,
+    ...(j.villageId === undefined ? {} : { villageId: j.villageId }),
     x: p.x,
     z: p.z,
     hx: heading.x,
@@ -361,15 +369,17 @@ export function journeyFigures(
 }
 
 /**
- * Vybraný muž vlastního výjezdu (osoba vsi `personId`), jak je nakreslený – výběr jde s jezdcem jako
- * jednotka v 0 A.D. (lord-control.md – Co hráč vidí). Muž, který ve scéně není, nebo nic – null.
+ * Vybraný muž vlastního výjezdu (osoba `personId` vsi `villageId`, chybí – ves scény), jak je
+ * nakreslený – výběr jde s jezdcem jako jednotka v 0 A.D. (lord-control.md – Co hráč vidí). Muž,
+ * který ve scéně není, nebo nic – null.
  */
 export function selectedRider(
   poses: readonly RiderPose[],
   personId: number | null,
+  villageId?: string,
 ): RiderPose | null {
   if (personId === null) return null;
-  return poses.find((p) => p.own && p.personId === personId) ?? null;
+  return poses.find((p) => p.own && p.personId === personId && p.villageId === villageId) ?? null;
 }
 
 /** Klik do tolika CSS px od průmětu muže výjezdu (od nohou po hlavu) ho vybere. */

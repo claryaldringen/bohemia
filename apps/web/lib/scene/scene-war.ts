@@ -40,6 +40,8 @@ export class SceneWarView {
   private people: ChoreoPeople | null = null;
   /** Vybraná osoba vsi – kroužek výběru pod ní, je-li mužem vlastního výjezdu. */
   private selectedMen: readonly number[] = [];
+  /** Ves vybraných lidí, není-li to ves scény (`VillageTarget.villageId`). */
+  private selectedVillage: string | undefined = undefined;
   /** Stopa rodu pro mlhu cizí mapy výjezdu; null – bez mlhy výjezdu (army-renderer.ts). */
   private trail: readonly (readonly [number, number])[] | null = null;
 
@@ -66,7 +68,7 @@ export class SceneWarView {
     this.marker = new JourneyMarker(this.deps.scene, decalHeight);
     this.army.setExpeditionYard(this.yard);
     this.army.setChoreoPeople(this.people);
-    this.army.selectJourneyMen(this.selectedMen);
+    this.army.selectJourneyMen(this.selectedMen, this.selectedVillage);
     if (this.war) this.army.set(this.war, Date.now(), this.deps.reducedMotion(), null);
     if (this.journeys.length > 0) {
       this.army.setJourneys(this.journeys, Date.now(), this.deps.reducedMotion(), null);
@@ -107,7 +109,10 @@ export class SceneWarView {
 
   /** Praporek jen u vybrané skupiny (journey-marker.ts). */
   private marks(): JourneyMarks {
-    return journeyMarks(this.journeys, selectedPartyKeys(this.journeys, this.selectedMen));
+    return journeyMarks(
+      this.journeys,
+      selectedPartyKeys(this.journeys, this.selectedMen, this.selectedVillage),
+    );
   }
 
   /** Muž výjezdu pod kurzorem (CSS px) – výběr klikem; nic – null. */
@@ -131,12 +136,14 @@ export class SceneWarView {
   }
 
   /**
-   * Vybraní lidé vsi (prázdné – nikdo): muž vlastní výpravy má pod sebou kroužek výběru, který jede
-   * s ním – vybraný zůstane vybraný i po odjezdu z vsi (journey.md – Výběr).
+   * Vybraní lidé vsi `villageId` (chybí – ves scény; prázdné – nikdo): muž vlastní výpravy má pod
+   * sebou kroužek výběru, který jede s ním – vybraný zůstane vybraný i po odjezdu z vsi (journey.md
+   * – Výběr).
    */
-  selectJourneyMen(personIds: readonly number[]): void {
+  selectJourneyMen(personIds: readonly number[], villageId?: string): void {
     this.selectedMen = personIds;
-    const ring = this.army?.selectJourneyMen(personIds);
+    this.selectedVillage = villageId;
+    const ring = this.army?.selectJourneyMen(personIds, villageId);
     const banner = this.marker?.set(this.marks());
     if (ring || banner) this.deps.requestRender();
   }

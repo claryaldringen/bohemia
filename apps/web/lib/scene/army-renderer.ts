@@ -240,6 +240,7 @@ export class ArmyRenderer {
   private riders: RiderPose[] = [];
   /** Vybraná osoba vsi – je-li mužem vlastního výjezdu, kroužek výběru jede s ním. */
   private selectedMen: readonly number[] = [];
+  private selectedVillage: string | undefined = undefined;
   /** Kroužky výběru mužů výpravy (první – `journeyRing`). */
   private rings: SelectionRing[] = [];
   /** Kde kroužek výběru jezdce právě leží (e2e); null – schovaný. */
@@ -407,14 +408,16 @@ export class ArmyRenderer {
    * Vybraní lidé vsi (prázdné – nikdo): kdo je mužem vlastní výpravy, má pod sebou žlutý kroužek,
    * který jede s ním (jako jednotka v 0 A.D. – expeditions.md, Výběr a skupina). True – změna.
    */
-  selectJourneyMen(personIds: readonly number[]): boolean {
+  selectJourneyMen(personIds: readonly number[], villageId?: string): boolean {
     if (
+      this.selectedVillage === villageId &&
       this.selectedMen.length === personIds.length &&
       this.selectedMen.every((id, k) => id === personIds[k])
     ) {
       return false;
     }
     this.selectedMen = personIds;
+    this.selectedVillage = villageId;
     const was = this.ringAt;
     this.writeRing();
     return was !== null || this.ringAt !== null;
@@ -938,7 +941,7 @@ export class ArmyRenderer {
   /** Kroužky výběru pod vybranými muži výpravy, jak jsou nakreslení; nikdo – schované. */
   private writeRing(): void {
     const poses = this.selectedMen
-      .map((id) => selectedRider(this.riders, id))
+      .map((id) => selectedRider(this.riders, id, this.selectedVillage))
       .filter((pose): pose is RiderPose => pose !== null);
     this.ringAt = poses[0] ? { x: poses[0].x, z: poses[0].z } : null;
     const ground = this.env.groundHeight;

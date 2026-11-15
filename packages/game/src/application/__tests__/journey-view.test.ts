@@ -128,13 +128,15 @@ describe('expeditionVisitorsOn', () => {
         journeyId: w.id,
         partyId: 0,
         own: false,
+        villageId: null,
         leaderName: 'Bořivoj',
         houseName: 'Radim',
         tick: expect.any(Number),
         groups: [{ id: 0, pos: { x: 40, z: 0 }, goal: null }],
         people: [
           {
-            personId: 10,
+            // cizí id osob hostitel nezná
+            personId: null,
             group: 0,
             lord: true,
             mounted: false,
@@ -158,7 +160,7 @@ describe('expeditionVisitorsOn', () => {
     });
     const mine = await expeditionVisitorsOn(w.deps, { playerId: 'pa', villageId: w.homeId });
     expect(mine).toHaveLength(1);
-    expect(mine[0]).toMatchObject({ partyId: 9, own: true });
+    expect(mine[0]).toMatchObject({ partyId: 9, own: true, villageId: w.homeId });
     expect(mine[0]!.groups).toEqual([{ id: 9, pos: { x: 900, z: 0 }, goal: { x: 910, z: 5 } }]);
     expect(mine[0]!.people.map((p) => [p.personId, p.led])).toEqual([[12, true]]);
   });

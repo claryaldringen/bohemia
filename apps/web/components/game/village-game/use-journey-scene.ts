@@ -26,7 +26,10 @@ export function useJourneyScene({
   own: readonly ExpeditionView[];
 }): SceneJourney[] {
   const visitors = useJourneyVisitors(villageId, scene !== null);
-  const journeys = useMemo(() => sceneJourneysOf({ own, visitors, cell }), [own, visitors, cell]);
+  const journeys = useMemo(
+    () => sceneJourneysOf({ own, visitors, cell, villageId }),
+    [own, visitors, cell, villageId],
+  );
 
   useEffect(() => {
     scene?.setJourneys(journeys);

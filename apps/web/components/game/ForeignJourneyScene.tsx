@@ -49,6 +49,7 @@ export function ForeignJourneyScene({
   cell,
   journey,
   expeditions = NO_EXPEDITIONS,
+  villageId = null,
   clock,
   orders,
   known,
@@ -58,6 +59,8 @@ export function ForeignJourneyScene({
   journey: JourneyView | null;
   /** Poslední pohledy na všechny výpravy hráče – hloučky na této mapě se kreslí všechny. */
   expeditions?: readonly ExpeditionView[];
+  /** Ves, jejíž výběr se drží (ves scény hry) – skupiny jiných vsí nesou ve scéně svou ves. */
+  villageId?: string | null;
   /** Hodiny hráče (vývojový posun) – roční období a den ve scéně. */
   clock: WorldClock;
   /** Rozkazy vybraným lidem; ve známém režimu null. */
@@ -111,8 +114,8 @@ export function ForeignJourneyScene({
   // jen výjezd na této mapě – jezdci a praporek v cíli
   const here = journey && journey.cell.x === cell.x && journey.cell.y === cell.y ? journey : null;
   const journeys = useMemo(
-    () => sceneJourneysOf({ own: expeditions, visitors: [], cell }),
-    [expeditions, cell],
+    () => sceneJourneysOf({ own: expeditions, visitors: [], cell, villageId }),
+    [expeditions, cell, villageId],
   );
   useEffect(() => {
     scene?.setWorldClock(clock);

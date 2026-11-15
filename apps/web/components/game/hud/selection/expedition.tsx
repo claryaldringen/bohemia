@@ -18,7 +18,8 @@ export function GroupBody({
 }: {
   details: Extract<SelectionDetails, { kind: 'people' }>;
   onSelectTarget?: ((target: VillageTarget) => void) | undefined;
-  expeditionCommand?: ((c: ExpeditionCommand) => void) | undefined;
+  expeditionCommand?:
+    ((c: ExpeditionCommand, screen?: { x: number; y: number }) => void) | undefined;
 }): ReactElement {
   return (
     <div className="flex min-w-0 flex-col justify-center gap-1.5" data-testid="selection-people">

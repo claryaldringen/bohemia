@@ -27,7 +27,8 @@ const COMMANDS: Record<keyof typeof ICONS, ExpeditionCommand> = {
 
 /**
  * Osedlat, Sesednout a Domů pro vybrané lidi (expeditions.md – Co hráč vidí). Jako v 0 A.D. jen
- * ikony – název a důvod zašedlí v popisku; rozkaz posílá `command` (`useExpeditionOrders`).
+ * ikony – název a důvod zašedlí v popisku; rozkaz posílá `command` (`useExpeditionOrders`) i s místem
+ * kliknutí – důvod odmítnutí ukáže u kurzoru.
  */
 export function ExpeditionButtons({
   people,
@@ -35,7 +36,7 @@ export function ExpeditionButtons({
   placement = 'above',
 }: {
   people: readonly ExpeditionPersonState[];
-  command: (c: ExpeditionCommand) => void;
+  command: (c: ExpeditionCommand, screen?: { x: number; y: number }) => void;
   placement?: 'above' | 'below';
 }): ReactElement | null {
   const states = expeditionButtons(people);
@@ -58,7 +59,7 @@ export function ExpeditionButtons({
               aria-label={LABELS[kind]}
               disabled={reason !== null}
               className="hud-icon-button h-9 w-9 disabled:cursor-not-allowed disabled:opacity-45 disabled:grayscale"
-              onClick={() => command(COMMANDS[kind])}
+              onClick={(e) => command(COMMANDS[kind], { x: e.clientX, y: e.clientY })}
             >
               <img src={ICONS[kind]} alt="" width={64} height={64} className="h-full w-full" />
             </button>

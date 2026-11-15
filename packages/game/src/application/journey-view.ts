@@ -116,6 +116,8 @@ export interface ExpeditionVisitor {
   journeyId: string;
   partyId: number;
   own: boolean;
+  /** Domovská ves vlastní skupiny (id lidí platí jen v ní); cizí skupina null. */
+  villageId: string | null;
   /** Jméno vůdce skupiny; beze jména null. */
   leaderName: string | null;
   /** Jméno rodu (jako v panelu Rod). */
@@ -124,7 +126,8 @@ export interface ExpeditionVisitor {
   /** Hloučky skupiny na této mapě (cíl jen u vlastní skupiny). */
   groups: { id: number; pos: Pos; goal: Pos | null }[];
   people: {
-    personId: number;
+    /** Id osoby v její vsi – jen u vlastní skupiny; cizí id hostitel nezná (null). */
+    personId: number | null;
     /** Hlouček (`groups[].id`), ve kterém člověk na této mapě je. */
     group: number;
     lord: boolean;
@@ -178,6 +181,7 @@ export async function expeditionVisitorsOn(
         journeyId: state.id,
         partyId: party.id,
         own: mine,
+        villageId: mine ? state.home.villageId : null,
         leaderName,
         houseName: house ? await houseName(deps, house) : (leaderName ?? ''),
         tick: state.tick,
@@ -190,7 +194,7 @@ export async function expeditionVisitorsOn(
         people: active
           .filter((m) => ids.has(m.group))
           .map((m) => ({
-            personId: m.ref.personId,
+            personId: mine ? m.ref.personId : null,
             group: m.group,
             lord: m.lord,
             mounted: m.mounted,

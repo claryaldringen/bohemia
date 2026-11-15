@@ -95,7 +95,7 @@ import { HoldingsOverlay, type HoldingsOverlaySector } from './holdings-overlay'
 import type { SceneWar } from './army-renderer';
 import { SelectionHighlight } from './selection-highlight';
 import type { VillageTarget } from './village-picking';
-import { selectedPeopleIds } from './village-selection';
+import { selectedPeopleIds, selectedPeopleVillage } from './village-selection';
 import type { ActivePlacement } from './village-placement';
 import { ChurchPlacer } from './church-placer';
 import { createPlacement } from './placement-factory';
@@ -998,10 +998,13 @@ export class LandscapeScene {
     this.highlight?.show(this.villageState, target, this.logPile?.pickable() ?? []);
     // lidé: první je „vybraný“ (stav a panel), ostatní mají jen kroužek (expeditions.md – Výběr)
     const people = selectedPeopleIds(target);
-    this.villagers?.select(people[0] ?? null);
-    this.villagers?.selectMore(people.slice(1));
+    // lidé jiné vsi hráče (`villageId`) postavy ve vsi scény nemají – id osoby platí jen ve vsi
+    const village = selectedPeopleVillage(target);
+    const home = village === undefined ? people : [];
+    this.villagers?.select(home[0] ?? null);
+    this.villagers?.selectMore(home.slice(1));
     // lidé na výpravě – kroužek jede s jezdcem (journey.md – Výběr)
-    this.war.selectJourneyMen(people);
+    this.war.selectJourneyMen(people, village);
     this.selection.syncDraft();
     this.loop.renderWhenReady();
   }

@@ -57,7 +57,9 @@ export function expeditionButtons(
 /**
  * Výprava člověka pro tlačítka (`ExpeditionPersonState`): člen skupiny podle `PartyView` (kůň,
  * sedí, práce s koňmi; doma je, stojí-li jeho hlouček na mapě `homeCell` – bez ní se bere, že ano),
- * ostatní podle `ScenePerson.expedition` (doma bez koně u sebe). Bez údajů o výpravě null.
+ * ostatní podle `ScenePerson.expedition` (doma bez koně u sebe). Bez údajů o výpravě null – i člověk,
+ * kterého ves má ještě pryč, ale ve skupině (pohledu) není: hlouček už došel domů a ves to potvrdí
+ * až další den, nebo pohled ještě nepřišel – Domů ani Osedlat by server odmítl („Je pryč.“).
  */
 export function expeditionPersonState(
   person: ScenePerson | undefined,
@@ -79,13 +81,13 @@ export function expeditionPersonState(
       horseWork: party.horseWork !== null,
     };
   }
-  if (!person?.expedition) return null;
+  if (!person?.expedition || person.expedition.inParty) return null;
   return {
     personId: id,
     rider: person.expedition.rider === true,
     mounted: false,
     horse: null,
-    inParty: person.expedition.inParty === true,
+    inParty: false,
     atHomeMap: true,
     horseWork: false,
   };

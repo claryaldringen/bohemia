@@ -82,6 +82,11 @@ rozhraní, ale prostě skupina lidí, které hráč označil.
   říkáš“). Jí dál ze zásob vsi jako doma – výprava nic neveze ([výjezd](lord-control.md) – Zásoby
   a zima).
 - Správce skupiny nevysílá ani neruší (návrh Clauda).
+- **Kdo je na výpravě, ze vsi neodejde** (návrh Clauda po recenzi 15. 11. 2026 – v jiné vsi by
+  ho výprava nenašla a byl by tam pryč navždy): domácnost s ním neodejde („Někdo z domácnosti je
+  na výpravě.“), syn vojvody nevede odchod, je-li někdo z jeho dílu venku, ves nejde postoupit
+  („Někdo z postupovaných vsí je na výpravě.“) a muž rodu jde vládnout jinam (i povýšený), až
+  bude s rodinou doma.
 
 ### Co platí dál z výjezdu
 

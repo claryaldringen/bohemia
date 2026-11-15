@@ -750,7 +750,11 @@ export class ExpeditionLeave {
     for (const id of this.listed) {
       if (next.has(id)) continue;
       const last = this.seen.get(id);
-      const home = last && (last.phase === 'returning' || near(last.pos, last.home, HOME_REACH_M));
+      // příjezd jen u hloučku s domovem ve scéně (skupina jiné vsi či jiné mapy ho nemá)
+      const home =
+        last &&
+        last.home !== null &&
+        (last.phase === 'returning' || near(last.pos, last.home, HOME_REACH_M));
       if (home && play && ctx && !this.arrived.has(id)) {
         changed = this.arrive(id, nowMs, ctx, present) || changed;
       }

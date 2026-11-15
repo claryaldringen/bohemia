@@ -12,7 +12,6 @@ import {
   nextSelection,
   peopleTarget,
   type PartyOf,
-  type VillageOf,
   presentTarget,
 } from '@/lib/scene/village-selection';
 import type { SceneVillage, VillageView } from '@/lib/village-view';
@@ -49,7 +48,7 @@ export function useSelection({
   sceneVillage: SceneVillage;
   viewRef: RefObject<VillageView | null>;
   /** Kdo je ve které skupině venku (klik na člena vybere celou skupinu; plní `VillageGame`). */
-  partiesRef?: RefObject<{ partyOf: PartyOf; villageOf: VillageOf } | null>;
+  partiesRef?: RefObject<{ partyOf: PartyOf } | null>;
 }): Selection {
   const [selected, setSelected] = useState<VillageTarget | null>(null);
   // Výběr kliknutím do scény (s Ctrl / Shift přidá nebo ubere obydlí; klik na pole či sad vybere
@@ -65,14 +64,7 @@ export function useSelection({
             describeTarget(target, sceneVillageRef.current, viewRef.current?.roads),
           );
         setSelected((prev) =>
-          nextSelection(
-            prev,
-            target,
-            additive,
-            double,
-            partiesRef?.current?.partyOf,
-            partiesRef?.current?.villageOf,
-          ),
+          nextSelection(prev, target, additive, double, partiesRef?.current?.partyOf),
         );
       }),
     [scene, viewRef, partiesRef],
@@ -94,7 +86,9 @@ export function useSelection({
         setPersonState(state);
         // vybraná postava zašla do domu – výběr se zruší (villagers.md – Výběr postavy; vojvoda ne)
         if (state?.indoors) {
-          setSelected((prev) => (prev?.kind === 'person' && prev.id === state.id ? null : prev));
+          setSelected((prev) =>
+            prev?.kind === 'person' && !prev.villageId && prev.id === state.id ? null : prev,
+          );
         }
       }),
     [scene],

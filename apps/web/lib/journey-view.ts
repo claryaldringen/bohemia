@@ -86,6 +86,8 @@ export function expeditionReason(reason: ExpeditionReason, female = false): stri
       return 'Tam je válka.';
     case 'horse-home':
       return 'Kůň je doma.';
+    case 'busy':
+      return 'Zkus to znovu.';
     case 'no-village':
     case 'nobody':
     case 'refused':
@@ -196,6 +198,27 @@ export function partyJourneyViewOf(
   return null;
 }
 
+/**
+ * Id lidí skupiny, ve které je člověk `personId` vsi `villageId` (expeditions.md – Výběr a skupina:
+ * klik na člena vybere celou skupinu). Id osoby je jedinečné jen ve vsi – hledá se jen ve výpravě té
+ * vsi. Člověk mimo skupinu – null.
+ */
+export function partyMembersOf(
+  views: readonly ExpeditionView[],
+  villageId: string | null,
+  personId: number,
+): number[] | null {
+  for (const view of views) {
+    if (view.villageId !== villageId) continue;
+    for (const party of view.parties) {
+      if (party.people.some((p) => p.personId === personId)) {
+        return party.people.map((p) => p.personId);
+      }
+    }
+  }
+  return null;
+}
+
 /** Skupiny výpravy vsi `villageId` (null = všech výprav) – panel osoby podle její skupiny. */
 export function partiesOf(views: readonly ExpeditionView[], villageId: string | null): PartyView[] {
   return views
@@ -214,19 +237,28 @@ function lookOf(m: { female: boolean; child: boolean }, line: boolean): JourneyL
 export const sceneJourneyKey = (journeyId: string, groupId: number): string =>
   `${journeyId}:${groupId}`;
 
+/** Klíč muže vlastní výpravy ve scéně – id osoby je jedinečné jen ve vsi (a tedy ve výpravě). */
+export const sceneManKey = (journeyId: string, personId: number): string =>
+  `${journeyId}:${personId}`;
+
 /**
  * Hloučky výprav na mapě vsi `cell` pro scénu (journey.md – Scéna vsi): jeden `SceneJourney` na
  * hlouček (klíč `${journeyId}:${groupId}`, `partyId` skupiny – praporek a výběr celé skupiny), muži
- * z lidí hloučku. Vlastní hloučky z pohledů `own` (2× za sekundu, s fází a dny čekání), ostatní
- * z návštěvníků vsi (cizí v dohledu domů, vlastní z jiné vsi rodu). Jméno vůdce a rod vlastní
- * skupiny dodá její záznam mezi návštěvníky.
+ * z lidí hloučku (klíč `sceneManKey`). Vlastní hloučky z pohledů `own` (2× za sekundu, s fází a dny
+ * čekání), ostatní z návštěvníků vsi (cizí v dohledu domů, vlastní z jiné vsi rodu). Jméno vůdce
+ * a rod vlastní skupiny dodá její záznam mezi návštěvníky. Vlastní skupina jiné vsi než `villageId`
+ * (ves scény, jejíž výběr se drží) nese svou ves (`SceneJourney.villageId` – id lidí platí jen v ní).
+ * `home` (odjezd a příjezd s postavami vsi) má jen skupina vsi scény na své domovské mapě.
  */
 export function sceneJourneysOf(input: {
   own: readonly ExpeditionView[];
   visitors: readonly ExpeditionVisitor[];
   cell: GridCell | null;
+  villageId: string | null;
 }): SceneJourney[] {
   const { own, visitors, cell } = input;
+  const otherVillage = (id: string | null): { villageId?: string } =>
+    id === null || id === input.villageId ? {} : { villageId: id };
   const out: SceneJourney[] = [];
   if (!cell) return out;
   const done = new Set<string>();
@@ -235,6 +267,7 @@ export function sceneJourneysOf(input: {
       const listed = visitors.find(
         (v) => v.own && v.journeyId === view.journeyId && v.partyId === party.id,
       );
+      const other = otherVillage(view.villageId);
       for (const g of party.groups) {
         if (!sameCell(g.cell, cell)) continue;
         const key = sceneJourneyKey(view.journeyId, g.id);
@@ -244,6 +277,7 @@ export function sceneJourneysOf(input: {
           journeyId: key,
           partyId: party.id,
           own: true,
+          ...other,
           leader: listed?.leaderName ?? '',
           house: listed?.houseName ?? '',
           tick: view.tick,
@@ -252,7 +286,7 @@ export function sceneJourneysOf(input: {
           men: party.people
             .filter((m) => m.group === g.id)
             .map((m) => ({
-              key: String(m.personId),
+              key: sceneManKey(view.journeyId, m.personId),
               personId: m.personId,
               lord: m.lord,
               mounted: m.mounted,
@@ -263,7 +297,10 @@ export function sceneJourneysOf(input: {
           arrived: g.arrived,
           phase: party.phase,
           waitDaysLeft: party.waitDaysLeft,
-          home: { x: view.homePos.x, z: view.homePos.z },
+          home:
+            other.villageId === undefined && sameCell(g.cell, view.home)
+              ? { x: view.homePos.x, z: view.homePos.z }
+              : null,
           ...(party.horseWork ? { horseWork: structuredClone(party.horseWork) } : {}),
         });
       }
@@ -273,10 +310,13 @@ export function sceneJourneysOf(input: {
     for (const g of v.groups) {
       const key = sceneJourneyKey(v.journeyId, g.id);
       if (done.has(key)) continue;
+      // vlastní skupina bez známé vsi se vybrat nedá (id lidí bez vsi nic neznamená)
+      const own = v.own && v.villageId !== null;
       out.push({
         journeyId: key,
         partyId: v.partyId,
         own: v.own,
+        ...otherVillage(v.villageId),
         leader: v.leaderName ?? '',
         house: v.houseName,
         tick: v.tick,
@@ -285,8 +325,8 @@ export function sceneJourneysOf(input: {
         men: v.people
           .filter((m) => m.group === g.id)
           .map((m, i) => ({
-            key: v.own ? String(m.personId) : String(i),
-            personId: v.own ? m.personId : null,
+            key: own && m.personId !== null ? sceneManKey(v.journeyId, m.personId) : String(i),
+            personId: own ? m.personId : null,
             lord: m.lord,
             mounted: m.mounted,
             wounded: false,

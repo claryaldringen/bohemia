@@ -29,17 +29,19 @@ export function partyKeyOf(j: Pick<SceneJourney, 'journeyId' | 'partyId'>): stri
 
 /**
  * Skupiny vlastních vybraných lidí: klíče skupin (`partyKeyOf`), v jejichž hloučcích je aspoň jeden
- * z `personIds`.
+ * z `personIds` vsi `villageId` (chybí – ves scény; id osoby je jedinečné jen ve vsi).
  */
 export function selectedPartyKeys(
   journeys: readonly SceneJourney[],
   personIds: readonly number[],
+  villageId?: string,
 ): Set<string> {
   const out = new Set<string>();
   if (personIds.length === 0) return out;
   const ids = new Set(personIds);
   for (const j of journeys) {
-    if (!j.own || !j.men.some((m) => m.personId !== null && ids.has(m.personId))) continue;
+    if (!j.own || j.villageId !== villageId) continue;
+    if (!j.men.some((m) => m.personId !== null && ids.has(m.personId))) continue;
     const key = partyKeyOf(j);
     if (key) out.add(key);
   }

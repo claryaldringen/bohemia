@@ -20,7 +20,7 @@ import type {
 } from './village-view-scene-types';
 import { scenePlot } from './village-view-scene-types';
 import type { VillageTarget } from './scene/village-picking';
-import { nextSelection, type PartyOf, type VillageOf } from './scene/village-selection';
+import { nextSelection, type PartyOf } from './scene/village-selection';
 import { sceneSacredRuinOf } from './village-view-buildings';
 import { sceneKilnRemnantOf, sceneKilnStateOf } from './village-view-crafts';
 import { sceneRuinOf } from './village-view-scene';
@@ -60,7 +60,6 @@ export function foreignJourneySelection(
   additive: boolean,
   double = false,
   partyOf?: PartyOf,
-  villageOf?: VillageOf,
 ): VillageTarget | null {
   return nextSelection(
     current,
@@ -68,7 +67,6 @@ export function foreignJourneySelection(
     additive,
     double,
     partyOf,
-    villageOf,
   );
 }
 

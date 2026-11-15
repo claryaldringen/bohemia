@@ -57,7 +57,7 @@ export type ExpeditionCommand =
  * Proč příkaz nejde: důvod člověka (`ExpeditionPersonRefusal` – nikdo jiný z výběru nemůže), cizí
  * ves (`no-village`), z výběru nemůže nikdo (`nobody`), rekruti z napadené vsi
  * (`village-attacked`), tam nedojdou (`unreachable`), tam je válka (`war-there`), jezdci venku mají
- * koně doma (`horse-home`).
+ * koně doma (`horse-home`), zápis vsi se při souběhu nepovedl ani po opakování (`busy`).
  */
 export type ExpeditionRefusal =
   | ExpeditionPersonRefusal
@@ -66,7 +66,8 @@ export type ExpeditionRefusal =
   | 'village-attacked'
   | 'unreachable'
   | 'war-there'
-  | 'horse-home';
+  | 'horse-home'
+  | 'busy';
 
 export type ExpeditionResult =
   { ok: true; journeyId: string } | { ok: false; reason: ExpeditionRefusal };
@@ -461,7 +462,7 @@ async function carryOut(
       sent = again;
       return null;
     },
-    'no-village',
+    'busy',
   );
   if (failed !== null) return { ok: false, reason: failed };
   const ids = sent.map((r) => r.ref.personId);

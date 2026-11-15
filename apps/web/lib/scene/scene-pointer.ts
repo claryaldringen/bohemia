@@ -73,7 +73,10 @@ export interface PointerDeps {
     x: number,
     y: number,
     project: Project,
-  ) => { pose: { journeyId: string; personId: number | null }; distance: number } | null;
+  ) => {
+    pose: { journeyId: string; personId: number | null; villageId?: string };
+    distance: number;
+  } | null;
 }
 
 /**
@@ -286,9 +289,11 @@ export class ScenePointer {
       (!draft || rider.distance < draft.distance)
     ) {
       const id = rider.pose.personId;
-      return id !== null
+      const village = rider.pose.villageId;
+      if (id === null) return { kind: 'visitor', journeyId: rider.pose.journeyId };
+      return village === undefined
         ? { kind: 'person', id }
-        : { kind: 'visitor', journeyId: rider.pose.journeyId };
+        : { kind: 'person', id, villageId: village };
     }
     if (person && (!draft || person.distance <= draft.distance)) {
       return { kind: 'person', id: person.person };

@@ -360,8 +360,8 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
 - **Odchod syna vojvody s poměrnou částí vsi** (lord.md – Dělení vsi, #9 fáze 2;
   `son-departure.ts`): `checkSonLeader(state, sonId, day)` → `PlacementCheck` – syn
   `dynasty.lordId` (muž rodu) ve vsi, od `LORD.leaveMinAge` let, ne nástupce (`successorOf`),
-  se jménem, rodina si nestaví dům (`SUCCESSOR_STAYS`, `SON_NAME_MISSING`, `LEAD_TOO_YOUNG`,
-  `LEAD_NOT_SON`…); `leadingSons` – synové od 16 let s kontrolou pro řadu ikon v panelu.
+  se jménem, rodina si nestaví dům, nikdo z dílu (`sonShare`) není na výpravě – `onExpedition`
+  (`SUCCESSOR_STAYS`, `SON_NAME_MISSING`, `LEAD_TOO_YOUNG`, `LEAD_NOT_SON`, `SON_SHARE_AWAY`…); `leadingSons` – synové od 16 let s kontrolou pro řadu ikon v panelu.
   `sonShare(state, sonId, day)` → `SonShare` (dílníci = žijící vojvoda + synové od 16 let, cíl
   lidé ÷ dílníci, `familyIds` – `sonFamily`: syn, `wivesOf`, svobodné děti –, `dwellingIds` celých
   domácností od nejbližšího domu syna / dvorce podle čtverce vzdálenosti, při shodě nižší id, dokud
@@ -797,7 +797,10 @@ arrivesDay } }` (volitelné). Nastaví ho `succeedLord` (`succession.ts`), když
 - **Doména** `domain/village/people/appoint-lord.ts` (čisté funkce): `appointCandidate(villages,
 targetVillageId, day, exclude)` – nejstarší muž rodu od `APPOINT_LORD.minAge` (16) let v jiné
   živé vsi, který není vojvodou své vsi, jejím nástupcem (`successorOf`) ani v `exclude` (hráčův
-  muž); shoda → nižší id osoby, pak vsi; ves bez vojvody kandidáty nedává. `departAppointee(state,
+  muž), a nikdo z jeho rodiny není pryč (`familyAway(state, personId, day)` – `isAway`; výprava,
+  tažení…); shoda → nižší id osoby, pak vsi; ves bez vojvody kandidáty nedává. `finishDeparture`
+  (use-case) s odchodem čeká, dokud `familyAway`; `checkEnnoble` odmítne `familyAway`.
+  `rehomePeople` obranně maže `away` druhu `journey` (expeditions.md – Doma mezitím). `departAppointee(state,
 day, personId, toVillageName)` – muž, jeho manželky a svobodné děti (`AppointeeParty`), jídlo
   `leavingFood` (25 kg na člověka od 7 let, nejvýš zásoby vsi), `removePeople`, kronika `lord-sent`.
   `settleAppointee(state, day, party)` (mutuje) – nová id z `nextId`, vazby uvnitř družiny

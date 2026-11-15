@@ -129,7 +129,8 @@ export function SelectionPanel({
 }: {
   details: SelectionDetails | null;
   /** Příkaz vybraným lidem – Osedlat, Sesednout, Domů (`useExpeditionOrders`); jinak chybí. */
-  expeditionCommand?: ((c: ExpeditionCommand) => void) | undefined;
+  expeditionCommand?:
+    ((c: ExpeditionCommand, screen?: { x: number; y: number }) => void) | undefined;
   /** Nalámat do zásoby `m3` kamene v lomu (server action – fortifications.md, Kámen). */
   onOrderQuarrying?: (outcropId: number, m3: number) => Promise<void>;
   /** Opustí díl pole, nebo ho vrátí do osevu (server action – fields.md, Opuštěný díl). */

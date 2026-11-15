@@ -10,6 +10,7 @@ import {
   nextSelection,
   peopleTarget,
   selectedPeopleIds,
+  selectedPeopleVillage,
   presentTarget,
   selectedDwellingIds,
   selectsAllDwellings,
@@ -357,8 +358,11 @@ describe('výběr staveniště po dostavění (jako v 0 A.D. – web-ui.md, Výb
 
 describe('výběr lidí (expeditions.md – Výběr a skupina)', () => {
   const person = (id: number): VillageTarget => ({ kind: 'person', id });
-  const party = (id: number): readonly number[] | null => ([3, 4].includes(id) ? [3, 4] : null);
-  const homes = (id: number): string | null => (id >= 100 ? 'v2' : 'v1');
+  // skupina [3, 4] je ve výpravě vsi scény; ve vsi v2 má osoba 3 skupinu [3, 9]
+  const party = (id: number, village: string | undefined): readonly number[] | null => {
+    if (village === 'v2') return id === 3 ? [3, 9] : null;
+    return [3, 4].includes(id) ? [3, 4] : null;
+  };
 
   it('peopleTarget a selectedPeopleIds', () => {
     expect(peopleTarget([])).toBeNull();
@@ -370,31 +374,44 @@ describe('výběr lidí (expeditions.md – Výběr a skupina)', () => {
   });
 
   it('Shift + klik na dva lidi vybere oba, znovu na prvního ho ubere', () => {
-    const one = nextSelection(person(1), person(2), true, false, party, homes);
+    const one = nextSelection(person(1), person(2), true, false, party);
     expect(one).toEqual({ kind: 'people', ids: [1, 2] });
-    expect(nextSelection(one, person(1), true, false, party, homes)).toEqual(person(2));
+    expect(nextSelection(one, person(1), true, false, party)).toEqual(person(2));
   });
 
   it('klik na člena skupiny vybere celou skupinu', () => {
-    expect(nextSelection(null, person(3), false, false, party, homes)).toEqual({
+    expect(nextSelection(null, person(3), false, false, party)).toEqual({
       kind: 'people',
       ids: [3, 4],
     });
   });
 
   it('Shift + klik na člena skupiny přidá, nebo ubere celou skupinu', () => {
-    const added = nextSelection(person(1), person(4), true, false, party, homes);
+    const added = nextSelection(person(1), person(4), true, false, party);
     expect(added).toEqual({ kind: 'people', ids: [1, 3, 4] });
-    expect(nextSelection(added, person(3), true, false, party, homes)).toEqual(person(1));
+    expect(nextSelection(added, person(3), true, false, party)).toEqual(person(1));
   });
 
-  it('člověk jiné domovské vsi výběr nahradí', () => {
-    expect(nextSelection(person(1), person(100), true, false, party, homes)).toEqual(person(100));
+  it('člověk jiné domovské vsi výběr nahradí – výběr nese jeho ves', () => {
+    const far = { kind: 'person', id: 3, villageId: 'v2' } as const;
+    // stejné id 3 jako člen skupiny vsi scény – vybere se skupina vsi v2, ne [3, 4]
+    const picked = nextSelection(person(1), far, true, false, party);
+    expect(picked).toEqual({ kind: 'people', ids: [3, 9], villageId: 'v2' });
+    expect(selectedPeopleVillage(picked)).toBe('v2');
+    // zpět člověk vsi scény (bez villageId) – zase nahradí
+    expect(nextSelection(picked, person(3), true, false, party)).toEqual({
+      kind: 'people',
+      ids: [3, 4],
+    });
+    // Shift + klik v téže vsi přidává
+    expect(
+      nextSelection({ kind: 'person', id: 5, villageId: 'v2' }, far, true, false, party),
+    ).toEqual({ kind: 'people', ids: [5, 3, 9], villageId: 'v2' });
   });
 
   it('člověk k obydlím výběr nahradí a obydlí k lidem ne', () => {
     const dwellings = { kind: 'dwellings', ids: [1, 2] } as const;
-    expect(nextSelection(dwellings, person(1), true, false, party, homes)).toEqual(person(1));
+    expect(nextSelection(dwellings, person(1), true, false, party)).toEqual(person(1));
     expect(
       nextSelection({ kind: 'people', ids: [1, 2] }, { kind: 'dwelling', id: 7 }, true),
     ).toEqual({ kind: 'people', ids: [1, 2] });

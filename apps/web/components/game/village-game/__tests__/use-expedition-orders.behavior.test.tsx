@@ -2,6 +2,7 @@
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { ExpeditionView } from '@bohemia/game';
 import type { ScenePerson } from '@/lib/person-view';
 import type { LandscapeScene } from '@/lib/scene/landscape-scene';
 import type { OrderMode } from '@/lib/scene/scene-pointer';
@@ -12,7 +13,11 @@ vi.mock('@/app/game/actions/journey', () => ({
   commandExpedition: (input: unknown): unknown => commandExpedition(input),
 }));
 
-import { useExpeditionOrders, type ExpeditionOrders } from '../use-expedition-orders';
+import {
+  useExpeditionOrders,
+  type ExpeditionOrders,
+  type LordAway,
+} from '../use-expedition-orders';
 
 let host: HTMLDivElement;
 let root: Root;
@@ -53,20 +58,23 @@ function fakeScene(): { scene: LandscapeScene; mode: () => OrderMode | null } {
 }
 
 let latest: ExpeditionOrders | null = null;
+const NO_VIEWS: readonly ExpeditionView[] = [];
 function Probe(props: {
   selection: VillageTarget | null;
   persons: readonly ScenePerson[];
   scene: LandscapeScene;
   setSelected: (t: VillageTarget | null) => void;
+  views?: readonly ExpeditionView[];
+  lord?: LordAway | null;
 }): null {
   latest = useExpeditionOrders({
     villageId: 'v1',
     selection: props.selection,
     setSelected: props.setSelected,
-    views: [],
+    views: props.views ?? NO_VIEWS,
     persons: props.persons,
     scene: props.scene,
-    lord: null,
+    lord: props.lord ?? null,
     homeCell: { x: 2, y: 3 },
     mapSizeM: 1920,
     refresh: () => undefined,
@@ -76,11 +84,54 @@ function Probe(props: {
 
 const flush = (): Promise<void> => act(async () => void (await Promise.resolve()));
 
-function mount(selection: VillageTarget | null, persons: ScenePerson[]) {
+function mount(
+  selection: VillageTarget | null,
+  persons: ScenePerson[],
+  extra: { views?: readonly ExpeditionView[]; lord?: LordAway | null } = {},
+) {
   const { scene, mode } = fakeScene();
   const setSelected = vi.fn();
-  act(() => root.render(<Probe {...{ selection, persons, scene, setSelected }} />));
-  return { mode, setSelected };
+  const render = (more: { views?: readonly ExpeditionView[]; lord?: LordAway | null }): void =>
+    act(() => root.render(<Probe {...{ selection, persons, scene, setSelected, ...more }} />));
+  render(extra);
+  return { mode, setSelected, render };
+}
+
+/** Výprava vsi `villageId` s jednou skupinou lidí `ids` na mapě vsi scény. */
+function expedition(villageId: string, journeyId: string, ids: number[]): ExpeditionView {
+  return {
+    journeyId,
+    villageId,
+    tick: 1,
+    day: 1,
+    home: { x: 2, y: 3 },
+    homePos: { x: 0, z: 0 },
+    parties: [
+      {
+        id: 0,
+        phase: 'out',
+        controllable: true,
+        leaderId: ids[0] ?? null,
+        waitDaysLeft: null,
+        horseWork: null,
+        groups: [{ id: 0, cell: { x: 2, y: 3 }, pos: { x: 1, z: 1 }, goal: null, arrived: true }],
+        people: ids.map((personId) => ({
+          personId,
+          group: 0,
+          lord: false,
+          rider: false,
+          mounted: false,
+          horse: null,
+          horseId: null,
+          wounded: false,
+          strength: 1,
+          female: false,
+          child: false,
+        })),
+      },
+    ],
+    seen: {},
+  };
 }
 
 describe('useExpeditionOrders – pravé tlačítko pro vybrané lidi', () => {
@@ -135,5 +186,49 @@ describe('useExpeditionOrders – pravé tlačítko pro vybrané lidi', () => {
   it('bez vybraných lidí režim rozkazu není (pravé tlačítko ruší výběr)', () => {
     const { mode } = mount({ kind: 'dwelling', id: 1 }, [person(5, 30)]);
     expect(mode()).toBeNull();
+  });
+});
+
+describe('useExpeditionOrders – dvě vsi hráče, stejné id osoby (id je jedinečné jen ve vsi)', () => {
+  const views = [expedition('v1', 'j1', [7, 8]), expedition('v2', 'j2', [7, 9])];
+
+  it('skupina člověka jen ve výpravě jeho vsi', () => {
+    mount(null, [person(7, 30)], { views });
+    expect(latest?.partyOf(7, undefined)).toEqual([7, 8]);
+    expect(latest?.partyOf(7, 'v2')).toEqual([7, 9]);
+    expect(latest?.partyOf(8, 'v2')).toBeNull();
+  });
+
+  it('rozkaz člověku jiné vsi jde do jeho vsi, člověku vsi scény do vsi scény', async () => {
+    commandExpedition.mockResolvedValue({ ok: true });
+    const far = mount({ kind: 'person', id: 7, villageId: 'v2' }, [person(7, 30)], { views });
+    await act(async () => far.mode()?.order({ x: 10, z: 20 }, { x: 1, y: 1 }));
+    await flush();
+    expect(commandExpedition).toHaveBeenLastCalledWith(
+      expect.objectContaining({ villageId: 'v2', people: [7] }),
+    );
+    expect(latest?.followed?.journeyId).toBe('j2');
+    const near = mount({ kind: 'person', id: 7 }, [person(7, 30)], { views });
+    await act(async () => near.mode()?.order({ x: 10, z: 20 }, { x: 1, y: 1 }));
+    await flush();
+    expect(commandExpedition).toHaveBeenLastCalledWith(
+      expect.objectContaining({ villageId: 'v1', people: [7] }),
+    );
+    expect(latest?.followed?.journeyId).toBe('j1');
+  });
+
+  it('odznak vojvody zhasne, když jeho skupina z pohledů zmizí (doma), a vrátí se s další výpravou', () => {
+    const lord: LordAway = { id: 7, name: 'Bořivoj', away: true };
+    const { render } = mount(null, [person(7, 30)], { views, lord });
+    expect(latest?.away).not.toBeNull();
+    // skupina vojvody došla domů – ves to potvrdí až další den (`untilDay`)
+    render({ views: [expedition('v2', 'j2', [7, 9])], lord });
+    expect(latest?.away).toBeNull();
+    // ves návrat potvrdila, pak vojvoda vyjel znovu
+    render({ views: [], lord: { ...lord, away: false } });
+    render({ views: [], lord });
+    expect(latest?.away).not.toBeNull();
+    render({ views, lord });
+    expect(latest?.away).not.toBeNull();
   });
 });
