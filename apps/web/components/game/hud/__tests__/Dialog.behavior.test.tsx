@@ -42,6 +42,14 @@ describe('Dialog', () => {
     expect(dialog?.textContent).toContain('obsah');
   });
 
+  it('křížek stojí vpravo – okraj zarovnání nese položka řádku, ne tlačítko v obalu popisku', () => {
+    render();
+    const slot = host.querySelector('[data-testid="dialog-close-slot"]');
+    expect(slot?.classList.contains('ml-auto')).toBe(true);
+    expect(slot?.parentElement?.querySelector('h2')).not.toBeNull();
+    expect(slot?.querySelector('[data-testid="dialog-close"]')).not.toBeNull();
+  });
+
   it('křížek zavře', () => {
     const onClose = render();
     act(() => host.querySelector<HTMLButtonElement>('[data-testid="dialog-close"]')!.click());
