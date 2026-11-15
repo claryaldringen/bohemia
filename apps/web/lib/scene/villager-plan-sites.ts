@@ -1,5 +1,6 @@
 // Postavy u staveb a dřevorubci: stavitelé, pozemky, hřbitov, ohrada, cesty, jabloně.
 import type { LaborActivity, LaborShare, LaborTarget, SceneLaborShare } from '../village-view';
+import { hasPit } from './dwelling-pit';
 import { cellsBoundary } from './field-cells';
 import { hash01 } from './smoke-schedule';
 import { shuttle, stand, walkSpeed, type PoseFn, type VillagerClip } from './villager-motion';
@@ -224,7 +225,12 @@ export function building(
 ): Placer {
   const house = ctx.houses.find((h) => h.id === target.id && h.built === (target.kind !== 'site'));
   if (!house) return none;
-  const digging = !house.built && house.progress < 0.25;
+  // jámu kopou jen u domů s jámou – nadzemní srub a vypletený dům stojí na zemi (log-house.md)
+  const pit = house.type === undefined || hasPit(house.type);
+  const digging = !house.built && pit && house.progress < 0.25;
+  // nadzemní dům ze dřeva: stavitelé nosí klády z hromady, tesají a stavějí (Martin 15. 11. 2026:
+  // „u klád stojí 2 rolníci a nic nedělají“ – kdo na stavbě pracuje, má ve scéně pracovat)
+  const timber = !house.built && !pit && target.kind === 'site' ? timberWork(ctx, house) : null;
   // polozemnice na pozemku staví plot a záhony až na konci (village-construction.ts)
   const fencing = !house.built && house.plot !== undefined && house.progress >= PLOT_FENCE_FROM;
   if (fencing && house.plot) return plotFence(ctx, house, house.plot);
@@ -251,7 +257,7 @@ export function building(
     [minX * 0.6, minZ - gap(0.6)],
     [maxX * 0.6, minZ - gap(0.6)],
   ];
-  return (i) => {
+  return (i, who) => {
     const ring = Math.floor(i / slots.length);
     const [lx, lz] = slots[i % slots.length]!;
     // další kruh o kus dál od domu (do stran a dozadu)
@@ -262,8 +268,54 @@ export function building(
     );
     const spot = nearestFreeFor(ctx, house, p.x, p.z, 1.5);
     if (!spot) return null;
+    const role = timber ? TIMBER_ROLES[i % TIMBER_ROLES.length]! : 'build';
+    if (role === 'carry') {
+      const carry = timber?.carry(spot, who);
+      if (carry) return carry;
+    }
     const h = unit(house.position.x - spot.x, house.position.z - spot.z);
-    return stand(spot.x, spot.z, h.x, h.z, digging ? 'hoe' : clip);
+    return stand(spot.x, spot.z, h.x, h.z, digging ? 'hoe' : role === 'hew' ? 'split' : clip);
+  };
+}
+
+/** Nejdál k hromadě klád (m), odkud stavitelé nosí klády na stavbu – jako nosiči z paseky. */
+export const SITE_LOG_HAUL_M = 120;
+
+/**
+ * Role stavitelů nadzemního domu ze dřeva po pořadí na stavbě: staví, nosí klády z hromady
+ * a tesá – první stavitel staví (drží úlohu u stavby), druhý nosí, třetí tesá, pak dokola.
+ */
+export const TIMBER_ROLES = ['build', 'carry', 'hew'] as const;
+
+/**
+ * Práce na nadzemním domě ze dřeva: nosič chodí s kládou na rameni mezi nejbližší hromadou klád
+ * (`SceneVillage.logStacks`, nejvýš `SITE_LOG_HAUL_M`) a svým místem u stavby. Bez hromady
+ * blízko nosič staví.
+ */
+function timberWork(
+  ctx: Context,
+  house: House,
+): { carry: (spot: Point, who: Identity) => PoseFn | null } {
+  const stack = nearestPoint(ctx.village.logStacks ?? [], house.position, SITE_LOG_HAUL_M);
+  return {
+    carry: (spot, who) => {
+      if (!stack) return null;
+      const pile = nearestFree(ctx, stack.x, stack.z, 6);
+      const path = pile ? walkRoute(ctx, spot, pile) : null;
+      if (!path) return null;
+      // od stavby k hromadě s prázdnou, nakládá, zpět s kládou; u stavby ji složí
+      return shuttle(path, {
+        outClip: 'walk',
+        outSpeed: walkSpeed(who.kind, 'walk', who.scale),
+        endClip: 'weed',
+        endS: 3,
+        backClip: 'carry-wood',
+        backSpeed: walkSpeed(who.kind, 'carry-wood', who.scale),
+        restClip: 'build',
+        restS: 4,
+        phase: who.phase,
+      });
+    },
   };
 }
 

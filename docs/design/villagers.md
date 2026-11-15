@@ -405,8 +405,9 @@ do hry. Mění se jen to, jak scéna z rozdělení práce dělá postavy. Podrob
 - **Délka činnosti je čistá funkce** jejího druhu, losu podle člověka a začátku (Determinismus
   níž): pochůzka 2–14 minut (Vlkov), práce na místě ≈ 5–20 minut včetně chůze, nejdelší nosič
   úrody z dílu 800 m od obydlí ≈ 21 minut.
-- **Úlohy u jiného objektu** – pasáček u stáda, oráč a honák u spřežení, vozka u vozu, první
-  stavitel u stavby s dnešní prací – nemají losovanou délku práce: drží ji, dokud je obsazení
+- **Úlohy u jiného objektu** – pasáček u stáda, oráč a honák u spřežení, vozka u vozu, stavitelé
+  u stavby s dnešní prací (dřív jen první; Martin 15. 11. 2026: „Proč jde tenhle rolník domů? Měl
+  by stavět.“) – nemají losovanou délku práce: drží ji, dokud je obsazení
   dne dává (objekt je ve scéně celý den), pak jdou pěšky domů. Stavba tak dál „neroste sama od
   sebe“ (Martin 18. 10. 2026).
 - **Příklad** (Vlkov ve žních): žena rolníka v 10:00 vyjde pro vodu (500 m). Vrátí se v 10:11 –
