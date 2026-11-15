@@ -1361,7 +1361,7 @@ jsou v `lib/premium-view.ts` (`PREMIUM_TEXTS`, `premiumIntroNotice`); portréty 
   (`baptize-confirm`) a křížek „Zrušit“ (`baptize-cancel`), klik mimo okno a Esc zavřou. Server
   action `baptizeLord` (`app/game/actions.ts`, parser `parseBaptizeInput` – jen `villageId`) →
   `baptizeLordForPlayer` (`actOn`) → use-case `baptizeLord`; odmítnutí u kurzoru. Ves vojvody se
-  pokřtí na začátku svého dne (schránka `rod-baptized`), tlačítko zmizí hned (`House.baptizedDay`).
+  pokřtí hned (D76; ostatní vsi rodu schránkou `rod-baptized`), tlačítko zmizí (`House.baptizedDay`).
 - **Ikona:** `FAITH_CROSS_ICON` = `/icons/house/faith-cross.png` (z Blenderu, `tools/blender/icons.py`;
   pozor, `house/cross.png` je křížek „zavřít“) – `FaithCross` ji kreslí v tlačítku, v potvrzení,
   v panelu osoby a v popisku štěstí.

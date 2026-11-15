@@ -48,13 +48,15 @@ function lordWithWives(): VillageState {
   );
 }
 
+const LORD_ESTATE = { title: 'voivode', kin: 'head' } as const;
+
 describe('baptizeVillage – ves vojvody (christianity.md – Křest rodu)', () => {
   it('vojvoda křesťan, jediná manželka, propuštěné zůstávají doma a mohou se vdát', () => {
     const s = lordWithWives();
     const chronicle = baptizeVillage(s, DAY + 1, { houseId: 'h1', lord: true });
     expect(chronicle).toEqual([
-      { day: DAY + 1, kind: 'lord-baptized' },
-      { day: DAY + 1, kind: 'wives-released', count: 2 },
+      { day: DAY + 1, kind: 'lord-baptized', estate: LORD_ESTATE },
+      { day: DAY + 1, kind: 'wives-released', count: 2, estate: LORD_ESTATE },
     ]);
     const lord = byId(s, LORD_ID);
     expect(isChristian(lord)).toBe(true);
@@ -125,7 +127,12 @@ describe('baptizeVillage – ves vojvody (christianity.md – Křest rodu)', () 
     const lord = byId(s, LORD_ID);
     expect(wivesOf(s, lord)).toHaveLength(1);
     expect(lord.spouseId).toBe(wivesOf(s, lord)[0]!.id);
-    expect(chronicle).toContainEqual({ day: DAY + 1, kind: 'wives-released', count: 1 });
+    expect(chronicle).toContainEqual({
+      day: DAY + 1,
+      kind: 'wives-released',
+      count: 1,
+      estate: LORD_ESTATE,
+    });
   });
 });
 

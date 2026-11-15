@@ -19,7 +19,6 @@ import {
   pollVillage,
   query,
   readyScene,
-  villageIdOf,
   villageSpots,
   villageState,
 } from './village-helpers';
@@ -73,15 +72,7 @@ test('pozvání huti a umístění kostela – křest, huť na cestě, skok v č
     )
     .not.toBeNull();
 
-  // ves vojvody se pokřtí až na začátku svého dne – zpráva o křtu se přesune na dnešek a ves se vrátí
-  // o den, ať křest dopočte hned (jako v testu křtu rodu)
-  const villageId = await villageIdOf(s.settlementId);
-  await query(
-    `UPDATE village_inbox SET day = day - 1
-      WHERE village_id = $1 AND body->>'kind' = 'rod-baptized'`,
-    [villageId],
-  );
-  await changeVillageState(s.settlementId, (state) => ({ ...state, lastDay: state.lastDay - 1 }));
+  // ves vojvody je pokřtěná hned (D76) – kříž i tlačítko huti jsou vidět bez čekání na další den
 
   // pozvání huti: ikona u vojvody → okno okruhů → karolinský okruh
   const invite = selection.getByTestId('selection-person-invite-lodge');

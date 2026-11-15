@@ -824,7 +824,7 @@ export function ennobleVillagerForPlayer(
 /**
  * Hráč nechá pokřtít vojvodu svého rodu (christianity.md – Křest rodu) – právo `ennoble` ověří
  * `actOn`, zbytek (rod zná, není pokřtěný, vojvoda tu žije) use-case. Vsi rodu se to dozvědí
- * schránkou – ves vojvody se pokřtí na začátku svého dne.
+ * schránkou, ves vojvody se pokřtí hned (D76).
  */
 export function baptizeLordForPlayer(
   playerId: string,
@@ -839,7 +839,12 @@ export function baptizeLordForPlayer(
         houses: createHouseRepository(db),
         stewardships: createStewardshipRepository(db),
       },
-      { playerId: ctx.playerId, villageId: ctx.villageId, today: ctx.day },
+      {
+        playerId: ctx.playerId,
+        villageId: ctx.villageId,
+        today: ctx.day,
+        landscape: ctx.landscape,
+      },
     );
     if (!done.ok) return done;
     const village = await villages().find(ctx.villageId);

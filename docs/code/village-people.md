@@ -882,7 +882,10 @@ Muž (s manželkou a svobodnými dětmi) putuje do vsi bez vojvody schránkou ja
   netřeba.
 - **Use-case** `baptizeLord` (`application/baptize.ts`): právo `ennoble` (jen držitel vlastní vsi),
   důvody `BAPTIZE_REASONS` (rod nezná, už pokřtěný, vojvoda rodu `House.lord` žije jinde); nejdřív
-  `sendRodBaptized` (`advance-christianity.ts`), pak `markBaptized`.
+  `sendRodBaptized` (`advance-christianity.ts`), pak `markBaptized`, nakonec ves vojvody hned
+  (`updateVillage` + `baptizeVillage`, vstup nese `landscape`; D76) – zpráva ve schránce vsi
+  vojvody pak nic nezdvojí. Kronika `lord-baptized` a `wives-released` nese `name` a `estate`
+  vojvody (D77).
 - **Ves** (`domain/village/people/baptism.ts` `baptizeVillage`, ze schránky `rod-baptized`; idempotentní):
   rod hráče – den do `faith.rodBaptizedDay`; s `lord` a bez `nobles` se vojvoda (`currentLord`)
   pokřtí (kronika `lord-baptized`), zůstane mu hlavní manželka (zemřela-li, napřed

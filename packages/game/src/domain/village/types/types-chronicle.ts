@@ -308,12 +308,15 @@ export type ChronicleEvent = { day: number } & (
     }
   /** Rod se dozvěděl o křesťanství (christianity.md – Objev křesťanství) – ve vsi vojvody. */
   | { kind: 'christianity-known' }
-  /** Vojvoda se dal pokřtít (christianity.md – Křest rodu). */
-  | { kind: 'lord-baptized' }
+  /**
+   * Vojvoda se dal pokřtít (christianity.md – Křest rodu); jméno a postavení jako u žen muže rodu
+   * (Martin 15. 11. 2026) – starší zápisy je nemají.
+   */
+  | { kind: 'lord-baptized'; name?: string; estate?: ChronicleEstate }
   /** Roční obrácení vesničanů na křesťanství (christianity.md – Obrácení). */
   | { kind: 'converted'; count: number }
   /** Pokřtěný vojvoda propustil vedlejší manželky (christianity.md – Jediná manželka). */
-  | { kind: 'wives-released'; count: number }
+  | { kind: 'wives-released'; count: number; name?: string; estate?: ChronicleEstate }
   /** Dohoda z jednání: rod `vassal` přísahal rodu `lord` (jména hlav rodů). */
   | { kind: 'negotiation-accepted'; lord: string; vassal: string }
   /** Vazalství skončilo formálním vypovězením (jména hlav rodů; text je neutrální, bez viníka). */

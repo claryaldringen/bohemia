@@ -213,6 +213,11 @@ function extraWifeText(event: Extract<ChronicleEvent, { kind: 'extra-wife' }>): 
     : `${man} si vzal ${wife}.`;
 }
 
+/** Podmět zápisu o křtu: „Vojvoda Lutobor“; starší zápis bez postavení „Vojvoda“. */
+function lordLine(event: { name?: string; estate?: ChronicleEstate }): string {
+  return event.estate ? capitalized(estateText(event.estate, false, event.name)) : 'Vojvoda';
+}
+
 /**
  * Nová hlavní manželka (Martin 15. 11. 2026: „Dobrava se stala hlavní manželkou vojvody
  * Lutobora.“): jméno ženy, postavení a jméno muže ve 2. pádě; zápis bez ženy „… má novou hlavní
@@ -1269,11 +1274,11 @@ export function chronicleText(event: ChronicleEvent, villageName: string, seed?:
     case 'christianity-known':
       return 'Rod se dozvěděl o novém Bohu.';
     case 'lord-baptized':
-      return 'Vojvoda se dal pokřtít.';
+      return `${lordLine(event)} se dal pokřtít.`;
     case 'converted':
       return event.count === 1 ? 'Pokřtil se 1 vesničan.' : `Pokřtilo se ${event.count} vesničanů.`;
     case 'wives-released':
-      return `Vojvoda propustil vedlejší manželky (${event.count}).`;
+      return `${lordLine(event)} propustil vedlejší manželky (${event.count}).`;
     case 'negotiation-accepted':
       return `${event.vassal} se stal vazalem ${genitiveOf(event.lord)}.`;
     case 'vassalage-renounced':
