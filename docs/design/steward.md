@@ -349,7 +349,11 @@ Kroky 3 a 4 (`domain/village/steward/steward.ts` – `stewardDay`):
   bloků ostatních hospodářství nejblíž stojícím domům (Pole blízko a podle práce), které má
   aspoň na nejmenší pole (0,1 ha); souvislý výběr od nejbližšího políčka bloku, počet podle chybějících lidí
   a úrodnosti (lidé na hektar jako „Pole uživí“), nejvýš co unese rozpočet. Neprojde-li, první
-  políčko bloku se z plánu zahodí (nejvýš `slotTries` pokusů za den).
+  políčko bloku se z plánu zahodí (nejvýš `slotTries` pokusů za den). **Pole spíš čtvercová**
+  (oxen.md – Orba rádlem křížem; Martin 14. 11. 2026: „Dokud Slované neměli těžký pluh, orali
+  spíš čtvercová pole a křížem.“): výběr roste v co nejčtvercovějším bloku, ne v pásu – další je
+  sousední políčko, které nejméně prodlouží delší stranu obalu bloku, při shodě to, které obal
+  nejméně zvětší, pak to nejblíž (návrh Clauda). Počet políček, cena založení i práce stejné.
 - **Nouze a pole:** pole v Nouzi stejně jako jindy – v rozpočtu práce (ten bere jen volnou práci).
   Dřívější podmínka „jen pole, které se stihne osít do konce osevu“ nechávala hladovějící ves bez
   nových polí (oprava 30. 10. 2026).

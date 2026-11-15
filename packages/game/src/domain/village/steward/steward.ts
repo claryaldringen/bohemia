@@ -502,10 +502,13 @@ export interface FieldBlock {
 }
 
 /**
- * Souvislý výběr políček z `ordered` (pořadí = přednost): napřed první, pak vždy první další, které
- * sousedí stranou s vybranými – dokud není `want` políček nebo by založení přesáhlo `budget`.
+ * Souvislý výběr políček z `ordered` (pořadí = přednost) v co nejčtvercovějším bloku (oxen.md –
+ * Orba rádlem křížem; návrh Clauda: správce zakládá pole spíš čtvercová, ne v pásech): napřed
+ * první, pak vždy políčko, které sousedí stranou s vybranými a nejméně prodlouží delší stranu
+ * obalu bloku (při shodě to, které obal nejméně zvětší, pak dřívější v pořadí) – dokud není
+ * `want` políček nebo by založení přesáhlo `budget`. Každý začátek výběru je souvislý.
  */
-function connectedPick(
+export function connectedPick(
   ordered: readonly number[],
   size: number,
   want: number,
@@ -516,26 +519,52 @@ function connectedPick(
   const cells: number[] = [];
   const pending = [...ordered];
   let foundMd = 0;
+  // obal vybraných políček – sloupce x0–x1, řádky y0–y1
+  let x0 = 0;
+  let x1 = 0;
+  let y0 = 0;
+  let y1 = 0;
   const touches = (t: number): boolean =>
     (t % size > 0 && chosen.has(t - 1)) ||
     (t % size < size - 1 && chosen.has(t + 1)) ||
     chosen.has(t - size) ||
     chosen.has(t + size);
-  let progress = true;
-  while (cells.length < want && progress) {
-    progress = false;
-    for (let k = 0; k < pending.length; k++) {
+  while (cells.length < want && pending.length > 0) {
+    let best = cells.length === 0 ? 0 : -1;
+    let bestSide = Infinity;
+    let bestArea = Infinity;
+    for (let k = 0; k < pending.length && cells.length > 0; k++) {
       const t = pending[k]!;
-      if (cells.length > 0 && !touches(t)) continue;
-      const cost = found[t]!;
-      if (foundMd + cost > budget) return { cells, foundMd };
-      chosen.add(t);
-      cells.push(t);
-      foundMd += cost;
-      pending.splice(k, 1);
-      progress = true;
-      break;
+      if (!touches(t)) continue;
+      const x = t % size;
+      const y = Math.floor(t / size);
+      const w = Math.max(x1, x) - Math.min(x0, x) + 1;
+      const h = Math.max(y1, y) - Math.min(y0, y) + 1;
+      const side = Math.max(w, h);
+      if (side > bestSide || (side === bestSide && w * h >= bestArea)) continue;
+      best = k;
+      bestSide = side;
+      bestArea = w * h;
     }
+    if (best < 0) break;
+    const t = pending[best]!;
+    const cost = found[t]!;
+    if (foundMd + cost > budget) break;
+    const x = t % size;
+    const y = Math.floor(t / size);
+    if (cells.length === 0) {
+      x0 = x1 = x;
+      y0 = y1 = y;
+    } else {
+      x0 = Math.min(x0, x);
+      x1 = Math.max(x1, x);
+      y0 = Math.min(y0, y);
+      y1 = Math.max(y1, y);
+    }
+    chosen.add(t);
+    cells.push(t);
+    foundMd += cost;
+    pending.splice(best, 1);
   }
   return { cells, foundMd };
 }
