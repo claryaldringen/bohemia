@@ -5645,14 +5645,13 @@ def _lime_white():
     return mat("limewhite", (0.9, 0.88, 0.8), 0.95, noise=10, bump=0.4)
 
 
-def _roof(bm, centre, width, length, height, thick=0.12, sign=1):
-    """Sedlová střecha: dvě šikmé desky nad osou X (délka `length` podél X). `sign=-1` – hřeben nahoře
-    (štít A); výchozí 1 zachovává tvar ostatních ikon."""
+def _roof(bm, centre, width, length, height, thick=0.12):
+    """Sedlová střecha: dvě šikmé desky nad osou X (délka `length` podél X). Hřeben je nahoře (štít A)."""
     ang = math.atan2(height, width / 2)
     run = math.hypot(width / 2, height) + 0.08
     for side in (-1, 1):
         box(bm, (centre[0], centre[1] + side * width / 4, centre[2] + height / 2),
-            (length, run, thick), rot=(sign * side * ang, 0, 0))
+            (length, run, thick), rot=(-side * ang, 0, 0))
 
 
 def _wall_blocks(bm, x0, x1, y, z0, rows, h=0.34, depth=0.5):
@@ -5676,7 +5675,7 @@ def icon_lodge():
     _wall_blocks(wall, -1.4, 1.4, 1.0, 0, 4)
     _wall_blocks(wall, -1.4, 1.4, 0.5, 0, 4)
     box(door, (0, -0.28, 0.5), (0.7, 0.08, 1.0))
-    _roof(roof, (0, 0.5, 1.36), 2.0, 3.3, 0.8, sign=-1)
+    _roof(roof, (0, 0.5, 1.36), 2.0, 3.3, 0.8)
     objs = [to_obj(wall, "wall", _stone(), smooth=False),
             to_obj(roof, "roof", wood_mat("roof", (0.4, 0.26, 0.12)), smooth=False),
             to_obj(door, "door", wood_mat("door", (0.3, 0.19, 0.09)), smooth=False)]
