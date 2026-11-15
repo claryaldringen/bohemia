@@ -15,12 +15,13 @@ import {
   bandCandidates,
   fieldEdge,
   ploughCandidate,
+  PLOUGH_ROW_M,
   ploughedTo,
   stripField,
   type PloughCandidate,
 } from './plough-front';
 import { roadPieces, villageRoadCapsules } from './plough-roads';
-import type { RouteStint } from './plough-team';
+import { crossField, type RouteStint } from './plough-team';
 
 /**
  * LADICÍ přepínač (Martin, 19. 10. 2026): true = spřežení projede celou dnešní orbu za herní den
@@ -47,7 +48,9 @@ export interface DayStint extends RouteStint {
  * Ráno i večer po pruzích obtisku (`workSteps`), ať brázda na konci dne přesně sedí s polem
  * dalšího dne. Projede se každý díl, přes který dnes orba prošla – i když se na něm za pluhem
  * týž den už selo (Martin, 19. 10. 2026: „Pokud přes to pole se svým pluhem neprojede, nesmí se
- * změnit na zoráno.“); bez `progress` od jádra jen díly se zoraným vzhledem.
+ * změnit na zoráno.“); bez `progress` od jádra jen díly se zoraným vzhledem. Rádlo orá každý
+ * pruh dvakrát (oxen.md – Orba rádlem křížem): napřed podél řad, hned po něm napříč (`cross` –
+ * `crossField`), brázdy obou průchodů tvoří mřížku.
  */
 export function dayStints(
   village: Pick<SceneVillage, 'labor' | 'fields' | 'dwellings' | 'roads'>,
@@ -95,15 +98,15 @@ export function dayStints(
     for (const { candidate, from, to } of pieces) {
       const size = candidate.part.size;
       const strip = stripField(candidate, from * size, to * size);
+      const partIds = candidate.parts.flatMap((p) => (p.id === undefined ? [] : [p.id]));
+      const partId = candidate.part.id!;
       for (const piece of roadPieces(strip, capsules, candidate.parts)) {
-        stints.push({
-          fieldId,
-          partId: candidate.part.id!,
-          partIds: candidate.parts.flatMap((p) => (p.id === undefined ? [] : [p.id])),
-          field: piece,
-          from,
-          to,
-        });
+        stints.push({ fieldId, partId, partIds, field: piece, from, to });
+      }
+      // orba křížem (oxen.md – Orba rádlem křížem): pruh ještě jednou napříč, přes cestu po kusech
+      const cross = crossField(strip, PLOUGH_ROW_M);
+      for (const piece of roadPieces(cross, capsules, candidate.parts)) {
+        stints.push({ fieldId, partId, partIds, field: piece, from, to, cross: true });
       }
     }
   }
@@ -112,26 +115,32 @@ export function dayStints(
 
 /**
  * Rozdělí pruhy mezi `teams` spřežení: každé dostane souvislý kus fronty v pořadí práce, kusy
- * zhruba stejně velké (podle plochy pruhů – pruh patří kusu, do kterého padne jeho střed). Kusy
- * bez pruhu odpadnou – zbylá spřežení zůstanou v ohradě.
+ * zhruba stejně velké (podle plochy pruhů – pruh patří kusu, do kterého padne jeho střed). Druhý
+ * průchod křížem (`cross`) patří tomu, kdo zoral předchozí pruh. Kusy bez pruhu odpadnou –
+ * zbylá spřežení zůstanou v ohradě.
  */
-export function splitStints<T extends { field: { size: number; from?: number; to?: number } }>(
-  stints: readonly T[],
-  teams: number,
-): T[][] {
-  const n = Math.max(0, Math.min(teams, stints.length));
+export function splitStints<
+  T extends { field: { size: number; from?: number; to?: number }; cross?: true },
+>(stints: readonly T[], teams: number): T[][] {
+  const n = Math.max(0, Math.min(teams, stints.filter((s) => !s.cross).length));
   if (n === 0) return [];
-  const area = stints.map((s) => s.field.size * ((s.field.to ?? 0) - (s.field.from ?? 0)));
+  const area = stints.map((s) =>
+    s.cross ? 0 : s.field.size * ((s.field.to ?? 0) - (s.field.from ?? 0)),
+  );
   const total = Math.max(
     1e-9,
     area.reduce((sum, a) => sum + a, 0),
   );
   const chunks: T[][] = Array.from({ length: n }, () => []);
   let acc = 0;
+  let chunk = 0;
   stints.forEach((stint, i) => {
-    const mid = acc + area[i]! / 2;
-    acc += area[i]!;
-    chunks[Math.min(n - 1, Math.floor((mid / total) * n))]!.push(stint);
+    if (!stint.cross) {
+      const mid = acc + area[i]! / 2;
+      acc += area[i]!;
+      chunk = Math.min(n - 1, Math.floor((mid / total) * n));
+    }
+    chunks[chunk]!.push(stint);
   });
   return chunks.filter((c) => c.length > 0);
 }

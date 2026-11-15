@@ -335,8 +335,16 @@ oxen)` – jen ve vsi bez výrostků (`youngsterCount` 0), potřeba nejvýš `HE
   s obraty, přesuny se zvednutým rádlem), `RouteTrack` (od příchodu plánu do konce
   herního dne – okno z hodin světa, `realTimeOf`, nebo `VillageRenderer.setPloughClock`),
   `routePose`, brázda `routeFurrows` (pásy řad, kudy radlice projela – čistá funkce času)
-  → `FieldRenderer.setFurrows` (obtisk `village-field-furrow-<id>` s krytím pole, v
-  `animateOxen`); `PloughTeams.setRoutes` / `furrows`. Jen s animací (`VillageContext.animated`
+  → `FieldRenderer.setFurrows` (obtisk `village-field-furrow-<id>` s krytím pole po poli,
+  průchodu a směru textury, v `animateOxen`); `PloughTeams.setRoutes` / `furrows`. **Orba
+  rádlem křížem** (oxen.md – Orba rádlem křížem; práce orby v jádru beze změny): `dayStints` dá
+  za každým pruhem i jeho druhý průchod napříč (`crossField` – pruh jako `PloughField` s řadami
+  napříč po `PLOUGH_ROW_M`, přes cestu `roadPieces`; `RouteStint.cross`), `splitStints` ho nechá
+  spřežení, které pruh zoralo napoprvé; řada, kterou oblouk kulatého rohu ubral celou, se
+  vynechá (`stintRows`). Brázdy druhého průchodu (`FurrowBand.cross`) leží napříč přes zoranou
+  zem s krytím `CROSS_FURROW_ALPHA`, textura podél `furrowRows` – stejně jako vrstva křížem na
+  obtisku zorané země (village-fields.md), na konci dne splynou s polem. Smyčka u čela
+  (`PLOUGH_DAY_DEBUG` = false – `ploughPath`) orá dál jedním směrem. Jen s animací (`VillageContext.animated`
   – při omezeném pohybu konec dne a čelo jako dřív). Ukázka **Orání** na `/dev/buildings`: tři
   čtverce, vlastní `VillageRenderer` (`ploughDemo`) s polem a orbou dne ukázky (40 s –
   `showcasePloughDay`, `showcasePloughWindow`, díly a `progress` jako od jádra – `showcasePlough`),

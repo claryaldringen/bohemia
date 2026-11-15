@@ -686,8 +686,16 @@ později – přijde to s trojpolním systémem a těžkým pluhem – ten budou
 - **Práce orby se nemění** (0,3 ha za den a pár jako dnes) – dva průchody rádlem jsou rychlé.
 - **Ve scéně** spřežení orá díl dvakrát – napřed v jedné ose mřížky pole, pak napříč; brázdy na
   dílu tvoří mřížku (křížem). Návrh Clauda: obilí se seje rozhozem, porost proto nemá řádky.
+  Podrobnosti (návrh Clauda, 15. 11. 2026): dnešní pruh dílu (pásu dílů) spřežení zorá podél řad
+  jako dřív a hned po něm týž pruh napříč – řady po ≈ 2,5 m přes celou délku pruhu, první od
+  konce, kde první průchod skončil; obraty, kulaté rohy (řada celá za obloukem se vynechá)
+  i cesty jako u prvního průchodu. Zoraná plocha přibývá prvním průchodem, brázdy druhého leží
+  napříč přes ně polovičním krytím – na obtisku zorané země pole oraného rádlem stejně (druhá
+  vrstva textury napříč), takže na konci dne brázda splyne s polem. Pole vsi, která kope motykou,
+  mřížku nemá. Obilí: v každé buňce ≈ 0,8 × 0,7 m dílu jeden trs kdekoli (rozhoz – stejná hustota
+  jako dřív v řádcích, deterministicky podle políčka).
 - **Pole spíš čtvercová** – správce zakládá pole v co nejčtvercovějších blocích, ne v pásech
-  (návrh Clauda).
+  (návrh Clauda; jak – steward.md, Blok pole).
 - **Co nejdelší brázda** (níž) platí až s těžkým pluhem (4 voli) a trojpolním systémem – později.
 
 ## Co nejdelší brázda (19. 10. 2026) – až s těžkým pluhem

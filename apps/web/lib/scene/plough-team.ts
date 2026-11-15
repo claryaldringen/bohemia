@@ -254,6 +254,8 @@ function stintRows(field: PloughField, closed: boolean, turnRadius = TURN_RADIUS
     { length: rows },
     (_, k): { lo: number; hi: number; fillLo?: number; fillHi?: number } | null => {
       const base = rowExtent(offset(k), halfU, radii, field.size / 2);
+      // úzký pruh v kulatém rohu (druhý průchod křížem – `crossField`): řada celá za obloukem
+      if (base.hi - base.lo <= 1e-6) return null;
       if (!field.rowRuns) return base;
       const run = field.rowRuns[k];
       if (!run) return null;
@@ -1110,11 +1112,15 @@ export function writeSegmentMatrix(
 
 // --- celá dnešní orba za herní den (ladicí – oxen.md, Orba za herní den) --------------------
 
-/** Pruh dnešní orby na trase: pole (pruh dílu), id pole a dílu. */
+/**
+ * Pruh dnešní orby na trase: pole (pruh dílu), id pole a dílu; `cross` – druhý průchod orby
+ * křížem (`crossField` – řady napříč řadami prvního průchodu).
+ */
 export interface RouteStint {
   fieldId: number;
   partId: number | null;
   field: PloughField;
+  cross?: true;
 }
 
 /**
@@ -1360,7 +1366,7 @@ export function routePose(
 /**
  * Brázda za spřežením – pás řady, kudy radlice projela: díl (střed a osy pruhu – podél řad
  * `along`, napříč `across`), řada napříč `v` (šířka pásu `2 × half`) a úsek podél řad `from`–`to`
- * (od středu dílu).
+ * (od středu dílu); `cross` – brázda druhého průchodu orby křížem (osy pruhu `crossField`).
  */
 export interface FurrowBand {
   fieldId: number;
@@ -1373,6 +1379,50 @@ export interface FurrowBand {
   half: number;
   from: number;
   to: number;
+  cross?: true;
+}
+
+/**
+ * Směr řádků textury brázdy – stejný jako na obtisku zorané země (field-blocks.ts): první průchod
+ * podél své řady, druhý (`cross`) kolmo na řady prvního průchodu (ty jsou u `crossField` osou
+ * napříč) – jako vrstva křížem obtisku (`LookStyle.cross`).
+ */
+export function furrowRows(band: Pick<FurrowBand, 'along' | 'across' | 'cross'>): [number, number] {
+  return band.cross ? [-band.across[1], band.across[0]] : [band.along[0], band.along[1]];
+}
+
+/**
+ * Pruh orby `field` (od–do napříč řadami, celá délka podél řad) jako druhý průchod orby křížem
+ * (oxen.md – Orba rádlem křížem): řady vedou napříč řadami prvního průchodu po ≈ `rowM` (sudý
+ * počet), první od konce, kde první průchod skončil (strana `to`, začátek řad), a přibývají
+ * podél řad prvního průchodu. Kulaté rohy pole platí stejně – roh pruhu, který je rohem pole;
+ * řadu, kterou oblouk rohu celou ubral, spřežení vynechá. Přes cestu jako první průchod
+ * (`roadPieces`).
+ */
+export function crossField(field: PloughField, rowM: number): PloughField {
+  const len = Math.hypot(field.dirX, field.dirZ) || 1;
+  const dx = field.dirX / len;
+  const dz = field.dirZ / len;
+  const across = Math.hypot(field.acrossX ?? 0, field.acrossZ ?? 0);
+  const sx = across > 1e-9 ? field.acrossX! / across : -dz;
+  const sz = across > 1e-9 ? field.acrossZ! / across : dx;
+  const from = field.from ?? -field.size / 2;
+  const to = field.to ?? field.size / 2;
+  const mid = (from + to) / 2;
+  const length = field.length ?? field.size;
+  return {
+    x: field.x + sx * mid,
+    z: field.z + sz * mid,
+    size: length,
+    length: to - from,
+    dirX: -sx,
+    dirZ: -sz,
+    rows: Math.max(2, 2 * Math.round(length / (2 * rowM))),
+    acrossX: dx,
+    acrossZ: dz,
+    ...(field.corners ? { corners: field.corners } : {}),
+    ...(field.cornerRadius !== undefined ? { cornerRadius: field.cornerRadius } : {}),
+  };
 }
 
 /**
@@ -1411,6 +1461,7 @@ export function routeFurrows(track: RouteTrack, nowMs: number): FurrowBand[] {
         half: row.spacing / 2,
         from,
         to,
+        ...(stint.cross ? { cross: true as const } : {}),
       });
     }
   }
