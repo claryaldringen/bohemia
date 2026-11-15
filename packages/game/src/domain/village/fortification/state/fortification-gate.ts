@@ -276,7 +276,8 @@ export function decideTowerRebuilds(
   const started: Construction[] = [];
   for (const fort of villageFortifications(state)) {
     for (const gate of fort.gates) {
-      if (!gateTowerIsOld(gate, day)) continue;
+      // opuštěná brána se neudržuje – věž chátrá a spadne (demolition.md – Rozhodnutí)
+      if (gate.abandonedDay !== undefined || !gateTowerIsOld(gate, day)) continue;
       const busy = busySegments(
         state.constructions,
         fort.id,

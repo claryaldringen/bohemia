@@ -372,6 +372,8 @@ export type ChronicleEvent = { day: number } & (
       lengthM?: number;
       gates?: [ChronicleFortGate, ChronicleFortGate];
       around?: true;
+      /** Zbořená brána (demolition.md – Rozhodnutí); chybí = úsek. */
+      gate?: true;
     }
   /** Hráč zrušil rozestavěnou stavbu (cancel-construction.ts); dřevo se vrátilo na hromadu. */
   | {

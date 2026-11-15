@@ -37,6 +37,7 @@ import {
   type GatePart,
 } from './gate-parts';
 import { busySegments } from './runs';
+import { gateStands, removeGate } from './gates';
 import { fortSegments } from './segments';
 
 export { segmentState } from './life';
@@ -73,14 +74,23 @@ function pieceLength(fort: Fortification, s: FortSegment, length: number, part?:
   const gate = fort.gates.find((g) => g.segment === s.index);
   if (!gate) return length;
   if (part !== undefined) return gatePartLengthM(length, gate.offsetM, part);
-  let rest = length;
+  // zbořená brána je mezera – přestavuje se jen hradba dílu kolem ní
+  let rest = gateStands(gate) ? length : length - FORTIFICATIONS.gate.widthM;
   for (const p of ownParts(fort, s)) rest -= gatePartLengthM(length, gate.offsetM, p);
   return Math.max(0, rest);
 }
 
+/** Opuštěná brána, která ještě stojí (demolition.md – Rozhodnutí). */
+function abandonedGateOn(fort: Fortification, index: number): boolean {
+  return fort.gates.some(
+    (g) => g.segment === index && g.abandonedDay !== undefined && gateStands(g),
+  );
+}
+
 /**
  * Úseky, které obyvatelé přestaví: průlom a dožilá hradba (i na valu) – i kus dílu s branou
- * s vlastní hradbou zvlášť. Zbořený díl ne – hráč ho zbořil (demolition.md – Opevnění).
+ * s vlastní hradbou zvlášť. Zbořený díl ne – hráč ho zbořil (demolition.md – Opevnění); dožilý
+ * díl opuštěné brány taky ne – brána shnije (kusy s vlastní hradbou se přestavují dál).
  */
 function dueSegments(fort: Fortification, day: number, busy: ReadonlySet<number>): DuePiece[] {
   const breached: DuePiece[] = [];
@@ -91,7 +101,7 @@ function dueSegments(fort: Fortification, day: number, busy: ReadonlySet<number>
       breached.push({ index: s.index });
       continue;
     }
-    if (segmentIsOld(fort, s, day)) old.push({ index: s.index });
+    if (segmentIsOld(fort, s, day) && !abandonedGateOn(fort, s.index)) old.push({ index: s.index });
     for (const part of ownParts(fort, s)) {
       if (segmentIsOld(fort, gatePartView(s, part), day)) old.push({ index: s.index, part });
     }
@@ -106,6 +116,26 @@ function builtLengths(geo: Geometry, fort: Fortification): Map<number, number> |
   const lengths = new Map<number, number>();
   for (const shape of fortSegments(outline)) lengths.set(shape.index, shape.lengthM);
   return lengths;
+}
+
+/**
+ * Opuštěné brány, jejichž díl shnil na nulu (mutuje opevnění; demolition.md – Rozhodnutí): brána
+ * zmizí a zbyde mezera (`removeGate`), hradbu dílu kolem pak obyvatelé přestaví jako každou.
+ * Holý val nehnije – brána v něm stojí dál (jako val). Díl se stavbou čeká, průlom taky.
+ */
+export function settleAbandonedGates(
+  fort: Fortification,
+  day: number,
+  busy: ReadonlySet<number>,
+): void {
+  for (const gate of fort.gates) {
+    if (gate.abandonedDay === undefined || !gateStands(gate) || busy.has(gate.segment)) continue;
+    const seg = fort.segments.find((s) => s.index === gate.segment);
+    if (!seg || seg.breachedDay !== undefined) continue;
+    if (seg.demolishedDay !== undefined || segmentState(fort, seg, day) <= 0) {
+      removeGate(gate, day);
+    }
+  }
 }
 
 /**
@@ -152,6 +182,7 @@ export function decideFortRebuilds(
         if (own.state !== next) own.state = next;
       }
     }
+    settleAbandonedGates(fort, day, busy);
     if (fort.segments.every((s) => busy.has(s.index))) continue;
     const lengths = builtLengths(geo, fort);
     if (!lengths) continue;

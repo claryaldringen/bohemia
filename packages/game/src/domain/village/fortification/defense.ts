@@ -51,7 +51,7 @@ export function fortHasWall(fort: Fortification, day: number): boolean {
   return fort.segments.some((seg) => gatePartPieces(seg).some((p) => !segmentIsGap(fort, p, day)));
 }
 
-/** Mezera v obvodu: otevřená brána, nedostavěný / shnilý / zbořený úsek nebo průlom. */
+/** Mezera v obvodu: otevřená brána, nedostavěný / shnilý / zbořený úsek či brána nebo průlom. */
 export interface Gap {
   kind: 'gate' | 'gap' | 'breach';
   segment: number;
@@ -113,9 +113,11 @@ export function fortGaps(
         gaps.push({ kind: 'gap', segment: seg.index, x, z, widthM: to - from });
       }
     }
-    if (gate && !closedGates.has(seg.index)) {
+    // zbořená brána je mezera – zavřít nejde (demolition.md – Rozhodnutí)
+    const gone = gate !== undefined && gate.demolishedDay !== undefined;
+    if (gate && (gone || !closedGates.has(seg.index))) {
       gaps.push({
-        kind: 'gate',
+        kind: gone ? 'gap' : 'gate',
         segment: seg.index,
         x: gate.x,
         z: gate.z,

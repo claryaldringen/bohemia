@@ -1017,6 +1017,8 @@ function closeGates(b: BattleState, forts: readonly BattleFort[]): void {
   const r2 = FORTIFICATIONS.gatesCloseWithinM * FORTIFICATIONS.gatesCloseWithinM;
   forts.forEach((bf, fi) => {
     for (const gate of bf.fort.gates) {
+      // zbořená brána je mezera – nemá co zavřít (demolition.md – Rozhodnutí)
+      if (gate.demolishedDay !== undefined) continue;
       const key = `${fi}:${gate.segment}`;
       if (b.closedGates.includes(key) || (b.openedGates ?? []).includes(key)) continue;
       const near = b.fighters.some(
@@ -1277,6 +1279,7 @@ export function fortPassages(
   const opened = new Set(b.openedGates ?? []);
   forts.forEach((bf, fi) => {
     for (const g of bf.fort.gates) {
+      if (g.demolishedDay !== undefined) continue;
       if (!opened.has(`${fi}:${g.segment}`)) closed.add(`${fi}:${g.segment}`);
     }
   });

@@ -161,6 +161,16 @@ vylepšit jen celé.
   mezeru jako zbořený úsek, opuštěná se přestane udržovat a rozpadne se na mezeru; mezeru hráč
   zastaví stejně – běžnou stavbou od brány k bráně (nebo od konce hradby). Mění „Hradba je
   hradba, brána je brána“ (8. 11. 2026) jen v tom, že brána má vlastní Opustit a Zbořit.
+  Implementováno 15. 11. 2026 (D28; návrh Clauda v podrobnostech): zbořit bránu stojí jako kus
+  úseku šířky brány (4 m) – čtvrtina práce, polovina klád × stav; klešťová brána a věž padnou
+  s ní a jejich klády se vrátí stejně. Opuštěnou bránu obyvatelé nepřestaví (díl brány ani věž)
+  a v panelu má Vrátit; kus hradby dílu brány bez vlastní hradby chátrá s ní a po zmizení brány
+  ho obyvatelé přestaví jako hradbu. Holý val nehnije, brána v něm stojí. Zbořená brána je dál
+  hranice úseků a otvor šířky brány, který v boji nejde zavřít. Běžná stavba opevnění navrhne
+  úsek od brány k bráně, když první bod kurzoru leží do 40 m od zbořeného úseku; val mezeru
+  nezastaví („Mezeru zastaví hradba – val se k ní doplní potom.“). Zatím nejde zastavit samotný
+  otvor po zbořené bráně mezi stojící hradbou („od konce hradby“) – zbořená brána drží konec
+  nového úseku jako stojící.
 
 - **Chátrání humna, obilné jámy a sadu** (Martin 8. 11. 2026):
   - **Humno** zaroste trávou za 10 let – a to nejen opuštěné: stačí, když na něm po tu dobu

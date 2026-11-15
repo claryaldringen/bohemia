@@ -28,6 +28,34 @@ export interface FortGate {
   towerDay?: number | null;
   /** Stárnutí věže navíc za nedodělanou údržbu (dny; Životnost a údržba); chybí = 0. */
   towerExtraAgeDays?: number;
+  /**
+   * Den, kdy hráč bránu opustil (demolition.md – Rozhodnutí, Martin 14. 11. 2026): obyvatelé díl
+   * brány ani věž nepřestaví, brána shnije a zbyde mezera (`demolishedDay`). Chybí = udržovaná.
+   */
+  abandonedDay?: number;
+  /**
+   * Den, kdy brána zmizela – zbořená hráčem, nebo opuštěná shnilá: mezera šířky brány, průchod,
+   * který nejde zavřít, bez klešťové brány a věže. Hradba dílu kolem stojí dál a úseky dělí dál.
+   * Chybí = brána stojí.
+   */
+  demolishedDay?: number;
+}
+
+/** Stojí brána (není zbořená ani shnilá na mezeru)? */
+export function gateStands(gate: Pick<FortGate, 'demolishedDay'>): boolean {
+  return gate.demolishedDay === undefined;
+}
+
+/**
+ * Brána zmizí (mutuje bránu): zbyde mezera šířky brány, klešťová brána a věž padnou s ní
+ * (demolition.md – Rozhodnutí; návrh Clauda).
+ */
+export function removeGate(gate: FortGate, day: number): void {
+  gate.demolishedDay = day;
+  delete gate.abandonedDay;
+  delete gate.pincerDay;
+  delete gate.towerDay;
+  delete gate.towerExtraAgeDays;
 }
 
 /** Proč bránu nejde přidat: klik daleko od obvodu, úsek už bránu má. */
