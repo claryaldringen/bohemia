@@ -134,10 +134,22 @@ function joinAtHome(
 }
 
 /**
+ * Noví lidé bez rozkazu stojí doma v nové skupině; její lhůta (3 dny, pak jde domů sama) běží od
+ * tohoto taktu – hráč je mezitím může poslat znovu. Nikdo nový – nic.
+ */
+function standAtHome(s: JourneyState, fresh: readonly JourneyMember[], out: TickOut): void {
+  if (fresh.length === 0) return;
+  const party: JourneyParty = { id: s.nextId++, phase: 'out', arrivedTick: s.tick };
+  s.parties.push(party);
+  joinAtHome(s, party.id, fresh, out);
+}
+
+/**
  * Rozkaz lidem (Rozhodnutí 3): vybraní jsou lidé `people`, kteří jsou ve výpravě živí a jejich
  * skupina hráče poslouchá (chybí = všichni takoví), a noví lidé `recruits` (id, která ve výpravě
  * nejsou) – ti stojí doma v novém hloučku. Napřed ověření: „Přes okraj“ na políčko nesousedící
- * s hloučkem vůdce výběru se zahodí celé (ani noví lidé nepřibudou). Pak:
+ * s hloučkem vůdce výběru se zahodí; noví lidé ale ze vsi už odešli (`musterExpedition`), proto
+ * stojí doma v nové skupině bez rozkazu (`standAtHome` – jako u Osedlat). Pak:
  * - vybraní tvoří jednu skupinu – výběr právě celé jedné skupiny (nováčci navíc) si nechá její id,
  *   jinak dostane nové (`nextId`);
  * - skupina, z níž je vybraná jen část, si nechá zbytek: její hloučky zastaví a lhůta jí běží od
@@ -163,7 +175,10 @@ function orderPeople(
   const at = leader.group < 0 ? s.home : groups.get(leader.group)!;
   const from: CampaignPlace = { cell: { ...at.cell }, pos: { ...at.pos } };
   const order = command.order;
-  if (order.kind === 'cross' && directionBetween(from.cell, order.cell) === null) return;
+  if (order.kind === 'cross' && directionBetween(from.cell, order.cell) === null) {
+    standAtHome(s, fresh, out);
+    return;
+  }
 
   const picked = new Set(chosen.map((m) => m.ref.personId));
   const touched = s.parties.filter((p) => chosen.some((m) => partyOf(m) === p));
@@ -264,9 +279,7 @@ function saddle(
   const chosen = chosenMembers(s, command.people);
   const fresh = freshMembers(s, command.recruits ?? []);
   if (fresh.length > 0) {
-    const party: JourneyParty = { id: s.nextId++, phase: 'out', arrivedTick: s.tick };
-    s.parties.push(party);
-    joinAtHome(s, party.id, fresh, out);
+    standAtHome(s, fresh, out);
     chosen.push(...fresh);
   }
   if (chosen.length === 0) return;

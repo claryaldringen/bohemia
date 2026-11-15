@@ -43,8 +43,9 @@ s libovolně skupinami hráče (`parties`) a jejich hloučky (`groups`).
   záměr): rozkazy hráče platí jen pro skupiny bez `leaderless`, `recall` pro všechny. Rozkaz lidem:
   - vybraní = živí lidé ve výpravě z `people` (skupina bez `leaderless`), nováčci `recruits` (id, která
     ve výpravě nejsou) přibudou v novém hloučku na `home.pos`;
-  - ověření předem: „Přes okraj“ na políčko nesousedící s hloučkem vůdce výběru se zahodí celý (ani
-    nováčci nepřibudou);
+  - ověření předem: „Přes okraj“ na políčko nesousedící s hloučkem vůdce výběru se zahodí; nováčci
+    ze vsi už odešli, proto stojí doma v nové skupině bez rozkazu (`standAtHome`, `arrivedTick` =
+    takt příkazu – jako u Osedlat);
   - dělení: skupina, z níž je vybraná jen část, si nechá zbytek – jeho hloučky zastaví (`goal` null,
     `route` [], `leg` null, `arrived`), fáze `out`, `arrivedTick` = takt příkazu (zastavení je dojetí –
     znalost mapy hloučku, který šel, jde rodu); smíšený hlouček se rozdělí (vybraní v novém hloučku

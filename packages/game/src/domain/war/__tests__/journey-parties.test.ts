@@ -225,13 +225,38 @@ describe('nový člověk ze vsi', () => {
     ]);
   });
 
-  it('„Přes okraj“ na nesousední políčko se zahodí celý – nikdo nepřibude', () => {
+  it('„Přes okraj“ na nesousední políčko se zahodí – bez nováčků se nic nezmění', () => {
     const begin = start([person(1)], go(A));
     const T = LAUNCH + 200;
     const plain = stepJourney(begin, T + 5, [], worldOf()).state;
     const cross: JourneyOrder = { kind: 'cross', cell: { x: 2, y: 0 } };
-    const tried = stepJourney(begin, T + 5, [order(T, 1, cross, [1, 7], [person(7)])], worldOf());
+    const tried = stepJourney(begin, T + 5, [order(T, 1, cross, [1])], worldOf());
     expect(JSON.stringify(tried.state)).toBe(JSON.stringify(plain));
+  });
+
+  it('neplatný „Přes okraj“ s nováčky (vůdce mezitím přešel okraj): nováčci stojí doma v nové skupině', () => {
+    // vůdce (1) je za okrajem na EAST – hráč ještě vidí domovskou mapu a dá „Přes okraj“ na západ
+    const begin = start([person(1)], { kind: 'cross', cell: EAST });
+    const T = LAUNCH + 1300;
+    const across = stepJourney(begin, T - 1, [], worldOf()).state;
+    expect(groupOf(across, 1)).toMatchObject({ cell: EAST });
+    const west: JourneyOrder = { kind: 'cross', cell: { x: -1, y: 0 } };
+    const intents = [order(T, 1, west, [1, 7], [person(7)])];
+    const s = stepJourney(across, T, intents, worldOf()).state;
+    // vůdce rozkaz nedostal, nováček je ve výpravě – doma, ve vlastní stojící skupině
+    expect(groupOf(s, 1)).toEqual(groupOf(across, 1));
+    expect(partyOf(s, 1)).toEqual(partyOf(across, 1));
+    expect(memberOf(s, 7)).toMatchObject({ status: 'active' });
+    expect(groupOf(s, 7)).toMatchObject({ cell: HOME.cell, pos: HOME.pos, arrived: true });
+    expect(partyOf(s, 7)).toMatchObject({ phase: 'out', arrivedTick: T });
+    expect(partyOf(s, 7)).not.toBe(partyOf(s, 1));
+    // po lhůtě jde nováček domů sám (away-ends s ním), vůdce zůstane venku
+    const later = stepJourney(across, T + WAIT + 10, intents, worldOf());
+    const ends = later.villageEvents.filter((e) => e.body.kind === 'away-ends');
+    expect(ends.map((e) => e.body)).toEqual([
+      { kind: 'away-ends', refId: 'j1', untilDay: ends[0]!.day, personIds: [7] },
+    ]);
+    expect(later.state.members.map((m) => m.ref.personId)).toEqual([1]);
   });
 });
 
