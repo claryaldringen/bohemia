@@ -26,12 +26,14 @@ export const START_STORES_MONTHS = 18;
 export const START_SEED_YEARS = 0.5;
 // fields.md – Zásoby a nasycení, Start – zakladatelé první vsi (Martin 2. 11. 2026: „Ta úplně
 // první ves – zakladatelé budou mít velkou zásobu jídla/osiva. Ber to analogicky, jako když přišel
-// praotec Čech do Čech“; čísla návrh Clauda z měření správce): vojvoda s manželkami (lord.md –
-// Zakladatelé) přinese jídlo na `foodYears` roční potřeby zakladatelů a osivo na `seedYears` roční
-// potřeby (osivo jen na setí – `VillageState.reservedSeedKg`); osivo se do `seedKeepYears` let od
-// založení neuvolní 1. 6. ani 1. 12. (SEED_BUYING) a výhled zásob ho nepočítá za jídlo – slouží na
-// víc osevů, dokud nedorostou první děti; sní se jen ve skutečném hladu. Ztráty skladováním
-// (STORAGE_LOSS_PER_YEAR) jdou z celé zásoby obilí – rezerva je nejvýš tolik, kolik obilí zbývá.
+// praotec Čech do Čech“; čísla návrh Clauda z měření správce): vojvoda s manželkami a syny (lord.md
+// – Zakladatelé) přinese jídlo na `foodYears` roční potřeby zakladatelů a osivo na `seedYears`
+// roční potřeby (osivo jen na setí – `VillageState.reservedSeedKg`) – 9 dospělých × 180 kg =
+// 1 620 kg: 4 860 kg jídla a 3 240 kg osiva (od 15. 11. 2026 se 4 syny; dřív 5 lidí – 2 700
+// a 1 800 kg); osivo se do `seedKeepYears` let od založení neuvolní 1. 6. ani 1. 12. (SEED_BUYING)
+// a výhled zásob ho nepočítá za jídlo – slouží na víc osevů, dokud nedorostou první děti; sní se
+// jen ve skutečném hladu. Ztráty skladováním (STORAGE_LOSS_PER_YEAR) jdou z celé zásoby obilí –
+// rezerva je nejvýš tolik, kolik obilí zbývá.
 // Měření správce 6 × 25 let (2. 11. 2026): s ochranou osiva past zmizí už s 18 měsíci a půl rokem
 // osiva, pojistku ≥ 0,6 drží až 3 + 2 roky (hladové dny 2 114 → 789). Ves bez rodu a ves
 // z výpravy beze změny.

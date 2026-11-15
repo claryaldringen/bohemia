@@ -45,8 +45,8 @@ const seeds = (): SeedSource => {
 };
 
 /**
- * Ves zakladatelů rodu – vojvoda s manželkami, dostavěná zemnice (lord.md – Zakladatelé) – a rodina
- * syna v druhé zemnici – 7 lidí.
+ * Ves zakladatelů rodu – vojvoda s manželkami a čtyřmi syny, dostavěná zemnice (lord.md –
+ * Zakladatelé) – a rodina dalšího syna v druhé zemnici – 11 lidí.
  */
 async function player(isolated = false): Promise<{
   deps: {
@@ -137,7 +137,7 @@ describe('leaveVillage – jedna ves, jedna mapa', () => {
     });
     expect(empty.ok).toBe(false);
     expect(deps.villages.records.size).toBe(1);
-    expect((await deps.villages.find(villageId))!.state.people).toHaveLength(7);
+    expect((await deps.villages.find(villageId))!.state.people).toHaveLength(11);
   });
 
   it('odejdou-li všichni, stará ves je opuštěná a akce v ní nejdou; každé sídlo má jednu ves', async () => {
@@ -288,7 +288,7 @@ describe('leaveVillage – na novou mapu', () => {
       destination: { kind: 'map', direction: 'E' },
     });
     expect(again).toEqual({ ok: false, reason: OWN_MAP_THERE });
-    expect((await deps.villages.find(villageId))!.state.people).toHaveLength(5);
+    expect((await deps.villages.find(villageId))!.state.people).toHaveLength(9);
     const west = await leaveVillage(deps, {
       playerId: PLAYER,
       villageId,
@@ -319,7 +319,7 @@ describe('leaveVillage – na novou mapu', () => {
       destination: { kind: 'map', direction: 'E' },
     });
     expect(result).toEqual({ ok: false, reason: FOREIGN_MAP_THERE });
-    expect((await deps.villages.find(villageId))!.state.people).toHaveLength(7);
+    expect((await deps.villages.find(villageId))!.state.people).toHaveLength(11);
     expect(await deps.settlements.listActive(PLAYER)).toHaveLength(1);
   });
 });
@@ -339,19 +339,8 @@ async function lordPlayer(): Promise<
     son.line = true;
     son.name = 'Bořivoj';
     sonId = son.id;
-    const heir: Person = {
-      id: state.nextId++,
-      bornDay: TODAY - Math.ceil(17 * YEAR),
-      dwellingId: state.manorId ?? 1,
-      sex: 'male',
-      fatherId: son.fatherId!,
-      motherId: son.motherId!,
-      line: true,
-      mainWifeSon: true,
-      name: 'Bořek',
-    };
-    heirId = heir.id;
-    state.people.push(heir);
+    // nástupce – nejstarší syn hlavní manželky mezi zakladateli (lord.md – Zakladatelé, Nástupnictví)
+    heirId = state.people.find((p) => p.fatherId === son.fatherId && p.mainWifeSon === true)!.id;
   });
   return { ...base, sonId, heirId };
 }

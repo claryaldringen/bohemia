@@ -62,10 +62,21 @@ export const LORD = {
   /** lord.md – Manželky: věk další manželky z okolí (16–22 let). */
   extraWifeAge: { from: 16, to: 22 },
   /**
-   * lord.md – Zakladatelé (Martin 24. 10. 2026; věk návrh Clauda): ves zakládá vojvoda s hlavní
-   * a třemi vedlejšími manželkami – věk vojvody a manželek od hlavní (první je hlavní).
+   * lord.md – Zakladatelé (Martin 24. 10. 2026 a 15. 11. 2026: „aby měl vojvoda minimálně 4 dospělé
+   * (alespoň 16 let) syny“; věky návrh Clauda): ves zakládá vojvoda s hlavní a třemi vedlejšími
+   * manželkami a se čtyřmi syny – věk vojvody, manželek od hlavní (první je hlavní) a synů od
+   * nejstaršího; `mother` je pořadí matky v `wifeAges`.
    */
-  founders: { lordAge: 25, wifeAges: [22, 20, 18, 16] },
+  founders: {
+    lordAge: 42,
+    wifeAges: [38, 35, 25, 20],
+    sons: [
+      { age: 20, mother: 0 },
+      { age: 18, mother: 0 },
+      { age: 17, mother: 1 },
+      { age: 16, mother: 1 },
+    ],
+  },
   /** lord.md – Jména: jméno muže rodu má nejvýš tolik písmen (návrh Clauda). */
   nameMaxLength: 20,
   /**

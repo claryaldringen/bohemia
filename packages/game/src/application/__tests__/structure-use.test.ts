@@ -22,7 +22,11 @@ import { InMemoryVillages } from './in-memory-villages';
 const TODAY = dayIndexOf({ year: 503, month: 4, day: 12 });
 const landscape = makeLandscape();
 
-/** Ves: dvorec zakladatelů, obydlí A s párem, prázdné obydlí B a hotová ohrada bez zvířat. */
+/**
+ * Ves: dvorec zakladatelů, obydlí A s párem, prázdné obydlí B a hotová ohrada bez zvířat. Druhá
+ * manželka vojvody se syny bydlí ve vlastním obydlí – jinak by ji přeplněný dvorec (9 zakladatelů
+ * v zemnici o 6 místech – lord.md, Zakladatelé) první den nastěhoval do prázdného B.
+ */
 async function village(): Promise<{
   villages: InMemoryVillages;
   villageId: string;
@@ -60,12 +64,21 @@ async function village(): Promise<{
       });
       return id;
     };
+    // druhá manželka – matka synů, kteří nejsou syny hlavní manželky
+    const secondWifeId = state.people.find((p) => p.line && p.motherId && !p.mainWifeSon)!.motherId;
+    const wifeHome = home(-80);
+    for (const p of state.people) {
+      if (p.id === secondWifeId || p.motherId === secondWifeId) p.dwellingId = wifeHome;
+    }
     ids.a = home(-20);
     ids.b = home(10);
     const born = TODAY - Math.ceil(20 * 365.25);
+    // manželé – svobodná žena by si mohla vzít svobodného syna vojvody a odejít z páru
+    const husband = state.nextId++;
+    const wife = state.nextId++;
     state.people.push(
-      { id: state.nextId++, bornDay: born, dwellingId: ids.a, sex: 'male' },
-      { id: state.nextId++, bornDay: born, dwellingId: ids.a, sex: 'female' },
+      { id: husband, bornDay: born, dwellingId: ids.a, sex: 'male', spouseId: wife },
+      { id: wife, bornDay: born, dwellingId: ids.a, sex: 'female', spouseId: husband },
     );
     ids.pen = state.nextId++;
     state.pens = [

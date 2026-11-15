@@ -112,12 +112,18 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   (testy, e2e seed, starší varianty kalibrace)
   i `travellingVillage`.
   - **Zakladatelé** (lord.md – Zakladatelé; Martin 24. 10. 2026: „Vesnici zakládá vojvoda a jeho
-    rodina.“): `foundVillage({ …, lord: { name? } })` – vojvoda (`LORD.founders.lordAge` 25, id
-    2, `line`, jméno je-li zadané) s hlavní manželkou 22 (id 3, `spouseId` vojvody) a vedlejšími
-    20, 18, 16 (id 4–6); rodiče neznámí, všechny manželky `nextBirthFrom` = den + 9 měsíců;
-    `dynasty = { lordId: 2, lords: [{ id: 2, name?, fromDay }] }`. Všech pět na staveništi a pak
-    v první zemnici (5 ze 6 míst), zásoby a stáda z potřeby pěti lidí; rodina zpočátku pracuje
-    (nikdo mimo rodinu – `familyTrains` false). Bez `lord` dva páry `START_AGES`. Osadníci
+    rodina.“, 15. 11. 2026: aspoň 4 dospělí synové): `foundVillage({ …, lord: { name? } })` →
+    `dynastyFounders` – vojvoda (`LORD.founders.lordAge` 42, id 2, `line`, jméno je-li zadané)
+    s hlavní manželkou 38 (id 3, `spouseId` vojvody) a vedlejšími 35, 25, 20 (id 4–6) a synové
+    (`LORD.founders.sons` – věk a pořadí matky): 20 a 18 let (id 7, 8, matka 3, `mainWifeSon`)
+    a 17 a 16 let (id 9, 10, matka 4), všichni `fatherId` 2, `line` a jméno `generatedLineName`
+    s `nameByHouse` (hráč ho smí jednou přepsat; jména se neopakují ani s vojvodou), elitu jim dá
+    první den `markElite`. Rodiče vojvody a manželek neznámí, všechny manželky `nextBirthFrom` =
+    den + 9 měsíců; `dynasty = { lordId: 2, lords: [{ id: 2, name?, fromDay }] }`. Všech devět na
+    staveništi (stavba zemnice id 11) a pak v první zemnici – 9 ze 6 míst, přeplněná: druhá
+    manželka se syny je rodinou k osídlení (`secondaryWifeFamilies`) a do prvního dalšího obydlí
+    odejde se syny. Zásoby a stáda z potřeby devíti lidí (4 860 kg jídla a 3 240 kg osiva); rodina
+    zpočátku pracuje (nikdo mimo rodinu – `familyTrains` false). Bez `lord` dva páry `START_AGES`. Osadníci
     (`settlers`) zakladatele nemění – vojvodou je nejstarší muž rodu mezi nimi (jeho jméno
     zůstane), bez něj ves bez rodu (`lord` se nepoužije). Web zakládá první ves vždy s rodem
     (`foundVillageForSettlement`, `lordName?`); odchod (`foundedVillageState` bez `lord`) beze

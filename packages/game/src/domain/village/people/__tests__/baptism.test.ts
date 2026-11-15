@@ -194,6 +194,21 @@ describe('křest ve dni simulace (schránka, porody, vcelku = po kouscích)', ()
       lord: { name: 'Bořivoj' },
     }),
   );
+  // druhá manželka se syny ve vlastní zemnici, jak ji tam po stavbě druhého obydlí pošle přeplněný
+  // dvorec (lord.md – Zakladatelé, Manželky – Bydlení): test měří děti po křtu a v přeplněném
+  // dvorci (9 zakladatelů v zemnici o 6 místech) se rodí málo
+  const secondWifeHome = start.nextId++;
+  start.dwellings.push({
+    id: secondWifeHome,
+    type: 'zemnice',
+    builtDay: FOUNDED,
+    condition: 1,
+    position: { x: 30, z: 0, rotation: 0 },
+  });
+  const secondWife = wivesOf(start, currentLord(start)!)[1]!;
+  for (const p of start.people) {
+    if (p.id === secondWife.id || p.motherId === secondWife.id) p.dwellingId = secondWifeHome;
+  }
   const baptismDay = FOUNDED + Math.round(1.5 * YEAR);
   const end = FOUNDED + Math.round(4 * YEAR);
   const events: VillageEvent[] = [

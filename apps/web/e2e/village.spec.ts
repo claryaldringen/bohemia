@@ -235,10 +235,11 @@ test('nový hráč založí ves umístěním zemnice, přejmenuje ji a vybere ze
   await writeVillageState(s.settlementId, withBuiltFirstDwelling(founded));
   await pollVillage(page);
   await expect(panel).toHaveAttribute('data-kind', 'dwelling', { timeout: 20_000 });
-  // ves zakládá vojvoda s hlavní a třemi vedlejšími manželkami (lord.md – Zakladatelé)
-  await expect(panel.getByTestId('selection-occupants')).toHaveText('5/6');
+  // ves zakládá vojvoda s hlavní a třemi vedlejšími manželkami a čtyřmi syny (lord.md –
+  // Zakladatelé) – 9 lidí v zemnici o 6 místech, dvorec je přeplněný
+  await expect(panel.getByTestId('selection-occupants')).toHaveText('9/6');
   // zemnice zakladatelů je dvorec – obyvatelé jako rodina; dovednosti jen v panelu osoby (lord.md)
-  await expect(panel.getByTestId('selection-residents').getByRole('listitem')).toHaveCount(5);
+  await expect(panel.getByTestId('selection-residents').getByRole('listitem')).toHaveCount(9);
   await expect(
     panel.getByTestId('selection-residents').locator('[data-testid^="manor-arms-"]'),
   ).toHaveCount(0);
@@ -1775,10 +1776,18 @@ test('hráč zboří obydlí – lidé bydlí dočasně jinde – a opustí a vr
     state.dwellings.push({ id, type: 'zemnice', builtDay: state.lastDay, condition: 1, position });
     return id;
   });
+  // dvorec bez druhé manželky vojvody a jejích synů (6 ze 6 míst) – přeplněný dvorec (9 zakladatelů
+  // v zemnici o 6 místech – lord.md, Zakladatelé) by ji se syny nastěhoval do prázdného B a její
+  // dům by pak hostil lidi z B (B by šlo zbourat)
+  const secondWifeId = state.people.find((p) => p.line && p.motherId && !p.mainWifeSon)!.motherId;
+  state.people = state.people.filter((p) => p.id !== secondWifeId && p.motherId !== secondWifeId);
   const adultBorn = state.lastDay - Math.ceil(20 * 365.25);
+  // manželé – svobodná žena by si mohla vzít svobodného syna vojvody a odejít z páru
+  const husband = state.nextId++;
+  const wife = state.nextId++;
   state.people.push(
-    { id: state.nextId++, bornDay: adultBorn, dwellingId: ids[0]!, sex: 'male' },
-    { id: state.nextId++, bornDay: adultBorn, dwellingId: ids[0]!, sex: 'female' },
+    { id: husband, bornDay: adultBorn, dwellingId: ids[0]!, sex: 'male', spouseId: wife },
+    { id: wife, bornDay: adultBorn, dwellingId: ids[0]!, sex: 'female', spouseId: husband },
   );
   const pen = state.pens![0]!;
   pen.builtDay = state.lastDay;

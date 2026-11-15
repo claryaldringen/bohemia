@@ -24,14 +24,15 @@ const input = (extra: Partial<FoundVillageInput> = {}): FoundVillageInput => ({
 });
 
 describe('foundVillageForSettlement – zakladatelé rodu', () => {
-  it('ves zakládá vojvoda s manželkami – se jménem i bez něj', async () => {
+  it('ves zakládá vojvoda s manželkami a syny – se jménem i bez něj', async () => {
     const named = await foundVillageForSettlement(
       { villages: new InMemoryVillages(), seeds },
       input({ lordName: ' Bořivoj ' }),
     );
     expect(named.ok).toBe(true);
     if (!named.ok) return;
-    expect(named.village.state.people).toHaveLength(5);
+    // vojvoda, 4 manželky a 4 synové (lord.md – Zakladatelé)
+    expect(named.village.state.people).toHaveLength(9);
     expect(currentLord(named.village.state)?.name).toBe('Bořivoj');
     const waiting = await foundVillageForSettlement(
       { villages: new InMemoryVillages(), seeds },
