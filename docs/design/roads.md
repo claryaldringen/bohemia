@@ -824,7 +824,7 @@ Návrh Clauda (18. 10. 2026):
   mokřinu nebo brod, jako součást úpravy; upravená cesta bez nich (`unbridged`) nabídne jen je.
 - **Vylepšení je stavba** ze společné práce (lidé pracují podél úseku u čela práce); úsek během
   stavby nezaroste; když se rozdělí, stavba platí pro oba kusy. Po dokončení dostane úsek nový
-  stupeň a kronika „Cesta je vylepšená – chodí se po ní rychleji.“
+  stupeň a kronika „Vojvoda Lutobor nechal vylepšit cestu mezi dvorcem a potokem.“ (Martin 15. 11. 2026; správce: „Správce nechal …“, starý zápis „Cesta byla vylepšena.“)
 - **Chůze** (walking.ts – jediné místo výpočtu, rychlosti z walk-speed.ts): po pevné cestě podle
   stupně (vyšlapaná i vyježděná 1,5×, upravená 1,7×, hať a lávka 1,7× i přes mokřinu), mokřinou
   0,5×, brod + 30 m (po lávce nic); mokřina, brod a pole (v osevu 0,5×, strniště 0,8× –

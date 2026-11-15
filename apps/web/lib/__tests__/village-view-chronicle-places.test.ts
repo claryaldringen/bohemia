@@ -182,3 +182,26 @@ describe('kronika – ohrada (D43)', () => {
     ).toBe('Stavba ohrady se zrušila.');
   });
 });
+
+describe('kronika – vylepšená cesta', () => {
+  const upgraded = (extra: object = {}): ChronicleEvent => ({
+    day: DAY,
+    kind: 'construction-finished',
+    constructionKind: 'road',
+    dwellingId: null,
+    fieldId: null,
+    ...extra,
+  });
+  it('vojvoda a konce, správce, starý zápis', () => {
+    expect(chronicleText(upgraded({ lord: 'Lutobor', roadEnds: [manor, water] }), 'X')).toBe(
+      'Vojvoda Lutobor nechal vylepšit cestu mezi dvorcem a potokem.',
+    );
+    expect(chronicleText(upgraded({ bySteward: true, roadEnds: [manor, smithy] }), 'X')).toBe(
+      'Správce nechal vylepšit cestu mezi dvorcem a kovárnou.',
+    );
+    expect(chronicleText(upgraded({ lord: 'Lutobor' }), 'X')).toBe(
+      'Vojvoda Lutobor nechal vylepšit cestu.',
+    );
+    expect(chronicleText(upgraded(), 'X')).toBe('Cesta byla vylepšena.');
+  });
+});

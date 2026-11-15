@@ -38,7 +38,7 @@ import { advanceChunked, goldenWorld, stateFingerprint, YEAR } from './village-g
 // s pevným přídělem – drží až o ≈ 100 kg obilí méně, jiné osivo a zásoby; dřív 49a0f7b2264963f2
 // 15. 11. 2026 – sloučení: zápisy úmrtí nesou postavení (`estate`, kronika C) a hladová ves
 // jí i zásobu medu – obojí mění stav; přepočteno po sloučení
-const EXPECTED_YEAR_1 = '8c854b210fec84e7';
+const EXPECTED_YEAR_1 = 'bd357e93f34971b1';
 
 describe('zlatý otisk vsi', () => {
   const world = goldenWorld();
