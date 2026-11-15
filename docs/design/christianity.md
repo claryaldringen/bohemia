@@ -152,6 +152,9 @@ Návrh Clauda při implementaci (plán – poznámky „Provedeno jinak“):
 - **Los objevu:** seed rodu je `deriveSeed(seed světa, 'house:' + id)`, los roku Y z `'faith:' + Y`;
   rod založený během roku losuje poprvé příští 1. 1. Zápis „Rod se dozvěděl o novém Bohu.“ jde
   do kroniky obecnou událostí schránky (nový druh zápisu, ne nová událost); NPC rod nepíše nic.
+- **Čas hráče:** rod hráče losuje objev do roku svého dne (den světa + posun času hráče, vývojový
+  skok), NPC rod do roku dne světa; upozornění a zápis do kroniky nesou den hráče. V ostrém světě
+  (posun 0) beze změny.
 - **Kdo se křtí:** vojvoda rodu (`House.lord`) ve vsi, kde žije – tlačítko je u vojvody vsi
   a rozhoduje o něm právo rodu (jako povýšení vesničana, jen držitel). Ostatní vsi rodu dostanou
   jen den křtu. Křest rodu hráče dorazí i do vsí, které za něj řídí NPC rod – platí tam až po konci
