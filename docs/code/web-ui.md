@@ -221,34 +221,34 @@ villageId)`. Z levných otisků (`stampsOf` – `last_day`, `asleep`) se dopočt
   (`refreshNow`) přijde na událost `village` s novou verzí vsi hráče (`villageEventIsNews` proti
   `VillageView.versions`), na `notices`, na obnovu po mezeře spojení (`sync`, kolo pojistky po
   30 s) a z hlídače dne (`nextDayCheckMs` v `lib/village-day-check.ts` – začátek dalšího dne
-  - 10 s, jen když pohled nového dne nepřišel; svět bez workeru). Dotazy jdou po jednom
-    (`useSerialRefresh` – nejvýš jeden další po běžícím, 10 událostí za 50 ms = nejvýš 2 dotazy);
-    během akce se obnova odloží za ni a ověří s pohledem akce, takže událost vlastního uložení
-    druhý dotaz nevyvolá. Spojení nese zobrazenou ves (`useEventScope`). Po konci hry nic. Pošle
-    `{ villageId, known }` – `known` = `VillageView.stamp`, otisk pohledu (`villageViewStamp`
-    v `application/village-stamp.ts`: vybraná ves, den, id + jméno + verze všech vsí hráče –
-    pohled je čistá funkce těchto údajů). Server (`villageViewIfChanged`) nejdřív levně
-    (`currentVillageViewStamp` – sídla hráče a `VillageRepository.stampsOf`: id, jméno, verze,
-    `last_day` a `asleep` – sloupce tabulky `village` odvozené ze stavu při každém zápisu (migrace
-    0009, od 0043 je píše adaptér – village-core.md – Uložení stavu vsi), zdrojem pravdy je stav; spánek = `extinctDay` nebo `abandonedDay`
-    jako `isVillageExtinct` / `isVillageAbandoned`; index `village_awake_day_idx` nespících vsí podle
-    dne je pro frontu workeru; `stampsOf` Vlkova z ≈ 6,2 ms na ≈ 0,15 ms, protože se JSON nerozbaluje) a při shodě, když by pohled nic nepočítal (zobrazená ves na
-    dnešku, každá jiná nespící ves nejvýš `WORKER_LAG_DAYS` pozadu – `lagsBehindWorker`; spící vsi
-    se nepočítají), vrátí `{ unchanged: true }` bez načtení stavů (Vlkov: celý řádek ≈ 830 kB / 50 ms, dotaz na
-    něj jde v celé cestě 3×). Když worker uloží jinou ves, otisk se změní (verze), přijde událost
-    a pohled se pošle znovu – zhruba jednou za herní den, jako dřív. `dynastyStatus` bere id vsí z levných otisků (`stampsOf`, v pořadí
-    založení) – stav každé vsi načte jen `loadVillage`, jednou. Akce a přeskok času vracejí vždy celý pohled.
-    **Paměť vsí na jeden požadavek** (`packages/server/src/village-cache.ts` – identity map): server actions
-    (`villageAction`, `getVillageView`, výběr a založení vsi, skok v čase) a první pohled běží ve
-    `withVillageCache` (AsyncLocalStorage v `globalThis`); úložiště z `cachedVillages` tam vrací záznam
-    načtený dřív v témže požadavku, dokud levný otisk (`stampsOf` – verze a jméno) sedí, `save`
-    paměť obnoví a neúspěšné uložení ji pro ves zahodí (optimistický zámek a opakování platí dál).
-    Akce tak načte každou ves jednou místo ověření vsi + dopočtu + use-case + pohledu (≥ 4×)
-    (dopočet všech vsí hráče je načítá stejně). Změna jména verzi
-    nemění, proto je jméno v otisku zvlášť (událost samotného přejmenování se známou verzí se
-    zahodí – jméno ukáže nejbližší nová verze). e2e testy po přímé změně uložené vsi volají háček
-    `pollVillage` (`lib/e2e-hooks.ts` → `refreshNow`) – záloha „zeptej se hned“: přímý zápis
-    oznámí i trigger, háček jen nečeká na doručení události.
+  s odkladem 10 s, jen když pohled nového dne nepřišel; svět bez workeru). Dotazy jdou po jednom
+  (`useSerialRefresh` – nejvýš jeden další po běžícím, 10 událostí za 50 ms = nejvýš 2 dotazy);
+  během akce se obnova odloží za ni a ověří s pohledem akce, takže událost vlastního uložení
+  druhý dotaz nevyvolá. Spojení nese zobrazenou ves (`useEventScope`). Po konci hry nic. Pošle
+  `{ villageId, known }` – `known` = `VillageView.stamp`, otisk pohledu (`villageViewStamp`
+  v `application/village-stamp.ts`: vybraná ves, den, id + jméno + verze všech vsí hráče –
+  pohled je čistá funkce těchto údajů). Server (`villageViewIfChanged`) nejdřív levně
+  (`currentVillageViewStamp` – sídla hráče a `VillageRepository.stampsOf`: id, jméno, verze,
+  `last_day` a `asleep` – sloupce tabulky `village` odvozené ze stavu při každém zápisu (migrace
+  0009, od 0043 je píše adaptér – village-core.md – Uložení stavu vsi), zdrojem pravdy je stav; spánek = `extinctDay` nebo `abandonedDay`
+  jako `isVillageExtinct` / `isVillageAbandoned`; index `village_awake_day_idx` nespících vsí podle
+  dne je pro frontu workeru; `stampsOf` Vlkova z ≈ 6,2 ms na ≈ 0,15 ms, protože se JSON nerozbaluje) a při shodě, když by pohled nic nepočítal (zobrazená ves na
+  dnešku, každá jiná nespící ves nejvýš `WORKER_LAG_DAYS` pozadu – `lagsBehindWorker`; spící vsi
+  se nepočítají), vrátí `{ unchanged: true }` bez načtení stavů (Vlkov: celý řádek ≈ 830 kB / 50 ms, dotaz na
+  něj jde v celé cestě 3×). Když worker uloží jinou ves, otisk se změní (verze), přijde událost
+  a pohled se pošle znovu – zhruba jednou za herní den, jako dřív. `dynastyStatus` bere id vsí z levných otisků (`stampsOf`, v pořadí
+  založení) – stav každé vsi načte jen `loadVillage`, jednou. Akce a přeskok času vracejí vždy celý pohled.
+  **Paměť vsí na jeden požadavek** (`packages/server/src/village-cache.ts` – identity map): server actions
+  (`villageAction`, `getVillageView`, výběr a založení vsi, skok v čase) a první pohled běží ve
+  `withVillageCache` (AsyncLocalStorage v `globalThis`); úložiště z `cachedVillages` tam vrací záznam
+  načtený dřív v témže požadavku, dokud levný otisk (`stampsOf` – verze a jméno) sedí, `save`
+  paměť obnoví a neúspěšné uložení ji pro ves zahodí (optimistický zámek a opakování platí dál).
+  Akce tak načte každou ves jednou místo ověření vsi + dopočtu + use-case + pohledu (≥ 4×)
+  (dopočet všech vsí hráče je načítá stejně). Změna jména verzi
+  nemění, proto je jméno v otisku zvlášť (událost samotného přejmenování se známou verzí se
+  zahodí – jméno ukáže nejbližší nová verze). e2e testy po přímé změně uložené vsi volají háček
+  `pollVillage` (`lib/e2e-hooks.ts` → `refreshNow`) – záloha „zeptej se hned“: přímý zápis
+  oznámí i trigger, háček jen nečeká na doručení události.
 
 - **Uložení vsi** (`save`) vrací jen id, sídlo, jméno a verzi – záznam nese předaný stav (ne kopii
   z databáze).

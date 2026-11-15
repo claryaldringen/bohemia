@@ -94,6 +94,26 @@ describe('useAlarm', () => {
     expect(load).toHaveBeenCalledTimes(3);
   });
 
+  it('`village` bez varování a bez návratu se nezeptá; s varováním ano', async () => {
+    const load = vi.fn<Load>().mockResolvedValue({
+      villageId: 'v1',
+      warned: false,
+      ret: null,
+    } as AlarmView);
+    act(() => root.render(events.wrap(<Probe villageId="v1" load={load} />)));
+    await flush();
+    act(() => events.emit('village', { villageId: 'v1', version: 2 }));
+    await flush();
+    expect(load).toHaveBeenCalledTimes(1);
+    load.mockResolvedValue({ villageId: 'v1', warned: true, ret: null } as AlarmView);
+    act(() => events.emit('alarm', { villageId: 'v1' }));
+    await flush();
+    expect(load).toHaveBeenCalledTimes(2);
+    act(() => events.emit('village', { villageId: 'v1', version: 3 }));
+    await flush();
+    expect(load).toHaveBeenCalledTimes(3);
+  });
+
   it('obnova po mezeře se zeptá; bez vsi nic a žádní posluchači po odpojení', async () => {
     const load = vi.fn<Load>().mockResolvedValue(alarm('v1'));
     act(() => root.render(events.wrap(<Probe villageId="v1" load={load} />)));

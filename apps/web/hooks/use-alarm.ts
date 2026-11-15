@@ -8,7 +8,7 @@ import { useSerialRefresh, useServerEvent, useServerResync } from './use-server-
 // Varování vsi (war.md – Varování, poslové a útěk do hradiště; plán 2026-11-09 – Úloha 12): server
 // action `getAlarmView`. Bez dotazování – server oznámí změnu (server-events.md – Klient): dotaz
 // hned při změně vsi, na `alarm` téže vsi (bod tažení s touto vsí mezi varovanými), na `village`
-// téže vsi (jen když už je co ukazovat), na obnovu po mezeře a na `refresh` – panel vsi (Úloha 13)
+// téže vsi (jen když je co ukazovat), na obnovu po mezeře a na `refresh` – panel vsi (Úloha 13)
 // ho volá po příkazu. Dotazy jdou po jednom, náraz událostí dá nejvýš jeden další.
 
 type Load = (input: { villageId: string }) => Promise<AlarmView | null | { error: string }>;
@@ -61,9 +61,16 @@ export function useAlarm(villageId: string | null, load: Load = getAlarmView): A
   useServerEvent('alarm', (event) => {
     if (event.villageId === villageRef.current) refresh();
   });
-  // změna vsi (lidé na útěku, návrat) – jen když už je co ukazovat
+  // změna vsi (lidé na útěku, návrat) – jen když je co ukazovat (varování nebo Vrátit se); nové
+  // varování přijde událostí `alarm`
   useServerEvent('village', (event) => {
-    if (event.villageId === villageRef.current && viewRef.current !== null) refresh();
+    const shown = viewRef.current;
+    if (
+      event.villageId === villageRef.current &&
+      shown !== null &&
+      (shown.warned || shown.ret !== null)
+    )
+      refresh();
   });
   useServerResync(refresh);
   return { view, error, refresh };

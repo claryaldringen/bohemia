@@ -58,10 +58,15 @@ export function useServerResync(refresh: () => void): void {
 
 /**
  * Dotaz na server se slučováním: jeden běh naráz, volání během běhu dají nejvýš jeden další po
- * něm (náraz událostí nevyvolá nával dotazů). Po odpojení komponenty nic. Chyba jde do konzole
- * s textem `failure`.
+ * něm (náraz událostí nevyvolá nával dotazů). Volání smí nést predikát „je to ještě novinka“:
+ * další běh ve frontě se spustí, jen když ho před startem splní aspoň jedno z volání, která ho
+ * zařadila (volání bez predikátu = vždy) – náraz, který už pokryl běžící dotaz, druhý nestojí.
+ * Po odpojení komponenty nic. Chyba jde do konzole s textem `failure`.
  */
-export function useSerialRefresh(run: () => Promise<void>, failure: string): () => void {
+export function useSerialRefresh(
+  run: () => Promise<void>,
+  failure: string,
+): (stillNews?: () => boolean) => void {
   const runRef = useRef(run);
   const failureRef = useRef(failure);
   const aliveRef = useRef(false);
@@ -77,11 +82,11 @@ export function useSerialRefresh(run: () => Promise<void>, failure: string): () 
   }, []);
   const [refresh] = useState(() => {
     let running = false;
-    let again = false;
-    const go = (): void => {
+    let queued: (() => boolean)[] | null = null;
+    const go = (stillNews?: () => boolean): void => {
       if (!aliveRef.current) return;
       if (running) {
-        again = true;
+        queued = [...(queued ?? []), stillNews ?? ((): boolean => true)];
         return;
       }
       running = true;
@@ -95,10 +100,9 @@ export function useSerialRefresh(run: () => Promise<void>, failure: string): () 
         .catch((error: unknown) => console.warn(failureRef.current, error))
         .finally(() => {
           running = false;
-          if (again) {
-            again = false;
-            go();
-          }
+          const waiting = queued;
+          queued = null;
+          if (waiting !== null && waiting.some((news) => news())) go();
         });
     };
     return go;

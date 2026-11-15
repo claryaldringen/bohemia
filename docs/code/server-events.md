@@ -196,11 +196,10 @@ zobrazené vsi i všechny posluchače.
 
 `lib/village-day-check.ts` (Rozhodnutí 8): `nextDayCheckMs(dayIndex, clock, nowMs)` = začátek dne
 `dayIndex + 1` (`realTimeOf(dateOfDayIndex(…), clock)`, hodiny hráče s posunem času)
-
-- `DAY_CHECK_GRACE_MS = 10_000` − teď, nejméně 0; bez pohledu a poslední den světa null.
-  `useVillageSync` nastaví časovač po každém novém dni pohledu. Když pohled v tu chvíli pořád ukazuje
-  týž den, zeptá se jednou (`npm run dev:web`, e2e projekt `chromium`, přetížený worker). Se zdravým
-  workerem přijde událost dřív (worker se budí do 1 s po začátku dne) a dotaz se nepošle. Jen ve
-  viditelném panelu (skrytý dočte vše po návratu) a bez `gameOver`; odklad nad 2^31 − 1 ms (limit
-  `setTimeout`) se nastaví po kouscích. Testy `lib/__tests__/village-day-check.test.ts` a hlídač dne
-  v `use-village-sync.behavior.test.tsx`.
+plus odklad `DAY_CHECK_GRACE_MS = 10_000`, minus teď, nejméně 0; bez pohledu a poslední den světa null.
+`useVillageSync` nastaví časovač po každém novém dni pohledu. Když pohled v tu chvíli pořád ukazuje
+týž den, zeptá se jednou (`npm run dev:web`, e2e projekt `chromium`, přetížený worker). Se zdravým
+workerem přijde událost dřív (worker se budí do 1 s po začátku dne) a dotaz se nepošle. Jen ve
+viditelném panelu (skrytý dočte vše po návratu) a bez `gameOver`; odklad nad 2^31 − 1 ms (limit
+`setTimeout`) se nastaví po kouscích. Testy `lib/__tests__/village-day-check.test.ts` a hlídač dne
+v `use-village-sync.behavior.test.tsx`.

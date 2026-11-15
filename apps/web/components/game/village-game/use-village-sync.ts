@@ -23,7 +23,7 @@ import type { LandscapeTransfer } from '@/lib/landscape-transfer';
 import { isVillageNone } from '@/lib/player-notices';
 import { keepSceneData, knownSceneData, lostSceneData } from '@/lib/scene-routes';
 import { knownViewPieces, unpackViewPieces } from '@/lib/view-pieces';
-import { nextDayCheckMs } from '@/lib/village-day-check';
+import { DAY_CHECK_GRACE_MS, nextDayCheckMs } from '@/lib/village-day-check';
 import { villageEventIsNews } from '@/lib/village-events';
 import { newNotices } from '@/lib/village-notices';
 import type { VillageView } from '@/lib/village-view';
@@ -185,6 +185,11 @@ export function useVillageSync({
   );
 
   const poll = useCallback(async (): Promise<void> => {
+    // běh z fronty může začít uprostřed akce se starým pohledem – odloží se za ni jako ostatní
+    if (busyRef.current) {
+      pendingRef.current.push(ALWAYS);
+      return;
+    }
     const seq = ++requestSeq.current;
     const base =
       stampLostRef.current && viewRef.current ? withoutStamp(viewRef.current) : viewRef.current;
@@ -225,13 +230,14 @@ export function useVillageSync({
   }, [applyVillage, playerNotices, pushNotice, settlementId]);
 
   // Dotaz na ves hned: jeden naráz, volání během něj dají nejvýš jeden další. Během akce se
-  // obnova odloží za ni – akce vrátí čerstvý pohled sama (odpověď dotazu by se stejně zahodila).
+  // obnova odloží za ni (i běh z fronty, který by začal uprostřed akce se starým pohledem) –
+  // akce vrátí čerstvý pohled sama (odpověď dotazu by se stejně zahodila).
   const ask = useSerialRefresh(poll, 'Stav vsi se nepodařilo načíst.');
   const refreshWhen = useCallback(
     (stillNews: () => boolean): void => {
       if (gameOverRef.current) return;
       if (busyRef.current) pendingRef.current.push(stillNews);
-      else if (stillNews()) ask();
+      else if (stillNews()) ask(stillNews);
     },
     [ask],
   );
@@ -265,7 +271,15 @@ export function useVillageSync({
         return;
       }
       if (document.visibilityState !== 'visible') return;
-      if ((viewRef.current?.dayIndex ?? null) === dayIndex) refreshNow();
+      if ((viewRef.current?.dayIndex ?? null) !== dayIndex) return;
+      refreshNow();
+      // odpověď může nést pořád starý den (hodiny prohlížeče napřed) – jeden opakovaný dotaz po
+      // odkladu, pak už ne
+      timer = setTimeout(() => {
+        timer = null;
+        if (document.visibilityState !== 'visible') return;
+        if ((viewRef.current?.dayIndex ?? null) === dayIndex) refreshNow();
+      }, DAY_CHECK_GRACE_MS);
     };
     arm();
     return () => {

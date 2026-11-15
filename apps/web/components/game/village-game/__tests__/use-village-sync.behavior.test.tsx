@@ -184,7 +184,7 @@ describe('useVillageSync – události ze serveru', () => {
       await advance(5);
     }
     expect(getVillageView).toHaveBeenCalledTimes(1);
-    await queries.answer(view(1, false, { v1: 11 }));
+    await queries.answer(view(1, false, { v1: 5 }));
     expect(getVillageView).toHaveBeenCalledTimes(2);
     await queries.answer({ unchanged: true });
     await advance(1_000);
@@ -272,6 +272,61 @@ describe('useVillageSync – události ze serveru', () => {
     await flush();
     expect(getVillageView).toHaveBeenCalledTimes(1);
     await advance(2 * DAY_CHECK_GRACE_MS);
+    expect(getVillageView).toHaveBeenCalledTimes(1);
+  });
+
+  it('hlídač dne: odpověď pořád se starým dnem – jeden opakovaný dotaz po odkladu, pak už ne', async () => {
+    getVillageView.mockResolvedValue({ unchanged: true });
+    act(() => root.render(events.wrap(<Probe />)));
+    await advance(dayStart(2) + DAY_CHECK_GRACE_MS - Date.now());
+    expect(getVillageView).toHaveBeenCalledTimes(1);
+    await advance(DAY_CHECK_GRACE_MS - 1);
+    expect(getVillageView).toHaveBeenCalledTimes(1);
+    await advance(1);
+    expect(getVillageView).toHaveBeenCalledTimes(2);
+    await advance(5 * DAY_CHECK_GRACE_MS);
+    expect(getVillageView).toHaveBeenCalledTimes(2);
+  });
+
+  it('událost během akce nespustí dotaz, ani z fronty, dřív než akce doběhne', async () => {
+    const queries = heldQueries();
+    act(() => root.render(events.wrap(<Probe initial={view(1, false, { v1: 1 })} />)));
+    act(() => events.emit('village', { villageId: 'v1', version: 3 }));
+    await flush();
+    expect(getVillageView).toHaveBeenCalledTimes(1);
+    // další událost čeká ve frontě za běžícím dotazem; mezitím začne akce
+    act(() => events.emit('notices', {}));
+    let finish: (value: VillageView) => void = () => undefined;
+    let done: Promise<string | null> = Promise.resolve(null);
+    act(() => {
+      done = sync.runAction(
+        () =>
+          new Promise<VillageView>((resolve) => {
+            finish = resolve;
+          }),
+      );
+    });
+    await flush();
+    await queries.answer({ unchanged: true });
+    expect(getVillageView).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      finish(view(1, false, { v1: 1 }));
+      await done;
+    });
+    await flush();
+    // po akci se odložená obnova vyhodnotí a zeptá se
+    expect(getVillageView).toHaveBeenCalledTimes(2);
+  });
+
+  it('náraz, který už pokryl běžící dotaz, nestojí druhý', async () => {
+    const queries = heldQueries();
+    act(() => root.render(events.wrap(<Probe initial={view(1, false, { v1: 1 })} />)));
+    act(() => events.emit('village', { villageId: 'v1', version: 5 }));
+    await flush();
+    act(() => events.emit('village', { villageId: 'v1', version: 6 }));
+    expect(getVillageView).toHaveBeenCalledTimes(1);
+    await queries.answer(view(1, false, { v1: 6 }));
+    await flush();
     expect(getVillageView).toHaveBeenCalledTimes(1);
   });
 
