@@ -987,7 +987,8 @@ segment | null, FortAction)` (`upgrade` s `target`, `rampart`, `moat`, `gate` s 
   (panel úseku plotu), `lib/scene/__tests__/fort-picking.test.ts`;
   `lib/__tests__/fort-points.test.ts` (přidání, ubrání, nejméně 4 body, posun);
   e2e `e2e/fortification.spec.ts` (návrh palisády kolem zemnice přes pevnou cestu, posun bodu
-  zvedne cenu, ikona kladiva položí → brány na cestě, panel; posun bodu přes zemnici → důvod
+  zvedne cenu – bod vybere `checkFortificationPlacement`, tah bodu uprostřed oblouku návrhu o 4 m
+  by byl ostrý ohyb, ikona kladiva položí → brány na cestě, panel; posun bodu přes zemnici → důvod
   a červená značka; snímek do `FORT_UI_SHOT`; panel úseku palisády – ochoz jen v úseku, Doplnit val
   u druhého úseku, brána s klešťovou bránou a věží, u plotu klešťová zašedlá; snímek panelu do
   `FORT_SECTION_SHOT`).
