@@ -59,6 +59,7 @@ import {
   type VillageView,
 } from '../village-view';
 import { manorHousehold, visitedWives } from '../village-view-scene';
+import { campLook } from '../scene/burner-camp-layout';
 import { protectionLevel, sceneWeather } from '../weather-view';
 import type { SceneVillage, ScenePloughLegs } from '../village-view-scene-types';
 import type { ScenePerson } from '../person-view';
@@ -2703,6 +2704,11 @@ describe('buildVillageView – uhlíř (crafts.md – Milíř u skácených buk�
     burner.workshop!.kilns![0]!.stage = 'build';
     const building = buildVillageView(record(s), landscape, DAY).scene.burnerCamps![0]!;
     expect(building).toMatchObject({ built: 0.3, occupied: false, overgrowth: null });
+    // opuštěná nedostavěná zemnice zůstane staveništěm (klády), jen zarůstá
+    s.campRemnants = [{ id: 600, burnerId: 50, x: 60, z: -40, rotation: 0.5, day: DAY, done: 7 }];
+    const left = buildVillageView(record(s), landscape, DAY).scene.burnerCamps![1]!;
+    expect(left).toMatchObject({ id: 600, built: 0.7, occupied: false, overgrowth: 0 });
+    expect(campLook(left).part).toBe('milir-zemnice-logs');
   });
 
   it('mladé buky od uhlíře rostou – velikost podle stáří (za 60 let dospělé)', () => {

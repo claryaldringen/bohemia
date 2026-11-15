@@ -196,6 +196,7 @@ export interface BurnerCamp {
 /**
  * Opuštěná zemnice uhlíře (workshops.md – Uhlíř – zemnice u milíře): zemnice (id), uhlíř (id
  * obydlí), střed (m), natočení a den opuštění – od něj chátrá a po BURNER_CAMP.abandonedYears zmizí.
+ * Nedostavěná nese odvedenou práci (`done`, čd – jako `BurnerCamp.done`); bez ní byla hotová.
  */
 export interface CampRemnant {
   id: number;
@@ -204,6 +205,7 @@ export interface CampRemnant {
   z: number;
   rotation: number;
   day: number;
+  done?: number;
 }
 /**
  * Měření spotřeby uhlí kovářů (crafts.md – Rovnováha uhlíř – kovář): kg uhlí po obdobích

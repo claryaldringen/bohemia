@@ -86,8 +86,9 @@ Martin 14. 11. 2026:
     stavby milíře (s přirážkou za chůzi k milíři). Pálení tak bez zemnice nezačne. Odhad doby
     cyklu milíře se nemění, přespávání práci nemění.
   - **Opuštěná zemnice** – nahrazená novou nebo po zániku dílny uhlíře (zchátrání, požár,
-    zbourání). Hotová, rozestavěná i opuštěná zemnice brání stavbám i milíři („Stojí tu zemnice
-    uhlíře.“) a pěšina ji obchází.
+    zbourání); nedostavěná zůstane staveništěm (klády u jámy), které zarůstá. Hotová,
+    rozestavěná i opuštěná zemnice brání stavbám i milíři („Stojí tu zemnice uhlíře.“) a pěšina
+    ji obchází.
   - **Starší vsi:** rozdělaný milíř dojede bez zemnice, zemnici postaví až další milíř.
 - Jinak se milíř nemění – kácení, stavba, pálení, vytahání i obnova lesa podle
   [řemesel](crafts.md).

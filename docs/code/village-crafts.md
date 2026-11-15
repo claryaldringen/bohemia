@@ -80,8 +80,9 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   opakovaně využívat, dokud v jejím okolí bude dost stromů“; podrobnosti návrh Clauda – Rozhodnutí
   8): `crafts/burner-camp.ts`, čísla `BURNER_CAMP`. Stav `Workshop.camp` (`BurnerCamp` – id
   z `nextId`, střed, natočení, `done` v čd, `builtDay`), opuštěné `VillageState.campRemnants`
-  (`CampRemnant`); obojí volitelné – dílna ze starší vsi zemnici nemá a rozdělaný milíř dojede
-  bez ní. Kde `workBurner` začíná nový milíř: `campUsable` (15 nejbližších volných buků do
+  (`CampRemnant` – nedostavěná nese `done`, scéna ji kreslí jako staveniště, které zarůstá);
+  obojí volitelné – dílna ze starší vsi zemnici nemá a rozdělaný milíř dojede bez ní. Kde
+  `workBurner` začíná nový milíř: `campUsable` (15 nejbližších volných buků do
   `reuseRadiusM` od zemnice) → `startKiln` s `anchor` (první buk nejblíž zemnici, chůze se dál
   měří od dílny); jinak `moveCamp` – stará zemnice se opustí (`abandonCamp`) a u milíře se hledá
   nová (`findCampSite` v `kiln-site.ts` po kružnicích 8–30 m přes det-math, natočení

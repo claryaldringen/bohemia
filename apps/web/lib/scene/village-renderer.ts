@@ -1678,7 +1678,8 @@ export class VillageRenderer {
     // milíře u dílen i v lese, které se chystají, nebo se rozebírají (koše na uhlí)
     const kilnSites = this.kilnPlaces().filter((k) => k.look.site !== null || k.look.baskets);
     const remains = this.logHouseRemainViews();
-    // rozestavěné zemnice u milíře – tři klády u jámy (workshops.md – Uhlíř, zemnice)
+    // rozestavěné zemnice u milíře – tři klády u jámy (workshops.md – Uhlíř, zemnice); opuštěné
+    // nedostavěné taky, klády zarůstají (sesedají jako opuštěná zemnice)
     const campSites = (this.village.burnerCamps ?? []).filter(
       (c) => campLook(c).part === 'milir-zemnice-logs',
     );
@@ -1800,7 +1801,7 @@ export class VillageRenderer {
     for (const camp of campSites) {
       push('milir-zemnice-logs', {
         x: camp.x,
-        y: this.campBaseHeight(camp),
+        y: this.campBaseHeight(camp) - campLook(camp).sinkM,
         z: camp.z,
         rotationY: camp.rotation,
         scale: 1,

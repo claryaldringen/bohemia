@@ -163,7 +163,8 @@ function campTrees(
 
 /**
  * Uhlíř zemnici opustí (mutuje stav) – nahradí ji novou, nebo jeho dílna zanikla: zemnice přejde
- * do `campRemnants` s dnešním dnem, chátrá a za BURNER_CAMP.abandonedYears zmizí. Bez zemnice nic.
+ * do `campRemnants` s dnešním dnem, chátrá a za BURNER_CAMP.abandonedYears zmizí; nedostavěná si
+ * nese odvedenou práci (scéna ji kreslí jako staveniště). Bez zemnice nic.
  */
 export function abandonCamp(state: VillageState, burner: Dwelling, day: number): void {
   const camp = burner.workshop?.camp;
@@ -175,6 +176,7 @@ export function abandonCamp(state: VillageState, burner: Dwelling, day: number):
     z: camp.z,
     rotation: camp.rotation,
     day,
+    ...(camp.builtDay === undefined ? { done: camp.done } : {}),
   });
   delete burner.workshop!.camp;
 }

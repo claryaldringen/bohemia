@@ -412,6 +412,16 @@ describe('zemnice u milíře – zánik', () => {
       { id: 95, burnerId: BURNER, x: 60, z: 20, rotation: 0, day: DAY + 1 },
     ]);
   });
+
+  it('dílna zanikne během stavby zemnice – opuštěná si nese odvedenou práci', () => {
+    const s = village();
+    burnerOf(s).condition = 1e-6;
+    workshopOf(s).camp = { id: 95, x: 60, z: 20, rotation: 0, done: 3.3 };
+    decayEmptyDwellings(s, DAY + 1, new Set([1, 51]));
+    expect(s.campRemnants).toEqual([
+      { id: 95, burnerId: BURNER, x: 60, z: 20, rotation: 0, day: DAY + 1, done: 3.3 },
+    ]);
+  });
 });
 
 describe('zemnice u milíře – bez místa', () => {

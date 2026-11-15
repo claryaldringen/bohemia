@@ -186,10 +186,16 @@ export function sceneKilnRemnants(state: VillageState, day: number): SceneKilnRe
   );
 }
 
+/** Jak je nedostavěná zemnice postavená 0–1 po 5 % z odvedené práce (čd). */
+function campBuiltShare(done: number): number {
+  return Math.floor(Math.min(1, done / BURNER_CAMP.buildManDays) * 20) / 20;
+}
+
 /**
  * Zemnice uhlířů u milířů pro scénu (workshops.md – Uhlíř – zemnice u milíře): hotové
  * a rozestavěné (`built` po 5 %, `occupied` – hotová, milíř uhlíře pálí), pak opuštěné
- * (`overgrowth` po 5 %) – v pořadí jako `PlacementVillage.camps` na serveru (`burnerCampSites`).
+ * (`overgrowth` po 5 %; nedostavěná s `built` z odvedené práce – staveniště) – v pořadí jako
+ * `PlacementVillage.camps` na serveru (`burnerCampSites`).
  */
 export function sceneBurnerCamps(state: VillageState, day: number): SceneBurnerCamp[] {
   const out: SceneBurnerCamp[] = [];
@@ -203,7 +209,7 @@ export function sceneBurnerCamps(state: VillageState, day: number): SceneBurnerC
       x: camp.x,
       z: camp.z,
       rotation: camp.rotation,
-      built: built ? 1 : Math.floor(Math.min(1, camp.done / BURNER_CAMP.buildManDays) * 20) / 20,
+      built: built ? 1 : campBuiltShare(camp.done),
       occupied: built && workshopKilns(d.workshop).some((k) => k.stage === 'burn'),
       overgrowth: null,
     });
@@ -215,7 +221,7 @@ export function sceneBurnerCamps(state: VillageState, day: number): SceneBurnerC
       x: r.x,
       z: r.z,
       rotation: r.rotation,
-      built: 1,
+      built: r.done === undefined ? 1 : campBuiltShare(r.done),
       occupied: false,
       overgrowth: Math.round(campRemnantOvergrowth(r, day) * 20) / 20,
     });
