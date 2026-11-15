@@ -12,6 +12,8 @@ import {
   kinInTarget,
   musterSeed,
   planCampaign,
+  villagePlace,
+  villageStandingPlace,
   type CampaignPlan,
 } from '../plan-campaign';
 import { NEWCOMER_REASONS } from '../newcomers';
@@ -330,6 +332,35 @@ describe('vyslání tažení (launchCampaign)', () => {
     expect(state.liveCommand).toBe(true);
     expect(w.campaigns.intents).toHaveLength(1);
     expect(w.campaigns.intents[0]!.body).toEqual({ kind: 'set-out' });
+  });
+
+  it('shromaždiště, cíl i domovy leží u dvorce vsí, ne ve středu místa pro ves (war.md – Plán tažení)', async () => {
+    const w = await world();
+    await declareWarBetween(w);
+    expect((await launchCampaign(w.deps, input(w.plan))).ok).toBe(true);
+    const state = JSON.parse(w.campaigns.rows.get('camp-1')!.state) as {
+      assembly: { pos: { x: number; z: number } };
+      target: { pos: { x: number; z: number } };
+      homes: Record<string, { pos: { x: number; z: number } }>;
+    };
+    // dvorec fixtury stojí v (0, 0), střed místa pro ves v (7,5; 7,5)
+    expect(villagePlace({ x: 0, y: 0 }, STUB_LANDSCAPE).pos).toEqual({ x: 7.5, z: 7.5 });
+    expect(state.assembly.pos).toEqual({ x: 0, z: 0 });
+    expect(state.target.pos).toEqual({ x: 0, z: 0 });
+    for (const home of Object.values(state.homes)) expect(home.pos).toEqual({ x: 0, z: 0 });
+  });
+
+  it('poloha vsi: dvorec, bez obydlí střed místa pro ves', () => {
+    const cell = { x: 0, y: 0 };
+    const state = ownVillage('Bořivoj');
+    expect(villageStandingPlace(cell, STUB_LANDSCAPE, state).pos).toEqual({ x: 0, z: 0 });
+    // dvorec o kus dál než druhé obydlí – míří se na dvorec, ne na průměr obou
+    const moved = { ...state, dwellings: state.dwellings.slice() };
+    moved.dwellings[0] = { ...moved.dwellings[0]!, position: { x: 10, z: 4, rotation: 0 } };
+    moved.manorId = moved.dwellings[0]!.id;
+    expect(villageStandingPlace(cell, STUB_LANDSCAPE, moved).pos).toEqual({ x: 10, z: 4 });
+    const empty = { ...state, dwellings: [], constructions: [], manorId: undefined };
+    expect(villageStandingPlace(cell, STUB_LANDSCAPE, empty).pos).toEqual({ x: 7.5, z: 7.5 });
   });
 
   it('útok na rod, se kterým není válka, je přepadení a válka začne', async () => {
