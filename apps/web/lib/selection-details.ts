@@ -64,7 +64,12 @@ import {
   type PersonPortraitIcon,
 } from './person-view';
 import { expeditionPersonState, type ExpeditionPersonState } from './expedition-buttons';
-import { journeyActivity, personActivity, type PersonFigureState } from './person-activity';
+import {
+  INJURED_ACTIVITY,
+  journeyActivity,
+  personActivity,
+  type PersonFigureState,
+} from './person-activity';
 import type { PartyView } from './journey-view';
 import type { SceneJourney } from './scene/journey-riders';
 import {
@@ -1375,7 +1380,11 @@ function personDetails(
     portrait: personPortrait(person),
     role: ROLE_NAMES[herding && person.age < AGE.adult ? herdRole(person.sex) : person.role],
     name: person.name ?? null,
-    activity: party ? journeyActivity(party) : personActivity(figure, scene, draft),
+    activity: party
+      ? journeyActivity(party)
+      : person.injured
+        ? INJURED_ACTIVITY
+        : personActivity(figure, scene, draft),
     age: person.age,
     home: home ? home.id : null,
     homeIcon: home ? (home.craft ? CRAFT_LOOKS[home.craft].icon : home.type) : null,

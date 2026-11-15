@@ -587,6 +587,12 @@ jádro je dál počítá po dnech. Čísla a podrobnosti jsou návrh Clauda:
   v domě není vidět. **Výjimka je vojvoda:** jeho výběr zůstane a panel říká „doma“, dokud
   nevyjde.
 - Člověk bez rozvrhu (obsazení ho nemá a nic nedokončuje) je „doma“ jako dnes.
+- **Raněný zůstane doma** (Martin 15. 11. 2026: „U Lutobora mi to píše, že jde do práce a že je
+  raněný“; pravidlo „60 dní nepracuje“ platí i ve scéně): kdo je zraněný na lovu nebo ve válce
+  (`isInjured` ke dni vsi), nemá postavu – nepracuje, necvičí, nejezdí, nelovi, nehlídá ani nechodí
+  na pochůzky, vojvoda ani muž rodu. Panel píše **„léčí se ze zranění“** (návrh Clauda); důvod
+  u výpravy („Je raněný.“) zůstává. Rozhodnout se musí napřed v rozvrhu dne, ne za chodu – bez
+  přeskoků.
 
 ### Cesty postav
 

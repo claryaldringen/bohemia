@@ -177,6 +177,28 @@ describe('selectionDetails – postava', () => {
     );
   });
 
+  it('raněný: „léčí se ze zranění“, i kdyby mu scéna držela starou postavu (D79)', () => {
+    const hurt: SceneVillage = {
+      ...VILLAGE,
+      labor: {
+        ...VILLAGE.labor!,
+        persons: VILLAGE.labor!.persons!.map((p) => (p.id === 901 ? { ...p, injured: true } : p)),
+      },
+    };
+    const lord: PersonJob = { kind: 'lord', household: true };
+    expect(
+      selectionDetails(
+        null,
+        hurt,
+        { kind: 'person', id: 901 },
+        state(lord, { id: 901, stage: 'out' }),
+      ),
+    ).toMatchObject({ activity: 'léčí se ze zranění' });
+    expect(selectionDetails(null, VILLAGE, { kind: 'person', id: 901 }, state(null))).toMatchObject(
+      { activity: 'doma' },
+    );
+  });
+
   it('člověk ve skupině výpravy: činnost podle jeho skupiny', () => {
     const parties = [
       {

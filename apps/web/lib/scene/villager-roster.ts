@@ -121,8 +121,9 @@ export class DayRoster {
   ) {
     const salt = (seed * 31) | 0;
     // kdo je dnes pryč, doma postavu nedostane (Martin 14. 11. 2026: „nesmí se kreslit u rodiny“)
+    // zraněný zůstává doma (D79, Martin 15. 11. 2026): postavu nedostane, nepracuje ani necvičí
     this.order = persons
-      .filter((p) => p.away !== true)
+      .filter((p) => p.away !== true && p.injured !== true)
       .map((p) => ({ p, k: hash01(salt, p.id, 97) }))
       .sort((a, b) => a.k - b.k || a.p.id - b.p.id)
       .map(({ p }) => p);
@@ -132,7 +133,7 @@ export class DayRoster {
   /** Člověk podle id, když ještě nemá postavu (průvod pohřbu, tesař na cestě pro kování). */
   takeId(id: number): ScenePerson | null {
     const p = this.byId.get(id);
-    if (!p || p.away === true || this.taken.has(id)) return null;
+    if (!p || p.away === true || p.injured === true || this.taken.has(id)) return null;
     this.taken.add(id);
     return p;
   }

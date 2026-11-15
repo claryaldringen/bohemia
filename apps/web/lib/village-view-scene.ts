@@ -70,6 +70,7 @@ import {
   ageGroup,
   trainingFamily,
   isAway,
+  isInjured,
   trainingHours,
   lordRides,
   type LordRide,
@@ -638,11 +639,11 @@ function sceneLord(state: VillageState, counts: LaborDay['lord'], day: number): 
   // jezdce výjezdu ukazuje scéna jinde (journey-riders.ts), vojsko na cizí mapě také
   const men = new Set([
     ...atFieldMen,
-    ...family.trainees.filter((p) => isAway(p, day)).map((p) => p.id),
+    ...family.trainees.filter((p) => isAway(p, day) || isInjured(p, day)).map((p) => p.id),
   ]);
   const women = new Set([
     ...atField(family.household, family.household.length - counts.household),
-    ...family.household.filter((p) => isAway(p, day)).map((p) => p.id),
+    ...family.household.filter((p) => isAway(p, day) || isInjured(p, day)).map((p) => p.id),
   ]);
   // jízdy dne z jádra (horses.md – Kdy a kam se jezdí) – jen jezdci, kteří dnes cvičí
   const rides = lordRides(state, day);

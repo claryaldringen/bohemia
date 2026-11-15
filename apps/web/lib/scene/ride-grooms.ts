@@ -94,6 +94,7 @@ export function groomCandidates(
       p.sex === 'male' &&
       p.age >= CHILD_UNDER &&
       !p.away &&
+      !p.injured &&
       !p.priest &&
       !p.mason &&
       p.role !== 'old-man' &&
