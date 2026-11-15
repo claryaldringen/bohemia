@@ -1,6 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
 import {
   FORT_GATE_LOW,
+  checkFortificationPlacement,
   finishFortification,
   fortSections,
   fortSegments,
@@ -8,6 +9,7 @@ import {
   obstaclesOf,
   outlineOf,
   outlinePointAt,
+  placementVillageOf,
   proposeFortification,
   startFortification,
   startSectionDemolition,
@@ -170,7 +172,10 @@ test('návrh palisády kolem vsi – tah bodu mění cenu, klik přidá a Ctrl +
 }) => {
   // nejdelší test souboru – na vytíženém stroji (souběžné běhy z víc stromů) přes 180 s
   test.setTimeout(300_000);
-  const { settlementId, home, showVillage } = await villageWithRoad(page, 'opevneni');
+  const { settlementId, state, home, landscape, showVillage } = await villageWithRoad(
+    page,
+    'opevneni',
+  );
   const points = await startPalisade(page);
   await closeUp(page, home);
   const cost = page.getByTestId('placement-cost');
@@ -209,26 +214,36 @@ test('návrh palisády kolem vsi – tah bodu mění cenu, klik přidá a Ctrl +
   await page.keyboard.up('Control');
   await expect.poll(async () => (await fortPoints(page)).length).toBe(points.length);
 
-  // tah bodu s nejdelšími kusy k sousedům o 4 m ven – obvod i cena porostou (ohyb zůstane mírný)
+  // tah bodu o 4 m ven – obvod i cena porostou. Návrh má u rohů oblouky s body po ≈ 4,5 m a tah
+  // bodu uprostřed oblouku ohne obvod ostřeji než nejmenší poloměr palisády (fortifications.md –
+  // Obvod) – cena zmizí a ukáže se důvod. Bod proto vybere kontrola jádra: po tahu projde a obvod
+  // se prodlouží; z takových bod s nejdelšími kusy k sousedům.
   const laborNow = async (): Promise<number> =>
     Number.parseInt((await cost.locator('[data-cost="labor"]').textContent()) ?? '', 10);
   const laborBefore = await laborNow();
-  const gapOf = (i: number): number => {
-    const p = points[i]!;
-    return Math.min(
-      ...[points[(i + points.length - 1) % points.length]!, points[(i + 1) % points.length]!].map(
-        (q) => Math.hypot(q[0] - p[0], q[1] - p[1]),
-      ),
-    );
-  };
-  let pick = 0;
-  points.forEach((_, i) => {
-    if (gapOf(i) > gapOf(pick)) pick = i;
-  });
   const c = centroid(points);
+  const outward = (p: Pt): Pt => {
+    const len = Math.hypot(p[0] - c[0], p[1] - c[1]);
+    return [p[0] + ((p[0] - c[0]) / len) * 4, p[1] + ((p[1] - c[1]) / len) * 4];
+  };
+  const village = placementVillageOf(state, state.lastDay);
+  const obstacles = obstaclesOf(landscape);
+  const lengthBefore = fortificationOutline(points, 'palisade')!.lengthM;
+  const fits = (i: number): boolean => {
+    const moved = points.map((p, k) => (k === i ? outward(p) : p));
+    if ((fortificationOutline(moved, 'palisade')?.lengthM ?? 0) <= lengthBefore) return false;
+    return checkFortificationPlacement(landscape, village, obstacles, moved, 'palisade').ok;
+  };
+  const piecesOf = (i: number): number =>
+    [points[(i + points.length - 1) % points.length]!, points[(i + 1) % points.length]!].reduce(
+      (sum, q) => sum + Math.hypot(q[0] - points[i]![0], q[1] - points[i]![1]),
+      0,
+    );
+  const fitting = points.map((_, i) => i).filter(fits);
+  expect(fitting.length).toBeGreaterThan(0);
+  const pick = fitting.reduce((best, i) => (piecesOf(i) > piecesOf(best) ? i : best));
   const from = points[pick]!;
-  const len = Math.hypot(from[0] - c[0], from[1] - c[1]);
-  const out: Pt = [from[0] + ((from[0] - c[0]) / len) * 4, from[1] + ((from[1] - c[1]) / len) * 4];
+  const out = outward(from);
   await drag(page, from, out);
   await expect.poll(laborNow, { timeout: 10_000 }).toBeGreaterThan(laborBefore);
   expect(await logsNow()).toBeGreaterThanOrEqual(before);
