@@ -565,7 +565,12 @@ Clauda.
   z dvorce“, „Zemřel Bořivoj“, „Vojvodou je Bořivoj“. Kronika zapíše jméno do události, text se
   pak nemění. Kronika je v rozhraní panelem Kronika (implementováno, návrh Clauda – Martin 8. 11. 2026: „může si přece sám zobrazit panel s notifikacemi a kroniku“;
   [obyvatelstvo](population.md)).
-- Muž rodu, který dvorec opustil, nese jméno dál. Ostatní lidé zůstávají bez jmen.
+- Muž rodu, který dvorec opustil, nese jméno dál. Ostatní lidé mají křestní jméno od narození
+  nebo příchodu (Martin 15. 11. 2026: „Kdyby měli jména všichni vesničané, bylo by to super“ –
+  [obyvatelstvo](population.md), Jména); muži rodu jména dostávají jako dosud.
+- Kronika o ženách muže rodu (Martin 15. 11. 2026): „Vojvoda Lutobor si vzal Dobravu.“, „Dobrava
+  se stala hlavní manželkou vojvody Lutobora.“ – postavení muže v den zápisu (population.md –
+  Kronika).
 
 ### Synové po sňatku odcházejí z dvorce
 

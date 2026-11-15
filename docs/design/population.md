@@ -685,6 +685,30 @@ jich bude moci mít více), tak pro něj hra končí – musí začínat znovu.�
   ohrada, modla, svatyně – i přestavba na novém pozemku) zbytek jámy odstraní. Vsi uložené dřív žádné
   zbytky jam nemají.
 
+### Jména
+
+- Martin (15. 11. 2026): „Kdyby měli jména všichni vesničané, bylo by to super“ – na návrh Clauda
+  níž: „Ano“. Dřív měli jméno jen muži rodu (lord.md – Jména).
+- **Každý člověk má staročeské křestní jméno** – muži mužské, ženy ženské, bez příjmení (návrh
+  Clauda). Jméno dostane **při narození**; kdo do vsi **přijde** (nevěsta a ženich z okolí, další
+  manželka muže rodu, rodina od souseda, kněz, …), při příchodu – nejpozději týž den. Jméno se pak
+  nemění a člověk ho nese i do jiné vsi.
+- **Lidé, kteří už ve vsích žijí**, dostanou jméno jednou při načtení vsi.
+- **Jména mužů rodu zůstávají**, jak jsou (lord.md – Jména): vojvodu a jeho syny pojmenuje hráč,
+  jméno od rodu smí jednou přepsat; vnuci dostanou jméno ze seznamu mužů rodu. Muž rodu bez jména
+  čeká na hráče jako dřív.
+- Jméno se vybírá ze seznamu pohlaví **náhodně ze seedu vsi a člověka**; mezi žijícími ve vsi se
+  pokud možno neopakuje (opakuje se, až když žijících jednoho pohlaví je víc než jmen). Mistři huti
+  mají dál jména podle svého okruhu (stone-masonry.md).
+- **Seznamy** (návrh Clauda, `rules-names.ts`): 82 mužských – jména mužů rodu (lord.md – Generovaná
+  jména vnuků) a k nim jména z doby knížecí (Bořita, Břetislav, Hroznata, Mladota, Sezima,
+  Soběbor, Spytimír, Václav…); 67 ženských – kněžny a ženy z kronik a pověstí (Ludmila, Drahomíra,
+  Mlada, Doubravka, Svatava, Střezislava, Libuše, Vlasta, Šárka, Teta) a ženské tvary starých
+  dvoukmenných jmen (Bohuslava, Dobroslava, Přibyslava, Zdislava, Vrchoslava…). Jen skutečná
+  staročeská a staroslovanská jména; ženských je méně než 80 – raději méně než vymyšlená.
+- **Kde se jméno ukazuje:** panel osoby (jméno nad postavením, popisek portrétu „Bořivoj –
+  Rolník“), řada obyvatel domu („Ludmila – Žena rolníka“), postavy ve scéně a kronika (níž).
+
 ### Kronika
 
 - Ves vede kroniku událostí s herním datem: narození, úmrtí (dítě / dospělý / starší, hladem
@@ -699,8 +723,17 @@ jich bude moci mít více), tak pro něj hra končí – musí začínat znovu.�
   tesař, uhlíř, kněz, mistr huti; žena hlavy domu vojvodova žena, selka, kovářka, hrnčířka
   (tesařova a uhlířova žena); rodiče, děti, snacha a zeť a vnoučata hlavy („syn sedláka Bořivoje
   Radim“, „matka vojvody“); ostatní chlapec / dívka, vesničan / vesničanka, stařec / stařena. Jméno
-  mají jen muži rodu (lord.md – Kde se jméno ukazuje). Návrat z tažení jménem a postavením: „Z tažení
+  za postavením mají všichni (Jména níž) – „Ve věku 41 let zemřela hlady kovářka Ludmila.“; hlava
+  domu jménem jen muž („dcera sedláka Bořivoje Mlada“). Návrat z tažení jménem a postavením: „Z tažení
   se vrátili sedlák Bořivoj a kovář Radim.“, dezertér „Z tažení utekl domů sedlák Bořivoj.“
+- **Narození jménem** (návrh Clauda): „Narodil se Radim.“, „Narodila se Ludmila.“; syn vojvody,
+  který čeká na jméno od hráče, „Narodilo se dítě.“ jako dřív. Starší zápisy bez jména zůstanou,
+  jak jsou.
+- **Ženy muže rodu** (Martin 15. 11. 2026): „Vojvoda Lutobor si vzal Dobravu.“, „Dobrava se stala
+  hlavní manželkou vojvody Lutobora.“ (Martin psal „knížete“ – hra má titul vojvoda; postavení muže
+  v den zápisu, i „syn vojvody Lutobora Radim“). Jméno ženy, které neumíme skloňovat, se opíše
+  („si vzal další ženu jménem …“); starší zápis bez ženy „Lutobor si vzal další ženu.“, „Lutobor má
+  novou hlavní manželku.“
 - Kronika drží **posledních 500 událostí**, starší se zahazují (návrh Clauda – stav vsi za
   1000 let jinak roste bez konce; simulace kroniku nečte, takže na průběh vsi to nemá vliv).
 
