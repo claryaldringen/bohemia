@@ -1128,14 +1128,16 @@ export function chronicleText(event: ChronicleEvent, villageName: string, seed?:
       return event.name === undefined
         ? 'Rod má nového seniora.'
         : `Seniorem rodu je ${event.name}.`;
+    // jméno je jméno muže (Martin 15. 11. 2026 k „Další žena – Lutobor.“: „Jako že Lutobor
+    // podstoupil tranzici?“) – věta musí říct, že si ženu vzal on
     case 'extra-wife':
       return event.name === undefined
         ? 'Muž rodu si vzal další ženu.'
-        : `Další žena – ${event.name}.`;
+        : `${event.name} si vzal další ženu.`;
     case 'main-wife':
       return event.name === undefined
         ? 'Muž rodu má novou hlavní ženu.'
-        : `Nová hlavní žena – ${event.name}.`;
+        : `${event.name} má novou hlavní ženu.`;
     case 'son-left-manor':
       return event.name === undefined
         ? 'Syn vojvody odešel z dvorce.'
