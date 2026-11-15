@@ -556,7 +556,8 @@ describe('souhrn řemesel pro panel (crafts.md – Co hráč vidí)', () => {
         // jen muž řemeslníka; žena se stará o domácnost a pomáhá se vsí
         laborPerDay: expect.closeTo(1, 1),
         // kovář bez uhlí odpočívá – rudu ještě nekopal (crafts.md – Uhlí a ruda kováře)
-        ore: { stockKg: 0, site: null, heapKg: 0, cart: false },
+        // ves bez uhlíře – o uhlí od milíře se v panelu nemluví
+        ore: { stockKg: 0, site: null, heapKg: 0, cart: false, burner: false },
         // řetěz kovárny (production-chains.md – Kovář): zásoba hřiven na rok obnovy 18 × 0,3 × 1,2
         iron: {
           bloomKg: 0,

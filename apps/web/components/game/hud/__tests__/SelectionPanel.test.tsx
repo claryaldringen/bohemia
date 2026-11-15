@@ -1110,7 +1110,10 @@ describe('SelectionPanel – hrnčíř a hlína (crafts.md – Hlína hrnčíře
 });
 
 describe('SelectionPanel – kovárna (crafts.md – Uhlí a ruda kováře)', () => {
-  const smith = (activity: 'producing' | 'digging', ore: { cart: boolean }): SelectionDetails =>
+  const smith = (
+    activity: 'producing' | 'digging',
+    ore: { cart: boolean; burner?: boolean },
+  ): SelectionDetails =>
     dwelling({
       type: 'polozemnice',
       workshop: {
@@ -1125,7 +1128,7 @@ describe('SelectionPanel – kovárna (crafts.md – Uhlí a ruda kováře)', ()
         toPlant: 0,
         skill: { share: 1, years: 5, apprentices: [] },
         carpenter: null,
-        ore: { stockKg: 18, site: { walkM: 423, leftKg: 2200 }, heapKg: 0, ...ore },
+        ore: { stockKg: 18, site: { walkM: 423, leftKg: 2200 }, heapKg: 0, burner: true, ...ore },
       },
     });
 
@@ -1141,6 +1144,16 @@ describe('SelectionPanel – kovárna (crafts.md – Uhlí a ruda kováře)', ()
     expect(cart).toContain('/icons/resources/cart.png');
     expect(cart).toContain('data-activity="digging"');
     expect(cart).toContain('Kope rudu');
+    expect(cart).toContain('Uhlí od milíře a rudu z rudiště přiveze sedlák');
+  });
+
+  it('ves bez uhlíře – o tyči ani uhlí od milíře ani slovo', () => {
+    const foot = render(smith('producing', { cart: false, burner: false }));
+    expect(foot).not.toContain('selection-workshop-carrier');
+    expect(foot).not.toContain('na tyči');
+    const cart = render(smith('producing', { cart: true, burner: false }));
+    expect(cart).toContain('Rudu z rudiště přiveze sedlák s vozem');
+    expect(cart).not.toContain('Uhlí od milíře');
   });
 
   it('řetěz kovárny – houba, hřivny, vybavení domácností a měchař (production-chains.md)', () => {

@@ -15,6 +15,7 @@ import {
   craftCoverage,
   craftNeeds,
   craftStocks,
+  occupiedWorkshops,
   smithIronSummary,
   workshopLabor,
   type CraftNeeds,
@@ -928,6 +929,8 @@ function craftsSummary(state: VillageState, day: number): CraftsSummary {
   const coverage = craftCoverage(state, day);
   const away = cartsAway(state);
   const productivity = happinessLaborFactor(villageHappiness(state));
+  // uhlíř, který nese uhlí od milíře na tyči (workshops.md – Uhlíř – odnos uhlí na tyči)
+  const burner = occupiedWorkshops(state, 'burner').length > 0;
   return {
     // uhlí u kováře i ve vypálených milířích (crafts.md – Milíř stojí vždy)
     stocks: { ...craftStocks(state), charcoalKg: charcoalStockKg(state) },
@@ -950,7 +953,7 @@ function craftsSummary(state: VillageState, day: number): CraftsSummary {
               : 0,
           ore:
             workshop.craft === 'smith'
-              ? smithOreSummary(d, haulCartsToday(state, day, false) > 0)
+              ? smithOreSummary(d, haulCartsToday(state, day, false) > 0, burner)
               : null,
           iron: workshop.craft === 'smith' ? smithIronSummary(state, d, day) : null,
           clay:

@@ -118,7 +118,8 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `{ kind: 'ore', id, x, z }`) a `fetch` (cíl rudiště; uhlí – milíř s `from` = kovárna, odnos na
   tyči níž) s věky `LaborShare.ages`; v síti pěšin jen z kovárny (`smithWalks` v
   network-targets.ts). Web: panel `SmithOreStats` (`VillageWorkshop.ore` ze `smithOreSummary` –
-  vůz, jinak řádek „nese uhlíř na tyči“), upozornění `no-ore`, scéna
+  vůz, jinak řádek „nese uhlíř na tyči“; o uhlí od milíře jen s uhlířem ve vsi – `burner`),
+  upozornění `no-ore`, scéna
   `SceneVillage.oreSites` / `orePits` → `OreSiteRenderer` (`ore-sites.ts`, geometrie
   `ore-site-layout.ts` – val, voda, zarůstání, hromada rudy), ikona `resources/ore.png`; ukázka
   `/dev/landscape` **Rudiště** (`dev-ore.ts`). Ves bez kováře a hrnčíře beze změny

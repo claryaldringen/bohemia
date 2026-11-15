@@ -778,6 +778,8 @@ export interface SmithOreSummary {
   heapKg: number;
   /** Ves má vůz se spřežením doma – uhlí a rudu přiveze sedlák, když to ušetří práci. */
   cart: boolean;
+  /** Ves má uhlíře (obsazenou dílnu) – uhlí od milíře nese na tyči; bez něj uhlí od milíře není. */
+  burner: boolean;
 }
 
 /** Hlína hrnčíře pro panel výběru (crafts.md – Hlína hrnčíře). */
@@ -806,9 +808,9 @@ export function potterClaySummary(potter: Dwelling, cart: boolean): PotterClaySu
 
 /**
  * Ruda a uhlí kovárny `smith` pro panel (nemění stav); `cart` = ves má vůz se spřežením doma
- * (`haulCartsToday`).
+ * (`haulCartsToday`), `burner` = ves má obsazenou dílnu uhlíře.
  */
-export function smithOreSummary(smith: Dwelling, cart: boolean): SmithOreSummary {
+export function smithOreSummary(smith: Dwelling, cart: boolean, burner: boolean): SmithOreSummary {
   const workshop = smith.workshop!;
   const site = workshop.oreSite ?? null;
   return {
@@ -816,5 +818,6 @@ export function smithOreSummary(smith: Dwelling, cart: boolean): SmithOreSummary
     site: site ? { walkM: site.walkM, leftKg: depositLeftKg(site) } : null,
     heapKg: workshop.oreBatch?.heap ?? 0,
     cart,
+    burner,
   };
 }

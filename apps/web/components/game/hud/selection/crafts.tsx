@@ -253,27 +253,37 @@ export function SmithIronStats({
   );
 }
 
+/** Kdo nosí kovárně uhlí od milíře a rudu – bez uhlíře ve vsi se o uhlí od milíře nemluví. */
+function smithCarrier(
+  ore: NonNullable<SelectionWorkshop['ore']>,
+): { icon: string; name: string } | null {
+  if (ore.cart) {
+    return {
+      icon: 'cart',
+      name: ore.burner
+        ? 'Uhlí od milíře a rudu z rudiště přiveze sedlák s vozem, když to ušetří práci'
+        : 'Rudu z rudiště přiveze sedlák s vozem, když to ušetří práci',
+    };
+  }
+  return ore.burner
+    ? {
+        icon: 'man',
+        name: 'Uhlí od milíře nese uhlíř se synem na tyči – bez syna s kovářem nebo jeho synem',
+      }
+    : null;
+}
+
 /**
  * Kovárna (crafts.md – Uhlí a ruda kováře): zásoba rudy, rudiště (vzdálenost chůze) a kdo nese
- * uhlí od milíře – uhlíř na tyči (workshops.md – Uhlíř – odnos uhlí na tyči), nebo vůz se
- * sedlákem.
+ * uhlí od milíře – uhlíř na tyči (workshops.md – Uhlíř – odnos uhlí na tyči; jen když ves uhlíře
+ * má), nebo vůz se sedlákem.
  */
 export function SmithOreStats({
   ore,
 }: {
   ore: NonNullable<SelectionWorkshop['ore']>;
 }): ReactElement {
-  const carrier = ore.cart
-    ? {
-        icon: 'cart',
-        name: 'Uhlí od milíře a rudu z rudiště přiveze sedlák s vozem, když to ušetří práci',
-        value: '',
-      }
-    : {
-        icon: 'man',
-        name: 'Uhlí od milíře nese uhlíř se synem na tyči – bez syna s kovářem nebo jeho synem',
-        value: '',
-      };
+  const carrier = smithCarrier(ore);
   return (
     <>
       <Stat icon="ore" name="Ruda v kovárně (kg)" testId="selection-workshop-ore">
@@ -288,9 +298,11 @@ export function SmithOreStats({
           {`${formatInteger(ore.site.walkM)} m`}
         </Stat>
       )}
-      <Stat icon={carrier.icon} name={carrier.name} testId="selection-workshop-carrier">
-        {carrier.value}
-      </Stat>
+      {carrier && (
+        <Stat icon={carrier.icon} name={carrier.name} testId="selection-workshop-carrier">
+          {''}
+        </Stat>
+      )}
     </>
   );
 }
