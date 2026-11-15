@@ -1,5 +1,6 @@
 import { createRandom, deriveSeed } from '../../landscape/random';
 import { deathWho } from './estate';
+import { needsPersonName, personName } from './people-names';
 import { bury, hygieneDeathFactor, villageHygiene } from '../buildings/cemetery';
 import { isOvercrowded } from '../buildings/dwellings';
 import { isDynastyTracked, isLineMan, markNewborn } from './dynasty';
@@ -433,9 +434,19 @@ export function populationDay(
         ...(isChristian(mother) || isChristian(father) ? { faith: 'christian' as const } : {}),
       };
       state.people.push(child);
-      events.push({ day, kind: 'birth' });
       // syn muže rodu – příznak rodu, jméno vnukovi (lord.md – Rod vojvody); ves bez rodu nic
-      events.push(...markNewborn(state, child, day));
+      const lineEvents = markNewborn(state, child, day);
+      // jméno při narození (population.md – Jména) – syn vojvody čeká na jméno od hráče
+      if (needsPersonName(child)) child.name = personName(state, child);
+      events.push(
+        {
+          day,
+          kind: 'birth',
+          ...(child.name === undefined ? {} : { name: child.name }),
+          ...(child.sex === 'female' ? { female: true as const } : {}),
+        },
+        ...lineEvents,
+      );
     }
   }
 

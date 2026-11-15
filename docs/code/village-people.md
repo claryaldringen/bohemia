@@ -103,6 +103,20 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
     `trainingHours`, odešlí synové na lovu cvičí místo `decayArms`.
   - **Pasáci:** synové cvičící rodiny nepasou (`lordTraineeIds` v `youngsterCount`,
     `herdingDay`, `youngsterHerders`).
+- **Jména všech lidí** ([population.md](../design/population.md) – Jména; Martin 15. 11. 2026,
+  `people-names.ts`, seznamy `rules-names.ts` – `MALE_NAMES` = `LINE_NAMES` + 20 dalších,
+  `FEMALE_NAMES`): `Person.name` mají všichni kromě muže rodu, který čeká na jméno od hráče
+  (`needsPersonName` – bez jména a bez `line`). `personName(state, person)` – seznam podle pohlaví,
+  los z vlastního proudu `'person-name:' + id` (losy vsi se nemění), přednostně jméno, které nenosí
+  nikdo žijící. Jméno dostane narozené dítě v `populationDay` hned po `markNewborn` (zápis `birth`
+  nese `name` a `female`), další manželka v `extraWivesDay` při příchodu; ostatní příchozí (nevěsta
+  a ženich z okolí, rodina od souseda, kněz, schránka) `nameUnnamed` na konci každého dne dopočtu
+  (`advanceVillageSteps` – výsledek nezávisí na kouscích) a zakladatelé na konci `foundVillage`.
+  Starší vsi převod `people-names` (`withPeopleNames`, konec seznamu převodů). Zápisy úmrtí
+  (`deathWho`) a návratů (`chroniclePerson`) nesou jméno každého; `headName` v postavení jen
+  u hlavy-muže. Zápisy `marriage` a `bride-from-outside` nesou `name` dál jen u muže rodu.
+  Zápisy `extra-wife` a `main-wife` nesou postavení muže (`estate`) a jméno ženy (`wife`).
+
 - **Rod vojvody** (lord.md – Rod vojvody, fáze 1, #9; `dynasty.ts`, `dynasty-names.ts`): data
   `Person.name` (jméno muže rodu), `line` (muž rodu po meči), `mainWifeSon` (syn hlavní manželky)
   a `VillageState.dynasty` = `{ lordId, lords, endedDay? }` (`lords` – vojvodové po sobě pro

@@ -47,6 +47,7 @@ import type { VillageState } from '../types';
 import { withWeatherSeed } from '../disasters/weather';
 import { withWildlife } from '../wildlife/wildlife';
 import { withSeason } from './year-plan';
+import { withPeopleNames } from '../people/people-names';
 
 // Převody starších vsí (village-core.md – Převody starších vsí): jeden seřazený seznam, který
 // volá načtení vsi (`updateVillage`) i dopočet (`advanceVillage`) – každý převod jednou, vždy ve
@@ -237,6 +238,8 @@ export const VILLAGE_MIGRATIONS: readonly VillageMigration[] = [
   { id: 'orphan-gates', since: '2026-11-14', run: withoutOrphanGates },
   // starší lom na výchozu se přesune na plochu u skal (fortifications.md – Lom jako plocha u skal)
   { id: 'quarry-area', since: '2026-11-15', run: quarryArea },
+  // jména všech lidí (population.md – Jména) – muži rodu svá jména nemění
+  { id: 'people-names', since: '2026-11-15', run: withPeopleNames },
 ];
 
 /** Zrušený postoj `'surrender'` se čte jako výchozí `'flee'`; na kopii, jen když ho ves má. */

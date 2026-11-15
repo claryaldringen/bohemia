@@ -28,11 +28,21 @@ import { withBuiltFirstDwelling, withoutNoticeChronicle } from '../../__tests__/
  * domácností zpět do zásoby nástrojů `crafts.toolsKg` – ves bez kováře se jinak nemění, otisk
  * zůstal.
  */
+/** Kopie objektu bez klíčů `keys` (pořadí ostatních klíčů zůstane). */
+function withoutKeys(value: object, keys: readonly string[]): Record<string, unknown> {
+  const copy: Record<string, unknown> = { ...(value as Record<string, unknown>) };
+  for (const key of keys) delete copy[key];
+  return copy;
+}
+
 function legacyShape(state: VillageState): unknown {
   const { toolEquipmentKg, ...rest } = state;
   const c = rest.crafts;
   return {
     ...rest,
+    // jména lidí a v zápisech kroniky (population.md – Jména) – jen záznam, simulace je nečte
+    people: rest.people.map((p) => withoutKeys(p, ['name'])),
+    chronicle: rest.chronicle.map((e) => withoutKeys(e, ['name', 'personId', 'female'])),
     crafts: c && {
       charcoalKg: c.charcoalKg,
       toolsKg: toolEquipmentKg ?? 0,

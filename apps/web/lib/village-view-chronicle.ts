@@ -124,8 +124,9 @@ const PLAIN_PEOPLE: Record<'child' | 'adult' | 'elder', readonly [string, string
 };
 
 /**
- * Kdo – postavení a jméno muže rodu v 1. pádě (Martin 15. 11. 2026: „sedlák Bořivoj“, „syn sedláka
- * Bořivoje Radim“): hlava domu, žena, příbuzný hlavy; jiný člen domu jménem, jinak podle věku.
+ * Kdo – postavení a jméno v 1. pádě (Martin 15. 11. 2026: „sedlák Bořivoj“, „syn sedláka Bořivoje
+ * Radim“; jména všech lidí – population.md, Jména: „selka Ludmila“): hlava domu, žena, příbuzný
+ * hlavy; jiný člen domu jménem, jinak podle věku.
  */
 function estateText(
   estate: ChronicleEstate,
@@ -138,7 +139,7 @@ function estateText(
   switch (estate.kin) {
     case 'head':
     case 'wife':
-      return female ? title.wife : named(title.man);
+      return named(female ? title.wife : title.man);
     case 'other':
       return name ?? PLAIN_PEOPLE[group][female ? 1 : 0];
     default: {
@@ -149,6 +150,79 @@ function estateText(
       return named(`${KIN_WORDS[estate.kin][female ? 1 : 0]} ${of}`);
     }
   }
+}
+
+/** Příbuzný hlavy domu – muž ve 2. pádě („hlavní manželkou syna vojvody“). */
+const KIN_GENITIVES: Record<'parent' | 'child' | 'in-law' | 'grandchild', string> = {
+  parent: 'otce',
+  child: 'syna',
+  'in-law': 'zetě',
+  grandchild: 'vnuka',
+};
+
+/**
+ * Muž – postavení a jméno ve 2. pádě (Martin 15. 11. 2026: „hlavní manželkou vojvody Lutobora“):
+ * hlava domu, příbuzný hlavy („syna vojvody Lutobora Radima“), jiný člen domu jménem.
+ */
+function manEstateGenitive(estate: ChronicleEstate, name: string | undefined): string {
+  const title = ESTATE_TITLES[estate.title];
+  const named = (text: string): string =>
+    name === undefined ? text : `${text} ${genitiveOf(name)}`;
+  switch (estate.kin) {
+    case 'head':
+    case 'wife':
+      return named(title.genitive);
+    case 'other':
+      return name === undefined ? 'muže rodu' : genitiveOf(name);
+    default: {
+      const of =
+        estate.headName === undefined
+          ? title.genitive
+          : `${title.genitive} ${genitiveOf(estate.headName)}`;
+      return named(`${KIN_GENITIVES[estate.kin]} ${of}`);
+    }
+  }
+}
+
+/**
+ * 4. pád ženského jména („si vzal Dobravu“, „Libuši“): jména vesničanek končí na -a po tvrdé
+ * nebo obojetné souhlásce, nebo na -e (`FEMALE_NAMES`, test celého seznamu). Jiný tvar je nejistý
+ * – null (věta jméno opíše).
+ */
+export function feminineAccusative(name: string): string | null {
+  if (/[^žščřcjďťň]a$/u.test(name)) return `${name.slice(0, -1)}u`;
+  if (/[^aeiouyáéíóúůýě]e$/u.test(name)) return `${name.slice(0, -1)}i`;
+  return null;
+}
+
+/**
+ * Další žena muže rodu (Martin 15. 11. 2026: „Vojvoda Lutobor si vzal Dobravu.“): postavení
+ * a jméno muže, jméno ženy ve 4. pádě; zápis bez ženy „… si vzal další ženu.“, starší zápis bez
+ * postavení jen jménem muže.
+ */
+function extraWifeText(event: Extract<ChronicleEvent, { kind: 'extra-wife' }>): string {
+  if (!event.estate) {
+    return `${event.name ?? 'Muž rodu'} si vzal další ženu.`;
+  }
+  const man = capitalized(estateText(event.estate, false, event.name));
+  if (event.wife === undefined) return `${man} si vzal další ženu.`;
+  const wife = feminineAccusative(event.wife);
+  return wife === null
+    ? `${man} si vzal další ženu jménem ${event.wife}.`
+    : `${man} si vzal ${wife}.`;
+}
+
+/**
+ * Nová hlavní manželka (Martin 15. 11. 2026: „Dobrava se stala hlavní manželkou vojvody
+ * Lutobora.“): jméno ženy, postavení a jméno muže ve 2. pádě; zápis bez ženy „… má novou hlavní
+ * manželku.“, starší zápis bez postavení jen jménem muže.
+ */
+function mainWifeText(event: Extract<ChronicleEvent, { kind: 'main-wife' }>): string {
+  if (!event.estate) return `${event.name ?? 'Muž rodu'} má novou hlavní manželku.`;
+  if (event.wife === undefined) {
+    return `${capitalized(estateText(event.estate, false, event.name))} má novou hlavní manželku.`;
+  }
+  return `${event.wife} se stala hlavní manželkou ${manEstateGenitive(event.estate, event.name)}.`;
 }
 
 /** Věk na začátku věty o smrti: „Ve věku 64 let“, „Ve věku 1 roku“, „V prvním roce života“. */
@@ -990,8 +1064,11 @@ export function chronicleText(event: ChronicleEvent, villageName: string, seed?:
   switch (event.kind) {
     case 'village-founded':
       return `Osadníci založili ves ${villageName}.`;
+    // jméno dítěte (population.md – Jména); starší zápisy a syn vojvody, který čeká na jméno, bez něj
     case 'birth':
-      return 'Narodilo se dítě.';
+      return event.name === undefined
+        ? 'Narodilo se dítě.'
+        : `Narodil${event.female ? 'a' : ''} se ${event.name}.`;
     case 'line-birth':
       return 'Vojvodovi se narodil syn.';
     case 'line-named':
@@ -1143,16 +1220,12 @@ export function chronicleText(event: ChronicleEvent, villageName: string, seed?:
       return event.name === undefined
         ? 'Rod má nového seniora.'
         : `Seniorem rodu je ${event.name}.`;
-    // jméno je jméno muže (Martin 15. 11. 2026 k „Další žena – Lutobor.“: „Jako že Lutobor
+    // `name` je jméno muže (Martin 15. 11. 2026 k „Další žena – Lutobor.“: „Jako že Lutobor
     // podstoupil tranzici?“) – věta musí říct, že si ženu vzal on
     case 'extra-wife':
-      return event.name === undefined
-        ? 'Muž rodu si vzal další ženu.'
-        : `${event.name} si vzal další ženu.`;
+      return extraWifeText(event);
     case 'main-wife':
-      return event.name === undefined
-        ? 'Muž rodu má novou hlavní ženu.'
-        : `${event.name} má novou hlavní ženu.`;
+      return mainWifeText(event);
     case 'son-left-manor':
       return event.name === undefined
         ? 'Syn vojvody odešel z dvorce.'

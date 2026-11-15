@@ -17,6 +17,34 @@ const death = (fields: Partial<Death>): ChronicleEvent => ({
   ...fields,
 });
 
+describe('kronika – jména všech lidí (population.md – Jména)', () => {
+  it('žena jménem za postavením; dítě jménem při narození', () => {
+    const wife = { title: 'smith', kin: 'wife', female: true } as const;
+    expect(
+      chronicleText(death({ age: 41, estate: wife, cause: 'hunger', name: 'Ludmila' }), 'Ves'),
+    ).toBe('Ve věku 41 let zemřela hlady kovářka Ludmila.');
+    expect(
+      chronicleText(
+        death({
+          group: 'child',
+          age: 12,
+          estate: { title: 'farmer', kin: 'child', female: true, headName: 'Bořivoj' },
+          name: 'Mlada',
+        }),
+        'Ves',
+      ),
+    ).toBe('Ve věku 12 let zemřela dcera sedláka Bořivoje Mlada.');
+    expect(chronicleText({ day: DAY, kind: 'birth', name: 'Radim' }, 'Ves')).toBe(
+      'Narodil se Radim.',
+    );
+    expect(chronicleText({ day: DAY, kind: 'birth', name: 'Ludmila', female: true }, 'Ves')).toBe(
+      'Narodila se Ludmila.',
+    );
+    // syn vojvody, který čeká na jméno, a starší zápisy
+    expect(chronicleText({ day: DAY, kind: 'birth' }, 'Ves')).toBe('Narodilo se dítě.');
+  });
+});
+
 describe('kronika – úmrtí kronikářsky', () => {
   it('věk, postavení a jméno; příčina jen když nebyla stáří', () => {
     const farmer = { title: 'farmer', kin: 'head' } as const;

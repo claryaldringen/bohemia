@@ -25,8 +25,8 @@ import type {
  * „Ve věku 64 let zemřel sedlák Bořivoj.“; návrh Clauda – population.md, Kronika): `title` – čí je
  * domácnost (dvorec vojvody, dílna řemesla, jinak rolník), u kněze a mistra huti jeho úřad;
  * `kin` – vztah k hlavě domácnosti (hlava, její žena – i žena v čele domu bez muže, rodič, dítě,
- * snacha či zeť, vnouče, jiný člen); `headName` – jméno hlavy, muže rodu (u rodiče, dítěte, snachy
- * a vnoučete).
+ * snacha či zeť, vnouče, jiný člen); `headName` – jméno hlavy, je-li to muž (u rodiče, dítěte,
+ * snachy a vnoučete; population.md – Jména).
  */
 export interface ChronicleEstate {
   title: 'voivode' | 'farmer' | 'priest' | Craft | MasonCraft;
@@ -36,7 +36,7 @@ export interface ChronicleEstate {
   headName?: string;
 }
 
-/** Člověk v zápisu kroniky (návrat z tažení): postavení a jméno muže rodu. */
+/** Člověk v zápisu kroniky (návrat z tažení): postavení a jméno (starší zápisy jen u mužů rodu). */
 export interface ChroniclePerson {
   estate: ChronicleEstate;
   name?: string;
@@ -133,7 +133,11 @@ export interface LastingNoticeState {
 
 export type ChronicleEvent = { day: number } & (
   | { kind: 'village-founded' }
-  | { kind: 'birth' }
+  /**
+   * Narodilo se dítě (population.md – Jména): jméno a pohlaví (`female`); syn vojvody, který čeká
+   * na jméno od hráče, a starší zápisy bez jména.
+   */
+  | { kind: 'birth'; name?: string; female?: true }
   /** Vojvodovi se narodil syn (lord.md – Rod vojvody) – čeká na jméno od hráče. */
   | { kind: 'line-birth' }
   /** Hráč pojmenoval muže rodu (lord.md – Jména) – jméno je trvalé. */
@@ -205,10 +209,17 @@ export type ChronicleEvent = { day: number } & (
    * přišlo pozdě) – žije v dvorci jako ostatní muži rodu.
    */
   | { kind: 'line-arrived'; name?: string }
-  /** Muž rodu `name` si vzal další manželku z okolí (lord.md – Manželky); bez jména chybí. */
-  | { kind: 'extra-wife'; name?: string }
-  /** Muž rodu `name` má po smrti hlavní manželky novou hlavní (lord.md – Nová hlavní manželka). */
-  | { kind: 'main-wife'; name?: string }
+  /**
+   * Muž rodu `name` si vzal další manželku z okolí (lord.md – Manželky); bez jména chybí. `estate` –
+   * postavení muže v den zápisu, `wife` – jméno ženy (Martin 15. 11. 2026: „Vojvoda Lutobor si vzal
+   * Dobravu.“); starší zápisy bez nich.
+   */
+  | { kind: 'extra-wife'; name?: string; estate?: ChronicleEstate; wife?: string }
+  /**
+   * Muž rodu `name` má po smrti hlavní manželky novou hlavní (lord.md – Nová hlavní manželka);
+   * `estate` a `wife` jako u `extra-wife` („Dobrava se stala hlavní manželkou vojvody Lutobora.“).
+   */
+  | { kind: 'main-wife'; name?: string; estate?: ChronicleEstate; wife?: string }
   /** Ženatý muž rodu `name` odešel z dvorce do vlastního domu (lord.md – Synové po sňatku). */
   | { kind: 'son-left-manor'; name?: string }
   /**
@@ -320,8 +331,8 @@ export type ChronicleEvent = { day: number } & (
   /**
    * `age` – věk zemřelého v celých letech (štěstí: starší ubere méně, happiness.md); starší
    * události bez něj. `cause: 'hunger'` – zemřel hlady (nahromaděný hlad, population.md); jinak
-   * bez údaje. `name` – jméno zemřelého muže rodu (lord.md – Kde se jméno ukazuje); ostatní ho
-   * nemají.
+   * bez údaje. `name` – jméno zemřelého (lord.md – Kde se jméno ukazuje, population.md – Jména);
+   * starší zápisy ho mají jen u mužů rodu.
    */
   | {
       kind: 'death';
@@ -337,7 +348,7 @@ export type ChronicleEvent = { day: number } & (
       /** Zvěř, na jejímž lovu muž zahynul (`cause: 'hunt'`). */
       prey?: 'boar' | 'bear';
       name?: string;
-      /** Id zemřelého muže rodu (vždy spolu s `name`) – den smrti pro los nástupnictví hráče. */
+      /** Id zemřelého (vždy spolu s `name`) – den smrti muže rodu pro los nástupnictví hráče. */
       personId?: number;
       /** Postavení a pohlaví zemřelého v den smrti (`chronicleEstate`); starší zápisy bez něj. */
       estate?: ChronicleEstate;

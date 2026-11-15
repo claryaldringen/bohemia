@@ -45,7 +45,8 @@ function estateOf(state: EstateState, p: Person, day: number): ChronicleEstate {
       ? lord
       : householdHead(state.people, p.dwellingId, day);
   if (!head) return { title, kin: 'other' };
-  const headName = head.name === undefined ? {} : { headName: head.name };
+  // jméno hlavy jen u muže – „syn sedláka Bořivoje“ (žena v čele domu se 2. pádem nepíše)
+  const headName = head.name === undefined || head.sex === 'female' ? {} : { headName: head.name };
   if (p.id === head.id) return { title, kin: head.sex === 'female' ? 'wife' : 'head' };
   if (p.spouseId === head.id || head.spouseId === p.id) return { title, kin: 'wife' };
   if (head.motherId === p.id || head.fatherId === p.id)
@@ -60,7 +61,7 @@ function estateOf(state: EstateState, p: Person, day: number): ChronicleEstate {
   return { title, kin: 'other' };
 }
 
-/** Člověk do zápisu kroniky (návrat z tažení): postavení (s pohlavím) a jméno muže rodu. */
+/** Člověk do zápisu kroniky (návrat z tažení): postavení (s pohlavím) a jméno. */
 export function chroniclePerson(state: EstateState, p: Person, day: number): ChroniclePerson {
   return {
     estate: chronicleEstate(state, p, day),
@@ -69,8 +70,8 @@ export function chroniclePerson(state: EstateState, p: Person, day: number): Chr
 }
 
 /**
- * Kdo zemřel – pole zápisu `death`: jméno a id muže rodu (lord.md – Kde se jméno ukazuje;
- * nástupnictví) a postavení s pohlavím v den smrti. Volá se, dokud je člověk ve stavu.
+ * Kdo zemřel – pole zápisu `death`: jméno a id (lord.md – Kde se jméno ukazuje, population.md –
+ * Jména; id pro nástupnictví) a postavení s pohlavím v den smrti. Volá se, dokud je člověk ve stavu.
  */
 export function deathWho(
   state: EstateState,

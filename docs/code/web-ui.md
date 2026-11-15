@@ -461,9 +461,11 @@ Pravidla: `docs/design/lord.md` – Jména, Kde se jméno zadává, Kde se jmén
 - **Pohled:** `view.dynasty` (`lib/dynasty-view.ts`, `dynastyView`) – `lordId`, `lordName?`,
   `unnamed` (žijící muži rodu bez jména, vojvoda první, pak od nejstaršího – fronta se neukládá),
   `taken` (jména rodu pro kostku) a `waitingHome` (jména ženatých synů v dvorci). Lidé ve scéně
-  (`ScenePerson.name`), panel osoby (`SelectionDetails.person.name`) a obyvatelé dvorce
-  (`ManorMember.name`) nesou jméno muže rodu; role `voivode-secondary-wife` („Vojvodova vedlejší
-  žena“, i ve vlastním domě – `personRoles`).
+  (`ScenePerson.name`), panel osoby (`SelectionDetails.person.name` – jméno nad rolí, popisek
+  portrétu „Bořivoj – Rolník“) a obyvatelé domu (`DwellingResident.name`, `ManorMember.name` –
+  popisek a `aria-label` `resident-select-*` „Ludmila – Žena rolníka“) nesou jméno každého
+  (population.md – Jména); role `voivode-secondary-wife` („Vojvodova vedlejší žena“, i ve vlastním
+  domě – `personRoles`).
 - **Panel jména** `hud/LineNamePanel.tsx`: portrét, textové pole (výjimka z „bez popisků“), kostka
   „Navrhni jméno“ (`suggestLineName`), fajfka i Enter; důvod u kurzoru z `checkPersonName`
   (`lineNameReason`), Esc zavře (jen ve vsi). `VillageGame`: bez vsi (až po připravení scény)
@@ -1519,16 +1521,26 @@ nová pravidla (návrh Clauda).
     (`ChronicleEstate`, návrh Clauda): `title` – dvorec vojvody, dílna řemesla, jinak rolník; kněz
     a mistr huti podle úřadu; `kin` – hlava (vojvoda `dynasty.lordId`, jinak `householdHead`),
     žena (i žena v čele domu), rodič, dítě, snacha / zeť, vnouče hlavy (`headName` – jméno hlavy,
-    muže rodu, ve 2. pádě), jinak chlapec / dívka, vesničan / vesničanka, stařec / stařena.
+    je-li to muž, ve 2. pádě), jinak chlapec / dívka, vesničan / vesničanka, stařec / stařena.
     Slova `ESTATE_TITLES` (sedlák / selka, kovář / kovářka, hrnčíř / hrnčířka, vojvodova žena;
-    „tesařova žena“, „uhlířova žena“ opisem). Jména mají jen muži rodu (lord.md – „Ostatní lidé
-    zůstávají bez jmen“). Starší zápisy bez postavení: „Ve věku 30 let zemřel jeden z dospělých.“,
+    „tesařova žena“, „uhlířova žena“ opisem). Jméno za postavením u každého, i u žen („Ve věku 41
+    let zemřela hlady kovářka Ludmila.“ – population.md, Jména); starší zápisy jménem jen u mužů
+    rodu. Starší zápisy bez postavení: „Ve věku 30 let zemřel jeden z dospělých.“,
     bez věku podmět napřed („Dítě zemřelo hlady.“, „Bořivoj padl v boji.“).
+  - **Narození** (`birth` s `name` a `female`): „Narodil se Radim.“, „Narodila se Ludmila.“; bez
+    jména (syn vojvody čeká na jméno, starší zápisy) „Narodilo se dítě.“.
+  - **Ženy muže rodu** (`extra-wife` / `main-wife` s `estate` muže a `wife`; Martin 15. 11. 2026):
+    „Vojvoda Lutobor si vzal Dobravu.“ (`extraWifeText` – `estateText` muže, jméno ženy ve 4. pádě
+    `feminineAccusative`: -a → -u, -e → -i; jiný konec opisem „si vzal další ženu jménem …“),
+    „Dobrava se stala hlavní manželkou vojvody Lutobora.“ (`mainWifeText` – `manEstateGenitive`:
+    „syna vojvody Lutobora Radima“). Bez ženy „Vojvoda Lutobor si vzal další ženu.“ / „… má novou
+    hlavní manželku.“, starší zápis bez postavení „Lutobor si vzal další ženu.“. Pády celého seznamu
+    jmen hlídá `village-view-chronicle-wives.test.ts`.
   - **Návrat z tažení** (`people-back` druhu `campaign` s `who` – `chroniclePerson`; řádný návrat
     zapíše `applyCampaignReturn`, dezertéra `returnHome` s `deserted`): „Z tažení se vrátil sedlák
     Bořivoj.“, „Z tažení se vrátili sedlák Bořivoj a kovář Radim.“, nad 4 různé lidi tři jménem
-    „… a další 4“; stejní sedláci bez jména číslem („Z tažení se vrátili 2 sedláci.“, „… vrátilo
-    5 sedláků.“); dezertér „Z tažení utekl domů sedlák Bořivoj.“; starší zápis „Z tažení se vrátili
+    „… a další 4“; stejní sedláci bez jména (starší zápisy) číslem („Z tažení se vrátili 2 sedláci.“,
+    „… vrátilo 5 sedláků.“); dezertér „Z tažení utekl domů sedlák Bořivoj.“; starší zápis „Z tažení se vrátili
     3 lidé.“ (`campaignBackText`).
 - **Obnova:** `useChronicle` načte první stránku při otevření, při jiné vsi a když v pohledu
   přibude zápis (`latest` = nejnovější zápis `VillageView.chronicle`); `mergeNewest` nahradí roky

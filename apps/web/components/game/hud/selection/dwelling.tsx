@@ -190,8 +190,8 @@ export function DwellingsBody({
 }
 
 /**
- * Obyvatelé obydlí (lord.md – Co hráč vidí; dvorec i běžná obydlí): u každého portrét s věkem (popisek role, u mužů rodu
- * jméno – „Bořivoj – Syn vojvody“, lord.md – Kde se jméno ukazuje). Dovednosti
+ * Obyvatelé obydlí (lord.md – Co hráč vidí; dvorec i běžná obydlí): u každého portrét s věkem (popisek
+ * jméno a role – „Bořivoj – Syn vojvody“, „Ludmila – Žena rolníka“; population.md – Jména). Dovednosti
  * (luk, boj, jízda) ukazuje jen panel vybrané osoby (Martin 24. 10. 2026: „To by mělo být na
  * panelu té označené osoby“).
  */
