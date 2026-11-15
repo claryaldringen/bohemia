@@ -161,8 +161,9 @@ převažovat jabloně a trocha jiných stromů“. Čísla a provedení návrh C
 - U vybraného sadu (dvojklik): plocha, stáří (průměr čtverců vážený plochou – obnovou sad mládne)
   a odhad úrody nejbližší sklizně (kg jablek), během výsadby i obnovy průběh – a když čeká na okno,
   ikona s popiskem „Sází se na jaře a na podzim“. Horní lišta ukáže jablka vedle obilí, jen když nějaká jsou. Minimapa kreslí sady.
-- Kronika: sad je vysazený, sklizeň jablek (kg), vesničané obnovují starý sad (kolik čtverců
-  vysadí znovu), starý sad dosloužil, sad ustoupil stavbě obydlí (o kolik m², nebo zanikl).
+- Kronika: sad je vysazený, sklizeň jablek (kg), obnova starého sadu jedním zápisem za den –
+  „Vlkovští vysadili 8 stromů, aby obnovili starý sad.“ (stromy všech čtverců dne, 4 na čtverec;
+  Martin 15. 11. 2026), starý sad dosloužil, sad ustoupil stavbě obydlí (o kolik m², nebo zanikl).
   Krátký mizející řádek nahoře: „Vesničané obnovují starý sad“ (jednou za rok sadu, když zařadí
   čtverce do obnovy) a „Starý sad dosloužil“. U kurzoru při umisťování obydlí oranžově „Sad se
   zmenší“ (poslední čtverec: „Sad zanikne“).

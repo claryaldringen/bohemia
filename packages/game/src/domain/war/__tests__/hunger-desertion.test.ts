@@ -7,7 +7,7 @@ import { applyInboxDay, type VillageEvent } from '../../village/core/inbox';
 import type { Fortification } from '../../village/fortification/types';
 import { kin, village } from '../../village/__tests__/kin-fixtures';
 import { isAway } from '../../village/people/people';
-import type { TileCell, VillageState } from '../../village/types';
+import type { ChronicleEvent, TileCell, VillageState } from '../../village/types';
 import type { Fighter } from '../battle';
 import { stepCampaign } from '../campaign';
 import type {
@@ -327,15 +327,17 @@ describe('živé vedení bez rozkazu u vsi za palisádou', () => {
       villageId: string,
       to: number,
       each: (day: number) => void,
-    ): void => {
+    ): ChronicleEvent[] => {
       const inbox: VillageEvent[] = whole.villageEvents
         .filter((e) => e.villageId === villageId)
         .map((e, seq) => ({ id: e.ref, villageId, day: e.day, seq, body: e.body }));
+      const back: ChronicleEvent[] = [];
       for (let day = SUMMER + 1; day <= to; day++) {
-        returnHome(v, day);
-        applyInboxDay(v, day, inbox);
+        back.push(...returnHome(v, day));
+        back.push(...applyInboxDay(v, day, inbox).filter((e) => e.kind === 'people-back'));
         each(day);
       }
+      return back;
     };
     const away = (v: VillageState, id: number, day: number): boolean =>
       isAway(
@@ -348,10 +350,24 @@ describe('živé vedení bez rozkazu u vsi za palisádou', () => {
     const home11 = whole.state.members[2]!.homeDay!;
     expect(ended).toBeLessThan(home11);
     const lhota = homeOf([1, 2]);
-    replay(lhota, 'lhota', ended + 1, (day) => {
+    const lhotaBack = replay(lhota, 'lhota', ended + 1, (day) => {
       expect(away(lhota, 2, day)).toBe(day < out2 + 1);
       expect(away(lhota, 1, day)).toBe(day < ended);
     });
+    // kronika (Martin 15. 11. 2026): dezertér „utekl domů“, vůdce se vrátil s koncem tažení
+    expect(lhotaBack).toEqual([
+      expect.objectContaining({ day: ended, kind: 'people-back', away: 'campaign', people: 1 }),
+      expect.objectContaining({
+        // doma od dne out2 + 1 (schránka po návratech dne) – zápis na začátku dalšího dne
+        day: out2 + 2,
+        kind: 'people-back',
+        away: 'campaign',
+        people: 1,
+        deserted: true,
+        who: [{ estate: expect.objectContaining({ kin: expect.any(String) }) }],
+      }),
+    ]);
+    expect(lhotaBack[0]).not.toHaveProperty('deserted');
     // návrat tažení do Brodu přijde dřív, ale dezertéra nevrátí – je doma až po cestě
     const brod = homeOf([11]);
     replay(brod, 'brod', home11 + 1, (day) => expect(away(brod, 11, day)).toBe(day < home11));

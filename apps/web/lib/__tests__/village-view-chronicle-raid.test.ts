@@ -56,6 +56,6 @@ describe('kronika – nájezd', () => {
       ...(name ? { name, personId: 10 } : {}),
     });
     expect(chronicleText(death('war', 'Bořivoj'), 'Ves')).toBe('Bořivoj padl v boji.');
-    expect(chronicleText(death('wounds'), 'Ves')).toBe('Jeden z vesničanů zemřel na rány.');
+    expect(chronicleText(death('wounds'), 'Ves')).toBe('Jeden z dospělých zemřel na rány.');
   });
 });

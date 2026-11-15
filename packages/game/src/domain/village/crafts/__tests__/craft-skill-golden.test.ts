@@ -111,6 +111,9 @@ describe('ves bez dílen beze změny (crafts.md – Učení řemesla)', () => {
       // kusy poražené dnes (hlášení pro scénu – LivestockState.slaughtered) – simulace je nečte
       'slaughtered',
       // věk zemřelého v události úmrtí (happiness.md – Co ubírá) – jen zápis do kroniky
+      // postavení zemřelého a vrácených z tažení (Martin 15. 11. 2026: „Ve věku 64 let zemřel sedlák
+      // Bořivoj.“) – jen zápis do kroniky
+      'estate',
       'age', // hash 3bd10c3d: úmrtí podle věku mění štěstí (a tím práci), jinak shodné s f0150b51
       // hash f78f3f13 (25. 10. 2026): porody brzdí jen energie, ne pestrost – víc porodů
       // hash 1661516a (25. 10. 2026): stáda jen na seno, které ves stihne posekat (oxen.md – Stáda

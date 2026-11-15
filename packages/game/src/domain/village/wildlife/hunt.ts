@@ -2,6 +2,7 @@
 // a maso do zásoby (`huntDay` před výcvikem). Úlovek jde akumulátorem bez náhody; jediný los je
 // riziko zranění a smrti (`huntRisk`, vlastní proud ze seedu vsi a dne). Lov navíc na pokyn hráče
 // (`canDeclareHunt`, `declareHunt`) vyhlásí hráč přes use-case `declareHuntInVillage`.
+import { deathWho } from '../people/estate';
 import { addHides, addSmallHides } from '../wares/wares';
 import { dateOfDayIndex } from '../../calendar';
 import { createRandom, deriveSeed } from '../../landscape/random';
@@ -336,7 +337,7 @@ export function huntRisk(
         age: ageYears(p.bornDay, day),
         cause: 'hunt',
         prey: quarry,
-        ...(p.name === undefined ? {} : { name: p.name, personId: p.id }),
+        ...deathWho(state, p, day),
       });
       const full = bury(state, day, p);
       if (full) events.push(full);

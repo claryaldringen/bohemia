@@ -1,10 +1,12 @@
 import { cloneState } from '../village/core/clone';
 import { isDynastyTracked, lineMen } from '../village/people/dynasty';
+import { chroniclePerson } from '../village/people/estate';
 import { villageManorId } from '../village/people/manor';
 import { ageYears, isAway, laborPerDay } from '../village/people/people';
 import type {
   AwayKind,
   ChronicleEvent,
+  ChroniclePerson,
   Guest,
   Person,
   PersonAway,
@@ -48,7 +50,9 @@ export function sendAway(
 
 /**
  * Začátek dne `day` (mutuje stav): kdo měl návrat do dneška, je zase doma (`away` zmizí) a hosté
- * s odchodem do dneška odejdou. Vrací zápis do kroniky – kolik lidí se vrátilo, po druzích.
+ * s odchodem do dneška odejdou. Vrací zápis do kroniky – kolik lidí se vrátilo, po druzích; z tažení
+ * i kdo (`who` – postavení a jméno, Martin 15. 11. 2026: „Z tažení se vrátil sedlák Bořivoj.“),
+ * dezertéři zvlášť (`deserted`).
  */
 export function returnHome(state: VillageState, day: number): ChronicleEvent[] {
   if (state.guests !== undefined) {
@@ -57,20 +61,46 @@ export function returnHome(state: VillageState, day: number): ChronicleEvent[] {
     else if (staying.length !== state.guests.length) state.guests = staying;
   }
   let back: Map<AwayKind, number> | null = null;
+  // z tažení po lidech (v pořadí stavu – id), řádný návrat a dezertéři zvlášť
+  const campaign: { home: ChroniclePerson[]; deserted: ChroniclePerson[] } = {
+    home: [],
+    deserted: [],
+  };
   for (const p of state.people) {
     const until = p.away?.untilDay;
     if (until === undefined || until > day) continue;
+    const kind = p.away!.kind;
+    if (kind === 'campaign') {
+      const who = chroniclePerson(state, p, day);
+      (p.away!.deserted ? campaign.deserted : campaign.home).push(who);
+      delete p.away;
+      continue;
+    }
     back ??= new Map();
-    back.set(p.away!.kind, (back.get(p.away!.kind) ?? 0) + 1);
+    back.set(kind, (back.get(kind) ?? 0) + 1);
     delete p.away;
   }
-  if (back === null) return [];
-  return AWAY_KINDS.filter((kind) => back.has(kind)).map((kind) => ({
-    day,
-    kind: 'people-back' as const,
-    away: kind,
-    people: back.get(kind)!,
-  }));
+  const events: ChronicleEvent[] = [];
+  for (const kind of AWAY_KINDS) {
+    if (kind === 'campaign') {
+      for (const deserted of [false, true]) {
+        const who = deserted ? campaign.deserted : campaign.home;
+        if (who.length === 0) continue;
+        events.push({
+          day,
+          kind: 'people-back',
+          away: kind,
+          people: who.length,
+          who,
+          ...(deserted ? { deserted: true as const } : {}),
+        });
+      }
+      continue;
+    }
+    const people = back?.get(kind);
+    if (people !== undefined) events.push({ day, kind: 'people-back', away: kind, people });
+  }
+  return events;
 }
 
 /**
@@ -112,11 +142,15 @@ export function endAway(
   refId: string,
   untilDay: number,
   personIds?: readonly number[],
+  deserted?: true,
 ): void {
   const only = personIds === undefined ? undefined : new Set(personIds);
   for (const p of state.people) {
     if (only && !only.has(p.id)) continue;
-    if (p.away?.refId === refId && p.away.untilDay === undefined) p.away.untilDay = untilDay;
+    if (p.away?.refId === refId && p.away.untilDay === undefined) {
+      p.away.untilDay = untilDay;
+      if (deserted) p.away.deserted = true;
+    }
   }
 }
 

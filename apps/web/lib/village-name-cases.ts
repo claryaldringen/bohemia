@@ -106,6 +106,12 @@ export function fromVillage(name: string): string {
   return genitive === null ? `ze vsi ${name}` : withPreposition('z', genitive);
 }
 
+/** Kam – 2. pád s předložkou „do“: „do Lhoty“, „do Sedlce“; jméno, které vzor nezná, „do vsi X“. */
+export function toVillage(name: string): string {
+  const { genitive } = nameForms(name);
+  return `do ${genitive ?? `vsi ${name}`}`;
+}
+
 /** Obyvatelé vsi (1. pád množného čísla): „Vlkovští“; jméno, které vzor nezná, „obyvatelé vsi X“. */
 export function villagersOf(name: string): string {
   const { adjective } = nameForms(name);

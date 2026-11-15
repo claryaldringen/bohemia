@@ -2,6 +2,7 @@ import { createRandom, deriveSeed } from '../landscape/random';
 import { bury } from '../village/buildings/cemetery';
 import { drawGrainPits } from '../village/fields/grain-pits';
 import { currentLord } from '../village/people/dynasty';
+import { chroniclePerson, deathWho } from '../village/people/estate';
 import { removePeople } from '../village/people/kinship';
 import { ensureLivestock } from '../village/livestock/livestock';
 import { ageGroup, ageYears, isAway } from '../village/people/people';
@@ -11,6 +12,7 @@ import { setStewardOn } from '../village/steward/steward-state';
 import { rehomePeople } from '../village/people/transfer-people';
 import type {
   ChronicleEvent,
+  ChroniclePerson,
   HerdSpecies,
   Person,
   Prisoner,
@@ -218,7 +220,7 @@ function warDeath(
       group: ageGroup(p, day),
       age: ageYears(p.bornDay, day),
       cause,
-      ...(p.name === undefined ? {} : { name: p.name, personId: p.id }),
+      ...deathWho(state, p, day),
     },
   ];
   if (buried) {
@@ -488,7 +490,8 @@ export function applyLineManFell(
 }
 
 /**
- * Návrat tažení do vsi útočníka (mutuje stav): muži jsou zase doma (`away` tažení se zruší),
+ * Návrat tažení do vsi útočníka (mutuje stav): muži jsou zase doma (`away` tažení se zruší, kronika
+ * „Z tažení se vrátil…“ – `people-back` s lidmi),
  * ranění 60 dní od zranění nepracují (los smrti jako u obránců), padlí vesničané zemřou (bez
  * pohřbu), kořist přibude do zásob a stád a odvedení přijdou jako noví vesničané s novými id.
  */
@@ -506,10 +509,19 @@ export function applyCampaignReturn(
     events.push(...warDeath(state, day, p, 'war', false));
     dead.add(id);
   }
+  // kdo se vrátil – do kroniky jménem a postavením (Martin 15. 11. 2026: „Z tažení se vrátil
+  // sedlák Bořivoj.“), v pořadí návratu
+  const who: ChroniclePerson[] = [];
   for (const id of body.back) {
     const p = byId.get(id);
     if (!p || dead.has(id)) continue;
-    if (p.away?.kind === 'campaign' && p.away.refId === body.campaignId) delete p.away;
+    if (p.away?.kind === 'campaign' && p.away.refId === body.campaignId) {
+      who.push(chroniclePerson(state, p, day));
+      delete p.away;
+    }
+  }
+  if (who.length > 0) {
+    events.push({ day, kind: 'people-back', away: 'campaign', people: who.length, who });
   }
   for (const w of body.wounded) {
     const p = byId.get(w.personId);

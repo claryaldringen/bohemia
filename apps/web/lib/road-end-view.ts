@@ -2,9 +2,16 @@
 // „Pokud cestu označím, měl bych v panelu cesty vidět, která místa to jsou a moci je také
 // označit.“). Jádro určí, co na konci je (`chainEnds` – kotvy jako úklid), tady se z toho stane
 // název do popisku, ikona a cíl výběru.
-import { roadChainIds, type Road, type RoadEnd, type VillageState } from '@bohemia/game';
+import {
+  neighbourOf,
+  roadChainIds,
+  type Road,
+  type RoadEnd,
+  type VillageState,
+} from '@bohemia/game';
 import type { VillageTarget } from './scene/village-picking';
 import { DIRECTION_NAMES } from './trade-names';
+import { toVillage } from './village-name-cases';
 import { DWELLING_NAMES } from './village-view-chronicle';
 
 /**
@@ -22,7 +29,7 @@ export const JUNCTION_ICONS = {
 export interface VillageRoadEnd {
   /** Místo (stavba, pole, voda…), křižovatka, kraj mapy, jiná cesta, nebo nikam (pravidlo 11). */
   kind: RoadEnd['kind'];
-  /** Název do popisku („Obydlí – polozemnice“, „Křižovatka“, „Kraj mapy – sever“). */
+  /** Název do popisku („Obydlí – polozemnice“, „Křižovatka“, „Cesta do Lhoty“). */
   name: string;
   /** Ikona (celá cesta); kraj mapy a nikam ji nemají (šipka, varování). */
   icon: string | null;
@@ -152,9 +159,11 @@ export function roadEndView(
       };
     }
     case 'edge':
+      // cesta přes kraj mapy vede k sousedovi v tom směru (Martin 15. 11. 2026: „ta cesta přece
+      // někam vede“)
       return {
         kind: 'edge',
-        name: `Kraj mapy – ${DIRECTION_NAMES[end.direction].name}`,
+        name: `Cesta ${toVillage(neighbourOf(state.seed, end.direction).name)}`,
         icon: null,
         arrow: DIRECTION_NAMES[end.direction].arrow,
         target: null,

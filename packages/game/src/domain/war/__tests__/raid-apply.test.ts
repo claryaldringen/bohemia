@@ -296,7 +296,11 @@ describe('návrat tažení (applyCampaignReturn)', () => {
       [2, undefined],
     ]);
     expect(v.people[1]!.woundedUntil).toBe(DAY + 4 + WAR.wounded.days);
-    expect(events).toEqual([expect.objectContaining({ kind: 'death', cause: 'war' })]);
+    // kronika: padlý, pak kdo se vrátil (Martin 15. 11. 2026: „Z tažení se vrátil sedlák Bořivoj.“)
+    expect(events).toEqual([
+      expect.objectContaining({ kind: 'death', cause: 'war' }),
+      expect.objectContaining({ kind: 'people-back', away: 'campaign', people: 2 }),
+    ]);
   });
 
   it('odvedení přijdou jako noví vesničané s novými id, rodina spolu', () => {

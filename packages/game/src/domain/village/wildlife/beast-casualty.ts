@@ -1,6 +1,7 @@
 // Šelma napadla muže výjezdu (lord-control.md – Nebezpečí, bod 3; wildlife.md – Nebezpečí pro
 // lidi): schránka vsi použije událost `journey-casualty`. Čísla losu jsou čísla lovu (`HUNT_RISK`)
 // a los je na výjezdu (`predatorDay`); ves už jen zapíše následek.
+import { deathWho } from '../people/estate';
 import { removePeople } from '../people/kinship';
 import { ageGroup, ageYears } from '../people/people';
 import { HUNT_RISK } from '../rules/rules-wildlife';
@@ -30,7 +31,7 @@ export function applyJourneyCasualty(
     age: ageYears(p.bornDay, day),
     cause: 'beast',
     by: body.by,
-    ...(p.name === undefined ? {} : { name: p.name, personId: p.id }),
+    ...deathWho(state, p, day),
   };
   removePeople(state, new Set([p.id]));
   return [event];

@@ -157,6 +157,8 @@ export interface PersonAway {
   kind: AwayKind;
   /** Den, na jehož začátku je člověk zase doma (chybí – návrat určí jiná mechanika). */
   untilDay?: number;
+  /** Utekl z tažení domů (war.md – Dezerce) – kronika „Z tažení utekl domů…“. Chybí – ne. */
+  deserted?: true;
   hostVillageId?: string;
   refId?: string;
   /**
