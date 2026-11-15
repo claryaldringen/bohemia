@@ -263,7 +263,10 @@ a `food` (kg obilí ze zásob shromaždiště).
   nováčka `houseProtectedUntil` + `protectedReason`, ochrana rodu platí jen když mezi rody neběží
   válka), jídlo (nejvýš zásoba shromaždiště bez osiva a nosnost mužů). Odhad: `CampaignEstimate`
   (síla `armyStrength` po vsích s pokrytím nástroji, počty mužů, cesta ve dnech vzdušnou čarou
-  ≈ 3,5 m/s, na kolik dní vystačí jídlo, `ambush`, `liveCommand`).
+  ≈ 3,5 m/s, na kolik dní vystačí jídlo, `ambush`, `liveCommand`). **Poloha shromaždiště, cíle
+  i domovů** (`villageStandingPlace` v `plan-campaign.ts`): kotva vsi `villageAnchor` (dvorec, jinak
+  průměr obydlí) ze stavu vsi; ves bez obydlí má střed místa pro ves (`villagePlace`). Jen nově
+  plánovaná tažení – běžící nesou uložené body.
 - **`musterOf`** (`domain/war/muster.ts`): vesničané 16–44 let (`villagerCandidates`); příbuzní
   v cíli (`kinInTarget` – příchozí ze sousední mapy ve směru cíle: muž, jeho žena nebo rodiče) →
   neochotný; ostatní losují vlastním losem (`musterSeed` = seed vsi + cíl) s pravděpodobností
