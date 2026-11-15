@@ -5668,18 +5668,30 @@ def _wall_blocks(bm, x0, x1, y, z0, rows, h=0.34, depth=0.5):
 
 
 def icon_lodge():
-    """Stavební huť: kamenná chata z kvádrů s dřevěnou sedlovou střechou a dveřmi."""
-    wall, roof, door = bmesh.new(), bmesh.new(), bmesh.new()
-    _wall_blocks(wall, -1.4, 1.4, 0, 0, 4)
-    _wall_blocks(wall, -1.4, 1.4, 1.0, 0, 4)
-    _wall_blocks(wall, -1.4, 1.4, 0.5, 0, 4)
-    box(door, (0, -0.28, 0.5), (0.7, 0.08, 1.0))
-    _roof(roof, (0, 0.5, 1.36), 2.0, 3.3, 0.8)
-    objs = [to_obj(wall, "wall", _stone(), smooth=False),
+    """Stavební huť: dřevěná bouda (čtyři sloupy, sedlová střecha, zadní prkna) u rozestavěné
+    kamenné zdi; před boudou opracovaný kvádr s dřevěnou paličkou."""
+    posts, back, roof = bmesh.new(), bmesh.new(), bmesh.new()
+    wall, block, head, haft = bmesh.new(), bmesh.new(), bmesh.new(), bmesh.new()
+    for x in (-1.9, 0.1):
+        for y in (-0.7, 0.7):
+            box(posts, (x, y, 0.75), (0.16, 0.16, 1.5))
+    box(back, (-0.9, 0.72, 0.7), (2.0, 0.08, 1.3))
+    _roof(roof, (-0.9, 0, 1.45), 1.8, 2.6, 0.6)
+    _wall_blocks(wall, 0.5, 2.3, 0.0, 0, 3)
+    _wall_blocks(wall, 0.5, 1.2, 0.0, 1.02, 1)
+    box(block, (-0.8, -1.15, 0.3), (1.0, 0.7, 0.6))
+    box(head, (-0.55, -1.15, 0.78), (0.5, 0.28, 0.28), rot=(0, 0, math.radians(15)))
+    cyl(haft, (-0.55, -1.15, 0.62), (-1.0, -1.15, 0.64), 0.04, 0.04, 8)
+    wood = wood_mat("post", (0.46, 0.3, 0.15))
+    objs = [to_obj(posts, "posts", wood, smooth=False),
+            to_obj(back, "back", wood_mat("planks", (0.38, 0.25, 0.12)), smooth=False),
             to_obj(roof, "roof", wood_mat("roof", (0.4, 0.26, 0.12)), smooth=False),
-            to_obj(door, "door", wood_mat("door", (0.3, 0.19, 0.09)), smooth=False)]
+            to_obj(wall, "wall", _stone(), smooth=False),
+            to_obj(block, "block", _stone(), smooth=False),
+            to_obj(head, "head", wood_mat("head", (0.5, 0.33, 0.16)), smooth=False),
+            to_obj(haft, "haft", wood_mat("haft", (0.55, 0.38, 0.2)))]
     hud_light(az=-40, el=45)
-    camera(world_points(objs), az=-8, el=18, margin=1.04)
+    camera(world_points(objs), az=-22, el=32, margin=1.04)
     return True
 
 
