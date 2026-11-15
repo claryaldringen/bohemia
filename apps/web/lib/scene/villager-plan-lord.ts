@@ -24,7 +24,11 @@ import {
   hitchSpot as horseHitchSpot,
   huntPlans,
   isRiding,
+  leaderSpot,
   leadPath,
+  leadRepeat,
+  leadTimes,
+  LEAD_M_S,
   rideBlockAt,
   ridePlans,
   riderPose,
@@ -32,6 +36,7 @@ import {
   type RidePlan,
   withLead,
 } from './riders';
+import { groomCandidates, groomedHorses } from './ride-grooms';
 import { horseGate } from './villager-plan-shoeing';
 import { cast, figure } from './villager-plan-cast';
 import { hash01 } from './smoke-schedule';
@@ -270,6 +275,68 @@ function huntBridge(
   };
 }
 
+/** Jezdec bez podkoního dojde k brance ohrady (a od ní po jízdě zpět) nejvýš za tolik s. */
+export const SELF_LEAD_BRIDGE_S = 40;
+
+/**
+ * Jezdec vede koně sám (D69 – ves bez rolníků; Martin 15. 11. 2026, jako výjezd vojvody „nikdo
+ * doma“): `SELF_LEAD_BRIDGE_S` před vyvedením koně (`leadTimes`) dojde od místa, kde ho den rodiny
+ * (`base`) zastihne, k brance, vyvede koně za uzdu ke kůlu (`leaderSpot`) a nasedne; po jízdě ho
+ * odvede do ohrady a dojde tam, kde ho den rodiny zastihne – nikdy se nepřenese střihem.
+ */
+export function selfLead(base: PoseFn, plan: RidePlan, speed: number): PoseFn {
+  const lead = plan.lead;
+  if (!lead || !plan.span) return base;
+  const probe = createVillagerPose();
+  const spot = { x: 0, z: 0, headingX: 0, headingZ: 1 };
+  const ends = new Map<number, { into: [PosePoint, PosePoint]; back: [PosePoint, PosePoint] }>();
+  const pace = LEAD_M_S / speed;
+  const at = (fn: PoseFn, t: number, herds: Parameters<PoseFn>[1]): PosePoint => {
+    probe.hidden = false;
+    const p = fn(t, herds, probe);
+    return { x: p.x, z: p.z, hx: p.headingX, hz: p.headingZ, hidden: p.hidden === true };
+  };
+  const gate = (back: boolean): PosePoint => {
+    leaderSpot(lead, 0, back, spot);
+    return { x: spot.x, z: spot.z, hx: -spot.headingX, hz: -spot.headingZ, hidden: false };
+  };
+  return (t, herds, out) => {
+    const n0 = leadRepeat(plan, t);
+    for (const n of plan.period ? [n0, n0 + 1] : [0]) {
+      const w = leadTimes(plan, n);
+      if (!w) continue;
+      const s0 = w.out - SELF_LEAD_BRIDGE_S;
+      const s1 = w.back + SELF_LEAD_BRIDGE_S;
+      if (t < s0 || t >= s1 || (t >= w.mount && t < w.dismount)) continue;
+      let e = ends.get(n);
+      if (!e) {
+        e = {
+          into: [at(base, s0, herds), gate(false)],
+          back: [gate(true), at(base, s1, herds)],
+        };
+        ends.set(n, e);
+      }
+      if (t < w.out) {
+        walkBetween(out, e.into[0], e.into[1], t - s0, SELF_LEAD_BRIDGE_S, speed);
+      } else if (t >= w.back) {
+        walkBetween(out, e.back[0], e.back[1], t - w.back, SELF_LEAD_BRIDGE_S, speed);
+      } else {
+        const back = t >= w.dismount;
+        const walking = back ? t < w.back : t < w.at;
+        const d = back ? lead.length - (t - w.dismount) * LEAD_M_S : (t - w.out) * LEAD_M_S;
+        leaderSpot(lead, d, back, out);
+        out.hidden = false;
+        delete out.lift;
+        out.clip = walking ? 'walk' : 'idle';
+        out.pace = walking ? pace : 1;
+      }
+      delete out.stage;
+      return out;
+    }
+    return base(t, herds, out);
+  };
+}
+
 /**
  * Rodina na dvorku (lord.md – Ve scéně; villagers.md – výjimka z pravidla „nikdo nestojí na
  * oploceném pozemku“ a Bez časosběru): cvičící muži a chlapci jdou den rodiny ve skutečném čase
@@ -316,9 +383,18 @@ export function lordFigures(
   );
   // kůň dojde z ohrady ke kůlu před jízdou a vrátí se po ní (riders.ts – `withLead`): z branky
   // ohrady, kde stojí, kousek před ni – vyjde a vejde u branky (`leadGate`)
-  const rides = [...patrolRides, ...(hunt?.rides ?? [])].map((r) =>
-    withLead(r, leadGate(ctx, r.horseId), leg),
+  const ledPatrol = patrolRides.map((r) => withLead(r, leadGate(ctx, r.horseId), leg));
+  const ledHunt = (hunt?.rides ?? []).map((r) => withLead(r, leadGate(ctx, r.horseId), leg));
+  const rides = [...ledPatrol, ...ledHunt];
+  // koně vyvede a odvede podkoní (D69 – ride-grooms.ts); na koho nezbude rolník, vede jezdec sám
+  const groomed = groomedHorses(
+    rides,
+    groomCandidates(ctx.village.labor?.persons ?? [], lord, ctx.village.dwellings).length,
   );
+  const selfLed = (r: RidePlan | undefined): RidePlan | null =>
+    r?.lead && r.span && !groomed.has(r.horseId) ? r : null;
+  const ledPatrolOf = new Map(ledPatrol.map((r) => [r.riderId, r]));
+  const ledHuntOf = new Map(ledHunt.map((r) => [r.riderId, r]));
   const patrolOf = new Map(patrolRides.map((r) => [r.riderId, r]));
   const huntRideOf = new Map((hunt?.rides ?? []).map((r) => [r.riderId, r]));
   const walking = new Map((hunt?.foot ?? []).map((r) => [r.riderId, r]));
@@ -401,6 +477,10 @@ export function lordFigures(
     if (huntRide?.span) pose = huntBridge(pose, riderPose(huntRide), huntRide.span, speed);
     else if (foot?.span)
       pose = huntBridge(pose, footHunterPose(foot, carrier === hours.id, null), foot.span, speed);
+    // bez podkoního jezdec dojde pro koně k brance a po jízdě ho odvede do ohrady sám (D69)
+    for (const own of [selfLed(ledPatrolOf.get(hours.id)), selfLed(ledHuntOf.get(hours.id))]) {
+      if (own) pose = selfLead(pose, own, speed);
+    }
     out.push(figure(c, pose, 'natural', { kind: 'lord', household: false }));
     walking.delete(hours.id);
   }

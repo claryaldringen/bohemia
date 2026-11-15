@@ -505,6 +505,8 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `VillageVillagers.scheduleDay` při změně staveniště týž den (`siteKey`) volá
   `Timetable.setDay(…, since)` – nový úsek obsazení od teď: stavitel nové stavby se v `since`
   vydá k ní z místa, kde je (`settle` – přerušení), úloha u zrušené stavby v `since` skončí.
+  Úlohy navíc mimo obsazení dne (`Timetable.setDuties`, `Duties` – podkoní, D69, scene-village.md):
+  `ScheduleInput.castOf(t, personId)` dá člověku v okně úlohu navíc a hranice oken.
   `VillageVillagers.rebuild` (`scheduleDay`, `personFigures`): postava každého člověka
   `labor.persons` (`personFigure` – vzhled, velikost a šátek či šediny podle člověka, klíč
   `person:id`), póza `Timetable.pose`, chůze ode dveří tempem `SCHEDULE_WALK_M_S`. Postavy dne

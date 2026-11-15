@@ -197,6 +197,22 @@ Tři řádky v panelu obchodu jako u dobytka ([obchod](trade.md) – Dobytek ve 
 - **Z ohrady ke kůlu chůzí (návrh Clauda, 2. 11. 2026):** před každou jízdou kůň dojde krokem
   (1,2 m/s) od branky své ohrady tam, kde jízda začne, 10 s stojí, jezdec nasedne; po jízdě se
   vrátí a do ohrady vejde u branky (ohrada ho mezitím nekreslí). Dřív se u kůlu objevil.
+- **Koně vede podkoní (D69, Martin 15. 11. 2026: „Zdá se mi to, nebo se po Vlkově toulá
+  bezprizorní kůň?“ – „Koně by měl nějaký podkoní (rolník) přivést ke dvorci“):** kůň se nikdy
+  nehýbe bez člověka u sebe. Před jízdou dojde **podkoní** – rolník: dospělý muž vsi (i
+  patnáctiletý) mimo rodinu vojvody a mimo domácnost dílny (řemeslo dělají muži domácnosti) –
+  k brance ohrady, koně vyvede za uzdu ke kůlu u dvorce (jde u jeho hlavy, krokem koně), podrží
+  ho, než jezdec nasedne, a vrátí se ke své práci (přes domov jako po jiné události); po jízdě si
+  pro koně ke kůlu dojde a odvede ho do ohrady. Je-li jízda krátká, počká u kůlu.
+  **Podkoní dojde vždy včas** (návrh Clauda): rozvrh ho zavolá podle cesty z míst, kde podle
+  rozvrhu může být (domov, místa jeho práce) – u branky je aspoň 10 s dřív, než kůň vyjde, a po
+  jízdě u kůlu dřív, než jezdec sesedne; kdo dojde dřív, počká. Zavolání rozhoduje jen to, co
+  rozvrh ví do té chvíle, takže ho nový den zpětně nezmění. Přednost má ten, koho rozvrh dne má
+  u koní (péče o koně – koňák), pak volný muž s obydlím nejblíž ke kůlu (jako vesničan, který koně
+  přivede výpravě), pak kdo hlídá stádo či staví a nakonec i kdo je na svatbě či pohřbu; od
+  spřežení a vozu se nechodí. Ves bez rolníků (nebo víc koní než rolníků): jezdec dojde pro koně
+  k brance a odvede ho sám jako u výjezdu vojvody, když nikdo není doma. Jen podívaná – péči
+  o koně počítá jádro dál stejně.
 - **Kdy jsou jezdci venku (návrh Clauda, 24. 10. 2026):** scéna ukazuje to, co simuluje jádro
   ([lord.md](lord.md) – Výcvik: v každém ze dvou bloků dne napřed luk, pak boj, pak jízda).
   Jezdec jede **jen v bloku jízdy** (`SceneRide.hours` ÷ počet bloků, po luku a boji); zbytek dne
@@ -210,7 +226,8 @@ Tři řádky v panelu obchodu jako u dobytka ([obchod](trade.md) – Dobytek ve 
   skok koně). Jízda k hranici a doprovod výpravy se kreslí stejně, bez dojetí ke kraji
   (jednodušší než pokračování přes bloky a dny). Mimo blok je kůň v ohradě (v noci a v zimě
   vždy; v létě podle pasáka jako ostatní koně, kůň s jezdcem se nepase), v ohradě ho ráno vede ven
-  koňák – ve scéně kůň v bloku jen vyjede od kůlu a po bloku se vrátí do ohrady bez vedení.
+  koňák – ve scéně koně před blokem vyvede ke kůlu podkoní (bez rolníků jezdec sám) a po bloku ho
+  odvede do ohrady (D69 – Koně vede podkoní).
 - **Technické riziko – 8 vertex bufferů WebGPU:** postava jich má právě 8, jezdec **nesmí přidat
   žádný atribut** – sed, barevný plášť ani příznak „na koni“ nejdou do vertexů, jen do animace nebo
   textury. U koně s morph targety ověřit počet bufferů (kráva a vůl mají stejné řešení, takže by

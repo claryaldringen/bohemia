@@ -135,7 +135,11 @@ export interface TaskWalk {
 /** Vstup rozvrhu: seed vsi, obsazení podle času a délky chůze úloh (ze sítě pěšin). */
 export interface ScheduleInput {
   seed: number;
-  castOf(t: number): CastSpan;
+  /**
+   * Obsazení v okamžik `t`; s `personId` i s úlohou navíc toho člověka (podkoní – D69,
+   * villager-timetable.ts `Duties`) a hranicemi jejích oken.
+   */
+  castOf(t: number, personId?: number): CastSpan;
   /**
    * Chůze úlohy; `when` – kdy dojde (`out`) a kdy odchází (`back`) u úlohy s místem v čase
    * (`PersonTask.placeAt`), jinak se nepoužije.
@@ -288,9 +292,9 @@ function holdUntil(
   start: number,
   task: PersonTask,
 ): number {
-  let until = input.castOf(start).until;
+  let until = input.castOf(start, personId).until;
   for (let n = 0; n < MAX_STEPS && until !== Infinity; n++) {
-    const next = input.castOf(until);
+    const next = input.castOf(until, personId);
     if (next.cast.get(personId)?.key !== task.key) break;
     until = next.until;
   }
@@ -354,9 +358,9 @@ function interruption(
   personId: number,
   a: Activity,
 ): { at: number; task: PersonTask | null } | null {
-  let t = input.castOf(a.start).until;
+  let t = input.castOf(a.start, personId).until;
   for (let n = 0; n < MAX_STEPS && t < a.end; n++) {
-    const span = input.castOf(t);
+    const span = input.castOf(t, personId);
     const task = span.cast.get(personId);
     if (task?.interrupt && task.key !== a.task?.key) {
       const at = task.at;
@@ -450,7 +454,7 @@ export function departAfter(
       bell += BELL_S;
       limit = bell;
     }
-    const span = input.castOf(start);
+    const span = input.castOf(start, personId);
     const found = span.cast.get(personId);
     // povodeň – na rozlitou vodu nikdo nejde (zkusí to po další pauze)
     const task = found && !wetTask(input, found, start) ? found : undefined;
