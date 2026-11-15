@@ -3,10 +3,14 @@
 // modelu jako `localToWorld` (x napříč, z k vchodu); modely z tools/blender/crafts.py (tam
 // Blender: x napříč, y podél hřebene s vchodem v −y – ve scéně x → −x, y → −z).
 import {
+  DWELLING_FOOTPRINT_M,
   MILIR,
   PLAIN_FRAME,
+  isHouseType,
+  shapeRect,
   shapeY,
   type Craft,
+  type DwellingType,
   type KilnStage,
   type Position,
   type ShapeFrame,
@@ -25,6 +29,53 @@ export const CRAFT_MODEL: Readonly<Record<Craft, WorkshopModel>> = {
   burner: 'uhlir',
   carpenter: 'tesar',
 };
+
+/** Model přístřešku nadzemní dílny (workshops.md – Ve scéně): „pristresek-<model dílny>“. */
+export type ShedModel = `pristresek-${WorkshopModel}`;
+
+/**
+ * Modely dílny řemesla na obydlí `type`: dnešní dílna (polozemnice, zemnice) je jeden model;
+ * nadzemní dílna (vypletený dům, srub – workshops.md) je model domu toho typu a vedle něj
+ * přístřešek u boční stěny (+x domu).
+ */
+export function workshopModelKeys(
+  craft: Craft,
+  type: DwellingType,
+): { house: DwellingType | WorkshopModel; side: ShedModel | null } {
+  if (!isHouseType(type)) return { house: CRAFT_MODEL[craft], side: null };
+  return { house: type, side: `pristresek-${CRAFT_MODEL[craft]}` };
+}
+
+/**
+ * Počátek přístřešku nadzemní dílny v osách domu (x napříč, z k vchodu): na ose pravé boční stěny
+ * v polovině její délky. S variantou rozměrů (`frame`) se posune se stěnou, přístřešek se
+ * nenatahuje.
+ */
+export function shedOrigin(type: DwellingType, frame: ShapeFrame): { x: number; z: number } {
+  const { width, depth } = DWELLING_FOOTPRINT_M[type];
+  const r = shapeRect(frame, {
+    minX: -width / 2,
+    maxX: width / 2,
+    minZ: -depth / 2,
+    maxZ: depth / 2,
+  });
+  return { x: r.maxX, z: (r.minZ + r.maxZ) / 2 };
+}
+
+/**
+ * Bod v osách přístřešku (`dx` od stěny ven, `dz` podél stěny; model přístřešku míří od stěny
+ * k +x domu) → svět.
+ */
+export function shedToWorld(
+  position: Position,
+  frame: ShapeFrame,
+  type: DwellingType,
+  dx: number,
+  dz: number,
+): Point {
+  const o = shedOrigin(type, frame);
+  return localToWorld(position, o.x + dx, o.z + dz);
+}
 
 /** Dílny na polozemnici s přístřeškem před domem (crafts.py – build_porch_house). */
 export const PORCH_WORKSHOPS: readonly WorkshopModel[] = ['hrncir', 'kovar', 'tesar'];
@@ -167,6 +218,17 @@ const PORCH_FIRE_X: Record<Exclude<WorkshopModel, 'uhlir'>, number | null> = {
 };
 
 /**
+ * Kde pod přístřeškem nadzemní dílny je oheň (dx od stěny, dz podél ní; models/crafts
+ * pristresek-*.glb): hrnčířská pec a výheň; tesař a uhlíř oheň nemají.
+ */
+const SHED_FIRE: Record<WorkshopModel, readonly [number, number] | null> = {
+  hrncir: [1.25, -1.75],
+  kovar: [1.0, 0.3],
+  tesar: null,
+  uhlir: null,
+};
+
+/**
  * Dým pracující dílny: hrnčířská pec a výheň stojí pod přístřeškem – dým vychází zpod jeho
  * předního okraje; uhlíř topí jen v milíři (samostatná stavba – `kilnVents`); tesař nekouří.
  * Přístřešek se s variantou rozměrů domu posune a natáhne (`frame` – population.md).
@@ -175,7 +237,14 @@ export function workshopVents(
   craft: Craft,
   position: Position,
   frame: ShapeFrame = PLAIN_FRAME,
+  type?: DwellingType,
 ): WorkshopVent[] {
+  if (type !== undefined && isHouseType(type)) {
+    const fire = SHED_FIRE[CRAFT_MODEL[craft]];
+    if (!fire) return [];
+    const [x, z] = shedToWorld(position, frame, type, fire[0], fire[1]);
+    return [{ kind: 'craft', x, z, y: shapeY(frame, 1.2) }];
+  }
   return modelVents(CRAFT_MODEL[craft], position, frame);
 }
 
@@ -247,8 +316,60 @@ export function craftSpots(
   craft: Craft,
   position: Position,
   frame: ShapeFrame = PLAIN_FRAME,
+  type?: DwellingType,
 ): CraftSpot[] {
+  if (type !== undefined && isHouseType(type)) return shedSpots(craft, position, frame, type);
   return modelSpots(CRAFT_MODEL[craft], position, frame);
+}
+
+/**
+ * Místa řemeslníků pod přístřeškem nadzemní dílny: [dx od stěny, dz podél ní, směr dx, směr dz,
+ * klip] v osách přístřešku – obsluha stojí z vnější strany obsahu (pec, výheň, kruh, kozlíky,
+ * hromada dřeva), čelem ke stěně domu.
+ */
+const SHED_SPOTS: Record<
+  WorkshopModel,
+  readonly (readonly [number, number, number, number, CraftSpot['clip']])[]
+> = {
+  hrncir: [
+    [2.2, 0.2, -1, 0, 'wheel'], // u hrnčířského kruhu
+    [2.3, -1.75, -1, 0, 'build'], // u ústí pece
+    [1.5, 1.9, -1, 0, 'idle'], // u police se sušícími se hrnci
+    [2.9, 1.0, -1, 0, 'build'],
+  ],
+  kovar: [
+    [2.7, 0.35, -1, 0, 'build'], // u kovadliny
+    [1.8, 1.0, -1, 0, 'weed'], // u měchů výhně
+    [1.6, -1.25, -1, 0, 'idle'], // u koryta s vodou
+    [2.5, -1.8, -1, 0, 'build'],
+  ],
+  tesar: [
+    [2.6, 0.3, -1, 0, 'build'], // u otesávaného trámu na kozlících
+    [2.0, -2.2, -1, 0, 'weed'], // u rozdělaného kola
+    [2.3, 1.2, 0, 1, 'build'], // u špalku se sekerou
+    [1.2, -0.2, -1, 0, 'idle'], // u zásoby trámů
+  ],
+  uhlir: [
+    [1.95, -1.8, -1, 0, 'build'], // u hromady dřeva
+    [1.95, -0.6, -1, 0, 'build'],
+    [1.95, 0.6, -1, 0, 'idle'],
+    [1.95, 1.8, -1, 0, 'build'],
+  ],
+};
+
+/** Místa řemeslníků pod přístřeškem nadzemní dílny (`SHED_SPOTS`) ve světě. */
+function shedSpots(
+  craft: Craft,
+  position: Position,
+  frame: ShapeFrame,
+  type: DwellingType,
+): CraftSpot[] {
+  const c = Math.cos(position.rotation);
+  const s = Math.sin(position.rotation);
+  return SHED_SPOTS[CRAFT_MODEL[craft]].map(([dx, dz, hx, hz, clip]) => {
+    const [x, z] = shedToWorld(position, frame, type, dx, dz);
+    return { x, z, hx: hx * c + hz * s, hz: -hx * s + hz * c, clip };
+  });
 }
 
 /** Místa řemeslníků podle modelu dílny (`craftSpots` – i pro tesaře před řemeslem v jádru). */

@@ -5,6 +5,8 @@ import {
   dwellingBuildLabor,
   fieldPartsFromCells,
   sacredBuildLabor,
+  workshopLaborManDays,
+  workshopTrees,
   threshingFloorBuildLabor,
   orchardPartsFromCells,
   packObstacles,
@@ -21,7 +23,9 @@ import {
   buildVariantName,
   dwellingPlacementCost,
   penPlacementCost,
+  WORKSHOP_VARIANTS,
   penVariantSpecies,
+  workshopChoice,
 } from '../build-items';
 
 const key = (
@@ -456,5 +460,78 @@ describe('ohrada podle druhu (oxen.md – Ohrady podle druhu)', () => {
     expect(item.check(landscape, withPen, [{ x: 20, y: 20 }], undefined, 'sheep').check.ok).toBe(
       false,
     );
+  });
+});
+
+describe('řemeslná dílna – druhy (workshops.md)', () => {
+  const SIZE = 32;
+  const landscape: Landscape = {
+    size: SIZE,
+    cellSizeM: 15,
+    heights: new Float32Array(SIZE * SIZE),
+    surface: new Uint8Array(SIZE * SIZE).fill(2),
+    fertility: new Uint8Array(SIZE * SIZE).fill(50),
+    villageSite: { x: 16, y: 16 },
+    stream: [],
+    obstacleLayer: null,
+  };
+  const village: PlacementVillage = {
+    dwellings: [{ type: 'zemnice', position: { x: 0, z: 0, rotation: 0 } }],
+    constructions: [],
+    parts: [],
+  };
+  const smith = buildItem('smith');
+  if (smith.placement !== 'workshop') throw new Error('Kovář je dílna.');
+
+  it('rozcestník: dnešní dílna, vypletená a roubená; uhlíř má zemnici', () => {
+    expect(WORKSHOP_VARIANTS('smith')).toEqual([
+      { id: 'polozemnice', icon: 'build/kovar', name: 'Polozemnice' },
+      { id: 'vypleteny', icon: 'build/kovar-vypleteny', name: 'Vypletená' },
+      { id: 'srub', icon: 'build/kovar-srub', name: 'Roubená' },
+    ]);
+    expect(WORKSHOP_VARIANTS('burner')[0]).toEqual({
+      id: 'zemnice',
+      icon: 'build/uhlir',
+      name: 'Zemnice',
+    });
+    expect(buildVariantName(smith, WORKSHOP_VARIANTS('smith')[1]!)).toBe('Kovář – Vypletená');
+  });
+
+  it('do roku 750 tlačítko i klávesa staví rovnou dnešní dílnu, pak otevřou rozcestník', () => {
+    const early = {
+      variants: {
+        vypleteny: { blocked: 'Od roku 750' },
+        srub: { blocked: 'Od roku 800' },
+      },
+    };
+    const mid = {
+      variants: { vypleteny: { blocked: null }, srub: { blocked: 'Od roku 800' } },
+    };
+    expect(workshopChoice(smith, early as never)).toEqual({ kind: 'start', type: 'polozemnice' });
+    expect(workshopChoice(smith, mid as never)).toEqual({ kind: 'hub' });
+    expect(workshopChoice(smith, mid as never, 'vypleteny')).toEqual({
+      kind: 'start',
+      type: 'vypleteny',
+    });
+    // roubená před rokem 800 a neznámý druh (ruční volání) nejdou
+    expect(workshopChoice(smith, mid as never, 'srub')).toEqual({ kind: 'denied' });
+    expect(workshopChoice(smith, mid as never, 'zemnice')).toEqual({ kind: 'denied' });
+    // klávesa G řemesla je rozcestník, ne druh
+    expect(buildItemForKey(key('KeyG'))?.kind).toBe('smith');
+  });
+
+  it('cena u kurzoru vypletené kovárny = práce a stromy domu s přístřeškem', () => {
+    const position = { x: 40, z: 40, rotation: 0 };
+    const check = smith.check(landscape, village, position, 99, 'vypleteny');
+    expect(check.ok).toBe(true);
+    const plain = smith.check(landscape, village, position, 99);
+    expect(check.cost!.laborManDays).toBeCloseTo(
+      workshopLaborManDays('smith', 0, { fell: [] }, 'vypleteny'),
+      6,
+    );
+    expect(check.cost!.laborManDays).not.toBe(plain.cost!.laborManDays);
+    expect(workshopTrees('smith', 'vypleteny')).toBe(19);
+    // stromy z plánu dřeva: klády na hromadě (99) kryjí všechno, nic se nekácí
+    expect(check.cost!.trees).toBe(0);
   });
 });

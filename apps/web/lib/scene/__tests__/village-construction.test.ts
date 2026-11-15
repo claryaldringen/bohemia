@@ -4,6 +4,8 @@ import { describe, it, expect } from 'vitest';
 import { PLOT_HOUSE_OFFSET_M, PLOT_VARIANTS, type DwellingType } from '@bohemia/game';
 import { plotInward } from '../homestead-layout';
 import {
+  workshopHouseShare,
+  workshopSiteParts,
   CONSTRUCTION_PHASES,
   PLOT_BUILT,
   SITE_PROPS,
@@ -30,6 +32,56 @@ function glbNodes(file: string): string[] {
   };
   return json.nodes.filter((n) => n.mesh !== undefined).map((n) => n.name ?? '');
 }
+
+describe('staveniště nadzemní dílny (workshops.md – Ve scéně)', () => {
+  const MODELS = { potter: 'hrncir', smith: 'kovar', carpenter: 'tesar', burner: 'uhlir' } as const;
+  const SITE_FILES = ['crafts/construction.glb'] as const;
+  const shedNodes = new Set(SITE_FILES.flatMap((f) => glbNodes(f)));
+
+  it('roubená kovárna: v polovině podílu domu je srub v 50 %, přístřešek ještě nestojí', () => {
+    const share = workshopHouseShare('smith', 'srub');
+    expect(share).toBeGreaterThan(0.7);
+    expect(share).toBeLessThan(0.9);
+    const half = workshopSiteParts('smith', 'srub', 'kovar', share / 2);
+    expect(half.houseProgress).toBeCloseTo(0.5, 9);
+    expect(half.shed).toEqual([]);
+  });
+
+  it('po podílu domu přibude přístřešek a jeho obsah; dílny se nerozpadají po dílech', () => {
+    const share = workshopHouseShare('smith', 'srub');
+    const start = workshopSiteParts('smith', 'srub', 'kovar', share + 0.001);
+    expect(start.houseProgress).toBe(1);
+    expect(start.shed).toEqual(['pristresek-kovar-posts']);
+    const done = workshopSiteParts('smith', 'srub', 'kovar', 1);
+    expect(done.shed).toContain('pristresek-kovar-thatch');
+    expect(done.shed).toContain('pristresek-kovar-forge-hearth');
+    expect(done.shed).toContain('pristresek-kovar-yard');
+    // díly přibývají a neubývají
+    let last = 0;
+    for (let p = 0; p <= 1; p += 0.01) {
+      const { shed } = workshopSiteParts('smith', 'srub', 'kovar', p);
+      expect(shed.length).toBeGreaterThanOrEqual(last);
+      last = shed.length;
+    }
+  });
+
+  it('každý díl přístřešku každého řemesla je v crafts/construction.glb', () => {
+    for (const craft of Object.keys(MODELS) as (keyof typeof MODELS)[]) {
+      for (const type of ['vypleteny', 'srub'] as const) {
+        const { shed } = workshopSiteParts(craft, type, MODELS[craft], 1);
+        expect(shed.length).toBeGreaterThanOrEqual(4);
+        for (const part of shed) expect(shedNodes.has(part), part).toBe(true);
+      }
+    }
+  });
+
+  it('uhlíř nemá přirážku, přesto jeho přístřešek přibude na konci', () => {
+    expect(workshopHouseShare('burner', 'vypleteny')).toBeLessThan(1);
+    expect(workshopSiteParts('burner', 'vypleteny', 'uhlir', 1).shed).toContain(
+      'pristresek-uhlir-wood',
+    );
+  });
+});
 
 describe('fáze stavby', () => {
   it('aspoň 8 fází, navazují na sebe a pokryjí průběh 0–1', () => {

@@ -10,8 +10,8 @@ import {
   startThreshingFloor,
   startWorkshop,
 } from '../core/actions';
-import { buildAffordability } from './costs';
-import { dwellingYearReason } from './log-house';
+import { BUILD_COSTS, buildAffordability, workshopCosts } from './costs';
+import { dwellingYearReason, isHouseType, type HouseType } from './log-house';
 import {
   startFortification,
   startFortificationUpgrade,
@@ -97,6 +97,8 @@ export const NO_PLOT = 'Polozemnice potřebuje pozemek – celé políčko.';
 export const BAD_PLOT = 'Neplatné natočení pozemku.';
 /** Neznámé řemeslo (vstup z klienta). */
 export const UNKNOWN_CRAFT = 'Takové řemeslo ves nezná.';
+/** Neznámý typ nadzemní dílny (vstup z klienta). */
+export const UNKNOWN_HOUSE_TYPE = 'Taková dílna se nestaví.';
 /** Na modlu nebo svatyni chybí dospělý dub ke kácení (happiness.md). */
 export const NO_OAKS = 'Na stavbu chybí dospělé duby ke kácení.';
 /** Svatyně je jedna na ves (happiness.md). */
@@ -140,6 +142,11 @@ export interface WorkshopIntent {
   kind: 'workshop';
   craft: Craft;
   position: Position;
+  /**
+   * Nadzemní dílna (workshops.md): vypletený nebo roubený dům s přístřeškem; bez údaje dnešní
+   * dílna na `CRAFT_BASE`.
+   */
+  type?: HouseType;
 }
 
 /** Dřevěná modla nebo svatyně (happiness.md). */
@@ -601,14 +608,28 @@ function buildWorkshop(
   place: () => PlacementVillage,
 ): BuildResult {
   if (!CRAFTS.includes(intent.craft)) return { ok: false, reason: UNKNOWN_CRAFT };
-  const { affordable, missing } = buildAffordability(state, intent.craft, obstacles);
+  // nadzemní dílna až od roku své varianty (workshops.md) – i když hráč obejde zašedlé tlačítko
+  if (intent.type !== undefined) {
+    if (!isHouseType(intent.type)) return { ok: false, reason: UNKNOWN_HOUSE_TYPE };
+    const year = dwellingYearReason(intent.type, day);
+    if (year !== null) return { ok: false, reason: year };
+  }
+  const costs = intent.type ? workshopCosts(intent.craft, intent.type) : BUILD_COSTS;
+  const { affordable, missing } = buildAffordability(state, intent.craft, obstacles, costs);
   if (!affordable) {
     const reason = missing.wood ? NO_WOOD : CANNOT_AFFORD;
     return { ok: false, reason };
   }
   const village = place();
   const position = { ...intent.position };
-  const check = checkWorkshopPlacement(landscape, village, intent.craft, position, obstacles);
+  const check = checkWorkshopPlacement(
+    landscape,
+    village,
+    intent.craft,
+    position,
+    obstacles,
+    intent.type,
+  );
   if (!check.ok) return { ok: false, reason: check.reason ?? 'Sem dílna nepatří.' };
   const tile = tileOfWorldPoint(landscape, position.x, position.z);
   return {
@@ -630,6 +651,7 @@ function buildWorkshop(
         takenLand: check.takenLand,
         walk: villageRoadWalk(state, landscape),
       },
+      intent.type,
     ),
   };
 }

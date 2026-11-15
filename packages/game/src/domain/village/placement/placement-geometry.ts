@@ -165,7 +165,7 @@ export interface PlacedDwelling {
  */
 export function dwellingPlot(landscape: Landscape, d: PlacedDwelling): Point[][] {
   const shape = dwellingShape(d);
-  if (d.craft) return workshopFootprints(d.craft, d.position, shape);
+  if (d.craft) return workshopFootprints(d.craft, d.position, shape, d.type);
   const footprint = dwellingFootprint(d.type, d.position, shape);
   return d.plot
     ? [...plotShapes(landscape, d.plot).map((shape) => [...shape.corners]), footprint]

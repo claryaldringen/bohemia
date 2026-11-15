@@ -76,6 +76,7 @@ export {
   threshingFloorsKey,
   grainPitsKey,
   kilnsKey,
+  campsKey,
   pastureHerds,
   liningKey,
   roadsKey,

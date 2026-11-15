@@ -59,6 +59,7 @@ import {
   type VillageView,
 } from '../village-view';
 import { manorHousehold, visitedWives } from '../village-view-scene';
+import { campLook } from '../scene/burner-camp-layout';
 import { protectionLevel, sceneWeather } from '../weather-view';
 import type { SceneVillage, ScenePloughLegs } from '../village-view-scene-types';
 import type { ScenePerson } from '../person-view';
@@ -601,6 +602,20 @@ describe('buildVillageView', () => {
         upfront: [{ resource: 'wood', amount: 23, missing: 23 }],
         blocked: null,
         affordable: false,
+        variants: {
+          vypleteny: {
+            laborManDays: 326,
+            upfront: [{ resource: 'wood', amount: 19, missing: 19 }],
+            blocked: 'Od roku 750',
+            affordable: false,
+          },
+          srub: {
+            laborManDays: 366,
+            upfront: [{ resource: 'wood', amount: 33, missing: 33 }],
+            blocked: 'Od roku 800',
+            affordable: false,
+          },
+        },
       },
       smith: {
         laborManDays: 286,
@@ -609,6 +624,20 @@ describe('buildVillageView', () => {
         upfront: [{ resource: 'wood', amount: 23, missing: 23 }],
         blocked: null,
         affordable: false,
+        variants: {
+          vypleteny: {
+            laborManDays: 326,
+            upfront: [{ resource: 'wood', amount: 19, missing: 19 }],
+            blocked: 'Od roku 750',
+            affordable: false,
+          },
+          srub: {
+            laborManDays: 366,
+            upfront: [{ resource: 'wood', amount: 33, missing: 33 }],
+            blocked: 'Od roku 800',
+            affordable: false,
+          },
+        },
       },
       // uhlíř jako zemnice – milíř staví u dávky buků (crafts.md – Milíř u skácených buků)
       burner: {
@@ -618,6 +647,20 @@ describe('buildVillageView', () => {
         upfront: [{ resource: 'wood', amount: 7, missing: 7 }],
         blocked: null,
         affordable: false,
+        variants: {
+          vypleteny: {
+            laborManDays: 260,
+            upfront: [{ resource: 'wood', amount: 14, missing: 14 }],
+            blocked: 'Od roku 750',
+            affordable: false,
+          },
+          srub: {
+            laborManDays: 300,
+            upfront: [{ resource: 'wood', amount: 28, missing: 28 }],
+            blocked: 'Od roku 800',
+            affordable: false,
+          },
+        },
       },
       // tesař – polozemnice s přístřeškem jako hrnčíř a kovář (wagons.md)
       carpenter: {
@@ -627,6 +670,20 @@ describe('buildVillageView', () => {
         upfront: [{ resource: 'wood', amount: 23, missing: 23 }],
         blocked: null,
         affordable: false,
+        variants: {
+          vypleteny: {
+            laborManDays: 326,
+            upfront: [{ resource: 'wood', amount: 19, missing: 19 }],
+            blocked: 'Od roku 750',
+            affordable: false,
+          },
+          srub: {
+            laborManDays: 366,
+            upfront: [{ resource: 'wood', amount: 33, missing: 33 }],
+            blocked: 'Od roku 800',
+            affordable: false,
+          },
+        },
       },
       // ohrada s přístřeškem (oxen.md) – 40 čd a 6 stromů předem, osadníci ne
       pen: {
@@ -792,6 +849,32 @@ describe('buildVillageView', () => {
     expect(view.vypleteny.blocked).toBeNull();
     expect(view.vypleteny.affordable).toBe(true);
     expect(view.srub.blocked).toBe('Od roku 800');
+  });
+
+  it('řemeslné dílny mají varianty vypletená a roubená – cena domu s přístřeškem, rok (workshops.md)', () => {
+    const s = settled();
+    s.woodLogs = 40;
+    const day700 = dayIndexOf({ year: 700, month: 1, day: 1 });
+    const early = buildVillageView(record({ ...s, lastDay: day700 }), landscape, day700).build;
+    expect(early.smith.laborManDays).toBe(286);
+    expect(early.smith.variants?.vypleteny).toMatchObject({
+      laborManDays: 326,
+      upfront: [{ resource: 'wood', amount: 19, missing: 0 }],
+      blocked: 'Od roku 750',
+      affordable: false,
+    });
+    expect(early.burner.variants?.srub).toMatchObject({
+      laborManDays: 300,
+      blocked: 'Od roku 800',
+    });
+    const day760 = dayIndexOf({ year: 760, month: 1, day: 1 });
+    const mid = buildVillageView(record({ ...s, lastDay: day760 }), landscape, day760).build;
+    expect(mid.smith.variants?.vypleteny?.blocked).toBeNull();
+    expect(mid.smith.variants?.vypleteny?.affordable).toBe(true);
+    expect(mid.smith.variants?.srub?.blocked).toBe('Od roku 800');
+    expect(mid.smith.variants?.srub?.upfront).toEqual([
+      { resource: 'wood', amount: 33, missing: 0 },
+    ]);
   });
 
   it('s dostavěnou zemnicí: domácnost s věky obyvatel', () => {
@@ -2580,6 +2663,52 @@ describe('buildVillageView – uhlíř (crafts.md – Milíř u skácených buk�
       [702, 'burn'],
       [600, 'remnant'],
     ]);
+  });
+
+  it('zemnice u milíře – ve scéně i v kontrole umístění stejně jako na serveru (workshops.md)', () => {
+    const s = burnerVillage([kiln(700, { x: 90, z: 10 })]);
+    const burner = s.dwellings.find((d) => d.id === 50)!;
+    burner.workshop!.camp = { id: 710, x: 100, z: 20, rotation: 1.25, done: 10, builtDay: DAY - 3 };
+    s.campRemnants = [
+      { id: 600, burnerId: 50, x: 60, z: -40, rotation: 0.5, day: DAY - Math.round(365 * 2.5) },
+    ];
+    const view = buildVillageView(record(s), landscape, DAY);
+    // hotová zemnice, milíř pálí – uhlíř v ní přespává; opuštěná napůl zchátralá
+    expect(view.scene.burnerCamps).toEqual([
+      {
+        id: 710,
+        burnerId: 50,
+        x: 100,
+        z: 20,
+        rotation: 1.25,
+        built: 1,
+        occupied: true,
+        overgrowth: null,
+      },
+      {
+        id: 600,
+        burnerId: 50,
+        x: 60,
+        z: -40,
+        rotation: 0.5,
+        built: 1,
+        occupied: false,
+        overgrowth: 0.5,
+      },
+    ]);
+    const server = placementVillageOf(s, DAY).camps;
+    expect(server).toHaveLength(2);
+    expect(placementVillageFromScene(view.scene).camps).toEqual(server);
+    // rozestavěná zemnice po 5 % a bez pálení neobsazená
+    burner.workshop!.camp = { id: 710, x: 100, z: 20, rotation: 1.25, done: 3.3 };
+    burner.workshop!.kilns![0]!.stage = 'build';
+    const building = buildVillageView(record(s), landscape, DAY).scene.burnerCamps![0]!;
+    expect(building).toMatchObject({ built: 0.3, occupied: false, overgrowth: null });
+    // opuštěná nedostavěná zemnice zůstane staveništěm (klády), jen zarůstá
+    s.campRemnants = [{ id: 600, burnerId: 50, x: 60, z: -40, rotation: 0.5, day: DAY, done: 7 }];
+    const left = buildVillageView(record(s), landscape, DAY).scene.burnerCamps![1]!;
+    expect(left).toMatchObject({ id: 600, built: 0.7, occupied: false, overgrowth: 0 });
+    expect(campLook(left).part).toBe('milir-zemnice-logs');
   });
 
   it('mladé buky od uhlíře rostou – velikost podle stáří (za 60 let dospělé)', () => {

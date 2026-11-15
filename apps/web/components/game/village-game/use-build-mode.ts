@@ -32,6 +32,7 @@ import {
   fortVariantKind,
   fortVariantsBlocked,
   penVariantSpecies,
+  workshopChoice,
   type WebBuildKind,
 } from '@/lib/build-items';
 import { checkWithDesecration, squaresWithDesecration } from '@/lib/desecration-warning';
@@ -295,11 +296,18 @@ export function useBuildMode({
       if (variant === undefined && offered.length === 1) variant = offered[0]!.id;
     }
     const item = buildItem(kind);
+    if (item.placement === 'workshop') {
+      // rozcestník dílny je až od roku 750; do té doby tlačítko i klávesa staví rovnou dnešní dílnu
+      const choice = workshopChoice(item, options[kind], variant);
+      if (choice.kind === 'denied') return;
+      if (choice.kind === 'start') variant = choice.type;
+    }
     // stavba s druhy je rozcestník: tlačítko i zkratka otevřou v mřížce druhy, znovu je zavřou
     if (
       (item.placement === 'squares' ||
         item.placement === 'fort-points' ||
-        item.placement === 'dwellings') &&
+        item.placement === 'dwellings' ||
+        item.placement === 'workshop') &&
       item.variants &&
       variant === undefined
     ) {
@@ -434,18 +442,22 @@ export function useBuildMode({
       return;
     }
     if (item.placement === 'workshop') {
+      // vybraný druh dílny (rozcestník), jinak dnešní dílna
+      const workshopType = (item.variants.find((v) => v.id === variant) ?? item.variants[0]!).id;
       placement.start(
         {
           kind: 'workshop',
           craft: item.craft,
-          type: item.dwellingType,
+          type: workshopType,
           check: (position) =>
             checkWithDesecration(placementScene(), (village) =>
-              item.check(decoded, village, position, viewRef.current?.woodLogs ?? 0),
+              item.check(decoded, village, position, viewRef.current?.woodLogs ?? 0, workshopType),
             ),
         },
         (result) => {
-          if (result.kind === 'workshop') sites.buildWorkshop(result.craft, result.position);
+          if (result.kind === 'workshop') {
+            sites.buildWorkshop(result.craft, result.position, result.type);
+          }
         },
       );
       return;

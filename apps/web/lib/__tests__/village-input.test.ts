@@ -189,6 +189,22 @@ describe('vstup stavby řemeslné dílny', () => {
     ).toBeNull();
     expect(parsePlaceWorkshopInput('potter')).toBeNull();
   });
+
+  it('nadzemní dílna: type vypleteny / srub projde, jiný typ ne, bez type klíč type není', () => {
+    const position = { x: 1, z: 2, rotation: 0.5 };
+    expect(parsePlaceWorkshopInput({ craft: 'smith', position, type: 'srub' })).toEqual({
+      craft: 'smith',
+      position,
+      type: 'srub',
+    });
+    expect(parsePlaceWorkshopInput({ craft: 'smith', position, type: 'vypleteny' })?.type).toBe(
+      'vypleteny',
+    );
+    expect(parsePlaceWorkshopInput({ craft: 'smith', position, type: 'dvorec' })).toBeNull();
+    expect(parsePlaceWorkshopInput({ craft: 'smith', position, type: 'polozemnice' })).toBeNull();
+    expect(parsePlaceWorkshopInput({ craft: 'smith', position, type: 7 })).toBeNull();
+    expect(parsePlaceWorkshopInput({ craft: 'smith', position })).not.toHaveProperty('type');
+  });
 });
 
 describe('vstupy víc vsí a přestěhování (migration.md)', () => {

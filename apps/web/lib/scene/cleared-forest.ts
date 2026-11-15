@@ -170,6 +170,7 @@ export function villageClearedForest(
         : forestClearingsOf({
             type: d.type,
             position: d.position,
+            ...(d.craft ? { craft: d.craft } : {}),
             ...(d.plainShape ? { plainShape: true } : {}),
           }),
     ),

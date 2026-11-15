@@ -4,7 +4,13 @@
 // fázích obydlí (hrnčíř a kovář polozemnice, uhlíř zemnice) a přidávají své. Souřadnice modelu
 // jako `localToWorld` (x napříč, z k vchodu).
 import { PIT_SHAPES } from './dwelling-pit';
-import type { DwellingType, WallKind } from '@bohemia/game';
+import {
+  DWELLINGS,
+  workshopCost,
+  type Craft,
+  type DwellingType,
+  type WallKind,
+} from '@bohemia/game';
 
 /**
  * Řemeslné stavby (docs/design/crafts.md): hrnčíř, kovář, tesař (docs/design/wagons.md – Tesař),
@@ -1025,5 +1031,79 @@ function sacredState(kind: SacredKind, p: number, parts: string[]): Construction
     trampled: 0.85 * ramp(p, 0.01, dig.from + 0.05),
     props,
     plot: PLOT_NONE,
+  };
+}
+
+/**
+ * Nejvyšší podíl práce nadzemní dílny, ve kterém se staví dům (workshops.md): uhlíř nemá přirážku
+ * za přístřešek, jeho přístřešek se přesto staví až na konci.
+ */
+const SHED_AFTER_HOUSE_MAX = 0.9;
+
+/** Podíl práce nadzemní dílny, ve kterém se staví dům – `DWELLINGS[type].cost ÷ workshopCost`. */
+export function workshopHouseShare(craft: Craft, type: DwellingType): number {
+  return Math.min(SHED_AFTER_HOUSE_MAX, DWELLINGS[type].cost / workshopCost(craft, type));
+}
+
+/** Díly přístřešku nadzemní dílny po sobě: [díl bez předpony „pristresek-<model>-“, od kdy 0–1]. */
+const SHED_STEPS: Record<Exclude<CraftKind, 'milir'>, readonly (readonly [string, number])[]> = {
+  hrncir: [
+    ['kiln-base', 0.6],
+    ['kiln-dome-1', 0.67],
+    ['kiln-dome-2', 0.74],
+    ['kiln-dome-3', 0.8],
+    ['kiln-mouth', 0.85],
+    ['shelf', 0.88],
+    ['wheel', 0.91],
+    ['pots', 0.94],
+    ['clay', 0.97],
+  ],
+  kovar: [
+    ['forge-hearth', 0.6],
+    ['forge-fire', 0.65],
+    ['forge-wall', 0.7],
+    ['forge-bellows', 0.75],
+    ['anvil', 0.8],
+    ['charcoal', 0.85],
+    ['trough', 0.9],
+    ['iron', 0.94],
+    ['yard', 0.97],
+  ],
+  tesar: [
+    ['trestles', 0.6],
+    ['beam', 0.7],
+    ['block', 0.78],
+    ['beams', 0.85],
+    ['wheels', 0.92],
+    ['chips', 0.97],
+  ],
+  uhlir: [['wood', 0.6]],
+};
+
+/**
+ * Staveniště nadzemní dílny (workshops.md – Ve scéně): dům se staví v podílu práce
+ * `workshopHouseShare` (`houseProgress` 0–1 pro `constructionState(type, …)`), pak přibudou
+ * sloupky přístřešku, krokve, došky a jeho obsah (`shed` – jména dílů v construction.glb
+ * „pristresek-<model>-…“). Hotová dílna je celá.
+ */
+export function workshopSiteParts(
+  craft: Craft,
+  type: DwellingType,
+  model: Exclude<CraftKind, 'milir'>,
+  progress: number,
+): { houseProgress: number; shed: string[] } {
+  const p = Math.min(1, Math.max(0, progress));
+  const share = workshopHouseShare(craft, type);
+  if (p < share) return { houseProgress: p / share, shed: [] };
+  const q = (p - share) / (1 - share);
+  const steps: readonly (readonly [string, number])[] = [
+    ['posts', 0],
+    ['rafters', 0.25],
+    ['thatch', 0.45],
+    ...SHED_STEPS[model],
+  ];
+  return {
+    houseProgress: 1,
+    shed: steps.filter(([, from]) => q >= from).map(([part]) => `pristresek-${model}-${part}`),
   };
 }

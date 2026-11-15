@@ -94,6 +94,9 @@ export type VillagerClip =
   // hlídá pec, hasí vápno, tesá, klade, míchá maltu a omítá (jen muž)
   | 'measure'
   | 'break-stone'
+  // uhlí kovářovi na tyči (workshops.md – dva muži nesou košatinu): přední muž s tyčí, zadní jen s koncem
+  | 'carry-pole'
+  | 'carry-pole-back'
   | 'carry-stone'
   | 'stoke'
   | 'slake'
@@ -172,6 +175,8 @@ export const VILLAGER_CLIPS: readonly VillagerClip[] = [
   'cook',
   'measure',
   'break-stone',
+  'carry-pole',
+  'carry-pole-back',
   'carry-stone',
   'stoke',
   'slake',
@@ -202,6 +207,8 @@ export const MAN_ONLY_CLIPS: readonly VillagerClip[] = [
   'walk-lord',
   'measure',
   'break-stone',
+  'carry-pole',
+  'carry-pole-back',
   'carry-stone',
   'stoke',
   'slake',
@@ -350,6 +357,9 @@ export const CLIP_SPEED_M_S: Record<VillagerKind, Partial<Record<VillagerClip, n
     'carry-wood': 1.0,
     'carry-water': 1.0,
     'carry-meat': 1.0,
+    // tyč s košatinou – táž chůze jako s masem (carry_meat_m)
+    'carry-pole': 1.0,
+    'carry-pole-back': 1.0,
     // kamení v nůši – táž chůze jako s nářadím (carry_grain_m)
     'carry-stone': 1.1,
     'walk-rattle': 1.0,
@@ -513,7 +523,7 @@ export function route(
 }
 
 /** Délka chůze trasy (s tempem úseků – po pěšině kratší). */
-function walkLengthOf(r: Route): number {
+export function walkLengthOf(r: Route): number {
   return r.walkLength ?? r.length;
 }
 
@@ -521,7 +531,7 @@ function walkLengthOf(r: Route): number {
  * Bod trasy po `w` metrech chůze (s tempem úseků) a směr úseku (do `out`); vrátí tempo úseku –
  * po pěšině jde postava rychleji a rychleji i kráčí.
  */
-function alongRouteWalk(r: Route, w: number, reverse: boolean, out: VillagerPose): number {
+export function alongRouteWalk(r: Route, w: number, reverse: boolean, out: VillagerPose): number {
   if (!r.walkAt || !r.pace) {
     alongRoute(r, w, reverse, out);
     return 1;

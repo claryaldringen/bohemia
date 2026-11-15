@@ -49,6 +49,9 @@ import {
   relocationBlock,
   raidHiding,
   dwellingYearReason,
+  CRAFTS,
+  workshopBuildCost,
+  type Craft,
 } from '@bohemia/game';
 import { churchBuildChoices, churchesOf } from './church-view';
 import { formatGameDate } from './game-date';
@@ -244,6 +247,39 @@ function horsePenOption(
   };
 }
 
+/** Je druh stavby řemeslná dílna? */
+function isCraft(kind: BuildKind): kind is Craft {
+  return (CRAFTS as readonly string[]).includes(kind);
+}
+
+/**
+ * Nadzemní varianty řemeslné dílny (workshops.md): vypletená a roubená – cena domu toho typu
+ * s přístřeškem (`workshopBuildCost`), dostupnost podle surovin předem a roku varianty
+ * (`dwellingYearReason` – „Od roku 750“ / „Od roku 800“ u kurzoru). Klíč = typ obydlí.
+ */
+function workshopVariants(
+  craft: Craft,
+  stock: Record<StockResource, number>,
+  day: number,
+): NonNullable<BuildOption['variants']> {
+  const variants: NonNullable<BuildOption['variants']> = {};
+  for (const type of ['vypleteny', 'srub'] as const) {
+    const cost = workshopBuildCost(craft, type);
+    const { affordable, missing } = affordability(stock, cost.upfront);
+    const blocked = dwellingYearReason(type, day);
+    variants[type] = {
+      laborManDays: cost.laborManDays,
+      upfront: STOCK_RESOURCES.flatMap((resource) => {
+        const amount = cost.upfront[resource] ?? 0;
+        return amount > 0 ? [{ resource, amount, missing: missing[resource] ?? 0 }] : [];
+      }),
+      affordable: affordable && blocked === null,
+      blocked,
+    };
+  }
+  return variants;
+}
+
 /**
  * Jde druh stavby zahájit (tlačítko mřížky, klávesa)? Ohrada koní se platí koňmi jen při založení;
  * rozšíření vybrané ohrady téhož druhu (`extending`) platbu nechce, i když přebytek na koně nestačí.
@@ -256,7 +292,7 @@ export function isBuildAffordable(
   if (!option) return true;
   const own = variant ? option.variants?.[variant] : undefined;
   if (!own) return option.affordable;
-  return extending ? own.extendAffordable : own.affordable;
+  return extending ? (own.extendAffordable ?? own.affordable) : own.affordable;
 }
 
 /** Druhy obydlí rozcestníku od nejlepšího – ikonu tlačítka dává první, který ves postaví. */
@@ -353,6 +389,7 @@ function buildOptions(
       }
     }
     if (kind === 'pen') option.variants = { horse: horsePenOption(state, base, stock, coverage) };
+    if (isCraft(kind)) option.variants = workshopVariants(kind, stock, day);
     return [kind, option];
   });
   return Object.fromEntries(entries) as Record<BuildKind, BuildOption>;

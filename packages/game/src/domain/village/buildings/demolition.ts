@@ -15,6 +15,7 @@ import {
   HUMNO,
   ORCHARD,
   SACRED_BUILDINGS,
+  workshopCost,
   workshopTrees,
 } from '../rules';
 import {
@@ -28,6 +29,7 @@ import {
   type UsableRef,
 } from './structure-use';
 import { addLogs } from '../forest/wood';
+import { abandonCamp } from '../crafts/burner-camp';
 import { clearWildTrees } from './wild-orchard';
 import { readySquares } from './cemetery';
 import { CEMETERY_IN_USE, cemeteryMayGo, recordDesecration } from '../people/desecration';
@@ -50,8 +52,8 @@ function buildPrice(target: Target): { laborManDays: number; trees: number } {
     const d = target.item;
     if (d.workshop) {
       return {
-        laborManDays: BUILD_COSTS[d.workshop.craft].laborManDays,
-        trees: workshopTrees(d.workshop.craft),
+        laborManDays: workshopCost(d.workshop.craft, d.type),
+        trees: workshopTrees(d.workshop.craft, d.type),
       };
     }
     return {
@@ -214,6 +216,9 @@ export function finishDemolition(
   const logs = demolitionCost(next, ref, day)?.logs ?? 0;
   const at = placeOf(target);
   if (target.structure === 'dwelling') {
+    // zemnice uhlíře u milíře se nebourá – zůstane opuštěná (workshops.md – Uhlíř – zemnice
+    // u milíře)
+    abandonCamp(next, target.item, day);
     next.dwellings = next.dwellings.filter((d) => d.id !== ref.id);
   } else if (target.structure === 'pen') {
     // rozestavěná rozšíření a rádlo ohrady zmizí s ní (dřevo zpět na hromadu)

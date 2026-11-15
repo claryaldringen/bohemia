@@ -4,14 +4,18 @@ import type { SceneLabor } from '../village-view';
 import { fetchCarriers, streamPhase } from './road-traffic';
 import { hash01 } from './smoke-schedule';
 import {
+  alongRouteWalk,
   route,
   shuttle,
+  shuttleCycle,
   stand,
+  walkLengthOf,
   walkSpeed,
   type PoseFn,
   type Route,
   type ShuttleOptions,
 } from './villager-motion';
+import { POLE_SPACING_M, campEntrance } from './burner-camp-layout';
 import { shuttleErrand } from './villager-errands';
 import { craftSpots, forestKilnAnchor, type CraftSpot } from './workshop-layout';
 import { carpenterCartSpots, smeltSpots, treadingLine } from './craft-yard-layout';
@@ -26,6 +30,7 @@ import {
   none,
   type Context,
   type House,
+  type Identity,
   type Placer,
   type PlannedVillager,
   type Point,
@@ -41,6 +46,7 @@ import {
   walkRoute,
 } from './villager-plan-geometry';
 import { adultHair, cast, figure } from './villager-plan-cast';
+import { ADULTS } from './villager-roster';
 
 /**
  * Uhlíř u milíře v lese (crafts.md – Uhlíř): staví, hlídá a vytahuje uhlí – místa kolem kupy
@@ -54,6 +60,34 @@ export function kilnWorkers(ctx: Context, kiln: { x: number; z: number }): Place
     const near = nearestFree(ctx, spot.x, spot.z, 4);
     return near ? stand(near.x, near.z, spot.hx, spot.hz, spot.clip) : null;
   };
+}
+
+/**
+ * Muž z domácnosti uhlíře, který u milíře nehlídá, sedí u vchodu zemnice čelem k milíři
+ * (workshops.md – Uhlíř, zemnice; jen když zemnice stojí a milíř pálí – `SceneBurnerCamp.occupied`).
+ * Bere se z těch, kdo zbyli po práci dne; bez volného muže nikdo.
+ */
+export function campSitters(ctx: Context): PlannedVillager[] {
+  const out: PlannedVillager[] = [];
+  for (const camp of ctx.village.burnerCamps ?? []) {
+    if (!camp.occupied || camp.built < 1) continue;
+    const key = `camp:${camp.id}`;
+    const c = cast(ctx, key, { women: 0, child: false }, () =>
+      ctx.roster!.take({ ...ADULTS, homes: new Set([camp.burnerId]), sex: 'male' }),
+    );
+    if (!c) continue;
+    const at = campEntrance(camp);
+    const spot = free(ctx, at.x, at.z) ? at : nearestFree(ctx, at.x, at.z, 3);
+    if (!spot) {
+      if (c.person) ctx.roster?.release(c.person.id);
+      continue;
+    }
+    const pose = stand(spot.x, spot.z, Math.sin(camp.rotation), Math.cos(camp.rotation), 'sit');
+    out.push(
+      figure(c, pose, adultHair(c.who, ctx.sexes.married), { kind: 'traffic', traffic: 'kiln' }),
+    );
+  }
+  return out;
 }
 
 /**
@@ -149,7 +183,8 @@ export const ORE_PIT_REACH_M = 8;
 export function smithFetchFigures(ctx: Context, labor: SceneLabor): PlannedVillager[] {
   const out: PlannedVillager[] = [];
   for (const share of labor.shares) {
-    if (share.activity !== 'fetch' || share.carts) continue;
+    // uhlí na tyči nese dvojice (`poleCarriers`)
+    if (share.activity !== 'fetch' || share.carts || share.pole !== undefined) continue;
     const t = share.target;
     if (t.kind !== 'ore' && t.kind !== 'clay' && t.kind !== 'kiln') continue;
     const from = t.kind === 'kiln' ? t.from : t.id;
@@ -198,11 +233,137 @@ export function smithFetchFigures(ctx: Context, labor: SceneLabor): PlannedVilla
       });
     });
   }
+  out.push(...poleCarriers(ctx, labor));
   return out;
 }
 
 /** Nosič kováře u milíře nebo jámy nakládá koš (s). */
 export const FETCH_LOAD_S = 5;
+
+export { POLE_SPACING_M };
+
+/**
+ * Uhlí na tyči (workshops.md – Uhlíř, odnos na tyči; Martin 14. 11. 2026): dvojice – uhlíř a jeho
+ * syn, kovář, nebo syn kováře (`LaborShare.pole`, věky `ages`: uhlíř, druhý) – jde po téže trase
+ * kovárna ↔ milíř, zadní o POLE_SPACING_M za předním. K milíři jdou prázdní (`walk`), zpět nesou
+ * košatinu na tyči (přední `carry-pole`, zadní `carry-pole-back`) a v kovárně zmizí. Pro kováře
+ * nebo jeho syna jde uhlíř napřed sám od milíře ke kovárně (`walk`) a dvojice vyjde, až tam dojde.
+ * Obě postavy jdou stejnou rychlostí (pomalejší z nich), ať tyč drží pospolu.
+ */
+export function poleCarriers(ctx: Context, labor: SceneLabor): PlannedVillager[] {
+  const out: PlannedVillager[] = [];
+  for (const share of labor.shares) {
+    const pole = share.pole;
+    if (share.activity !== 'fetch' || share.carts || pole === undefined) continue;
+    const t = share.target;
+    if (t.kind !== 'kiln' || t.from === undefined) continue;
+    const smithHome = ctx.houses.find((h) => h.id === t.from && h.built);
+    if (!smithHome) continue;
+    const door = trafficDoor(ctx, smithHome);
+    const goal = nearestFree(ctx, t.x, t.z, 8);
+    if (!door || !goal) continue;
+    const path = walkRoute(ctx, door, goal);
+    if (!path) continue;
+    const ages = share.ages ?? [];
+    const key = `fetch:${targetKey(t)}:${ages.join('.')}`;
+    const homes = [new Set([t.id]), new Set([pole === 'burner-son' ? t.id : t.from])];
+    const people = [0, 1].map((k) => {
+      const age = ages[k] ?? 30;
+      const child = age < CHILD_UNDER;
+      const c = cast(ctx, `${key}:${k}`, { women: 0, child }, () =>
+        ctx.roster!.take({
+          from: AGE.olderChild,
+          to: Infinity,
+          homes: homes[k]!,
+          sex: 'male',
+          age,
+        }),
+      );
+      return c ? { c, child } : null;
+    });
+    const [lead, rear] = people;
+    if (!lead || !rear) {
+      // druhý u tyče nevyšel – ten, kdo vyšel, zůstane volný pro jinou postavu
+      for (const p of people) if (p?.c.person) ctx.roster?.release(p.c.person.id);
+      continue;
+    }
+    const poses = polePoses(
+      path,
+      lead.c.who,
+      rear.c.who,
+      pole !== 'burner-son',
+      hash01(stringHash(key), 1, 93),
+    );
+    [lead, rear].forEach(({ c, child }, k) => {
+      const hair = child ? 'natural' : adultHair(c.who, ctx.sexes.married);
+      out.push(figure(c, poses[k]!, hair, { kind: 'fetch', goods: 'charcoal' }));
+    });
+  }
+  return out;
+}
+
+/**
+ * Pózy dvojice u tyče po trase kovárna (začátek) ↔ milíř (konec): jeden cyklus je (s `alone`
+ * napřed cesta samotného uhlíře od milíře ke kovárně) cesta tam, nakládání, cesta zpět s tyčí
+ * a doma. Zadní postava jde o POLE_SPACING_M později po téže trase, v kovárně vejde dovnitř
+ * o chvíli po předním.
+ */
+export function polePoses(
+  path: Route,
+  lead: { kind: Identity['kind']; scale: number },
+  rear: { kind: Identity['kind']; scale: number },
+  alone: boolean,
+  phase: number,
+): [PoseFn, PoseFn] {
+  const slowest = (clip: 'walk' | 'carry-pole'): number =>
+    Math.min(walkSpeed(lead.kind, clip, lead.scale), walkSpeed(rear.kind, clip, rear.scale));
+  const outSpeed = slowest('walk');
+  const backSpeed = slowest('carry-pole');
+  const delayS = POLE_SPACING_M / backSpeed;
+  const options: ShuttleOptions = {
+    outClip: 'walk',
+    outSpeed,
+    endClip: 'idle',
+    endS: FETCH_LOAD_S,
+    backClip: 'carry-pole',
+    backSpeed,
+    restClip: 'idle',
+    // zadní dojde za předním do kovárny, než se cyklus opakuje
+    restS: TRAFFIC_HOME_S + delayS + 2,
+    restHidden: true,
+    phase: 0,
+  };
+  const walk = walkLengthOf(path);
+  const legS = alone ? walk / outSpeed : 0;
+  const cycleS = legS + shuttleCycle(path, options).cycleS;
+  const front = shuttle(path, options);
+  const back = shuttle(path, { ...options, backClip: 'carry-pole-back' });
+  const clock = (t: number): number => {
+    const shifted = t + phase * cycleS;
+    return ((shifted % cycleS) + cycleS) % cycleS;
+  };
+  const leader: PoseFn = (t, herds, out) => {
+    const time = clock(t);
+    if (time >= legS) return front(time - legS, herds, out);
+    // uhlíř sám od milíře ke kovárně, pro druhého
+    out.pace = alongRouteWalk(path, walk - (time / legS) * walk, true, out);
+    out.clip = 'walk';
+    out.stage = 'out';
+    return out;
+  };
+  const follower: PoseFn = (t, herds, out) => {
+    const time = clock(t) - legS - delayS;
+    if (time < 0) {
+      alongRouteWalk(path, 0, true, out);
+      out.clip = 'idle';
+      out.stage = 'rest';
+      out.hidden = true;
+      return out;
+    }
+    return back(time, herds, out);
+  };
+  return [leader, follower];
+}
 
 /**
  * Řemeslníci v dílně (crafts.md): hrnčíř u kruhu a pece, kovář u kovadliny a měchů, uhlíř kolem
@@ -221,8 +382,9 @@ export function craftsmen(ctx: Context, dwellingId: number, bellows = false): Pl
     craft: house.craft,
     position: house.position,
     ...(house.frame ? { frame: house.frame } : {}),
+    ...(house.type ? { type: house.type } : {}),
   };
-  const porch = craftSpots(house.craft, house.position, house.frame);
+  const porch = craftSpots(house.craft, house.position, house.frame, house.type);
   const smelting = house.craft === 'smith' && house.yard?.task === 'smelt';
   const furnace = smelting ? smeltSpots(view) : [];
   // měchař z podílu syna stojí jen u měchu; sám kovář taví bez měchaře

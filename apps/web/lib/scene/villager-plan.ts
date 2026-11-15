@@ -69,6 +69,7 @@ import {
   grainPitWorkers,
   kilnWorkers,
   oreDiggers,
+  campSitters,
   smithFetchFigures,
 } from './villager-plan-crafts';
 import { trafficFigures } from './villager-plan-traffic';
@@ -354,6 +355,8 @@ export function planVillagersWithCrew(
   const traffic = trafficFigures(ctx, labor, options.maxTraffic ?? MAX_TRAFFIC);
   // domácí práce a nečinní – na koho zbude člověk
   all(() => true);
+  // muž uhlíře u vchodu zemnice – z těch, kdo zbyli po práci dne
+  const sitters = campSitters(ctx);
   const people: PlannedVillager[] = slots.flatMap((list) => list.filter(Boolean));
   const winter = WINTER_MONTHS.includes(labor.month);
   const tending = herderKinds(labor, options.herds);
@@ -367,6 +370,7 @@ export function planVillagersWithCrew(
   people.push(...mourners);
   people.push(...celebrants);
   people.push(...fetchers);
+  people.push(...sitters);
   people.push(...shoeing.people);
   people.push(...slaughter.people);
   people.push(...firefighters);

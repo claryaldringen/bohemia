@@ -76,16 +76,36 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
     (`VillageView.kilns`), panel dílny má milíře jako tlačítka; ukázky /dev/panels?panel=milir,
     /dev/buildings **Cyklus milíře** (`showcaseKiln`, `kilnCycleAt` – i milířiště).
 
+- **Zemnice u milíře** ([workshops.md](../design/workshops.md) – Uhlíř – zemnice u milíře; Martin 14. 11. 2026: „…[postaví] si jednoduchou zemnici přímo v lese u milíře … Tuto zemnici bude
+  opakovaně využívat, dokud v jejím okolí bude dost stromů“; podrobnosti návrh Clauda – Rozhodnutí
+  8): `crafts/burner-camp.ts`, čísla `BURNER_CAMP`. Stav `Workshop.camp` (`BurnerCamp` – id
+  z `nextId`, střed, natočení, `done` v čd, `builtDay`), opuštěné `VillageState.campRemnants`
+  (`CampRemnant` – nedostavěná nese `done`, scéna ji kreslí jako staveniště, které zarůstá);
+  obojí volitelné – dílna ze starší vsi zemnici nemá a rozdělaný milíř dojede bez ní. Kde
+  `workBurner` začíná nový milíř: `campUsable` (15 nejbližších volných buků do
+  `reuseRadiusM` od zemnice) → `startKiln` s `anchor` (první buk nejblíž zemnici, chůze se dál
+  měří od dílny); jinak `moveCamp` – stará zemnice se opustí (`abandonCamp`) a u milíře se hledá
+  nová (`findCampSite` v `kiln-site.ts` po kružnicích 8–30 m přes det-math, natočení
+  `campRotation` vchodem k milíři, kontrola `checkCampSite` v `placement-dwellings.ts` – půda
+  jako u milíře, na půdorysu s pruhem `treeMarginM` žádný strom ani souš, ani buk z dávky); místo
+  není → zemnice tentokrát nevznikne. Stromy: klády z `kiln.clearing.logs`, chybějící se přidají
+  do `clearing.ids` (nejbližší dospělé stromy k zemnici, za `OBSTACLE_COST.tree`, bez klád).
+  Práce: ve fázi `build` jde napřed do rozestavěné zemnice (× `kilnWalkFactor`), pálení bez ní
+  nezačne. Zánik dílny uhlíře (zchátrání, požár, zbourání) zemnici opustí; `updateCampRemnants`
+  vedle `updateKilnRemnants` (za `abandonedYears` zmizí). Zemnice brání stavbám i milíři
+  (`PlacementVillage.camps` – „Stojí tu zemnice uhlíře.“ v `checkFootprintFree`, seznam
+  `burnerCampSites`), pěšina i vůz ji obejdou (`PathVillage.camps` ve `villageBuildings`, klíče
+  `campsKey`, mapa tras a mřížka vozu – ves bez zemnic beze změny). Web: `SceneVillage.burnerCamps`
+  (`SceneBurnerCamp` – `built` a `overgrowth` po 5 %, `occupied` = hotová a milíř pálí;
+  `sceneBurnerCamps`), `camps` v `placementVillageFromScene` ve stejném pořadí jako na serveru.
+
 - **Uhlí a ruda kováře** ([crafts.md](../design/crafts.md) – Uhlí a ruda kováře;
   Martin 20. 10. 2026: „Pokud má dostatečně starého syna nebo syny, pošle pro uhlí jeho/je. Taky
   musí někam chodit kopat rudu. To místo, kde kope rudu, chci na mapě vidět.“; čísla
   `SMITH_SUPPLY` v `rules*.ts`, rešerše `research/2026-10-20-bog-ore.md` – většinou odhad): `smith-supply.ts`.
-  Uhlí, které uhlíř vytahá (`burnerDraws`), nese do nejbližší kovárny (`charcoalDeliveries`,
-  chůze `CharcoalKiln.carry` po pevných cestách s půdou) kovářova domácnost v koších po 15 kg
-  (`basketManDaysPerKg`): napřed synové 10–13 let (`charcoalYoungsters`, 40 % práce dospělého – ten
-  den nepasou: `herdingDay(…, busy)`), zbytek domácnost z práce dílny (`smithFetchDay`; synové od
-  14 jsou ve hře dospělí – rozhodnutí Clauda), u odpočívajícího kováře z práce vsi (kapacita
-  `allocateDay`). Ruda: 8 kg na kg nástrojů (`Workshop.oreKg`, bez rudy kovář nekove – `workSmith`
+  Uhlí, které uhlíř vytahá (`burnerDraws`), jde do nejbližší kovárny (`charcoalDeliveries`,
+  `nearestSmith`, chůze `CharcoalKiln.carry` po pevných cestách s půdou) – nese ho uhlíř na tyči
+  (odnos na tyči níž). Ruda: 8 kg na kg nástrojů (`Workshop.oreKg`, bez rudy kovář nekove – `workSmith`
   v crafts.ts), kopání 60 kg/čd s přirážkou za chůzi (`workOre` – dávka na 30 dní kování pěšky,
   s vozem na celý dvoukolák a dřív o `CART_JOBS.ore.reserveDays`, hromada u jámy `OreBatch.heap`),
   rudiště `chooseOreSite` (nejbližší `PATH_WETLAND`, jinak břeh; ne na čtvercích staveb ani u domů;
@@ -95,9 +115,11 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `Workshop.oreSite`, ložisko 3 t, další 20 m od `oreSitesUsed`), jámy `VillageState.orePits`
   (`openOrePit` ze seedu, `updateOrePits` – 10 let). Přirážka za vodu daleko (`oreFactor`)
   zmizela u kováře i hrnčíře. Starší kovárny `migrateSmith` (zásoba na dávku). Činnosti `digging`, `no-ore`; podíly práce `ore` (cíl
-  `{ kind: 'ore', id, x, z }`) a `fetch` (cíl rudiště, nebo milíř s `from` = kovárna) s věky
-  `LaborShare.ages`; v síti pěšin jen z kovárny (`smithWalks` v network-targets.ts). Web: panel
-  `SmithOreStats` (`VillageWorkshop.ore` ze `smithOreSummary`), upozornění `no-ore`, scéna
+  `{ kind: 'ore', id, x, z }`) a `fetch` (cíl rudiště; uhlí – milíř s `from` = kovárna, odnos na
+  tyči níž) s věky `LaborShare.ages`; v síti pěšin jen z kovárny (`smithWalks` v
+  network-targets.ts). Web: panel `SmithOreStats` (`VillageWorkshop.ore` ze `smithOreSummary` –
+  vůz, jinak řádek „nese uhlíř na tyči“; o uhlí od milíře jen s uhlířem ve vsi – `burner`),
+  upozornění `no-ore`, scéna
   `SceneVillage.oreSites` / `orePits` → `OreSiteRenderer` (`ore-sites.ts`, geometrie
   `ore-site-layout.ts` – val, voda, zarůstání, hromada rudy), ikona `resources/ore.png`; ukázka
   `/dev/landscape` **Rudiště** (`dev-ore.ts`). Ves bez kováře a hrnčíře beze změny
@@ -114,6 +136,33 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `dugSiteViews(state, day, material)` / `dugSitesField` (`VillageDugSite` – `workshopId`,
   `DugSiteWorker.craftsman`), panel `DugSiteBody` s texty `DUG_SITE_TEXTS`, portrét
   `icons/build/hliniste.png` (`icons.py hliniste`), `/dev/panels?panel=hliniste`.
+
+- **Odnos uhlí na tyči** ([workshops.md](../design/workshops.md) – Uhlíř – odnos uhlí na tyči;
+  Martin 14. 11. 2026: „Pokud má dostatečně velkého syna, donesou košatinu s uhlím mezi sebou na
+  tyči do kovárny. Pokud syna nemá, dojde si do kovárny pro kováře či jeho syna…“; číslo
+  `CHARCOAL_POLE`, podrobnosti návrh Clauda – plán Rozhodnutí 9): `charcoal-pole.ts`. Práce
+  odnosu se nemění – kg × `basketManDaysPerKg` (koš 15 kg, cesta kovárna ↔ milíř), každý z dvojice
+  nese polovinu. Uhlíř `poleBurner` (hlava domácnosti `smithHead`), druhý `polePartner`: syn
+  uhlíře 12–13 (nejstarší), syn uhlíře od 14 (nejmladší), syn kováře 12–13, syn kováře od 14,
+  kovář – od `CHARCOAL_POLE.sonFromAge`, kdo je pryč (`isAway`), nejde; kdo už dnes nese s jiným
+  uhlířem (`taken` – id člověka → uhlíř; plán `burnerPlans` → `plannedPoleCarry` i den ho vedou
+  ve stejném pořadí), taky ne – kovář i jeho syn nese jen s jedním uhlířem. Den: `charcoalCarryDay`
+  ve dvou fázích jako dřív nošení – odpočívající kovárny v `dayCartJobs` (`restingFetch`, díl
+  kováren `restingCarry` z kapacity `allocateDay`), ostatní ve `smithHerdingTravel` s vozy
+  zaplacenými `paySmithCarts`; `mergeCarryDays` → `DayTravel.fetchPlans` → `SmithSupply.carry`.
+  `CharcoalCarryDay`: `pairs` (`PoleCarry` – kg, práce dvojice `manDays`, `fetchWalk`), `burners`
+  (polovina uhlíře, se synem od 14 celé nošení, a cesta pro kováře `fetchWalkManDays` – jednou za
+  den za uhlíře a kovárnu), `smiths` (polovina kováře nebo syna od 14 – `workSmith` ji odečte
+  z práce dílny), `busy` (synové 12–13 – `herdingDay` a `smithBellowsToday`, ten den nepasou ani
+  nešlapou měch). `workBurner` odečte díl uhlíře (`options.carry`, × `WorkshopLabor.skill` –
+  nošení praxe nezpomaluje) po vytahání dávky, před ostatní prací u milíře. Plán `burnerPlans`
+  počítá s nošením pěšky (`plannedPoleCarry` – kovárna `nearestSmith`, chůze z `CharcoalKiln.carry`,
+  jinak vzdušně; `burnerPoleShare` ½, se synem od 14 let 1): vytahá (práce − cesta pro kováře) ÷
+  (vytahání + díl nošení); bez druhého u tyče nevytahá a dávka počká. Uhlí, které odveze vůz,
+  nikdo nenese. Podíl práce `fetch` dvojice je u dílny uhlíře (`WorkshopDay.fetch` –
+  `poleFetchEntry`): cíl milíř s `from` = kovárna, práce dvojice + cesta pro kováře, věky
+  [uhlíř, druhý] a `LaborShare.pole` (`PolePartnerKind`). Učni kovárny se učí i v den, kdy kovář
+  nebo syn nesl uhlí a kovář pracoval se vsí (`gainPractice` v `craftsDay`).
 
 - **Hlína hrnčíře** ([crafts.md](../design/crafts.md) – Hlína hrnčíře; Martin 20. 10. 2026:
   „Ano, udělej to jak říkáš“ – wagons.md, Co se vozí a na čem; čísla `CLAY` v `rules*.ts`, návrh
@@ -168,7 +217,8 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   řemeslo naučí“; čísla `CRAFT_SKILL`): `craft-skill.ts`. Praxe v letech u člověka
   (`Person.practice` po řemeslech, nejvýš 5) – `gainPractice` v kroku práce: dospělí z dílen, které
   dnes pracovaly (`crafts` – ne `resting`), a učni `craftApprentices` (synové od 10 let jako
-  `smithSons`; u kováře i ve dny nošení uhlí – `restingFetch`); kdo jde pro kování, ne. Výkon dílny
+  `smithSons`; u kováře i ve dny, kdy kovář nebo syn nesl uhlí na tyči – `restingFetch`); kdo jde
+  pro kování, ne. Výkon dílny
   `workshopSkill` (nejzkušenější dospělý doma, 0,5 → 1 za 5 let) je `WorkshopLabor.skill`: kovář
   kove pomaleji (`workSmith`, `smithForgeCharcoalKg` přes `forgeLabor`), hrnčíř vypaluje
   (`workWithWood` – kácení ne), uhlíř celá práce u milíře (`forgeLabor`, i `kilnLeadDays`), tesař
@@ -183,7 +233,9 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
 - **Tesař a vozy** ([wagons.md](../design/wagons.md) – fáze 1, Martin 19. 10. 2026; čísla
   `CARPENTRY`, `WOODWORK_LABOR`, `CARPENTER_TOOLS_WORK`, `WOOD_TOOLS`, `WOOD_TOOLS_LABOR`, `CARTS`,
   v `rules*.ts`, rešerše `research/2026-10-19-carts-carpentry.md`): řemeslo
-  `carpenter` (polozemnice + přístřešek, [T], ikona `tesar`) – `carpentry.ts`. Krok práce
+  `carpenter` (polozemnice + přístřešek, [T], ikona `tesar`) – `carpentry.ts`. **Nadzemní dílna**
+  (workshops.md – vypletená od 750, roubená od 800; ceny, půdorys a obsazení v
+  [village-buildings.md](village-buildings.md) – Nadzemní dílny). Krok práce
   (`simulate.ts`): `restingCarpenters` (odpočívá jen bez výroby i bez stavby s dřevěnou prací),
   `carpentryHelp` před stavbami (čd tesaře vede `crew` čd dřevěné práce dne – `woodworkToday`
   rozdělí práci rovným dílem jako `build`; jeho práce jde do staveb a `build` s pokrytím násobí

@@ -261,7 +261,8 @@ export async function plantRoadApples(input: unknown): Promise<VillageActionResu
 
 /**
  * Stavba řemeslné dílny (crafts.md, tesař – wagons.md): `{ villageId, craft: 'potter' | 'smith' |
- * 'burner' | 'carpenter', position }`. Server umístění ověří znovu (`checkWorkshopPlacement`).
+ * 'burner' | 'carpenter', position, type? }`; `type` 'vypleteny' | 'srub' je nadzemní dílna
+ * (workshops.md), server ověří rok, cenu i místo (`checkWorkshopPlacement`).
  */
 export async function placeWorkshop(input: unknown): Promise<VillageActionResult> {
   return villageAction(input, parsePlaceWorkshopInput, placeWorkshopForPlayer);

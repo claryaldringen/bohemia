@@ -24,7 +24,8 @@ import type { herdingDay } from '../livestock/herding';
 import type { walkPurchases } from '../crafts/craft-buying';
 import type { ironTripShares } from '../crafts/cart-iron';
 import type { workExpeditions } from '../trade/trade';
-import type { CartJobsDay, LogHaul, SmithCartsDay, smithFetchPlans } from './simulate-hauls';
+import type { CharcoalCarryDay } from '../crafts/charcoal-pole';
+import type { CartJobsDay, LogHaul, SmithCartsDay } from './simulate-hauls';
 import type { DayTask, FieldTaskEntry, occupiedDwellings } from './simulate-plan';
 import type { CartTripLog, CraftCoverage, Crop, CropWork, FieldPart, VillageState } from '../types';
 
@@ -108,15 +109,17 @@ export interface DayCartJobs {
   readonly logPlan: HaulPlan;
   /** jízdy před vodou ráno ve dny orby (`morningWaterDay` je smí doplnit) */
   readonly jobs: CartJobsDay;
-  /** uhlí ke kováři, který dnes pracuje se vsí */
-  readonly restingFetch: ReturnType<typeof smithFetchPlans>;
+  /** odnos uhlí na tyči do kováren, které dnes pracují se vsí (workshops.md – Uhlíř – odnos uhlí) */
+  readonly restingFetch: CharcoalCarryDay;
+  /** díl kováren z toho – z práce vsi (čd) */
   readonly restingCarry: number;
 }
 
 /** Uhlí a ruda ke kovářům, pasení a cesty k sousedům po úlohách dne. */
 export interface DayTravel {
   readonly smithCarts: SmithCartsDay;
-  readonly fetchPlans: ReturnType<typeof smithFetchPlans>;
+  /** odnos uhlí na tyči dne – obě fáze (`mergeCarryDays`) */
+  readonly fetchPlans: CharcoalCarryDay;
   readonly bellows: ReturnType<typeof smithBellowsToday>;
   readonly herding: ReturnType<typeof herdingDay>;
   readonly purchases: (

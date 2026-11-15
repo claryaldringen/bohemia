@@ -8,6 +8,7 @@ import {
   type HaulPlan,
 } from '../crafts/carts';
 import { charcoalDeliveries } from '../crafts/smith-supply';
+import { charcoalCarryDay } from '../crafts/charcoal-pole';
 import {
   burnerDraws,
   burnerPlans,
@@ -32,7 +33,6 @@ import {
   logHaulPlan,
   planCartJobs,
   planTaskHauls,
-  smithFetchPlans,
 } from './simulate-hauls';
 import { DayTask, occupiedDwellings, villageProductivity } from './simulate-plan';
 import type {
@@ -187,9 +187,10 @@ export function dayCartJobs(
           water: waterNeeds,
         })
       : NO_CART_JOBS;
-  // kovář, který dnes pracuje se vsí (plná zásoba nástrojů), a přesto mu uhlíř vytahal uhlí – co
-  // nedonesou synové 10–13, donese jeho domácnost z práce vsi
-  const restingFetch = smithFetchPlans(state, day, deliveries, jobs, resting, true);
-  const restingCarry = [...restingFetch.values()].reduce((sum, f) => sum + f.household, 0);
+  // kovář, který dnes pracuje se vsí (plná zásoba nástrojů), a přesto mu uhlíř vytahal uhlí – když
+  // uhlíř nemá syna, nese s ním kovář nebo jeho syn od 14 let svou polovinu z práce vsi
+  // (workshops.md – Uhlíř – odnos uhlí na tyči)
+  const restingFetch = charcoalCarryDay(state, day, deliveries, jobs, resting, true);
+  const restingCarry = [...restingFetch.smiths.values()].reduce((sum, m) => sum + m, 0);
   return { logs, logPlan, jobs, restingFetch, restingCarry };
 }

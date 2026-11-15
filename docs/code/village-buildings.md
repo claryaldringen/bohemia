@@ -487,6 +487,35 @@ Nové typy vznikají jen novou stavbou nebo přestavbou, převod starších vsí
 - **Web a scéna:** klávesa 2, model `vypleteny.glb` – `docs/code/scene-village.md` – Vypletený dům
   ve scéně. Testy `buildings/__tests__/wattle-house.test.ts`.
 
+## Nadzemní dílny (workshops.md)
+
+- **Dílna je obydlí typu domu:** `Dwelling` typu `vypleteny` / `srub` s `workshop.craft`; nový
+  `DwellingType` ani `BuildKind` nevznikl. `WorkshopIntent.type?: HouseType`,
+  `PlaceWorkshopInput.type?` a `startWorkshop(…, site, type?)` (typ, který není `HouseType`,
+  hodí RangeError). Bez typu se staví dnešní dílna na `CRAFT_BASE`. Rok hlídá `buildWorkshop`
+  v `applyBuildIntent` přes `dwellingYearReason` („Od roku 750“ / „Od roku 800“), neplatný typ
+  `UNKNOWN_HOUSE_TYPE`.
+- **Ceny** (`rules-crafts.ts`): `workshopShelter(craft)` = dnešní cena dílny minus základní obydlí
+  (66 čd a 5 stromů; uhlíř 0). `workshopCost`, `workshopTrees` a `workshopBuildLabor` mají
+  parametr `type`; nadzemní typ = `DWELLINGS[type].cost + manDays`, `DWELLING_TREES[type] + trees`
+  (326 čd / 19 stromů vypletená, 366 čd / 33 stromů roubená; uhlíř 260 / 14 a 300 / 28).
+  `workshopBuildCost(craft, type?)` a `workshopCosts(craft, type)` (`BUILD_COSTS` s cenou dílny
+  daného typu pro `buildAffordability` a `payUpfront`) jsou v `buildings/costs.ts`.
+  `rules-crafts.ts`: `WORKSHOP_SIDE_M` (3,2 m, uhlíř 2 m).
+- **Půdorys:** `workshopFootprints(craft, position, shape, type)` – u nadzemního typu jeden
+  obdélník: dům (i s variantou rozměrů) rozšířený o `WORKSHOP_SIDE_M` na +x domu;
+  `workshopSideM(craft, type)` (0 u dnešní dílny). Vyklízená plocha: `dwellingClearing` a
+  `freeDwellingClearings` mají `sideM` (`maxX + sideM`); `checkWorkshopPlacement(…, obstacles,
+type?)` ji používá i pro vzorky terénu.
+- **Přestavba** (`decideRebuilds`, `demolition.ts`): týž typ za `workshopBuildLabor(craft, type)`
+  a `workshopTrees(craft, type)`.
+- **Obsazení:** `isLogHouse` platí jen bez dílny, takže nadzemní dílna se osídluje jako dnešní
+  dílna (rodina ženatého syna, dočasně ubytovaní napřed – `occupyEmptyDwellings`); `availableSettlers`
+  počítá rozestavěnou dílnu (`craft`) vždy, správcův `buildingLogHouses` ji nepočítá, `hosts`
+  (`displaced.ts`) ji hostí jako obydlí. Správce – [village-steward.md](village-steward.md).
+- Testy `crafts/__tests__/workshop-house.test.ts`, `people/__tests__/workshop-house-settle.test.ts`,
+  `steward/__tests__/steward-workshop-house.test.ts`.
+
 ## Hřbitov po křtu rodu (cemetery.md – Po křtu rodu)
 
 `PlacementVillage.churchyardOnly` (`placementVillageOf` z `rodBaptized`, prohlížeč z `scene.sacredFree`

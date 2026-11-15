@@ -56,6 +56,9 @@ Vzhled podle Martina (modely se připravují v `tools/blender/`):
 | Kovář  | polozemnice | totéž, pod střechou výheň a kovadlina                     |
 | Uhlíř  | zemnice     | zelená střecha krytá mechem; milíř stojí u skácených buků |
 
+Od roku 750 (vypletená) a 800 (roubená) jde dílnu postavit i nadzemní – viz
+[workshops.md](workshops.md).
+
 - **Dílna je zároveň obydlí** (Martin): bydlí v ní domácnost a ta řemeslo provozuje. Stavba
   stojí jako základní obydlí + **30 % navíc** za pec nebo výheň (návrh Clauda), dřevo podle
   [lesa](forest.md) (také + 30 %). **Uhlíř stojí jako zemnice** (návrh Clauda, 20. 10. 2026):
@@ -403,22 +406,25 @@ nejsou ověřené).
 - **Kdo uhlí odnáší:** uhlíř z vypáleného milíře uhlí vytahá a protřídí (kdy a kolik –
   [Rovnováha uhlíř – kovář](#rovnováha-uhlíř--kovář)), do kovárny ho v koších donese **kovářova
   domácnost** – pro uhlí se chodí k milíři u skácených buků. Pětina dřívější
-  práce uhlíře (odnos – `CART_JOBS.charcoal.carryShare`) tím z uhlíře odpadla.
+  práce uhlíře (odnos – `CART_JOBS.charcoal.carryShare`) tím z uhlíře odpadla. (Od 14. 11. 2026
+  nese uhlí uhlíř na tyči – Kdo nosí níž.)
 - **Pěšky:** koš uhlí 15 kg (objem – koš ≈ 60 l, dřevěné uhlí ≈ 250 kg/m³), tam a zpět po pevných
   cestách s půdou (mokřina, brody – vzdálenost chůze kovárna ↔ milíř),
   s košem 1 m/s, naložení a složení 2 minuty. Vzdálenost se spočítá při prvním nošení a uloží
   u milíře (`CharcoalKiln.carry`). Uhlí jde do nejbližší kovárny.
-- **Kdo nosí:** napřed **synové 10–13 let** (kluci kovářovy domácnosti, jejichž otec nebo matka
+- ~~**Kdo nosí:** napřed **synové 10–13 let** (kluci kovářovy domácnosti, jejichž otec nebo matka
   v ní bydlí) – syn ten den nepase (`herdingDay` s ním nepočítá) a udělá 40 % práce dospělého
   (jako pasák); nosí jen tolik synů, kolik je třeba. Co nestačí, donese domácnost z práce dílny –
-  synové od 14 let, pak kovář; kovář ten den kove méně.
-  - **Rozhodnutí Clauda:** zadání chtělo napřed syny 14–15 let, „kteří už nepasou a nejsou
+  synové od 14 let, pak kovář; kovář ten den kove méně.~~ – nahrazeno 14. 11. 2026: uhlí nese
+  uhlíř v košatině na tyči se synem od 12 let, bez syna s kovářem nebo jeho synem; práce odnosu
+  se nemění ([nadzemní dílny](workshops.md) – Uhlíř – odnos uhlí na tyči).
+  - ~~**Rozhodnutí Clauda:** zadání chtělo napřed syny 14–15 let, „kteří už nepasou a nejsou
     dospělí“. Ve hře je ale dospělý každý od 14 let (`AGE.adult`) a pracuje v dílně jako kovář –
     jeho nošení by bylo stejně z práce dílny. Proto napřed synové 10–13 (jejich práce není práce
     vsi ani dílny, jen ten den nepasou) a pak domácnost; synové od 14 let jdou mezi domácností
-    první (jsou vidět jako nosiči).
-  - Kovář, který ten den pracuje se vsí (plná zásoba nástrojů) a uhlíř mu přesto vytahal zbytek
-    milíře: co nedonesou synové, nese domácnost z práce vsi.
+    první (jsou vidět jako nosiči).~~
+  - ~~Kovář, který ten den pracuje se vsí (plná zásoba nástrojů) a uhlíř mu přesto vytahal zbytek
+    milíře: co nedonesou synové, nese domácnost z práce vsi.~~
 - **S vozem:** sedlák s vozem přiveze uhlí z **práce vsi** (Martin – „odečte se jeho práce“) –
   jízda domluvená předem jde jako výpravy po denním minimu, před úlohami dne (`carting`
   v `allocateDay`; ze společné práce by v polních sezónách nejel nikdy a vůz by zbytečně blokoval
@@ -512,8 +518,9 @@ od něj s vypáleným milířem, dvoukolák a spřežení), dva roky simulace se
 ### Co hráč vidí
 
 - **Panel kovárny:** ruda v kovárně (kg), rudiště – cesta z kovárny (m, v bublině kolik rudy
-  v ložisku zbývá) a kdo nosí uhlí: syn (věk), kovář sám, nebo vůz se sedlákem; činnosti „Kope
-  rudu“ a „Nemá rudu“. Upozornění jen „Kovář nemá rudu“ (jako „Kovář nemá uhlí“).
+  v ložisku zbývá) a kdo nosí uhlí: ~~syn (věk), kovář sám,~~ uhlíř na tyči (od 14. 11. 2026),
+  nebo vůz se sedlákem; činnosti „Kope rudu“ a „Nemá rudu“. Upozornění jen „Kovář nemá rudu“
+  (jako „Kovář nemá uhlí“).
 - **Výběr rudiště** (Martin, 20. 10. 2026: „Půjde rudiště také označit?“): klik na jámy nebo
   hromadu rudy rudiště vybere a obtáhne obrysem kolem jam a hromady; panel dole ukáže portrét
   **Rudiště**, rudu v ložisku (zbývá / 3 000 kg), hromadu vykopané rudy u jámy, počet jam, kovárnu

@@ -24,6 +24,7 @@ import {
   type VillagerClip,
 } from './villager-motion';
 import { MILIR_SHAPE_M } from './workshop-layout';
+import { campEntrance } from './burner-camp-layout';
 import type { ScenePerson } from '../person-view';
 import { ADULTS, YOUNGSTERS } from './villager-roster';
 import {
@@ -414,8 +415,13 @@ export function trafficRoutes(ctx: Context, labor: SceneLabor): TrafficRoute[] {
     if (share.activity !== 'craft' || t.kind !== 'kiln' || t.from !== undefined) return;
     const home = homes.find((h) => h.id === t.id);
     if (!home || share.manDays <= 0) return;
-    const door = trafficDoor(ctx, home);
-    if (!door || Math.hypot(t.x - door.x, t.z - door.z) < KILN_COMMUTE_MIN_M) return;
+    // při pálení a s hotovou zemnicí uhlíř chodí od jejího vchodu, ne od dílny ve vsi
+    const camp = (ctx.village.burnerCamps ?? []).find(
+      (c) => c.burnerId === t.id && c.occupied && c.built >= 1,
+    );
+    const entrance = camp ? campEntrance(camp) : null;
+    const door = entrance ? nearestFree(ctx, entrance.x, entrance.z, 4) : trafficDoor(ctx, home);
+    if (!door || (!camp && Math.hypot(t.x - door.x, t.z - door.z) < KILN_COMMUTE_MIN_M)) return;
     const edge = towards(t, door, MILIR_SHAPE_M.radius + 1);
     add(
       'kiln',

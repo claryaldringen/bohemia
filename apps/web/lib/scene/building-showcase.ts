@@ -593,6 +593,21 @@ export class BuildingShowcase {
           mesh.rotation.y = m.rotation;
           casters.push(mesh);
           this.finished.push(mesh);
+          // přístřešek nadzemní dílny (workshops.md) – vedle domu
+          if (m.shed) {
+            const shed = await loadMergedModel(
+              scene,
+              m.shed.url,
+              `showcase-shed-${i}`,
+              prepareModelMaterial,
+            );
+            if (shed) {
+              shed.position.set(m.shed.x, modelBaseY(m.kind), m.shed.z);
+              shed.rotation.y = m.rotation;
+              casters.push(shed);
+              this.finished.push(shed);
+            }
+          }
         } catch (error) {
           console.warn(`Model ${m.url} se nepodařilo načíst.`, error);
         }

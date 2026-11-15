@@ -17,6 +17,7 @@ import {
   rotationTurn,
   sacredFootprint,
   threshingFloorFootprint,
+  workshopSideM,
   type Point,
 } from '@bohemia/game';
 import { scenePenSquares, type SceneVillage } from '../village-view';
@@ -72,7 +73,13 @@ export function buildingClearings(dwellings: readonly SceneDwelling[]): Clearing
       ? turned(d.plot.rotation)
         ? [squareClearing(d.plot)]
         : []
-      : freeDwellingClearings(d.type, d.position, dwellingShape(d)).map(clearingOf),
+      : freeDwellingClearings(
+          d.type,
+          d.position,
+          dwellingShape(d),
+          0,
+          d.craft ? workshopSideM(d.craft, d.type) : 0,
+        ).map(clearingOf),
   );
 }
 
@@ -116,7 +123,13 @@ export function hayBlockers(village: SceneVillage): Clearing[] {
       : [];
   return [
     ...village.dwellings.flatMap((d) => [
-      ...freeDwellingClearings(d.type, d.position, dwellingShape(d)).map(clearingOf),
+      ...freeDwellingClearings(
+        d.type,
+        d.position,
+        dwellingShape(d),
+        0,
+        d.craft ? workshopSideM(d.craft, d.type) : 0,
+      ).map(clearingOf),
       circleClearing(d.position.x, d.position.z, WORKSITE_RADIUS_M),
       ...plotSquares(d.plot),
     ]),

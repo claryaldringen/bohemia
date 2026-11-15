@@ -49,7 +49,8 @@ const PART_FLAGS = '#';
  * Klíč mřížky vozu (`cartGrid`): okno terénu, pokácené a přidané stromy dne a z vsi přesně to, co
  * mřížka čte – díly polí (políčko, poloha, velikost, natočení a ze stadia jen „zarostlý“ – jinak
  * stálá cena), les vsi, pevné cesty (osa, druh, stupeň, mokřina, olemování), sady, hřbitovy,
- * ohrady, svatyně a modly, obydlí, milíře, humna a zemní práce. Stadia, lidé, práce dne ani den
+ * ohrady, svatyně a modly, obydlí, milíře a zemnice uhlířů, humna a zemní práce. Stadia, lidé,
+ * práce dne ani den
  * v něm nejsou – táž mapa jiný den mřížku najde. „Zarostlý“ po dílech je na konci za
  * `PART_FLAGS` – mřížka, která se od klíče liší jen jím, se odvodí (`memoGrid`, `withPartStages`).
  */
@@ -79,6 +80,8 @@ export function cartGridKey(
     changes,
     // stojící opevnění (fortifications.md – Brány) – klíč vsi bez něj beze změny
     ...(village.fortifications ? [village.fortifications] : []),
+    // zemnice uhlířů u milířů (workshops.md) – klíč vsi bez nich beze změny
+    ...(village.camps ? [{ camps: village.camps }] : []),
   ]);
   return `${layout}${PART_FLAGS}${flags}`;
 }

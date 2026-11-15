@@ -49,7 +49,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   i v `apps/web/components/**/*.ts`.
 - **Web:** server actions `app/game/actions.ts` (`getVillageView`, `selectVillage`, `foundVillage`,
   `placeDwelling`, `cancelConstruction`, `leaveVillage`,
-  `settleJourney`, `placeWorkshop`,
+  `settleJourney`, `placeWorkshop` (vstup `{ craft, position, type? }` – `type` `vypleteny` | `srub` je nadzemní dílna, `parsePlaceWorkshopInput`; nabídka staveb nese `BuildOption.variants.vypleteny` / `.srub` s cenou a rokem),
   `placeField`, `placeCemetery`, `placeOrchard`, `placeSacred`, `placePen`,
   `buildTrail`, `sendExpedition`, `declareHunt`, `renameVillage`, `nameLineMan` → `VillageView` / `null` / `{ error }`; `restartGame(input?)` → `{ ok: true }` /
   `{ error }`). **Každá akce nad vsí nese `villageId`** (UUID – `villageIdOf` v
@@ -314,6 +314,14 @@ villageId)`. Z levných otisků (`stampsOf` – `last_day`, `asleep`) se dopočt
   rozcestník `dwelling` (`placement: 'dwellings'`, `DWELLING_VARIANTS`: zemnice, polozemnice,
   vypletený dům, nadzemní dům; ikony `build/…`, `variantIconSrc` v `BuildGrid`); zemnice, polozemnice, vypletený dům a srub zůstávají
   záznamy katalogu s `hubOf: 'dwelling'` (kontrola, cena, zkratky), ale bez vlastního tlačítka.
+  **Řemeslné dílny** (workshops.md, Rozhodnutí 7): tlačítko F / G / H / T je od roku 750 rozcestník
+  (`placement: 'workshop'`, `WORKSHOP_VARIANTS(craft)` – dnešní dílna, Vypletená, Roubená; ikony
+  `build/<model>[-vypleteny|-srub]`, popisek „Kovář – Vypletená“); zašedlý druh nese důvod
+  z `BuildOption.variants[typ].blocked` („Od roku 800“), tlačítko řemesla je dostupné, když ves
+  zaplatí aspoň jeden druh. Do roku 750 `workshopChoice` (`build-items.ts`) přeskočí rozcestník
+  a klik i klávesa staví rovnou dnešní dílnu; zašedlý nebo neznámý druh nejde. Druh jde v
+  `PlacementMode.type` a ve `PlacementResult` do `buildWorkshop(craft, position, type)` →
+  `placeWorkshop({ …, type })`; cena u kurzoru `workshopPlacementCost(…, type)`.
   Rozcestník nemá zkratku (`NO_HOTKEY`), Z, X a 1 vyberou druh rovnou (`startBuild` je převede na
   `dwelling` + druh). Nabídku dává `dwellingHubOption` (`village-view.ts`): cena a důvod zašednutí
   (srub do roku 800) jsou v `variants` každého druhu, ikona tlačítka je nejlepší druh, na který ves
@@ -608,8 +616,7 @@ místa to jsou a moci je také označit.“ ([paths.md – Síť – kotvy](../d
   `dwelling:` / `site:` obydlí – „Obydlí – polozemnice“, jinak `site:` humno; hřbitov, ohrada,
   humno, modla a svatyně – `sacred`, obilná jáma, pole, sad, posvátný dub, háj, milíř); voda, les,
   louka a pastva bez výběru (voda se jmenuje „Potok“, u řeky „Řeka“ – klíč kotvy `water:river`,
-  `waterKindAt` v `paths/road-anchors.ts`: řeka, je-li nejbližší vodou řeka mapy; D44, Martin
-  14. 11. 2026: „teče tam přece potok“); jiná cesta → id cesty hráče (`roadChainIds`). `VillageRoad.ends`
+  `waterKindAt` v `paths/road-anchors.ts`: řeka, je-li nejbližší vodou řeka mapy; D44, Martin 14. 11. 2026: „teče tam přece potok“); jiná cesta → id cesty hráče (`roadChainIds`). `VillageRoad.ends`
   počítá `roadViews` (`village-view-roads.ts`); tam jsou i `JUNCTION_NAMES` / `JUNCTION_ICONS`.
 - **Panel** – `RoadEndIcon` (`selection/roads.tsx`) na začátku prvního řádku `RoadBody`: s cílem
   `TargetButton` (klik → `onSelectTarget`), kraj mapy šipka směru (`DIRECTION_NAMES`), nikam

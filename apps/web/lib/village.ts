@@ -65,6 +65,7 @@ import {
   type VillageAction,
   type VillageRight,
   type Craft,
+  type HouseType,
   type ChurchDims,
   type ChurchType,
   type MasonCraft,
@@ -759,7 +760,7 @@ export function inviteMasterForPlayer(
 export function placeWorkshopForPlayer(
   playerId: string,
   villageId: string,
-  input: { craft: Craft; position: Position },
+  input: { craft: Craft; position: Position; type?: HouseType },
 ): Promise<VillageActionResult> {
   return actOn(playerId, villageId, 'placeWorkshop', (ctx) =>
     placeWorkshop(

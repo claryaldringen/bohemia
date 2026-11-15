@@ -101,6 +101,13 @@ describe('kilnViews', () => {
         { activity: 'craft', target: kiln, manDays: 1.2 },
         { activity: 'fetch', target: { ...kiln, from: 51 }, manDays: 0.2, ages: [11] },
         { activity: 'fetch', target: { ...kiln, from: 51 }, manDays: 0.1, ages: [41] },
+        {
+          activity: 'fetch',
+          target: { ...kiln, from: 51 },
+          manDays: 0.3,
+          ages: [38, 12],
+          pole: 'burner-son',
+        },
         { activity: 'haul', target: kiln, manDays: 0.05, carts: 1, job: 'charcoal' },
         // jiný milíř se nepočítá
         { activity: 'fetch', target: { ...kiln, kiln: 701, from: 51 }, manDays: 1, ages: [15] },
@@ -108,13 +115,36 @@ describe('kilnViews', () => {
     };
     const [burnt] = kilnViews(s, DAY);
     expect(burnt!.fetchers).toEqual([
-      { age: 41, smith: true },
-      { age: 11, smith: false },
+      { age: 38, role: 'burner' },
+      { age: 12, role: 'burner-son' },
+      { age: 41, role: 'smith' },
+      { age: 11, role: 'smith-son' },
     ]);
     expect(burnt!.cart).toBe(true);
     expect(burnt!.burnerHere).toBe(true);
     // rozdělení práce jiného dne – dnes nikdo
     expect(kilnViews(s, DAY + 1)[0]!.fetchers).toEqual([]);
+  });
+
+  it('dvojice u tyče – uhlíř s kovářem, uhlíř se synem kováře', () => {
+    const s = burnerVillage();
+    const kiln = { kind: 'kiln' as const, id: 50, kiln: 700, x: 60, z: 80, from: 51 };
+    const pair = (ages: number[], pole: 'smith' | 'smith-son'): void => {
+      s.labor = {
+        day: DAY,
+        shares: [{ activity: 'fetch', target: kiln, manDays: 0.3, ages, pole }],
+      };
+    };
+    pair([38, 41], 'smith');
+    expect(kilnViews(s, DAY)[0]!.fetchers).toEqual([
+      { age: 38, role: 'burner' },
+      { age: 41, role: 'smith' },
+    ]);
+    pair([38, 12], 'smith-son');
+    expect(kilnViews(s, DAY)[0]!.fetchers).toEqual([
+      { age: 38, role: 'burner' },
+      { age: 12, role: 'smith-son' },
+    ]);
   });
 
   it('ves bez milířů – pole v pohledu chybí', () => {

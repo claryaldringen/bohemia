@@ -1,6 +1,7 @@
 import { dateOfDayIndex, dayIndexOf } from '../../calendar';
 import { stockedPenIds } from '../buildings/abandonment';
 import { workshopKilns } from '../crafts/charcoal';
+import { burnerCampSites } from '../crafts/burner-camp';
 import { tileCenterWorld, type Landscape, type ObstacleLayer } from '../../landscape';
 import { villageCemeteries } from '../buildings/cemetery';
 import { currentGrainPits, openGrainPits } from '../fields/grain-pits';
@@ -46,6 +47,7 @@ import {
   establishedVillage,
   stableRouteWeights,
   kilnsKey,
+  campsKey,
   threshingFloorsKey,
   pathPlotOf,
   villagePathBounds,
@@ -291,6 +293,7 @@ export function pathVillageOf(state: VillageState, day: number, landscape: Lands
   const roads = state.roads?.roads ?? [];
   // přirozené louky letošní seče (oxen.md – Seno) – k políčkům, kde se dnes seče, vede pěšina
   const kilns = villageKilnPoints(state);
+  const camps = burnerCampSites(state);
   const hayMeadows = (state.hay?.mowing?.squares ?? []).flatMap((sq) =>
     sq.cell ? [square(landscape, sq.cell)] : [],
   );
@@ -361,6 +364,8 @@ export function pathVillageOf(state: VillageState, day: number, landscape: Lands
     ...(hayMeadows.length > 0 ? { hayMeadows } : {}),
     // milíře uhlířů – samostatné stavby (crafts.md – Milíř u skácených buků)
     ...(kilns.length > 0 ? { kilns } : {}),
+    // zemnice uhlířů u milířů (workshops.md – Uhlíř – zemnice u milíře) – ves bez nich beze změny
+    ...(camps.length > 0 ? { camps } : {}),
     // zemní práce vozových cest (roads.md – Vozová cesta) – ves bez nich beze změny
     ...(state.roads?.earthworks && state.roads.earthworks.length > 0
       ? { earthworks: earthworkSpansOf(state) }
@@ -539,6 +544,8 @@ export function villageBlockedAt(
     k.floors,
     state.roads?.earthworks ?? [],
     ...[fortLayoutKey(state)].filter((f) => f !== null),
+    // zemnice uhlířů u milířů – ves bez nich beze změny
+    ...(k.camps === null ? [] : [`camps:${k.camps}`]),
   ]);
   const last = lastBlocked.get(landscape);
   if (last?.key === key) return last.blocked;
@@ -662,7 +669,8 @@ function* computeVillageNetworkSteps(
 /**
  * Klíč mapy tras (paths.md – Stálé trasy, pravidlo 5): krajina je dána, mění ho jen to, co mění
  * ceny buněk pro chůzi a vůz – obydlí a staveniště (poloha, natočení, druh, pozemek), díly polí
- * (políčka – bez stadia), sady, hřbitovy, posvátná místa, ohrady, les vsi, milíře, humna, pevné
+ * (políčka – bez stadia), sady, hřbitovy, posvátná místa, ohrady, les vsi, milíře a zemnice uhlířů
+ * u nich, humna, pevné
  * cesty (osa, druh, stupeň, mokřina – olemování je jejich součást; ne stav kusů, provoz ani opuštění),
  * zemní práce (profil, brody, hotové úseky – ne průběh) a pařezy k poslednímu 1. 11.; paseka
  * rozestavěného pole v lese až s dohořením pole (`routeTreesKey`). Neobsahuje stadia dílů, lidi,
@@ -695,7 +703,9 @@ export function routeMapKey(state: VillageState, day: number): string {
     text(earthworksKey(state)) +
     text(routeTreesKey(state, day)) +
     // opevnění (fortifications.md – Brány) – proud vsi bez opevnění beze změny
-    (fort === null ? '' : text(fort));
+    (fort === null ? '' : text(fort)) +
+    // zemnice uhlířů u milířů (workshops.md) – proud vsi bez nich beze změny
+    (k.camps === null ? '' : text(`camps:${k.camps}`));
   const known = mapKeyDigests.get(stream);
   if (known !== undefined) {
     mapKeyDigests.delete(stream);
@@ -808,6 +818,8 @@ interface WalkLayoutParts {
   pens: string[];
   woods: string[];
   kilns: string | null;
+  /** Zemnice uhlířů u milířů (workshops.md); bez nich null. */
+  camps: string | null;
   floors: string | null;
 }
 
@@ -892,6 +904,7 @@ function buildingLayoutParts(
     (state.sacredBuildings ?? []).map((b) => b.id).join(','),
   ].join('|');
   const kilns = villageKilnPoints(state);
+  const camps = burnerCampSites(state);
   const floors = (state.threshingFloors ?? []).map((f) => ({
     id: f.id,
     position: f.position,
@@ -902,6 +915,7 @@ function buildingLayoutParts(
     sites,
     sacred,
     kilns: kilns.length > 0 ? kilnsKey(kilns) : null,
+    camps: camps.length > 0 ? campsKey(camps) : null,
     floors: floors.length > 0 ? threshingFloorsKey(floors) : null,
   };
 }

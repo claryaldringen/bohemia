@@ -13,6 +13,7 @@ function buildingLogHouses(state: VillageState): number {
   return state.constructions.filter(
     (c) =>
       c.kind === 'dwelling' &&
+      c.craft === undefined &&
       c.dwellingType !== null &&
       isHouseType(c.dwellingType) &&
       c.dwellingId === null,

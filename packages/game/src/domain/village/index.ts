@@ -275,7 +275,11 @@ export {
   type CraftSkillSummary,
 } from './crafts/craft-skill';
 export * from './crafts/charcoal';
+// zemnice uhlíře u milíře (workshops.md – Uhlíř – zemnice u milíře)
+export * from './crafts/burner-camp';
 export * from './crafts/smith-supply';
+// odnos uhlí na tyči (workshops.md – Uhlíř – odnos uhlí na tyči) – den volá simulate-work
+export * from './crafts/charcoal-pole';
 // nákup u sousedů (crafts.md) – kroky simulace (odchod, cesta, návrat) volá simulate.ts
 export {
   CRAFT_PRODUCTS,

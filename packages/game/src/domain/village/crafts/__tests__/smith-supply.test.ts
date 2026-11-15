@@ -15,6 +15,7 @@ import {
   SMITH_SUPPLY,
 } from '../../rules';
 import { advanceVillage } from '../../core/simulate';
+import { fetchWalkManDays } from '../charcoal-pole';
 import {
   basketManDaysPerKg,
   chooseDugSite,
@@ -32,9 +33,10 @@ import { LANDSCAPE } from '../../__tests__/paths-fixtures';
 import { makeLandscape } from '../../__tests__/placement-fixtures';
 import { withBuiltFirstDwelling } from '../../__tests__/village-fixtures';
 
-// Uhlí a ruda kováře (crafts.md – Uhlí a ruda kováře; Martin 20. 10. 2026): uhlí z milíře nosí
-// synové kováře od 10 let (ten den nepasou) nebo kovář sám, s vozem ho přiveze sedlák; rudu kope
-// kovář a synové od 14 let na rudišti v mokřině u potoka, bez rudy kovář nekove.
+// Uhlí a ruda kováře (crafts.md – Uhlí a ruda kováře; Martin 20. 10. 2026): uhlí z milíře nese
+// uhlíř na tyči se synem, s kovářem nebo jeho synem (workshops.md – Uhlíř – odnos uhlí na tyči;
+// Martin 14. 11. 2026), s vozem ho přiveze sedlák; rudu kope kovář a synové od 14 let na rudišti
+// v mokřině u potoka, bez rudy kovář nekove.
 
 const at = (year: number, month: number, day: number): number => dayIndexOf({ year, month, day });
 const YEAR = 365.25;
@@ -155,55 +157,115 @@ describe('synové kováře (crafts.md – Uhlí a ruda kováře)', () => {
     expect(smithSons(s, SMITH, WINTER).map((son) => son.age)).toEqual([15, 11]);
   });
 
-  it('syn 10–13 nosí uhlí a ten den nepase; od 14 let kope rudu', () => {
-    const run = (stage: 'draw' | 'burn'): VillageState => {
-      const s = withBurner(village(SUMMER - 1), stage);
-      withSmith(s, [15, 11]);
-      s.livestock!.herds.sheep = 300;
-      // bez rudy – kovář s nejstarším synem jdou kopat
-      smithWorkshop(s).oreKg = 0;
-      return advanceVillage(s, SUMMER, null);
-    };
-    const drawDay = run('draw');
-    const charcoal = fetches(drawDay).filter((share) => share.target.kind === 'kiln');
-    expect(charcoal.length).toBeGreaterThan(0);
-    expect(charcoal[0]!.target).toMatchObject({ kind: 'kiln', id: BURNER, from: SMITH });
-    expect(charcoal[0]!.ages).toEqual([11]);
-    // syn, který nosí, nepase (jiné výrostky ves nemá)
-    expect(drawDay.labor!.herders?.children).toBe(0);
-    expect(run('burn').labor!.herders?.children).toBe(1);
-    // rudu kope syn od 14 let (a kovář), mladší syn ne
-    const ore = shares(drawDay).find((share) => share.activity === 'ore')!;
+  it('rudu kopou kovář a synové od 14 let, mladší ne', () => {
+    const s = withBurner(village(SUMMER - 1));
+    withSmith(s, [15, 11]);
+    // bez rudy – kovář s nejstarším synem jdou kopat
+    smithWorkshop(s).oreKg = 0;
+    const after = advanceVillage(s, SUMMER, null);
+    const ore = shares(after).find((share) => share.activity === 'ore')!;
     expect(ore.target).toMatchObject({ kind: 'ore', id: SMITH });
     expect(ore.ages).toContain(15);
     expect(ore.ages).not.toContain(11);
   });
+});
 
-  it('bez synů nosí uhlí kovář sám – z práce dílny, kove méně', () => {
-    const run = (sons: number[]): VillageState => {
-      const s = withBurner(village(WINTER - 1));
-      withSmith(s, sons);
-      return advanceVillage(s, WINTER, null);
-    };
-    const alone = run([]);
-    const helped = run([11]);
-    const own = fetches(alone).filter((share) => share.target.kind === 'kiln');
-    expect(own.map((share) => share.ages)).toEqual([[36]]);
-    const forged = (s: VillageState): number =>
-      shares(s).find(
+describe('uhlí do kovárny na tyči (workshops.md – Uhlíř – odnos uhlí na tyči)', () => {
+  /** Synové uhlíře (věky) – otec 500, matka 501, id od 502. */
+  function withBurnerSons(s: VillageState, ages: number[]): VillageState {
+    ages.forEach((age, k) =>
+      s.people.push(
+        person(502 + k, age, BURNER, s.lastDay, { sex: 'male', fatherId: 500, motherId: 501 }),
+      ),
+    );
+    return s;
+  }
+  const poles = (s: VillageState): LaborShare[] =>
+    fetches(s).filter((share) => share.target.kind === 'kiln');
+  /** Práce kovárny v dílně (kování, překování, tavba). */
+  const forged = (s: VillageState): number =>
+    shares(s).find(
+      (share) =>
+        share.activity === 'craft' &&
+        share.target.kind === 'dwelling' &&
+        share.target.id === SMITH &&
+        share.ages === undefined,
+    )?.manDays ?? 0;
+  /** Syn kováře, který dnes šlapal měch (podíl `craft` s věkem u kovárny). */
+  const bellowsAges = (s: VillageState): number[] =>
+    shares(s)
+      .filter(
         (share) =>
           share.activity === 'craft' &&
           share.target.kind === 'dwelling' &&
-          share.target.id === SMITH,
-      )?.manDays ?? 0;
-    expect(forged(alone)).toBeLessThan(forged(helped));
-    expect(forged(helped) - forged(alone)).toBeCloseTo(own[0]!.manDays, 3);
+          share.target.id === SMITH &&
+          share.ages !== undefined,
+      )
+      .flatMap((share) => share.ages!);
+
+  it('uhlíř nese se synem 12 – syn ten den nepase, syn kováře 11 ano', () => {
+    const s = withBurnerSons(withBurner(village(SUMMER - 1)), [12]);
+    withSmith(s, [11]);
+    s.livestock!.herds.sheep = 300;
+    // houby dost – kovárna dnes netaví, syn kováře nešlape měch
+    s.crafts!.bloomKg = 10_000;
+    const after = advanceVillage(s, SUMMER, null);
+    const pole = poles(after);
+    expect(pole).toHaveLength(1);
+    expect(pole[0]!.target).toMatchObject({ kind: 'kiln', id: BURNER, kiln: 990, from: SMITH });
+    expect(pole[0]!.pole).toBe('burner-son');
+    expect(pole[0]!.ages).toEqual([30, 12]);
+    // jiné výrostky ves nemá: pase syn kováře, syn uhlíře je u tyče
+    expect(after.labor!.herders?.children).toBe(1);
+    expect(bellowsAges(after)).toEqual([]);
+    // bez milíře k vytahání pasou oba
+    const burning = withBurnerSons(withBurner(village(SUMMER - 1), 'burn'), [12]);
+    withSmith(burning, [11]);
+    burning.livestock!.herds.sheep = 300;
+    burning.crafts!.bloomKg = 10_000;
+    expect(advanceVillage(burning, SUMMER, null).labor!.herders?.children).toBe(2);
+  });
+
+  it('bez syna uhlíře nese syn kováře 12 – ten den nepase ani nešlape měch', () => {
+    const run = (burnerSons: number[]): VillageState => {
+      const s = withBurnerSons(withBurner(village(SUMMER - 1)), burnerSons);
+      withSmith(s, [12]);
+      s.livestock!.herds.sheep = 300;
+      // ruda na tavbu – měch by šlapal syn kováře
+      smithWorkshop(s).oreKg = 500;
+      return advanceVillage(s, SUMMER, null);
+    };
+    const son = run([]);
+    expect(poles(son).map((share) => [share.pole, share.ages])).toEqual([['smith-son', [30, 12]]]);
+    expect(son.labor!.herders?.children).toBe(0);
+    expect(bellowsAges(son)).toEqual([]);
+    // uhlíř se synem 13 nese sám se synem – syn kováře šlape měch
+    const own = run([13]);
+    expect(poles(own).map((share) => share.pole)).toEqual(['burner-son']);
+    expect(bellowsAges(own)).toEqual([12]);
+  });
+
+  it('s kovářem: kovář svou polovinu z práce dílny, uhlíř i cestu pro něj', () => {
+    const run = (smithSons: number[]): VillageState => {
+      const s = withBurner(village(WINTER - 1));
+      withSmith(s, smithSons);
+      return advanceVillage(s, WINTER, null);
+    };
+    const smith = run([]);
+    const helped = run([12]);
+    const [pole] = poles(smith);
+    expect(pole!.pole).toBe('smith');
+    expect(pole!.ages).toEqual([30, 36]);
+    expect(pole!.target).toMatchObject({ kind: 'kiln', id: BURNER, kiln: 990, x: 70, z: 0 });
     // pro uhlí se chodí k milíři – nošení podle vzdálenosti chůze kovárna ↔ milíř (bez krajiny
     // vzdušně; crafts.md – Milíř u skácených buků)
-    const kiln = alone.dwellings.find((d) => d.id === BURNER)!.workshop!.kilns![0]!;
+    const kiln = smith.dwellings.find((d) => d.id === BURNER)!.workshop!.kilns![0]!;
     expect(kiln.carry!.smithId).toBe(SMITH);
     expect(kiln.carry!.walkM).toBeCloseTo(Math.hypot(70 - 40, 0 - 40), 2);
-    expect(own[0]!.target).toMatchObject({ kind: 'kiln', id: BURNER, kiln: 990, x: 70, z: 0 });
+    // v podílu dvojice je i cesta uhlíře pro kováře; kovář kove méně o svou polovinu nošení
+    const pair = pole!.manDays - fetchWalkManDays(kiln.carry!.walkM);
+    expect(forged(helped) - forged(smith)).toBeCloseTo(pair / 2, 2);
+    expect(poles(helped).map((share) => share.pole)).toEqual(['smith-son']);
   });
 });
 

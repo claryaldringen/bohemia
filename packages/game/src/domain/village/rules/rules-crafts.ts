@@ -130,11 +130,44 @@ export const BEECH_PLANTING = { manDaysPerTree: 0.1, matureYears: 60 } as const;
 // v tools/blender/crafts.py) – jen pro převod (`migrateKilns`)
 export const MILIR = { offset: { x: -9, z: 3 }, footprintM: 6, clearingRadiusM: 4.6 } as const;
 /**
+ * workshops.md – Uhlíř – zemnice u milíře (Martin 14. 11. 2026: „postaví si jednoduchou zemnici
+ * přímo v lese u milíře … Tuto zemnici bude opakovaně využívat, dokud v jejím okolí bude dost
+ * stromů“; čísla návrh Clauda):
+ * - `trees`, `buildManDays` – nejjednodušší zemnice bez ohniště a výdřevy: 3 stromy z kácení pro
+ *   milíř a 10 čd z práce milíře,
+ * - `minFromKilnM`, `maxFromKilnM`, `stepM` – místo se hledá kolem milíře po kružnicích po 2 m od
+ *   8 m (mimo milířiště) do 30 m,
+ * - `reuseRadiusM` – zemnice se využívá znovu, dokud do 150 m od ní je dávka buků
+ *   (CHARCOAL_KILN.trees),
+ * - `abandonedYears` – opuštěná zemnice chátrá a za 5 let zmizí,
+ * - `footprintM` – půdorys (šířka napříč, hloubka k vchodu), `treeMarginM` – pruh kolem půdorysu,
+ *   ve kterém nesmí stát strom (místo bez stromů).
+ */
+export const BURNER_CAMP = {
+  trees: 3,
+  buildManDays: 10,
+  minFromKilnM: 8,
+  maxFromKilnM: 30,
+  stepM: 2,
+  reuseRadiusM: 150,
+  abandonedYears: 5,
+  footprintM: { width: 3, depth: 3.5 },
+  treeMarginM: 0.5,
+} as const;
+/**
+ * workshops.md – Uhlíř – odnos uhlí na tyči (Martin 14. 11. 2026: „Pokud má dostatečně velkého
+ * syna, donesou košatinu s uhlím mezi sebou na tyči do kovárny. Pokud syna nemá, dojde si do
+ * kovárny pro kováře či jeho syna, aby spolu mohli uhlí v košatině na tyči odnosit.“):
+ * - `sonFromAge` – syn uhlíře i kováře jde k tyči od 12 let, jako na výpravu (návrh Clauda).
+ * Práce odnosu je dál nošení v koších (SMITH_SUPPLY – `basketKg`, `carryMps`), jen ji nesou dva.
+ */
+export const CHARCOAL_POLE = { sonFromAge: 12 } as const;
+/**
  * crafts.md – Uhlí a ruda kováře (Martin 20. 10. 2026: „Kovář si vychovává nástupce. Pokud ve
  * vesnici není vůz kovář si musí chodit pro uhlí k uhlíři. Pokud má dostatečně starého syna nebo
- * syny, pošle pro uhlí jeho/je. Taky musí někam chodit kopat rudu.“; synové nosí uhlí od 10 let,
- * rudu kopou od 14 – Martin; ostatní čísla návrh Clauda podle rešerše
- * research/2026-10-20-bog-ore.md – většinou odhad, primární práce neověřené):
+ * syny, pošle pro uhlí jeho/je. Taky musí někam chodit kopat rudu.“; rudu kopou synové od 14 let
+ * – Martin; uhlí od 14. 11. 2026 nese uhlíř na tyči – CHARCOAL_POLE; ostatní čísla návrh Clauda
+ * podle rešerše research/2026-10-20-bog-ore.md – většinou odhad, primární práce neověřené):
  * - ruda na kg nástrojů (8 kg – odhad 4–9 kg) plyne z řetězu tavby IRON (production-chains.md –
  *   Kovář): ruda → houba → hřivny → nástroje,
  * - `oreKgPerManDay` – vykopání, praní a pražení 60 kg rudy za člověkoden (odhad 40–100 kg –
@@ -142,8 +175,8 @@ export const MILIR = { offset: { x: -9, z: 3 }, footprintM: 6, clearingRadiusM: 
  * - `basketKg` – koš uhlí 15 kg (≈ 60 l – objem, jako CART_JOBS.charcoal), koš rudy 25 kg (váha,
  *   odhad 20–30 kg na pěší cestu), `basketLoadS` naložení a složení koše, s košem `carryMps` po
  *   louce (jako voda – WATER_FETCHING.speedMps), tam i zpět,
- * - `charcoalFromAge` / `oreFromAge` – synové kováře nosí uhlí od 10 let, rudu kopou a nosí od 14
- *   (Martin); syn 10–13 ten den nepase a udělá `youngsterShare` práce dospělého (jako pasák –
+ * - `oreFromAge` – synové kováře kopou a nosí rudu od 14 let (Martin); syn pod 14 let, který šlape
+ *   měch (IRON.bellowsFromAge), udělá `youngsterShare` práce dospělého (jako pasák –
  *   HERDING.childShare),
  * - `depositKg` – ložisko vydrží 3 t rudy (odhad – hutě na Moravě se stěhovaly po 50–70 letech podle
  *   vyčerpání suroviny), další rudiště aspoň `siteSpacingM` od vyčerpaného, jámy kousek kolem místa
@@ -155,7 +188,6 @@ export const SMITH_SUPPLY = {
   basketKg: { charcoal: 15, ore: 25 },
   basketLoadS: 120,
   carryMps: 1,
-  charcoalFromAge: 10,
   oreFromAge: 14,
   youngsterShare: 0.4,
   depositKg: 3000,
@@ -242,22 +274,61 @@ export const WORKSHOP_PORCH_M: Readonly<Record<Craft, number>> = {
 // nádobami; při částečném se den zkažení posouvá poměrně (pokrytí × dny od 1. 3. do 1. 5.)
 export const APPLE_POTTERY_KEEP_DAY = { month: 5, day: 1 } as const;
 
+// workshops.md – Nadzemní dílna (Rozhodnutí 3, návrh Clauda): pultový přístřešek stojí u pravé boční
+// stěny nadzemního domu (+x v osách domu) a je od ní tak hluboký (m) – hloubka dnešního přístřešku
+// hrnčíře, kováře a tesaře, u uhlíře menší (volná hromada dřeva pod pultovou střechou)
+export const WORKSHOP_SIDE_M: Readonly<Record<Craft, number>> = {
+  potter: 3.2,
+  smith: 3.2,
+  carpenter: 3.2,
+  burner: 2,
+};
+
+/** Je typ obydlí nadzemní dům dílny (vypletený nebo roubený)? Pravidla sem nemohou z buildings. */
+function isOvergroundType(type: DwellingType): boolean {
+  return type === 'vypleteny' || type === 'srub';
+}
+
+/**
+ * Přirážka dílny k domu dílny (workshops.md – Rozhodnutí 2, návrh Clauda): dnešní cena dílny
+ * mínus cena základního obydlí – člověkodny i stromy. U uhlíře 0. Přístřešek stojí u každé
+ * varianty stejně.
+ */
+export function workshopShelter(craft: Craft): { manDays: number; trees: number } {
+  const base = CRAFT_BASE[craft];
+  return {
+    manDays: workshopCostOf(craft, base) - DWELLINGS[base].cost,
+    trees: workshopTreesOf(craft, base) - DWELLING_TREES[base],
+  };
+}
+
+function workshopCostOf(craft: Craft, type: DwellingType): number {
+  return Math.round(DWELLINGS[type].cost * (1 + workshopExtra(craft)));
+}
+
+function workshopTreesOf(craft: Craft, type: DwellingType): number {
+  return Math.round(DWELLING_TREES[type] * (1 + workshopExtra(craft)));
+}
+
 /**
  * Práce na řemeslné dílně celkem (u blízkého lesa) – základní obydlí + 30 %, uhlíř jako zemnice
- * (crafts.md – Budovy).
+ * (crafts.md – Budovy). Nadzemní dílna (`type` vypletený nebo roubený, workshops.md) stojí dům
+ * toho typu + přirážku za přístřešek.
  */
-export function workshopCost(craft: Craft): number {
-  return Math.round(DWELLINGS[CRAFT_BASE[craft]].cost * (1 + workshopExtra(craft)));
+export function workshopCost(craft: Craft, type: DwellingType = CRAFT_BASE[craft]): number {
+  if (!isOvergroundType(type)) return workshopCostOf(craft, type);
+  return DWELLINGS[type].cost + workshopShelter(craft).manDays;
 }
 
 /** Dřevo řemeslné dílny (stromy) – základní obydlí + 30 %, uhlíř jako zemnice (crafts.md). */
-export function workshopTrees(craft: Craft): number {
-  return Math.round(DWELLING_TREES[CRAFT_BASE[craft]] * (1 + workshopExtra(craft)));
+export function workshopTrees(craft: Craft, type: DwellingType = CRAFT_BASE[craft]): number {
+  if (!isOvergroundType(type)) return workshopTreesOf(craft, type);
+  return DWELLING_TREES[type] + workshopShelter(craft).trees;
 }
 
 /** Práce na dílně bez dřeva – cena dílny minus kácení jejích stromů u blízkého lesa. */
-export function workshopBuildLabor(craft: Craft): number {
-  return workshopCost(craft) - workshopTrees(craft) * FELLING_MAN_DAYS_PER_TREE;
+export function workshopBuildLabor(craft: Craft, type: DwellingType = CRAFT_BASE[craft]): number {
+  return workshopCost(craft, type) - workshopTrees(craft, type) * FELLING_MAN_DAYS_PER_TREE;
 }
 
 // wagons.md – Tesař (Martin 19. 10. 2026: tesař vyrábí vozy, dřevěné nářadí a výrazně zrychlí

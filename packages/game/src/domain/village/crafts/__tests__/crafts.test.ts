@@ -6,6 +6,7 @@ import { foundField, foundVillage, startWorkshop } from '../../core/actions';
 import { PLAIN_SHAPE } from '../../buildings/dwelling-shape';
 import { BUILD_COSTS } from '../../buildings/costs';
 import {
+  burnerPlans,
   craftCoverage,
   craftNeeds,
   craftStocks,
@@ -17,9 +18,13 @@ import {
   occupiedWorkshops,
   wearCraftStocks,
   workCrafts,
+  forgeLabor,
   workshopFootprints,
   workshopLabor,
 } from '../crafts';
+import { DRAW_MAN_DAYS_PER_KG, kilnWalkFactor } from '../charcoal';
+import { fetchWalkManDays } from '../charcoal-pole';
+import { basketManDaysPerKg } from '../smith-supply';
 import { appleKeepDays, applesSpoiled, daysUntilAppleRot } from '../../core/food';
 import { barsReserveKg } from '../iron';
 import {
@@ -29,8 +34,10 @@ import {
 } from '../../placement/placement';
 import { NO_CRAFTS } from '../../core/productivity';
 import {
+  CHARCOAL_KILN,
   COMMON_LABOR_YEAR_DAYS,
   CRAFT_BASE,
+  SMITH_SUPPLY,
   SOWERS,
   workshopBuildLabor,
   workshopCost,
@@ -549,7 +556,8 @@ describe('souhrn řemesel pro panel (crafts.md – Co hráč vidí)', () => {
         // jen muž řemeslníka; žena se stará o domácnost a pomáhá se vsí
         laborPerDay: expect.closeTo(1, 1),
         // kovář bez uhlí odpočívá – rudu ještě nekopal (crafts.md – Uhlí a ruda kováře)
-        ore: { stockKg: 0, site: null, heapKg: 0, sons: [], cart: false },
+        // ves bez uhlíře – o uhlí od milíře se v panelu nemluví
+        ore: { stockKg: 0, site: null, heapKg: 0, cart: false, burner: false },
         // řetěz kovárny (production-chains.md – Kovář): zásoba hřiven na rok obnovy 18 × 0,3 × 1,2
         iron: {
           bloomKg: 0,
@@ -583,7 +591,7 @@ describe('umístění dílny (crafts.md – Budovy)', () => {
     expect(checkDwellingPlacement(water, null, 'zemnice', HOUSE, empty).ok).toBe(true);
     expect(checkWorkshopPlacement(water, null, 'smith', HOUSE, empty).ok).toBe(true);
     expect(checkWorkshopPlacement(water, null, 'burner', HOUSE, empty).ok).toBe(true);
-    expect(workshopFootprints('burner', HOUSE, PLAIN_SHAPE)).toHaveLength(1);
+    expect(workshopFootprints('burner', HOUSE, PLAIN_SHAPE, 'zemnice')).toHaveLength(1);
   });
 
   it('jiné obydlí se nesmí překrývat s milířem – milíř je samostatná stavba', () => {
@@ -739,5 +747,107 @@ describe('řemeslníci vyrábějí podle potřeby, volný čas pracují pro ves 
     expect(whole.toolEquipmentKg).toBeGreaterThan(0);
     expect(whole.crafts!.ironBarsKg ?? 0).toBeLessThan(barsReserveKg(whole, end) * 1.2 + 1);
     expect(whole.crafts!.potteryKg).toBeLessThan(targets.potteryKg * 1.2);
+  });
+});
+
+describe('plán uhlíře s odnosem na tyči (workshops.md – Uhlíř – odnos uhlí na tyči)', () => {
+  const BURNER = WORKSHOP_ID;
+  const SMITH = 51;
+  /** Uhlíř (id 60) s vypáleným milířem 300 m chůze od kovárny, dávka pro kováře na celý milíř. */
+  function burnerVillage(burnerSons: number[], smithSons: number[] = []): VillageState {
+    const s = withWorkshop(fullVillage(), 'burner');
+    withWorkshop(s, 'smith', SMITH, { x: 40, z: 40, rotation: 0 }, 70);
+    const sonsOf = (head: number, dwellingId: number, ages: number[]): Person[] =>
+      ages.map((age, k) => ({
+        ...person(head + 10 + k, age, dwellingId, s.lastDay),
+        bornDay: s.lastDay - Math.ceil(age * YEAR) - 10,
+        sex: 'male',
+        fatherId: head,
+      }));
+    // uhlíř a kovář jsou muži, jinak by hlavou dílny byl dospělý syn (`smithHead`)
+    for (const p of s.people) if (p.id === 60 || p.id === 70) p.sex = 'male';
+    s.people.push(...sonsOf(60, BURNER, burnerSons), ...sonsOf(70, SMITH, smithSons));
+    const workshop = s.dwellings.find((d) => d.id === BURNER)!.workshop!;
+    workshop.kilns = [
+      {
+        id: 990,
+        site: { x: 70, z: 0 },
+        trees: Array.from({ length: CHARCOAL_KILN.trees }, () => ({ id: null, cost: 2 })),
+        stage: 'draw',
+        prepared: CHARCOAL_KILN.trees,
+        done: 0,
+        charcoalKg: CHARCOAL_KILN.trees * 120,
+        carry: { smithId: SMITH, walkM: 300 },
+      },
+    ];
+    workshop.charcoalOrderKg = CHARCOAL_KILN.trees * 120;
+    s.crafts = { charcoalKg: 0, potteryKg: 0 };
+    return s;
+  }
+
+  /** Kolik uhlí uhlíř dnes vytahá: práce dílny bez cesty pro kováře ÷ (vytahání + díl nošení). */
+  function expectedKg(s: VillageState, share: number, fetch: boolean): number {
+    const day = s.lastDay + 1;
+    const work = workshopLabor(s, day, BURNER, NO_CRAFTS.pottery, 1);
+    // dílna bez praxe – výkon 1, práce je čd
+    expect(work.skill).toBe(1);
+    const labor = forgeLabor(work);
+    expect(labor).toBeGreaterThan(0.5);
+    const burner = s.dwellings.find((d) => d.id === BURNER)!;
+    const kiln = burner.workshop!.kilns![0]!;
+    const walk = fetch ? fetchWalkManDays(300) : 0;
+    return (
+      (labor - walk) /
+      (DRAW_MAN_DAYS_PER_KG * kilnWalkFactor(kiln, burner.position) +
+        basketManDaysPerKg(300, SMITH_SUPPLY.basketKg.charcoal) * share)
+    );
+  }
+
+  const drawn = (s: VillageState): number =>
+    burnerPlans(s, s.lastDay + 1, NO_CRAFTS, 1)
+      .get(BURNER)!
+      .draws.reduce((sum, d) => sum + d.kg, 0);
+
+  it('se synem 12–13 polovina nošení, se synem od 14 let celé – bez cesty pro kováře', () => {
+    const young = burnerVillage([13]);
+    expect(drawn(young)).toBeCloseTo(expectedKg(young, 0.5, false), 9);
+    const grown = burnerVillage([15]);
+    expect(drawn(grown)).toBeCloseTo(expectedKg(grown, 1, false), 9);
+  });
+
+  it('s kovářem nebo jeho synem polovina nošení a cesta pro kováře', () => {
+    const smith = burnerVillage([]);
+    expect(drawn(smith)).toBeCloseTo(expectedKg(smith, 0.5, true), 9);
+    const smithSon = burnerVillage([], [12]);
+    expect(drawn(smithSon)).toBeCloseTo(expectedKg(smithSon, 0.5, true), 9);
+    // syn uhlíře 11 tyč neunese – jde kovář
+    const small = burnerVillage([11]);
+    expect(drawn(small)).toBeCloseTo(expectedKg(small, 0.5, true), 9);
+  });
+
+  it('bez druhého u tyče uhlíř nevytahá – dávka počká', () => {
+    const s = burnerVillage([]);
+    s.people.find((p) => p.id === 70)!.away = { kind: 'campaign' };
+    expect(drawn(s)).toBe(0);
+    expect(burnerPlans(s, s.lastDay + 1, NO_CRAFTS, 1).get(BURNER)!.orderKg).toBeGreaterThan(0);
+  });
+
+  it('jediný syn kováře nese jen s jedním uhlířem – druhý bez nosiče nevytahá', () => {
+    // druhý uhlíř (obydlí 52, lidé 90 a 91) se stejně plným milířem; kovář je pryč
+    const s = burnerVillage([], [12]);
+    const OTHER = 52;
+    withWorkshop(s, 'burner', OTHER, { x: -40, z: 40, rotation: 0 }, 90);
+    s.people.find((p) => p.id === 90)!.sex = 'male';
+    const first = s.dwellings.find((d) => d.id === BURNER)!.workshop!;
+    const other = s.dwellings.find((d) => d.id === OTHER)!.workshop!;
+    other.kilns = [{ ...first.kilns![0]!, id: 991 }];
+    other.charcoalOrderKg = first.charcoalOrderKg;
+    s.people.find((p) => p.id === 70)!.away = { kind: 'campaign' };
+    const plans = burnerPlans(s, s.lastDay + 1, NO_CRAFTS, 1);
+    expect(plans.get(BURNER)!.draws).toHaveLength(1);
+    expect(plans.get(OTHER)!.draws).toEqual([]);
+    // kovář doma – s druhým uhlířem nese on
+    delete s.people.find((p) => p.id === 70)!.away;
+    expect(burnerPlans(s, s.lastDay + 1, NO_CRAFTS, 1).get(OTHER)!.draws).toHaveLength(1);
   });
 });

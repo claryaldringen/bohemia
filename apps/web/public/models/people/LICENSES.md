@@ -112,6 +112,12 @@ měřická lať, palice, krumpáč, dláto, ožeh, míchadlo, zednická lžíce,
 kvádr, kamení v nůši, kámen v rukou a koryto na maltu. Soubory GLB jako celek zůstávají pod
 CC BY-SA 3.0.
 
+Nošení uhlí na tyči (jen `man.glb`, klipy `carry-pole` a `carry-pole-back` – `docs/design/workshops.md`):
+animace nesení na rameni `gatherer/carry_meat_m.dae` (0 A.D.), klip `carry-pole` s rekvizitou `pole-basket`
+(vlastní procedurální tvar ze skriptu `people_from_0ad.py`, **vlastní práce, CC0**: tyč 2,6 m a proutěná
+košatina s uhlím na čtyřech provazech) s texturou `props/basket_iber_1.dds` (0 A.D.), klip `carry-pole-back`
+táž animace jen s hlavou (druhý muž nese konec tyče). Soubor GLB jako celek zůstává pod CC BY-SA 3.0.
+
 Vojsko ve scéně (`apps/web/lib/scene/army-renderer.ts`, war.md – Ve scéně) používá tytéž soubory
 a klipy se zbraněmi – oštěp (`walk-spear`, `spear-thrust`, `props/weap_shaft_wood_a.dae`), štít
 s mečem (`sword-strike`, `shield-block`, `props/shield/round_noboss_f.dae`,

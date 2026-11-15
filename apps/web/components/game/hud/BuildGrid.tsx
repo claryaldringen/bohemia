@@ -22,6 +22,17 @@ function variantIconSrc(icon: string): string {
   return icon.includes('/') ? `/icons/${icon}.png` : `/icons/resources/${icon}.png`;
 }
 
+/**
+ * Jde stavbu zahájit? Řemeslná dílna s rozcestníkem (workshops.md) jde, když ves zaplatí aspoň
+ * jeden druh – vypletená dílna chce míň dřeva než dnešní.
+ */
+function itemAffordable(item: BuildItem, option: BuildOption): boolean {
+  if (option.affordable) return true;
+  return (
+    item.placement === 'workshop' && Object.values(option.variants ?? {}).some((v) => v.affordable)
+  );
+}
+
 /** Kolik slotů má mřížka staveb (jako příkazový panel 0 A.D.) – prázdné jsou prohlubně. */
 const GRID_SLOTS = 12;
 
@@ -208,7 +219,8 @@ export function BuildGrid({
   const hubVariants =
     (hub?.placement === 'squares' ||
       hub?.placement === 'fort-points' ||
-      hub?.placement === 'dwellings') &&
+      hub?.placement === 'dwellings' ||
+      hub?.placement === 'workshop') &&
     hub.kind in options
       ? // obydlí: jen druhy, které ves nabízí (první zemnice zakládá ves)
         hub.placement === 'dwellings'
@@ -244,7 +256,12 @@ export function BuildGrid({
                 const option = options[hub.kind] ?? null;
                 const extending = extendingVariant === variant.id;
                 const affordable = isBuildAffordable(option, variant.id, extending);
-                const blocked = blockedVariants[variant.id] ?? null;
+                // řemeslná dílna: rok varianty dává nabídka staveb („Od roku 800“)
+                const blocked =
+                  blockedVariants[variant.id] ??
+                  (hub.placement === 'workshop'
+                    ? (option?.variants?.[variant.id]?.blocked ?? null)
+                    : null);
                 return (
                   <GridButton
                     key={variant.id}
@@ -275,7 +292,7 @@ export function BuildGrid({
                   icon={buildIconSrc(option?.look?.icon ?? item.icon)}
                   tooltip={<BuildTooltip item={item} option={option} />}
                   pressed={active === item.kind}
-                  disabled={disabled || (option !== null && !option.affordable)}
+                  disabled={disabled || (option !== null && !itemAffordable(item, option))}
                   hotkey={item.hotkeyLabel}
                   onClick={() => onBuild(item.kind)}
                 />

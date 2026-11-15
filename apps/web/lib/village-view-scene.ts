@@ -31,6 +31,7 @@ import {
   plantedSaplingViews,
   sceneCarts,
   withStoneCartHeaps,
+  sceneBurnerCamps,
   sceneKilnRemnants,
   sceneKilns,
   scenePloughLegs,
@@ -272,6 +273,7 @@ export function sceneVillage(
   const roadTrees = sceneRoadTrees(state, day, obstacles);
   const kilns = sceneKilns(state, summary);
   const kilnRemnants = sceneKilnRemnants(state, day);
+  const burnerCamps = sceneBurnerCamps(state, day);
   const grainPits = sceneGrainPits(state);
   const plantedSaplings = plantedSaplingViews(state, day);
   const roadApples = sceneRoadApples(state, day, obstacles);
@@ -385,6 +387,7 @@ export function sceneVillage(
     ...(wildTrees.length > 0 ? { wildTrees } : {}),
     ...(kilns.length > 0 ? { kilns } : {}),
     ...(kilnRemnants.length > 0 ? { kilnRemnants } : {}),
+    ...(burnerCamps.length > 0 ? { burnerCamps } : {}),
     ...(grainPits.length > 0 ? { grainPits } : {}),
     ...(plantedSaplings.length > 0 ? { plantedSaplings } : {}),
     ...(roadApples.length > 0 ? { roadApples } : {}),
@@ -902,5 +905,10 @@ function scenePlacementVillage(scene: SceneVillage): PlacementVillage {
     ...(scene.roads ? { walkRoads: scene.roads } : {}),
     // milíře uhlířů – samostatné stavby, přes ně stavět nejde (crafts.md – Milíř u skácených buků)
     ...(scene.kilns?.length ? { kilns: scene.kilns.map((k) => ({ x: k.x, z: k.z })) } : {}),
+    // zemnice uhlířů u milířů – i rozestavěné a opuštěné, přes ně stavět nejde (workshops.md –
+    // Uhlíř – zemnice u milíře; jako `placementVillageOf`)
+    ...(scene.burnerCamps?.length
+      ? { camps: scene.burnerCamps.map((c) => ({ x: c.x, z: c.z, rotation: c.rotation })) }
+      : {}),
   };
 }

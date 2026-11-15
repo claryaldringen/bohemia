@@ -121,8 +121,9 @@ export interface SmithCart {
  * Vůz pro uhlí od milíře ke kováři (wagons.md – Co vozy vozí, crafts.md – Uhlí a ruda kováře): sedlák
  * (CART_JOBS.charcoal.crew) jede k milíři, uhlíř nakládá při vytahání, u kovárny složí kovář –
  * náklad CART_JOBS.charcoal.loadKg (čtyřkolák – `kind` – dvakrát tolik se stejnou posádkou). Vůz
- * se vezme, jen když práce sedláka na kg uhlí je menší než nošení v koších kovářovou domácností
- * (`footPerKg` – čd na kg); kam nedojede (`drive` null), null.
+ * se vezme, jen když práce sedláka na kg uhlí je menší než nošení pěšky – odnos na tyči má práci
+ * nošení v koších (`footPerKg` – čd na kg; workshops.md, Uhlíř – odnos uhlí na tyči); kam nedojede
+ * (`drive` null), null.
  */
 export function kilnCartOffer(
   drive: CartDrive | null,

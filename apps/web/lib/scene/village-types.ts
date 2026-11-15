@@ -214,7 +214,7 @@ export type PlacementResult =
   | { kind: 'squares'; cells: TileCell[]; grid?: SquareGrid; variant?: string }
   | { kind: 'sacred'; type: SacredBuildingKind; position: Position }
   | { kind: 'fort-points'; points: [number, number][]; variant: string }
-  | { kind: 'workshop'; craft: Craft; position: Position }
+  | { kind: 'workshop'; craft: Craft; type: DwellingType; position: Position }
   | { kind: 'threshing-floor'; position: Position }
   | { kind: 'quarry'; position: Position }
   | { kind: 'church'; type: ChurchType; dims: ChurchDims; position: Position };

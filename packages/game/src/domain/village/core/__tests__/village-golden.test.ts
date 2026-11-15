@@ -4,7 +4,7 @@ import { advanceVillage } from '../simulate';
 import { advanceChunked, goldenWorld, stateFingerprint, YEAR } from './village-golden-fixture';
 
 // Zlatý otisk celé vsi (village-core.md – Determinismus): ves ze seedu po 20 letech pod správcem
-// (pole, stáda, řemesla, rod) se dopočte o rok a otisk jejího stavu se musí shodovat se zapsaným.
+// (pole, stáda, zásoby řemeslného zboží, rod – dílnu nemá) se dopočte o rok a otisk jejího stavu se musí shodovat se zapsaným.
 // Zachytí každou nechtěnou změnu výsledku simulace při úklidu a zrychlování. Delší běh (2. a 3. rok)
 // je v village-golden-long.test.ts (npm run test:slow).
 //
@@ -31,7 +31,7 @@ const EXPECTED_YEAR_1 = 'b7477b97a27c913e';
 describe('zlatý otisk vsi', () => {
   const world = goldenWorld();
 
-  it('po 20 letech má ves pole, stáda, řemesla i rod (základ otisku není prázdný)', () => {
+  it('po 20 letech má ves pole, stáda, zásoby řemesel i rod (základ otisku není prázdný)', () => {
     const s = world.start;
     expect(s.fields.length).toBeGreaterThanOrEqual(5);
     expect(s.livestock?.herds).toBeDefined();

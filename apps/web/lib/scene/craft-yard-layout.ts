@@ -1,8 +1,16 @@
-import { PLAIN_FRAME, type Craft, type Position, type ShapeFrame } from '@bohemia/game';
+import {
+  PLAIN_FRAME,
+  isHouseType,
+  workshopSideM,
+  type Craft,
+  type DwellingType,
+  type Position,
+  type ShapeFrame,
+} from '@bohemia/game';
 import type { SceneCraftYard } from '../village-view';
 import type { ColoredGeometry, HeightFn } from './ore-site-layout';
-import { shapedToWorld, type Point } from './village-layout';
-import type { CraftSpot, WorkshopVent } from './workshop-layout';
+import { localToWorld, shapedToWorld, type Point } from './village-layout';
+import { PORCH_FRONT_M, shedOrigin, type CraftSpot, type WorkshopVent } from './workshop-layout';
 
 // Dvůr kovárny a hrnčíře ve scéně (production-chains.md – Kovář; crafts.md – Hlína hrnčíře):
 // redukční pec s ručním měchem před kovárnou (stojí vždy, při tavbě z ní šlehá žár a jiskry),
@@ -55,6 +63,11 @@ export interface CraftYardView {
   craft: Craft;
   position: Position;
   frame?: ShapeFrame;
+  /**
+   * Obydlí dílny – u nadzemní dílny (workshops.md) leží dvůr u bočního přístřešku: souřadnice
+   * dvora (před přístřeškem dnešní dílny) se otočí o 90° a posunou za přístřešek.
+   */
+  type?: DwellingType;
   yard?: SceneCraftYard;
 }
 
@@ -79,6 +92,7 @@ export function craftYardsKey(views: readonly CraftYardView[]): string {
         p.z.toFixed(2),
         p.rotation.toFixed(3),
         JSON.stringify(f),
+        v.type ?? '',
         // tavba mění pec (žár, uhlí v hrdle); ostatní práce dne dvůr nevidí
         y.task === 'smelt' ? 1 : 0,
         y.bloom ?? 0,
@@ -89,15 +103,29 @@ export function craftYardsKey(views: readonly CraftYardView[]): string {
     .join('|');
 }
 
+/** Je dílna nadzemní (dům s přístřeškem u boční stěny)? */
+function overground(view: CraftYardView): view is CraftYardView & { type: DwellingType } {
+  return view.type !== undefined && isHouseType(view.type);
+}
+
 function at(view: CraftYardView, lx: number, lz: number): Point {
-  return shapedToWorld(view.position, view.frame ?? PLAIN_FRAME, lx, lz);
+  const frame = view.frame ?? PLAIN_FRAME;
+  if (overground(view)) {
+    // dvůr za přístřeškem u boční stěny: „dopředu“ (lz) míří od stěny, „napříč“ (lx) podél ní
+    const o = shedOrigin(view.type, frame);
+    const side = workshopSideM(view.craft, view.type);
+    return localToWorld(view.position, o.x + side + (lz - PORCH_FRONT_M), o.z - lx);
+  }
+  return shapedToWorld(view.position, frame, lx, lz);
 }
 
 /** Směr v osách modelu → svět (jednotkový jako `modelSpots`). */
 function direction(view: CraftYardView, dx: number, dz: number): { x: number; z: number } {
   const c = Math.cos(view.position.rotation);
   const s = Math.sin(view.position.rotation);
-  return { x: dx * c + dz * s, z: -dx * s + dz * c };
+  // u nadzemní dílny je dvůr otočený o 90° (dopředu = od boční stěny)
+  const [ux, uz] = overground(view) ? [dz, -dx] : [dx, dz];
+  return { x: ux * c + uz * s, z: -ux * s + uz * c };
 }
 
 function hash(x: number, z: number, salt: number): number {

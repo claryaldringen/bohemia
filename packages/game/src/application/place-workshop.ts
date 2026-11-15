@@ -1,5 +1,5 @@
 import { obstaclesOf, type Landscape } from '../domain/landscape';
-import { applyBuildIntent, type Craft, type Position } from '../domain/village';
+import { applyBuildIntent, type Craft, type HouseType, type Position } from '../domain/village';
 import { updateLivingVillage } from './update-village';
 import type { VillageRepository, VillageResult } from './villages';
 
@@ -15,6 +15,8 @@ export interface PlaceWorkshopInput {
   craft: Craft;
   /** Volná poloha dílny jako u zemnice (milíř uhlíř staví zvlášť u dávky buků – crafts.md). */
   position: Position;
+  /** Nadzemní dílna (workshops.md) – vypletená nebo roubená; bez údaje dnešní dílna. */
+  type?: HouseType;
 }
 
 /**
@@ -37,6 +39,7 @@ export function placeWorkshop(
         kind: 'workshop',
         craft: input.craft,
         position: input.position,
+        ...(input.type ? { type: input.type } : {}),
       }),
   );
 }

@@ -1,6 +1,8 @@
 # Licence modelů řemeslných staveb
 
-Hrnčíř, kovář, tesař, uhlíř a milíř jsou vymodelované procedurálně skriptem Blenderu
+Přístřešky nadzemních dílen (`pristresek-*.glb`) a zemnice u milíře (`milir-zemnice.glb`) vznikly stejným skriptem
+(`crafts.py`, Blender z příkazové řádky, atlas z `craft_atlas.py`); platí pro ně totéž co pro ostatní soubory
+níže. Hrnčíř, kovář, tesař, uhlíř a milíř jsou vymodelované procedurálně skriptem Blenderu
 `tools/blender/crafts.py` – hrnčíř, kovář a tesař jsou polozemnice, uhlíř zemnice z
 `tools/blender/dwellings.py` (postup v hlavičce `crafts.py`). Atlas textur sestavuje
 `tools/blender/craft_atlas.py`: je to atlas obydlí (`tools/blender/atlas.py`, licence a výřezy
@@ -25,8 +27,13 @@ stejnou licencí CC BY-SA 3.0. Licence se týká jen těchto souborů, ne zbytku
 | `tesar.glb`             | atlas obydlí (kůra trámů `celt_struct.dds` na kozlíky, trámy a kola, čela polen na hobliny) – bez dalších zdrojů                                                                                            |
 | `uhlir.glb`             | atlas obydlí s mechem místo slámy: `textures/terrain/types/temperate/grass_04.png`, `forestfloor_003.png`, `mud_01.png`; koše `meshes/props/wrld_basket_a.dae` + `basket_celt_1.dds`                        |
 | `milir.glb`             | stejný atlas jako `uhlir.glb` (zem milíře z `mud_01.png` a `grass_04.png`, věnec polen z `celt_struct.dds`); koš `meshes/props/wrld_basket_a.dae` + `basket_celt_1.dds`                                     |
-| `construction.glb`      | díly staveniště hrnčíře, kováře a tesaře a rekvizity (kameny, hlína) – stejné zdroje jako `hrncir.glb`, `kovar.glb`, `tesar.glb`                                                                            |
-| `construction-moss.glb` | díly staveniště uhlíře a milíře – stejné zdroje jako `uhlir.glb` a `milir.glb`                                                                                                                              |
+| `pristresek-hrncir.glb` | přístřešek nadzemní dílny (vypletený a roubený dům, workshops.md) – atlas obydlí a řemesel jako u `hrncir.glb`, vlastní tvar (sloupky, krokve, došky, pec, kruh, police, hrnce; bez cizích souborů)         |
+| `pristresek-kovar.glb`  | totéž – výheň, kovadlina, uhlí, koryto, železo; koš `meshes/props/wrld_basket_a.dae` + `basket_celt_1.dds` jako u `kovar.glb`                                                                               |
+| `pristresek-tesar.glb`  | totéž – kozlíky, trámy, špalek se sekerou, kola a hobliny z atlasu obydlí jako u `tesar.glb`                                                                                                                |
+| `pristresek-uhlir.glb`  | totéž – přístřešek nad volnou hromadou bukových polen (`celt_struct.dds`, čela polen z atlasu obydlí)                                                                                                       |
+| `milir-zemnice.glb`     | zemnice uhlíře u milíře (workshops.md) – atlas s mechem jako u `uhlir.glb` (pás `turf` z `grass_04.png` a `mud_01.png`, kulatina z `celt_struct.dds`), vlastní tvar                                         |
+| `construction.glb`      | díly staveniště hrnčíře, kováře a tesaře, díly přístřešků `pristresek-*` a rekvizity (kameny, hlína) – stejné zdroje jako `hrncir.glb`, `kovar.glb`, `tesar.glb`, `pristresek-*.glb`                        |
+| `construction-moss.glb` | díly staveniště uhlíře, milíře a zemnice u milíře (`milir-zemnice-*`) – stejné zdroje jako `uhlir.glb`, `milir.glb` a `milir-zemnice.glb`                                                                   |
 
 Jámu se schody, ve které hrnčíř, kovář, tesař (jáma polozemnice) a uhlíř (jáma zemnice) stojí, kreslí
 scéna (`apps/web/lib/scene/dwelling-pit.ts`) s texturou bahna z terénu.

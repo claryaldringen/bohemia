@@ -11,8 +11,10 @@ import {
   type Craft,
   type ChurchDims,
   type ChurchType,
+  type HouseType,
   type MasonCraft,
   type MasonryCircle,
+  HOUSE_TYPES_BEST_FIRST,
   MASON_CRAFTS,
   type Direction8,
   type FortKind,
@@ -510,14 +512,20 @@ export function parseInviteMasterInput(value: unknown): { craft: MasonCraft } | 
     : null;
 }
 
-/** Vstup stavby řemeslné dílny `{ craft, position }`, jinak null. */
+/**
+ * Vstup stavby řemeslné dílny `{ craft, position, type? }` (`type` = nadzemní dílna – vypletená
+ * nebo roubená, workshops.md; bez něj dnešní dílna), jinak null.
+ */
 export function parsePlaceWorkshopInput(
   value: unknown,
-): { craft: Craft; position: Position } | null {
+): { craft: Craft; position: Position; type?: HouseType } | null {
   if (!isRecord(value)) return null;
   const craft = CRAFTS.find((c) => c === value.craft) ?? null;
   const position = parsePosition(value.position);
-  return craft !== null && position !== null ? { craft, position } : null;
+  if (craft === null || position === null) return null;
+  if (value.type === undefined) return { craft, position };
+  const type = HOUSE_TYPES_BEST_FIRST.find((t) => t === value.type);
+  return type === undefined ? null : { craft, position, type };
 }
 
 /**

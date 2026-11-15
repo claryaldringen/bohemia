@@ -993,6 +993,322 @@ def site_clay(part):
         lathe(b, (0, 0), [(0.55, -0.03), (0.48, 0.12), (0.32, 0.25), (0.0, 0.3)], "clay", seg=12, wobble=lambda r, z, a: (r * (1 + 0.12 * math.sin(3 * a + 1) + 0.06 * math.sin(7 * a)), z))
 
 
+
+# ------------------------------------------------------------------ přístřešky nadzemních dílen
+# (docs/design/workshops.md): vypletený / roubený dům s přístřeškem u boční stěny. Model přístřešku
+# je samostatný, počátek leží na ose boční stěny domu v polovině její délky, přístřešek míří od
+# stěny k −X Blenderu (ve scéně je to +x domu), přes celou délku podél Y. Souřadnice: X = od stěny
+# (0 … −hloubka), Y = podél stěny, Z nahoru; model stojí na úrovni terénu.
+# Okap domu měřený v dwellings.py: vypletený dům má stěny 1,8 m, okap (spodek došků na vnější
+# hraně, x = 2,75 m od osy) 1,8 − 0,9 · 0,45 ≈ 1,40 m; srub 0,25 + 9 · 0,2 = 2,05 m, okap 1,60 m.
+# Horní hrana přístřešku proto nejvýš 1,38 m a klesá od stěny ven – pod okap vejde obojí.
+SHED_DEPTH = 3.2  # hloubka přístřešku od osy stěny (m)
+SHED_LENGTH = 6.0  # délka podél stěny (m)
+SHED_Z_HI = 1.38  # horní plocha střechy u stěny (m)
+SHED_Z_LO = 1.15  # horní plocha střechy na vnější hraně (m)
+SHED_TH = 0.13  # tloušťka střechy (m)
+SHED_POST = 0.17  # průřez sloupku (m)
+
+
+def place(part, build, pos, yaw=0.0, scale=1.0):
+    """Postaví obsah funkcí `build(tmp_part)` v počátku a přenese ho do dílů `part` (stejné klíče):
+    zmenšení `scale`, natočení kolem Z o `yaw` radiánů, posun `pos`. UV zůstávají."""
+    tmp = Parts(part.prefix)
+    build(tmp)
+    c, sn = math.cos(yaw), math.sin(yaw)
+    for key, src in tmp.builders.items():
+        dst = part(key)
+        base = len(dst.verts)
+        for v in src.verts:
+            x, y, z = v.x * scale, v.y * scale, v.z * scale
+            dst.verts.append(Vector((x * c - y * sn + pos[0], x * sn + y * c + pos[1], z + (pos[2] if len(pos) > 2 else 0.0))))
+        dst.faces.extend([[i + base for i in f] for f in src.faces])
+        dst.uvs.extend(list(src.uvs))
+        dst.smooth.extend(list(src.smooth))
+
+
+def shed_top(x, depth=SHED_DEPTH):
+    """Horní plocha střechy přístřešku v místě x (od stěny 0 do −hloubky)."""
+    return SHED_Z_HI + (SHED_Z_LO - SHED_Z_HI) * (-x / depth)
+
+
+def shed_frame(part, length=SHED_LENGTH, depth=SHED_DEPTH, n_posts=4, stages=False):
+    """Pultový přístřešek na sloupcích na vnější hraně: díly „posts“ (sloupky, vaznice na
+    sloupcích a vazný trám u stěny), „rafters“ (krokve přes celou hloubku) a „thatch“ (došková
+    střecha s okapní hranou). Vrací z_in(x) – spodní plochu střechy."""
+    hl = length / 2
+
+    def z_in(x):
+        return shed_top(x, depth) - SHED_TH
+
+    x_out = -depth + SHED_POST / 2 + 0.05
+    b = part("posts")
+    ys = [-hl + 0.4 + i * (length - 0.8) / (n_posts - 1) for i in range(n_posts)]
+    for y in ys:
+        b.beam((x_out, y, -0.15), (x_out, y, z_in(x_out) - 0.05), SHED_POST)
+        # vzpěra od sloupku k vaznici
+        b.beam((x_out, y - 0.0, z_in(x_out) - 0.45), (x_out + 0.4, y, z_in(x_out + 0.4) - 0.02), 0.08)
+    b.beam((x_out, -hl + 0.1, z_in(x_out) - 0.07), (x_out, hl - 0.1, z_in(x_out) - 0.07), 0.15)  # vaznice na sloupcích
+    b.beam((-0.04, -hl + 0.1, z_in(-0.04) - 0.07), (-0.04, hl - 0.1, z_in(-0.04) - 0.07), 0.15)  # vazný trám na stěně
+    b = part("rafters")
+    n = int(length / 0.9) + 1
+    for i in range(n):
+        y = -hl + 0.1 + i * (length - 0.2) / (n - 1)
+        b.beam((-depth + 0.02, y, z_in(-depth + 0.02) - 0.02), (-0.02, y, z_in(-0.02) - 0.02), 0.09)
+    # došková střecha po kusech podél spádu a délky; hrubý šum z dwellings.noise
+    b = part("thatch")
+    xs = [-depth - 0.08 + i * (depth + 0.08) / 5 for i in range(6)]
+    yy = [-hl - 0.12 + j * (length + 0.24) / 12 for j in range(13)]
+
+    def top(x, y):
+        return shed_top(x, depth) + 0.5 * D.noise(x, y) * min(1.0, -x / 0.8 + 0.2)
+
+    for xa, xb in zip(xs, xs[1:]):
+        for ya, yb in zip(yy, yy[1:]):
+            sa, sb = xa + depth, xb + depth  # vzdálenost po spádu od okapu
+            b.poly(
+                [(xa, ya, top(xa, ya)), (xb, ya, top(xb, ya)), (xb, yb, top(xb, yb)), (xa, yb, top(xa, yb))],
+                "thatch",
+                out=(0.1, 0, 1),
+                uvm=[(ya, sa), (ya, sb), (yb, sb), (yb, sa)],
+            )
+            b.poly(
+                [(xa, ya, z_in(xa)), (xb, ya, z_in(xb)), (xb, yb, z_in(xb)), (xa, yb, z_in(xa))],
+                "thatch",
+                out=(0, 0, -1),
+                uvm=[(ya, sa), (ya, sb), (yb, sb), (yb, sa)],
+            )
+    # okapní hrana vpředu a štítové boky
+    x0 = xs[0]
+    for ya, yb in zip(yy, yy[1:]):
+        b.poly(
+            [(x0, ya, top(x0, ya)), (x0, yb, top(x0, yb)), (x0, yb, z_in(x0)), (x0, ya, z_in(x0))],
+            "thatch_edge",
+            out=(-1, 0, 0),
+            uvm=[(ya, top(x0, ya) - z_in(x0)), (yb, top(x0, yb) - z_in(x0)), (yb, 0), (ya, 0)],
+        )
+    for y, out in ((yy[0], (0, -1, 0)), (yy[-1], (0, 1, 0))):
+        for xa, xb in zip(xs, xs[1:]):
+            b.poly(
+                [(xa, y, top(xa, y)), (xb, y, top(xb, y)), (xb, y, z_in(xb)), (xa, y, z_in(xa))],
+                "thatch_edge",
+                out=out,
+                uvm=[(xa, top(xa, y) - z_in(xa)), (xb, top(xb, y) - z_in(xb)), (xb, 0), (xa, 0)],
+            )
+    return z_in
+
+
+# obsah přístřešku – tvary dnešních dílen, místo a otočení podle přístřešku (pod pultovou střechou
+# je nízko, proto pec a výheň o čtvrtinu menší); „pos“ = (x od stěny, y podél stěny)
+
+
+def shelf_with_pots(part):
+    """Police hrnčíře: prkno na dvou špalcích (podél Y, délka 2 m) a na něm sušící se hrnce."""
+    b = part("shelf")
+    for y in (-0.7, 0.7):
+        lathe(b, (0, y), [(0.15, -0.05), (0.15, 0.4)], "beam", seg=8, smooth=False)
+        stump_top(b, (0, y), 0.15, 0.4)
+    cbox(b, -0.17, 0.17, -1.0, 1.0, 0.4, 0.46, "beam")
+    b = part("pots")
+    for i, y in enumerate((-0.85, -0.5, -0.15, 0.2, 0.55, 0.9)):
+        h = 0.24 + 0.08 * seeded(i)
+        pot(b, (0.03 * (seeded(i + 9) - 0.5), y), h, 0.1 + 0.03 * seeded(i + 3), "pottery", z0=0.46)
+
+
+def clay_lump(part):
+    b = part("clay")
+    cbox(b, -0.275, 0.275, -0.175, 0.175, -0.02, 0.06, "beam")
+    with b.smooth_mode():
+        lathe(b, (0, 0), [(0.22, 0.06), (0.2, 0.14), (0.12, 0.22), (0.0, 0.24)], "clay", seg=10, wobble=lambda r, z, a: (r * (1 + 0.1 * math.sin(3 * a + 1)), z))
+
+
+def fired_pots(part):
+    b = part("pots")
+    for x, y, h in ((0.0, 0.0, 0.3), (0.3, 0.2, 0.26), (0.05, 0.38, 0.22)):
+        pot(b, (x, y), h, 0.12, "pottery_fired", seg=10)
+
+
+def build_pristresek_hrncir(mat, stages=False):
+    part = Parts("pristresek-hrncir")
+    shed_frame(part, stages=stages)
+    face_out = math.radians(-90)  # ústí pece (−Y výrobních tvarů) míří od stěny
+    place(part, lambda t: kiln(t, (0, 0)), (-1.25, 1.75), face_out, 0.75)
+    place(part, lambda t: potter_wheel(t("wheel"), (0, 0)), (-1.5, -0.2), 0.0, 0.9)
+    place(part, shelf_with_pots, (-0.5, -1.9))
+    place(part, clay_lump, (-0.55, 0.45))
+    place(part, fired_pots, (-2.55, 2.1))
+    return part, {}
+
+
+def build_pristresek_kovar(mat, stages=False):
+    part = Parts("pristresek-kovar")
+    shed_frame(part, stages=stages)
+    # výheň: hliněná stěna a měchy zůstávají u stěny domu (+X, +Y), obsluha stojí z vnější strany
+    place(part, lambda t: forge(t, (0, 0)), (-1.0, -0.3), 0.0, 0.8)
+    place(part, lambda t: anvil(t("anvil"), (0, 0)), (-2.0, -0.35), 0.0, 0.95)
+    place(
+        part,
+        lambda t: lathe(t("charcoal"), (0, 0), [(0.58, -0.03), (0.52, 0.08), (0.42, 0.18), (0.28, 0.29), (0.12, 0.35), (0.0, 0.37)], "charcoal", seg=14, smooth=False, wobble=lambda r, z, a: (r * (1 + 0.1 * math.sin(4 * a + z * 6) + 0.07 * math.sin(9 * a + z * 17)), z + 0.03 * math.sin(7 * a + r * 13))),
+        (-1.65, 1.65),
+    )
+    # koryto s vodou na kalení (vydlabaný kmen, podél Y)
+    b = part("trough")
+    cbox(b, -0.9, -0.5, 0.7, 1.65, -0.03, 0.34, "logs_rot", skip=("+z", "-z"), voff=-0.18)
+    cbox(b, -0.88, -0.52, 0.72, 1.63, 0.2, 0.3, "water", skip=("-z", "-x", "+x", "-y", "+y"))
+    for x in (-0.9, -0.5):
+        b.beam((x, 0.7, 0.33), (x, 1.65, 0.33), 0.06)
+    # zásoba železa – houby a pruty na špalku
+    b = part("iron")
+    lathe(b, (-2.45, 2.2), [(0.22, -0.05), (0.21, 0.35)], "beam", seg=8, smooth=False)
+    stump_top(b, (-2.45, 2.2), 0.21, 0.35)
+    for i in range(3):
+        b.beam((-2.58, 2.1 + i * 0.09, 0.39), (-2.28, 2.25 + i * 0.07, 0.39), 0.045, mat="iron")
+    cb = CB("pristresek-kovar-basket-coal")
+    with cb.smooth_mode():
+        lathe(cb, (-2.3, -1.9), [(0.2, 0.3), (0.12, 0.36), (0.0, 0.38)], "charcoal", seg=10)
+    extras = {"yard": [D.import_prop("basket-a", 0.42, (-2.3, -1.9, 0.0), mat), cb.build(mat)]}
+    return part, extras
+
+
+def build_pristresek_tesar(mat, stages=False):
+    part = Parts("pristresek-tesar")
+    shed_frame(part, stages=stages)
+    bx = -1.9
+    b = part("trestles")
+    for y in (-1.0, 1.0):
+        trestle(b, bx, y)
+    b = part("beam")
+    b.beam((bx, -1.5, 0.83), (bx, 1.5, 0.83), 0.24, mat="beam")
+    b.beam((bx, 1.5, 0.83), (bx, 1.62, 0.83), 0.26)
+    # špalek se zaseknutou sekerou
+    b = part("block")
+    blk = (-2.65, -1.95)
+    lathe(b, blk, [(0.24, -0.05), (0.23, 0.48)], "beam", seg=10, smooth=False)
+    stump_top(b, blk, 0.23, 0.48)
+    head = Vector((blk[0] + 0.02, blk[1] + 0.03, 0.52))
+    cbox(b, head.x - 0.05, head.x + 0.05, head.y - 0.03, head.y + 0.1, head.z - 0.06, head.z + 0.03, "iron")
+    b.beam(head + Vector((0, 0.05, 0.02)), head + Vector((0.08, 0.6, 0.32)), 0.04)
+    # zásoba otesaných trámů u stěny na dvou podkladech
+    b = part("beams")
+    for y in (-1.2, 1.2):
+        b.beam((-0.95, y, 0.06), (-0.25, y, 0.06), 0.12)
+    for i, (x, z) in enumerate(((-0.8, 0.2), (-0.6, 0.2), (-0.4, 0.2), (-0.7, 0.37), (-0.5, 0.37))):
+        b.beam((x, -1.5 - 0.06 * seeded(i), z), (x, 1.5 + 0.08 * seeded(i + 4), z), 0.16, mat="beam")
+    # kola: rozdělané kolo vodorovně na dvou špalcích, hotová kola opřená o stěnu domu
+    b = part("wheels")
+    wc = (-1.4, 2.2)
+    for dy in (-0.3, 0.3):
+        lathe(b, (wc[0], wc[1] + dy), [(0.11, -0.05), (0.1, 0.22)], "beam", seg=8, smooth=False)
+        stump_top(b, (wc[0], wc[1] + dy), 0.1, 0.22)
+    cart_wheel(b, (wc[0], wc[1], 0.3), (0, 0, 1), (1, 0, 0), missing_spokes=(2, 5), missing_felloes=(1, 2, 5))
+    tilt = math.radians(14)
+    cart_wheel(b, (-0.46, -2.35, 0.49), (-math.cos(tilt), 0, math.sin(tilt)), (math.sin(tilt), 0, math.cos(tilt)))
+    cart_wheel(b, (-0.5, 2.55, 0.48), (-math.cos(tilt) * 0.94, 0.25, 0.94 * math.sin(tilt)), (math.sin(tilt), 0, math.cos(tilt)))
+    b = part("chips")
+    for i in range(46):
+        a = 2 * math.pi * seeded(i + 70)
+        dist = 0.15 + 0.85 * math.sqrt(seeded(i + 90))
+        x = bx + math.cos(a) * dist * 0.75
+        y = math.sin(a) * dist * 1.6
+        size = 0.05 + 0.05 * seeded(i + 110)
+        rot = 2 * math.pi * seeded(i + 130)
+        cx, sx = math.cos(rot), math.sin(rot)
+        z = 0.012 + 0.008 * seeded(i + 150)
+        corners = [(-1, -0.45), (1, -0.45), (1, 0.45), (-1, 0.45)]
+        pts = [(x + (u * cx - v * sx) * size, y + (u * sx + v * cx) * size, z + 0.01 * u * seeded(i)) for u, v in corners]
+        b.poly(pts, "logends", out=(0, 0, 1), uvm=[(0.111 + u * 0.025, v * 0.025) for u, v in corners])
+    return part, {}
+
+
+def build_pristresek_uhlir(mat, stages=False):
+    """Uhlíř: přístřešek 6 × 2 m nad volnou hromadou bukového dřeva – kmeny a polena naházená
+    křížem krážem, ne vyskládaná hráň (Martin: tak vyskládané dřevo tehdy neměli)."""
+    part = Parts("pristresek-uhlir")
+    shed_frame(part, depth=2.0, stages=stages)
+    b = part("wood")
+    for i in range(34):
+        # hromada leží podél stěny: x ∈ (−1,8; −0,35), y ∈ (−2,6; 2,6)
+        x = -0.35 - 1.45 * seeded(i + 41)
+        y = -2.6 + 5.2 * seeded(i + 3)
+        near = 1.0 - min(1.0, (abs(y) / 2.6) ** 2 + ((x + 1.05) / 0.9) ** 2) * 0.8  # u středu hromada vyšší
+        layer = int(seeded(i + 7) * 3 * near)
+        r = 0.075 + 0.04 * seeded(i + 11)
+        length = 1.0 + 0.7 * seeded(i + 13)
+        yaw = (seeded(i + 17) - 0.5) * 2.1 + (math.pi / 2 if seeded(i + 19) > 0.8 else 0.0)  # většinou podél stěny, pár napříč
+        dy, dx = math.cos(yaw) * length / 2, math.sin(yaw) * length / 2
+        z = r + layer * 0.15 + 0.05 * seeded(i + 23)
+        tilt = (seeded(i + 29) - 0.5) * 0.14
+        log(b, (x - dx, y - dy, z - tilt), (x + dx, y + dy, z + tilt), r, i)
+    return part, {}
+
+
+# ------------------------------------------------------------------ zemnice u milíře
+
+
+ZE_W, ZE_L, ZE_H = 3.0, 3.5, 1.3  # šířka, délka a výška hřebene zemnice u milíře (m)
+
+
+def build_milir_zemnice(mat, stages=False):
+    """Zemnice uhlíře u milíře (docs/design/workshops.md): nízká střecha až k zemi z drnů na
+    krokvích, hřeben 1,3 m, vchod v −Y (štít s rámem z kulatiny a tmavým otvorem), vzadu drnový
+    sráz. Díl „logs“ (jen staveniště) = tři klády vedle vyhloubené jámy."""
+    part = Parts("milir-zemnice")
+    hw, hl = ZE_W / 2, ZE_L / 2
+
+    def zr(x):
+        return ZE_H * (1 - abs(x) / (hw + 0.1))
+
+    # drnová střecha – kusy po spádu a délce, šev drnů (pás turf), šum
+    b = part("roof")
+    xs = [-hw - 0.1 + i * (2 * hw + 0.2) / 8 for i in range(9)]
+    ys = [-hl + j * ZE_L / 7 for j in range(8)]
+
+    def top(x, y):
+        edge = abs(x) / (hw + 0.1)
+        return max(0.0, zr(x) + 0.06 * math.sin(2.3 * x + 1.7 * y) * (1 - edge))
+
+    for xa, xb in zip(xs, xs[1:]):
+        for ya, yb in zip(ys, ys[1:]):
+            P = [(xa, ya, top(xa, ya)), (xb, ya, top(xb, ya)), (xb, yb, top(xb, yb)), (xa, yb, top(xa, yb))]
+            b.poly(P, "turf", out=(xa + xb, 0, 1.2), uvm=[(ya, 0.05), (ya, 0.55), (yb, 0.55), (yb, 0.05)])  # pás turf je jen 0,625 m vysoký – každý kus roztažený přes drn
+    # zadní sráz (drn, sklon dozadu) a přední štít se dveřmi
+    y_end = hl
+    for xa, xb in zip(xs, xs[1:]):
+        b.poly([(xa, y_end, 0.0), (xb, y_end, 0.0), (xb, y_end, top(xb, y_end)), (xa, y_end, top(xa, y_end))], "turf", out=(0, 1, 0), uvm=[(xa, 0.05), (xb, 0.05), (xb, 0.55), (xa, 0.55)])
+    # přední štít: kulatina (pás beam) vlevo a vpravo od dveří a nad nimi, rám dveří, tmavý otvor
+    b = part("front")
+    yf = -hl
+    dw, dh = 0.4, 0.92
+    z_at = lambda x: top(x, yf)  # noqa: E731
+    b.poly([(-hw - 0.1, yf, 0.0), (-dw, yf, 0.0), (-dw, yf, z_at(-dw)), (-hw - 0.1, yf, z_at(-hw - 0.1))], "beam", out=(0, -1, 0))
+    b.poly([(dw, yf, 0.0), (hw + 0.1, yf, 0.0), (hw + 0.1, yf, z_at(hw + 0.1)), (dw, yf, z_at(dw))], "beam", out=(0, -1, 0))
+    b.poly([(-dw, yf, dh), (dw, yf, dh), (dw, yf, z_at(dw)), (0.0, yf, z_at(0)), (-dw, yf, z_at(-dw))], "beam", out=(0, -1, 0))
+    for sgn in (-1, 1):  # sloupky a práh rámu
+        b.beam((sgn * (dw + 0.06), yf - 0.04, -0.05), (sgn * (dw + 0.06), yf - 0.04, dh + 0.06), 0.13, mat="logs_rot", end_mat="logs_rot")
+    b.beam((-dw - 0.12, yf - 0.04, dh + 0.05), (dw + 0.12, yf - 0.04, dh + 0.05), 0.14, mat="logs_rot", end_mat="logs_rot")
+    # tmavý prostor za dveřmi
+    b.poly([(-dw, yf + 0.5, 0.0), (dw, yf + 0.5, 0.0), (dw, yf + 0.5, dh), (-dw, yf + 0.5, dh)], "dark", out=(0, -1, 0))
+    for sgn in (-1, 1):
+        b.poly([(sgn * dw, yf, 0.0), (sgn * dw, yf + 0.5, 0.0), (sgn * dw, yf + 0.5, dh), (sgn * dw, yf, dh)], "dark", out=(-sgn, 0, 0))
+    b.poly([(-dw, yf, dh), (dw, yf, dh), (dw, yf + 0.5, dh), (-dw, yf + 0.5, dh)], "dark", out=(0, 0, -1))
+    # hřebenový trám přečnívá před štít a za něj, hlavy krokví po stranách
+    b = part("frame")
+    b.beam((0.0, yf - 0.28, ZE_H - 0.06), (0.0, y_end + 0.2, ZE_H - 0.06), 0.17, mat="logs_rot", end_mat="logs_rot")
+    for i in range(5):
+        y = yf + 0.35 + i * (ZE_L - 0.7) / 4
+        for sgn in (-1, 1):
+            b.beam((sgn * (hw + 0.14), y, 0.05), (sgn * (hw - 0.1), y, 0.2), 0.09)
+    # hlína vyhozená před vchodem (násep z jámy)
+    b = part("spoil")
+    with b.smooth_mode():
+        lathe(b, (0.0, yf - 0.85), [(0.7, 0.0), (0.62, 0.08), (0.38, 0.16), (0.0, 0.18)], "spoil", seg=10, u_total=1.4, wobble=lambda r, z, a: (r * (1 + 0.15 * math.sin(3 * a + 1)), z))
+    if stages:
+        b = part("logs")
+        for x, z, i in ((1.95, 0.1, 0), (2.25, 0.1, 1), (2.1, 0.26, 2)):
+            log(b, (x, -1.3 + 0.1 * i, z), (x, 1.2 - 0.12 * i, z), 0.11, i + 50)
+    return part, {}
+
+
 # ------------------------------------------------------------------ výstup
 
 
@@ -1068,8 +1384,19 @@ def preview(models, render_dir):
         models["milir"].location = (0, 0, 0)
 
 
-BUILDERS = {"hrncir": build_hrncir, "kovar": build_kovar, "tesar": build_tesar, "uhlir": build_uhlir, "milir": build_milir}
-MOSS = {"uhlir", "milir"}  # střecha / zem z atlasu s mechem (atlas-moss.jpg)
+BUILDERS = {
+    "hrncir": build_hrncir,
+    "kovar": build_kovar,
+    "tesar": build_tesar,
+    "uhlir": build_uhlir,
+    "milir": build_milir,
+    "pristresek-hrncir": build_pristresek_hrncir,
+    "pristresek-kovar": build_pristresek_kovar,
+    "pristresek-tesar": build_pristresek_tesar,
+    "pristresek-uhlir": build_pristresek_uhlir,
+    "milir-zemnice": build_milir_zemnice,
+}
+MOSS = {"uhlir", "milir", "milir-zemnice"}  # střecha / zem z atlasu s mechem (atlas-moss.jpg)
 
 
 def main():
