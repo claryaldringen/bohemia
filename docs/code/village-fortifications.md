@@ -648,7 +648,8 @@ part?, lengthM }[]` – kusy dílů téhož úseku: celé díly mezi branami a z
   životností), stáří nejstaršího dílu, průběh, ikona Zbořit (`fort-demolish`; popisek „Zbořit úsek“
   / „Zbořit nástavbu úseku“ / „Srovnat val úseku“, práce a klády `+N` zpět, nebo důvod červeně),
   Přidat bránu; `FortGateBody` – portrét brány (`FORT_GATE_NAMES`: „Brána plotu / palisády /
-  valu“), stav a stáří dílu brány, ikona cesty branou (klik ji vybere). Zrušit bránu nejde.
+  valu“), stav a stáří dílu brány, ikona cesty branou (klik ji vybere), Opustit / Vrátit a Zbořit
+  (níž – Brána: Opustit a Zbořit).
 - **Zvýraznění** (`selection-highlight.ts`): `fortBandRings(fort, fromM, lengthM, margin)` – obrys
   pásu z `perimeterSamples` (tentýž pás, podle kterého scéna staví kůly, plot i val: křivka
   = vnější okraj, šířka pásu druhu, v ostrém ohybu vnitřní okraj do rohu), zbořené díly ho dělí;
@@ -664,10 +665,11 @@ part?, lengthM }[]` – kusy dílů téhož úseku: celé díly mezi branami a z
   `fortSitePhase(vrstva, 1 − průběh)` pro plot a palisádu u země i nástavbu (`demolish`), hlína
   valu `1 − průběh` (`level`). Nástavba dílu přes `segmentTop` (`top: 'none'` – val bez ní).
 
-## Úsek jinudy (`fortification/reroute.ts`, `fortification-reroute.ts`; Úloha 16 plánu hradeb)
+## Úsek od brány k bráně (`fortification/reroute.ts`, `fortification-reroute.ts`; Úloha 16 plánu hradeb, D28)
 
 demolition.md – Rozhodnutí (Martin 8. 11. 2026: „Můžu postavit jen část té zdi od brány k bráně.
-Hráč bude bourat, pokud zjistí, že potřebuje vést část hradby jinudy.“).
+Hráč bude bourat, pokud zjistí, že potřebuje vést část hradby jinudy.“; 14. 11. 2026: „Když bude
+chtít hráč úsek postavit, prostě ho standardně postaví“ – Postavit jinudy z panelu brány zmizelo).
 
 - **Tvar** – `rerouteFortification(fort, geo, section, points, day)` (čistá doména): jen úsek, ve
   kterém nic nestojí – každý kus `sectionPieces` je nedostavěný nebo zbořený (jinak
@@ -701,22 +703,77 @@ points, target: WallKind }, walk?)`: jen když na opevnění nic neběží (`FOR
   (`contestsFortification` – průlom s čísly dílů, `raid-day`, `raid-result`) či tažení proti vsi
   (`CampaignRepository.active` + `checkpoint`) – bitva i průlom nesou čísla dílů starého tvaru.
 - `rerouteProposal(fort, geo, section)` – návrh pro editor: okraj brány, body obvodu v úseku
-  (bez nich střed úseku) a okraj druhé brány; `rerouteTarget(fort, gateSegment)` – hradba nového
-  úseku = hradba dílu brány (ochoz a holý val → palisáda; návrh Clauda).
+  (bez nich střed úseku) a okraj druhé brány; **`sectionIsGap(fort, geo, section)`** – úsek mezi
+  branami, ve kterém nic nestojí (každý kus `sectionPieces` zbořený či nedostavěný) – mezera, kterou
+  běžná stavba zastaví. Výchozí hradba podle brány zmizela s tlačítkem – druh
+  vybere hráč v rozcestníku.
 - **Akce** – use-case `rerouteFortificationSection` (`application/reroute-fortification-section.ts`,
   právo `build`), server action `rerouteFortificationSection` (vstup `{ fortificationId, segment,
 points: [x, z][], target }` – body mezi konci, `parseRerouteFortificationSectionInput`).
-- **Rozhraní** (návrh Clauda): zbořený úsek je mezera a klik ho nevybere, proto **Postavit
-  jinudy** (`data-testid="fort-reroute"`, ikona hradby) nese panel brány u zbořeného úseku
-  (`FortGateBody` – `reroutes` v detailu brány: úsek za branou a před ní, jen celý zbořený –
-  zboření hlásí `FORT_SECTION_GONE`; během stavby na opevnění zašedlé). Klik otevře editor bodů
-  s pevnými konci (`fixedEnds` v režimu `fort-points`, `FortPointsEditor`): body jsou otevřená
-  trasa, konce v okrajích bran nejdou chytit ani ubrat, klik na čáru nového úseku přidá bod jen
-  mezi konce (`insertPoint(…, open)`); náhled `fortReroutePreview` (`lib/fort-reroute.ts`) – čára
-  nového úseku, důvod u kurzoru, cena hradby podle délky úseku. Kladivo / Enter pošle body mezi
-  konci. Testy `fortification/__tests__/reroute.test.ts`,
-  `application/__tests__/reroute-fortification-section.test.ts`,
-  `hud/__tests__/FortReroute.behavior.test.tsx`, e2e `fortification.spec.ts` (úsek jinudy).
+- **Rozhraní – běžná stavba opevnění** (Martin 14. 11. 2026, D28): rozcestník opevnění (P) a druh
+  spustí editor jako u nového obvodu; když první bod kurzoru leží do `FORT_GAP_REACH_M` (40 m,
+  rozhraní – návrh Clauda) od mezery od brány k bráně (`fortGapNear` v `lib/fort-reroute.ts` –
+  `fortSections` + `sectionIsGap`, nejbližší mezera podle čáry `rerouteProposal`), návrh je nový
+  úsek s konci pevně v okrajích bran (`fixedEnds` čte editor při každém použití – getter v módu
+  `fort-points` z `use-build-mode.ts`), jinak nový obvod. Editor bodů s pevnými konci
+  (`FortPointsEditor`): body jsou otevřená trasa, konce v okrajích bran nejdou chytit ani ubrat,
+  klik na čáru nového úseku přidá bod jen mezi konce (`insertPoint(…, open)`); náhled
+  `fortReroutePreview` – čára nového úseku, důvod u kurzoru, cena hradby podle délky úseku; val
+  mezeru nezastaví (`FORT_GAP_RAMPART` „Mezeru zastaví hradba – val se k ní doplní potom.“),
+  roštová a komorová před svým rokem (`wallYearReason`). Kladivo / Enter pošle body mezi konci
+  do `rerouteFortificationSection` s druhem z rozcestníku. Zbořená brána je konec úseku jako
+  stojící (zůstane v `gates` – mezera šířky brány). Testy `fortification/__tests__/reroute.test.ts`,
+  `application/__tests__/reroute-fortification-section.test.ts`, e2e `fortification.spec.ts`
+  (úsek od brány k bráně – běžná stavba plotu u mezery).
+
+## Brána: Opustit a Zbořit (`state/fortification-gate-use.ts`; demolition.md – Rozhodnutí, D28)
+
+Martin 14. 11. 2026 (návrh Clauda): zbořená brána nechá mezeru, opuštěná se přestane udržovat
+a rozpadne se na mezeru; „Hradba je hradba, brána je brána“ se mění jen tím, že brána má vlastní
+Opustit a Zbořit.
+
+- **Stav** (`FortGate`, volitelné – starší vsi beze změny, bez převodu): `abandonedDay` – opuštěná;
+  `demolishedDay` – brána zmizela (zbořená, nebo opuštěná shnilá). **`gateStands(gate)`**,
+  **`removeGate(gate, day)`** (`gates.ts`) – `demolishedDay`, pryč `abandonedDay`, klešťová brána
+  a věž. Zbořená brána zůstává v `gates`: úseky dál dělí a tětiva brány je dál otvor ve stěnách
+  a cestách (`fortWalls`, scéna `gatePositions`) – mezera šířky brány; hradba dílu kolem stojí.
+- **Zbořit** – `gateDemolition(state, { fortificationId, segment })` → `{ laborManDays, logs }`
+  nebo důvod (`FORT_GATE_GONE` „Brána už je zbořená.“, „Brána ještě nestojí.“, `FORT_BUSY` – na dílu
+  brány běží stavba); `startGateDemolition` – stavba `fortification` s `fortWork: 'demolish'`,
+  `fortGate: { segment, level: 'demolish' }`, jeden `FortSegmentWork` dílu brány, klády na hromadu
+  u brány (`fortLogsAt`), kronika `fortNote.gate` → `fortification-demolished` s `gate: true`
+  („Vojvoda … přikázal zbořit bránu.“). Cena jako kus úseku šířky brány (`FORTIFICATIONS.gate.widthM`):
+  `DEMOLITION.laborShare` × práce komplet, `logShare` × klády × stav dílu (holý val
+  `rampartLaborShare` práce valu, bez klád); klešťová brána a věž padnou s ní – jejich práce
+  a klády stejně (návrh Clauda). `workFortification` – na `level: 'demolish'` zavolá `removeGate`
+  místo `demolishSegment`, `segmentDone` = brána zmizela; zrušení (`dropFortificationWork` →
+  `settleDemolition`) bránu nechá. Scéna díl brány během zboření nerozebírá (`fortificationViews`
+  stavbu s `level: 'demolish'` do průběhu dílů nepočítá).
+- **Opustit / Vrátit** – `setGateAbandoned(state, day, input, abandoned)`: jen stojící brána
+  (`FORT_GATE_GONE`, „Brána ještě nestojí.“), dvakrát totéž důvod. Opuštěnou bránu obyvatelé
+  nepřestaví: `dueSegments` (`decay.ts`) vynechá dožilý díl brány (kusy s vlastní hradbou
+  `beforeGate` / `afterGate` dál; průlom se přestaví), `decideTowerRebuilds` věž. Díl stárne
+  a chátrá (`segmentState`); **`settleAbandonedGates(fort, day, busy)`** v `decideFortRebuilds` po
+  zápisu stavů – díl shnilý na nulu (nebo celý zbořený) → `removeGate`; díl se stavbou a průlom
+  čekají, holý val nehnije (brána v něm stojí). Kusy hradby dílu bez vlastní hradby chátrají
+  s branou (sdílejí vrstvy dílu) – po zmizení brány je obyvatelé přestaví jako každou hradbu
+  (`pieceLength` bez šířky zbořené brány).
+- **Jinde:** `fortGaps` – zbořená brána je `gap` šířky brány i při zavřených branách; bitva ji
+  nezavře (`closeGates`, `fortPassages` – zavřené brány vynechají `demolishedDay`), takže tětiva je
+  pořád průchod; scéna nekreslí křídla ani kůly (`fortGateInstances`), klik ji nevybere
+  (`fortTargetAt`, `targetExists`), panel brán ji nemá (`gateViews`).
+- **Správce** (D28 bod 4): brány ani mezery dnes nestaví ani neopravuje – přestavby dělají obyvatelé
+  (`decideFortRebuilds`), takže pro správce není nic navíc.
+- **Akce** – use-casy `demolishFortificationGate`, `abandonFortificationGate`
+  (`application/fortification-gate-use.ts`, právo `build`), server actions stejných jmen (vstupy
+  `parseDemolishFortificationSectionInput`, `parseAbandonFortificationGateInput` – `abandoned`
+  true / false). Panel `FortGateBody`: `fort-gate-abandon` / `fort-gate-restore` (ikony
+  `abandon-structure.png` / `restore.png` jako u staveb, popisek „Opustit bránu – přestane se
+  udržovat a rozpadne se na mezeru“ / „Vrátit bránu – zase se bude udržovat“), `fort-gate-demolish`
+  (`demolish.png`, popisek „Zbořit bránu“ s prací a kládami jako u úseku – `DemolishTooltip`);
+  `VillageFortGate` `abandoned`, `abandonBlocked`, `demolish` (`FortDemolishOption`); obsluha přes
+  `onFortAction` (`gate-abandon`, `gate-demolish`). Testy
+  `state/__tests__/fortification-gate-use.test.ts`, `hud/__tests__/FortGate.behavior.test.tsx`.
 
 ## Stáří, přestavba a údržba valu (Ú5.4)
 

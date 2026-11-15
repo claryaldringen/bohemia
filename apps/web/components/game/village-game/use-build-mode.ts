@@ -6,13 +6,10 @@ import {
   defaultChurchDims,
   isManorType,
   type ChurchType,
-  rerouteProposal,
-  sectionOf,
   type BuildableDwellingType,
   type Landscape,
   type SquareGrid,
   type TileCell,
-  type WallKind,
 } from '@bohemia/game';
 import {
   placeCemetery,
@@ -36,7 +33,7 @@ import {
   type WebBuildKind,
 } from '@/lib/build-items';
 import { checkWithDesecration, squaresWithDesecration } from '@/lib/desecration-warning';
-import { fortReroutePreview } from '@/lib/fort-reroute';
+import { fortGapNear, fortReroutePreview, type FortGap } from '@/lib/fort-reroute';
 import { structureGridAt } from '@/lib/scene/field-cells';
 import type { LandscapeScene } from '@/lib/scene/landscape-scene';
 import { wholeTarget, type VillageTarget } from '@/lib/scene/village-picking';
@@ -123,8 +120,6 @@ export interface BuildMode {
   extendingVariant: 'horse' | null;
   /** Tlačítko nebo zkratka stavby – rozcestník druhů, nebo umisťování ve scéně. */
   startBuild: (kind: WebBuildKind, variant?: string) => void;
-  /** Úsek opevnění od brány k bráně jinudy – editor trasy. */
-  startReroute: (fortificationId: number, segment: number, target: WallKind) => void;
 }
 
 /**
@@ -181,56 +176,6 @@ export function useBuildMode({
   )
     ? 'horse'
     : null;
-
-  /**
-   * Úsek od brány k bráně jinudy (demolition.md – Rozhodnutí): editor trasy s konci pevně
-   * v okrajích bran – návrh je původní trasa úseku, hráč body táhne a přidává, Enter (kladivo)
-   * pošle body mezi konci serveru.
-   */
-  const startReroute = (fortificationId: number, segment: number, target: WallKind): void => {
-    const fort = sceneVillageRef.current?.forts?.find((f) => f.id === fortificationId);
-    const section = fort ? sectionOf(fort, segment) : null;
-    const proposal = fort && section ? rerouteProposal(fort, decoded, section) : null;
-    const item = buildItem('fortification');
-    if (!scene || !fort || !proposal || item.placement !== 'fort-points') return;
-    const variant =
-      item.variants.find((v) => fortVariantKind(v.id) === target) ?? item.variants[0]!;
-    setBuildGroup(null);
-    setSelected(null);
-    setPlacingItem('fortification');
-    placement.start(
-      {
-        kind: 'fort-points',
-        variant,
-        bandM: FORTIFICATIONS.bandM[target],
-        fixedEnds: true,
-        propose: () => proposal,
-        preview: (points) =>
-          fortReroutePreview(decoded, placementVillage(), points, {
-            fort,
-            segment,
-            target,
-            day: viewRef.current?.dayIndex ?? 0,
-            woodSupply: viewRef.current?.woodSupply ?? 0,
-            ...(viewRef.current?.stoneSupply ? { stoneSupply: viewRef.current.stoneSupply } : {}),
-          }),
-      },
-      (result) => {
-        const villageId = viewRef.current?.id;
-        if (result.kind === 'fort-points' && villageId) {
-          void runBuildAction(() =>
-            rerouteFortificationSection({
-              villageId,
-              fortificationId,
-              segment,
-              points: result.points.slice(1, -1),
-              target,
-            }),
-          );
-        }
-      },
-    );
-  };
 
   // vymřelá a opuštěná ves nic nestaví – nabídka staveb je prázdná (i zkratky); lidé na cestě
   // po příjezdu umisťují první zemnici (migration.md – fáze 4)
@@ -340,45 +285,79 @@ export function useBuildMode({
     setSelected(null);
     setPlacingItem(kind);
     if (item.placement === 'fort-points') {
-      // obvod z bodů (fortifications.md – Obvod): návrh hry u kurzoru, body upraví hráč
+      // obvod z bodů (fortifications.md – Obvod): návrh hry u kurzoru, body upraví hráč; u mezery
+      // od brány k bráně (zbořený úsek) návrh nového úseku s konci v branách (demolition.md –
+      // Rozhodnutí, Martin 14. 11. 2026: „Když bude chtít hráč úsek postavit, prostě ho
+      // standardně postaví“)
       const fortVariant = item.variants.find((v) => v.id === variant) ?? item.variants[0]!;
       const fortKind = fortVariantKind(fortVariant.id);
+      let gap: FortGap | null = null;
       placement.start(
         {
           kind: 'fort-points',
           variant: fortVariant,
           bandM: FORTIFICATIONS.bandM[fortKind],
-          propose: ([x, z]) =>
-            item.propose(
+          get fixedEnds(): boolean {
+            return gap !== null;
+          },
+          propose: ([x, z]) => {
+            gap = fortGapNear(sceneVillageRef.current?.forts ?? [], decoded, [x, z]);
+            if (gap) return gap.proposal;
+            return item.propose(
               decoded,
               placementVillage(),
               { x, z },
               fortVariant.id,
               sceneVillageRef.current?.grainPits,
-            ),
-          preview: (points) => ({
-            ...squaresWithDesecration(placementScene(), (village) =>
-              item.check(decoded, village, points, fortVariant.id, {
-                woodSupply: viewRef.current?.woodSupply ?? 0,
-                ...(viewRef.current?.stoneSupply
-                  ? { stoneSupply: viewRef.current.stoneSupply }
-                  : {}),
-              }),
-            ),
-            label: '',
-          }),
+            );
+          },
+          preview: (points) =>
+            gap
+              ? fortReroutePreview(decoded, placementVillage(), points, {
+                  fort: gap.fort,
+                  segment: gap.segment,
+                  target: fortKind,
+                  day: viewRef.current?.dayIndex ?? 0,
+                  woodSupply: viewRef.current?.woodSupply ?? 0,
+                  ...(viewRef.current?.stoneSupply
+                    ? { stoneSupply: viewRef.current.stoneSupply }
+                    : {}),
+                })
+              : {
+                  ...squaresWithDesecration(placementScene(), (village) =>
+                    item.check(decoded, village, points, fortVariant.id, {
+                      woodSupply: viewRef.current?.woodSupply ?? 0,
+                      ...(viewRef.current?.stoneSupply
+                        ? { stoneSupply: viewRef.current.stoneSupply }
+                        : {}),
+                    }),
+                  ),
+                  label: '',
+                },
         },
         (result) => {
           const villageId = viewRef.current?.id;
-          if (result.kind === 'fort-points' && villageId) {
+          if (result.kind !== 'fort-points' || !villageId) return;
+          if (gap && fortKind !== 'rampart') {
+            const { fort, segment } = gap;
             void runBuildAction(() =>
-              placeFortification({
+              rerouteFortificationSection({
                 villageId,
-                points: result.points,
-                kind: fortVariantKind(result.variant),
+                fortificationId: fort.id,
+                segment,
+                points: result.points.slice(1, -1),
+                target: fortKind,
               }),
             );
+            return;
           }
+          void runBuildAction(() =>
+            placeFortification({
+              villageId,
+              points: result.points,
+              kind: fortVariantKind(result.variant),
+            }),
+          );
         },
       );
       return;
@@ -540,6 +519,5 @@ export function useBuildMode({
     options,
     extendingVariant,
     startBuild,
-    startReroute,
   };
 }

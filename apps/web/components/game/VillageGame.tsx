@@ -448,7 +448,6 @@ export function VillageGame({
                 onPreviewSon={setSonPreview}
                 gateFort={gateFort}
                 onGateMode={setGateFort}
-                onFortReroute={build.startReroute}
                 wagonPlan={wagonPlan}
                 {...commands.selection}
               />

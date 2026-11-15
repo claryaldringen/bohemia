@@ -5,7 +5,7 @@ import { fortOutlineOf } from './convert';
 import { selfCrossing } from './curve';
 import { gatePartView } from './gate-parts';
 import { gateAt, type FortGate } from './gates';
-import { segmentBuilt, segmentWall } from './life';
+import { segmentBuilt } from './life';
 import { fortificationOutline, outlinePointAt, type FortOutline } from './outline';
 import {
   alongFrom,
@@ -18,7 +18,6 @@ import {
 } from './section-spans';
 import type { FortSection } from './sections';
 import { fortSegments, nearestOnPath, type FortSegmentShape } from './segments';
-import type { WallKind } from '../types';
 import type { FortSegment, Fortification } from './types';
 
 // Nový úsek od brány k bráně – i jinudy (demolition.md – Rozhodnutí; Martin 8. 11. 2026: „Můžu
@@ -274,15 +273,23 @@ export function rerouteProposal(
 }
 
 /**
- * Hradba nového úseku jinudy (návrh Clauda): druh hradby na dílu brány, kterou úsek začíná – nový
- * úsek naváže na sousední hradbu; palisáda s ochozem a holý val dají palisádu (ochoz jen
- * vylepšením palisády, val se doplní potom).
+ * Je úsek mezera od brány k bráně (demolition.md – Rozhodnutí, Martin 14. 11. 2026)? Úsek mezi
+ * branami, ve kterém nic nestojí – každý kus `sectionPieces` je zbořený či nedostavěný; takový
+ * hráč zastaví běžnou stavbou opevnění (`rerouteFortification`). Obvod bez brány ne.
  */
-export function rerouteTarget(
-  fort: Pick<Fortification, 'kind' | 'top' | 'segments'>,
-  gateSegment: number,
-): WallKind {
-  const seg = fort.segments.find((s) => s.index === gateSegment);
-  const wall = seg ? segmentWall(fort, seg)?.kind : undefined;
-  return wall === undefined || wall === 'walkway' ? 'palisade' : wall;
+export function sectionIsGap(
+  fort: Fortification,
+  geo: GridGeometry,
+  section: FortSection,
+): boolean {
+  if (section.gateSegment === null) return false;
+  const old = fortOutlineOf(geo, fort, fort.kind);
+  if (!old) return false;
+  const lengths = fortSegments(old).map((s) => s.lengthM);
+  const pieces = sectionPieces(lengths, fort.gates, section.gateSegment);
+  if (pieces.length === 0) return false;
+  return pieces.every((piece) => {
+    const seg = fort.segments.find((s) => s.index === piece.index);
+    return !seg || !pieceStands(seg, piece.part);
+  });
 }

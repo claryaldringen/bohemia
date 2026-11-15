@@ -1327,7 +1327,8 @@ export function fortGateInstances(fort: SceneFortification): FortInstance[] {
   const samples = perimeterSamples(fort, 0.5);
   fort.gates.forEach((g, gi) => {
     const shape = fort.shapes[g.segment];
-    if (!shape) return;
+    // zbořená brána je mezera – křídla ani kůly brány (demolition.md – Rozhodnutí)
+    if (!shape || g.demolishedDay !== undefined) return;
     const b = segmentBuild(fort, g.segment);
     const layer: FortLayer | null =
       b.ground && b.ground.phase.posts >= 1

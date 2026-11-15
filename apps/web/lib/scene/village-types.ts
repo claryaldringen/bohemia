@@ -158,10 +158,11 @@ export type PlacementMode =
       propose(at: readonly [number, number]): readonly (readonly [number, number])[];
       preview(points: readonly (readonly [number, number])[]): FortPointsPreview;
       /**
-       * Trasa úseku jinudy (demolition.md – Rozhodnutí): body jsou otevřená trasa, první a poslední
-       * leží pevně v okrajích bran – nejdou táhnout ani ubrat, bod přibude jen mezi ně.
+       * Úsek od brány k bráně (demolition.md – Rozhodnutí): body jsou otevřená trasa, první
+       * a poslední leží pevně v okrajích bran – nejdou táhnout ani ubrat, bod přibude jen mezi ně.
+       * Čte se při každém použití – běžná stavba ho zapne, když návrh padne do mezery (`propose`).
        */
-      fixedEnds?: true;
+      readonly fixedEnds?: boolean;
     }
   | {
       /** Modla nebo svatyně (happiness.md) – čtvercový půdorys u kurzoru jako obydlí. */

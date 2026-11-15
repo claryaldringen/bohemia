@@ -315,6 +315,18 @@ export function parseDemolishFortificationSectionInput(
 }
 
 /**
+ * Vstup Opustit / Vrátit bránu `{ fortificationId, segment, abandoned }` (demolition.md –
+ * Rozhodnutí): díl s branou a `abandoned` true = opustit, false = vrátit. Jinak null.
+ */
+export function parseAbandonFortificationGateInput(
+  value: unknown,
+): { fortificationId: number; segment: number; abandoned: boolean } | null {
+  const gate = parseDemolishFortificationSectionInput(value);
+  if (!gate || !isRecord(value) || typeof value.abandoned !== 'boolean') return null;
+  return { ...gate, abandoned: value.abandoned };
+}
+
+/**
  * Vstup stavby úseku jinudy `{ fortificationId, segment, points, target }` (demolition.md –
  * Rozhodnutí): díl ve zbořeném úseku, body nové trasy `[x, z]` mezi branami (bez konců, i žádný)
  * a hradba nového úseku. Tvar a umístění ověří server s důvodem pro hráče. Jinak null.
