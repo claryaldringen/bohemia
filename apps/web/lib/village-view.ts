@@ -539,6 +539,7 @@ export function buildVillageView(
     woodLogs: wholeLogs(summary.woodLogs),
     crafts: craftsView(state, summary, landscape),
     storesMonths: summary.storesMonths,
+    ...(summary.foodLastsDays !== null ? { foodLastsDays: summary.foodLastsDays } : {}),
     satiation: summary.satiation,
     fieldCapacity: fieldCapacityView(state, day, summary.crafts.coverage.pottery),
     commonLaborPerDay: summary.commonLaborPerDay,

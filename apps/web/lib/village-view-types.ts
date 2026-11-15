@@ -549,6 +549,11 @@ export interface VillageView {
   /** Řemesla – zásoby uhlí, nástrojů a keramiky, pokrytí a dílny (crafts.md). */
   crafts: VillageCrafts;
   storesMonths: number;
+  /**
+   * Kolik dní od zítřka uživí dnešní zásoby jídla lidi plným přídělem bez sklizně (D56 – řádek
+   * pod rozpisem plodin; `foodLastsDays` jádra). Chybí, když nikdo nejí ze zásob vsi.
+   */
+  foodLastsDays?: number;
   satiation: number;
   /**
    * Kolik lidí uživí pole vsi v ustáleném oběhu (fields.md – Co hráč vidí, Pole uživí): počet lidí,

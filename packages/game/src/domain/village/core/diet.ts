@@ -91,9 +91,14 @@ const MEAT_SPOIL_DAY = { month: 9, day: 1 } as const;
 
 const COMMON_YEAR_DAYS = 365;
 /** Maso se uzí rovnoměrně po dnech – za rok ubude DIET.meatLossPerYear. */
-const DAILY_MEAT_KEEP = (1 - DIET.meatLossPerYear) ** (1 / COMMON_YEAR_DAYS);
+export const DAILY_MEAT_KEEP = (1 - DIET.meatLossPerYear) ** (1 / COMMON_YEAR_DAYS);
 /** Sýr se suší a zraje – za rok ubude DAIRY.cheeseLossPerYear. */
-const DAILY_CHEESE_KEEP = (1 - DAIRY.cheeseLossPerYear) ** (1 / COMMON_YEAR_DAYS);
+export const DAILY_CHEESE_KEEP = (1 - DAIRY.cheeseLossPerYear) ** (1 / COMMON_YEAR_DAYS);
+
+/** Denní podíl zásoby luštěnin, který zbude po ztrátě skladováním (nádoby od hrnčíře – crafts.md). */
+export function legumeKeepPerDay(potteryCoverage: number): number {
+  return (1 - legumeStorageLossPerYear(potteryCoverage)) ** (1 / COMMON_YEAR_DAYS);
+}
 
 /** Energie masa v kg obilí. */
 export function meatEnergy(kg: number): number {
@@ -383,9 +388,7 @@ function dietPlan(input: DietInput): DietPlan {
   const milkProtein = Math.max(0, input.milkProteinKg ?? 0);
   const milkTotalEnergy = Math.max(0, input.milkEnergy ?? 0);
   const eggs = Math.max(0, input.eggsKg ?? 0);
-  const legumes =
-    Math.max(0, input.legumesKg ?? 0) *
-    (1 - legumeStorageLossPerYear(input.potteryCoverage)) ** (1 / COMMON_YEAR_DAYS);
+  const legumes = Math.max(0, input.legumesKg ?? 0) * legumeKeepPerDay(input.potteryCoverage);
   const legumesAhead = legumes + Math.max(0, input.sheavesLegumesKg ?? 0);
   const need = input.needPerDay;
   const days = Math.max(1, input.daysToHarvest);
@@ -698,6 +701,15 @@ export function daysUntilMeatEnd(day: number): number {
 export function isMeatSpoilDay(day: number): boolean {
   const { month, day: dayOfMonth } = dateOfDayIndex(day);
   return month === MEAT_SPOIL_DAY.month && dayOfMonth === MEAT_SPOIL_DAY.day;
+}
+
+/**
+ * Dní, kdy ještě jde jíst dnešní uzené maso bez další porážky, včetně dneška – do zkažení 1. 9.
+ * ráno (diet.md – Trvanlivost masa): 31. 8. → 1, 1. 9. → 0 (zkazí se ráno), 2. 9. → do příštího
+ * 1. 9.
+ */
+export function daysUntilMeatSpoil(day: number): number {
+  return isMeatSpoilDay(day) ? 0 : daysBefore(day, MEAT_SPOIL_DAY);
 }
 
 /**

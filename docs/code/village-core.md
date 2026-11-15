@@ -185,6 +185,19 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `starving`) → `VillageView.hunger`, `VillageListItem.hunger`; upozornění „Ves šetří jídlem“
   (info), „Ves hladoví“, „Lidé umírají hlady“ – jen nejvyšší stupeň, ohlásí se při zhoršení (i
   z jiné vsi – `otherVillageNotices`).
+- **Na jak dlouho vystačí zásoby** (diet.md – Hlad; Martin 15. 11. 2026, D56): `foodLastsDays`
+  (`core/food-lasts.ts`) – kolik dní od zítřka uživí dnešní zásoby lidi plným přídělem
+  (`villageFoodNeed` zítřka, stálá), bez sklizní a příjmů (mléko, vejce, porážka, med z klátů).
+  Zásoby jako jídlo dne: obilí bez osiva, které ves nejí (`uneatenSeedKg`), se snopy
+  (`sheavesOutlook`), luštěniny, uzené maso, sýr, jablka a med. Den po dni ráno ztráty jako
+  výhled do sklizně (`grainKeepPerDay`, `legumeKeepPerDay`, `DAILY_MEAT_KEEP`,
+  `DAILY_CHEESE_KEEP`), maso do zkažení (`daysUntilMeatSpoil`), jablka do shnití
+  (`daysUntilAppleRot`); ves jí napřed, co se kazí – ovoce, maso, sýr a luštěniny nejvýš do
+  `DIET.caps` –, pak obilí a nakonec med (jídlo jako obilí – Med v hladu). Počítá se do prvního
+  dne bez plného přídělu (tolerance `SATIATION_EPSILON`), nejvýš do konce světa; nikdo nejí →
+  null. `VillageSummary.foodLastsDays` → `VillageView.foodLastsDays` (chybí místo null) → řádek
+  pod rozpisem plodin v liště (web-ui.md). Starší `storesMonths` (jen obilí ÷ potřeba) zůstává
+  beze změny.
 
 - **Štěstí a posvátná místa** ([happiness.md](../design/happiness.md), `happiness.ts`,
   `sacred.ts`; body za úmrtí `deathPointsFor` = max(0,5; 5 − 0,06 × věk), věk nese událost kroniky `death.age`, bez něj dítě 5 / jinak 3): štěstí 0–100 (`VillageState.happiness` – hodnota, úmrtí posledního roku, dny dřiny

@@ -78,6 +78,10 @@ describe('summarizeVillage', () => {
     expect(zemnice!.progress).toBeLessThan(1);
     // 18 měsíců jídla a osivo na první osev – půl roční potřeby (START_SEED_YEARS)
     expect(summary.storesMonths).toBeCloseTo(24, 0);
+    // osivo bez vyhrazení je v zásobách jídlem – plným přídělem vydrží skoro 24 měsíců, ztráta ve
+    // skladu ubere (D56)
+    expect(summary.foodLastsDays).toBeGreaterThan(20 * 30.4);
+    expect(summary.foodLastsDays).toBeLessThan(24 * 30.4);
     // obilí je dost, bílkoviny z obilí, vajec a mléka výchozího stáda – nasycení přes 0,8
     expect(summary.diet.energy).toBeCloseTo(1, 9);
     expect(summary.satiation).toBeGreaterThan(0.78);

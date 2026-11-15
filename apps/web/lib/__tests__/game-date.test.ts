@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   OFFICIAL_WORLD,
   TOTAL_GAME_DAYS,
+  dayIndexOf,
   getWorldState,
   type GameDate,
   type WorldClock,
@@ -11,6 +12,7 @@ import {
   clockHandAngle,
   dayPartLabel,
   dateRefreshDelay,
+  formatGameDuration,
   formatWorldState,
   nextDateChangeMs,
 } from '../game-date';
@@ -113,5 +115,27 @@ describe('ciferník denní doby', () => {
     expect(dayPartLabel(15)).toBe('Odpoledne');
     expect(dayPartLabel(18)).toBe('Večer');
     expect(dayPartLabel(23)).toBe('Noc');
+  });
+});
+
+describe('formatGameDuration – na jak dlouho vystačí zásoby (D56)', () => {
+  const at = (year: number, month: number, day: number): number => dayIndexOf({ year, month, day });
+  const from = at(887, 3, 1);
+
+  it('od roku roky a měsíce, pod rok měsíce, pod měsíc dny', () => {
+    expect(formatGameDuration(from, at(888, 6, 14))).toBe('1 rok 3 měsíce');
+    expect(formatGameDuration(from, at(890, 3, 1))).toBe('3 roky');
+    expect(formatGameDuration(from, at(893, 4, 2))).toBe('6 let 1 měsíc');
+    expect(formatGameDuration(from, at(887, 7, 20))).toBe('4 měsíce');
+    expect(formatGameDuration(from, at(888, 2, 28))).toBe('11 měsíců');
+    expect(formatGameDuration(from, from + 12)).toBe('12 dní');
+    expect(formatGameDuration(from, from + 1)).toBe('1 den');
+    expect(formatGameDuration(from, from + 3)).toBe('3 dny');
+    expect(formatGameDuration(from, from)).toBe('0 dní');
+  });
+
+  it('měsíc se počítá až celý – 31. 1. → 28. 2. je 28 dní', () => {
+    expect(formatGameDuration(at(887, 1, 31), at(887, 2, 28))).toBe('28 dní');
+    expect(formatGameDuration(at(887, 1, 31), at(887, 3, 1))).toBe('1 měsíc');
   });
 });

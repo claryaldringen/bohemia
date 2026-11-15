@@ -2,8 +2,11 @@
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, expect, it } from 'vitest';
+import { dayIndexOf } from '@bohemia/game';
 import {
+  FoodLastsRow,
   StockBreakdown,
+  foodLastsTooltip,
   grainStockRows,
   grainStockTotal,
   livestockRows,
@@ -147,4 +150,46 @@ it('panel se přizpůsobí obsahu: bez pevné šířky, bez zalamování, čísl
   }
   expect(panel.textContent).toContain('Voli');
   expect(panel.textContent).toContain('Koně');
+});
+
+// D56 (Martin 15. 11. 2026: „dolů do panelu s plodinami napiš, na jak dlouho vystačí zásoby“)
+it('pod rozpisem plodin řádek s přesýpacími hodinami a dobou, v popisku datum z kalendáře', () => {
+  const today = dayIndexOf({ year: 887, month: 3, day: 1 });
+  const days = dayIndexOf({ year: 888, month: 6, day: 14 }) - today;
+  act(() =>
+    root.render(
+      <StockBreakdown
+        icon="food"
+        name="Obilí"
+        total={grainStockTotal(crops)}
+        rows={grainStockRows(crops)}
+        testId="village-stores"
+        footer={<FoodLastsRow dayIndex={today} days={days} />}
+      />,
+    ),
+  );
+  expect(q('village-stores-last')).toBeNull();
+  click(q('village-stores-toggle'));
+  const panel = q('village-stores-panel')!;
+  const last = q('village-stores-last')!;
+  expect(last.textContent).toBe('1 rok 3 měsíce');
+  // řádek je poslední v panelu, s ikonou přesýpacích hodin a bez slov mimo popisek
+  expect(last.parentElement?.querySelector('img')?.getAttribute('src')).toBe(
+    '/icons/resources/hourglass.png',
+  );
+  expect(panel.lastElementChild?.contains(last)).toBe(true);
+  const tip = panel.querySelector('[role="tooltip"]');
+  expect(tip?.textContent).toBe(
+    'Zásoby vystačí do 14. června 888 – bez sklizně, při plném přídělu.',
+  );
+});
+
+it('popisek bez zásob na den a krátké doby', () => {
+  const today = dayIndexOf({ year: 887, month: 3, day: 1 });
+  expect(foodLastsTooltip(today, 0)).toBe(
+    'Zásoby nevystačí ani na den – bez sklizně, při plném přídělu.',
+  );
+  expect(foodLastsTooltip(today, 12)).toBe(
+    'Zásoby vystačí do 13. března 887 – bez sklizně, při plném přídělu.',
+  );
 });
