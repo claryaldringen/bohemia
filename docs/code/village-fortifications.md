@@ -194,23 +194,40 @@ m3, at)` – z hromad od nejbližší k `at` (při shodě menší id), prázdná
   (`logPilePlace`, spojení do `LOG_PILES.joinM`, null = u cesty nejblíž dvorci – `logArrivalPoint`);
   `quarryNear(obstacles, at)` – nejbližší skalní výchoz na mapě sídla `{ x, z, distanceM }`, bez
   výchozu null. Kámen přibývá jen z lomu – Lom a kámen níž.
-- **Lom a kámen** (`quarry.ts`, `rules-stone.ts` – `STONE`; fortifications.md – Kámen):
-  `VillageState.quarries?: Quarry[]` (`{ outcropId, x, z, rotation, builtDay }`, jen dostavěné;
-  id lomu = id výchozu, na výchozu jeden). `outcropAt(obstacles, at)` – výchoz pod bodem (kruh
-  `OUTCROP_RADIUS_M × velikost` + `STONE.pickSlackM`); `checkQuarryPlacement(village, obstacles,
-at)` → `QUARRY_NO_OUTCROP` / `QUARRY_TAKEN` (i rozestavěný – `Construction.quarryOutcrop`,
-  v prohlížeči `PlacementVillage.quarries`); `startQuarry` (záměr stavby `{ kind: 'quarry' }`,
-  `BuildKind` `quarry`, stavba `quarry` za `STONE.quarryLaborManDays` = 20 čd, poloha = střed
-  výchozu), dostavění `finishQuarry`. `nearestQuarry(state, at)`, `quarryManDaysPerM3(d)` =
-  lámání `STONE.quarryManDaysPerM3` (1) + nošení v nůších `stoneCarryManDaysPerM3(d)` (Nošení
-  kamene a vůz níž). Zásoba: `orderQuarrying(state, day,
+- **Lom a kámen** (`quarry.ts`, `quarry-area.ts`, `rules-stone.ts` – `STONE`; fortifications.md
+  – Kámen, Lom jako plocha u skal – Martin 14. 11. 2026): lom je **plocha u skal**.
+  `VillageState.quarries?: Quarry[]` (`{ outcropId, x, z, rotation, builtDay, rock? }`, jen
+  dostavěné; id lomu = id nejbližšího výchozu, u výchozu jeden; `x, z, rotation` = střed
+  a natočení plochy, `rock` = bod lámání na okraji výchozu nejblíž ploše; starší lom stojí na
+  středu výchozu a `rock` nemá). `nearestOutcrop(obstacles, at, reachM)` – nejbližší výchoz podle
+  vzdálenosti od okraje (kruh `OUTCROP_RADIUS_M × velikost`, `edgeM`), `hasOutcrop(obstacles)`,
+  `rockPointToward`. `checkQuarryPlacement(landscape, village, position, obstacles)` → střed do
+  `STONE.quarryArea.rockReachM` (50 m) od okraje (`QUARRY_NO_ROCKS` bez výchozu na mapě,
+  `QUARRY_TOO_FAR`), `QUARRY_TAKEN` (i rozestavěný – `Construction.quarryOutcrop` s polohou,
+  v prohlížeči `PlacementVillage.quarries`), půdorys `quarryAreaFootprint` (8 × 8 m) na rovině
+  (`checkStructureTerrain` – rozdíl výšek nejvýš 1 m, ne ve vodě), ne na výchozu
+  (`QUARRY_ON_ROCK`), volný (`checkFootprintFree` bez polí a lesa vsi; plochu lomu zná
+  i `checkFootprintFree` ostatních staveb – `OVERLAPS_QUARRY`); překážky na ploše zůstanou.
+  `startQuarry(state, day, landscape, obstacles, position, village)` (záměr stavby `{ kind:
+'quarry' }`, `BuildKind` `quarry`, stavba `quarry` za `STONE.quarryLaborManDays` = 20 čd,
+  poloha = plocha, `quarryRock`), dostavění `finishQuarry` (přenese `rock`). Bez výchozu na mapě
+  je tlačítko zašedlé (`buildOptions` – `blocked`). `nearestQuarry(state, at)` – podle středu
+  plochy (dovoz se měří od plochy). `quarryManDaysPerM3(d, rockM?)` = `quarryBreakManDaysPerM3
+(rockM)` (lámání `STONE.quarryManDaysPerM3` = 1 + nošení bloků `blockCarryManDaysPerM3` po
+  `STONE.carry.blockKg` 40 kg; `rockM` = `quarryRockM(quarry)` od plochy k `rock`, starší lom
+  undefined – bloky se nenosí) + nošení z plochy v nůších `stoneCarryManDaysPerM3(d)` (Nošení
+  kamene a vůz níž). Cena stavby si `rockM` pamatuje: `ChurchSite.quarryRockM`,
+  `fortStone.rockM` (`fortStonePlan`), zásoba z lomu (`stockQuarryingManDays`). Zásoba:
+  `orderQuarrying(state, day,
 outcropId, m3)` (celé m³ v `STONE.stockOrderM3`, bez lomu `QUARRY_MISSING`) → stavba
   `quarrying` (`stoneOrderM3`) za m³ × `quarryManDaysPerM3` od lomu k `logArrivalPoint`; hotová
   složí kámen `addStone(…, null)`. Zrušení (`returnConstructionStone` v `cancelConstruction`):
   lámání složí nalámaný podíl (`done / cost`), hradba vrátí `stoneFromPile × (1 − done / cost)`.
   Use-casy `placeQuarry`, `orderStoneQuarrying` (právo `build`). Web: katalog (zkratka L, ikona
-  `public/icons/build/lom.png`), umisťování `quarry` (značka 6 × 6 m), scéna `stone-piles.ts`
-  - `stone-pile-layout.ts` (díly `stone-pile-a/b` ze `siege.glb`, vylomená stěna – kvádr),
+  `public/icons/build/lom.png`), umisťování `quarry` (značka plochy 8 × 8 m), scéna `stone-piles.ts`
+  - `stone-pile-layout.ts` (díly `stone-pile-a/b` ze `siege.glb` – na ploše donesené bloky,
+    přisekaný kámen a bloky v zásobě, u výchozu vylomené bloky `QUARRY_ROCK_PILE`; scene-village.md
+    – Lom),
     výběr lomu (klik do 4 m) s tlačítky „nalámat 10 / 50 m³“ (`selection/quarry.tsx`), horní lišta
     `village-stone` (ikona `public/icons/resources/stone.png`).
 
@@ -230,10 +247,12 @@ outcropId, m3)` (celé m³ v `STONE.stockOrderM3`, bez lomu `QUARRY_MISSING`) �
   k `fortStone.at`), jízda z lomu `stoneCartDrive` (`CartDrives` s `from`) se uloží
   `Construction.stoneCart` (null = nedojede), `stoneCartOffer` jen když posádka na m³
   (`cartTripManDays` ÷ 0,16 m³) < nošení na m³; `StoneCart { maxM3 (náklad × cartTripsPerDay),
-crewPerM3, carryPerM3, loadM3 }` → `CartJobsDay.stone`. Ve stavbě (`build(…, stone)` →
+crewPerM3, carryPerM3, breakPerM3, loadM3 }` → `CartJobsDay.stone` (`breakPerM3` – lámání
+  a nošení bloků na plochu, které vůz nenahradí: kostel `ChurchSite.quarryRockM`, ostatní
+  `constructionStoneBreak`). Ve stavbě (`build(…, stone)` →
   `constructionNeed` / `invest` s `cart`): posádka jde z práce stavby a co vůz uveze, se nenosí –
   `stoneCartProgress(práce, share, cart)` = práce + m³ vozem × (nošení − posádka), m³ vozem =
-  min(`maxM3`, share × práce ÷ (1 + nošení − share × (nošení − posádka))) – nejvýš to, co se ten
+  min(`maxM3`, share × práce ÷ (`breakPerM3` + nošení − share × (nošení − posádka))) – nejvýš to, co se ten
   den nalámalo; potřeba dne obráceně (`stoneCartLabor`). `investStoneWork` / `allocate` kostela
   vrátí `StoneDay { outcropId, manDays (lámání a nošení), crew, m3, trips }` →
   `ConstructionWork.quarry` (rozdělení práce dne – `quarryShares` v `labor-report.ts`: `quarry`

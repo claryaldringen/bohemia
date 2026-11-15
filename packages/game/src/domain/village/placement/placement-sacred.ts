@@ -40,10 +40,10 @@ import { withWarning } from './placement-fields';
 const SACRED_NAMES: Record<SacredBuildingKind, string> = { idol: 'Modla', shrine: 'Svatyně' };
 
 /**
- * Půdorys volně stojící stavby `name` (modla, svatyně, humno) v krajině, ne ve vodě (louka i les)
- * a s rozdílem výšek nejvýš `limit` m (null = bez meze).
+ * Půdorys volně stojící stavby `name` (modla, svatyně, humno, plocha lomu) v krajině, ne ve vodě
+ * (louka i les) a s rozdílem výšek nejvýš `limit` m (null = bez meze).
  */
-function checkStructureTerrain(
+export function checkStructureTerrain(
   landscape: Landscape,
   name: string,
   limit: number | null,

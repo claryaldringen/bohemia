@@ -283,11 +283,18 @@ export interface SceneVillage {
    * bez kostela bez údaje.
    */
   churches?: SceneChurch[];
+  /**
+   * Lomy vsi – dostavěné i rozestavěné (fortifications.md – Kámen, Lom jako plocha u skal): střed
+   * a natočení plochy, `rock` – kde lamači lámou (bod na okraji výchozu), směr do skály
+   * (jednotkový) a poloměr výchozu (m); starší lom na výchozu láme na okraji výchozu za plochou
+   * (−z v osách lomu).
+   */
   quarries?: {
     outcropId: number;
     x: number;
     z: number;
     rotation: number;
+    rock: { x: number; z: number; hx: number; hz: number; r: number };
     building?: true;
     constructionId?: number;
   }[];

@@ -58,8 +58,10 @@ import type {
 } from '../types';
 import { churchQuarryLeft, mastersPresent } from '../buildings/church-build';
 import {
+  constructionStoneBreak,
   constructionStoneCarry,
   constructionStoneWork,
+  quarryBreakManDaysPerM3,
   stoneCarryManDaysPerM3,
   villageQuarries,
   type StoneCart,
@@ -445,13 +447,19 @@ export function planCartJobs(
  * Stavba, pro kterou dnes láme lom, a odkud kam se kámen nosí (fortifications.md – Kámen, Nošení
  * kamene a vůz): kostel s mistry na lámání a se zbytkem lámání, zakázka do zásoby (k hromadě u cesty
  * u dvorce – `logArrivalPoint`) a nedostavěná hradba s kamenem z lomu (`fortStone`). Lom musí stát;
- * jinak null.
+ * jinak null. Nošení z plochy lomu na m³ (`carryPerM3`) nahradí vůz, lámání a nošení bloků na
+ * plochu (`breakPerM3`) ne.
  */
 function stoneSource(
   state: VillageState,
   c: Construction,
   masters: () => ReadonlySet<MasonCraft>,
-): { quarry: Quarry; to: { x: number; z: number }; carryPerM3: number } | null {
+): {
+  quarry: Quarry;
+  to: { x: number; z: number };
+  carryPerM3: number;
+  breakPerM3: number;
+} | null {
   const quarryOf = (id: number): Quarry | null =>
     villageQuarries(state).find((q) => q.outcropId === id) ?? null;
   if (c.church) {
@@ -461,7 +469,12 @@ function stoneSource(
     if (churchQuarryLeft(site) <= EPSILON) return null;
     const quarry = quarryOf(site.quarryId);
     return quarry
-      ? { quarry, to: c.position, carryPerM3: stoneCarryManDaysPerM3(site.quarryDistanceM) }
+      ? {
+          quarry,
+          to: c.position,
+          carryPerM3: stoneCarryManDaysPerM3(site.quarryDistanceM),
+          breakPerM3: quarryBreakManDaysPerM3(site.quarryRockM),
+        }
       : null;
   }
   if (c.done + EPSILON >= c.cost) return null;
@@ -470,7 +483,8 @@ function stoneSource(
   const quarry = quarryOf(work.outcropId);
   if (!quarry) return null;
   const to = c.kind === 'quarrying' ? logArrivalPoint(state) : c.fortStone?.at;
-  return to ? { quarry, to, carryPerM3: constructionStoneCarry(c) } : null;
+  const breakPerM3 = constructionStoneBreak(c, quarry);
+  return to ? { quarry, to, carryPerM3: constructionStoneCarry(c, breakPerM3), breakPerM3 } : null;
 }
 
 /**
@@ -496,7 +510,7 @@ export function planStoneCarts(
     if (!all) break;
     if (c.stoneCart === undefined)
       c.stoneCart = stoneCartDrive(state, source.quarry, source.to, all);
-    const offer = stoneCartOffer(c.stoneCart, source.carryPerM3);
+    const offer = stoneCartOffer(c.stoneCart, source.carryPerM3, source.breakPerM3);
     if (!offer) continue;
     carts.push({ constructionId: c.id, outcropId: source.quarry.outcropId, ...offer });
     takeCart(fleet, 'two-wheel');
@@ -735,7 +749,7 @@ export function stoneDemand(state: VillageState, drives: () => CartDrives | null
     if (!all) break;
     if (c.stoneCart === undefined)
       c.stoneCart = stoneCartDrive(state, source.quarry, source.to, all);
-    const offer = stoneCartOffer(c.stoneCart, source.carryPerM3);
+    const offer = stoneCartOffer(c.stoneCart, source.carryPerM3, source.breakPerM3);
     if (offer) savings.push(offer.maxM3 * (offer.carryPerM3 - offer.crewPerM3));
   }
   return savings;

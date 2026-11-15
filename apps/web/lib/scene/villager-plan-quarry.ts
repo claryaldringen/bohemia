@@ -1,19 +1,29 @@
 // Poddaní v lomu (churches.md – Mistři huti při práci, Lom; Martin 12. 11. 2026: „ať kameník
 // neláme krumpáčem kámen v lomu – to dělají poddaní. … Další poddaný si od něj přisekané kameny
 // odebírá a nakládá je na vůz, nebo na hromadu, pokud vůz není poblíž.“; fortifications.md –
-// Kámen, Nošení kamene a vůz): lidé podílu lámání (`quarry`) lámou krumpáčem u stěny lomu, jeden
-// z nich odnáší kameny od stěny (od kameníka) na hromadu u lomu a bez vozu s kamenem nosí část
-// z nich kámen v nůších z hromady u lomu na stavbu – ke kostelu, k hradbě, nebo k hromadě kamení
-// u dvorce (zásoba). S vozem s kamenem (podíl `haul`, `job` `stone`) nosiči nejsou a odnášeč nosí
-// kameny k vozu u lomu (village-carts.ts – `stoneCartLoadSpot`); vůz kreslí cart-renderer.ts a vede
-// ho vozka (villager-plan.ts – `draftStaff`). Čistý modul bez Babylonu.
+// Kámen, Nošení kamene a vůz, Lom jako plocha u skal – Martin 14. 11. 2026: „Vesničané budou
+// chodit k nejbližším vystupujícím skalám, lámat z nich malé bloky a nosit je na tuto plochu…“):
+// lidé podílu lámání (`quarry`) lámou krumpáčem u výchozu (bod `SceneQuarry.rock`), část z nich
+// nosí vylomené bloky v nůších od výchozu na plochu lomu (ke kameníkovi), jeden odnáší přisekané
+// kameny na hromadu na ploše a bez vozu s kamenem nosí část z nich kámen v nůších z plochy na
+// stavbu – ke kostelu, k hradbě, nebo k hromadě kamení u dvorce (zásoba). S vozem s kamenem
+// (podíl `haul`, `job` `stone`) nosiči na stavbu nejsou a odnášeč nosí kameny k vozu u plochy
+// (village-carts.ts – `stoneCartLoadSpot`); vůz kreslí cart-renderer.ts a vede ho vozka
+// (villager-plan.ts – `draftStaff`). Čistý modul bez Babylonu.
 import type { Sex } from '@bohemia/game';
 import type { ScenePerson } from '../person-view';
 import type { SceneLabor, SceneLaborShare, SceneVillage } from '../village-view';
 import { streamPhase } from './road-traffic';
 import { hash01 } from './smoke-schedule';
 import { stoneDestination as stoneTarget } from './stone-destination';
-import { PILE_RADIUS_M, QUARRY_FACE_M, QUARRY_PILES, toWorld } from './stone-pile-layout';
+import {
+  PILE_RADIUS_M,
+  QUARRY_PILES,
+  QUARRY_ROCK_PILE,
+  quarryRockPileAt,
+  rockToWorld,
+  toWorld,
+} from './stone-pile-layout';
 import { stoneCartLoadSpot } from './village-carts';
 import { shuttleErrand } from './villager-errands';
 import {
@@ -34,18 +44,21 @@ import { ADULTS, type PersonJob } from './villager-roster';
 export type SceneQuarry = NonNullable<SceneVillage['quarries']>[number];
 
 /**
- * Místa v lomu v místních osách lomu (m; stěna v −z, hromádky `QUARRY_PILES`; návrh Clauda):
- * řada lámajících před stěnou, kameník u nalámaného kamene na straně od hromady a za lámajícími
- * u kraje stěny, kde ukazuje, jak lámat; odnášeč u nalámaného kamene na straně do lomu,
- * stavbyvedoucí při obchůzce stranou od lámajících.
+ * Místa v lomu (m; návrh Clauda): řada lámajících po obvodu výchozu kolem bodu lámání
+ * (`SceneQuarry.rock`), kameník za nimi, kde ukazuje, jak lámat; na ploše (místní osy plochy,
+ * hromádky `QUARRY_PILES`) kameník u donesených bloků na straně od hromady, odnášeč u bloků na
+ * straně do plochy, stavbyvedoucí při obchůzce stranou.
  */
 export const QUARRY_STAND = {
-  /** Řada lámajících: od přední plochy stěny, rozestup, přesah za okraje stěny, volno od hromádek. */
-  row: { front: 0.75, spacing: 1.1, overhang: 0.6, pileGap: 0.35 },
-  /** Kameník přisekává kámen – od okraje nalámaného kamene (strana od hromady, +x). */
+  /**
+   * Řada lámajících u výchozu: od okraje skály, rozestup po obvodu, kam nejdál od bodu lámání (po
+   * obvodu na každou stranu) a volno od hromádky bloků u skály.
+   */
+  row: { front: 0.75, spacing: 1.1, half: 3.1, pileGap: 0.35 },
+  /** Kameník přisekává kámen – od okraje donesených bloků (strana od hromady, +x). */
   dress: 0.8,
-  /** Kameník ukazuje, jak lámat – kus za řadou lámajících u kraje stěny. */
-  show: { lx: 2.2, lz: 0.25 },
+  /** Kameník ukazuje, jak lámat – kus za řadou lámajících (`back` od řady, `side` stranou). */
+  show: { back: 1.1, side: 2.2 },
   /** Odnášeč bere kameny u nalámaného kamene na straně do lomu (+z) – od okraje. */
   pick: 0.65,
   /** Odnášeč skládá kámen na okraji hromady u lomu – od okraje. */
@@ -62,6 +75,13 @@ export const QUARRY_STAND = {
  * u hromady u lomu nakládají `loadS` s, u stavby skládají `unloadS` s.
  */
 export const STONE_CARRY = { overM: 40, share: 1 / 3, loadS: 6, unloadS: 5 } as const;
+
+/**
+ * Nosiči bloků (Lom jako plocha u skal; návrh Clauda): jen když je hromádka bloků u výchozu od
+ * donesených bloků na ploše dál než `overM`, nosí bloky asi pětina lidí lámání (`share`), aspoň
+ * jeden; u skály nakládají `loadS` s, na ploše skládají `unloadS` s.
+ */
+export const BLOCK_CARRY = { overM: 4, share: 1 / 5, loadS: 5, unloadS: 4 } as const;
 
 /** Místo postavy: bod a směr pohledu. */
 interface Spot {
@@ -96,8 +116,8 @@ export function sceneQuarry(ctx: Pick<Context, 'village'>, outcropId: number): S
 }
 
 /**
- * Hromádky lomu ve světě: nalámaný kámen u stěny (`broken`) a hromada u lomu (`heap`) –
- * rozestavěný lom hromadu nemá, kameny se skládají k nalámanému kamení.
+ * Hromádky na ploše lomu ve světě: donesené bloky (`broken`) a hromada přisekaného kamene
+ * (`heap`) – rozestavěný lom hromadu nemá, kameny se skládají k blokům.
  */
 export function quarryPiles(q: SceneQuarry): { broken: QuarryPile; heap: QuarryPile } {
   const { broken, heap } = QUARRY_PILES;
@@ -106,27 +126,40 @@ export function quarryPiles(q: SceneQuarry): { broken: QuarryPile; heap: QuarryP
   return { broken: b, heap: h };
 }
 
+/** Hromádka vylomených bloků u výchozu ve světě (`QUARRY_ROCK_PILE`) – střed a poloměr. */
+export function quarryRockPile(q: SceneQuarry): QuarryPile {
+  const [x, z] = quarryRockPileAt(q.rock);
+  return { x, z, r: PILE_RADIUS_M.a * QUARRY_ROCK_PILE.scale };
+}
+
 /**
- * Místa lámajících před stěnou lomu v rozestupu `row.spacing`, mimo hromádky, čelem ke stěně –
- * napřed nejblíž místu, kde kameník ukazuje, jak lámat (`QUARRY_STAND.show`).
+ * Místa lámajících u výchozu: po obvodu skály (poloměr `rock.r` + `row.front`) v rozestupu
+ * `row.spacing` na obě strany od bodu lámání nejvýš `row.half`, mimo hromádku bloků, čelem do
+ * skály – napřed nejblíž místu, kde kameník ukazuje, jak lámat (`QUARRY_STAND.show`).
  */
 export function quarryFaceSpots(q: SceneQuarry): Spot[] {
   const { row, show } = QUARRY_STAND;
-  const lz = -QUARRY_FACE_M.back + QUARRY_FACE_M.depth / 2 + row.front;
-  const half = QUARRY_FACE_M.width / 2 + row.overhang;
-  const n = Math.floor((2 * half) / row.spacing) + 1;
-  const piles = [
-    { ...QUARRY_PILES.broken, r: PILE_RADIUS_M.a * QUARRY_PILES.broken.scale },
-    ...(q.building ? [] : [{ ...QUARRY_PILES.heap, r: PILE_RADIUS_M.b * QUARRY_PILES.heap.scale }]),
-  ];
-  const xs: number[] = [];
+  const { rock } = q;
+  // střed výchozu a směr od něj k bodu lámání
+  const cx = rock.x + rock.hx * rock.r;
+  const cz = rock.z + rock.hz * rock.r;
+  const ring = rock.r + row.front;
+  const n = Math.floor((2 * row.half) / row.spacing) + 1;
+  const pile = quarryRockPile(q);
+  const spots: { spot: Spot; along: number }[] = [];
   for (let k = 0; k < n; k++) {
-    const lx = (k - (n - 1) / 2) * row.spacing;
-    if (piles.every((p) => Math.hypot(lx - p.lx, lz - p.lz) >= p.r + row.pileGap)) xs.push(lx);
+    const along = (k - (n - 1) / 2) * row.spacing;
+    const a = along / ring;
+    // směr ven ze skály (−h) natočený o úhel a – kladné `along` stranou jako `side` v `rockToWorld`
+    const ox = -rock.hx * Math.cos(a) - rock.hz * Math.sin(a);
+    const oz = -rock.hz * Math.cos(a) + rock.hx * Math.sin(a);
+    const x = cx + ox * ring;
+    const z = cz + oz * ring;
+    if (Math.hypot(x - pile.x, z - pile.z) < pile.r + row.pileGap) continue;
+    spots.push({ spot: { x, z, hx: -ox, hz: -oz }, along });
   }
-  xs.sort((a, b) => Math.abs(a - show.lx) - Math.abs(b - show.lx));
-  const face = { x: -Math.sin(q.rotation), z: -Math.cos(q.rotation) };
-  return xs.map((lx) => ({ ...local(q, lx, lz), hx: face.x, hz: face.z }));
+  spots.sort((a, b) => Math.abs(a.along - show.side) - Math.abs(b.along - show.side));
+  return spots.map((s) => s.spot);
 }
 
 /** Kameník u nalámaného kamene na straně od hromady, čelem k němu (přisekává kámen). */
@@ -138,9 +171,11 @@ export function quarryDressSpot(q: SceneQuarry): Spot {
   return { ...at, hx: h.x, hz: h.z };
 }
 
-/** Kde kameník ukazuje lámajícím, jak lámat – kus za jejich řadou (krok jinde `face`). */
+/** Kde kameník ukazuje lámajícím, jak lámat – kus za jejich řadou u výchozu (krok jinde `face`). */
 export function quarryShowSpot(q: SceneQuarry): Point {
-  return local(q, QUARRY_STAND.show.lx, QUARRY_STAND.show.lz);
+  const { row, show } = QUARRY_STAND;
+  const [x, z] = rockToWorld(q.rock, -(row.front + show.back), show.side);
+  return { x, z };
 }
 
 /** Kam stavbyvedoucí při obchůzce lomu dojde (krok jinde `quarry`). */
@@ -209,11 +244,28 @@ function carryRoute(
 }
 
 /**
+ * Trasa nosičů bloků: od donesených bloků na ploše (začátek – tam skládají) k hromádce bloků
+ * u výchozu (konec – tam nakládají). Jen když jsou od sebe dál než `BLOCK_CARRY.overM`; jinak null.
+ */
+function blockRoute(ctx: Context, q: SceneQuarry): Route | null {
+  const { broken } = quarryPiles(q);
+  const pile = quarryRockPile(q);
+  if (Math.hypot(pile.x - broken.x, pile.z - broken.z) <= BLOCK_CARRY.overM) return null;
+  const drop = rimToward(broken, pile, broken.r + QUARRY_STAND.load);
+  const load = rimToward(pile, broken, pile.r + QUARRY_STAND.load);
+  const from = nearestFree(ctx, drop.x, drop.z, 3);
+  const to = nearestFree(ctx, load.x, load.z, 3);
+  return from && to ? walkRoute(ctx, from, to) : null;
+}
+
+/**
  * Postavy podílů lámání dne (`counts` – kolik postav podíl dostal): u každého lomu ve scéně první
- * postava láme u stěny (klip `quarry`), druhá odnáší kameny od stěny na hromadu u lomu (`stacker`),
- * další lámou, a bez vozu s kamenem nosí od tří postav poslední z nich (≈ třetina, aspoň jeden,
- * nejvýš všichni kromě prvního lámajícího a odnášeče) kámen v nůších na stavbu jako pochůzku. Lámou muži (těžká práce); kdo se k stěně
- * nevejde nebo nemá místo, postavu nemá a zůstane volný pro jinou práci.
+ * postava láme u výchozu (klip `quarry`), další nosí vylomené bloky na plochu lomu (≈ pětina,
+ * aspoň jeden, když je plocha od skály dál), další odnáší přisekané kameny na hromadu na ploše
+ * (`stacker`), ostatní lámou, a bez vozu s kamenem nosí od tří postav poslední z nich (≈ třetina,
+ * aspoň jeden, nejvýš všichni kromě lámajících, nosičů bloků a odnášeče) kámen v nůších na stavbu
+ * jako pochůzku. Lámou muži (těžká práce); kdo se ke skále nevejde nebo nemá místo, postavu nemá
+ * a zůstane volný pro jinou práci.
  */
 export function quarryFigures(
   ctx: Context,
@@ -240,47 +292,58 @@ function quarryCrew(
 ): PlannedVillager[] {
   const out: PlannedVillager[] = [];
   const key = `quarry:${targetKey(share.target)}:${share.construction ?? ''}`;
-  // přednost má lámání: jediná postava láme, druhá odnáší kameny od kameníka, nosiči až od třetí
-  const stacker = n >= 2 ? 1 : -1;
-  const path = n >= 3 ? carryRoute(ctx, labor, share, q) : null;
-  const carriers = path ? Math.min(n - 2, Math.max(1, Math.round(n * STONE_CARRY.share))) : 0;
+  // přednost má lámání: jediná postava láme, další nosí bloky (je-li plocha od skály dál), pak
+  // odnáší kameny od kameníka, nosiči na stavbu až od třetí postavy
+  const blocks = n >= 2 ? blockRoute(ctx, q) : null;
+  const blockers = blocks ? Math.min(n - 1, Math.max(1, Math.round(n * BLOCK_CARRY.share))) : 0;
+  const stacker = n - 1 - blockers >= 1 ? 1 + blockers : -1;
+  const free = n - 1 - blockers - (stacker >= 0 ? 1 : 0);
+  const path = n >= 3 && free >= 1 ? carryRoute(ctx, labor, share, q) : null;
+  const carriers = path ? Math.min(free, Math.max(1, Math.round(n * STONE_CARRY.share))) : 0;
   const faces = quarryFaceSpots(q);
   const base = hash01(stringHash(key), 1, 93);
   // lámou muži; ves bez mužů – kdokoli dospělý
   const pick = (sex: Sex): ScenePerson | null =>
     ctx.roster!.take({ ...ADULTS, onlySex: 'male' }) ?? ctx.roster!.take({ ...ADULTS, sex });
   const job: PersonJob = { kind: 'share', activity: 'quarry', target: share.target };
+  let face = 0;
   for (let i = 0; i < n; i++) {
+    const blocker = i >= 1 && i <= blockers ? i - 1 : -1;
     const carrier = i >= n - carriers ? i - (n - carriers) : -1;
+    const route = blocker >= 0 ? blocks : carrier >= 0 ? path : null;
     let spot: Spot | null = null;
-    if (carrier < 0) {
-      const want = i === stacker ? pickSpot(q) : faces[i === 0 ? 0 : i - 1];
+    if (!route) {
+      const want = i === stacker ? pickSpot(q) : faces[face++];
       const at = want ? nearestFree(ctx, want.x, want.z, 1.2) : null;
       spot = want && at ? { ...want, x: at.x, z: at.z } : null;
-      // k stěně se nevejde – postavu nemá
+      // ke skále se nevejde – postavu nemá
       if (!spot) continue;
     }
     const c = cast(ctx, `${key}:${i}`, { women: 0, child: false }, pick);
     if (!c) continue;
     const who = c.who;
     const hair = adultHair(who, ctx.sexes.married);
-    if (carrier >= 0 && path) {
+    if (route) {
       const man = who.kind === 'man';
+      const block = blocker >= 0;
       const options: ShuttleOptions = {
         outClip: 'walk',
         outSpeed: walkSpeed(who.kind, 'walk', who.scale),
         endClip: man ? 'lay' : 'weed',
-        endS: STONE_CARRY.loadS,
+        endS: block ? BLOCK_CARRY.loadS : STONE_CARRY.loadS,
         backClip: man ? 'carry-stone' : 'carry',
         backSpeed: walkSpeed(who.kind, man ? 'carry-stone' : 'carry', who.scale),
         restClip: man ? 'lay' : 'weed',
-        restS: STONE_CARRY.unloadS,
-        phase: streamPhase(carrier, base),
+        restS: block ? BLOCK_CARRY.unloadS : STONE_CARRY.unloadS,
+        phase: streamPhase(block ? blocker : carrier, base),
       };
       // pochůzka je celý cyklus – při změně plánu ji nosič dojde (villager-errands.ts)
       out.push({
-        ...figure(c, shuttle(path, options), hair, { kind: 'fetch', goods: 'stone' }),
-        errand: shuttleErrand(path, options),
+        ...figure(c, shuttle(route, options), hair, {
+          kind: 'fetch',
+          goods: block ? 'block' : 'stone',
+        }),
+        errand: shuttleErrand(route, options),
       });
       continue;
     }

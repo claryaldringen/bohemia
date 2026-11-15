@@ -164,7 +164,8 @@ roštová ≈ 7 m, komorová ≈ 8 m, komory po 5–6 m).
   leží na hromadách kamení u cesty (jako klády); kámen nehnije.
 - **Implementováno 8. 11. 2026** (plán hradeb, Úloha 4 přepsaná podle Martina). Návrh Clauda
   k provedení:
-  - lom se staví z nabídky staveb jen na skalní výchoz (do 1 m za jeho okrajem); na jednom výchozu
+  - ~~lom se staví z nabídky staveb jen na skalní výchoz (do 1 m za jeho okrajem)~~ (od 14. 11. 2026
+    plocha u skal – Lom jako plocha u skal níž); na jednom výchozu
     jeden lom, ves jich smí mít víc (zakázka hradby láme v nejbližším). Lom chce 20 čd, dřevo ne;
   - **lámání na zakázku** pro hradbu jen z **dostavěného** lomu: 1 čd na m³ × příplatek za
     vzdušnou vzdálenost lomu od středu stavby; kámen na hromadách se bere napřed. Bez lomu a bez
@@ -176,7 +177,8 @@ roštová ≈ 7 m, komorová ≈ 8 m, komory po 5–6 m).
   - **zrušená stavba hradby** vrátí na hromadu kámen, který vzala z hromad, v podílu nehotové
     práce; kámen lámaný na zakázku pro nehotové úseky se ještě nelámal, nic nevrací;
   - hromady kamení u cesty stojí jako klády (`LOG_PILES` – u cesty do 60 m od místa, blízké se
-    spojí); ve scéně díly po 3 a 1 m³, lom je vylomená stěna s hromádkami kamení.
+    spojí); ve scéně díly po 3 a 1 m³, ~~lom je vylomená stěna s hromádkami kamení~~ (plocha
+    u skal – níž).
 - **Nošení kamene a vůz** (Martin 12. 11. 2026: „A“ – nošení počítat poctivě, vůz vozí kámen,
   když ušetří práci; čísla návrh Clauda). Dřív byl dovoz jen příplatek za vzdálenost jako
   u kácení (+1 % za 10 m nad 100 m), takže by se vůz nevyplatil nikdy. Nově:
@@ -206,6 +208,15 @@ roštová ≈ 7 m, komorová ≈ 8 m, komory po 5–6 m).
   - **ve scéně** plocha s hromadami bloků a přisekaného kamene, kameník u kamene, lamači
     s krumpáči u výchozu a nosiči s nůšemi mezi výchozem a plochou;
   - dnešní lomy na výchozu zůstanou, kde jsou, a pracují nově (výchoz pod nimi je nejbližší).
+  - **Implementováno 15. 11. 2026** (návrh Clauda k provedení): plocha 8 × 8 m natočená jako
+    ostatní stavby, rozdíl výšek pod ní nejvýš 1 m (jako humno), ne ve vodě, ne přes skalní výchoz
+    a nepřekrývá jiné stavby ani pole (ostatní stavby zase ji); stromy, keře a kameny na ploše
+    zůstanou (jako u klád). Do 50 m od okraje se měří od středu plochy; lom patří k výchozu
+    nejbližšímu k ploše (od okraje) a u jednoho výchozu je dál jeden lom. Mapa bez výchozu – tlačítko
+    zašedlé s důvodem. Nošení bloků od bodu lámání (okraj výchozu nejblíž ploše) ke středu plochy po
+    40 kg: na m³ 4 m ≈ 0,12 čd, 50 m ≈ 0,28 čd navíc k lámání 1 čd; vůz ho nenahradí (vozí jen
+    z plochy). Dnešní lom na výchozu bloky nenosí – výchoz je pod ním (beze změny ceny), ve scéně
+    lámou u okraje výchozu. NPC rod zakládá plochu podle stejných pravidel co nejblíž středu vsi.
 
 ### Obrana bez násobku
 

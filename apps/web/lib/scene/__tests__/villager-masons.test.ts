@@ -74,7 +74,13 @@ const square = (cx: number, cy: number) => ({
   stage: 'sown' as const,
 });
 
-const QUARRY = { outcropId: 42, x: 140, z: -60, rotation: 0.4 };
+const QUARRY = {
+  outcropId: 42,
+  x: 140,
+  z: -60,
+  rotation: 0.4,
+  rock: { x: 140, z: -72, hx: 0, hz: -1, r: 3 },
+};
 
 const church = (burning: boolean): SceneChurch => ({
   id: 8,

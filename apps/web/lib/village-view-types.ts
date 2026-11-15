@@ -541,7 +541,7 @@ export interface VillageView {
   woodSupply?: number;
   /**
    * Kámen vsi pro cenu opevnění u kurzoru (fortifications.md – Hradby a obrana, Cena): m³ na
-   * hromadách a lom ve skalním výchozu; bez údaje žádný.
+   * hromadách a lom u skal; bez údaje žádný.
    */
   stoneSupply?: FortStoneSupply;
   /** Všechny klády vsi v kusech – na všech hromadách (forest.md – Mýcení a hromada klád). */

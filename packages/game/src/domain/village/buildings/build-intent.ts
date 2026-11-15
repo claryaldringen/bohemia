@@ -422,7 +422,7 @@ function applyIntent(
     case 'threshing-floor':
       return buildThreshingFloor(state, day, landscape, obstacles, intent, place);
     case 'quarry':
-      return startQuarry(state, day, obstacles, intent.position);
+      return startQuarry(state, day, landscape, obstacles, intent.position, place());
     case 'church':
       return buildChurch(state, day, landscape, obstacles, intent, place);
     case 'field':

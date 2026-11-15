@@ -32,7 +32,7 @@ export type PersonJob =
    * Nosič v nůši: uhlí, ruda a hlína kováře a hrnčíře, kámen z hromady u lomu na stavbu
    * (villager-plan-quarry.ts – bez vozu s kamenem).
    */
-  | { kind: 'fetch'; goods: 'charcoal' | 'ore' | 'clay' | 'stone' }
+  | { kind: 'fetch'; goods: 'charcoal' | 'ore' | 'clay' | 'stone' | 'block' }
   | { kind: 'herd'; herd: number }
   | { kind: 'elder' }
   | { kind: 'caravan'; trip: SceneExpedition['trip'] | null; porter: boolean }

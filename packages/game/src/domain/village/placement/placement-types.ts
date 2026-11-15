@@ -74,11 +74,19 @@ export interface PlacementVillage {
     readonly fortWork?: FortBuildWork;
     readonly fortTarget?: WallKind;
     readonly fortSegments?: readonly { readonly index: number }[];
-    /** Stavba lomu (fortifications.md – Kámen) – výchoz, na kterém lom vzniká. */
+    /** Stavba lomu (fortifications.md – Kámen) – výchoz lomu; plocha je v `position`. */
     readonly quarryOutcrop?: number;
   }[];
-  /** Lomy vsi na skalních výchozech (fortifications.md – Kámen); chybí = žádný. */
-  readonly quarries?: readonly { readonly outcropId: number }[];
+  /**
+   * Lomy vsi (fortifications.md – Kámen, Lom jako plocha u skal) – výchoz a plocha (střed
+   * a natočení); chybí = žádný.
+   */
+  readonly quarries?: readonly {
+    readonly outcropId: number;
+    readonly x: number;
+    readonly z: number;
+    readonly rotation: number;
+  }[];
   /**
    * Opevnění vsi (fortifications.md – Obvod) – pás zabírá místo jiným stavbám (hotové úseky
    * a celý obvod, dokud se staví – `fortificationBand`). Chybí = žádné.

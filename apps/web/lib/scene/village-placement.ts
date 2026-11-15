@@ -6,6 +6,7 @@ import type { Scene } from '@babylonjs/core/scene';
 import {
   CRAFT_NAMES,
   HUMNO,
+  STONE,
   SACRED_BUILDINGS,
   WORKSHOP_PORCH_M,
   dwellingFrame,
@@ -95,8 +96,6 @@ type FootprintMode = Extract<
 >;
 /** Model ducha: obydlí, dílna nebo milíř uhlíře, modla či svatyně. */
 export type GhostType = DwellingType | SacredBuildingKind | WorkshopModel | ShedModel | 'milir';
-/** Strana čtverce značky lomu u kurzoru (m) – jako model lomu ve scéně (`quarry-renderer.ts`). */
-const QUARRY_MARK_M = 6;
 
 /**
  * Půdorys stavby u kurzoru v souřadnicích modelu (m): obydlí a dílna s variantou rozměrů podle
@@ -112,8 +111,8 @@ function footprintOf(
     return { minX: -half, maxX: half, minZ: -half, maxZ: half };
   }
   if (mode.kind === 'quarry') {
-    // lom: značka vylomené stěny a hromady kamení na výchozu (fortifications.md – Kámen)
-    const half = QUARRY_MARK_M / 2;
+    // lom: plocha u skal (fortifications.md – Kámen, Lom jako plocha u skal)
+    const half = STONE.quarryArea.sizeM / 2;
     return { minX: -half, maxX: half, minZ: -half, maxZ: half };
   }
   if (mode.kind === 'threshing-floor') {

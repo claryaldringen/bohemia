@@ -218,12 +218,14 @@ export function stoneCartDrive(
  * Vůz s kamenem po trase `drive` (fortifications.md – Kámen, Nošení kamene a vůz): dvoukolák
  * uveze CARTS.loadKg kamene (STONE.carry.kgPerM3), posádka CART_JOBS.stone.crew, naložení a složení
  * CART_JOBS.stone.stopS, nejvýš `cartTripsPerDay` jízd. Jede, jen když posádka na m³ stojí méně
- * práce než nošení v nůších (`carryPerM3`); jinak (nebo kam nedojede) null.
+ * práce než nošení v nůších (`carryPerM3`); jinak (nebo kam nedojede) null. `breakPerM3` – lámání
+ * a nošení bloků na plochu lomu na m³ (vůz ho nenahradí; `quarryBreakManDaysPerM3`).
  */
 export function stoneCartOffer(
   drive: CartDrive | null,
   carryPerM3: number,
-): Pick<StoneCart, 'maxM3' | 'crewPerM3' | 'carryPerM3' | 'loadM3'> | null {
+  breakPerM3: number = STONE.quarryManDaysPerM3,
+): Pick<StoneCart, 'maxM3' | 'crewPerM3' | 'carryPerM3' | 'breakPerM3' | 'loadM3'> | null {
   if (!drive) return null;
   const job = CART_JOBS.stone;
   const loadM3 = CARTS.loadKg['two-wheel'] / STONE.carry.kgPerM3;
@@ -233,6 +235,7 @@ export function stoneCartOffer(
     maxM3: loadM3 * cartTripsPerDay(drive.costM, job.stopS),
     crewPerM3,
     carryPerM3,
+    breakPerM3,
     loadM3,
   };
 }

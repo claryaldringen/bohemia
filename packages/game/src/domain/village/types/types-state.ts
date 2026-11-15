@@ -110,17 +110,23 @@ export interface StoneStack {
 }
 
 /**
- * Lom na skalním výchozu (fortifications.md – Hradby a obrana, Kámen; Martin 8. 11. 2026) –
- * dostavěný; kámen se v něm láme na zakázku (`quarry.ts`). Na výchozu nejvýš jeden lom.
+ * Lom (fortifications.md – Hradby a obrana, Kámen; Martin 8. 11. 2026) – dostavěný; kámen se
+ * v něm láme na zakázku (`quarry.ts`). Lom je rovná plocha u skal (Lom jako plocha u skal; Martin
+ * 14. 11. 2026): bloky se lámou u nejbližšího výchozu a nosí na plochu. U výchozu nejvýš jeden lom.
  */
 export interface Quarry {
-  /** Id skalního výchozu ve vrstvě překážek – zároveň id lomu. */
+  /** Id nejbližšího skalního výchozu ve vrstvě překážek (tam se láme) – zároveň id lomu. */
   outcropId: number;
-  /** Střed výchozu (m, svět) a natočení značky lomu (rad). */
+  /** Střed plochy lomu (m, svět) a její natočení (rad); starší lom stojí na středu výchozu. */
   x: number;
   z: number;
   rotation: number;
   builtDay: number;
+  /**
+   * Kde se láme – bod na okraji výchozu nejblíž ploše (m, svět); odtud se bloky nosí na plochu.
+   * Starší lom na výchozu ho nemá – výchoz je pod ním a bloky se nenosí.
+   */
+  rock?: { x: number; z: number };
 }
 
 /** Postoj vsi: bránit se (stěna štítů), nebo evakuace (hradiště, les; výchozí). */

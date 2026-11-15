@@ -215,9 +215,11 @@ export interface Construction {
   };
   /**
    * Lom (fortifications.md – Kámen): stavba lomu (`quarry`) a lámání do zásoby (`quarrying`) –
-   * id skalního výchozu, na kterém lom stojí; lámání nese i množství (m³).
+   * id skalního výchozu lomu (nejbližšího k ploše); lámání nese i množství (m³). Stavba lomu u skal
+   * (Lom jako plocha u skal) nese i bod na okraji výchozu, kde se bude lámat (`Quarry.rock`).
    */
   quarryOutcrop?: number;
+  quarryRock?: { x: number; z: number };
   stoneOrderM3?: number;
   /** Kámen, který stavba hradby vzala z hromad (m³) – zrušení vrátí nezabudovaný podíl. */
   stoneFromPile?: number;
@@ -231,6 +233,8 @@ export interface Construction {
     m3: number;
     distanceM: number;
     at: { x: number; z: number };
+    /** Nošení bloků od výchozu na plochu lomu u skal (m); lom na výchozu ho nemá. */
+    rockM?: number;
   };
   /**
    * Jízda vozu s kamenem z lomu ke stavbě (wagons.md – Co vozy vozí, bod 5; kostel, hradba,

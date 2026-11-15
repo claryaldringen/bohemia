@@ -12,6 +12,7 @@ import { nearestWater } from '../disasters/firefighting';
 import {
   nearestQuarry,
   quarryManDaysPerM3,
+  quarryRockM,
   stoneCartLabor,
   stoneCartProgress,
   stoneDayOf,
@@ -135,7 +136,10 @@ function churchTotals(site: ChurchSite): ChurchTotals {
   const quarriedM3 = quarriedM3Of(site);
   return {
     // lámání a nošení podle vzdálenosti lomu (cena kostela ji nezná)
-    work: { ...cost.work, quarry: quarriedM3 * quarryManDaysPerM3(site.quarryDistanceM) },
+    work: {
+      ...cost.work,
+      quarry: quarriedM3 * quarryManDaysPerM3(site.quarryDistanceM, site.quarryRockM),
+    },
     masonryM3: cost.masonryM3,
     foundationM3: cost.masonryM3 - wallsM3,
     wallsM3,
@@ -550,6 +554,7 @@ export function startChurch(
   const cost = churchCost(input.type, dims);
   const quarry = nearestQuarry(state, position);
   if (!quarry) return { ok: false, reason: CHURCH_NO_QUARRY };
+  const rockM = quarryRockM(quarry.quarry);
   const obstacleIds = site.obstacleIds ?? [];
   const plan = planWoodFrom(
     Math.ceil(cost.woodKg / CHURCH.woodKgPerLog - EPS),
@@ -593,6 +598,8 @@ export function startChurch(
     sandPit,
     quarryId: quarry.quarry.outcropId,
     quarryDistanceM: quarry.distanceM,
+    // lom u skal – bloky se nosí od výchozu na plochu (Lom jako plocha u skal)
+    ...(rockM !== undefined ? { quarryRockM: rockM } : {}),
     stoneFromPileM3: fromPile,
     prepManDays: woodFellingCost(wood) + (site.obstacleCost ?? 0),
   };
