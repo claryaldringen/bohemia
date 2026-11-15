@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { chronicleRoadEnds, roadFormedNote } from '../road-chronicle';
+import { chronicleRoadEnds, overgrownRoadNote, roadFormedNote } from '../road-chronicle';
 import type { RoadEndsNetwork } from '../road-ends';
 import type { RoadAnchor } from '../road-anchors';
 import type { Road, RoadJunction, VillageState } from '../../types';
@@ -54,8 +54,14 @@ function setup(
   const state = {
     foundedDay: FOUNDED,
     dwellings: [
-      { id: 12, type: 'dvorec', builtDay: FOUNDED - 50 },
-      { id: 13, type: 'polozemnice', builtDay: FOUNDED + 3 * YEAR, workshop: { craft: 'smith' } },
+      { id: 12, type: 'dvorec', builtDay: FOUNDED - 50, position: { x: -40, z: 0 } },
+      {
+        id: 13,
+        type: 'polozemnice',
+        builtDay: FOUNDED + 3 * YEAR,
+        workshop: { craft: 'smith' },
+        position: { x: 40, z: 30 },
+      },
     ],
     roads: { junctions },
     pens: [{ id: 20, builtDay: FOUNDED + 10 * YEAR }],
@@ -83,9 +89,14 @@ describe('kronika – konce cesty a roky chůze', () => {
       { kind: 'dwelling', type: 'polozemnice', craft: 'smith' },
     ]);
     const y = setup('water', null, true);
+    // rozcestí podle nejbližšího významného místa – kovárna 52 m od něj (D66)
     expect(chronicleRoadEnds(y.state, y.net, 1)).toEqual([
       { kind: 'place', place: 'water' },
-      { kind: 'junction', shape: 'y' },
+      {
+        kind: 'junction',
+        shape: 'y',
+        near: { kind: 'dwelling', type: 'polozemnice', craft: 'smith', at: 'at' },
+      },
     ]);
   });
 
@@ -126,5 +137,39 @@ describe('kronika – konce cesty a roky chůze', () => {
     const nowhere = setup('d:13', null);
     expect(roadFormedNote(nowhere.state, nowhere.net, 1, day)).toEqual({});
     expect(roadFormedNote(nowhere.state, nowhere.net, 99, day)).toEqual({});
+  });
+});
+
+describe('kronika – zarostlá cesta (D67)', () => {
+  it('konce cesty hráče a její úseky; konec nikam konce nemá', () => {
+    const { net, state } = setup('d:12', 'water');
+    expect(overgrownRoadNote(state, net, 1)).toEqual({
+      chain: [1],
+      ends: [
+        { kind: 'dwelling', type: 'dvorec' },
+        { kind: 'place', place: 'water' },
+      ],
+    });
+    const nowhere = setup('d:12', null);
+    expect(overgrownRoadNote(nowhere.state, nowhere.net, 1)).toEqual({ chain: [1] });
+    // opuštěný kus pod stavbou – konce cesty z řezu (`Road.formerEnds`), jen část cesty
+    const former: Road = {
+      ...road(7, [
+        [0, 50],
+        [0, 60],
+      ]),
+      abandoned: true,
+      formerEnds: [
+        { kind: 'dwelling', type: 'dvorec' },
+        { kind: 'place', place: 'water' },
+      ],
+    };
+    const cut = { ...nowhere.net, roads: [...nowhere.net.roads, former] };
+    expect(overgrownRoadNote(nowhere.state, cut, 7)).toEqual({
+      chain: [],
+      ends: former.formerEnds,
+      part: true,
+    });
+    expect(overgrownRoadNote(nowhere.state, cut, 99)).toEqual({ chain: [] });
   });
 });

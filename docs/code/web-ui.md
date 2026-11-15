@@ -627,6 +627,17 @@ místa to jsou a moci je také označit.“ ([paths.md – Síť – kotvy](../d
   louka a pastva bez výběru (voda se jmenuje „Potok“, u řeky „Řeka“ – klíč kotvy `water:river`,
   `waterKindAt` v `paths/road-anchors.ts`: řeka, je-li nejbližší vodou řeka mapy; D44, Martin 14. 11. 2026: „teče tam přece potok“); jiná cesta → id cesty hráče (`roadChainIds`). `VillageRoad.ends`
   počítá `roadViews` (`village-view-roads.ts`); tam jsou i `JUNCTION_NAMES` / `JUNCTION_ICONS`.
+  Křižovatka podle významného místa u ní (D66 – `roadEndLandmarks` z jádra, věta
+  `landmarkPhrase` jako kronika): „Rozcestí u kovárny“, „Křižovatka pod dvorcem“.
+- **Významné místo u křižovatky** – `paths/road-landmarks.ts`: `junctionLandmark(state, at,
+  terrain, exclude)` – nejbližší dvorec, dílna, kostel, hřbitov (po čtvercích), humno, ohrada, sad
+  (po čtvercích), lom, modla, svatyně, stojící brána, voda (od břehu – `water` / `water:river`) nebo
+  kraj mapy do `LANDMARK_M` (60 m), mimo místo na druhém konci cesty (`roadEndKey`); vztah `at` /
+  `below` / `above` podle výšky (`LANDMARK_RISE_M` 5 m; brána a kraj mapy vždy `at`, voda nikdy
+  `below`). Bez místa poloha vůči vsi (`village` – uprostřed do `VILLAGE_MIDDLE_M` od průměru
+  obydlí, `direction` od něj, `outside` dál než `IN_VILLAGE_M` od všech obydlí). Výšky a voda
+  z `LandmarkTerrain` (`landmarkTerrain(landscape)`, v síti `RoadEndsNetwork.terrain`); bez ní
+  jen stavby. `roadEndLandmarks(state, net, ends)` – pro oba konce, jiný konec než křižovatka null.
 - **Panel** – `RoadEndIcon` (`selection/roads.tsx`) na začátku prvního řádku `RoadBody`: s cílem
   `TargetButton` (klik → `onSelectTarget`), kraj mapy šipka směru (`DIRECTION_NAMES`), nikam
   červené „!“ (`data-alert`) s popiskem „Cesta tu nikam nevede.“; `data-testid`
@@ -1489,6 +1500,16 @@ nová pravidla (návrh Clauda).
     „z Lhoty do Kněžic“ (`edgeVillage` – `neighbourOf(seed, direction).name`, `toVillage` – „do
     Lhoty“, opisem „do vsi X“); neznámé druhé místo jen „do Lhoty“; bez seedu kraj mapy jako místo.
     Panel cesty: „Cesta do Lhoty“ místo „Kraj mapy – sever“ (`road-end-view.ts`, šipka zůstává).
+  - **Křižovatka podle místa** (D66; `ChronicleRoadEnd.near` – `ChronicleLandmark` uložený při
+    vzniku zápisu, starší zápisy bez něj): „mezi rozcestím u kovárny a polem“, „mezi křižovatkou
+    pod dvorcem a kovárnou“, „z rozcestí nad potokem do Lhoty“, kraj mapy „u hranice
+    s Lhotskými“ (`withVillagersOf`; bez seedu „u severního kraje mapy“), bez místa „uprostřed
+    vsi“, „na severní straně vsi“, „severně od vsi“ (`landmarkPhrase` – 2. pád z
+    `RoadEndForms.from` bez „od“, „pod“ / „nad“ se 7. pádem; `PLACE_INSTRUMENTAL` má i kostel,
+    lom a bránu).
+  - **Zarostlá cesta** (D67; `road-overgrown` s `ends` a `part`): „Nepoužívaná cesta mezi
+    kovárnou a potokem zarostla.“, jen část „Část nepoužívané cesty mezi kovárnou a potokem
+    zarostla.“, starší zápis „Nepoužívaná cesta zarostla.“
   - **Jabloně u cesty** (`construction-finished` s `roadEnds` – konce v den výsadby):
     „Podél cesty mezi dvorcem a kovárnou byly vysazeny jabloně.“, starší zápis „Podél cesty byly
     vysazeny jabloně.“

@@ -34,6 +34,7 @@ import {
   roadUpgradeProgress,
   roadChains,
   chainEnds,
+  roadEndLandmarks,
   roadEndsNetwork,
   roadKind,
   ROAD_KIND_ORDER,
@@ -320,9 +321,11 @@ export function roadViews(
   const endsNet = roadEndsNetwork(state, landscape);
   return roadChains(roads).map((chain) => {
     const found = chainEnds(endsNet, chain);
+    // křižovatka podle významného místa u ní (D66)
+    const near = found ? roadEndLandmarks(state, endsNet, found) : [null, null];
     const ends: [VillageRoadEnd, VillageRoadEnd] = [
-      roadEndView(state, roads, found?.[0] ?? { kind: 'none' }),
-      roadEndView(state, roads, found?.[1] ?? { kind: 'none' }),
+      roadEndView(state, roads, found?.[0] ?? { kind: 'none' }, near[0]),
+      roadEndView(state, roads, found?.[1] ?? { kind: 'none' }, near[1]),
     ];
     const members = chain.map((link) => link.road);
     const ids = new Set(members.map((r) => r.id));

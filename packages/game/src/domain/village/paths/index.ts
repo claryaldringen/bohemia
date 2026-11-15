@@ -11,6 +11,7 @@ export * from './cart';
 export * from './cart-world';
 export * from './road-chains';
 export * from './road-ends';
+export * from './road-landmarks';
 export * from './road-land';
 export * from './walk-speed';
 export * from './earthworks';

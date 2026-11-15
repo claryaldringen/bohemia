@@ -16,6 +16,7 @@ import {
   type RoadAnchors,
 } from './road-anchors';
 import { roadChain, type ChainLink } from './road-chains';
+import { landmarkTerrain, type LandmarkTerrain } from './road-landmarks';
 import { END_SNAP_M, nearestOnRoads } from './roads-geometry';
 import { TERMINUS_M } from './roads-tidy';
 
@@ -43,6 +44,8 @@ export interface RoadEndsNetwork {
   roads: readonly Road[];
   junctions: readonly RoadJunction[];
   anchors: RoadAnchors;
+  /** Výšky a voda krajiny pro popis křižovatek (`roadEndLandmarks`); bez nich jen stavby. */
+  terrain?: LandmarkTerrain;
 }
 
 /** Síť konců ze stavu vsi – kotvy z uložených tras jako v úklidu. */
@@ -51,6 +54,7 @@ export function roadEndsNetwork(state: VillageState, landscape: Landscape): Road
     roads: state.roads?.roads ?? [],
     junctions: state.roads?.junctions ?? [],
     anchors: roadAnchors(state.routes?.list ?? [], landscape),
+    terrain: landmarkTerrain(landscape),
   };
 }
 

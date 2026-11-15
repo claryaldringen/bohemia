@@ -799,6 +799,16 @@ Návrh Clauda (detaily, které návrh výš nechal otevřené – 18. 10. 2026):
   „Pole ustoupilo stromům u cesty“ panel Kronika neukazuje). Cesty, které vznikly dřív, mají místa určená bez polí – místa
   se neurčují znovu, nové stromy na polích přibudou u nových cest.
 - **Kronika:** „Kudy se chodí léta, vyšlapala se pevná cesta.“ a „Nepoužívaná cesta zarostla.“
+  Zarostlá cesta jménem podle konců (D67, Martin 15. 11. 2026: „tohle také neříká nic o tom, která
+  to byla cesta“): „Nepoužívaná cesta mezi kovárnou a potokem zarostla.“, zarostla-li jen část
+  „Část nepoužívané cesty mezi … zarostla.“ Křižovatka a rozcestí na konci cesty podle nejbližšího
+  významného místa (D66, Martin 15. 11. 2026: „Třeba poblíž kterého významného místa se
+  nacházejí?“) – v kronice i v panelu cesty: „rozcestí u kovárny“, „křižovatka pod dvorcem“,
+  „rozcestí nad potokem“, „křižovatka u hranice s Lhotskými“ (dvorec, dílna, kostel, hřbitov,
+  humno, ohrada, sad, lom, modla, svatyně, brána, potok či řeka, kraj mapy; do 60 m, pod / nad
+  při rozdílu výšky aspoň 5 m – návrh Clauda); bez místa blízko „uprostřed vsi“, „na severní
+  straně vsi“ (do 40 m od obydlí), „severně od vsi“ (návrh Clauda – „za vsí na sever“ by v 7. pádě
+  dalo dvě předložkové vazby za sebou: „mezi rozcestím za vsí na sever a polem“).
 - **Rychlost:** roční kontrola ≈ 6–8 ms (Node, ves 27 lidí, 6 úseků), přeskok 10 let
   s krajinou ≈ 0,55 s (bez krajiny 0,15 s – rozdíl jsou pěšiny dne i pevné cesty). Stav pevných
   cest ≈ 3 kB.

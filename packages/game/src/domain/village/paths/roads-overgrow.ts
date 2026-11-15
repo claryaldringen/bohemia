@@ -4,6 +4,7 @@
 import { ROADS, ROAD_TREES } from '../rules';
 import {
   type ChronicleEvent,
+  type ChronicleRoadEnd,
   type Construction,
   type Road,
   type RoadPoint,
@@ -46,7 +47,13 @@ function mergeSegments(segments: readonly Segment[]): Segment[] {
  * dál), stav kusů a mokřina s brody po kusech. Konce živého zbytku u řezu jsou volné (`openEnds`,
  * `VillageRoads.cutEnds`). Vrátí id zmizelých kusů (nová id – pro kroniku).
  */
-function reshapeRoad(roads: VillageRoads, road: Road, segments: readonly Segment[]): number[] {
+function reshapeRoad(
+  roads: VillageRoads,
+  road: Road,
+  segments: readonly Segment[],
+  /** Konce cesty pro opuštěné kusy (`Road.formerEnds`); jinak je zdědí po úseku. */
+  formerEnds = road.formerEnds,
+): number[] {
   const length = segments[segments.length - 1]!.b;
   const gone: number[] = [];
   const kept: Segment[] = [];
@@ -72,6 +79,7 @@ function reshapeRoad(roads: VillageRoads, road: Road, segments: readonly Segment
       ...(road.ground ? { ground: groundPart(road.ground, s.a, s.b) } : {}),
       openEnds,
       ...(s.kind === 'abandoned' ? { abandoned: true as const } : {}),
+      ...(s.kind === 'abandoned' && formerEnds ? { formerEnds } : {}),
       ...(road.cart ? { cart: true as const } : {}),
       ...(road.unbridged ? { unbridged: true as const } : {}),
       ...(road.swath ? { swath: true as const } : {}),
@@ -150,28 +158,54 @@ export function relinkApples(roads: VillageRoads, goneId: number): void {
 }
 
 /**
+ * Zarůstající úsek pro kroniku: konce cesty hráče před zánikem a id úseků té cesty; `part` – úsek
+ * je jen kusem cesty (opuštěný kus pod stavbou s `Road.formerEnds`).
+ */
+export interface OvergrownNote {
+  ends?: [ChronicleRoadEnd, ChronicleRoadEnd];
+  chain: readonly number[];
+  part?: true;
+}
+
+/**
  * Kusy na nule (`condition`) zmizí (mutuje; paths.md – Zarůstání): celá cesta pryč, nebo se
  * zbytky rozříznou (`reshapeRoad`). Cesta ve vylepšení se nemění. Vrátí události kroniky
- * (`road-overgrown` jen pro zaniklé kusy).
+ * (`road-overgrown` jen pro zaniklé kusy) – s konci cesty hráče (`noteOf`, D67) zjištěnými napřed,
+ * dokud síť stojí; `part`, když zarostla jen část cesty (úsek se rozřízl, nebo cesta má další
+ * úsek, který nezanikl celý).
  */
 export function cutDeadRoads(
   roads: VillageRoads,
   constructions: readonly Construction[],
   trails: readonly Trail[] | undefined,
   day: number,
+  noteOf?: (roadId: number) => OvergrownNote,
 ): ChronicleEvent[] {
   const events: ChronicleEvent[] = [];
   const frozen = fixedRoadIds(constructions, trails);
-  for (const road of [...roads.roads]) {
+  const dying: { road: Road; pieces: ReturnType<typeof roadPieces>; dead: boolean[] }[] = [];
+  for (const road of roads.roads) {
     if (!road.condition?.some((q) => q.c <= 0) || frozen.has(road.id) || road.points.length < 2) {
       continue;
     }
     const pieces = roadPieces(road.points);
     const dead = pieces.map((piece) => conditionOf(road.condition!, piece, 1) <= 0);
+    dying.push({ road, pieces, dead });
+  }
+  // konce cest napřed – zánik dalších úseků by je změnil
+  const whole = new Set(dying.filter((d) => d.dead.every(Boolean)).map((d) => d.road.id));
+  const notes = new Map(dying.map((d) => [d.road.id, noteOf?.(d.road.id)]));
+  const noteFor = (road: Road, cut: boolean): Pick<OvergrownNote, 'ends'> & { part?: true } => {
+    const note = notes.get(road.id);
+    if (!note?.ends) return {};
+    const part = cut || note.part === true || note.chain.some((id) => !whole.has(id));
+    return { ends: note.ends, ...(part ? { part: true as const } : {}) };
+  };
+  for (const { road, pieces, dead } of dying) {
     if (dead.every(Boolean)) {
       roads.roads.splice(roads.roads.indexOf(road), 1);
       relinkApples(roads, road.id);
-      events.push({ day, kind: 'road-overgrown', roadId: road.id });
+      events.push({ day, kind: 'road-overgrown', roadId: road.id, ...noteFor(road, false) });
       continue;
     }
     const segments = mergeSegments(
@@ -185,8 +219,9 @@ export function cutDeadRoads(
     if (road.abandoned) {
       for (const s of segments) if (s.kind === 'alive') s.kind = 'abandoned';
     }
+    const note = noteFor(road, true);
     for (const roadId of reshapeRoad(roads, road, mergeSegments(segments))) {
-      events.push({ day, kind: 'road-overgrown', roadId });
+      events.push({ day, kind: 'road-overgrown', roadId, ...note });
     }
   }
   return events;
@@ -232,6 +267,8 @@ export function abandonBlockedStretches(
   constructions: readonly Construction[],
   trails: readonly Trail[] | undefined,
   blocked: (x: number, z: number) => boolean,
+  /** Konce cesty hráče před řezem – opuštěné kusy si je nesou (`Road.formerEnds`, D67). */
+  noteOf?: (roadId: number) => OvergrownNote,
 ): boolean {
   // jen práce na cestě ji drží (`Construction.roadIds` – vylepšení, stezka ve stavbě); hotová
   // stezka nezarůstá (`fixedRoadIds`), ale dům na ní ji přeruší jako každou jinou cestu
@@ -275,13 +312,15 @@ export function abandonBlockedStretches(
     }
     const merged = mergeSegments(segments);
     const axis = road.points;
+    const formerEnds = noteOf?.(road.id).ends;
     if (merged.every((s) => s.kind === 'abandoned')) {
       road.abandoned = true;
+      if (formerEnds) road.formerEnds = formerEnds;
       retrailPieces(trails, roads, road.id, axis, [road]);
     } else {
       // zbytky leží na místě úseku v pořadí osy (`reshapeRoad`; nic nezmizí – jen žije a opuštěný)
       const at = roads.roads.indexOf(road);
-      reshapeRoad(roads, road, merged);
+      reshapeRoad(roads, road, merged, formerEnds);
       retrailPieces(trails, roads, road.id, axis, roads.roads.slice(at, at + merged.length));
     }
     changed = true;

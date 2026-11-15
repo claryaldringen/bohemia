@@ -20,6 +20,7 @@ import {
   type ChronicleEvent,
   type ChronicleFortGate,
   type ChroniclePerson,
+  type ChronicleLandmark,
   type ChronicleRoadEnd,
   type PenSpecies,
   type LandTaker,
@@ -688,6 +689,10 @@ const PLACE_INSTRUMENTAL: Record<string, RoadEndForms> = {
   wood: { word: 'lesem', from: 'od lesa' },
   pasture: { word: 'pastvou', feminine: true, from: 'od pastvy' },
   meadow: { word: 'loukou', feminine: true, from: 'od louky' },
+  // jen významná místa u křižovatky (`ChronicleLandmark` – D66)
+  church: { word: 'kostelem', from: 'od kostela' },
+  quarry: { word: 'lomem', from: 'od lomu' },
+  gate: { word: 'branou', feminine: true, from: 'od brány' },
 };
 const DWELLING_INSTRUMENTAL: Record<DwellingType, RoadEndForms> = {
   zemnice: { word: 'zemnicí', feminine: true, from: 'od zemnice' },
@@ -711,16 +716,66 @@ interface RoadEndForms {
   from: string;
 }
 
-function roadEndForms(end: ChronicleRoadEnd): RoadEndForms | null {
+/** Příslovce směru („severně od vsi“). */
+const DIRECTION_ADVERBS: Record<Direction8, string> = {
+  N: 'severně',
+  NE: 'severovýchodně',
+  E: 'východně',
+  SE: 'jihovýchodně',
+  S: 'jižně',
+  SW: 'jihozápadně',
+  W: 'západně',
+  NW: 'severozápadně',
+};
+
+/**
+ * Kde leží křižovatka (D66; Martin 15. 11. 2026: „Třeba poblíž kterého významného místa se
+ * nacházejí?“): „u kovárny“ (2. pád – z `RoadEndForms.from` bez „od“), „pod dvorcem“, „nad
+ * potokem“ (7. pád), u kraje mapy soused „u hranice s Lhotskými“ (bez seedu vsi „u severního kraje
+ * mapy“), bez místa blízko „uprostřed vsi“, „na severní straně vsi“, „severně od vsi“. Neznámé
+ * místo null.
+ */
+export function landmarkPhrase(near: ChronicleLandmark, seed?: number): string | null {
+  switch (near.kind) {
+    case 'dwelling':
+    case 'place': {
+      const forms =
+        near.kind === 'place'
+          ? PLACE_INSTRUMENTAL[near.place]
+          : near.craft
+            ? WORKSHOP_INSTRUMENTAL[near.craft]
+            : DWELLING_INSTRUMENTAL[near.type];
+      if (!forms) return null;
+      if (near.at === 'below') return `pod ${forms.word}`;
+      if (near.at === 'above') return `nad ${forms.word}`;
+      return `u ${forms.from.replace(/^od /, '')}`;
+    }
+    case 'edge':
+      return seed === undefined
+        ? `u ${DIRECTION_ADJECTIVES[near.direction]}ho kraje mapy`
+        : `u hranice ${withVillagersOf(neighbourOf(seed, near.direction).name)}`;
+    case 'village':
+      if (near.direction === undefined) return 'uprostřed vsi';
+      return near.outside
+        ? `${DIRECTION_ADVERBS[near.direction]} od vsi`
+        : `na ${DIRECTION_ADJECTIVES[near.direction]} straně vsi`;
+  }
+}
+
+function roadEndForms(end: ChronicleRoadEnd, seed: number | undefined): RoadEndForms | null {
   switch (end.kind) {
     case 'dwelling':
       return end.craft ? WORKSHOP_INSTRUMENTAL[end.craft] : DWELLING_INSTRUMENTAL[end.type];
     case 'place':
       return PLACE_INSTRUMENTAL[end.place] ?? null;
-    case 'junction':
+    case 'junction': {
+      // „mezi rozcestím u kovárny a polem“, „z křižovatky pod dvorcem do Lhoty“ (D66)
+      const near = end.near ? landmarkPhrase(end.near, seed) : null;
+      const where = near === null ? '' : ` ${near}`;
       return end.shape === 'y'
-        ? { word: 'rozcestím', from: 'z rozcestí' }
-        : { word: 'křižovatkou', feminine: true, from: 'z křižovatky' };
+        ? { word: `rozcestím${where}`, from: `z rozcestí${where}` }
+        : { word: `křižovatkou${where}`, feminine: true, from: `z křižovatky${where}` };
+    }
     case 'edge':
       return {
         word: `${DIRECTION_ADJECTIVES[end.direction]}m krajem mapy`,
@@ -756,14 +811,30 @@ export function roadBetween(
   }
   if (toFirst !== null || toSecond !== null) {
     const [other, to] = toSecond !== null ? [ends[0], toSecond] : [ends[1], toFirst!];
-    const from = roadEndForms(other)?.from;
+    const from = roadEndForms(other, seed)?.from;
     return from === undefined ? toVillage(to) : `${from} ${toVillage(to)}`;
   }
-  const a = roadEndForms(ends[0]);
-  const b = roadEndForms(ends[1]);
+  const a = roadEndForms(ends[0], seed);
+  const b = roadEndForms(ends[1], seed);
   if (!a || !b) return null;
   const again = a.word === b.word;
   return `mezi ${a.word} a ${again ? `${b.feminine ? 'další' : 'dalším'} ` : ''}${b.word}`;
+}
+
+/**
+ * Zarostlá cesta (D67; Martin 15. 11. 2026: „Nepoužívaná cesta zarostla. – tohle také neříká nic
+ * o tom, která to byla cesta.“): „Nepoužívaná cesta mezi kovárnou a potokem zarostla.“, zarostla-li
+ * jen část (`part`) „Část nepoužívané cesty mezi … zarostla.“; starší zápis bez konců postaru.
+ */
+function roadOvergrownText(
+  event: Extract<ChronicleEvent, { kind: 'road-overgrown' }>,
+  seed: number | undefined,
+): string {
+  const between = event.ends ? roadBetween(event.ends, seed) : null;
+  if (between === null) return 'Nepoužívaná cesta zarostla.';
+  return event.part
+    ? `Část nepoužívané cesty ${between} zarostla.`
+    : `Nepoužívaná cesta ${between} zarostla.`;
 }
 
 /**
@@ -1442,7 +1513,7 @@ export function chronicleText(event: ChronicleEvent, villageName: string, seed?:
     case 'road-formed':
       return roadFormedText(event, seed);
     case 'road-overgrown':
-      return 'Nepoužívaná cesta zarostla.';
+      return roadOvergrownText(event, seed);
     case 'trail-built':
       return `Zemská stezka na ${DIRECTION_NAMES[event.direction].name} je dostavěná – dá se obchodovat se sousedy.`;
     case 'trade-departed':
