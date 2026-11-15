@@ -292,10 +292,17 @@ async function viewOf(
     });
   }
   // otisk z vsí hráče, jak je pohled vidí – stejný spočítá levný dotaz (currentViewStampOfPlayer),
-  // když by pohled nic nepočítal; u spravované vsi otisk správce (jen to, co správce vidí)
+  // když by pohled nic nepočítal; u spravované vsi otisk správce (jen to, co správce vidí). Verze
+  // vsí hráče – událost `village` se známou verzí prohlížeč zahodí (server-events.md – Klient);
+  // správce verze vsí držitele nedostane.
   if (!listed) return view;
-  if (!stewarding)
-    return { ...view, stamp: villageViewStamp(ctx.villageId, ctx.day, status.villages) };
+  if (!stewarding) {
+    return {
+      ...view,
+      stamp: villageViewStamp(ctx.villageId, ctx.day, status.villages),
+      versions: Object.fromEntries(status.villages.map((v) => [v.id, v.version])),
+    };
+  }
   const stamp = await currentStewardViewStampOfPlayer(ctx.actorId, ctx.villageId);
   return stamp === null ? view : { ...view, stamp };
 }

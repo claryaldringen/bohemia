@@ -81,8 +81,15 @@ export interface E2EHooks {
    * null – mezitím přišel novější požadavek (router platí jen pro poslední).
    */
   cartRoutes?: (request: CartRoutesRequest) => Promise<CartRoutesResult | null>;
-  /** Zeptá se na ves hned (dotazování jinak čeká na další herní den – v testech ≈ 86 s). */
+  /**
+   * Zeptá se na ves hned – záloha: přímý zápis vsi v testu oznámí i trigger (událost `village`),
+   * háček jen nečeká na její doručení.
+   */
   pollVillage?: () => void;
+  /** Spojení událostí ze serveru: stav a kolik událostí (i `sync`) doručilo (server-events.md). */
+  serverEvents?: () => { status: 'open' | 'connecting' | 'off'; received: number };
+  /** Výpadek spojení událostí jako výpadek sítě – klient se připojí znovu s odklady (`drop`). */
+  dropServerEvents?: () => void;
   /** Vybere člověka vsi (id), jako by hráč klikl na jeho postavu – postavy ve scéně chodí. */
   selectPerson?: (id: number) => void;
   /** Vybere víc lidí vsi najednou (výsledek Shift + kliku) – postavy chodí a v e2e bývají uvnitř domů. */

@@ -9,11 +9,12 @@ import {
   villageSpots,
 } from './village-helpers';
 
-// Události ze serveru (docs/code/server-events.md – Spojení /api/events; plán 2026-11-15 – Úloha 2):
-// kouř nad produkčním buildem. Hráč s vsí otevře v prohlížeči `EventSource` na svou ves – přijde
-// `sync`, změna vsi zapsaná přímo SQL (trigger → NOTIFY → LISTEN rozbočovače) dorazí jako `village`
-// do 2 s (komprese Next.js by ji bez `no-transform` držela v bufferu), cizí ves 403, bez
-// přihlášení 401.
+// Události ze serveru (docs/code/server-events.md – Spojení /api/events, Klient; plán 2026-11-15 –
+// Úlohy 2 a 3): kouř nad produkčním buildem. Hráč s vsí otevře v prohlížeči `EventSource` na svou
+// ves – přijde `sync`, změna vsi zapsaná přímo SQL (trigger → NOTIFY → LISTEN rozbočovače) dorazí
+// jako `village` do 2 s (komprese Next.js by ji bez `no-transform` držela v bufferu), cizí ves 403,
+// bez přihlášení 401. Hra sama (klient a `useVillageSync`): jméno vsi a upozornění zapsané do
+// databáze se ukážou bez háčku `pollVillage`, po výpadku se spojení obnoví.
 
 test.beforeEach(async ({ context, page }) => {
   await useUniqueClientIp(context);
@@ -133,4 +134,65 @@ test('události ze serveru: sync, změna vsi do 2 s, no-transform, cizí ves 403
   const anonymous = await request.get(url);
   expect(anonymous.status()).toBe(401);
   expect(await anonymous.json()).toEqual({ error: 'Nejsi přihlášený.' });
+});
+
+interface ConnectionState {
+  status: 'open' | 'connecting' | 'off';
+  received: number;
+}
+
+/** Stav spojení událostí hry (e2e háček `serverEvents`). */
+async function connection(page: Page): Promise<ConnectionState> {
+  return page.evaluate(() => window.__bohemiaE2E!.serverEvents!());
+}
+
+test('hra z událostí: jméno vsi a upozornění bez háčku, výpadek spojení se obnoví', async ({
+  page,
+}) => {
+  const requests: string[] = [];
+  page.on('request', (r) => {
+    if (new URL(r.url()).pathname === '/api/events') requests.push(r.url());
+  });
+  const { seat } = await newPlayer(page, 'events-game');
+  await found(page, villageSpots(seat.landscape).dwelling);
+  const villageId = await villageIdOf(seat.settlementId);
+  // po založení vsi se rozsah spojení vymění (ves) – otevřené zůstává
+  await expect.poll(async () => (await connection(page)).status, { timeout: 10_000 }).toBe('open');
+  await expect.poll(() => requests.at(-1) ?? '', { timeout: 10_000 }).toContain(villageId);
+  await expect.poll(listening, { timeout: 10_000 }).toBe(true);
+
+  await test.step('jméno vsi změněné v databázi se ukáže bez háčku', async () => {
+    const before = (await connection(page)).received;
+    // Samotné jméno verzi nemění a událost se známou verzí prohlížeč zahodí (Rozhodnutí 5) –
+    // zápis „jako server“ proto zvedne i verzi.
+    await query(`UPDATE village SET name = $2, version = version + 1 WHERE id = $1`, [
+      villageId,
+      'Událostice',
+    ]);
+    await expect(page.getByTestId('village-name')).toHaveText('Událostice', { timeout: 5_000 });
+    expect((await connection(page)).received).toBeGreaterThan(before);
+  });
+
+  await test.step('upozornění se ukáže samo', async () => {
+    const [owner] = await query<{ owner_id: string }>(
+      'SELECT owner_id FROM settlement WHERE id = $1',
+      [seat.settlementId],
+    );
+    await query(
+      `INSERT INTO player_notice (player_id, kind, payload, game_day)
+       VALUES ($1, 'levy-pending', '{"lordName":"Pán","years":1,"loan":true}'::jsonb, 0)`,
+      [owner!.owner_id],
+    );
+    await expect(page.getByTestId('village-notice').filter({ hasText: 'splátky' })).toBeVisible({
+      timeout: 5_000,
+    });
+  });
+
+  await test.step('výpadek spojení: connecting, do 5 s znovu open s dalším požadavkem', async () => {
+    const before = requests.length;
+    await page.evaluate(() => window.__bohemiaE2E!.dropServerEvents!());
+    expect((await connection(page)).status).toBe('connecting');
+    await expect.poll(async () => (await connection(page)).status, { timeout: 5_000 }).toBe('open');
+    expect(requests.length).toBe(before + 1);
+  });
 });

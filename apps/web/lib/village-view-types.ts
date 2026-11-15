@@ -435,6 +435,12 @@ export interface VillageView {
    */
   stamp?: string;
   /**
+   * Verze vsí hráče, ze kterých je pohled složený (id → `version`, server-events.md – Klient):
+   * událost `village` s verzí, kterou pohled zná, se zahodí (`villageEventIsNews`). U spravované
+   * vsi chybí – každá událost je pak novinka.
+   */
+  versions?: Record<string, number>;
+  /**
    * Otisky velkých částí pohledu po kusech a kusy, které server vynechal, protože je klient má
    * (view-pieces.ts). Jen v odpovědi na dotaz na ves; chybí = pohled celý.
    */

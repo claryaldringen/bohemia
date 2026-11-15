@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 import { MAP_QUIET } from '@bohemia/game';
 import type { ReactElement } from 'react';
+import { ServerEventsProvider } from '@/components/game/ServerEventsProvider';
 import { VillageGame } from '@/components/game/VillageGame';
 import { gameEntryForPlayer, languageChoiceForPlayer, playerToday } from '@/lib/game';
 import { encodeLandscape } from '@/lib/landscape-transfer';
@@ -29,24 +30,27 @@ export default async function GamePage(): Promise<ReactElement> {
 
   return (
     <main className="h-screen overflow-hidden select-none">
-      <VillageGame
-        landscape={encodeLandscape(entry.landscape)}
-        seed={entry.settlement.landscapeSeed}
-        settlementId={entry.settlement.id}
-        initialVillage={village}
-        world={currentWorld()}
-        timeOffsetDays={today.ok ? today.offsetDays : 0}
-        devMode={session.user.devMode === true}
-        email={session.user.email}
-        languageChoice={languageChoice}
-        homeCell={
-          entry.settlement.worldCell
-            ? { x: entry.settlement.worldCell.x, y: entry.settlement.worldCell.y }
-            : null
-        }
-        initialNowMs={Date.now()}
-        initialWatch={watch}
-      />
+      {/* jedno spojení událostí ze serveru na panel – hra se na změny ptá, jen když server řekne */}
+      <ServerEventsProvider>
+        <VillageGame
+          landscape={encodeLandscape(entry.landscape)}
+          seed={entry.settlement.landscapeSeed}
+          settlementId={entry.settlement.id}
+          initialVillage={village}
+          world={currentWorld()}
+          timeOffsetDays={today.ok ? today.offsetDays : 0}
+          devMode={session.user.devMode === true}
+          email={session.user.email}
+          languageChoice={languageChoice}
+          homeCell={
+            entry.settlement.worldCell
+              ? { x: entry.settlement.worldCell.x, y: entry.settlement.worldCell.y }
+              : null
+          }
+          initialNowMs={Date.now()}
+          initialWatch={watch}
+        />
+      </ServerEventsProvider>
     </main>
   );
 }

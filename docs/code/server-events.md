@@ -136,3 +136,71 @@ rozbočovače, `sync`, hned tep – v tomto pořadí, takže změna mezi přidá
 **Za Caddy** (až s `docs/deployment.md`): `reverse_proxy` musí SSE propouštět bez bufferování
 a `encode` nesmí odpověď `/api/events` držet (jinak cestu z `encode` vyjmout); LISTEN potřebuje
 přímé spojení s Postgresem (ne PgBouncer v režimu transakcí); HTTP/2 odstraní limit 6 spojení.
+
+## Klient
+
+`ServerEventsClient` (`apps/web/lib/server-events/client.ts`) je bez Reactu – `EventSource`,
+viditelnost panelu a hodiny dostane zvenku (`ServerEventsDeps`, testy podstrčí falešné).
+`ServerEventsProvider` (`components/game/ServerEventsProvider.tsx`) obalí `VillageGame` na stránce
+`/game` (`app/game/page.tsx`): klienta vytvoří jednou při vykreslení (nic neotevírá) a pustí ho
+v efektu. Efekty dětí běží dřív než efekt poskytovatele, takže první spojení má hned rozsah
+zobrazené vsi i všechny posluchače.
+
+- **Jen ve viditelném panelu** (Rozhodnutí 6): skrytý panel spojení zavře a nenechá žádný
+  časovač; návrat do panelu otevře nové spojení hned a jeho `sync` dočte vše.
+- **`sync` s mezerou zavolá obnovy** (`onResync`): mezera je start, výpadek, skrytý panel
+  a `evicted`; opakovaný `sync` téhož spojení (rozbočovač obnovil LISTEN) taky. Jiná verze
+  protokolu (`SERVER_EVENTS_PROTOCOL`) → `location.reload()` (Rozhodnutí 9).
+- **Výměna rozsahu bez mezery** (Rozhodnutí 7): `setScope` sloučí změny jednoho vykreslení
+  (`SCOPE_DEBOUNCE_MS = 100`) a nové spojení otevře, jen když se adresa (`eventsUrl`) liší. Staré
+  doručuje, dokud nové nepošle `sync`, pak se zavře a obnovy se nevolají. Naráz nejvýš dvě
+  spojení – doručující a nové; novější výměna to nové nahradí.
+- Události jdou posluchačům (`on`), chyba jednoho nezastaví ostatní; `received()` je počítadlo
+  pro e2e, `status()` = `open` | `connecting` | `off` (skrytý panel, stop).
+- **Hooky** (`hooks/use-server-events.ts`): `ServerEventsContext`, `useServerEvent(name, handler)`,
+  `useEventScope(part)` (při odpojení nebo změně vrátí své klíče na null), `useServerResync(refresh)`
+  a `useSerialRefresh(run, failure)` – dotaz se slučováním: jeden běh naráz, volání během běhu dají
+  nejvýš jeden další po něm. Bez poskytovatele hooky nedělají nic.
+- **Pohled vsi** (`useVillageSync`, web-ui.md – Obnova pohledu vsi (události)): `village` jen
+  s novou verzí (`villageEventIsNews`, `lib/village-events.ts`), `notices`, obnova po mezeře
+  a hlídač dne (níž). Pohled nese verze vsí hráče `VillageView.versions` (`lib/village.ts`, vedle
+  `stamp`; u spravované vsi chybí – každá událost je novinka), takže událost uložení, které udělala
+  vlastní akce, druhý dotaz nevyvolá (Rozhodnutí 5); přijde-li během akce, ověří se po ní
+  s pohledem akce. Změna samotného jména vsi verzi nemění – událost se zahodí a jméno ukáže
+  nejbližší nová verze (jako dřív otisk s dalším dnem; návrh Clauda).
+- **Varování** (`useAlarm`): dotaz hned při změně vsi, na `alarm` téže vsi, na `village` téže
+  vsi (jen když už je pohled), na obnovu po mezeře a na `refresh`, po jednom (`useSerialRefresh`).
+- e2e háčky `serverEvents` (`{ status, received }`) a `dropServerEvents` (`drop()` – jako výpadek
+  sítě). Testovací kontext hooků `hooks/__tests__/server-events-test-utils.tsx`
+  (`fakeServerEvents` – `emit`, `resync`, `scope`, `listeners`, `wrap`).
+- Testy: `lib/server-events/__tests__/client.test.ts`, `lib/__tests__/village-events.test.ts`,
+  `hooks/__tests__/use-alarm.behavior.test.tsx`,
+  `components/game/village-game/__tests__/use-village-sync.behavior.test.tsx` (10 událostí za
+  50 ms → nejvýš 2 dotazy, vlastní akce); e2e `server-events.spec.ts` (jméno vsi a upozornění
+  zapsané do databáze bez háčku `pollVillage`, výpadek spojení).
+
+## Pojistka
+
+- **Trvalá chyba** (`readyState` CLOSED – 401, 403, restart serveru): nové spojení s odklady
+  `RECONNECT_MS` 1, 2, 5, 10 a 30 s (poslední se opakuje, po `sync` zase od 1 s). Přerušené
+  spojení, které prohlížeč obnovuje sám (`retry: 3000`), se znovu nezakládá – jeho další `sync`
+  dočte vše.
+- **Dokud spojení není otevřené**, zavolá po `FALLBACK_MS = 30_000` a pak každých 30 s všechny
+  obnovy (jedno kolo dotazů). Neplatná session tak po 30 s ukáže chybu řádkem nahoře jako dřív
+  (Rozhodnutí 10).
+- **`evicted`** (páté spojení hráče vyhodilo nejstarší): žádné odklady – nové spojení by vyhodilo
+  další panel a tak dokola. Zůstane pojistka a nové spojení přijde s jejím prvním kolem (30 s),
+  nebo hned při dalším návratu do panelu.
+
+## Den bez workeru
+
+`lib/village-day-check.ts` (Rozhodnutí 8): `nextDayCheckMs(dayIndex, clock, nowMs)` = začátek dne
+`dayIndex + 1` (`realTimeOf(dateOfDayIndex(…), clock)`, hodiny hráče s posunem času)
+
+- `DAY_CHECK_GRACE_MS = 10_000` − teď, nejméně 0; bez pohledu a poslední den světa null.
+  `useVillageSync` nastaví časovač po každém novém dni pohledu. Když pohled v tu chvíli pořád ukazuje
+  týž den, zeptá se jednou (`npm run dev:web`, e2e projekt `chromium`, přetížený worker). Se zdravým
+  workerem přijde událost dřív (worker se budí do 1 s po začátku dne) a dotaz se nepošle. Jen ve
+  viditelném panelu (skrytý dočte vše po návratu) a bez `gameOver`; odklad nad 2^31 − 1 ms (limit
+  `setTimeout`) se nastaví po kouscích. Testy `lib/__tests__/village-day-check.test.ts` a hlídač dne
+  v `use-village-sync.behavior.test.tsx`.

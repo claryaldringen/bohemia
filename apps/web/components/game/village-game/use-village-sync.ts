@@ -3,7 +3,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import type { Landscape, MapWatch, PlayerNotice, WorldClock } from '@bohemia/game';
 import { getVillageView } from '@/app/game/actions';
-import { usePolling } from '@/hooks/use-polling';
+import {
+  useEventScope,
+  useSerialRefresh,
+  useServerEvent,
+  useServerResync,
+} from '@/hooks/use-server-events';
 import {
   carriedCartRoutes,
   cartRoutesMemo,
@@ -18,8 +23,9 @@ import type { LandscapeTransfer } from '@/lib/landscape-transfer';
 import { isVillageNone } from '@/lib/player-notices';
 import { keepSceneData, knownSceneData, lostSceneData } from '@/lib/scene-routes';
 import { knownViewPieces, unpackViewPieces } from '@/lib/view-pieces';
+import { nextDayCheckMs } from '@/lib/village-day-check';
+import { villageEventIsNews } from '@/lib/village-events';
 import { newNotices } from '@/lib/village-notices';
-import { nextPollDelayMs } from '@/lib/village-polling';
 import type { VillageView } from '@/lib/village-view';
 import type { NoticeLine } from '../hud/NoticeLines';
 import {
@@ -49,12 +55,17 @@ export interface VillageSync {
   watch: MapWatch;
 }
 
+/** Odložená obnova, která platí vždy (upozornění, obnova po mezeře, hlídač dne, `refresh`). */
+const ALWAYS = (): boolean => true;
+
 /**
- * Stav vsi ze serveru (web-ui.md – Dotazování na ves): dotaz na začátku dalšího herního dne
- * (`usePolling`), použití nového pohledu hned a tras vozů z Web Workeru (`cartRouter`), až dojdou,
- * pořadí odpovědí a fronta akcí. Odpověď dotazu řekne i, jestli je na mapě válka nebo jezdci
- * (`watch`). Upozornění mezi hráči z odpovědi předá `playerNotices` (ref – obsluhu
- * skládají panely, které potřebují `viewRef`), nová upozornění vsi `pushNotice`.
+ * Stav vsi ze serveru (web-ui.md – Obnova pohledu vsi (události)): dotaz jen na událost serveru –
+ * `village` s novou verzí (`villageEventIsNews`), `notices`, obnova po mezeře spojení – a na
+ * hlídač dne (svět bez workeru); dotazy jdou po jednom, náraz dá nejvýš jeden další. Nový pohled
+ * se použije hned a trasy vozů z Web Workeru (`cartRouter`), až dojdou; pořadí odpovědí a fronta
+ * akcí. Odpověď dotazu řekne i, jestli je na mapě válka nebo jezdci (`watch`). Upozornění mezi
+ * hráči z odpovědi předá `playerNotices` (ref – obsluhu skládají panely, které potřebují
+ * `viewRef`), nová upozornění vsi `pushNotice`.
  */
 export function useVillageSync({
   initialVillage,
@@ -90,12 +101,22 @@ export function useVillageSync({
   const requestSeq = useRef(0);
   const appliedSeq = useRef(0);
   const busyRef = useRef(false);
+  /**
+   * Obnovy, o které se během akce někdo řekl – po akci se ověří znovu (událost uložení, které
+   * udělala sama akce, už po ní nic nenese – Rozhodnutí 5) a stačí jedna.
+   */
+  const pendingRef = useRef<(() => boolean)[]>([]);
   /** Akce na serveru jdou za sebou (Shift + klik staví víc obydlí rychle po sobě). */
   const queueRef = useRef<Promise<unknown>>(Promise.resolve());
   const viewRef = useRef(view);
   useEffect(() => {
     viewRef.current = view;
   }, [view]);
+  // po konci hry se nic nemění – žádné dotazy
+  const gameOverRef = useRef(gameOver);
+  useEffect(() => {
+    gameOverRef.current = gameOver;
+  }, [gameOver]);
   // Klient zahodil trasy nebo vyšlapanost – další dotaz se zeptá bez otisku a kusů (plný pohled).
   // Drží se mimo `viewRef`: efekt výš by pohled bez otisku po vykreslení přepsal zpátky.
   const stampLostRef = useRef(false);
@@ -164,7 +185,6 @@ export function useVillageSync({
   );
 
   const poll = useCallback(async (): Promise<void> => {
-    if (busyRef.current) return;
     const seq = ++requestSeq.current;
     const base =
       stampLostRef.current && viewRef.current ? withoutStamp(viewRef.current) : viewRef.current;
@@ -203,20 +223,62 @@ export function useVillageSync({
       pushNotice({ kind: 'error', tone: 'error', text: result.error });
     } else applyVillage(result);
   }, [applyVillage, playerNotices, pushNotice, settlementId]);
-  // Další dotaz na začátku dalšího herního dne hráče (nejdřív za 5 s, nejpozději za 86 s) – ves
-  // se dopočítává po dnech, akce vracejí čerstvou ves samy.
-  const pollDelay = useCallback(
-    (): number => nextPollDelayMs(viewRef.current?.dayIndex ?? null, clock, Date.now()),
-    [clock],
+
+  // Dotaz na ves hned: jeden naráz, volání během něj dají nejvýš jeden další. Během akce se
+  // obnova odloží za ni – akce vrátí čerstvý pohled sama (odpověď dotazu by se stejně zahodila).
+  const ask = useSerialRefresh(poll, 'Stav vsi se nepodařilo načíst.');
+  const refreshWhen = useCallback(
+    (stillNews: () => boolean): void => {
+      if (gameOverRef.current) return;
+      if (busyRef.current) pendingRef.current.push(stillNews);
+      else if (stillNews()) ask();
+    },
+    [ask],
   );
-  // Bez vsi se ptáme jen kvůli upozorněním mezi hráči (založení vrátí pohled samo); po konci hry
-  // se nic nemění.
-  const pollNow = usePolling(poll, pollDelay, !gameOver);
-  // Testovací háček: zeptat se na ves hned (test změnil uloženou ves přímo v databázi).
+  const refreshNow = useCallback((): void => refreshWhen(ALWAYS), [refreshWhen]);
+
+  // Události ze serveru (server-events.md – Klient): spojení nese zobrazenou ves; novou verzi vsi
+  // hráče, nová upozornění a mezeru ve spojení (`sync`, kolo pojistky) dočte dotaz na ves.
+  useEventScope({ villageId: view?.id ?? null });
+  useServerEvent('village', (event) => {
+    refreshWhen(() => villageEventIsNews(viewRef.current, event));
+  });
+  useServerEvent('notices', refreshNow);
+  useServerResync(refreshNow);
+
+  // Hlídač dne (Rozhodnutí 8): nový den oznámí uložení vsi workerem. Když pohled nového dne
+  // nepřijde do `DAY_CHECK_GRACE_MS` po začátku dne (svět bez workeru, přetížený worker), zeptá
+  // se jednou sám – jen ve viditelném panelu (skrytý dočte vše po návratu, `sync` s mezerou).
+  const dayIndex = view?.dayIndex ?? null;
   useEffect(() => {
-    setE2EHook('pollVillage', pollNow);
+    if (gameOver) return;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const arm = (): void => {
+      const ms = nextDayCheckMs(dayIndex, clock, Date.now());
+      // dlouhý odklad po kouscích – setTimeout nad 2^31 − 1 ms by se spustil hned
+      if (ms !== null) timer = setTimeout(check, Math.min(ms, MAX_TIMER_MS));
+    };
+    const check = (): void => {
+      timer = null;
+      if ((nextDayCheckMs(dayIndex, clock, Date.now()) ?? 0) > 0) {
+        arm();
+        return;
+      }
+      if (document.visibilityState !== 'visible') return;
+      if ((viewRef.current?.dayIndex ?? null) === dayIndex) refreshNow();
+    };
+    arm();
+    return () => {
+      if (timer !== null) clearTimeout(timer);
+    };
+  }, [dayIndex, gameOver, clock, refreshNow]);
+
+  // Testovací háček: zeptat se na ves hned (test změnil uloženou ves přímo v databázi – záloha,
+  // změnu oznámí i trigger).
+  useEffect(() => {
+    setE2EHook('pollVillage', refreshNow);
     return () => setE2EHook('pollVillage', undefined);
-  }, [pollNow]);
+  }, [refreshNow]);
 
   const runAction = useCallback(
     (action: () => Promise<VillageData>): Promise<string | null> => {
@@ -234,13 +296,17 @@ export function useVillageSync({
           return CONNECTION_FAILED;
         } finally {
           busyRef.current = false;
+          // obnovy odložené za akci – s pohledem akce (událost jejího vlastního uložení nic nestojí)
+          const pending = pendingRef.current;
+          pendingRef.current = [];
+          if (pending.some((stillNews) => stillNews())) refreshNow();
         }
       };
       const next = queueRef.current.then(run, run);
       queueRef.current = next;
       return next;
     },
-    [applyVillage],
+    [applyVillage, refreshNow],
   );
 
   const runBuildAction = useCallback(
@@ -258,10 +324,13 @@ export function useVillageSync({
     viewRef,
     runAction,
     runBuildAction,
-    refresh: pollNow,
+    refresh: refreshNow,
     watch,
   };
 }
+
+/** Nejdelší odklad `setTimeout` (2^31 − 1 ms) – delší se v prohlížeči spustí hned. */
+const MAX_TIMER_MS = 2_147_483_647;
 
 /** První pohled s trasami vozů z hlavního vlákna a paměť tras pro další pohledy. */
 function firstVillage(
