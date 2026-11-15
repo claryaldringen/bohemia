@@ -389,6 +389,21 @@ function roadApplesText(
     : `Podél cesty ${between} byly vysazeny jabloně.`;
 }
 
+/** Vylepšená cesta (Martin 15. 11. 2026): „Vojvoda Lutobor nechal vylepšit cestu mezi dvorcem a potokem.“ */
+function roadUpgradeText(
+  event: Extract<ChronicleEvent, { kind: 'construction-finished' }>,
+  seed: number | undefined,
+): string {
+  const who = event.bySteward
+    ? 'Správce'
+    : event.lord !== undefined
+      ? `Vojvoda ${event.lord}`
+      : undefined;
+  if (who === undefined && !event.roadEnds) return 'Cesta byla vylepšena.';
+  const between = event.roadEnds ? roadBetween(event.roadEnds, seed) : null;
+  return `${who ?? 'Vojvoda'} nechal vylepšit cestu${between === null ? '' : ` ${between}`}.`;
+}
+
 function finishedText(
   event: Extract<ChronicleEvent, { kind: 'construction-finished' }>,
   seed: number | undefined,
@@ -406,7 +421,7 @@ function finishedText(
   if (kind === 'orchard') return 'Sad je vysazený.';
   if (kind === 'pen') return penFinishedText(event.penSpecies, event.penExtended === true);
   if (kind === 'ard') return 'Vesničané vyrobili rádlo.';
-  if (kind === 'road') return 'Cesta je vylepšená – chodí se po ní rychleji.';
+  if (kind === 'road') return roadUpgradeText(event, seed);
   if (kind === 'road-apples') return roadApplesText(event.roadEnds, seed);
   if (kind === 'threshing-floor') return 'Humno je dostavěné – dá se na něm mlátit.';
   if (kind === 'fortification') return 'Opevnění je dostavěné.';

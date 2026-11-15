@@ -21,6 +21,7 @@ import {
 import { finishArd, finishPen, penChronicleNote } from '../livestock/oxen';
 import { recordClearedObstacles } from './obstacles';
 import { mergeRoadChains } from '../paths/roads';
+import { currentLord } from '../people/dynasty';
 import { chronicleRoadEnds } from '../paths/road-chronicle';
 import { roadEndsNetwork } from '../paths/road-ends';
 import { roadWalk, walkGroundOf } from '../paths/walking';
@@ -487,8 +488,24 @@ export function finishConstructions(
     }
     if (c.kind === 'road') {
       // vylepšená pevná cesta – rychlejší chůze (roads.md); vzdálenosti chůze se přepočítají
+      // kronika: konce cesty a kdo vylepšení nechal udělat – před `finishRoadUpgrade`
+      // (Martin 15. 11. 2026 – „Vojvoda Lutobor nechal vylepšit cestu mezi dvorcem a potokem.“)
+      const roadId = c.roadIds?.find((id) => state.roads?.roads.some((r) => r.id === id));
+      const roadEnds =
+        landscape && roadId !== undefined
+          ? chronicleRoadEnds(state, roadEndsNetwork(state, landscape), roadId)
+          : null;
+      const lord = currentLord(state)?.name;
       finishRoadUpgrade(state, c);
-      state.chronicle.push(finishedEvent(day, c, null));
+      state.chronicle.push({
+        ...finishedEvent(day, c, null),
+        ...(roadEnds ? { roadEnds } : {}),
+        ...(isStewardBuilt(state, c.id)
+          ? { bySteward: true as const }
+          : lord === undefined
+            ? {}
+            : { lord }),
+      });
       roadUpgraded = true;
       continue;
     }

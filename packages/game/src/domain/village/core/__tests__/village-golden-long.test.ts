@@ -28,8 +28,8 @@ import { goldenWorld, stateFingerprint, YEAR } from './village-golden-fixture';
 // dřív 8dce05322fad129e a da411ec1fa2f9cb4
 // 15. 11. 2026 – sloučení: zápisy úmrtí nesou postavení (`estate`, kronika C) a hladová ves
 // jí i zásobu medu – obojí mění stav; přepočteno po sloučení
-const EXPECTED_YEAR_2 = 'ba92a0936e30252b';
-const EXPECTED_YEAR_3 = '2053f8f0078f2fb6';
+const EXPECTED_YEAR_2 = 'c736e7bb425cf85d';
+const EXPECTED_YEAR_3 = '25cd730a5ce85ee1';
 
 describe('zlatý otisk vsi – delší běh', () => {
   it('po 2. a 3. roce dopočtu dá zapsané otisky', () => {
