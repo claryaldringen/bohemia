@@ -3,6 +3,7 @@ import { FORTIFICATIONS } from '../rules/rules-fortifications';
 import type { RoadPoint } from '../types';
 import { outlinePointAt, type FortOutline } from './outline';
 import { fortSegments, nearestOnSegment, type FortSegmentShape } from './segments';
+import type { Fortification } from './types';
 
 // Brány opevnění (fortifications.md – Brány): vzniknou samy, kde obvod protne cestu (pevnou,
 // vozovou cestu a zemskou stezku – vybírá volající), hráč přidá další kliknutím na obvod; nejvýš
@@ -56,6 +57,25 @@ export function removeGate(gate: FortGate, day: number): void {
   delete gate.pincerDay;
   delete gate.towerDay;
   delete gate.towerExtraAgeDays;
+}
+
+/**
+ * Otvor po zbořené bráně je zastavený hradbou (mutuje opevnění; demolition.md – Rozhodnutí, D45):
+ * brána zmizí z `gates`, úseky kolem splynou a díl je zase celý díl hradby, ve které brána stála –
+ * kusy u brány neměly jinou hradbu (`gateGapFill`), jen jiné stáří; díl převezme stáří své hradby
+ * (návrh Clauda).
+ */
+export function closeGateGap(
+  fort: Pick<Fortification, 'gates' | 'segments'>,
+  gate: FortGate,
+): void {
+  fort.gates = fort.gates.filter((g) => g !== gate);
+  const seg = fort.segments.find((s) => s.index === gate.segment);
+  if (!seg) return;
+  delete seg.beforeGate;
+  delete seg.afterGate;
+  delete seg.demolishedBeforeGate;
+  delete seg.demolishedAfterGate;
 }
 
 /** Proč bránu nejde přidat: klik daleko od obvodu, úsek už bránu má. */

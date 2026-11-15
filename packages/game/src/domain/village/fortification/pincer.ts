@@ -1,7 +1,7 @@
 import type { Point } from '../placement/polygon';
 import { FORTIFICATIONS } from '../rules/rules-fortifications';
 import type { Construction, WallKind } from '../types';
-import { gateChord, type FortGate } from './gates';
+import { closeGateGap, gateChord, gateStands, type FortGate } from './gates';
 import { FORT_DAYS_PER_YEAR } from './life';
 import type { FortOutline } from './outline';
 import type { FortSegmentShape } from './segments';
@@ -172,7 +172,8 @@ export function gateTowerStands(
 /**
  * Práce na bráně došla (mutuje opevnění): klešťová brána nebo věž dostane den dokončení – nová
  * (null) i přestavba dožilé věže (den věže starší než založení stavby); přestavěná věž stárne
- * znovu bez stárnutí navíc.
+ * znovu bez stárnutí navíc. Otvor po zbořené bráně: zastavený hradbou zmizí (`closeGateGap`),
+ * postavená brána zase stojí.
  */
 export function completeGateWork(
   fort: Fortification,
@@ -182,6 +183,13 @@ export function completeGateWork(
   const work = c.fortGate;
   const gate = work && fort.gates.find((g) => g.segment === work.segment);
   if (!work || !gate) return;
+  // otvor po zbořené bráně (D45): zastavený hradbou zmizí, nová brána v něm zase stojí
+  if (work.level === 'fill' || work.level === 'rebuild') {
+    if (gateStands(gate)) return;
+    if (work.level === 'fill') closeGateGap(fort, gate);
+    else delete gate.demolishedDay;
+    return;
+  }
   if (work.level === 'pincer') {
     if (gate.pincerDay == null || gate.pincerDay < c.startedDay) gate.pincerDay = day;
     return;

@@ -8,6 +8,7 @@ import {
   demolishFortificationGateForPlayer,
   abandonFortificationGateForPlayer,
   rerouteFortificationSectionForPlayer,
+  fillFortificationGateGapForPlayer,
   addFortificationRampartForPlayer,
   fillFortificationMoatForPlayer,
   upgradeFortificationGateForPlayer,
@@ -20,6 +21,7 @@ import {
   parseDemolishFortificationSectionInput,
   parseAbandonFortificationGateInput,
   parseRerouteFortificationSectionInput,
+  parseFillFortificationGateGapInput,
   parseFortificationRampartInput,
   parseFortificationGateUpgradeInput,
 } from '@/lib/village-input';
@@ -95,6 +97,18 @@ export async function rerouteFortificationSection(input: unknown): Promise<Villa
     input,
     parseRerouteFortificationSectionInput,
     rerouteFortificationSectionForPlayer,
+  );
+}
+
+/**
+ * Otvor po zbořené bráně zastavit hradbou (D45): `{ villageId, fortificationId, segment, target }`
+ * – díl zbořené brány a druh z rozcestníku opevnění.
+ */
+export async function fillFortificationGateGap(input: unknown): Promise<VillageActionResult> {
+  return villageAction(
+    input,
+    parseFillFortificationGateGapInput,
+    fillFortificationGateGapForPlayer,
   );
 }
 

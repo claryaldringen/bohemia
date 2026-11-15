@@ -185,9 +185,11 @@ export interface Construction {
   fortTarget?: WallKind;
   /**
    * Stavba u brány: úsek brány a klešťová brána, nebo věž (`fortWork` `gate`), nebo zboření brány
-   * (`fortWork` `demolish`, `level` `demolish` – demolition.md, Rozhodnutí). Jinak chybí.
+   * (`fortWork` `demolish`, `level` `demolish` – demolition.md, Rozhodnutí), nebo otvor po zbořené
+   * bráně – zastavit hradbou (`fill`), postavit do něj bránu znovu (`rebuild`; `fortWork` `gate`).
+   * Jinak chybí.
    */
-  fortGate?: { segment: number; level: 'pincer' | 'tower' | 'demolish' };
+  fortGate?: { segment: number; level: 'pincer' | 'tower' | 'demolish' | 'fill' | 'rebuild' };
   /**
    * Úseky stavby opevnění v pořadí práce (od brány nejblíž dvorci po směru hodin) a práce každého
    * (čd). Práce stavby jde napřed do kácení dřeva (`wood`), pak do úseků jeden po druhém – úsek je

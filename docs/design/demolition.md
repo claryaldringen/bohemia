@@ -165,12 +165,18 @@ vylepšit jen celé.
   úseku šířky brány (4 m) – čtvrtina práce, polovina klád × stav; klešťová brána a věž padnou
   s ní a jejich klády se vrátí stejně. Opuštěnou bránu obyvatelé nepřestaví (díl brány ani věž)
   a v panelu má Vrátit; kus hradby dílu brány bez vlastní hradby chátrá s ní a po zmizení brány
-  ho obyvatelé přestaví jako hradbu. Holý val nehnije, brána v něm stojí. Zbořená brána je dál
+  ho obyvatelé přestaví jako hradbu. Holý val nehnije – bránu v něm opustit nejde (níž). Zbořená brána je dál
   hranice úseků a otvor šířky brány, který v boji nejde zavřít. Běžná stavba opevnění navrhne
   úsek od brány k bráně, když první bod kurzoru leží do 40 m od zbořeného úseku; val mezeru
-  nezastaví („Mezeru zastaví hradba – val se k ní doplní potom.“). Zatím nejde zastavit samotný
-  otvor po zbořené bráně mezi stojící hradbou („od konce hradby“) – zbořená brána drží konec
-  nového úseku jako stojící.
+  nezastaví („Mezeru zastaví hradba – val se k ní doplní potom.“). Otvor po zbořené bráně mezi
+  stojící hradbou („od konce hradby“) zastaví od 15. 11. 2026 (D45; návrh Clauda) běžná stavba
+  opevnění u otvoru: konce v okrajích otvoru, body nejdou přidat (otvor je 4 m uvnitř dílu, jinou
+  trasu nese úsek od brány k bráně), druh musí být hradba kolem a obě strany otvoru stejné, cena
+  jako nová hradba šířky brány; hotovou stavbou brána zmizí a úseky kolem splynou. Přidat bránu do
+  dílu se zbořenou branou ji postaví znovu do otvoru (ne na místo kliku) za tutéž cenu – ve stojící
+  hradbě brána nic nestojí, v otvoru chybí dřevo. Bránu v holém valu nejde opustit („Brána v holém
+  valu nechátrá – jde jen zbořit.“) – val nehnije, opuštěná by stála navždy; rozpad jako val by
+  chtěl nové pravidlo.
 
 - **Chátrání humna, obilné jámy a sadu** (Martin 8. 11. 2026):
   - **Humno** zaroste trávou za 10 let – a to nejen opuštěné: stačí, když na něm po tu dobu

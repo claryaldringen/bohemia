@@ -14,6 +14,7 @@ import {
   FORT_PINCER_DONE,
   FORT_RAMPART_DONE,
   FORT_TOWER_DONE,
+  gateAbandonBlock,
   gateDemolition,
   gateUpgrade,
   obstaclesOf,
@@ -855,7 +856,12 @@ export function fortificationViews(
             tower: gateOption(ctx, fort.id, gate.segment, 'tower', FORT_TOWER_DONE),
             assault: seg ? assaultViews(fort, [seg], day, true) : [],
             abandoned: gate.abandonedDay !== undefined,
-            abandonBlocked: blocked === FORT_BUSY ? null : blocked,
+            // brána v holém valu nechátrá – Opustit nejde, Vrátit ano (D45)
+            abandonBlocked:
+              blocked === FORT_BUSY
+                ? null
+                : (blocked ??
+                  (gate.abandonedDay === undefined && seg ? gateAbandonBlock(fort, seg) : null)),
             demolish:
               'reason' in demolition
                 ? {

@@ -163,6 +163,11 @@ export type PlacementMode =
        * Čte se při každém použití – běžná stavba ho zapne, když návrh padne do mezery (`propose`).
        */
       readonly fixedEnds?: boolean;
+      /**
+       * Otvor po zbořené bráně (D45): trasa jsou jen pevné konce – bod mezi ně nepřibude. Čte se
+       * při každém použití jako `fixedEnds`.
+       */
+      readonly fixedRoute?: boolean;
     }
   | {
       /** Modla nebo svatyně (happiness.md) – čtvercový půdorys u kurzoru jako obydlí. */

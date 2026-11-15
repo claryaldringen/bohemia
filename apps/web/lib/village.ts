@@ -45,6 +45,7 @@ import {
   demolishFortificationGate,
   abandonFortificationGate,
   rerouteFortificationSection,
+  fillFortificationGateGap,
   addFortificationRampart,
   fillFortificationMoat,
   upgradeFortificationGate,
@@ -1174,6 +1175,30 @@ export function rerouteFortificationSectionForPlayer(
         fortificationId: input.fortificationId,
         segment: input.segment,
         points: input.points,
+        target: input.target,
+      },
+    ),
+  );
+}
+
+/**
+ * Otvor po zbořené bráně mezi stojící hradbou zastaví hradba dílu (demolition.md – Rozhodnutí, D45)
+ * – druh z rozcestníku, cenu a kusy po stranách ověří server (`startGateGapFill`).
+ */
+export function fillFortificationGateGapForPlayer(
+  playerId: string,
+  villageId: string,
+  input: { fortificationId: number; segment: number; target: FortKind },
+): Promise<VillageActionResult> {
+  return actOn(playerId, villageId, 'fillFortificationGateGap', (ctx) =>
+    fillFortificationGateGap(
+      { villages: villages() },
+      {
+        villageId: ctx.villageId,
+        landscape: ctx.landscape,
+        today: ctx.day,
+        fortificationId: input.fortificationId,
+        segment: input.segment,
         target: input.target,
       },
     ),

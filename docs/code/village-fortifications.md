@@ -332,7 +332,8 @@ crewPerM3, carryPerM3, breakPerM3, loadM3 }` → `CartJobsDay.stone` (`breakPerM
   (vylepšení: díly bez palisády; nástavba: celý val) – [Vylepšení po
   úsecích](#vylepšení-po-úsecích-fortification-upgradets-fortificationupgradets).
 - **`addGateToFortification(state, geo, fortificationId, position)`** – `addGate` na obvod
-  (`FORT_GATE_OFF`, `FORT_GATE_TAKEN`), kdykoli, nic nestojí.
+  (`FORT_GATE_OFF`, `FORT_GATE_TAKEN`), kdykoli, nic nestojí. Use-case volá `addGateOrRebuild` –
+  klik do dílu se zbořenou branou postaví bránu znovu do otvoru (Otvor po zbořené bráně, D45).
 - **Zrušení** (`cancel-construction.ts`, `dropFortificationWork`): hotové úseky stojí, nehotové
   jsou mezera (`builtDay` null – pás mezery jiným stavbám nepřekáží); nové opevnění bez hotového
   úseku zmizí celé, nástavba bez hotového úseku zruší `top`. Nespotřebované dřevo se vrátí
@@ -741,7 +742,8 @@ points: [x, z][], target }` – body mezi konci, `parseRerouteFortificationSecti
   mezeru nezastaví (`FORT_GAP_RAMPART` „Mezeru zastaví hradba – val se k ní doplní potom.“),
   roštová a komorová před svým rokem (`wallYearReason`). Kladivo / Enter pošle body mezi konci
   do `rerouteFortificationSection` s druhem z rozcestníku. Zbořená brána je konec úseku jako
-  stojící (zůstane v `gates` – mezera šířky brány). Testy `fortification/__tests__/reroute.test.ts`,
+  stojící (zůstane v `gates` – mezera šířky brány); samotný otvor po ní zastaví stavba otvoru
+  (níž – Otvor po zbořené bráně). Testy `fortification/__tests__/reroute.test.ts`,
   `application/__tests__/reroute-fortification-section.test.ts`, e2e `fortification.spec.ts`
   (úsek od brány k bráně – běžná stavba plotu u mezery).
 
@@ -774,7 +776,7 @@ Opustit a Zbořit.
   `beforeGate` / `afterGate` dál; průlom se přestaví), `decideTowerRebuilds` věž. Díl stárne
   a chátrá (`segmentState`); **`settleAbandonedGates(fort, day, busy)`** v `decideFortRebuilds` po
   zápisu stavů – díl shnilý na nulu (nebo celý zbořený) → `removeGate`; díl se stavbou a průlom
-  čekají, holý val nehnije (brána v něm stojí). Kusy hradby dílu bez vlastní hradby chátrají
+  čekají, holý val nehnije – bránu v něm opustit nejde (`gateAbandonBlock`, Otvor po zbořené bráně). Kusy hradby dílu bez vlastní hradby chátrají
   s branou (sdílejí vrstvy dílu) – po zmizení brány je obyvatelé přestaví jako každou hradbu
   (`pieceLength` bez šířky zbořené brány).
 - **Jinde:** `fortGaps` – zbořená brána je `gap` šířky brány i při zavřených branách; bitva ji
@@ -793,6 +795,45 @@ Opustit a Zbořit.
   `VillageFortGate` `abandoned`, `abandonBlocked`, `demolish` (`FortDemolishOption`); obsluha přes
   `onFortAction` (`gate-abandon`, `gate-demolish`). Testy
   `state/__tests__/fortification-gate-use.test.ts`, `hud/__tests__/FortGate.behavior.test.tsx`.
+
+## Otvor po zbořené bráně (`state/fortification-gate-gap.ts`; demolition.md – Rozhodnutí, D45)
+
+Martin 14. 11. 2026: „mezeru hráč zastaví stejně – běžnou stavbou od brány k bráně (nebo od konce
+hradby)“. Otvor je tětiva zbořené brány (4 m) uvnitř dílu – drží ho zbořená brána v `gates`, díl
+po kusech jinak popsat nejde (díly jsou ≈ 15 m), proto ho nezastaví nový tvar obvodu
+(`rerouteFortification` dělí díly znovu), ale stavba na dílu brány (návrh Clauda).
+
+- **Zastavit** – **`gateGapFill(fort, geo, segment, target)`** (čistá, sdílí server i náhled) →
+  `{ kind, cost }` nebo důvod: brána dílu zbořená (`FORT_GAP_NO_GATE`), díl a kusy po obou
+  stranách otvoru stojí – základ i nástavba dostavěné a nezbořené (`FORT_GAP_SIDES` – zbořený kus
+  je kus mezery od brány k bráně; pahýl pod `PIECE_MIN_M` se nepočítá), kusy mají tutéž hradbu
+  jako díl – val (vně hradby, voda v příkopu) a druh, stáří smí být jiné (`FORT_GAP_MIXED`), druh z rozcestníku je hradba kolem
+  (`FORT_GAP_KIND`; palisáda i u palisády s ochozem, holý val `rampart`; `target` null – nekontrolovat).
+  Cena = nová hradba šířky brány (`fortificationCost` valu a nástavby, jinak hradby). Body
+  nejdou přidat – trasa je stará křivka, jinou nese úsek od brány k bráně.
+  **`startGateGapFill(state, day, landscape, obstacles, { fortificationId, segment, target }, walk?)`**
+  – stavba `fortWork: 'gate'`, `fortGate.level: 'fill'`, klády a kámen předem (`pushWork` od
+  otvoru), díl s jinou stavbou `FORT_BUSY`; tvar obvodu se nemění (boj u vsi nevadí). Hotová
+  (`completeGateWork` → **`closeGateGap(fort, gate)`** v `gates.ts`): brána zmizí z `gates`, úseky
+  kolem splynou, díl ztratí vlastní vrstvy a zboření kusů – je zase celý díl hradby, ve které
+  brána stála (stáří dílu). Do konce stavby je otvor otvorem (scéna, `fortGaps`); zrušení nic nemění.
+- **Postavit bránu znovu** – **`addGateOrRebuild(state, day, landscape, obstacles, { fortificationId,
+position }, walk?)`** (use-case `addFortificationGate`): padne-li klik do dílu se zbořenou branou
+  (`addGate` mezi stojícími branami), **`startGateRebuild`** – brána do otvoru po staré (ne na místo
+  kliku), díl musí stát (`FORT_GAP_NO_WALL`), cena jako zastavení, `fortGate.level: 'rebuild'`;
+  hotová smaže `demolishedDay`. Brána ve stojící hradbě dál nic nestojí (`addGateToFortification`).
+- **Opustit v holém valu nejde** – **`gateAbandonBlock(fort, seg)`** → `FORT_GATE_NO_DECAY` („Brána
+  v holém valu nechátrá – jde jen zbořit.“) pro díl valu bez hradby; `setGateAbandoned` ho vrátí
+  při Opustit, panel brány ho ukáže u kurzoru (`abandonBlocked`), Vrátit jde dál. Návrh Clauda:
+  val nehnije, opuštěná brána by tam stála navždy; rozpad jako val by chtěl nové pravidlo.
+- **Rozhraní** – `fortGapNear` (`lib/fort-reroute.ts`) najde vedle mezer od brány k bráně
+  i otvor (`gateGapFill` s `target` null; i na opevnění se stavbou – tvar se nemění) –
+  `FortGap.gate`, návrh = konce tětivy (`gateChord`);
+  mód `fort-points` má pak `fixedRoute` (editor bod nepřidá), náhled `fortGateGapPreview` (čára
+  po křivce otvoru, důvod, cena, dřevo a kámen) a Kladivo / Enter pošle server action
+  `fillFortificationGateGap` (`{ fortificationId, segment, target }`,
+  `parseFillFortificationGateGapInput`, právo `build`, use-case `fillFortificationGateGap`).
+- Testy `state/__tests__/fortification-gate-gap.test.ts`.
 
 ## Stáří, přestavba a údržba valu (Ú5.4)
 

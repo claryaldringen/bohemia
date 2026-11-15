@@ -261,7 +261,8 @@ export class FortPointsEditor implements ActivePlacement {
       if (fewer) this.edit(fewer);
       return;
     }
-    if (press.remove) return;
+    // otvor po bráně má jen pevné konce (D45); Ctrl + klik bod neubere
+    if (press.remove || this.mode.fixedRoute === true) return;
     // klik na obvod (do šířky pásu, nejméně 2 m od vnějšího okraje) přidá bod na křivku
     const open = this.mode.fixedEnds === true;
     const edge = this.preview?.outline?.[0];

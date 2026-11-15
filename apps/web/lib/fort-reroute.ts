@@ -8,6 +8,9 @@
 import {
   checkFortificationPlacement,
   fortificationCost,
+  gateChord,
+  gateGapFill,
+  gateStands,
   FORTIFICATIONS,
   FORT_NO_STONE,
   fortOutlineOf,
@@ -46,13 +49,19 @@ export const FORT_GAP_REACH_M = 40;
 /** Val mezeru nezastaví – nový úsek je hradba, val se k ní doplní potom (Doplnit val). */
 export const FORT_GAP_RAMPART = 'Mezeru zastaví hradba – val se k ní doplní potom.';
 
-/** Mezera od brány k bráně u kurzoru: opevnění, díl brány na začátku úseku a návrh trasy. */
+/**
+ * Mezera u kurzoru: opevnění, díl brány na začátku úseku a návrh trasy. `gate` – otvor po zbořené
+ * bráně mezi stojící hradbou (D45): `segment` je díl zbořené brány, trasa jen konce otvoru (body
+ * nejdou přidat – `gateGapFill`).
+ */
 export interface FortGap {
   fort: Fortification;
-  /** Díl brány, kterou úsek začíná (`FortSection.gateSegment`) – pro server. */
+  /** Díl brány, kterou úsek začíná (`FortSection.gateSegment`), u otvoru díl brány – pro server. */
   segment: number;
   /** Návrh trasy – okraj brány, body původní trasy a okraj druhé brány (`rerouteProposal`). */
   proposal: [number, number][];
+  /** Otvor po zbořené bráně (konce otvoru, zastaví ho `fillFortificationGateGap`). */
+  gate?: true;
 }
 
 /** Vzdálenost bodu od lomené čáry (m). */
@@ -78,7 +87,9 @@ function distanceToLine(
  * Mezera od brány k bráně nejblíž bodu `at` do `FORT_GAP_REACH_M` (demolition.md – Rozhodnutí):
  * úsek mezi branami, ve kterém nic nestojí (`sectionIsGap` – zbořený či nedostavěný). Běžná stavba
  * opevnění ji zastaví novým úsekem s konci v branách; jinak null (nový obvod). Opevnění, na kterém
- * se staví (`building`), mezeru nenabídne – nový tvar by přečísloval díly (`FORT_BUSY` serveru).
+ * se staví (`building`), mezeru od brány k bráně nenabídne – nový tvar by přečísloval díly
+ * (`FORT_BUSY` serveru); otvor po zbořené bráně ano (stavba otvoru tvar nemění, běžící stavbu na
+ * dílu brány odmítne server).
  */
 export function fortGapNear(
   forts: readonly (Fortification & { readonly building?: boolean })[],
@@ -87,8 +98,8 @@ export function fortGapNear(
 ): FortGap | null {
   let best: (FortGap & { d: number }) | null = null;
   for (const fort of forts) {
-    if (fort.building === true) continue;
-    for (const section of fortSections(fort)) {
+    // úsek jinudy přečísluje díly – na opevnění se stavbou ne; otvor po bráně tvar nemění
+    for (const section of fort.building === true ? [] : fortSections(fort)) {
       if (section.gateSegment === null || !sectionIsGap(fort, landscape, section)) continue;
       const proposal = rerouteProposal(fort, landscape, section);
       if (!proposal) continue;
@@ -101,9 +112,83 @@ export function fortGapNear(
         d,
       };
     }
+    // otvor po zbořené bráně mezi stojící hradbou – konce otvoru (D45)
+    const outline = fortOutlineOf(landscape, fort);
+    const shapes = outline ? fortSegments(outline) : [];
+    for (const gate of fort.gates) {
+      const shape = shapes[gate.segment];
+      if (!outline || !shape || gateStands(gate)) continue;
+      if ('reason' in gateGapFill(fort, landscape, gate.segment, null)) continue;
+      const chord = gateChord(outline, shape, gate);
+      const proposal: [number, number][] = [
+        [chord.a[0], chord.a[1]],
+        [chord.b[0], chord.b[1]],
+      ];
+      const d = distanceToLine(proposal, at[0], at[1]);
+      if (d > FORT_GAP_REACH_M || (best && d >= best.d)) continue;
+      best = { fort, segment: gate.segment, proposal, gate: true, d };
+    }
   }
   if (!best) return null;
-  return { fort: best.fort, segment: best.segment, proposal: best.proposal };
+  return {
+    fort: best.fort,
+    segment: best.segment,
+    proposal: best.proposal,
+    ...(best.gate ? { gate: true as const } : {}),
+  };
+}
+
+/** Co náhled otvoru po bráně potřebuje: opevnění, díl zbořené brány, druh a zásoby. */
+export type FortGateGapContext = Omit<FortRerouteContext, 'day'>;
+
+/**
+ * Náhled otvoru po zbořené bráně (D45): čára po křivce mezi konci otvoru, důvod u kurzoru
+ * (`gateGapFill` – hradba kolem, kusy po stranách) a cena hradby šířky brány s dřevem a kamenem.
+ */
+export function fortGateGapPreview(
+  landscape: Landscape,
+  context: FortGateGapContext,
+): FortPointsPreview {
+  const { fort, segment } = context;
+  const outline = fortOutlineOf(landscape, fort);
+  const shape = outline ? fortSegments(outline)[segment] : undefined;
+  const gate = fort.gates.find((g) => g.segment === segment);
+  const line: [number, number][] = [];
+  if (outline && shape && gate) {
+    const chord = gateChord(outline, shape, gate);
+    const steps = Math.max(1, Math.ceil((chord.toM - chord.fromM) / LINE_STEP_M));
+    for (let k = 0; k <= steps; k++) {
+      const [x, z] = outlinePointAt(outline, chord.fromM + ((chord.toM - chord.fromM) * k) / steps);
+      line.push([x, z]);
+    }
+  }
+  const fail = (reason: string): FortPointsPreview => ({
+    check: { ok: false, reason },
+    label: '',
+    cost: null,
+    outline: [line],
+    problem: [],
+  });
+  const check = gateGapFill(fort, landscape, segment, context.target);
+  if ('reason' in check) return fail(check.reason);
+  const logs = Math.max(0, Math.ceil(check.cost.logs - 1e-9));
+  const missing = logs - context.woodSupply;
+  if (missing > 0) return fail(missingLogsText(missing));
+  const stone = context.stoneSupply ?? { m3: 0, quarry: false };
+  const missingStone = stone.quarry ? 0 : check.cost.stoneM3 - stone.m3;
+  if (missingStone > 1e-9) return fail(FORT_NO_STONE(missingStone));
+  return {
+    check: { ok: true, reason: null },
+    label: '',
+    cost: {
+      laborManDays: check.cost.laborManDays,
+      trees: 0,
+      logs,
+      ...(check.cost.stoneM3 > 0 ? { stoneM3: Math.ceil(check.cost.stoneM3 - 1e-9) } : {}),
+    },
+    outline: [line],
+    problem: [],
+  };
 }
 
 /** Co náhled o úseku potřebuje: opevnění (tvar a díly), díl v úseku, hradba a den. */

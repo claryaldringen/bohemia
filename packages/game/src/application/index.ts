@@ -49,6 +49,7 @@ export * from './upgrade-fortification';
 export * from './fortification-rampart';
 export * from './upgrade-fortification-gate';
 export * from './add-fortification-gate';
+export * from './fill-fortification-gate-gap';
 export * from './demolish-fortification-section';
 export * from './fortification-gate-use';
 export * from './reroute-fortification-section';

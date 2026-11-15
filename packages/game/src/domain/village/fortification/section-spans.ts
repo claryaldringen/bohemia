@@ -151,7 +151,7 @@ export interface SectionPiece {
 }
 
 /** Kratší kus dílu u brány (m) se nepočítá – po zboření by z něj zbyl jen pahýl. */
-const PIECE_MIN_M = 0.05;
+export const PIECE_MIN_M = 0.05;
 
 /**
  * Kusy dílů, ze kterých se skládá úsek s dílem brány `gateSegment` na začátku (obvod bez brány

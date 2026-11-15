@@ -19,6 +19,7 @@ import {
   placeOrchard,
   placePen,
   rerouteFortificationSection,
+  fillFortificationGateGap,
 } from '@/app/game/actions';
 import type { Placement } from '@/hooks/use-placement';
 import {
@@ -33,7 +34,12 @@ import {
   type WebBuildKind,
 } from '@/lib/build-items';
 import { checkWithDesecration, squaresWithDesecration } from '@/lib/desecration-warning';
-import { fortGapNear, fortReroutePreview, type FortGap } from '@/lib/fort-reroute';
+import {
+  fortGapNear,
+  fortGateGapPreview,
+  fortReroutePreview,
+  type FortGap,
+} from '@/lib/fort-reroute';
 import { structureGridAt } from '@/lib/scene/field-cells';
 import type { LandscapeScene } from '@/lib/scene/landscape-scene';
 import { wholeTarget, type VillageTarget } from '@/lib/scene/village-picking';
@@ -300,6 +306,10 @@ export function useBuildMode({
           get fixedEnds(): boolean {
             return gap !== null;
           },
+          // otvor po zbořené bráně – jen konce otvoru (D45)
+          get fixedRoute(): boolean {
+            return gap?.gate === true;
+          },
           propose: ([x, z]) => {
             gap = fortGapNear(sceneVillageRef.current?.forts ?? [], decoded, [x, z]);
             if (gap) return gap.proposal;
@@ -312,32 +322,54 @@ export function useBuildMode({
             );
           },
           preview: (points) =>
-            gap
-              ? fortReroutePreview(decoded, placementVillage(), points, {
+            gap?.gate
+              ? fortGateGapPreview(decoded, {
                   fort: gap.fort,
                   segment: gap.segment,
                   target: fortKind,
-                  day: viewRef.current?.dayIndex ?? 0,
                   woodSupply: viewRef.current?.woodSupply ?? 0,
                   ...(viewRef.current?.stoneSupply
                     ? { stoneSupply: viewRef.current.stoneSupply }
                     : {}),
                 })
-              : {
-                  ...squaresWithDesecration(placementScene(), (village) =>
-                    item.check(decoded, village, points, fortVariant.id, {
-                      woodSupply: viewRef.current?.woodSupply ?? 0,
-                      ...(viewRef.current?.stoneSupply
-                        ? { stoneSupply: viewRef.current.stoneSupply }
-                        : {}),
-                    }),
-                  ),
-                  label: '',
-                },
+              : gap
+                ? fortReroutePreview(decoded, placementVillage(), points, {
+                    fort: gap.fort,
+                    segment: gap.segment,
+                    target: fortKind,
+                    day: viewRef.current?.dayIndex ?? 0,
+                    woodSupply: viewRef.current?.woodSupply ?? 0,
+                    ...(viewRef.current?.stoneSupply
+                      ? { stoneSupply: viewRef.current.stoneSupply }
+                      : {}),
+                  })
+                : {
+                    ...squaresWithDesecration(placementScene(), (village) =>
+                      item.check(decoded, village, points, fortVariant.id, {
+                        woodSupply: viewRef.current?.woodSupply ?? 0,
+                        ...(viewRef.current?.stoneSupply
+                          ? { stoneSupply: viewRef.current.stoneSupply }
+                          : {}),
+                      }),
+                    ),
+                    label: '',
+                  },
         },
         (result) => {
           const villageId = viewRef.current?.id;
           if (result.kind !== 'fort-points' || !villageId) return;
+          if (gap?.gate) {
+            const { fort, segment } = gap;
+            void runBuildAction(() =>
+              fillFortificationGateGap({
+                villageId,
+                fortificationId: fort.id,
+                segment,
+                target: fortKind,
+              }),
+            );
+            return;
+          }
           if (gap && fortKind !== 'rampart') {
             const { fort, segment } = gap;
             void runBuildAction(() =>
