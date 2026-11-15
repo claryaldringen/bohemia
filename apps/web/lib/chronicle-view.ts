@@ -79,12 +79,20 @@ const HIDDEN_KINDS: ReadonlySet<ChronicleEvent['kind']> = new Set([
 ]);
 
 /**
- * Ukáže panel zápis? Skryté druhy (`HIDDEN_KINDS`) a návrat lidí z výjezdu domů (`people-back`
- * druhu `journey` – „1 člověk se vrátil domů z cesty.“; Martin 14. 11. 2026 ho v kronice nechce).
- * Jádro zápisy dál zapisuje – skryjí se i uložené starší (návrh Clauda).
+ * Ukáže panel zápis? Skryté druhy (`HIDDEN_KINDS`), návrat lidí z výjezdu domů (`people-back`
+ * druhu `journey` – „1 člověk se vrátil domů z cesty.“; Martin 14. 11. 2026 ho v kronice nechce)
+ * a začátek a konec stojících staveb („Stavby stojí.“ / „Na stavbách se zase pracuje.“ – Martin
+ * 15. 11. 2026: „Ano, vypusť to“; upozornění v panelu U zůstává). Jádro zápisy dál zapisuje –
+ * skryjí se i uložené starší (návrh Clauda).
  */
 export function shownInChronicle(event: ChronicleEvent): boolean {
   if (HIDDEN_KINDS.has(event.kind)) return false;
+  if (
+    (event.kind === 'notice-began' || event.kind === 'notice-ended') &&
+    event.notice === 'stalled'
+  ) {
+    return false;
+  }
   return !(event.kind === 'people-back' && event.away === 'journey');
 }
 

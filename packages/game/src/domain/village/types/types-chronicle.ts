@@ -395,6 +395,13 @@ export type ChronicleEvent = { day: number } & (
       wagon?: true;
       /** Jabloně u cesty – konce cesty v den výsadby; u ostatních staveb a starších zápisů chybí. */
       roadEnds?: [ChronicleRoadEnd, ChronicleRoadEnd];
+      /**
+       * Vylepšení cesty (roads.md; Martin 15. 11. 2026: „Vojvoda Lutobor nechal vylepšit cestu
+       * mezi dvorcem a potokem.“) – kdo ho nechal udělat: jméno vojvody v den dokončení (`lord`),
+       * nebo správce (`bySteward`); starší zápisy bez obojího.
+       */
+      lord?: string;
+      bySteward?: true;
       /** Ohrada – druh zvířat; u ostatních staveb a starších zápisů chybí. */
       penSpecies?: PenSpecies;
       /** Ohrada rozšířená o čtverce (oxen.md – Ohrady podle druhu), ne nová. */

@@ -42,7 +42,9 @@ import { advanceChunked, goldenWorld, stateFingerprint, YEAR } from './village-g
 // stavu, zápisy narození a úmrtí je nesou, zápisy žen muže rodu postavení muže a jméno ženy;
 // simulace se nezměnila – stav bez jmen a kroniky má před i po týž otisk (start 49273ab04a2e6883,
 // po roce 1841ac157f2d4e93); dřív 8c854b210fec84e7
-const EXPECTED_YEAR_1 = '1400603f4cdf46fb';
+// 15. 11. 2026 – sloučení: jména všech lidí a zápisy vylepšení cest s konci a vojvodou (D59)
+// – obojí jen nová pole stavu a záznamů; přepočteno po sloučení
+const EXPECTED_YEAR_1 = '7d3b0f17cb6b855b';
 
 describe('zlatý otisk vsi', () => {
   const world = goldenWorld();
