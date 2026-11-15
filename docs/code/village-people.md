@@ -496,6 +496,15 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   se vybere, až skončí (`departAfter`), poprvé a po víc než `HISTORY_S` mimo záběr
   `scheduleAt(t − HISTORY_S)` (splyne s nepřetržitým během). Nový den rozběhnutou pochůzku ani
   práci na místě nemění – přepočítá jen, kdy vyjde, kdo je doma, a konec úloh u objektu.
+  **Stavba založená uprostřed dne** (D68, `villager-new-site.test.ts`): jádro jí práci dá až od
+  dalšího dne (`applyBuildIntent` nemění `state.labor`), proto `withNewSites`
+  (`villager-plan-sites.ts`) v `planVillagersWithCrew` přidá staveništi se `since` = dnešní den
+  a bez podílu dne podíl `build` z dílu mužů na stavby (`SceneLabor.menBuild` – poslední
+  `commonLaborHistory`, D24) bez dnešních staveb, nejvýš z nečinných, před nečinné (kam ho zítra dá
+  jádro – stavitelé jako zítra); jeho postavy mají `interrupt` `all` (`personTasks` – `urgent`).
+  `VillageVillagers.scheduleDay` při změně staveniště týž den (`siteKey`) volá
+  `Timetable.setDay(…, since)` – nový úsek obsazení od teď: stavitel nové stavby se v `since`
+  vydá k ní z místa, kde je (`settle` – přerušení), úloha u zrušené stavby v `since` skončí.
   `VillageVillagers.rebuild` (`scheduleDay`, `personFigures`): postava každého člověka
   `labor.persons` (`personFigure` – vzhled, velikost a šátek či šediny podle člověka, klíč
   `person:id`), póza `Timetable.pose`, chůze ode dveří tempem `SCHEDULE_WALK_M_S`. Postavy dne

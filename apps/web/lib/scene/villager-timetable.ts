@@ -193,7 +193,7 @@ export class Timetable {
     this.wet = wet;
   }
 
-  /** Počet známých dnů obsazení (pro testy). */
+  /** Počet známých úseků obsazení – dnů a změn staveb uprostřed dne (pro testy). */
   get dayCount(): number {
     return this.days.length;
   }
@@ -219,15 +219,19 @@ export class Timetable {
 
   /**
    * Obsazení herního dne `day`, který začíná v `from` (s): týž den nahradí (změna vsi během dne –
-   * začátek zůstane), nejvýš `MAX_DAYS` dnů. Rozběhnutá pochůzka a práce na místě se nemění;
-   * kdo je doma, vyjde podle nového obsazení a úloha u objektu se přepočítá (drží ji, dokud ji
-   * obsazení dává – nový den ji může ukončit).
+   * začátek zůstane), nejvýš `MAX_DAYS` úseků. S `since` (změna staveb uprostřed dne – D68) platí
+   * nové obsazení dne až od `since` a dosavadní do té doby (nový úsek): úloha u objektu, kterou
+   * obsazení už nedává (zrušená stavba), skončí v `since`, a kdo má úlohu, která přerušuje
+   * (stavitel nové stavby), vydá se k ní v `since` z místa, kde právě je – bez přeskoku. Rozběhnutá
+   * pochůzka a práce na místě se jinak nemění; kdo je doma, vyjde podle nového obsazení a úloha
+   * u objektu se přepočítá (drží ji, dokud ji obsazení dává – nový den ji může ukončit).
    */
-  setDay(day: number, from: number, cast: DayCast): void {
-    const same = this.days.find((d) => d.day === day);
-    if (same) same.cast = cast;
+  setDay(day: number, from: number, cast: DayCast, since?: number): void {
+    // poslední úsek dne (úseky jsou podle začátku)
+    const same = [...this.days].reverse().find((d) => d.day === day);
+    if (same && (since === undefined || since <= same.from)) same.cast = cast;
     else {
-      this.days.push({ day, from, cast });
+      this.days.push({ day, from: same && since !== undefined ? since : from, cast });
       this.days.sort((a, b) => a.from - b.from);
       if (this.days.length > MAX_DAYS) this.days.splice(0, this.days.length - MAX_DAYS);
     }

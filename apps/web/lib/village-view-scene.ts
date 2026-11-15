@@ -532,11 +532,14 @@ export function sceneLabor(
   const persons = scenePersons(state, labor.day, baptizable, lodgeView(state, labor.day), state);
   const lord = sceneLord(state, labor.lord, labor.day);
   const shoeing = sceneShoeing(state, labor.day, landscape);
+  // díl mužů na stavby posledního dne (D24) – scéna z něj staví hned stavbu založenou dnes
+  const menBuild = Math.round((state.commonLaborHistory.at(-1) ?? 0) * 100) / 100;
   return {
     day: labor.day,
     month: dateOfDayIndex(labor.day).month,
     people,
     shares,
+    ...(menBuild > 0 ? { menBuild } : {}),
     ...(labor.herders ? { herders: { ...labor.herders } } : {}),
     ...(labor.slaughterHeads ? { slaughter: { ...labor.slaughterHeads } } : {}),
     ...(homes.length > 0 ? { homes } : {}),

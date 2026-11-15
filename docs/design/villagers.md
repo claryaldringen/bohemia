@@ -410,6 +410,16 @@ do hry. Mění se jen to, jak scéna z rozdělení práce dělá postavy. Podrob
   by stavět.“) – nemají losovanou délku práce: drží ji, dokud je obsazení
   dne dává (objekt je ve scéně celý den), pak jdou pěšky domů. Stavba tak dál „neroste sama od
   sebe“ (Martin 18. 10. 2026).
+- **Stavba založená uprostřed dne** (D68 – Martin 15. 11. 2026: „Dal jsem postavit hrnčířskou
+  dílnu, ale tihle dva místo aby se okamžitě rozešli směrem ke staveništi, dál odpočívají. Je to
+  frustrující.“): jádro rozdělení práce dne při zahájení stavby nemění a stavbě dá práci až od
+  dalšího dne (rozhodne Martin, jádro zůstává). Návrh Clauda – scéna to dožene sama: na stavbu
+  založenou dnes pošle hned dnešní díl práce mužů na stavby (D24), který dnešní stavby nevzaly,
+  nejvýš tolik, kolik je dnes nečinné – ženy na stavby nejdou, ostatní práce zůstane. Stavitele
+  vybere jako zítra (zítra tak u stavby zůstanou tíž lidé) a ti přeruší, co právě dělají (i odpočinek
+  doma), a vydají se ke staveništi z místa, kde jsou – bez přeskoku. Kdo práci na stavbě nemá,
+  pokračuje ve své činnosti. Totéž při jiné změně staveb během dne: od zrušené stavby stavitelé hned
+  odejdou domů. Kdo stránku načte později, vidí stejné lidi u stejné stavby.
 - **Příklad** (Vlkov ve žních): žena rolníka v 10:00 vyjde pro vodu (500 m). Vrátí se v 10:11 –
   mezitím uběhlo 8 herních dní a simulace přešla ze žně na výmlat – a vejde do domu (výběr
   postavy, je-li vybraná, se zruší). V 10:12 vyjde znovu, tentokrát podle dnešního obsazení

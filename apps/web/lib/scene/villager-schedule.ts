@@ -608,6 +608,8 @@ export function interruptOf(job: PersonJob, rider: boolean): Interrupt | undefin
  * a lidí u spřežení a vozů (`crew`). `holds` = klíče postav prvních stavitelů (úloha u stavby).
  * Jezdci s trasou (`crew.rides` – kůň nesmí jet bez jezdce) drží úlohu jako událost. Místo úlohy
  * (`at`) je póza v `probeT` (začátek dne). Každý člověk nejvýš jednou (DayRoster); bez lidí ve scéně prázdné.
+ * `urgent` = klíče postav, které přeruší rozběhnutou činnost hned (`interrupt` `all` – stavitelé
+ * stavby založené dnes, D68: kdo má volnou práci, vydá se ke staveništi z místa, kde je).
  */
 export function personTasks(
   people: readonly PlannedVillager[],
@@ -616,6 +618,7 @@ export function personTasks(
   probeT = 0,
   phasesOf?: (f: PlannedVillager, at: Point) => { role: PhaseRole; places?: PhasePlaces } | null,
   herds: readonly HerdView[] = [],
+  urgent: ReadonlySet<string> = new Set(),
 ): Map<number, PersonTask> {
   const riders = new Set((crew.rides ?? []).filter((r) => r.route !== null).map((r) => r.riderId));
   const out = new Map<number, PersonTask>();
@@ -625,7 +628,7 @@ export function personTasks(
     // se stády – pasák bez nich stojí u návsi, chůze ode dveří by se počítala tam, ne ke stádu
     f.pose(probeT, herds, pose);
     const rider = riders.has(f.person);
-    const interrupt = interruptOf(f.job, rider);
+    const interrupt = urgent.has(f.key) ? 'all' : interruptOf(f.job, rider);
     const at = { x: pose.x, z: pose.z };
     const phases = phasesOf?.(f, at) ?? null;
     out.set(f.person, {

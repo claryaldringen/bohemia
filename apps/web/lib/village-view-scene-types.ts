@@ -1119,6 +1119,13 @@ export interface SceneLabor {
    */
   shares: SceneLaborShare[];
   /**
+   * Díl práce mužů na stavby dne (člověkodny na setiny – population.md, Práce, Stavby staví muži;
+   * D24 – poslední `commonLaborHistory`): kolik by jádro dnes dalo stavbám. Scéna z něj pošle muže
+   * hned na stavbu založenou dnes, které jádro práci dá až od dalšího dne (villager-plan-sites.ts –
+   * `withNewSites`). Bez údaje (dřívější pohled) se nová stavba ve scéně staví až od dalšího dne.
+   */
+  menBuild?: number;
+  /**
    * Výrostci 7–13 let, kteří dnes pasou (diet.md – Pasáci) – postavy u stád; starší (`elders`)
    * a dospělí pasáci (podíl `herding`) jen v rozdělení práce z doby před 19. 10. 2026. Bez údaje
    * (dřívější rozdělení práce) pasou děti.
