@@ -47,7 +47,8 @@ import type {
   WorkshopActivity,
 } from '../types';
 import type { Walk } from '../paths/walking';
-import { campUsable, moveCamp, type CampSiteFinder } from './burner-camp';
+import { abandonCamp, campUsable, moveCamp, type CampSiteFinder } from './burner-camp';
+import { isHouseType } from '../buildings/log-house';
 import {
   addLogs,
   availableTrees,
@@ -627,6 +628,10 @@ export function workBurner(
   const workshop = dwelling.workshop!;
   migrateBurner(state, dwelling, stocks);
   const kilns = (workshop.kilns ??= []);
+  // zemnici u milíře má jen uhlíř v nadzemní dílně (Martin 15. 11. 2026); uhlíř v dnešní dílně
+  // (zemnice ve vsi) ji nestaví – případnou starou zemnici opustí (např. po stěhování)
+  const aboveGround = isHouseType(dwelling.type);
+  if (!aboveGround) abandonCamp(state, dwelling, day);
   const out: BurnerDay = {
     felling: 0,
     fellingTrees: [],
@@ -719,7 +724,7 @@ export function workBurner(
       if (!plan.start || kilns.length >= CHARCOAL_BALANCE.maxKilns) break;
       // zemnice u milíře (workshops.md – Uhlíř – zemnice u milíře): dokud je kolem ní dost buků,
       // vybírá se dávka od ní; jinak ji uhlíř opustí a postaví novou u nového milíře
-      const held = workshop.camp;
+      const held = aboveGround ? workshop.camp : undefined;
       const anchor = held && obstacles && campUsable(state, day, obstacles, held) ? held : null;
       kiln = startKiln(state, dwelling, day, obstacles, {
         ...(options.walk ? { walk: options.walk } : {}),
@@ -731,7 +736,7 @@ export function workBurner(
         break;
       }
       kilns.push(kiln);
-      if (!anchor) moveCamp(state, dwelling, kiln, day, obstacles, options.camp);
+      if (aboveGround && !anchor) moveCamp(state, dwelling, kiln, day, obstacles, options.camp);
     }
     const factor = kilnWalkFactor(kiln, dwelling.position);
     if (kiln.stage === 'burn') break;

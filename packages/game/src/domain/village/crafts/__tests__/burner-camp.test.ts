@@ -26,6 +26,7 @@ import type {
   CharcoalKiln,
   Craft,
   Dwelling,
+  DwellingType,
   Person,
   Position,
   VillageState,
@@ -112,10 +113,11 @@ function addWorkshop(
   id: number,
   position: Position,
   firstPerson: number,
+  type: DwellingType = CRAFT_BASE[craft],
 ): void {
   s.dwellings.push({
     id,
-    type: CRAFT_BASE[craft],
+    type,
     builtDay: s.lastDay,
     condition: 1,
     position: { ...position },
@@ -125,7 +127,10 @@ function addWorkshop(
 }
 
 /** Ves s plnou domácností, uhlířem (id 50) a kovářem (id 51) – jako v charcoal.test.ts. */
-function village(burnerAt: Position = NEAR_FOREST): VillageState {
+function village(
+  burnerAt: Position = NEAR_FOREST,
+  burnerType: DwellingType = 'vypleteny',
+): VillageState {
   const s = withBuiltFirstDwelling(
     foundVillage({ seed: 5, day: DAY, dwellingPosition: { x: 0, z: 0, rotation: 0 } }),
   );
@@ -134,7 +139,7 @@ function village(burnerAt: Position = NEAR_FOREST): VillageState {
   s.storesKg = 50_000;
   s.lastDay = DAY;
   s.nextId = 100;
-  addWorkshop(s, 'burner', BURNER, burnerAt, 60);
+  addWorkshop(s, 'burner', BURNER, burnerAt, 60, burnerType);
   addWorkshop(s, 'smith', 51, { x: 40, z: 40, rotation: 0 }, 70);
   return s;
 }
@@ -462,6 +467,34 @@ describe('zemnice u milíře – brání stavbám', () => {
     expect(checkKilnSite(landscape, withCamp, { x: 66, z: 7 }, open).reason).toBe(
       'Stojí tu zemnice uhlíře.',
     );
+  });
+});
+
+describe('zemnice u milíře – jen u nadzemní dílny (Martin 15. 11. 2026)', () => {
+  it('uhlíř v dnešní dílně (zemnice ve vsi) zemnici u milíře nestaví, milíř pálí dál', () => {
+    const s = village(NEAR_FOREST, CRAFT_BASE.burner);
+    craftDays(s, 3, forest);
+    expect(kilnsOf(s).length).toBeGreaterThan(0);
+    expect(workshopOf(s).camp).toBeUndefined();
+    expect(s.campRemnants).toBeUndefined();
+  });
+
+  it('uhlíř v nadzemní dílně zemnici staví jako dosud', () => {
+    for (const type of ['vypleteny', 'srub'] as const) {
+      const s = village(NEAR_FOREST, type);
+      craftDays(s, 1, forest);
+      expect(workshopOf(s).camp).toBeDefined();
+    }
+  });
+
+  it('stará zemnice uhlíře v dnešní dílně se opustí a nová nevznikne', () => {
+    const s = village(NEAR_FOREST, CRAFT_BASE.burner);
+    workshopOf(s).camp = { id: 91, x: 60, z: 20, rotation: 0, done: 0, builtDay: DAY - 5 };
+    burnerDay(s, DAY + 1, forest, 1.5, NEW_KILN);
+    expect(workshopOf(s).camp).toBeUndefined();
+    expect(s.campRemnants).toHaveLength(1);
+    burnerDay(s, DAY + 2, forest, 1.5);
+    expect(s.campRemnants).toHaveLength(1);
   });
 });
 
