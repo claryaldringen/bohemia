@@ -13,6 +13,7 @@ import type { ActivityRepository } from './activity';
 import type { HouseRepository } from './houses';
 import type { InviteRepository } from './invites';
 import type { NoticeRepository } from './notices';
+import { playerDays, type PlayerTimeDeps } from './player-time';
 import {
   notifyProtectionEnding,
   quietWars,
@@ -34,7 +35,8 @@ export interface SuccessionCreditRepository {
   consumeOne(playerId: string, deathDay: number): Promise<boolean>;
 }
 
-export interface SuccessionCreditDeps {
+/** `offsets`: upozornění pozvatele nese jeho den (posun času hráče). */
+export interface SuccessionCreditDeps extends PlayerTimeDeps {
   invites: InviteRepository;
   activity: ActivityRepository;
   credits: SuccessionCreditRepository;
@@ -53,6 +55,7 @@ export async function grantSuccessionCredits(
   deps: SuccessionCreditDeps,
   input: { now: Date; today: number },
 ): Promise<number> {
+  const dayOf = playerDays(deps, input.today);
   let granted = 0;
   for (const invite of await deps.invites.listUsed()) {
     if (invite.usedBy === null) continue;
@@ -64,7 +67,7 @@ export async function grantSuccessionCredits(
       kind: 'invitee-played',
       // jen veřejné id rodu pozvaného – id účtu cizího hráče do prohlížeče nepatří
       payload: { houseId: (await deps.houses.activeOf(invite.usedBy))?.id ?? null },
-      gameDay: input.today,
+      gameDay: await dayOf(invite.issuerId),
     });
   }
   return granted;
@@ -72,7 +75,7 @@ export async function grantSuccessionCredits(
 
 /** Závislosti úloh světa; `shipments` jen tam, kde se zásilky obnovují (worker). */
 export type WorldTaskDeps = SuccessionCreditDeps & {
-  shipments?: ShipmentDeps;
+  shipments?: ShipmentDeps & PlayerTimeDeps;
   /**
    * Návrat uprchlíků (war.md – Varování, poslové a útěk do hradiště): správce a NPC rod vrátí lidi
    * domů po odtažení vojska, návrat po pádu se dopíše (`returnStewardRefugees`).

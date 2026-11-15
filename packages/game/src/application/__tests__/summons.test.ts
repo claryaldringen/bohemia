@@ -22,6 +22,7 @@ import { InMemoryNotices } from './in-memory-notices';
 import { InMemorySettlements } from './in-memory-settlements';
 import { InMemoryShipments } from './in-memory-shipments';
 import { InMemoryStewardships } from './in-memory-stewardships';
+import { InMemoryTimeOffsets } from './in-memory-time-offsets';
 import { InMemoryVassalages } from './in-memory-vassalages';
 import { InMemoryVillages } from './in-memory-villages';
 import { InMemoryWars } from './in-memory-wars';
@@ -513,5 +514,36 @@ describe('správce za nepřítomného vazala (absence.md)', () => {
     expect(w.vassalages.breachLog.map((b) => b.kind)).toEqual(['summons']);
     expect(await answerAbsentSummons(w.deps, { today: DAY + 41 })).toBe(0);
     expect(w.vassalages.breachLog).toHaveLength(1);
+  });
+});
+
+describe('správce za nepřítomného s posunem času hráče', () => {
+  it('lhůta běží ve dni pána, který svolal; muže pošle správce ve dni vazala', async () => {
+    const w = await world();
+    const summoned = await summonVassals(w.deps, {
+      playerId: LORD,
+      warId: w.warId,
+      vassalageIds: [w.vassalageId],
+      targetVillageId: w.lordVillage,
+      today: DAY,
+    });
+    const dialogId = summoned.ok ? summoned.opened[0]!.id : '';
+    const notices = w.deps.notices as InMemoryNotices;
+    const offsets = new InMemoryTimeOffsets();
+    offsets.offsets.set(VASSAL, 3);
+    const prepared: number[] = [];
+    w.deps.prepareVillage = (_villageId, today) => {
+      prepared.push(today);
+      return Promise.resolve(null);
+    };
+    const deps = { ...w.deps, offsets };
+    const due = DAY + ABSENT_VASSAL.summonsAnswerDays;
+    // vazal je napřed, ale lhůta pána ještě neuběhla
+    expect(await answerAbsentSummons(deps, { today: due - 1 })).toBe(0);
+    expect(await answerAbsentSummons(deps, { today: due })).toBe(1);
+    expect(prepared.length).toBeGreaterThan(0);
+    expect(prepared.every((day) => day === due + 3)).toBe(true);
+    expect(notices.notices.find((n) => n.kind === 'summons-steward')?.gameDay).toBe(due + 3);
+    expect((await w.dialogs.byId(dialogId))!.status).toBe('answered');
   });
 });

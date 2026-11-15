@@ -20,6 +20,7 @@ import {
   type VillageState,
 } from '../domain/village';
 import { cellDistance } from '../domain/world/placement';
+import { playerDays, type PlayerDayOf, type PlayerTimeDeps } from './player-time';
 import type { SettlementRepository, WorldCell } from './settlements';
 import { sendShipment, settlementCell, type ShipmentDeps } from './shipments';
 import type { VillageRecord, VillageRepository } from './villages';
@@ -62,7 +63,8 @@ export interface DomainFoodRepository {
   finish(villageId: string, year: number): Promise<void>;
 }
 
-export interface DomainFoodDeps {
+/** `offsets`: doména jede ve dni svého držitele (posun času hráče – vsi jedou v jeho dni). */
+export interface DomainFoodDeps extends PlayerTimeDeps {
   settlements: Pick<SettlementRepository, 'listActive' | 'ownersWithManyActive'>;
   villages: Pick<VillageRepository, 'stampsOf' | 'digestsOf'>;
   /** Dopočet vsi do dneška a její záznam (composition root jako `prepareVillage` Odvodů). */
@@ -101,21 +103,37 @@ function sleeps(state: VillageState): boolean {
  * (`VillageDigest.domainReadyYear`), ne na cestě, bez rozhodnutí na rok. Teprve když nějaký je,
  * dopočítá všechny vsi domény do `today`; každý dárce (podle id) rozdělí nabídku
  * (`domainOffer` v mezi dopravy a zásob) mezi ostatní vsi s lidmi, kterým chybí aspoň
- * `DOMAIN_FOOD.minNeedKg` po odečtení jídla domény na cestě, plán zapíše a provede.
+ * `DOMAIN_FOOD.minNeedKg` po odečtení jídla domény na cestě, plán zapíše a provede. Dnešek a rok
+ * jdou ve dni držitele (den světa + jeho posun času).
  */
 export async function sendDomainFood(
   deps: DomainFoodDeps,
   input: { today: number },
 ): Promise<void> {
   const log = deps.log ?? console.warn;
+  const dayOf = playerDays(deps, input.today);
   for (const round of await deps.rounds.unfinished()) {
-    // dárce do dneška – zásilka odchází ze stavu v den `today`
-    await deps.loadVillage(round.villageId, input.today);
-    await carryOut(deps, round, input.today, log);
+    // dárce do dneška – zásilka odchází ze stavu v den `today` jeho držitele
+    const today = await holderDay(deps, round.villageId, dayOf);
+    await deps.loadVillage(round.villageId, today);
+    await carryOut(deps, round, today, log);
   }
-  const year = dateOfDayIndex(input.today).year;
   const owners = [...(await deps.settlements.ownersWithManyActive())].sort(byId);
-  for (const ownerId of owners) await ownerRound(deps, ownerId, year, input.today, log);
+  for (const ownerId of owners) {
+    const today = await dayOf(ownerId);
+    await ownerRound(deps, ownerId, dateOfDayIndex(today).year, today, log);
+  }
+}
+
+/** Dnešek vsi – den držitele jejího sídla (ztracené sídlo – den světa). */
+async function holderDay(
+  deps: DomainFoodDeps,
+  villageId: string,
+  dayOf: PlayerDayOf,
+): Promise<number> {
+  const village = await deps.shipments.villages.find(villageId);
+  const settlement = village ? await deps.shipments.settlements.find(village.settlementId) : null;
+  return dayOf(settlement?.ownerId ?? null);
 }
 
 /** Ves domény po dopočtu – záznam, políčko a potřeba bez jídla na cestě (počítá se jednou). */

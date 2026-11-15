@@ -74,7 +74,7 @@ vojska mapu po mapě (Ú6.4), tažení po taktech, boj a dohra (Ú6.5–Ú6.17) 
 - **Tribut:** nemá vazalství, proto se nečte z `vassalage`, ale z přijatých jednání
   (`NegotiationRepository.peaceTributes()`, `peaceTributeOf`). `openAnnualDialogs` (`tributes` v
   `AnnualLevyDeps`, worker je zapojuje) otevře plátci 1. 11. dialog `tribute-send` (klíč
-  `tribute:<jednání>:<rok>`); mír přijatý až po 1. 11. se ptá příště, čekající dialog jen naroste o rok.
+  `tribute:<jednání>:<rok>`; rok i den přijetí ve dni plátce – posun času hráče); mír přijatý až po 1. 11. se ptá příště, čekající dialog jen naroste o rok.
   Neplnění se nevymáhá, ale zapíše se (`tributeBreach` v `annual-levies.ts`): míň než domluveno při odpovědi
   i každý zmeškaný 1. 11. → kronika obou rodů `tribute-short` a – trvá-li mezi nimi vazalství plátce → příjemce –
   `addBreach('levy')`.
@@ -1087,7 +1087,7 @@ Clauda“). Co se hýbe v taktech (vesničan běžící domů, posel, skupina up
   dopíše událost z něj (bez kontroly vojska – rozhodnuto bylo). Opakování (dvojklik, souběh hráče a
   úlohy světa) najde nespotřebovanou událost ve schránce domova a vrátí její den – jedna událost.
   Hradiště zaniklé i se sídlem – lidé se vrátí s prázdnou. **Správce a NPC rod** – úloha světa
-  `returnStewardRefugees` (`runWorldTasks` po `reconcileShipments`; port
+  `returnStewardRefugees` (`runWorldTasks` po `reconcileShipments`, ve dni držitele domovské vsi; port
   `RefugeRepository.awayVillages` – adaptér `db/adapters/refuge-repository.ts` nad
   sloupci `refuge_ref_id` / `refuge_host_village_id` odvozenými z `VillageState.refuge`, spící vsi ne): ves se zapnutým správcem (`steward.on`) nebo se správou
   NPC rodu vrátí, když `stewardMayReturn` – vojsko na mapě nestojí, **na ves teprve netáhne** (cíl

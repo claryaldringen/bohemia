@@ -22,6 +22,7 @@ import { InMemoryPlayerLock } from './in-memory-locks';
 import { InMemoryNotices } from './in-memory-notices';
 import { InMemorySettlements } from './in-memory-settlements';
 import { InMemoryShipments } from './in-memory-shipments';
+import { InMemoryTimeOffsets } from './in-memory-time-offsets';
 import { InMemoryVillages } from './in-memory-villages';
 
 // Jídlo domény – krok světa (hillfort.md – Jídlo domény; plán 2026-11-08-hillfort, Úloha 7).
@@ -381,5 +382,22 @@ describe('runWorldTasks – jídlo domény', () => {
     await runWorldTasks({ ...base, domainFood: w.deps }, { now: new Date(0), today: OCT_2 });
     expect(w.shipments.rows).toHaveLength(1);
     expect(w.shipments.rows[0]!.purpose).toBe(DOMAIN_FOOD_PURPOSE);
+  });
+});
+
+describe('sendDomainFood s posunem času hráče', () => {
+  it('dárce pošle jídlo v den a rok svého držitele', async () => {
+    const w = await world([village(OCT_2, RICH), village(OCT_2, POOR)]);
+    const [a, b] = w.ids as [string, string];
+    const offsets = new InMemoryTimeOffsets();
+    offsets.offsets.set(OWNER, 400);
+    await sendDomainFood({ ...w.deps, offsets }, { today: OCT_2 - 400 });
+    expect(w.shipments.rows).toHaveLength(1);
+    expect(w.shipments.rows[0]).toMatchObject({
+      fromVillageId: a,
+      toVillageId: b,
+      refId: domainFoodRef(600, a, b),
+      sentDay: OCT_2,
+    });
   });
 });

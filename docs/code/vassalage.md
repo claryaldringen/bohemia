@@ -113,7 +113,8 @@ trailId: -1, give, porters, days = 4 × cells, cost = porters × days }` – nos
      (`shipmentLockOwner`) už drží, volá `sendShipmentLocked` – výkupné (`prisoners.ts`) drží zámek
      věznitele i plátce kolem platby i propuštění a zámek není reentrantní.
 - **`reconcileShipments(deps, today)`** (`runWorldTasks`, worker 1× za minutu, pod `tryRun`
-  zámkem držitele odesílatele): řádek bez `posted_at` – odesílající ves nese `shipmentId` → událost
+  zámkem držitele odesílatele; vrácená zásilka vyrazí zpět ve dni toho držitele – `offsets`,
+  accounts.md – Posun času v úlohách světa): řádek bez `posted_at` – odesílající ves nese `shipmentId` → událost
   se dopíše (druhý zápis téhož `ref` se zahodí, doručí se právě jednou), jinak se ves neuložila a
   rezervace se zruší (zboží zůstalo doma); zapsané a nevyřízené řádky – událost je ve schránce cíle
   nespotřebovaná a cíl zanikl → zásilka se **vrátí odesílateli**, jinak se po spotřebování řádek
@@ -203,7 +204,7 @@ Pravidla: [vassalage.md](../design/vassalage.md) – „Roční dialog 1. 11.“
   `dropFor(refId)`), adaptér `db/adapters/dialog-repository.ts`, in-memory `__tests__/in-memory-dialogs.ts`.
   Odchylky od plánu: sloupec `ref_id`, `bumpYears` bere cílový rok (podmíněně, opakování nic nepřičte).
 - **Otevření:** `openAnnualDialogs(deps, { today })` v `runWorldTasks` (`deps.levies` ve workeru, 1× za minutu). Rok =
-  poslední 1. 11. do dne `today` (doběhne po výpadku); vazalství s `tribute` a `sinceDay` před tím 1. 11. Čekající dialog
+  poslední 1. 11. do dne vazala (dlužníka, plátce – `offsets`, posun času hráče; doběhne po výpadku); vazalství s `tribute` a `sinceDay` před tím 1. 11. Čekající dialog
   z minulého roku → `bumpYears` + `addBreach(id, 'levy', 1. 11. zmeškaného roku)` za každý zmeškaný rok, nový nevzniká.
   Vazal dostane upozornění `levy-pending`.
 - **Odpověď:** `answerLevy(deps, { playerId, dialogId, lines, split, message, today })`. `split` = svazek po vsích rodu
@@ -231,7 +232,9 @@ corveeHands }[]`);
 Lhůty `ABSENT_VASSAL` (`domain/vassalage/rules-absence.ts`): Odvody 60 dní od 1. 11., Svolání 30 dní
 od svolání, jednání 365 dní od posledního kola. Vše jsou úlohy světa v `runWorldTasks` (worker):
 `stewards: { levies: LevyDeps; summons: SummonsDeps }` (`prepareVillage` = `loadVillage` s dopočtem
-a uložením) a `negotiationExpiry`. Pořadí: Odvody správce **před** `openAnnualDialogs` (loňský dialog
+a uložením) a `negotiationExpiry`. Lhůty a odpovědi jdou ve dni hráče (`offsets` – accounts.md, Posun
+času v úlohách světa): Odvody ve dni vazala, lhůta Svolání ve dni pána, který svolal, odpověď ve dni
+vazala, jednání ve dni strany, která má odpovědět. Pořadí: Odvody správce **před** `openAnnualDialogs` (loňský dialog
 nenaroste), Svolání správce **před** `lapseSummons`, pak `expireNegotiations`.
 
 - **Odvody** – `answerAbsentLevies(deps, { today })` (`annual-levies.ts`): otevřené dialogy
@@ -596,7 +599,7 @@ algoritmus návrh Clauda). `offer` je obilí a dobytek domény (součet `domainO
 ## Jídlo domény – krok světa (`application/domain-food.ts`, hradiště – úloha 7)
 
 `sendDomainFood(deps, { today })` – krok světa v `runWorldTasks` (člen `domainFood`, po
-`reconcileShipments`), jednou za minutu ve workeru. Vsi se dopočítávají každá zvlášť a žádná nevidí
+`reconcileShipments`), jednou za minutu ve workeru; dnešek a rok ve dni držitele (`offsets`). Vsi se dopočítávají každá zvlášť a žádná nevidí
 stav jiné, proto rozdělení neběží v simulaci vsi, ale tady – jako dávky vazalů. Pevné pořadí
 (determinismus):
 

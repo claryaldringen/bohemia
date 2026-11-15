@@ -9,6 +9,7 @@ import { NO_HOUSE } from './negotiate';
 import { chronicleHouses, houseName, type NegotiationVillages } from './negotiation-chronicle';
 import type { NoticeRepository } from './notices';
 import { findPlayerVillage } from './player-villages';
+import { playerDays, type PlayerTimeDeps } from './player-time';
 import type { SettlementRepository } from './settlements';
 import { canReceive, sendMen, type ShipmentDeps } from './shipments';
 import type { StewardshipRepository } from './stewardships';
@@ -75,7 +76,11 @@ export function summonsStewardDay(dialog: Pick<Dialog, 'body' | 'year'>): number
   return opened + ABSENT_VASSAL.summonsAnswerDays;
 }
 
-export interface SummonsDeps extends NegotiationVillages {
+/**
+ * `offsets` (úloha světa `answerAbsentSummons`): lhůta správce ve dni svolávajícího pána, odpověď
+ * ve dni vazala (accounts.md – Posun času v úlohách světa).
+ */
+export interface SummonsDeps extends NegotiationVillages, PlayerTimeDeps {
   dialogs: Pick<
     DialogRepository,
     'openOnce' | 'openFor' | 'listFor' | 'listOpen' | 'byId' | 'answer' | 'openOfKind' | 'lapse'
@@ -478,17 +483,22 @@ export async function answerNpcSummons(
  * nespraví), uzavře se svolání jako „nikoho neposlal“ = neplnění. NPC svolání splní vstupní bod
  * hned (`answerNpcSummons`). Odpověď hráče do lhůty
  * má přednost (podmíněné `answer`). Vazal dostane `summons-steward`. Vrací počet odpovědí správce.
+ * Lhůta běží ve dni pána, který svolal (den svolání je v jeho čase), odpověď správce ve dni vazala
+ * (posun času hráče – návrh Clauda).
  */
 export async function answerAbsentSummons(
   deps: SummonsDeps,
   input: { today: number },
 ): Promise<number> {
+  const dayOf = playerDays(deps, input.today);
   let answered = 0;
   for (const dialog of await deps.dialogs.openOfKind('summons')) {
-    if (input.today < summonsStewardDay(dialog)) continue;
     const body = summonsBody(dialog);
+    const lordPlayer = (await deps.houses.byId(body.lordHouseId))?.playerId ?? null;
+    if ((await dayOf(lordPlayer)) < summonsStewardDay(dialog)) continue;
     const vassal = await deps.houses.byId(body.vassalHouseId);
     if (!vassal || vassal.playerId === null || vassal.endedAt !== null) continue;
+    const today = await dayOf(vassal.playerId);
     const war = await deps.wars.activeBetween(body.warHouses[0], body.warHouses[1]);
     if (war?.id !== body.warId) continue;
     const v = await deps.vassalages.byId(body.vassalageId);
@@ -499,25 +509,25 @@ export async function answerAbsentSummons(
     }
     for (const settlement of await deps.settlements.listActive(vassal.playerId)) {
       for (const village of await deps.villages.listBySettlement(settlement.id)) {
-        await deps.prepareVillage(village.id, input.today);
+        await deps.prepareVillage(village.id, today);
       }
     }
     // cílová ves zanikla (nebo nemá sídlo) – chyba, která se sama nespraví: uzavřít jako
     // „nikoho neposlal“ = neplnění
     const reachable = await canReceive(deps.shipments, body.targetVillageId);
     const men = reachable
-      ? await serviceMenOf(deps, { playerId: vassal.playerId, today: input.today })
+      ? await serviceMenOf(deps, { playerId: vassal.playerId, today: today })
       : [];
     const byVillage = refsByVillage(men.slice(0, body.men).map((m) => m.ref));
     const result = await dispatchSummons(
       deps,
       { dialog, body, vassal, vassalage: v, byVillage, message: '', steward: true },
-      input.today,
+      today,
     );
     if (!result.ok) {
       // odpověď je zapsaná, ale muži neodešli – neplnění (opakovat nejde, dialog je uzavřený)
       if (result.reason !== SUMMONS_REASONS.answered) {
-        await deps.vassalages.addBreach(v.id, 'summons', input.today);
+        await deps.vassalages.addBreach(v.id, 'summons', today);
       }
       continue;
     }
@@ -527,7 +537,7 @@ export async function answerAbsentSummons(
       playerId: vassal.playerId,
       kind: 'summons-steward',
       payload: { name: lord ? await houseName(deps, lord) : '', men: result.sent },
-      gameDay: input.today,
+      gameDay: today,
     });
   }
   return answered;
