@@ -524,9 +524,18 @@ group, order, at)` – před bitvou kdykoli, v boji jen na doslech (jinak false)
   pochodu (3,5 m/s ÷ 4, jezdec × 1,5, terén z `MarchGrid` – val ¼; voda a sráz neprůchodné).
   Muž jde k cíli rovně; krok do buňky s tempem 0 (hustý les, voda, sráz, skála) neudělá a sklouzne
   podél jejího kraje jako podél stěny – průmět kroku do osy x, nebo z, napřed delší složka
-  (`alongEdge` – plán 2026-11-16-dense-forest, Úloha 5; dřív stál, dokud se cíl nezměnil, a boj
-  v průseku hustým lesem se zastavil). Průsek do L projde (test „útočníci z ramene průseku do L“
-  v `battle.test.ts`); objížďku, která vede nejdřív od cíle (slepé rameno), skluz nenajde.
+  (`alongEdge` – plán 2026-11-16-dense-forest, Úloha 5). **Objížďka útočníka** (`detour` – oprava
+  Úlohy 5, revize: skvrna lesa r = 40 m nebo pás 120 × 40 m mezi útočníky a domem – po 2400
+  taktech `ongoing`, nájezd neskončil): když přímka k cíli vede buňkou, kam boj nevstoupí
+  (`lineClear` z `march-smooth.ts` s průchodností `paceAt` – stavby a stěny opevnění ne, ty řeší
+  boj sám), uloží si body trasy `marchPath` po `field.grid` do `route` / `routeFor` jako průchod
+  opevněním a jde po nich – i objížďkou, která vede napřed od cíle (průsek do U). Hledá nejvýš
+  jednou za `DETOUR_RETRY_TICKS` (20) taktů (`detourTick`); bez trasy jde rovně jako dřív.
+  **Pojistka proti zastavení** – útočník bez vodítka, který se `STALL_TICKS` (8) taktů v řadě
+  nepohne dál než 1 m od cíle kroku (`stall`), zahodí trasu a hledá novou. Obránce objížďky
+  nehledá (průchody hradbou také ne, ke vsi to má blízko) – jeho stav se nemění. Testy „pohyb
+  v boji podél hustého lesa“ v `battle.test.ts` (průsek do L, skvrna, pás, průsek do U, zastaralá
+  trasa do lesa).
 - **Opevnění v boji** – `battleForts(geo, forts)` (tvar úseků a střed); stěny jsou úsečky úseků,
   které stojí (ne holý val, ne mezera, prolomený úsek = `breachedDay` dne boje), s výřezem otevřené
   brány a tětivou rohu. Pohyb stěnu neprojde (sklouzne podél), luk i dosah zblízka (3 m) přes ni

@@ -79,12 +79,20 @@ const passable = (grid: MarchGrid, c: number): boolean => grid.pace[c]! > 0;
  * úhlopříčný krok hledání.
  */
 export function lineOfSight(grid: MarchGrid, a: Pos, b: Pos): boolean {
+  return lineClear(grid, a, b, (c) => passable(grid, c));
+}
+
+/**
+ * Vede úsečka a → b jen buňkami, pro které platí `ok` (supercover jako `lineOfSight`; přesně rohem
+ * obě buňky u rohu)? Boj bere vlastní průchodnost – stavby a stěny opevnění v něm neblokují.
+ */
+export function lineClear(grid: MarchGrid, a: Pos, b: Pos, ok: (c: number) => boolean): boolean {
   return traverse(
     grid,
     a,
     b,
-    (c) => passable(grid, c),
-    (c1, c2) => passable(grid, c1) && passable(grid, c2),
+    (c) => ok(c),
+    (c1, c2) => ok(c1) && ok(c2),
   );
 }
 

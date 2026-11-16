@@ -12,6 +12,7 @@ import {
   marchCellAt,
   marchCellCenter,
   marchGrid,
+  type Pos,
 } from '../march-grid';
 import { nearestForestDoor } from '../forest-doors';
 import { WAR } from '../rules-war';
@@ -177,6 +178,99 @@ describe('pohyb v boji podél hustého lesa (plán 2026-11-16-dense-forest – �
       }
     });
     expect(nearest).toBeLessThanOrEqual(WAR.combat.meleeM);
+  });
+
+  /** Bojiště louky; buňky se středem, pro který `forest`, jsou hustý les (tempo 0). */
+  function woods(forest: (x: number, z: number) => boolean): BattleField {
+    const base = field();
+    const pace = Float32Array.from(base.grid.pace);
+    const flags = Uint16Array.from(base.grid.flags);
+    for (let c = 0; c < pace.length; c++) {
+      const p = marchCellCenter(base.grid, c);
+      if (!forest(p.x, p.z)) continue;
+      pace[c] = 0;
+      flags[c] = flags[c]! | MARCH_FOREST;
+    }
+    return { ...base, grid: { ...base.grid, pace, flags } };
+  }
+
+  /**
+   * Takt, kdy první ze tří útočníků u `from` došel na dosah zblízka k obránci u domu `house`; null
+   * = nedošli do `ticks` taktů. Nikdo nesmí vstoupit do buňky s tempem 0.
+   */
+  function reachTick(f: BattleField, from: Pos, house: Pos, ticks: number): number | null {
+    const b = battle({
+      attackers: [0, 1, 2].map((k) => attacker(k, { x: from.x - 4 + 4 * k, z: from.z })),
+      defenders: [defender(1, house, { atHouseOnly: true })],
+    });
+    let at: number | null = null;
+    run(b, f, ticks, (t) => {
+      for (const x of b.fighters) {
+        if (x.side !== 'attack') continue;
+        expect(f.grid.pace[marchCellAt(f.grid, x.pos)]!).toBeGreaterThan(0);
+        const near = Math.hypot(x.pos.x - house.x, x.pos.z - house.z) <= WAR.combat.meleeM;
+        if (at === null && near) at = t;
+      }
+    });
+    return at;
+  }
+
+  // oprava Úlohy 5 (revize – Important 2): skluz podél kraje u skvrny lesa nebo pásu kolmo k cíli
+  // nepostupoval (2400 taktů `ongoing`) – muži teď jdou body trasy `marchPath` po mřížce boje
+  it('kruhová skvrna hustého lesa r = 40 m mezi útočníky a domem – obejdou ji', () => {
+    const f = woods((x, z) => Math.hypot(x, z) <= 40);
+    const at = reachTick(f, { x: 0, z: -100 }, { x: 3, z: 100 }, 2400);
+    expect(at).not.toBeNull();
+    // ≈ 220 m objížďkou tempem louky (0,875 m za takt) ≈ 250 taktů
+    expect(at!).toBeLessThan(400);
+  });
+
+  it('pás hustého lesa 120 × 40 m kolmo k cestě – obejdou ho koncem pásu', () => {
+    const f = woods((x, z) => Math.abs(x) <= 60 && Math.abs(z) <= 20);
+    const at = reachTick(f, { x: 0, z: -100 }, { x: 3, z: 100 }, 2400);
+    expect(at).not.toBeNull();
+    expect(at!).toBeLessThan(400);
+  });
+
+  it('pojistka proti zastavení: zastaralá trasa do lesa – po 8 taktech bez pohybu nová trasa', () => {
+    const f = woods((x, z) => Math.hypot(x, z) <= 40);
+    const house = { x: 3, z: 100 };
+    const b = battle({
+      attackers: [0, 1, 2].map((k) => attacker(k, { x: -4 + 4 * k, z: -100 })),
+      defenders: [defender(1, house, { atHouseOnly: true })],
+    });
+    // bod uložené trasy uprostřed skvrny lesa – skluz ho nedosáhne, muž by stál navždy
+    for (const x of b.fighters) {
+      if (x.side !== 'attack') continue;
+      x.route = [{ x: 0, z: 0 }];
+      x.routeFor = 'd:1';
+    }
+    let at: number | null = null;
+    let stalled = 0;
+    run(b, f, 2400, (t) => {
+      for (const x of b.fighters) {
+        if (x.side !== 'attack') continue;
+        stalled = Math.max(stalled, x.stall ?? 0);
+        const near = Math.hypot(x.pos.x - house.x, x.pos.z - house.z) <= WAR.combat.meleeM;
+        if (at === null && near) at = t;
+      }
+    });
+    // muž stál u kraje lesa 8 taktů, pak hledal novou trasu – víc taktů v řadě nestál
+    expect(stalled).toBe(8);
+    expect(at).not.toBeNull();
+    expect(at!).toBeLessThan(600);
+  });
+
+  it('průsek do U – trasa vede napřed od domu, ramenem nahoru a druhým dolů', () => {
+    // les všude kromě průseků 8 m: dvě ramena (x = ±100, z −4…200) spojená nahoře (z = 200)
+    const lane = (x: number, z: number): boolean =>
+      (Math.abs(Math.abs(x) - 100) <= 4 && z >= -4 && z <= 204) ||
+      (Math.abs(z - 200) <= 4 && Math.abs(x) <= 104);
+    const f = woods((x, z) => !lane(x, z));
+    const at = reachTick(f, { x: -100, z: 0 }, { x: 100, z: 0 }, 2400);
+    expect(at).not.toBeNull();
+    // ≈ 600 m průsekem ≈ 690 taktů
+    expect(at!).toBeLessThan(1000);
   });
 });
 

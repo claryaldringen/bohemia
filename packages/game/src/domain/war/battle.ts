@@ -41,7 +41,7 @@ import {
   type ClimbWorld,
   type FighterClimb,
 } from './ladders';
-import { nearestInArea, nearestPassable } from './march';
+import { marchPath, nearestInArea, nearestPassable } from './march';
 import {
   MARCH_BUILDING,
   MARCH_RAMPART,
@@ -54,6 +54,7 @@ import {
   type Pos,
 } from './march-grid';
 import { marchArea } from './march-search';
+import { lineClear } from './march-smooth';
 import {
   attackerPlan,
   battleLeader,
@@ -148,9 +149,16 @@ export interface Fighter {
   /** Koho napadnout a kam jít – určil hráč (jen řízený muž). */
   chosen: string | null;
   goal: Pos | null;
-  /** Průchod opevněním – body před a za průchodem; `routeFor` = cíl, ke kterému vede. */
+  /**
+   * Průchod opevněním – body před a za průchodem –, nebo objížďka hustého lesa, vody či srázu
+   * (body trasy `marchPath` – `detour`); `routeFor` = cíl, ke kterému vede.
+   */
   route: Pos[];
   routeFor: string | null;
+  /** Takt boje, kdy muž naposled hledal objížďku (`detour`); chybí = nehledal. */
+  detourTick?: number;
+  /** Takty v řadě, kdy se muž bez vodítka k cíli nepohnul (pojistka proti zastavení); chybí = 0. */
+  stall?: number;
   /** Místo prolomení (`BattleBreach.key`). */
   breachAt: string | null;
   /** Kam prchá (útočník domů, obránce do nejbližšího lesa). */
@@ -1353,22 +1361,79 @@ export function fortPassages(
   return out;
 }
 
+/** Po kolika taktech v řadě bez pohybu muž bez vodítka hledá novou trasu (návrh Clauda). */
+const STALL_TICKS = 8;
+/** Objížďku k témuž cíli hledá muž nejvýš jednou za tolik taktů (návrh Clauda – výkon). */
+const DETOUR_RETRY_TICKS = 20;
+
+/**
+ * Krok k `to` (`stepToward`); útočník počítá takty bez pohybu (`stall`) – jen bez vodítka a dál
+ * než 1 m (u vodítka stojí schválně). Obránce nepočítá – u hradby stojí schválně a stav se nemění.
+ */
+function walk(f: Fighter, to: Pos, w: TickWorld, leash: Leash | null): void {
+  const moved = stepToward(f, to, w.field, w.walls, leash);
+  if (f.side !== 'attack') return;
+  if (moved || leash !== null || dist2(f.pos, to) <= 1) delete f.stall;
+  else f.stall = (f.stall ?? 0) + 1;
+}
+
+/**
+ * Objížďka útočníka po mřížce boje (plán 2026-11-16-dense-forest – oprava Úlohy 5): když přímka
+ * k cíli vede buňkou, kam boj nevstoupí (`paceAt` 0 – hustý les, voda, sráz, skála; stavby a stěny
+ * ne – ty řeší boj sám), nebo když muž `force` (pojistka proti zastavení) – uloží si body trasy
+ * `marchPath` po `field.grid` jako průchod opevněním a jde po nich. Skluz podél kraje (`alongEdge`)
+ * od skvrny lesa nebo z ramene průseku, které vede od cíle, nepomohl – útočníci stáli u lesa
+ * a nájezd neskončil. Hledá nejvýš jednou za `DETOUR_RETRY_TICKS`; bez trasy (cíl nedosažitelný)
+ * nebo s přímou trasou false – jde přímo jako dřív. Obránce objížďky nehledá – průchody hradbou
+ * nehledá a ke vsi to má blízko (návrh Clauda).
+ */
+function detour(
+  f: Fighter,
+  goal: Pos,
+  key: string,
+  w: TickWorld,
+  leash: Leash | null,
+  force: boolean,
+): boolean {
+  if (f.side !== 'attack') return false;
+  const grid = w.field.grid;
+  const fills = w.walls.fills;
+  const open = (c: number): boolean => paceAt(grid, marchCellCenter(grid, c), fills) > 0;
+  if (!force && lineClear(grid, f.pos, goal, open)) return false;
+  if (f.detourTick !== undefined && w.b.ticks - f.detourTick < DETOUR_RETRY_TICKS) return false;
+  f.detourTick = w.b.ticks;
+  const path = marchPath(grid, f.pos, goal);
+  if (!path || path.points.length <= 2) return false;
+  f.route = path.points.slice(1, -1).map((p) => ({ x: p.x, z: p.z }));
+  f.routeFor = key;
+  walk(f, f.route[0]!, w, leash);
+  return true;
+}
+
 /**
  * Jde k cíli `goal`. Útočník, kterému v cestě stojí stěna, jde průchodem (brána, mezera, průlom)
  * – body před ním a za ním; bez průchodu hradbu přeleze (plot, žebřík – `startCrossing`), je-li
- * to postup skupiny nebo nejrychlejší, jinak začne opevnění prolamovat. Obránce průchody nehledá.
+ * to postup skupiny nebo nejrychlejší, jinak začne opevnění prolamovat. Hustý les, vodu, sráz
+ * a skálu mezi sebou a cílem obejde po trase mřížky (`detour`); když se `STALL_TICKS` taktů nepohne,
+ * hledá trasu znovu. Obránce průchody ani objížďky nehledá.
  */
 function approach(f: Fighter, goal: Pos, key: string, w: TickWorld, leash: Leash | null): void {
-  if (f.side === 'attack') {
-    if (f.routeFor === key && f.route.length > 0) {
-      if (dist2(f.pos, f.route[0]!) <= 1) f.route.shift();
-      // průchod se mezitím zavřel – cesta neplatí
-      if (f.route.length > 0 && firstWall(f.pos, f.route[0]!, w.walls)) f.route = [];
-      if (f.route.length > 0) {
-        stepToward(f, f.route[0]!, w.field, w.walls, leash);
-        return;
-      }
+  const stalled = (f.stall ?? 0) >= STALL_TICKS;
+  if (stalled) {
+    delete f.stall;
+    f.route = [];
+    f.routeFor = null;
+  }
+  if (f.routeFor === key && f.route.length > 0) {
+    if (dist2(f.pos, f.route[0]!) <= 1) f.route.shift();
+    // průchod se mezitím zavřel – cesta neplatí
+    if (f.route.length > 0 && firstWall(f.pos, f.route[0]!, w.walls)) f.route = [];
+    if (f.route.length > 0) {
+      walk(f, f.route[0]!, w, leash);
+      return;
     }
+  }
+  if (f.side === 'attack') {
     const wall = firstWall(f.pos, goal, w.walls);
     if (wall) {
       const route = openingRoute(f.pos, w.walls.openings[wall.fort] ?? []);
@@ -1411,7 +1476,8 @@ function approach(f: Fighter, goal: Pos, key: string, w: TickWorld, leash: Leash
   }
   f.route = [];
   f.routeFor = null;
-  stepToward(f, goal, w.field, w.walls, leash);
+  if (detour(f, goal, key, w, leash, stalled)) return;
+  walk(f, goal, w, leash);
 }
 
 /** Nejbližší průchod – nejdřív bod na mé straně, pak za ním; žádný null. */
