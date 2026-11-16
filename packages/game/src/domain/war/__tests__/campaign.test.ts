@@ -22,6 +22,7 @@ import type {
   CampaignStep,
   CampaignWorld,
 } from '../campaign-types';
+import { MarchGridMemo } from '../march-grid';
 import { JOURNEY } from '../rules-war';
 import { mergeKnowledge, type KnowledgeOut, type SeenCell } from '../seen';
 import { dayOfTick, msOfTick, TICK_MS, tickOfMs } from '../ticks';
@@ -292,6 +293,8 @@ describe('znalost rodu z tažení (plán 2026-11-13 – Úloha 11)', () => {
       clock: world,
       landscapeOf: (cell) => (cell.x === 1 && cell.y === 0 ? TARGET : OPEN),
       villageAt: (id) => (id === 'knezice' ? state : null),
+      // mřížky napříč voláními jako worker – kroky po kouscích by jemnou mřížku stavěly znovu
+      grids: new MarchGridMemo(),
     };
   }
   const TARGET_STATE = knezice();

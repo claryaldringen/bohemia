@@ -6,7 +6,7 @@ import type { MarchGrid } from './march-grid';
 // a neprůchozí – krok rovně stojí 1000, úhlopříčně 1414 tisícin buňky, tempo buňky (cesta, val,
 // les) platí jen pro chůzi (`pathAlong` v `march-smooth.ts`). Algoritmus je JPS bez řezání rohů:
 // na trasách přes mapu ≈ 3,4× rychlejší než A* se stejnou cenou (měření Úlohy 1). Souvislé oblasti
-// (`marchComponents`) řeknou dosažitelnost předem – nedosažitelný cíl by hledání vyčerpal celou
+// (`marchAreas`) řeknou dosažitelnost předem – nedosažitelný cíl by hledání vyčerpal celou
 // dosažitelnou plochu. Jen det-math a celá čísla – počítá server i prohlížeč.
 
 /** Cena kroku rovně v tisícinách buňky (Rozhodnutí 5). */
@@ -48,33 +48,6 @@ const NEIGHBOURS: readonly (readonly [number, number])[] = [
   [1, -1],
   [-1, -1],
 ];
-
-/**
- * Průchodnost mřížky s okrajem jedné neprůchodné buňky kolem (řádek má `stride` = width + 2
- * buněk) – hledání pak nekontroluje meze mapy. Jedna na mřížku: mřížka se po postavení nemění
- * (`marchGrid`, `MarchGridMemo`).
- */
-interface PaddedPass {
-  stride: number;
-  pass: Uint8Array;
-}
-
-const paddedCache = new WeakMap<MarchGrid, PaddedPass>();
-
-function paddedOf(grid: MarchGrid): PaddedPass {
-  const known = paddedCache.get(grid);
-  if (known) return known;
-  const w = grid.width;
-  const stride = w + 2;
-  const pass = new Uint8Array(stride * (grid.height + 2));
-  for (let j = 0; j < grid.height; j++) {
-    const row = (j + 1) * stride + 1;
-    for (let i = 0; i < w; i++) if (grid.pace[j * w + i]! > 0) pass[row + i] = 1;
-  }
-  const padded = { stride, pass };
-  paddedCache.set(grid, padded);
-  return padded;
-}
 
 // Pracovní pole hledání – jedna na proces, rostou s největší mřížkou. Razítko běhu (`seen`,
 // `closed`) místo nulování celé mřížky při každém hledání; cena `g` se pod razítkem vždy zapíše.
@@ -120,8 +93,8 @@ export function gridSearch(
   toward: (i: number, j: number) => number,
 ): number[] | null {
   const w = grid.width;
-  const { stride, pass } = paddedOf(grid);
-  const run = nextStamp(pass.length);
+  const { stride, labels } = marchAreas(grid);
+  const run = nextStamp(labels.length);
   const g = gBuf;
   const parent = parentBuf;
   const seen = seenBuf;
@@ -139,11 +112,11 @@ export function gridSearch(
   // nebo s nuceným sousedem (vedle je volno, za ním zeď), −1 = narazí na neprůchodnou.
   const straight = (p: number, o: number, d: number, od: number, e: number): number => {
     for (;;) {
-      if (pass[p] !== 1) return -1;
+      if (labels[p] === 0) return -1;
       if (goal(o)) return p;
       if (
-        (pass[p + e] === 1 && pass[p - d + e] !== 1) ||
-        (pass[p - e] === 1 && pass[p - d - e] !== 1)
+        (labels[p + e] !== 0 && labels[p - d + e] === 0) ||
+        (labels[p - e] !== 0 && labels[p - d - e] === 0)
       ) {
         return p;
       }
@@ -156,7 +129,7 @@ export function gridSearch(
     const dyP = dy * stride;
     const dyO = dy * w;
     for (;;) {
-      if (pass[p] !== 1) return -1;
+      if (labels[p] === 0) return -1;
       if (goal(o)) return p;
       if (
         straight(p + dx, o + dx, dx, dx, stride) >= 0 ||
@@ -164,7 +137,7 @@ export function gridSearch(
       ) {
         return p;
       }
-      if (pass[p + dx] !== 1 || pass[p + dyP] !== 1) return -1;
+      if (labels[p + dx] === 0 || labels[p + dyP] === 0) return -1;
       p += dx + dyP;
       o += dx + dyO;
     }
@@ -192,8 +165,9 @@ export function gridSearch(
   };
   const si = start % w;
   const sp = ((start - si) / w + 1) * stride + si + 1;
-  const saved = pass[sp]!;
-  pass[sp] = 1;
+  // start je průchodný vždy – neprůchodnému se na dobu hledání dá nenulový štítek
+  const saved = labels[sp]!;
+  if (saved === 0) labels[sp] = 1;
   try {
     heap.clear();
     g[sp] = 0;
@@ -212,8 +186,8 @@ export function gridSearch(
       const par = parent[p]!;
       if (par < 0) {
         for (const [dx, dy] of NEIGHBOURS) {
-          if (pass[p + dx + dy * stride] !== 1) continue;
-          if (dx !== 0 && dy !== 0 && (pass[p + dx] !== 1 || pass[p + dy * stride] !== 1)) {
+          if (labels[p + dx + dy * stride] === 0) continue;
+          if (dx !== 0 && dy !== 0 && (labels[p + dx] === 0 || labels[p + dy * stride] === 0)) {
             continue;
           }
           dirs.push(dx, dy);
@@ -224,15 +198,15 @@ export function gridSearch(
         const dx = Math.sign(pi - qi);
         const dy = Math.sign((p - pi) / stride - (par - qi) / stride);
         if (dx !== 0 && dy !== 0) {
-          const vertical = pass[p + dy * stride] === 1;
-          const horizontal = pass[p + dx] === 1;
+          const vertical = labels[p + dy * stride] !== 0;
+          const horizontal = labels[p + dx] !== 0;
           if (vertical) dirs.push(0, dy);
           if (horizontal) dirs.push(dx, 0);
           if (vertical && horizontal) dirs.push(dx, dy);
         } else if (dx !== 0) {
-          const ahead = pass[p + dx] === 1;
-          const up = pass[p + stride] === 1;
-          const down = pass[p - stride] === 1;
+          const ahead = labels[p + dx] !== 0;
+          const up = labels[p + stride] !== 0;
+          const down = labels[p - stride] !== 0;
           if (ahead) {
             dirs.push(dx, 0);
             if (up) dirs.push(dx, 1);
@@ -241,9 +215,9 @@ export function gridSearch(
           if (up) dirs.push(0, 1);
           if (down) dirs.push(0, -1);
         } else {
-          const ahead = pass[p + dy * stride] === 1;
-          const right = pass[p + 1] === 1;
-          const left = pass[p - 1] === 1;
+          const ahead = labels[p + dy * stride] !== 0;
+          const right = labels[p + 1] !== 0;
+          const left = labels[p - 1] !== 0;
           if (ahead) {
             dirs.push(0, dy);
             if (right) dirs.push(1, dy);
@@ -281,7 +255,7 @@ export function gridSearch(
     }
     return null;
   } finally {
-    pass[sp] = saved;
+    labels[sp] = saved;
   }
 }
 
@@ -317,56 +291,123 @@ export function reachableCells(grid: MarchGrid, start: number): Uint8Array {
   return seen;
 }
 
-const componentCache = new WeakMap<MarchGrid, Int32Array>();
+/**
+ * Souvislé oblasti mřížky s okrajem jedné neprůchodné buňky kolem (řádek má `stride` = width + 2
+ * buněk, buňka (i, j) je na indexu (j + 1) × stride + i + 1). Štítek > 0 = průchodná buňka a číslo
+ * její oblasti, 0 = neprůchodná buňka nebo okraj. Jedno pole na mřížku slouží hledání jako
+ * průchodnost (bez kontroly mezí mapy) i dosažitelnosti jako oblasti: `Uint16Array`, nad 65 535
+ * oblastí `Int32Array` (paměť – mřížka 2,5 m má 590 tisíc buněk).
+ */
+export interface MarchAreas {
+  readonly stride: number;
+  readonly labels: Uint16Array | Int32Array;
+}
+
+const areaCache = new WeakMap<MarchGrid, MarchAreas>();
 
 /**
  * Souvislé oblasti mřížky (brána po Úloze 1): průchodná buňka nese číslo oblasti od 1 – oblasti
  * číslované v pořadí své první buňky podle indexu –, neprůchodná 0. Sousedé jako při hledání:
- * 8 směrů, úhlopříčně jen kolem průchodných rohů. Dvě průchodné buňky se stejným číslem jsou
+ * 8 směrů, úhlopříčně jen kolem průchodných rohů – úhlopříčný krok tak spojí jen buňky spojené
+ * i přes roh, oblasti jsou tytéž jako po 4 sousedech. Dvě průchodné buňky se stejným číslem jsou
  * navzájem dosažitelné – „dojde tam?“ se pozná bez hledání (nedosažitelný cíl by hledání vyčerpal
- * celou dosažitelnou plochu). Počítá se jednou na mřížku (WeakMap); stejně v prohlížeči (kurzor
- * nad místem, kam skupina nedojde) i na serveru.
+ * celou dosažitelnou plochu). Počítá se jednou na mřížku (WeakMap – mřížka se po postavení
+ * nemění); stejně v prohlížeči (kurzor nad místem, kam skupina nedojde) i na serveru.
  */
-export function marchComponents(grid: MarchGrid): Int32Array {
-  const known = componentCache.get(grid);
+export function marchAreas(grid: MarchGrid): MarchAreas {
+  const known = areaCache.get(grid);
   if (known) return known;
+  const stride = grid.width + 2;
+  const areas = { stride, labels: labelAreas(grid, stride) };
+  areaCache.set(grid, areas);
+  return areas;
+}
+
+/**
+ * Číslo souvislé oblasti buňky `c` mřížky šířky `width` z jejích oblastí `areas` (`marchAreas`):
+ * od 1, neprůchodná 0. Dvě buňky se stejným nenulovým číslem jsou navzájem dosažitelné.
+ */
+export function marchAreaOf(areas: MarchAreas, width: number, c: number): number {
+  const i = c % width;
+  return areas.labels[((c - i) / width + 1) * areas.stride + i + 1]!;
+}
+
+/** Číslo souvislé oblasti buňky `c` mřížky (`marchAreas`, `marchAreaOf`). */
+export function marchArea(grid: MarchGrid, c: number): number {
+  return marchAreaOf(marchAreas(grid), grid.width, c);
+}
+
+/**
+ * Očísluje oblasti po úsecích řádků: průchodné úseky řádku, spojení úseků sousedních řádků, které
+ * se překrývají ve sloupcích (sjednocení – find s půlením cesty), a čísla kořenů v pořadí prvních
+ * úseků podle indexu. Výsledek do pole s okrajem; přes 65 535 oblastí `Int32Array`.
+ */
+function labelAreas(grid: MarchGrid, stride: number): Uint16Array | Int32Array {
   const w = grid.width;
   const h = grid.height;
-  const all = w * h;
   const pace = grid.pace;
-  const labels = new Int32Array(all);
-  const queue = new Int32Array(all);
-  let label = 0;
-  let tail = 0;
-  const visit = (n: number): void => {
-    if (labels[n] !== 0) return;
-    labels[n] = label;
-    queue[tail++] = n;
+  // úseky: řádek, začátek a konec (bez něj); v řádku nejvýš ⌈w ÷ 2⌉
+  const cap = h * ((w + 1) >> 1);
+  const runStart = new Int32Array(cap);
+  const runEnd = new Int32Array(cap);
+  const rowFirst = new Int32Array(h + 1);
+  const parent = new Int32Array(cap);
+  let runs = 0;
+  const find = (r: number): number => {
+    while (parent[r] !== r) {
+      parent[r] = parent[parent[r]!]!;
+      r = parent[r]!;
+    }
+    return r;
   };
-  for (let first = 0; first < all; first++) {
-    if (labels[first] !== 0 || !(pace[first]! > 0)) continue;
-    label++;
-    tail = 0;
-    let head = 0;
-    visit(first);
-    while (head < tail) {
-      const c = queue[head++]!;
-      const i = c % w;
-      const j = (c - i) / w;
-      const east = i + 1 < w && pace[c + 1]! > 0;
-      const west = i > 0 && pace[c - 1]! > 0;
-      const north = j + 1 < h && pace[c + w]! > 0;
-      const south = j > 0 && pace[c - w]! > 0;
-      if (east) visit(c + 1);
-      if (west) visit(c - 1);
-      if (north) visit(c + w);
-      if (south) visit(c - w);
-      if (east && north && pace[c + w + 1]! > 0) visit(c + w + 1);
-      if (west && north && pace[c + w - 1]! > 0) visit(c + w - 1);
-      if (east && south && pace[c - w + 1]! > 0) visit(c - w + 1);
-      if (west && south && pace[c - w - 1]! > 0) visit(c - w - 1);
+  for (let j = 0; j < h; j++) {
+    rowFirst[j] = runs;
+    const row = j * w;
+    let i = 0;
+    while (i < w) {
+      if (!(pace[row + i]! > 0)) {
+        i++;
+        continue;
+      }
+      const start = i;
+      while (i < w && pace[row + i]! > 0) i++;
+      runStart[runs] = start;
+      runEnd[runs] = i;
+      parent[runs] = runs;
+      runs++;
+    }
+    // spojení s úseky předchozího řádku, které se překrývají ve sloupcích
+    if (j > 0) {
+      let a = rowFirst[j - 1]!;
+      const aEnd = rowFirst[j]!;
+      for (let b = aEnd; b < runs; b++) {
+        while (a < aEnd && runEnd[a]! <= runStart[b]!) a++;
+        for (let k = a; k < aEnd && runStart[k]! < runEnd[b]!; k++) {
+          const ra = find(k);
+          const rb = find(b);
+          // menší kořen zůstane – kořen je pak první úsek oblasti
+          if (ra < rb) parent[rb] = ra;
+          else if (rb < ra) parent[ra] = rb;
+        }
+      }
     }
   }
-  componentCache.set(grid, labels);
+  rowFirst[h] = runs;
+  // čísla oblastí v pořadí prvních úseků (úseky jdou po indexech buněk)
+  const number = new Int32Array(runs);
+  let count = 0;
+  for (let r = 0; r < runs; r++) {
+    const root = find(r);
+    if (root === r) number[r] = ++count;
+    else number[r] = number[root]!;
+  }
+  const labels: Uint16Array | Int32Array =
+    count > 0xffff ? new Int32Array(stride * (h + 2)) : new Uint16Array(stride * (h + 2));
+  for (let j = 0; j < h; j++) {
+    const row = (j + 1) * stride + 1;
+    for (let r = rowFirst[j]!; r < rowFirst[j + 1]!; r++) {
+      labels.fill(number[r]!, row + runStart[r]!, row + runEnd[r]!);
+    }
+  }
   return labels;
 }

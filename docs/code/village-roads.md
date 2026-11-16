@@ -476,7 +476,11 @@ ground)`; půda `walkGroundOf(landscape)` je pevné okno kolem místa vsi, pole 
   nedovolí (`ROAD_SACRED`, `TRAIL_SACRED`). Starší vsi `withRoadSwaths` (bez klád, příznak
   `swathChecked`). `trailTerrain` je v `paths/terrain.ts`. Scéna: `SceneRoad.swath` →
   `swath-bands.ts` (plocha korun `setCleared(…, swaths)`, zarůstání `wildPlants`), dev ukázka
-  Stezka lesem (`dev-forest-trail.ts`). Vozová cesta průsek nedostane.
+  Stezka lesem (`dev-forest-trail.ts`). Vozová cesta průsek nedostane. **Průsek je i průchodem
+  vojska hustým lesem** (plán 2026-11-16-dense-forest – Rozhodnutí 2): mřížka pochodu dá pásu
+  `ROAD_SWATH.halfM` kolem osy každé pevné cesty vsi a stezky krajiny (`landscapeTrailLines`
+  v `trade/premium-route.ts` – i na mapě bez vsi) `MARCH_ROAD` × 1,5, hustým lesem průchodně;
+  vodu, sráz a skálu ruší jen buňky osy (code/war.md – Pohyb vojska – Mřížka).
 
 - **Cesta přes pole** ([roads.md](../design/roads.md) – Cesta přes pole; Martin 19. 10. 2026:
   „Ano má. … pokud oráč narazí na cestu, tak spřežení otočí. Nebude pak moci vzniknout takový

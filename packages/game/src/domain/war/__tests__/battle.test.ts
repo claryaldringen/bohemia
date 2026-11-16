@@ -4,8 +4,9 @@ import type { Dwelling } from '../../village/types';
 import { hitDamage, type BattleState } from '../battle';
 import { stepCampaign } from '../campaign';
 import type { CampaignMap, CampaignState, CampaignWorld, GroupAssault } from '../campaign-types';
+import { MarchGridMemo } from '../march-grid';
 import { WAR } from '../rules-war';
-import { campaign, flat, MEADOW, member, SUMMER, world } from './campaign-fixtures';
+import { campaign, flat, MEADOW, member, stepInChunks, SUMMER, world } from './campaign-fixtures';
 import {
   attacker,
   battle,
@@ -277,6 +278,8 @@ describe('boj v tažení (war.md – Pro implementaci – determinismus)', () =>
     clock: world,
     landscapeOf: (c) => (c.x === TARGET.x && c.y === TARGET.y ? targetMap : MEADOW),
     villageAt: (id) => (id === 'knezice' ? knezice : null),
+    // mřížky napříč voláními jako worker – kroky po kouscích by jemnou mřížku stavěly znovu
+    grids: new MarchGridMemo(),
   };
 
   /** Tažení stojí u cíle a začíná nájezd. */
@@ -308,12 +311,7 @@ describe('boj v tažení (war.md – Pro implementaci – determinismus)', () =>
     expect(whole.battle?.ticks).toBeGreaterThan(0);
     expect(whole.battle!.fighters.some((x) => x.health < 100)).toBe(true);
     for (const chunk of [1, 7, 40]) {
-      let s = start;
-      while (s.tick < end) {
-        const next = stepCampaign(s, Math.min(end, s.tick + chunk), [], battleWorld);
-        expect(next.waiting).toBeNull();
-        s = JSON.parse(JSON.stringify(next.state)) as CampaignState;
-      }
+      const { state: s } = stepInChunks(start, end, { chunk, world: battleWorld });
       expect(s).toEqual(whole);
     }
   });

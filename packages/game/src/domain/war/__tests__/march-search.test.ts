@@ -4,7 +4,8 @@ import { PathHeap } from '../../village/paths/network-search';
 import type { MarchGrid } from '../march-grid';
 import {
   gridSearch,
-  marchComponents,
+  marchArea,
+  marchAreas,
   octileCost,
   reachableCells,
   STEP_DIAGONAL,
@@ -197,8 +198,9 @@ describe('souvislé oblasti mřížky (brána po Úloze 1)', () => {
     for (let k = 0; k < 20; k++) {
       const g = openGrid(40, 30, 10);
       for (let c = 0; c < g.pace.length; c++) if (random.next() < 0.35) g.pace[c] = 0;
-      const labels = marchComponents(g);
-      expect(marchComponents(g)).toBe(labels);
+      const areas = marchAreas(g);
+      expect(marchAreas(g)).toBe(areas);
+      const labels = Array.from({ length: g.pace.length }, (_, c) => marchArea(g, c));
       let max = 0;
       for (let c = 0; c < labels.length; c++) {
         if (g.pace[c]! <= 0) expect(labels[c]).toBe(0);
@@ -220,7 +222,43 @@ describe('souvislé oblasti mřížky (brána po Úloze 1)', () => {
     const g = openGrid(2, 2, 10);
     g.pace[at(g, 1, 0)] = 0;
     g.pace[at(g, 0, 1)] = 0;
-    const labels = marchComponents(g);
-    expect([...labels]).toEqual([1, 0, 0, 2]);
+    expect([0, 1, 2, 3].map((c) => marchArea(g, c))).toEqual([1, 0, 0, 2]);
+  });
+
+  it('jedno pole s okrajem na mřížku: Uint16, nad 65 535 oblastí Int32 (paměť)', () => {
+    const g = openGrid(40, 30, 10);
+    const { stride, labels } = marchAreas(g);
+    expect(stride).toBe(42);
+    expect(labels).toBeInstanceOf(Uint16Array);
+    expect(labels).toHaveLength(42 * 32);
+    // šachovnice 600 × 600 – každá průchodná buňka je oblast sama (úhlopříčně přes zavřené rohy
+    // ne): 180 000 oblastí se do Uint16 nevejde
+    const board = openGrid(600, 600, 2.5);
+    for (let c = 0; c < board.pace.length; c++) {
+      const i = c % 600;
+      if ((i + (c - i) / 600) % 2 === 1) board.pace[c] = 0;
+    }
+    const big = marchAreas(board);
+    expect(big.labels).toBeInstanceOf(Int32Array);
+    expect(marchArea(board, 0)).toBe(1);
+    expect(marchArea(board, 2)).toBe(2);
+    expect(marchArea(board, 600 * 600 - 1)).toBe(180_000);
+    // hledání nad Int32 průchodností: sousední buňky šachovnice spolu nesouvisí
+    expect(
+      gridSearch(
+        board,
+        0,
+        (c) => c === 601,
+        (i, j) => octileCost(i - 1, j - 1),
+      ),
+    ).toBeNull();
+    expect(
+      gridSearch(
+        board,
+        0,
+        (c) => c === 0,
+        () => 0,
+      ),
+    ).toEqual([0]);
   });
 });

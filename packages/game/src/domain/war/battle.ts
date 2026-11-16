@@ -1037,8 +1037,8 @@ const PHASES = ['fill', 'fuel', 'burn', 'work'] as const;
 const forestNear = new WeakMap<MarchGrid, Map<string, number>>();
 
 /**
- * Kolik metrů nosí otepi (fortifications.md – Přechod hradby – Oheň): nejbližší buňka hustého lesa
- * nebo hromada klád vsi (`BattleField.fuel`); nic – nekonečno (oheň nejde).
+ * Kolik metrů nosí otepi (fortifications.md – Přechod hradby – Oheň): nejbližší místo u hustého lesa
+ * (`nearestForestOf`) nebo hromada klád vsi (`BattleField.fuel`); nic – nekonečno (oheň nejde).
  */
 function fuelDistanceM(field: BattleField, at: Pos): number {
   let cache = forestNear.get(field.grid);

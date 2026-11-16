@@ -306,7 +306,9 @@ describe('vzdání vojvody v tažení', () => {
     // padne, záleží na příchodu vojska (tvar trasy – plán 2026-11-16-dense-forest), pád vojvody se
     // proto nastaví v běžícím boji
     const dead = stepUntil(campaign({ ...BASE, liveCommand: false }), SET_OUT, w, fighting);
-    dead.battle!.fighters.find((f) => f.side === 'defend' && f.ref === 1)!.killed = true;
+    const lord = dead.battle!.fighters.find((f) => f.side === 'defend' && f.ref === 1)!;
+    lord.killed = true;
+    lord.health = 0;
     expect(killed(1)(dead)).toBe(true);
     const after = stepCampaign(dead, dead.tick + 1, [surrender(dead.tick + 1)], w);
     expect(after.state.battle?.lordYielded).toBeUndefined();

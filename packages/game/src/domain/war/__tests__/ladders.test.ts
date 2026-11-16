@@ -110,7 +110,7 @@ describe('žebřík přes neobsazenou hradbu (Přechod hradby)', () => {
     expect(fighter(wall.b, 'a:0').climb?.phase).toBe('make');
     const f = field([palisade(true)], forestSouth);
     const b = battle({
-      attackers: Array.from({ length: 4 }, (_, i) => attacker(i, { x: 0, z: -100 })),
+      attackers: Array.from({ length: 4 }, (_, i) => attacker(i, { x: 0, z: -60 })),
       defenders: [defender(1, { x: 0, z: 0 }, { atHouseOnly: true, strength: 0.1 })],
     });
     run(b, f, 400);
@@ -158,7 +158,7 @@ describe('postup zvolený hráčem (Martin 8. 11. 2026 – „ano“)', () => {
   it('skupina s rozkazem žebříky leze i u brány, kde je sekání rychlejší', () => {
     const f = field([palisade(true)], forestSouth);
     const b = battle({
-      attackers: Array.from({ length: 4 }, (_, i) => attacker(i, { x: 0, z: -100 })),
+      attackers: Array.from({ length: 4 }, (_, i) => attacker(i, { x: 0, z: -60 })),
       defenders: [defender(1, { x: 0, z: 0 }, { atHouseOnly: true, strength: 0.1 })],
     });
     b.groups[0]!.assault = 'ladder';

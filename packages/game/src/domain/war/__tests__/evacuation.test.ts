@@ -12,14 +12,13 @@ import type {
   CampaignMap,
   CampaignNotice,
   CampaignState,
-  CampaignStep,
   CampaignWorld,
 } from '../campaign-types';
 import { alarmTaken } from '../evacuation';
 import { MarchGridMemo } from '../march-grid';
 import { dayOfTick } from '../ticks';
 import { land, palisade } from './battle-fixtures';
-import { campaign, intent, member, MEADOW, SUMMER, world } from './campaign-fixtures';
+import { campaign, intent, MEADOW, member, stepInChunks, SUMMER, world } from './campaign-fixtures';
 
 // Evakuace v tažení (war.md – Varování, poslové a útěk do hradiště; plán 2026-11-09 – Úloha 8,
 // Otevřené 7, 8, Review Focus 2, 3). Ves A (políčko 1, 0) má dům u východního okraje mapy
@@ -371,16 +370,11 @@ describe('evakuace do hradiště (Úloha 8)', () => {
     expect(flightOf(whole.state).status).toBe('arrived');
     for (const chunk of [1, 7, 40, 400]) {
       const w = worldWith(sameA);
-      const events: NewVillageEvent[] = [];
-      const notices: CampaignStep['notices'] = [];
-      let s = start;
-      while (s.tick < end) {
-        const next = stepCampaign(s, Math.min(end, s.tick + chunk), intents, w);
-        expect(next.waiting).toBeNull();
-        events.push(...next.villageEvents);
-        notices.push(...next.notices);
-        s = JSON.parse(JSON.stringify(next.state)) as CampaignState;
-      }
+      const {
+        state: s,
+        villageEvents: events,
+        notices,
+      } = stepInChunks(start, end, { chunk, world: w, intents });
       expect(JSON.stringify(s)).toBe(JSON.stringify(whole.state));
       expect(events).toEqual(whole.villageEvents);
       expect(notices).toEqual(whole.notices);

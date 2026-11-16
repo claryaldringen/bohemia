@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { dwelling, kin, village } from '../../village/__tests__/kin-fixtures';
 import type { NewVillageEvent } from '../../village/core/inbox';
-import type { VillageState, Workshop } from '../../village/types';
+import type { Road, VillageState, Workshop } from '../../village/types';
 import { isWarned } from '../alarm';
 import type { AlarmVillage } from '../alarm-types';
 import { stepCampaign } from '../campaign';
@@ -10,7 +10,7 @@ import { marchGrid, MarchGridMemo } from '../march-grid';
 import { runTicks } from '../lookouts';
 import { dayOfTick } from '../ticks';
 import { land } from './battle-fixtures';
-import { campaign, MEADOW, SUMMER, world } from './campaign-fixtures';
+import { campaign, MEADOW, stepInChunks, SUMMER, world } from './campaign-fixtures';
 
 // Oči vsi a varování během do vsi (war.md – Varování, poslové a útěk do hradiště; plán 2026-11-09 –
 // Úloha 2, Review Focus 1, 3): vojsko na mapě Vlkova jde na východ k Kněžicím (políčko 2, 0);
@@ -20,6 +20,21 @@ const PASSED = { x: 1, y: 0 };
 const KILN = { x: -600, z: 0 };
 /** Pruh hustého lesa přes celou mapu kolem milíře (x −660 … −540 m). */
 const strip = (tx: number): boolean => tx >= 20 && tx <= 28;
+/**
+ * Průsek pruhem lesa v ose pochodu vojska (z = 80) – hustým lesem jinudy vojsko neprojde
+ * (forest.md – Hustý les); dohled na stezce v lese zůstává 50 m.
+ */
+const LANE: Road = {
+  id: 1,
+  points: [
+    { x: -700, z: 80 },
+    { x: -480, z: 80 },
+  ],
+  bornDay: 0,
+  grade: 'improved',
+  traffic: [],
+  spots: [],
+};
 
 /** Vlkov: jeden muž, dům ve středu mapy; volitelně uhlíř s milířem 600 m na západ. */
 function vlkov(kiln: boolean): VillageState {
@@ -43,7 +58,13 @@ function worldWith(
     obstacles: null,
     villageIds: ['vlkov'],
   };
-  const state = vlkov(opts.kiln ?? false);
+  const base = vlkov(opts.kiln ?? false);
+  const state: VillageState = opts.forest
+    ? {
+        ...base,
+        roads: { nextId: 2, roads: [LANE], trees: [], labor: { from: 0, days: 0, shares: [] } },
+      }
+    : base;
   return {
     clock: world,
     landscapeOf: (c) => (c.x === PASSED.x && c.y === PASSED.y ? map : MEADOW),
@@ -166,16 +187,14 @@ describe('varování vesničanem (sightAlarms)', () => {
     expect(whole.state.alarm?.villages).toHaveLength(1);
     for (const chunk of [1, 7, 40]) {
       const w = worldWith({ kiln: true });
-      const events: NewVillageEvent[] = [];
-      const notices: CampaignStep['notices'] = [];
-      let s = start;
-      while (s.tick < end) {
-        const next = stepCampaign(s, Math.min(end, s.tick + chunk), [], w);
-        expect(next.waiting).toBeNull();
-        events.push(...next.villageEvents);
-        notices.push(...next.notices);
-        s = JSON.parse(JSON.stringify(next.state)) as CampaignState;
-      }
+      const {
+        state: s,
+        villageEvents: events,
+        notices,
+      } = stepInChunks(start, end, {
+        chunk,
+        world: w,
+      });
       expect(JSON.stringify(s)).toBe(JSON.stringify(whole.state));
       expect(events).toEqual(whole.villageEvents);
       expect(notices).toEqual(whole.notices);
@@ -289,13 +308,7 @@ describe('varování vesničanem (sightAlarms)', () => {
       const whole = stepCampaign(start, end, [], lordWorld(false));
       expect(whole.state.alarm?.villages[0]?.by).toBe('lord');
       for (const chunk of [1, 7, 40]) {
-        const w = lordWorld(false);
-        let s = start;
-        while (s.tick < end) {
-          const next = stepCampaign(s, Math.min(end, s.tick + chunk), [], w);
-          expect(next.waiting).toBeNull();
-          s = JSON.parse(JSON.stringify(next.state)) as CampaignState;
-        }
+        const { state: s } = stepInChunks(start, end, { chunk, world: lordWorld(false) });
         expect(JSON.stringify(s)).toBe(JSON.stringify(whole.state));
       }
     });

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { GridCell } from '../../village/people/world-grid';
+import { WAR } from '../rules-war';
 import { edgeCrossing, worldRoute } from '../world-route';
 
 // Cesta mapu po mapě (war.md – Pohyb – mapu po mapě, Přechod okrajem).
@@ -56,29 +57,32 @@ describe('trasa po mřížce světa', () => {
 });
 
 describe('přechod okrajem na opačný okraj', () => {
+  /** Střed okrajové buňky mřížky pochodu: 960 − půl buňky. */
+  const E = 960 - WAR.march.cellM / 2;
+
   it('východ → západní okraj sousední mapy, druhá osa zůstane', () => {
-    expect(edgeCrossing({ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 955, z: 123 })).toEqual({
-      x: -955,
+    expect(edgeCrossing({ x: 0, y: 0 }, { x: 1, y: 0 }, { x: E, z: 123 })).toEqual({
+      x: -E,
       z: 123,
     });
-    expect(edgeCrossing({ x: 0, y: 0 }, { x: 0, y: 1 }, { x: -40, z: 955 })).toEqual({
+    expect(edgeCrossing({ x: 0, y: 0 }, { x: 0, y: 1 }, { x: -40, z: E })).toEqual({
       x: -40,
-      z: -955,
+      z: -E,
     });
-    expect(edgeCrossing({ x: 0, y: 0 }, { x: 0, y: -1 }, { x: 2000, z: -955 })).toEqual({
-      x: 955,
-      z: 955,
+    expect(edgeCrossing({ x: 0, y: 0 }, { x: 0, y: -1 }, { x: 2000, z: -E })).toEqual({
+      x: E,
+      z: E,
     });
   });
 
   it('úhlopříčně z rohu do protějšího rohu', () => {
-    expect(edgeCrossing({ x: 2, y: 2 }, { x: 3, y: 3 }, { x: 955, z: 955 })).toEqual({
-      x: -955,
-      z: -955,
+    expect(edgeCrossing({ x: 2, y: 2 }, { x: 3, y: 3 }, { x: E, z: E })).toEqual({
+      x: -E,
+      z: -E,
     });
-    expect(edgeCrossing({ x: 0, y: 0 }, { x: -1, y: 1 }, { x: -955, z: 955 })).toEqual({
-      x: 955,
-      z: -955,
+    expect(edgeCrossing({ x: 0, y: 0 }, { x: -1, y: 1 }, { x: -E, z: E })).toEqual({
+      x: E,
+      z: -E,
     });
   });
 

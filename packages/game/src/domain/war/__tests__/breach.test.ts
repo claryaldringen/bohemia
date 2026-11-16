@@ -59,7 +59,7 @@ function rampartPalisade(moat = false): Fortification {
 /** Útočníci z jihu (skupina 0) proti obránci doma uprostřed – hradba neobsazená. */
 function start(assault?: GroupAssault, men = 4): BattleState {
   const b = battle({
-    attackers: Array.from({ length: men }, (_, i) => attacker(i, { x: 0, z: -100 })),
+    attackers: Array.from({ length: men }, (_, i) => attacker(i, { x: 0, z: -60 })),
     defenders: [defender(1, { x: 0, z: 0 }, { atHouseOnly: true, strength: 0.1 })],
   });
   if (assault) b.groups[0]!.assault = assault;
@@ -155,7 +155,7 @@ describe('podkop (Přechod hradby – Podkop)', () => {
   it('roštová hradba se 4 muži za 5 dní; po pětině jsou kopáči pod zemí a nikdo je nezasáhne', () => {
     const f = fieldAt([fortOf('crib')]);
     const b = battle({
-      attackers: Array.from({ length: 4 }, (_, i) => attacker(i, { x: 0, z: -100 })),
+      attackers: Array.from({ length: 4 }, (_, i) => attacker(i, { x: 0, z: -60 })),
       defenders: [
         defender(1, { x: 0, z: 0 }, { atHouseOnly: true, strength: 0.1 }),
         // lučištník na stanovišti na koruně západní hradby – přijde k místu podkopu (Ú12)

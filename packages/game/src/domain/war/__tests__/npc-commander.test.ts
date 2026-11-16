@@ -4,6 +4,7 @@ import { kin, village } from '../../village/__tests__/kin-fixtures';
 import type { Dwelling, Person, VillageState } from '../../village/types';
 import { stepCampaign } from '../campaign';
 import type { CampaignMap, CampaignState, CampaignWorld } from '../campaign-types';
+import { MarchGridMemo } from '../march-grid';
 import { npcIntents } from '../npc-commander';
 import { land, palisade } from './battle-fixtures';
 import {
@@ -14,6 +15,7 @@ import {
   LIVE,
   member,
   SET_OUT,
+  stepInChunks,
   SUMMER,
   world,
   worldOf,
@@ -42,6 +44,8 @@ function worldWith(id: string, map: CampaignMap, state: VillageState): CampaignW
     clock: world,
     landscapeOf: (cell) => (cell.x === 1 && cell.y === 0 ? map : MEADOW),
     villageAt: (v) => (v === id ? state : null),
+    // mřížky napříč voláními jako worker – kroky po kouscích by jemnou mřížku stavěly znovu
+    grids: new MarchGridMemo(),
   };
 }
 
@@ -254,10 +258,13 @@ describe('NPC velitel – palisáda s ochozem (kryt pod palbou, bod zlomu jen v 
   // rozkaz „Probít se“ dává držitel napadené vsi (cizí hráč tažení – `orderBreakout`); jiné cizí
   // záměry ani `breakout` od vůdce tažení tažení nepřijme
   it('záměr „Probít se“ od obránce provede takt, od vůdce tažení ne', () => {
-    let s = start;
-    while (!s.battle?.fighters.some((f) => f.side === 'defend' && f.post)) {
-      s = stepCampaign(s, s.tick + 200, SET_OUT, fortWorld).state;
-    }
+    const { state: s } = stepInChunks(start, start.tick + 50_000, {
+      chunk: 200,
+      world: fortWorld,
+      intents: SET_OUT,
+      until: (x) => x.battle?.fighters.some((f) => f.side === 'defend' && f.post) === true,
+      json: false,
+    });
     expect(s.battle?.breakouts).toBeUndefined();
     const order = (by: string): CampaignState =>
       stepCampaign(

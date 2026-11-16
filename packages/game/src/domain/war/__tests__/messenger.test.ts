@@ -22,7 +22,7 @@ import { alarmTaken, withoutTaken } from '../messenger';
 import { guardPrisonerKey } from '../raid-apply';
 import { dayOfTick } from '../ticks';
 import { land, palisade } from './battle-fixtures';
-import { campaign, intent, MEADOW, SUMMER, world } from './campaign-fixtures';
+import { campaign, intent, MEADOW, stepInChunks, SUMMER, world } from './campaign-fixtures';
 
 // Posel z vsi do hradiště (war.md – Varování, poslové a útěk do hradiště; plán 2026-11-09 –
 // Úloha 5, Otevřené 4, Review Focus 2, 3, 4; Martin 9. 11. 2026: „Posel jde pěšky“, „Kdo je
@@ -264,17 +264,11 @@ describe('posel do hradiště (Úloha 5)', () => {
     const whole = stepCampaign(start, end, intents, worldWith());
     expect(whole.state.alarm!.messengers[0]!.status).toBe('arrived');
     for (const chunk of [1, 7, 40]) {
-      const w = worldWith();
-      const events: NewVillageEvent[] = [];
-      const notices: CampaignStep['notices'] = [];
-      let s = start;
-      while (s.tick < end) {
-        const next = stepCampaign(s, Math.min(end, s.tick + chunk), intents, w);
-        expect(next.waiting).toBeNull();
-        events.push(...next.villageEvents);
-        notices.push(...next.notices);
-        s = JSON.parse(JSON.stringify(next.state)) as CampaignState;
-      }
+      const {
+        state: s,
+        villageEvents: events,
+        notices,
+      } = stepInChunks(start, end, { chunk, world: worldWith(), intents });
       expect(JSON.stringify(s)).toBe(JSON.stringify(whole.state));
       expect(events).toEqual(whole.villageEvents);
       expect(notices).toEqual(whole.notices);
@@ -672,15 +666,10 @@ describe('hradiště varuje doménu (Úloha 6, Otevřené 5)', () => {
     const whole = stepCampaign(start, end, [], domainWorld());
     expect(domainOut(whole)).toHaveLength(4);
     for (const chunk of [1, 7, 40]) {
-      const w = domainWorld();
-      const events: NewVillageEvent[] = [];
-      let s = start;
-      while (s.tick < end) {
-        const next = stepCampaign(s, Math.min(end, s.tick + chunk), [], w);
-        expect(next.waiting).toBeNull();
-        events.push(...next.villageEvents);
-        s = JSON.parse(JSON.stringify(next.state)) as CampaignState;
-      }
+      const { state: s, villageEvents: events } = stepInChunks(start, end, {
+        chunk,
+        world: domainWorld(),
+      });
       expect(JSON.stringify(s)).toBe(JSON.stringify(whole.state));
       expect(events).toEqual(whole.villageEvents);
     }

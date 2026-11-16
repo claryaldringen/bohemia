@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { StreamPoint } from '../../domain/landscape';
 import type { CampaignMap, CampaignState, SeenCell, SeenData, SeenPart } from '../../domain/war';
-import { tickOfMs } from '../../domain/war';
+import { marchGrid, tickOfMs } from '../../domain/war';
 import type { Dwelling } from '../../domain/village/types';
 import { attacker, battle, defender, land } from '../../domain/war/__tests__/battle-fixtures';
 import { campaign, member, world } from '../../domain/war/__tests__/campaign-fixtures';
@@ -516,6 +516,24 @@ describe('commandCampaign', () => {
         queued: true,
       });
       expect(campaigns.intents).toHaveLength(1);
+    });
+
+    it('mapa bez průchodné buňky (celá hustý les) – „Tam vojsko nedojde.“ (unreachable)', async () => {
+      // jediný případ, kdy skupina nedojde nikam: ani únik z neprůchodné buňky (Rozhodnutí 7)
+      // nemá kam vést (war.md – Pohyb – Cíl v neprůchodné buňce)
+      const sealed: CampaignMap = { landscape: land(() => true), obstacles: null, villageIds: [] };
+      expect(marchGrid(sealed.landscape, null, null).pace.every((p) => p === 0)).toBe(true);
+      const { deps, campaigns, nowMs } = await setup(marching({ x: 0, z: 0 }), sealed);
+      const input = { playerId: 'p1', campaignId: 'c1', nowMs };
+      const place = lead({
+        kind: 'place',
+        place: { cell: { x: 0, y: 0 }, pos: { x: 100, z: 50 } },
+      });
+      expect(await commandCampaignResult(deps, { ...input, command: place })).toEqual({
+        queued: false,
+        reason: 'unreachable',
+      });
+      expect(campaigns.intents).toHaveLength(0);
     });
   });
 

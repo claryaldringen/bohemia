@@ -1,4 +1,4 @@
-import { buildForestField, type Landscape } from '../landscape';
+import { buildForestField, SURFACE_CODES, type Landscape } from '../landscape';
 import type { ClearedForest } from '../village/core/cleared-forest';
 import { pointInPolygon } from '../village/placement/polygon';
 import type { MarchGeometry } from './march-grid';
@@ -33,6 +33,9 @@ export function forestInterior(l: Landscape, geo: MarchGeometry): Uint8Array {
 }
 
 function computeInterior(l: Landscape, geo: MarchGeometry): Uint8Array {
+  // krajina bez lesního políčka les nemá (maska 0, šum ji nad hranici 0,5 nezvedne) – pole lesa
+  // se nestaví
+  if (!l.surface.includes(SURFACE_CODES.forest)) return new Uint8Array(geo.width * geo.height);
   const limit = WAR.march.denseForestM;
   const field = buildForestField(l, { remember: false });
   const n = field.resolution;

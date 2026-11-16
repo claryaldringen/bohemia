@@ -87,8 +87,12 @@ const villageD = village([kin({ id: 1, age: 40, sex: 'female' }, SUMMER)], [dwel
   lastDay: SUMMER - 1,
 });
 
+/** Krajiny sdílené všemi světy testů – pole lesa a terén nové krajiny se staví desítky ms. */
+const BARE = land();
+const GROVE = land(grove);
+
 const mapOf = (villageIds: string[], forest?: typeof grove): CampaignMap => ({
-  landscape: land(forest),
+  landscape: forest === grove ? GROVE : forest ? land(forest) : BARE,
   obstacles: null,
   villageIds,
 });

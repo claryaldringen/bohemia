@@ -1,15 +1,18 @@
 import { dayIndexOf, OFFICIAL_WORLD, realTimeOf } from '../../calendar';
 import { SURFACE_CODES, type Landscape } from '../../landscape';
+import type { NewVillageEvent } from '../../village/core/inbox';
 import type { GridCell } from '../../village/people/world-grid';
-import { newCampaign, type NewCampaign } from '../campaign';
+import { newCampaign, stepCampaign, type NewCampaign } from '../campaign';
 import type {
   CampaignIntent,
   CampaignMap,
   CampaignMember,
+  CampaignNotice,
   CampaignState,
   CampaignWorld,
   IntentBody,
 } from '../campaign-types';
+import { MarchGridMemo } from '../march-grid';
 
 // Společné přípravky testů tažení: rovné mapy, tři muži ve dvou skupinách, cíl na sousední mapě.
 
@@ -43,7 +46,53 @@ export function worldOf(known: (c: GridCell) => boolean = () => true): CampaignW
     clock: world,
     landscapeOf: (cell) => (known(cell) ? MEADOW : null),
     villageAt: () => null,
+    // mřížky napříč voláními jako worker – kroky po kouscích by jemnou mřížku stavěly znovu
+    grids: new MarchGridMemo(),
   };
+}
+
+/** Výsledek kroků po kouscích – stav na konci a události a upozornění všech kousků. */
+export interface ChunkedRun {
+  state: CampaignState;
+  villageEvents: NewVillageEvent[];
+  notices: CampaignNotice[];
+}
+
+/**
+ * Krokuje tažení po `chunk` taktech do taktu `end` (`json` – přes JSON mezi kousky jako bod uložený
+ * v DB, výchozí ano); s `until` jen dokud podmínka nenastane. Pojistka proti visícím testům
+ * (jeden běh visel 7 h): skončené tažení `stepCampaign` neposouvá, smyčka `while (s.tick < end)`
+ * by se pak točila navždy – krok bez posunu, krok čekající na data a `until`, které do `end`
+ * nenastane, proto hodí chybu.
+ */
+export function stepInChunks(
+  start: CampaignState,
+  end: number,
+  o: {
+    chunk: number;
+    world: CampaignWorld;
+    intents?: readonly CampaignIntent[];
+    until?: (s: CampaignState) => boolean;
+    json?: boolean;
+  },
+): ChunkedRun {
+  const run: ChunkedRun = { state: start, villageEvents: [], notices: [] };
+  while (o.until ? !o.until(run.state) : run.state.tick < end) {
+    const from = run.state.tick;
+    if (from >= end) throw new Error(`podmínka nenastala do taktu ${end}`);
+    const next = stepCampaign(run.state, Math.min(end, from + o.chunk), o.intents ?? [], o.world);
+    if (next.waiting !== null) throw new Error(`krok v taktu ${from} čeká na data`);
+    if (next.state.tick <= from) {
+      throw new Error(
+        `tažení skončilo v taktu ${from} (fáze ${next.state.phase}) před taktem ${end}`,
+      );
+    }
+    run.villageEvents.push(...next.villageEvents);
+    run.notices.push(...next.notices);
+    run.state =
+      o.json === false ? next.state : (JSON.parse(JSON.stringify(next.state)) as CampaignState);
+  }
+  return run;
 }
 
 export function member(personId: number, group: number, mounted: boolean): CampaignMember {

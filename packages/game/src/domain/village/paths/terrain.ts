@@ -98,6 +98,16 @@ const OBSTACLE_COST: Record<ObstacleKind, { radius: number; extra: number }> = {
   outcrop: { radius: OUTCROP_RADIUS_M, extra: Infinity },
 };
 
+/**
+ * Poloměr (m), do kterého překážka druhu `kind` velikosti `scale` pěšinu nepustí – balvan
+ * a skalní výchoz (`OBSTACLE_COST` s cenou Infinity); ostatní druhy null. Skály mřížky pochodu
+ * (plán 2026-11-16-dense-forest – Rozhodnutí 4).
+ */
+export function obstacleBlockRadiusM(kind: ObstacleKind, scale: number): number | null {
+  const { radius, extra } = OBSTACLE_COST[kind];
+  return extra === Infinity ? radius * scale : null;
+}
+
 /** Okno mřížky – rozsah bodů (včetně) v mřížce celé krajiny. */
 export interface PathWindow {
   i0: number;

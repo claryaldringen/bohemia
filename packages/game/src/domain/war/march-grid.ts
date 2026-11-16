@@ -1,20 +1,6 @@
-import {
-  BANK_REACH_M,
-  TREE_KINDS,
-  buildForestField,
-  heightAtWorld,
-  length2,
-  riversOf,
-  watersCenterline,
-  type Landscape,
-  type ObstacleLayer,
-} from '../landscape';
-import {
-  NO_OBSTACLE_CHANGES,
-  obstacleChangesAt,
-  obstacleStatus,
-  type ObstacleChanges,
-} from '../village/core/obstacles';
+import type { Landscape, ObstacleLayer } from '../landscape';
+import { villageClearings } from '../village/core/cleared-forest';
+import { NO_OBSTACLE_CHANGES, obstacleChangesAt, obstacleStatus } from '../village/core/obstacles';
 import {
   fortPincerArms,
   fortWalls,
@@ -43,20 +29,33 @@ import { villageBuildings } from '../village/paths/network-search';
 import { pathVillageOf } from '../village/paths/village';
 import { PEN_FENCE_INSET_M } from '../village/rules';
 import { FORTIFICATIONS } from '../village/rules/rules-fortifications';
-import { PATH_SLOPE_MAX } from '../village/paths/terrain';
+import { ROAD_SWATH } from '../village/rules/rules-roads';
 import type { VillageState } from '../village/types';
+import { forestInterior, withoutClearings } from './dense-forest';
+import {
+  BASE_AXIS,
+  BASE_FORD,
+  BASE_STEEP,
+  BASE_WATER,
+  marchRocks,
+  marchTerrain,
+  supercover,
+  swathCells,
+} from './march-terrain';
 import { WAR } from './rules-war';
 
-// Mřížka pochodu vojska (war.md – Pohyb – mapu po mapě; fortifications.md – Prolomení): buňky
-// 10 m přes celou mapu s násobkem tempa – louka 1, hustý les ¼, pevná cesta a zemská stezka vsi
-// × 1,5, val čtvrtinovým tempem, voda jen po brodech, sráz a hotové úseky plotu a palisády
-// neprůchodné kromě bran a mezer (`fortGaps`). Tažení počítá server i prohlížeč – jen det-math.
+// Mřížka pochodu vojska (war.md – Pohyb – mapu po mapě, Terén; fortifications.md – Prolomení; plán
+// 2026-11-16-dense-forest – Rozhodnutí 1–4): buňky `WAR.march.cellM` (2,5 m) přes celou mapu.
+// Hledání zná jen průchozí a neprůchozí (`pace` > 0) – neprůchozí je hustý les, voda mimo brody,
+// sráz, skály, stavby s odstupem a hotové úseky plotu a palisády kromě bran a mezer (`fortGaps`).
+// Tempo buňky platí jen pro chůzi: louka 1, průsek pevné cesty a zemské stezky × 1,5 (i hustým
+// lesem), val podle výšky. Tažení počítá server i prohlížeč – jen det-math.
 
-/** Buňka je hustý les (les krajiny se stromy kolem – `WAR.march.denseForestTrees`). */
+/** Buňka je hustý les (vnitřek lesa bez pasek vsi – forest.md – Hustý les); bez `MARCH_ROAD` neprůchodná. */
 export const MARCH_FOREST = 1;
 /** Buňka je brod – voda, kterou vojsko přejde. */
 export const MARCH_FORD = 2;
-/** Pod buňkou vede pevná cesta nebo zemská stezka vsi. */
+/** Buňka je průsek pevné cesty nebo stezky (× 1,5, průchodná i hustým lesem). */
 export const MARCH_ROAD = 4;
 /** Buňka je pás valu – přechod čtvrtinovým tempem. */
 export const MARCH_RAMPART = 8;
@@ -65,12 +64,14 @@ export const MARCH_GATE = 16;
 /** Buňka je hluboká voda (neprůchodná). */
 export const MARCH_WATER = 32;
 /** Buňka je sráz (neprůchodná). */
-const MARCH_STEEP = 64;
+export const MARCH_STEEP = 64;
 /** Buňka je stěna opevnění – plot, palisáda, val s nástavbou (neprůchodná). */
 export const MARCH_WALL = 128;
 
 /** Buňka je stavba vsi – obydlí s pozemkem, dvorec, dílna, milíř, humno, hotová ohrada (neprůchodná). */
 export const MARCH_BUILDING = 256;
+/** Buňka je skála – balvan nebo skalní výchoz vrstvy překážek (neprůchodná; Rozhodnutí 4). */
+export const MARCH_ROCK = 512;
 
 /** Mřížka pochodu jedné mapy: buňka (i, j) má index `j * width + i`. */
 export interface MarchGrid {
@@ -99,99 +100,6 @@ export interface Pos {
 export interface MarchGridOptions {
   day?: number;
   closedGates?: ReadonlySet<number>;
-}
-
-/** Terén mapy bez vsi – voda, brody, srázy a les krajiny; počítá se jednou na krajinu. */
-interface MarchTerrain {
-  width: number;
-  originX: number;
-  cellM: number;
-  /** BASE_* po buňkách. */
-  base: Uint8Array;
-}
-
-const BASE_WATER = 1;
-const BASE_FORD = 2;
-const BASE_STEEP = 4;
-const BASE_WOODLAND = 8;
-
-const terrainCache = new WeakMap<Landscape, MarchTerrain>();
-
-/**
- * Terén pochodu: buňka do půl úhlopříčky (≈ 7 m) od vody je voda – krok mezi sousedními středy
- * (i úhlopříčný) tak vodu nepřeskočí; brod je mělčina potoka nebo řeky (`StreamPoint.shallow`
- * nejbližšího místa osy – široký mělký úsek, u řeky 1–2 brody). Sráz jako u pěšin
- * (`PATH_SLOPE_MAX`), les z pole lesa.
- */
-function marchTerrain(l: Landscape): MarchTerrain {
-  const cached = terrainCache.get(l);
-  if (cached) return cached;
-  const cellM = WAR.march.cellM;
-  const extent = l.size * l.cellSizeM;
-  const width = Math.round(extent / cellM);
-  const originX = -extent / 2 + cellM / 2;
-  const base = new Uint8Array(width * width);
-  // potok a všechny řeky – řeky kostry i řeka prémie (`watersCenterline` – bez řeky přesně osa
-  // potoka); mapa bez potoka s řekou má vodu jen z řek
-  const stream = l.stream.length >= 2 || riversOf(l).length > 0 ? watersCenterline(l) : null;
-  const field = buildForestField(l, { remember: false });
-  const reach = (cellM * Math.SQRT2) / 2;
-  const d = cellM / 2;
-  for (let j = 0; j < width; j++) {
-    for (let i = 0; i < width; i++) {
-      const c = j * width + i;
-      const x = originX + i * cellM;
-      const z = originX + j * cellM;
-      if (stream) {
-        const sample = stream.nearest(x, z, BANK_REACH_M);
-        if (sample.bankDistance < reach) {
-          base[c] = sample.shallow >= WAR.march.fordShallow ? BASE_FORD : BASE_WATER;
-          continue;
-        }
-      }
-      const gx = (heightAtWorld(l, x + d, z) - heightAtWorld(l, x - d, z)) / cellM;
-      const gz = (heightAtWorld(l, x, z + d) - heightAtWorld(l, x, z - d)) / cellM;
-      if (length2(gx, gz) > PATH_SLOPE_MAX) {
-        base[c] = BASE_STEEP;
-        continue;
-      }
-      if (field.distanceAt(x, z) > 0) base[c] = BASE_WOODLAND;
-    }
-  }
-  const terrain = { width, originX, cellM, base };
-  terrainCache.set(l, terrain);
-  return terrain;
-}
-
-/** Stromy po buňkách (stojící podle změn vsi – vykácená paseka stromy nemá). */
-function treeCounts(t: MarchTerrain, layer: ObstacleLayer, changes: ObstacleChanges): Uint16Array {
-  const counts = new Uint16Array(t.width * t.width);
-  const status = obstacleStatus(changes);
-  const half = t.originX - t.cellM / 2;
-  for (let k = 0; k < layer.count; k++) {
-    const kind = status.kindOf(layer, k);
-    if (kind === null || !TREE_KINDS.includes(kind)) continue;
-    const i = Math.floor((layer.x[k]! - half) / t.cellM);
-    const j = Math.floor((layer.z[k]! - half) / t.cellM);
-    if (i < 0 || j < 0 || i >= t.width || j >= t.width) continue;
-    const c = j * t.width + i;
-    counts[c] = counts[c]! + 1;
-  }
-  return counts;
-}
-
-/** Stromů v okolí 3 × 3 buněk. */
-function treesAround(t: MarchTerrain, counts: Uint16Array, i: number, j: number): number {
-  let sum = 0;
-  for (let dj = -1; dj <= 1; dj++) {
-    for (let di = -1; di <= 1; di++) {
-      const ii = i + di;
-      const jj = j + dj;
-      if (ii < 0 || jj < 0 || ii >= t.width || jj >= t.width) continue;
-      sum += counts[jj * t.width + ii]!;
-    }
-  }
-  return sum;
 }
 
 /** Buňka mřížky, do které padne bod (mimo mapu nejbližší okrajová). */
@@ -243,25 +151,6 @@ export function marchCellCenter(grid: MarchGrid, c: number): Pos {
     x: grid.originX + i * grid.cellM,
     z: grid.originZ + ((c - i) / grid.width) * grid.cellM,
   };
-}
-
-/** Buňky pod osami pevných cest vsi (i úseky zemské stezky – jsou mezi pevnými cestami). */
-function roadCells(grid: MarchGrid, village: VillageState): Set<number> {
-  const cells = new Set<number>();
-  const step = grid.cellM / 4;
-  for (const road of village.roads?.roads ?? []) {
-    for (let k = 0; k + 1 < road.points.length; k++) {
-      const a = road.points[k]!;
-      const b = road.points[k + 1]!;
-      const n = Math.max(1, Math.ceil(length2(b.x - a.x, b.z - a.z) / step));
-      for (let s = 0; s <= n; s++) {
-        cells.add(
-          marchCellAt(grid, { x: a.x + ((b.x - a.x) * s) / n, z: a.z + ((b.z - a.z) * s) / n }),
-        );
-      }
-    }
-  }
-  return cells;
 }
 
 /**
@@ -382,9 +271,9 @@ function blockBuildings(
     grid.flags[c] = (grid.flags[c]! & ~MARCH_ROAD) | MARCH_BUILDING;
   };
   const pathVillage = pathVillageOf(village, day, landscape);
-  // blokuje se každá buňka, které se obdélník stavby dotkne (střed do půl buňky od obdélníku) –
-  // dům užší než buňka 10 m by jinak proklouzl mezi středy buněk
-  const reach = grid.cellM / 2;
+  // odstup stavby (Rozhodnutí 3): buňka se středem do `buildingClearanceM` od obdélníku stavby –
+  // mezera mezi domy širší než dvojí odstup a buňka zůstane průchozí (D55)
+  const reach = WAR.march.buildingClearanceM;
   for (const b of villageBuildings(pathVillage).all) {
     const [x0, z0, x1, z1] = buildingBounds(b, reach);
     cellsIn(grid, x0, z0, x1, z1, (c, x, z) => {
@@ -404,10 +293,35 @@ function blockBuildings(
   }
 }
 
+/** Neprůchozí příznaky, které ruší jen osa průseku (Rozhodnutí 2). */
+const AXIS_CLEARS = MARCH_WATER | MARCH_STEEP | MARCH_ROCK;
+
+/** Buňka osy průseku: průchodná × 1,5 i přes vodu (lávka, hať, brod), sráz a skálu. */
+function openAxis(grid: MarchGrid, c: number): void {
+  grid.pace[c] = WAR.pace.road;
+  grid.flags[c] = (grid.flags[c]! & ~AXIS_CLEARS) | MARCH_ROAD;
+}
+
+/** Buňka pásu průseku: hustým lesem průchodná × 1,5; voda, sráz a skála zůstanou. */
+function openSwath(grid: MarchGrid, c: number): void {
+  if ((grid.flags[c]! & AXIS_CLEARS) !== 0) return;
+  grid.pace[c] = WAR.pace.road;
+  grid.flags[c] = grid.flags[c]! | MARCH_ROAD;
+}
+
 /**
- * Mřížka pochodu mapy (war.md – Pohyb – Terén): krajina, její vrstva překážek (bez ní les jen
- * z pole lesa) a ves na mapě (null = prázdné políčko). Ves přidá pevné cesty a zemskou stezku
- * (× 1,5 – i lesem a přes brod či lávku, kudy vede), opevnění a paseky (pokácené stromy).
+ * Mřížka pochodu mapy (war.md – Pohyb – Terén; plán 2026-11-16-dense-forest – Rozhodnutí 1–4):
+ * krajina, její vrstva překážek a ves na mapě (null = prázdné políčko). Pořadí:
+ * 1. terén krajiny (`marchTerrain` – voda, brody, sráz);
+ * 2. hustý les (`MARCH_FOREST`, neprůchodný) – vnitřek lesa (`forestInterior`) bez pasek vsi
+ *    (`villageClearings` – jen s vrstvou překážek a vsí; bez vrstvy celý vnitřek krajiny); voda,
+ *    brod ani sráz hustým lesem nejsou;
+ * 3. skály vrstvy překážek (`MARCH_ROCK`) kromě těch, které ves odstranila;
+ * 4. průseky (`MARCH_ROAD`, × 1,5): stezka krajiny (`landscapeTrailLines` – i na mapě bez vsi)
+ *    a pevné cesty vsi (i úseky zemské stezky) – pás `ROAD_SWATH.halfM` kolem osy je průchodný
+ *    i hustým lesem, vodu, sráz a skálu ruší jen buňky osy (supercover); `MARCH_FOREST` zůstává;
+ * 5. stavby vsi s odstupem `buildingClearanceM` (`MARCH_BUILDING`);
+ * 6. opevnění (val, stěny, brány a mezery, vodní příkop).
  * Stejný vstup → stejná mřížka; terén krajiny se počítá jednou.
  */
 export function marchGrid(
@@ -417,49 +331,63 @@ export function marchGrid(
   options: MarchGridOptions = {},
 ): MarchGrid {
   const t = marchTerrain(landscape);
-  const all = t.width * t.width;
+  const all = t.width * t.height;
   const grid: MarchGrid = {
     width: t.width,
-    height: t.width,
+    height: t.height,
     originX: t.originX,
-    originZ: t.originX,
+    originZ: t.originZ,
     cellM: t.cellM,
     pace: new Float32Array(all),
     flags: new Uint16Array(all),
   };
+  const { pace, flags } = grid;
+  const base = t.base;
   const day = options.day ?? village?.lastDay ?? 0;
-  const counts = obstacles
-    ? treeCounts(t, obstacles, village ? obstacleChangesAt(village, day) : NO_OBSTACLE_CHANGES)
-    : null;
+  // 1. terén a 2. hustý les (jedním průchodem – voda, brod a sráz hustým lesem nejsou)
+  const interior = forestInterior(landscape, grid);
+  const dense =
+    obstacles && village
+      ? withoutClearings(interior, grid, villageClearings(landscape, obstacles, village, day))
+      : interior;
   for (let c = 0; c < all; c++) {
-    const base = t.base[c]!;
-    if (base === BASE_WATER) {
-      grid.flags[c] = MARCH_WATER;
-      continue;
-    }
-    if (base === BASE_STEEP) {
-      grid.flags[c] = MARCH_STEEP;
-      continue;
-    }
-    if (base === BASE_FORD) grid.flags[c] = MARCH_FORD;
-    let pace = 1;
-    if (base === BASE_WOODLAND) {
-      const i = c % t.width;
-      const dense =
-        counts === null ||
-        treesAround(t, counts, i, (c - i) / t.width) >= WAR.march.denseForestTrees;
-      if (dense) {
-        grid.flags[c] = MARCH_FOREST;
-        pace = WAR.pace.forest;
+    const b = base[c]!;
+    if ((b & BASE_WATER) !== 0) flags[c] = MARCH_WATER;
+    else if ((b & BASE_STEEP) !== 0) flags[c] = MARCH_STEEP;
+    else if ((b & BASE_FORD) !== 0) {
+      pace[c] = 1;
+      flags[c] = MARCH_FORD;
+    } else if (dense[c] === 1) flags[c] = MARCH_FOREST;
+    else pace[c] = 1;
+  }
+  // 3. skály
+  if (obstacles) {
+    const rocks = marchRocks(t, obstacles);
+    const status = obstacleStatus(village ? obstacleChangesAt(village, day) : NO_OBSTACLE_CHANGES);
+    for (let r = 0; r < rocks.index.length; r++) {
+      if (status.kindOf(obstacles, rocks.index[r]!) === null) continue;
+      for (let q = rocks.start[r]!; q < rocks.start[r + 1]!; q++) {
+        const c = rocks.cells[q]!;
+        pace[c] = 0;
+        flags[c] = flags[c]! | MARCH_ROCK;
       }
     }
-    grid.pace[c] = pace;
+  }
+  // 4. průseky – stezka krajiny z terénu, pak pevné cesty vsi (pořadí výsledek nemění)
+  for (const c of t.trail) {
+    if ((base[c]! & BASE_AXIS) !== 0) openAxis(grid, c);
+    else openSwath(grid, c);
   }
   if (!village) return grid;
-  for (const c of roadCells(grid, village)) {
-    grid.pace[c] = WAR.pace.road;
-    grid.flags[c] = (grid.flags[c]! & ~(MARCH_WATER | MARCH_STEEP)) | MARCH_ROAD;
+  for (const road of village.roads?.roads ?? []) {
+    for (let k = 0; k + 1 < road.points.length; k++) {
+      const a = road.points[k]!;
+      const b = road.points[k + 1]!;
+      swathCells(grid, a, b, ROAD_SWATH.halfM, (c) => openSwath(grid, c));
+      supercover(grid, a, b, (c) => openAxis(grid, c));
+    }
   }
+  // 5. stavby, 6. opevnění
   blockBuildings(grid, landscape, village, day);
   const closed = options.closedGates ?? new Set<number>();
   for (const fort of village.fortifications ?? []) {

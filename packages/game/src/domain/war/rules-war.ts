@@ -9,21 +9,23 @@ export const WAR = {
   /** war.md – Čísla: válka utichne po tolika letech bez střetu. */
   quietYears: 3,
   /**
-   * war.md – Čísla: tempo vojska (m/s skutečného času, Martin: 3–4), terén (hustý les, pevná cesta
-   * a zemská stezka) a skupina (jen jezdci, se stádem, s pěšími raněnými – Pohyb, Ztráty).
+   * war.md – Čísla (Terén a náklad): tempo vojska (m/s skutečného času, Martin: 3–4), pevná cesta
+   * a zemská stezka a skupina (jen jezdci, se stádem, s pěšími raněnými – Pohyb, Ztráty). Hustý
+   * les tempo nemá – je neprůchozí (Martin 16. 11. 2026).
    */
-  pace: { metersPerSecond: 3.5, forest: 1 / 4, road: 1.5, riders: 1.5, herd: 0.5, wounded: 0.75 },
+  pace: { metersPerSecond: 3.5, road: 1.5, riders: 1.5, herd: 0.5, wounded: 0.75 },
   /**
-   * war.md – Čísla: mřížka pochodu (strana buňky v m) a hustý les – les krajiny, kde v okolí
-   * 3 × 3 buněk stojí aspoň tolik stromů (návrh Clauda; vykácená paseka vsi lesem není); brod je
-   * mělčina potoka – místo osy aspoň z tolika mělké (`StreamPoint.shallow`, jako brod chodců).
+   * war.md – Čísla (Mřížka pochodu): strana buňky v m (brána měření plánu 2026-11-16-dense-forest –
+   * 2,5 m s JPS); brod je mělčina potoka – místo osy aspoň z tolika mělké (`StreamPoint.shallow`,
+   * jako brod chodců); stavba blokuje buňky se středem do `buildingClearanceM` od svého obdélníku
+   * (mezery mezi domy zůstanou průchozí – D55; návrh Clauda).
    */
   march: {
-    cellM: 10,
-    denseForestTrees: 3,
-    fordShallow: 0.55,
-    /** forest.md – Hustý les: les dál než tolik metrů od svého okraje je neprůchodný. */
+    cellM: 2.5,
+    /** forest.md – Hustý les: les dál než tolik metrů od svého okraje je neprůchozí. */
     denseForestM: 10,
+    fordShallow: 0.55,
+    buildingClearanceM: 1,
   },
   /** war.md – Zima (Martin 3. 11.; čísla návrh Clauda): sníh zpomalí pochod. */
   snowPace: 0.75,

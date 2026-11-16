@@ -8,6 +8,7 @@ import type { VillageState } from '../../village/types';
 import { freshWildlife, wildlifeOfEmptyMap } from '../../village/wildlife/wildlife';
 import { DAY, kin, trackedVillage, village } from '../../village/__tests__/kin-fixtures';
 import type { CampaignMap, CampaignWorld } from '../campaign-types';
+import { MarchGridMemo } from '../march-grid';
 import { newJourney, stepJourney } from '../journey';
 import { predatorDay, wildlifeOfMap } from '../journey-predators';
 import type { JourneyMember, JourneyState } from '../journey-types';
@@ -162,9 +163,17 @@ const HOME = { villageId: 'lhota', name: 'Lhota', cell: { x: 0, y: 0 }, pos: { x
 /** Deset dní v taktech. */
 const DAYS = Math.ceil((8 * 86.4) / 0.25);
 
+/**
+ * Mapa celá z lesa a mřížky pochodu sdílené všemi výjezdy testů (jako worker – jemná mřížka
+ * i pole lesa nové krajiny se staví desítky ms).
+ */
+const FOREST = forestMap();
+const GRIDS = new MarchGridMemo();
+
 function worldOf(map: CampaignMap, home: VillageState = homeVillage()): CampaignWorld {
   return {
     clock,
+    grids: GRIDS,
     landscapeOf: () => map,
     villageAt: (id) => (id === 'lhota' ? home : null),
     villageGone: (id) => id !== 'lhota',
@@ -202,7 +211,7 @@ describe('výjezd a šelmy', { timeout: 180_000 }, () => {
         journey(seed, [man(0, { fight: 0 }), man(1, { fight: 0 })]),
         LAUNCH + DAYS,
         [],
-        worldOf(forestMap()),
+        worldOf(FOREST),
       );
       const events = step.villageEvents.filter((e) => e.body.kind === 'journey-casualty');
       casualties += events.length;
@@ -215,7 +224,7 @@ describe('výjezd a šelmy', { timeout: 180_000 }, () => {
           journey(seed, [man(0, { fight: 0 }), man(1, { fight: 0 })]),
           tick,
           [],
-          worldOf(forestMap()),
+          worldOf(FOREST),
         ).state;
         const m = at.members.find((x) => x.ref.personId === body.personId);
         if (m === undefined) {
@@ -246,7 +255,7 @@ describe('výjezd a šelmy', { timeout: 180_000 }, () => {
         journey(seed, [man(0, { fight: 0 }), man(1), man(2)]),
         LAUNCH + DAYS,
         [],
-        worldOf(forestMap()),
+        worldOf(FOREST),
       );
       expect(step.villageEvents.some((e) => e.body.kind === 'journey-casualty')).toBe(false);
     }
@@ -255,7 +264,7 @@ describe('výjezd a šelmy', { timeout: 180_000 }, () => {
   it('po kouscích přes JSON = vcelku', () => {
     for (let seed = 1; seed <= 12; seed++) {
       const members = (): JourneyMember[] => [man(0, { fight: 0 }), man(1, { fight: 0 })];
-      const whole = stepJourney(journey(seed, members()), LAUNCH + DAYS, [], worldOf(forestMap()));
+      const whole = stepJourney(journey(seed, members()), LAUNCH + DAYS, [], worldOf(FOREST));
       let current = journey(seed, members());
       const events = [];
       while (current.tick < LAUNCH + DAYS && current.phase !== 'done') {
@@ -263,7 +272,7 @@ describe('výjezd a šelmy', { timeout: 180_000 }, () => {
           current,
           Math.min(LAUNCH + DAYS, current.tick + 97),
           [],
-          worldOf(forestMap()),
+          worldOf(FOREST),
         );
         events.push(...step.villageEvents);
         current = JSON.parse(JSON.stringify(step.state)) as JourneyState;
@@ -279,7 +288,7 @@ describe('výjezd a šelmy', { timeout: 180_000 }, () => {
         journey(seed, [man(0, { fight: 0, mounted: false }), man(1)]),
         LAUNCH + DAYS,
         [],
-        worldOf(forestMap()),
+        worldOf(FOREST),
       );
       // lidé, kteří doma dojdou, ze stavu zmizí – kdo padl, říkají události vsi
       const dead = (personId: number): boolean =>

@@ -408,6 +408,7 @@ export {
   type WagonRoadPlan,
 } from './roads/wagon-road';
 export * from './trade/trail';
+export { landscapeTrailLines } from './trade/premium-route';
 export * from './trade/neighbours';
 export * from './trade/trade';
 // dobytek v obchodu – příchod a odchod dobytka (`addCattle`, `removeCattle`) jsou kroky obchodu
