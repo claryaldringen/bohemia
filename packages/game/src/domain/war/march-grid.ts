@@ -30,7 +30,7 @@ import { pathVillageOf } from '../village/paths/village';
 import { PEN_FENCE_INSET_M } from '../village/rules';
 import { FORTIFICATIONS } from '../village/rules/rules-fortifications';
 import { ROAD_SWATH } from '../village/rules/rules-roads';
-import { TRAIL_END_BAND_M, trailExitsOf } from '../village/trade/trail-exits';
+import { trailExitsOf } from '../village/trade/trail-exits';
 import type { RoadPoint, VillageState } from '../village/types';
 import { forestInterior, withoutClearings } from './dense-forest';
 import {
@@ -330,15 +330,13 @@ function openLine(grid: MarchGrid, points: readonly Pos[]): void {
 
 /**
  * Kusy hotových stezek vsi ke kraji mapy (Rozhodnutí 13): úsečka konec osy → bod okraje každého
- * výstupu (`trailExitsOf`), jehož konec leží do `TRAIL_END_BAND_M` (v každé ose) od bodu okraje –
- * stezka končí kus před krajem (`TRAIL.edgeBandM`) a hustý les v pásu u kraje by ji jinak zavřel.
+ * výstupu (`trailExitsOf` – ten existuje jen u stezky, jejíž konec leží v pásu `TRAIL_END_BAND_M`
+ * u kraje) dostavěného před dnem `day` – stezka končí kus před krajem (`TRAIL.edgeBandM`) a hustý
+ * les v pásu u kraje by ji jinak zavřel.
  */
-function edgePieces(village: VillageState): Pos[][] {
+function edgePieces(village: VillageState, day: number): Pos[][] {
   return trailExitsOf(village)
-    .filter(
-      ({ end, edge }) =>
-        Math.max(Math.abs(end.x - edge.x), Math.abs(end.z - edge.z)) <= TRAIL_END_BAND_M,
-    )
+    .filter((exit) => exit.builtDay < day)
     .map(({ end, edge }) => [end, edge]);
 }
 
@@ -420,7 +418,7 @@ export function marchGrid(
   }
   if (village) {
     for (const road of village.roads?.roads ?? []) openLine(grid, road.points);
-    for (const piece of edgePieces(village)) openLine(grid, piece);
+    for (const piece of edgePieces(village, day)) openLine(grid, piece);
   }
   for (const axis of options.trailContinuations ?? NO_CONTINUATIONS) openLine(grid, axis);
   if (!village) return grid;

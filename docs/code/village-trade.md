@@ -64,9 +64,11 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   kraji mapy. Nic se neukládá – stav vsi ani DB se nemění.
   - **Výstup** (`trade/trail-exits.ts`, det-math): `trailExitsOf(stav)` – `TrailExit` { `direction`
     (krok k sousednímu políčku, `GRID_STEPS`), `end` (konec osy), `edge` (bod okraje ±960 m),
-    `builtDay` } jen hotových stezek v pořadí `trails`. Konec = ten konec cesty posledního úseku
-    s existující cestou, který leží dál ve směru stezky (remíza poslední bod); strana s menší
-    mezerou a kolmý průmět; úhlopříčná stezka s oběma mezerami do `TRAIL_END_BAND_M` (30 m =
+    `builtDay` } jen hotových stezek v pořadí `trails`. Konec = nejdále položený bod cest všech úseků
+    ve směru stezky (úseky mohou být mimo pořadí); strana s menší mezerou a kolmý průmět. Výstup
+    je jen tehdy, když konec leží v pásu `TRAIL_END_BAND_M` (+ 1 m jako `EDGE_SLACK_M` v
+    `trailAxisRoads`) u strany, kterou stezka opouští – rozbitá stezka (mezera) se na okraj
+    nepromítá; týž predikát je díl u okraje v mřížce pochodu. Úhlopříčná stezka s oběma mezerami do `TRAIL_END_BAND_M` (30 m =
     `EDGE_MARGIN_M` + `TRAIL.edgeBandM`) vede rohem.
   - **Souhrn vsi** nese výstupy (`VillageDigest.trailExits`, `villageDigest`); chybí = souhrn uložený
     dřív, `VILLAGE_DIGEST_VERSION` zůstává 4.
@@ -80,7 +82,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   - **Osa** (`trailContinuations`, jen server – trasa není det-math): každý vstup zvlášť – konec
     stezky krajiny (`landscapeTrailLines`) do 30 m od vstupu → bez osy; jinak `walkAll` po
     `trailTerrain` s `sacredMask`, bez pevných cest a humen, ze schůdné buňky nejbližší vstupu
-    (`nearestPassable`) k buňce nejbližší brance dvorce, bez branky k nejbližší (po síti, remíza
+    (`nearestTrailCell`) k buňce nejbližší brance dvorce, bez branky k nejbližší (po síti, remíza
     nižší index) buňce největší souvislé oblasti mřížky mapy bez vsi (`largestRegion`, jednou na
     krajinu a vrstvu); vstup v oblasti nebo nedosažitelný cíl → bez osy; osa `traceRoute` od vstupu.
     Pro tentýž vstup tentýž objekt (mezipaměť podle krajiny jako `trailRoutes`, 16 klíčů), žádná osa
@@ -89,9 +91,10 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
     takt přepočtený z bodu nevidí pokračování dřív, než stezka stála), branka `trailStart` první vsi
     mapy. Mřížku pochodu skládá `gridOf` / `mapGrid` / `gridOn` (war.md – Mřížka) a pro pohledy
     `mapTrailContinuations` (scéna a minimapa – osy jako data).
-  - **Vlkov (16. 11. 2026, DB jen čtením):** výstupy S (konec 30 m od kraje), N a E. Úseky N a E
+  - **Vlkov (16. 11. 2026, DB jen čtením):** výstup S (konec 30 m od kraje) zůstává. Úseky N a E
     končí uvnitř mapy (z = −129, x = 321) – síť cest Vlkova ke kraji N ani E nevede (viz převod
-    stezky výš), výstup je kolmý průmět toho konce. Dosah ze vstupu s pokračováním: N (48; 1)
+    stezky výš), konec leží mimo pás kraje, takže jejich výstup (rozbitá stezka) po opravě
+    „jen u stezky, která končí u okraje“ nevzniká. Dosah ze vstupu měřený před opravou: N (48; 1)
     23,1 % mapy (bez něj 3,0 %), E (49; 0) 22,2 % (2,1 %), S (48; −1) 26,6 % (0 %) – vždy celá
     největší oblast. První `continuationsOf` mapy ≈ 0,5 s, další z paměti ≈ 0,02 ms.
 

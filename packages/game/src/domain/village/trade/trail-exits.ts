@@ -6,7 +6,7 @@
 import { CELL_SIZE_M, LANDSCAPE_SIZE } from '../../landscape';
 import { EDGE_MARGIN_M } from '../paths/terrain';
 import { TRAIL } from '../rules';
-import type { Direction8, Road, RoadPoint, VillageState } from '../types';
+import type { Direction8, Road, RoadPoint, Trail, VillageState } from '../types';
 import { DIRECTION_VECTORS } from './trail-axis';
 
 /** Polovina strany mapy (m) – strany mapy leží na ±960 m. */
@@ -40,36 +40,51 @@ const SIDES: readonly { direction: Direction8; axis: 'x' | 'z'; sign: number }[]
   { direction: 'W', axis: 'x', sign: -1 },
 ];
 
+/** Tolerance pásu konce (m) – jako `EDGE_SLACK_M` v `trailAxisRoads` (`trail-axis.ts`). */
+const END_SLACK_M = 1;
+
 /**
- * Konec osy stezky: ten konec cesty, který leží dál ve směru stezky (větší `x·v.x + z·v.z`);
- * remíza – poslední bod cesty.
+ * Konec osy stezky: nejdále položený bod cest všech jejích úseků ve směru stezky (největší
+ * `x·v.x + z·v.z`; úseky mohou být mimo pořadí); stezka bez jediné cesty ve vsi null.
  */
-function axisEnd(road: Road, direction: Direction8): RoadPoint {
-  const v = DIRECTION_VECTORS[direction];
-  const first = road.points[0]!;
-  const last = road.points[road.points.length - 1]!;
-  return first.x * v.x + first.z * v.z > last.x * v.x + last.z * v.z ? first : last;
+function axisEnd(roads: readonly Road[], trail: Trail): RoadPoint | null {
+  const v = DIRECTION_VECTORS[trail.direction];
+  let end: RoadPoint | null = null;
+  let best = -Infinity;
+  for (const piece of trail.pieces) {
+    const road = roads.find((r) => r.id === piece.roadId);
+    for (const p of road?.points ?? []) {
+      const along = p.x * v.x + p.z * v.z;
+      if (along >= best) {
+        best = along;
+        end = p;
+      }
+    }
+  }
+  return end;
 }
 
 /**
  * Výstup stezky ve směru `direction` s koncem osy `end`: strany jen ze složek směru stezky; mezera
  * ke straně = 960 m − souřadnice konce ve směru strany. Úhlopříčná stezka s oběma mezerami do
  * `TRAIL_END_BAND_M` vede rohem (obě souřadnice ±960 m); jinak strana s menší mezerou (remíza –
- * dřív v `DIRECTIONS`) a kolmý průmět konce na ni.
+ * dřív v `DIRECTIONS`) a kolmý průmět konce na ni. Konec dál než `TRAIL_END_BAND_M` (+ 1 m) od
+ * strany, kterou stezka opouští, výstup nemá (rozbitá stezka – null).
  */
-function exitOf(direction: Direction8, end: RoadPoint, builtDay: number): TrailExit {
+function exitOf(direction: Direction8, end: RoadPoint, builtDay: number): TrailExit | null {
   const v = DIRECTION_VECTORS[direction];
   const sides = SIDES.filter((s) => (s.axis === 'x' ? v.x : v.z) * s.sign > 0).map((s) => ({
     ...s,
     gap: HALF_M - s.sign * end[s.axis],
   }));
-  if (sides.length === 2 && sides.every((s) => s.gap <= TRAIL_END_BAND_M)) {
+  if (sides.length === 2 && sides.every((s) => s.gap <= TRAIL_END_BAND_M + END_SLACK_M)) {
     const corner = { x: end.x, z: end.z };
     for (const s of sides) corner[s.axis] = s.sign * HALF_M;
     return { direction, end: { x: end.x, z: end.z }, edge: corner, builtDay };
   }
   let side = sides[0]!;
   for (const s of sides) if (s.gap < side.gap) side = s;
+  if (side.gap > TRAIL_END_BAND_M + END_SLACK_M) return null;
   const edge = { x: end.x, z: end.z };
   edge[side.axis] = side.sign * HALF_M;
   return { direction: side.direction, end: { x: end.x, z: end.z }, edge, builtDay };
@@ -77,21 +92,19 @@ function exitOf(direction: Direction8, end: RoadPoint, builtDay: number): TrailE
 
 /**
  * Výstupy hotových stezek vsi na kraj mapy v pořadí `trails` (stezka ve stavbě výstup nemá). Konec
- * osy dá poslední úsek stezky, jehož cesta ve vsi je (úsek se zmizelou cestou se přeskočí); stezka
- * bez jediné cesty výstup nemá.
+ * osy je nejdále položený bod cest všech úseků ve směru stezky (zmizelá cesta se přeskočí); výstup
+ * je jen tehdy, když konec leží v pásu `TRAIL_END_BAND_M` (+ 1 m) u strany, kterou stezka opouští –
+ * rozbitá stezka (mezera) se na okraj nepromítá, stejný predikát jako díl u okraje v mřížce pochodu.
  */
 export function trailExitsOf(state: Pick<VillageState, 'trails' | 'roads'>): TrailExit[] {
   const exits: TrailExit[] = [];
   const roads = state.roads?.roads ?? [];
   for (const trail of state.trails ?? []) {
     if (trail.builtDay === null) continue;
-    let road: Road | undefined;
-    for (let k = trail.pieces.length - 1; k >= 0 && !road; k--) {
-      const id = trail.pieces[k]!.roadId;
-      road = roads.find((r) => r.id === id && r.points.length > 0);
-    }
-    if (!road) continue;
-    exits.push(exitOf(trail.direction, axisEnd(road, trail.direction), trail.builtDay));
+    const end = axisEnd(roads, trail);
+    if (!end) continue;
+    const exit = exitOf(trail.direction, end, trail.builtDay);
+    if (exit) exits.push(exit);
   }
   return exits;
 }

@@ -60,7 +60,7 @@ export function createCampaignCells(deps: {
   const empty = new LruCache<string, CampaignMap>(base);
   const skeleton = createSkeletonCache(deps.worldSeed);
   // výstupy vsí načtených celé (souhrn bez `trailExits`) podle `id@verze`
-  const loaded = new LruCache<string, TrailExit[]>(CAMPAIGN_CELL_CACHE_SIZE);
+  const loaded = new LruCache<string, TrailExit[]>(base);
 
   /** Vstupy stezek sousedních vsí na mapu políčka – čtené pokaždé (stezku mohli mezitím dostavět). */
   async function entriesOf(source: TrailExitSource, cell: GridCell): Promise<TrailEntry[]> {
@@ -120,6 +120,7 @@ export function createCampaignCells(deps: {
     reserve(cells) {
       // krajina prázdného políčka je čistá funkce seedu světa a políčka – víc místa výsledek nemění
       empty.resize(Math.max(base, cells + base));
+      loaded.resize(Math.max(base, cells + base));
     },
     async mapOf(cell) {
       const map = await landOf(cell);

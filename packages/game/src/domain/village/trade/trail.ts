@@ -106,7 +106,7 @@ const STEPS: readonly [number, number, number][] = [
 ];
 
 /** Nejbližší schůdná buňka k bodu (do 10 buněk), nebo −1. */
-export function nearestPassable(terrain: PathTerrain, x: number, z: number): number {
+export function nearestTrailCell(terrain: PathTerrain, x: number, z: number): number {
   const ci = Math.round((x - terrain.originX) / terrain.cellM);
   const cj = Math.round((z - terrain.originZ) / terrain.cellM);
   for (let r = 0; r <= 10; r++) {
@@ -327,7 +327,7 @@ export function trailRoutes(
   const hit = cache.get(key);
   if (hit) return hit;
   const terrain = trailTerrain(landscape, obstacles);
-  const start = nearestPassable(terrain, from.x, from.z);
+  const start = nearestTrailCell(terrain, from.x, from.z);
   const routes = {} as Record<Direction8, RoadPoint[] | null>;
   if (start < 0) {
     for (const d of DIRECTIONS) routes[d] = null;

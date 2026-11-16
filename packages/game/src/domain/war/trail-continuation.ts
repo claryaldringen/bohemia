@@ -3,7 +3,7 @@ import { trailTerrain, type PathTerrain } from '../village/paths/terrain';
 import { villageManor } from '../village/people/manor';
 import { GRID_STEPS, type GridCell } from '../village/people/world-grid';
 import { landscapeTrailLines } from '../village/trade/premium-route';
-import { nearestPassable, sacredMask, traceRoute, walkAll } from '../village/trade/trail';
+import { nearestTrailCell, sacredMask, traceRoute, walkAll } from '../village/trade/trail';
 import { trailStart } from '../village/trade/trail-axis';
 import { TRAIL_END_BAND_M, type TrailExit } from '../village/trade/trail-exits';
 import type { RoadPoint, VillageState } from '../village/types';
@@ -105,7 +105,7 @@ function terrainPoint(terrain: PathTerrain, c: number): Pos {
  * Osa pokračování z jednoho vstupu, nebo null:
  * 1. stezka krajiny s koncem do `TRAIL_END_BAND_M` od vstupu – stezka kostry tam už pokračuje;
  * 2. trasa po terénu stezek s posvátnými duby a háji (`sacredMask`), bez pevných cest a humen,
- *    ze schůdné buňky nejbližší vstupu (`nearestPassable`);
+ *    ze schůdné buňky nejbližší vstupu (`nearestTrailCell`);
  * 3. cíl s brankou je buňka nejbližší brance; bez branky nejbližší (po síti, remíza nižší index)
  *    buňka, jejíž střed leží v největší souvislé oblasti mřížky mapy bez vsi – vstup v ní (nebo
  *    start v ní) bez osy;
@@ -129,13 +129,13 @@ function continuationOf(
   const region = gate ? null : regionOf(landscape, obstacles);
   if (region && region.region[marchCellAt(region.geometry, entry)] === 1) return null;
   const terrain = trailTerrain(landscape, obstacles);
-  const start = nearestPassable(terrain, entry.x, entry.z);
+  const start = nearestTrailCell(terrain, entry.x, entry.z);
   if (start < 0) return null;
   const blocked = obstacles ? sacredMask(terrain, obstacles) : null;
   const { dist, prev } = walkAll(terrain, noRoads(terrain), start, blocked);
   let goal = -1;
   if (gate) {
-    goal = nearestPassable(terrain, gate.x, gate.z);
+    goal = nearestTrailCell(terrain, gate.x, gate.z);
   } else if (region) {
     let best = Infinity;
     for (let c = 0; c < dist.length; c++) {

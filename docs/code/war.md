@@ -132,7 +132,8 @@ vojska mapu po mapě (Ú6.4), tažení po taktech, boj a dohra (Ú6.5–Ú6.17) 
      šelmy); vodu, sráz a skálu ruší jen buňky osy (`supercover` – po stranách souvislé, rohem obě
      buňky) – lávka, hať a brod jako dřív. Stejně (`openLine`; Úloha 4b – Rozhodnutí 13) **kus ke
      kraji** hotových stezek vsi (`edgePieces` – úsečka konec osy → bod okraje výstupu
-     `trailExitsOf`, je-li konec do `TRAIL_END_BAND_M` = 30 m od bodu okraje v každé ose) a **osy
+     `trailExitsOf` – výstup má jen stezka s koncem v pásu `TRAIL_END_BAND_M` = 30 m u kraje –
+     dostavěný před dnem mřížky) a **osy
      pokračování** stezek sousedních vsí (`options.trailContinuations` – i na mapě bez vsi; osy
      odvodí jen server – `trail-continuation.ts`, prohlížeč je dostane jako data). Pokračování:
      `CampaignMap.trailEntries` (`TrailEntry` { `point`, `builtDay` } – vstupy z výstupů stezek vsí
