@@ -2,6 +2,7 @@ export * from './rules-war';
 export * from './strength';
 export * from './protection';
 export * from './march-grid';
+export { forestInterior, withoutClearings } from './dense-forest';
 export * from './march';
 export * from './season';
 export * from './world-route';

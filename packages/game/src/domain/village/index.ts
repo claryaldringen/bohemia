@@ -190,6 +190,13 @@ export {
   type StructureRef,
 } from './buildings/repair';
 export * from './core/obstacles';
+export {
+  CLEARED_SHARE,
+  clearedForest,
+  touchesForest,
+  villageClearings,
+  type ClearedForest,
+} from './core/cleared-forest';
 export * from './core/summary';
 // trvalé stavy z upozornění – podmínky pro web i simulaci (absence.md – Upozornění vsi do kroniky)
 export {

@@ -86,6 +86,9 @@ export interface MarchGrid {
   readonly flags: Uint16Array;
 }
 
+/** Rozměry mřížky pochodu (bez buněk) – k nim se vážou vrstvy po buňkách (hustý les…). */
+export type MarchGeometry = Pick<MarchGrid, 'width' | 'height' | 'originX' | 'originZ' | 'cellM'>;
+
 /** Bod ve světě mapy (m). */
 export interface Pos {
   x: number;
