@@ -206,14 +206,18 @@ vojska mapu po mapě (Ú6.4), tažení po taktech, boj a dohra (Ú6.5–Ú6.17) 
 
 - **Únik z neprůchodné buňky** (Rozhodnutí 7) – start v neprůchodné buňce (hustý les ze starého
   bodu, dorostlý les, stavba, nová palisáda): první úsek vede rovně do středu nejbližší průchodné
-  buňky souvislé oblasti, se kterou skupina něco svede (`departureOf` – Úloha 5, návrh Clauda):
-  `marchPath` a `marchReachable` – oblast cíle, `marchPathToEdge` – oblast s průchodnou buňkou
-  přechodu, `reachableGoal` – oblast nejbližší průchodné buňky k cíli. Nejbližší průchodná buňka
-  vůbec (`nearestPassable(grid, c, maxM)` – čtverec vzdálenosti v buňkách, remíza nižší index)
-  bývá paseka, ostrůvek nebo dvůr, odkud by nevedlo nikam – vojsko by se nevrátilo domů; bere se,
-  jen když užitečná oblast není. Únik se nevyhlazuje a může vést rovně i delším kusem lesa (starý
-  bod hluboko v lese); pak běžná trasa. Stojí-li skupina na průchodné buňce, neuniká – i v pasece
-  zůstane. Cíl ve stavbě přesune `outOfBuilding` na nejbližší průchodnou buňku nejvýš
+  buňky (`departureOf`; `nearestPassable(grid, c, maxM)` – čtverec vzdálenosti v buňkách, remíza
+  nižší index). **Ze stavby jen do ní** (oprava Úlohy 5): střed dvorce je stavba a únik do
+  „užitečné“ oblasti vedl dvorcem a lesem do oblasti za ním – z kotvy Vlkova na západ 13 m přes
+  dvorec, v pasece obklopené hustým lesem 400 m lesem; tažení z kotvy a výprava od branky se
+  neshodly. Mimo stavbu (voda, les ze starých poloh) má přednost nejbližší buňka souvislé oblasti,
+  se kterou skupina něco svede (Úloha 5, návrh Clauda) – `marchPath` a `marchReachable` oblast
+  cíle, `marchPathToEdge` oblast s průchodnou buňkou přechodu, `reachableGoal` oblast nejbližší
+  průchodné buňky k cíli –, ale nejvýš `BUILDING_REACH_M` (40 m) dál než nejbližší průchodná buňka
+  (ta bývá paseka nebo ostrůvek, odkud by nevedlo nikam); dál ne – únik by byl průchod lesem. Cíl
+  neprůchodný (oblast 0) nebo žádná oblast s přechodem – null hned, bez úniku (dřív prstence přes
+  celou mapu). Únik se nevyhlazuje; pak běžná trasa. Stojí-li skupina na průchodné buňce, neuniká –
+  i v pasece zůstane. Vesnice vyráží od branky dvorce (`villageGate` – Plán tažení), ne ze stavby. Cíl ve stavbě přesune `outOfBuilding` na nejbližší průchodnou buňku nejvýš
   `BUILDING_REACH_M` (40 m) daleko; poslední úsek vede z jejího středu rovně do cíle. Cíl ve stejné
   buňce jako start – rovně.
 - **Přechod okraje** (plán 2026-11-16-dense-forest – Rozhodnutí 8; `movement.ts`) – `planMoverLeg`
@@ -275,12 +279,14 @@ outside, day)` → `MemberDelta` (`health`, `vigor` = podíl plné síly): v zim
 - **Testy** – `domain/war/__tests__/march.test.ts` (tempo, hustý les trasa obejde, brod, řeky
   kostry jen přes brod – umělé i mapa se soutokem, cíl ve vodě – posun na dosažitelný břeh, remíza,
   sevřené vojsko unikne, únik z neprůchodné buňky, únik do oblasti cíle nebo přechodu okraje, ne
-  do izolované paseky – Úloha 5, opevnění, cesta, zima, zlatá cesta na seedech
+  do izolované paseky – Úloha 5, únik nejvýš 40 m za nejbližší průchodnou buňku a ze stavby jen do
+  ní – oprava Úlohy 5, opevnění, cesta, zima, zlatá cesta na seedech
   1–3 – otisk počtu brodů, buněk hustého lesa a dvou tras ze středu mapy k dosažitelnému místu
   u rohů, determinismus, okraj, z branky dvorce rovně a ze středu domu únikem a obloukem –
   výprava, D49), `march-forest.test.ts` (Úloha 4 – vnitřek lesa neprůchozí a okraj 10 m ne,
   krajina bez lesa, stezka hustým lesem a bez ní cíl na téže straně, stezka krajiny bez vsi, ves
-  v pasece od okraje jen po cestě – Review Focus 1, paseka po kácení, mezera 4 m mezi domy – D55,
+  v pasece od okraje jen po cestě – Review Focus 1, z kotvy i od branky bez cesty nikam a s cestou
+  obojí – oprava Úlohy 5, paseka po kácení, mezera 4 m mezi domy – D55,
   balvan a jeho odstranění, determinismus, terén se sítem = bez síta), `march-search.test.ts`
   (cena, rohy, start v neprůchodné buňce, nedosažitelný cíl, JPS = Dijkstra na 200 náhodných
   mřížkách, souvislé oblasti = zaplavení, štítky s okrajem Uint16 a nad 65 535 oblastí Int32),
@@ -403,9 +409,12 @@ a `food` (kg obilí ze zásob shromaždiště).
   válka), jídlo (nejvýš zásoba shromaždiště bez osiva a nosnost mužů). Odhad: `CampaignEstimate`
   (síla `armyStrength` po vsích s pokrytím nástroji, počty mužů, cesta ve dnech vzdušnou čarou
   ≈ 3,5 m/s, na kolik dní vystačí jídlo, `ambush`, `liveCommand`). **Poloha shromaždiště, cíle
-  i domovů** (`villageStandingPlace` v `plan-campaign.ts`): kotva vsi `villageAnchor` (dvorec, jinak
-  průměr obydlí) ze stavu vsi; ves bez obydlí má střed místa pro ves (`villagePlace`). Jen nově
-  plánovaná tažení – běžící nesou uložené body.
+  i domovů** (`villageStandingPlace` v `plan-campaign.ts`): branka dvorce `villageGate`
+  (`departure.ts` – `dwellingGatePoint` dvorce; bez hotového dvorce `villageCentre`) – odtud vyráží
+  i výprava (`journeyHome`), útěk a posel (`villageStart` v `campaign-tick.ts` – evakuace, posel,
+  volby `refugeOptions` i správce); dřív kotva `villageAnchor` – střed dvorce v buňce stavby, únik
+  z ní (oprava Úlohy 5 plánu 2026-11-16-dense-forest). Ves bez obydlí má střed místa pro ves
+  (`villagePlace`). Jen nově plánovaná tažení – běžící nesou uložené body.
 - **`musterOf`** (`domain/war/muster.ts`): vesničané 16–44 let (`villagerCandidates`); příbuzní
   v cíli (`kinInTarget` – příchozí ze sousední mapy ve směru cíle: muž, jeho žena nebo rodiče) →
   neochotný; ostatní losují vlastním losem (`musterSeed` = seed vsi + cíl) s pravděpodobností

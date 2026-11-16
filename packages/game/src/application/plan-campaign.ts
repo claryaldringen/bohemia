@@ -19,7 +19,7 @@ import {
   type SurrenderOrder,
 } from '../domain/war';
 import { craftCoverage } from '../domain/village/crafts/crafts';
-import { villageAnchor } from '../domain/village/fortification/state/fortifications';
+import { villageGate } from '../domain/village/people/departure';
 import { isLineMan } from '../domain/village/people/dynasty';
 import { villageHorses } from '../domain/village/livestock/horses';
 import { villageHappiness } from '../domain/village/people/happiness';
@@ -160,8 +160,10 @@ export function villagePlace(
 }
 
 /**
- * Poloha vsi podle jejího stavu (war.md – Plán tažení): kotva vsi (`villageAnchor` – dvorec, jinak
- * průměr obydlí); ves bez obydlí má dnešní střed místa pro ves (`villagePlace`).
+ * Poloha vsi podle jejího stavu (war.md – Plán tažení): branka dvorce (`villageGate`) – odtud
+ * tažení vyráží, sem se muži vracejí a k ní míří vojsko na cílovou ves, stejně jako výprava
+ * (plán 2026-11-16-dense-forest – oprava Úlohy 5; dřív střed dvorce v buňce stavby – únik z ní);
+ * ves bez obydlí má dnešní střed místa pro ves (`villagePlace`).
  */
 export function villageStandingPlace(
   cell: GridCell,
@@ -170,8 +172,7 @@ export function villageStandingPlace(
 ): ReturnType<typeof villagePlace> {
   const site = villagePlace(cell, l);
   if (state.dwellings.length === 0) return site;
-  const at = villageAnchor(state);
-  return { ...site, pos: { x: at.x, z: at.z } };
+  return { ...site, pos: villageGate(state, l) };
 }
 
 /** Má muž blízké příbuzné v cílové vsi (příchozí ze sousední mapy v cíli: on, žena nebo rodiče). */

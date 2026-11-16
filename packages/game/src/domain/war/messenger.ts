@@ -13,7 +13,14 @@ import {
   warn,
 } from './alarm';
 import type { AlarmMessenger, AlarmVillage, CampaignAlarm } from './alarm-types';
-import { gatherMissing, gridOf, MissingData, sameCell, villageEvent } from './campaign-tick';
+import {
+  gatherMissing,
+  gridOf,
+  MissingData,
+  sameCell,
+  villageEvent,
+  villageStart,
+} from './campaign-tick';
 import type { TickContext, TickOut } from './campaign-tick';
 import type { CampaignState } from './campaign-types';
 import { stepMover } from './movement';
@@ -54,7 +61,7 @@ export function sendMessenger(
   const state = ctx.world.villageAt(villageId, s.day);
   if (state === null) throw new MissingData([], [villageId]);
   const home = withoutTaken(state, alarmTaken(s, villageId, s.day, ctx.world.clock));
-  const centre = villageCentre(state);
+  const centre = villageStart(state, cell, ctx);
   const { hosts, ids } = refugeHosts(s, villageId, cell, ctx);
   const options = refugeOptions({
     state: home,
@@ -218,7 +225,7 @@ export function warnDomain(
       toVillageId: target.villageId,
       mounted: runner.mounted,
       cell,
-      pos: villageCentre(state),
+      pos: villageStart(state, cell, ctx),
       route: refugeRoute(cell, target.cell).slice(1),
       target: { cell: { ...target.cell }, pos: villageCentre(there) },
     });

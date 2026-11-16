@@ -3,6 +3,7 @@ import { OFFICIAL_WORLD } from '../../domain/calendar';
 import { CURRENT_LAYER_VERSIONS, type Landscape } from '../../domain/landscape';
 import { horseVillage, START } from '../../domain/village/__tests__/horse-fixtures';
 import { foodNeedPerDay } from '../../domain/village/people/people';
+import { villageGate } from '../../domain/village/people/departure';
 import { craftCoverage } from '../../domain/village/crafts/crafts';
 import type { Person, VillageState } from '../../domain/village/types';
 import { armyStrength, lineManStrength, musterOf, villagerStrength } from '../../domain/war';
@@ -343,22 +344,30 @@ describe('vyslání tažení (launchCampaign)', () => {
       target: { pos: { x: number; z: number } };
       homes: Record<string, { pos: { x: number; z: number } }>;
     };
-    // dvorec fixtury stojí v (0, 0), střed místa pro ves v (7,5; 7,5)
+    // dvorec fixtury stojí v (0, 0), střed místa pro ves v (7,5; 7,5); místem vsi je branka
+    // dvorce – odtud vyráží i výprava (`villageGate`, oprava Úlohy 5 plánu 2026-11-16-dense-forest)
     expect(villagePlace({ x: 0, y: 0 }, STUB_LANDSCAPE).pos).toEqual({ x: 7.5, z: 7.5 });
-    expect(state.assembly.pos).toEqual({ x: 0, z: 0 });
-    expect(state.target.pos).toEqual({ x: 0, z: 0 });
-    for (const home of Object.values(state.homes)) expect(home.pos).toEqual({ x: 0, z: 0 });
+    const home = (await w.villages.find(w.ids.home))!.state;
+    const gate = villageGate(home, STUB_LANDSCAPE);
+    expect(gate).not.toEqual({ x: 0, z: 0 });
+    expect(Math.hypot(gate.x, gate.z)).toBeLessThan(30);
+    expect(state.assembly.pos).toEqual(gate);
+    expect(state.target.pos).toEqual(gate);
+    for (const pos of Object.values(state.homes)) expect(pos.pos).toEqual(gate);
   });
 
-  it('poloha vsi: dvorec, bez obydlí střed místa pro ves', () => {
+  it('poloha vsi: branka dvorce, bez obydlí střed místa pro ves', () => {
     const cell = { x: 0, y: 0 };
     const state = ownVillage('Bořivoj');
-    expect(villageStandingPlace(cell, STUB_LANDSCAPE, state).pos).toEqual({ x: 0, z: 0 });
-    // dvorec o kus dál než druhé obydlí – míří se na dvorec, ne na průměr obou
+    const gate = villageGate(state, STUB_LANDSCAPE);
+    expect(villageStandingPlace(cell, STUB_LANDSCAPE, state).pos).toEqual(gate);
+    // dvorec o kus dál než druhé obydlí – míří se k brance dvorce, ne k průměru obou
     const moved = { ...state, dwellings: state.dwellings.slice() };
     moved.dwellings[0] = { ...moved.dwellings[0]!, position: { x: 10, z: 4, rotation: 0 } };
     moved.manorId = moved.dwellings[0]!.id;
-    expect(villageStandingPlace(cell, STUB_LANDSCAPE, moved).pos).toEqual({ x: 10, z: 4 });
+    const there = villageStandingPlace(cell, STUB_LANDSCAPE, moved).pos;
+    expect(there).toEqual(villageGate(moved, STUB_LANDSCAPE));
+    expect(Math.hypot(there.x - gate.x - 10, there.z - gate.z - 4)).toBeLessThan(1);
     const empty = { ...state, dwellings: [], constructions: [], manorId: undefined };
     expect(villageStandingPlace(cell, STUB_LANDSCAPE, empty).pos).toEqual({ x: 7.5, z: 7.5 });
   });

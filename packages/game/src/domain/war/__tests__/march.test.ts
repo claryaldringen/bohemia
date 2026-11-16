@@ -408,20 +408,29 @@ describe('cíl v neprůchodné buňce (war.md – Pohyb – Cíl v neprůchodné
     expect(edge.points[1]).toEqual(marchCellCenter(grid, escape));
   });
 
-  it('únik do oblasti cíle nebo přechodu okraje, ne do izolované paseky (Úloha 5)', () => {
+  /** Hustý les (2r + 1)² buněk kolem `from`; v něm paseka o jedné buňce dvě buňky na východ. */
+  const woods = (r: number): { grid: MarchGrid; at: number; pocket: number } => {
     const open = marchGrid(flat(), null, null);
-    const grid: MarchGrid = { ...open, pace: Float32Array.from(open.pace) };
-    const from = { x: 3, z: -2 };
-    const at = marchCellAt(grid, from);
-    // hustý les 41 × 41 buněk kolem startu; v něm paseka o jedné buňce dvě buňky na východ
-    for (let dj = -20; dj <= 20; dj++) {
-      for (let di = -20; di <= 20; di++) grid.pace[at + dj * grid.width + di] = 0;
+    const grid: MarchGrid = {
+      ...open,
+      pace: Float32Array.from(open.pace),
+      flags: Uint16Array.from(open.flags),
+    };
+    const at = marchCellAt(grid, { x: 3, z: -2 });
+    for (let dj = -r; dj <= r; dj++) {
+      for (let di = -r; di <= r; di++) grid.pace[at + dj * grid.width + di] = 0;
     }
-    const pocket = at + 2;
-    grid.pace[pocket] = 1;
+    grid.pace[at + 2] = 1;
+    return { grid, at, pocket: at + 2 };
+  };
+
+  it('únik do oblasti cíle nebo přechodu okraje, ne do izolované paseky (Úloha 5)', () => {
+    const from = { x: 3, z: -2 };
+    // les 33 × 33 buněk: velká oblast 17 buněk (42,5 m) – do 40 m za pasekou (5 m)
+    const { grid, at, pocket } = woods(16);
     expect(nearestPassable(grid, at, Infinity)).toBe(pocket);
-    // nejbližší buňka velké oblasti: 21 buněk rovně, remíza – nižší index (jih)
-    const escape = marchCellCenter(grid, at - 21 * grid.width);
+    // nejbližší buňka velké oblasti: 17 buněk rovně, remíza – nižší index (jih)
+    const escape = marchCellCenter(grid, at - 17 * grid.width);
     const to = { x: 300, z: 200 };
     expect(marchReachable(grid, from, to)).toBe(true);
     expect(reachableGoal(grid, from, to)).toBe(to);
@@ -429,13 +438,30 @@ describe('cíl v neprůchodné buňce (war.md – Pohyb – Cíl v neprůchodné
     // domů přes okraj – z paseky by okraj dosažitelný nebyl
     expect(marchPathToEdge(grid, from, 'E')?.points[1]).toEqual(escape);
     // cíl v lese u severního kraje lesa – posune se na kraj velké oblasti, ne do paseky
-    const inWoods = marchCellCenter(grid, at + 18 * grid.width);
-    expect(reachableGoal(grid, from, inWoods)).toEqual(marchCellCenter(grid, at + 21 * grid.width));
+    const inWoods = marchCellCenter(grid, at + 14 * grid.width);
+    expect(reachableGoal(grid, from, inWoods)).toEqual(marchCellCenter(grid, at + 17 * grid.width));
     // cíl v pasece samé – oblast cíle je paseka
     expect(marchReachable(grid, from, marchCellCenter(grid, pocket))).toBe(true);
     expect(marchPath(grid, from, marchCellCenter(grid, pocket))!.points[1]).toEqual(
       marchCellCenter(grid, pocket),
     );
+  });
+
+  it('únik nejvýš 40 m za nejbližší průchodnou buňku a ze stavby jen do ní (oprava Úlohy 5)', () => {
+    const from = { x: 3, z: -2 };
+    const to = { x: 300, z: 200 };
+    // les 41 × 41 buněk: velká oblast 21 buněk (52,5 m) – dál než 40 m za pasekou (5 m)
+    const far = woods(20);
+    expect(marchReachable(far.grid, from, to)).toBe(false);
+    expect(marchPath(far.grid, from, to)).toBeNull();
+    expect(marchPathToEdge(far.grid, from, 'E')).toBeNull();
+    expect(reachableGoal(far.grid, from, to)).toEqual(marchCellCenter(far.grid, far.pocket));
+    // start ve stavbě – jen nejbližší průchodná buňka (paseka), i když velká oblast je v mezi
+    const house = woods(16);
+    house.grid.flags[house.at] = MARCH_BUILDING;
+    expect(marchReachable(house.grid, from, to)).toBe(false);
+    expect(marchPathToEdge(house.grid, from, 'E')).toBeNull();
+    expect(reachableGoal(house.grid, from, to)).toEqual(marchCellCenter(house.grid, house.pocket));
   });
 });
 

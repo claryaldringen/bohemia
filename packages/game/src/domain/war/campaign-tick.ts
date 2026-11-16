@@ -1,5 +1,7 @@
 import type { NewVillageEvent, VillageEventBody } from '../village/core/inbox';
+import { villageGate } from '../village/people/departure';
 import type { GridCell } from '../village/people/world-grid';
+import type { VillageState } from '../village/types';
 import type { BattleFort } from './battle';
 import type { CampaignNotice, CampaignState, CampaignWorld } from './campaign-types';
 import { marchGrid, type MarchGrid, type Pos } from './march-grid';
@@ -93,6 +95,17 @@ export function villageEvent(
  */
 export function stampNotices(notices: CampaignNotice[], base: string): CampaignNotice[] {
   return notices.map((n, i) => ({ ...n, ref: `${base}:n${i}` }));
+}
+
+/**
+ * Odkud ves `state` na mapě `cell` vychází na cestu – útěk, posel a jejich volby (`refugeOptions`):
+ * branka dvorce (`villageGate`) jako tažení a výprava (plán 2026-11-16-dense-forest – oprava Úlohy 5).
+ * Mapa chybí – `MissingData`.
+ */
+export function villageStart(state: VillageState, cell: GridCell, ctx: TickContext): Pos {
+  const map = ctx.world.landscapeOf(cell);
+  if (map === null) throw new MissingData([{ ...cell }], []);
+  return villageGate(state, map.landscape);
 }
 
 /**

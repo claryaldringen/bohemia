@@ -1,5 +1,4 @@
 import type { WorldClock } from '../calendar';
-import { villageCentre } from '../village/people/departure';
 import { isLineMan, lineMen } from '../village/people/dynasty';
 import type { VillageEventBody } from '../village/core/inbox';
 import { guestFoodNeed } from '../village/people/people';
@@ -15,7 +14,7 @@ import type {
 } from '../village/types';
 import { alarmCellOf, alarmVillage, isWarned, refugeHosts } from './alarm';
 import type { AlarmFlight, AlarmMessenger, CampaignAlarm } from './alarm-types';
-import { gridOf, MissingData, sameCell, villageEvent } from './campaign-tick';
+import { gridOf, MissingData, sameCell, villageEvent, villageStart } from './campaign-tick';
 import type { TickContext, TickOut } from './campaign-tick';
 import type { CampaignPlace, CampaignState } from './campaign-types';
 import { isOverpowered } from './flight';
@@ -147,7 +146,8 @@ export function departFlight(
   const state = ctx.world.villageAt(villageId, s.day);
   if (state === null) throw new MissingData([], [villageId]);
   const home = withoutTaken(state, alarmTaken(s, villageId, s.day, ctx.world.clock));
-  const centre = villageCentre(state);
+  // útěk vychází od branky dvorce – jako tažení a výprava (oprava Úlohy 5)
+  const centre = villageStart(state, cell, ctx);
   const grid = gridOf(cell, s.day, ctx);
   // les hradiště nepotřebuje – jeho kandidáty (a jejich stav) čte jen útěk do hradiště
   const { hosts, ids } =

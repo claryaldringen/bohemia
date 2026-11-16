@@ -12,6 +12,7 @@ import {
 import { addGate, areaOutline, fortificationArea, fortSegments } from '../../village';
 import type { Fortification } from '../../village/fortification/types';
 import { dwellingGatePoint } from '../../village/paths/network-grid';
+import { villageGate } from '../../village/people/departure';
 import { obstacleBlockRadiusM } from '../../village/paths/terrain';
 import { landscapeTrailLines } from '../../village/trade/premium-route';
 import { dwelling, village } from '../../village/__tests__/kin-fixtures';
@@ -24,12 +25,13 @@ import { port, westForest, withRoute } from './continuation-fixtures';
 import { forestInterior } from '../dense-forest';
 import {
   marchPath,
+  marchPathToEdge,
   marchReachable,
-  nearestPassable,
   reachableGoal,
   type MarchPath,
 } from '../march';
 import {
+  MARCH_BUILDING,
   MARCH_FORD,
   MARCH_FOREST,
   MARCH_GATE,
@@ -242,6 +244,32 @@ describe('ves v pasece uprostřed hustého lesa (Review Focus 1)', () => {
     expect(marchReachable(grid, edge, gate)).toBe(false);
     const goal = reachableGoal(grid, edge, gate)!;
     expect(Math.hypot(goal.x - gate.x, goal.z - gate.z)).toBeGreaterThan(250);
+  });
+
+  it('z kotvy i od branky: bez cesty okraj ani cíl za lesem nedosažitelné, s cestou obojí (oprava Úlohy 5)', () => {
+    // kotva vsi (střed dvorce) je buňka stavby – únik z ní jde jen do nejbližší průchodné buňky
+    // (paseky), ne rovně lesem do oblasti za ním; od branky vyráží tažení i výprava (`villageGate`)
+    const anchor = { x: manor.position.x, z: manor.position.z };
+    const behind = { x: -500, z: 0 };
+    const sealed = marchGrid(land, layer, withRoads([], [manor]));
+    expect(sealed.flags[marchCellAt(sealed, anchor)]! & MARCH_BUILDING).not.toBe(0);
+    expect(villageGate(village([], [manor]), land)).toEqual({ x: gate.x, z: gate.z });
+    const lane = road(1, [gate, { x: -958, z: gate.z }]);
+    const open = marchGrid(land, layer, withRoads([lane], [manor]));
+    for (const from of [anchor, gate]) {
+      for (const direction of ['N', 'E', 'S', 'W'] as const) {
+        expect(marchPathToEdge(sealed, from, direction)).toBeNull();
+      }
+      expect(marchPath(sealed, from, behind)).toBeNull();
+      expect(marchReachable(sealed, from, behind)).toBe(false);
+      // cíl se posune na paseku, ne za les
+      const goal = reachableGoal(sealed, from, behind)!;
+      expect(Math.abs(goal.x)).toBeLessThan(100);
+      // s cestou k západnímu okraji dojdou z kotvy i od branky stejně – k okraji i za les
+      expect(marchPathToEdge(open, from, 'W')).not.toBeNull();
+      expect(marchReachable(open, from, behind)).toBe(true);
+      expect(marchPathToEdge(open, from, 'E')).toBeNull();
+    }
   });
 });
 
@@ -573,13 +601,9 @@ describe('pokračování zemské stezky a kus ke kraji (Úloha 4b – Rozhodnut�
     }
     expect(forest).toBeGreaterThan(0);
     expect(marchPath(grid, entry, end)).not.toBeNull();
-    // bez osy je vstup hustým lesem; z nejbližší průchodné buňky se cíl posune (únik ze vstupu by
-    // mířil rovně lesem do oblasti cíle – Úloha 5)
-    const near = marchCellCenter(
-      without,
-      nearestPassable(without, marchCellAt(without, entry), Infinity),
-    );
-    const goal = reachableGoal(without, near, end);
+    // bez osy je vstup hustým lesem – únik nejvýš 40 m za nejbližší průchodnou buňku (oprava
+    // Úlohy 5) do oblasti cíle nevede, cíl se posune
+    const goal = reachableGoal(without, entry, end);
     expect(goal === null || Math.hypot(goal.x - end.x, goal.z - end.z) > WAR.march.cellM).toBe(
       true,
     );

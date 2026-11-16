@@ -33,7 +33,10 @@ export interface MarchPath {
   lengthM: number;
 }
 
-/** Nejdál (m) přesune `outOfBuilding` cíl ze stavby na volné místo (Rozhodnutí 7). */
+/**
+ * Nejdál (m) přesune `outOfBuilding` cíl ze stavby na volné místo (Rozhodnutí 7); o tolik nejvýš
+ * smí únik mimo stavbu do užitečné oblasti vést dál než do nejbližší průchodné buňky (`departureOf`).
+ */
 const BUILDING_REACH_M = 40;
 
 /**
@@ -112,28 +115,44 @@ function outOfBuilding(grid: MarchGrid, c: number): number {
 /**
  * Buňka, odkud skupina stojící v buňce `at` vyráží (Rozhodnutí 7): `at`, je-li průchodná; jinak
  * únik (hustý les ze starého bodu, dorostlý les, stavba, nová palisáda – skupina nezamrzne) do
- * nejbližší průchodné buňky souvislé oblasti, se kterou skupina něco svede – `useful(oblast)`:
- * oblast cíle, nebo oblast s průchodnou buňkou přechodu okraje (Úloha 5 – nejbližší průchodná buňka
- * bývá paseka, ostrůvek nebo dvůr, odkud by nevedlo nikam). Takové oblasti žádné – nejbližší
- * průchodná buňka vůbec. −1 = mapa nemá průchodnou buňku.
+ * nejbližší průchodné buňky (`nearestPassable`). Mimo stavbu (voda, les ze starých poloh) přednost
+ * nejbližší buňce souvislé oblasti, se kterou skupina něco svede – `useful(oblast)`: oblast cíle,
+ * nebo oblast s průchodnou buňkou přechodu okraje (Úloha 5 – nejbližší průchodná buňka bývá paseka
+ * nebo ostrůvek, odkud by nevedlo nikam) –, nejvýš `BUILDING_REACH_M` dál než nejbližší průchodná
+ * buňka. Ze stavby nikdy (oprava Úlohy 5): střed dvorce je stavba a únik do „užitečné“ oblasti
+ * vedl dvorcem i 400 m hustého lesa do oblasti za ním – budova byla průchod. `useful` null = bez
+ * přednosti. −1 = mapa nemá průchodnou buňku.
  */
-function departureOf(grid: MarchGrid, at: number, useful: (area: number) => boolean): number {
+function departureOf(
+  grid: MarchGrid,
+  at: number,
+  useful: ((area: number) => boolean) | null,
+): number {
   if (grid.pace[at]! > 0) return at;
+  const plain = nearestPassable(grid, at, Infinity);
+  if (plain < 0 || useful === null || (grid.flags[at]! & MARCH_BUILDING) !== 0) return plain;
   const areas = marchAreas(grid);
   const w = grid.width;
-  const best = nearestCell(grid, at, Infinity, (n) => {
+  if (useful(marchAreaOf(areas, w, plain))) return plain;
+  const p = marchCellCenter(grid, plain);
+  const q = marchCellCenter(grid, at);
+  const dx = p.x - q.x;
+  const dz = p.z - q.z;
+  const reachM = Math.sqrt(dx * dx + dz * dz) + BUILDING_REACH_M;
+  const best = nearestCell(grid, at, reachM, (n) => {
     const area = marchAreaOf(areas, w, n);
     return area > 0 && useful(area);
   });
-  return best >= 0 ? best : nearestPassable(grid, at, Infinity);
+  return best >= 0 ? best : plain;
 }
 
 /**
  * Odkud skupina v bodě `from` vyráží k buňce `target` (únik míří do oblasti cíle – `departureOf`)
- * a souvislá oblast cíle; oblast 0 = cíl neprůchodný.
+ * a souvislá oblast cíle; oblast 0 = cíl neprůchodný (bez úniku – cesta stejně nevede).
  */
 function departureTo(grid: MarchGrid, from: Pos, target: number): { start: number; area: number } {
   const area = marchArea(grid, target);
+  if (area === 0) return { start: -1, area };
   return { start: departureOf(grid, marchCellAt(grid, from), (a) => a === area), area };
 }
 
@@ -217,7 +236,7 @@ export function reachableGoal(grid: MarchGrid, from: Pos, to: Pos): Pos | null {
   const at = marchCellAt(grid, from);
   const near = grid.pace[at]! > 0 ? -1 : nearestPassable(grid, target, Infinity);
   const nearArea = near < 0 ? 0 : marchArea(grid, near);
-  const start = departureOf(grid, at, (a) => a === nearArea);
+  const start = departureOf(grid, at, nearArea === 0 ? null : (a) => a === nearArea);
   if (start < 0) return null;
   const areas = marchAreas(grid);
   const w = grid.width;
@@ -282,6 +301,7 @@ export function marchPathToEdge(
   if (crossing(at)) return pathAlong(grid, [from, marchCellCenter(grid, at)]);
   // oblasti s průchodnou buňkou přechodu – jinak by hledání vyčerpalo oblast
   const open = crossingAreas(grid, direction, arrival);
+  if (open.size === 0) return null;
   const start = departureOf(grid, at, (a) => open.has(a));
   if (start < 0 || !open.has(marchArea(grid, start))) return null;
   const cells = gridSearch(grid, start, crossing, (i, j) =>
