@@ -185,8 +185,10 @@ test('nový hráč založí ves umístěním zemnice, přejmenuje ji a vybere ze
   if (hasOutcrop(obstaclesOf(s.landscape))) await expect(quarryButton).toBeEnabled();
   else await expect(quarryButton).toBeDisabled();
   // kostely nepokřtěný rod v nabídce nemá vůbec – ani zašedlé (kostel až po křtu rodu)
+  await sacredVariant(page, 'Modla');
   await expect(grid.getByRole('button', { name: 'Kostel s pravoúhlým kněžištěm' })).toHaveCount(0);
   await expect(grid.getByRole('button', { name: 'Trojlodní bazilika' })).toHaveCount(0);
+  await page.keyboard.press('Escape');
   // štěstí obyvatel v horní liště (happiness.md) – výchozí kolem 50
   await expect(page.getByTestId('village-happiness')).toHaveText(/^\d+$/);
   expect((await villageState(s.settlementId)).fields).toEqual([]);

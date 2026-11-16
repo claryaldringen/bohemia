@@ -14,6 +14,7 @@ import {
   around,
   changeVillageState,
   confirmPlacement,
+  sacredVariant,
   found,
   newPlayer,
   pollVillage,
@@ -177,10 +178,15 @@ test('pozvání huti a umístění kostela – křest, huť na cestě, skok v č
   await page.mouse.move(640, 360);
   // běžící umisťování zemnice (z založení vsi) se zruší, pak klávesa kostela
   await page.keyboard.press('Escape');
-  const rotunda = page
-    .getByTestId('build-grid')
-    .getByRole('button', { name: 'Rotunda se dvěma apsidami' });
+  // kostely jsou druhy rozcestníku Posvátná místa; po křtu v něm modla ani svatyně nejsou
+  const rotunda = await sacredVariant(page, 'Rotunda se dvěma apsidami');
   await expect(rotunda).toBeEnabled();
+  await expect(page.getByTestId('build-grid').getByRole('button', { name: 'Modla' })).toHaveCount(
+    0,
+  );
+  await expect(page.getByTestId('build-grid').getByRole('button', { name: 'Svatyně' })).toHaveCount(
+    0,
+  );
   await page.keyboard.press('y');
   await confirmPlacement(page, { kind: 'church', type: 'rotunda', dims, position: spot! });
 
