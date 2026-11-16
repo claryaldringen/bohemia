@@ -5,7 +5,7 @@
 import type { FlightMode, Pos } from '@bohemia/game';
 import { ARMY_LOOKS, MARCH_GLIDE_M_S, RIDER_LIFT_M, huddleSlots } from './army';
 import type { ArmyAnimal, ArmyFigure, FigureKind } from './army';
-import { DRIVEN_HERD_M, drivenHerd } from './villager-plan';
+import { DRIVEN_HERD_M, drivenHerd, fleeWalkAt, type FleeWalk } from './villager-plan';
 
 /** Člověk průvodu – vzhled. */
 export interface SceneRefugee {
@@ -20,8 +20,6 @@ export interface SceneRefugees {
   mode: FlightMode;
   pos: Pos;
   heading: Pos;
-  /** Jdou; false – stojí (ukrytí u lesa). */
-  moving: boolean;
   people: SceneRefugee[];
   /** Kusů dobytka za nimi (scéna kreslí nejvýš `SCENE_HERD_MAX`). */
   herd: number;
@@ -82,7 +80,7 @@ export function alarmFigures(alarm: SceneAlarm): { figures: ArmyFigure[]; animal
         z: at.z,
         hx: r.heading.x,
         hz: r.heading.z,
-        clip: r.moving ? (p.carries ? 'carry' : 'walk') : 'idle',
+        clip: p.carries ? 'carry' : 'walk',
         pace: 1,
         lift: 0,
         lying: false,
@@ -103,7 +101,7 @@ export function alarmFigures(alarm: SceneAlarm): { figures: ArmyFigure[]; animal
         z: p.z,
         hx: r.heading.x,
         hz: r.heading.z,
-        speed: r.moving ? HERD_M_S : 0,
+        speed: HERD_M_S,
       });
     });
   }
@@ -173,12 +171,63 @@ export function alarmAt(
   };
   return {
     ...to,
-    refugees: glide(from.refugees, to.refugees, (r) => ({ ...r, moving: true })),
+    refugees: glide(from.refugees, to.refugees, (r) => r),
     messengers: glide(from.messengers, to.messengers, (m) => m),
   };
 }
 
 /** Jde něco z průvodů a poslů (scéna se kreslí v taktu animací)? */
 export function alarmMoving(alarm: SceneAlarm | null): boolean {
-  return !!alarm && (alarm.messengers.length > 0 || alarm.refugees.some((r) => r.moving));
+  return !!alarm && (alarm.messengers.length > 0 || alarm.refugees.length > 0);
+}
+
+/**
+ * Útěk vsi do lesa v čase `ft` (s od jeho začátku; war.md – Ve scéně): kdo doběhl k lesu, zmizel
+ * a nekreslí se; stádo za posledním z vsi zmizí s posledním, kdo doběhl. `moving` – někdo ještě jde.
+ */
+export function fleeFigures(
+  flight: { walks: readonly FleeWalk[]; herd?: number },
+  ft: number,
+): { figures: ArmyFigure[]; animals: ArmyAnimal[]; moving: boolean } {
+  const figures: ArmyFigure[] = [];
+  const animals: ArmyAnimal[] = [];
+  let moving = false;
+  let allGone = true;
+  for (const walk of flight.walks) {
+    const at = fleeWalkAt(walk, ft);
+    moving ||= at.moving;
+    if (at.gone) continue; // zmizel v lese
+    allGone = false;
+    figures.push({
+      key: `f${walk.id}`,
+      kind: walk.kind,
+      x: at.x,
+      z: at.z,
+      hx: at.hx,
+      hz: at.hz,
+      clip: at.moving ? walk.clip : 'idle',
+      pace: at.moving ? walk.speed / 1.3 : 1,
+      lift: 0,
+      lying: false,
+      side: 'folk',
+      look: ARMY_LOOKS.folk,
+    });
+  }
+  // dobytek žene poslední, kdo z vsi vyšel (stádo za ním jako za vojskem)
+  const drover = flight.walks[flight.walks.length - 1];
+  if (drover && flight.herd && !allGone) {
+    const at = fleeWalkAt(drover, ft);
+    drivenHerd(at, { x: at.hx, z: at.hz }, flight.herd).forEach((p, i) => {
+      animals.push({
+        key: `fc${i}`,
+        species: 'cow',
+        x: p.x,
+        z: p.z,
+        hx: at.hx,
+        hz: at.hz,
+        speed: at.moving ? drover.speed : 0,
+      });
+    });
+  }
+  return { figures, animals, moving };
 }

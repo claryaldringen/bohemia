@@ -2,7 +2,7 @@
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { ExpeditionView } from '@bohemia/game';
+import type { ExpeditionView, MarchGrid } from '@bohemia/game';
 import type { ScenePerson } from '@/lib/person-view';
 import type { LandscapeScene } from '@/lib/scene/landscape-scene';
 import type { OrderMode } from '@/lib/scene/scene-pointer';
@@ -45,9 +45,14 @@ const person = (id: number, age: number, refusal?: 'young'): ScenePerson => ({
 });
 
 /** Scéna jen s tím, co hook používá: režim rozkazu a výběr. */
-function fakeScene(): { scene: LandscapeScene; mode: () => OrderMode | null } {
+function fakeScene(grid: MarchGrid | null = null): {
+  scene: LandscapeScene;
+  mode: () => OrderMode | null;
+} {
   let mode: OrderMode | null = null;
   const scene = {
+    marchGrid: (): MarchGrid | null => grid,
+    dwellingPoint: (): { x: number; z: number } => ({ x: -50, z: 0 }),
     setOrderMode: (m: OrderMode | null): void => {
       mode = m;
     },
@@ -88,8 +93,9 @@ function mount(
   selection: VillageTarget | null,
   persons: ScenePerson[],
   extra: { views?: readonly ExpeditionView[]; lord?: LordAway | null } = {},
+  grid: MarchGrid | null = null,
 ) {
-  const { scene, mode } = fakeScene();
+  const { scene, mode } = fakeScene(grid);
   const setSelected = vi.fn();
   const render = (more: { views?: readonly ExpeditionView[]; lord?: LordAway | null }): void =>
     act(() => root.render(<Probe {...{ selection, persons, scene, setSelected, ...more }} />));
@@ -235,5 +241,31 @@ describe('useExpeditionOrders – dvě vsi hráče, stejné id osoby (id je jedi
     render({ views: [], lord: { ...lord, away: false } });
     render({ views: [], lord });
     expect(latest?.away).not.toBeNull();
+  });
+});
+
+describe('useExpeditionOrders – kurzor nad místem, kam se nedá dojít', () => {
+  /** Mapa 200 × 200 m: levá půlka louka, od x = 0 pás hustého lesa (pace 0) široký 20 m, pak louka. */
+  const grid = (): MarchGrid => {
+    const width = 80;
+    const pace = new Float32Array(width * width).fill(1);
+    const flags = new Uint16Array(width * width);
+    for (let j = 0; j < width; j++) {
+      for (let i = 40; i < 48; i++) {
+        pace[j * width + i] = 0;
+        flags[j * width + i] = 1;
+      }
+    }
+    return { width, height: width, originX: -100, originZ: -100, cellM: 2.5, pace, flags };
+  };
+
+  it('hustý les i louka za ním (bez spojení) mají kurzor zákazu, průchozí místo ne', () => {
+    const { mode } = mount({ kind: 'people', ids: [5] }, [person(5, 30)], {}, grid());
+    // les x = 0 .. 20; start (-50, 0) u domu
+    expect(mode()?.hover({ x: 10, z: 0 }, { x: 1, y: 1 })).toBe('not-allowed');
+    expect(mode()?.hover({ x: -20, z: 30 }, { x: 1, y: 1 })).toBe('');
+    // okraj mapy: západní okraj je dosažitelný (šipka přechodu), východní za lesem ne
+    expect(mode()?.hover({ x: -950, z: 0 }, { x: 1, y: 1 })).toBe('w-resize');
+    expect(mode()?.hover({ x: 950, z: 0 }, { x: 1, y: 1 })).toBe('not-allowed');
   });
 });

@@ -68,7 +68,7 @@ export interface E2EHooks {
    * Mlha cizí mapy výjezdu i tažení v bodě (x, z) (journey.md – Scéna cizí mapy): neobjevené,
    * objevené (šeré), v dohledu jezdců nebo vojska; bez závoje null.
    */
-  journeyFog?: (x: number, z: number) => 'hidden' | 'explored' | 'seen' | null;
+  journeyFog?: (x: number, z: number) => 'hidden' | 'explored' | 'seen' | 'lit' | null;
   /** Obydlí a staveniště cizí vsi, která scéna cizí mapy výjezdu nebo tažení kreslí (id, poloha). */
   foreignVillage?: () => { dwellings: { id: number; built: boolean; x: number; z: number }[] };
   /**

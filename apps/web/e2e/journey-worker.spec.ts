@@ -127,7 +127,7 @@ async function journeyView(
   return view && cell ? { cell, seen: view.seen[`${cell.x},${cell.y}`] ?? null } : null;
 }
 
-async function fogAt(page: Page, p: Pos): Promise<'hidden' | 'explored' | 'seen' | null> {
+async function fogAt(page: Page, p: Pos): Promise<'hidden' | 'explored' | 'seen' | 'lit' | null> {
   return page.evaluate(([x, z]) => window.__bohemiaE2E?.journeyFog?.(x!, z!) ?? null, [p.x, p.z]);
 }
 

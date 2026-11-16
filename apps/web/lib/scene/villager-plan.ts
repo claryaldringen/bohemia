@@ -984,8 +984,8 @@ export interface FleeWalk {
 
 /** Tempo útěku (m/s) – svižná chůze, s nůší pomaleji (návrh Clauda). */
 export const FLEE_M_S = { light: 1.7, carrying: 1.35 } as const;
-/** Rozptyl lidí u okraje lesa (m) – nestojí na jednom místě. */
-const FLEE_SPREAD_M = 9;
+/** Rozptyl lidí u dveří lesa (m) – mizí u okraje lesa, ne v louce před ním (návrh Clauda). */
+const FLEE_SPREAD_M = 3;
 /** Odstup odchodů z domů (s). */
 const FLEE_STAGGER_S = 0.8;
 
@@ -1014,11 +1014,14 @@ export function planFlight(
   });
 }
 
-/** Poloha na útěku v čase `t` (s od začátku útěku): u domu, na cestě, nebo u lesa (stojí). */
+/**
+ * Poloha na útěku v čase `t` (s od začátku útěku): u domu, na cestě, nebo – po doběhnutí k lesu –
+ * `gone` (člověk zmizel v lese, scéna ho nekreslí; hustým lesem se nejde, war.md – Ve scéně).
+ */
 export function fleeWalkAt(
   walk: FleeWalk,
   t: number,
-): { x: number; z: number; hx: number; hz: number; moving: boolean } {
+): { x: number; z: number; hx: number; hz: number; moving: boolean; gone: boolean } {
   const dx = walk.to.x - walk.from.x;
   const dz = walk.to.z - walk.from.z;
   const length = Math.hypot(dx, dz) || 1;
@@ -1029,6 +1032,7 @@ export function fleeWalkAt(
     hx: dx / length,
     hz: dz / length,
     moving: done > 0 && done < 1,
+    gone: done >= 1,
   };
 }
 

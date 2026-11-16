@@ -21,6 +21,8 @@ import {
   planWagonRoad,
   terrainEditsFrom,
   type WagonRoadPlan,
+  type MarchGrid,
+  type Pos,
 } from '@bohemia/game';
 import { AmbientSound } from './ambient-sound';
 import { createRtsCamera, type RtsCamera } from './camera';
@@ -37,6 +39,7 @@ import { FelledTrees } from './felled-trees';
 import { LogPile } from './log-pile';
 import { StonePiles } from './stone-piles';
 import { sameClearing, villageClearedForest, type ClearedForest } from './cleared-forest';
+import { browserMarchGrid } from './march-cursor';
 import { createForestCanopy, type ForestCanopy } from './forest-canopy';
 import type { ScenePerfStats } from './perf-stats';
 import { ScenePerf } from './scene-perf';
@@ -132,6 +135,17 @@ export class LandscapeScene {
   private wagonPlan: { key: string; plan: WagonRoadPlan } | null = null;
   /** Vymýcený les podle posledního stavu vsi (applyVillage). */
   private cleared: ClearedForest | null = null;
+  /** Mapa rodu nebo vazala – stezka pokračuje nad mlhou (`setFriendlyMap`). */
+  private friendlyMap = false;
+  /** Mřížka pochodu pro kurzor rozkazu (`marchGrid`) – znovu jen se změnou jejích vstupů. */
+  private cursorGrid: {
+    landscape: Landscape;
+    obstacles: ObstacleLayer | null;
+    cleared: ClearedForest | null;
+    roads: readonly unknown[] | undefined;
+    continuations: readonly unknown[] | undefined;
+    grid: MarchGrid;
+  } | null = null;
   private highlight: SelectionHighlight | null = null;
   /** Vývojový překryv úseků hospodářství (fields.md – Hospodaření podle polohy domů). */
   private holdings: HoldingsOverlay | null = null;
@@ -673,6 +687,7 @@ export class LandscapeScene {
       (day) => this.village?.gameDayWindow(day) ?? null,
     );
     this.villageState = village;
+    this.syncLitBands();
     this.journeyHorses = journeyHorseIds(village, this.journeyList);
     this.applyVillage();
     this.atmosphere.villageChanged();
@@ -710,8 +725,26 @@ export class LandscapeScene {
     this.war.setJourneyFog(trail);
   }
 
+  /**
+   * Mapa rodu nebo vazala (Martin 16. 11. 2026: „Když je to mapa rodu nebo vazala, ať je vidět
+   * celá, stejným způsobem jako mapa vlastní. Pokud to bude mapa nepřítele nebo neutrála, ať je
+   * tam fog of war“): pokračování zemských stezek (`SceneVillage.trailContinuations`) je nad
+   * závojem celé; na cizí mapě (výchozí) zůstává pod ním jako ostatní krajina. Nic jiného se
+   * nemění.
+   */
+  setFriendlyMap(friendly: boolean): void {
+    this.friendlyMap = friendly;
+    this.syncLitBands();
+  }
+
+  /** Pásy pokračování stezek nad závojem podle `friendlyMap` a stavu vsi scény. */
+  private syncLitBands(): void {
+    const bands = this.friendlyMap ? swathBands(this.villageState?.trailContinuations) : [];
+    this.war.setLitBands(bands.length > 0 ? bands : null, swathBandsKey(bands));
+  }
+
   /** Mlha v bodě (e2e): neobjevené, objevené (šeré), v dohledu; bez závoje null. */
-  fogAt(x: number, z: number): 'hidden' | 'explored' | 'seen' | null {
+  fogAt(x: number, z: number): 'hidden' | 'explored' | 'seen' | 'lit' | null {
     return this.war.fogAt(x, z);
   }
 
@@ -991,6 +1024,45 @@ export class LandscapeScene {
    */
   setOrderMode(mode: OrderMode | null): void {
     this.pointer.setOrderMode(mode);
+  }
+
+  /**
+   * Mřížka pochodu mapy pro kurzor nad místem, kam skupina nedojde (march-cursor.ts): krajina,
+   * vrstva překážek, vymýcený les vsi a průseky cest. Staví se líně při prvním dotazu a znovu jen
+   * se změnou vstupů. Bez krajiny null.
+   */
+  marchGrid(): MarchGrid | null {
+    const landscape = this.landscape;
+    if (!landscape) return null;
+    const village = this.villageState;
+    const known = this.cursorGrid;
+    if (
+      known &&
+      known.landscape === landscape &&
+      known.obstacles === this.obstacles &&
+      known.cleared === this.cleared &&
+      known.roads === village?.roads &&
+      known.continuations === village?.trailContinuations
+    ) {
+      return known.grid;
+    }
+    const roads = village ? roadsWithContinuations(village).map((r) => r.points) : [];
+    const grid = browserMarchGrid(landscape, this.obstacles, this.cleared, roads);
+    this.cursorGrid = {
+      landscape,
+      obstacles: this.obstacles,
+      cleared: this.cleared,
+      roads: village?.roads,
+      continuations: village?.trailContinuations,
+      grid,
+    };
+    return grid;
+  }
+
+  /** Střed obydlí (nebo staveniště) `id` ve světě mapy – odkud vyráží skupina z domu; neznámé null. */
+  dwellingPoint(id: number): Pos | null {
+    const d = this.villageState?.dwellings.find((x) => x.id === id);
+    return d ? { x: d.position.x, z: d.position.z } : null;
   }
 
   /**

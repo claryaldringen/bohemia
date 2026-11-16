@@ -19,7 +19,6 @@ const alarm = (o: Partial<SceneAlarm> = {}): SceneAlarm => ({
       mode: 'all',
       pos: { x: 0, z: 0 },
       heading: { x: 1, z: 0 },
-      moving: true,
       people: [
         { kind: 'woman', child: true, carries: false },
         { kind: 'man', child: false, carries: true },
@@ -52,20 +51,19 @@ describe('alarmFigures', () => {
     expect(animals.filter((a) => a.species === 'horse')).toHaveLength(1);
   });
 
-  it('ukrytí u lesa stojí; posel pěšky zrychlenou chůzí bez koně', () => {
+  it('posel pěšky zrychlenou chůzí bez koně; průvod vždy jde', () => {
     const still = alarm({
-      refugees: alarm().refugees.map((r) => ({ ...r, moving: false })),
       messengers: [{ key: 'm', pos: { x: 0, z: 0 }, heading: { x: 0, z: 1 }, mounted: false }],
     });
     const { figures, animals } = alarmFigures(still);
-    expect(figures.filter((f) => f.key.startsWith('r')).every((f) => f.clip === 'idle')).toBe(true);
-    expect(animals.filter((a) => a.species === 'cow').every((a) => a.speed === 0)).toBe(true);
+    expect(figures.filter((f) => f.key.startsWith('r')).every((f) => f.clip !== 'idle')).toBe(true);
+    expect(animals.filter((a) => a.species === 'cow').every((a) => a.speed > 0)).toBe(true);
     expect(animals.some((a) => a.species === 'horse')).toBe(false);
     const runner = figures.find((f) => f.key === 'msm')!;
     expect([runner.clip, runner.lift]).toEqual(['walk', 0]);
     expect(runner.pace).toBeGreaterThan(1);
     expect(alarmMoving(still)).toBe(true);
-    expect(alarmMoving(alarm({ messengers: [], refugees: still.refugees }))).toBe(false);
+    expect(alarmMoving(alarm({ messengers: [], refugees: [] }))).toBe(false);
   });
 });
 
@@ -74,12 +72,11 @@ describe('alarmAt', () => {
     const from = alarm();
     const to = alarm({
       tick: 140,
-      refugees: [{ ...from.refugees[0]!, pos: { x: 0, z: 20 }, moving: false }],
+      refugees: [{ ...from.refugees[0]!, pos: { x: 0, z: 20 } }],
     });
     const half = alarmAt(from, to, 0.5, 10);
     expect(half.refugees[0]!.pos).toEqual({ x: 0, z: 10 });
     expect(half.refugees[0]!.heading).toEqual({ x: 0, z: 1 });
-    expect(half.refugees[0]!.moving).toBe(true);
     expect(alarmAt(from, to, 1, 10)).toBe(to);
   });
 

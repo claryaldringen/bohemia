@@ -1797,8 +1797,11 @@ alarm.owner.lordId, den)` (`people` ve `WarSceneDefender` z téže mezipaměti);
   web-ui.md – Válka ve scéně). `useWarScene` (web-ui.md – Dotazování na tažení) a `sceneWarOf`
   (`lib/war-scene-view.ts`) → `LandscapeScene.setWar` v `useWarWatch`. Na vlastní
   mapě bez závoje mlhy (svou zem hráč zná; cizí mimo dohled server neposlal), padlí do konce dne.
-  Útěk `flightOf` – `planFlight` po okrajích lesa, `startMs = msOfTick(startTick)` (null → −∞,
-  stojí u lesa), dobytek žene poslední, kdo z vsi vyšel (renderer – `drivenHerd` za ním); stádo
+  Útěk `flightOf` – `planFlight` ke dveřím lesa (rozptyl `FLEE_SPREAD_M` 3 m – lidé mizí u okraje
+  lesa, ne v louce; návrh Clauda), `startMs = msOfTick(startTick)`; takt neznámý (`startTick` null,
+  starší stav tažení) → null, lidé už jsou v lese. Hustým lesem se nejde, proto kdo doběhl
+  (`fleeWalkAt(...).gone`), zmizel a `fleeFigures` (`refugee-march.ts`) ho nekreslí; dobytek žene
+  poslední, kdo z vsi vyšel (`drivenHerd` za ním), a zmizí s posledním, kdo doběhl; stádo
   s vojskem `herdOf` za skupinou (poloha a směr chůze). Scéna kreslí nejvýš `SCENE_HERD_MAX` (24)
   kusů – krávy (jiný dobytek scéna vojska nemá).
 - **Cizí mapa** (`warSceneOnMap(deps, { playerId, campaignId, cell })`; web `?scene=x,y` na route
