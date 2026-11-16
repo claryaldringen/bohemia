@@ -60,6 +60,12 @@ a smysl přebytkům (obilí, sýr, maso, klády po mýcení) – jen se surovina
   dubům a hájům – průsek by je musel vykácet, a ty se nekácí; kde by jinak stezka nevedla, směr
   nejde.
 - Víc stezek = víc sousedů (každá stavba zvlášť).
+- **Pokračování na sousední mapě** (Martin 16. 11. 2026: „ano“ k návrhu Clauda – hustý les je
+  neprůchozí, [válka](war.md) – Terén): hotová zemská stezka nekončí na kraji mapy – pokračuje ze
+  stejného bodu okraje na sousední mapě až k tamní vsi (k brance jejího dvorce), a když tam ves
+  není, k nejbližšímu místu velké souvislé louky té mapy. Trasu, průsek hustým lesem a uložení
+  podrobně řeší plán ([hustý les](../superpowers/plans/2026-11-16-dense-forest.md)); podrobnosti
+  návrh Clauda.
 
 ## Sousedé (bez simulace – varianta a)
 
