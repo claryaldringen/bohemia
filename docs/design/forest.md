@@ -290,6 +290,17 @@ Návrh Clauda: zatím ne – kopání zůstává, jinak by se měnila kalibrace 
   musí být **herní data** – staví se na plánované vrstvě překážek ([fields.md](fields.md) –
   Krajina sídla a scéna), na které server ví, kde které stromy stojí a jak jsou staré.
 
+### Hustý les
+
+- **Hustý les** je vnitřek lesa – část lesa dál než 10 m od jeho okraje (Martin 16. 11. 2026:
+  „Můžeme ten vnitřek pojmenovat jako "hustý les" a nadále se o něm tak bavit“; hranice 10 m návrh
+  Clauda – tam, kde scéna kreslí vnitřek lesa místo 3D stromů okraje). Okraj lesa (pruh 10 m),
+  skupiny stromů a osamělé stromy v louce hustým lesem nejsou.
+- **Hustý les je neprůchozí** pro vojsko i výpravy ([válka](war.md) – Terén); vede jím jen zemská
+  stezka a pevná cesta. Paseka po klučení hustým lesem přestává být. Vesničané do něj utíkají před
+  vojskem a zmizí v něm jako v budově ([válka](war.md) – Obránci – postoje a útěk).
+- Práce vsi v lese (kácení, lov, uhlíř) se nemění (návrh Clauda – týká se jen pochodu).
+
 ## Co hráč vidí
 
 - Ve scéně: ustupující okraj lesa s pařezy, nálet na starých pasekách, hromadu klád u vsi, která

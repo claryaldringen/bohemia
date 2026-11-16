@@ -94,7 +94,9 @@ rozhraní, ale prostě skupina lidí, které hráč označil.
   nebezpečí (šelmy, cizí rod) a prohraný boj ([výjezd](lord-control.md)).
 - Mapu odkrývá a znalost rodu zvyšuje každá skupina, i bez vojvody (Martin: „Je to tak, jak
   říkáš“).
-- **Šelmy** napadnou v hustém lese osamělého člověka nebo skupinku nejvýš dvou lidí – i ženu
+- **Hustý les je neprůchozí** i pro výpravy (Martin 16. 11. 2026 – [válka](war.md) – Terén);
+  výprava jde nejkratší průchozí cestou, hustým lesem jen po zemské stezce nebo pevné cestě.
+- **Šelmy** napadnou na stezce hustým lesem osamělého člověka nebo skupinku nejvýš dvou lidí – i ženu
   s dítětem, ne jen muže (Martin 14. 11. 2026: „K těm šelmám ano, je to tak jak říkáš“). Čísla
   jako u výjezdu ([výjezd](lord-control.md) – Nebezpečí) s bojem každého člověka – kdo se bránit
   neumí, je ve větším nebezpečí.

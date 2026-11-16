@@ -296,8 +296,18 @@ a 12 vesničanů (8 dobrovolníků po 0,4, 4 nucení po 0,2 = 4,0), s kovárnou 
   ≈ 1,9 km ([krajina](landscape.md)) – přes celou mapu ≈ 9 min (≈ 6 dní), od okraje ke vsi
   uprostřed ≈ 4–5 min (≈ 3 dny). **Poloha vojska je táž ve scéně i v simulaci** – výjimka
   z „Bez časosběru“ (vojáci jdou rychleji než lidé ve vsi).
-- **Terén** (Martin 18. 10.): **hustý les ≈ 1/4** tempa, **voda jen po brodech**; pevná cesta
-  a zemská stezka × 1,5 ([cesty](roads.md), [obchod](trade.md)) (návrh Clauda).
+- **Terén** – ~~(Martin 18. 10.): hustý les ≈ 1/4 tempa~~ – **změna 16. 11. 2026 (čeká na
+  schválení textu):** **hustý les je neprůchozí** (Martin 16. 11. 2026: „Můžeme ten vnitřek
+  pojmenovat jako "hustý les" a nadále se o něm tak bavit a udělat jej neprůchozím? Vojsko ve
+  středověku reálně chodilo po zemských stezkách právě kvůli neprůchodnosti lesa.“). Krajina se
+  pro pochod dělí jen na **průchozí a neprůchozí** jako v 0 A.D. (Martin 16. 11. 2026) – trasa je
+  nejkratší cesta průchozí krajinou, bez zdražování terénu. Neprůchozí: hustý les ([les](forest.md)
+  – Hustý les), voda mimo brody, skály, stavby. Hustým lesem vede jen **zemská stezka a pevná
+  cesta** (průchozí pruh). Kdo jde po pevné cestě nebo zemské stezce, jde × 1,5 rychleji
+  ([cesty](roads.md), [obchod](trade.md)); trasa je ale sama nevyhledává (návrh Clauda).
+  - Důsledek: ves v pasece uprostřed hustého lesa je pro vojsko i výpravu dosažitelná jen po
+    stezce či cestě, nebo přes louky, které souvisle vedou k okraji mapy (návrh Clauda).
+  - Dohled na stezce v hustém lese zůstává 50 m (z lesa i do lesa), jinde 150 m (návrh Clauda).
 - **Cíl v neprůchodné buňce** (návrh Clauda 10. 11. 2026, jako v 0 A.D. – jednotka jde na
   nejbližší dosažitelné místo): klik do vody bez brodu, na sráz, na hradbu nebo na místo, kam
   cesta nevede (za řekou bez brodu), vojsko neodmítne ani tiše nestojí – cíl se posune na
@@ -463,7 +473,9 @@ o evakuaci (defaultní nastavení).“
   - ~~**Raději utéct** (stromy)~~ – nahrazeno 14. 11. 2026, Hráč ve vsi a mimo ni.
   - **Nyní dva postoje** (14. 11. 2026): **Obrana** (štíty) – skupiny domů se brání do bodu
     zlomu; **Evakuace** (stromy) – **výchozí** (Martin 2. 11. 2026 – „ok“), i ve vsi správce:
-    posel do hradiště pána, lidé do hradiště, stihnou-li to, jinak do lesa.
+    posel do hradiště pána, lidé do hradiště, stihnou-li to, jinak do lesa – utečou do
+    **hustého lesa** a zmizí v něm jako v budově (Martin 16. 11. 2026: „Vesničané by pak utekli do
+    hustého lesa a zmizeli v něm jako v budově“); vojsko je tam nenajde ani nepronásleduje.
 - **Kdy:** vesničan spatří cizí vojsko (≈ 150 m – Martin 18. 10.), nebo přijde zpráva, že k vsi
   směřuje – posel z jiné vsi rodu, kterou vojsko prošlo (Martin 2. 11. 2026: „a nebo že k ní
   směřují“; posel návrh Clauda).
@@ -824,8 +836,8 @@ Martin 2. 11. 2026 – „ok“ (doplňky návrh Clauda):
 | Ochrana nové vsi                   | 5 herních let                                                                                                                                                                                                                          |
 | Válka utichne                      | 3 herní roky bez střetu                                                                                                                                                                                                                |
 | Tempo vojska                       | ≈ 3–4 m/s skutečného času, 1 km ≈ 4–5 min ≈ 3 herní dny (Martin)                                                                                                                                                                       |
-| Terén a náklad                     | les 1/4, cesta a stezka × 1,5, jezdci × 1,5, stádo × 0,5, ranění × 0,75                                                                                                                                                                |
-| Mřížka pochodu                     | buňka 10 m; hustý les = les se 3 stromy v okolí 30 × 30 m; brod = mělčina                                                                                                                                                              |
+| Terén a náklad                     | hustý les neprůchozí (16. 11.), cesta a stezka × 1,5, jezdci × 1,5, stádo × 0,5, ranění × 0,75                                                                                                                                                                |
+| Mřížka pochodu                     | jen průchozí / neprůchozí, jemná mřížka (návrh 2 m – podle měření); hustý les = vnitřek lesa (forest.md); brod = mělčina                                                                                                                                                              |
 | Takty tažení                       | 4 za sekundu; záměr hráče platí od taktu teď + 2; kontrolní bod po 40                                                                                                                                                                  |
 | Zima (1. 12. – konec února)        | sníh × 0,75; venku −3 zdraví a −2 % síly za den, ve vsi +10 a +5 %                                                                                                                                                                     |
 | Píce v zimě                        | 6 kg sena na koně denně (horses.md)                                                                                                                                                                                                    |
