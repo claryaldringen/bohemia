@@ -855,7 +855,7 @@ návrat za 1 den), `WAR.surrenderRatio`, `WAR.pitFoundChance`.
   směrech sousedí s neprůchodnou buňkou hustého lesa (`MARCH_FOREST` a `pace` 0 – brod v hustém lese
   s `pace` 1 les neotevírá), remíza nižší index; index po přihrádkách je jeden na mřížku
   (`nearestForestOf` v `ladders.ts`, sdílí ho žebříky, dříví a útěk). `nearestReachableForest(grid,
-from)` totéž jen mezi buňkami z `reachableCells` od `from` – les jen za řekou bez brodu je null.
+from)` totéž jen mezi dveřmi ve stejné souvislé oblasti (`marchAreas`, O(1), bez zaplavení) – les jen za řekou bez brodu je null.
   Použití: `refugeOptions` (les → `no-forest`), `Evakuace – Ukrýt v lese`, postoj `planDefense` (null
   → při přesile vzdání, jinak obrana); bod zlomu v bitvě (`rout.ts`) míří k nejbližším dveřím bez
   ohledu na dosažitelnost (levný dotaz po tiku).

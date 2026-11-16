@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { nearestForestDoor, nearestReachableForest } from '../forest-doors';
+import { createRandom } from '../../landscape/random';
+import { reachableCells } from '../march-search';
+import { nearestForestOf } from '../ladders';
 import { MARCH_FOREST, marchCellAt, marchCellCenter, type MarchGrid } from '../march-grid';
 import { inSight } from '../sight';
 
@@ -102,5 +105,25 @@ describe('dohled v hustém lese (Terén – stezka hustým lesem 50 m)', () => {
     expect(inSight(grid, edge, { x: edge.x + 90, z: edge.z })).toBe(true);
     expect(inSight(grid, edge, { x: edge.x + 140, z: edge.z })).toBe(true);
     expect(inSight(grid, edge, { x: edge.x + 160, z: edge.z })).toBe(false);
+  });
+});
+
+describe('nearestReachableForest – oblasti místo zaplavení', () => {
+  it('týž výsledek jako zaplavení `reachableCells` (i start v neprůchodné buňce)', () => {
+    for (let seed = 1; seed <= 12; seed++) {
+      const rng = createRandom(seed);
+      const grid = gridOf(
+        (i, j) => i >= 25 && rng.next() < 0.8 + (j % 2) * 0.1,
+        (i, j) => (i === 12 || j === 9) && rng.next() < 0.85,
+      );
+      for (let k = 0; k < 60; k++) {
+        const start = Math.floor(rng.next() * W * H);
+        const from = marchCellCenter(grid, start);
+        const reach = reachableCells(grid, start);
+        expect(nearestReachableForest(grid, from)).toEqual(
+          nearestForestOf(grid, from, (c) => reach[c] === 1),
+        );
+      }
+    }
   });
 });

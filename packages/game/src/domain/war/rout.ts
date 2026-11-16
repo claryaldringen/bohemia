@@ -1,7 +1,8 @@
 import { ageYears, isInjured } from '../village/people/people';
 import type { Person } from '../village/types/types-people';
 import type { BattleField, BattleFort, BattleState, Fighter } from './battle';
-import { nearestForest } from './flight';
+import { nearestForestDoor, nearestReachableForest } from './forest-doors';
+import type { Pos } from './march-grid';
 import { dist2, inFight } from './orders';
 import { WAR } from './rules-war';
 import { TICKS_PER_SECOND } from './ticks';
@@ -17,6 +18,18 @@ import { fortOfPost, withinWalls } from './wall-defense';
 // (`wall-defense.ts` – plán). Útočiště je dobyté, až útočník stojí uvnitř obvodu. Jen det-math.
 
 /**
+ * Dveře lesa, kam muž na místě `p` uteče: z pole jen z téže souvislé oblasti (muž odříznutý řekou
+ * od nejbližších dveří běží k dosažitelným – `nearestReachableForest`); zevnitř opevnění
+ * nejbližší dveře bez ohledu na oblast – mřížka má hradby zavřené a brány otevírá boj za běhu
+ * (`openGates`), úsek za bránou se tak v mřížce neprojde.
+ */
+function forestFor(field: BattleField, p: Pos): Pos | null {
+  return field.forts.some((bf) => withinWalls(bf, p))
+    ? nearestForestDoor(field.grid, p)
+    : nearestReachableForest(field.grid, p);
+}
+
+/**
  * Útěk (war.md – Bod zlomu): útočník domů – kudy přišel (rozpad po hloučcích Ú6.12), obránce do
  * nejbližšího lesa (bez lesa hned pryč). Obránce z opevnění vede ven branou takt (`battle.ts`).
  */
@@ -27,7 +40,7 @@ export function startFlee(f: Fighter, field: BattleField): void {
   f.routeFor = null;
   f.breachAt = null;
   delete f.cover;
-  f.fleeTo = f.side === 'attack' ? { ...f.home } : nearestForest(field.grid, f.pos);
+  f.fleeTo = f.side === 'attack' ? { ...f.home } : forestFor(field, f.pos);
   if (f.fleeTo === null) f.state = 'fled';
 }
 
@@ -204,7 +217,7 @@ export function orderBreakout(
   openGates(b, forts, fort, segment);
   b.breakouts = [
     ...(b.breakouts ?? []).filter((x) => x.fort !== fort),
-    { fort, segment, to: nearestForest(field.grid, { x: gate.x, z: gate.z }), tick: b.ticks },
+    { fort, segment, to: nearestForestDoor(field.grid, { x: gate.x, z: gate.z }), tick: b.ticks },
   ];
   return true;
 }

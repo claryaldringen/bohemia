@@ -21,7 +21,7 @@ import type {
 } from './battle';
 import type { CampaignGroup, CampaignLeg, CampaignMember, CampaignState } from './campaign-types';
 import { houseGroups } from './defenders';
-import { nearestForest } from './flight';
+import { nearestReachableForest } from './forest-doors';
 import type { BattleLadder } from './ladders';
 import type { MarchGrid, Pos } from './march-grid';
 import { WAR } from './rules-war';
@@ -133,7 +133,7 @@ export type WarSceneFleeing = Omit<WarSceneFolk, 'group'> & { forest: number };
 export interface WarSceneFlight {
   /** Takt, kdy ves utekla (otevření boje – `BattleState.openTick`); null – neznámo, stojí u lesa. */
   startTick: number | null;
-  /** Okraje lesa (`nearestForest` od první skupiny domů jako v `planDefense`). */
+  /** Okraje lesa (`nearestReachableForest` od první skupiny domů jako v `planDefense`). */
   forests: Pos[];
   people: WarSceneFleeing[];
   /** Dobytek hnaný do lesa (kusů). */
@@ -405,7 +405,7 @@ export function sceneFolkOf(state: VillageState, day: number): WarSceneFolk[] {
 
 /**
  * Útěk vsi do lesa z pohledu obránce (`ShelterReport.forest` – kdo utekl, `livestockForest` –
- * dobytek): každá skupina domů k okraji lesa nejbližšímu svému prvnímu člověku (`nearestForest`
+ * dobytek): každá skupina domů k okraji lesa nejbližšímu svému prvnímu člověku (`nearestReachableForest`
  * jako v `planDefense`). Bez mřížky (les neznámý) nebo bez utečených – null.
  */
 function flightView(state: CampaignState, input: WarSceneInput): WarSceneFlight | null {
@@ -419,7 +419,7 @@ function flightView(state: CampaignState, input: WarSceneInput): WarSceneFlight 
   const people: WarSceneFleeing[] = [];
   for (const p of fled) {
     if (!forestOf.has(p.group)) {
-      const at = nearestForest(input.grid, p.home);
+      const at = nearestReachableForest(input.grid, p.home);
       forestOf.set(p.group, at ? forests.push({ x: at.x, z: at.z }) - 1 : null);
     }
     const forest = forestOf.get(p.group);
