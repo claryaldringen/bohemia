@@ -402,11 +402,16 @@ describe('warSceneView – průvod uprchlíků a posel (Ú14)', () => {
     ]);
   });
 
-  it('„jen lidé“ nic nenesou; ukrytí v lese stojí – vlastní je vidí', () => {
-    const s = alarmed({ flight: { mode: 'people', status: 'hidden', leg: null } });
+  it('„jen lidé“ nic nenesou; skupina na cestě se kreslí', () => {
+    const s = alarmed({ flight: { mode: 'people', status: 'marching', leg: null } });
     const [m] = warSceneView(s, onKnezice(s, 'defend', 'p9'))!.refugeMarch!;
-    expect(m!.moving).toBe(false);
+    expect(m!.moving).toBe(true);
     expect(m!.people.every((p) => !p.carries)).toBe(true);
+  });
+
+  it('ukrytá skupina se nekreslí ani vlastníkovi vsi (Martin 16. 11. 2026)', () => {
+    const s = alarmed({ flight: { mode: 'people', status: 'hidden', leg: null } });
+    expect(warSceneView(s, onKnezice(s, 'defend', 'p9'))?.refugeMarch).toBeUndefined();
   });
 
   it('útočník průvod a posla mimo dohled nevidí; bez vojska na mapě nic', () => {

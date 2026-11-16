@@ -16,6 +16,7 @@ import {
   type RefugeHost,
   type RefugeOptionsInput,
 } from '../refuge-choice';
+import { MARCH_FOREST, type MarchGrid } from '../march-grid';
 import { WAR } from '../rules-war';
 import { TICKS_PER_SECOND } from '../ticks';
 import { field, land, palisade } from './battle-fixtures';
@@ -216,12 +217,38 @@ describe('odhady (Otevřené 2)', () => {
     expect(north.route).toEqual([HOME, { x: 1, y: 0 }, { x: 2, y: 0 }]);
   });
 
+  it('les jen za řekou bez brodu → „no-forest“ (Review Focus 5)', () => {
+    const w = 40;
+    const h = 20;
+    const pace = new Float32Array(w * h).fill(1);
+    const flags = new Uint16Array(w * h);
+    for (let c = 0; c < w * h; c++) {
+      const i = c % w;
+      if (i >= 30) {
+        pace[c] = 0;
+        flags[c] = MARCH_FOREST;
+      } else if (i === 28) pace[c] = 0;
+    }
+    const grid: MarchGrid = {
+      width: w,
+      height: h,
+      originX: 700,
+      originZ: -25,
+      cellM: 2.5,
+      pace,
+      flags,
+    };
+    expect(refugeOptions(input({ grid })).forest.blocked).toBe('no-forest');
+  });
+
   it('les: bez lesa „no-forest“, s lesem jde; lidé pryč blokují všechny útěky', () => {
     expect(refugeOptions(input()).forest.blocked).toBe('no-forest');
-    const woods = refugeOptions(input({ grid: field([], (tx) => tx >= 85).grid }));
+    const woods = refugeOptions(input({ grid: field([], (tx) => tx >= 85 && tx < 100).grid }));
     expect(woods.forest.blocked).toBeNull();
     expect(woods.forest.etaTicks!).toBeGreaterThan(0);
-    const fled = refugeOptions(input({ fled: true, grid: field([], (tx) => tx >= 85).grid }));
+    const fled = refugeOptions(
+      input({ fled: true, grid: field([], (tx) => tx >= 85 && tx < 100).grid }),
+    );
     expect(fled.forest.blocked).toBe('gone');
     expect(fled.people.blocked).toBe('gone');
     expect(fled.all.blocked).toBe('gone');
@@ -406,7 +433,7 @@ describe('volba správce (Otevřené 6)', () => {
   it('nestihnou se vším → jen lidé; nestihnou vůbec → les', () => {
     const near = opts({ seenAt: { cell: HOME, pos: { x: 460, z: 0 } } });
     expect(stewardAlarmChoice(near, 'flee', false)).toEqual({ messenger: true, flee: 'people' });
-    const woods = field([], (tx) => tx >= 85).grid;
+    const woods = field([], (tx) => tx >= 85 && tx < 100).grid;
     const here = opts({ seenAt: at, grid: woods });
     expect(stewardAlarmChoice(here, 'flee', false)).toEqual({ messenger: true, flee: 'forest' });
   });

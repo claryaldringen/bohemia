@@ -395,7 +395,7 @@ untilTick, pen }`: vesničan `groomId` (null = nikdo doma), jezdci (id osob), ta
   v taktu přechodu okraje. Jiná ves na mapě než dřív (stará zanikla) – stavby staré vsi se zahodí,
   stopa i `since` zůstanou (`lookOnMap` – totéž bere pohled tažení).
 - **`lookAround(prev, { village, eyes, grid, day })`** – stavby v dohledu (`inSight`: 150 m, z lesa
-  a do lesa 50 m) zapíše s dnešním stavem a dnem; známou stavbu, která ve vsi už není a její místo
+  a do lesa 50 m – hustým lesem vede jen stezka, její buňka nese `MARCH_FOREST`, takže dohled na ní je 50 m, v okrajovém pruhu bez `MARCH_FOREST` 150 m; `forest-doors.test.ts`) zapíše s dnešním stavem a dnem; známou stavbu, která ve vsi už není a její místo
   je v dohledu, zapomene; co je mimo dohled, zůstane („stará zpráva“). Co muži dnes už viděli, se
   týž den znovu nepřepisuje – stav vsi pro den je jeden. `prev` nemění a beze změny vrátí týž
   objekt, takže takt znalost map nekopíruje (`journeyTick` kopíruje stav bez `seen`). Stavbu, která
@@ -863,7 +863,7 @@ vidí). Znalost ve scéně tažení – Znalost rodu (Tažení ve scéně, Úloh
 
 - **Kdy:** v denním kroku (`stepJourney` → `journeyTick`, smyčka `s.day++`) po `homeDay` – jednou za
   herní den pro každý hlouček, který stojí na začátku dne v hustém lese (`MARCH_FOREST` pod jeho polohou
-  v mřížce pochodu, `gridOf`). Mimo hustý les, nad `JOURNEY.predatorGroupMax` živých mužů (tři
+  v mřížce pochodu, `gridOf`) – hustým lesem vede jen stezka (plán 2026-11-16-dense-forest), šelmy tedy čekají na stezce (hlouček 1 muže: los proběhne; v okrajovém pruhu bez `MARCH_FOREST` ne; test `journey-predators.test.ts`). Mimo hustý les, nad `JOURNEY.predatorGroupMax` živých mužů (tři
   nikdy) ani na mapě bez šelmy se nelosuje.
 - **Los** `predatorDay({ members, inForest, wildlife, seed, day })`: čistá funkce, proud
   `createRandom(deriveSeed(seed, 'predators:' + day))` u hloučku 0 (staré výjezdy beze změny), jinak

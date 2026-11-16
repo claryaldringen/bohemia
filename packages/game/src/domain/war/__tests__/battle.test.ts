@@ -6,6 +6,7 @@ import { hitDamage, type BattleState } from '../battle';
 import { stepCampaign } from '../campaign';
 import type { CampaignMap, CampaignState, CampaignWorld, GroupAssault } from '../campaign-types';
 import { MARCH_FOREST, MarchGridMemo, marchCellAt, marchGrid } from '../march-grid';
+import { nearestForestDoor } from '../forest-doors';
 import { WAR } from '../rules-war';
 import { campaign, flat, MEADOW, member, stepInChunks, SUMMER, world } from './campaign-fixtures';
 import {
@@ -114,6 +115,29 @@ describe('bod zlomu podle počtu (war.md – Boj – Bod zlomu)', () => {
     expect(b.groups.find((g) => g.side === 'defend')!.broken).toBe(true);
     // bez lesa se obránci hned schovají
     for (const m of men.slice(9)) expect(m.state).toBe('fled');
+  });
+});
+
+describe('útěk obránců do hustého lesa (Rozhodnutí 10)', () => {
+  it('obránce na útěku skončí „fled“ do 2 m od dveří lesa a nikdy v neprůchodné buňce', () => {
+    const f = field([], (tx) => tx >= 85);
+    const door = nearestForestDoor(f.grid, { x: 0, z: 0 })!;
+    const b = battle({
+      attackers: [attacker(0, { x: -900, z: 0 })],
+      defenders: Array.from({ length: 20 }, (_, i) => defender(i + 1, { x: 0, z: 0 })),
+      orders: { 0: 'hold-place' },
+    });
+    const men = b.fighters.filter((x) => x.side === 'defend');
+    for (const m of men.slice(0, 9)) m.state = 'down';
+    run(b, f, 3000, () => {
+      for (const m of men.slice(9)) {
+        if (m.state === 'flee') expect(f.grid.pace[marchCellAt(f.grid, m.pos)]!).toBeGreaterThan(0);
+      }
+    });
+    for (const m of men.slice(9)) {
+      expect(m.state).toBe('fled');
+      expect(Math.hypot(m.pos.x - door.x, m.pos.z - door.z)).toBeLessThan(2);
+    }
   });
 });
 

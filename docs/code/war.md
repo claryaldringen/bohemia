@@ -867,7 +867,16 @@ bez nastavení `flee` (`stanceOf`, `WAR.flight.defaultStance`). Postoj mění ak
 cizí vsi ani senior ji nemají; držitel vsi ano). Čísla útěku: `WAR.flight` (25 / 10 kg, děti od 7 let,
 návrat za 1 den), `WAR.surrenderRatio`, `WAR.pitFoundChance`.
 
-- `domain/war/flight.ts` – `nearestForest(grid, from)` (hustý les mřížky pochodu; používá i útěk při
+- `domain/war/forest-doors.ts` – **dveře lesa** (plán 2026-11-16-dense-forest, Rozhodnutí 10; Martin 16. 11. 2026: vesničané utečou do hustého lesa a zmizí jako do budovy, vojsko je nenajde ani
+  nepronásleduje): `nearestForestDoor(grid, from)` – střed nejbližší průchodné buňky, která v 8
+  směrech sousedí s neprůchodnou buňkou hustého lesa (`MARCH_FOREST` a `pace` 0 – brod v hustém lese
+  s `pace` 1 les neotevírá), remíza nižší index; index po přihrádkách je jeden na mřížku
+  (`nearestForestOf` v `ladders.ts`, sdílí ho žebříky, dříví a útěk). `nearestReachableForest(grid,
+from)` totéž jen mezi dveřmi ve stejné souvislé oblasti (`marchAreas`, O(1), bez zaplavení) – les jen za řekou bez brodu je null.
+  Použití: `refugeOptions` (les → `no-forest`), `Evakuace – Ukrýt v lese`, postoj `planDefense` (null
+  → při přesile vzdání, jinak obrana); bod zlomu v bitvě (`rout.ts`) míří k nejbližším dveřím bez
+  ohledu na dosažitelnost (levný dotaz po tiku).
+- `domain/war/flight.ts` – `nearestForest(grid, from)` (jen `nearestForestDoor`; používá i útěk při
   bodu zlomu v `battle.ts`), `fleeParty(state, day, who?)` (dospělý 25 kg, dítě 7–15 let 10 kg, mladší
   nic, dobytek celý, zásoby nejvýš do výše zásob), `pitFound(seed, pitId, daysInGroup)` (30 % ze
   seedu jámy po 1 herním dni ve skupině domů), `returnDayAfter(dnes)` (+1 den), `isOverpowered`
@@ -1110,7 +1119,7 @@ Clauda“). Co se hýbe v taktech (vesničan běžící domů, posel, skupina up
   volbu pustí (kandidáti hradišť `refugeHosts` – přesunuto z `messenger.ts` do `alarm.ts`; les je
   nepotřebuje). Složení `flightLoad` ze stavu vsi bez toho, co tažení dnes odvedlo; `AlarmFlight`
   (`refId` `<tažení>:a<n>`, `people` – kdo odešel, `carried` – co odnesli, `wounded`, cíl střed
-  útočiště hradiště po trase `refugeRoute`, nebo nejbližší hustý les mapy vsi – `nearestForest`),
+  útočiště hradiště po trase `refugeRoute`, nebo dveře nejbližšího dosažitelného hustého lesa mapy vsi – `nearestReachableForest`; skupina nikdy nestojí v neprůchodné buňce),
   `refuge-depart` domů na týž den s `hostName` (nový volitelný port `CampaignWorld.villageNameOf` –
   jména načtených vsí; `computeCampaign` je plní spolu se stavem vsi, takže výsledek nezávisí na
   kouscích). Skupina do hradiště sní hned jídlo dne odchodu (doma už nejí), pak v denním kroku
@@ -1295,11 +1304,11 @@ Clauda“). Co se hýbe v taktech (vesničan běžící domů, posel, skupina up
   `refugeMarch` (`WarSceneRefugeMarch` – `refId`, `own`, `mode`, poloha, směr chůze, `moving`, lidé
   jen vzhledem `WarSceneRefugee` – postava, dítě, nese zásoby; kusů dobytka, vozů) a `messengers`
   (`WarSceneMessenger` – poloha, směr, `mounted`). Na mapě jen skupina na cestě (`marching`) nebo
-  ukrytá u lesa (`hidden`) a běžící posel; v hradišti, dostižená, doručený a chycený ne. **Mlha:**
+  běžící posel; ukrytá u lesa (`hidden`) se nekreslí nikomu, ani vlastníkovi (zmizela jako do budovy), v hradišti, dostižená, doručený a chycený také ne. **Mlha:**
   skupiny a posly vsí hráče, který se dívá (`WarSceneInput.playerId` =
   `AlarmVillage.owner.playerId`), vidí vždy – i na mapě své jiné vsi (hradiště); cizí jen v dohledu
   (`inSight`) – obránce z domů a svých bojovníků na nohou, útočník ze skupin s aktivním mužem a
-  bojovníků na nohou; ukrytou skupinu cizí nevidí ani na dohled. Pohlaví uprchlík nenese – muž od 16
+  bojovníků na nohou; ukrytou skupinu nevidí nikdo. Pohlaví uprchlík nenese – muž od 16
   let `man`, jiná dospělá žena, dítě podle id (návrh Clauda – jen vzhled); zásoby nese od
   `WAR.flight.childFromYears`, „jen lidé“ nic. Směr chůze `moverHeading` – k dalšímu bodu úseku
   **před ušlými metry** (`walkedM`; dřív první bod dál než 1 m – u skupiny vojska uprostřed úseku to

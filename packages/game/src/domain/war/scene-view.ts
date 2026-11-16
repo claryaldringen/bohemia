@@ -21,7 +21,7 @@ import type {
 } from './battle';
 import type { CampaignGroup, CampaignLeg, CampaignMember, CampaignState } from './campaign-types';
 import { houseGroups } from './defenders';
-import { nearestForest } from './flight';
+import { nearestReachableForest } from './forest-doors';
 import type { BattleLadder } from './ladders';
 import type { MarchGrid, Pos } from './march-grid';
 import { WAR } from './rules-war';
@@ -133,7 +133,7 @@ export type WarSceneFleeing = Omit<WarSceneFolk, 'group'> & { forest: number };
 export interface WarSceneFlight {
   /** Takt, kdy ves utekla (otevření boje – `BattleState.openTick`); null – neznámo, stojí u lesa. */
   startTick: number | null;
-  /** Okraje lesa (`nearestForest` od první skupiny domů jako v `planDefense`). */
+  /** Okraje lesa (`nearestReachableForest` od první skupiny domů jako v `planDefense`). */
   forests: Pos[];
   people: WarSceneFleeing[];
   /** Dobytek hnaný do lesa (kusů). */
@@ -156,7 +156,7 @@ export interface WarSceneRefugeMarch {
   pos: Pos;
   /** Směr chůze (jednotkový) – k dalšímu bodu úseku, jinak k cíli. */
   heading: Pos;
-  /** Jdou (`marching`); false – stojí ukrytí u lesa (`hidden`, jen vlastní). */
+  /** Jdou (`marching`); vždy true – ukrytá skupina (`hidden`) se nekreslí. */
   moving: boolean;
   /** Kdo jde (bez padlých a odvedených – `lost`), vzestupně podle id. */
   people: WarSceneRefugee[];
@@ -405,7 +405,7 @@ export function sceneFolkOf(state: VillageState, day: number): WarSceneFolk[] {
 
 /**
  * Útěk vsi do lesa z pohledu obránce (`ShelterReport.forest` – kdo utekl, `livestockForest` –
- * dobytek): každá skupina domů k okraji lesa nejbližšímu svému prvnímu člověku (`nearestForest`
+ * dobytek): každá skupina domů k okraji lesa nejbližšímu svému prvnímu člověku (`nearestReachableForest`
  * jako v `planDefense`). Bez mřížky (les neznámý) nebo bez utečených – null.
  */
 function flightView(state: CampaignState, input: WarSceneInput): WarSceneFlight | null {
@@ -419,7 +419,7 @@ function flightView(state: CampaignState, input: WarSceneInput): WarSceneFlight 
   const people: WarSceneFleeing[] = [];
   for (const p of fled) {
     if (!forestOf.has(p.group)) {
-      const at = nearestForest(input.grid, p.home);
+      const at = nearestReachableForest(input.grid, p.home);
       forestOf.set(p.group, at ? forests.push({ x: at.x, z: at.z }) - 1 : null);
     }
     const forest = forestOf.get(p.group);
@@ -608,7 +608,8 @@ function alarmView(
   const sees = (p: Pos): boolean => input.seesAll === true || eyes.some((e) => inSight(grid, e, p));
   const refugeMarch = flights.flatMap((f): WarSceneRefugeMarch[] => {
     const mine = own(f.villageId);
-    if (!mine && (f.status === 'hidden' || !sees(f.pos))) return [];
+    // ukrytá skupina zmizela jako do budovy (Martin 16. 11. 2026) – nekreslí se nikomu, ani vlastníkovi
+    if (f.status === 'hidden' || (!mine && !sees(f.pos))) return [];
     const lost = new Set(f.lost ?? []);
     const people = f.people
       .filter((p) => !lost.has(p.id))
