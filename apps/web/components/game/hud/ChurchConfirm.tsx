@@ -47,6 +47,43 @@ export function ChurchConfirm({
       data-hud-block
       data-testid="church-confirm-panel"
     >
+      <ChurchMeasureControls type={type} dims={dims} onDims={onDims} />
+      <Tooltip content="Postavit kostel (Enter)" denied={reason} placement="above">
+        <button
+          type="button"
+          data-testid="church-confirm"
+          aria-label="Postavit kostel"
+          aria-disabled={reason !== null}
+          onClick={() => {
+            if (reason === null) onConfirm();
+          }}
+          className={`hud-icon-button h-9 w-9 ${reason === null ? '' : 'opacity-40'}`}
+        >
+          <img
+            src="/icons/resources/labor.png"
+            alt=""
+            width={28}
+            height={28}
+            className="m-auto h-7 w-7"
+          />
+        </button>
+      </Tooltip>
+    </div>
+  );
+}
+
+/** Míry lodi tlačítky +/− (rotunda průměr a výška, jinak šířka, délka a výška) – i v panelu rozměrů před umístěním. */
+export function ChurchMeasureControls({
+  type,
+  dims,
+  onDims,
+}: {
+  type: ChurchType;
+  dims: ChurchDims;
+  onDims: (dims: ChurchDims) => void;
+}): ReactElement {
+  return (
+    <>
       {churchMeasures(dims).map((measure) => {
         const { mark, name } = MEASURES[measure];
         const value = churchMeasureValue(dims, measure);
@@ -87,26 +124,6 @@ export function ChurchConfirm({
           </Tooltip>
         );
       })}
-      <Tooltip content="Postavit kostel (Enter)" denied={reason} placement="above">
-        <button
-          type="button"
-          data-testid="church-confirm"
-          aria-label="Postavit kostel"
-          aria-disabled={reason !== null}
-          onClick={() => {
-            if (reason === null) onConfirm();
-          }}
-          className={`hud-icon-button h-9 w-9 ${reason === null ? '' : 'opacity-40'}`}
-        >
-          <img
-            src="/icons/resources/labor.png"
-            alt=""
-            width={28}
-            height={28}
-            className="m-auto h-7 w-7"
-          />
-        </button>
-      </Tooltip>
-    </div>
+    </>
   );
 }

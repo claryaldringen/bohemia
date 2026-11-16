@@ -1,12 +1,13 @@
 // Umístění kostela (churches.md – Stavba, Velikost a cena): čisté funkce tahu, rozměrů a ceny
-// u kurzoru. Tah začíná u vstupu (západ) a končí u kněžiště – délka lodi (rotunda: průměr)
-// a směr osy přichycený po 15° (`snapChurchRotation`); krátký klik = natočení na východ.
+// u kurzoru. Rozměry zadává panel rozměrů před umístěním; tah začíná u vstupu (západ) a končí
+// u kněžiště – jen natáčí osu přichycenou po 15° (`snapChurchRotation`); krátký klik = na východ.
 import {
   CHURCH,
   CHURCH_DIMS_STEP_M,
   CHURCH_EAST_ROTATION,
   churchCost,
   clampChurchDims,
+  defaultChurchDims,
   snapChurchRotation,
   type ChurchDims,
   type ChurchType,
@@ -42,9 +43,9 @@ export function churchAtCursor(
 }
 
 /**
- * Kostel z tahu: `from` = vstup (západní konec lodi), `to` = kněžiště – délka lodi (rotunda
- * průměr) ořezaná `clampChurchDims`, osa přichycená po 15°; vstup zůstane, kde tah začal. Místní
- * +x míří do (cos r, −sin r) jako u budov (`churchLocalToWorld`).
+ * Kostel z tahu: `from` = vstup (západní konec lodi), `to` = kněžiště – tah jen natáčí osu
+ * (přichycenou po 15°), rozměry zůstanou, jak je hráč zadal v panelu rozměrů (Martin 16. 11. 2026);
+ * vstup zůstane, kde tah začal. Místní +x míří do (cos r, −sin r) jako u budov (`churchLocalToWorld`).
  */
 export function churchFromDrag(
   type: ChurchType,
@@ -52,13 +53,8 @@ export function churchFromDrag(
   from: { x: number; z: number },
   to: { x: number; z: number },
 ): ChurchLayout {
-  const dx = to.x - from.x;
-  const dz = to.z - from.z;
-  const along = Math.hypot(dx, dz);
-  const rotation = snapChurchRotation(Math.atan2(-dz, dx));
-  const stretched: ChurchDims =
-    dims.kind === 'round' ? { ...dims, diameter: along } : { ...dims, length: along };
-  const next = clampChurchDims(type, stretched);
+  const rotation = snapChurchRotation(Math.atan2(-(to.z - from.z), to.x - from.x));
+  const next = clampChurchDims(type, dims);
   const half = churchAxisLength(next) / 2;
   return {
     dims: next,
@@ -125,4 +121,17 @@ export function churchPlacementCost(
     limeT: Math.round(cost.limeT * 10) / 10,
     sandM3: Math.round(cost.sandM3),
   };
+}
+
+/** Rozměry kostela zadané v panelu rozměrů – pamatují se do dalšího otevření v téže vsi (jen v prohlížeči). */
+const rememberedDims = new Map<string, ChurchDims>();
+
+export function rememberChurchDims(villageId: string, type: ChurchType, dims: ChurchDims): void {
+  rememberedDims.set(`${villageId}:${type}`, dims);
+}
+
+/** Naposledy zadané rozměry typu ve vsi (ořezané do mezí), jinak výchozí. */
+export function recallChurchDims(villageId: string | null, type: ChurchType): ChurchDims {
+  const remembered = villageId === null ? undefined : rememberedDims.get(`${villageId}:${type}`);
+  return remembered ? clampChurchDims(type, remembered) : defaultChurchDims(type);
 }
