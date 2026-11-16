@@ -86,6 +86,22 @@ describe('withoutClearings', () => {
     expect(result[cell(23, 23)]).toBe(1);
   });
 
+  it('buňka 2,5 m (mřížka pochodu): pás 10 m = 4 buňky od políčka, o buňku dál les', () => {
+    const fine: MarchGeometry = { width: 80, height: 80, originX: -100, originZ: -100, cellM: 2.5 };
+    const forest = new Uint8Array(80 * 80).fill(1);
+    const at = (x: number, z: number): number => ((z + 100) / 2.5) * 80 + (x + 100) / 2.5;
+    // políčko (10, 10) = svět 0 až 15 m; středy buněk uvnitř 0 … 15
+    const result = withoutClearings(forest, fine, { ...base, tiles: [10 * 20 + 10], areas: [] });
+    expect(result[at(7.5, 7.5)]).toBe(0);
+    expect(result[at(25, 7.5)]).toBe(0);
+    expect(result[at(7.5, -10)]).toBe(0);
+    expect(result[at(27.5, 7.5)]).toBe(1);
+    expect(result[at(7.5, -12.5)]).toBe(1);
+    // diagonála od rohu (15, 15): 3 × 3 buněk (10,6 m) je mimo kruh 4 buněk, 2 × 3 ještě v něm
+    expect(result[at(20, 22.5)]).toBe(0);
+    expect(result[at(22.5, 22.5)]).toBe(1);
+  });
+
   it('plocha pod stavbou (mnohoúhelník) odebere les do 10 m od ní', () => {
     const area = [
       [20, 20],

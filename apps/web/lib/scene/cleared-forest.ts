@@ -1,20 +1,13 @@
 import {
-  KILN_SITE,
-  MILIR,
   NO_OBSTACLE_CHANGES,
-  clearedForest,
-  forestClearingsOf,
-  kilnCircle,
+  clearedForestOf,
   pointInPolygon,
   type ClearedForest,
   type Landscape,
   type ObstacleLayer,
   type Point,
-  type TileCell,
 } from '@bohemia/game';
 import type { SceneVillage } from '../village-view';
-import { buildingClearings } from './building-clearings';
-import { isRotatedSquare, squareContains } from './field-cells';
 
 // Vymýcený les ve scéně a na minimapě (fields.md – Krajina sídla a scéna, forest.md – Les
 // ustupuje): kde ves les vykácela nebo ho vymýtila pro pole, scéna tam les přestane kreslit –
@@ -30,10 +23,9 @@ import { isRotatedSquare, squareContains } from './field-cells';
 export { CLEARED_SHARE, clearedForest, type ClearedForest } from '@bohemia/game';
 
 /**
- * Vymýcený les ze stavu vsi pro scénu: odstraněné a pokácené stromy, založené díly polí (díl,
- * který se teprve zakládá, má stromy ještě na sobě) a paseky pod stavbami v lese – vyklízené
- * plochy obydlí a dílen i s pruhem pod korunami (i rozestavěných – les se vyklučí se zahájením
- * stavby), natočené pozemky, půdorysy model a svatyní s pruhem a milířiště s pruhem pod korunami.
+ * Vymýcený les z pohledu na ves pro scénu: pohled se jen převede na zdroje jádra a výpočet
+ * (`clearedForestOf` – díly polí, paseky pod obydlími, dílnami, modlami, svatyněmi a milířišti)
+ * je tentýž jako ve `villageClearings` pro hledání cesty vojska.
  */
 export function villageClearedForest(
   l: Landscape,
@@ -41,47 +33,30 @@ export function villageClearedForest(
   village: Pick<SceneVillage, 'fields' | 'obstacles'> &
     Partial<Pick<SceneVillage, 'dwellings' | 'sacred' | 'kilns' | 'kilnRemnants'>>,
 ): ClearedForest {
-  const squares = village.fields.flatMap((field) =>
-    field.parts.flatMap((part) => {
-      if (part.stage === 'founding') return [];
-      if (!isRotatedSquare(part)) return [part.cell];
-      // natočený díl (fields.md – Natočené stavby): políčka, jejichž střed na dílu leží
-      const half = (l.size * l.cellSizeM) / 2;
-      const reach = Math.ceil(part.size / l.cellSizeM);
-      const tx = Math.floor((part.x + half) / l.cellSizeM);
-      const ty = Math.floor((part.z + half) / l.cellSizeM);
-      const cells: TileCell[] = [];
-      for (let y = ty - reach; y <= ty + reach; y++) {
-        for (let x = tx - reach; x <= tx + reach; x++) {
-          const cx = -half + (x + 0.5) * l.cellSizeM;
-          const cz = -half + (y + 0.5) * l.cellSizeM;
-          if (squareContains(part, cx, cz)) cells.push({ x, y });
-        }
-      }
-      return cells;
-    }),
-  );
-  const areas = [
-    ...(village.dwellings ?? []).flatMap((d) =>
-      d.plot
-        ? buildingClearings([d]).map((c) => c.polygon)
-        : forestClearingsOf({
-            type: d.type,
-            position: d.position,
-            ...(d.craft ? { craft: d.craft } : {}),
-            ...(d.plainShape ? { plainShape: true } : {}),
-          }),
+  return clearedForestOf(l, layer, {
+    obstacles: village.obstacles ?? NO_OBSTACLE_CHANGES,
+    parts: village.fields.flatMap((field) =>
+      field.parts.map((part) => ({
+        cell: part.cell,
+        x: part.x,
+        z: part.z,
+        size: part.size,
+        ...(part.rotation !== undefined ? { rotation: part.rotation } : {}),
+        founding: part.stage === 'founding',
+      })),
     ),
-    ...(village.sacred?.buildings ?? []).flatMap((b) =>
-      forestClearingsOf({ sacred: b.kind, position: b.position }),
-    ),
-    // milířiště je paseka bez korun nad milířem a kolem něj (crafts.md – Milíř u skácených buků) –
-    // i po rozebraném milíři
-    ...[...(village.kilns ?? []), ...(village.kilnRemnants ?? [])].map((k) =>
-      kilnCircle(k, MILIR.footprintM / 2 + KILN_SITE.clearAroundM),
-    ),
-  ];
-  return clearedForest(l, layer, village.obstacles ?? NO_OBSTACLE_CHANGES, squares, areas);
+    dwellings: (village.dwellings ?? []).map((d) => ({
+      type: d.type,
+      position: d.position,
+      ...(d.craft ? { craft: d.craft } : {}),
+      ...(d.plainShape ? { plainShape: true as const } : {}),
+      plot: d.plot
+        ? { x: d.plot.x, z: d.plot.z, size: d.plot.size, rotation: d.plot.rotation }
+        : null,
+    })),
+    sacred: (village.sacred?.buildings ?? []).map((b) => ({ kind: b.kind, position: b.position })),
+    kilns: [...(village.kilns ?? []), ...(village.kilnRemnants ?? [])],
+  });
 }
 
 /** Klíč pasek pod stavbami (na decimetry) – změna tvaru či počtu je změna vymýceného lesa. */
