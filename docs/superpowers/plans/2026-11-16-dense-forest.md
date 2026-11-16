@@ -139,7 +139,8 @@
     - **Cena a doba stavby stezky beze změny.** Pokračování nemá stavbu, práci ani údržbu a není stezkou tamní vsi – obchod, síť cest ani simulace vsi ho neznají.
     - **Mřížka:** osy pokračování jsou průsekem jako pevná cesta (Rozhodnutí 2). Navíc **kus ke kraji**: hotová stezka vsi s koncem do 30 m od bodu okraje má průsek až k okraji – jinak by stezku zavřel hustý les v pásu u kraje.
     - **Počítá jen server** – trasa stezky není det-math. Prohlížeč dostane osy jako data.
-    - **Scéna a minimapa:** upravená cesta s průsekem, stromy v pásu se nekreslí, klikem se nevybírá. Pokračování je veřejné jako krajina – vidí ho tamní hráč i cizí vojsko a výprava na té mapě.
+    - **Scéna a minimapa:** upravená cesta s průsekem, stromy v pásu se nekreslí, klikem se nevybírá. Tamní hráč ho vidí jako krajinu své mapy.
+    - **Viditelnost na cizí mapě** (Martin 16. 11. 2026: „Když je to mapa rodu nebo vazala, ať je vidět celá, stejným způsobem jako mapa vlastní. Pokud to bude mapa nepřítele nebo neutrála, ať je tam fog of war“): na mapě vsi vlastního rodu nebo vazala je pokračování vidět celé jako na vlastní mapě; na mapě nepřítele nebo neutrála jen tam, kam muži rodu dohlédli (mlha války – stejné pravidlo jako ostatní cizí krajina a stavby). Mřížka pochodu (průchodnost) to neovlivní – průchozí je vždy, mlha je jen zobrazení.
 
 ## Rozhodovací brána (po Úloze 1)
 
