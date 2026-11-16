@@ -1,18 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildForestField,
-  CURRENT_LAYER_VERSIONS,
   generateLandscape,
-  generateLandscapeAttempt,
   obstaclesOf,
   packObstacles,
   skeletonFeaturesOf,
   SURFACE_CODES,
   type Landscape,
-  type LayerVersions,
   type ObstaclePlacement,
 } from '../../landscape';
-import type { SkeletonSlice, SkeletonTrailPort } from '../../landscape/skeleton/types';
 import { addGate, areaOutline, fortificationArea, fortSegments } from '../../village';
 import type { Fortification } from '../../village/fortification/types';
 import { dwellingGatePoint } from '../../village/paths/network-grid';
@@ -20,6 +16,11 @@ import { obstacleBlockRadiusM } from '../../village/paths/terrain';
 import { landscapeTrailLines } from '../../village/trade/premium-route';
 import { dwelling, village } from '../../village/__tests__/kin-fixtures';
 import type { Dwelling, FortKind, Road, TileCell, VillageState } from '../../village/types';
+import { trailExitsOf } from '../../village/trade/trail-exits';
+import { gridOf, tickContext } from '../campaign-tick';
+import type { CampaignMap, CampaignWorld } from '../campaign-types';
+import { MEADOW, SUMMER, world } from './campaign-fixtures';
+import { port, westForest, withRoute } from './continuation-fixtures';
 import { forestInterior } from '../dense-forest';
 import { marchPath, marchReachable, reachableGoal, type MarchPath } from '../march';
 import {
@@ -34,11 +35,15 @@ import {
   marchCellAt,
   marchCellCenter,
   marchGrid,
+  MarchGridMemo,
+  NO_CONTINUATIONS,
   type MarchGrid,
   type Pos,
 } from '../march-grid';
 import { BASE_FORD, BASE_WATER, marchTerrain } from '../march-terrain';
 import { WAR } from '../rules-war';
+import { trailContinuations, trailEntriesOf } from '../trail-continuation';
+import { edgeCrossing } from '../world-route';
 
 // Hustý les neprůchozí na jemné mřížce pochodu (forest.md – Hustý les; war.md – Pohyb – Terén;
 // plán 2026-11-16-dense-forest – Rozhodnutí 1–4, Úloha 4).
@@ -175,19 +180,6 @@ describe('hustý les (forest.md – Hustý les)', () => {
     expect(goal.x).toBeLessThan(-280);
   });
 });
-
-const SKELETON: LayerVersions = { ...CURRENT_LAYER_VERSIONS, skeleton: 1 };
-const port = (side: SkeletonTrailPort['side'], at: number): SkeletonTrailPort => ({ side, at });
-
-/** První ze seedů 1–20, jehož mapa z kostry má trasu stezky. */
-function withRoute(trails: SkeletonTrailPort[]): Landscape {
-  const slice: SkeletonSlice = { world: 1, rivers: [], trails };
-  for (let seed = 1; seed <= 20; seed++) {
-    const l = generateLandscapeAttempt(seed, SKELETON, undefined, slice);
-    if (skeletonFeaturesOf(l)?.route) return l;
-  }
-  throw new Error('žádná mapa se stezkou');
-}
 
 describe('stezka krajiny – průsek i na mapě bez vsi (Rozhodnutí 2)', () => {
   it('průsek pod osami `landscapeTrailLines`, trasa mezi konci stezky', () => {
@@ -513,5 +505,141 @@ describe('drobné opravy Úlohy 4', () => {
     });
     expect(rock).toEqual([marchCellAt(grid, { x: 0, z: 0 })]);
     expect(grid.pace[rock[0]!]).toBe(0);
+  });
+});
+
+/** Buňky pod lomenou čarou – vzorky po 0,5 m. */
+function underLine(g: MarchGrid, line: readonly Pos[]): number[] {
+  const cells = new Set<number>();
+  for (let k = 0; k + 1 < line.length; k++) {
+    const a = line[k]!;
+    const b = line[k + 1]!;
+    const n = Math.max(1, Math.ceil(Math.hypot(b.x - a.x, b.z - a.z) / 0.5));
+    for (let s = 0; s <= n; s++) {
+      cells.add(marchCellAt(g, { x: a.x + ((b.x - a.x) * s) / n, z: a.z + ((b.z - a.z) * s) / n }));
+    }
+  }
+  return [...cells];
+}
+
+/** Ves s hotovou (nebo rozestavěnou) stezkou `direction` po jedné cestě `from` → `to`. */
+function trailVillage(
+  direction: 'E' | 'W',
+  from: Pos,
+  to: Pos,
+  builtDay: number | null,
+): VillageState {
+  return village([], [], {
+    roads: {
+      nextId: 2,
+      roads: [road(1, [from, to])],
+      trees: [],
+      labor: { from: 0, days: 0, shares: [] },
+    },
+    trails: [
+      {
+        id: 1,
+        direction,
+        pieces: [{ roadId: 1, grade: 'improved', manDays: 1 }],
+        lengthM: Math.abs(to.x - from.x),
+        startedDay: 0,
+        builtDay,
+      },
+    ],
+  });
+}
+
+describe('pokračování zemské stezky a kus ke kraji (Úloha 4b – Rozhodnutí 13)', () => {
+  it('osa pokračování je průsek – i hustým lesem; ze vstupu se dojde na konec osy', () => {
+    const { landscape: l, entry } = westForest();
+    const o = obstaclesOf(l);
+    const axis = trailContinuations(l, o, [entry], null)[0]!;
+    const end = axis.at(-1)!;
+    const grid = marchGrid(l, o, null, { trailContinuations: [axis] });
+    const without = marchGrid(l, o, null);
+    let forest = 0;
+    for (const c of underLine(grid, axis)) {
+      const f = grid.flags[c]!;
+      if ((f & MARCH_ROAD) === 0 || !(grid.pace[c]! > 0)) throw new Error(`osa bez průseku ${c}`);
+      if ((without.flags[c]! & MARCH_FOREST) === 0) continue;
+      forest++;
+      expect(f & (MARCH_FOREST | MARCH_ROAD)).toBe(MARCH_FOREST | MARCH_ROAD);
+    }
+    expect(forest).toBeGreaterThan(0);
+    expect(marchPath(grid, entry, end)).not.toBeNull();
+    // bez osy se cíl posune
+    const goal = reachableGoal(without, entry, end);
+    expect(goal === null || Math.hypot(goal.x - end.x, goal.z - end.z) > WAR.march.cellM).toBe(
+      true,
+    );
+  });
+
+  it('kus ke kraji: hotová stezka s koncem do 30 m od kraje má průsek až k okraji', () => {
+    const { landscape: l, entry } = westForest();
+    const z = entry.z;
+    const from = { x: -600, z };
+    const edgeCell = marchCellAt(marchGrid(l, null, null), entry);
+    const near = marchGrid(l, null, trailVillage('W', from, { x: -935, z }, 3));
+    for (const c of underLine(near, [
+      { x: -935, z },
+      { x: -960, z },
+    ])) {
+      expect(near.flags[c]! & MARCH_ROAD).toBe(MARCH_ROAD);
+      expect(near.pace[c]).toBeGreaterThan(0);
+    }
+    // konec 80 m od kraje nebo stezka ve stavbě – hustý les u kraje zůstane neprůchozí
+    const far = marchGrid(l, null, trailVillage('W', from, { x: -880, z }, 3));
+    const building = marchGrid(l, null, trailVillage('W', from, { x: -935, z }, null));
+    for (const [g, endX] of [
+      [far, -880],
+      [building, -935],
+    ] as const) {
+      let dense = 0;
+      for (const c of underLine(g, [
+        { x: endX - 5, z },
+        { x: -960, z },
+      ])) {
+        if ((g.flags[c]! & MARCH_FOREST) === 0) continue;
+        dense++;
+        expect(g.pace[c]).toBe(0);
+      }
+      expect(dense).toBeGreaterThan(0);
+      expect(g.pace[edgeCell]).toBe(0);
+    }
+  });
+
+  it('paměť mřížek podle pole os – tentýž objekt, bez os jiný', () => {
+    const { landscape: l, entry } = westForest();
+    const o = obstaclesOf(l);
+    const memo = new MarchGridMemo();
+    const axes = trailContinuations(l, o, [entry], null);
+    const first = memo.gridOf(l, o, null, SUMMER, axes);
+    expect(memo.gridOf(l, o, null, SUMMER, axes)).toBe(first);
+    const plain = memo.gridOf(l, o, null, SUMMER, NO_CONTINUATIONS);
+    expect(plain).not.toBe(first);
+    expect(memo.gridOf(l, o, null, SUMMER)).toBe(plain);
+  });
+
+  it('přechod u konce stezky: okrajová buňka sousední mapy je průchozí jen s pokračováním', () => {
+    const { landscape: l, entry } = westForest();
+    const home = trailVillage('E', { x: 500, z: entry.z }, { x: 935, z: entry.z }, 3);
+    const exits = trailExitsOf(home);
+    expect(exits).toEqual([
+      { direction: 'E', end: { x: 935, z: entry.z }, edge: { x: 960, z: entry.z }, builtDay: 3 },
+    ]);
+    const trailEntries = trailEntriesOf({ x: 1, y: 0 }, [{ cell: { x: 0, y: 0 }, exits }]);
+    const next: CampaignMap = { landscape: l, obstacles: obstaclesOf(l), villageIds: [] };
+    const worldWith = (map: CampaignMap): CampaignWorld => ({
+      clock: world,
+      landscapeOf: (c) =>
+        c.x === 0 && c.y === 0 ? { ...MEADOW, villageIds: ['home'] } : c.x === 1 ? map : null,
+      villageAt: (id) => (id === 'home' ? home : null),
+      grids: new MarchGridMemo(),
+    });
+    const crossing = edgeCrossing({ x: 0, y: 0 }, { x: 1, y: 0 }, exits[0]!.edge);
+    const open = gridOf({ x: 1, y: 0 }, SUMMER, tickContext(worldWith({ ...next, trailEntries })));
+    expect(open.pace[marchCellAt(open, crossing)]).toBeGreaterThan(0);
+    const closed = gridOf({ x: 1, y: 0 }, SUMMER, tickContext(worldWith(next)));
+    expect(closed.pace[marchCellAt(closed, crossing)]).toBe(0);
   });
 });

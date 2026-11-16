@@ -2,7 +2,14 @@ import type { WorldClock } from '../calendar';
 import type { Landscape, ObstacleLayer } from '../landscape';
 import type { AssaultMethod } from '../village/fortification/assault';
 import type { NewVillageEvent } from '../village/core/inbox';
-import type { Person, PersonRef, Prisoner, RaidLoot, VillageState } from '../village/types';
+import type {
+  Person,
+  PersonRef,
+  Prisoner,
+  RaidLoot,
+  RoadPoint,
+  VillageState,
+} from '../village/types';
 import type { FlightMode } from '../village/types';
 import type { GridCell } from '../village/people/world-grid';
 import type { AlarmOwner, CampaignAlarm } from './alarm-types';
@@ -349,6 +356,22 @@ export interface CampaignMap {
   obstacles: ObstacleLayer | null;
   /** Vsi na mapě – mřížka pochodu bere cesty a opevnění první z nich (víc vsí doplní Ú6.7). */
   villageIds: readonly string[];
+  /**
+   * Vstupy hotových zemských stezek sousedních vsí na tuto mapu (`trailEntriesOf` – trade.md,
+   * Pokračování na sousední mapě); mřížka z nich odvodí osy pokračování (`continuationsOf`).
+   * Chybí = žádné.
+   */
+  trailEntries?: readonly TrailEntry[];
+}
+
+/**
+ * Vstup zemské stezky sousední vsi na mapu (plán 2026-11-16-dense-forest – Rozhodnutí 13): bod
+ * na okraji této mapy (`edgeCrossing` bodu okraje výstupu stezky) a den dostavění stezky –
+ * pokračování platí od dne po něm (`builtDay < day`).
+ */
+export interface TrailEntry {
+  point: RoadPoint;
+  builtDay: number;
 }
 
 /**

@@ -8,6 +8,7 @@ export * from './march-search';
 export * from './march-smooth';
 export * from './season';
 export * from './world-route';
+export { continuationsOf, trailContinuations, trailEntriesOf } from './trail-continuation';
 export * from './ticks';
 export * from './campaign-types';
 export * from './campaign';

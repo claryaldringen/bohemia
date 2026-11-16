@@ -2,6 +2,7 @@ import type { WorldClock } from '../domain/calendar';
 import { CELL_SIZE_M, LANDSCAPE_SIZE } from '../domain/landscape';
 import {
   campaignView,
+  continuationsOf,
   knownTarget,
   leadsLive,
   marchGrid,
@@ -165,7 +166,10 @@ export function sightGrid(
   return mapGrid(deps, state.target.cell, state.day);
 }
 
-/** Mřížka pochodu mapy políčka v den `day` – krajina, překážky a první ves na mapě (`gridOf`). */
+/**
+ * Mřížka pochodu mapy políčka v den `day` – krajina, překážky, první ves na mapě a osy pokračování
+ * stezek sousedních vsí (`continuationsOf`; jako `gridOf`).
+ */
 export async function mapGrid(
   deps: Pick<CampaignViewDeps, 'cells' | 'villages' | 'grids'>,
   cell: GridCell,
@@ -177,7 +181,11 @@ export async function mapGrid(
   const map = await deps.cells.mapOf(cell);
   const villageId = map.villageIds[0];
   const village = villageId === undefined ? null : await deps.villages.find(villageId);
-  const grid = marchGrid(map.landscape, map.obstacles, village?.state ?? null, { day });
+  const state = village?.state ?? null;
+  const grid = marchGrid(map.landscape, map.obstacles, state, {
+    day,
+    trailContinuations: continuationsOf(map, state, day),
+  });
   deps.grids?.set(key, grid);
   return grid;
 }

@@ -4,6 +4,7 @@ import { PathHeap } from '../../village/paths/network-search';
 import type { MarchGrid } from '../march-grid';
 import {
   gridSearch,
+  largestRegion,
   marchArea,
   marchAreas,
   octileCost,
@@ -260,5 +261,40 @@ describe('souvislé oblasti mřížky (brána po Úloze 1)', () => {
         () => 0,
       ),
     ).toEqual([0]);
+  });
+});
+
+describe('největší souvislá oblast (plán 2026-11-16-dense-forest – Rozhodnutí 13)', () => {
+  it('zeď ve sloupci 3 – 1 právě v 60 buňkách vpravo od zdi', () => {
+    const g = openGrid(10, 10, 2.5);
+    for (let j = 0; j < 10; j++) g.pace[at(g, 3, j)] = 0;
+    const region = largestRegion(g);
+    expect(region).toHaveLength(100);
+    expect(region.reduce((sum, v) => sum + v, 0)).toBe(60);
+    for (let c = 0; c < 100; c++) expect(region[c]).toBe(c % 10 > 3 ? 1 : 0);
+  });
+
+  it('dvě oblasti po 4 buňkách – remíza pro oblast s buňkou 0', () => {
+    const g = openGrid(9, 1, 2.5);
+    g.pace[4] = 0;
+    expect(Array.from(largestRegion(g))).toEqual([1, 1, 1, 1, 0, 0, 0, 0, 0]);
+  });
+
+  it('oblasti spojené jen rohem mezi dvěma neprůchodnými buňkami jsou dvě', () => {
+    // 4 × 2: vlevo dole 2 buňky, vpravo nahoře 2 buňky – dotýkají se jen rohem
+    const g = openGrid(4, 2, 2.5);
+    for (const [i, j] of [
+      [2, 0],
+      [3, 0],
+      [0, 1],
+      [1, 1],
+    ] as const) {
+      g.pace[at(g, i, j)] = 0;
+    }
+    expect(Array.from(largestRegion(g))).toEqual([1, 1, 0, 0, 0, 0, 0, 0]);
+    // mapa bez průchodné buňky – žádná oblast
+    const closed = openGrid(2, 1, 2.5);
+    closed.pace.fill(0);
+    expect(Array.from(largestRegion(closed))).toEqual([0, 0]);
   });
 });

@@ -23,6 +23,7 @@ export {
   createCampaignRepository,
   createJourneyRepository,
   createKnowledgeRepository,
+  createTrailExitSource,
   createCampaignLock,
   CAMPAIGN_LOCK_NAMESPACE,
   createSuccessionCreditRepository,

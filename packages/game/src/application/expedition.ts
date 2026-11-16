@@ -6,6 +6,7 @@ import { sameCell, type GridCell } from '../domain/village/people/world-grid';
 import type { VillageState } from '../domain/village/types';
 import { sendAway } from '../domain/vassalage';
 import {
+  continuationsOf,
   expeditionRecruit,
   INTENT_LEAD_TICKS,
   marchGrid,
@@ -421,13 +422,16 @@ async function mapOn(
 
 /**
  * Mřížka pochodu mapy `cell` ve dni vsi: domovská mapa s čerstvým stavem vlastní vsi (jako dřív
- * vyslání), jiná mapa s vsí na ní (`mapGrid`).
+ * vyslání), jiná mapa s vsí na ní (`mapGrid`) – obě s osami pokračování stezek sousedních vsí.
  */
 async function gridOn(deps: ExpeditionDeps, plan: Plan, cell: GridCell): Promise<MarchGrid> {
   const { own, day } = plan.situation;
   if (!sameCell(cell, plan.home.cell)) return mapGrid(deps, cell, day);
   const map = await mapOn(deps, plan.maps, cell);
-  return marchGrid(map.landscape, map.obstacles, own.village.state, { day });
+  return marchGrid(map.landscape, map.obstacles, own.village.state, {
+    day,
+    trailContinuations: continuationsOf(map, own.village.state, day),
+  });
 }
 
 /**

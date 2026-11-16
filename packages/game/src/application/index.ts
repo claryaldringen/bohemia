@@ -115,6 +115,7 @@ export * from './expedition-view';
 export * from './plan-campaign';
 export * from './launch-campaign';
 export * from './campaign-view';
+export * from './neighbour-trails';
 export * from './war-scene';
 export * from './order-breakout';
 export * from './refuge-return';

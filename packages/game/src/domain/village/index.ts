@@ -408,6 +408,7 @@ export {
   type WagonRoadPlan,
 } from './roads/wagon-road';
 export * from './trade/trail';
+export { TRAIL_END_BAND_M, trailExitsOf, type TrailExit } from './trade/trail-exits';
 export { landscapeTrailLines } from './trade/premium-route';
 export * from './trade/neighbours';
 export * from './trade/trade';

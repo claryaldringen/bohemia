@@ -30,7 +30,8 @@ import { pathVillageOf } from '../village/paths/village';
 import { PEN_FENCE_INSET_M } from '../village/rules';
 import { FORTIFICATIONS } from '../village/rules/rules-fortifications';
 import { ROAD_SWATH } from '../village/rules/rules-roads';
-import type { VillageState } from '../village/types';
+import { TRAIL_END_BAND_M, trailExitsOf } from '../village/trade/trail-exits';
+import type { RoadPoint, VillageState } from '../village/types';
 import { forestInterior, withoutClearings } from './dense-forest';
 import {
   BASE_AXIS,
@@ -96,14 +97,22 @@ export interface Pos {
   z: number;
 }
 
-/** Volby mřížky: den stavu opevnění (výchozí `village.lastDay`) a zavřené brány (indexy úseků). */
+/**
+ * Volby mřížky: den stavu opevnění (výchozí `village.lastDay`), zavřené brány (indexy úseků)
+ * a osy pokračování zemských stezek sousedních vsí na této mapě (`trailContinuations` – průsek
+ * jako pevná cesta; plán 2026-11-16-dense-forest – Rozhodnutí 13). Prohlížeč osy dostane jako data.
+ */
 export interface MarchGridOptions {
   day?: number;
   closedGates?: ReadonlySet<number>;
+  trailContinuations?: readonly (readonly RoadPoint[])[];
 }
 
+/** Žádné osy pokračování – prázdné a zmrazené, jeden objekt (klíč paměti mřížek). */
+export const NO_CONTINUATIONS: readonly (readonly RoadPoint[])[] = Object.freeze([]);
+
 /** Buňka mřížky, do které padne bod (mimo mapu nejbližší okrajová). */
-export function marchCellAt(grid: MarchGrid, p: Pos): number {
+export function marchCellAt(grid: MarchGeometry, p: Pos): number {
   const i = Math.min(grid.width - 1, Math.max(0, Math.round((p.x - grid.originX) / grid.cellM)));
   const j = Math.min(grid.height - 1, Math.max(0, Math.round((p.z - grid.originZ) / grid.cellM)));
   return j * grid.width + i;
@@ -309,6 +318,30 @@ function openSwath(grid: MarchGrid, c: number): void {
   grid.flags[c] = grid.flags[c]! | MARCH_ROAD;
 }
 
+/** Průsek podél lomené čáry: pás `ROAD_SWATH.halfM`, osa (supercover) ruší vodu, sráz a skálu. */
+function openLine(grid: MarchGrid, points: readonly Pos[]): void {
+  for (let k = 0; k + 1 < points.length; k++) {
+    const a = points[k]!;
+    const b = points[k + 1]!;
+    swathCells(grid, a, b, ROAD_SWATH.halfM, (c) => openSwath(grid, c));
+    supercover(grid, a, b, (c) => openAxis(grid, c));
+  }
+}
+
+/**
+ * Kusy hotových stezek vsi ke kraji mapy (Rozhodnutí 13): úsečka konec osy → bod okraje každého
+ * výstupu (`trailExitsOf`), jehož konec leží do `TRAIL_END_BAND_M` (v každé ose) od bodu okraje –
+ * stezka končí kus před krajem (`TRAIL.edgeBandM`) a hustý les v pásu u kraje by ji jinak zavřel.
+ */
+function edgePieces(village: VillageState): Pos[][] {
+  return trailExitsOf(village)
+    .filter(
+      ({ end, edge }) =>
+        Math.max(Math.abs(end.x - edge.x), Math.abs(end.z - edge.z)) <= TRAIL_END_BAND_M,
+    )
+    .map(({ end, edge }) => [end, edge]);
+}
+
 /**
  * Mřížka pochodu mapy (war.md – Pohyb – Terén; plán 2026-11-16-dense-forest – Rozhodnutí 1–4):
  * krajina, její vrstva překážek a ves na mapě (null = prázdné políčko). Pořadí:
@@ -317,9 +350,11 @@ function openSwath(grid: MarchGrid, c: number): void {
  *    (`villageClearings` – i pás opevnění; jen s vrstvou překážek a vsí, bez vrstvy celý vnitřek
  *    krajiny); voda, brod a sráz v něm mají tempo podle terénu a `MARCH_FOREST` navíc;
  * 3. skály vrstvy překážek (`MARCH_ROCK`) kromě těch, které ves odstranila;
- * 4. průseky (`MARCH_ROAD`, × 1,5): stezka krajiny (`landscapeTrailLines` – i na mapě bez vsi)
- *    a pevné cesty vsi (i úseky zemské stezky) – pás `ROAD_SWATH.halfM` kolem osy je průchodný
- *    i hustým lesem, vodu, sráz a skálu ruší jen buňky osy (supercover); `MARCH_FOREST` zůstává;
+ * 4. průseky (`MARCH_ROAD`, × 1,5): stezka krajiny (`landscapeTrailLines` – i na mapě bez vsi),
+ *    pevné cesty vsi (i úseky zemské stezky), kusy hotových stezek vsi ke kraji (`edgePieces`)
+ *    a osy pokračování stezek sousedních vsí (`options.trailContinuations` – i na mapě bez vsi;
+ *    Rozhodnutí 13) – pás `ROAD_SWATH.halfM` kolem osy je průchodný i hustým lesem, vodu, sráz
+ *    a skálu ruší jen buňky osy (supercover); `MARCH_FOREST` zůstává;
  * 5. stavby vsi s odstupem `buildingClearanceM` (`MARCH_BUILDING`);
  * 6. opevnění (val, stěny, brány a mezery, vodní příkop) – val tempo buňky hustého lesa
  *    bez průseku nemění.
@@ -377,20 +412,18 @@ export function marchGrid(
       }
     }
   }
-  // 4. průseky – stezka krajiny z terénu, pak pevné cesty vsi (pořadí výsledek nemění)
+  // 4. průseky – stezka krajiny z terénu, pak pevné cesty vsi, kusy stezek ke kraji a osy
+  // pokračování (pořadí výsledek nemění – osa ruší, pás nepřepisuje)
   for (const c of t.trail) {
     if ((base[c]! & BASE_AXIS) !== 0) openAxis(grid, c);
     else openSwath(grid, c);
   }
-  if (!village) return grid;
-  for (const road of village.roads?.roads ?? []) {
-    for (let k = 0; k + 1 < road.points.length; k++) {
-      const a = road.points[k]!;
-      const b = road.points[k + 1]!;
-      swathCells(grid, a, b, ROAD_SWATH.halfM, (c) => openSwath(grid, c));
-      supercover(grid, a, b, (c) => openAxis(grid, c));
-    }
+  if (village) {
+    for (const road of village.roads?.roads ?? []) openLine(grid, road.points);
+    for (const piece of edgePieces(village)) openLine(grid, piece);
   }
+  for (const axis of options.trailContinuations ?? NO_CONTINUATIONS) openLine(grid, axis);
+  if (!village) return grid;
   // 5. stavby, 6. opevnění
   blockBuildings(grid, landscape, village, day);
   const closed = options.closedGates ?? new Set<number>();
@@ -440,15 +473,20 @@ const NONE: object = {};
 export class MarchGridMemo {
   private readonly grids = new WeakMap<
     Landscape,
-    WeakMap<object, WeakMap<object, Map<number, MarchGrid>>>
+    WeakMap<object, WeakMap<object, WeakMap<object, Map<number, MarchGrid>>>>
   >();
 
-  /** Mřížka jako `marchGrid(landscape, obstacles, village, { day })` – z paměti, je-li tam. */
+  /**
+   * Mřížka jako `marchGrid(landscape, obstacles, village, { day, trailContinuations })` – z paměti,
+   * je-li tam. Osy pokračování jsou další úroveň klíče podle identity pole: paměť
+   * `trailContinuations` vrací pro tentýž vstup tentýž objekt, bez os `NO_CONTINUATIONS`.
+   */
   gridOf(
     landscape: Landscape,
     obstacles: ObstacleLayer | null,
     village: VillageState | null,
     day: number,
+    continuations: readonly (readonly RoadPoint[])[] = NO_CONTINUATIONS,
   ): MarchGrid {
     let byObstacles = this.grids.get(landscape);
     if (!byObstacles) {
@@ -460,10 +498,15 @@ export class MarchGridMemo {
       byVillage = new WeakMap();
       byObstacles.set(obstacles ?? NONE, byVillage);
     }
-    let byDay = byVillage.get(village ?? NONE);
+    let byAxes = byVillage.get(village ?? NONE);
+    if (!byAxes) {
+      byAxes = new WeakMap();
+      byVillage.set(village ?? NONE, byAxes);
+    }
+    let byDay = byAxes.get(continuations);
     if (!byDay) {
       byDay = new Map();
-      byVillage.set(village ?? NONE, byDay);
+      byAxes.set(continuations, byDay);
     }
     const known = byDay.get(day);
     if (known) {
@@ -472,7 +515,10 @@ export class MarchGridMemo {
       byDay.set(day, known);
       return known;
     }
-    const grid = marchGrid(landscape, obstacles, village, { day });
+    const grid = marchGrid(landscape, obstacles, village, {
+      day,
+      trailContinuations: continuations,
+    });
     byDay.set(day, grid);
     if (byDay.size > MEMO_DAYS) {
       const unused = byDay.keys().next();

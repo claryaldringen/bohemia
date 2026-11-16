@@ -3,6 +3,7 @@ import { dayIndexOf } from '../../../calendar';
 import { domainFoodReadyYear, villageFoodBalance } from '../../../vassalage/domain-food';
 import { foundVillage } from '../actions';
 import { VILLAGE_DIGEST_VERSION, isCurrentDigest, villageDigest } from '../digest';
+import { trailExitsOf } from '../../trade/trail-exits';
 import type { FarmSeason, VillageState } from '../../types';
 import { withBuiltFirstDwelling } from '../../__tests__/village-fixtures';
 
@@ -56,5 +57,44 @@ describe('villageDigest – jídlo domény', () => {
     const s = village(SEP_15);
     s.people = [];
     expect(villageDigest(s).food).toBeNull();
+  });
+});
+
+describe('villageDigest – výstupy zemských stezek (plán 2026-11-16-dense-forest – Rozhodnutí 13)', () => {
+  it('souhrn nese `trailExitsOf(stav)`; ves bez stezek []', () => {
+    const plain = village(SEP_15);
+    expect(villageDigest(plain).trailExits).toEqual([]);
+    const s = village(SEP_15);
+    s.roads = {
+      nextId: 2,
+      roads: [
+        {
+          id: 1,
+          points: [
+            { x: 0, z: 0 },
+            { x: 940, z: 12 },
+          ],
+          bornDay: 0,
+          grade: 'improved',
+          traffic: [],
+          spots: [],
+        },
+      ],
+      trees: [],
+      labor: { from: 0, days: 0, shares: [] },
+    };
+    s.trails = [
+      {
+        id: 1,
+        direction: 'E',
+        pieces: [{ roadId: 1, grade: 'improved', manDays: 1 }],
+        lengthM: 940,
+        startedDay: SEP_15 - 30,
+        builtDay: SEP_15 - 3,
+      },
+    ];
+    const exits = villageDigest(s).trailExits;
+    expect(exits).toHaveLength(1);
+    expect(exits).toEqual(trailExitsOf(s));
   });
 });

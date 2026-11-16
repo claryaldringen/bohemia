@@ -338,6 +338,34 @@ export function marchArea(grid: MarchGrid, c: number): number {
 }
 
 /**
+ * Největší souvislá průchozí oblast mřížky (plán 2026-11-16-dense-forest – Rozhodnutí 13): 1 =
+ * buňka té oblasti, jinak 0. Oblasti jako `marchAreas` – 8 sousedů, úhlopříčně jen kolem
+ * průchodných rohů (jako `gridSearch`). Remíza – oblast s nižším indexem buňky (oblasti jsou
+ * číslované v pořadí své první buňky, vyhraje nižší číslo). Mapa bez průchozí buňky – samé 0.
+ * Pokračování zemské stezky bez vsi míří na nejbližší místo této oblasti (`trailContinuations`).
+ */
+export function largestRegion(grid: MarchGrid): Uint8Array {
+  const { width: w, height: h } = grid;
+  const { stride, labels } = marchAreas(grid);
+  let count = 0;
+  for (let k = 0; k < labels.length; k++) if (labels[k]! > count) count = labels[k]!;
+  const sizes = new Int32Array(count + 1);
+  for (let k = 0; k < labels.length; k++) {
+    const a = labels[k]!;
+    sizes[a] = sizes[a]! + 1;
+  }
+  let best = 0;
+  for (let a = 1; a <= count; a++) if (sizes[a]! > sizes[best]! || best === 0) best = a;
+  const region = new Uint8Array(w * h);
+  if (best === 0) return region;
+  for (let j = 0; j < h; j++) {
+    const row = (j + 1) * stride + 1;
+    for (let i = 0; i < w; i++) if (labels[row + i] === best) region[j * w + i] = 1;
+  }
+  return region;
+}
+
+/**
  * Očísluje oblasti po úsecích řádků: průchodné úseky řádku, spojení úseků sousedních řádků, které
  * se překrývají ve sloupcích (sjednocení – find s půlením cesty), a čísla kořenů v pořadí prvních
  * úseků podle indexu. Výsledek do pole s okrajem; přes 65 535 oblastí `Int32Array`.

@@ -480,7 +480,14 @@ ground)`; půda `walkGroundOf(landscape)` je pevné okno kolem místa vsi, pole 
   vojska hustým lesem** (plán 2026-11-16-dense-forest – Rozhodnutí 2): mřížka pochodu dá pásu
   `ROAD_SWATH.halfM` kolem osy každé pevné cesty vsi a stezky krajiny (`landscapeTrailLines`
   v `trade/premium-route.ts` – i na mapě bez vsi) `MARCH_ROAD` × 1,5, hustým lesem průchodně;
-  vodu, sráz a skálu ruší jen buňky osy (code/war.md – Pohyb vojska – Mřížka).
+  vodu, sráz a skálu ruší jen buňky osy (code/war.md – Pohyb vojska – Mřížka). **Pokračování
+  a kus ke kraji** (plán 2026-11-16-dense-forest – Rozhodnutí 13; village-trade.md – Pokračování
+  na sousední mapě): průsek dostanou i osy pokračování stezek sousedních vsí na mapě
+  (`MarchGridOptions.trailContinuations` – i na mapě bez vsi) a kus od konce osy hotové stezky
+  vsi k bodu okraje jejího výstupu (`edgePieces` v `march-grid.ts` – konec do `TRAIL_END_BAND_M`
+  od bodu okraje v každé ose; stezka končí 20–30 m před krajem a hustý les v pásu u kraje by ji
+  jinak zavřel). Jen mřížka pochodu – pokračování nemá stavbu, kácení, klády ani pařezy a síť cest
+  vsi ho nezná.
 
 - **Cesta přes pole** ([roads.md](../design/roads.md) – Cesta přes pole; Martin 19. 10. 2026:
   „Ano má. … pokud oráč narazí na cestu, tak spřežení otočí. Nebude pak moci vzniknout takový
