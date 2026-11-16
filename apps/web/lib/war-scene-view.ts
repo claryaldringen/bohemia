@@ -83,12 +83,12 @@ export const SCENE_HERD_MAX = 24;
 
 /**
  * Útěk vsi do lesa pro scénu (war.md – Napadená ves): každý od svého domu k okraji lesa své skupiny
- * domů (`planFlight` po okrajích lesa), od taktu, kdy ves utekla. Takt neznámý (`startTick` null –
- * starší stav tažení) – lidé už stojí u lesa (`startMs` −∞).
+ * domů (`planFlight` po dveřích lesa), od taktu, kdy ves utekla. Lidé doběhnou a zmizí v lese.
+ * Takt neznámý (`startTick` null – starší stav tažení) – už jsou v lese, nic se nekreslí (null).
  */
 export function flightOf(view: WarSceneView, world: WorldClock): SceneWar['flight'] {
   const f = view.flight;
-  if (!f || f.people.length === 0) return null;
+  if (!f || f.people.length === 0 || f.startTick === null) return null;
   const walks: FleeWalk[] = f.forests.flatMap((forest, i) =>
     planFlight(
       f.people
@@ -105,7 +105,7 @@ export function flightOf(view: WarSceneView, world: WorldClock): SceneWar['fligh
   );
   return {
     walks,
-    startMs: f.startTick === null ? -Infinity : msOfTick(f.startTick, world),
+    startMs: msOfTick(f.startTick, world),
     herd: Math.min(f.herd, SCENE_HERD_MAX),
   };
 }
@@ -133,7 +133,6 @@ export function alarmOf(view: WarSceneView): SceneAlarm | null {
     mode: r.mode,
     pos: { x: r.pos.x, z: r.pos.z },
     heading: { x: r.heading.x, z: r.heading.z },
-    moving: r.moving,
     people: r.people.map((p) => ({ kind: p.kind, child: p.child, carries: p.carries })),
     herd: Math.min(r.herd, SCENE_HERD_MAX),
   }));

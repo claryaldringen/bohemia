@@ -20,7 +20,6 @@ import { CreateBox } from '@babylonjs/core/Meshes/Builders/boxBuilder';
 import type { Scene } from '@babylonjs/core/scene';
 import { FORTIFICATIONS, TICK_MS, type BattleSide, type GroupOrder, type Pos } from '@bohemia/game';
 import {
-  ARMY_LOOKS,
   ORDER_ICON_LIFT_M,
   battleFigures,
   breachFagots,
@@ -60,6 +59,8 @@ import {
   exploreTrail,
   fogCell,
   fogPixels,
+  litCells,
+  type LitBand,
   fogSees,
   revealFog,
   type FogGrid,
@@ -67,8 +68,8 @@ import {
 import { createAnimalMesh, standOnGround, writeAnimalPose } from './livestock';
 import { createBakedFigure, createBlobShadow, type BakedKind } from './plough-team-renderer';
 import { villagerSeconds } from './villager-motion';
-import { FIGURE_SCALE, fleeWalkAt, drivenHerd, type FleeWalk } from './villager-plan';
-import { alarmAt, alarmFigures, alarmMoving, type SceneAlarm } from './refugee-march';
+import { FIGURE_SCALE, drivenHerd, type FleeWalk } from './villager-plan';
+import { alarmAt, alarmFigures, alarmMoving, fleeFigures, type SceneAlarm } from './refugee-march';
 import {
   ExpeditionLeave,
   type ChoreoContext,
@@ -224,6 +225,9 @@ export class ArmyRenderer {
     null;
   /** Výjezdy na mapě z posledního `setJourneys` – dohled vlastních jezdců v mlze výjezdu. */
   private journeyList: readonly SceneJourney[] = [];
+  /** Pásy cest, které závoj nekryje (pokračování stezky na mapě rodu a vazala; `setLitBands`). */
+  private litBands: { bands: readonly LitBand[]; key: string } | null = null;
+  private lit: Uint8Array | null = null;
   private veil: { mesh: Mesh; texture: RawTexture; pixels: Uint8Array } | null = null;
   private loading: Promise<void> | null = null;
   private disposed = false;
@@ -363,11 +367,12 @@ export class ArmyRenderer {
   }
 
   /** Mlha v bodě (e2e): neobjevené, objevené (šeré), v dohledu; bez závoje nebo mimo mapu null. */
-  fogAt(x: number, z: number): 'hidden' | 'explored' | 'seen' | null {
+  fogAt(x: number, z: number): 'hidden' | 'explored' | 'seen' | 'lit' | null {
     const fog = this.fog;
     const c = fog && this.veil?.mesh.isEnabled() ? fogCell(fog, x, z) : -1;
     if (!fog || c < 0) return null;
-    return this.seen?.[c] === 1 ? 'seen' : fog.explored[c] === 1 ? 'explored' : 'hidden';
+    if (this.seen?.[c] === 1) return 'seen';
+    return this.lit?.[c] === 1 ? 'lit' : fog.explored[c] === 1 ? 'explored' : 'hidden';
   }
 
   /** Muži výjezdů, jak jsou nakreslení (e2e, měření). */
@@ -503,6 +508,20 @@ export class ArmyRenderer {
   }
 
   /**
+   * Pásy cest, které závoj mlhy nekryje (Martin 16. 11. 2026: na mapě rodu nebo vazala je
+   * pokračování stezky vidět celé jako vlastní cesta, na mapě nepřítele a neutrála zůstává
+   * pod mlhou); null – žádné. Klíč pásů: beze změny se závoj nepřepisuje. Vrátí true, když je co
+   * překreslit.
+   */
+  setLitBands(bands: readonly LitBand[] | null, key: string): boolean {
+    if ((this.litBands?.key ?? null) === (bands ? key : null)) return false;
+    this.litBands = bands && bands.length > 0 ? { bands, key } : null;
+    this.lit = null;
+    if (this.fog) this.updateFog();
+    return this.fog !== null;
+  }
+
+  /**
    * Mlha jedné mapy na jednom místě: stopa rodu odkryje (šeré – výjezd, známá mapa i tažení), dohled
    * dá strana s mlhou války (muži v boji a hloučky pochodu), bez ní vlastní jezdci výjezdu. Závoj se
    * přepíše jen při změně.
@@ -534,7 +553,8 @@ export class ArmyRenderer {
     const viewers = eyes.map((p) => ({ x: p.x, z: p.z, forest: forestAt(p.x, p.z) }));
     this.seen = revealFog(this.fog, viewers, forestAt);
     const veil = this.ensureVeil(this.fog);
-    fogPixels(this.fog, this.seen, veil.pixels);
+    this.lit = this.litBands ? litCells(this.fog, this.litBands.bands) : null;
+    fogPixels(this.fog, this.seen, veil.pixels, this.lit);
     veil.texture.update(veil.pixels);
     veil.mesh.setEnabled(true);
   }
@@ -598,41 +618,10 @@ export class ArmyRenderer {
       moving ||= march.groups.some((g) => !g.arrived);
     }
     if (war.flight) {
-      const ft = (nowMs - war.flight.startMs) / 1000;
-      for (const walk of war.flight.walks) {
-        const at = fleeWalkAt(walk, ft);
-        moving ||= at.moving;
-        figures.push({
-          key: `f${walk.id}`,
-          kind: walk.kind,
-          x: at.x,
-          z: at.z,
-          hx: at.hx,
-          hz: at.hz,
-          clip: at.moving ? walk.clip : 'idle',
-          pace: at.moving ? walk.speed / 1.3 : 1,
-          lift: 0,
-          lying: false,
-          side: 'folk',
-          look: ARMY_LOOKS.folk,
-        });
-      }
-      // dobytek žene poslední, kdo z vsi vyšel (stádo za ním jako za vojskem)
-      const drover = war.flight.walks[war.flight.walks.length - 1];
-      if (drover && war.flight.herd) {
-        const at = fleeWalkAt(drover, ft);
-        drivenHerd(at, { x: at.hx, z: at.hz }, war.flight.herd).forEach((p, i) => {
-          animals.push({
-            key: `fc${i}`,
-            species: 'cow',
-            x: p.x,
-            z: p.z,
-            hx: at.hx,
-            hz: at.hz,
-            speed: at.moving ? drover.speed : 0,
-          });
-        });
-      }
+      const out = fleeFigures(war.flight, (nowMs - war.flight.startMs) / 1000);
+      figures.push(...out.figures);
+      animals.push(...out.animals);
+      moving ||= out.moving;
     }
     if (war.herd) {
       const h = war.herd;

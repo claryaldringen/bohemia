@@ -543,6 +543,18 @@ mapSizeM, cell })` (čistá funkce) – bez vybraných lidí nebo mimo terén nu
 - **Scéna** – `ScenePointer.setOrderMode(mode)` (`LandscapeScene.setOrderMode`, typ `OrderMode`):
   dokud je nastavený, pravé tlačítko ohlásí bod terénu (`pickGround`) a pixel plátna místo zrušení
   výběru a pohyb kurzoru volá `hover` (vrací CSS kurzor – šipka u okraje).
+- **Kurzor „sem se nedá dojít“** (Martin 16. 11. 2026: „Ideální by bylo, kdyby kurzor na místech,
+  kam se nedá dojít, podle toho vypadal“; `lib/scene/march-cursor.ts`): nad hustým lesem, vodou
+  bez brodu, místem bez spojení s polohou skupiny a okrajem bez průchodu je kurzor zákazu
+  (`FORBIDDEN_CURSOR` = CSS `not-allowed`), bez popisku. `LandscapeScene.marchGrid()` staví líně
+  `browserMarchGrid` – `marchGrid` bez vsi (prohlížeč nemá stav vsi) s pevnými cestami a
+  pokračováním stezek jako průseky a hustým lesem bez vymýceného lesa vsi (`ClearedForest` scény);
+  stavby a opevnění v ní nejsou (server cíl ve stavbě přesouvá na volnou buňku, tak nápovědu
+  nemění). Dosažitelnost `cursorBlocked`: bod mapy `marchReachable`, okrajový pás `edgeReachable`
+  (kus okraje ve směru v téže oblasti `marchAreas`; sousední mapu prohlížeč nezná, průchod na
+  druhé straně ověří server). Odkud skupina vyráží: vybraná skupina na mapě scény (`group.pos`),
+  jinak obydlí prvního z vybraných doma (`dwellingPoint`); jinde nápověda není. Jen vizuální
+  nápověda – rozkaz dál ověřuje server.
 - **Hook** `components/game/village-game/use-expedition-orders.ts` – `useExpeditionOrders`: režim
   rozkazu je zapnutý, když výběr obsahuje lidi (s vybranou stavbou nebo polem pravé tlačítko výběr
   ruší jako dřív). Pravé tlačítko → `commandExpedition({ villageId, people, command })`, kde

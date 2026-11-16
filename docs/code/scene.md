@@ -494,7 +494,8 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   čisté, kreslí `army-renderer.ts`): `LandscapeScene.setWar(SceneWar | null)` – poslední snímek
   boje po taktu (`sceneBattle(BattleState)` – `Pick<>` z `Fighter`, `BattleGroup`,
   `BattleBreach`), pochod (`sceneMarch` – muži a skupiny `CampaignState`), útěk vsi a odehnané
-  stádo (`planFlight`, `fleeWalkAt`, `drivenHerd` ve `villager-plan.ts`), mlha z pohledu strany
+  stádo (`planFlight`, `fleeWalkAt` s `gone`, `drivenHerd` ve `villager-plan.ts`, `fleeFigures`
+  v `refugee-march.ts` – kdo doběhl k hustému lesu, zmizel), mlha z pohledu strany
   a konec dne. Mezi takty se muži posouvají plynule v `animate()` (`battleFigures`, podíl
   `glideMs` – takty mezi snímky × `TICK_MS`, ale nejvýš 1,5× doba od předchozího snímku – po
   přestávce worker dopočítává a snímky chodí rychleji než takty – a nejvýš 15 s), pochod taky (`marchAt` – od
@@ -537,7 +538,8 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   (`huddleSlots`, rozestup 1,9 m – návrh Clauda) oděvem vsi (`ARMY_LOOKS.folk`), dospělí vpředu,
   děti menší vzadu (`ArmyFigure.scale` – `CHILD_FIGURE_SCALE` 0,68), kdo nese zásoby, klipem
   `carry`; stádo za hloučkem (`drivenHerd` jako odehnané stádo, krávy – nejvýš `SCENE_HERD_MAX`);
-  ukrytí u lesa stojí (`idle`). Posel pěšky zrychlenou chůzí (`walk` × 1,9 – postava nemá klip
+  ukrytá skupina (`hidden`) se nekreslí a pohled ji neposílá, proto `SceneRefugees` nemá `moving`
+  – průvod vždy jde (plán 2026-11-16-dense-forest – Úloha 7). Posel pěšky zrychlenou chůzí (`walk` × 1,9 – postava nemá klip
   běhu), na koni jako jezdec (`ride`, kůň, oděv muže rodu). Mezi snímky plynule (`alarmAt` – jako
   `marchAt`: posun ve směru posunu po `glideMs`, nový a skok přes mapu stojí rovnou); při
   omezeném pohybu stojí. Žádný nový mesh ani vertex buffer – tytéž instance postav a zvířat vojska.

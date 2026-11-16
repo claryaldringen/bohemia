@@ -92,6 +92,8 @@ test('Bitva: vojsko s koňmi a rozkazy, boj taktem jádra, po vypnutí nic naví
   await expect
     .poll(async () => (await stats())['army-woman'] ?? 0, { timeout: 30_000 })
     .toBeGreaterThan(0);
+  // kdo doběhne k hustému lesu, zmizí v něm (nekreslí se) – nakonec nezbude nikdo
+  await expect.poll(async () => (await stats())['army-woman'] ?? 0, { timeout: 240_000 }).toBe(0);
 
   // útok na hradbu: žebříky se opřou o palisádu s ochozem, otepi u paty a oheň
   await page.getByTestId('dev-battle').click();

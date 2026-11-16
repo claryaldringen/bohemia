@@ -33,6 +33,7 @@ import {
 import { arrowAt, dustAt, fallenShown, strikesOf, type Shot } from '../battle-fx';
 import { createFog, fogPixels, fogSees, revealFog, FOG_ALPHA } from '../fog-of-war';
 import { drivenHerd, fleeWalkAt, planFlight } from '../villager-plan';
+import { fleeFigures } from '../refugee-march';
 
 /** Muž v boji pro scénu – výchozí pěší útočník v boji. */
 function man(id: string, o: Partial<SceneFighter> = {}): SceneFighter {
@@ -475,7 +476,26 @@ describe('napadená ves', () => {
     expect(fleeWalkAt(walks[0]!, 10).moving).toBe(true);
     const end = fleeWalkAt(walks[0]!, 1000);
     expect(end.moving).toBe(false);
-    expect(Math.hypot(end.x - 100, end.z)).toBeLessThan(10);
+    expect(Math.hypot(end.x - 100, end.z)).toBeLessThan(5);
+  });
+
+  it('po doběhnutí k lesu lidé i stádo zmizí', () => {
+    const walks = planFlight(
+      [
+        { id: 1, home: { x: 0, z: 0 }, kind: 'woman', child: false, carries: true },
+        { id: 2, home: { x: 0, z: 0 }, kind: 'man', child: false, carries: false },
+      ],
+      { x: 100, z: 0 },
+    );
+    expect(fleeWalkAt(walks[0]!, 10).gone).toBe(false);
+    expect(fleeWalkAt(walks[0]!, 1000).gone).toBe(true);
+    const during = fleeFigures({ walks, herd: 3 }, 10);
+    expect(during.figures.some((f) => f.key.startsWith('f'))).toBe(true);
+    expect(during.animals.filter((a) => a.key.startsWith('fc'))).toHaveLength(3);
+    const after = fleeFigures({ walks, herd: 3 }, 1000);
+    expect(after.figures.filter((f) => f.key.startsWith('f'))).toHaveLength(0);
+    expect(after.animals.filter((a) => a.key.startsWith('fc'))).toHaveLength(0);
+    expect(after.moving).toBe(false);
   });
 
   it('odehnané stádo jde za vojskem v řadách', () => {

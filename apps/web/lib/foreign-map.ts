@@ -1,6 +1,15 @@
 import 'server-only';
-import { mapTrailContinuations, sameCell, type GridCell, type RoadPoint } from '@bohemia/game';
+import {
+  mapTrailContinuations,
+  sameCell,
+  treeBelow,
+  VASSALAGE,
+  type GridCell,
+  type RoadPoint,
+} from '@bohemia/game';
+import { createAlarmOwners, createVassalageRepository } from '@bohemia/db';
 import { campaignCells, campaignViewForPlayer } from './campaign';
+import { getDatabase } from './db';
 import { gameDeps, playerToday } from './game';
 import { encodeLandscape, type LandscapeTransfer } from './landscape-transfer';
 
@@ -19,6 +28,32 @@ export interface ForeignMap {
    * chybí = žádné. Mlha cizí mapy je jen zobrazení – závoj je přes ně jako přes ostatní krajinu.
    */
   trailContinuations?: RoadPoint[][];
+  /**
+   * Mapa vsi vlastního rodu nebo vazala (Martin 16. 11. 2026): pokračování stezek je v mlze cizí
+   * mapy vidět celé jako na vlastní; mapa nepřítele a neutrála (i bez vsi) zůstává pod mlhou.
+   * Chybí = ne.
+   */
+  friendly?: true;
+}
+
+/**
+ * Patří ves na mapě rodu hráče, nebo jeho vazalovi (i vazalu vazala)? Mapa bez vsi ne. Hloubka
+ * sítě vazalství jako u ostatních průchodů stromem vazalů (`VASSALAGE.noticeDepth`); na mapě se
+ * bere první ves (jedna ves na mapu).
+ */
+async function isFriendlyMap(playerId: string, villageId: string | undefined): Promise<boolean> {
+  if (villageId === undefined) return false;
+  const owner = await createAlarmOwners(getDatabase()).ownerOf(villageId);
+  if (!owner || owner.npc) return false;
+  if (owner.playerId === playerId) return true;
+  if (owner.houseId === null) return false;
+  const mine = await gameDeps().houses.activeOf(playerId);
+  if (!mine) return false;
+  const edges = await createVassalageRepository(getDatabase()).edgesNear(
+    mine.id,
+    VASSALAGE.noticeDepth,
+  );
+  return treeBelow(edges, mine.id).includes(owner.houseId);
 }
 
 /**
@@ -36,6 +71,9 @@ export async function foreignMapOf(playerId: string, cell: GridCell): Promise<Fo
     cell: { x: cell.x, y: cell.y },
     landscape: encodeLandscape(map.landscape),
     ...(axes.length > 0 ? { trailContinuations: axes.map((a) => a.map((p) => ({ ...p }))) } : {}),
+    ...(axes.length > 0 && (await isFriendlyMap(playerId, map.villageIds[0]))
+      ? { friendly: true as const }
+      : {}),
   };
 }
 

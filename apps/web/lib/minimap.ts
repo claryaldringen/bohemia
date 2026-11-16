@@ -57,7 +57,7 @@ export const SURFACE_COLORS: Record<FieldSurface, Rgb> = {
   forest: COLORS.forest,
 };
 
-/** Pevné cesty a pokračování zemských stezek na minimapě – světle hnědá čára. */
+/** Zemské stezky a jejich pokračování na minimapě – světle hnědá čára. */
 export const ROAD_COLOR: Rgb = [190, 158, 108];
 
 /** Hřbitov na minimapě – šedavá zeleň (mohylky v trávě, plot). */
@@ -227,7 +227,7 @@ export type MinimapContext = Pick<
 
 /**
  * Ves na minimapě (strana `sizePx`): les vsi, pole po čtvercích podle stadia, hřbitovy, sady,
- * posvátná místa, cesty (i pokračování zemských stezek) a obydlí. Kreslí se jednou do vrstvy pod záběrem kamery – při pohybu kamery se
+ * posvátná místa, zemské stezky (i jejich pokračování) a obydlí. Kreslí se jednou do vrstvy pod záběrem kamery – při pohybu kamery se
  * nepřekresluje (Minimap.tsx), jen při změně vsi.
  */
 export function drawMinimapVillage(
@@ -242,7 +242,7 @@ export function drawMinimapVillage(
     | 'sacred'
     | 'dwellings'
     | 'forts'
-    | 'roads'
+    | 'trails'
     | 'trailContinuations'
   >,
   sizePx: number,
@@ -317,12 +317,17 @@ export function drawMinimapVillage(
       }
     }
   }
-  // pevné cesty a pokračování zemských stezek sousedních vsí (trade.md) – tenká čára osy
+  // zemské stezky vsi (dostavěné) a jejich pokračování z mapy souseda (trade.md) – tenká čára osy;
+  // ostatní cesty vsi minimapa nekreslí (Martin si je nežádal)
   {
     const [r, g, b] = ROAD_COLOR;
     context.strokeStyle = `rgb(${r} ${g} ${b})`;
     context.lineWidth = 1.5;
-    for (const road of [...(village.roads ?? []), ...(village.trailContinuations ?? [])]) {
+    const lines = [
+      ...(village.trails ?? []).filter((trail) => trail.built),
+      ...(village.trailContinuations ?? []),
+    ];
+    for (const road of lines) {
       if (road.points.length < 2) continue;
       context.beginPath();
       road.points.forEach((point, i) => {

@@ -236,12 +236,12 @@ describe('napadená ves ve scéně – útěk, stádo, padlí (war.md – Ve sc�
     const to = war.flight!.walks.map((w) => Math.abs(Math.round(w.to.x / 100)));
     expect(to).toEqual([0, 0, 2]);
     expect(war.flight?.herd).toBe(SCENE_HERD_MAX);
-    // starší stav bez taktu útěku – lidé už stojí u lesa
+    // starší stav bez taktu útěku – lidé už jsou v lese, nic se nekreslí
     const old = sceneWarOf(
       { ...BASE, battle: null, march, flight: { ...flight, startTick: null } },
       OFFICIAL_WORLD,
     )!;
-    expect(old.flight?.startMs).toBe(-Infinity);
+    expect(old.flight).toBeNull();
   });
 
   it('odehnané stádo jde za skupinou, se kterou ho vedou; bez stáda nic', () => {
@@ -576,7 +576,6 @@ describe('průvod uprchlíků a posel ve scéně (Ú14)', () => {
           mode: 'all',
           pos: { x: 120, z: -40 },
           heading: { x: 1, z: 0 },
-          moving: true,
           people: refugees[0]!.people,
           herd: SCENE_HERD_MAX,
         },

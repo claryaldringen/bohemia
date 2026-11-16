@@ -74,6 +74,8 @@ export function ForeignJourneyScene({
   const [landscape, setLandscape] = useState<LandscapeTransfer | null>(null);
   // osy pokračování zemských stezek sousedů (trade.md) – nakreslí se i na mapě bez staveb
   const [axes, setAxes] = useState<ForeignMap['trailContinuations'] | null>(null);
+  // mapa rodu nebo vazala: pokračování stezky je nad mlhou celé (scéna.setFriendlyMap)
+  const [friendly, setFriendly] = useState(false);
   const [knownSeen, setKnownSeen] = useState<SeenCell | null>(null);
   const [scene, setScene] = useState<LandscapeScene | null>(null);
   const isKnown = known !== undefined;
@@ -96,6 +98,7 @@ export function ForeignJourneyScene({
         else {
           setLandscape(body.map.landscape);
           setAxes('trailContinuations' in body.map ? (body.map.trailContinuations ?? null) : null);
+          setFriendly('friendly' in body.map && body.map.friendly === true);
           if ('seen' in body) setKnownSeen(body.seen);
         }
       })
@@ -128,6 +131,9 @@ export function ForeignJourneyScene({
   useEffect(() => {
     scene?.setJourneys(journeys);
   }, [scene, journeys]);
+  useEffect(() => {
+    scene?.setFriendlyMap(friendly);
+  }, [scene, friendly]);
   // mlha jako při tažení – stopa rodu odkryje (šeré), v dohledu je okolí jezdců
   const seen = isKnown ? knownSeen : (here?.seen ?? null);
   const trail = seen?.trail ?? null;

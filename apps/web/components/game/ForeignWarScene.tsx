@@ -60,6 +60,8 @@ export function ForeignWarScene({
   const [landscape, setLandscape] = useState<LandscapeTransfer | null>(null);
   // osy pokračování zemských stezek sousedů (trade.md) – nakreslí se i na mapě bez staveb
   const [axes, setAxes] = useState<ForeignMap['trailContinuations'] | null>(null);
+  // mapa rodu nebo vazala: pokračování stezky je nad mlhou celé (scéna.setFriendlyMap)
+  const [friendly, setFriendly] = useState(false);
   const [scene, setScene] = useState<LandscapeScene | null>(null);
   const [mapOpen, setMapOpen] = useState(true);
   const decoded = useMemo(() => (landscape ? decodeLandscape(landscape) : null), [landscape]);
@@ -81,6 +83,7 @@ export function ForeignWarScene({
         else {
           setLandscape(body.map.landscape);
           setAxes(body.map.trailContinuations ?? null);
+          setFriendly(body.map.friendly === true);
         }
       })
       .catch(() => {
@@ -90,6 +93,10 @@ export function ForeignWarScene({
       live = false;
     };
   }, [campaignId, at]);
+
+  useEffect(() => {
+    scene?.setFriendlyMap(friendly);
+  }, [scene, friendly]);
 
   // válku na této mapě nese událost `war` (rozsah spojení `scene`), dotaz jen po otevření a mezeře
   useEventScope({ scene: { campaignId, cell: { x: cell.x, y: cell.y } } });

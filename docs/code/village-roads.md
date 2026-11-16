@@ -496,7 +496,12 @@ ground)`; půda `walkGroundOf(landscape)` je pevné okno kolem místa vsi, pole 
   `ForeignMap.trailContinuations` (`foreignMapOf` v `foreign-map.ts`; známá mapa je nemá –
   nese jen znalost rodu) přes `withTrailContinuations`, i na mapě bez staveb. Kreslí je
   `path-renderer.ts` (`roadsWithContinuations` v `swath-bands.ts`) jako hotovou cestu a minimapa
-  (`drawMinimapVillage`) čarou; `swathBands` z nich dělá pás pro plochu korun a zarůstání.
+  (`drawMinimapVillage`) čarou – minimapa kreslí jen dostavěné zemské stezky vsi (`trails`) a
+  jejich pokračování, ostatní cesty vsi ne (Martin si je nežádal). **Nad mlhou:** `ForeignMap.friendly`
+  (`foreign-map.ts` – ves na mapě patří rodu hráče nebo jeho vazalovi, `treeBelow`) →
+  `LandscapeScene.setFriendlyMap` → `litCells` (`fog-of-war.ts`) vynechá pásy pokračování ze
+  závoje (`ArmyRenderer.setLitBands`; `fogAt` pak vrací `lit`); mapa nepřítele a neutrála zůstává
+  pod mlhou jako ostatní krajina; `swathBands` z nich dělá pás pro plochu korun a zarůstání.
   Stromy a keře vrstvy překážek v pásu skrývá `landscape-scene.ts` (`swathObstacleIds`, id jdou do
   `hiddenIds` jako pokácené stromy vsi, bez pařezů). Pokračování nejde vybrat klikem ani
   zvýraznit (`village-picking.ts`, `selection-highlight.ts` čtou jen `roads`); mlha je jen
