@@ -36,7 +36,9 @@ export interface Mover {
   leg: CampaignLeg | null;
   /**
    * Herní den, kdy úsek spočíst nešlo (`stuck`) – ten den se už nehledá znovu (Rozhodnutí 8);
-   * chybí = neuvízl. Smaže ho úspěšný úsek a nový rozkaz (`sendGroup`).
+   * chybí = neuvízl. Pojistka: všichni volající pohyb na `stuck` končí (skupina `arrived`, posel
+   * se vrací, uprchlíci zůstanou) – nový pokus až po novém rozkazu (`sendGroup` `stuckDay` smaže).
+   * Smaže ho i úspěšný úsek.
    */
   stuckDay?: number;
 }
@@ -109,7 +111,8 @@ function onwardArea(
 /**
  * Jeden takt pohybu (mutuje `m`): `stepM` metrů louky po úseku mapy. Konec úseku na okraji = přechod
  * na sousední mapu, konec úseku v cíli = stojí v cíli. Když úsek spočíst nejde, stojí (`stuck`) a do
- * konce dne `day` ho nehledá znovu (`stuckDay` – mřížku ani mapu nečte; Review Focus 3).
+ * konce dne `day` ho nehledá znovu (`stuckDay` – mřížku ani mapu nečte; Review Focus 3). Volající
+ * pohyb na `stuck` končí – znovu se plánuje až po novém rozkazu.
  */
 export function stepMover(
   m: Mover,
@@ -177,12 +180,10 @@ export function sendGroup(g: CampaignGroup, to: CampaignPlace): void {
  * v neprůchodné buňce (voda, sráz, hradba) se posune na nejbližší místo dosažitelné ze skupiny
  * (`reachableGoal`) – mapa tažení pak ukáže posunutý cíl. Průchodný cíl beze změny; když dosažitelné
  * místo není žádné, cíl zůstane a skupina stojí (záměr hráče k takovému místu odmítne už use-case).
- * Uvízlá skupina (`stuckDay` = dnes) mřížku nečte.
  */
 export function settleGoal(g: CampaignGroup, day: number, ctx: TickContext): void {
   const goal = g.goal;
   if (goal === null || g.leg !== null || g.route.length > 0 || !sameCell(g.cell, goal.cell)) return;
-  if (g.stuckDay === day) return;
   const pos = reachableGoal(gridOf(g.cell, day, ctx), g.pos, goal.pos);
   if (pos !== null && pos !== goal.pos) g.goal = { cell: { ...goal.cell }, pos };
 }

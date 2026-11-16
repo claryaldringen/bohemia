@@ -883,6 +883,24 @@ export function formationSpot(grid: MarchGrid, p: Pos, anchor: Pos): Pos {
   return spot < 0 ? p : marchCellCenter(grid, spot);
 }
 
+/**
+ * Převod rozjetého boje na jemnou mřížku s hustým lesem (plán 2026-11-16-dense-forest – oprava
+ * Úlohy 5, drobnost 6): boj uložený dřív stál i v lese, který je dnes neprůchozí – muž v buňce
+ * s tempem 0 by se nepohnul (`stepToward`) a boj by zamrzl. Každý takový muž přejde na místo
+ * `formationSpot` – útočník do oblasti místa své skupiny (`groupAt`), obránce na nejbližší
+ * průchodnou buňku. Jen jednou – volá ho `campaignTick` u bodu bez verze mřížky. Mutuje `b`.
+ */
+export function settleFighters(
+  b: BattleState,
+  grid: MarchGrid,
+  groupAt: (group: number) => Pos | undefined,
+): void {
+  for (const f of b.fighters) {
+    const anchor = f.side === 'attack' ? (groupAt(f.group) ?? f.pos) : f.pos;
+    f.pos = formationSpot(grid, f.pos, anchor);
+  }
+}
+
 function leashGap(leash: Leash, p: Pos): number {
   let best = Infinity;
   for (const a of leash.at) best = Math.min(best, dist2(a, p));

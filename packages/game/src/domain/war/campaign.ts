@@ -28,6 +28,7 @@ import {
   commandFighter,
   formationSpot,
   openBattle,
+  settleFighters,
   type BattleField,
   type BattleState,
 } from './battle';
@@ -288,6 +289,11 @@ function campaignTick(
   if (seen) s.seen = seen;
   if (s.marchGridVersion !== MARCH_GRID_VERSION) {
     replanLegs(s, [...(s.alarm?.flights ?? []), ...(s.alarm?.messengers ?? [])]);
+    // rozjetý boj: kdo dnes stojí v hustém lese, přejde jednou na nejbližší průchodné místo
+    if (s.phase === 'raiding' && s.battle?.outcome === 'ongoing') {
+      const groups = new Map(s.groups.map((g) => [g.id, g.pos]));
+      settleFighters(s.battle, battleFieldOf(s, ctx).grid, (id) => groups.get(id));
+    }
   }
   s.tick = tick;
   const day = dayOfTick(tick, ctx.world.clock);

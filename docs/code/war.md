@@ -235,16 +235,24 @@ vojska mapu po mapě (Ú6.4), tažení po taktech, boj a dohra (Ú6.5–Ú6.17) 
   mapy) – když úsek spočíst nejde (okraj bez průchodu na obou stranách, nedosažitelný cíl),
   `stepMover` vrátí `stuck` a zapíše `stuckDay` = den (`Mover`, `CampaignGroup`, `AlarmMover` –
   posel i skupina uprchlíků). Týž den už úsek nehledá – mřížku ani mapu nečte (Review Focus 3:
-  uvízlá skupina by jinak spálila hledáním na jemné mřížce čas workeru každý takt); `settleGoal`
-  taky ne. Další den plánuje znovu; úspěšný úsek `stuckDay` smaže, nový rozkaz (`sendGroup`) taky.
-  Volající s `stuck` naloží jako dřív: skupina tažení a hlouček výpravy stojí (`arrived`), posel se
-  vrátí, uprchlíci zůstanou, kde jsou.
+  uvízlá skupina by jinak spálila hledáním na jemné mřížce čas workeru každý takt). Volající pohyb
+  na `stuck` končí: skupina tažení a hlouček výpravy stojí (`arrived`), posel se vrátí, uprchlíci
+  zůstanou, kde jsou – **nový pokus až po novém rozkazu** (`sendGroup` `stuckDay` smaže; úspěšný
+  úsek taky). `stuckDay` je jen pojistka pro volajícího, který by týž den zkoušel znovu; další den
+  sám nic nespustí (oprava Úlohy 5 – revize: dřív tu stálo „další den plánuje znovu“). Skupina
+  stojí i v slepé kapse cizí mapy: přejde-li na mapě po cestě do oblasti, odkud vede okraj
+  k dalšímu políčku trasy (`onwardArea`), mapu za ní ale nezná (výhled jen o jedno políčko), může
+  na další mapě skončit v kapse bez přechodu dál – tam `stuck` a čeká na nový rozkaz.
 - **Rozjeté úseky** (Rozhodnutí 9) – `MARCH_GRID_VERSION` (`march-grid.ts`) = 2 – jemná mřížka
   s hustým lesem. Bod tažení nebo výpravy bez `marchGridVersion` (uložený dřív) zahodí úseky
   `replanLegs(state, extra)` (`movement.ts` – `leg = null` u skupin a `extra`, tj. uprchlíků
   a poslů tažení, úhlopříčné kroky tras světa na dva kolmé – `sideBySide`; nastaví verzi): tažení na kopii taktu (`campaignTick`), výprava při čtení
   (`upgradeJourney`). Další takt úseky spočte z uložené polohy (únik z lesa) a cíl na mapě cíle
-  posune znovu `settleGoal`. `newCampaign` a `newJourney` verzi nesou od začátku.
+  posune znovu `settleGoal`. `newCampaign` a `newJourney` verzi nesou od začátku. **Rozjetý boj**
+  (drobnost 6 opravy Úlohy 5): bod bez verze ve fázi `raiding` s bojem `ongoing` přesune
+  bojovníky v buňce s tempem 0 (dnešní hustý les – dřív jen zpomaloval) na místo `formationSpot`
+  (`settleFighters` v `battle.ts` – útočník do oblasti místa své skupiny, obránce na nejbližší
+  průchodnou buňku); jinak by se nepohnuli a boj by zamrzl. Jen jednou – verze se zapíše.
 - **Cíl v neprůchodné buňce** (design war.md – Pohyb; jako v 0 A.D., návrh Clauda 10. 11. 2026) –
   `reachableGoal(grid, from, to)` v `march.ts`: cíl v neprůchodné buňce (voda bez brodu, sráz,
   hotová hradba; po `outOfBuilding`) i v průchodné, kam z `from` cesta nevede (za řekou bez
@@ -303,8 +311,11 @@ outside, day)` → `MemberDelta` (`health`, `vigor` = podíl plné síly): v zim
   otevřené mřížce a kolem L, rozdělení podle tempa a poloha po metrech louky),
   `movement.test.ts` (Úloha 5 – přechod okraje jen do průchozí buňky sousední mapy, ne do kapsy
   u okraje, když vede přechod k cíli – bez něj i do kapsy, okraj bez přechodu: `stuck`
-  a `stuckDay`, týž den svět nečte, další den plánuje znovu; nový rozkaz `stuckDay` smaže), `campaign.test.ts` – rozjeté úseky po změně mřížky (bod bez verze: nový úsek
-  jen průchozími buňkami kromě úniku, 400 × 1 takt = 1 × 400),
+  a `stuckDay`, týž den svět nečte, volající, který zkusí další den, plánuje znovu; nový rozkaz
+  `stuckDay` smaže), `campaign.test.ts` – rozjeté úseky po změně mřížky (bod bez verze: nový úsek
+  jen průchozími buňkami kromě úniku, 400 × 1 takt = 1 × 400, rozjetý boj – muž z hustého lesa
+  na průchodné místo), chybějící mapa až druhého políčka trasy (stav po několika taktech pochodu
+  = stav na konci posledního celého taktu),
   `world-route.test.ts` (čtyřsousedná trasa, první krok k rohu, starší trasa s úhlopříčkou),
   `movement.test.ts` – úhlopříčný cíl přes kolmou mapu i se zavřeným rohem, zavřený okraj prvního
   kroku stojí, `application/__tests__/cell-landscape.test.ts`. Změna mřížky, hledání

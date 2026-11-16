@@ -15,6 +15,7 @@ import type {
   VillageState,
 } from '../../village/types';
 import { stepCampaign } from '../campaign';
+import { attacker, battle, defender } from './battle-fixtures';
 import type {
   CampaignIntent,
   CampaignMap,
@@ -231,6 +232,35 @@ describe('stepCampaign', () => {
     expect(again.waiting?.cells).toEqual([{ x: 1, y: 0 }]);
   });
 
+  it('chybějící mapa až druhého políčka trasy: vrátí se po několika taktech pochodu (oprava Úlohy 5)', () => {
+    // cíl o dvě mapy dál – mapa (2; 0) chybí; skupina přejde na (1; 0), úsek k jejímu okraji pak
+    // čte mapu (2; 0) a takt počká – výsledkem je stav na konci posledního celého taktu
+    const far = {
+      villageId: 'knezice',
+      cell: { x: 2, y: 0 },
+      pos: { x: -880, z: 30 },
+    };
+    const start = deepFreeze(campaign({ target: far }));
+    const partial = stepCampaign(
+      start,
+      END,
+      LIVE,
+      worldOf((c) => c.x <= 1),
+    );
+    expect(partial.waiting?.cells).toEqual([{ x: 2, y: 0 }]);
+    const last = partial.state.tick;
+    expect(last).toBeGreaterThan(LAUNCH + 10);
+    // první skupina už přešla na (1; 0) – její úsek k okraji potřebuje mapu (2; 0)
+    expect(partial.state.groups.some((g) => g.cell.x === 1 && g.cell.y === 0)).toBe(true);
+    const upTo = stepCampaign(start, last, LIVE, worldOf());
+    expect(partial.state).toStrictEqual(upTo.state);
+    expect(partial.villageEvents).toEqual(upTo.villageEvents);
+    // po načtení mapy pokračuje se stejným výsledkem jako vcelku
+    const rest = stepCampaign(partial.state, last + 400, LIVE, worldOf());
+    const whole = stepCampaign(start, last + 400, LIVE, worldOf());
+    expect(JSON.stringify(rest.state)).toBe(JSON.stringify(whole.state));
+  });
+
   it('cíl ve vodě: skupiny jdou na nejbližší dosažitelný břeh, nestojí (jako v 0 A.D.)', () => {
     // řeka kostry bez brodu od severu k jihu ve sloupci políček 80 (svět x ≈ 247,5 m), 30 m široká
     const river: StreamPoint[] = Array.from({ length: 128 }, (_, y) => ({
@@ -331,6 +361,45 @@ describe('rozjeté úseky po změně mřížky (plán 2026-11-16-dense-forest �
         }
       }
     }
+  });
+
+  it('rozjetý boj: muž v dnešním hustém lese přejde jednou na průchodné místo (drobnost 6)', () => {
+    // boj na mapě cíle (1; 0) s hustým lesem; bod uložený dřív – útočník stojí v lese, kde se
+    // nepohne (`stepToward`), boj by zamrzl
+    const targetWoods: CampaignWorld = {
+      ...worldOf(),
+      landscapeOf: (c) => (c.x === 1 && c.y === 0 ? woods : MEADOW),
+    };
+    const point = JSON.parse(JSON.stringify(campaign())) as CampaignState;
+    delete point.marchGridVersion;
+    point.phase = 'raiding';
+    for (const g of point.groups) {
+      g.cell = { x: 1, y: 0 };
+      g.pos = { x: 150, z: 0 };
+      g.route = [];
+      g.arrived = true;
+    }
+    const b = battle({
+      attackers: [0, 1].map((k) => attacker(k, { x: 150, z: 4 * k })),
+      defenders: [defender(1, { x: -300, z: 0 }, { atHouseOnly: true })],
+    });
+    b.openTick = point.tick;
+    const inWoods = b.fighters.find((f) => f.side === 'attack')!;
+    inWoods.pos = { x: 300, z: 0 };
+    point.battle = b;
+    const grid = marchGrid(woods.landscape, null, null, { day: point.day });
+    expect(grid.pace[marchCellAt(grid, inWoods.pos)]).toBe(0);
+    const one = stepCampaign(point, point.tick + 1, LIVE, targetWoods);
+    expect(one.waiting).toBeNull();
+    expect(one.state.marchGridVersion).toBe(2);
+    const moved = one.state.battle!.fighters.find((f) => f.id === inWoods.id)!;
+    expect(grid.pace[marchCellAt(grid, moved.pos)]!).toBeGreaterThan(0);
+    // nejbližší průchodná buňka je u západního kraje hustého lesa (x ≈ 205 m)
+    expect(moved.pos.x).toBeLessThan(215);
+    expect(moved.pos.x).toBeGreaterThan(150);
+    // druhý muž stál na louce – zůstal (jen krok boje)
+    const other = one.state.battle!.fighters.find((f) => f.side === 'attack' && f !== moved)!;
+    expect(Math.hypot(other.pos.x - 150, other.pos.z - 4)).toBeLessThan(2);
   });
 
   it('týž bod po 400 × 1 taktu = 1 × 400 taktů (stejný JSON)', () => {
