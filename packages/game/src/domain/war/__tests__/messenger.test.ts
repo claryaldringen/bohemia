@@ -531,6 +531,13 @@ describe('hradiště varuje doménu (Úloha 6, Otevřené 5)', () => {
     });
   }
 
+  /**
+   * Takty, za které posel doběhne z (0; −60) branou palisády kolem domu do středu hradiště
+   * (≈ 91 m během 7 m/s ≈ 52 taktů). Trasa vede ke středu volné buňky vedle domu a pak do cíle
+   * (plán 2026-11-16-dense-forest, Úloha 2 – dřív z předposlední buňky rovnou, ≈ 82 m za 50 taktů).
+   */
+  const ARRIVE = 60;
+
   /** Posel A doběhne do hradiště C za pár taktů; B už ví, vojsko je daleko (9, 9). */
   function arriving(): CampaignState {
     const s = campaign({ liveCommand: false, foodKg: 200 });
@@ -583,7 +590,7 @@ describe('hradiště varuje doménu (Úloha 6, Otevřené 5)', () => {
 
   it('(a) posel doběhne do hradiště NPC – nejvýš 4 poslové do nevarovaných vsí domény, nejbližší první', () => {
     const start = arriving();
-    const step = stepCampaign(start, start.tick + 50, [], domainWorld());
+    const step = stepCampaign(start, start.tick + ARRIVE, [], domainWorld());
     expect(step.waiting).toBeNull();
     const c = warned(step, 'c');
     const sent = domainOut(step);
@@ -616,7 +623,7 @@ describe('hradiště varuje doménu (Úloha 6, Otevřené 5)', () => {
 
   it('(b) hradiště hráče – nic, dokud hráč nevybere vsi (`alarm-domain`)', () => {
     const start = arriving();
-    const idle = stepCampaign(start, start.tick + 50, [], domainWorld(HILLFORT_PLAYER));
+    const idle = stepCampaign(start, start.tick + ARRIVE, [], domainWorld(HILLFORT_PLAYER));
     expect(domainOut(idle)).toEqual([]);
     expect(warned(idle, 'c').domain).toBeUndefined();
     const at = warned(idle, 'c').warnTick + 2;
@@ -624,7 +631,7 @@ describe('hradiště varuje doménu (Úloha 6, Otevřené 5)', () => {
       intent(tick, seq, { kind: 'alarm-domain', village: 'c', to }, by);
     const step = stepCampaign(
       start,
-      start.tick + 50,
+      start.tick + ARRIVE,
       [
         // cizí hráč (majitel A) za hradiště nerozhoduje
         pick(at, 1, ['e1'], 'p2'),
@@ -646,12 +653,12 @@ describe('hradiště varuje doménu (Úloha 6, Otevřené 5)', () => {
 
   it('(c) bez portu domény hradiště nikoho neposílá; nenačtená doména – takt čeká', () => {
     const start = arriving();
-    const none = stepCampaign(start, start.tick + 50, [], {
+    const none = stepCampaign(start, start.tick + ARRIVE, [], {
       ...domainWorld(),
       domainOf: undefined,
     });
     expect(domainOut(none)).toEqual([]);
-    const waiting = stepCampaign(start, start.tick + 50, [], {
+    const waiting = stepCampaign(start, start.tick + ARRIVE, [], {
       ...domainWorld(),
       domainOf: () => null,
     });

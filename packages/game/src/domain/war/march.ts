@@ -1,5 +1,3 @@
-import { length2 } from '../landscape';
-import { PathHeap, quantizedStep } from '../village/paths/network-search';
 import type { Direction8 } from '../village/types';
 import { GRID_STEPS } from '../village/people/world-grid';
 import {
@@ -9,164 +7,72 @@ import {
   type MarchGrid,
   type Pos,
 } from './march-grid';
+import { gridSearch, marchComponents, octileCost } from './march-search';
+import { pathAlong, smoothCells } from './march-smooth';
 import { WAR } from './rules-war';
 import { isMarchWinter } from './season';
 
-// Pochod vojska po mapě (war.md – Pohyb – mapu po mapě): A* po mřížce pochodu (`marchGrid`),
-// cena kroku = délka ÷ násobek tempa („metry louky“), a tempo skupiny ve skutečném čase. Jen
-// det-math – tažení počítá server i prohlížeč a musí jim vyjít stejně.
+// Pochod vojska po mapě (war.md – Pohyb – mapu po mapě, Terén; plán 2026-11-16-dense-forest –
+// Rozhodnutí 5–7): nejkratší průchozí trasa po mřížce pochodu (`marchGrid`) s rovnoměrnou cenou
+// (`gridSearch`), vyhlazená na dohled a rozdělená podle tempa buněk (`smoothCells`, `pathAlong`);
+// čas = metry louky (délka ÷ násobek tempa) ÷ tempo skupiny ve skutečném čase. Jen det-math –
+// tažení počítá server i prohlížeč a musí jim vyjít stejně.
 
-/** Trasa pochodu: start, středy buněk a cíl. */
+/** Trasa pochodu: start, body zlomu a hranice tempa, cíl. */
 export interface MarchPath {
   points: Pos[];
-  /** Buňka mřížky každého bodu. */
+  /** Buňka mřížky každého bodu (u bodu na hranici tempa buňka, do které úsek vstupuje). */
   cells: number[];
   /**
-   * Metry louky od startu ke každému bodu – délka úseku ÷ násobek tempa jeho buněk, po kvantech
-   * (`quantizedStep` – součty přesné); poslední = celá trasa. Čas = metry louky ÷ tempo skupiny.
+   * Metry louky od startu ke každému bodu – délka úseku ÷ násobek tempa (úsek má jedno tempo –
+   * `pathAlong` dělí na hranicích), po kvantech (`quantizedStep` – součty přesné); poslední = celá
+   * trasa. Čas = metry louky ÷ tempo skupiny.
    */
   meadowM: number[];
   /** Délka trasy (m). */
   lengthM: number;
 }
 
-/** Sousedé buňky: posun sloupce, řádku a délka kroku v buňkách – nejdřív přímé, pak úhlopříčné. */
-const NEIGHBOURS: readonly (readonly [number, number, number])[] = [
-  [1, 0, 1],
-  [-1, 0, 1],
-  [0, 1, 1],
-  [0, -1, 1],
-  [1, 1, Math.SQRT2],
-  [-1, 1, Math.SQRT2],
-  [1, -1, Math.SQRT2],
-  [-1, -1, Math.SQRT2],
-];
-
-/** Odhad v buňkách po 8 směrech (oktilová vzdálenost) – nikdy víc než skutečná délka. */
-function octile(di: number, dj: number): number {
-  const a = Math.abs(di);
-  const b = Math.abs(dj);
-  return a > b ? a - b + b * Math.SQRT2 : b - a + a * Math.SQRT2;
-}
-
-/** Cena metru buňky (1 ÷ násobek tempa); neprůchodná Infinity. */
-function costOf(grid: MarchGrid, c: number): number {
-  const pace = grid.pace[c]!;
-  return pace > 0 ? 1 / pace : Infinity;
-}
-
-/** Cena metru buňky, na které vojsko stojí – neprůchodná (stojí v ní) jako louka. */
-function startCost(grid: MarchGrid, c: number): number {
-  const cost = costOf(grid, c);
-  return cost === Infinity ? 1 : cost;
-}
+/** Nejdál (m) přesune `outOfBuilding` cíl ze stavby na volné místo (Rozhodnutí 7). */
+const BUILDING_REACH_M = 40;
 
 /**
- * A* z buňky `start` do první vyjmuté buňky, pro kterou platí `goal`. Odhad = oktilová vzdálenost
- * (`toward` v buňkách) × strana buňky ÷ nejrychlejší tempo (cesta). Úhlopříčně jen kolem
- * průchodných rohů – roh zdi ani břeh vody se neproklouzne. Start je průchodný vždy (vojsko na
- * něm stojí). Remízy: ceny kroků po kvantech, ze stejně drahých předchůdců vyhraje vyšší index
- * (jako pěšiny – paths.md, pravidlo 3) – výsledek závisí jen na vstupu.
+ * Nejbližší buňka k buňce `c`, pro kterou platí `accept` – střed nejvýš `maxM` metrů od středu `c`
+ * (Infinity = celá mapa). Nejbližší podle čtverce vzdálenosti v buňkách, remíza – nižší index
+ * (determinismus); prohledává se po čtvercových prstencích kolem `c`. −1 = žádná.
  */
-function search(
+function nearestCell(
   grid: MarchGrid,
-  start: number,
-  goal: (c: number) => boolean,
-  toward: (i: number, j: number) => number,
-): number[] | null {
+  c: number,
+  maxM: number,
+  accept: (n: number) => boolean,
+): number {
+  if (accept(c)) return c;
   const w = grid.width;
   const h = grid.height;
-  const all = w * h;
-  const dist = new Float64Array(all).fill(Infinity);
-  const parent = new Int32Array(all).fill(-1);
-  const heap = new PathHeap();
-  const weight = grid.cellM / WAR.pace.road;
-  const estimate = (c: number): number => {
-    const i = c % w;
-    return toward(i, (c - i) / w) * weight;
-  };
-  const passable = (c: number): boolean => c === start || grid.pace[c]! > 0;
-  dist[start] = 0;
-  heap.push(start, estimate(start));
-  while (heap.size > 0) {
-    const c = heap.pop();
-    const d = dist[c]!;
-    if (heap.topKey > d + estimate(c) + 1e-9) continue;
-    if (goal(c)) {
-      const cells: number[] = [];
-      for (let k = c; k >= 0; k = parent[k]!) cells.push(k);
-      return cells.reverse();
-    }
-    const i = c % w;
-    const j = (c - i) / w;
-    const own = c === start ? startCost(grid, c) : costOf(grid, c);
-    for (const [di, dj, len] of NEIGHBOURS) {
-      const ii = i + di;
-      const jj = j + dj;
-      if (ii < 0 || jj < 0 || ii >= w || jj >= h) continue;
-      const n = jj * w + ii;
-      if (!passable(n)) continue;
-      if (di !== 0 && dj !== 0 && (!passable(j * w + ii) || !passable(jj * w + i))) continue;
-      const nd = d + quantizedStep(((own + costOf(grid, n)) / 2) * len * grid.cellM);
-      if (nd < dist[n]!) {
-        dist[n] = nd;
-        parent[n] = c;
-        heap.push(n, nd + estimate(n));
-      } else if (nd === dist[n]! && c > parent[n]!) {
-        parent[n] = c;
-      }
-    }
-  }
-  return null;
-}
-
-/** Trasa z buněk hledání: body (start a cíl přesně), metry louky po úsecích a délka. */
-function pathOf(grid: MarchGrid, found: number[], from: Pos, to: Pos): MarchPath {
-  const cells = found.length === 1 ? [found[0]!, found[0]!] : found;
-  const points = cells.map((c) => marchCellCenter(grid, c));
-  points[0] = { x: from.x, z: from.z };
-  points[points.length - 1] = { x: to.x, z: to.z };
-  const start = cells[0]!;
-  const cost = (c: number): number => (c === start ? startCost(grid, c) : costOf(grid, c));
-  const meadowM = [0];
-  let lengthM = 0;
-  for (let k = 1; k < points.length; k++) {
-    const a = points[k - 1]!;
-    const b = points[k]!;
-    const len = length2(b.x - a.x, b.z - a.z);
-    lengthM += len;
-    const step = len > 0 ? quantizedStep(((cost(cells[k - 1]!) + cost(cells[k]!)) / 2) * len) : 0;
-    meadowM.push(meadowM[k - 1]! + step);
-  }
-  return { points, cells, meadowM, lengthM };
-}
-
-/** Nejdál (v buňkách) od stavby hledáme nejbližší volnou buňku pro start či cíl uvnitř stavby. */
-const BUILDING_REACH = 8;
-
-/**
- * Start nebo cíl uvnitř stavby vsi (dům, pozemek, ohrada) se přesune na nejbližší průchodnou
- * buňku – vojsko stavbou neprojde, ale k domu jako cíli dojde a z vsi vyjde. Nejbližší podle
- * čtverce vzdálenosti, remíza – nižší index (determinismus). Ostatní buňky beze změny.
- */
-function outOfBuilding(grid: MarchGrid, c: number): number {
-  if ((grid.flags[c]! & MARCH_BUILDING) === 0) return c;
-  const w = grid.width;
   const ci = c % w;
   const cj = (c - ci) / w;
-  let best = c;
+  const reach = maxM / grid.cellM;
+  const reach2 = reach * reach;
+  const rings = Math.min(Math.floor(reach), Math.max(ci, w - 1 - ci, cj, h - 1 - cj));
+  let best = -1;
   let bestD = Infinity;
-  for (let dj = -BUILDING_REACH; dj <= BUILDING_REACH; dj++) {
-    for (let di = -BUILDING_REACH; di <= BUILDING_REACH; di++) {
-      const i = ci + di;
+  // prstenec r má čtverec vzdálenosti aspoň r² – dál už nic bližšího není
+  for (let r = 1; r <= rings && r * r <= bestD; r++) {
+    for (let dj = -r; dj <= r; dj++) {
       const j = cj + dj;
-      if (i < 0 || j < 0 || i >= w || j >= grid.height) continue;
-      const n = j * w + i;
-      if (grid.pace[n]! <= 0) continue;
-      const d = di * di + dj * dj;
-      if (d < bestD || (d === bestD && n < best)) {
-        bestD = d;
-        best = n;
+      if (j < 0 || j >= h) continue;
+      const step = dj === -r || dj === r ? 1 : 2 * r;
+      for (let di = -r; di <= r; di += step) {
+        const i = ci + di;
+        if (i < 0 || i >= w) continue;
+        const d = di * di + dj * dj;
+        if (d > reach2 || d > bestD) continue;
+        const n = j * w + i;
+        if ((d < bestD || n < best) && accept(n)) {
+          bestD = d;
+          best = n;
+        }
       }
     }
   }
@@ -174,98 +80,135 @@ function outOfBuilding(grid: MarchGrid, c: number): number {
 }
 
 /**
- * Trasa pochodu z bodu `from` do bodu `to` po mřížce mapy (war.md – Pohyb – Terén): nejlevnější
- * v metrech louky – hustý les čtyřikrát dražší, cesta levnější, voda jen přes brod, do opevněné vsi
- * branou, mezerou nebo přes val. Neprůchodný nebo nedosažitelný cíl null.
+ * Nejbližší průchodná buňka k buňce `c` (Rozhodnutí 7): `c`, je-li průchodná; jinak průchodná
+ * buňka nejblíž podle čtverce vzdálenosti v buňkách (remíza – nižší index), se středem nejvýš
+ * `maxM` metrů daleko (Infinity = celá mapa). −1 = žádná do `maxM`.
  */
-export function marchPath(grid: MarchGrid, from: Pos, to: Pos): MarchPath | null {
-  const start = outOfBuilding(grid, marchCellAt(grid, from));
-  const target = outOfBuilding(grid, marchCellAt(grid, to));
-  if (target !== start && grid.pace[target]! <= 0) return null;
-  const w = grid.width;
-  const ti = target % w;
-  const tj = (target - ti) / w;
-  const cells = search(
-    grid,
-    start,
-    (c) => c === target,
-    (i, j) => octile(i - ti, j - tj),
-  );
-  return cells ? pathOf(grid, cells, from, to) : null;
+export function nearestPassable(grid: MarchGrid, c: number, maxM: number): number {
+  return nearestCell(grid, c, maxM, (n) => grid.pace[n]! > 0);
 }
 
 /**
- * Buňky dosažitelné z buňky `start` – zaplavení po sousedech ve stálém pořadí (`NEIGHBOURS`) se
- * stejným pravidlem jako A* (`search`): start průchodný vždy, úhlopříčně jen kolem průchodných rohů.
+ * Cíl uvnitř stavby vsi (dům, pozemek, ohrada) se přesune na nejbližší průchodnou buňku nejvýš
+ * `BUILDING_REACH_M` daleko – vojsko stavbou neprojde, ale k domu jako cíli dojde. Ostatní buňky
+ * (a stavba bez volného místa v dosahu) beze změny.
  */
-function reachableCells(grid: MarchGrid, start: number): Uint8Array {
+function outOfBuilding(grid: MarchGrid, c: number): number {
+  if ((grid.flags[c]! & MARCH_BUILDING) === 0) return c;
+  const free = nearestPassable(grid, c, BUILDING_REACH_M);
+  return free < 0 ? c : free;
+}
+
+/**
+ * Buňka, odkud skupina stojící v buňce `at` vyráží (Rozhodnutí 7): `at`, je-li průchodná; jinak
+ * únik – nejbližší průchodná buňka na celé mapě (hustý les ze starého bodu, dorostlý les, stavba,
+ * nová palisáda – skupina nezamrzne). −1 = mapa nemá průchodnou buňku.
+ */
+function departureOf(grid: MarchGrid, at: number): number {
+  return nearestPassable(grid, at, Infinity);
+}
+
+/** Leží průchodné buňky `a` a `b` ve stejné souvislé oblasti (`marchComponents`)? */
+function sameArea(grid: MarchGrid, a: number, b: number): boolean {
+  const labels = marchComponents(grid);
+  return labels[a]! > 0 && labels[a] === labels[b];
+}
+
+/**
+ * Body trasy z řetězu buněk `cells` (z `gridSearch`): únik ze startu – rovně z `from` do středu
+ * první buňky, když v ní `from` neleží (první úsek se nevyhlazuje) –, vyhlazení na dohled
+ * (`smoothCells`) a vstup do stavby cíle – ze středu poslední buňky rovně do `to`, když v ní `to`
+ * neleží. Úseky rozdělí `pathAlong` podle tempa.
+ */
+function routeOf(grid: MarchGrid, cells: readonly number[], from: Pos, to: Pos): MarchPath {
+  const first = cells[0]!;
+  const last = cells[cells.length - 1]!;
+  const escape = marchCellAt(grid, from) !== first;
+  const enter = marchCellAt(grid, to) !== last;
+  const points = smoothCells(
+    grid,
+    cells,
+    escape ? marchCellCenter(grid, first) : from,
+    enter ? marchCellCenter(grid, last) : to,
+  );
+  if (escape) points.unshift({ x: from.x, z: from.z });
+  if (enter) points.push({ x: to.x, z: to.z });
+  return pathAlong(grid, points);
+}
+
+/**
+ * Dojde skupina z bodu `from` do bodu `to` (war.md – Pohyb – Cíl v neprůchodné buňce)? Bez
+ * hledání – ze souvislých oblastí (`marchComponents`): cíl ve stejné buňce ano; jinak cílová buňka
+ * (ze stavby přesunutá `outOfBuilding`) musí být průchodná a ve stejné oblasti jako buňka, odkud
+ * skupina vyráží (po úniku z neprůchodné buňky). Totéž, co `marchPath` ≠ null – pro kurzor nad
+ * místem, kam skupina nedojde.
+ */
+export function marchReachable(grid: MarchGrid, from: Pos, to: Pos): boolean {
+  const at = marchCellAt(grid, from);
+  const end = marchCellAt(grid, to);
+  if (end === at) return true;
+  const start = departureOf(grid, at);
+  return start >= 0 && sameArea(grid, start, outOfBuilding(grid, end));
+}
+
+/**
+ * Trasa pochodu z bodu `from` do bodu `to` po mřížce mapy (war.md – Pohyb – Terén): nejkratší
+ * průchozí cesta (`gridSearch` – rovnoměrná cena, tempo buňky se pro hledání nepočítá), vyhlazená
+ * na dohled a rozdělená podle tempa (`march-smooth.ts`) – voda jen přes brod, do opevněné vsi
+ * branou, mezerou nebo přes val. Start v neprůchodné buňce nejdřív unikne rovně do nejbližší
+ * průchodné (Rozhodnutí 7), cíl ve stavbě se přesune vedle ní (`outOfBuilding`). Cíl ve stejné
+ * buňce – rovně. Neprůchodný nebo nedosažitelný cíl null – pozná se předem ze souvislých oblastí,
+ * bez hledání.
+ */
+export function marchPath(grid: MarchGrid, from: Pos, to: Pos): MarchPath | null {
+  const at = marchCellAt(grid, from);
+  const end = marchCellAt(grid, to);
+  if (end === at) return pathAlong(grid, [from, to]);
+  const start = departureOf(grid, at);
+  const target = outOfBuilding(grid, end);
+  if (start < 0 || !sameArea(grid, start, target)) return null;
   const w = grid.width;
-  const h = grid.height;
-  const seen = new Uint8Array(w * h);
-  const queue = new Int32Array(w * h);
-  const passable = (c: number): boolean => c === start || grid.pace[c]! > 0;
-  let head = 0;
-  let tail = 0;
-  seen[start] = 1;
-  queue[tail++] = start;
-  while (head < tail) {
-    const c = queue[head++]!;
-    const i = c % w;
-    const j = (c - i) / w;
-    for (const [di, dj] of NEIGHBOURS) {
-      const ii = i + di;
-      const jj = j + dj;
-      if (ii < 0 || jj < 0 || ii >= w || jj >= h) continue;
-      const n = jj * w + ii;
-      if (seen[n] === 1 || !passable(n)) continue;
-      if (di !== 0 && dj !== 0 && (!passable(j * w + ii) || !passable(jj * w + i))) continue;
-      seen[n] = 1;
-      queue[tail++] = n;
-    }
-  }
-  return seen;
+  const ti = target % w;
+  const tj = (target - ti) / w;
+  const cells = gridSearch(
+    grid,
+    start,
+    (c) => c === target,
+    (i, j) => octileCost(i - ti, j - tj),
+  );
+  return cells ? routeOf(grid, cells, from, to) : null;
 }
 
 /**
  * Cíl pochodu jako v 0 A.D. (war.md – Pohyb – Cíl v neprůchodné buňce; návrh Clauda): cíl
  * v neprůchodné buňce (voda bez brodu, sráz, hotová hradba) nebo v průchodné, kam z `from` cesta
- * nevede (za řekou bez brodu), se posune na střed nejbližší průchodné buňky dosažitelné z `from`
- * (`reachableCells`). Nejbližší podle čtverce vzdálenosti v buňkách, remíza – nejmenší index
- * (determinismus). Dosažitelný průchodný cíl a cíl ve stavbě (`outOfBuilding` ho v `marchPath`
- * vyřeší) vrátí beze změny – týž objekt. Null = dosažitelná průchodná buňka není žádná (vojsko
- * stojí v neprůchodné buňce sevřené ze všech stran).
+ * nevede (za řekou bez brodu), se posune na střed nejbližší průchodné buňky dosažitelné z `from` –
+ * ve stejné souvislé oblasti (`marchComponents`) jako buňka, odkud skupina vyráží (po úniku
+ * z neprůchodné buňky – Rozhodnutí 7). Nejbližší podle čtverce vzdálenosti v buňkách, remíza –
+ * nejmenší index (determinismus). Dosažitelný cíl (`marchReachable` – i cíl ve stavbě, `marchPath`
+ * ho přesune) vrátí beze změny – týž objekt. Null = mapa nemá průchodnou buňku.
  */
 export function reachableGoal(grid: MarchGrid, from: Pos, to: Pos): Pos | null {
-  const start = outOfBuilding(grid, marchCellAt(grid, from));
-  const target = outOfBuilding(grid, marchCellAt(grid, to));
-  if (target === start) return to;
-  const seen = reachableCells(grid, start);
-  if (grid.pace[target]! > 0 && seen[target] === 1) return to;
-  const w = grid.width;
-  const ti = target % w;
-  const tj = (target - ti) / w;
-  let best = -1;
-  let bestD = Infinity;
-  for (let c = 0; c < seen.length; c++) {
-    if (seen[c] !== 1 || grid.pace[c]! <= 0) continue;
-    const i = c % w;
-    const di = i - ti;
-    const dj = (c - i) / w - tj;
-    const d = di * di + dj * dj;
-    // vzestupně po indexech – při shodě zůstane nižší index
-    if (d < bestD) {
-      bestD = d;
-      best = c;
-    }
-  }
+  if (marchReachable(grid, from, to)) return to;
+  const start = departureOf(grid, marchCellAt(grid, from));
+  if (start < 0) return null;
+  const labels = marchComponents(grid);
+  const area = labels[start]!;
+  const best = nearestCell(
+    grid,
+    outOfBuilding(grid, marchCellAt(grid, to)),
+    Infinity,
+    (n) => labels[n] === area,
+  );
   return best < 0 ? null : marchCellCenter(grid, best);
 }
 
 /**
- * Trasa k okraji mapy ve směru `direction` (war.md – Přechod okrajem): k nejlevnější buňce okraje
+ * Trasa k okraji mapy ve směru `direction` (war.md – Přechod okrajem): k nejbližší buňce okraje
  * (sever = +z, východ = +x – `GRID_STEPS`); úhlopříčný směr vede do rohu mapy. Konec trasy je
- * střed okrajové buňky – odtud `edgeCrossing` převede vojsko na sousední mapu. Nedosažitelný
- * okraj null.
+ * střed okrajové buňky – odtud `edgeCrossing` převede vojsko na sousední mapu. Stojí-li skupina
+ * v buňce okraje, jde rovně do jejího středu; jinak jako `marchPath` (únik, hledání, vyhlazení).
+ * Nedosažitelný okraj null – pozná se předem ze souvislých oblastí, bez hledání.
  */
 export function marchPathToEdge(
   grid: MarchGrid,
@@ -282,11 +225,26 @@ export function marchPathToEdge(
     const j = (c - i) / w;
     return (step.x === 0 || i === gi) && (step.y === 0 || j === gj);
   };
-  const cells = search(grid, marchCellAt(grid, from), onEdge, (i, j) =>
-    octile(step.x === 0 ? 0 : i - gi, step.y === 0 ? 0 : j - gj),
+  const at = marchCellAt(grid, from);
+  if (onEdge(at)) return pathAlong(grid, [from, marchCellCenter(grid, at)]);
+  const start = departureOf(grid, at);
+  if (start < 0) return null;
+  const labels = marchComponents(grid);
+  const area = labels[start]!;
+  // dosažitelná buňka okraje (sloupec gi, řádek gj, nebo roh) – jinak by hledání vyčerpalo oblast
+  const corner = step.x !== 0 && step.y !== 0;
+  const along = corner ? 1 : step.x !== 0 ? h : w;
+  let reachable = false;
+  for (let k = 0; k < along && !reachable; k++) {
+    const c = corner ? gj * w + gi : step.x !== 0 ? k * w + gi : gj * w + k;
+    reachable = labels[c] === area;
+  }
+  if (!reachable) return null;
+  const cells = gridSearch(grid, start, onEdge, (i, j) =>
+    octileCost(step.x === 0 ? 0 : i - gi, step.y === 0 ? 0 : j - gj),
   );
   if (!cells) return null;
-  return pathOf(grid, cells, from, marchCellCenter(grid, cells[cells.length - 1]!));
+  return routeOf(grid, cells, from, marchCellCenter(grid, cells[cells.length - 1]!));
 }
 
 /** Skutečné sekundy pochodu celé trasy tempem `speed` (m/s – `marchSpeed`). */

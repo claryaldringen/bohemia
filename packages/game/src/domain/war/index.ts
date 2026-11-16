@@ -3,6 +3,8 @@ export * from './strength';
 export * from './protection';
 export * from './march-grid';
 export * from './march';
+export * from './march-search';
+export * from './march-smooth';
 export * from './season';
 export * from './world-route';
 export * from './ticks';

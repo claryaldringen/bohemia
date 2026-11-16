@@ -502,18 +502,20 @@ describe('commandCampaign', () => {
       });
     });
 
-    it('skupina sevřená ve vodě nedojde nikam – odmítnutí s důvodem', async () => {
+    it('skupina ve vodě unikne na nejbližší břeh – záměr projde (Rozhodnutí 7)', async () => {
+      // plán 2026-11-16-dense-forest, Úloha 2: start v neprůchodné buňce vede rovně do nejbližší
+      // průchodné – „Tam vojsko nedojde.“ zbude jen pro mapu bez průchodné buňky (dřív i pro
+      // skupinu sevřenou ve vodě)
       const { deps, campaigns, nowMs } = await setup(marching({ x: 245, z: 0 }), RIVER_MAP);
       const input = { playerId: 'p1', campaignId: 'c1', nowMs };
       const deep = lead({
         kind: 'place',
         place: { cell: { x: 0, y: 0 }, pos: { x: 245, z: 200 } },
       });
-      expect(await commandCampaignResult(deps, { ...input, command: deep })).toEqual({
-        queued: false,
-        reason: 'unreachable',
+      expect(await commandCampaignResult(deps, { ...input, command: deep })).toMatchObject({
+        queued: true,
       });
-      expect(campaigns.intents).toHaveLength(0);
+      expect(campaigns.intents).toHaveLength(1);
     });
   });
 

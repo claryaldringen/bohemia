@@ -113,7 +113,7 @@ describe('NPC velitel – nájezd na bránící se ves', () => {
 
   it('bod zlomu skupiny velitele → obrat', () => {
     let s = NPC;
-    while (!s.battle && s.phase !== 'done')
+    while (!s.battle && s.phase !== 'done' && s.tick < NPC.tick + 50_000)
       s = stepCampaign(s, s.tick + 5, SET_OUT, defendWorld).state;
     expect(s.phase).toBe('raiding');
     expect(npcIntents(s, defendWorld).some((i) => i.kind === 'turn-back')).toBe(false);

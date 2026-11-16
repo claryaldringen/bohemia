@@ -118,8 +118,10 @@ describe('Ú1 – tažení bez varování', () => {
     const END = LAUNCH + 900;
     const whole = stepCampaign(campaign(), END, LIVE, worldOf());
     // Otisk z doby před Úlohou 1 (9. 11. 2026) – typy varování chování tažení nemění. Jediná změna
-    // oproti němu: upozornění nesou klíč `ref` (audit A5, 14. 11. 2026; bylo '3766:e81d6a8f').
-    expect(fingerprint(whole)).toBe('3792:a97e1365');
+    // oproti němu: upozornění nesou klíč `ref` (audit A5, 14. 11. 2026; bylo '3766:e81d6a8f'),
+    // a trasa s rovnoměrnou cenou a vyhlazená – jiné polohy skupin (plán 2026-11-16-dense-forest,
+    // Úloha 2; bylo '3792:a97e1365').
+    expect(fingerprint(whole)).toBe('3792:62ea2890');
     // Bod uložený uprostřed (bez `alarm`) a načtený z JSON pokračuje stejně.
     const half = stepCampaign(campaign(), LAUNCH + 300, LIVE, worldOf());
     const rest = stepCampaign(viaJson(half.state), END, LIVE, worldOf());

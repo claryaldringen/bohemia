@@ -680,7 +680,8 @@ describe('zajatý vojvoda a vzdání (plán 2026-11-14 – Úloha 5b)', () => {
     });
     let fight = stepCampaign(start, start.tick + 1800, here, w).state;
     while (fight.battle?.outcome !== 'ongoing') {
-      if (fight.tick > start.tick + 2500) throw new Error('boj nezačal');
+      // skončené tažení takt neposouvá – bez kontroly by smyčka běžela navždy
+      if (fight.tick > start.tick + 2500 || campaignFinished(fight)) throw new Error('boj nezačal');
       const next = stepCampaign(fight, fight.tick + 1, here, w);
       expect(next.waiting).toBeNull();
       fight = next.state;

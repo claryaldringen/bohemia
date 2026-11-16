@@ -19,7 +19,7 @@ import { hoursPerTick, TICKS_PER_SECOND } from './ticks';
 // NPC velitel (war.md – Velení a příprava tažení; plán 2026-11-03 – Úloha 6.12): vede tažení, když
 // velí jiný muž než hráčův, když je hráč pryč a vede zástupce, nebo když velitel padl. Rozhoduje
 // jen ze stavu tažení a světa – záměry platí v taktu, ve kterém je spočítá (stejně po kouscích).
-// Pochod jde nejkratší cestou po mřížce map (A* obchází les, řeky po brodech – `marchPath`), průchod
+// Pochod jde nejkratší průchozí cestou po mřížce map (řeky po brodech – `marchPath`), průchod
 // opevněním: velitel vede skupinu k místu nejrychlejšího postupu (`npc-assault.ts`), u hradby pak
 // každý muž volí postup místa sám (boj – `approach`). Jen det-math.
 
