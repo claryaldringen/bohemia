@@ -313,6 +313,11 @@ a 12 vesničanů (8 dobrovolníků po 0,4, 4 nucení po 0,2 = 4,0), s kovárnou 
   cesta nevede (za řekou bez brodu), vojsko neodmítne ani tiše nestojí – cíl se posune na
   nejbližší průchodné místo, kam skupina dojde, a mapa tažení ukáže posunutý cíl. Jen když skupina nedojde vůbec nikam (stojí sevřená ve vodě), rozkaz se
   neprovede a u kurzoru je důvod „Tam vojsko nedojde.“
+  - **Okraj mapy zavřený hustým lesem** (Martin 16. 11. 2026: „Má zůstat stát.“): když skupina
+    nemůže na sousední mapu, nehledá objížďku přes jiné mapy – zůstane stát u okraje.
+  - **Kurzor nad nedosažitelným místem** (Martin 16. 11. 2026: „Ideální by bylo, kdyby kurzor na
+    místech, kam se nedá dojít, podle toho vypadal“): nad místem, kam vybraná skupina nedojde,
+    vypadá kurzor jinak (ikona zákazu jako v 0 A.D.).
 - **Skupina jde tempem nejpomalejšího** (návrh Clauda): skupina jen z jezdců × 1,5; se stádem
   × 0,5 (18. 10.); s pěšími raněnými × 0,75 (Ztráty); zima výš.
 - **Zásoby tažení** (Martin 2. 11. 2026 – „Ano“): jídlo pro muže (v zimě i seno pro koně) na

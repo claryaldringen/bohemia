@@ -155,6 +155,11 @@ Koordinátor zapíše výsledek do sekce Výsledek brány (velikost buňky, algo
 
 Do odpovědi platí „zůstat stát“ (Rozhodnutí 8 – nic nového se nepřidá). Objížďka je volitelný krok Úlohy 5.
 
+**Odpověď (Martin 16. 11. 2026):** „Má zůstat stát. Ideální by bylo, kdyby kurzor na místech, kam se nedá dojít, podle toho vypadal.“
+
+- Úloha 5: **žádná objížďka** – volitelný krok odpadá; skupina stojí u okraje jako u nedosažitelného cíle.
+- Úloha 7 navíc: **kurzor nad místem, kam vybraná skupina nedojde** (hustý les, voda bez brodu, místo bez spojení s polohou skupiny, okraj mapy bez průchodu), vypadá jinak – jako v 0 A.D. (ikona zákazu). Prohlížeč pozná dosažitelnost z téže jemné mřížky (stejné deterministické funkce jako server) a jejích souvislých oblastí od polohy skupiny; jen vizuální nápověda, rozkaz dál ověří server (Rozhodnutí – Cíl v neprůchodné buňce).
+
 ## Review Focus
 
 1. **Ves odříznutá hustým lesem** – dvorec bez průchodu k okraji. Vlastní výprava by nemohla ven a cizí vojsko by stálo u lesa.
