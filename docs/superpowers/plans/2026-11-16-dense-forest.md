@@ -125,7 +125,8 @@
 13. **Pokračování zemské stezky na sousední mapě** (Úloha 4b; Martin 16. 11. 2026: „ano“, podrobnosti návrh Clauda).
     - **Nic se neukládá.** Pokračování se odvodí z krajiny a vrstvy překážek sousední mapy, ze vstupů (bodů okraje hotových stezek sousedních vsí) a z branky tamního dvorce. Stav vsi ani DB se nemění (žádný převod, žádná migrace); Vlkov (N, E, S) ho má hned.
     - **Výstup stezky** (`trailExitsOf`):
-      - konec osy = konec posledního úseku ve směru stezky;
+      - konec osy = nejdále položený konec ve směru stezky ze všech úseků (úseky mohou být mimo pořadí);
+      - **výstup jen u stezky, která končí u okraje** (změna po revizi 4b – návrh Clauda): konec osy musí ležet v pásu konce strany, kterou stezka opouští (mezera ≤ `EDGE_MARGIN_M` + `TRAIL.edgeBandM` + 1 m tolerance `EDGE_SLACK_M`) – stejný predikát jako díl u okraje; rozbitá stezka (konec uprostřed mapy) pokračování nemá, jinak by vedla do slepé uličky v lese;
       - bod okraje = kolmý průmět konce na tu stranu ve směru stezky, ke které má konec nejblíž;
       - úhlopříčná stezka s koncem do 30 m od obou stran vede rohem na úhlopříčnou mapu. 30 m = `EDGE_MARGIN_M` + `TRAIL.edgeBandM` – pásmo, kde stezka končí.
     - **Souhrn vsi nese výstupy** (`VillageDigest.trailExits`). Mapa je čte ze souhrnů vsí na 8 sousedních políčkách jedním dotazem; souhrn bez nich (uložený dřív) → ves se načte celá.
