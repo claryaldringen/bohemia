@@ -296,8 +296,8 @@ a 12 vesničanů (8 dobrovolníků po 0,4, 4 nucení po 0,2 = 4,0), s kovárnou 
   ≈ 1,9 km ([krajina](landscape.md)) – přes celou mapu ≈ 9 min (≈ 6 dní), od okraje ke vsi
   uprostřed ≈ 4–5 min (≈ 3 dny). **Poloha vojska je táž ve scéně i v simulaci** – výjimka
   z „Bez časosběru“ (vojáci jdou rychleji než lidé ve vsi).
-- **Terén** – ~~(Martin 18. 10.): hustý les ≈ 1/4 tempa~~ – **změna 16. 11. 2026 (čeká na
-  schválení textu):** **hustý les je neprůchozí** (Martin 16. 11. 2026: „Můžeme ten vnitřek
+- **Terén** – ~~(Martin 18. 10.): hustý les ≈ 1/4 tempa~~ – **změna 16. 11. 2026 (schváleno
+  – Martin „ano“):** **hustý les je neprůchozí** (Martin 16. 11. 2026: „Můžeme ten vnitřek
   pojmenovat jako "hustý les" a nadále se o něm tak bavit a udělat jej neprůchozím? Vojsko ve
   středověku reálně chodilo po zemských stezkách právě kvůli neprůchodnosti lesa.“). Krajina se
   pro pochod dělí jen na **průchozí a neprůchozí** jako v 0 A.D. (Martin 16. 11. 2026) – trasa je
