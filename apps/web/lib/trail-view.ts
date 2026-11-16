@@ -8,7 +8,38 @@ import {
   type RoadGrade,
   type VillageState,
 } from '@bohemia/game';
-import type { SceneTrail } from './village-view';
+import type { SceneRoad, SceneTrail, SceneVillage } from './village-view';
+
+/**
+ * Osy pokračování stezek sousedních vsí (`mapTrailContinuations`) jako pevné cesty scény
+ * (trade.md – Pokračování na sousední mapě): upravená cesta s průsekem, záporná id (−1, −2 …),
+ * ať se nikdy nesrazí s úseky vsi. Pole os je sdílené z mezipaměti – jen se čte.
+ */
+export function sceneTrailContinuations(
+  axes: readonly (readonly { x: number; z: number }[])[],
+): SceneRoad[] {
+  return axes.map((axis, i) => ({
+    id: -(i + 1),
+    points: axis.map((p) => ({ x: p.x, z: p.z })),
+    grade: 'improved',
+    swath: true,
+  }));
+}
+
+/**
+ * Ves cizí mapy s pokračováním stezek sousedů: i mapa bez staveb dostane prázdnou ves, ať scéna
+ * cestu nakreslí; bez os ves beze změny (i null).
+ */
+export function withTrailContinuations(
+  village: SceneVillage | null,
+  axes: readonly (readonly { x: number; z: number }[])[] | null | undefined,
+): SceneVillage | null {
+  if (!axes || axes.length === 0) return village;
+  return {
+    ...(village ?? { dwellings: [], fields: [] }),
+    trailContinuations: sceneTrailContinuations(axes),
+  };
+}
 
 /** Osa stezky – úseky za sebou, každý otočený tak, aby navazoval na předchozí (od dvorce). */
 export function sceneTrails(

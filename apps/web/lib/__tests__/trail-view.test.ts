@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { VillageState } from '@bohemia/game';
-import { sceneTrails, trailRoadWork } from '../trail-view';
+import { sceneTrailContinuations, sceneTrails, trailRoadWork } from '../trail-view';
 
 // Zemská stezka ve scéně (trade.md): osa z úseků od dvorce ke kraji a průběh po úsecích.
 
@@ -89,5 +89,23 @@ describe('zemská stezka ve scéně', () => {
     const work = trailRoadWork(state);
     expect(work.has(2)).toBe(false);
     expect(work.get(3)).toEqual({ grade: 'improved', progress: 0.25 });
+  });
+});
+
+describe('pokračování stezky sousední vsi ve scéně', () => {
+  it('osy jsou upravené cesty s průsekem a zápornými id', () => {
+    const a = [
+      { x: 0, z: 960 },
+      { x: 10, z: 1000 },
+    ];
+    const b = [
+      { x: -50, z: 960 },
+      { x: -60, z: 1000 },
+    ];
+    expect(sceneTrailContinuations([a, b])).toEqual([
+      { id: -1, points: a, grade: 'improved', swath: true },
+      { id: -2, points: b, grade: 'improved', swath: true },
+    ]);
+    expect(sceneTrailContinuations([])).toEqual([]);
   });
 });

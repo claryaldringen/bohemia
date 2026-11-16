@@ -11,7 +11,9 @@ import {
   type KnownMapResponse,
 } from '@/lib/journey-view';
 import { decodeLandscape, type LandscapeTransfer } from '@/lib/landscape-transfer';
+import type { ForeignMap } from '@/lib/foreign-map';
 import type { LandscapeScene } from '@/lib/scene/landscape-scene';
+import { withTrailContinuations } from '@/lib/trail-view';
 import type { SceneVillage } from '@/lib/village-view-scene-types';
 import type { ForeignMapResponse } from '@/lib/war-scene-view';
 import { GameView } from './GameView';
@@ -70,6 +72,8 @@ export function ForeignJourneyScene({
 }): ReactElement {
   const at = `${cell.x},${cell.y}`;
   const [landscape, setLandscape] = useState<LandscapeTransfer | null>(null);
+  // osy pokračování zemských stezek sousedů (trade.md) – nakreslí se i na mapě bez staveb
+  const [axes, setAxes] = useState<ForeignMap['trailContinuations'] | null>(null);
   const [knownSeen, setKnownSeen] = useState<SeenCell | null>(null);
   const [scene, setScene] = useState<LandscapeScene | null>(null);
   const isKnown = known !== undefined;
@@ -91,6 +95,7 @@ export function ForeignJourneyScene({
         if ('error' in body) backRef.current();
         else {
           setLandscape(body.map.landscape);
+          setAxes('trailContinuations' in body.map ? (body.map.trailContinuations ?? null) : null);
           if ('seen' in body) setKnownSeen(body.seen);
         }
       })
@@ -132,15 +137,18 @@ export function ForeignJourneyScene({
 
   // stavby, jak je muži naposled viděli – scéna se přestaví jen při změně znalosti; bez znalosti
   // prázdná ves (bez vsi scéna výběr klikem – muže výjezdu – nehledá)
-  const seenKey = useMemo(() => seenSceneKey(seen), [seen]);
+  const seenKey = useMemo(() => `${seenSceneKey(seen)}#${axes?.length ?? 0}`, [seen, axes]);
   const shown = useRef<{ scene: LandscapeScene; key: string; village: SceneVillage } | null>(null);
   useEffect(() => {
     if (!scene || !decoded) return;
     if (shown.current?.scene === scene && shown.current.key === seenKey) return;
-    const village = seenVillageOf(seen, decoded) ?? { dwellings: [], fields: [] };
+    const village = withTrailContinuations(seenVillageOf(seen, decoded), axes) ?? {
+      dwellings: [],
+      fields: [],
+    };
     shown.current = { scene, key: seenKey, village };
     scene.setVillage(village);
-  }, [scene, decoded, seen, seenKey]);
+  }, [scene, decoded, seen, seenKey, axes]);
 
   // poprvé pohled na skupinu (R se k ní vrací)
   const focused = useRef(false);

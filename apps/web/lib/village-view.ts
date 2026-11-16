@@ -106,7 +106,7 @@ import { kilnsField } from './kiln-view';
 import { grainPitsField } from './grain-pit-view';
 import { junctionsField } from './junction-view';
 
-import { sceneTrails } from './trail-view';
+import { sceneTrailContinuations, sceneTrails } from './trail-view';
 
 import { sceneExpeditions } from './caravan-view';
 
@@ -421,6 +421,11 @@ export interface VillageViewContext {
   pendingDeparture?: PendingDeparture | null;
   /** Vojvoda vsi se smí nechat pokřtít (`VillageAccess.baptizable` – christianity.md). */
   baptizable?: boolean;
+  /**
+   * Osy pokračování zemských stezek sousedních vsí na mapě vsi (`mapTrailContinuations` – trade.md,
+   * Pokračování na sousední mapě); ve scéně jako `SceneVillage.trailContinuations`.
+   */
+  trailContinuations?: readonly (readonly { x: number; z: number }[])[];
 }
 
 /**
@@ -650,6 +655,9 @@ export function buildVillageView(
         day,
       ),
       trails: sceneTrails(state),
+      ...((context.trailContinuations ?? []).length > 0
+        ? { trailContinuations: sceneTrailContinuations(context.trailContinuations ?? []) }
+        : {}),
       expeditions: sceneExpeditions(state),
     },
     chronicle: chronicle(state, name),

@@ -20,7 +20,7 @@ import {
 import { currentWorld, LruCache } from '@bohemia/server';
 import { campaignCells } from './campaign';
 import { gameDeps } from './game';
-import type { ForeignMap } from './foreign-map';
+import { foreignMapOf, type ForeignMap } from './foreign-map';
 import { encodeLandscape } from './landscape-transfer';
 import { journeyActionForPlayer } from './village';
 
@@ -108,8 +108,7 @@ export async function journeyMapForPlayer(
     ),
   );
   if (!near) return null;
-  const map = await campaignCells().mapOf(cell);
-  return { cell: { x: cell.x, y: cell.y }, landscape: encodeLandscape(map.landscape) };
+  return foreignMapOf(playerId, cell);
 }
 
 /**

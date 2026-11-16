@@ -186,6 +186,34 @@ describe('kreslení minimapy – ves ve vrstvě, záběr zvlášť', () => {
   });
 });
 
+describe('minimapa – pokračování zemské stezky', () => {
+  const axis = [
+    { x: -40, z: 50 },
+    { x: 0, z: 0 },
+    { x: 30, z: -40 },
+  ];
+  const base: SceneVillage = { dwellings: [], fields: [] };
+
+  it('pokračování se kreslí stejnou čarou jako pevná cesta', () => {
+    const own = recorder();
+    drawMinimapVillage(
+      own,
+      landscape,
+      { ...base, roads: [{ id: 1, points: axis, grade: 'improved' }] },
+      196,
+    );
+    const continued = recorder();
+    drawMinimapVillage(
+      continued,
+      landscape,
+      { ...base, trailContinuations: [{ id: -1, points: axis, grade: 'improved', swath: true }] },
+      196,
+    );
+    expect(own.calls.filter((c) => c.startsWith('lineTo'))).toHaveLength(2);
+    expect(continued.calls).toEqual(own.calls);
+  });
+});
+
 describe('prvky prémiové krajiny na minimapě', () => {
   const features = {
     type: 'ford-hill' as const,

@@ -16,7 +16,7 @@ import {
   type Clearing,
 } from './building-clearings';
 import { hash01 } from './smoke-schedule';
-import { swathBands, swathBandsKey, swathDistance } from './swath-bands';
+import { roadsWithContinuations, swathBands, swathBandsKey, swathDistance } from './swath-bands';
 
 // Zarůstání přílohu ve scéně (fields.md – Zarůstání, Les vsi): na dílu, který stáda nespásají
 // a ves neseče, přibývají keře a mladé stromky, které rostou s léty bez pastvy a seče (herní data
@@ -278,7 +278,10 @@ function woodTreesByCell(village: Pick<SceneVillage, 'obstacles'>): Map<string, 
 }
 
 /** Ves pro zarůstání – díly polí, les vsi a jeho stromy, cesty (průsek); stavby, pod kterými nic neroste. */
-type WildVillage = Pick<SceneVillage, 'fields' | 'woods' | 'obstacles' | 'roads'> &
+type WildVillage = Pick<
+  SceneVillage,
+  'fields' | 'woods' | 'obstacles' | 'roads' | 'trailContinuations'
+> &
   Partial<Pick<SceneVillage, 'wildTrees'>> &
   Partial<Pick<SceneVillage, 'dwellings' | 'sacred'>>;
 
@@ -328,7 +331,7 @@ function allWildPlants(village: WildVillage): WildPlant[] {
     plants.push(...woodWildPlants(wood, trees.get(`${id.x},${id.y}`) ?? []));
   }
   plants.push(...wildTreePlants(village.wildTrees ?? []));
-  const bands = swathBands(village.roads);
+  const bands = swathBands(roadsWithContinuations(village));
   if (bands.length === 0) return plants;
   return plants.filter((p) => !(swathDistance(bands, p.x, p.z, 0) <= 0));
 }
@@ -359,7 +362,7 @@ export function wildKey(village: WildVillage): string {
     woods,
     trees,
     wild,
-    swathBandsKey(swathBands(village.roads)),
+    swathBandsKey(swathBands(roadsWithContinuations(village))),
     clearings,
   ]);
 }

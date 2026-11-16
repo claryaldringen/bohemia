@@ -487,7 +487,20 @@ ground)`; půda `walkGroundOf(landscape)` je pevné okno kolem místa vsi, pole 
   vsi k bodu okraje jejího výstupu (`edgePieces` v `march-grid.ts` – konec do `TRAIL_END_BAND_M`
   od bodu okraje v každé ose; stezka končí 20–30 m před krajem a hustý les v pásu u kraje by ji
   jinak zavřel). Jen mřížka pochodu – pokračování nemá stavbu, kácení, klády ani pařezy a síť cest
-  vsi ho nezná.
+  vsi ho nezná. **Pokračování ve scéně a na
+  minimapě** (Martin 16. 11. 2026: mapa rodu nebo vazala se kreslí celá jako vlastní, u nepřítele
+  a neutrála je mlha války): `mapTrailContinuations` (application/neighbour-trails.ts) dá osy,
+  `sceneTrailContinuations` (`lib/trail-view.ts`) z nich složí `SceneVillage.trailContinuations` –
+  `SceneRoad` s id −1, −2 …, stupeň `improved`, `swath`. Vlastní ves je dostane z `viewOf`
+  (`village.ts` → `VillageViewContext.trailContinuations`), cizí mapa tažení a výjezdu z
+  `ForeignMap.trailContinuations` (`foreignMapOf` v `foreign-map.ts`; známá mapa je nemá –
+  nese jen znalost rodu) přes `withTrailContinuations`, i na mapě bez staveb. Kreslí je
+  `path-renderer.ts` (`roadsWithContinuations` v `swath-bands.ts`) jako hotovou cestu a minimapa
+  (`drawMinimapVillage`) čarou; `swathBands` z nich dělá pás pro plochu korun a zarůstání.
+  Stromy a keře vrstvy překážek v pásu skrývá `landscape-scene.ts` (`swathObstacleIds`, id jdou do
+  `hiddenIds` jako pokácené stromy vsi, bez pařezů). Pokračování nejde vybrat klikem ani
+  zvýraznit (`village-picking.ts`, `selection-highlight.ts` čtou jen `roads`); mlha je jen
+  zobrazení – závoj leží přes cestu jako přes ostatní krajinu, průchodnost je vždy.
 
 - **Cesta přes pole** ([roads.md](../design/roads.md) – Cesta přes pole; Martin 19. 10. 2026:
   „Ano má. … pokud oráč narazí na cestu, tak spřežení otočí. Nebude pak moci vzniknout takový

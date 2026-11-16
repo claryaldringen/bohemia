@@ -9,7 +9,9 @@ import type { CampaignResponse } from '@/lib/campaign-view';
 import { setE2EHook } from '@/lib/e2e-hooks';
 import { seenSceneKey } from '@/lib/journey-scene-view';
 import { decodeLandscape, type LandscapeTransfer } from '@/lib/landscape-transfer';
+import type { ForeignMap } from '@/lib/foreign-map';
 import type { LandscapeScene } from '@/lib/scene/landscape-scene';
+import { withTrailContinuations } from '@/lib/trail-view';
 import { warKeyOfScene } from '@/lib/server-events/protocol';
 import type { SceneVillage } from '@/lib/village-view-scene-types';
 import {
@@ -56,6 +58,8 @@ export function ForeignWarScene({
   const { campaignId, cell } = watch;
   const at = `${cell.x},${cell.y}`;
   const [landscape, setLandscape] = useState<LandscapeTransfer | null>(null);
+  // osy pokračování zemských stezek sousedů (trade.md) – nakreslí se i na mapě bez staveb
+  const [axes, setAxes] = useState<ForeignMap['trailContinuations'] | null>(null);
   const [scene, setScene] = useState<LandscapeScene | null>(null);
   const [mapOpen, setMapOpen] = useState(true);
   const decoded = useMemo(() => (landscape ? decodeLandscape(landscape) : null), [landscape]);
@@ -74,7 +78,10 @@ export function ForeignWarScene({
       .then((body) => {
         if (!live) return;
         if ('error' in body) onBackRef.current();
-        else setLandscape(body.map.landscape);
+        else {
+          setLandscape(body.map.landscape);
+          setAxes(body.map.trailContinuations ?? null);
+        }
       })
       .catch(() => {
         if (live) onBackRef.current();
@@ -148,14 +155,17 @@ export function ForeignWarScene({
   } | null>(null);
   useEffect(() => {
     if (!scene || !decoded || !war) return;
-    const key = `${(war.buildings ?? []).map((b) => b.id).join(',')}#${seenSceneKey(war.known ?? null)}`;
+    const key = `${(war.buildings ?? []).map((b) => b.id).join(',')}#${seenSceneKey(war.known ?? null)}#${axes?.length ?? 0}`;
     const drawn = shown.current?.scene === scene ? shown.current : null;
     if (drawn?.key === key) return;
-    const village = foreignVillageOf(war.buildings, war.known ?? null, decoded, onTargetMap(war));
+    const village = withTrailContinuations(
+      foreignVillageOf(war.buildings, war.known ?? null, decoded, onTargetMap(war)),
+      axes,
+    );
     shown.current = { scene, key, village };
     // zmizí-li poslední známá stavba, prázdná ves smaže nakreslenou
     if (village || drawn?.village) scene.setVillage(village ?? { dwellings: [], fields: [] });
-  }, [scene, decoded, war]);
+  }, [scene, decoded, war, axes]);
 
   // poprvé pohled na vojsko (R se k němu vrací)
   const focused = useRef(false);

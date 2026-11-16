@@ -88,7 +88,7 @@ import { VillagePaths, type PathStats } from './path-renderer';
 import { PitCuts, applyPitCut } from './pit-cut';
 import { tornadoTrunks } from './tornado-track';
 import { castersChanged } from './sun-shadows';
-import { swathBands } from './swath-bands';
+import { roadsWithContinuations, swathBands, swathBandsKey, swathObstacleIds } from './swath-bands';
 import { tileCenter } from './tile-at';
 import { PlacementOutlines } from './placement-outlines-view';
 import { HoldingsOverlay, type HoldingsOverlaySector } from './holdings-overlay';
@@ -108,6 +108,8 @@ import { PremiumSites } from './premium-sites';
 
 type ViewListener = (view: ViewFootprint) => void;
 /** Vymýcený les vsi (null = žádný) – minimapa ho kreslí jako paseku. */
+const NO_IDS: ReadonlySet<number> = new Set();
+
 type ClearedListener = (cleared: ClearedForest | null) => void;
 
 /** 3D scéna krajiny – obyčejná třída bez Reactu (adaptér zobrazení). */
@@ -172,6 +174,8 @@ export class LandscapeScene {
   private culling: SceneryCulling | null = null;
   /** Vrstva překážek krajiny (herní data – stejná jako na serveru). */
   private obstacles: ObstacleLayer | null = null;
+  /** Stromy v pásech pokračování stezek – paměť podle vrstvy a pásů. */
+  private continuationIds: { layer: ObstacleLayer; key: string; ids: Set<number> } | null = null;
   /** Pařezy a nálet po pokácených stromech. */
   private felled: FelledTrees | null = null;
   private logPile: LogPile | null = null;
@@ -1186,6 +1190,23 @@ export class LandscapeScene {
    * vykácenými stromy neztmaví, plocha korun nad pasekou zapadne pod zem a stínová mapa se
    * jednou překreslí.
    */
+  /**
+   * Stromy a keře vrstvy překážek v pásech průseků pokračování stezek (`swathObstacleIds`) –
+   * jen pro pásy pokračování, průseky vsi skrývá stav vsi. Počítá se jen při změně pásů.
+   */
+  private continuationTrees(): ReadonlySet<number> {
+    const continued = swathBands(this.villageState?.trailContinuations);
+    const layer = this.obstacles;
+    if (!layer || continued.length === 0) return NO_IDS;
+    const key = swathBandsKey(continued);
+    if (this.continuationIds?.layer === layer && this.continuationIds.key === key) {
+      return this.continuationIds.ids;
+    }
+    const ids = swathObstacleIds(layer, continued);
+    this.continuationIds = { layer, key, ids };
+    return ids;
+  }
+
   private applyVillage(): void {
     const village = this.village;
     if (!village || !this.villageState) return;
@@ -1207,7 +1228,10 @@ export class LandscapeScene {
       ...(sacred?.oaks ?? []).filter((oak) => oak.snag),
       ...(sacred?.fallenOaks ?? []),
     ].map((oak) => oak.id);
+    // průsek pokračování zemské stezky sousední vsi (trade.md) – stromy a keře v pásu se nekreslí
+    const swaths = swathBands(roadsWithContinuations(this.villageState));
     const hiddenIds = new Set([
+      ...this.continuationTrees(),
       ...changes.removed,
       ...changes.stumps,
       ...changes.saplings,
@@ -1222,7 +1246,7 @@ export class LandscapeScene {
         ? villageClearedForest(this.landscape, this.obstacles, this.villageState)
         : null;
     // průseky lesem (roads.md) – pás podél os cest, plocha korun nad ním zapadne
-    const cleared = this.canopy?.setCleared(clearing, swathBands(this.villageState.roads)) ?? false;
+    const cleared = this.canopy?.setCleared(clearing, swaths) ?? false;
     if (!sameClearing(this.cleared, clearing)) {
       this.cleared = clearing;
       for (const listener of this.clearedListeners) listener(clearing);
