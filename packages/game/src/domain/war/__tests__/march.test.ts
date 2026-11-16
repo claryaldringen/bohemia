@@ -531,11 +531,12 @@ describe('zlatá cesta a determinismus (skutečné krajiny)', () => {
   // brodů na mapě | buněk hustého lesa | trasy ze středu mapy k nejbližšímu dosažitelnému místu
   // u severovýchodního a jihozápadního rohu (bodů : metry louky : otisk buněk a bodů) – jemná
   // mřížka 2,5 m s neprůchozím hustým lesem (plán 2026-11-16-dense-forest, Úloha 4); brodů
-  // přibylo zhruba s (10 ÷ 2,5)², trasy les obcházejí
+  // přibylo zhruba s (10 ÷ 2,5)², trasy les obcházejí; seed 3 má o buňku hustého lesa méně od
+  // opravy Úlohy 4 – skála blokuje vždy buňku, ve které stojí (balvan s poloměrem 1,25–1,77 m)
   const GOLDEN: Record<number, string> = {
     1: '1638|319837|2:503.86:a3ed6ded|3:475.93:24e5a7a1',
     2: '519|341471|5:229.68:dba38811|6:980.52:a8e8c103',
-    3: '583|352508|15:876.14:11c88dc8|3:989.88:914d587',
+    3: '583|352507|15:876.14:11c88dc8|3:989.88:914d587',
   };
 
   it.each([1, 2, 3])('seed %i – otisk trasy přes mapu', (seed) => {

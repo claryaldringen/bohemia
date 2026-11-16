@@ -24,14 +24,15 @@ export { CLEARED_SHARE, clearedForest, type ClearedForest } from '@bohemia/game'
 
 /**
  * Vymýcený les z pohledu na ves pro scénu: pohled se jen převede na zdroje jádra a výpočet
- * (`clearedForestOf` – díly polí, paseky pod obydlími, dílnami, modlami, svatyněmi a milířišti)
+ * (`clearedForestOf` – díly polí, paseky pod obydlími, dílnami, modlami, svatyněmi, milířišti
+ * a pás opevnění)
  * je tentýž jako ve `villageClearings` pro hledání cesty vojska.
  */
 export function villageClearedForest(
   l: Landscape,
   layer: ObstacleLayer,
   village: Pick<SceneVillage, 'fields' | 'obstacles'> &
-    Partial<Pick<SceneVillage, 'dwellings' | 'sacred' | 'kilns' | 'kilnRemnants'>>,
+    Partial<Pick<SceneVillage, 'dwellings' | 'sacred' | 'kilns' | 'kilnRemnants' | 'forts'>>,
 ): ClearedForest {
   return clearedForestOf(l, layer, {
     obstacles: village.obstacles ?? NO_OBSTACLE_CHANGES,
@@ -56,6 +57,8 @@ export function villageClearedForest(
     })),
     sacred: (village.sacred?.buildings ?? []).map((b) => ({ kind: b.kind, position: b.position })),
     kilns: [...(village.kilns ?? []), ...(village.kilnRemnants ?? [])],
+    // pás opevnění je paseka – stromy v něm padnou se zahájením stavby (i rozestavěného úseku)
+    fortifications: village.forts ?? [],
   });
 }
 

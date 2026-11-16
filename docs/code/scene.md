@@ -182,8 +182,8 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   modul; výpočet masky `clearedForest` a typ `ClearedForest` jsou v jádru – `core/cleared-forest.ts`, scéna je re-exportuje; `villageClearedForest` jen převede pohled na zdroje jádra (`clearedForestOf`), hledání cesty vojska čte totéž ze `villageClearings`, village-core.md – Vymýcený les (jádro)): maska po políčkách ze stavu vsi – políčko lesa bez aspoň poloviny dospělých stromů
   nebo pod založeným dílem pole, a paseky pod stavbami v lese přesně podle tvaru
   (`ClearedForest.areas` – vyklízené plochy obydlí a dílen s pruhem pod korunami
-  `forestClearingsOf` z jádra, natočené pozemky, modly a svatyně; `clearingDistance` měří
-  i k nim). Plocha korun nad pasekou zapadne pod zem
+  `forestClearingsOf` z jádra, natočené pozemky, modly a svatyně, milířiště a pás opevnění –
+  každý úsek, i rozestavěný (`SceneVillage.forts`); `clearingDistance` měří i k nim). Plocha korun nad pasekou zapadne pod zem
   (`ForestCanopy.setCleared` mění jen výšky vrcholů, klíč i z `clearedAreasKey`), ztmavení trávy se přepočítá bez skrytých
   stromů do modrého kanálu splat textury (`TerrainMaterial.setHiddenTrees` – žádný sampler
   navíc), stínová mapa se jednou překreslí a minimapa kreslí vykácený les jako paseku. Vše jen

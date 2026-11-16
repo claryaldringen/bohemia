@@ -116,11 +116,15 @@ vojska mapu po mapě (Ú6.4), tažení po taktech, boj a dohra (Ú6.5–Ú6.17) 
   2. **hustý les** (`MARCH_FOREST`, neprůchodný – forest.md – Hustý les) – vnitřek lesa
      `forestInterior` (`dense-forest.ts`: pole lesa > `WAR.march.denseForestM` = 10 m; krajina bez
      lesního políčka pole lesa nestaví) bez pasek vsi `withoutClearings(…, villageClearings(…))` –
-     jen s vrstvou překážek a vsí, bez vrstvy celý vnitřek krajiny. Voda, brod a sráz hustým lesem
-     nejsou;
+     jen s vrstvou překážek a vsí, bez vrstvy celý vnitřek krajiny. Paseka je i pás opevnění (každý
+     úsek, i rozestavěný – village-core.md – Vymýcený les (jádro)); `withoutClearings` bere buňky se
+     středem v pasece a u plochy i buňky jejích rohů – úzký pás plotu (1 m) středy buněk mine.
+     Voda, brod a sráz uvnitř hustého lesa mají tempo podle terénu a `MARCH_FOREST` navíc (průsek
+     přes ně má dohled a šelmy hustého lesa);
   3. **skály** (`MARCH_ROCK`, neprůchodné) – balvan a skalní výchoz vrstvy překážek do poloměru
      jako u pěšin (`obstacleBlockRadiusM` v `paths/terrain.ts` – `OBSTACLE_COST` s cenou Infinity;
-     aspoň buňka překážky; `marchRocks` jednou na terén a vrstvu); kámen, který ves odstranila
+     a vždy buňka, ve které překážka stojí – i poloměr 1,25–1,77 m, kdy středy okolních buněk leží
+     za ním; `marchRocks` jednou na terén a vrstvu); kámen, který ves odstranila
      (`obstacleChangesAt`), neblokuje;
   4. **průseky** (`MARCH_ROAD`, tempo `WAR.pace.road` × 1,5) – stezka krajiny z terénu a pevné
      cesty vsi (`village.roads.roads`, i úseky zemské stezky): pás `ROAD_SWATH.halfM` (3,5 m) kolem
@@ -134,7 +138,9 @@ vojska mapu po mapě (Ú6.4), tažení po taktech, boj a dohra (Ú6.5–Ú6.17) 
      průchozí tempem louky. Přednost před průsekem;
   6. **opevnění** (`fortCells`, kód beze změny – počítá obecně nad `cellM`): hotový plot, palisáda
      a val se stojící nástavbou neprůchodné, val bez nástavby tempem `rampartPace(výška dílu)` =
-     1 ÷ (1 + 3 × v) (plný val ¼), průchozí otevřené brány (zavřené v `closedGates`) a mezery
+     1 ÷ (1 + 3 × v) (plný val ¼) – buňka, která zůstala hustým lesem bez průseku (bez vrstvy
+     překážek pasek není), jen `MARCH_RAMPART` s tempem 0, val průchod lesem neotevře; průchozí
+     otevřené brány (zavřené v `closedGates`) a mezery
      (`segmentIsGap` – nedostavěný, shnilý, prolomený úsek celým pásem). Buňky přes `fortWalls`
      a `fortWallCells` (pěšiny); buňka, které se dotkne průchod, stěnou není.
 
@@ -142,6 +148,7 @@ vojska mapu po mapě (Ú6.4), tažení po taktech, boj a dohra (Ú6.5–Ú6.17) 
   (Únik z neprůchodné buňky níž); v boji (`battle.ts` `paceAt`) stavby neblokují. Výkon
   (Apple M1 Pro, seedy 1–3): terén 64–100 ms a vnitřek lesa 60–90 ms jednou na krajinu, mřížka
   vsi a dne 1,6–3,3 ms, oblasti 1,3–1,9 ms.
+
 - **Trasa** (plán 2026-11-16-dense-forest – Rozhodnutí 5–7, Úloha 2) – `domain/war/march.ts`:
   `marchPath(grid, from, to)` = nejkratší průchozí cesta ve třech krocích:
   - **hledání** `gridSearch(grid, start, goal, toward)` v `march-search.ts` – rovnoměrná cena:
@@ -179,6 +186,7 @@ vojska mapu po mapě (Ú6.4), tažení po taktech, boj a dohra (Ú6.5–Ú6.17) 
   nimi zlomy a hranice tempa), buňka každého bodu, `meadowM` (metry louky od startu) a
   `lengthM`; `marchSeconds(path, speed)`, `marchProgress(path, meadow)` (poloha po ušlých metrech
   louky).
+
 - **Únik z neprůchodné buňky** (Rozhodnutí 7) – start v neprůchodné buňce (hustý les ze starého
   bodu, dorostlý les, stavba, nová palisáda): první úsek vede rovně do středu nejbližší průchodné
   buňky (`nearestPassable(grid, c, maxM)` – čtverec vzdálenosti v buňkách, remíza nižší index; pro
@@ -444,7 +452,10 @@ group, order, at)` – před bitvou kdykoli, v boji jen na doslech (jinak false)
   když se zavře, cesta neplatí); bez průchodu hradbu přejde nebo prolomí nejrychlejším postupem
   (Prolomení v boji), prolamující nebojují, průlom je mezera.
 - **Tažení** – `campaign.ts`: `raidTick` – první takt `campaignBattle` (muži na nohou na mapě cíle
-  v šiku po pěti; obránci z `villageAt(cíl, den)`; ves není na mapě cíle → bez obránců),
+  v šiku po pěti; místo v buňce s tempem 0 mimo stavbu a stěnu – hustý les u průseku, voda, sráz,
+  skála – nahradí `formationSpot` (`battle.ts`) středem nejbližší průchodné buňky téže oblasti jako
+  skupina (`nearestInArea` v `march.ts`), jinak by muž stál – boj únik nemá; obránci
+  z `villageAt(cíl, den)`; ves není na mapě cíle → bez obránců),
   pak `battleTick` s `tickRandom(seed, tick, 'battle')`, `syncMembers` (zdraví, `fallen`,
   `wounded`). Konec: `attackers` → obrat `arrived` (háček Ú6.10 kořist a škody, Ú6.11 zajetí),
   `defenders` → `routed` (háček Ú6.12 rozpad, Ú6.11 ranění zůstanou); `turnBack` v boji →

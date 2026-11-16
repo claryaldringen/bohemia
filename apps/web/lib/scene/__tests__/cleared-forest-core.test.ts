@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
   SURFACE_CODES,
+  areaOutline,
   dayIndexOf,
+  fortSegments,
+  fortificationArea,
   foundVillage,
   generateLandscape,
   obstaclesOf,
@@ -18,24 +21,26 @@ import { villageClearedForest } from '../cleared-forest';
 
 const DAY = dayIndexOf({ year: 600, month: 5, day: 5 });
 
+const landscape = generateLandscape(42);
+const layer = obstaclesOf(landscape);
+
+/** Střed nějakého lesního políčka uvnitř lesa (soused vlevo, vpravo, nahoře i dole také les). */
+function forestTile(): { x: number; y: number } {
+  for (let i = 0; i < landscape.surface.length; i++) {
+    const x = i % landscape.size;
+    const y = Math.floor(i / landscape.size);
+    const same = (dx: number, dy: number): boolean =>
+      landscape.surface[(y + dy) * landscape.size + x + dx] === SURFACE_CODES.forest;
+    if (x > 3 && y > 3 && x < landscape.size - 4 && y < landscape.size - 4) {
+      if (same(0, 0) && same(1, 0) && same(-1, 0) && same(0, 1) && same(0, -1)) return { x, y };
+    }
+  }
+  return { x: 0, y: 0 };
+}
+
 describe('villageClearedForest = villageClearings', () => {
   it('dům s natočeným pozemkem, natočený díl pole a milíř v lese dají tytéž paseky', () => {
-    const landscape = generateLandscape(42);
-    const layer = obstaclesOf(landscape);
-    // střed nějakého lesního políčka uvnitř lesa (soused vlevo i vpravo také les)
-    let forest = { x: 0, y: 0 };
-    for (let i = 0; i < landscape.surface.length; i++) {
-      const x = i % landscape.size;
-      const y = Math.floor(i / landscape.size);
-      const same = (dx: number, dy: number): boolean =>
-        landscape.surface[(y + dy) * landscape.size + x + dx] === SURFACE_CODES.forest;
-      if (x > 3 && y > 3 && x < landscape.size - 4 && y < landscape.size - 4) {
-        if (same(0, 0) && same(1, 0) && same(-1, 0) && same(0, 1) && same(0, -1)) {
-          forest = { x, y };
-          break;
-        }
-      }
-    }
+    const forest = forestTile();
     const at = tileCenterWorld(landscape, forest.x, forest.y);
     const state: VillageState = foundVillage({
       seed: 5,
@@ -89,5 +94,47 @@ describe('villageClearedForest = villageClearings', () => {
     expect(fromScene.tiles).toEqual(fromState.tiles);
     expect(fromScene.areas).toEqual(fromState.areas);
     expect([...fromScene.share]).toEqual([...fromState.share]);
+  });
+
+  it('pás opevnění v lese – hotového i rozestavěného úseku – je paseka shodně ve scéně i jádru', () => {
+    const forest = forestTile();
+    const at = tileCenterWorld(landscape, forest.x, forest.y);
+    const cells = [];
+    for (let y = forest.y - 1; y <= forest.y + 1; y++) {
+      for (let x = forest.x - 1; x <= forest.x + 1; x++) cells.push({ x, y });
+    }
+    const area = fortificationArea(cells, null, landscape);
+    if ('error' in area) throw new Error(area.error);
+    const shapes = fortSegments(areaOutline(area, 'rampart'));
+    const state: VillageState = foundVillage({
+      seed: 5,
+      day: DAY - 10,
+      dwellingPosition: { x: at.x + 200, z: at.z + 200, rotation: 0 },
+    });
+    const bare = villageClearings(landscape, layer, state, DAY);
+    // první polovina úseků hotová, druhá se teprve staví (builtDay null)
+    state.fortifications = [
+      {
+        id: 1,
+        grid: null,
+        cells,
+        kind: 'rampart',
+        segments: shapes.map((s, k) => ({
+          index: s.index,
+          builtDay: k < shapes.length / 2 ? DAY - 5 : null,
+          state: 1,
+        })),
+        gates: [],
+      },
+    ];
+    const view = sceneVillage(state, landscape, DAY, summarizeVillage(state, DAY));
+    expect(view.forts).toHaveLength(1);
+    const fromScene = villageClearedForest(landscape, layer, view);
+    const fromState = villageClearings(landscape, layer, state, DAY);
+    expect(fromScene.areas).toEqual(fromState.areas);
+    expect(fromScene.tiles).toEqual(fromState.tiles);
+    expect([...fromScene.share]).toEqual([...fromState.share]);
+    // každý úsek přidá aspoň jeden kus pásu
+    expect(fromState.areas.length - bare.areas.length).toBeGreaterThanOrEqual(shapes.length);
   });
 });

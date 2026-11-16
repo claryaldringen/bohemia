@@ -13,16 +13,20 @@ import {
   type ObstaclePlacement,
 } from '../../landscape';
 import type { SkeletonSlice, SkeletonTrailPort } from '../../landscape/skeleton/types';
+import { addGate, areaOutline, fortificationArea, fortSegments } from '../../village';
+import type { Fortification } from '../../village/fortification/types';
 import { dwellingGatePoint } from '../../village/paths/network-grid';
 import { obstacleBlockRadiusM } from '../../village/paths/terrain';
 import { landscapeTrailLines } from '../../village/trade/premium-route';
 import { dwelling, village } from '../../village/__tests__/kin-fixtures';
-import type { Dwelling, Road, VillageState } from '../../village/types';
+import type { Dwelling, FortKind, Road, TileCell, VillageState } from '../../village/types';
 import { forestInterior } from '../dense-forest';
 import { marchPath, marchReachable, reachableGoal, type MarchPath } from '../march';
 import {
   MARCH_FORD,
   MARCH_FOREST,
+  MARCH_GATE,
+  MARCH_RAMPART,
   MARCH_ROAD,
   MARCH_ROCK,
   MARCH_STEEP,
@@ -391,5 +395,123 @@ describe('determinismus a předběžná síta terénu', () => {
     // mapa má vodu i brody – síto se opravdu zkoušelo
     expect(exact.base.some((b) => (b & BASE_WATER) !== 0)).toBe(true);
     expect(exact.base.some((b) => (b & BASE_FORD) !== 0)).toBe(true);
+  });
+});
+
+/** Hotové opevnění 4 × 4 políčka kolem středu (svět −30…30 m), volitelně s branou na jihu. */
+function ring(kind: FortKind, gate = false): Fortification {
+  const cells: TileCell[] = [];
+  for (let y = 62; y < 66; y++) for (let x = 62; x < 66; x++) cells.push({ x, y });
+  const area = fortificationArea(cells, null, { size: SIZE, cellSizeM: TILE });
+  if ('error' in area) throw new Error(area.error);
+  const outline = areaOutline(area, kind);
+  const gates = gate ? addGate(outline, [], { x: 0, z: -30 }) : [];
+  if (!Array.isArray(gates)) throw new Error(gates.error);
+  return {
+    id: 1,
+    grid: null,
+    cells,
+    kind,
+    segments: fortSegments(outline).map((s) => ({ index: s.index, builtDay: 0, state: 1 })),
+    gates,
+  };
+}
+
+/** Buňky hustého lesa bez průseku, které mají tempo (průchod hustým lesem). */
+function openForest(g: MarchGrid): number {
+  let n = 0;
+  g.flags.forEach((f, c) => {
+    if ((f & (MARCH_FOREST | MARCH_ROAD)) === MARCH_FOREST && g.pace[c]! > 0) n++;
+  });
+  return n;
+}
+
+describe('opevnění v hustém lese (oprava Úlohy 4 – pás opevnění je paseka)', () => {
+  const land = flat(() => true);
+  const empty = packObstacles([], SIZE, TILE);
+  const fortified = (f: Fortification): VillageState =>
+    village([], [], { fortifications: [f], lastDay: 10 });
+
+  it('holý val bez pasek (bez vrstvy překážek) průchod hustým lesem neotevře', () => {
+    const grid = marchGrid(land, null, fortified(ring('rampart')));
+    let rampart = 0;
+    grid.flags.forEach((f) => {
+      if ((f & MARCH_RAMPART) !== 0) rampart++;
+    });
+    expect(rampart).toBeGreaterThan(100);
+    expect(openForest(grid)).toBe(0);
+  });
+
+  it('pás valu je paseka – val průchodný tempem valu, hustý les jen dál než 10 m od pásu', () => {
+    const grid = marchGrid(land, empty, fortified(ring('rampart')));
+    expect(openForest(grid)).toBe(0);
+    let rampart = 0;
+    grid.flags.forEach((f, c) => {
+      if ((f & MARCH_RAMPART) === 0) return;
+      rampart++;
+      expect(f & MARCH_FOREST).toBe(0);
+      expect(grid.pace[c]!).toBeGreaterThan(0);
+    });
+    expect(rampart).toBeGreaterThan(100);
+    // střed plochy je od křivky 30 m – od pásu valu (10 m) 20 m: hustý les zůstal
+    expect(grid.flags[marchCellAt(grid, { x: 0, z: 0 })]).toBe(MARCH_FOREST);
+    // paseka pásu vede kolem dokola – od jižní k severní straně vně valu
+    expect(marchReachable(grid, { x: 0, z: -35 }, { x: 0, z: 35 })).toBe(true);
+  });
+
+  it('úzký pás plotu (1 m) je také paseka – brána v hustém lese je průchodná', () => {
+    const grid = marchGrid(land, empty, fortified(ring('fence', true)));
+    const gate: number[] = [];
+    grid.flags.forEach((f, c) => {
+      if ((f & MARCH_GATE) !== 0) gate.push(c);
+    });
+    expect(gate.length).toBeGreaterThan(0);
+    for (const c of gate) {
+      expect(grid.flags[c]! & MARCH_FOREST).toBe(0);
+      expect(grid.pace[c]!).toBeGreaterThan(0);
+    }
+    expect(marchReachable(grid, { x: 0, z: -36 }, { x: 0, z: -24 })).toBe(true);
+  });
+});
+
+describe('drobné opravy Úlohy 4', () => {
+  it('voda, brod a sráz uvnitř hustého lesa nesou i `MARCH_FOREST` (dohled a šelmy průseku)', () => {
+    let terrain = 0;
+    for (const seed of [1, 2, 3]) {
+      const l = generateLandscape(seed);
+      const grid = marchGrid(l, null, null);
+      const interior = forestInterior(l, grid);
+      grid.flags.forEach((f, c) => {
+        if ((f & (MARCH_WATER | MARCH_FORD | MARCH_STEEP)) === 0 || interior[c] !== 1) return;
+        terrain++;
+        expect(f & MARCH_FOREST).toBe(MARCH_FOREST);
+      });
+      // mimo hustý les terén `MARCH_FOREST` nedostane
+      grid.flags.forEach((f, c) => {
+        if (interior[c] === 0) expect(f & MARCH_FOREST).toBe(0);
+      });
+    }
+    expect(terrain).toBeGreaterThan(0);
+  });
+
+  it('balvan s poloměrem 1,5 m na rohu buněk blokuje aspoň buňku, ve které stojí', () => {
+    // rohy buněk jsou na násobcích 2,5 m – středy čtyř okolních buněk 1,77 m daleko
+    const boulder: ObstaclePlacement = {
+      id: 1,
+      kind: 'boulder',
+      look: 'boulder',
+      x: 0,
+      z: 0,
+      rotation: 0,
+      scale: 1.25,
+    };
+    expect(obstacleBlockRadiusM('boulder', 1.25)).toBeCloseTo(1.5, 6);
+    const grid = marchGrid(flat(), packObstacles([boulder], SIZE, TILE), null);
+    const rock: number[] = [];
+    grid.flags.forEach((f, c) => {
+      if ((f & MARCH_ROCK) !== 0) rock.push(c);
+    });
+    expect(rock).toEqual([marchCellAt(grid, { x: 0, z: 0 })]);
+    expect(grid.pace[rock[0]!]).toBe(0);
   });
 });

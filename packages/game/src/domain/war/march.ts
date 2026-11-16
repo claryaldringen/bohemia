@@ -89,6 +89,16 @@ export function nearestPassable(grid: MarchGrid, c: number, maxM: number): numbe
 }
 
 /**
+ * Nejbližší buňka k buňce `c` v souvislé oblasti `area` (`marchArea`, od 1): `c`, leží-li v ní;
+ * jinak nejbližší podle čtverce vzdálenosti v buňkách (remíza – nižší index), se středem nejvýš
+ * `maxM` metrů daleko. −1 = žádná do `maxM`.
+ */
+export function nearestInArea(grid: MarchGrid, c: number, area: number, maxM: number): number {
+  const areas = marchAreas(grid);
+  return nearestCell(grid, c, maxM, (n) => marchAreaOf(areas, grid.width, n) === area);
+}
+
+/**
  * Cíl uvnitř stavby vsi (dům, pozemek, ohrada) se přesune na nejbližší průchodnou buňku nejvýš
  * `BUILDING_REACH_M` daleko – vojsko stavbou neprojde, ale k domu jako cíli dojde. Ostatní buňky
  * (a stavba bez volného místa v dosahu) beze změny.

@@ -77,7 +77,8 @@ function computeInterior(l: Landscape, geo: MarchGeometry): Uint8Array {
 /**
  * Vnitřek lesa bez pasek: buňka se středem do `WAR.march.denseForestM` od vymýceného políčka
  * (čtverec) nebo plochy pod stavbou (mnohoúhelník) hustým lesem není. Bez pasek vrátí týž objekt,
- * jinak kopii. Paseky se nejdřív převedou na buňky (střed buňky uvnitř) a pak se každá
+ * jinak kopii. Paseky se nejdřív převedou na buňky (střed buňky uvnitř; u plochy i buňka, ve
+ * které leží její roh – úzký pás opevnění, plot 1 m, mine středy buněk 2,5 m celý) a pak se každá
  * obtiskne kruhem o poloměru meze v buňkách (`dx² + dy² ≤ r²`, celá čísla).
  */
 export function withoutClearings(
@@ -118,6 +119,13 @@ export function withoutClearings(
     markBox(Math.min(...xs), Math.max(...xs), Math.min(...zs), Math.max(...zs), (x, z) =>
       pointInPolygon([x, z], area),
     );
+    // roh plochy – kus pásu opevnění (nejvýš úsek 15 m) má rohy na obou koncích, takže ani pás
+    // užší než buňka nezůstane bez buňky paseky
+    for (const [x, z] of area) {
+      const i = Math.round((x - geo.originX) / cellM);
+      const j = Math.round((z - geo.originZ) / cellM);
+      if (i >= 0 && j >= 0 && i < width && j < height) marked[j * width + i] = 1;
+    }
   }
   // kruh meze v buňkách: posuny (dx, dy) s dx² + dy² ≤ r²
   const reach = WAR.march.denseForestM / cellM;

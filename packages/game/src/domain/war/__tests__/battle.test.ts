@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest';
+import { SURFACE_CODES, packObstacles } from '../../landscape';
 import { village, kin } from '../../village/__tests__/kin-fixtures';
-import type { Dwelling } from '../../village/types';
+import type { Dwelling, Road } from '../../village/types';
 import { hitDamage, type BattleState } from '../battle';
 import { stepCampaign } from '../campaign';
 import type { CampaignMap, CampaignState, CampaignWorld, GroupAssault } from '../campaign-types';
-import { MarchGridMemo } from '../march-grid';
+import { MARCH_FOREST, MarchGridMemo, marchCellAt, marchGrid } from '../march-grid';
 import { WAR } from '../rules-war';
 import { campaign, flat, MEADOW, member, stepInChunks, SUMMER, world } from './campaign-fixtures';
 import {
@@ -342,6 +343,73 @@ describe('boj v tažení (war.md – Pro implementaci – determinismus)', () =>
     expect(step.state.battle).toBeUndefined();
     expect(step.state.phase).toBe('returning');
     expect(step.notices.filter((n) => n.kind === 'foreign-army')).toEqual([]);
+  });
+
+  it('skupina v průseku hustým lesem (5 buněk) se sešikuje do průseku a každý muž se pohne', () => {
+    // celá mapa cíle je les; průsek dvou pevných cest 6 m od sebe (z = 30 a 36) – 5 buněk 2,5 m;
+    // skupiny stojí na ose v (−930, 30), daleko od pasek vsi, a jdou na dům na cestě (−860, 30)
+    const lane = (id: number, z: number): Road => ({
+      id,
+      points: [
+        { x: -958, z },
+        { x: -840, z },
+      ],
+      bornDay: 0,
+      grade: 'improved',
+      traffic: [],
+      spots: [],
+    });
+    const meadow = flat();
+    const forest = {
+      ...meadow,
+      surface: new Uint8Array(meadow.surface.length).fill(SURFACE_CODES.forest),
+    };
+    const layer = packObstacles([], forest.size, forest.cellSizeM);
+    const home = {
+      ...knezice,
+      roads: {
+        nextId: 3,
+        roads: [lane(1, 30), lane(2, 36)],
+        trees: [],
+        labor: { from: 0, days: 0, shares: [] },
+      },
+    };
+    const forestMap: CampaignMap = { landscape: forest, obstacles: layer, villageIds: ['knezice'] };
+    const forestWorld: CampaignWorld = {
+      ...battleWorld,
+      landscapeOf: (c) => (c.x === TARGET.x && c.y === TARGET.y ? forestMap : MEADOW),
+      villageAt: (id) => (id === 'knezice' ? home : null),
+      grids: new MarchGridMemo(),
+    };
+    const grid = marchGrid(forest, layer, home, { day: SUMMER });
+    const start = raiding();
+    start.members = [
+      start.members[0]!,
+      ...Array.from({ length: 35 }, (_, k) => ({
+        ...start.members[1]!,
+        ref: { villageId: 'brod', personId: 100 + k },
+      })),
+    ];
+    for (const x of start.groups) x.pos = { x: -930, z: 30 };
+    const g = start.groups.find((x) => x.id === 1)!;
+    // šik bez opravy: řady 6 a 7 (z = 40 a 42 m) padnou do hustého lesa
+    const raw = Array.from({ length: 35 }, (_, k) => ({
+      x: g.pos.x + ((k % 5) - 2) * 2,
+      z: g.pos.z + Math.floor(k / 5) * 2,
+    }));
+    const stuck = raw.filter((p) => grid.pace[marchCellAt(grid, p)] === 0);
+    expect(stuck.length).toBeGreaterThanOrEqual(10);
+    for (const p of stuck)
+      expect(grid.flags[marchCellAt(grid, p)]! & MARCH_FOREST).toBe(MARCH_FOREST);
+    const opened = stepCampaign(start, start.tick + 1, [], forestWorld).state;
+    const attackers = opened.battle!.fighters.filter((f) => f.side === 'attack');
+    expect(attackers).toHaveLength(36);
+    for (const f of attackers) expect(grid.pace[marchCellAt(grid, f.pos)]!).toBeGreaterThan(0);
+    const later = stepCampaign(opened, opened.tick + 20, [], forestWorld).state;
+    for (const f of attackers) {
+      const now = later.battle!.fighters.find((x) => x.id === f.id)!;
+      expect(Math.hypot(now.pos.x - f.pos.x, now.pos.z - f.pos.z)).toBeGreaterThan(0);
+    }
   });
 
   it('po boji se tažení vrací; padlí a ranění se propíšou do mužů', () => {

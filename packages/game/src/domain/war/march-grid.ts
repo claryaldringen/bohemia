@@ -314,14 +314,15 @@ function openSwath(grid: MarchGrid, c: number): void {
  * krajina, její vrstva překážek a ves na mapě (null = prázdné políčko). Pořadí:
  * 1. terén krajiny (`marchTerrain` – voda, brody, sráz);
  * 2. hustý les (`MARCH_FOREST`, neprůchodný) – vnitřek lesa (`forestInterior`) bez pasek vsi
- *    (`villageClearings` – jen s vrstvou překážek a vsí; bez vrstvy celý vnitřek krajiny); voda,
- *    brod ani sráz hustým lesem nejsou;
+ *    (`villageClearings` – i pás opevnění; jen s vrstvou překážek a vsí, bez vrstvy celý vnitřek
+ *    krajiny); voda, brod a sráz v něm mají tempo podle terénu a `MARCH_FOREST` navíc;
  * 3. skály vrstvy překážek (`MARCH_ROCK`) kromě těch, které ves odstranila;
  * 4. průseky (`MARCH_ROAD`, × 1,5): stezka krajiny (`landscapeTrailLines` – i na mapě bez vsi)
  *    a pevné cesty vsi (i úseky zemské stezky) – pás `ROAD_SWATH.halfM` kolem osy je průchodný
  *    i hustým lesem, vodu, sráz a skálu ruší jen buňky osy (supercover); `MARCH_FOREST` zůstává;
  * 5. stavby vsi s odstupem `buildingClearanceM` (`MARCH_BUILDING`);
- * 6. opevnění (val, stěny, brány a mezery, vodní příkop).
+ * 6. opevnění (val, stěny, brány a mezery, vodní příkop) – val tempo buňky hustého lesa
+ *    bez průseku nemění.
  * Stejný vstup → stejná mřížka; terén krajiny se počítá jednou.
  */
 export function marchGrid(
@@ -344,7 +345,9 @@ export function marchGrid(
   const { pace, flags } = grid;
   const base = t.base;
   const day = options.day ?? village?.lastDay ?? 0;
-  // 1. terén a 2. hustý les (jedním průchodem – voda, brod a sráz hustým lesem nejsou)
+  // 1. terén a 2. hustý les (jedním průchodem): voda, brod a sráz uvnitř hustého lesa jsou
+  // neprůchodné či průchodné podle terénu, ale nesou i `MARCH_FOREST` – průsek přes ně má dohled
+  // hustého lesa a šelmy (Global Constraints – Dohled, Šelmy)
   const interior = forestInterior(landscape, grid);
   const dense =
     obstacles && village
@@ -352,12 +355,13 @@ export function marchGrid(
       : interior;
   for (let c = 0; c < all; c++) {
     const b = base[c]!;
-    if ((b & BASE_WATER) !== 0) flags[c] = MARCH_WATER;
-    else if ((b & BASE_STEEP) !== 0) flags[c] = MARCH_STEEP;
+    const forest = dense[c] === 1 ? MARCH_FOREST : 0;
+    if ((b & BASE_WATER) !== 0) flags[c] = MARCH_WATER | forest;
+    else if ((b & BASE_STEEP) !== 0) flags[c] = MARCH_STEEP | forest;
     else if ((b & BASE_FORD) !== 0) {
       pace[c] = 1;
-      flags[c] = MARCH_FORD;
-    } else if (dense[c] === 1) flags[c] = MARCH_FOREST;
+      flags[c] = MARCH_FORD | forest;
+    } else if (forest !== 0) flags[c] = MARCH_FOREST;
     else pace[c] = 1;
   }
   // 3. skály
@@ -392,9 +396,13 @@ export function marchGrid(
   const closed = options.closedGates ?? new Set<number>();
   for (const fort of village.fortifications ?? []) {
     const cells = fortCells(grid, landscape, fort, day, closed);
-    // tempo přes příkop a val podle výšky dílu: 1 ÷ (1 + 3 × v) – plný val čtvrtinové jako dřív
+    // tempo přes příkop a val podle výšky dílu: 1 ÷ (1 + 3 × v) – plný val čtvrtinové jako dřív;
+    // buňka, která zůstala hustým lesem (pás valu je paseka – `villageClearings`; bez vrstvy
+    // překážek pasek není), tempo nedostane – val průchod hustým lesem neotevře
     for (const { cell: c, height } of cells.rampart) {
-      grid.pace[c] = rampartPace(height);
+      if ((grid.flags[c]! & (MARCH_FOREST | MARCH_ROAD)) !== MARCH_FOREST) {
+        grid.pace[c] = rampartPace(height);
+      }
       grid.flags[c] = grid.flags[c]! | MARCH_RAMPART;
     }
     for (const c of cells.wall) {

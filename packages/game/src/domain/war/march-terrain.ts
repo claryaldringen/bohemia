@@ -293,8 +293,9 @@ export function swathCells(
 
 /**
  * Skály vrstvy překážek na mřížce terénu (Rozhodnutí 4): balvan a skalní výchoz s poloměrem jako
- * u pěšin (`obstacleBlockRadiusM`) – buňky se středem do poloměru, aspoň buňka překážky (jako
- * `withObstacles`). Po skalách: index překážky ve vrstvě a jejích buněk `cells[start[r] …
+ * u pěšin (`obstacleBlockRadiusM`) – buňky se středem do poloměru a vždy buňka, ve které
+ * překážka stojí (`marchCellAt`; i poloměr mezi půlí strany a půlí úhlopříčky buňky, 1,25–1,77 m,
+ * kdy střed vlastní buňky může ležet za poloměrem – jako `withObstacles`). Po skalách: index překážky ve vrstvě a jejích buněk `cells[start[r] …
  * start[r + 1])`. Mřížka vsi a dne vynechá skály, které ves odstranila.
  */
 export interface MarchRocks {
@@ -325,16 +326,25 @@ export function marchRocks(t: MarchTerrain, layer: ObstacleLayer): MarchRocks {
     const x = layer.x[k]!;
     const z = layer.z[k]!;
     const reach = Math.max(radius, half);
+    // buňka, ve které překážka stojí – zahrnutá vždy
+    const oi = Math.round((x - originX) / cellM);
+    const oj = Math.round((z - originZ) / cellM);
+    const own = oi >= 0 && oj >= 0 && oi < width && oj < height ? oj * width + oi : -1;
     const i0 = Math.max(0, Math.ceil((x - reach - originX) / cellM - 1e-6));
     const j0 = Math.max(0, Math.ceil((z - reach - originZ) / cellM - 1e-6));
     const i1 = Math.min(width - 1, Math.floor((x + reach - originX) / cellM + 1e-6));
     const j1 = Math.min(height - 1, Math.floor((z + reach - originZ) / cellM + 1e-6));
     for (let j = j0; j <= j1; j++) {
       for (let i = i0; i <= i1; i++) {
-        if (radius > half && length2(originX + i * cellM - x, originZ + j * cellM - z) > radius) {
+        const c = j * width + i;
+        if (
+          c !== own &&
+          radius > half &&
+          length2(originX + i * cellM - x, originZ + j * cellM - z) > radius
+        ) {
           continue;
         }
-        cells.push(j * width + i);
+        cells.push(c);
       }
     }
     if (cells.length === start[start.length - 1]) continue;

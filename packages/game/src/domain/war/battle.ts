@@ -41,16 +41,19 @@ import {
   type ClimbWorld,
   type FighterClimb,
 } from './ladders';
+import { nearestInArea, nearestPassable } from './march';
 import {
   MARCH_BUILDING,
   MARCH_RAMPART,
   MARCH_WALL,
   marchCellAt,
+  marchCellCenter,
   moatFillPace,
   type MarchGrid,
   type MoatFill,
   type Pos,
 } from './march-grid';
+import { marchArea } from './march-search';
 import {
   attackerPlan,
   battleLeader,
@@ -853,6 +856,23 @@ function paceAt(grid: MarchGrid, p: Pos, fills: readonly MoatFill[], attacker = 
     return attacker && crest ? rampartPace(1) : 1;
   }
   return fills.length > 0 ? moatFillPace(grid, p, fills) : grid.pace[c]!;
+}
+
+/**
+ * Místo muže ve formaci na začátku boje (war.md – Boj; plán 2026-11-16-dense-forest – oprava
+ * Úlohy 4): bod `p`, kam boj vstoupí – průchodná buňka, stavba nebo stěna opevnění (`paceAt`).
+ * Místo v buňce s tempem 0 (hustý les, voda, sráz, skála) nahradí střed nejbližší průchodné buňky
+ * téže souvislé oblasti jako místo skupiny `anchor` – muž by se odtud nepohnul (`stepToward`)
+ * a boj únik nemá. Nestojí-li na průchodné buňce ani skupina, nejbližší průchodná buňka vůbec;
+ * mapa bez ní – `p`.
+ */
+export function formationSpot(grid: MarchGrid, p: Pos, anchor: Pos): Pos {
+  const c = marchCellAt(grid, p);
+  if (grid.pace[c]! > 0 || (grid.flags[c]! & (MARCH_WALL | MARCH_BUILDING)) !== 0) return p;
+  const area = marchArea(grid, marchCellAt(grid, anchor));
+  const spot =
+    area > 0 ? nearestInArea(grid, c, area, Infinity) : nearestPassable(grid, c, Infinity);
+  return spot < 0 ? p : marchCellCenter(grid, spot);
 }
 
 function leashGap(leash: Leash, p: Pos): number {

@@ -26,6 +26,7 @@ import {
   battleForts,
   battleTick,
   commandFighter,
+  formationSpot,
   openBattle,
   type BattleField,
   type BattleState,
@@ -933,7 +934,9 @@ function campaignBattle(s: CampaignState, ctx: TickContext, field: BattleField):
     if (m.status !== 'active' || m.wounded || !g || !sameCell(g.cell, s.target.cell)) return [];
     return [{ member, group: m.group, m, g }];
   });
-  // šik po skupinách – pět v řadě po 2 m, ať muži nestojí v jednom bodě
+  // šik po skupinách – pět v řadě po 2 m, ať muži nestojí v jednom bodě; místo, kam boj nevstoupí
+  // (hustý les u průseku, voda, sráz, skála), nahradí nejbližší průchodná buňka téže oblasti jako
+  // skupina (`formationSpot`)
   const rank = new Map<number, number>();
   const fighters = attackers.map(({ member, group, m, g }) => {
     const k = rank.get(group) ?? 0;
@@ -946,7 +949,11 @@ function campaignBattle(s: CampaignState, ctx: TickContext, field: BattleField):
       strength: m.strength * m.vigor,
       ...(m.bowSkill !== undefined ? { bowSkill: m.bowSkill } : {}),
       health: m.health,
-      pos: { x: g.pos.x + ((k % 5) - 2) * 2, z: g.pos.z + Math.floor(k / 5) * 2 },
+      pos: formationSpot(
+        field.grid,
+        { x: g.pos.x + ((k % 5) - 2) * 2, z: g.pos.z + Math.floor(k / 5) * 2 },
+        g.pos,
+      ),
     };
   });
   // Ú6.10 / aplikace: muži rodu v jiných vsích hráče (`lineMenElsewhere`) – zatím jen tato ves.

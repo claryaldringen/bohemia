@@ -14,6 +14,7 @@ import {
   squareCenter,
 } from '../placement/square-grid';
 import { workshopKilns, kilnCircle } from '../crafts/charcoal';
+import { fortificationBand, type BandFortification } from '../fortification/band';
 import { KILN_SITE, MILIR } from '../rules';
 import type {
   Craft,
@@ -179,13 +180,19 @@ export interface ClearingSources {
   sacred: readonly { kind: SacredBuildingKind; position: Position }[];
   /** Milíře a milířiště (střed ve světě). */
   kilns: readonly { x: number; z: number }[];
+  /** Opevnění vsi – pás každého úseku je paseka (stromy v něm padnou už se zahájením stavby). */
+  fortifications: readonly BandFortification[];
 }
 
 /**
  * Vymýcený les vsi ze všech zdrojů (fields.md – Krajina sídla a scéna): odstraněné a pokácené
  * stromy, založené díly polí (natočené: políčka, jejichž střed leží na dílu), paseky pod
  * stavbami v lese – vyklízené plochy obydlí a dílen i s pruhem pod korunami (i rozestavěných),
- * natočené pozemky, půdorysy model a svatyní s pruhem a milířiště s pruhem pod korunami.
+ * natočené pozemky, půdorysy model a svatyní s pruhem, milířiště s pruhem pod korunami a pás
+ * opevnění – každého úseku, i rozestavěného či zbořeného, v šířce stojícího úseku
+ * (`fortificationBand` celého obvodu): stromy v pásu se kácí už se zahájením stavby
+ * (`startFortification`), takže pás je paseka a hustý les u něj končí (plán
+ * 2026-11-16-dense-forest – Rozhodnutí 1, paseky pod stavbami v lese; návrh Clauda).
  */
 export function clearedForestOf(
   l: Landscape,
@@ -228,13 +235,14 @@ export function clearedForestOf(
     ),
     ...sources.sacred.flatMap((b) => forestClearingsOf({ sacred: b.kind, position: b.position })),
     ...sources.kilns.map((k) => kilnCircle(k, radius)),
+    ...sources.fortifications.flatMap((f) => fortificationBand(l, f, true)),
   ];
   return clearedForest(l, layer, sources.obstacles, squares, areas);
 }
 
 /**
  * Vymýcený les ze stavu vsi k `day` – zdroje ze `VillageState` (díly polí, obydlí a rozestavěná
- * obydlí, modly a svatyně i rozestavěné, milíře a milířiště) a `clearedForestOf`.
+ * obydlí, modly a svatyně i rozestavěné, milíře a milířiště, opevnění) a `clearedForestOf`.
  */
 export function villageClearings(
   l: Landscape,
@@ -305,5 +313,6 @@ export function villageClearings(
     dwellings,
     sacred,
     kilns,
+    fortifications: village.fortifications ?? [],
   });
 }
