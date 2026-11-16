@@ -520,3 +520,22 @@ Dřív stál dotaz ≈ 76 ms (3 % jádra na jednoho hráče s otevřeným panele
 - **Mřížky pochodu** (`AlarmViewDeps.grids` – `MarchGridMemo` jako ve workeru): klíč je identita
   krajiny, překážek a stavu vsi a den – s pamětí vsí týž objekt, takže se mřížka staví jednou za den
   nebo změnu vsi.
+
+### Hustý les v mřížce pochodu (plán 2026-11-16-dense-forest – Úloha 8)
+
+`measure-campaigns.ts` na bázi (`feat/landscape`) a na větvi `feat/dense-forest`, stejné argumenty
+(16. 11. 2026; čas procesoru jednoho jádra, RSS = `/usr/bin/time -l`):
+
+| Měření            | báze               | větev (`MEMO_DAYS` 2) |
+| ----------------- | ------------------ | --------------------- |
+| pochod 1 / 5 / 20 | 1913 / 2806 / 5897 | 1276 / 2029 / 18149   |
+| opevněné 5        | 649                | 673                   |
+| varování 5        | 1572 (1,3 % jádra) | 148 (13,5 % jádra)    |
+| RSS               | 717 MB             | 818 MB                |
+
+- Paměť: s `MEMO_DAYS` 4 stoupla RSS na 886 MB (+169 MB, mez návrhu Clauda 150 MB), proto
+  `march-grid.ts` drží mřížky jen 2 dny (+101 MB).
+- Varování 5: cíl uprostřed hustého lesa je neprůchodný, `reachableGoal` se pro něj v každém taktu
+  prohledávala prstenci přes celou mapu (≈ 2× čas) – výsledek se teď pamatuje při mřížce
+  (`nearestToTarget`). Zbytek je cesta hustým lesem přes celou mapu (≈ 2,7 ms za výpočet úseku),
+  kterou měření počítá v každém kole znovu u tažení s varováním.

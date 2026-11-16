@@ -96,8 +96,8 @@ u vojska ([válka](war.md) – Cíl v neprůchodné buňce).
 
 ### Pohyb
 
-Jako vojsko ([válka](war.md) – Pohyb – mapu po mapě): svižná chůze ≈ 3,5 m/s, jezdci × 1,5, hustý
-les ≈ 1/4 tempa, voda jen po brodech, cesty × 1,5, okraje map ve 4 směrech (na úhlopříčnou mapu
+Jako vojsko ([válka](war.md) – Pohyb – mapu po mapě): svižná chůze ≈ 3,5 m/s, jezdci × 1,5, ~~hustý
+les ≈ 1/4 tempa~~ (od 16. 11. 2026 je hustý les neprůchozí – jen zemská stezka a pevná cesta), voda jen po brodech, cesty × 1,5, okraje map ve 4 směrech (na úhlopříčnou mapu
 přes sousední – návrh Clauda 16. 11. 2026). Každou mapou se jede.
 
 - **Brány** jsou v míru otevřené – zavírají se až při nájezdu ([opevnění](fortifications.md) – Ve

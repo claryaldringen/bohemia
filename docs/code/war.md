@@ -268,7 +268,7 @@ vojska mapu po mapě (Ú6.4), tažení po taktech, boj a dohra (Ú6.5–Ú6.17) 
   `turnBack`, rozpadu, nebo po vstupu na mapu cíle) si cíl posune před plánováním úseku – stav pak
   nese posunutý cíl a mapa tažení ho ukáže. Use-case `commandCampaign` záměr k místu na mapě
   skupiny velitele na pochodu odmítne jako `unreachable`, když `reachableGoal` vrátí null.
-  Otisky tažení se nezměnily – mění se jen případy, které dřív skončily `stuck`. Skupina z neprůchodné
+  Chování se oproti dřívějšku mění u případů, které dřív skončily `stuck`, a všude, kde dřív trasa vedla hustým lesem (ten je teď neprůchozí) – otisky tažení proto nejsou zárukou beze změny. Skupina z neprůchodné
   buňky unikne do oblasti nejbližší průchodné buňky k cíli (Úloha 5), cíl tak neskončí v pasece.
 - **Tempo** – `marchSpeed(group: GroupPace, day)` (m/s skutečného času): 3,5 m/s, nejpomalejší
   z jezdců × 1,5, pěších × 1, pěších raněných × 0,75 a stáda × 0,5; v zimě sníh × 0,75. 1 km po

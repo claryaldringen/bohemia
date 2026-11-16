@@ -96,6 +96,38 @@ export function clearingDistance(
   return Math.min(area, tileDistance(cleared, x, z, maxM));
 }
 
+const boxCache = new WeakMap<
+  readonly (readonly Point[])[],
+  readonly [number, number, number, number][]
+>();
+
+/**
+ * Obdélníky pasek [minX, maxX, minZ, maxZ] – počítají se jednou na pole pasek, ne při každém dotazu
+ * (pás opevnění má paseku na každý úsek; měření 16. 11. 2026: 400 pasek 52 µs na dotaz).
+ */
+function boxesOf(
+  areas: readonly (readonly Point[])[],
+): readonly [number, number, number, number][] {
+  let boxes = boxCache.get(areas);
+  if (!boxes) {
+    boxes = areas.map((area) => {
+      let minX = Infinity;
+      let maxX = -Infinity;
+      let minZ = Infinity;
+      let maxZ = -Infinity;
+      for (const [px, pz] of area) {
+        minX = Math.min(minX, px);
+        maxX = Math.max(maxX, px);
+        minZ = Math.min(minZ, pz);
+        maxZ = Math.max(maxZ, pz);
+      }
+      return [minX, maxX, minZ, maxZ] as [number, number, number, number];
+    });
+    boxCache.set(areas, boxes);
+  }
+  return boxes;
+}
+
 /** Vzdálenost bodu k nejbližší pasece pod stavbou (uvnitř 0), dál než `maxM` Infinity. */
 function areaDistance(
   areas: readonly (readonly Point[])[],
@@ -104,17 +136,11 @@ function areaDistance(
   maxM: number,
 ): number {
   let best = Infinity;
-  for (const area of areas) {
-    const xs = area.map((p) => p[0]);
-    const zs = area.map((p) => p[1]);
-    if (
-      x < Math.min(...xs) - maxM ||
-      x > Math.max(...xs) + maxM ||
-      z < Math.min(...zs) - maxM ||
-      z > Math.max(...zs) + maxM
-    ) {
-      continue;
-    }
+  const boxes = boxesOf(areas);
+  for (let a = 0; a < areas.length; a++) {
+    const area = areas[a]!;
+    const box = boxes[a]!;
+    if (x < box[0] - maxM || x > box[1] + maxM || z < box[2] - maxM || z > box[3] + maxM) continue;
     if (pointInPolygon([x, z], area)) return 0;
     for (let i = 0; i < area.length; i++) {
       best = Math.min(best, segmentDistance(x, z, area[i]!, area[(i + 1) % area.length]!));

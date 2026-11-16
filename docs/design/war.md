@@ -55,7 +55,7 @@ Přechod hradby, Prolomení, Obránci na hradbě, Brány v bitvě, NPC velitel).
 **Platí dál (Martin 18. 10. 2026):** dobrovolníci a rozkaz; libovolný počet mužů a práce doma
 úměrně zpomalí; padlí mohou ves položit až k vymření; kovárna dává bonus; postup dům od domu,
 sevřená ves se brání společně, samoty ne; vzdaný dům útočník pobije, nebo odvede; mlha války;
-hustý les velmi pomalu, voda jen po brodech; napadený se o vojsku dozví, až ho spatří vesničan;
+~~hustý les velmi pomalu~~ (změna 16. 11. 2026: hustý les je neprůchozí – viz Terén), voda jen po brodech; napadený se o vojsku dozví, až ho spatří vesničan;
 přítomný hráč velí obraně sám; mřížka map s přechodem okrajem.
 
 ## Cíle, ne-cíle, anti-cíle
@@ -314,10 +314,15 @@ a 12 vesničanů (8 dobrovolníků po 0,4, 4 nucení po 0,2 = 4,0), s kovárnou 
 - **Cíl v neprůchodné buňce** (návrh Clauda 10. 11. 2026, jako v 0 A.D. – jednotka jde na
   nejbližší dosažitelné místo): klik do vody bez brodu, na sráz, na hradbu nebo na místo, kam
   cesta nevede (za řekou bez brodu), vojsko neodmítne ani tiše nestojí – cíl se posune na
-  nejbližší průchodné místo, kam skupina dojde, a mapa tažení ukáže posunutý cíl. Jen když skupina nedojde vůbec nikam (stojí sevřená ve vodě), rozkaz se
+  nejbližší průchodné místo, kam skupina dojde, a mapa tažení ukáže posunutý cíl. Skupina ve vodě unikne na břeh (návrh Clauda 16. 11. 2026); jen když na mapě není jediná průchodná
+  buňka, rozkaz se
   neprovede a u kurzoru je důvod „Tam vojsko nedojde.“
   - **Okraj mapy zavřený hustým lesem** (Martin 16. 11. 2026: „Má zůstat stát.“): když skupina
     nemůže na sousední mapu, nehledá objížďku přes jiné mapy – zůstane stát u okraje.
+  - **Uvíznutí a start** (návrh Clauda 16. 11. 2026): uvízlá skupina zkouší znovu až po novém
+    rozkazu; na tranzitní mapě může skončit `stuck` ve slepé kapse. Tažení, útěk i poslové
+    startují u branky dvorce a cesta mezi mapami je čtyřsousedná (úhlopříčný soused přes
+    ortogonální mapu).
   - **Kurzor nad nedosažitelným místem** (Martin 16. 11. 2026: „Ideální by bylo, kdyby kurzor na
     místech, kam se nedá dojít, podle toho vypadal“): nad místem, kam vybraná skupina nedojde,
     vypadá kurzor jinak (ikona zákazu jako v 0 A.D.).
@@ -496,8 +501,8 @@ o evakuaci (defaultní nastavení).“
     ve skupině domů pobude aspoň 1 herní den, najde každou s pravděpodobností **30 %** (los ze
     seedu; Martin – „s určitou pravděpodobností“, číslo návrh Clauda);
   - **nejbližší les** (souvislý les vrstvy překážek) – cesta k němu je vidět a útočník smí
-    utíkající dohnat; v lese je najde jen na ≈ 30 m (návrh Clauda – rešerše 1: les je jejich
-    výhoda); má-li ves opevnění, napřed do jeho útočiště, kdo se vejde a stihne
+    utíkající dohnat; ~~v lese je najde jen na ≈ 30 m~~ – **nahrazeno 16. 11. 2026:** kdo doběhne
+    do hustého lesa, zmizí jako v budově, vojsko ho tam nehledá ([les](forest.md) – Hustý les); má-li ves opevnění, napřed do jeho útočiště, kdo se vejde a stihne
     ([fortifications.md](fortifications.md) – Postoje vsi s opevněním, Útočiště). Kde na mapě les
     není, skupina se vzdá při přesile (víc než 1,5× obránců), jinak se brání (návrh Clauda);
   - lidé se vrátí 1 herní den po odchodu cizího vojska z mapy (návrh Clauda).

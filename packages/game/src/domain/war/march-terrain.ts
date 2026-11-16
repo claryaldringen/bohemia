@@ -295,7 +295,8 @@ export function swathCells(
  * Skály vrstvy překážek na mřížce terénu (Rozhodnutí 4): balvan a skalní výchoz s poloměrem jako
  * u pěšin (`obstacleBlockRadiusM`) – buňky se středem do poloměru a vždy buňka, ve které
  * překážka stojí (`marchCellAt`; i poloměr mezi půlí strany a půlí úhlopříčky buňky, 1,25–1,77 m,
- * kdy střed vlastní buňky může ležet za poloměrem – jako `withObstacles`). Po skalách: index překážky ve vrstvě a jejích buněk `cells[start[r] …
+ * kdy střed vlastní buňky může ležet za poloměrem – jako `withObstacles`).
+ * Skála tak nově blokuje i buňky louky, přes které dřív vedla trasa. Po skalách: index překážky ve vrstvě a jejích buněk `cells[start[r] …
  * start[r + 1])`. Mřížka vsi a dne vynechá skály, které ves odstranila.
  */
 export interface MarchRocks {
