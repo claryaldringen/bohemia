@@ -1,22 +1,13 @@
 import {
-  KILN_SITE,
-  MILIR,
   NO_OBSTACLE_CHANGES,
-  OBSTACLE_KINDS,
-  SURFACE_CODES,
-  forestClearingsOf,
-  kilnCircle,
-  obstacleIndex,
+  clearedForestOf,
   pointInPolygon,
+  type ClearedForest,
   type Landscape,
-  type ObstacleChanges,
   type ObstacleLayer,
   type Point,
-  type TileCell,
 } from '@bohemia/game';
 import type { SceneVillage } from '../village-view';
-import { buildingClearings } from './building-clearings';
-import { isRotatedSquare, squareContains } from './field-cells';
 
 // Vymýcený les ve scéně a na minimapě (fields.md – Krajina sídla a scéna, forest.md – Les
 // ustupuje): kde ves les vykácela nebo ho vymýtila pro pole, scéna tam les přestane kreslit –
@@ -25,117 +16,16 @@ import { isRotatedSquare, squareContains } from './field-cells';
 // změně. Stavba v lese (Martin, 19. 10. 2026 – les se vyklučí) bere menší plochu než políčko:
 // vyklízené plochy obydlí a dílen i s pruhem pod korunami (`forestClearingsOf` z jádra), natočené
 // pozemky a půdorysy model a svatyní s pruhem v lese jsou paseky přesně podle tvaru (`areas`) –
-// plocha korun nad nimi zapadne, okolní les zůstane. Čistý modul bez Babylonu.
+// plocha korun nad nimi zapadne, okolní les zůstane. Čistý modul bez Babylonu. Výpočet masky
+// (`clearedForest`, `ClearedForest`, `CLEARED_SHARE`) je v jádru (core/cleared-forest.ts) – hledání
+// cesty vojska ho čte ze stejných funkcí; tady zůstává čtení ze scény a vzdálenosti k pasekám.
 
-/** Od jakého podílu vykácených dospělých stromů je políčko lesa vymýcené. */
-export const CLEARED_SHARE = 0.5;
-
-/** Vymýcený les po políčkách krajiny. */
-export interface ClearedForest {
-  readonly size: number;
-  readonly cellSizeM: number;
-  /** Podíl vykácených dospělých stromů v políčku lesa 0–1 (index y × size + x); jinde 0. */
-  readonly share: Float32Array;
-  /** 1 = vymýcené políčko lesa (podíl aspoň CLEARED_SHARE, nebo založený díl pole). */
-  readonly mask: Uint8Array;
-  /** Vymýcená políčka vzestupně. */
-  readonly tiles: readonly number[];
-  /**
-   * Paseky pod stavbami v lese menší než políčko (konvexní mnohoúhelníky ve světě, m) – plocha
-   * korun zapadne nad nimi stejně jako nad vymýceným políčkem.
-   */
-  readonly areas: readonly (readonly Point[])[];
-}
-
-const TREE_KIND = OBSTACLE_KINDS.indexOf('tree');
-
-/** Dospělé stromy (i vnitřek lesa – impostory) po políčkách – jednou na vrstvu. */
-const treesPerTileCache = new WeakMap<ObstacleLayer, Uint16Array>();
-
-function treesPerTile(layer: ObstacleLayer): Uint16Array {
-  const cached = treesPerTileCache.get(layer);
-  if (cached) return cached;
-  const counts = new Uint16Array(layer.size * layer.size);
-  for (let tile = 0; tile < counts.length; tile++) {
-    for (let k = layer.tileStart[tile]!; k < layer.tileStart[tile + 1]!; k++) {
-      if (layer.kind[layer.tileItems[k]!] === TREE_KIND) counts[tile] = counts[tile]! + 1;
-    }
-  }
-  treesPerTileCache.set(layer, counts);
-  return counts;
-}
-
-/** Políčko vrstvy, ve kterém leží pata překážky. */
-function tileOf(layer: ObstacleLayer, index: number): number {
-  const half = (layer.size * layer.cellSizeM) / 2;
-  const at = (v: number): number =>
-    Math.min(layer.size - 1, Math.max(0, Math.floor((v + half) / layer.cellSizeM)));
-  return at(layer.z[index]!) * layer.size + at(layer.x[index]!);
-}
+export { CLEARED_SHARE, clearedForest, type ClearedForest } from '@bohemia/game';
 
 /**
- * Vymýcený les vsi: v každém políčku lesa podíl dospělých stromů, které ves odstranila,
- * pokácela (pařez) nebo které teprve dorůstají z náletu; políčka `clearedSquares` (založené díly
- * polí) jsou vymýcená celá. Stromy, které už dorostly, mezi změnami nejsou – les se vrátí.
- */
-export function clearedForest(
-  l: Landscape,
-  layer: ObstacleLayer,
-  changes: ObstacleChanges,
-  clearedSquares: readonly TileCell[] = [],
-  areas: readonly (readonly Point[])[] = [],
-): ClearedForest {
-  const n = l.size * l.size;
-  const trees = treesPerTile(layer);
-  const gone = new Uint16Array(n);
-  for (const list of [changes.removed, changes.stumps, changes.saplings]) {
-    for (const id of list) {
-      const index = obstacleIndex(layer, id);
-      if (index < 0 || layer.kind[index] !== TREE_KIND) continue;
-      const tile = tileOf(layer, index);
-      gone[tile] = gone[tile]! + 1;
-    }
-  }
-  const share = new Float32Array(n);
-  const mask = new Uint8Array(n);
-  for (let i = 0; i < n; i++) {
-    if (l.surface[i] !== SURFACE_CODES.forest || trees[i] === 0) continue;
-    share[i] = Math.min(1, gone[i]! / trees[i]!);
-    if (share[i]! >= CLEARED_SHARE) mask[i] = 1;
-  }
-  for (const { x, y } of clearedSquares) {
-    if (x < 0 || y < 0 || x >= l.size || y >= l.size) continue;
-    const i = y * l.size + x;
-    if (l.surface[i] !== SURFACE_CODES.forest) continue;
-    share[i] = 1;
-    mask[i] = 1;
-  }
-  const tiles: number[] = [];
-  for (let i = 0; i < n; i++) if (mask[i]) tiles.push(i);
-  const inForest = areas.filter((area) => touchesForest(l, area));
-  return { size: l.size, cellSizeM: l.cellSizeM, share, mask, tiles, areas: inForest };
-}
-
-/** Zasahuje mnohoúhelník (obdélníkem kolem něj) do políčka lesa krajiny? */
-function touchesForest(l: Landscape, polygon: readonly Point[]): boolean {
-  const half = (l.size * l.cellSizeM) / 2;
-  const at = (v: number): number =>
-    Math.min(l.size - 1, Math.max(0, Math.floor((v + half) / l.cellSizeM)));
-  const xs = polygon.map((p) => p[0]);
-  const zs = polygon.map((p) => p[1]);
-  for (let y = at(Math.min(...zs)); y <= at(Math.max(...zs)); y++) {
-    for (let x = at(Math.min(...xs)); x <= at(Math.max(...xs)); x++) {
-      if (l.surface[y * l.size + x] === SURFACE_CODES.forest) return true;
-    }
-  }
-  return false;
-}
-
-/**
- * Vymýcený les ze stavu vsi pro scénu: odstraněné a pokácené stromy, založené díly polí (díl,
- * který se teprve zakládá, má stromy ještě na sobě) a paseky pod stavbami v lese – vyklízené
- * plochy obydlí a dílen i s pruhem pod korunami (i rozestavěných – les se vyklučí se zahájením
- * stavby), natočené pozemky, půdorysy model a svatyní s pruhem a milířiště s pruhem pod korunami.
+ * Vymýcený les z pohledu na ves pro scénu: pohled se jen převede na zdroje jádra a výpočet
+ * (`clearedForestOf` – díly polí, paseky pod obydlími, dílnami, modlami, svatyněmi a milířišti)
+ * je tentýž jako ve `villageClearings` pro hledání cesty vojska.
  */
 export function villageClearedForest(
   l: Landscape,
@@ -143,47 +33,30 @@ export function villageClearedForest(
   village: Pick<SceneVillage, 'fields' | 'obstacles'> &
     Partial<Pick<SceneVillage, 'dwellings' | 'sacred' | 'kilns' | 'kilnRemnants'>>,
 ): ClearedForest {
-  const squares = village.fields.flatMap((field) =>
-    field.parts.flatMap((part) => {
-      if (part.stage === 'founding') return [];
-      if (!isRotatedSquare(part)) return [part.cell];
-      // natočený díl (fields.md – Natočené stavby): políčka, jejichž střed na dílu leží
-      const half = (l.size * l.cellSizeM) / 2;
-      const reach = Math.ceil(part.size / l.cellSizeM);
-      const tx = Math.floor((part.x + half) / l.cellSizeM);
-      const ty = Math.floor((part.z + half) / l.cellSizeM);
-      const cells: TileCell[] = [];
-      for (let y = ty - reach; y <= ty + reach; y++) {
-        for (let x = tx - reach; x <= tx + reach; x++) {
-          const cx = -half + (x + 0.5) * l.cellSizeM;
-          const cz = -half + (y + 0.5) * l.cellSizeM;
-          if (squareContains(part, cx, cz)) cells.push({ x, y });
-        }
-      }
-      return cells;
-    }),
-  );
-  const areas = [
-    ...(village.dwellings ?? []).flatMap((d) =>
-      d.plot
-        ? buildingClearings([d]).map((c) => c.polygon)
-        : forestClearingsOf({
-            type: d.type,
-            position: d.position,
-            ...(d.craft ? { craft: d.craft } : {}),
-            ...(d.plainShape ? { plainShape: true } : {}),
-          }),
+  return clearedForestOf(l, layer, {
+    obstacles: village.obstacles ?? NO_OBSTACLE_CHANGES,
+    parts: village.fields.flatMap((field) =>
+      field.parts.map((part) => ({
+        cell: part.cell,
+        x: part.x,
+        z: part.z,
+        size: part.size,
+        ...(part.rotation !== undefined ? { rotation: part.rotation } : {}),
+        founding: part.stage === 'founding',
+      })),
     ),
-    ...(village.sacred?.buildings ?? []).flatMap((b) =>
-      forestClearingsOf({ sacred: b.kind, position: b.position }),
-    ),
-    // milířiště je paseka bez korun nad milířem a kolem něj (crafts.md – Milíř u skácených buků) –
-    // i po rozebraném milíři
-    ...[...(village.kilns ?? []), ...(village.kilnRemnants ?? [])].map((k) =>
-      kilnCircle(k, MILIR.footprintM / 2 + KILN_SITE.clearAroundM),
-    ),
-  ];
-  return clearedForest(l, layer, village.obstacles ?? NO_OBSTACLE_CHANGES, squares, areas);
+    dwellings: (village.dwellings ?? []).map((d) => ({
+      type: d.type,
+      position: d.position,
+      ...(d.craft ? { craft: d.craft } : {}),
+      ...(d.plainShape ? { plainShape: true as const } : {}),
+      plot: d.plot
+        ? { x: d.plot.x, z: d.plot.z, size: d.plot.size, rotation: d.plot.rotation }
+        : null,
+    })),
+    sacred: (village.sacred?.buildings ?? []).map((b) => ({ kind: b.kind, position: b.position })),
+    kilns: [...(village.kilns ?? []), ...(village.kilnRemnants ?? [])],
+  });
 }
 
 /** Klíč pasek pod stavbami (na decimetry) – změna tvaru či počtu je změna vymýceného lesa. */

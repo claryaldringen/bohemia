@@ -1042,6 +1042,12 @@ měněné části ukládat zvlášť jen při změně a ukládat komprimovaně m
   sloupci). Rok den po dni (starší kopie Vlkova, uložení každý den): zem se přepsala 94× z 365,
   zapsáno ⌀ 117 kB za den (den 42 + zem 75 kB), WAL za uložení 631 → 131 kB.
 
+## Vymýcený les (jádro)
+
+- `core/cleared-forest.ts`: `clearedForest` (maska po políčkách krajiny – podíl vykácených, pokácených a dorůstajících dospělých stromů ≥ `CLEARED_SHARE`, založené díly polí, `areas` pasek pod stavbami) přesunutý ze scény bez změny chování; scéna ho re-exportuje (`apps/web/lib/scene/cleared-forest.ts`, scene.md – Vymýcený les).
+- `clearedForestOf(l, layer, sources)`: jediný výpočet vymýceného lesa vsi ze zdrojů `ClearingSources` – změny překážek, díly polí (zakládaný díl se nepočítá; díl natočené mřížky = políčka, jejichž střed na dílu leží), plochy `forestClearingsOf` obydlí a dílen bez pozemku (i rozestavěných), u obydlí s pozemkem jen natočený čtverec pozemku, posvátné stavby a `kilnCircle` milířů a milířišť. `villageClearings(l, layer, village, day)` skládá zdroje ze `VillageState` (pro hledání cesty vojska), scéna z pohledu na ves (`villageClearedForest`) – oba dávají tytéž paseky (test `apps/web/lib/scene/__tests__/cleared-forest-core.test.ts`).
+- Čte ho `war/dense-forest.ts` (`withoutClearings`): paseky odřezávají hustý les pochodu do `WAR.march.denseForestM` od sebe (war.md, forest.md – Hustý les).
+
 ## Deník vsí (`village_year`)
 
 Martin 1. 11. 2026: „na tohle asi ser, podle mě bude stačit logovat hru“ (místo velkého měření správce). Za každou ves a dokončený herní rok jeden řádek – `villageYearRow(stav)` v `domain/village/core/year-log.ts` (čistá funkce nad stavem na konci roku: lidé dospělí/děti, narození a úmrtí z kroniky roku, z toho hladem, sklizeň, zásoby (vymlácené i zrno v nevymlácených snopech – výmlat běží do konce února, od 9. 11. 2026), dny hladu, pole a oseto (skutečně zasetý podíl prací hospodářského roku – `sownShare` × výměra dílů práce; od 6. 11. 2026, dřív díly ve stavu `sown` už od výběru do plánu), stáda, správce zapnutý, dostavěné stavby podle druhu, odchody synů, pohromy).

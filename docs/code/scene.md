@@ -179,7 +179,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   stavbami a poli podle tvaru. Skrytí jde do zdroje (stín) i přes `onApply` do ořezu (klon
   kamery). Na místo pokáceného stromu dá `felled-trees.ts` pařez
   (mladý stromek jen nízký pahýl – `stumpScale`), po TREE_SAPLING_AFTER_YEARS mladý stromek. **Vymýcený les** (`cleared-forest.ts`, čistý
-  modul): maska po políčkách ze stavu vsi – políčko lesa bez aspoň poloviny dospělých stromů
+  modul; výpočet masky `clearedForest` a typ `ClearedForest` jsou v jádru – `core/cleared-forest.ts`, scéna je re-exportuje; `villageClearedForest` jen převede pohled na zdroje jádra (`clearedForestOf`), hledání cesty vojska čte totéž ze `villageClearings`, village-core.md – Vymýcený les (jádro)): maska po políčkách ze stavu vsi – políčko lesa bez aspoň poloviny dospělých stromů
   nebo pod založeným dílem pole, a paseky pod stavbami v lese přesně podle tvaru
   (`ClearedForest.areas` – vyklízené plochy obydlí a dílen s pruhem pod korunami
   `forestClearingsOf` z jádra, natočené pozemky, modly a svatyně; `clearingDistance` měří

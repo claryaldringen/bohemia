@@ -18,7 +18,13 @@ export const WAR = {
    * 3 × 3 buněk stojí aspoň tolik stromů (návrh Clauda; vykácená paseka vsi lesem není); brod je
    * mělčina potoka – místo osy aspoň z tolika mělké (`StreamPoint.shallow`, jako brod chodců).
    */
-  march: { cellM: 10, denseForestTrees: 3, fordShallow: 0.55 },
+  march: {
+    cellM: 10,
+    denseForestTrees: 3,
+    fordShallow: 0.55,
+    /** forest.md – Hustý les: les dál než tolik metrů od svého okraje je neprůchodný. */
+    denseForestM: 10,
+  },
   /** war.md – Zima (Martin 3. 11.; čísla návrh Clauda): sníh zpomalí pochod. */
   snowPace: 0.75,
   /**

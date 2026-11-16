@@ -10,7 +10,6 @@ import {
   type ObstaclePlacement,
 } from '@bohemia/game';
 import {
-  CLEARED_SHARE,
   clearedForest,
   clearingDistance,
   sameClearing,
@@ -57,53 +56,7 @@ const layer = packObstacles(
   15,
 );
 
-describe('clearedForest', () => {
-  it('bez změn žádný vymýcený les', () => {
-    const cleared = clearedForest(landscape, layer, NO_OBSTACLE_CHANGES);
-    expect(cleared.tiles).toEqual([]);
-    expect(cleared.share.every((v) => v === 0)).toBe(true);
-  });
-
-  it('podíl vykácených dospělých stromů v políčku lesa – od poloviny je vymýcené', () => {
-    const cleared = clearedForest(landscape, layer, {
-      removed: [1],
-      stumps: [2, 6],
-      saplings: [],
-    });
-    expect(cleared.share[tile(4, 4)]).toBeCloseTo(2 / 4);
-    expect(cleared.share[tile(5, 4)]).toBeCloseTo(1 / 2);
-    expect(CLEARED_SHARE).toBe(0.5);
-    expect(cleared.tiles).toEqual([tile(4, 4), tile(5, 4)]);
-  });
-
-  it('kámen se nepočítá, louka nikdy není vymýcený les', () => {
-    const cleared = clearedForest(landscape, layer, {
-      removed: [5, 8],
-      stumps: [],
-      saplings: [],
-    });
-    expect(cleared.share[tile(4, 4)]).toBe(0);
-    expect(cleared.share[tile(2, 4)]).toBe(0);
-    expect(cleared.tiles).toEqual([]);
-  });
-
-  it('dorůstající nálet je pořád paseka, dorostlý strom (mezi změnami už není) les vrátí', () => {
-    const young = clearedForest(landscape, layer, { removed: [], stumps: [], saplings: [6, 7] });
-    expect(young.tiles).toEqual([tile(5, 4)]);
-    const grown = clearedForest(landscape, layer, NO_OBSTACLE_CHANGES);
-    expect(grown.tiles).toEqual([]);
-  });
-
-  it('založený díl pole v lese je vymýcený celý, i bez stromů; na louce nic', () => {
-    const cleared = clearedForest(landscape, layer, NO_OBSTACLE_CHANGES, [
-      { x: 6, y: 6 },
-      { x: 1, y: 1 },
-      { x: 99, y: 0 },
-    ]);
-    expect(cleared.tiles).toEqual([tile(6, 6)]);
-    expect(cleared.share[tile(6, 6)]).toBe(1);
-  });
-
+describe('villageClearedForest', () => {
   it('ze stavu vsi: díl, který se teprve zakládá, má stromy ještě na sobě', () => {
     const part = (x: number, stage: 'founding' | 'ready') => ({
       cell: { x, y: 6 },
@@ -118,7 +71,6 @@ describe('clearedForest', () => {
     expect(cleared.tiles).toEqual([tile(6, 6)]);
   });
 });
-
 describe('paseky pod stavbami v lese (Martin 19. 10. 2026 – les se vyklučí)', () => {
   const dwelling = (x: number, z: number) => ({
     id: 1,
