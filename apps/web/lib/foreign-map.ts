@@ -3,6 +3,7 @@ import {
   mapTrailContinuations,
   sameCell,
   treeBelow,
+  VASSALAGE,
   type GridCell,
   type RoadPoint,
 } from '@bohemia/game';
@@ -35,10 +36,11 @@ export interface ForeignMap {
   friendly?: true;
 }
 
-/** Hustota sítě vazalství, do které se vazal hledá (kroky pod rodem hráče). */
-const VASSAL_DEPTH = 8;
-
-/** Patří ves na mapě rodu hráče, nebo jeho vazalovi (i vazalu vazala)? Mapa bez vsi ne. */
+/**
+ * Patří ves na mapě rodu hráče, nebo jeho vazalovi (i vazalu vazala)? Mapa bez vsi ne. Hloubka
+ * sítě vazalství jako u ostatních průchodů stromem vazalů (`VASSALAGE.noticeDepth`); na mapě se
+ * bere první ves (jedna ves na mapu).
+ */
 async function isFriendlyMap(playerId: string, villageId: string | undefined): Promise<boolean> {
   if (villageId === undefined) return false;
   const owner = await createAlarmOwners(getDatabase()).ownerOf(villageId);
@@ -47,7 +49,10 @@ async function isFriendlyMap(playerId: string, villageId: string | undefined): P
   if (owner.houseId === null) return false;
   const mine = await gameDeps().houses.activeOf(playerId);
   if (!mine) return false;
-  const edges = await createVassalageRepository(getDatabase()).edgesNear(mine.id, VASSAL_DEPTH);
+  const edges = await createVassalageRepository(getDatabase()).edgesNear(
+    mine.id,
+    VASSALAGE.noticeDepth,
+  );
   return treeBelow(edges, mine.id).includes(owner.houseId);
 }
 
