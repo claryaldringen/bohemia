@@ -15,7 +15,8 @@ import type {
   CampaignWorld,
 } from '../campaign-types';
 import { alarmTaken } from '../evacuation';
-import { MarchGridMemo } from '../march-grid';
+import { nearestForestDoor } from '../forest-doors';
+import { marchCellAt, marchGrid, MarchGridMemo } from '../march-grid';
 import { dayOfTick } from '../ticks';
 import { land, palisade } from './battle-fixtures';
 import { campaign, intent, MEADOW, member, stepInChunks, SUMMER, world } from './campaign-fixtures';
@@ -194,6 +195,8 @@ function flightOf(state: CampaignState): AlarmFlight {
   return f;
 }
 
+const flightHidden = (s: CampaignState): boolean => s.alarm?.flights[0]?.status === 'hidden';
+
 /** Jídlo skupiny od dne odchodu do dne příchodu (každý den podle věku – jako host). */
 function eatenOnTheWay(people: readonly RefugeePerson[], fromDay: number, toDay: number): number {
   let kg = 0;
@@ -306,6 +309,23 @@ describe('evakuace do hradiště (Úloha 8)', () => {
     const loot = run.state.loot.detail!;
     expect(loot.grainKg).toBeCloseTo(STORES, 6);
     expect(loot.livestock).toEqual({ ...NO_HERD, sheep: 10, cow: 2 });
+  });
+
+  it('(c2) „Ukrýt v lese“ – skupina nikdy nestojí v neprůchodné buňce a ukryje se u dveří lesa', () => {
+    const start = approaching();
+    const grid = marchGrid(MAPS['1,0']!.landscape, null, A0, { day: start.day });
+    const w = worldWith(sameA);
+    let s = start;
+    const intents = [flee(start.tick + 1, 'forest')];
+    for (let k = 0; k < 400 && flightHidden(s) === false; k++) {
+      s = stepInChunks(s, s.tick + 20, { chunk: 20, world: w, intents }).state;
+      const f = s.alarm?.flights[0];
+      if (f) expect(grid.pace[marchCellAt(grid, f.pos)]!).toBeGreaterThan(0);
+    }
+    const f = flightOf(s);
+    expect(f.status).toBe('hidden');
+    const door = nearestForestDoor(grid, f.pos)!;
+    expect(Math.hypot(door.x - f.pos.x, door.z - f.pos.z)).toBeLessThan(2);
   });
 
   it('(c) „Ukrýt v lese“ – skupina se ukryje týž den, v boji nikdo z nich, kořist bez jejich zásob', () => {

@@ -156,7 +156,7 @@ export interface WarSceneRefugeMarch {
   pos: Pos;
   /** Směr chůze (jednotkový) – k dalšímu bodu úseku, jinak k cíli. */
   heading: Pos;
-  /** Jdou (`marching`); false – stojí ukrytí u lesa (`hidden`, jen vlastní). */
+  /** Jdou (`marching`); vždy true – ukrytá skupina (`hidden`) se nekreslí. */
   moving: boolean;
   /** Kdo jde (bez padlých a odvedených – `lost`), vzestupně podle id. */
   people: WarSceneRefugee[];
@@ -608,7 +608,8 @@ function alarmView(
   const sees = (p: Pos): boolean => input.seesAll === true || eyes.some((e) => inSight(grid, e, p));
   const refugeMarch = flights.flatMap((f): WarSceneRefugeMarch[] => {
     const mine = own(f.villageId);
-    if (!mine && (f.status === 'hidden' || !sees(f.pos))) return [];
+    // ukrytá skupina zmizela jako do budovy (Martin 16. 11. 2026) – nekreslí se nikomu, ani vlastníkovi
+    if (f.status === 'hidden' || (!mine && !sees(f.pos))) return [];
     const lost = new Set(f.lost ?? []);
     const people = f.people
       .filter((p) => !lost.has(p.id))

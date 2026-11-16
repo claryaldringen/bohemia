@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { SURFACE_CODES } from '../../landscape';
+import {
+  CURRENT_LAYER_VERSIONS,
+  generateLandscapeAttempt,
+  skeletonFeaturesOf,
+  SURFACE_CODES,
+  type Landscape,
+  type LayerVersions,
+} from '../../landscape';
+import type { SkeletonSlice } from '../../landscape/skeleton/types';
+import { landscapeTrailLines } from '../../village/trade/premium-route';
 import { applyInboxDay, type VillageEvent } from '../../village/core/inbox';
 import { isInjured } from '../../village/people/people';
 import { dynastyDay } from '../../village/people/succession';
@@ -8,7 +17,15 @@ import type { VillageState } from '../../village/types';
 import { freshWildlife, wildlifeOfEmptyMap } from '../../village/wildlife/wildlife';
 import { DAY, kin, trackedVillage, village } from '../../village/__tests__/kin-fixtures';
 import type { CampaignMap, CampaignWorld } from '../campaign-types';
-import { MarchGridMemo } from '../march-grid';
+import {
+  MARCH_FOREST,
+  MARCH_ROAD,
+  marchCellAt,
+  marchCellCenter,
+  marchGrid,
+  MarchGridMemo,
+  type Pos,
+} from '../march-grid';
 import { newJourney, stepJourney } from '../journey';
 import { predatorDay, wildlifeOfMap } from '../journey-predators';
 import type { JourneyMember, JourneyState } from '../journey-types';
@@ -130,6 +147,33 @@ function forestMap(villageIds: readonly string[] = []): CampaignMap {
   return { landscape, obstacles: null, villageIds };
 }
 
+/**
+ * Mapa celá z hustého lesa se stezkou kostry (Martin 16. 11. 2026 – hustým lesem vede jen stezka;
+ * šelmy čekají na stezce, ne mimo ni): první ze seedů 1–20 s trasou stezky, povrch celý les.
+ */
+function trailForestMap(): { map: CampaignMap; from: Pos; to: Pos } {
+  const layers: LayerVersions = { ...CURRENT_LAYER_VERSIONS, skeleton: 1 };
+  const slice: SkeletonSlice = {
+    world: 1,
+    rivers: [],
+    trails: [
+      { side: 'S', at: 64 },
+      { side: 'N', at: 64 },
+    ],
+  };
+  let landscape: Landscape | null = null;
+  for (let seed = 1; seed <= 20 && landscape === null; seed++) {
+    const l = generateLandscapeAttempt(seed, layers, undefined, slice);
+    if (skeletonFeaturesOf(l)?.route) landscape = l;
+  }
+  if (landscape === null) throw new Error('žádná mapa se stezkou');
+  landscape.surface.fill(SURFACE_CODES.forest);
+  const line = landscapeTrailLines(landscape).sort((a, b) => b.length - a.length)[0]!;
+  const from = line[0]!;
+  const to = line.find((p) => Math.hypot(p.x - from.x, p.z - from.z) >= 300) ?? line.at(-1)!;
+  return { map: { landscape, obstacles: null, villageIds: [] }, from, to };
+}
+
 function homeVillage(): VillageState {
   return village([1, 2, 3].map((id) => kin({ id, age: 30, sex: 'male' })));
 }
@@ -159,7 +203,6 @@ describe('wildlifeOfMap', () => {
 
 // --- Výjezd ------------------------------------------------------------------------------------
 
-const HOME = { villageId: 'lhota', name: 'Lhota', cell: { x: 0, y: 0 }, pos: { x: 5, z: 5 } };
 /** Deset dní v taktech. */
 const DAYS = Math.ceil((8 * 86.4) / 0.25);
 
@@ -167,7 +210,9 @@ const DAYS = Math.ceil((8 * 86.4) / 0.25);
  * Mapa celá z lesa a mřížky pochodu sdílené všemi výjezdy testů (jako worker – jemná mřížka
  * i pole lesa nové krajiny se staví desítky ms).
  */
-const FOREST = forestMap();
+const TRAIL = trailForestMap();
+const FOREST = TRAIL.map;
+const HOME = { villageId: 'lhota', name: 'Lhota', cell: { x: 0, y: 0 }, pos: TRAIL.from };
 const GRIDS = new MarchGridMemo();
 
 function worldOf(map: CampaignMap, home: VillageState = homeVillage()): CampaignWorld {
@@ -181,14 +226,19 @@ function worldOf(map: CampaignMap, home: VillageState = homeVillage()): Campaign
 }
 
 /** Výprava – lidé `members` jako nováčci skupiny 0 (boj a kůň z nich). */
-function journey(seed: number, members: JourneyMember[]): JourneyState {
+function journey(
+  seed: number,
+  members: JourneyMember[],
+  from: Pos = TRAIL.from,
+  to: Pos = TRAIL.to,
+): JourneyState {
   return newJourney(
     {
       id: 'j' + seed,
       seed,
       playerId: 'p1',
       houseId: 'h1',
-      home: HOME,
+      home: { ...HOME, pos: from },
       recruits: members.map((m) => ({
         ref: m.ref,
         lord: m.lord,
@@ -197,7 +247,7 @@ function journey(seed: number, members: JourneyMember[]): JourneyState {
         ...(m.mounted ? { mounted: true as const } : {}),
       })),
       startMs: msOfTick(LAUNCH, clock),
-      order: { kind: 'go', pos: { x: 305, z: 5 } },
+      order: { kind: 'go', pos: to },
     },
     clock,
   );
@@ -247,6 +297,44 @@ describe('výjezd a šelmy', { timeout: 180_000 }, () => {
       expect(meadow.villageEvents.some((e) => e.body.kind === 'journey-casualty')).toBe(false);
     }
     expect(casualties).toBeGreaterThan(0);
+  });
+
+  it('hlouček 1 muže na stezce hustým lesem – los proběhne; v okrajovém pruhu ne (Rozhodnutí 9)', () => {
+    const grid = marchGrid(FOREST.landscape, null, null);
+    const at = grid.flags[marchCellAt(grid, TRAIL.from)]!;
+    expect(at & MARCH_FOREST).not.toBe(0);
+    expect(at & MARCH_ROAD).not.toBe(0);
+    // okrajový pruh: louka (půlka mapy je les) – průchodná buňka bez `MARCH_FOREST` do 5 m od lesa
+    const half = flat();
+    for (let ty = 0; ty < 128; ty++) {
+      for (let tx = 0; tx < 64; tx++) half.surface[ty * 128 + tx] = SURFACE_CODES.forest;
+    }
+    const edgeMap: CampaignMap = { landscape: half, obstacles: null, villageIds: [] };
+    const edgeGrid = marchGrid(half, null, null);
+    let edge: Pos | null = null;
+    for (let c = 0; c < edgeGrid.flags.length && edge === null; c++) {
+      if ((edgeGrid.flags[c]! & MARCH_FOREST) !== 0 || !(edgeGrid.pace[c]! > 0)) continue;
+      const p = marchCellCenter(edgeGrid, c);
+      const near = marchCellAt(edgeGrid, { x: p.x - 5, z: p.z });
+      if ((edgeGrid.flags[near]! & MARCH_FOREST) !== 0 && edgeGrid.pace[near] === 0) edge = p;
+    }
+    expect(edge).not.toBeNull();
+    let onTrail = 0;
+    let onEdge = 0;
+    for (let seed = 1; seed <= 60; seed++) {
+      const a = stepJourney(
+        journey(seed, [man(0, { fight: 0 })]),
+        LAUNCH + DAYS,
+        [],
+        worldOf(FOREST),
+      ).villageEvents;
+      onTrail += a.filter((e) => e.body.kind === 'journey-casualty').length;
+      const j = journey(seed, [man(0, { fight: 0 })], edge!, edge!);
+      const b = stepJourney(j, LAUNCH + DAYS, [], worldOf(edgeMap)).villageEvents;
+      onEdge += b.filter((e) => e.body.kind === 'journey-casualty').length;
+    }
+    expect(onTrail).toBeGreaterThan(0);
+    expect(onEdge).toBe(0);
   });
 
   it('tři muži v lese nikdy', () => {

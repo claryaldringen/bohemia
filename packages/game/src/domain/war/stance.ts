@@ -5,7 +5,8 @@ import { ageYears, isAway } from '../village/people/people';
 import type { DefenseStance, HerdSpecies, VillageState } from '../village/types';
 import type { BattleField, BattleFort } from './battle';
 import { houseGroups, type Defender } from './defenders';
-import { fleeParty, isOverpowered, nearestForest, type FleeParty } from './flight';
+import { fleeParty, isOverpowered, type FleeParty } from './flight';
+import { nearestReachableForest } from './forest-doors';
 import type { Pos } from './march-grid';
 import { dist2 } from './orders';
 import { TICKS_PER_SECOND } from './ticks';
@@ -405,7 +406,7 @@ function outsideGroups(
       .map((m) => fighterOf.get(m.id))
       .filter((d): d is Defender => !!d && !d.atHouseOnly);
     const here = members[0]!.pos;
-    const forest = nearestForest(field.grid, here);
+    const forest = nearestReachableForest(field.grid, here);
     const overpowered = isOverpowered(attackers, men.length);
     let action: 'fight' | 'forest' | 'surrender';
     if (stance === 'defend') action = 'fight';

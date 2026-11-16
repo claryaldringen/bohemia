@@ -20,7 +20,8 @@ import type {
 } from '../village/types';
 import type { GridCell } from '../village/people/world-grid';
 import type { CampaignPlace } from './campaign-types';
-import { fleeParty, nearestForest } from './flight';
+import { fleeParty } from './flight';
+import { nearestReachableForest } from './forest-doors';
 import { marchSpeed, type GroupPace } from './march';
 import type { MarchGrid, Pos } from './march-grid';
 import { WAR } from './rules-war';
@@ -434,7 +435,7 @@ export function refugeOptions(input: RefugeOptionsInput): RefugeOptions {
   let forest: AlarmOption;
   if (gone) forest = { blocked: 'gone' };
   else {
-    const spot = nearestForest(input.grid, village.pos);
+    const spot = nearestReachableForest(input.grid, village.pos);
     if (!spot) forest = { blocked: 'no-forest' };
     else {
       const pace = flightLoad(state, day, 'forest').pace;

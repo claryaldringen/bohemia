@@ -249,9 +249,14 @@ function buildForestIndex(grid: MarchGrid): ForestIndex {
 /**
  * Nejbližší střed buňky u hustého lesa (`atDenseForest`; nejmenší `dist2`, při shodě nejmenší
  * index buňky). Středy jednou na mřížku v kbelících 8 × 8 buněk, hledá se po prstencích kbelíků,
- * dokud dolní mez vzdálenosti prstence nepřekročí dosud nejlepší.
+ * dokud dolní mez vzdálenosti prstence nepřekročí dosud nejlepší. `accept` (volitelné) vybírá jen
+ * některé buňky (např. dosažitelné – `nearestReachableForest`).
  */
-export function nearestForestOf(grid: MarchGrid, from: Pos): Pos | null {
+export function nearestForestOf(
+  grid: MarchGrid,
+  from: Pos,
+  accept?: (cell: number) => boolean,
+): Pos | null {
   let idx = forestCache.get(grid);
   if (!idx) {
     idx = buildForestIndex(grid);
@@ -281,6 +286,7 @@ export function nearestForestOf(grid: MarchGrid, from: Pos): Pos | null {
   const scan = (bx: number, bz: number): void => {
     const k = bz * bw + bx;
     for (let at = start[k]!; at < start[k + 1]!; at++) {
+      if (accept && !accept(cells[at]!)) continue;
       const d = dist2(centers[at]!, from);
       if (d < bestD || (d === bestD && cells[at]! < bestC)) {
         bestD = d;

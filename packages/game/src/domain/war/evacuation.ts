@@ -18,7 +18,8 @@ import type { AlarmFlight, AlarmMessenger, CampaignAlarm } from './alarm-types';
 import { gridOf, MissingData, sameCell, villageEvent } from './campaign-tick';
 import type { TickContext, TickOut } from './campaign-tick';
 import type { CampaignPlace, CampaignState } from './campaign-types';
-import { isOverpowered, nearestForest } from './flight';
+import { isOverpowered } from './flight';
+import { nearestReachableForest } from './forest-doors';
 import { marchSpeed, type GroupPace } from './march';
 import { stepMover } from './movement';
 import { guardPrisonerKey, lootCapacity, lootTotals, noLoot, sumLoot } from './raid-apply';
@@ -166,7 +167,7 @@ export function departFlight(
   let route: AlarmFlight['route'];
   let hostVillageId: string | null;
   if (mode === 'forest') {
-    const spot = nearestForest(grid, centre);
+    const spot = nearestReachableForest(grid, centre);
     if (!spot) return false;
     target = { cell: { ...cell }, pos: spot };
     route = [];
