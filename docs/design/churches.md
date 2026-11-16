@@ -103,9 +103,15 @@ okruhu jako jeho druhý typ; velký karolinský kostel na našem a slovenském �
 - **Orientace** (Martin, 11. 11. 2026): „Defaultně ať je orientovaný správně, ale hráč ho pak může
   natočit. Některé kostely byly situovány jinak kvůli terénu“ – v náhledu stojí kněžištěm na východ
   a vstupem na západ, hráč ho smí natočit jako ostatní natočené stavby (po 15° – návrh Clauda).
-- Umístění jako ostatní stavby; rozměry se nastaví v náhledu (tah pro půdorys, výška v panelu –
-  rozhraní jako 0 A.D., čísla u kurzoru). Kostel smí stát i na místě vykáceného posvátného háje
-  (nespokojenost pohanů – [křesťanství](christianity.md)).
+- ~~Umístění jako ostatní stavby; rozměry se nastaví v náhledu (tah pro půdorys, výška v panelu –
+  rozhraní jako 0 A.D., čísla u kurzoru).~~ – **změna 16. 11. 2026** (Martin: „Problém je, že
+  kostel můžu natahovat jenom do délky. Po kliknutí na kostel si chci zadat rozměry a na základě
+  nich rovnou vidět cenu kostela. Až pak kostel umístím do scény“): po kliknutí na kostel napřed
+  panel rozměrů (všechny míry typu – rotunda průměr a výška, jinak šířka, délka a výška) s cenou,
+  která se mění s rozměry; teprve pak se kostel s těmi rozměry umisťuje do scény. Tah při umístění
+  už rozměry nemění, jen natáčí (po 15°); cena u kurzoru přidá, co závisí na místě (stromy
+  a překážky pod kostelem, cesta kamene z lomu) – návrh Clauda. Kostel smí stát i na místě
+  vykáceného posvátného háje (nespokojenost pohanů – [křesťanství](christianity.md)).
 
 ### Rozhodnutí z implementace (stavba)
 
