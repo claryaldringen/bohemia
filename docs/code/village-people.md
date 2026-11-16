@@ -882,6 +882,11 @@ Muž (s manželkou a svobodnými dětmi) putuje do vsi bez vojvody schránkou ja
 
 ## Křest a víra (christianity.md – Křest rodu; plán 2026-11-10 – K4)
 
+**Po křtu rodu žádné modly a svatyně** (Martin 16. 11. 2026): `startSacredBuilding`
+(`core/actions.ts`) pro ves pokřtěného rodu (`rodBaptized`) odmítne novou modlu i svatyni
+s `PAGAN_PLACES_FORBIDDEN` (`people/faith.ts`; `build-intent.ts` ji vrátí jako důvod, platí i pro
+správce); stojící a rozestavěné zůstávají.
+
 - **Stav:** `Person.faith?: 'christian'` (chybí = pohan), `VillageState.faith?: VillageFaith` –
   `rodBaptizedDay` (křest rodu hráče, kterému ves patří) a `nobles: { houseId, baptizedDay }` (křest
   NPC rodu, který ves řídí – `VillageState.nobles`). `rodBaptized(state)` (`faith.ts`): ves NPC rodu

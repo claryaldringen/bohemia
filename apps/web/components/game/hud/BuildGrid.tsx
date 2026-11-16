@@ -220,10 +220,12 @@ export function BuildGrid({
     (hub?.placement === 'squares' ||
       hub?.placement === 'fort-points' ||
       hub?.placement === 'dwellings' ||
+      hub?.placement === 'sacred-hub' ||
       hub?.placement === 'workshop') &&
     hub.kind in options
-      ? // obydlí: jen druhy, které ves nabízí (první zemnice zakládá ves)
-        hub.placement === 'dwellings'
+      ? // obydlí a posvátná místa: jen druhy, které ves nabízí (první zemnici zakládají zakladatelé,
+        // kostely jsou až po křtu)
+        hub.placement === 'dwellings' || hub.placement === 'sacred-hub'
         ? hub.variants.filter((v) => v.id in options)
         : hub.variants
       : undefined;
@@ -253,6 +255,28 @@ export function BuildGrid({
                 onClick={() => onBuild(hub.kind)}
               />,
               ...hubVariants.map((variant) => {
+                if (hub.placement === 'sacred-hub') {
+                  // druh posvátného místa je samostatná stavba s vlastní nabídkou, ikonou a zkratkou
+                  const kind = variant.id as BuildItem['kind'];
+                  const sacredItem = BUILD_ITEMS.find((i) => i.kind === kind);
+                  const sacredOption = options[kind] ?? null;
+                  if (!sacredItem) return null;
+                  return (
+                    <GridButton
+                      key={variant.id}
+                      label={sacredOption?.look?.name ?? variant.name}
+                      icon={buildIconSrc(sacredOption?.look?.icon ?? sacredItem.icon)}
+                      tooltip={<BuildTooltip item={sacredItem} option={sacredOption} />}
+                      pressed={false}
+                      disabled={
+                        disabled ||
+                        (sacredOption !== null && !itemAffordable(sacredItem, sacredOption))
+                      }
+                      hotkey={sacredItem.hotkeyLabel}
+                      onClick={() => onBuild(hub.kind, variant.id)}
+                    />
+                  );
+                }
                 const option = options[hub.kind] ?? null;
                 const extending = extendingVariant === variant.id;
                 const affordable = isBuildAffordable(option, variant.id, extending);

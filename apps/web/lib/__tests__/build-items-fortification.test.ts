@@ -64,7 +64,8 @@ describe('opevnění v katalogu staveb', () => {
         shiftKey: false,
       })?.kind,
     ).toBe('fortification');
-    expect(new Set(BUILD_ITEMS.map((i) => i.hotkey)).size).toBe(BUILD_ITEMS.length);
+    const keyed = BUILD_ITEMS.filter((i) => i.hotkey !== 'None'); // rozcestníky zkratku nemají
+    expect(new Set(keyed.map((i) => i.hotkey)).size).toBe(keyed.length);
   });
 
   it('návrh obejme jádro vsi a projde; bez jádra kruh 20 m u kurzoru', () => {

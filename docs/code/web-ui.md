@@ -347,6 +347,15 @@ villageId)`. Z levných otisků (`stampsOf` – `last_day`, `asleep`) se dopočt
   a klik i klávesa staví rovnou dnešní dílnu; zašedlý nebo neznámý druh nejde. Druh jde v
   `PlacementMode.type` a ve `PlacementResult` do `buildWorkshop(craft, position, type)` →
   `placeWorkshop({ …, type })`; cena u kurzoru `workshopPlacementCost(…, type)`.
+  **Posvátná místa** (Martin 16. 11. 2026: „sluč sakrální stavby do jedné ikony, jako je třeba
+  obytný dům“) jsou stejně jedno políčko – rozcestník `sacred-hub` (`placement: 'sacred-hub'`,
+  `SACRED_VARIANTS`: modla, svatyně, malý a velký kostel; id druhu = druh stavby, `hubOf:
+'sacred-hub'`); nabídku dává `sacredHubOption` (`village-view.ts`), ikona tlačítka je nejlepší
+  dostupný druh (kostel, svatyně, modla – návrh Clauda), popisek „Posvátná místa“; druh spustí
+  umisťování té stavby (`startBuild` převede `sacred-hub` + druh na druh). Kostely jsou v rozcestníku
+  jen po křtu rodu a po křtu **nejsou modla ani svatyně** (`withSacredHub` v `use-build-mode.ts`;
+  server novou modlu ani svatyni nezaloží – `PAGAN_PLACES_FORBIDDEN`, kontrola v
+  `startSacredBuilding`, `core/actions.ts`). Zkratky N, M, I, Y vybírají druh rovnou.
   Rozcestník nemá zkratku (`NO_HOTKEY`), Z, X a 1 vyberou druh rovnou (`startBuild` je převede na
   `dwelling` + druh). Nabídku dává `dwellingHubOption` (`village-view.ts`): cena a důvod zašednutí
   (srub do roku 800) jsou v `variants` každého druhu, ikona tlačítka je nejlepší druh, na který ves
