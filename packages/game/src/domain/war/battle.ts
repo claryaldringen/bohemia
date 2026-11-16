@@ -41,7 +41,7 @@ import {
   type ClimbWorld,
   type FighterClimb,
 } from './ladders';
-import { marchPath, nearestInArea, nearestPassable } from './march';
+import { marchPath, nearestInArea, nearestPassable, reachableGoal } from './march';
 import {
   MARCH_BUILDING,
   MARCH_RAMPART,
@@ -1413,19 +1413,68 @@ function detour(
   leash: Leash | null,
   force: boolean,
 ): boolean {
-  if (f.side !== 'attack') return false;
-  const grid = w.field.grid;
-  const fills = w.walls.fills;
-  const open = (c: number): boolean => paceAt(grid, marchCellCenter(grid, c), fills) > 0;
-  if (!force && lineClear(grid, f.pos, goal, open)) return false;
-  if (f.detourTick !== undefined && w.b.ticks - f.detourTick < DETOUR_RETRY_TICKS) return false;
-  f.detourTick = w.b.ticks;
-  const path = marchPath(grid, f.pos, goal);
-  if (!path || path.points.length <= 2) return false;
-  f.route = path.points.slice(1, -1).map((p) => ({ x: p.x, z: p.z }));
+  const around = detourPoints(f, goal, w, force);
+  if (!around) return false;
+  f.route = around;
   f.routeFor = key;
   walk(f, f.route[0]!, w, leash);
   return true;
+}
+
+/**
+ * Body objížďky útočníka z jeho místa k bodu `to` (cíl, bod průchodu opevněním, místo průlomu):
+ * vnitřní body trasy `marchPath` po `field.grid`, když přímka k `to` vede buňkou, kam boj nevstoupí
+ * (`paceAt` 0), nebo `force`; jinak null – jde rovně. Bod v neprůchodné buňce mřížky (místo průlomu
+ * u stěny) se napřed posune na nejbližší dosažitelné místo (`reachableGoal`) – trasa končí tam
+ * a dál jde muž rovně. Hledá nejvýš jednou za `DETOUR_RETRY_TICKS` (`detourTick`); obránce nikdy.
+ */
+function detourPoints(f: Fighter, to: Pos, w: TickWorld, force: boolean): Pos[] | null {
+  if (f.side !== 'attack') return null;
+  const grid = w.field.grid;
+  const fills = w.walls.fills;
+  const open = (c: number): boolean => paceAt(grid, marchCellCenter(grid, c), fills) > 0;
+  if (!force && lineClear(grid, f.pos, to, open)) return null;
+  if (f.detourTick !== undefined && w.b.ticks - f.detourTick < DETOUR_RETRY_TICKS) return null;
+  f.detourTick = w.b.ticks;
+  const end = reachableGoal(grid, f.pos, to);
+  const path = end === null ? null : marchPath(grid, f.pos, end);
+  if (!path) return null;
+  const points = path.points.slice(1, end === to ? -1 : undefined);
+  return points.length === 0 ? null : points.map((p) => ({ x: p.x, z: p.z }));
+}
+
+/**
+ * Útočník jde po trase `f.route` (průchod opevněním, objížďka): vede-li přímka k jejímu prvnímu
+ * bodu buňkou, kam boj nevstoupí (skvrna lesa před branou – re-revize opravy Úlohy 5), vloží před
+ * něj body objížďky (`detourPoints`); pak krok (`walk`).
+ */
+function followRoute(f: Fighter, w: TickWorld, leash: Leash | null, force: boolean): void {
+  const around = detourPoints(f, f.route[0]!, w, force);
+  if (around) f.route.unshift(...around);
+  walk(f, f.route[0]!, w, leash);
+}
+
+/**
+ * Útočník jde k místu průlomu `to` (`breachAt` – klíč `key`): vede-li přímka lesem, napřed body
+ * objížďky (`detourPoints`, uložené v `route` s `routeFor` = `key`); pojistka proti zastavení jako
+ * v `approach`.
+ */
+function toBreach(f: Fighter, to: Pos, key: string, w: TickWorld): void {
+  const stalled = (f.stall ?? 0) >= STALL_TICKS;
+  if (stalled) delete f.stall;
+  if (stalled || f.routeFor !== key) {
+    f.route = [];
+    f.routeFor = null;
+  }
+  if (f.route.length > 0 && dist2(f.pos, f.route[0]!) <= 1) f.route.shift();
+  if (f.route.length === 0) {
+    const around = detourPoints(f, to, w, stalled);
+    if (around) {
+      f.route = around;
+      f.routeFor = key;
+    }
+  }
+  walk(f, f.route[0] ?? to, w, null);
 }
 
 /**
@@ -1447,7 +1496,7 @@ function approach(f: Fighter, goal: Pos, key: string, w: TickWorld, leash: Leash
     // průchod se mezitím zavřel – cesta neplatí
     if (f.route.length > 0 && firstWall(f.pos, f.route[0]!, w.walls)) f.route = [];
     if (f.route.length > 0) {
-      walk(f, f.route[0]!, w, leash);
+      followRoute(f, w, leash, false);
       return;
     }
   }
@@ -1458,7 +1507,7 @@ function approach(f: Fighter, goal: Pos, key: string, w: TickWorld, leash: Leash
       if (route) {
         f.route = route;
         f.routeFor = key;
-        stepToward(f, f.route[0]!, w.field, w.walls, leash);
+        followRoute(f, w, leash, stalled);
         return;
       }
       const group = w.b.groups.find((g) => g.side === 'attack' && g.id === f.group);
@@ -1487,7 +1536,7 @@ function approach(f: Fighter, goal: Pos, key: string, w: TickWorld, leash: Leash
         f.aim = null;
         f.route = [];
         f.routeFor = null;
-        stepToward(f, standOf(br), w.field, w.walls, null);
+        toBreach(f, standOf(br), `breach:${br.key}`, w);
         return;
       }
     }
@@ -1621,7 +1670,7 @@ function breachStepOf(f: Fighter, w: TickWorld): void {
     return;
   }
   const stand = standOf(br);
-  if (dist2(f.pos, stand) > AT_SPOT_M * AT_SPOT_M) stepToward(f, stand, w.field, w.walls, null);
+  if (dist2(f.pos, stand) > AT_SPOT_M * AT_SPOT_M) toBreach(f, stand, `breach:${br.key}`, w);
 }
 
 /**

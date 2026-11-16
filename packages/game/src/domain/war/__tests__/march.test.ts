@@ -466,6 +466,27 @@ describe('cíl v neprůchodné buňce (war.md – Pohyb – Cíl v neprůchodné
 });
 
 describe('do opevněné vsi (fortifications.md – Obrana, Prolomení)', () => {
+  it('skupina ve stěně palisády (postavené pod ní) unikne jen do nejbližší buňky, ne dovnitř (re-revize Úlohy 5)', () => {
+    // zavřená palisáda bez brány; skupina stojí v nejvzdálenější buňce stěny na jih od středu
+    const grid = marchGrid(flat(), null, fortVillage(fort('palisade')));
+    let wall = -1;
+    for (let z = 0; z > -200; z -= grid.cellM) {
+      const c = marchCellAt(grid, { x: 0, z });
+      if ((grid.flags[c]! & MARCH_WALL) !== 0) wall = c;
+      else if (wall >= 0) break;
+    }
+    expect(wall).toBeGreaterThanOrEqual(0);
+    expect(grid.pace[wall]).toBe(0);
+    const from = marchCellCenter(grid, wall);
+    // dovnitř zavřeného opevnění únik nevede – dřív vedl do „užitečné“ oblasti cíle uvnitř
+    expect(marchPath(grid, from, IN)).toBeNull();
+    expect(marchReachable(grid, from, IN)).toBe(false);
+    // cíl se posune na nejbližší místo vně palisády (dosažitelné zvenku)
+    expect(marchReachable(grid, OUT, reachableGoal(grid, from, IN)!)).toBe(true);
+    // ven ano – nejbližší průchodná buňka je vně
+    expect(marchReachable(grid, from, OUT)).toBe(true);
+  });
+
   it('palisáda jen branou', () => {
     const grid = marchGrid(flat(), null, fortVillage(fort('palisade', undefined, true)));
     const path = marchPath(grid, OUT, IN)!;

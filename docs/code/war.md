@@ -207,7 +207,8 @@ vojska mapu po mapě (Ú6.4), tažení po taktech, boj a dohra (Ú6.5–Ú6.17) 
 - **Únik z neprůchodné buňky** (Rozhodnutí 7) – start v neprůchodné buňce (hustý les ze starého
   bodu, dorostlý les, stavba, nová palisáda): první úsek vede rovně do středu nejbližší průchodné
   buňky (`departureOf`; `nearestPassable(grid, c, maxM)` – čtverec vzdálenosti v buňkách, remíza
-  nižší index). **Ze stavby jen do ní** (oprava Úlohy 5): střed dvorce je stavba a únik do
+  nižší index). **Ze stavby a ze stěny opevnění jen do ní** (oprava Úlohy 5; stěna – palisáda
+  postavená pod skupinou – re-revize, jinak by únik pustil skupinu dovnitř zavřeného opevnění): střed dvorce je stavba a únik do
   „užitečné“ oblasti vedl dvorcem a lesem do oblasti za ním – z kotvy Vlkova na západ 13 m přes
   dvorec, v pasece obklopené hustým lesem 400 m lesem; tažení z kotvy a výprava od branky se
   neshodly. Mimo stavbu (voda, les ze starých poloh) má přednost nejbližší buňka souvislé oblasti,
@@ -540,13 +541,18 @@ group, order, at)` – před bitvou kdykoli, v boji jen na doslech (jinak false)
   taktech `ongoing`, nájezd neskončil): když přímka k cíli vede buňkou, kam boj nevstoupí
   (`lineClear` z `march-smooth.ts` s průchodností `paceAt` – stavby a stěny opevnění ne, ty řeší
   boj sám), uloží si body trasy `marchPath` po `field.grid` do `route` / `routeFor` jako průchod
-  opevněním a jde po nich – i objížďkou, která vede napřed od cíle (průsek do U). Hledá nejvýš
-  jednou za `DETOUR_RETRY_TICKS` (20) taktů (`detourTick`); bez trasy jde rovně jako dřív.
+  opevněním a jde po nich – i objížďkou, která vede napřed od cíle (průsek do U). Totéž platí pro
+  úsek k bodu průchodu opevněním (`followRoute` vloží body objížďky před první bod trasy) a k místu
+  průlomu (`toBreach`, `routeFor` = `breach:<klíč>`) – re-revize: skvrna lesa před branou palisády
+  dřív nechala útočníky stát (3000 taktů `ongoing`). Bod v neprůchodné buňce mřížky (místo
+  průlomu u stěny) se napřed posune `reachableGoal` – trasa končí tam, dál rovně
+  (`detourPoints`). Hledá nejvýš jednou za `DETOUR_RETRY_TICKS` (20) taktů (`detourTick`); bez
+  trasy jde rovně jako dřív.
   **Pojistka proti zastavení** – útočník bez vodítka, který se `STALL_TICKS` (8) taktů v řadě
   nepohne dál než 1 m od cíle kroku (`stall`), zahodí trasu a hledá novou. Obránce objížďky
   nehledá (průchody hradbou také ne, ke vsi to má blízko) – jeho stav se nemění. Testy „pohyb
-  v boji podél hustého lesa“ v `battle.test.ts` (průsek do L, skvrna, pás, průsek do U, zastaralá
-  trasa do lesa).
+  v boji podél hustého lesa“ v `battle.test.ts` (průsek do L, skvrna, pás, skvrna před branou
+  palisády, kapsa lesa před místem průlomu, průsek do U, zastaralá trasa do lesa).
 - **Opevnění v boji** – `battleForts(geo, forts)` (tvar úseků a střed); stěny jsou úsečky úseků,
   které stojí (ne holý val, ne mezera, prolomený úsek = `breachedDay` dne boje), s výřezem otevřené
   brány a tětivou rohu. Pohyb stěnu neprojde (sklouzne podél), luk i dosah zblízka (3 m) přes ni
@@ -1655,6 +1661,10 @@ campaignId)` (čekající ohlášení rodu dostanou `campaignId`); `harmless(…
   ohlášení téhož tažení; `stepCampaigns` (`endPassages`, `StepCampaignsDeps.passages`) po uložení
   tažení ve fázi `done` / `disbanded` (i u už skončeného) zavolá `voidOfCampaign`. DB `schema/passage.ts`,
   migrace `0035_passage` + `0036` (`campaign_id`), adaptér `adapters/passage-repository.ts`.
+  **Úhlopříčná mapa** (cesta mezi mapami je čtyřsousedná – Mapu po mapě, oprava Úlohy 5): tažení
+  na úhlopříčně sousední mapu jde přes kolmou sousední mapu – tamní vsi ho mohou spatřit
+  a ohlášení průchodu ji musí pokrýt (`worldRoute` ji v `cells` vrací); `WAR.passage.maxCells` tak
+  na úhlopříčce dosáhne jen na polovinu dřívější vzdálenosti.
 - **Svolání** – `application/summons.ts`, dialog `summons` (`SummonsBody`: válka a její strany,
   vazalství, pán, vazal, cílová ves, domluvení muži, dny; `forDialogId` u vazala vazalů; po odpovědi
   `sent`, `message`). `summonVassals(deps, { playerId, warId, vassalageIds, targetVillageId, days?,

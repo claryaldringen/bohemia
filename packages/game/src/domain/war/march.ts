@@ -2,6 +2,7 @@ import type { Direction8 } from '../village/types';
 import { GRID_STEPS } from '../village/people/world-grid';
 import {
   MARCH_BUILDING,
+  MARCH_WALL,
   marchCellAt,
   marchCellCenter,
   type MarchGrid,
@@ -119,8 +120,9 @@ function outOfBuilding(grid: MarchGrid, c: number): number {
  * nejbližší buňce souvislé oblasti, se kterou skupina něco svede – `useful(oblast)`: oblast cíle,
  * nebo oblast s průchodnou buňkou přechodu okraje (Úloha 5 – nejbližší průchodná buňka bývá paseka
  * nebo ostrůvek, odkud by nevedlo nikam) –, nejvýš `BUILDING_REACH_M` dál než nejbližší průchodná
- * buňka. Ze stavby nikdy (oprava Úlohy 5): střed dvorce je stavba a únik do „užitečné“ oblasti
- * vedl dvorcem i 400 m hustého lesa do oblasti za ním – budova byla průchod. `useful` null = bez
+ * buňka. Ze stavby ani ze stěny opevnění nikdy (oprava Úlohy 5): střed dvorce je stavba a únik do
+ * „užitečné“ oblasti vedl dvorcem i 400 m hustého lesa do oblasti za ním – budova byla průchod;
+ * ze stěny (palisáda postavená pod skupinou) by únik pustil skupinu dovnitř zavřeného opevnění. `useful` null = bez
  * přednosti. −1 = mapa nemá průchodnou buňku.
  */
 function departureOf(
@@ -130,7 +132,9 @@ function departureOf(
 ): number {
   if (grid.pace[at]! > 0) return at;
   const plain = nearestPassable(grid, at, Infinity);
-  if (plain < 0 || useful === null || (grid.flags[at]! & MARCH_BUILDING) !== 0) return plain;
+  if (plain < 0 || useful === null || (grid.flags[at]! & (MARCH_BUILDING | MARCH_WALL)) !== 0) {
+    return plain;
+  }
   const areas = marchAreas(grid);
   const w = grid.width;
   if (useful(marchAreaOf(areas, w, plain))) return plain;

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { SURFACE_CODES, packObstacles } from '../../landscape';
 import { village, kin } from '../../village/__tests__/kin-fixtures';
+import type { Fortification } from '../../village/fortification/types';
 import type { Dwelling, Road } from '../../village/types';
 import { hitDamage, type BattleField, type BattleState } from '../battle';
 import { stepCampaign } from '../campaign';
@@ -180,9 +181,12 @@ describe('pohyb v boji podél hustého lesa (plán 2026-11-16-dense-forest – �
     expect(nearest).toBeLessThanOrEqual(WAR.combat.meleeM);
   });
 
-  /** Bojiště louky; buňky se středem, pro který `forest`, jsou hustý les (tempo 0). */
-  function woods(forest: (x: number, z: number) => boolean): BattleField {
-    const base = field();
+  /** Bojiště louky s opevněním `forts`; buňky se středem, pro který `forest`, jsou hustý les (tempo 0). */
+  function woods(
+    forest: (x: number, z: number) => boolean,
+    forts: Fortification[] = [],
+  ): BattleField {
+    const base = field(forts);
     const pace = Float32Array.from(base.grid.pace);
     const flags = Uint16Array.from(base.grid.flags);
     for (let c = 0; c < pace.length; c++) {
@@ -259,6 +263,43 @@ describe('pohyb v boji podél hustého lesa (plán 2026-11-16-dense-forest – �
     expect(stalled).toBe(8);
     expect(at).not.toBeNull();
     expect(at!).toBeLessThan(600);
+  });
+
+  // re-revize: objížďka platí i pro úsek k průchodu opevněním a k místu průlomu (dřív jen k cíli)
+  it('skvrna lesa před branou palisády – útočníci ji obejdou k bráně a dobudou ves', () => {
+    for (const [cx, cz, r] of [
+      [60, -46.5, 15],
+      [60, -50, 25],
+    ] as const) {
+      const f = woods((x, z) => Math.hypot(x - cx, z - cz) <= r, [palisade(true)]);
+      const b = battle({
+        attackers: [0, 1, 2].map((k) => attacker(k, { x: 120, z: -60 + 3 * k })),
+        defenders: [defender(1, { x: 0, z: 0 }, { atHouseOnly: true })],
+      });
+      run(b, f, 3000);
+      // bez skvrny vyhrají v taktu 367; se skvrnou dřív po 3000 taktech `ongoing`
+      expect(b.outcome).toBe('attackers');
+      expect(b.ticks).toBeLessThan(600);
+    }
+  });
+
+  it('cesta k místu průlomu z kapsy lesa otevřené od palisády – vyjdou ven a prolomí', () => {
+    // kapsa: les na západě (x 100…106), severu (z −36…−30) a jihu (z −86…−80), otevřená na východ;
+    // místo průlomu je na západě – skluz by muže zavedl do severozápadního rohu kapsy
+    const cup = (x: number, z: number): boolean =>
+      (x >= 100 && x <= 106 && z >= -86 && z <= -30) ||
+      (x >= 100 && x <= 140 && ((z >= -36 && z <= -30) || (z >= -86 && z <= -80)));
+    const f = woods(cup, [palisade(false)]);
+    const b = battle({
+      attackers: [0, 1, 2].map((k) => attacker(k, { x: 120, z: -60 + 3 * k })),
+      defenders: [defender(1, { x: 0, z: 0 }, { atHouseOnly: true })],
+    });
+    let breaching = false;
+    run(b, f, 6000, () => {
+      breaching ||= b.fighters.some((x) => x.side === 'attack' && x.state === 'breach');
+    });
+    expect(breaching).toBe(true);
+    expect(b.outcome).toBe('attackers');
   });
 
   it('průsek do U – trasa vede napřed od domu, ramenem nahoru a druhým dolů', () => {
