@@ -101,6 +101,9 @@ trojpolí, ale stojí ho vedlejší manželky a nespokojenost pohanů, když jim
 - **Stavby z kamene** (Martin) – v první řadě **kostel**; další kamenné stavby přijdou s vlastními
   mechanikami.
 - **Trojpolí** (Martin): podmínkou přechodu je pokřtěný rod (a rok 1100 – [pole](fields.md)).
+- **Žádné nové modly a svatyně** (Martin 16. 11. 2026: „po křtu už nelze stavět pohanské svatyně
+  ani modly“): pokřtěný rod je v nabídce staveb nemá a server novou modlu ani svatyni nezaloží.
+  Stojící a rozestavěné zůstávají, jak jsou (návrh Clauda – nic víc se nemění).
 
 ## Víra vesničanů
 

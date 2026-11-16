@@ -39,6 +39,7 @@ import {
   changeVillageStateById,
   confirmPlacement,
   dwellingVariant,
+  sacredVariant,
   found,
   freeHomes,
   newPlayer,
@@ -174,8 +175,11 @@ test('nový hráč založí ves umístěním zemnice, přejmenuje ji a vybere ze
   }
   await expect(grid.getByRole('button', { name: 'Hřbitov' })).toBeEnabled();
   await expect(grid.getByRole('button', { name: 'Sad' })).toBeEnabled();
-  await expect(grid.getByRole('button', { name: 'Modla' })).toBeEnabled();
-  await expect(grid.getByRole('button', { name: 'Svatyně' })).toBeEnabled();
+  // modla a svatyně jsou jedno políčko – rozcestník posvátných míst (kostely až po křtu rodu)
+  await expect(await sacredVariant(page, 'Modla')).toBeEnabled();
+  await expect(await sacredVariant(page, 'Svatyně')).toBeEnabled();
+  await page.keyboard.press('Escape');
+  await expect(grid).not.toHaveAttribute('data-group', /.+/);
   await expect(grid.getByRole('button', { name: 'Ohrada' })).toBeEnabled();
   const quarryButton = grid.getByRole('button', { name: 'Lom' });
   if (hasOutcrop(obstaclesOf(s.landscape))) await expect(quarryButton).toBeEnabled();

@@ -130,15 +130,17 @@ export type PlotCheck = FootprintCheck & { position: Position | null };
  * které cenu nemá pevnou: počítá se podle délky obvodu (`fortificationCost`), proto `BuildKind`
  * v jádru zůstává beze změny (Ú5.6) a opevnění je jen záznam katalogu s vlastní kontrolou.
  */
-export type WebBuildKind = BuildKind | 'fortification' | 'dwelling' | ChurchBuildKind;
+export type WebBuildKind =
+  BuildKind | 'fortification' | 'dwelling' | 'sacred-hub' | ChurchBuildKind;
 
 interface BuildItemBase {
   kind: WebBuildKind;
   /**
    * Stavba je jen druhem rozcestníku (obydlí: zemnice, polozemnice, nadzemní dům jsou druhy
-   * rozcestníku `dwelling`) – v mřížce staveb nemá vlastní tlačítko, zkratka ale vybere druh rovnou.
+   * rozcestníku `dwelling`; modla, svatyně a kostely jsou druhy rozcestníku `sacred-hub`) – v mřížce
+   * staveb nemá vlastní tlačítko, zkratka ale vybere druh rovnou.
    */
-  hubOf?: 'dwelling';
+  hubOf?: 'dwelling' | 'sacred-hub';
   name: string;
   /** Soubor v `public/icons/build/` bez přípony. */
   icon: string;
@@ -231,6 +233,16 @@ export type BuildItem =
       variants: readonly SquaresVariant[];
     })
   | (BuildItemBase & {
+      /**
+       * Rozcestník posvátných míst (Martin 16. 11. 2026: „sluč sakrální stavby do jedné ikony,
+       * jako je třeba obytný dům“): modla, svatyně a po křtu malý a velký kostel (`SACRED_VARIANTS`,
+       * id druhu = druh stavby); druh spustí umisťování stavby `buildItem(variant)`. Zkratky druhů
+       * (N, M, I, Y) vybírají druh rovnou, rozcestník vlastní zkratku nemá.
+       */
+      placement: 'sacred-hub';
+      variants: readonly SquaresVariant[];
+    })
+  | (BuildItemBase & {
       /** Modla nebo svatyně – čtvercový půdorys u kurzoru (otáčí se jako obydlí). */
       placement: 'sacred';
       sacredKind: SacredBuildingKind;
@@ -316,6 +328,7 @@ const church = (
   hotkeyLabel: string,
 ): BuildItem => ({
   kind,
+  hubOf: 'sacred-hub',
   name,
   icon: churchIcon(icon),
   hotkey: `Key${hotkeyLabel}`,
@@ -596,6 +609,7 @@ const sacred = (
   hotkeyLabel: string,
 ): BuildItem & { placement: 'sacred' } => ({
   kind,
+  hubOf: 'sacred-hub',
   name,
   icon,
   hotkey: `Key${hotkeyLabel}`,
@@ -733,7 +747,9 @@ export function penVariant(species: PenSpecies): SquaresVariant {
  */
 export function buildVariantName(item: BuildItem, variant: SquaresVariant): string {
   if (item.kind === 'pen') return PEN_NAMES[penVariantSpecies(variant.id)];
-  if (item.kind === 'fortification' || item.kind === 'dwelling') return variant.name;
+  if (item.kind === 'fortification' || item.kind === 'dwelling' || item.kind === 'sacred-hub') {
+    return variant.name;
+  }
   return `${item.name} – ${variant.name}`;
 }
 
@@ -881,6 +897,18 @@ export const DWELLING_VARIANTS: readonly (SquaresVariant & { id: BuildableDwelli
   { id: 'srub', icon: 'build/srub', name: 'Srub' },
 ];
 
+/**
+ * Druhy rozcestníku posvátných míst v pořadí mřížky: modla, svatyně, malý a velký kostel (kostely
+ * jen po křtu rodu – nabídka je bez křtu nemá). Ikonu a název kostela dává nabídka podle okruhu huti
+ * (`BuildOption.look`), tady je záloha.
+ */
+export const SACRED_VARIANTS: readonly SquaresVariant[] = [
+  { id: 'idol', icon: 'build/modla', name: 'Modla' },
+  { id: 'shrine', icon: 'build/svatyne', name: 'Svatyně' },
+  { id: 'church-small', icon: `build/${churchIcon('chancel')}`, name: 'Malý kostel' },
+  { id: 'church-large', icon: `build/${churchIcon('basilica')}`, name: 'Velký kostel' },
+];
+
 export const BUILD_ITEMS: readonly BuildItem[] = [
   {
     kind: 'dwelling',
@@ -981,6 +1009,15 @@ export const BUILD_ITEMS: readonly BuildItem[] = [
         cost: squaresCost(result.check, result.plantingCost),
       };
     },
+  },
+  {
+    kind: 'sacred-hub',
+    name: 'Posvátná místa',
+    icon: 'svatyne',
+    hotkey: NO_HOTKEY,
+    hotkeyLabel: 'N / M / I / Y',
+    placement: 'sacred-hub',
+    variants: SACRED_VARIANTS,
   },
   sacred('idol', 'Modla', 'modla', 'N'),
   sacred('shrine', 'Svatyně', 'svatyne', 'M'),

@@ -58,6 +58,12 @@ export function isChristian(p: Person): boolean {
 }
 
 /**
+ * Důvod, proč pokřtěný rod nezaloží modlu ani svatyni (christianity.md – Co křest rodu umožní,
+ * Martin 16. 11. 2026: „po křtu už nelze stavět pohanské svatyně ani modly“).
+ */
+export const PAGAN_PLACES_FORBIDDEN = 'Pokřtěný rod pohanská místa nestaví.';
+
+/**
  * Je rod, který ves řídí, pokřtěný (christianity.md – Křest rodu)? Rod hráče, kterému ves patří
  * (`faith.rodBaptizedDay`); ves, kterou řídí NPC rod (`nobles`), podle jeho křtu (`faith.nobles`) –
  * po konci NPC rodu zase podle rodu hráče.

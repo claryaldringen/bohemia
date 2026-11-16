@@ -167,6 +167,18 @@ export async function dwellingVariant(page: Page, name: string): Promise<Locator
   return grid.getByRole('button', { name, exact: true });
 }
 
+/**
+ * Druh posvátného místa (Modla, Svatyně, kostel) v rozcestníku Posvátná místa – otevře ho tlačítkem,
+ * je-li zavřený. Rozcestník zavře Escape.
+ */
+export async function sacredVariant(page: Page, name: string): Promise<Locator> {
+  const grid = page.getByTestId('build-grid');
+  if ((await grid.getAttribute('data-group')) !== 'sacred-hub') {
+    await grid.getByRole('button', { name: 'Posvátná místa', exact: true }).click();
+  }
+  return grid.getByRole('button', { name, exact: true });
+}
+
 export async function pollVillage(page: Page): Promise<void> {
   await page.evaluate(() => window.__bohemiaE2E!.pollVillage!());
 }

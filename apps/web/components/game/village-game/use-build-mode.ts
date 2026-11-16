@@ -25,6 +25,7 @@ import type { Placement } from '@/hooks/use-placement';
 import {
   CHURCH_TYPE_NAMES,
   DWELLING_VARIANTS,
+  SACRED_VARIANTS,
   buildItem,
   churchIcon,
   fortVariantKind,
@@ -47,6 +48,7 @@ import type { PlacementMode, PlacementResult } from '@/lib/scene/village-types';
 import {
   FOUNDING_DWELLING_OPTION,
   dwellingHubOption,
+  sacredHubOption,
   isBuildAffordable,
   type BuildOption,
   type SceneVillage,
@@ -76,6 +78,21 @@ function churchOptions(view: VillageView): Partial<Record<WebBuildKind, BuildOpt
       } satisfies BuildOption,
     ]),
   );
+}
+
+/** Přidá rozcestník posvátných míst, má-li ves aspoň jedno posvátné místo k nabídnutí. */
+function withSacredHub(
+  all: Partial<Record<WebBuildKind, BuildOption | null>>,
+  baptized: boolean,
+): Partial<Record<WebBuildKind, BuildOption | null>> {
+  // po křtu rodu už modla ani svatyně v nabídce nejsou (christianity.md – Co křest rodu umožní)
+  const options: Partial<Record<WebBuildKind, BuildOption | null>> = { ...all };
+  if (baptized) {
+    delete options.idol;
+    delete options.shrine;
+  }
+  const offered = SACRED_VARIANTS.some((v) => options[v.id as WebBuildKind]);
+  return offered ? { ...options, 'sacred-hub': sacredHubOption(options) } : options;
 }
 
 /** Typ kostela tlačítka nabídky (malý / velký okruhu huti); null – ves kostel nenabízí. */
@@ -194,12 +211,15 @@ export function useBuildMode({
           : {}
         : // opevnění nemá pevnou cenu – cena je u kurzoru podle délky obvodu; kostel bez ceny
           // předem, jen typ okruhu huti a důvod, proč nejde (churches.md – Stavba)
-          {
-            ...view.build,
-            dwelling: dwellingHubOption(view.build),
-            fortification: null,
-            ...churchOptions(view),
-          }
+          withSacredHub(
+            {
+              ...view.build,
+              dwelling: dwellingHubOption(view.build),
+              fortification: null,
+              ...churchOptions(view),
+            },
+            (view.churchBuild ?? []).length > 0,
+          )
     : villageError === null
       ? { dwelling: FOUNDING_DWELLING_OPTION, zemnice: null }
       : {};
@@ -240,6 +260,12 @@ export function useBuildMode({
       variant = kind;
       kind = 'dwelling';
     }
+    // druh z rozcestníku posvátných míst spustí umisťování stavby rovnou (modla, svatyně, kostel)
+    if (kind === 'sacred-hub' && variant !== undefined) {
+      kind = variant as WebBuildKind;
+      variant = undefined;
+      if (!(kind in options)) return;
+    }
     if (kind === 'dwelling') {
       // druh, který ves nenabízí (první zemnice zakládá ves), nejde; s jediným druhem se rozcestník přeskočí
       const offered = DWELLING_VARIANTS.filter((v) => v.id in options);
@@ -258,6 +284,7 @@ export function useBuildMode({
       (item.placement === 'squares' ||
         item.placement === 'fort-points' ||
         item.placement === 'dwellings' ||
+        item.placement === 'sacred-hub' ||
         item.placement === 'workshop') &&
       item.variants &&
       variant === undefined
@@ -452,6 +479,7 @@ export function useBuildMode({
       if (type) placement.start(dwellingMode(type), onDwelling);
       return;
     }
+    if (item.placement === 'sacred-hub') return; // rozcestník sám nic neumisťuje
     if (item.placement === 'workshop') {
       // vybraný druh dílny (rozcestník), jinak dnešní dílna
       const workshopType = (item.variants.find((v) => v.id === variant) ?? item.variants[0]!).id;

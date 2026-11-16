@@ -334,6 +334,33 @@ export function dwellingHubOption(build: Partial<Record<string, BuildOption | nu
   };
 }
 
+/** Druhy posvátných míst od nejlepšího – ikonu tlačítka dává první, který ves postaví. */
+const SACRED_BEST_FIRST = ['church-large', 'church-small', 'shrine', 'idol'] as const;
+/** Ikony modly a svatyně (kostel nese ikonu v `look` své nabídky). */
+const SACRED_ICONS: Record<string, string> = { idol: 'modla', shrine: 'svatyne' };
+
+/**
+ * Nabídka rozcestníku posvátných míst (modla, svatyně, po křtu malý a velký kostel): dostupné je,
+ * pokud ves začne aspoň jeden druh; cena a důvod zašednutí zůstávají u nabídky každého druhu.
+ * Ikona tlačítka je nejlepší dostupný druh (kostel, svatyně, modla), jinak nejlepší nabízený.
+ */
+export function sacredHubOption(build: Partial<Record<string, BuildOption | null>>): BuildOption {
+  const offered = SACRED_BEST_FIRST.filter((kind) => build[kind]);
+  const best = offered.find((kind) => build[kind]?.affordable) ?? offered[0] ?? 'shrine';
+  return {
+    laborManDays: 0,
+    perHa: false,
+    perSquare: false,
+    upfront: [],
+    blocked: null,
+    affordable: offered.some((kind) => build[kind]?.affordable),
+    look: {
+      icon: build[best]?.look?.icon ?? SACRED_ICONS[best] ?? 'svatyne',
+      name: 'Posvátná místa',
+    },
+  };
+}
+
 /**
  * Rozcestník obydlí při zakládání vsi: nabízí se jen zemnice (první zemnici osídlí zakladatelé),
  * tlačítko je proto rovnou zemnice a jeden klik spustí umisťování.

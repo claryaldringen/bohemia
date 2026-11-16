@@ -10,6 +10,7 @@ import {
   startThreshingFloor,
   startWorkshop,
 } from '../core/actions';
+import { PAGAN_PLACES_FORBIDDEN } from '../people/faith';
 import { BUILD_COSTS, buildAffordability, workshopCosts } from './costs';
 import { dwellingYearReason, isHouseType, type HouseType } from './log-house';
 import {
@@ -700,7 +701,9 @@ function buildSacred(
     };
   } catch (error) {
     // duby nestačí ke kácení (vyhradila je mezitím jiná stavba)
-    if (error instanceof RangeError) return { ok: false, reason: NO_OAKS };
+    if (error instanceof RangeError) {
+      return { ok: false, reason: rodBaptized(state) ? PAGAN_PLACES_FORBIDDEN : NO_OAKS };
+    }
     throw error;
   }
 }
