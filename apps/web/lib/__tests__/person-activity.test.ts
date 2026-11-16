@@ -97,6 +97,27 @@ describe('personActivity – co postava dělá', () => {
     );
   });
 
+  it('podkoní u jízdy říká úsek, ne „stará se o koně“ (D82)', () => {
+    const groom: PersonJob = {
+      kind: 'share',
+      activity: 'horse-care',
+      groom: true,
+      target: { kind: 'pen', id: 61 },
+    };
+    const text = (stage: PersonFigureState['stage']): string =>
+      personActivity(state(groom, { stage }), VILLAGE);
+    expect(text('rest')).toBe('chystá koně');
+    expect(text('out')).toBe('vede koně ke dvorci');
+    expect(text('wait')).toBe('čeká u kůlu');
+    expect(text('back')).toBe('vede koně do ohrady');
+    const care: PersonJob = {
+      kind: 'share',
+      activity: 'horse-care',
+      target: { kind: 'pen', id: 61 },
+    };
+    expect(personActivity(state(care), VILLAGE)).toBe('stará se o koně v ohradě');
+  });
+
   it('nosič kováře, pasák, karavana pro kování, pohřeb', () => {
     expect(
       personActivity(state({ kind: 'fetch', goods: 'charcoal' }, { stage: 'back' }), VILLAGE),

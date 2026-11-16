@@ -145,8 +145,12 @@ export function groomPose(lead: RideLead, w: LeadTimes, kind: GroomDutyKind): Po
     delete out.stage;
     delete out.lift;
     let walking = false;
+    // úsek pro panel (person-activity.ts – podkoní): chystá koně, vede ke dvorci, čeká u kůlu,
+    // vede do ohrady
+    out.stage = 'wait';
     if (kind !== 'return' && t < w.mount) {
       walking = t >= w.out && t < w.at;
+      out.stage = t < w.out ? 'rest' : walking ? 'out' : 'wait';
       leaderSpot(lead, (t - w.out) * LEAD_M_S, false, out);
       if (t < w.out) {
         out.headingX = -out.headingX;
@@ -154,6 +158,7 @@ export function groomPose(lead: RideLead, w: LeadTimes, kind: GroomDutyKind): Po
       }
     } else if (kind !== 'fetch' && t >= w.dismount) {
       walking = t < w.back;
+      out.stage = 'back';
       leaderSpot(lead, lead.length - (t - w.dismount) * LEAD_M_S, true, out);
     } else if (kind === 'both' && t < w.mount + GROOM_STEP_S) {
       leaderSpot(lead, lead.length, false, a);
@@ -417,6 +422,7 @@ export class RideGrooms implements Duties {
       job: {
         kind: 'share',
         activity: 'horse-care',
+        groom: true,
         target: ride.penId !== null ? { kind: 'pen', id: ride.penId } : { kind: 'village' },
       },
       kind: 'hold',

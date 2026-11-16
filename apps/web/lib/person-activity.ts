@@ -366,6 +366,14 @@ function caravanText(
   return back ? `vrací se s výpravou z ${where}` : `jde s výpravou do ${where}`;
 }
 
+/** Podkoní u jízdy vojvody podle úseku (ride-grooms.ts – `groomPose`). */
+const GROOM_TEXTS: Partial<Record<VillagerStage, string>> = {
+  rest: 'chystá koně',
+  out: 'vede koně ke dvorci',
+  wait: 'čeká u kůlu',
+  back: 'vede koně do ohrady',
+};
+
 /** Podíl práce dne – činnost a místo z jádra. */
 function shareText(
   job: Extract<PersonJob, { kind: 'share' }>,
@@ -399,6 +407,7 @@ function shareText(
     case 'animal-care':
       return t.kind === 'pen' ? 'krmí dobytek v ohradě' : 'stará se o zvířata';
     case 'horse-care':
+      if (job.groom) return GROOM_TEXTS[stage ?? 'rest'] ?? 'chystá koně';
       return t.kind === 'pen' ? 'stará se o koně v ohradě' : 'stará se o koně';
     case 'horse-shoeing':
       return t.kind === 'pen' ? 'kuje koně u ohrady' : 'kuje koně';
