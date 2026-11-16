@@ -13,8 +13,9 @@ s libovolně skupinami hráče (`parties`) a jejich hloučky (`groups`).
 - **Stav** – `journey-types.ts`: `JourneyState` je JSON (kontrolní bod): `kind: 'journey'`, `seed`,
   `tick` a `day` posledního spočteného taktu, `throughDay` (jako u tažení – mez bariéry vsí),
   `phase: 'out' | 'done'` (výprava bez skupin = `done`), hráč, rod (`houseId`), domovská ves `home`
-  (`CampaignVillage`), lidé `members`, hloučky `groups`, skupiny `parties` a `nextId` (další volné id
-  skupiny i hloučku – jedna řada). `leaderName` zůstává jen v převedených bodech.
+  (`CampaignVillage`), lidé `members`, hloučky `groups`, `marchGridVersion` (verze mřížky pochodu
+  úseků hloučků – Převod níž), skupiny `parties` a `nextId` (další volné id skupiny i hloučku – jedna
+  řada). `leaderName` zůstává jen v převedených bodech.
   - `JourneyMember`: `ref` osoby, která zůstává ve stavu domovské vsi, `lord` (vojvoda), `mounted`,
     `strength` a `fight` při vyslání, `health`, `wounded`, `status: 'active' | 'fallen'`, hlouček
     `group`, volitelně `name`, `female`, `bornDay` a kůň jezdce `horseId`, `horse`,
@@ -97,11 +98,15 @@ intents, world)` → `JourneyStep { state, villageEvents, notices, knowledge?, w
   (`player-notices.ts` ve webu). Skupina `leaderless` upozornění nemá – vojvoda se nevrátil (návrh
   Clauda). Hlouček i jeho lidé ze stavu zmizí, skupina bez hloučků taky.
 - **Převod** – `upgradeJourney(state)` (`journey-upgrade.ts`; plán 2026-11-14 – Rozhodnutí 4): bod
-  nového tvaru vrátí beze změny (týž objekt), bod před výpravami převede – skupina 0 s hloučkem 0,
-  `arrivedTick` a fáze `returning` přejdou do skupiny, vojvoda dostane `leaderName` jako `name`,
-  skupina bez živého vojvody `leaderless`, hlouček venku na cestě přes okraj `crossing`. Idempotentní,
-  vstup nemění; volá ho krok i aplikace (pohled, rozkaz, worker, válka), do úložiště se zvlášť
-  nezapisuje (uloží ho další bod). Tvar starého bodu: `LegacyJourneyState`.
+  nového tvaru se současnou verzí mřížky vrátí beze změny (týž objekt), bod před výpravami převede
+  (`fromLegacy`) – skupina 0 s hloučkem 0, `arrivedTick` a fáze `returning` přejdou do skupiny,
+  vojvoda dostane `leaderName` jako `name`, skupina bez živého vojvody `leaderless`, hlouček venku na
+  cestě přes okraj `crossing`. Bod bez `marchGridVersion` (verze mřížky pochodu, podle které vznikly
+  úseky – `MARCH_GRID_VERSION`; plán 2026-11-16-dense-forest, Rozhodnutí 9) dostane kopii hloučků
+  bez úseků a verzi (`replanLegs` – war.md, Pohyb vojska, Rozjeté úseky); krok úseky spočte
+  z uložené polohy. `newJourney` verzi nese od začátku. Idempotentní, vstup nemění; volá ho krok
+  i aplikace (pohled, rozkaz, worker, válka), do úložiště se zvlášť nezapisuje (uloží ho další bod).
+  Tvar starého bodu: `LegacyJourneyState`.
 - **Čísla** – `JOURNEY` v `rules-war.ts`: `waitDays` 3, `predatorGroupMax` 2 (šelmy – Úloha 13),
   `trailStepM` 20 (stopa odkrytého – Úloha 6), `mountWaitS` 10 (nasednutí – Koně výpravy). Tempo a věk mužů bere výjezd z `WAR`.
 - **Sdílené s tažením** – `movement.ts`: `sendGroup`, `settleGoal` a `missingMaps` (přešly

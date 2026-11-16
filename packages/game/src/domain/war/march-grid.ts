@@ -74,6 +74,14 @@ export const MARCH_BUILDING = 256;
 /** Buňka je skála – balvan nebo skalní výchoz vrstvy překážek (neprůchodná; Rozhodnutí 4). */
 export const MARCH_ROCK = 512;
 
+/**
+ * Verze mřížky pochodu (plán 2026-11-16-dense-forest – Rozhodnutí 9): 2 = jemná mřížka s hustým
+ * lesem. Tažení a výprava bez ní (`marchGridVersion` ve stavu) při prvním taktu zahodí rozjeté úseky
+ * (`replanLegs`) – vedly by buňkami, které jsou dnes neprůchozí. Nová změna průchodnosti, se kterou
+ * by uložené úseky neplatily, verzi zvýší.
+ */
+export const MARCH_GRID_VERSION = 2;
+
 /** Mřížka pochodu jedné mapy: buňka (i, j) má index `j * width + i`. */
 export interface MarchGrid {
   readonly width: number;

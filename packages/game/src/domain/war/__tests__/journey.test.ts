@@ -822,11 +822,12 @@ describe('chybějící mapa', () => {
     const whole = stepJourney(start, TRIP_END, TRIP, worldOf());
     const partial = stepJourney(start, TRIP_END, TRIP, onlyHome);
     expect(partial.waiting).toEqual({ cells: [EAST], villageIds: [] });
-    // na sousední mapě se muži hned rozhlédnou (Úloha 6) – mapu čte už takt přechodu okraje,
-    // krok skončí taktem před ním u okraje domovské mapy
+    // mapu sousední mapy čte už úsek k okraji (přechod jen do průchozí buňky – plán
+    // 2026-11-16-dense-forest, Rozhodnutí 8): krok skončí taktem před rozkazem „Přes okraj“
+    expect(partial.state.tick).toBe(LAUNCH + 299);
     expect(partial.state.groups[0]!.cell).toEqual(HOME.cell);
-    const crossing = stepJourney(partial.state, partial.state.tick + 1, TRIP, worldOf());
-    expect(crossing.state.groups[0]!.cell).toEqual(EAST);
+    const order = stepJourney(partial.state, partial.state.tick + 1, TRIP, worldOf());
+    expect(order.state.groups[0]!.leg).not.toBeNull();
     const upTo = stepJourney(start, partial.state.tick, TRIP, worldOf());
     expect(partial.state).toStrictEqual(upTo.state);
     expect(partial.villageEvents).toEqual(upTo.villageEvents);

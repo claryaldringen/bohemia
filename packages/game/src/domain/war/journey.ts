@@ -37,7 +37,7 @@ import type {
 import { commandOf, upgradeJourney } from './journey-upgrade';
 import { predatorDay, wildlifeOfMap } from './journey-predators';
 import { marchSpeed, type GroupPace } from './march';
-import { MARCH_FOREST, marchCellAt, type Pos } from './march-grid';
+import { MARCH_FOREST, MARCH_GRID_VERSION, marchCellAt, type Pos } from './march-grid';
 import { missingMaps, settleGoal, stepMover } from './movement';
 import { JOURNEY } from './rules-war';
 import { lookOnMap, type KnowledgeOut } from './seen';
@@ -72,7 +72,7 @@ export interface NewJourney {
 /**
  * Výchozí stav výpravy: skupina 0 s hloučkem 0 doma (`nextId` 1) a první rozkaz `order`. Rozkaz,
  * který neplatí (přes okraj na nesousední políčko), se zahodí – skupina stojí doma jako bez rozkazu
- * a po čekání výprava skončí.
+ * a po čekání výprava skončí. Úseky vzniknou po současné mřížce pochodu (`marchGridVersion`).
  */
 export function newJourney(input: NewJourney, clock: WorldClock): JourneyState {
   const tick = tickOfMs(input.startMs, clock);
@@ -101,6 +101,7 @@ export function newJourney(input: NewJourney, clock: WorldClock): JourneyState {
         arrived: true,
       },
     ],
+    marchGridVersion: MARCH_GRID_VERSION,
     parties: [{ id: 0, phase: 'out', arrivedTick: tick }],
     nextId: 1,
   };

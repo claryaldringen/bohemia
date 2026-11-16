@@ -1,15 +1,30 @@
 import { directionBetween, type GridCell } from '../village/people/world-grid';
 import { cellKey, gridOf, sameCell, type TickContext } from './campaign-tick';
 import type { CampaignGroup, CampaignLeg, CampaignPlace, CampaignWorld } from './campaign-types';
-import { marchPath, marchPathToEdge, marchProgress, reachableGoal } from './march';
-import type { Pos } from './march-grid';
+import {
+  crossingAreas,
+  marchPath,
+  marchPathToEdge,
+  marchProgress,
+  nearestPassable,
+  reachableGoal,
+} from './march';
+import {
+  MARCH_GRID_VERSION,
+  marchCellAt,
+  marchCellCenter,
+  type MarchGrid,
+  type Pos,
+} from './march-grid';
+import { marchArea } from './march-search';
 import { edgeCrossing, worldRoute } from './world-route';
 
 // Pohyb po mapách světa o jeden takt (plán 2026-11-09 – Rozhodnutí plánu: vytaženo z `moveGroups`
-// a `planLeg` v `campaign.ts`, ať se stejně hýbe skupina vojska, posel i skupina uprchlíků). Chování
-// skupin vojska beze změny – bit po bitu (`march.test.ts`, `campaign.test.ts`). Vyslání skupiny,
-// posun cíle a mapy potřebné předem (`sendGroup`, `settleGoal`, `missingMaps`) sem přešly z
-// `campaign.ts` beze změny, ať je sdílí i výjezd vojvody (`journey.ts` – plán 2026-11-13).
+// a `planLeg` v `campaign.ts`, ať se stejně hýbe skupina vojska, posel i skupina uprchlíků). Vyslání
+// skupiny, posun cíle a mapy potřebné předem (`sendGroup`, `settleGoal`, `missingMaps`) sem přešly
+// z `campaign.ts` beze změny, ať je sdílí i výjezd vojvody (`journey.ts` – plán 2026-11-13). Přechod
+// okraje jen do průchozí buňky sousední mapy, uvíznutí na den a přepočet rozjetých úseků po změně
+// mřížky (`replanLegs`) – plán 2026-11-16-dense-forest, Rozhodnutí 8 a 9.
 
 /** Kdo jde po mapách: políčko, poloha, zbývající políčka trasy a úsek po současné mapě. */
 export interface Mover {
@@ -19,6 +34,11 @@ export interface Mover {
   route: GridCell[];
   /** Úsek po současné mapě; null = spočte se. */
   leg: CampaignLeg | null;
+  /**
+   * Herní den, kdy úsek spočíst nešlo (`stuck`) – ten den se už nehledá znovu (Rozhodnutí 8);
+   * chybí = neuvízl. Smaže ho úspěšný úsek a nový rozkaz (`sendGroup`).
+   */
+  stuckDay?: number;
 }
 
 /**
@@ -29,7 +49,11 @@ export type MoverStep = 'moved' | 'crossed' | 'arrived' | 'stuck';
 
 /**
  * Úsek po mapě: k okraji ve směru dalšího políčka trasy, nebo k cíli `goal` (poloha na poslední
- * mapě); null = nemá kudy.
+ * mapě); null = nemá kudy. Okrajem jen tam, kde je protějšek okrajové buňky na sousední mapě
+ * (`edgeCrossing` středu buňky) průchozí (Rozhodnutí 8) – mřížku sousední mapy dá `gridOf` (mapu
+ * načte předem `missingMaps`; chybí-li ves sousední mapy, takt počká – `MissingData`). Napřed jen
+ * do souvislé oblasti, odkud se tam jde dál (`onwardArea`); jinak kamkoli průchozího (návrh Clauda –
+ * Úloha 5: nejbližší průchozí protějšek bývá kapsa u okraje, odkud by skupina nedošla nikam).
  */
 export function planMoverLeg(
   m: Mover,
@@ -42,7 +66,17 @@ export function planMoverLeg(
   let path;
   if (nextCell !== undefined) {
     const direction = directionBetween(m.cell, nextCell);
-    path = direction === null ? null : marchPathToEdge(grid, m.pos, direction);
+    if (direction === null) {
+      path = null;
+    } else {
+      const next = gridOf(nextCell, day, ctx);
+      const there = (c: number): number =>
+        marchCellAt(next, edgeCrossing(m.cell, nextCell, marchCellCenter(grid, c)));
+      const onward = onwardArea(next, nextCell, m.route[1], goal);
+      path =
+        marchPathToEdge(grid, m.pos, direction, (c) => onward(marchArea(next, there(c)))) ??
+        marchPathToEdge(grid, m.pos, direction, (c) => next.pace[there(c)]! > 0);
+    }
   } else {
     path = marchPath(grid, m.pos, goal);
   }
@@ -50,8 +84,32 @@ export function planMoverLeg(
 }
 
 /**
+ * Do kterých souvislých oblastí mřížky `next` sousední mapy (`marchAreas`) má skupina přejít: na
+ * mapě cíle (`onward` chybí) do oblasti nejbližší průchodné buňky k cíli `goal` – tam by cíl
+ * skončil (`reachableGoal`); na mapě po cestě do oblasti s průchodnou buňkou okraje směrem
+ * k políčku `onward` (`crossingAreas`). Oblast 0 (neprůchodná) nikdy.
+ */
+function onwardArea(
+  next: MarchGrid,
+  nextCell: GridCell,
+  onward: GridCell | undefined,
+  goal: Pos,
+): (area: number) => boolean {
+  if (onward === undefined) {
+    const near = nearestPassable(next, marchCellAt(next, goal), Infinity);
+    const area = near < 0 ? 0 : marchArea(next, near);
+    return (a) => a > 0 && a === area;
+  }
+  const direction = directionBetween(nextCell, onward);
+  if (direction === null) return (a) => a > 0;
+  const open = crossingAreas(next, direction);
+  return (a) => a > 0 && open.has(a);
+}
+
+/**
  * Jeden takt pohybu (mutuje `m`): `stepM` metrů louky po úseku mapy. Konec úseku na okraji = přechod
- * na sousední mapu, konec úseku v cíli = stojí v cíli.
+ * na sousední mapu, konec úseku v cíli = stojí v cíli. Když úsek spočíst nejde, stojí (`stuck`) a do
+ * konce dne `day` ho nehledá znovu (`stuckDay` – mřížku ani mapu nečte; Review Focus 3).
  */
 export function stepMover(
   m: Mover,
@@ -61,8 +119,13 @@ export function stepMover(
   ctx: TickContext,
 ): MoverStep {
   if (m.leg === null) {
+    if (m.stuckDay === day) return 'stuck';
     m.leg = planMoverLeg(m, goal, day, ctx);
-    if (m.leg === null) return 'stuck';
+    if (m.leg === null) {
+      m.stuckDay = day;
+      return 'stuck';
+    }
+    delete m.stuckDay;
   }
   const leg = m.leg;
   const end = leg.meadowM[leg.meadowM.length - 1]!;
@@ -81,12 +144,27 @@ export function stepMover(
   return 'crossed';
 }
 
+/**
+ * Přepočet rozjetých úseků po změně mřížky pochodu (Rozhodnutí 9): úseky skupin a `extra`
+ * (uprchlíci a poslové tažení) zahodí – další takt je spočte z uložené polohy (z neprůchodné buňky
+ * únikem – Rozhodnutí 7) – a zapíše verzi mřížky (`MARCH_GRID_VERSION`). Mutuje `state` i `extra`.
+ */
+export function replanLegs(
+  state: { groups: Mover[]; marchGridVersion?: number },
+  extra: readonly Mover[] = [],
+): void {
+  for (const m of state.groups) m.leg = null;
+  for (const m of extra) m.leg = null;
+  state.marchGridVersion = MARCH_GRID_VERSION;
+}
+
 /** Skupina vyrazí k místu `to` – trasa po mřížce světa, úsek mapy se spočte při pohybu. */
 export function sendGroup(g: CampaignGroup, to: CampaignPlace): void {
   g.goal = { cell: { ...to.cell }, pos: { ...to.pos } };
   g.route = worldRoute(g.cell, to.cell, () => false).slice(1);
   g.leg = null;
   g.arrived = false;
+  delete g.stuckDay;
 }
 
 /**
@@ -95,10 +173,12 @@ export function sendGroup(g: CampaignGroup, to: CampaignPlace): void {
  * v neprůchodné buňce (voda, sráz, hradba) se posune na nejbližší místo dosažitelné ze skupiny
  * (`reachableGoal`) – mapa tažení pak ukáže posunutý cíl. Průchodný cíl beze změny; když dosažitelné
  * místo není žádné, cíl zůstane a skupina stojí (záměr hráče k takovému místu odmítne už use-case).
+ * Uvízlá skupina (`stuckDay` = dnes) mřížku nečte.
  */
 export function settleGoal(g: CampaignGroup, day: number, ctx: TickContext): void {
   const goal = g.goal;
   if (goal === null || g.leg !== null || g.route.length > 0 || !sameCell(g.cell, goal.cell)) return;
+  if (g.stuckDay === day) return;
   const pos = reachableGoal(gridOf(g.cell, day, ctx), g.pos, goal.pos);
   if (pos !== null && pos !== goal.pos) g.goal = { cell: { ...goal.cell }, pos };
 }

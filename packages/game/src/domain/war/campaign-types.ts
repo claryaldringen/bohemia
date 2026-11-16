@@ -115,6 +115,8 @@ export interface CampaignGroup {
   route: GridCell[];
   /** Úsek po současné mapě – k okraji ve směru `route[0]`, nebo k cíli; null = spočte se. */
   leg: CampaignLeg | null;
+  /** Den, kdy úsek spočíst nešlo – ten den se nehledá znovu (`stepMover`); chybí = neuvízla. */
+  stuckDay?: number;
   /** Skupina došla do cíle (nebo dál nemůže) a stojí. */
   arrived: boolean;
   /** Rozkaz „držet místo“ – místo na mapě cíle (war.md – Boj – Skupiny); jinak chybí. */
@@ -196,6 +198,11 @@ export interface CampaignState {
   target: CampaignVillage;
   members: CampaignMember[];
   groups: CampaignGroup[];
+  /**
+   * Verze mřížky pochodu, podle které vznikly úseky skupin, uprchlíků a poslů
+   * (`MARCH_GRID_VERSION`); chybí = starší bod – první takt úseky zahodí (`replanLegs`).
+   */
+  marchGridVersion?: number;
   supplies: CampaignSupplies;
   loot: CampaignLoot;
   /** Odvedení a zajatí (Ú6.10, Ú6.11). */

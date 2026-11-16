@@ -101,6 +101,9 @@ function toLegacy(s: JourneyState): LegacyJourneyState {
     })),
     arrivedTick: party.arrivedTick,
     ...(s.seen ? { seen: s.seen } : {}),
+    // verze mřížky pochodu zůstane – převod tvaru se tu porovnává bez přepočtu úseků (ten ověřuje
+    // test bodu bez `marchGridVersion`)
+    ...(s.marchGridVersion === undefined ? {} : { marchGridVersion: s.marchGridVersion }),
   };
 }
 
@@ -147,6 +150,32 @@ describe('upgradeJourney', () => {
       const once = upgradeJourney(old);
       expect(upgradeJourney(once)).toBe(once);
       expect(upgradeJourney(JSON.parse(JSON.stringify(once)) as JourneyState)).toEqual(once);
+    }
+  });
+
+  it('bod bez marchGridVersion: úseky hloučků zahodí, verze 2; vstup nemění (Rozhodnutí 9)', () => {
+    const leg = {
+      points: [
+        { x: 40, z: 5 },
+        { x: 900, z: 5 },
+      ],
+      meadowM: [0, 860],
+      walkedM: 10,
+    };
+    const legacy = legacyPoint({ phase: 'out', arrivedTick: null });
+    legacy.groups[0]!.leg = structuredClone(leg);
+    const fresh = JSON.parse(JSON.stringify(upgradeJourney(legacy))) as JourneyState;
+    delete fresh.marchGridVersion;
+    fresh.groups.push({ ...structuredClone(fresh.groups[0]!), id: 1, leg: structuredClone(leg) });
+    fresh.groups[0]!.leg = structuredClone(leg);
+    for (const old of [legacy, fresh]) {
+      const frozen = JSON.stringify(old);
+      const s = upgradeJourney(old);
+      expect(s.marchGridVersion).toBe(2);
+      expect(s.groups.length).toBeGreaterThan(0);
+      for (const g of s.groups) expect(g.leg).toBeNull();
+      expect(JSON.stringify(old)).toBe(frozen);
+      expect(upgradeJourney(s)).toBe(s);
     }
   });
 

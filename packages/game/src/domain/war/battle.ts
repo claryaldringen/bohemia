@@ -882,8 +882,27 @@ function leashGap(leash: Leash, p: Pos): number {
 }
 
 /**
- * Krok k `to` tempem muže a terénu. Stěnu neprojde – sklouzne podél ní; na vodu a sráz nevstoupí;
- * z vodítka ven nevykročí (zpátky k němu ano). Vrací, zda se pohnul.
+ * Krok `pos` → `q` končí v buňce s tempem 0 (hustý les, voda, sráz, skála): muž sklouzne podél
+ * jejího kraje jako podél stěny – průmět kroku do osy x, nebo z (napřed delší složka), kam vstoupit
+ * smí a kde mu v cestě nestojí stěna (plán 2026-11-16-dense-forest – Úloha 5: jinak by u kraje
+ * hustého lesa stál, dokud se cíl nezmění, a boj by se zastavil). Null = ani jedna osa.
+ */
+function alongEdge(pos: Pos, q: Pos, grid: MarchGrid, walls: Walls): Pos | null {
+  const sx = q.x - pos.x;
+  const sz = q.z - pos.z;
+  const xs = { x: pos.x + sx, z: pos.z };
+  const zs = { x: pos.x, z: pos.z + sz };
+  for (const p of Math.abs(sx) >= Math.abs(sz) ? [xs, zs] : [zs, xs]) {
+    if (p.x === pos.x && p.z === pos.z) continue;
+    if (paceAt(grid, p, walls.fills) > 0 && !firstWall(pos, p, walls)) return p;
+  }
+  return null;
+}
+
+/**
+ * Krok k `to` tempem muže a terénu. Stěnu neprojde – sklouzne podél ní; na vodu, sráz, skálu ani do
+ * hustého lesa nevstoupí – sklouzne podél kraje (`alongEdge`); z vodítka ven nevykročí (zpátky
+ * k němu ano). Vrací, zda se pohnul.
  */
 function stepToward(
   f: Fighter,
@@ -916,7 +935,13 @@ function stepToward(
     const along = ((ux * lx + uz * lz) / len) * step;
     q = { x: f.pos.x + (lx / len) * along, z: f.pos.z + (lz / len) * along };
   }
-  if (paceAt(field.grid, q, walls.fills) <= 0 || firstWall(f.pos, q, walls)) return false;
+  if (paceAt(field.grid, q, walls.fills) <= 0) {
+    const slid = alongEdge(f.pos, q, field.grid, walls);
+    if (!slid) return false;
+    q = slid;
+  } else if (firstWall(f.pos, q, walls)) {
+    return false;
+  }
   if (leash) {
     const gap = leashGap(leash, q);
     if (gap > leash.radiusM * leash.radiusM && gap >= leashGap(leash, f.pos)) return false;

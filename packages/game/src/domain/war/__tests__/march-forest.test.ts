@@ -22,7 +22,13 @@ import type { CampaignMap, CampaignWorld } from '../campaign-types';
 import { MEADOW, SUMMER, world } from './campaign-fixtures';
 import { port, westForest, withRoute } from './continuation-fixtures';
 import { forestInterior } from '../dense-forest';
-import { marchPath, marchReachable, reachableGoal, type MarchPath } from '../march';
+import {
+  marchPath,
+  marchReachable,
+  nearestPassable,
+  reachableGoal,
+  type MarchPath,
+} from '../march';
 import {
   MARCH_FORD,
   MARCH_FOREST,
@@ -567,8 +573,13 @@ describe('pokračování zemské stezky a kus ke kraji (Úloha 4b – Rozhodnut�
     }
     expect(forest).toBeGreaterThan(0);
     expect(marchPath(grid, entry, end)).not.toBeNull();
-    // bez osy se cíl posune
-    const goal = reachableGoal(without, entry, end);
+    // bez osy je vstup hustým lesem; z nejbližší průchodné buňky se cíl posune (únik ze vstupu by
+    // mířil rovně lesem do oblasti cíle – Úloha 5)
+    const near = marchCellCenter(
+      without,
+      nearestPassable(without, marchCellAt(without, entry), Infinity),
+    );
+    const goal = reachableGoal(without, near, end);
     expect(goal === null || Math.hypot(goal.x - end.x, goal.z - end.z) > WAR.march.cellM).toBe(
       true,
     );

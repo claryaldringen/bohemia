@@ -197,18 +197,50 @@ vojska mapu po mapě (Ú6.4), tažení po taktech, boj a dohra (Ú6.5–Ú6.17) 
   kurzor v prohlížeči. `reachableCells` (zaplavení z buňky, start vždy průchodný) je
   v `march-search.ts`.
 
-  `marchPathToEdge(grid, from, direction)` vede k nejbližší buňce okraje, úhlopříčně do rohu;
-  skupina v buňce okraje jde rovně do jejího středu. `MarchPath` = body (start a cíl přesně, mezi
-  nimi zlomy a hranice tempa), buňka každého bodu, `meadowM` (metry louky od startu) a
-  `lengthM`; `marchSeconds(path, speed)`, `marchProgress(path, meadow)` (poloha po ušlých metrech
-  louky).
+  `marchPathToEdge(grid, from, direction, arrival?)` vede k nejbližší buňce okraje, pro kterou
+  platí `arrival(c)` (chybí = každá), úhlopříčně do rohu; skupina v takové buňce okraje jde rovně
+  do jejího středu. Oblasti s průchodnou buňkou přechodu se poznají předem z `marchAreas` – bez
+  nich null bez hledání. `MarchPath` = body (start a cíl přesně, mezi nimi zlomy a hranice tempa),
+  buňka každého bodu, `meadowM` (metry louky od startu) a `lengthM`; `marchSeconds(path, speed)`,
+  `marchProgress(path, meadow)` (poloha po ušlých metrech louky).
 
 - **Únik z neprůchodné buňky** (Rozhodnutí 7) – start v neprůchodné buňce (hustý les ze starého
   bodu, dorostlý les, stavba, nová palisáda): první úsek vede rovně do středu nejbližší průchodné
-  buňky (`nearestPassable(grid, c, maxM)` – čtverec vzdálenosti v buňkách, remíza nižší index; pro
-  únik celá mapa) a nevyhlazuje se, pak běžná trasa. Cíl ve stavbě přesune `outOfBuilding` na
-  nejbližší průchodnou buňku nejvýš `BUILDING_REACH_M` (40 m) daleko; poslední úsek vede z jejího
-  středu rovně do cíle. Cíl ve stejné buňce jako start – rovně.
+  buňky souvislé oblasti, se kterou skupina něco svede (`departureOf` – Úloha 5, návrh Clauda):
+  `marchPath` a `marchReachable` – oblast cíle, `marchPathToEdge` – oblast s průchodnou buňkou
+  přechodu, `reachableGoal` – oblast nejbližší průchodné buňky k cíli. Nejbližší průchodná buňka
+  vůbec (`nearestPassable(grid, c, maxM)` – čtverec vzdálenosti v buňkách, remíza nižší index)
+  bývá paseka, ostrůvek nebo dvůr, odkud by nevedlo nikam – vojsko by se nevrátilo domů; bere se,
+  jen když užitečná oblast není. Únik se nevyhlazuje a může vést rovně i delším kusem lesa (starý
+  bod hluboko v lese); pak běžná trasa. Stojí-li skupina na průchodné buňce, neuniká – i v pasece
+  zůstane. Cíl ve stavbě přesune `outOfBuilding` na nejbližší průchodnou buňku nejvýš
+  `BUILDING_REACH_M` (40 m) daleko; poslední úsek vede z jejího středu rovně do cíle. Cíl ve stejné
+  buňce jako start – rovně.
+- **Přechod okraje** (plán 2026-11-16-dense-forest – Rozhodnutí 8; `movement.ts`) – `planMoverLeg`
+  hledá úsek k okraji jen do okrajové buňky, jejíž protějšek na sousední mapě (`edgeCrossing` středu
+  buňky) má na mřížce `gridOf(route[0], den)` tempo > 0 – skupina tak nikdy nepřejde do hustého lesa
+  ani do vody sousední mapy (Review Focus 4). Napřed jen do souvislé oblasti, odkud se jde dál
+  (`onwardArea`, návrh Clauda po kontrole Vlkova): na mapě cíle oblast nejbližší průchodné buňky
+  k cíli, na mapě po cestě oblast s průchodnou buňkou okraje směrem k `route[1]` (`crossingAreas`
+  v `march.ts`); není-li takový přechod, kamkoli průchozího. Nejbližší průchozí protějšek bývá kapsa
+  u okraje – vojsko Vlkova by na východ přešlo 215 m jižně od stezky na louku odříznutou hustým
+  lesem a uvízlo. Pokračování zemské stezky je v mřížce sousední mapy průsekem, filtr ho vidí bez
+  změny. Mapu `route[0]` načte předem `missingMaps`; mapu i ves sousední mapy teď čte už úsek
+  k okraji (dřív až takt přechodu) – chybí-li, takt počká (`MissingData`).
+- **Uvíznutí** (Rozhodnutí 8; Martin 16. 11. 2026: „Má zůstat stát.“ – žádná objížďka přes jiné
+  mapy) – když úsek spočíst nejde (okraj bez průchodu na obou stranách, nedosažitelný cíl),
+  `stepMover` vrátí `stuck` a zapíše `stuckDay` = den (`Mover`, `CampaignGroup`, `AlarmMover` –
+  posel i skupina uprchlíků). Týž den už úsek nehledá – mřížku ani mapu nečte (Review Focus 3:
+  uvízlá skupina by jinak spálila hledáním na jemné mřížce čas workeru každý takt); `settleGoal`
+  taky ne. Další den plánuje znovu; úspěšný úsek `stuckDay` smaže, nový rozkaz (`sendGroup`) taky.
+  Volající s `stuck` naloží jako dřív: skupina tažení a hlouček výpravy stojí (`arrived`), posel se
+  vrátí, uprchlíci zůstanou, kde jsou.
+- **Rozjeté úseky** (Rozhodnutí 9) – `MARCH_GRID_VERSION` (`march-grid.ts`) = 2 – jemná mřížka
+  s hustým lesem. Bod tažení nebo výpravy bez `marchGridVersion` (uložený dřív) zahodí úseky
+  `replanLegs(state, extra)` (`movement.ts` – `leg = null` u skupin a `extra`, tj. uprchlíků
+  a poslů tažení; nastaví verzi): tažení na kopii taktu (`campaignTick`), výprava při čtení
+  (`upgradeJourney`). Další takt úseky spočte z uložené polohy (únik z lesa) a cíl na mapě cíle
+  posune znovu `settleGoal`. `newCampaign` a `newJourney` verzi nesou od začátku.
 - **Cíl v neprůchodné buňce** (design war.md – Pohyb; jako v 0 A.D., návrh Clauda 10. 11. 2026) –
   `reachableGoal(grid, from, to)` v `march.ts`: cíl v neprůchodné buňce (voda bez brodu, sráz,
   hotová hradba; po `outOfBuilding`) i v průchodné, kam z `from` cesta nevede (za řekou bez
@@ -223,7 +255,8 @@ vojska mapu po mapě (Ú6.4), tažení po taktech, boj a dohra (Ú6.5–Ú6.17) 
   `turnBack`, rozpadu, nebo po vstupu na mapu cíle) si cíl posune před plánováním úseku – stav pak
   nese posunutý cíl a mapa tažení ho ukáže. Use-case `commandCampaign` záměr k místu na mapě
   skupiny velitele na pochodu odmítne jako `unreachable`, když `reachableGoal` vrátí null.
-  Otisky tažení se nezměnily – mění se jen případy, které dřív skončily `stuck`.
+  Otisky tažení se nezměnily – mění se jen případy, které dřív skončily `stuck`. Skupina z neprůchodné
+  buňky unikne do oblasti nejbližší průchodné buňky k cíli (Úloha 5), cíl tak neskončí v pasece.
 - **Tempo** – `marchSpeed(group: GroupPace, day)` (m/s skutečného času): 3,5 m/s, nejpomalejší
   z jezdců × 1,5, pěších × 1, pěších raněných × 0,75 a stáda × 0,5; v zimě sníh × 0,75. 1 km po
   louce ≈ 286 s ≈ 4,8 min ≈ 3,3 herního dne; po průseku pevné cesty a zemské stezky × 1,5 – tempo
@@ -241,7 +274,8 @@ outside, day)` → `MemberDelta` (`health`, `vigor` = podíl plné síly): v zim
   `emptyCellMarchGrid`.
 - **Testy** – `domain/war/__tests__/march.test.ts` (tempo, hustý les trasa obejde, brod, řeky
   kostry jen přes brod – umělé i mapa se soutokem, cíl ve vodě – posun na dosažitelný břeh, remíza,
-  sevřené vojsko unikne, únik z neprůchodné buňky, opevnění, cesta, zima, zlatá cesta na seedech
+  sevřené vojsko unikne, únik z neprůchodné buňky, únik do oblasti cíle nebo přechodu okraje, ne
+  do izolované paseky – Úloha 5, opevnění, cesta, zima, zlatá cesta na seedech
   1–3 – otisk počtu brodů, buněk hustého lesa a dvou tras ze středu mapy k dosažitelnému místu
   u rohů, determinismus, okraj, z branky dvorce rovně a ze středu domu únikem a obloukem –
   výprava, D49), `march-forest.test.ts` (Úloha 4 – vnitřek lesa neprůchozí a okraj 10 m ne,
@@ -252,6 +286,10 @@ outside, day)` → `MemberDelta` (`health`, `vigor` = podíl plné síly): v zim
   mřížkách, souvislé oblasti = zaplavení, štítky s okrajem Uint16 a nad 65 535 oblastí Int32),
   `march-smooth.test.ts` (dohled a roh, vyhlazení na
   otevřené mřížce a kolem L, rozdělení podle tempa a poloha po metrech louky),
+  `movement.test.ts` (Úloha 5 – přechod okraje jen do průchozí buňky sousední mapy, ne do kapsy
+  u okraje, když vede přechod k cíli – bez něj i do kapsy, okraj bez přechodu: `stuck`
+  a `stuckDay`, týž den svět nečte, další den plánuje znovu; nový rozkaz `stuckDay` smaže), `campaign.test.ts` – rozjeté úseky po změně mřížky (bod bez verze: nový úsek
+  jen průchozími buňkami kromě úniku, 400 × 1 takt = 1 × 400),
   `world-route.test.ts`, `application/__tests__/cell-landscape.test.ts`. Změna mřížky, hledání
   nebo vyhlazení změní zlatý otisk – zapsat nový jen se záměrem. Testy tažení krokují po kouscích
   přes `stepInChunks` (`__tests__/campaign-fixtures.ts`): skončené tažení `stepCampaign`
@@ -273,7 +311,9 @@ Plán 2026-11-03 – rozhodnutí 12; Review bod 5. Čísla ve `WAR.campaign`.
   a `target` (`CampaignVillage` – ves, políčko, bod), `members` (`CampaignMember` – osoba
   `PersonRef`, hráč, muž rodu, kůň, nucený, síla, zdraví, `vigor`, raněný, skupina, `status`),
   `groups` (`CampaignGroup` – rozkaz, políčko a poloha, cíl, `route` = zbývající políčka světa,
-  `leg` = úsek po mapě `{ points, meadowM, walkedM }`, `arrived`), `supplies.foodKg`,
+  `leg` = úsek po mapě `{ points, meadowM, walkedM }`, `stuckDay` – den uvíznutí, `arrived`),
+  `marchGridVersion` (verze mřížky, podle které vznikly úseky – `MARCH_GRID_VERSION`; bod bez ní
+  zahodí úseky v prvním taktu na kopii, `replanLegs` – Pohyb vojska, Rozjeté úseky), `supplies.foodKg`,
   `loot { foodKg, herd }`, `captives`, `liveCommand`, `discovered`, `returnReason`).
   `CampaignIntent { tick, seq, byPlayer, body }`, `IntentBody` = `set-out` | `march { to }` (jen
   `liveCommand`, ve fázi pochodu; v boji pošle velitele) | `turn-back` (`restart` – Začít znovu během
@@ -462,6 +502,11 @@ group, order, at)` – před bitvou kdykoli, v boji jen na doslech (jinak false)
   `fled`); obránce za hradbou napřed nejbližším průchodem (body před a za ním), bez průchodu je
   odříznutý a vzdá se; kdo se nepohne, je `fled`. Pohyb tempem
   pochodu (3,5 m/s ÷ 4, jezdec × 1,5, terén z `MarchGrid` – val ¼; voda a sráz neprůchodné).
+  Muž jde k cíli rovně; krok do buňky s tempem 0 (hustý les, voda, sráz, skála) neudělá a sklouzne
+  podél jejího kraje jako podél stěny – průmět kroku do osy x, nebo z, napřed delší složka
+  (`alongEdge` – plán 2026-11-16-dense-forest, Úloha 5; dřív stál, dokud se cíl nezměnil, a boj
+  v průseku hustým lesem se zastavil). Průsek do L projde (test „útočníci z ramene průseku do L“
+  v `battle.test.ts`); objížďku, která vede nejdřív od cíle (slepé rameno), skluz nenajde.
 - **Opevnění v boji** – `battleForts(geo, forts)` (tvar úseků a střed); stěny jsou úsečky úseků,
   které stojí (ne holý val, ne mezera, prolomený úsek = `breachedDay` dne boje), s výřezem otevřené
   brány a tětivou rohu. Pohyb stěnu neprojde (sklouzne podél), luk i dosah zblízka (3 m) přes ni

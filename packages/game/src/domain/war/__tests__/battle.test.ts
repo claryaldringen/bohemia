@@ -2,10 +2,17 @@ import { describe, expect, it } from 'vitest';
 import { SURFACE_CODES, packObstacles } from '../../landscape';
 import { village, kin } from '../../village/__tests__/kin-fixtures';
 import type { Dwelling, Road } from '../../village/types';
-import { hitDamage, type BattleState } from '../battle';
+import { hitDamage, type BattleField, type BattleState } from '../battle';
 import { stepCampaign } from '../campaign';
 import type { CampaignMap, CampaignState, CampaignWorld, GroupAssault } from '../campaign-types';
-import { MARCH_FOREST, MarchGridMemo, marchCellAt, marchGrid } from '../march-grid';
+import {
+  MARCH_FOREST,
+  MARCH_ROAD,
+  MarchGridMemo,
+  marchCellAt,
+  marchCellCenter,
+  marchGrid,
+} from '../march-grid';
 import { nearestForestDoor } from '../forest-doors';
 import { WAR } from '../rules-war';
 import { campaign, flat, MEADOW, member, stepInChunks, SUMMER, world } from './campaign-fixtures';
@@ -138,6 +145,38 @@ describe('útěk obránců do hustého lesa (Rozhodnutí 10)', () => {
       expect(m.state).toBe('fled');
       expect(Math.hypot(m.pos.x - door.x, m.pos.z - door.z)).toBeLessThan(2);
     }
+  });
+});
+
+describe('pohyb v boji podél hustého lesa (plán 2026-11-16-dense-forest – Úloha 5)', () => {
+  it('útočníci z ramene průseku do L dojdou k domu na konci druhého ramene', () => {
+    // hustý les všude kromě průseků dvou cest v pravém úhlu (8 m široké): rameno od západu
+    // (z = 0, x −200…0) a rameno k severu (x = 0, z 0…200); dům na severním konci
+    const base = field();
+    const pace = Float32Array.from(base.grid.pace);
+    const flags = Uint16Array.from(base.grid.flags);
+    for (let c = 0; c < pace.length; c++) {
+      const p = marchCellCenter(base.grid, c);
+      const west = Math.abs(p.z) <= 4 && p.x >= -200 && p.x <= 4;
+      const north = Math.abs(p.x) <= 4 && p.z >= -4 && p.z <= 200;
+      flags[c] = flags[c]! | MARCH_FOREST | (west || north ? MARCH_ROAD : 0);
+      pace[c] = west || north ? 1.5 : 0;
+    }
+    const f: BattleField = { ...base, grid: { ...base.grid, pace, flags } };
+    const house = { x: 0, z: 190 };
+    const b = battle({
+      attackers: [0, 1, 2].map((k) => attacker(k, { x: -190 + 2 * k, z: 0 })),
+      defenders: [defender(1, house, { atHouseOnly: true })],
+    });
+    let nearest = Infinity;
+    run(b, f, 1200, () => {
+      for (const x of b.fighters) {
+        if (x.side !== 'attack') continue;
+        expect(f.grid.pace[marchCellAt(f.grid, x.pos)]!).toBeGreaterThan(0);
+        nearest = Math.min(nearest, Math.hypot(x.pos.x - house.x, x.pos.z - house.z));
+      }
+    });
+    expect(nearest).toBeLessThanOrEqual(WAR.combat.meleeM);
   });
 });
 

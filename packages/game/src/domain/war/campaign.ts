@@ -48,9 +48,9 @@ import {
   type CampaignReturn,
   type RaidResult,
 } from './raid-apply';
-import type { Pos } from './march-grid';
+import { MARCH_GRID_VERSION, type Pos } from './march-grid';
 import { marchSpeed, type GroupPace } from './march';
-import { missingMaps, sendGroup, settleGoal, stepMover } from './movement';
+import { missingMaps, replanLegs, sendGroup, settleGoal, stepMover } from './movement';
 import { WAR } from './rules-war';
 import type { KnowledgeOut, SeenCell } from './seen';
 import { discoverBuildings } from './sight';
@@ -138,7 +138,10 @@ export interface NewCampaign {
   houseId?: string;
 }
 
-/** Výchozí stav tažení ve shromaždišti (fáze `assembling`). */
+/**
+ * Výchozí stav tažení ve shromaždišti (fáze `assembling`); úseky vzniknou po současné mřížce
+ * pochodu (`marchGridVersion`).
+ */
 export function newCampaign(input: NewCampaign, clock: WorldClock): CampaignState {
   const groupIds = [...new Set(input.members.map((m) => m.group))].sort((a, b) => a - b);
   const groups: CampaignGroup[] = groupIds.map((id) => ({
@@ -167,6 +170,7 @@ export function newCampaign(input: NewCampaign, clock: WorldClock): CampaignStat
     target: structuredClone(input.target),
     members: structuredClone(input.members),
     groups,
+    marchGridVersion: MARCH_GRID_VERSION,
     supplies: { foodKg: input.foodKg },
     loot: { foodKg: 0, herd: 0 },
     captives: [],
@@ -268,7 +272,9 @@ function asksIn(s: CampaignState, tick: number): boolean {
  * kopie polovina času smyčky); sdílené odkazy uvnitř stavu rozdělí jako kontrolní bod v JSON – stav
  * sdílí jen záznamy, které se nemění na místě (prázdná `route` bojovníků z `openBattle`, `seenAt`
  * varovaných vsí, `PersonRef` zajatců). Znalost map (`seen`, Úloha 11) se nekopíruje – mění se jen
- * novým objektem (`lookOut`), kopie by s délkou cesty rostla každý takt.
+ * novým objektem (`lookOut`), kopie by s délkou cesty rostla každý takt. Bod bez současné verze
+ * mřížky pochodu zahodí na kopii rozjeté úseky skupin, uprchlíků a poslů (`replanLegs` – plán
+ * 2026-11-16-dense-forest, Rozhodnutí 9); verze se zapíše, takže jen v prvním taktu.
  */
 function campaignTick(
   state: CampaignState,
@@ -280,6 +286,9 @@ function campaignTick(
   const { seen, ...rest } = state;
   const s: CampaignState = cloneData(rest);
   if (seen) s.seen = seen;
+  if (s.marchGridVersion !== MARCH_GRID_VERSION) {
+    replanLegs(s, [...(s.alarm?.flights ?? []), ...(s.alarm?.messengers ?? [])]);
+  }
   s.tick = tick;
   const day = dayOfTick(tick, ctx.world.clock);
   s.throughDay = dayOfTick(tick + 1, ctx.world.clock) - 1;
