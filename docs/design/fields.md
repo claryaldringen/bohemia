@@ -1814,7 +1814,9 @@ na vlnu – oděv, [diet.md](diet.md) – Oděv). Pravidla **návrh Clauda** pod
   Zásoby se přitom počítají **po ztrátách skladováním do dne, kdy se snědí** (stejné ztráty jako
   výše), takže příděl je od začátku přesný a do žní se drží rovně (Martin 15. 11. 2026: „Ano“;
   dřív se zásoby dělily bez ztrát – příděl byl zpočátku štědřejší a pak pomalu klesal a ves na
-  hraně hladu po vymírání sklouzla zpět do hladu). Příští sklizní je **sklizeň ozimu 31. 7.**, když ji ves čeká a podle odhadu uživí ves v srpnu
+  hraně hladu po vymírání sklouzla zpět do hladu). Ztráty skladováním se ve výhledu počítají
+  **jen u obilí** – maso, sýr a luštěniny ne (Martin 16. 11. 2026: „Zatímco s obilím se to dobře
+  odhaduje, ten zbytek je spíš k okamžité spotřebě a každá domácnost si ho řeší sama“). Příští sklizní je **sklizeň ozimu 31. 7.**, když ji ves čeká a podle odhadu uživí ves v srpnu
   do sklizně jaře; jinak sklizeň jaře 31. 8. (viz Ozim a jař).
 - **Start:** osadníci přinesli zásoby na **18 měsíců** potřeby (návrh Clauda) a k nim osivo na
   první osev – **půl roční potřeby** (od 27. 10. 2026, kdy osivo bere setí ze zásob; návrh Clauda)
