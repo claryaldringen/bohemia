@@ -26,6 +26,8 @@ export type PersonJob =
       job?: CartJob;
       /** V lomu (podíl `quarry`): odnáší kameny od stěny na hromadu u lomu (jinak láme). */
       stacker?: true;
+      /** Podkoní vojvody u jízdy (ride-grooms.ts): panel řekne úsek, ne „stará se o koně“. */
+      groom?: true;
     }
   | { kind: 'traffic'; traffic: TrafficKind }
   /**

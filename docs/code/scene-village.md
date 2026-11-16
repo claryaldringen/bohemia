@@ -844,7 +844,7 @@ Kdo, kdy a na kterém koni jede, určuje jádro (`lordRides` → `SceneLord.ride
   obsazení s úlohou navíc a hranicemi oken). Opakování jízdy: podkoního vybere obsazení v chvíli
   `GROOM_MAX_CALL_S` před vyvedením koně (`pickRideGroom`: péče o koně u ohrady koně, jinde, volný,
   úloha u objektu, událost; spřežení a vůz ne; nejbližší dveře ke kůlu, nižší id; podkoní jiných
-  jízd v témž čase vybraní dřív jsou zabraní). Kdy ho zavolat, dá `callTime` – po krocích od
+  jízd v témž čase vybraní dřív jsou zabraní). Panel podkoního (D82): úloha nese `groom: true` (`PersonJob` share / `horse-care`) a `groomPose` nastavuje úsek – `rest` „chystá koně“, `out` „vede koně ke dvorci“, `wait` „čeká u kůlu“ (i během jízdy), `back` „vede koně do ohrady“ (`GROOM_TEXTS` v `person-activity.ts`). Kdy ho zavolat, dá `callTime` – po krocích od
   nejdřívější chvíle, zavolá se, když by po dalším kroku z některého místa, kde podle rozvrhu může
   být (`reach`: dveře, místa úloh obsazení za 10 minut zpět, branky a kůly jízd; odhad chůze jako
   `Timetable`), nedošel `GROOM_RESERVE_S` před vyvedením koně (u branky), resp. před sesednutím

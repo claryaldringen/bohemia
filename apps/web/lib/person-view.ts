@@ -161,6 +161,7 @@ export function scenePersons(
     ...(p.fatherId !== undefined ? { father: p.fatherId } : {}),
     ...(p.origin !== undefined ? { origin: true } : {}),
     ...(p.practice ? { practice: p.practice } : {}),
+    ...(p.mason ? { master: p.mason } : p.priest ? { master: 'priest' as const } : {}),
   }));
   const roles = personRoles(people, {
     manor: villageManorId(state),

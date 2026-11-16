@@ -3,6 +3,7 @@
 import { useState, type ReactElement } from 'react';
 import { createPortal } from 'react-dom';
 import { INVITE_LODGE_REASONS, type MasonCraft, type MasonryCircle } from '@bohemia/game';
+import { MASON_CRAFT_LABELS } from '@/lib/mason-crafts';
 import type { LodgeView } from '@/lib/person-view';
 import { useRightDenied } from './rights';
 import { Tooltip } from './Tooltip';
@@ -10,15 +11,6 @@ import { Tooltip } from './Tooltip';
 // Stavební huť u vojvody (stone-masonry.md – Stavební huť; churches.md – Typy podle okruhu huti):
 // tlačítko „Pozvat stavební huť“ → výběr okruhu ikonami, huť na cestě s počtem dní, „Pozvat mistra“
 // u každého chybějícího oboru. Slova jen v popiscích (UI jako 0 A.D.); odmítnutí u kurzoru.
-
-/** Obory mistrů: název a ikona (`tools/blender/icons.py`). */
-export const MASON_CRAFT_LABELS: Record<MasonCraft, { name: string; icon: string }> = {
-  builder: { name: 'Stavbyvedoucí', icon: '/icons/house/mason-builder.png' },
-  limeBurner: { name: 'Vápeník', icon: '/icons/house/mason-limeburner.png' },
-  stonemason: { name: 'Kameník', icon: '/icons/house/mason-stonemason.png' },
-  mason: { name: 'Zedník', icon: '/icons/house/mason-mason.png' },
-  plasterer: { name: 'Štukatér a malíř', icon: '/icons/house/mason-plasterer.png' },
-};
 
 /** Okruhy huti: název, typy kostelů (churches.md) a ikona. */
 export const MASONRY_CIRCLE_LABELS: Record<
