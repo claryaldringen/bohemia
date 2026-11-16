@@ -29,7 +29,8 @@ s libovolně skupinami hráče (`parties`) a jejich hloučky (`groups`).
   - `JourneyPhase` (`out` → `returning` → `done`) je fáze pohledu a starších bodů.
 - **Rozkazy a příkazy** – `JourneyOrder`: `go` (místo `pos` na mapě `cell`; chybí = mapa vůdce
   výběru), `cross` (sousední políčko hloučku vůdce v 8 směrech; jiné se zahodí – cíl do pohledu je
-  místo naproti na okraji sousední mapy, `edgeCrossing` od vůdce), `home`. Záměr
+  místo naproti na okraji sousední mapy, `edgeCrossing` od vůdce; na úhlopříčnou mapu vede trasa
+  `worldRoute` dvěma kolmými kroky přes sousední mapu – war.md, Mapu po mapě), `home`. Záměr
   `JourneyIntent { tick, seq, byPlayer, body }` platí přesně ve svém taktu v pořadí `seq`, záměr
   v minulosti a cizí hráč se zahodí. Tělo `JourneyIntentBody` = `JourneyCommand` nebo starý
   `JourneyOrder`; `commandOf` (`journey-upgrade.ts`) z něj udělá příkaz:
@@ -551,8 +552,9 @@ mapSizeM, cell })` (čistá funkce) – bez vybraných lidí nebo mimo terén nu
   pokračováním stezek jako průseky a hustým lesem bez vymýceného lesa vsi (`ClearedForest` scény);
   stavby a opevnění v ní nejsou (server cíl ve stavbě přesouvá na volnou buňku, tak nápovědu
   nemění). Dosažitelnost `cursorBlocked`: bod mapy `marchReachable`, okrajový pás `edgeReachable`
-  (kus okraje ve směru v téže oblasti `marchAreas`; sousední mapu prohlížeč nezná, průchod na
-  druhé straně ověří server). Odkud skupina vyráží: vybraná skupina na mapě scény (`group.pos`),
+  (kus okraje ve směru v téže oblasti `marchAreas`; v rohu okraj prvního kroku trasy
+  `firstRouteStep` – úhlopříčný soused dvěma kolmými kroky; sousední mapu prohlížeč nezná, průchod
+  na druhé straně ověří server). Odkud skupina vyráží: vybraná skupina na mapě scény (`group.pos`),
   jinak obydlí prvního z vybraných doma (`dwellingPoint`); jinde nápověda není. Jen vizuální
   nápověda – rozkaz dál ověřuje server.
 - **Hook** `components/game/village-game/use-expedition-orders.ts` – `useExpeditionOrders`: režim
