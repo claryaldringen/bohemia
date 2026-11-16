@@ -289,8 +289,11 @@ a 12 vesničanů (8 dobrovolníků po 0,4, 4 nucení po 0,2 = 4,0), s kovárnou 
 - Martin 2. 11. 2026: „**Hráč musí k cíli dojít mapu po mapě. Bude tak jednodušší plenit
   příhraniční vesnice a těžší probít se k centru dominia**“.
 - **Přechod okrajem:** vojsko dojde k okraji a objeví se na opačném okraji sousední mapy
-  (Martin 18. 10.); v 8 směrech jako mřížka vazalství (návrh Clauda). **Každou mapou se jde** i na
-  mezilehlých mapách – žádný skok ani čas cesty bez scény (Martin 2. 11. 2026).
+  (Martin 18. 10.); ve 4 směrech – přes okraj, který mapy sdílejí. Na úhlopříčně sousední mapu
+  se jde dvěma kolmými kroky přes sousední mapu (návrh Clauda 16. 11. 2026 – dřív v 8 směrech jako
+  mřížka vazalství: úhlopříčný přechod vedl jediným místem v rohu mapy, a kde tam byl les, vojsko
+  stálo). **Každou mapou se jde** i na mezilehlých mapách – žádný skok ani čas cesty bez scény
+  (Martin 2. 11. 2026).
 - **Tempo** – Martin 2. 11. 2026: „**Ten kompromis zní dobře**“: svižná chůze jako jednotky
   v 0 A.D., **≈ 3–4 m/s ve skutečném čase**, 1 km ≈ **4–5 min ≈ 3 herní dny**. Mapa má
   ≈ 1,9 km ([krajina](landscape.md)) – přes celou mapu ≈ 9 min (≈ 6 dní), od okraje ke vsi

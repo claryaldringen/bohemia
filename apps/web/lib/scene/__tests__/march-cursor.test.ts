@@ -40,6 +40,10 @@ describe('cursorBlocked', () => {
     expect(edgeReachable(grid, from, 'E')).toBe(false);
     expect(cursorBlocked(grid, from, { x: 950, z: 0 }, 1920)).toBe(true);
     expect(cursorBlocked(grid, from, { x: -950, z: 0 }, 1920)).toBe(false);
+    // roh mapy: úhlopříčný soused dvěma kolmými kroky – rozhoduje okraj prvního kroku trasy
+    // (`firstRouteStep`: NE → N, SE → E), ne rohová buňka za lesem (oprava Úlohy 5)
+    expect(edgeReachable(grid, from, 'NE')).toBe(true);
+    expect(edgeReachable(grid, from, 'SE')).toBe(false);
   });
 
   it('skupina stojící v hustém lese unikne a dojde, kam dojde okolí', () => {

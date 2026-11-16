@@ -3,7 +3,7 @@ import type { GridCell } from '../../village/people/world-grid';
 import { cellKey, tickContext, type TickContext } from '../campaign-tick';
 import type { CampaignGroup, CampaignWorld } from '../campaign-types';
 import { marchCellAt, marchCellCenter, marchGrid, type MarchGrid, type Pos } from '../march-grid';
-import { sendGroup, stepMover, type Mover } from '../movement';
+import { sendGroup, stepMover, type Mover, type MoverStep } from '../movement';
 import { flat, SUMMER, world, worldOf } from './campaign-fixtures';
 
 // Pohyb po mapách (plán 2026-11-16-dense-forest – Rozhodnutí 8, Review Focus 3 a 4): okrajem jen
@@ -128,5 +128,67 @@ describe('přechod okraje (Rozhodnutí 8)', () => {
     sendGroup(g, { cell: { ...HOME }, pos: { x: 0, z: 0 } });
     expect('stuckDay' in g).toBe(false);
     expect(g.arrived).toBe(false);
+  });
+});
+
+describe('úhlopříčný soused dvěma kolmými kroky (oprava Úlohy 5 – čtyřsousedná cesta)', () => {
+  const NORTH: GridCell = { x: 0, y: 1 };
+  const NE: GridCell = { x: 1, y: 1 };
+  const TARGET = { cell: NE, pos: { x: -800, z: -800 } };
+
+  /** Mřížka rovné mapy dne `SUMMER`; buňky se středem, pro který `blocked`, jsou neprůchozí. */
+  function closed(blocked: (p: Pos) => boolean): MarchGrid {
+    const grid = marchGrid(flat(), null, null, { day: SUMMER });
+    const pace = Float32Array.from(grid.pace);
+    for (let c = 0; c < pace.length; c++) if (blocked(marchCellCenter(grid, c))) pace[c] = 0;
+    return { ...grid, pace };
+  }
+
+  /** Skupina uprostřed domovské mapy vyslaná k cíli na úhlopříčné sousední mapě. */
+  function sent(home: MarchGrid): { g: CampaignGroup; ctx: TickContext } {
+    const ctx = tickContext(worldOf());
+    ctx.grids.set(`${cellKey(HOME)}@${SUMMER}`, home);
+    const g: CampaignGroup = {
+      id: 0,
+      order: 'follow-leader',
+      cell: { ...HOME },
+      pos: { x: 0, z: 0 },
+      goal: null,
+      route: [],
+      leg: null,
+      arrived: true,
+    };
+    sendGroup(g, TARGET);
+    return { g, ctx };
+  }
+
+  /** Kroky po 50 m louky do dojití nebo uvíznutí; mapy, na které skupina přešla. */
+  function walk(g: CampaignGroup, ctx: TickContext): { step: MoverStep; maps: string[] } {
+    const maps: string[] = [];
+    let step: MoverStep = 'moved';
+    for (let k = 0; k < 400 && step !== 'arrived' && step !== 'stuck'; k++) {
+      step = stepMover(g, g.goal!.pos, 50, SUMMER, ctx);
+      if (step === 'crossed') maps.push(cellKey(g.cell));
+    }
+    return { step, maps };
+  }
+
+  it('cíl na úhlopříčné mapě – přes severní mapu, i když je roh mapy zavřený', () => {
+    // roh 60 × 60 m u severovýchodního rohu domovské mapy je neprůchozí (dřív jediná rohová buňka)
+    const { g, ctx } = sent(closed((p) => p.x > 900 && p.z > 900));
+    expect(g.route).toEqual([NORTH, NE]);
+    const { step, maps } = walk(g, ctx);
+    expect(step).toBe('arrived');
+    expect(maps).toEqual([cellKey(NORTH), cellKey(NE)]);
+    expect(g.pos).toEqual(TARGET.pos);
+  });
+
+  it('zavřený okraj prvního kroku: stojí, objížďku přes východní mapu nehledá', () => {
+    // Martin 16. 11. 2026: „Má zůstat stát.“ – celý severní pás domovské mapy je neprůchozí
+    const { g, ctx } = sent(closed((p) => p.z > 900));
+    const { step, maps } = walk(g, ctx);
+    expect(step).toBe('stuck');
+    expect(maps).toEqual([]);
+    expect(g.cell).toEqual(HOME);
   });
 });

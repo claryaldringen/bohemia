@@ -17,7 +17,7 @@ import {
   type Pos,
 } from './march-grid';
 import { marchArea } from './march-search';
-import { edgeCrossing, worldRoute } from './world-route';
+import { edgeCrossing, sideBySide, worldRoute } from './world-route';
 
 // Pohyb po mapách světa o jeden takt (plán 2026-11-09 – Rozhodnutí plánu: vytaženo z `moveGroups`
 // a `planLeg` v `campaign.ts`, ať se stejně hýbe skupina vojska, posel i skupina uprchlíků). Vyslání
@@ -147,14 +147,18 @@ export function stepMover(
 /**
  * Přepočet rozjetých úseků po změně mřížky pochodu (Rozhodnutí 9): úseky skupin a `extra`
  * (uprchlíci a poslové tažení) zahodí – další takt je spočte z uložené polohy (z neprůchodné buňky
- * únikem – Rozhodnutí 7) – a zapíše verzi mřížky (`MARCH_GRID_VERSION`). Mutuje `state` i `extra`.
+ * únikem – Rozhodnutí 7) –, úhlopříčné kroky tras světa nahradí dvěma kolmými (`sideBySide` – cesta
+ * mezi mapami je čtyřsousedná, oprava Úlohy 5) a zapíše verzi mřížky (`MARCH_GRID_VERSION`).
+ * Mutuje `state` i `extra` (trasy jsou nová pole).
  */
 export function replanLegs(
   state: { groups: Mover[]; marchGridVersion?: number },
   extra: readonly Mover[] = [],
 ): void {
-  for (const m of state.groups) m.leg = null;
-  for (const m of extra) m.leg = null;
+  for (const m of [...state.groups, ...extra]) {
+    m.leg = null;
+    m.route = sideBySide(m.cell, m.route);
+  }
   state.marchGridVersion = MARCH_GRID_VERSION;
 }
 

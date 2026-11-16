@@ -242,7 +242,7 @@ vojska mapu po mapě (Ú6.4), tažení po taktech, boj a dohra (Ú6.5–Ú6.17) 
 - **Rozjeté úseky** (Rozhodnutí 9) – `MARCH_GRID_VERSION` (`march-grid.ts`) = 2 – jemná mřížka
   s hustým lesem. Bod tažení nebo výpravy bez `marchGridVersion` (uložený dřív) zahodí úseky
   `replanLegs(state, extra)` (`movement.ts` – `leg = null` u skupin a `extra`, tj. uprchlíků
-  a poslů tažení; nastaví verzi): tažení na kopii taktu (`campaignTick`), výprava při čtení
+  a poslů tažení, úhlopříčné kroky tras světa na dva kolmé – `sideBySide`; nastaví verzi): tažení na kopii taktu (`campaignTick`), výprava při čtení
   (`upgradeJourney`). Další takt úseky spočte z uložené polohy (únik z lesa) a cíl na mapě cíle
   posune znovu `settleGoal`. `newCampaign` a `newJourney` verzi nesou od začátku.
 - **Cíl v neprůchodné buňce** (design war.md – Pohyb; jako v 0 A.D., návrh Clauda 10. 11. 2026) –
@@ -268,10 +268,19 @@ vojska mapu po mapě (Ú6.4), tažení po taktech, boj a dohra (Ú6.5–Ú6.17) 
 - **Zima** – `domain/war/season.ts`: `isMarchWinter(day)` (prosinec–únor), `frostDay(member,
 outside, day)` → `MemberDelta` (`health`, `vigor` = podíl plné síly): v zimě venku −3 a −0,02,
   ve vsi kdykoli +10 a +0,05 až do plných, jinak 0.
-- **Mapu po mapě** – `domain/war/world-route.ts`: `worldRoute(from, to, avoid)` (8 směrů, přímý
-  krok 5, úhlopříčný 7, uhne nejvýš 8 políček za obdélník startu a cíle; start a cíl se nezakazují;
-  nedosažitelný `[]`), `edgeCrossing(cellFrom, cellTo, pos)` – osa pohybu se převrátí na opačný
-  okraj (± (960 − `cellM` ÷ 2) = ± 958,75 m, střed okrajové buňky), druhá zůstane.
+- **Mapu po mapě** – `domain/war/world-route.ts`: `worldRoute(from, to, avoid)` (4 směry – cesta
+  mezi mapami je čtyřsousedná, krok 5, manhattanský odhad, uhne nejvýš 8 políček za obdélník startu
+  a cíle; start a cíl se nezakazují; nedosažitelný `[]`), `edgeCrossing(cellFrom, cellTo, pos)` –
+  osa pohybu se převrátí na opačný okraj (± (960 − `cellM` ÷ 2) = ± 958,75 m, střed okrajové
+  buňky), druhá zůstane. **Úhlopříčný soused dvěma kolmými kroky** (návrh Clauda – oprava Úlohy 5):
+  úhlopříčný přechod vedl jedinou rohovou buňkou mřížky pochodu (2,5 m), která musela být průchozí
+  na obou mapách – Vlkov z kotvy NE, SE a NW `stuck`, v rozích map vůbec nejčastěji. Objížďka
+  zavřeného okraje to není – trasa je pevná, u zavřeného okraje prvního kroku skupina stojí
+  (Martin 16. 11. 2026: „Má zůstat stát.“). `firstRouteStep(direction)` – směr prvního kroku
+  k sousedovi (kurzor nad rohem mapy v prohlížeči – `edgeReachable` v `march-cursor.ts`);
+  `sideBySide(cell, route)` – starší trasa s úhlopříčným krokem na dva kolmé (`replanLegs`).
+  `edgeCrossing` i `marchPathToEdge` úhlopříčný směr dál znají (cíl „Přes okraj“ do rohu
+  úhlopříčné mapy výpravy – `journey-parties.ts`).
 - **Krajina políčka** – `application/cell-landscape.ts`: `emptyCellLandscape(worldSeed, cell)`
   (`generateAcceptedLandscape(cellLandscapeSeed(...))` – tatáž krajina, jakou by dostala nová ves,
   i s `obstaclesOf`), `settledCellLandscape(seed, versions)` (políčko se vsí – uložený seed),
@@ -296,7 +305,9 @@ outside, day)` → `MemberDelta` (`health`, `vigor` = podíl plné síly): v zim
   u okraje, když vede přechod k cíli – bez něj i do kapsy, okraj bez přechodu: `stuck`
   a `stuckDay`, týž den svět nečte, další den plánuje znovu; nový rozkaz `stuckDay` smaže), `campaign.test.ts` – rozjeté úseky po změně mřížky (bod bez verze: nový úsek
   jen průchozími buňkami kromě úniku, 400 × 1 takt = 1 × 400),
-  `world-route.test.ts`, `application/__tests__/cell-landscape.test.ts`. Změna mřížky, hledání
+  `world-route.test.ts` (čtyřsousedná trasa, první krok k rohu, starší trasa s úhlopříčkou),
+  `movement.test.ts` – úhlopříčný cíl přes kolmou mapu i se zavřeným rohem, zavřený okraj prvního
+  kroku stojí, `application/__tests__/cell-landscape.test.ts`. Změna mřížky, hledání
   nebo vyhlazení změní zlatý otisk – zapsat nový jen se záměrem. Testy tažení krokují po kouscích
   přes `stepInChunks` (`__tests__/campaign-fixtures.ts`): skončené tažení `stepCampaign`
   neposouvá, krok bez posunu, krok čekající na data i podmínka `until`, která do konce nenastane,
@@ -1038,7 +1049,7 @@ Clauda“). Co se hýbe v taktech (vesničan běžící domů, posel, skupina up
   `WAR.carryKg.cart`; zásoby nejvýš `storesKg − reservedSeedKg −` zrno zapečetěných jam (Ú7); tempo
   `GroupPace` – ranění zpomalí, dobytek i vůz jdou tempem stáda. Odhady vzdušnou čarou mezi místy
   světa (políčko = 1920 m): `flightEtaTicks` × `routeFactor` ÷ `marchSpeed`, `leaveMapTicks` k
-  okraji mapy ve směru dalšího políčka trasy (úhlopříčně do rohu), `armyEtaTicks` od místa spatření
+  okraji mapy ve směru dalšího políčka trasy (trasa je čtyřsousedná), `armyEtaTicks` od místa spatření
   ÷ pěší tempo (bez násobku – obránce počítá s nejhorším), `messengerSpeed` (běh × 2, na koni ×
   1,5). `refugeOptions` (`RefugeOptionsInput` – stav vsi bez toho, co tažení dnes odvedlo, místo
   vsi, mřížka, `seenAt`, takty od spatření, kandidáti) vrátí pro `messenger`, `forest`, `people`,

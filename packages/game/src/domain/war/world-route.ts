@@ -1,46 +1,37 @@
 import { CELL_SIZE_M, LANDSCAPE_SIZE } from '../landscape';
 import { PathHeap } from '../village/paths/network-search';
+import type { Direction8 } from '../village/types';
 import { directionBetween, GRID_STEPS, type GridCell } from '../village/people/world-grid';
 import type { Pos } from './march-grid';
 import { WAR } from './rules-war';
 
 // Cesta mapu po mapě (war.md – Pohyb – mapu po mapě; Martin 2. 11. 2026: „Hráč musí k cíli dojít
-// mapu po mapě“): trasa po mřížce světa v 8 směrech (jako mřížka vazalství) a přechod okrajem na
-// opačný okraj sousední mapy (Martin 18. 10.).
+// mapu po mapě“): trasa po mřížce světa ve 4 směrech a přechod okrajem na opačný okraj sousední
+// mapy (Martin 18. 10.). Úhlopříčný soused se dosáhne dvěma kolmými kroky přes sousední mapu
+// (návrh Clauda – plán 2026-11-16-dense-forest, oprava Úlohy 5): úhlopříčný přechod vedl jedinou
+// rohovou buňkou mřížky pochodu (2,5 m), průchozí na obou mapách – v rozích, kde je les, skupina
+// stála. Objížďka zavřeného okraje to není (Martin 16. 11. 2026: „Má zůstat stát.“).
 
 /** O kolik políček za obdélník startu a cíle smí trasa uhnout (mez hledání – návrh Clauda). */
 const ROUTE_MARGIN = 8;
 
-/** Cena kroku po mřížce světa – přímo 5, úhlopříčně 7 (≈ √2, celá čísla – remízy přesně). */
+/** Cena kroku po mřížce světa (celá čísla – remízy přesně). */
 const STRAIGHT = 5;
-const DIAGONAL = 7;
 
-/** Směry v pevném pořadí – nejdřív přímé, pak úhlopříčné. */
-const STEPS: readonly GridCell[] = [
-  GRID_STEPS.N,
-  GRID_STEPS.E,
-  GRID_STEPS.S,
-  GRID_STEPS.W,
-  GRID_STEPS.NE,
-  GRID_STEPS.SE,
-  GRID_STEPS.SW,
-  GRID_STEPS.NW,
-];
+/** Směry v pevném pořadí – jen kolmé (čtyřsousedná cesta). */
+const STEPS: readonly GridCell[] = [GRID_STEPS.N, GRID_STEPS.E, GRID_STEPS.S, GRID_STEPS.W];
 
-/** Oktilový odhad v cenách kroků – nikdy víc než skutečná cena. */
+/** Manhattanský odhad v cenách kroků – nikdy víc než skutečná cena. */
 function estimate(a: GridCell, b: GridCell): number {
-  const dx = Math.abs(a.x - b.x);
-  const dy = Math.abs(a.y - b.y);
-  const lo = Math.min(dx, dy);
-  return DIAGONAL * lo + STRAIGHT * (Math.max(dx, dy) - lo);
+  return STRAIGHT * (Math.abs(a.x - b.x) + Math.abs(a.y - b.y));
 }
 
 /**
- * Trasa tažení po mřížce světa z políčka `from` do `to` v 8 směrech (úhlopříčka ≈ √2 přímého
- * kroku – přes roh mapy je delší cesta). Políčka, pro která `avoid` platí, obejde (start a cíl
- * nikdy); uhne nejvýš `ROUTE_MARGIN` políček za obdélník startu a cíle. Vrací políčka od startu
- * do cíle včetně; nedosažitelný cíl []. Remízy: vyhraje první nalezený předchůdce (pevné pořadí
- * směrů a haldy) – stejný vstup, stejná trasa.
+ * Trasa tažení po mřížce světa z políčka `from` do `to` ve 4 směrech – každé dvě sousední políčka
+ * trasy sdílejí stranu, takže se přechází okrajem, ne rohem mapy. Políčka, pro která `avoid` platí,
+ * obejde (start a cíl nikdy); uhne nejvýš `ROUTE_MARGIN` políček za obdélník startu a cíle. Vrací
+ * políčka od startu do cíle včetně; nedosažitelný cíl []. Remízy: vyhraje první nalezený předchůdce
+ * (pevné pořadí směrů a haldy) – stejný vstup, stejná trasa.
  */
 export function worldRoute(
   from: GridCell,
@@ -79,7 +70,7 @@ export function worldRoute(
         if (blocked[n] === 0) blocked[n] = avoid(next) ? 1 : 2;
         if (blocked[n] === 1) continue;
       }
-      const nd = d + (step.x !== 0 && step.y !== 0 ? DIAGONAL : STRAIGHT);
+      const nd = d + STRAIGHT;
       if (nd < dist[n]!) {
         dist[n] = nd;
         parent[n] = k;
@@ -88,6 +79,34 @@ export function worldRoute(
     }
   }
   return [];
+}
+
+/**
+ * Směr prvního kroku trasy (`worldRoute`) k sousednímu políčku ve směru `direction`: přímý soused
+ * týž směr, úhlopříčný kolmý krok, kterým trasa začne – přes jeho okraj skupina mapu opustí
+ * (kurzor nad rohem mapy v prohlížeči).
+ */
+export function firstRouteStep(direction: Direction8): Direction8 {
+  const route = worldRoute({ x: 0, y: 0 }, GRID_STEPS[direction], () => false);
+  return directionBetween(route[0]!, route[1]!)!;
+}
+
+/**
+ * Trasa `route` (bez políčka `cell`) bez úhlopříčných kroků – starší bod, kdy `worldRoute` vedl
+ * i rohem mapy: úhlopříčný krok nahradí dvěma kolmými jako `worldRoute`. Trasa bez nich – táž
+ * políčka (nové pole).
+ */
+export function sideBySide(cell: GridCell, route: readonly GridCell[]): GridCell[] {
+  const out: GridCell[] = [];
+  let prev = cell;
+  for (const next of route) {
+    if (prev.x !== next.x && prev.y !== next.y) {
+      out.push(...worldRoute(prev, next, () => false).slice(1, -1));
+    }
+    out.push({ ...next });
+    prev = next;
+  }
+  return out;
 }
 
 /** Polovina strany mapy bez půl buňky pochodu – střed okrajové buňky mřížky pochodu (m). */

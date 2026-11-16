@@ -1,4 +1,5 @@
 import {
+  firstRouteStep,
   GRID_STEPS,
   MARCH_FOREST,
   forestInterior,
@@ -56,10 +57,12 @@ export function browserMarchGrid(
 /**
  * Dojde skupina z `from` k okraji mapy ve směru `direction`? Stejné jako `marchPathToEdge` bez
  * hledání: stojí na okraji, nebo je kus okraje ve směru v téže souvislé oblasti jako buňka, odkud
- * vyrazí. Sousední mapu prohlížeč nezná – chybí-li průchod až na druhé straně, ověří to server.
+ * vyrazí. Úhlopříčný soused (roh mapy) se dosáhne dvěma kolmými kroky – rozhoduje okraj prvního
+ * kroku trasy (`firstRouteStep`). Sousední mapu prohlížeč nezná – chybí-li průchod až na druhé
+ * straně, ověří to server.
  */
 export function edgeReachable(grid: MarchGrid, from: Pos, direction: Direction8): boolean {
-  const step = GRID_STEPS[direction];
+  const step = GRID_STEPS[firstRouteStep(direction)];
   const w = grid.width;
   const h = grid.height;
   const gi = step.x > 0 ? w - 1 : 0;

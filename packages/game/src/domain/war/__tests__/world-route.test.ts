@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { GridCell } from '../../village/people/world-grid';
 import { WAR } from '../rules-war';
-import { edgeCrossing, worldRoute } from '../world-route';
+import { edgeCrossing, firstRouteStep, sideBySide, worldRoute } from '../world-route';
 
 // Cesta mapu po mapě (war.md – Pohyb – mapu po mapě, Přechod okrajem).
 
@@ -9,19 +9,44 @@ const key = (c: GridCell): string => `${c.x},${c.y}`;
 const never = (): boolean => false;
 
 describe('trasa po mřížce světa', () => {
-  it('rovně a úhlopříčně v 8 směrech, každou mapou', () => {
+  it('rovně každou mapou, úhlopříčně dvěma kolmými kroky – čtyřsousedná (oprava Úlohy 5)', () => {
     expect(worldRoute({ x: 0, y: 0 }, { x: 3, y: 0 }, never).map(key)).toEqual([
       '0,0',
       '1,0',
       '2,0',
       '3,0',
     ]);
-    expect(worldRoute({ x: 0, y: 0 }, { x: 2, y: -2 }, never).map(key)).toEqual([
+    // úhlopříčný soused přes sousední mapu – přechod okrajem, ne rohem mapy (rohová buňka 2,5 m)
+    expect(worldRoute({ x: 0, y: 0 }, { x: 1, y: 1 }, never).map(key)).toEqual([
       '0,0',
-      '1,-1',
-      '2,-2',
+      '0,1',
+      '1,1',
     ]);
+    const diagonal = worldRoute({ x: 0, y: 0 }, { x: 2, y: -2 }, never);
+    expect(diagonal.length).toBe(5);
+    expect(diagonal.at(-1)).toEqual({ x: 2, y: -2 });
+    for (let k = 1; k < diagonal.length; k++) {
+      const a = diagonal[k - 1]!;
+      const b = diagonal[k]!;
+      expect(Math.abs(b.x - a.x) + Math.abs(b.y - a.y)).toBe(1);
+    }
     expect(worldRoute({ x: 4, y: 4 }, { x: 4, y: 4 }, never).map(key)).toEqual(['4,4']);
+    // první krok k úhlopříčnému sousedovi (kurzor nad rohem mapy) – týž jako trasa
+    expect(firstRouteStep('NE')).toBe('N');
+    expect(firstRouteStep('SE')).toBe('E');
+    expect(firstRouteStep('W')).toBe('W');
+  });
+
+  it('starší trasa s úhlopříčným krokem – dva kolmé kroky jako `worldRoute`', () => {
+    const old = [
+      { x: 1, y: 1 },
+      { x: 2, y: 1 },
+      { x: 3, y: 0 },
+    ];
+    expect(sideBySide({ x: 0, y: 0 }, old).map(key)).toEqual(['0,1', '1,1', '2,1', '3,1', '3,0']);
+    expect(sideBySide({ x: 0, y: 0 }, old)[0]).not.toBe(old[0]);
+    const straight = worldRoute({ x: 0, y: 0 }, { x: 3, y: 2 }, never).slice(1);
+    expect(sideBySide({ x: 0, y: 0 }, straight)).toEqual(straight);
   });
 
   it('obejde zakázaná políčka, start a cíl se nezakazují', () => {
@@ -32,13 +57,10 @@ describe('trasa po mřížce světa', () => {
     expect(route[0]).toEqual({ x: 0, y: 0 });
     expect(route[route.length - 1]).toEqual({ x: 2, y: 0 });
     expect(route.slice(1, -1).some((c) => wall.has(key(c)))).toBe(false);
-    expect(route.length).toBe(5);
-    // každý krok vede na sousední mapu
+    expect(route.length).toBe(7);
+    // každý krok vede na sousední mapu přes společný okraj
     for (let k = 1; k < route.length; k++) {
-      const d = Math.max(
-        Math.abs(route[k]!.x - route[k - 1]!.x),
-        Math.abs(route[k]!.y - route[k - 1]!.y),
-      );
+      const d = Math.abs(route[k]!.x - route[k - 1]!.x) + Math.abs(route[k]!.y - route[k - 1]!.y);
       expect(d).toBe(1);
     }
   });
