@@ -188,6 +188,17 @@ test('pozvání huti a umístění kostela – křest, huť na cestě, skok v č
     0,
   );
   await page.keyboard.press('y');
+  // napřed panel rozměrů s cenou (churches.md – změna 16. 11. 2026): cena se mění s rozměry,
+  // „Umístit“ přejde k umisťování ve scéně
+  const dimsPanel = page.getByTestId('church-dims-panel');
+  await expect(dimsPanel).toBeVisible();
+  const costBefore = await page.getByTestId('church-dims-cost').textContent();
+  await page.getByTestId('church-diameter-more').click();
+  await expect(page.getByTestId('church-dims-cost')).not.toHaveText(costBefore ?? '');
+  await page.getByTestId('church-diameter-less').click();
+  await expect(page.getByTestId('church-dims-cost')).toHaveText(costBefore ?? '');
+  await page.getByTestId('church-dims-place').click();
+  await expect(dimsPanel).toHaveCount(0);
   await confirmPlacement(page, { kind: 'church', type: 'rotunda', dims, position: spot! });
 
   await expect

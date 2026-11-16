@@ -1471,18 +1471,24 @@ Jádro a akce: `village-masonry.md` – Geometrie a cena kostela, Stavba kostela
   - cena `churchPlacementCost`. `use-build-mode.ts` – `churchOptions` dá `BuildOption` bez ceny
     předem s `look` (ikona `build/kostel-<typ>.png` – `churchIcon`, název `CHURCH_TYPE_NAMES`);
     `BuildGrid` bere ikonu a název z `look` a nulovou práci v popisku neukazuje. Zašedlé s důvodem.
+- **Panel rozměrů před umístěním** (`hud/ChurchDimsPanel.tsx`, Martin 16. 11. 2026; stav `churchDraft`
+  v `village-game/use-build-mode.ts`): tlačítko nebo klávesa kostela (malý [I], velký [Y]) napřed
+  otevře panel – míry +/− (`ChurchMeasureControls` z `ChurchConfirm`), cena z rozměrů jako ikony
+  (`CostIcons` z `CursorReason`; `churchPlacementCost` bez překážek, ty a lom přidá náhled u kurzoru)
+  a ikona kostela „Umístit“. Enter / ikona → `placeChurchDraft` spustí umisťování s těmi rozměry,
+  Esc panel zavře. Rozměry se pamatují po vsi a typu do dalšího otevření (`recallChurchDims`,
+  `rememberChurchDims` v `lib/church-placement.ts` – jen v paměti prohlížeče, návrh Clauda).
 - **Umístění** (`PlacementMode` `church`, `ChurchPlacer`): u kurzoru průhledný model
   (`churchMeshData`, natočení `churchModelRotationY`) a obrys hřbitůvku (`churchyardWorld`)
   zeleně / červeně, kněžištěm na východ (`churchAtCursor` – `CHURCH_EAST_ROTATION`). **Tah**
-  (stisk = vstup, západ; puštění = kněžiště) – `churchFromDrag`: délka lodi (rotunda průměr)
-  z délky tahu ořezaná `clampChurchDims`, osa `snapChurchRotation` (15°), vstup zůstane na místě
-  stisku. **Krátký klik** položí kostel s rozměry z panelu kněžištěm na východ. Položený kostel
+  (stisk = vstup, západ; puštění = kněžiště) – `churchFromDrag` jen natáčí osu `snapChurchRotation`
+  (15°), rozměry zůstanou z panelu, vstup zůstane na místě stisku. **Krátký klik** položí kostel s rozměry z panelu kněžištěm na východ. Položený kostel
   čeká na potvrzení: Enter nebo kladivo, Esc ho znovu uvolní ke kurzoru (druhé Esc / pravé
   kliknutí zruší). U kurzoru (`CursorReason`) rozměry `PlacementPreview.measure`
   (`churchDimsText` – „Ø 6,5 × 6 m“, „5 × 8 × 7 m“) a cena `PlacementCost` – práce (čd, lámání bez
   vzdálenosti lomu + překážky), klády, kámen m³, vápno t (`limeT`, ikona `resources/lime.png`),
   písek m³ (`sandM3`, `resources/sand.png`); nejde-li to, důvod z `checkChurchPlacement`.
-- **Panel u potvrzení** (`hud/ChurchConfirm.tsx`, vzor `FortConfirm`): míry +/− po
+- **Panel u potvrzení** (`hud/ChurchConfirm.tsx`, vzor `FortConfirm`; úpravy se pamatují jako v panelu rozměrů): míry +/− po
   `CHURCH_DIMS_STEP_M` (`stepChurchDims`; rotunda průměr a výška, jinak šířka, délka a výška; značky
   Ø ↕ ↔ ⤒, slova v popisku) → `Placement.setChurchDims` → `LandscapeScene.setChurchDims` →
   `ChurchPlacer.setDims` (položený kostel drží střed a osu); kladivo zašedlé s důvodem. Potvrzení
@@ -1494,7 +1500,7 @@ Jádro a akce: `village-masonry.md` – Geometrie a cena kostela, Stavba kostela
   stavba před střechou (`cancellableConstruction`).
 - **Testy:** `lib/__tests__/church-placement.test.ts` (tah, +/−, cena, katalog), `church-view.test.ts`
   (data pohledu, výběr), `lib/scene/__tests__/church-placer.test.ts` (umisťování), `church-renderer.test.ts`
-  (natočení modelu = obrys), `hud/__tests__/ChurchPanel.behavior.test.tsx` (panel a potvrzení).
+  (natočení modelu = obrys), `hud/__tests__/ChurchPanel.behavior.test.tsx` (panel rozměrů, panel a potvrzení).
 
 ## Panel Kronika (absence.md – Návrat, `hud/ChroniclePanel.tsx`, `lib/chronicle-view.ts`)
 

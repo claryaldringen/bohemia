@@ -3,8 +3,9 @@
 import { useEffect, useState, type RefObject } from 'react';
 import {
   FORTIFICATIONS,
-  defaultChurchDims,
+  clampChurchDims,
   isManorType,
+  type ChurchDims,
   type ChurchType,
   type BuildableDwellingType,
   type Landscape,
@@ -34,6 +35,7 @@ import {
   workshopChoice,
   type WebBuildKind,
 } from '@/lib/build-items';
+import { recallChurchDims, rememberChurchDims } from '@/lib/church-placement';
 import { checkWithDesecration, squaresWithDesecration } from '@/lib/desecration-warning';
 import {
   fortGapNear,
@@ -131,7 +133,19 @@ const SUBMIT_SQUARES: Partial<
     }),
 };
 
+/** Kostel v panelu rozměrů, než se umístí (typ, rozměry s cenou). */
+export interface ChurchDraft {
+  kind: WebBuildKind;
+  type: ChurchType;
+  dims: ChurchDims;
+}
+
 export interface BuildMode {
+  /** Kostel v panelu rozměrů (null = panel je zavřený). */
+  churchDraft: ChurchDraft | null;
+  setChurchDraftDims: (dims: ChurchDims) => void;
+  placeChurchDraft: () => void;
+  closeChurchDraft: () => void;
   /** Co hráč umisťuje (tlačítko svítí v mřížce, dokud umisťování běží). */
   placingItem: WebBuildKind | null;
   /** Otevřený rozcestník mřížky staveb – stavba s druhy (ohrada, opevnění). */
@@ -180,6 +194,8 @@ export function useBuildMode({
   runBuildAction: (action: () => Promise<ActionResult>) => Promise<void>;
 }): BuildMode {
   const [placingItem, setPlacingItem] = useState<WebBuildKind | null>(null);
+  // kostel čeká v panelu rozměrů (před umisťováním)
+  const [churchDraft, setChurchDraft] = useState<ChurchDraft | null>(null);
   // otevřený rozcestník mřížky staveb – stavba s druhy (ohrada – oxen.md, Ohrady podle druhu)
   const [buildGroup, setBuildGroup] = useState<WebBuildKind | null>(null);
   const { placementScene, placementVillage } = sites;
@@ -316,6 +332,7 @@ export function useBuildMode({
       return;
     }
     setSelected(null);
+    setChurchDraft(null);
     setPlacingItem(kind);
     if (item.placement === 'fort-points') {
       // obvod z bodů (fortifications.md – Obvod): návrh hry u kurzoru, body upraví hráč; u mezery
@@ -527,32 +544,15 @@ export function useBuildMode({
       return;
     }
     if (item.placement === 'church') {
+      // kostel: napřed panel rozměrů s cenou, teprve pak umisťování (churches.md – změna 16. 11. 2026)
       const type = churchTypeOf(view, item.kind);
       if (!type) return;
-      placement.start(
-        {
-          kind: 'church',
-          type,
-          dims: defaultChurchDims(type),
-          check: (dims, position) =>
-            checkWithDesecration(placementScene(), (village) =>
-              item.check(decoded, village, type, dims, position),
-            ),
-        },
-        (result) => {
-          const villageId = viewRef.current?.id;
-          if (result.kind === 'church' && villageId) {
-            void runBuildAction(() =>
-              placeChurch({
-                villageId,
-                type: result.type,
-                dims: result.dims,
-                position: result.position,
-              }),
-            );
-          }
-        },
-      );
+      placement.cancel();
+      setChurchDraft({
+        kind: item.kind,
+        type,
+        dims: recallChurchDims(viewRef.current?.id ?? null, type),
+      });
       return;
     }
     if (item.placement === 'threshing-floor') {
@@ -572,7 +572,56 @@ export function useBuildMode({
     }
   };
 
+  const setChurchDraftDims = (dims: ChurchDims): void => {
+    setChurchDraft((draft) => {
+      if (!draft) return draft;
+      const next = clampChurchDims(draft.type, dims);
+      const villageId = viewRef.current?.id;
+      if (villageId !== undefined) rememberChurchDims(villageId, draft.type, next);
+      return { ...draft, dims: next };
+    });
+  };
+
+  /** Panel rozměrů → umisťování kostela s těmi rozměry (tah ve scéně jen natáčí). */
+  const placeChurchDraft = (): void => {
+    const draft = churchDraft;
+    if (!draft) return;
+    const item = buildItem(draft.kind);
+    if (item.placement !== 'church') return;
+    setChurchDraft(null);
+    const { type, dims } = draft;
+    placement.start(
+      {
+        kind: 'church',
+        type,
+        dims,
+        check: (checkedDims, position) =>
+          checkWithDesecration(placementScene(), (village) =>
+            item.check(decoded, village, type, checkedDims, position),
+          ),
+      },
+      (result) => {
+        const villageId = viewRef.current?.id;
+        if (result.kind === 'church' && villageId) {
+          rememberChurchDims(villageId, result.type, result.dims);
+          void runBuildAction(() =>
+            placeChurch({
+              villageId,
+              type: result.type,
+              dims: result.dims,
+              position: result.position,
+            }),
+          );
+        }
+      },
+    );
+  };
+
   return {
+    churchDraft,
+    setChurchDraftDims,
+    placeChurchDraft,
+    closeChurchDraft: () => setChurchDraft(null),
     placingItem,
     buildGroup,
     setBuildGroup,

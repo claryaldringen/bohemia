@@ -2,9 +2,10 @@
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import { CHURCH, defaultChurchDims } from '@bohemia/game';
+import { CHURCH, churchCost, defaultChurchDims, type ChurchDims } from '@bohemia/game';
 import type { SelectionDetails } from '@/lib/selection-details';
 import { ChurchConfirm } from '../ChurchConfirm';
+import { ChurchDimsPanel } from '../ChurchDimsPanel';
 import { ChurchBody } from '../selection/church';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -95,4 +96,45 @@ it('panel u potvrzení: +/− mění míry v mezích, kladivo zašedlé s důvod
   expect(q('church-measure-width')).toBeNull();
   act(() => (q('church-confirm') as HTMLButtonElement).click());
   expect(onConfirm).toHaveBeenCalled();
+});
+
+it('panel rozměrů: cena se mění s rozměry, Umístit a Enter jdou k umisťování, Esc zavře', () => {
+  const onPlace = vi.fn();
+  const onClose = vi.fn();
+  let dims: ChurchDims = defaultChurchDims('chancel');
+  const render = (): void =>
+    act(() =>
+      root.render(
+        <ChurchDimsPanel
+          type="chancel"
+          dims={dims}
+          onDims={(next) => {
+            dims = next;
+          }}
+          onPlace={onPlace}
+          onClose={onClose}
+        />,
+      ),
+    );
+  render();
+  const costText = (): string => q('church-dims-cost')?.textContent ?? '';
+  const before = costText();
+  expect(before).not.toBe('');
+  act(() => (q('church-length-more') as HTMLButtonElement).click());
+  expect(dims).toMatchObject({ length: 8.5 });
+  render();
+  expect(costText()).not.toBe(before);
+  expect(churchCost('chancel', dims).stoneM3).toBeGreaterThan(
+    churchCost('chancel', defaultChurchDims('chancel')).stoneM3,
+  );
+  act(() => (q('church-dims-place') as HTMLButtonElement).click());
+  expect(onPlace).toHaveBeenCalledTimes(1);
+  act(() => {
+    window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Enter' }));
+  });
+  expect(onPlace).toHaveBeenCalledTimes(2);
+  act(() => {
+    window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Escape' }));
+  });
+  expect(onClose).toHaveBeenCalledTimes(1);
 });
