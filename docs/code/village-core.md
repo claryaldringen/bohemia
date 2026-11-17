@@ -198,6 +198,15 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   null. `VillageSummary.foodLastsDays` → `VillageView.foodLastsDays` (chybí místo null) → řádek
   pod rozpisem plodin v liště (web-ui.md). Starší `storesMonths` (jen obilí ÷ potřeba) zůstává
   beze změny.
+- **Zásoby u sklizně v kronice** (population.md – Kronika, Martin 17. 11. 2026, D90):
+  `stockLastsDays(state, day, 'grain' | 'legumes' | 'apples')` (`core/food-lasts.ts`) – kg a dny
+  jedné potraviny stejnými pravidly jako `foodLastsDays`. `attachHarvestStocks` (simulate-food.ts)
+  ji na konci `harvestWinter`, `harvest` a `harvestLateSpring` připíše jako nepovinné `stock`
+  (`HarvestStock` – kg, dny, lidé) do zápisů `harvest` a `garden-harvest` dne; `apple-harvest`
+  dostane `stock` v `simulate.ts` po `orchardSeasonDay`. `birth` a `death` (population.ts) nesou
+  `population` – počet lidí po události, stejně i všechna ostatní úmrtí (`disaster-deaths.ts`,
+  `hunt.ts`, `beast-casualty.ts`, `warDeath` v `raid-apply.ts`). Text: `stockSentence`,
+  `populationSentence` (`lib/village-view-chronicle.ts`).
 
 - **Štěstí a posvátná místa** ([happiness.md](../design/happiness.md), `happiness.ts`,
   `sacred.ts`; body za úmrtí `deathPointsFor` = max(0,5; 5 − 0,06 × věk), věk nese událost kroniky `death.age`, bez něj dítě 5 / jinak 3): štěstí 0–100 (`VillageState.happiness` – hodnota, úmrtí posledního roku, dny dřiny

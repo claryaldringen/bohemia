@@ -42,7 +42,10 @@ function legacyShape(state: VillageState): unknown {
     ...rest,
     // jména lidí a v zápisech kroniky (population.md – Jména) – jen záznam, simulace je nečte
     people: rest.people.map((p) => withoutKeys(p, ['name'])),
-    chronicle: rest.chronicle.map((e) => withoutKeys(e, ['name', 'personId', 'female'])),
+    // zásoba u sklizně a počet obyvatel (kronika, 17. 11. 2026) jsou jen zápis – otisk řemesel je neměří
+    chronicle: rest.chronicle.map((e) =>
+      withoutKeys(e, ['name', 'personId', 'female', 'stock', 'population']),
+    ),
     crafts: c && {
       charcoalKg: c.charcoalKg,
       toolsKg: toolEquipmentKg ?? 0,

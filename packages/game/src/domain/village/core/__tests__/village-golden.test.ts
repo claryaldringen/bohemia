@@ -48,7 +48,10 @@ import { advanceChunked, goldenWorld, stateFingerprint, YEAR } from './village-g
 // místo (`near`), zarostlé cesty konce (`ends`, `part`) a opuštěné kusy pod stavbou konce cesty
 // z řezu (`Road.formerEnds`) – jen nová pole záznamů a úseků; stav bez nich má týž otisk jako dřív
 // (7d3b0f17cb6b855b)
-const EXPECTED_YEAR_1 = 'ce5c6d3603f17799';
+// 17. 11. 2026 – D90 (Martin: u sklizně zásoba a na jak dlouho vystačí, u narození a úmrtí počet
+// obyvatel): zápisy `harvest`, `apple-harvest`, `garden-harvest`, `birth` a `death` nesou nová
+// pole (`stock`, `population`) – simulace se nezměnila, jen kronika; dřív ce5c6d3603f17799
+const EXPECTED_YEAR_1 = 'c0d4e117d27f858b';
 
 describe('zlatý otisk vsi', () => {
   const world = goldenWorld();

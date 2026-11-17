@@ -34,5 +34,6 @@ export function applyJourneyCasualty(
     ...deathWho(state, p, day),
   };
   removePeople(state, new Set([p.id]));
+  event.population = state.people.length;
   return [event];
 }

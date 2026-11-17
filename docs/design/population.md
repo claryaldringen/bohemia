@@ -734,6 +734,16 @@ jich bude moci mít více), tak pro něj hra končí – musí začínat znovu.�
   v den zápisu, i „syn vojvody Lutobora Radim“). Jméno ženy, které neumíme skloňovat, se opíše
   („si vzal další ženu jménem …“); starší zápis bez ženy „Lutobor si vzal další ženu.“, „Lutobor má
   novou hlavní manželku.“
+- **Zásoby u sklizně, obyvatelé u narození a úmrtí** (Martin 17. 11. 2026: „U záznamu každé sklizně
+  zapiš nejen kolik se ten rok sklidilo, ale i kolik té plodiny má vesnice celkem a na jak dlouho to
+  vystačí při současném počtu obyvatel. U záznamu o narození nebo úmrtí zapiš, kolik má vesnice
+  obyvatel“): za větou o sklizni obilí, luštěnin (i zahrádek) a jablek přibude „Obilí má ves 1 821 kg
+  – při 60 lidech vystačí na 80 dní.“ (nebo „nevystačí ani na den“), za narozením a úmrtím „Ves má
+  61 obyvatel.“ Čísla se zapíšou do události v den zápisu (po sklizni i se snopy, které sklizeň
+  přidala), starší zápisy zůstanou se starým textem. Dny (návrh Clauda) počítá `stockLastsDays`
+  stejnými pravidly jako `foodLastsDays` (diet.md – Na jak dlouho vystačí zásoby), jen pro jednu
+  potravinu: obilí plným přídělem se ztrátami skladováním, luštěniny a jablka nejvýš do svého
+  stropu stravy, jablka do shnití.
 - Kronika drží **posledních 500 událostí**, starší se zahazují (návrh Clauda – stav vsi za
   1000 let jinak roste bez konce; simulace kroniku nečte, takže na průběh vsi to nemá vliv).
 

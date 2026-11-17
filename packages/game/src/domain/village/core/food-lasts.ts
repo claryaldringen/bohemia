@@ -88,3 +88,62 @@ export function foodLastsDays(
   }
   return days;
 }
+
+/** Potravina, o které kronika při sklizni píše zásobu a na jak dlouho vystačí. */
+export type StockKind = 'grain' | 'legumes' | 'apples';
+
+/** Zásoba jedné potraviny a na kolik dní vystačí (`stockLastsDays`). */
+export interface StockOutlook {
+  /** Kolik kg té potraviny ves má (obilí bez osiva, které ves nejí, i se snopy k vymlácení). */
+  kg: number;
+  /** Na kolik dní od zítřka vystačí při dnešním počtu lidí; null – nikdo z ní nejí. */
+  days: number | null;
+}
+
+/**
+ * Zásoba jedné potraviny vsi a na kolik dní vystačí, kdyby se jedla sama (kronika – Martin
+ * 17. 11. 2026: „kolik té plodiny má vesnice celkem a na jak dlouho to vystačí při současném
+ * počtu obyvatel“; návrh Clauda): stejná pravidla jako `foodLastsDays`, jen pro jednu potravinu.
+ * Obilí (bez osiva, které ves nejí, a snopy k vymlácení) plným přídělem se ztrátami skladováním
+ * (`grainKeepPerDay`), luštěniny nejvýš do svého stropu stravy (`DIET.caps.legumes`), jablka do
+ * stropu ovoce a jen do dne, kdy shnijí (`daysUntilAppleRot`). Poslední neúplný den se nepočítá.
+ */
+export function stockLastsDays(
+  state: VillageState,
+  day: number,
+  stock: StockKind,
+  potteryCoverage: number = NO_CRAFTS.pottery,
+): StockOutlook {
+  const first = day + 1;
+  const sheaves = sheavesOutlook(state, Math.min(first, TOTAL_GAME_DAYS - 1));
+  const kg =
+    stock === 'grain'
+      ? Math.max(0, state.storesKg - uneatenSeedKg(state)) + sheaves.grainKg
+      : stock === 'legumes'
+        ? villageLegumesKg(state) + sheaves.legumesKg
+        : villageApplesKg(state);
+  const need = villageFoodNeed(state, Math.min(first, TOTAL_GAME_DAYS - 1));
+  if (need <= 0) return { kg, days: null };
+  if (first >= TOTAL_GAME_DAYS) return { kg, days: 0 };
+  let energy = stock === 'grain' ? kg : stock === 'legumes' ? legumeEnergy(kg) : fruitEnergy(kg);
+  const keep =
+    stock === 'grain'
+      ? grainKeepPerDay({ ...grainKeepInput(state, potteryCoverage), potteryCoverage })
+      : stock === 'legumes'
+        ? legumeKeepPerDay(potteryCoverage)
+        : 1;
+  const cap = stock === 'grain' ? 1 : stock === 'legumes' ? DIET.caps.legumes : DIET.caps.fruit;
+  const fruitDays = applesSpoiled(first, potteryCoverage)
+    ? 0
+    : daysUntilAppleRot(first, potteryCoverage);
+  const daily = cap * need;
+  let days = 0;
+  for (let i = 0; first + i < TOTAL_GAME_DAYS; i++) {
+    energy *= keep;
+    if (stock === 'apples' && i >= fruitDays) energy = 0;
+    if (energy < daily * (1 - SATIATION_EPSILON)) break;
+    energy -= daily;
+    days++;
+  }
+  return { kg, days };
+}
