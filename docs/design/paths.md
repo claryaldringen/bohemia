@@ -1134,6 +1134,18 @@ i když se tam chodí málo, třeba k hřbitovu jen na pohřby.“ Podrobnosti n
   chodí, cesta k vchodu nezarůstá (stav drží na plném) – odvozuje se z konce cesty ve vchodu
   a návštěv stavby za 12 měsíců, žádné zvláštní pole (zjednodušení po recenzi); opuštěná stavba
   ([abandonment.md](abandonment.md)) ji přestane držet a zaroste podle druhu.
+- **Cesta k vchodu uvnitř plochy staveb nevznikne** (Martin 17. 11. 2026: „zdá se, že tohle se
+  opakuje každý měsíc“; návrh Clauda, D89): osa cesty k vchodu včetně napojení na pevnou cestu
+  nesmí vést ≥ 5 m (`BLOCK_MIN_RUN_M`) neprůchodnou plochou staveb – kus pod stavbou by měsíční
+  kontrola příští měsíc opustila ([Stavba přes cestu](#stavba-přes-cestu)) a vchod bez cesty by ji
+  hned založil znovu (Vlkov: vchod ohrady s přistavěným čtvercem, napojení přes rozcestí uvnitř
+  ohrady – každý měsíc nová cesta a zápis v kronice). Takový vchod cestu nemá a úklid kvůli němu
+  neběží (`accessDue`).
+- **Roky chůze v kronice** (`road-formed`; Martin 17. 11. 2026: „Po 92 letech chůze … Vyšlapání
+  cesty přece netrvá 92 let“; návrh Clauda, D89): křižovatka na konci stáří neurčuje – roky se
+  počítají od nejstaršího dne, kdy mohla začít chodit některá uložená trasa, která po cestě vede
+  (aspoň 60 % bodů osy do buňky od čáry trasy; trasa začne, až když stojí obě její místa), spolu
+  s druhým koncem; bez takové trasy zůstává stáří druhého místa.
 - **Hřbitov (Vlkov):** plot je neprůchodný, trasy končí v brance, pohřby a návštěvy jdou do
   provozu – cesta vede do branky, ne podél plotu.
 - **Cesta do branky** (Martin 25. 10. 2026: „Jeden z největších problémů vidím tady u hřbitova“;

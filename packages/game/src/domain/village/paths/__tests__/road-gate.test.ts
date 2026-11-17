@@ -90,7 +90,12 @@ describe('cesta do branky (paths.md – Vchody)', () => {
       [0, 0],
       [100, 0],
     ]);
-    const guard: GateGuard = { fixed: new Set([1]), blocked: () => false, fences: () => [] };
+    const guard: GateGuard = {
+      fixed: new Set([1]),
+      blocked: () => false,
+      building: () => false,
+      fences: () => [],
+    };
     const before = JSON.stringify(roads);
     expect(accessDue(roads, [ROUTE], CELL_M, () => true, guard)).toBe(false);
     accessRoads(roads, [ROUTE], CELL_M, 0, CONTEXT, null, () => true, guard);
@@ -145,5 +150,39 @@ describe('cesta do branky (paths.md – Vchody)', () => {
       accessRoads(roads, [ROUTE], CELL_M, 0, CONTEXT, null, () => true, guard);
       expect(JSON.stringify(roads) !== before).toBe(bends);
     }
+  });
+});
+
+describe('cesta k vchodu uvnitř plochy staveb (D89 – Vlkov, ohrada u tesaře)', () => {
+  // stará cesta jižně od vchodu (z = −14), vchod trasy v (50; 2,5)
+  const roadSouth = (): VillageRoads =>
+    roadsWith('trodden', [
+      [0, -14],
+      [100, -14],
+    ]);
+  const inside = (x: number, z: number): boolean => x >= 38 && x <= 62 && z >= -9 && z <= 3;
+  const guardOf = (building: (x: number, z: number) => boolean): GateGuard => ({
+    fixed: new Set(),
+    blocked: building,
+    building,
+    fences: () => [],
+  });
+
+  it('bez překážky cesta k vchodu vznikne', () => {
+    const roads = roadSouth();
+    const guard = guardOf(() => false);
+    expect(accessDue(roads, [ROUTE], CELL_M, () => true, guard)).toBe(true);
+    expect(accessRoads(roads, [ROUTE], CELL_M, 0, CONTEXT, null, () => true, guard)).toHaveLength(
+      1,
+    );
+  });
+
+  it('cesta s kusem ≥ 5 m v ploše staveb nevznikne a nic se neuklízí dokola', () => {
+    const roads = roadSouth();
+    const guard = guardOf(inside);
+    const before = JSON.stringify(roads);
+    expect(accessDue(roads, [ROUTE], CELL_M, () => true, guard)).toBe(false);
+    expect(accessRoads(roads, [ROUTE], CELL_M, 0, CONTEXT, null, () => true, guard)).toEqual([]);
+    expect(JSON.stringify(roads)).toBe(before);
   });
 });

@@ -233,7 +233,7 @@ const BLOCK_STEP_M = 1;
  * Nejkratší souvislý kus osy v neprůchodné ploše, který je „pod stavbou“ (m): cesta, která jen
  * zaklesne do rohu okraje plochy (vyhlazená objížďka), pod stavbou není.
  */
-const BLOCK_MIN_RUN_M = 5;
+export const BLOCK_MIN_RUN_M = 5;
 
 /**
  * Nejdelší souvislý běh vzorků osy (po BLOCK_STEP_M) v neprůchodné ploše – 0 = osa jí nevede. Běh

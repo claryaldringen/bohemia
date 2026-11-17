@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { chronicleRoadEnds, overgrownRoadNote, roadFormedNote } from '../road-chronicle';
 import type { RoadEndsNetwork } from '../road-ends';
 import type { RoadAnchor } from '../road-anchors';
-import type { Road, RoadJunction, VillageState } from '../../types';
+import { encodeRoute } from '../routes';
+import type { GridWindow } from '../network-grid';
+import type { Road, RoadJunction, StoredRoute, VillageState } from '../../types';
 
 // Konce cesty a roky chůze pro kroniku (Martin 14. 11. 2026: „Po 12 letech chůze lidé vyšlapali
 // cestu mezi dvorcem a studnou.“).
@@ -171,5 +173,41 @@ describe('kronika – zarostlá cesta (D67)', () => {
       part: true,
     });
     expect(overgrownRoadNote(nowhere.state, cut, 99)).toEqual({ chain: [] });
+  });
+
+  it('křižovatka na konci: roky chůze od trasy po cestě, ne od stáří druhého místa (D89)', () => {
+    const day = FOUNDED + 15 * YEAR;
+    const cell = 1.25;
+    const window: GridWindow = {
+      width: 200,
+      height: 200,
+      originX: -125,
+      originZ: -125,
+      cellM: cell,
+    };
+    // trasa z dílny (d:13, od 3. roku) k vodě vede po celé cestě, jiná leží o 20 m vedle
+    const along = (z: number, from: string): StoredRoute => ({
+      from,
+      to: 'water',
+      purpose: 'water',
+      trips: 100,
+      ...encodeRoute(
+        Array.from({ length: 65 }, (_, x) => (z / cell + 100) * window.width + x + 100),
+        window,
+      ),
+    });
+    const { net, state } = setup('water', null, true);
+    // bez tras (starší zápis) křižovatka nic neurčí – od založení vsi
+    expect(roadFormedNote(state, net, 1, day).years).toBe(15);
+    const withCell = { ...net, cellM: cell };
+    state.routes = { list: [along(20, 'd:13')] } as unknown as VillageState['routes'];
+    expect(roadFormedNote(state, withCell, 1, day).years).toBe(15);
+    state.routes = { list: [along(0, 'd:13')] } as unknown as VillageState['routes'];
+    expect(roadFormedNote(state, withCell, 1, day).years).toBe(12);
+    // trasa z dvorce postaveného před založením vsi: od založení vsi
+    state.routes = {
+      list: [along(0, 'd:12'), along(0, 'd:13')],
+    } as unknown as VillageState['routes'];
+    expect(roadFormedNote(state, withCell, 1, day).years).toBe(15);
   });
 });

@@ -187,6 +187,11 @@ export const WEAR = {
 // pastva) a v pásu kraje mapy (`EDGE_MARGIN_M` + `TRAIL.edgeBandM` + `goalM` od okraje – tam končí
 // cesty k sousedům)
 export const ROAD_ANCHORS = { entranceM: 3, goalM: 7.5 } as const;
+// paths.md – Vyšlapanost a vznik cesty, roky chůze v kronice (D89; Martin 17. 11. 2026: „Po 92 letech
+// chůze lidé vyšlapali cestu mezi ohradou a rozcestím u tesařské dílny. – tohle je píčovina.“; návrh
+// Clauda): trasa vede po cestě, když aspoň `share` bodů osy (po metru) leží do jedné strany buňky
+// mřížky pěšin od její čáry
+export const ROAD_WALKED = { share: 0.6 } as const;
 // paths.md – Vchody (Martin, #6: „ke každé stavbě, kam se chodí, vede cesta až k jejímu vchodu,
 // i když se tam chodí málo, třeba k hřbitovu jen na pohřby.“; návrh Clauda): vchod má cestu, když
 // do `ROAD_ANCHORS.entranceM` od něj končí nebo vede pevná cesta; cesta k vchodu je nejméně

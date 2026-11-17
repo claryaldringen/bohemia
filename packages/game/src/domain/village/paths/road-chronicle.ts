@@ -14,7 +14,9 @@ import {
   type RoadEndsNetwork,
 } from './road-ends';
 import { roadEndLandmarks } from './road-landmarks';
-import { DAYS_PER_YEAR } from './roads-geometry';
+import { ROAD_WALKED } from '../rules';
+import { DAYS_PER_YEAR, resample, toSegment } from './roads-geometry';
+import { routePoints } from './routes';
 
 /** Přírodní cíle tras – chodí se k nim od založení vsi (předpona klíče trasy). */
 const NATURAL_PLACES: ReadonlySet<string> = new Set([
@@ -175,9 +177,45 @@ export function overgrownRoadNote(
 }
 
 /**
+ * Odkdy se po úseku opravdu chodí (D89, návrh Clauda): nejstarší den, kdy mohla začít chodit
+ * některá z uložených tras, které po úseku vedou (`ROAD_WALKED.share` bodů osy do buňky od čáry
+ * trasy) – trasa začne, až když stojí obě její místa. Trasy s neznámým stářím konce se přeskočí;
+ * bez tras (nebo bez `net.cellM`) undefined.
+ */
+function routeWalkedSince(
+  state: VillageState,
+  net: RoadEndsNetwork,
+  roadId: number,
+): number | undefined {
+  const axis = net.roads.find((r) => r.id === roadId)?.points;
+  const cellM = net.cellM;
+  if (!axis || axis.length < 2 || cellM === undefined) return undefined;
+  const samples = resample(axis, null, 1).points;
+  let earliest: number | undefined;
+  for (const route of state.routes?.list ?? []) {
+    const from = walkedSince(state, { kind: 'place', place: route.from, anchor: 'goal' });
+    const to = walkedSince(state, { kind: 'place', place: route.to, anchor: 'goal' });
+    if (typeof from !== 'number' || typeof to !== 'number') continue;
+    const since = Math.max(from, to);
+    if (earliest !== undefined && since >= earliest) continue;
+    const line = routePoints(route, cellM);
+    if (line.length === 0) continue;
+    const near = samples.filter((p) => {
+      for (let k = 1; k < line.length; k++) {
+        if (toSegment(p.x, p.z, line[k - 1]!, line[k]!).distance <= cellM) return true;
+      }
+      return line.length === 1 && toSegment(p.x, p.z, line[0]!, line[0]!).distance <= cellM;
+    });
+    if (near.length >= samples.length * ROAD_WALKED.share) earliest = since;
+  }
+  return earliest;
+}
+
+/**
  * Zápis vzniklé cesty (`road-formed`): konce cesty hráče a roky chůze od vzniku pěšiny do dne
- * `day` – pěšina vzniká, když stojí obě místa na koncích (`walkedSince`, nejpozdější z nich); bez
- * známého stáří obou konců roky chybí.
+ * `day` – pěšina vzniká, když stojí obě místa na koncích (`walkedSince`, nejpozdější z nich);
+ * křižovatka na konci stáří neurčí, tam rozhodují trasy po cestě (`routeWalkedSince`); bez známého
+ * stáří obou konců roky chybí.
  */
 export function roadFormedNote(
   state: VillageState,
@@ -194,6 +232,11 @@ export function roadFormedNote(
   const since = ends.map((end) => walkedSince(state, end));
   if (since.some((s) => s === undefined)) return note;
   const known = since.filter((s): s is number => s !== null);
+  // k místu přes křižovatku se chodí od chvíle, kdy stojí obě místa nějaké trasy po cestě (D89)
+  if (since.includes(null)) {
+    const walked = routeWalkedSince(state, net, roadId);
+    if (walked !== undefined) known.push(walked);
+  }
   if (known.length === 0) return note;
   const from = Math.max(state.foundedDay, ...known);
   return { ...note, years: Math.max(0, Math.round((day - from) / DAYS_PER_YEAR)) };
