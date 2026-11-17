@@ -297,7 +297,9 @@ Návrh Clauda: zatím ne – kopání zůstává, jinak by se měnila kalibrace 
   Clauda – tam, kde scéna kreslí vnitřek lesa místo 3D stromů okraje). Okraj lesa (pruh 10 m),
   skupiny stromů a osamělé stromy v louce hustým lesem nejsou.
 - **Hustý les je neprůchozí** pro vojsko i výpravy ([válka](war.md) – Terén); vede jím jen zemská
-  stezka a pevná cesta. Paseka po klučení hustým lesem přestává být. Vesničané do něj utíkají před
+  stezka a pevná cesta. Paseka po klučení hustým lesem přestává být – vymýcené je políčko, ze
+  kterého zmizela aspoň polovina dospělých stromů (jako ve scéně – Klučení lesa pro pole), nebo
+  s založeným dílem pole (návrh Clauda). Vesničané do něj utíkají před
   vojskem a zmizí v něm jako v budově ([válka](war.md) – Obránci – postoje a útěk).
 - **Odříznutá ves – „Cestu otevře až stezka“** (Martin 17. 11. 2026, volba v otázce): ves, od
   které hustým lesem nevede paseka ke kraji mapy, je odříznutá – nevyjde z ní vojvoda, vojsko ani
