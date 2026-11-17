@@ -212,6 +212,7 @@ function warDeath(
   p: Person,
   cause: 'war' | 'wounds',
   buried: boolean,
+  fallen: ReadonlySet<number> = new Set(),
 ): ChronicleEvent[] {
   const events: ChronicleEvent[] = [
     {
@@ -221,6 +222,8 @@ function warDeath(
       age: ageYears(p.bornDay, day),
       cause,
       ...deathWho(state, p, day),
+      // počet obyvatel po úmrtí (kronika – Martin 17. 11. 2026); padlí se odeberou až po cyklu
+      population: state.people.length - fallen.size - 1,
     },
   ];
   if (buried) {
@@ -240,7 +243,7 @@ export function woundDeathsDay(state: VillageState, day: number): ChronicleEvent
   const dead = new Set<number>();
   for (const p of state.people) {
     if (p.woundDeathDay === undefined || p.woundDeathDay > day) continue;
-    events.push(...warDeath(state, day, p, 'wounds', !isAway(p, day)));
+    events.push(...warDeath(state, day, p, 'wounds', !isAway(p, day), dead));
     dead.add(p.id);
   }
   removePeople(state, dead);
@@ -266,7 +269,7 @@ export function applyRaidResult(
   for (const id of body.fallen) {
     const p = byId.get(id);
     if (!p || dead.has(id)) continue;
-    deaths.push(...warDeath(state, day, p, 'war', true));
+    deaths.push(...warDeath(state, day, p, 'war', true, dead));
     dead.add(id);
   }
   let wounded = 0;
@@ -361,7 +364,7 @@ export function applyGuardLosses(
   for (const id of body.fallen) {
     const p = byId.get(id);
     if (!p || dead.has(id)) continue;
-    events.push(...warDeath(state, day, p, 'war', false));
+    events.push(...warDeath(state, day, p, 'war', false, dead));
     dead.add(id);
   }
   for (const id of new Set(body.wounded)) {
@@ -506,7 +509,7 @@ export function applyCampaignReturn(
   for (const id of body.fallen) {
     const p = byId.get(id);
     if (!p || dead.has(id)) continue;
-    events.push(...warDeath(state, day, p, 'war', false));
+    events.push(...warDeath(state, day, p, 'war', false, dead));
     dead.add(id);
   }
   // kdo se vrátil – do kroniky jménem a postavením (Martin 15. 11. 2026: „Z tažení se vrátil

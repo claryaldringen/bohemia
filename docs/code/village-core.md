@@ -204,9 +204,9 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   ji na konci `harvestWinter`, `harvest` a `harvestLateSpring` připíše jako nepovinné `stock`
   (`HarvestStock` – kg, dny, lidé) do zápisů `harvest` a `garden-harvest` dne; `apple-harvest`
   dostane `stock` v `simulate.ts` po `orchardSeasonDay`. `birth` a `death` (population.ts) nesou
-  `population` – počet lidí po události. Text: `stockSentence`, `populationSentence`
-  (`lib/village-view-chronicle.ts`). Úmrtí mimo `population.ts` (lov, povodeň, šelma, válka) počet
-  zatím nenesou.
+  `population` – počet lidí po události, stejně i všechna ostatní úmrtí (`disaster-deaths.ts`,
+  `hunt.ts`, `beast-casualty.ts`, `warDeath` v `raid-apply.ts`). Text: `stockSentence`,
+  `populationSentence` (`lib/village-view-chronicle.ts`).
 
 - **Štěstí a posvátná místa** ([happiness.md](../design/happiness.md), `happiness.ts`,
   `sacred.ts`; body za úmrtí `deathPointsFor` = max(0,5; 5 − 0,06 × věk), věk nese událost kroniky `death.age`, bez něj dítě 5 / jinak 3): štěstí 0–100 (`VillageState.happiness` – hodnota, úmrtí posledního roku, dny dřiny
