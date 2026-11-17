@@ -137,6 +137,9 @@ export function addTrailRoads(
   const roads = (state.roads ??= emptyRoads(day));
   /** Cesty vzniklé touto stavbou (i jejich díly po rozdělení) – `avoid` se jich netýká. */
   const made = new Set<number>();
+  // cesta s posvátným stromem v pásu (`avoid`) se do stezky nebere stejně jako opuštěná; po dělení
+  // se zkrácená cesta posoudí znovu – strom mohl zůstat jen v odštěpené části
+  const skipped = new Map<number, boolean>();
   const context: SpotContext = {
     terrain,
     blocked: plantingBlocker(state, landscape),
@@ -145,13 +148,12 @@ export function addTrailRoads(
     seed: state.seed,
     split: (from, to) => {
       if (made.has(from)) made.add(to);
+      skipped.delete(from);
       splitRoadWork(state.constructions, from, to);
       splitTrailPieces(state.trails, from, to);
     },
   };
   const run = resample(route, null, SAMPLE_M).points;
-  // cesta s posvátným stromem v pásu (`avoid`) se do stezky nebere stejně jako opuštěná
-  const skipped = new Map<number, boolean>();
   const skip = (road: Road): boolean => {
     let out = skipped.get(road.id);
     if (out === undefined) {
