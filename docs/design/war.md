@@ -791,7 +791,8 @@ zásoby a cennosti a utekli do nejbližšího hradiště“).
   i s dobytkem jako ves bez varování a po odtažení se vrátí. Návrh Clauda: cesta se ověří při
   varování celou trasou mapu po mapě (jako pochod); zmizí-li cestou (mapa se mezitím změnila),
   skupina stojí, kde je, a zkouší to každý den znovu – do hradiště se nepřenese; konec tažení ji
-  pošle, kam šla (jako dřív).
+  pošle, kam šla (jako dřív). Volba „Do hradiště“ je v panelu varování zašedlá s důvodem u kurzoru
+  „Do hradiště cesta nevede – lidé se ukryjí v lese.“ (návrh Clauda 17. 11. 2026).
 - **Oči vsi:** domy a dvorec vždy, mimo zimu i pole, milíře, lomy, klády, sady a ohrady; ves, která
   se schovává, jen domy. Vesničan běží 2× tempem pěších, vojsko ho nechytá.
 - **Posel** je chycen do 30 m od skupiny vojska (s jezdcem v dohledu); osud podle volby ke vzdaným

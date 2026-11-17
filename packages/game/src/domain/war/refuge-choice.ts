@@ -342,8 +342,12 @@ export function messengerCandidates(state: VillageState, day: number): Messenger
   return out;
 }
 
-/** Proč volba nejde (texty – rozhraní, plán Ú12). */
-export type AlarmBlock = 'no-hillfort' | 'too-late' | 'no-forest' | 'no-runner' | 'gone' | 'sent';
+/**
+ * Proč volba nejde (texty – rozhraní, plán Ú12). `no-route` – do hradiště cesta nevede
+ * (`refugeLeg`; Martin 17. 11. 2026 – „Utéct do lesa“) – dává až pohled a příkaz (`alarm-view.ts`).
+ */
+export type AlarmBlock =
+  'no-hillfort' | 'too-late' | 'no-forest' | 'no-runner' | 'gone' | 'sent' | 'no-route';
 
 /** Jedna volba při varování: zda jde a odhady (takty). */
 export interface AlarmOption {

@@ -101,6 +101,10 @@ describe('alarmOptionText', () => {
         'all',
       ).denied,
     ).toBe('Nestihnou to – vojsko už je tu.');
+    // hradiště, kam cesta nevede (Martin 17. 11. 2026 – „Utéct do lesa“): důvod bez odhadu
+    expect(
+      alarmOptionText(view({ options: { ...v.options, all: { blocked: 'no-route' } } }), 'all'),
+    ).toMatchObject({ denied: 'Do hradiště cesta nevede – lidé se ukryjí v lese.', detail: null });
   });
 
   it('nevarovaná ves, boj u vsi, posel už běží', () => {

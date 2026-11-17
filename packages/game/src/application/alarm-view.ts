@@ -2,7 +2,7 @@ import type { WorldClock } from '../domain/calendar';
 import type { FlightMode, VillageState } from '../domain/village/types';
 import type { GridCell } from '../domain/village/people/world-grid';
 import { alarmEnded, alarmVillage } from '../domain/war/alarm';
-import { alarmChoices, heardTick } from '../domain/war/alarm-steward';
+import { alarmChoices, heardTick, type AlarmChoices } from '../domain/war/alarm-steward';
 import type { AlarmFlight, AlarmMessenger, AlarmVillage } from '../domain/war/alarm-types';
 import { MissingData, tickContext, type TickContext } from '../domain/war/campaign-tick';
 import type {
@@ -12,7 +12,7 @@ import type {
   IntentBody,
 } from '../domain/war/campaign-types';
 import { yieldingLord } from '../domain/war/campaign';
-import { flightPace } from '../domain/war/evacuation';
+import { flightPace, refugeLeg } from '../domain/war/evacuation';
 import { lordHomeAt } from '../domain/war/lord-home';
 import { prisonerKey } from '../domain/war/raid-apply';
 import type { MarchGridMemo } from '../domain/war/march-grid';
@@ -23,6 +23,7 @@ import {
   messengerCandidates,
   type AlarmBlock,
   type AlarmOption,
+  type RefugeOptions,
 } from '../domain/war/refuge-choice';
 import { WAR } from '../domain/war/rules-war';
 import { hoursPerTick } from '../domain/war/ticks';
@@ -75,7 +76,28 @@ export const ALARM_BLOCKED: Readonly<Record<AlarmViewBlock, string>> = {
   // vzdání vojvody (plán 2026-11-14 – Úloha 8, návrh Clauda)
   lordAway: 'Vojvoda není doma.',
   notRaided: 'Vojsko ještě nepřišlo.',
+  // průvod do hradiště, kam cesta nevede (Martin 17. 11. 2026 – „Utéct do lesa“; text návrh Clauda)
+  'no-route': 'Do hradiště cesta nevede – lidé se ukryjí v lese.',
 };
+
+/**
+ * Volby varování s průvodem do hradiště, kam cesta nevede (`refugeLeg` – úseky všech map trasy;
+ * Martin 17. 11. 2026, „Utéct do lesa“: průvod se nekoná – zašednutí návrh Clauda): „Do hradiště“
+ * zašedne s důvodem `no-route` místo odhadu i místo „Nestihnou to“, tažení by je stejně odmítlo
+ * (`departFlight`). Jiný důvod (lidé už odešli, pán nemá hradiště) zůstane. Pohled i příkaz.
+ */
+function withRefugeRoute(
+  choices: Pick<AlarmChoices, 'options' | 'village'>,
+  day: number,
+  ctx: TickContext,
+): RefugeOptions {
+  const o = choices.options;
+  const open = (x: AlarmOption): boolean => x.blocked === null || x.blocked === 'too-late';
+  if (!open(o.people) && !open(o.all)) return o;
+  if (refugeLeg(choices.village, o, day, ctx) !== null) return o;
+  const cut = (x: AlarmOption): AlarmOption => (open(x) ? { blocked: 'no-route' } : x);
+  return { ...o, people: cut(o.people), all: cut(o.all) };
+}
 
 /** Jedna volba v pohledu: zda jde a odhady v herních dnech (2 desetinná místa). */
 export interface AlarmViewOption {
@@ -383,7 +405,8 @@ export async function villageAlarmView(
   await world.loadHosts(av);
   const domain = await domainOf(deps, found);
   const computed = await world.compute((ctx) => {
-    const base = alarmChoices(s, av, s.tick, ctx);
+    const choices = alarmChoices(s, av, s.tick, ctx);
+    const base = { ...choices, options: withRefugeRoute(choices, s.day, ctx) };
     const picks = messengerCandidates(base.home, s.day);
     // posel na koni doběhne dřív – odhad zvlášť pro pěšího a jezdce
     const eta = new Map<boolean, number | undefined>();
@@ -523,7 +546,13 @@ async function commandBlock(
   // les hradiště nepotřebuje (jako `departFlight`)
   if (command.kind === 'messenger' || command.mode !== 'forest') await world.loadHosts(av);
   const personId = command.kind === 'messenger' ? command.personId : undefined;
-  const options = await world.compute((ctx) => alarmChoices(s, av, s.tick, ctx, personId).options);
+  const options = await world.compute((ctx) => {
+    const choices = alarmChoices(s, av, s.tick, ctx, personId);
+    // průvod do hradiště, kam cesta nevede, odmítne už příkaz s důvodem (tažení by ho nepustilo)
+    return command.kind === 'flee' && command.mode !== 'forest'
+      ? withRefugeRoute(choices, s.day, ctx)
+      : choices.options;
+  });
   if (!options) return 'unwarned';
   if (command.kind === 'messenger') return options.messenger.blocked;
   return options[command.mode].blocked ?? (battleAt(s, av.villageId) ? 'battle' : null);

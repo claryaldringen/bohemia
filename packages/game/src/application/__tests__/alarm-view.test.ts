@@ -79,6 +79,8 @@ interface Setup {
   noCampaign?: boolean;
   /** Úprava stavu tažení (posel do hradiště). */
   tweak?: (s: CampaignState, w: Pick<World, 'a' | 'c' | 'd'>) => void;
+  /** Hradiště C od západu (od vsi A) odřízne hustý les – pás 600 m (cesta do hradiště nevede). */
+  cut?: boolean;
 }
 
 async function setup(o: Setup = {}): Promise<World> {
@@ -133,7 +135,13 @@ async function setup(o: Setup = {}): Promise<World> {
     cells: {
       mapOf: (cell) =>
         Promise.resolve({
-          landscape: land(cell.x === A.x && cell.y === A.y ? grove : undefined),
+          landscape: land(
+            cell.x === A.x && cell.y === A.y
+              ? grove
+              : o.cut && cell.x === C.x && cell.y === C.y
+                ? (tx) => tx < 40
+                : undefined,
+          ),
           obstacles: null,
           villageIds: maps[`${cell.x},${cell.y}`] ?? [],
         }),
@@ -200,6 +208,26 @@ describe('villageAlarmView (Úloha 12)', () => {
     expect(v.options.forest.blocked).toBeNull();
     expect(v.host).toBeNull();
     expect(ALARM_BLOCKED['no-hillfort']).toBe('Pán nemá hradiště.');
+  });
+
+  it('hradiště, kam cesta nevede – „Do hradiště“ zašedlé s důvodem, les a posel jdou (Martin 17. 11. 2026)', async () => {
+    const w = await setup({ cut: true });
+    const v = (await view(w))!;
+    expect(v.host).toEqual({ villageId: w.c, name: 'Hradec' });
+    expect(v.options.people).toEqual({ blocked: 'no-route' });
+    expect(v.options.all).toEqual({ blocked: 'no-route' });
+    expect(v.options.forest.blocked).toBeNull();
+    expect(v.options.messenger.blocked).toBeNull();
+    expect(ALARM_BLOCKED['no-route']).toBe('Do hradiště cesta nevede – lidé se ukryjí v lese.');
+    // i vojsko u domu: místo „Nestihnou to“ důvod, proč nejde vůbec
+    const late = (await view(await setup({ cut: true, seenX: 700 })))!;
+    expect(late.options.people.blocked).toBe('no-route');
+    // server ji odmítne – důvod, žádný záměr; les jde dál
+    expect(await command(w, { kind: 'flee', mode: 'people' })).toMatchObject({
+      ok: false,
+      reason: ALARM_BLOCKED['no-route'],
+    });
+    expect(await command(w, { kind: 'flee', mode: 'forest' })).toMatchObject({ ok: true });
   });
 
   it('(c) vojsko u domu – „Nestihnou to“ s odhady (vojsko dřív, než opustí mapu)', async () => {

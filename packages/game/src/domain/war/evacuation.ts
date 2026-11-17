@@ -22,7 +22,7 @@ import { nearestReachableForest } from './forest-doors';
 import { marchSpeed, type GroupPace } from './march';
 import { routeLeg, stepMover } from './movement';
 import { guardPrisonerKey, lootCapacity, lootTotals, noLoot, sumLoot } from './raid-apply';
-import { flightLoad, refugeOptions } from './refuge-choice';
+import { flightLoad, refugeOptions, type RefugeOptions } from './refuge-choice';
 import { WAR } from './rules-war';
 import { dayOfTick, TICKS_PER_SECOND } from './ticks';
 
@@ -123,6 +123,24 @@ export function withoutTaken(state: VillageState, taken: AlarmTaken): VillageSta
 // --- Odchod ------------------------------------------------------------------------------------
 
 /**
+ * První úsek průvodu z vsi `village` (branka dvorce) do hradiště `options.host` – úseky všech map
+ * trasy `options.route` spočtené předem (`routeLeg`; Martin 17. 11. 2026 – „Utéct do lesa“: když
+ * cesta do hradiště pána nevede, průvod se nekoná). Null = cesta nevede, nebo pán hradiště nemá.
+ * Odchod skupiny (`departFlight`) i zašedlá volba v panelu varování (`alarm-view.ts` – `no-route`).
+ */
+export function refugeLeg(
+  village: CampaignPlace,
+  options: Pick<RefugeOptions, 'host' | 'route'>,
+  day: number,
+  ctx: TickContext,
+): CampaignLeg | null {
+  const host = options.host;
+  if (!host) return null;
+  const route = options.route.slice(1).map((c) => ({ ...c }));
+  return routeLeg({ cell: village.cell, pos: village.pos, route }, host.center, day, ctx);
+}
+
+/**
  * Varovaná ves `villageId` odejde skupinou (záměr `alarm-flee` hráče, pravidlo správce –
  * `decideAlarms`, Úloha 11): ves ještě neodešla, boj u ní nezačal (pak rozhoduje postoj –
  * `planDefense`) a `refugeOptions` volbu pustí (hradiště, „Stihnou to“, les). Složení `flightLoad` ze stavu bez toho, co tažení dnes
@@ -182,7 +200,7 @@ export function departFlight(
     if (!host) return false;
     target = { cell: { ...host.cell }, pos: { ...host.center } };
     route = options.route.slice(1).map((c) => ({ ...c }));
-    leg = routeLeg({ cell, pos: centre, route }, target.pos, s.day, ctx);
+    leg = refugeLeg({ cell, pos: centre }, options, s.day, ctx);
     if (leg === null) return false;
     hostVillageId = host.villageId;
     av.hosts = ids;

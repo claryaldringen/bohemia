@@ -1243,7 +1243,10 @@ Clauda“). Co se hýbe v taktech (vesničan běžící domů, posel, skupina up
   do hradiště jen, vede-li cesta celou trasou – `routeLeg` v `movement.ts` spočte úseky všech map
   trasy předem, mapy načte najednou `gatherMissing`, první úsek je `leg` skupiny; nevede-li, skupina
   neodejde a ves se při nájezdu zachová podle postoje jako bez varování – Martin 17. 11. 2026,
-  „Utéct do lesa“),
+  „Utéct do lesa“; první úsek dá `refugeLeg` v `evacuation.ts` – i pohledu a příkazu varování:
+  `withRefugeRoute` v `application/alarm-view.ts` zašedne „Do hradiště“ s důvodem `no-route`
+  „Do hradiště cesta nevede – lidé se ukryjí v lese.“ místo odhadu i „Nestihnou to“, příkaz ji
+  odmítne; pravidlo správce beze změny – návrh Clauda),
   `refuge-depart` domů na týž den s `hostName` (nový volitelný port `CampaignWorld.villageNameOf` –
   jména načtených vsí; `computeCampaign` je plní spolu se stavem vsi, takže výsledek nezávisí na
   kouscích). Skupina do hradiště sní hned jídlo dne odchodu (doma už nejí), pak v denním kroku
