@@ -22,7 +22,7 @@ import {
   sendLord,
   villageWithMen,
 } from './journey-helpers';
-import { changeVillageState, query, readyScene } from './village-helpers';
+import { changeVillageState, crossesTo, query, readyScene, villageState } from './village-helpers';
 
 // Scéna cizí mapy za vojvodou (journey.md – Scéna cizí mapy; plán 2026-11-13 – Úloha 9b), hra
 // s workerem: vojvoda A je na sousední mapě se vsí B – klik na jeho portrét v liště přepne scénu na
@@ -153,31 +153,6 @@ test('scéna jde za vojvodou na cizí mapu: mlha, objevené stavby, rozkazy a n�
   ]);
   await ctxs[1]!.close();
 
-  // ves B na volné políčko vedle A
-  const cells = await query<{ id: string; x: number; y: number }>(
-    `SELECT id, grid_x AS x, grid_y AS y FROM settlement
-      WHERE archived_at IS NULL AND grid_x IS NOT NULL`,
-    [],
-  );
-  const cellA = cells.find((c) => c.id === A.seat.settlementId)!;
-  const step = [
-    { x: 1, y: 0 },
-    { x: -1, y: 0 },
-    { x: 0, y: 1 },
-    { x: 0, y: -1 },
-  ].find(
-    (d) =>
-      !cells.some(
-        (c) => c.id !== B.seat.settlementId && c.x === cellA.x + d.x && c.y === cellA.y + d.y,
-      ),
-  )!;
-  const cellB = { x: cellA.x + step.x, y: cellA.y + step.y };
-  await query('UPDATE settlement SET grid_x = $2, grid_y = $3 WHERE id = $1', [
-    B.seat.settlementId,
-    cellB.x,
-    cellB.y,
-  ]);
-
   // na mapě B: skupina 45–75 m od domu B (v dohledu), cíl rozkazu ≈ 210 m dál a druhý dům B
   // daleko od cesty mezi nimi (mimo dohled po celou dobu)
   const lB = B.seat.landscape;
@@ -196,6 +171,45 @@ test('scéna jde za vojvodou na cizí mapu: mlha, objevené stavby, rozkazy a n�
   const nearId = stateB.dwellings.find(
     (d) => d.position.x === B.dwelling.x && d.position.z === B.dwelling.z,
   )!.id;
+
+  // ves B na volné políčko vedle A, odkud skupina od cíle rozkazu přejde okrajem na mapu A:
+  // krajina B vznikla pro jiné políčko a hustý les na okraji je neprůchodný (plán
+  // 2026-11-16-dense-forest – Rozhodnutí 8) – na straně bez navázání by „Domů“ na mapě B uvízlo
+  // a vracející se výjezd by skončil hned (journey.md – Návrat), dřív než ho test přenese domů
+  const cells = await query<{ id: string; x: number; y: number }>(
+    `SELECT id, grid_x AS x, grid_y AS y FROM settlement
+      WHERE archived_at IS NULL AND grid_x IS NOT NULL`,
+    [],
+  );
+  const cellA = cells.find((c) => c.id === A.seat.settlementId)!;
+  const mapA = {
+    cell: { x: cellA.x, y: cellA.y },
+    landscape: A.seat.landscape,
+    state: await villageState(A.seat.settlementId),
+  };
+  const step = [
+    { x: 1, y: 0 },
+    { x: -1, y: 0 },
+    { x: 0, y: 1 },
+    { x: 0, y: -1 },
+  ].find(
+    (d) =>
+      !cells.some(
+        (c) => c.id !== B.seat.settlementId && c.x === cellA.x + d.x && c.y === cellA.y + d.y,
+      ) &&
+      crossesTo(
+        { cell: { x: cellA.x + d.x, y: cellA.y + d.y }, landscape: lB, state: stateB },
+        goal,
+        mapA,
+      ),
+  );
+  if (!step) throw new Error('Mapa B nenavazuje na mapu A z žádné volné strany.');
+  const cellB = { x: cellA.x + step.x, y: cellA.y + step.y };
+  await query('UPDATE settlement SET grid_x = $2, grid_y = $3 WHERE id = $1', [
+    B.seat.settlementId,
+    cellB.x,
+    cellB.y,
+  ]);
 
   // A vyšle vojvodu kousek od vsi; skupina se (zápisem do bodu výjezdu) ocitne na mapě B a worker
   // tam objeví dům u ní

@@ -262,7 +262,12 @@ vojska mapu po mapě (Ú6.4), tažení po taktech, boj a dohra (Ú6.5–Ú6.17) 
   nejbližší podle čtverce vzdálenosti v buňkách, remíza – nejmenší index; jen celočíselná
   matematika. Dosažitelný cíl (`marchReachable`, i cíl ve stavbě) vrátí beze změny (týž objekt).
   Null = mapa nemá průchodnou buňku (dřív i skupina sevřená ve vodě – teď unikne).
-  Zaplavení běží jen při plánování úseku na mapě cíle (`settleGoal`), ne každý takt. `settleGoal`
+  Zaplavení běží jen při plánování úseku na mapě cíle (`settleGoal`), ne každý takt; posun si
+  `reachableGoal` pamatuje při mřížce podle buňky startu a cíle (`settledGoals`, nejvýš
+  `SETTLED_GOALS_MAX`) – takt opakovaný při dočítání dat ani skupiny na témž místě ho nehledají
+  znovu. Posunutý cíl nese místo rozkazu v `orderedPos` (smaže ho `sendGroup`): NPC velitel
+  (`marchIntents`) podle něj skupinu neposílá znovu – dřív ji posílal každý takt a úsek se počítal
+  pokaždé (měření varování 5, oprava Úlohy 8). `settleGoal`
   (`movement.ts` – sdílí ho tažení, `moveGroups` v `campaign.ts`, i výprava, `moveGroups`
   v `journey.ts`): skupina na mapě cíle bez úseku (hned po záměru `march`,
   `turnBack`, rozpadu, nebo po vstupu na mapu cíle) si cíl posune před plánováním úseku – stav pak
@@ -964,6 +969,10 @@ návrat za 1 den), `WAR.surrenderRatio`, `WAR.pitFoundChance`.
   s `pace` 1 les neotevírá), remíza nižší index; index po přihrádkách je jeden na mřížku
   (`nearestForestOf` v `ladders.ts`, sdílí ho žebříky, dříví a útěk). `nearestReachableForest(grid,
 from)` totéž jen mezi dveřmi ve stejné souvislé oblasti (`marchAreas`, O(1), bez zaplavení) – les jen za řekou bez brodu je null.
+  Start v neprůchodné buňce: oblasti průchodných sousedů (muž na hradbě, ve vodě); ze stavby nebo
+  stěny bez průchodného souseda oblast nejbližší průchodné buňky (`nearestPassable`) – lidé stojí
+  ve středu domu a dům s pozemkem zabere v mřížce 2,5 m mnoho buněk (oprava Úlohy 8, e2e
+  `multiplayer-war` – útěk do lesa).
   Použití: `refugeOptions` (les → `no-forest`), `Evakuace – Ukrýt v lese`, postoj `planDefense` (null
   → při přesile vzdání, jinak obrana); bod zlomu v bitvě (`rout.ts`) míří k nejbližším dveřím bez
   ohledu na dosažitelnost (levný dotaz po tiku).

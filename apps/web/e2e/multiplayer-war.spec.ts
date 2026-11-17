@@ -15,6 +15,7 @@ import {
 import { E2E_ENV } from '../playwright.config';
 import { useUniqueClientIp } from './helpers';
 import {
+  crossesTo,
   found,
   newPlayer,
   pollVillage,
@@ -34,6 +35,7 @@ import {
   proposeFortification,
   startFortification,
   villageFortifications,
+  villageGate,
   type Fighter,
 } from '@bohemia/game';
 
@@ -1581,12 +1583,26 @@ test('ves B varovaná utíká do hradiště pána a po odtažení vojska se vrá
   );
   const free = (x: number, y: number): boolean =>
     !occupied.some((r) => r.grid_x === x && r.grid_y === y);
+  // jen strana, kde průvod od branky B přejde okrajem na mapu C: krajina C vznikla pro jiné políčko
+  // a hustý les na okraji je neprůchodný (plán 2026-11-16-dense-forest – Rozhodnutí 8) – jinak by
+  // průvod uvízl hned u vsi a „došel“ bez pochodu (war.md – Varování, útěk: nemá-li kudy, zůstane)
+  const stateB0 = await villageState(seatB.settlementId);
+  const mapB = { cell: placeB.cell, landscape: seatB.landscape, state: stateB0 };
+  const gateB = villageGate(stateB0, seatB.landscape);
+  const stateC0 = await villageState(seatC.settlementId);
   const dir = [
     { x: -1, y: 0 },
     { x: 1, y: 0 },
     { x: 0, y: -1 },
     { x: 0, y: 1 },
-  ].find((d) => free(placeB.cell.x + d.x, placeB.cell.y + d.y))!;
+  ].find((d) => {
+    const cell = { x: placeB.cell.x + d.x, y: placeB.cell.y + d.y };
+    return (
+      free(cell.x, cell.y) &&
+      crossesTo(mapB, gateB, { cell, landscape: seatC.landscape, state: stateC0 })
+    );
+  });
+  if (!dir) throw new Error('Mapa C nenavazuje na mapu B z žádné volné strany.');
   const cellC = { x: placeB.cell.x + dir.x, y: placeB.cell.y + dir.y };
   await query(`UPDATE settlement SET grid_x = $2, grid_y = $3 WHERE id = $1`, [
     seatC.settlementId,

@@ -11,11 +11,19 @@ import {
 import {
   checkDwellingPlacement,
   checkPlotPlacement,
+  directionBetween,
+  edgeCrossing,
   fieldPartsFromCells,
   generateLandscapeAttempt,
+  marchCellAt,
+  marchCellCenter,
+  marchGrid,
+  marchPathToEdge,
+  obstaclesOf,
   tileCenterWorld,
   tileOfWorldPoint,
   type DwellingPlot,
+  type Pos,
   type Landscape,
   type LayerVersions,
   type SkeletonSlice,
@@ -32,6 +40,38 @@ export interface Seat {
   settlementId: string;
   seed: number;
   landscape: Landscape;
+}
+
+/** Mapa sídla pro přechod okrajem (`crossesTo`): políčko, krajina a stav vsi na ní. */
+export interface CrossingMap {
+  cell: { x: number; y: number };
+  landscape: Landscape;
+  state: VillageState;
+}
+
+/**
+ * Dojde skupina z místa `pos` na mapě `from` k okraji a přejde na sousední mapu `to` (war.md –
+ * Uvíznutí; plán 2026-11-16-dense-forest – Rozhodnutí 8: okrajem jen tam, kde je protějšek
+ * okrajové buňky na sousední mapě průchozí)? Totéž jako náhradní cesta `planMoverLeg` – mřížky
+ * pochodu obou map ve dni vsi `from` (bez os pokračování stezek – vsi v testech stezky nestaví).
+ * Testy, které sídlo posunou na sousední políčko, si tak vyberou stranu, kde mapy navazují:
+ * krajiny vznikly pro jiná políčka a hustý les na okraji je neprůchodný.
+ */
+export function crossesTo(from: CrossingMap, pos: Pos, to: CrossingMap): boolean {
+  const direction = directionBetween(from.cell, to.cell);
+  if (direction === null) return false;
+  const day = from.state.lastDay;
+  const here = marchGrid(from.landscape, obstaclesOf(from.landscape), from.state, { day });
+  const there = marchGrid(to.landscape, obstaclesOf(to.landscape), to.state, { day });
+  const path = marchPathToEdge(
+    here,
+    pos,
+    direction,
+    (c) =>
+      there.pace[marchCellAt(there, edgeCrossing(from.cell, to.cell, marchCellCenter(here, c)))]! >
+      0,
+  );
+  return path !== null;
 }
 
 export async function query<T extends object>(sql: string, params: unknown[]): Promise<T[]> {
