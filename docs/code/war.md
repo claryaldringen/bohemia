@@ -454,7 +454,13 @@ a `food` (kg obilí ze zásob shromaždiště).
   právo `war` ve `STEWARD_RIGHTS` chybí), žijící vsi, velitel a zástupce mezi vybranými muži rodu,
   cíl (ves cizího rodu, žijící; **cíl v ochraně se odmítne** – nová ves `villageProtected`, rod
   nováčka `houseProtectedUntil` + `protectedReason`, ochrana rodu platí jen když mezi rody neběží
-  válka), jídlo (nejvýš zásoba shromaždiště bez osiva a nosnost mužů). Odhad: `CampaignEstimate`
+  válka), jídlo (nejvýš zásoba shromaždiště bez osiva a nosnost mužů), **cesta ze vsi ke
+  shromaždišti** (Martin 17. 11. 2026 – „Nesmí do tažení“; `reachesAssembly`: `routeLeg` z branky
+  dvorce `villageStandingPlace` po trase `worldRoute` a mřížkách dne `today` – týž test jako průvod
+  do hradiště `refugeLeg`; mapy a vsi načte `PlanWorld` přes `PlanDeps.cells` jako pohled varování,
+  mřížky `PlanDeps.grids`; ves shromaždiště se nezkouší) – odříznutá ves dá `CAMPAIGN_REASONS.noRoute`
+  „Ze vsi ke shromaždišti cesta nevede – otevře ji až zemská stezka.“ (panel Vojsko ho ukáže jako
+  ostatní důvody a vyslání zašedne). Odhad: `CampaignEstimate`
   (síla `armyStrength` po vsích s pokrytím nástroji, počty mužů, cesta ve dnech vzdušnou čarou
   ≈ 3,5 m/s, na kolik dní vystačí jídlo, `ambush`, `liveCommand`). **Poloha shromaždiště, cíle
   i domovů** (`villageStandingPlace` v `plan-campaign.ts`): branka dvorce `villageGate`

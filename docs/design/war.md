@@ -314,6 +314,12 @@ a 12 vesničanů (8 dobrovolníků po 0,4, 4 nucení po 0,2 = 4,0), s kovárnou 
     které hustým lesem nevede paseka ke kraji mapy, je odříznutá – nevyjde z ní vojvoda, vojsko ani
     výprava a nepřítel k ní nedojde, dokud hráč nepostaví zemskou stezku (průsek lesem). Žádný
     průchod od založení se nepřidává ([les](forest.md) – Hustý les).
+  - **Odříznutá ves do tažení nejde** (Martin 17. 11. 2026 – volba „Nesmí do tažení“ k otázce, zda
+    smí odříznutá ves poslat muže do tažení; zdůvodnění „Cestu otevře až stezka“): ves, odkud
+    ke shromaždišti nevede cesta (po mapách trasy z branky dvorce, stejně jako průvod do hradiště),
+    v plánu tažení zašedne s důvodem u kurzoru „Ze vsi ke shromaždišti cesta nevede – otevře ji až
+    zemská stezka.“ a server plán s ní odmítne – její muži by se po rozpadu domů nevrátili. Ves
+    shromaždiště sama smí vždy (text a výjimka návrh Clauda).
   - **Zemská stezka pokračuje na sousední mapě** až k tamní vsi, nebo k nejbližší velké louce
     (Martin 16. 11. 2026: „ano“ – [obchod](trade.md) – Zemská stezka): vojska tak chodí k sousedům
     po stezkách; bez toho by se z vlastní mapy dostala jen do úzkých pásů u okraje sousední mapy
