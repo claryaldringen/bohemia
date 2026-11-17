@@ -8,6 +8,8 @@ import { keepSwathsClearOfWoods, roadSwathTally, swathTally, withRoadSwaths } fr
 import { ROAD_SWATH, TREE_REGROWTH_YEARS } from '../../rules';
 import { sacredSitesOf } from '../../people/sacred';
 import { advanceVillage } from '../../core/simulate';
+import { addTrailRoads } from '../../paths/roads-trails';
+import { trailTerrain } from '../../paths/terrain';
 import { planTrail, startTrail, trailOptions, trailRoutes } from '../../trade/trail';
 import type { Dwelling, Person, Road, VillageState } from '../../types';
 import { LANDSCAPE } from '../../__tests__/paths-fixtures';
@@ -362,5 +364,49 @@ describe('zemská stezka lesem (trade.md – Zemská stezka)', () => {
       if (d > ROAD_SWATH.halfM + 0.01) expect(gone.has(grid.id[i]!)).toBe(false);
     }
     expect(cut).toBeGreaterThan(0);
+  });
+});
+
+describe('zemská stezka a posvátný strom v pásu cesty', () => {
+  const route = (z: number): { x: number; z: number }[] =>
+    Array.from({ length: 36 }, (_, i) => ({ x: -30 - i * 3, z }));
+  const build = (
+    road: Road | null,
+    z: number,
+  ): { state: VillageState; ids: number[]; sacred: (id: number) => boolean } => {
+    const state = road ? withRoad(village(), road) : village();
+    const sacred = (r: Road): boolean => roadSwathTally(state, r, DAY, layer, LANDSCAPE).sacred;
+    const ids = addTrailRoads(
+      state,
+      route(z),
+      DAY,
+      LANDSCAPE,
+      layer,
+      trailTerrain(LANDSCAPE, layer),
+      sacred,
+    );
+    return {
+      state,
+      ids,
+      sacred: (id) => sacred(state.roads!.roads.find((r) => r.id === id)!),
+    };
+  };
+
+  it('posvátný strom v pásu existující cesty, trasa sama volná: stezka dostane novou cestu vedle', () => {
+    const own = forestRoad({
+      points: [
+        { x: -30, z: 50 },
+        { x: -138, z: 50 },
+      ],
+    });
+    const { ids, sacred } = build(own, 53);
+    expect(ids).not.toContain(own.id);
+    expect(ids.length).toBeGreaterThan(0);
+    expect(ids.some(sacred)).toBe(false);
+  });
+
+  it('posvátný strom přímo v pásu trasy: nová cesta ho má v pásu (planTrail odmítne TRAIL_SACRED)', () => {
+    const { ids, sacred } = build(null, 50);
+    expect(ids.some(sacred)).toBe(true);
   });
 });
