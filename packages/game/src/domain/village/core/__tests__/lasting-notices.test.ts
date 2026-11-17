@@ -168,11 +168,9 @@ describe('lastingNotices – trvalé stavy vsi z upozornění', () => {
     expect(notices).not.toContain('no-ore');
   });
 
-  it('psi bez obilí – aspoň jeden celý pes, kterého ves nenakrmila', () => {
+  it('psi nejedí – ani bez zásob se kvůli nim žádný stav nezačne (17. 11. 2026)', () => {
     const s = withoutSmallGame(village());
     s.wildlife!.dogs = { count: 2, fed: false };
-    expect(lastingNotices(s, START)).toContain('dogs-ungrained');
-    s.wildlife!.dogs = { count: 0.5, fed: false };
     expect(lastingNotices(s, START)).not.toContain('dogs-ungrained');
   });
 

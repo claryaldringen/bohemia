@@ -376,10 +376,12 @@ export function populationDay(
       // pohlaví a postavení (kronika – `deathWho`)
       const who = deathWho(state, person, day);
       const age = ageYears(person.bornDay, day);
+      // počet obyvatel po úmrtí (kronika – Martin 17. 11. 2026); zemřelí se odstraní až po cyklu
+      const population = state.people.length - dead.size;
       events.push(
         roll < base
-          ? { day, kind: 'death', group, age, ...who }
-          : { day, kind: 'death', group, age, cause: 'hunger', ...who },
+          ? { day, kind: 'death', group, age, ...who, population }
+          : { day, kind: 'death', group, age, cause: 'hunger', ...who, population },
       );
       // mohyla podle významu zemřelého – vojvodova rodina, hlava rodiny, dítě (cemetery.md)
       const full = bury(state, day, person);
@@ -444,6 +446,7 @@ export function populationDay(
           kind: 'birth',
           ...(child.name === undefined ? {} : { name: child.name }),
           ...(child.sex === 'female' ? { female: true as const } : {}),
+          population: state.people.length,
         },
         ...lineEvents,
       );

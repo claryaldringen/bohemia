@@ -62,6 +62,7 @@ import { rotLogs } from '../forest/wood';
 import { localDisastersDay } from '../disasters/local-disasters';
 import { migrateVillage } from './migrations';
 import { decideRebuilds, finishConstructions } from './simulate-build';
+import { stockLastsDays } from './food-lasts';
 import { eat, endThreshing, harvest, harvestLateSpring, harvestWinter } from './simulate-food';
 import {
   fieldStoresOutlook,
@@ -310,7 +311,18 @@ function storesAndHerdsDay(
   state.chronicle.push(...retireCarts(state, day));
   // sady: shnilá jablka, konec péče a stárnutí (1. 3.), začátek a konec sklizně a péče, obnova
   // starých čtverců v oknech výsadby (stavba ze společné práce – dostane práci už dnes)
-  state.chronicle.push(...orchardSeasonDay(state, day, coverage.pottery));
+  for (const event of orchardSeasonDay(state, day, coverage.pottery)) {
+    // zásoba jablek po sklizni (kronika – Martin 17. 11. 2026)
+    if (event.kind === 'apple-harvest') {
+      const outlook = stockLastsDays(state, day, 'apples', coverage.pottery);
+      event.stock = {
+        kg: Math.round(outlook.kg),
+        days: outlook.days,
+        people: state.people.length,
+      };
+    }
+    state.chronicle.push(event);
+  }
   // zarůstání přílohu (1. 11., před porážkou – stáda jsou ještě letní): díly, které se nespásly
   // ani neposekly, zarůstají, les z pole vypadne (fields.md – Zarůstání)
   state.chronicle.push(...overgrowthDay(state, day, obstacles ?? landscape));
@@ -573,10 +585,11 @@ function harvestAndUpkeepDay(
   // zásob, jak počítá daysUntilHarvest (31. 8. → 1 den); ozim stejně 31. 7. (co červenec
   // nedosklidil, 31. 8. s jaří – fields.md, Žně i v srpnu); jař, kterou srpen nedosklidil, v září,
   // až je dožatá, nejpozději 30. 9. (fields.md – Žeň jaře i v září); s jaří končí sezóna škod zvěře
-  if (isOn(date, WINTER_HARVEST_DAY)) harvestWinter(state, day, landscape);
-  if (isOn(date, HARVEST_DAY)) harvest(state, day);
+  const pottery = (): number => craftCoverage(state, day).pottery;
+  if (isOn(date, WINTER_HARVEST_DAY)) harvestWinter(state, day, landscape, pottery());
+  if (isOn(date, HARVEST_DAY)) harvest(state, day, pottery());
   if (date.month === LATE_HARVEST_DAY.month) {
-    harvestLateSpring(state, day, isOn(date, LATE_HARVEST_DAY));
+    harvestLateSpring(state, day, isOn(date, LATE_HARVEST_DAY), pottery());
   }
   if (isOn(date, THRESH_END_DAY)) endThreshing(state);
   // pevné cesty (roads.md): práce dne do ročního součtu, 1. 11. roční kontrola cest a stromů

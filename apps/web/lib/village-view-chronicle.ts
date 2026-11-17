@@ -18,6 +18,7 @@ import {
   type AwayKind,
   type ChronicleEstate,
   type ChronicleEvent,
+  type HarvestStock,
   type ChronicleFortGate,
   type ChroniclePerson,
   type ChronicleLandmark,
@@ -283,8 +284,31 @@ function deathLine(event: Extract<ChronicleEvent, { kind: 'death' }>): string {
       : ` – ${event.by === 'bear' ? 'zabil' : 'zabili'} ${female ? 'ji' : ending === 'o' ? 'je' : 'ho'} ${event.by === 'bear' ? 'medvěd' : 'vlci'}`;
   // bez věku (starší zápisy) podmět napřed: „Bořivoj padl v boji.“
   return event.age === undefined
-    ? `${capitalized(who)} ${died}${beast}.`
-    : `${agePrefix(event.age)} ${died} ${who}${beast}.`;
+    ? `${capitalized(who)} ${died}${beast}.${populationSentence(event.population)}`
+    : `${agePrefix(event.age)} ${died} ${who}${beast}.${populationSentence(event.population)}`;
+}
+
+/**
+ * Zásoba po sklizni (Martin 17. 11. 2026: „kolik té plodiny má vesnice celkem a na jak dlouho to
+ * vystačí při současném počtu obyvatel“): „Obilí má ves 1 821 kg – při 60 lidech vystačí na 80
+ * dní.“ Starší zápisy bez zásoby nic nepřidají.
+ */
+function stockSentence(subject: string, stock: HarvestStock | undefined): string {
+  if (stock === undefined) return '';
+  const have = `${subject} má ves ${formatInteger(stock.kg)} kg`;
+  if (stock.days === null) return ` ${have}.`;
+  const people = `${stock.people} ${plural(stock.people, 'člověku', 'lidech', 'lidech')}`;
+  const lasts =
+    stock.days === 0
+      ? 'nevystačí ani na den'
+      : `vystačí na ${formatInteger(stock.days)} ${plural(stock.days, 'den', 'dny', 'dní')}`;
+  return ` ${have} – při ${people} ${lasts}.`;
+}
+
+/** Počet obyvatel po narození nebo úmrtí: „Ves má 61 obyvatel.“ */
+function populationSentence(population: number | undefined): string {
+  if (population === undefined) return '';
+  return ` Ves má ${formatInteger(population)} ${plural(population, 'obyvatele', 'obyvatele', 'obyvatel')}.`;
 }
 
 /** Zemřelý ve starším zápisu bez postavení a jména. */
@@ -1145,9 +1169,12 @@ export function chronicleText(event: ChronicleEvent, villageName: string, seed?:
       return `Osadníci založili ves ${villageName}.`;
     // jméno dítěte (population.md – Jména); starší zápisy a syn vojvody, který čeká na jméno, bez něj
     case 'birth':
-      return event.name === undefined
-        ? 'Narodilo se dítě.'
-        : `Narodil${event.female ? 'a' : ''} se ${event.name}.`;
+      return (
+        (event.name === undefined
+          ? 'Narodilo se dítě.'
+          : `Narodil${event.female ? 'a' : ''} se ${event.name}.`) +
+        populationSentence(event.population)
+      );
     case 'line-birth':
       return 'Vojvodovi se narodil syn.';
     case 'line-named':
@@ -1379,16 +1406,16 @@ export function chronicleText(event: ChronicleEvent, villageName: string, seed?:
     case 'journey-started':
       return `Lidé vyrazili na ${DIRECTION_NAMES[event.direction].name} – na místo nové vsi dorazí ${formatGameDate(dateOfDayIndex(event.arrivalDay))}.`;
     case 'harvest':
-      return `${HARVEST_NAMES[event.crop ?? 'any']}: ${formatInteger(event.kg)} kg ${HARVEST_GOODS[event.crop ?? 'any']}.`;
+      return `${HARVEST_NAMES[event.crop ?? 'any']}: ${formatInteger(event.kg)} kg ${HARVEST_GOODS[event.crop ?? 'any']}.${stockSentence(event.crop === 'legume' ? 'Luštěniny' : 'Obilí', event.stock)}`;
     case 'linen-short':
       return `Lnu je na oděv málo – vytrhali ${formatInteger(event.kg)} kg z ${formatInteger(event.neededKg)} kg, které lidé potřebují.`;
     case 'apple-harvest':
-      return `Sklizeň ovoce: ${formatInteger(event.kg)} kg.`;
+      return `Sklizeň ovoce: ${formatInteger(event.kg)} kg.${stockSentence('Jablka', event.stock)}`;
     case 'garden-harvest':
       // starší zápisy z doby lnu na zahrádkách nesou i len
       return event.flaxKg !== undefined
         ? `Sklizeň zahrádek: ${formatInteger(event.flaxKg)} kg lnu a ${formatInteger(event.legumeKg)} kg luštěnin.`
-        : `Sklizeň zahrádek: ${formatInteger(event.legumeKg)} kg luštěnin.`;
+        : `Sklizeň zahrádek: ${formatInteger(event.legumeKg)} kg luštěnin.${stockSentence('Luštěniny', event.stock)}`;
     case 'slaughter':
       return `Podzimní porážka: ${formatInteger(event.kg)} kg masa.`;
     case 'emergency-slaughter': {
@@ -1474,6 +1501,11 @@ export function chronicleText(event: ChronicleEvent, villageName: string, seed?:
     case 'horse-trained':
       return 'Kůň je vycvičený pod jezdcem.';
     case 'horse-retired':
+      if (event.reason === 'hay') {
+        return event.horses === 1
+          ? 'Seno do jara nevystačí – kůň šel na maso.'
+          : `Seno do jara nevystačí – koně šli na maso (${event.horses}).`;
+      }
       if (event.reason === 'age') {
         return event.horses === 1
           ? 'Kůň dosloužil – zestárl a šel na maso.'

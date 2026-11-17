@@ -36,7 +36,7 @@ import { cowsComing } from '../trade/cattle-trade';
 import { foodCosts, type FoodCosts } from './economy';
 import { herdingCoverage } from './herding';
 import { horsesDay } from './horse-breeding';
-import { horsesWinterEnd } from './horse-feed';
+import { horsesHaySlaughter, horsesWinterEnd } from './horse-feed';
 import { looseHorsesDay } from './horse-stock';
 import { horseHayDailyKg, horsesInPlaces, villageHorses } from './horses';
 import { HAY_CUTS, HORSES, OXEN } from '../rules';
@@ -513,6 +513,8 @@ export function husbandryDay(
   if (isHayWinter(day, isLongWinter(state, day))) {
     // seno do konce března nevystačí – ves hned porazí kusy, na které nezbude, ať zvířata
     // nehladoví (oxen.md – Co nejvíc sena a co největší stáda; dřív zimní úhyn 1. 3.)
+    // koně napřed – kusy, které by 1. 3. uhynuly, se snědí a stádo počítá s menší dávkou koní
+    events.push(...horsesHaySlaughter(state, day, villageOxen(state), horsesHayToday(state, day)));
     const short = hayShortSlaughter(state, day, villageOxen(state), horsesHayToday(state, day), {
       cow: oxenRenewalCows(state),
       sheep: woolSheep(state, day),

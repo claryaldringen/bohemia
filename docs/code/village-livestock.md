@@ -459,16 +459,19 @@ Horse[]` (`id`, `bornDay`, `sex`, `training`, `riderId?`). `horses.ts` – `hors
   (hystereze). `state.horsesFed` (chybí = bez koní). Seno – `horseHayDailyKg` (hříbě 3 / 5, kůň 6,
   jezdecký bez obilí 7), `feedHay(…, horsesKg)` voli → koně → stádo, `winter.horsesNeedKg` /
   `horsesEatenKg` jen ves s koňmi; `horsesHayCoverage`, `herdHayCoverage` odečte březen koní;
-  1. 3. `horsesWinterEnd` (nejmladší napřed, kronika `horse-starved`). Seč 1. 6. s koňmi
-     (`winterHayNeedKg`), zimní stádo po koních (`WinterInput.horsePastureHa` / `horseHayKg`). Pastva
-     1 ha na koně (`grazingDemandHa(…, horses)` – zarůstání, pěšiny, souhrn). Plán osevu přičte obilí
-     koní za rok do potřeby do sklizně i po ní (`storesOutlook`). Nouzová porážka koně nebere.
+  včas `horsesHaySlaughter` (`horse-feed.ts`; `husbandryDay` před `hayShortSlaughter`: výhled pokrytí
+  sena do 1. 4. a tytéž kusy, které by 1. 3. uhynuly, hned porazí – `HORSES.meatKg` 160 kg do
+  `butcher`, kronika `horse-retired` s důvodem `hay`), 1. 3. `horsesWinterEnd` jen záloha
+  (nejmladší napřed, kronika `horse-starved`). Seč 1. 6. s koňmi
+  (`winterHayNeedKg`), zimní stádo po koních (`WinterInput.horsePastureHa` / `horseHayKg`). Pastva
+  1 ha na koně (`grazingDemandHa(…, horses)` – zarůstání, pěšiny, souhrn). Plán osevu přičte obilí
+  koní za rok do potřeby do sklizně i po ní (`storesOutlook`). Nouzová porážka koně nebere.
 - **Chov koní, výcvik koně a jezdci** (horses.md – Chov, Výcvik koně a jezdec; issue #5):
   `horse-breeding.ts` – `horsesDay` v `husbandryDay` (po úhynu 1. 3., před porážkou stád). Hříbata
   dne 1. 5. (`horseBirths`): klisna 4–20 let rodí, když `(rok + id) % 2 === 0` a ves má samce od
   3 let; pohlaví `deriveSeed(seed, 'foal:den:id')`, id z `nextId`, hříbě jen do míst (počítají se
   všichni koně), kronika `foal-born`. Porážka dne 1. 11. (`retireHorses`): od 20 let na maso
-  (`age`), pak jezdečtí koně a klisny nad `horsesWanted` od nejstarších (`surplus`), 100 kg do
+  (`age`), pak jezdečtí koně a klisny nad `horsesWanted` od nejstarších (`surplus`), `HORSES.meatKg` (160 kg) do
   `butcher`, hříbata zůstávají; kronika `horse-retired`. `horsesWanted` – jezdci rodiny od 10 let
   (`familyRiders`), klisny 1 + ⌊jezdci / 3⌋, hříbata = cvičící rodina − jezdečtí koně, kteří za
   3 roky ještě slouží; strop místa (jezdečtí, klisny, hříbata). `horse-riders.ts` – `assignRiders`

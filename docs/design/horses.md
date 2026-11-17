@@ -41,8 +41,10 @@ stojí obilí a práci vsi hned, užitek přinese až s lovem a válkou.
     jen seno),
   - **hříbata** – do 3 let, obou pohlaví; ve 3 letech se z hřebečka stane jezdecký kůň,
     z klisničky klisna.
-- **Služba do 20 let**, pak kůň „dosloužil“ a 1. 11. jde na maso (≈ 100 kg – vůl 120 kg, kůň je
-  menší). Klisna rodí od 4 do 20 let.
+- **Služba do 20 let**, pak kůň „dosloužil“ a 1. 11. jde na maso (**≈ 160 kg** – Martin 17. 11. 2026
+  k masu: „Ano, zvedni to. Tehdejší lidé zpracovali to zvíře komplet“; výpočet návrh Clauda: jídlo
+  ≈ polovina živé váhy – maso s tukem, vnitřnosti a krev; kůň ≈ 300–350 kg živé váhy → ≈ 160 kg;
+  dřív 100 kg). Klisna rodí od 4 do 20 let.
 
 ## Ohrada koní (návrh Clauda)
 
@@ -88,8 +90,13 @@ stojí obilí a práci vsi hned, užitek přinese až s lovem a válkou.
 - **Lidé napřed:** když ves šetří jídlem nebo obilí dojde, koně obilí nedostanou. **Kůň jen na seně
   neuhyne**, ale jeho **výcvik roste polovičním tempem** (Martin – zpomalí; polovina návrh Clauda);
   jezdec na něm cvičí dál.
-- **Bez sena** v zimě jako voli: když koně dostanou za zimu pod polovinu přídělu sena, 1. 3. jich
-  uhyne tolik, aby ostatní měli polovinu – nejdřív nejmladší.
+- **Bez sena** v zimě jako voli: když by koně dostali za zimu pod polovinu přídělu sena, uhynulo by
+  jich 1. 3. tolik, aby ostatní měli polovinu – nejdřív nejmladší. **Ves je ale včas porazí a sní**
+  (D91; Martin 17. 11. 2026: „Spíš jde o to sníst zvířata, která by stejně chcípla na nedostatek
+  krmiva.“): každý den zimy spočítá, jaké pokrytí sena vyjde k 1. 3., a tytéž kusy (stejné pořadí)
+  hned porazí – **160 kg masa na kus** do zásoby jako z porážky (uzení, zkažení 1. 9., strop
+  stravy; práce porážky jako u stád). Kronika „Seno do jara nevystačí – kůň šel na maso“. Úhyn
+  1. 3. zůstane jen pro případ, kdy porážka nestihla (seno se ztratilo až v březnu).
 - **Na hraně zásob** (návrh Clauda): koně dostanou obilí, jen když lidem po dnešním jídle zbude do
   sklizně tolik obilí navíc, aby vystačilo i koním. Když jeden den nedostanou, dostanou ho znovu až
   s rezervou 30 dní obilí koní navíc – krmení se nepřepíná den po dni. Klisna obilí nedostává nikdy,

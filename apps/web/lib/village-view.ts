@@ -176,11 +176,13 @@ export function chronicle(state: VillageState, name: string): VillageView['chron
       event.oxen !== undefined
         ? { oxen: event.oxen }
         : {}),
-      ...(event.kind === 'horse-starved' || event.kind === 'horse-retired'
-        ? { horses: event.horses }
-        : event.kind === 'foal-born'
-          ? { horses: event.foals }
-          : {}),
+      ...(event.kind === 'horse-retired'
+        ? { horses: event.horses, retired: event.reason }
+        : event.kind === 'horse-starved'
+          ? { horses: event.horses }
+          : event.kind === 'foal-born'
+            ? { horses: event.foals }
+            : {}),
       ...(event.kind === 'crafts-bought'
         ? { direction: event.direction, products: boughtProducts(event.get) }
         : {}),
@@ -342,18 +344,23 @@ const SACRED_ICONS: Record<string, string> = { idol: 'modla', shrine: 'svatyne' 
 /**
  * Nabídka rozcestníku posvátných míst (modla, svatyně, po křtu malý a velký kostel): dostupné je,
  * pokud ves začne aspoň jeden druh; cena a důvod zašednutí zůstávají u nabídky každého druhu.
+ * Nezačne-li ves žádný, zašedlé tlačítko nese důvod nejlepšího nabízeného druhu – rozcestník
+ * otevřít nejde, takže by důvod u druhů hráč jinak neviděl (po křtu „Bez stavbyvedoucího huti…“).
  * Ikona tlačítka je nejlepší dostupný druh (kostel, svatyně, modla), jinak nejlepší nabízený.
  */
 export function sacredHubOption(build: Partial<Record<string, BuildOption | null>>): BuildOption {
   const offered = SACRED_BEST_FIRST.filter((kind) => build[kind]);
   const best = offered.find((kind) => build[kind]?.affordable) ?? offered[0] ?? 'shrine';
+  const affordable = offered.some((kind) => build[kind]?.affordable);
   return {
     laborManDays: 0,
     perHa: false,
     perSquare: false,
     upfront: [],
-    blocked: null,
-    affordable: offered.some((kind) => build[kind]?.affordable),
+    blocked: affordable
+      ? null
+      : (offered.map((kind) => build[kind]?.blocked ?? null).find((r) => r !== null) ?? null),
+    affordable,
     look: {
       icon: build[best]?.look?.icon ?? SACRED_ICONS[best] ?? 'svatyne',
       name: 'Posvátná místa',

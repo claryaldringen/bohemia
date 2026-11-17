@@ -30,7 +30,7 @@ describe('zásilka (dispatchShipment, receiveShipment)', () => {
     const meatBefore = received.meatKg ?? 0;
     receiveShipment(received, DAY + 6, sent.body);
     expect(received.storesKg - to.storesKg).toBe(500);
-    expect((received.meatKg ?? 0) - meatBefore).toBe(240);
+    expect((received.meatKg ?? 0) - meatBefore).toBe(260);
     expect(stock(received).cows).toBe(stock(to).cows);
     expect(received.domainFoodDay).toBe(DAY + 6);
   });

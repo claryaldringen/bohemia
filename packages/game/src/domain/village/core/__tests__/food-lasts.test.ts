@@ -9,7 +9,7 @@ import {
   villageFoodNeed,
 } from '../diet';
 import { legumeEnergy } from '../../fields/legumes';
-import { foodLastsDays } from '../food-lasts';
+import { foodLastsDays, stockLastsDays } from '../food-lasts';
 import { NO_CRAFTS } from '../productivity';
 import type { VillageState } from '../../types';
 
@@ -141,5 +141,38 @@ describe('daysUntilMeatSpoil', () => {
     expect(daysUntilMeatSpoil(at(601, 9, 1))).toBe(0);
     expect(daysUntilMeatSpoil(at(601, 9, 2))).toBe(at(602, 9, 1) - at(601, 9, 2));
     expect(daysUntilMeatSpoil(at(601, 8, 21))).toBe(11);
+  });
+});
+
+// D90 (Martin 17. 11. 2026): zásoba jedné potraviny a na kolik dní vystačí – do kroniky u sklizně.
+describe('stockLastsDays', () => {
+  it('obilí: kg bez osiva a dny jako foodLastsDays, když je obilí jediné jídlo', () => {
+    const state = village({ storesKg: 3000, reservedSeedKg: 1000 });
+    const out = stockLastsDays(state, NOVEMBER, 'grain');
+    expect(out.kg).toBe(2000);
+    expect(out.days).toBe(foodLastsDays(state, NOVEMBER));
+  });
+
+  it('luštěniny jen do stropu stravy – vystačí na víc dní než obilí téže energie', () => {
+    const state = village({ legumesKg: 400 });
+    const out = stockLastsDays(state, NOVEMBER, 'legumes');
+    expect(out.kg).toBe(400);
+    const perDay = need(state, NOVEMBER);
+    expect(out.days ?? 0).toBeGreaterThan(legumeEnergy(400) / perDay);
+  });
+
+  it('jablka jen do dne, kdy shnijí', () => {
+    const state = village({ applesKg: 100000 });
+    const day = at(600, 11, 2);
+    const out = stockLastsDays(state, day, 'apples');
+    expect(out.days ?? 0).toBeGreaterThan(0);
+    expect(out.days ?? 0).toBeLessThanOrEqual(365);
+  });
+
+  it('bez lidí null, bez zásoby 0', () => {
+    expect(
+      stockLastsDays(village({ storesKg: 3000, people: [] }), NOVEMBER, 'grain').days,
+    ).toBeNull();
+    expect(stockLastsDays(village(), NOVEMBER, 'grain').days).toBe(0);
   });
 });

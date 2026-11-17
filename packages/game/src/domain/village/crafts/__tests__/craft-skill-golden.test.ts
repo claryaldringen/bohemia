@@ -33,7 +33,10 @@ function legacyShape(state: VillageState): unknown {
     ...rest,
     // jména lidí a v zápisech kroniky (population.md – Jména) – jen záznam, simulace je nečte
     people: rest.people.map((p) => withoutKeys(p, ['name'])),
-    chronicle: rest.chronicle.map((e) => withoutKeys(e, ['name', 'personId', 'female'])),
+    // zásoba u sklizně a počet obyvatel (kronika, 17. 11. 2026) jsou jen zápis – otisk řemesel je neměří
+    chronicle: rest.chronicle.map((e) =>
+      withoutKeys(e, ['name', 'personId', 'female', 'stock', 'population']),
+    ),
     crafts: c && {
       charcoalKg: c.charcoalKg,
       toolsKg: toolEquipmentKg ?? 0,
@@ -181,6 +184,7 @@ describe('ves bez dílen beze změny (crafts.md – Učení řemesla)', () => {
     // hash c8944200 (14. 11. 2026, kůže a kožešiny zpracují jen ženy z volného času – population.md,
     // Práce, Stavby staví muži): zpracování čeká na volnou práci žen, oka a ryby dostanou volnou
     // práci mužů – jiný úlovek a jídlo; dřív 5b765f59
-    expect(hash(stripped)).toBe('c8944200');
+    // hash 410d1b2d (17. 11. 2026, D91 (Martin 17. 11. 2026: „psi ať nic nespotřebovávají“ a maso krávy 120 → 130 kg): psi dvorce už nejedí obilí a z porážky je víc masa – jiné zásoby a jídlo; dřív c8944200)
+    expect(hash(stripped)).toBe('410d1b2d');
   }, 120_000);
 });

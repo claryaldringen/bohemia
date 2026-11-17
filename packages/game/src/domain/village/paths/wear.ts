@@ -458,7 +458,13 @@ export function settleWear(
   const settle = (c: number, trips: number): void => {
     // nejdřív práce intervalu (ořez na strop), pak chůze a dorůstání po dnech (ořez na 0 a strop)
     const worked = Math.min(WEAR.max, (cells.get(c) ?? 0) + (labor.get(c) ?? 0));
-    const w = worked + (trips - WEAR.regrowPerDay) * days;
+    let w = worked + (trips - WEAR.regrowPerDay) * days;
+    // cesta vznikne jen tam, kde se chodí aspoň `WEAR.formFrom` – rozhoduje jen provoz tras (stálý
+    // v intervalu), práce na tom nic nemění; políčko, které už mez překročilo (existující cesta),
+    // se řídí dosavadními pravidly
+    if (trips < WEAR.formFrom && (cells.get(c) ?? 0) < WEAR.roadAt) {
+      w = Math.min(w, WEAR.roadAt - 1);
+    }
     if (w > 0) cells.set(c, Math.min(WEAR.max, w));
     else cells.delete(c);
   };

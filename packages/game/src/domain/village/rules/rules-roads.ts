@@ -177,6 +177,10 @@ export const WEAR = {
   regrowPerDay: 100,
   max: 150_000,
   roadAt: 100_000,
+  // paths.md – Vyšlapanost a vznik cesty (Martin 17. 11. 2026: „Nejvýš do 3 let“): cesta se vyšlape jen tam, kde se chodí aspoň 2× denně
+  // (pak nejpozději za 1 000 / (2 − 1) = 1 000 dní); při menším provozu tras (práce se nepočítá)
+  // vyšlapanost nedosáhne `roadAt`
+  formFrom: 200,
   extendFrom: 50_000,
   visibleFrom: 5_000,
   cartWeight: 2,
@@ -187,6 +191,11 @@ export const WEAR = {
 // pastva) a v pásu kraje mapy (`EDGE_MARGIN_M` + `TRAIL.edgeBandM` + `goalM` od okraje – tam končí
 // cesty k sousedům)
 export const ROAD_ANCHORS = { entranceM: 3, goalM: 7.5 } as const;
+// paths.md – Vyšlapanost a vznik cesty, roky chůze v kronice (D89; Martin 17. 11. 2026: „Po 92 letech
+// chůze lidé vyšlapali cestu mezi ohradou a rozcestím u tesařské dílny. – tohle je píčovina.“; návrh
+// Clauda): trasa vede po cestě, když aspoň `share` bodů osy (po metru) leží do jedné strany buňky
+// mřížky pěšin od její čáry
+export const ROAD_WALKED = { share: 0.6 } as const;
 // paths.md – Vchody (Martin, #6: „ke každé stavbě, kam se chodí, vede cesta až k jejímu vchodu,
 // i když se tam chodí málo, třeba k hřbitovu jen na pohřby.“; návrh Clauda): vchod má cestu, když
 // do `ROAD_ANCHORS.entranceM` od něj končí nebo vede pevná cesta; cesta k vchodu je nejméně

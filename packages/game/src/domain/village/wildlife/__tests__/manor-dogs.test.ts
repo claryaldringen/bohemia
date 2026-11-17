@@ -1,14 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { dogsWanted, huntingDogs, huntPool } from '../hunt-party';
 import { lordFamily } from '../../people/lord';
-import { dogsYear, feedDogs } from '../manor-dogs';
+import { dogsYear } from '../manor-dogs';
 import { MANOR_DOGS, WILDLIFE_LAND } from '../../rules/rules-wildlife';
+import { advanceVillage } from '../../core/simulate';
 import type { VillageState } from '../../types';
 import { freshWildlife } from '../wildlife';
 import { at, horseVillage } from '../../__tests__/horse-fixtures';
 
 // Psi dvorce (wildlife.md – Psi – smečka dvorce): chce 1 psa na lovce + 1, nejvýš 8; 1. 5. nejvýš
-// 2 štěňata a −10 %; bez obilí smečka nedoroste.
+// 2 štěňata a −10 %; psi nic nespotřebovávají (Martin 17. 11. 2026).
 
 const MAY = at(601, 5, 1);
 
@@ -44,31 +45,30 @@ describe('chov 1. 5.', () => {
     expect(s.wildlife!.dogs!.count).toBeCloseTo(3, 9);
   });
 
-  it('nakrmená smečka zeslábne o 10 % bez lovců; nenakrmená nedoroste', () => {
+  it('smečka zeslábne o 10 % a štěňata přibývají vždy, i s prázdnými zásobami vsi', () => {
     const s = village();
-    s.wildlife!.dogs = { count: 3, fed: false };
+    s.storesKg = 0;
+    s.hungry = true;
+    // starší uložená ves s `fed: false` se chová stejně
+    s.wildlife!.dogs = { count: 1, fed: false };
     dogsYear(s, MAY);
-    expect(s.wildlife!.dogs!.count).toBeCloseTo(2.7, 9);
+    expect(s.wildlife!.dogs!.count).toBeCloseTo(2.9, 9);
+    expect(s.storesKg).toBe(0);
     s.people = s.people.filter((p) => p.sex === 'female');
-    s.wildlife!.dogs!.fed = true;
     dogsYear(s, MAY);
-    expect(s.wildlife!.dogs!.count).toBeCloseTo(2.43, 9);
+    expect(s.wildlife!.dogs!.count).toBeCloseTo(2.61, 9);
     expect(huntingDogs(s)).toBe(2);
   });
 });
 
-describe('krmení', () => {
-  it('0,3 kg obilí denně na psa; hlad a nedostatek zásob psy nekrmí', () => {
-    const s = village();
-    s.wildlife!.dogs = { count: 4, fed: true };
-    s.storesKg = 1000;
-    feedDogs(s, MAY, 10_000, 100);
-    expect(s.storesKg).toBeCloseTo(1000 - 4 * MANOR_DOGS.grainKgPerDay, 9);
-    expect(s.wildlife!.dogs!.fed).toBe(true);
-    feedDogs(s, MAY, 50, 100);
-    expect(s.wildlife!.dogs!.fed).toBe(false);
-    s.hungry = true;
-    feedDogs(s, MAY, 10_000, 100);
-    expect(s.wildlife!.dogs!.fed).toBe(false);
+describe('psi nejedí', () => {
+  it('ves se psy a bez nich spotřebuje týž počet kg obilí', () => {
+    const run = (dogs: number): number => {
+      const s = village();
+      s.storesKg = 1000;
+      if (dogs > 0) s.wildlife!.dogs = { count: dogs };
+      return advanceVillage(s, s.lastDay + 5, null, null).storesKg;
+    };
+    expect(run(4)).toBeCloseTo(run(0), 9);
   });
 });

@@ -733,6 +733,8 @@ export interface VillageView {
     oxen?: number;
     /** Kolik koní se narodilo, dosloužilo nebo uhynulo (horses.md – Chov, Krmení). */
     horses?: number;
+    /** Proč kůň šel na maso (horses.md – Chov, Krmení). */
+    retired?: 'age' | 'surplus' | 'hay';
     /** Koně okul vlastní kovář, ne kovář z jiné vsi (horses.md – Kování). */
     own?: boolean;
     /** Pohromy (disasters.md – Co hráč vidí): stupeň vody, síla smrště, potlučené díly, shořelé domy. */

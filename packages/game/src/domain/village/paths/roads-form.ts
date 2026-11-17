@@ -310,6 +310,23 @@ export function hitAt(road: Road, hit: RoadHit): number {
   return lengthsAlong(road.points)[hit.segment]! + length2(hit.point.x - a.x, hit.point.z - a.z);
 }
 
+/** Bod osy cesty ve vzdálenosti `d` m od začátku (úsek a bod – pro `splitRoad`). */
+export function hitAlongRoad(roads: VillageRoads, road: Road, d: number): RoadHit {
+  const at = lengthsAlong(road.points);
+  let k = 1;
+  while (k < road.points.length - 1 && at[k]! < d) k++;
+  const a = road.points[k - 1]!;
+  const b = road.points[k]!;
+  const span = at[k]! - at[k - 1]!;
+  const u = span > 1e-9 ? Math.min(1, Math.max(0, (d - at[k - 1]!) / span)) : 0;
+  return {
+    road: roads.roads.indexOf(road),
+    segment: k - 1,
+    point: { x: a.x + (b.x - a.x) * u, z: a.z + (b.z - a.z) * u },
+    distance: 0,
+  };
+}
+
 /** Jedna nová pevná cesta z bodů `points` – s připojením konců k pevné cestě. */
 export function formRoad(
   roads: VillageRoads,
@@ -389,7 +406,7 @@ export function plannedAxis(
  * Kam se konec nové cesty připojí k pevné cestě (do `reach`): u konce pevné cesty do jejího konce
  * (`hit` null), jinak do nejbližšího bodu osy (na cm) – tam se pevná cesta rozdělí. Nic nemění.
  */
-function joinTarget(
+export function joinTarget(
   roads: VillageRoads,
   from: RoadPoint,
   reach: number,
@@ -438,6 +455,8 @@ export function splitRoad(roads: VillageRoads, hit: RoadHit, context: SpotContex
   const splitAt = along[hit.segment]! + length2(at.x - a.x, at.z - a.z);
   const total = along[along.length - 1]!;
   const same = (p: RoadPoint): boolean => p.x === at.x && p.z === at.z;
+  const oldStart = road.points[0]!;
+  const oldEnd = road.points[road.points.length - 1]!;
   const head = road.points.slice(0, hit.segment + 1);
   const tail = road.points.slice(hit.segment + 1);
   const first = same(head[head.length - 1]!) ? head : [...head, at];
@@ -479,6 +498,14 @@ export function splitRoad(roads: VillageRoads, hit: RoadHit, context: SpotContex
     road.openEnds = [road.openEnds[0], false];
   }
   road.points = first;
+  // ramena křižovatek u zadního konce přejdou na druhou část (paths.md – Křižovatky)
+  for (const junction of roads.junctions ?? []) {
+    if (!junction.arms.includes(road.id)) continue;
+    const toStart = length2(junction.x - oldStart.x, junction.z - oldStart.z);
+    const toEnd = length2(junction.x - oldEnd.x, junction.z - oldEnd.z);
+    // uzavřená smyčka (oba konce stejně daleko) nechá rameno na první části – měsíční `updateJunctions` ho srovná
+    if (toEnd < toStart) junction.arms = junction.arms.map((id) => (id === road.id ? rest.id : id));
+  }
   // osa se změnila – olemování stromy se určí znovu (roads.md – Stromy u cesty zrychlí chůzi)
   delete road.lined;
   roads.roads.splice(hit.road + 1, 0, rest);
@@ -736,6 +763,10 @@ function joinRoads(
     c.roadIds = [...new Set(c.roadIds.map((id) => (id === other.id ? road.id : id)))];
   }
   joinTrailPieces(trails, other.id, road.id);
+  // ramena křižovatek u vnějšího konce zmizelého úseku přejdou na spojený (paths.md – Křižovatky)
+  for (const junction of roads.junctions ?? []) {
+    junction.arms = junction.arms.map((id) => (id === other.id ? road.id : id));
+  }
   roads.roads = roads.roads.filter((r) => r !== other);
 }
 

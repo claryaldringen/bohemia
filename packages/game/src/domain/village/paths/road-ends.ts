@@ -19,6 +19,7 @@ import { roadChain, type ChainLink } from './road-chains';
 import { landmarkTerrain, type LandmarkTerrain } from './road-landmarks';
 import { END_SNAP_M, nearestOnRoads } from './roads-geometry';
 import { TERMINUS_M } from './roads-tidy';
+import { pathCellM } from './terrain';
 
 /**
  * Nejdál od středu křižovatky, kde ještě končí cesta v jejím rameni (m): vchod je 1,5 × šířka
@@ -46,6 +47,8 @@ export interface RoadEndsNetwork {
   anchors: RoadAnchors;
   /** Výšky a voda krajiny pro popis křižovatek (`roadEndLandmarks`); bez nich jen stavby. */
   terrain?: LandmarkTerrain;
+  /** Strana buňky mřížky pěšin (m) – pro uložené trasy (`routeWalkedSince`); bez ní trasy nic neurčí. */
+  cellM?: number;
 }
 
 /** Síť konců ze stavu vsi – kotvy z uložených tras jako v úklidu. */
@@ -55,6 +58,7 @@ export function roadEndsNetwork(state: VillageState, landscape: Landscape): Road
     junctions: state.roads?.junctions ?? [],
     anchors: roadAnchors(state.routes?.list ?? [], landscape),
     terrain: landmarkTerrain(landscape),
+    cellM: pathCellM(landscape),
   };
 }
 

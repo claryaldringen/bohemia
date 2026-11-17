@@ -408,7 +408,7 @@ describe('housePanel', () => {
           { villageId: 'b', name: 'Ves b', growsKg: 400, needsKg: 700 },
         ],
         vassals: [{ houseId: vassal.id, grainKg: 150, cattle: 1 }],
-        totalKg: 300 - 300 + 150 + 72,
+        totalKg: 300 - 300 + 150 + 78,
       });
     });
 

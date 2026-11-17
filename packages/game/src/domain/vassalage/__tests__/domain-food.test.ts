@@ -119,8 +119,8 @@ describe('domainNeedKg', () => {
 });
 
 describe('cattleFoodKg', () => {
-  it('kus je 72 kg obilí (120 kg masa × 0,6)', () => {
-    expect(cattleFoodKg({ cows: 2, youngOxen: 1, trainedOxen: 0 })).toBe(216);
+  it('kus je 78 kg obilí (130 kg masa × 0,6)', () => {
+    expect(cattleFoodKg({ cows: 2, youngOxen: 1, trainedOxen: 0 })).toBe(234);
   });
 });
 

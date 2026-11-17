@@ -37,6 +37,7 @@ export function disasterDeaths(
         age: ageYears(p.bornDay, day),
         cause,
         ...deathWho(state, p, day),
+        population: state.people.length - dead.size,
       });
       const full = bury(state, day, p);
       if (full) events.push(full);

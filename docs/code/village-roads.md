@@ -206,10 +206,13 @@ cesty, půda)`; graf a půda (`walkGroundOf` + `withFieldWalk` – pole v `Villa
   `wearRoadDue` napřed: bez kusu, ze kterého by cesta vznikla, se kontext míst na stromy ani kopie
   nestaví a úklid neběží. Konce tras pro úklid jsou kotvy (`anchorTermini` – dosah kotvy a kraj
   mapy jako `nearAnchor`, nebo do 6 m). `formRoad` napřed spočítá osu bez rozdělení
-  (`plannedAxis`, `joinTarget`) – krátká cesta nic nerozdělí. Kronika `road-formed` jen pro cesty,
+  (`plannedAxis`, `joinTarget`) – krátká cesta nic nerozdělí.
+  Mez vzniku `WEAR.roadAt` dosáhne políčko jen s provozem tras aspoň `WEAR.formFrom` (2 cesty za
+  den; `settleWear` ořízne vyšlapanost pod mezí, kde už nad ní nebylo – práce se nepočítá; Martin 17. 11. 2026). Kronika `road-formed` jen pro cesty,
   jejichž id úklid nepohltil; po úklidu a křižovatkách měsíce dostane konce cesty hráče a roky
   chůze (`noteFormedRoads`, `roadFormedNote` v `paths/road-chronicle.ts` – web-ui.md, Panel
-  Kronika). `formWearRuns` (`formRoadsFromWear` je obálka pro testy): body čáry po
+  Kronika; křižovatka na konci stáří neurčí, rozhodnou trasy po cestě – `routeWalkedSince`,
+  `ROAD_WALKED.share`, `RoadEndsNetwork.cellM`). `formWearRuns` (`formRoadsFromWear` je obálka pro testy): body čáry po
   `SAMPLE_M`, vyšlapanost `wearAt`; kus od `WEAR.roadAt` dál než `ON_ROAD_M` od pevné cesty se
   prodlouží po čáře oběma směry, dokud je aspoň `WEAR.extendFrom`; vznikne jen, když je každý konec
   u kotvy (`nearAnchor`) nebo u pevné cesty (připojí se do `ATTACH_M` – `joinPoint`, rozcestí
@@ -250,7 +253,9 @@ cesty, půda)`; graf a půda (`walkGroundOf` + `withFieldWalk` – pole v `Villa
   podle `ROAD_DECAY`, vozová, rozestavěná a zemská stezka se nemění) → **cesty k vchodům** (`accessRoads`, `roads-access.ts`: stavba s trasou s provozem
   stavby – `StoredRoute.visit` – do vchodu, hotová – rozestavěný hřbitov ne; když u vchodu do 3 m
   nekončí ani nevede živá cesta, vznikne vyšlapaná cesta po nejvytíženější trase od vchodu k první
-  pevné cestě do `ATTACH_M` – rozcestí –, nejméně `ROAD_ACCESS.minM`; kronika `road-formed`;
+  pevné cestě do `ATTACH_M` – rozcestí –, nejméně `ROAD_ACCESS.minM`; osa včetně napojení (`joinTarget`)
+  nesmí vést ≥ `BLOCK_MIN_RUN_M` plochou staveb (`GateGuard.building`, D89 – jinak by ji
+  `abandonBlockedStretches` příští měsíc opustil a vznikla by znovu); kronika `road-formed`;
   nezarůstá, dokud končí ve vchodu – `settleRoadCondition`). `formRoad` má volitelnou nejkratší
   osu. `road-report.ts` počítá jen živé úseky (opuštěné zvlášť) a vypisuje i konce mimo kotvu,
   souběžné páry a vchody bez cesty; hlavní metrika je „konce mimo kotvu“ (s polohou), „pahýly < 30 m“ je jen vedlejší (paths.md). Testy
@@ -262,7 +267,7 @@ cesty, půda)`; graf a půda (`walkGroundOf` + `withFieldWalk` – pole v `Villa
   Křižovatky](../design/paths.md#křižovatky-pravidlo-9); Martin 22. 10. 2026, pravidla 9 a 11):
   `paths/junctions.ts`, čísla `JUNCTION` (`rules-roads.ts`), data `RoadJunction` a volitelné
   `VillageRoads.junctions` (`types-roads.ts` – tvar `cross` / `y` / `star`, natočení a β v rad, ramena = id
-  úseků ve vchodech v pořadí `junctionArmDirs`, znamení, den vzniku). `fitJunction(dirs, fixed)` –
+  úseků ve vchodech v pořadí `junctionArmDirs`, znamení, den vzniku; `splitRoad` přepíše rameno u zadního konce rozdělené cesty na druhou část a `mergeRoadChains` rameno zmizelého úseku na ponechaný, D86). `fitJunction(dirs, fixed)` –
   5 cest hvězda (kříž a páté rameno `JUNCTION.starArmDeg` 45° od ramene 0 – Martin 3. 11. 2026),
   4 cesty kříž, 3 cesty Y s β 30–60°; natočení po 5° s nejmenším součtem čtverců odchylek přes
   všechna přiřazení (nejvýš 120), při shodě menší natočení a menší β; pevná cesta (stezka, vozová)

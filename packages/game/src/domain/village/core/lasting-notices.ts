@@ -31,6 +31,7 @@ export const LASTING_NOTICES: readonly LastingNotice[] = [
   'oxen-short',
   'horses-short',
   'horses-ungrained',
+  // psi obilí nejedí (17. 11. 2026) – stav už nevzniká, jen doběhne zapsaný ve starší vsi
   'dogs-ungrained',
   'emergency-threshing',
   'threshing-floor-short',
@@ -57,8 +58,6 @@ function hungerNotices(state: VillageState): readonly LastingNotice[] {
 }
 
 /** Celé kusy psů dvorce – zlomek se nepočítá (technická mez zaokrouhlení). */
-const DOG_EPSILON = 1e-6;
-
 /**
  * Jezdečtí koně jsou bez obilí (horses.md – Co hráč vidí): ves s ohradou koní dnes obilí koním
  * nedala a nějaký kůň ho potřebuje.
@@ -69,12 +68,6 @@ export function horsesUngrained(
 ): boolean {
   if (state.horsesFed !== false || horsePens(state).length === 0) return false;
   return horseGrainToday(villageHorses(state), day) > 0;
-}
-
-/** Psi dvorce jsou bez obilí (wildlife.md – Psi): ves má aspoň jednoho psa a dnes je nenakrmila. */
-export function dogsUngrained(state: Pick<VillageState, 'wildlife'>): boolean {
-  const dogs = state.wildlife?.dogs;
-  return dogs !== undefined && Math.floor(dogs.count + DOG_EPSILON) >= 1 && !dogs.fed;
 }
 
 /** Dílny bez vstupu (crafts.md, wagons.md) – jen obydlené, podle činnosti dne. */
@@ -104,7 +97,6 @@ export function lastingNotices(state: VillageState, day: number): LastingNotice[
     ...(oxenOverRoom(state) ? (['oxen-short'] as const) : []),
     ...(horsesOverRoom(state, day) ? (['horses-short'] as const) : []),
     ...(horsesUngrained(state, day) ? (['horses-ungrained'] as const) : []),
-    ...(dogsUngrained(state) ? (['dogs-ungrained'] as const) : []),
   ]);
   const threshing = threshingStatus(state, day);
   if (threshing.emergency) active.add('emergency-threshing');

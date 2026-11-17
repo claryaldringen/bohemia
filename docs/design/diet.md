@@ -170,7 +170,9 @@ Raně středověká strava nebyla jen obilí. Plné nasycení potřebuje kombina
   - **pasáci** (od 19. 10. 2026 – Pasáci níž).
 - **Porážka v zimě** (od 19. 10. 2026 po celou zimu – Porážka v zimě; dřív v listopadu): co
   přeroste nosnost, staré kusy a mladé kusy navíc jdou na maso:
-  **prase ≈ 50 kg, ovce ≈ 15 kg, koza ≈ 12 kg, kráva ≈ 120 kg** masa (návrh Clauda). Ves si nechá
+  **prase ≈ 50 kg, ovce ≈ 15 kg, koza ≈ 12 kg, kráva ≈ 130 kg** masa (návrh Clauda; krávu Martin 17. 11. 2026 zvedl ze 120 na 130 kg: „Ano, zvedni to. Tehdejší lidé zpracovali to zvíře komplet“ –
+  výpočet návrh Clauda: jídlo ≈ polovina živé váhy, tedy maso s tukem, vnitřnosti a krev; kráva
+  ≈ 250 kg živé váhy → ≈ 130 kg; kůň ≈ 300–350 kg → ≈ 160 kg, [koně](horses.md) – Chov). Ves si nechá
   chovné kusy (nejméně pár od každého druhu).
 - **Vejce:** slepice dají celý rok ≈ **5 kg vajec na slepici**, jí se čerstvá (návrh Clauda).
 - **Zásoba masa** se **uzí a suší** – ztratí **20 % ročně** (návrh Clauda) – a co se nesní do 31. 8., zkazí se (Trvanlivost masa níž, od 19. 10. 2026). **Kolik masa ves
@@ -583,6 +585,12 @@ Martin, 19. 10. 2026: „**Ano, udělej to všechno**“ – na otázku, jestli 
 sklizně nevychází, napřed porazit zvířata navíc, než začne šetřit (Vlkov 9. 12. 781: 46 lidí,
 zásoby ≈ 3,6 t na ≈ 4,2 t potřeby do žní, jí 94 % přídělu – a přitom drží přes zimu 52 prasat,
 71 ovcí a 15,8 t sena). Podrobnosti jsou návrh Clauda.
+
+**Zvířata, která by stejně uhynula pro nedostatek krmiva, se snědí** (Martin, 17. 11. 2026: „Spíš
+jde o to sníst zvířata, která by stejně chcípla na nedostatek krmiva.“): kusy, na které nezbude
+seno do konce března, ves porazí včas (stáda – Zima bez sena; **koně** – [horses.md](horses.md) –
+Krmení), maso jde do zásoby. Chráněné kusy (ovce na vlnu, chovné krávy) se v hladu lidí dál
+neporážejí.
 
 - **Kdy:** každý den před jídlem. Když výhled jídla do sklizně (příděl rovným dílem do žní – Hlad
   a [fields.md](fields.md)) nevychází, ves dřív, než ubere z přídělu, porazí zvířata navíc. Je to

@@ -7,12 +7,18 @@ import type { Landscape } from '../../landscape';
 import { dayMealInput, emergencySlaughter } from '../livestock/emergency-slaughter';
 import { drawGrainPits, settleGrainPits } from '../fields/grain-pits';
 import { feedHorseGrain } from '../livestock/horse-feed';
-import { feedDogs } from '../wildlife/manor-dogs';
 import { dayPartLosses } from '../disasters/disasters';
 import { addSheaves } from '../fields/threshing';
 import { villageLegumesKg } from '../fields/legumes';
 import { threshWorkFactor } from '../disasters/weather-effects';
-import type { CraftCoverage, CropWork, FarmSeason, ThreshedCrop, VillageState } from '../types';
+import type {
+  CraftCoverage,
+  CropWork,
+  HarvestStock,
+  FarmSeason,
+  ThreshedCrop,
+  VillageState,
+} from '../types';
 import { rotateAfterSeason } from '../fields/rotation';
 import { wildlifeSeasonEnd } from '../wildlife/wildlife-damage';
 import {
@@ -25,6 +31,8 @@ import {
   type PartLosses,
 } from './year-plan';
 import { EPSILON, SATIATION_EPSILON } from './simulate-plan';
+import { stockLastsDays, type StockKind } from './food-lasts';
+import { NO_CRAFTS } from './productivity';
 
 /**
  * Práce výmlatu sklizené části – v deštivém létě o 20 % víc (vlhké snopy – disasters.md, Léto).
@@ -63,6 +71,36 @@ function sheaveCrop(
   if (final || taskRemaining(work, 'harvest') <= EPSILON) work.harvestedKg = total;
   else work.sheaved = { harvest: work.done.harvest, kg: total };
   return kg;
+}
+
+/**
+ * Zásoba po sklizni do nových zápisů kroniky (od indexu `from`; kronika – Martin 17. 11. 2026):
+ * obilí a luštěniny podle plodiny zápisu, zahrádky luštěniny; počítá se na konci kroku sklizně,
+ * ať zásoba zahrnuje i snopy, co sklizeň právě přidala.
+ */
+export function attachHarvestStocks(
+  state: VillageState,
+  day: number,
+  from: number,
+  potteryCoverage: number = NO_CRAFTS.pottery,
+): void {
+  const cache = new Map<StockKind, HarvestStock>();
+  const stockOf = (kind: StockKind): HarvestStock => {
+    let stock = cache.get(kind);
+    if (!stock) {
+      const outlook = stockLastsDays(state, day, kind, potteryCoverage);
+      stock = { kg: Math.round(outlook.kg), days: outlook.days, people: state.people.length };
+      cache.set(kind, stock);
+    }
+    return stock;
+  };
+  for (const event of state.chronicle.slice(from)) {
+    if (event.day !== day) continue;
+    if (event.kind === 'garden-harvest') event.stock = stockOf('legumes');
+    else if (event.kind === 'harvest') {
+      event.stock = stockOf(event.crop === 'legume' ? 'legumes' : 'grain');
+    }
+  }
 }
 
 /**
@@ -113,9 +151,12 @@ export function harvestWinter(
   state: VillageState,
   day: number,
   landscape: Landscape | null = null,
+  potteryCoverage: number = NO_CRAFTS.pottery,
 ): void {
+  const from = state.chronicle.length;
   harvestGardens(state, day, landscape);
   harvestEarlyCrops(state, day, false);
+  attachHarvestStocks(state, day, from, potteryCoverage);
 }
 
 /** Sklizeň jaře do kroniky – plán jen s ozimem jař nesklízí (sklizeň bez plodiny). */
@@ -135,9 +176,14 @@ function recordSpring(state: VillageState, plan: FarmSeason, day: number, kg: nu
  * poli – dožne se v září (`harvestLateSpring`; fields.md – Žeň jaře i v září); do kroniky až
  * celá. Je-li jař sklizená, končí sezóna škod zvěře (`wildlifeSeasonEnd`).
  */
-export function harvest(state: VillageState, day: number): void {
+export function harvest(
+  state: VillageState,
+  day: number,
+  potteryCoverage: number = NO_CRAFTS.pottery,
+): void {
   const plan = state.season;
   if (plan === null) return;
+  const from = state.chronicle.length;
   // co červenec nedosklidil – ozim a luštěniny žaté v srpnu – napřed (pořadí CROP_ORDER) a len
   // vytrhaný v srpnu
   harvestEarlyCrops(state, day, true);
@@ -148,6 +194,7 @@ export function harvest(state: VillageState, day: number): void {
   state.threshingSeason = plan;
   state.season = null;
   if (!lateSpringCrop(state)) wildlifeSeasonEnd(state, day);
+  attachHarvestStocks(state, day, from, potteryCoverage);
 }
 
 /**
@@ -156,17 +203,24 @@ export function harvest(state: VillageState, day: number): void {
  * (srpnová už je ve snopech), nesklizené propadne. Teprve pak její díly končí hospodářský rok
  * (`rotateAfterSeason` – do té doby se neorají pod ozim) a končí sezóna škod zvěře.
  */
-export function harvestLateSpring(state: VillageState, day: number, final: boolean): void {
+export function harvestLateSpring(
+  state: VillageState,
+  day: number,
+  final: boolean,
+  potteryCoverage: number = NO_CRAFTS.pottery,
+): void {
   const plan = state.threshingSeason;
   const late = lateSpringCrop(state);
   if (!plan || !late) return;
   if (!final && taskRemaining(late, 'harvest') > EPSILON) return;
   const losses = dayPartLosses(state, day, 'spring', late.partIds, state.wildlife?.damage?.parts);
   const kg = sheaveCrop(state, day, 'spring', late, true, losses);
+  const from = state.chronicle.length;
   recordSpring(state, plan, day, kg);
   const ids = new Set(late.partIds);
   for (const part of state.parts) if (ids.has(part.id)) rotateAfterSeason(part, day);
   wildlifeSeasonEnd(state, day);
+  attachHarvestStocks(state, day, from, potteryCoverage);
 }
 
 /**
@@ -259,8 +313,6 @@ export function eat(
   }
   // obilí koní po lidech – jen co lidem do sklizně zbude navíc (horses.md – Krmení)
   feedHorseGrain(state, day, meal.grainSpareKg, mealInput.daysToHarvest);
-  // a psi dvorce po koních (wildlife.md – Psi)
-  feedDogs(state, day, meal.grainSpareKg, mealInput.daysToHarvest);
   return {
     satiation: meal.diet.satiation,
     energy: meal.diet.energy,

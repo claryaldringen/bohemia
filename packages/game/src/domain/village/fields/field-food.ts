@@ -7,7 +7,6 @@ import {
   villageLegumesKg,
 } from './legumes';
 import { horseGrainToday, villageHorses } from '../livestock/horses';
-import { dogGrainToday } from '../wildlife/hunt-party';
 import { ageGroup } from '../people/people';
 import { storageLossPerYear } from '../core/productivity';
 import { FIELD_FOOD, FIELD_STORES, FOOD_NEED_KG_PER_YEAR, LEGUMES } from '../rules';
@@ -168,10 +167,7 @@ export function storesOutlook(
   const share = fieldFoodShare(state);
   // obilí koní za rok podle dnešních jezdeckých koní; ves bez koní nic
   const horses = villageHorses(state);
-  // a obilí psů dvorce (wildlife.md – Psi)
-  const horseGrain =
-    (horses.length > 0 ? horseGrainToday(horses, day) : 0) * DAYS_PER_YEAR +
-    dogGrainToday(state) * DAYS_PER_YEAR;
+  const horseGrain = (horses.length > 0 ? horseGrainToday(horses, day) : 0) * DAYS_PER_YEAR;
   const need = share * yearly + horseGrain;
   const needAfter = share * yearlyAfter + horseGrain;
   const loss = storageLossPerYear(potteryCoverage);
