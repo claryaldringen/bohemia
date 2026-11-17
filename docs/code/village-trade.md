@@ -29,8 +29,13 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   za branou dvorce (`trailStart`) do všech 8 směrů (`DIRECTIONS`, `Direction8` = `NeighborDirection`
   z příbuzenství, sever +z), v mezipaměti podle krajiny, bodu a sítě cest (první dotaz ≈ 0,7 s,
   pak ≈ 10–30 ms). `planTrail` uloží osu jako pevné cesty na kopii stavu (`addTrailRoads` v
-  `paths/roads-trails.ts` (`addTrailRoads`) – nové úseky po 150 m přes `formRoad`, po pevné cestě vede po ní, rozdělení
-  úseku přidá kus stezky – `splitTrailPieces`), úseky `Trail.pieces` se stupněm a prací
+  `paths/roads-trails.ts` (`addTrailRoads`, D86) – nové úseky po 150 m přes `formRoad` (kde trasa
+  není do `ON_ROAD_M` od neopuštěné pevné cesty; opuštěná se nepočítá), cesta, po které trasa jde
+  jen kus, se rozdělí v místě, kde ji opouští (`splitPartlyFollowed`, `splitRoad`; rozdělení
+  úseku přidá kus stezky – `splitTrailPieces`), úseky stezky jsou spojitá řada po síti od začátku
+  ke konci trasy (`trailChain` – nejkratší cesta, úseky trasy za čtvrtinu; `avoid` = úsek s posvátným
+  stromem v pásu cesty se obejde, je-li kudy). Řada bývá o desítky metrů delší než `Trail.lengthM`
+  (dny nosičů jdou dál z `lengthM`; Vlkov N +30 m, E +79 m). Hotové stezky se zpětně nepřestavují. Úseky `Trail.pieces` se stupněm a prací
   (`roadUpgradeCost`, hať a lávka přes mokřinu a brod, dřevo `planWoodFrom`), důvody česky
   (`TRAIL_BLOCKED`, `TRAIL_NO_WOOD`…). `startTrail` → stavba `road` s `Construction.trail`
   a `roadIds` od vsi ven; `trailsDay` (krok po práci) dá dostavěným úsekům stupeň hned,

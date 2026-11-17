@@ -501,6 +501,11 @@ export function planTrail(
     landscape,
     obstacles,
     trailTerrain(landscape, obstacles),
+    // úsek s posvátným stromem v pásu cesty stezka obejde, je-li kudy (TRAIL_SACRED jinak)
+    (road) =>
+      !!obstacles &&
+      !road.swath &&
+      roadSwathTally(next, road, day, obstacles, landscape)?.sacred === true,
   );
   const working = roadsInWork(state.constructions);
   if (ids.some((id) => working.has(id))) return { ok: false, reason: TRAIL_ROAD_IN_WORK };

@@ -34,7 +34,6 @@ import {
   MIN_ROAD_M,
   ON_ROAD_M,
   PARALLEL_MIN_M,
-  RoadHit,
   SAMPLE_M,
   alongsideRoad,
   axisDistance,
@@ -43,7 +42,7 @@ import {
   resample,
   roadLengthM,
 } from './roads-geometry';
-import { hitAt, roadTraffic, splitRoad } from './roads-form';
+import { hitAlongRoad, hitAt, roadTraffic, splitRoad } from './roads-form';
 import { SpotContext } from './roads-trees';
 
 /**
@@ -287,25 +286,6 @@ function cartReady(road: Road): boolean {
 }
 
 /**
- * Bod osy cesty ve vzdálenosti `d` m od začátku (úsek a bod – pro `splitRoad`).
- */
-function hitAlong(roads: VillageRoads, road: Road, d: number): RoadHit {
-  const at = lengthsAlong(road.points);
-  let k = 1;
-  while (k < road.points.length - 1 && at[k]! < d) k++;
-  const a = road.points[k - 1]!;
-  const b = road.points[k]!;
-  const span = at[k]! - at[k - 1]!;
-  const u = span > 1e-9 ? Math.min(1, Math.max(0, (d - at[k - 1]!) / span)) : 0;
-  return {
-    road: roads.roads.indexOf(road),
-    segment: k - 1,
-    point: { x: a.x + (b.x - a.x) * u, z: a.z + (b.z - a.z) * u },
-    distance: 0,
-  };
-}
-
-/**
  * Vyšlapaná cesta se v převzatých kusech stane vyježděnou (mutuje – wagons.md, Vyjeté cesty;
  * Martin: „Pokud vůz takhle vyjezdí vyšlapanou cestu, tak to vozová cesta přebije.“). Body trasy
  * vozů na ose (`at`) blíž než MIN_ROAD_M od sebe patří jednomu kusu; kus aspoň MIN_ROAD_M (u kratší
@@ -345,9 +325,10 @@ function takeOverRoads(
     // od konce osy – začátek úseku (a jeho id) zůstane tomuto objektu
     const carts: Road[] = [];
     for (const t of kept.reverse()) {
-      if (t.to < roadLengthM(road) - 1e-6) splitRoad(roads, hitAlong(roads, road, t.to), context);
+      if (t.to < roadLengthM(road) - 1e-6)
+        splitRoad(roads, hitAlongRoad(roads, road, t.to), context);
       if (t.from > 1e-6) {
-        splitRoad(roads, hitAlong(roads, road, t.from), context);
+        splitRoad(roads, hitAlongRoad(roads, road, t.from), context);
         carts.push(roads.roads[roads.roads.indexOf(road) + 1]!);
       } else {
         carts.push(road);

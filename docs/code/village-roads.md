@@ -262,7 +262,7 @@ cesty, půda)`; graf a půda (`walkGroundOf` + `withFieldWalk` – pole v `Villa
   Křižovatky](../design/paths.md#křižovatky-pravidlo-9); Martin 22. 10. 2026, pravidla 9 a 11):
   `paths/junctions.ts`, čísla `JUNCTION` (`rules-roads.ts`), data `RoadJunction` a volitelné
   `VillageRoads.junctions` (`types-roads.ts` – tvar `cross` / `y` / `star`, natočení a β v rad, ramena = id
-  úseků ve vchodech v pořadí `junctionArmDirs`, znamení, den vzniku). `fitJunction(dirs, fixed)` –
+  úseků ve vchodech v pořadí `junctionArmDirs`, znamení, den vzniku; `splitRoad` přepíše rameno u zadního konce rozdělené cesty na druhou část a `mergeRoadChains` rameno zmizelého úseku na ponechaný, D86). `fitJunction(dirs, fixed)` –
   5 cest hvězda (kříž a páté rameno `JUNCTION.starArmDeg` 45° od ramene 0 – Martin 3. 11. 2026),
   4 cesty kříž, 3 cesty Y s β 30–60°; natočení po 5° s nejmenším součtem čtverců odchylek přes
   všechna přiřazení (nejvýš 120), při shodě menší natočení a menší β; pevná cesta (stezka, vozová)
