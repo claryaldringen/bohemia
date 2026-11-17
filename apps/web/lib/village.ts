@@ -86,6 +86,7 @@ import {
   type TimeSkip,
   type DynastyVillage,
   mapTrailContinuations,
+  SEAT_CELL,
   type VillageRecord,
   type VillageRepository,
   type VillageResult,
@@ -259,7 +260,7 @@ async function viewOf(
   const from = status.settlements.find((s) => s.id === current.settlementId);
   // pokračování zemských stezek sousedních vsí na mapě této vsi (trade.md) – bez polohy v mřížce
   // žádné; do pohledu jde jako osy, scéna z nich kreslí hotovou cestu s průsekem
-  const mapCell = from?.worldCell ?? (from?.isSeat ? { x: 0, y: 0 } : null);
+  const mapCell = from?.worldCell ?? (from?.isSeat ? SEAT_CELL : null);
   const trailContinuations = mapCell
     ? await mapTrailContinuations(
         { cells: campaignCells(), villages: gameDeps().villages },

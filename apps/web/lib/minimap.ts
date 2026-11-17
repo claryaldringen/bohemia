@@ -227,8 +227,8 @@ export type MinimapContext = Pick<
 
 /**
  * Ves na minimapě (strana `sizePx`): les vsi, pole po čtvercích podle stadia, hřbitovy, sady,
- * posvátná místa, zemské stezky (i jejich pokračování) a obydlí. Kreslí se jednou do vrstvy pod záběrem kamery – při pohybu kamery se
- * nepřekresluje (Minimap.tsx), jen při změně vsi.
+ * posvátná místa, zemské stezky (i jejich pokračování) a obydlí. Kreslí se jednou do vrstvy pod
+ * záběrem kamery – při pohybu kamery se nepřekresluje (Minimap.tsx), jen při změně vsi.
  */
 export function drawMinimapVillage(
   context: MinimapContext,
