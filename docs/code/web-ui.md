@@ -351,7 +351,9 @@ villageId)`. Z levných otisků (`stampsOf` – `last_day`, `asleep`) se dopočt
   obytný dům“) jsou stejně jedno políčko – rozcestník `sacred-hub` (`placement: 'sacred-hub'`,
   `SACRED_VARIANTS`: modla, svatyně, malý a velký kostel; id druhu = druh stavby, `hubOf:
 'sacred-hub'`); nabídku dává `sacredHubOption` (`village-view.ts`), ikona tlačítka je nejlepší
-  dostupný druh (kostel, svatyně, modla – návrh Clauda), popisek „Posvátná místa“; druh spustí
+  dostupný druh (kostel, svatyně, modla – návrh Clauda), popisek „Posvátná místa“; nezačne-li ves
+  žádný druh, zašedlé tlačítko nese důvod nejlepšího nabízeného druhu (rozcestník otevřít nejde – po
+  křtu bez stavbyvedoucího „Bez stavbyvedoucího huti se kostel stavět nedá.“); druh spustí
   umisťování té stavby (`startBuild` převede `sacred-hub` + druh na druh). Kostely jsou v rozcestníku
   jen po křtu rodu a po křtu **nejsou modla ani svatyně** (`withSacredHub` v `use-build-mode.ts`;
   server novou modlu ani svatyni nezaloží – `PAGAN_PLACES_FORBIDDEN`, kontrola v
