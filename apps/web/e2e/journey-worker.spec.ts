@@ -22,7 +22,14 @@ import {
   sendLord,
   villageWithMen,
 } from './journey-helpers';
-import { changeVillageState, crossesTo, query, readyScene, villageState } from './village-helpers';
+import {
+  changeVillageState,
+  crossesTo,
+  homeSpot,
+  query,
+  readyScene,
+  villageState,
+} from './village-helpers';
 
 // Scéna cizí mapy za vojvodou (journey.md – Scéna cizí mapy; plán 2026-11-13 – Úloha 9b), hra
 // s workerem: vojvoda A je na sousední mapě se vsí B – klik na jeho portrét v liště přepne scénu na
@@ -318,7 +325,8 @@ test('scéna jde za vojvodou na cizí mapu: mlha, objevené stavby, rozkazy a n�
   // Uložení bodu workerem může zápis přepsat – dokud výjezd běží, skupina se na mapu vrátí znovu.
   await a.getByTestId('expedition-home').click();
   const home = { x: cellA.x, y: cellA.y };
-  const back = meadowSpot(A.seat.landscape, A.dwelling, 150, 210);
+  // místo, odkud cesta domů vede – návrat se domů nepřenese (Martin 17. 11. 2026)
+  const back = homeSpot(mapA, A.dwelling, 150, 210);
   await expect
     .poll(
       async () => {

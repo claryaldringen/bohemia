@@ -19,6 +19,7 @@ import {
 import {
   changeVillageState,
   found,
+  homeSpot,
   newPlayer,
   pollVillage,
   query,
@@ -320,7 +321,17 @@ test('vojvoda a syn: Osedlat, přes okraj na sousední mapu, Sesednout, Domů �
 
   // Domů: skupina (zápisem do bodu) na domovské mapě, upozornění o návratu, kůň je zpět v ohradě
   await page.getByTestId('expedition-home').click();
-  const back = { x: v.dwelling.x + 150, z: v.dwelling.z };
+  // místo, odkud cesta domů vede – návrat se domů nepřenese (Martin 17. 11. 2026)
+  const back = homeSpot(
+    {
+      cell: cellHome!,
+      landscape: v.seat.landscape,
+      state: await villageState(v.seat.settlementId),
+    },
+    v.dwelling,
+    130,
+    170,
+  );
   await expect
     .poll(
       async () => {

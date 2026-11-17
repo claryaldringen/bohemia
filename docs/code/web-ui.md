@@ -435,7 +435,11 @@ villageId)`. Z levných otisků (`stampsOf` – `last_day`, `asleep`) se dopočt
   `settlementLandscape` – seed, verze vrstev, prémiový typ i výřez kostry (sídla v testech prémiový
   typ dostávají; bez něj jiná voda i hustý les). **Sousední mapa:** test, který sídlo posune vedle
   jiného, vybere stranu, kam skupina přejde (`crossesTo` – mřížky obou map jako server; hustý les
-  je neprůchodný a oblast vsi mívá přechod jen na některé straně). **Opakování dne** (`replayFrom`
+  je neprůchodný a oblast vsi mívá přechod jen na některé straně; s cílem `goal` jen do oblasti,
+  odkud k němu cesta vede – průvod do hradiště, kam cesta nevede, nevyrazí). **Návrat zápisem:**
+  skupinu na návratu test staví jen tam, odkud cesta domů vede (`homeSpot` – návrat cíl domů
+  neposouvá a domů se nepřenese, Martin 17. 11. 2026; náhodně odříznutá ves nesmí e2e rozbít –
+  „Cestu otevře až stezka“). **Opakování dne** (`replayFrom`
   v `multiplayer-war.spec.ts`): napřed přesunout události schránky na dnešek, pak zapsat stav –
   zápis stavu ohlásí ves otevřené hře a její dotaz den hned dopočítá (události ještě na zítřku by
   minul).

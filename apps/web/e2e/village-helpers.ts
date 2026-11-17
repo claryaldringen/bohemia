@@ -18,10 +18,15 @@ import {
   marchCellAt,
   marchCellCenter,
   marchGrid,
+  marchArea,
   marchPathToEdge,
+  marchReachable,
+  nearestPassable,
   obstaclesOf,
+  surfaceAt,
   tileCenterWorld,
   tileOfWorldPoint,
+  villageGate,
   type DwellingPlot,
   type Pos,
   type Landscape,
@@ -56,23 +61,56 @@ export interface CrossingMap {
  * okrajové buňky na sousední mapě průchozí)? Totéž jako náhradní cesta `planMoverLeg` – mřížky
  * pochodu obou map ve dni vsi `from` (bez os pokračování stezek – vsi v testech stezky nestaví).
  * Testy, které sídlo posunou na sousední políčko, si tak vyberou stranu, kde mapy navazují:
- * krajiny vznikly pro jiná políčka a hustý les na okraji je neprůchodný.
+ * krajiny vznikly pro jiná políčka a hustý les na okraji je neprůchodný. S cílem `goal` na mapě
+ * `to` jen do oblasti, odkud k němu cesta vede (jako `planMoverLeg` na mapě cíle – průvod do
+ * hradiště vyrazí, jen když cesta vede až tam: Martin 17. 11. 2026, „Utéct do lesa“).
  */
-export function crossesTo(from: CrossingMap, pos: Pos, to: CrossingMap): boolean {
+export function crossesTo(from: CrossingMap, pos: Pos, to: CrossingMap, goal?: Pos): boolean {
   const direction = directionBetween(from.cell, to.cell);
   if (direction === null) return false;
   const day = from.state.lastDay;
   const here = marchGrid(from.landscape, obstaclesOf(from.landscape), from.state, { day });
   const there = marchGrid(to.landscape, obstaclesOf(to.landscape), to.state, { day });
-  const path = marchPathToEdge(
-    here,
-    pos,
-    direction,
-    (c) =>
-      there.pace[marchCellAt(there, edgeCrossing(from.cell, to.cell, marchCellCenter(here, c)))]! >
-      0,
-  );
+  const near = goal === undefined ? -1 : nearestPassable(there, marchCellAt(there, goal), Infinity);
+  const area = near < 0 ? 0 : marchArea(there, near);
+  const path = marchPathToEdge(here, pos, direction, (c) => {
+    const t = marchCellAt(there, edgeCrossing(from.cell, to.cell, marchCellCenter(here, c)));
+    return there.pace[t]! > 0 && (goal === undefined || marchArea(there, t) === area);
+  });
   return path !== null;
+}
+
+/**
+ * Místo na louce `minR`–`maxR` m od `from` na mapě `map` (nejblíž středu pásma), odkud skupina dojde
+ * k brance domova (`villageGate` – kam se vrací výjezd i tažení) po mřížce pochodu jako server.
+ * Návrat cíl domů neposouvá a domů se nepřenese (Martin 17. 11. 2026 – „Vrátit se, kudy přišla“),
+ * hustý les náhodné krajiny je neprůchodný – testy, které skupinu na návratu postaví zápisem, si tak
+ * vyberou místo, odkud cesta domů vede (Martin 17. 11. 2026 – „Cestu otevře až stezka“: náhodně
+ * odříznutá ves nesmí e2e rozbít).
+ */
+export function homeSpot(map: CrossingMap, from: Pos, minR: number, maxR: number): Pos {
+  const l = map.landscape;
+  const grid = marchGrid(l, obstaclesOf(l), map.state, { day: map.state.lastDay });
+  const gate = villageGate(map.state, l);
+  const half = (l.size * l.cellSizeM) / 2;
+  let best: Pos | null = null;
+  let bestScore = Infinity;
+  for (let y = 0; y < l.size; y++) {
+    for (let x = 0; x < l.size; x++) {
+      if (surfaceAt(l, x, y) !== 'meadow') continue;
+      const p = tileCenterWorld(l, x, y);
+      if (Math.abs(p.x) > half - 120 || Math.abs(p.z) > half - 120) continue;
+      const d = Math.hypot(p.x - from.x, p.z - from.z);
+      if (d < minR || d > maxR) continue;
+      const score = Math.abs(d - (minR + maxR) / 2);
+      if (score < bestScore && marchReachable(grid, p, gate)) {
+        bestScore = score;
+        best = p;
+      }
+    }
+  }
+  if (!best) throw new Error('Na mapě není místo v potřebné vzdálenosti, odkud vede cesta domů.');
+  return best;
 }
 
 export async function query<T extends object>(sql: string, params: unknown[]): Promise<T[]> {
