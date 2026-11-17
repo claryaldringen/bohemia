@@ -118,7 +118,7 @@ export interface PlanDeps {
   settlements: SettlementRepository;
   landscapes: LandscapeSource;
   world: WorldClock;
-  /** Mapy políček (krajina, vsi na mapě) – cesta ze vsi ke shromaždišti (`reachesAssembly`). */
+  /** Mapy políček (krajina, vsi na mapě) – cesta ke shromaždišti a k cíli (`routeLeads`). */
   cells: CampaignCells;
   /** Mřížky pochodu napříč dotazy (panel se ptá při každé změně plánu); chybí – v každém znovu. */
   grids?: MarchGridMemo;
@@ -140,6 +140,9 @@ export const CAMPAIGN_REASONS = {
   badFood: 'Jídlo musí být nezáporné číslo.',
   // odříznutá ves (Martin 17. 11. 2026 – „Nesmí do tažení“; text návrh Clauda)
   noRoute: 'Ze vsi ke shromaždišti cesta nevede – otevře ji až zemská stezka.',
+  // odříznuté shromaždiště nebo cíl (návrh Clauda – plyne z „Nesmí do tažení“ a „Cestu otevře
+  // až stezka“; jinak by vojsko stálo u okraje navždy)
+  noTargetRoute: 'K cíli cesta nevede – otevře ji až zemská stezka.',
 } as const;
 
 /** Kolikrát se nejvýš načítají chybějící mapy a vsi, než ověření cesty vzdá (jako pohled varování). */
@@ -198,21 +201,23 @@ class PlanWorld {
 }
 
 /**
- * Vede ze vsi cesta ke shromaždišti? (war.md – Pohyb, Odříznutá ves do tažení nejde; Martin
- * 17. 11. 2026 – „Nesmí do tažení“): úseky všech map trasy z branky dvorce `home` ke shromaždišti
- * `assembly` po mřížkách dne `day` (`routeLeg` – týž test jako průvod do hradiště, `refugeLeg`).
- * Ves, odkud cesta nevede (hustý les bez paseky ke kraji, dokud ji neotevře zemská stezka), do
- * tažení nejde – její muži by se po rozpadu domů nevrátili. Data, která nejdou načíst = nevede.
+ * Vede cesta z místa `from` do místa `to`? (war.md – Pohyb, Odříznutá ves do tažení nejde;
+ * Martin 17. 11. 2026 – „Nesmí do tažení“): úseky všech map trasy `worldRoute` po mřížkách dne
+ * `day` (`routeLeg` – týž test jako průvod do hradiště, `refugeLeg`). Plán ji zkouší z branky
+ * dvorce shromaždiště k cíli tažení a z branky každé další vsi ke shromaždišti: ves, odkud cesta
+ * nevede (hustý les bez paseky ke kraji, dokud ji neotevře zemská stezka), do tažení nejde – její
+ * muži by se po rozpadu domů nevrátili; k odříznutému cíli by vojsko stálo u okraje navždy. Data,
+ * která nejdou načíst = nevede.
  */
-async function reachesAssembly(
+async function routeLeads(
   world: PlanWorld,
-  home: CampaignPlace,
-  assembly: CampaignPlace,
+  from: CampaignPlace,
+  to: CampaignPlace,
   day: number,
 ): Promise<boolean> {
-  const route = worldRoute(home.cell, assembly.cell, () => false).slice(1);
+  const route = worldRoute(from.cell, to.cell, () => false).slice(1);
   const leg = await world.compute((ctx) =>
-    routeLeg({ cell: home.cell, pos: home.pos, route }, assembly.pos, day, ctx),
+    routeLeg({ cell: from.cell, pos: from.pos, route }, to.pos, day, ctx),
   );
   return leg !== null;
 }
@@ -322,6 +327,13 @@ export async function prepareCampaign(
   );
   const routes = new PlanWorld(deps);
   routes.know(assemblyVillage.village.id, assemblyVillage.village.state);
+  routes.know(target.record.id, target.record.state);
+  // ze shromaždiště k cíli – odříznuté shromaždiště i odříznutý cíl (návrh Clauda k „Nesmí do
+  // tažení“); napřed, ať odříznuté shromaždiště neohlásí každá ves plánu jako svou cestu
+  const targetPlace = villageStandingPlace(target.cell, target.landscape, target.record.state);
+  if (!(await routeLeads(routes, assemblyPlace, targetPlace, input.today))) {
+    return fail(CAMPAIGN_REASONS.noTargetRoute);
+  }
 
   const seen = new Set<string>();
   const villages: PreparedVillage[] = [];
@@ -344,7 +356,7 @@ export async function prepareCampaign(
     if (own.village.id !== assemblyVillage.village.id) {
       routes.know(own.village.id, own.village.state);
       const home = villageStandingPlace(cell, landscape, own.village.state);
-      if (!(await reachesAssembly(routes, home, assemblyPlace, input.today))) {
+      if (!(await routeLeads(routes, home, assemblyPlace, input.today))) {
         return fail(CAMPAIGN_REASONS.noRoute);
       }
     }
@@ -363,7 +375,6 @@ export async function prepareCampaign(
   const total = villages.reduce((n, v) => n + v.men.length, 0);
   if (total === 0) return fail(CAMPAIGN_REASONS.noMen);
 
-  const targetPlace = villageStandingPlace(target.cell, target.landscape, target.record.state);
   const assembly: CampaignVillage = {
     villageId: assemblyVillage.village.id,
     name: assemblyVillage.village.name,

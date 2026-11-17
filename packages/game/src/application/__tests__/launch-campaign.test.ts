@@ -64,24 +64,32 @@ function campaignLandscape(enclosed: boolean): Landscape {
 const MEADOW_LANDSCAPE = campaignLandscape(false);
 const ENCLOSED_LANDSCAPE = campaignLandscape(true);
 
-/** Pevná cesta od kraje ke kraji přes branku dvorce (sever – jih) – průsek hustým lesem. */
+/** Pevné cesty od kraje ke kraji přes branku dvorce (sever – jih a východ – západ) – průsek lesem. */
 function withTrail(state: VillageState): void {
   const gate = villageGate(state, STUB_LANDSCAPE);
-  const road: Road = {
-    id: 900,
-    points: [
-      { x: gate.x, z: -958 },
-      { x: gate.x, z: gate.z },
-      { x: gate.x, z: 958 },
-    ],
+  const road = (id: number, points: Road['points']): Road => ({
+    id,
+    points,
     bornDay: 0,
     grade: 'improved',
     traffic: [],
     spots: [],
-  };
+  });
+  const across = [
+    road(900, [
+      { x: gate.x, z: -958 },
+      { x: gate.x, z: gate.z },
+      { x: gate.x, z: 958 },
+    ]),
+    road(901, [
+      { x: -958, z: gate.z },
+      { x: gate.x, z: gate.z },
+      { x: 958, z: gate.z },
+    ]),
+  ];
   state.roads = {
-    nextId: 901,
-    roads: [...(state.roads?.roads ?? []), road],
+    nextId: 902,
+    roads: [...(state.roads?.roads ?? []), ...across],
     trees: state.roads?.trees ?? [],
     labor: state.roads?.labor ?? { from: 0, days: 0, shares: [] },
   };
@@ -100,8 +108,11 @@ async function world(
   options: {
     targetProtectedHouse?: boolean;
     targetNewVillage?: boolean;
-    /** Druhá ves (Dub) v pasece obklopené hustým lesem – bez cesty, nebo s průsekem (`withTrail`). */
-    secondCut?: 'enclosed' | 'trail';
+    /**
+     * Ves v pasece obklopené hustým lesem – druhá ves (Dub), shromaždiště (Lhota), nebo cíl
+     * (Kněžice); `trail` – s průsekem přes branku (`withTrail`).
+     */
+    cut?: { village: 'second' | 'home' | 'target'; trail?: boolean };
   } = {},
 ): Promise<{
   deps: LaunchDeps;
@@ -152,14 +163,18 @@ async function world(
     layerVersions: versions,
     worldCell: { x: 5, y: 5 },
   }))!;
-  const home = await villages.add(sa.id, 'Lhota', ownVillage('Bořivoj'));
+  const cutState = (which: 'second' | 'home' | 'target', state: VillageState): VillageState => {
+    if (options.cut?.village === which && options.cut.trail) withTrail(state);
+    return state;
+  };
+  const home = await villages.add(sa.id, 'Lhota', cutState('home', ownVillage('Bořivoj')));
   const secondState = ownVillage('Radim');
-  if (options.secondCut === 'trail') withTrail(secondState);
+  cutState('second', secondState);
   const second = await villages.add(sa2.id, 'Dub', secondState);
   const target = await villages.add(
     sb.id,
     'Kněžice',
-    ownVillage('Ctibor', options.targetNewVillage ? START - 100 : START - 4000),
+    cutState('target', ownVillage('Ctibor', options.targetNewVillage ? START - 100 : START - 4000)),
   );
   const foreign = await villages.add(sc.id, 'Vrba', ownVillage('Dalibor'));
   const onCell: Record<string, string> = {
@@ -170,7 +185,8 @@ async function world(
   };
   const mapOf = (cell: { x: number; y: number }): CampaignMap => {
     const id = onCell[`${cell.x},${cell.y}`];
-    const enclosed = options.secondCut !== undefined && cell.x === 0 && cell.y === 1;
+    const cutCell = { second: '0,1', home: '0,0', target: '1,0' }[options.cut?.village ?? 'second'];
+    const enclosed = options.cut !== undefined && `${cell.x},${cell.y}` === cutCell;
     return {
       landscape: enclosed ? ENCLOSED_LANDSCAPE : MEADOW_LANDSCAPE,
       obstacles: null,
@@ -363,13 +379,29 @@ describe('plán tažení (planCampaign)', () => {
   });
 
   it('odříznutá ves do tažení nejde (Martin 17. 11. 2026 – „Nesmí do tažení“), se stezkou ano', async () => {
-    const cut = await world({ secondCut: 'enclosed' });
+    const cut = await world({ cut: { village: 'second' } });
     expect(await planCampaign(cut.deps, input(cut.plan))).toBe(CAMPAIGN_REASONS.noRoute);
     // bez odříznuté vsi v plánu – jen shromaždiště – plán projde
     const alone = { ...cut.plan, villages: cut.plan.villages.slice(0, 1) };
     expect(typeof (await planCampaign(cut.deps, input(alone)))).toBe('object');
-    const open = await world({ secondCut: 'trail' });
+    const open = await world({ cut: { village: 'second', trail: true } });
     expect(typeof (await planCampaign(open.deps, input(open.plan)))).toBe('object');
+  });
+
+  it('k odříznutému cíli ani z odříznutého shromaždiště tažení nejde, se stezkou ano', async () => {
+    const target = await world({ cut: { village: 'target' } });
+    expect(await planCampaign(target.deps, input(target.plan))).toBe(
+      CAMPAIGN_REASONS.noTargetRoute,
+    );
+    const open = await world({ cut: { village: 'target', trail: true } });
+    expect(typeof (await planCampaign(open.deps, input(open.plan)))).toBe('object');
+    // odříznuté shromaždiště: i samo (bez druhé vsi) k cíli nedojde – dřív než cesta vsí k němu
+    const home = await world({ cut: { village: 'home' } });
+    const alone = { ...home.plan, villages: home.plan.villages.slice(0, 1) };
+    expect(await planCampaign(home.deps, input(alone))).toBe(CAMPAIGN_REASONS.noTargetRoute);
+    expect(await planCampaign(home.deps, input(home.plan))).toBe(CAMPAIGN_REASONS.noTargetRoute);
+    const homeOpen = await world({ cut: { village: 'home', trail: true } });
+    expect(typeof (await planCampaign(homeOpen.deps, input(homeOpen.plan)))).toBe('object');
   });
 
   it('vlastní ves jako cíl nejde', async () => {
@@ -504,7 +536,7 @@ describe('vyslání tažení (launchCampaign)', () => {
   });
 
   it('s odříznutou vsí se tažení nevyšle – nikdo neodejde, válka nevznikne; se stezkou ano', async () => {
-    const cut = await world({ secondCut: 'enclosed' });
+    const cut = await world({ cut: { village: 'second' } });
     const result = await launchCampaign(cut.deps, input(cut.plan));
     expect(result).toEqual({ ok: false, reason: CAMPAIGN_REASONS.noRoute });
     expect(cut.wars.all).toHaveLength(0);
@@ -513,8 +545,15 @@ describe('vyslání tažení (launchCampaign)', () => {
       const state = (await cut.villages.find(id))!.state;
       expect(state.people.some((p) => p.away !== undefined)).toBe(false);
     }
-    const open = await world({ secondCut: 'trail' });
+    const open = await world({ cut: { village: 'second', trail: true } });
     expect((await launchCampaign(open.deps, input(open.plan))).ok).toBe(true);
+    // k odříznutému cíli se nevyšle
+    const target = await world({ cut: { village: 'target' } });
+    expect(await launchCampaign(target.deps, input(target.plan))).toEqual({
+      ok: false,
+      reason: CAMPAIGN_REASONS.noTargetRoute,
+    });
+    expect(target.campaigns.rows.size).toBe(0);
   });
 
   it('cíl v ochraně se nevyšle – nikdo neodejde, válka nevznikne', async () => {
