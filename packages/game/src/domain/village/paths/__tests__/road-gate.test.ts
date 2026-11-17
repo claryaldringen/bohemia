@@ -185,4 +185,19 @@ describe('cesta k vchodu uvnitř plochy staveb (D89 – Vlkov, ohrada u tesaře)
     expect(accessRoads(roads, [ROUTE], CELL_M, 0, CONTEXT, null, () => true, guard)).toEqual([]);
     expect(JSON.stringify(roads)).toBe(before);
   });
+
+  it('vchod venku, ale napojení na pevnou cestu uvnitř plochy staveb (Vlkov): nevznikne', () => {
+    // body osy od vchodu leží venku, plocha je jen u pevné cesty, na kterou se osa napojí
+    const roads = roadsWith('trodden', [
+      [0, -14],
+      [100, -14],
+    ]);
+    const onlyJoin = (x: number, z: number): boolean => x >= 38 && x <= 62 && z >= -20 && z <= -7;
+    const guard = guardOf(onlyJoin);
+    const free = guardOf(() => false);
+    // bez překážky vznikne; s plochou jen u napojení ne
+    expect(accessDue(roads, [ROUTE], CELL_M, () => true, free)).toBe(true);
+    expect(accessDue(roads, [ROUTE], CELL_M, () => true, guard)).toBe(false);
+    expect(accessRoads(roads, [ROUTE], CELL_M, 0, CONTEXT, null, () => true, guard)).toEqual([]);
+  });
 });

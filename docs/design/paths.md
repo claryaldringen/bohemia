@@ -555,7 +555,8 @@ přitom ležet každý rok přesně na stejném místě.“):
   1 000 / (2 − 1) = 1 000 dní (≈ 2,7 roku). Platí jen pro vznik: políčko, které už mez překročilo
   (existující cesta), se řídí dosavadními pravidly a udržovací práh 1 cesty za den se nemění.
   Důsledek: stálá část cest k poli (1,6 za den) sama cestu nevyšlape – pole bez dalšího provozu
-  zůstane pěšinou (návrh Clauda).
+  zůstane pěšinou, i když se na něm pracuje (Martin 17. 11. 2026: „Nechat bez cesty“) – o vzniku
+  rozhoduje jen provoz tras, ne práce.
 - **Cesta vznikne**, když vyšlapanost podél trasy dosáhne **1 000**. Měsíční kontrola (1. dne
   v měsíci) vezme čáry tras s vyšlapaností nad prahem mimo pevné cesty (do 5 m od osy jde trasa po
   cestě) a z nich udělá vyšlapanou cestu – **jen celou od kotvy ke kotvě** (Síť – kotvy níž):

@@ -128,7 +128,8 @@ describe('kronika – konce cesty a roky chůze', () => {
   it('křižovatka nic neurčí, pole bez dne roky nedá, konec nikam konce nemá', () => {
     const day = FOUNDED + 15 * YEAR;
     const junction = setup('d:13', null, true);
-    expect(roadFormedNote(junction.state, junction.net, 1, day).years).toBe(12);
+    // bez tras po cestě stáří neznáme – roky chybí (D89)
+    expect(roadFormedNote(junction.state, junction.net, 1, day).years).toBeUndefined();
     const field = setup('d:13', 'field:4');
     expect(roadFormedNote(field.state, field.net, 1, day)).toEqual({
       ends: [
@@ -197,11 +198,11 @@ describe('kronika – zarostlá cesta (D67)', () => {
       ),
     });
     const { net, state } = setup('water', null, true);
-    // bez tras (starší zápis) křižovatka nic neurčí – od založení vsi
-    expect(roadFormedNote(state, net, 1, day).years).toBe(15);
+    // bez tras (starší zápis) roky chybí
+    expect(roadFormedNote(state, net, 1, day).years).toBeUndefined();
     const withCell = { ...net, cellM: cell };
     state.routes = { list: [along(20, 'd:13')] } as unknown as VillageState['routes'];
-    expect(roadFormedNote(state, withCell, 1, day).years).toBe(15);
+    expect(roadFormedNote(state, withCell, 1, day).years).toBeUndefined();
     state.routes = { list: [along(0, 'd:13')] } as unknown as VillageState['routes'];
     expect(roadFormedNote(state, withCell, 1, day).years).toBe(12);
     // trasa z dvorce postaveného před založením vsi: od založení vsi

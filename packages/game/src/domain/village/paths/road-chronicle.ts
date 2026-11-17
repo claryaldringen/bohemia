@@ -235,7 +235,10 @@ export function roadFormedNote(
   // k místu přes křižovatku se chodí od chvíle, kdy stojí obě místa nějaké trasy po cestě (D89)
   if (since.includes(null)) {
     const walked = routeWalkedSince(state, net, roadId);
-    if (walked !== undefined) known.push(walked);
+    // bez určitelné trasy stáří neznáme – roky chybí (ne stáří druhého konce); trasy s neznámým
+    // stářím konce se přeskakují, takže roky mohou vyjít spíš nižší než skutečné
+    if (walked === undefined) return note;
+    known.push(walked);
   }
   if (known.length === 0) return note;
   const from = Math.max(state.foundedDay, ...known);

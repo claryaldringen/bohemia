@@ -206,7 +206,9 @@ cesty, půda)`; graf a půda (`walkGroundOf` + `withFieldWalk` – pole v `Villa
   `wearRoadDue` napřed: bez kusu, ze kterého by cesta vznikla, se kontext míst na stromy ani kopie
   nestaví a úklid neběží. Konce tras pro úklid jsou kotvy (`anchorTermini` – dosah kotvy a kraj
   mapy jako `nearAnchor`, nebo do 6 m). `formRoad` napřed spočítá osu bez rozdělení
-  (`plannedAxis`, `joinTarget`) – krátká cesta nic nerozdělí. Mez vzniku `WEAR.roadAt` dosáhne políčko jen s provozem aspoň `WEAR.formFrom` (2 cesty za den – `settleWear` ořízne vyšlapanost pod mezí, kde už nad ní nebylo; Martin 17. 11. 2026). Kronika `road-formed` jen pro cesty,
+  (`plannedAxis`, `joinTarget`) – krátká cesta nic nerozdělí.
+  Mez vzniku `WEAR.roadAt` dosáhne políčko jen s provozem tras aspoň `WEAR.formFrom` (2 cesty za
+  den; `settleWear` ořízne vyšlapanost pod mezí, kde už nad ní nebylo – práce se nepočítá; Martin 17. 11. 2026). Kronika `road-formed` jen pro cesty,
   jejichž id úklid nepohltil; po úklidu a křižovatkách měsíce dostane konce cesty hráče a roky
   chůze (`noteFormedRoads`, `roadFormedNote` v `paths/road-chronicle.ts` – web-ui.md, Panel
   Kronika; křižovatka na konci stáří neurčí, rozhodnou trasy po cestě – `routeWalkedSince`,
