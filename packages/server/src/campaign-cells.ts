@@ -33,6 +33,9 @@ export interface WorkerCampaignCells extends CampaignCells {
   reserve(cells: number): void;
 }
 
+/** Sousedních políček mapy (8 směrů) – výstupy stezek se čtou ze všech. */
+const NEIGHBOURS = 8;
+
 /**
  * Mapy políček světa pro tažení (war.md – Pohyb – mapu po mapě): políčko se sídlem má krajinu
  * z uloženého seedu a výřezu (sdílená mezipaměť krajin) a jeho vsi; prázdné políčko krajinu z
@@ -46,9 +49,6 @@ export interface WorkerCampaignCells extends CampaignCells {
  * jejíž souhrn výstupy nenese (uložený dřív), se načte celá (`find` + `trailExitsOf`) jednou na
  * verzi – výstupy v paměti podle `id@verze`. Bez zdroje výstupů žádné vstupy.
  */
-/** Sousedních políček mapy (8 směrů) – výstupy stezek se čtou ze všech. */
-const NEIGHBOURS = 8;
-
 export function createCampaignCells(deps: {
   settlements: Pick<SettlementRepository, 'holderAt' | 'listActive'>;
   /** Otisky – id vsí sídla bez načtení jejich stavu; celá ves jen pro výstupy bez souhrnu. */

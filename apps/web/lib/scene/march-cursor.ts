@@ -27,8 +27,9 @@ import { roadsWithContinuations } from './swath-bands';
 // průchodu. Prohlížeč pozná dosažitelnost z téže jemné mřížky a jejích souvislých oblastí
 // (`marchAreas`, jen deterministická matematika) – jen vizuální nápověda, rozkaz ověří server.
 // Prohlížeč nemá stav vsi, proto mřížka nese krajinu, vrstvu překážek, vymýcený les vsi
-// a průseky cest (i kusy hotových stezek ke kraji ze scény vsi); stavby a opevnění v ní nejsou (server cíl ve stavbě přesouvá k nejbližší
-// volné buňce, takže stavba nápovědu nemění). Čistý modul bez Babylonu.
+// a průseky cest (i kusy hotových stezek ke kraji ze scény vsi); stavby a opevnění v ní nejsou
+// (server cíl ve stavbě přesouvá k nejbližší volné buňce, takže stavba nápovědu nemění). Čistý
+// modul bez Babylonu.
 
 /** Tvar kurzoru nad místem, kam se nedá dojít (CSS) – ikona zákazu jako v 0 A.D. */
 export const FORBIDDEN_CURSOR = 'not-allowed';
