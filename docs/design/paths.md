@@ -548,6 +548,14 @@ přitom ležet každý rok přesně na stejném místě.“):
   políčkách se zaokrouhlují dolů (až 1 setina na políčko a interval).
 - **Pěšina, kterou hráč vidí**, jsou čáry tras se silou = vyšlapanost / 1 000 (nejvýš 1), od
   vyšlapanosti 50; vzhled jako dřív pěšina dne (nevýrazná: pás 0,6–1,2 m, krytí 0,2–0,45 – Martin 19. 10. 2026). Nová pěšina tak začíná slabě a sílí, až se z ní stane cesta.
+- **Cesta vznikne jen tam, kde se chodí aspoň 2× denně** (Martin 17. 11. 2026: „Nejvýš do 3 let“ –
+  vyšlapání cesty nemá trvat desítky let): buňka s provozem **pod 2 cesty za den**
+  (`WEAR.formFrom`) nedosáhne meze vzniku – vyšlapanost zůstane pod 1 000 (nejvýš 999,99), tráva
+  dál ubírá 1 cestu za den a cesta nevznikne nikdy; při 2 cestách za den vznikne nejpozději za
+  1 000 / (2 − 1) = 1 000 dní (≈ 2,7 roku). Platí jen pro vznik: políčko, které už mez překročilo
+  (existující cesta), se řídí dosavadními pravidly a udržovací práh 1 cesty za den se nemění.
+  Důsledek: stálá část cest k poli (1,6 za den) sama cestu nevyšlape – pole bez dalšího provozu
+  zůstane pěšinou (návrh Clauda).
 - **Cesta vznikne**, když vyšlapanost podél trasy dosáhne **1 000**. Měsíční kontrola (1. dne
   v měsíci) vezme čáry tras s vyšlapaností nad prahem mimo pevné cesty (do 5 m od osy jde trasa po
   cestě) a z nich udělá vyšlapanou cestu – **jen celou od kotvy ke kotvě** (Síť – kotvy níž):

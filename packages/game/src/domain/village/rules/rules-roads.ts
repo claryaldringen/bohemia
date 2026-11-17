@@ -177,6 +177,9 @@ export const WEAR = {
   regrowPerDay: 100,
   max: 150_000,
   roadAt: 100_000,
+  // Martin 17. 11. 2026: „Nejvýš do 3 let“ – cesta se vyšlape jen tam, kde se chodí aspoň 2× denně
+  // (pak nejpozději za 1 000 / (2 − 1) = 1 000 dní); pod tím vyšlapanost nedosáhne `roadAt`
+  formFrom: 200,
   extendFrom: 50_000,
   visibleFrom: 5_000,
   cartWeight: 2,
