@@ -93,6 +93,10 @@ u vojska ([válka](war.md) – Cíl v neprůchodné buňce).
   domů sama (Martin). Každé další dojetí počítá lhůtu znovu.
 - **Doma** vojvoda vejde do dvorce, koně jdou do ohrady a všichni se vrátí ke svému dni (návrh
   Clauda).
+- **Nemá-li kudy domů – „Vrátit se, kudy přišla“** (Martin 17. 11. 2026, volba v otázce): skupina
+  půjde zpět přes stejné mapy a stejná místa na okrajích, kudy přišla – tou cestou prokazatelně
+  prošla. Stát zůstane (a čekat na rozkaz), jen když i ta cesta mezitím zmizí. Nikdy se nepřenese
+  domů ([válka](war.md) – Pohyb – Terén).
 
 ### Pohyb
 

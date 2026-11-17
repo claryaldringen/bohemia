@@ -237,13 +237,32 @@ vojska mapu po mapě (Ú6.4), tažení po taktech, boj a dohra (Ú6.5–Ú6.17) 
   `stepMover` vrátí `stuck` a zapíše `stuckDay` = den (`Mover`, `CampaignGroup`, `AlarmMover` –
   posel i skupina uprchlíků). Týž den už úsek nehledá – mřížku ani mapu nečte (Review Focus 3:
   uvízlá skupina by jinak spálila hledáním na jemné mřížce čas workeru každý takt). Volající pohyb
-  na `stuck` končí: skupina tažení a hlouček výpravy stojí (`arrived`), posel se vrátí, uprchlíci
-  zůstanou, kde jsou – **nový pokus až po novém rozkazu** (`sendGroup` `stuckDay` smaže; úspěšný
-  úsek taky). `stuckDay` je jen pojistka pro volajícího, který by týž den zkoušel znovu; další den
+  na `stuck` končí: skupina tažení a hlouček výpravy venku stojí (`arrived`), posel se vrátí –
+  **nový pokus až po novém rozkazu** (`sendGroup` `stuckDay` smaže; úspěšný úsek taky). Skupina
+  na návratu a uprchlíci do hradiště stojí bez `arrived` a další den plánují znovu (Martin
+  – 17. 11. 2026: domů ani do hradiště se nepřenesou; Paměť cesty níž). `stuckDay` je jen
+  pojistka pro volajícího, který by týž den zkoušel znovu; další den
   sám nic nespustí (oprava Úlohy 5 – revize: dřív tu stálo „další den plánuje znovu“). Skupina
   stojí i v slepé kapse cizí mapy: přejde-li na mapě po cestě do oblasti, odkud vede okraj
   k dalšímu políčku trasy (`onwardArea`), mapu za ní ale nezná (výhled jen o jedno políčko), může
   na další mapě skončit v kapse bez přechodu dál – tam `stuck` a čeká na nový rozkaz.
+- **Paměť cesty a uvízlý návrat** (Martin 17. 11. 2026 – „Vrátit se, kudy přišla“; Úloha 8c plánu
+  2026-11-16-dense-forest) – nepovinné `Mover.crossings` (`MoverCrossing` v `campaign-types.ts` –
+  `from`, `to`, `pos` = místo na okraji mapy `from`): `stepMover` při každém přechodu zapíše přechod
+  (`remember`); přechod zpět týmž místem okraje (nebo po paměti) poslední zruší. Paměť mají skupiny
+  od místa, odkud vyšly: tažení od `newCampaign` (shromaždiště), po rozpadu (`disband`) hlouček
+  zdědí paměť skupiny svého prvního muže; výprava od `newJourney` a `joinAtHome`, rozdělení
+  hloučku ji zkopíruje, splynutí ponechá první (bez ní vezme druhou). Posel a uprchlíci ji nemají,
+  bod bez ní také ne (uvízlý návrat pak stojí). Návrat (`moveGroups` tažení ve fázi `returning`
+  a `disbanded`, výpravy u skupiny `returning`): cíl domů se neposouvá (`settleGoal` jen jinam – kdo
+  domů nedojde, nedošel); `stuck` → `retraceCrossings(m, goal)` – trasa = mapy z paměti v obráceném
+  pořadí (+ `worldRoute` od mapy, odkud vyšla, k cíli), `retrace` a týž takt znovu `stepMover`;
+  `planMoverLeg` s `retrace` vede úsek `marchPath` k místu posledního přechodu na této mapě
+  (`retraced`), jen je-li místo, odkud přišla, na sousední mapě průchozí. Nejde-li ani to, skupina
+  stojí, `arrived` zůstane false (tažení neskončí – `allArrived`, výprava běží – `finishGroup` jen po
+  dojetí) a další den plánuje znovu (`stuckDay`; návrh Clauda – tažení na návratu rozkaz nemá).
+  Nový rozkaz (`sendGroup`) `retrace` smaže, paměť zůstane. Testy `journey-retrace.test.ts`,
+  `movement.test.ts` – Paměť cesty.
 - **Rozjeté úseky** (Rozhodnutí 9) – `MARCH_GRID_VERSION` (`march-grid.ts`) = 2 – jemná mřížka
   s hustým lesem. Bod tažení nebo výpravy bez `marchGridVersion` (uložený dřív) zahodí úseky
   `replanLegs(state, extra)` (`movement.ts` – `leg = null` u skupin a `extra`, tj. uprchlíků
@@ -345,7 +364,8 @@ Plán 2026-11-03 – rozhodnutí 12; Review bod 5. Čísla ve `WAR.campaign`.
   a `target` (`CampaignVillage` – ves, políčko, bod), `members` (`CampaignMember` – osoba
   `PersonRef`, hráč, muž rodu, kůň, nucený, síla, zdraví, `vigor`, raněný, skupina, `status`),
   `groups` (`CampaignGroup` – rozkaz, políčko a poloha, cíl, `route` = zbývající políčka světa,
-  `leg` = úsek po mapě `{ points, meadowM, walkedM }`, `stuckDay` – den uvíznutí, `arrived`),
+  `leg` = úsek po mapě `{ points, meadowM, walkedM }`, `stuckDay` – den uvíznutí, `crossings` –
+  paměť cesty a `retrace` – návrat po ní (Pohyb vojska – Paměť cesty), `arrived`),
   `marchGridVersion` (verze mřížky, podle které vznikly úseky – `MARCH_GRID_VERSION`; bod bez ní
   zahodí úseky v prvním taktu na kopii, `replanLegs` – Pohyb vojska, Rozjeté úseky), `supplies.foodKg`,
   `loot { foodKg, herd }`, `captives`, `liveCommand`, `discovered`, `returnReason`).
@@ -1219,7 +1239,11 @@ Clauda“). Co se hýbe v taktech (vesničan běžící domů, posel, skupina up
   volbu pustí (kandidáti hradišť `refugeHosts` – přesunuto z `messenger.ts` do `alarm.ts`; les je
   nepotřebuje). Složení `flightLoad` ze stavu vsi bez toho, co tažení dnes odvedlo; `AlarmFlight`
   (`refId` `<tažení>:a<n>`, `people` – kdo odešel, `carried` – co odnesli, `wounded`, cíl střed
-  útočiště hradiště po trase `refugeRoute`, nebo dveře nejbližšího dosažitelného hustého lesa mapy vsi – `nearestReachableForest`; skupina nikdy nestojí v neprůchodné buňce),
+  útočiště hradiště po trase `refugeRoute`, nebo dveře nejbližšího dosažitelného hustého lesa mapy vsi – `nearestReachableForest`; skupina nikdy nestojí v neprůchodné buňce;
+  do hradiště jen, vede-li cesta celou trasou – `routeLeg` v `movement.ts` spočte úseky všech map
+  trasy předem, mapy načte najednou `gatherMissing`, první úsek je `leg` skupiny; nevede-li, skupina
+  neodejde a ves se při nájezdu zachová podle postoje jako bez varování – Martin 17. 11. 2026,
+  „Utéct do lesa“),
   `refuge-depart` domů na týž den s `hostName` (nový volitelný port `CampaignWorld.villageNameOf` –
   jména načtených vsí; `computeCampaign` je plní spolu se stavem vsi, takže výsledek nezávisí na
   kouscích). Skupina do hradiště sní hned jídlo dne odchodu (doma už nejí), pak v denním kroku
@@ -1228,8 +1252,10 @@ Clauda“). Co se hýbe v taktech (vesničan běžící domů, posel, skupina up
   `stepMover` tempem `marchSpeed` (pěší, ranění pomaleji, dobytek a vozy tempem stáda); v lese
   `hidden` + `refuge-hidden` domů na týž den (zásoby a stádo, které donesli), v hradišti `arrived` +
   `refuge-arrive` hostiteli den nato (zbylí lidé, zásoby po jídle, stádo; `fromName`) a majiteli
-  upozornění `refuge-arrived` (`hostName`). Nemá-li kudy, nebo tažení skončí (`finish` →
-  `settleFlights`), skupina dojde, kam šla (návrh Clauda – zbytek cesty se nesimuluje).
+  upozornění `refuge-arrived` (`hostName`). Nemá-li cestou kudy (mapa se od odchodu změnila), stojí
+  a další den to zkusí znovu (`stuckDay`) – do hradiště se nepřenese (Martin 17. 11. 2026); tažení
+  skončí (`finish` → `settleFlights`) – skupina dojde, kam šla (návrh Clauda – zbytek cesty se
+  nesimuluje).
   **Dostižení** (`catchFlights` po pohybu, Otevřené 8): skupiny vojska s aktivním mužem na mapě
   skupiny do `WAR.alarm.catchM` (cíleně je nepronásleduje); přesila (`isOverpowered` – jejich muži
   proti mužům uprchlíků) → skupina se vzdá jednou (`caughtTick`): lidé podle

@@ -51,7 +51,14 @@ import {
 } from './raid-apply';
 import { MARCH_GRID_VERSION, type Pos } from './march-grid';
 import { marchSpeed, type GroupPace } from './march';
-import { missingMaps, replanLegs, sendGroup, settleGoal, stepMover } from './movement';
+import {
+  missingMaps,
+  replanLegs,
+  retraceCrossings,
+  sendGroup,
+  settleGoal,
+  stepMover,
+} from './movement';
 import { WAR } from './rules-war';
 import type { KnowledgeOut, SeenCell } from './seen';
 import { discoverBuildings } from './sight';
@@ -154,6 +161,7 @@ export function newCampaign(input: NewCampaign, clock: WorldClock): CampaignStat
     route: [],
     leg: null,
     arrived: true,
+    crossings: [],
   }));
   return {
     id: input.id,
@@ -770,6 +778,8 @@ function disband(s: CampaignState, out: TickOut): void {
       route: [],
       leg: null,
       arrived: true,
+      // stojí, kde stála skupina jeho prvního muže – její paměť cesty vede sem
+      ...(from.crossings ? { crossings: from.crossings.map((c) => structuredClone(c)) } : {}),
     };
     for (const m of men) m.group = g.id;
     sendGroup(g, s.homes?.[villageId] ?? s.assembly);
@@ -1573,9 +1583,14 @@ function paceOf(s: CampaignState, g: CampaignGroup): GroupPace {
  * Pohyb skupin o jeden takt: metry louky tempem skupiny (`marchSpeed` ÷ takty za sekundu) po
  * úseku mapy. Konec úseku na okraji = přechod na sousední mapu (zbytek taktu se nevyužije), konec
  * úseku v cíli = skupina stojí. Skupina bez mužů, nebo která nemá kudy, stojí. Před úsekem k cíli
- * se cíl v neprůchodné buňce posune na nejbližší dosažitelné místo (`settleGoal`).
+ * se cíl v neprůchodné buňce posune na nejbližší dosažitelné místo (`settleGoal`) – domů ne (návrat
+ * a rozpad: kdo domů nedojde, nedošel). Nemá-li skupina kudy domů, vrátí se, kudy přišla (Martin
+ * 17. 11. 2026 – „Vrátit se, kudy přišla“, `retraceCrossings`); nejde-li ani to, stojí, ale doma
+ * není (`arrived` zůstane – tažení neskončí) a další den to zkusí znovu (`stuckDay`; návrh Clauda –
+ * na zpáteční cestě rozkaz není) – domů se nikdy nepřenese.
  */
 function moveGroups(s: CampaignState, ctx: TickContext): void {
+  const home = s.phase === 'returning' || s.phase === 'disbanded';
   for (const g of s.groups) {
     if (g.arrived || g.goal === null) continue;
     const pace = paceOf(s, g);
@@ -1583,8 +1598,12 @@ function moveGroups(s: CampaignState, ctx: TickContext): void {
       g.arrived = true;
       continue;
     }
-    settleGoal(g, s.day, ctx);
-    const step = stepMover(g, g.goal.pos, marchSpeed(pace, s.day) / TICKS_PER_SECOND, s.day, ctx);
-    if (step === 'arrived' || step === 'stuck') g.arrived = true;
+    if (!home) settleGoal(g, s.day, ctx);
+    const speed = marchSpeed(pace, s.day) / TICKS_PER_SECOND;
+    let step = stepMover(g, g.goal.pos, speed, s.day, ctx);
+    if (step === 'stuck' && home && retraceCrossings(g, g.goal)) {
+      step = stepMover(g, g.goal.pos, speed, s.day, ctx);
+    }
+    if (step === 'arrived' || (step === 'stuck' && !home)) g.arrived = true;
   }
 }

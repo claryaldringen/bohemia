@@ -299,6 +299,10 @@ Návrh Clauda: zatím ne – kopání zůstává, jinak by se měnila kalibrace 
 - **Hustý les je neprůchozí** pro vojsko i výpravy ([válka](war.md) – Terén); vede jím jen zemská
   stezka a pevná cesta. Paseka po klučení hustým lesem přestává být. Vesničané do něj utíkají před
   vojskem a zmizí v něm jako v budově ([válka](war.md) – Obránci – postoje a útěk).
+- **Odříznutá ves – „Cestu otevře až stezka“** (Martin 17. 11. 2026, volba v otázce): ves, od
+  které hustým lesem nevede paseka ke kraji mapy, je odříznutá – nevyjde z ní vojvoda, vojsko ani
+  výprava a nepřítel k ní nedojde, dokud hráč nepostaví zemskou stezku (průsek lesem). Žádný
+  průchod od založení se nepřidává ([válka](war.md) – Terén).
 - **Plot a palisáda v hustém lese** (návrh Clauda 16. 11. 2026): pás opevnění vedený hustým lesem
   je paseka, takže vzniká průchozí koridor ± 10 m podél hradby.
 - Práce vsi v lese (kácení, lov, uhlíř) se nemění (návrh Clauda – týká se jen pochodu).

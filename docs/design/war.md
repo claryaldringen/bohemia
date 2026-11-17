@@ -310,6 +310,10 @@ a 12 vesničanů (8 dobrovolníků po 0,4, 4 nucení po 0,2 = 4,0), s kovárnou 
   ([cesty](roads.md), [obchod](trade.md)); trasa je ale sama nevyhledává (návrh Clauda).
   - Důsledek: ves v pasece uprostřed hustého lesa je pro vojsko i výpravu dosažitelná jen po
     stezce či cestě, nebo přes louky, které souvisle vedou k okraji mapy (návrh Clauda).
+  - **Odříznutá ves – „Cestu otevře až stezka“** (Martin 17. 11. 2026, volba v otázce): ves, od
+    které hustým lesem nevede paseka ke kraji mapy, je odříznutá – nevyjde z ní vojvoda, vojsko ani
+    výprava a nepřítel k ní nedojde, dokud hráč nepostaví zemskou stezku (průsek lesem). Žádný
+    průchod od založení se nepřidává ([les](forest.md) – Hustý les).
   - **Zemská stezka pokračuje na sousední mapě** až k tamní vsi, nebo k nejbližší velké louce
     (Martin 16. 11. 2026: „ano“ – [obchod](trade.md) – Zemská stezka): vojska tak chodí k sousedům
     po stezkách; bez toho by se z vlastní mapy dostala jen do úzkých pásů u okraje sousední mapy
@@ -327,6 +331,14 @@ a 12 vesničanů (8 dobrovolníků po 0,4, 4 nucení po 0,2 = 4,0), s kovárnou 
     rozkazu; na tranzitní mapě může skončit `stuck` ve slepé kapse. Tažení, útěk i poslové
     startují u branky dvorce a cesta mezi mapami je čtyřsousedná (úhlopříčný soused přes
     ortogonální mapu).
+  - **Uvízlý návrat – „Vrátit se, kudy přišla“** (Martin 17. 11. 2026, volba v otázce): skupina
+    na návratu, která nemá kudy domů (okraj k domovu zavřený hustým lesem), půjde zpět přes stejné
+    mapy a stejná místa na okrajích, kudy přišla – tou cestou prokazatelně prošla. Stát zůstane
+    (a čekat na rozkaz), jen když i ta cesta mezitím zmizí. **Nikdy se nepřenese domů.** Platí pro
+    vojsko (návrat i rozpad) i výpravu. Návrh Clauda: skupina si pamatuje každý přechod okrajem od
+    domova; domů se cíl neposouvá na nejbližší dosažitelné místo (kdo domů nedojde, nedošel);
+    uvízlé vojsko na návratu rozkaz nemá, proto to zkouší znovu každý herní den – kdyby cesta
+    domů zase vedla (stezka), dojde; tažení do té doby neskončí.
   - **Kurzor nad nedosažitelným místem** (Martin 16. 11. 2026: „Ideální by bylo, kdyby kurzor na
     místech, kam se nedá dojít, podle toho vypadal“): nad místem, kam vybraná skupina nedojde,
     vypadá kurzor jinak (ikona zákazu jako v 0 A.D.).
@@ -774,6 +786,12 @@ zásoby a cennosti a utekli do nejbližšího hradiště“).
 - **„Stihnou to“:** skupina opustí mapu vsi dřív, než vojsko dojde od místa, kde ho viděli
   (vzdušně × 1,3 ÷ tempo skupiny), a trasa nevede přes políčko vojska – obránce zná jen místo
   spatření, ne trasu.
+- **Uvízlý průvod – „Utéct do lesa“** (Martin 17. 11. 2026, volba v otázce): když cesta do
+  hradiště pána nevede, průvod se nekoná. Když vojsko přijde, lidé utečou do hustého lesa
+  i s dobytkem jako ves bez varování a po odtažení se vrátí. Návrh Clauda: cesta se ověří při
+  varování celou trasou mapu po mapě (jako pochod); zmizí-li cestou (mapa se mezitím změnila),
+  skupina stojí, kde je, a zkouší to každý den znovu – do hradiště se nepřenese; konec tažení ji
+  pošle, kam šla (jako dřív).
 - **Oči vsi:** domy a dvorec vždy, mimo zimu i pole, milíře, lomy, klády, sady a ohrady; ves, která
   se schovává, jen domy. Vesničan běží 2× tempem pěších, vojsko ho nechytá.
 - **Posel** je chycen do 30 m od skupiny vojska (s jezdcem v dohledu); osud podle volby ke vzdaným

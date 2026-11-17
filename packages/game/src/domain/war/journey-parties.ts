@@ -122,6 +122,7 @@ function joinAtHome(
     route: [],
     leg: null,
     arrived: true,
+    crossings: [],
   };
   s.groups.push(g);
   for (const m of fresh) {
@@ -501,6 +502,8 @@ export function mergeGroups(
       const b = groups[j]!;
       if (gone.has(b) || !same(a, b)) continue;
       gone.add(b);
+      // stojí na stejném místě – paměť cesty druhého vede sem také
+      if (!a.crossings && b.crossings) a.crossings = b.crossings;
       for (const m of s.members) if (m.group === b.id) m.group = a.id;
     }
   }

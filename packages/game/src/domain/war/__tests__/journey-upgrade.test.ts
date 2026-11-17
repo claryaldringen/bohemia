@@ -64,6 +64,18 @@ function legacyPoint(extra: Partial<LegacyJourneyState> = {}): LegacyJourneyStat
 }
 
 /** Bod nového tvaru zpět do tvaru před výpravami (jedna skupina) – jak by ho uložil starý krok. */
+/** Stav bez paměti cesty hloučků – tak ho dopočte starší bod. */
+function withoutCrossings(s: JourneyState): JourneyState {
+  return {
+    ...s,
+    groups: s.groups.map((g) => {
+      const bare = { ...g };
+      delete bare.crossings;
+      return bare;
+    }),
+  };
+}
+
 function toLegacy(s: JourneyState): LegacyJourneyState {
   const party = s.parties[0]!;
   return {
@@ -230,7 +242,8 @@ describe('upgradeJourney', () => {
       for (const to of [at + 150, end]) {
         const fresh = stepJourney(half.state, to, trip, worldOf());
         const legacy = stepJourney(toLegacy(half.state), to, trip, worldOf());
-        expect({ ...legacy.state, leaderName: undefined }).toEqual(fresh.state);
+        // starší bod paměť cesty nemá (Úloha 8c – `crossings`), jinak týž výsledek
+        expect({ ...legacy.state, leaderName: undefined }).toEqual(withoutCrossings(fresh.state));
         expect(legacy.villageEvents).toEqual(fresh.villageEvents);
         expect(legacy.notices).toEqual(fresh.notices);
         expect(legacy.knowledge).toEqual(fresh.knowledge);

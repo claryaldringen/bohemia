@@ -121,9 +121,10 @@ describe('Ú1 – tažení bez varování', () => {
     // oproti němu: upozornění nesou klíč `ref` (audit A5, 14. 11. 2026; bylo '3766:e81d6a8f'),
     // a trasa s rovnoměrnou cenou a vyhlazená – jiné polohy skupin (plán 2026-11-16-dense-forest,
     // Úloha 2; bylo '3792:a97e1365'), jemná mřížka 2,5 m – jiné body tras (Úloha 4; bylo
-    // '3792:62ea2890'), a stav nese verzi mřížky `marchGridVersion` (Úloha 5; bez ní týž otisk
-    // '3792:918c63d9').
-    expect(fingerprint(whole)).toBe('3813:4c132d0a');
+    // '3792:62ea2890'), stav nese verzi mřížky `marchGridVersion` (Úloha 5; bez ní týž otisk
+    // '3792:918c63d9') a skupiny paměť cesty `crossings` (Úloha 8c; bez ní týž otisk
+    // '3813:4c132d0a').
+    expect(fingerprint(whole)).toBe('4125:068c8900');
     // Bod uložený uprostřed (bez `alarm`) a načtený z JSON pokračuje stejně.
     const half = stepCampaign(campaign(), LAUNCH + 300, LIVE, worldOf());
     const rest = stepCampaign(viaJson(half.state), END, LIVE, worldOf());

@@ -1,6 +1,12 @@
 import { directionBetween, type GridCell } from '../village/people/world-grid';
-import { cellKey, gridOf, sameCell, type TickContext } from './campaign-tick';
-import type { CampaignGroup, CampaignLeg, CampaignPlace, CampaignWorld } from './campaign-types';
+import { cellKey, gatherMissing, gridOf, sameCell, type TickContext } from './campaign-tick';
+import type {
+  CampaignGroup,
+  CampaignLeg,
+  CampaignPlace,
+  CampaignWorld,
+  MoverCrossing,
+} from './campaign-types';
 import {
   crossingAreas,
   marchPath,
@@ -24,7 +30,9 @@ import { edgeCrossing, sideBySide, worldRoute } from './world-route';
 // skupiny, posun cíle a mapy potřebné předem (`sendGroup`, `settleGoal`, `missingMaps`) sem přešly
 // z `campaign.ts` beze změny, ať je sdílí i výjezd vojvody (`journey.ts` – plán 2026-11-13). Přechod
 // okraje jen do průchozí buňky sousední mapy, uvíznutí na den a přepočet rozjetých úseků po změně
-// mřížky (`replanLegs`) – plán 2026-11-16-dense-forest, Rozhodnutí 8 a 9.
+// mřížky (`replanLegs`) – plán 2026-11-16-dense-forest, Rozhodnutí 8 a 9. Paměť cesty a návrat po
+// ní (`crossings`, `retraceCrossings`) a cesta celou trasou předem (`routeLeg`) – Martin 17. 11. 2026
+// („Vrátit se, kudy přišla“, „Utéct do lesa“), Úloha 8c plánu.
 
 /** Kdo jde po mapách: políčko, poloha, zbývající políčka trasy a úsek po současné mapě. */
 export interface Mover {
@@ -41,6 +49,18 @@ export interface Mover {
    * Smaže ho i úspěšný úsek.
    */
   stuckDay?: number;
+  /**
+   * Paměť cesty (Martin 17. 11. 2026 – „Vrátit se, kudy přišla“): přechody okrajem od místa, odkud
+   * vyšel (domov, shromaždiště), v pořadí – poslední vede na mapu `cell`. Přechod zpět týmž místem
+   * okraje se zruší s posledním (jinak by návrat chodil sem a tam). Chybí = nepamatuje si (posel,
+   * uprchlíci, starší bod) – uvízlý návrat pak stojí.
+   */
+  crossings?: MoverCrossing[];
+  /**
+   * Vrací se po paměti cesty (`retraceCrossings`): úsek míří k místu posledního přechodu a přejde
+   * zpět, kudy přišel (přechod z paměti zmizí). Chybí = jde nejkratší cestou. Smaže nový rozkaz.
+   */
+  retrace?: true;
 }
 
 /**
@@ -56,6 +76,8 @@ export type MoverStep = 'moved' | 'crossed' | 'arrived' | 'stuck';
  * načte předem `missingMaps`; chybí-li ves sousední mapy, takt počká – `MissingData`). Napřed jen
  * do souvislé oblasti, odkud se tam jde dál (`onwardArea`); jinak kamkoli průchozího (návrh Clauda –
  * Úloha 5: nejbližší průchozí protějšek bývá kapsa u okraje, odkud by skupina nedošla nikam).
+ * Při návratu po paměti cesty (`retrace`) vede úsek k místu posledního přechodu (`retraced`), odkud
+ * se přejde zpět – Martin 17. 11. 2026.
  */
 export function planMoverLeg(
   m: Mover,
@@ -66,7 +88,13 @@ export function planMoverLeg(
   const grid = gridOf(m.cell, day, ctx);
   const nextCell = m.route[0];
   let path;
-  if (nextCell !== undefined) {
+  const back = nextCell === undefined ? null : retraced(m, nextCell);
+  if (back !== null && nextCell !== undefined) {
+    // zpět, kudy přišel: k místu přechodu a přes okraj – jen je-li místo, odkud přišel, průchozí
+    const there = gridOf(nextCell, day, ctx);
+    const at = edgeCrossing(back.from, back.to, back.pos);
+    path = there.pace[marchCellAt(there, back.pos)]! > 0 ? marchPath(grid, m.pos, at) : null;
+  } else if (nextCell !== undefined) {
     const direction = directionBetween(m.cell, nextCell);
     if (direction === null) {
       path = null;
@@ -83,6 +111,87 @@ export function planMoverLeg(
     path = marchPath(grid, m.pos, goal);
   }
   return path ? { points: path.points, meadowM: path.meadowM, walkedM: 0 } : null;
+}
+
+/**
+ * Přechod z paměti cesty, po kterém se `m` vrací (`retrace`): poslední, vede-li z `nextCell` (další
+ * políčko trasy) na mapu `m.cell`; jinak null (paměť je pryč, nebo trasa jde dál k cíli).
+ */
+function retraced(m: Mover, nextCell: GridCell): MoverCrossing | null {
+  if (m.retrace !== true || !m.crossings) return null;
+  const last = m.crossings[m.crossings.length - 1];
+  return last && sameCell(last.from, nextCell) && sameCell(last.to, m.cell) ? last : null;
+}
+
+/**
+ * Zápis přechodu na `to` do paměti cesty (mutuje `m`; před přechodem – `m.pos` je místo na okraji
+ * mapy `m.cell`): zpět po paměti (`retraced`), nebo zpět týmž místem okraje, kudy přišel – poslední
+ * přechod se zruší (skupina stojí, kde stála před ním); jinak přibude. Bez paměti nic.
+ */
+function remember(m: Mover, to: GridCell): void {
+  const list = m.crossings;
+  if (!list) return;
+  const last = list[list.length - 1];
+  if (last && sameCell(last.from, to) && sameCell(last.to, m.cell)) {
+    const at = edgeCrossing(last.from, last.to, last.pos);
+    if (m.retrace === true || (at.x === m.pos.x && at.z === m.pos.z)) {
+      list.pop();
+      return;
+    }
+  }
+  list.push({ from: { ...m.cell }, to: { ...to }, pos: { x: m.pos.x, z: m.pos.z } });
+}
+
+/**
+ * Uvízlý návrat (Martin 17. 11. 2026 – „Vrátit se, kudy přišla“): `m` s pamětí cesty se vrátí po
+ * zapamatovaných přechodech v obráceném pořadí – trasa vede mapami, odkud přišel, na mapu, odkud
+ * vyšel, a dál k cíli `goal` (`worldRoute`); na každé mapě úsek k místu přechodu (`planMoverLeg`).
+ * Mutuje `m` (trasa, úsek, `retrace`; `stuckDay` smaže – zkusí se hned). False = vrátit se tak nejde:
+ * paměť chybí nebo je prázdná (stojí na mapě, odkud vyšel), nevede na jeho mapu, nebo se po ní už
+ * vrací.
+ */
+export function retraceCrossings(m: Mover, goal: CampaignPlace): boolean {
+  const list = m.crossings;
+  const last = list?.[list.length - 1];
+  if (m.retrace === true || !list || !last || !sameCell(last.to, m.cell)) return false;
+  const back = list.map((c) => ({ ...c.from })).reverse();
+  const start = back[back.length - 1]!;
+  m.route = [...back, ...worldRoute(start, goal.cell, () => false).slice(1)];
+  m.leg = null;
+  m.retrace = true;
+  delete m.stuckDay;
+  return true;
+}
+
+/**
+ * První úsek cesty, která vede po trase `m.route` až do cíle `goal` (Martin 17. 11. 2026 – „Utéct do
+ * lesa“: průvod do hradiště, kam cesta nevede, nevyrazí): úseky všech map trasy spočte předem jako
+ * `stepMover` (`planMoverLeg` od místa vstupu, mřížky dne `day`); mapy trasy načte najednou
+ * (`gatherMissing`). Null = na některé mapě úsek nevede. `m` nemění.
+ */
+export function routeLeg(
+  m: Pick<Mover, 'cell' | 'pos' | 'route'>,
+  goal: Pos,
+  day: number,
+  ctx: TickContext,
+): CampaignLeg | null {
+  gatherMissing([m.cell, ...m.route], (cell) => gridOf(cell, day, ctx));
+  const probe: Mover = {
+    cell: { ...m.cell },
+    pos: { ...m.pos },
+    route: m.route.map((c) => ({ ...c })),
+    leg: null,
+  };
+  let first: CampaignLeg | null = null;
+  for (;;) {
+    const leg = planMoverLeg(probe, goal, day, ctx);
+    if (leg === null) return null;
+    first ??= leg;
+    const next = probe.route.shift();
+    if (next === undefined) return first;
+    probe.pos = edgeCrossing(probe.cell, next, leg.points[leg.points.length - 1]!);
+    probe.cell = next;
+  }
 }
 
 /**
@@ -110,7 +219,7 @@ function onwardArea(
 
 /**
  * Jeden takt pohybu (mutuje `m`): `stepM` metrů louky po úseku mapy. Konec úseku na okraji = přechod
- * na sousední mapu, konec úseku v cíli = stojí v cíli. Když úsek spočíst nejde, stojí (`stuck`) a do
+ * na sousední mapu (zapíše se do paměti cesty – `remember`), konec úseku v cíli = stojí v cíli. Když úsek spočíst nejde, stojí (`stuck`) a do
  * konce dne `day` ho nehledá znovu (`stuckDay` – mřížku ani mapu nečte; Review Focus 3). Volající
  * pohyb na `stuck` končí – znovu se plánuje až po novém rozkazu.
  */
@@ -142,6 +251,7 @@ export function stepMover(
   m.leg = null;
   const nextCell = m.route.shift();
   if (nextCell === undefined) return 'arrived';
+  remember(m, nextCell);
   m.pos = edgeCrossing(m.cell, nextCell, m.pos);
   m.cell = nextCell;
   return 'crossed';
@@ -165,7 +275,10 @@ export function replanLegs(
   state.marchGridVersion = MARCH_GRID_VERSION;
 }
 
-/** Skupina vyrazí k místu `to` – trasa po mřížce světa, úsek mapy se spočte při pohybu. */
+/**
+ * Skupina vyrazí k místu `to` – trasa po mřížce světa, úsek mapy se spočte při pohybu. Paměť cesty
+ * zůstane (vede od domova sem), návrat po ní (`retrace`) skončí – jde se napřed nejkratší cestou.
+ */
 export function sendGroup(g: CampaignGroup, to: CampaignPlace): void {
   g.goal = { cell: { ...to.cell }, pos: { ...to.pos } };
   g.route = worldRoute(g.cell, to.cell, () => false).slice(1);
@@ -173,6 +286,7 @@ export function sendGroup(g: CampaignGroup, to: CampaignPlace): void {
   g.arrived = false;
   delete g.stuckDay;
   delete g.orderedPos;
+  delete g.retrace;
 }
 
 /**

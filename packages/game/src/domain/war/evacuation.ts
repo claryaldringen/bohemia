@@ -16,11 +16,11 @@ import { alarmCellOf, alarmVillage, isWarned, refugeHosts } from './alarm';
 import type { AlarmFlight, AlarmMessenger, CampaignAlarm } from './alarm-types';
 import { gridOf, MissingData, sameCell, villageEvent, villageStart } from './campaign-tick';
 import type { TickContext, TickOut } from './campaign-tick';
-import type { CampaignPlace, CampaignState } from './campaign-types';
+import type { CampaignLeg, CampaignPlace, CampaignState } from './campaign-types';
 import { isOverpowered } from './flight';
 import { nearestReachableForest } from './forest-doors';
 import { marchSpeed, type GroupPace } from './march';
-import { stepMover } from './movement';
+import { routeLeg, stepMover } from './movement';
 import { guardPrisonerKey, lootCapacity, lootTotals, noLoot, sumLoot } from './raid-apply';
 import { flightLoad, refugeOptions } from './refuge-choice';
 import { WAR } from './rules-war';
@@ -127,8 +127,12 @@ export function withoutTaken(state: VillageState, taken: AlarmTaken): VillageSta
  * `decideAlarms`, Úloha 11): ves ještě neodešla, boj u ní nezačal (pak rozhoduje postoj –
  * `planDefense`) a `refugeOptions` volbu pustí (hradiště, „Stihnou to“, les). Složení `flightLoad` ze stavu bez toho, co tažení dnes
  * odvedlo; cíl – střed útočiště hradiště (trasa `refugeRoute`), nebo nejbližší hustý les na mapě
- * vsi. Domů `refuge-depart` na týž den (ves drží bariéra – je ve varování). Skupina do hradiště sní
- * hned jídlo dne odchodu (doma už nejí). Vrací, zda skupina odešla.
+ * vsi. Do hradiště jen tehdy, vede-li tam cesta celou trasou (`routeLeg` – Martin 17. 11. 2026,
+ * „Utéct do lesa“: když cesta do hradiště pána nevede, průvod se nekoná; ves zůstane doma a při
+ * příchodu vojska se zachová podle postoje jako bez varování – lidé utečou do hustého lesa
+ * i s dobytkem); první úsek si skupina vezme rovnou. Domů `refuge-depart` na týž den (ves drží
+ * bariéra – je ve varování). Skupina do hradiště sní hned jídlo dne odchodu (doma už nejí). Vrací,
+ * zda skupina odešla.
  */
 export function departFlight(
   s: CampaignState,
@@ -166,6 +170,7 @@ export function departFlight(
   let target: CampaignPlace;
   let route: AlarmFlight['route'];
   let hostVillageId: string | null;
+  let leg: CampaignLeg | null = null;
   if (mode === 'forest') {
     const spot = nearestReachableForest(grid, centre);
     if (!spot) return false;
@@ -177,6 +182,8 @@ export function departFlight(
     if (!host) return false;
     target = { cell: { ...host.cell }, pos: { ...host.center } };
     route = options.route.slice(1).map((c) => ({ ...c }));
+    leg = routeLeg({ cell, pos: centre, route }, target.pos, s.day, ctx);
+    if (leg === null) return false;
     hostVillageId = host.villageId;
     av.hosts = ids;
   }
@@ -200,7 +207,7 @@ export function departFlight(
     cell: { ...cell },
     pos: { ...centre },
     route,
-    leg: null,
+    leg,
     target,
   };
   addFlight(alarm, f);
@@ -269,15 +276,17 @@ export function flightFoodDay(s: CampaignState): void {
 
 /**
  * Skupiny o jeden takt (po pohybu vojska, spatření a poslech): tempem skupiny po mapách; v cíli
- * se ukryjí v lese, nebo dojdou do hradiště (`settle`). Nemá-li kudy, zůstane, kde je – jako by
- * došla (návrh Clauda; mřížka světa je louka, nastane jen výjimečně).
+ * se ukryjí v lese, nebo dojdou do hradiště (`settle`). Do hradiště skupina vyrazí, jen když tam
+ * cesta vede (`departFlight` – Martin 17. 11. 2026); zmizí-li cesta cestou (mřížka mapy se mezitím
+ * změnila), stojí, kde je, a další den to zkusí znovu (`stuckDay`; návrh Clauda) – do hradiště se
+ * nepřenese. Konec tažení ji pošle, kam šla (`settleFlights`).
  */
 export function moveFlights(s: CampaignState, ctx: TickContext, out: TickOut): void {
   for (const f of s.alarm?.flights ?? []) {
     if (f.status !== 'marching') continue;
     const stepM = marchSpeed(flightPace(f), s.day) / TICKS_PER_SECOND;
     const step = stepMover(f, f.target.pos, stepM, s.day, ctx);
-    if (step === 'arrived' || step === 'stuck') settle(s, f, ctx, out);
+    if (step === 'arrived') settle(s, f, ctx, out);
   }
 }
 

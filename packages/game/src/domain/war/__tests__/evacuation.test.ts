@@ -166,9 +166,14 @@ interface Run {
  * Tažení po herních dnech jako u workeru (bariéra Ú6.7): ves A dopočte den, až ho tažení dokončí –
  * odchod skupiny (`refuge-depart` na týž den) zná stav vsi až ode dne nato.
  */
-function live(start: CampaignState, end: number, intents: readonly CampaignIntent[]): Run {
+function live(
+  start: CampaignState,
+  end: number,
+  intents: readonly CampaignIntent[],
+  overrides: Partial<CampaignWorld> = {},
+): Run {
   let a = villageA();
-  const w = worldWith(() => a);
+  const w = worldWith(() => a, overrides);
   const events: NewVillageEvent[] = [];
   const notices: CampaignNotice[] = [];
   let s = start;
@@ -294,6 +299,25 @@ describe('evakuace do hradiště (Úloha 8)', () => {
     expect(flightOf(restart.state).status).toBe('arrived');
     // vojsko na mapě vsi nestálo – žádné dny nájezdu ani kořist
     expect(restart.events.filter((e) => e.body.kind === 'raid-result')).toEqual([]);
+  });
+
+  it('cesta do hradiště nevede – průvod nevyrazí a při nájezdu lidé utečou do lesa i s dobytkem (Martin 17. 11. 2026)', () => {
+    // hradiště C od západu odřízne hustý les (pás 600 m) – z vsi A k němu cesta nevede
+    const cut = mapOf(['c'], (tx) => tx < 40);
+    const landscapeOf = (cell: GridCell): CampaignMap =>
+      cell.x === C.x && cell.y === C.y ? cut : (MAPS[`${cell.x},${cell.y}`] ?? MEADOW);
+    const start = approaching();
+    const t0 = start.tick + 1;
+    const run = live(start, start.tick + END, [flee(t0, 'all'), flee(t0 + 5, 'people')], {
+      landscapeOf,
+    });
+    expect(run.state.alarm!.flights).toEqual([]);
+    expect(run.state.alarm!.villages[0]!.flight).toBeUndefined();
+    expect(run.events.filter((e) => e.body.kind.startsWith('refuge-'))).toEqual([]);
+    // ves zůstala doma a zachovala se jako bez varování: lidé utekli do hustého lesa i se stádem
+    const shelter = run.state.battle!.shelter!;
+    expect(shelter.forest.length).toBeGreaterThan(0);
+    expect(run.state.loot.detail?.livestock ?? NO_HERD).toEqual(NO_HERD);
   });
 
   it('(b) „jen lidé“ – rychleji, stádo a zásoby zůstanou a útočník je vezme', () => {

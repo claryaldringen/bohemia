@@ -95,6 +95,17 @@ export interface CampaignVillage extends CampaignPlace {
   name?: string;
 }
 
+/**
+ * Přechod okrajem v paměti cesty (`Mover.crossings`): z políčka `from` na sousední `to`; `pos` = místo
+ * na okraji mapy `from`, kde přešel (střed okrajové buňky – `edgeCrossing` ho převede na protější
+ * okraj).
+ */
+export interface MoverCrossing {
+  from: GridCell;
+  to: GridCell;
+  pos: Pos;
+}
+
 /** Úsek pochodu po jedné mapě (`MarchPath` bez buněk) a ušlé metry louky po něm. */
 export interface CampaignLeg {
   points: Pos[];
@@ -123,6 +134,13 @@ export interface CampaignGroup {
   leg: CampaignLeg | null;
   /** Den, kdy úsek spočíst nešlo – ten den se nehledá znovu (`stepMover`); chybí = neuvízla. */
   stuckDay?: number;
+  /**
+   * Paměť cesty – přechody okrajem od místa, odkud vyšla (`Mover.crossings`; Martin 17. 11. 2026 –
+   * „Vrátit se, kudy přišla“); chybí = starší bod, uvízlý návrat stojí.
+   */
+  crossings?: MoverCrossing[];
+  /** Vrací se po paměti cesty (`retraceCrossings`); chybí = nejkratší cestou. */
+  retrace?: true;
   /** Skupina došla do cíle (nebo dál nemůže) a stojí. */
   arrived: boolean;
   /** Rozkaz „držet místo“ – místo na mapě cíle (war.md – Boj – Skupiny); jinak chybí. */

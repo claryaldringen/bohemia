@@ -85,8 +85,14 @@ intents, world)` → `JourneyStep { state, villageEvents, notices, knowledge?, w
   nejbližší dosažitelné místo) a `stepMover` tempem `marchSpeed` ze všech živých své skupiny na
   začátku pohybu (jen jezdci × 1,5, pěší raněný × 0,75, sníh × 0,75). Brány jsou v míru otevřené.
   Zastavení po přechodu okraje jen u skupiny s `crossing`, když hlouček vstoupil na `goal.cell`
-  (cíl = místo vstupu); jinak se jde dál. Hlouček, který nemá kudy, stojí; při návratu skončí jako
-  u tažení. Po pohybu splynou hloučky téže skupiny, které stojí na stejném místě se shodným cílem.
+  (cíl = místo vstupu); jinak se jde dál. Hlouček, který nemá kudy, stojí. Hlouček skupiny
+  `returning` cíl domů neposouvá (`settleGoal` jen venku); nemá-li kudy domů, vrátí se po paměti
+  cesty, kudy přišel (`crossings`, `retraceCrossings` – Martin 17. 11. 2026, „Vrátit se, kudy
+  přišla“; docs/code/war.md – Pohyb vojska, Paměť cesty); nejde-li ani to, stojí (`arrived` false,
+  výprava běží), další den to zkusí znovu (`stuckDay`) a nový rozkaz („Domů“, „Jdi sem“) ho pošle
+  hned. Domů se nikdy nepřenese. Paměť cesty má skupina 0 z `newJourney`, nový hlouček doma
+  (`joinAtHome`) a rozdělený hlouček (kopie); bod bez ní (převedený `upgradeJourney`) uvízne
+  a stojí. Po pohybu splynou hloučky téže skupiny, které stojí na stejném místě se shodným cílem.
   Vsím na cestě se nic neohlašuje – žádné `army-seen`, `raid-day`, varování ani upozornění.
 - **Návrat** – hlouček skupiny `returning`, který doma dojde, skončí (`finishGroup`): domovská ves
   dostane `away-ends` s `personIds` jeho živých (`refId` = id výpravy, `untilDay` den nato –

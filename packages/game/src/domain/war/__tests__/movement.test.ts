@@ -3,7 +3,7 @@ import type { GridCell } from '../../village/people/world-grid';
 import { cellKey, tickContext, type TickContext } from '../campaign-tick';
 import type { CampaignGroup, CampaignWorld } from '../campaign-types';
 import { marchCellAt, marchCellCenter, marchGrid, type MarchGrid, type Pos } from '../march-grid';
-import { sendGroup, stepMover, type Mover, type MoverStep } from '../movement';
+import { routeLeg, sendGroup, stepMover, type Mover, type MoverStep } from '../movement';
 import { flat, SUMMER, world, worldOf } from './campaign-fixtures';
 
 // Pohyb po mapách (plán 2026-11-16-dense-forest – Rozhodnutí 8, Review Focus 3 a 4): okrajem jen
@@ -128,6 +128,43 @@ describe('přechod okraje (Rozhodnutí 8)', () => {
     sendGroup(g, { cell: { ...HOME }, pos: { x: 0, z: 0 } });
     expect('stuckDay' in g).toBe(false);
     expect(g.arrived).toBe(false);
+  });
+});
+
+describe('paměť cesty (Martin 17. 11. 2026 – „Vrátit se, kudy přišla“)', () => {
+  it('přechod se zapíše; zpět týmž místem okraje se zruší, jinudy přibude', () => {
+    const ctx = ctxWith(null);
+    const m: Mover = { ...mover(), crossings: [] };
+    let step = stepMover(m, GOAL, 5, SUMMER, ctx);
+    for (let k = 0; k < 400 && step === 'moved'; k++) step = stepMover(m, GOAL, 5, SUMMER, ctx);
+    expect(step).toBe('crossed');
+    expect(m.crossings).toEqual([{ from: HOME, to: EAST, pos: { x: 958.75, z: 1.25 } }]);
+    // stojí v místě vstupu – nejbližší přechod domů je týž: přechod se zruší
+    m.route = [{ ...HOME }];
+    step = stepMover(m, { x: 0, z: 0 }, 5, SUMMER, ctx);
+    for (let k = 0; k < 400 && step === 'moved'; k++) {
+      step = stepMover(m, { x: 0, z: 0 }, 5, SUMMER, ctx);
+    }
+    expect(step).toBe('crossed');
+    expect(m.cell).toEqual(HOME);
+    expect(m.crossings).toEqual([]);
+    // bez paměti se nic nezapisuje
+    const bare = mover();
+    step = stepMover(bare, GOAL, 5, SUMMER, ctx);
+    for (let k = 0; k < 400 && step === 'moved'; k++) step = stepMover(bare, GOAL, 5, SUMMER, ctx);
+    expect(step).toBe('crossed');
+    expect('crossings' in bare).toBe(false);
+  });
+
+  it('`routeLeg` – první úsek, jen když cesta vede až do cíle (Martin 17. 11. 2026 – „Utéct do lesa“)', () => {
+    const open = routeLeg(mover(), GOAL, SUMMER, ctxWith(null));
+    expect(open).not.toBeNull();
+    expect(open!.points[0]).toEqual({ x: 900, z: 0 });
+    // okraj sousední mapy zavřený – cesta nevede
+    expect(routeLeg(mover(), GOAL, SUMMER, ctxWith(closedWest(() => false)))).toBeNull();
+    const m = mover();
+    routeLeg(m, GOAL, SUMMER, ctxWith(null));
+    expect(m).toEqual(mover());
   });
 });
 
