@@ -34,8 +34,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   jen kus, se rozdělí v místě, kde ji opouští (`splitPartlyFollowed`, `splitRoad`; rozdělení
   úseku přidá kus stezky – `splitTrailPieces`), úseky stezky jsou spojitá řada po síti od začátku
   ke konci trasy (`trailChain` – nejkratší cesta jen po úsecích v koridoru trasy `TRAIL_CORRIDOR_M`,
-  úseky trasy za čtvrtinu; `avoid` = úsek s posvátným stromem v pásu cesty se obejde jen v koridoru,
-  jinak `TRAIL_SACRED`; kde řada v koridoru nejde složit, mezeru kryje nová cesta po trase). Řada bývá o desítky metrů delší než `Trail.lengthM` (cesty vlní kolem osy trasy; dny nosičů jdou dál z `lengthM`; Vlkov E +79 m). Hotové stezky se zpětně nepřestavují. Úseky `Trail.pieces` se stupněm a prací
+  úseky trasy za čtvrtinu; `avoid` = cesta s posvátným stromem v pásu se do řady nebere jako opuštěná a trasu podél ní kryje nová cesta; `TRAIL_SACRED` až když strom stojí v pásu nové cesty po trase; kde řada v koridoru nejde složit, mezeru kryje nová cesta po trase). Řada bývá o desítky metrů delší než `Trail.lengthM` (cesty vlní kolem osy trasy; dny nosičů jdou dál z `lengthM`; Vlkov E +79 m). Hotové stezky se zpětně nepřestavují. Úseky `Trail.pieces` se stupněm a prací
   (`roadUpgradeCost`, hať a lávka přes mokřinu a brod, dřevo `planWoodFrom`), důvody česky
   (`TRAIL_BLOCKED`, `TRAIL_NO_WOOD`…). `startTrail` → stavba `road` s `Construction.trail`
   a `roadIds` od vsi ven; `trailsDay` (krok po práci) dá dostavěným úsekům stupeň hned,

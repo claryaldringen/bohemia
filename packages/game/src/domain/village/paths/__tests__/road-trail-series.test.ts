@@ -201,42 +201,23 @@ describe('addTrailRoads – řada zůstane u trasy', () => {
     for (const id of ids) expect(farthest(state, id, route)).toBeLessThanOrEqual(10);
   });
 
-  it('obejití posvátného úseku vede jen v koridoru trasy', () => {
-    const near = [
+  it('cesta zakázaná `avoid` se do řady nebere, trasu podél ní kryje nová cesta', () => {
+    const state = stateWith([
       road(1, [
         [0, 0],
-        [0, 100],
-      ]),
-      road(2, [
-        [0, 0],
-        [8, 50],
-      ]),
-      road(3, [
-        [8, 50],
-        [0, 100],
-      ]),
-    ];
-    const state = stateWith(near);
-    const route = line(0, 0, 0, 100);
-    const ids = addTrailRoads(state, route, DAY, LANDSCAPE, null, TERRAIN(), (r) => r.id === 1);
-    expect(ids).toEqual([2, 3]);
-    // objížďka mimo koridor se nepoužije – řada jde po zakázaném úseku (stavbu odmítne planTrail)
-    const far = stateWith([
-      road(1, [
-        [0, 0],
-        [0, 100],
-      ]),
-      road(2, [
-        [0, 0],
-        [40, 50],
-      ]),
-      road(3, [
-        [40, 50],
         [0, 100],
       ]),
     ]);
-    const idsFar = addTrailRoads(far, route, DAY, LANDSCAPE, null, TERRAIN(), (r) => r.id === 1);
-    expect(idsFar).toEqual([1]);
+    const route = line(3, 0, 3, 100);
+    const ids = addTrailRoads(state, route, DAY, LANDSCAPE, null, TERRAIN(), (r) => r.id === 1);
+    expect(ids).not.toContain(1);
+    expect(ids.length).toBeGreaterThan(0);
+    expect(chained(state, ids)).toBe(true);
+    const length = ids.reduce(
+      (sum, id) => sum + roadLengthM(state.roads!.roads.find((r) => r.id === id)!),
+      0,
+    );
+    expect(Math.abs(length - 100)).toBeLessThan(12);
   });
 
   it('řadu, kterou nejde složit z cest, doplní nová cesta po trase', () => {

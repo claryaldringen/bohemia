@@ -84,7 +84,11 @@ interface OwnerRun {
  * Majitel každého bodu trasy: nejbližší neopuštěná cesta do TRAIL_MATCH_M (při téměř stejné
  * vzdálenosti zůstane dosavadní majitel), jinak žádný. Souvislé body téhož majitele tvoří běh.
  */
-function ownerRuns(roads: readonly Road[], run: readonly RoadPoint[]): OwnerRun[] {
+function ownerRuns(
+  roads: readonly Road[],
+  run: readonly RoadPoint[],
+  skip: (road: Road) => boolean,
+): OwnerRun[] {
   const runs: OwnerRun[] = [];
   let current: Road | null = null;
   run.forEach((p, i) => {
@@ -92,7 +96,7 @@ function ownerRuns(roads: readonly Road[], run: readonly RoadPoint[]): OwnerRun[
     let bestDistance = Infinity;
     let keepDistance = Infinity;
     for (const road of roads) {
-      if (road.abandoned || road.points.length < 2) continue;
+      if (road.abandoned || road.points.length < 2 || skip(road)) continue;
       const distance = projectOnRoad(road, p.x, p.z).distance;
       if (distance > TRAIL_MATCH_M) continue;
       if (road === current) keepDistance = distance;
@@ -127,10 +131,12 @@ export function addTrailRoads(
   landscape: Landscape,
   obstacles: ObstacleLayer | null,
   terrain: PathTerrain,
-  /** Úsek, po kterém stezka vést nesmí (posvátný strom v pásu cesty) – řada ho obejde, je-li kudy. */
+  /** Cesta, kterou stezka nepoužije (posvátný strom v pásu cesty) – trasu podél ní kryje nová cesta. */
   avoid?: (road: Road) => boolean,
 ): number[] {
   const roads = (state.roads ??= emptyRoads(day));
+  /** Cesty vzniklé touto stavbou (i jejich díly po rozdělení) – `avoid` se jich netýká. */
+  const made = new Set<number>();
   const context: SpotContext = {
     terrain,
     blocked: plantingBlocker(state, landscape),
@@ -138,12 +144,25 @@ export function addTrailRoads(
     changes: obstacleChangesAt(state, day),
     seed: state.seed,
     split: (from, to) => {
+      if (made.has(from)) made.add(to);
       splitRoadWork(state.constructions, from, to);
       splitTrailPieces(state.trails, from, to);
     },
   };
   const run = resample(route, null, SAMPLE_M).points;
-  const onRoadAt = axisDistance(roads.roads.filter((r) => !r.abandoned).map((r) => r.points));
+  // cesta s posvátným stromem v pásu (`avoid`) se do stezky nebere stejně jako opuštěná
+  const skipped = new Map<number, boolean>();
+  const skip = (road: Road): boolean => {
+    let out = skipped.get(road.id);
+    if (out === undefined) {
+      out = !made.has(road.id) && avoid?.(road) === true;
+      skipped.set(road.id, out);
+    }
+    return out;
+  };
+  const onRoadAt = axisDistance(
+    roads.roads.filter((r) => !r.abandoned && !skip(r)).map((r) => r.points),
+  );
   const onRoad = run.map((p) => onRoadAt(p.x, p.z) <= TRAIL_MATCH_M);
   let i = 0;
   while (i < run.length) {
@@ -158,7 +177,7 @@ export function addTrailRoads(
     const per = Math.ceil((j - i) / pieces);
     for (let k = i; k < j || k === i; k += per) {
       const last = Math.min(j, k + per);
-      formRoad(
+      const formed = formRoad(
         roads,
         run.slice(k, last + 1),
         k > 0 ? ATTACH_M : false,
@@ -168,32 +187,30 @@ export function addTrailRoads(
         context,
         TRAIL_MIN_ROAD_M,
       );
+      if (formed) made.add(formed.id);
       if (last >= j) break;
     }
     i = j + 1;
   }
   // cesty, po kterých trasa jde jen kus, se rozdělí tam, kde ji trasa opouští
   for (let guard = 0; guard < TRAIL_SPLIT_LIMIT; guard++) {
-    if (!splitPartlyFollowed(roads, run, context)) break;
+    if (!splitPartlyFollowed(roads, run, context, skip)) break;
   }
-  const owned = ownerRuns(roads.roads, run).map((r) => r.road);
-  return trailChain(
-    roads,
-    run,
-    owned,
-    avoid,
-    (from, to) =>
-      formRoad(
-        roads,
-        run.slice(from, to + 1),
-        ATTACH_M,
-        ATTACH_M,
-        day,
-        NO_TRAFFIC,
-        context,
-        TRAIL_MIN_ROAD_M,
-      ) !== null,
-  );
+  const owned = ownerRuns(roads.roads, run, skip).map((r) => r.road);
+  return trailChain(roads, run, owned, skip, (from, to) => {
+    const formed = formRoad(
+      roads,
+      run.slice(from, to + 1),
+      ATTACH_M,
+      ATTACH_M,
+      day,
+      NO_TRAFFIC,
+      context,
+      TRAIL_MIN_ROAD_M,
+    );
+    if (formed) made.add(formed.id);
+    return formed !== null;
+  });
 }
 
 /** Klíč uzlu (konce úseku) na cm. */
@@ -219,8 +236,7 @@ interface ChainSearch {
  * Úseky stezky jako spojitá řada po síti od začátku trasy ke konci, **jen v koridoru trasy**
  * (`TRAIL_CORRIDOR_M`): nejkratší cesta po neopuštěných úsecích, kde úseky, po kterých trasa jde
  * (`owned`), stojí čtvrtinu délky – řada jde po nich a ostatní úseky v koridoru jen přemostí
- * mezery. Úsek zakázaný `avoid` se obejde jen v koridoru; není-li tam obejití, řada jde i po
- * něm (stavba stezky pak skončí důvodem `TRAIL_SACRED`). Když v koridoru řada nejde složit,
+ * mezery. Cesta zakázaná `avoid` (posvátný strom v pásu) se nebere vůbec. Když v koridoru řada nejde složit,
  * mezeru kryje nová cesta po trase (`fill`, `formRoad`). Začátek a konec jsou konce prvního
  * a posledního úseku trasy (blíž k začátku a ke konci trasy).
  */
@@ -228,7 +244,7 @@ function trailChain(
   roads: VillageRoads,
   run: readonly RoadPoint[],
   owned: readonly Road[],
-  avoid: ((road: Road) => boolean) | undefined,
+  skip: (road: Road) => boolean,
   fill: (from: number, to: number) => boolean,
 ): number[] {
   const order: number[] = [];
@@ -250,6 +266,7 @@ function trailChain(
   const near = axisDistance([run]);
   const inCorridor = new Map<number, boolean>();
   const eligible = (road: Road): boolean => {
+    if (skip(road)) return false;
     if (ownedIds.has(road.id)) return true;
     let ok = inCorridor.get(road.id);
     if (ok === undefined) {
@@ -275,10 +292,7 @@ function trailChain(
   };
   for (let attempt = 0; attempt <= TRAIL_FILL_LIMIT; attempt++) {
     const plain = shortestChain(roads, source, target, ownedIds, eligible);
-    const around = avoid
-      ? shortestChain(roads, source, target, ownedIds, (r) => eligible(r) && !avoid(r))
-      : null;
-    const found = around?.chain ?? plain.chain;
+    const found = plain.chain;
     if (found) return found;
     // mezera: ze dosažitelných uzlů ten nejdál po trase, k nejbližšímu nedosažitelnému za ním
     let from = -1;
@@ -374,8 +388,9 @@ function splitPartlyFollowed(
   roads: VillageRoads,
   run: readonly RoadPoint[],
   context: SpotContext,
+  skip: (road: Road) => boolean,
 ): boolean {
-  for (const owned of ownerRuns(roads.roads, run)) {
+  for (const owned of ownerRuns(roads.roads, run, skip)) {
     const { road } = owned;
     const alongs = run
       .slice(owned.from, owned.to + 1)

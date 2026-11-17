@@ -501,7 +501,7 @@ export function planTrail(
     landscape,
     obstacles,
     trailTerrain(landscape, obstacles),
-    // úsek s posvátným stromem v pásu cesty stezka obejde, je-li kudy (TRAIL_SACRED jinak)
+    // cesta s posvátným stromem v pásu se do stezky nebere, trasu podél ní kryje nová cesta (TRAIL_SACRED, až když strom stojí v jejím pásu)
     (road) =>
       !!obstacles &&
       !road.swath &&
