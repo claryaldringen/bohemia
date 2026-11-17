@@ -135,6 +135,7 @@ export function alarmOf(view: WarSceneView): SceneAlarm | null {
     heading: { x: r.heading.x, z: r.heading.z },
     people: r.people.map((p) => ({ kind: p.kind, child: p.child, carries: p.carries })),
     herd: Math.min(r.herd, SCENE_HERD_MAX),
+    moving: r.moving,
   }));
   const messengers = (view.messengers ?? []).map((m) => ({
     key: m.refId,

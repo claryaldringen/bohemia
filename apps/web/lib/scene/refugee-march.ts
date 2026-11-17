@@ -23,6 +23,8 @@ export interface SceneRefugees {
   people: SceneRefugee[];
   /** Kusů dobytka za nimi (scéna kreslí nejvýš `SCENE_HERD_MAX`). */
   herd: number;
+  /** Jdou; uvízlý průvod (`WarSceneRefugeMarch.moving`) stojí – klip stání, scéna nekreslí v taktu. */
+  moving: boolean;
 }
 
 /** Posel pro scénu (jádro – `WarSceneMessenger`). */
@@ -80,7 +82,7 @@ export function alarmFigures(alarm: SceneAlarm): { figures: ArmyFigure[]; animal
         z: at.z,
         hx: r.heading.x,
         hz: r.heading.z,
-        clip: p.carries ? 'carry' : 'walk',
+        clip: !r.moving ? 'idle' : p.carries ? 'carry' : 'walk',
         pace: 1,
         lift: 0,
         lying: false,
@@ -101,7 +103,7 @@ export function alarmFigures(alarm: SceneAlarm): { figures: ArmyFigure[]; animal
         z: p.z,
         hx: r.heading.x,
         hz: r.heading.z,
-        speed: HERD_M_S,
+        speed: r.moving ? HERD_M_S : 0,
       });
     });
   }
@@ -176,9 +178,9 @@ export function alarmAt(
   };
 }
 
-/** Jde něco z průvodů a poslů (scéna se kreslí v taktu animací)? */
+/** Jde něco z průvodů a poslů (scéna se kreslí v taktu animací)? Uvízlý průvod stojí. */
 export function alarmMoving(alarm: SceneAlarm | null): boolean {
-  return !!alarm && (alarm.messengers.length > 0 || alarm.refugees.length > 0);
+  return !!alarm && (alarm.messengers.length > 0 || alarm.refugees.some((r) => r.moving));
 }
 
 /**

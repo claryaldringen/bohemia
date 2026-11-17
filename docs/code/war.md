@@ -237,12 +237,12 @@ vojska mapu po mapě (Ú6.4), tažení po taktech, boj a dohra (Ú6.5–Ú6.17) 
   `stepMover` vrátí `stuck` a zapíše `stuckDay` = den (`Mover`, `CampaignGroup`, `AlarmMover` –
   posel i skupina uprchlíků). Týž den už úsek nehledá – mřížku ani mapu nečte (Review Focus 3:
   uvízlá skupina by jinak spálila hledáním na jemné mřížce čas workeru každý takt). Volající pohyb
-  na `stuck` končí: skupina tažení a hlouček výpravy venku stojí (`arrived`), posel se vrátí –
-  **nový pokus až po novém rozkazu** (`sendGroup` `stuckDay` smaže; úspěšný úsek taky). Skupina
-  na návratu a uprchlíci do hradiště stojí bez `arrived` a další den plánují znovu (Martin
-  – 17. 11. 2026: domů ani do hradiště se nepřenesou; Paměť cesty níž). `stuckDay` je jen
-  pojistka pro volajícího, který by týž den zkoušel znovu; další den
-  sám nic nespustí (oprava Úlohy 5 – revize: dřív tu stálo „další den plánuje znovu“). Skupina
+  na `stuck` končí. **Skupiny s rozkazem** – skupina tažení a hlouček výpravy venku – stojí
+  (`arrived`) a čekají na nový rozkaz (`sendGroup` `stuckDay` smaže; úspěšný úsek taky); posel se
+  vrátí. **Skupiny bez rozkazu** – návrat tažení a výpravy domů a průvod uprchlíků do hradiště –
+  stojí bez `arrived` a cestu zkoušejí každý herní den (Úloha 8c, návrh Clauda; Martin
+  – 17. 11. 2026: domů ani do hradiště se nepřenesou; Paměť cesty níž): volající je krokuje dál
+  a `stuckDay` zastaví jen další pokusy téhož dne – sám nic nespustí. Skupina
   stojí i v slepé kapse cizí mapy: přejde-li na mapě po cestě do oblasti, odkud vede okraj
   k dalšímu políčku trasy (`onwardArea`), mapu za ní ale nezná (výhled jen o jedno políčko), může
   na další mapě skončit v kapse bez přechodu dál – tam `stuck` a čeká na nový rozkaz.
@@ -1430,7 +1430,9 @@ Clauda“). Co se hýbe v taktech (vesničan běžící domů, posel, skupina up
   `public/icons/war/alarm-*.png` z Blenderu (`tools/blender/icons.py`). Podrobnosti web-ui.md –
   Varování a útěk v rozhraní.
 - **Průvod uprchlíků a posel ve scéně (Ú14).** `warSceneView` (`domain/war/scene-view.ts`) nese
-  `refugeMarch` (`WarSceneRefugeMarch` – `refId`, `own`, `mode`, poloha, směr chůze, `moving`, lidé
+  `refugeMarch` (`WarSceneRefugeMarch` – `refId`, `own`, `mode`, poloha, směr chůze, `moving` –
+  uvízlý průvod se `stuckDay` stojí: scéna mu dá klip stání a kvůli němu nekreslí v taktu animací,
+  `alarmFigures`, `alarmMoving` v `lib/scene/refugee-march.ts`; lidé
   jen vzhledem `WarSceneRefugee` – postava, dítě, nese zásoby; kusů dobytka, vozů) a `messengers`
   (`WarSceneMessenger` – poloha, směr, `mounted`). Na mapě jen skupina na cestě (`marching`) nebo
   běžící posel; ukrytá u lesa (`hidden`) se nekreslí nikomu, ani vlastníkovi (zmizela jako do budovy), v hradišti, dostižená, doručený a chycený také ne. **Mlha:**
