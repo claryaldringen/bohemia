@@ -177,23 +177,59 @@ export function addTrailRoads(
     if (!splitPartlyFollowed(roads, run, context)) break;
   }
   const owned = ownerRuns(roads.roads, run).map((r) => r.road);
-  return trailChain(roads, run, owned, avoid);
+  return trailChain(
+    roads,
+    run,
+    owned,
+    avoid,
+    (from, to) =>
+      formRoad(
+        roads,
+        run.slice(from, to + 1),
+        ATTACH_M,
+        ATTACH_M,
+        day,
+        NO_TRAFFIC,
+        context,
+        TRAIL_MIN_ROAD_M,
+      ) !== null,
+  );
 }
 
 /** Klíč uzlu (konce úseku) na cm. */
 const nodeOf = (p: RoadPoint): string => endKey(p);
 
 /**
- * Úseky stezky jako spojitá řada po síti od začátku trasy ke konci: nejkratší cesta po neopuštěných
- * úsecích, kde úseky, po kterých trasa jde (`owned`), stojí čtvrtinu délky – řada jde po nich a
- * ostatní úseky jen přemostí mezery. Začátek a konec jsou konce prvního a posledního úseku trasy
- * (blíž k začátku a ke konci trasy). Bez spojení zůstane seznam úseků trasy v pořadí od vsi.
+ * Koridor kolem trasy (m): řada stezky smí použít jen úsek, který ležel celý do tolika metrů od
+ * trasy (úsek, po kterém trasa jde, vždy). Místní geometrická konstanta, ne pravidlo hry – pokryje
+ * rozcestí a rozdíl mezi osou trasy a osou cesty (do `ATTACH_M` od rozcestí), ale ne spojku
+ * nebo objížďku, která vede jinudy než trasa.
+ */
+const TRAIL_CORRIDOR_M = ATTACH_M + SAMPLE_M;
+/** Nejvýš tolik doplnění mezer novou cestou po trase při jedné stavbě (pojistka). */
+const TRAIL_FILL_LIMIT = 40;
+
+/** Výsledek hledání řady: nalezená řada (nebo null) a uzly dosažitelné ze začátku. */
+interface ChainSearch {
+  chain: number[] | null;
+  reached: Map<string, RoadPoint>;
+}
+
+/**
+ * Úseky stezky jako spojitá řada po síti od začátku trasy ke konci, **jen v koridoru trasy**
+ * (`TRAIL_CORRIDOR_M`): nejkratší cesta po neopuštěných úsecích, kde úseky, po kterých trasa jde
+ * (`owned`), stojí čtvrtinu délky – řada jde po nich a ostatní úseky v koridoru jen přemostí
+ * mezery. Úsek zakázaný `avoid` se obejde jen v koridoru; není-li tam obejití, řada jde i po
+ * něm (stavba stezky pak skončí důvodem `TRAIL_SACRED`). Když v koridoru řada nejde složit,
+ * mezeru kryje nová cesta po trase (`fill`, `formRoad`). Začátek a konec jsou konce prvního
+ * a posledního úseku trasy (blíž k začátku a ke konci trasy).
  */
 function trailChain(
   roads: VillageRoads,
   run: readonly RoadPoint[],
   owned: readonly Road[],
-  avoid?: (road: Road) => boolean,
+  avoid: ((road: Road) => boolean) | undefined,
+  fill: (from: number, to: number) => boolean,
 ): number[] {
   const order: number[] = [];
   for (const road of owned) if (!order.includes(road.id)) order.push(road.id);
@@ -201,39 +237,97 @@ function trailChain(
   const byId = new Map(roads.roads.map((r) => [r.id, r]));
   const first = byId.get(order[0]!)!;
   const lastRoad = byId.get(order[order.length - 1]!)!;
-  const head = run[0]!;
-  const tail = run[run.length - 1]!;
   const closer = (road: Road, to: RoadPoint): RoadPoint => {
     const a = road.points[0]!;
     const b = road.points[road.points.length - 1]!;
     return length2(a.x - to.x, a.z - to.z) <= length2(b.x - to.x, b.z - to.z) ? a : b;
   };
-  const source = nodeOf(closer(first, head));
-  const target = nodeOf(closer(lastRoad, tail));
+  const sourcePoint = closer(first, run[0]!);
+  const targetPoint = closer(lastRoad, run[run.length - 1]!);
+  const source = nodeOf(sourcePoint);
+  const target = nodeOf(targetPoint);
   const ownedIds = new Set(order);
-  const search = (skip?: (road: Road) => boolean): number[] | null =>
-    shortestChain(roads, source, target, ownedIds, skip);
-  return (avoid ? search(avoid) : null) ?? search() ?? order;
+  const near = axisDistance([run]);
+  const inCorridor = new Map<number, boolean>();
+  const eligible = (road: Road): boolean => {
+    if (ownedIds.has(road.id)) return true;
+    let ok = inCorridor.get(road.id);
+    if (ok === undefined) {
+      ok = resample(road.points, null, SAMPLE_M).points.every(
+        (p) => near(p.x, p.z) <= TRAIL_CORRIDOR_M,
+      );
+      inCorridor.set(road.id, ok);
+    }
+    return ok;
+  };
+  /** Pořadí bodu trasy nejblíž uzlu; mimo koridor -1. */
+  const progress = (p: RoadPoint): number => {
+    let best = -1;
+    let bestD = TRAIL_CORRIDOR_M;
+    run.forEach((q, i) => {
+      const d = length2(p.x - q.x, p.z - q.z);
+      if (d < bestD) {
+        bestD = d;
+        best = i;
+      }
+    });
+    return best;
+  };
+  for (let attempt = 0; attempt <= TRAIL_FILL_LIMIT; attempt++) {
+    const plain = shortestChain(roads, source, target, ownedIds, eligible);
+    const around = avoid
+      ? shortestChain(roads, source, target, ownedIds, (r) => eligible(r) && !avoid(r))
+      : null;
+    const found = around?.chain ?? plain.chain;
+    if (found) return found;
+    // mezera: ze dosažitelných uzlů ten nejdál po trase, k nejbližšímu nedosažitelnému za ním
+    let from = -1;
+    for (const point of plain.reached.values()) from = Math.max(from, progress(point));
+    const ends = new Map<string, RoadPoint>();
+    for (const road of roads.roads) {
+      if (road.abandoned || road.points.length < 2 || !eligible(road)) continue;
+      for (const p of [road.points[0]!, road.points[road.points.length - 1]!]) {
+        ends.set(nodeOf(p), p);
+      }
+    }
+    let to = progress(targetPoint);
+    for (const [key, point] of [...ends].sort((x, y) => (x[0] < y[0] ? -1 : 1))) {
+      if (plain.reached.has(key)) continue;
+      const at = progress(point);
+      if (at > from && (to <= from || at < to)) to = at;
+    }
+    if (from < 0 || to <= from || !fill(from, to)) break;
+  }
+  // nejde ani doplnit (mezera kratší než nejkratší cesta) – řada úseků trasy, mezera zůstane
+  return order;
 }
 
-/** Nejkratší řada úseků z uzlu `source` do uzlu `target` (úseky stezky za čtvrtinu); jinak null. */
+/**
+ * Nejkratší řada úseků z uzlu `source` do uzlu `target` (úseky stezky za čtvrtinu) po úsecích,
+ * které projdou `allowed`; bez spojení `chain` null. `reached` = uzly dosažitelné ze `source`.
+ */
 function shortestChain(
   roads: VillageRoads,
   source: string,
   target: string,
   ownedIds: ReadonlySet<number>,
-  skip?: (road: Road) => boolean,
-): number[] | null {
+  allowed: (road: Road) => boolean,
+): ChainSearch {
   const edges = new Map<string, { to: string; road: Road; cost: number }[]>();
+  const point = new Map<string, RoadPoint>();
   const link = (from: string, to: string, road: Road, cost: number): void => {
     const list = edges.get(from) ?? [];
     list.push({ to, road, cost });
     edges.set(from, list);
   };
   for (const road of roads.roads) {
-    if (road.abandoned || road.points.length < 2 || skip?.(road)) continue;
-    const a = nodeOf(road.points[0]!);
-    const b = nodeOf(road.points[road.points.length - 1]!);
+    if (road.abandoned || road.points.length < 2 || !allowed(road)) continue;
+    const first = road.points[0]!;
+    const last = road.points[road.points.length - 1]!;
+    const a = nodeOf(first);
+    const b = nodeOf(last);
+    point.set(a, first);
+    point.set(b, last);
     const cost = roadLengthM(road) * (ownedIds.has(road.id) ? 0.25 : 1);
     link(a, b, road, cost);
     link(b, a, road, cost);
@@ -260,14 +354,19 @@ function shortestChain(
       }
     }
   }
-  if (!via.has(target) && source !== target) return null;
+  const reached = new Map<string, RoadPoint>();
+  for (const key of dist.keys()) {
+    const at = point.get(key);
+    if (at) reached.set(key, at);
+  }
+  if (!via.has(target) && source !== target) return { chain: null, reached };
   const chain: number[] = [];
   for (let at = target; at !== source;) {
     const step = via.get(at)!;
     chain.push(step.road.id);
     at = step.from;
   }
-  return chain.reverse();
+  return { chain: chain.reverse(), reached };
 }
 
 /** Rozdělí první cestu, po které trasa jde jen kus (jen kus delší než TRAIL_SPLIT_M); jinak false. */

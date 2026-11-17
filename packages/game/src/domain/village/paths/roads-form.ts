@@ -503,6 +503,7 @@ export function splitRoad(roads: VillageRoads, hit: RoadHit, context: SpotContex
     if (!junction.arms.includes(road.id)) continue;
     const toStart = length2(junction.x - oldStart.x, junction.z - oldStart.z);
     const toEnd = length2(junction.x - oldEnd.x, junction.z - oldEnd.z);
+    // uzavřená smyčka (oba konce stejně daleko) nechá rameno na první části – měsíční `updateJunctions` ho srovná
     if (toEnd < toStart) junction.arms = junction.arms.map((id) => (id === road.id ? rest.id : id));
   }
   // osa se změnila – olemování stromy se určí znovu (roads.md – Stromy u cesty zrychlí chůzi)

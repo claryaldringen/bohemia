@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { addTrailRoads } from '../roads-trails';
 import { emptyRoads, mergeRoadChains, splitRoad, hitAlongRoad } from '../roads-form';
-import { roadLengthM } from '../roads-geometry';
+import { axisDistance, resample, roadLengthM } from '../roads-geometry';
 import { type SpotContext } from '../roads-trees';
 import { trailTerrain } from '../terrain';
 import type { Road, RoadJunction, RoadPoint, VillageState } from '../../types';
@@ -152,32 +152,117 @@ describe('addTrailRoads – spojitá řada úseků', () => {
   });
 });
 
-describe('addTrailRoads – obejití zakázaného úseku', () => {
-  it('úsek s posvátným stromem řada obejde po objížďce, je-li kudy', () => {
+const TERRAIN = (): ReturnType<typeof trailTerrain> => trailTerrain(LANDSCAPE, null);
+
+/** Největší vzdálenost bodů úseku od trasy (m). */
+function farthest(state: VillageState, id: number, route: readonly RoadPoint[]): number {
+  const r = state.roads!.roads.find((x) => x.id === id)!;
+  const at = axisDistance([route]);
+  return Math.max(...resample(r.points, null, 1).points.map((p) => at(p.x, p.z)));
+}
+
+describe('addTrailRoads – řada zůstane u trasy', () => {
+  it('kratší spojka mimo trasu nevyřadí cestu, po které trasa jde', () => {
+    // trasa jde po dlouhé klikaté cestě 1 (500 m), přímá spojka 2 (100 m) vede jinudy
     const state = stateWith([
+      road(1, [
+        [0, 0],
+        [200, 0],
+        [200, 100],
+        [0, 100],
+      ]),
+      road(2, [
+        [0, 0],
+        [0, 100],
+      ]),
+    ]);
+    const route = [
+      ...line(0, 0, 200, 0),
+      ...line(200, 0, 200, 100).slice(1),
+      ...line(200, 100, 0, 100).slice(1),
+    ];
+    const ids = addTrailRoads(state, route, DAY, LANDSCAPE, null, TERRAIN());
+    expect(ids).toEqual([1]);
+  });
+
+  it('řada nemá slepý přívěsek – úsek nepokračuje za místem, kde ho trasa opouští', () => {
+    const state = stateWith([
+      road(1, [
+        [0, 0],
+        [150, 0],
+      ]),
+      road(2, [
+        [60, 0],
+        [60, 80],
+      ]),
+    ]);
+    const route = [...line(0, 0, 60, 0), ...line(60, 0, 60, 80).slice(1)];
+    const ids = addTrailRoads(state, route, DAY, LANDSCAPE, null, TERRAIN());
+    for (const id of ids) expect(farthest(state, id, route)).toBeLessThanOrEqual(10);
+  });
+
+  it('obejití posvátného úseku vede jen v koridoru trasy', () => {
+    const near = [
       road(1, [
         [0, 0],
         [0, 100],
       ]),
       road(2, [
         [0, 0],
-        [30, 50],
+        [8, 50],
       ]),
       road(3, [
-        [30, 50],
+        [8, 50],
+        [0, 100],
+      ]),
+    ];
+    const state = stateWith(near);
+    const route = line(0, 0, 0, 100);
+    const ids = addTrailRoads(state, route, DAY, LANDSCAPE, null, TERRAIN(), (r) => r.id === 1);
+    expect(ids).toEqual([2, 3]);
+    // objížďka mimo koridor se nepoužije – řada jde po zakázaném úseku (stavbu odmítne planTrail)
+    const far = stateWith([
+      road(1, [
+        [0, 0],
+        [0, 100],
+      ]),
+      road(2, [
+        [0, 0],
+        [40, 50],
+      ]),
+      road(3, [
+        [40, 50],
         [0, 100],
       ]),
     ]);
-    const ids = addTrailRoads(
-      state,
-      line(0, 0, 0, 100),
-      DAY,
-      LANDSCAPE,
-      null,
-      trailTerrain(LANDSCAPE, null),
-      (r) => r.id === 1,
+    const idsFar = addTrailRoads(far, route, DAY, LANDSCAPE, null, TERRAIN(), (r) => r.id === 1);
+    expect(idsFar).toEqual([1]);
+  });
+
+  it('řadu, kterou nejde složit z cest, doplní nová cesta po trase', () => {
+    // cesta 2 napříč trase rozdělená ve vzdálenosti 2 m od konce cesty 1 – žádná mezera nezůstane
+    const state = stateWith([
+      road(1, [
+        [0, 0],
+        [0, 50],
+      ]),
+      road(2, [
+        [-30, 52],
+        [30, 52],
+      ]),
+      road(3, [
+        [0, 54],
+        [0, 100],
+      ]),
+    ]);
+    const route = line(0, 0, 0, 100);
+    const ids = addTrailRoads(state, route, DAY, LANDSCAPE, null, TERRAIN());
+    expect(chained(state, ids)).toBe(true);
+    // celá trasa je pokryta úseky řady (každý bod trasy do 3 m od osy některého úseku)
+    const covered = axisDistance(
+      ids.map((id) => state.roads!.roads.find((r) => r.id === id)!.points),
     );
-    expect(ids).toEqual([2, 3]);
+    for (const q of resample(route, null, 2).points) expect(covered(q.x, q.z)).toBeLessThan(3);
   });
 });
 
@@ -269,5 +354,26 @@ describe('ramena křižovatek po dělení a slučování', () => {
     for (const id of arms) expect(ids.has(id!)).toBe(true);
     expect(arms).toContain(1);
     expect(arms).not.toContain(2);
+  });
+
+  it('slučování, kde uzel slučování je zároveň koncem ramena jiné křižovatky, rameno zachová', () => {
+    // uzel (50, 0) má 2 úseky; křižovatka 50 v něm je zbytek ze starého stavu (ramena 1 a 2)
+    const state = stateWith(
+      [
+        road(1, [
+          [0, 0],
+          [50, 0],
+        ]),
+        road(2, [
+          [50, 0],
+          [100, 0],
+        ]),
+      ],
+      [junction(50, 0, [1, 2, null])],
+    );
+    mergeRoadChains(state.roads!, state.constructions, state.trails);
+    const ids = new Set(state.roads!.roads.map((r) => r.id));
+    for (const id of state.roads!.junctions![0]!.arms)
+      if (id !== null) expect(ids.has(id)).toBe(true);
   });
 });
