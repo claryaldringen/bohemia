@@ -624,6 +624,17 @@ describe('modla a svatyně', () => {
     ).toThrow(RangeError);
   });
 
+  it('pokřtěný rod novou modlu ani svatyni nezaloží', () => {
+    const baptized: VillageState = { ...village(), faith: { rodBaptizedDay: DAY - 10 } };
+    for (const kind of ['idol', 'shrine'] as const) {
+      expect(() =>
+        startSacredBuilding(baptized, DAY, kind, { x: -100, z: 30, rotation: 0 }, 0, [], {
+          obstacles: layer,
+        }),
+      ).toThrow('Pokřtěný rod pohanská místa nestaví.');
+    }
+  });
+
   it('modla se staví ze společné práce: nejdřív se skácí dub, pak stojí a přidává štěstí', () => {
     const s = village();
     const position: Position = { x: -100, z: 30, rotation: 0.5 };

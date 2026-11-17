@@ -4,10 +4,14 @@
 // řemeslníka, rolník, starší, děti, vdova, lidé z okolí. Jen zobrazení, simulace role nezná.
 // Čistý modul – počítá ho server ze stavu vsi (village-view.ts) a vývojová ukázka z ukázkových
 // lidí; scéna dostane jen hotovou roli.
-import { AGE, CRAFT_NAMES, type Craft, type Sex } from '@bohemia/game';
+import { AGE, CRAFT_NAMES, type Craft, type MasonCraft, type Sex } from '@bohemia/game';
+import { MASON_CRAFT_LABELS } from './mason-crafts';
 
 /** Čí je domácnost: dvorec vojvody, řemeslná dílna, nebo rolník. */
-export type HouseholdTitle = 'voivode' | Craft | 'farmer';
+export type HouseholdTitle = 'voivode' | Craft | MasterTitle | 'farmer';
+
+/** Mistr stavební huti podle oboru, nebo kněz (`Person.mason`, `Person.priest`). */
+export type MasterTitle = MasonCraft | 'priest';
 
 /**
  * Role člověka: hlava domácnosti (vojvoda, řemeslník, rolník), jeho žena, syn a dcera; starší,
@@ -47,6 +51,8 @@ export interface RolePerson {
   origin?: boolean;
   /** Praxe v řemeslech (roky – `Person.practice`). */
   practice?: Partial<Record<Craft, number>>;
+  /** Mistr huti (obor – `Person.mason`) nebo kněz (`Person.priest`) – role podle něj, ne podle domu. */
+  master?: MasterTitle;
 }
 
 /** Domácnosti vsi pro role: dvorec vojvody (id obydlí) a řemeslo dílny. */
@@ -69,6 +75,24 @@ const CRAFT_FORMS: Record<Craft, { wife: string; son: string; daughter: string }
   potter: { wife: 'Hrnčířova žena', son: 'Hrnčířův syn', daughter: 'Hrnčířova dcera' },
   burner: { wife: 'Uhlířova žena', son: 'Uhlířův syn', daughter: 'Uhlířova dcera' },
   carpenter: { wife: 'Tesařova žena', son: 'Tesařův syn', daughter: 'Tesařova dcera' },
+};
+
+/** Mistr huti a kněz ve 2. pádě (žena kameníka, syn kněze) – názvy oborů ze `MASON_CRAFT_LABELS`. */
+const MASTER_FORMS: Record<MasterTitle, { wife: string; son: string; daughter: string }> = {
+  builder: {
+    wife: 'Žena stavbyvedoucího',
+    son: 'Syn stavbyvedoucího',
+    daughter: 'Dcera stavbyvedoucího',
+  },
+  limeBurner: { wife: 'Vápeníkova žena', son: 'Vápeníkův syn', daughter: 'Vápeníkova dcera' },
+  stonemason: { wife: 'Kameníkova žena', son: 'Kameníkův syn', daughter: 'Kameníkova dcera' },
+  mason: { wife: 'Zedníkova žena', son: 'Zedníkův syn', daughter: 'Zedníkova dcera' },
+  plasterer: {
+    wife: 'Žena štukatéra a malíře',
+    son: 'Syn štukatéra a malíře',
+    daughter: 'Dcera štukatéra a malíře',
+  },
+  priest: { wife: 'Žena kněze', son: 'Syn kněze', daughter: 'Dcera kněze' },
 };
 
 /** Názvy rolí v rozhraní (název pod portrétem v panelu postavy). */
@@ -100,6 +124,30 @@ export const ROLE_NAMES: Record<PersonRole, string> = {
   'carpenter-wife': CRAFT_FORMS.carpenter.wife,
   'carpenter-son': CRAFT_FORMS.carpenter.son,
   'carpenter-daughter': CRAFT_FORMS.carpenter.daughter,
+  builder: MASON_CRAFT_LABELS.builder.name,
+  'builder-wife': MASTER_FORMS.builder.wife,
+  'builder-son': MASTER_FORMS.builder.son,
+  'builder-daughter': MASTER_FORMS.builder.daughter,
+  limeBurner: MASON_CRAFT_LABELS.limeBurner.name,
+  'limeBurner-wife': MASTER_FORMS.limeBurner.wife,
+  'limeBurner-son': MASTER_FORMS.limeBurner.son,
+  'limeBurner-daughter': MASTER_FORMS.limeBurner.daughter,
+  stonemason: MASON_CRAFT_LABELS.stonemason.name,
+  'stonemason-wife': MASTER_FORMS.stonemason.wife,
+  'stonemason-son': MASTER_FORMS.stonemason.son,
+  'stonemason-daughter': MASTER_FORMS.stonemason.daughter,
+  mason: MASON_CRAFT_LABELS.mason.name,
+  'mason-wife': MASTER_FORMS.mason.wife,
+  'mason-son': MASTER_FORMS.mason.son,
+  'mason-daughter': MASTER_FORMS.mason.daughter,
+  plasterer: MASON_CRAFT_LABELS.plasterer.name,
+  'plasterer-wife': MASTER_FORMS.plasterer.wife,
+  'plasterer-son': MASTER_FORMS.plasterer.son,
+  'plasterer-daughter': MASTER_FORMS.plasterer.daughter,
+  priest: 'Kněz',
+  'priest-wife': MASTER_FORMS.priest.wife,
+  'priest-son': MASTER_FORMS.priest.son,
+  'priest-daughter': MASTER_FORMS.priest.daughter,
   'old-man': 'Stařec',
   'old-woman': 'Stařena',
   child: 'Dítě',
@@ -159,8 +207,10 @@ export function personRoles(
   const lordId = homes.lordId ?? null;
   const lord = lordId === null ? undefined : people.find((p) => p.id === lordId);
   for (const [home, members] of byHome) {
-    const title: HouseholdTitle =
-      homes.manor === home ? 'voivode' : (homes.craft(home) ?? 'farmer');
+    const base: HouseholdTitle = homes.manor === home ? 'voivode' : (homes.craft(home) ?? 'farmer');
+    // dům rolníka, v němž žije mistr huti nebo kněz, je jeho domácností (žena kameníka…)
+    const master = base === 'farmer' ? eldest(members.filter(isAdultMaster)) : null;
+    const title: HouseholdTitle = master?.master ?? base;
     const head = householdHead(members, title, homes.lordId);
     const couple = new Set<number>();
     if (head) {
@@ -191,6 +241,8 @@ function roleOf(
   parents: ReadonlySet<number>,
 ): PersonRole {
   const female = p.sex === 'female';
+  // mistr huti a kněz mají roli podle sebe, i když bydlí jako host v cizím domě
+  if (p.master) return p.master;
   // vojvoda zůstává vojvodou i ve stáří (jako mohyla vojvody – cemetery.md)
   if (title === 'voivode' && head) {
     if (p.id === head.id) return 'voivode';
@@ -241,10 +293,23 @@ function householdHead(
   if (title === 'voivode') {
     const lord = lordId === null ? undefined : members.find((p) => p.id === lordId);
     if (lord) return lord;
-    const grown = members.filter((p) => p.age >= AGE.adult);
+    const grown = members.filter((p) => p.age >= AGE.adult && !p.master);
     return eldest(grown.filter((p) => p.sex === 'male')) ?? eldest(grown);
   }
-  const men = members.filter((p) => p.sex === 'male' && p.age >= AGE.adult && p.age < AGE.elder);
+  if (isMasterTitle(title)) return eldest(members.filter((p) => p.master === title));
+  const men = members.filter(
+    (p) => p.sex === 'male' && p.age >= AGE.adult && p.age < AGE.elder && !p.master,
+  );
   if (title === 'farmer') return eldest(men);
   return eldest(men.filter((p) => (p.practice?.[title] ?? 0) > 0)) ?? eldest(men);
+}
+
+/** Dospělý mistr huti nebo kněz. */
+function isAdultMaster(p: RolePerson): boolean {
+  return p.master !== undefined && p.age >= AGE.adult;
+}
+
+/** Domácnost mistra huti nebo kněze. */
+function isMasterTitle(title: HouseholdTitle): title is MasterTitle {
+  return title in MASTER_FORMS;
 }

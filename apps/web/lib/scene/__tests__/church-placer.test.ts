@@ -95,23 +95,23 @@ describe('umisťování kostela', () => {
     ]);
   });
 
-  it('tah od vstupu určí délku lodi a osu po 15°; +/− mění šířku a výšku', () => {
+  it('tah od vstupu jen natáčí osu po 15°, rozměry zůstanou; +/− mění šířku a výšku', () => {
     const t = setup();
     active = t.placer;
     t.move(100, 100);
     t.canvas.dispatchEvent(pointer('pointerdown', 100, 100));
-    // tah k jihu (+z): osa −90°, délka 16 m
+    // tah k jihu (+z): osa −90°, délka lodi zůstane z panelu (8 m)
     t.move(100, 116);
     t.canvas.dispatchEvent(pointer('pointerup', 100, 116));
     const pinned = t.previews.at(-1)!.church!;
-    expect(pinned).toMatchObject({ pinned: true, dims: { length: 16 } });
-    t.placer.setDims({ kind: 'long', width: 6, length: 16, height: 9 });
-    expect(t.previews.at(-1)?.measure).toBe('6 × 16 × 9 m');
+    expect(pinned).toMatchObject({ pinned: true, dims: { length: 8 } });
+    t.placer.setDims({ kind: 'long', width: 6, length: 8, height: 9 });
+    expect(t.previews.at(-1)?.measure).toBe('6 × 8 × 9 m');
     t.placer.confirm();
     const result = t.confirmed[0];
     if (result?.kind !== 'church') throw new Error('kostel');
     expect(result.position.rotation).toBeCloseTo(-Math.PI / 2, 6);
-    const entrance = churchLocalToWorld(result.position, -8, 0);
+    const entrance = churchLocalToWorld(result.position, -4, 0);
     expect(entrance.x).toBeCloseTo(100, 4);
     expect(entrance.z).toBeCloseTo(100, 4);
   });

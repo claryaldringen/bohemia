@@ -3,8 +3,9 @@
 import { useEffect, useState, type RefObject } from 'react';
 import {
   FORTIFICATIONS,
-  defaultChurchDims,
+  clampChurchDims,
   isManorType,
+  type ChurchDims,
   type ChurchType,
   type BuildableDwellingType,
   type Landscape,
@@ -25,6 +26,7 @@ import type { Placement } from '@/hooks/use-placement';
 import {
   CHURCH_TYPE_NAMES,
   DWELLING_VARIANTS,
+  SACRED_VARIANTS,
   buildItem,
   churchIcon,
   fortVariantKind,
@@ -33,6 +35,7 @@ import {
   workshopChoice,
   type WebBuildKind,
 } from '@/lib/build-items';
+import { recallChurchDims, rememberChurchDims } from '@/lib/church-placement';
 import { checkWithDesecration, squaresWithDesecration } from '@/lib/desecration-warning';
 import {
   fortGapNear,
@@ -47,6 +50,7 @@ import type { PlacementMode, PlacementResult } from '@/lib/scene/village-types';
 import {
   FOUNDING_DWELLING_OPTION,
   dwellingHubOption,
+  sacredHubOption,
   isBuildAffordable,
   type BuildOption,
   type SceneVillage,
@@ -76,6 +80,21 @@ function churchOptions(view: VillageView): Partial<Record<WebBuildKind, BuildOpt
       } satisfies BuildOption,
     ]),
   );
+}
+
+/** Přidá rozcestník posvátných míst, má-li ves aspoň jedno posvátné místo k nabídnutí. */
+function withSacredHub(
+  all: Partial<Record<WebBuildKind, BuildOption | null>>,
+  baptized: boolean,
+): Partial<Record<WebBuildKind, BuildOption | null>> {
+  // po křtu rodu už modla ani svatyně v nabídce nejsou (christianity.md – Co křest rodu umožní)
+  const options: Partial<Record<WebBuildKind, BuildOption | null>> = { ...all };
+  if (baptized) {
+    delete options.idol;
+    delete options.shrine;
+  }
+  const offered = SACRED_VARIANTS.some((v) => options[v.id as WebBuildKind]);
+  return offered ? { ...options, 'sacred-hub': sacredHubOption(options) } : options;
 }
 
 /** Typ kostela tlačítka nabídky (malý / velký okruhu huti); null – ves kostel nenabízí. */
@@ -114,7 +133,19 @@ const SUBMIT_SQUARES: Partial<
     }),
 };
 
+/** Kostel v panelu rozměrů, než se umístí (typ, rozměry s cenou). */
+export interface ChurchDraft {
+  kind: WebBuildKind;
+  type: ChurchType;
+  dims: ChurchDims;
+}
+
 export interface BuildMode {
+  /** Kostel v panelu rozměrů (null = panel je zavřený). */
+  churchDraft: ChurchDraft | null;
+  setChurchDraftDims: (dims: ChurchDims) => void;
+  placeChurchDraft: () => void;
+  closeChurchDraft: () => void;
   /** Co hráč umisťuje (tlačítko svítí v mřížce, dokud umisťování běží). */
   placingItem: WebBuildKind | null;
   /** Otevřený rozcestník mřížky staveb – stavba s druhy (ohrada, opevnění). */
@@ -163,6 +194,8 @@ export function useBuildMode({
   runBuildAction: (action: () => Promise<ActionResult>) => Promise<void>;
 }): BuildMode {
   const [placingItem, setPlacingItem] = useState<WebBuildKind | null>(null);
+  // kostel čeká v panelu rozměrů (před umisťováním)
+  const [churchDraft, setChurchDraft] = useState<ChurchDraft | null>(null);
   // otevřený rozcestník mřížky staveb – stavba s druhy (ohrada – oxen.md, Ohrady podle druhu)
   const [buildGroup, setBuildGroup] = useState<WebBuildKind | null>(null);
   const { placementScene, placementVillage } = sites;
@@ -194,12 +227,15 @@ export function useBuildMode({
           : {}
         : // opevnění nemá pevnou cenu – cena je u kurzoru podle délky obvodu; kostel bez ceny
           // předem, jen typ okruhu huti a důvod, proč nejde (churches.md – Stavba)
-          {
-            ...view.build,
-            dwelling: dwellingHubOption(view.build),
-            fortification: null,
-            ...churchOptions(view),
-          }
+          withSacredHub(
+            {
+              ...view.build,
+              dwelling: dwellingHubOption(view.build),
+              fortification: null,
+              ...churchOptions(view),
+            },
+            (view.churchBuild ?? []).length > 0,
+          )
     : villageError === null
       ? { dwelling: FOUNDING_DWELLING_OPTION, zemnice: null }
       : {};
@@ -240,6 +276,12 @@ export function useBuildMode({
       variant = kind;
       kind = 'dwelling';
     }
+    // druh z rozcestníku posvátných míst spustí umisťování stavby rovnou (modla, svatyně, kostel)
+    if (kind === 'sacred-hub' && variant !== undefined) {
+      kind = variant as WebBuildKind;
+      variant = undefined;
+      if (!(kind in options)) return;
+    }
     if (kind === 'dwelling') {
       // druh, který ves nenabízí (první zemnice zakládá ves), nejde; s jediným druhem se rozcestník přeskočí
       const offered = DWELLING_VARIANTS.filter((v) => v.id in options);
@@ -258,6 +300,7 @@ export function useBuildMode({
       (item.placement === 'squares' ||
         item.placement === 'fort-points' ||
         item.placement === 'dwellings' ||
+        item.placement === 'sacred-hub' ||
         item.placement === 'workshop') &&
       item.variants &&
       variant === undefined
@@ -289,6 +332,7 @@ export function useBuildMode({
       return;
     }
     setSelected(null);
+    setChurchDraft(null);
     setPlacingItem(kind);
     if (item.placement === 'fort-points') {
       // obvod z bodů (fortifications.md – Obvod): návrh hry u kurzoru, body upraví hráč; u mezery
@@ -452,6 +496,7 @@ export function useBuildMode({
       if (type) placement.start(dwellingMode(type), onDwelling);
       return;
     }
+    if (item.placement === 'sacred-hub') return; // rozcestník sám nic neumisťuje
     if (item.placement === 'workshop') {
       // vybraný druh dílny (rozcestník), jinak dnešní dílna
       const workshopType = (item.variants.find((v) => v.id === variant) ?? item.variants[0]!).id;
@@ -499,32 +544,15 @@ export function useBuildMode({
       return;
     }
     if (item.placement === 'church') {
+      // kostel: napřed panel rozměrů s cenou, teprve pak umisťování (churches.md – změna 16. 11. 2026)
       const type = churchTypeOf(view, item.kind);
       if (!type) return;
-      placement.start(
-        {
-          kind: 'church',
-          type,
-          dims: defaultChurchDims(type),
-          check: (dims, position) =>
-            checkWithDesecration(placementScene(), (village) =>
-              item.check(decoded, village, type, dims, position),
-            ),
-        },
-        (result) => {
-          const villageId = viewRef.current?.id;
-          if (result.kind === 'church' && villageId) {
-            void runBuildAction(() =>
-              placeChurch({
-                villageId,
-                type: result.type,
-                dims: result.dims,
-                position: result.position,
-              }),
-            );
-          }
-        },
-      );
+      placement.cancel();
+      setChurchDraft({
+        kind: item.kind,
+        type,
+        dims: recallChurchDims(viewRef.current?.id ?? null, type),
+      });
       return;
     }
     if (item.placement === 'threshing-floor') {
@@ -544,7 +572,56 @@ export function useBuildMode({
     }
   };
 
+  const setChurchDraftDims = (dims: ChurchDims): void => {
+    setChurchDraft((draft) => {
+      if (!draft) return draft;
+      const next = clampChurchDims(draft.type, dims);
+      const villageId = viewRef.current?.id;
+      if (villageId !== undefined) rememberChurchDims(villageId, draft.type, next);
+      return { ...draft, dims: next };
+    });
+  };
+
+  /** Panel rozměrů → umisťování kostela s těmi rozměry (tah ve scéně jen natáčí). */
+  const placeChurchDraft = (): void => {
+    const draft = churchDraft;
+    if (!draft) return;
+    const item = buildItem(draft.kind);
+    if (item.placement !== 'church') return;
+    setChurchDraft(null);
+    const { type, dims } = draft;
+    placement.start(
+      {
+        kind: 'church',
+        type,
+        dims,
+        check: (checkedDims, position) =>
+          checkWithDesecration(placementScene(), (village) =>
+            item.check(decoded, village, type, checkedDims, position),
+          ),
+      },
+      (result) => {
+        const villageId = viewRef.current?.id;
+        if (result.kind === 'church' && villageId) {
+          rememberChurchDims(villageId, result.type, result.dims);
+          void runBuildAction(() =>
+            placeChurch({
+              villageId,
+              type: result.type,
+              dims: result.dims,
+              position: result.position,
+            }),
+          );
+        }
+      },
+    );
+  };
+
   return {
+    churchDraft,
+    setChurchDraftDims,
+    placeChurchDraft,
+    closeChurchDraft: () => setChurchDraft(null),
     placingItem,
     buildGroup,
     setBuildGroup,

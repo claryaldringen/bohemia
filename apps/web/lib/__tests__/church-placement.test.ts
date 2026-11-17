@@ -13,6 +13,8 @@ import {
   churchAtCursor,
   churchDimsText,
   churchFromDrag,
+  recallChurchDims,
+  rememberChurchDims,
   churchPlacementCost,
   stepChurchDims,
 } from '../church-placement';
@@ -24,7 +26,7 @@ describe('tah kostela', () => {
     expect(layout.dims).toEqual(defaultChurchDims('rotunda'));
   });
 
-  it('tah na východ: vstup zůstane, kde tah začal, délka lodi = délka tahu', () => {
+  it('tah na východ: vstup zůstane, kde tah začal, rozměry se nemění', () => {
     const layout = churchFromDrag(
       'chancel',
       defaultChurchDims('chancel'),
@@ -32,8 +34,8 @@ describe('tah kostela', () => {
       { x: 12, z: 0 },
     );
     expect(layout.position.rotation).toBeCloseTo(0);
-    expect(layout.dims).toMatchObject({ kind: 'long', length: 12, width: 5, height: 7 });
-    const entrance = churchLocalToWorld(layout.position, -6, 0);
+    expect(layout.dims).toMatchObject({ kind: 'long', length: 8, width: 5, height: 7 });
+    const entrance = churchLocalToWorld(layout.position, -4, 0);
     expect(entrance.x).toBeCloseTo(0, 6);
     expect(entrance.z).toBeCloseTo(0, 6);
   });
@@ -44,25 +46,35 @@ describe('tah kostela', () => {
     const to = { x: 20 * Math.cos(a), z: -20 * Math.sin(a) };
     const layout = churchFromDrag('apse', defaultChurchDims('apse'), { x: 0, z: 0 }, to);
     expect(layout.position.rotation).toBeCloseTo(Math.PI / 4, 6);
-    const chancelEnd = churchLocalToWorld(layout.position, 10, 0);
+    // bod osy 20 m od vstupu (střed lodi je od vstupu o polovinu délky dál)
+    const chancelEnd = churchLocalToWorld(
+      layout.position,
+      20 - (layout.dims.kind === 'long' ? layout.dims.length : 0) / 2,
+      0,
+    );
     expect(Math.hypot(chancelEnd.x - to.x, chancelEnd.z - to.z)).toBeLessThan(20 * 0.15);
   });
 
-  it('rotunda: tah určí průměr; rozměry se ořežou do mezí', () => {
+  it('tah rozměry nemění ani u rotundy; zadané rozměry se ořežou do mezí', () => {
     const r = churchFromDrag(
       'rotunda',
       defaultChurchDims('rotunda'),
       { x: 0, z: 0 },
-      { x: 0, z: 3 },
+      { x: 0, z: 30 },
     );
-    expect(r.dims).toMatchObject({ kind: 'round', diameter: CHURCH.limits.diameter.min });
-    const long = churchFromDrag(
-      'chancel',
-      defaultChurchDims('chancel'),
-      { x: 0, z: 0 },
-      { x: 99, z: 0 },
-    );
+    expect(r.dims).toEqual(defaultChurchDims('rotunda'));
+    const big = { kind: 'long', width: 5, length: 99, height: 7 } as const;
+    const long = churchFromDrag('chancel', big, { x: 0, z: 0 }, { x: 9, z: 0 });
     expect(long.dims).toMatchObject({ length: CHURCH.limits.length.max });
+  });
+
+  it('rozměry z panelu se pamatují ve vsi a typu', () => {
+    expect(recallChurchDims('v1', 'chancel')).toEqual(defaultChurchDims('chancel'));
+    const dims = stepChurchDims('chancel', defaultChurchDims('chancel'), 'length', 1);
+    rememberChurchDims('v1', 'chancel', dims);
+    expect(recallChurchDims('v1', 'chancel')).toEqual(dims);
+    expect(recallChurchDims('v2', 'chancel')).toEqual(defaultChurchDims('chancel'));
+    expect(recallChurchDims(null, 'chancel')).toEqual(defaultChurchDims('chancel'));
   });
 
   it('+/− po 0,5 m v mezích', () => {

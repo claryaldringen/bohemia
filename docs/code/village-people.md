@@ -460,7 +460,10 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   **Výběr postavy** (villagers.md – Výběr postavy; Martin 20. 10. 2026: „Stačí mi jenom vědět info
   typu - žena rolníka, jde pro vodu.“): **postava = konkrétní člověk** – server posílá
   `SceneLabor.persons` (`lib/person-view.ts`: id, věk, pohlaví, domácnost, role z
-  `lib/person-roles.ts`), `planVillagers` přiřadí každé postavě člověka (`DayRoster` ve
+  `lib/person-roles.ts` – mistr huti a kněz (`RolePerson.master` z `Person.mason` / `Person.priest`)
+  mají roli podle oboru („Kameník“, „Kněz“; názvy z `lib/mason-crafts.ts`, jeden zdroj s tlačítky
+  huti), i když bydlí jako host v cizím domě; dům rolníka s mistrem je jeho domácností – žena
+  a děti jsou „Kameníkova žena“, „Žena kněze“ apod.), `planVillagers` přiřadí každé postavě člověka (`DayRoster` ve
   `villager-roster.ts` – los ze seedu vsi a id člověka, stejný napříč dny, nikdo dvakrát; `cast` ve `villager-plan-cast.ts`) v pořadí
   pohřeb → karavany (tesař na cestě pro kování podle `SceneExpedition.trip.travellerId`) → nosiči
   kováře podle věku → pasáci → dílny u své práce → první člověk u stavby → práce vsi → provoz na
@@ -878,6 +881,11 @@ Muž (s manželkou a svobodnými dětmi) putuje do vsi bez vojvody schránkou ja
 `Person.noble`, `VillageState.nobles`) – podrobnosti a pravidla v [vassalage.md](vassalage.md#povýšení-vesničana-a-npc-rod-vassalagemd--povýšení-vesničana-úloha-49).
 
 ## Křest a víra (christianity.md – Křest rodu; plán 2026-11-10 – K4)
+
+**Po křtu rodu žádné modly a svatyně** (Martin 16. 11. 2026): `startSacredBuilding`
+(`core/actions.ts`) pro ves pokřtěného rodu (`rodBaptized`) odmítne novou modlu i svatyni
+s `PAGAN_PLACES_FORBIDDEN` (`people/faith.ts`; `build-intent.ts` ji vrátí jako důvod, platí i pro
+správce); stojící a rozestavěné zůstávají.
 
 - **Stav:** `Person.faith?: 'christian'` (chybí = pohan), `VillageState.faith?: VillageFaith` –
   `rodBaptizedDay` (křest rodu hráče, kterému ves patří) a `nobles: { houseId, baptizedDay }` (křest

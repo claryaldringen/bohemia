@@ -50,7 +50,9 @@ describe('zkratky staveb', () => {
     expect(buildItemForKey(key('KeyN'))?.kind).toBe('idol');
     expect(buildItemForKey(key('KeyM'))?.kind).toBe('shrine');
     expect(buildItemForKey(key('KeyK'))?.kind).toBe('threshing-floor');
-    expect(new Set(BUILD_ITEMS.map((item) => item.hotkey)).size).toBe(BUILD_ITEMS.length);
+    // rozcestníky (obydlí, posvátná místa) zkratku nemají – sdílí zástupnou 'None'
+    const keyed = BUILD_ITEMS.filter((item) => item.hotkey !== 'None');
+    expect(new Set(keyed.map((item) => item.hotkey)).size).toBe(keyed.length);
     const camera = ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyQ', 'KeyE', 'KeyR'];
     expect(BUILD_ITEMS.filter((item) => camera.includes(item.hotkey))).toEqual([]);
   });
@@ -77,6 +79,26 @@ describe('zkratky staveb', () => {
     expect(buildItemForKey(key('Digit1'))?.kind).toBe('srub');
     // rozcestník sám zkratku nespustí
     expect(buildItemForKey(key('None'))).toBeNull();
+  });
+
+  it('posvátná místa jsou jeden rozcestník, zkratky N, M, I a Y dál vybírají druh rovnou', () => {
+    const hub = BUILD_ITEMS.find((i) => i.kind === 'sacred-hub');
+    expect(hub).toMatchObject({ placement: 'sacred-hub', name: 'Posvátná místa' });
+    expect(hub?.placement === 'sacred-hub' && hub.variants.map((v) => v.id)).toEqual([
+      'idol',
+      'shrine',
+      'church-small',
+      'church-large',
+    ]);
+    expect(BUILD_ITEMS.filter((i) => i.hubOf === 'sacred-hub').map((i) => i.kind)).toEqual([
+      'idol',
+      'shrine',
+      'church-small',
+      'church-large',
+    ]);
+    expect(buildItemForKey(key('KeyN'))?.kind).toBe('idol');
+    expect(buildItemForKey(key('KeyI'))?.kind).toBe('church-small');
+    expect(buildItemForKey(key('KeyY'))?.kind).toBe('church-large');
   });
 
   it('1 nadzemní dům – za polozemnicí, na pozemku s plotem (log-house.md – Dům)', () => {

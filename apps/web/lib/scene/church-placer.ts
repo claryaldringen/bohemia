@@ -1,7 +1,7 @@
 // Umisťování kostela ve scéně (churches.md – Stavba; web-ui.md – Kostel v rozhraní): průhledný
-// model z `church-mesh.ts` a obrys hřbitůvku u kurzoru, kněžištěm na východ. Tah od vstupu ke
-// kněžišti určí délku lodi (rotunda průměr) a osu po 15°, krátký klik postaví kostel na místo
-// s rozměry z panelu. Rozměry mění panel u potvrzení (`setDims`), Enter nebo kladivo potvrdí.
+// model z `church-mesh.ts` a obrys hřbitůvku u kurzoru, kněžištěm na východ. Rozměry zadal hráč
+// předem v panelu rozměrů (`mode.dims`); tah od vstupu ke kněžišti jen natočí osu po 15°, krátký
+// klik postaví kostel na místo. Rozměry jdou upravit i po položení (`setDims`), Enter nebo kladivo potvrdí.
 import '@babylonjs/core/Rendering/outlineRenderer';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 import { Color3 } from '@babylonjs/core/Maths/math.color';
@@ -30,7 +30,7 @@ import { createDecalMaterial, createStripMesh, type HeightFn } from './village-m
 import type { ActivePlacement } from './village-placement';
 import type { PlacementCost, PlacementHandlers, PlacementMode } from './village-types';
 
-/** Kliknutí = stisk a puštění bez tažení (px); delší tah určí délku a osu. */
+/** Kliknutí = stisk a puštění bez tažení (px); delší tah určí osu. */
 const CLICK_SLOP_PX = 6;
 const OK_COLOR = new Color3(0.3, 0.85, 0.35);
 const BAD_COLOR = new Color3(0.92, 0.24, 0.18);
@@ -206,9 +206,6 @@ export class ChurchPlacer implements ActivePlacement {
     // krátký klik: kostel na místo kliku kněžištěm na východ s rozměry z panelu
     if (!press.dragged) {
       this.pinned = churchAtCursor(this.mode.type, this.dims, { x: press.at[0], z: press.at[1] });
-    } else if (this.pinned) {
-      // délka (rotunda průměr) z tahu jde dál do panelu
-      this.dims = this.pinned.dims;
     }
     this.refresh();
   };

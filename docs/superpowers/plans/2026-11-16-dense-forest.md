@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Vojsko, výpravy, poslové i uprchlíci chodí po jemné mřížce pochodu nejkratší průchozí cestou jako v 0 A.D. Hustý les (vnitřek lesa dál než 10 m od okraje) je neprůchozí kromě zemské stezky a pevné cesty. Vesničané v něm při útěku mizí jako v budově.
+**Goal:** Vojsko, výpravy, poslové i uprchlíci chodí po jemné mřížce pochodu nejkratší průchozí cestou jako v 0 A.D. Hustý les (vnitřek lesa dál než 10 m od okraje) je neprůchozí kromě zemské stezky a pevné cesty. Vesničané v něm při útěku mizí jako v budově. Hotová zemská stezka pokračuje na sousední mapě k tamní vsi, nebo k velké louce.
 
 **Architecture:**
 
@@ -13,6 +13,7 @@
 - **Hledání** (`march-search.ts`) má rovnoměrnou cenu kroku (JPS, nebo A* – podle měření). Trasu vyhladí přímkami na dohled a rozdělí ji tam, kde se mění tempo (`march-smooth.ts`). `MarchPath` má stejný tvar, jen méně bodů.
 - **Útěk** míří k „dveřím lesa“ – průchozí buňce u hustého lesa. Kdo k nim dojde, zmizí.
 - **Přechod na sousední mapu** jen tam, kde je okraj průchozí na obou stranách. Rozjeté úseky tažení a výprav se po nasazení jednou přepočtou.
+- **Pokračování zemské stezky** (Úloha 4b) se nikam neukládá. Odvodí se z krajiny sousední mapy, výstupů stezek v souhrnech sousedních vsí a branky tamního dvorce. V mřížce je průsekem jako pevná cesta, ve scéně a na minimapě stezkou.
 
 **Tech Stack:** TypeScript 6 (strict), `packages/game` (det-math v `domain/war/**`), Vitest, Next.js 16 + Babylon.js 9 (scéna), Playwright, `tsx` (měření).
 
@@ -24,6 +25,7 @@
   - Čísla – „Terén a náklad“, „Mřížka pochodu“;
   - Obránci – postoje a útěk.
 - `docs/design/expeditions.md` – Co platí dál z výjezdu (hustý les, šelmy).
+- `docs/design/trade.md` – Zemská stezka (Pokračování na sousední mapě).
 - Motivace D55: `.superpowers/sdd/2026-11-14-fixes/d49-expedition-path-report.md` – Obavy, „Trasy uvnitř vsi obecně“.
 - Mapa kódu:
   - `docs/code/war.md` – Pohyb vojska, Postoje vsi a včasný útěk, Varování (Evakuace v tažení, Průvod uprchlíků), Ve scéně;
@@ -36,6 +38,7 @@
   - „Můžeme ten vnitřek pojmenovat jako "hustý les" a nadále se o něm tak bavit a udělat jej neprůchozím? Vojsko ve středověku reálně chodilo po zemských stezkách právě kvůli neprůchodnosti lesa.“
   - „Vesničané by pak utekli do hustého lesa a zmizeli v něm jako v budově“.
   - Schválení návrhu: „ano“.
+  - Pokračování zemské stezky na sousední mapě: „ano“ k návrhu Clauda (trade.md – Zemská stezka).
 - **Hustý les** je les dál než **10 m** od okraje: pole lesa `buildForestField` > 10 m – tam scéna začíná kreslit vnitřek lesa (`RAMP_START_M` v `obstacles/forest-trees.ts`).
   - Okraj (pruh 10 m), skupiny stromů a osamělé stromy hustým lesem nejsou.
   - Paseka po klučení hustým lesem přestává být.
@@ -119,6 +122,26 @@
     - Ve scéně vsi kdo doběhne k lesu, zmizí.
 11. **Les na otepi a žebříky** (`ladders.ts` – `nearestForestOf`) dál bere buňky `MARCH_FOREST`. Ty jsou teď hustý les, tedy o ≈ 10 m dál než dřív – nosí se z lesa, ne z okraje.
 12. **Val bez nástavby** je průchozí (`rampartPace` jen zpomalí chůzi). Bez zdražování terénu ho trasa neobchází branou. Plot, palisáda a val s nástavbou zůstávají neprůchodné mimo brány a mezery.
+13. **Pokračování zemské stezky na sousední mapě** (Úloha 4b; Martin 16. 11. 2026: „ano“, podrobnosti návrh Clauda).
+    - **Nic se neukládá.** Pokračování se odvodí z krajiny a vrstvy překážek sousední mapy, ze vstupů (bodů okraje hotových stezek sousedních vsí) a z branky tamního dvorce. Stav vsi ani DB se nemění (žádný převod, žádná migrace); Vlkov (N, E, S) ho má hned.
+    - **Výstup stezky** (`trailExitsOf`):
+      - konec osy = nejdále položený konec ve směru stezky ze všech úseků (úseky mohou být mimo pořadí);
+      - **výstup jen u stezky, která končí u okraje** (změna po revizi 4b – návrh Clauda): konec osy musí ležet v pásu konce strany, kterou stezka opouští (mezera ≤ `EDGE_MARGIN_M` + `TRAIL.edgeBandM` + 1 m tolerance `EDGE_SLACK_M`) – stejný predikát jako díl u okraje; rozbitá stezka (konec uprostřed mapy) pokračování nemá, jinak by vedla do slepé uličky v lese;
+      - bod okraje = kolmý průmět konce na tu stranu ve směru stezky, ke které má konec nejblíž;
+      - úhlopříčná stezka s koncem do 30 m od obou stran vede rohem na úhlopříčnou mapu. 30 m = `EDGE_MARGIN_M` + `TRAIL.edgeBandM` – pásmo, kde stezka končí.
+    - **Souhrn vsi nese výstupy** (`VillageDigest.trailExits`). Mapa je čte ze souhrnů vsí na 8 sousedních políčkách jedním dotazem; souhrn bez nich (uložený dřív) → ves se načte celá.
+    - **Vstup** = `edgeCrossing(políčko vsi, mapa, bod okraje)`. Platí od dne po dostavění (`builtDay < day`) – takt přepočtený z bodu nevidí pokračování dřív, než stezka stála.
+    - **Trasa** – táž síť jako stezka vsi (`trailTerrain`, mimo posvátné duby a háje), jen bez pevných cest a humen tamní vsi, takže se nemění den po dni:
+      - k brance dvorce tamní vsi (`trailStart`);
+      - bez vsi nebo bez dvorce k místu největší souvislé oblasti mřížky mapy bez vsi (`largestRegion`), které je po síti nejblíž; vstup už v ní → bez pokračování;
+      - nedosažitelný cíl → bez pokračování;
+      - stezka krajiny (`landscapeTrailLines`) s koncem do 30 m od vstupu → bez pokračování – stezka kostry tam už pokračuje.
+    - **Později založená ves** – pokračování se odvodí znovu, k její brance a po její krajině. Sídlo mívá jinou krajinu než prázdné políčko (prémie, odříznutý rod), stará osa by tam neplatila.
+    - **Cena a doba stavby stezky beze změny.** Pokračování nemá stavbu, práci ani údržbu a není stezkou tamní vsi – obchod, síť cest ani simulace vsi ho neznají.
+    - **Mřížka:** osy pokračování jsou průsekem jako pevná cesta (Rozhodnutí 2). Navíc **kus ke kraji**: hotová stezka vsi s koncem do 30 m od bodu okraje má průsek až k okraji – jinak by stezku zavřel hustý les v pásu u kraje.
+    - **Počítá jen server** – trasa stezky není det-math. Prohlížeč dostane osy jako data.
+    - **Scéna a minimapa:** upravená cesta s průsekem, stromy v pásu se nekreslí, klikem se nevybírá. Tamní hráč ho vidí jako krajinu své mapy.
+    - **Viditelnost na cizí mapě** (Martin 16. 11. 2026: „Když je to mapa rodu nebo vazala, ať je vidět celá, stejným způsobem jako mapa vlastní. Pokud to bude mapa nepřítele nebo neutrála, ať je tam fog of war“): na mapě vsi vlastního rodu nebo vazala je pokračování vidět celé jako na vlastní mapě; na mapě nepřítele nebo neutrála jen tam, kam muži rodu dohlédli (mlha války – stejné pravidlo jako ostatní cizí krajina a stavby). Mřížka pochodu (průchodnost) to neovlivní – průchozí je vždy, mlha je jen zobrazení.
 
 ## Rozhodovací brána (po Úloze 1)
 
@@ -174,22 +197,28 @@ Do odpovědi platí „zůstat stát“ (Rozhodnutí 8 – nic nového se nepři
    - Úloha 5: test přechodu jen do průchozího pruhu.
 5. **Útěk bez dosažitelného lesa** (les za řekou bez brodu, mapa bez hustého lesa) musí dát `no-forest` a dnešní náhradu (vzdání při přesile, jinak obrana).
    - Úloha 6: testy dosažitelných dveří a `refugeOptions`.
+6. **Pokračování, které souhrn souseda přinese až po taktu** – takt přepočtený z bodu nesmí vidět pokračování ve dnech před dostavěním stezky.
+   - Úloha 4b: test dne dostavění (`continuationsOf` v den `builtDay` bez osy, den poté s osou).
 
 ---
 
 ## Mapa souborů
 
-| Soubor                                                           | Odpovědnost                                                                       | Úloha |
-| ---------------------------------------------------------------- | --------------------------------------------------------------------------------- | ----- |
-| `packages/game/src/domain/war/march-search.ts` (nový)            | hledání s rovnoměrnou cenou (`gridSearch`), zaplavení (`reachableCells`)          | 2     |
-| `packages/game/src/domain/war/march-smooth.ts` (nový)            | dohled po buňkách, vyhlazení, rozdělení podle tempa → `MarchPath`                 | 2     |
-| `packages/game/src/domain/war/march.ts`                          | `marchPath`, `marchPathToEdge`, `reachableGoal`, únik (`nearestPassable`)         | 2, 5  |
-| `packages/game/src/domain/village/core/cleared-forest.ts` (nový) | vymýcený les vsi po políčkách (přesun ze scény) a `villageClearings` ze stavu vsi | 3     |
-| `packages/game/src/domain/war/dense-forest.ts` (nový)            | vnitřek lesa na mřížce (`forestInterior`) a paseky (`withoutClearings`)           | 3     |
-| `packages/game/src/domain/war/march-grid.ts`                     | terén a mřížka mapy – hustý les, průseky, stavby, skály                           | 4     |
-| `packages/game/src/domain/war/movement.ts`                       | přechod okraje, `stuckDay`, `replanLegs`                                          | 5     |
-| `packages/game/src/domain/war/forest-doors.ts` (nový)            | dveře lesa – nejbližší a nejbližší dosažitelné                                    | 6     |
-| `apps/web/lib/scene/villager-plan.ts`, `army-renderer.ts`        | lidé mizí u lesa                                                                  | 7     |
+| Soubor                                                           | Odpovědnost                                                                                       | Úloha |
+| ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- | ----- |
+| `packages/game/src/domain/war/march-search.ts` (nový)            | hledání s rovnoměrnou cenou (`gridSearch`), zaplavení (`reachableCells`)                          | 2     |
+| `packages/game/src/domain/war/march-smooth.ts` (nový)            | dohled po buňkách, vyhlazení, rozdělení podle tempa → `MarchPath`                                 | 2     |
+| `packages/game/src/domain/war/march.ts`                          | `marchPath`, `marchPathToEdge`, `reachableGoal`, únik (`nearestPassable`)                         | 2, 5  |
+| `packages/game/src/domain/village/core/cleared-forest.ts` (nový) | vymýcený les vsi po políčkách (přesun ze scény) a `villageClearings` ze stavu vsi                 | 3     |
+| `packages/game/src/domain/war/dense-forest.ts` (nový)            | vnitřek lesa na mřížce (`forestInterior`) a paseky (`withoutClearings`)                           | 3     |
+| `packages/game/src/domain/war/march-grid.ts`                     | terén a mřížka mapy – hustý les, průseky (i pokračování stezek), stavby, skály                    | 4, 4b |
+| `packages/game/src/domain/village/trade/trail-exits.ts` (nový)   | výstupy hotových stezek vsi – strana a bod okraje (`trailExitsOf`)                                | 4b    |
+| `packages/game/src/domain/war/trail-continuation.ts` (nový)      | vstupy od sousedů a trasa pokračování (`trailEntriesOf`, `trailContinuations`, `continuationsOf`) | 4b    |
+| `packages/game/src/application/neighbour-trails.ts` (nový)       | port `TrailExitSource`, osy pokračování mapy pro pohledy (`mapTrailContinuations`)                | 4b    |
+| `packages/db/src/adapters/trail-exits.ts` (nový)                 | výstupy stezek vsí na sousedních políčkách ze souhrnů (`createTrailExitSource`)                   | 4b    |
+| `packages/game/src/domain/war/movement.ts`                       | přechod okraje, `stuckDay`, `replanLegs`                                                          | 5     |
+| `packages/game/src/domain/war/forest-doors.ts` (nový)            | dveře lesa – nejbližší a nejbližší dosažitelné                                                    | 6     |
+| `apps/web/lib/scene/villager-plan.ts`, `army-renderer.ts`        | lidé mizí u lesa                                                                                  | 7     |
 
 ---
 
@@ -460,6 +489,154 @@ Navazuje na Úlohy 2 a 3. Velikost buňky z brány.
 
 ---
 
+### Task 4b: Zemská stezka pokračuje na sousední mapě (Opus; scéna Sonnet)
+
+Navazuje na Úlohu 4 (průseky), před Úlohou 5 (přechod okraje). Podle Rozhodnutí 13. Kroky 1–9 (jádro, svět, server) dělá jeden agent (Opus); kroky 10–12 (scéna) po commitu Kroku 9 nový agent (Sonnet).
+
+**Files:**
+
+- Create:
+  - `packages/game/src/domain/village/trade/trail-exits.ts` – jen det-math (počítá ho i mřížka v prohlížeči); přidat do seznamu det-math souborů v `eslint.config.mjs`;
+  - `packages/game/src/domain/war/trail-continuation.ts` – v hlavičce: počítá jen server, prohlížeč dostane osy jako data;
+  - `packages/game/src/application/neighbour-trails.ts`;
+  - `packages/db/src/adapters/trail-exits.ts`.
+- Modify – jádro a svět (Kroky 1–9):
+  - `packages/game/src/domain/village/trade/trail.ts` – vyexportovat `nearestPassable`, `walkAll`, `sacredMask`, `traceRoute` beze změny chování;
+  - `packages/game/src/domain/village/core/digest.ts` – `trailExits`;
+  - `packages/game/src/domain/war/march-search.ts` – `largestRegion`;
+  - `packages/game/src/domain/war/march-grid.ts` – `MarchGridOptions.trailContinuations`, kus ke kraji, `MarchGridMemo.gridOf`;
+  - `packages/game/src/domain/war/campaign-types.ts` – `CampaignMap.trailEntries`;
+  - `packages/game/src/domain/war/campaign-tick.ts` – `gridOf`;
+  - `packages/game/src/application/campaign-view.ts` (`mapGrid`) a `expedition.ts` (`gridOn`);
+  - exporty `index.ts` (village, war, application);
+  - `packages/server/src/campaign-cells.ts`; skládání v `apps/web/lib/campaign.ts` a `apps/worker/src/main.ts`.
+- Modify – scéna (Kroky 10–12):
+  - `apps/web/lib/trail-view.ts`, `village-view-scene-types.ts`, `village-view-scene.ts` (a jeho serverový volající), `foreign-map.ts`, `journey.ts`, `minimap.ts`;
+  - `apps/web/lib/scene/path-renderer.ts`, `swath-bands.ts`, `village-picking.ts`, `selection-highlight.ts`;
+  - `apps/web/components/game/ForeignWarScene.tsx`, `ForeignJourneyScene.tsx`.
+- Test:
+  - Create `packages/game/src/domain/village/trade/__tests__/trail-exits.test.ts`, `packages/game/src/domain/war/__tests__/trail-continuation.test.ts`, `packages/db/src/adapters/__tests__/trail-exits.db.test.ts`.
+  - Modify `march-search.test.ts` (Úloha 2), `march-forest.test.ts` (Úloha 4), `packages/game/src/domain/village/core/__tests__/digest.test.ts`, `packages/server/src/__tests__/campaign-cells.test.ts`, `apps/web/lib/__tests__/trail-view.test.ts`, `apps/web/lib/__tests__/minimap.test.ts`.
+- Docs:
+  - `docs/code/village-trade.md` – Zemská stezka: odstavec „Pokračování na sousední mapě“;
+  - `docs/code/village-roads.md` – Průsek lesem: pokračování a kus ke kraji (mřížka; scéna bez stromů v pásu);
+  - `docs/code/landscape.md` – pokračování není vrstva krajiny ani kostry, otisky beze změny;
+  - `docs/code/war.md` – Pohyb vojska – Mřížka: osy pokračování, `trailEntries`.
+
+**Interfaces:**
+
+- Consumes:
+  - Úloha 4: průsek os v `marchGrid` (Rozhodnutí 2), `landscapeTrailLines`, `MARCH_ROAD`, `MARCH_FOREST`;
+  - Úloha 2: `reachableCells`, `marchPath`, `reachableGoal`;
+  - stávající: `trailTerrain`, `trailStart`, `villageManor`, `edgeCrossing`, `GRID_STEPS`, `DIRECTION_VECTORS`, `DIRECTIONS`, `TRAIL`, `EDGE_MARGIN_M`, `ROAD_SWATH`, `marchCellAt`, `villageDigest`, `isCurrentDigest`.
+- Produces – jádro:
+  - `interface TrailExit { direction: Direction8; end: RoadPoint; edge: RoadPoint; builtDay: number }` – `direction` = krok k sousednímu políčku (`GRID_STEPS`), `end` = konec osy, `edge` = bod okraje této mapy (strana ±960 m);
+  - `trailExitsOf(state: Pick<VillageState, 'trails' | 'roads'>): TrailExit[]` – jen hotové stezky, v pořadí `trails`;
+  - `VillageDigest.trailExits?: TrailExit[]` – chybí = souhrn uložený před Úlohou 4b; `VILLAGE_DIGEST_VERSION` zůstává;
+  - `interface TrailEntry { point: RoadPoint; builtDay: number }`; `CampaignMap.trailEntries?: readonly TrailEntry[]` (chybí = žádné);
+  - `trailEntriesOf(cell: GridCell, neighbours: readonly { cell: GridCell; exits: readonly TrailExit[] }[]): TrailEntry[]` – výstupy, jejichž `GRID_STEPS[direction]` vede na `cell`; pořadí podle políčka souseda (y, pak x), pak výstupů;
+  - `largestRegion(grid: MarchGrid): Uint8Array` – 1 = buňka největší souvislé průchodné oblasti (8 sousedů, roh jako `gridSearch`); remíza – oblast s nižším indexem buňky;
+  - `NO_CONTINUATIONS: readonly (readonly RoadPoint[])[]` – prázdné, zmrazené;
+  - `trailContinuations(landscape: Landscape, obstacles: ObstacleLayer | null, entries: readonly RoadPoint[], gate: RoadPoint | null): readonly (readonly RoadPoint[])[]` – pro tentýž vstup tentýž objekt (`WeakMap<Landscape, …>`, mez jako `routeCache` v `trail.ts`);
+  - `continuationsOf(map: Pick<CampaignMap, 'landscape' | 'obstacles' | 'trailEntries'>, village: VillageState | null, day: number): readonly (readonly RoadPoint[])[]` – vstupy s `builtDay < day`; branka `trailStart(map.landscape, villageManor(village))`, bez dvorce null; bez vstupů `NO_CONTINUATIONS`;
+  - `MarchGridOptions.trailContinuations?: readonly (readonly RoadPoint[])[]`; `MarchGridMemo.gridOf(landscape, obstacles, village, day, continuations = NO_CONTINUATIONS)`.
+- Produces – svět a pohledy:
+  - port `interface TrailExitSource { trailExitsAround(cell: GridCell): Promise<NeighbourTrailExits[]> }` a `interface NeighbourTrailExits { villageId: string; version: number; cell: GridCell; exits: TrailExit[] | null }` – vsi aktivních sídel na 8 sousedních políčkách; `exits` null = souhrn bez `trailExits`;
+  - `createTrailExitSource(db: Database): TrailExitSource`;
+  - `createCampaignCells` – `villages: Pick<VillageRepository, 'stampsOf' | 'find'>` a volitelné `trailExits?: TrailExitSource`; `mapOf` vrací `trailEntries`;
+  - `mapTrailContinuations(deps: { cells: CampaignCells; villages: Pick<VillageRepository, 'find'> }, cell: GridCell, day: number, state?: VillageState | null): Promise<readonly (readonly RoadPoint[])[]>`;
+  - web: `ForeignMap.trailContinuations?: RoadPoint[][]`, `SceneVillage.trailContinuations?: SceneRoad[]`, `sceneTrailContinuations(axes: readonly (readonly RoadPoint[])[]): SceneRoad[]`.
+- Pro další úlohy:
+  - Úloha 5: `gridOf` a `mapGrid` skládají mřížku s pokračováním – filtr příchodu ho vidí bez změny;
+  - Úloha 7: kurzor předá prohlížečové mřížce osy z pohledů jako `trailContinuations`.
+
+- [ ] **Step 1: Failing testy výstupů.**
+  - `trail-exits.test.ts` (stav se stezkou a cestami jako přípravky `trail.test.ts`):
+    - stezka N, `builtDay` 5, poslední úsek (100; 800) → (120; 935) → `[{ direction: 'N', end: { x: 120, z: 935 }, edge: { x: 120, z: 960 }, builtDay: 5 }]`; úsek s obráceným pořadím bodů → totéž;
+    - `builtDay` null → `[]`; poslední úsek se zmizelou cestou → konec dá předchozí úsek;
+    - NE s koncem (300; 940) → `N`, okraj (300; 960); (945; 942) → `NE`, okraj (960; 960); (950; 700) → `E`, okraj (960; 700);
+    - S s koncem (−50; −880), mezera 80 m → `S`, okraj (−50; −960).
+  - `digest.test.ts`: `villageDigest(stav se stezkou).trailExits` `toEqual(trailExitsOf(stav))`; ves bez stezek → `[]`.
+- [ ] **Step 2: Failing testy oblasti a pokračování.**
+  - `march-search.test.ts` – `largestRegion`:
+    - mřížka 10 × 10 se zdí ve sloupci 3 → 1 právě v 60 buňkách vpravo od zdi;
+    - dvě oblasti po 4 buňkách → 1 v oblasti s buňkou 0;
+    - dvě oblasti spojené jen rohem mezi dvěma neprůchodnými buňkami → dvě oblasti.
+  - `trail-continuation.test.ts`:
+    - **Vstupy:**
+      - soused (0; 0) s výstupem E, okraj (960; 120), `builtDay` 3 → na mapě (1; 0) `[{ point: { x: −EDGE_M, z: 120 }, builtDay: 3 }]`, `EDGE_M` = 960 − `WAR.march.cellM` ÷ 2;
+      - výstup N téhož souseda na (1; 0) nevede;
+      - výstup NE s okrajem (960; 960) → na (1; 1) bod (−EDGE_M; −EDGE_M);
+      - sousedé v obráceném pořadí → `toEqual`.
+    - **Krajina testu:** první seed 1–20 s buňkou hustého lesa (`forestInterior`) na západním okraji; vstup = střed nejdelšího souvislého úseku hustého lesa na západním okraji.
+    - **K louce:** `gate` null → osa začíná přesně ve vstupu, poslední bod leží v buňce `largestRegion(marchGrid(l, obstaclesOf(l), null))`; vstup uvnitř oblasti → `[]`.
+    - **Stezka krajiny:** vstup do 30 m od konce `landscapeTrailLines(l)` (krajina se stezkou kostry z testu Úlohy 4) → `[]`.
+    - **Paměť a determinismus:** totéž volání dvakrát → `toBe`; krajina vygenerovaná ze seedu znovu → `toEqual`.
+    - **Den dostavění (Review Focus 6):** `continuationsOf` s `trailEntries: [{ point: vstup, builtDay: 10 }]` → den 10 `toBe(NO_CONTINUATIONS)`, den 11 jedna osa.
+    - **Branka vsi:** ves s dvorcem z přípravků `trail.test.ts` (jejich krajina, vstup na západním okraji) → osa `continuationsOf` končí do jedné buňky terénu stezky (`trailTerrain(l, o).cellM`) od `trailStart(l, villageManor(ves))`; táž ves bez dvorce → poslední bod v `largestRegion`.
+- [ ] **Step 3: Failing testy mřížky** (`march-forest.test.ts`):
+  - **Pokračování průchozí:** osa „K louce“ z Kroku 2 → `marchGrid(l, o, null, { trailContinuations: [osa] })`:
+    - buňky pod osou `MARCH_ROAD` a `pace > 0`, v hustém lese `MARCH_FOREST | MARCH_ROAD`;
+    - `marchPath` ze vstupu na konec osy existuje;
+    - bez osy `reachableGoal` ze vstupu na konec osy cíl posune.
+  - **Kus ke kraji:** syntetická ves (přípravky `village()` z `march.test.ts`) na krajině testu, hotová stezka W s koncem 25 m od západního kraje v hustém lese → buňky úsečky konec → okraj `MARCH_ROAD`, `pace > 0`. Konec 80 m od kraje, nebo stezka ve stavbě → bez kusu (buňky hustého lesa `pace` 0).
+  - **Paměť:** `MarchGridMemo.gridOf` dvakrát se stejným polem os → `toBe`; s `NO_CONTINUATIONS` jiný objekt.
+  - **Přechod u konce stezky** (rozhraní Úlohy 5): svět tažení – mapa (0; 0) rovná (`campaign-fixtures.ts`) s vsí, jejíž hotová stezka E končí v (935; z vstupu); mapa (1; 0) = krajina testu s `trailEntries` z `trailEntriesOf` → `gridOf({ x: 1, y: 0 }, den, ctx)` má buňku bodu `edgeCrossing((0; 0), (1; 0), výstup.edge)` průchozí; bez `trailEntries` má `pace` 0.
+- [ ] **Step 4: Spustit – FAIL.** `npx vitest run packages/game/src/domain/village/trade/__tests__/trail-exits.test.ts packages/game/src/domain/village/core/__tests__/digest.test.ts packages/game/src/domain/war/__tests__/march-search.test.ts packages/game/src/domain/war/__tests__/trail-continuation.test.ts packages/game/src/domain/war/__tests__/march-forest.test.ts` (z kořene) → FAIL, funkce neexistují.
+- [ ] **Step 5: Implementace jádra** podle Rozhodnutí 13.
+  - `trailExitsOf`:
+    - konec osy = ten konec cesty posledního úseku s existující cestou, který má větší `x·v.x + z·v.z` (`v` = `DIRECTION_VECTORS[direction]`; remíza poslední bod cesty);
+    - mezera ke straně = 960 − souřadnice konce ve směru strany; strany jen ze složek směru stezky;
+    - úhlopříčný směr s oběma mezerami ≤ `EDGE_MARGIN_M + TRAIL.edgeBandM` → roh (obě souřadnice ±960); jinak strana s menší mezerou (remíza – dřív v `DIRECTIONS`) a kolmý průmět.
+  - `trailContinuations` – každý vstup zvlášť:
+    1. konec osy `landscapeTrailLines(l)` do `EDGE_MARGIN_M + TRAIL.edgeBandM` od vstupu → bez osy;
+    2. `trailTerrain(l, o)`, blokace `sacredMask` (s vrstvou), bez pevných cest a humen; `walkAll` ze schůdné buňky nejbližší vstupu (`nearestPassable`);
+    3. cíl: s brankou buňka nejbližší brance; bez branky buňka s nejmenší vzdáleností z `walkAll`, jejíž střed leží v `largestRegion(marchGrid(l, o, null))` (`marchCellAt`; oblast jednou na krajinu ve `WeakMap`), remíza nižší index; start v oblasti → bez osy;
+    4. nedosažitelný cíl → bez osy, jinak `traceRoute(terrain, prev, cíl, vstup)`.
+  - `march-grid.ts`:
+    - osy `trailContinuations` a kusy ke kraji jdou do průseku spolu s pevnými cestami vsi (krok 4 pořadí `marchGrid` z Úlohy 4);
+    - kus ke kraji = `[end, edge]` každého `trailExitsOf(village)` s `max(|end.x − edge.x|, |end.z − edge.z|)` ≤ `EDGE_MARGIN_M + TRAIL.edgeBandM`;
+    - `MarchGridMemo` – další úroveň `WeakMap` podle pole os (paměť `trailContinuations` vrací tentýž objekt).
+  - `gridOf`, `mapGrid`, `gridOn`: `continuationsOf(map, village, day)` → paměť mřížek, nebo `marchGrid(…, { day, trailContinuations })`.
+  - `villageDigest`: `trailExits: trailExitsOf(state)`.
+- [ ] **Step 6: Spustit – PASS** a celé `npm run test`. GOLDEN a čísla testů války přepsat jen tam, kde přípravek má hotovou stezku u kraje (kus ke kraji) – s větou v commitu.
+- [ ] **Step 7: Failing testy světa.**
+  - `trail-exits.db.test.ts` (`npm run test:db`): sídla (0; 0); (1; 0) s vsí, jejíž souhrn má výstup E; (−1; 1) s vsí se souhrnem bez `trailExits`; (2; 0) a archivované (0; 1) → `trailExitsAround({ x: 0, y: 0 })` vrátí právě (1; 0) s výstupy a (−1; 1) s `exits: null`.
+  - `campaign-cells.test.ts`:
+    - zdroj vrátí souseda (0; 0) s výstupem E → `mapOf({ x: 1, y: 0 }).trailEntries` `toEqual(trailEntriesOf(…))`;
+    - soused s `exits: null` → `villages.find` jednou na verzi, výstupy z `trailExitsOf(stav)`; druhé `mapOf` při téže verzi → `find` se nevolá;
+    - prázdné políčko: výstup souseda přidaný po prvním `mapOf` je ve druhém (vstupy nejsou v LRU);
+    - bez `trailExits` → `trailEntries` `[]`.
+- [ ] **Step 8: Implementace světa.**
+  - Adaptér: jeden dotaz `settlement` ⋈ `village` – aktivní sídla ve čtverci 3 × 3 kolem políčka bez středu; `exits` z `digest->'trailExits'`; souhrn jiné verze (`isCurrentDigest`) nebo bez pole → null.
+  - `createCampaignCells`:
+    - LRU dál drží jen krajinu a překážky prázdného políčka; `trailEntries` se čtou při každém `mapOf`;
+    - `exits` null nahradí `find` + `trailExitsOf` v paměti podle `id@version` (velikost `CAMPAIGN_CELL_CACHE_SIZE`).
+  - Skládání: `trailExits: createTrailExitSource(db)` v `apps/web/lib/campaign.ts` a `apps/worker/src/main.ts`.
+  - `mapTrailContinuations` = `continuationsOf(await cells.mapOf(cell), state ?? stav první vsi mapy (find) ?? null, day)`.
+  - Spustit `npm run test:db` a `npx vitest run packages/server/src/__tests__/campaign-cells.test.ts` → PASS.
+- [ ] **Step 9: Vlkov, docs a commit.**
+  - Skript ve scratchpadu agenta (jako Úloha 1, DB `bohemia` jen čtením):
+    - Vlkov (48; 0) → `trailExitsOf`; sousedé ve směrech výstupů → `continuationsOf` a mřížka s pokračováním; `reachableCells` ze vstupu;
+    - z branky Vlkova dosažitelnost okrajové buňky u bodu okraje každého výstupu.
+  - Expected: u N (48; 1) a E (49; 0) obsahuje dosah ze vstupu `largestRegion` a je větší než 8,5 % a 4,7 % mapy z měření.
+  - Do `.superpowers/sdd/2026-11-16-dense-forest/task-4b-report.md`: podíly a čas prvního a dalšího `continuationsOf`. Co nevyjde, jde do zprávy, ne do opravy v této úloze.
+  - Docs podle Files (bez scény).
+  - `npm run typecheck && npm run lint && npm run test && npm run format:check && npm run check:docs` a `npm run test:db` – vše projde. Pak `git commit -m "feat(game): zemská stezka pokračuje na sousední mapě"`.
+- [ ] **Step 10: Failing testy scény:**
+  - `trail-view.test.ts`: `sceneTrailContinuations([a, b])` → dvě `SceneRoad` s id −1 a −2, `points` = osy, `grade: 'improved'`, `swath: true`;
+  - `minimap.test.ts`: ves s `trailContinuations: [r]` dá tutéž čáru jako ves s `roads: [r]`.
+- [ ] **Step 11: Implementace scény** – žádný nový atribut ani vertex buffer (WebGPU limit 8):
+  - pohled vlastní vsi: serverový volající `village-view-scene.ts` předá `mapTrailContinuations(…, políčko sídla, den pohledu, stav)`; `SceneVillage.trailContinuations = sceneTrailContinuations(…)`;
+  - `foreignMapForPlayer` a `journeyMapForPlayer`: `trailContinuations` z `mapTrailContinuations(…, cell, dnešní den)`; známá mapa (`knownMapForPlayer`) je nemá – nese jen znalost rodu;
+  - `ForeignWarScene`, `ForeignJourneyScene`: `scene.setVillage` dostane i `trailContinuations: sceneTrailContinuations(map.trailContinuations ?? [])`, i na mapě bez staveb (`{ dwellings: [], fields: [] }`);
+  - `path-renderer.ts`, `swath-bands.ts` a minimapa kreslí `trailContinuations` spolu s `roads`; `village-picking.ts` a `selection-highlight.ts` je neznají;
+  - stromy a keře vrstvy překážek do `ROAD_SWATH.halfM` od osy pokračování se nekreslí – stejným filtrem, jakým scéna skrývá pokácené stromy vsi, bez pařezů;
+  - docs `village-roads.md` – Průsek lesem: pokračování ve scéně.
+- [ ] **Step 12: Ověření a commit.** `npm run typecheck && npm run lint && npm run test && npm run format:check && npm run check:docs` a `npm run test:e2e` (sériově – Global Constraints) – vše projde. Pak `git commit -m "feat(web): pokračování zemské stezky ve scéně a na minimapě"`.
+
+---
+
 ### Task 5: Pohyb po mapách – přechod okraje, uvíznutí, přepočet úseků (Opus)
 
 Souběžně s Úlohou 6 smí – jiné soubory kromě `docs/code/war.md` (jiné sekce).
@@ -489,7 +666,7 @@ Souběžně s Úlohou 6 smí – jiné soubory kromě `docs/code/war.md` (jiné 
 
 **Interfaces:**
 
-- Consumes: Úloha 4 (`marchGrid`), Úloha 2 (`marchPathToEdge`).
+- Consumes: Úloha 4 (`marchGrid`), Úloha 2 (`marchPathToEdge`), Úloha 4b (`gridOf` s pokračováním stezek – přechod u konce stezky vede do průseku, filtr příchodu ho vidí bez změny).
 - Produces:
   - `marchPathToEdge(grid: MarchGrid, from: Pos, direction: Direction8, arrival?: (edgeCell: number) => boolean): MarchPath | null` – cíl jen okrajová buňka s `arrival(c)` true.
   - `replanLegs(state: { groups: Mover[]; marchGridVersion?: number }, extra?: readonly Mover[]): void`:
@@ -595,7 +772,7 @@ Souběžně s Úlohou 6 smí – jiné soubory kromě `docs/code/war.md` (jiné 
 
 **Interfaces:**
 
-- Consumes: Úloha 6 (pohled bez `hidden`, dveře lesa v `WarSceneFlight.forests`).
+- Consumes: Úloha 6 (pohled bez `hidden`, dveře lesa v `WarSceneFlight.forests`), Úloha 4b (kurzor – mřížka v prohlížeči bere osy z `SceneVillage.trailContinuations` a `ForeignMap.trailContinuations` jako `MarchGridOptions.trailContinuations`).
 - Produces: `fleeWalkAt(walk: FleeWalk, s: number)` vrací navíc `gone: boolean`.
 
 - [ ] **Step 1: Failing testy:**
@@ -641,8 +818,11 @@ Souběžně s Úlohou 6 smí – jiné soubory kromě `docs/code/war.md` (jiné 
 
 ## Pořadí a souběh
 
-- **Pořadí:** 1 → (2 ∥ 3) → 4 → (5 ∥ 6) → 7 → 8.
-- **Výchozí běh je jeden proud** (šetrně s tokeny). Souběh 2 ∥ 3 a 5 ∥ 6 jen v oddělených pracovních stromech a se slučováním do integrační větve. e2e jen jednou v integrační větvi.
+- **Pořadí:** 1 → (2 ∥ 3) → 4 → 4b → (5 ∥ 6) → 7 → 8.
+  - 4b před 5: přechod okraje (Úloha 5) bere mřížku sousední mapy už s pokračováním stezky.
+  - Úloha 6 smí začít souběžně se 4b – jiné soubory kromě `docs/code/war.md` (jiné sekce).
+  - 4b má dva agenty po sobě: Kroky 1–9 (Opus), Kroky 10–12 – scéna (Sonnet).
+- **Výchozí běh je jeden proud** (šetrně s tokeny). Souběh 2 ∥ 3, 4b ∥ 6 a 5 ∥ 6 jen v oddělených pracovních stromech a se slučováním do integrační větve. e2e jen jednou v integrační větvi.
 - **Brána po Úloze 1 je povinná:** Úlohy 2 a 4 nezačnou bez zapsaného Výsledku brány.
 - **Otázka na Martina** se pošle hned po Úloze 1 se zprávou. Krok 6 Úlohy 5 čeká na odpověď, ostatní ne.
 - Měřítko úlohy ≤ 150 kroků. Opravu po recenzi dělá nový agent.

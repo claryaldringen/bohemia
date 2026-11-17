@@ -310,6 +310,10 @@ a 12 vesničanů (8 dobrovolníků po 0,4, 4 nucení po 0,2 = 4,0), s kovárnou 
   ([cesty](roads.md), [obchod](trade.md)); trasa je ale sama nevyhledává (návrh Clauda).
   - Důsledek: ves v pasece uprostřed hustého lesa je pro vojsko i výpravu dosažitelná jen po
     stezce či cestě, nebo přes louky, které souvisle vedou k okraji mapy (návrh Clauda).
+  - **Zemská stezka pokračuje na sousední mapě** až k tamní vsi, nebo k nejbližší velké louce
+    (Martin 16. 11. 2026: „ano“ – [obchod](trade.md) – Zemská stezka): vojska tak chodí k sousedům
+    po stezkách; bez toho by se z vlastní mapy dostala jen do úzkých pásů u okraje sousední mapy
+    (měření plánu: 4,7–8,5 % sousední mapy).
   - Dohled na stezce v hustém lese zůstává 50 m (z lesa i do lesa), jinde 150 m (návrh Clauda).
 - **Cíl v neprůchodné buňce** (návrh Clauda 10. 11. 2026, jako v 0 A.D. – jednotka jde na
   nejbližší dosažitelné místo): klik do vody bez brodu, na sráz, na hradbu nebo na místo, kam

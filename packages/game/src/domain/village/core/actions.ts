@@ -61,6 +61,7 @@ import {
   dwellingBuildLabor,
   workshopTrees,
 } from '../rules';
+import { PAGAN_PLACES_FORBIDDEN, rodBaptized } from '../people/faith';
 import { hasShrine, recordSpared, validateSpared, type SparedSacred } from '../people/sacred';
 import { planThreshingFloorWood, threshingFloorLaborManDays } from '../fields/threshing-floors';
 import type {
@@ -1291,7 +1292,7 @@ export interface SacredSiteOptions {
  * fázích, osadníci nejsou potřeba. Předem chce dospělé duby: vyhradí nejbližší dospělé duby ke
  * staveništi (ne posvátné) a skácí je jako první část práce. Překážky na půdorysu (`obstacleIds`,
  * cena v `obstacleCost`) osadníci odstraní hned, dospělé stromy z něj dají klády. Svatyně je
- * jedna na ves. RangeError, když ves nemá duby, už svatyni má nebo je vstup neplatný.
+ * jedna na ves; pokřtěný rod ji nezaloží vůbec. RangeError, když ves nemá duby, už svatyni má nebo je vstup neplatný.
  *
  * Konvence dne (jako u `startNewDwelling`): akce se volá na ves dopočítanou do dne `day` a patří
  * na konec toho dne. Den před `state.lastDay` → RangeError.
@@ -1311,6 +1312,8 @@ export function startSacredBuilding(
   validateObstacleIds(obstacleIds);
   validateTrees(site.clearedTrees ?? 0);
   validateTakenLand(site.takenLand ?? []);
+  // pokřtěný rod novou modlu ani svatyni nezaloží (stojící a rozestavěné zůstávají)
+  if (rodBaptized(state)) throw new RangeError(PAGAN_PLACES_FORBIDDEN);
   if (kind === 'shrine' && hasShrine(state)) {
     throw new RangeError('Ves už svatyni má – svatyně je jedna na ves.');
   }

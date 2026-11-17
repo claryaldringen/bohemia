@@ -168,7 +168,12 @@ describe('podkoní vede koně z ohrady ke kůlu a zpět (D69)', () => {
     const mid = tt.activity(300, ride(100));
     expect(mid.task?.key.startsWith('groom:') ?? false).toBe(false);
     const job = tt.activity(300, ride(-12)).task?.job;
-    expect(job).toEqual({ kind: 'share', activity: 'horse-care', target: { kind: 'pen', id: 61 } });
+    expect(job).toEqual({
+      kind: 'share',
+      activity: 'horse-care',
+      groom: true,
+      target: { kind: 'pen', id: 61 },
+    });
   });
 });
 

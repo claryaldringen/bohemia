@@ -18,6 +18,8 @@ import { BreakoutButton } from './hud/BreakoutButton';
 import { BuildGrid } from './hud/BuildGrid';
 import { CursorReason } from './hud/CursorReason';
 import { ChurchConfirm } from './hud/ChurchConfirm';
+import { ChurchDimsPanel } from './hud/ChurchDimsPanel';
+import { rememberChurchDims } from '@/lib/church-placement';
 import { FortConfirm } from './hud/FortConfirm';
 import { JourneyCursorNote } from './hud/JourneyCursorNote';
 import { Minimap } from './hud/Minimap';
@@ -454,7 +456,7 @@ export function VillageGame({
               />
               <BuildGrid
                 options={build.options}
-                active={placement.active ? build.placingItem : null}
+                active={placement.active || build.churchDraft ? build.placingItem : null}
                 disabled={scene === null || foundingName}
                 group={buildGroup}
                 extendingVariant={build.extendingVariant}
@@ -496,6 +498,15 @@ export function VillageGame({
                   onConfirm={placement.confirm}
                 />
               ) : null}
+              {build.churchDraft && !placement.active ? (
+                <ChurchDimsPanel
+                  type={build.churchDraft.type}
+                  dims={build.churchDraft.dims}
+                  onDims={build.setChurchDraftDims}
+                  onPlace={build.placeChurchDraft}
+                  onClose={build.closeChurchDraft}
+                />
+              ) : null}
               {placement.active === 'church' && placement.preview?.church ? (
                 <ChurchConfirm
                   type={placement.preview.church.type}
@@ -505,7 +516,10 @@ export function VillageGame({
                       ? null
                       : (placement.preview.check.reason ?? 'Kostel sem postavit nejde.')
                   }
-                  onDims={placement.setChurchDims}
+                  onDims={(next) => {
+                    placement.setChurchDims(next);
+                    if (view) rememberChurchDims(view.id, placement.preview!.church!.type, next);
+                  }}
                   onConfirm={placement.confirm}
                 />
               ) : null}
