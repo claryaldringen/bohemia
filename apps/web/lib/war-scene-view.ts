@@ -12,7 +12,7 @@ import {
   type WorldClock,
 } from '@bohemia/game';
 import type { CampaignView } from './campaign-view';
-import type { ForeignMap } from './foreign-map';
+import type { ForeignMap, ForeignMapTrails } from './foreign-map';
 import { seenVillageOf } from './journey-scene-view';
 import { sceneBattle } from './scene/army';
 import type { SceneWar } from './scene/army-renderer';
@@ -34,6 +34,8 @@ export { warSceneKey } from './server-events/protocol';
 
 /** Odpověď `GET /api/campaign/[id]?map=x,y` – krajina cizí mapy, nebo chyba (404 – mapu nezná). */
 export type ForeignMapResponse = { map: ForeignMap } | { error: string };
+/** Odpověď `?map=<x>,<y>&trails` – jen pokračování stezek cizí mapy (výjezd i tažení). */
+export type ForeignTrailsResponse = { trails: ForeignMapTrails } | { error: string };
 
 /** Cizí mapa ve scéně – tažení a políčko, na kterém jeho vojsko stojí. */
 export interface WatchedMap {

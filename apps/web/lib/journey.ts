@@ -7,6 +7,7 @@ import {
   knownMapFor,
   knownVillagesOf,
   musterExpedition,
+  seenOnCell,
   type ExpeditionCommand,
   type ExpeditionDeps,
   type ExpeditionResult,
@@ -20,7 +21,7 @@ import {
 import { currentWorld, LruCache } from '@bohemia/server';
 import { campaignCells } from './campaign';
 import { gameDeps } from './game';
-import { foreignMapOf, type ForeignMap } from './foreign-map';
+import { foreignMapOf, type ForeignMap, type ForeignMapTrails } from './foreign-map';
 import { encodeLandscape } from './landscape-transfer';
 import { journeyActionForPlayer } from './village';
 
@@ -96,11 +97,14 @@ export function expeditionVisitorsOnVillage(
 /**
  * Krajina políčka `cell` pro hráče s výpravou: jen políčka, na kterých stojí některý z jeho
  * hloučků, a jejich sousedé (8 směrů – kam mohou přejít). Jinak null, ať se nic neprozradí.
+ * Pokračování stezek objevené podle toho, co o mapě ví rod a skupiny (`ExpeditionView.seen`);
+ * `trailsOnly` – jen ono, bez krajiny.
  */
 export async function journeyMapForPlayer(
   playerId: string,
   cell: GridCell,
-): Promise<ForeignMap | null> {
+  trailsOnly = false,
+): Promise<ForeignMap | ForeignMapTrails | null> {
   const views = await expeditionViewsForPlayer(playerId);
   const near = views.some((v) =>
     v.parties.some((p) =>
@@ -108,7 +112,7 @@ export async function journeyMapForPlayer(
     ),
   );
   if (!near) return null;
-  return foreignMapOf(playerId, cell);
+  return foreignMapOf(playerId, cell, seenOnCell(views, cell), trailsOnly);
 }
 
 /**

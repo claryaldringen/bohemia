@@ -13,7 +13,8 @@ import {
 import { decodeLandscape, type LandscapeTransfer } from '@/lib/landscape-transfer';
 import type { ForeignMap } from '@/lib/foreign-map';
 import type { LandscapeScene } from '@/lib/scene/landscape-scene';
-import { withTrailContinuations } from '@/lib/trail-view';
+import { axesKey, withTrailContinuations } from '@/lib/trail-view';
+import { useForeignTrails } from '@/hooks/use-foreign-trails';
 import type { SceneVillage } from '@/lib/village-view-scene-types';
 import type { ForeignMapResponse } from '@/lib/war-scene-view';
 import { GameView } from './GameView';
@@ -140,10 +141,20 @@ export function ForeignJourneyScene({
   useEffect(() => {
     scene?.setJourneyFog(trail ?? []);
   }, [scene, trail]);
+  // mimo mapu rodu a vazala jen objevené části pokračování stezek – s novou stopou se dočtou
+  useForeignTrails(
+    isKnown || friendly ? null : `/api/journey?map=${at}&trails`,
+    landscape !== null,
+    trail?.length ?? 0,
+    (trails) => {
+      setAxes(trails.trailContinuations ?? null);
+      setFriendly(trails.friendly === true);
+    },
+  );
 
   // stavby, jak je muži naposled viděli – scéna se přestaví jen při změně znalosti; bez znalosti
   // prázdná ves (bez vsi scéna výběr klikem – muže výjezdu – nehledá)
-  const seenKey = useMemo(() => `${seenSceneKey(seen)}#${axes?.length ?? 0}`, [seen, axes]);
+  const seenKey = useMemo(() => `${seenSceneKey(seen)}#${axesKey(axes)}`, [seen, axes]);
   const shown = useRef<{ scene: LandscapeScene; key: string; village: SceneVillage } | null>(null);
   useEffect(() => {
     if (!scene || !decoded) return;
