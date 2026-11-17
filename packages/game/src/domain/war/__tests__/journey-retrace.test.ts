@@ -43,10 +43,14 @@ type Closed = (key: string, p: Pos, day: number) => boolean;
 const WALLS: Closed = (key, p) =>
   (key === '0,0' && p.x > 900 && p.z < 0) || (key === '1,0' && Math.abs(p.z) < 20);
 
-/** Mřížky jako worker (`MarchGridMemo`), jen buňky, pro které `closed` platí, jsou neprůchozí. */
+/**
+ * Mřížky jako worker (`MarchGridMemo`), jen buňky, pro které `closed` platí, jsou neprůchozí.
+ * Upravená mřížka podle základu a dne – `closed` smí záviset na dni, kdežto základ mapy bez vsi
+ * je pro všechny dny týž (den v klíči 0).
+ */
 class ClosedGrids extends MarchGridMemo {
   private readonly closed: Closed;
-  private readonly edited = new WeakMap<MarchGrid, MarchGrid>();
+  private readonly edited = new WeakMap<MarchGrid, Map<number, MarchGrid>>();
 
   constructor(closed: Closed) {
     super();
@@ -63,14 +67,19 @@ class ClosedGrids extends MarchGridMemo {
     const base = super.gridOf(landscape, obstacles, state, day, continuations);
     const key = MAP_KEY.get(landscape);
     if (key === undefined) return base;
-    const known = this.edited.get(base);
+    let byDay = this.edited.get(base);
+    if (!byDay) {
+      byDay = new Map();
+      this.edited.set(base, byDay);
+    }
+    const known = byDay.get(day);
     if (known) return known;
     const pace = Float32Array.from(base.pace);
     for (let c = 0; c < pace.length; c++) {
       if (this.closed(key, marchCellCenter(base, c), day)) pace[c] = 0;
     }
     const grid = { ...base, pace };
-    this.edited.set(base, grid);
+    byDay.set(day, grid);
     return grid;
   }
 }
