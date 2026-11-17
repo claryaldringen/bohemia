@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { cloneState } from '../../core/clone';
-import { dogsYear, feedDogs } from '../manor-dogs';
+import { dogsYear } from '../manor-dogs';
 import { emptyHunt, huntDay, huntSeasonIndex, planHuntDay } from '../hunt';
 import { huntFootIds } from '../hunt-party';
 import { lordRides, trainLordDay, updateLordTraining } from '../../people/lord';
@@ -307,7 +307,7 @@ describe('psi hned (recenze W4)', () => {
     const s = huntVillage(3, 0);
     expect(s.wildlife!.dogs).toBeUndefined();
     dogsYear(s, START_WINTER);
-    expect(s.wildlife!.dogs).toEqual({ count: 4, fed: true });
+    expect(s.wildlife!.dogs).toEqual({ count: 4 });
     const before = JSON.stringify(s.wildlife);
     dogsYear(s, START_WINTER + 1);
     expect(JSON.stringify(s.wildlife)).toBe(before);
@@ -331,19 +331,6 @@ describe('determinismus (po kouscích)', () => {
     expect(JSON.stringify(d.state.wildlife?.hunt?.year)).toBe(
       JSON.stringify(a.state.wildlife?.hunt?.year),
     );
-  });
-});
-
-describe('krmení psů dvorce', () => {
-  it('bez obilí a při hladu psi nedostanou a štěňata nepřibudou', () => {
-    const s = huntVillage(3, 4);
-    s.storesKg = 10_000;
-    feedDogs(s, START_WINTER, 10_000, 100);
-    expect(s.wildlife!.dogs!.fed).toBe(true);
-    expect(s.storesKg).toBeCloseTo(10_000 - 1.2, 9);
-    s.hungry = true;
-    feedDogs(s, START_WINTER, 10_000, 100);
-    expect(s.wildlife!.dogs!.fed).toBe(false);
   });
 });
 

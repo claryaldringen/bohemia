@@ -228,7 +228,10 @@ describe('zlatý otisk – výběr dílů a práce vsi k 2. 9.', () => {
     // 152:4c6912f4 (15. 11. 2026, výhled jídla počítá se ztrátami obilí skladováním do žní –
     // fields.md, Přídělový systém): jiný příděl a přežívací zásoba – jiné zásoby a výběr dílů;
     // dřív 148:71cb4ea8
-    expect(fingerprint(plans)).toBe('152:4c6912f4');
+    // 159:d5b34cab (17. 11. 2026, D91 – Martin: „psi ať nic nespotřebovávají“ a maso krávy
+    // 120 → 130 kg): psi dvorce už nejedí obilí a výhled osevu ho nepočítá, větší maso z porážky
+    // mění jídlo a zásoby – jiný výběr dílů; dřív 152:4c6912f4
+    expect(fingerprint(plans)).toBe('159:d5b34cab');
   });
 });
 

@@ -67,7 +67,7 @@ describe('lov a psi na dvorci', () => {
       { icon: 'deer', name: 'Jelení zvěř', count: 1 },
     ],
     meatKg: 140,
-    dogs: { count: 6, wanted: 7, grainKgPerDay: 1.8, fed: true },
+    dogs: { count: 6, wanted: 7 },
   };
 
   it('ikony úlovků s čísly, maso a psi „6 / 7“', () => {
@@ -76,16 +76,8 @@ describe('lov a psi na dvorci', () => {
     expect(text(html, 'hunt-deer')).toBe('1');
     expect(text(html, 'hunt-meat')).toBe('140');
     expect(text(html, 'manor-dogs')).toBe('6 / 7');
-    expect(html).toContain('obilí 1,8 kg za den');
+    expect(html).toContain('Psi dvorce');
     expect(html).not.toContain('data-alert');
-  });
-
-  it('psi bez obilí červeně', () => {
-    const html = renderToStaticMarkup(
-      <ManorHunt hunt={{ ...hunt, dogs: { ...hunt.dogs, fed: false } }} />,
-    );
-    expect(html).toMatch(/data-testid="manor-dogs" data-alert="true"/);
-    expect(html).toContain('jsou bez obilí');
   });
 
   it('dvorec v panelu obydlí nese řádek lovu', () => {

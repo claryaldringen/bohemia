@@ -7,7 +7,6 @@ import type { Landscape } from '../../landscape';
 import { dayMealInput, emergencySlaughter } from '../livestock/emergency-slaughter';
 import { drawGrainPits, settleGrainPits } from '../fields/grain-pits';
 import { feedHorseGrain } from '../livestock/horse-feed';
-import { feedDogs } from '../wildlife/manor-dogs';
 import { dayPartLosses } from '../disasters/disasters';
 import { addSheaves } from '../fields/threshing';
 import { villageLegumesKg } from '../fields/legumes';
@@ -314,8 +313,6 @@ export function eat(
   }
   // obilí koní po lidech – jen co lidem do sklizně zbude navíc (horses.md – Krmení)
   feedHorseGrain(state, day, meal.grainSpareKg, mealInput.daysToHarvest);
-  // a psi dvorce po koních (wildlife.md – Psi)
-  feedDogs(state, day, meal.grainSpareKg, mealInput.daysToHarvest);
   return {
     satiation: meal.diet.satiation,
     energy: meal.diet.energy,

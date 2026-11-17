@@ -209,6 +209,7 @@ describe('ves bez kováře a hrnčíře beze změny (crafts.md – Uhlí a ruda 
     // nesou napřed ženy, na stavby jde jen práce mužů, která zbude; dřív 971d2cb8 (a 96b811ae)
     // hash d30e476f (14. 11. 2026, sloučení zboží vsi s D24): obojí mění práci a jídlo vsi; dřív
     // 12845e84 (zboží bez D24) a 56ec5ab2 (D24 bez zboží)
-    expect(hash(stripped)).toBe('d30e476f');
+    // hash 174f909e (17. 11. 2026, D91 (Martin 17. 11. 2026: „psi ať nic nespotřebovávají“ a maso krávy 120 → 130 kg): psi dvorce už nejedí obilí a z porážky je víc masa – jiné zásoby a jídlo; dřív d30e476f)
+    expect(hash(stripped)).toBe('174f909e');
   }, 120_000);
 });

@@ -125,9 +125,7 @@ export const MANOR_DOGS = {
   perHunter: 1,
   extra: 1,
   max: 8,
-  /** Obilí na psa a den (kg); bez něj smečka nedoroste. */
-  grainKgPerDay: 0.3,
-  /** 1. 5. přibudou nejvýš tolik štěňat do chtěného počtu (jen nakrmená smečka). */
+  /** 1. 5. přibudou nejvýš tolik štěňat do chtěného počtu (psi nic nespotřebovávají). */
   puppiesPerYear: 2,
   /** Úbytek smečky ročně (pes žije ≈ 10 let). */
   lossPerYear: 0.1,

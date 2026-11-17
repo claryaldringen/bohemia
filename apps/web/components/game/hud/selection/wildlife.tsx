@@ -1,7 +1,7 @@
 /** Panel divokého zvířete (druhu), lov a psi dvorce a škoda zvěře na dílu pole. */
 import { type ReactElement } from 'react';
 import type { SelectionDetails } from '@/lib/selection-details';
-import { formatDecimal, formatInteger } from '@/lib/village-format';
+import { formatInteger } from '@/lib/village-format';
 import {
   WILDLIFE_LABELS,
   type FieldDamageView,
@@ -97,16 +97,7 @@ export function ManorHunt({ hunt }: { hunt: HuntView }): ReactElement {
         </Stat>
       )}
       {dogs && (
-        <Stat
-          icon="dog"
-          name={
-            dogs.fed
-              ? `Psi dvorce – obilí ${formatDecimal(dogs.grainKgPerDay, 1)} kg za den`
-              : `Psi dvorce jsou bez obilí – ${formatDecimal(dogs.grainKgPerDay, 1)} kg za den`
-          }
-          testId="manor-dogs"
-          alert={!dogs.fed}
-        >
+        <Stat icon="dog" name="Psi dvorce" testId="manor-dogs">
           {dogs.count} / {dogs.wanted}
         </Stat>
       )}

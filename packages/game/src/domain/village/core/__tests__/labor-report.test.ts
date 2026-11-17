@@ -111,8 +111,8 @@ describe('laborReport – rozdělení práce dne', () => {
   });
 
   it('v létě se na poli plánu žne a odnáší podle sazeb, výmlat jde na humno', () => {
-    // ves založená po 1. 9. seje jen jař – sklízí v srpnu
-    const s = advanceVillage(found(at(600, 10, 1)), at(601, 8, 5), null);
+    // ves založená po 1. 9. seje jen jař – sklízí v srpnu (1. 8. – po D91 ves bez psů v jídle sklidí dřív)
+    const s = advanceVillage(found(at(600, 10, 1)), at(601, 8, 1), null);
     const labor = laborReport(s)!;
     const fieldId = s.fields[0]!.id;
     const reap = of(labor.shares, 'harvest');

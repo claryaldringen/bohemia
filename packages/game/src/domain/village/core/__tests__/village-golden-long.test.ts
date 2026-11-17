@@ -39,8 +39,10 @@ import { goldenWorld, stateFingerprint, YEAR } from './village-golden-fixture';
 // 2d69169517a16319 a 2199edea4fda668a
 // 17. 11. 2026 – D89 (cesty k vchodům, roky chůze, vznik cesty od 2 cest tras za den – viz
 // village-golden.test.ts); dřív 4ae0bce6720eb749 a b6f24d22b7474e65
-const EXPECTED_YEAR_2 = '344a0e5dac68c6b6';
-const EXPECTED_YEAR_3 = '7d8de5be28486665';
+// 17. 11. 2026 – D91 (psi dvorce nejedí obilí, maso krávy 130 kg, včasná porážka koní bez sena –
+// viz village-golden.test.ts); dřív 344a0e5dac68c6b6 a 7d8de5be28486665
+const EXPECTED_YEAR_2 = '306440f7f5b30966';
+const EXPECTED_YEAR_3 = '2e3e180d8e3119dd';
 
 describe('zlatý otisk vsi – delší běh', () => {
   it('po 2. a 3. roce dopočtu dá zapsané otisky', () => {

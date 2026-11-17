@@ -185,9 +185,16 @@ describe('chov den po dni', () => {
   const TO = at(601, 11, 5);
 
   it('dopočet po kouscích dá stejný stav', () => {
-    const whole = advanceVillage(horses(), TO, null);
-    let chunked = horses();
-    for (let day = START + 37; day < TO; day += 37) chunked = advanceVillage(chunked, day, null);
+    // seno na zimu přivezli před 1. 11. (jinak by koně bez sena šli na maso hned – D91)
+    const eve = (s: VillageState): VillageState => {
+      const at31 = advanceVillage(s, at(601, 10, 31), null);
+      at31.hay = { kg: 5_000, mowing: null };
+      return at31;
+    };
+    const whole = advanceVillage(eve(horses()), TO, null);
+    let chunked = eve(horses());
+    for (let day = at(601, 10, 31) + 2; day < TO; day += 2)
+      chunked = advanceVillage(chunked, day, null);
     chunked = advanceVillage(chunked, TO, null);
     expect(chunked).toEqual(whole);
     // hříbata 1. 5. 601 (klisny 3 a 5 – lichá id v lichém roce), kůň 21 let 1. 11. na maso

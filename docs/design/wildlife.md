@@ -226,8 +226,9 @@ kde to nestačí.
 
 - **Kdo je chová:** **dvorec** – lovečtí psi rodu. Chce **1 psa na lovce rodu + 1**, nejvýš 8.
   Psi pasáků jsou dál jen v číslech pasení ([strava](diet.md) – Pasáci), hra je nevede.
-- **Krmení:** **0,3 kg obilí denně na psa** (≈ 110 kg ročně; zbytek kryjí droby a kosti z porážky
-  a úlovků – návrh). Bez obilí smečka nedoroste.
+- **Krmení:** **psi nic nespotřebovávají** (Martin 17. 11. 2026: „Jo a psi ať nic nespotřebovávají“)
+  – žádné obilí, štěňata přibývají do chtěného počtu vždy. Dřív 0,3 kg obilí denně na psa a bez
+  obilí smečka nedoroste – zrušeno.
 - **Počet:** existující dvorec bez smečky ji **založí hned** (návrh Clauda, oprava po recenzi:
   první zima se psy, ne až po 1. 5.) na chtěný počet; dál k 1. 5. přibudou nejvýš **2 štěňata** do počtu, který dvorec chce, ubude **10 %**
   ročně (pes žije ≈ 10 let). Péče je bokem (rodina).
@@ -383,12 +384,12 @@ kde to nestačí.
   přesné počty kusů (jelen 2 · laň 5) hráč nevidí.
 - **Panel dvorce:** tlačítko **lov navíc** (výš), řádek lovu – ikony úlovků letos s čísly a maso
   v kg; **psi** – ikona psa
-  „6 / 7“ (v popisku obilí psů za den, červeně bez obilí).
+  „6 / 7“ (bez obilí a bez varování).
 - **Panel dílu pole:** ikona prasete a **škoda letos v %** (červeně od 10 %), ikona ohně, když se
   díl hlídá; v popisku vzdálenost k lesu.
 - **Horní lišta:** nic nového (maso a obilí už ukazuje).
 - **Upozornění:** „Divoká prasata ničí úrodu“ (škoda letos nad 5 % úrody polí u lesa), „Vlci
-  strhávají dobytek“ (2 kusy za 30 dní), „Psi jsou bez obilí“.
+  strhávají dobytek“ (2 kusy za 30 dní); „Psi jsou bez obilí“ zrušeno 17. 11. 2026.
 - **Kronika:** úlovek rodu se jménem („Bořivoj ulovil divočáka“), ulovený medvěd nebo vlk, zranění
   na lovu, souhrn škod po žních („Zvěř zničila 640 kg obilí“), strhnutý dobytek, „Medvěd se vrátil“.
 
@@ -435,7 +436,7 @@ kde to nestačí.
 | Škoda 1. 6. – sklizeň: prase 1 kg, jelen 0,6 kg denně; váha 1 do 50 m od lesa, 0 od 250 m; nejvýš 50 % dílu                              | návrh Clauda (rešerše)                                 |
 | Vlčí díl dosavadních ztrát stáda (3 / 3 / 2 / 1 %) podle počtu vlků; liška 2 % vajec                                                     | návrh Clauda                                           |
 | Jezdecká hlídka do 60 %, noční hlídka vesničanů −60 % za 0,3 čd na 5 ha, kde hrozí ≥ 10 %                                                | návrh Clauda                                           |
-| Smečka dvorce 1 pes na lovce + 1 (nejvýš 8), 0,3 kg obilí denně                                                                          | návrh Clauda                                           |
+| Smečka dvorce 1 pes na lovce + 1 (nejvýš 8), od 17. 11. 2026 bez obilí                                                                   | návrh Clauda                                           |
 | Velký lov listopad–únor každý 7. den jako výcvik; akumulátor úlovku; jeleni ne laně                                                      | návrh Clauda                                           |
 | Při hladu jde chytání ryb a ok před stavby (výjimka z „zbytku práce“)                                                                    | Martin 26. 10. 2026: „Ano, nech to tak“                |
 | Roční kvóta ryb a zajíců podle přírůstku (ryby nejvýš ¼ stropu, nad ½ stropu); maso z nich čerstvé                                       | návrh Clauda                                           |
@@ -451,7 +452,7 @@ kde to nestačí.
 | Velká zvěř jako porážka (1 člověkoden na 20 kg masa, pak uzení); ryby a zajíci čerstvé bez práce navíc                                   | Martin (26. 10. 2026: „Souhlasím se všemi návrhy“)     |
 | Psi vždy k pěším lovcům od nejsilnějšího; medvěd jen na každý druhý listopadový lov, všichni pěšky (ať listopad neztratí lov na prasata) | návrh Clauda                                           |
 | Jelen se loví, je-li ho před úlovkem aspoň ⅓ počtu laní; laně jen nad stropem; úlovek se dělí stavem ÷ strop (nejvýš 1)                  | návrh Clauda                                           |
-| Smečka bez obilí nedoroste (štěňata jen z nakrmené); psi jedí až po lidech a koních                                                      | návrh Clauda                                           |
+| (zrušeno 17. 11. 2026) smečka bez obilí nedoroste; psi jedí až po lidech a koních                                                        | návrh Clauda                                           |
 
 ## Odpovědi Martina (24. 10. 2026)
 
