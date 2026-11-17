@@ -321,7 +321,8 @@ něj (průměrně ≈ 20 taktů za kolo místo jednoho), u nájezdu ještě v **
   zahodí, skončená tažení se zapomenou na konci kola. Výsledek je tentýž (po kouscích = vcelku);
   zápis bodu, `CampaignLock`, bariéra a `outbox` beze změny – bod se ukládá stejně často.
 - **Mřížky pochodu napříč koly** (`MarchGridMemo` v `domain/war/march-grid.ts`,
-  `CampaignWorld.grids`): klíč = identita krajiny, překážek a stavu vsi a den – čtyři naposledy
+  `CampaignWorld.grids`): klíč = identita krajiny, překážek a stavu vsi, os pokračování a den
+  (mapa bez vsi na dni nezávisí – den 0, staví se jednou; závěrečná revize A – M3) – čtyři naposledy
   použité dny, vyhazuje se nejdéle nepoužitý (ne nejmenší: tažení o den pozadu by svou mřížku
   stavělo při každém dotazu – měřeno 13. 11. 2026, dvě tažení o den posunutá: 205 → 6 staveb mřížky
   na 800 dotazů, 1,2 s → 36 ms).
@@ -544,4 +545,19 @@ cíle (17. 11. 2026, báze i „po“ měřené po sobě na klidném stroji):
   při mřížce (`settledGoals`) – první takt tažení se při dočítání dat počítá až 4× a skupiny na
   témž místě se ptají stejně. Zbylý rozdíl proti bázi je první úsek hustým lesem (≈ 2,7 ms).
 - Pochod 1 zůstává ≈ 1,7× pomalejší (jemná mřížka 768 × 768), ostatní scénáře v mezi.
-- Paměť: +63 MB proti bázi (mez návrhu Clauda 150 MB); `MEMO_DAYS` zůstává 4.
+- Paměť: +63 MB proti bázi (mez návrhu Clauda 150 MB); `MEMO_DAYS` zůstává 4. Mřížka mapy bez
+  vsi má v paměti den 0 (na dni nezávisí – závěrečná revize A – M3), staví se jednou, ne každý den.
+- **Cena uvízlé entity** (závěrečná revize A – I1, odhad z měření výš, neměřeno zvlášť): skupina
+  na návratu nebo výprava, která domů nedojde ani „kudy přišla“, stojí a tažení či výprava
+  neskončí – tažení končí jen po `allArrived`, velitel nedezertuje, výprava nemá jídlo ani dezerci
+  a žije do nového rozkazu hráče. Worker ji dál počítá takt po taktu: 344 taktů dne × ≈ 0,3–0,9 ms
+  (`cloneData` celého stavu), jednou denně pokus o cestu (≈ 5 ms, s novou mřížkou ≈ 70 ms),
+  u výpravy mřížka dne pro šelmy a domovská ves zůstane vzhůru (`homeDay` – stav vsi na každý
+  den). Celkem ≈ 0,15–0,4 s na herní den: ve skutečném čase ≈ 0,2–0,5 % jádra na entitu, při
+  dopočtu po nepřítomnosti ≈ 40–110 s na herní rok; před větví 0 (uvíznutí přeneslo domů).
+  **Proč se počítá:** „Vrátit se, kudy přišla“ (Martin 17. 11. 2026) – skupina zkouší cestu domů
+  každý herní den a dojde, jakmile ji otevře stezka; den pokusu i ostatní dění taktu (čekání,
+  dotazy varování, boj) musí přijít v pořadí taktů. Rychlá cesta – takty dne uvíznutí přeskočit
+  bez kopie stavu, mají-li všechny pohyblivé skupiny `stuckDay` dne a takt žádné záměry – je
+  odložená (plán 2026-11-16-dense-forest – Mimo plán); do té doby sledovat počet uvízlých entit,
+  roste s hráči, kteří výpravu nechají stát.

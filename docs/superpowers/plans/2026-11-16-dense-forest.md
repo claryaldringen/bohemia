@@ -833,3 +833,8 @@ Souběžně s Úlohou 6 smí – jiné soubory kromě `docs/code/war.md` (jiné 
 - Pěšiny vsi jako průchod hustým lesem – jen po otázce z pravidla brány 4.
 - Objížďka okrajem – podle odpovědi Martina (Úloha 5, Krok 6).
 - Útěk po síti pěšin ve scéně – uprchlíci jdou ve scéně rovně od domu k dveřím lesa jako dnes.
+- Rychlá cesta dne uvíznutí (`stepCampaign` / `stepJourney`) – závěrečná revize A – I1 (odloženo):
+  mají-li všechny pohyblivé skupiny `stuckDay` dne a takt žádné záměry, posunout takt rovnou na
+  první takt dalšího dne bez kopie stavu; napřed ověřit, že v taktu dne nic jiného neběží (čekání
+  `arrivedTick`, dotazy varování, boj). Cena do té doby: `docs/code/worker.md` – Hustý les v mřížce
+  pochodu, Cena uvízlé entity.
