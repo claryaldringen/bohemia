@@ -48,11 +48,15 @@ import { advanceChunked, goldenWorld, stateFingerprint, YEAR } from './village-g
 // místo (`near`), zarostlé cesty konce (`ends`, `part`) a opuštěné kusy pod stavbou konce cesty
 // z řezu (`Road.formerEnds`) – jen nová pole záznamů a úseků; stav bez nich má týž otisk jako dřív
 // (7d3b0f17cb6b855b)
+// 17. 11. 2026 – D90 (Martin: u sklizně zásoba a na jak dlouho vystačí, u narození a úmrtí počet
+// obyvatel): zápisy `harvest`, `apple-harvest`, `garden-harvest`, `birth` a `death` nesou nová
+// pole (`stock`, `population`) – simulace se nezměnila, jen kronika; dřív ce5c6d3603f17799,
+// se samotnou D90 c0d4e117d27f858b
 // 17. 11. 2026 – D89: cesta k vchodu uvnitř plochy staveb nevzniká dokola (jiné cesty a zápisy
-// kroniky), roky chůze podle tras po cestě a cesta se vyšlape jen tam, kde se chodí aspoň 2× denně
-// (Martin: „Nejvýš do 3 let“ – `WEAR.formFrom`); dřív ce5c6d3603f17799, po samotné opravě
-// cest k vchodům a roků chůze 751bb1774df01b74
-const EXPECTED_YEAR_1 = 'd7228fe8ec037276';
+// kroniky), roky chůze podle tras po cestě a cesta se vyšlape jen tam, kde trasy vedou aspoň
+// 2 cesty za den – práce vznik neurychlí (Martin: „Nejvýš do 3 let“ – `WEAR.formFrom`); se
+// samotnou D89 f6940655ec1a866e
+const EXPECTED_YEAR_1 = '619b02b6a1c512e2';
 
 describe('zlatý otisk vsi', () => {
   const world = goldenWorld();

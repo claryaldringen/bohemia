@@ -526,14 +526,18 @@ describe('advanceVillage – roční plán a sklizeň', () => {
   it('31. 8. se jí ještě z loňských zásob: malá sklizeň hlad nepřeruší (Ruling 13)', () => {
     const s = advanceVillage(hungryBeforeHarvest(10), at(600, 9, 2), null);
     // úroda bez odečtu osiva – osivo vzalo setí (fields.md – Úroda, Osivo ze zásob)
-    expect(harvests(s)).toEqual([{ day: at(600, 8, 31), kind: 'harvest', kg: 140 }]);
+    expect(harvests(s)).toEqual([
+      expect.objectContaining({ day: at(600, 8, 31), kind: 'harvest', kg: 140 }),
+    ]);
     expect(hungerEvents(s)).toEqual([]);
     expect(s.hungry).toBe(true);
   });
 
   it('sklizeň, která vystačí na rok, ukončí hlad až 1. 9. (Ruling 13)', () => {
     const s = advanceVillage(hungryBeforeHarvest(START_PARTS), at(600, 9, 2), null);
-    expect(harvests(s)).toEqual([{ day: at(600, 8, 31), kind: 'harvest', kg: 1052 }]);
+    expect(harvests(s)).toEqual([
+      expect.objectContaining({ day: at(600, 8, 31), kind: 'harvest', kg: 1052 }),
+    ]);
     expect(hungerEvents(s)).toEqual([{ day: at(600, 9, 1), kind: 'hunger-ended' }]);
     expect(s.hungry).toBe(false);
   });

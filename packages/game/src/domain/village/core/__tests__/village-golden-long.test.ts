@@ -35,10 +35,12 @@ import { goldenWorld, stateFingerprint, YEAR } from './village-golden-fixture';
 // 15. 11. 2026 – D66 a D67: jen nová pole záznamů kroniky a opuštěných úseků (`near`, `ends`,
 // `part`, `Road.formerEnds`); stav bez nich má týž otisk jako dřív (2e53d16e130cecd7,
 // cb4fa09a11e5ad7e)
-// 17. 11. 2026 – D89 (cesty k vchodům, roky chůze, vznik cesty od 2 cest za den – viz
+// 17. 11. 2026 – D90: nová pole zápisů kroniky (`stock`, `population`); se samotnou D90
+// 2d69169517a16319 a 2199edea4fda668a
+// 17. 11. 2026 – D89 (cesty k vchodům, roky chůze, vznik cesty od 2 cest tras za den – viz
 // village-golden.test.ts); dřív 4ae0bce6720eb749 a b6f24d22b7474e65
-const EXPECTED_YEAR_2 = 'b558849d241f84f7';
-const EXPECTED_YEAR_3 = '1ff9ddfd5efc924e';
+const EXPECTED_YEAR_2 = '344a0e5dac68c6b6';
+const EXPECTED_YEAR_3 = '7d8de5be28486665';
 
 describe('zlatý otisk vsi – delší běh', () => {
   it('po 2. a 3. roce dopočtu dá zapsané otisky', () => {

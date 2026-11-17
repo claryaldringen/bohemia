@@ -154,13 +154,25 @@ export interface LastingNoticeState {
   off?: number;
 }
 
+/**
+ * Zásoba po sklizni v kronice (kronika – Martin 17. 11. 2026: „kolik té plodiny má vesnice celkem
+ * a na jak dlouho to vystačí při současném počtu obyvatel“): `kg` – kolik té potraviny má ves po
+ * sklizni, `days` – na kolik dní vystačí při `people` lidech (`stockLastsDays`); null – nikdo z ní
+ * nejí. Starší zápisy ji nemají.
+ */
+export interface HarvestStock {
+  kg: number;
+  days: number | null;
+  people: number;
+}
+
 export type ChronicleEvent = { day: number } & (
   | { kind: 'village-founded' }
   /**
    * Narodilo se dítě (population.md – Jména): jméno a pohlaví (`female`); syn vojvody, který čeká
    * na jméno od hráče, a starší zápisy bez jména.
    */
-  | { kind: 'birth'; name?: string; female?: true }
+  | { kind: 'birth'; name?: string; female?: true; population?: number }
   /** Vojvodovi se narodil syn (lord.md – Rod vojvody) – čeká na jméno od hráče. */
   | { kind: 'line-birth' }
   /** Hráč pojmenoval muže rodu (lord.md – Jména) – jméno je trvalé. */
@@ -378,6 +390,8 @@ export type ChronicleEvent = { day: number } & (
       personId?: number;
       /** Postavení a pohlaví zemřelého v den smrti (`chronicleEstate`); starší zápisy bez něj. */
       estate?: ChronicleEstate;
+      /** Počet obyvatel vsi po úmrtí (Martin 17. 11. 2026); starší zápisy bez něj. */
+      population?: number;
     }
   /** Zemřel poslední člověk – ves vymřela (population.md – Hlad a vymření). */
   | { kind: 'village-extinct' }
@@ -501,15 +515,15 @@ export type ChronicleEvent = { day: number } & (
    * Sklizeň – plodina, když ves seje ozim i jař (ozim v červenci, jař v srpnu); bez ní jen jař
    * (ves bez ozimu, starší sklizně). `legume` – luštěniny (kg do zásoby luštěnin, ne obilí).
    */
-  | { kind: 'harvest'; kg: number; crop?: Crop }
+  | { kind: 'harvest'; kg: number; crop?: Crop; stock?: HarvestStock }
   /** Konec sklizně jablek (1. 11.) – kolik kg se sklidilo. */
-  | { kind: 'apple-harvest'; kg: number }
+  | { kind: 'apple-harvest'; kg: number; stock?: HarvestStock }
   /**
    * Sklizeň zahrádek u obydlí (31. 7. – fields.md, Zahrádka u obydlí): souhrn za ves – kg čistých
    * luštěnin (do zásoby luštěnin); `flaxKg` – třený len jen v zápisech z doby lnu na zahrádkách
    * (do 9. 11. 2026).
    */
-  | { kind: 'garden-harvest'; legumeKg: number; flaxKg?: number }
+  | { kind: 'garden-harvest'; legumeKg: number; flaxKg?: number; stock?: HarvestStock }
   /**
    * Při trhání lnu (31. 7.): ves sklidila jen `kg` třeného lnu z `neededKg`, které potřebuje na
    * oděv (fields.md – Len, diet.md – Oděv).
