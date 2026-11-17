@@ -21,10 +21,13 @@ import {
   pollVillage,
   query,
   readyScene,
+  trailAxes,
   villageSpots,
   villageState,
   withBuiltFirstDwelling,
+  withTrail,
   writeVillageState,
+  type CrossingMap,
 } from './village-helpers';
 // nájezd na ves s palisádou s ochozem (plán hradeb – Úloha 22), test na konci souboru
 import {
@@ -37,6 +40,8 @@ import {
   startFortification,
   villageFortifications,
   villageGate,
+  GRID_STEPS,
+  type Direction8,
   type Fighter,
 } from '@bohemia/game';
 
@@ -1624,24 +1629,39 @@ test('ves B varovaná utíká do hradiště pána a po odtažení vojska se vrá
   const homeC = dc.plot?.square
     ? { x: dc.plot.square.x, z: dc.plot.square.z }
     : { x: dc.position.x, z: dc.position.z };
-  const stateB0 = await villageState(seatB.settlementId);
+  const stateB0 = withBuiltFirstDwelling(await villageState(seatB.settlementId));
   const mapB = { cell: placeB.cell, landscape: seatB.landscape, state: stateB0 };
-  const gateB = villageGate(stateB0, seatB.landscape);
-  const stateC0 = await villageState(seatC.settlementId);
-  const dir = [
-    { x: -1, y: 0 },
-    { x: 1, y: 0 },
-    { x: 0, y: -1 },
-    { x: 0, y: 1 },
-  ].find((d) => {
-    const cell = { x: placeB.cell.x + d.x, y: placeB.cell.y + d.y };
-    return (
-      free(cell.x, cell.y) &&
-      crossesTo(mapB, gateB, { cell, landscape: seatC.landscape, state: stateC0 }, homeC)
-    );
+  const mapCAt = (cell: { x: number; y: number }): CrossingMap => ({
+    cell,
+    landscape: seatC.landscape,
+    state: builtC,
   });
-  if (!dir) throw new Error('Mapa C nenavazuje na mapu B z žádné volné strany.');
-  const cellC = { x: placeB.cell.x + dir.x, y: placeB.cell.y + dir.y };
+  const sides = (Object.keys(GRID_STEPS) as Direction8[])
+    .filter((d) => d.length === 1)
+    .map((d) => ({
+      d,
+      cell: { x: placeB.cell.x + GRID_STEPS[d].x, y: placeB.cell.y + GRID_STEPS[d].y },
+    }))
+    .filter(({ cell }) => free(cell.x, cell.y));
+  let side = sides.find(({ cell }) =>
+    crossesTo(mapB, villageGate(stateB0, seatB.landscape), mapCAt(cell), homeC),
+  );
+  // kam náhodný hustý les cestu zavře, otevře ji zemská stezka B (Martin 17. 11. 2026 – „Cestu
+  // otevře až stezka“): průsek lesem ke kraji mapy B a pokračování na mapě C k brance dvorce
+  let trail: Direction8 | null = null;
+  for (const s of side ? [] : sides) {
+    const withB = withTrail(stateB0, s.d, seatB.landscape);
+    if (!withB) continue;
+    const from = { ...mapB, state: withB };
+    const axes = trailAxes(from, mapCAt(s.cell));
+    if (crossesTo(from, villageGate(withB, seatB.landscape), mapCAt(s.cell), homeC, axes)) {
+      side = s;
+      trail = s.d;
+      break;
+    }
+  }
+  if (!side) throw new Error('Mapa C nenavazuje na mapu B z žádné volné strany ani se stezkou.');
+  const cellC = side.cell;
   await query(`UPDATE settlement SET grid_x = $2, grid_y = $3 WHERE id = $1`, [
     seatC.settlementId,
     cellC.x,
@@ -1676,7 +1696,8 @@ test('ves B varovaná utíká do hradiště pána a po odtažení vojska se vrá
     seg.state = 1;
   }
   await writeVillageState(seatC.settlementId, stateC);
-  const stateB = withBuiltFirstDwelling(await villageState(seatB.settlementId));
+  const builtB = withBuiltFirstDwelling(await villageState(seatB.settlementId));
+  const stateB = (trail && withTrail(builtB, trail, seatB.landscape)) || builtB;
   await writeVillageState(seatB.settlementId, stateB);
   await pollVillage(b);
   await pollVillage(c);
@@ -1731,6 +1752,7 @@ test('ves B varovaná utíká do hradiště pána a po odtažení vojska se vrá
     },
     world,
   );
+  const dir = GRID_STEPS[side.d];
   const seenCell = { x: placeB.cell.x - 3 * dir.x, y: placeB.cell.y - 3 * dir.y };
   // vesničan doběhne za 2 s – upozornění pošle tažení (worker)
   const warnTick = tick + 8;

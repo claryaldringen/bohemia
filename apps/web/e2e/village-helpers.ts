@@ -11,9 +11,11 @@ import {
 import {
   checkDwellingPlacement,
   checkPlotPlacement,
+  continuationsOf,
   directionBetween,
   edgeCrossing,
   fieldPartsFromCells,
+  finishTrail,
   generateLandscapeAttempt,
   marchCellAt,
   marchCellCenter,
@@ -23,11 +25,17 @@ import {
   marchReachable,
   nearestPassable,
   obstaclesOf,
+  planTrail,
+  startTrail,
   surfaceAt,
   tileCenterWorld,
   tileOfWorldPoint,
+  trailEntriesOf,
+  trailExitsOf,
   villageGate,
+  type Direction8,
   type DwellingPlot,
+  type RoadPoint,
   type Pos,
   type Landscape,
   type LayerVersions,
@@ -63,14 +71,24 @@ export interface CrossingMap {
  * Testy, které sídlo posunou na sousední políčko, si tak vyberou stranu, kde mapy navazují:
  * krajiny vznikly pro jiná políčka a hustý les na okraji je neprůchodný. S cílem `goal` na mapě
  * `to` jen do oblasti, odkud k němu cesta vede (jako `planMoverLeg` na mapě cíle – průvod do
- * hradiště vyrazí, jen když cesta vede až tam: Martin 17. 11. 2026, „Utéct do lesa“).
+ * hradiště vyrazí, jen když cesta vede až tam: Martin 17. 11. 2026, „Utéct do lesa“). Osy
+ * pokračování stezek na mapě `to` (`trailAxes`) dá `continuations`.
  */
-export function crossesTo(from: CrossingMap, pos: Pos, to: CrossingMap, goal?: Pos): boolean {
+export function crossesTo(
+  from: CrossingMap,
+  pos: Pos,
+  to: CrossingMap,
+  goal?: Pos,
+  continuations?: readonly (readonly RoadPoint[])[],
+): boolean {
   const direction = directionBetween(from.cell, to.cell);
   if (direction === null) return false;
   const day = from.state.lastDay;
   const here = marchGrid(from.landscape, obstaclesOf(from.landscape), from.state, { day });
-  const there = marchGrid(to.landscape, obstaclesOf(to.landscape), to.state, { day });
+  const there = marchGrid(to.landscape, obstaclesOf(to.landscape), to.state, {
+    day,
+    ...(continuations ? { trailContinuations: continuations } : {}),
+  });
   const near = goal === undefined ? -1 : nearestPassable(there, marchCellAt(there, goal), Infinity);
   const area = near < 0 ? 0 : marchArea(there, near);
   const path = marchPathToEdge(here, pos, direction, (c) => {
@@ -78,6 +96,39 @@ export function crossesTo(from: CrossingMap, pos: Pos, to: CrossingMap, goal?: P
     return there.pace[t]! > 0 && (goal === undefined || marchArea(there, t) === area);
   });
   return path !== null;
+}
+
+/**
+ * Ves `state` s hotovou zemskou stezkou ve směru `direction` – zápis jako po letech práce (jako
+ * obchod ve village.spec.ts), dostavěná den před `lastDay`: kusy ke kraji a pokračování na sousední
+ * mapě platí až ode dne po dostavění (`edgePieces`, `continuationsOf`). Martin 17. 11. 2026 –
+ * „Cestu otevře až stezka“: test, kterému náhodný hustý les cestu zavře, si ji otevře stezkou.
+ * Nejde-li stezka postavit (`planTrail`), null.
+ */
+export function withTrail(
+  state: VillageState,
+  direction: Direction8,
+  landscape: Landscape,
+): VillageState | null {
+  const obstacles = obstaclesOf(landscape);
+  const day = state.lastDay;
+  if (!planTrail(state, direction, day, landscape, obstacles).ok) return null;
+  const next = startTrail(state, day, direction, landscape, obstacles);
+  const trail = next.trails!.find((t) => t.direction === direction)!;
+  const site = next.constructions.find((c) => c.trail === trail.id);
+  if (site) finishTrail(next, site, day - 1);
+  trail.builtDay = day - 1;
+  next.constructions = next.constructions.filter((c) => c.trail !== trail.id);
+  return next;
+}
+
+/** Osy pokračování hotových stezek vsi mapy `from` na mapě `to` – jako server (`continuationsOf`). */
+export function trailAxes(from: CrossingMap, to: CrossingMap): readonly (readonly RoadPoint[])[] {
+  const trailEntries = trailEntriesOf(to.cell, [
+    { cell: from.cell, exits: trailExitsOf(from.state) },
+  ]);
+  const map = { landscape: to.landscape, obstacles: obstaclesOf(to.landscape), trailEntries };
+  return continuationsOf(map, to.state, from.state.lastDay);
 }
 
 /**

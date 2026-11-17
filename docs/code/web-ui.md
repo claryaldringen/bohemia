@@ -441,7 +441,12 @@ villageId)`. Z levných otisků (`stampsOf` – `last_day`, `asleep`) se dopočt
   odkud k němu cesta vede – průvod do hradiště, kam cesta nevede, nevyrazí). **Návrat zápisem:**
   skupinu na návratu test staví jen tam, odkud cesta domů vede (`homeSpot` – návrat cíl domů
   neposouvá a domů se nepřenese, Martin 17. 11. 2026; náhodně odříznutá ves nesmí e2e rozbít –
-  „Cestu otevře až stezka“). **Opakování dne** (`replayFrom`
+  „Cestu otevře až stezka“); `placeReturning` přestaví i skupinu, která na domovskou mapu došla
+  sama, ale uvízla v kapse (`stuckDay`, `retrace`), a den uvíznutí smaže vždy (jinak ten den úsek
+  z nového místa nehledá – v pomalém světě e2e by stála hodiny; totéž `placeJourney`). **Stezka
+  v přípravě:** nenavazuje-li mapa hradiště z žádné volné strany, test postaví zápisem hotovou
+  zemskou stezku k ní (`withTrail`) a přechod ověří s osami pokračování na mapě hradiště
+  (`trailAxes` – jako server). **Opakování dne** (`replayFrom`
   v `multiplayer-war.spec.ts`): napřed přesunout události schránky na dnešek, pak zapsat stav –
   zápis stavu ohlásí ves otevřené hře a její dotaz den hned dopočítá (události ještě na zítřku by
   minul).
