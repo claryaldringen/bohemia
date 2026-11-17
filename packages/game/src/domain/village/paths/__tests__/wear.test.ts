@@ -244,19 +244,46 @@ describe('vyšlapanost – sčítání po intervalech', () => {
     expect(wear.day).toBe(1);
   });
 
-  it('stálá část tras za prací (base) vyšlape cestu i bez práce – pole za ≤ 1 700 dní', () => {
+  it('stálá část tras za prací (base) vyšlape cestu i bez práce – pole za ≤ 1 000 dní', () => {
     const field = trafficField(
-      routesOf([{ ...route(0, 0, 20, 160, { to: 'field:1', purpose: 'work' }), base: 160 }]),
+      routesOf([{ ...route(0, 0, 20, 220, { to: 'field:1', purpose: 'work' }), base: 220 }]),
       CELL,
     );
     const wear = emptyWear();
-    settle(wear, field, 0, 1700);
+    settle(wear, field, 0, 1000);
     expect(wearOfCell(wear, 10, 0)).toBeGreaterThanOrEqual(WEAR.roadAt);
+    // pod 2 cesty denně cesta nevznikne (Martin 17. 11. 2026)
+    const rare = trafficField(
+      routesOf([{ ...route(0, 0, 20, 160, { to: 'field:1', purpose: 'work' }), base: 160 }]),
+      CELL,
+    );
+    const slow = emptyWear();
+    settle(slow, rare, 0, 5000);
+    expect(wearOfCell(slow, 10, 0)).toBeLessThan(WEAR.roadAt);
     // práce dne se nepřičítá dvakrát: base 160 + práce jen navíc podle podílu cíle
     const busy = emptyWear();
     busy.labor = [{ target: { kind: 'field', id: 1 }, manDays: 10 }];
     settle(busy, field, 0, 1);
-    expect(wearOfCell(busy, 10, 0)).toBe(60 + 1000);
+    expect(wearOfCell(busy, 10, 0)).toBe(120 + 1000);
+  });
+
+  it('práce na políčko s provozem pod 2 cesty denně nic nemění – cesta nevznikne ani s prací', () => {
+    const field = trafficField(
+      routesOf([{ ...route(0, 0, 20, 160, { to: 'field:1', purpose: 'work' }), base: 160 }]),
+      CELL,
+    );
+    const labor = (): RoadWear['labor'] => [{ target: { kind: 'field', id: 1 }, manDays: 10 }];
+    const daily = emptyWear();
+    for (let d = 0; d < 3_000; d++) {
+      daily.labor = labor();
+      settle(daily, field, d, d + 1);
+    }
+    expect(wearOfCell(daily, 10, 0)).toBeLessThan(WEAR.roadAt);
+    // tentýž stav jedním intervalem: také pod mezí (nezávisí na kouscích dopočtu)
+    const once = emptyWear();
+    once.labor = labor();
+    settle(once, field, 0, 3_000);
+    expect(wearOfCell(once, 10, 0)).toBeLessThan(WEAR.roadAt);
   });
 
   it('trasa za prací bez base (starší stav) vyšlapanost sama nenese', () => {

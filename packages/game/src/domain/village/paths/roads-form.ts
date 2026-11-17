@@ -406,7 +406,7 @@ export function plannedAxis(
  * Kam se konec nové cesty připojí k pevné cestě (do `reach`): u konce pevné cesty do jejího konce
  * (`hit` null), jinak do nejbližšího bodu osy (na cm) – tam se pevná cesta rozdělí. Nic nemění.
  */
-function joinTarget(
+export function joinTarget(
   roads: VillageRoads,
   from: RoadPoint,
   reach: number,

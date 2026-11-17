@@ -318,3 +318,33 @@ describe('vyšlapanost v simulaci (s krajinou)', () => {
     expect(trodden.some((w, k) => w < bare[k]!)).toBe(true);
   }, 60_000);
 });
+
+describe('vyšlapanost – cesta vznikne jen tam, kde se chodí aspoň 2× denně (Martin 17. 11. 2026)', () => {
+  const settle = (trips: number, days: number): number => {
+    const wear: RoadWear = { day: 0, cells: '', labor: [] };
+    const field = trafficField({ key: `k-form-${trips}`, list: [route(0, 0, 20, trips)] }, CELL);
+    settleWear(wear, field, 0, days);
+    return wearAt(wearMap(wear), 0, 0);
+  };
+
+  it('provoz 1,5 cesty denně: vyšlapanost nedosáhne meze vzniku nikdy (ani za 100 000 dní)', () => {
+    expect(settle(150, 100_000)).toBe(WEAR.roadAt - 1);
+    expect(settle(199, 100_000)).toBeLessThan(WEAR.roadAt);
+  });
+
+  it('provoz 2 cesty denně: mez vzniku za 1 000 dní', () => {
+    expect(settle(200, 999)).toBeLessThan(WEAR.roadAt);
+    expect(settle(200, 1_000)).toBe(WEAR.roadAt);
+  });
+
+  it('už vyšlapané políčko si vyšlapanost drží podle dosavadních pravidel', () => {
+    const wear: RoadWear = { day: 0, cells: '', labor: [] };
+    const field = trafficField({ key: 'k-form-kept', list: [route(0, 0, 20, 150)] }, CELL);
+    settleWear(wear, field, 0, 10);
+    const cells = new Map(wearMap(wear));
+    cells.set(wearCellAt(0, 0), WEAR.roadAt + 5_000);
+    const kept: RoadWear = { day: 10, cells: encodeWear(cells), labor: [] };
+    settleWear(kept, field, 10, 20);
+    expect(wearAt(wearMap(kept), 0, 0)).toBe(WEAR.roadAt + 5_000 + 50 * 10);
+  });
+});
