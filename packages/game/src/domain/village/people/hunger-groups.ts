@@ -78,8 +78,11 @@ export function hungerSplit(state: VillageState, day: number): HungerSplit {
  * Energie skupin (0–1), když se z potřeby `needs` jí `ratio` celé potřeby vsi: skupiny dostanou
  * plný příděl v pořadí přednosti, dokud jídlo vyjde; skupina, na kterou celý nevyjde, si rozdělí
  * zbytek rovným dílem, nižší skupiny nic. Skupina bez potřeby má plno (nikdo v ní nehladoví).
+ * Při `ratio` ≥ 1 dostanou všechny přesně 1 – odečítání po skupinách by v plovoucí čárce u poslední
+ * skupiny mohlo dát 0,9999999999999999 a sytá ves by se od dřívějšího výpočtu lišila.
  */
 export function priorityEnergy(ratio: number, needs: readonly number[]): number[] {
+  if (ratio >= 1) return needs.map(() => 1);
   let left = Math.max(0, ratio) * needs.reduce((sum, n) => sum + n, 0);
   return needs.map((need) => {
     if (need <= 0) return 1;
