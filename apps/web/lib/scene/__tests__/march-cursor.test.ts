@@ -1,13 +1,22 @@
 import { describe, expect, it } from 'vitest';
 import {
   MARCH_FOREST,
+  SURFACE_CODES,
   generateLandscape,
   marchCellCenter,
   obstaclesOf,
   type ClearedForest,
+  type Landscape,
   type MarchGrid,
 } from '@bohemia/game';
-import { browserMarchGrid, cursorBlocked, edgeReachable } from '../march-cursor';
+import type { SceneRoad } from '../../village-view';
+import {
+  browserMarchGrid,
+  cursorBlocked,
+  cursorRoads,
+  edgeReachable,
+  roadsKey,
+} from '../march-cursor';
 
 // Kurzor nad místem, kam skupina nedojde (march-cursor.ts): dosažitelnost z oblastí mřížky pochodu.
 
@@ -85,5 +94,62 @@ describe('browserMarchGrid', () => {
     expect(opened.flags[dense]).toBe(0);
     const stillDense = Array.from(opened.flags).filter((f) => f === MARCH_FOREST).length;
     expect(stillDense).toBeGreaterThan(0);
+  });
+});
+
+/** Rovná krajina 1 920 m celá lesem – hustý les až k okrajům. */
+function forestEverywhere(): Landscape {
+  const size = 128;
+  return {
+    size,
+    cellSizeM: 15,
+    heights: new Float32Array(size * size),
+    surface: new Uint8Array(size * size).fill(SURFACE_CODES.forest),
+    fertility: new Uint8Array(size * size),
+    villageSite: { x: 64, y: 64 },
+    stream: [],
+    obstacleLayer: null,
+  };
+}
+
+describe('cursorRoads – kusy hotových stezek ke kraji', () => {
+  // hotová stezka končí 25 m před západním krajem (pás u kraje, trade.md – Pokračování na sousední
+  // mapě); server ji kusem ke kraji otevře (`marchGrid` – `edgePieces`), prohlížeč ze scény vsi
+  const road = {
+    id: 1,
+    points: [
+      { x: -600, z: 0 },
+      { x: -935, z: 0 },
+    ],
+    grade: 'improved',
+    swath: true,
+  } as SceneRoad;
+  const from = { x: -700, z: 0 };
+
+  it('stezka hustým lesem do pásu u kraje – okraj dosažitelný', () => {
+    const l = forestEverywhere();
+    const closed = browserMarchGrid(l, null, null, cursorRoads({ roads: [road] }));
+    expect(edgeReachable(closed, from, 'W')).toBe(false);
+    const village = {
+      roads: [road],
+      trailEdgePieces: [
+        [
+          { x: -935, z: 0 },
+          { x: -960, z: 0 },
+        ],
+      ],
+    };
+    const open = browserMarchGrid(l, null, null, cursorRoads(village));
+    expect(edgeReachable(open, from, 'W')).toBe(true);
+    expect(cursorBlocked(open, from, { x: -955, z: 0 }, 1920)).toBe(false);
+    // jinam hustým lesem dál ne
+    expect(cursorBlocked(open, from, { x: -700, z: 100 }, 1920)).toBe(true);
+  });
+
+  it('klíč os z obsahu – nové pole se stejnými body dá týž klíč', () => {
+    const a = cursorRoads({ roads: [road] });
+    const b = cursorRoads({ roads: [{ ...road, points: road.points.map((p) => ({ ...p })) }] });
+    expect(roadsKey(a)).toBe(roadsKey(b));
+    expect(roadsKey(a)).not.toBe(roadsKey(cursorRoads(null)));
   });
 });

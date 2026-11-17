@@ -39,7 +39,7 @@ import { FelledTrees } from './felled-trees';
 import { LogPile } from './log-pile';
 import { StonePiles } from './stone-piles';
 import { sameClearing, villageClearedForest, type ClearedForest } from './cleared-forest';
-import { browserMarchGrid } from './march-cursor';
+import { browserMarchGrid, cursorRoads, roadsKey } from './march-cursor';
 import { createForestCanopy, type ForestCanopy } from './forest-canopy';
 import type { ScenePerfStats } from './perf-stats';
 import { ScenePerf } from './scene-perf';
@@ -111,9 +111,10 @@ import { PremiumSites } from './premium-sites';
 
 type ViewListener = (view: ViewFootprint) => void;
 /** Vymýcený les vsi (null = žádný) – minimapa ho kreslí jako paseku. */
-const NO_IDS: ReadonlySet<number> = new Set();
-
 type ClearedListener = (cleared: ClearedForest | null) => void;
+
+/** Žádné stromy v pásech pokračování stezek (`continuationTrees`). */
+const NO_IDS: ReadonlySet<number> = new Set();
 
 /** 3D scéna krajiny – obyčejná třída bez Reactu (adaptér zobrazení). */
 export type { SceneProgress, SceneStep } from './landscape-build';
@@ -137,13 +138,16 @@ export class LandscapeScene {
   private cleared: ClearedForest | null = null;
   /** Mapa rodu nebo vazala – stezka pokračuje nad mlhou (`setFriendlyMap`). */
   private friendlyMap = false;
-  /** Mřížka pochodu pro kurzor rozkazu (`marchGrid`) – znovu jen se změnou jejích vstupů. */
+  /**
+   * Mřížka pochodu pro kurzor rozkazu (`marchGrid`) – znovu jen se změnou jejích vstupů; `key` –
+   * obsah os cest (`roadsKey`), `village` – stav vsi, pro který klíč platí.
+   */
   private cursorGrid: {
     landscape: Landscape;
     obstacles: ObstacleLayer | null;
     cleared: ClearedForest | null;
-    roads: readonly unknown[] | undefined;
-    continuations: readonly unknown[] | undefined;
+    village: SceneVillage | null;
+    key: string;
     grid: MarchGrid;
   } | null = null;
   private highlight: SelectionHighlight | null = null;
@@ -1028,32 +1032,34 @@ export class LandscapeScene {
 
   /**
    * Mřížka pochodu mapy pro kurzor nad místem, kam skupina nedojde (march-cursor.ts): krajina,
-   * vrstva překážek, vymýcený les vsi a průseky cest. Staví se líně při prvním dotazu a znovu jen
-   * se změnou vstupů. Bez krajiny null.
+   * vrstva překážek, vymýcený les vsi a průseky cest (`cursorRoads` – i kusy stezek ke kraji).
+   * Staví se líně při prvním dotazu a znovu jen se změnou vstupů. Bez krajiny null.
    */
   marchGrid(): MarchGrid | null {
     const landscape = this.landscape;
     if (!landscape) return null;
     const village = this.villageState;
     const known = this.cursorGrid;
-    if (
-      known &&
+    const same =
+      known !== null &&
       known.landscape === landscape &&
       known.obstacles === this.obstacles &&
-      known.cleared === this.cleared &&
-      known.roads === village?.roads &&
-      known.continuations === village?.trailContinuations
-    ) {
+      known.cleared === this.cleared;
+    if (same && known.village === village) return known.grid;
+    // každá aktualizace vsi je nové pole z JSON – mřížka se staví znovu jen se změnou os cest
+    const roads = cursorRoads(village);
+    const key = roadsKey(roads);
+    if (same && known.key === key) {
+      known.village = village;
       return known.grid;
     }
-    const roads = village ? roadsWithContinuations(village).map((r) => r.points) : [];
     const grid = browserMarchGrid(landscape, this.obstacles, this.cleared, roads);
     this.cursorGrid = {
       landscape,
       obstacles: this.obstacles,
       cleared: this.cleared,
-      roads: village?.roads,
-      continuations: village?.trailContinuations,
+      village,
+      key,
       grid,
     };
     return grid;
@@ -1256,13 +1262,6 @@ export class LandscapeScene {
   }
 
   /**
-   * Překreslí ves podle posledního stavu: skryje stromy, keře a kameny, které ves odstranila
-   * nebo vykácela (podle id ze stavu vsi), na místo pokácených stromů dá pařez nebo nálet,
-   * u obydlí nejblíž lesu složí hromadu klád. Kde les zmizel, přestane ho kreslit: tráva se pod
-   * vykácenými stromy neztmaví, plocha korun nad pasekou zapadne pod zem a stínová mapa se
-   * jednou překreslí.
-   */
-  /**
    * Stromy a keře vrstvy překážek v pásech průseků pokračování stezek (`swathObstacleIds`) –
    * jen pro pásy pokračování, průseky vsi skrývá stav vsi. Počítá se jen při změně pásů.
    */
@@ -1279,6 +1278,13 @@ export class LandscapeScene {
     return ids;
   }
 
+  /**
+   * Překreslí ves podle posledního stavu: skryje stromy, keře a kameny, které ves odstranila
+   * nebo vykácela (podle id ze stavu vsi), na místo pokácených stromů dá pařez nebo nálet,
+   * u obydlí nejblíž lesu složí hromadu klád. Kde les zmizel, přestane ho kreslit: tráva se pod
+   * vykácenými stromy neztmaví, plocha korun nad pasekou zapadne pod zem a stínová mapa se
+   * jednou překreslí.
+   */
   private applyVillage(): void {
     const village = this.village;
     if (!village || !this.villageState) return;
