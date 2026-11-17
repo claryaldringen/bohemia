@@ -20,6 +20,7 @@ import {
   newPlayer,
   pollVillage,
   query,
+  readyScene,
   villageSpots,
   villageState,
   withBuiltFirstDwelling,
@@ -126,13 +127,7 @@ async function checkpointOf(campaignId: string): Promise<{
  * (ves byla dopočtená do dneška). Jinak by den nájezdu přišel až za ≈ 4,8 h.
  */
 async function replayToday(settlementId: string, villageId: string, today: number): Promise<void> {
-  const state = await villageState(settlementId);
-  state.lastDay = today - 1;
-  await writeVillageState(settlementId, state);
-  await query(`UPDATE village_inbox SET day = $2 WHERE village_id = $1 AND day > $2`, [
-    villageId,
-    today,
-  ]);
+  await replayFrom(settlementId, villageId, today, today);
 }
 
 async function notices(page: Page, text: string | RegExp): Promise<void> {
@@ -158,7 +153,7 @@ test('válka dvou hráčů: A přepadne B, B uteče do lesa i s dobytkem, kronik
   const spotsB = villageSpots(seatB.landscape);
   await found(b, spotsB.dwelling, 'Dalibor');
   const [idA, idB] = [await houseIdOf(emailA), await houseIdOf(emailB)];
-  const [placeA, placeB] = [await placeOf(seatA.settlementId), await placeOf(seatB.settlementId)];
+  const placeB = await placeOf(seatB.settlementId);
   const [playerA] = await query<{ id: string }>(`SELECT id FROM "user" WHERE email = $1`, [emailA]);
 
   // ves B: dostavěná zemnice (lidé v ní – skupina domu) a stádo ovcí; výchozí postoj = útěk
@@ -173,6 +168,42 @@ test('válka dvou hráčů: A přepadne B, B uteče do lesa i s dobytkem, kronik
   const stateA = withBuiltFirstDwelling(await villageState(seatA.settlementId));
   await writeVillageState(seatA.settlementId, stateA);
   const today = Math.max(stateA.lastDay, stateB.lastDay);
+
+  // vojsko A stojí u vsi B a po nájezdu jde domů okrajem mapy B: ves A proto na volném políčku vedle
+  // B, kam z toho místa vojsko přejde (`crossesTo`) – hustý les je neprůchodný a okrajem se jde jen
+  // tam, kde mapy navazují (plán 2026-11-16-dense-forest – Rozhodnutí 8); oblast vsi B mívá přechod
+  // jen na některé straně. Rovná trasa světa k vsi A jinou stranou by návrat zasekla hned po nájezdu
+  // a tažení by skončilo dřív, než scéna B vojsko ukáže (uvízlý návrat – zpráva Úlohy 8, Otázka 1).
+  // Vzdálenost vsí test nepotřebuje – zpáteční cestu zkracuje sám.
+  const at = { x: spotsB.dwelling.x + 40, z: spotsB.dwelling.z };
+  const occupied = await query<{ grid_x: number; grid_y: number }>(
+    `SELECT grid_x, grid_y FROM settlement WHERE archived_at IS NULL AND grid_x IS NOT NULL`,
+    [],
+  );
+  const mapB = { cell: placeB.cell, landscape: seatB.landscape, state: stateB };
+  const sideA = [
+    { x: -1, y: 0 },
+    { x: 1, y: 0 },
+    { x: 0, y: -1 },
+    { x: 0, y: 1 },
+  ]
+    .map((d) => ({ x: placeB.cell.x + d.x, y: placeB.cell.y + d.y }))
+    .find(
+      (cell) =>
+        !occupied.some((r) => r.grid_x === cell.x && r.grid_y === cell.y) &&
+        crossesTo(mapB, at, { cell, landscape: seatA.landscape, state: stateA }),
+    );
+  if (!sideA) throw new Error('Mapa A nenavazuje na mapu B z žádné volné strany.');
+  await query(`UPDATE settlement SET grid_x = $2, grid_y = $3 WHERE id = $1`, [
+    seatA.settlementId,
+    sideA.x,
+    sideA.y,
+  ]);
+  const placeA = await placeOf(seatA.settlementId);
+  // spojení událostí hry A zná políčko vsi z doby připojení (`resolveConnectionScope`) – po přesunu
+  // se připojí znovu, jinak by vojsko na novém políčku do scény A nepřišlo
+  await a.reload();
+  await expect(readyScene(a)).toBeVisible({ timeout: 120_000 });
 
   // přepadení bez opovědi – válka vznikne prvním útokem (zde zápisem; dnešní střet – jinak by
   // válka bez střetu utichla)
@@ -202,7 +233,6 @@ test('válka dvou hráčů: A přepadne B, B uteče do lesa i s dobytkem, kronik
   });
   const villager = lord.id + 100_000;
   const home = { x: spotsA.dwelling.x, z: spotsA.dwelling.z };
-  const at = { x: spotsB.dwelling.x + 40, z: spotsB.dwelling.z };
   const campaignId = randomUUID();
   const base = newCampaign(
     {
@@ -479,6 +509,9 @@ function insidePolygon(p: { x: number; z: number }, poly: readonly (readonly num
 /**
  * Vrátí ves na den před `fromDay`: dny od něj dopočítá znovu i s událostmi schránky (ty, které
  * tažení zapsalo za dnešek, přesune na dnešek) – jako `replayToday`, jen boj mohl začít včera.
+ * Napřed schránka, pak stav: zápis stavu ohlásí ves otevřené hře (událost `village`) a její dotaz
+ * ves hned dopočítá – události ještě na zítřku by den minul a po přesunu by už nepřišly (dnešek
+ * spočtený; tak ves B v testu útěku do hradiště „neodešla“).
  */
 async function replayFrom(
   settlementId: string,
@@ -486,13 +519,13 @@ async function replayFrom(
   fromDay: number,
   today: number,
 ): Promise<void> {
-  const state = await villageState(settlementId);
-  state.lastDay = Math.min(fromDay, today) - 1;
-  await writeVillageState(settlementId, state);
   await query(`UPDATE village_inbox SET day = $2 WHERE village_id = $1 AND day > $2`, [
     villageId,
     today,
   ]);
+  const state = await villageState(settlementId);
+  state.lastDay = Math.min(fromDay, today) - 1;
+  await writeVillageState(settlementId, state);
 }
 
 // Nájezd na ves s palisádou s ochozem (plán hradeb – Úloha 22): muži vsi B obsadí hradbu, NPC

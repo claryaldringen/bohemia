@@ -431,6 +431,14 @@ villageId)`. Z levných otisků (`stampsOf` – `last_day`, `asleep`) se dopočt
   registrace je jiná) nedávat pevným posunem – 150 m od zemnice padne občas do vody a A* cestu
   nenajde; ověřit je mřížkou pochodu jako worker (`marchGrid` + `marchPath` nad krajinou a vsí
   ze zápisu). Vzor: `multiplayer.spec.ts` – živé vedení.
+  **Krajina sídla v testu = krajina serveru:** `seat` (`e2e/village-helpers.ts`) ji generuje jako
+  `settlementLandscape` – seed, verze vrstev, prémiový typ i výřez kostry (sídla v testech prémiový
+  typ dostávají; bez něj jiná voda i hustý les). **Sousední mapa:** test, který sídlo posune vedle
+  jiného, vybere stranu, kam skupina přejde (`crossesTo` – mřížky obou map jako server; hustý les
+  je neprůchodný a oblast vsi mívá přechod jen na některé straně). **Opakování dne** (`replayFrom`
+  v `multiplayer-war.spec.ts`): napřed přesunout události schránky na dnešek, pak zapsat stav –
+  zápis stavu ohlásí ves otevřené hře a její dotaz den hned dopočítá (události ještě na zítřku by
+  minul).
 
 - **e2e a `test:db` souběžně z víc pracovních stromů:** port `next start` a testovací databázi
   čtou `playwright.config.ts` (a přes něj e2e pomocníci i worker v e2e) a testy adaptérů

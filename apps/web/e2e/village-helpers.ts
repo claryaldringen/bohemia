@@ -26,6 +26,7 @@ import {
   type Pos,
   type Landscape,
   type LayerVersions,
+  type PremiumType,
   type SkeletonSlice,
   type PlacementVillage,
   type Position,
@@ -91,16 +92,18 @@ async function withClient<T>(run: (client: Client) => Promise<T>): Promise<T> {
 
 /**
  * Aktivní sídelní sídlo hráče s krajinou – stejně jako ji generuje server (seed a verze vrstev
- * z databáze). Sídla archivovaná restartem hry se nepočítají.
+ * z databáze, prémiový typ a výřez kostry – `settlementLandscape`). Sídla archivovaná restartem
+ * hry se nepočítají.
  */
 export async function seat(email: string): Promise<Seat> {
   const [row] = await query<{
     id: string;
     landscape_seed: number;
     layer_versions: LayerVersions;
+    premium_type: PremiumType | null;
     skeleton: SkeletonSlice | null;
   }>(
-    `SELECT s.id, s.landscape_seed, s.layer_versions, s.skeleton
+    `SELECT s.id, s.landscape_seed, s.layer_versions, s.premium_type, s.skeleton
        FROM settlement s JOIN "user" u ON u.id = s.owner_id
       WHERE u.email = $1 AND s.is_seat AND s.archived_at IS NULL`,
     [email],
@@ -109,11 +112,13 @@ export async function seat(email: string): Promise<Seat> {
   return {
     settlementId: row.id,
     seed: row.landscape_seed,
-    // s výřezem kostry (pozvaný na řece či stezce – verze `skeleton` bez výřezu by neprošla)
+    // s prémiovým typem (sídla ho v testech dostávají – bez něj jiný terén, voda i hustý les, takže
+    // `crossesTo` vybíral stranu podle jiné mřížky než server) a s výřezem kostry (pozvaný na řece
+    // či stezce – verze `skeleton` bez výřezu by neprošla)
     landscape: generateLandscapeAttempt(
       row.landscape_seed,
       row.layer_versions,
-      undefined,
+      row.premium_type ?? undefined,
       row.skeleton,
     ),
   };
