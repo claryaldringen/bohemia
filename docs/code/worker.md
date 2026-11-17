@@ -524,18 +524,20 @@ Dřív stál dotaz ≈ 76 ms (3 % jádra na jednoho hráče s otevřeným panele
 ### Hustý les v mřížce pochodu (plán 2026-11-16-dense-forest – Úloha 8)
 
 `measure-campaigns.ts` na bázi (`feat/landscape`) a na větvi `feat/dense-forest`, stejné argumenty
-(16. 11. 2026; čas procesoru jednoho jádra, RSS = `/usr/bin/time -l`):
+(16. 11. 2026; takty/s, vyšší je lepší; RSS z `/usr/bin/time -l` kolísá o ≈ ±50 MB mezi běhy):
 
-| Měření            | báze               | větev (`MEMO_DAYS` 2) |
-| ----------------- | ------------------ | --------------------- |
-| pochod 1 / 5 / 20 | 1913 / 2806 / 5897 | 1276 / 2029 / 18149   |
-| opevněné 5        | 649                | 673                   |
-| varování 5        | 1572 (1,3 % jádra) | 148 (13,5 % jádra)    |
-| RSS               | 717 MB             | 818 MB                |
+| Měření            | báze               | větev               |
+| ----------------- | ------------------ | ------------------- |
+| pochod 1 / 5 / 20 | 1913 / 2806 / 5897 | 1160 / 1829 / 15744 |
+| opevněné 5        | 649                | 615                 |
+| varování 5        | 1572 (1,3 % jádra) | 310 (6,4 % jádra)   |
+| RSS (3 běhy)      | 643–717 MB         | 779–826 MB          |
 
-- Paměť: s `MEMO_DAYS` 4 stoupla RSS na 886 MB (+169 MB, mez návrhu Clauda 150 MB), proto
-  `march-grid.ts` drží mřížky jen 2 dny (+101 MB).
-- Varování 5: cíl uprostřed hustého lesa je neprůchodný, `reachableGoal` se pro něj v každém taktu
-  prohledávala prstenci přes celou mapu (≈ 2× čas) – výsledek se teď pamatuje při mřížce
-  (`nearestToTarget`). Zbytek je cesta hustým lesem přes celou mapu (≈ 2,7 ms za výpočet úseku),
-  kterou měření počítá v každém kole znovu u tažení s varováním.
+- Paměť: +60–180 MB podle běhu, v průměru ≈ +110 MB (mez návrhu Clauda 150 MB). `MEMO_DAYS` 4 → 2
+  RSS nezlepšilo spolehlivě a rozbilo e2e varování vsi (`multiplayer-war` – „ves B varovaná“),
+  proto zůstává 4.
+- Varování 5: cíl uprostřed hustého lesa je neprůchodný; `reachableGoal` se pamatuje při mřížce
+  (`nearestToTarget`) a úsek k cíli na téže mapě se pamatuje při mřížce (`planMoverLeg`) – tažení
+  čekající na ves se každé kolo počítá znovu od téhož bodu a cesta hustým lesem přes mapu stojí
+  ≈ 2,7 ms. Zbytek (≈ 5× báze) je právě tato cesta při první výpočtu v každém kole se znovu
+  postavenou mřížkou.

@@ -462,11 +462,9 @@ export function marchGrid(
 
 /**
  * Kolik naposledy použitých dní mřížek drží paměť na krajinu, překážky a ves. Tažení čte den
- * a další; dva dny pokryjí tažení nad touž mapou posunutá o den (jedno dohání). Ze 4 na 2 po měření
- * 16. 11. 2026 (plán 2026-11-16-dense-forest, Úloha 8): s hustým lesem v mřížce RSS měření tažení
- * stouplo o 169 MB oproti bázi (mez 150 MB), po snížení o 101 MB.
+ * a další; čtyři dny pokryjí dvě tažení nad touž mapou posunutá až o dva dny (jedno dohání).
  */
-const MEMO_DAYS = 2;
+const MEMO_DAYS = 4;
 /** Zástupný klíč za chybějící vrstvu překážek nebo ves (WeakMap nebere null). */
 const NONE: object = {};
 
