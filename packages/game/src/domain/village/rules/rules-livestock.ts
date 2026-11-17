@@ -127,7 +127,7 @@ export const HORSES = {
   serviceToYears: 20,
   breedFromYears: 4,
   breedToYears: 20,
-  meatKg: 100,
+  meatKg: 160,
   placeFromYears: 1,
   foalUntilYears: 3,
   careManDaysPerDay: 0.1,

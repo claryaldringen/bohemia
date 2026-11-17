@@ -1086,19 +1086,18 @@ describe('divoká zvěř (wildlife.md – Co hráč vidí)', () => {
     species: [],
     damageShare: 0,
     wolvesTroubling: false,
-    dogsUnfed: false,
     ...over,
   });
 
-  it('prasata ničí úrodu od 5 %, vlci strhávají dobytek, psi bez obilí', () => {
+  it('prasata ničí úrodu od 5 %, vlci strhávají dobytek', () => {
     expect(villageNotices(view({ wildlife: wildlife({ damageShare: 0.05 }) }))).toEqual([]);
     expect(
       villageNotices(
         view({
-          wildlife: wildlife({ damageShare: 0.06, wolvesTroubling: true, dogsUnfed: true }),
+          wildlife: wildlife({ damageShare: 0.06, wolvesTroubling: true }),
         }),
       ).map((n) => n.text),
-    ).toEqual(['Divoká prasata ničí úrodu', 'Vlci strhávají dobytek', 'Psi jsou bez obilí']);
+    ).toEqual(['Divoká prasata ničí úrodu', 'Vlci strhávají dobytek']);
   });
 
   it('ohlásí se jednou, když nově vzniknou', () => {

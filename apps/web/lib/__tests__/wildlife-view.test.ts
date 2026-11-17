@@ -95,14 +95,6 @@ describe('wildlifeView', () => {
     };
     expect(wildlifeView(s, DAY)!.wolvesTroubling).toBe(false);
   });
-
-  it('psi bez obilí', () => {
-    const s = village();
-    s.wildlife!.dogs = { count: 4.6, fed: false };
-    expect(wildlifeView(s, DAY)!.dogsUnfed).toBe(true);
-    s.wildlife!.dogs = { count: 0.4, fed: false };
-    expect(wildlifeView(s, DAY)!.dogsUnfed).toBe(false);
-  });
 });
 
 describe('huntView', () => {
@@ -121,7 +113,7 @@ describe('huntView', () => {
       today: null,
       year: { fishKg: 12.4, hares: 3.2, meatKg: 20, days: 5 },
     };
-    s.wildlife!.dogs = { count: 6.4, fed: false };
+    s.wildlife!.dogs = { count: 6.4 };
     const hunt = huntView(s, DAY)!;
     expect(hunt.catches).toEqual([
       { icon: 'boar', name: 'Divoká prasata', count: 2 },
@@ -130,7 +122,7 @@ describe('huntView', () => {
       { icon: 'fish', name: 'Ryby (kg)', count: 12 },
     ]);
     expect(hunt.meatKg).toBe(160);
-    expect(hunt.dogs).toMatchObject({ count: 6, fed: false, grainKgPerDay: 1.9 });
+    expect(hunt.dogs).toMatchObject({ count: 6, wanted: expect.any(Number) });
   });
 });
 

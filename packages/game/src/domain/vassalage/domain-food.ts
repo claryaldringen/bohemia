@@ -2,7 +2,6 @@ import { dateOfDayIndex } from '../calendar';
 import { craftCoverage } from '../village/crafts/crafts';
 import { fieldCapacity, netYieldPerHa } from '../village/fields/field-capacity';
 import { yearlyFieldNeed } from '../village/fields/field-food';
-import { dogGrainToday } from '../village/wildlife/hunt-party';
 import { horseGrainToday, villageHorses } from '../village/livestock/horses';
 import { LIVESTOCK } from '../village/livestock/livestock';
 import { meatEnergy } from '../village/core/diet';
@@ -112,8 +111,7 @@ export function villageFoodBalance(
   const capacity = fieldCapacity(state, day, craftCoverage(state, day).pottery);
   if (!capacity) return null;
   const horses = villageHorses(state);
-  const animalsKg =
-    ((horses.length > 0 ? horseGrainToday(horses, day) : 0) + dogGrainToday(state)) * DAYS_PER_YEAR;
+  const animalsKg = (horses.length > 0 ? horseGrainToday(horses, day) : 0) * DAYS_PER_YEAR;
   return {
     growsKg: capacity.sownHa * netYieldPerHa(capacity.fertility) * capacity.soil,
     needsKg: yearlyFieldNeed(state, day) + animalsKg,

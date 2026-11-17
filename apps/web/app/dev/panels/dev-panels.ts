@@ -193,7 +193,7 @@ const manor: VillageManor = {
       { icon: 'fish', name: 'Ryby (kg)', count: 38 },
     ],
     meatKg: 410,
-    dogs: { count: 6, wanted: 7, grainKgPerDay: 1.8, fed: true },
+    dogs: { count: 6, wanted: 7 },
   },
   trailBuilt: trails.some((t) => t.status === 'built'),
   neighbours,

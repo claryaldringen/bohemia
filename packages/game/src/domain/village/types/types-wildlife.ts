@@ -96,10 +96,12 @@ export interface FieldWatch {
   paidManDays: number;
 }
 
-/** Smečka dvorce: počet s podílem kusu a zda ji ves naposled nakrmila (štěňata jen z nakrmené). */
+/**
+ * Smečka dvorce: počet s podílem kusu. Starší vsi nesou ještě `fed` (psi dřív jedli obilí) – nečte se.
+ */
 export interface ManorDogs {
   count: number;
-  fed: boolean;
+  fed?: boolean;
 }
 
 /** Druhy kusů úlovku (kronika, statistika roku). */

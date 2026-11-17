@@ -176,11 +176,13 @@ export function chronicle(state: VillageState, name: string): VillageView['chron
       event.oxen !== undefined
         ? { oxen: event.oxen }
         : {}),
-      ...(event.kind === 'horse-starved' || event.kind === 'horse-retired'
-        ? { horses: event.horses }
-        : event.kind === 'foal-born'
-          ? { horses: event.foals }
-          : {}),
+      ...(event.kind === 'horse-retired'
+        ? { horses: event.horses, retired: event.reason }
+        : event.kind === 'horse-starved'
+          ? { horses: event.horses }
+          : event.kind === 'foal-born'
+            ? { horses: event.foals }
+            : {}),
       ...(event.kind === 'crafts-bought'
         ? { direction: event.direction, products: boughtProducts(event.get) }
         : {}),

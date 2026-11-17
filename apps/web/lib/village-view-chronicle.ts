@@ -1501,6 +1501,11 @@ export function chronicleText(event: ChronicleEvent, villageName: string, seed?:
     case 'horse-trained':
       return 'Kůň je vycvičený pod jezdcem.';
     case 'horse-retired':
+      if (event.reason === 'hay') {
+        return event.horses === 1
+          ? 'Seno do jara nevystačí – kůň šel na maso.'
+          : `Seno do jara nevystačí – koně šli na maso (${event.horses}).`;
+      }
       if (event.reason === 'age') {
         return event.horses === 1
           ? 'Kůň dosloužil – zestárl a šel na maso.'

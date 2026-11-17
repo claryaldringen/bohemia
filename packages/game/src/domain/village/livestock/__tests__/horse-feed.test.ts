@@ -5,8 +5,16 @@ import { foundVillage } from '../../core/actions';
 import { eatDiet } from '../../core/diet';
 import { dayMealInput, emergencySlaughter } from '../emergency-slaughter';
 import { storesOutlook } from '../../fields/field-food';
-import { feedHay, herdHayCoverage, horsesHayCoverage, winterHayKg, HAY_WINTER_DAYS } from '../hay';
-import { horsesWinterEnd } from '../horse-feed';
+import {
+  feedHay,
+  hayLeftAvailable,
+  hayWinterDaysLeft,
+  herdHayCoverage,
+  horsesHayCoverage,
+  winterHayKg,
+  HAY_WINTER_DAYS,
+} from '../hay';
+import { horsesHaySlaughter, horsesWinterEnd } from '../horse-feed';
 import { horseCareLabor, horseGrainToday, horseHayDailyKg, villageHorses } from '../horses';
 import { grazingDemandHa } from '../livestock';
 import { NO_CRAFTS } from '../../core/productivity';
@@ -230,6 +238,50 @@ describe('krmení koní – seno', () => {
     // nad polovinou nikdo neuhyne
     expect(horsesWinterEnd(s, DAY, 0.5)).toEqual([]);
     expect(villageHorses(s)).toHaveLength(2);
+  });
+
+  describe('včasná porážka koní bez sena (D91, 17. 11. 2026)', () => {
+    const JAN = dayIndexOf({ year: 600, month: 1, day: 15 });
+    const setup = (share: number): VillageState => {
+      const horses = [
+        horse(1, 12, 'male', JAN),
+        horse(2, 6, 'male', JAN),
+        horse(3, 2, 'male', JAN),
+      ];
+      const s = village([...horses, horse(4, 0.8, 'female', JAN)]);
+      const days = hayWinterDaysLeft(JAN);
+      // seno vystačí na `share` přídělu koní do konce března (po ztrátách ve stohu)
+      s.hay = { kg: (24 * days * share) / hayLeftAvailable(1, days), mowing: null };
+      return s;
+    };
+
+    it('seno na čtvrtinu: dva nejmladší koně se hned porazí, maso jde do zásoby, 1. 3. nikdo neuhyne', () => {
+      const s = setup(0.25);
+      const meat = s.meatKg ?? 0;
+      const events = horsesHaySlaughter(s, JAN, 0, 24);
+      expect(villageHorses(s).map((h) => h.id)).toEqual([1, 2]);
+      expect(events).toEqual([
+        { day: JAN, kind: 'horse-retired', penId: 90, horses: 2, reason: 'hay' },
+      ]);
+      expect((s.meatKg ?? 0) - meat).toBe(2 * HORSES.meatKg);
+      // zbylí koně mají seno na celou zimu – 1. 3. už žádný úhyn
+      expect(horsesHaySlaughter(s, JAN, 0, 12)).toEqual([]);
+    });
+
+    it('seno na 60 % přídělu (nad polovinou): nikdo se neporazí; mimo zimu nic', () => {
+      const s = setup(0.6);
+      expect(horsesHaySlaughter(s, JAN, 0, 24)).toEqual([]);
+      expect(villageHorses(s)).toHaveLength(4);
+      expect(
+        horsesHaySlaughter(setup(0), dayIndexOf({ year: 600, month: 7, day: 1 }), 0, 24),
+      ).toEqual([]);
+    });
+
+    it('bez sena vůbec se porazí všichni (stejně by 1. 3. uhynuli)', () => {
+      const s = setup(0);
+      expect(horsesHaySlaughter(s, JAN, 0, 24)[0]).toMatchObject({ horses: 4, reason: 'hay' });
+      expect(villageHorses(s)).toHaveLength(0);
+    });
   });
 
   it('na nouzovou porážku koně nejdou', () => {

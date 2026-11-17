@@ -398,10 +398,10 @@ describe('porážka při nedostatku sena (24. 10. 2026)', () => {
     expect(event).toEqual({
       day,
       kind: 'hay-slaughter',
-      kg: 120 + 18 * 15 + 12,
+      kg: 130 + 18 * 15 + 12,
       animals: { cow: 1, sheep: 18, goat: 1 },
     });
-    expect(s.meatKg).toBeCloseTo(402, 9);
+    expect(s.meatKg).toBeCloseTo(412, 9);
     // voli jedí napřed – bez sena na krávy zůstane chovný pár
     expect(hayShortSlaughter(s, day, 5)).toMatchObject({ animals: { cow: 3 } });
     expect(s.livestock!.herds.cow).toBe(2);

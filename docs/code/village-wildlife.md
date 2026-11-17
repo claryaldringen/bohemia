@@ -117,11 +117,8 @@ windowDays` (ozim 61, jař 92) denně na každý nesklizený ohrožený díl. Mi
   (`lordRides`), scéna je mezi lovci nekreslí (čte jen `hunt.today`; `SceneHunt.day` – scéna lov hraje ve skutečném čase 10 minut od dne lovu a běžící lov si pamatuje do návratu lovců, scene-village.md – Lov). Pojistka v `huntRisk`
   (dítě nezahyne ani se nezraní) zůstává. `dogsWanted` = počet lovců (`manor` + `away`) + 1,
   nejvýš 8 (`MANOR_DOGS`).
-- **Psi:** `WildlifeState.dogs { count, fed }` vzniká hned (`dogsYear` zakládá smečku `wanted` psů, kdykoli ji ves nemá a má lovce;
-  jednou, `dogs` pak existuje) a dál 1. 5. (`wildlifeYearDay`: −10 %, nakrmená smečka dostane nejvýš 2 štěňata do chtěného počtu). `feedDogs` (`simulate-food.ts`,
-  za `feedHorseGrain`) odebírá 0,3 kg obilí na psa ze zásob; hladová ves nebo nedostatek do sklizně
-  (po odečtení obilí koní) = `fed = false`, štěňata nepřibudou. Obilí psů je i ve výhledu osevu
-  (`storesOutlook` – `dogGrainToday`). Do lovu jde `huntingDogs` = celé kusy; psi jdou k pěším od
+- **Psi:** `WildlifeState.dogs { count }` (starší `fed` se nečte) vzniká hned (`dogsYear` zakládá smečku `wanted` psů, kdykoli ji ves nemá a má lovce;
+  jednou, `dogs` pak existuje) a dál 1. 5. (`wildlifeYearDay`: −10 %, nejvýš 2 štěňata do chtěného počtu vždy). Psi nic nespotřebovávají (D91, Martin 17. 11. 2026) – žádné obilí, krmení psů ani jejich obilí ve výhledu osevu už nejsou, `dogs-ungrained` už nevzniká (v `LASTING_NOTICES` zůstává jen pro doběh starších vsí). Do lovu jde `huntingDogs` = celé kusy; psi jdou k pěším od
   nejsilnějšího, pěší bez psa má poloviční sílu.
 - **Ráno** (`planHuntDay` v `simulateDay` po `wildlifeYearDay`, před `work()`): `hunt.today`
   (`HuntDay { target, riders, foot, extra }`). Kalendář `huntSeasonIndex`: 1. 11. + 7k dní do

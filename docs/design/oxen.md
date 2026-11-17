@@ -158,7 +158,7 @@ Co níž není výslovně Martinovo, je návrh Clauda.
   a v rozcestníku ohrady druh „Voli“ (`PEN_NAMES`, `PEN_VARIANTS`).
 - **Voli po kusech:** ohrada volů nese seznam volů (`Pen.oxen`), každý s dnem, kdy je vycvičený
   (`Ox.trainedDay`): výcvik **2 roky** z telat stáda krav, služba **10 let**, pak jde na maso
-  (120 kg). Nahrazuje spřežení a výcvik (`Pen.team`, `Pen.training`).
+  (130 kg – jako kráva, [strava](diet.md) – Dobytek, Martin 17. 11. 2026). Nahrazuje spřežení a výcvik (`Pen.team`, `Pen.training`).
 - **Místa:** **6 volů na hotový čtverec** i s telaty ve výcviku (`PEN_PLACES_PER_SQUARE.team` –
   vůl ≈ 400 kg potřebuje s jeslemi, žlabem a přístřeškem ≈ 6 m² v ohradě ≈ 196 m², kde stojí
   i stoh), ohrada má nejvýš 4 čtverce (24 volů), víc ohrad volů se sčítá. Dřív ohrada pojala jedno
@@ -597,7 +597,7 @@ Rozhodnutí kontroléru tam, kde návrh nedává postup (Martin je může změni
   u ohrady). Spřežení orá, až uplynou 2 roky výcviku **a** je hotové rádlo. Ohrada se spřežením
   smí cvičit náhradu až v posledních 2 letech jeho služby (`trainingBlock` –
   `serviceYearsBeforeTraining`); nové spřežení vystřídá staré (staré jde na maso), spřežení
-  starší 10 let zestárne a jde na maso (2 × 120 kg) – náhrada zadaná hned, jak smí, naváže týž
+  starší 10 let zestárne a jde na maso (2 × 130 kg) – náhrada zadaná hned, jak smí, naváže týž
   den. **Od 19. 10. 2026** výcvik začne sám první vhodný den (Spřežení výš) – náhrada tak naváže
   vždy, když jsou telata, dřevo a seno.
 - **Seno:** 1. 6. ves naplánuje seč – seno pro krávy a voly na zimu (≈ 1,5 t na kus, ohrada bez

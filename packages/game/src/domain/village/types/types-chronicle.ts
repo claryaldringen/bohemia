@@ -575,7 +575,7 @@ export type ChronicleEvent = { day: number } & (
    * (`oxen` – kolik; chybí = spřežení se rozpadlo ve vsích uložených dřív).
    */
   | { kind: 'ox-died'; penId: number; training: boolean; oxen?: number }
-  /** Koně uhynuli 1. 3. pro nedostatek sena (horses.md – Krmení). */
+  /** Koně uhynuli 1. 3. pro nedostatek sena (horses.md – Krmení) – jen když je porážka (`horse-retired` s důvodem `hay`) nestihla. */
   | { kind: 'horse-starved'; penId: number; horses: number }
   /** Klisny ohrady porodily 1. 5. hříbata (horses.md – Chov; `foals` – kolik). */
   | { kind: 'foal-born'; penId: number; foals: number }
@@ -593,7 +593,7 @@ export type ChronicleEvent = { day: number } & (
    * Koně šli 1. 11. na maso (horses.md – Chov): dosloužili ve 20 letech (`age`), nebo jich ves má
    * víc, než chce (`surplus` – nejdřív nejstarší).
    */
-  | { kind: 'horse-retired'; penId: number; horses: number; reason: 'age' | 'surplus' }
+  | { kind: 'horse-retired'; penId: number; horses: number; reason: 'age' | 'surplus' | 'hay' }
   /** Do kraje přišel nový medvěd (wildlife.md – Roční přepočet: ulovený se vrací za 3 roky). */
   | { kind: 'bear-returned' }
   /** Šelmy strhly dobytek (wildlife.md – Vlci na dobytku; `heads` – celé kusy dne). */

@@ -68,8 +68,3 @@ const DOG_EPSILON = 1e-6;
 export function huntingDogs(state: Pick<VillageState, 'wildlife'>): number {
   return Math.floor((state.wildlife?.dogs?.count ?? 0) + DOG_EPSILON);
 }
-
-/** Obilí smečky za den (kg) – i pro výhled osevu. */
-export function dogGrainToday(state: Pick<VillageState, 'wildlife'>): number {
-  return (state.wildlife?.dogs?.count ?? 0) * MANOR_DOGS.grainKgPerDay;
-}

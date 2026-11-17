@@ -27,15 +27,8 @@ export {
   weatherChangesCrop,
 } from './disasters/weather-effects';
 export * from './wildlife/hunt';
-export { dogsYear, feedDogs } from './wildlife/manor-dogs';
-export {
-  dogGrainToday,
-  dogsWanted,
-  huntFootIds,
-  huntingDogs,
-  huntPool,
-  huntToday,
-} from './wildlife/hunt-party';
+export { dogsYear } from './wildlife/manor-dogs';
+export { dogsWanted, huntFootIds, huntingDogs, huntPool, huntToday } from './wildlife/hunt-party';
 export { fishingPools, wildlifeLandAt, type FishingPool } from './wildlife/wildlife-land';
 export * from './livestock/hay';
 export * from './livestock/plough';
@@ -192,12 +185,7 @@ export {
 export * from './core/obstacles';
 export * from './core/summary';
 // trvalé stavy z upozornění – podmínky pro web i simulaci (absence.md – Upozornění vsi do kroniky)
-export {
-  LASTING_NOTICES,
-  dogsUngrained,
-  horsesUngrained,
-  lastingNotices,
-} from './core/lasting-notices';
+export { LASTING_NOTICES, horsesUngrained, lastingNotices } from './core/lasting-notices';
 export * from './people/names';
 export * from './buildings/costs';
 export * from './forest/wood';

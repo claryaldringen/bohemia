@@ -261,9 +261,6 @@ export function villageNotices(view: VillageView): VillageNotice[] {
   if (wild?.wolvesTroubling) {
     notices.push({ kind: 'wolves-killing', tone: 'warn', text: 'Vlci strhávají dobytek' });
   }
-  if (wild?.dogsUnfed) {
-    notices.push({ kind: 'dogs-ungrained', tone: 'warn', text: 'Psi jsou bez obilí' });
-  }
   // výmlat (production-chains.md – Humno): bez humna ves nemlátí – upozornění s předstihem, aby
   // ves nezahynula hladem jen proto, že hráč o humnu nevěděl (anti-cíl)
   const threshing = view.threshing;
@@ -490,7 +487,14 @@ const CHRONICLE_NOTICES: Partial<
   'horse-retired': (entry) => ({
     kind: 'horse-retired',
     tone: 'info',
-    text: entry.horses === 1 ? 'Kůň dosloužil' : 'Koně dosloužili',
+    text:
+      entry.retired === 'hay'
+        ? entry.horses === 1
+          ? 'Kůň šel na maso – chybělo seno'
+          : 'Koně šli na maso – chybělo seno'
+        : entry.horses === 1
+          ? 'Kůň dosloužil'
+          : 'Koně dosloužili',
   }),
   'horse-starved': (entry) => ({
     kind: 'horse-starved',

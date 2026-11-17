@@ -5,11 +5,9 @@
 import {
   FIELD_GUARD,
   HUNT,
-  MANOR_DOGS,
   PREDATION,
   crowFlocks,
   dateOfDayIndex,
-  dogsUngrained,
   dogsWanted,
   fishingPools,
   huntPool,
@@ -71,8 +69,6 @@ export interface VillageWildlife {
   damageShare: number;
   /** Šelmy strhly dobytek dvakrát a víckrát za posledních 30 dní. */
   wolvesTroubling: boolean;
-  /** Smečka dvorce není nakrmená. */
-  dogsUnfed: boolean;
 }
 
 /** Ikony úlovku letos (`/icons/resources/<ikona>.png`) s počtem kusů (ryby kg). */
@@ -88,7 +84,7 @@ export interface HuntView {
   /** Maso z lovu, ryb a ok letos (kg, celé). */
   meatKg: number;
   /** Psi: kolik jich je, kolik jich dvorec chce, obilí za den (kg) a zda je ves krmí. */
-  dogs: { count: number; wanted: number; grainKgPerDay: number; fed: boolean } | null;
+  dogs: { count: number; wanted: number } | null;
 }
 
 /** Škoda zvěře na dílu pole pro panel dílu. */
@@ -171,7 +167,6 @@ export function wildlifeView(state: VillageState, day: number): VillageWildlife 
     species,
     damageShare: damageShareOf(state, w),
     wolvesTroubling: wolvesTroubling(w, day),
-    dogsUnfed: dogsUngrained(state),
   };
 }
 
@@ -313,15 +308,7 @@ export function huntView(state: VillageState, day: number): HuntView | null {
   return {
     catches,
     meatKg,
-    dogs:
-      dogs && count >= 1
-        ? {
-            count,
-            wanted,
-            grainKgPerDay: Math.round(dogs.count * MANOR_DOGS.grainKgPerDay * 10) / 10,
-            fed: dogs.fed,
-          }
-        : null,
+    dogs: dogs && count >= 1 ? { count, wanted } : null,
   };
 }
 
