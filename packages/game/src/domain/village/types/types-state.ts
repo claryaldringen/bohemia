@@ -310,6 +310,12 @@ export interface VillageState {
    */
   starvationDays?: number;
   /**
+   * Nahromaděný hlad skupin přednosti v hladu 0–2 – rod vojvody, domácnosti mistrů huti, řemeslníci
+   * (population.md – Přednost v hladu; `hunger-groups.ts`); `starvationDays` je hlad zbytku vsi.
+   * Chybí – všechny skupiny mají hlad vsi (`starvationDays`), i ve vsích uložených dřív.
+   */
+  starvationGroups?: [number, number, number];
+  /**
    * Trvalé stavy vsi z upozornění, které právě běží (absence.md – Upozornění vsi do kroniky;
    * `lasting-notices.ts`) – začátek a konec jdou do kroniky. Bez údaje (ves uložená dřív nebo bez
    * stavu) žádný neběží – sledují se od prvního dopočítaného dne.

@@ -116,6 +116,12 @@ Raně středověká strava nebyla jen obilí. Plné nasycení potřebuje kombina
   porody brzdí jen opravdový hlad.“ – návrh Clauda, schválený). **Nasycení** (energie × kvalita
   z bílkovin) dál řídí štěstí (hlad ubírá štěstí, pod 90 %). Nedostatek bílkovin tak sníží jen
   štěstí – ves jen s obilím (≈ 80 %) se množí naplno, je méně šťastná a neumírá.
+- **Přednost v hladu** (Martin 17. 11. 2026: „elita ať jí první – kníže, pak zahraniční mistři a pak
+  ostatní řemeslníci“, „I s rodinami“): když jídla do sklizně nevystačí, jí napřed rod vojvody,
+  pak domácnosti mistrů huti, pak řemeslníci a učni a teprve zbytek vsi si rozdělí, co zbude;
+  skupina, na kterou nevyjde celý příděl, si dělí zbytek rovným dílem ([populace](population.md) –
+  Hlad a vymření, Přednost v hladu). Stejně se dělí výhled do sklizně ([pole](fields.md) –
+  Přídělový systém). Zásoby a strava se tím nemění – jen kdo z nich dostane.
 - **Na jak dlouho vystačí zásoby** (Martin, 15. 11. 2026: „dolů do panelu s plodinami napiš, na
   jak dlouho vystačí zásoby – budou se podle toho plánovat vojenská tažení“): panel plodin ukazuje,
   do kdy dnešní zásoby uživí lidi plným přídělem bez sklizně a bez příjmů (mléko, vejce, porážka),
