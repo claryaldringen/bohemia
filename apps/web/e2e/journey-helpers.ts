@@ -124,6 +124,9 @@ export async function placeJourney(
   group.pos = { x: pos.x, z: pos.z };
   group.goal = { cell: { ...cell }, pos: { x: pos.x, z: pos.z } };
   group.leg = null;
+  // jinde už neuvízla – den uvíznutí (úsek se ten den znovu nehledá) a návrat po paměti neplatí
+  delete group.stuckDay;
+  delete group.retrace;
   group.arrived = true;
   // čekání běží skupině hloučku (plán 2026-11-14 – Úloha 1)
   for (const party of state.parties) if (party.id === group.party) party.arrivedTick = state.tick;
@@ -175,7 +178,12 @@ export async function sendSelected(page: Page, to: Pos): Promise<void> {
 
 /**
  * Skupinu, která po Domů jede zpět, postaví na domovskou mapu `cell` do bodu `pos` – cestu přes
- * celou mapu nahradí. True – skupina se vrací a je na té mapě.
+ * celou mapu nahradí. True – skupina se vrací a je na té mapě. Přestaví i skupinu, která na
+ * domovskou mapu došla sama, ale uvízla (`stuckDay`, `retrace`): bod sousední mapy, kam ji test
+ * postavil zápisem, nemusí vést k brance domova – hustý les náhodné krajiny je neprůchodný
+ * a skupina pak přejde okrajem do kapsy, odkud domů nedojde (domů se nepřenese – Martin 17. 11.
+ * 2026, „Vrátit se, kudy přišla“). Den uvíznutí smaže vždy – jinak by ten den úsek z nového místa
+ * nehledala (`stepMover`) a v pomalém světě e2e by stála hodiny.
  */
 export async function placeReturning(
   settlementId: string,
@@ -192,12 +200,15 @@ export async function placeReturning(
   // body zakládá nový krok – skupina 0 výpravy (plán 2026-11-14 – Úloha 1)
   if (!row || row.state.parties?.[0]?.phase !== 'returning') return false;
   const group = row.state.groups[0]!;
-  if (group.cell.x === cell.x && group.cell.y === cell.y) return true;
+  const home = group.cell.x === cell.x && group.cell.y === cell.y;
+  if (home && group.stuckDay === undefined && group.retrace !== true) return true;
   group.cell = { x: cell.x, y: cell.y };
   group.pos = { x: pos.x, z: pos.z };
   // cíl (ves) je na této mapě – žádné další políčko k přechodu, úsek cesty se naplánuje znovu
   group.route = [];
   group.leg = null;
+  delete group.stuckDay;
+  delete group.retrace;
   group.arrived = false;
   await query('UPDATE journey_checkpoint SET state = $2 WHERE journey_id = $1', [
     row.id,

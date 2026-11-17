@@ -319,9 +319,9 @@ test('vojvoda a syn: Osedlat, přes okraj na sousední mapu, Sesednout, Domů �
     )
     .toBe(true);
 
-  // Domů: skupina (zápisem do bodu) na domovské mapě, upozornění o návratu, kůň je zpět v ohradě
-  await page.getByTestId('expedition-home').click();
-  // místo, odkud cesta domů vede – návrat se domů nepřenese (Martin 17. 11. 2026)
+  // Domů: skupina (zápisem do bodu) na domovské mapě, upozornění o návratu, kůň je zpět v ohradě;
+  // místo, odkud cesta domů vede (návrat se domů nepřenese – Martin 17. 11. 2026), je spočtené
+  // předem – zápis přijde hned po rozkazu, dřív než skupina sama přejde okraj (`placeReturning`)
   const back = homeSpot(
     {
       cell: cellHome!,
@@ -332,6 +332,7 @@ test('vojvoda a syn: Osedlat, přes okraj na sousední mapu, Sesednout, Domů �
     130,
     170,
   );
+  await page.getByTestId('expedition-home').click();
   await expect
     .poll(
       async () => {

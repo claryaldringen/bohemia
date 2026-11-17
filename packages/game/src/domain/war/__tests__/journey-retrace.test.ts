@@ -8,7 +8,7 @@ import type { CampaignIntent, CampaignMap, CampaignState, CampaignWorld } from '
 import { newJourney, stepJourney } from '../journey';
 import type { JourneyIntent, JourneyState } from '../journey-types';
 import { marchCellCenter, MarchGridMemo, type MarchGrid, type Pos } from '../march-grid';
-import { msOfTick } from '../ticks';
+import { dayOfTick, msOfTick } from '../ticks';
 import {
   campaign,
   flat,
@@ -194,6 +194,63 @@ describe('uvízlý návrat – zpět, kudy přišla (Martin 17. 11. 2026)', () =
     expect('crossings' in g).toBe(false);
     expect('retrace' in g).toBe(false);
     expect(g.pos.z).toBeLessThan(-20);
+  });
+
+  it('postavená zápisem na jih E (e2e): okraj vede jen do kapsy domova – uvízne v ní; přestavená bez dne uvíznutí dojde hned, s ním až další den', () => {
+    // kapsa domova u jihu východního okraje (x > 860 m, z < −20 m) je od branky odříznutá
+    const w = worldOf(
+      (key, p) =>
+        (key === '0,0' && p.x > 800 && p.z < 0 && (p.x < 860 || p.z > -20)) ||
+        (key === '1,0' && Math.abs(p.z) < 20),
+    );
+    // jako e2e `placeJourney`: skupina stojí na jihu E bez paměti cesty odtud
+    const start = trip();
+    const spot = { x: -900, z: -300 };
+    Object.assign(start.groups[0]!, {
+      cell: { ...E },
+      pos: { ...spot },
+      goal: { cell: { ...E }, pos: { ...spot } },
+      route: [],
+      leg: null,
+      arrived: true,
+      crossings: [],
+    });
+    const order = home(start.tick + 1);
+    const stuck = stepJourney(start, start.tick + 1200, [order], w).state;
+    const g = stuck.groups[0]!;
+    expect(stuck.phase).toBe('out');
+    expect(g.cell).toEqual(H);
+    expect(g.pos.x).toBeGreaterThan(860);
+    expect(g.pos.z).toBeLessThan(-20);
+    expect(g).toMatchObject({ arrived: false, retrace: true, stuckDay: stuck.day });
+    // jako e2e `placeReturning`: na domovskou mapu k místu, odkud cesta k brance vede
+    const placed = (clear: boolean): JourneyState => {
+      const s = structuredClone(stuck);
+      const q = s.groups[0]!;
+      Object.assign(q, { cell: { ...H }, pos: { x: 200, z: 200 }, route: [], leg: null });
+      if (clear) {
+        delete q.stuckDay;
+        delete q.retrace;
+      }
+      return s;
+    };
+    const walk = (from: JourneyState): JourneyState => {
+      let s = from;
+      for (let k = 0; k < 40 && s.phase !== 'done'; k++) {
+        s = stepJourney(s, s.tick + 200, [order], w).state;
+      }
+      return s;
+    };
+    expect(walk(placed(true)).phase).toBe('done');
+    // den uvíznutí zůstal: úsek z nového místa ten den nehledá (Rozhodnutí 8) – stojí do dalšího dne
+    let last = stuck.tick;
+    while (dayOfTick(last + 1, clock) === stuck.day) last++;
+    const kept = stepJourney(placed(false), last, [order], w).state;
+    expect(kept.phase).toBe('out');
+    expect(kept.groups[0]!.pos).toEqual({ x: 200, z: 200 });
+    const next = walk(kept);
+    expect(next.phase).toBe('done');
+    expect(next.day).toBeGreaterThan(stuck.day);
   });
 });
 
