@@ -15,7 +15,7 @@ import {
   type Direction8,
 } from '@bohemia/game';
 import { E2E_ENV } from '../playwright.config';
-import { registerAndEnterGame, uniqueEmail, useUniqueClientIp } from './helpers';
+import { registerAndEnterGame, sceneSettled, uniqueEmail, useUniqueClientIp } from './helpers';
 import { linkFromLastMail } from './mail';
 import {
   changeVillageState,
@@ -304,6 +304,9 @@ test('podmínky vazalství: ikony v panelu, nové podmínky odmítnuty, vypověz
   const { seat } = await newPlayer(a, 'podmra');
   await found(a, villageSpots(seat.landscape).dwelling);
   const emailB = await registerAndEnterGame(b, 'podmrb');
+  // B se po umístění načte znovu – jednat až po prvním vykreslení scény, jinak panel B po přijetí
+  // v limitu 5 s nestihne ukázat pána (pomalý první snímek zablokuje stránku)
+  await sceneSettled(b);
   const idB = await houseIdOf(emailB);
 
   // A nabídne B vazalství s dávkou obilí a vojenskou službou

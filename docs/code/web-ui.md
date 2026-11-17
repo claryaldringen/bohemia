@@ -449,7 +449,12 @@ villageId)`. Z levných otisků (`stampsOf` – `last_day`, `asleep`) se dopočt
   (`trailAxes` – jako server). **Opakování dne** (`replayFrom`
   v `multiplayer-war.spec.ts`): napřed přesunout události schránky na dnešek, pak zapsat stav –
   zápis stavu ohlásí ves otevřené hře a její dotaz den hned dopočítá (události ještě na zítřku by
-  minul).
+  minul). **Pomalý první snímek scény:** bezhlavý Chromium kreslí softwarově – první snímky po
+  `data-scene-ready` zablokují stránku na několik sekund (17. 11. 2026 pod zátěží ≈ 5 s, 2,5 s
+  a 0,3 s, skoro celé v nativním kódu WebGL). Test, který hned po načtení (`registerAndEnterGame`
+  – odříznutý nováček se načte znovu) jedná v rozhraní s výchozím limitem 5 s, napřed počká na
+  `sceneSettled` (`e2e/helpers.ts` – připravená scéna a dva snímky prohlížeče). Vzor:
+  `multiplayer.spec.ts` – podmínky vazalství.
 
 - **e2e a `test:db` souběžně z víc pracovních stromů:** port `next start` a testovací databázi
   čtou `playwright.config.ts` (a přes něj e2e pomocníci i worker v e2e) a testy adaptérů
