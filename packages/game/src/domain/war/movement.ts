@@ -65,36 +65,6 @@ export function planMoverLeg(
 ): CampaignLeg | null {
   const grid = gridOf(m.cell, day, ctx);
   const nextCell = m.route[0];
-  if (nextCell !== undefined) return planLeg(m, goal, day, ctx, grid, nextCell);
-  // tažení čekající na ves se každé kolo workeru počítá znovu od téhož bodu (takt, který čeká,
-  // se neukládá) – stejný vstup na téže mřížce proto dá stejný úsek (měření 16. 11. 2026:
-  // cesta hustým lesem přes mapu ≈ 2,7 ms za výpočet)
-  const key = `${m.pos.x},${m.pos.z}|${goal.x},${goal.z}`;
-  let known = legMemo.get(grid);
-  if (known === undefined) {
-    known = new Map();
-    legMemo.set(grid, known);
-  }
-  const hit = known.get(key);
-  if (hit !== undefined) {
-    return hit === null ? null : { points: hit.points, meadowM: hit.meadowM, walkedM: 0 };
-  }
-  const leg = planLeg(m, goal, day, ctx, grid, nextCell);
-  if (known.size >= 64) known.clear();
-  known.set(key, leg);
-  return leg === null ? null : { points: leg.points, meadowM: leg.meadowM, walkedM: 0 };
-}
-
-const legMemo = new WeakMap<MarchGrid, Map<string, CampaignLeg | null>>();
-
-function planLeg(
-  m: Mover,
-  goal: Pos,
-  day: number,
-  ctx: TickContext,
-  grid: MarchGrid,
-  nextCell: GridCell | undefined,
-): CampaignLeg | null {
   let path;
   if (nextCell !== undefined) {
     const direction = directionBetween(m.cell, nextCell);

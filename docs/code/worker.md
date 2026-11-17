@@ -528,16 +528,17 @@ Dřív stál dotaz ≈ 76 ms (3 % jádra na jednoho hráče s otevřeným panele
 
 | Měření            | báze               | větev               |
 | ----------------- | ------------------ | ------------------- |
-| pochod 1 / 5 / 20 | 1913 / 2806 / 5897 | 1160 / 1829 / 15744 |
-| opevněné 5        | 649                | 615                 |
-| varování 5        | 1572 (1,3 % jádra) | 310 (6,4 % jádra)   |
-| RSS (3 běhy)      | 643–717 MB         | 779–826 MB          |
+| pochod 1 / 5 / 20 | 1913 / 2806 / 5897 | 1246 / 2046 / 17865 |
+| opevněné 5        | 649                | 608                 |
+| varování 5        | 1572 (1,3 % jádra) | 75 (26,8 % jádra)   |
+| RSS (3 běhy)      | 643–717 MB         | 779–890 MB          |
 
-- Paměť: +60–180 MB podle běhu, v průměru ≈ +110 MB (mez návrhu Clauda 150 MB). `MEMO_DAYS` 4 → 2
-  RSS nezlepšilo spolehlivě a rozbilo e2e varování vsi (`multiplayer-war` – „ves B varovaná“),
-  proto zůstává 4.
-- Varování 5: cíl uprostřed hustého lesa je neprůchodný; `reachableGoal` se pamatuje při mřížce
-  (`nearestToTarget`) a úsek k cíli na téže mapě se pamatuje při mřížce (`planMoverLeg`) – tažení
-  čekající na ves se každé kolo počítá znovu od téhož bodu a cesta hustým lesem přes mapu stojí
-  ≈ 2,7 ms. Zbytek (≈ 5× báze) je právě tato cesta při první výpočtu v každém kole se znovu
-  postavenou mřížkou.
+- Paměť: ≈ +110 MB v průměru (mez návrhu Clauda 150 MB; jednotlivé běhy +60 až +173 MB).
+  `MEMO_DAYS` 4 → 2 RSS spolehlivě nezlepšilo, proto zůstává 4.
+- Varování 5: cíl uprostřed hustého lesa je neprůchodný a cesta hustým lesem přes mapu stojí
+  ≈ 2,7 ms. Tažení, které čeká na ves (bariéra), se každé kolo workeru počítá znovu od téhož
+  bodu – takt, který čeká, se neukládá – a úsek (`leg`) se při tom plánuje znovu. Báze to dělá
+  stejně, jen je tam cesta ≈ 0,1 ms. Paměť úseku při mřížce (`planMoverLeg`) a paměť cíle
+  (`reachableGoal`) zrychlily měření ≈ 4×, ale e2e „ves B varovaná“ (`multiplayer-war`) pak
+  opakovaně selhalo (průvod došel dřív, než test stihl vidět `marching`; s původním kódem prošlo),
+  proto jsou vráceny. Zbývá k řešení: ukládat úsek v bodě tažení, které čeká.

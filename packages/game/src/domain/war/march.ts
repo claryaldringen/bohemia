@@ -238,46 +238,15 @@ export function reachableGoal(grid: MarchGrid, from: Pos, to: Pos): Pos | null {
   if (marchReachable(grid, from, to)) return to;
   const target = outOfBuilding(grid, marchCellAt(grid, to));
   const at = marchCellAt(grid, from);
-  const near = grid.pace[at]! > 0 ? -1 : nearestToTarget(grid, target, 0);
+  const near = grid.pace[at]! > 0 ? -1 : nearestPassable(grid, target, Infinity);
   const nearArea = near < 0 ? 0 : marchArea(grid, near);
   const start = departureOf(grid, at, nearArea === 0 ? null : (a) => a === nearArea);
   if (start < 0) return null;
   const areas = marchAreas(grid);
   const w = grid.width;
   const area = marchAreaOf(areas, w, start);
-  const best = nearestToTarget(grid, target, area);
+  const best = nearestCell(grid, target, Infinity, (n) => marchAreaOf(areas, w, n) === area);
   return best < 0 ? null : marchCellCenter(grid, best);
-}
-
-const toTargetMemo = new WeakMap<MarchGrid, Map<number, number>>();
-
-/**
- * Nejbližší buňka k cíli `target` na celé mapě – průchodná (`area` 0), nebo v oblasti `area`.
- * Výsledek závisí jen na mřížce, cíli a oblasti, proto se pamatuje při mřížce: skupina, která
- * míří do neprůchodného místa (hustý les uprostřed mapy), se jinak v každém taktu prstenci
- * prohledávala přes celou mapu (měření 16. 11. 2026 – „varování 5“ ≈ 20× pomalejší než bez
- * hustého lesa).
- */
-function nearestToTarget(grid: MarchGrid, target: number, area: number): number {
-  let memo = toTargetMemo.get(grid);
-  if (memo === undefined) {
-    memo = new Map();
-    toTargetMemo.set(grid, memo);
-  }
-  const key = target * 4194304 + area;
-  const known = memo.get(key);
-  if (known !== undefined) return known;
-  const found =
-    area === 0
-      ? nearestPassable(grid, target, Infinity)
-      : (() => {
-          const areas = marchAreas(grid);
-          const w = grid.width;
-          return nearestCell(grid, target, Infinity, (n) => marchAreaOf(areas, w, n) === area);
-        })();
-  if (memo.size >= 256) memo.clear();
-  memo.set(key, found);
-  return found;
 }
 
 /**
