@@ -93,7 +93,7 @@ trailId: -1, give, porters, days = 4 × cells, cost = porters × days }` – nos
   `shipment-received` (`returned: true` u vrácené).
 - **Jídlo domény** (`ShipmentBody.domain`, `sendShipment(…, { purpose: 'domain-food', domain: true })`;
   hillfort.md – Jídlo domény, Martin 8. 11. 2026): `receiveShipment` s `domain` dá obilí do `storesKg`
-  jako dnes, ale každý kus dobytka se hned poráží – `meatKg += LIVESTOCK.meatKg.cow` (120 kg), do stád
+  jako dnes, ale každý kus dobytka se hned poráží – `meatKg += LIVESTOCK.meatKg.cow` (130 kg), do stád
   ani ohrad nejde (žádné `addCattle`, `ensureLivestock`) – a zapíše `domainFoodDay = day` (kdy
   naposledy přišlo jídlo domény; čte správce hradiště). Vrácená zásilka (cíl zanikl) `domain`
   ztrácí – dobytek se odesílateli vrátí živý. Kronika webu (`purpose === 'domain-food'`):

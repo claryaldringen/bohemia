@@ -41,8 +41,9 @@ import { goldenWorld, stateFingerprint, YEAR } from './village-golden-fixture';
 // village-golden.test.ts); dřív 4ae0bce6720eb749 a b6f24d22b7474e65
 // 17. 11. 2026 – D91 (psi dvorce nejedí obilí, maso krávy 130 kg, včasná porážka koní bez sena –
 // viz village-golden.test.ts); dřív 344a0e5dac68c6b6 a 7d8de5be28486665
-const EXPECTED_YEAR_2 = '306440f7f5b30966';
-const EXPECTED_YEAR_3 = '2e3e180d8e3119dd';
+// D91 doplněk: vůl na maso 130 kg (viz village-golden.test.ts); dřív 306440f7f5b30966 a 2e3e180d8e3119dd
+const EXPECTED_YEAR_2 = '168010dd35f7c1c7';
+const EXPECTED_YEAR_3 = 'a499594da5514b49';
 
 describe('zlatý otisk vsi – delší běh', () => {
   it('po 2. a 3. roce dopočtu dá zapsané otisky', () => {

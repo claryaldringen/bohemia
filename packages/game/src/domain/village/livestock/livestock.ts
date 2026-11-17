@@ -106,7 +106,7 @@ export const LIVESTOCK = {
   forestHaPerPig: 1,
   reachM: 600,
   meatKg: { sheep: 15, goat: 12, pig: 50, cow: 130 },
-  oxMeatKg: 120,
+  oxMeatKg: 130,
   eggsKgPerHen: 5,
   breedingMin: 2,
   youngForMeat: 0.5,

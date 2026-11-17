@@ -57,7 +57,9 @@ import { advanceChunked, goldenWorld, stateFingerprint, YEAR } from './village-g
 // 2 cesty za den – práce vznik neurychlí (Martin: „Nejvýš do 3 let“ – `WEAR.formFrom`); se
 // samotnou D89 f6940655ec1a866e
 // 17. 11. 2026 – D91 (Martin 17. 11. 2026: „psi ať nic nespotřebovávají“ a maso krávy 120 → 130 kg): psi dvorce už nejedí obilí a z porážky je víc masa – jiné zásoby a jídlo; dřív 619b02b6a1c512e2
-const EXPECTED_YEAR_1 = '6df903308768fe20';
+// 17. 11. 2026 – D91 doplněk (Martin: „Tehdejší lidé zpracovali to zvíře komplet“): vůl na maso
+// 120 → 130 kg jako kráva (`oxMeatKg`) – jiné zásoby; dřív 6df903308768fe20
+const EXPECTED_YEAR_1 = '82b12dd84c08dd63';
 
 describe('zlatý otisk vsi', () => {
   const world = goldenWorld();
