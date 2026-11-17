@@ -93,11 +93,16 @@ u vojska ([válka](war.md) – Cíl v neprůchodné buňce).
   domů sama (Martin). Každé další dojetí počítá lhůtu znovu.
 - **Doma** vojvoda vejde do dvorce, koně jdou do ohrady a všichni se vrátí ke svému dni (návrh
   Clauda).
+- **Nemá-li kudy domů – „Vrátit se, kudy přišla“** (Martin 17. 11. 2026, volba v otázce): skupina
+  půjde zpět přes stejné mapy a stejná místa na okrajích, kudy přišla – tou cestou prokazatelně
+  prošla. Stát zůstane (a čekat na rozkaz), jen když i ta cesta mezitím zmizí. Nikdy se nepřenese
+  domů ([válka](war.md) – Pohyb – Terén).
 
 ### Pohyb
 
-Jako vojsko ([válka](war.md) – Pohyb – mapu po mapě): svižná chůze ≈ 3,5 m/s, jezdci × 1,5, hustý
-les ≈ 1/4 tempa, voda jen po brodech, cesty × 1,5, okraje map v 8 směrech. Každou mapou se jede.
+Jako vojsko ([válka](war.md) – Pohyb – mapu po mapě): svižná chůze ≈ 3,5 m/s, jezdci × 1,5, ~~hustý
+les ≈ 1/4 tempa~~ (od 16. 11. 2026 je hustý les neprůchozí – jen zemská stezka a pevná cesta), voda jen po brodech, cesty × 1,5, okraje map ve 4 směrech (na úhlopříčnou mapu
+přes sousední – návrh Clauda 16. 11. 2026). Každou mapou se jede.
 
 - **Brány** jsou v míru otevřené – zavírají se až při nájezdu ([opevnění](fortifications.md) – Ve
   scéně). Družina jimi projede jako místní (návrh Clauda).

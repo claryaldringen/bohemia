@@ -6,6 +6,7 @@ import {
   type ExpeditionCommand,
   type ExpeditionView,
   type GridCell,
+  type Pos,
 } from '@bohemia/game';
 import { commandExpedition } from '@/app/game/actions/journey';
 import { useExpeditions, type ExpeditionsHandle } from '@/hooks/use-journey';
@@ -22,6 +23,7 @@ import type { JourneyView } from '@/lib/journey-view';
 import type { ScenePerson } from '@/lib/person-view';
 import { edgeDirection, orderClick, orderFromClick } from '@/lib/scene/journey-orders';
 import type { LandscapeScene } from '@/lib/scene/landscape-scene';
+import { FORBIDDEN_CURSOR, cursorBlocked } from '@/lib/scene/march-cursor';
 import type { VillageTarget } from '@/lib/scene/village-picking';
 import {
   peopleTarget,
@@ -289,6 +291,20 @@ export function useExpeditionOrders({
   useEffect(() => {
     refusalRef.current = refusal;
   }, [refusal]);
+  // Odkud vybraní vyrazí (kurzor „sem se nedá dojít“): skupina na mapě scény, nově z domu
+  // obydlí prvního z vybraných; jinde (skupina na jiné mapě, lidé jiné vsi) nápověda nebývá
+  const originRef = useRef<() => Pos | null>(() => null);
+  useEffect(() => {
+    originRef.current = (): Pos | null => {
+      const party = ids.length > 0 ? partyJourneyViewOf(homeViews, ids) : null;
+      if (party) {
+        const same = party.cell.x === orderCell.x && party.cell.y === orderCell.y;
+        return same ? party.group.pos : null;
+      }
+      const first = chosenVillage === undefined ? persons.find((p) => p.id === ids[0]) : undefined;
+      return first && orderScene ? orderScene.dwellingPoint(first.home) : null;
+    };
+  }, [ids, homeViews, orderCell, chosenVillage, persons, orderScene]);
   const active = ids.length > 0;
   useEffect(() => {
     if (!orderScene || !active) return;
@@ -309,6 +325,14 @@ export function useExpeditionOrders({
         if (click.kind === 'send') send({ kind: 'order', order: click.order }, screen);
       },
       hover: (point, screen) => {
+        // místo, kam skupina nedojde (hustý les, voda, odříznutá oblast, okraj bez průchodu):
+        // kurzor zákazu, bez popisku (jen vizuální nápověda – rozkaz ověří server)
+        const from = point ? originRef.current() : null;
+        const grid = from ? orderScene.marchGrid() : null;
+        if (point && from && grid && cursorBlocked(grid, from, point, orderMapSizeM)) {
+          setNote((prev) => (prev?.tone === 'info' ? null : prev));
+          return FORBIDDEN_CURSOR;
+        }
         const direction = point ? edgeDirection(point, orderMapSizeM) : null;
         setNote((prev) => {
           if (direction === null || screen === null) return prev?.tone === 'info' ? null : prev;

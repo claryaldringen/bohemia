@@ -11,6 +11,7 @@ import type { WarSceneResponse } from '@/lib/war-scene-view';
 // cizí tažení i neexistující = stejná odpověď 404 (nic se neprozradí).
 //   GET /api/campaign/<id>?since=<takt>   → { view }
 //   GET /api/campaign/<id>?map=<x>,<y>    → { map } – krajina políčka, které vojsko zná
+//   GET /api/campaign/<id>?map=<x>,<y>&trails → { trails } – jen pokračování stezek té mapy
 //   GET /api/campaign/<id>?scene=<x>,<y>  → { war } – válka na té mapě z pohledu útočníka (scéna
 //                                           cizí mapy, war.md – Ve scéně); null = nic k vidění
 
@@ -38,8 +39,11 @@ export async function GET(
   if (map !== null) {
     const cell = cellOf(map);
     if (!cell) return notFound();
-    const foreign = await foreignMapForPlayer(session.user.id, id, cell);
-    return foreign ? Response.json({ map: foreign }, { headers: NO_STORE }) : notFound();
+    // `&trails` – jen pokračování stezek té mapy (prohlížeč je dočte, když vojsko objeví víc)
+    const trails = query.has('trails');
+    const foreign = await foreignMapForPlayer(session.user.id, id, cell, trails);
+    if (!foreign) return notFound();
+    return Response.json(trails ? { trails: foreign } : { map: foreign }, { headers: NO_STORE });
   }
   const scene = query.get('scene');
   if (scene !== null) {

@@ -10,7 +10,9 @@ import {
   type MarchGrid,
   type TargetDwelling,
 } from '@bohemia/game';
+import { createTrailExitSource } from '@bohemia/db';
 import { createCampaignCells, currentWorld, LruCache } from '@bohemia/server';
+import { getDatabase } from './db';
 import { gameDeps } from './game';
 import type { CampaignSummary, CampaignView } from './campaign-view';
 
@@ -36,6 +38,8 @@ export function campaignCells(): CampaignCells {
     villages: deps.villages,
     landscapes: deps.landscapes,
     worldSeed: deps.worldSeed,
+    // vstupy zemských stezek sousedních vsí ze souhrnů (trade.md – Pokračování na sousední mapě)
+    trailExits: createTrailExitSource(getDatabase()),
   });
   return cells;
 }

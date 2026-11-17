@@ -84,6 +84,8 @@ export interface AlarmMover {
   route: GridCell[];
   /** Úsek po současné mapě; null = spočte se. */
   leg: CampaignLeg | null;
+  /** Den, kdy úsek spočíst nešlo – ten den se nehledá znovu (`stepMover`); chybí = neuvízl. */
+  stuckDay?: number;
   target: CampaignPlace;
 }
 

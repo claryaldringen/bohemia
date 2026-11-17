@@ -11,13 +11,35 @@ import {
 import {
   checkDwellingPlacement,
   checkPlotPlacement,
+  continuationsOf,
+  directionBetween,
+  edgeCrossing,
   fieldPartsFromCells,
+  finishTrail,
   generateLandscapeAttempt,
+  marchCellAt,
+  marchCellCenter,
+  marchGrid,
+  marchArea,
+  marchPathToEdge,
+  marchReachable,
+  nearestPassable,
+  obstaclesOf,
+  planTrail,
+  startTrail,
+  surfaceAt,
   tileCenterWorld,
   tileOfWorldPoint,
+  trailEntriesOf,
+  trailExitsOf,
+  villageGate,
+  type Direction8,
   type DwellingPlot,
+  type RoadPoint,
+  type Pos,
   type Landscape,
   type LayerVersions,
+  type PremiumType,
   type SkeletonSlice,
   type PlacementVillage,
   type Position,
@@ -32,6 +54,114 @@ export interface Seat {
   settlementId: string;
   seed: number;
   landscape: Landscape;
+}
+
+/** Mapa sídla pro přechod okrajem (`crossesTo`): políčko, krajina a stav vsi na ní. */
+export interface CrossingMap {
+  cell: { x: number; y: number };
+  landscape: Landscape;
+  state: VillageState;
+}
+
+/**
+ * Dojde skupina z místa `pos` na mapě `from` k okraji a přejde na sousední mapu `to` (war.md –
+ * Uvíznutí; plán 2026-11-16-dense-forest – Rozhodnutí 8: okrajem jen tam, kde je protějšek
+ * okrajové buňky na sousední mapě průchozí)? Totéž jako náhradní cesta `planMoverLeg` – mřížky
+ * pochodu obou map ve dni vsi `from` (bez os pokračování stezek – vsi v testech stezky nestaví).
+ * Testy, které sídlo posunou na sousední políčko, si tak vyberou stranu, kde mapy navazují:
+ * krajiny vznikly pro jiná políčka a hustý les na okraji je neprůchodný. S cílem `goal` na mapě
+ * `to` jen do oblasti, odkud k němu cesta vede (jako `planMoverLeg` na mapě cíle – průvod do
+ * hradiště vyrazí, jen když cesta vede až tam: Martin 17. 11. 2026, „Utéct do lesa“). Osy
+ * pokračování stezek na mapě `to` (`trailAxes`) dá `continuations`.
+ */
+export function crossesTo(
+  from: CrossingMap,
+  pos: Pos,
+  to: CrossingMap,
+  goal?: Pos,
+  continuations?: readonly (readonly RoadPoint[])[],
+): boolean {
+  const direction = directionBetween(from.cell, to.cell);
+  if (direction === null) return false;
+  const day = from.state.lastDay;
+  const here = marchGrid(from.landscape, obstaclesOf(from.landscape), from.state, { day });
+  const there = marchGrid(to.landscape, obstaclesOf(to.landscape), to.state, {
+    day,
+    ...(continuations ? { trailContinuations: continuations } : {}),
+  });
+  const near = goal === undefined ? -1 : nearestPassable(there, marchCellAt(there, goal), Infinity);
+  const area = near < 0 ? 0 : marchArea(there, near);
+  const path = marchPathToEdge(here, pos, direction, (c) => {
+    const t = marchCellAt(there, edgeCrossing(from.cell, to.cell, marchCellCenter(here, c)));
+    return there.pace[t]! > 0 && (goal === undefined || marchArea(there, t) === area);
+  });
+  return path !== null;
+}
+
+/**
+ * Ves `state` s hotovou zemskou stezkou ve směru `direction` – zápis jako po letech práce (jako
+ * obchod ve village.spec.ts), dostavěná den před `lastDay`: kusy ke kraji a pokračování na sousední
+ * mapě platí až ode dne po dostavění (`edgePieces`, `continuationsOf`). Martin 17. 11. 2026 –
+ * „Cestu otevře až stezka“: test, kterému náhodný hustý les cestu zavře, si ji otevře stezkou.
+ * Nejde-li stezka postavit (`planTrail`), null.
+ */
+export function withTrail(
+  state: VillageState,
+  direction: Direction8,
+  landscape: Landscape,
+): VillageState | null {
+  const obstacles = obstaclesOf(landscape);
+  const day = state.lastDay;
+  if (!planTrail(state, direction, day, landscape, obstacles).ok) return null;
+  const next = startTrail(state, day, direction, landscape, obstacles);
+  const trail = next.trails!.find((t) => t.direction === direction)!;
+  const site = next.constructions.find((c) => c.trail === trail.id);
+  if (site) finishTrail(next, site, day - 1);
+  trail.builtDay = day - 1;
+  next.constructions = next.constructions.filter((c) => c.trail !== trail.id);
+  return next;
+}
+
+/** Osy pokračování hotových stezek vsi mapy `from` na mapě `to` – jako server (`continuationsOf`). */
+export function trailAxes(from: CrossingMap, to: CrossingMap): readonly (readonly RoadPoint[])[] {
+  const trailEntries = trailEntriesOf(to.cell, [
+    { cell: from.cell, exits: trailExitsOf(from.state) },
+  ]);
+  const map = { landscape: to.landscape, obstacles: obstaclesOf(to.landscape), trailEntries };
+  return continuationsOf(map, to.state, from.state.lastDay);
+}
+
+/**
+ * Místo na louce `minR`–`maxR` m od `from` na mapě `map` (nejblíž středu pásma), odkud skupina dojde
+ * k brance domova (`villageGate` – kam se vrací výjezd i tažení) po mřížce pochodu jako server.
+ * Návrat cíl domů neposouvá a domů se nepřenese (Martin 17. 11. 2026 – „Vrátit se, kudy přišla“),
+ * hustý les náhodné krajiny je neprůchodný – testy, které skupinu na návratu postaví zápisem, si tak
+ * vyberou místo, odkud cesta domů vede (Martin 17. 11. 2026 – „Cestu otevře až stezka“: náhodně
+ * odříznutá ves nesmí e2e rozbít).
+ */
+export function homeSpot(map: CrossingMap, from: Pos, minR: number, maxR: number): Pos {
+  const l = map.landscape;
+  const grid = marchGrid(l, obstaclesOf(l), map.state, { day: map.state.lastDay });
+  const gate = villageGate(map.state, l);
+  const half = (l.size * l.cellSizeM) / 2;
+  let best: Pos | null = null;
+  let bestScore = Infinity;
+  for (let y = 0; y < l.size; y++) {
+    for (let x = 0; x < l.size; x++) {
+      if (surfaceAt(l, x, y) !== 'meadow') continue;
+      const p = tileCenterWorld(l, x, y);
+      if (Math.abs(p.x) > half - 120 || Math.abs(p.z) > half - 120) continue;
+      const d = Math.hypot(p.x - from.x, p.z - from.z);
+      if (d < minR || d > maxR) continue;
+      const score = Math.abs(d - (minR + maxR) / 2);
+      if (score < bestScore && marchReachable(grid, p, gate)) {
+        bestScore = score;
+        best = p;
+      }
+    }
+  }
+  if (!best) throw new Error('Na mapě není místo v potřebné vzdálenosti, odkud vede cesta domů.');
+  return best;
 }
 
 export async function query<T extends object>(sql: string, params: unknown[]): Promise<T[]> {
@@ -51,16 +181,18 @@ async function withClient<T>(run: (client: Client) => Promise<T>): Promise<T> {
 
 /**
  * Aktivní sídelní sídlo hráče s krajinou – stejně jako ji generuje server (seed a verze vrstev
- * z databáze). Sídla archivovaná restartem hry se nepočítají.
+ * z databáze, prémiový typ a výřez kostry – `settlementLandscape`). Sídla archivovaná restartem
+ * hry se nepočítají.
  */
 export async function seat(email: string): Promise<Seat> {
   const [row] = await query<{
     id: string;
     landscape_seed: number;
     layer_versions: LayerVersions;
+    premium_type: PremiumType | null;
     skeleton: SkeletonSlice | null;
   }>(
-    `SELECT s.id, s.landscape_seed, s.layer_versions, s.skeleton
+    `SELECT s.id, s.landscape_seed, s.layer_versions, s.premium_type, s.skeleton
        FROM settlement s JOIN "user" u ON u.id = s.owner_id
       WHERE u.email = $1 AND s.is_seat AND s.archived_at IS NULL`,
     [email],
@@ -69,11 +201,13 @@ export async function seat(email: string): Promise<Seat> {
   return {
     settlementId: row.id,
     seed: row.landscape_seed,
-    // s výřezem kostry (pozvaný na řece či stezce – verze `skeleton` bez výřezu by neprošla)
+    // s prémiovým typem (sídla ho v testech dostávají – bez něj jiný terén, voda i hustý les, takže
+    // `crossesTo` vybíral stranu podle jiné mřížky než server) a s výřezem kostry (pozvaný na řece
+    // či stezce – verze `skeleton` bez výřezu by neprošla)
     landscape: generateLandscapeAttempt(
       row.landscape_seed,
       row.layer_versions,
-      undefined,
+      row.premium_type ?? undefined,
       row.skeleton,
     ),
   };

@@ -1,5 +1,5 @@
 import type { Landscape } from '../landscape';
-import { villageCentre } from '../village/people/departure';
+import { villageGate } from '../village/people/departure';
 import type { VillageState } from '../village/types';
 import { alarmCellOf, alarmEnded, alarmVillage, armyEyes, refugeHosts } from './alarm';
 import type { AlarmVillage } from './alarm-types';
@@ -214,7 +214,7 @@ export function alarmChoices(
   if (map === null) throw new MissingData([{ ...cell }], []);
   const home = withoutTaken(state, alarmTaken(s, v.villageId, s.day, ctx.world.clock));
   const { hosts } = refugeHosts(s, v.villageId, cell, ctx);
-  const village = { cell, pos: villageCentre(state) };
+  const village = { cell, pos: villageGate(state, map.landscape) };
   const options = refugeOptions({
     state: home,
     day: s.day,

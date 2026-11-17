@@ -55,7 +55,7 @@ Přechod hradby, Prolomení, Obránci na hradbě, Brány v bitvě, NPC velitel).
 **Platí dál (Martin 18. 10. 2026):** dobrovolníci a rozkaz; libovolný počet mužů a práce doma
 úměrně zpomalí; padlí mohou ves položit až k vymření; kovárna dává bonus; postup dům od domu,
 sevřená ves se brání společně, samoty ne; vzdaný dům útočník pobije, nebo odvede; mlha války;
-hustý les velmi pomalu, voda jen po brodech; napadený se o vojsku dozví, až ho spatří vesničan;
+~~hustý les velmi pomalu~~ (změna 16. 11. 2026: hustý les je neprůchozí – viz Terén), voda jen po brodech; napadený se o vojsku dozví, až ho spatří vesničan;
 přítomný hráč velí obraně sám; mřížka map s přechodem okrajem.
 
 ## Cíle, ne-cíle, anti-cíle
@@ -289,8 +289,11 @@ a 12 vesničanů (8 dobrovolníků po 0,4, 4 nucení po 0,2 = 4,0), s kovárnou 
 - Martin 2. 11. 2026: „**Hráč musí k cíli dojít mapu po mapě. Bude tak jednodušší plenit
   příhraniční vesnice a těžší probít se k centru dominia**“.
 - **Přechod okrajem:** vojsko dojde k okraji a objeví se na opačném okraji sousední mapy
-  (Martin 18. 10.); v 8 směrech jako mřížka vazalství (návrh Clauda). **Každou mapou se jde** i na
-  mezilehlých mapách – žádný skok ani čas cesty bez scény (Martin 2. 11. 2026).
+  (Martin 18. 10.); ve 4 směrech – přes okraj, který mapy sdílejí. Na úhlopříčně sousední mapu
+  se jde dvěma kolmými kroky přes sousední mapu (návrh Clauda 16. 11. 2026 – dřív v 8 směrech jako
+  mřížka vazalství: úhlopříčný přechod vedl jediným místem v rohu mapy, a kde tam byl les, vojsko
+  stálo). **Každou mapou se jde** i na mezilehlých mapách – žádný skok ani čas cesty bez scény
+  (Martin 2. 11. 2026).
 - **Tempo** – Martin 2. 11. 2026: „**Ten kompromis zní dobře**“: svižná chůze jako jednotky
   v 0 A.D., **≈ 3–4 m/s ve skutečném čase**, 1 km ≈ **4–5 min ≈ 3 herní dny**. Mapa má
   ≈ 1,9 km ([krajina](landscape.md)) – přes celou mapu ≈ 9 min (≈ 6 dní), od okraje ke vsi
@@ -307,6 +310,21 @@ a 12 vesničanů (8 dobrovolníků po 0,4, 4 nucení po 0,2 = 4,0), s kovárnou 
   ([cesty](roads.md), [obchod](trade.md)); trasa je ale sama nevyhledává (návrh Clauda).
   - Důsledek: ves v pasece uprostřed hustého lesa je pro vojsko i výpravu dosažitelná jen po
     stezce či cestě, nebo přes louky, které souvisle vedou k okraji mapy (návrh Clauda).
+  - **Odříznutá ves – „Cestu otevře až stezka“** (Martin 17. 11. 2026, volba v otázce): ves, od
+    které hustým lesem nevede paseka ke kraji mapy, je odříznutá – nevyjde z ní vojvoda, vojsko ani
+    výprava a nepřítel k ní nedojde, dokud hráč nepostaví zemskou stezku (průsek lesem). Žádný
+    průchod od založení se nepřidává ([les](forest.md) – Hustý les).
+  - **Odříznutá ves do tažení nejde** (Martin 17. 11. 2026 – volba „Nesmí do tažení“ k otázce, zda
+    smí odříznutá ves poslat muže do tažení; zdůvodnění „Cestu otevře až stezka“): ves, odkud
+    ke shromaždišti nevede cesta (po mapách trasy z branky dvorce, stejně jako průvod do hradiště),
+    v plánu tažení zašedne s důvodem u kurzoru „Ze vsi ke shromaždišti cesta nevede – otevře ji až
+    zemská stezka.“ a server plán s ní odmítne – její muži by se po rozpadu domů nevrátili. Ves
+    shromaždiště sama smí vždy (text a výjimka návrh Clauda).
+  - **K odříznutému cíli tažení nejde** (návrh Clauda 17. 11. 2026 – plyne z „Nesmí do tažení“
+    a „Cestu otevře až stezka“: nikdo ven, nepřítel nedojde): nevede-li cesta ze shromaždiště
+    k cílové vsi (odříznuté shromaždiště i odříznutý cíl), plán zašedne s důvodem „K cíli cesta
+    nevede – otevře ji až zemská stezka.“ a server ho odmítne – jinak by vojsko stálo u okraje
+    navždy. Zkouší se napřed, před cestou vsí ke shromaždišti.
   - **Zemská stezka pokračuje na sousední mapě** až k tamní vsi, nebo k nejbližší velké louce
     (Martin 16. 11. 2026: „ano“ – [obchod](trade.md) – Zemská stezka): vojska tak chodí k sousedům
     po stezkách; bez toho by se z vlastní mapy dostala jen do úzkých pásů u okraje sousední mapy
@@ -315,10 +333,28 @@ a 12 vesničanů (8 dobrovolníků po 0,4, 4 nucení po 0,2 = 4,0), s kovárnou 
 - **Cíl v neprůchodné buňce** (návrh Clauda 10. 11. 2026, jako v 0 A.D. – jednotka jde na
   nejbližší dosažitelné místo): klik do vody bez brodu, na sráz, na hradbu nebo na místo, kam
   cesta nevede (za řekou bez brodu), vojsko neodmítne ani tiše nestojí – cíl se posune na
-  nejbližší průchodné místo, kam skupina dojde, a mapa tažení ukáže posunutý cíl. Jen když skupina nedojde vůbec nikam (stojí sevřená ve vodě), rozkaz se
+  nejbližší průchodné místo, kam skupina dojde, a mapa tažení ukáže posunutý cíl. Skupina ve vodě unikne na břeh (návrh Clauda 16. 11. 2026); jen když na mapě není jediná průchodná
+  buňka, rozkaz se
   neprovede a u kurzoru je důvod „Tam vojsko nedojde.“
+  - **Cíl ve stavbě** (návrh Clauda 16. 11. 2026): klik na dům se posune na nejbližší průchodné
+    místo nejvýš **40 m** daleko, odkud vojsko dojde k domu rovně. Skupina, která stojí ve vodě
+    nebo v lese, unikne přednostně tam, odkud vede cesta dál (k cíli nebo k okraji mapy) – nejvýš
+    o 40 m dál, než leží nejbližší průchodné místo; dál ne, to by byl průchod lesem. Ze stavby
+    unikne jen na nejbližší průchodné místo.
   - **Okraj mapy zavřený hustým lesem** (Martin 16. 11. 2026: „Má zůstat stát.“): když skupina
     nemůže na sousední mapu, nehledá objížďku přes jiné mapy – zůstane stát u okraje.
+  - **Uvíznutí a start** (návrh Clauda 16. 11. 2026): uvízlá skupina zkouší znovu až po novém
+    rozkazu; na tranzitní mapě může skončit `stuck` ve slepé kapse. Tažení, útěk i poslové
+    startují u branky dvorce a cesta mezi mapami je čtyřsousedná (úhlopříčný soused přes
+    ortogonální mapu).
+  - **Uvízlý návrat – „Vrátit se, kudy přišla“** (Martin 17. 11. 2026, volba v otázce): skupina
+    na návratu, která nemá kudy domů (okraj k domovu zavřený hustým lesem), půjde zpět přes stejné
+    mapy a stejná místa na okrajích, kudy přišla – tou cestou prokazatelně prošla. Stát zůstane
+    (a čekat na rozkaz), jen když i ta cesta mezitím zmizí. **Nikdy se nepřenese domů.** Platí pro
+    vojsko (návrat i rozpad) i výpravu. Návrh Clauda: skupina si pamatuje každý přechod okrajem od
+    domova; domů se cíl neposouvá na nejbližší dosažitelné místo (kdo domů nedojde, nedošel);
+    uvízlé vojsko na návratu rozkaz nemá, proto to zkouší znovu každý herní den – kdyby cesta
+    domů zase vedla (stezka), dojde; tažení do té doby neskončí.
   - **Kurzor nad nedosažitelným místem** (Martin 16. 11. 2026: „Ideální by bylo, kdyby kurzor na
     místech, kam se nedá dojít, podle toho vypadal“): nad místem, kam vybraná skupina nedojde,
     vypadá kurzor jinak (ikona zákazu jako v 0 A.D.).
@@ -418,6 +454,10 @@ a 12 vesničanů (8 dobrovolníků po 0,4, 4 nucení po 0,2 = 4,0), s kovárnou 
     domů jako při rozpadu, prchající obránci do nejbližšího lesa (návrh Clauda).
 - **Dům od domu** (Martin 18. 10.): domy blíž než **40 m** od sebe tvoří **skupinu domů**; její
   obránci se seběhnou a brání společně, samota se neubrání.
+- **Objížďka hustého lesa** (návrh Clauda 16. 11. 2026): útočník, kterému k cíli vede přímka
+  hustým lesem, vodou nebo skálou, obejde je po trase pochodu – i objížďkou, která vede napřed od
+  cíle. Objížďku k témuž cíli hledá nejvýš jednou za **20 taktů** (5 s); kdo se **8 taktů** (2 s)
+  v řadě nepohne, zahodí trasu a hledá novou. Obránce objížďky nehledá – ke vsi to má blízko.
 - **Mlha války** (Martin 18. 10.): útočník vidí, kam dohlédnou jeho muži (≈ 150 m, v lese míň);
   objevené zůstane, dění vidí jen v dohledu.
 
@@ -497,8 +537,8 @@ o evakuaci (defaultní nastavení).“
     ve skupině domů pobude aspoň 1 herní den, najde každou s pravděpodobností **30 %** (los ze
     seedu; Martin – „s určitou pravděpodobností“, číslo návrh Clauda);
   - **nejbližší les** (souvislý les vrstvy překážek) – cesta k němu je vidět a útočník smí
-    utíkající dohnat; v lese je najde jen na ≈ 30 m (návrh Clauda – rešerše 1: les je jejich
-    výhoda); má-li ves opevnění, napřed do jeho útočiště, kdo se vejde a stihne
+    utíkající dohnat; ~~v lese je najde jen na ≈ 30 m~~ – **nahrazeno 16. 11. 2026:** kdo doběhne
+    do hustého lesa, zmizí jako v budově, vojsko ho tam nehledá ([les](forest.md) – Hustý les); má-li ves opevnění, napřed do jeho útočiště, kdo se vejde a stihne
     ([fortifications.md](fortifications.md) – Postoje vsi s opevněním, Útočiště). Kde na mapě les
     není, skupina se vzdá při přesile (víc než 1,5× obránců), jinak se brání (návrh Clauda);
   - lidé se vrátí 1 herní den po odchodu cizího vojska z mapy (návrh Clauda).
@@ -766,6 +806,13 @@ zásoby a cennosti a utekli do nejbližšího hradiště“).
 - **„Stihnou to“:** skupina opustí mapu vsi dřív, než vojsko dojde od místa, kde ho viděli
   (vzdušně × 1,3 ÷ tempo skupiny), a trasa nevede přes políčko vojska – obránce zná jen místo
   spatření, ne trasu.
+- **Uvízlý průvod – „Utéct do lesa“** (Martin 17. 11. 2026, volba v otázce): když cesta do
+  hradiště pána nevede, průvod se nekoná. Když vojsko přijde, lidé utečou do hustého lesa
+  i s dobytkem jako ves bez varování a po odtažení se vrátí. Návrh Clauda: cesta se ověří při
+  varování celou trasou mapu po mapě (jako pochod); zmizí-li cestou (mapa se mezitím změnila),
+  skupina stojí, kde je, a zkouší to každý den znovu – do hradiště se nepřenese; konec tažení ji
+  pošle, kam šla (jako dřív). Volba „Do hradiště“ je v panelu varování zašedlá s důvodem u kurzoru
+  „Do hradiště cesta nevede – lidé se ukryjí v lese.“ (návrh Clauda 17. 11. 2026).
 - **Oči vsi:** domy a dvorec vždy, mimo zimu i pole, milíře, lomy, klády, sady a ohrady; ves, která
   se schovává, jen domy. Vesničan běží 2× tempem pěších, vojsko ho nechytá.
 - **Posel** je chycen do 30 m od skupiny vojska (s jezdcem v dohledu); osud podle volby ke vzdaným
@@ -846,7 +893,8 @@ Martin 2. 11. 2026 – „ok“ (doplňky návrh Clauda):
 | Válka utichne                      | 3 herní roky bez střetu                                                                                                                                                                                                                |
 | Tempo vojska                       | ≈ 3–4 m/s skutečného času, 1 km ≈ 4–5 min ≈ 3 herní dny (Martin)                                                                                                                                                                       |
 | Terén a náklad                     | hustý les neprůchozí (16. 11.), cesta a stezka × 1,5, jezdci × 1,5, stádo × 0,5, ranění × 0,75                                                                                                                                         |
-| Mřížka pochodu                     | jen průchozí / neprůchozí, jemná mřížka (návrh 2 m – podle měření); hustý les = vnitřek lesa (forest.md); brod = mělčina                                                                                                               |
+| Mřížka pochodu                     | jen průchozí / neprůchozí, jemná mřížka 2,5 m (měření 16. 11. – nejjemnější, kde trasa splní meze); hustý les = vnitřek lesa (forest.md); brod = mělčina; stavba s odstupem 1 m (návrh Clauda)                                         |
+| Cíl ve stavbě a objížďka v boji    | cíl ve stavbě nejvýš 40 m daleko; objížďka nejvýš jednou za 20 taktů (5 s), po 8 taktech (2 s) bez pohybu nová trasa (návrh Clauda 16. 11.)                                                                                            |
 | Takty tažení                       | 4 za sekundu; záměr hráče platí od taktu teď + 2; kontrolní bod po 40                                                                                                                                                                  |
 | Zima (1. 12. – konec února)        | sníh × 0,75; venku −3 zdraví a −2 % síly za den, ve vsi +10 a +5 %                                                                                                                                                                     |
 | Píce v zimě                        | 6 kg sena na koně denně (horses.md)                                                                                                                                                                                                    |

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createFog, exploreTrail, fogCell, fogPixels, FOG_ALPHA } from '../fog-of-war';
+import { createFog, exploreTrail, fogCell, fogPixels, litCells, FOG_ALPHA } from '../fog-of-war';
 
 // Mlha cizí mapy výjezdu (journey.md – Scéna cizí mapy): stopa rodu (`SeenCell.trail`) odkryje
 // mlhu stejným dohledem jako muži – objevené je šeré, v dohledu není.
@@ -39,5 +39,25 @@ describe('exploreTrail – odkrytí ze stopy', () => {
     ).toBe(1);
     expect(explored(fog, 335, 5)).toBe(true);
     expect(explored(fog, 375, 5)).toBe(false);
+  });
+});
+
+describe('litCells – pokračování stezky nad závojem (mapa rodu a vazala)', () => {
+  it('pás podél osy závoj nekryje, jinde zůstává; bez pásu nic', () => {
+    const fog = createFog(400);
+    const band = {
+      points: [
+        { x: -150, z: 0 },
+        { x: 150, z: 0 },
+      ],
+      halfM: 3,
+    };
+    const lit = litCells(fog, [band]);
+    const px = fogPixels(fog, new Uint8Array(fog.size * fog.size), undefined, lit);
+    const alpha = (x: number, z: number): number => px[fogCell(fog, x, z) * 4 + 3]!;
+    expect(alpha(0, 0)).toBe(FOG_ALPHA.seen);
+    expect(alpha(-140, 2)).toBe(FOG_ALPHA.seen);
+    expect(alpha(0, 60)).toBe(FOG_ALPHA.hidden);
+    expect(litCells(fog, []).every((v) => v === 0)).toBe(true);
   });
 });

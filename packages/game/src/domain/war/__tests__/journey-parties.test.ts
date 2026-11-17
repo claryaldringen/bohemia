@@ -17,7 +17,7 @@ import type {
   JourneyState,
   JourneyStep,
 } from '../journey-types';
-import type { Pos } from '../march-grid';
+import { MarchGridMemo, type Pos } from '../march-grid';
 import { JOURNEY, WAR } from '../rules-war';
 import { dayOfTick, hoursPerTick, msOfTick, TICKS_PER_SECOND } from '../ticks';
 import { flat, LAUNCH, MEADOW, SUMMER, world as clock } from './campaign-fixtures';
@@ -96,6 +96,9 @@ function order(
   };
 }
 
+/** Mřížky pochodu sdílené všemi světy testů (jako worker – jemná mřížka se staví ms). */
+const GRIDS = new MarchGridMemo();
+
 /** Lhota s lidmi 1–7 (dospělí muži), od dne `deathDay` bez lidí `dead`. */
 function worldOf(
   map: CampaignMap = MEADOW,
@@ -109,6 +112,7 @@ function worldOf(
   );
   return {
     clock,
+    grids: GRIDS,
     landscapeOf: () => map,
     villageAt: (id, day): VillageState | null =>
       id !== 'lhota' ? null : day >= deathDay ? rest : full,
@@ -381,12 +385,13 @@ describe('upozornění', () => {
 });
 
 describe('šelmy po hloučcích (Rozhodnutí 9)', () => {
-  /** Mapa celá z hustého lesa (domov taky). */
-  const forest = (): CampaignMap => {
+  /** Mapa celá z hustého lesa (domov taky) – jedna pro všechny výjezdy (pole lesa se staví desítky ms). */
+  const FOREST: CampaignMap = (() => {
     const landscape = flat();
     landscape.surface.fill(SURFACE_CODES.forest);
     return { landscape, obstacles: null, villageIds: [] };
-  };
+  })();
+  const forest = (): CampaignMap => FOREST;
   /** Osm dní v taktech. */
   const DAYS = Math.ceil((8 * 86.4) / 0.25);
 

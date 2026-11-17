@@ -3,13 +3,16 @@
 import { useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
 import type { WorldClock } from '@bohemia/game';
 import { useArmyActions } from '@/hooks/use-army';
+import { useForeignTrails } from '@/hooks/use-foreign-trails';
 import { useEventScope } from '@/hooks/use-server-events';
 import { useWarScene } from '@/hooks/use-war-scene';
 import type { CampaignResponse } from '@/lib/campaign-view';
 import { setE2EHook } from '@/lib/e2e-hooks';
 import { seenSceneKey } from '@/lib/journey-scene-view';
 import { decodeLandscape, type LandscapeTransfer } from '@/lib/landscape-transfer';
+import type { ForeignMap } from '@/lib/foreign-map';
 import type { LandscapeScene } from '@/lib/scene/landscape-scene';
+import { axesKey, withTrailContinuations } from '@/lib/trail-view';
 import { warKeyOfScene } from '@/lib/server-events/protocol';
 import type { SceneVillage } from '@/lib/village-view-scene-types';
 import {
@@ -56,6 +59,10 @@ export function ForeignWarScene({
   const { campaignId, cell } = watch;
   const at = `${cell.x},${cell.y}`;
   const [landscape, setLandscape] = useState<LandscapeTransfer | null>(null);
+  // osy pokračování zemských stezek sousedů (trade.md) – nakreslí se i na mapě bez staveb
+  const [axes, setAxes] = useState<ForeignMap['trailContinuations'] | null>(null);
+  // mapa rodu nebo vazala: pokračování stezky je nad mlhou celé (scéna.setFriendlyMap)
+  const [friendly, setFriendly] = useState(false);
   const [scene, setScene] = useState<LandscapeScene | null>(null);
   const [mapOpen, setMapOpen] = useState(true);
   const decoded = useMemo(() => (landscape ? decodeLandscape(landscape) : null), [landscape]);
@@ -74,7 +81,11 @@ export function ForeignWarScene({
       .then((body) => {
         if (!live) return;
         if ('error' in body) onBackRef.current();
-        else setLandscape(body.map.landscape);
+        else {
+          setLandscape(body.map.landscape);
+          setAxes(body.map.trailContinuations ?? null);
+          setFriendly(body.map.friendly === true);
+        }
       })
       .catch(() => {
         if (live) onBackRef.current();
@@ -83,6 +94,10 @@ export function ForeignWarScene({
       live = false;
     };
   }, [campaignId, at]);
+
+  useEffect(() => {
+    scene?.setFriendlyMap(friendly);
+  }, [scene, friendly]);
 
   // válku na této mapě nese událost `war` (rozsah spojení `scene`), dotaz jen po otevření a mezeře
   useEventScope({ scene: { campaignId, cell: { x: cell.x, y: cell.y } } });
@@ -128,6 +143,17 @@ export function ForeignWarScene({
     scene?.setWar(sceneWarOf(war ?? null, world, true));
   }, [scene, war, world]);
 
+  // mimo mapu rodu a vazala jen objevené části pokračování stezek – s novou stopou se dočtou
+  useForeignTrails(
+    friendly ? null : `/api/campaign/${campaignId}?map=${at}&trails`,
+    landscape !== null,
+    war?.known?.trail.length ?? 0,
+    (trails) => {
+      setAxes(trails.trailContinuations ?? null);
+      setFriendly(trails.friendly === true);
+    },
+  );
+
   // co rod o mapě zná (Úloha 12b): stopa odkryje šeré místo k mlze války – závoj jen při změně stopy
   const trailShown = useRef<{ scene: LandscapeScene; key: string } | null>(null);
   useEffect(() => {
@@ -148,14 +174,17 @@ export function ForeignWarScene({
   } | null>(null);
   useEffect(() => {
     if (!scene || !decoded || !war) return;
-    const key = `${(war.buildings ?? []).map((b) => b.id).join(',')}#${seenSceneKey(war.known ?? null)}`;
+    const key = `${(war.buildings ?? []).map((b) => b.id).join(',')}#${seenSceneKey(war.known ?? null)}#${axesKey(axes)}`;
     const drawn = shown.current?.scene === scene ? shown.current : null;
     if (drawn?.key === key) return;
-    const village = foreignVillageOf(war.buildings, war.known ?? null, decoded, onTargetMap(war));
+    const village = withTrailContinuations(
+      foreignVillageOf(war.buildings, war.known ?? null, decoded, onTargetMap(war)),
+      axes,
+    );
     shown.current = { scene, key, village };
     // zmizí-li poslední známá stavba, prázdná ves smaže nakreslenou
     if (village || drawn?.village) scene.setVillage(village ?? { dwellings: [], fields: [] });
-  }, [scene, decoded, war]);
+  }, [scene, decoded, war, axes]);
 
   // poprvé pohled na vojsko (R se k němu vrací)
   const focused = useRef(false);

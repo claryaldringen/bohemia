@@ -41,16 +41,20 @@ import {
   type ClimbWorld,
   type FighterClimb,
 } from './ladders';
+import { marchPath, nearestInArea, nearestPassable, reachableGoal } from './march';
 import {
   MARCH_BUILDING,
   MARCH_RAMPART,
   MARCH_WALL,
   marchCellAt,
+  marchCellCenter,
   moatFillPace,
   type MarchGrid,
   type MoatFill,
   type Pos,
 } from './march-grid';
+import { marchArea } from './march-search';
+import { lineClear } from './march-smooth';
 import {
   attackerPlan,
   battleLeader,
@@ -145,9 +149,16 @@ export interface Fighter {
   /** Koho napadnout a kam jít – určil hráč (jen řízený muž). */
   chosen: string | null;
   goal: Pos | null;
-  /** Průchod opevněním – body před a za průchodem; `routeFor` = cíl, ke kterému vede. */
+  /**
+   * Průchod opevněním – body před a za průchodem –, nebo objížďka hustého lesa, vody či srázu
+   * (body trasy `marchPath` – `detour`); `routeFor` = cíl, ke kterému vede.
+   */
   route: Pos[];
   routeFor: string | null;
+  /** Takt boje, kdy muž naposled hledal objížďku (`detour`); chybí = nehledal. */
+  detourTick?: number;
+  /** Takty v řadě, kdy se muž bez vodítka k cíli nepohnul (pojistka proti zastavení); chybí = 0. */
+  stall?: number;
   /** Místo prolomení (`BattleBreach.key`). */
   breachAt: string | null;
   /** Kam prchá (útočník domů, obránce do nejbližšího lesa). */
@@ -855,6 +866,41 @@ function paceAt(grid: MarchGrid, p: Pos, fills: readonly MoatFill[], attacker = 
   return fills.length > 0 ? moatFillPace(grid, p, fills) : grid.pace[c]!;
 }
 
+/**
+ * Místo muže ve formaci na začátku boje (war.md – Boj; plán 2026-11-16-dense-forest – oprava
+ * Úlohy 4): bod `p`, kam boj vstoupí – průchodná buňka, stavba nebo stěna opevnění (`paceAt`).
+ * Místo v buňce s tempem 0 (hustý les, voda, sráz, skála) nahradí střed nejbližší průchodné buňky
+ * téže souvislé oblasti jako místo skupiny `anchor` – muž by se odtud nepohnul (`stepToward`)
+ * a boj únik nemá. Nestojí-li na průchodné buňce ani skupina, nejbližší průchodná buňka vůbec;
+ * mapa bez ní – `p`.
+ */
+export function formationSpot(grid: MarchGrid, p: Pos, anchor: Pos): Pos {
+  const c = marchCellAt(grid, p);
+  if (grid.pace[c]! > 0 || (grid.flags[c]! & (MARCH_WALL | MARCH_BUILDING)) !== 0) return p;
+  const area = marchArea(grid, marchCellAt(grid, anchor));
+  const spot =
+    area > 0 ? nearestInArea(grid, c, area, Infinity) : nearestPassable(grid, c, Infinity);
+  return spot < 0 ? p : marchCellCenter(grid, spot);
+}
+
+/**
+ * Převod rozjetého boje na jemnou mřížku s hustým lesem (plán 2026-11-16-dense-forest – oprava
+ * Úlohy 5, drobnost 6): boj uložený dřív stál i v lese, který je dnes neprůchozí – muž v buňce
+ * s tempem 0 by se nepohnul (`stepToward`) a boj by zamrzl. Každý takový muž přejde na místo
+ * `formationSpot` – útočník do oblasti místa své skupiny (`groupAt`), obránce na nejbližší
+ * průchodnou buňku. Jen jednou – volá ho `campaignTick` u bodu bez verze mřížky. Mutuje `b`.
+ */
+export function settleFighters(
+  b: BattleState,
+  grid: MarchGrid,
+  groupAt: (group: number) => Pos | undefined,
+): void {
+  for (const f of b.fighters) {
+    const anchor = f.side === 'attack' ? (groupAt(f.group) ?? f.pos) : f.pos;
+    f.pos = formationSpot(grid, f.pos, anchor);
+  }
+}
+
 function leashGap(leash: Leash, p: Pos): number {
   let best = Infinity;
   for (const a of leash.at) best = Math.min(best, dist2(a, p));
@@ -862,8 +908,27 @@ function leashGap(leash: Leash, p: Pos): number {
 }
 
 /**
- * Krok k `to` tempem muže a terénu. Stěnu neprojde – sklouzne podél ní; na vodu a sráz nevstoupí;
- * z vodítka ven nevykročí (zpátky k němu ano). Vrací, zda se pohnul.
+ * Krok `pos` → `q` končí v buňce s tempem 0 (hustý les, voda, sráz, skála): muž sklouzne podél
+ * jejího kraje jako podél stěny – průmět kroku do osy x, nebo z (napřed delší složka), kam vstoupit
+ * smí a kde mu v cestě nestojí stěna (plán 2026-11-16-dense-forest – Úloha 5: jinak by u kraje
+ * hustého lesa stál, dokud se cíl nezmění, a boj by se zastavil). Null = ani jedna osa.
+ */
+function alongEdge(pos: Pos, q: Pos, grid: MarchGrid, walls: Walls): Pos | null {
+  const sx = q.x - pos.x;
+  const sz = q.z - pos.z;
+  const xs = { x: pos.x + sx, z: pos.z };
+  const zs = { x: pos.x, z: pos.z + sz };
+  for (const p of Math.abs(sx) >= Math.abs(sz) ? [xs, zs] : [zs, xs]) {
+    if (p.x === pos.x && p.z === pos.z) continue;
+    if (paceAt(grid, p, walls.fills) > 0 && !firstWall(pos, p, walls)) return p;
+  }
+  return null;
+}
+
+/**
+ * Krok k `to` tempem muže a terénu. Stěnu neprojde – sklouzne podél ní; na vodu, sráz, skálu ani do
+ * hustého lesa nevstoupí – sklouzne podél kraje (`alongEdge`); z vodítka ven nevykročí (zpátky
+ * k němu ano). Vrací, zda se pohnul.
  */
 function stepToward(
   f: Fighter,
@@ -896,7 +961,13 @@ function stepToward(
     const along = ((ux * lx + uz * lz) / len) * step;
     q = { x: f.pos.x + (lx / len) * along, z: f.pos.z + (lz / len) * along };
   }
-  if (paceAt(field.grid, q, walls.fills) <= 0 || firstWall(f.pos, q, walls)) return false;
+  if (paceAt(field.grid, q, walls.fills) <= 0) {
+    const slid = alongEdge(f.pos, q, field.grid, walls);
+    if (!slid) return false;
+    q = slid;
+  } else if (firstWall(f.pos, q, walls)) {
+    return false;
+  }
   if (leash) {
     const gap = leashGap(leash, q);
     if (gap > leash.radiusM * leash.radiusM && gap >= leashGap(leash, f.pos)) return false;
@@ -1037,8 +1108,8 @@ const PHASES = ['fill', 'fuel', 'burn', 'work'] as const;
 const forestNear = new WeakMap<MarchGrid, Map<string, number>>();
 
 /**
- * Kolik metrů nosí otepi (fortifications.md – Přechod hradby – Oheň): nejbližší buňka hustého lesa
- * nebo hromada klád vsi (`BattleField.fuel`); nic – nekonečno (oheň nejde).
+ * Kolik metrů nosí otepi (fortifications.md – Přechod hradby – Oheň): nejbližší místo u hustého lesa
+ * (`nearestForestOf`) nebo hromada klád vsi (`BattleField.fuel`); nic – nekonečno (oheň nejde).
  */
 function fuelDistanceM(field: BattleField, at: Pos): number {
   let cache = forestNear.get(field.grid);
@@ -1308,29 +1379,135 @@ export function fortPassages(
   return out;
 }
 
+/** Po kolika taktech v řadě bez pohybu muž bez vodítka hledá novou trasu (`WAR.battle`). */
+const STALL_TICKS = WAR.battle.stallTicks;
+/** Objížďku k témuž cíli hledá muž nejvýš jednou za tolik taktů (`WAR.battle` – výkon). */
+const DETOUR_RETRY_TICKS = WAR.battle.detourRetryTicks;
+
+/**
+ * Krok k `to` (`stepToward`); útočník počítá takty bez pohybu (`stall`) – jen bez vodítka a dál
+ * než 1 m (u vodítka stojí schválně). Obránce nepočítá – u hradby stojí schválně a stav se nemění.
+ */
+function walk(f: Fighter, to: Pos, w: TickWorld, leash: Leash | null): void {
+  const moved = stepToward(f, to, w.field, w.walls, leash);
+  if (f.side !== 'attack') return;
+  if (moved || leash !== null || dist2(f.pos, to) <= 1) delete f.stall;
+  else f.stall = (f.stall ?? 0) + 1;
+}
+
+/**
+ * Objížďka útočníka po mřížce boje (plán 2026-11-16-dense-forest – oprava Úlohy 5): když přímka
+ * k cíli vede buňkou, kam boj nevstoupí (`paceAt` 0 – hustý les, voda, sráz, skála; stavby a stěny
+ * ne – ty řeší boj sám), nebo když muž `force` (pojistka proti zastavení) – uloží si body trasy
+ * `marchPath` po `field.grid` jako průchod opevněním a jde po nich. Skluz podél kraje (`alongEdge`)
+ * od skvrny lesa nebo z ramene průseku, které vede od cíle, nepomohl – útočníci stáli u lesa
+ * a nájezd neskončil. Hledá nejvýš jednou za `DETOUR_RETRY_TICKS`; bez trasy (cíl nedosažitelný)
+ * nebo s přímou trasou false – jde přímo jako dřív. Obránce objížďky nehledá – průchody hradbou
+ * nehledá a ke vsi to má blízko (návrh Clauda).
+ */
+function detour(
+  f: Fighter,
+  goal: Pos,
+  key: string,
+  w: TickWorld,
+  leash: Leash | null,
+  force: boolean,
+): boolean {
+  const around = detourPoints(f, goal, w, force);
+  if (!around) return false;
+  f.route = around;
+  f.routeFor = key;
+  walk(f, f.route[0]!, w, leash);
+  return true;
+}
+
+/**
+ * Body objížďky útočníka z jeho místa k bodu `to` (cíl, bod průchodu opevněním, místo průlomu):
+ * vnitřní body trasy `marchPath` po `field.grid`, když přímka k `to` vede buňkou, kam boj nevstoupí
+ * (`paceAt` 0), nebo `force`; jinak null – jde rovně. Bod v neprůchodné buňce mřížky (místo průlomu
+ * u stěny) se napřed posune na nejbližší dosažitelné místo (`reachableGoal`) – trasa končí tam
+ * a dál jde muž rovně. Hledá nejvýš jednou za `DETOUR_RETRY_TICKS` (`detourTick`); obránce nikdy.
+ */
+function detourPoints(f: Fighter, to: Pos, w: TickWorld, force: boolean): Pos[] | null {
+  if (f.side !== 'attack') return null;
+  const grid = w.field.grid;
+  const fills = w.walls.fills;
+  const open = (c: number): boolean => paceAt(grid, marchCellCenter(grid, c), fills) > 0;
+  if (!force && lineClear(grid, f.pos, to, open)) return null;
+  if (f.detourTick !== undefined && w.b.ticks - f.detourTick < DETOUR_RETRY_TICKS) return null;
+  f.detourTick = w.b.ticks;
+  const end = reachableGoal(grid, f.pos, to);
+  const path = end === null ? null : marchPath(grid, f.pos, end);
+  if (!path) return null;
+  const points = path.points.slice(1, end === to ? -1 : undefined);
+  return points.length === 0 ? null : points.map((p) => ({ x: p.x, z: p.z }));
+}
+
+/**
+ * Útočník jde po trase `f.route` (průchod opevněním, objížďka): vede-li přímka k jejímu prvnímu
+ * bodu buňkou, kam boj nevstoupí (skvrna lesa před branou – re-revize opravy Úlohy 5), vloží před
+ * něj body objížďky (`detourPoints`); pak krok (`walk`).
+ */
+function followRoute(f: Fighter, w: TickWorld, leash: Leash | null, force: boolean): void {
+  const around = detourPoints(f, f.route[0]!, w, force);
+  if (around) f.route.unshift(...around);
+  walk(f, f.route[0]!, w, leash);
+}
+
+/**
+ * Útočník jde k místu průlomu `to` (`breachAt` – klíč `key`): vede-li přímka lesem, napřed body
+ * objížďky (`detourPoints`, uložené v `route` s `routeFor` = `key`); pojistka proti zastavení jako
+ * v `approach`.
+ */
+function toBreach(f: Fighter, to: Pos, key: string, w: TickWorld): void {
+  const stalled = (f.stall ?? 0) >= STALL_TICKS;
+  if (stalled) delete f.stall;
+  if (stalled || f.routeFor !== key) {
+    f.route = [];
+    f.routeFor = null;
+  }
+  if (f.route.length > 0 && dist2(f.pos, f.route[0]!) <= 1) f.route.shift();
+  if (f.route.length === 0) {
+    const around = detourPoints(f, to, w, stalled);
+    if (around) {
+      f.route = around;
+      f.routeFor = key;
+    }
+  }
+  walk(f, f.route[0] ?? to, w, null);
+}
+
 /**
  * Jde k cíli `goal`. Útočník, kterému v cestě stojí stěna, jde průchodem (brána, mezera, průlom)
  * – body před ním a za ním; bez průchodu hradbu přeleze (plot, žebřík – `startCrossing`), je-li
- * to postup skupiny nebo nejrychlejší, jinak začne opevnění prolamovat. Obránce průchody nehledá.
+ * to postup skupiny nebo nejrychlejší, jinak začne opevnění prolamovat. Hustý les, vodu, sráz
+ * a skálu mezi sebou a cílem obejde po trase mřížky (`detour`); když se `STALL_TICKS` taktů nepohne,
+ * hledá trasu znovu. Obránce průchody ani objížďky nehledá.
  */
 function approach(f: Fighter, goal: Pos, key: string, w: TickWorld, leash: Leash | null): void {
-  if (f.side === 'attack') {
-    if (f.routeFor === key && f.route.length > 0) {
-      if (dist2(f.pos, f.route[0]!) <= 1) f.route.shift();
-      // průchod se mezitím zavřel – cesta neplatí
-      if (f.route.length > 0 && firstWall(f.pos, f.route[0]!, w.walls)) f.route = [];
-      if (f.route.length > 0) {
-        stepToward(f, f.route[0]!, w.field, w.walls, leash);
-        return;
-      }
+  const stalled = (f.stall ?? 0) >= STALL_TICKS;
+  if (stalled) {
+    delete f.stall;
+    f.route = [];
+    f.routeFor = null;
+  }
+  if (f.routeFor === key && f.route.length > 0) {
+    if (dist2(f.pos, f.route[0]!) <= 1) f.route.shift();
+    // průchod se mezitím zavřel – cesta neplatí
+    if (f.route.length > 0 && firstWall(f.pos, f.route[0]!, w.walls)) f.route = [];
+    if (f.route.length > 0) {
+      followRoute(f, w, leash, false);
+      return;
     }
+  }
+  if (f.side === 'attack') {
     const wall = firstWall(f.pos, goal, w.walls);
     if (wall) {
       const route = openingRoute(f.pos, w.walls.openings[wall.fort] ?? []);
       if (route) {
         f.route = route;
         f.routeFor = key;
-        stepToward(f, f.route[0]!, w.field, w.walls, leash);
+        followRoute(f, w, leash, stalled);
         return;
       }
       const group = w.b.groups.find((g) => g.side === 'attack' && g.id === f.group);
@@ -1359,14 +1536,15 @@ function approach(f: Fighter, goal: Pos, key: string, w: TickWorld, leash: Leash
         f.aim = null;
         f.route = [];
         f.routeFor = null;
-        stepToward(f, standOf(br), w.field, w.walls, null);
+        toBreach(f, standOf(br), `breach:${br.key}`, w);
         return;
       }
     }
   }
   f.route = [];
   f.routeFor = null;
-  stepToward(f, goal, w.field, w.walls, leash);
+  if (detour(f, goal, key, w, leash, stalled)) return;
+  walk(f, goal, w, leash);
 }
 
 /** Nejbližší průchod – nejdřív bod na mé straně, pak za ním; žádný null. */
@@ -1492,7 +1670,7 @@ function breachStepOf(f: Fighter, w: TickWorld): void {
     return;
   }
   const stand = standOf(br);
-  if (dist2(f.pos, stand) > AT_SPOT_M * AT_SPOT_M) stepToward(f, stand, w.field, w.walls, null);
+  if (dist2(f.pos, stand) > AT_SPOT_M * AT_SPOT_M) toBreach(f, stand, `breach:${br.key}`, w);
 }
 
 /**

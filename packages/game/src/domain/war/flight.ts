@@ -2,8 +2,8 @@ import { createRandom, deriveSeed } from '../landscape/random';
 import { ageYears, isAway } from '../village/people/people';
 import type { DefenseStance, HerdSpecies, VillageState } from '../village/types';
 import { treeBelow, type VassalEdge } from '../vassalage/tree';
-import { dist2 } from './orders';
-import { MARCH_FOREST, marchCellCenter, type MarchGrid, type Pos } from './march-grid';
+import { nearestForestDoor } from './forest-doors';
+import type { MarchGrid, Pos } from './march-grid';
 import { WAR } from './rules-war';
 
 // Včasný útěk a skryté jámy (war.md – Obránci – postoje a útěk): kam, s čím a kdy se lidé vrátí,
@@ -20,20 +20,9 @@ export function stanceOf(state: Pick<VillageState, 'defense'>): DefenseStance {
   return stance === 'defend' || stance === 'flee' ? stance : WAR.flight.defaultStance;
 }
 
-/** Nejbližší hustý les (střed buňky mřížky pochodu) od bodu `from`; bez lesa null. */
+/** Nejbližší dveře hustého lesa od bodu `from` (`nearestForestDoor`); bez lesa null. */
 export function nearestForest(grid: MarchGrid, from: Pos): Pos | null {
-  let best: Pos | null = null;
-  let bestD = Infinity;
-  for (let c = 0; c < grid.flags.length; c++) {
-    if ((grid.flags[c]! & MARCH_FOREST) === 0) continue;
-    const p = marchCellCenter(grid, c);
-    const d = dist2(p, from);
-    if (d < bestD) {
-      bestD = d;
-      best = p;
-    }
-  }
-  return best;
+  return nearestForestDoor(grid, from);
 }
 
 /** Co si skupina odnese: zásoby a dobytek (dobytek celý). */

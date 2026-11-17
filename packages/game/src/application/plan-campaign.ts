@@ -18,8 +18,13 @@ import {
   type SupplyPlan,
   type SurrenderOrder,
 } from '../domain/war';
+import { cellKey, MissingData, tickContext, type TickContext } from '../domain/war/campaign-tick';
+import type { CampaignMap, CampaignWorld } from '../domain/war/campaign-types';
+import type { MarchGridMemo } from '../domain/war/march-grid';
+import { routeLeg } from '../domain/war/movement';
+import { worldRoute } from '../domain/war/world-route';
 import { craftCoverage } from '../domain/village/crafts/crafts';
-import { villageAnchor } from '../domain/village/fortification/state/fortifications';
+import { villageGate } from '../domain/village/people/departure';
 import { isLineMan } from '../domain/village/people/dynasty';
 import { villageHorses } from '../domain/village/livestock/horses';
 import { villageHappiness } from '../domain/village/people/happiness';
@@ -28,6 +33,7 @@ import { deriveSeed } from '../domain/landscape/random';
 import { isVillageAbandoned, isVillageExtinct } from '../domain/village';
 import type { Person, PersonRef, VillageState } from '../domain/village/types';
 import { directionBetween, type GridCell } from '../domain/village/people/world-grid';
+import type { CampaignCells } from './campaigns';
 import type { House, HouseRepository } from './houses';
 import { NO_HOUSE } from './negotiate';
 import { NEWCOMER_REASONS } from './newcomers';
@@ -112,6 +118,10 @@ export interface PlanDeps {
   settlements: SettlementRepository;
   landscapes: LandscapeSource;
   world: WorldClock;
+  /** Mapy políček (krajina, vsi na mapě) – cesta ke shromaždišti a k cíli (`routeLeads`). */
+  cells: CampaignCells;
+  /** Mřížky pochodu napříč dotazy (panel se ptá při každé změně plánu); chybí – v každém znovu. */
+  grids?: MarchGridMemo;
 }
 
 const fail = (reason: string): string => reason;
@@ -128,7 +138,89 @@ export const CAMPAIGN_REASONS = {
   noFood: 'Ve shromaždišti není tolik obilí.',
   tooHeavy: 'Tolik jídla vojsko neunese.',
   badFood: 'Jídlo musí být nezáporné číslo.',
+  // odříznutá ves (Martin 17. 11. 2026 – „Nesmí do tažení“; text návrh Clauda)
+  noRoute: 'Ze vsi ke shromaždišti cesta nevede – otevře ji až zemská stezka.',
+  // odříznuté shromaždiště nebo cíl (návrh Clauda – plyne z „Nesmí do tažení“ a „Cestu otevře
+  // až stezka“; jinak by vojsko stálo u okraje navždy)
+  noTargetRoute: 'K cíli cesta nevede – otevře ji až zemská stezka.',
 } as const;
+
+/** Kolikrát se nejvýš načítají chybějící mapy a vsi, než ověření cesty vzdá (jako pohled varování). */
+const MAX_LOADS = 8;
+
+/**
+ * Svět tažení pro ověření plánu: mapy a vsi se načtou, když na ně výpočet čeká (`MissingData`), jako
+ * v pohledu varování – uložený stav vsi. Jeden na plán, mapy trasy se tak načtou jednou.
+ */
+class PlanWorld {
+  private readonly maps = new Map<string, CampaignMap>();
+  private readonly states = new Map<string, VillageState>();
+  readonly ctx: TickContext;
+
+  constructor(private readonly deps: Pick<PlanDeps, 'cells' | 'villages' | 'world' | 'grids'>) {
+    const world: CampaignWorld = {
+      clock: deps.world,
+      landscapeOf: (cell) => this.maps.get(cellKey(cell)) ?? null,
+      villageAt: (villageId) => this.states.get(villageId) ?? null,
+      ...(deps.grids ? { grids: deps.grids } : {}),
+    };
+    this.ctx = tickContext(world);
+  }
+
+  /** Stav vsi, který plán už načetl – výpočet ho znovu nečte. */
+  know(villageId: string, state: VillageState): void {
+    this.states.set(villageId, state);
+  }
+
+  /** Spočte `run`; chybí-li data, načte je a zkusí znovu. Nedají-li se načíst, null. */
+  async compute<T>(run: (ctx: TickContext) => T): Promise<T | null> {
+    for (let round = 0; round < MAX_LOADS; round++) {
+      try {
+        return run(this.ctx);
+      } catch (error) {
+        if (!(error instanceof MissingData)) throw error;
+        let loaded = false;
+        for (const cell of error.cells) {
+          if (this.maps.has(cellKey(cell))) continue;
+          this.maps.set(cellKey(cell), await this.deps.cells.mapOf(cell));
+          loaded = true;
+        }
+        for (const villageId of error.villageIds) {
+          if (this.states.has(villageId)) continue;
+          const record = await this.deps.villages.find(villageId);
+          if (record) {
+            this.states.set(villageId, record.state);
+            loaded = true;
+          }
+        }
+        if (!loaded) return null;
+      }
+    }
+    return null;
+  }
+}
+
+/**
+ * Vede cesta z místa `from` do místa `to`? (war.md – Pohyb, Odříznutá ves do tažení nejde;
+ * Martin 17. 11. 2026 – „Nesmí do tažení“): úseky všech map trasy `worldRoute` po mřížkách dne
+ * `day` (`routeLeg` – týž test jako průvod do hradiště, `refugeLeg`). Plán ji zkouší z branky
+ * dvorce shromaždiště k cíli tažení a z branky každé další vsi ke shromaždišti: ves, odkud cesta
+ * nevede (hustý les bez paseky ke kraji, dokud ji neotevře zemská stezka), do tažení nejde – její
+ * muži by se po rozpadu domů nevrátili; k odříznutému cíli by vojsko stálo u okraje navždy. Data,
+ * která nejdou načíst = nevede.
+ */
+async function routeLeads(
+  world: PlanWorld,
+  from: CampaignPlace,
+  to: CampaignPlace,
+  day: number,
+): Promise<boolean> {
+  const route = worldRoute(from.cell, to.cell, () => false).slice(1);
+  const leg = await world.compute((ctx) =>
+    routeLeg({ cell: from.cell, pos: from.pos, route }, to.pos, day, ctx),
+  );
+  return leg !== null;
+}
 
 /** Místa domovských vsí mužů tažení – po rozpadu jdou hloučky domů (war.md – Velení: Rozpad). */
 export function homePlaces(prepared: PreparedCampaign): Record<string, CampaignPlace> {
@@ -160,8 +252,10 @@ export function villagePlace(
 }
 
 /**
- * Poloha vsi podle jejího stavu (war.md – Plán tažení): kotva vsi (`villageAnchor` – dvorec, jinak
- * průměr obydlí); ves bez obydlí má dnešní střed místa pro ves (`villagePlace`).
+ * Poloha vsi podle jejího stavu (war.md – Plán tažení): branka dvorce (`villageGate`) – odtud
+ * tažení vyráží, sem se muži vracejí a k ní míří vojsko na cílovou ves, stejně jako výprava
+ * (plán 2026-11-16-dense-forest – oprava Úlohy 5; dřív střed dvorce v buňce stavby – únik z ní);
+ * ves bez obydlí má dnešní střed místa pro ves (`villagePlace`).
  */
 export function villageStandingPlace(
   cell: GridCell,
@@ -170,8 +264,7 @@ export function villageStandingPlace(
 ): ReturnType<typeof villagePlace> {
   const site = villagePlace(cell, l);
   if (state.dwellings.length === 0) return site;
-  const at = villageAnchor(state);
-  return { ...site, pos: { x: at.x, z: at.z } };
+  return { ...site, pos: villageGate(state, l) };
 }
 
 /** Má muž blízké příbuzné v cílové vsi (příchozí ze sousední mapy v cíli: on, žena nebo rodiče). */
@@ -226,6 +319,21 @@ export async function prepareCampaign(
   if (!alive(assemblyVillage.village.state)) return fail(CAMPAIGN_REASONS.asleep);
   const assemblyCell = assemblyVillage.settlement.worldCell;
   if (!assemblyCell) return fail(NEWCOMER_REASONS.notPlaced);
+  const assemblyLandscape = settlementLandscape(assemblyVillage.settlement, deps.landscapes);
+  const assemblyPlace = villageStandingPlace(
+    assemblyCell,
+    assemblyLandscape,
+    assemblyVillage.village.state,
+  );
+  const routes = new PlanWorld(deps);
+  routes.know(assemblyVillage.village.id, assemblyVillage.village.state);
+  routes.know(target.record.id, target.record.state);
+  // ze shromaždiště k cíli – odříznuté shromaždiště i odříznutý cíl (návrh Clauda k „Nesmí do
+  // tažení“); napřed, ať odříznuté shromaždiště neohlásí každá ves plánu jako svou cestu
+  const targetPlace = villageStandingPlace(target.cell, target.landscape, target.record.state);
+  if (!(await routeLeads(routes, assemblyPlace, targetPlace, input.today))) {
+    return fail(CAMPAIGN_REASONS.noTargetRoute);
+  }
 
   const seen = new Set<string>();
   const villages: PreparedVillage[] = [];
@@ -244,6 +352,14 @@ export async function prepareCampaign(
     const landscape = settlementLandscape(own.settlement, deps.landscapes);
     const men = chooseMen(own.village.state, cell, target.cell, entry, plan);
     if (typeof men === 'string') return men;
+    // odříznutá ves do tažení nejde (Martin 17. 11. 2026 – „Nesmí do tažení“); shromaždiště samo ano
+    if (own.village.id !== assemblyVillage.village.id) {
+      routes.know(own.village.id, own.village.state);
+      const home = villageStandingPlace(cell, landscape, own.village.state);
+      if (!(await routeLeads(routes, home, assemblyPlace, input.today))) {
+        return fail(CAMPAIGN_REASONS.noRoute);
+      }
+    }
     villages.push({ player: own, cell, landscape, day: own.village.state.lastDay, men });
   }
 
@@ -259,13 +375,6 @@ export async function prepareCampaign(
   const total = villages.reduce((n, v) => n + v.men.length, 0);
   if (total === 0) return fail(CAMPAIGN_REASONS.noMen);
 
-  const assemblyLandscape = settlementLandscape(assemblyVillage.settlement, deps.landscapes);
-  const assemblyPlace = villageStandingPlace(
-    assemblyCell,
-    assemblyLandscape,
-    assemblyVillage.village.state,
-  );
-  const targetPlace = villageStandingPlace(target.cell, target.landscape, target.record.state);
   const assembly: CampaignVillage = {
     villageId: assemblyVillage.village.id,
     name: assemblyVillage.village.name,

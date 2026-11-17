@@ -13,8 +13,9 @@ s libovolně skupinami hráče (`parties`) a jejich hloučky (`groups`).
 - **Stav** – `journey-types.ts`: `JourneyState` je JSON (kontrolní bod): `kind: 'journey'`, `seed`,
   `tick` a `day` posledního spočteného taktu, `throughDay` (jako u tažení – mez bariéry vsí),
   `phase: 'out' | 'done'` (výprava bez skupin = `done`), hráč, rod (`houseId`), domovská ves `home`
-  (`CampaignVillage`), lidé `members`, hloučky `groups`, skupiny `parties` a `nextId` (další volné id
-  skupiny i hloučku – jedna řada). `leaderName` zůstává jen v převedených bodech.
+  (`CampaignVillage`), lidé `members`, hloučky `groups`, `marchGridVersion` (verze mřížky pochodu
+  úseků hloučků – Převod níž), skupiny `parties` a `nextId` (další volné id skupiny i hloučku – jedna
+  řada). `leaderName` zůstává jen v převedených bodech.
   - `JourneyMember`: `ref` osoby, která zůstává ve stavu domovské vsi, `lord` (vojvoda), `mounted`,
     `strength` a `fight` při vyslání, `health`, `wounded`, `status: 'active' | 'fallen'`, hlouček
     `group`, volitelně `name`, `female`, `bornDay` a kůň jezdce `horseId`, `horse`,
@@ -28,7 +29,8 @@ s libovolně skupinami hráče (`parties`) a jejich hloučky (`groups`).
   - `JourneyPhase` (`out` → `returning` → `done`) je fáze pohledu a starších bodů.
 - **Rozkazy a příkazy** – `JourneyOrder`: `go` (místo `pos` na mapě `cell`; chybí = mapa vůdce
   výběru), `cross` (sousední políčko hloučku vůdce v 8 směrech; jiné se zahodí – cíl do pohledu je
-  místo naproti na okraji sousední mapy, `edgeCrossing` od vůdce), `home`. Záměr
+  místo naproti na okraji sousední mapy, `edgeCrossing` od vůdce; na úhlopříčnou mapu vede trasa
+  `worldRoute` dvěma kolmými kroky přes sousední mapu – war.md, Mapu po mapě), `home`. Záměr
   `JourneyIntent { tick, seq, byPlayer, body }` platí přesně ve svém taktu v pořadí `seq`, záměr
   v minulosti a cizí hráč se zahodí. Tělo `JourneyIntentBody` = `JourneyCommand` nebo starý
   `JourneyOrder`; `commandOf` (`journey-upgrade.ts`) z něj udělá příkaz:
@@ -83,8 +85,14 @@ intents, world)` → `JourneyStep { state, villageEvents, notices, knowledge?, w
   nejbližší dosažitelné místo) a `stepMover` tempem `marchSpeed` ze všech živých své skupiny na
   začátku pohybu (jen jezdci × 1,5, pěší raněný × 0,75, sníh × 0,75). Brány jsou v míru otevřené.
   Zastavení po přechodu okraje jen u skupiny s `crossing`, když hlouček vstoupil na `goal.cell`
-  (cíl = místo vstupu); jinak se jde dál. Hlouček, který nemá kudy, stojí; při návratu skončí jako
-  u tažení. Po pohybu splynou hloučky téže skupiny, které stojí na stejném místě se shodným cílem.
+  (cíl = místo vstupu); jinak se jde dál. Hlouček, který nemá kudy, stojí. Hlouček skupiny
+  `returning` cíl domů neposouvá (`settleGoal` jen venku); nemá-li kudy domů, vrátí se po paměti
+  cesty, kudy přišel (`crossings`, `retraceCrossings` – Martin 17. 11. 2026, „Vrátit se, kudy
+  přišla“; docs/code/war.md – Pohyb vojska, Paměť cesty); nejde-li ani to, stojí (`arrived` false,
+  výprava běží), další den to zkusí znovu (`stuckDay`) a nový rozkaz („Domů“, „Jdi sem“) ho pošle
+  hned. Domů se nikdy nepřenese. Paměť cesty má skupina 0 z `newJourney`, nový hlouček doma
+  (`joinAtHome`) a rozdělený hlouček (kopie); bod bez ní (převedený `upgradeJourney`) uvízne
+  a stojí. Po pohybu splynou hloučky téže skupiny, které stojí na stejném místě se shodným cílem.
   Vsím na cestě se nic neohlašuje – žádné `army-seen`, `raid-day`, varování ani upozornění.
 - **Návrat** – hlouček skupiny `returning`, který doma dojde, skončí (`finishGroup`): domovská ves
   dostane `away-ends` s `personIds` jeho živých (`refId` = id výpravy, `untilDay` den nato –
@@ -97,11 +105,15 @@ intents, world)` → `JourneyStep { state, villageEvents, notices, knowledge?, w
   (`player-notices.ts` ve webu). Skupina `leaderless` upozornění nemá – vojvoda se nevrátil (návrh
   Clauda). Hlouček i jeho lidé ze stavu zmizí, skupina bez hloučků taky.
 - **Převod** – `upgradeJourney(state)` (`journey-upgrade.ts`; plán 2026-11-14 – Rozhodnutí 4): bod
-  nového tvaru vrátí beze změny (týž objekt), bod před výpravami převede – skupina 0 s hloučkem 0,
-  `arrivedTick` a fáze `returning` přejdou do skupiny, vojvoda dostane `leaderName` jako `name`,
-  skupina bez živého vojvody `leaderless`, hlouček venku na cestě přes okraj `crossing`. Idempotentní,
-  vstup nemění; volá ho krok i aplikace (pohled, rozkaz, worker, válka), do úložiště se zvlášť
-  nezapisuje (uloží ho další bod). Tvar starého bodu: `LegacyJourneyState`.
+  nového tvaru se současnou verzí mřížky vrátí beze změny (týž objekt), bod před výpravami převede
+  (`fromLegacy`) – skupina 0 s hloučkem 0, `arrivedTick` a fáze `returning` přejdou do skupiny,
+  vojvoda dostane `leaderName` jako `name`, skupina bez živého vojvody `leaderless`, hlouček venku na
+  cestě přes okraj `crossing`. Bod bez `marchGridVersion` (verze mřížky pochodu, podle které vznikly
+  úseky – `MARCH_GRID_VERSION`; plán 2026-11-16-dense-forest, Rozhodnutí 9) dostane kopii hloučků
+  bez úseků a verzi (`replanLegs` – war.md, Pohyb vojska, Rozjeté úseky); krok úseky spočte
+  z uložené polohy. `newJourney` verzi nese od začátku. Idempotentní, vstup nemění; volá ho krok
+  i aplikace (pohled, rozkaz, worker, válka), do úložiště se zvlášť nezapisuje (uloží ho další bod).
+  Tvar starého bodu: `LegacyJourneyState`.
 - **Čísla** – `JOURNEY` v `rules-war.ts`: `waitDays` 3, `predatorGroupMax` 2 (šelmy – Úloha 13),
   `trailStepM` 20 (stopa odkrytého – Úloha 6), `mountWaitS` 10 (nasednutí – Koně výpravy). Tempo a věk mužů bere výjezd z `WAR`.
 - **Sdílené s tažením** – `movement.ts`: `sendGroup`, `settleGoal` a `missingMaps` (přešly
@@ -395,7 +407,7 @@ untilTick, pen }`: vesničan `groomId` (null = nikdo doma), jezdci (id osob), ta
   v taktu přechodu okraje. Jiná ves na mapě než dřív (stará zanikla) – stavby staré vsi se zahodí,
   stopa i `since` zůstanou (`lookOnMap` – totéž bere pohled tažení).
 - **`lookAround(prev, { village, eyes, grid, day })`** – stavby v dohledu (`inSight`: 150 m, z lesa
-  a do lesa 50 m) zapíše s dnešním stavem a dnem; známou stavbu, která ve vsi už není a její místo
+  a do lesa 50 m – hustým lesem vede jen stezka, její buňka nese `MARCH_FOREST`, takže dohled na ní je 50 m, v okrajovém pruhu bez `MARCH_FOREST` 150 m; `forest-doors.test.ts`) zapíše s dnešním stavem a dnem; známou stavbu, která ve vsi už není a její místo
   je v dohledu, zapomene; co je mimo dohled, zůstane („stará zpráva“). Co muži dnes už viděli, se
   týž den znovu nepřepisuje – stav vsi pro den je jeden. `prev` nemění a beze změny vrátí týž
   objekt, takže takt znalost map nekopíruje (`journeyTick` kopíruje stav bez `seen`). Stavbu, která
@@ -538,6 +550,22 @@ mapSizeM, cell })` (čistá funkce) – bez vybraných lidí nebo mimo terén nu
 - **Scéna** – `ScenePointer.setOrderMode(mode)` (`LandscapeScene.setOrderMode`, typ `OrderMode`):
   dokud je nastavený, pravé tlačítko ohlásí bod terénu (`pickGround`) a pixel plátna místo zrušení
   výběru a pohyb kurzoru volá `hover` (vrací CSS kurzor – šipka u okraje).
+- **Kurzor „sem se nedá dojít“** (Martin 16. 11. 2026: „Ideální by bylo, kdyby kurzor na místech,
+  kam se nedá dojít, podle toho vypadal“; `lib/scene/march-cursor.ts`): nad hustým lesem, vodou
+  bez brodu, místem bez spojení s polohou skupiny a okrajem bez průchodu je kurzor zákazu
+  (`FORBIDDEN_CURSOR` = CSS `not-allowed`), bez popisku. `LandscapeScene.marchGrid()` staví líně
+  `browserMarchGrid` – `marchGrid` bez vsi (prohlížeč nemá stav vsi) s pevnými cestami,
+  pokračováním stezek a kusy hotových stezek ke kraji (`cursorRoads`; kusy `SceneVillage.trailEdgePieces`
+  posílá server – `sceneTrailEdgePieces` v `lib/trail-view.ts`, jako `edgePieces` mřížky jádra)
+  jako průseky a hustým lesem bez vymýceného lesa vsi (`ClearedForest` scény); znovu se staví jen
+  se změnou krajiny, vrstvy, vymýceného lesa nebo obsahu os (`roadsKey`), ne s každou aktualizací vsi;
+  stavby a opevnění v ní nejsou (server cíl ve stavbě přesouvá na volnou buňku, tak nápovědu
+  nemění). Dosažitelnost `cursorBlocked`: bod mapy `marchReachable`, okrajový pás `edgeReachable`
+  (kus okraje ve směru v téže oblasti `marchAreas`; v rohu okraj prvního kroku trasy
+  `firstRouteStep` – úhlopříčný soused dvěma kolmými kroky; sousední mapu prohlížeč nezná, průchod
+  na druhé straně ověří server). Odkud skupina vyráží: vybraná skupina na mapě scény (`group.pos`),
+  jinak obydlí prvního z vybraných doma (`dwellingPoint`); jinde nápověda není. Jen vizuální
+  nápověda – rozkaz dál ověřuje server.
 - **Hook** `components/game/village-game/use-expedition-orders.ts` – `useExpeditionOrders`: režim
   rozkazu je zapnutý, když výběr obsahuje lidi (s vybranou stavbou nebo polem pravé tlačítko výběr
   ruší jako dřív). Pravé tlačítko → `commandExpedition({ villageId, people, command })`, kde
@@ -863,7 +891,7 @@ vidí). Znalost ve scéně tažení – Znalost rodu (Tažení ve scéně, Úloh
 
 - **Kdy:** v denním kroku (`stepJourney` → `journeyTick`, smyčka `s.day++`) po `homeDay` – jednou za
   herní den pro každý hlouček, který stojí na začátku dne v hustém lese (`MARCH_FOREST` pod jeho polohou
-  v mřížce pochodu, `gridOf`). Mimo hustý les, nad `JOURNEY.predatorGroupMax` živých mužů (tři
+  v mřížce pochodu, `gridOf`) – hustým lesem vede jen stezka (plán 2026-11-16-dense-forest), šelmy tedy čekají na stezce (hlouček 1 muže: los proběhne; v okrajovém pruhu bez `MARCH_FOREST` ne; test `journey-predators.test.ts`). Mimo hustý les, nad `JOURNEY.predatorGroupMax` živých mužů (tři
   nikdy) ani na mapě bez šelmy se nelosuje.
 - **Los** `predatorDay({ members, inForest, wildlife, seed, day })`: čistá funkce, proud
   `createRandom(deriveSeed(seed, 'predators:' + day))` u hloučku 0 (staré výjezdy beze změny), jinak

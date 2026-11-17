@@ -113,12 +113,72 @@ export function fogSees(fog: FogGrid, seen: Uint8Array, x: number, z: number): b
   return c >= 0 && seen[c] === 1;
 }
 
-/** Průhlednost závoje po buňkách (RGBA, barva šedé mlhy) – textura `size × size`. */
-export function fogPixels(fog: FogGrid, seen: Uint8Array, out?: Uint8Array): Uint8Array {
+/** Pás podél osy cesty, který závoj nekryje (`SwathBand` bez rozměrů). */
+export interface LitBand {
+  points: readonly { x: number; z: number }[];
+  halfM: number;
+}
+
+/**
+ * Buňky závoje, které pás cesty zasahuje (1): buňka, jejíž střed je od osy nejvýš `halfM` + půl
+ * úhlopříčky buňky – závoj je po buňkách, pás užší než buňka by jinak mezi středy proklouzl.
+ * Mimo ně 0.
+ */
+export function litCells(fog: FogGrid, bands: readonly LitBand[]): Uint8Array {
+  const lit = new Uint8Array(fog.size * fog.size);
+  for (const band of bands) {
+    const reach = band.halfM + fog.cellM * 0.71;
+    for (let k = 0; k + 1 < band.points.length; k++) {
+      const a = band.points[k]!;
+      const b = band.points[k + 1]!;
+      const i0 = Math.max(0, Math.floor((Math.min(a.x, b.x) - reach - fog.minX) / fog.cellM));
+      const i1 = Math.min(
+        fog.size - 1,
+        Math.floor((Math.max(a.x, b.x) + reach - fog.minX) / fog.cellM),
+      );
+      const j0 = Math.max(0, Math.floor((Math.min(a.z, b.z) - reach - fog.minZ) / fog.cellM));
+      const j1 = Math.min(
+        fog.size - 1,
+        Math.floor((Math.max(a.z, b.z) + reach - fog.minZ) / fog.cellM),
+      );
+      const dx = b.x - a.x;
+      const dz = b.z - a.z;
+      const len2 = dx * dx + dz * dz;
+      for (let j = j0; j <= j1; j++) {
+        const cz = fog.minZ + (j + 0.5) * fog.cellM;
+        for (let i = i0; i <= i1; i++) {
+          const cx = fog.minX + (i + 0.5) * fog.cellM;
+          const t =
+            len2 === 0 ? 0 : Math.min(1, Math.max(0, ((cx - a.x) * dx + (cz - a.z) * dz) / len2));
+          const ex = cx - (a.x + dx * t);
+          const ez = cz - (a.z + dz * t);
+          if (ex * ex + ez * ez <= reach * reach) lit[j * fog.size + i] = 1;
+        }
+      }
+    }
+  }
+  return lit;
+}
+
+/**
+ * Průhlednost závoje po buňkách (RGBA, barva šedé mlhy) – textura `size × size`. Buňky `lit`
+ * (pokračování stezky na mapě rodu nebo vazala) závoj nekryje.
+ */
+export function fogPixels(
+  fog: FogGrid,
+  seen: Uint8Array,
+  out?: Uint8Array,
+  lit?: Uint8Array | null,
+): Uint8Array {
   const n = fog.size * fog.size;
   const px = out ?? new Uint8Array(n * 4);
   for (let c = 0; c < n; c++) {
-    const a = seen[c] ? FOG_ALPHA.seen : fog.explored[c] ? FOG_ALPHA.explored : FOG_ALPHA.hidden;
+    const a =
+      seen[c] || lit?.[c]
+        ? FOG_ALPHA.seen
+        : fog.explored[c]
+          ? FOG_ALPHA.explored
+          : FOG_ALPHA.hidden;
     px[c * 4] = 46;
     px[c * 4 + 1] = 48;
     px[c * 4 + 2] = 54;

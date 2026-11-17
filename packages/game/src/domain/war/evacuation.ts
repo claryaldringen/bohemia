@@ -1,5 +1,4 @@
 import type { WorldClock } from '../calendar';
-import { villageCentre } from '../village/people/departure';
 import { isLineMan, lineMen } from '../village/people/dynasty';
 import type { VillageEventBody } from '../village/core/inbox';
 import { guestFoodNeed } from '../village/people/people';
@@ -15,14 +14,15 @@ import type {
 } from '../village/types';
 import { alarmCellOf, alarmVillage, isWarned, refugeHosts } from './alarm';
 import type { AlarmFlight, AlarmMessenger, CampaignAlarm } from './alarm-types';
-import { gridOf, MissingData, sameCell, villageEvent } from './campaign-tick';
+import { gridOf, MissingData, sameCell, villageEvent, villageStart } from './campaign-tick';
 import type { TickContext, TickOut } from './campaign-tick';
-import type { CampaignPlace, CampaignState } from './campaign-types';
-import { isOverpowered, nearestForest } from './flight';
+import type { CampaignLeg, CampaignPlace, CampaignState } from './campaign-types';
+import { isOverpowered } from './flight';
+import { nearestReachableForest } from './forest-doors';
 import { marchSpeed, type GroupPace } from './march';
-import { stepMover } from './movement';
+import { routeLeg, stepMover } from './movement';
 import { guardPrisonerKey, lootCapacity, lootTotals, noLoot, sumLoot } from './raid-apply';
-import { flightLoad, refugeOptions } from './refuge-choice';
+import { flightLoad, refugeOptions, type RefugeOptions } from './refuge-choice';
 import { WAR } from './rules-war';
 import { dayOfTick, TICKS_PER_SECOND } from './ticks';
 
@@ -123,12 +123,34 @@ export function withoutTaken(state: VillageState, taken: AlarmTaken): VillageSta
 // --- Odchod ------------------------------------------------------------------------------------
 
 /**
+ * První úsek průvodu z vsi `village` (branka dvorce) do hradiště `options.host` – úseky všech map
+ * trasy `options.route` spočtené předem (`routeLeg`; Martin 17. 11. 2026 – „Utéct do lesa“: když
+ * cesta do hradiště pána nevede, průvod se nekoná). Null = cesta nevede, nebo pán hradiště nemá.
+ * Odchod skupiny (`departFlight`) i zašedlá volba v panelu varování (`alarm-view.ts` – `no-route`).
+ */
+export function refugeLeg(
+  village: CampaignPlace,
+  options: Pick<RefugeOptions, 'host' | 'route'>,
+  day: number,
+  ctx: TickContext,
+): CampaignLeg | null {
+  const host = options.host;
+  if (!host) return null;
+  const route = options.route.slice(1).map((c) => ({ ...c }));
+  return routeLeg({ cell: village.cell, pos: village.pos, route }, host.center, day, ctx);
+}
+
+/**
  * Varovaná ves `villageId` odejde skupinou (záměr `alarm-flee` hráče, pravidlo správce –
  * `decideAlarms`, Úloha 11): ves ještě neodešla, boj u ní nezačal (pak rozhoduje postoj –
  * `planDefense`) a `refugeOptions` volbu pustí (hradiště, „Stihnou to“, les). Složení `flightLoad` ze stavu bez toho, co tažení dnes
  * odvedlo; cíl – střed útočiště hradiště (trasa `refugeRoute`), nebo nejbližší hustý les na mapě
- * vsi. Domů `refuge-depart` na týž den (ves drží bariéra – je ve varování). Skupina do hradiště sní
- * hned jídlo dne odchodu (doma už nejí). Vrací, zda skupina odešla.
+ * vsi. Do hradiště jen tehdy, vede-li tam cesta celou trasou (`routeLeg` – Martin 17. 11. 2026,
+ * „Utéct do lesa“: když cesta do hradiště pána nevede, průvod se nekoná; ves zůstane doma a při
+ * příchodu vojska se zachová podle postoje jako bez varování – lidé utečou do hustého lesa
+ * i s dobytkem); první úsek si skupina vezme rovnou. Domů `refuge-depart` na týž den (ves drží
+ * bariéra – je ve varování). Skupina do hradiště sní hned jídlo dne odchodu (doma už nejí). Vrací,
+ * zda skupina odešla.
  */
 export function departFlight(
   s: CampaignState,
@@ -146,7 +168,8 @@ export function departFlight(
   const state = ctx.world.villageAt(villageId, s.day);
   if (state === null) throw new MissingData([], [villageId]);
   const home = withoutTaken(state, alarmTaken(s, villageId, s.day, ctx.world.clock));
-  const centre = villageCentre(state);
+  // útěk vychází od branky dvorce – jako tažení a výprava (oprava Úlohy 5)
+  const centre = villageStart(state, cell, ctx);
   const grid = gridOf(cell, s.day, ctx);
   // les hradiště nepotřebuje – jeho kandidáty (a jejich stav) čte jen útěk do hradiště
   const { hosts, ids } =
@@ -165,8 +188,9 @@ export function departFlight(
   let target: CampaignPlace;
   let route: AlarmFlight['route'];
   let hostVillageId: string | null;
+  let leg: CampaignLeg | null = null;
   if (mode === 'forest') {
-    const spot = nearestForest(grid, centre);
+    const spot = nearestReachableForest(grid, centre);
     if (!spot) return false;
     target = { cell: { ...cell }, pos: spot };
     route = [];
@@ -176,6 +200,8 @@ export function departFlight(
     if (!host) return false;
     target = { cell: { ...host.cell }, pos: { ...host.center } };
     route = options.route.slice(1).map((c) => ({ ...c }));
+    leg = refugeLeg({ cell, pos: centre }, options, s.day, ctx);
+    if (leg === null) return false;
     hostVillageId = host.villageId;
     av.hosts = ids;
   }
@@ -199,7 +225,7 @@ export function departFlight(
     cell: { ...cell },
     pos: { ...centre },
     route,
-    leg: null,
+    leg,
     target,
   };
   addFlight(alarm, f);
@@ -268,15 +294,17 @@ export function flightFoodDay(s: CampaignState): void {
 
 /**
  * Skupiny o jeden takt (po pohybu vojska, spatření a poslech): tempem skupiny po mapách; v cíli
- * se ukryjí v lese, nebo dojdou do hradiště (`settle`). Nemá-li kudy, zůstane, kde je – jako by
- * došla (návrh Clauda; mřížka světa je louka, nastane jen výjimečně).
+ * se ukryjí v lese, nebo dojdou do hradiště (`settle`). Do hradiště skupina vyrazí, jen když tam
+ * cesta vede (`departFlight` – Martin 17. 11. 2026); zmizí-li cesta cestou (mřížka mapy se mezitím
+ * změnila), stojí, kde je, a další den to zkusí znovu (`stuckDay`; návrh Clauda) – do hradiště se
+ * nepřenese. Konec tažení ji pošle, kam šla (`settleFlights`).
  */
 export function moveFlights(s: CampaignState, ctx: TickContext, out: TickOut): void {
   for (const f of s.alarm?.flights ?? []) {
     if (f.status !== 'marching') continue;
     const stepM = marchSpeed(flightPace(f), s.day) / TICKS_PER_SECOND;
     const step = stepMover(f, f.target.pos, stepM, s.day, ctx);
-    if (step === 'arrived' || step === 'stuck') settle(s, f, ctx, out);
+    if (step === 'arrived') settle(s, f, ctx, out);
   }
 }
 

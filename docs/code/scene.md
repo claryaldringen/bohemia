@@ -179,11 +179,11 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   stavbami a poli podle tvaru. Skrytí jde do zdroje (stín) i přes `onApply` do ořezu (klon
   kamery). Na místo pokáceného stromu dá `felled-trees.ts` pařez
   (mladý stromek jen nízký pahýl – `stumpScale`), po TREE_SAPLING_AFTER_YEARS mladý stromek. **Vymýcený les** (`cleared-forest.ts`, čistý
-  modul): maska po políčkách ze stavu vsi – políčko lesa bez aspoň poloviny dospělých stromů
+  modul; výpočet masky `clearedForest` a typ `ClearedForest` jsou v jádru – `core/cleared-forest.ts`, scéna je re-exportuje; `villageClearedForest` jen převede pohled na zdroje jádra (`clearedForestOf`), hledání cesty vojska čte totéž ze `villageClearings`, village-core.md – Vymýcený les (jádro)): maska po políčkách ze stavu vsi – políčko lesa bez aspoň poloviny dospělých stromů
   nebo pod založeným dílem pole, a paseky pod stavbami v lese přesně podle tvaru
   (`ClearedForest.areas` – vyklízené plochy obydlí a dílen s pruhem pod korunami
-  `forestClearingsOf` z jádra, natočené pozemky, modly a svatyně; `clearingDistance` měří
-  i k nim). Plocha korun nad pasekou zapadne pod zem
+  `forestClearingsOf` z jádra, natočené pozemky, modly a svatyně, milířiště a pás opevnění –
+  každý úsek, i rozestavěný (`SceneVillage.forts`); `clearingDistance` měří i k nim). Plocha korun nad pasekou zapadne pod zem
   (`ForestCanopy.setCleared` mění jen výšky vrcholů, klíč i z `clearedAreasKey`), ztmavení trávy se přepočítá bez skrytých
   stromů do modrého kanálu splat textury (`TerrainMaterial.setHiddenTrees` – žádný sampler
   navíc), stínová mapa se jednou překreslí a minimapa kreslí vykácený les jako paseku. Vše jen
@@ -494,7 +494,8 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   čisté, kreslí `army-renderer.ts`): `LandscapeScene.setWar(SceneWar | null)` – poslední snímek
   boje po taktu (`sceneBattle(BattleState)` – `Pick<>` z `Fighter`, `BattleGroup`,
   `BattleBreach`), pochod (`sceneMarch` – muži a skupiny `CampaignState`), útěk vsi a odehnané
-  stádo (`planFlight`, `fleeWalkAt`, `drivenHerd` ve `villager-plan.ts`), mlha z pohledu strany
+  stádo (`planFlight`, `fleeWalkAt` s `gone`, `drivenHerd` ve `villager-plan.ts`, `fleeFigures`
+  v `refugee-march.ts` – kdo doběhl k hustému lesu, zmizel), mlha z pohledu strany
   a konec dne. Mezi takty se muži posouvají plynule v `animate()` (`battleFigures`, podíl
   `glideMs` – takty mezi snímky × `TICK_MS`, ale nejvýš 1,5× doba od předchozího snímku – po
   přestávce worker dopočítává a snímky chodí rychleji než takty – a nejvýš 15 s), pochod taky (`marchAt` – od
@@ -537,7 +538,8 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   (`huddleSlots`, rozestup 1,9 m – návrh Clauda) oděvem vsi (`ARMY_LOOKS.folk`), dospělí vpředu,
   děti menší vzadu (`ArmyFigure.scale` – `CHILD_FIGURE_SCALE` 0,68), kdo nese zásoby, klipem
   `carry`; stádo za hloučkem (`drivenHerd` jako odehnané stádo, krávy – nejvýš `SCENE_HERD_MAX`);
-  ukrytí u lesa stojí (`idle`). Posel pěšky zrychlenou chůzí (`walk` × 1,9 – postava nemá klip
+  ukrytá skupina (`hidden`) se nekreslí a pohled ji neposílá, proto `SceneRefugees` nemá `moving`
+  – průvod vždy jde (plán 2026-11-16-dense-forest – Úloha 7). Posel pěšky zrychlenou chůzí (`walk` × 1,9 – postava nemá klip
   běhu), na koni jako jezdec (`ride`, kůň, oděv muže rodu). Mezi snímky plynule (`alarmAt` – jako
   `marchAt`: posun ve směru posunu po `glideMs`, nový a skok přes mapu stojí rovnou); při
   omezeném pohybu stojí. Žádný nový mesh ani vertex buffer – tytéž instance postav a zvířat vojska.

@@ -3,6 +3,7 @@ import type { Camera } from '@babylonjs/core/Cameras/camera';
 import type { Scene } from '@babylonjs/core/scene';
 import { surfaceAt, type Landscape } from '@bohemia/game';
 import { ArmyRenderer, type SceneWar } from './army-renderer';
+import type { LitBand } from './fog-of-war';
 import type { ChoreoPeople, ExpeditionScenePhase, ExpeditionYard } from './expedition-choreo';
 import {
   JourneyMarker,
@@ -44,6 +45,8 @@ export class SceneWarView {
   private selectedVillage: string | undefined = undefined;
   /** Stopa rodu pro mlhu cizí mapy výjezdu; null – bez mlhy výjezdu (army-renderer.ts). */
   private trail: readonly (readonly [number, number])[] | null = null;
+  /** Pásy cest nad závojem (mapa rodu nebo vazala – army-renderer.ts `setLitBands`). */
+  private lit: { bands: readonly LitBand[]; key: string } | null = null;
 
   constructor(private readonly deps: WarViewDeps) {}
 
@@ -75,6 +78,13 @@ export class SceneWarView {
       this.marker.set(this.marks());
     }
     if (this.trail) this.army.setJourneyFog(this.trail);
+    if (this.lit) this.army.setLitBands(this.lit.bands, this.lit.key);
+  }
+
+  /** Pásy cest, které závoj nekryje; null – žádné (army-renderer.ts `setLitBands`). */
+  setLitBands(bands: readonly LitBand[] | null, key: string): void {
+    this.lit = bands && bands.length > 0 ? { bands, key } : null;
+    if (this.army?.setLitBands(bands, key)) this.deps.requestRender();
   }
 
   /**
@@ -87,7 +97,7 @@ export class SceneWarView {
   }
 
   /** Mlha v bodě (e2e): neobjevené, objevené, v dohledu; bez závoje null. */
-  fogAt(x: number, z: number): 'hidden' | 'explored' | 'seen' | null {
+  fogAt(x: number, z: number): 'hidden' | 'explored' | 'seen' | 'lit' | null {
     return this.army?.fogAt(x, z) ?? null;
   }
 

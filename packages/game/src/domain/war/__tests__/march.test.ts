@@ -6,8 +6,6 @@ import {
   obstaclesOf,
   riverCenterlines,
   SURFACE_CODES,
-  TREE_KINDS,
-  obstacleKind,
   type Landscape,
   type StreamPoint,
 } from '../../landscape';
@@ -27,6 +25,7 @@ import {
   MARCH_WALL,
   MARCH_WATER,
   marchCellAt,
+  marchCellCenter,
   marchGrid,
   MarchGridMemo,
   type MarchGrid,
@@ -36,12 +35,16 @@ import {
   marchPath,
   marchPathToEdge,
   marchProgress,
+  marchReachable,
   marchSeconds,
   marchSpeed,
+  nearestPassable,
   reachableGoal,
   type GroupPace,
   type MarchPath,
 } from '../march';
+import { lineOfSight } from '../march-smooth';
+import { WAR } from '../rules-war';
 import { frostDay, isMarchWinter } from '../season';
 
 // Pohyb vojska (war.md – Pohyb – mapu po mapě, Zima; fortifications.md – Prolomení).
@@ -88,8 +91,21 @@ function northStream(ford: [number, number] | null): StreamPoint[] {
 }
 
 const meadowOf = (p: MarchPath): number => p.meadowM[p.meadowM.length - 1]!;
+/** Buňky, kterými trasa vede – vzorky po 0,25 m podél jejích úseků (trasa má jen body zlomu). */
+function crossed(g: MarchGrid, p: MarchPath): number[] {
+  const cells = new Set<number>();
+  for (let k = 1; k < p.points.length; k++) {
+    const a = p.points[k - 1]!;
+    const b = p.points[k]!;
+    const n = Math.max(1, Math.ceil(Math.hypot(b.x - a.x, b.z - a.z) / 0.25));
+    for (let s = 0; s <= n; s++) {
+      cells.add(marchCellAt(g, { x: a.x + ((b.x - a.x) * s) / n, z: a.z + ((b.z - a.z) * s) / n }));
+    }
+  }
+  return [...cells];
+}
 const flagged = (g: MarchGrid, p: MarchPath, flag: number): number =>
-  p.cells.filter((c) => (g.flags[c]! & flag) !== 0).length;
+  crossed(g, p).filter((c) => (g.flags[c]! & flag) !== 0).length;
 
 describe('tempo vojska (war.md – Pohyb – Tempo)', () => {
   it('1 km po louce ≈ 4–5 min ≈ 3 herní dny', () => {
@@ -104,27 +120,23 @@ describe('tempo vojska (war.md – Pohyb – Tempo)', () => {
     expect(seconds / DAY_S).toBeLessThan(3.5);
   });
 
-  it('hustý les čtyřikrát pomaleji', () => {
-    const meadow = marchPath(marchGrid(flat(), null, null), { x: -500, z: 0 }, { x: 500, z: 0 })!;
-    const grid = marchGrid(
+  it('hustý les je neprůchozí – trasa ho obejde, chůze tempem louky', () => {
+    const sealed = marchGrid(
       flat(() => true),
       null,
       null,
     );
-    const forest = marchPath(grid, { x: -500, z: 0 }, { x: 500, z: 0 })!;
-    expect(flagged(grid, forest, MARCH_FOREST)).toBe(forest.cells.length);
-    expect(meadowOf(forest) / meadowOf(meadow)).toBeCloseTo(4, 2);
-  });
-
-  it('les obejde, když je to kratší než projít ho', () => {
-    // pruh lesa 150 m napříč, s mezerou louky 600 m severně
+    expect(marchPath(sealed, { x: -500, z: 0 }, { x: 500, z: 0 })).toBeNull();
+    // pruh lesa 150 m napříč od jižního okraje po z ≈ 540 m – vojsko ho obejde severně, hledání
+    // tempo nezná a les sám neprůchozí je
     const strip = (tx: number, ty: number): boolean => tx >= 60 && tx < 70 && ty < 100;
-    const grid = marchGrid(flat(strip), null, null);
-    const path = marchPath(grid, { x: -400, z: 0 }, { x: 400, z: 0 })!;
-    // 4 × 150 m lesem = 600 m louky navíc, oklika ≈ 2 × 600 m – vojsko jde lesem
-    expect(flagged(grid, path, MARCH_FOREST)).toBeGreaterThan(10);
-    const far = marchPath(grid, { x: -100, z: 500 }, { x: 100, z: 500 })!;
-    expect(flagged(grid, far, MARCH_FOREST)).toBe(0);
+    const striped = marchGrid(flat(strip), null, null);
+    const path = marchPath(striped, { x: -400, z: 0 }, { x: 400, z: 0 })!;
+    for (const c of crossed(striped, path)) expect(striped.pace[c]).toBeGreaterThan(0);
+    expect(flagged(striped, path, MARCH_FOREST)).toBe(0);
+    expect(Math.max(...path.points.map((p) => p.z))).toBeGreaterThan(500);
+    expect(path.lengthM).toBeGreaterThan(1300);
+    expect(meadowOf(path)).toBeCloseTo(path.lengthM, 2);
   });
 
   it('skupina jde tempem nejpomalejšího, sníh × 0,75', () => {
@@ -150,8 +162,8 @@ describe('voda jen přes brod (war.md – Pohyb – Terén)', () => {
   it('potok bez brodu vojsko nepřejde', () => {
     const grid = marchGrid(flat(undefined, northStream(null)), null, null);
     expect(marchPath(grid, { x: -300, z: 0 }, { x: 300, z: 0 })).toBeNull();
-    // z vody (vojsko stojí v buňce u břehu) ven na bližší břeh
-    expect(marchPath(grid, { x: 7.5, z: 0 }, { x: -300, z: 0 })).not.toBeNull();
+    // z vody (vojsko stojí v buňce u západního břehu) ven na bližší břeh
+    expect(marchPath(grid, { x: 2, z: 0 }, { x: -300, z: 0 })).not.toBeNull();
   });
 
   it('přes potok jen brodem', () => {
@@ -270,7 +282,14 @@ describe('řeky kostry jen přes brod (war.md – Pohyb – Terén, world-skelet
       ],
       trails: [],
     });
-    const grid = marchGrid(landscape, null, null);
+    // bez lesa – hustý les by trasu přes mapu zavřel, test hlídá řeky a brody
+    const open: Landscape = {
+      ...landscape,
+      surface: landscape.surface.map((s) =>
+        s === SURFACE_CODES.forest ? SURFACE_CODES.meadow : s,
+      ),
+    };
+    const grid = marchGrid(open, null, null);
     const rivers = riverCenterlines(landscape);
     expect(rivers).toHaveLength(2);
     let fords = 0;
@@ -342,15 +361,132 @@ describe('cíl v neprůchodné buňce (war.md – Pohyb – Cíl v neprůchodné
     expect(reachableGoal(grid, { x: 0, z: 0 }, { x: 20, z: 20 })).toEqual({ x: 20, z: 10 });
   });
 
-  it('vojsko sevřené v neprůchodných buňkách – dosažitelné místo není žádné', () => {
+  it('vojsko sevřené v neprůchodných buňkách unikne do nejbližší průchodné (Rozhodnutí 7)', () => {
     const grid = tiny((i, j) => !(i === 4 && j === 4));
-    expect(reachableGoal(grid, { x: 0, z: 0 }, { x: 20, z: 20 })).toBeNull();
-    // z volné buňky cíl dojde k ní samé
+    expect(reachableGoal(grid, { x: 0, z: 0 }, { x: 20, z: 20 })).toEqual({ x: 40, z: 40 });
     expect(reachableGoal(grid, { x: 40, z: 40 }, { x: 20, z: 20 })).toEqual({ x: 40, z: 40 });
+    const out = marchPath(grid, { x: 0, z: 0 }, { x: 40, z: 40 })!;
+    expect(out.points).toEqual([
+      { x: 0, z: 0 },
+      { x: 40, z: 40 },
+    ]);
+    // mapa bez průchodné buňky – dosažitelné místo není žádné
+    const sealed = tiny(() => true);
+    expect(reachableGoal(sealed, { x: 0, z: 0 }, { x: 20, z: 20 })).toBeNull();
+    expect(marchPath(sealed, { x: 0, z: 0 }, { x: 20, z: 20 })).toBeNull();
+    expect(marchPathToEdge(sealed, { x: 20, z: 20 }, 'E')).toBeNull();
+  });
+
+  it('únik z neprůchodné buňky – rovně do středu nejbližší průchodné, pak trasa na dohled', () => {
+    const open = marchGrid(flat(), null, null);
+    // blok 3 × 3 buňky kolem startu je neprůchodný (stavba, dorostlý les, palisáda)
+    const grid: MarchGrid = { ...open, pace: Float32Array.from(open.pace) };
+    const from = { x: 3, z: -2 };
+    const at = marchCellAt(grid, from);
+    for (let dj = -1; dj <= 1; dj++) {
+      for (let di = -1; di <= 1; di++) grid.pace[at + dj * grid.width + di] = 0;
+    }
+    // nejbližší průchodné jsou o dvě buňky rovně – remíza, nižší index je jižní
+    const escape = at - 2 * grid.width;
+    expect(nearestPassable(grid, at, Infinity)).toBe(escape);
+    expect(nearestPassable(grid, at, grid.cellM)).toBe(-1);
+    const to = { x: 300, z: 200 };
+    expect(marchReachable(grid, from, to)).toBe(true);
+    expect(reachableGoal(grid, from, to)).toBe(to);
+    const path = marchPath(grid, from, to)!;
+    expect(path.points[0]).toEqual(from);
+    expect(path.points[1]).toEqual(marchCellCenter(grid, escape));
+    expect(path.points[path.points.length - 1]).toEqual(to);
+    for (let k = 2; k < path.points.length; k++) {
+      expect(lineOfSight(grid, path.points[k - 1]!, path.points[k]!)).toBe(true);
+    }
+    // úniková buňka nese tempo louky – první úsek stojí svou délku
+    const out = marchCellCenter(grid, escape);
+    expect(path.meadowM[1]).toBeCloseTo(Math.hypot(out.x - from.x, out.z - from.z), 2);
+    // i k okraji
+    const edge = marchPathToEdge(grid, from, 'N')!;
+    expect(edge.points[1]).toEqual(marchCellCenter(grid, escape));
+  });
+
+  /** Hustý les (2r + 1)² buněk kolem `from`; v něm paseka o jedné buňce dvě buňky na východ. */
+  const woods = (r: number): { grid: MarchGrid; at: number; pocket: number } => {
+    const open = marchGrid(flat(), null, null);
+    const grid: MarchGrid = {
+      ...open,
+      pace: Float32Array.from(open.pace),
+      flags: Uint16Array.from(open.flags),
+    };
+    const at = marchCellAt(grid, { x: 3, z: -2 });
+    for (let dj = -r; dj <= r; dj++) {
+      for (let di = -r; di <= r; di++) grid.pace[at + dj * grid.width + di] = 0;
+    }
+    grid.pace[at + 2] = 1;
+    return { grid, at, pocket: at + 2 };
+  };
+
+  it('únik do oblasti cíle nebo přechodu okraje, ne do izolované paseky (Úloha 5)', () => {
+    const from = { x: 3, z: -2 };
+    // les 33 × 33 buněk: velká oblast 17 buněk (42,5 m) – do 40 m za pasekou (5 m)
+    const { grid, at, pocket } = woods(16);
+    expect(nearestPassable(grid, at, Infinity)).toBe(pocket);
+    // nejbližší buňka velké oblasti: 17 buněk rovně, remíza – nižší index (jih)
+    const escape = marchCellCenter(grid, at - 17 * grid.width);
+    const to = { x: 300, z: 200 };
+    expect(marchReachable(grid, from, to)).toBe(true);
+    expect(reachableGoal(grid, from, to)).toBe(to);
+    expect(marchPath(grid, from, to)!.points[1]).toEqual(escape);
+    // domů přes okraj – z paseky by okraj dosažitelný nebyl
+    expect(marchPathToEdge(grid, from, 'E')?.points[1]).toEqual(escape);
+    // cíl v lese u severního kraje lesa – posune se na kraj velké oblasti, ne do paseky
+    const inWoods = marchCellCenter(grid, at + 14 * grid.width);
+    expect(reachableGoal(grid, from, inWoods)).toEqual(marchCellCenter(grid, at + 17 * grid.width));
+    // cíl v pasece samé – oblast cíle je paseka
+    expect(marchReachable(grid, from, marchCellCenter(grid, pocket))).toBe(true);
+    expect(marchPath(grid, from, marchCellCenter(grid, pocket))!.points[1]).toEqual(
+      marchCellCenter(grid, pocket),
+    );
+  });
+
+  it('únik nejvýš 40 m za nejbližší průchodnou buňku a ze stavby jen do ní (oprava Úlohy 5)', () => {
+    const from = { x: 3, z: -2 };
+    const to = { x: 300, z: 200 };
+    // les 41 × 41 buněk: velká oblast 21 buněk (52,5 m) – dál než 40 m za pasekou (5 m)
+    const far = woods(20);
+    expect(marchReachable(far.grid, from, to)).toBe(false);
+    expect(marchPath(far.grid, from, to)).toBeNull();
+    expect(marchPathToEdge(far.grid, from, 'E')).toBeNull();
+    expect(reachableGoal(far.grid, from, to)).toEqual(marchCellCenter(far.grid, far.pocket));
+    // start ve stavbě – jen nejbližší průchodná buňka (paseka), i když velká oblast je v mezi
+    const house = woods(16);
+    house.grid.flags[house.at] = MARCH_BUILDING;
+    expect(marchReachable(house.grid, from, to)).toBe(false);
+    expect(marchPathToEdge(house.grid, from, 'E')).toBeNull();
+    expect(reachableGoal(house.grid, from, to)).toEqual(marchCellCenter(house.grid, house.pocket));
   });
 });
 
 describe('do opevněné vsi (fortifications.md – Obrana, Prolomení)', () => {
+  it('skupina ve stěně palisády (postavené pod ní) unikne jen do nejbližší buňky, ne dovnitř (re-revize Úlohy 5)', () => {
+    // zavřená palisáda bez brány; skupina stojí v nejvzdálenější buňce stěny na jih od středu
+    const grid = marchGrid(flat(), null, fortVillage(fort('palisade')));
+    let wall = -1;
+    for (let z = 0; z > -200; z -= grid.cellM) {
+      const c = marchCellAt(grid, { x: 0, z });
+      if ((grid.flags[c]! & MARCH_WALL) !== 0) wall = c;
+      else if (wall >= 0) break;
+    }
+    expect(wall).toBeGreaterThanOrEqual(0);
+    expect(grid.pace[wall]).toBe(0);
+    const from = marchCellCenter(grid, wall);
+    // dovnitř zavřeného opevnění únik nevede – dřív vedl do „užitečné“ oblasti cíle uvnitř
+    expect(marchPath(grid, from, IN)).toBeNull();
+    expect(marchReachable(grid, from, IN)).toBe(false);
+    // cíl se posune na nejbližší místo vně palisády (dosažitelné zvenku)
+    expect(marchReachable(grid, OUT, reachableGoal(grid, from, IN)!)).toBe(true);
+    // ven ano – nejbližší průchodná buňka je vně
+    expect(marchReachable(grid, from, OUT)).toBe(true);
+  });
+
   it('palisáda jen branou', () => {
     const grid = marchGrid(flat(), null, fortVillage(fort('palisade', undefined, true)));
     const path = marchPath(grid, OUT, IN)!;
@@ -386,7 +522,7 @@ describe('do opevněné vsi (fortifications.md – Obrana, Prolomení)', () => {
     const rampart = flagged(grid, path, MARCH_RAMPART);
     expect(rampart).toBeGreaterThan(0);
     // každý metr pásu stojí 4 metry louky
-    expect(meadowOf(path) - path.lengthM).toBeGreaterThan(rampart * 10 * 2);
+    expect(meadowOf(path) - path.lengthM).toBeGreaterThan(rampart * grid.cellM * 2);
     expect(
       marchPath(marchGrid(flat(), null, fortVillage(fort('rampart', 'palisade'))), OUT, IN),
     ).toBeNull();
@@ -415,7 +551,7 @@ describe('pevné cesty a zemská stezka vsi (war.md – Pohyb – Terén)', () =
       v,
     );
     const path = marchPath(grid, { x: -500, z: 100 }, { x: 500, z: 100 })!;
-    expect(flagged(grid, path, MARCH_ROAD)).toBe(path.cells.length);
+    expect(flagged(grid, path, MARCH_ROAD)).toBe(crossed(grid, path).length);
     expect(Math.abs(meadowOf(path) - 1000 / 1.5)).toBeLessThan(5);
   });
 });
@@ -450,71 +586,75 @@ describe('zima a únava z mrazu (war.md – Zima)', () => {
   });
 });
 
-/** Otisk trasy – počet buněk, metry louky a FNV-1a buněk. */
+/** Otisk trasy – počet bodů, metry louky a FNV-1a buněk a bodů (po 1/1024 m). */
 function stamp(path: MarchPath | null): string {
   if (!path) return 'null';
   let h = 2166136261;
   for (const c of path.cells) h = Math.imul(h ^ c, 16777619) >>> 0;
-  return `${path.cells.length}:${meadowOf(path).toFixed(2)}:${h.toString(16)}`;
+  for (const p of path.points) {
+    h = Math.imul(h ^ Math.round(p.x * 1024), 16777619) >>> 0;
+    h = Math.imul(h ^ Math.round(p.z * 1024), 16777619) >>> 0;
+  }
+  return `${path.points.length}:${meadowOf(path).toFixed(2)}:${h.toString(16)}`;
+}
+
+/** Trasa z `from` k místu nejblíž `to`, kam skupina dojde (`reachableGoal`). */
+function toward(grid: MarchGrid, from: Pos, to: Pos): MarchPath | null {
+  const goal = reachableGoal(grid, from, to);
+  return goal ? marchPath(grid, from, goal) : null;
 }
 
 describe('zlatá cesta a determinismus (skutečné krajiny)', () => {
-  // brodů na mapě | buněk trasy z jihozápadu na severovýchod : metry louky : otisk buněk
+  // brodů na mapě | buněk hustého lesa | trasy ze středu mapy k nejbližšímu dosažitelnému místu
+  // u severovýchodního a jihozápadního rohu (bodů : metry louky : otisk buněk a bodů) – jemná
+  // mřížka 2,5 m s neprůchozím hustým lesem (plán 2026-11-16-dense-forest, Úloha 4); brodů
+  // přibylo zhruba s (10 ÷ 2,5)², trasy les obcházejí; seed 3 má o buňku hustého lesa méně od
+  // opravy Úlohy 4 – skála blokuje vždy buňku, ve které stojí (balvan s poloměrem 1,25–1,77 m)
   const GOLDEN: Record<number, string> = {
-    1: '133|247:5022.16:2fb666ec',
-    2: '45|295:6076.18:31b8b50d',
-    3: '49|261:5341.81:54706151',
+    1: '1638|319837|2:503.86:a3ed6ded|3:475.93:24e5a7a1',
+    2: '519|341471|5:229.68:dba38811|6:980.52:a8e8c103',
+    3: '583|352507|15:876.14:11c88dc8|3:989.88:914d587',
   };
 
   it.each([1, 2, 3])('seed %i – otisk trasy přes mapu', (seed) => {
     const landscape = generateLandscape(seed);
     const grid = marchGrid(landscape, obstaclesOf(landscape), null);
-    const path = marchPath(grid, { x: -900, z: -900 }, { x: 900, z: 900 });
+    const ne = toward(grid, { x: 0, z: 0 }, { x: 900, z: 900 })!;
+    const sw = toward(grid, { x: 0, z: 0 }, { x: -900, z: -900 })!;
     const fords = grid.flags.filter((f) => (f & MARCH_FORD) !== 0).length;
-    expect(`${fords}|${stamp(path)}`).toBe(GOLDEN[seed]);
-    if (path) expect(flagged(grid, path, MARCH_WATER)).toBe(0);
+    const dense = grid.flags.filter((f) => f === MARCH_FOREST).length;
+    expect(`${fords}|${dense}|${stamp(ne)}|${stamp(sw)}`).toBe(GOLDEN[seed]);
+    expect(ne.lengthM + sw.lengthM).toBeGreaterThan(500);
+    for (const path of [ne, sw]) {
+      expect(flagged(grid, path, MARCH_WATER)).toBe(0);
+      expect(flagged(grid, path, MARCH_FOREST)).toBe(0);
+    }
   });
 
   it('stejný vstup → stejná cesta bez ohledu na pořadí volání', () => {
     const a = generateLandscape(2);
     const b = generateLandscape(3);
     const first = stamp(
-      marchPath(marchGrid(a, obstaclesOf(a), null), { x: -900, z: 0 }, { x: 900, z: 0 }),
+      toward(marchGrid(a, obstaclesOf(a), null), { x: 0, z: 0 }, { x: 900, z: 0 }),
     );
-    marchPath(marchGrid(b, obstaclesOf(b), null), { x: 900, z: 0 }, { x: -900, z: 0 });
+    toward(marchGrid(b, obstaclesOf(b), null), { x: 900, z: 0 }, { x: -900, z: 0 });
     const again = generateLandscape(2);
     const grid = marchGrid(again, obstaclesOf(again), null);
-    marchPath(grid, { x: 0, z: -900 }, { x: 0, z: 900 });
-    expect(stamp(marchPath(grid, { x: -900, z: 0 }, { x: 900, z: 0 }))).toBe(first);
-  });
-
-  it('vykácená paseka vsi hustým lesem není', () => {
-    const landscape = generateLandscape(1);
-    const layer = obstaclesOf(landscape);
-    const grid = marchGrid(landscape, layer, null);
-    const c = grid.flags.findIndex((f, k) => f === MARCH_FOREST && k > grid.width * 40);
-    const i = c % grid.width;
-    const center = { x: grid.originX + i * 10, z: grid.originZ + ((c - i) / grid.width) * 10 };
-    const cleared: { id: number; day: number }[] = [];
-    for (let k = 0; k < layer.count; k++) {
-      if (!TREE_KINDS.includes(obstacleKind(layer, k))) continue;
-      if (Math.abs(layer.x[k]! - center.x) < 40 && Math.abs(layer.z[k]! - center.z) < 40) {
-        cleared.push({ id: layer.id[k]!, day: 0 });
-      }
-    }
-    const v = village([], [], { clearedObstacles: cleared });
-    const after = marchGrid(landscape, layer, v);
-    expect(after.flags[marchCellAt(after, center)]! & MARCH_FOREST).toBe(0);
+    toward(grid, { x: 0, z: -900 }, { x: 0, z: 900 });
+    expect(first).not.toBe('null');
+    expect(stamp(toward(grid, { x: 0, z: 0 }, { x: 900, z: 0 }))).toBe(first);
   });
 
   it('k okraji mapy a na opačný okraj', () => {
     const grid = marchGrid(flat(), null, null);
     const east = marchPathToEdge(grid, { x: 0, z: 0 }, 'E')!;
     const end = east.points[east.points.length - 1]!;
-    expect(end.x).toBe(955);
-    expect(east.lengthM).toBeCloseTo(955, -1);
+    // střed okrajové buňky: 960 − půl buňky
+    const edge = 960 - WAR.march.cellM / 2;
+    expect(end.x).toBe(edge);
+    expect(east.lengthM).toBeCloseTo(edge, -1);
     const ne = marchPathToEdge(grid, { x: 0, z: 0 }, 'NE')!;
-    expect(ne.points[ne.points.length - 1]).toEqual({ x: 955, z: 955 });
+    expect(ne.points[ne.points.length - 1]).toEqual({ x: edge, z: edge });
   });
 });
 
@@ -527,7 +667,7 @@ describe('stavby vsi pochod blokují (war.md – Pohyb – Terén)', () => {
     const grid = marchGrid(flat(), null, village([], [house]));
     expect(grid.flags[marchCellAt(grid, { x: 0, z: 0 })]! & MARCH_BUILDING).toBeTruthy();
     const path = marchPath(grid, W, E)!;
-    for (const c of path.cells) expect(grid.flags[c]! & MARCH_BUILDING).toBe(0);
+    for (const c of crossed(grid, path)) expect(grid.flags[c]! & MARCH_BUILDING).toBe(0);
     // bez vsi přímo, se stavbou oklikou
     const straight = marchPath(marchGrid(flat(), null, null), W, E)!.lengthM;
     expect(path.lengthM).toBeGreaterThan(straight + 3);
@@ -545,7 +685,7 @@ describe('stavby vsi pochod blokují (war.md – Pohyb – Terén)', () => {
     expect(marchPath(grid, { x: 0, z: 0 }, E)).not.toBeNull();
   });
 
-  it('z branky dvorce k místu 42 m za dvorem rovně, ze středu domu zdí a obloukem (D49)', () => {
+  it('z branky dvorce k místu 42 m za dvorem rovně, ze středu domu únikem a obloukem (D49)', () => {
     // dvorec s dvorem jako Vlkov: dům uprostřed políčka vchodem ke dvoru, branka za dvorem (+x)
     const land = flat();
     const manor = {
@@ -559,12 +699,22 @@ describe('stavby vsi pochod blokují (war.md – Pohyb – Terén)', () => {
     expect(gate.x).toBeCloseTo(center.x + 23.5, 6);
     const goal = { x: center.x + 42, z: center.z + 2.4 };
     const air = (a: Pos, b: Pos): number => Math.hypot(b.x - a.x, b.z - a.z);
-    // příčina: ze středu domu vede trasa nejbližší volnou buňkou mimo pozemek a kolem něj
-    expect(marchPath(grid, center, goal)!.lengthM).toBeGreaterThan(1.25 * air(center, goal));
-    // z branky rovně – i celá cesta od domu dvorem a brankou je ≈ vzdušná čára
+    // příčina: ze středu domu vede trasa únikem do nejbližší volné buňky a kolem pozemku (na
+    // mřížce 2,5 m s odstupem 1 m už jen ≈ 1,2× vzdušné čáry – dřív 10 m buňky přes 1,25×)
+    const inside = marchPath(grid, center, goal)!;
+    expect(inside.points[0]).toEqual(center);
+    expect(inside.points[1]).toEqual(
+      marchCellCenter(grid, nearestPassable(grid, marchCellAt(grid, center), Infinity)),
+    );
+    for (let k = 2; k < inside.points.length; k++) {
+      expect(lineOfSight(grid, inside.points[k - 1]!, inside.points[k]!)).toBe(true);
+    }
+    expect(inside.lengthM).toBeGreaterThan(1.15 * air(center, goal));
+    // z branky rovně – jediný úsek; i celá cesta od domu dvorem a brankou je ≈ vzdušná čára
     const out = marchPath(grid, gate, goal)!;
-    expect(out.lengthM).toBeLessThanOrEqual(1.2 * air(gate, goal));
-    expect(air(center, gate) + out.lengthM).toBeLessThanOrEqual(1.2 * air(center, goal));
+    expect(out.points).toEqual([gate, goal]);
+    expect(out.lengthM).toBeCloseTo(air(gate, goal), 9);
+    expect(air(center, gate) + out.lengthM).toBeLessThanOrEqual(1.01 * air(center, goal));
   });
 
   it('ohrada je neprůchodná, pole průchozí tempem louky', () => {
@@ -573,7 +723,7 @@ describe('stavby vsi pochod blokují (war.md – Pohyb – Terén)', () => {
     const blocked = [...grid.flags].filter((f) => (f & MARCH_BUILDING) !== 0).length;
     expect(blocked).toBeGreaterThan(0);
     const around = marchPath(grid, { x: -20, z: 0 }, { x: 80, z: 0 })!;
-    for (const c of around.cells) expect(grid.flags[c]! & MARCH_BUILDING).toBe(0);
+    for (const c of crossed(grid, around)) expect(grid.flags[c]! & MARCH_BUILDING).toBe(0);
   });
 
   it('opevnění: branou projde, jinak obejde (stavby ho nerozbijí)', () => {
@@ -584,11 +734,12 @@ describe('stavby vsi pochod blokují (war.md – Pohyb – Terén)', () => {
 
 describe('mřížky pochodu napříč voláními (worker – Výkon – Tažení)', () => {
   const same = (a: MarchGrid, b: MarchGrid): void => {
-    expect({ ...a, pace: [...a.pace], flags: [...a.flags] }).toEqual({
-      ...b,
-      pace: [...b.pace],
-      flags: [...b.flags],
-    });
+    const { pace: ap, flags: af, ...ra } = a;
+    const { pace: bp, flags: bf, ...rb } = b;
+    expect(ra).toEqual(rb);
+    // jemná mřížka má 590 tisíc buněk – porovnání po prvcích bez rozbalení do polí
+    expect(ap.length).toBe(bp.length);
+    expect(ap.every((p, c) => p === bp[c] && af[c] === bf[c])).toBe(true);
   };
 
   it('mřížka z paměti = nově postavená; tentýž vstup = tatáž mřížka', () => {
@@ -600,7 +751,7 @@ describe('mřížky pochodu napříč voláními (worker – Výkon – Tažení
     expect(memo.gridOf(land, null, fortified, SUMMER)).toBe(first);
     const empty = memo.gridOf(land, null, null, SUMMER);
     same(empty, marchGrid(land, null, null, { day: SUMMER }));
-    expect(empty).not.toBe(first);
+    expect(empty === first).toBe(false);
   });
 
   it('jiný stav vsi, jiný den nebo jiná krajina = nová mřížka', () => {
@@ -611,38 +762,49 @@ describe('mřížky pochodu napříč voláními (worker – Výkon – Tažení
     // nová verze vsi (jiný objekt stavu) – brána zavřená zbořením: mřížka se staví znovu
     const without = { ...fortified, fortifications: [] };
     const rebuilt = memo.gridOf(land, null, without, SUMMER);
-    expect(rebuilt).not.toBe(first);
+    expect(rebuilt === first).toBe(false);
     same(rebuilt, marchGrid(land, null, without, { day: SUMMER }));
-    expect(memo.gridOf(flat(), null, fortified, SUMMER)).not.toBe(first);
+    expect(memo.gridOf(flat(), null, fortified, SUMMER) === first).toBe(false);
     const next = memo.gridOf(land, null, fortified, SUMMER + 1);
-    expect(next).not.toBe(first);
+    expect(next === first).toBe(false);
     expect(memo.gridOf(land, null, fortified, SUMMER)).toBe(first);
   });
 
   it('starší den, než jsou držené, v paměti zůstane (dvě tažení o den posunutá)', () => {
     const land = flat();
+    const v = fortVillage(fort('palisade', undefined, true));
     const memo = new MarchGridMemo();
-    const later = memo.gridOf(land, null, null, SUMMER + 1);
-    const latest = memo.gridOf(land, null, null, SUMMER + 2);
-    const older = memo.gridOf(land, null, null, SUMMER);
-    expect(memo.gridOf(land, null, null, SUMMER)).toBe(older);
-    expect(memo.gridOf(land, null, null, SUMMER + 1)).toBe(later);
-    expect(memo.gridOf(land, null, null, SUMMER + 2)).toBe(latest);
+    const later = memo.gridOf(land, null, v, SUMMER + 1);
+    const latest = memo.gridOf(land, null, v, SUMMER + 2);
+    const older = memo.gridOf(land, null, v, SUMMER);
+    expect(memo.gridOf(land, null, v, SUMMER)).toBe(older);
+    expect(memo.gridOf(land, null, v, SUMMER + 1)).toBe(later);
+    expect(memo.gridOf(land, null, v, SUMMER + 2)).toBe(latest);
   });
 
   it('drží čtyři dny; pátý vytlačí nejdéle nepoužitý, ne nejmenší', () => {
     const land = flat();
+    const v = fortVillage(fort('palisade', undefined, true));
     const memo = new MarchGridMemo();
-    const grids = [0, 1, 2, 3].map((d) => memo.gridOf(land, null, null, SUMMER + d));
+    const grids = [0, 1, 2, 3].map((d) => memo.gridOf(land, null, v, SUMMER + d));
     // den 0 se použil naposledy – nejdéle nepoužitý je teď den 1
-    expect(memo.gridOf(land, null, null, SUMMER)).toBe(grids[0]);
-    memo.gridOf(land, null, null, SUMMER + 4);
-    expect(memo.gridOf(land, null, null, SUMMER)).toBe(grids[0]);
-    expect(memo.gridOf(land, null, null, SUMMER + 2)).toBe(grids[2]);
-    expect(memo.gridOf(land, null, null, SUMMER + 3)).toBe(grids[3]);
+    expect(memo.gridOf(land, null, v, SUMMER)).toBe(grids[0]);
+    memo.gridOf(land, null, v, SUMMER + 4);
+    expect(memo.gridOf(land, null, v, SUMMER)).toBe(grids[0]);
+    expect(memo.gridOf(land, null, v, SUMMER + 2)).toBe(grids[2]);
+    expect(memo.gridOf(land, null, v, SUMMER + 3)).toBe(grids[3]);
     // vytlačený den se postaví znovu – stejná mřížka, jiný objekt
-    const again = memo.gridOf(land, null, null, SUMMER + 1);
-    expect(again).not.toBe(grids[1]);
+    const again = memo.gridOf(land, null, v, SUMMER + 1);
+    expect(again === grids[1]).toBe(false);
     same(again, grids[1]!);
+  });
+
+  it('mapa bez vsi na dni nezávisí – jiný den tatáž mřížka', () => {
+    const land = flat();
+    const memo = new MarchGridMemo();
+    const first = memo.gridOf(land, null, null, SUMMER);
+    same(first, marchGrid(land, null, null, { day: SUMMER + 7 }));
+    expect(memo.gridOf(land, null, null, SUMMER + 1)).toBe(first);
+    expect(memo.gridOf(land, null, null, SUMMER + 400)).toBe(first);
   });
 });

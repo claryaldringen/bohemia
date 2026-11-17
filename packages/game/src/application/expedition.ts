@@ -1,11 +1,12 @@
 import type { WorldClock } from '../domain/calendar';
 import type { Landscape } from '../domain/landscape';
-import { dwellingGatePoint } from '../domain/village/paths/network-grid';
+import { villageGate } from '../domain/village/people/departure';
 import { villageManor, villageManorId } from '../domain/village/people/manor';
 import { sameCell, type GridCell } from '../domain/village/people/world-grid';
 import type { VillageState } from '../domain/village/types';
 import { sendAway } from '../domain/vassalage';
 import {
+  continuationsOf,
   expeditionRecruit,
   INTENT_LEAD_TICKS,
   marchGrid,
@@ -421,13 +422,16 @@ async function mapOn(
 
 /**
  * Mřížka pochodu mapy `cell` ve dni vsi: domovská mapa s čerstvým stavem vlastní vsi (jako dřív
- * vyslání), jiná mapa s vsí na ní (`mapGrid`).
+ * vyslání), jiná mapa s vsí na ní (`mapGrid`) – obě s osami pokračování stezek sousedních vsí.
  */
 async function gridOn(deps: ExpeditionDeps, plan: Plan, cell: GridCell): Promise<MarchGrid> {
   const { own, day } = plan.situation;
   if (!sameCell(cell, plan.home.cell)) return mapGrid(deps, cell, day);
   const map = await mapOn(deps, plan.maps, cell);
-  return marchGrid(map.landscape, map.obstacles, own.village.state, { day });
+  return marchGrid(map.landscape, map.obstacles, own.village.state, {
+    day,
+    trailContinuations: continuationsOf(map, own.village.state, day),
+  });
 }
 
 /**
@@ -612,25 +616,15 @@ async function release(
 /**
  * Odkud výprava vyjíždí a kam se vrací (lord-control.md – Rozkazy: „Domů – nejkratší cestou do
  * vlastní vsi“; Ve scéně: odjezd branou dvorce): branka pozemku dvorce (`dwellingGatePoint` – kde
- * z něj vychází síť pěšin; bez pozemku před vchodem domu). Ze středu dvorce trasa vedla zdí domu
- * a mřížka pochodu, která celý pozemek i s brankou blokuje, ji vyvedla nejbližší volnou buňkou
- * a kolem pozemku (D49, Martin 15. 11. 2026: „vyběhl boční stěnou domu a velkým obloukem…“).
- * Hráč staví ves, kde chce – místo vsi krajiny (`villagePlace`) od ní může ležet daleko (Martinův
- * Vlkov ≈ 430 m). Dokud zakladatelé první zemnici staví, staveniště dvorce; ves bez obydlí
- * i staveniště – místo vsi krajiny.
+ * z něj vychází síť pěšin; bez pozemku před vchodem domu – `villageGate`, totéž místo jako tažení).
+ * Ze středu dvorce trasa vedla zdí domu a mřížka pochodu, která celý pozemek i s brankou blokuje,
+ * ji vyvedla nejbližší volnou buňkou a kolem pozemku (D49, Martin 15. 11. 2026: „vyběhl boční
+ * stěnou domu a velkým obloukem…“). Hráč staví ves, kde chce – místo vsi krajiny (`villagePlace`)
+ * od ní může ležet daleko (Martinův Vlkov ≈ 430 m). Dokud zakladatelé první zemnici staví,
+ * staveniště dvorce; ves bez obydlí i staveniště – místo vsi krajiny.
  */
 function journeyHome(state: VillageState, cell: GridCell, landscape: Landscape): Pos {
-  const manor = villageManor(state);
-  if (manor) {
-    const gate = dwellingGatePoint(landscape, {
-      type: manor.type,
-      position: manor.position,
-      ...(manor.plot ? { plot: manor.plot } : {}),
-      ...(manor.plainShape ? { plainShape: true } : {}),
-      ...(manor.workshop ? { craft: manor.workshop.craft } : {}),
-    });
-    return { x: gate.x, z: gate.z };
-  }
+  if (villageManor(state)) return villageGate(state, landscape);
   const manorId = villageManorId(state);
   const site =
     manorId === null

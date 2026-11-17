@@ -4,6 +4,8 @@ import { kin, village } from '../../village/__tests__/kin-fixtures';
 import type { Dwelling, Person, VillageState } from '../../village/types';
 import { stepCampaign } from '../campaign';
 import type { CampaignMap, CampaignState, CampaignWorld } from '../campaign-types';
+import { MarchGridMemo } from '../march-grid';
+import { sendGroup } from '../movement';
 import { npcIntents } from '../npc-commander';
 import { land, palisade } from './battle-fixtures';
 import {
@@ -14,6 +16,7 @@ import {
   LIVE,
   member,
   SET_OUT,
+  stepInChunks,
   SUMMER,
   world,
   worldOf,
@@ -42,6 +45,8 @@ function worldWith(id: string, map: CampaignMap, state: VillageState): CampaignW
     clock: world,
     landscapeOf: (cell) => (cell.x === 1 && cell.y === 0 ? map : MEADOW),
     villageAt: (v) => (v === id ? state : null),
+    // mřížky napříč voláními jako worker – kroky po kouscích by jemnou mřížku stavěly znovu
+    grids: new MarchGridMemo(),
   };
 }
 
@@ -113,7 +118,7 @@ describe('NPC velitel – nájezd na bránící se ves', () => {
 
   it('bod zlomu skupiny velitele → obrat', () => {
     let s = NPC;
-    while (!s.battle && s.phase !== 'done')
+    while (!s.battle && s.phase !== 'done' && s.tick < NPC.tick + 50_000)
       s = stepCampaign(s, s.tick + 5, SET_OUT, defendWorld).state;
     expect(s.phase).toBe('raiding');
     expect(npcIntents(s, defendWorld).some((i) => i.kind === 'turn-back')).toBe(false);
@@ -169,6 +174,57 @@ describe('NPC velitel – silná ves za palisádou', () => {
     expect(Object.values(r.loot.livestock).every((n) => n === 0)).toBe(true);
     expect(r.loot.grainKg).toBeGreaterThan(0);
     expect(r.loot.grainKg).toBeLessThanOrEqual(3 * 25);
+  });
+});
+
+describe('NPC velitel – cíl uprostřed hustého lesa (posunutý `settleGoal`)', () => {
+  // velký les kolem středu mapy cíle – jeho vnitřek je neprůchodný, cíl (0, 0) se posune na
+  // nejbližší dosažitelné místo; NPC velitel dřív bral posunutý cíl jako „jinam“ a skupinu každý
+  // takt poslal znovu – úsek hustým lesem se počítal každý takt (měření varování 5, Úloha 8)
+  const forestMap: CampaignMap = {
+    landscape: land((tx, ty) => tx >= 50 && tx <= 78 && ty >= 50 && ty <= 78),
+    obstacles: null,
+    villageIds: [],
+  };
+  const w = worldWith('nikdo', forestMap, KNEZICE);
+  const base = campaign({
+    liveCommand: false,
+    target: { villageId: 'les', name: 'Les', cell: { x: 1, y: 0 }, pos: { x: 0, z: 0 } },
+  });
+  const start: CampaignState = {
+    ...base,
+    phase: 'marching',
+    groups: base.groups.map((g) => ({
+      ...g,
+      cell: { x: 1, y: 0 },
+      pos: { x: -700, z: 0 },
+      goal: { cell: { x: 1, y: 0 }, pos: { x: 0, z: 0 } },
+      route: [],
+      leg: null,
+      arrived: false,
+    })),
+  };
+
+  it('skupinu s posunutým cílem znovu neposílá – úsek z prvního taktu platí dál', () => {
+    const first = stepCampaign(start, start.tick + 1, [], w).state;
+    const g1 = first.groups[0]!;
+    expect(g1.goal?.pos).not.toEqual({ x: 0, z: 0 });
+    expect(g1.leg).not.toBeNull();
+    expect(npcIntents(first, w, null)).toEqual([]);
+    const second = stepCampaign(first, first.tick + 1, [], w).state;
+    const g2 = second.groups[0]!;
+    // týž úsek, jen o takt dál (nový úsek by začínal od nuly v nové poloze)
+    expect(g2.leg?.points).toEqual(g1.leg!.points);
+    expect(g2.leg!.walkedM).toBeGreaterThan(g1.leg!.walkedM);
+    expect(g2.goal).toEqual(g1.goal);
+  });
+
+  it('místo rozkazu drží skupina jen do nového rozkazu (`sendGroup`)', () => {
+    const g = structuredClone(stepCampaign(start, start.tick + 1, [], w).state.groups[0]!);
+    expect(g.orderedPos).toEqual({ x: 0, z: 0 });
+    sendGroup(g, { cell: { x: 1, y: 0 }, pos: { x: -600, z: 0 } });
+    expect(g.orderedPos).toBeUndefined();
+    expect(g.goal?.pos).toEqual({ x: -600, z: 0 });
   });
 });
 
@@ -254,10 +310,13 @@ describe('NPC velitel – palisáda s ochozem (kryt pod palbou, bod zlomu jen v 
   // rozkaz „Probít se“ dává držitel napadené vsi (cizí hráč tažení – `orderBreakout`); jiné cizí
   // záměry ani `breakout` od vůdce tažení tažení nepřijme
   it('záměr „Probít se“ od obránce provede takt, od vůdce tažení ne', () => {
-    let s = start;
-    while (!s.battle?.fighters.some((f) => f.side === 'defend' && f.post)) {
-      s = stepCampaign(s, s.tick + 200, SET_OUT, fortWorld).state;
-    }
+    const { state: s } = stepInChunks(start, start.tick + 50_000, {
+      chunk: 200,
+      world: fortWorld,
+      intents: SET_OUT,
+      until: (x) => x.battle?.fighters.some((f) => f.side === 'defend' && f.post) === true,
+      json: false,
+    });
     expect(s.battle?.breakouts).toBeUndefined();
     const order = (by: string): CampaignState =>
       stepCampaign(

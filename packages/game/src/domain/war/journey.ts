@@ -37,8 +37,8 @@ import type {
 import { commandOf, upgradeJourney } from './journey-upgrade';
 import { predatorDay, wildlifeOfMap } from './journey-predators';
 import { marchSpeed, type GroupPace } from './march';
-import { MARCH_FOREST, marchCellAt, type Pos } from './march-grid';
-import { missingMaps, settleGoal, stepMover } from './movement';
+import { MARCH_FOREST, MARCH_GRID_VERSION, marchCellAt, type Pos } from './march-grid';
+import { missingMaps, retraceCrossings, settleGoal, stepMover } from './movement';
 import { JOURNEY } from './rules-war';
 import { lookOnMap, type KnowledgeOut } from './seen';
 import { dayOfTick, hoursPerTick, TICKS_PER_SECOND, tickOfMs } from './ticks';
@@ -72,7 +72,7 @@ export interface NewJourney {
 /**
  * Výchozí stav výpravy: skupina 0 s hloučkem 0 doma (`nextId` 1) a první rozkaz `order`. Rozkaz,
  * který neplatí (přes okraj na nesousední políčko), se zahodí – skupina stojí doma jako bez rozkazu
- * a po čekání výprava skončí.
+ * a po čekání výprava skončí. Úseky vzniknou po současné mřížce pochodu (`marchGridVersion`).
  */
 export function newJourney(input: NewJourney, clock: WorldClock): JourneyState {
   const tick = tickOfMs(input.startMs, clock);
@@ -99,8 +99,10 @@ export function newJourney(input: NewJourney, clock: WorldClock): JourneyState {
         route: [],
         leg: null,
         arrived: true,
+        crossings: [],
       },
     ],
+    marchGridVersion: MARCH_GRID_VERSION,
     parties: [{ id: 0, phase: 'out', arrivedTick: tick }],
     nextId: 1,
   };
@@ -368,9 +370,12 @@ function paceOf(s: JourneyState, party: number): GroupPace {
  * jezdci × 1,5, sníh × 0,75) po úseku mapy, brány jsou v míru otevřené (mřížka pochodu je zavírá
  * jen v boji). Hlouček stojí, když dojde do cíle nebo dál nemá kudy; „Přes okraj“ (`crossing`)
  * končí vstupem na mapu cíle – hlouček stojí, kde na ni vstoupil. Hlouček skupiny, která se vrací,
- * po dojetí skončí (`finishGroup`). Po pohybu splynou hloučky téže skupiny, které stojí na
- * stejném místě se shodným cílem; skupina, jejíž hloučky všechny stojí, začne čekat (`arrivedTick`).
- * Znalost map jde rodu při přechodu okrajem (mapa, kterou hlouček opouští) a po dojetí (mapa, na
+ * po dojetí domů skončí (`finishGroup`); domů se cíl neposouvá (`settleGoal` – kdo domů nedojde,
+ * nedošel). Nemá-li kudy domů, vrátí se, kudy přišel (Martin 17. 11. 2026 – „Vrátit se, kudy
+ * přišla“, `retraceCrossings`); nejde-li ani to, stojí a výprava běží – nový rozkaz, nebo další den
+ * znovu (`stuckDay`; návrh Clauda) –, domů se nikdy nepřenese. Po pohybu splynou hloučky téže
+ * skupiny, které stojí na stejném místě se shodným cílem; skupina, jejíž hloučky všechny stojí,
+ * začne čekat (`arrivedTick`). Znalost map jde rodu při přechodu okrajem (mapa, kterou hlouček opouští) a po dojetí (mapa, na
  * které stojí – po rozhlédnutí). Hloučky skupiny, která pracuje s koňmi (`horseWork`), stojí –
  * rozkaz má cíl zapsaný a vyrazí po ní.
  */
@@ -385,9 +390,16 @@ function moveGroups(s: JourneyState, ctx: TickContext, out: TickOut): void {
     if (g.arrived || g.goal === null) continue;
     const party = parties.get(g.party)!;
     if (party.horseWork !== undefined) continue;
-    settleGoal(g, s.day, ctx);
+    const returning = party.phase === 'returning';
+    if (!returning) settleGoal(g, s.day, ctx);
     const before = g.cell;
-    const step = stepMover(g, g.goal.pos, speeds.get(party.id)!, s.day, ctx);
+    const speed = speeds.get(party.id)!;
+    let step = stepMover(g, g.goal.pos, speed, s.day, ctx);
+    if (step === 'stuck' && returning && retraceCrossings(g, g.goal)) {
+      step = stepMover(g, g.goal.pos, speed, s.day, ctx);
+    }
+    // uvízlý návrat stojí, ale nedošel – výprava běží dál
+    if (step === 'stuck' && returning) continue;
     if (step === 'crossed') left.push(before);
     // ven vede přes okraj jen „Přes okraj“ – hlouček zastaví na mapě cíle; jinak se jde dál
     const across =
@@ -462,8 +474,8 @@ function discover(s: JourneyState, ctx: TickContext): void {
  * dne zase doma (schránka na následující den jako výsledky tažení; `ref` je jedinečný: takt
  * a pořadí v něm), poslední hlouček výpravy bez `personIds` (`everyoneHome`) – a hráč upozornění
  * „Bořivoj se vrátil.“ s vůdcem hloučku (`partyLeader`). Skupina, která ztratila vojvodu,
- * upozornění nemá – vojvoda se nevrátil (návrh Clauda). Hlouček i jeho lidé ze stavu zmizí, skupina bez hloučků taky; výprava bez skupin končí. Dál nemá kudy = skončí, kde
- * stojí, jako u tažení – co o té mapě věděl, jde rodu.
+ * upozornění nemá – vojvoda se nevrátil (návrh Clauda). Hlouček i jeho lidé ze stavu zmizí, skupina
+ * bez hloučků taky; výprava bez skupin končí. Jen po dojetí domů – uvízlý návrat stojí (`moveGroups`).
  */
 function finishGroup(s: JourneyState, g: JourneyGroup, party: JourneyParty, out: TickOut): void {
   const living = s.members.filter((m) => m.group === g.id && m.status === 'active');

@@ -45,31 +45,50 @@ function routeHalves(line: readonly RoadPoint[], origin: RoadPoint): RoadPoint[]
   return [line.slice(0, k + 1).reverse(), line.slice(k)].filter((half) => half.length >= 2);
 }
 
+/** Osa prvku `route` prémiové krajiny (brod, průsmyk, premium 1 i 2), nebo null. */
+function premiumRouteLine(l: Landscape): RoadPoint[] | null {
+  const line = premiumSites(l, 'route')[0]?.line;
+  return line && line.length >= 2 ? line.map(([x, z]) => ({ x, z })) : null;
+}
+
 /**
- * Větve stezky kostry krajiny od vsi ven se směrem každé: prémiová krajina s prvkem `route`
- * (brod, průsmyk, premium 1 i 2) jde po ose prvku, mapa se stezkou kostry (lidský hráč) po
- * úsecích `skeletonFeaturesOf(l).route` – směr dává strana mapy, kde úsek končí (křižovatka =
- * 3 směry, konec stezky = 1). Krajina bez stezky (suchá mapa, NPC) nemá nic.
+ * Osy stezky krajiny (plán 2026-11-16-dense-forest – Rozhodnutí 2): prémiová krajina s prvkem
+ * `route` jednu osu prvku, mapa se stezkou kostry úseky `skeletonFeaturesOf(l).route.legs` v jejich
+ * pořadí (každý od okraje mapy k místu vsi) – tytéž zdroje jako stezka kostry nové vsi
+ * (`withSkeletonRoute`), jen bez dělení u vsi. Závisí jen na krajině, proto je průsekem mřížky
+ * pochodu i na mapě bez vsi. Krajina bez stezky (suchá mapa, NPC) [].
+ */
+export function landscapeTrailLines(l: Landscape): RoadPoint[][] {
+  const premium = premiumRouteLine(l);
+  if (premium) return [premium];
+  const route = skeletonFeaturesOf(l)?.route;
+  return route ? route.legs.map((leg) => leg.map(([x, z]) => ({ x, z }))) : [];
+}
+
+/**
+ * Větve stezky kostry krajiny od vsi ven se směrem každé (osy `landscapeTrailLines`): prémiová
+ * krajina s prvkem `route` jde po ose prvku rozdělené u vsi, mapa se stezkou kostry (lidský hráč)
+ * po úsecích – směr dává strana mapy, kde úsek končí (křižovatka = 3 směry, konec stezky = 1).
+ * Krajina bez stezky (suchá mapa, NPC) nemá nic.
  */
 function routeBranches(
   landscape: Landscape,
   origin: RoadPoint,
 ): { direction: Direction8; points: RoadPoint[] }[] {
-  const line = premiumSites(landscape, 'route')[0]?.line;
-  if (line && line.length >= 2) {
-    return routeHalves(
-      line.map(([x, z]) => ({ x, z })),
-      origin,
-    ).map((half) => ({ direction: directionTo(origin, half[half.length - 1]!), points: half }));
+  const lines = landscapeTrailLines(landscape);
+  if (premiumRouteLine(landscape)) {
+    return routeHalves(lines[0]!, origin).map((half) => ({
+      direction: directionTo(origin, half[half.length - 1]!),
+      points: half,
+    }));
   }
-  const route = skeletonFeaturesOf(landscape)?.route;
-  if (!route) return [];
+  const ends = skeletonFeaturesOf(landscape)?.route?.ends ?? [];
   const branches: { direction: Direction8; points: RoadPoint[] }[] = [];
-  route.legs.forEach((leg, i) => {
-    const side = route.ends[i]?.side;
+  lines.forEach((leg, i) => {
+    const side = ends[i]?.side;
     if (!side || leg.length < 2) return;
     // úsek vede od okraje k vsi, stezka od vsi ven
-    branches.push({ direction: side, points: leg.map(([x, z]) => ({ x, z })).reverse() });
+    branches.push({ direction: side, points: leg.reverse() });
   });
   return branches;
 }

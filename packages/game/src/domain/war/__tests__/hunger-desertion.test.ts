@@ -19,6 +19,7 @@ import type {
   CampaignStep,
   CampaignWorld,
 } from '../campaign-types';
+import { MarchGridMemo } from '../march-grid';
 import { deserters } from '../desertion';
 import { WAR } from '../rules-war';
 import { dayOfTick, hoursPerTick } from '../ticks';
@@ -81,6 +82,8 @@ const fortWorld: CampaignWorld = {
   clock: world,
   landscapeOf: (cell) => (cell.x === 1 && cell.y === 0 ? TARGET : OPEN),
   villageAt: (id) => (id === 'knezice' ? KNEZICE : null),
+  // mřížky napříč voláními jako worker – kroky po dnech by jemnou mřížku stavěly znovu
+  grids: new MarchGridMemo(),
 };
 
 /** Taktů na herní den (≈ 345). */

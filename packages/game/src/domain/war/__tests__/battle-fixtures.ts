@@ -7,6 +7,7 @@ import { village } from '../../village/__tests__/kin-fixtures';
 import {
   battleForts,
   battleTick,
+  formationSpot,
   openBattle,
   type BattleAttacker,
   type BattleField,
@@ -122,10 +123,18 @@ export function battle(input: {
   holdAt?: Record<number, Pos>;
   commander?: number | null;
   live?: boolean;
+  /**
+   * Bojiště – útočníci se sešikují jako v tažení (`formationSpot` jako `campaignBattle`; místo
+   * skupiny je místo muže). Chybí – stojí, kde jsou.
+   */
+  field?: BattleField;
 }): BattleState {
   const ids = [...new Set(input.attackers.map((a) => a.group))];
+  const grid = input.field?.grid;
   return openBattle({
-    attackers: input.attackers,
+    attackers: grid
+      ? input.attackers.map((a) => ({ ...a, pos: formationSpot(grid, a.pos, a.pos) }))
+      : input.attackers,
     defenders: input.defenders,
     groups: ids.map((id) => ({
       id,

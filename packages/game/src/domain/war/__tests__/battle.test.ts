@@ -1,11 +1,23 @@
 import { describe, expect, it } from 'vitest';
+import { SURFACE_CODES, packObstacles } from '../../landscape';
 import { village, kin } from '../../village/__tests__/kin-fixtures';
-import type { Dwelling } from '../../village/types';
-import { hitDamage, type BattleState } from '../battle';
+import type { Fortification } from '../../village/fortification/types';
+import type { Dwelling, Road } from '../../village/types';
+import { hitDamage, type BattleField, type BattleState } from '../battle';
 import { stepCampaign } from '../campaign';
 import type { CampaignMap, CampaignState, CampaignWorld, GroupAssault } from '../campaign-types';
+import {
+  MARCH_FOREST,
+  MARCH_ROAD,
+  MarchGridMemo,
+  marchCellAt,
+  marchCellCenter,
+  marchGrid,
+  type Pos,
+} from '../march-grid';
+import { nearestForestDoor } from '../forest-doors';
 import { WAR } from '../rules-war';
-import { campaign, flat, MEADOW, member, SUMMER, world } from './campaign-fixtures';
+import { campaign, flat, MEADOW, member, stepInChunks, SUMMER, world } from './campaign-fixtures';
 import {
   attacker,
   battle,
@@ -112,6 +124,194 @@ describe('bod zlomu podle počtu (war.md – Boj – Bod zlomu)', () => {
     expect(b.groups.find((g) => g.side === 'defend')!.broken).toBe(true);
     // bez lesa se obránci hned schovají
     for (const m of men.slice(9)) expect(m.state).toBe('fled');
+  });
+});
+
+describe('útěk obránců do hustého lesa (Rozhodnutí 10)', () => {
+  it('obránce na útěku skončí „fled“ do 2 m od dveří lesa a nikdy v neprůchodné buňce', () => {
+    const f = field([], (tx) => tx >= 85);
+    const door = nearestForestDoor(f.grid, { x: 0, z: 0 })!;
+    const b = battle({
+      attackers: [attacker(0, { x: -900, z: 0 })],
+      defenders: Array.from({ length: 20 }, (_, i) => defender(i + 1, { x: 0, z: 0 })),
+      orders: { 0: 'hold-place' },
+    });
+    const men = b.fighters.filter((x) => x.side === 'defend');
+    for (const m of men.slice(0, 9)) m.state = 'down';
+    run(b, f, 3000, () => {
+      for (const m of men.slice(9)) {
+        if (m.state === 'flee') expect(f.grid.pace[marchCellAt(f.grid, m.pos)]!).toBeGreaterThan(0);
+      }
+    });
+    for (const m of men.slice(9)) {
+      expect(m.state).toBe('fled');
+      expect(Math.hypot(m.pos.x - door.x, m.pos.z - door.z)).toBeLessThan(2);
+    }
+  });
+});
+
+describe('pohyb v boji podél hustého lesa (plán 2026-11-16-dense-forest – Úloha 5)', () => {
+  it('útočníci z ramene průseku do L dojdou k domu na konci druhého ramene', () => {
+    // hustý les všude kromě průseků dvou cest v pravém úhlu (8 m široké): rameno od západu
+    // (z = 0, x −200…0) a rameno k severu (x = 0, z 0…200); dům na severním konci
+    const base = field();
+    const pace = Float32Array.from(base.grid.pace);
+    const flags = Uint16Array.from(base.grid.flags);
+    for (let c = 0; c < pace.length; c++) {
+      const p = marchCellCenter(base.grid, c);
+      const west = Math.abs(p.z) <= 4 && p.x >= -200 && p.x <= 4;
+      const north = Math.abs(p.x) <= 4 && p.z >= -4 && p.z <= 200;
+      flags[c] = flags[c]! | MARCH_FOREST | (west || north ? MARCH_ROAD : 0);
+      pace[c] = west || north ? 1.5 : 0;
+    }
+    const f: BattleField = { ...base, grid: { ...base.grid, pace, flags } };
+    const house = { x: 0, z: 190 };
+    const b = battle({
+      attackers: [0, 1, 2].map((k) => attacker(k, { x: -190 + 2 * k, z: 0 })),
+      defenders: [defender(1, house, { atHouseOnly: true })],
+    });
+    let nearest = Infinity;
+    run(b, f, 1200, () => {
+      for (const x of b.fighters) {
+        if (x.side !== 'attack') continue;
+        expect(f.grid.pace[marchCellAt(f.grid, x.pos)]!).toBeGreaterThan(0);
+        nearest = Math.min(nearest, Math.hypot(x.pos.x - house.x, x.pos.z - house.z));
+      }
+    });
+    expect(nearest).toBeLessThanOrEqual(WAR.combat.meleeM);
+  });
+
+  /** Bojiště louky s opevněním `forts`; buňky se středem, pro který `forest`, jsou hustý les (tempo 0). */
+  function woods(
+    forest: (x: number, z: number) => boolean,
+    forts: Fortification[] = [],
+  ): BattleField {
+    const base = field(forts);
+    const pace = Float32Array.from(base.grid.pace);
+    const flags = Uint16Array.from(base.grid.flags);
+    for (let c = 0; c < pace.length; c++) {
+      const p = marchCellCenter(base.grid, c);
+      if (!forest(p.x, p.z)) continue;
+      pace[c] = 0;
+      flags[c] = flags[c]! | MARCH_FOREST;
+    }
+    return { ...base, grid: { ...base.grid, pace, flags } };
+  }
+
+  /**
+   * Takt, kdy první ze tří útočníků u `from` došel na dosah zblízka k obránci u domu `house`; null
+   * = nedošli do `ticks` taktů. Nikdo nesmí vstoupit do buňky s tempem 0.
+   */
+  function reachTick(f: BattleField, from: Pos, house: Pos, ticks: number): number | null {
+    const b = battle({
+      attackers: [0, 1, 2].map((k) => attacker(k, { x: from.x - 4 + 4 * k, z: from.z })),
+      defenders: [defender(1, house, { atHouseOnly: true })],
+    });
+    let at: number | null = null;
+    run(b, f, ticks, (t) => {
+      for (const x of b.fighters) {
+        if (x.side !== 'attack') continue;
+        expect(f.grid.pace[marchCellAt(f.grid, x.pos)]!).toBeGreaterThan(0);
+        const near = Math.hypot(x.pos.x - house.x, x.pos.z - house.z) <= WAR.combat.meleeM;
+        if (at === null && near) at = t;
+      }
+    });
+    return at;
+  }
+
+  // oprava Úlohy 5 (revize – Important 2): skluz podél kraje u skvrny lesa nebo pásu kolmo k cíli
+  // nepostupoval (2400 taktů `ongoing`) – muži teď jdou body trasy `marchPath` po mřížce boje
+  it('kruhová skvrna hustého lesa r = 40 m mezi útočníky a domem – obejdou ji', () => {
+    const f = woods((x, z) => Math.hypot(x, z) <= 40);
+    const at = reachTick(f, { x: 0, z: -100 }, { x: 3, z: 100 }, 2400);
+    expect(at).not.toBeNull();
+    // ≈ 220 m objížďkou tempem louky (0,875 m za takt) ≈ 250 taktů
+    expect(at!).toBeLessThan(400);
+  });
+
+  it('pás hustého lesa 120 × 40 m kolmo k cestě – obejdou ho koncem pásu', () => {
+    const f = woods((x, z) => Math.abs(x) <= 60 && Math.abs(z) <= 20);
+    const at = reachTick(f, { x: 0, z: -100 }, { x: 3, z: 100 }, 2400);
+    expect(at).not.toBeNull();
+    expect(at!).toBeLessThan(400);
+  });
+
+  it('pojistka proti zastavení: zastaralá trasa do lesa – po 8 taktech bez pohybu nová trasa', () => {
+    const f = woods((x, z) => Math.hypot(x, z) <= 40);
+    const house = { x: 3, z: 100 };
+    const b = battle({
+      attackers: [0, 1, 2].map((k) => attacker(k, { x: -4 + 4 * k, z: -100 })),
+      defenders: [defender(1, house, { atHouseOnly: true })],
+    });
+    // bod uložené trasy uprostřed skvrny lesa – skluz ho nedosáhne, muž by stál navždy
+    for (const x of b.fighters) {
+      if (x.side !== 'attack') continue;
+      x.route = [{ x: 0, z: 0 }];
+      x.routeFor = 'd:1';
+    }
+    let at: number | null = null;
+    let stalled = 0;
+    run(b, f, 2400, (t) => {
+      for (const x of b.fighters) {
+        if (x.side !== 'attack') continue;
+        stalled = Math.max(stalled, x.stall ?? 0);
+        const near = Math.hypot(x.pos.x - house.x, x.pos.z - house.z) <= WAR.combat.meleeM;
+        if (at === null && near) at = t;
+      }
+    });
+    // muž stál u kraje lesa 8 taktů, pak hledal novou trasu – víc taktů v řadě nestál
+    expect(stalled).toBe(8);
+    expect(at).not.toBeNull();
+    expect(at!).toBeLessThan(600);
+  });
+
+  // re-revize: objížďka platí i pro úsek k průchodu opevněním a k místu průlomu (dřív jen k cíli)
+  it('skvrna lesa před branou palisády – útočníci ji obejdou k bráně a dobudou ves', () => {
+    for (const [cx, cz, r] of [
+      [60, -46.5, 15],
+      [60, -50, 25],
+    ] as const) {
+      const f = woods((x, z) => Math.hypot(x - cx, z - cz) <= r, [palisade(true)]);
+      const b = battle({
+        attackers: [0, 1, 2].map((k) => attacker(k, { x: 120, z: -60 + 3 * k })),
+        defenders: [defender(1, { x: 0, z: 0 }, { atHouseOnly: true })],
+      });
+      run(b, f, 3000);
+      // bez skvrny vyhrají v taktu 367; se skvrnou dřív po 3000 taktech `ongoing`
+      expect(b.outcome).toBe('attackers');
+      expect(b.ticks).toBeLessThan(600);
+    }
+  });
+
+  it('cesta k místu průlomu z kapsy lesa otevřené od palisády – vyjdou ven a prolomí', () => {
+    // kapsa: les na západě (x 100…106), severu (z −36…−30) a jihu (z −86…−80), otevřená na východ;
+    // místo průlomu je na západě – skluz by muže zavedl do severozápadního rohu kapsy
+    const cup = (x: number, z: number): boolean =>
+      (x >= 100 && x <= 106 && z >= -86 && z <= -30) ||
+      (x >= 100 && x <= 140 && ((z >= -36 && z <= -30) || (z >= -86 && z <= -80)));
+    const f = woods(cup, [palisade(false)]);
+    const b = battle({
+      attackers: [0, 1, 2].map((k) => attacker(k, { x: 120, z: -60 + 3 * k })),
+      defenders: [defender(1, { x: 0, z: 0 }, { atHouseOnly: true })],
+    });
+    let breaching = false;
+    run(b, f, 6000, () => {
+      breaching ||= b.fighters.some((x) => x.side === 'attack' && x.state === 'breach');
+    });
+    expect(breaching).toBe(true);
+    expect(b.outcome).toBe('attackers');
+  });
+
+  it('průsek do U – trasa vede napřed od domu, ramenem nahoru a druhým dolů', () => {
+    // les všude kromě průseků 8 m: dvě ramena (x = ±100, z −4…200) spojená nahoře (z = 200)
+    const lane = (x: number, z: number): boolean =>
+      (Math.abs(Math.abs(x) - 100) <= 4 && z >= -4 && z <= 204) ||
+      (Math.abs(z - 200) <= 4 && Math.abs(x) <= 104);
+    const f = woods((x, z) => !lane(x, z));
+    const at = reachTick(f, { x: -100, z: 0 }, { x: 100, z: 0 }, 2400);
+    expect(at).not.toBeNull();
+    // ≈ 600 m průsekem ≈ 690 taktů
+    expect(at!).toBeLessThan(1000);
   });
 });
 
@@ -277,6 +477,8 @@ describe('boj v tažení (war.md – Pro implementaci – determinismus)', () =>
     clock: world,
     landscapeOf: (c) => (c.x === TARGET.x && c.y === TARGET.y ? targetMap : MEADOW),
     villageAt: (id) => (id === 'knezice' ? knezice : null),
+    // mřížky napříč voláními jako worker – kroky po kouscích by jemnou mřížku stavěly znovu
+    grids: new MarchGridMemo(),
   };
 
   /** Tažení stojí u cíle a začíná nájezd. */
@@ -308,12 +510,7 @@ describe('boj v tažení (war.md – Pro implementaci – determinismus)', () =>
     expect(whole.battle?.ticks).toBeGreaterThan(0);
     expect(whole.battle!.fighters.some((x) => x.health < 100)).toBe(true);
     for (const chunk of [1, 7, 40]) {
-      let s = start;
-      while (s.tick < end) {
-        const next = stepCampaign(s, Math.min(end, s.tick + chunk), [], battleWorld);
-        expect(next.waiting).toBeNull();
-        s = JSON.parse(JSON.stringify(next.state)) as CampaignState;
-      }
+      const { state: s } = stepInChunks(start, end, { chunk, world: battleWorld });
       expect(s).toEqual(whole);
     }
   });
@@ -344,6 +541,73 @@ describe('boj v tažení (war.md – Pro implementaci – determinismus)', () =>
     expect(step.state.battle).toBeUndefined();
     expect(step.state.phase).toBe('returning');
     expect(step.notices.filter((n) => n.kind === 'foreign-army')).toEqual([]);
+  });
+
+  it('skupina v průseku hustým lesem (5 buněk) se sešikuje do průseku a každý muž se pohne', () => {
+    // celá mapa cíle je les; průsek dvou pevných cest 6 m od sebe (z = 30 a 36) – 5 buněk 2,5 m;
+    // skupiny stojí na ose v (−930, 30), daleko od pasek vsi, a jdou na dům na cestě (−860, 30)
+    const lane = (id: number, z: number): Road => ({
+      id,
+      points: [
+        { x: -958, z },
+        { x: -840, z },
+      ],
+      bornDay: 0,
+      grade: 'improved',
+      traffic: [],
+      spots: [],
+    });
+    const meadow = flat();
+    const forest = {
+      ...meadow,
+      surface: new Uint8Array(meadow.surface.length).fill(SURFACE_CODES.forest),
+    };
+    const layer = packObstacles([], forest.size, forest.cellSizeM);
+    const home = {
+      ...knezice,
+      roads: {
+        nextId: 3,
+        roads: [lane(1, 30), lane(2, 36)],
+        trees: [],
+        labor: { from: 0, days: 0, shares: [] },
+      },
+    };
+    const forestMap: CampaignMap = { landscape: forest, obstacles: layer, villageIds: ['knezice'] };
+    const forestWorld: CampaignWorld = {
+      ...battleWorld,
+      landscapeOf: (c) => (c.x === TARGET.x && c.y === TARGET.y ? forestMap : MEADOW),
+      villageAt: (id) => (id === 'knezice' ? home : null),
+      grids: new MarchGridMemo(),
+    };
+    const grid = marchGrid(forest, layer, home, { day: SUMMER });
+    const start = raiding();
+    start.members = [
+      start.members[0]!,
+      ...Array.from({ length: 35 }, (_, k) => ({
+        ...start.members[1]!,
+        ref: { villageId: 'brod', personId: 100 + k },
+      })),
+    ];
+    for (const x of start.groups) x.pos = { x: -930, z: 30 };
+    const g = start.groups.find((x) => x.id === 1)!;
+    // šik bez opravy: řady 6 a 7 (z = 40 a 42 m) padnou do hustého lesa
+    const raw = Array.from({ length: 35 }, (_, k) => ({
+      x: g.pos.x + ((k % 5) - 2) * 2,
+      z: g.pos.z + Math.floor(k / 5) * 2,
+    }));
+    const stuck = raw.filter((p) => grid.pace[marchCellAt(grid, p)] === 0);
+    expect(stuck.length).toBeGreaterThanOrEqual(10);
+    for (const p of stuck)
+      expect(grid.flags[marchCellAt(grid, p)]! & MARCH_FOREST).toBe(MARCH_FOREST);
+    const opened = stepCampaign(start, start.tick + 1, [], forestWorld).state;
+    const attackers = opened.battle!.fighters.filter((f) => f.side === 'attack');
+    expect(attackers).toHaveLength(36);
+    for (const f of attackers) expect(grid.pace[marchCellAt(grid, f.pos)]!).toBeGreaterThan(0);
+    const later = stepCampaign(opened, opened.tick + 20, [], forestWorld).state;
+    for (const f of attackers) {
+      const now = later.battle!.fighters.find((x) => x.id === f.id)!;
+      expect(Math.hypot(now.pos.x - f.pos.x, now.pos.z - f.pos.z)).toBeGreaterThan(0);
+    }
   });
 
   it('po boji se tažení vrací; padlí a ranění se propíšou do mužů', () => {

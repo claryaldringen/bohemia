@@ -5,6 +5,7 @@ import { lineFacts, type LineFacts } from './extinction';
 import { isStewardOn } from '../steward/steward-state';
 import { hungerLevel, type HungerLevel } from './summary';
 import { threshingStatus } from '../fields/threshing';
+import { trailExitsOf, type TrailExit } from '../trade/trail-exits';
 import type { ChronicleEvent } from '../types/types-chronicle';
 import type { DisasterState, FloodRecord } from '../types/types-disasters';
 import type { VillageState } from '../types/types-state';
@@ -91,6 +92,12 @@ export interface VillageDigest extends LineFacts {
   nobleHead?: { houseId: string; name?: string };
   /** Poslední místní pohroma v kronice (`LOCAL_DISASTER_KINDS`). */
   lastLocalDisaster?: ChronicleEvent;
+  /**
+   * Výstupy hotových zemských stezek na kraj mapy (`trailExitsOf` – trade.md, Pokračování na
+   * sousední mapě): sousední mapa z nich odvodí pokračování stezky bez načtení stavu vsi. Chybí =
+   * souhrn uložený dřív (16. 11. 2026) – sousední mapa ves načte celou; verze tvaru se nemění.
+   */
+  trailExits?: TrailExit[];
 }
 
 /** Poslední místní pohroma v kronice; žádná – undefined. */
@@ -147,6 +154,7 @@ export function villageDigest(state: VillageState): VillageDigest {
     ...(state.weatherSeed !== undefined ? { weatherSeed: state.weatherSeed } : {}),
     ...(disasters ? { disasters } : {}),
     ...(last ? { lastLocalDisaster: last } : {}),
+    trailExits: trailExitsOf(state),
   };
 }
 

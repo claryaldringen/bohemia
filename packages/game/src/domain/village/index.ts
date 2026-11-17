@@ -183,6 +183,17 @@ export {
   type StructureRef,
 } from './buildings/repair';
 export * from './core/obstacles';
+export {
+  clearedForest,
+  clearedForestOf,
+  touchesForest,
+  turnedSquare,
+  villageClearings,
+  type ClearedForest,
+  type ClearingDwelling,
+  type ClearingPart,
+  type ClearingSources,
+} from './core/cleared-forest';
 export * from './core/summary';
 // trvalé stavy z upozornění – podmínky pro web i simulaci (absence.md – Upozornění vsi do kroniky)
 export { LASTING_NOTICES, horsesUngrained, lastingNotices } from './core/lasting-notices';
@@ -384,6 +395,8 @@ export {
   type WagonRoadPlan,
 } from './roads/wagon-road';
 export * from './trade/trail';
+export { TRAIL_END_BAND_M, trailExitsOf, type TrailExit } from './trade/trail-exits';
+export { landscapeTrailLines } from './trade/premium-route';
 export * from './trade/neighbours';
 export * from './trade/trade';
 // dobytek v obchodu – příchod a odchod dobytka (`addCattle`, `removeCattle`) jsou kroky obchodu

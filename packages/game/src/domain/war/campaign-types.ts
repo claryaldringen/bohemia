@@ -2,7 +2,14 @@ import type { WorldClock } from '../calendar';
 import type { Landscape, ObstacleLayer } from '../landscape';
 import type { AssaultMethod } from '../village/fortification/assault';
 import type { NewVillageEvent } from '../village/core/inbox';
-import type { Person, PersonRef, Prisoner, RaidLoot, VillageState } from '../village/types';
+import type {
+  Person,
+  PersonRef,
+  Prisoner,
+  RaidLoot,
+  RoadPoint,
+  VillageState,
+} from '../village/types';
 import type { FlightMode } from '../village/types';
 import type { GridCell } from '../village/people/world-grid';
 import type { AlarmOwner, CampaignAlarm } from './alarm-types';
@@ -88,6 +95,17 @@ export interface CampaignVillage extends CampaignPlace {
   name?: string;
 }
 
+/**
+ * Přechod okrajem v paměti cesty (`Mover.crossings`): z políčka `from` na sousední `to`; `pos` = místo
+ * na okraji mapy `from`, kde přešel (střed okrajové buňky – `edgeCrossing` ho převede na protější
+ * okraj).
+ */
+export interface MoverCrossing {
+  from: GridCell;
+  to: GridCell;
+  pos: Pos;
+}
+
 /** Úsek pochodu po jedné mapě (`MarchPath` bez buněk) a ušlé metry louky po něm. */
 export interface CampaignLeg {
   points: Pos[];
@@ -104,10 +122,25 @@ export interface CampaignGroup {
   pos: Pos;
   /** Kam skupina jde; null = stojí. */
   goal: CampaignPlace | null;
+  /**
+   * Místo rozkazu, když ho `settleGoal` posunul na nejbližší dosažitelné místo (`goal` je pak
+   * jinde) – NPC velitel podle něj pozná, že skupina jde, kam ji poslal (`marchIntents`); nový
+   * rozkaz (`sendGroup`) ho smaže. Chybí = cíl je místo rozkazu.
+   */
+  orderedPos?: Pos;
   /** Zbývající políčka světa k cíli (bez `cell`) – `worldRoute`. */
   route: GridCell[];
   /** Úsek po současné mapě – k okraji ve směru `route[0]`, nebo k cíli; null = spočte se. */
   leg: CampaignLeg | null;
+  /** Den, kdy úsek spočíst nešlo – ten den se nehledá znovu (`stepMover`); chybí = neuvízla. */
+  stuckDay?: number;
+  /**
+   * Paměť cesty – přechody okrajem od místa, odkud vyšla (`Mover.crossings`; Martin 17. 11. 2026 –
+   * „Vrátit se, kudy přišla“); chybí = starší bod, uvízlý návrat stojí.
+   */
+  crossings?: MoverCrossing[];
+  /** Vrací se po paměti cesty (`retraceCrossings`); chybí = nejkratší cestou. */
+  retrace?: true;
   /** Skupina došla do cíle (nebo dál nemůže) a stojí. */
   arrived: boolean;
   /** Rozkaz „držet místo“ – místo na mapě cíle (war.md – Boj – Skupiny); jinak chybí. */
@@ -189,6 +222,11 @@ export interface CampaignState {
   target: CampaignVillage;
   members: CampaignMember[];
   groups: CampaignGroup[];
+  /**
+   * Verze mřížky pochodu, podle které vznikly úseky skupin, uprchlíků a poslů
+   * (`MARCH_GRID_VERSION`); chybí = starší bod – první takt úseky zahodí (`replanLegs`).
+   */
+  marchGridVersion?: number;
   supplies: CampaignSupplies;
   loot: CampaignLoot;
   /** Odvedení a zajatí (Ú6.10, Ú6.11). */
@@ -349,6 +387,22 @@ export interface CampaignMap {
   obstacles: ObstacleLayer | null;
   /** Vsi na mapě – mřížka pochodu bere cesty a opevnění první z nich (víc vsí doplní Ú6.7). */
   villageIds: readonly string[];
+  /**
+   * Vstupy hotových zemských stezek sousedních vsí na tuto mapu (`trailEntriesOf` – trade.md,
+   * Pokračování na sousední mapě); mřížka z nich odvodí osy pokračování (`continuationsOf`).
+   * Chybí = žádné.
+   */
+  trailEntries?: readonly TrailEntry[];
+}
+
+/**
+ * Vstup zemské stezky sousední vsi na mapu (plán 2026-11-16-dense-forest – Rozhodnutí 13): bod
+ * na okraji této mapy (`edgeCrossing` bodu okraje výstupu stezky) a den dostavění stezky –
+ * pokračování platí od dne po něm (`builtDay < day`).
+ */
+export interface TrailEntry {
+  point: RoadPoint;
+  builtDay: number;
 }
 
 /**

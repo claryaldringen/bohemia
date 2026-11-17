@@ -395,6 +395,8 @@ describe('stepCampaigns', () => {
         expect(memory.points.size).toBe(0);
         expect(memory.needs.size).toBe(0);
       },
+      // kola bez paměti staví jemnou mřížku pochodu (2,5 m) v každém kole znovu
+      30_000,
     );
 
     it.each([4, 7])(

@@ -1,10 +1,13 @@
 import type { NewVillageEvent, VillageEventBody } from '../village/core/inbox';
+import { villageGate } from '../village/people/departure';
 import type { GridCell } from '../village/people/world-grid';
+import type { VillageState } from '../village/types';
 import type { BattleFort } from './battle';
 import type { CampaignNotice, CampaignState, CampaignWorld } from './campaign-types';
 import { marchGrid, type MarchGrid, type Pos } from './march-grid';
 import type { Lookout } from './lookouts';
 import type { KnowledgeOut } from './seen';
+import { continuationsOf } from './trail-continuation';
 
 // Společné součástky taktu tažení (plán 2026-11-09 – Rozhodnutí plánu: přesun z `campaign.ts`, ať je
 // sdílí varování – `alarm.ts` – bez kruhového importu). Chování beze změny.
@@ -94,7 +97,21 @@ export function stampNotices(notices: CampaignNotice[], base: string): CampaignN
   return notices.map((n, i) => ({ ...n, ref: `${base}:n${i}` }));
 }
 
-/** Mřížka pochodu mapy políčka v den `day` – krajina, překážky a první ves na mapě. */
+/**
+ * Odkud ves `state` na mapě `cell` vychází na cestu – útěk, posel a jejich volby (`refugeOptions`):
+ * branka dvorce (`villageGate`) jako tažení a výprava (plán 2026-11-16-dense-forest – oprava Úlohy 5).
+ * Mapa chybí – `MissingData`.
+ */
+export function villageStart(state: VillageState, cell: GridCell, ctx: TickContext): Pos {
+  const map = ctx.world.landscapeOf(cell);
+  if (map === null) throw new MissingData([{ ...cell }], []);
+  return villageGate(state, map.landscape);
+}
+
+/**
+ * Mřížka pochodu mapy políčka v den `day` – krajina, překážky, první ves na mapě a osy pokračování
+ * zemských stezek sousedních vsí dostavěných před tím dnem (`continuationsOf`).
+ */
 export function gridOf(cell: GridCell, day: number, ctx: TickContext): MarchGrid {
   const key = `${cellKey(cell)}@${day}`;
   const cached = ctx.grids.get(key);
@@ -107,9 +124,13 @@ export function gridOf(cell: GridCell, day: number, ctx: TickContext): MarchGrid
     village = ctx.world.villageAt(villageId, day);
     if (village === null) throw new MissingData([], [villageId]);
   }
+  const continuations = continuationsOf(map, village, day);
   const grid = ctx.world.grids
-    ? ctx.world.grids.gridOf(map.landscape, map.obstacles, village, day)
-    : marchGrid(map.landscape, map.obstacles, village, { day });
+    ? ctx.world.grids.gridOf(map.landscape, map.obstacles, village, day, continuations)
+    : marchGrid(map.landscape, map.obstacles, village, {
+        day,
+        trailContinuations: continuations,
+      });
   ctx.grids.set(key, grid);
   return grid;
 }

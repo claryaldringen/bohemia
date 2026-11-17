@@ -17,17 +17,24 @@ import {
   type GridCell,
   type LaunchDeps,
   type VillageRecord,
+  MarchGridMemo,
 } from '@bohemia/game';
 import { currentWorld } from '@bohemia/server';
 import { gameDeps, journeyRecallDeps, playerToday, requireVillageRight } from './game';
 import { launchCampaignActionForPlayer, planCampaignActionForPlayer } from './village';
 import type { ArmyPanelData, ArmyTargetView, ArmyVillageView } from './army-view';
+import { campaignCells } from './campaign';
 
 // Composition root panelu Vojsko (war.md – Velení a příprava tažení): panel čte vsi rodu a cíle
 // ve válce, odhad a vyslání jsou use-casy `planCampaign` a `launchCampaign` nad skutečnými
 // repozitáři. Herní logika je v `packages/game/src/application/{plan,launch}-campaign.ts`.
 
 const ORIGIN: GridCell = { x: 0, y: 0 };
+/**
+ * Mřížky pochodu pro ověření cesty ze vsi ke shromaždišti (`planCampaign` – odříznutá ves do tažení
+ * nejde): panel se ptá při každé změně plánu nad týmiž vsemi.
+ */
+const PLAN_GRIDS = new MarchGridMemo();
 
 function launchDeps(): LaunchDeps {
   const deps = gameDeps();
@@ -39,6 +46,8 @@ function launchDeps(): LaunchDeps {
     settlements: deps.settlements,
     landscapes: deps.landscapes,
     world: currentWorld(),
+    cells: campaignCells(),
+    grids: PLAN_GRIDS,
     campaigns: deps.campaigns,
     seeds: deps.seeds,
     newId: randomUUID,

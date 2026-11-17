@@ -433,6 +433,28 @@ villageId)`. Z levných otisků (`stampsOf` – `last_day`, `asleep`) se dopočt
   registrace je jiná) nedávat pevným posunem – 150 m od zemnice padne občas do vody a A* cestu
   nenajde; ověřit je mřížkou pochodu jako worker (`marchGrid` + `marchPath` nad krajinou a vsí
   ze zápisu). Vzor: `multiplayer.spec.ts` – živé vedení.
+  **Krajina sídla v testu = krajina serveru:** `seat` (`e2e/village-helpers.ts`) ji generuje jako
+  `settlementLandscape` – seed, verze vrstev, prémiový typ i výřez kostry (sídla v testech prémiový
+  typ dostávají; bez něj jiná voda i hustý les). **Sousední mapa:** test, který sídlo posune vedle
+  jiného, vybere stranu, kam skupina přejde (`crossesTo` – mřížky obou map jako server; hustý les
+  je neprůchodný a oblast vsi mívá přechod jen na některé straně; s cílem `goal` jen do oblasti,
+  odkud k němu cesta vede – průvod do hradiště, kam cesta nevede, nevyrazí). **Návrat zápisem:**
+  skupinu na návratu test staví jen tam, odkud cesta domů vede (`homeSpot` – návrat cíl domů
+  neposouvá a domů se nepřenese, Martin 17. 11. 2026; náhodně odříznutá ves nesmí e2e rozbít –
+  „Cestu otevře až stezka“); `placeReturning` přestaví i skupinu, která na domovskou mapu došla
+  sama, ale uvízla v kapse (`stuckDay`, `retrace`), a den uvíznutí smaže vždy (jinak ten den úsek
+  z nového místa nehledá – v pomalém světě e2e by stála hodiny; totéž `placeJourney`). **Stezka
+  v přípravě:** nenavazuje-li mapa hradiště z žádné volné strany, test postaví zápisem hotovou
+  zemskou stezku k ní (`withTrail`) a přechod ověří s osami pokračování na mapě hradiště
+  (`trailAxes` – jako server). **Opakování dne** (`replayFrom`
+  v `multiplayer-war.spec.ts`): napřed přesunout události schránky na dnešek, pak zapsat stav –
+  zápis stavu ohlásí ves otevřené hře a její dotaz den hned dopočítá (události ještě na zítřku by
+  minul). **Pomalý první snímek scény:** bezhlavý Chromium kreslí softwarově – první snímky po
+  `data-scene-ready` zablokují stránku na několik sekund (17. 11. 2026 pod zátěží ≈ 5 s, 2,5 s
+  a 0,3 s, skoro celé v nativním kódu WebGL). Test, který hned po načtení (`registerAndEnterGame`
+  – odříznutý nováček se načte znovu) jedná v rozhraní s výchozím limitem 5 s, napřed počká na
+  `sceneSettled` (`e2e/helpers.ts` – připravená scéna a dva snímky prohlížeče). Vzor:
+  `multiplayer.spec.ts` – podmínky vazalství.
 
 - **e2e a `test:db` souběžně z víc pracovních stromů:** port `next start` a testovací databázi
   čtou `playwright.config.ts` (a přes něj e2e pomocníci i worker v e2e) a testy adaptérů

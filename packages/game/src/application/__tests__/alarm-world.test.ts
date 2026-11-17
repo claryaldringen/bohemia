@@ -156,7 +156,9 @@ describe('svět varování ve smyčce tažení (Úloha 6)', () => {
       const start = passing();
       const send = { tick: start.tick + 40, byPlayer: 'p2' } as const;
       const body = { kind: 'alarm-messenger', village: 'a' } as const;
-      const end = start.tick + 4000;
+      // C (3; 0) a E (2; 1) jsou úhlopříční sousedé – posel do E jde dvěma kolmými kroky přes
+      // sousední mapu (čtyřsousedná cesta – oprava Úlohy 5 plánu 2026-11-16-dense-forest)
+      const end = start.tick + 6000;
       // A (vojvoda doma) se v taktu varování zeptá na přítomnost – worker odpoví na takt dotazu
       // + 2, že hráč byl u hry naposled v taktu startu (kolo končí dotazem – drobný 1)
       const answer = {

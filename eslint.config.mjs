@@ -88,6 +88,9 @@ const DETERMINISTIC_LAYER_FILES = [
   'packages/game/src/domain/village/fortification/*.ts',
   // síla vojska a pravidla války (war.md) – tažení počítá server i prohlížeč
   'packages/game/src/domain/war/**/*.ts',
+  // výstupy zemských stezek (trade.md – Pokračování na sousední mapě) – kus průseku ke kraji
+  // skládá mřížka pochodu i v prohlížeči
+  'packages/game/src/domain/village/trade/trail-exits.ts',
   // varianty rozměrů obydlí (population.md – Varianty rozměrů) – tvar staveb u kurzoru i na serveru
   'packages/game/src/domain/village/buildings/dwelling-shape.ts',
   // plán sídla správce (steward.md – Mapa hodnot krajiny) – ukládá se do stavu, dopočet po kouscích

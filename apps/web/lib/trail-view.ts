@@ -2,13 +2,75 @@
 // složená z úseků pevných cest a průběh stavby po úsecích od vsi ven (vytyčení hned, úprava
 // roste na úseku, kam stavba došla). Čistý modul – data ze stavu vsi.
 import {
+  trailExitsOf,
   trailWorkFront,
   villageManor,
   villageTrails,
   type RoadGrade,
   type VillageState,
 } from '@bohemia/game';
-import type { SceneTrail } from './village-view';
+import type { SceneRoad, SceneTrail, SceneVillage } from './village-view';
+
+/**
+ * Osy pokračování stezek sousedních vsí (`mapTrailContinuations`) jako pevné cesty scény
+ * (trade.md – Pokračování na sousední mapě): upravená cesta s průsekem, záporná id (−1, −2 …),
+ * ať se nikdy nesrazí s úseky vsi. Pole os je sdílené z mezipaměti – jen se čte.
+ */
+export function sceneTrailContinuations(
+  axes: readonly (readonly { x: number; z: number }[])[],
+): SceneRoad[] {
+  return axes.map((axis, i) => ({
+    id: -(i + 1),
+    points: axis.map((p) => ({ x: p.x, z: p.z })),
+    grade: 'improved',
+    swath: true,
+  }));
+}
+
+/**
+ * Ves cizí mapy s pokračováním stezek sousedů: i mapa bez staveb dostane prázdnou ves, ať scéna
+ * cestu nakreslí; bez os ves beze změny (i null).
+ */
+export function withTrailContinuations(
+  village: SceneVillage | null,
+  axes: readonly (readonly { x: number; z: number }[])[] | null | undefined,
+): SceneVillage | null {
+  if (!axes || axes.length === 0) return village;
+  return {
+    ...(village ?? { dwellings: [], fields: [] }),
+    trailContinuations: sceneTrailContinuations(axes),
+  };
+}
+
+/**
+ * Klíč os pokračování (body na decimetry) – scéna cizí mapy se přestaví jen při jejich změně, ne
+ * při každém novém poli z dotazu.
+ */
+export function axesKey(
+  axes: readonly (readonly { x: number; z: number }[])[] | null | undefined,
+): string {
+  return (axes ?? [])
+    .map((a) => a.map((p) => `${Math.round(p.x * 10)},${Math.round(p.z * 10)}`).join(' '))
+    .join('|');
+}
+
+/**
+ * Kusy hotových zemských stezek vsi ke kraji mapy: konec osy → bod okraje každého výstupu
+ * dostavěného před dnem `day` (`trailExitsOf`, jako kusy ke kraji v mřížce pochodu jádra –
+ * `marchGrid`). Stezka končí kus před krajem a hustý les v pásu u kraje by ji v mřížce kurzoru
+ * (march-cursor.ts) zavřel. Jen pro mřížku kurzoru – nekreslí se.
+ */
+export function sceneTrailEdgePieces(
+  state: Pick<VillageState, 'trails' | 'roads'>,
+  day: number,
+): { x: number; z: number }[][] {
+  return trailExitsOf(state)
+    .filter((exit) => exit.builtDay < day)
+    .map(({ end, edge }) => [
+      { x: end.x, z: end.z },
+      { x: edge.x, z: edge.z },
+    ]);
+}
 
 /** Osa stezky – úseky za sebou, každý otočený tak, aby navazoval na předchozí (od dvorce). */
 export function sceneTrails(

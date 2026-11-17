@@ -3,7 +3,7 @@ import { dwelling, village, kin } from '../../village/__tests__/kin-fixtures';
 import type { NewVillageEvent } from '../../village/core/inbox';
 import { stepCampaign } from '../campaign';
 import type { CampaignMap, CampaignState, CampaignWorld } from '../campaign-types';
-import { campaign, flat, MEADOW, SUMMER, world } from './campaign-fixtures';
+import { campaign, flat, MEADOW, stepInChunks, SUMMER, world } from './campaign-fixtures';
 
 // Dny nájezdu (Ú6.7 – war.md, Ves během nájezdu nepracuje): vojsko na mapě cizí vsi posílá
 // `raid-day` na každý den – war.md – Varování, 9. 11. 2026: až od chvíle, kdy ves o vojsku ví
@@ -80,13 +80,10 @@ describe('dny nájezdu (raid-day)', () => {
   it('po kouscích taktů i přes JSON stejné události', () => {
     const start = passing();
     const whole = stepCampaign(start, start.tick + 400, [], worldWith());
-    const events: NewVillageEvent[] = [];
-    let s = start;
-    while (s.tick < start.tick + 400) {
-      const next = stepCampaign(s, Math.min(start.tick + 400, s.tick + 37), [], worldWith());
-      events.push(...next.villageEvents);
-      s = JSON.parse(JSON.stringify(next.state)) as CampaignState;
-    }
+    const { state: s, villageEvents: events } = stepInChunks(start, start.tick + 400, {
+      chunk: 37,
+      world: worldWith(),
+    });
     expect(events).toEqual(whole.villageEvents);
     expect(s).toEqual(whole.state);
   });

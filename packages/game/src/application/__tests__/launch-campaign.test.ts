@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { OFFICIAL_WORLD } from '../../domain/calendar';
-import { CURRENT_LAYER_VERSIONS, type Landscape } from '../../domain/landscape';
+import { CURRENT_LAYER_VERSIONS, SURFACE_CODES, type Landscape } from '../../domain/landscape';
 import { horseVillage, START } from '../../domain/village/__tests__/horse-fixtures';
 import { foodNeedPerDay } from '../../domain/village/people/people';
+import { villageGate } from '../../domain/village/people/departure';
 import { craftCoverage } from '../../domain/village/crafts/crafts';
-import type { Person, VillageState } from '../../domain/village/types';
+import type { Person, Road, VillageState } from '../../domain/village/types';
+import type { CampaignMap } from '../../domain/war/campaign-types';
 import { armyStrength, lineManStrength, musterOf, villagerStrength } from '../../domain/war';
 import { launchCampaign, type LaunchDeps } from '../launch-campaign';
 import {
@@ -33,6 +35,66 @@ const DAY_MS = 86_400_000;
 const NOW = new Date(OFFICIAL_WORLD.startMs + 400 * DAY_MS);
 const STUB_LANDSCAPE = { size: 128, cellSizeM: 15, villageSite: { x: 64, y: 64 } } as Landscape;
 
+/**
+ * Mapa tažení 128 × 15 m: louka, nebo (`enclosed`) paseka 720 m uprostřed obklopená hustým lesem
+ * až ke kraji – ves v ní je odříznutá (war.md – Pohyb, Odříznutá ves).
+ */
+function campaignLandscape(enclosed: boolean): Landscape {
+  const size = 128;
+  const surface = new Uint8Array(size * size).fill(SURFACE_CODES.meadow);
+  if (enclosed) {
+    for (let ty = 0; ty < size; ty++) {
+      for (let tx = 0; tx < size; tx++) {
+        const inside = tx >= 40 && tx < 88 && ty >= 40 && ty < 88;
+        if (!inside) surface[ty * size + tx] = SURFACE_CODES.forest;
+      }
+    }
+  }
+  return {
+    size,
+    cellSizeM: 15,
+    heights: new Float32Array(size * size),
+    surface,
+    fertility: new Uint8Array(size * size),
+    villageSite: { x: 64, y: 64 },
+    stream: [],
+    obstacleLayer: null,
+  };
+}
+const MEADOW_LANDSCAPE = campaignLandscape(false);
+const ENCLOSED_LANDSCAPE = campaignLandscape(true);
+
+/** Pevné cesty od kraje ke kraji přes branku dvorce (sever – jih a východ – západ) – průsek lesem. */
+function withTrail(state: VillageState): void {
+  const gate = villageGate(state, STUB_LANDSCAPE);
+  const road = (id: number, points: Road['points']): Road => ({
+    id,
+    points,
+    bornDay: 0,
+    grade: 'improved',
+    traffic: [],
+    spots: [],
+  });
+  const across = [
+    road(900, [
+      { x: gate.x, z: -958 },
+      { x: gate.x, z: gate.z },
+      { x: gate.x, z: 958 },
+    ]),
+    road(901, [
+      { x: -958, z: gate.z },
+      { x: gate.x, z: gate.z },
+      { x: 958, z: gate.z },
+    ]),
+  ];
+  state.roads = {
+    nextId: 902,
+    roads: [...(state.roads?.roads ?? []), ...across],
+    trees: state.roads?.trees ?? [],
+    labor: state.roads?.labor ?? { from: 0, days: 0, shares: [] },
+  };
+}
+
 /** Ves s vojvodou (muž rodu 40 let, jméno Bořivoj), synem rodu 17 let a deseti vesničany. */
 function ownVillage(name: string, foundedDay = START - 4000): VillageState {
   const s = horseVillage(null, 1, 12);
@@ -43,7 +105,15 @@ function ownVillage(name: string, foundedDay = START - 4000): VillageState {
 }
 
 async function world(
-  options: { targetProtectedHouse?: boolean; targetNewVillage?: boolean } = {},
+  options: {
+    targetProtectedHouse?: boolean;
+    targetNewVillage?: boolean;
+    /**
+     * Ves v pasece obklopené hustým lesem – druhá ves (Dub), shromaždiště (Lhota), nebo cíl
+     * (Kněžice); `trail` – s průsekem přes branku (`withTrail`).
+     */
+    cut?: { village: 'second' | 'home' | 'target'; trail?: boolean };
+  } = {},
 ): Promise<{
   deps: LaunchDeps;
   villages: InMemoryVillages;
@@ -93,14 +163,36 @@ async function world(
     layerVersions: versions,
     worldCell: { x: 5, y: 5 },
   }))!;
-  const home = await villages.add(sa.id, 'Lhota', ownVillage('Bořivoj'));
-  const second = await villages.add(sa2.id, 'Dub', ownVillage('Radim'));
+  const cutState = (which: 'second' | 'home' | 'target', state: VillageState): VillageState => {
+    if (options.cut?.village === which && options.cut.trail) withTrail(state);
+    return state;
+  };
+  const home = await villages.add(sa.id, 'Lhota', cutState('home', ownVillage('Bořivoj')));
+  const secondState = ownVillage('Radim');
+  cutState('second', secondState);
+  const second = await villages.add(sa2.id, 'Dub', secondState);
   const target = await villages.add(
     sb.id,
     'Kněžice',
-    ownVillage('Ctibor', options.targetNewVillage ? START - 100 : START - 4000),
+    cutState('target', ownVillage('Ctibor', options.targetNewVillage ? START - 100 : START - 4000)),
   );
   const foreign = await villages.add(sc.id, 'Vrba', ownVillage('Dalibor'));
+  const onCell: Record<string, string> = {
+    '0,0': home.id,
+    '0,1': second.id,
+    '1,0': target.id,
+    '5,5': foreign.id,
+  };
+  const mapOf = (cell: { x: number; y: number }): CampaignMap => {
+    const id = onCell[`${cell.x},${cell.y}`];
+    const cutCell = { second: '0,1', home: '0,0', target: '1,0' }[options.cut?.village ?? 'second'];
+    const enclosed = options.cut !== undefined && `${cell.x},${cell.y}` === cutCell;
+    return {
+      landscape: enclosed ? ENCLOSED_LANDSCAPE : MEADOW_LANDSCAPE,
+      obstacles: null,
+      villageIds: id ? [id] : [],
+    };
+  };
   await houses.setLord(a.id, { villageId: home.id, personId: 10 });
   await houses.setLord(b.id, { villageId: target.id, personId: 10 });
   let n = 0;
@@ -115,6 +207,7 @@ async function world(
     settlements,
     landscapes: { landscapeOf: () => STUB_LANDSCAPE },
     world: OFFICIAL_WORLD,
+    cells: { mapOf: async (cell) => mapOf(cell) },
     campaigns,
     seeds: { nextSeed: () => 99 },
     newId: () => `camp-${++n}`,
@@ -285,6 +378,32 @@ describe('plán tažení (planCampaign)', () => {
     expect(w.campaigns.rows.size).toBe(0);
   });
 
+  it('odříznutá ves do tažení nejde (Martin 17. 11. 2026 – „Nesmí do tažení“), se stezkou ano', async () => {
+    const cut = await world({ cut: { village: 'second' } });
+    expect(await planCampaign(cut.deps, input(cut.plan))).toBe(CAMPAIGN_REASONS.noRoute);
+    // bez odříznuté vsi v plánu – jen shromaždiště – plán projde
+    const alone = { ...cut.plan, villages: cut.plan.villages.slice(0, 1) };
+    expect(typeof (await planCampaign(cut.deps, input(alone)))).toBe('object');
+    const open = await world({ cut: { village: 'second', trail: true } });
+    expect(typeof (await planCampaign(open.deps, input(open.plan)))).toBe('object');
+  });
+
+  it('k odříznutému cíli ani z odříznutého shromaždiště tažení nejde, se stezkou ano', async () => {
+    const target = await world({ cut: { village: 'target' } });
+    expect(await planCampaign(target.deps, input(target.plan))).toBe(
+      CAMPAIGN_REASONS.noTargetRoute,
+    );
+    const open = await world({ cut: { village: 'target', trail: true } });
+    expect(typeof (await planCampaign(open.deps, input(open.plan)))).toBe('object');
+    // odříznuté shromaždiště: i samo (bez druhé vsi) k cíli nedojde – dřív než cesta vsí k němu
+    const home = await world({ cut: { village: 'home' } });
+    const alone = { ...home.plan, villages: home.plan.villages.slice(0, 1) };
+    expect(await planCampaign(home.deps, input(alone))).toBe(CAMPAIGN_REASONS.noTargetRoute);
+    expect(await planCampaign(home.deps, input(home.plan))).toBe(CAMPAIGN_REASONS.noTargetRoute);
+    const homeOpen = await world({ cut: { village: 'home', trail: true } });
+    expect(typeof (await planCampaign(homeOpen.deps, input(homeOpen.plan)))).toBe('object');
+  });
+
   it('vlastní ves jako cíl nejde', async () => {
     const w = await world();
     expect(await planCampaign(w.deps, input({ ...w.plan, targetVillageId: w.ids.second }))).toBe(
@@ -343,22 +462,30 @@ describe('vyslání tažení (launchCampaign)', () => {
       target: { pos: { x: number; z: number } };
       homes: Record<string, { pos: { x: number; z: number } }>;
     };
-    // dvorec fixtury stojí v (0, 0), střed místa pro ves v (7,5; 7,5)
+    // dvorec fixtury stojí v (0, 0), střed místa pro ves v (7,5; 7,5); místem vsi je branka
+    // dvorce – odtud vyráží i výprava (`villageGate`, oprava Úlohy 5 plánu 2026-11-16-dense-forest)
     expect(villagePlace({ x: 0, y: 0 }, STUB_LANDSCAPE).pos).toEqual({ x: 7.5, z: 7.5 });
-    expect(state.assembly.pos).toEqual({ x: 0, z: 0 });
-    expect(state.target.pos).toEqual({ x: 0, z: 0 });
-    for (const home of Object.values(state.homes)) expect(home.pos).toEqual({ x: 0, z: 0 });
+    const home = (await w.villages.find(w.ids.home))!.state;
+    const gate = villageGate(home, STUB_LANDSCAPE);
+    expect(gate).not.toEqual({ x: 0, z: 0 });
+    expect(Math.hypot(gate.x, gate.z)).toBeLessThan(30);
+    expect(state.assembly.pos).toEqual(gate);
+    expect(state.target.pos).toEqual(gate);
+    for (const pos of Object.values(state.homes)) expect(pos.pos).toEqual(gate);
   });
 
-  it('poloha vsi: dvorec, bez obydlí střed místa pro ves', () => {
+  it('poloha vsi: branka dvorce, bez obydlí střed místa pro ves', () => {
     const cell = { x: 0, y: 0 };
     const state = ownVillage('Bořivoj');
-    expect(villageStandingPlace(cell, STUB_LANDSCAPE, state).pos).toEqual({ x: 0, z: 0 });
-    // dvorec o kus dál než druhé obydlí – míří se na dvorec, ne na průměr obou
+    const gate = villageGate(state, STUB_LANDSCAPE);
+    expect(villageStandingPlace(cell, STUB_LANDSCAPE, state).pos).toEqual(gate);
+    // dvorec o kus dál než druhé obydlí – míří se k brance dvorce, ne k průměru obou
     const moved = { ...state, dwellings: state.dwellings.slice() };
     moved.dwellings[0] = { ...moved.dwellings[0]!, position: { x: 10, z: 4, rotation: 0 } };
     moved.manorId = moved.dwellings[0]!.id;
-    expect(villageStandingPlace(cell, STUB_LANDSCAPE, moved).pos).toEqual({ x: 10, z: 4 });
+    const there = villageStandingPlace(cell, STUB_LANDSCAPE, moved).pos;
+    expect(there).toEqual(villageGate(moved, STUB_LANDSCAPE));
+    expect(Math.hypot(there.x - gate.x - 10, there.z - gate.z - 4)).toBeLessThan(1);
     const empty = { ...state, dwellings: [], constructions: [], manorId: undefined };
     expect(villageStandingPlace(cell, STUB_LANDSCAPE, empty).pos).toEqual({ x: 7.5, z: 7.5 });
   });
@@ -406,6 +533,27 @@ describe('vyslání tažení (launchCampaign)', () => {
     expect(w.wars.all[0]).toMatchObject({ how: 'ambush' });
     expect(w.vassalages.breachLog).toMatchObject([{ id: va.id, kind: 'judgment', day: START }]);
     expect(w.disputes.rows[0]!.brokenBy).toEqual([a!.id]);
+  });
+
+  it('s odříznutou vsí se tažení nevyšle – nikdo neodejde, válka nevznikne; se stezkou ano', async () => {
+    const cut = await world({ cut: { village: 'second' } });
+    const result = await launchCampaign(cut.deps, input(cut.plan));
+    expect(result).toEqual({ ok: false, reason: CAMPAIGN_REASONS.noRoute });
+    expect(cut.wars.all).toHaveLength(0);
+    expect(cut.campaigns.rows.size).toBe(0);
+    for (const id of [cut.ids.home, cut.ids.second]) {
+      const state = (await cut.villages.find(id))!.state;
+      expect(state.people.some((p) => p.away !== undefined)).toBe(false);
+    }
+    const open = await world({ cut: { village: 'second', trail: true } });
+    expect((await launchCampaign(open.deps, input(open.plan))).ok).toBe(true);
+    // k odříznutému cíli se nevyšle
+    const target = await world({ cut: { village: 'target' } });
+    expect(await launchCampaign(target.deps, input(target.plan))).toEqual({
+      ok: false,
+      reason: CAMPAIGN_REASONS.noTargetRoute,
+    });
+    expect(target.campaigns.rows.size).toBe(0);
   });
 
   it('cíl v ochraně se nevyšle – nikdo neodejde, válka nevznikne', async () => {

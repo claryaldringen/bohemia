@@ -21,6 +21,8 @@ import {
   planWagonRoad,
   terrainEditsFrom,
   type WagonRoadPlan,
+  type MarchGrid,
+  type Pos,
 } from '@bohemia/game';
 import { AmbientSound } from './ambient-sound';
 import { createRtsCamera, type RtsCamera } from './camera';
@@ -37,6 +39,7 @@ import { FelledTrees } from './felled-trees';
 import { LogPile } from './log-pile';
 import { StonePiles } from './stone-piles';
 import { sameClearing, villageClearedForest, type ClearedForest } from './cleared-forest';
+import { browserMarchGrid, cursorRoads, roadsKey } from './march-cursor';
 import { createForestCanopy, type ForestCanopy } from './forest-canopy';
 import type { ScenePerfStats } from './perf-stats';
 import { ScenePerf } from './scene-perf';
@@ -88,7 +91,7 @@ import { VillagePaths, type PathStats } from './path-renderer';
 import { PitCuts, applyPitCut } from './pit-cut';
 import { tornadoTrunks } from './tornado-track';
 import { castersChanged } from './sun-shadows';
-import { swathBands } from './swath-bands';
+import { roadsWithContinuations, swathBands, swathBandsKey, swathObstacleIds } from './swath-bands';
 import { tileCenter } from './tile-at';
 import { PlacementOutlines } from './placement-outlines-view';
 import { HoldingsOverlay, type HoldingsOverlaySector } from './holdings-overlay';
@@ -110,6 +113,9 @@ type ViewListener = (view: ViewFootprint) => void;
 /** Vymýcený les vsi (null = žádný) – minimapa ho kreslí jako paseku. */
 type ClearedListener = (cleared: ClearedForest | null) => void;
 
+/** Žádné stromy v pásech pokračování stezek (`continuationTrees`). */
+const NO_IDS: ReadonlySet<number> = new Set();
+
 /** 3D scéna krajiny – obyčejná třída bez Reactu (adaptér zobrazení). */
 export type { SceneProgress, SceneStep } from './landscape-build';
 export type { DayClock } from './scene-atmosphere';
@@ -130,6 +136,20 @@ export class LandscapeScene {
   private wagonPlan: { key: string; plan: WagonRoadPlan } | null = null;
   /** Vymýcený les podle posledního stavu vsi (applyVillage). */
   private cleared: ClearedForest | null = null;
+  /** Mapa rodu nebo vazala – stezka pokračuje nad mlhou (`setFriendlyMap`). */
+  private friendlyMap = false;
+  /**
+   * Mřížka pochodu pro kurzor rozkazu (`marchGrid`) – znovu jen se změnou jejích vstupů; `key` –
+   * obsah os cest (`roadsKey`), `village` – stav vsi, pro který klíč platí.
+   */
+  private cursorGrid: {
+    landscape: Landscape;
+    obstacles: ObstacleLayer | null;
+    cleared: ClearedForest | null;
+    village: SceneVillage | null;
+    key: string;
+    grid: MarchGrid;
+  } | null = null;
   private highlight: SelectionHighlight | null = null;
   /** Vývojový překryv úseků hospodářství (fields.md – Hospodaření podle polohy domů). */
   private holdings: HoldingsOverlay | null = null;
@@ -172,6 +192,8 @@ export class LandscapeScene {
   private culling: SceneryCulling | null = null;
   /** Vrstva překážek krajiny (herní data – stejná jako na serveru). */
   private obstacles: ObstacleLayer | null = null;
+  /** Stromy v pásech pokračování stezek – paměť podle vrstvy a pásů. */
+  private continuationIds: { layer: ObstacleLayer; key: string; ids: Set<number> } | null = null;
   /** Pařezy a nálet po pokácených stromech. */
   private felled: FelledTrees | null = null;
   private logPile: LogPile | null = null;
@@ -669,6 +691,7 @@ export class LandscapeScene {
       (day) => this.village?.gameDayWindow(day) ?? null,
     );
     this.villageState = village;
+    this.syncLitBands();
     this.journeyHorses = journeyHorseIds(village, this.journeyList);
     this.applyVillage();
     this.atmosphere.villageChanged();
@@ -706,8 +729,26 @@ export class LandscapeScene {
     this.war.setJourneyFog(trail);
   }
 
+  /**
+   * Mapa rodu nebo vazala (Martin 16. 11. 2026: „Když je to mapa rodu nebo vazala, ať je vidět
+   * celá, stejným způsobem jako mapa vlastní. Pokud to bude mapa nepřítele nebo neutrála, ať je
+   * tam fog of war“): pokračování zemských stezek (`SceneVillage.trailContinuations`) je nad
+   * závojem celé; na cizí mapě (výchozí) zůstává pod ním jako ostatní krajina. Nic jiného se
+   * nemění.
+   */
+  setFriendlyMap(friendly: boolean): void {
+    this.friendlyMap = friendly;
+    this.syncLitBands();
+  }
+
+  /** Pásy pokračování stezek nad závojem podle `friendlyMap` a stavu vsi scény. */
+  private syncLitBands(): void {
+    const bands = this.friendlyMap ? swathBands(this.villageState?.trailContinuations) : [];
+    this.war.setLitBands(bands.length > 0 ? bands : null, swathBandsKey(bands));
+  }
+
   /** Mlha v bodě (e2e): neobjevené, objevené (šeré), v dohledu; bez závoje null. */
-  fogAt(x: number, z: number): 'hidden' | 'explored' | 'seen' | null {
+  fogAt(x: number, z: number): 'hidden' | 'explored' | 'seen' | 'lit' | null {
     return this.war.fogAt(x, z);
   }
 
@@ -990,6 +1031,47 @@ export class LandscapeScene {
   }
 
   /**
+   * Mřížka pochodu mapy pro kurzor nad místem, kam skupina nedojde (march-cursor.ts): krajina,
+   * vrstva překážek, vymýcený les vsi a průseky cest (`cursorRoads` – i kusy stezek ke kraji).
+   * Staví se líně při prvním dotazu a znovu jen se změnou vstupů. Bez krajiny null.
+   */
+  marchGrid(): MarchGrid | null {
+    const landscape = this.landscape;
+    if (!landscape) return null;
+    const village = this.villageState;
+    const known = this.cursorGrid;
+    const same =
+      known !== null &&
+      known.landscape === landscape &&
+      known.obstacles === this.obstacles &&
+      known.cleared === this.cleared;
+    if (same && known.village === village) return known.grid;
+    // každá aktualizace vsi je nové pole z JSON – mřížka se staví znovu jen se změnou os cest
+    const roads = cursorRoads(village);
+    const key = roadsKey(roads);
+    if (same && known.key === key) {
+      known.village = village;
+      return known.grid;
+    }
+    const grid = browserMarchGrid(landscape, this.obstacles, this.cleared, roads);
+    this.cursorGrid = {
+      landscape,
+      obstacles: this.obstacles,
+      cleared: this.cleared,
+      village,
+      key,
+      grid,
+    };
+    return grid;
+  }
+
+  /** Střed obydlí (nebo staveniště) `id` ve světě mapy – odkud vyráží skupina z domu; neznámé null. */
+  dwellingPoint(id: number): Pos | null {
+    const d = this.villageState?.dwellings.find((x) => x.id === id);
+    return d ? { x: d.position.x, z: d.position.z } : null;
+  }
+
+  /**
    * Zvýrazní vybrané obydlí / pole / hřbitov rámečkem na zemi, vybranou postavu žlutým kroužkem
    * pod nohama (null = nic).
    */
@@ -1180,6 +1262,23 @@ export class LandscapeScene {
   }
 
   /**
+   * Stromy a keře vrstvy překážek v pásech průseků pokračování stezek (`swathObstacleIds`) –
+   * jen pro pásy pokračování, průseky vsi skrývá stav vsi. Počítá se jen při změně pásů.
+   */
+  private continuationTrees(): ReadonlySet<number> {
+    const continued = swathBands(this.villageState?.trailContinuations);
+    const layer = this.obstacles;
+    if (!layer || continued.length === 0) return NO_IDS;
+    const key = swathBandsKey(continued);
+    if (this.continuationIds?.layer === layer && this.continuationIds.key === key) {
+      return this.continuationIds.ids;
+    }
+    const ids = swathObstacleIds(layer, continued);
+    this.continuationIds = { layer, key, ids };
+    return ids;
+  }
+
+  /**
    * Překreslí ves podle posledního stavu: skryje stromy, keře a kameny, které ves odstranila
    * nebo vykácela (podle id ze stavu vsi), na místo pokácených stromů dá pařez nebo nálet,
    * u obydlí nejblíž lesu složí hromadu klád. Kde les zmizel, přestane ho kreslit: tráva se pod
@@ -1207,7 +1306,10 @@ export class LandscapeScene {
       ...(sacred?.oaks ?? []).filter((oak) => oak.snag),
       ...(sacred?.fallenOaks ?? []),
     ].map((oak) => oak.id);
+    // průsek pokračování zemské stezky sousední vsi (trade.md) – stromy a keře v pásu se nekreslí
+    const swaths = swathBands(roadsWithContinuations(this.villageState));
     const hiddenIds = new Set([
+      ...this.continuationTrees(),
       ...changes.removed,
       ...changes.stumps,
       ...changes.saplings,
@@ -1222,7 +1324,7 @@ export class LandscapeScene {
         ? villageClearedForest(this.landscape, this.obstacles, this.villageState)
         : null;
     // průseky lesem (roads.md) – pás podél os cest, plocha korun nad ním zapadne
-    const cleared = this.canopy?.setCleared(clearing, swathBands(this.villageState.roads)) ?? false;
+    const cleared = this.canopy?.setCleared(clearing, swaths) ?? false;
     if (!sameClearing(this.cleared, clearing)) {
       this.cleared = clearing;
       for (const listener of this.clearedListeners) listener(clearing);

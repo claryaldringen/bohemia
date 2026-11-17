@@ -19,7 +19,7 @@ import { hoursPerTick, TICKS_PER_SECOND } from './ticks';
 // NPC velitel (war.md – Velení a příprava tažení; plán 2026-11-03 – Úloha 6.12): vede tažení, když
 // velí jiný muž než hráčův, když je hráč pryč a vede zástupce, nebo když velitel padl. Rozhoduje
 // jen ze stavu tažení a světa – záměry platí v taktu, ve kterém je spočítá (stejně po kouscích).
-// Pochod jde nejkratší cestou po mřížce map (A* obchází les, řeky po brodech – `marchPath`), průchod
+// Pochod jde nejkratší průchozí cestou po mřížce map (řeky po brodech – `marchPath`), průchod
 // opevněním: velitel vede skupinu k místu nejrychlejšího postupu (`npc-assault.ts`), u hradby pak
 // každý muž volí postup místa sám (boj – `approach`). Jen det-math.
 
@@ -143,18 +143,23 @@ export function walkDays(
   return Math.sqrt(dx * dx + dz * dz) / WAR.pace.metersPerSecond / secondsPerDay;
 }
 
-/** Pochod: skupiny jdou k cíli podle rozkazu (hráč je mohl poslat jinam, než odešel). */
+/**
+ * Pochod: skupiny jdou k cíli podle rozkazu (hráč je mohl poslat jinam, než odešel). Cíl posunutý
+ * na dosažitelné místo (`settleGoal` – místo rozkazu v `orderedPos`) je cíl tažení, ne „jinam“.
+ */
 function marchIntents(s: CampaignState): IntentBody[] {
   const t = s.target;
-  const astray = s.groups.some(
-    (g) =>
-      s.members.some((m) => m.group === g.id && m.status === 'active') &&
-      (g.goal === null ||
-        g.goal.cell.x !== t.cell.x ||
-        g.goal.cell.y !== t.cell.y ||
-        g.goal.pos.x !== t.pos.x ||
-        g.goal.pos.z !== t.pos.z),
-  );
+  const astray = s.groups.some((g) => {
+    if (!s.members.some((m) => m.group === g.id && m.status === 'active')) return false;
+    if (g.goal === null) return true;
+    const pos = g.orderedPos ?? g.goal.pos;
+    return (
+      g.goal.cell.x !== t.cell.x ||
+      g.goal.cell.y !== t.cell.y ||
+      pos.x !== t.pos.x ||
+      pos.z !== t.pos.z
+    );
+  });
   return astray ? [{ kind: 'march', to: { cell: { ...t.cell }, pos: { ...t.pos } } }] : [];
 }
 

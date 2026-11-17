@@ -6,23 +6,39 @@ import type {
   JourneyState,
   LegacyJourneyState,
 } from './journey-types';
+import { MARCH_GRID_VERSION } from './march-grid';
+import { replanLegs } from './movement';
 
 // Převod výjezdu vojvody na výpravu (plán 2026-11-14 – Rozhodnutí 4, Review Focus 1): kontrolní body
 // a záměry z doby jedné skupiny se dopočtou stejně jako před výpravami. Převádí se při čtení – krok
 // (`stepJourney`) i aplikace (pohled, worker); do úložiště se nic nezapisuje zvlášť, převedený stav
-// uloží další bod.
+// uloží další bod. Stejně se při čtení zahodí úseky bodu bez verze mřížky pochodu (plán
+// 2026-11-16-dense-forest – Rozhodnutí 9).
 
 /**
- * Stav výpravy z kontrolního bodu: nový tvar beze změny (týž objekt), starší bod (jedna skupina)
- * převede – skupina 0 s hloučkem 0, čekání (`arrivedTick`) a fáze `returning` přejdou do skupiny,
- * vojvoda dostane `leaderName` jako `name`. Skupina bez živého vojvody je `leaderless` (starý krok
- * bez něj rozkazy zahazoval). Hlouček venku na cestě přes okraj (cíl na jiné mapě – jinou trasu
- * starý rozkaz ven neměl) dostane `crossing`, ať zastaví na okraji jako dřív. Jezdec na koni
- * (`mounted`) dostane `horse: 'ridden'` bez `horseId` – ves o koni neví, kůň se vrátí s ním (plán
- * 2026-11-14 – Úloha 3). Vstup nemění; převod je idempotentní.
+ * Stav výpravy z kontrolního bodu: nový tvar se současnou verzí mřížky pochodu beze změny (týž
+ * objekt). Starší bod (jedna skupina) převede `fromLegacy`. Bod bez současné verze mřížky
+ * (`marchGridVersion`) dostane hloučky bez úseků a verzi (`replanLegs` – plán 2026-11-16-dense-forest,
+ * Rozhodnutí 9): úseky vedly buňkami, které jsou dnes neprůchozí; krok je spočte z uložené polohy.
+ * Vstup nemění; převod je idempotentní.
  */
 export function upgradeJourney(state: JourneyState | LegacyJourneyState): JourneyState {
-  if (!isLegacy(state)) return state;
+  const current = isLegacy(state) ? fromLegacy(state) : state;
+  if (current.marchGridVersion === MARCH_GRID_VERSION) return current;
+  const upgraded = { ...current, groups: current.groups.map((g) => ({ ...g })) };
+  replanLegs(upgraded);
+  return upgraded;
+}
+
+/**
+ * Starší bod výjezdu (jedna skupina) v novém tvaru – skupina 0 s hloučkem 0, čekání (`arrivedTick`)
+ * a fáze `returning` přejdou do skupiny, vojvoda dostane `leaderName` jako `name`. Skupina bez
+ * živého vojvody je `leaderless` (starý krok bez něj rozkazy zahazoval). Hlouček venku na cestě přes
+ * okraj (cíl na jiné mapě – jinou trasu starý rozkaz ven neměl) dostane `crossing`, ať zastaví na
+ * okraji jako dřív. Jezdec na koni (`mounted`) dostane `horse: 'ridden'` bez `horseId` – ves o koni
+ * neví, kůň se vrátí s ním (plán 2026-11-14 – Úloha 3).
+ */
+function fromLegacy(state: LegacyJourneyState): JourneyState {
   const { phase, leaderName, members, groups, arrivedTick, ...rest } = state;
   const first = groups[0];
   const crossing =

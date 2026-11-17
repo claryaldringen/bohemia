@@ -26,7 +26,9 @@ import {
   battleForts,
   battleTick,
   commandFighter,
+  formationSpot,
   openBattle,
+  settleFighters,
   type BattleField,
   type BattleState,
 } from './battle';
@@ -47,9 +49,16 @@ import {
   type CampaignReturn,
   type RaidResult,
 } from './raid-apply';
-import type { Pos } from './march-grid';
+import { MARCH_GRID_VERSION, type Pos } from './march-grid';
 import { marchSpeed, type GroupPace } from './march';
-import { missingMaps, sendGroup, settleGoal, stepMover } from './movement';
+import {
+  missingMaps,
+  replanLegs,
+  retraceCrossings,
+  sendGroup,
+  settleGoal,
+  stepMover,
+} from './movement';
 import { WAR } from './rules-war';
 import type { KnowledgeOut, SeenCell } from './seen';
 import { discoverBuildings } from './sight';
@@ -137,7 +146,10 @@ export interface NewCampaign {
   houseId?: string;
 }
 
-/** Výchozí stav tažení ve shromaždišti (fáze `assembling`). */
+/**
+ * Výchozí stav tažení ve shromaždišti (fáze `assembling`); úseky vzniknou po současné mřížce
+ * pochodu (`marchGridVersion`).
+ */
 export function newCampaign(input: NewCampaign, clock: WorldClock): CampaignState {
   const groupIds = [...new Set(input.members.map((m) => m.group))].sort((a, b) => a - b);
   const groups: CampaignGroup[] = groupIds.map((id) => ({
@@ -149,6 +161,7 @@ export function newCampaign(input: NewCampaign, clock: WorldClock): CampaignStat
     route: [],
     leg: null,
     arrived: true,
+    crossings: [],
   }));
   return {
     id: input.id,
@@ -166,6 +179,7 @@ export function newCampaign(input: NewCampaign, clock: WorldClock): CampaignStat
     target: structuredClone(input.target),
     members: structuredClone(input.members),
     groups,
+    marchGridVersion: MARCH_GRID_VERSION,
     supplies: { foodKg: input.foodKg },
     loot: { foodKg: 0, herd: 0 },
     captives: [],
@@ -267,7 +281,9 @@ function asksIn(s: CampaignState, tick: number): boolean {
  * kopie polovina času smyčky); sdílené odkazy uvnitř stavu rozdělí jako kontrolní bod v JSON – stav
  * sdílí jen záznamy, které se nemění na místě (prázdná `route` bojovníků z `openBattle`, `seenAt`
  * varovaných vsí, `PersonRef` zajatců). Znalost map (`seen`, Úloha 11) se nekopíruje – mění se jen
- * novým objektem (`lookOut`), kopie by s délkou cesty rostla každý takt.
+ * novým objektem (`lookOut`), kopie by s délkou cesty rostla každý takt. Bod bez současné verze
+ * mřížky pochodu zahodí na kopii rozjeté úseky skupin, uprchlíků a poslů (`replanLegs` – plán
+ * 2026-11-16-dense-forest, Rozhodnutí 9); verze se zapíše, takže jen v prvním taktu.
  */
 function campaignTick(
   state: CampaignState,
@@ -279,6 +295,14 @@ function campaignTick(
   const { seen, ...rest } = state;
   const s: CampaignState = cloneData(rest);
   if (seen) s.seen = seen;
+  if (s.marchGridVersion !== MARCH_GRID_VERSION) {
+    replanLegs(s, [...(s.alarm?.flights ?? []), ...(s.alarm?.messengers ?? [])]);
+    // rozjetý boj: kdo dnes stojí v hustém lese, přejde jednou na nejbližší průchodné místo
+    if (s.phase === 'raiding' && s.battle?.outcome === 'ongoing') {
+      const groups = new Map(s.groups.map((g) => [g.id, g.pos]));
+      settleFighters(s.battle, battleFieldOf(s, ctx).grid, (id) => groups.get(id));
+    }
+  }
   s.tick = tick;
   const day = dayOfTick(tick, ctx.world.clock);
   s.throughDay = dayOfTick(tick + 1, ctx.world.clock) - 1;
@@ -754,6 +778,8 @@ function disband(s: CampaignState, out: TickOut): void {
       route: [],
       leg: null,
       arrived: true,
+      // stojí, kde stála skupina jeho prvního muže – její paměť cesty vede sem
+      ...(from.crossings ? { crossings: from.crossings.map((c) => structuredClone(c)) } : {}),
     };
     for (const m of men) m.group = g.id;
     sendGroup(g, s.homes?.[villageId] ?? s.assembly);
@@ -933,7 +959,9 @@ function campaignBattle(s: CampaignState, ctx: TickContext, field: BattleField):
     if (m.status !== 'active' || m.wounded || !g || !sameCell(g.cell, s.target.cell)) return [];
     return [{ member, group: m.group, m, g }];
   });
-  // šik po skupinách – pět v řadě po 2 m, ať muži nestojí v jednom bodě
+  // šik po skupinách – pět v řadě po 2 m, ať muži nestojí v jednom bodě; místo, kam boj nevstoupí
+  // (hustý les u průseku, voda, sráz, skála), nahradí nejbližší průchodná buňka téže oblasti jako
+  // skupina (`formationSpot`)
   const rank = new Map<number, number>();
   const fighters = attackers.map(({ member, group, m, g }) => {
     const k = rank.get(group) ?? 0;
@@ -946,7 +974,11 @@ function campaignBattle(s: CampaignState, ctx: TickContext, field: BattleField):
       strength: m.strength * m.vigor,
       ...(m.bowSkill !== undefined ? { bowSkill: m.bowSkill } : {}),
       health: m.health,
-      pos: { x: g.pos.x + ((k % 5) - 2) * 2, z: g.pos.z + Math.floor(k / 5) * 2 },
+      pos: formationSpot(
+        field.grid,
+        { x: g.pos.x + ((k % 5) - 2) * 2, z: g.pos.z + Math.floor(k / 5) * 2 },
+        g.pos,
+      ),
     };
   });
   // Ú6.10 / aplikace: muži rodu v jiných vsích hráče (`lineMenElsewhere`) – zatím jen tato ves.
@@ -1551,9 +1583,14 @@ function paceOf(s: CampaignState, g: CampaignGroup): GroupPace {
  * Pohyb skupin o jeden takt: metry louky tempem skupiny (`marchSpeed` ÷ takty za sekundu) po
  * úseku mapy. Konec úseku na okraji = přechod na sousední mapu (zbytek taktu se nevyužije), konec
  * úseku v cíli = skupina stojí. Skupina bez mužů, nebo která nemá kudy, stojí. Před úsekem k cíli
- * se cíl v neprůchodné buňce posune na nejbližší dosažitelné místo (`settleGoal`).
+ * se cíl v neprůchodné buňce posune na nejbližší dosažitelné místo (`settleGoal`) – domů ne (návrat
+ * a rozpad: kdo domů nedojde, nedošel). Nemá-li skupina kudy domů, vrátí se, kudy přišla (Martin
+ * 17. 11. 2026 – „Vrátit se, kudy přišla“, `retraceCrossings`); nejde-li ani to, stojí, ale doma
+ * není (`arrived` zůstane – tažení neskončí) a další den to zkusí znovu (`stuckDay`; návrh Clauda –
+ * na zpáteční cestě rozkaz není) – domů se nikdy nepřenese.
  */
 function moveGroups(s: CampaignState, ctx: TickContext): void {
+  const home = s.phase === 'returning' || s.phase === 'disbanded';
   for (const g of s.groups) {
     if (g.arrived || g.goal === null) continue;
     const pace = paceOf(s, g);
@@ -1561,8 +1598,12 @@ function moveGroups(s: CampaignState, ctx: TickContext): void {
       g.arrived = true;
       continue;
     }
-    settleGoal(g, s.day, ctx);
-    const step = stepMover(g, g.goal.pos, marchSpeed(pace, s.day) / TICKS_PER_SECOND, s.day, ctx);
-    if (step === 'arrived' || step === 'stuck') g.arrived = true;
+    if (!home) settleGoal(g, s.day, ctx);
+    const speed = marchSpeed(pace, s.day) / TICKS_PER_SECOND;
+    let step = stepMover(g, g.goal.pos, speed, s.day, ctx);
+    if (step === 'stuck' && home && retraceCrossings(g, g.goal)) {
+      step = stepMover(g, g.goal.pos, speed, s.day, ctx);
+    }
+    if (step === 'arrived' || (step === 'stuck' && !home)) g.arrived = true;
   }
 }

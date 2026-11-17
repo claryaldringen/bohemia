@@ -65,8 +65,11 @@ const START_REACH_M = 30;
 /** Přístup k uzlu vzdušnou čarou se počítá tolikrát dráž než po cestě – osa začíná u brány, ne
  * zkratkou k dalšímu rozcestí. */
 const OFF_ROAD_FACTOR = 4;
-/** Konec úseku na kraji mapy – tolerance k pásu kraje, kde stezka končí (m). */
-const EDGE_SLACK_M = 1;
+/**
+ * Konec úseku na kraji mapy – tolerance k pásu kraje, kde stezka končí (m); týž predikát drží
+ * výstupy stezek na kraj mapy (`trailExitsOf`).
+ */
+export const EDGE_SLACK_M = 1;
 
 /** Uzel sítě – konec úseku (na setinu metru, jako `endKey` v roads-form.ts). */
 function nodeKey(p: { x: number; z: number }): string {

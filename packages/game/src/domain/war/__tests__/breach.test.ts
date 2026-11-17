@@ -56,11 +56,15 @@ function rampartPalisade(moat = false): Fortification {
   };
 }
 
-/** Útočníci z jihu (skupina 0) proti obránci doma uprostřed – hradba neobsazená. */
-function start(assault?: GroupAssault, men = 4): BattleState {
+/**
+ * Útočníci z jihu (skupina 0) proti obránci doma uprostřed – hradba neobsazená. Bojiště `f`
+ * s lesem na jihu (`forestSouth`) má (0, −100) v hustém lese – muži se sešikují na jeho kraji.
+ */
+function start(f: BattleField, assault?: GroupAssault, men = 4): BattleState {
   const b = battle({
     attackers: Array.from({ length: men }, (_, i) => attacker(i, { x: 0, z: -100 })),
     defenders: [defender(1, { x: 0, z: 0 }, { atHouseOnly: true, strength: 0.1 })],
+    field: f,
   });
   if (assault) b.groups[0]!.assault = assault;
   return b;
@@ -93,7 +97,7 @@ function timed(
 describe('oheň (Přechod hradby – Oheň)', () => {
   it('vypálit palisádu se 4 muži ≈ 12 h – otepi z lesa 4 h, hoří 8 h (2 přikládají)', () => {
     const f = fieldAt([palisade(false)], { forest: forestSouth });
-    const b = start('burn');
+    const b = start(f, 'burn');
     const h = timed(b, f, 1500);
     const br = b.breaches[0]!;
     expect(br.method).toBe('burn');
@@ -105,7 +109,7 @@ describe('oheň (Přechod hradby – Oheň)', () => {
 
   it('palisáda na valu: napřed zasypat val 20 h, pak otepi a oheň 12 h', () => {
     const f = fieldAt([rampartPalisade()], { forest: forestSouth });
-    const b = start('burn');
+    const b = start(f, 'burn');
     const h = timed(b, f, 2500);
     const br = b.breaches[0]!;
     expect(br.need.fill).toBe(80);
@@ -116,7 +120,7 @@ describe('oheň (Přechod hradby – Oheň)', () => {
 
   it('bránu palisády vypálí za 6 h – otepi 2 h, hoří 4 h', () => {
     const f = fieldAt([palisade(true)], { forest: forestSouth });
-    const b = start('burn');
+    const b = start(f, 'burn');
     const h = timed(b, f, 1500);
     const br = b.breaches[0]!;
     expect([br.spot, br.method, br.progress.breached]).toEqual(['gate', 'burn', true]);
@@ -126,7 +130,7 @@ describe('oheň (Přechod hradby – Oheň)', () => {
 
   it('otepi ze 200 m – sběr dvojnásobný', () => {
     const f = fieldAt([palisade(false)], { fuel: [{ x: 5, z: -231 }] });
-    const b = start('burn');
+    const b = start(f, 'burn');
     timed(b, f, 10);
     expect(b.breaches[0]!.need.fuel).toBeCloseTo(32, 6);
   });
@@ -135,7 +139,7 @@ describe('oheň (Přechod hradby – Oheň)', () => {
 describe('volba postupu (Přechod hradby – Proč takové pořadí)', () => {
   const method = (fort: Fortification, o: Parameters<typeof fieldAt>[1]): string => {
     const f = fieldAt([fort], o);
-    const b = start();
+    const b = start(f);
     run(b, f, 400);
     return b.breaches[0]!.method;
   };
@@ -156,6 +160,7 @@ describe('podkop (Přechod hradby – Podkop)', () => {
     const f = fieldAt([fortOf('crib')]);
     const b = battle({
       attackers: Array.from({ length: 4 }, (_, i) => attacker(i, { x: 0, z: -100 })),
+      field: f,
       defenders: [
         defender(1, { x: 0, z: 0 }, { atHouseOnly: true, strength: 0.1 }),
         // lučištník na stanovišti na koruně západní hradby – přijde k místu podkopu (Ú12)
@@ -213,7 +218,7 @@ describe('vodní příkop (Přechod hradby – S valem)', () => {
   it('v létě napřed zasypat 12 h, pak odkopat 20 h – zasypaným kusem k hradbě', () => {
     const f = fieldAt([rampartPalisade(true)], { day: SUMMER });
     expect(f.grid.flags.some((x) => (x & MARCH_WATER) !== 0)).toBe(true);
-    const b = start('dig');
+    const b = start(f, 'dig');
     const h = timed(b, f, 2500);
     const br = b.breaches[0]!;
     expect(br.moat).toBeDefined();
@@ -225,7 +230,7 @@ describe('vodní příkop (Přechod hradby – S valem)', () => {
 
   it('žebříky až po zasypání – v pruhu zasypání (návrh Clauda)', () => {
     const f = fieldAt([rampartPalisade(true)], { day: SUMMER, forest: forestSouth });
-    const b = start('ladder', 1);
+    const b = start(f, 'ladder', 1);
     let inside = -1;
     run(b, f, 3000, (t) => {
       const a = fighter(b, 'a:0');
@@ -248,7 +253,7 @@ describe('vodní příkop (Přechod hradby – S valem)', () => {
   it('zamrzlý (leden) jako suchý – bez zasypání', () => {
     const f = fieldAt([rampartPalisade(true)]);
     expect(f.grid.flags.some((x) => (x & MARCH_WATER) !== 0)).toBe(false);
-    const b = start('dig');
+    const b = start(f, 'dig');
     const h = timed(b, f, 2000);
     const br = b.breaches[0]!;
     expect(br.moat).toBeUndefined();
@@ -305,13 +310,13 @@ describe('po kouscích taktů (Review Focus 4)', () => {
 
   it('oheň s valem a vodním příkopem = vcelku', () => {
     const f = fieldAt([rampartPalisade(true)], { day: SUMMER, forest: forestSouth });
-    const whole = same(() => start('burn', 6), f, 900);
+    const whole = same(() => start(f, 'burn', 6), f, 900);
     expect(whole.breaches[0]!.progress.breached).toBe(true);
   });
 
   it('podkop s kopáči pod zemí = vcelku', () => {
     const f = fieldAt([fortOf('crib')]);
-    const whole = same(() => start('mine'), f, 600);
+    const whole = same(() => start(f, 'mine'), f, 600);
     expect(whole.fighters.some((x) => x.underground)).toBe(true);
   });
 });

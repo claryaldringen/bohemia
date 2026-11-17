@@ -35,6 +35,7 @@ import type { DecorModel } from './decor-placement';
 import { prepareDecorMaterial } from './decorations';
 import { loadMergedModel, setStaticInstances, type ModelInstance } from './instanced-model';
 import { hasStake } from './orchard-layout';
+import { roadsWithContinuations } from './swath-bands';
 import {
   TREE_STAKE,
   createTreeStakeMesh,
@@ -434,7 +435,8 @@ export class VillagePaths {
 
   /** Pevné cesty a stromy u nich z dat vsi – přestaví se jen při změně. */
   private updateRoads(village: SceneVillage): void {
-    const roads = village.roads ?? [];
+    // pokračování zemských stezek sousedních vsí je hotová upravená cesta jako ostatní
+    const roads = roadsWithContinuations(village);
     const roadKey = `${roadsKey(roads)}|${roadWorksKey(roads)}|${junctionsKey(village.junctions)}|${earthworkSlopeKey(village.earthworks ?? [])}`;
     if (roadKey !== this.roadKey) {
       this.roadKey = roadKey;

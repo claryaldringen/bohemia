@@ -137,6 +137,11 @@ export interface JourneyState {
   members: JourneyMember[];
   /** Hloučky všech skupin. */
   groups: JourneyGroup[];
+  /**
+   * Verze mřížky pochodu, podle které vznikly úseky hloučků (`MARCH_GRID_VERSION`); chybí = starší
+   * bod – `upgradeJourney` úseky zahodí (`replanLegs`).
+   */
+  marchGridVersion?: number;
   parties: JourneyParty[];
   /** Další volné id skupiny i hloučku (jedna řada). */
   nextId: number;

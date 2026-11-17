@@ -481,7 +481,45 @@ ground)`; půda `walkGroundOf(landscape)` je pevné okno kolem místa vsi, pole 
   nedovolí (`ROAD_SACRED`, `TRAIL_SACRED`). Starší vsi `withRoadSwaths` (bez klád, příznak
   `swathChecked`). `trailTerrain` je v `paths/terrain.ts`. Scéna: `SceneRoad.swath` →
   `swath-bands.ts` (plocha korun `setCleared(…, swaths)`, zarůstání `wildPlants`), dev ukázka
-  Stezka lesem (`dev-forest-trail.ts`). Vozová cesta průsek nedostane.
+  Stezka lesem (`dev-forest-trail.ts`). Vozová cesta průsek nedostane. **Průsek je i průchodem
+  vojska hustým lesem** (plán 2026-11-16-dense-forest – Rozhodnutí 2): mřížka pochodu dá pásu
+  `ROAD_SWATH.halfM` kolem osy každé pevné cesty vsi a stezky krajiny (`landscapeTrailLines`
+  v `trade/premium-route.ts` – i na mapě bez vsi) `MARCH_ROAD` × 1,5, hustým lesem průchodně;
+  vodu, sráz a skálu ruší jen buňky osy (code/war.md – Pohyb vojska – Mřížka). **Pokračování
+  a kus ke kraji** (plán 2026-11-16-dense-forest – Rozhodnutí 13; village-trade.md – Pokračování
+  na sousední mapě): průsek dostanou i osy pokračování stezek sousedních vsí na mapě
+  (`MarchGridOptions.trailContinuations` – i na mapě bez vsi) a kus od konce osy hotové stezky
+  vsi k bodu okraje jejího výstupu (`edgePieces` v `march-grid.ts` – konec do `TRAIL_END_BAND_M`
+  od bodu okraje v každé ose; stezka končí 20–30 m před krajem a hustý les v pásu u kraje by ji
+  jinak zavřel). Jen mřížka pochodu – pokračování nemá stavbu, kácení, klády ani pařezy a síť cest
+  vsi ho nezná. **Pokračování ve scéně a na
+  minimapě** (Martin 16. 11. 2026: mapa rodu nebo vazala se kreslí celá jako vlastní, u nepřítele
+  a neutrála je mlha války): `mapTrailContinuations` (application/neighbour-trails.ts) dá osy,
+  `sceneTrailContinuations` (`lib/trail-view.ts`) z nich složí `SceneVillage.trailContinuations` –
+  `SceneRoad` s id −1, −2 …, stupeň `improved`, `swath`. Vlastní ves je dostane z `viewOf`
+  (`village.ts` → `VillageViewContext.trailContinuations`), cizí mapa tažení a výjezdu z
+  `ForeignMap.trailContinuations` (`foreignMapOf` v `foreign-map.ts`; známá mapa je nemá –
+  nese jen znalost rodu) přes `withTrailContinuations`, i na mapě bez staveb. Co z os cizí mapa
+  dostane, rozhoduje use-case `foreignMapTrails` (application/neighbour-trails.ts – porty
+  `AlarmOwnerPort.ownerOf`, `HouseRepository.activeOf`, `VassalageRepository.edgesNear`,
+  `KnowledgeRepository.of`; web jen skládá adaptéry): mapa vsi rodu hráče nebo vazala (i vazala
+  vazala, `treeBelow` do `VASSALAGE.noticeDepth`) má osy celé a `friendly`; jinde (nepřítel,
+  neutrál, NPC, mapa bez vsi) jen části v dohledu stopy toho, co o mapě ví rod a muži hráče teď
+  (`axesInSight` – znalost rodu a `ExpeditionView.seen` výjezdu či `WarSceneView.known` tažení,
+  dohled jako mlha prohlížeče, vzorky po 5 m; návrh Clauda podle D62 – server cizí stavby mimo
+  dohled neposílá). S novou stopou je scéna dočte (`useForeignTrails` – `?map=<x>,<y>&trails`,
+  po 8 bodech stopy); scéna cizí mapy se přestaví jen při změně obsahu os (`axesKey`). Kreslí je
+  `path-renderer.ts` (`roadsWithContinuations` v `swath-bands.ts`) jako hotovou cestu a minimapa
+  (`drawMinimapVillage`) čarou – minimapa kreslí jen dostavěné zemské stezky vsi (`trails`) a
+  jejich pokračování, ostatní cesty vsi ne (Martin si je nežádal). **Nad mlhou:** `ForeignMap.friendly`
+  (`foreignMapTrails` – ves na mapě patří rodu hráče nebo jeho vazalovi) →
+  `LandscapeScene.setFriendlyMap` → `litCells` (`fog-of-war.ts`) vynechá pásy pokračování ze
+  závoje (`ArmyRenderer.setLitBands`; `fogAt` pak vrací `lit`); mapa nepřítele a neutrála zůstává
+  pod mlhou jako ostatní krajina; `swathBands` z nich dělá pás pro plochu korun a zarůstání.
+  Stromy a keře vrstvy překážek v pásu skrývá `landscape-scene.ts` (`swathObstacleIds`, id jdou do
+  `hiddenIds` jako pokácené stromy vsi, bez pařezů). Pokračování nejde vybrat klikem ani
+  zvýraznit (`village-picking.ts`, `selection-highlight.ts` čtou jen `roads`); stromy se kácí jen
+  podél poslaných částí os. Průchodnost se mlhou nemění – server počítá pochod s celou osou.
 
 - **Cesta přes pole** ([roads.md](../design/roads.md) – Cesta přes pole; Martin 19. 10. 2026:
   „Ano má. … pokud oráč narazí na cestu, tak spřežení otočí. Nebude pak moci vzniknout takový

@@ -3,20 +3,24 @@ import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 import { test, expect, type Page } from '@playwright/test';
 import {
+  GRID_STEPS,
   marchGrid,
   marchPath,
   newCampaign,
   obstaclesOf,
   resolveWorldClock,
   tickOfMs,
+  villageGate,
   type CampaignMember,
+  type Direction8,
 } from '@bohemia/game';
 import { E2E_ENV } from '../playwright.config';
-import { registerAndEnterGame, uniqueEmail, useUniqueClientIp } from './helpers';
+import { registerAndEnterGame, sceneSettled, uniqueEmail, useUniqueClientIp } from './helpers';
 import { linkFromLastMail } from './mail';
 import {
   changeVillageState,
   confirmPlacement,
+  crossesTo,
   found,
   newPlayer,
   pollVillage,
@@ -27,7 +31,10 @@ import {
   withBuiltFirstDwelling,
   villageState,
   villageStateById,
+  trailAxes,
+  withTrail,
   writeVillageState,
+  type CrossingMap,
 } from './village-helpers';
 
 // Víc hráčů ve světě (vassalage.md): pozvánka → pozvaný je vazal pozvatele, pozvatel dostane
@@ -297,6 +304,9 @@ test('podmínky vazalství: ikony v panelu, nové podmínky odmítnuty, vypověz
   const { seat } = await newPlayer(a, 'podmra');
   await found(a, villageSpots(seat.landscape).dwelling);
   const emailB = await registerAndEnterGame(b, 'podmrb');
+  // B se po umístění načte znovu – jednat až po prvním vykreslení scény, jinak panel B po přijetí
+  // v limitu 5 s nestihne ukázat pána (pomalý první snímek zablokuje stránku)
+  await sceneSettled(b);
   const idB = await houseIdOf(emailB);
 
   // A nabídne B vazalství s dávkou obilí a vojenskou službou
@@ -955,12 +965,58 @@ test('vojsko: A je ve válce s C, otevře panel Vojsko, naplánuje tažení na C
   await expect(a.getByTestId('war-count')).toHaveAttribute('data-wars', '1', { timeout: 30_000 });
   // nová ves C je pět herních let pod ochranou – pro test ji „zestárneme“
   const stateC = await villageState(seatC.settlementId);
-  await writeVillageState(seatC.settlementId, { ...stateC, foundedDay: stateC.foundedDay - 4000 });
+  const oldC = { ...stateC, foundedDay: stateC.foundedDay - 4000 };
+  await writeVillageState(seatC.settlementId, oldC);
 
   // zásoby ve dvorci A a klik na dvorec – panel dvorce s tlačítkem Vojsko
   const stateA = withBuiltFirstDwelling(await villageState(seatA.settlementId));
   Object.assign(stateA, { storesKg: 4000 });
-  await writeVillageState(seatA.settlementId, stateA);
+  // plán tažení ověří cestu ze shromaždiště k cíli (Martin 17. 11. 2026 – „Nesmí do tažení“;
+  // `noTargetRoute`): ves C proto na volné políčko vedle A, kam vojsko od branky A dojde až
+  // k brance C (`crossesTo`) – krajina C vznikla pro jiné políčko a hustý les je neprůchodný; kde
+  // cestu zavře, otevře ji zemská stezka A (průsek ke kraji a pokračování na mapě C – `withTrail`)
+  const occupied = await query<{ grid_x: number; grid_y: number }>(
+    `SELECT grid_x, grid_y FROM settlement WHERE archived_at IS NULL AND grid_x IS NOT NULL`,
+    [],
+  );
+  const [rowA] = await query<{ grid_x: number | null; grid_y: number | null }>(
+    `SELECT grid_x, grid_y FROM settlement WHERE id = $1`,
+    [seatA.settlementId],
+  );
+  const cellA = { x: rowA?.grid_x ?? 0, y: rowA?.grid_y ?? 0 };
+  const mapA: CrossingMap = { cell: cellA, landscape: seatA.landscape, state: stateA };
+  const gateC = villageGate(oldC, seatC.landscape);
+  const mapCAt = (cell: { x: number; y: number }): CrossingMap => ({
+    cell,
+    landscape: seatC.landscape,
+    state: oldC,
+  });
+  const sides = (Object.keys(GRID_STEPS) as Direction8[])
+    .filter((d) => d.length === 1)
+    .map((d) => ({ d, cell: { x: cellA.x + GRID_STEPS[d].x, y: cellA.y + GRID_STEPS[d].y } }))
+    .filter(({ cell }) => !occupied.some((r) => r.grid_x === cell.x && r.grid_y === cell.y));
+  let side = sides.find(({ cell }) =>
+    crossesTo(mapA, villageGate(stateA, seatA.landscape), mapCAt(cell), gateC),
+  );
+  let homeA = stateA;
+  for (const s of side ? [] : sides) {
+    const withA = withTrail(stateA, s.d, seatA.landscape);
+    if (!withA) continue;
+    const from = { ...mapA, state: withA };
+    const axes = trailAxes(from, mapCAt(s.cell));
+    if (crossesTo(from, villageGate(withA, seatA.landscape), mapCAt(s.cell), gateC, axes)) {
+      side = s;
+      homeA = withA;
+      break;
+    }
+  }
+  if (!side) throw new Error('Mapa C nenavazuje na mapu A z žádné volné strany ani se stezkou.');
+  await query(`UPDATE settlement SET grid_x = $2, grid_y = $3 WHERE id = $1`, [
+    seatC.settlementId,
+    side.cell.x,
+    side.cell.y,
+  ]);
+  await writeVillageState(seatA.settlementId, homeA);
   await pollVillage(a);
   await a.keyboard.press('r');
   const panel = a.getByTestId('selection-panel');

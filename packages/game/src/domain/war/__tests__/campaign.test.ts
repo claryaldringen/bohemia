@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { realTimeOf } from '../../calendar';
-import type { StreamPoint } from '../../landscape';
+import { SURFACE_CODES, type StreamPoint } from '../../landscape';
 import { areaOutline, fortificationArea, fortSegments } from '../../village';
 import type { Fortification } from '../../village/fortification/types';
 import { horse, horsePen } from '../../village/__tests__/horse-fixtures';
@@ -15,6 +15,7 @@ import type {
   VillageState,
 } from '../../village/types';
 import { stepCampaign } from '../campaign';
+import { attacker, battle, defender } from './battle-fixtures';
 import type {
   CampaignIntent,
   CampaignMap,
@@ -22,6 +23,7 @@ import type {
   CampaignStep,
   CampaignWorld,
 } from '../campaign-types';
+import { marchCellAt, marchGrid, MarchGridMemo } from '../march-grid';
 import { JOURNEY } from '../rules-war';
 import { mergeKnowledge, type KnowledgeOut, type SeenCell } from '../seen';
 import { dayOfTick, msOfTick, TICK_MS, tickOfMs } from '../ticks';
@@ -31,7 +33,9 @@ import {
   intent,
   LAUNCH,
   LIVE,
+  MEADOW,
   SET_OUT,
+  stepInChunks,
   SUMMER,
   SUMMER_DATE,
   world,
@@ -209,7 +213,9 @@ describe('stepCampaign', () => {
     );
     const last = partial.state.tick;
     expect(partial.waiting?.cells).toEqual([{ x: 1, y: 0 }]);
-    expect(last).toBeGreaterThan(LAUNCH + 10);
+    // mapu dalšího políčka čte už úsek k okraji (přechod jen do průchozí buňky – plán
+    // 2026-11-16-dense-forest, Rozhodnutí 8), tedy takt vyslání LAUNCH + 2 – dřív až takt přechodu
+    expect(last).toBe(LAUNCH + 1);
     const upTo = stepCampaign(start, last, LIVE, worldOf());
     expect(partial.state).toStrictEqual(upTo.state);
     expect(partial.villageEvents).toEqual(upTo.villageEvents);
@@ -224,6 +230,35 @@ describe('stepCampaign', () => {
     );
     expect(JSON.stringify(again.state)).toBe(json);
     expect(again.waiting?.cells).toEqual([{ x: 1, y: 0 }]);
+  });
+
+  it('chybějící mapa až druhého políčka trasy: vrátí se po několika taktech pochodu (oprava Úlohy 5)', () => {
+    // cíl o dvě mapy dál – mapa (2; 0) chybí; skupina přejde na (1; 0), úsek k jejímu okraji pak
+    // čte mapu (2; 0) a takt počká – výsledkem je stav na konci posledního celého taktu
+    const far = {
+      villageId: 'knezice',
+      cell: { x: 2, y: 0 },
+      pos: { x: -880, z: 30 },
+    };
+    const start = deepFreeze(campaign({ target: far }));
+    const partial = stepCampaign(
+      start,
+      END,
+      LIVE,
+      worldOf((c) => c.x <= 1),
+    );
+    expect(partial.waiting?.cells).toEqual([{ x: 2, y: 0 }]);
+    const last = partial.state.tick;
+    expect(last).toBeGreaterThan(LAUNCH + 10);
+    // první skupina už přešla na (1; 0) – její úsek k okraji potřebuje mapu (2; 0)
+    expect(partial.state.groups.some((g) => g.cell.x === 1 && g.cell.y === 0)).toBe(true);
+    const upTo = stepCampaign(start, last, LIVE, worldOf());
+    expect(partial.state).toStrictEqual(upTo.state);
+    expect(partial.villageEvents).toEqual(upTo.villageEvents);
+    // po načtení mapy pokračuje se stejným výsledkem jako vcelku
+    const rest = stepCampaign(partial.state, last + 400, LIVE, worldOf());
+    const whole = stepCampaign(start, last + 400, LIVE, worldOf());
+    expect(JSON.stringify(rest.state)).toBe(JSON.stringify(whole.state));
   });
 
   it('cíl ve vodě: skupiny jdou na nejbližší dosažitelný břeh, nestojí (jako v 0 A.D.)', () => {
@@ -268,6 +303,116 @@ describe('stepCampaign', () => {
   });
 });
 
+describe('rozjeté úseky po změně mřížky (plán 2026-11-16-dense-forest – Rozhodnutí 9)', () => {
+  // domovská mapa: hustý les na políčkách x 77–97, y 54–74 (svět x 195…510 m, z −150…165 m)
+  const meadow = flat();
+  const surface = Uint8Array.from(meadow.surface);
+  for (let ty = 54; ty < 75; ty++) {
+    for (let tx = 77; tx < 98; tx++) surface[ty * meadow.size + tx] = SURFACE_CODES.forest;
+  }
+  const woods: CampaignMap = { landscape: { ...meadow, surface }, obstacles: null, villageIds: [] };
+  const woodsWorld: CampaignWorld = {
+    ...worldOf(),
+    landscapeOf: (c) => (c.x === 0 && c.y === 0 ? woods : MEADOW),
+  };
+
+  /** Bod uložený před jemnou mřížkou: bez verze, skupiny v lese na úseku přímo lesem k okraji. */
+  function oldPoint(): CampaignState {
+    const run = stepCampaign(campaign(), LAUNCH + 10, LIVE, woodsWorld);
+    expect(run.state.phase).toBe('marching');
+    const point = JSON.parse(JSON.stringify(run.state)) as CampaignState;
+    delete point.marchGridVersion;
+    for (const g of point.groups) {
+      g.cell = { x: 0, y: 0 };
+      g.pos = { x: 300, z: 0 };
+      g.route = [{ x: 1, y: 0 }];
+      g.arrived = false;
+      g.leg = {
+        points: [
+          { x: 100, z: 0 },
+          { x: 958.75, z: 0 },
+        ],
+        meadowM: [0, 858.75],
+        walkedM: 200,
+      };
+    }
+    return point;
+  }
+
+  it('první takt úseky zahodí a nastaví verzi; nový úsek vede jen průchozími buňkami', () => {
+    const point = oldPoint();
+    const grid = marchGrid(woods.landscape, null, null, { day: point.day });
+    expect(grid.pace[marchCellAt(grid, point.groups[0]!.pos)]).toBe(0);
+    const one = stepCampaign(point, point.tick + 1, LIVE, woodsWorld);
+    expect(one.waiting).toBeNull();
+    expect(one.state.marchGridVersion).toBe(2);
+    expect(point.marchGridVersion).toBeUndefined();
+    for (const g of one.state.groups) {
+      const leg = g.leg!;
+      expect(leg.points[0]).toEqual({ x: 300, z: 0 });
+      // první úsek je únik z lesa, ostatní buňky trasy průchozí
+      for (let k = 2; k < leg.points.length; k++) {
+        const a = leg.points[k - 1]!;
+        const b = leg.points[k]!;
+        const n = Math.max(1, Math.ceil(Math.hypot(b.x - a.x, b.z - a.z) / 0.25));
+        for (let s = 0; s <= n; s++) {
+          const p = { x: a.x + ((b.x - a.x) * s) / n, z: a.z + ((b.z - a.z) * s) / n };
+          expect(grid.pace[marchCellAt(grid, p)]!).toBeGreaterThan(0);
+        }
+      }
+    }
+  });
+
+  it('rozjetý boj: muž v dnešním hustém lese přejde jednou na průchodné místo (drobnost 6)', () => {
+    // boj na mapě cíle (1; 0) s hustým lesem; bod uložený dřív – útočník stojí v lese, kde se
+    // nepohne (`stepToward`), boj by zamrzl
+    const targetWoods: CampaignWorld = {
+      ...worldOf(),
+      landscapeOf: (c) => (c.x === 1 && c.y === 0 ? woods : MEADOW),
+    };
+    const point = JSON.parse(JSON.stringify(campaign())) as CampaignState;
+    delete point.marchGridVersion;
+    point.phase = 'raiding';
+    for (const g of point.groups) {
+      g.cell = { x: 1, y: 0 };
+      g.pos = { x: 150, z: 0 };
+      g.route = [];
+      g.arrived = true;
+    }
+    const b = battle({
+      attackers: [0, 1].map((k) => attacker(k, { x: 150, z: 4 * k })),
+      defenders: [defender(1, { x: -300, z: 0 }, { atHouseOnly: true })],
+    });
+    b.openTick = point.tick;
+    const inWoods = b.fighters.find((f) => f.side === 'attack')!;
+    inWoods.pos = { x: 300, z: 0 };
+    point.battle = b;
+    const grid = marchGrid(woods.landscape, null, null, { day: point.day });
+    expect(grid.pace[marchCellAt(grid, inWoods.pos)]).toBe(0);
+    const one = stepCampaign(point, point.tick + 1, LIVE, targetWoods);
+    expect(one.waiting).toBeNull();
+    expect(one.state.marchGridVersion).toBe(2);
+    const moved = one.state.battle!.fighters.find((f) => f.id === inWoods.id)!;
+    expect(grid.pace[marchCellAt(grid, moved.pos)]!).toBeGreaterThan(0);
+    // nejbližší průchodná buňka je u západního kraje hustého lesa (x ≈ 205 m)
+    expect(moved.pos.x).toBeLessThan(215);
+    expect(moved.pos.x).toBeGreaterThan(150);
+    // druhý muž stál na louce – zůstal (jen krok boje)
+    const other = one.state.battle!.fighters.find((f) => f.side === 'attack' && f !== moved)!;
+    expect(Math.hypot(other.pos.x - 150, other.pos.z - 4)).toBeLessThan(2);
+  });
+
+  it('týž bod po 400 × 1 taktu = 1 × 400 taktů (stejný JSON)', () => {
+    const point = oldPoint();
+    const end = point.tick + 400;
+    const whole = stepCampaign(point, end, LIVE, woodsWorld);
+    expect(whole.waiting).toBeNull();
+    const parts = stepInChunks(point, end, { chunk: 1, world: woodsWorld, intents: LIVE });
+    expect(JSON.stringify(parts.state)).toBe(JSON.stringify(whole.state));
+    expect(parts.villageEvents).toEqual(whole.villageEvents);
+  });
+});
+
 describe('znalost rodu z tažení (plán 2026-11-13 – Úloha 11)', () => {
   const TARGET: CampaignMap = { landscape: flat(), obstacles: null, villageIds: ['knezice'] };
   const OPEN: CampaignMap = { landscape: flat(), obstacles: null, villageIds: [] };
@@ -292,6 +437,8 @@ describe('znalost rodu z tažení (plán 2026-11-13 – Úloha 11)', () => {
       clock: world,
       landscapeOf: (cell) => (cell.x === 1 && cell.y === 0 ? TARGET : OPEN),
       villageAt: (id) => (id === 'knezice' ? state : null),
+      // mřížky napříč voláními jako worker – kroky po kouscích by jemnou mřížku stavěly znovu
+      grids: new MarchGridMemo(),
     };
   }
   const TARGET_STATE = knezice();

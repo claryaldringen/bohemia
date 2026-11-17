@@ -80,3 +80,19 @@ export async function registerAndEnterGame(page: Page, prefix: string): Promise<
   if (await placeIsolatedPlayer(email)) await page.reload();
   return email;
 }
+
+/**
+ * Počká, až scéna dostaví krajinu a vykreslí první snímek. Bezhlavý Chromium kreslí softwarově
+ * a první snímek po `data-scene-ready` zablokuje stránku na několik sekund (měřeno ≈ 5 s pod
+ * zátěží) – krok testu s výchozím limitem 5 s by v tu chvíli nestihl ani změnu panelu.
+ */
+export async function sceneSettled(page: Page): Promise<void> {
+  await expect(page.locator('canvas[data-scene-ready="true"]')).toBeAttached({ timeout: 120_000 });
+  // dva snímky prohlížeče – druhý přijde až po prvním (pomalém) vykreslení scény
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) => {
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+      }),
+  );
+}

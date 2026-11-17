@@ -107,7 +107,10 @@ function raidOf(step: CampaignStep): RaidResult {
   return raid.result;
 }
 
-/** Krokuje po taktu, dokud stav na konci taktu nesplní `until`; vrací ten stav. */
+/**
+ * Krokuje po taktu, dokud stav na konci taktu nesplní `until`; vrací ten stav. Skončené tažení takt
+ * dál neposouvá (`stepCampaign`) – bez kontroly by smyčka běžela navždy.
+ */
 function stepUntil(
   start: CampaignState,
   intents: readonly CampaignIntent[],
@@ -115,13 +118,13 @@ function stepUntil(
   until: (s: CampaignState) => boolean,
 ): CampaignState {
   let s = start;
-  while (s.tick < END) {
+  while (s.tick < END && !campaignFinished(s)) {
     const step = stepCampaign(s, s.tick + 1, intents, w);
     expect(step.waiting).toBeNull();
     s = step.state;
     if (until(s)) return s;
   }
-  throw new Error('stav nenastal');
+  throw new Error(`stav nenastal (takt ${s.tick}, fáze ${s.phase})`);
 }
 
 const fighting = (s: CampaignState): boolean => s.battle?.outcome === 'ongoing';
@@ -299,8 +302,14 @@ describe('vzdání vojvody v tažení', () => {
     );
     expect(decided.groups.some((g) => sameCell(g.cell, KNEZICE))).toBe(true);
     expectRefused(decided, w, surrender(decided.tick + 1));
-    // vojvoda v boji padl – ve stavu vsi je až do výsledku nájezdu, vzdát se už nemůže
-    const dead = stepUntil(campaign({ ...BASE, liveCommand: false }), SET_OUT, w, killed(1));
+    // vojvoda v boji padl – ve stavu vsi je až do výsledku nájezdu, vzdát se už nemůže. Kdo z obránců
+    // padne, záleží na příchodu vojska (tvar trasy – plán 2026-11-16-dense-forest), pád vojvody se
+    // proto nastaví v běžícím boji
+    const dead = stepUntil(campaign({ ...BASE, liveCommand: false }), SET_OUT, w, fighting);
+    const lord = dead.battle!.fighters.find((f) => f.side === 'defend' && f.ref === 1)!;
+    lord.killed = true;
+    lord.health = 0;
+    expect(killed(1)(dead)).toBe(true);
     const after = stepCampaign(dead, dead.tick + 1, [surrender(dead.tick + 1)], w);
     expect(after.state.battle?.lordYielded).toBeUndefined();
     expect(after.state.returnReason).not.toBe('yielded');

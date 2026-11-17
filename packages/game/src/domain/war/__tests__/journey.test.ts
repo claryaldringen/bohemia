@@ -17,7 +17,7 @@ import type {
   JourneyState,
   JourneyStep,
 } from '../journey-types';
-import type { Pos } from '../march-grid';
+import { MarchGridMemo, type Pos } from '../march-grid';
 import { JOURNEY, WAR } from '../rules-war';
 import { mergeKnowledge, type SeenCell } from '../seen';
 import { dayOfTick, hoursPerTick, msOfTick, TICKS_PER_SECOND } from '../ticks';
@@ -88,6 +88,8 @@ function worldOf(spec: WorldSpec = {}): CampaignWorld {
     landscapeOf: spec.mapOf ?? ((): CampaignMap => MEADOW),
     villageAt: spec.villageAt ?? ((villageId): VillageState | null => villages[villageId] ?? null),
     villageGone: (villageId) => !(villageId in villages),
+    // mřížky napříč voláními jako worker – kroky po kouscích by jemnou mřížku stavěly znovu
+    grids: new MarchGridMemo(),
     ...spec.extra,
   };
 }
@@ -332,10 +334,12 @@ describe('rozkaz cross', () => {
     const there = stepJourney(start, LAUNCH + 900, [], worldOf());
     expect(there.waiting).toBeNull();
     expect(phaseOf(there.state)).toBe('out');
-    // východním okrajem (x = 955) na západní okraj sousední mapy
+    // východním okrajem na západní okraj sousední mapy – střed okrajové buňky (960 − půl buňky),
+    // řádek buňky u z = 5 (střed 6,25 při buňce 2,5 m)
+    const edge = { x: -(960 - WAR.march.cellM / 2), z: 6.25 };
     expect(there.state.groups[0]).toMatchObject({
       cell: EAST,
-      pos: { x: -955, z: 5 },
+      pos: edge,
       route: [],
       arrived: true,
     });
@@ -346,7 +350,7 @@ describe('rozkaz cross', () => {
     expect(arrivedOf(before)).toBeNull();
     // stojí – další takty polohu nemění, lhůta čekání běží od přechodu
     const later = stepJourney(there.state, at + WAIT, [], worldOf()).state;
-    expect(later.groups[0]!.pos).toEqual({ x: -955, z: 5 });
+    expect(later.groups[0]!.pos).toEqual(edge);
     expect(phaseOf(later)).toBe('out');
     expect(phaseOf(stepJourney(later, at + WAIT + 1, [], worldOf()).state)).toBe('returning');
   });
@@ -818,11 +822,12 @@ describe('chybějící mapa', () => {
     const whole = stepJourney(start, TRIP_END, TRIP, worldOf());
     const partial = stepJourney(start, TRIP_END, TRIP, onlyHome);
     expect(partial.waiting).toEqual({ cells: [EAST], villageIds: [] });
-    // na sousední mapě se muži hned rozhlédnou (Úloha 6) – mapu čte už takt přechodu okraje,
-    // krok skončí taktem před ním u okraje domovské mapy
+    // mapu sousední mapy čte už úsek k okraji (přechod jen do průchozí buňky – plán
+    // 2026-11-16-dense-forest, Rozhodnutí 8): krok skončí taktem před rozkazem „Přes okraj“
+    expect(partial.state.tick).toBe(LAUNCH + 299);
     expect(partial.state.groups[0]!.cell).toEqual(HOME.cell);
-    const crossing = stepJourney(partial.state, partial.state.tick + 1, TRIP, worldOf());
-    expect(crossing.state.groups[0]!.cell).toEqual(EAST);
+    const order = stepJourney(partial.state, partial.state.tick + 1, TRIP, worldOf());
+    expect(order.state.groups[0]!.leg).not.toBeNull();
     const upTo = stepJourney(start, partial.state.tick, TRIP, worldOf());
     expect(partial.state).toStrictEqual(upTo.state);
     expect(partial.villageEvents).toEqual(upTo.villageEvents);

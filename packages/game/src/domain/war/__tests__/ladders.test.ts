@@ -112,6 +112,7 @@ describe('žebřík přes neobsazenou hradbu (Přechod hradby)', () => {
     const b = battle({
       attackers: Array.from({ length: 4 }, (_, i) => attacker(i, { x: 0, z: -100 })),
       defenders: [defender(1, { x: 0, z: 0 }, { atHouseOnly: true, strength: 0.1 })],
+      field: f,
     });
     run(b, f, 400);
     expect(b.closedGates).toHaveLength(1);
@@ -160,6 +161,7 @@ describe('postup zvolený hráčem (Martin 8. 11. 2026 – „ano“)', () => {
     const b = battle({
       attackers: Array.from({ length: 4 }, (_, i) => attacker(i, { x: 0, z: -100 })),
       defenders: [defender(1, { x: 0, z: 0 }, { atHouseOnly: true, strength: 0.1 })],
+      field: f,
     });
     b.groups[0]!.assault = 'ladder';
     run(b, f, 400);

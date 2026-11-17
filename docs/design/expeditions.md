@@ -96,6 +96,15 @@ rozhraní, ale prostě skupina lidí, které hráč označil.
   říkáš“).
 - **Hustý les je neprůchozí** i pro výpravy (Martin 16. 11. 2026 – [válka](war.md) – Terén);
   výprava jde nejkratší průchozí cestou, hustým lesem jen po zemské stezce nebo pevné cestě.
+- **Uvíznutí a start** (návrh Clauda 16. 11. 2026): skupina, která nemá kudy dál, stojí a další
+  pokus podnikne až po novém rozkazu; na tranzitní mapě může skončit i ve slepé kapse. Tažení,
+  útěk i poslové startují u branky dvorce jako výpravy. Cesta mezi mapami je čtyřsousedná
+  (úhlopříčný soused přes ortogonální mapu).
+- **Uvízlý návrat – „Vrátit se, kudy přišla“** (Martin 17. 11. 2026, volba v otázce): skupina
+  na návratu, která nemá kudy domů, půjde zpět přes stejné mapy a stejná místa na okrajích, kudy
+  přišla. Stát zůstane (a čekat na rozkaz), jen když i ta cesta mezitím zmizí. Nikdy se nepřenese
+  domů. Návrh Clauda: uvízlá skupina na návratu to navíc zkouší znovu každý herní den (vede-li
+  cesta zase – stezka –, dojde); výprava do té doby běží.
 - **Šelmy** napadnou na stezce hustým lesem osamělého člověka nebo skupinku nejvýš dvou lidí – i ženu
   s dítětem, ne jen muže (Martin 14. 11. 2026: „K těm šelmám ano, je to tak jak říkáš“). Čísla
   jako u výjezdu ([výjezd](lord-control.md) – Nebezpečí) s bojem každého člověka – kdo se bránit

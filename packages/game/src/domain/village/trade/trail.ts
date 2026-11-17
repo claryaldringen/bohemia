@@ -106,7 +106,7 @@ const STEPS: readonly [number, number, number][] = [
 ];
 
 /** Nejbližší schůdná buňka k bodu (do 10 buněk), nebo −1. */
-function nearestPassable(terrain: PathTerrain, x: number, z: number): number {
+export function nearestTrailCell(terrain: PathTerrain, x: number, z: number): number {
   const ci = Math.round((x - terrain.originX) / terrain.cellM);
   const cj = Math.round((z - terrain.originZ) / terrain.cellM);
   for (let r = 0; r <= 10; r++) {
@@ -136,7 +136,7 @@ function nearestPassable(terrain: PathTerrain, x: number, z: number): number {
  * Nejlevnější chůze z buňky `start` do všech buněk krajiny (Dijkstra, 8 sousedů): cena kroku =
  * délka × průměr ceny obou buněk, u pevné cesty × TRAIL.roadDiscount.
  */
-function walkAll(
+export function walkAll(
   terrain: PathTerrain,
   mask: Uint8Array,
   start: number,
@@ -227,7 +227,7 @@ function targetCell(
  */
 const sacredMaskCache = new WeakMap<PathTerrain, Uint8Array>();
 
-function sacredMask(terrain: PathTerrain, layer: ObstacleLayer): Uint8Array {
+export function sacredMask(terrain: PathTerrain, layer: ObstacleLayer): Uint8Array {
   const cached = sacredMaskCache.get(terrain);
   if (cached) return cached;
   const mask = new Uint8Array(terrain.width * terrain.height);
@@ -327,7 +327,7 @@ export function trailRoutes(
   const hit = cache.get(key);
   if (hit) return hit;
   const terrain = trailTerrain(landscape, obstacles);
-  const start = nearestPassable(terrain, from.x, from.z);
+  const start = nearestTrailCell(terrain, from.x, from.z);
   const routes = {} as Record<Direction8, RoadPoint[] | null>;
   if (start < 0) {
     for (const d of DIRECTIONS) routes[d] = null;
@@ -351,7 +351,7 @@ export function trailRoutes(
 }
 
 /** Osa trasy z buněk (od výchozího bodu) – zjednodušená a vyhlazená, na centimetry. */
-function traceRoute(
+export function traceRoute(
   terrain: PathTerrain,
   prev: Int32Array,
   target: number,

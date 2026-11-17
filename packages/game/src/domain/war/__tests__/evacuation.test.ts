@@ -12,14 +12,14 @@ import type {
   CampaignMap,
   CampaignNotice,
   CampaignState,
-  CampaignStep,
   CampaignWorld,
 } from '../campaign-types';
 import { alarmTaken } from '../evacuation';
-import { MarchGridMemo } from '../march-grid';
+import { nearestForestDoor } from '../forest-doors';
+import { marchCellAt, marchGrid, MarchGridMemo } from '../march-grid';
 import { dayOfTick } from '../ticks';
 import { land, palisade } from './battle-fixtures';
-import { campaign, intent, member, MEADOW, SUMMER, world } from './campaign-fixtures';
+import { campaign, intent, MEADOW, member, stepInChunks, SUMMER, world } from './campaign-fixtures';
 
 // Evakuace v tažení (war.md – Varování, poslové a útěk do hradiště; plán 2026-11-09 – Úloha 8,
 // Otevřené 7, 8, Review Focus 2, 3). Ves A (políčko 1, 0) má dům u východního okraje mapy
@@ -166,9 +166,14 @@ interface Run {
  * Tažení po herních dnech jako u workeru (bariéra Ú6.7): ves A dopočte den, až ho tažení dokončí –
  * odchod skupiny (`refuge-depart` na týž den) zná stav vsi až ode dne nato.
  */
-function live(start: CampaignState, end: number, intents: readonly CampaignIntent[]): Run {
+function live(
+  start: CampaignState,
+  end: number,
+  intents: readonly CampaignIntent[],
+  overrides: Partial<CampaignWorld> = {},
+): Run {
   let a = villageA();
-  const w = worldWith(() => a);
+  const w = worldWith(() => a, overrides);
   const events: NewVillageEvent[] = [];
   const notices: CampaignNotice[] = [];
   let s = start;
@@ -194,6 +199,8 @@ function flightOf(state: CampaignState): AlarmFlight {
   if (!f) throw new Error('skupina neodešla');
   return f;
 }
+
+const flightHidden = (s: CampaignState): boolean => s.alarm?.flights[0]?.status === 'hidden';
 
 /** Jídlo skupiny od dne odchodu do dne příchodu (každý den podle věku – jako host). */
 function eatenOnTheWay(people: readonly RefugeePerson[], fromDay: number, toDay: number): number {
@@ -294,6 +301,25 @@ describe('evakuace do hradiště (Úloha 8)', () => {
     expect(restart.events.filter((e) => e.body.kind === 'raid-result')).toEqual([]);
   });
 
+  it('cesta do hradiště nevede – průvod nevyrazí a při nájezdu lidé utečou do lesa i s dobytkem (Martin 17. 11. 2026)', () => {
+    // hradiště C od západu odřízne hustý les (pás 600 m) – z vsi A k němu cesta nevede
+    const cut = mapOf(['c'], (tx) => tx < 40);
+    const landscapeOf = (cell: GridCell): CampaignMap =>
+      cell.x === C.x && cell.y === C.y ? cut : (MAPS[`${cell.x},${cell.y}`] ?? MEADOW);
+    const start = approaching();
+    const t0 = start.tick + 1;
+    const run = live(start, start.tick + END, [flee(t0, 'all'), flee(t0 + 5, 'people')], {
+      landscapeOf,
+    });
+    expect(run.state.alarm!.flights).toEqual([]);
+    expect(run.state.alarm!.villages[0]!.flight).toBeUndefined();
+    expect(run.events.filter((e) => e.body.kind.startsWith('refuge-'))).toEqual([]);
+    // ves zůstala doma a zachovala se jako bez varování: lidé utekli do hustého lesa i se stádem
+    const shelter = run.state.battle!.shelter!;
+    expect(shelter.forest.length).toBeGreaterThan(0);
+    expect(run.state.loot.detail?.livestock ?? NO_HERD).toEqual(NO_HERD);
+  });
+
   it('(b) „jen lidé“ – rychleji, stádo a zásoby zůstanou a útočník je vezme', () => {
     const start = approaching();
     const t0 = start.tick + 1;
@@ -307,6 +333,23 @@ describe('evakuace do hradiště (Úloha 8)', () => {
     const loot = run.state.loot.detail!;
     expect(loot.grainKg).toBeCloseTo(STORES, 6);
     expect(loot.livestock).toEqual({ ...NO_HERD, sheep: 10, cow: 2 });
+  });
+
+  it('(c2) „Ukrýt v lese“ – skupina nikdy nestojí v neprůchodné buňce a ukryje se u dveří lesa', () => {
+    const start = approaching();
+    const grid = marchGrid(MAPS['1,0']!.landscape, null, A0, { day: start.day });
+    const w = worldWith(sameA);
+    let s = start;
+    const intents = [flee(start.tick + 1, 'forest')];
+    for (let k = 0; k < 400 && flightHidden(s) === false; k++) {
+      s = stepInChunks(s, s.tick + 20, { chunk: 20, world: w, intents }).state;
+      const f = s.alarm?.flights[0];
+      if (f) expect(grid.pace[marchCellAt(grid, f.pos)]!).toBeGreaterThan(0);
+    }
+    const f = flightOf(s);
+    expect(f.status).toBe('hidden');
+    const door = nearestForestDoor(grid, f.pos)!;
+    expect(Math.hypot(door.x - f.pos.x, door.z - f.pos.z)).toBeLessThan(2);
   });
 
   it('(c) „Ukrýt v lese“ – skupina se ukryje týž den, v boji nikdo z nich, kořist bez jejich zásob', () => {
@@ -371,16 +414,11 @@ describe('evakuace do hradiště (Úloha 8)', () => {
     expect(flightOf(whole.state).status).toBe('arrived');
     for (const chunk of [1, 7, 40, 400]) {
       const w = worldWith(sameA);
-      const events: NewVillageEvent[] = [];
-      const notices: CampaignStep['notices'] = [];
-      let s = start;
-      while (s.tick < end) {
-        const next = stepCampaign(s, Math.min(end, s.tick + chunk), intents, w);
-        expect(next.waiting).toBeNull();
-        events.push(...next.villageEvents);
-        notices.push(...next.notices);
-        s = JSON.parse(JSON.stringify(next.state)) as CampaignState;
-      }
+      const {
+        state: s,
+        villageEvents: events,
+        notices,
+      } = stepInChunks(start, end, { chunk, world: w, intents });
       expect(JSON.stringify(s)).toBe(JSON.stringify(whole.state));
       expect(events).toEqual(whole.villageEvents);
       expect(notices).toEqual(whole.notices);

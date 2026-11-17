@@ -15,6 +15,7 @@ import { parseVillageId } from '@/lib/village-input';
 // odpověď (nic se neprozradí).
 //   GET /api/journey                  → { views } – pohledy na všechny výpravy hráče (prázdné = žádnou nemá)
 //   GET /api/journey?map=<x>,<y>      → { map } – krajina políčka hloučku a jeho sousedů, jinak 404
+//   GET /api/journey?map=<x>,<y>&trails → { trails } – jen pokračování stezek té mapy (dočtení)
 //   GET /api/journey?known=<x>,<y>    → { map, seen } – mapa, jak ji zná rod hráče, jinak 404
 //   GET /api/journey?known=villages   → { known } – mapy, které rod zná, a rod na nich
 //   GET /api/journey?visitors=<id>    → { visitors } – skupiny výprav na mapě vsi hráče
@@ -37,8 +38,10 @@ export async function GET(request: Request): Promise<Response> {
   const map = query.get('map');
   if (map !== null) {
     const cell = cellOf(map);
-    const foreign = cell ? await journeyMapForPlayer(playerId, cell) : null;
-    return foreign ? Response.json({ map: foreign }, { headers: NO_STORE }) : notFound();
+    const trails = query.has('trails');
+    const foreign = cell ? await journeyMapForPlayer(playerId, cell, trails) : null;
+    if (!foreign) return notFound();
+    return Response.json(trails ? { trails: foreign } : { map: foreign }, { headers: NO_STORE });
   }
   const known = query.get('known');
   if (known === 'villages') {

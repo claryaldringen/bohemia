@@ -278,7 +278,8 @@ describe('stepJourneys', () => {
     },
   );
 
-  describe('znalost rodu (Úloha 10)', () => {
+  // kola bez paměti staví jemnou mřížku pochodu (2,5 m) v každém kole znovu
+  describe('znalost rodu (Úloha 10)', { timeout: 30_000 }, () => {
     const crossing = (): JourneyState => journey({ order: { kind: 'cross', cell: EAST } });
     const wholeCross = stepJourney(crossing(), END, [], WHOLE);
 

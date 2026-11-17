@@ -7,6 +7,7 @@ import { villageHorses } from '../livestock/horses';
 import { isVillageExtinct } from '../core/extinction';
 import { removePeople } from './kinship';
 import { villageManor } from './manor';
+import { dwellingGatePoint } from '../paths/network-grid';
 import { ageGroup, ageYears, onExpedition } from './people';
 import { relocationBlock } from './relocation';
 import { leavingCart, takeLeavingCart } from '../crafts/carts';
@@ -604,6 +605,26 @@ export function villageCentre(state: VillageState): { x: number; z: number } {
     state.constructions.find((c) => c.position !== null)?.position ??
     null;
   return position ? { x: position.x, z: position.z } : { x: 0, z: 0 };
+}
+
+/**
+ * Odkud ves vychází na cestu po mřížce pochodu (tažení, výprava, útěk, posel) a kam se vrací:
+ * branka pozemku dvorce (`dwellingGatePoint` – kde z něj vychází síť pěšin; bez pozemku před
+ * vchodem domu). Střed dvorce leží v buňce stavby a únik z ní by vedl kudykoli (plán
+ * 2026-11-16-dense-forest – oprava Úlohy 5: tažení z kotvy vsi a výprava od branky se neshodly,
+ * kudy ze vsi ven). Bez hotového dvorce `villageCentre`.
+ */
+export function villageGate(state: VillageState, landscape: Landscape): { x: number; z: number } {
+  const manor = villageManor(state);
+  if (!manor) return villageCentre(state);
+  const gate = dwellingGatePoint(landscape, {
+    type: manor.type,
+    position: manor.position,
+    ...(manor.plot ? { plot: manor.plot } : {}),
+    ...(manor.plainShape ? { plainShape: true } : {}),
+    ...(manor.workshop ? { craft: manor.workshop.craft } : {}),
+  });
+  return { x: gate.x, z: gate.z };
 }
 
 /** Vzdálenost od bodu ke kraji krajiny ve směru `direction` (m). */

@@ -186,6 +186,53 @@ describe('kreslení minimapy – ves ve vrstvě, záběr zvlášť', () => {
   });
 });
 
+describe('minimapa – pokračování zemské stezky', () => {
+  const axis = [
+    { x: -40, z: 50 },
+    { x: 0, z: 0 },
+    { x: 30, z: -40 },
+  ];
+  const base: SceneVillage = { dwellings: [], fields: [] };
+
+  it('pokračování se kreslí stejnou čarou jako dostavěná zemská stezka vsi', () => {
+    const own = recorder();
+    drawMinimapVillage(
+      own,
+      landscape,
+      { ...base, trails: [{ id: 1, direction: 'N', points: axis, built: true }] },
+      196,
+    );
+    const continued = recorder();
+    drawMinimapVillage(
+      continued,
+      landscape,
+      { ...base, trailContinuations: [{ id: -1, points: axis, grade: 'improved', swath: true }] },
+      196,
+    );
+    expect(own.calls.filter((c) => c.startsWith('lineTo'))).toHaveLength(2);
+    expect(continued.calls).toEqual(own.calls);
+  });
+});
+
+describe('minimapa – cesty vsi', () => {
+  const axis = [
+    { x: -40, z: 50 },
+    { x: 0, z: 0 },
+  ];
+
+  it('pevné cesty vsi ani nedostavěná stezka se nekreslí', () => {
+    const rec = recorder();
+    const village: SceneVillage = {
+      dwellings: [],
+      fields: [],
+      roads: [{ id: 1, points: axis, grade: 'improved' }],
+      trails: [{ id: 2, direction: 'N', points: axis, built: false }],
+    };
+    drawMinimapVillage(rec, landscape, village, 196);
+    expect(rec.calls.filter((c) => c.startsWith('lineTo'))).toHaveLength(0);
+  });
+});
+
 describe('prvky prémiové krajiny na minimapě', () => {
   const features = {
     type: 'ford-hill' as const,

@@ -10,6 +10,7 @@ import {
   createLockPool,
   createPresenceRepository,
   createTimeOffsetRepository,
+  createTrailExitSource,
   createVillageRepository,
 } from '@bohemia/db';
 import {
@@ -255,6 +256,8 @@ async function main(): Promise<void> {
       villages: campaignVillages,
       landscapes: gameDeps.landscapes,
       worldSeed: gameDeps.worldSeed,
+      // vstupy zemských stezek sousedních vsí ze souhrnů (trade.md – Pokračování na sousední mapě)
+      trailExits: createTrailExitSource(db),
     }),
     villages: campaignVillages,
     notices: gameDeps.notices,

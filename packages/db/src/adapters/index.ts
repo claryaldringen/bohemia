@@ -36,5 +36,6 @@ export { createWarRepository } from './war-repository';
 export { createCampaignRepository } from './campaign-repository';
 export { createJourneyRepository } from './journey-repository';
 export { createKnowledgeRepository } from './knowledge-repository';
+export { createTrailExitSource } from './trail-exits';
 export { CAMPAIGN_LOCK_NAMESPACE, createCampaignLock } from './campaign-lock';
 export { listenChanges, type ChangeHandlers, type ChangeListener } from './change-listener';

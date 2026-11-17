@@ -85,6 +85,8 @@ import {
   type TileCell,
   type TimeSkip,
   type DynastyVillage,
+  mapTrailContinuations,
+  SEAT_CELL,
   type VillageRecord,
   type VillageRepository,
   type VillageResult,
@@ -118,6 +120,7 @@ import {
   type PlayerToday,
 } from './game';
 import { ownMapsAround } from './departure-view';
+import { campaignCells } from './campaign';
 import type { LeaveVillageInput } from './village-input';
 import { lineEndView } from './line-end-view';
 import { panelOptionsOf, type PanelAsk, type PanelOptions } from './panel-options';
@@ -255,6 +258,17 @@ async function viewOf(
   const current = listed ?? record;
   if (!current) return { error: NO_VILLAGE };
   const from = status.settlements.find((s) => s.id === current.settlementId);
+  // pokračování zemských stezek sousedních vsí na mapě této vsi (trade.md) – bez polohy v mřížce
+  // žádné; do pohledu jde jako osy, scéna z nich kreslí hotovou cestu s průsekem
+  const mapCell = from?.worldCell ?? (from?.isSeat ? SEAT_CELL : null);
+  const trailContinuations = mapCell
+    ? await mapTrailContinuations(
+        { cells: campaignCells(), villages: gameDeps().villages },
+        mapCell,
+        ctx.day,
+        current.state,
+      )
+    : [];
   // správce vidí jen zobrazenou ves: konec rodu, mapy a ostatní vsi držitele mu nepatří
   const view = buildVillageView(current, ctx.landscape, ctx.day, {
     gameOver: stewarding ? false : status.gameOver,
@@ -265,6 +279,7 @@ async function viewOf(
       : {}),
     ...(access?.pendingDeparture ? { pendingDeparture: access.pendingDeparture } : {}),
     ...(access?.baptizable ? { baptizable: true } : {}),
+    trailContinuations,
     ownMaps: stewarding
       ? {}
       : ownMapsAround(status.settlements, status.villages, current.settlementId),

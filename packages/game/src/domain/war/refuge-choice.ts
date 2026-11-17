@@ -20,7 +20,8 @@ import type {
 } from '../village/types';
 import type { GridCell } from '../village/people/world-grid';
 import type { CampaignPlace } from './campaign-types';
-import { fleeParty, nearestForest } from './flight';
+import { fleeParty } from './flight';
+import { nearestReachableForest } from './forest-doors';
 import { marchSpeed, type GroupPace } from './march';
 import type { MarchGrid, Pos } from './march-grid';
 import { WAR } from './rules-war';
@@ -341,8 +342,12 @@ export function messengerCandidates(state: VillageState, day: number): Messenger
   return out;
 }
 
-/** Proč volba nejde (texty – rozhraní, plán Ú12). */
-export type AlarmBlock = 'no-hillfort' | 'too-late' | 'no-forest' | 'no-runner' | 'gone' | 'sent';
+/**
+ * Proč volba nejde (texty – rozhraní, plán Ú12). `no-route` – do hradiště cesta nevede
+ * (`refugeLeg`; Martin 17. 11. 2026 – „Utéct do lesa“) – dává až pohled a příkaz (`alarm-view.ts`).
+ */
+export type AlarmBlock =
+  'no-hillfort' | 'too-late' | 'no-forest' | 'no-runner' | 'gone' | 'sent' | 'no-route';
 
 /** Jedna volba při varování: zda jde a odhady (takty). */
 export interface AlarmOption {
@@ -434,7 +439,7 @@ export function refugeOptions(input: RefugeOptionsInput): RefugeOptions {
   let forest: AlarmOption;
   if (gone) forest = { blocked: 'gone' };
   else {
-    const spot = nearestForest(input.grid, village.pos);
+    const spot = nearestReachableForest(input.grid, village.pos);
     if (!spot) forest = { blocked: 'no-forest' };
     else {
       const pace = flightLoad(state, day, 'forest').pace;

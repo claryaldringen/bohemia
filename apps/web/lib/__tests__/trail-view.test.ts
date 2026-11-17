@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import type { VillageState } from '@bohemia/game';
-import { sceneTrails, trailRoadWork } from '../trail-view';
+import {
+  axesKey,
+  sceneTrailContinuations,
+  sceneTrailEdgePieces,
+  sceneTrails,
+  trailRoadWork,
+} from '../trail-view';
 
 // Zemská stezka ve scéně (trade.md): osa z úseků od dvorce ke kraji a průběh po úsecích.
 
@@ -89,5 +95,76 @@ describe('zemská stezka ve scéně', () => {
     const work = trailRoadWork(state);
     expect(work.has(2)).toBe(false);
     expect(work.get(3)).toEqual({ grade: 'improved', progress: 0.25 });
+  });
+});
+
+describe('pokračování stezky sousední vsi ve scéně', () => {
+  it('osy jsou upravené cesty s průsekem a zápornými id', () => {
+    const a = [
+      { x: 0, z: 960 },
+      { x: 10, z: 1000 },
+    ];
+    const b = [
+      { x: -50, z: 960 },
+      { x: -60, z: 1000 },
+    ];
+    expect(sceneTrailContinuations([a, b])).toEqual([
+      { id: -1, points: a, grade: 'improved', swath: true },
+      { id: -2, points: b, grade: 'improved', swath: true },
+    ]);
+    expect(sceneTrailContinuations([])).toEqual([]);
+  });
+});
+
+describe('sceneTrailEdgePieces', () => {
+  // hotová stezka E končí 25 m před krajem – kus ke kraji jen po dni dostavění (jako `marchGrid`)
+  const state = {
+    trails: [
+      {
+        id: 1,
+        direction: 'E',
+        pieces: [{ roadId: 1, grade: 'improved', manDays: 1 }],
+        lengthM: 935,
+        startedDay: 0,
+        builtDay: 3,
+      },
+    ],
+    roads: {
+      nextId: 2,
+      roads: [
+        {
+          id: 1,
+          points: [
+            { x: 0, z: 120 },
+            { x: 935, z: 120 },
+          ],
+          bornDay: 0,
+          grade: 'improved',
+          traffic: [],
+          spots: [],
+        },
+      ],
+      trees: [],
+      labor: { from: 0, days: 0, shares: [] },
+    },
+  } as unknown as VillageState;
+
+  it('konec osy → bod okraje, až den po dostavění', () => {
+    expect(sceneTrailEdgePieces(state, 4)).toEqual([
+      [
+        { x: 935, z: 120 },
+        { x: 960, z: 120 },
+      ],
+    ]);
+    expect(sceneTrailEdgePieces(state, 3)).toEqual([]);
+  });
+});
+
+describe('axesKey', () => {
+  it('z obsahu os, ne z počtu', () => {
+    const a = [[{ x: 1, z: 2 }]];
+    expect(axesKey(a)).toBe(axesKey([[{ x: 1, z: 2 }]]));
+    expect(axesKey(a)).not.toBe(axesKey([[{ x: 1, z: 3 }]]));
+    expect(axesKey(null)).toBe('');
   });
 });
