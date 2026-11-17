@@ -523,22 +523,25 @@ Dřív stál dotaz ≈ 76 ms (3 % jádra na jednoho hráče s otevřeným panele
 
 ### Hustý les v mřížce pochodu (plán 2026-11-16-dense-forest – Úloha 8)
 
-`measure-campaigns.ts` na bázi (`feat/landscape`) a na větvi `feat/dense-forest`, stejné argumenty
-(16. 11. 2026; takty/s, vyšší je lepší; RSS z `/usr/bin/time -l` kolísá o ≈ ±50 MB mezi běhy):
+`measure-campaigns.ts` (výchozí argumenty, takty/s – vyšší je lepší; RSS z `/usr/bin/time -l`,
+kolísá o ≈ ±50 MB mezi běhy). Báze = `chore/next-upgrade` (feat/landscape + Next.js 16.4.6),
+„před“ = větev 16. 11. 2026 (Úloha 8), „po“ = větev s opravou NPC velitele a pamětí posunutého
+cíle (17. 11. 2026, báze i „po“ měřené po sobě na klidném stroji):
 
-| Měření            | báze               | větev               |
-| ----------------- | ------------------ | ------------------- |
-| pochod 1 / 5 / 20 | 1913 / 2806 / 5897 | 1246 / 2046 / 17865 |
-| opevněné 5        | 649                | 608                 |
-| varování 5        | 1572 (1,3 % jádra) | 75 (26,8 % jádra)   |
-| RSS (3 běhy)      | 643–717 MB         | 779–890 MB          |
+| Měření                 | báze               | větev před          | větev po            |
+| ---------------------- | ------------------ | ------------------- | ------------------- |
+| pochod 1 / 5 / 20      | 1870 / 2694 / 5565 | 1246 / 2046 / 17865 | 1112 / 1959 / 17662 |
+| opevněné 5             | 606                | 608                 | 637                 |
+| varování 5             | 1523 (1,3 % jádra) | 75 (26,8 % jádra)   | 1013 (2,0 % jádra)  |
+| pochod 15 + varování 5 | 3460               | 299                 | 4113                |
+| RSS                    | 720 MB             | 779–890 MB          | 783 MB              |
 
-- Paměť: ≈ +110 MB v průměru (mez návrhu Clauda 150 MB; jednotlivé běhy +60 až +173 MB).
-  `MEMO_DAYS` 4 → 2 RSS spolehlivě nezlepšilo, proto zůstává 4.
-- Varování 5: cíl uprostřed hustého lesa je neprůchodný a cesta hustým lesem přes mapu stojí
-  ≈ 2,7 ms. Tažení, které čeká na ves (bariéra), se každé kolo workeru počítá znovu od téhož
-  bodu – takt, který čeká, se neukládá – a úsek (`leg`) se při tom plánuje znovu. Báze to dělá
-  stejně, jen je tam cesta ≈ 0,1 ms. Paměť úseku při mřížce (`planMoverLeg`) a paměť cíle
-  (`reachableGoal`) zrychlily měření ≈ 4×, ale e2e „ves B varovaná“ (`multiplayer-war`) pak
-  opakovaně selhalo (průvod došel dřív, než test stihl vidět `marching`; s původním kódem prošlo),
-  proto jsou vráceny. Zbývá k řešení: ukládat úsek v bodě tažení, které čeká.
+- Varování 5 – příčina nebyla čekání na ves (měření vsi drží spočtené napřed; kola jsou
+  `computed`, žádné `waiting`): cíl tažení (0, 0) leží uprostřed hustého lesa, `settleGoal` ho
+  posune na dosažitelné místo a NPC velitel (`marchIntents`) to bral jako „jinam“ – každý takt
+  skupinu poslal znovu (`sendGroup` zahodí úsek), takže se každý takt znovu hledal posun cíle
+  i úsek hustým lesem. Oprava: místo rozkazu v `orderedPos`; posun si `reachableGoal` pamatuje
+  při mřížce (`settledGoals`) – první takt tažení se při dočítání dat počítá až 4× a skupiny na
+  témž místě se ptají stejně. Zbylý rozdíl proti bázi je první úsek hustým lesem (≈ 2,7 ms).
+- Pochod 1 zůstává ≈ 1,7× pomalejší (jemná mřížka 768 × 768), ostatní scénáře v mezi.
+- Paměť: +63 MB proti bázi (mez návrhu Clauda 150 MB); `MEMO_DAYS` zůstává 4.
