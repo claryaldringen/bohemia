@@ -147,6 +147,38 @@ describe('createCampaignCells – vstupy zemských stezek sousedů (plán 2026-1
     expect(finds).toEqual(['v']);
   }, 60_000);
 
+  it('reserve: výstupy 8 sousedů bez souhrnu se drží celé kolo (paměť 8 × mapy + základ)', async () => {
+    const finds: string[] = [];
+    const around: NeighbourTrailExits[] = Array.from({ length: 8 }, (_, k) => ({
+      villageId: `v${k}`,
+      version: 1,
+      cell: { x: k, y: 1 },
+      exits: null,
+    }));
+    const cells = createCampaignCells({
+      settlements: { holderAt: () => Promise.resolve(null), listActive: () => Promise.resolve([]) },
+      villages: {
+        stampsOf: () => Promise.resolve([]),
+        find: (id): Promise<VillageRecord | null> => {
+          finds.push(id);
+          return Promise.resolve({ id, settlementId: 's', name: 'Ves', state, version: 1 });
+        },
+      },
+      landscapes: {
+        landscapeOf: () => {
+          throw new Error('bez sídel');
+        },
+      },
+      worldSeed: 4242,
+      capacity: 1,
+      trailExits: { trailExitsAround: () => Promise.resolve(around) },
+    });
+    cells.reserve(1);
+    await cells.mapOf(CELL);
+    await cells.mapOf(CELL);
+    expect(finds).toHaveLength(8);
+  }, 60_000);
+
   it('prázdné políčko: výstup souseda přidaný po prvním `mapOf` je ve druhém', async () => {
     const around = { list: [] as NeighbourTrailExits[] };
     const { cells } = withExits(around);

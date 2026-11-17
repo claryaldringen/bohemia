@@ -499,18 +499,27 @@ ground)`; půda `walkGroundOf(landscape)` je pevné okno kolem místa vsi, pole 
   `SceneRoad` s id −1, −2 …, stupeň `improved`, `swath`. Vlastní ves je dostane z `viewOf`
   (`village.ts` → `VillageViewContext.trailContinuations`), cizí mapa tažení a výjezdu z
   `ForeignMap.trailContinuations` (`foreignMapOf` v `foreign-map.ts`; známá mapa je nemá –
-  nese jen znalost rodu) přes `withTrailContinuations`, i na mapě bez staveb. Kreslí je
+  nese jen znalost rodu) přes `withTrailContinuations`, i na mapě bez staveb. Co z os cizí mapa
+  dostane, rozhoduje use-case `foreignMapTrails` (application/neighbour-trails.ts – porty
+  `AlarmOwnerPort.ownerOf`, `HouseRepository.activeOf`, `VassalageRepository.edgesNear`,
+  `KnowledgeRepository.of`; web jen skládá adaptéry): mapa vsi rodu hráče nebo vazala (i vazala
+  vazala, `treeBelow` do `VASSALAGE.noticeDepth`) má osy celé a `friendly`; jinde (nepřítel,
+  neutrál, NPC, mapa bez vsi) jen části v dohledu stopy toho, co o mapě ví rod a muži hráče teď
+  (`axesInSight` – znalost rodu a `ExpeditionView.seen` výjezdu či `WarSceneView.known` tažení,
+  dohled jako mlha prohlížeče, vzorky po 5 m; návrh Clauda podle D62 – server cizí stavby mimo
+  dohled neposílá). S novou stopou je scéna dočte (`useForeignTrails` – `?map=<x>,<y>&trails`,
+  po 8 bodech stopy); scéna cizí mapy se přestaví jen při změně obsahu os (`axesKey`). Kreslí je
   `path-renderer.ts` (`roadsWithContinuations` v `swath-bands.ts`) jako hotovou cestu a minimapa
   (`drawMinimapVillage`) čarou – minimapa kreslí jen dostavěné zemské stezky vsi (`trails`) a
   jejich pokračování, ostatní cesty vsi ne (Martin si je nežádal). **Nad mlhou:** `ForeignMap.friendly`
-  (`foreign-map.ts` – ves na mapě patří rodu hráče nebo jeho vazalovi, `treeBelow`) →
+  (`foreignMapTrails` – ves na mapě patří rodu hráče nebo jeho vazalovi) →
   `LandscapeScene.setFriendlyMap` → `litCells` (`fog-of-war.ts`) vynechá pásy pokračování ze
   závoje (`ArmyRenderer.setLitBands`; `fogAt` pak vrací `lit`); mapa nepřítele a neutrála zůstává
   pod mlhou jako ostatní krajina; `swathBands` z nich dělá pás pro plochu korun a zarůstání.
   Stromy a keře vrstvy překážek v pásu skrývá `landscape-scene.ts` (`swathObstacleIds`, id jdou do
   `hiddenIds` jako pokácené stromy vsi, bez pařezů). Pokračování nejde vybrat klikem ani
-  zvýraznit (`village-picking.ts`, `selection-highlight.ts` čtou jen `roads`); mlha je jen
-  zobrazení – závoj leží přes cestu jako přes ostatní krajinu, průchodnost je vždy.
+  zvýraznit (`village-picking.ts`, `selection-highlight.ts` čtou jen `roads`); stromy se kácí jen
+  podél poslaných částí os. Průchodnost se mlhou nemění – server počítá pochod s celou osou.
 
 - **Cesta přes pole** ([roads.md](../design/roads.md) – Cesta přes pole; Martin 19. 10. 2026:
   „Ano má. … pokud oráč narazí na cestu, tak spřežení otočí. Nebude pak moci vzniknout takový

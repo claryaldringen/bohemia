@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { packObstacles, type Landscape, type ObstaclePlacement } from '../../../landscape';
-import { CLEARED_SHARE, clearedForest, villageClearings } from '../cleared-forest';
+import { CLEARED_SHARE } from '../../rules';
+import { clearedForest, villageClearings } from '../cleared-forest';
 import { NO_OBSTACLE_CHANGES } from '../obstacles';
 import type { VillageState } from '../../types';
 

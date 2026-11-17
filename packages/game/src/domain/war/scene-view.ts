@@ -156,7 +156,10 @@ export interface WarSceneRefugeMarch {
   pos: Pos;
   /** Směr chůze (jednotkový) – k dalšímu bodu úseku, jinak k cíli. */
   heading: Pos;
-  /** Jdou (`marching`); vždy true – ukrytá skupina (`hidden`) se nekreslí. */
+  /**
+   * Jdou; uvízlý průvod (`stuckDay` – cesta k cíli se mapou změnila, zkusí to další den) stojí.
+   * Ukrytá skupina (`hidden`) se nekreslí.
+   */
   moving: boolean;
   /** Kdo jde (bez padlých a odvedených – `lost`), vzestupně podle id. */
   people: WarSceneRefugee[];
@@ -622,7 +625,7 @@ function alarmView(
         mode: f.mode,
         pos: { x: f.pos.x, z: f.pos.z },
         heading: alarmHeading(f),
-        moving: f.status === 'marching',
+        moving: f.stuckDay === undefined,
         people,
         herd: Object.values(f.herd).reduce((n, k) => n + k, 0),
         carts: f.carts,

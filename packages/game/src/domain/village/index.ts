@@ -184,7 +184,6 @@ export {
 } from './buildings/repair';
 export * from './core/obstacles';
 export {
-  CLEARED_SHARE,
   clearedForest,
   clearedForestOf,
   touchesForest,

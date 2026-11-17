@@ -514,8 +514,10 @@ export class ArmyRenderer {
    * překreslit.
    */
   setLitBands(bands: readonly LitBand[] | null, key: string): boolean {
-    if ((this.litBands?.key ?? null) === (bands ? key : null)) return false;
-    this.litBands = bands && bands.length > 0 ? { bands, key } : null;
+    // prázdné pásy jsou totéž co žádné – závoj se kvůli nim nepřepisuje
+    const next = bands && bands.length > 0 ? { bands, key } : null;
+    if ((this.litBands?.key ?? null) === (next?.key ?? null)) return false;
+    this.litBands = next;
     this.lit = null;
     if (this.fog) this.updateFog();
     return this.fog !== null;

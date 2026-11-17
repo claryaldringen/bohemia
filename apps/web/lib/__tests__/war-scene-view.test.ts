@@ -578,6 +578,7 @@ describe('průvod uprchlíků a posel ve scéně (Ú14)', () => {
           heading: { x: 1, z: 0 },
           people: refugees[0]!.people,
           herd: SCENE_HERD_MAX,
+          moving: true,
         },
       ],
       messengers: [

@@ -46,6 +46,9 @@ export interface WorkerCampaignCells extends CampaignCells {
  * jejíž souhrn výstupy nenese (uložený dřív), se načte celá (`find` + `trailExitsOf`) jednou na
  * verzi – výstupy v paměti podle `id@verze`. Bez zdroje výstupů žádné vstupy.
  */
+/** Sousedních políček mapy (8 směrů) – výstupy stezek se čtou ze všech. */
+const NEIGHBOURS = 8;
+
 export function createCampaignCells(deps: {
   settlements: Pick<SettlementRepository, 'holderAt' | 'listActive'>;
   /** Otisky – id vsí sídla bez načtení jejich stavu; celá ves jen pro výstupy bez souhrnu. */
@@ -120,7 +123,9 @@ export function createCampaignCells(deps: {
     reserve(cells) {
       // krajina prázdného políčka je čistá funkce seedu světa a políčka – víc místa výsledek nemění
       empty.resize(Math.max(base, cells + base));
-      loaded.resize(Math.max(base, cells + base));
+      // výstupy vsí bez souhrnu: každá mapa má až 8 sousedů – s menší pamětí by se souhrny bez
+      // výstupů (vsi uložené dřív) dočítaly celé každé kolo
+      loaded.resize(Math.max(base, NEIGHBOURS * cells + base));
     },
     async mapOf(cell) {
       const map = await landOf(cell);

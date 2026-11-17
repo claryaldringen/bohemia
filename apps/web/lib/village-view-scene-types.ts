@@ -374,6 +374,11 @@ export interface SceneVillage {
    */
   trailContinuations?: SceneRoad[];
   /**
+   * Kusy hotových zemských stezek vsi ke kraji mapy (konec osy → bod okraje – `sceneTrailEdgePieces`):
+   * jen pro mřížku kurzoru rozkazu (march-cursor.ts), nekreslí se. Bez údaje žádné.
+   */
+  trailEdgePieces?: { x: number; z: number }[][];
+  /**
    * Křižovatky (paths.md – Křižovatky) – střed, tvar, natočení, ramena (id úseků) a znamení.
    * Kreslí je scéna křižovatek (plán cest v2, Úloha 12); do té doby udusaný kruh ve středu, kde
    * končí aspoň tři úseky (`roadJunctions`). Bez údaje žádné.

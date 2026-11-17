@@ -15,7 +15,7 @@ import {
 } from '../placement/square-grid';
 import { workshopKilns, kilnCircle } from '../crafts/charcoal';
 import { fortificationBand, type BandFortification } from '../fortification/band';
-import { KILN_SITE, MILIR } from '../rules';
+import { CLEARED_SHARE, KILN_SITE, MILIR } from '../rules';
 import type {
   Craft,
   DwellingPlot,
@@ -32,9 +32,6 @@ import { partStage } from './summary';
 // maska po políčkách krajiny z odstraněných, pokácených a dorůstajících stromů, založených dílů
 // polí a pasek pod stavbami. Počítá ho scéna a minimapa (apps/web/lib/scene/cleared-forest.ts)
 // i hledání cesty vojska (war/dense-forest.ts) – ze stejných funkcí.
-
-/** Od jakého podílu vykácených dospělých stromů je políčko lesa vymýcené. */
-export const CLEARED_SHARE = 0.5;
 
 /** Vymýcený les po políčkách krajiny. */
 export interface ClearedForest {

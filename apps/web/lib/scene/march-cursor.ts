@@ -17,7 +17,9 @@ import {
   type ObstacleLayer,
   type Pos,
 } from '@bohemia/game';
+import type { SceneVillage } from '../village-view';
 import { edgeDirection } from './journey-orders';
+import { roadsWithContinuations } from './swath-bands';
 
 // Kurzor nad místem, kam vybraná skupina nedojde (plán 2026-11-16-dense-forest – Otázka na Martina,
 // Martin 16. 11. 2026: „Ideální by bylo, kdyby kurzor na místech, kam se nedá dojít, podle toho
@@ -25,11 +27,32 @@ import { edgeDirection } from './journey-orders';
 // průchodu. Prohlížeč pozná dosažitelnost z téže jemné mřížky a jejích souvislých oblastí
 // (`marchAreas`, jen deterministická matematika) – jen vizuální nápověda, rozkaz ověří server.
 // Prohlížeč nemá stav vsi, proto mřížka nese krajinu, vrstvu překážek, vymýcený les vsi
-// a průseky cest; stavby a opevnění v ní nejsou (server cíl ve stavbě přesouvá k nejbližší
+// a průseky cest (i kusy hotových stezek ke kraji ze scény vsi); stavby a opevnění v ní nejsou (server cíl ve stavbě přesouvá k nejbližší
 // volné buňce, takže stavba nápovědu nemění). Čistý modul bez Babylonu.
 
 /** Tvar kurzoru nad místem, kam se nedá dojít (CSS) – ikona zákazu jako v 0 A.D. */
 export const FORBIDDEN_CURSOR = 'not-allowed';
+
+/**
+ * Osy cest mřížky kurzoru ze scény vsi: pevné cesty vsi, pokračování stezek sousedů a kusy
+ * hotových stezek ke kraji (`trailEdgePieces` – jako mřížka pochodu na serveru). Bez vsi žádné.
+ */
+export function cursorRoads(
+  village: Pick<SceneVillage, 'roads' | 'trailContinuations' | 'trailEdgePieces'> | null,
+): Pos[][] {
+  if (!village) return [];
+  return [
+    ...roadsWithContinuations(village).map((r) => r.points),
+    ...(village.trailEdgePieces ?? []),
+  ];
+}
+
+/** Klíč obsahu os (body na decimetry) – mřížka kurzoru se staví znovu jen při jeho změně. */
+export function roadsKey(roads: readonly (readonly Pos[])[]): string {
+  return roads
+    .map((r) => r.map((p) => `${Math.round(p.x * 10)},${Math.round(p.z * 10)}`).join(' '))
+    .join('|');
+}
 
 /**
  * Mřížka pochodu mapy pro kurzor: `marchGrid` bez vsi s `roads` (pevné cesty vsi a pokračování

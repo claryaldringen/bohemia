@@ -129,6 +129,10 @@ export const FOREST_BONUS = { bySeason: [40, 20], windowYears: 3 } as const;
 // posledního stromu schnou `dryDays` dní, pálí se jen v měsících `BURN_WINDOWS`; ohně po
 // dohoření doutnají `smolderDays` dní. Celková práce (sazba lesa za hektar) se nemění.
 export const FOREST_CLEARING = { fellShare: 0.6, dryDays: 30, smolderDays: 2 } as const;
+// forest.md – Les ustupuje, Hustý les; Klučení lesa pro pole – Co hráč vidí (návrh Clauda):
+// políčko lesa je vymýcené, jakmile z něj zmizí aspoň polovina dospělých stromů – scéna ho kreslí
+// jako paseku a hustým lesem pro pochod přestává být (core/cleared-forest.ts, war/dense-forest.ts).
+export const CLEARED_SHARE = 0.5;
 /** Okno pálení větví a pařezů – březen až říjen (měsíce 1–12). */
 export const BURN_WINDOWS: readonly WindowSegment[] = [[3, 10]];
 // fields.md – Práce, Zprůměrovaná žeň (návrh Clauda podle Martina 10. 11. 2026: „snopy necháme,

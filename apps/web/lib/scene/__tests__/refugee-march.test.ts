@@ -25,6 +25,7 @@ const alarm = (o: Partial<SceneAlarm> = {}): SceneAlarm => ({
         { kind: 'woman', child: false, carries: true },
       ],
       herd: 4,
+      moving: true,
     },
   ],
   messengers: [{ key: 'c1:a2', pos: { x: 50, z: 50 }, heading: { x: 0, z: 1 }, mounted: true }],
@@ -64,6 +65,17 @@ describe('alarmFigures', () => {
     expect(runner.pace).toBeGreaterThan(1);
     expect(alarmMoving(still)).toBe(true);
     expect(alarmMoving(alarm({ messengers: [], refugees: [] }))).toBe(false);
+  });
+
+  it('uvízlý průvod (`moving` false) stojí – klip stání, stádo stojí, scéna nekreslí v taktu', () => {
+    const stuck = alarm({ messengers: [] });
+    stuck.refugees = stuck.refugees.map((r) => ({ ...r, moving: false }));
+    const { figures, animals } = alarmFigures(stuck);
+    expect(figures.every((f) => f.clip === 'idle')).toBe(true);
+    expect(animals.every((a) => a.speed === 0)).toBe(true);
+    expect(alarmMoving(stuck)).toBe(false);
+    // s poslem se kreslí dál
+    expect(alarmMoving({ ...stuck, messengers: alarm().messengers })).toBe(true);
   });
 });
 

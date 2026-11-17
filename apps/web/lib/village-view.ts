@@ -106,7 +106,7 @@ import { kilnsField } from './kiln-view';
 import { grainPitsField } from './grain-pit-view';
 import { junctionsField } from './junction-view';
 
-import { sceneTrailContinuations, sceneTrails } from './trail-view';
+import { sceneTrailContinuations, sceneTrailEdgePieces, sceneTrails } from './trail-view';
 
 import { sceneExpeditions } from './caravan-view';
 
@@ -692,6 +692,7 @@ export function buildVillageView(
       ...((context.trailContinuations ?? []).length > 0
         ? { trailContinuations: sceneTrailContinuations(context.trailContinuations ?? []) }
         : {}),
+      ...trailEdgePiecesField(state, day),
       expeditions: sceneExpeditions(state),
     },
     chronicle: chronicle(state, name),
@@ -705,6 +706,15 @@ export function buildVillageView(
     ...grainPitsField(state, day, summary),
     ...junctionsField(state, day, landscape),
   };
+}
+
+/** Kusy hotových stezek ke kraji pro mřížku kurzoru (`sceneTrailEdgePieces`); žádné – bez pole. */
+function trailEdgePiecesField(
+  state: VillageState,
+  day: number,
+): Pick<SceneVillage, 'trailEdgePieces'> {
+  const pieces = sceneTrailEdgePieces(state, day);
+  return pieces.length > 0 ? { trailEdgePieces: pieces } : {};
 }
 
 /**

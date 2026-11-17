@@ -554,8 +554,11 @@ mapSizeM, cell })` (čistá funkce) – bez vybraných lidí nebo mimo terén nu
   kam se nedá dojít, podle toho vypadal“; `lib/scene/march-cursor.ts`): nad hustým lesem, vodou
   bez brodu, místem bez spojení s polohou skupiny a okrajem bez průchodu je kurzor zákazu
   (`FORBIDDEN_CURSOR` = CSS `not-allowed`), bez popisku. `LandscapeScene.marchGrid()` staví líně
-  `browserMarchGrid` – `marchGrid` bez vsi (prohlížeč nemá stav vsi) s pevnými cestami a
-  pokračováním stezek jako průseky a hustým lesem bez vymýceného lesa vsi (`ClearedForest` scény);
+  `browserMarchGrid` – `marchGrid` bez vsi (prohlížeč nemá stav vsi) s pevnými cestami,
+  pokračováním stezek a kusy hotových stezek ke kraji (`cursorRoads`; kusy `SceneVillage.trailEdgePieces`
+  posílá server – `sceneTrailEdgePieces` v `lib/trail-view.ts`, jako `edgePieces` mřížky jádra)
+  jako průseky a hustým lesem bez vymýceného lesa vsi (`ClearedForest` scény); znovu se staví jen
+  se změnou krajiny, vrstvy, vymýceného lesa nebo obsahu os (`roadsKey`), ne s každou aktualizací vsi;
   stavby a opevnění v ní nejsou (server cíl ve stavbě přesouvá na volnou buňku, tak nápovědu
   nemění). Dosažitelnost `cursorBlocked`: bod mapy `marchReachable`, okrajový pás `edgeReachable`
   (kus okraje ve směru v téže oblasti `marchAreas`; v rohu okraj prvního kroku trasy
