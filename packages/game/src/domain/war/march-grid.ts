@@ -475,6 +475,9 @@ const NONE: object = {};
  * mřížky), na jednu trojici nejvýš `MEMO_DAYS` naposledy použitých dnů – vyhazuje se nejdéle
  * nepoužitý den, ne nejmenší: tažení o den pozadu by jinak svou mřížku stavělo při každém dotazu
  * znovu (měřeno 13. 11. 2026: dvě tažení o den posunutá, 800 dotazů – 205 staveb mřížky, takhle 6).
+ * Mřížka mapy bez vsi na dni nezávisí (den čtou jen stavby, opevnění, překážky a kusy stezek vsi;
+ * osy pokračování dostavěných stezek přicházejí jako pole – `continuationsOf` je filtruje podle
+ * `builtDay` a nový vstup dá nové pole), proto má den v klíči 0 – staví se jednou, ne každý den.
  */
 export class MarchGridMemo {
   private readonly grids = new WeakMap<
@@ -514,18 +517,20 @@ export class MarchGridMemo {
       byDay = new Map();
       byAxes.set(continuations, byDay);
     }
-    const known = byDay.get(day);
+    // mapa bez vsi – mřížka na dni nezávisí (viz výše)
+    const dayKey = village === null ? 0 : day;
+    const known = byDay.get(dayKey);
     if (known) {
       // použitý den na konec pořadí vkládání – první v pořadí je pak nejdéle nepoužitý
-      byDay.delete(day);
-      byDay.set(day, known);
+      byDay.delete(dayKey);
+      byDay.set(dayKey, known);
       return known;
     }
     const grid = marchGrid(landscape, obstacles, village, {
       day,
       trailContinuations: continuations,
     });
-    byDay.set(day, grid);
+    byDay.set(dayKey, grid);
     if (byDay.size > MEMO_DAYS) {
       const unused = byDay.keys().next();
       if (!unused.done) byDay.delete(unused.value);

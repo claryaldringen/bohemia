@@ -388,7 +388,7 @@ notices, waiting }` – čistá, vstup nemění. Takt na kopii stavu (`cloneData
   takt po `leg` (`marchPathToEdge` k okraji ve směru `route[0]`, na posledním políčku `marchPath`
   k cíli; úsek se plánuje na mřížce `marchGrid` políčka a dne – mezipaměť v rámci volání, napříč
   voláními `CampaignWorld.grids` – `MarchGridMemo`, klíč identita krajiny, překážek, stavu vsi, os
-  pokračování stezek a den);
+  pokračování stezek a den – mapa bez vsi na dni nezávisí, den 0);
   konec úseku na okraji = `edgeCrossing` na sousední mapu (zbytek taktu propadne), v cíli stojí;
   skupina bez cesty nebo bez mužů stojí. Trasa po světě `worldRoute` (bez zákazů – průchod Ú6.13).
   Všechny skupiny na mapě cíle → `raiding`; **`raidTick` počítá boj** (Ú6.8 – Boj muž po muži;
@@ -686,7 +686,7 @@ z `assault.ts` (`crossingLayers`, `assaultSteps`, `assaultHours`, `mineUndergrou
   pak nejblíž, pak klíč; nejvýš 4 prolamující na místo. Oheň jen s otepi: nejbližší místo u hustého
   lesa – průchodná buňka, která v 8 směrech sousedí s neprůchodnou buňkou `MARCH_FOREST`
   (`atDenseForest`; hustý les je neprůchozí i v boji, muž bere dřevo na jeho kraji – plán
-  2026-11-16-dense-forest, Rozhodnutí 11, návrh Clauda; `nearestForestOf` – středy jednou na mřížku v kbelících 8 × 8 buněk, hledání po prstencích kbelíků, dokud dolní mez prstence nepřekročí nejlepší `dist2`; výsledek týž jako lineární průchod včetně shody – vyhraje nejmenší index buňky; vzdálenost se pamatuje na mřížku a místo) nebo hromada klád vsi
+  2026-11-16-dense-forest, Rozhodnutí 11, návrh Clauda; `nearestForestOf` – buňky jednou na mřížku v kbelících 8 × 8 buněk (jen indexy, střed dopočítá `marchCellCenter`), hledání po prstencích kbelíků, dokud dolní mez prstence nepřekročí nejlepší `dist2`; výsledek týž jako lineární průchod včetně shody – vyhraje nejmenší index buňky; vzdálenost se pamatuje na mřížku a místo) nebo hromada klád vsi
   (`BattleField.fuel` – `campaign.ts` `fuelOf`, `logStacks` s kládami); keře zatím ne. Bez valu
   vyhraje oheň (12 h), s valem odkopání (20 h; oheň napřed zasypat val 20 h), bez otepí odkopání.
 - **`BattleBreach`** – `method` (`cut` | `burn` | `dig` | `mine` | `ladder`), `phase` (`fill` →

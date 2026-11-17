@@ -38,7 +38,7 @@ export interface MarchPath {
  * Nejdál (m) přesune `outOfBuilding` cíl ze stavby na volné místo (Rozhodnutí 7); o tolik nejvýš
  * smí únik mimo stavbu do užitečné oblasti vést dál než do nejbližší průchodné buňky (`departureOf`).
  */
-const BUILDING_REACH_M = 40;
+const BUILDING_REACH_M = WAR.march.buildingReachM;
 
 /**
  * Nejbližší buňka k buňce `c`, pro kterou platí `accept` – střed nejvýš `maxM` metrů od středu `c`

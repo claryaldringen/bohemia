@@ -325,6 +325,11 @@ a 12 vesničanů (8 dobrovolníků po 0,4, 4 nucení po 0,2 = 4,0), s kovárnou 
   nejbližší průchodné místo, kam skupina dojde, a mapa tažení ukáže posunutý cíl. Skupina ve vodě unikne na břeh (návrh Clauda 16. 11. 2026); jen když na mapě není jediná průchodná
   buňka, rozkaz se
   neprovede a u kurzoru je důvod „Tam vojsko nedojde.“
+  - **Cíl ve stavbě** (návrh Clauda 16. 11. 2026): klik na dům se posune na nejbližší průchodné
+    místo nejvýš **40 m** daleko, odkud vojsko dojde k domu rovně. Skupina, která stojí ve vodě
+    nebo v lese, unikne přednostně tam, odkud vede cesta dál (k cíli nebo k okraji mapy) – nejvýš
+    o 40 m dál, než leží nejbližší průchodné místo; dál ne, to by byl průchod lesem. Ze stavby
+    unikne jen na nejbližší průchodné místo.
   - **Okraj mapy zavřený hustým lesem** (Martin 16. 11. 2026: „Má zůstat stát.“): když skupina
     nemůže na sousední mapu, nehledá objížďku přes jiné mapy – zůstane stát u okraje.
   - **Uvíznutí a start** (návrh Clauda 16. 11. 2026): uvízlá skupina zkouší znovu až po novém
@@ -438,6 +443,10 @@ a 12 vesničanů (8 dobrovolníků po 0,4, 4 nucení po 0,2 = 4,0), s kovárnou 
     domů jako při rozpadu, prchající obránci do nejbližšího lesa (návrh Clauda).
 - **Dům od domu** (Martin 18. 10.): domy blíž než **40 m** od sebe tvoří **skupinu domů**; její
   obránci se seběhnou a brání společně, samota se neubrání.
+- **Objížďka hustého lesa** (návrh Clauda 16. 11. 2026): útočník, kterému k cíli vede přímka
+  hustým lesem, vodou nebo skálou, obejde je po trase pochodu – i objížďkou, která vede napřed od
+  cíle. Objížďku k témuž cíli hledá nejvýš jednou za **20 taktů** (5 s); kdo se **8 taktů** (2 s)
+  v řadě nepohne, zahodí trasu a hledá novou. Obránce objížďky nehledá – ke vsi to má blízko.
 - **Mlha války** (Martin 18. 10.): útočník vidí, kam dohlédnou jeho muži (≈ 150 m, v lese míň);
   objevené zůstane, dění vidí jen v dohledu.
 
@@ -874,6 +883,7 @@ Martin 2. 11. 2026 – „ok“ (doplňky návrh Clauda):
 | Tempo vojska                       | ≈ 3–4 m/s skutečného času, 1 km ≈ 4–5 min ≈ 3 herní dny (Martin)                                                                                                                                                                       |
 | Terén a náklad                     | hustý les neprůchozí (16. 11.), cesta a stezka × 1,5, jezdci × 1,5, stádo × 0,5, ranění × 0,75                                                                                                                                         |
 | Mřížka pochodu                     | jen průchozí / neprůchozí, jemná mřížka 2,5 m (měření 16. 11. – nejjemnější, kde trasa splní meze); hustý les = vnitřek lesa (forest.md); brod = mělčina; stavba s odstupem 1 m (návrh Clauda)                                         |
+| Cíl ve stavbě a objížďka v boji    | cíl ve stavbě nejvýš 40 m daleko; objížďka nejvýš jednou za 20 taktů (5 s), po 8 taktech (2 s) bez pohybu nová trasa (návrh Clauda 16. 11.)                                                                                            |
 | Takty tažení                       | 4 za sekundu; záměr hráče platí od taktu teď + 2; kontrolní bod po 40                                                                                                                                                                  |
 | Zima (1. 12. – konec února)        | sníh × 0,75; venku −3 zdraví a −2 % síly za den, ve vsi +10 a +5 %                                                                                                                                                                     |
 | Píce v zimě                        | 6 kg sena na koně denně (horses.md)                                                                                                                                                                                                    |

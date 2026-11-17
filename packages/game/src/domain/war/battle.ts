@@ -1379,10 +1379,10 @@ export function fortPassages(
   return out;
 }
 
-/** Po kolika taktech v řadě bez pohybu muž bez vodítka hledá novou trasu (návrh Clauda). */
-const STALL_TICKS = 8;
-/** Objížďku k témuž cíli hledá muž nejvýš jednou za tolik taktů (návrh Clauda – výkon). */
-const DETOUR_RETRY_TICKS = 20;
+/** Po kolika taktech v řadě bez pohybu muž bez vodítka hledá novou trasu (`WAR.battle`). */
+const STALL_TICKS = WAR.battle.stallTicks;
+/** Objížďku k témuž cíli hledá muž nejvýš jednou za tolik taktů (`WAR.battle` – výkon). */
+const DETOUR_RETRY_TICKS = WAR.battle.detourRetryTicks;
 
 /**
  * Krok k `to` (`stepToward`); útočník počítá takty bez pohybu (`stall`) – jen bez vodítka a dál

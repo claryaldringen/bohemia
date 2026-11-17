@@ -183,13 +183,16 @@ export function pushLadder(withClimber: boolean, rng: Random): boolean {
 /** Strana kbelíku lesa v buňkách mřížky. */
 const FOREST_BUCKET = 8;
 
-/** Středy buněk u hustého lesa po kbelících (CSR; v kbelíku vzestupně podle indexu buňky). */
+/**
+ * Buňky u hustého lesa po kbelících (CSR; v kbelíku vzestupně podle indexu buňky). Jen indexy –
+ * lesnatá mapa má desítky tisíc dveří na každou mřížku v paměti; střed se dopočítá jako
+ * `marchCellCenter`.
+ */
 interface ForestIndex {
   readonly bw: number;
   readonly bh: number;
-  /** Začátky kbelíků v `centers` / `cells` (délka bw * bh + 1). */
+  /** Začátky kbelíků v `cells` (délka bw * bh + 1). */
   readonly start: Int32Array;
-  readonly centers: Pos[];
   readonly cells: Int32Array;
 }
 
@@ -235,15 +238,9 @@ function buildForestIndex(grid: MarchGrid): ForestIndex {
   }
   for (let k = 0; k < bw * bh; k++) start[k + 1]! += start[k]!;
   const fill = start.slice(0, bw * bh);
-  const centers: Pos[] = new Array<Pos>(doors.length);
   const cells = new Int32Array(doors.length);
-  for (const c of doors) {
-    const k = bucketOf(c);
-    const at = fill[k]!++;
-    centers[at] = marchCellCenter(grid, c);
-    cells[at] = c;
-  }
-  return { bw, bh, start, centers, cells };
+  for (const c of doors) cells[fill[bucketOf(c)]!++] = c;
+  return { bw, bh, start, cells };
 }
 
 /**
@@ -262,8 +259,9 @@ export function nearestForestOf(
     idx = buildForestIndex(grid);
     forestCache.set(grid, idx);
   }
-  if (idx.centers.length === 0) return null;
-  const { bw, bh, start, centers, cells } = idx;
+  if (idx.cells.length === 0) return null;
+  const { bw, bh, start, cells } = idx;
+  const w = grid.width;
   const span = grid.cellM * FOREST_BUCKET;
   // Kbelík dotazu (i mimo mřížku) – souřadnice v buňkách: střed buňky i leží v u = i.
   const qx = Math.floor((from.x - grid.originX) / grid.cellM / FOREST_BUCKET);
@@ -286,11 +284,16 @@ export function nearestForestOf(
   const scan = (bx: number, bz: number): void => {
     const k = bz * bw + bx;
     for (let at = start[k]!; at < start[k + 1]!; at++) {
-      if (accept && !accept(cells[at]!)) continue;
-      const d = dist2(centers[at]!, from);
-      if (d < bestD || (d === bestD && cells[at]! < bestC)) {
+      const c = cells[at]!;
+      if (accept && !accept(c)) continue;
+      // střed buňky jako `marchCellCenter` a `dist2` – stejné pořadí počtů, bez objektu na buňku
+      const i = c % w;
+      const dx = grid.originX + i * grid.cellM - from.x;
+      const dz = grid.originZ + ((c - i) / w) * grid.cellM - from.z;
+      const d = dx * dx + dz * dz;
+      if (d < bestD || (d === bestD && c < bestC)) {
         bestD = d;
-        bestC = cells[at]!;
+        bestC = c;
         best = at;
       }
     }
@@ -312,7 +315,7 @@ export function nearestForestOf(
       }
     }
   }
-  return best < 0 ? null : centers[best]!;
+  return best < 0 ? null : marchCellCenter(grid, cells[best]!);
 }
 
 /**

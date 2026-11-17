@@ -7,8 +7,12 @@ import { WAR } from './rules-war';
 // Hustý les pro pochod (forest.md – Hustý les): les dál než `WAR.march.denseForestM` od svého
 // okraje je neprůchodný, paseky (vymýcená políčka a plochy pod stavbami) ho od sebe odříznou –
 // do `denseForestM` od paseky les hustý není. Vnitřek lesa je vrstva po buňkách mřížky pochodu
-// (1 = vnitřek), počítá se jednou na krajinu a velikost buňky; paseky ji jen ubírají. Počítá
-// server i prohlížeč – jen celočíselná matematika (bez Math.sin/cos/hypot).
+// (1 = vnitřek), počítá se jednou na krajinu a velikost buňky; paseky ji jen ubírají. Vnitřek
+// (`forestInterior`) počítá server i prohlížeč – bez Math.sin/cos/hypot. Paseky vsi
+// (`withoutClearings`) det-math nejsou – plochy pod stavbami mají rohy natočených staveb
+// z `rectangleCorners` (Math.cos/sin) a `pointInPolygon` volá Math.hypot: platí jen na serveru,
+// prohlížeč je obtiskne jen pro nápovědu kurzoru (`browserMarchGrid`), jiný engine tam smí
+// hranici lesa posunout o buňku.
 
 /** Vnitřky lesa po krajinách a velikostech buňky (krajina se nemění – vrstva platí stále). */
 const interiorCache = new WeakMap<Landscape, Map<number, Uint8Array>>();

@@ -50,7 +50,7 @@ import {
 } from '../march-grid';
 import { BASE_FORD, BASE_WATER, marchTerrain } from '../march-terrain';
 import { WAR } from '../rules-war';
-import { trailContinuations, trailEntriesOf } from '../trail-continuation';
+import { continuationsOf, trailContinuations, trailEntriesOf } from '../trail-continuation';
 import { edgeCrossing } from '../world-route';
 
 // Hustý les neprůchozí na jemné mřížce pochodu (forest.md – Hustý les; war.md – Pohyb – Terén;
@@ -660,6 +660,27 @@ describe('pokračování zemské stezky a kus ke kraji (Úloha 4b – Rozhodnut�
     const plain = memo.gridOf(l, o, null, SUMMER, NO_CONTINUATIONS);
     expect(plain).not.toBe(first);
     expect(memo.gridOf(l, o, null, SUMMER)).toBe(plain);
+  });
+
+  it('mapa bez vsi: další den tatáž mřížka, dostavěná stezka souseda – nová', () => {
+    const { landscape: l, entry } = westForest();
+    const o = obstaclesOf(l);
+    const memo = new MarchGridMemo();
+    // stezka souseda dostavěná v den SUMMER + 1 – osa platí od dalšího dne (`builtDay < den`)
+    const map = {
+      landscape: l,
+      obstacles: o,
+      trailEntries: [{ point: entry, builtDay: SUMMER + 1 }],
+    };
+    const on = (day: number): MarchGrid =>
+      memo.gridOf(l, o, null, day, continuationsOf(map, null, day));
+    const before = on(SUMMER);
+    expect(on(SUMMER + 1)).toBe(before);
+    const after = on(SUMMER + 2);
+    expect(after).not.toBe(before);
+    expect(on(SUMMER + 3)).toBe(after);
+    const passable = (g: MarchGrid): number => g.pace.reduce((n, p) => (p > 0 ? n + 1 : n), 0);
+    expect(passable(after)).toBeGreaterThan(passable(before));
   });
 
   it('přechod u konce stezky: okrajová buňka sousední mapy je průchozí jen s pokračováním', () => {

@@ -26,7 +26,19 @@ export const WAR = {
     denseForestM: 10,
     fordShallow: 0.55,
     buildingClearanceM: 1,
+    /**
+     * war.md – Pohyb, Cíl v neprůchodné buňce (návrh Clauda 16. 11. 2026): cíl ve stavbě se posune
+     * na nejbližší průchodné místo nejvýš tolik metrů daleko; o tolik nejvýš smí únik skupiny ze
+     * stavby vést dál než do nejbližšího průchodného místa (`outOfBuilding`, `departureOf`).
+     */
+    buildingReachM: 40,
   },
+  /**
+   * war.md – Boj, Objížďka hustého lesa (návrh Clauda 16. 11. 2026): útočník hledá objížďku
+   * k témuž cíli nejvýš jednou za `detourRetryTicks` taktů (5 s – výkon); kdo se `stallTicks` taktů
+   * (2 s) v řadě nepohne, zahodí trasu a hledá novou.
+   */
+  battle: { stallTicks: 8, detourRetryTicks: 20 },
   /** war.md – Zima (Martin 3. 11.; čísla návrh Clauda): sníh zpomalí pochod. */
   snowPace: 0.75,
   /**
