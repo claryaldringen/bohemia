@@ -67,13 +67,17 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   2026-11-16-dense-forest – Rozhodnutí 13, podrobnosti návrh Clauda): hotová stezka nekončí na
   kraji mapy. Nic se neukládá – stav vsi ani DB se nemění.
   - **Výstup** (`trade/trail-exits.ts`, det-math): `trailExitsOf(stav)` – `TrailExit` { `direction`
-    (krok k sousednímu políčku, `GRID_STEPS`), `end` (konec osy), `edge` (bod okraje ±960 m),
-    `builtDay` } jen hotových stezek v pořadí `trails`. Konec = nejdále položený bod cest všech úseků
-    ve směru stezky (úseky mohou být mimo pořadí); strana s menší mezerou a kolmý průmět. Výstup
-    je jen tehdy, když konec leží v pásu `TRAIL_END_BAND_M` (+ 1 m jako `EDGE_SLACK_M` v
-    `trailAxisRoads`) u strany, kterou stezka opouští – rozbitá stezka (mezera) se na okraj
-    nepromítá; týž predikát je díl u okraje v mřížce pochodu. Úhlopříčná stezka s oběma mezerami do `TRAIL_END_BAND_M` (30 m =
-    `EDGE_MARGIN_M` + `TRAIL.edgeBandM`) vede rohem.
+    (krok k sousednímu políčku přes stranu – N, E, S, W, `GRID_STEPS`), `end` (konec osy), `edge`
+    (bod okraje ±960 m), `builtDay` } jen hotových stezek v pořadí `trails`. Konec = nejdále
+    položený bod cest všech úseků ve směru stezky (úseky mohou být mimo pořadí); strana s menší
+    mezerou a kolmý průmět. Výstup je jen tehdy, když konec leží v pásu `TRAIL_END_BAND_M` (+ 1 m –
+    táž konstanta `EDGE_SLACK_M` jako v `trailAxisRoads`) u strany, kterou stezka opouští – rozbitá
+    stezka (mezera) se na okraj nepromítá; týž predikát je díl u okraje v mřížce pochodu.
+    **Úhlopříčná stezka s koncem u rohu** (obě mezery do `TRAIL_END_BAND_M` = 30 m + 1 m) rohem
+    nevede (návrh Clauda 17. 11. 2026 – závěrečná revize B-M4): svět pochodu je čtyřsousedný, na
+    úhlopříčnou mapu se jde přes kolmou mapu, kde by u rohu pokračování ani průsek nebyl; výstup
+    proto vede stranou s menší mezerou, při rovnosti v pevném pořadí stran N, E, S, W (NE → N,
+    SE → E, SW → S, NW → N).
   - **Souhrn vsi** nese výstupy (`VillageDigest.trailExits`, `villageDigest`); chybí = souhrn uložený
     dřív, `VILLAGE_DIGEST_VERSION` zůstává 4.
   - **Vstupy na mapě** (`war/trail-continuation.ts` – `trailEntriesOf`): výstupy vsí 8 sousedních

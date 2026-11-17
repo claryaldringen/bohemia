@@ -3,7 +3,7 @@ import { trailExitsOf } from '../trail-exits';
 import type { Direction8, Road, RoadPoint, Trail, VillageState } from '../../types';
 
 // Výstupy hotových zemských stezek na kraj mapy (trade.md – Zemská stezka, Pokračování na sousední
-// mapě; plán 2026-11-16-dense-forest – Rozhodnutí 13): konec osy, strana nebo roh mapy a bod okraje.
+// mapě; plán 2026-11-16-dense-forest – Rozhodnutí 13): konec osy, strana mapy a bod okraje.
 
 const road = (id: number, points: RoadPoint[]): Road => ({
   id,
@@ -92,19 +92,31 @@ describe('výstupy stezek na kraj mapy (`trailExitsOf`)', () => {
     ]);
   });
 
-  it('úhlopříčná stezka – strana s menší mezerou, roh jen do 30 m od obou stran', () => {
+  it('úhlopříčná stezka – strana s menší mezerou, i s koncem u rohu (svět je čtyřsousedný)', () => {
     expect(trailExitsOf(endingAt('NE', { x: 300, z: 940 }))[0]).toMatchObject({
       direction: 'N',
       edge: { x: 300, z: 960 },
-    });
-    expect(trailExitsOf(endingAt('NE', { x: 945, z: 942 }))[0]).toMatchObject({
-      direction: 'NE',
-      edge: { x: 960, z: 960 },
     });
     expect(trailExitsOf(endingAt('NE', { x: 950, z: 700 }))[0]).toMatchObject({
       direction: 'E',
       edge: { x: 960, z: 700 },
     });
+    // obě mezery do 30 m – dřív výstup rohem na úhlopříčnou mapu, kam se nejde; teď menší mezera
+    expect(trailExitsOf(endingAt('NE', { x: 945, z: 942 }))).toEqual([
+      { direction: 'E', end: { x: 945, z: 942 }, edge: { x: 960, z: 942 }, builtDay: 5 },
+    ]);
+    expect(trailExitsOf(endingAt('SW', { x: -941, z: -950 }))[0]).toMatchObject({
+      direction: 'S',
+      edge: { x: -941, z: -960 },
+    });
+    // stejné mezery – pevné pořadí stran (N, E, S, W): NE → N, SE → E, SW → S, NW → N
+    const tie = (direction: Direction8, x: number, z: number): Direction8 | undefined =>
+      trailExitsOf(endingAt(direction, { x, z }))[0]?.direction;
+    expect(tie('NE', 945, 945)).toBe('N');
+    expect(tie('SE', 945, -945)).toBe('E');
+    expect(tie('SW', -945, -945)).toBe('S');
+    expect(tie('NW', -945, 945)).toBe('N');
+    expect(trailExitsOf(endingAt('NW', { x: -945, z: 945 }))[0]?.edge).toEqual({ x: -945, z: 960 });
   });
 
   it('rozbitá stezka S s mezerou 80 m – bez výstupu; do pásu (30 m + 1 m) výstup je', () => {
