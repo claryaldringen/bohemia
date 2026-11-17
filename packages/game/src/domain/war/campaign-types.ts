@@ -111,6 +111,12 @@ export interface CampaignGroup {
   pos: Pos;
   /** Kam skupina jde; null = stojí. */
   goal: CampaignPlace | null;
+  /**
+   * Místo rozkazu, když ho `settleGoal` posunul na nejbližší dosažitelné místo (`goal` je pak
+   * jinde) – NPC velitel podle něj pozná, že skupina jde, kam ji poslal (`marchIntents`); nový
+   * rozkaz (`sendGroup`) ho smaže. Chybí = cíl je místo rozkazu.
+   */
+  orderedPos?: Pos;
   /** Zbývající políčka světa k cíli (bez `cell`) – `worldRoute`. */
   route: GridCell[];
   /** Úsek po současné mapě – k okraji ve směru `route[0]`, nebo k cíli; null = spočte se. */

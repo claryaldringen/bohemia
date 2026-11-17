@@ -186,6 +186,13 @@ describe('hustý les (forest.md – Hustý les)', () => {
     expect(marchPath(without, W, E)).toBeNull();
     const goal = reachableGoal(without, W, E)!;
     expect(goal.x).toBeLessThan(-280);
+    // opakovaný dotaz (paměť při mřížce) dá týž posun jako nový objekt; jiná buňka startu počítá
+    // znovu a mřížka bez paměti (nový objekt) dá totéž
+    const again = reachableGoal(without, { x: W.x + 0.5, z: W.z }, E)!;
+    expect(again).toEqual(goal);
+    expect(again).not.toBe(goal);
+    expect(reachableGoal(marchGrid(land, null, withRoads([])), W, E)).toEqual(goal);
+    expect(reachableGoal(without, W, W)).toBe(W);
   });
 });
 

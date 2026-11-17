@@ -236,8 +236,35 @@ export function marchPath(grid: MarchGrid, from: Pos, to: Pos): MarchPath | null
  */
 export function reachableGoal(grid: MarchGrid, from: Pos, to: Pos): Pos | null {
   if (marchReachable(grid, from, to)) return to;
-  const target = outOfBuilding(grid, marchCellAt(grid, to));
   const at = marchCellAt(grid, from);
+  const end = marchCellAt(grid, to);
+  // posun závisí jen na buňce startu a cíle a mřížka se nemění (jako `marchAreas`)
+  let known = settledGoals.get(grid);
+  const key = at * grid.pace.length + end;
+  const hit = known?.get(key);
+  if (hit !== undefined) return hit === null ? null : { x: hit.x, z: hit.z };
+  const settled = settledGoal(grid, at, end);
+  if (!known) {
+    known = new Map();
+    settledGoals.set(grid, known);
+  }
+  if (known.size >= SETTLED_GOALS_MAX) known.clear();
+  known.set(key, settled);
+  return settled === null ? null : { x: settled.x, z: settled.z };
+}
+
+/**
+ * Posunuté cíle po mřížkách (`reachableGoal`) podle buňky startu a cíle. Cíl uprostřed hustého lesa
+ * hledá po prstencích přes velkou část mapy (milisekundy) a takt se při dočítání dat počítá znovu
+ * (`computeWithLoads`), skupiny na témž místě se ptají stejně – měření varování 5, Úloha 8 plánu
+ * 2026-11-16-dense-forest. Nejvýš `SETTLED_GOALS_MAX` na mřížku, pak znovu od prázdné.
+ */
+const settledGoals = new WeakMap<MarchGrid, Map<number, Pos | null>>();
+const SETTLED_GOALS_MAX = 256;
+
+/** Posunutý cíl `reachableGoal` pro nedosažitelnou buňku `end` ze startu v buňce `at`. */
+function settledGoal(grid: MarchGrid, at: number, end: number): Pos | null {
+  const target = outOfBuilding(grid, end);
   const near = grid.pace[at]! > 0 ? -1 : nearestPassable(grid, target, Infinity);
   const nearArea = near < 0 ? 0 : marchArea(grid, near);
   const start = departureOf(grid, at, nearArea === 0 ? null : (a) => a === nearArea);

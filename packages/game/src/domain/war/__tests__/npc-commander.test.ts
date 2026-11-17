@@ -5,6 +5,7 @@ import type { Dwelling, Person, VillageState } from '../../village/types';
 import { stepCampaign } from '../campaign';
 import type { CampaignMap, CampaignState, CampaignWorld } from '../campaign-types';
 import { MarchGridMemo } from '../march-grid';
+import { sendGroup } from '../movement';
 import { npcIntents } from '../npc-commander';
 import { land, palisade } from './battle-fixtures';
 import {
@@ -173,6 +174,57 @@ describe('NPC velitel – silná ves za palisádou', () => {
     expect(Object.values(r.loot.livestock).every((n) => n === 0)).toBe(true);
     expect(r.loot.grainKg).toBeGreaterThan(0);
     expect(r.loot.grainKg).toBeLessThanOrEqual(3 * 25);
+  });
+});
+
+describe('NPC velitel – cíl uprostřed hustého lesa (posunutý `settleGoal`)', () => {
+  // velký les kolem středu mapy cíle – jeho vnitřek je neprůchodný, cíl (0, 0) se posune na
+  // nejbližší dosažitelné místo; NPC velitel dřív bral posunutý cíl jako „jinam“ a skupinu každý
+  // takt poslal znovu – úsek hustým lesem se počítal každý takt (měření varování 5, Úloha 8)
+  const forestMap: CampaignMap = {
+    landscape: land((tx, ty) => tx >= 50 && tx <= 78 && ty >= 50 && ty <= 78),
+    obstacles: null,
+    villageIds: [],
+  };
+  const w = worldWith('nikdo', forestMap, KNEZICE);
+  const base = campaign({
+    liveCommand: false,
+    target: { villageId: 'les', name: 'Les', cell: { x: 1, y: 0 }, pos: { x: 0, z: 0 } },
+  });
+  const start: CampaignState = {
+    ...base,
+    phase: 'marching',
+    groups: base.groups.map((g) => ({
+      ...g,
+      cell: { x: 1, y: 0 },
+      pos: { x: -700, z: 0 },
+      goal: { cell: { x: 1, y: 0 }, pos: { x: 0, z: 0 } },
+      route: [],
+      leg: null,
+      arrived: false,
+    })),
+  };
+
+  it('skupinu s posunutým cílem znovu neposílá – úsek z prvního taktu platí dál', () => {
+    const first = stepCampaign(start, start.tick + 1, [], w).state;
+    const g1 = first.groups[0]!;
+    expect(g1.goal?.pos).not.toEqual({ x: 0, z: 0 });
+    expect(g1.leg).not.toBeNull();
+    expect(npcIntents(first, w, null)).toEqual([]);
+    const second = stepCampaign(first, first.tick + 1, [], w).state;
+    const g2 = second.groups[0]!;
+    // týž úsek, jen o takt dál (nový úsek by začínal od nuly v nové poloze)
+    expect(g2.leg?.points).toEqual(g1.leg!.points);
+    expect(g2.leg!.walkedM).toBeGreaterThan(g1.leg!.walkedM);
+    expect(g2.goal).toEqual(g1.goal);
+  });
+
+  it('místo rozkazu drží skupina jen do nového rozkazu (`sendGroup`)', () => {
+    const g = structuredClone(stepCampaign(start, start.tick + 1, [], w).state.groups[0]!);
+    expect(g.orderedPos).toEqual({ x: 0, z: 0 });
+    sendGroup(g, { cell: { x: 1, y: 0 }, pos: { x: -600, z: 0 } });
+    expect(g.orderedPos).toBeUndefined();
+    expect(g.goal?.pos).toEqual({ x: -600, z: 0 });
   });
 });
 

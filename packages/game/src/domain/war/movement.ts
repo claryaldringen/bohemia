@@ -172,20 +172,26 @@ export function sendGroup(g: CampaignGroup, to: CampaignPlace): void {
   g.leg = null;
   g.arrived = false;
   delete g.stuckDay;
+  delete g.orderedPos;
 }
 
 /**
  * Cíl skupiny jako v 0 A.D. (war.md – Pohyb – Cíl v neprůchodné buňce; návrh Clauda): stojí-li
  * skupina na mapě cíle a úsek k němu ještě nemá (hned po záměru, nebo po vstupu na mapu cíle), cíl
- * v neprůchodné buňce (voda, sráz, hradba) se posune na nejbližší místo dosažitelné ze skupiny
- * (`reachableGoal`) – mapa tažení pak ukáže posunutý cíl. Průchodný cíl beze změny; když dosažitelné
- * místo není žádné, cíl zůstane a skupina stojí (záměr hráče k takovému místu odmítne už use-case).
+ * v neprůchodné buňce (voda, sráz, hradba, vnitřek hustého lesa) se posune na nejbližší místo
+ * dosažitelné ze skupiny (`reachableGoal`) – mapa tažení pak ukáže posunutý cíl. Místo rozkazu
+ * zůstane v `orderedPos` (první posun – další posun téhož rozkazu ho nepřepíše): NPC velitel podle
+ * něj skupinu neposílá znovu (dřív ji posílal každý takt a úsek se počítal pokaždé – Úloha 8
+ * plánu 2026-11-16-dense-forest). Průchodný cíl beze změny; když dosažitelné místo není žádné, cíl
+ * zůstane a skupina stojí (záměr hráče k takovému místu odmítne už use-case).
  */
 export function settleGoal(g: CampaignGroup, day: number, ctx: TickContext): void {
   const goal = g.goal;
   if (goal === null || g.leg !== null || g.route.length > 0 || !sameCell(g.cell, goal.cell)) return;
   const pos = reachableGoal(gridOf(g.cell, day, ctx), g.pos, goal.pos);
-  if (pos !== null && pos !== goal.pos) g.goal = { cell: { ...goal.cell }, pos };
+  if (pos === null || pos === goal.pos) return;
+  g.orderedPos ??= { x: goal.pos.x, z: goal.pos.z };
+  g.goal = { cell: { ...goal.cell }, pos };
 }
 
 /** Mapy, které tažení nebo výjezd potřebuje hned: políčka skupin a další políčka jejich tras. */
