@@ -3,7 +3,13 @@ import { nearestForestDoor, nearestReachableForest } from '../forest-doors';
 import { createRandom } from '../../landscape/random';
 import { reachableCells } from '../march-search';
 import { nearestForestOf } from '../ladders';
-import { MARCH_FOREST, marchCellAt, marchCellCenter, type MarchGrid } from '../march-grid';
+import {
+  MARCH_BUILDING,
+  MARCH_FOREST,
+  marchCellAt,
+  marchCellCenter,
+  type MarchGrid,
+} from '../march-grid';
 import { inSight } from '../sight';
 
 // Dveře hustého lesa (plán 2026-11-16-dense-forest – Rozhodnutí 10; Martin 16. 11. 2026).
@@ -74,6 +80,35 @@ describe('nearestReachableForest', () => {
     expect(nearestReachableForest(ford, { x: 10, z: 10 })).toEqual(
       nearestForestDoor(ford, { x: 10, z: 10 }),
     );
+  });
+
+  it('lidé ve středu domu (stavba přes víc buněk) utečou k dveřím z nejbližší volné buňky', () => {
+    // e2e multiplayer-war:143 – útočník u vsi, lidé stojí ve středu zemnice: dům s pozemkem
+    // zabere v mřížce 2,5 m 5 × 5 buněk, žádný z 8 sousedů středu není průchodný
+    const house = (i: number, j: number): boolean => i >= 8 && i <= 12 && j >= 8 && j <= 12;
+    const grid = gridOf((i) => i >= 30);
+    for (let j = 0; j < H; j++) {
+      for (let i = 0; i < W; i++) {
+        if (!house(i, j)) continue;
+        grid.pace[j * W + i] = 0;
+        grid.flags[j * W + i] = MARCH_BUILDING;
+      }
+    }
+    const centre = marchCellCenter(grid, 10 + 10 * W);
+    const door = nearestReachableForest(grid, centre);
+    expect(door).not.toBeNull();
+    expect(door).toEqual(nearestForestDoor(grid, centre));
+    // les jen za řekou bez brodu zůstane nedosažitelný i z domu
+    const behind = gridOf(
+      (i) => i >= 30,
+      (i) => i === 20,
+    );
+    for (let c = 0; c < W * H; c++) {
+      if (!house(c % W, Math.floor(c / W))) continue;
+      behind.pace[c] = 0;
+      behind.flags[c] = MARCH_BUILDING;
+    }
+    expect(nearestReachableForest(behind, centre)).toBeNull();
   });
 });
 

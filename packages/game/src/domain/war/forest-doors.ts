@@ -1,5 +1,6 @@
 import { nearestForestOf } from './ladders';
-import { marchCellAt, type MarchGrid, type Pos } from './march-grid';
+import { nearestPassable } from './march';
+import { MARCH_BUILDING, MARCH_WALL, marchCellAt, type MarchGrid, type Pos } from './march-grid';
 import { marchAreaOf, marchAreas } from './march-search';
 
 // Dveře hustého lesa (war.md – Obránci – postoje a útěk; plán 2026-11-16-dense-forest – Rozhodnutí
@@ -20,7 +21,10 @@ export function nearestForestDoor(grid: MarchGrid, from: Pos): Pos | null {
  * nepočítá. Bez dosažitelných dveří null. Dosažitelnost je číslo souvislé oblasti (`marchAreas`,
  * jednou na mřížku, dotaz O(1)) – žádné zaplavení mřížky na volání. Start v neprůchodné buňce
  * (útěk z hradby, muž ve vodě) se bere jako průchodný, jako ve `reachableCells`: dosažitelné jsou
- * oblasti jeho průchodných sousedů (úhlopříčně jen kolem průchodných rohů).
+ * oblasti jeho průchodných sousedů (úhlopříčně jen kolem průchodných rohů). Ze stavby nebo stěny
+ * opevnění bez průchodného souseda (lidé ve středu domu – dům s pozemkem zabere v mřížce 2,5 m
+ * mnoho buněk) oblast nejbližší průchodné buňky – tam ze stavby vyjdou i na pochodu
+ * (`departureOf` v `march.ts`, Rozhodnutí 7).
  */
 export function nearestReachableForest(grid: MarchGrid, from: Pos): Pos | null {
   const start = marchCellAt(grid, from);
@@ -40,6 +44,10 @@ export function nearestReachableForest(grid: MarchGrid, from: Pos): Pos | null {
       if (di !== 0 && dj !== 0 && (!passable(i + di, j) || !passable(i, j + dj))) continue;
       open.add(marchAreaOf(areas, w, (j + dj) * w + i + di));
     }
+  }
+  if (open.size === 0 && (grid.flags[start]! & (MARCH_BUILDING | MARCH_WALL)) !== 0) {
+    const plain = nearestPassable(grid, start, Infinity);
+    if (plain >= 0) open.add(marchAreaOf(areas, w, plain));
   }
   if (open.size === 0) return null;
   return nearestForestOf(grid, from, (c) => open.has(marchAreaOf(areas, w, c)));
