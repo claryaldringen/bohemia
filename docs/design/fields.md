@@ -1818,6 +1818,12 @@ na vlnu – oděv, [diet.md](diet.md) – Oděv). Pravidla **návrh Clauda** pod
   **jen u obilí** – maso, sýr a luštěniny ne (Martin 16. 11. 2026: „Zatímco s obilím se to dobře
   odhaduje, ten zbytek je spíš k okamžité spotřebě a každá domácnost si ho řeší sama“). Příští sklizní je **sklizeň ozimu 31. 7.**, když ji ves čeká a podle odhadu uživí ves v srpnu
   do sklizně jaře; jinak sklizeň jaře 31. 8. (viz Ozim a jař).
+- **Přednost v hladu** (Martin 17. 11. 2026: „elita ať jí první – kníže, pak zahraniční mistři
+  a pak ostatní řemeslníci. Vycvičit řemeslníky totiž trvá dlouho a stojí zdroje“; „I s rodinami“):
+  příděl do sklizně se dělí po skupinách – napřed se odloží plné příděly rodu vojvody, domácností
+  mistrů huti a řemeslníků do sklizně a zbytek vsi si rozdělí, co zbude; nevyjde-li ani na ně, dělí
+  si zásoby ve svém pořadí rovným dílem ([populace](population.md) – Přednost v hladu). Nouzová
+  porážka se řídí výhledem celé vsi, výhled „na jak dlouho vystačí zásoby“ taky.
 - **Start:** osadníci přinesli zásoby na **18 měsíců** potřeby (návrh Clauda) a k nim osivo na
   první osev – **půl roční potřeby** (od 27. 10. 2026, kdy osivo bere setí ze zásob; návrh Clauda)
   – ves přežije i založení těsně po jarním setí.

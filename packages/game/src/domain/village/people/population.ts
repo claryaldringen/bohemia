@@ -332,6 +332,17 @@ function birthPauses(state: VillageState): Map<number, number> {
 }
 
 /**
+ * Hlad dne po skupinách přednosti (`hunger-groups.ts`): skupina člověka (kdo chybí, patří do
+ * zbytku), energie a nahromaděný hlad skupin – úmrtí hladem a hájení počítají s hladem skupiny
+ * člověka, porody s energií skupiny matky.
+ */
+export interface HungerDay {
+  groupOf: ReadonlyMap<number, number>;
+  energy: readonly number[];
+  starvation: readonly number[];
+}
+
+/**
  * Jeden den populace (porody i úmrtnost hladem podle energie `energy`, nasycení `satiation` jen jako její
  * výchozí hodnota – diet.md): úmrtí (lidé podle id, každý zemřelý se pohřbí – cemetery.md; zemřel hlady,
  * když los padl do části rizika z nahromaděného hladu `state.starvationDays`), porody
@@ -343,6 +354,7 @@ export function populationDay(
   day: number,
   satiation: number,
   energy: number = satiation,
+  hunger?: HungerDay,
 ): ChronicleEvent[] {
   const events: ChronicleEvent[] = [];
   const random = createRandom(deriveSeed(state.seed, 'day:' + day));
@@ -356,17 +368,21 @@ export function populationDay(
   // úmrtí
   const hygiene = villageHygiene(state);
   const starvationDays = state.starvationDays ?? 0;
+  const last = (hunger?.energy.length ?? 1) - 1;
+  const groupOf = (person: Person): number => hunger?.groupOf.get(person.id) ?? last;
   const dead = new Set<number>();
   for (const person of [...state.people].sort((a, b) => a.id - b.id)) {
     const { base, starvation } = deathChances(person, {
       day,
       foundedDay: state.foundedDay,
       // hlad zvyšuje úmrtnost z nedostatku energie, ne z pestrosti stravy (diet.md)
-      satiation: energy,
+      satiation: hunger ? (hunger.energy[groupOf(person)] ?? energy) : energy,
       overcrowded: crowded.get(person.dwellingId) ?? false,
       dwellingType: typeOf.get(person.dwellingId) ?? 'zemnice',
       hygiene,
-      starvationDays,
+      starvationDays: hunger
+        ? (hunger.starvation[groupOf(person)] ?? starvationDays)
+        : starvationDays,
     });
     const roll = random.next();
     if (roll < Math.min(1, base + starvation)) {
@@ -417,7 +433,7 @@ export function populationDay(
     });
     for (const { mother, father } of couples) {
       const chance = birthChancePerDay({
-        energy,
+        energy: hunger ? (hunger.energy[groupOf(mother)] ?? energy) : energy,
         overcrowded: crowded.get(household) ?? false,
         motherAge: ageYears(mother.bornDay, day),
       });

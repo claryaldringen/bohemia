@@ -33,6 +33,13 @@ import {
 import { EPSILON, SATIATION_EPSILON } from './simulate-plan';
 import { stockLastsDays, type StockKind } from './food-lasts';
 import { NO_CRAFTS } from './productivity';
+import { hungerSplit, priorityEnergy, shownGroup, type HungerSplit } from '../people/hunger-groups';
+
+/** Jak se dnes najedly skupiny přednosti v hladu (`hunger-groups.ts`). */
+export interface GroupMeal extends HungerSplit {
+  /** Energie dne po skupinách (0–1) – rod vojvody, mistři huti, řemeslníci, zbytek vsi. */
+  energy: number[];
+}
 
 /**
  * Práce výmlatu sklizené části – v deštivém létě o 20 % víc (vlhké snopy – disasters.md, Léto).
@@ -253,7 +260,7 @@ export function eat(
   state: VillageState,
   day: number,
   coverage: CraftCoverage,
-): { satiation: number; energy: number; fruit: boolean; meat: number } {
+): { satiation: number; energy: number; fruit: boolean; meat: number; groups: GroupMeal | null } {
   const milked = 1;
   const need = villageFoodNeed(state, day);
   // co zásoby ubyly dnes (prodej, platby), jde z otevřené obilné jámy (production-chains.md –
@@ -295,8 +302,19 @@ export function eat(
   // co opravdu snědla
   const ration = Math.min(meal.outlook, meal.diet.energy);
   const hungry = ration < 1 - SATIATION_EPSILON;
+  // přednost v hladu (population.md – Přednost v hladu): rod vojvody, mistři huti a řemeslníci jedí
+  // napřed, zbytek vsi si rozdělí, co zbude; rozdělení se počítá jen, když jídla není dost nebo
+  // když skupiny mají každá jiný hlad
+  let groups: GroupMeal | null = null;
+  let shownRation = ration;
+  if (ration < 1 || meal.diet.energy < 1 || state.starvationGroups !== undefined) {
+    const split = hungerSplit(state, day);
+    groups = { ...split, energy: priorityEnergy(meal.diet.energy, split.needs) };
+    // příděl do sklizně hráči ukazuje zbytek vsi (nejnižší neprázdná skupina)
+    shownRation = priorityEnergy(ration, split.needs)[shownGroup(split.counts)] ?? ration;
+  }
   // příděl do sklizně, když ves šetří – stupeň upozornění (population.md – Co hráč vidí)
-  if (hungry) state.ration = ration;
+  if (hungry) state.ration = shownRation;
   else delete state.ration;
   // šetří jen kvůli osivu, které nejí – se snědeným osivem by jedla plně (absence.md – Upozornění
   // vsi do kroniky): stejný vstup jídla se zrnem celých zásob, jen v den, kdy ves šetří
@@ -318,5 +336,6 @@ export function eat(
     energy: meal.diet.energy,
     fruit: meal.diet.shares.fruit > 0,
     meat: meal.diet.shares.meat,
+    groups,
   };
 }

@@ -31,7 +31,13 @@ import { settleSowingSeed } from '../fields/seed';
 import { seedBuyingDay } from '../fields/seed-buying';
 import { sacredOakEvents } from '../people/sacred-life';
 import { orchardSeasonDay } from '../buildings/orchard';
-import { inLuckyYears, nextStarvationDays, populationDay } from '../people/population';
+import {
+  inLuckyYears,
+  nextStarvationDays,
+  populationDay,
+  type HungerDay,
+} from '../people/population';
+import { advanceGroupStarvation } from '../people/hunger-groups';
 import { keepManor } from '../people/manor';
 import { finishExpeditions } from '../trade/trade';
 import { swathRoadsInWork, trailsDay } from '../trade/trail';
@@ -532,16 +538,21 @@ function peopleDay(
   },
 ): boolean {
   const { toil, eaten, huntEvents, disasterEvents } = dayResult;
-  const { satiation, energy, fruit, meat } = eaten;
+  const { satiation, energy, fruit, meat, groups } = eaten;
   // nahromaděný hlad se počítá z dnešní energie (hladem se umírá z energie, ne z pestrosti –
   // diet.md) – úmrtí dne podle něj (population.md); v hájení zůstává pod prahem, aby po něm lidé
   // umírali postupně
-  state.starvationDays = nextStarvationDays(
-    state.starvationDays ?? 0,
-    energy,
-    inLuckyYears(state.foundedDay, day),
-  );
-  const events = populationDay(state, day, satiation, energy);
+  // skupiny přednosti v hladu (population.md – Přednost v hladu) mají hlad každá zvlášť; jí-li se
+  // dosyta a všechny mají stejný hlad, vede se jediný hlad vsi jako dřív
+  const lucky = inLuckyYears(state.foundedDay, day);
+  let hunger: HungerDay | undefined;
+  if (groups) {
+    const starvation = advanceGroupStarvation(state, groups.energy, groups.counts, lucky);
+    hunger = { groupOf: groups.groupOf, energy: groups.energy, starvation };
+  } else {
+    state.starvationDays = nextStarvationDays(state.starvationDays ?? 0, energy, lucky);
+  }
+  const events = populationDay(state, day, satiation, energy, hunger);
   state.chronicle.push(...events);
   // kdo zahynul na lovu, ves oplakává jako každé úmrtí (štěstí), i když zápis dělá lov
   const happinessEvents = [
@@ -569,7 +580,7 @@ function peopleDay(
     return false;
   }
   // mistři huti – odchod při hladu a neštěstí, noví mistři (stone-masonry.md); ves bez huti nic
-  lodgeLifeDay(state, energy, day);
+  lodgeLifeDay(state, groups ? (groups.energy[1] ?? energy) : energy, day);
   return true;
 }
 

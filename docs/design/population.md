@@ -527,6 +527,24 @@ jich bude moci mít více), tak pro něj hra končí – musí začínat znovu.�
   ≈ 5–6 týdnech, ves se během dalších ≈ 6 týdnů zmenší na ≈ 45–50 % lidí a zbylí jsou sytí. Mírný
   nedostatek (80 % přídělu) začne zabíjet děti a starší až po ≈ 4–5 měsících a za rok stojí
   ≈ 15 % lidí. Porody se zastaví už při energii 0,5 (Růst populace).
+- **Přednost v hladu** (Martin 17. 11. 2026, po hladomoru ve Vlkově 893, kde zemřelo 38 lidí
+  z 60 včetně vojvody: „Ano, elita ať jí první – kníže, pak zahraniční mistři a pak ostatní
+  řemeslníci. Vycvičit řemeslníky totiž trvá dlouho a stojí zdroje“; k rodinám: „I s rodinami“;
+  rozdělení na skupiny návrh Clauda). V nedostatku jídla se ves dělí do čtyř skupin v pořadí:
+  1. **rod vojvody ve vsi** (vojvoda a rodina ve dvorci, domech elity i vedlejší manželky),
+  2. **domácnosti zahraničních mistrů huti** (mistr, žena a svobodné děti),
+  3. **domácnosti ostatních řemeslníků** (obydlí s dílnou) a každý, kdo se řemeslo učí nebo
+     vyučil (učeň mimo dílnu je tu jako osoba),
+  4. **zbytek vsi** (i hosté). Člověk patří do nejvyšší skupiny, kam ho řadí kterékoli pravidlo.
+     Každá skupina dostane plný příděl, dokud na ni jídlo vyjde; skupina, na kterou celý nevyjde,
+     si rozdělí zbytek rovným dílem, nižší skupiny nic (nevyjde-li ani na rod, jí jen on). Ve výhledu
+     do sklizně se napřed odloží plné příděly skupin 1–3 a zbytek vsi si rozdělí, co zbude.
+     **Nahromaděný hlad** se vede pro každou skupinu zvlášť, riziko smrti hladem a hájení počítají
+     s hladem skupiny člověka, porody brzdí energie skupiny matky; prahy a čísla se nemění.
+     Mistři huti odcházejí při hladu podle energie své skupiny. **Hráč vidí** jako dřív – ikona
+     nasycení a upozornění („Ves šetří jídlem“, „Ves hladoví“, „Lidé umírají hlady“) se řídí zbytkem
+     vsi (většinou lidí), štěstí z nasycení celou vsí (vážený průměr). Kronika a výhled „na jak
+     dlouho vystačí zásoby“ beze změny. Nouzová porážka se řídí výhledem celé vsi.
 - **Napřed nouzová porážka:** ves, které výhled do sklizně nevychází, nejdřív porazí zvířata
   navíc a teprve pak ubírá z přídělu ([strava](diet.md) – Nouzová porážka, Martin 19. 10. 2026).
 - **Stupně upozornění** (Martin, 19. 10. 2026; příděl = rovný díl zásob do sklizně podle výhledu):
