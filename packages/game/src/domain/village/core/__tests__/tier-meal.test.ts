@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { DIET, dietOf, fruitEnergy, honeyEnergy, meatEnergy, type Eaten } from '../diet';
 import { dietHappiness, tierMeal, type TierMeal } from '../tier-meal';
+import { villageRationFor } from '../../people/hunger-groups';
 import { APPLE_FOOD_VALUE, LEGUMES } from '../../rules';
 import { HONEY } from '../../rules/rules-wares';
 import { DAIRY } from '../../livestock/dairy';
@@ -107,6 +108,24 @@ describe('jídlo po vrstvách – příděl energie', () => {
     expect(meal.energy[1]).toBeCloseTo(1, 12);
     expect(meal.energy[2]).toBeCloseTo(0.75, 12);
     expect(meal.energy[3]).toBeCloseTo(0.75, 12);
+  });
+
+  it('obrácený příděl (přežívací zásoba) platí i s ovocem a medem všem stejně – jen plní příděly', () => {
+    // rod 60 % potřeby, cíl zbytku vsi 0,875 → příděl vsi 0,95 (`villageRationFor`)
+    const needs = [6, 0, 0, 4];
+    const energy = 10 * villageRationFor(0.875, needs);
+    for (const fruit of [0, 0.3, 0.6]) {
+      const meal = tierMeal(split(needs), {
+        ...NONE,
+        fruitKg: fruitKg(energy * fruit),
+        ...ration(energy * 0.05),
+        grainKg: energy * (0.95 - fruit),
+      });
+      // energie zbytku vsi je jeho příděl z `rationShares` – ovoce a med mu z něj neuberou
+      expect(meal.energy[3]).toBeGreaterThanOrEqual(0.875 - 1e-12);
+      expect(meal.diets[3]!.energy).toBeCloseTo(0.875, 9);
+      expect(meal.energy[0]).toBeCloseTo(1, 12);
+    }
   });
 });
 

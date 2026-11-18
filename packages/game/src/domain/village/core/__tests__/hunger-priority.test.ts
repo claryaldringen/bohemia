@@ -11,7 +11,9 @@ import {
   advanceGroupStarvation,
   groupStarvation,
   hungerSplit,
+  lowestFedGroup,
   rationShares,
+  villageRationFor,
 } from '../../people/hunger-groups';
 import { populationDay } from '../../people/population';
 import { advanceVillage } from '../simulate';
@@ -95,6 +97,40 @@ describe('přednost v hladu – rozdělení jídla', () => {
     const needs = [3, 2, 1, 14];
     const r = rationShares(0.83, needs);
     expect(r.reduce((a, x, i) => a + x * needs[i]!, 0)).toBeCloseTo(0.83 * 20, 9);
+  });
+
+  it('obrácený příděl (přežívací zásoba): nejmenší příděl vsi, při kterém zbytek vsi dostane cíl', () => {
+    for (const needs of [
+      [6, 0, 0, 4],
+      [2, 1, 1, 6],
+      [1, 1, 1, 1],
+      [9, 0, 0, 1],
+      [0, 0, 0, 5],
+    ]) {
+      for (const share of [0, 0.3, 0.6, 0.75, 0.76, 0.8, 0.875, 0.9, 1]) {
+        const r = villageRationFor(share, needs);
+        expect(r).toBeLessThanOrEqual(1);
+        expect(r).toBeGreaterThanOrEqual(share - 1e-12);
+        expect(rationShares(r, needs)[3]).toBeGreaterThanOrEqual(share - 1e-12);
+        // nejmenší – o kousek méně a zbytek vsi by cíl nedostal
+        if (share > 0 && r < 1) expect(rationShares(r - 1e-6, needs)[3]).toBeLessThan(share);
+      }
+    }
+    // rod 60 % potřeby, cíl zbytku vsi 0,875: příděl vsi 0,6 + 0,875 × 0,4 = 0,95 (rod sytý)
+    expect(villageRationFor(0.875, [6, 0, 0, 4])).toBeCloseTo(0.95, 12);
+    expect(rationShares(0.95, [6, 0, 0, 4])[0]).toBeCloseTo(1, 12);
+    // do životního minima jedí všichni stejně – příděl vsi je cíl
+    expect(villageRationFor(0.7, [6, 0, 0, 4])).toBe(0.7);
+    // bez zbytku vsi cíl nejnižší vrstvy s potřebou (řemeslníci)
+    expect(lowestFedGroup([6, 0, 4, 0])).toBe(2);
+    expect(villageRationFor(0.875, [6, 0, 4, 0])).toBeCloseTo(0.95, 12);
+    expect(rationShares(0.95, [6, 0, 4, 0])[2]).toBeCloseTo(0.875, 12);
+    // jediná vrstva s potřebou (i jen rod) – příděl vsi je cíl, jako bez vrstev
+    expect(villageRationFor(0.875, [10, 0, 0, 0])).toBeCloseTo(0.875, 12);
+    expect(villageRationFor(0.875, [0, 0, 0, 10])).toBeCloseTo(0.875, 12);
+    // nikdo nejí
+    expect(lowestFedGroup([0, 0, 0, 0])).toBe(-1);
+    expect(villageRationFor(0.875, [0, 0, 0, 0])).toBe(0.875);
   });
 
   it('skupiny: rod, domácnost mistra s dětmi, řemeslníci a učeň mimo dílnu, zbytek a hosté', () => {

@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../../calendar';
 import { foundVillage, type PartInput } from '../../core/actions';
 import { ageGroup } from '../../people/people';
-import { SEED_STORES, STARVATION } from '../../rules';
+import { hungerSplit, rationShares } from '../../people/hunger-groups';
+import { HUNGER_PRIORITY, SEED_STORES, STARVATION } from '../../rules';
 import { craftCoverage } from '../../crafts/crafts';
 import { eatDiet, grainAheadForOutlookKg, grainKeepPerDay } from '../../core/diet';
 import { dayMealInput } from '../../livestock/emergency-slaughter';
@@ -19,8 +20,9 @@ import {
   workSeedKg,
 } from '../seed';
 import { advanceVillage } from '../../core/simulate';
-import type { VillageState } from '../../types';
+import type { Dwelling, VillageState } from '../../types';
 import { villageYearRow } from '../../core/year-log';
+import { withoutSmallGame } from '../../__tests__/village-fixtures';
 import { createCropWork, seasonCrops, sownShare } from '../../core/year-plan';
 
 // Osev má přednost (fields.md – Úroda, Osivo ze zásob; Martin 6. 11. 2026: „Musí zasít – jinak by
@@ -256,4 +258,105 @@ describe('osev má přednost (fields.md – Osivo ze zásob; Martin 6. 11. 2026)
     // 4 díly po 0,25 ha ve stavu `sown`, zaseta polovina práce
     expect(villageYearRow(s).sownM2).toBe(5_000);
   });
+});
+
+/**
+ * Ves s rodem vojvody ≈ 60 % potřeby jako Vlkov 904–905: `village` s dvorcem – zemnicí zakladatelů
+ * (ve dvorci jsou všichni rod vojvody – `hungerSplit`) a v ní k zakladatelům tři dospělí – a se
+ * zbytkem vsi (dva dospělí a tři děti) v druhé zemnici `home`.
+ */
+function tiered(storesKg: number): { s: VillageState; home: number } {
+  const s = village(storesKg);
+  const manor = s.people[0]!.dwellingId;
+  s.manorId = manor;
+  const home = s.nextId++;
+  const dwelling = (id: number, type: 'polozemnice' | 'zemnice', x: number): Dwelling => ({
+    id,
+    type,
+    builtDay: s.foundedDay,
+    condition: 1,
+    position: { x, z: 0, rotation: 0 },
+  });
+  s.dwellings.push(dwelling(manor, 'polozemnice', 0), dwelling(home, 'zemnice', 30));
+  const add = (dwellingId: number, age: number, sex: 'male' | 'female'): void => {
+    const bornDay = s.lastDay - Math.round((age + 0.5) * 365.25);
+    s.people.push({ id: s.nextId++, bornDay, dwellingId, sex });
+  };
+  add(manor, 30, 'male');
+  add(manor, 27, 'female');
+  add(manor, 22, 'male');
+  add(home, 32, 'male');
+  add(home, 29, 'female');
+  add(home, 8, 'female');
+  add(home, 5, 'male');
+  add(home, 2, 'female');
+  return { s, home };
+}
+
+describe('přežívací zásoba podle zbytku vsi (návrh Clauda 18. 11. 2026 – Vlkov 904–905)', () => {
+  const START = at(600, 9, 1);
+
+  it('rod ≈ 60 % potřeby: zásoba větší než bez vrstev – zbytek vsi dostane cílový příděl', () => {
+    const { s, home } = tiered(50_000);
+    const v = advanceVillage(s, START, null);
+    const { needs } = hungerSplit(v, START);
+    const total = needs.reduce((sum, n) => sum + n, 0);
+    expect(needs[0]! / total).toBeGreaterThan(0.55);
+    expect(needs[0]! / total).toBeLessThan(0.7);
+    expect(needs[3]!).toBeGreaterThan(0);
+    // stejný stav bez vrstev – všichni v zemnici zbytku vsi (dvorec bez vojvody), potřeba stejná
+    const flat = structuredClone(v);
+    for (const p of flat.people) p.dwellingId = home;
+    expect(hungerSplit(flat, START).needs[3]).toBeCloseTo(total, 9);
+    const keep = seedKeepKg(v, START);
+    const keepFlat = seedKeepKg(flat, START);
+    expect(keep).toBeGreaterThan(keepFlat * 1.05);
+    // cílový příděl zbytku vsi do žní – s přežívací zásobou ho zbytek vsi dostane
+    const input = baseMealInput(v, START, craftCoverage(v, START).pottery, 1);
+    const target = STARVATION.fedFrom * (1 - hungerLimit(v, START) / input.daysToHarvest);
+    expect(target).toBeGreaterThan(HUNGER_PRIORITY.minimumShare);
+    const outlook = eatDiet({ ...input, grainKg: keep }).outlook;
+    expect(rationShares(outlook, needs)[3]).toBeGreaterThan(target - 1e-9);
+    expect(rationShares(outlook, needs)[3]).toBeLessThan(target + 1e-6);
+    // bez vrstev dá zásoba cílový příděl celé vsi – zbytek vsi by z něj dostal jen víc než minimum
+    // o to, co nesní rod (dřív: jen 0,75)
+    const outlookFlat = eatDiet({ ...input, grainKg: keepFlat }).outlook;
+    expect(outlookFlat).toBeGreaterThan(target - 1e-9);
+    expect(rationShares(outlookFlat, needs)[3]).toBeLessThan(target - 0.05);
+  });
+
+  it('ves drží osivo na jař jako Vlkov 904–905: hlad zbytku vsi do žní pod prahem dětí', () => {
+    // od 1. 11. jen obilí (bez stád, ryb a ok); zbytek vsi už hladoví (6 dní – Vlkov v listopadu
+    // 904 5,4), rod ne; zásoby = přežívací zásoba + osivo jaře, které ves přes zimu drží
+    const NOV = at(600, 11, 1);
+    const { s } = tiered(50_000);
+    s.livestock!.herds = { sheep: 0, goat: 0, pig: 0, cow: 0 };
+    s.livestock!.young = { sheep: 0, goat: 0, pig: 0, cow: 0 };
+    const autumn = advanceVillage(withoutSmallGame(s), NOV, null);
+    autumn.starvationDays = 6;
+    autumn.starvationGroups = [0, 0, 0];
+    const spring = windowSeedNeedKg(autumn, 'spring');
+    expect(spring).toBeGreaterThan(0);
+    let v: VillageState = { ...autumn, storesKg: seedKeepKg(autumn, NOV) + spring };
+    let maxRest = 0;
+    let winterSeed = 0;
+    let rationed = false;
+    for (let day = NOV + 5; day <= at(601, 8, 31); day += 5) {
+      v = advanceVillage(v, day, null);
+      maxRest = Math.max(maxRest, v.starvationDays ?? 0);
+      if (day < at(601, 3, 1)) {
+        winterSeed = Math.max(winterSeed, uneatenSeedKg(v));
+        rationed ||= v.ration !== undefined;
+      }
+    }
+    // ves přes zimu šetřila a držela osivo, a přesto zbytek vsi nedošel k prahu dětí (dřív, se
+    // zásobou na příděl celé vsi, zbytek vsi na 0,78: hlad 17,6 koncem ledna a úmrtí hladem)
+    expect(winterSeed).toBeGreaterThan(spring / 2);
+    expect(rationed).toBe(true);
+    expect(maxRest).toBeLessThan(STARVATION.threshold.child);
+    const deaths = v.chronicle.filter(
+      (e) => e.day > NOV && e.kind === 'death' && e.cause === 'hunger',
+    );
+    expect(deaths).toEqual([]);
+  }, 120_000);
 });
