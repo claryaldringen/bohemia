@@ -16,9 +16,12 @@ import {
   tileOfWorldPoint,
   turnRotation,
   type Landscape,
+  type PlannedBuilding,
+  type RoadStretch,
   type SquareGrid,
   type TileCell,
 } from '@bohemia/game';
+import { ROAD_CUT_WARNING } from './road-cut';
 import {
   CellSelection,
   cellsBoundary,
@@ -76,6 +79,11 @@ export interface PaintContext {
   pickGround(x: number, y: number): Point | null;
   decalHeight: HeightFn;
   requestRender(): void;
+  /**
+   * Kusy cest vsi, které by ohrada či hřbitov po postavení opustily (paths.md – Stavba přes cestu,
+   * Náhled u kurzoru) – jako u stavby pod kurzorem (`PlacementContext.roadsUnder`).
+   */
+  roadsUnder?(planned: PlannedBuilding): readonly RoadStretch[];
 }
 
 type FieldMode = Extract<PlacementMode, { kind: 'squares' }>;
@@ -118,6 +126,8 @@ export class FieldPainter {
   private lastPreview = 0;
   private candidate: TileCell[] = [];
   private preview: SquaresPreview | null = null;
+  /** Kolik kusů cest náhled teď vyznačuje žlutě (ohrada, hřbitov – e2e háček `roadHints`). */
+  private roadCut = 0;
   private selectionMeshes: Mesh[] = [];
   private cursorMeshes: Mesh[] = [];
   private readonly fillMaterial: StandardMaterial;
@@ -272,6 +282,7 @@ export class FieldPainter {
     if (this.done) return;
     this.done = true;
     setE2EHook('paintProblems', undefined);
+    setE2EHook('roadHints', undefined);
     const canvas = this.context.canvas;
     canvas.removeEventListener('pointerdown', this.onPointerDown);
     canvas.removeEventListener('pointerup', this.onPointerUp);
@@ -521,6 +532,8 @@ export class FieldPainter {
         : null;
 
     disposeAll(this.selectionMeshes);
+    this.roadCut = 0;
+    setE2EHook('roadHints', () => this.roadCut);
     const ok = this.preview?.check.ok ?? false;
     const blocked = new Set((this.preview?.blockedCells ?? []).map((c) => cellKey(c)));
     const warned = new Set((this.preview?.warningCells ?? []).map((c) => cellKey(c)));
@@ -563,6 +576,14 @@ export class FieldPainter {
         line.map(([x, z]): Point => [x, z]),
       );
       setE2EHook('paintProblems', () => problem.length);
+      // zásah do cest (ohrada, hřbitov): kusy, které by stavba opustila, žlutě – jen varování
+      const blocks = this.mode.blocks;
+      const cut = blocks ? (this.context.roadsUnder?.({ kind: blocks, squares }) ?? []) : [];
+      this.roadCut = cut.length;
+      if (cut.length > 0) {
+        const axes = cut.map((stretch) => stretch.points.map((p): Point => [p.x, p.z]));
+        this.selectionMeshes.push(this.lineMesh('field-paint-road-cut', axes, 'warn', 1.4));
+      }
       if (problem.length > 0) {
         this.selectionMeshes.push(this.lineMesh('field-paint-problem', problem, 'bad', 0.7));
         const xray = this.lineMesh('field-paint-problem-xray', problem, 'bad', 0.7);
@@ -602,8 +623,17 @@ export class FieldPainter {
     const preview = this.preview;
     // Prázdný výběr není chyba – bez důvodu (rozhraní pak u kurzoru nic neukáže).
     const variant = this.variant();
+    const base = preview?.check ?? { ok: false, reason: null };
+    // ohrada či hřbitov přes cestu: varování u kurzoru (stavbě nebrání)
+    const check =
+      base.ok && this.roadCut > 0
+        ? {
+            ...base,
+            warning: base.warning ? `${base.warning}\n${ROAD_CUT_WARNING}` : ROAD_CUT_WARNING,
+          }
+        : base;
     this.handlers.onPreview?.({
-      check: preview?.check ?? { ok: false, reason: null },
+      check,
       label: preview?.label ?? '',
       screen: this.screen,
       cost: preview?.check.ok ? (preview.cost ?? null) : null,

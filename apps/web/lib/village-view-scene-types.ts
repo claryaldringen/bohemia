@@ -8,6 +8,7 @@ import type { SceneFortification } from './fort-view';
 import type { CartGoal } from './cart-routes';
 import { GraveMound } from '@bohemia/game';
 import { DwellingPlot } from '@bohemia/game';
+import { plotSquareTile } from '@bohemia/game';
 import { KilnStage } from '@bohemia/game';
 import { MoundSize } from '@bohemia/game';
 import { tileCenterWorld } from '@bohemia/game';
@@ -1261,6 +1262,12 @@ export interface ScenePlot {
   size: number;
   variant: PlotVariant;
   rotation?: number;
+  /**
+   * Čtverec pozemku nezabírá přesně své políčko – natočený, nebo se středem mimo střed políčka
+   * (population.md – Natočený pozemek, D96): pole a sad pod ním přijdou jen o průnik. Chybí –
+   * rozhoduje natočení (jen čtverec natočený mimo osy krajiny).
+   */
+  free?: true;
   /** Dvůr dvorce vojvody (trade.md) – druhé políčko pozemku a jeho střed; jinak chybí. */
   yard?: { cell: TileCell; x: number; z: number };
 }
@@ -1275,6 +1282,7 @@ export function scenePlot(landscape: Landscape, plot: DwellingPlot): ScenePlot {
       size: landscape.cellSizeM,
       variant: plot.variant,
       rotation: plot.square.rotation,
+      ...(plotSquareTile(landscape, plot.square) === null ? { free: true as const } : {}),
     };
   }
   const center = tileCenterWorld(landscape, plot.cell.x, plot.cell.y);

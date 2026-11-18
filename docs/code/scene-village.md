@@ -77,15 +77,19 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `homestead.ts` v instancích z dílů `models/dwellings/homestead.glb` (záhon 1 × 0,8 m natažený
   na délku, zelí, řepa, cibule, kopr – `homestead_parts`, oblasti atlasu `veg` a `soil`); každý
   díl stojí na terénu sám. Fáze polozemnice po hřebeni: `fence` (kůly, pak větve zdola)
-  a `beds` (`ConstructionState.plot`). Umisťování: režim `plot` (políčko pod kurzorem, [ a ]
+  a `beds` (`ConstructionState.plot`). Umisťování: režim `plot` (střed pod kurzorem, [ a ]
   otáčejí celým pozemkem, Tab přepíná variantu), vytyčení při 0 % kolíky a provázkem kolem pozemku
   (`plotStakingLine`), výběr i kliknutí kamkoli na pozemek označí celé políčko, rekvizity
   staveniště rohového domu se zrcadlí dovnitř (`sitePropPlace`), slepice zůstávají uvnitř
   plotu, cizí ani lidé do pozemku nechodí, hromada klád leží za plotem. **Natočený pozemek**
   (Martin 18. 10. 2026, varianta a – viz Ves – Natočené stavby): `DwellingPlot.square` (střed
   na cm, natočení po 15°; `cell` = políčko pod středem), [ a ] otáčejí celým pozemkem, **Tab**
-  (Shift + Tab zpět) přepíná variantu; bez natočení a po 90° se přichytí na políčko pod kurzorem
-  (`rotatedPlot` / `canonicalPlot` – ukládaná podoba stejně v prohlížeči i na serveru).
+  (Shift + Tab zpět) přepíná variantu; střed pod kurzorem i bez natočení a po 90° (D96 – Martin
+  dne 18. 11. 2026, dřív se přichytil na políčko): `plotUnderCursor` v `placement-hints.ts` přes
+  `rotatedPlot` / `canonicalPlot` – ukládaná podoba stejně v prohlížeči i na serveru; jen přesně ve
+  středu políčka bez natočení je to políčko. Čtverec, který nezabírá přesně své políčko
+  (`ScenePlot.free` z `scenePlot` – `plotSquareTile`), bere polím a sadům jen průnik a scéna pod
+  ním pole nekreslí (`buildingClearings` – `freePlot`, dřív jen podle natočení).
   `homesteadLayout` natočený pozemek rozmístí v jeho osách a otočí do světa (`HomesteadLayout.rotation`
   – záhony v instancích natočené), `insidePlot`, `plotStakingLine`, `plotFenceCorners` v osách
   pozemku, `ScenePlot.rotation`. Dílny z polozemnice

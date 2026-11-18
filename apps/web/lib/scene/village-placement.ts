@@ -16,11 +16,15 @@ import {
   type DwellingPlot,
   type PlacementCheck,
   type DwellingType,
+  type PlannedBuilding,
   type PlotVariant,
   type Position,
+  type RoadStretch,
   type SacredBuildingKind,
   type TileCell,
 } from '@bohemia/game';
+import { setE2EHook } from '../e2e-hooks';
+import { ROAD_CUT_WARNING } from './road-cut';
 import { nextPlotVariant, plotHouse, type PlotSquare } from './homestead-layout';
 import { sacredStakeLines } from './sacred-layout';
 import {
@@ -60,6 +64,10 @@ const ROTATE_STEP = Math.PI / 12;
 const CLICK_SLOP_PX = 6;
 const OK_COLOR = new Color3(0.3, 0.85, 0.35);
 const BAD_COLOR = new Color3(0.92, 0.24, 0.18);
+/** Žlutá zásahu do cest – stavbě nebrání, jen upozorní (paths.md – Stavba přes cestu). */
+const WARN_COLOR = new Color3(0.98, 0.8, 0.16);
+/** Šířka žlutého pásu po ose cesty, kterou by stavba přerušila (m). */
+const ROAD_HINT_WIDTH_M = 1.4;
 const GHOST_VISIBILITY = 0.6;
 const FOOTPRINT_NAMES: Record<DwellingType | SacredBuildingKind, string> = {
   zemnice: 'Zemnice',
@@ -143,9 +151,8 @@ export interface PlacementContext {
   /** Políčko krajiny pod bodem (pozemek) se středem a stranou, nebo null mimo krajinu. */
   cellAt(x: number, z: number): (PlotSquare & { cell: TileCell }) | null;
   /**
-   * Pozemek natočený o `rotation` (násobek 15°) pod bodem v ukládané podobě (`rotatedPlot` –
-   * střed na cm; natočení o násobek 90° se přichytí na políčko pod bodem) a jeho čtverec ve
-   * světě; null mimo krajinu.
+   * Pozemek natočený o `rotation` (násobek 15°) se středem pod bodem v ukládané podobě
+   * (`rotatedPlot` – střed na cm i bez natočení, D96) a jeho čtverec ve světě; null mimo krajinu.
    */
   plotAt(
     x: number,
@@ -154,6 +161,11 @@ export interface PlacementContext {
     variant: PlotVariant,
   ): { plot: DwellingPlot; square: PlotSquare } | null;
   ghostModel(type: GhostType): Mesh | null;
+  /**
+   * Kusy cest vsi, které by stavba po postavení opustila (paths.md – Stavba přes cestu, Náhled
+   * u kurzoru) – `stretchesUnderBuilding` v ploše `plannedBlockedAt` z jádra. Bez cest nic.
+   */
+  roadsUnder?(planned: PlannedBuilding): readonly RoadStretch[];
   /** Pata modelu stavby na místě (obydlí, dílna, milíř, modla, svatyně). */
   baseHeight(type: GhostType, position: Position): number;
   requestRender(): void;
@@ -163,13 +175,13 @@ export interface PlacementContext {
  * Umisťování obydlí (a modly či svatyně) jako v 0 A.D.: duch u kurzoru, levé kliknutí postaví,
  * se Shiftem postaví a umisťuje dál další kus; pravé kliknutí nebo Esc zruší. Klávesy [ a ]
  * otáčejí stavbou po 15° – u obydlí na pozemku (polozemnice) celým pozemkem (Martin 18. 10. 2026,
- * varianta a): bez natočení a po 90° je pozemek políčko pod kurzorem, jinak natočený čtverec se
- * středem pod kurzorem; Tab (se Shiftem zpět) přepíná variantu, kde na pozemku dům stojí. Enter
+ * varianta a): pozemek má střed pod kurzorem i bez natočení (D96 – Martin 18. 11. 2026), dřív se
+ * bez natočení a po 90° přichytil na políčko; Tab (se Shiftem zpět) přepíná variantu, kde na pozemku dům stojí. Enter
  * postaví pod kurzorem. Kurzor nad terénem dodává scéna jednou za snímek (`setCursor`).
  */
 export class PlacementController implements ActivePlacement {
   private readonly ghost: Mesh[] = [];
-  private readonly materials: Record<'ok' | 'bad', StandardMaterial>;
+  private readonly materials: Record<'ok' | 'bad' | 'warn', StandardMaterial>;
   private readonly fillMaterials: Record<'ok' | 'bad', StandardMaterial>;
   private cursor: Point | null = null;
   private screen: { x: number; y: number } | null = null;
@@ -184,6 +196,8 @@ export class PlacementController implements ActivePlacement {
   /** Duch přístřešku nadzemní dílny. */
   private shed: Mesh | null = null;
   private done = false;
+  /** Kolik kusů cest náhled teď vyznačuje žlutě (e2e háček `roadHints`). */
+  private roadHints = 0;
 
   constructor(
     private readonly context: PlacementContext,
@@ -196,6 +210,7 @@ export class PlacementController implements ActivePlacement {
     this.materials = {
       ok: material('ok', OK_COLOR, -6),
       bad: material('bad', BAD_COLOR, -6),
+      warn: material('warn', WARN_COLOR, -7),
     };
     this.fillMaterials = {
       ok: material('fill-ok', OK_COLOR, -5),
@@ -207,6 +222,7 @@ export class PlacementController implements ActivePlacement {
     context.canvas.addEventListener('pointerup', this.onPointerUp);
     window.addEventListener('keydown', this.onKeyDown);
     context.canvas.style.cursor = 'crosshair';
+    setE2EHook('roadHints', () => this.roadHints);
   }
 
   /** Bod terénu pod kurzorem (null mimo krajinu) a kurzor v px plátna. */
@@ -240,6 +256,7 @@ export class PlacementController implements ActivePlacement {
     this.context.canvas.removeEventListener('pointerup', this.onPointerUp);
     window.removeEventListener('keydown', this.onKeyDown);
     this.context.canvas.style.cursor = '';
+    setE2EHook('roadHints', undefined);
     this.clearGhost();
     this.model?.setEnabled(false);
     this.milir?.setEnabled(false);
@@ -411,6 +428,19 @@ export class PlacementController implements ActivePlacement {
       position = this.position(this.cursor);
       check = mode.check(position);
     }
+    // zásah do cest (paths.md – Stavba přes cestu, Náhled u kurzoru): kusy, které by stavba po
+    // postavení opustila, žlutě – stavbě to nebrání, u kurzoru je jen varování
+    const planned = plannedOf(mode, position, plot);
+    const cut = planned ? (this.context.roadsUnder?.(planned) ?? []) : [];
+    for (const stretch of cut) {
+      const axis = stretch.points.map((p): Point => [p.x, p.z]);
+      this.addStrip(stripSegments(axis, false, ROAD_HINT_WIDTH_M, 1), 'warn');
+    }
+    this.roadHints = cut.length;
+    if (cut.length > 0 && check.ok) {
+      const warning = check.warning ? `${check.warning}\n${ROAD_CUT_WARNING}` : ROAD_CUT_WARNING;
+      check = { ...check, warning };
+    }
     const look = check.ok ? 'ok' : 'bad';
     const rect = footprintOf(mode, position, plot);
     // dílna: půdorys s přístřeškem vpředu (herní jádro – i s variantou rozměrů)
@@ -501,7 +531,7 @@ export class PlacementController implements ActivePlacement {
     this.ghost.push(mesh);
   }
 
-  private addStrip(segments: Point[][], look: 'ok' | 'bad'): void {
+  private addStrip(segments: Point[][], look: 'ok' | 'bad' | 'warn'): void {
     if (segments.length === 0) return;
     const mesh = createStripMesh(
       this.context.scene,
@@ -518,6 +548,32 @@ export class PlacementController implements ActivePlacement {
   private clearGhost(): void {
     for (const mesh of this.ghost) mesh.dispose();
     this.ghost.length = 0;
+    this.roadHints = 0;
+  }
+}
+
+/**
+ * Stavba u kurzoru, jak ji zná plocha staveb vsi (`plannedBlockedAt`): obydlí na pozemku i volné,
+ * dílna, modla či svatyně, humno. Lom plochu staveb nemá – null.
+ */
+function plannedOf(
+  mode: FootprintMode,
+  position: Position,
+  plot: DwellingPlot | null,
+): PlannedBuilding | null {
+  switch (mode.kind) {
+    case 'plot':
+      return plot ? { kind: 'dwelling', type: mode.type, position, plot } : null;
+    case 'dwelling':
+      return { kind: 'dwelling', type: mode.type, position };
+    case 'workshop':
+      return { kind: 'dwelling', type: mode.type, position, craft: mode.craft };
+    case 'sacred':
+      return { kind: 'sacred', type: mode.type, position };
+    case 'threshing-floor':
+      return { kind: 'threshing-floor', position };
+    case 'quarry':
+      return null;
   }
 }
 

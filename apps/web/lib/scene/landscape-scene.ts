@@ -867,6 +867,7 @@ export class LandscapeScene {
         pickGround: (x, y) => this.pointer.pickGround(x, y),
         cameraAlpha: () => camera.camera.alpha,
         requestRender,
+        roads: () => this.villageState?.roads ?? [],
       },
       controlled,
     );
