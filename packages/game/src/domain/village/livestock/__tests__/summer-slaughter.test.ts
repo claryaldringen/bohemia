@@ -3,8 +3,10 @@ import { dayIndexOf } from '../../../calendar';
 import { foundVillage } from '../../core/actions';
 import { DIET, meatEnergy } from '../../core/diet';
 import { hungerSplit } from '../../people/hunger-groups';
+import { WILDLIFE_LAND } from '../../rules/rules-wildlife';
+import { freshWildlife } from '../../wildlife/wildlife';
 import { advanceVillage } from '../../core/simulate';
-import { LIVESTOCK, slaughterRemaining, type WinterInput } from '../livestock';
+import { LIVESTOCK, slaughterRemaining, winterKeepTargets, type WinterInput } from '../livestock';
 import {
   freshMeatAheadEnergy,
   summerSlaughterCandidates,
@@ -41,6 +43,19 @@ function village(day: number): VillageState {
   s.livestock!.land = { meadowHa: 1000, forestHa: 1000 };
   withRoomyPens(s);
   return s;
+}
+
+/** Děti v prvním domě daného věku (let) – výrostci na pasení. */
+function addChildren(s: VillageState, ages: readonly number[]): void {
+  const home = s.people[0]!.dwellingId;
+  for (const age of ages) {
+    s.people.push({
+      id: s.nextId++,
+      bornDay: s.lastDay - Math.round(age * 365.25),
+      dwellingId: home,
+      sex: s.nextId % 2 === 0 ? 'male' : 'female',
+    });
+  }
 }
 
 /** Potřeba rodu vojvody na den (kg obilí – vrstva 1, skupina 0). */
@@ -80,6 +95,8 @@ describe('letní porážka pro rod vojvody', () => {
 
   it('v simulaci: kráva pro rod – dnes se jí čerstvá, co se nesní, vyudí se', () => {
     const s = village(day - 1);
+    // bez tůní – dnešní ryby by rodu maso daly (porážka se rozhoduje po práci dne)
+    s.wildlife = freshWildlife({ ...WILDLIFE_LAND.defaultLand, waterHa: 0, pools: 0 }, 0);
     s.livestock!.herds = herds({ sheep: 2, cow: 20 });
     s.livestock!.young = herds({});
     const next = advanceVillage(s, day, null);
@@ -102,12 +119,79 @@ describe('letní porážka pro rod vojvody', () => {
     summerSlaughterDay(s, day, NO_HERDERS);
     expect(s.livestock!.herds).toEqual(herds({ sheep: 20, cow: 10 }));
     expect(s.freshMeatKg ?? 0).toBe(0);
-    // i dnešní čerstvé maso (ryby) se počítá
-    const fish = village(day);
-    fish.livestock!.herds = herds({ sheep: 20, cow: 10 });
-    fish.freshMeatKg = lordNeed(fish, day) / DIET.meatEnergy + 0.1;
-    summerSlaughterDay(fish, day, NO_HERDERS);
-    expect(fish.livestock!.herds).toEqual(herds({ sheep: 20, cow: 10 }));
+  });
+
+  it('dnešní ryby se počítají – porážka se rozhoduje po práci dne, před jídlem', () => {
+    // dva lidé v dvorci: polovinu masa rodu dá uzené, zbytek dnešní ryby z tůní
+    const fishing = (fish: boolean): { before: VillageState; after: VillageState } => {
+      const s = village(day - 1);
+      s.people = s.people.slice(0, 2);
+      s.livestock!.herds = herds({ sheep: 20, cow: 10 });
+      s.livestock!.young = herds({});
+      s.meatKg = (0.5 * lordNeed(s, day)) / DIET.meatEnergy;
+      const land = WILDLIFE_LAND.defaultLand;
+      s.wildlife = freshWildlife(fish ? { ...land } : { ...land, waterHa: 0, pools: 0 }, 0);
+      return { before: s, after: advanceVillage(s, day, null) };
+    };
+    const caught = (r: { before: VillageState; after: VillageState }): number =>
+      (r.after.wildlife!.smallGame?.year.meatKg ?? 0) -
+      (r.before.wildlife!.smallGame?.year.meatKg ?? 0);
+    const withFish = fishing(true);
+    // ryby dnes pokryjí, co rodu po uzeném chybí – nic se neporáží
+    expect(caught(withFish)).toBeGreaterThan(
+      (0.5 * lordNeed(withFish.before, day)) / DIET.meatEnergy,
+    );
+    expect(withFish.after.livestock!.summerSlaughtered).toBeUndefined();
+    expect(withFish.after.livestock!.herds.sheep).toBeGreaterThan(19.9);
+    // bez ryb rodu maso chybí – ovce
+    const noFish = fishing(false);
+    expect(caught(noFish)).toBe(0);
+    expect(noFish.after.livestock!.summerSlaughtered).toEqual({ sheep: 1 });
+    expect(noFish.after.livestock!.herds.sheep).toBeLessThan(19.1);
+  });
+
+  it('jen v létě – v zimě a 31. 3. nic, 1. 4. a 31. 10. ano, 1. 11. nic', () => {
+    const on = (d: number): number => {
+      const s = village(d);
+      s.livestock!.herds = herds({ sheep: 20 });
+      s.livestock!.young = herds({});
+      summerSlaughterDay(s, d, NO_HERDERS);
+      return s.livestock!.summerSlaughtered?.sheep ?? 0;
+    };
+    expect(on(at(601, 1, 15))).toBe(0);
+    expect(on(at(601, 3, 31))).toBe(0);
+    expect(on(at(601, 4, 1))).toBe(1);
+    expect(on(at(601, 10, 31))).toBe(1);
+    expect(on(at(601, 11, 1))).toBe(0);
+  });
+
+  it('léto nevybije stádo – celé léto den co den nevezme víc než kandidáti 1. 4.', () => {
+    const april = at(601, 4, 1);
+    const s = village(april);
+    // dost výrostků na pasení a ohrady bez meze – stádo přes zimu je stádo bez starých kusů
+    // (do příštího léta nikdo z pasení nevyroste – místo pro mláďata se nezmenší stárnutím dětí)
+    addChildren(s, [7, 7, 8, 8, 9, 9, 10, 10, 11, 11]);
+    s.livestock!.herds = herds({ goat: 40, sheep: 30, cow: 12, pig: 30 });
+    // bez letošních mláďat (selata od 1. 9. by šla navíc – hlídá test chovného minima)
+    s.livestock!.young = herds({});
+    const input: WinterInput = { oxen: 0, hayKg: Infinity };
+    const first = summerSlaughterCandidates(s, april, input);
+    const keepFirst = winterKeepTargets(s, april, input);
+    expect(first.goat).toBeGreaterThanOrEqual(1);
+    for (let d = april; d <= at(601, 10, 31); d++) {
+      s.meatKg = 0;
+      delete s.freshMeatKg;
+      summerSlaughterDay(s, d, input);
+    }
+    const taken = s.livestock!.summerSlaughtered ?? {};
+    for (const species of ['goat', 'sheep', 'cow', 'pig'] as const) {
+      expect(taken[species] ?? 0).toBeLessThanOrEqual(Math.floor(first[species] + 1e-9));
+      // stádo přes zimu se letní porážkou nezmenší
+      expect(winterKeepTargets(s, at(601, 10, 31), input)[species]).toBeGreaterThanOrEqual(
+        keepFirst[species] - 1e-9,
+      );
+    }
+    expect(Object.values(taken).reduce((a, b) => a + (b ?? 0), 0)).toBeGreaterThan(0);
   });
 
   it('bez rodu ve vsi se v létě neporáží', () => {

@@ -69,7 +69,10 @@ import { advanceChunked, goldenWorld, stateFingerprint, YEAR } from './village-g
 // stravy přes jedlíky); dřív 79b920be6d62a4c2
 // 18. 11. 2026 – strava po vrstvách, úloha 4 (porážka celý rok – v létě kus pro rod vojvody, v zimě
 // rozložená na celou zimu, práce porážky celý rok); dřív 9f3abbaffbff219f
-const EXPECTED_YEAR_1 = '9a95a3545a893d89';
+// 18. 11. 2026 – strava po vrstvách, úloha 4, opravné kolo 1 (letní porážka bez západky – staré kusy
+// se započtením letní porážky, rozhoduje se po práci dne i s rybami; nouzová porážka nenuluje
+// práci porážky); dřív 9a95a3545a893d89
+const EXPECTED_YEAR_1 = '9a87bfa34fc520a8';
 
 describe('zlatý otisk vsi', () => {
   const world = goldenWorld();

@@ -263,16 +263,18 @@ describe('zimní porážka po dnech', () => {
     // když mu nestačí maso v zásobě (diet.md – Strava po vrstvách a porážka celý rok), bez kroniky
     s.lastDay = at(601, 3, 31);
     delete s.freshMeatKg;
+    // bez tůní – ryby by rodu maso daly a letní porážka by nebyla potřeba
+    s.wildlife = freshWildlife({ ...WILDLIFE_LAND.defaultLand, waterHa: 0, pools: 0 }, 0);
     const july = advanceVillage(s, at(601, 7, 31), null);
     const autumn = advanceVillage(july, at(601, 10, 31), null);
     const kinds = new Set(autumn.chronicle.filter((e) => e.day > s.lastDay).map((e) => e.kind));
     expect(kinds.has('slaughter')).toBe(false);
     expect(kinds.has('emergency-slaughter')).toBe(false);
     // uzené ze zimy do léta došlo – rod dostal maso z letní porážky, chovné stádo i mláďata zůstala
-    const born = herds({ pig: 20 * LIVESTOCK.growth.pig, sheep: 15 * LIVESTOCK.growth.sheep });
-    const herd = july.livestock!.herds;
-    expect(herd.pig + herd.sheep).toBeLessThan(20 + 15 + born.pig + born.sheep - 1);
-    expect(herd.pig).toBeGreaterThan(20);
+    const autumnBefore = advanceVillage(july, at(601, 10, 30), null);
+    const summer = autumnBefore.livestock!.summerSlaughtered ?? {};
+    expect((summer.pig ?? 0) + (summer.sheep ?? 0)).toBeGreaterThanOrEqual(1);
+    expect(july.livestock!.herds.pig).toBeGreaterThan(20);
     expect(july.livestock!.young.sheep).toBeGreaterThan(0);
     expect(autumn.livestock!.herds.sheep).toBeGreaterThan(2);
     // práce porážky i v létě – za den hotová

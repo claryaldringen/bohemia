@@ -58,7 +58,6 @@ import {
   winterWaitHayKg,
   type WinterInput,
 } from './livestock';
-import { summerSlaughterDay } from './summer-slaughter';
 import {
   closeCartYear,
   oxenCows,
@@ -535,9 +534,7 @@ export function husbandryDay(
   }
   // zimní porážka po dnech – čerstvé maso dne; zbytek 31. 3. do uzení (diet.md – Porážka v zimě)
   winterSlaughterDay(state, day);
-  // v létě kus pro rod vojvody, když mu na dnešek nestačí maso v zásobě (diet.md – Strava po
-  // vrstvách a porážka celý rok) – co ves o zimě ví, až když je potřeba
-  summerSlaughterDay(state, day, () => summerWinterInput(state, day));
+  // letní porážka pro rod vojvody je až v jídle dne (`eat`) – po práci, i s dnešními rybami
   // dlouhá zima: seno se krmí i v dubnu, pastva až od 1. 5. (disasters.md – Zima)
   if (isHayWinter(day, isLongWinter(state, day))) {
     // seno do konce března nevystačí – ves hned porazí kusy, na které nezbude, ať zvířata

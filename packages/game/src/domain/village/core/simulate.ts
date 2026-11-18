@@ -507,7 +507,7 @@ function lordEveningDay(
   day: number,
   lordField: ReturnType<typeof work>['lordField'],
 ): ReturnType<typeof huntDay> {
-  // nouzová porážka běží až v `eat()`, po `work()` – doplnit hlášení kusů do dnešního rozvrhu práce
+  // letní a nouzová porážka běží až v `eat()`, po `work()` – doplnit hlášení kusů do dnešního rozvrhu práce
   // (jen hlášení pro scénu, simulaci to nemění)
   const slaughteredToday = state.livestock?.slaughtered;
   if (state.labor?.day === day && slaughteredToday?.day === day) {

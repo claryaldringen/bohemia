@@ -7,7 +7,6 @@ import {
   LIVESTOCK,
   butcher,
   noteSlaughtered,
-  isSlaughterSeason,
   pigForestHa,
   villageDams,
   villageHerds,
@@ -221,8 +220,7 @@ export function emergencySlaughterPlan(
  * Nouzová porážka dne (mutuje stav – diet.md, Nouzová porážka): před jídlem dne, když výhled do
  * sklizně nevychází, porazí zvířata navíc (`emergencySlaughterPlan`). Maso do zásoby a práce
  * porážky a uzení (1 člověkoden na LIVESTOCK.slaughterKgPerManDay kg) jako při podzimní porážce –
- * mimo listopad jako nouzová práce (`slaughterWork.emergency`), nedodělek listopadové porážky
- * propadá. Mláďata ubudou poměrně, jen selata (od 1. 9.) jdou napřed. Vrátí událost kroniky, nebo null.
+ * přičte se k čekající práci a udělá se další dny (celý rok). Mláďata ubudou poměrně, jen selata (od 1. 9.) jdou napřed. Vrátí událost kroniky, nebo null.
  * `todayInput` – vstup jídla dne ze stavu před porážkou (`dayMealInput`), bez údaje se spočte.
  */
 export function emergencySlaughter(
@@ -255,9 +253,6 @@ export function emergencySlaughter(
     livestock.herds[species] = left;
     animals[species] = Math.round(killed * 100) / 100;
     noteSlaughtered(state, day, species, herd - left);
-  }
-  if (!isSlaughterSeason(day) && !livestock.slaughterWork?.emergency) {
-    livestock.slaughterWork = { required: 0, done: 0, emergency: true };
   }
   butcher(state, plan.kg);
   // maso z nouze kryje schodek jídla z pole – podíl jídla z pole ho počítá jako potřebu z pole

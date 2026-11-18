@@ -742,13 +742,20 @@ export function youngRoomTargets(
 /**
  * Staré kusy (diet.md – Porážka v zimě; Martin 19. 10. 2026: „Tak většinou se v zimě porážejí
  * staré kusy…“): kolik dospělých kusů (stádo bez letošních mláďat) ročně doslouží
- * (HERD_RETIREMENT) – jdou 1. 11. na maso vždy, letošní mláďata je nahradí.
+ * (HERD_RETIREMENT) – jdou 1. 11. na maso vždy, letošní mláďata je nahradí. Kusy, které ves letos
+ * v létě porazila (`slaughtered` – `LivestockState.summerSlaughtered`), jsou letošní staré kusy:
+ * podíl se počítá ze stáda i s nimi a oni se odečtou (diet.md – Strava po vrstvách a porážka celý
+ * rok; jinak by se staré kusy brali znovu z každého menšího stáda – za rok jen 1/8 ovcí).
  */
 export function retiringHeads(
   herds: Readonly<Record<HerdSpecies, number>>,
   young: Readonly<Record<HerdSpecies, number>>,
+  slaughtered: Readonly<Partial<Record<HerdSpecies, number>>> = {},
 ): Record<HerdSpecies, number> {
-  return herdRecord((s) => HERD_RETIREMENT[s] * Math.max(0, herds[s] - young[s]));
+  return herdRecord((s) => {
+    const taken = slaughtered[s] ?? 0;
+    return Math.max(0, HERD_RETIREMENT[s] * (Math.max(0, herds[s] - young[s]) + taken) - taken);
+  });
 }
 
 /**
@@ -764,7 +771,7 @@ export function winterKeepTargets(
   const livestock = ensureLivestock(state);
   const herds = livestock.herds;
   const room = youngRoomTargets(state, day, winterTargets(state, day, input), input);
-  const old = retiringHeads(herds, livestock.young);
+  const old = retiringHeads(herds, livestock.young, livestock.summerSlaughtered);
   const floor = breedingFloor(input);
   return herdRecord((s) =>
     Math.min(room[s], Math.max(Math.min(herds[s], floor[s]), herds[s] - old[s])),
@@ -1258,6 +1265,8 @@ export function slaughter(
     balanceOptions(input),
   );
   const keep = sized.keep;
+  // letní porážka pro rod vojvody patří k letošním starým kusům – počítá se do 1. 11.
+  delete livestock.summerSlaughtered;
   let meat = HERD_SPECIES.reduce((sum, s) => sum + (herds[s] - keep[s]) * LIVESTOCK.meatKg[s], 0);
   // maso, které ves potřebuje – bílkoviny po obilí, mléku stád (přes zimu), vejcích a luštěninách
   let shortfall = sized.sufficient

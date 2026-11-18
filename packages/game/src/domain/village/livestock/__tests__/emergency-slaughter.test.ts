@@ -208,8 +208,11 @@ describe('nouzová porážka', () => {
     if (event?.kind !== 'emergency-slaughter') throw new Error('bez porážky');
     const pigs = event.animals.pig ?? 0;
     expect(pigs).toBeGreaterThan(0);
-    // mimo zimní porážku je práce nouzová – dělá se hned
-    expect(s.livestock!.slaughterWork).toMatchObject({ done: 0, emergency: true });
+    // práce porážky a uzení se přičte k čekající práci (celý rok) – udělá se další dny
+    expect(s.livestock!.slaughterWork).toEqual({
+      required: s.meatKg! / LIVESTOCK.slaughterKgPerManDay,
+      done: 0,
+    });
     // dospělých prasat je jen na chovné prasnice – porazila se selata; spodní hranice zůstane
     expect(s.livestock!.herds.pig).toBeCloseTo(10 - pigs, 1);
     expect(s.livestock!.herds.pig).toBeGreaterThanOrEqual(LIVESTOCK.breedingMin - 1e-9);

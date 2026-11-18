@@ -5,6 +5,8 @@ import { harvestFlax } from '../fields/flax';
 import { harvestGardens } from '../fields/garden';
 import type { Landscape } from '../../landscape';
 import { dayMealInput, emergencySlaughter } from '../livestock/emergency-slaughter';
+import { summerWinterInput } from '../livestock/husbandry';
+import { summerSlaughterDay } from '../livestock/summer-slaughter';
 import { drawGrainPits, settleGrainPits } from '../fields/grain-pits';
 import { feedHorseGrain } from '../livestock/horse-feed';
 import { dayPartLosses } from '../disasters/disasters';
@@ -270,6 +272,9 @@ export function eat(
   // co zásoby ubyly dnes (prodej, platby), jde z otevřené obilné jámy (production-chains.md –
   // Obilné jámy) – ztráta zásob v jídle dne podle jam
   drawGrainPits(state);
+  // v létě kus pro rod vojvody, když mu na dnešek nestačí maso v zásobě – i dnešní ryby a oka
+  // z práce dne (diet.md – Strava po vrstvách a porážka celý rok); práce porážky se udělá další dny
+  summerSlaughterDay(state, day, () => summerWinterInput(state, day));
   // nevychází-li výhled do sklizně, ves napřed porazí zvířata navíc – teprve pak šetří přídělem
   // (diet.md – Nouzová porážka)
   // vstup jídla dne se spočte jednou pro porážku i jídlo; po porážce celý znovu – porážka mění

@@ -1,5 +1,5 @@
 import { dateOfDayIndex, dayIndexOf } from '../../calendar';
-import { DIET, meatEnergy, villageFoodNeed, villageMeatKg } from '../core/diet';
+import { DIET, SLAUGHTER_DAY, meatEnergy, villageFoodNeed, villageMeatKg } from '../core/diet';
 import { hungerSplit } from '../people/hunger-groups';
 import { EMERGENCY_SLAUGHTER } from '../rules';
 import {
@@ -11,6 +11,7 @@ import {
   herdRecord,
   isSlaughterSeason,
   noteSlaughtered,
+  retiringHeads,
   slaughterSeasonDaysLeft,
   winterKeepTargets,
   type WinterInput,
@@ -56,11 +57,15 @@ function pigletsForMeat(day: number): boolean {
 }
 
 /**
- * Kusy, které smějí v létě na maso (po druzích, i zlomky – diet.md, Porážka celý rok): co by si ves
- * 1. 11. přes zimu nenechala – staré kusy a kusy nad nosnost zimy, místa v ohradách, pasáky a místa
- * pro mláďata (`winterKeepTargets` dnešními daty, stejný výpočet jako 1. 11.) –, ale jen dospělé
- * kusy: letošní mláďata ne, kromě selat od 1. 9. (jako nouzová porážka); nikdy pod chovné minimum
- * (`breedingFloor` – chovný pár, krávy na mléko a voly, ovce na vlnu). Stav nemění.
+ * Kusy, které smějí v létě na maso (po druzích, i zlomky – diet.md, Porážka celý rok): staré kusy
+ * a kusy, které by si ves 1. 11. stejně nenechala. Staré kusy jsou letošní podíl dospělých
+ * (`retiringHeads` – i s kusy, které léto už porazilo, ty se odečtou), k nim dospělé kusy nad stádo
+ * přes zimu (`winterKeepTargets` dnešními daty, stejný výpočet jako 1. 11. – nosnost zimy, místa
+ * v ohradách, pasáci a místa pro mláďata). Dospělé = bez letošních mláďat; od 1. 9. smějí na maso
+ * i selata nad stádo přes zimu (jako nouzová porážka); nejvýš co by 1. 11. šlo na maso (stádo nad
+ * `winterKeepTargets` – staré kusy se tak nepočítají dvakrát); nikdy pod chovné minimum (`breedingFloor` – chovný pár, krávy na
+ * mléko a voly, ovce na vlnu). Odhad se počítá každý den znovu, ale letní porážka ho nezmenšuje
+ * pod sebe – co léto vzalo, se odečte jednou (`LivestockState.summerSlaughtered`). Stav nemění.
  */
 export function summerSlaughterCandidates(
   state: VillageState,
@@ -70,12 +75,20 @@ export function summerSlaughterCandidates(
   const livestock = state.livestock;
   if (!livestock) return herdRecord(() => 0);
   const keep = winterKeepTargets(state, day, input);
+  const old = retiringHeads(livestock.herds, livestock.young, livestock.summerSlaughtered);
   const floor = breedingFloor(input);
   const piglets = pigletsForMeat(day);
   return herdRecord((s) => {
     const herd = livestock.herds[s];
-    const young = s === 'pig' && piglets ? 0 : livestock.young[s];
-    return Math.max(0, Math.min(herd - keep[s], herd - young - floor[s]));
+    const adults = Math.max(0, herd - livestock.young[s]);
+    const young = livestock.young[s];
+    // staré kusy a dospělé kusy nad stádo přes zimu; od 1. 9. i selata nad něj (prasata)
+    const pigletsToo = s === 'pig' && piglets;
+    const wanted =
+      old[s] + Math.max(0, adults - keep[s]) + (pigletsToo ? Math.max(0, young - keep[s]) : 0);
+    // nejvýš co by 1. 11. šlo na maso (stádo přes zimu je už bez starých kusů – nepočítat je dvakrát)
+    const spare = (pigletsToo ? herd : adults) - floor[s];
+    return Math.max(0, Math.min(wanted, herd - keep[s], spare));
   });
 }
 
@@ -121,9 +134,10 @@ export function summerSlaughterPlan(
  * Den letní porážky (mutuje stav – diet.md, Porážka celý rok): kus z `summerSlaughterPlan` ubude ze
  * stáda (od 1. 9. u prasat napřed letošní sele – „Selata první“, Martin 31. 10. 2026), maso jde do
  * dnešního čerstvého masa (`freshMeatKg` – jí se napřed, co se nesní, vyudí se), kůže a hlášení pro
- * scénu (`noteSlaughtered`) a práce porážky a uzení jako v zimě (1 člověkoden na
- * LIVESTOCK.slaughterKgPerManDay kg). Kronika ne. `input` – co ves o zimě ví (`WinterInput`, stačí
- * až na požádání).
+ * scénu (`noteSlaughtered`), kus do letošních starých kusů (`LivestockState.summerSlaughtered`)
+ * a práce porážky a uzení jako v zimě (1 člověkoden na LIVESTOCK.slaughterKgPerManDay kg – udělá
+ * se další dny). Kronika ne. Volá se v jídle dne po práci (`eat`), aby se počítaly i dnešní ryby
+ * a oka. `input` – co ves o zimě ví (`WinterInput`, stačí až na požádání).
  */
 export function summerSlaughterDay(
   state: VillageState,
@@ -137,6 +151,8 @@ export function summerSlaughterDay(
   if (plan.species === 'pig' && pigletsForMeat(day)) {
     livestock.young.pig = Math.max(0, livestock.young.pig - 1);
   }
+  const taken = (livestock.summerSlaughtered ??= {});
+  taken[plan.species] = (taken[plan.species] ?? 0) + 1;
   state.freshMeatKg = (state.freshMeatKg ?? 0) + plan.kg;
   addSlaughterWork(state, plan.kg);
   noteSlaughtered(state, day, plan.species, 1);
@@ -148,7 +164,7 @@ export function summerSlaughterDay(
  */
 function summerDaysAhead(day: number, daysToHarvest: number): number {
   const { year } = dateOfDayIndex(day);
-  const lastSummerDay = dayIndexOf({ year, month: 11, day: 1 }) - 1;
+  const lastSummerDay = dayIndexOf({ year, ...SLAUGHTER_DAY }) - 1;
   return Math.max(0, Math.min(daysToHarvest - 1, lastSummerDay - day));
 }
 
