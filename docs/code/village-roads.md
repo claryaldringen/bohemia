@@ -800,7 +800,18 @@ cellM)` (`road-condition.ts`, index buněk tras v `WeakMap` podle pole tras) –
   (`junctionArm`, od 1. 11. 2026). **Opuštěný úsek** provoz nedostane nikdy (ani jízdy vozů) – bledne
   podle druhu. Kus pod hotovou stavbou: `capUnderBuilding` z `abandonBlockedStretches` (každý měsíc
   pro všechny opuštěné; kus osy s během ≥ `BLOCK_MIN_RUN_M` v neprůchodné ploše) – stav nejvýš
-  `keep × ROAD_TRAFFIC.underBuildingDays` (330), zmizí do roka. Nezarůstá zemská stezka, cesta ve
+  `keep × ROAD_TRAFFIC.underBuildingDays` (330), zmizí do roka. **Náhled zásahu u kurzoru**
+  (paths.md – Stavba přes cestu, Náhled u kurzoru; D96 – Martin 18. 11. 2026): `underBuilding`
+  v `roads-overgrow.ts` (vzorky po 1 m a běhy pod `BLOCK_MIN_RUN_M` pryč) sdílí pravidlo
+  `abandonBlockedStretches` i `stretchesUnderBuilding` (kusy živých cest pod stavbou, bez
+  opuštěných a cest ve vylepšení – `frozen`); plochu jedné plánované stavby dává `plannedBlockedAt`
+  (`planned-blocked.ts` – `PlannedBuilding`: obydlí s pozemkem i volné a dílna jako hotová stavba
+  i staveniště, modla, svatyně, humno, ohrada, hřbitov) přes `gridBlockedAt` (`paths/village.ts`,
+  táž mřížka jako `villageBlockedAt` v okně na mřížce krajiny). Prohlížeč:
+  `roadsUnderPlanned` v `apps/web/lib/scene/placement-hints.ts` (cesty `SceneVillage.roads`,
+  vylepšení = `SceneRoad.upgrade`, minulý výsledek pro stejný vstup), `PlacementController`
+  kreslí kusy žlutým pásem (`ROAD_HINT_WIDTH_M`) a k varování u kurzoru připojí
+  `ROAD_CUT_WARNING` (`road-cut.ts` – „Cesta se přeruší“), e2e háček `roadHints`; ohrada a hřbitov totéž ve `FieldPainter` (`PlacementMode.blocks`). Nezarůstá zemská stezka, cesta ve
   vylepšení (`fixedRoadIds`) a cesta, jejíž konec leží do `ROAD_ANCHORS.entranceM` od vchodu
   (kotva `entrance` z tras – ke stavbě se chodí; bez pole `Road.access`). **Zánik v `roadsMonth`**
   (1. dne v měsíci, po `settleVillageWear`, **před** vznikem `formRoadsKept`): `cutDeadRoads`

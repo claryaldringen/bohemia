@@ -270,7 +270,8 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `rotationCosSin`, `squareCenter` / `squareCorners` / `gridCellAt` v mřížce, `normalizeGrid`,
   `rotatedSquareCorners`, `squareKey`, `sameGrid`) – pole a sad mají volitelnou mřížku
   `Field.grid` / `Orchard.grid` (`SquareGrid` – střed čtverce 0, 0 a natočení 15–75°, čtverce
-  dílů v ní), pozemek `DwellingPlot.square`, les vsi z natočeného pole `VillageWood.grid` (id
+  dílů v ní), pozemek `DwellingPlot.square` (i bez natočení se středem mimo střed políčka – D96, 18. 11. 2026: `rotatedPlot` ho uloží s natočením 0, `plotSquareTile` pak null – kontroly jako
+  u natočeného), les vsi z natočeného pole `VillageWood.grid` (id
   stromů `woodIdCell` – buňka 7,5 m pod středem), zabraný kus `TakenLand.grid`. Bez mřížky =
   mřížka krajiny, všechno bit po bitu jako dřív. `squares.ts`: čtverce staveb ve světě
   (`villageLandSquares`, `fieldGrids`, `fieldGridOf`) a rejstřík `PolygonIndex` po políčkách (dva
