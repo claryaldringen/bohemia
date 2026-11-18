@@ -43,10 +43,10 @@ function cropShort(crop: keyof typeof CROP_LABELS): string {
 }
 
 /**
- * Popisek hromady osiva (fields.md – Osivo bez cíle osevu, Zimní osivo): osivo okna, které běží,
- * nebo zimní osivo na jař (návrh Clauda).
+ * Popisek hromady osiva v `Tooltip` (fields.md – Osivo bez cíle osevu, Zimní osivo; návrh Clauda):
+ * osivo okna, které běží, nebo zimní osivo na jař – v panelu pole i v rozpisu plodin v horní liště
+ * (diet.md – Co hráč vidí).
  */
-/** Popisek hromady osiva (v `Tooltip`) – v panelu pole i v rozpisu plodin v horní liště. */
 export function seedName(
   seed: NonNullable<Extract<SelectionDetails, { kind: 'field' }>['seed']>,
 ): string {

@@ -4,6 +4,7 @@ import { foundVillage } from '../../core/actions';
 import { craftCoverage, craftHouseholds, craftLightLabor } from '../../crafts/crafts';
 import { allocateDay } from '../../core/labor';
 import { manorLabor, trainLordDay, withoutSowingHelp } from '../lord';
+import type { ArmsSkills } from '../../types';
 import { laborPerDay } from '../people';
 import { dailyMinPerHousehold, NO_CRAFTS } from '../../core/productivity';
 import { advanceVillage } from '../../core/simulate';
@@ -265,7 +266,7 @@ describe('výmlat v zimě – rodina dorovná, co ves do konce okna nestihne (lo
   // 10. 1. 601 – okno výmlatu jaře běží do konce února (49 dní s dneškem); bez humna nouzově
   const winterSheaves = (work: number): VillageState => {
     const s = lordVillage(4);
-    s.sheaves = { grainKg: work * 30, legumesKg: 0, work: { spring: work } };
+    s.sheaves = { grainKg: work * 30, legumesKg: 0, work: { spring: work }, byKg: true };
     return s;
   };
   const familyFieldDays = (from: VillageState, to: number): { days: number; s: VillageState } => {
@@ -297,5 +298,91 @@ describe('výmlat v zimě – rodina dorovná, co ves do konce okna nestihne (lo
     s.lastDay = at(601, 3, 1);
     const { days } = familyFieldDays(s, at(601, 3, 20));
     expect(days).toBe(0);
+  });
+});
+
+describe('výmlat v zimě – jen co by ves do konce okna nestihla (D95, opravné kolo 1)', () => {
+  const DAILY_MIN = dailyMinPerHousehold(NO_CRAFTS.pottery);
+  const base = {
+    capacity: 4,
+    householdElders: [0],
+    potteryCoverage: NO_CRAFTS.pottery,
+    lordHelp: 3,
+  };
+
+  it('rodina porovná tempo s pravidelnou prací vsi – jednorázový propad dne (porážka) nedorovná', () => {
+    const tasks = [
+      { name: 'slaughter' as const, remaining: 1.5 },
+      { name: 'thresh' as const, remaining: 100 },
+    ];
+    const regular = 4 - DAILY_MIN;
+    // tempo pod pravidelnou prací vsi: ves by okno stihla – rodina nic, i když dnes porážka vzala
+    // práci výmlatu
+    const calm = allocateDay({ ...base, tasks, threshPace: regular - 0.5 });
+    expect(calm.lordField).toBe(0);
+    expect(calm.tasks.thresh).toBeCloseTo(regular - 1.5, 9);
+    // tempo nad ní: rodina dá jen rozdíl tempa a pravidelné práce vsi
+    const short = allocateDay({ ...base, tasks, threshPace: regular + 1.2 });
+    expect(short.lordField).toBeCloseTo(1.2, 9);
+    expect(short.tasks.thresh).toBeCloseTo(regular - 1.5 + 1.2, 9);
+  });
+
+  it('ve dni zimního výmlatu rodina nepomáhá jinde; ve žňový den (bez tempa) jde cestou žní', () => {
+    const harvest = [{ name: 'harvest' as const, remaining: 10 }];
+    expect(allocateDay({ ...base, tasks: harvest, threshPace: 0 }).lordField).toBe(0);
+    // bez tempa (žňový den): zásobník rodiny bere žeň i výmlat, které ves dnes nestihne
+    const thresh = [{ name: 'thresh' as const, remaining: 100 }];
+    const reap = allocateDay({ ...base, tasks: thresh });
+    expect(reap.lordField).toBeCloseTo(3, 9);
+  });
+
+  const winterSheaves = (work: number, lastDay = START): VillageState => {
+    const s = lordVillage(4);
+    s.lastDay = lastDay;
+    s.sheaves = { grainKg: work * 30, legumesKg: 0, work: { spring: work }, byKg: true };
+    return s;
+  };
+  const familyDays = (from: VillageState, to: number): { days: number; s: VillageState } => {
+    let s = from;
+    let days = 0;
+    while (s.lastDay < to) {
+      s = advanceVillage(s, s.lastDay + 1, null);
+      if ((s.labor?.lord?.field ?? 0) > 0) days++;
+    }
+    return { days, s };
+  };
+
+  it('v říjnu (výmlat hned po žni, mezi orbou a setím) rodina nemlátí, od listopadu ano', () => {
+    const october = familyDays(winterSheaves(600, at(601, 9, 30)), at(601, 10, 31));
+    expect(october.days).toBe(0);
+    expect(familyDays(october.s, at(601, 11, 30)).days).toBeGreaterThan(0);
+  });
+
+  it('člen rodiny na výjezdu nemlátí – jeho práce rodině chybí', () => {
+    const s = winterSheaves(160);
+    const lord = s.people.find((p) => p.id === 10)!;
+    lord.away = { kind: 'journey', refId: 'j1' };
+    const coverage = craftCoverage(s, START + 1);
+    const manor = manorLabor(s, START + 1, coverage.pottery, villageProductivity(s, coverage));
+    expect(manor.freeLord).toBe(0);
+    const { days, s: after } = familyDays(s, START + 10);
+    expect(days).toBeGreaterThan(0);
+    // na poli jen přítomní dospělí rodiny (žena, syn, snacha)
+    expect(after.labor?.lord?.field ?? 0).toBeLessThanOrEqual(3);
+  });
+
+  it('kdo z rodiny v zimě mlátí, cvičí míň', () => {
+    const arms = (st: VillageState, id: number): number => {
+      const a: ArmsSkills | undefined = st.people.find((p) => p.id === id)?.arms;
+      return a ? a.bow + a.combat + a.riding : 0;
+    };
+    const idle = familyDays(winterSheaves(0), START + 10).s;
+    // tolik snopů, že ženy rodiny nestačí – jdou i muži
+    const busy = familyDays(winterSheaves(600), START + 10);
+    expect(busy.days).toBeGreaterThan(0);
+    // ženy jdou na pole první, pak syn (17) – jeho výcvik se zkrátí; vojvoda nejvýš tolik jako bez
+    // výmlatu (jde poslední)
+    expect(arms(busy.s, 12)).toBeLessThan(arms(idle, 12));
+    expect(arms(busy.s, 10)).toBeLessThanOrEqual(arms(idle, 10));
   });
 });

@@ -494,6 +494,12 @@ export interface Sheaves {
   legumesKg: number;
   /** Zbývající práce výmlatu po plodinách; chybí = žádná. */
   work?: Partial<Record<ThreshedCrop, number>>;
+  /**
+   * Práce `work` je podle kg snopů (production-chains.md – Humno, Práce výmlatu podle snopů; D95) –
+   * sklizeň od 18. 11. 2026 a převod `sheaf-work-by-kg`. Jen u snopů s prací; chybí – práce podle
+   * plochy (snopy uložené dřív), nebo práce žádná.
+   */
+  byKg?: true;
 }
 
 /** Hotová dřevěná modla nebo svatyně (happiness.md). */

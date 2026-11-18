@@ -18,6 +18,7 @@ import { withoutGardenFlax } from '../fields/garden';
 import { withGrainPits } from '../fields/grain-pit-site';
 import { withHorsePenStock } from '../livestock/horse-stock';
 import { withToolEquipment } from '../crafts/iron';
+import { craftCoverage } from '../crafts/crafts';
 import { withKinship } from '../people/kinship';
 import { withRoadLogPiles } from '../forest/log-piles-migration';
 import { withoutSowingHelp } from '../people/lord';
@@ -41,7 +42,7 @@ import { withChurchQuarryDistance } from '../buildings/church-build';
 import { withSeedForgiven, withoutSeedTarget } from '../fields/seed';
 import { withDwellingShapes } from '../buildings/shape-migration';
 import { withSteward } from '../steward/steward-state';
-import { withThreshingGrace } from '../fields/threshing';
+import { convertSheafWorkByKg, needsSheafWorkByKg, withThreshingGrace } from '../fields/threshing';
 import { withIronBarsTrade, withoutForeignGoods } from '../trade/trade';
 import type { VillageState } from '../types';
 import { withWeatherSeed } from '../disasters/weather';
@@ -240,6 +241,8 @@ export const VILLAGE_MIGRATIONS: readonly VillageMigration[] = [
   { id: 'quarry-area', since: '2026-11-15', run: quarryArea },
   // jména všech lidí (population.md – Jména) – muži rodu svá jména nemění
   { id: 'people-names', since: '2026-11-15', run: withPeopleNames },
+  // práce výmlatu uložených snopů podle kg (production-chains.md – Humno, Práce výmlatu podle snopů)
+  { id: 'sheaf-work-by-kg', since: '2026-11-18', run: sheafWorkByKg },
 ];
 
 /** Zrušený postoj `'surrender'` se čte jako výchozí `'flee'`; na kopii, jen když ho ves má. */
@@ -274,6 +277,17 @@ function quarryArea(state: VillageState, ctx: VillageMigrationContext): VillageS
   if (!ctx.landscape || !ctx.obstacles || !needsQuarryMove(state)) return state;
   const next = cloneState(state);
   withQuarriesBesideRocks(next, ctx.landscape, ctx.obstacles);
+  return next;
+}
+
+/**
+ * Snopy uložené s prací podle plochy dostanou práci podle kg (`convertSheafWorkByKg`, nástroje
+ * podle dílen dne posledního dopočtu) – na kopii, jen jednou (snopy pak nesou `byKg`).
+ */
+function sheafWorkByKg(state: VillageState): VillageState {
+  if (!needsSheafWorkByKg(state)) return state;
+  const next = cloneState(state);
+  convertSheafWorkByKg(next, craftCoverage(next, next.lastDay).tools);
   return next;
 }
 

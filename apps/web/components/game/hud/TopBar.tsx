@@ -873,7 +873,7 @@ export function TopBar({
           </Resource>
           <StockBreakdown
             icon="food"
-            name="Obilí, luštěniny a jablka (kg)"
+            name="Obilí bez osiva, luštěniny a jablka (kg)"
             total={grainStockTotal(view)}
             rows={grainStockRows(view)}
             testId="village-stores"

@@ -140,10 +140,15 @@ rodiny, samotný vojvoda až úplně nakonec“.
 - **Výmlat v zimě** (Martin 18. 11. 2026 – volba A z rozboru Vlkova: „A, C, E“; pravidlo návrh
   Clauda): v okně výmlatu mimo žňové dny – v zimě (listopad–únor) – pomůže rodina, která je
   zrovna ve vsi, vymlátit, co by ves sama do konce okna nestihla, **jen co chybí**. Ves každý den
-  potřebuje tempo **zbývající práce výmlatu v okně ÷ dny okna** (s dneškem). Co z tempa dnes po
-  všech pracích dne nevymlátí sama, dorovná rodina, nejvýš celou svou prací po denním minimu
-  dvorce. Kdo jde, je stejné jako ve žních: ženy a dcery, muži rodiny, vojvoda nakonec. Ves, která
-  tempo stíhá, rodinu nezapojí. Kdo dnes mlátí, cvičí jen zbytek dne (jako ve žních). Po konci
+  potřebuje tempo **zbývající práce výmlatu v okně ÷ dny okna** (s dneškem) a porovná ho
+  s **výhledem vsi**: pravidelnou prací vsi za den po denním minimu a péči o koně, dnešní délkou
+  dne, bez jednorázových srážek (porážka, výpravy, vozy, kování). Co by ves podle výhledu do konce
+  okna nestihla, rozloží rodina na zbývající dny a dá to po všech pracích dne, nejvýš celou svou
+  prací po denním minimu dvorce. Ten den jinde nepomáhá. Přepočítá se každý den: jednorázový
+  propad dne rodina nedorovná a co ves nedodělala, dorovnají další dny okna (opraveno 18. 11.
+  2026 při kontrole D95 – dřív rodina dorovnávala každý den, kdy ves mlátila pod tempem). Kdo
+  jde, je stejné jako ve žních: ženy a dcery, muži rodiny, vojvoda nakonec. Ves, kterou výhled
+  stíhá, rodinu nezapojí. Kdo dnes mlátí, cvičí jen zbytek dne (jako ve žních). Po konci
   okna (březen–srpen) rodina nemlátí; mistři huti a kněz nemlátí nikdy ([zdivo](stone-masonry.md)
   – Mezi stavbami čekají). Ve Vlkově 895/896 (12 lidí, 5 z rodu, 2 mistři) mlátili jen 3 lidé
   a po okně zůstalo 159 čd snopů.

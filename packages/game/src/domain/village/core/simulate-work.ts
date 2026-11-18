@@ -63,6 +63,7 @@ import {
   LATE_HARVEST_DAY,
   ORCHARD_WINDOWS,
   WEEDING_CHILDREN,
+  WINTER_THRESH_WINDOW,
   type DayWorkGroup,
 } from '../rules';
 import type { CraftCoverage, Crop, CropWork, FieldPart, SeedKg, VillageState } from '../types';
@@ -733,12 +734,16 @@ function dayLabor(
 
 /**
  * Tempo výmlatu v zimě, které ves dnes potřebuje (lord.md – Kdy jde rodina na pole, Výmlat v zimě;
- * Martin 18. 11. 2026 – volba A z D95, pravidlo návrh Clauda): cvičící rodina ve vsi mimo žňový
- * den, plodiny s výmlatem v okně – zbývající práce výmlatu každé plodiny ÷ dny jejího okna
- * (s dneškem; `threshSeasonTasks`). Bez rodiny, ve žňový den a mimo okno výmlatu undefined.
+ * Martin 18. 11. 2026 – volba A z D95, pravidlo návrh Clauda): cvičící rodina ve vsi v zimě
+ * (WINTER_THRESH_WINDOW – listopad až únor) mimo žňový den, plodiny s výmlatem v okně – zbývající
+ * práce výmlatu každé plodiny ÷ dny jejího okna (s dneškem; `threshSeasonTasks`). Co z tempa ves
+ * sama nestihne, určí `allocateDay` (pravidelná práce vsi dne). Bez rodiny, ve žňový den, mimo
+ * zimu a mimo okno výmlatu undefined.
  */
 function winterThreshPace(state: VillageState, day: number, people: DayPeople): number | undefined {
   if (!people.manor || people.harvestDay || people.manor.free <= EPSILON) return undefined;
+  const { month } = dateOfDayIndex(day);
+  if (!WINTER_THRESH_WINDOW.some(([from, to]) => month >= from && month <= to)) return undefined;
   const tasks = threshSeasonTasks(state, day);
   if (tasks.length === 0) return undefined;
   return tasks.reduce((sum, t) => sum + t.remaining / Math.max(1, t.endDay - day + 1), 0);

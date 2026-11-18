@@ -299,6 +299,16 @@ export const HARVEST_THRESH_WINDOWS: Record<Crop, readonly WindowSegment[]> = {
   legume: [[8, 9]],
   flax: [[8, 9]],
 };
+/**
+ * Zimní výmlat (lord.md – Kdy jde rodina na pole, Výmlat v zimě; Martin 18. 11. 2026 – volba A z D95,
+ * měsíce návrh Clauda): okno výmlatu po výmlatu hned po žni (HARVEST_THRESH_WINDOWS) – listopad až
+ * únor. Jen v něm rod vojvody dorovná výmlat, který by ves do konce okna nestihla; v září a říjnu
+ * mezi žní, orbou a setím rod nemlátí.
+ */
+export const WINTER_THRESH_WINDOW: readonly WindowSegment[] = [
+  [11, 12],
+  [1, 2],
+];
 // fields.md – Luštěniny (rešerše 2026-10-18-legumes.md): luštěniny jsou jař – kopou se na podzim
 // nebo na jaře, sejí v březnu–dubnu, pletou v květnu, sklízejí (trhají) v červenci, co červenec
 // nestihne, v srpnu (fields.md – Žně i v srpnu), a mlátí hned po sklizni v srpnu a září na humně

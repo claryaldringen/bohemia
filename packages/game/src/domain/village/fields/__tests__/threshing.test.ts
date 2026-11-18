@@ -29,6 +29,8 @@ import type { ChronicleEvent, CropWork, FieldPart, VillageState } from '../../ty
 import { craftCoverage } from '../../crafts/crafts';
 import { ageGroup } from '../../people/people';
 import { harvestLaborPerDay } from '../../core/simulate-plan';
+import { migrateVillage } from '../../core/migrations';
+import { fieldWorkPerHa } from '../../core/productivity';
 import { threshingFloorHaulPoints } from '../threshing-floors';
 import { THRESHING_FLOOR_ENTRANCE_M } from '../../paths/entrances';
 import { withThreshingFloor } from '../../__tests__/village-fixtures';
@@ -145,6 +147,7 @@ describe('sklizeň jde do snopů', () => {
       grainKg: 800,
       legumesKg: 80,
       work: { winter: 4, spring: 6, legume: 2 },
+      byKg: true,
     });
     expect(s.storesKg).toBe(bare(at(600, 3, 15)).storesKg);
   });
@@ -785,5 +788,33 @@ describe('práce výmlatu podle snopů (production-chains.md – Humno, Práce v
   it('úroda bez práce výmlatu v plánu (výmlat hotový – starší stav) jde rovnou do zásob', () => {
     const done = { ...work, done: { ...work.done, thresh: 45 } };
     expect(threshWorkForSheaves(done, parts, 'spring', 1000)).toBe(0);
+  });
+});
+
+describe('převod uložených snopů na práci podle kg (production-chains.md – Humno, D95)', () => {
+  it('snopy s prací podle plochy dostanou práci podle kg – jednou, podruhé nic', () => {
+    const s = withSheaves(at(602, 3, 5), {
+      grainKg: 3000,
+      legumesKg: 0,
+      work: { winter: 60, spring: 90 },
+    });
+    const ctx = { obstacles: null, landscape: null };
+    const once = migrateVillage(s, ctx);
+    const perKg =
+      fieldWorkPerHa('thresh', craftCoverage(s, s.lastDay).tools, 'spring') /
+      cropGrossPerHa('spring', THRESH_CALIBRATION_FERTILITY);
+    const work = once.sheaves!.work!;
+    expect(once.sheaves!.byKg).toBe(true);
+    expect(once.sheaves!.grainKg).toBe(3000);
+    expect(work.winter! + work.spring!).toBeCloseTo(3000 * perKg, 9);
+    // poměr plodin zůstane
+    expect(work.winter! / work.spring!).toBeCloseTo(60 / 90, 9);
+    // podruhé nic – týž objekt; vstup se nemění
+    expect(migrateVillage(once, ctx)).toBe(once);
+    expect(s.sheaves!.byKg).toBeUndefined();
+    expect(s.sheaves!.work).toEqual({ winter: 60, spring: 90 });
+    // snopy bez práce se nepřevádějí (tvar stavu beze změny)
+    const empty = withSheaves(at(602, 3, 5), { grainKg: 0, legumesKg: 0 });
+    expect(migrateVillage(empty, ctx).sheaves).toEqual({ grainKg: 0, legumesKg: 0 });
   });
 });

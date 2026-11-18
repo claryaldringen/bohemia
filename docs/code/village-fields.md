@@ -635,7 +635,13 @@ double)` je dvojklikem rozšíří na celé pole / sad (`wholeTarget`; první kl
   **Práce výmlatu podle snopů** (production-chains.md – Humno, Práce výmlatu podle snopů; Martin 18. 11. 2026 – D95, volba C): `sheaveCrop` dá snopům `threshWorkForSheaves` (`year-plan.ts`) –
   sazba plánu na hektar (`required.thresh` ÷ plocha `partIds`) × kg snopů ÷ běžná úroda
   (`cropGrossPerHa` při `THRESH_CALIBRATION_FERTILITY` 61,6 ≈ 585 kg/ha obilí); výmlat hotový v plánu
-  (`threshRemainingAfter` 0) 0, plán bez ploch sazbu na hektar. Snopy uložené dřív si práci nechají.
+  (`threshRemainingAfter` 0) 0, plán bez ploch sazbu na hektar. Snopy s prací podle kg nesou
+  `Sheaves.byKg` (jen dokud práce zbývá – `withWork`); snopy uložené dřív přepočte převod
+  `sheaf-work-by-kg` (`convertSheafWorkByKg` – kg × sazba na ha s nástroji dne ÷ běžná úroda,
+  poměr plodin zůstane; vzdálenost dílu a deštivé léto se z uložené práce nezjistí). Výhled jídla
+  (`sheafYields`) pomoc rodiny ve výmlatu v zimě nezná – počítá jen ruce vsi (`threshHands`).
+  `floorShort` stojí na `threshHands` žňového dne, který ruce v zimě přeceňuje; robustnější by bylo
+  zapsat skutečný nouzový výmlat nad kapacitu humen (na později).
   Okna `thresh` (fields.md – Pořadí důležitosti polních prací a výmlat do zimy): ozim a luštěniny
   srpen–únor, jař září–únor – dva úseky přes konec roku; `threshWindowLast` spojí úsek do prosince
   s lednovým, `threshWindowDaysLeft` počítá do konce února; `threshTasks` (úlohy dne v `work()` –
