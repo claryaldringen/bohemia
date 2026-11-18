@@ -341,7 +341,7 @@ export function eat(
   return {
     satiation: meal.diet.satiation,
     energy: meal.diet.energy,
-    diet: dietHappiness(tiers, split.counts),
+    diet: dietHappiness(tiers, split.eaters),
     groups,
   };
 }

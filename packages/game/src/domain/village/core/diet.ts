@@ -148,6 +148,11 @@ export interface Eaten {
   legumesKg: number;
   /** Med z klátů (kg) – jen energie, bez bílkovin a bez vlivu na kvalitu stravy. */
   honeyKg: number;
+  /**
+   * Z toho pevný příděl medu (kg – `DietInput.honeyRationKg`; jí ho všichni stejně – diet.md, Kdo
+   * dostane co); zbytek je med navíc v hladu (Med v hladu – po vrstvách za obilím). Chybí = žádný.
+   */
+  honeyRationKg?: number;
 }
 
 const NOTHING: Eaten = {
@@ -162,6 +167,11 @@ const NOTHING: Eaten = {
   legumesKg: 0,
   honeyKg: 0,
 };
+
+/** Nic nesnědeno – nový objekt, do kterého se smí připisovat (`tierMeal`). */
+export function nothingEaten(): Eaten {
+  return { ...NOTHING };
+}
 
 /**
  * Jídlo dne z toho, co se snědlo, proti potřebě energie (kg obilí za den) a bílkovin (kg za den):
@@ -502,7 +512,7 @@ export function eatDiet(input: DietInput): DietResult {
       cheeseMadeKg: made,
       legumesKg: legumes,
       honeyKg: honey,
-      eaten: { ...NOTHING },
+      eaten: nothingEaten(),
       diet: dietOf(0, 0, NOTHING),
       outlook: 1,
       grainSpareKg: ahead,
@@ -581,6 +591,9 @@ export function eatDiet(input: DietInput): DietResult {
   const drunkShare = kgOf('milk', 1);
   const freshKg = kgOf('fresh', fresh);
   const smokedKg = kgOf('smoked', meat);
+  // pevný příděl medu ze snědeného – v hladu se jí s obilím celá zásoba, z ní nejdřív pevný příděl
+  // (všem stejně), zbytek je med navíc (po vrstvách za obilím – diet.md, Kdo dostane co)
+  const honeyRationKg = Math.min(honeyToday, honeyEaten);
   const eaten: Eaten = {
     grainKg: grainToday,
     meatKg: freshKg + smokedKg,
@@ -593,6 +606,7 @@ export function eatDiet(input: DietInput): DietResult {
     eggsKg: kgOf('eggs', plan.eggs),
     legumesKg: kgOf('legumes', legumes),
     honeyKg: honeyToday,
+    ...(honeyRationKg > 0 ? { honeyRationKg } : {}),
   };
   // z mléka, které se nevypilo, je sýr
   const made = cheeseFromMilk(milkProtein * (1 - drunkShare));

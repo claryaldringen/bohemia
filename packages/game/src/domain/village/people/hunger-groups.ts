@@ -27,8 +27,13 @@ export interface HungerSplit {
    * nenesou, jako potřeba bílkovin vsi (`villageProteinNeed`).
    */
   readonly proteinNeeds: readonly number[];
-  /** Počet jedlíků ve skupinách (lidé, ve zbytku i hosté). */
+  /** Počet lidí ve skupinách (i lidé pryč; ve zbytku i hosté). */
   readonly counts: readonly number[];
+  /**
+   * Počet jedlíků ve skupinách – lidé, kteří dnes jedí ze zásob vsi (potřeba jídla nad 0), a hosté;
+   * ne lidé pryč (štěstí ze stravy – `dietHappiness`).
+   */
+  readonly eaters: readonly number[];
 }
 
 /**
@@ -70,17 +75,22 @@ export function hungerSplit(state: VillageState, day: number): HungerSplit {
   const needs = new Array<number>(HUNGER_GROUPS).fill(0);
   const proteinNeeds = new Array<number>(HUNGER_GROUPS).fill(0);
   const counts = new Array<number>(HUNGER_GROUPS).fill(0);
+  const eaters = new Array<number>(HUNGER_GROUPS).fill(0);
   for (const p of state.people) {
     const group = groupOf.get(p.id) ?? REST;
-    needs[group] = (needs[group] ?? 0) + foodNeedPerDay(p, day);
+    const need = foodNeedPerDay(p, day);
+    needs[group] = (needs[group] ?? 0) + need;
     proteinNeeds[group] = (proteinNeeds[group] ?? 0) + proteinNeedPerDay(p, day);
     counts[group] = (counts[group] ?? 0) + 1;
+    if (need > 0) eaters[group] = (eaters[group] ?? 0) + 1;
   }
   if (state.guests !== undefined) {
     needs[REST] = (needs[REST] ?? 0) + guestFoodNeedPerDay(state, day);
-    counts[REST] = (counts[REST] ?? 0) + state.guests.filter((g) => g.untilDay > day).length;
+    const guests = state.guests.filter((g) => g.untilDay > day).length;
+    counts[REST] = (counts[REST] ?? 0) + guests;
+    eaters[REST] = (eaters[REST] ?? 0) + guests;
   }
-  return { groupOf, needs, proteinNeeds, counts };
+  return { groupOf, needs, proteinNeeds, counts, eaters };
 }
 
 /**

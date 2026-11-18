@@ -157,15 +157,19 @@ v hladu), nově platí celý rok, ne jen v hladu:
      drobné nepohodlí“; k 75 %: „75% je ok.“): hlad se sčítá pod 90 % (Hlad níž) a na 75 % hrozí
      smrt hlady dítěti a staršímu po ≈ 2,5 měsíce, dospělému po ≈ 4 měsících – běžné hladové jaro
      do sklizně lidé přežijí, umírat začnou, až když se hlad protáhne.
-2. **Čím se příděl naplní.** Na každé úrovni pořadí jídla se napřed nají vrstva 1 do svého
-   přídělu, pak vrstvy 2, 3 a 4. Vrstva, na kterou celý díl úrovně nevyjde, si ho rozdělí rovným
-   dílem a nižší vrstvy z té úrovně nedostanou nic. Elita tak jí napřed maso, ale jen do svého
-   přídělu – na životní minimum ostatních se dorovná dalším jídlem.
+2. **Čím se příděl naplní.** Napřed se rozdělí ovoce a pevný příděl medu – všem stejně (níž).
+   Pak se na každé úrovni pořadí jídla napřed nají vrstva 1 do svého přídělu, pak vrstvy 2, 3
+   a 4. Vrstva, na kterou celý díl úrovně nevyjde, si ho rozdělí rovným dílem a nižší vrstvy z té
+   úrovně nedostanou nic. Elita tak jí napřed maso, ale jen do svého přídělu – na životní minimum
+   ostatních se dorovná dalším jídlem.
 
 - „Rovným dílem“ znamená, že každý ve vrstvě dostane stejný podíl své potřeby – dítě tak sní méně
   než dospělý, jako dnes v hladu (návrh Clauda).
-- **Ovoce** se po vrstvách nedělí: rozdělí se rovným dílem mezi všechny, kdo ještě nejsou sytí
-  (Martin: „každý si může utrhnout co chce“).
+- **Ovoce a pevný příděl medu** se po vrstvách nedělí: dostanou je všichni stejně – každý stejný
+  podíl své potřeby, i ten, koho by nasytilo maso; co se vrstvě do jejího přídělu nevejde,
+  připadne ostatním. Sytá elita tak sní o to méně masa (a jiného jídla) a to připadne nižším
+  vrstvám (Martin, 18. 11. 2026, „ok“ na doporučení „všichni stejně“; k ovoci „každý si může
+  utrhnout co chce“; dřív se ovoce dělilo jen „mezi všechny, kdo ještě nejsou sytí“).
 - „Co by se zkazilo, dostane vrstva ostatní“ plyne z pořadí samo: co vyšší vrstvy nesnědí,
   sní nižší, klidně jen maso.
 
@@ -203,15 +207,18 @@ zásahu se snaží vyprodukovat co nejvíc všeho“ se ryby loví vždy (duben�
 chybí bílkoviny nebo ves hladoví. Kvóty, kdo loví a kde zůstávají. Úlovek je čerstvé maso
 první úrovně a co z něj nikdo nesní, se vyudí jako maso (návrh Clauda).
 
-**Med** je v pořadí za obilím. Běžně se jí pevný příděl jako dnes (0,5 kg na člověka za rok, po
-vrstvách), v hladu celá zásoba jako obilí – jako dnes ([kůže, kožešiny, med a vosk](hides-honey.md)
-– Med v hladu). Nově zvyšuje štěstí: **+2**, dokud lidé jedí med (návrh Clauda – méně než ovoce
-+5, medu je málo).
+**Med** je v pořadí za obilím. Běžně se jí pevný příděl jako dnes (0,5 kg na člověka za rok) a ten
+dostane každý stejně, jako ovoce (Kdo dostane co). V hladu se jí celá zásoba jako obilí – jako
+dnes ([kůže, kožešiny, med a vosk](hides-honey.md) – Med v hladu): pevný příděl z ní dál dostane
+každý stejně, med navíc nad pevný příděl se dělí po vrstvách za obilím jako obilí
+(Martin, 18. 11. 2026, „ok“ na doporučení „všichni stejně“). Nově zvyšuje štěstí: **+2**, dokud
+lidé jedí med (návrh Clauda – méně než ovoce +5, medu je málo).
 
 **Spokojenost ze stravy** se počítá po lidech podle toho, co kdo snědl: maso až +3 (poměrně,
 plně od 20 % energie z masa – jako dnes), ovoce +5 a med +2 každý, kdo ten den ovoce nebo med
-jedl. Ves vezme průměr přes všechny lidi – stejně jako štěstí z nasycení u přednosti v hladu.
-Ve vsi s medem tak med při pevném přídělu dává +2 skoro pořád (návrh Clauda).
+jedl. Ves vezme průměr přes jedlíky – lidi, kteří ten den jedí ze zásob vsi, i hosty; kdo je pryč
+a jí jinde, se nepočítá (návrh Clauda). Pevný příděl medu jedí všichni, takže ve vsi s medem dává
+med +2 skoro pořád (návrh Clauda).
 
 **Hlad:** přednost v hladu ([populace](population.md) – Přednost v hladu) platí nově jen nad
 životním minimem (Kdo dostane co). Nahromaděný hlad po vrstvách, porody podle energie vrstvy

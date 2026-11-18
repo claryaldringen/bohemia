@@ -636,7 +636,7 @@ function nextDayDiet(state: VillageState, day: number): { diet: DietDay; points:
     meatAheadEnergy: freshMeatAheadEnergy(state, next),
   });
   const split = hungerSplit(state, next);
-  return { diet: meal.diet, points: dietHappiness(tierMeal(split, meal.eaten), split.counts) };
+  return { diet: meal.diet, points: dietHappiness(tierMeal(split, meal.eaten), split.eaters) };
 }
 
 const DAYS_PER_SERVICE_YEAR = 365.25;

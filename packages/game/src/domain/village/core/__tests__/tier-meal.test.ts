@@ -1,16 +1,19 @@
 import { describe, expect, it } from 'vitest';
-import { DIET, dietOf, fruitEnergy, meatEnergy, type Eaten } from '../diet';
+import { DIET, dietOf, fruitEnergy, honeyEnergy, meatEnergy, type Eaten } from '../diet';
 import { dietHappiness, tierMeal, type TierMeal } from '../tier-meal';
 import { APPLE_FOOD_VALUE, LEGUMES } from '../../rules';
 import { HONEY } from '../../rules/rules-wares';
 import { DAIRY } from '../../livestock/dairy';
 
 // Jídlo po vrstvách (diet.md – Strava po vrstvách a porážka celý rok – Kdo dostane co, Spokojenost
-// ze stravy): příděl energie nad životním minimem 75 % po vrstvách, pak čím se příděl naplní.
+// ze stravy): příděl energie nad životním minimem 75 % po vrstvách, pak čím se příděl naplní –
+// ovoce a pevný příděl medu všem stejně, ostatní jídlo po vrstvách.
 
-const NONE: Eaten = {
+/** Nic nesnědeno – všechna pole `Eaten` (nové pole vynutí úpravu testů i úrovní `tierMeal`). */
+const NONE: Record<keyof Required<Eaten>, number> = {
   grainKg: 0,
   meatKg: 0,
+  freshMeatKg: 0,
   fruitKg: 0,
   milkL: 0,
   milkProteinKg: 0,
@@ -19,7 +22,9 @@ const NONE: Eaten = {
   eggsKg: 0,
   legumesKg: 0,
   honeyKg: 0,
+  honeyRationKg: 0,
 };
+const FIELDS = Object.keys(NONE) as (keyof Eaten)[];
 /** Rod vojvody (potřeba 2) a zbytek vsi (8), mistři a řemeslníci žádní. */
 const NEEDS = [2, 0, 0, 8];
 const split = (
@@ -30,7 +35,13 @@ const split = (
 const meatKg = (energy: number): number => energy / DIET.meatEnergy;
 /** Kg jablek s energií `energy` (kg obilí). */
 const fruitKg = (energy: number): number => energy / APPLE_FOOD_VALUE;
-const FIELDS: readonly (keyof Eaten)[] = [...(Object.keys(NONE) as (keyof Eaten)[]), 'freshMeatKg'];
+/** Kg medu s energií `energy` (kg obilí). */
+const honeyKg = (energy: number): number => energy / HONEY.energyPerKg;
+/** Pevný příděl medu s energií `energy` – celý med je pevný příděl. */
+const ration = (energy: number): Pick<Eaten, 'honeyKg' | 'honeyRationKg'> => ({
+  honeyKg: honeyKg(energy),
+  honeyRationKg: honeyKg(energy),
+});
 
 describe('jídlo po vrstvách – příděl energie', () => {
   it('nad životním minimem dostane každý 75 % a zbytek jde po vrstvách', () => {
@@ -52,14 +63,34 @@ describe('jídlo po vrstvách – příděl energie', () => {
     expect(meal.eaten[3]!.grainKg).toBeCloseTo(4, 12);
   });
 
-  it('prázdná vrstva má plno a nic nesní – nad minimem i pod ním', () => {
+  it('pod životním minimem beze změny i s ovocem a medem – všichni stejný podíl', () => {
+    // 4 z 10: ovoce a pevný příděl medu po potřebě 1 : 4, obilí dorovná každému 40 %
+    const meal = tierMeal(split(NEEDS), {
+      ...NONE,
+      fruitKg: fruitKg(1),
+      ...ration(0.05),
+      grainKg: 2.95,
+    });
+    for (const t of [0, 3]) {
+      expect(meal.energy[t]).toBeCloseTo(0.4, 12);
+      expect(meal.diets[t]!.energy).toBeCloseTo(0.4, 12);
+    }
+    expect(fruitEnergy(meal.eaten[0]!.fruitKg)).toBeCloseTo(0.2, 12);
+    expect(fruitEnergy(meal.eaten[3]!.fruitKg)).toBeCloseTo(0.8, 12);
+    expect(meal.eaten[0]!.grainKg).toBeCloseTo(0.8 - 0.2 - 0.01, 12);
+    expect(meal.eaten[3]!.grainKg).toBeCloseTo(3.2 - 0.8 - 0.04, 12);
+  });
+
+  it('prázdná vrstva má plno a nic nesní – nad minimem i pod ním, i s pevným přídělem medu', () => {
     for (const grainKg of [4.5, 2]) {
-      const meal = tierMeal(split([0, 0, 0, 5]), { ...NONE, grainKg, honeyKg: 0.01 });
-      for (const t of [0, 1, 2]) {
-        expect(meal.energy[t]).toBe(1);
-        for (const field of FIELDS) expect(meal.eaten[t]![field] ?? 0).toBe(0);
+      for (const honey of [{ honeyKg: 0.01 }, { honeyKg: 0.01, honeyRationKg: 0.01 }]) {
+        const meal = tierMeal(split([0, 0, 0, 5]), { ...NONE, grainKg, ...honey });
+        for (const t of [0, 1, 2]) {
+          expect(meal.energy[t]).toBe(1);
+          for (const field of FIELDS) expect(meal.eaten[t]![field] ?? 0).toBe(0);
+        }
+        expect(meal.energy[3]).toBeCloseTo((grainKg + honeyEnergy(0.01)) / 5, 12);
       }
-      expect(meal.energy[3]).toBeCloseTo((grainKg + 0.01 * HONEY.energyPerKg) / 5, 12);
     }
   });
 
@@ -88,7 +119,7 @@ describe('jídlo po vrstvách – čím se příděl naplní', () => {
     expect(meal.eaten[3]!.grainKg).toBeCloseTo(7, 12);
   });
 
-  it('pořadí: mléko, vejce, čerstvé maso, uzené, sýr, luštěniny, obilí, med', () => {
+  it('pořadí po vrstvách: mléko, vejce, čerstvé maso, uzené, sýr, luštěniny, obilí, med navíc', () => {
     // rod (potřeba 1) se nají mlékem, vejci a půlkou čerstvého masa; zbytek vsi dojí ostatní
     const milk = { milkL: 2, milkProteinKg: 0.06, milkEnergy: 0.4 };
     const eggsKg = 0.4 / DIET.energy.eggs;
@@ -102,12 +133,7 @@ describe('jídlo po vrstvách – čím se příděl naplní', () => {
       cheeseKg: 0.5,
       legumesKg: 0.5,
       grainKg:
-        5 -
-        0.4 * 3 -
-        0.5 -
-        0.5 * DAIRY.cheeseEnergy -
-        0.5 * LEGUMES.energy -
-        0.01 * HONEY.energyPerKg,
+        5 - 0.4 * 3 - 0.5 - 0.5 * DAIRY.cheeseEnergy - 0.5 * LEGUMES.energy - honeyEnergy(0.01),
       honeyKg: 0.01,
     });
     const [elite, , , rest] = meal.eaten as [Eaten, Eaten, Eaten, Eaten];
@@ -121,7 +147,7 @@ describe('jídlo po vrstvách – čím se příděl naplní', () => {
     expect(elite.cheeseKg).toBe(0);
     expect(elite.grainKg).toBe(0);
     expect(elite.honeyKg).toBe(0);
-    // zbytek vsi: zbytek čerstvého masa, uzené, sýr, luštěniny, obilí a med
+    // zbytek vsi: zbytek čerstvého masa, uzené, sýr, luštěniny, obilí a med navíc (bez přídělu)
     expect(rest.freshMeatKg).toBeCloseTo(meatKg(0.2), 12);
     expect(rest.meatKg).toBeCloseTo(meatKg(0.7), 12);
     expect(rest.cheeseKg).toBeCloseTo(0.5, 12);
@@ -130,14 +156,14 @@ describe('jídlo po vrstvách – čím se příděl naplní', () => {
     for (const e of meal.energy) expect(e).toBeCloseTo(1, 12);
   });
 
-  it('uzené před sýrem, sýr před luštěninami a obilím, med až za obilím', () => {
+  it('uzené před sýrem, sýr před luštěninami a obilím, med navíc až za obilím', () => {
     const meal = tierMeal(split([1, 0, 0, 1]), {
       ...NONE,
       meatKg: meatKg(0.5),
       cheeseKg: 0.3 / DAIRY.cheeseEnergy,
       legumesKg: 0.4 / LEGUMES.energy,
       grainKg: 0.7,
-      honeyKg: 0.1 / HONEY.energyPerKg,
+      honeyKg: honeyKg(0.1),
     });
     const [elite, , , rest] = meal.eaten as [Eaten, Eaten, Eaten, Eaten];
     expect(meatEnergy(elite.meatKg)).toBeCloseTo(0.5, 12);
@@ -148,35 +174,58 @@ describe('jídlo po vrstvách – čím se příděl naplní', () => {
     expect(rest.cheeseKg).toBe(0);
     expect(rest.legumesKg * LEGUMES.energy).toBeCloseTo(0.2, 12);
     expect(rest.grainKg).toBeCloseTo(0.7, 12);
-    expect(rest.honeyKg * HONEY.energyPerKg).toBeCloseTo(0.1, 12);
+    expect(honeyEnergy(rest.honeyKg)).toBeCloseTo(0.1, 12);
   });
 
-  it('ovoce rovným dílem mezi nesyté podle zbytku přídělu – sytý z masa nedostane nic', () => {
-    const sated = tierMeal(split(NEEDS), {
+  it('ovoce a pevný příděl medu všem stejně podle potřeby – i sytá elita, elitě o to méně masa', () => {
+    // maso 3 by rod nasytilo samo (dřív bez ovoce); teď rod sní 2/10 ovoce i medu a masa o to míň
+    const meal = tierMeal(split(NEEDS), {
       ...NONE,
-      meatKg: meatKg(2),
-      fruitKg: fruitKg(4),
-      grainKg: 4,
+      meatKg: meatKg(3),
+      fruitKg: fruitKg(1),
+      ...ration(0.1),
+      grainKg: 5.9,
     });
-    expect(meatEnergy(sated.eaten[0]!.meatKg)).toBeCloseTo(2, 12);
-    expect(sated.eaten[0]!.fruitKg).toBe(0);
-    expect(sated.eaten[3]!.fruitKg).toBeCloseTo(fruitKg(4), 12);
-    expect(sated.eaten[3]!.grainKg).toBeCloseTo(4, 12);
-    // rod má po mase zbytek 1, zbytek vsi 8 – ovoce 3 se rozdělí 1 : 8
-    const shared = tierMeal(split(NEEDS), {
-      ...NONE,
-      meatKg: meatKg(1),
-      fruitKg: fruitKg(3),
-      grainKg: 6,
-    });
-    expect(fruitEnergy(shared.eaten[0]!.fruitKg)).toBeCloseTo(3 / 9, 12);
-    expect(fruitEnergy(shared.eaten[3]!.fruitKg)).toBeCloseTo(24 / 9, 12);
-    expect(shared.eaten[0]!.grainKg).toBeCloseTo(1 - 3 / 9, 12);
-    expect(shared.eaten[3]!.grainKg).toBeCloseTo(8 - 24 / 9, 12);
+    const [elite, , , rest] = meal.eaten as [Eaten, Eaten, Eaten, Eaten];
+    expect(fruitEnergy(elite.fruitKg)).toBeCloseTo(0.2, 12);
+    expect(fruitEnergy(rest.fruitKg)).toBeCloseTo(0.8, 12);
+    expect(elite.honeyKg).toBeCloseTo(honeyKg(0.02), 12);
+    expect(elite.honeyRationKg).toBeCloseTo(honeyKg(0.02), 12);
+    expect(rest.honeyKg).toBeCloseTo(honeyKg(0.08), 12);
+    // maso, které rod kvůli ovoci a medu nesní, sní zbytek vsi
+    expect(meatEnergy(elite.meatKg)).toBeCloseTo(2 - 0.22, 12);
+    expect(meatEnergy(rest.meatKg)).toBeCloseTo(3 - (2 - 0.22), 12);
+    expect(elite.grainKg).toBe(0);
+    expect(rest.grainKg).toBeCloseTo(5.9, 12);
+    for (const e of meal.energy) expect(e).toBeCloseTo(1, 12);
+  });
+
+  it('ovoce, které se do přídělu vrstvy nevejde, se přerozdělí ostatním', () => {
+    // 9 z 10 jen z ovoce: rovným dílem 0,9 potřeby – zbytku vsi by to dalo 7,2, příděl má 7;
+    // 0,2 navíc dostane rod (do plna)
+    const meal = tierMeal(split(NEEDS), { ...NONE, fruitKg: fruitKg(9) });
+    expect(fruitEnergy(meal.eaten[0]!.fruitKg)).toBeCloseTo(2, 12);
+    expect(fruitEnergy(meal.eaten[3]!.fruitKg)).toBeCloseTo(7, 12);
+    expect(meal.energy[0]).toBe(1);
+    expect(meal.energy[3]).toBeCloseTo(0.875, 12);
+  });
+
+  it('v hladu: pevný příděl medu všem stejně, med navíc po vrstvách za obilím', () => {
+    // 9 z 10: med 0,3 kg, z toho pevný příděl 0,1 kg – rod 0,02 kg, zbytek vsi 0,08 kg a med navíc
+    const honey = { honeyKg: 0.3, honeyRationKg: 0.1 };
+    const meal = tierMeal(split(NEEDS), { ...NONE, ...honey, grainKg: 9 - honeyEnergy(0.3) });
+    const [elite, , , rest] = meal.eaten as [Eaten, Eaten, Eaten, Eaten];
+    expect(elite.honeyRationKg).toBeCloseTo(0.02, 12);
+    expect(elite.honeyKg).toBeCloseTo(0.02, 12);
+    expect(rest.honeyRationKg).toBeCloseTo(0.08, 12);
+    expect(rest.honeyKg).toBeCloseTo(0.08 + 0.2, 12);
+    expect(elite.grainKg).toBeCloseTo(2 - honeyEnergy(0.02), 12);
+    expect(meal.energy[0]).toBe(1);
+    expect(meal.energy[3]).toBeCloseTo(0.875, 12);
   });
 
   it('součet vrstev = snědené vsi, i když by snědené přesáhlo potřebu', () => {
-    const eaten: Eaten = {
+    const eaten: Record<keyof Required<Eaten>, number> = {
       grainKg: 6.1,
       meatKg: 2.4,
       freshMeatKg: 0.9,
@@ -188,17 +237,18 @@ describe('jídlo po vrstvách – čím se příděl naplní', () => {
       eggsKg: 0.3,
       legumesKg: 0.8,
       honeyKg: 0.05,
+      honeyRationKg: 0.03,
     };
     const needs = [1.3, 0.7, 2.1, 9.4];
     // pod minimem, těsně nad ním, nad ním a přes potřebu (nemá nastat – přebytek sní zbytek vsi)
     for (const scale of [0.3, 0.8, 1, 1.2, 1.4]) {
       const input = Object.fromEntries(
         Object.entries(eaten).map(([key, kg]) => [key, kg * scale]),
-      ) as unknown as Eaten;
+      ) as Record<keyof Required<Eaten>, number>;
       const meal = tierMeal(split(needs, [0.2, 0.1, 0.3, 1.2]), input);
       for (const field of FIELDS) {
         const sum = meal.eaten.reduce((a, tier) => a + (tier[field] ?? 0), 0);
-        expect(sum).toBeCloseTo(input[field] ?? 0, 9);
+        expect(sum).toBeCloseTo(input[field], 9);
       }
       for (const e of meal.energy) {
         expect(e).toBeGreaterThanOrEqual(0);
@@ -216,17 +266,12 @@ describe('spokojenost ze stravy po lidech', () => {
     energy: tiers.map(() => 1),
   });
 
-  it('maso, ovoce a med průměrem přes lidi podle toho, co kdo snědl', () => {
+  it('maso, ovoce a med průměrem přes jedlíky podle toho, co kdo snědl', () => {
     // rod (2 lidé) jí 30 % energie z masa a med, zbytek vsi (8 lidí) jen obilí
     const meal = handMade([
       {
         need: 2,
-        eaten: {
-          ...NONE,
-          meatKg: meatKg(0.6),
-          honeyKg: 0.1 / HONEY.energyPerKg,
-          grainKg: 1.3,
-        },
+        eaten: { ...NONE, meatKg: meatKg(0.6), honeyKg: honeyKg(0.1), grainKg: 1.3 },
       },
       { need: 0, eaten: NONE },
       { need: 0, eaten: NONE },
@@ -252,7 +297,7 @@ describe('spokojenost ze stravy po lidech', () => {
     expect(h.honey).toBe(0);
   });
 
-  it('ves bez lidí nemá štěstí ze stravy', () => {
+  it('ves bez jedlíků nemá štěstí ze stravy', () => {
     const meal = tierMeal(split([0, 0, 0, 0]), NONE);
     expect(dietHappiness(meal, [0, 0, 0, 0])).toEqual({ fruit: 0, meat: 0, honey: 0 });
   });
@@ -262,5 +307,21 @@ describe('spokojenost ze stravy po lidech', () => {
     const meal = tierMeal(split(NEEDS), { ...NONE, meatKg: meatKg(1), grainKg: 9 });
     const h = dietHappiness(meal, [2, 0, 0, 8]);
     expect(h.meat).toBeCloseTo((DIET.meatHappiness.max * 2) / 10, 12);
+  });
+
+  it('z jídla po vrstvách: sytá elita z masa má z ovoce +5 a z medu +2 jako ostatní', () => {
+    const meal = tierMeal(split(NEEDS), {
+      ...NONE,
+      meatKg: meatKg(3),
+      fruitKg: fruitKg(1),
+      ...ration(0.1),
+      grainKg: 5.9,
+    });
+    const h = dietHappiness(meal, [2, 0, 0, 8]);
+    expect(h.fruit).toBeCloseTo(DIET.fruitHappiness, 12);
+    expect(h.honey).toBeCloseTo(HONEY.happiness, 12);
+    // rod 89 % energie z masa (+3), zbytek vsi 1,22 z 8 = 15,25 % (poměrně)
+    const restMeat = (DIET.meatHappiness.max * (1.22 / 8)) / DIET.meatHappiness.fullShare;
+    expect(h.meat).toBeCloseTo((2 * DIET.meatHappiness.max + 8 * restMeat) / 10, 12);
   });
 });

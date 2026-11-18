@@ -542,6 +542,8 @@ describe('med – pevný příděl (hides-honey.md – Klát u obydlí; diet.md 
     const meal = eatDiet(input({ honeyKg: 0.05, honeyRationKg: RATION }));
     expect(meal.honeyKg).toBe(0);
     expect(meal.diet.shares.honey).toBeCloseTo(0.0045, 12);
+    // celé snědené je pevný příděl (diet.md – Kdo dostane co: všem stejně)
+    expect(meal.eaten.honeyRationKg).toBeCloseTo(0.05, 12);
   });
 
   it('bez bílkovin a bez vlivu na kvalitu stravy – přidá jen energii', () => {
@@ -577,6 +579,7 @@ describe('med – pevný příděl (hides-honey.md – Klát u obydlí; diet.md 
     expect(meal.outlook).toBe(1);
     expect(meal.eaten.honeyKg).toBeGreaterThan(0);
     expect(meal.eaten.honeyKg).toBeCloseTo(RATION, 12);
+    expect(meal.eaten.honeyRationKg).toBeCloseTo(RATION, 12);
     expect(meal.honeyKg).toBeCloseTo(10 - RATION, 12);
     expect(meatEnergy(meal.eaten.meatKg)).toBeCloseTo(NEED - honeyEnergy(RATION), 9);
     expect(meal.eaten.grainKg).toBe(0);
@@ -599,9 +602,11 @@ describe('med – pevný příděl (hides-honey.md – Klát u obydlí; diet.md 
     expect(lean.outlook).toBeLessThan(1);
     expect(leanHoney.outlook - lean.outlook).toBeCloseTo(90 / (NEED * 100), 9);
     expect(leanHoney.diet.energy).toBeCloseTo(leanHoney.outlook, 9);
-    // med se jí s obilím rovným dílem do sklizně – 100 kg na 100 dní, víc než pevný příděl
+    // med se jí s obilím rovným dílem do sklizně – 100 kg na 100 dní, víc než pevný příděl; z toho
+    // pevný příděl (všem stejně), zbytek je med navíc v hladu (po vrstvách za obilím)
     expect(100 - leanHoney.honeyKg).toBeCloseTo(1, 9);
     expect(100 - leanHoney.honeyKg).toBeGreaterThan(RATION);
+    expect(leanHoney.eaten.honeyRationKg).toBeCloseTo(RATION, 12);
     expect(leanHoney.grainSpareKg).toBe(0);
   });
 

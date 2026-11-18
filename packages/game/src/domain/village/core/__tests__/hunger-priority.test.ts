@@ -4,6 +4,8 @@ import { daysUntilHarvest } from '../food';
 import { DIET, DAILY_MEAT_KEEP, proteinNeedPerDay, villageFoodNeed } from '../diet';
 import { eat } from '../simulate-food';
 import { NO_CRAFTS } from '../productivity';
+import { APPLE_FOOD_VALUE } from '../../rules';
+import { HONEY } from '../../rules/rules-wares';
 import { foodNeedPerDay, guestFoodNeedPerDay } from '../../people/people';
 import {
   advanceGroupStarvation,
@@ -135,6 +137,18 @@ describe('přednost v hladu – rozdělení jídla', () => {
     const total = split.needs.reduce((a, b) => a + b, 0);
     expect(total).toBeCloseTo(villageFoodNeed(s, START), 12);
   });
+
+  it('jedlíci: lidé, kteří jedí ze zásob vsi, a hosté – ne lidé pryč', () => {
+    const s = village(1, 1);
+    // tři kováři na robotě (jedí jinde), host ve zbytku vsi
+    for (const id of [20, 21, 22]) {
+      s.people.find((p) => p.id === id)!.away = { kind: 'labor', untilDay: START + 30 };
+    }
+    s.guests = [{ untilDay: START + 10 }] as VillageState['guests'];
+    const split = hungerSplit(s, START);
+    expect(split.counts).toEqual([2, 0, 6, 7]);
+    expect(split.eaters).toEqual([2, 0, 3, 7]);
+  });
 });
 
 describe('strava po vrstvách – štěstí ze stravy po lidech', () => {
@@ -149,6 +163,36 @@ describe('strava po vrstvách – štěstí ze stravy po lidech', () => {
     expect(result.diet.meat).toBeCloseTo((DIET.meatHappiness.max * 2) / 14, 9);
     expect(result.diet.fruit).toBe(0);
     expect(result.diet.honey).toBe(0);
+  });
+
+  it('ovoce a pevný příděl medu jedí všichni stejně – i rod sytý z masa (+5 a +2 celé vsi)', () => {
+    const day = START + 10;
+    const s = village(3, 1.3);
+    const need = villageFoodNeed(s, day);
+    // maso za 30 % potřeby vsi (rod by se jím nasytil sám), ovoce za 10 %, med z klátů
+    s.meatKg = (0.3 * need) / DIET.meatEnergy / DAILY_MEAT_KEEP;
+    s.applesKg = (0.1 * need) / APPLE_FOOD_VALUE;
+    s.wares = { hides: 0, sheepFurs: 0, wildFurs: 0, honeyKg: 10, waxKg: 0 };
+    const result = eat(s, day, NO_CRAFTS);
+    expect(s.diet!.shares.fruit).toBeCloseTo(0.1, 9);
+    expect(s.diet!.shares.honey).toBeGreaterThan(0);
+    expect(result.diet.fruit).toBeCloseTo(DIET.fruitHappiness, 12);
+    expect(result.diet.honey).toBeCloseTo(HONEY.happiness, 12);
+    // maso sní rod (do zbytku přídělu po ovoci a medu) a kováři; zbytek vsi už nic
+    expect(result.diet.meat).toBeCloseTo((DIET.meatHappiness.max * 8) / 14, 9);
+  });
+
+  it('lidé pryč se do štěstí ze stravy nepočítají – průměr jen přes jedlíky', () => {
+    const day = START + 10;
+    const s = village(3, 1.3);
+    // zbytek vsi (6 lidí) je na robotě – jí jinde
+    for (const p of s.people)
+      if (p.dwellingId === 3) p.away = { kind: 'labor', untilDay: day + 30 };
+    const need = villageFoodNeed(s, day);
+    // maso za 10 % potřeby – sní ho celé rod (2 z 8 jedlíků)
+    s.meatKg = (0.1 * need) / DIET.meatEnergy / DAILY_MEAT_KEEP;
+    const result = eat(s, day, NO_CRAFTS);
+    expect(result.diet.meat).toBeCloseTo((DIET.meatHappiness.max * 2) / 8, 9);
   });
 });
 
