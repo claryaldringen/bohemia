@@ -113,7 +113,10 @@ function plannedBounds(
  * Neprůchodná plocha plánované stavby, až bude stát (paths.md – Stavba přes cestu, Náhled
  * u kurzoru): táž mřížka chodců jako `villageBlockedAt` (`gridBlockedAt` v okně na mřížce krajiny
  * – tytéž buňky) se vsí, ve které stojí jen tahle stavba. Ostatní stavby vsi plochu nemění – živé
- * cesty jimi nevedou (pravidlo je už opustilo). Bez čtverců null.
+ * cesty jimi nevedou (pravidlo je už opustilo). Mřížka se staví až pro první bod v okně stavby –
+ * cesty daleko od kurzoru terén nepočítají (první terén krajiny stojí ≈ 170 ms, pak pod 1 ms); mimo
+ * okno false jako u `gridBlockedAt` (okraj okna je PLANNED_MARGIN_M od stavby – nic tam neleží).
+ * Bez čtverců null.
  */
 export function plannedBlockedAt(
   landscape: Landscape,
@@ -122,5 +125,10 @@ export function plannedBlockedAt(
   const village = plannedVillage(landscape, planned);
   const bounds = plannedBounds(village, planned);
   if (!bounds) return null;
-  return gridBlockedAt(village, pathTerrainOf(landscape, pathWindowFor(landscape, bounds)));
+  let grid: ((x: number, z: number) => boolean) | null = null;
+  return (x, z) => {
+    if (x < bounds.minX || x > bounds.maxX || z < bounds.minZ || z > bounds.maxZ) return false;
+    grid ??= gridBlockedAt(village, pathTerrainOf(landscape, pathWindowFor(landscape, bounds)));
+    return grid(x, z);
+  };
 }

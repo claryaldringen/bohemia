@@ -101,6 +101,39 @@ describe('náhled zásahu stavby do cest (paths.md – Stavba přes cestu, Náhl
     expect(stretchesUnderBuilding([through], blocked, new Set([4]))).toEqual([]);
   });
 
+  it('cesta, která plochou projde dvakrát, má dva kusy – pravidlo opustí oba', () => {
+    // tam po z = 3, za pozemkem obrat a zpátky po z = 12
+    const loop: Road = {
+      ...line(5, -12, 3, 28, 3),
+      points: [
+        { x: -12, z: 3 },
+        { x: 28, z: 3 },
+        { x: 28, z: 12 },
+        { x: -12, z: 12 },
+      ],
+    };
+    const stretches = stretchesUnderBuilding([loop], blocked);
+    expect(stretches.map((s) => s.roadId)).toEqual([5, 5]);
+    expect(stretches.every((s) => lengthOf(s.points) >= BLOCK_MIN_RUN_M)).toBe(true);
+    const state = roadsOf([loop]);
+    expect(abandonBlockedStretches(state, [], undefined, blocked)).toBe(true);
+    expect(state.roads.filter((r) => r.abandoned)).toHaveLength(2);
+  });
+
+  it('svatyně cestu přeruší; modla (4 m) je na pravidlo krátká – nevyznačí se ani neopustí', () => {
+    const at = { x: 40, z: -40, rotation: 0 };
+    const across = [line(6, -10, -40, 90, -40)];
+    const shrine = plannedBlockedAt(LANDSCAPE, { kind: 'sacred', type: 'shrine', position: at })!;
+    expect(shrine(40, -40)).toBe(true);
+    expect(shrine(40, -70)).toBe(false);
+    expect(stretchesUnderBuilding(across, shrine).map((s) => s.roadId)).toEqual([6]);
+    expect(abandonBlockedStretches(roadsOf(across), [], undefined, shrine)).toBe(true);
+    const idol = plannedBlockedAt(LANDSCAPE, { kind: 'sacred', type: 'idol', position: at })!;
+    expect(blockedRun(across[0]!.points, idol)).toBeGreaterThan(0);
+    expect(stretchesUnderBuilding(across, idol)).toEqual([]);
+    expect(abandonBlockedStretches(roadsOf(across), [], undefined, idol)).toBe(false);
+  });
+
   it('volné obydlí, humno a ohrada zaberou svou plochu', () => {
     const house = plannedBlockedAt(LANDSCAPE, {
       kind: 'dwelling',

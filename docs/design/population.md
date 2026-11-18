@@ -129,7 +129,8 @@ obydlí hráčem a jejich chátrání a přestavby obyvateli.
   po 15 stupních“ – u pozemku **varianta a: natočí se celý pozemek**, místo domu přepíná Tab):
   klávesy [ a ] otáčejí celým pozemkem po 15° kolem jeho středu, **Tab** (se Shiftem zpět)
   přepíná variantu – kde na pozemku dům stojí. Pozemek je čtverec 15 × 15 m se **středem
-  kdekoli pod kurzorem** (na cm), ne v mřížce políček – **i bez natočení a po 90°** (Martin, 18. 11. 2026: „když stavím dům s pozemkem, tak dokud ho nepootočím, skáče po jednotlivých
+  kdekoli pod kurzorem** (na cm), ne v mřížce políček – **i bez natočení a po 90°** (Martin,
+  dne 18. 11. 2026: „když stavím dům s pozemkem, tak dokud ho nepootočím, skáče po jednotlivých
   mapových čtvercích“ – dřív se bez natočení a po 90° přichytil na políčko pod kurzorem). Jen
   přesně ve středu políčka bez natočení je to políčko jako dřív. Pole, sad a hřbitov se dál malují
   po čtvercích. Plot se zakulacenými rohy, branka na přední

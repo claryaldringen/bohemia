@@ -21,7 +21,7 @@ import {
   type SquareGrid,
   type TileCell,
 } from '@bohemia/game';
-import { ROAD_CUT_WARNING } from './road-cut';
+import { withRoadCut } from './road-cut';
 import {
   CellSelection,
   cellsBoundary,
@@ -623,15 +623,8 @@ export class FieldPainter {
     const preview = this.preview;
     // Prázdný výběr není chyba – bez důvodu (rozhraní pak u kurzoru nic neukáže).
     const variant = this.variant();
-    const base = preview?.check ?? { ok: false, reason: null };
     // ohrada či hřbitov přes cestu: varování u kurzoru (stavbě nebrání)
-    const check =
-      base.ok && this.roadCut > 0
-        ? {
-            ...base,
-            warning: base.warning ? `${base.warning}\n${ROAD_CUT_WARNING}` : ROAD_CUT_WARNING,
-          }
-        : base;
+    const check = withRoadCut(preview?.check ?? { ok: false, reason: null }, this.roadCut);
     this.handlers.onPreview?.({
       check,
       label: preview?.label ?? '',

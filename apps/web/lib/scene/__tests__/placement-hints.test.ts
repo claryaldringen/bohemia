@@ -1,6 +1,16 @@
-import { describe, expect, it } from 'vitest';
-import { SURFACE_CODES, checkPlotPlacement, packObstacles, type Landscape } from '@bohemia/game';
+import { describe, expect, it, vi } from 'vitest';
+import {
+  SURFACE_CODES,
+  checkPlotPlacement,
+  packObstacles,
+  type Landscape,
+  type PlacementCheck,
+} from '@bohemia/game';
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { CursorReason } from '@/components/game/hud/CursorReason';
 import { plotUnderCursor, roadsUnderPlanned } from '../placement-hints';
+import { ROAD_CUT_WARNING, withRoadCut } from '../road-cut';
 import type { SceneRoad } from '../../village-view';
 
 // Náhled umisťování stavby (D96 – Martin 18. 11. 2026): pozemek domu má střed pod kurzorem i bez
@@ -57,6 +67,32 @@ describe('zásah stavby do cest (paths.md – Stavba přes cestu, Náhled u kurz
     plot,
   };
 
+  it('cesta, která pozemkem projde dvakrát, má dva kusy; svatyně cestu přeruší, modla ne', () => {
+    // cesta vede pozemkem tam (z = 3) a kus za ním se vrátí zpátky (z = 12)
+    const loop: SceneRoad = {
+      id: 6,
+      points: [
+        { x: -12, z: 3 },
+        { x: 28, z: 3 },
+        { x: 28, z: 12 },
+        { x: -12, z: 12 },
+      ],
+      grade: 'trodden',
+    };
+    const twice = roadsUnderPlanned(LANDSCAPE, () => [loop])(planned);
+    expect(twice.map((s) => s.roadId)).toEqual([6, 6]);
+    expect(twice[0]!.points.every((p) => Math.abs(p.z - 3) < 1e-6)).toBe(true);
+    expect(twice[1]!.points.every((p) => Math.abs(p.z - 12) < 1e-6)).toBe(true);
+    // svatyně cestu přeruší; modla (4 m) je na pravidlo kusu pod stavbou krátká
+    const through = [road(7, [-40, 60], [40, 60])];
+    const at = { x: 0, z: 60, rotation: 0 };
+    const under = roadsUnderPlanned(LANDSCAPE, () => through);
+    expect(under({ kind: 'sacred', type: 'shrine', position: at }).map((s) => s.roadId)).toEqual([
+      7,
+    ]);
+    expect(under({ kind: 'sacred', type: 'idol', position: at })).toEqual([]);
+  });
+
   it('cesta přes pozemek se vyznačí, cesta mimo a krátký zásah ne', () => {
     const roads = [road(1, [7.5, -30], [7.5, 45]), road(2, [40, -30], [40, 45])];
     const under = roadsUnderPlanned(LANDSCAPE, () => roads)(planned);
@@ -76,5 +112,25 @@ describe('zásah stavby do cest (paths.md – Stavba přes cestu, Náhled u kurz
     const roads = [road(1, [7.5, -30], [7.5, 45])];
     const under = roadsUnderPlanned(LANDSCAPE, () => roads);
     expect(under(planned)).toBe(under({ ...planned }));
+  });
+});
+
+describe('varování u kurzoru (paths.md – Stavba přes cestu, Náhled u kurzoru)', () => {
+  it('„Cesta se přeruší“ pod jiným varováním – dva řádky v bublině; neprošlá kontrola beze změny', () => {
+    const check = withRoadCut({ ok: true, reason: null, warning: 'Pole se zmenší' }, 2);
+    expect(check.warning).toBe(`Pole se zmenší\n${ROAD_CUT_WARNING}`);
+    const plain: PlacementCheck = { ok: true, reason: null };
+    expect(withRoadCut(plain, 1).warning).toBe(ROAD_CUT_WARNING);
+    expect(withRoadCut(plain, 0).warning).toBeUndefined();
+    const bad = { ok: false, reason: 'Pozemek nemůže ležet ve vodě.' };
+    expect(withRoadCut(bad, 3)).toBe(bad);
+    vi.stubGlobal('window', { innerWidth: 1280, innerHeight: 800 });
+    const html = renderToStaticMarkup(
+      createElement(CursorReason, { preview: { check, label: '', screen: { x: 100, y: 100 } } }),
+    );
+    vi.unstubAllGlobals();
+    expect(html).toContain('data-tone="warning"');
+    expect(html).toContain('whitespace-pre-line');
+    expect(html).toContain(`Pole se zmenší\n${ROAD_CUT_WARNING}`);
   });
 });

@@ -907,8 +907,9 @@ vyznačený žlutě – sice to přes cestu půjde postavit, ale stavitel by mě
 cest“. Návrh Clauda:
 
 - **Co je žlutě:** při umisťování stavby, která leží v ploše staveb vsi (obydlí na pozemku
-  i volné, dílna, modla, svatyně, humno, ohrada a hřbitov při malování po čtvercích), náhled vyznačí žlutým pásem po ose ty kusy živých cest,
-  které by pravidlo kusu pod stavbou výš po postavení opustilo – osa vede plochou nové stavby
+  i volné, dílna, modla, svatyně, humno, ohrada a hřbitov při malování po čtvercích), náhled
+  vyznačí žlutým pásem po ose ty kusy živých cest, které by pravidlo kusu pod stavbou výš po
+  postavení opustilo – osa vede plochou nové stavby
   souvislým kusem aspoň 5 m (`BLOCK_MIN_RUN_M`). Kratší zásah (cesta jen zaklesne do rohu) síť
   nezmění a nevyznačí se. Plocha je táž jako v pravidle – plocha hotové stavby i staveniště (kus pod
   staveništěm se opouští už při zahájení stavby). Opuštěná cesta a cesta ve vylepšení se nehodnotí

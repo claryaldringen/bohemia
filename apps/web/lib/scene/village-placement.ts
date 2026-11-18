@@ -24,7 +24,7 @@ import {
   type TileCell,
 } from '@bohemia/game';
 import { setE2EHook } from '../e2e-hooks';
-import { ROAD_CUT_WARNING } from './road-cut';
+import { withRoadCut } from './road-cut';
 import { nextPlotVariant, plotHouse, type PlotSquare } from './homestead-layout';
 import { sacredStakeLines } from './sacred-layout';
 import {
@@ -172,12 +172,13 @@ export interface PlacementContext {
 }
 
 /**
- * Umisťování obydlí (a modly či svatyně) jako v 0 A.D.: duch u kurzoru, levé kliknutí postaví,
- * se Shiftem postaví a umisťuje dál další kus; pravé kliknutí nebo Esc zruší. Klávesy [ a ]
- * otáčejí stavbou po 15° – u obydlí na pozemku (polozemnice) celým pozemkem (Martin 18. 10. 2026,
- * varianta a): pozemek má střed pod kurzorem i bez natočení (D96 – Martin 18. 11. 2026), dřív se
- * bez natočení a po 90° přichytil na políčko; Tab (se Shiftem zpět) přepíná variantu, kde na pozemku dům stojí. Enter
- * postaví pod kurzorem. Kurzor nad terénem dodává scéna jednou za snímek (`setCursor`).
+ * Umisťování obydlí (a modly či svatyně) jako v 0 A.D.: duch u kurzoru, levé kliknutí postaví, se
+ * Shiftem postaví a umisťuje dál další kus; pravé kliknutí nebo Esc zruší. Klávesy [ a ] otáčejí
+ * stavbou po 15° – u obydlí na pozemku (polozemnice) celým pozemkem (Martin 18. 10. 2026, varianta
+ * a): pozemek má střed pod kurzorem i bez natočení (D96 – Martin 18. 11. 2026), dřív se bez
+ * natočení a po 90° přichytil na políčko; Tab (se Shiftem zpět) přepíná variantu, kde na pozemku
+ * dům stojí. Enter postaví pod kurzorem. Kurzor nad terénem dodává scéna jednou za snímek
+ * (`setCursor`).
  */
 export class PlacementController implements ActivePlacement {
   private readonly ghost: Mesh[] = [];
@@ -437,10 +438,7 @@ export class PlacementController implements ActivePlacement {
       this.addStrip(stripSegments(axis, false, ROAD_HINT_WIDTH_M, 1), 'warn');
     }
     this.roadHints = cut.length;
-    if (cut.length > 0 && check.ok) {
-      const warning = check.warning ? `${check.warning}\n${ROAD_CUT_WARNING}` : ROAD_CUT_WARNING;
-      check = { ...check, warning };
-    }
+    check = withRoadCut(check, cut.length);
     const look = check.ok ? 'ok' : 'bad';
     const rect = footprintOf(mode, position, plot);
     // dílna: půdorys s přístřeškem vpředu (herní jádro – i s variantou rozměrů)

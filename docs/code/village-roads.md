@@ -807,11 +807,14 @@ cellM)` (`road-condition.ts`, index buněk tras v `WeakMap` podle pole tras) –
   opuštěných a cest ve vylepšení – `frozen`); plochu jedné plánované stavby dává `plannedBlockedAt`
   (`planned-blocked.ts` – `PlannedBuilding`: obydlí s pozemkem i volné a dílna jako hotová stavba
   i staveniště, modla, svatyně, humno, ohrada, hřbitov) přes `gridBlockedAt` (`paths/village.ts`,
-  táž mřížka jako `villageBlockedAt` v okně na mřížce krajiny). Prohlížeč:
+  táž mřížka jako `villageBlockedAt` v okně na mřížce krajiny); mřížka se staví líně až pro první
+  bod osy v okně stavby (cesty daleko od kurzoru terén nepočítají – první terén krajiny 128 ×
+  128 ≈ 160 ms, další pohyb kurzoru pod 1 ms i se 40 cestami po 600 m). Prohlížeč:
   `roadsUnderPlanned` v `apps/web/lib/scene/placement-hints.ts` (cesty `SceneVillage.roads`,
   vylepšení = `SceneRoad.upgrade`, minulý výsledek pro stejný vstup), `PlacementController`
   kreslí kusy žlutým pásem (`ROAD_HINT_WIDTH_M`) a k varování u kurzoru připojí
-  `ROAD_CUT_WARNING` (`road-cut.ts` – „Cesta se přeruší“), e2e háček `roadHints`; ohrada a hřbitov totéž ve `FieldPainter` (`PlacementMode.blocks`). Nezarůstá zemská stezka, cesta ve
+  `ROAD_CUT_WARNING` (`road-cut.ts` – „Cesta se přeruší“), e2e háček `roadHints`; ohrada
+  a hřbitov totéž ve `FieldPainter` (`PlacementMode.blocks`). Nezarůstá zemská stezka, cesta ve
   vylepšení (`fixedRoadIds`) a cesta, jejíž konec leží do `ROAD_ANCHORS.entranceM` od vchodu
   (kotva `entrance` z tras – ke stavbě se chodí; bez pole `Road.access`). **Zánik v `roadsMonth`**
   (1. dne v měsíci, po `settleVillageWear`, **před** vznikem `formRoadsKept`): `cutDeadRoads`
