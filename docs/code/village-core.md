@@ -196,8 +196,11 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   **Strava po vrstvách** (diet.md – Strava po vrstvách a porážka celý rok, 18. 11. 2026):
   `eatDiet` (`core/diet.ts`) sní den bez stropů – `dietPlan` spočítá výhled `aheadEnergy` (jídlo
   mimo obilí a med do sklizně), pevný příděl medu a tempo proti zkažení (`fruitPace` = ovoce ÷
-  dny do zkažení, `meatPace` = maso čerstvé i uzené ÷ dny do konce masa, `spoilPace` i s vejci) –
-  to se sní napřed i v hojnosti, šetří se jen obilí a v hladu med. `tierMeal` (`core/tier-meal.ts`)
+  dny do zkažení, `freshPace` = dnešní čerstvé maso ÷ dny do konce masa, `smokedShare` = díl
+  uzeného – zásoba po dnešní ztrátě ÷ dny do konce masa, poslední den zbytek, `spoilPace` i s
+  vejci) – to se sní napřed i v hojnosti, šetří se jen obilí a v hladu med. Uzené se nad svůj díl
+  nejí (od 18. 11. 2026, D98 – Martin: „Uzené rozlož“; zbytek dne bez něj) a výhled ho počítá
+  dílem (`min(smokedShare, potřeba) × min(dny, dny do konce masa)`). `tierMeal` (`core/tier-meal.ts`)
   rozdělí snědené vsi mezi vrstvy: `rationShares` dá příděl (75 % všem, zbytek po vrstvách), pak
   úrovně `LEVELS` – ovoce a pevný příděl medu všem stejně (`evenTakes`), ostatní po vrstvách
   (`levelTakes`) v pořadí čerstvé maso, uzené, mléko, vejce, sýr, luštěniny, obilí, med navíc –
@@ -226,7 +229,8 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   výhled do sklizně (`grainKeepPerDay`, `legumeKeepPerDay`, `DAILY_MEAT_KEEP`,
   `DAILY_CHEESE_KEEP`), maso do zkažení (`daysUntilMeatSpoil`), jablka do shnití
   (`daysUntilAppleRot`); ves jí v pořadí jídla bez stropů (diet.md – Strava po vrstvách a porážka
-  celý rok, 18. 11. 2026) – uzené maso a sýr, ovoce, luštěniny, pak obilí a nakonec med (jídlo
+  celý rok, 18. 11. 2026) – uzené maso jen svým dílem (zásoba ÷ dny do konce masa – `daysUntilMeatEnd`,
+  po 31. 10. přepočet; od D98), sýr, ovoce, luštěniny, pak obilí a nakonec med (jídlo
   jako obilí – Med v hladu). Počítá se do prvního
   dne bez plného přídělu (tolerance `SATIATION_EPSILON`), nejvýš do konce světa; nikdo nejí →
   null. `VillageSummary.foodLastsDays` → `VillageView.foodLastsDays` (chybí místo null) → řádek

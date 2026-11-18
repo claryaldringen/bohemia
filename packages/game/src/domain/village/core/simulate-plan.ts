@@ -884,7 +884,8 @@ export interface FieldTaskEntry {
  * napřed podle skupiny úloh (`DAY_WORK_ORDER` – `dayTaskOrder`): porážka a uzení za žní, trháním
  * lnu a nutnou sečí i otavou, před sklizní jablek; jablka před přípravou půdy a setím (zrají v září
  * a do konce října spadnou – ozim dostane zbytek podzimu, se kterým kapacita práce počítá), péče
- * o sad za nimi. Uvnitř skupiny podle konce okna a při shodě podle přednosti `tie`.
+ * o sad za nimi. Uvnitř skupiny napřed orba, pak podle konce okna, při shodě podle přednosti
+ * `tie` a nakonec pořadí `rank`.
  */
 export interface DayTask {
   name: LaborTaskName;

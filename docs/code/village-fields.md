@@ -63,7 +63,8 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   potřeba z pole (podíl jídla z pole za uplynulý hospodářský rok – `VillageState.fieldFood`, součty
   v `eat`, uzávěrka 1. 9. `closeFieldFoodYear`; nejméně `FIELD_FOOD.minShare`, bez změřeného roku
   1 – × roční potřeba podle růstu vsi `expectedYearlyFoodNeed`, `food-outlook.ts`), zásoby z pole
-  (obilí, snopy, luštěniny – `storesLeft` / `storesNeeded` se ztrátami) bez osiva, které ves ještě
+  (obilí, snopy, luštěniny – luštěniny jako obilí téže energie, bez stropu od D98; `storesLeft` /
+  `storesNeeded` se ztrátami) bez osiva, které ves ještě
   zaseje (`seedOutsideFoodKg`), pojistka `bufferKg` (`bufferEnergyYears`, po krutém roce 10 let
   0,75 – `bufferEnergyYearsOf`). Dlouhodobý podíl `FieldFoodYear.longShare` (k 1. 9. o třetinu
   rozdílu – `FIELD_STORES.balanceYears`). Cílová zásoba `storesTargetKg` a `steadyHarvestKg` zůstaly

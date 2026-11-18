@@ -90,7 +90,7 @@ Neplatí od 18. 11. 2026 (med zvyšuje štěstí o +2 – diet.md, Strava po vrs
 
 ## Luštěniny, mléko a sýr rovným dílem a ve stropech
 
-Neplatí od 18. 11. 2026 (diet.md – Strava po vrstvách a porážka celý rok, Pořadí jídla – bez stropů: luštěniny, mléko i sýr se jedí v pořadí jídla, jak jsou; strop luštěnin 25 % zůstal jen v odhadech – výhled zásob k sklizni a bilance bílkovin stád). Zbytky dřívějšího znění v platném textu, přesunuté po kontrole 18. 11. 2026. Dřív v Luštěninách a štěstí z masa:
+Neplatí od 18. 11. 2026 (diet.md – Strava po vrstvách a porážka celý rok, Pořadí jídla – bez stropů: luštěniny, mléko i sýr se jedí v pořadí jídla, jak jsou; strop luštěnin 25 % zůstal jen v odhadech – výhled zásob k sklizni a bilance bílkovin stád – a od D98 téhož dne ani v nich, viz Strop luštěnin v odhadech níž). Zbytky dřívějšího znění v platném textu, přesunuté po kontrole 18. 11. 2026. Dřív v Luštěninách a štěstí z masa:
 
 - Luštěniny „Zůstávají **zbožím**: zásoba (obchod, platby, dávky, dorůstající luštěniny starších
   vsí) se jí jako dosud – rovným dílem do července, nejvýš strop, bílkoviny navíc proti obilí.“
@@ -109,3 +109,62 @@ Dřív v Mléku a sýru:
   zpracuje se na **syřidlový sýr** …“
 - „**Zásoba sýra** ztrácí **15 % ročně** a jí se rovným dílem **do 1. 5.** (začátek dojení, sýr
   vydrží do té doby) – v zimě tak bílkoviny dává sýr.“
+
+## Uzené hned po čerstvém
+
+Neplatí od 18. 11. 2026, D98 (Martin na otázku „Má se uzené z porážky 1. 11. sníst hned, nebo pomaleji, rozložené přes zimu a jaro?“: „Uzené rozlož“; diet.md – Strava po vrstvách a porážka celý rok, Pořadí jídla – Uzené rovným dílem). Platilo od stravy po vrstvách téhož dne. Dřív v Pořadí jídla:
+
+- „Uvnitř první úrovně (návrh Clauda) ves jí napřed mléko a vejce (nedají se uložit), pak čerstvé
+  maso, ryby a zvěř, pak uzené maso (zkazí se 1. 9.) a nakonec sýr.“
+- „**Tempo jídla** – … Čerstvé se jí hned, po vrstvách; co se ten den nesní, se vyudí a jí se
+  v dalších dnech stejně – pořadím, bez rozvrhu do zkažení (rovným dílem do zkažení jen nejméně,
+  když by se jinak zkazilo – tempo proti zkažení). Uzené z porážky 1. 11. se jí taky hned (co to
+  dělá – Důsledky k vědomí).“
+
+Dřív v Porážce celý rok: „**V létě (1. 4.–31. 10.)** se poráží, jen když vrstvě 1 na dnešek
+nestačí maso v zásobě (uzené se kazí, a proto se jí dřív).“ a „Kusy, které ves senem neuživí,
+porazí hned a maso vyudí – jako dnes; to uzené se jí hned po čerstvém, i když tím všichni jedí
+jen maso.“
+
+Dřív v Důsledcích k vědomí: „**Tempo jídla** (rozhodnuto Martinem 18. 11. 2026 – Pořadí jídla):
+maso, ryby a jablka se snědí, jak přijdou. Vlkov (stav DB 3.–12. 10. 896, závěrečná kontrola):
+listopad 96 % energie z masa, prosinec 67 %, únor až červen 897 0–4 % (dřív ≈ 20 % celoročně);
+jablka za 3 týdny (9.–29. 10. 94 % energie z ovoce); kvóta ryb za měsíc (zlatá ves květen 69 %
+energie z masa, srpen až říjen 0 %). Kníže má maso „každý den“ jen v nárazech.“
+
+Dřív v Rozhodnutích plánu: „tempo proti zkažení (vejce, ovoce ÷ dny do zkažení, maso – čerstvé
+i uzené – ÷ dny do konce masa) se sní napřed, i v hojnosti“.
+
+Dřív ve Výhledu do sklizně: „Obilí (a v hladu med) pak dorovná zbytek rovným dílem do sklizně po
+vrstvách (návrh Clauda; dnešní výhled odečítá maso, ovoce a mléko podle stropů).“ – závorka byla
+zbytek zrušených stropů (výhled stropy neměl); uzené výhled počítal celé, nejvýš potřebu za dny do
+konce masa.
+
+Dřív v Hladu (Na jak dlouho vystačí zásoby): „ves jí v pořadí jídla bez stropů – napřed, co se
+kazí (uzené maso a sýr, ovoce, luštěniny), pak obilí a nakonec med“.
+
+Dřív v Trvanlivosti masa:
+
+- „uzené maso se jí hned po čerstvém, bez stropu masa (Strava po vrstvách a porážka celý rok –
+  Pořadí jídla; dřívější „až čerstvé nestačí do stropu masa“: history)“.
+- „Uzené maso se jí napřed tempem do jeho zkažení 31. 8. (Strava po vrstvách a porážka celý
+  rok); 1. 9. ráno se zbytek zkazí …“
+- „Maso ze září a října (dosloužilé spřežení) se jí do porážky.“ a „Výhled energie do sklizně
+  počítá maso jen do jeho zkažení.“
+
+Dřív v Porážce v zimě: „**Ves jí napřed čerstvé maso**, uzené hned po něm (bez stropu)“. Dřív
+v Nouzové porážce (Maso): „jí se v pořadí jídla hned, do zkažení 1. 9. aspoň tempem proti
+zkažení (Strava po vrstvách a porážka celý rok; dřív „rovným dílem do zkažení“)“.
+
+## Strop luštěnin v odhadech
+
+Neplatí od 18. 11. 2026, D98 (Martin: „Strop bych úplně zrušil, je to zbytečný výpočet navíc“ – jídlo strop nemá od stravy po vrstvách, odhady teď také ne). Dřív v Luštěninách:
+
+- „Strop **25 % energie** (…) jídlo od 18. 11. 2026 neomezuje; zůstal jen v odhadech – výhled
+  zásob k sklizni ([pole](../fields.md)) a bilance bílkovin stád (Maso a stáda níž) počítají
+  s luštěninami nejvýš do něj.“
+- „**Maso a stáda:** potřeba masa = bílkoviny, které zbudou i po luštěninách – luštěniny podle
+  zásoby (odhad: rovným dílem do sklizně, přepočteno na rok, nejvýš strop).“
+
+Výhled zásob k sklizni tehdy počítal, že se do sklizně luštěnin sní nejvýš strop a zásoba nad něj
+zůstane na příští rok.
