@@ -59,7 +59,8 @@ import { advanceChunked, goldenWorld, stateFingerprint, YEAR } from './village-g
 // 17. 11. 2026 – D91 (Martin 17. 11. 2026: „psi ať nic nespotřebovávají“ a maso krávy 120 → 130 kg): psi dvorce už nejedí obilí a z porážky je víc masa – jiné zásoby a jídlo; dřív 619b02b6a1c512e2
 // 17. 11. 2026 – D91 doplněk (Martin: „Tehdejší lidé zpracovali to zvíře komplet“): vůl na maso
 // 120 → 130 kg jako kráva (`oxMeatKg`) – jiné zásoby; dřív 6df903308768fe20
-const EXPECTED_YEAR_1 = '82b12dd84c08dd63';
+// 18. 11. 2026 – strava po vrstvách, úloha 1; dřív 82b12dd84c08dd63
+const EXPECTED_YEAR_1 = '60a62e071fd0d3fd';
 
 describe('zlatý otisk vsi', () => {
   const world = goldenWorld();

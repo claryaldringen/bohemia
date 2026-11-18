@@ -185,6 +185,7 @@ describe('ves bez dílen beze změny (crafts.md – Učení řemesla)', () => {
     // Práce, Stavby staví muži): zpracování čeká na volnou práci žen, oka a ryby dostanou volnou
     // práci mužů – jiný úlovek a jídlo; dřív 5b765f59
     // hash 410d1b2d (17. 11. 2026, D91 (Martin 17. 11. 2026: „psi ať nic nespotřebovávají“ a maso krávy 120 → 130 kg): psi dvorce už nejedí obilí a z porážky je víc masa – jiné zásoby a jídlo; dřív c8944200)
-    expect(hash(stripped)).toBe('410d1b2d');
+    // 18. 11. 2026 – strava po vrstvách, úloha 1; dřív 410d1b2d
+    expect(hash(stripped)).toBe('4d550d32');
   }, 120_000);
 });

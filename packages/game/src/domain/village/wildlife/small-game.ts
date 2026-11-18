@@ -1,16 +1,10 @@
 // Ryby a oka vesničanů (wildlife.md – Drobná zvěř a ryby – vesničané sami; Odpovědi Martina
 // 26. 10. 2026): z práce, která zbude po polní práci, stavbách a seči navíc, chytají vesničané
-// duben–listopad ryby a prosinec–březen zajíce do ok – když ves chce víc bílkovin, nebo hladoví.
+// duben–listopad ryby a prosinec–březen zajíce do ok – vždy, kdy je volná práce (diet.md – Ryby a drobná zvěř).
 // Maso se jí čerstvé (bez práce porážky). Bez náhody: ubývá biomasa ryb a zajíci, nejvýš do roční
 // kvóty podle přírůstku.
 
 import { dateOfDayIndex } from '../../calendar';
-import {
-  HERD_SPECIES,
-  meatNeedPerYear,
-  villageHerds,
-  yearlyMeatPerHead,
-} from '../livestock/livestock';
 import { foxCount } from './fox-eggs';
 import { addWildFurs } from '../wares/wares';
 import { SMALL_GAME, WILDLIFE_CAPS, WILDLIFE_YEAR } from '../rules/rules-wildlife';
@@ -143,22 +137,6 @@ export function smallGameCapacity(state: VillageState, day: number): number {
   return can ? pools(state) * SMALL_GAME.maxPerPool : 0;
 }
 
-/**
- * Chce ves víc bílkovin? Roční potřeba masa (po obilí, mléku, vejcích a luštěninách) je větší než
- * maso, které dají stáda, a loňský úlovek zvěře (návrh Clauda).
- */
-export function wantsProtein(state: VillageState, day: number): boolean {
-  if (state.hungry) return true;
-  const herds = villageHerds(state);
-  const herdMeat = HERD_SPECIES.reduce((sum, s) => sum + herds[s] * yearlyMeatPerHead(s), 0);
-  // velký lov: loňský, nebo letošní, když je větší; drobná zvěř (ryby, oka) jen letošní –
-  // loňské se neočekávají, chytá se podle poptávky (jinak by ves po dobrém roce přestala chytat)
-  const w = state.wildlife;
-  const bigGame = Math.max(w?.smallGame?.lastWildMeatKg ?? 0, w?.hunt?.year.meatKg ?? 0);
-  const wild = bigGame + (w?.smallGame?.year.meatKg ?? 0);
-  return meatNeedPerYear(state, day) > herdMeat + wild + EPSILON;
-}
-
 function ensureState(w: NonNullable<VillageState['wildlife']>): SmallGameState {
   return (w.smallGame ??= {
     today: null,
@@ -169,22 +147,16 @@ function ensureState(w: NonNullable<VillageState['wildlife']>): SmallGameState {
 /**
  * Chytání dne z volné práce `labor` (člověkodny; mutuje stav): kdo chytá, jde po tůních (nejvýš 3
  * na tůň), úlovek podle stavu zvěře (× zásoba ÷ strop), biomasa a zajíci ubydou, maso jde jako čerstvé
- * (`freshMeatKg`, jí se dnes napřed) bez práce porážky; chytá se jen do roční kvóty. `urgent` = ves hladoví (chytá se, i když by jinak ne). Vrací, kolik
+ * (`freshMeatKg`, jí se dnes napřed) bez práce porážky; chytá se jen do roční kvóty. Ryby i oka se chytají vždy (diet.md – Ryby a drobná zvěř). Vrací, kolik
  * práce spotřebovalo a jak se rozdělila po tůních.
  */
-export function smallGameDay(
-  state: VillageState,
-  day: number,
-  labor: number,
-  urgent: boolean,
-): SmallGameResult {
+export function smallGameDay(state: VillageState, day: number, labor: number): SmallGameResult {
   const w = state.wildlife;
   if (!w || labor <= EPSILON) return NONE;
   const capacity = smallGameCapacity(state, day);
   if (capacity <= EPSILON) return NONE;
   const kind = kindOf(day);
-  // ryby jen při potřebě bílkovin nebo hladu; oka v zimě kdykoli je čas (kožešiny, hides-honey.md)
-  if (!urgent && kind === 'fish' && !wantsProtein(state, day)) return NONE;
+  // ryby i oka se chytají vždy, kdykoli je čas (diet.md – Ryby a drobná zvěř; kožešiny hides-honey.md)
   const manDays = Math.min(labor, capacity);
   const hours = manDays * SMALL_GAME.hoursPerManDay;
   const sg = ensureState(w);

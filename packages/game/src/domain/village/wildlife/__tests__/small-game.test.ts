@@ -3,8 +3,7 @@ import { dayIndexOf } from '../../../calendar';
 import { foundVillage } from '../../core/actions';
 import { SMALL_GAME, WILDLIFE_CAPS } from '../../rules/rules-wildlife';
 import { advanceVillage } from '../../core/simulate';
-import { wildlifeYearDay } from '../wildlife';
-import { smallGameCapacity, smallGameDay, wantsProtein, yearlyQuota } from '../small-game';
+import { smallGameCapacity, smallGameDay, yearlyQuota } from '../small-game';
 import { foxCount } from '../fox-eggs';
 import type { VillageState } from '../../types';
 import { withWildlife } from '../wildlife';
@@ -59,12 +58,14 @@ function wanting(s: VillageState, want: boolean): VillageState {
 }
 
 describe('ryby a oka vesničanů', () => {
-  it('bez potřeby bílkovin nikdo nerybaří', () => {
+  it('ryby se loví vždy: i sytá ves bez potřeby bílkovin chytí v červnu ryby', () => {
     const s = wanting(village(), false);
-    expect(wantsProtein(s, SUMMER)).toBe(false);
     const fish = s.wildlife!.fishKg;
-    expect(smallGameDay(s, SUMMER, 5, false).manDays).toBe(0);
-    expect(s.wildlife!.fishKg).toBe(fish);
+    const r = smallGameDay(s, SUMMER, 5);
+    expect(r.manDays).toBeGreaterThan(0);
+    expect(s.wildlife!.smallGame!.year.meatKg).toBeGreaterThan(0);
+    expect(s.freshMeatKg ?? 0).toBeGreaterThan(0);
+    expect(s.wildlife!.fishKg).toBeLessThan(fish);
   });
 
   it('úlovek ryb = hodiny × 0,4 kg × biomasa ÷ strop, maso 0,6; čerstvé bez práce porážky', () => {
@@ -72,7 +73,7 @@ describe('ryby a oka vesničanů', () => {
     const cap = 2.5 * WILDLIFE_CAPS.fishKgPerHa;
     s.wildlife!.fishKg = cap * 0.8;
     const meat = s.freshMeatKg ?? 0;
-    const r = smallGameDay(s, SUMMER, 2, true);
+    const r = smallGameDay(s, SUMMER, 2);
     expect(r.manDays).toBe(2);
     const kg = 2 * SMALL_GAME.hoursPerManDay * SMALL_GAME.fish.kgPerHour * 0.8;
     expect(s.wildlife!.fishKg).toBeCloseTo(cap * 0.8 - kg, 6);
@@ -85,7 +86,7 @@ describe('ryby a oka vesničanů', () => {
   it('nejvýš 3 rybáři na tůň (2 tůně = 6 člověkodní)', () => {
     const s = wanting(village(), true);
     expect(smallGameCapacity(s, SUMMER)).toBe(6);
-    const r = smallGameDay(s, SUMMER, 50, true);
+    const r = smallGameDay(s, SUMMER, 50);
     expect(r.manDays).toBe(6);
     expect(s.wildlife!.smallGame!.today!.pools).toEqual([3, 3]);
   });
@@ -96,14 +97,14 @@ describe('ryby a oka vesničanů', () => {
     s.wildlife!.fishKg = cap * 0.5;
     expect(smallGameCapacity(s, SUMMER)).toBe(0);
     s.wildlife!.fishKg = cap * 0.51;
-    smallGameDay(s, SUMMER, 6, true);
+    smallGameDay(s, SUMMER, 6);
     expect(s.wildlife!.fishKg).toBeCloseTo(cap * 0.5, 6);
   });
 
   it('roční kvóta ryb: i při plné zásobě nejvýš čtvrtina stropu za rok, pak se nechytá', () => {
     const s = wanting(village(), true);
     const cap = 2.5 * WILDLIFE_CAPS.fishKgPerHa;
-    for (let d = at(601, 4, 1); d <= at(601, 11, 30); d++) smallGameDay(s, d, 6, true);
+    for (let d = at(601, 4, 1); d <= at(601, 11, 30); d++) smallGameDay(s, d, 6);
     const caught = s.wildlife!.smallGame!.year.fishKg;
     expect(caught).toBeCloseTo(cap * SMALL_GAME.fishMaxYieldShare, 6);
     expect(smallGameCapacity(s, at(601, 11, 30))).toBe(0);
@@ -112,7 +113,7 @@ describe('ryby a oka vesničanů', () => {
   it('kvóta zajíců: zásoba se nesníží pod polovinu a nad roční přírůstek', () => {
     const s = wanting(village(), true);
     const cap = (120 * WILDLIFE_CAPS.haresPer100Ha) / 100;
-    for (let d = at(601, 12, 1); d <= at(602, 3, 31); d++) smallGameDay(s, d, 6, true);
+    for (let d = at(601, 12, 1); d <= at(602, 3, 31); d++) smallGameDay(s, d, 6);
     expect(s.wildlife!.hares).toBeGreaterThanOrEqual(cap / 2 - 1e-9);
   });
 
@@ -121,7 +122,7 @@ describe('ryby a oka vesničanů', () => {
     const caps = { fishKg: 2.5 * WILDLIFE_CAPS.fishKgPerHa };
     const yearly: number[] = [];
     for (let y = 601; y < 609; y++) {
-      for (let d = at(y, 4, 1); d <= at(y, 11, 30); d++) smallGameDay(s, d, 6, true);
+      for (let d = at(y, 4, 1); d <= at(y, 11, 30); d++) smallGameDay(s, d, 6);
       yearly.push(s.wildlife!.smallGame!.year.fishKg);
       // 1. 5. příštího roku: přírůstek jako ve wildlife.ts a nová kvóta
       const f = s.wildlife!.fishKg;
@@ -144,31 +145,6 @@ describe('ryby a oka vesničanů', () => {
     expect(tail[0]!).toBeGreaterThan(caps.fishKg * 0.1);
   });
 
-  it('letošní úlovek brzdí: ves, jejíž letošní maso pokryje potřebu, dál nechytá', () => {
-    const s = wanting(village(), false);
-    s.wildlife!.smallGame = {
-      today: null,
-      year: { fishKg: 0, hares: 0, meatKg: 1e9, days: 1 },
-    };
-    expect(wantsProtein(s, SUMMER)).toBe(false);
-    s.wildlife!.smallGame.year.meatKg = 0;
-    s.wildlife!.smallGame.lastWildMeatKg = 0;
-    expect(wantsProtein(s, SUMMER)).toBe(true);
-  });
-
-  it('drobná zvěř loňského roku se neočekává: po ročním přepočtu ves chce bílkoviny, loňský velký lov ne', () => {
-    const s = wanting(village(), false);
-    s.wildlife!.smallGame = {
-      today: null,
-      year: { fishKg: 0, hares: 0, meatKg: 1e9, days: 1 },
-    };
-    wildlifeYearDay(s, dayIndexOf({ year: 600, month: 5, day: 1 }), null);
-    expect(s.wildlife!.smallGame!.lastWildMeatKg ?? 0).toBe(0);
-    expect(wantsProtein(s, SUMMER)).toBe(true);
-    s.wildlife!.smallGame!.lastWildMeatKg = 1e9;
-    expect(wantsProtein(s, SUMMER)).toBe(false);
-  });
-
   it('hladovějící ves chytá před stavbami a maso se sní čerstvé ten den', () => {
     const s = wanting(village(), true);
     const next = advanceVillage(s, SUMMER + 1, null);
@@ -179,7 +155,7 @@ describe('ryby a oka vesničanů', () => {
   it('v zimě oka: 0,05 zajíce za hodinu × zajíci ÷ strop, 2 kg masa', () => {
     const s = wanting(village(), true);
     const cap = (120 * WILDLIFE_CAPS.haresPer100Ha) / 100;
-    const r = smallGameDay(s, WINTER, 1, true);
+    const r = smallGameDay(s, WINTER, 1);
     expect(r.shares[0]!.activity).toBe('snare');
     const hares = 10 * SMALL_GAME.snares.perHour;
     expect(s.wildlife!.hares).toBeCloseTo(cap - hares, 6);
@@ -188,12 +164,12 @@ describe('ryby a oka vesničanů', () => {
 
   it('rok chytání: ≈ 150–200 kg ryb a ≈ 20 kg masa ze zajíců při 0,25 člověkodne denně', () => {
     const s = wanting(village(), true);
-    for (let d = at(601, 4, 1); d <= at(601, 11, 30); d++) smallGameDay(s, d, 0.25, true);
+    for (let d = at(601, 4, 1); d <= at(601, 11, 30); d++) smallGameDay(s, d, 0.25);
     const fishKg = s.wildlife!.smallGame!.year.fishKg;
     expect(fishKg).toBeGreaterThan(120);
     expect(fishKg).toBeLessThan(250);
     const meat = s.wildlife!.smallGame!.year.meatKg;
-    for (let d = at(601, 12, 1); d <= at(602, 3, 31); d++) smallGameDay(s, d, 0.5, true);
+    for (let d = at(601, 12, 1); d <= at(602, 3, 31); d++) smallGameDay(s, d, 0.5);
     const hareMeat = s.wildlife!.smallGame!.year.meatKg - meat;
     expect(hareMeat).toBeGreaterThan(10);
     expect(hareMeat).toBeLessThan(30);
@@ -222,9 +198,8 @@ describe('oka v zimě kdykoli je čas, liška do ok', () => {
 
   it('oka i bez potřeby bílkovin: zajíci ubudou, kožešiny = zajíci + lišky, maso 2 kg na zajíce', () => {
     const s = foxVillage();
-    expect(wantsProtein(s, WINTER)).toBe(false);
     const hares = s.wildlife!.hares;
-    const r = smallGameDay(s, WINTER, 3, false);
+    const r = smallGameDay(s, WINTER, 3);
     expect(r.manDays).toBeGreaterThan(0);
     const caughtHares = hares - s.wildlife!.hares;
     const caughtFoxes = s.wildlife!.smallGame!.year.foxes ?? 0;
@@ -233,20 +208,20 @@ describe('oka v zimě kdykoli je čas, liška do ok', () => {
     expect(s.freshMeatKg).toBeCloseTo(caughtHares * 2, 6);
   });
 
-  it('ryby bez potřeby bílkovin se nechytají', () => {
+  it('ryby se chytají i bez potřeby bílkovin', () => {
     const s = foxVillage();
-    expect(smallGameDay(s, SUMMER, 3, false).manDays).toBe(0);
+    expect(smallGameDay(s, SUMMER, 3).manDays).toBeGreaterThan(0);
   });
 
   it('liška do ok: na stropu 4 a 1 čd = 0,2 lišky; na polovině stropu nic, zajíci dál', () => {
     const s = foxVillage();
     expect(foxCount(s.wildlife!.land)).toBe(4);
-    smallGameDay(s, WINTER, 1, false);
+    smallGameDay(s, WINTER, 1);
     expect(s.wildlife!.foxes).toBeCloseTo(4 - 10 * SMALL_GAME.snares.foxPerHour, 6);
     const t = foxVillage();
     t.wildlife!.foxes = 2;
     const hares = t.wildlife!.hares;
-    smallGameDay(t, WINTER, 1, false);
+    smallGameDay(t, WINTER, 1);
     expect(t.wildlife!.foxes).toBe(2);
     expect(t.wildlife!.hares).toBeLessThan(hares);
   });
@@ -260,7 +235,7 @@ describe('oka v zimě kdykoli je čas, liška do ok', () => {
       quota: { fishKg: 10, hares: 10 },
       lastWildMeatKg: 1e9,
     };
-    smallGameDay(s, WINTER, 1, false);
+    smallGameDay(s, WINTER, 1);
     expect(w.smallGame.quota!.foxes).toBe(2);
     expect(w.foxes).toBeLessThan(4);
   });

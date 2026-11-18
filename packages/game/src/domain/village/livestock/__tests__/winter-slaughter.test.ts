@@ -189,6 +189,8 @@ describe('zimní porážka po dnech', () => {
     // bez medvěda (bere prasata absolutně, 2 za sezónu – wildlife.md): test hlídá jen porážku
     s.wildlife = freshWildlife({ ...WILDLIFE_LAND.defaultLand }, 8);
     s.wildlife.bear = { present: false, backDay: null };
+    // bez ryb (od 18. 11. 2026 se loví vždy a čerstvé maso z vody by měnilo, kolik se jí z porážky)
+    s.wildlife.fishKg = 0;
     const nov = advanceVillage(s, day, null);
     const waiting = cullingMeatKg(nov);
     expect(waiting).toBeGreaterThan(0);

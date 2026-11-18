@@ -33,7 +33,7 @@ import {
 import { EPSILON, SATIATION_EPSILON } from './simulate-plan';
 import { stockLastsDays, type StockKind } from './food-lasts';
 import { NO_CRAFTS } from './productivity';
-import { hungerSplit, priorityEnergy, shownGroup, type HungerSplit } from '../people/hunger-groups';
+import { hungerSplit, rationShares, shownGroup, type HungerSplit } from '../people/hunger-groups';
 
 /** Jak se dnes najedly skupiny přednosti v hladu (`hunger-groups.ts`). */
 export interface GroupMeal extends HungerSplit {
@@ -309,9 +309,9 @@ export function eat(
   let shownRation = ration;
   if (ration < 1 || meal.diet.energy < 1 || state.starvationGroups !== undefined) {
     const split = hungerSplit(state, day);
-    groups = { ...split, energy: priorityEnergy(meal.diet.energy, split.needs) };
+    groups = { ...split, energy: rationShares(meal.diet.energy, split.needs) };
     // příděl do sklizně hráči ukazuje zbytek vsi (nejnižší neprázdná skupina)
-    shownRation = priorityEnergy(ration, split.needs)[shownGroup(split.counts)] ?? ration;
+    shownRation = rationShares(ration, split.needs)[shownGroup(split.counts)] ?? ration;
   }
   // příděl do sklizně, když ves šetří – stupeň upozornění (population.md – Co hráč vidí)
   if (hungry) state.ration = shownRation;

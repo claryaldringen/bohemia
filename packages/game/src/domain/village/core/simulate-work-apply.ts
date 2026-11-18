@@ -492,7 +492,7 @@ function freeLaborDay(
   const rest = freeLabor - weedMen - extraMow;
   const wares = waresWorkDay(state, day, rest, ctx.landscape, women);
   if (!state.hungry) {
-    game = smallGameDay(state, day, rest - wares, false);
+    game = smallGameDay(state, day, rest - wares);
   }
   return { weedMen, extraMow, wares, game };
 }
@@ -523,7 +523,7 @@ export function commonWorkDay(
   // Drobná zvěř a ryby); jinak až ze zbytku práce po pletí mužů a seči navíc (`freeLaborDay`)
   let game: SmallGameResult = { manDays: 0, shares: [] };
   if (state.hungry) {
-    game = smallGameDay(state, day, common, true);
+    game = smallGameDay(state, day, common);
     common -= game.manDays;
   }
   const stone = new Map(jobs.stone.map((cart) => [cart.constructionId, cart]));

@@ -231,7 +231,8 @@ describe('zlatý otisk – výběr dílů a práce vsi k 2. 9.', () => {
     // 159:d5b34cab (17. 11. 2026, D91 – Martin: „psi ať nic nespotřebovávají“ a maso krávy
     // 120 → 130 kg): psi dvorce už nejedí obilí a výhled osevu ho nepočítá, větší maso z porážky
     // mění jídlo a zásoby – jiný výběr dílů; dřív 152:4c6912f4
-    expect(fingerprint(plans)).toBe('159:d5b34cab');
+    // 18. 11. 2026 – strava po vrstvách, úloha 1; dřív 159:d5b34cab
+    expect(fingerprint(plans)).toBe('163:569fec9e');
   });
 });
 

@@ -181,14 +181,14 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `abandonedVillageAt` lidi a dobytek opuštěné vsi nezobrazí (přepínač vsí ukáže 0 lidí).
   **Přednost v hladu** (population.md – Přednost v hladu, Martin 17. 11. 2026, D92):
   `people/hunger-groups.ts` – `hungerSplit` (skupiny 0–3: `lordFamily`, `masterHousehold`, obydlí
-  s dílnou a `Person.practice`, zbytek a hosté; potřeby a počty), `priorityEnergy(poměr, potřeby)`
-  (plný příděl v pořadí, nedostačující skupina dělí zbytek rovným dílem), `advanceGroupStarvation`
+  s dílnou a `Person.practice`, zbytek a hosté; potřeby a počty), `rationShares(poměr, potřeby)`
+  (životní minimum `HUNGER_PRIORITY.minimumShare` 75 % všem, pod ním všem stejně, zbytek po vrstvách v pořadí), `advanceGroupStarvation`
   (hlad skupin: `starvationDays` = nejnižší neprázdná skupina, `starvationGroups?` = skupiny 0–2,
   jen když se liší; prázdná skupina přebírá hlad nejbližší neprázdné; bez části stavu mají všechny
   skupiny `starvationDays` – `groupStarvation` to čte jako výchozí hodnotu, takže položka ve
   `VILLAGE_MIGRATIONS` netřeba; člověk, který přejde do jiné skupiny – sňatek, stěhování, smrt
   řemeslníka –, má od té chvíle hlad své nové skupiny, hlad se vede po skupinách, ne po lidech).
-  `priorityEnergy` při poměru ≥ 1 vrací samé jedničky (sytá ves bit po bitu jako dřív).
+  `rationShares` při poměru ≥ 1 vrací samé jedničky (sytá ves bit po bitu jako dřív).
   `eat` (`simulate-food.ts`) dělí energii dne
   a příděl do sklizně (`ration` = příděl zbytku vsi; `hungry` a nouzová porážka celé vsi), jen
   když ves šetří, nejí se dosyta nebo skupiny mají různý hlad – jinak výpočet jako dřív.
