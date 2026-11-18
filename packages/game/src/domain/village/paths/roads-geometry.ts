@@ -17,6 +17,11 @@ export const ON_ROAD_M = 5;
 export const ATTACH_M = 10;
 /** Připojení blíž konci pevné cesty jde přímo do konce (cesta se nedělí) (m). */
 export const END_SNAP_M = 4;
+/**
+ * Nejmenší odstup bodu osy od přichycení (konec, křižovatka), aby do něj napojení obešlo plochu
+ * staveb (`joinTarget`, D93) – blíž by rozdělení dalo kousek cesty bez délky (m).
+ */
+export const JOIN_AROUND_MIN_M = 1;
 /** Kratší úsek se pevnou cestou nestane (m). */
 export const MIN_ROAD_M = 15;
 /** Zjednodušení osy nové cesty (m) – body po 2 m by stav zbytečně nafoukly. */
