@@ -301,6 +301,10 @@ kde to nestačí.
 
 ## Drobná zvěř a ryby – vesničané sami (návrh Clauda)
 
+- **Od 18. 11. 2026 ryby vždy** (duben–listopad, kdykoli na to lidé mají čas; Martin: „vesnice
+  bez zásahu se snaží vyprodukovat co nejvíc všeho“ – [strava](diet.md), Strava po vrstvách
+  a porážka celý rok); úlovek je čerstvé maso první úrovně a co nikdo nesní, se vyudí. Podmínka
+  „jen při potřebě bílkovin nebo hladu“ níže je dřívější stav.
 - **Kdy se vyplatí:** **ryby** jen když ves **chce víc bílkovin**, než dá obilí, luštěniny, mléko,
   vejce a maso stád ([strava](diet.md) – výhled), nebo **hladoví** – jinak ne (vesničané sami
   používají, co jim ulehčí práci). **Oka** v prosinci až březnu **bez podmínky**, kdykoli je čas –

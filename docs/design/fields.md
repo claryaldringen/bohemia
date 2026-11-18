@@ -1814,7 +1814,9 @@ na vlnu – oděv, [diet.md](diet.md) – Oděv). Pravidla **návrh Clauda** pod
   5 % (meze – dobře utěsněná jáma ztrácí málo, Butser; rozpětí návrh Clauda). Zrno
   v **zapečetěné obilné jámě** jen 3 % za rok (Výmlat hned po žni – Obilné jámy).
 - **Přídělový systém:** dokud zásoby vystačí do příští sklizně, jí ves dosyta (nasycení 1).
-  Když nevystačí, obyvatelé rozdělí to, co zbývá, rovnoměrně do sklizně – nasycení je podíl
+  **Od 18. 11. 2026 se šetří jen obilí (a v hladu med):** rychle se kazící jídlo se jí napřed
+  tempem proti zkažení, ne rovným dílem ([strava](diet.md) – Strava po vrstvách a porážka celý
+  rok). Když nevystačí, obyvatelé rozdělí to, co zbývá, rovnoměrně do sklizně – nasycení je podíl
   zásob a potřeby do sklizně (návrh Clauda). Ves tak hladoví postupně, ne ze dne na den.
   Zásoby se přitom počítají **po ztrátách skladováním do dne, kdy se snědí** (stejné ztráty jako
   výše), takže příděl je od začátku přesný a do žní se drží rovně (Martin 15. 11. 2026: „Ano“;

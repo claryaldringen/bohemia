@@ -545,6 +545,12 @@ jich bude moci mít více), tak pro něj hra končí – musí začínat znovu.�
      do sklizně se napřed odloží plné příděly skupin 1–3 a zbytek vsi si rozdělí, co zbude.
      **Nahromaděný hlad** se vede pro každou skupinu zvlášť, riziko smrti hladem a hájení počítají
      s hladem skupiny člověka, porody brzdí energie skupiny matky; prahy a čísla se nemění.
+     **Od 18. 11. 2026** (Martin: „Nejde, aby elita měla plný příděl a rolníci byli pod hranicí
+     hladomoru“; k hranici „75% je ok.“) platí přednost jen **nad životním minimem 75 % potřeby
+     energie**: napřed dostane každý 75 % své potřeby a teprve zbytek jde po vrstvách; když jídlo
+     nevystačí ani na 75 % pro všechny, dostanou všichni stejný podíl bez přednosti. Vrstvy platí
+     celý rok, ne jen v hladu ([strava](diet.md) – Strava po vrstvách a porážka celý rok, Kdo
+     dostane co); popis plných přídělů výše je dřívější stav.
      Mistři huti odcházejí při hladu podle energie své skupiny. **Hráč vidí** jako dřív – ikona
      nasycení a upozornění („Ves šetří jídlem“, „Ves hladoví“, „Lidé umírají hlady“) se řídí zbytkem
      vsi (většinou lidí), štěstí z nasycení celou vsí (vážený průměr). Kronika a výhled „na jak

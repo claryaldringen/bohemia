@@ -93,7 +93,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   maso dne i `freshAheadEnergy`, mléko stád `milkAheadEnergy` – `milkEnergyBetween` za den nejvýš
   potřeba –, uzené a ovoce nejvýš potřeba za dny do zkažení, sýr a luštěniny i snopy celé; celé
   nejvýš potřeba × dny, bez medu) a obilí i snopy po ztrátách skladováním do dne, kdy se snědí
-  (`grainEatenShare` – rovným dílem od dneška; fields.md – Přídělový systém, Martin 15. 11. 2026).
+  (`grainEatenShare` – rovným dílem od dneška, v hladu se příděl během sezóny mírně kloní, protože trvanlivé jídlo mimo obilí se jí dřív, nejvýš ≈ 2 p. b.; fields.md – Přídělový systém, Martin 15. 11. 2026).
   Dnes se sní příděl × potřeba, ale aspoň tempem proti zkažení (`spoilPace` – vejce dnes, ovoce do
   zkažení, maso do konce rovným dílem; návrh Clauda) a nejvýš celá potřeba – maso, které by se
   zkazilo, se tak sní i v hladu nad příděl. Šetří se jen obilí (a v hladu med).
@@ -190,7 +190,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
      k porážce, seno podle plánu seče místo dnešní zásoby), od září i selata nad stádo přes zimu;
      nejvýš co by podzimní porážka vzala, nad `breedingFloor`. Maso do `freshMeatKg` (co rod nesní,
      sní ostatní, zbytek se vyudí), kůže `noteSlaughtered`, práce `addSlaughterWork` (udělá se další
-     dny); kronika ne. `WinterInputSource` – vstup hotový, nebo až na požádání. Výhled do sklizně
+     dny; nedodělek přejde do zimní porážky, 1. 11. ho dodělá s její prací); kronika ne. Odhad zimy (`summerWinterInput`) bere seno podle toho, co ves stihne posekat (`hayKg: Infinity`, na jaře je zásoba malá). `WinterInputSource` – vstup hotový, nebo až na požádání. Výhled do sklizně
      `freshMeatAheadEnergy(state, day, daysToHarvest, input)` (`baseMealInput`, panel
      `nextDayDiet`): v zimě maso čekajících kusů (nejvýš potřeba vsi do konce zimy), v létě potřeba
      rodu × letní dny výhledu (do konce října), nejvýš maso celých kusů na maso. Práce porážky a

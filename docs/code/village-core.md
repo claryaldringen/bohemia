@@ -189,6 +189,17 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `VILLAGE_MIGRATIONS` netřeba; člověk, který přejde do jiné skupiny – sňatek, stěhování, smrt
   řemeslníka –, má od té chvíle hlad své nové skupiny, hlad se vede po skupinách, ne po lidech).
   `rationShares` při poměru ≥ 1 vrací samé jedničky (sytá ves bit po bitu jako dřív).
+  **Strava po vrstvách** (diet.md – Strava po vrstvách a porážka celý rok, 18. 11. 2026):
+  `eatDiet` (`core/diet.ts`) sní den bez stropů – `dietPlan` spočítá výhled `aheadEnergy` (jídlo
+  mimo obilí a med do sklizně), pevný příděl medu a tempo proti zkažení (`fruitPace` = ovoce ÷
+  dny do zkažení, `meatPace` = maso čerstvé i uzené ÷ dny do konce masa, `spoilPace` i s vejci) –
+  to se sní napřed i v hojnosti, šetří se jen obilí a v hladu med. `tierMeal` (`core/tier-meal.ts`)
+  rozdělí snědené vsi mezi vrstvy: `rationShares` dá příděl (75 % všem, zbytek po vrstvách), pak
+  úrovně `LEVELS` – ovoce a pevný příděl medu všem stejně (`evenTakes`), ostatní po vrstvách
+  (`levelTakes`); co se nevejde do přídělů, sní nejnižší vrstva s potřebou (`sink`). Vrstva
+  s potřebou 0 (lidé pryč) má energii 1 a nic nesní. `dietHappiness` počítá štěstí z maso +3,
+  ovoce +5 a med +2 po vrstvách a bere průměr přes jedlíky (`HungerSplit.eaters`). `eatDiet`
+  v hladu mírně kloní příděl během sezóny (trvanlivé mimo obilí se jí dřív, nejvýš ≈ 2 p. b.).
   `eat` (`simulate-food.ts`) dělí energii dne
   a příděl do sklizně (`ration` = příděl zbytku vsi; `hungry` a nouzová porážka celé vsi), jen
   když ves šetří, nejí se dosyta nebo skupiny mají různý hlad – jinak výpočet jako dřív.
