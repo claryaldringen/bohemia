@@ -86,8 +86,9 @@ describe('výhled vsi – model kapacity (steward.md – Model kapacity vsi)', (
     const of = (s: VillageState): { need: number; have: number; harvestKg: number } => {
       const o = stewardOutlook(s, JUNE, NO_CRAFTS);
       const target = fieldTarget(s, JUNE, NO_CRAFTS, o);
-      // cíl = `workable` – lidé, které uživí osev podle práce a osiva, × rezerva
-      const sowable = Math.min(o.laborHa, o.seedHa);
+      // cíl = `workable` – lidé, které uživí osev, který ves stihne osít i sklidit a na který má
+      // osivo, × rezerva (D99 kolo 1 – `workableHa`)
+      const sowable = Math.min(o.workableHa, o.seedHa);
       expect(target.need).toBeCloseTo(
         ((o.landPeople * sowable) / o.landHa) * STEWARD.fieldReserve,
         9,
@@ -100,6 +101,40 @@ describe('výhled vsi – model kapacity (steward.md – Model kapacity vsi)', (
     expect(b.have).toBeGreaterThan(a.have);
     expect(b.harvestKg).toBeCloseTo(a.harvestKg, 6);
     expect(b.need / b.have).toBeCloseTo(a.need / a.have, 9);
+  });
+
+  it('cíl polí nikdy nad to, co ves stihne osít i sklidit – otava a žně (D99 kolo 1)', () => {
+    const s = village(30);
+    const o = stewardOutlook(s, JUNE, NO_CRAFTS);
+    // obdělat = osít i sklidit: nejvýš osev podle žní i podle dřívějšího výhledu setí
+    expect(o.workableHa).toBeLessThanOrEqual(o.harvestHa);
+    expect(o.workableHa).toBeLessThanOrEqual(o.laborHa);
+    const target = fieldTarget(s, JUNE, NO_CRAFTS, o);
+    expect(target.need).toBeLessThanOrEqual(
+      ((o.landPeople * o.harvestHa) / o.landHa) * STEWARD.fieldReserve + 1e-9,
+    );
+    // nutná otava, která vezme celou práci žní – ves nesklidí nic, správce pole nechce
+    const mowing = {
+      partIds: [],
+      required: 1e6,
+      needed: 1e6,
+      done: 0,
+      yieldKg: 0,
+      cut: 2 as const,
+    };
+    const mown: VillageState = { ...s, hay: { kg: 0, mowing } };
+    const busy = stewardOutlook(mown, JUNE, NO_CRAFTS);
+    expect(busy.harvestHa).toBe(0);
+    expect(fieldTarget(mown, JUNE, NO_CRAFTS, busy).need).toBe(0);
+    // v 1. seči se otava čte jako díl nutné seče (`HAY_CUTS.aftermathWorkShare`)
+    const first: VillageState = { ...s, hay: { kg: 0, mowing: { ...mowing, needed: 50 } } };
+    const firstCut: VillageState = {
+      ...s,
+      hay: { kg: 0, mowing: { partIds: [], required: 50, needed: 50, done: 0, yieldKg: 0 } },
+    };
+    expect(stewardOutlook(firstCut, JUNE, NO_CRAFTS).harvestHa).toBeGreaterThan(
+      stewardOutlook(first, JUNE, NO_CRAFTS).harvestHa,
+    );
   });
 
   it('ves bez pole v oběhu: opatrný cíl z potřeby s celou potřebou z pole (D99)', () => {

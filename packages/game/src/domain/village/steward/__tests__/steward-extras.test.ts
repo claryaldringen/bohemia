@@ -75,6 +75,8 @@ function dayOn(year: number, month: number, d: number): number {
 /** Výhled bez úzkého hrdla v práci a osivu (cíl polí jako dřív). */
 const OPEN_OUTLOOK: StewardOutlook = {
   laborHa: Infinity,
+  workableHa: Infinity,
+  harvestHa: Infinity,
   seedHa: Infinity,
   landHa: 0,
   bottleneck: 'land',

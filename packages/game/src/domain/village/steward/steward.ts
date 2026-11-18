@@ -216,8 +216,9 @@ export interface FieldTarget {
 
 /**
  * Cíl polí (steward.md – Cíl polí; Martin 18. 11. 2026: „Cílem vesnice je prostě produkovat
- * maximum všeho.“): maximum, které ves oseje – lidé, které uživí osev podle práce a osiva
- * (`stewardOutlook` – Model kapacity vsi) × `STEWARD.fieldReserve`, bez ohledu na stravu: maso,
+ * maximum všeho.“): maximum, které ves obdělá – lidé, které uživí osev, který ves stihne osít
+ * i sklidit a na který má osivo (`stewardOutlook` – `workableHa`, `seedHa`; Model kapacity vsi,
+ * D99 kolo 1) × `STEWARD.fieldReserve`, bez ohledu na stravu: maso,
  * mléko ani ovoce cíl nezmenší, přebytek obilí jde do zásob a na dávky. Pole nad to by ves
  * neosela, jen by zarůstala. Proti „Pole uživí podle dnešní půdy“ (`fieldCapacity` – už × podíl
  * dnešní půdy `soil`); obojí v lidech při dnešní stravě, takže strava se v poměru i v blocích polí
@@ -241,7 +242,7 @@ export function fieldTarget(
     coverage.pottery,
   );
   const have = capacity?.people ?? 0;
-  const sowable = Math.min(outlook.laborHa, outlook.seedHa);
+  const sowable = Math.min(outlook.workableHa, outlook.seedHa);
   if (outlook.landHa > 0 && Number.isFinite(sowable)) {
     return {
       need: ((outlook.landPeople * sowable) / outlook.landHa) * STEWARD.fieldReserve,

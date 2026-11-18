@@ -6,10 +6,13 @@ import {
   ROTATION,
 } from '../fields/field-capacity';
 import { distanceFactor, fallowStage, partWalkDistance, reclaimCostPerHa } from '../fields/fields';
+import { builtThreshingFloorCount } from '../fields/threshing';
+import { mowingCut } from '../livestock/hay';
 import { ableTeams } from '../livestock/oxen';
 import { ploughWorkPerHa } from '../livestock/plough';
 import { fieldWorkPerHa } from '../core/productivity';
-import { SEED_KG_PER_HA, WINDOWS } from '../rules/rules-fields';
+import { SEED_KG_PER_HA, THRESHING, WINDOWS } from '../rules/rules-fields';
+import { HAY_CUTS } from '../rules/rules-livestock';
 import { grainSeedTakenKg, reservedSeedKg, seedKeepKg, sowableSeedKg } from '../fields/seed';
 import { sowingCapacity } from '../core/simulate-plan';
 import type { CraftCoverage, FieldPart, VillageState } from '../types';
@@ -24,8 +27,19 @@ import type { CraftCoverage, FieldPart, VillageState } from '../types';
 export type StewardBottleneck = 'land' | 'labor' | 'seed';
 
 export interface StewardOutlook {
-  /** Osev za hospodářský rok (ha) podle práce v oknech setí (kopání, orba, setí, vracení přílohu). */
+  /**
+   * Osev za hospodářský rok (ha) podle práce v oknech setí (kopání, orba, setí, vracení přílohu) –
+   * dřívější výpočet pro plán sídla, odchod syna, ohradu volů a hrdla (jaro dvakrát, orba bez
+   * lidí – steward.md, Model kapacity vsi; cíl polí čte `workableHa`).
+   */
   laborHa: number;
+  /**
+   * Cíl polí (D99 kolo 1 – Martin 18. 11. 2026, „kolik polí ves zvládne obdělat“): kolik ves
+   * stihne osít (okna setí jednou, orba i lidmi) **a** sklidit (`harvestHa`), nejmenší z nich (ha).
+   */
+  workableHa: number;
+  /** Osev, který ves stihne sklidit: žeň a výmlat hned po žni v oknech žní po otavě a lnu (ha). */
+  harvestHa: number;
   /** Osev podle osiva – letos vzaté a co smí do země (ha); mimo okna setí nekonečno. */
   seedHa: number;
   /** Osev podle půdy – pole v oběhu ÷ `ROTATION_FACTOR` (ha, `fieldCapacity`). */
@@ -37,7 +51,7 @@ export interface StewardOutlook {
    * něj cíl polí, „je kam pole rozšířit“ a přelidnění.
    */
   lasting: 'land' | 'labor';
-  /** Člověkodny lidí v oknech setí na osetý hektar (vracení přílohu, kopání, setí). */
+  /** Člověkodny lidí v oknech setí na osetý hektar (vracení přílohu, kopání, setí – bez orby). */
   workPerHa: number;
   /** Lidé, které pole uživí podle dnešní půdy (`fieldCapacity`). */
   landPeople: number;
@@ -60,17 +74,49 @@ function rotationParts(state: VillageState): FieldPart[] {
   return state.parts.map((p) => (p.state === 'founding' ? { ...p, state: 'fallow' as const } : p));
 }
 
+/** Práce na osetý hektar (`workPerSownHa`). */
+interface SownHaWork {
+  /** Lidé v oknech setí bez orby: vracení přílohu, kopání a setí. */
+  people: number;
+  /** Orba – dny spřežení, stejně tolik člověkodnů oráče a honáčka (plough.ts). */
+  plough: number;
+  /** Lidé o žních: žeň (sklizeň a odnos) a výmlat hned po žni – jen obilí. */
+  harvest: number;
+}
+
+/**
+ * Žeň a výmlat hned po žni na osetý hektar obilí (production-chains.md – Výmlat hned po žni): z plánu
+ * (`required` ozimu, jaře a luštěnin), bez něj podle sazeb × příplatek za vzdálenost; len trhají
+ * ženy a děti napřed a dřinu nepřidá (fields.md – Len); bez humna výmlat o
+ * `THRESHING.emergencyWork` dražší.
+ */
+function harvestPerSownHa(state: VillageState, tools: number, factor: number): number {
+  const byId = new Map(state.parts.map((p) => [p.id, p]));
+  const threshFactor = builtThreshingFloorCount(state) > 0 ? 1 : 1 + THRESHING.emergencyWork;
+  let ha = 0;
+  let work = 0;
+  for (const crop of state.season?.crops ?? []) {
+    if (crop.crop === 'flax') continue;
+    ha += crop.partIds.reduce((sum, id) => sum + (byId.get(id)?.areaM2 ?? 0), 0) / M2_PER_HA;
+    work += crop.required.harvest + crop.required.thresh * threshFactor;
+  }
+  if (ha > 0 && work > 0) return work / ha;
+  return fieldWorkPerHa('harvest', tools) * factor + fieldWorkPerHa('thresh', tools) * threshFactor;
+}
+
 /**
  * Práce lidí a spřežení na osetý hektar: z letošního plánu (`season` – skutečná práce dílů, které
  * ves vzala, i se vzdáleností a stadiem přílohu), bez plánu podle sazeb – kopání (orba) a setí
- * a vracení přílohu jednou za `ROTATION.sown` let osevu, × průměrný příplatek za vzdálenost.
+ * a vracení přílohu jednou za `ROTATION.sown` let osevu, × průměrný příplatek za vzdálenost; žně
+ * `harvestPerSownHa`. Orba stojí lidi stejně jako spřežení (oráč a honáček – plough.ts; simulace
+ * ji do práce lidí počítá – `cropLoadOf`; `people` ji nemá – cíl polí ji přičte, D99 kolo 1).
  */
 function workPerSownHa(
   state: VillageState,
   day: number,
   tools: number,
   plough: boolean,
-): { people: number; plough: number } {
+): SownHaWork {
   const byId = new Map(state.parts.map((p) => [p.id, p]));
   let ha = 0;
   let people = 0;
@@ -80,7 +126,13 @@ function workPerSownHa(
     people += crop.required.reclaim + crop.required.dig + crop.required.sow;
     ploughWork += crop.plough?.required ?? 0;
   }
-  if (ha > 0 && people > 0) return { people: people / ha, plough: ploughWork / ha };
+  if (ha > 0 && people > 0) {
+    return {
+      people: people / ha,
+      plough: ploughWork / ha,
+      harvest: harvestPerSownHa(state, tools, 1),
+    };
+  }
   // opuštěné díly (fields.md – Opuštěný díl) se neosejí ani nevracejí – do práce nepatří
   const parts = state.parts.filter((p) => p.state !== 'founding' && !p.abandoned);
   const area = parts.reduce((sum, p) => sum + p.areaM2, 0);
@@ -101,13 +153,35 @@ function workPerSownHa(
   return {
     people: (dig + fieldWorkPerHa('sow', tools) + reclaim / ROTATION.sown) * factor,
     plough: plough ? ploughWorkPerHa(tools) * factor : 0,
+    harvest: harvestPerSownHa(state, tools, factor),
   };
 }
 
 /**
- * Výhled vsi (steward.md – Model kapacity vsi): osev podle práce = kapacita setí celého
- * hospodářského roku (`sowingCapacity` od 1. 9. – podzim i jaro, lidé po denním minimu, spřežení
- * orbou) ÷ práce na osetý hektar; osev podle osiva = (osivo, které letošní plán vzal, + co smí
+ * Nutná otava (člověkodny – oxen.md, Seno, dvě seče): seč v okně otavy (srpen–září) jde v práci dne
+ * před výmlatem a přípravou půdy (`DAY_WORK_ORDER`). Ze zápisu seče: v otavě (2. seč) její nutná
+ * práce, v 1. seči nutná práce × `HAY_CUTS.aftermathWorkShare` (otava na týchž loukách); bez
+ * zápisu 0.
+ */
+function aftermathWork(state: VillageState): number {
+  const mowing = state.hay?.mowing;
+  if (!mowing) return 0;
+  const needed = mowing.needed ?? mowing.required;
+  return mowingCut(mowing) === 2 ? needed : needed * HAY_CUTS.aftermathWorkShare;
+}
+
+/** Trhání lnu z letošního plánu (člověkodny) – ženy a děti trhají o žních napřed (fields.md – Len). */
+function flaxPulling(state: VillageState): number {
+  const flax = state.season?.crops.find((c) => c.crop === 'flax');
+  return flax ? Math.max(0, flax.required.harvest - flax.done.harvest) : 0;
+}
+
+/**
+ * Výhled vsi (steward.md – Model kapacity vsi): osev podle práce = nejmenší z osevu podle lidí
+ * (kapacita oken setí hospodářského roku – `sowingCapacity.autumn` od 1. 9., září–listopad
+ * i březen–duben, lidé po denním minimu ÷ práce lidí na osetý hektar i s orbou), podle spřežení
+ * (orba spřežení týchž oken ÷ orba na hektar) a podle žní (`harvestHa` – práce oken žní po nutné
+ * otavě a lnu ÷ žeň a výmlat hned po žni na hektar); osev podle osiva = (osivo, které letošní plán vzal, + co smí
  * do země + luštěniny) ÷ `SEED_KG_PER_HA` – jen do konce setí (po dubnu se letošní osivo už
  * neřeší a příští ves ještě nezná); osev podle půdy z `fieldCapacity`. Udržitelní lidé = „Pole
  * uživí“ × osev trvalého hrdla (půda, nebo práce) ÷ osev podle půdy. Ves bez lidí nebo bez pole:
@@ -138,6 +212,21 @@ export function stewardOutlook(
       ? (windows.plough.autumn + windows.plough.spring) / work.plough
       : Infinity;
   const laborHa = Math.min(peopleHa, ploughHa);
+  // cíl polí (D99 kolo 1): okno `autumn` (vracení přílohu a kopání – září–listopad i březen–duben)
+  // už nese celé jaro, `spring` je jen jeho výsek pro setí – počítá se jednou; orba stojí i lidi
+  const sowPeople = work.people + work.plough;
+  const sowHa = sowPeople > 0 ? windows.autumn / sowPeople : Infinity;
+  const teamHa = windows.plough && work.plough > 0 ? windows.plough.autumn / work.plough : Infinity;
+  // sklidit: žeň a výmlat hned po žni se musí vejít do práce oken žní (červenec, srpen – se
+  // žňovými rukama) po nutné otavě a trhání lnu (`DAY_WORK_ORDER`); září a říjen patří setí
+  // (návrh Clauda, D99 kolo 1 – Martin 9. 11. 2026: „Je lepší za každou cenu sklidit to, co už
+  // vyrostlo, než začínat pěstování úplně od začátku“)
+  const harvestRoom = Math.max(
+    0,
+    windows.july + windows.august - aftermathWork(state) - flaxPulling(state),
+  );
+  const harvestHa = work.harvest > 0 ? harvestRoom / work.harvest : Infinity;
+  const workableHa = Math.min(sowHa, teamHa, harvestHa);
   const month = dateOfDayIndex(day).month;
   const sowing = month >= 9 || month <= LAST_SOWING_MONTH;
   const seedKg = sowing
@@ -152,6 +241,8 @@ export function stewardOutlook(
   const lasting = laborHa < landHa ? 'labor' : 'land';
   return {
     laborHa,
+    workableHa,
+    harvestHa,
     seedHa,
     landHa,
     bottleneck,

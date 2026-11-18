@@ -67,8 +67,10 @@ import { goldenWorld, stateFingerprint, YEAR } from './village-golden-fixture';
 // a 8f07292a73a628b8
 // 18. 11. 2026 – D99 cíl polí na maximum (správce staví pole na maximum, které ves oseje, bez
 // ohledu na stravu – viz village-golden.test.ts); dřív e528780d5ee19f50 a 0696bc715723e45d
-const EXPECTED_YEAR_2 = '9211b65615240ce4';
-const EXPECTED_YEAR_3 = '426240b4c2f0f137';
+// 19. 11. 2026 – D99 kolo 1 – cíl polí podle osevu i žní (viz village-golden.test.ts); dřív
+// 9211b65615240ce4 a 426240b4c2f0f137
+const EXPECTED_YEAR_2 = 'bc6cf2d0f3138154';
+const EXPECTED_YEAR_3 = 'cde4d16e57f9748d';
 // 18. 11. 2026 – D93 cesta přes plochu staveb; dřív 168010dd35f7c1c7 a a499594da5514b49 (viz
 // village-golden.test.ts)
 // 18. 11. 2026 – D95 výmlat (výmlat podle kg snopů, rod v zimě dorovná tempo okna – viz

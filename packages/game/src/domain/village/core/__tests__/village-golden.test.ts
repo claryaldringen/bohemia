@@ -84,7 +84,10 @@ import { advanceChunked, goldenWorld, stateFingerprint, YEAR } from './village-g
 // 18. 11. 2026 – D99 cíl polí na maximum (Martin: „Cílem vesnice je prostě produkovat maximum
 // všeho.“ – steward.md, Cíl polí): správce staví pole na maximum, které ves oseje, bez ohledu na
 // stravu – za 20 let 27 polí místo 5, jiné zásoby, práce a lidé; dřív 8261eafa1a521bd2
-const EXPECTED_YEAR_1 = 'ddd66c16e931952d';
+// 19. 11. 2026 – D99 kolo 1 – cíl polí podle osevu i žní (výhled `workableHa`: okna setí jednou,
+// orba i lidmi, žeň a výmlat po žni v oknech žní po otavě – steward.md, Cíl polí); za 20 let 26 polí;
+// dřív ddd66c16e931952d
+const EXPECTED_YEAR_1 = 'aa479aa7d2ce28f7';
 // 18. 11. 2026 – D93 cesta přes plochu staveb; dřív 82b12dd84c08dd63 (vyšlapaná cesta přes plochu
 // staveb nevznikne a napojení ji obejde – jiné cesty a id; roky chůze nejvýš doba vyšlapání)
 // 18. 11. 2026 – D95 výmlat (Martin: „A, C, E“ – výmlat podle kg snopů, rod v zimě dorovná tempo
@@ -98,7 +101,7 @@ describe('zlatý otisk vsi', () => {
     // 18. 11. 2026 – strava po vrstvách, úloha 2: maso, ryby a mléko bez stropů – ves potřebuje
     // méně obilí a správce založil 4 pole; dřív aspoň 5
     // 18. 11. 2026 – D99 cíl polí na maximum, které ves oseje (steward.md – Cíl polí): 27 polí;
-    // dřív aspoň 4
+    // dřív aspoň 4; 19. 11. 2026 – D99 kolo 1 (osev i žně): 26 polí
     expect(s.fields.length).toBeGreaterThanOrEqual(20);
     expect(s.livestock?.herds).toBeDefined();
     expect(s.crafts).toBeDefined();
