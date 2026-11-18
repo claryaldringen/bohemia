@@ -124,6 +124,15 @@ export interface DayAllocationInput {
    */
   lordHelp?: number;
   /**
+   * Výmlat v zimě (lord.md – Kdy jde rodina na pole, Výmlat v zimě; Martin 18. 11. 2026): tempo
+   * výmlatu, které ves dnes potřebuje, aby okno výmlatu stihla (práce po štěstí a světle – zbývající
+   * práce výmlatu v okně ÷ dny okna). Rodina (`lordHelp`) dnes dá jen díl výmlatu, který by ves do
+   * konce okna nestihla: tempo nad pravidelnou práci vsi dne – po denním minimu a péči o koně,
+   * dnešní délkou dne, bez jednorázových srážek (výpravy, vozy, kování a úlohy dne jako porážka).
+   * Mlátí až po všech úlohách dne a jinde nepomáhá. Bez údaje rodina pomáhá jako ve žních.
+   */
+  threshPace?: number;
+  /**
    * Denní minimum dvorce, které rodina nepokryje (`manorLabor` – `uncovered`, člověkodny po štěstí;
    * domácnost dvorce je jinak z `householdElders` vynechaná) – z práce vsi spolu s denním minimem;
    * bez údaje 0.
@@ -274,6 +283,8 @@ export function allocateDay(input: DayAllocationInput): DayAllocation {
   const dailyMin = take(adults + Math.max(0, input.manorMin ?? 0));
   // péče o koně (horses.md – Péče) – hned za denním minimem, nedá se odložit
   const horseCare = take(input.horseCare ?? 0);
+  // pravidelná práce vsi dne venku – výhled výmlatu vsi do konce okna (výmlat v zimě, `threshPace`)
+  const regularOutdoor = left * Math.max(0, input.daylight ?? 1);
   // všechno nebo nic: částečná práce by propadla (`finishShoeing` kuje jen při celé práci)
   const wantedShoeing = Math.max(0, input.shoeing ?? 0);
   const shoeing = wantedShoeing <= left + 1e-9 ? take(wantedShoeing) : 0;
@@ -403,9 +414,12 @@ export function allocateDay(input: DayAllocationInput): DayAllocation {
       if (men > 0) later.push({ index: i, manDays: men });
       menWeed -= men;
     } else amount += take(remaining - amount);
-    // pomoc rodiny ve žních až po práci vsi – jen co ves dnes nestihne
+    // pomoc rodiny ve žních až po práci vsi – jen co ves dnes nestihne; výmlat v zimě až po všech
+    // úlohách dne (`threshPace`)
     const help =
-      HARVEST_HANDS_TASKS.has(task.name) && task.noLordHelp !== true
+      HARVEST_HANDS_TASKS.has(task.name) &&
+      task.noLordHelp !== true &&
+      input.threshPace === undefined
         ? Math.max(0, Math.min(remaining - amount, helpLeft))
         : 0;
     helpLeft -= help;
@@ -425,6 +439,18 @@ export function allocateDay(input: DayAllocationInput): DayAllocation {
   input.tasks.forEach((task, i) => {
     if (task.name === 'weed') allot(task, i);
   });
+  // výmlat v zimě (lord.md – Výmlat v zimě): rodina dá jen díl, který by ves do konce okna
+  // nestihla – tempo nad pravidelnou práci vsi; jednorázový propad dne (porážka) nedorovnává
+  if (input.threshPace !== undefined) {
+    let missing = Math.max(0, input.threshPace - regularOutdoor);
+    input.tasks.forEach((task, i) => {
+      if (task.name !== 'thresh' || missing <= 0) return;
+      const help = Math.max(0, Math.min(task.remaining - (taskAmounts[i] ?? 0), helpLeft, missing));
+      helpLeft -= help;
+      missing -= help;
+      taskAmounts[i] = (taskAmounts[i] ?? 0) + help;
+    });
+  }
   input.tasks.forEach((task, i) => {
     taskAmounts[i] = (taskAmounts[i] ?? 0) + (followAmounts[i] ?? 0);
     tasks[task.name] += taskAmounts[i] ?? 0;

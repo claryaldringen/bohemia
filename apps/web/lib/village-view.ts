@@ -30,6 +30,7 @@ import {
   wholeLogs,
   HAY_WINTER_MONTHS,
   foundingCostPerHa,
+  manorArea,
   type BuildKind,
   type CraftCoverage,
   type Direction8,
@@ -693,6 +694,7 @@ export function buildVillageView(
         ? { trailContinuations: sceneTrailContinuations(context.trailContinuations ?? []) }
         : {}),
       ...trailEdgePiecesField(state, day),
+      ...manorAreaField(state, landscape),
       expeditions: sceneExpeditions(state),
     },
     chronicle: chronicle(state, name),
@@ -706,6 +708,15 @@ export function buildVillageView(
     ...grainPitsField(state, day, summary),
     ...junctionsField(state, day, landscape),
   };
+}
+
+/** Dvorec pro kurzor „Domů“ (`manorArea`); ves bez hotového dvorce – bez pole. */
+function manorAreaField(
+  state: VillageState,
+  landscape: Landscape,
+): Pick<SceneVillage, 'manorArea'> {
+  const area = manorArea(state, landscape);
+  return area ? { manorArea: area } : {};
 }
 
 /** Kusy hotových stezek ke kraji pro mřížku kurzoru (`sceneTrailEdgePieces`); žádné – bez pole. */

@@ -21,6 +21,7 @@ import {
   SEED_KG_PER_HA,
   SOWERS,
   LEGACY_WEEDING_WORST_PER_HA,
+  THRESH_CALIBRATION_FERTILITY,
   UNWEEDED_YIELD,
   YIELD_BASE_KG_PER_HA,
   type WindowSegment,
@@ -619,6 +620,30 @@ export function threshRemainingAfter(work: CropWork, fromDone = 0): number {
       ? (work.required.thresh * Math.min(fromDone, work.required.harvest)) / work.required.harvest
       : 0;
   return Math.max(0, taskRemaining(work, 'thresh') - sheaved);
+}
+
+/**
+ * Práce výmlatu snopů ze sklizně `kg` (člověkodny – production-chains.md, Humno, Práce výmlatu
+ * podle snopů; Martin 18. 11. 2026 – volba C): sazba plánu na hektar (`required.thresh` ÷ plocha
+ * dílů plánu – nástroje i příplatek za vzdálenost) platí pro běžnou úrodu (`cropGrossPerHa` při
+ * THRESH_CALIBRATION_FERTILITY); snopy pod ní se vymlátí úměrně rychleji, nad ní pomaleji. Bez
+ * práce výmlatu (`threshRemainingAfter` – výmlat hotový, starší stav) 0; plán bez ploch dílů
+ * sazbu na hektar jako dřív.
+ */
+export function threshWorkForSheaves(
+  work: CropWork,
+  parts: FieldPart[],
+  crop: Crop,
+  kg: number,
+  fromDone = 0,
+): number {
+  const byArea = threshRemainingAfter(work, fromDone);
+  if (byArea <= 0) return 0;
+  const byId = partsByIdOf(parts);
+  const ha = work.partIds.reduce((sum, id) => sum + (byId.get(id)?.areaM2 ?? 0), 0) / M2_PER_HA;
+  const typicalKg = ha * cropGrossPerHa(crop, THRESH_CALIBRATION_FERTILITY);
+  if (typicalKg <= 0) return byArea;
+  return (Math.max(0, kg) * work.required.thresh) / typicalKg;
 }
 
 /**

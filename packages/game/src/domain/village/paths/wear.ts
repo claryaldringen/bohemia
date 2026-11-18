@@ -125,6 +125,20 @@ export function wearAt(cells: ReadonlyMap<number, number>, x: number, z: number)
 }
 
 /**
+ * Za kolik dní se z nuly vyšlape cesta při provozu `perDay` cest za den (paths.md – Vyšlapanost a
+ * vznik cesty): vyšlapanost přibývá o provoz, tráva ubere `regrowPerDay` a cesta vznikne od
+ * `roadAt`. Pod `formFrom` (2 cesty denně) se cesta nevyšlape nikdy – Infinity; jinak nejvýš
+ * 1 000 dní (Martin 17. 11. 2026: „Nejvýš do 3 let“). Cesta, která z vyšlapanosti opravdu vznikla
+ * (`trodden`), se chodila aspoň `formFrom` – menší provoz (medián po ose) se počítá jako `formFrom`.
+ * Roky chůze v kronice (`roadFormedNote`).
+ */
+export function treadDays(perDay: number, trodden = false): number {
+  const gain = Math.max(Math.round(perDay * 100), trodden ? WEAR.formFrom : 0);
+  if (gain < WEAR.formFrom) return Infinity;
+  return Math.ceil(WEAR.roadAt / (gain - WEAR.regrowPerDay));
+}
+
+/**
  * Vyšlapanost bodu čáry trasy (setiny cesty): nejvyšší z buňky bodu a sousedních. Čára je
  * zjednodušená a vyhlazená (`extractLines`), takže bod leží až o buňku vedle buněk trasy –
  * vyšlapanost se tím jen čte, přibývá jen buňkám trasy.

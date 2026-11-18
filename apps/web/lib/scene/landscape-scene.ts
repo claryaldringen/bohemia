@@ -867,6 +867,7 @@ export class LandscapeScene {
         pickGround: (x, y) => this.pointer.pickGround(x, y),
         cameraAlpha: () => camera.camera.alpha,
         requestRender,
+        roads: () => this.villageState?.roads ?? [],
       },
       controlled,
     );
@@ -1028,6 +1029,11 @@ export class LandscapeScene {
    */
   setOrderMode(mode: OrderMode | null): void {
     this.pointer.setOrderMode(mode);
+  }
+
+  /** Dvorec vsi scény pro kurzor „Domů“ (`SceneVillage.manorArea`); bez hotového dvorce null. */
+  manorArea(): SceneVillage['manorArea'] | null {
+    return this.villageState?.manorArea ?? null;
   }
 
   /**

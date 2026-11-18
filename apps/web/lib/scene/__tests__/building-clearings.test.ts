@@ -4,7 +4,9 @@ import {
   dwellingFrame,
   dwellingShape,
   freeDwellingClearings,
+  rotatedPlot,
   shapeRect,
+  type Landscape,
 } from '@bohemia/game';
 import {
   TREE_LAND_RADIUS_M,
@@ -15,7 +17,7 @@ import {
   fieldClearings,
   hayBlockers,
 } from '../building-clearings';
-import type { SceneVillage } from '../../village-view';
+import { scenePlot, type SceneVillage } from '../../village-view';
 
 // Obydlí na poli a v sadu (population.md): pod vyklízenou plochou obydlí bez pozemku scéna
 // nekreslí obilí, obtisk pole ani jabloně – stejná plocha, jakou herní jádro z dílu odečte.
@@ -52,6 +54,34 @@ describe('vyklízené plochy obydlí ve scéně', () => {
     expect(clearings[0]!.maxX).toBeCloseTo(rect.maxX, 9);
     expect(clearings[0]!.minZ).toBeCloseTo(rect.minZ, 9);
     expect(clearings[0]!.maxZ).toBeCloseTo(rect.maxZ, 9);
+  });
+
+  it('pozemek se středem mimo políčko (D96) zabírá díly jen zčásti – plocha celého čtverce', () => {
+    // 18. 11. 2026 – D96: pozemek bez natočení má střed kdekoli pod kurzorem
+    const landscape: Landscape = {
+      size: 16,
+      cellSizeM: 15,
+      heights: new Float32Array(256),
+      surface: new Uint8Array(256),
+      fertility: new Uint8Array(256),
+      villageSite: { x: 8, y: 8 },
+      stream: [],
+      obstacleLayer: null,
+    };
+    const off = rotatedPlot(landscape, { x: 55.73, z: 9.1, rotation: 0 }, 'center')!;
+    const plot = scenePlot(landscape, off);
+    expect(plot).toMatchObject({ x: 55.73, z: 9.1, rotation: 0, free: true });
+    const clearings = buildingClearings([dwelling(55.73, 9.1, { type: 'polozemnice', plot })]);
+    expect(clearings).toHaveLength(1);
+    expect(clearings[0]!.minX).toBeCloseTo(55.73 - 7.5, 9);
+    expect(clearings[0]!.maxZ).toBeCloseTo(9.1 + 7.5, 9);
+    // po 90° ve středu políčka zabírá pozemek celé políčko – plochu nemá jako dřív
+    const tile = rotatedPlot(landscape, { x: 52.5, z: 7.5, rotation: Math.PI / 2 }, 'center')!;
+    const onTile = scenePlot(landscape, tile);
+    expect(onTile.free).toBeUndefined();
+    expect(buildingClearings([dwelling(52.5, 7.5, { type: 'polozemnice', plot: onTile })])).toEqual(
+      [],
+    );
   });
 
   it('uhlíř je jen zemnice – milíř stojí zvlášť u skácených buků (crafts.md)', () => {

@@ -175,6 +175,124 @@ describe('JourneyGlide – plynule mezi stavy ze serveru', () => {
     for (const v of speeds) expect(Math.abs(v - speed) / speed).toBeLessThanOrEqual(0.1);
   });
 
+  it('dlouho stojící hlouček na rozkaz vyrazí do PLAY_LAG_TICKS po vyražení tempem jádra (Martin 18. 11. 2026)', () => {
+    // „když ho někam pošlu, tak zezačátku jde hrozně pomalu“: stojící hlouček worker ukládá po
+    // 40 taktech (CHECKPOINT_TICKS), rozkaz přišel 20 taktů po posledním stojícím bodu (vyrazil
+    // v taktu 23), pak worker ukládá každé kolo (4 takty); události chodí 100 ms po taktu kola.
+    // Dřív scéna hrála stojící body se zpožděním 40 taktů a první krok roztáhla od posledního
+    // stojícího bodu – vojvoda 8 s stál, pak šel 0,7 m/s.
+    const speed = 3.5;
+    const stand = { x: 10, z: 20 };
+    const setOut = 22;
+    const lone = [man('1', false, true)];
+    const standing = (tick: number): SceneJourney =>
+      journey({ tick, pos: stand, arrived: true, men: lone });
+    const moving = (tick: number): SceneJourney =>
+      journey({
+        tick,
+        pos: { x: 10, z: 20 + ((tick - setOut) * speed * TICK_MS) / 1000 },
+        setOut: { tick: setOut, pos: stand },
+        men: lone,
+      });
+    const arrivals: [number, SceneJourney][] = [
+      ...[-80, -40, 0].map((t): [number, SceneJourney] => [t * TICK_MS + 100, standing(t)]),
+      ...[26, 30, 34, 38, 42, 46, 50, 54, 58, 62, 66, 70].map((t): [number, SceneJourney] => [
+        t * TICK_MS + 100,
+        moving(t),
+      ]),
+    ];
+    const glide = new JourneyGlide();
+    let k = 0;
+    let prev: Pos | null = null;
+    let firstMove: number | null = null;
+    const speeds: number[] = [];
+    for (let t = -80 * TICK_MS + 100; t <= 70 * TICK_MS; t += 100) {
+      while (k < arrivals.length && arrivals[k]![0] <= t) {
+        glide.set([arrivals[k]![1]], arrivals[k]![0], false);
+        k++;
+      }
+      const p = glide.at(t, false).poses[0]!;
+      if (prev && Math.hypot(p.x - prev.x, p.z - prev.z) > 1e-6) {
+        firstMove ??= t;
+        if (t - firstMove >= 200 && t - firstMove <= 4000) {
+          speeds.push(Math.hypot(p.x - prev.x, p.z - prev.z) / 0.1);
+        }
+      }
+      prev = p;
+    }
+    // vyrazí nejpozději PLAY_LAG_TICKS po vyražení (+ jedno kolo dotazu) – ne až za 10 s
+    expect(firstMove).not.toBeNull();
+    expect(firstMove!).toBeLessThanOrEqual((setOut + PLAY_LAG_TICKS) * TICK_MS + 200);
+    // a od prvního kroku jde tempem jádra (± 10 %)
+    expect(speeds.length).toBeGreaterThan(30);
+    for (const v of speeds) expect(Math.abs(v - speed) / speed).toBeLessThanOrEqual(0.1);
+  });
+
+  it('stojící hlouček dostává stojící body – přehrávání zůstane nejvýš PLAY_LAG_TICKS za nimi', () => {
+    const glide = new JourneyGlide();
+    const at = { x: 10, z: 20 };
+    glide.set([journey({ tick: 0, pos: at, arrived: true })], 0, false);
+    glide.set([journey({ tick: 40, pos: at, arrived: true })], 40 * TICK_MS, false);
+    glide.set([journey({ tick: 80, pos: at, arrived: true })], 80 * TICK_MS, false);
+    // první krok bez údaje o vyražení (návštěvník): pohyb od posledního stojícího bodu, ne od taktu 40
+    glide.set([journey({ tick: 84, pos: { x: 10, z: 24 } })], 84 * TICK_MS, false);
+    const lead = glide.at(84 * TICK_MS + (PLAY_LAG_TICKS - 4) * TICK_MS + 10, false);
+    expect(lead.poses[0]!.z).toBeGreaterThan(20);
+  });
+
+  it('dojetí → rozkaz za 5–10 s: vyrazí ≈ PLAY_LAG_TICKS po vyražení tempem jádra (kontrola D94)', () => {
+    // hlouček jde, v taktu 40 dojede; stojící bod worker uloží až za 40 taktů, rozkaz přijde dřív –
+    // dřív scéna přehrávala od dojetí (stav dojetí má `moved`) a rozjela se až 4–9,6 s po serveru
+    const speed = 3.5;
+    const lone = [man('1', false, true)];
+    const step = (speed * TICK_MS) / 1000;
+    for (const wait of [20, 30, 40]) {
+      const setOut = 40 + wait;
+      const walking = (tick: number): SceneJourney =>
+        journey({ tick, pos: { x: 10, z: 20 + tick * step }, men: lone });
+      const moving = (tick: number): SceneJourney =>
+        journey({
+          tick,
+          pos: { x: 10, z: 20 + 40 * step + (tick - setOut) * step },
+          setOut: { tick: setOut, pos: { x: 10, z: 20 + 40 * step } },
+          men: lone,
+        });
+      const arrivals: [number, SceneJourney][] = [
+        ...[0, 4, 8, 12, 16, 20, 24, 28, 32, 36].map((t): [number, SceneJourney] => [
+          t * TICK_MS + 100,
+          walking(t),
+        ]),
+        [40 * TICK_MS + 100, journey({ ...walking(40), arrived: true })],
+        ...[4, 8, 12, 16, 20, 24, 28].map((d): [number, SceneJourney] => [
+          (setOut + d) * TICK_MS + 100,
+          moving(setOut + d),
+        ]),
+      ];
+      const glide = new JourneyGlide();
+      let k = 0;
+      let prev: Pos | null = null;
+      let restart: number | null = null;
+      const speeds: number[] = [];
+      for (let t = 100; t <= (setOut + 28) * TICK_MS; t += 100) {
+        while (k < arrivals.length && arrivals[k]![0] <= t) {
+          glide.set([arrivals[k]![1]], arrivals[k]![0], false);
+          k++;
+        }
+        const p = glide.at(t, false).poses[0]!;
+        const moved = prev !== null && Math.hypot(p.x - prev.x, p.z - prev.z) > 1e-6;
+        if (moved && t > setOut * TICK_MS) {
+          restart ??= t;
+          if (t - restart >= 200) speeds.push(Math.hypot(p.x - prev!.x, p.z - prev!.z) / 0.1);
+        }
+        prev = p;
+      }
+      expect(restart).not.toBeNull();
+      expect(restart!).toBeLessThanOrEqual((setOut + PLAY_LAG_TICKS) * TICK_MS + 300);
+      expect(speeds.length).toBeGreaterThan(20);
+      for (const v of speeds) expect(Math.abs(v - speed) / speed).toBeLessThanOrEqual(0.1);
+    }
+  });
+
   it('zmizelý výjezd scéna nekreslí', () => {
     const glide = new JourneyGlide();
     glide.set([journey()], 0, false);

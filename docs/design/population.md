@@ -128,15 +128,19 @@ obydlí hráčem a jejich chátrání a přestavby obyvateli.
 - **Natočený pozemek** (Martin, 18. 10. 2026: „Je to 3D, takže všechny stavby by měly jít natáčet
   po 15 stupních“ – u pozemku **varianta a: natočí se celý pozemek**, místo domu přepíná Tab):
   klávesy [ a ] otáčejí celým pozemkem po 15° kolem jeho středu, **Tab** (se Shiftem zpět)
-  přepíná variantu – kde na pozemku dům stojí. Bez natočení a po 90° je pozemek políčko pod
-  kurzorem jako dřív (jen dům míří jinam), jinak natočený čtverec 15 × 15 m se **středem
-  kdekoli pod kurzorem** (na cm), ne v mřížce políček. Plot se zakulacenými rohy, branka na přední
+  přepíná variantu – kde na pozemku dům stojí. Pozemek je čtverec 15 × 15 m se **středem
+  kdekoli pod kurzorem** (na cm), ne v mřížce políček – **i bez natočení a po 90°** (Martin,
+  dne 18. 11. 2026: „když stavím dům s pozemkem, tak dokud ho nepootočím, skáče po jednotlivých
+  mapových čtvercích“ – dřív se bez natočení a po 90° přichytil na políčko pod kurzorem). Jen
+  přesně ve středu políčka bez natočení je to políčko jako dřív. Pole, sad a hřbitov se dál malují
+  po čtvercích. Plot se zakulacenými rohy, branka na přední
   straně, záhony, cestička i dům se otočí s ním. Kontroly (návrh Clauda) jdou přes natočený
   čtverec: louka a voda podle 5 × 5 bodů pod ním (do vody nesmí žádný, v lese nesmí ležet
   většina), skalní výchoz, posvátný dub (kmen ve čtverci) a háj (políčko háje pod čtvercem)
   i kolize se stavbami podle skutečného překryvu ploch; na poli a v sadu vezme dílům a čtvercům
   jen **průnik** (díl pod 20 % políčka zmizí jako u obydlí bez pozemku), překážky čtverce platí
-  kromě těch na poli a v sadu. Pozemky z doby před natáčením zůstávají políčky.
+  kromě těch na poli a v sadu. Stejně se kontroluje čtverec mimo políčko bez natočení (návrh
+  Clauda 18. 11. 2026). Pozemky z doby před natáčením zůstávají políčky.
 - **Branka nesmí vést do cizího pozemku** (Martin, 19. 10. 2026: „Ano, zakaž to“ – na otázku,
   jestli zakázat umístění domu, jehož branka vede do cizího pozemku; ve Vlkově vedla branka
   polozemnice do pozemku dvorce a domácnost neměla kudy chodit): místo před brankou pozemku nebo

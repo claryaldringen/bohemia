@@ -75,6 +75,10 @@ import { advanceChunked, goldenWorld, stateFingerprint, YEAR } from './village-g
 // 18. 11. 2026 – strava po vrstvách, úloha 4, opravné kolo 2 (odhad 1. 11. ze stáda i s letní porážkou,
 // práce letní porážky se dodělá s porážkou 1. 11.); dřív 9a87bfa34fc520a8
 const EXPECTED_YEAR_1 = 'ffb78a93bb4e5d05';
+// 18. 11. 2026 – D93 cesta přes plochu staveb; dřív 82b12dd84c08dd63 (vyšlapaná cesta přes plochu
+// staveb nevznikne a napojení ji obejde – jiné cesty a id; roky chůze nejvýš doba vyšlapání)
+// 18. 11. 2026 – D95 výmlat (Martin: „A, C, E“ – výmlat podle kg snopů, rod v zimě dorovná tempo
+// okna výmlatu; „Humno nestačí“ jen když ruce humna přetíží); dřív df705e2196e85d88
 
 describe('zlatý otisk vsi', () => {
   const world = goldenWorld();

@@ -189,6 +189,16 @@ export const FIELD_WORK_PER_HA: Record<FieldTask, Bounds> = {
   },
   thresh: { worst: 15, best: 10 },
 };
+/**
+ * production-chains.md – Humno, Práce výmlatu podle snopů (Martin 18. 11. 2026 – volba C z rozboru
+ * Vlkova: „A, C, E“; kalibrace návrh Clauda): výmlat stojí podle kg snopů, ne podle plochy. Sazba
+ * výmlatu na hektar (`thresh` – obilí 15 (10), luštěniny 10 (6) čd/ha) platí pro běžnou úrodu –
+ * hrubou úrodu při této úrodnosti: průměr tří let osevu čerstvého dílu s přirozenou úrodností 70
+ * (aktuální ≈ 88 % – fields.md, Úroda), tj. obilí 760 × (0,4 + 0,6 × 0,616) ≈ 585 kg/ha (39 (58) kg
+ * zrna na čd), luštěniny ≈ 468 kg/ha. Slabší úroda se vymlátí úměrně rychleji (Vlkov – žeň 895
+ * 9,5 t: 237 čd výmlatu místo 332), silnější pomaleji.
+ */
+export const THRESH_CALIBRATION_FERTILITY = 61.6;
 // fields.md – Pletí jednou a rychle (Martin 25. 10. 2026: „Ozim se plít asi nemusí – v dubnu už je
 // tak velký, že plevel udusí.“): ozim se neplete – sazby jako jař bez pletí, úrodu bez pletí
 // nesráží (`unweededYield` se na ozim nepoužije)
@@ -290,6 +300,16 @@ export const HARVEST_THRESH_WINDOWS: Record<Crop, readonly WindowSegment[]> = {
   legume: [[8, 9]],
   flax: [[8, 9]],
 };
+/**
+ * Zimní výmlat (lord.md – Kdy jde rodina na pole, Výmlat v zimě; Martin 18. 11. 2026 – volba A z D95,
+ * měsíce návrh Clauda): okno výmlatu po výmlatu hned po žni (HARVEST_THRESH_WINDOWS) – listopad až
+ * únor. Jen v něm rod vojvody dorovná výmlat, který by ves do konce okna nestihla; v září a říjnu
+ * mezi žní, orbou a setím rod nemlátí.
+ */
+export const WINTER_THRESH_WINDOW: readonly WindowSegment[] = [
+  [11, 12],
+  [1, 2],
+];
 // fields.md – Luštěniny (rešerše 2026-10-18-legumes.md): luštěniny jsou jař – kopou se na podzim
 // nebo na jaře, sejí v březnu–dubnu, pletou v květnu, sklízejí (trhají) v červenci, co červenec
 // nestihne, v srpnu (fields.md – Žně i v srpnu), a mlátí hned po sklizni v srpnu a září na humně

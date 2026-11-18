@@ -1,9 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { accessDue, accessRoads, gateGuardOf, type GateGuard } from '../roads-access';
 import { axisDistance } from '../roads-geometry';
+import type { RoadAnchors } from '../road-anchors';
+import { formRoad, formWearRuns, joinTarget, wearRoadDue } from '../roads-form';
+import { abandonBlockedStretches, BLOCK_MIN_RUN_M, blockedRun } from '../roads-overgrow';
+import { wearCellAt } from '../wear';
 import type { SpotContext } from '../roads-trees';
 import { ROAD_GATE } from '../../rules';
-import type { Road, RoadGrade, StoredRoute, VillageRoads } from '../../types';
+import type { Road, RoadGrade, RoadPoint, StoredRoute, VillageRoads } from '../../types';
 import { PATH_FORD, PATH_WATER } from '../terrain';
 import { pathTestTerrain } from '../../__tests__/paths-fixtures';
 
@@ -199,5 +203,133 @@ describe('cesta k vchodu uvnitř plochy staveb (D89 – Vlkov, ohrada u tesaře)
     expect(accessDue(roads, [ROUTE], CELL_M, () => true, free)).toBe(true);
     expect(accessDue(roads, [ROUTE], CELL_M, () => true, guard)).toBe(false);
     expect(accessRoads(roads, [ROUTE], CELL_M, 0, CONTEXT, null, () => true, guard)).toEqual([]);
+  });
+});
+
+describe('cesta z vyšlapanosti s napojením do plochy staveb (D93 – Vlkov, rozcestí u sadu)', () => {
+  // jako ve Vlkově: vozová cesta 1 začíná 1 m uvnitř pozemku (x 13–21, z −9…2) a hned z něj vede
+  // na západ; vyšlapaná čára jde 2,25 m jižně od pozemku k cíli (7,5; −11,25). Nejbližší bod
+  // cesty 1 (roh 12,5; −6,65) je 3,5 m od jejího začátku (do END_SNAP_M) – napojení by se
+  // přichytilo do začátku v pozemku a vedlo jím ≥ 5 m: příští měsíc by se cesta opustila
+  // (`abandonBlockedStretches`) a hned by vznikla znovu
+  const START: RoadPoint = { x: 14, z: -3.5 };
+  const CORNER: RoadPoint = { x: 12.5, z: -6.65 };
+  const LINE: RoadPoint[] = [
+    { x: 26.25, z: -11.25 },
+    { x: 7.5, z: -11.25 },
+  ];
+  const plot = (x: number, z: number): boolean => x >= 13 && x <= 21 && z >= -9 && z <= 2;
+  const roadsOf = (): VillageRoads => {
+    const roads = roadsWith('wagon', [
+      [START.x, START.z],
+      [CORNER.x, CORNER.z],
+      [4, -6.65],
+    ]);
+    roads.nextId = 50;
+    return roads;
+  };
+  const wear = new Map<number, number>();
+  for (let x = 7.5; x <= 26.25; x += 0.5) wear.set(wearCellAt(x, -11.25), 120_000);
+  const anchors: RoadAnchors = {
+    points: [
+      { x: 26.25, z: -11.25, kind: 'entrance', reachM: 3 },
+      { x: 7.5, z: -11.25, kind: 'goal', reachM: 7.5 },
+    ],
+    halfM: 1000,
+  };
+  const form = (roads: VillageRoads, building: ((x: number, z: number) => boolean) | null) =>
+    formWearRuns(roads, [LINE], wear, anchors, 0, CONTEXT, null, new Set(), building);
+
+  it('bez plochy staveb se napojí do začátku cesty jako dřív', () => {
+    const roads = roadsOf();
+    const formed = form(roads, null);
+    expect(formed).toHaveLength(1);
+    expect(formed[0]!.road.points.at(-1)).toEqual(START);
+  });
+
+  it('napojení obejde pozemek: do nejbližšího bodu cesty, příští měsíc se neopustí', () => {
+    const roads = roadsOf();
+    expect(wearRoadDue(roads, [LINE], wear, anchors, new Set(), undefined, plot)).toBe(true);
+    const formed = form(roads, plot);
+    expect(formed).toHaveLength(1);
+    const fresh = formed[0]!.road;
+    expect(fresh.points.at(-1)).toEqual(CORNER);
+    expect(blockedRun(fresh.points, plot)).toBeLessThan(BLOCK_MIN_RUN_M);
+    // cesta 1 se v rohu rozdělila (rozcestí); kontrola kusů pod stavbou novou cestu nechá
+    expect(roads.roads).toHaveLength(3);
+    abandonBlockedStretches(roads, [], undefined, plot);
+    expect(roads.roads.find((r) => r.id === fresh.id)?.abandoned).toBeUndefined();
+  });
+
+  it('i nejbližší bod cesty je v pozemku: cesta nevznikne a vznik se nehlásí (A)', () => {
+    // pozemek sahá k čáře (z od −11) a přes roh – každé napojení jím vede ≥ 5 m
+    const deep = (x: number, z: number): boolean => x >= 9 && x <= 21 && z >= -11 && z <= 2;
+    const roads = roadsOf();
+    const before = JSON.stringify(roads);
+    expect(wearRoadDue(roads, [LINE], wear, anchors, new Set(), undefined, deep)).toBe(false);
+    expect(form(roads, deep)).toEqual([]);
+    expect(JSON.stringify(roads)).toBe(before);
+  });
+
+  it('jiní uživatelé napojení (cesty k vchodům, stezky, úklid) beze změny – bez plochy přichytí', () => {
+    const from: RoadPoint = { x: 16.25, z: -11.25 };
+    // bez plochy staveb i s plochou, která napojení nepřekáží, do začátku cesty (hit null)
+    expect(joinTarget(roadsOf(), from, 10)).toEqual({ point: START, hit: null });
+    expect(joinTarget(roadsOf(), from, 10, () => false)).toEqual({ point: START, hit: null });
+    // s pozemkem v cestě do nejbližšího bodu osy – cesta se tam rozdělí
+    const around = joinTarget(roadsOf(), from, 10, plot);
+    expect(around?.point).toEqual(CORNER);
+    expect(around?.hit).not.toBeNull();
+    // `formRoad` bez plochy (cesty k vchodům, zemské stezky, přestavba) se napojí jako dřív
+    const roads = roadsOf();
+    const made = formRoad(roads, [LINE[0]!, from], false, 10, 0, () => 0, CONTEXT);
+    expect(made?.points.at(-1)).toEqual(START);
+  });
+
+  it('B i u křižovatky: přichycení do uzlu v pozemku nahradí bod osy (`junctionSnap`)', () => {
+    // uzel (0; 0) se třemi rameny leží v pozemku; nejbližší bod osy (5; 0) je dál než END_SNAP_M,
+    // ale blíž než rozestup křižovatky (≈ 7 m) – bez plochy se napojení přichytí do uzlu
+    const arm = (id: number, x: number, z: number): Road => ({
+      id,
+      points: [
+        { x: 0, z: 0 },
+        { x, z },
+      ],
+      bornDay: 0,
+      grade: 'trodden',
+      traffic: [1],
+      spots: [],
+    });
+    const roads: VillageRoads = {
+      nextId: 10,
+      roads: [arm(1, 30, 0), arm(2, 0, 30), arm(3, -30, 0)],
+      trees: [],
+      labor: { from: 0, days: 0, shares: [] },
+    };
+    const yard = (x: number, z: number): boolean => x >= -4 && x <= 4 && z >= -5 && z <= 4;
+    const from: RoadPoint = { x: 5, z: -6 };
+    expect(joinTarget(roads, from, 10)).toEqual({ point: { x: 0, z: 0 }, hit: null });
+    const around = joinTarget(roads, from, 10, yard);
+    expect(around?.point).toEqual({ x: 5, z: 0 });
+    expect(around?.hit?.road).toBe(0);
+  });
+
+  it('bod osy blíž než JOIN_AROUND_MIN_M od přichycení: přichycení zůstane', () => {
+    // úzký pás u začátku cesty: napojení do začátku jím vede ≥ 5 m, do bodu osy vůbec
+    const roads = roadsWith('trodden', [
+      [0, 0],
+      [10, 0],
+    ]);
+    const strip =
+      (limit: number) =>
+      (x: number, z: number): boolean =>
+        x < limit && z > -5.5;
+    // bod osy 0,5 m od začátku – rozdělení by dalo kousek cesty bez délky
+    expect(joinTarget(roads, { x: 0.5, z: -6 }, 10, strip(0.45))).toEqual({
+      point: { x: 0, z: 0 },
+      hit: null,
+    });
+    // 1,5 m od začátku – napojení pás obejde
+    expect(joinTarget(roads, { x: 1.5, z: -6 }, 10, strip(1.45))?.point).toEqual({ x: 1.5, z: 0 });
   });
 });

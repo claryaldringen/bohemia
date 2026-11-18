@@ -59,6 +59,28 @@ it('součet plodin je obilí + luštěniny + jablka, rozpis má tři řádky', (
   ]);
 });
 
+it('obilí v liště je bez hromady osiva – osivo má v rozpisu vlastní řádek s popiskem (diet.md, D95)', () => {
+  // Vlkov 15. 3. 896: Obilí 3 131 kg, z toho 3 124 kg osivo na jař (ves ho nejí)
+  const seeded = {
+    storesKg: 3131,
+    legumesKg: 15,
+    applesKg: 0,
+    sowingSeed: { crop: 'spring' as const, kg: 3124, winter: false },
+  };
+  expect(grainStockRows(seeded).map((r) => [r.key, r.amount])).toEqual([
+    ['grain', 7],
+    ['seed', 3124],
+    ['legumes', 15],
+    ['apples', 0],
+  ]);
+  expect(grainStockTotal(seeded)).toBe(22);
+  // zimní osivo na jař – popisek v Tooltipu jako v panelu pole
+  const winter = { ...seeded, sowingSeed: { crop: 'spring' as const, kg: 3124, winter: true } };
+  expect(grainStockRows(winter).find((r) => r.key === 'seed')?.name).toMatch(/Zimní osivo/);
+  // bez hromady osiva tři řádky jako dřív
+  expect(grainStockRows(crops).map((r) => r.key)).toEqual(['grain', 'legumes', 'apples']);
+});
+
 it('součet dobytka a rozpis podle druhů; druh, který ves nemá, v rozpisu chybí', () => {
   expect(livestockTotal(stock as never)).toBe(33);
   expect(livestockRows(stock as never).map((r) => r.key)).toEqual([

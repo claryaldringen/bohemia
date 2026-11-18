@@ -37,6 +37,7 @@ import {
 } from './roads-geometry';
 import {
   annualTerrain,
+  type BuildingArea,
   emptyRoads,
   fieldTraffic,
   formWearRuns,
@@ -354,8 +355,10 @@ function* roadsMonthRunSteps(
   /** Jen přestavba sítě (`rebuildRoadsPass`). */
   rebuild?: RebuildHints,
 ): Generator<void, void, void> {
-  // od tohoto zápisu kroniky dostanou vzniklé cesty konce a roky chůze (`noteFormedRoads`)
+  // od tohoto zápisu kroniky dostanou vzniklé cesty konce a roky chůze (`noteFormedRoads`);
+  // cesty z vyšlapanosti zvlášť – roky chůze nejvýš doba vyšlapání při 2 cestách denně (D93)
   const chronicleFrom = state.chronicle.length;
+  const trodden = new Set<number>();
   settleVillageWear(state, day, landscape);
   yield;
   const roads = state.roads;
@@ -410,6 +413,9 @@ function* roadsMonthRunSteps(
     // a vznik cesty, Smazané kusy); kus, který už vyšlapaný není, zapomene
     const lost = new Set(state.roads.lostRuns ?? []);
     const remembered = new Set<string>();
+    // plocha staveb jako u kusů pod stavbou výš: osa přes ni nevznikne a napojení ji obejde –
+    // jinak by se cesta příští měsíc opustila a hned vznikla znovu (D93 – Vlkov, rozcestí u sadu)
+    const building = lazyBuildingArea(state, day, landscape);
     const due = wearRoadDue(
       state.roads,
       lines,
@@ -417,18 +423,21 @@ function* roadsMonthRunSteps(
       anchors,
       lost,
       lost.size > 0 ? remembered : undefined,
+      building,
     );
     if (due) {
       const formed = yield* formRoadsKept(
         state,
         state.roads,
-        { lines, anchors, wear, day, base: baseOf(), lost, remembered },
+        { lines, anchors, wear, day, base: baseOf(), lost, remembered, building },
         fieldOf,
       );
       // úklid může novou cestu spojit se starší – do kroniky jen cesty, jejichž id zůstalo
       const kept = new Set(state.roads.roads.map((r) => r.id));
       for (const road of formed) {
-        if (kept.has(road.id)) state.chronicle.push({ day, kind: 'road-formed', roadId: road.id });
+        if (!kept.has(road.id)) continue;
+        state.chronicle.push({ day, kind: 'road-formed', roadId: road.id });
+        trodden.add(road.id);
       }
     }
     rememberLostRuns(state.roads, remembered);
@@ -457,7 +466,7 @@ function* roadsMonthRunSteps(
     fieldOf,
   );
   // konce cesty hráče až po úklidu a křižovatkách měsíce – jako je hráč uvidí v panelu cesty
-  noteFormedRoads(state, landscape, chronicleFrom, day);
+  noteFormedRoads(state, landscape, chronicleFrom, day, trodden);
 }
 
 /**
@@ -817,10 +826,12 @@ function* formRoadsKept(
     base: Omit<SpotContext, 'split'>;
     lost: ReadonlySet<string>;
     remembered: Set<string>;
+    /** Plocha staveb (`lazyBuildingArea`). */
+    building: BuildingArea;
   },
   field: () => TrafficField,
 ): Generator<void, Road[], void> {
-  const { lines, anchors, wear, day, base, remembered } = month;
+  const { lines, anchors, wear, day, base, remembered, building } = month;
   const isEnd = anchorTermini(anchors);
   const skip = new Set(month.lost);
   for (let round = 0; round < FORM_ROUNDS; round++) {
@@ -833,7 +844,17 @@ function* formRoadsKept(
         splitTrailPieces(draft.trails, from, to);
       },
     };
-    const formed = formWearRuns(draft.roads, lines, wear, anchors, day, context, field(), skip);
+    const formed = formWearRuns(
+      draft.roads,
+      lines,
+      wear,
+      anchors,
+      day,
+      context,
+      field(),
+      skip,
+      building,
+    );
     if (formed.length === 0) return [];
     yield;
     tidyRoads(draft.roads, draft.constructions, isEnd, context, undefined, draft.trails);
@@ -848,6 +869,18 @@ function* formRoadsKept(
     }
   }
   return [];
+}
+
+/**
+ * Neprůchodná plocha staveb vsi (`villageBlockedAt` – táž jako u kusů pod stavbou) líně: mřížka se
+ * staví až při prvním dotazu (měsíc bez kusu k založení ji nepotřebuje). Bez vsi nic neleží v ploše.
+ */
+function lazyBuildingArea(state: VillageState, day: number, landscape: Landscape): BuildingArea {
+  let area: ((x: number, z: number) => boolean) | null | undefined;
+  return (x, z) => {
+    if (area === undefined) area = villageBlockedAt(state, day, landscape);
+    return area?.(x, z) ?? false;
+  };
 }
 
 /** Paměť smazaných kusů do stavu – seřazeně (nezávisí na pořadí průchodu); prázdná chybí. */

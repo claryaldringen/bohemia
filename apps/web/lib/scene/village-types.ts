@@ -144,6 +144,11 @@ export type PlacementMode =
       gridAt?(x: number, z: number, variant?: string): SquareGrid | undefined | null;
       /** Mřížka, ve které malování začne (vybraná stavba stejného druhu); bez údaje krajina. */
       grid?: SquareGrid;
+      /**
+       * Stavba leží v ploše staveb vsi (ohrada, hřbitov) – náhled vyznačí kusy cest, které by po
+       * postavení přerušila (paths.md – Stavba přes cestu, Náhled u kurzoru). Pole a sad ne.
+       */
+      blocks?: 'pen' | 'cemetery';
     }
   | {
       /**

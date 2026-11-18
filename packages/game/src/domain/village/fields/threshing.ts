@@ -2,9 +2,17 @@ import { TOTAL_GAME_DAYS, dateOfDayIndex, dayIndexOf } from '../../calendar';
 import { addThreshedGrain } from './grain-pits';
 import { addStraw } from '../livestock/hay';
 import { villageLegumesKg } from './legumes';
-import { CROP_ORDER, CROP_WINDOWS, PLANNING_DAY, THRESHING, type WindowSegment } from '../rules';
+import {
+  CROP_ORDER,
+  CROP_WINDOWS,
+  PLANNING_DAY,
+  THRESHING,
+  THRESH_CALIBRATION_FERTILITY,
+  type WindowSegment,
+} from '../rules';
 import type { Sheaves, ThreshedCrop, VillageState } from '../types';
-import { cropTaskRemaining, cropsAfield } from '../core/year-plan';
+import { cropGrossPerHa, cropTaskRemaining, cropsAfield } from '../core/year-plan';
+import { fieldWorkPerHa } from '../core/productivity';
 
 // Snopy a výmlat (production-chains.md – Humno; Martin 20. 10. 2026: „Humno je podmínka“; fields.md
 // – Pořadí důležitosti polních prací a výmlat do zimy, Martin 9. 11. 2026: „Výmlat prý počká i
@@ -55,6 +63,15 @@ export function villageSheaves(state: Pick<VillageState, 'sheaves'>): Sheaves {
 /** Kg snopů druhu. */
 function poolKg(sheaves: Sheaves, kind: SheafKind): number {
   return kind === 'grain' ? sheaves.grainKg : sheaves.legumesKg;
+}
+
+/** Práce snopů po změně – s příznakem `byKg`, dokud nějaká práce zbývá. */
+function withWork(
+  sheaves: Sheaves,
+  work: NonNullable<Sheaves['work']>,
+): Pick<Sheaves, 'work' | 'byKg'> {
+  if (Object.keys(work).length === 0) return {};
+  return sheaves.byKg === true ? { work, byKg: true } : { work };
 }
 
 /** Zbývající práce výmlatu plodiny (člověkodny na humně). */
@@ -255,10 +272,11 @@ export function addSheaves(
   const sheaves = villageSheaves(state);
   const work = { ...(sheaves.work ?? {}) };
   if (threshWork > EPSILON) work[crop] = (work[crop] ?? 0) + threshWork;
+  // práce sklizně je podle kg snopů (`threshWorkForSheaves` – production-chains.md, Humno)
   state.sheaves = {
     grainKg: sheaves.grainKg + (kind === 'grain' ? Math.max(0, kg) : 0),
     legumesKg: sheaves.legumesKg + (kind === 'legumes' ? Math.max(0, kg) : 0),
-    ...(Object.keys(work).length > 0 ? { work } : {}),
+    ...(Object.keys(work).length > 0 ? { work, byKg: true as const } : {}),
   };
 }
 
@@ -277,7 +295,7 @@ export function takeSheaves(state: VillageState, grainShare: number, legumesShar
   state.sheaves = {
     grainKg: sheaves.grainKg * (1 - grainShare),
     legumesKg: sheaves.legumesKg * (1 - legumesShare),
-    ...(Object.keys(work).length > 0 ? { work } : {}),
+    ...withWork(sheaves, work),
   };
 }
 
@@ -369,7 +387,7 @@ export function spoilSheaves(state: VillageState, day: number): void {
   state.sheaves = {
     grainKg: grain ? sheaves.grainKg : sheaves.grainKg * DAILY_KEEP,
     legumesKg: legumes ? sheaves.legumesKg : sheaves.legumesKg * DAILY_KEEP,
-    ...(Object.keys(work).length > 0 ? { work } : {}),
+    ...withWork(sheaves, work),
   };
 }
 
@@ -577,7 +595,7 @@ export function threshCrop(state: VillageState, task: ThreshTask, labor: number)
   state.sheaves = {
     grainKg: kind === 'grain' ? Math.max(0, pool - taken) : sheaves.grainKg,
     legumesKg: kind === 'legumes' ? Math.max(0, pool - taken) : sheaves.legumesKg,
-    ...(Object.keys(work).length > 0 ? { work } : {}),
+    ...withWork(sheaves, work),
   };
   if (kind === 'grain') {
     state.storesKg += threshed;
@@ -626,6 +644,42 @@ export function withThreshingGrace(
   };
 }
 
+/**
+ * Převod snopů na práci podle kg (production-chains.md – Humno, Práce výmlatu podle snopů; Martin
+ * 18. 11. 2026 – volba C z D95, převod návrh Clauda; mutuje stav): práce uložených snopů je podle
+ * plochy – každý druh dostane práci kg snopů × sazba výmlatu na hektar (`toolCoverage` – nástroje
+ * dnes) ÷ běžná úroda (`cropGrossPerHa` při THRESH_CALIBRATION_FERTILITY), rozdělenou mezi plodiny
+ * druhu v poměru jejich práce. Příplatek za vzdálenost dílu a deštivé léto se z uložené práce už
+ * nezjistí. Druh bez práce zůstane. Jednou – snopy pak nesou `byKg`.
+ */
+export function convertSheafWorkByKg(state: VillageState, toolCoverage: number): void {
+  const sheaves = state.sheaves;
+  if (!needsSheafWorkByKg(state) || !sheaves?.work) return;
+  const work = { ...sheaves.work };
+  for (const kind of ['grain', 'legumes'] as const) {
+    const crops = THRESHED_CROPS.filter((c) => sheafKind(c) === kind);
+    const total = crops.reduce((sum, c) => sum + (work[c] ?? 0), 0);
+    if (total <= EPSILON) continue;
+    const crop = kind === 'grain' ? 'spring' : 'legume';
+    const perKg =
+      fieldWorkPerHa('thresh', toolCoverage, crop) /
+      cropGrossPerHa(crop, THRESH_CALIBRATION_FERTILITY);
+    const byKg = Math.max(0, poolKg(sheaves, kind)) * perKg;
+    for (const c of crops) if (work[c] !== undefined) work[c] = (work[c]! / total) * byKg;
+  }
+  state.sheaves = { ...sheaves, work, byKg: true };
+}
+
+/** Potřebuje ves převod snopů na práci podle kg – snopy s prací podle plochy (bez `byKg`)? */
+export function needsSheafWorkByKg(state: Pick<VillageState, 'sheaves'>): boolean {
+  const sheaves = state.sheaves;
+  return (
+    sheaves !== undefined &&
+    sheaves.byKg !== true &&
+    Object.values(sheaves.work ?? {}).some((w) => (w ?? 0) > EPSILON)
+  );
+}
+
 /** Stav výmlatu vsi pro upozornění a panel (production-chains.md – Humno). */
 export interface ThreshingStatus {
   /** Nevymlácené snopy – kg zrna obilí a luštěnin. */
@@ -634,8 +688,10 @@ export interface ThreshingStatus {
   /** Ves bez humna mlátí nouzově na udusané zemi (má snopy k výmlatu). */
   emergency: boolean;
   /**
-   * Výmlat nestihl okno, ač humno stálo celé okno, a ves mimo odklad mlátí jen na humnech – humno
-   * nestačí (humno postavené až po začátku okna se nepočítá – zpoždění je z pozdní stavby).
+   * Výmlat nestihl okno, ač humno stálo celé okno, a ruce výmlatu za den (`threshHands`) přetíží
+   * kapacitu humen – humno nestačí (humno postavené až po začátku okna se nepočítá – zpoždění je
+   * z pozdní stavby). S rukama pod kapacitou humen chybí ruce, ne humno: přebytek se od 21. 10. 2026
+   * mlátí nouzově, další humno by výmlat nezrychlilo (oprava 18. 11. 2026 – D95, Vlkov 896).
    */
   floorShort: boolean;
 }
@@ -659,6 +715,10 @@ export function threshingStatus(state: VillageState, day: number): ThreshingStat
     sheavesGrainKg: sheaves.grainKg,
     sheavesLegumesKg: sheaves.legumesKg,
     emergency: floors === 0 && work > EPSILON,
-    floorShort: floors > 0 && overdue,
+    // ruce jako výhled výmlatu (`sheafYields`) – bez údaje o rukou dost rukou
+    floorShort:
+      floors > 0 &&
+      overdue &&
+      (state.threshHands ?? Infinity) > floors * THRESHING.floorManDaysPerDay,
   };
 }

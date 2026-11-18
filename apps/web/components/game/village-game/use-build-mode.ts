@@ -458,6 +458,8 @@ export function useBuildMode({
             label: '',
           }),
           ...(item.variants ? { variants: item.variants, ...(variant ? { variant } : {}) } : {}),
+          // ohrada a hřbitov leží v ploše staveb – náhled ukáže zásah do cest
+          ...(kind === 'pen' || kind === 'cemetery' ? { blocks: kind } : {}),
           ...(item.rotatable
             ? {
                 rotatable: true,

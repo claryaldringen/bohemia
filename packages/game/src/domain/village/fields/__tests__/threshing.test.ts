@@ -4,7 +4,7 @@ import { foundVillage, type PartInput } from '../../core/actions';
 import { eatDiet } from '../../core/diet';
 import { fieldStoresKg, storesOutlook } from '../field-food';
 import { NO_CRAFTS, storageLossPerYear } from '../../core/productivity';
-import { STRAW, THRESHING } from '../../rules';
+import { STRAW, THRESHING, THRESH_CALIBRATION_FERTILITY } from '../../rules';
 import { advanceVillage } from '../../core/simulate';
 import { seedThreshKg } from '../seed';
 import {
@@ -25,14 +25,22 @@ import {
   villageSheaves,
   withThreshingGrace,
 } from '../threshing';
-import type { ChronicleEvent, VillageState } from '../../types';
+import type { ChronicleEvent, CropWork, FieldPart, VillageState } from '../../types';
 import { craftCoverage } from '../../crafts/crafts';
 import { ageGroup } from '../../people/people';
 import { harvestLaborPerDay } from '../../core/simulate-plan';
+import { migrateVillage } from '../../core/migrations';
+import { fieldWorkPerHa } from '../../core/productivity';
 import { threshingFloorHaulPoints } from '../threshing-floors';
 import { THRESHING_FLOOR_ENTRANCE_M } from '../../paths/entrances';
 import { withThreshingFloor } from '../../__tests__/village-fixtures';
-import { emptyTaskRecord, seasonCrop, springCrop } from '../../core/year-plan';
+import {
+  cropGrossPerHa,
+  emptyTaskRecord,
+  seasonCrop,
+  springCrop,
+  threshWorkForSheaves,
+} from '../../core/year-plan';
 
 // Snopy a výmlat (production-chains.md – Humno; fields.md – Pořadí důležitosti polních prací
 // a výmlat do zimy): sklizeň jde do snopů, výmlat je převádí do zásob – ozim a luštěniny od srpna,
@@ -139,6 +147,7 @@ describe('sklizeň jde do snopů', () => {
       grainKg: 800,
       legumesKg: 80,
       work: { winter: 4, spring: 6, legume: 2 },
+      byKg: true,
     });
     expect(s.storesKg).toBe(bare(at(600, 3, 15)).storesKg);
   });
@@ -697,6 +706,19 @@ describe('stav výmlatu pro upozornění', () => {
     });
     expect(threshingStatus(inWindow, at(601, 9, 5)).floorShort).toBe(false);
   });
+
+  it('humno nestačí, jen když ruce výmlatu humno přetíží – málo rukou humno nespraví (D95, Vlkov 896)', () => {
+    const sheaves = { grainKg: 4322, legumesKg: 0, work: { spring: 156 } };
+    // Vlkov 6. 3. 896: ruce výmlatu 4,6 čd za den, humno pro 12 – nouzově se nemlátilo nic
+    const few = {
+      ...withSheaves(at(602, 3, 5), sheaves, 1, undefined, at(600, 5, 1)),
+      threshHands: 4.6,
+    };
+    expect(threshingStatus(few, at(602, 3, 5)).floorShort).toBe(false);
+    // ruce nad kapacitu humna – přebytek se mlátil nouzově, další humno by pomohlo
+    const many = { ...few, threshHands: THRESHING.floorManDaysPerDay + 18 };
+    expect(threshingStatus(many, at(602, 3, 5)).floorShort).toBe(true);
+  });
 });
 
 describe('výmlat do zimy (fields.md – Pořadí důležitosti polních prací a výmlat do zimy)', () => {
@@ -735,5 +757,64 @@ describe('výmlat do zimy (fields.md – Pořadí důležitosti polních prací 
     expect(daily).toEqual(whole);
     // snopy vymlácené do konce února
     expect(villageSheaves(advanceVillage(start, at(601, 2, 28), null)).grainKg).toBe(0);
+  });
+});
+
+describe('práce výmlatu podle snopů (production-chains.md – Humno, Práce výmlatu podle snopů; D95)', () => {
+  // dva díly 1 a 2 ha, výmlat podle plánu 15 čd/ha (bez nástrojů), žeň hotová
+  const parts = [
+    { id: 1, areaM2: 10_000 },
+    { id: 2, areaM2: 20_000 },
+  ] as FieldPart[];
+  const work: CropWork = {
+    partIds: [1, 2],
+    required: { ...emptyTaskRecord(), harvest: 60, thresh: 45 },
+    done: { ...emptyTaskRecord(), harvest: 60 },
+    harvestedKg: null,
+  };
+  const typical = (crop: 'spring' | 'legume'): number =>
+    3 * cropGrossPerHa(crop, THRESH_CALIBRATION_FERTILITY);
+
+  it('běžná úroda (≈ 585 kg/ha) stojí stejně práce jako sazba na hektar, slabá úměrně méně', () => {
+    expect(cropGrossPerHa('spring', THRESH_CALIBRATION_FERTILITY)).toBeCloseTo(585, 0);
+    expect(threshWorkForSheaves(work, parts, 'spring', typical('spring'))).toBeCloseTo(45, 9);
+    // slabá úroda ≈ 330 kg/ha – výmlat o 44 % rychlejší
+    expect(threshWorkForSheaves(work, parts, 'spring', 3 * 330)).toBeCloseTo((45 * 330) / 585, 1);
+    expect(threshWorkForSheaves(work, parts, 'spring', typical('spring') / 2)).toBeCloseTo(22.5, 9);
+    // luštěniny – běžná úroda 0,8 obilí
+    expect(threshWorkForSheaves(work, parts, 'legume', typical('legume'))).toBeCloseTo(45, 9);
+  });
+
+  it('úroda bez práce výmlatu v plánu (výmlat hotový – starší stav) jde rovnou do zásob', () => {
+    const done = { ...work, done: { ...work.done, thresh: 45 } };
+    expect(threshWorkForSheaves(done, parts, 'spring', 1000)).toBe(0);
+  });
+});
+
+describe('převod uložených snopů na práci podle kg (production-chains.md – Humno, D95)', () => {
+  it('snopy s prací podle plochy dostanou práci podle kg – jednou, podruhé nic', () => {
+    const s = withSheaves(at(602, 3, 5), {
+      grainKg: 3000,
+      legumesKg: 0,
+      work: { winter: 60, spring: 90 },
+    });
+    const ctx = { obstacles: null, landscape: null };
+    const once = migrateVillage(s, ctx);
+    const perKg =
+      fieldWorkPerHa('thresh', craftCoverage(s, s.lastDay).tools, 'spring') /
+      cropGrossPerHa('spring', THRESH_CALIBRATION_FERTILITY);
+    const work = once.sheaves!.work!;
+    expect(once.sheaves!.byKg).toBe(true);
+    expect(once.sheaves!.grainKg).toBe(3000);
+    expect(work.winter! + work.spring!).toBeCloseTo(3000 * perKg, 9);
+    // poměr plodin zůstane
+    expect(work.winter! / work.spring!).toBeCloseTo(60 / 90, 9);
+    // podruhé nic – týž objekt; vstup se nemění
+    expect(migrateVillage(once, ctx)).toBe(once);
+    expect(s.sheaves!.byKg).toBeUndefined();
+    expect(s.sheaves!.work).toEqual({ winter: 60, spring: 90 });
+    // snopy bez práce se nepřevádějí (tvar stavu beze změny)
+    const empty = withSheaves(at(602, 3, 5), { grainKg: 0, legumesKg: 0 });
+    expect(migrateVillage(empty, ctx).sheaves).toEqual({ grainKg: 0, legumesKg: 0 });
   });
 });

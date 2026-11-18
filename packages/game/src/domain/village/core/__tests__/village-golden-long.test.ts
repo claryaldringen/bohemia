@@ -58,6 +58,10 @@ import { goldenWorld, stateFingerprint, YEAR } from './village-golden-fixture';
 // dřív 4d3b560d29b64956 a 10a4b9f7cd55317f
 const EXPECTED_YEAR_2 = 'ed829a5207034ab1';
 const EXPECTED_YEAR_3 = '0fc9dc69b6627550';
+// 18. 11. 2026 – D93 cesta přes plochu staveb; dřív 168010dd35f7c1c7 a a499594da5514b49 (viz
+// village-golden.test.ts)
+// 18. 11. 2026 – D95 výmlat (výmlat podle kg snopů, rod v zimě dorovná tempo okna – viz
+// village-golden.test.ts); dřív dea6984b000dcf8f a a1562c05b5f77eb7
 
 describe('zlatý otisk vsi – delší běh', () => {
   it('po 2. a 3. roce dopočtu dá zapsané otisky', () => {

@@ -20,7 +20,7 @@ import {
   workshopSideM,
   type Point,
 } from '@bohemia/game';
-import { scenePenSquares, type SceneVillage } from '../village-view';
+import { scenePenSquares, type ScenePlot, type SceneVillage } from '../village-view';
 
 type SceneDwelling = SceneVillage['dwellings'][number];
 
@@ -49,6 +49,14 @@ function turned(rotation: number | undefined): boolean {
   return (rotationTurn(rotation) ?? 1) % GRID_TURNS !== 0;
 }
 
+/**
+ * Pozemek nezabírá přesně své políčko (`ScenePlot.free` – natočený, nebo se středem mimo střed
+ * políčka, D96): díly polí a čtverce sadů pod ním ubydou jen zčásti. Bez údaje podle natočení.
+ */
+function freePlot(plot: Pick<ScenePlot, 'rotation' | 'free'>): boolean {
+  return plot.free ?? turned(plot.rotation);
+}
+
 /** Čtverec stavby (střed, strana, natočení) jako vyklízená plocha. */
 function squareClearing(square: {
   x: number;
@@ -70,7 +78,7 @@ function squareClearing(square: {
 export function buildingClearings(dwellings: readonly SceneDwelling[]): Clearing[] {
   return dwellings.flatMap((d) =>
     d.plot
-      ? turned(d.plot.rotation)
+      ? freePlot(d.plot)
         ? [squareClearing(d.plot)]
         : []
       : freeDwellingClearings(
@@ -197,7 +205,7 @@ export function fieldClearings(
     ...(village.cemeteries ?? []).flatMap((c) => partly(c.squares)),
     ...(village.pens ?? []).flatMap((p) => partly(scenePenSquares(p))),
     ...(turnedFields
-      ? village.dwellings.flatMap((d) => (d.plot && !turned(d.plot.rotation) ? [d.plot] : []))
+      ? village.dwellings.flatMap((d) => (d.plot && !freePlot(d.plot) ? [d.plot] : []))
       : []),
   ];
   return [

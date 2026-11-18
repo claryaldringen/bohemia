@@ -801,6 +801,10 @@ souvislých blocích a pásech v ose s delší brázdou (po blocích, i sever �
 rádlem 8,3 (Jeden rozsévač za spřežením výš). Dřív 10 čd/ha (celkem 163 (100)); do 10. 11. 2026
 sklizeň 20 (15) a odnos 10 – celkem 156 (93).
 
+Výmlat 15 (10) čd/ha platí pro běžnou úrodu ≈ 585 kg/ha; od 18. 11. 2026 stojí výmlat podle kg
+snopů – slabší úroda se vymlátí rychleji ([production-chains.md](production-chains.md) – Humno,
+Práce výmlatu podle snopů; Martin 18. 11. 2026 – volba C).
+
 Ozim a jař se liší kalendářem (viz Ozim a jař) a pletím – ozim se neplete (Pletí jednou a rychle);
 ostatní sazby práce, osivo a úroda jsou stejné. Žeň ozimu (i luštěnin a lnu) jde v červenci, co
 červenec nestihne, v srpnu, a mlátí se hned po žni – červencová v srpnu, srpnová v září (Žně
@@ -1212,7 +1216,8 @@ První sezónu po vymýcení lesa se díl **neplete** (viz Úroda).
   nouzově). Nová ves odklad nemá – mlátí, až hráč postaví humno (upozornění „Před žněmi postav
   humno“ 90 dní před žní, „Snopy čekají na humno“ po ní – obě i při prvním pohledu na ves a z jiné
   vsi, snopy v horní liště; nouzový výmlat „Mlátí se na udusané zemi – postav humno“; humno
-  nestačí „Humno nestačí na výmlat“ – jen když humno stálo celé okno výmlatu). Výhled jídla, plán
+  nestačí „Humno nestačí na výmlat“ – jen když humno stálo celé okno výmlatu a ruce výmlatu ho
+  přetíží – od 18. 11. 2026, production-chains.md – Humno). Výhled jídla, plán
   osevu a dobré zásoby (štěstí) počítají snopy jako zrno, jen když je smí vymlátit (humno nebo
   odklad), se ztrátami (nouzově o 10 % méně – podíl mimo humna po druzích snopů v pořadí výmlatu
   dne; oprava, návrh Clauda 2. 11. 2026, production-chains.md – Humno; „pomalé humno“ od 21. 10. 2026 neplatí – přebytek nad kapacitu humen se mlátí hned nouzově) a s rukama vsi do

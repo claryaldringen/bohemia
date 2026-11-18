@@ -212,7 +212,17 @@ cesty, půda)`; graf a půda (`walkGroundOf` + `withFieldWalk` – pole v `Villa
   jejichž id úklid nepohltil; po úklidu a křižovatkách měsíce dostane konce cesty hráče a roky
   chůze (`noteFormedRoads`, `roadFormedNote` v `paths/road-chronicle.ts` – web-ui.md, Panel
   Kronika; křižovatka na konci stáří neurčí, rozhodnou trasy po cestě – `routeWalkedSince`,
-  `ROAD_WALKED.share`, `RoadEndsNetwork.cellM`). `formWearRuns` (`formRoadsFromWear` je obálka pro testy): body čáry po
+  `ROAD_WALKED.share`, `RoadEndsNetwork.cellM`; trasy s `trips` 0 se přeskočí; roky nejvýš
+  `treadDays` z posledního provozu úseku `Road.traffic` – `paths/wear.ts`, D93; cesta z vyšlapanosti – id z `roadsMonthRunSteps` do `noteFormedRoads(…, trodden)` – nejvýš jako při `WEAR.formFrom`, i s mediánem provozu pod ním). **Plocha staveb
+  (D93)**: `roadsMonthRunSteps` předá `wearRoadDue` i `formRoadsKept` → `formWearRuns` plochu
+  `villageBlockedAt` (líně – `lazyBuildingArea`, táž jako u `abandonBlockedStretches`); kus,
+  jehož osa (`wearAxis` – `plannedAxis` s `building`) vede ≥ `BLOCK_MIN_RUN_M` plochou staveb,
+  nevznikne ani se nehlásí. `joinTarget(roads, from, reach, building)`: přichycení do konce či
+  křižovatky (`snapTarget` – `END_SNAP_M`, `junctionSnap`), které by vedlo plochou ≥ mez, se
+  nahradí nejbližším bodem osy (`hit` – rozdělení), vede-li odtud plochou méně a leží-li aspoň
+  `JOIN_AROUND_MIN_M` (`roads-geometry.ts`) od přichycení; bez `building` (cesty k vchodům, `roads-trails.ts`,
+  `roads-rebuild.ts`) beze změny. Testy `road-gate.test.ts` (D93), `road-form-wear.test.ts`
+  (`roadsMonth` ve dvou měsících), `road-chronicle.test.ts`. `formWearRuns` (`formRoadsFromWear` je obálka pro testy): body čáry po
   `SAMPLE_M`, vyšlapanost `wearAt`; kus od `WEAR.roadAt` dál než `ON_ROAD_M` od pevné cesty se
   prodlouží po čáře oběma směry, dokud je aspoň `WEAR.extendFrom`; vznikne jen, když je každý konec
   u kotvy (`nearAnchor`) nebo u pevné cesty (připojí se do `ATTACH_M` – `joinPoint`, rozcestí
@@ -790,7 +800,21 @@ cellM)` (`road-condition.ts`, index buněk tras v `WeakMap` podle pole tras) –
   (`junctionArm`, od 1. 11. 2026). **Opuštěný úsek** provoz nedostane nikdy (ani jízdy vozů) – bledne
   podle druhu. Kus pod hotovou stavbou: `capUnderBuilding` z `abandonBlockedStretches` (každý měsíc
   pro všechny opuštěné; kus osy s během ≥ `BLOCK_MIN_RUN_M` v neprůchodné ploše) – stav nejvýš
-  `keep × ROAD_TRAFFIC.underBuildingDays` (330), zmizí do roka. Nezarůstá zemská stezka, cesta ve
+  `keep × ROAD_TRAFFIC.underBuildingDays` (330), zmizí do roka. **Náhled zásahu u kurzoru**
+  (paths.md – Stavba přes cestu, Náhled u kurzoru; D96 – Martin 18. 11. 2026): `underBuilding`
+  v `roads-overgrow.ts` (vzorky po 1 m a běhy pod `BLOCK_MIN_RUN_M` pryč) sdílí pravidlo
+  `abandonBlockedStretches` i `stretchesUnderBuilding` (kusy živých cest pod stavbou, bez
+  opuštěných a cest ve vylepšení – `frozen`); plochu jedné plánované stavby dává `plannedBlockedAt`
+  (`planned-blocked.ts` – `PlannedBuilding`: obydlí s pozemkem i volné a dílna jako hotová stavba
+  i staveniště, modla, svatyně, humno, ohrada, hřbitov) přes `gridBlockedAt` (`paths/village.ts`,
+  táž mřížka jako `villageBlockedAt` v okně na mřížce krajiny); mřížka se staví líně až pro první
+  bod osy v okně stavby (cesty daleko od kurzoru terén nepočítají – první terén krajiny 128 ×
+  128 ≈ 160 ms, další pohyb kurzoru pod 1 ms i se 40 cestami po 600 m). Prohlížeč:
+  `roadsUnderPlanned` v `apps/web/lib/scene/placement-hints.ts` (cesty `SceneVillage.roads`,
+  vylepšení = `SceneRoad.upgrade`, minulý výsledek pro stejný vstup), `PlacementController`
+  kreslí kusy žlutým pásem (`ROAD_HINT_WIDTH_M`) a k varování u kurzoru připojí
+  `ROAD_CUT_WARNING` (`road-cut.ts` – „Cesta se přeruší“), e2e háček `roadHints`; ohrada
+  a hřbitov totéž ve `FieldPainter` (`PlacementMode.blocks`). Nezarůstá zemská stezka, cesta ve
   vylepšení (`fixedRoadIds`) a cesta, jejíž konec leží do `ROAD_ANCHORS.entranceM` od vchodu
   (kotva `entrance` z tras – ke stavbě se chodí; bez pole `Road.access`). **Zánik v `roadsMonth`**
   (1. dne v měsíci, po `settleVillageWear`, **před** vznikem `formRoadsKept`): `cutDeadRoads`

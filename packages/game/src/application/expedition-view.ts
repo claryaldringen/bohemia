@@ -2,6 +2,7 @@ import type { GridCell } from '../domain/village/people/world-grid';
 import { sameCell } from '../domain/village/people/world-grid';
 import { ageGroupOf } from '../domain/village/people/people';
 import {
+  groupSetOut,
   mergeKnowledge,
   partyLeader,
   upgradeJourney,
@@ -33,7 +34,18 @@ export interface PartyView {
   waitDaysLeft: number | null;
   /** Probíhající osedlání nebo sesednutí. */
   horseWork: HorseWork | null;
-  groups: { id: number; cell: GridCell; pos: Pos; goal: CampaignPlace | null; arrived: boolean }[];
+  groups: {
+    id: number;
+    cell: GridCell;
+    pos: Pos;
+    goal: CampaignPlace | null;
+    arrived: boolean;
+    /**
+     * Kde a v kterém taktu hlouček naposledy stál, než vyrazil po současném úseku (`groupSetOut`) –
+     * scéna podle něj ví, kdy se stojící hlouček rozjel; stojí – chybí.
+     */
+    setOut?: { tick: number; pos: Pos };
+  }[];
   people: {
     personId: number;
     /** Hlouček (`groups[].id`), ve kterém člověk je. */
@@ -105,13 +117,17 @@ function partyView(deps: JourneyReadDeps, state: JourneyState, party: JourneyPar
     leaderId: partyLeader(people)?.ref.personId ?? null,
     waitDaysLeft: waitDaysLeft(state, party, deps.world),
     horseWork: party.horseWork ? structuredClone(party.horseWork) : null,
-    groups: groups.map((g) => ({
-      id: g.id,
-      cell: { ...g.cell },
-      pos: { ...g.pos },
-      goal: g.goal ? structuredClone(g.goal) : null,
-      arrived: g.arrived,
-    })),
+    groups: groups.map((g) => {
+      const setOut = groupSetOut(state, g);
+      return {
+        id: g.id,
+        cell: { ...g.cell },
+        pos: { ...g.pos },
+        goal: g.goal ? structuredClone(g.goal) : null,
+        arrived: g.arrived,
+        ...(setOut ? { setOut } : {}),
+      };
+    }),
     people: people.map((m) => personView(m, state.day)),
   };
 }

@@ -8,7 +8,9 @@ import { sendAway } from '../domain/vassalage';
 import {
   continuationsOf,
   expeditionRecruit,
+  inManorArea,
   INTENT_LEAD_TICKS,
+  manorArea,
   marchGrid,
   newJourney,
   partyLeader,
@@ -106,22 +108,25 @@ const MAX_PEOPLE = 200;
 /**
  * Rozkaz lidem, kteří už ve výpravě jsou – záměr na takt teď + `INTENT_LEAD_TICKS` bez zámku
  * a bez zápisu do vsi (Rozhodnutí 11). Je-li ve výběru někdo, kdo by šel ze vsi (rekrut), nezapíše
- * nic a vrátí `recruits` – volající pak pod zámkem hráče zavolá `musterExpedition`. Nezpůsobilí
- * z výběru vypadnou; nemůže-li nikdo, důvod prvního z nich (jinak `nobody`).
+ * nic a vrátí `recruits` – volající pak pod zámkem hráče zavolá `musterExpedition`. Výjimka:
+ * „Jdi sem“ do dvorce domovské vsi je pro členy Domů a rekruti z výběru vypadnou – zůstanou doma
+ * (`homeByManor`). Nezpůsobilí z výběru vypadnou; nemůže-li nikdo, důvod prvního z nich (jinak
+ * `nobody`).
  */
 export async function commandParty(
   deps: ExpeditionDeps,
   input: ExpeditionInput,
 ): Promise<ExpeditionResult | { ok: false; reason: 'recruits' }> {
-  const picked = await select(deps, input);
-  if (!picked.ok) return picked;
+  const selected = await select(deps, input);
+  if (!selected.ok) return selected;
+  const { asked, picked } = await homeByManor(deps, input, selected);
   if (picked.chosen.recruits.length > 0) return { ok: false, reason: 'recruits' };
   // jen členové – výprava běží a domov je její
   const plan: Plan = { ...picked, home: picked.situation.journey!.home, houseId: null };
-  const refusal = await verify(deps, input, plan);
+  const refusal = await verify(deps, asked, plan);
   if (refusal !== null) return { ok: false, reason: refusal };
   const { journeyId, journey } = plan.situation;
-  const queued = await queue(deps, input, journeyId!, journey!.tick, memberIds(plan.chosen));
+  const queued = await queue(deps, asked, journeyId!, journey!.tick, memberIds(plan.chosen));
   return queued ? journeyOk(journeyId!) : NOBODY;
 }
 
@@ -144,16 +149,48 @@ export async function musterExpedition(
   input: ExpeditionInput,
 ): Promise<ExpeditionResult> {
   for (let attempt = 0; attempt < 2; attempt++) {
-    const picked = await select(deps, input);
-    if (!picked.ok) return picked;
-    const plan = await homeOf(deps, input, picked);
+    const selected = await select(deps, input);
+    if (!selected.ok) return selected;
+    const { asked, picked } = await homeByManor(deps, input, selected);
+    const plan = await homeOf(deps, asked, picked);
     if (!plan.ok) return plan;
-    const refusal = await verify(deps, input, plan);
+    const refusal = await verify(deps, asked, plan);
     if (refusal !== null) return { ok: false, reason: refusal };
-    const done = await carryOut(deps, input, plan);
+    const done = await carryOut(deps, asked, plan);
     if (done !== 'ended') return done;
   }
   return NOBODY;
+}
+
+/**
+ * „Jdi sem“ do dvorce domovské vsi (dům, pozemek i dvůr – `manorArea`) je pro lidi výpravy Domů
+ * (lord-control.md – Rozkazy; Martin 18. 11. 2026 o knížeti: „když mám knížete označeného a pošlu
+ * ho do dvorce, tak je to pro něj ten stejný příkaz jako návrat domů“; pro ostatní lidi výpravy
+ * návrh Clauda). Lidé ze vsi ve výběru zůstanou doma – doma už jsou (návrh Clauda); výběr bez
+ * lidí výpravy jde do dvorce jako dřív. Bez políčka rozkazu platí mapa vůdce výběru (jako
+ * `verifyOrder`). Vrací vstup, se kterým se pokračuje (`asked` – příkaz Domů místo „Jdi sem“),
+ * a výběr.
+ */
+async function homeByManor(
+  deps: ExpeditionDeps,
+  input: ExpeditionInput,
+  picked: Picked,
+): Promise<{ asked: ExpeditionInput; picked: Picked }> {
+  const same = { asked: input, picked };
+  const { command } = input;
+  const { journey, own } = picked.situation;
+  const { members } = picked.chosen;
+  const leader = partyLeader(members);
+  if (command.kind !== 'order' || command.order.kind !== 'go' || !journey || !leader) return same;
+  const cell = command.order.cell ?? journey.groups.find((g) => g.id === leader.group)!.cell;
+  if (!sameCell(cell, journey.home.cell)) return same;
+  const map = await mapOn(deps, picked.maps, cell);
+  const area = manorArea(own.village.state, map.landscape);
+  if (!area || !inManorArea(area, command.order.pos)) return same;
+  return {
+    asked: { ...input, command: { kind: 'order', order: { kind: 'home' } } },
+    picked: { ...picked, chosen: { members, recruits: [] } },
+  };
 }
 
 const NOBODY = { ok: false, reason: 'nobody' } as const;

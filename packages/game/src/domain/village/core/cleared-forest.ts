@@ -8,6 +8,7 @@ import {
 import { forestClearingsOf } from '../placement/placement-land';
 import type { Point } from '../placement/polygon';
 import {
+  plotSquareTile,
   rotatedSquareCorners,
   rotationCosSin,
   rotationTurn,
@@ -141,6 +142,22 @@ export function turnedSquare(rotation: number | undefined): boolean {
   return turn === null || turn % 24 !== 0;
 }
 
+/**
+ * Paseka pod pozemkem (`ClearingDwelling.plot`): čtverec, který nezabírá přesně políčko – natočený
+ * (`turnedSquare`, i po 90° jako dřív), nebo bez natočení se středem mimo střed políčka (18. 11.
+ * 2026 – D96; dřív se pozemek bez natočení přichytil na políčko). Pozemek na políčku nic.
+ */
+function plotClearing(
+  l: Landscape,
+  plot: NonNullable<ClearingDwelling['plot']>,
+): (readonly Point[])[] {
+  const rotation = plot.rotation;
+  if (rotation === undefined) return [];
+  const free =
+    turnedSquare(rotation) || plotSquareTile(l, { x: plot.x, z: plot.z, rotation }) === null;
+  return free ? [rotatedSquareCorners(plot.x, plot.z, plot.size, rotation)] : [];
+}
+
 /** Čtverec pole (střed ve světě, strana, natočení) a stadium – vstup `clearedForestOf`. */
 export interface ClearingPart {
   cell: TileCell;
@@ -160,8 +177,10 @@ export interface ClearingDwelling {
   craft?: Craft;
   plainShape?: true;
   /**
-   * Obydlí s pozemkem: jen natočený čtverec pozemku (jinak pozemek pasekou není – leží na dílu
-   * pole nebo na louce); bez údaje obydlí bez pozemku.
+   * Obydlí s pozemkem: čtverec pozemku (`rotation` jen u pozemku se čtvercem –
+   * `DwellingPlot.square`). Paseku tvoří, jen když nezabírá přesně políčko (`plotClearing` –
+   * natočený, nebo bez natočení se středem mimo střed políčka, D96); pozemek na políčku pasekou
+   * není (les políčka se vykácí celý). Bez údaje obydlí bez pozemku.
    */
   plot?: { x: number; z: number; size: number; rotation?: number } | null;
 }
@@ -220,9 +239,7 @@ export function clearedForestOf(
   const areas: (readonly Point[])[] = [
     ...sources.dwellings.flatMap((d): (readonly Point[])[] =>
       d.plot
-        ? turnedSquare(d.plot.rotation)
-          ? [rotatedSquareCorners(d.plot.x, d.plot.z, d.plot.size, d.plot.rotation!)]
-          : []
+        ? plotClearing(l, d.plot)
         : forestClearingsOf({
             type: d.type,
             position: d.position,

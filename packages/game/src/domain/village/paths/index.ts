@@ -25,3 +25,4 @@ export * from './roads-repair';
 export * from './wear';
 export * from './route-paths';
 export * from './junctions';
+export * from './planned-blocked';

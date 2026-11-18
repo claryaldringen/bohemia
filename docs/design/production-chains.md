@@ -211,7 +211,21 @@ Beze změny (milíř u buků – crafts.md); nošení uhlí ke kováři je dnes 
   té plodiny (humno postavené pozdě nestačí na zpoždění, ne na úrodu). Snopy, které se v okně
   výmlatu právě mlátí, čekají na řadu bez ztráty. Zpožděný výmlat dobíhá na podzim a v zimě
   (září–únor) mezi pracemi jako výmlat v okně, na jaře a v létě (březen–srpen) až po všech
-  ostatních pracích – zbytky nepředběhnou setí ani žeň.
+  ostatních pracích – zbytky nepředběhnou setí ani žeň. **Oprava (návrh Clauda 18. 11. 2026):**
+  upozornění „Humno nestačí“ (i další humno od správce) jen tehdy, když ruce výmlatu za den
+  (práce vsi ve žních – výhled jídla) přetíží kapacitu humen. Od 21. 10. 2026 se přebytek nad humna
+  mlátí vždy nouzově, takže výmlat, který okno nestihl pro málo rukou, další humno nespraví
+  (Vlkov 896: ruce 3,5–6,5 čd denně na humně pro 12 – dřív hlásil, že humno nestačí).
+- **Kdo mlátí:** ves po všech pracích dne; v zimě dorovná rod vojvody, co by ves do konce okna
+  nestihla ([vojvoda](lord.md) – Kdy jde rodina na pole, Výmlat v zimě; Martin 18. 11. 2026).
+- **Práce výmlatu podle snopů** (Martin 18. 11. 2026 – volba C z rozboru Vlkova: „A, C, E“;
+  kalibrace návrh Clauda): výmlat stojí podle **kg snopů**, ne podle plochy. Sazba na hektar
+  (výmlat obilí 15 (10) čd/ha, luštěnin 10 (6) – [pole](fields.md) – Práce) platí pro **běžnou
+  úrodu**: hrubou úrodu při úrodnosti 61,6 – průměr tří let osevu čerstvého dílu s přirozenou
+  úrodností 70 (aktuální ≈ 88 %, pole – Úroda), tj. obilí ≈ 585 kg/ha (39 (58) kg zrna na čd),
+  luštěniny ≈ 468 kg/ha. Úroda pod běžnou se vymlátí úměrně rychleji, nad ní pomaleji (Vlkov – žeň
+  895 9,5 t: 237 čd výmlatu místo 332, tj. 40 místo 28 kg zrna na čd). Příplatek za vzdálenost dílu
+  a deštivé léto (+20 %) zůstávají.
 - **Odchod do nové vsi** (migration.md): snopy, které ves smí vymlátit, se dělí jako zásoby –
   odcházející si vezmou svůj díl (vymlácený), ve vsi zůstane poměrný díl snopů i práce výmlatu.
 - **Nošení** (návrh Clauda): práce výmlatu má v rozdělení práce dne cíl humno – k němu vede

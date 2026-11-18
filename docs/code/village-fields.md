@@ -632,6 +632,16 @@ double)` je dvojklikem rozšíří na celé pole / sad (`wholeTarget`; první kl
   rešerše – Výmlat na humně): `threshing.ts`. Sklizeň jde do snopů `VillageState.sheaves`
   (`Sheaves` – kg zrna obilí a luštěnin a zbývající práce výmlatu po plodinách `work` – sklizená
   část práce `thresh` plánu; `addSheaves` v `harvestWinter` / `harvest`), ne do `storesKg`.
+  **Práce výmlatu podle snopů** (production-chains.md – Humno, Práce výmlatu podle snopů; Martin 18. 11. 2026 – D95, volba C): `sheaveCrop` dá snopům `threshWorkForSheaves` (`year-plan.ts`) –
+  sazba plánu na hektar (`required.thresh` ÷ plocha `partIds`) × kg snopů ÷ běžná úroda
+  (`cropGrossPerHa` při `THRESH_CALIBRATION_FERTILITY` 61,6 ≈ 585 kg/ha obilí); výmlat hotový v plánu
+  (`threshRemainingAfter` 0) 0, plán bez ploch sazbu na hektar. Snopy s prací podle kg nesou
+  `Sheaves.byKg` (jen dokud práce zbývá – `withWork`); snopy uložené dřív přepočte převod
+  `sheaf-work-by-kg` (`convertSheafWorkByKg` – kg × sazba na ha s nástroji dne ÷ běžná úroda,
+  poměr plodin zůstane; vzdálenost dílu a deštivé léto se z uložené práce nezjistí). Výhled jídla
+  (`sheafYields`) pomoc rodiny ve výmlatu v zimě nezná – počítá jen ruce vsi (`threshHands`).
+  `floorShort` stojí na `threshHands` žňového dne, který ruce v zimě přeceňuje; robustnější by bylo
+  zapsat skutečný nouzový výmlat nad kapacitu humen (na později).
   Okna `thresh` (fields.md – Pořadí důležitosti polních prací a výmlat do zimy): ozim a luštěniny
   srpen–únor, jař září–únor – dva úseky přes konec roku; `threshWindowLast` spojí úsek do prosince
   s lednovým, `threshWindowDaysLeft` počítá do konce února; `threshTasks` (úlohy dne v `work()` –
@@ -685,7 +695,9 @@ double)` je dvojklikem rozšíří na celé pole / sad (`wholeTarget`; první kl
   po sklizni nesmí mlátit), „Snopy čekají na humno“ (`waiting`) – obě i při prvním pohledu
   a přepnutí vsi (`FIRST_LOOK_NOTICES` v `newNotices`) a z jiné vsi (`VillageListItem.threshing`,
   `otherVillageNotices`) –, „Mlátí se na udusané zemi – postav humno“ (`emergency`), „Humno
-  nestačí na výmlat“ (`floorShort` – výmlat po okně plodiny, jejíž celé okno humno stálo). Horní
+  nestačí na výmlat“ (`floorShort` – výmlat po okně plodiny, jejíž celé okno humno stálo, a ruce
+  výmlatu `threshHands` nad kapacitou humen; bez údaje o rukou dost rukou – D95, oprava 18. 11.
+  2026: s málo rukama humno nestačí nehlásí a správce kvůli tomu další humno nestaví). Horní
   lišta: snopy s kg zrna (`resources/sheaves.png`, `icons.py sheaves`; do červena při `waiting`).
   Scéna výmlatu je úloha 5 plánu.
 - **Obilné jámy** ([production-chains.md](../design/production-chains.md) – Obilné jámy, úloha 3;
