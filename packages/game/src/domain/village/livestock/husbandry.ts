@@ -34,7 +34,7 @@ import {
 } from './hay';
 import { cowsComing } from '../trade/cattle-trade';
 import { foodCosts, type FoodCosts } from './economy';
-import { herdingCoverage } from './herding';
+import { winterHerdingCoverage } from './herding';
 import { horsesDay } from './horse-breeding';
 import { horsesHaySlaughter, horsesWinterEnd } from './horse-feed';
 import { looseHorsesDay } from './horse-stock';
@@ -345,7 +345,9 @@ function farmInput(
     minSheep: woolSheep(state, day),
     // zimní krmení: krávy k obnově volů, pak ovce na vlnu (diet.md – Zima bez sena)
     oxenCows: oxenRenewalCows(state),
-    herding: herdingCoverage(state),
+    // podíl pasáků ze stáda i s kusy z letní porážky – odhad zimy počítá se stádem i s nimi
+    // (`winterKeepTargets`; diet.md – Strava po vrstvách a porážka celý rok)
+    herding: winterHerdingCoverage(state),
     ...(toolCoverage !== undefined ? { costs: villageFoodCosts(state, day, toolCoverage) } : {}),
     // místa na noc – ohrady svého druhu a pár kusů u domů (oxen.md – Ohrady podle druhu); po
     // ročním odkladu (nová ves, převod)

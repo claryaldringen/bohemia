@@ -4,7 +4,7 @@
 // Maso se jí čerstvé (bez práce porážky). Bez náhody: ubývá biomasa ryb a zajíci, nejvýš do roční
 // kvóty podle přírůstku.
 
-import { dateOfDayIndex } from '../../calendar';
+import { dateOfDayIndex, dayIndexOf, isLeapYear, monthLength } from '../../calendar';
 import { foxCount } from './fox-eggs';
 import { addWildFurs } from '../wares/wares';
 import { SMALL_GAME, WILDLIFE_CAPS, WILDLIFE_YEAR } from '../rules/rules-wildlife';
@@ -135,6 +135,57 @@ export function smallGameCapacity(state: VillageState, day: number): number {
       ? catchable(state, 'fish')
       : catchable(state, 'hares') || catchable(state, 'foxes');
   return can ? pools(state) * SMALL_GAME.maxPerPool : 0;
+}
+
+/** Dny rybářské sezóny (SMALL_GAME.fish – duben až listopad) od dne `from` do `to` včetně. */
+function fishSeasonDays(from: number, to: number): number {
+  if (to < from) return 0;
+  const { fromMonth, toMonth } = SMALL_GAME.fish;
+  let days = 0;
+  for (let year = dateOfDayIndex(from).year; year <= dateOfDayIndex(to).year; year++) {
+    const first = dayIndexOf({ year, month: fromMonth, day: 1 });
+    const last = dayIndexOf({ year, month: toMonth, day: monthLength(year, toMonth) });
+    days += Math.max(0, Math.min(to, last) - Math.max(from, first) + 1);
+  }
+  return days;
+}
+
+/**
+ * Ryby, které ves ještě chytí od zítřka do konce výhledu do sklizně (kg masa – diet.md, Strava po
+ * vrstvách a porážka celý rok, Výhled do sklizně; návrh Clauda): letošní průměrný úlovek na den
+ * rybářské sezóny × rybářské dny od zítřka do konce výhledu (`daysToHarvest` – dnešek je první
+ * den výhledu), nejvýš zbytek letošní kvóty ryb (i nad polovinou stropu – co ves smí chytit),
+ * jedlý podíl jako u dnešního úlovku (SMALL_GAME.fish.edible). Letos = rok kvóty od 1. 5.
+ * (WILDLIFE_YEAR – úlovek roku `SmallGameState.year`) a letošní sezóna ryb, nejdéle do 30. 11.;
+ * kvóta příštího roku se nepočítá (opatrně – v dubnu jen do 30. 4.). Mimo sezónu ryb (prosinec
+ * až březen) a bez letošního úlovku 0. Dnešní úlovek je v čerstvém mase dne, tady ne.
+ */
+export function fishAheadKg(state: VillageState, day: number, daysToHarvest: number): number {
+  const w = state.wildlife;
+  const caught = w?.smallGame?.year.fishKg ?? 0;
+  if (!w || kindOf(day) !== 'fish' || caught <= EPSILON) return 0;
+  const { stock, cap } = stockOf(state, 'fish');
+  const left = Math.min(quotaLeft(state, 'fish'), stock - cap * SMALL_GAME.minStockShare);
+  if (left <= EPSILON) return 0;
+  const { year } = dateOfDayIndex(day);
+  // rok kvóty od 1. 5. – v dubnu ještě loňský (od loňského 1. 5., do 30. 4.)
+  const may = dayIndexOf({ year, month: WILDLIFE_YEAR.month, day: WILDLIFE_YEAR.day });
+  const before = day < may;
+  const quotaStart = before ? Math.max(0, may - 365 - (isLeapYear(year) ? 1 : 0)) : may;
+  const seasonEnd = dayIndexOf({
+    year,
+    month: SMALL_GAME.fish.toMonth,
+    day: monthLength(year, SMALL_GAME.fish.toMonth),
+  });
+  const last = Math.min(
+    day + Math.max(1, daysToHarvest) - 1,
+    seasonEnd,
+    before ? may - 1 : seasonEnd,
+  );
+  const ahead = fishSeasonDays(day + 1, last);
+  if (ahead <= 0) return 0;
+  const perDay = caught / Math.max(1, fishSeasonDays(quotaStart, day));
+  return Math.min(left, perDay * ahead) * SMALL_GAME.fish.edible;
 }
 
 function ensureState(w: NonNullable<VillageState['wildlife']>): SmallGameState {

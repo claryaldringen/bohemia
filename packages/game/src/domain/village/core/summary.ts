@@ -51,7 +51,7 @@ import {
   type HappinessFactors,
 } from '../people/happiness';
 import { dailyMilk, dairyDams, villageCheeseKg, yearlyMilk } from '../livestock/dairy';
-import { villageMeal, villageMeatKg } from './diet';
+import { meatEnergy, villageMeal, villageMeatKg } from './diet';
 import { dietHappiness, tierMeal, type DietHappiness } from './tier-meal';
 import { hungerSplit } from '../people/hunger-groups';
 import { foodLastsDays } from './food-lasts';
@@ -71,6 +71,7 @@ import {
   type WinterInput,
 } from '../livestock/livestock';
 import { freshMeatAheadEnergy, summerSlaughterPlan } from '../livestock/summer-slaughter';
+import { fishAheadKg } from '../wildlife/small-game';
 import {
   ableTeams,
   isTrained,
@@ -634,6 +635,8 @@ function nextDayDiet(state: VillageState, day: number): { diet: DietDay; points:
     meatKg:
       winterSlaughterTodayKg(state, next) + (summerSlaughterPlan(state, next, winter)?.kg ?? 0),
     meatAheadEnergy: (daysToHarvest) => freshMeatAheadEnergy(state, next, daysToHarvest, winter),
+    // ryby od pozítří do sklizně, nejvýš do kvóty – jako simulace (diet.md – Výhled do sklizně)
+    fishAheadEnergy: (daysToHarvest) => meatEnergy(fishAheadKg(state, next, daysToHarvest)),
   });
   const split = hungerSplit(state, next);
   return { diet: meal.diet, points: dietHappiness(tierMeal(split, meal.eaten), split.eaters) };

@@ -7,6 +7,7 @@ import { WILDLIFE_LAND } from '../../rules/rules-wildlife';
 import { freshWildlife } from '../../wildlife/wildlife';
 import { advanceVillage } from '../../core/simulate';
 import { summerWinterInput } from '../husbandry';
+import { herdingCoverage, herdingDay, recordHerding } from '../herding';
 import {
   LIVESTOCK,
   slaughter,
@@ -179,6 +180,44 @@ describe('letní porážka pro rod vojvody', () => {
     );
     expect(s.livestock!.summerSlaughtered?.goat ?? 0).toBeGreaterThan(0);
     expect(winterKeepTargets(s, end, input(end)).goat).toBeCloseTo(keepFirst.goat, 9);
+  });
+
+  it('podíl pasáků z pasení den po dni – s letní porážkou i bez ní stejné stádo přes zimu', () => {
+    // jeden výrostek letos (pasáci nestačí – podíl < 1), příští léto sedm (místo pro mláďata
+    // neváže); pasení se zapisuje den po dni ze stáda i s kusy z letní porážky (`herdingDay`)
+    const april = at(601, 4, 1);
+    const end = at(601, 10, 31);
+    const run = (every: number | null): { keep: number; taken: number; coverage: number } => {
+      const s = village(april);
+      s.people = s.people.filter(
+        (p) => april - p.bornDay >= 14 * 365.25 || april - p.bornDay < 5 * 365.25,
+      );
+      addChildren(s, [12.5, 6, 6, 6.1, 6.1, 6.2, 6.2]);
+      s.livestock!.herds = herds({ goat: 80 });
+      s.livestock!.young = herds({});
+      delete s.livestock!.herding;
+      for (let d = april; d <= end; d++) {
+        recordHerding(s, herdingDay(s, d, 0));
+        if (every === null) continue;
+        // rodu chybí maso každý `every`-tý den
+        s.meatKg = (d - april) % every === 0 ? 0 : 10_000;
+        delete s.freshMeatKg;
+        summerSlaughterDay(s, d, () => summerWinterInput(s, d));
+      }
+      return {
+        keep: winterKeepTargets(s, end, summerWinterInput(s, end)).goat,
+        taken: s.livestock!.summerSlaughtered?.goat ?? 0,
+        coverage: herdingCoverage(s),
+      };
+    };
+    const off = run(null);
+    expect(off.coverage).toBeLessThan(0.6);
+    for (const every of [1, 3, 7]) {
+      const on = run(every);
+      expect(on.taken).toBeGreaterThan(0);
+      // dřív podíl dnešního (menšího) stáda na stádo i s letními kusy – přes zimu o 25 % víc koz
+      expect(Math.abs(on.keep - off.keep)).toBeLessThanOrEqual(0.02 * off.keep);
+    }
   });
 
   it('práce letní porážky 31. 10. se dodělá s porážkou 1. 11.', () => {

@@ -119,8 +119,10 @@ describe('jídlo po vrstvách – čím se příděl naplní', () => {
     expect(meal.eaten[3]!.grainKg).toBeCloseTo(7, 12);
   });
 
-  it('pořadí po vrstvách: mléko, vejce, čerstvé maso, uzené, sýr, luštěniny, obilí, med navíc', () => {
-    // rod (potřeba 1) se nají mlékem, vejci a půlkou čerstvého masa; zbytek vsi dojí ostatní
+  it('pořadí po vrstvách: čerstvé maso, uzené, mléko, vejce, sýr, luštěniny, obilí, med navíc', () => {
+    // rod (potřeba 1) se nají čerstvým a uzeným masem a čtvrtinou mléka; zbytek vsi dojí ostatní –
+    // maso napřed elitě, i když ves sama jí napřed mléko a vejce (`eatDiet` – nedají se uložit;
+    // Martin 18. 11. 2026: „Elita ať jí obecně víc masa celoročně“)
     const milk = { milkL: 2, milkProteinKg: 0.06, milkEnergy: 0.4 };
     const eggsKg = 0.4 / DIET.energy.eggs;
     const fresh = meatKg(0.4);
@@ -137,19 +139,21 @@ describe('jídlo po vrstvách – čím se příděl naplní', () => {
       honeyKg: 0.01,
     });
     const [elite, , , rest] = meal.eaten as [Eaten, Eaten, Eaten, Eaten];
-    expect(elite.milkEnergy).toBeCloseTo(0.4, 12);
+    expect(elite.freshMeatKg).toBeCloseTo(fresh, 12);
+    expect(elite.meatKg).toBeCloseTo(meatKg(0.9), 12);
+    expect(elite.milkEnergy).toBeCloseTo(0.1, 12);
     // bílkoviny a litry mléka podle podílu energie
-    expect(elite.milkL).toBeCloseTo(2, 12);
-    expect(elite.milkProteinKg).toBeCloseTo(0.06, 12);
-    expect(elite.eggsKg).toBeCloseTo(eggsKg, 12);
-    expect(elite.freshMeatKg).toBeCloseTo(meatKg(0.2), 12);
-    expect(elite.meatKg).toBeCloseTo(meatKg(0.2), 12);
+    expect(elite.milkL).toBeCloseTo(0.5, 12);
+    expect(elite.milkProteinKg).toBeCloseTo(0.015, 12);
+    expect(elite.eggsKg).toBe(0);
     expect(elite.cheeseKg).toBe(0);
     expect(elite.grainKg).toBe(0);
     expect(elite.honeyKg).toBe(0);
-    // zbytek vsi: zbytek čerstvého masa, uzené, sýr, luštěniny, obilí a med navíc (bez přídělu)
-    expect(rest.freshMeatKg).toBeCloseTo(meatKg(0.2), 12);
-    expect(rest.meatKg).toBeCloseTo(meatKg(0.7), 12);
+    // zbytek vsi: zbytek mléka, vejce, sýr, luštěniny, obilí a med navíc (bez přídělu), maso ne
+    expect(rest.freshMeatKg ?? 0).toBe(0);
+    expect(rest.meatKg).toBe(0);
+    expect(rest.milkEnergy).toBeCloseTo(0.3, 12);
+    expect(rest.eggsKg).toBeCloseTo(eggsKg, 12);
     expect(rest.cheeseKg).toBeCloseTo(0.5, 12);
     expect(rest.legumesKg).toBeCloseTo(0.5, 12);
     expect(rest.honeyKg).toBeCloseTo(0.01, 12);

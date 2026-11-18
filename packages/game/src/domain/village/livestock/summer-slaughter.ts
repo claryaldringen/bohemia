@@ -24,9 +24,9 @@ import type { HerdSpecies, VillageState } from '../types';
 // stole nejlépe každý den.“). V létě (1. 4.–31. 10.) ves porazí jeden celý kus, jen když rodu
 // vojvody (vrstva 1 – `hungerSplit`, skupina 0) na dnešek nestačí maso v zásobě; co z kusu rod
 // nesní, sní týž den ostatní a zbytek se vyudí (`eatDiet`). Na maso jdou jen kusy, které by si ves
-// 1. 11. stejně nenechala – staré kusy a kusy nad nosnost zimy (`winterKeepTargets`) –, bez letošních
-// mláďat (kromě selat od 1. 9.) a nikdy pod chovné minimum (`breedingFloor`). Podrobnosti návrh
-// Clauda; letní porážka nezapisuje kroniku (byla by denně). Zima – `winterSlaughterDay`.
+// 1. 11. stejně nenechala – staré kusy a kusy nad nosnost zimy (`winterKeepTargets`) –, bez
+// letošních mláďat (kromě selat od 1. 9.) a nikdy pod chovné minimum (`breedingFloor`). Podrobnosti
+// návrh Clauda; letní porážka nezapisuje kroniku (byla by denně). Zima – `winterSlaughterDay`.
 
 /** Tolerance proti chybám desetinných čísel. */
 const EPSILON = 1e-9;
@@ -135,9 +135,10 @@ export function summerSlaughterPlan(
  * Den letní porážky (mutuje stav – diet.md, Porážka celý rok): kus z `summerSlaughterPlan` ubude ze
  * stáda (od 1. 9. u prasat napřed letošní sele – „Selata první“, Martin 31. 10. 2026), maso jde do
  * dnešního čerstvého masa (`freshMeatKg` – jí se napřed, co se nesní, vyudí se), kůže a hlášení pro
- * scénu (`noteSlaughtered`), kus do letošních starých kusů (`LivestockState.summerSlaughtered`)
- * a práce porážky a uzení jako v zimě (1 člověkoden na LIVESTOCK.slaughterKgPerManDay kg – udělá
- * se další dny). Kronika ne. Volá se v jídle dne po práci (`eat`), aby se počítaly i dnešní ryby
+ * scénu (`noteSlaughtered`), kus do čítače letos v létě poražených kusů
+ * (`LivestockState.summerSlaughtered` – všechny letní kusy, staré i nad odhad zimy) a práce
+ * porážky a uzení jako v zimě (1 člověkoden na LIVESTOCK.slaughterKgPerManDay kg – udělá se další
+ * dny, za žní a sečí – `DAY_WORK_ORDER`). Kronika ne. Volá se v jídle dne po práci (`eat`), aby se počítaly i dnešní ryby
  * a oka. `input` – co ves o zimě ví (`WinterInput`, stačí až na požádání).
  */
 export function summerSlaughterDay(

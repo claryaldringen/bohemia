@@ -92,8 +92,8 @@ export const LIVESTOCK = {
   },
   /**
    * Roční ztráty bez vlků (nemoci, úrazy; diet.md – Roční ztráty stáda). Vlčí díl
-   * `PREDATION.wolfShare`
-   * se přidá podle smečky (`predationDay`) – při plné smečce dohromady 12 / 10 / 12 / 6 %.
+   * `PREDATION.wolfShare` se přidá podle smečky (`predationDay`) – při plné smečce dohromady
+   * 12 / 10 / 12 / 6 %.
    */
   lossPerYear: { sheep: 0.09, goat: 0.07, pig: 0.1, cow: 0.05 },
   pastureHa: { sheep: 0.2, goat: 0.2, cow: 1 },
@@ -515,8 +515,7 @@ export interface WinterInput {
   minSheep?: number;
   /**
    * Krávy k obnově volů (`oxenRenewalCows` – diet.md, Zima bez sena): v zimním krmení hned po
-   * volech
-   * a koních, před ovcemi na vlnu (`minSheep`); bez údaje žádné.
+   * volech a koních, před ovcemi na vlnu (`minSheep`); bez údaje žádné.
    */
   oxenCows?: number;
   /** Cena jídla v práci (`foodCosts` – Rovnovážné hospodaření); bez údaje typická. */
@@ -567,17 +566,15 @@ function balanceOptions(input: WinterInput): BalanceOptions {
 /**
  * Přednost stád (oxen.md – Co nejvíc sena a co největší stáda; Martin 24. 10. 2026: „Krávy a hlavně
  * voli jsou životně důležití, pak jsou ovce, kozy a prasata jsou důležitá nejméně.“): v tomto
- * pořadí
- * jde seno na zimu, pastva i pasáci; voli (orají) mají přednost před všemi. Dřív ovce na vlnu
- * a krávy na mléko a voly napřed, pak ovce, kozy a zbytek krav.
+ * pořadí jde seno na zimu, pastva i pasáci; voli (orají) mají přednost před všemi. Dřív ovce na
+ * vlnu a krávy na mléko a voly napřed, pak ovce, kozy a zbytek krav.
  */
 const HERD_PRIORITY: readonly HerdSpecies[] = ['cow', 'sheep', 'goat', 'pig'];
 
 /**
  * Komu pasáci stačili (diet.md – Pasáci): uhlídaný podíl `watched` celé potřeby pasáků (kusy ÷
- * kolik
- * jich pasák uhlídá) jde po druzích v pořadí přednosti (`HERD_PRIORITY`) – podíl uhlídaných kusů
- * každého druhu. Druh bez kusů dostane `watched`.
+ * kolik jich pasák uhlídá) jde po druzích v pořadí přednosti (`HERD_PRIORITY`) – podíl
+ * uhlídaných kusů každého druhu. Druh bez kusů dostane `watched`.
  */
 function watchedShares(
   herds: Readonly<Record<HerdSpecies, number>>,
@@ -941,8 +938,7 @@ export function winterSlaughterTodayKg(
  * (`winterSlaughterTodayKg` – maso čekajících ÷ zbývající dny zimy), v pořadí
  * WINTER_SLAUGHTER_ORDER, i zlomky kusů (stáda jsou v modelu zlomková – návrh Clauda) – maso do
  * `freshMeatKg` (jí se dnes napřed), práce porážky jako u porážky. Poslední den zimy (31. 3.) –
- * nebo
- * mimo zimu – se zbytek porazí a maso se udí.
+ * nebo mimo zimu – se zbytek porazí a maso se udí.
  */
 export function winterSlaughterDay(state: VillageState, day: number): void {
   const livestock = state.livestock;
@@ -1174,15 +1170,13 @@ export function balancedPlan(
  * Porážka, když seno nevystačí (mutuje stav – oxen.md, Co nejvíc sena a co největší stáda; diet.md,
  * Zimní krmení; Martin 24. 10. 2026: „Když se v zimě zjistí, že pro krávy není krmení, tak se dají
  * prodat nebo porazit.“ – prodává jen hráč): každý den zimy ves spočítá, komu zásoba sena vystačí
- * do
- * konce března – voli a koně první (`oxen`, `horsesKg` – dávka koní za den), pak v pořadí přednosti
- * krávy k obnově volů a ovce na vlnu (`first`), pak krávy, ovce a kozy (`HERD_PRIORITY`; bez kusů,
- * které už čekají na zimní porážku – `culling`) na zbývající dny se sněhem se slámou napřed
- * (diet.md – Zima bez sena: chovné jádro).
- * Chybí-li seno aspoň na celý kus, ves hned porazí celé kusy, na které seno nezbude (kozy, ovce,
- * krávy), a s nimi i všechny čekající kusy – zvířata nehladoví; maso jde do uzení. Chovný pár
- * zůstane
- * (přežije o větvích a slámě – dřív zimní úhyn 1. 3.). Vrátí událost kroniky, nebo null.
+ * do konce března – voli a koně první (`oxen`, `horsesKg` – dávka koní za den), pak v pořadí
+ * přednosti krávy k obnově volů a ovce na vlnu (`first`), pak krávy, ovce a kozy (`HERD_PRIORITY`;
+ * bez kusů, které už čekají na zimní porážku – `culling`) na zbývající dny se sněhem se slámou
+ * napřed (diet.md – Zima bez sena: chovné jádro). Chybí-li seno aspoň na celý kus, ves hned
+ * porazí celé kusy, na které seno nezbude (kozy, ovce, krávy), a s nimi i všechny čekající kusy –
+ * zvířata nehladoví; maso jde do uzení. Chovný pár zůstane (přežije o větvích a slámě – dřív
+ * zimní úhyn 1. 3.). Vrátí událost kroniky, nebo null.
  */
 export function hayShortSlaughter(
   state: VillageState,
@@ -1249,10 +1243,9 @@ export function hayShortSlaughter(
  * zůstane celé (co největší stáda – oxen.md, Co nejvíc sena a co největší stáda; dřív ho
  * rovnovážné hospodaření zmenšovalo podle ceny jídla v práci). Když stádo potřebu bílkovin
  * nepokryje (`sizeHerdsToNeed` – s luštěninami ze zásoby) a maso v zásobě s porážkou roční potřebu
- * masa
- * (bílkoviny po obilí, mléku, vejcích a luštěninách) taky ne, jdou na maso i letošní mláďata navíc
- * (prasata první, krávy naposled – `MEAT_ORDER`, nejvýš polovina
- * mláďat – druhá stádo rozšíří). Chovný pár, krávy na mléko a voly (`minCows`) a ovce na vlnu
+ * masa (bílkoviny po obilí, mléku, vejcích a luštěninách) taky ne, jdou na maso i letošní mláďata
+ * navíc (prasata první, krávy naposled – `MEAT_ORDER`, nejvýš polovina mláďat – druhá stádo
+ * rozšíří). Chovný pár, krávy na mléko a voly (`minCows`) a ovce na vlnu
  * (`minSheep`) zůstanou. Kusy na maso ves neporáží najednou: kolik přes zimu sní čerstvého, počká
  * a porazí se po dnech (`winterWait`, `winterSlaughterDay` – `LivestockState.culling`), zbytek se
  * porazí hned a maso se udí. Vrátí událost kroniky (kg masa celkem, `fresh` – z toho přes zimu),
@@ -1276,7 +1269,8 @@ export function slaughter(
     balanceOptions(input),
   );
   const keep = sized.keep;
-  // letní porážka pro rod vojvody patří k letošním starým kusům – počítá se do 1. 11.
+  // čítač letos v létě poražených kusů (všechny letní kusy pro rod vojvody – staré i nad odhad
+  // zimy) platí do 1. 11.: odhad zimy výš je ještě počítal do stáda, jako by žily
   delete livestock.summerSlaughtered;
   let meat = HERD_SPECIES.reduce((sum, s) => sum + (herds[s] - keep[s]) * LIVESTOCK.meatKg[s], 0);
   // maso, které ves potřebuje – bílkoviny po obilí, mléku stád (přes zimu), vejcích a luštěninách

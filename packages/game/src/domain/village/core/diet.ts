@@ -245,6 +245,12 @@ export interface DietInput {
    * maso pro rod vojvody; `freshMeatAheadEnergy`) – výhled s ním počítá. Bez údaje žádné.
    */
   freshAheadEnergy?: number;
+  /**
+   * Ryby, které ves ještě chytí od zítřka do sklizně (energie v kg obilí – `fishAheadKg`, nejvýš
+   * zbytek letošní kvóty) – výhled s nimi počítá; dnešní úlovek je v čerstvém mase dne
+   * (`freshMeatKg`). Bez údaje žádné.
+   */
+  fishAheadEnergy?: number;
   /** Zásoba sýra (kg). */
   cheeseKg?: number;
   /** Dnes nadojené mléko (l), jeho bílkoviny (kg) a energie (kg obilí). */
@@ -361,9 +367,9 @@ interface DietPlan {
   fruitToday: number;
   /**
    * Jídlo mimo obilí a med do sklizně (energie): dnešní mléko (nejvýš potřeba dne – zbytek je sýr),
-   * vejce dnes i dalších dnů, čerstvé maso dne i zimní porážky, mléko stád do sklizně, uzené maso
-   * a ovoce nejvýš potřeba za dny do zkažení, sýr a luštěniny (i snopy) po ztrátách – celé nejvýš
-   * potřeba za dny do sklizně.
+   * vejce dnes i dalších dnů, čerstvé maso dne i z porážky do sklizně, ryby od zítřka, mléko stád
+   * do sklizně, uzené maso a ovoce nejvýš potřeba za dny do zkažení, sýr a luštěniny (i snopy) po
+   * ztrátách – celé nejvýš potřeba za dny do sklizně.
    */
   aheadEnergy: number;
   /**
@@ -399,12 +405,14 @@ function dietPlan(input: DietInput): DietPlan {
   const fruitToday = rotDays > 0 ? fruitEnergy(fruit) : 0;
   // co se kazí, jen kolik se do zkažení stihne sníst plnou potřebou; mléko stád do sklizně za den
   // nejvýš potřeba (`milkEnergyBetween`), čerstvé maso z porážky – v zimě nejvýš potřeba za dny
-  // zimy, v létě potřeba rodu vojvody (`freshMeatAheadEnergy`)
+  // zimy, v létě potřeba rodu vojvody (`freshMeatAheadEnergy`) –, ryby od zítřka nejvýš do kvóty
+  // (`fishAheadKg`; dnešní jsou v čerstvém mase dne)
   const ahead =
     Math.min(milkEnergy, need) +
     eggsEnergy * days +
     meatEnergy(fresh) +
     Math.max(0, input.freshAheadEnergy ?? 0) +
+    Math.max(0, input.fishAheadEnergy ?? 0) +
     Math.max(0, input.milkAheadEnergy ?? 0) +
     Math.min(meatEnergy(meat), need * Math.min(days, meatDays)) +
     Math.min(fruitToday, need * Math.min(days, rotDays)) +
@@ -573,7 +581,10 @@ export function eatDiet(input: DietInput): DietResult {
   eat('fruit', plan.fruitPace);
   eat('fresh', plan.meatPace);
   eat('smoked', plan.meatPace - (full.fresh - rest.fresh));
-  // zbytek dnešní energie v pořadí jídla
+  // zbytek dnešní energie v pořadí jídla vsi – mléko a vejce napřed (nedají se uložit). Totéž
+  // pořadí má předpověď `foodLastsDays` (food-lasts.ts); rozdělení snědeného po vrstvách
+  // (`tierMeal` – tier-meal.ts, `LEVELS`) dává elitě napřed maso a mléko až po něm – záměrně,
+  // množství je dané. Změna pořadí od Martina na všech třech místech.
   for (const food of ['milk', 'eggs', 'fresh', 'smoked', 'cheese', 'fruit', 'legumes'] as const) {
     eat(food);
   }
@@ -738,6 +749,11 @@ export function villageMeal(
      * sklizně (`freshMeatAheadEnergy`).
      */
     meatAheadEnergy?: number | ((daysToHarvest: number) => number);
+    /**
+     * Ryby, které ves ještě chytí od zítřka do sklizně (energie) – číslo, nebo podle dní výhledu
+     * do sklizně (`fishAheadKg`; small-game.ts sem nejde – přes zboží importuje tento soubor).
+     */
+    fishAheadEnergy?: number | ((daysToHarvest: number) => number);
   } = {
     milk: { liters: 0, proteinKg: 0, energy: 0 },
     eggsKg: 0,
@@ -766,6 +782,10 @@ export function villageMeal(
       typeof fresh.meatAheadEnergy === 'function'
         ? fresh.meatAheadEnergy(daysToHarvest)
         : (fresh.meatAheadEnergy ?? 0),
+    fishAheadEnergy:
+      typeof fresh.fishAheadEnergy === 'function'
+        ? fresh.fishAheadEnergy(daysToHarvest)
+        : (fresh.fishAheadEnergy ?? 0),
     fruitKg: applesSpoiled(day, potteryCoverage) ? 0 : villageApplesKg(state),
     cheeseKg: villageCheeseKg(state),
     milkL: fresh.milk.liters,

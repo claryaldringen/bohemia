@@ -3,7 +3,10 @@ import { dayIndexOf } from '../../../calendar';
 import { foundVillage } from '../../core/actions';
 import { SMALL_GAME, WILDLIFE_CAPS } from '../../rules/rules-wildlife';
 import { advanceVillage } from '../../core/simulate';
-import { smallGameCapacity, smallGameDay, yearlyQuota } from '../small-game';
+import { fishAheadKg, smallGameCapacity, smallGameDay, yearlyQuota } from '../small-game';
+import { eatDiet, meatEnergy, type DietInput } from '../../core/diet';
+import { baseMealInput } from '../../core/meal-input';
+import { NO_CRAFTS } from '../../core/productivity';
 import { foxCount } from '../fox-eggs';
 import type { VillageState } from '../../types';
 import { withWildlife } from '../wildlife';
@@ -184,6 +187,70 @@ describe('ryby a oka vesničanů', () => {
     const y = advanceVillage(b, SUMMER + 40, null);
     expect(JSON.stringify(x.wildlife?.smallGame ?? null)).toBe(
       JSON.stringify(y.wildlife?.smallGame ?? null),
+    );
+  });
+});
+
+describe('ryby do výhledu do sklizně (diet.md – Výhled do sklizně; návrh Clauda)', () => {
+  /** Ves s letošním úlovkem `fishKg` (od 1. 5.) a kvótou `quotaKg`. */
+  function fished(fishKg: number, quotaKg = 400): VillageState {
+    const s = village();
+    s.wildlife!.smallGame = {
+      today: null,
+      year: { fishKg, hares: 0, meatKg: fishKg * SMALL_GAME.fish.edible, days: 10 },
+      quota: { fishKg: quotaKg, hares: 0, foxes: 0 },
+    };
+    return s;
+  }
+
+  it('letošní průměr na den sezóny × rybářské dny od zítřka, jedlý podíl', () => {
+    // 10. 7.: od 1. 5. 71 dní sezóny, 71 kg → 1 kg na den; výhled 30 dní = 29 dní od zítřka
+    const s = fished(71);
+    expect(fishAheadKg(s, SUMMER, 30)).toBeCloseTo(29 * SMALL_GAME.fish.edible, 9);
+    // nejdéle do 30. 11. – kvóta příštího roku se nepočítá (1. 11.: 29 dní listopadu)
+    const nov = at(601, 11, 1);
+    const days = nov - at(601, 5, 1) + 1;
+    const late = fished(days);
+    expect(fishAheadKg(late, nov, 300)).toBeCloseTo(29 * SMALL_GAME.fish.edible, 9);
+  });
+
+  it('nejvýš zbytek letošní kvóty', () => {
+    const s = fished(71, 80);
+    expect(fishAheadKg(s, SUMMER, 200)).toBeCloseTo(9 * SMALL_GAME.fish.edible, 9);
+    expect(fishAheadKg(fished(71, 71), SUMMER, 200)).toBe(0);
+  });
+
+  it('prosinec až březen a bez letošního úlovku nic', () => {
+    expect(fishAheadKg(fished(100), WINTER, 200)).toBe(0);
+    expect(fishAheadKg(fished(100), at(601, 12, 5), 200)).toBe(0);
+    expect(fishAheadKg(fished(100), at(601, 3, 31), 200)).toBe(0);
+    expect(fishAheadKg(fished(0), SUMMER, 200)).toBe(0);
+    expect(fishAheadKg(village(), SUMMER, 200)).toBe(0);
+  });
+
+  it('v dubnu loňská kvóta jen do 30. 4. – průměr přes loňskou sezónu', () => {
+    // 10. 4.: rok kvóty od loňského 1. 5. – sezóna 1. 5.–30. 11. (214 dní) a 1.–10. 4. (10 dní)
+    const s = fished(224);
+    expect(fishAheadKg(s, at(601, 4, 10), 200)).toBeCloseTo(20 * SMALL_GAME.fish.edible, 9);
+  });
+
+  it('v sezóně ryb výhled vsi vyšší, v zimě beze změny – vstup jídla dne', () => {
+    // ves v hladu – obilí na málo dní do sklizně
+    const meal = (s: VillageState, day: number): DietInput => {
+      s.storesKg = 20;
+      return baseMealInput(s, day, NO_CRAFTS.pottery, 1);
+    };
+    const summer = meal(fished(71), SUMMER);
+    expect(summer.daysToHarvest).toBeGreaterThan(1);
+    expect(summer.fishAheadEnergy).toBeCloseTo(
+      meatEnergy(fishAheadKg(fished(71), SUMMER, summer.daysToHarvest)),
+      9,
+    );
+    expect(summer.fishAheadEnergy).toBeGreaterThan(0);
+    expect(eatDiet(summer).outlook).toBeGreaterThan(eatDiet(meal(fished(0), SUMMER)).outlook);
+    expect(meal(fished(71), WINTER).fishAheadEnergy).toBe(0);
+    expect(eatDiet(meal(fished(71), WINTER)).outlook).toBe(
+      eatDiet(meal(fished(0), WINTER)).outlook,
     );
   });
 });

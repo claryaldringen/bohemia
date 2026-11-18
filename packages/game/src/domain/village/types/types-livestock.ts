@@ -34,14 +34,20 @@ export interface LivestockState {
   /**
    * Kusy, které ves letos v létě porazila pro rod vojvody (diet.md – Strava po vrstvách a porážka
    * celý rok) – odhad 1. 11. (`winterKeepTargets`) je počítá do stáda, jako by žily, a letní
-   * kandidáti je odečtou, ať letní porážka odhad nezmenšuje. Porážka 1. 11. ho smaže. Chybí = žádné.
+   * kandidáti je odečtou, ať letní porážka odhad nezmenšuje. Porážka 1. 11. ho smaže.
+   * Chybí = žádné.
    */
   summerSlaughtered?: Partial<Record<HerdSpecies, number>>;
   /**
    * Pasení od poslední porážky (diet.md – Pasáci): součet denní potřeby pasáků a co z ní
-   * výrostci uhlídali (v plných pasácích). Chybí = zatím nic (vsi uložené dřív).
+   * výrostci uhlídali (v plných pasácích). Chybí = zatím nic (vsi uložené dřív). `summer` – totéž
+   * pro kusy z letní porážky, jako by žily (`winterHerdingCoverage` – odhad zimy); chybí = žádné.
    */
-  herding?: { needDays: number; watchedDays: number };
+  herding?: {
+    needDays: number;
+    watchedDays: number;
+    summer?: { needDays: number; watchedDays: number };
+  };
   /**
    * Na jaký podíl oděvu dají vlnu ovce přezimující od poslední porážky (diet.md – Oděv; 0–1,
    * `recordWool`). Chybí = dost (vsi uložené dřív a nové vsi do první porážky).

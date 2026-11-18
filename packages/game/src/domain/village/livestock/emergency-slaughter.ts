@@ -170,7 +170,8 @@ export function emergencySlaughterPlan(
   todayInput?: DietInput,
 ): EmergencyPlan | null {
   if (!state.livestock || state.people.length === 0) return null;
-  // vstup jídla dne bez porážky – jídlo dne ho předá, ať se nepočítá dvakrát
+  // vstup jídla dne bez porážky – jídlo dne ho předá, ať se nepočítá dvakrát; ryby do sklizně
+  // (`fishAheadEnergy`) v něm jsou jednou a porážka na ně nesahá
   const base = todayInput ?? dayMealInput(state, day, potteryCoverage, milked);
   const today = eatDiet(base);
   if (today.outlook >= 1 - EPSILON) return null;

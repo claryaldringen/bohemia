@@ -77,6 +77,9 @@ export function foodLastsDays(
       left -= eaten;
       return stock - eaten;
     };
+    // pořadí jídla vsi jako `eatDiet` (diet.ts – bez mléka a vajec, předpověď nezná příjmy; bez
+    // tempa proti zkažení); rozdělení po vrstvách (`tierMeal`) má vlastní pořadí – změna pořadí od
+    // Martina na všech třech místech
     meat = eat(meat);
     cheese = eat(cheese);
     fruit = eat(fruit);

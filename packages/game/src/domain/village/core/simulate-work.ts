@@ -341,7 +341,7 @@ export function dayWorkGroup(task: DayTask): DayWorkGroup {
  * Pořadí úloh dne v rozdělení práce (fields.md – Pořadí důležitosti polních prací a výmlat do
  * zimy; Martin 9. 11. 2026: „Je lepší za každou cenu sklidit to, co už vyrostlo, než začínat
  * pěstování úplně od začátku“): napřed skupina úlohy (`DAY_WORK_ORDER` – výmlat na dnešní jídlo,
- * porážka, žeň obilí, trhání lnu, nutná 1. seč, nutná otava, jablka, pletí, výmlat na osivo,
+ * žeň obilí, trhání lnu, nutná 1. seč, nutná otava, porážka, jablka, pletí, výmlat na osivo,
  * příprava půdy a setí, péče o sad, hlídka polí, výmlat, obilné jámy, dospělý pasák), v přípravě
  * půdy orba rádlem první (oxen.md – Orba má přednost; Martin 24. 10. 2026: „Co může být
  * přednějšího než orba?“ – spřežení potřebuje jen oráče, jinak voli stojí), pak nejbližší konec
@@ -609,7 +609,9 @@ function villageDayTasks(ctx: WorkDay): DayTask[] {
       ...(cut === 2 ? { aftermath: true as const } : {}),
     });
   }
-  // porážka a uzení – maso se musí zpracovat hned, hned za výmlatem na dnešní jídlo (diet.md)
+  // porážka a uzení – za žní, trháním lnu a nutnou sečí i otavou, před jablky (`DAY_WORK_ORDER`;
+  // maso je k jídlu hned, práce jen spotřebuje ruce – v zimě se nežne ani neseče, tam jde hned za
+  // výmlatem na dnešní jídlo; diet.md – Strava po vrstvách a porážka celý rok)
   const butchery = slaughterRemaining(state);
   if (butchery > 0) {
     dayTasks.push({

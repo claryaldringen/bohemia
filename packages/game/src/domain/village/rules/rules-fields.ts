@@ -356,18 +356,21 @@ export const CROP_ORDER: readonly Crop[] = ['flax', 'winter', 'legume', 'spring'
  * setí), noční hlídka polí, výmlat. Nutná otava (2. seč – oxen.md, Seno, dvě seče) hned za 1. sečí,
  * před orbou a setím ozimu (Martin 10. 11. 2026 – žeň → len → otava → orba a setí). Uvnitř skupiny nejbližší konec okna; v přípravě půdy orba
  * rádlem první (oxen.md – Orba má přednost: spřežení potřebuje jen oráče, jinak voli stojí).
- * Návrh Clauda pro úlohy mimo seznam: porážka hned za výmlatem na jídlo (maso se musí zpracovat
- * hned), výmlat na osivo (THRESHING.seedDays – ve snopech zrno na setí není) před přípravou půdy,
- * péče o sad za přípravou půdy, obilné jámy (zrno z výmlatu) a dospělý pasák za výmlatem.
- * Stavby a opravy až po všech úlohách dne (Osevní postup po dílech, bod 3).
+ * Návrh Clauda pro úlohy mimo seznam: porážka a uzení za žní, trháním lnu a nutnou sečí i otavou,
+ * před jablky (od 18. 11. 2026 – porážka celý rok, diet.md – Strava po vrstvách a porážka celý rok;
+ * maso je k jídlu hned, práce porážky jen spotřebuje ruce a počká, „za každou cenu sklidit“; v zimě
+ * se nežne ani neseče – tam zůstává hned za výmlatem na jídlo; dřív porážka hned za výmlatem na
+ * jídlo i v létě), výmlat na osivo (THRESHING.seedDays – ve snopech zrno na setí není) před
+ * přípravou půdy, péče o sad za přípravou půdy, obilné jámy (zrno z výmlatu) a dospělý pasák za
+ * výmlatem. Stavby a opravy až po všech úlohách dne (Osevní postup po dílech, bod 3).
  */
 export const DAY_WORK_ORDER = [
   'food-thresh',
-  'slaughter',
   'grain-harvest',
   'flax-harvest',
   'hay',
   'aftermath',
+  'slaughter',
   'apples',
   'weeding',
   'seed-thresh',

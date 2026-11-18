@@ -3,6 +3,7 @@
 import { dailyMilk, milkEnergyBetween, villageCheeseKg } from '../livestock/dairy';
 import {
   daysUntilMeatEnd,
+  meatEnergy,
   villageFoodNeed,
   villageHoneyRationKg,
   villageMeatKg,
@@ -19,6 +20,7 @@ import { summerWinterInput } from '../livestock/husbandry';
 import { freshMeatAheadEnergy } from '../livestock/summer-slaughter';
 import { villageApplesKg } from '../buildings/orchard';
 import { sheavesOutlook } from '../fields/threshing';
+import { fishAheadKg } from '../wildlife/small-game';
 import type { HerdSpecies, VillageState } from '../types';
 import { daysUntilFoodHarvest, lateSpringCrop, unharvestedKg } from './year-plan';
 
@@ -26,9 +28,9 @@ import { daysUntilFoodHarvest, lateSpringCrop, unharvestedKg } from './year-plan
  * Vstup jídla dne (`eatDiet`) ze stavu na konci předchozího dne s celými zásobami obilí
  * a luštěnin – bez osiva, které ves nejí (to odečte `dayMealInput`): dnešní mléko (podojený podíl
  * `milked`) a vejce, mléko stád do sklizně, ovoce do zkažení (nádoby od hrnčíře –
- * `potteryCoverage`), maso do zkažení a čerstvé maso dne i zimní porážky, sýr, luštěniny, med
- * z klátů a snopy, které ves vymlátí. `dams` – dojné samice, se kterými se počítá (bez údaje
- * dojné samice vsi – `villageDams`).
+ * `potteryCoverage`), maso do zkažení a čerstvé maso dne i z porážky do sklizně, ryby od zítřka,
+ * sýr, luštěniny, med z klátů a snopy, které ves vymlátí. `dams` – dojné samice, se kterými se
+ * počítá (bez údaje dojné samice vsi – `villageDams`).
  */
 export function baseMealInput(
   state: VillageState,
@@ -78,6 +80,9 @@ export function baseMealInput(
     freshAheadEnergy: freshMeatAheadEnergy(state, day, daysToHarvest, () =>
       summerWinterInput(state, day),
     ),
+    // ryby, které ves ještě chytí od zítřka do sklizně, nejvýš do kvóty – jedním vstupem, ať je
+    // plán nouzové porážky (týž vstup) nesečte dvakrát; dnešní úlovek je v čerstvém mase dne
+    fishAheadEnergy: meatEnergy(fishAheadKg(state, day, daysToHarvest)),
     fruitKg: villageApplesKg(state),
     cheeseKg: villageCheeseKg(state),
     milkL: milk.liters * milked,

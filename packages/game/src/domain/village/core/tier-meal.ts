@@ -62,10 +62,17 @@ const extraHoneyOf = (eaten: Eaten): number => Math.max(0, eaten.honeyKg - ratio
 
 /**
  * Úrovně jídla v pořadí (diet.md – Kdo dostane co, Pořadí jídla; uvnitř první úrovně návrh
- * Clauda): napřed ovoce a pevný příděl medu všem stejně, pak po vrstvách mléko a vejce (nedají se
- * uložit), čerstvé maso, uzené (zkazí se 1. 9.), sýr, luštěniny, obilí a med navíc v hladu
- * (hides-honey.md – Med v hladu). Litry a bílkoviny mléka jdou s podílem jeho energie, bílkoviny
- * ostatního s kilogramy (`PROTEIN.perKg` ve `dietOf`).
+ * Clauda): napřed ovoce a pevný příděl medu všem stejně, pak po vrstvách čerstvé maso, uzené,
+ * mléko, vejce, sýr, luštěniny, obilí a med navíc v hladu (hides-honey.md – Med v hladu). Litry
+ * a bílkoviny mléka jdou s podílem jeho energie, bílkoviny ostatního s kilogramy (`PROTEIN.perKg`
+ * ve `dietOf`).
+ *
+ * Pořadí rozdělení se od pořadí jídla vsi liší záměrně: co ves dnes sní, rozhodne `eatDiet`
+ * (diet.ts – mléko a vejce napřed, nedají se uložit; totéž pořadí má předpověď `foodLastsDays`
+ * ve food-lasts.ts) a množství je dané – tady se jen určuje, kdo co sní, a maso jde napřed elitě
+ * (Martin 18. 11. 2026: „Elita ať jí obecně víc masa celoročně“; dřív mléko a vejce před masem –
+ * rod pil mléko a maso dostali ostatní). Změna pořadí jídla od Martina se dělá na všech třech
+ * místech.
  */
 const LEVELS: readonly Level[] = [
   {
@@ -81,20 +88,6 @@ const LEVELS: readonly Level[] = [
     even: true,
   },
   {
-    energy: (v) => v.milkEnergy,
-    add: (t, v, share) => {
-      t.milkL += v.milkL * share;
-      t.milkProteinKg += v.milkProteinKg * share;
-      t.milkEnergy += v.milkEnergy * share;
-    },
-  },
-  {
-    energy: (v) => v.eggsKg * DIET.energy.eggs,
-    add: (t, v, share) => {
-      t.eggsKg += v.eggsKg * share;
-    },
-  },
-  {
     energy: (v) => meatEnergy(freshOf(v)),
     add: (t, v, share) => {
       const kg = freshOf(v) * share;
@@ -106,6 +99,20 @@ const LEVELS: readonly Level[] = [
     energy: (v) => meatEnergy(smokedOf(v)),
     add: (t, v, share) => {
       t.meatKg += smokedOf(v) * share;
+    },
+  },
+  {
+    energy: (v) => v.milkEnergy,
+    add: (t, v, share) => {
+      t.milkL += v.milkL * share;
+      t.milkProteinKg += v.milkProteinKg * share;
+      t.milkEnergy += v.milkEnergy * share;
+    },
+  },
+  {
+    energy: (v) => v.eggsKg * DIET.energy.eggs,
+    add: (t, v, share) => {
+      t.eggsKg += v.eggsKg * share;
     },
   },
   {

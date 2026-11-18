@@ -192,15 +192,17 @@ describe('pořadí práce dne (fields.md – Pořadí důležitosti polních pra
       thresh: { crop: 'winter', remaining: 1, floor: 1, end: 12, overdue: false, ...extra },
     });
 
-  it('výmlat na jídlo → porážka → žeň → len → seč → jablka → pletí → výmlat na osivo → orba a setí → hlídka → výmlat', () => {
+  it('výmlat na jídlo → žeň → len → seč → otava → porážka → jablka → pletí → výmlat na osivo → orba a setí → hlídka → výmlat', () => {
     const field = (name: DayTask['name'], crop: 'winter' | 'flax', end: number): DayTask =>
       task(name, end, { field: { crop } as DayTask['field'] });
     const ordered = [
       thresh({ urgent: true, end: -1 }),
-      task('slaughter', 9, { tie: 0, rank: 1 }),
       field('harvest', 'winter', 9),
       field('harvest', 'flax', 8),
       task('mow', Infinity, { tie: 3, rank: 1 }),
+      task('mow', Infinity, { tie: 3, rank: 1, aftermath: true }),
+      // porážka za žní a sečí (18. 11. 2026 – porážka celý rok; maso je k jídlu hned)
+      task('slaughter', 9, { tie: 0, rank: 1 }),
       task('orchard-harvest', 10, { tie: 0 }),
       task('weed', 5),
       thresh({ seed: true, end: -1 }),

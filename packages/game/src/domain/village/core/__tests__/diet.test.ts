@@ -471,6 +471,8 @@ describe('výhled zná ztráty obilí skladováním do žní (fields.md – Př�
     const cases: Partial<DietInput>[] = [
       // hlad – skoro jen obilí a trochu medu
       { honeyKg: 20, honeyRationKg: 0.01 },
+      // hlad s rybami, které ves do sklizně ještě chytí
+      { honeyKg: 20, honeyRationKg: 0.01, fishAheadEnergy: 120 },
       // na hraně – maso, které se zkazí před sklizní, ovoce, sýr, luštěniny i ve snopech, mléko
       // dne a stád do sklizně, vejce a med, který vydrží jen část doby do sklizně
       {
@@ -507,6 +509,18 @@ describe('výhled zná ztráty obilí skladováním do žní (fields.md – Př�
         expect(eatDiet({ ...base, grainKg }).outlook).toBeCloseTo(Math.max(x, bare), 6);
       }
     }
+  });
+
+  it('ryby, které ves do sklizně ještě chytí, zvednou výhled v hladu – dnes se nejedí', () => {
+    const base = input({ grainKg: 0.5 * NEED * DAYS, daysToHarvest: DAYS });
+    const fish = 0.1 * NEED * DAYS;
+    const without = eatDiet(base);
+    const withFish = eatDiet({ ...base, fishAheadEnergy: fish });
+    expect(without.outlook).toBeLessThan(1);
+    expect(withFish.outlook).toBeGreaterThan(without.outlook);
+    expect(withFish.outlook).toBeCloseTo(without.outlook + fish / (NEED * DAYS), 9);
+    // dnešní jídlo z dnešních zásob – ryby od zítřka v něm nejsou
+    expect(withFish.eaten.meatKg).toBe(0);
   });
 
   it('s medem v hladu: příděl rovný do žní, obilí i med vyjdou právě na den žní', () => {
