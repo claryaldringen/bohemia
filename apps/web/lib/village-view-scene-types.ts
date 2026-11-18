@@ -3,11 +3,12 @@
 import { Landscape } from '@bohemia/game';
 import type { SceneChurch } from './church-view';
 import type { CartWorld, LogStack, UsableStructure } from '@bohemia/game';
-import type { PathFortification } from '@bohemia/game';
+import type { Building, PathFortification } from '@bohemia/game';
 import type { SceneFortification } from './fort-view';
 import type { CartGoal } from './cart-routes';
 import { GraveMound } from '@bohemia/game';
 import { DwellingPlot } from '@bohemia/game';
+import { plotSquareTile } from '@bohemia/game';
 import { KilnStage } from '@bohemia/game';
 import { MoundSize } from '@bohemia/game';
 import { tileCenterWorld } from '@bohemia/game';
@@ -378,6 +379,12 @@ export interface SceneVillage {
    * jen pro mřížku kurzoru rozkazu (march-cursor.ts), nekreslí se. Bez údaje žádné.
    */
   trailEdgePieces?: { x: number; z: number }[][];
+  /**
+   * Dvorec vsi – dům i s pozemkem a dvorem (`manorArea`): s vybranými lidmi výpravy je kurzor nad
+   * ním „Domů“ (server rozkaz „Jdi sem“ do dvorce bere jako Domů – Martin 18. 11. 2026). Ves bez
+   * hotového dvorce – chybí.
+   */
+  manorArea?: Building;
   /**
    * Křižovatky (paths.md – Křižovatky) – střed, tvar, natočení, ramena (id úseků) a znamení.
    * Kreslí je scéna křižovatek (plán cest v2, Úloha 12); do té doby udusaný kruh ve středu, kde
@@ -1261,6 +1268,12 @@ export interface ScenePlot {
   size: number;
   variant: PlotVariant;
   rotation?: number;
+  /**
+   * Čtverec pozemku nezabírá přesně své políčko – natočený, nebo se středem mimo střed políčka
+   * (population.md – Natočený pozemek, D96): pole a sad pod ním přijdou jen o průnik. Chybí –
+   * rozhoduje natočení (jen čtverec natočený mimo osy krajiny).
+   */
+  free?: true;
   /** Dvůr dvorce vojvody (trade.md) – druhé políčko pozemku a jeho střed; jinak chybí. */
   yard?: { cell: TileCell; x: number; z: number };
 }
@@ -1275,6 +1288,7 @@ export function scenePlot(landscape: Landscape, plot: DwellingPlot): ScenePlot {
       size: landscape.cellSizeM,
       variant: plot.variant,
       rotation: plot.square.rotation,
+      ...(plotSquareTile(landscape, plot.square) === null ? { free: true as const } : {}),
     };
   }
   const center = tileCenterWorld(landscape, plot.cell.x, plot.cell.y);

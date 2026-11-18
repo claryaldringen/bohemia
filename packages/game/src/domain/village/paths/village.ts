@@ -68,6 +68,7 @@ import {
   pathTerrainOf,
   pathWindowFor,
   withObstacles,
+  type PathTerrain,
 } from './terrain';
 import {
   groundSpots,
@@ -568,7 +569,18 @@ function computeBlockedAt(
   const village = pathVillageOf(state, day, landscape);
   const bounds = villagePathBounds(village, landscape);
   if (!bounds) return null;
-  const terrain = pathTerrainOf(landscape, pathWindowFor(landscape, bounds));
+  return gridBlockedAt(village, pathTerrainOf(landscape, pathWindowFor(landscape, bounds)));
+}
+
+/**
+ * Neprůchodná plocha staveb vsi `village` v terénu okna (`villageBlockedAt`; náhled zásahu stavby
+ * do cest – `plannedBlockedAt`): buňka mřížky chodců bez cesty, kde terén sám průchodný je; mimo
+ * okno false.
+ */
+export function gridBlockedAt(
+  village: PathVillage,
+  terrain: PathTerrain,
+): (x: number, z: number) => boolean {
   // pole, sady, les a cesty jen mění cenu průchodných buněk – bez nich táž neprůchodná plocha
   const fenced: PathVillage = { ...village, fields: [], orchards: [], woods: [], roads: [] };
   const grid = villageGrid({ village: fenced, terrain }, villageBuildings(village).all);

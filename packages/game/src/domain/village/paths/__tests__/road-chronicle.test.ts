@@ -248,6 +248,15 @@ describe('kronika – zarostlá cesta (D67)', () => {
     expect(yearsAt([10])).toBe(0);
     // 2 cesty denně (nejmenší provoz, kde cesta vznikne): 1 000 dní ≈ 2,7 roku
     expect(yearsAt([2])).toBe(3);
+    // cesta z vyšlapanosti vznikla až od 2 cest denně – s mediánem provozu pod 2 i bez provozu
+    // nejvýš 1 000 dní (D93 doladění)
+    const troddenAt = (traffic: number[]): number | undefined => {
+      net.roads[0]!.traffic = traffic;
+      return roadFormedNote(state, withCell, 1, day, true).years;
+    };
+    expect(troddenAt([1.5])).toBe(3);
+    expect(troddenAt([])).toBe(3);
+    expect(troddenAt([10])).toBe(0);
     // trasa bez cest (trips 0) stáří neurčí – rozhoduje dílna (od 3. roku)
     state.routes = {
       list: [along('d:12', 0), along('d:13', 100)],

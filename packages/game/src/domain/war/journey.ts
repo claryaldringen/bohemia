@@ -364,6 +364,27 @@ function paceOf(s: JourneyState, party: number): GroupPace {
   return pace;
 }
 
+/** Metry louky, které skupina `party` ujde za takt (`marchSpeed` jejích živých – `moveGroups`). */
+function partyStepM(s: JourneyState, party: number): number {
+  return marchSpeed(paceOf(s, party), s.day) / TICKS_PER_SECOND;
+}
+
+/**
+ * Kde a kdy hlouček vyrazil po současném úseku mapy – pro scénu, která stavy dostává po kolech
+ * workeru a jinak neví, kdy se stojící hlouček rozjel (journey.md – Scéna vsi; Martin 18. 11. 2026:
+ * „zezačátku jde hrozně pomalu“): začátek úseku (`leg.points[0]`) a poslední takt, kdy tam ještě
+ * stál – takt stavu bez taktů chůze po úseku (ušlé metry louky ÷ krok skupiny `partyStepM`). Null –
+ * stojí, úsek ještě nemá, nebo po něm ještě nešel.
+ */
+export function groupSetOut(s: JourneyState, g: JourneyGroup): { tick: number; pos: Pos } | null {
+  const leg = g.leg;
+  if (g.arrived || leg === null || !(leg.walkedM > 0)) return null;
+  const stepM = partyStepM(s, g.party);
+  if (!(stepM > 0)) return null;
+  const start = leg.points[0]!;
+  return { tick: s.tick - Math.round(leg.walkedM / stepM), pos: { x: start.x, z: start.z } };
+}
+
 /**
  * Pohyb hloučků o jeden takt jako u vojska (`moveGroups` – lord-control.md, Pohyb): metry louky
  * tempem nejpomalejšího ze skupiny (`marchSpeed` ze všech živých skupiny na začátku pohybu – jen
@@ -381,8 +402,7 @@ function paceOf(s: JourneyState, party: number): GroupPace {
  */
 function moveGroups(s: JourneyState, ctx: TickContext, out: TickOut): void {
   const speeds = new Map<number, number>();
-  for (const p of s.parties)
-    speeds.set(p.id, marchSpeed(paceOf(s, p.id), s.day) / TICKS_PER_SECOND);
+  for (const p of s.parties) speeds.set(p.id, partyStepM(s, p.id));
   const parties = new Map(s.parties.map((p) => [p.id, p]));
   const left: GridCell[] = [];
   const stopped: JourneyGroup[] = [];

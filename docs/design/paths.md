@@ -573,6 +573,17 @@ přitom ležet každý rok přesně na stejném místě.“):
   Teď si ves **smazané kusy pamatuje** (podle polohy konců na 1 m) a další měsíce je nezkouší,
   dokud jsou vyšlapané – ostatní cesty vzniknou hned. Kus, který už vyšlapaný není (nebo se mu
   posunul konec), zapomene; zkusí se znovu, až se zase vyšlape. Vlkov: za rok 36 → 41 úseků.
+- **Přes plochu staveb nevznikne a napojení ji obejde** (Martin 18. 11. 2026: „Tohle: Po 18 letech
+  chůze lidé vyšlapali cestu mezi rozcestím západně od vsi a rozcestím u sadu. se v kronice dost
+  opakuje.“; návrh Clauda, D93): osa nové cesty včetně napojení nesmí vést ≥ 5 m plochou staveb –
+  stejně jako u cesty k vchodu ([Vchody](#vchody)) –, jinak by ji měsíční kontrola příští měsíc
+  opustila ([Stavba přes cestu](#stavba-přes-cestu-vlkov-martin-23-10-2026)) a z vyšlapaného kusu
+  by hned vznikla znovu (Vlkov 894–896: polozemnice postavená na rozcestí u sadu, napojení
+  přichycené do konce vozové cesty uvnitř jejího pozemku – každý měsíc nová cesta, za rok „Část
+  nepoužívané cesty … zarostla“). Vedlo-li by plochou staveb přichycení napojení do konce nebo
+  křižovatky pevné cesty, připojí se nová cesta do nejbližšího bodu osy, odkud plochou vede méně
+  (tam pevnou cestu rozdělí); jinak cesta nevznikne. Cesty k vchodům, zemské stezky a úklid se
+  napojují jako dřív.
 - **Kolik to trvá** (vyšlapanost roste o provoz − 1 za den):
 
   | Cest za den | Cesta vznikne za      | Příklad                                 |
@@ -900,6 +911,28 @@ Nový systém přehrazení řeší sám (návrh Clauda):
   dál](roads.md#cesta-je-cesta--povrch-pod-ní-a-zarůstání)). Branka nového obydlí do cizího
   pozemku dál nesmí (Vchody).
 
+### Náhled u kurzoru (18. 11. 2026)
+
+Martin 18. 11. 2026: „když stavím stavbu a její pozemek zasahuje do cesty, tak ať je ten zásah
+vyznačený žlutě – sice to přes cestu půjde postavit, ale stavitel by měl vědět, že to změní síť
+cest“. Návrh Clauda:
+
+- **Co je žlutě:** při umisťování stavby, která leží v ploše staveb vsi (obydlí na pozemku
+  i volné, dílna, modla, svatyně, humno, ohrada a hřbitov při malování po čtvercích), náhled
+  vyznačí žlutým pásem po ose ty kusy živých cest, které by pravidlo kusu pod stavbou výš po
+  postavení opustilo – osa vede plochou nové stavby
+  souvislým kusem aspoň 5 m (`BLOCK_MIN_RUN_M`). Kratší zásah (cesta jen zaklesne do rohu) síť
+  nezmění a nevyznačí se. Plocha je táž jako v pravidle – plocha hotové stavby i staveniště (kus pod
+  staveništěm se opouští už při zahájení stavby). Opuštěná cesta a cesta ve vylepšení se nehodnotí
+  jako v pravidle.
+- **Varování, ne zákaz:** u kurzoru je varování **„Cesta se přeruší“** (jako „Pole se zmenší“) –
+  stavbu nic neblokuje (hráč staví, kdy chce).
+- **Táž pravidla:** plochu nové stavby i kusy pod ní počítá prohlížeč stejnými funkcemi jádra jako
+  server (mřížka chodců na mřížce krajiny, vzorkování osy po 1 m) – náhled a skutečnost se shodnou.
+  Počítá se plocha nové stavby samotné: živé cesty plochou stávajících staveb nevedou (pravidlo je
+  už opustilo).
+- Opevnění a kostel zatím zásah neukazují (návrh Clauda – další krok).
+
 ## Křižovatky (pravidlo 9)
 
 > **Napojení blízko křižovatky (Martin 3. 11. 2026):** na otázku, zda nové napojení cesty blíž než
@@ -1155,24 +1188,15 @@ i když se tam chodí málo, třeba k hřbitovu jen na pohřby.“ Podrobnosti n
   počítají od nejstaršího dne, kdy mohla začít chodit některá uložená trasa, která po cestě vede
   (aspoň 60 % bodů osy do buňky od čáry trasy; trasa začne, až když stojí obě její místa), spolu
   s druhým koncem; bez takové trasy zůstává stáří druhého místa.
-- **Vyšlapaná cesta přes plochu staveb nevznikne a napojení ji obejde** (Martin 18. 11. 2026:
-  „Tohle: Po 18 letech chůze lidé vyšlapali cestu mezi rozcestím západně od vsi a rozcestím u sadu.
-  se v kronice dost opakuje.“; návrh Clauda, D93): totéž pravidlo jako u cesty k vchodu platí pro
-  vznik z vyšlapanosti ([Vyšlapanost a vznik cesty](#vyšlapanost-a-vznik-cesty)) – osa včetně
-  napojení nesmí vést ≥ 5 m plochou staveb, jinak by ji měsíční kontrola příští měsíc opustila
-  a z vyšlapaného kusu by hned vznikla znovu (Vlkov 894–896: polozemnice postavená na rozcestí
-  u sadu, napojení přichycené do konce vozové cesty uvnitř jejího pozemku – každý měsíc nová cesta,
-  za rok „Část nepoužívané cesty … zarostla“). Vedlo-li by plochou staveb přichycení napojení do
-  konce nebo křižovatky pevné cesty, připojí se nová cesta do nejbližšího bodu osy, odkud plochou
-  vede méně (tam pevnou cestu rozdělí); jinak cesta nevznikne. Cesty k vchodům, zemské stezky
-  a úklid se napojují jako dřív.
 - **Roky chůze nejvýš jako doba vyšlapání** (Martin 18. 11. 2026: „18 let na vyšlapání cesty je
   kurevsky dlouho, je to celá generace“; návrh Clauda, D93): stáří pěšiny (výš) je jen horní mez –
   roky chůze jsou nejvýš tolik, za kolik se cesta vyšlape z provozu nové osy podle čísel
   vyšlapanosti: ⌈1 000 / (provoz − 1)⌉ dní, tedy při 2 cestách denně 1 000 dní (≈ 2,7 roku –
   Martin 17. 11. 2026: „Nejvýš do 3 let“), při 10 cestách ≈ 112 dní (pod půl roku – zápis bez
-  doby). Pod 2 cesty denně (cesta k vchodu vzniká bez ohledu na vyšlapanost) zůstává stáří pěšiny.
-  Trasa, po které nikdo nechodí (0 cest), stáří neurčuje.
+  doby). Cesta z vyšlapanosti vznikla až od 2 cest denně, takže u ní roky chůze nikdy nepřesáhnou
+  1 000 dní, i když medián provozu po ose vyjde menší (D93 doladění). Cesta k vchodu (vzniká bez
+  ohledu na vyšlapanost) pod 2 cesty denně dostane stáří pěšiny. Trasa, po které nikdo nechodí
+  (0 cest), stáří neurčuje.
 - **Hřbitov (Vlkov):** plot je neprůchodný, trasy končí v brance, pohřby a návštěvy jdou do
   provozu – cesta vede do branky, ne podél plotu.
 - **Cesta do branky** (Martin 25. 10. 2026: „Jeden z největších problémů vidím tady u hřbitova“;
