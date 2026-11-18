@@ -191,7 +191,7 @@ Návrh: wildlife.md – Drobná zvěř a ryby, Rozhodnutí při implementaci W7.
   a zpracování kůží a kožešin v domácnosti (`freeLaborDay`; village-livestock.md – Zpracování
   v domácnosti) – oka a ryby přijdou zkrátka, jen když zbytku je málo.
   Chytá se, jen když `smallGameCapacity` > 0 (sezóna, zásoba nad ½ stropu, zbývá roční kvóta) a
-  u ryb ještě ves `wantsProtein` (nebo hladoví); oka v prosinci–březnu bez podmínky (Martin 14. 11. 2026).
+  ryby i oka se chytají vždy, kdy je volná práce (diet.md – Ryby a drobná zvěř; oka Martin 14. 11. 2026).
   Oka chytají zajíce i lišky ze stejných hodin (`SMALL_GAME.snares.perHour`, `foxPerHour`), každý
   druh do své kvóty; kožešiny jdou přes `addWildFurs` (`wares/wares.ts`), maso jen ze zajíců.
   Lišky: `WildlifeState.foxes?` (chybí = strop `foxCount`), `SmallGameYear.foxes?`,
@@ -199,9 +199,17 @@ Návrh: wildlife.md – Drobná zvěř a ryby, Rozhodnutí při implementaci W7.
 - Duben–listopad ryby (biomasa `fishKg`), prosinec–březen oka (`hares`, zlomek kusu). Maso jde do
   `state.freshMeatKg` (čerstvé, jí se napřed) bez práce porážky. Roční kvóta `yearlyQuota(w, ryby, zajíci, lišky)`
   (`smallGame.quota`, ryby ≤ ¼ stropu, zajíci podle přírůstku, lišky nad ½ stropu) se počítá 1. 5. ve `wildlife.ts`.
-  `wantsProtein` bere větší z loňského a letošního masa z velkého lovu a přičte letošní maso z ryb a ok. Stav pro scénu v `wildlife.smallGame.today`; rozdělení práce
+  Stav pro scénu v `wildlife.smallGame.today`; rozdělení práce
   má činnosti `fish` (cíl `{ kind: 'pool', index }`) a `snare`.
 - `wildlifeYearDay` 1. 5. uloží maso z velkého lovu minulého roku (`lastWildMeatKg`, drobná zvěř ne) a vynuluje `year`.
+- `fishAheadKg(state, day, daysToHarvest)` – ryby, které ves ještě chytí od zítřka do konce
+  výhledu do sklizně (kg masa, × `SMALL_GAME.fish.edible`; diet.md – Výhled do sklizně, návrh
+  Clauda 18. 11. 2026): letošní úlovek `smallGame.year.fishKg` ÷ dny rybářské sezóny od začátku
+  roku kvóty (poslední 1. 5.; v dubnu i loňská sezóna – `fishSeasonDays`) × rybářské dny od
+  zítřka do konce výhledu, nejdéle do 30. 11. a v dubnu do 30. 4. (kvóta příštího roku se
+  nepočítá), nejvýš zbytek kvóty (`quotaLeft`, i nad ½ stropu). Prosinec–březen a bez letošního
+  úlovku 0. Volá ho `baseMealInput` (`fishAheadEnergy`) a panel `nextDayDiet` přes
+  `villageMeal(…, { fishAheadEnergy })`.
 - Testy ves bez ryb a zajíců: `withoutSmallGame` ve `village-fixtures.ts`.
 
 ## Obrana polí (W6, `field-patrol.ts`, `wildlife-damage.ts`)

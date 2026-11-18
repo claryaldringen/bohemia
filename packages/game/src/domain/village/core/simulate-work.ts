@@ -18,7 +18,7 @@ import {
 } from '../people/lord';
 import { nextYearlyCommonLabor, yearlyCommonLabor } from '../buildings/dwellings';
 import { animalCareNeed, dailyMilk } from '../livestock/dairy';
-import { DIET, villageFoodNeed } from './diet';
+import { villageFoodNeed } from './diet';
 import {
   ploughDayFactor,
   ploughTeamsAfield,
@@ -341,7 +341,7 @@ export function dayWorkGroup(task: DayTask): DayWorkGroup {
  * Pořadí úloh dne v rozdělení práce (fields.md – Pořadí důležitosti polních prací a výmlat do
  * zimy; Martin 9. 11. 2026: „Je lepší za každou cenu sklidit to, co už vyrostlo, než začínat
  * pěstování úplně od začátku“): napřed skupina úlohy (`DAY_WORK_ORDER` – výmlat na dnešní jídlo,
- * porážka, žeň obilí, trhání lnu, nutná 1. seč, nutná otava, jablka, pletí, výmlat na osivo,
+ * žeň obilí, trhání lnu, nutná 1. seč, nutná otava, porážka, jablka, pletí, výmlat na osivo,
  * příprava půdy a setí, péče o sad, hlídka polí, výmlat, obilné jámy, dospělý pasák), v přípravě
  * půdy orba rádlem první (oxen.md – Orba má přednost; Martin 24. 10. 2026: „Co může být
  * přednějšího než orba?“ – spřežení potřebuje jen oráče, jinak voli stojí), pak nejbližší konec
@@ -609,13 +609,16 @@ function villageDayTasks(ctx: WorkDay): DayTask[] {
       ...(cut === 2 ? { aftermath: true as const } : {}),
     });
   }
-  // porážka a uzení – maso se musí zpracovat hned, hned za výmlatem na dnešní jídlo (diet.md)
-  const butchery = slaughterRemaining(state, day);
+  // porážka a uzení – za žní, trháním lnu a nutnou sečí i otavou, před jablky (`DAY_WORK_ORDER`;
+  // maso je k jídlu hned, práce jen spotřebuje ruce – v zimě se nežne ani neseče, tam jde hned za
+  // výmlatem na dnešní jídlo; diet.md – Strava po vrstvách a porážka celý rok)
+  const butchery = slaughterRemaining(state);
   if (butchery > 0) {
     dayTasks.push({
       name: 'slaughter',
       remaining: butchery,
-      // přes zimu po dnech, nouzová porážka i mimo ni – vždy v měsíci, kdy se porazilo (diet.md)
+      // celý rok – zimní porážka po dnech, letní pro rod vojvody, nouzová porážka i maso z lovu –
+      // vždy v měsíci, kdy se porazilo (diet.md)
       end: month,
       tie: 0,
       rank: 1,
@@ -974,15 +977,15 @@ function toilToday(ctx: WorkDay, owned: readonly FieldTaskEntry[], applied: Appl
 
 /**
  * Práce bokem dne – mimo práci vsi, jen pro postavy (population.md – Práce): dojení a sýr
- * z mléka, které se nevypije (strop mléka a sýra – diet.md), a péče o zvířata (ženy); domácí
- * výroba žen (`DOMESTIC` po domácnostech a lidech) a denní minimum, které pokryli starší
- * (`eldersDailyMin`).
+ * z mléka, které se nevypije (nad potřebu energie vsi – diet.md, bez stropů), a péče o zvířata
+ * (ženy); domácí výroba žen (`DOMESTIC` po domácnostech a lidech) a denní minimum, které pokryli
+ * starší (`eldersDailyMin`).
  */
 export function asideWork(state: VillageState, day: number, eldersDailyMin: number): AsideWork {
   const herds = villageHerds(state);
   const dams = villageDams(state);
   const milk = dailyMilk(dams, day);
-  const drinkable = DIET.caps.dairy * villageFoodNeed(state, day);
+  const drinkable = villageFoodNeed(state, day);
   const cheeseMilkL = milk.energy > drinkable ? milk.liters * (1 - drinkable / milk.energy) : 0;
   const animals = animalCareNeed(
     herds,

@@ -540,9 +540,13 @@ jich bude moci mít více), tak pro něj hra končí – musí začínat znovu.�
   3. **domácnosti ostatních řemeslníků** (obydlí s dílnou) a každý, kdo se řemeslo učí nebo
      vyučil (učeň mimo dílnu je tu jako osoba),
   4. **zbytek vsi** (i hosté). Člověk patří do nejvyšší skupiny, kam ho řadí kterékoli pravidlo.
-     Každá skupina dostane plný příděl, dokud na ni jídlo vyjde; skupina, na kterou celý nevyjde,
-     si rozdělí zbytek rovným dílem, nižší skupiny nic (nevyjde-li ani na rod, jí jen on). Ve výhledu
-     do sklizně se napřed odloží plné příděly skupin 1–3 a zbytek vsi si rozdělí, co zbude.
+     **Od 18. 11. 2026** (Martin: „Nejde, aby elita měla plný příděl a rolníci byli pod hranicí
+     hladomoru“; k hranici „75% je ok.“) platí přednost jen **nad životním minimem 75 % potřeby
+     energie**: napřed dostane každý 75 % své potřeby a teprve zbytek jde po vrstvách; když jídlo
+     nevystačí ani na 75 % pro všechny, dostanou všichni stejný podíl bez přednosti. Vrstvy platí
+     celý rok, ne jen v hladu ([strava](diet.md) – Strava po vrstvách a porážka celý rok, Kdo
+     dostane co). Dřívější plné příděly skupin v pořadí (17.–18. 11. 2026):
+     [history](history/population-history.md).
      **Nahromaděný hlad** se vede pro každou skupinu zvlášť, riziko smrti hladem a hájení počítají
      s hladem skupiny člověka, porody brzdí energie skupiny matky; prahy a čísla se nemění.
      Mistři huti odcházejí při hladu podle energie své skupiny. **Hráč vidí** jako dřív – ikona

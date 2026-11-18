@@ -65,7 +65,8 @@ describe('kusy poražené dnes', () => {
     const s = village(day);
     s.livestock!.herds = herds({ pig: 60, sheep: 30 });
     const input = dayMealInput(s, day, 0, 1);
-    s.storesKg = 0.75 * input.needPerDay * input.daysToHarvest;
+    // mléko ovcí do sklizně se počítá bez stropu – obilí jen na 40 % potřeby, ať výhled nevyjde
+    s.storesKg = 0.4 * input.needPerDay * input.daysToHarvest;
     const event = emergencySlaughter(s, day, 0, 1);
     if (event?.kind !== 'emergency-slaughter') throw new Error('bez porážky');
     expect(s.livestock!.slaughtered!.day).toBe(day);

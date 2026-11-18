@@ -2,7 +2,7 @@ import { TOTAL_GAME_DAYS, dateOfDayIndex, dayIndexOf } from '../../calendar';
 import type { ObstacleLayer } from '../../landscape';
 import { churchHappiness } from './church-life';
 import { christianShare } from './conversion';
-import { DIET, meatHappiness } from '../core/diet';
+import type { DietHappiness } from '../core/tier-meal';
 import { isOvercrowded } from '../buildings/dwellings';
 import { fieldFoodShare, fieldStoresKg } from '../fields/field-food';
 import { linenUnhappiness } from '../fields/flax';
@@ -65,10 +65,18 @@ export interface HappinessFactors {
   toil: number;
   /** Zásoby obilí na víc než rok – +5. */
   stores: number;
-  /** Lidé jedí ovoce – sladké, +5 (diet.md). */
+  /** Lidé jedí ovoce – sladké, +5 každému, kdo ho jedl, průměr po lidech (diet.md). */
   fruit: number;
-  /** Lidé jedí maso – až +3 podle podílu energie z masa (diet.md – Luštěniny, Martin). */
+  /**
+   * Lidé jedí maso – až +3 podle podílu energie z masa, kterou kdo snědl, průměr po lidech
+   * (diet.md – Luštěniny, Martin).
+   */
   meat: number;
+  /**
+   * Lidé jedí med – sladký, +2 každému, kdo ho jedl, průměr po lidech (diet.md – Strava po vrstvách
+   * a porážka celý rok, Spokojenost ze stravy).
+   */
+  honey: number;
   /** Posvátná místa pohanů – nejvýš +40 (křesťanům 0). */
   sacred: number;
   /** Nespokojenost pohanů se zničenými posvátnými místy (christianity.md), nejvýš 30; chybí = 0. */
@@ -84,7 +92,8 @@ export interface HappinessFactors {
 }
 
 /**
- * Cílové štěstí = vážený průměr cíle pohanů a křesťanů (jedna skupina = její cíl); cíl skupiny = 50 + posvátná místa + zásoby + ovoce + maso − hlad − úmrtí − přeplněnost − dřina
+ * Cílové štěstí = vážený průměr cíle pohanů a křesťanů (jedna skupina = její cíl); cíl skupiny =
+ * 50 + posvátná místa + zásoby + ovoce + maso + med − hlad − úmrtí − přeplněnost − dřina
  * − chybějící vlna a len (0–100).
  */
 export function happinessTarget(f: HappinessFactors): number {
@@ -92,7 +101,8 @@ export function happinessTarget(f: HappinessFactors): number {
     HAPPINESS.base +
     f.stores +
     f.fruit +
-    f.meat -
+    f.meat +
+    f.honey -
     f.hunger -
     f.deaths -
     f.crowding -
@@ -171,19 +181,22 @@ function faithFactors(
   };
 }
 
+/** Bez štěstí ze stravy – nikdo nejí maso, ovoce ani med. */
+const NO_DIET_HAPPINESS: DietHappiness = { fruit: 0, meat: 0, honey: 0 };
+
 /**
- * Složky cílového štěstí vsi v den `day` při nasycení `satiation`; `fruit` – lidé dnes jedí ovoce,
- * `meatShare` – podíl energie dne z masa (diet.md); `obstacles` – vrstva překážek krajiny (stáří
- * a život posvátných dubů – bez ní se počítají jako nejmladší); `premiumSacred` – posvátné místo
- * prémiové krajiny (`premiumSacredHappiness`).
+ * Složky cílového štěstí vsi v den `day` při nasycení `satiation`; `diet` – štěstí z masa, ovoce
+ * a medu průměrem po lidech podle toho, co kdo dnes snědl (`dietHappiness` – diet.md, Spokojenost
+ * ze stravy); `obstacles` – vrstva překážek krajiny (stáří a život posvátných dubů – bez ní se
+ * počítají jako nejmladší); `premiumSacred` – posvátné místo prémiové krajiny
+ * (`premiumSacredHappiness`).
  */
 export function happinessFactors(
   state: VillageState,
   day: number,
   satiation: number,
-  fruit = false,
+  diet: DietHappiness = NO_DIET_HAPPINESS,
   obstacles: ObstacleLayer | null = null,
-  meatShare = 0,
   premiumSacred = 0,
 ): HappinessFactors {
   const memory = state.happiness;
@@ -193,8 +206,9 @@ export function happinessFactors(
     crowding: HAPPINESS_PENALTY.crowdingMax * crowdedShare(state, day),
     toil: toilPenalty(memory?.toil ?? []),
     stores: hasGoodStores(state, day) ? HAPPINESS_BONUS.stores : 0,
-    fruit: fruit ? DIET.fruitHappiness : 0,
-    meat: meatHappiness(meatShare),
+    fruit: diet.fruit,
+    meat: diet.meat,
+    honey: diet.honey,
     sacred: sacredHappiness(state, day, obstacles, premiumSacred),
     ...faithFactors(state),
     wool: woolUnhappiness(state),
@@ -233,10 +247,10 @@ export function updateHappiness(
     satiation: number;
     events: readonly ChronicleEvent[];
     toil: boolean;
-    fruit?: boolean;
+    /** Štěstí ze stravy po lidech (`dietHappiness`); chybí = nikdo nejí maso, ovoce ani med. */
+    diet?: DietHappiness;
     /** Vrstva překážek – stáří a život posvátných dubů (bez ní nejmladší). */
     obstacles?: ObstacleLayer | null;
-    meatShare?: number;
     /** Štěstí posvátného místa prémiové krajiny (`premiumSacredHappiness`); chybí = 0. */
     premiumSacred?: number;
   },
@@ -256,9 +270,8 @@ export function updateHappiness(
       state,
       day,
       input.satiation,
-      input.fruit ?? false,
+      input.diet ?? NO_DIET_HAPPINESS,
       input.obstacles ?? null,
-      input.meatShare ?? 0,
       input.premiumSacred ?? 0,
     ),
   );

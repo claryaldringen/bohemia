@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../../calendar';
 import { foundVillage } from '../../core/actions';
 import type { PartInput } from '../../core/actions';
-import { DIET } from '../../core/diet';
 import {
   closeFieldFoodYear,
   fieldFoodShare,
@@ -96,10 +95,6 @@ describe('podíl jídla z pole', () => {
     expect(fieldFoodShare({ fieldFood: { needKg: 0, fieldKg: 0, share: 0.1 } })).toBe(
       FIELD_FOOD.minShare,
     );
-  });
-
-  it('pojistka = co maso a mléko na svých stropech nepokryjí (diet.md)', () => {
-    expect(FIELD_FOOD.minShare).toBeCloseTo(1 - DIET.caps.meat - DIET.caps.dairy, 12);
   });
 
   it('součty běží od 1. 9. – první 1. 9. je začne, další spočítá podíl celého roku', () => {

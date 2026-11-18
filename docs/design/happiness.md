@@ -25,7 +25,7 @@ Slovanů: posvátné duby, dubové háje, dřevěné modly a nakonec svatyni jak
 ## Štěstí
 
 - Číslo **0–100**, výchozí **50** (návrh Clauda). Hráč ho vidí v horní liště (ikona + číslo).
-- **Cílová hodnota** = 50 + posvátná místa + dobré zásoby + ovoce + maso − hlad − úmrtí − přeplněnost − dřina,
+- **Cílová hodnota** = 50 + posvátná místa + dobré zásoby + ovoce + maso + med − hlad − úmrtí − přeplněnost − dřina,
   oříznutá na 0–100. Skutečné štěstí se k cíli **posouvá pomalu** – o 10 % rozdílu za měsíc (návrh
   Clauda), takže jedna špatná zima ves nezlomí a jedna socha ji hned nespasí.
 - **Co ubírá** (návrh Clauda, doladí se hraním):
@@ -45,7 +45,10 @@ Slovanů: posvátné duby, dubové háje, dřevěné modly a nakonec svatyni jak
   zásoby obilí a luštěnin na víc než rok potřeby z pole – [pole](history/fields-history.md), Osev podle stravy)
   **+5**, ovoce **+5** – dokud lidé jedí ovoce, je sladké (Martin – [strava](diet.md), od 18. 10. 2026), maso
   až **+3** – plně od 20 % energie z masa, méně poměrně (Martin: „maso bude mírně zvyšovat
-  štěstí“, čísla návrh Clauda).
+  štěstí“, čísla návrh Clauda), med **+2** – dokud lidé jedí med (od 18. 11. 2026; návrh
+  Clauda, [strava](diet.md) – Strava po vrstvách a porážka celý rok). Štěstí ze stravy (maso,
+  ovoce, med) se od 18. 11. 2026 počítá **po lidech** podle toho, co kdo ten den snědl, a ves
+  vezme průměr přes jedlíky (lidi jedoucí ze zásob vsi i hosty; kdo je pryč, se nepočítá).
 - **Hlad** počítá s nasycením se stravou (energie × pestrost – [strava](diet.md)): ves jen
   s obilím je nasycená na 80 % a ubere si tak ≈ 4 body.
 - **Účinek na práci** (Martin – „nechme to tak, doladíme později“): veškerá práce vsi se násobí

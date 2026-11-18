@@ -9,4 +9,6 @@ export const SLOW_TESTS: readonly string[] = [
   'src/domain/village/core/__tests__/simulate-slow.test.ts',
   // zlatý otisk vsi po 2. a 3. roce
   'src/domain/village/core/__tests__/village-golden-long.test.ts',
+  // letní porážka ve zlaté vsi (stádo přes zimu)
+  'src/domain/village/livestock/__tests__/summer-slaughter-golden.test.ts',
 ];

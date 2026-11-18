@@ -973,8 +973,11 @@ návrhem Clauda):
   871 36,5 → 26,7 t, k 31. 3. zbylo 0,6 t místo 9,8 t – zimní krmení i tak 100 % (voli i stáda),
   stáda beze změny; dní s přídělem v hubeném roce 871/872 227 → 236 (víc osiva ozimu). V roce
   873 otavu nestihne ani dřív (září bere dosklizeň jaře).
-- **Úlohy mimo seznam:** porážka a uzení hned za výmlatem na dnešní jídlo (maso se musí zpracovat
-  hned – jako dřív před polními úlohami); péče o sad za přípravou půdy, před hlídkou; obilné jámy
+- **Úlohy mimo seznam:** porážka a uzení za žní, trháním lnu a nutnou sečí i otavou, před
+  jablky (od 18. 11. 2026 – porážka celý rok, [strava](diet.md) – Porážka za žní: maso je k jídlu
+  hned, práce porážky jen spotřebuje ruce a počká; v zimě se nežne ani neseče – tam zůstává hned
+  za výmlatem na dnešní jídlo; ~~hned za výmlatem na dnešní jídlo celý rok~~, maso se muselo
+  zpracovat hned); péče o sad za přípravou půdy, před hlídkou; obilné jámy
   (potřebují vymlácené zrno) a dospělý pasák za výmlatem – před stavbami jako dřív. Seč navíc pro
   růst stád, pletí mužů a ryby zůstávají za stavbami.
 - **Uvnitř skupiny** nejbližší konec okna (v srpnu dosklizeň ozimu před žní jaře), v přípravě půdy
@@ -1814,7 +1817,9 @@ na vlnu – oděv, [diet.md](diet.md) – Oděv). Pravidla **návrh Clauda** pod
   5 % (meze – dobře utěsněná jáma ztrácí málo, Butser; rozpětí návrh Clauda). Zrno
   v **zapečetěné obilné jámě** jen 3 % za rok (Výmlat hned po žni – Obilné jámy).
 - **Přídělový systém:** dokud zásoby vystačí do příští sklizně, jí ves dosyta (nasycení 1).
-  Když nevystačí, obyvatelé rozdělí to, co zbývá, rovnoměrně do sklizně – nasycení je podíl
+  **Od 18. 11. 2026 se šetří jen obilí (a v hladu med):** rychle se kazící jídlo se jí napřed
+  tempem proti zkažení, ne rovným dílem ([strava](diet.md) – Strava po vrstvách a porážka celý
+  rok). Když nevystačí, obyvatelé rozdělí to, co zbývá, rovnoměrně do sklizně – nasycení je podíl
   zásob a potřeby do sklizně (návrh Clauda). Ves tak hladoví postupně, ne ze dne na den.
   Zásoby se přitom počítají **po ztrátách skladováním do dne, kdy se snědí** (stejné ztráty jako
   výše), takže příděl je od začátku přesný a do žní se drží rovně (Martin 15. 11. 2026: „Ano“;

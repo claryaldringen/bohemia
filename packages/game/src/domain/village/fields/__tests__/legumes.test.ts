@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../../calendar';
 import { foundVillage } from '../../core/actions';
 import type { PartInput } from '../../core/actions';
-import { DIET, PROTEIN, eatDiet, meatHappiness, proteinNeedPerDay } from '../../core/diet';
+import { PROTEIN, eatDiet, meatHappiness, proteinNeedPerDay } from '../../core/diet';
 import { endOfSeason } from '../fields';
 import { daysUntilLegumeHarvest, legumeEnergy, legumeStorageLossPerYear } from '../legumes';
 import { meatNeedPerYear } from '../../livestock/livestock';
@@ -123,15 +123,20 @@ describe('jídlo s luštěninami (eatDiet)', () => {
     potteryCoverage: NO_CRAFTS.pottery,
   };
 
-  it('rovným dílem do příští sklizně, nejvýš strop; bílkoviny z luštěnin', () => {
-    const plenty = eatDiet({ ...base, legumesKg: 1e5, daysToLegumeHarvest: 200 });
-    expect(plenty.diet.shares.legumes).toBeCloseTo(DIET.caps.legumes, 9);
+  it('bez stropu před obilím – do potřeby, zbytek počká; bílkoviny z luštěnin (diet.md – Strava po vrstvách)', () => {
+    // luštěniny na víc než potřebu dne – sní se celá potřeba, obilí dnes ne (dřív strop 25 %)
+    const plenty = eatDiet({ ...base, legumesKg: 1e5 });
+    expect(plenty.diet.shares.legumes).toBeCloseTo(1, 9);
+    expect(plenty.eaten.grainKg).toBe(0);
+    // málo luštěnin – snědí se dnes celé, obilí dorovná
     const keep = (1 - legumeStorageLossPerYear(NO_CRAFTS.pottery)) ** (1 / 365);
-    const few = eatDiet({ ...base, legumesKg: 20, daysToLegumeHarvest: 200 });
-    expect(few.diet.shares.legumes! * NEED).toBeCloseTo(legumeEnergy((20 * keep) / 200), 9);
-    expect(few.legumesKg).toBeCloseTo(20 * keep - (20 * keep) / 200 / LEGUMES.energy, 9);
+    const few = eatDiet({ ...base, legumesKg: 1 });
+    expect(few.diet.shares.legumes! * NEED).toBeCloseTo(legumeEnergy(keep), 9);
+    expect(few.legumesKg).toBe(0);
+    expect(few.eaten.grainKg).toBeCloseTo(NEED - legumeEnergy(keep), 9);
     const none = eatDiet({ ...base });
     expect(few.diet.protein).toBeGreaterThan(none.diet.protein);
+    expect(plenty.legumesKg).toBeCloseTo(1e5 * keep - NEED / LEGUMES.energy, 6);
   });
 });
 
@@ -254,14 +259,21 @@ describe('luštěniny z polí vyřazené (Martin 9. 11. 2026)', () => {
     const legacy = withLegacyLegumes(spring, 4, true);
     // zasetou část převod nechá
     expect(withoutFieldLegumes(legacy)).toBe(legacy);
-    const harvested = advanceVillage(legacy, at(602, 9, 30), null);
+    // od žní po dnech – vymlácené luštěniny se jedí ze zásoby hned (bez stropu před obilím), do
+    // konce září tak můžou být snědené
+    let harvested = advanceVillage(legacy, at(602, 6, 30), null);
+    let eatenLegumes = false;
+    for (let day = at(602, 7, 1); day <= at(602, 9, 30); day++) {
+      harvested = advanceVillage(harvested, day, null);
+      if ((harvested.diet?.shares.legumes ?? 0) > 0) eatenLegumes = true;
+    }
     const events = harvested.chronicle.filter(
       (e): e is HarvestEvent => e.kind === 'harvest' && e.crop === 'legume',
     );
     expect(events).toHaveLength(1);
     expect(events[0]!.kg).toBeGreaterThan(0);
     expect(villageSheaves(harvested).legumesKg).toBe(0);
-    expect(harvested.legumesKg).toBeGreaterThan(0);
+    expect(eatenLegumes).toBe(true);
     // díl po luštěninách dál s obilím – nová luštěnina nepřibude
     const later = advanceVillage(harvested, at(603, 6, 1), null);
     expect(later.parts.some((p) => p.crop === 'legume')).toBe(false);

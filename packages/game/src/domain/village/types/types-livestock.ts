@@ -26,15 +26,28 @@ export interface LivestockState {
    */
   slaughtered?: { day: number; heads: Partial<Record<HerdSpecies, number>> };
   /**
-   * Porážka a uzení (listopad) – potřebné a odvedené člověkodny; chybí = žádná. `emergency` –
-   * práce nouzové porážky mimo listopad (diet.md – Nouzová porážka), dělá se hned.
+   * Porážka a uzení – potřebné a odvedené člověkodny (celý rok, dokud nějaká čeká: zimní, letní
+   * i nouzová porážka, maso z lovu a dosloužilých zvířat – diet.md, Strava po vrstvách a porážka
+   * celý rok); nedodělek letní porážky přebírá porážka 1. 11. Chybí = žádná.
    */
-  slaughterWork?: { required: number; done: number; emergency?: boolean } | null;
+  slaughterWork?: { required: number; done: number } | null;
+  /**
+   * Kusy, které ves letos v létě porazila pro rod vojvody (diet.md – Strava po vrstvách a porážka
+   * celý rok) – odhad 1. 11. (`winterKeepTargets`) je počítá do stáda, jako by žily, a letní
+   * kandidáti je odečtou, ať letní porážka odhad nezmenšuje. Porážka 1. 11. ho smaže.
+   * Chybí = žádné.
+   */
+  summerSlaughtered?: Partial<Record<HerdSpecies, number>>;
   /**
    * Pasení od poslední porážky (diet.md – Pasáci): součet denní potřeby pasáků a co z ní
-   * výrostci uhlídali (v plných pasácích). Chybí = zatím nic (vsi uložené dřív).
+   * výrostci uhlídali (v plných pasácích). Chybí = zatím nic (vsi uložené dřív). `summer` – totéž
+   * pro kusy z letní porážky, jako by žily (`winterHerdingCoverage` – odhad zimy); chybí = žádné.
    */
-  herding?: { needDays: number; watchedDays: number };
+  herding?: {
+    needDays: number;
+    watchedDays: number;
+    summer?: { needDays: number; watchedDays: number };
+  };
   /**
    * Na jaký podíl oděvu dají vlnu ovce přezimující od poslední porážky (diet.md – Oděv; 0–1,
    * `recordWool`). Chybí = dost (vsi uložené dřív a nové vsi do první porážky).

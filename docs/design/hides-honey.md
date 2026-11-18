@@ -30,7 +30,9 @@ Nové zboží vsi. Martin 14. 11. 2026:
   skladovat a hromadit. Na druhou stranu – med se většinou přidával do sladkého pečiva nebo se
   z něj dělala medovina – samotného medu totiž člověk moc nesní.“ Návrh Clauda: příděl **0,5 kg na
   člověka za rok** (sladké pečivo), zbytek zůstává v zásobě na prodej; medovina později. Hladová
-  ves sní i zásobu (Med v hladu).
+  ves sní i zásobu (Med v hladu). **Od 18. 11. 2026** se pevný příděl jí každý den všem stejně
+  (i když obilí stačí) a med zvyšuje štěstí o **+2** (návrh Clauda; [strava](diet.md) – Strava po
+  vrstvách a porážka celý rok, Med); v hladu se med nad pevný příděl dělí po vrstvách za obilím.
 - Med a vosk přibývají denně od května do září – za rok z klátu **≈ 6 kg medu a ≈ 0,4 kg vosku**
   (středověký klát dával 5–10 kg medu, vosk ≈ 6–8 % medu). Bez rojení a úhynu včel.
 - Prémiová krajina „Brtě a lesní včely“: brtě v lese dají každá jako klát; vybírá je práce vsi
@@ -54,7 +56,7 @@ jsou to kalorie jako každé jiné.“
 
 ## Lov drobné zvěře – kdykoli je čas
 
-- Dnes ([divoká zvěř](wildlife.md) – Drobná zvěř a ryby) jen při potřebě bílkovin nebo hladu.
+- Dřív ([divoká zvěř](wildlife.md) – Drobná zvěř a ryby) jen při potřebě bílkovin nebo hladu; od 18. 11. 2026 ryby vždy.
   **Nově kdykoli na to lidé mají čas – ale jen v zimě**, prosinec až březen oka; ryby zbytek roku
   jako dnes. Martin 14. 11. 2026: „V létě se neloví – jednak je spousta práce s jinými věcmi
   a jednak nejsou kožešiny tak kvalitní jako v zimě. Zatím nechme zjednodušení.“ (oka se kladou,

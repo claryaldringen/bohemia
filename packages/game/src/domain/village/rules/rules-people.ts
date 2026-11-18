@@ -110,6 +110,10 @@ export const BETTER_DWELLING: Record<DwellingType, DwellingType> = {
 export const AGE = { olderChild: 7, adult: 14, fertile: 16, elder: 45 } as const;
 export const LABOR_PER_DAY = { adult: 1, elder: 0.5 } as const;
 export const START_AGES = [25, 25, 13, 12] as const;
+// diet.md – Kdo dostane co (Martin 18. 11. 2026: „Nejde, aby elita měla plný příděl a rolníci byli
+// pod hranicí hladomoru…“, „75% je ok.“): životní minimum každé vrstvy v hladu – podíl její potřeby,
+// pod který nikdo neklesne, dokud celá ves nejí méně; zbytek jídla jde po vrstvách v pořadí přednosti
+export const HUNGER_PRIORITY = { minimumShare: 0.75 } as const;
 // kinship.md – Pohlaví (návrh Clauda): zakladatelé jsou dva páry – muž a žena 25 let (manželé)
 // a chlapec 13 a dívka 12 let (nepříbuzní, rodiče neznámí – vezmou se, až dorostou); pohlaví
 // v pořadí START_AGES

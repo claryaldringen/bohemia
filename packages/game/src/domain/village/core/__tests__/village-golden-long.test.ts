@@ -42,12 +42,31 @@ import { goldenWorld, stateFingerprint, YEAR } from './village-golden-fixture';
 // 17. 11. 2026 – D91 (psi dvorce nejedí obilí, maso krávy 130 kg, včasná porážka koní bez sena –
 // viz village-golden.test.ts); dřív 344a0e5dac68c6b6 a 7d8de5be28486665
 // D91 doplněk: vůl na maso 130 kg (viz village-golden.test.ts); dřív 306440f7f5b30966 a 2e3e180d8e3119dd
+// 18. 11. 2026 – strava po vrstvách, úloha 1; dřív 168010dd35f7c1c7 / a499594da5514b49
+// 18. 11. 2026 – strava po vrstvách, úloha 2; dřív cd7bd43b11e74421 / cb235ea806f24818
+// 18. 11. 2026 – strava po vrstvách, úloha 2 (tempo proti zkažení napřed i v hojnosti); dřív
+// b6001ccd4e274037 / b8e6cbe3938ba593
+// 18. 11. 2026 – strava po vrstvách, úloha 3 (jídlo po vrstvách, štěstí ze stravy po lidech a z medu);
+// dřív 1f4e71c751f2f92d / 7c864080e92c063e
+// 18. 11. 2026 – strava po vrstvách, úloha 3 (ovoce a pevný příděl medu všem stejně, štěstí ze
+// stravy přes jedlíky); dřív 2a2209659320ad84 / d9a302302d49421b
+// 18. 11. 2026 – strava po vrstvách, úloha 4 (porážka celý rok – v létě kus pro rod vojvody, v zimě
+// rozložená na celou zimu, práce porážky celý rok); dřív 7a525fcee8315820 a 5b62bbb80dd2cc96
+// 18. 11. 2026 – strava po vrstvách, úloha 4, opravné kolo 1 (letní porážka bez západky, po práci dne);
+// dřív 69369fe95832f5ba a f588619d4f4abbe0
+// 18. 11. 2026 – strava po vrstvách, úloha 4, opravné kolo 2 (odhad 1. 11. ze stáda i s letní porážkou);
+// dřív 4d3b560d29b64956 a 10a4b9f7cd55317f
+// 18. 11. 2026 – strava po vrstvách × D93–D96 (sloučení feat/landscape); dřív ed829a5207034ab1
+// a 0fc9dc69b6627550
+// 18. 11. 2026 – opravy po závěrečné kontrole stravy (maso elitě před mlékem, ryby ve výhledu do
+// sklizně, porážka za žní a sečí, podíl pasáků i s letní porážkou); dřív 96cbecd21f6d8927
+// a 5d858a6a3e2859bc
+const EXPECTED_YEAR_2 = '29895c33a84fdb08';
+const EXPECTED_YEAR_3 = '7ce7a924372a21a0';
 // 18. 11. 2026 – D93 cesta přes plochu staveb; dřív 168010dd35f7c1c7 a a499594da5514b49 (viz
 // village-golden.test.ts)
 // 18. 11. 2026 – D95 výmlat (výmlat podle kg snopů, rod v zimě dorovná tempo okna – viz
 // village-golden.test.ts); dřív dea6984b000dcf8f a a1562c05b5f77eb7
-const EXPECTED_YEAR_2 = '847d856e7ca4c9ac';
-const EXPECTED_YEAR_3 = 'c7922c7d2f87017a';
 
 describe('zlatý otisk vsi – delší běh', () => {
   it('po 2. a 3. roce dopočtu dá zapsané otisky', () => {

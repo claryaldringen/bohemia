@@ -10,6 +10,7 @@ import {
   herdingDemand,
   isYoungster,
   recordHerding,
+  winterHerdingCoverage,
   youngsterHerders,
 } from '../herding';
 import { HAY, SNOW_FEED_DAYS } from '../hay';
@@ -152,6 +153,69 @@ describe('kolik pasáků stáda potřebují', () => {
     recordHerding(s, { demand: 2, free: 1, freeHerders: { children: 3 } });
     recordHerding(s, { demand: 2, free: 1.5, freeHerders: { children: 4 } });
     expect(herdingCoverage(s)).toBeCloseTo(2.5 / 4, 9);
+  });
+
+  it('kusy z letní porážky jako by žily – jen v podílu pro odhad zimy', () => {
+    const s = village(at(600, 6, 1));
+    const one = { freeHerders: { children: 1 } };
+    // výrostci nestačí – kusy z letní porážky by neuhlídal nikdo navíc
+    recordHerding(s, {
+      demand: 0.8,
+      free: 0.4,
+      ...one,
+      summer: { demand: 0.2, free: 0, adult: 0 },
+    });
+    expect(herdingCoverage(s)).toBeCloseTo(0.5, 9);
+    expect(winterHerdingCoverage(s)).toBeCloseTo(0.4, 9);
+    // výrostci, kteří dnes nepásli, by je uhlídali
+    recordHerding(s, {
+      demand: 0.2,
+      free: 0.2,
+      ...one,
+      summer: { demand: 0.2, free: 0.2, adult: 0 },
+    });
+    expect(herdingCoverage(s)).toBeCloseTo(0.6, 9);
+    expect(winterHerdingCoverage(s)).toBeCloseTo(0.8 / 1.4, 9);
+  });
+
+  it('dospělý by pásl i kusy z letní porážky stejným dílem, jaký ves dala', () => {
+    const day = at(600, 6, 1);
+    const none = { free: 0, freeHerders: { children: 0 } };
+    const summer = { demand: 0.1, free: 0, adult: 0.1 };
+    // ves dala polovinu chtěné práce dospělého pasáka (0,1 z 0,2) – stejný díl i pro letní kusy
+    const half = village(day);
+    recordHerding(half, { demand: 0.2, ...none, summer }, 0.1);
+    expect(herdingCoverage(half)).toBeCloseTo(0.5, 9);
+    expect(winterHerdingCoverage(half)).toBeCloseTo(0.15 / 0.3, 9);
+    // celá chtěná práce – uhlídá i letní kusy
+    const full = village(day);
+    recordHerding(full, { demand: 0.2, ...none, summer }, 0.2);
+    expect(winterHerdingCoverage(full)).toBeCloseTo(1, 9);
+    // bez letní porážky stejné jako podíl dnešního stáda
+    const plain = village(day);
+    recordHerding(plain, { demand: 0.2, ...none }, 0.15);
+    expect(winterHerdingCoverage(plain)).toBe(herdingCoverage(plain));
+  });
+
+  it('pasení dne počítá kusy z letní porážky – výrostci navíc, dospělý jen bez výrostků', () => {
+    const day = at(600, 6, 1);
+    const s = village(day);
+    s.people = s.people.filter((p) => !isYoungster(p, day));
+    s.livestock!.herds = herds({ goat: 30 });
+    s.livestock!.summerSlaughtered = { goat: 10 };
+    // bez výrostků: dospělý by pásl i letní kusy do svého dílu (0,3 + 0,1 ≤ 0,4)
+    const adult = herdingDay(s, day, 0).summer;
+    expect(adult?.demand).toBeCloseTo(10 / HERDING.perHerder.goat, 9);
+    expect(adult?.free).toBe(0);
+    expect(adult?.adult).toBeCloseTo(0.1, 9);
+    // s výrostky: uhlídají, na co jim dnes zbude
+    s.people.push(person(s, 900, 10, day), person(s, 901, 11, day));
+    const kids = herdingDay(s, day, 0).summer;
+    expect(kids?.free).toBeCloseTo(0.1, 9);
+    expect(kids?.adult).toBe(0);
+    // bez letní porážky nic navíc
+    delete s.livestock!.summerSlaughtered;
+    expect(herdingDay(s, day, 0).summer).toBeUndefined();
   });
 });
 

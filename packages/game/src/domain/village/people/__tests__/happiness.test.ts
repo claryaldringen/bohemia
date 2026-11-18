@@ -38,6 +38,7 @@ const NONE = {
   stores: 0,
   fruit: 0,
   meat: 0,
+  honey: 0,
   sacred: 0,
   wool: 0,
   linen: 0,
@@ -77,6 +78,8 @@ describe('štěstí – čísla z návrhu', () => {
     // ovoce je sladké – štěstí +5 (diet.md), maso mírně – až +3 (Martin)
     expect(happinessTarget({ ...NONE, fruit: 5 })).toBe(55);
     expect(happinessTarget({ ...NONE, fruit: 5, meat: 3 })).toBe(58);
+    // med je sladký – +2 (diet.md – Strava po vrstvách a porážka celý rok)
+    expect(happinessTarget({ ...NONE, fruit: 5, meat: 3, honey: 2 })).toBe(60);
     // chybí vlna na oděv – až −6 (diet.md – Oděv)
     expect(happinessTarget({ ...NONE, wool: 6 })).toBe(44);
     // chybí len na oděv – až −4 (fields.md – Len)
@@ -130,6 +133,22 @@ describe('štěstí ve vsi', () => {
       updateHappiness(s, day, { satiation: 1, events: [], toil: false });
     }
     expect(villageHappiness(s)).toBeCloseTo(target - (target - 50) * 0.9 ** 48, 9);
+  });
+
+  it('štěstí ze stravy přichází spočtené po lidech – maso, ovoce i med (diet.md)', () => {
+    const s = village();
+    const plain = happinessFactors(s, DAY, 1);
+    expect([plain.fruit, plain.meat, plain.honey]).toEqual([0, 0, 0]);
+    const diet = { fruit: 4, meat: 1.5, honey: 1.6 };
+    const fed = happinessFactors(s, DAY, 1, diet);
+    expect([fed.fruit, fed.meat, fed.honey]).toEqual([4, 1.5, 1.6]);
+    expect(happinessTarget(fed) - happinessTarget(plain)).toBeCloseTo(4 + 1.5 + 1.6, 12);
+    // krok dne posune štěstí k cíli i se stravou
+    const a = structuredClone(s);
+    const b = structuredClone(s);
+    updateHappiness(a, DAY, { satiation: 1, events: [], toil: false });
+    updateHappiness(b, DAY, { satiation: 1, events: [], toil: false, diet });
+    expect(villageHappiness(b)).toBeGreaterThan(villageHappiness(a));
   });
 
   it('úmrtí ubírají rok, dřina se pamatuje 60 dní', () => {

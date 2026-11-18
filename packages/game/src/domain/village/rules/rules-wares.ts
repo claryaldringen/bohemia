@@ -32,6 +32,8 @@ export const BEE_TREE_HARVEST = { month: 10 } as const;
 export const HONEY = {
   energyPerKg: 0.9,
   kgPerPersonYear: 0.5,
+  // diet.md – Strava po vrstvách: med dává radost (podíl radosti z jídla čte rozdělení po vrstvách)
+  happiness: 2,
 } as const;
 
 /**

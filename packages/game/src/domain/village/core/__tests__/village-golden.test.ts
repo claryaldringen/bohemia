@@ -59,18 +59,38 @@ import { advanceChunked, goldenWorld, stateFingerprint, YEAR } from './village-g
 // 17. 11. 2026 – D91 (Martin 17. 11. 2026: „psi ať nic nespotřebovávají“ a maso krávy 120 → 130 kg): psi dvorce už nejedí obilí a z porážky je víc masa – jiné zásoby a jídlo; dřív 619b02b6a1c512e2
 // 17. 11. 2026 – D91 doplněk (Martin: „Tehdejší lidé zpracovali to zvíře komplet“): vůl na maso
 // 120 → 130 kg jako kráva (`oxMeatKg`) – jiné zásoby; dřív 6df903308768fe20
+// 18. 11. 2026 – strava po vrstvách, úloha 1; dřív 82b12dd84c08dd63
+// 18. 11. 2026 – strava po vrstvách, úloha 2; dřív 60a62e071fd0d3fd
+// 18. 11. 2026 – strava po vrstvách, úloha 2 (tempo proti zkažení napřed i v hojnosti); dřív
+// 9371ea6e5d066ae8
+// 18. 11. 2026 – strava po vrstvách, úloha 3 (jídlo po vrstvách, štěstí ze stravy po lidech a z medu);
+// dřív 776bb414d4028d91
+// 18. 11. 2026 – strava po vrstvách, úloha 3 (ovoce a pevný příděl medu všem stejně, štěstí ze
+// stravy přes jedlíky); dřív 79b920be6d62a4c2
+// 18. 11. 2026 – strava po vrstvách, úloha 4 (porážka celý rok – v létě kus pro rod vojvody, v zimě
+// rozložená na celou zimu, práce porážky celý rok); dřív 9f3abbaffbff219f
+// 18. 11. 2026 – strava po vrstvách, úloha 4, opravné kolo 1 (letní porážka bez západky – staré kusy
+// se započtením letní porážky, rozhoduje se po práci dne i s rybami; nouzová porážka nenuluje
+// práci porážky); dřív 9a95a3545a893d89
+// 18. 11. 2026 – strava po vrstvách, úloha 4, opravné kolo 2 (odhad 1. 11. ze stáda i s letní porážkou,
+// práce letní porážky se dodělá s porážkou 1. 11.); dřív 9a87bfa34fc520a8
+// 18. 11. 2026 – strava po vrstvách × D93–D96 (sloučení feat/landscape); dřív ffb78a93bb4e5d05
+// 18. 11. 2026 – opravy po závěrečné kontrole stravy (maso elitě před mlékem, ryby ve výhledu do
+// sklizně, porážka za žní a sečí, podíl pasáků i s letní porážkou); dřív be42183ebfc3b806
+const EXPECTED_YEAR_1 = '1a8f69a42f76bd25';
 // 18. 11. 2026 – D93 cesta přes plochu staveb; dřív 82b12dd84c08dd63 (vyšlapaná cesta přes plochu
 // staveb nevznikne a napojení ji obejde – jiné cesty a id; roky chůze nejvýš doba vyšlapání)
 // 18. 11. 2026 – D95 výmlat (Martin: „A, C, E“ – výmlat podle kg snopů, rod v zimě dorovná tempo
 // okna výmlatu; „Humno nestačí“ jen když ruce humna přetíží); dřív df705e2196e85d88
-const EXPECTED_YEAR_1 = 'c38b67aee58c5122';
 
 describe('zlatý otisk vsi', () => {
   const world = goldenWorld();
 
   it('po 20 letech má ves pole, stáda, zásoby řemesel i rod (základ otisku není prázdný)', () => {
     const s = world.start;
-    expect(s.fields.length).toBeGreaterThanOrEqual(5);
+    // 18. 11. 2026 – strava po vrstvách, úloha 2: maso, ryby a mléko bez stropů – ves potřebuje
+    // méně obilí a správce založil 4 pole; dřív aspoň 5
+    expect(s.fields.length).toBeGreaterThanOrEqual(4);
     expect(s.livestock?.herds).toBeDefined();
     expect(s.crafts).toBeDefined();
     expect(s.people.length).toBeGreaterThanOrEqual(10);

@@ -134,12 +134,18 @@ export interface HerdingDay {
   free: number;
   /** Kolik výrostků dnes pase (lidí – pro postavy u stád). */
   freeHerders: { children: number };
+  /**
+   * Kusy, které ves letos v létě porazila (`LivestockState.summerSlaughtered`), jako by žily
+   * (`summerHerding`): jejich potřeba pasáků, kolik z ní by uhlídali výrostci, kteří dnes
+   * nepásli, a kolik by navíc pásl dospělý ve vsi bez výrostků. Bez letní porážky chybí.
+   */
+  summer?: { demand: number; free: number; adult: number };
 }
 
 /**
  * Pasení dne: výrostci 7–13 let – jen kolik jich stáda potřebují. Synové kováře, kteří dnes nosí
  * uhlí (`busy` – id; crafts.md – Uhlí a ruda kováře), ani synové cvičící vojvodovy rodiny
- * (lord.md – Den rodiny) nepasou.
+ * (lord.md – Den rodiny) nepasou. S kusy z letní porážky, jako by žily (`summerHerding`).
  */
 export function herdingDay(
   state: HerdingState & Pick<VillageState, 'livestock'>,
@@ -149,23 +155,82 @@ export function herdingDay(
 ): HerdingDay {
   const herds = state.livestock?.herds;
   const demand = herds ? herdingDemand(herds, oxen, day) : 0;
-  if (demand <= EPSILON) return { demand: 0, free: 0, freeHerders: { children: 0 } };
-  const youngsters = youngsterCount(state, day, busy);
-  const children = Math.min(youngsters, Math.ceil(demand / HERDING.childShare - EPSILON));
-  const free = Math.min(demand, children * HERDING.childShare);
-  return { demand, free, freeHerders: { children } };
+  const today: HerdingDay = { demand: 0, free: 0, freeHerders: { children: 0 } };
+  let youngsters: number | null = null;
+  if (demand > EPSILON) {
+    youngsters = youngsterCount(state, day, busy);
+    const children = Math.min(youngsters, Math.ceil(demand / HERDING.childShare - EPSILON));
+    today.demand = demand;
+    today.free = Math.min(demand, children * HERDING.childShare);
+    today.freeHerders.children = children;
+  }
+  const summer = summerHerding(
+    state,
+    day,
+    today,
+    () => youngsters ?? youngsterCount(state, day, busy),
+  );
+  return summer ? { ...today, summer } : today;
+}
+
+/**
+ * Pasení kusů, které ves letos v létě porazila (`LivestockState.summerSlaughtered`), jako by žily
+ * (diet.md – Strava po vrstvách a porážka celý rok; návrh Clauda): jejich potřeba pasáků, kolik
+ * z ní by uhlídali výrostci, kteří dnes nepásli (`youngsters` – kolik jich dnes může pást), a kolik
+ * by navíc pásl dospělý – jen ve vsi bez výrostků a nejvýš do HERDING.adultShare i s dnešním
+ * stádem (jako `adultHerding`). Bez letní porážky null.
+ */
+function summerHerding(
+  state: HerdingState & Pick<VillageState, 'livestock'>,
+  day: number,
+  today: HerdingDay,
+  youngsters: () => number,
+): HerdingDay['summer'] | null {
+  const taken = state.livestock?.summerSlaughtered;
+  if (!taken) return null;
+  const heads = {
+    sheep: taken.sheep ?? 0,
+    goat: taken.goat ?? 0,
+    pig: taken.pig ?? 0,
+    cow: taken.cow ?? 0,
+  };
+  const demand = herdingDemand(heads, 0, day);
+  if (demand <= EPSILON) return null;
+  const spare = Math.max(0, youngsters() * HERDING.childShare - today.free);
+  const { adultShare } = HERDING;
+  const adult =
+    youngsterCount(state, day) > 0
+      ? 0
+      : Math.max(
+          0,
+          Math.min(today.demand + demand, adultShare) - Math.min(today.demand, adultShare),
+        );
+  return { demand, free: Math.min(demand, spare), adult };
 }
 
 /**
  * Zapíše pasení dne do ročního součtu (mutuje stav – od porážky do porážky): potřeba a co
  * výrostci a dospělý (`adult` – kolik dnes z práce vsi opravdu pásl, plných pasáků) uhlídali.
+ * Kusy z letní porážky zvlášť (`HerdingDay.summer` – `LivestockState.herding.summer`): dospělý by
+ * je pásl stejným dílem své dnešní práce, jaký ves dala.
  */
 export function recordHerding(state: VillageState, herding: HerdingDay, adult = 0): void {
   const livestock = state.livestock;
-  if (!livestock || herding.demand <= EPSILON) return;
+  if (!livestock) return;
+  const given = Math.max(0, adult);
+  if (herding.demand > EPSILON) {
+    const year = (livestock.herding ??= { needDays: 0, watchedDays: 0 });
+    year.needDays += herding.demand;
+    year.watchedDays += Math.min(herding.demand, herding.free + given);
+  }
+  const summer = herding.summer;
+  if (!summer || summer.demand <= EPSILON) return;
+  const wanted = Math.min(herding.demand, HERDING.adultShare);
+  const share = wanted > EPSILON ? Math.min(1, given / wanted) : 1;
   const year = (livestock.herding ??= { needDays: 0, watchedDays: 0 });
-  year.needDays += herding.demand;
-  year.watchedDays += Math.min(herding.demand, herding.free + Math.max(0, adult));
+  const part = (year.summer ??= { needDays: 0, watchedDays: 0 });
+  part.needDays += summer.demand;
+  part.watchedDays += Math.min(summer.demand, summer.free + summer.adult * share);
 }
 
 /** Podíl stáda, který pasáci od poslední porážky uhlídali (0–1; bez údaje 1). */
@@ -173,4 +238,20 @@ export function herdingCoverage(state: Pick<VillageState, 'livestock'>): number 
   const year = state.livestock?.herding;
   if (!year || year.needDays <= EPSILON) return 1;
   return Math.min(1, year.watchedDays / year.needDays);
+}
+
+/**
+ * Podíl stáda, který pasáci od poslední porážky uhlídali, ze stáda i s kusy, které ves letos
+ * v létě porazila, jako by žily (0–1; bez údaje 1 – `LivestockState.herding.summer`): odhad zimy
+ * počítá se stádem i s nimi (`winterKeepTargets`), tak i s jejich pasením – letní porážka tak
+ * stádo přes zimu nezvětší (dřív podíl dnešního, menšího stáda – ves s málo pasáky si po letní
+ * porážce nechala přes zimu o 15–25 % víc koz). Pastva a zarůstání dál podle dnešního stáda
+ * (`herdingCoverage`).
+ */
+export function winterHerdingCoverage(state: Pick<VillageState, 'livestock'>): number {
+  const year = state.livestock?.herding;
+  if (!year) return 1;
+  const need = year.needDays + (year.summer?.needDays ?? 0);
+  if (need <= EPSILON) return 1;
+  return Math.min(1, (year.watchedDays + (year.summer?.watchedDays ?? 0)) / need);
 }

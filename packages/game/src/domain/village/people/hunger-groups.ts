@@ -1,7 +1,9 @@
 import { foodNeedPerDay, guestFoodNeedPerDay } from './people';
+import { proteinNeedPerDay } from '../core/diet';
 import { lordFamily } from './lord';
 import { masterHousehold } from './lodge-life';
 import { nextStarvationDays } from './population';
+import { HUNGER_PRIORITY } from '../rules/rules-people';
 import type { Person, VillageState } from '../types';
 
 // Přednost v hladu (population.md – Hlad a vymření, Přednost v hladu; diet.md – Hlad; Martin
@@ -20,8 +22,18 @@ export interface HungerSplit {
   readonly groupOf: ReadonlyMap<number, number>;
   /** Potřeba jídla skupin za den (kg obilí); hosté jsou ve zbytku. */
   readonly needs: readonly number[];
-  /** Počet jedlíků ve skupinách (lidé, ve zbytku i hosté). */
+  /**
+   * Potřeba bílkovin skupin za den (kg – `proteinNeedPerDay` lidí skupiny); hosté bílkoviny
+   * nenesou, jako potřeba bílkovin vsi (`villageProteinNeed`).
+   */
+  readonly proteinNeeds: readonly number[];
+  /** Počet lidí ve skupinách (i lidé pryč; ve zbytku i hosté). */
   readonly counts: readonly number[];
+  /**
+   * Počet jedlíků ve skupinách – lidé, kteří dnes jedí ze zásob vsi (potřeba jídla nad 0), a hosté;
+   * ne lidé pryč (štěstí ze stravy – `dietHappiness`).
+   */
+  readonly eaters: readonly number[];
 }
 
 /**
@@ -61,34 +73,48 @@ export function hungerSplit(state: VillageState, day: number): HungerSplit {
     2,
   );
   const needs = new Array<number>(HUNGER_GROUPS).fill(0);
+  const proteinNeeds = new Array<number>(HUNGER_GROUPS).fill(0);
   const counts = new Array<number>(HUNGER_GROUPS).fill(0);
+  const eaters = new Array<number>(HUNGER_GROUPS).fill(0);
   for (const p of state.people) {
     const group = groupOf.get(p.id) ?? REST;
-    needs[group] = (needs[group] ?? 0) + foodNeedPerDay(p, day);
+    const need = foodNeedPerDay(p, day);
+    needs[group] = (needs[group] ?? 0) + need;
+    proteinNeeds[group] = (proteinNeeds[group] ?? 0) + proteinNeedPerDay(p, day);
     counts[group] = (counts[group] ?? 0) + 1;
+    if (need > 0) eaters[group] = (eaters[group] ?? 0) + 1;
   }
   if (state.guests !== undefined) {
     needs[REST] = (needs[REST] ?? 0) + guestFoodNeedPerDay(state, day);
-    counts[REST] = (counts[REST] ?? 0) + state.guests.filter((g) => g.untilDay > day).length;
+    const guests = state.guests.filter((g) => g.untilDay > day).length;
+    counts[REST] = (counts[REST] ?? 0) + guests;
+    eaters[REST] = (eaters[REST] ?? 0) + guests;
   }
-  return { groupOf, needs, counts };
+  return { groupOf, needs, proteinNeeds, counts, eaters };
 }
 
 /**
- * Energie skupin (0–1), když se z potřeby `needs` jí `ratio` celé potřeby vsi: skupiny dostanou
- * plný příděl v pořadí přednosti, dokud jídlo vyjde; skupina, na kterou celý nevyjde, si rozdělí
- * zbytek rovným dílem, nižší skupiny nic. Skupina bez potřeby má plno (nikdo v ní nehladoví).
- * Při `ratio` ≥ 1 dostanou všechny přesně 1 – odečítání po skupinách by v plovoucí čárce u poslední
- * skupiny mohlo dát 0,9999999999999999 a sytá ves by se od dřívějšího výpočtu lišila.
+ * Energie skupin (0–1), když se z potřeby `needs` jí `ratio` celé potřeby vsi. Každá skupina má
+ * nárok na životní minimum `minimum` (75 %) své potřeby – Martin 18. 11. 2026: „Nejde, aby elita
+ * měla plný příděl a rolníci byli pod hranicí hladomoru…“, „75% je ok.“ Pod minimem jedí všichni
+ * stejně (`ratio`); nad ním dostane každý minimum a zbytek se rozdělí po vrstvách v pořadí přednosti
+ * až do plného přídělu (diet.md – Kdo dostane co). Skupina bez potřeby má plno (nikdo v ní
+ * nehladoví). Při `ratio` ≥ 1 dostanou všechny přesně 1 – odečítání po skupinách by v plovoucí
+ * čárce u poslední skupiny mohlo dát 0,9999999999999999 a sytá ves by se od dřívějšího výpočtu lišila.
  */
-export function priorityEnergy(ratio: number, needs: readonly number[]): number[] {
+export function rationShares(
+  ratio: number,
+  needs: readonly number[],
+  minimum: number = HUNGER_PRIORITY.minimumShare,
+): number[] {
   if (ratio >= 1) return needs.map(() => 1);
-  let left = Math.max(0, ratio) * needs.reduce((sum, n) => sum + n, 0);
+  if (ratio < minimum) return needs.map(() => Math.max(0, ratio));
+  let left = (ratio - minimum) * needs.reduce((sum, n) => sum + n, 0);
   return needs.map((need) => {
     if (need <= 0) return 1;
-    const share = Math.min(1, left / need);
-    left = Math.max(0, left - share * need);
-    return share;
+    const extra = Math.min(1 - minimum, left / need);
+    left = Math.max(0, left - extra * need);
+    return minimum + extra;
   });
 }
 

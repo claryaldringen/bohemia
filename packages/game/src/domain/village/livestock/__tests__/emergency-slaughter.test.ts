@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../../calendar';
 import { foundVillage } from '../../core/actions';
-import { DIET, eatDiet, meatEnergy } from '../../core/diet';
+import { eatDiet, meatEnergy } from '../../core/diet';
 import {
   dayMealInput,
   emergencySlaughter,
@@ -113,7 +113,7 @@ describe('nouzová porážka', () => {
       s.meatKg! / LIVESTOCK.slaughterKgPerManDay,
       9,
     );
-    expect(slaughterRemaining(s, day)).toBeCloseTo(s.meatKg! / LIVESTOCK.slaughterKgPerManDay, 6);
+    expect(slaughterRemaining(s)).toBeCloseTo(s.meatKg! / LIVESTOCK.slaughterKgPerManDay, 6);
     // druhý den už nic – rezerva drží
     expect(emergencySlaughterPlan(s, day, 0, 1)).toBeNull();
   });
@@ -208,8 +208,11 @@ describe('nouzová porážka', () => {
     if (event?.kind !== 'emergency-slaughter') throw new Error('bez porážky');
     const pigs = event.animals.pig ?? 0;
     expect(pigs).toBeGreaterThan(0);
-    // mimo zimní porážku je práce nouzová – dělá se hned
-    expect(s.livestock!.slaughterWork).toMatchObject({ done: 0, emergency: true });
+    // práce porážky a uzení se přičte k čekající práci (celý rok) – udělá se další dny
+    expect(s.livestock!.slaughterWork).toEqual({
+      required: s.meatKg! / LIVESTOCK.slaughterKgPerManDay,
+      done: 0,
+    });
     // dospělých prasat je jen na chovné prasnice – porazila se selata; spodní hranice zůstane
     expect(s.livestock!.herds.pig).toBeCloseTo(10 - pigs, 1);
     expect(s.livestock!.herds.pig).toBeGreaterThanOrEqual(LIVESTOCK.breedingMin - 1e-9);
@@ -315,23 +318,28 @@ describe('nouzová porážka', () => {
     expect(s.livestock!.herds.cow).toBeCloseTo(Math.max(3, breedingCows(s)), 6);
   });
 
-  it('maso nad strop ve stravě nepomůže – ves porazí jen po strop a dál šetří', () => {
-    const s = village(day);
+  it('maso, které se do konce masa nestihne sníst, nepomůže – ves porazí jen tolik a dál šetří', () => {
+    // v září se maso jí jen do porážky 1. 11. – výhled ho počítá nejvýš plnou potřebou za ty dny
+    // (diet.md – Strava po vrstvách, bez stropů; dřív strop masa 40 %)
+    const september = at(600, 9, 15);
+    const s = village(september);
     s.livestock!.herds = herds({ pig: 400 });
     s.storesKg = 0;
-    const event = emergencySlaughter(s, day, 0, 1);
+    const event = emergencySlaughter(s, september, 0, 1);
     if (event?.kind !== 'emergency-slaughter') throw new Error('bez porážky');
     expect(s.livestock!.herds.pig).toBeGreaterThan(100);
-    const input = dayMealInput(s, day, 0, 1);
+    const input = dayMealInput(s, september, 0, 1);
+    expect(input.daysToMeatEnd).toBeLessThan(input.daysToHarvest);
     const meal = eatDiet(input);
-    // maso rovným dílem do zkažení na stropu 40 % energie
-    expect(meatEnergy(input.meatKg) / input.daysToMeatEnd).toBeGreaterThanOrEqual(
-      DIET.caps.meat * input.needPerDay * 0.999,
+    // maso na plnou potřebu do konce masa – dnes se jí jen maso (a vejce před ním)
+    expect(meatEnergy(input.meatKg)).toBeGreaterThanOrEqual(
+      input.needPerDay * input.daysToMeatEnd * 0.999,
     );
-    expect(meal.diet.shares.meat).toBeCloseTo(DIET.caps.meat, 3);
+    expect(meal.diet.energy).toBeCloseTo(1, 2);
+    expect(meal.diet.shares.meat).toBeGreaterThan(0.9);
     expect(meal.outlook).toBeLessThan(1);
     // další porážka už nic nepřidá
-    expect(emergencySlaughterPlan(s, day, 0, 1)).toBeNull();
+    expect(emergencySlaughterPlan(s, september, 0, 1)).toBeNull();
   });
 
   it('v simulaci: ves s prasaty místo šetření porazí a jí dosyta; dopočet po kouscích stejný', () => {

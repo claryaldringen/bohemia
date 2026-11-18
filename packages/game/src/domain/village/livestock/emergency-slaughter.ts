@@ -1,13 +1,12 @@
 import { dateOfDayIndex } from '../../calendar';
 import { dailyMilk, dairyDams, milkEnergyBetween } from './dairy';
-import { DIET, eatDiet, meatEnergy, type DietInput, type DietResult } from '../core/diet';
+import { eatDiet, meatEnergy, type DietInput, type DietResult } from '../core/diet';
 import { breedingCows } from './husbandry';
 import {
   HERD_SPECIES,
   LIVESTOCK,
   butcher,
   noteSlaughtered,
-  isSlaughterSeason,
   pigForestHa,
   villageDams,
   villageHerds,
@@ -27,9 +26,10 @@ import { woolSheep } from './wool';
 // spřežení a telata ve výcviku jsou v ohradách mimo stáda. Letošní mláďata ne – kromě selat od 1. 9.
 // (Martin 19. 10. 2026: „Ano ke všem návrhům“ – maso se 1. 9. kazí a do podzimní porážky ves
 // hladoví; nad chovnými prasnicemi jsou v září skoro jen selata). Maso jde do zásoby jako z podzimní
-// porážky (stejná výtěžnost, uzení, zkažení 1. 9.) a jí se rovným dílem do zkažení – nejvýš strop
-// masa ve stravě (DIET.caps.meat), ten platí i v nouzi. Podíl jídla z pole (fields.md – Osev podle
-// stravy) ho počítá jako jídlo z pole.
+// porážky (stejná výtěžnost, uzení, zkažení 1. 9.) a jí se v pořadí jídla bez stropů, do zkažení
+// aspoň rovným dílem (diet.md – Strava po vrstvách a porážka celý rok); výhled s ním počítá nejvýš
+// do plné potřeby za dny do zkažení. Podíl jídla z pole (fields.md – Osev podle stravy) ho počítá
+// jako jídlo z pole.
 
 /** Méně masa (kg) se jako porážka nebere – chyby desetinných čísel. */
 const MIN_KG = 0.5;
@@ -42,8 +42,9 @@ const SEARCH_STEPS = 60;
 /**
  * Vstup jídla dne (`eatDiet`) ze stavu na konci předchozího dne – co ves dnes jí a s čím do
  * sklizně počítá: dnešní mléko (podojený podíl `milked`) a vejce, mléko stád do sklizně,
- * ovoce do zkažení (nádoby od hrnčíře – `potteryCoverage`), maso do zkažení, sýr do dojení,
- * luštěniny do sklizně. `dams` – dojné samice, se kterými se počítá (bez údaje dojné samice vsi –
+ * ovoce do zkažení (nádoby od hrnčíře – `potteryCoverage`), maso do zkažení, sýr a luštěniny
+ * (`baseMealInput`) – bez osiva, které ves nejí. `dams` – dojné samice, se kterými se počítá (bez
+ * údaje dojné samice vsi –
  * `villageDams`).
  */
 export function dayMealInput(
@@ -79,7 +80,7 @@ function withMealDams(
       dams,
       day + 1,
       day + input.daysToHarvest - 1,
-      DIET.caps.dairy * input.needPerDay,
+      input.needPerDay,
     ),
   };
 }
@@ -156,8 +157,9 @@ export interface EmergencyPlan {
  * Kolik zvířat ves dnes porazí navíc (bez změny stavu): nic, když výhled jídla do sklizně
  * vychází. Jinak nejméně masa, se kterým výhled vyjde i s rezervou EMERGENCY_SLAUGHTER.reserveShare
  * potřeby do sklizně (ztráty zásob a uzení výhled nezná – bez rezervy by se poráželo den co den po
- * kouscích); když ani všechna zvířata navíc nestačí nebo maso narazí na strop ve stravě, tolik,
- * kolik ještě pomůže – zbytek ves ušetří na přídělu; taková porážka jen, zvedne-li příděl aspoň
+ * kouscích); když ani všechna zvířata navíc nestačí nebo se maso do zkažení nestihne sníst (výhled
+ * ho počítá nejvýš do plné potřeby za dny do zkažení), tolik, kolik ještě pomůže – zbytek ves
+ * ušetří na přídělu; taková porážka jen, zvedne-li příděl aspoň
  * o EMERGENCY_SLAUGHTER.minGain. Zabitím dojnic ubude i mléka do sklizně, výhled s tím počítá.
  */
 export function emergencySlaughterPlan(
@@ -168,7 +170,8 @@ export function emergencySlaughterPlan(
   todayInput?: DietInput,
 ): EmergencyPlan | null {
   if (!state.livestock || state.people.length === 0) return null;
-  // vstup jídla dne bez porážky – jídlo dne ho předá, ať se nepočítá dvakrát
+  // vstup jídla dne bez porážky – jídlo dne ho předá, ať se nepočítá dvakrát; ryby do sklizně
+  // (`fishAheadEnergy`) v něm jsou jednou a porážka na ně nesahá
   const base = todayInput ?? dayMealInput(state, day, potteryCoverage, milked);
   const today = eatDiet(base);
   if (today.outlook >= 1 - EPSILON) return null;
@@ -196,7 +199,7 @@ export function emergencySlaughterPlan(
   };
   const reserve = EMERGENCY_SLAUGHTER.reserveShare;
   const best = meal(maxKg, reserve).outlook;
-  // cíl: plný příděl i s rezervou, nebo co nejvíc, kolik maso pod stropem a zvířata navíc dají
+  // cíl: plný příděl i s rezervou, nebo co nejvíc, kolik maso do zkažení a zvířata navíc dají
   const target = Math.min(1, best) - EPSILON;
   if (meal(0, reserve).outlook >= target) return null;
   let lo = 0;
@@ -207,7 +210,7 @@ export function emergencySlaughterPlan(
     else lo = mid;
   }
   if (hi < MIN_KG) return null;
-  // schodek celý nepokrytý (málo zvířat navíc, strop masa) – porážka jen, když příděl znatelně
+  // schodek celý nepokrytý (málo zvířat navíc, maso do zkažení) – porážka jen, když příděl znatelně
   // zvedne (EMERGENCY_SLAUGHTER.minGain); jinak by ves porážela po kusech
   const after = meal(hi, 0).outlook;
   if (after < 1 - EPSILON && after < today.outlook + EMERGENCY_SLAUGHTER.minGain) return null;
@@ -218,8 +221,8 @@ export function emergencySlaughterPlan(
  * Nouzová porážka dne (mutuje stav – diet.md, Nouzová porážka): před jídlem dne, když výhled do
  * sklizně nevychází, porazí zvířata navíc (`emergencySlaughterPlan`). Maso do zásoby a práce
  * porážky a uzení (1 člověkoden na LIVESTOCK.slaughterKgPerManDay kg) jako při podzimní porážce –
- * mimo listopad jako nouzová práce (`slaughterWork.emergency`), nedodělek listopadové porážky
- * propadá. Mláďata ubudou poměrně, jen selata (od 1. 9.) jdou napřed. Vrátí událost kroniky, nebo null.
+ * přičte se k čekající práci a udělá se další dny (celý rok). Mláďata ubudou poměrně, jen selata
+ * (od 1. 9.) jdou napřed. Vrátí událost kroniky, nebo null.
  * `todayInput` – vstup jídla dne ze stavu před porážkou (`dayMealInput`), bez údaje se spočte.
  */
 export function emergencySlaughter(
@@ -252,9 +255,6 @@ export function emergencySlaughter(
     livestock.herds[species] = left;
     animals[species] = Math.round(killed * 100) / 100;
     noteSlaughtered(state, day, species, herd - left);
-  }
-  if (!isSlaughterSeason(day) && !livestock.slaughterWork?.emergency) {
-    livestock.slaughterWork = { required: 0, done: 0, emergency: true };
   }
   butcher(state, plan.kg);
   // maso z nouze kryje schodek jídla z pole – podíl jídla z pole ho počítá jako potřebu z pole

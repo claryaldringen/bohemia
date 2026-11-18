@@ -89,7 +89,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   práce (domácnost, koně, dílny, výpravy a vozy pro kováře beze změny). Před prací dne (`simulate.ts`): 1. 9. `startSeason`, každý den `seasonDay` (konce oken
   setí, nutné díly podle potřeby úrody – fields.md, Osevní postup po dílech) a `lordHelpDay`
   (podíl dne rodiny na nutné práci) a 1. 5. `wildlifeYearDay` (roční přepočet zvěře; hned za ním `weatherDay` – kronika počasí kraje v den odhalení, `village-disasters.md` –, `dogsYear` smečka dvorce a `planHuntDay` ranní plán lovu, W4), 1. 6. `damageWindowStart` (ohrožené díly polí pro zvěř – wildlife.md, Škody); po `lordHelpDay` `settlePatrol` (jezdecká hlídka polí, W6), po práci dne `wildlifeDamageDay` (škoda zvěře a vran na nesklizených dílech, před jídlem) dále v závěru dne `huntDay` (úlovek velkého lovu), `patrolHuntDay` (úlovek z hlídky), a po sklizni jaře `wildlifeSeasonEnd` (kronika, vynulování ztrát dílů – podrobnosti `village-wildlife.md`); potřebné sezónní úlohy jsou práce nutných dílů – plodiny
-  hospodářského roku (`fieldTasks` – všechny díly jedna fronta, díly nad potřebu zrušené 9. 11. 2026). `allocateDay`: denní minimum → péče o koně (`horseCare` – `horseCareLabor`, horses.md – Péče; pokrytí v `state.horsesCaredToday`) → výpravy (`away`) → potřebné sezónní úlohy v pořadí `dayTaskOrder` – **pevné pořadí skupin** `DAY_WORK_ORDER` (rules-fields.ts; `dayWorkGroup` v simulate-work.ts; fields.md – Pořadí důležitosti polních prací a výmlat do zimy, Martin 9. 11. 2026): výmlat na dnešní jídlo → porážka → žeň a odnos obilí (i luštěnin) → trhání lnu (ženy a děti napřed před všemi úlohami – `womenFirst`, Martin 10. 11. 2026) → nutná 1. seč (`mow`) → nutná otava (`mow` s `DayTask.aftermath` – skupina `'aftermath'` podle `mowingCut` plánu seče; Martin 10. 11. 2026: před orbou a setím ozimu, dřív ~~až po nich~~) → sklizeň jablek → pletí → výmlat na osivo (`ThreshTask.seed`, `seedThreshKg` v seed.ts) → příprava půdy a setí (vrácení přílohu, kopání, orba, setí – **orba rádlem první** uvnitř skupiny, oxen.md – Orba má přednost) → péče o sad → noční hlídka polí (`'watch'`, wildlife.md – Noční hlídka vesničanů) → výmlat → obilné jámy → dospělý pasák; uvnitř skupiny nejbližší konec okna, `tie` a `rank` (žeň a výmlat napřed ze žňových rukou – `harvestHands`, `lordHelp`, fields.md – Žně všemi rukama) → `common` (volná práce
+  hospodářského roku (`fieldTasks` – všechny díly jedna fronta, díly nad potřebu zrušené 9. 11. 2026). `allocateDay`: denní minimum → péče o koně (`horseCare` – `horseCareLabor`, horses.md – Péče; pokrytí v `state.horsesCaredToday`) → výpravy (`away`) → potřebné sezónní úlohy v pořadí `dayTaskOrder` – **pevné pořadí skupin** `DAY_WORK_ORDER` (rules-fields.ts; `dayWorkGroup` v simulate-work.ts; fields.md – Pořadí důležitosti polních prací a výmlat do zimy, Martin 9. 11. 2026): výmlat na dnešní jídlo → žeň a odnos obilí (i luštěnin) → trhání lnu (ženy a děti napřed před všemi úlohami – `womenFirst`, Martin 10. 11. 2026) → nutná 1. seč (`mow`) → nutná otava (`mow` s `DayTask.aftermath` – skupina `'aftermath'` podle `mowingCut` plánu seče; Martin 10. 11. 2026: před orbou a setím ozimu, dřív ~~až po nich~~) → porážka a uzení (`slaughter` – od 18. 11. 2026 za žní a sečí, porážka celý rok; maso je k jídlu hned, práce jen spotřebuje ruce; v zimě se nežne ani neseče, tam hned za výmlatem na jídlo; dřív ~~hned za výmlatem na jídlo~~) → sklizeň jablek → pletí → výmlat na osivo (`ThreshTask.seed`, `seedThreshKg` v seed.ts) → příprava půdy a setí (vrácení přílohu, kopání, orba, setí – **orba rádlem první** uvnitř skupiny, oxen.md – Orba má přednost) → péče o sad → noční hlídka polí (`'watch'`, wildlife.md – Noční hlídka vesničanů) → výmlat → obilné jámy → dospělý pasák; uvnitř skupiny nejbližší konec okna, `tie` a `rank` (žeň a výmlat napřed ze žňových rukou – `harvestHands`, `lordHelp`, fields.md – Žně všemi rukama) → `common` (volná práce
   v liště, `commonLaborHistory`) do staveb (`build`) – **stavby jen z dílu mužů** (population.md –
   Práce, Stavby staví muži; Martin 14. 11. 2026: „D24 ano“): `allocateDay` vrací
   `DayAllocation.build` = `menCommon` – min(`common`, venkovní práce vsi po pracích „za den“ −
@@ -181,14 +181,28 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `abandonedVillageAt` lidi a dobytek opuštěné vsi nezobrazí (přepínač vsí ukáže 0 lidí).
   **Přednost v hladu** (population.md – Přednost v hladu, Martin 17. 11. 2026, D92):
   `people/hunger-groups.ts` – `hungerSplit` (skupiny 0–3: `lordFamily`, `masterHousehold`, obydlí
-  s dílnou a `Person.practice`, zbytek a hosté; potřeby a počty), `priorityEnergy(poměr, potřeby)`
-  (plný příděl v pořadí, nedostačující skupina dělí zbytek rovným dílem), `advanceGroupStarvation`
+  s dílnou a `Person.practice`, zbytek a hosté; potřeby a počty), `rationShares(poměr, potřeby)`
+  (životní minimum `HUNGER_PRIORITY.minimumShare` 75 % všem, pod ním všem stejně, zbytek po vrstvách v pořadí), `advanceGroupStarvation`
   (hlad skupin: `starvationDays` = nejnižší neprázdná skupina, `starvationGroups?` = skupiny 0–2,
   jen když se liší; prázdná skupina přebírá hlad nejbližší neprázdné; bez části stavu mají všechny
   skupiny `starvationDays` – `groupStarvation` to čte jako výchozí hodnotu, takže položka ve
   `VILLAGE_MIGRATIONS` netřeba; člověk, který přejde do jiné skupiny – sňatek, stěhování, smrt
   řemeslníka –, má od té chvíle hlad své nové skupiny, hlad se vede po skupinách, ne po lidech).
-  `priorityEnergy` při poměru ≥ 1 vrací samé jedničky (sytá ves bit po bitu jako dřív).
+  `rationShares` při poměru ≥ 1 vrací samé jedničky (sytá ves bit po bitu jako dřív).
+  **Strava po vrstvách** (diet.md – Strava po vrstvách a porážka celý rok, 18. 11. 2026):
+  `eatDiet` (`core/diet.ts`) sní den bez stropů – `dietPlan` spočítá výhled `aheadEnergy` (jídlo
+  mimo obilí a med do sklizně), pevný příděl medu a tempo proti zkažení (`fruitPace` = ovoce ÷
+  dny do zkažení, `meatPace` = maso čerstvé i uzené ÷ dny do konce masa, `spoilPace` i s vejci) –
+  to se sní napřed i v hojnosti, šetří se jen obilí a v hladu med. `tierMeal` (`core/tier-meal.ts`)
+  rozdělí snědené vsi mezi vrstvy: `rationShares` dá příděl (75 % všem, zbytek po vrstvách), pak
+  úrovně `LEVELS` – ovoce a pevný příděl medu všem stejně (`evenTakes`), ostatní po vrstvách
+  (`levelTakes`) v pořadí čerstvé maso, uzené, mléko, vejce, sýr, luštěniny, obilí, med navíc –
+  maso elitě napřed (od 18. 11. 2026, po závěrečné kontrole; pořadí jídla vsi v `eatDiet`
+  a `foodLastsDays` má mléko a vejce napřed – záměrně, množství je dané); co se nevejde do
+  přídělů, sní nejnižší vrstva s potřebou (`sink`). Vrstva
+  s potřebou 0 (lidé pryč) má energii 1 a nic nesní. `dietHappiness` počítá štěstí z maso +3,
+  ovoce +5 a med +2 po vrstvách a bere průměr přes jedlíky (`HungerSplit.eaters`). `eatDiet`
+  v hladu mírně kloní příděl během sezóny (trvanlivé mimo obilí se jí dřív, nejvýš ≈ 2 p. b.).
   `eat` (`simulate-food.ts`) dělí energii dne
   a příděl do sklizně (`ration` = příděl zbytku vsi; `hungry` a nouzová porážka celé vsi), jen
   když ves šetří, nejí se dosyta nebo skupiny mají různý hlad – jinak výpočet jako dřív.
@@ -207,8 +221,9 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   (`sheavesOutlook`), luštěniny, uzené maso, sýr, jablka a med. Den po dni ráno ztráty jako
   výhled do sklizně (`grainKeepPerDay`, `legumeKeepPerDay`, `DAILY_MEAT_KEEP`,
   `DAILY_CHEESE_KEEP`), maso do zkažení (`daysUntilMeatSpoil`), jablka do shnití
-  (`daysUntilAppleRot`); ves jí napřed, co se kazí – ovoce, maso, sýr a luštěniny nejvýš do
-  `DIET.caps` –, pak obilí a nakonec med (jídlo jako obilí – Med v hladu). Počítá se do prvního
+  (`daysUntilAppleRot`); ves jí v pořadí jídla bez stropů (diet.md – Strava po vrstvách a porážka
+  celý rok, 18. 11. 2026) – uzené maso a sýr, ovoce, luštěniny, pak obilí a nakonec med (jídlo
+  jako obilí – Med v hladu). Počítá se do prvního
   dne bez plného přídělu (tolerance `SATIATION_EPSILON`), nejvýš do konce světa; nikdo nejí →
   null. `VillageSummary.foodLastsDays` → `VillageView.foodLastsDays` (chybí místo null) → řádek
   pod rozpisem plodin v liště (web-ui.md). Starší `storesMonths` (jen obilí ÷ potřeba) zůstává

@@ -24,8 +24,9 @@ export const WOOL = {
  * chovné; voli nikdy (oxen.md – Co nejvíc sena a co největší stáda, přednost voli → krávy → ovce →
  * kozy → prasata; Martin 24. 10. 2026; dřív krávy před ovcemi). Porazí tolik, aby výhled vyšel i s rezervou `reserveShare` potřeby energie do sklizně
  * (ztráty zásob skladováním a uzením výhled nezná – bez rezervy by ves porážela den co den po
- * kouscích), a nejvýš tolik, kolik pod stropem masa ve stravě (DIET.caps.meat) pomůže. Když
- * schodek celý nepokryje (málo zvířat navíc, strop masa), porazí jen tehdy, zvedne-li příděl
+ * kouscích), a nejvýš tolik, kolik maso, které ves do zkažení sní, pomůže (diet.md – Strava po
+ * vrstvách, bez stropů). Když schodek celý nepokryje (málo zvířat navíc, maso by se zkazilo),
+ * porazí jen tehdy, zvedne-li příděl
  * aspoň o `minGain` (2 procentní body) – jinak by po každém úmrtí (méně ovcí na vlnu) porážela
  * po kusech. Letošní mláďata na nouzovou porážku nejdou – kromě selat od `pigletsFromMonth`
  * (1. 9.; diet.md – Nouzová porážka, Martin 19. 10. 2026: „Ano ke všem návrhům“ na „letošní selata

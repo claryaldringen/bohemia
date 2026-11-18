@@ -40,8 +40,9 @@ export const START_SEED_YEARS = 0.5;
 export const FOUNDERS_STORES = { foodYears: 3, seedYears: 2, seedKeepYears: 15 } as const;
 // fields.md – Výhled zásob k sklizni, Osev podle stravy (návrh Clauda, Martin schválil směr 19. 10. 2026):
 // potřeba z pole = podíl energie, který ves za uplynulý hospodářský rok potřebovala z obilí
-// a luštěnin, × dnešní roční potřeba; podíl nejméně minShare = 1 − strop masa (0,4) − strop
-// mléka a sýra (0,3) z diet.md – ovoce, vejce a med se do pojistky nepočítají (hlídá test)
+// a luštěnin, × dnešní roční potřeba; podíl nejméně minShare – pojistka, odvozená z dřívějších
+// stropů stravy (1 − strop masa 0,4 − strop mléka a sýra 0,3; stropy zrušeny 18. 11. 2026 – diet.md,
+// Strava po vrstvách a porážka celý rok – číslo zůstává)
 export const FIELD_FOOD = { minShare: 0.3 } as const;
 // fields.md – Výhled zásob k sklizni (čísla návrh Clauda): pojistka – zásoba z pole, která má
 // zbýt před další sklizní – 0,5 roční potřeby celé energie (≈ půl roku celé stravy; kalibrace
@@ -355,18 +356,21 @@ export const CROP_ORDER: readonly Crop[] = ['flax', 'winter', 'legume', 'spring'
  * setí), noční hlídka polí, výmlat. Nutná otava (2. seč – oxen.md, Seno, dvě seče) hned za 1. sečí,
  * před orbou a setím ozimu (Martin 10. 11. 2026 – žeň → len → otava → orba a setí). Uvnitř skupiny nejbližší konec okna; v přípravě půdy orba
  * rádlem první (oxen.md – Orba má přednost: spřežení potřebuje jen oráče, jinak voli stojí).
- * Návrh Clauda pro úlohy mimo seznam: porážka hned za výmlatem na jídlo (maso se musí zpracovat
- * hned), výmlat na osivo (THRESHING.seedDays – ve snopech zrno na setí není) před přípravou půdy,
- * péče o sad za přípravou půdy, obilné jámy (zrno z výmlatu) a dospělý pasák za výmlatem.
- * Stavby a opravy až po všech úlohách dne (Osevní postup po dílech, bod 3).
+ * Návrh Clauda pro úlohy mimo seznam: porážka a uzení za žní, trháním lnu a nutnou sečí i otavou,
+ * před jablky (od 18. 11. 2026 – porážka celý rok, diet.md – Strava po vrstvách a porážka celý rok;
+ * maso je k jídlu hned, práce porážky jen spotřebuje ruce a počká, „za každou cenu sklidit“; v zimě
+ * se nežne ani neseče – tam zůstává hned za výmlatem na jídlo; dřív porážka hned za výmlatem na
+ * jídlo i v létě), výmlat na osivo (THRESHING.seedDays – ve snopech zrno na setí není) před
+ * přípravou půdy, péče o sad za přípravou půdy, obilné jámy (zrno z výmlatu) a dospělý pasák za
+ * výmlatem. Stavby a opravy až po všech úlohách dne (Osevní postup po dílech, bod 3).
  */
 export const DAY_WORK_ORDER = [
   'food-thresh',
-  'slaughter',
   'grain-harvest',
   'flax-harvest',
   'hay',
   'aftermath',
+  'slaughter',
   'apples',
   'weeding',
   'seed-thresh',

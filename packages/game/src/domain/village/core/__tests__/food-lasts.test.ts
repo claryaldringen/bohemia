@@ -3,6 +3,7 @@ import { dayIndexOf } from '../../../calendar';
 import { foundVillage, type PartInput } from '../actions';
 import {
   daysUntilMeatSpoil,
+  fruitEnergy,
   grainKeepPerDay,
   honeyEnergy,
   meatEnergy,
@@ -99,24 +100,28 @@ describe('foodLastsDays', () => {
     expect(lasts(withSeed)).toBe(lasts(village({ storesKg: 2000 })));
   });
 
-  it('maso jen do stropu a do zkažení 1. 9. – samo plný příděl nedá', () => {
+  it('maso bez stropu do zkažení 1. 9. – samo dá plný příděl, jí se napřed', () => {
     // krátký výhled – obilí, které maso ušetří, se do konce zásob skoro nezkazí
     const grain = 300;
     const meat = 100;
-    // maso samo pokryje nejvýš 40 % potřeby – plný příděl ani den
-    expect(lasts(village({ meatKg: meat }))).toBe(0);
-    // v listopadu se maso sní celé (do 1. 9. daleko) – přidá skoro celou svou energii
     const plain = village({ storesKg: grain });
     const perDay = need(plain, NOVEMBER);
+    // maso samo uživí ves plným přídělem, dokud ho je (jen uzení ubírá)
+    const meatOnly = lasts(village({ meatKg: meat }));
+    expect(meatOnly).toBeGreaterThan(0);
+    expect(meatOnly).toBeLessThanOrEqual(meatEnergy(meat) / perDay);
+    expect(meatOnly).toBeGreaterThan(meatEnergy(meat) / perDay - 2);
+    // v listopadu se maso sní celé (do 1. 9. daleko) – přidá skoro celou svou energii
     const novemberGain = lasts(village({ storesKg: grain, meatKg: meat })) - lasts(plain);
     expect(novemberGain).toBeGreaterThan((0.8 * meatEnergy(meat)) / perDay);
     expect(novemberGain).toBeLessThanOrEqual(meatEnergy(meat) / perDay + 1);
-    // 20. 8. se do zkažení stihne jen 11 dní nejvýš po 40 % potřeby, zbytek přijde nazmar
+    // 20. 8. se do zkažení stihne jen 11 dní plné potřeby, zbytek přijde nazmar
     const august = at(601, 8, 20);
+    expect(meatEnergy(meat) / perDay).toBeGreaterThan(11);
     const augustGain =
       lasts(village({ storesKg: grain, meatKg: meat }), august) - lasts(plain, august);
     expect(augustGain).toBeGreaterThan(0);
-    expect(augustGain).toBeLessThanOrEqual(Math.ceil(11 * 0.4));
+    expect(augustGain).toBeLessThanOrEqual(11);
   });
 
   it('med a luštěniny přidají', () => {
@@ -127,7 +132,7 @@ describe('foodLastsDays', () => {
     const honey = 60;
     const honeyGain = lasts(village({ storesKg: grain, honeyKg: honey })) - lasts(plain);
     expect(Math.abs(honeyGain - honeyEnergy(honey) / perDay)).toBeLessThanOrEqual(1);
-    // luštěniny do stropu, se ztrátou ve skladu
+    // luštěniny bez stropu, se ztrátou ve skladu
     const legumes = 100;
     const legumeGain = lasts(village({ storesKg: grain, legumesKg: legumes })) - lasts(plain);
     expect(legumeGain).toBeGreaterThan((0.8 * legumeEnergy(legumes)) / perDay);
@@ -153,20 +158,26 @@ describe('stockLastsDays', () => {
     expect(out.days).toBe(foodLastsDays(state, NOVEMBER));
   });
 
-  it('luštěniny jen do stropu stravy – vystačí na víc dní než obilí téže energie', () => {
+  it('luštěniny bez stropu stravy – plným přídělem jako obilí téže energie, se ztrátou ve skladu', () => {
     const state = village({ legumesKg: 400 });
     const out = stockLastsDays(state, NOVEMBER, 'legumes');
     expect(out.kg).toBe(400);
     const perDay = need(state, NOVEMBER);
-    expect(out.days ?? 0).toBeGreaterThan(legumeEnergy(400) / perDay);
+    expect(out.days ?? 0).toBeLessThanOrEqual(legumeEnergy(400) / perDay);
+    expect(out.days ?? 0).toBeGreaterThan(0.9 * (legumeEnergy(400) / perDay));
   });
 
-  it('jablka jen do dne, kdy shnijí', () => {
-    const state = village({ applesKg: 100000 });
+  it('jablka bez stropu, jen do dne, kdy shnijí', () => {
     const day = at(600, 11, 2);
-    const out = stockLastsDays(state, day, 'apples');
+    const plenty = village({ applesKg: 100000 });
+    const out = stockLastsDays(plenty, day, 'apples');
     expect(out.days ?? 0).toBeGreaterThan(0);
     expect(out.days ?? 0).toBeLessThanOrEqual(365);
+    // málo jablek – plným přídělem, ne čtvrtinou potřeby
+    const few = village({ applesKg: 200 });
+    const perDay = need(few, day);
+    const days = stockLastsDays(few, day, 'apples').days ?? 0;
+    expect(days).toBe(Math.floor(fruitEnergy(200) / perDay));
   });
 
   it('bez lidí null, bez zásoby 0', () => {

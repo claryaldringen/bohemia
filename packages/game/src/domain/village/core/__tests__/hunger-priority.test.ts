@@ -1,12 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../../calendar';
 import { daysUntilHarvest } from '../food';
-import { foodNeedPerDay } from '../../people/people';
+import { DIET, DAILY_MEAT_KEEP, proteinNeedPerDay, villageFoodNeed } from '../diet';
+import { eat } from '../simulate-food';
+import { NO_CRAFTS } from '../productivity';
+import { APPLE_FOOD_VALUE } from '../../rules';
+import { HONEY } from '../../rules/rules-wares';
+import { foodNeedPerDay, guestFoodNeedPerDay } from '../../people/people';
 import {
   advanceGroupStarvation,
   groupStarvation,
   hungerSplit,
-  priorityEnergy,
+  rationShares,
 } from '../../people/hunger-groups';
 import { populationDay } from '../../people/population';
 import { advanceVillage } from '../simulate';
@@ -72,29 +77,24 @@ function village(seed: number, ration: number): VillageState {
   return state;
 }
 
-/** Živí z původních lidí skupiny – 1 rod (id 10–11), 2 řemeslníci (20–25), 3 zbytek (30–35). */
-const aliveIn = (s: VillageState, group: number): number =>
-  s.people.filter((p) => Math.floor(p.id / 10) === group).length;
-
 describe('přednost v hladu – rozdělení jídla', () => {
-  it('plný příděl podle pořadí skupin, skupina, na kterou nevyjde, dělí zbytek rovným dílem', () => {
-    // potřeby 2, 6, 6 (jednotky): z 0,7 celku (9,8) dostane rod 2, řemeslníci 6, zbytek 1,8
-    const [lord, crafts, rest] = priorityEnergy(0.7, [2, 6, 6]) as [number, number, number];
-    expect(lord).toBe(1);
-    expect(crafts).toBe(1);
-    expect(rest).toBeCloseTo(1.8 / 6, 10);
-    // nevyjde ani na řemeslníky: ti si rozdělí zbytek, zbytek vsi nic
-    const low = priorityEnergy(0.3, [2, 6, 6]) as [number, number, number];
-    expect(low[0]).toBe(1);
-    expect(low[1]).toBeCloseTo(2.2 / 6, 10);
-    expect(low[2]).toBe(0);
-    // nevyjde ani na rod: jí jen on, rovným dílem
-    const only = priorityEnergy(0.1, [2, 6, 6]);
-    expect(only[0]).toBeCloseTo(0.7, 10);
-    expect(only.slice(1)).toEqual([0, 0]);
-    // dosyta jedí všichni; skupina bez lidí nebere nic
-    expect(priorityEnergy(1, [2, 6, 6])).toEqual([1, 1, 1]);
-    expect(priorityEnergy(0.5, [0, 6, 6])).toEqual([1, 1, 0]);
+  it('nad životním minimem 75 % dostanou všichni minimum a zbytek jde po vrstvách', () => {
+    expect(rationShares(1, [2, 1, 1, 6])).toEqual([1, 1, 1, 1]);
+    expect(rationShares(1.2, [2, 1, 1, 6])).toEqual([1, 1, 1, 1]);
+    // 0,9 z potřeby 4: každý 0,75 (3), zbytek 0,6 po vrstvách – 0 a 1 plně, 2 dostane 0,1
+    const s = rationShares(0.9, [1, 1, 1, 1]);
+    expect(s[0]).toBeCloseTo(1, 12);
+    expect(s[1]).toBeCloseTo(1, 12);
+    expect(s[2]).toBeCloseTo(0.85, 12);
+    expect(s[3]).toBeCloseTo(0.75, 12);
+    // pod minimem všichni stejně
+    expect(rationShares(0.6, [2, 1, 1, 6])).toEqual([0.6, 0.6, 0.6, 0.6]);
+    // prázdná vrstva má plno, potřebu nenese
+    expect(rationShares(0.8, [0, 1, 1, 2])[0]).toBe(1);
+    // součet energie = ratio × potřeba
+    const needs = [3, 2, 1, 14];
+    const r = rationShares(0.83, needs);
+    expect(r.reduce((a, x, i) => a + x * needs[i]!, 0)).toBeCloseTo(0.83 * 20, 9);
   });
 
   it('skupiny: rod, domácnost mistra s dětmi, řemeslníci a učeň mimo dílnu, zbytek a hosté', () => {
@@ -117,42 +117,105 @@ describe('přednost v hladu – rozdělení jídla', () => {
     expect(counts).toEqual([2, 3, 7, 7]);
     expect(needs.reduce((a, b) => a + b, 0)).toBeGreaterThan(0);
   });
+
+  it('hosté jedí ve zbytku vsi – nesou potřebu jídla, bílkoviny ne', () => {
+    const s = village(1, 1);
+    const home = hungerSplit(s, START);
+    s.guests = [{ untilDay: START + 10 }, { untilDay: START }] as VillageState['guests'];
+    const split = hungerSplit(s, START);
+    expect(guestFoodNeedPerDay(s, START)).toBeGreaterThan(0);
+    expect(split.needs[3]).toBeCloseTo(home.needs[3]! + guestFoodNeedPerDay(s, START), 12);
+    expect(split.needs.slice(0, 3)).toEqual(home.needs.slice(0, 3));
+    expect(split.proteinNeeds).toEqual(home.proteinNeeds);
+    // bílkoviny vrstvy = potřeba bílkovin jejích lidí
+    for (let group = 0; group < 4; group++) {
+      const people = s.people.filter((p) => (split.groupOf.get(p.id) ?? 3) === group);
+      const protein = people.reduce((sum, p) => sum + proteinNeedPerDay(p, START), 0);
+      expect(split.proteinNeeds[group]).toBeCloseTo(protein, 12);
+    }
+    // součet potřeb vrstev = potřeba vsi (výhled a příděl jídla dne)
+    const total = split.needs.reduce((a, b) => a + b, 0);
+    expect(total).toBeCloseTo(villageFoodNeed(s, START), 12);
+  });
+
+  it('jedlíci: lidé, kteří jedí ze zásob vsi, a hosté – ne lidé pryč', () => {
+    const s = village(1, 1);
+    // tři kováři na robotě (jedí jinde), host ve zbytku vsi
+    for (const id of [20, 21, 22]) {
+      s.people.find((p) => p.id === id)!.away = { kind: 'labor', untilDay: START + 30 };
+    }
+    s.guests = [{ untilDay: START + 10 }] as VillageState['guests'];
+    const split = hungerSplit(s, START);
+    expect(split.counts).toEqual([2, 0, 6, 7]);
+    expect(split.eaters).toEqual([2, 0, 3, 7]);
+  });
+});
+
+describe('strava po vrstvách – štěstí ze stravy po lidech', () => {
+  it('trochu masa sní rod vojvody – štěstí z masa jen jemu, ne celé vsi poměrně', () => {
+    const day = START + 10;
+    const s = village(3, 1.3);
+    const need = villageFoodNeed(s, day);
+    // maso za 5 % potřeby vsi – rodu (2 ze 14 lidí) dá přes 20 % energie
+    s.meatKg = (0.05 * need) / DIET.meatEnergy / DAILY_MEAT_KEEP;
+    const result = eat(s, day, NO_CRAFTS);
+    expect(s.diet!.shares.meat).toBeCloseTo(0.05, 9);
+    expect(result.diet.meat).toBeCloseTo((DIET.meatHappiness.max * 2) / 14, 9);
+    expect(result.diet.fruit).toBe(0);
+    expect(result.diet.honey).toBe(0);
+  });
+
+  it('ovoce a pevný příděl medu jedí všichni stejně – i rod sytý z masa (+5 a +2 celé vsi)', () => {
+    const day = START + 10;
+    const s = village(3, 1.3);
+    const need = villageFoodNeed(s, day);
+    // maso za 30 % potřeby vsi (rod by se jím nasytil sám), ovoce za 10 %, med z klátů
+    s.meatKg = (0.3 * need) / DIET.meatEnergy / DAILY_MEAT_KEEP;
+    s.applesKg = (0.1 * need) / APPLE_FOOD_VALUE;
+    s.wares = { hides: 0, sheepFurs: 0, wildFurs: 0, honeyKg: 10, waxKg: 0 };
+    const result = eat(s, day, NO_CRAFTS);
+    expect(s.diet!.shares.fruit).toBeCloseTo(0.1, 9);
+    expect(s.diet!.shares.honey).toBeGreaterThan(0);
+    expect(result.diet.fruit).toBeCloseTo(DIET.fruitHappiness, 12);
+    expect(result.diet.honey).toBeCloseTo(HONEY.happiness, 12);
+    // maso sní rod (do zbytku přídělu po ovoci a medu) a kováři; zbytek vsi už nic
+    expect(result.diet.meat).toBeCloseTo((DIET.meatHappiness.max * 8) / 14, 9);
+  });
+
+  it('lidé pryč se do štěstí ze stravy nepočítají – průměr jen přes jedlíky', () => {
+    const day = START + 10;
+    const s = village(3, 1.3);
+    // zbytek vsi (6 lidí) je na robotě – jí jinde
+    for (const p of s.people)
+      if (p.dwellingId === 3) p.away = { kind: 'labor', untilDay: day + 30 };
+    const need = villageFoodNeed(s, day);
+    // maso za 10 % potřeby – sní ho celé rod (2 z 8 jedlíků)
+    s.meatKg = (0.1 * need) / DIET.meatEnergy / DAILY_MEAT_KEEP;
+    const result = eat(s, day, NO_CRAFTS);
+    expect(result.diet.meat).toBeCloseTo((DIET.meatHappiness.max * 2) / 8, 9);
+  });
 });
 
 describe('přednost v hladu – dopočet vsi', () => {
-  it('v nedostatku na 70 % jedí rod a řemeslníci plně, hlad roste jen zbytku a umírá jen on', () => {
+  it('v nedostatku na 85 % (nad minimem) rod nehladoví, řemeslníci jedí víc než zbytek vsi', () => {
     for (let seed = 1; seed <= 8; seed++) {
-      const s = advanceVillage(village(seed, 0.7), START + 24, null);
-      // rod a řemeslníci nehladoví, zbytek ano
-      const [g0, g1, g2, g3] = groupStarvation(s) as [number, number, number, number];
-      expect([g0, g1, g2]).toEqual([0, 0, 0]);
-      expect(g3).toBeGreaterThan(5);
+      const s = advanceVillage(village(seed, 0.85), START + 24, null);
+      const [g0, , g2, g3] = groupStarvation(s) as [number, number, number, number];
+      // rod dostane plný příděl, řemeslníci o něco víc než zbytek (zbytek má jen minimum)
+      expect(g0).toBe(0);
+      expect(g2).toBeGreaterThan(0);
+      expect(g3).toBeGreaterThan(g2);
       expect(s.starvationDays).toBe(g3);
-      expect(s.starvationGroups).toEqual([0, 0, 0]);
-      expect(aliveIn(s, 1)).toBe(2);
-      expect(aliveIn(s, 2)).toBe(6);
       // hráč vidí hlad zbytku
-      expect(s.ration).toBeLessThan(0.6);
       expect(summarizeVillage(s, START + 24).hunger).not.toBe('fed');
     }
-    const late = advanceVillage(village(3, 0.7), START + 59, null);
-    expect(aliveIn(late, 1)).toBe(2);
-    expect(aliveIn(late, 2)).toBe(6);
-    expect(aliveIn(late, 3)).toBeLessThan(6);
   });
 
-  it('když nevyjde ani na řemeslníky, rod jí plně a zbytek vsi vymře první', () => {
-    const s = advanceVillage(village(5, 0.3), START + 54, null);
-    expect(aliveIn(s, 1)).toBe(2);
-    expect(aliveIn(s, 3)).toBeLessThanOrEqual(aliveIn(s, 2));
-    expect(aliveIn(s, 3)).toBeLessThan(6);
-  });
-
-  it('když nevyjde ani na rod, jí jen on rovným dílem a ostatní hladoví naplno', () => {
-    const s = advanceVillage(village(2, 0.04), START + 9, null);
+  it('pod životním minimem 75 % hladoví všichni stejně, i rod', () => {
+    const s = advanceVillage(village(2, 0.3), START + 9, null);
     const [g0, g1, g2, g3] = groupStarvation(s) as [number, number, number, number];
     expect(g0).toBeGreaterThan(0);
-    expect(g0).toBeLessThan(g1);
+    expect(g0).toBeCloseTo(g1, 10);
     expect(g1).toBeCloseTo(g2, 10);
     expect(g2).toBeCloseTo(g3, 10);
   });

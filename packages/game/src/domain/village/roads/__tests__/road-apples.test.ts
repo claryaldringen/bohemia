@@ -186,9 +186,12 @@ describe('jabloně podél cesty – úroda, život, překážka', () => {
     expect(shares.some((x) => x.target.kind === 'road' && x.activity === 'orchard-harvest')).toBe(
       true,
     );
-    const later = advanceVillage(first, at(600, 9, 20), LAYER);
-    // 20 × ≈ 16,7 kg, něco už ves snědla
-    expect(later.applesKg ?? 0).toBeGreaterThan(200);
+    // 20 × ≈ 16,7 kg, něco už ves snědla – jablka se jedí hned, bez stropu před obilím (diet.md –
+    // Strava po vrstvách a porážka celý rok)
+    expect(first.applesKg ?? 0).toBeGreaterThan(200);
+    const later = advanceVillage(first, at(600, 9, 3), LAYER);
+    expect(later.diet!.shares.fruit).toBeGreaterThan(0);
+    expect(later.applesKg ?? 0).toBeLessThan(first.applesKg ?? 0);
   }, 60_000);
 
   it('strom do 60 let, pak souš 10 let a místo je volné; stavba přes jabloň ji odstraní', () => {
