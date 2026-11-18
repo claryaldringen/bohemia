@@ -1,9 +1,13 @@
+import type { Landscape } from '../landscape';
 import { horsePens, isGrainHorse, penHorses } from '../village/livestock/horses';
+import { builtDwellingBuilding, inBuilding, type Building } from '../village/paths/network-grid';
 import { currentLord, isLineMan } from '../village/people/dynasty';
 import { villageHappiness } from '../village/people/happiness';
+import { villageManor } from '../village/people/manor';
 import { ageYears, isAway, isInjured } from '../village/people/people';
 import type { Horse, Person, VillageState } from '../village/types';
 import type { JourneyRecruit } from './journey-types';
+import type { Pos } from './march-grid';
 import { JOURNEY, WAR } from './rules-war';
 import { lineManStrength, villagerStrength } from './strength';
 
@@ -81,4 +85,29 @@ export function ridingHorseOf(state: VillageState, personId: number, day: number
     }
   }
   return null;
+}
+
+/**
+ * Dvorec vsi jako cíl rozkazu (lord-control.md – Rozkazy; Martin 18. 11. 2026: „když mám knížete
+ * označeného a pošlu ho do dvorce, tak je to pro něj ten stejný příkaz jako návrat domů“): obdélník
+ * hotového dvorce i s pozemkem a dvorem (`builtDwellingBuilding` – týž, ze kterého síť pěšin
+ * počítá bránu dvorce a který blokuje mřížka pochodu); dvorec bez pozemku jen dům. Ves bez
+ * hotového dvorce null.
+ */
+export function manorArea(state: VillageState, landscape: Landscape): Building | null {
+  const manor = villageManor(state);
+  if (!manor) return null;
+  const area = builtDwellingBuilding(landscape, {
+    type: manor.type,
+    position: manor.position,
+    ...(manor.plot ? { plot: manor.plot } : {}),
+    ...(manor.workshop ? { craft: manor.workshop.craft } : {}),
+    ...(manor.plainShape ? { plainShape: true } : {}),
+  });
+  return { position: { ...area.position }, box: { ...area.box } };
+}
+
+/** Leží bod `pos` v dvorci `area` (`manorArea`)? Stejně na serveru (rozkaz) i v prohlížeči (kurzor). */
+export function inManorArea(area: Building, pos: Pos): boolean {
+  return inBuilding(area, pos.x, pos.z, 0);
 }

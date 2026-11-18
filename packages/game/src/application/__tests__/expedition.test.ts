@@ -331,6 +331,54 @@ describe('musterExpedition – přidání lidí ze vsi', () => {
     expect(JSON.stringify(await villageOf(w))).toBe(before);
   });
 
+  it('„Jdi sem“ do dvorce je pro lidi výpravy Domů (Martin 18. 11. 2026); lidé doma zůstanou doma', async () => {
+    const w = await setup();
+    await musterExpedition(w.deps, input(w.homeId, [20], GO));
+    const manor = villageManor(await villageOf(w))!.position;
+    const orderOf = (n: number): JourneyOrder =>
+      (w.journeys.intents[n]!.body as Extract<JourneyCommand, { kind: 'order' }>).order;
+    // do domu dvorce (s políčkem mapy i bez – mapa vůdce)
+    expect(await commandParty(w.deps, input(w.homeId, [20], go(manor.x, manor.z)))).toEqual({
+      ok: true,
+      journeyId: 'jny-1',
+    });
+    expect(orderOf(0)).toEqual({ kind: 'home' });
+    const inside: ExpeditionCommand = {
+      kind: 'order',
+      order: { kind: 'go', pos: { x: manor.x + 1, z: manor.z - 1 }, cell: { x: 0, y: 0 } },
+    };
+    await commandParty(w.deps, input(w.homeId, [20], inside));
+    expect(orderOf(1)).toEqual({ kind: 'home' });
+    // vedle dvorce je to dál „Jdi sem“
+    await commandParty(w.deps, input(w.homeId, [20], go(manor.x + 30, manor.z)));
+    expect(orderOf(2)).toMatchObject({ kind: 'go' });
+    // s člověkem doma: člen jde domů, člověk ze vsi zůstane doma – bez zámku vsi (commandParty)
+    const before = JSON.stringify(await villageOf(w));
+    expect(await commandParty(w.deps, input(w.homeId, [20, 22], go(manor.x, manor.z)))).toEqual({
+      ok: true,
+      journeyId: 'jny-1',
+    });
+    const body = w.journeys.intents[3]!.body as Extract<JourneyCommand, { kind: 'order' }>;
+    expect(body).toEqual({ kind: 'order', order: { kind: 'home' }, people: [20] });
+    expect(JSON.stringify(await villageOf(w))).toBe(before);
+    // totéž přes musterExpedition (pod zámkem hráče): člen domů, rekrut ze vsi nikam neodejde
+    expect(await musterExpedition(w.deps, input(w.homeId, [20, 21], go(manor.x, manor.z)))).toEqual(
+      { ok: true, journeyId: 'jny-1' },
+    );
+    expect(w.journeys.intents[4]!.body).toEqual({
+      kind: 'order',
+      order: { kind: 'home' },
+      people: [20],
+    });
+    expect(personOf(await villageOf(w), 21).away).toBeUndefined();
+    expect(JSON.stringify(await villageOf(w))).toBe(before);
+    // jen lidé doma: do dvorce jako dřív (vyjdou k němu)
+    await musterExpedition(w.deps, input(w.homeId, [22], go(manor.x, manor.z)));
+    const recruits = w.journeys.intents[5]!.body as Extract<JourneyCommand, { kind: 'order' }>;
+    expect(recruits.order).toMatchObject({ kind: 'go' });
+    expect(recruits.recruits!.map((r) => r.ref.personId)).toEqual([22]);
+  });
+
   it('souběh: addIntent vrátí null → lidé vráceni a nová výprava; nikdo pryč se skončenou', async () => {
     const w = await setup();
     await musterExpedition(w.deps, input(w.homeId, [20], GO));

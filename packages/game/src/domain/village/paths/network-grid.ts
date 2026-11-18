@@ -634,18 +634,27 @@ export function pathPlotOf(landscape: Landscape, plot: DwellingPlot): PathPlot {
  * pozemku 1 m před brankou proti vchodu, u dvorce za vzdálenou stranou dvora, u kovárny a hrnčíře
  * před dvorem dílny. Kontrola umístění se ptá stejného místa (population.md – Umístění obydlí, paths.md – Vchody).
  */
-export function dwellingGatePoint(
-  landscape: Landscape,
-  d: {
-    type: DwellingType;
-    position: Position;
-    plot?: DwellingPlot;
-    plainShape?: boolean;
-    craft?: Craft;
-  },
-): PathPoint {
+export function dwellingGatePoint(landscape: Landscape, d: BuiltDwelling): PathPoint {
+  return gateOf(builtDwellingBuilding(landscape, d));
+}
+
+/** Hotové obydlí ze stavu vsi – co určuje jeho obdélník (`builtDwellingBuilding`). */
+export interface BuiltDwelling {
+  type: DwellingType;
+  position: Position;
+  plot?: DwellingPlot;
+  plainShape?: boolean;
+  craft?: Craft;
+}
+
+/**
+ * Obdélník hotového obydlí ze stavu vsi (`dwellingBox` – dům, pozemek, u dvorce i dvůr, u dílny
+ * dvůr dílny), jak ho vidí síť pěšin a mřížka pochodu: brána obydlí (`dwellingGatePoint`) i dvorec
+ * jako cíl rozkazu výpravy (`manorArea` – war) z něj počítají stejně.
+ */
+export function builtDwellingBuilding(landscape: Landscape, d: BuiltDwelling): Building {
   const plot = d.plot ? pathPlotOf(landscape, d.plot) : undefined;
-  return gateOf({
+  return {
     position: d.position,
     box: dwellingBox({
       type: d.type,
@@ -655,7 +664,7 @@ export function dwellingGatePoint(
       ...(d.plainShape ? { plainShape: true } : {}),
       ...(d.craft ? { craft: d.craft } : {}),
     }),
-  });
+  };
 }
 
 /** Brána domu – kus před koncem šíje (odtud vychází pěšina). */

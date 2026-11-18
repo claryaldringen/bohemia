@@ -166,6 +166,17 @@ describe('sceneJourneysOf', () => {
     expect(list.map((j) => j.men.length)).toEqual([1, 2]);
   });
 
+  it('hlouček, který vyrazil, nese, kde a kdy naposledy stál (setOut); stojící ne', () => {
+    const going = view();
+    const party = going.parties[0]!;
+    party.groups[0]!.setOut = { tick: 46, pos: { x: 5, z: 5 } };
+    party.groups.push({ id: 1, cell: HOME, pos: { x: 9, z: 9 }, goal: null, arrived: true });
+    party.people = [person(7, 0), person(8, 1)];
+    const list = sceneJourneysOf({ own: [going], visitors: [], cell: HOME, villageId: 'v1' });
+    expect(list[0]!.setOut).toEqual({ tick: 46, pos: { x: 5, z: 5 } });
+    expect(list[1]!.setOut).toBeUndefined();
+  });
+
   it('vzhled lidí: dítě, žena, vesničan, muž rodu a vedený kůň', () => {
     const v = view();
     v.parties[0]!.people = [

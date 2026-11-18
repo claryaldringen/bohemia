@@ -305,6 +305,9 @@ export function sceneJourneysOf(input: {
               ? { x: view.homePos.x, z: view.homePos.z }
               : null,
           ...(party.horseWork ? { horseWork: structuredClone(party.horseWork) } : {}),
+          ...(g.setOut
+            ? { setOut: { tick: g.setOut.tick, pos: { x: g.setOut.pos.x, z: g.setOut.pos.z } } }
+            : {}),
         });
       }
     }
