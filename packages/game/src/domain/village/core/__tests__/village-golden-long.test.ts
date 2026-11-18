@@ -56,8 +56,10 @@ import { goldenWorld, stateFingerprint, YEAR } from './village-golden-fixture';
 // dřív 69369fe95832f5ba a f588619d4f4abbe0
 // 18. 11. 2026 – strava po vrstvách, úloha 4, opravné kolo 2 (odhad 1. 11. ze stáda i s letní porážkou);
 // dřív 4d3b560d29b64956 a 10a4b9f7cd55317f
-const EXPECTED_YEAR_2 = 'ed829a5207034ab1';
-const EXPECTED_YEAR_3 = '0fc9dc69b6627550';
+// 18. 11. 2026 – strava po vrstvách × D93–D96 (sloučení feat/landscape); dřív ed829a5207034ab1
+// a 0fc9dc69b6627550
+const EXPECTED_YEAR_2 = '96cbecd21f6d8927';
+const EXPECTED_YEAR_3 = '5d858a6a3e2859bc';
 // 18. 11. 2026 – D93 cesta přes plochu staveb; dřív 168010dd35f7c1c7 a a499594da5514b49 (viz
 // village-golden.test.ts)
 // 18. 11. 2026 – D95 výmlat (výmlat podle kg snopů, rod v zimě dorovná tempo okna – viz
