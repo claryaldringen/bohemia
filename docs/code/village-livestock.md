@@ -84,7 +84,8 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   v pořadí mléko, vejce, čerstvé maso (zimní porážka, ryby a zvěř), ostatní uzené, **díl zásoby
   z porážky 1. 11.** (`slaughterShare` – `slaughterMeatKg` po dnešní ztrátě ÷ dny do konce masa,
   poslední den zbytek; do plné potřeby i nad příděl, nad díl ne, co se nevejde, zůstane – D98 kolo
-  1, Martin 18. 11. 2026: „Uzené rozlož“), sýr, ovoce (jablka; v rozhraní „ovoce“), luštěniny,
+  1, Martin 18. 11. 2026: „Uzené rozlož“; co by se do konce masa jinak zkazilo – `slaughterMust` –
+  se sní napřed v tempu, před mlékem – D98 kolo 2), sýr, ovoce (jablka; v rozhraní „ovoce“), luštěniny,
   obilí (nejvýš vymlácená zásoba) a v hladu med; nevypité mléko → sýr (`cheeseFromMilk`),
   nesnědené čerstvé maso se vyudí (k ostatnímu uzenému), nesnědená vejce se zkazí – ovoce ani
   maso, které jde sníst, se tak nezkazí. Snědené dne celkem `DietResult.eaten` (`Eaten`, čerstvé maso

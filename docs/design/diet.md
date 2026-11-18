@@ -154,7 +154,8 @@ v hladu), nově platí celý rok, ne jen v hladu:
   Uzené jsou proto **dvě zásoby** (návrh Clauda po kontrole 18. 11. 2026):
   - **zásoba z porážky 1. 11.** – maso kusů, které 1. 11. jdou pod nůž hned (i ty, které ves
     senem neuživí). Každý den se z ní sní jen její **díl** – zásoba ÷ dny do konce masa (od 1. 11.
-    do 31. 8. 304 dní – Trvanlivost masa), poslední den zbytek, takže 1. 9. se nic nezkazí;
+    do 31. 8. 304 dní – Trvanlivost masa), poslední den zbytek; 1. 9. se zkazí jen to, co se ani
+    plnou potřebou do 31. 8. nestihne sníst (Nutně dnes níž);
   - **ostatní uzené** – co se nesnědlo z čerstvého masa (letní porážka, denní zimní porážka
     čekajících kusů, ryby, oka), maso z lovu a hlídek polí, z dosloužilých koní a volů a z nouzové
     porážky. Jí se hned v pořadí jídla, za čerstvým masem, do plné potřeby – „ihned rozdělí
@@ -169,10 +170,17 @@ v hladu), nově platí celý rok, ne jen v hladu:
     nich (pak sýr, ovoce, luštěniny, obilí) – do plné potřeby, i nad dnešní příděl (výhled s dílem
     počítá). Nad svůj díl se zásoba nejí. Nevejde-li se díl do potřeby, zůstane v zásobě a díl
     dalších dnů se přepočte (zásoba ÷ zbývající dny); poslední den zbytek – co se nevejde do
-    potřeby rodu, dostanou ostatní vrstvy, víc než plnou potřebu vsi nikdo nesní (Martin, 18. 11.
-    2026: „Pokud bude přebytek masa, ať klidně všichni jedí jenom maso, pokud se tím zabrání jeho
-    zkažení“). Mléko se tak nevytlačí na sýr a čerstvé maso zimní porážky jde do celé potřeby,
-    jak s ním plán čekajících kusů počítá (Porážka v zimě).
+    potřeby rodu, dostanou ostatní vrstvy, víc než plnou potřebu vsi nikdo nesní. Mléko se tak
+    nevytlačí na sýr a čerstvé maso zimní porážky jde do celé potřeby, jak s ním plán čekajících
+    kusů počítá (Porážka v zimě).
+  - **Nutně dnes** (ruling koordinátora 18. 11. 2026 podle Martina, 18. 11. 2026: „Pokud bude
+    přebytek masa, ať klidně všichni jedí jenom maso, pokud se tím zabrání jeho zkažení“): část
+    zásoby, která by se jinak zkazila, se sní dnes napřed – před mlékem, v tempu proti zkažení:
+    nutně dnes = zásoba − plná potřeba vsi × (dny do konce masa − 1), nejméně nic a nejvýš plná
+    potřeba; zbytek dílu dál až po mléku, vejcích, čerstvém a ostatním uzeném. Je-li zásoby víc,
+    než se do 31. 8. sní plnou potřebou, jí ves jen maso a mléko jde na sýr (ves zakladatelů se
+    stády testu mléka 1. 9. 601 zkažených 1 565 kg jako před D98 – bez nutného dílu 1 668 kg);
+    běžné zásoby (Vlkov) nutný díl nemají až do posledního dne.
 - Ze dnešního čerstvého masa, které nikdo nesní, se vyudí uzené – přidá se k ostatnímu uzenému
   a jí se hned; z mléka, které nikdo nevypije, je sýr – jako dnes.
 
@@ -276,8 +284,12 @@ jenom v zimě, v létě se maso rychle kazí“):
 - V létě jí maso skoro denně celá ves – kníže chce maso každý den a zbytek kusu snědí ostatní.
   Práce letní porážky (zlatá ves se 40 kozami a 30 prasaty ≈ 43 člověkodnů od dubna do října,
   bez letní porážky 0) jde od 18. 11. 2026 za žní a sečí (Porážka za žní) a žeň ani seč
-  nevytlačí: seno 31. 10. o ≈ 100 kg (≈ 1 %) méně jen proto, že menší stádo potřebuje méně sena,
-  přes zimu 9,2 kozy proti 9,3. Ve zlaté vsi stačí práce na žeň i seč, takže porážka před žní
+  nevytlačí. Menší stádo v létě potřebuje méně sena a ves méně poseká: seno 31. 10. o 128 kg
+  (≈ 1,5 %) méně a protože kozy dostávají seno poslední, přes zimu 8,34 kozy proti 9,73 (−14 %;
+  zlatá ves po opravném kole D98 – při stejném seně 9,69 proti 9,73; dřív před D98 ≈ 100 kg a 9,2
+  proti 9,3). Příčinou je seč podle stáda po letní porážce, ne maso – otázka pro Martina, zda má
+  seč počítat letní kusy „jako by žily“ (jako odhad zimy). Ve zlaté vsi stačí práce na žeň i seč,
+  takže porážka před žní
   dávala totéž – rozdíl ukáže ves, které práce ve žních nestačí. Dřívější čísla (≈ 104
   člověkodnů, seno o ≈ 500 kg méně, přes zimu 27,8 koz místo 33,1) byla ze západky letní porážky
   před opravou (Úloha 4).
@@ -294,8 +306,9 @@ jenom v zimě, v létě se maso rychle kazí“):
   44 %, březen až červen 0 % (stav DB 3.–12. 10. 896: listopad 96 %, prosinec 67 %, únor až červen
   0–4 %) – kníže měl maso „každý den“ jen v nárazech. Za 10 let (do 906) stejně lidí a úmrtí
   (34 lidí, úmrtí 9, hladem 0), dní šetření 1 147 → 1 188. Past osiva (Dlouhý hladomor bez osiva)
-  trvá i s D98 – za 10 let ji okno přepočtu nezachytí (kontrola D98: ve Vlkově 908 kolaps
-  s 15 úmrtími hladem místo 19).
+  trvá i s D98 – za 10 let ji okno přepočtu nezachytí: ve Vlkově se s opravným kolem D98 kolaps
+  rozloží do dvou let – 908 7 a 909 8 úmrtí hladem (před D98 19 a 0, D98 15 a 1; kontrola
+  kola 1).
 - **Letní porážka beze změny proti stravě po vrstvách** (Porážka celý rok – V létě): ostatní uzené
   se jí hned a zásoba z 1. 11. jen dílem, takže ves v létě poráží jako dřív – ves zakladatelů
   (celá je rod vojvody; 12 krav, 12 koz a 36 ovcí, test mléka) od dubna do října 5 kusů (60 kg)
@@ -304,9 +317,22 @@ jenom v zimě, v létě se maso rychle kazí“):
   (history).
 - **V hladu čeká srpnový díl** (k vědomí Martinovi): když je sklizeň dřív než konec masa
   (sklizeň ozimu 31. 7.), výhled i jídlo berou ze zásoby z 1. 11. jen díl za dny do sklizně –
-  zbytek čeká do srpna, i když lidé hladovějí, a nouzová porážka na tutéž díru porazí víc
-  (kontrola D98: v polovině července ≈ 2,8×). Ve Vlkově za 13 let bez zhoršení úmrtí. Možný směr:
-  v hladu díl ÷ min(dny do konce masa, dny do sklizně).
+  zbytek čeká do srpna, i když lidé hladovějí. Nouzová porážka díru dorovná 1 : 1 – díly zásoby
+  z 1. 11. za dny po sklizni (se sklizní 31. 7. k 1. 11. ≈ 31/304 zásoby, k 1. 7. polovina zbytku);
+  její maso je ostatní uzené a výhled ho bere celé (v D98 násobek až ≈ 2,8×, s opravným kolem
+  zmizel). Ve Vlkově za 13 let bez zhoršení úmrtí. Možný směr: v hladu díl ÷ min(dny do konce
+  masa, dny do sklizně).
+- **Výhled počítá díl i ve dnech, kdy ho jídlo odloží** (k vědomí Martinovi; kontrola opravného
+  kola D98, kód beze změny): výhled bere díl zásoby z 1. 11. každý den do sklizně, jídlo ho ale
+  nesní, kdykoli mléko, vejce, čerstvé a ostatní uzené plnou potřebu už pokryjí (v zimě čerstvé
+  čekajících kusů na celou potřebu, v létě velké mléko). Odložený díl se přepočte do 31. 8. a část
+  padne za sklizeň – výhled (i přežívací zásoba) je pak optimistický. Syntetická sonda (potřeba
+  10, díl 2, obilí přesně na plný příděl): 273 dní do sklizně, 304 do konce masa, prvních 150 dní
+  jiné jídlo na celou potřebu – výhled počítal 503 energie z dílu do sklizně, snědlo se 437 a ves
+  pak šetří až na 0,907; s 50 dny mléka 194 proti 153, nejnižší příděl 0,877. Ve Vlkově, zlaté vsi
+  ani vsi zakladatelů se to neprojeví – dopad jen ve vsi s masem na celou potřebu přes zimu,
+  zásobou z 1. 11. a těsným obilím. Možný směr: krátit díl ve výhledu o dny, kdy ho čerstvé
+  čekajících kusů vytlačí.
 - **Méně polí pod správcem** (otevřené – k rozhodnutí Martinovi, kód beze změny): správce staví
   pole jen na podíl jídla, který nedá maso, mléko a ovoce (podíl jídla z pole – [správce](steward.md),
   Pole uživí), a s masem a ovocem bez stropů ten podíl klesl. Zlatá ves po 20 letech pod
