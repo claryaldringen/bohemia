@@ -2,6 +2,7 @@
 // řetězově na sousedy, stavba shoří i se zásobami domu; lidé neumírají, bydlí u příbuzných.
 
 import { dateOfDayIndex } from '../../calendar';
+import { takeVillageMeatKg } from '../core/meat-stocks';
 import type { Landscape } from '../../landscape';
 import { createRandom, deriveSeed } from '../../landscape/random';
 import { OBSTACLE_LOOKS, lookSpecies, type ObstacleLayer } from '../../landscape/obstacles/types';
@@ -281,7 +282,8 @@ function burnDown(
   const lostGrain = looseGrainKg(state) * share;
   state.storesKg -= lostGrain;
   const lostMeat = (state.meatKg ?? 0) * share;
-  if (state.meatKg !== undefined) state.meatKg -= lostMeat;
+  // i zásoba z porážky 1. 11. shoří stejným podílem (součet uzeného zůstává přesný)
+  takeVillageMeatKg(state, lostMeat);
   const lostCheese = (state.cheeseKg ?? 0) * share;
   if (state.cheeseKg !== undefined) state.cheeseKg -= lostCheese;
   const lostHay = (state.hay?.kg ?? 0) * share;

@@ -1,3 +1,4 @@
+import { dateOfDayIndex } from '../../calendar';
 import type { Landscape, ObstacleLayer } from '../../landscape';
 import { withArmsCaps } from '../people/arms-caps';
 import { withAwaitingLord } from '../people/appoint-lord';
@@ -243,7 +244,23 @@ export const VILLAGE_MIGRATIONS: readonly VillageMigration[] = [
   { id: 'people-names', since: '2026-11-15', run: withPeopleNames },
   // práce výmlatu uložených snopů podle kg (production-chains.md – Humno, Práce výmlatu podle snopů)
   { id: 'sheaf-work-by-kg', since: '2026-11-18', run: sheafWorkByKg },
+  // dvě zásoby uzeného – z porážky 1. 11. rovným dílem, ostatní hned (diet.md – Pořadí jídla)
+  { id: 'smoked-meat-stocks', since: '2026-11-18', run: smokedMeatStocks },
 ];
+
+/**
+ * Uzené ve vsi před dvěma zásobami (diet.md – Pořadí jídla, Uzené z porážky 1. 11. rovným dílem):
+ * mezi 1. 11. a 31. 8. je skoro celé ze zásoby z porážky 1. 11. – celé do ní, v září a říjnu (po
+ * zkažení 1. 9., do porážky) do ostatního uzeného. Na kopii, jen jednou – pak `slaughterMeatKg`
+ * vždy číslo (i 0).
+ */
+function smokedMeatStocks(state: VillageState): VillageState {
+  if (state.slaughterMeatKg !== undefined) return state;
+  const next = cloneState(state);
+  const { month } = dateOfDayIndex(next.lastDay);
+  next.slaughterMeatKg = month === 9 || month === 10 ? 0 : Math.max(0, next.meatKg ?? 0);
+  return next;
+}
 
 /** Zrušený postoj `'surrender'` se čte jako výchozí `'flee'`; na kopii, jen když ho ves má. */
 function withoutSurrenderStance(state: VillageState): VillageState {

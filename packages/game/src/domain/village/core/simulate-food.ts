@@ -257,8 +257,9 @@ function eatsFull(input: DietInput): boolean {
 /**
  * Krok 8: jídlo dne ze zásob (`eatDiet`; diet.md – Strava po vrstvách a porážka celý rok) – bez
  * stropů v pořadí pevný příděl medu, čerstvé mléko (dojí se vždy celé – ženy bokem, population.md
- * – Práce), vejce, čerstvé maso, sýr, ovoce, luštěniny, obilí a v hladu med (hides-honey.md – Med
- * v hladu); uzené jen svým dílem do zkažení (Martin 18. 11. 2026: „Uzené rozlož“). Snědené se
+ * – Práce), vejce, čerstvé a ostatní uzené maso, díl zásoby z porážky 1. 11. (rovným dílem do
+ * zkažení – Martin 18. 11. 2026: „Uzené rozlož“), sýr, ovoce, luštěniny, obilí a v hladu med
+ * (hides-honey.md – Med v hladu). Snědené se
  * rozdělí po vrstvách přednosti (`tierMeal` – Kdo dostane co): příděl nad životním minimem a čím
  * se naplní. Vrací nasycení vsi (energie × kvalita stravy), energii,
  * štěstí z masa, ovoce a medu po lidech podle toho, co kdo snědl (`dietHappiness` – Spokojenost ze
@@ -276,9 +277,9 @@ export function eat(
   // co zásoby ubyly dnes (prodej, platby), jde z otevřené obilné jámy (production-chains.md –
   // Obilné jámy) – ztráta zásob v jídle dne podle jam
   drawGrainPits(state);
-  // v létě kus pro rod vojvody, když mu na dnešek nestačí dnešní čerstvé maso (i ryby a oka z práce
-  // dne) a dnešní díl uzeného (diet.md – Strava po vrstvách a porážka celý rok); práce porážky se
-  // udělá další dny
+  // v létě kus pro rod vojvody, když mu na dnešek nestačí dnešní čerstvé maso (i ryby a oka
+  // z práce dne), ostatní uzené a dnešní díl zásoby z porážky 1. 11. (diet.md – Strava po
+  // vrstvách a porážka celý rok); práce porážky se udělá další dny
   summerSlaughterDay(state, day, () => summerWinterInput(state, day));
   // nevychází-li výhled do sklizně, ves napřed porazí zvířata navíc – teprve pak šetří přídělem
   // (diet.md – Nouzová porážka)
@@ -300,6 +301,10 @@ export function eat(
   // čerstvé maso dne se snědlo, zbytek je v uzeném (diet.md – Porážka v zimě)
   delete state.freshMeatKg;
   if (state.meatKg !== undefined || meal.meatKg > 0) state.meatKg = meal.meatKg;
+  // z toho zásoba z porážky 1. 11. – po převodu vždy číslo (i 0)
+  if (state.slaughterMeatKg !== undefined || meal.slaughterMeatKg > 0) {
+    state.slaughterMeatKg = meal.slaughterMeatKg;
+  }
   if (state.cheeseKg !== undefined || meal.cheeseKg > 0) state.cheeseKg = meal.cheeseKg;
   if (state.legumesKg !== undefined || meal.legumesKg > 0) {
     state.legumesKg = meal.legumesKg + seedLegumes;

@@ -5,7 +5,8 @@ import {
   meatEnergy,
   villageFoodNeed,
   villageMeatKg,
-  villageSmokedShareKg,
+  villageSlaughterMeatKg,
+  villageSlaughterShareKg,
 } from '../core/diet';
 import { hungerSplit } from '../people/hunger-groups';
 import { EMERGENCY_SLAUGHTER } from '../rules';
@@ -29,9 +30,10 @@ import type { HerdSpecies, VillageState } from '../types';
 // se průběžně porážet celý rok (pokud je dost zvířat) v zimě jenom víc (kvůli stravě a kvůli tomu,
 // že se maso pomaleji kazí). Proč by se mělo porážet celý rok – kníže a nobilita chce mít maso na
 // stole nejlépe každý den.“). V létě (1. 4.–31. 10.) ves porazí jeden celý kus, jen když rodu
-// vojvody (vrstva 1 – `hungerSplit`, skupina 0) na dnešek nestačí dnešní čerstvé maso a dnešní díl
-// uzeného (uzené se jí rovným dílem do zkažení – „Uzené rozlož“); co z kusu rod nesní, sní týž den
-// ostatní a zbytek se vyudí (`eatDiet`). Na maso jdou jen kusy, které by si ves
+// vojvody (vrstva 1 – `hungerSplit`, skupina 0) na dnešek nestačí dnešní čerstvé maso, ostatní
+// uzené (jí se hned) a dnešní díl zásoby z porážky 1. 11. (ta se jí rovným dílem – „Uzené
+// rozlož“); co z kusu rod nesní, sní týž den ostatní a zbytek se vyudí (`eatDiet`). Na maso jdou
+// jen kusy, které by si ves
 // 1. 11. stejně nenechala – staré kusy a kusy nad nosnost zimy (`winterKeepTargets`) –, bez
 // letošních mláďat (kromě selat od 1. 9.) a nikdy pod chovné minimum (`breedingFloor`). Podrobnosti
 // návrh Clauda; letní porážka nezapisuje kroniku (byla by denně). Zima – `winterSlaughterDay`.
@@ -102,16 +104,19 @@ export function summerSlaughterCandidates(
 
 /**
  * Kolik masa (kg) rodu vojvody dnes chybí: potřeba vrstvy 1 (`hungerSplit` – skupina 0) bez masa
- * na dnešek – dnešního čerstvého a dnešního dílu uzeného (`villageSmokedShareKg`; energie v kg
- * obilí – `DIET.meatEnergy`). Uzené se jí rovným dílem do zkažení (Martin 18. 11. 2026: „Uzené
- * rozlož“), proto rozhoduje dnešní díl, ne celá zásoba (návrh Clauda – jinak by zásoba z 1. 11.
- * vydržela do srpna a v létě by se neporáželo vůbec). Ves bez rodu ve vsi (vojvoda na výjezdu,
- * ves správce) 0.
+ * na dnešek – dnešního čerstvého, ostatního uzeného (celé – jí se hned) a dnešního dílu zásoby
+ * z porážky 1. 11. (`villageSlaughterShareKg`; energie v kg obilí – `DIET.meatEnergy`). Zásoba
+ * z 1. 11. se jí rovným dílem do zkažení (Martin 18. 11. 2026: „Uzené rozlož“), proto rozhoduje
+ * její dnešní díl, ne celá (návrh Clauda – jinak by vydržela do srpna a v létě by se neporáželo
+ * vůbec). Ves bez rodu ve vsi (vojvoda na výjezdu, ves správce) 0.
  */
 export function lordMeatShortKg(state: VillageState, day: number): number {
   const need = hungerSplit(state, day).needs[0] ?? 0;
   if (need <= EPSILON) return 0;
-  const today = meatEnergy(villageSmokedShareKg(state, day) + (state.freshMeatKg ?? 0));
+  const other = villageMeatKg(state) - villageSlaughterMeatKg(state);
+  const today = meatEnergy(
+    (state.freshMeatKg ?? 0) + Math.max(0, other) + villageSlaughterShareKg(state, day),
+  );
   return Math.max(0, need - today) / DIET.meatEnergy;
 }
 
@@ -123,8 +128,8 @@ export interface SummerSlaughter {
 
 /**
  * Co ves dnes v létě porazí (bez změny stavu – diet.md, Porážka celý rok, V létě): nic mimo léto,
- * bez rodu ve vsi a když rodu na dnešek stačí dnešní čerstvé maso a dnešní díl uzeného
- * (`lordMeatShortKg`). Jinak jeden celý
+ * bez rodu ve vsi a když rodu na dnešek stačí dnešní čerstvé maso, ostatní uzené a dnešní díl
+ * zásoby z porážky 1. 11. (`lordMeatShortKg`). Jinak jeden celý
  * kus nejmenšího druhu, jehož maso chybějící maso pokryje a který má aspoň jeden celý kus na maso
  * (`summerSlaughterCandidates`); když nepokryje žádný, největšího z nich. Bez kusů na maso nic.
  */

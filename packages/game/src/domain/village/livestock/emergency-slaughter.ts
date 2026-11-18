@@ -26,10 +26,10 @@ import { woolSheep } from './wool';
 // spřežení a telata ve výcviku jsou v ohradách mimo stáda. Letošní mláďata ne – kromě selat od 1. 9.
 // (Martin 19. 10. 2026: „Ano ke všem návrhům“ – maso se 1. 9. kazí a do podzimní porážky ves
 // hladoví; nad chovnými prasnicemi jsou v září skoro jen selata). Maso jde do zásoby jako z podzimní
-// porážky (stejná výtěžnost, uzení, zkažení 1. 9.) a jí se jako uzené rovným dílem do zkažení
-// (diet.md – Pořadí jídla; Martin 18. 11. 2026: „Uzené rozlož“); výhled s ním počítá jeho dílem za
-// dny do sklizně (díl nejvýš plná potřeba dne). Podíl jídla z pole (fields.md – Osev podle stravy)
-// ho počítá jako jídlo z pole.
+// porážky (stejná výtěžnost, uzení, zkažení 1. 9.) – do ostatního uzeného, které se jí v pořadí
+// jídla hned, do zkažení aspoň rovným dílem (diet.md – Pořadí jídla; rovným dílem do zkažení jen
+// zásoba z porážky 1. 11.); výhled s ním počítá nejvýš do plné potřeby za dny do zkažení. Podíl
+// jídla z pole (fields.md – Osev podle stravy) ho počítá jako jídlo z pole.
 
 /** Méně masa (kg) se jako porážka nebere – chyby desetinných čísel. */
 const MIN_KG = 0.5;
@@ -157,8 +157,8 @@ export interface EmergencyPlan {
  * Kolik zvířat ves dnes porazí navíc (bez změny stavu): nic, když výhled jídla do sklizně
  * vychází. Jinak nejméně masa, se kterým výhled vyjde i s rezervou EMERGENCY_SLAUGHTER.reserveShare
  * potřeby do sklizně (ztráty zásob a uzení výhled nezná – bez rezervy by se poráželo den co den po
- * kouscích); když ani všechna zvířata navíc nestačí nebo se maso do sklizně nesní (výhled
- * ho počítá jen dílem uzeného za dny do sklizně), tolik, kolik ještě pomůže – zbytek ves
+ * kouscích); když ani všechna zvířata navíc nestačí nebo se maso do zkažení nestihne sníst (výhled
+ * ho počítá nejvýš do plné potřeby za dny do zkažení), tolik, kolik ještě pomůže – zbytek ves
  * ušetří na přídělu; taková porážka jen, zvedne-li příděl aspoň
  * o EMERGENCY_SLAUGHTER.minGain. Zabitím dojnic ubude i mléka do sklizně, výhled s tím počítá.
  */

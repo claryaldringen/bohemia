@@ -715,10 +715,12 @@ function settlersCarry(
   food: Settlers['food'] | undefined,
 ): Pick<
   VillageState,
-  'meatKg' | 'cheeseKg' | 'legumesKg' | 'applesKg' | 'ancestors' | 'emigrants'
+  'meatKg' | 'slaughterMeatKg' | 'cheeseKg' | 'legumesKg' | 'applesKg' | 'ancestors' | 'emigrants'
 > {
   return {
+    // maso osadníků je ostatní uzené – jí se hned; nová ves je po převodu dvou zásob uzeného
     meatKg: food ? food.meatKg : 0,
+    slaughterMeatKg: 0,
     ...(food && food.cheeseKg > 0 ? { cheeseKg: food.cheeseKg } : {}),
     ...(food && food.legumesKg > 0 ? { legumesKg: food.legumesKg } : {}),
     ...(food && food.applesKg > 0 ? { applesKg: food.applesKg } : {}),

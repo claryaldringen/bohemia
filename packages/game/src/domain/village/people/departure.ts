@@ -2,6 +2,7 @@ import { TOTAL_GAME_DAYS } from '../../calendar';
 import { newSteward } from '../steward/steward-state';
 import type { Landscape } from '../../landscape';
 import { cloneState } from '../core/clone';
+import { takeVillageMeatKg } from '../core/meat-stocks';
 import { currentLord } from './dynasty';
 import { villageHorses } from '../livestock/horses';
 import { isVillageExtinct } from '../core/extinction';
@@ -399,7 +400,8 @@ export function departLeavers(
   // poměrný díl ze zásob bez rezervy osiva mateřské vsi (ta zůstává jí)
   const ownStoresKg = Math.max(0, Math.max(0, state.storesKg) - reservedSeedKg(state));
   next.storesKg -= ownStoresKg * fraction + seedStoresKg;
-  if (next.meatKg !== undefined) next.meatKg -= food.meatKg;
+  // i zásobě z porážky 1. 11. poměrně (součet uzeného zůstává přesný)
+  takeVillageMeatKg(next, food.meatKg);
   if (next.cheeseKg !== undefined) next.cheeseKg -= food.cheeseKg;
   if (next.legumesKg !== undefined) next.legumesKg -= Math.max(0, state.legumesKg ?? 0) * fraction;
   if (next.applesKg !== undefined) next.applesKg -= food.applesKg;

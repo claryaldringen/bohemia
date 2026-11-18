@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { generateLandscape, obstaclesOf, tileCenterWorld } from '../../../landscape';
+import { dayIndexOf } from '../../../calendar';
 import { foundVillage } from '../actions';
 import { migrateVillage, VILLAGE_MIGRATIONS, type VillageMigrationContext } from '../migrations';
 import { withoutForeignGoods } from '../../trade/trade';
@@ -111,5 +112,37 @@ describe('podíl medu v jídle (`foreign-goods` – trade.md, Jen společné sur
       legumes: 0,
     });
     expect(s.diet!.shares.honey).toBe(0.002);
+  });
+});
+
+describe('dvě zásoby uzeného (diet.md – Pořadí jídla, Uzené z porážky 1. 11. rovným dílem)', () => {
+  /** Ves před převodem – uzené 400 kg bez rozdělení na zásoby, poslední den `lastDay`. */
+  const unconverted = (lastDay: number): VillageState => {
+    const s = { ...founded(), lastDay, meatKg: 400 };
+    delete s.slaughterMeatKg;
+    return s;
+  };
+  const day = (year: number, month: number, d: number): number =>
+    dayIndexOf({ year, month, day: d });
+
+  it('mezi 1. 11. a 31. 8. je uzené zásobou z porážky 1. 11., v září a říjnu ostatním', () => {
+    for (const lastDay of [day(601, 11, 1), day(602, 1, 15), day(602, 8, 31)]) {
+      const next = migrateVillage(unconverted(lastDay), advance);
+      expect(next.slaughterMeatKg).toBe(400);
+      expect(next.meatKg).toBe(400);
+    }
+    for (const lastDay of [day(602, 9, 1), day(602, 10, 31)]) {
+      const next = migrateVillage(unconverted(lastDay), advance);
+      expect(next.slaughterMeatKg).toBe(0);
+      expect(next.meatKg).toBe(400);
+    }
+  });
+
+  it('jednou – převedená ves (i s 0) a nová ves se vrátí beze změny', () => {
+    const once = migrateVillage(unconverted(day(602, 1, 15)), advance);
+    expect(migrateVillage(once, advance)).toBe(once);
+    const fresh = founded();
+    expect(fresh.slaughterMeatKg).toBe(0);
+    expect(migrateVillage(fresh, advance).slaughterMeatKg).toBe(0);
   });
 });

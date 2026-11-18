@@ -8,6 +8,7 @@ import {
   villageHoneyRationKg,
   villageMeatKg,
   villageProteinNeed,
+  villageSlaughterMeatKg,
   type DietInput,
 } from './diet';
 import { dayPartLosses, winterEstimateLosses } from '../disasters/disasters';
@@ -77,6 +78,8 @@ export function baseMealInput(
     sheavesGrainKg: sheaves.grainKg + lateKg,
     sheavesLegumesKg: sheaves.legumesKg,
     meatKg: villageMeatKg(state),
+    // z toho zásoba z porážky 1. 11. – jí se rovným dílem do konce masa (diet.md – Pořadí jídla)
+    slaughterMeatKg: villageSlaughterMeatKg(state),
     // čerstvé maso dne (porážka, ryby a drobná zvěř) a od zítřka z porážky – v zimě čekající kusy,
     // v létě maso pro rod vojvody bez uzeného, ryb a dnešního čerstvého, které rod sní napřed
     // (diet.md – Strava po vrstvách a porážka celý rok, Výhled do sklizně)

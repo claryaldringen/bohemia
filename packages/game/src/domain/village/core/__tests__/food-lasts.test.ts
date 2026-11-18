@@ -102,22 +102,21 @@ describe('foodLastsDays', () => {
     expect(lasts(withSeed)).toBe(lasts(village({ storesKg: 2000 })));
   });
 
-  it('uzené jen svým dílem do konce masa jako jídlo dne – samo plný příděl nedá (D98)', () => {
+  it('maso bez stropu do zkažení 1. 9. – samo dá plný příděl, jí se napřed', () => {
+    // krátký výhled – obilí, které maso ušetří, se do konce zásob skoro nezkazí
     const grain = 300;
     const meat = 100;
     const plain = village({ storesKg: grain });
     const perDay = need(plain, NOVEMBER);
-    // díl uzeného (zásoba ÷ dny do 31. 8.) je zlomek potřeby – samo maso plný příděl nedá
-    const end = daysUntilMeatEnd(NOVEMBER + 1);
-    expect(meatEnergy(meat) / end).toBeLessThan(perDay);
-    expect(lasts(village({ meatKg: meat }))).toBe(0);
-    // s obilím díl uzeného obilí šetří – vydrží déle, ale méně, než kdyby se maso snědlo celé
+    // maso samo uživí ves plným přídělem, dokud ho je (jen uzení ubírá)
+    const meatOnly = lasts(village({ meatKg: meat }));
+    expect(meatOnly).toBeGreaterThan(0);
+    expect(meatOnly).toBeLessThanOrEqual(meatEnergy(meat) / perDay);
+    expect(meatOnly).toBeGreaterThan(meatEnergy(meat) / perDay - 2);
+    // v listopadu se maso sní celé (do 1. 9. daleko) – přidá skoro celou svou energii
     const novemberGain = lasts(village({ storesKg: grain, meatKg: meat })) - lasts(plain);
-    expect(novemberGain).toBeGreaterThan(0);
-    expect(novemberGain).toBeLessThan(meatEnergy(meat) / perDay - 1);
-    // díl aspoň na celou potřebu – uzené samo uživí ves do konce masa, 1. 9. ráno se zbytek zkazí
-    const plenty = (2 * perDay * end) / DIET.meatEnergy;
-    expect(lasts(village({ meatKg: plenty }))).toBe(end);
+    expect(novemberGain).toBeGreaterThan((0.8 * meatEnergy(meat)) / perDay);
+    expect(novemberGain).toBeLessThanOrEqual(meatEnergy(meat) / perDay + 1);
     // 20. 8. se do zkažení stihne jen 11 dní plné potřeby, zbytek přijde nazmar
     const august = at(601, 8, 20);
     expect(meatEnergy(meat) / perDay).toBeGreaterThan(11);
@@ -125,6 +124,25 @@ describe('foodLastsDays', () => {
       lasts(village({ storesKg: grain, meatKg: meat }), august) - lasts(plain, august);
     expect(augustGain).toBeGreaterThan(0);
     expect(augustGain).toBeLessThanOrEqual(11);
+  });
+
+  it('zásoba z porážky 1. 11. jen svým dílem jako jídlo dne – sama plný příděl nedá (D98)', () => {
+    const grain = 300;
+    const meat = 100;
+    const plain = village({ storesKg: grain });
+    const perDay = need(plain, NOVEMBER);
+    // díl (zásoba ÷ dny do 31. 8.) je zlomek potřeby – sama zásoba plný příděl nedá
+    const end = daysUntilMeatEnd(NOVEMBER + 1);
+    expect(meatEnergy(meat) / end).toBeLessThan(perDay);
+    expect(lasts(village({ meatKg: meat, slaughterMeatKg: meat }))).toBe(0);
+    // s obilím díl obilí šetří – vydrží déle, ale méně, než kdyby se maso snědlo hned
+    const gain =
+      lasts(village({ storesKg: grain, meatKg: meat, slaughterMeatKg: meat })) - lasts(plain);
+    expect(gain).toBeGreaterThan(0);
+    expect(gain).toBeLessThan(meatEnergy(meat) / perDay - 1);
+    // díl aspoň na celou potřebu – zásoba sama uživí ves do konce masa, 1. 9. ráno se zbytek zkazí
+    const plenty = (2 * perDay * end) / DIET.meatEnergy;
+    expect(lasts(village({ meatKg: plenty, slaughterMeatKg: plenty }))).toBe(end);
   });
 
   it('med a luštěniny přidají', () => {

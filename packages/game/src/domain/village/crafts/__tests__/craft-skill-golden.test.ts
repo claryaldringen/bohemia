@@ -191,6 +191,7 @@ describe('ves bez dílen beze změny (crafts.md – Učení řemesla)', () => {
     // 18. 11. 2026 – strava po vrstvách, úloha 4 (porážka celý rok); dřív 13c48149
     // 18. 11. 2026 – D98 uzené rozložené do zkažení (díl uzeného do konce masa, letní porážka podle
     // dnešního dílu); dřív db2944d6
-    expect(hash(stripped)).toBe('c976a3a');
+    // 18. 11. 2026 – D98 kolo 1 – rozložená jen zásoba z porážky 1. 11.; dřív c976a3a
+    expect(hash(stripped)).toBe('6988f81');
   }, 120_000);
 });

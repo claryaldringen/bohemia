@@ -459,8 +459,16 @@ export interface VillageState {
   disasters?: DisasterState;
   /** Převod na zvěř selhal (zpráva chyby) – ves dostala výchozí krajinu; aplikace chybu zapíše do logu. */
   wildlifeFailed?: string;
-  /** Zásoba masa (kg) – uzené a sušené (diet.md). Chybí = žádná. */
+  /** Zásoba masa (kg) – uzené a sušené (diet.md), celá i se zásobou z porážky 1. 11. Chybí = žádná. */
   meatKg?: number;
+  /**
+   * Z toho zásoba z porážky 1. 11. (kg, část `meatKg`, nejvýš celá – diet.md, Pořadí jídla,
+   * Uzené z porážky 1. 11. rovným dílem; Martin 18. 11. 2026: „Uzené rozlož“): jí se rovným dílem
+   * do konce masa; ostatní uzené (zbytky čerstvého, lov, hlídky, koně, voli, nouzová porážka) se
+   * jí hned.
+   * Chybí = 0 – jen ves před převodem `smoked-meat-stocks`, potom vždy číslo (i 0).
+   */
+  slaughterMeatKg?: number;
   /**
    * Čerstvé maso dne (kg) ze zimní porážky (diet.md – Porážka v zimě): porážka ho dá ráno, jídlo
    * dne ho sní napřed, co zbude, se udí. Mezi dny chybí.

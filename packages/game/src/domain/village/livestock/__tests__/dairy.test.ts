@@ -141,9 +141,7 @@ describe('práce se zvířaty', () => {
     // mléka víc, než ves vypije – mléko se pije do plné potřeby, sýr je jen z přebytku (diet.md –
     // Strava po vrstvách a porážka celý rok)
     s.livestock!.herds = herds({ cow: 12, goat: 12, sheep: 36 });
-    // v květnu – od června jí ves zakladatelů (celá je rod vojvody) jen díl uzeného z letní porážky
-    // na celou potřebu rodu a mléko jde celé na sýr (D98 – uzené rovným dílem do zkažení)
-    const summer = advanceVillage(s, at(600, 5, 15), null);
+    const summer = advanceVillage(s, at(600, 7, 1), null);
     // dojení a péče jdou bokem (ženy – population.md, Práce): v práci vsi nejsou, jen pro postavy
     expect(summer.labor!.shares.some((share) => share.activity === 'milking')).toBe(false);
     expect(summer.labor!.aside!.some((share) => share.activity === 'milking')).toBe(true);
@@ -152,7 +150,7 @@ describe('práce se zvířaty', () => {
     const winter = advanceVillage(summer, at(601, 1, 15), null);
     expect(winter.labor!.shares.some((share) => share.activity === 'animal-care')).toBe(false);
     expect(winter.labor!.aside!.some((share) => share.activity === 'animal-care')).toBe(true);
-    // v zimě napřed maso z porážky (čerstvé a díl uzeného), sýr počká; bez masa se jí sýr
+    // v zimě napřed maso z podzimní porážky (uzené se kazí dřív), sýr počká; bez masa se jí sýr
     expect(winter.cheeseKg).toBeGreaterThan(0);
     const lean = structuredClone(winter);
     lean.meatKg = 0;

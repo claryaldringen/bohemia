@@ -28,8 +28,7 @@ import { withBuiltFirstDwelling, withRoomyPens } from '../../__tests__/village-f
 
 // Porážka celý rok – léto (diet.md – Strava po vrstvách a porážka celý rok; Martin 18. 11. 2026:
 // „kníže a nobilita chce mít maso na stole nejlépe každý den“): v létě se porazí jeden celý kus,
-// jen když rodu vojvody na dnešek nestačí dnešní čerstvé maso a dnešní díl uzeného (D98 – uzené
-// rovným dílem do zkažení) – nejmenší, který potřebu pokryje, jinak
+// jen když rodu vojvody na dnešek nestačí maso v zásobě – nejmenší, který potřebu pokryje, jinak
 // největší; jen kusy, které by si ves 1. 11. nenechala, bez letošních mláďat (selata od 1. 9.)
 // a nikdy pod chovné minimum.
 
@@ -124,43 +123,72 @@ describe('letní porážka pro rod vojvody', () => {
     expect(next.freshMeatKg).toBeUndefined();
   });
 
-  it('dnešní díl uzeného stačí – rod má na dnešek maso, nic se neporáží', () => {
+  it('zásoba stačí – rod má na dnešek uzené maso, nic se neporáží', () => {
     const s = village(day);
     s.livestock!.herds = herds({ sheep: 20, cow: 10 });
-    // díl uzeného = zásoba po dnešní ztrátě ÷ dny do konce masa (D98 – Martin 18. 11. 2026:
-    // „Uzené rozlož“)
-    s.meatKg = ((lordNeed(s, day) / DIET.meatEnergy) * daysUntilMeatEnd(day)) / DAILY_MEAT_KEEP + 1;
-    expect(lordMeatShortKg(s, day)).toBe(0);
+    s.meatKg = lordNeed(s, day) / DIET.meatEnergy + 0.1;
     summerSlaughterDay(s, day, NO_HERDERS);
     expect(s.livestock!.herds).toEqual(herds({ sheep: 20, cow: 10 }));
     expect(s.freshMeatKg ?? 0).toBe(0);
   });
 
-  it('velká zásoba uzeného, ale dnešní díl rodu nestačí – porazí se kus (D98)', () => {
+  it('zásoba z porážky 1. 11. jen dnešním dílem – velká zásoba, díl rodu nestačí, porazí se kus (D98)', () => {
     const s = village(day);
     s.livestock!.herds = herds({ sheep: 20, cow: 10 });
     s.livestock!.young = herds({});
-    // uzené na 20 dní plné potřeby rodu – dřív by rodu stačilo, s dílem do 31. 8. ne
+    // uzené z porážky 1. 11. na 20 dní plné potřeby rodu – jí se rovným dílem do 31. 8., na dnešek
+    // tak dá jen díl (Martin 18. 11. 2026: „Uzené rozlož“)
     const need = lordNeed(s, day);
     s.meatKg = (20 * need) / DIET.meatEnergy;
+    s.slaughterMeatKg = s.meatKg;
     const shareKg = (s.meatKg * DAILY_MEAT_KEEP) / daysUntilMeatEnd(day);
     expect(daysUntilMeatEnd(day)).toBeGreaterThan(20);
     expect(lordMeatShortKg(s, day)).toBeCloseTo(need / DIET.meatEnergy - shareKg, 9);
     summerSlaughterDay(s, day, NO_HERDERS);
     expect(s.livestock!.herds.sheep).toBeCloseTo(19, 9);
     expect(s.freshMeatKg).toBeCloseTo(LIVESTOCK.meatKg.sheep, 9);
+    // táž zásoba jako ostatní uzené (zbytek kusu, lov) se jí hned – rodu stačí, neporáží se
+    const t = village(day);
+    t.livestock!.herds = herds({ sheep: 20, cow: 10 });
+    t.meatKg = (20 * need) / DIET.meatEnergy;
+    expect(lordMeatShortKg(t, day)).toBe(0);
+    summerSlaughterDay(t, day, NO_HERDERS);
+    expect(t.livestock!.herds.sheep).toBeCloseTo(20, 9);
+  });
+
+  it('ves zakladatelů v červenci pije mléko a v létě nehromadí uzené (D98 kolo 1 – jako před D98)', () => {
+    // stáda jako test mléka (dairy.test.ts): 12 krav, 12 koz, 36 ovcí – kusy na maso má
+    let s = withBuiltFirstDwelling(
+      foundVillage({ seed: 4, day: at(600, 3, 1), dwellingPosition: { x: 0, z: 0, rotation: 0 } }),
+    );
+    s.storesKg = 50_000;
+    s.livestock!.herds = herds({ cow: 12, goat: 12, sheep: 36 });
+    let julyDays = 0;
+    let dairy = 0;
+    let meat = 0;
+    while (s.lastDay < at(600, 7, 31)) {
+      s = advanceVillage(s, s.lastDay + 1, null);
+      if (s.lastDay < at(600, 7, 1)) continue;
+      julyDays++;
+      dairy += s.diet!.shares.dairy;
+      meat += s.diet!.shares.meat;
+    }
+    // před D98 (sonda kontroly 18. 11. 2026): červenec ≈ 50 % mléka a sýra, do konce července
+    // žádný letní kus; s D98 do 30. 6. 10 kusů a v červenci 99 % masa, mléko na sýr
+    expect(dairy / julyDays).toBeGreaterThan(0.4);
+    expect(meat / julyDays).toBeLessThan(0.6);
+    const heads = Object.values(s.livestock!.summerSlaughtered ?? {}).reduce((a, b) => a + b, 0);
+    expect(heads).toBeLessThanOrEqual(1);
   });
 
   it('dnešní ryby se počítají – porážka se rozhoduje po práci dne, před jídlem', () => {
-    // dva lidé v dvorci: polovinu masa rodu dá dnešní díl uzeného, zbytek dnešní ryby z tůní
+    // dva lidé v dvorci: polovinu masa rodu dá uzené, zbytek dnešní ryby z tůní
     const fishing = (fish: boolean): { before: VillageState; after: VillageState } => {
       const s = village(day - 1);
       s.people = s.people.slice(0, 2);
       s.livestock!.herds = herds({ sheep: 20, cow: 10 });
       s.livestock!.young = herds({});
-      // dnešní díl uzeného (zásoba ÷ dny do konce masa – D98) dá rodu polovinu masa
-      s.meatKg =
-        ((0.5 * lordNeed(s, day)) / DIET.meatEnergy) * (daysUntilMeatEnd(day) / DAILY_MEAT_KEEP);
+      s.meatKg = (0.5 * lordNeed(s, day)) / DIET.meatEnergy;
       const land = WILDLIFE_LAND.defaultLand;
       s.wildlife = freshWildlife(fish ? { ...land } : { ...land, waterHa: 0, pools: 0 }, 0);
       return { before: s, after: advanceVillage(s, day, null) };

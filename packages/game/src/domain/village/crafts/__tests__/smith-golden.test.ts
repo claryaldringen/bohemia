@@ -218,6 +218,7 @@ describe('ves bez kováře a hrnčíře beze změny (crafts.md – Uhlí a ruda 
     // žní, podíl pasáků); dřív 77740d4
     // 18. 11. 2026 – D98 uzené rozložené do zkažení (díl uzeného do konce masa, letní porážka podle
     // dnešního dílu); dřív f8960960
-    expect(hash(stripped)).toBe('e3144fbc');
+    // 18. 11. 2026 – D98 kolo 1 – rozložená jen zásoba z porážky 1. 11.; dřív e3144fbc
+    expect(hash(stripped)).toBe('fe7259fc');
   }, 120_000);
 });

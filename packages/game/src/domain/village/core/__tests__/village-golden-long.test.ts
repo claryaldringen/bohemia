@@ -63,8 +63,10 @@ import { goldenWorld, stateFingerprint, YEAR } from './village-golden-fixture';
 // a 5d858a6a3e2859bc
 // 18. 11. 2026 – D98 uzené rozložené do zkažení (viz village-golden.test.ts); dřív
 // 29895c33a84fdb08 a 7ce7a924372a21a0
-const EXPECTED_YEAR_2 = '3178f7e153f41913';
-const EXPECTED_YEAR_3 = '8f07292a73a628b8';
+// 18. 11. 2026 – D98 kolo 1 – rozložená jen zásoba z porážky 1. 11.; dřív 3178f7e153f41913
+// a 8f07292a73a628b8
+const EXPECTED_YEAR_2 = 'e528780d5ee19f50';
+const EXPECTED_YEAR_3 = '0696bc715723e45d';
 // 18. 11. 2026 – D93 cesta přes plochu staveb; dřív 168010dd35f7c1c7 a a499594da5514b49 (viz
 // village-golden.test.ts)
 // 18. 11. 2026 – D95 výmlat (výmlat podle kg snopů, rod v zimě dorovná tempo okna – viz

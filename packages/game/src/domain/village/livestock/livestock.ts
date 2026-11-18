@@ -420,7 +420,10 @@ export function meatNeedPerYear(
   return Math.max(0, b.need - b.grain - b.milk - b.eggs - b.legumes) / PROTEIN.perKg.meat;
 }
 
-/** Přidá maso z porážky do uzení a práci na porážce a uzení (mutuje stav). */
+/**
+ * Přidá maso z porážky do uzení a práci na porážce a uzení (mutuje stav) – do ostatního uzeného,
+ * které se jí hned (zásobu z porážky 1. 11. přičte `slaughter`).
+ */
 export function butcher(state: VillageState, kg: number): void {
   if (kg <= 0) return;
   state.meatKg = (state.meatKg ?? 0) + kg;
@@ -1253,8 +1256,8 @@ export function hayShortSlaughter(
  * rozšíří). Chovný pár, krávy na mléko a voly (`minCows`) a ovce na vlnu
  * (`minSheep`) zůstanou. Kusy na maso ves neporáží najednou: kolik přes zimu sní čerstvého, počká
  * a porazí se po dnech (`winterWait`, `winterSlaughterDay` – `LivestockState.culling`), zbytek se
- * porazí hned a maso se udí. Vrátí událost kroniky (kg masa celkem, `fresh` – z toho přes zimu),
- * nebo null.
+ * porazí hned a maso se udí – zásoba z porážky 1. 11. (`slaughterMeatKg`, jí se rovným dílem do
+ * konce masa). Vrátí událost kroniky (kg masa celkem, `fresh` – z toho přes zimu), nebo null.
  */
 export function slaughter(
   state: VillageState,
@@ -1327,6 +1330,9 @@ export function slaughter(
   livestock.slaughterWork = pending > EPSILON ? { required: pending, done: 0 } : null;
   if (meat <= EPSILON) return null;
   butcher(state, smoked);
+  // kusy pod nůž hned jsou zásoba z porážky 1. 11. – jí se rovným dílem do konce masa (diet.md –
+  // Pořadí jídla; Martin 18. 11. 2026: „Uzené rozlož“), ostatní uzené hned
+  state.slaughterMeatKg = (state.slaughterMeatKg ?? 0) + smoked;
   return {
     day,
     kind: 'slaughter',
