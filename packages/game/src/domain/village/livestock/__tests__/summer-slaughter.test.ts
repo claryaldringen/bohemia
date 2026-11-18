@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../../calendar';
 import { foundVillage } from '../../core/actions';
 import { DIET, meatEnergy } from '../../core/diet';
+import { baseMealInput } from '../../core/meal-input';
+import { NO_CRAFTS } from '../../core/productivity';
 import { hungerSplit } from '../../people/hunger-groups';
 import { WILDLIFE_LAND } from '../../rules/rules-wildlife';
 import { freshWildlife } from '../../wildlife/wildlife';
@@ -346,5 +348,40 @@ describe('letní porážka pro rod vojvody', () => {
       lordNeed(s, october) * 10,
       9,
     );
+  });
+
+  it('výhled: maso pro rod bez uzeného v zásobě a ryb do konce výhledu – překryv se nesčítá', () => {
+    const s = village(day);
+    s.livestock!.herds = herds({ sheep: 20 });
+    s.livestock!.young = herds({});
+    const need = lordNeed(s, day);
+    // uzené v zásobě a ryby jí rod napřed (porážka čeká, dokud mu stačí) – odečtou se celé
+    s.meatKg = 10;
+    expect(freshMeatAheadEnergy(s, day, 30, NO_HERDERS, 5)).toBeCloseTo(
+      need * 29 - meatEnergy(10) - 5,
+      9,
+    );
+    // ryby pokryjí celou potřebu rodu – z letní porážky výhled nic nečeká
+    expect(freshMeatAheadEnergy(s, day, 30, NO_HERDERS, need * 29)).toBe(0);
+    // ves s rybami a kusy na maso: vstup jídla dne bere týž odhad ryb jako výhled
+    s.meatKg = 0;
+    s.wildlife = freshWildlife({ ...WILDLIFE_LAND.defaultLand }, 0);
+    // od 1. 5. do 15. 6. 46 dní sezóny ryb, 46 kg – 1 kg na den
+    s.wildlife.smallGame = {
+      today: null,
+      year: { fishKg: 46, hares: 0, meatKg: 0, days: 10 },
+      quota: { fishKg: 400, hares: 0, foxes: 0 },
+    };
+    const input = baseMealInput(s, day, NO_CRAFTS.pottery, 1);
+    const fish = input.fishAheadEnergy ?? 0;
+    expect(fish).toBeGreaterThan(0);
+    const days = Math.min(input.daysToHarvest - 1, at(601, 10, 31) - day);
+    expect(need * days).toBeGreaterThan(fish);
+    const heads = Math.floor(summerSlaughterCandidates(s, day, summerWinterInput(s, day)).sheep);
+    expect(heads).toBeGreaterThan(0);
+    const meat = meatEnergy(heads * LIVESTOCK.meatKg.sheep);
+    expect(input.freshAheadEnergy).toBeCloseTo(Math.min(meat, need * days - fish), 9);
+    // ryby a maso pro rod dohromady nejvýš potřeba rodu za letní dny (dřív obojí celé)
+    expect((input.freshAheadEnergy ?? 0) + fish).toBeLessThanOrEqual(need * days + 1e-9);
   });
 });

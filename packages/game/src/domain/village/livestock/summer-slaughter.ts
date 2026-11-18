@@ -113,8 +113,7 @@ export interface SummerSlaughter {
 /**
  * Co ves dnes v létě porazí (bez změny stavu – diet.md, Porážka celý rok, V létě): nic mimo léto,
  * bez rodu ve vsi a když rodu na dnešek stačí maso v zásobě (`lordMeatShortKg`). Jinak jeden celý
- * kus
- * nejmenšího druhu, jehož maso chybějící maso pokryje a který má aspoň jeden celý kus na maso
+ * kus nejmenšího druhu, jehož maso chybějící maso pokryje a který má aspoň jeden celý kus na maso
  * (`summerSlaughterCandidates`); když nepokryje žádný, největšího z nich. Bez kusů na maso nic.
  */
 export function summerSlaughterPlan(
@@ -138,8 +137,9 @@ export function summerSlaughterPlan(
  * scénu (`noteSlaughtered`), kus do čítače letos v létě poražených kusů
  * (`LivestockState.summerSlaughtered` – všechny letní kusy, staré i nad odhad zimy) a práce
  * porážky a uzení jako v zimě (1 člověkoden na LIVESTOCK.slaughterKgPerManDay kg – udělá se další
- * dny, za žní a sečí – `DAY_WORK_ORDER`). Kronika ne. Volá se v jídle dne po práci (`eat`), aby se počítaly i dnešní ryby
- * a oka. `input` – co ves o zimě ví (`WinterInput`, stačí až na požádání).
+ * dny, za žní a sečí – `DAY_WORK_ORDER`). Kronika ne. Volá se v jídle dne po práci (`eat`), aby
+ * se počítaly i dnešní ryby a oka. `input` – co ves o zimě ví (`WinterInput`, stačí až na
+ * požádání).
  */
 export function summerSlaughterDay(
   state: VillageState,
@@ -176,7 +176,11 @@ function summerDaysAhead(day: number, daysToHarvest: number): number {
  * - v zimě maso kusů, které čekají na zimní porážku (`cullingMeatKg`), nejvýš celá potřeba vsi do
  *   konce zimy;
  * - v létě maso z letní porážky pro rod vojvody – potřeba vrstvy 1 za letní dny výhledu
- *   (`daysToHarvest`, nejvýš do 31. 10.), nejvýš maso celých kusů, které na maso smějí
+ *   (`daysToHarvest`, nejvýš do 31. 10.) bez energie uzeného v zásobě a ryb do konce výhledu
+ *   (`fishAheadEnergy` – týž odhad jako výhled, `fishAheadKg`): dokud rodu stačí jiné maso, ves
+ *   neporáží (`lordMeatShortKg`); uzené i ryby jí celá ves, rod z nich dostane nejvýš všechno –
+ *   odečtou se celé (opatrně; návrh Clauda 18. 11. 2026 – dřív celá potřeba rodu, výhled tak maso
+ *   rodu počítal dvakrát). Nejvýš maso celých kusů, které na maso smějí
  *   (`summerSlaughterCandidates`). Bez `input` (co ves o zimě ví) a bez rodu ve vsi 0.
  */
 export function freshMeatAheadEnergy(
@@ -184,6 +188,7 @@ export function freshMeatAheadEnergy(
   day: number,
   daysToHarvest = 0,
   input?: WinterInputSource,
+  fishAheadEnergy = 0,
 ): number {
   if (isSlaughterSeason(day)) {
     const days = slaughterSeasonDaysLeft(day) - 1;
@@ -197,10 +202,12 @@ export function freshMeatAheadEnergy(
   if (days <= 0) return 0;
   const need = hungerSplit(state, day).needs[0] ?? 0;
   if (need <= EPSILON) return 0;
+  const short = need * days - meatEnergy(villageMeatKg(state)) - Math.max(0, fishAheadEnergy);
+  if (short <= EPSILON) return 0;
   const candidates = summerSlaughterCandidates(state, day, winterInputOf(input));
   const kg = HERD_SPECIES.reduce(
     (sum, s) => sum + Math.floor(candidates[s] + EPSILON) * LIVESTOCK.meatKg[s],
     0,
   );
-  return Math.min(need * days, meatEnergy(kg));
+  return Math.min(short, meatEnergy(kg));
 }
