@@ -900,6 +900,27 @@ Nový systém přehrazení řeší sám (návrh Clauda):
   dál](roads.md#cesta-je-cesta--povrch-pod-ní-a-zarůstání)). Branka nového obydlí do cizího
   pozemku dál nesmí (Vchody).
 
+### Náhled u kurzoru (18. 11. 2026)
+
+Martin 18. 11. 2026: „když stavím stavbu a její pozemek zasahuje do cesty, tak ať je ten zásah
+vyznačený žlutě – sice to přes cestu půjde postavit, ale stavitel by měl vědět, že to změní síť
+cest“. Návrh Clauda:
+
+- **Co je žlutě:** při umisťování stavby, která leží v ploše staveb vsi (obydlí na pozemku
+  i volné, dílna, modla, svatyně, humno, ohrada a hřbitov při malování po čtvercích), náhled vyznačí žlutým pásem po ose ty kusy živých cest,
+  které by pravidlo kusu pod stavbou výš po postavení opustilo – osa vede plochou nové stavby
+  souvislým kusem aspoň 5 m (`BLOCK_MIN_RUN_M`). Kratší zásah (cesta jen zaklesne do rohu) síť
+  nezmění a nevyznačí se. Plocha je táž jako v pravidle – plocha hotové stavby i staveniště (kus pod
+  staveništěm se opouští už při zahájení stavby). Opuštěná cesta a cesta ve vylepšení se nehodnotí
+  jako v pravidle.
+- **Varování, ne zákaz:** u kurzoru je varování **„Cesta se přeruší“** (jako „Pole se zmenší“) –
+  stavbu nic neblokuje (hráč staví, kdy chce).
+- **Táž pravidla:** plochu nové stavby i kusy pod ní počítá prohlížeč stejnými funkcemi jádra jako
+  server (mřížka chodců na mřížce krajiny, vzorkování osy po 1 m) – náhled a skutečnost se shodnou.
+  Počítá se plocha nové stavby samotné: živé cesty plochou stávajících staveb nevedou (pravidlo je
+  už opustilo).
+- Opevnění a kostel zatím zásah neukazují (návrh Clauda – další krok).
+
 ## Křižovatky (pravidlo 9)
 
 > **Napojení blízko křižovatky (Martin 3. 11. 2026):** na otázku, zda nové napojení cesty blíž než
