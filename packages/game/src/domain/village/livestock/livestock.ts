@@ -91,7 +91,8 @@ export const LIVESTOCK = {
     cow: HERD_BREEDING.femaleShare.cow * HERD_BREEDING.youngPerDam.cow,
   },
   /**
-   * Roční ztráty bez vlků (nemoci, úrazy; diet.md – Roční ztráty stáda). Vlčí díl `PREDATION.wolfShare`
+   * Roční ztráty bez vlků (nemoci, úrazy; diet.md – Roční ztráty stáda). Vlčí díl
+   * `PREDATION.wolfShare`
    * se přidá podle smečky (`predationDay`) – při plné smečce dohromady 12 / 10 / 12 / 6 %.
    */
   lossPerYear: { sheep: 0.09, goat: 0.07, pig: 0.1, cow: 0.05 },
@@ -513,7 +514,8 @@ export interface WinterInput {
   /** Ovce na vlnu pro oděv všech (`woolSheep` – diet.md, Oděv); bez údaje jen chovný pár. */
   minSheep?: number;
   /**
-   * Krávy k obnově volů (`oxenRenewalCows` – diet.md, Zima bez sena): v zimním krmení hned po volech
+   * Krávy k obnově volů (`oxenRenewalCows` – diet.md, Zima bez sena): v zimním krmení hned po
+   * volech
    * a koních, před ovcemi na vlnu (`minSheep`); bez údaje žádné.
    */
   oxenCows?: number;
@@ -564,14 +566,16 @@ function balanceOptions(input: WinterInput): BalanceOptions {
 
 /**
  * Přednost stád (oxen.md – Co nejvíc sena a co největší stáda; Martin 24. 10. 2026: „Krávy a hlavně
- * voli jsou životně důležití, pak jsou ovce, kozy a prasata jsou důležitá nejméně.“): v tomto pořadí
+ * voli jsou životně důležití, pak jsou ovce, kozy a prasata jsou důležitá nejméně.“): v tomto
+ * pořadí
  * jde seno na zimu, pastva i pasáci; voli (orají) mají přednost před všemi. Dřív ovce na vlnu
  * a krávy na mléko a voly napřed, pak ovce, kozy a zbytek krav.
  */
 const HERD_PRIORITY: readonly HerdSpecies[] = ['cow', 'sheep', 'goat', 'pig'];
 
 /**
- * Komu pasáci stačili (diet.md – Pasáci): uhlídaný podíl `watched` celé potřeby pasáků (kusy ÷ kolik
+ * Komu pasáci stačili (diet.md – Pasáci): uhlídaný podíl `watched` celé potřeby pasáků (kusy ÷
+ * kolik
  * jich pasák uhlídá) jde po druzích v pořadí přednosti (`HERD_PRIORITY`) – podíl uhlídaných kusů
  * každého druhu. Druh bez kusů dostane `watched`.
  */
@@ -742,20 +746,13 @@ export function youngRoomTargets(
 /**
  * Staré kusy (diet.md – Porážka v zimě; Martin 19. 10. 2026: „Tak většinou se v zimě porážejí
  * staré kusy…“): kolik dospělých kusů (stádo bez letošních mláďat) ročně doslouží
- * (HERD_RETIREMENT) – jdou 1. 11. na maso vždy, letošní mláďata je nahradí. Kusy, které ves letos
- * v létě porazila (`slaughtered` – `LivestockState.summerSlaughtered`), jsou letošní staré kusy:
- * podíl se počítá ze stáda i s nimi a oni se odečtou (diet.md – Strava po vrstvách a porážka celý
- * rok; jinak by se staré kusy brali znovu z každého menšího stáda – za rok jen 1/8 ovcí).
+ * (HERD_RETIREMENT) – jdou 1. 11. na maso vždy, letošní mláďata je nahradí.
  */
 export function retiringHeads(
   herds: Readonly<Record<HerdSpecies, number>>,
   young: Readonly<Record<HerdSpecies, number>>,
-  slaughtered: Readonly<Partial<Record<HerdSpecies, number>>> = {},
 ): Record<HerdSpecies, number> {
-  return herdRecord((s) => {
-    const taken = slaughtered[s] ?? 0;
-    return Math.max(0, HERD_RETIREMENT[s] * (Math.max(0, herds[s] - young[s]) + taken) - taken);
-  });
+  return herdRecord((s) => HERD_RETIREMENT[s] * Math.max(0, herds[s] - young[s]));
 }
 
 /**
@@ -769,12 +766,21 @@ export function winterKeepTargets(
   input: WinterInput,
 ): Record<HerdSpecies, number> {
   const livestock = ensureLivestock(state);
-  const herds = livestock.herds;
-  const room = youngRoomTargets(state, day, winterTargets(state, day, input), input);
-  const old = retiringHeads(herds, livestock.young, livestock.summerSlaughtered);
+  // kusy, které ves letos v létě porazila pro rod vojvody (`summerSlaughtered`), se počítají do
+  // stáda, jako by žily – staré kusy, pasáci (podíl uhlídaných) i místa ze stáda před letní
+  // porážkou, ať ji odhad 1. 11. nezmenšuje (diet.md – Strava po vrstvách a porážka celý rok)
+  const taken = livestock.summerSlaughtered;
+  const herds = taken ? herdRecord((s) => livestock.herds[s] + (taken[s] ?? 0)) : livestock.herds;
+  const view: VillageState = taken ? { ...state, livestock: { ...livestock, herds } } : state;
+  const room = youngRoomTargets(view, day, winterTargets(view, day, input), input);
+  const old = retiringHeads(herds, livestock.young);
   const floor = breedingFloor(input);
   return herdRecord((s) =>
-    Math.min(room[s], Math.max(Math.min(herds[s], floor[s]), herds[s] - old[s])),
+    Math.min(
+      livestock.herds[s],
+      room[s],
+      Math.max(Math.min(herds[s], floor[s]), herds[s] - old[s]),
+    ),
   );
 }
 
@@ -934,7 +940,8 @@ export function winterSlaughterTodayKg(
  * z kusů čekajících na porážku (`LivestockState.culling`) ves porazí dnešní díl
  * (`winterSlaughterTodayKg` – maso čekajících ÷ zbývající dny zimy), v pořadí
  * WINTER_SLAUGHTER_ORDER, i zlomky kusů (stáda jsou v modelu zlomková – návrh Clauda) – maso do
- * `freshMeatKg` (jí se dnes napřed), práce porážky jako u porážky. Poslední den zimy (31. 3.) – nebo
+ * `freshMeatKg` (jí se dnes napřed), práce porážky jako u porážky. Poslední den zimy (31. 3.) –
+ * nebo
  * mimo zimu – se zbytek porazí a maso se udí.
  */
 export function winterSlaughterDay(state: VillageState, day: number): void {
@@ -1080,7 +1087,8 @@ export const TYPICAL_FOOD_COSTS: FoodCosts = {
 
 /**
  * Rovnovážné hospodaření (diet.md – Rovnovážné hospodaření; Martin 19. 10. 2026) – od 24. 10. 2026
- * jen plán luštěnin, od 9. 11. 2026 jen pokrytí bílkovin: celé stádo v nosnosti (`keep` – pastva, les, seno, pasáci, místa v ohradách –
+ * jen plán luštěnin, od 9. 11. 2026 jen pokrytí bílkovin: celé stádo v nosnosti (`keep` – pastva,
+ * les, seno, pasáci, místa v ohradách –
  * `winterTargets`) dá bílkoviny v pořadí přednosti (`HERD_PRIORITY`) a cena jídla v práci ho
  * nezmenšuje (oxen.md – Co nejvíc sena a co největší stáda; návrh Clauda, schválený Martinem).
  * Luštěniny jen ze zásoby (do stropu podílu energie) – ves je na poli nepěstuje (fields.md –
@@ -1165,13 +1173,15 @@ export function balancedPlan(
 /**
  * Porážka, když seno nevystačí (mutuje stav – oxen.md, Co nejvíc sena a co největší stáda; diet.md,
  * Zimní krmení; Martin 24. 10. 2026: „Když se v zimě zjistí, že pro krávy není krmení, tak se dají
- * prodat nebo porazit.“ – prodává jen hráč): každý den zimy ves spočítá, komu zásoba sena vystačí do
+ * prodat nebo porazit.“ – prodává jen hráč): každý den zimy ves spočítá, komu zásoba sena vystačí
+ * do
  * konce března – voli a koně první (`oxen`, `horsesKg` – dávka koní za den), pak v pořadí přednosti
  * krávy k obnově volů a ovce na vlnu (`first`), pak krávy, ovce a kozy (`HERD_PRIORITY`; bez kusů,
  * které už čekají na zimní porážku – `culling`) na zbývající dny se sněhem se slámou napřed
  * (diet.md – Zima bez sena: chovné jádro).
  * Chybí-li seno aspoň na celý kus, ves hned porazí celé kusy, na které seno nezbude (kozy, ovce,
- * krávy), a s nimi i všechny čekající kusy – zvířata nehladoví; maso jde do uzení. Chovný pár zůstane
+ * krávy), a s nimi i všechny čekající kusy – zvířata nehladoví; maso jde do uzení. Chovný pár
+ * zůstane
  * (přežije o větvích a slámě – dřív zimní úhyn 1. 3.). Vrátí událost kroniky, nebo null.
  */
 export function hayShortSlaughter(
@@ -1238,7 +1248,8 @@ export function hayShortSlaughter(
  * půjde na maso. Co je nad tím (staré kusy, kusy nad nosnost), jde na maso vždy; stádo v nosnosti
  * zůstane celé (co největší stáda – oxen.md, Co nejvíc sena a co největší stáda; dřív ho
  * rovnovážné hospodaření zmenšovalo podle ceny jídla v práci). Když stádo potřebu bílkovin
- * nepokryje (`sizeHerdsToNeed` – s luštěninami ze zásoby) a maso v zásobě s porážkou roční potřebu masa
+ * nepokryje (`sizeHerdsToNeed` – s luštěninami ze zásoby) a maso v zásobě s porážkou roční potřebu
+ * masa
  * (bílkoviny po obilí, mléku, vejcích a luštěninách) taky ne, jdou na maso i letošní mláďata navíc
  * (prasata první, krávy naposled – `MEAT_ORDER`, nejvýš polovina
  * mláďat – druhá stádo rozšíří). Chovný pár, krávy na mléko a voly (`minCows`) a ovce na vlnu
@@ -1311,8 +1322,10 @@ export function slaughter(
     livestock.young[species] = 0;
   }
   if (fresh > EPSILON) livestock.culling = wait;
-  // loňská práce na porážce propadá – nová porážka začíná znovu
-  livestock.slaughterWork = null;
+  // nová porážka – čekající práce (letní porážka do 31. 10., maso z lovu) se dodělá s ní
+  const work = livestock.slaughterWork;
+  const pending = work ? Math.max(0, work.required - work.done) : 0;
+  livestock.slaughterWork = pending > EPSILON ? { required: pending, done: 0 } : null;
   if (meat <= EPSILON) return null;
   butcher(state, smoked);
   return {

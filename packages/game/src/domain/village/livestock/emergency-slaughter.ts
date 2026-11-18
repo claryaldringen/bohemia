@@ -220,7 +220,8 @@ export function emergencySlaughterPlan(
  * Nouzová porážka dne (mutuje stav – diet.md, Nouzová porážka): před jídlem dne, když výhled do
  * sklizně nevychází, porazí zvířata navíc (`emergencySlaughterPlan`). Maso do zásoby a práce
  * porážky a uzení (1 člověkoden na LIVESTOCK.slaughterKgPerManDay kg) jako při podzimní porážce –
- * přičte se k čekající práci a udělá se další dny (celý rok). Mláďata ubudou poměrně, jen selata (od 1. 9.) jdou napřed. Vrátí událost kroniky, nebo null.
+ * přičte se k čekající práci a udělá se další dny (celý rok). Mláďata ubudou poměrně, jen selata
+ * (od 1. 9.) jdou napřed. Vrátí událost kroniky, nebo null.
  * `todayInput` – vstup jídla dne ze stavu před porážkou (`dayMealInput`), bez údaje se spočte.
  */
 export function emergencySlaughter(

@@ -6,7 +6,14 @@ import { hungerSplit } from '../../people/hunger-groups';
 import { WILDLIFE_LAND } from '../../rules/rules-wildlife';
 import { freshWildlife } from '../../wildlife/wildlife';
 import { advanceVillage } from '../../core/simulate';
-import { LIVESTOCK, slaughterRemaining, winterKeepTargets, type WinterInput } from '../livestock';
+import { summerWinterInput } from '../husbandry';
+import {
+  LIVESTOCK,
+  slaughter,
+  slaughterRemaining,
+  winterKeepTargets,
+  type WinterInput,
+} from '../livestock';
 import {
   freshMeatAheadEnergy,
   summerSlaughterCandidates,
@@ -148,6 +155,43 @@ describe('letní porážka pro rod vojvody', () => {
     expect(caught(noFish)).toBe(0);
     expect(noFish.after.livestock!.summerSlaughtered).toEqual({ sheep: 1 });
     expect(noFish.after.livestock!.herds.sheep).toBeLessThan(19.1);
+  });
+
+  it('podíl pasáků – stádo přes zimu úměrné stádu se letní porážkou nezmenší', () => {
+    const april = at(601, 4, 1);
+    const s = village(april);
+    s.livestock!.herds = herds({ goat: 40 });
+    s.livestock!.young = herds({});
+    // pasáci uhlídali jen polovinu stáda – cíl zimy je úměrný stádu (`watchedShares`)
+    s.livestock!.herding = { needDays: 100, watchedDays: 50 };
+    const input = (d: number): WinterInput => summerWinterInput(s, d);
+    const first = summerSlaughterCandidates(s, april, input(april));
+    const keepFirst = winterKeepTargets(s, april, input(april));
+    expect(first.goat).toBeGreaterThanOrEqual(1);
+    for (let d = april; d <= at(601, 10, 31); d++) {
+      s.meatKg = 0;
+      delete s.freshMeatKg;
+      summerSlaughterDay(s, d, () => input(d));
+    }
+    const end = at(601, 10, 31);
+    expect(s.livestock!.summerSlaughtered?.goat ?? 0).toBeLessThanOrEqual(
+      Math.floor(first.goat + 1e-9),
+    );
+    expect(s.livestock!.summerSlaughtered?.goat ?? 0).toBeGreaterThan(0);
+    expect(winterKeepTargets(s, end, input(end)).goat).toBeCloseTo(keepFirst.goat, 9);
+  });
+
+  it('práce letní porážky 31. 10. se dodělá s porážkou 1. 11.', () => {
+    const s = village(at(601, 10, 31));
+    s.livestock!.herds = herds({ sheep: 20 });
+    s.livestock!.young = herds({});
+    s.livestock!.slaughterWork = null;
+    summerSlaughterDay(s, at(601, 10, 31), NO_HERDERS);
+    slaughter(s, at(601, 11, 1), { oxen: 0, hayKg: Infinity });
+    expect(slaughterRemaining(s)).toBeGreaterThanOrEqual(
+      LIVESTOCK.meatKg.sheep / LIVESTOCK.slaughterKgPerManDay - 1e-9,
+    );
+    expect(s.livestock!.summerSlaughtered).toBeUndefined();
   });
 
   it('jen v létě – v zimě a 31. 3. nic, 1. 4. a 31. 10. ano, 1. 11. nic', () => {

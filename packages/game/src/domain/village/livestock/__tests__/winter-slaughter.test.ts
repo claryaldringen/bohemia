@@ -271,8 +271,7 @@ describe('zimní porážka po dnech', () => {
     expect(kinds.has('slaughter')).toBe(false);
     expect(kinds.has('emergency-slaughter')).toBe(false);
     // uzené ze zimy do léta došlo – rod dostal maso z letní porážky, chovné stádo i mláďata zůstala
-    const autumnBefore = advanceVillage(july, at(601, 10, 30), null);
-    const summer = autumnBefore.livestock!.summerSlaughtered ?? {};
+    const summer = autumn.livestock!.summerSlaughtered ?? {};
     expect((summer.pig ?? 0) + (summer.sheep ?? 0)).toBeGreaterThanOrEqual(1);
     expect(july.livestock!.herds.pig).toBeGreaterThan(20);
     expect(july.livestock!.young.sheep).toBeGreaterThan(0);

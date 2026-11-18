@@ -33,8 +33,8 @@ export interface LivestockState {
   slaughterWork?: { required: number; done: number } | null;
   /**
    * Kusy, které ves letos v létě porazila pro rod vojvody (diet.md – Strava po vrstvách a porážka
-   * celý rok) – patří k letošním starým kusům (`retiringHeads`), ať se staré kusy nepočítají znovu
-   * ze stáda, které léto zmenšilo. Porážka 1. 11. ho smaže. Chybí = žádné.
+   * celý rok) – odhad 1. 11. (`winterKeepTargets`) je počítá do stáda, jako by žily, a letní
+   * kandidáti je odečtou, ať letní porážka odhad nezmenšuje. Porážka 1. 11. ho smaže. Chybí = žádné.
    */
   summerSlaughtered?: Partial<Record<HerdSpecies, number>>;
   /**

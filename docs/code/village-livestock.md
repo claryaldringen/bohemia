@@ -166,8 +166,8 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
      `winterKeepTargets` – `winterTargets`, místo pro jarní mláďata podle výrostků příštího léta
      (`youngRoomTargets`, `nextSummerDay` 1. 7., `herderCapacity` z věku dnešních dětí – bez
      výrostků dospělý `HERDING.adultShare`), bez
-     starých kusů (`retiringHeads` – bez kusů, které léto už vzalo,
-     `LivestockState.summerSlaughtered`, porážka 1. 11. ho smaže), chovné minimum `breedingFloor`
+     starých kusů (`retiringHeads`; ze stáda i s kusy, které léto už vzalo – `LivestockState.summerSlaughtered`,
+     porážka ho smaže a čekající práci porážky převezme), chovné minimum `breedingFloor`
      vždy; staré a nad nosnost na maso vždy, stádo v nosnosti zůstane celé. Kusy na maso čekají přes
      zimu (`winterWait` – čerstvá spotřeba zimy `freshMeatPerDayKg` – celá potřeba energie, bez
      stropu – × 151 dní, napřed prasata v lese, pak krávy, ovce, kozy; co seno neuživí – čekající se
@@ -184,9 +184,9 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
      dne `eat` po práci, před nouzovou porážkou – počítá i dnešní ryby a oka) porazí jeden celý kus,
      když rodu vojvody (`hungerSplit` – skupina 0) na dnešek nestačí maso v zásobě – uzené a dnešní
      čerstvé (`lordMeatShortKg`); nejmenší druh, jehož kus chybějící maso pokryje, jinak největší
-     (`summerSlaughterPlan`), jen z kusů na maso `summerSlaughterCandidates`: staré kusy
-     (`retiringHeads` se `summerSlaughtered` – co léto vzalo, se odečte jednou, odhad se den po dni
-     nezmenšuje sám o sebe) a dospělé kusy nad `winterKeepTargets` (`summerWinterInput`: vstup jako
+     (`summerSlaughterPlan`), jen z kusů na maso `summerSlaughterCandidates`: staré kusy (`retiringHeads`) a dospělé kusy nad
+     stádo přes zimu, obojí ze stáda i s kusy, které léto už vzalo (`summerSlaughtered` – ty se
+     odečtou, odhad se letní porážkou nezmenšuje), nad `winterKeepTargets` (`summerWinterInput`: vstup jako
      k porážce, seno podle plánu seče místo dnešní zásoby), od září i selata nad stádo přes zimu;
      nejvýš co by podzimní porážka vzala, nad `breedingFloor`. Maso do `freshMeatKg` (co rod nesní,
      sní ostatní, zbytek se vyudí), kůže `noteSlaughtered`, práce `addSlaughterWork` (udělá se další

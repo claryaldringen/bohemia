@@ -58,14 +58,13 @@ function pigletsForMeat(day: number): boolean {
 
 /**
  * Kusy, které smějí v létě na maso (po druzích, i zlomky – diet.md, Porážka celý rok): staré kusy
- * a kusy, které by si ves 1. 11. stejně nenechala. Staré kusy jsou letošní podíl dospělých
- * (`retiringHeads` – i s kusy, které léto už porazilo, ty se odečtou), k nim dospělé kusy nad stádo
- * přes zimu (`winterKeepTargets` dnešními daty, stejný výpočet jako 1. 11. – nosnost zimy, místa
- * v ohradách, pasáci a místa pro mláďata). Dospělé = bez letošních mláďat; od 1. 9. smějí na maso
- * i selata nad stádo přes zimu (jako nouzová porážka); nejvýš co by 1. 11. šlo na maso (stádo nad
- * `winterKeepTargets` – staré kusy se tak nepočítají dvakrát); nikdy pod chovné minimum (`breedingFloor` – chovný pár, krávy na
- * mléko a voly, ovce na vlnu). Odhad se počítá každý den znovu, ale letní porážka ho nezmenšuje
- * pod sebe – co léto vzalo, se odečte jednou (`LivestockState.summerSlaughtered`). Stav nemění.
+ * a kusy, které by si ves 1. 11. stejně nenechala – staré kusy (`retiringHeads`) a dospělé kusy nad
+ * stádo přes zimu (`winterKeepTargets` dnešními daty, stejný výpočet jako 1. 11. – nosnost zimy,
+ * místa v ohradách, pasáci a místa pro mláďata); od 1. 9. i selata nad stádo přes zimu (jako
+ * nouzová porážka). Vše ze stáda i s kusy, které léto už vzalo (`LivestockState.summerSlaughtered`)
+ * – ty se odečtou, odhad se letní porážkou nezmenšuje. Nejvýš co by 1. 11. šlo na maso (staré kusy
+ * se tak nepočítají dvakrát); dospělé = bez letošních mláďat; nikdy pod chovné minimum
+ * (`breedingFloor` – chovný pár, krávy na mléko a voly, ovce na vlnu). Stav nemění.
  */
 export function summerSlaughterCandidates(
   state: VillageState,
@@ -75,20 +74,21 @@ export function summerSlaughterCandidates(
   const livestock = state.livestock;
   if (!livestock) return herdRecord(() => 0);
   const keep = winterKeepTargets(state, day, input);
-  const old = retiringHeads(livestock.herds, livestock.young, livestock.summerSlaughtered);
+  const taken = livestock.summerSlaughtered ?? {};
+  // stádo před letní porážkou – jako by poražené kusy žily
+  const before = herdRecord((s) => livestock.herds[s] + (taken[s] ?? 0));
+  const old = retiringHeads(before, livestock.young);
   const floor = breedingFloor(input);
   const piglets = pigletsForMeat(day);
   return herdRecord((s) => {
-    const herd = livestock.herds[s];
-    const adults = Math.max(0, herd - livestock.young[s]);
+    const herd = before[s];
     const young = livestock.young[s];
-    // staré kusy a dospělé kusy nad stádo přes zimu; od 1. 9. i selata nad něj (prasata)
+    const adults = Math.max(0, herd - young);
     const pigletsToo = s === 'pig' && piglets;
     const wanted =
       old[s] + Math.max(0, adults - keep[s]) + (pigletsToo ? Math.max(0, young - keep[s]) : 0);
-    // nejvýš co by 1. 11. šlo na maso (stádo přes zimu je už bez starých kusů – nepočítat je dvakrát)
     const spare = (pigletsToo ? herd : adults) - floor[s];
-    return Math.max(0, Math.min(wanted, herd - keep[s], spare));
+    return Math.max(0, Math.min(wanted, herd - keep[s], spare) - (taken[s] ?? 0));
   });
 }
 
@@ -112,7 +112,8 @@ export interface SummerSlaughter {
 
 /**
  * Co ves dnes v létě porazí (bez změny stavu – diet.md, Porážka celý rok, V létě): nic mimo léto,
- * bez rodu ve vsi a když rodu na dnešek stačí maso v zásobě (`lordMeatShortKg`). Jinak jeden celý kus
+ * bez rodu ve vsi a když rodu na dnešek stačí maso v zásobě (`lordMeatShortKg`). Jinak jeden celý
+ * kus
  * nejmenšího druhu, jehož maso chybějící maso pokryje a který má aspoň jeden celý kus na maso
  * (`summerSlaughterCandidates`); když nepokryje žádný, největšího z nich. Bez kusů na maso nic.
  */
