@@ -17,6 +17,7 @@ import { roadEndLandmarks } from './road-landmarks';
 import { ROAD_WALKED } from '../rules';
 import { DAYS_PER_YEAR, resample, toSegment } from './roads-geometry';
 import { routePoints } from './routes';
+import { treadDays } from './wear';
 
 /** Přírodní cíle tras – chodí se k nim od založení vsi (předpona klíče trasy). */
 const NATURAL_PLACES: ReadonlySet<string> = new Set([
@@ -179,8 +180,8 @@ export function overgrownRoadNote(
 /**
  * Odkdy se po úseku opravdu chodí (D89, návrh Clauda): nejstarší den, kdy mohla začít chodit
  * některá z uložených tras, které po úseku vedou (`ROAD_WALKED.share` bodů osy do buňky od čáry
- * trasy) – trasa začne, až když stojí obě její místa. Trasy s neznámým stářím konce se přeskočí;
- * bez tras (nebo bez `net.cellM`) undefined.
+ * trasy) – trasa začne, až když stojí obě její místa. Trasy s neznámým stářím konce a trasy, po
+ * kterých nikdo nechodí (`trips` 0 – D93), se přeskočí; bez tras (nebo bez `net.cellM`) undefined.
  */
 function routeWalkedSince(
   state: VillageState,
@@ -193,6 +194,7 @@ function routeWalkedSince(
   const samples = resample(axis, null, 1).points;
   let earliest: number | undefined;
   for (const route of state.routes?.list ?? []) {
+    if (route.trips <= 0) continue;
     const from = walkedSince(state, { kind: 'place', place: route.from, anchor: 'goal' });
     const to = walkedSince(state, { kind: 'place', place: route.to, anchor: 'goal' });
     if (typeof from !== 'number' || typeof to !== 'number') continue;
@@ -215,7 +217,9 @@ function routeWalkedSince(
  * Zápis vzniklé cesty (`road-formed`): konce cesty hráče a roky chůze od vzniku pěšiny do dne
  * `day` – pěšina vzniká, když stojí obě místa na koncích (`walkedSince`, nejpozdější z nich);
  * křižovatka na konci stáří neurčí, tam rozhodují trasy po cestě (`routeWalkedSince`); bez známého
- * stáří obou konců roky chybí.
+ * stáří obou konců roky chybí. Nejvýš tolik, za kolik se cesta vyšlape z provozu nové osy
+ * (`treadDays` – D93): trasa bývá mnohem starší než pěšina (chodilo se třeba po cestě, kterou pak
+ * přeťala stavba).
  */
 export function roadFormedNote(
   state: VillageState,
@@ -242,7 +246,12 @@ export function roadFormedNote(
   }
   if (known.length === 0) return note;
   const from = Math.max(state.foundedDay, ...known);
-  return { ...note, years: Math.max(0, Math.round((day - from) / DAYS_PER_YEAR)) };
+  // doba vyšlapání podle provozu cesty (cest za den, nejnovější poslední); bez provozu jen stáří
+  // (D93 – Vlkov: „Po 18 letech chůze …“ u cesty vyšlapané za ≈ 100 dní)
+  const traffic = net.roads.find((r) => r.id === roadId)?.traffic ?? [];
+  const perDay = traffic[traffic.length - 1];
+  const walked = Math.min(day - from, perDay === undefined ? Infinity : treadDays(perDay));
+  return { ...note, years: Math.max(0, Math.round(walked / DAYS_PER_YEAR)) };
 }
 
 /**

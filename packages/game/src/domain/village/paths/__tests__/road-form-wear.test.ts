@@ -4,9 +4,11 @@ import { type GridWindow } from '../network-grid';
 import { type RoadAnchor, type RoadAnchors, roadAnchors } from '../road-anchors';
 import { roadsMonth } from '../roads';
 import { emptyRoads, formRoadsFromWear } from '../roads-form';
+import { BLOCK_MIN_RUN_M, blockedRun } from '../roads-overgrow';
 import { type SpotContext } from '../roads-trees';
 import { encodeRoute } from '../routes';
 import { trailTerrain } from '../terrain';
+import { villageBlockedAt } from '../village';
 import { encodeWear, wearCellAt } from '../wear';
 import { WEAR } from '../../rules/rules-roads';
 import type { Road, RoadPoint, StoredRoute, VillageRoads, VillageState } from '../../types';
@@ -466,5 +468,59 @@ describe('roadsMonth – měsíční vznik cest z vyšlapanosti', () => {
     expect(gate).toMatchObject({ x: 3.75, z: 3.75, reachM: 3 });
     expect(anchors.points.find((a) => a.kind === 'goal')!.reachM).toBe(7.5);
     expect(WEAR.extendFrom).toBeLessThan(WEAR.roadAt);
+  });
+});
+
+describe('roadsMonth – cesta z vyšlapanosti s napojením do plochy staveb (D93 – Vlkov)', () => {
+  it('ve dvou měsících vznikne jednou, napojí se mimo pozemek a příští měsíc se neopustí', () => {
+    // vozová cesta začíná 1 m uvnitř pozemku domu 2 (x 13–21, z −9…2) a vede na západ; trasa jde
+    // 2,25 m jižně od pozemku – napojení do začátku cesty by vedlo pozemkem ≥ 5 m a cesta by se
+    // každý měsíc opustila a založila znovu (Vlkov 894–896, rozcestí u sadu)
+    const start = dayIndexOf({ year: 601, month: 4, day: 1 });
+    const s = village(start - 1);
+    s.roads = emptyRoads(start);
+    s.roads.nextId = 50;
+    s.roads.roads.push({
+      ...road(1, [
+        { x: 14, z: -3.5 },
+        { x: 12.5, z: -6.65 },
+        { x: 4, z: -6.65 },
+      ]),
+      grade: 'wagon',
+    });
+    const route: StoredRoute = {
+      from: 'd:2',
+      to: 'water',
+      purpose: 'water',
+      trips: 1000,
+      ...encodeRoute(
+        [7, 6, 5, 4, 3, 2].map((x) => (-3 + 100) * WINDOW.width + (x + 100)),
+        WINDOW,
+      ),
+    };
+    const hot = new Map<number, number>();
+    heat(
+      hot,
+      [
+        { x: 2 * CELL, z: -3 * CELL },
+        { x: 7 * CELL, z: -3 * CELL },
+      ],
+      HOT,
+    );
+    s.roads.wear = { day: start, cells: encodeWear(hot), labor: [] };
+    s.routes = { day: start, key: 'test-d93', list: [route] };
+    const days = [5, 6].map((month) => dayIndexOf({ year: 601, month, day: 1 }));
+    roadsMonth(s, days[0]!, LANDSCAPE, null);
+    const formed = s.chronicle.filter((e) => e.kind === 'road-formed');
+    expect(formed).toHaveLength(1);
+    const id = formed[0]!.kind === 'road-formed' ? formed[0]!.roadId : -1;
+    const area = villageBlockedAt(s, days[0]!, LANDSCAPE)!;
+    const fresh = s.roads.roads.find((r) => r.id === id)!;
+    expect(blockedRun(fresh.points, area)).toBeLessThan(BLOCK_MIN_RUN_M);
+    roadsMonth(s, days[1]!, LANDSCAPE, null);
+    // druhý měsíc: nic nového a nová cesta žije dál
+    expect(s.chronicle.filter((e) => e.kind === 'road-formed')).toHaveLength(1);
+    expect(s.roads.roads.find((r) => r.id === id)?.abandoned).toBeUndefined();
+    expect(s.roads.roads.filter((r) => r.abandoned)).toEqual([]);
   });
 });

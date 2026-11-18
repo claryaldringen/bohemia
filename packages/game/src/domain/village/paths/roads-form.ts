@@ -41,6 +41,7 @@ import {
 } from './roads-geometry';
 import { type RoadAnchors, nearAnchor } from './road-anchors';
 import { junctionSnap } from './junctions';
+import { BLOCK_MIN_RUN_M, blockedRun } from './roads-overgrow';
 import { roadLandWidthM } from './road-land';
 import { SpotContext, spotsForRoad } from './roads-trees';
 import { type TrafficField, trafficAt, wearNear } from './wear';
@@ -239,7 +240,8 @@ export function wearRunKey(points: readonly RoadPoint[]): string {
  * Vznikla by z vyšlapanosti aspoň jedna cesta (`formRoadsFromWear`)? Levná kontrola před
  * měsíčním vznikem – bez kontextu míst na stromy a bez kopie stavu. Kusy s klíčem v `lost`
  * (cestu z nich úklid smazal) vynechá a do `seen` zapíše, které z nich jsou dál vyšlapané – pak
- * projde všechny kusy. Nic nemění.
+ * projde všechny kusy. Kus, jehož osa by vedla plochou staveb `building` (`wearAxis`), se nepočítá
+ * – jako ve `formWearRuns`. Nic nemění.
  */
 export function wearRoadDue(
   roads: VillageRoads,
@@ -248,6 +250,7 @@ export function wearRoadDue(
   anchors: RoadAnchors,
   lost: ReadonlySet<string> = new Set(),
   seen?: Set<string>,
+  building: BuildingArea | null = null,
 ): boolean {
   let due = false;
   eachWearRun(roads, lines, wear, anchors, (run) => {
@@ -255,10 +258,29 @@ export function wearRoadDue(
       seen?.add(run.key);
       return 'next';
     }
-    if (!due) due = plannedAxis(roads, run.points, run.start, run.end) !== null;
+    if (!due) due = wearAxis(roads, run, building) !== null;
     return due && !seen ? 'stop' : 'next';
   });
   return due;
+}
+
+/** Neprůchodná plocha staveb vsi (`villageBlockedAt`) – jako u kusů pod stavbou. */
+export type BuildingArea = (x: number, z: number) => boolean;
+
+/**
+ * Osa cesty z kusu `run` (`plannedAxis` – napojení obchází plochu staveb `building`), nebo null:
+ * kratší než MIN_ROAD_M, nebo vede aspoň BLOCK_MIN_RUN_M plochou staveb – příští měsíc by ji
+ * kontrola kusů pod stavbou opustila (`abandonBlockedStretches`) a hned by vznikla znovu (D93 –
+ * Vlkov, rozcestí u sadu; jako cesta k vchodu, D89). Nic nemění.
+ */
+function wearAxis(
+  roads: VillageRoads,
+  run: WearRun,
+  building: BuildingArea | null,
+): RoadPoint[] | null {
+  const axis = plannedAxis(roads, run.points, run.start, run.end, MIN_ROAD_M, building);
+  if (!axis || !building) return axis;
+  return blockedRun(axis, building) >= BLOCK_MIN_RUN_M ? null : axis;
 }
 
 /**
@@ -277,13 +299,25 @@ export function formWearRuns(
   context: SpotContext,
   field: TrafficField | null = null,
   skip: ReadonlySet<string> = new Set(),
+  /** Plocha staveb – osa přes ni nevznikne, napojení ji obejde (`wearAxis`, D93). */
+  building: BuildingArea | null = null,
 ): { road: Road; key: string }[] {
   const formed: { road: Road; key: string }[] = [];
   const traffic = (points: readonly RoadPoint[]): number =>
     field ? fieldTraffic(points, field) : 0;
   eachWearRun(roads, lines, wear, anchors, (run) => {
-    if (skip.has(run.key)) return 'next';
-    const road = formRoad(roads, run.points, run.start, run.end, day, traffic, context);
+    if (skip.has(run.key) || !wearAxis(roads, run, building)) return 'next';
+    const road = formRoad(
+      roads,
+      run.points,
+      run.start,
+      run.end,
+      day,
+      traffic,
+      context,
+      MIN_ROAD_M,
+      building,
+    );
     if (!road) return 'next';
     formed.push({ road, key: run.key });
     return 'formed';
@@ -340,14 +374,18 @@ export function formRoad(
   context: SpotContext,
   /** Nejkratší osa (m) – cesta k vchodu smí být kratší než MIN_ROAD_M (`accessRoads`). */
   minM: number = MIN_ROAD_M,
+  /** Plocha staveb, kterou napojení obejde (`joinTarget`; jen vznik z vyšlapanosti – D93). */
+  building: BuildingArea | null = null,
 ): Road | null {
   // napřed bez rozdělení: krátká cesta nevznikne a cizí cesty se nerozdělí
-  if (!plannedAxis(roads, points, joinStart, joinEnd, minM)) return null;
+  if (!plannedAxis(roads, points, joinStart, joinEnd, minM, building)) return null;
   const axis = points.map((p) => ({ x: cm(p.x), z: cm(p.z) }));
   // napojení na pevnou cestu (případné rozdělení cesty v rozcestí) – nejdřív začátek, pak konec
-  const start = joinStart !== false ? joinPoint(roads, axis[0]!, context, joinStart) : null;
+  const start =
+    joinStart !== false ? joinPoint(roads, axis[0]!, context, joinStart, building) : null;
   if (start) axis.unshift(start);
-  const end = joinEnd !== false ? joinPoint(roads, axis[axis.length - 1]!, context, joinEnd) : null;
+  const end =
+    joinEnd !== false ? joinPoint(roads, axis[axis.length - 1]!, context, joinEnd, building) : null;
   if (end) axis.push(end);
   const simple = roadAxisOf(axis, minM);
   if (!simple) return null;
@@ -393,10 +431,13 @@ export function plannedAxis(
   joinStart: number | false,
   joinEnd: number | false,
   minM: number = MIN_ROAD_M,
+  /** Plocha staveb, kterou napojení obejde (`joinTarget`). */
+  building: BuildingArea | null = null,
 ): RoadPoint[] | null {
   const axis = points.map((p) => ({ x: cm(p.x), z: cm(p.z) }));
-  const start = joinStart !== false ? joinTarget(roads, axis[0]!, joinStart) : null;
-  const end = joinEnd !== false ? joinTarget(roads, axis[axis.length - 1]!, joinEnd) : null;
+  const start = joinStart !== false ? joinTarget(roads, axis[0]!, joinStart, building) : null;
+  const end =
+    joinEnd !== false ? joinTarget(roads, axis[axis.length - 1]!, joinEnd, building) : null;
   if (start) axis.unshift(start.point);
   if (end) axis.push(end.point);
   return roadAxisOf(axis, minM);
@@ -404,28 +445,46 @@ export function plannedAxis(
 
 /**
  * Kam se konec nové cesty připojí k pevné cestě (do `reach`): u konce pevné cesty do jejího konce
- * (`hit` null), jinak do nejbližšího bodu osy (na cm) – tam se pevná cesta rozdělí. Nic nemění.
+ * (`hit` null), jinak do nejbližšího bodu osy (na cm) – tam se pevná cesta rozdělí. S plochou
+ * staveb `building` (vznik z vyšlapanosti – paths.md, Stavba přes cestu; D93, Vlkov): vedlo-li by
+ * napojení do konce nebo křižovatky aspoň BLOCK_MIN_RUN_M plochou staveb, připojí se do
+ * nejbližšího bodu osy, odkud napojení plochou vede méně (jinak zůstane přichycení – takovou osu
+ * pak `wearAxis` odmítne). Bez plochy beze změny (cesty k vchodům, zemské stezky, přestavba). Nic
+ * nemění.
  */
 export function joinTarget(
   roads: VillageRoads,
   from: RoadPoint,
   reach: number,
+  building: BuildingArea | null = null,
 ): { point: RoadPoint; hit: RoadHit | null } | null {
   const hit = nearestOnRoads(roads.roads, from.x, from.z);
   if (!hit || hit.distance > reach) return null;
-  const road = roads.roads[hit.road]!;
+  const point = { x: cm(hit.point.x), z: cm(hit.point.z) };
+  const snap = snapTarget(roads, roads.roads[hit.road]!, hit.point);
+  if (!snap) return { point, hit };
+  // bod osy těsně u přichycení by rozdělil cestu na kousek bez délky – přichycení zůstane
+  const around =
+    building !== null &&
+    length2(point.x - snap.x, point.z - snap.z) >= JOIN_AROUND_MIN_M &&
+    blockedRun([from, snap], building) >= BLOCK_MIN_RUN_M &&
+    blockedRun([from, point], building) < BLOCK_MIN_RUN_M;
+  return around ? { point, hit } : { point: snap, hit: null };
+}
+
+/** Nejmenší odstup bodu osy od přichycení, aby napojení do něj obešlo plochu staveb (m). */
+const JOIN_AROUND_MIN_M = 1;
+
+/**
+ * Přichycení napojení u bodu osy `at` pevné cesty `road`: do konce cesty (do END_SNAP_M), nebo do
+ * křižovatky na jejím konci (blíž než rozestup – Martin 3. 11. 2026); jinak null.
+ */
+function snapTarget(roads: VillageRoads, road: Road, at: RoadPoint): RoadPoint | null {
   const first = road.points[0]!;
   const last = road.points[road.points.length - 1]!;
-  if (length2(hit.point.x - first.x, hit.point.z - first.z) <= END_SNAP_M) {
-    return { point: { ...first }, hit: null };
-  }
-  if (length2(hit.point.x - last.x, hit.point.z - last.z) <= END_SNAP_M) {
-    return { point: { ...last }, hit: null };
-  }
-  // blíž než rozestup od křižovatky na konci pevné cesty → přímo do ní (Martin 3. 11. 2026)
-  const snap = junctionSnap(roads, road, hit.point, roadLandWidthM({ grade: 'trodden' }));
-  if (snap) return { point: snap, hit: null };
-  return { point: { x: cm(hit.point.x), z: cm(hit.point.z) }, hit };
+  if (length2(at.x - first.x, at.z - first.z) <= END_SNAP_M) return { ...first };
+  if (length2(at.x - last.x, at.z - last.z) <= END_SNAP_M) return { ...last };
+  return junctionSnap(roads, road, at, roadLandWidthM({ grade: 'trodden' }));
 }
 
 /**
@@ -437,8 +496,9 @@ function joinPoint(
   from: RoadPoint,
   context: SpotContext,
   reach = ATTACH_M,
+  building: BuildingArea | null = null,
 ): RoadPoint | null {
-  const target = joinTarget(roads, from, reach);
+  const target = joinTarget(roads, from, reach, building);
   if (!target) return null;
   return target.hit ? splitRoad(roads, target.hit, context) : target.point;
 }
