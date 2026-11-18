@@ -1,15 +1,10 @@
 import { daysUntilHarvest } from '../core/food';
 import { expectedYearlyFoodNeed } from './food-outlook';
-import {
-  daysUntilLegumeHarvest,
-  legumeEnergy,
-  legumeStorageLossPerYear,
-  villageLegumesKg,
-} from './legumes';
+import { legumeEnergy, villageLegumesKg } from './legumes';
 import { horseGrainToday, villageHorses } from '../livestock/horses';
 import { ageGroup } from '../people/people';
 import { storageLossPerYear } from '../core/productivity';
-import { FIELD_FOOD, FIELD_STORES, FOOD_NEED_KG_PER_YEAR, LEGUMES } from '../rules';
+import { FIELD_FOOD, FIELD_STORES, FOOD_NEED_KG_PER_YEAR } from '../rules';
 import { sheavesOutlook } from './threshing';
 import { bufferEnergyYearsOf } from '../disasters/weather-effects';
 import type { DietDay, VillageState } from '../types';
@@ -125,8 +120,8 @@ export interface StoresOutlook {
   leftKg: number;
   /**
    * Kolik zásob z pole do příští sklizně chybí (kg obilí): potřeba z pole do sklizně i se ztrátami
-   * bez zásob, které ves smí sníst (bez osiva, které ještě zaseje), a bez luštěnin nad strop;
-   * 0 = vystačí (správce – Obilí v nouzi).
+   * bez zásob, které ves smí sníst (obilí bez osiva, které ještě zaseje, i luštěniny); 0 = vystačí
+   * (správce – Obilí v nouzi).
    */
   shortKg: number;
   /** Pojistka – zásoba z pole, která má zbýt před další sklizní (kg obilí). */
@@ -137,7 +132,7 @@ export interface StoresOutlook {
  * Výhled zásob z pole k příští sklizni (fields.md – Výhled zásob k sklizni): zásoby obilí,
  * nevymlácené snopy, které ves smí vymlátit, a luštěniny ubývají do sklizně potřebou z pole
  * (`fieldFoodShare`) a ztrátami skladováním. Luštěniny (zboží – ves je na poli nepěstuje,
- * fields.md – Luštěniny, zrušeno) se jí rovným dílem až do stropu, takže zásoba nad strop přetrvá.
+ * fields.md – Luštěniny, zrušeno) se jí v pořadí jídla bez stropu – jsou zásobou jako obilí.
  * `potteryCoverage` – nádoby od hrnčíře zmenšují ztráty (crafts.md). Potřeba podle růstu vsi
  * (fields.md – Osev podle růstu vsi): do příští sklizně a rok po ní podle výhledu lidí
  * (`expectedYearlyFoodNeed` – děti dorostou, narodí se další). Obilí jezdeckých koní (horses.md –
@@ -170,32 +165,24 @@ export function storesOutlook(
   const horseGrain = (horses.length > 0 ? horseGrainToday(horses, day) : 0) * DAYS_PER_YEAR;
   const need = share * yearly + horseGrain;
   const needAfter = share * yearlyAfter + horseGrain;
+  // luštěniny ztrácí skladováním jako obilí (`legumeStorageLossPerYear`) – jedna ztráta pro obojí
   const loss = storageLossPerYear(potteryCoverage);
-  const legumeLoss = legumeStorageLossPerYear(potteryCoverage);
-  // luštěnin se do jejich sklizně sní nejvýš strop – co nad něj zbude, sní se příští rok
-  const legumeCapKg = (LEGUMES.energyCap * yearly) / LEGUMES.energy;
-  const legumeYears = daysUntilLegumeHarvest(day) / DAYS_PER_YEAR;
   // nevymlácené snopy, které ves smí vymlátit, jsou zásobou (production-chains.md – Humno)
   const sheaves = sheavesOutlook(state, day);
+  // luštěniny (zboží) se jí v pořadí jídla před obilím bez stropu (diet.md – Strava po vrstvách
+  // a porážka celý rok; Martin 18. 11. 2026: „Strop bych úplně zrušil, je to zbytečný výpočet
+  // navíc“) – zásoba z pole jako obilí; dřív strop 25 % a zásoba nad něj zůstala na příští rok
   const legumesKg = villageLegumesKg(state) + sheaves.legumesKg;
-  const legumesLeftKg = storesLeft(legumesKg, legumeCapKg, legumeYears, legumeLoss);
-  // zásoby z pole k příští sklizni: obilí a luštěniny, které se do ní snědí, ubývají potřebou
-  // z pole a ztrátami; luštěniny nad strop zůstanou celé
+  // zásoby z pole k příští sklizni: obilí a luštěniny ubývají potřebou z pole a ztrátami
   const years = daysUntilHarvest(day) / DAYS_PER_YEAR;
   // osivo, které ves ještě zaseje, zásoby k sklizni neuživí (fields.md – Výhled zásob k sklizni)
   const eatenStock = Math.max(
     0,
-    state.storesKg +
-      sheaves.grainKg +
-      legumeEnergy(Math.max(0, legumesKg - legumesLeftKg)) -
-      seedKg,
+    state.storesKg + sheaves.grainKg + legumeEnergy(legumesKg) - seedKg,
   );
-  const left = storesLeft(eatenStock, need, years, loss) + legumeEnergy(legumesLeftKg);
+  const left = storesLeft(eatenStock, need, years, loss);
   // co do sklizně chybí: potřeba do ní i se ztrátami bez všeho, co ves smí sníst
-  const short = Math.max(
-    0,
-    storesNeeded(0, need, years, loss) - eatenStock - legumeEnergy(legumesLeftKg),
-  );
+  const short = Math.max(0, storesNeeded(0, need, years, loss) - eatenStock);
   // paměť hladu: po krutém roce 10 let pojistka 0,75 (disasters.md – Dopady, Zásoby a pojistka)
   const buffer = bufferKg(
     yearlyAfter,

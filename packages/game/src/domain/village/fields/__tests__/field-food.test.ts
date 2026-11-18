@@ -18,7 +18,7 @@ import {
 import { expectedYearlyFoodNeed } from '../food-outlook';
 import { hasGoodStores } from '../../people/happiness';
 import { daysUntilHarvest } from '../../core/food';
-import { daysUntilLegumeHarvest, legumeEnergy } from '../legumes';
+import { legumeEnergy } from '../legumes';
 import { expectedNetKg } from '../fields';
 import { NO_CRAFTS, storageLossPerYear } from '../../core/productivity';
 import { FIELD_FOOD, FIELD_STORES, FOOD_NEED_KG_PER_YEAR, LEGUMES } from '../../rules';
@@ -199,20 +199,23 @@ describe('výhled zásob k sklizni', () => {
     expect(fresh.fieldFood.longShare).toBe(0.55);
   });
 
-  it('zásoba luštěnin (zboží) – nad strop zbude a sní se příště', () => {
+  it('zásoba luštěnin (zboží) je zásoba z pole jako obilí téže energie – bez stropu (D98)', () => {
     const s = village(0);
     s.fieldFood = { needKg: 0, fieldKg: 0, share: 0.5 };
     const yearly = yearlyFoodNeed(s, day);
-    const capKg = (LEGUMES.energyCap * yearly) / LEGUMES.energy;
-    const legumeYears = daysUntilLegumeHarvest(day) / 365;
-    s.legumesKg = 2 * capKg;
-    const left = storesLeft(2 * capKg, capKg, legumeYears, loss);
-    expect(left).toBeGreaterThan(0.5 * capKg);
-    // luštěniny, které se do sklizně snědí, i ty, které zbudou, jsou zásoby z pole
-    s.storesKg = 0.6 * yearly;
+    // luštěniny se jí v pořadí jídla bez stropu (Martin 18. 11. 2026: „Strop bych úplně zrušil“) –
+    // dřív se do sklizně snědl nejvýš strop 25 % a zbytek zůstal na příští rok
+    s.storesKg = 0.3 * yearly;
+    s.legumesKg = (0.3 * yearly) / LEGUMES.energy;
     const withLegumes = targetsOf(s);
-    const without = targetsOf({ ...s, legumesKg: 0 });
-    expect(withLegumes.leftKg).toBeGreaterThan(without.leftKg + legumeEnergy(left));
+    const asGrain = targetsOf({
+      ...s,
+      legumesKg: 0,
+      storesKg: s.storesKg + legumeEnergy(s.legumesKg),
+    });
+    expect(withLegumes.leftKg).toBeCloseTo(asGrain.leftKg, 6);
+    expect(withLegumes.shortKg).toBeCloseTo(asGrain.shortKg, 6);
+    expect(withLegumes.leftKg).toBeGreaterThan(targetsOf({ ...s, legumesKg: 0 }).leftKg);
   });
 
   it('dobré zásoby (štěstí) – zásoby z pole proti potřebě z pole, ne proti celé energii', () => {

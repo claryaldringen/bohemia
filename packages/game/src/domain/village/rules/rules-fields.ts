@@ -390,10 +390,11 @@ export type DayWorkGroup = (typeof DAY_WORK_ORDER)[number];
  * plodina – hrubá úroda jako 0,8 úrody obilí při stejné úrodnosti (≈ 600 kg/ha při plné), osivo
  * 150 kg/ha, 22 % bílkovin, energie jako obilí (3 400 kcal/kg); ztráta skladováním jako obilí
  * (STORAGE_LOSS_PER_YEAR – zrnokaz se ve skladu nemnoží); neopletý díl dá 50 % (obilí 60 %);
- * osev úrodnost neubere, ale vrátí 0,03 (`fertilityGain` – poutá dusík, ≈ rok přílohu); strop
- * podílu energie z luštěnin ve stravě 25 % (dospělý ≈ 45 kg ročně). Od 9. 11. 2026 ves luštěniny
- * na poli nepěstuje (fields.md – Luštěniny, zrušeno): výnos, osivo a úrodnost platí jen pro
- * dorůstající luštěniny starších vsí, energie, bílkoviny a strop pro zásobu (zboží).
+ * osev úrodnost neubere, ale vrátí 0,03 (`fertilityGain` – poutá dusík, ≈ rok přílohu). Strop
+ * podílu energie z luštěnin ve stravě (25 %) je zrušený i v odhadech (diet.md – Strava po vrstvách
+ * a porážka celý rok; Martin 18. 11. 2026: „Strop bych úplně zrušil“). Od 9. 11. 2026 ves
+ * luštěniny na poli nepěstuje (fields.md – Luštěniny, zrušeno): výnos, osivo a úrodnost platí jen
+ * pro dorůstající luštěniny starších vsí, energie a bílkoviny pro zásobu (zboží).
  */
 export const LEGUMES = {
   yieldShare: 0.8,
@@ -402,7 +403,6 @@ export const LEGUMES = {
   energy: 1,
   unweededYield: 0.5,
   fertilityGain: 0.03,
-  energyCap: 0.25,
 } as const;
 // fields.md – Luštěniny (rešerše: hrách hůř snáší plevel a okopával se, žeň luštěnin stála ≈ 1,2×
 // víc než žeň obilí, výmlat na objem 0,6–0,8× pšenice) – člověkodny na osetý hektar, meze

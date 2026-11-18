@@ -362,14 +362,19 @@ function yearlyEnergyNeed(state: Pick<VillageState, 'people'>, day: number): num
   return state.people.reduce((sum, p) => sum + FOOD_NEED_KG_PER_YEAR[ageGroup(p, day)], 0);
 }
 
-/** Nejvýš tolik luštěnin (kg) sní ves za rok – strop podílu energie (diet.md – Luštěniny). */
-function legumeCapPerYear(state: Pick<VillageState, 'people'>, day: number): number {
-  return (LEGUMES.energyCap * yearlyEnergyNeed(state, day)) / LEGUMES.energy;
+/**
+ * Nejvýš tolik luštěnin (kg) sní ves za rok – celou potřebu energie, víc nikdo nesní. Strop podílu
+ * 25 % je zrušený i v odhadech, jako v jídle (diet.md – Strava po vrstvách a porážka celý rok;
+ * Martin 18. 11. 2026: „Strop bych úplně zrušil, je to zbytečný výpočet navíc“).
+ */
+function legumeMostPerYear(state: Pick<VillageState, 'people'>, day: number): number {
+  return yearlyEnergyNeed(state, day) / LEGUMES.energy;
 }
 
 /**
  * Roční bilance bílkovin vsi se stády `herds` (bez údaje dnešní stáda). Luštěniny podle zásoby
- * (rovným dílem do příští sklizně, přepočteno na rok, nejvýš strop) – vsi bez luštěnin 0.
+ * (rovným dílem do příští sklizně, přepočteno na rok, nejvýš celá potřeba energie – bez stropu)
+ * – vsi bez luštěnin 0.
  */
 export function proteinBudget(
   state: ProteinVillage,
@@ -387,7 +392,7 @@ export function proteinBudget(
   }
   const legumeKg = Math.min(
     legumeSupplyPerYear(state, day, DAYS_PER_YEAR),
-    legumeCapPerYear(state, day),
+    legumeMostPerYear(state, day),
   );
   return {
     need,
@@ -1110,7 +1115,7 @@ export function sizeHerdsToNeed(
   const grainProtein = PROTEIN.perKg.grain;
   const stockLegumes = Math.min(
     legumeSupplyPerYear(state, day, DAYS_PER_YEAR),
-    legumeCapPerYear(state, day),
+    legumeMostPerYear(state, day),
   );
   let protein =
     energyNeed * grainProtein +
