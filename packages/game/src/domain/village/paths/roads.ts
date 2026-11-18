@@ -355,8 +355,10 @@ function* roadsMonthRunSteps(
   /** Jen přestavba sítě (`rebuildRoadsPass`). */
   rebuild?: RebuildHints,
 ): Generator<void, void, void> {
-  // od tohoto zápisu kroniky dostanou vzniklé cesty konce a roky chůze (`noteFormedRoads`)
+  // od tohoto zápisu kroniky dostanou vzniklé cesty konce a roky chůze (`noteFormedRoads`);
+  // cesty z vyšlapanosti zvlášť – roky chůze nejvýš doba vyšlapání při 2 cestách denně (D93)
   const chronicleFrom = state.chronicle.length;
+  const trodden = new Set<number>();
   settleVillageWear(state, day, landscape);
   yield;
   const roads = state.roads;
@@ -433,7 +435,9 @@ function* roadsMonthRunSteps(
       // úklid může novou cestu spojit se starší – do kroniky jen cesty, jejichž id zůstalo
       const kept = new Set(state.roads.roads.map((r) => r.id));
       for (const road of formed) {
-        if (kept.has(road.id)) state.chronicle.push({ day, kind: 'road-formed', roadId: road.id });
+        if (!kept.has(road.id)) continue;
+        state.chronicle.push({ day, kind: 'road-formed', roadId: road.id });
+        trodden.add(road.id);
       }
     }
     rememberLostRuns(state.roads, remembered);
@@ -462,7 +466,7 @@ function* roadsMonthRunSteps(
     fieldOf,
   );
   // konce cesty hráče až po úklidu a křižovatkách měsíce – jako je hráč uvidí v panelu cesty
-  noteFormedRoads(state, landscape, chronicleFrom, day);
+  noteFormedRoads(state, landscape, chronicleFrom, day, trodden);
 }
 
 /**

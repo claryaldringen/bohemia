@@ -213,14 +213,14 @@ cesty, půda)`; graf a půda (`walkGroundOf` + `withFieldWalk` – pole v `Villa
   chůze (`noteFormedRoads`, `roadFormedNote` v `paths/road-chronicle.ts` – web-ui.md, Panel
   Kronika; křižovatka na konci stáří neurčí, rozhodnou trasy po cestě – `routeWalkedSince`,
   `ROAD_WALKED.share`, `RoadEndsNetwork.cellM`; trasy s `trips` 0 se přeskočí; roky nejvýš
-  `treadDays` z posledního provozu úseku `Road.traffic` – `paths/wear.ts`, D93). **Plocha staveb
+  `treadDays` z posledního provozu úseku `Road.traffic` – `paths/wear.ts`, D93; cesta z vyšlapanosti – id z `roadsMonthRunSteps` do `noteFormedRoads(…, trodden)` – nejvýš jako při `WEAR.formFrom`, i s mediánem provozu pod ním). **Plocha staveb
   (D93)**: `roadsMonthRunSteps` předá `wearRoadDue` i `formRoadsKept` → `formWearRuns` plochu
   `villageBlockedAt` (líně – `lazyBuildingArea`, táž jako u `abandonBlockedStretches`); kus,
   jehož osa (`wearAxis` – `plannedAxis` s `building`) vede ≥ `BLOCK_MIN_RUN_M` plochou staveb,
   nevznikne ani se nehlásí. `joinTarget(roads, from, reach, building)`: přichycení do konce či
   křižovatky (`snapTarget` – `END_SNAP_M`, `junctionSnap`), které by vedlo plochou ≥ mez, se
   nahradí nejbližším bodem osy (`hit` – rozdělení), vede-li odtud plochou méně a leží-li aspoň
-  `JOIN_AROUND_MIN_M` od přichycení; bez `building` (cesty k vchodům, `roads-trails.ts`,
+  `JOIN_AROUND_MIN_M` (`roads-geometry.ts`) od přichycení; bez `building` (cesty k vchodům, `roads-trails.ts`,
   `roads-rebuild.ts`) beze změny. Testy `road-gate.test.ts` (D93), `road-form-wear.test.ts`
   (`roadsMonth` ve dvou měsících), `road-chronicle.test.ts`. `formWearRuns` (`formRoadsFromWear` je obálka pro testy): body čáry po
   `SAMPLE_M`, vyšlapanost `wearAt`; kus od `WEAR.roadAt` dál než `ON_ROAD_M` od pevné cesty se

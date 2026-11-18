@@ -219,13 +219,16 @@ function routeWalkedSince(
  * křižovatka na konci stáří neurčí, tam rozhodují trasy po cestě (`routeWalkedSince`); bez známého
  * stáří obou konců roky chybí. Nejvýš tolik, za kolik se cesta vyšlape z provozu nové osy
  * (`treadDays` – D93): trasa bývá mnohem starší než pěšina (chodilo se třeba po cestě, kterou pak
- * přeťala stavba).
+ * přeťala stavba). Cesta z vyšlapanosti (`trodden`) nejvýš jako při 2 cestách denně, i když
+ * medián provozu po ose vyjde menší; cesta k vchodu (vzniká bez vyšlapání) pod 2 cesty denně stáří.
  */
 export function roadFormedNote(
   state: VillageState,
   net: RoadEndsNetwork,
   roadId: number,
   day: number,
+  /** Cesta vznikla z vyšlapanosti (ne cesta k vchodu – `accessRoads`). */
+  trodden = false,
 ): { ends?: [ChronicleRoadEnd, ChronicleRoadEnd]; years?: number } {
   const ends = roadChainEnds(net, roadId);
   if (!ends) return {};
@@ -250,25 +253,28 @@ export function roadFormedNote(
   // (D93 – Vlkov: „Po 18 letech chůze …“ u cesty vyšlapané za ≈ 100 dní)
   const traffic = net.roads.find((r) => r.id === roadId)?.traffic ?? [];
   const perDay = traffic[traffic.length - 1];
-  const walked = Math.min(day - from, perDay === undefined ? Infinity : treadDays(perDay));
-  return { ...note, years: Math.max(0, Math.round(walked / DAYS_PER_YEAR)) };
+  const tread = perDay === undefined && !trodden ? Infinity : treadDays(perDay ?? 0, trodden);
+  const walkedDays = Math.min(day - from, tread);
+  return { ...note, years: Math.max(0, Math.round(walkedDays / DAYS_PER_YEAR)) };
 }
 
 /**
  * Doplní zápisy vzniklých cest od indexu `from` kroniky (měsíční vznik a úklid sítě – `roadsMonth`)
- * o konce a roky chůze; síť konců se staví jednou, jen když nějaký zápis přibyl.
+ * o konce a roky chůze; síť konců se staví jednou, jen když nějaký zápis přibyl. `trodden` – id
+ * cest, které vznikly z vyšlapanosti (ostatní jsou cesty k vchodům).
  */
 export function noteFormedRoads(
   state: VillageState,
   landscape: Landscape,
   from: number,
   day: number,
+  trodden: ReadonlySet<number> = new Set(),
 ): void {
   let net: RoadEndsNetwork | null = null;
   for (let i = from; i < state.chronicle.length; i++) {
     const event = state.chronicle[i]!;
     if (event.kind !== 'road-formed') continue;
     net ??= roadEndsNetwork(state, landscape);
-    Object.assign(event, roadFormedNote(state, net, event.roadId, day));
+    Object.assign(event, roadFormedNote(state, net, event.roadId, day, trodden.has(event.roadId)));
   }
 }

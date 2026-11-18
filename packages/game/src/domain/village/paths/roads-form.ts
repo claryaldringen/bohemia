@@ -22,6 +22,7 @@ import {
   END_SNAP_M,
   FORD_GAP_M,
   GROUND_GAP_M,
+  JOIN_AROUND_MIN_M,
   MEASURE_STEP_M,
   MIN_ROAD_M,
   ON_ROAD_M,
@@ -471,9 +472,6 @@ export function joinTarget(
     blockedRun([from, point], building) < BLOCK_MIN_RUN_M;
   return around ? { point, hit } : { point: snap, hit: null };
 }
-
-/** Nejmenší odstup bodu osy od přichycení, aby napojení do něj obešlo plochu staveb (m). */
-const JOIN_AROUND_MIN_M = 1;
 
 /**
  * Přichycení napojení u bodu osy `at` pevné cesty `road`: do konce cesty (do END_SNAP_M), nebo do

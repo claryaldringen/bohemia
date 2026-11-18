@@ -285,4 +285,51 @@ describe('cesta z vyšlapanosti s napojením do plochy staveb (D93 – Vlkov, ro
     const made = formRoad(roads, [LINE[0]!, from], false, 10, 0, () => 0, CONTEXT);
     expect(made?.points.at(-1)).toEqual(START);
   });
+
+  it('B i u křižovatky: přichycení do uzlu v pozemku nahradí bod osy (`junctionSnap`)', () => {
+    // uzel (0; 0) se třemi rameny leží v pozemku; nejbližší bod osy (5; 0) je dál než END_SNAP_M,
+    // ale blíž než rozestup křižovatky (≈ 7 m) – bez plochy se napojení přichytí do uzlu
+    const arm = (id: number, x: number, z: number): Road => ({
+      id,
+      points: [
+        { x: 0, z: 0 },
+        { x, z },
+      ],
+      bornDay: 0,
+      grade: 'trodden',
+      traffic: [1],
+      spots: [],
+    });
+    const roads: VillageRoads = {
+      nextId: 10,
+      roads: [arm(1, 30, 0), arm(2, 0, 30), arm(3, -30, 0)],
+      trees: [],
+      labor: { from: 0, days: 0, shares: [] },
+    };
+    const yard = (x: number, z: number): boolean => x >= -4 && x <= 4 && z >= -5 && z <= 4;
+    const from: RoadPoint = { x: 5, z: -6 };
+    expect(joinTarget(roads, from, 10)).toEqual({ point: { x: 0, z: 0 }, hit: null });
+    const around = joinTarget(roads, from, 10, yard);
+    expect(around?.point).toEqual({ x: 5, z: 0 });
+    expect(around?.hit?.road).toBe(0);
+  });
+
+  it('bod osy blíž než JOIN_AROUND_MIN_M od přichycení: přichycení zůstane', () => {
+    // úzký pás u začátku cesty: napojení do začátku jím vede ≥ 5 m, do bodu osy vůbec
+    const roads = roadsWith('trodden', [
+      [0, 0],
+      [10, 0],
+    ]);
+    const strip =
+      (limit: number) =>
+      (x: number, z: number): boolean =>
+        x < limit && z > -5.5;
+    // bod osy 0,5 m od začátku – rozdělení by dalo kousek cesty bez délky
+    expect(joinTarget(roads, { x: 0.5, z: -6 }, 10, strip(0.45))).toEqual({
+      point: { x: 0, z: 0 },
+      hit: null,
+    });
+    // 1,5 m od začátku – napojení pás obejde
+    expect(joinTarget(roads, { x: 1.5, z: -6 }, 10, strip(1.45))?.point).toEqual({ x: 1.5, z: 0 });
+  });
 });
