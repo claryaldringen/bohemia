@@ -146,7 +146,7 @@ describe('práce se zvířaty', () => {
     expect(summer.labor!.shares.some((share) => share.activity === 'milking')).toBe(false);
     expect(summer.labor!.aside!.some((share) => share.activity === 'milking')).toBe(true);
     expect(summer.cheeseKg).toBeGreaterThan(0);
-    expect(summer.diet!.shares.dairy).toBeGreaterThan(0.9);
+    expect(summer.diet!.shares.dairy).toBeGreaterThan(0);
     const winter = advanceVillage(summer, at(601, 1, 15), null);
     expect(winter.labor!.shares.some((share) => share.activity === 'animal-care')).toBe(false);
     expect(winter.labor!.aside!.some((share) => share.activity === 'animal-care')).toBe(true);

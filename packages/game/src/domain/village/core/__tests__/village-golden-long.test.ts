@@ -44,8 +44,10 @@ import { goldenWorld, stateFingerprint, YEAR } from './village-golden-fixture';
 // D91 doplněk: vůl na maso 130 kg (viz village-golden.test.ts); dřív 306440f7f5b30966 a 2e3e180d8e3119dd
 // 18. 11. 2026 – strava po vrstvách, úloha 1; dřív 168010dd35f7c1c7 / a499594da5514b49
 // 18. 11. 2026 – strava po vrstvách, úloha 2; dřív cd7bd43b11e74421 / cb235ea806f24818
-const EXPECTED_YEAR_2 = 'b6001ccd4e274037';
-const EXPECTED_YEAR_3 = 'b8e6cbe3938ba593';
+// 18. 11. 2026 – strava po vrstvách, úloha 2 (tempo proti zkažení napřed i v hojnosti); dřív
+// b6001ccd4e274037 / b8e6cbe3938ba593
+const EXPECTED_YEAR_2 = '1f4e71c751f2f92d';
+const EXPECTED_YEAR_3 = '7c864080e92c063e';
 
 describe('zlatý otisk vsi – delší běh', () => {
   it('po 2. a 3. roce dopočtu dá zapsané otisky', () => {

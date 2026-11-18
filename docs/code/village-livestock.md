@@ -78,10 +78,13 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
 
 - **Strava a dobytek** ([diet.md](../design/diet.md) – Strava po vrstvách a porážka celý rok,
   Martin 18. 11. 2026): jídlo dne `eatDiet` / `villageMeal` (`diet.ts`) **bez stropů** – každý
-  den do potřeby energie v pořadí pevný příděl medu, mléko, vejce, čerstvé maso (zimní porážka,
-  ryby a zvěř), uzené maso, sýr, ovoce (jablka; v rozhraní „ovoce“), luštěniny, obilí (nejvýš
-  vymlácená zásoba) a v hladu med; nevypité mléko → sýr (`cheeseFromMilk`), nesnědené čerstvé maso
-  se vyudí, nesnědená vejce se zkazí. Snědené dne celkem `DietResult.eaten` (`Eaten`, čerstvé maso
+  den do potřeby energie: pevný příděl medu, napřed **tempo proti zkažení** i v hojnosti (vejce
+  dnes, ovoce ÷ dny do zkažení `fruitPace`, maso ÷ dny do konce masa `meatPace` – z čerstvého
+  napřed; nad plnou potřebu se krátí maso, ovoce, vejce naposled), pak zbytek v pořadí mléko,
+  vejce, čerstvé maso (zimní porážka, ryby a zvěř), uzené maso, sýr, ovoce (jablka; v rozhraní
+  „ovoce“), luštěniny, obilí (nejvýš vymlácená zásoba) a v hladu med; nevypité mléko → sýr
+  (`cheeseFromMilk`), nesnědené čerstvé maso se vyudí, nesnědená vejce se zkazí – ovoce ani maso,
+  které jde sníst, se tak nezkazí. Snědené dne celkem `DietResult.eaten` (`Eaten`, čerstvé maso
   zvlášť v `freshMeatKg`). Maso se kazí 1. 9. (`daysUntilMeatEnd`; 1. 9. ráno zbytek – `spoilMeat`,
   kronika `meat-spoiled`, upozornění; maso ze září a října do porážky – Martin: „uzené maso určitě
   také nevydrží 3 roky“), ovoce 1. 3. **Výhled do sklizně** (`DietResult.outlook`, `grainSpareKg`,

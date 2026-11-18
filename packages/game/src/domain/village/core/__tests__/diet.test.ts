@@ -166,8 +166,9 @@ describe('eatDiet – pořadí jídla bez stropů (diet.md – Strava po vrstvá
     expect(fruitOnly.outlook).toBeLessThan(1);
   });
 
-  it('napřed, co se kazí: mléko, vejce, čerstvé maso, uzené, sýr – pak ovoce, luštěniny, obilí', () => {
-    // energie dne po zdrojích (kg obilí) – dohromady víc než potřeba 10
+  it('napřed tempo proti zkažení, pak mléko, vejce, čerstvé maso, uzené, sýr – a ovoce, luštěniny, obilí', () => {
+    // energie dne po zdrojích (kg obilí) – dohromady víc než potřeba 10; tempo proti zkažení:
+    // vejce dnes 2, ovoce 2 ÷ 50 dní, maso (čerstvé i uzené) 4 ÷ 100 dní do konce masa
     const milkL = 3 / DAIRY.energyPerL.cow;
     const meal = eatDiet(
       input({
@@ -187,15 +188,65 @@ describe('eatDiet – pořadí jídla bez stropů (diet.md – Strava po vrstvá
     expect(meatEnergy(e.freshMeatKg ?? 0)).toBeCloseTo(2, 9);
     // maso celkem = čerstvé i uzené
     expect(meatEnergy(e.meatKg)).toBeCloseTo(4, 9);
-    expect(e.cheeseKg * DAIRY.cheeseEnergy).toBeCloseTo(1, 9);
-    expect(e.fruitKg).toBe(0);
+    // ovoce jen svým tempem do zkažení, sýr dorovná, co zbude do potřeby
+    const fruitPace = 2 / 50;
+    expect(fruitEnergy(e.fruitKg)).toBeCloseTo(fruitPace, 9);
+    expect(e.cheeseKg * DAIRY.cheeseEnergy).toBeCloseTo(10 - 3 - 2 - 4 - fruitPace, 9);
     expect(e.legumesKg).toBe(0);
     expect(e.grainKg).toBe(0);
     expect(meal.diet.energy).toBeCloseTo(1, 9);
     // zbytek sýra, ovoce i luštěnin počká, maso se snědlo celé
     expect(meal.meatKg).toBe(0);
-    expect(meal.cheeseKg * DAIRY.cheeseEnergy).toBeCloseTo(1, 9);
-    expect(fruitEnergy(meal.fruitKg)).toBeCloseTo(2, 9);
+    expect(meal.cheeseKg * DAIRY.cheeseEnergy).toBeCloseTo(2 - (1 - fruitPace), 9);
+    expect(fruitEnergy(meal.fruitKg)).toBeCloseTo(2 - fruitPace, 9);
+  });
+
+  it('i v hojnosti se napřed sní, co by se zkazilo – ovoce do zkažení celé, i když mléko nasytí samo', () => {
+    // mléko dne pokryje celou potřebu, ovoce na 120 kg obilí shnije za 60 dní
+    const fruitKg = 120 / fruitEnergy(1);
+    const today = eatDiet(input({ ...cowMilk(1000), fruitKg, daysToRot: 60 }));
+    expect(fruitEnergy(today.eaten.fruitKg)).toBeGreaterThanOrEqual(
+      fruitEnergy(fruitKg) / 60 - 1e-9,
+    );
+    expect(today.diet.energy).toBeCloseTo(1, 9);
+    // mléko jen do zbytku potřeby, nevypité je sýr
+    expect(today.eaten.milkEnergy).toBeCloseTo(NEED - fruitEnergy(fruitKg) / 60, 9);
+    expect(today.cheeseMadeKg).toBeGreaterThan(0);
+    // den po dni do zkažení (1. 3.) – ovoce nezbude
+    let left = fruitKg;
+    for (let day = 0; day < 60; day++) {
+      left = eatDiet(input({ ...cowMilk(1000), fruitKg: left, daysToRot: 60 - day })).fruitKg;
+    }
+    expect(left).toBeCloseTo(0, 9);
+    // totéž s čerstvým masem zimní porážky na celou potřebu
+    const meat = eatDiet(input({ freshMeatKg: NEED / DIET.meatEnergy, fruitKg, daysToRot: 60 }));
+    expect(fruitEnergy(meat.eaten.fruitKg)).toBeCloseTo(fruitEnergy(fruitKg) / 60, 9);
+    expect(meat.meatKg).toBeGreaterThan(0);
+  });
+
+  it('v hladu mléko nevytlačí ovoce ani uzené pod jejich tempo proti zkažení', () => {
+    // výhled ≈ 20 % – dnes jen tempo proti zkažení: ovoce 10 ÷ 20 dní, uzené ≈ 180 ÷ 50 dní
+    const smokedKg = 300;
+    const fruitKg = 10 / fruitEnergy(1);
+    const meal = eatDiet(
+      input({
+        grainKg: 0,
+        ...cowMilk(5 / DAIRY.energyPerL.cow),
+        meatKg: smokedKg,
+        daysToMeatEnd: 50,
+        fruitKg,
+        daysToRot: 20,
+      }),
+    );
+    expect(meal.outlook).toBeLessThan(0.25);
+    const fruitPace = fruitEnergy(fruitKg) / 20;
+    const meatPace = meatEnergy(smokedKg * DAILY_MEAT_KEEP) / 50;
+    expect(fruitEnergy(meal.eaten.fruitKg)).toBeCloseTo(fruitPace, 9);
+    expect(meatEnergy(meal.eaten.meatKg)).toBeCloseTo(meatPace, 9);
+    // dnešní energie je právě tempo – na mléko nezbude, celé jde na sýr
+    expect(meal.diet.energy * NEED).toBeCloseTo(fruitPace + meatPace, 9);
+    expect(meal.eaten.milkL).toBeCloseTo(0, 9);
+    expect(meal.cheeseMadeKg).toBeGreaterThan(0);
   });
 
   it('mléko celé, sýr jen z přebytku', () => {

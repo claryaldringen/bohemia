@@ -61,7 +61,9 @@ import { advanceChunked, goldenWorld, stateFingerprint, YEAR } from './village-g
 // 120 → 130 kg jako kráva (`oxMeatKg`) – jiné zásoby; dřív 6df903308768fe20
 // 18. 11. 2026 – strava po vrstvách, úloha 1; dřív 82b12dd84c08dd63
 // 18. 11. 2026 – strava po vrstvách, úloha 2; dřív 60a62e071fd0d3fd
-const EXPECTED_YEAR_1 = '9371ea6e5d066ae8';
+// 18. 11. 2026 – strava po vrstvách, úloha 2 (tempo proti zkažení napřed i v hojnosti); dřív
+// 9371ea6e5d066ae8
+const EXPECTED_YEAR_1 = '776bb414d4028d91';
 
 describe('zlatý otisk vsi', () => {
   const world = goldenWorld();
