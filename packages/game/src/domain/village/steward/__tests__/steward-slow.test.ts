@@ -74,10 +74,13 @@ describe('den správce – dlouhý běh na skutečné krajině', () => {
     expect(JSON.stringify(chunked)).toBe(whole);
   });
 
-  it('pole dorostou k cíli a jsou správcova', () => {
+  it('pole rostou k cíli a jsou správcova', () => {
     const s = atThree!;
     const target = fieldTarget(s, s.lastDay, NO_CRAFTS);
-    expect(target.have).toBeGreaterThan(0.8 * target.need);
+    // 18. 11. 2026 – D99 cíl polí na maximum, které ves oseje (steward.md – Cíl polí): cíl je
+    // osev podle práce a osiva, pole k němu rostou po rozpočtu práce – po 3 letech 8,2 z 23,6
+    // (35 %); dřív pole dorostla k cíli podle potřeby z pole (> 0,8 × cíl)
+    expect(target.have).toBeGreaterThan(0.3 * target.need);
     const fields = s.parts.filter((p) => s.steward!.built.includes(p.id));
     expect(fields.length).toBeGreaterThan(0);
   });

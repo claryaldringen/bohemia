@@ -65,8 +65,10 @@ import { goldenWorld, stateFingerprint, YEAR } from './village-golden-fixture';
 // 29895c33a84fdb08 a 7ce7a924372a21a0
 // 18. 11. 2026 – D98 kolo 1 – rozložená jen zásoba z porážky 1. 11.; dřív 3178f7e153f41913
 // a 8f07292a73a628b8
-const EXPECTED_YEAR_2 = 'e528780d5ee19f50';
-const EXPECTED_YEAR_3 = '0696bc715723e45d';
+// 18. 11. 2026 – D99 cíl polí na maximum (správce staví pole na maximum, které ves oseje, bez
+// ohledu na stravu – viz village-golden.test.ts); dřív e528780d5ee19f50 a 0696bc715723e45d
+const EXPECTED_YEAR_2 = '9211b65615240ce4';
+const EXPECTED_YEAR_3 = '426240b4c2f0f137';
 // 18. 11. 2026 – D93 cesta přes plochu staveb; dřív 168010dd35f7c1c7 a a499594da5514b49 (viz
 // village-golden.test.ts)
 // 18. 11. 2026 – D95 výmlat (výmlat podle kg snopů, rod v zimě dorovná tempo okna – viz

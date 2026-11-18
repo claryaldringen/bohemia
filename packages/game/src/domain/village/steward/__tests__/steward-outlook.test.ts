@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../../calendar';
-import { averageRotationShare } from '../../fields/field-capacity';
+import { averageRotationShare, harvestPerPersonKg } from '../../fields/field-capacity';
+import { fieldFoodShare } from '../../fields/field-food';
 import { foundVillage } from '../../core/actions';
 import { NO_CRAFTS } from '../../core/productivity';
 import { SOWERS } from '../../rules';
@@ -71,6 +72,57 @@ describe('výhled vsi – model kapacity (steward.md – Model kapacity vsi)', (
     expect(sept.bottleneck).toBe('seed');
     expect(sept.lasting).not.toBe('seed');
     expect(stewardOutlook(empty, JUNE, NO_CRAFTS).seedHa).toBe(Infinity);
+  });
+
+  it('cíl polí = maximum, které ves oseje, bez ohledu na stravu (D99, Martin 18. 11. 2026)', () => {
+    // táž ves jen s obilím (podíl z pole 1) a s masem, mlékem a ovocem (z pole jen 55 % jídla);
+    // v červnu osivo neomezuje – osev podle práce
+    const grain = village(30);
+    const meat: VillageState = {
+      ...grain,
+      fieldFood: { needKg: 1_000, fieldKg: 550, share: 0.55, longShare: 0.55 },
+    };
+    expect(fieldFoodShare(meat)).toBeLessThan(fieldFoodShare(grain));
+    const of = (s: VillageState): { need: number; have: number; harvestKg: number } => {
+      const o = stewardOutlook(s, JUNE, NO_CRAFTS);
+      const target = fieldTarget(s, JUNE, NO_CRAFTS, o);
+      // cíl = `workable` – lidé, které uživí osev podle práce a osiva, × rezerva
+      const sowable = Math.min(o.laborHa, o.seedHa);
+      expect(target.need).toBeCloseTo(
+        ((o.landPeople * sowable) / o.landHa) * STEWARD.fieldReserve,
+        9,
+      );
+      return { ...target, harvestKg: target.need * harvestPerPersonKg(s, JUNE) };
+    };
+    const a = of(grain);
+    const b = of(meat);
+    // v lidech „Pole uživí“ víc lidí s masem, úroda cíle a poměr k dnešním polím stejné
+    expect(b.have).toBeGreaterThan(a.have);
+    expect(b.harvestKg).toBeCloseTo(a.harvestKg, 6);
+    expect(b.need / b.have).toBeCloseTo(a.need / a.have, 9);
+  });
+
+  it('ves bez pole v oběhu: opatrný cíl z potřeby s celou potřebou z pole (D99)', () => {
+    // plná pojistka – doplnění nepotřebuje, cíl jen z lidí za 2 roky
+    const grain = village(0, 20_000);
+    const meat: VillageState = {
+      ...grain,
+      fieldFood: { needKg: 1_000, fieldKg: 550, share: 0.55, longShare: 0.55 },
+    };
+    expect(stewardOutlook(grain, SEPT, NO_CRAFTS).landHa).toBe(0);
+    const a = fieldTarget(grain, SEPT, NO_CRAFTS);
+    const b = fieldTarget(meat, SEPT, NO_CRAFTS);
+    expect(a.have).toBe(0);
+    expect(b.have).toBe(0);
+    // lidé za 2 roky × rezerva (÷ úroda let s počasím, ≤ 1) – s podílem 1 jako dřív
+    expect(a.need).toBeGreaterThanOrEqual(grain.people.length * STEWARD.fieldReserve);
+    // strava cíl nezmenší: úroda, kterou cíl chce, je s masem stejná jako jen s obilím
+    expect(b.need * harvestPerPersonKg(meat, SEPT)).toBeCloseTo(
+      a.need * harvestPerPersonKg(grain, SEPT),
+      6,
+    );
+    // bez lidí žádný cíl
+    expect(fieldTarget({ ...grain, people: [] }, SEPT, NO_CRAFTS)).toEqual({ need: 0, have: 0 });
   });
 
   it('je čistý – stav nemění a stejný vstup dá stejný výhled', () => {
