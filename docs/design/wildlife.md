@@ -301,16 +301,15 @@ kde to nestačí.
 
 ## Drobná zvěř a ryby – vesničané sami (návrh Clauda)
 
-- **Od 18. 11. 2026 ryby vždy** (duben–listopad, kdykoli na to lidé mají čas; Martin: „vesnice
-  bez zásahu se snaží vyprodukovat co nejvíc všeho“ – [strava](diet.md), Strava po vrstvách
-  a porážka celý rok); úlovek je čerstvé maso první úrovně a co nikdo nesní, se vyudí. Podmínka
-  „jen při potřebě bílkovin nebo hladu“ níže je dřívější stav.
-- **Kdy se vyplatí:** **ryby** jen když ves **chce víc bílkovin**, než dá obilí, luštěniny, mléko,
-  vejce a maso stád ([strava](diet.md) – výhled), nebo **hladoví** – jinak ne (vesničané sami
-  používají, co jim ulehčí práci). **Oka** v prosinci až březnu **bez podmínky**, kdykoli je čas –
-  zajíc dá maso i kožešinu, liška kožešinu ([kůže a med](hides-honey.md)). Martin 14. 11. 2026: „V létě
-  se neloví – jednak je spousta práce s jinými věcmi a jednak nejsou kožešiny tak kvalitní jako
-  v zimě. Zatím nechme zjednodušení.“ Ryby tak dál zůstávají jen při potřebě.
+- **Kdy:** **ryby vždy** (od 18. 11. 2026 – duben–listopad, kdykoli na to lidé mají čas; Martin:
+  „vesnice bez zásahu se snaží vyprodukovat co nejvíc všeho“ – [strava](diet.md), Strava po
+  vrstvách a porážka celý rok); úlovek je čerstvé maso první úrovně a co nikdo nesní, se vyudí.
+  Výhled do sklizně počítá i s rybami, které ves letos ještě chytí, nejvýš do kvóty ([strava](diet.md)
+  – Výhled do sklizně). **Oka** v prosinci až březnu **bez podmínky**, kdykoli je čas – zajíc dá
+  maso i kožešinu, liška kožešinu ([kůže a med](hides-honey.md)). Martin 14. 11. 2026: „V létě se
+  neloví – jednak je spousta práce s jinými věcmi a jednak nejsou kožešiny tak kvalitní jako
+  v zimě. Zatím nechme zjednodušení.“ Dřívější „ryby jen při potřebě bílkovin nebo hladu“:
+  [history](history/wildlife-history.md).
 - **Kdo:** napřed práce, která by propadla – **starší** nad denním minimem své domácnosti (dnes
   propadá – [populace](population.md), Práce), **výrostci**, kteří ten den nepasou, a **zbytek
   společné práce vsi** po stavbách a opravách. **Při hladu** i dospělí v kroku 3 za polními
@@ -444,7 +443,7 @@ kde to nestačí.
 | Velký lov listopad–únor každý 7. den jako výcvik; akumulátor úlovku; jeleni ne laně                                                      | návrh Clauda                                           |
 | Při hladu jde chytání ryb a ok před stavby (výjimka z „zbytku práce“)                                                                    | Martin 26. 10. 2026: „Ano, nech to tak“                |
 | Roční kvóta ryb a zajíců podle přírůstku (ryby nejvýš ¼ stropu, nad ½ stropu); maso z nich čerstvé                                       | návrh Clauda                                           |
-| Ryby a oka jen při potřebě bílkovin nebo hladu, z práce, která by propadla; rybáři s prutem u tůní                                       | návrh Clauda                                           |
+| Ryby a oka ~~jen při potřebě bílkovin nebo hladu~~ (dnes vždy), z práce, která by propadla; rybáři s prutem u tůní                       | návrh Clauda                                           |
 | Zvěř nezabíjí mimo lov; zranění jen na lovu, 60 dní                                                                                      | návrh Clauda                                           |
 | Noční hlídka: kombinace – napřed staří a výrostci zdarma, kde hrozí ≥ 10 % a nemá kdo, dospělí z práce vsi                               | Martin (24. 10. 2026)                                  |
 | Lov smí člena rodu vzácně i zabít; šance prasata 0,02 %, medvěd 0,3 % na den, vyšší bez koně a při nízkém boji                           | Martin (24. 10. 2026), čísla návrh Clauda              |

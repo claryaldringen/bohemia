@@ -90,7 +90,11 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   také nevydrží 3 roky“), ovoce 1. 3. **Výhled do sklizně** (`DietResult.outlook`, `grainSpareKg`,
   obrácený `grainAheadForOutlookKg` – obě ze společného `dietPlan`, souhlasí přesně): jídlo mimo
   obilí do sklizně `aheadEnergy` (dnešní mléko nejvýš potřeba dne, vejce dnes i dalších dnů, čerstvé
-  maso dne i `freshAheadEnergy`, mléko stád `milkAheadEnergy` – `milkEnergyBetween` za den nejvýš
+  maso dne i `freshAheadEnergy`, ryby od zítřka `fishAheadEnergy` – `fishAheadKg` ve
+  `wildlife/small-game.ts`: letošní průměr na den rybářské sezóny × rybářské dny od zítřka do konce
+  výhledu, nejvýš zbytek kvóty, jen rok kvóty od 1. 5. a sezóna do 30. 11., prosinec–březen 0;
+  `villageMeal` ji dostává zvenku (`fresh.fishAheadEnergy`, small-game.ts přes zboží importuje
+  diet.ts) –, mléko stád `milkAheadEnergy` – `milkEnergyBetween` za den nejvýš
   potřeba –, uzené a ovoce nejvýš potřeba za dny do zkažení, sýr a luštěniny i snopy celé; celé
   nejvýš potřeba × dny, bez medu) a obilí i snopy po ztrátách skladováním do dne, kdy se snědí
   (`grainEatenShare` – rovným dílem od dneška, v hladu se příděl během sezóny mírně kloní, protože trvanlivé jídlo mimo obilí se jí dřív, nejvýš ≈ 2 p. b.; fields.md – Přídělový systém, Martin 15. 11. 2026).
@@ -150,8 +154,8 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
      masa, se kterým výhled vyjde i s rezervou `reserveShare` (5 % potřeby do sklizně – půlení
      v `emergencySlaughterPlan`, mléko zabitých dojnic se odečte), nejvýš kolik pomůže maso, které
      ves do zkažení sní (výhled ho počítá nejvýš plnou potřebou za dny do konce masa). Maso přes
-     `butcher` (uzení, zkažení 1. 9.), práce
-     práce jako jiná porážka (`slaughterWork`, úloha `slaughter`), kronika `emergency-slaughter`
+     `butcher` (uzení, zkažení 1. 9.), práce jako jiná porážka (`slaughterWork`, úloha `slaughter`),
+     ryby do sklizně (`fishAheadEnergy`) jsou ve vstupu jednou, kronika `emergency-slaughter`
      (kusy), upozornění „Vesničané porazili 12 prasat navíc“ (`formatAnimals`). Prasata jen nad chovné
      prasnice (`emergencyPigFloor` – `EMERGENCY_SLAUGHTER.pigForestShare` 0,5 nosnosti lesa pro
      prasata jako ve `winterTargets`, aspoň chovný pár; Martin 19. 10. 2026). Letošní mláďata ne,
@@ -195,7 +199,10 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
      `nextDayDiet`): v zimě maso čekajících kusů (nejvýš potřeba vsi do konce zimy), v létě potřeba
      rodu × letní dny výhledu (do konce října), nejvýš maso celých kusů na maso. Práce porážky a
      uzení celý rok, dokud nějaká čeká (`slaughterRemaining`, úloha `slaughter`) – i maso z lovu a
-     dosloužilých zvířat (dřív jen v zimě a v nouzi).
+     dosloužilých zvířat (dřív jen v zimě a v nouzi); v pořadí práce dne za žní, lnem a nutnou sečí
+     i otavou (`DAY_WORK_ORDER`, od 18. 11. 2026 – maso je k jídlu hned, nedodělaná práce jídlu ani
+     uzení nebrání). Podíl pasáků pro odhad zimy (`farmInput`) je `winterHerdingCoverage` – ze
+     stáda i s letními kusy (níž, Pasáci).
      **Oděv – vlna** (diet.md – Oděv; Martin 19. 10. 2026: „Ovce jsou hlavně kvůli vlně, aby se lidé
      mohli vůbec oblékat.“; `wool.ts`, `WOOL` v `rules*.ts`): ovce na vlnu `woolSheep` (dospělý 1,6 kg,
      dítě 0,8 kg ÷ 0,8 kg z ovce) jsou spodní hranicí ovcí – `minSheep` ve `farmInput` →
@@ -217,8 +224,16 @@ oxen)` – jen ve vsi bez výrostků (`youngsterCount` 0), potřeba nejvýš `HE
      odvedená práce jde do `recordHerding(state, herding, adult)`; `labor-report.ts` ji zapíše jako
      činnost `herding` (web: `herderCount`, `herderKinds` – dospělý u stáda). Nový stav není – platí
      od dalšího dne. Přežvýkavci duben–říjen, prasata celý rok; `recordHerding` sčítá `LivestockState.herding` od
-     porážky do porážky, `herdingCoverage` jde do porážky, `pastureGrazing` a pastvy; `LaborDay.herders`
-     (výrostci u stád) → `SceneLabor.herders` → `herderKinds` ve `villager-plan-cast.ts`. Porážka a uzení jdou před polními úlohami (přes zimu po dnech).
+     porážky do porážky, `herdingCoverage` jde do `pastureGrazing` a pastvy; `LaborDay.herders`
+     (výrostci u stád) → `SceneLabor.herders` → `herderKinds` ve `villager-plan-cast.ts`. Kusy
+     z letní porážky (`summerSlaughtered`) jako by žily: `herdingDay` vrátí `HerdingDay.summer`
+     (jejich potřeba, co by uhlídali výrostci, kteří dnes nepásli, a co by navíc pásl dospělý ve vsi
+     bez výrostků – do `adultShare` i s dnešním stádem), `recordHerding` je sčítá zvlášť
+     (`LivestockState.herding.summer`, dospělý stejným dílem, jaký ves dala) a odhad zimy
+     (`farmInput` → `winterTargets` přes `winterKeepTargets`) bere `winterHerdingCoverage` – podíl ze
+     stáda i s letními kusy, stejný pohled jako `winterKeepTargets` (18. 11. 2026; dřív podíl
+     dnešního stáda × stádo i s letními kusy – přes zimu o 15–25 % víc koz při podílu < 1). Porážka
+     a uzení: v zimě hned za výmlatem na jídlo, v létě za žní a sečí (přes zimu po dnech).
      Louka a les do 600 m pro pastvu jsou z krajiny ve stavu
      (`LivestockState.land`) – doplní je `withLivestockLand` (založení vsi i migrace v
      `updateVillage`); bez nich výchozí `LIVESTOCK.defaultLand`. Den hospodářství `husbandryDay`
@@ -611,13 +626,13 @@ Návrh: hides-honey.md – Klát u obydlí a Med v hladu, diet.md – Pojmy. Č�
   − `honeyUntilHarvest`), jí se pevný příděl jako první jídlo dne – i když obilí stačí (návrh
   Clauda: jinak by med nedal štěstí) – a obilí navíc (`grainSpareKg`) počítá s medem jen v něm.
   Jinak je celá zásoba jídlo jako obilí za ostatním jídlem dne: med, který obilí doplní na plný
-  příděl (`honeyNeed`), stačí-li `honeyAll`, ves jí dosyta; jinak výhled = (`aheadEnergy` + obilí
-  - `honeyAll`) ÷ potřeba do sklizně. Co z dnešní energie zbude po mase, mléčném, ovoci
-    a luštěninách, je jeden příděl obilí a medu, med z něj podílem `honeyShare` = med ÷ (obilí do
-    sklizně `aheadEaten` + med) – obilí i med tak vyjdou na den sklizně; nejvýš celá zásoba, zbytek
-    obilí. `grainAheadForOutlookKg` (přežívací zásoba – `seedKeepKg`) je přesně obrácený výhled: pod
-    plným přídělem odečte `honeyAll`, na plný příděl jen `honeyUntilHarvest` (ves pak jí dosyta bez
-    zásoby medu).
+  příděl (`honeyNeed`), stačí-li `honeyAll`, ves jí dosyta; jinak
+  výhled = (`aheadEnergy` + obilí + `honeyAll`) ÷ potřeba do sklizně.
+  Co z dnešní energie zbude po mase, mléčném, ovoci a luštěninách, je jeden příděl obilí a medu,
+  med z něj podílem `honeyShare` = med ÷ (obilí do sklizně `aheadEaten` + med) – obilí i med tak
+  vyjdou na den sklizně; nejvýš celá zásoba, zbytek obilí. `grainAheadForOutlookKg` (přežívací
+  zásoba – `seedKeepKg`) je přesně obrácený výhled: pod plným přídělem odečte `honeyAll`, na plný
+  příděl jen `honeyUntilHarvest` (ves pak jí dosyta bez zásoby medu).
 - `eat()` (`core/simulate-food.ts`) zapíše zbytek `state.wares.honeyKg = meal.honeyKg` – jen když
   `wares` existuje, kvůli jídlu nevznikne; med se nekazí.
 - Podíl `DietDay.shares.honey` jen, když se med jedl (jako `freshMeat`); `fieldShareOf`

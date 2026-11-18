@@ -8,7 +8,7 @@ Neplatí od 18. 11. 2026 (Martin: „Strop bych úplně zrušil, je to zbytečn�
 
 - **Ovoce nikdy nestačí samo:** ovoce smí pokrýt nejvýš **25 % energie**, maso nejvýš **40 %**,
   mléko a sýr **30 %** – zbytek musí být obilí (Martin; strop mléka návrh Clauda). Ovoce se jí
-  přednostně, dokud nezkazí (k 1. 3. – [sad](orchard.md)), čerstvé mléko a vejce, jak přibývají,
+  přednostně, dokud nezkazí (k 1. 3. – [sad](../orchard.md)), čerstvé mléko a vejce, jak přibývají,
   maso rovným dílem do porážky a sýr do příštího dojení; obilí dorovná energii.
 
 ## Maso rovným dílem do zkažení a uzené až do stropu masa
@@ -53,6 +53,36 @@ Neplatí od 18. 11. 2026 (stropy se ruší; nouzová porážka se řídí výhle
   kterého má příští rok mléko a mláďata, takže by si ves hlad jen přesunula na další zimu; a jedno
   pravidlo stravy pro každý den je srozumitelnější než výjimka v nouzi. Vlkov se do stropu vejde
   (≈ 37 % energie z masa).
+
+## Strop masa v Trvanlivosti masa, Porážce v zimě a Nouzové porážce
+
+Neplatí od 18. 11. 2026 (stropy se ruší, uzené se jí hned po čerstvém, zimní porážka se rozloží na zbývající dny zimy – diet.md, Strava po vrstvách a porážka celý rok). Přesunuto po závěrečné kontrole stravy 18. 11. 2026. Dřív v Trvanlivosti masa:
+
+- Od 19. 10. 2026 se v zimě jí **čerstvé maso** a udí se jen přebytek (Porážka v zimě); uzené
+  maso se jí, až čerstvé dojde nebo nestačí do stropu masa.
+
+Dřív v Porážce v zimě:
+
+- **Co jde na maso:** staré kusy a kusy nad nosnost (i nad místo pro mláďata) **vždy, i když se
+  maso nestihne sníst**. Pravidlo „porazit nejvýš tolik, kolik ves do 31. 8. sní“ platí jen pro
+  ostatní kusy v nosnosti, které by ves porazit nemusela.
+- **Porážka po dnech přes zimu:** kusy na maso ves neporáží najednou. Kolik masa přes zimu sní
+  čerstvého (denně strop masa ve stravě, 40 % energie), tolik kusů počká živých a porazí se
+  postupně – denně jen tolik, kolik toho dne sní.
+- **Uzení jen na přebytek:** … **Ves jí napřed čerstvé maso**, uzené až do stropu masa po něm.
+- **Práce porážky** (1 člověkoden na 20 kg masa) je rozložená do dnů porážek – denně za dnešní
+  maso, hned před polními úlohami.
+
+Dřív v Nouzové porážce:
+
+- Maso z porážky v září a říjnu se jí do podzimní porážky – pod stropem 40 % energie tak září
+  a říjen přemostí, ale na zimu ho ves nenaporáží.
+- **Maso** jde do zásoby jako z podzimní porážky – … jí se rovným dílem do zkažení 1. 9. Porážka
+  a uzení stojí 1 člověkoden na 20 kg; mimo zimní porážku (od 19. 10. 2026 listopad–březen) se
+  udělá hned další dny jako nouzová práce, v zimě s prací zimní porážky.
+
+Dřív v Rozhodnutích: „strop ovoce 25 %, masa 40 %“, „strop mléka a sýra 30 % energie“ a „strop
+masa 40 % platí i v nouzi“ (návrh Clauda).
 
 ## Med bez štěstí
 

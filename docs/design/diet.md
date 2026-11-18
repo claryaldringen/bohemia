@@ -132,12 +132,22 @@ v hladu), nově platí celý rok, ne jen v hladu:
   nesní víc, než je jeho potřeba energie.
 - Kvalita stravy z bílkovin a ovoce zůstává (Bílkoviny a nasycení), takže cíl „samo obilí ani
   samo ovoce nikdy úplně nenasytí“ platí dál i bez stropů.
-- Uvnitř první úrovně (návrh Clauda) se jí napřed mléko a vejce (nedají se uložit), pak čerstvé
+- Uvnitř první úrovně (návrh Clauda) ves jí napřed mléko a vejce (nedají se uložit), pak čerstvé
   maso, ryby a zvěř, pak uzené maso (zkazí se 1. 9.) a nakonec sýr. Nevypité mléko se zpracuje na
-  sýr, nesnědená vejce se zkazí.
+  sýr, nesnědená vejce se zkazí. To je **pořadí jídla vsi** – rozhoduje, co ves dnes sní (co se
+  nejdřív zkazí). **Kdo z toho co dostane** (Kdo dostane co), má na první úrovni pořadí jiné:
+  napřed čerstvé a uzené maso, pak mléko, vejce a sýr – množství je dané, elita tak jí napřed maso
+  (Martin, 18. 11. 2026: „Elita ať jí obecně víc masa celoročně“; návrh Clauda po závěrečné
+  kontrole 18. 11. 2026 – dřív i v rozdělení mléko a vejce napřed: rod vojvody pil mléko a maso
+  z kusu, který ves porazila „pro rod“, dostali ostatní).
 - Rychle se kazící jídlo se nešetří rovným dílem do zkažení jako dosud – jí se hned, jak je.
   Šetří se jen obilí (a v hladu med) rovným dílem do sklizně, jako dnes (Přídělový systém,
   [pole](fields.md)).
+- **Tempo jídla** – Martin, 18. 11. 2026: „Předpokládám, vejce, maso, mléko a ovoce se budou jíst
+  hlavně čerstvé. Takže pokud se porazí kus, tak se prostě ihned rozdělí a sní.“ Čerstvé se jí
+  hned, po vrstvách; co se ten den nesní, se vyudí a jí se v dalších dnech stejně – pořadím, bez
+  rozvrhu do zkažení (rovným dílem do zkažení jen nejméně, když by se jinak zkazilo – tempo proti
+  zkažení). Uzené z porážky 1. 11. se jí taky hned (co to dělá – Důsledky k vědomí).
 - Ze dnešního čerstvého masa, které nikdo nesní, se vyudí uzené; z mléka, které nikdo nevypije,
   je sýr – jako dnes.
 
@@ -159,8 +169,9 @@ v hladu), nově platí celý rok, ne jen v hladu:
      do sklizně lidé přežijí, umírat začnou, až když se hlad protáhne.
 2. **Čím se příděl naplní.** Napřed se rozdělí ovoce a pevný příděl medu – všem stejně (níž).
    Pak se na každé úrovni pořadí jídla napřed nají vrstva 1 do svého přídělu, pak vrstvy 2, 3
-   a 4. Vrstva, na kterou celý díl úrovně nevyjde, si ho rozdělí rovným dílem a nižší vrstvy z té
-   úrovně nedostanou nic. Elita tak jí napřed maso, ale jen do svého přídělu – na životní minimum
+   a 4 – na první úrovni napřed čerstvé a uzené maso, pak mléko, vejce a sýr (Pořadí jídla). Vrstva,
+   na kterou celý díl úrovně nevyjde, si ho rozdělí rovným dílem a nižší vrstvy z té úrovně
+   nedostanou nic. Elita tak jí napřed maso, ale jen do svého přídělu – na životní minimum
    ostatních se dorovná dalším jídlem.
 
 - „Rovným dílem“ znamená, že každý ve vrstvě dostane stejný podíl své potřeby – dítě tak sní méně
@@ -196,21 +207,47 @@ jenom v zimě, v létě se maso rychle kazí“):
   kusy nad nosnost jdou 1. 11. vždy a v dubnu jdou dospělí nad odhad zimy (návrh Clauda).
 - **Jak to opravdu funguje** (návrh Clauda): kandidáty jsou staré kusy do roční kvóty (čítač
   letos v létě poražených kusů `summerSlaughtered`, 1. 11. se maže) a dospělí nad odhad stáda přes
-  zimu, nejvýš stádo mínus odhad. Odhad zimy počítá se stádem i s letními kusy a se senem podle
-  toho, co ves stihne posekat (`hayKg: Infinity` – na jaře je zásoba malá). Letní porážka se
-  rozhoduje po práci dne (dnešní ryby a oka se počítají) a nezapisuje kroniku. Práce porážky běží
-  i v létě; nedodělek letní porážky přejde do zimní.
+  zimu, nejvýš stádo mínus odhad. Odhad zimy počítá se stádem i s letními kusy, s jejich pasením
+  (podíl pasáků ze stáda i s letními kusy, jako by žily – uhlídali by je výrostci, kteří ten den
+  nepásli, a ve vsi bez výrostků dospělý do svého dílu; po závěrečné kontrole 18. 11. 2026 – dřív
+  podíl dnešního, menšího stáda: ves s málo pasáky si po letní porážce nechala přes zimu o 15–25 %
+  víc koz) a se senem podle toho, co ves stihne posekat (`hayKg: Infinity` – na jaře je zásoba
+  malá). Pastva a zarůstání dál podle pasení dnešního stáda. Letní porážka se rozhoduje po práci
+  dne (dnešní ryby a oka se počítají) a nezapisuje kroniku. Práce porážky běží i v létě;
+  nedodělek letní porážky přejde do zimní.
 - Výtěžnost a ztráta uzením jako dnes (20 % ročně, 1. 9. se zbytek zkazí); práce porážky
   a uzení jako dnes (1 člověkoden na 20 kg masa) – i v létě.
+- **Porážka za žní** (návrh Clauda po závěrečné kontrole 18. 11. 2026 podle Martina 9. 11. 2026:
+  „Je lepší za každou cenu sklidit to, co už vyrostlo…“): práce porážky a uzení jde v pořadí
+  práce dne za žní, trháním lnu a nutnou sečí i otavou, před sklizní jablek ([pole](fields.md) –
+  Pořadí důležitosti polních prací). Maso je k jídlu hned, ať je práce hotová nebo ne – práce
+  porážky jen spotřebuje ruce a počká. V zimě se nežne ani neseče, tam jde práce porážky dál
+  hned za výmlatem na dnešní jídlo. Dřív stála hned za výmlatem na jídlo celý rok – dokud se
+  porážka v létě nedělala, nevadilo to.
 - **Nouzová porážka** beze změny.
 - Ruší se „Na maso jen to, co ves sní“ (Chovné stádo podle potřeby): plán stádo pod nosnost
   nezmenšuje o maso, které by ves pod stropem do 31. 8. snědla.
 
 **Důsledky k vědomí** (návrh Clauda, ať je Martin vidí):
 
-- V létě jí maso skoro denně celá ves – kníže chce maso každý den a zbytek kusu snědí ostatní –
-  a práce porážky soupeří se sečí (zlatá ves s 30 prasaty: ≈ 104 člověkodnů proti 10,7, seno
-  o ≈ 500 kg méně, přes zimu 27,8 koz místo 33,1).
+- V létě jí maso skoro denně celá ves – kníže chce maso každý den a zbytek kusu snědí ostatní.
+  Práce letní porážky (zlatá ves se 40 kozami a 30 prasaty ≈ 43 člověkodnů od dubna do října,
+  bez letní porážky 0) jde od 18. 11. 2026 za žní a sečí (Porážka za žní) a žeň ani seč
+  nevytlačí: seno 31. 10. o ≈ 100 kg (≈ 1 %) méně jen proto, že menší stádo potřebuje méně sena,
+  přes zimu 9,2 kozy proti 9,3. Ve zlaté vsi stačí práce na žeň i seč, takže porážka před žní
+  dávala totéž – rozdíl ukáže ves, které práce ve žních nestačí. Dřívější čísla (≈ 104
+  člověkodnů, seno o ≈ 500 kg méně, přes zimu 27,8 koz místo 33,1) byla ze západky letní porážky
+  před opravou (Úloha 4).
+- **Tempo jídla** (rozhodnuto Martinem 18. 11. 2026 – Pořadí jídla): maso, ryby a jablka se snědí,
+  jak přijdou. Vlkov (stav DB 3.–12. 10. 896, závěrečná kontrola): listopad 96 % energie z masa,
+  prosinec 67 %, únor až červen 897 0–4 % (dřív ≈ 20 % celoročně); jablka za 3 týdny (9.–29. 10.
+  94 % energie z ovoce); kvóta ryb za měsíc (zlatá ves květen 69 % energie z masa, srpen až říjen
+  0 %). Kníže má maso „každý den“ jen v nárazech.
+- **Méně polí pod správcem** (otevřené – k rozhodnutí Martinovi, kód beze změny): správce staví
+  pole jen na podíl jídla, který nedá maso, mléko a ovoce (podíl jídla z pole – [správce](steward.md),
+  Pole uživí), a s masem a ovocem bez stropů ten podíl klesl. Zlatá ves po 20 letech pod
+  správcem (závěrečná kontrola 18. 11. 2026): 9 polí místo 13, obilí 6 215 kg místo 8 583 kg,
+  štěstí 92–95 místo 94–98 – proti cíli „Ves bez zásahu vyrábí co nejvíc všeho“.
 - Kus poražený koncem srpna se 1. 9. z velké části zkazí (uzené – mezera).
 - ≈ 2 týdny po sklizni jablek jí ves skoro jen ovoce, nasycení pak klesne (bez bílkovin), štěstí
   v součtu stejně (rozhodnuto podle Martinova pořadí).
@@ -221,7 +258,9 @@ jenom v zimě, v létě se maso rychle kazí“):
 **Rozhodnutí plánu** (návrh Clauda): pevný příděl medu se jí každý den, i když obilí stačí,
 a všem stejně; tempo proti zkažení (vejce, ovoce ÷ dny do zkažení, maso – čerstvé i uzené – ÷ dny
 do konce masa) se sní napřed, i v hojnosti; zimní porážka po zlomcích kusů jako dnes; letní
-porážka nezapisuje kroniku.
+porážka nezapisuje kroniku. Po závěrečné kontrole 18. 11. 2026: v rozdělení po vrstvách maso před
+mlékem a vejci (Pořadí jídla), ryby do kvóty ve výhledu (Výhled do sklizně), porážka za žní
+(Porážka celý rok) a podíl pasáků i s letními kusy (Jak to opravdu funguje).
 
 **Stádo** beze změny – co největší stáda od 24. 10. 2026 ([orání rádlem](oxen.md) – Co nejvíc
 sena a co největší stáda); Martin to 18. 11. 2026 potvrdil.
@@ -253,6 +292,15 @@ zůstávají.
 přijde: se zásobami do jejich zkažení, mlékem a vejci, masem čekajících kusů v zimě a z letní
 porážky pro vrstvu 1 a s rybami do kvóty. Obilí (a v hladu med) pak dorovná zbytek rovným dílem
 do sklizně po vrstvách (návrh Clauda; dnešní výhled odečítá maso, ovoce a mléko podle stropů).
+
+- **Ryby do kvóty** (návrh Clauda po závěrečné kontrole 18. 11. 2026 – dřív výhled znal jen dnešní
+  úlovek): ryby, které ves ještě chytí = letošní průměrný úlovek na den rybářské sezóny ×
+  rybářské dny od zítřka do konce výhledu, nejvýš zbytek letošní kvóty ryb; jedlý podíl jako
+  dnešní úlovek, dnešní úlovek je v čerstvém mase dne. Letos = rok kvóty od 1. 5. ([divoká
+  zvěř](wildlife.md) – Roční přepočet) a letošní sezóna ryb, nejdéle do 30. 11.: kvóta příštího
+  roku se nepočítá (opatrně – v dubnu jen zbytek loňské kvóty do 30. 4.). Od prosince do března
+  (sezóna neběží) a bez letošního úlovku nic. Průměr přes dny sezóny, ne přes dny rybaření – dny,
+  kdy ves nerybaří (žně), jsou v něm. Nouzová porážka počítá s týmiž rybami jednou.
 
 **Stav vsi:** nové části stavu, budou-li potřeba, jsou volitelné a převádí je `VILLAGE_MIGRATIONS`
 jako vždy.
@@ -679,7 +727,8 @@ Martin: „**Nezdá se mi, že bychom sklízeli tolik sena, že by to stáda už
 Martin: „**A uzené maso určitě také nevydrží 3 roky.**“
 
 - Od 19. 10. 2026 se v zimě jí **čerstvé maso** a udí se jen přebytek (Porážka v zimě); uzené
-  maso se jí, až čerstvé dojde nebo nestačí do stropu masa.
+  maso se jí hned po čerstvém, bez stropu masa (Strava po vrstvách a porážka celý rok – Pořadí
+  jídla; dřívější „až čerstvé nestačí do stropu masa“: [history](history/diet-history.md)).
 - Uzené maso se jí napřed tempem do jeho zkažení 31. 8. (Strava po vrstvách a porážka celý rok); 1. 9. ráno se zbytek zkazí – v létě žlukne tuk a maso napadá hmyz, soli bylo málo. Kronika a krátký řádek „Maso se zkazilo – N kg“. Vysychání 20 % ročně zůstává. Dřívější „rovným dílem do 31. 8.“: [history](history/diet-history.md).
 - Maso ze září a října (dosloužilé spřežení) se jí do porážky.
 - Výhled energie do sklizně počítá maso jen do jeho zkažení.
@@ -725,11 +774,13 @@ výrostků, které se do hry nedostalo.
     nestačí mladé kusy, i staré);
   - v tom chovné stádo podle potřeby (Chovné stádo podle potřeby, Rovnovážné hospodaření).
 - **Co jde na maso:** staré kusy a kusy nad nosnost (i nad místo pro mláďata) **vždy, i když se
-  maso nestihne sníst**. Pravidlo „porazit nejvýš tolik, kolik ves do 31. 8. sní“ platí jen pro
-  ostatní kusy v nosnosti, které by ves porazit nemusela.
+  maso nestihne sníst**; stádo v nosnosti zůstane celé (od 18. 11. 2026 – „Na maso jen to, co ves
+  sní“ neplatí, dřívější znění: [history](history/diet-history.md)).
 - **Porážka po dnech přes zimu:** kusy na maso ves neporáží najednou. Kolik masa přes zimu sní
-  čerstvého (denně strop masa ve stravě, 40 % energie), tolik kusů počká živých a porazí se
-  postupně – denně jen tolik, kolik toho dne sní. Čekají napřed kusy, které žerou nejméně sena na
+  čerstvého (bez stropu – nejvýš celá potřeba energie vsi), tolik kusů počká živých a porazí se
+  postupně – denně maso čekajících kusů děleno zbývajícími dny zimy (Strava po vrstvách a porážka
+  celý rok – V zimě; dřívější „denně strop masa 40 % … jen tolik, kolik toho dne sní“:
+  [history](history/diet-history.md)). Čekají napřed kusy, které žerou nejméně sena na
   kg masa (prasata v lese, krávy, ovce, kozy), porážejí se v opačném pořadí (kozy, ovce, krávy,
   prasata nakonec), aby spotřebovaly co nejméně sena – tak se vyváží „porazíš hned na začátku
   zimy – nemusíš ho krmit senem“ s „ideálně čerstvé“. Kus čekající na porážku žere seno nebo les
@@ -741,9 +792,10 @@ výrostků, které se do hry nedostalo.
 - **Uzení jen na přebytek:** udí se jen maso, které ves nestihne sníst čerstvé – kusy, na které
   přes zimu nezbude čerstvá spotřeba, a zbytek čekajících kusů na konci zimy (31. 3.). Uzené
   maso dál vydrží do 31. 8., ztrácí 20 % ročně a 1. 9. se zkazí. **Ves jí napřed čerstvé maso**,
-  uzené až do stropu masa po něm; výhled jídla do sklizně počítá i s čerstvým masem do konce zimy.
+  uzené hned po něm (bez stropu); výhled jídla do sklizně počítá i s čerstvým masem do konce zimy.
 - **Práce porážky** (1 člověkoden na 20 kg masa) je rozložená do dnů porážek – denně za dnešní
-  maso, hned před polními úlohami.
+  maso; v zimě hned za výmlatem na dnešní jídlo, před ostatními úlohami (v létě za žní a sečí –
+  Strava po vrstvách a porážka celý rok, Porážka celý rok).
 - **Kronika** `slaughter` 1. 11. – kg masa celkem a z toho přes zimu (`fresh`), kusy celkem.
 
 #### Místa na noc – ohrady a u domu (19. 10. 2026)
@@ -823,7 +875,8 @@ neporážejí.
   Od 1. 9. do konce roku (po podzimní porážce letošní mláďata nejsou) se selata počítají do prasat
   nad chovnými prasnicemi, spodní hranice prasat platí dál. Jehňata, kůzlata a telata zůstávají
   chráněná celý rok. Maso z porážky v září a říjnu se jí do podzimní porážky (Trvanlivost masa) –
-  pod stropem 40 % energie tak září a říjen přemostí, ale na zimu ho ves nenaporáží. Číslo
+  září a říjen tak přemostí, ale na zimu ho ves nenaporáží (dřív „pod stropem 40 % energie“ –
+  strop zrušen 18. 11. 2026). Číslo
   `EMERGENCY_SLAUGHTER.pigletsFromMonth` (9).
   **Selata první** (Martin 31. 10. 2026: „Selata první“): prasata nad chovnými prasnicemi jdou od
   1. 9. napřed z letošních selat (ubývají jim kus za kus), teprve zbytek porážky ubere dospělým;
@@ -834,10 +887,12 @@ neporážejí.
   porážela den co den po kouscích, s ní obvykle jednou za zimu (Vlkov: jednou, 23 prasat). Zabitím
   dojnic ubude i mléka do sklizně, výhled s tím počítá.
 - **Maso** jde do zásoby jako z podzimní porážky – stejná výtěžnost (prase 50, koza 12, kráva
-  120, ovce 15 kg), stejné uzení 20 % ročně, jí se rovným dílem do zkažení 1. 9. Porážka a uzení
-  stojí 1 člověkoden na 20 kg; mimo zimní porážku (od 19. 10. 2026 listopad–březen) se udělá hned
-  další dny jako nouzová práce, v zimě s prací zimní porážky (nedodělek letní porážky přejde
-  do zimní, ta ho dodělá společně se svou prací). Kusy čekající na zimní porážku jdou v nouzi první. Mláďata ubudou poměrně.
+  120, ovce 15 kg), stejné uzení 20 % ročně; jí se v pořadí jídla hned, do zkažení 1. 9. aspoň
+  tempem proti zkažení (Strava po vrstvách a porážka celý rok; dřív „rovným dílem do zkažení“).
+  Porážka a uzení stojí 1 člověkoden na 20 kg; práce se přičte k čekající práci porážky a udělá
+  se další dny jako každá porážka – v zimě hned za výmlatem na jídlo, v létě za žní a sečí;
+  nedodělek letní porážky přejde do zimní, ta ho dodělá společně se svou prací (dřív „jako
+  nouzová práce“). Kusy čekající na zimní porážku jdou v nouzi první. Mláďata ubudou poměrně.
 - **Strop masa ve stravě 40 % energie** v nouzi neplatí (zrušen 18. 11. 2026); nouzová porážka se řídí výhledem celé vsi. Dřívější znění: [history](history/diet-history.md).
 - **Kronika** `emergency-slaughter` (kg masa a kusy) a krátký řádek, jen fakt: „Vesničané porazili
   23 prasat navíc“.
@@ -1460,10 +1515,10 @@ výsledek porážky (kusy, maso) nemá vliv. Podrobnosti a soubory: `docs/code/s
 | Jablka → „ovoce“ (ikona zůstane); ovoce zvyšuje nasycení i štěstí                                                                                                                                                         | Martin                                            |
 | Plné nasycení jen z kombinace obilí–maso–ovoce; samo obilí ani ovoce nestačí                                                                                                                                              | Martin                                            |
 | Maso z dobytka (prasata v lese, přebytky ovcí, koz, krav), vejce; lov a rybolov později                                                                                                                                   | Martin potvrdil směr                              |
-| ~~Podíly 75 / 20 / 5 %, pestrost 0,80 + 0,14 × maso + 0,06 × ovoce~~; strop ovoce 25 %, masa 40 %                                                                                                                         | návrh Clauda                                      |
+| ~~Podíly 75 / 20 / 5 %, pestrost 0,80 + 0,14 × maso + 0,06 × ovoce~~; ~~strop ovoce 25 %, masa 40 %~~ (zrušen 18. 11. 2026 – bez stropů)                                                                                  | návrh Clauda                                      |
 | Maso a mléko kvůli bílkovinám – 1,6 g na kg tělesné váhy; mléko a sýr ze všech dojných zvířat                                                                                                                             | Martin (18. 10. 2026)                             |
 | Práce se zvířaty se počítá (dojení, sýr, zimní péče, prasata a slepice), pasení bez práce                                                                                                                                 | Martin (18. 10. 2026)                             |
-| Kvalita stravy 0,60 + 0,34 × bílkoviny + 0,06 × ovoce; strop mléka a sýra 30 % energie                                                                                                                                    | návrh Clauda                                      |
+| Kvalita stravy 0,60 + 0,34 × bílkoviny + 0,06 × ovoce; ~~strop mléka a sýra 30 % energie~~ (zrušen 18. 11. 2026)                                                                                                          | návrh Clauda                                      |
 | Váhy 20 / 60 / 58 kg, bílkoviny potravin, dojivost, sýr, práce – podle rešerše 18. 10. 2026                                                                                                                               | návrh Clauda (rešerše)                            |
 | Dojí se 40 % skotu a 50 % ovcí a koz; sýr do 1. 5., ztráta 15 %/rok; potřeba masa z bílkovin                                                                                                                              | návrh Clauda                                      |
 | Hladem se umírá jen z nedostatku energie, pestrost řídí porody a štěstí                                                                                                                                                   | návrh Clauda                                      |
@@ -1509,7 +1564,7 @@ výsledek porážky (kusy, maso) nemá vliv. Podrobnosti a soubory: `docs/code/s
 | Nouzová porážka – ves, které výhled jídla do sklizně nevychází, napřed porazí zvířata navíc, pak šetří                                                                                                                    | Martin (19. 10. 2026)                             |
 | Pořadí prasata → kozy → krávy nad chovné → ovce nad ovce na vlnu; chovný pár, spřežení a telata zůstanou                                                                                                                  | Martin (19. 10. 2026)                             |
 | Kontrola každý den před jídlem; porazí, aby výhled vyšel s rezervou 5 % potřeby do sklizně; částečně jen o 2 body přídělu a víc                                                                                           | návrh Clauda                                      |
-| Maso, uzení, zkažení 1. 9. a práce jako z podzimní porážky; strop masa 40 % platí i v nouzi                                                                                                                               | návrh Clauda                                      |
+| Maso, uzení, zkažení 1. 9. a práce jako z podzimní porážky; ~~strop masa 40 % platí i v nouzi~~ (zrušen 18. 11. 2026)                                                                                                     | návrh Clauda                                      |
 | Dojení, sýr a péče o zvířata bokem, mimo práci vsi – obstarají ženy; bez omezení                                                                                                                                          | Martin, 19. 10. 2026                              |
 | Pasou jen výrostci 7–13 let, mimo práci vsi; jejich počet dál omezuje stáda                                                                                                                                               | Martin, 19. 10. 2026                              |
 | Dospělí ani starší nepasou; v rovnovážném hospodaření pasáci nestojí práci, omezují počet kusů                                                                                                                            | návrh Clauda                                      |

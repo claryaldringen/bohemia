@@ -202,6 +202,14 @@ Návrh: wildlife.md – Drobná zvěř a ryby, Rozhodnutí při implementaci W7.
   Stav pro scénu v `wildlife.smallGame.today`; rozdělení práce
   má činnosti `fish` (cíl `{ kind: 'pool', index }`) a `snare`.
 - `wildlifeYearDay` 1. 5. uloží maso z velkého lovu minulého roku (`lastWildMeatKg`, drobná zvěř ne) a vynuluje `year`.
+- `fishAheadKg(state, day, daysToHarvest)` – ryby, které ves ještě chytí od zítřka do konce
+  výhledu do sklizně (kg masa, × `SMALL_GAME.fish.edible`; diet.md – Výhled do sklizně, návrh
+  Clauda 18. 11. 2026): letošní úlovek `smallGame.year.fishKg` ÷ dny rybářské sezóny od začátku
+  roku kvóty (poslední 1. 5.; v dubnu i loňská sezóna – `fishSeasonDays`) × rybářské dny od
+  zítřka do konce výhledu, nejdéle do 30. 11. a v dubnu do 30. 4. (kvóta příštího roku se
+  nepočítá), nejvýš zbytek kvóty (`quotaLeft`, i nad ½ stropu). Prosinec–březen a bez letošního
+  úlovku 0. Volá ho `baseMealInput` (`fishAheadEnergy`) a panel `nextDayDiet` přes
+  `villageMeal(…, { fishAheadEnergy })`.
 - Testy ves bez ryb a zajíců: `withoutSmallGame` ve `village-fixtures.ts`.
 
 ## Obrana polí (W6, `field-patrol.ts`, `wildlife-damage.ts`)
