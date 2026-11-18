@@ -12,7 +12,6 @@ import type { VillageState } from '../types';
 import {
   DAILY_CHEESE_KEEP,
   DAILY_MEAT_KEEP,
-  DIET,
   daysUntilMeatSpoil,
   fruitEnergy,
   grainKeepPerDay,
@@ -34,10 +33,11 @@ import { SATIATION_EPSILON } from './simulate-plan';
  * vymlátí (`sheavesOutlook`), luštěniny, uzené maso, sýr, jablka a med. Ztráty skladováním den po
  * dni stejným pravidlem jako výhled do sklizně (obilí `grainKeepPerDay` – nádoby a jámy,
  * luštěniny, maso, sýr), maso se 1. 9. ráno zkazí (`daysUntilMeatSpoil`), jablka shnijí
- * (`daysUntilAppleRot`). Ves jí napřed, co se kazí – ovoce, maso, sýr a luštěniny, každé nejvýš do
- * svého stropu stravy (`DIET.caps`) –, pak obilí a nakonec med (nekazí se; když jídla není dost,
- * je jídlem jako obilí – hides-honey.md, Med v hladu). První den, kdy plný příděl nevyjde, počítání
- * skončí. Nikdo nejí ze zásob vsi → null; nejvýš do konce světa.
+ * (`daysUntilAppleRot`). Ves jí v pořadí jídla bez stropů (diet.md – Strava po vrstvách a porážka
+ * celý rok): napřed, co se kazí – uzené maso a sýr, ovoce, luštěniny –, pak obilí a nakonec med
+ * (nekazí se; když jídla není dost, je jídlem jako obilí – hides-honey.md, Med v hladu). První
+ * den, kdy plný příděl nevyjde, počítání skončí. Nikdo nejí ze zásob vsi → null; nejvýš do konce
+ * světa.
  */
 export function foodLastsDays(
   state: VillageState,
@@ -72,17 +72,17 @@ export function foodLastsDays(
     cheese *= DAILY_CHEESE_KEEP;
     if (i >= fruitDays) fruit = 0;
     let left = need;
-    const eatCapped = (stock: number, cap: number): number => {
-      const eaten = Math.min(stock, cap * need, left);
+    const eat = (stock: number): number => {
+      const eaten = Math.min(stock, left);
       left -= eaten;
       return stock - eaten;
     };
-    fruit = eatCapped(fruit, DIET.caps.fruit);
-    meat = eatCapped(meat, DIET.caps.meat);
-    cheese = eatCapped(cheese, DIET.caps.dairy);
-    legumes = eatCapped(legumes, DIET.caps.legumes);
-    grain = eatCapped(grain, 1);
-    honey = eatCapped(honey, 1);
+    meat = eat(meat);
+    cheese = eat(cheese);
+    fruit = eat(fruit);
+    legumes = eat(legumes);
+    grain = eat(grain);
+    honey = eat(honey);
     if (left > shortfall) break;
     days++;
   }
@@ -104,9 +104,10 @@ export interface StockOutlook {
  * Zásoba jedné potraviny vsi a na kolik dní vystačí, kdyby se jedla sama (kronika – Martin
  * 17. 11. 2026: „kolik té plodiny má vesnice celkem a na jak dlouho to vystačí při současném
  * počtu obyvatel“; návrh Clauda): stejná pravidla jako `foodLastsDays`, jen pro jednu potravinu.
- * Obilí (bez osiva, které ves nejí, a snopy k vymlácení) plným přídělem se ztrátami skladováním
- * (`grainKeepPerDay`), luštěniny nejvýš do svého stropu stravy (`DIET.caps.legumes`), jablka do
- * stropu ovoce a jen do dne, kdy shnijí (`daysUntilAppleRot`). Poslední neúplný den se nepočítá.
+ * Každá plným přídělem bez stropů (diet.md – Strava po vrstvách a porážka celý rok): obilí (bez
+ * osiva, které ves nejí, a snopy k vymlácení) se ztrátami skladováním (`grainKeepPerDay`),
+ * luštěniny se svými ztrátami, jablka jen do dne, kdy shnijí (`daysUntilAppleRot`). Poslední
+ * neúplný den se nepočítá.
  */
 export function stockLastsDays(
   state: VillageState,
@@ -132,17 +133,15 @@ export function stockLastsDays(
       : stock === 'legumes'
         ? legumeKeepPerDay(potteryCoverage)
         : 1;
-  const cap = stock === 'grain' ? 1 : stock === 'legumes' ? DIET.caps.legumes : DIET.caps.fruit;
   const fruitDays = applesSpoiled(first, potteryCoverage)
     ? 0
     : daysUntilAppleRot(first, potteryCoverage);
-  const daily = cap * need;
   let days = 0;
   for (let i = 0; first + i < TOTAL_GAME_DAYS; i++) {
     energy *= keep;
     if (stock === 'apples' && i >= fruitDays) energy = 0;
-    if (energy < daily * (1 - SATIATION_EPSILON)) break;
-    energy -= daily;
+    if (energy < need * (1 - SATIATION_EPSILON)) break;
+    energy -= need;
     days++;
   }
   return { kg, days };

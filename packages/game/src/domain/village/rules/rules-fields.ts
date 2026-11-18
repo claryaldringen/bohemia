@@ -40,8 +40,9 @@ export const START_SEED_YEARS = 0.5;
 export const FOUNDERS_STORES = { foodYears: 3, seedYears: 2, seedKeepYears: 15 } as const;
 // fields.md – Výhled zásob k sklizni, Osev podle stravy (návrh Clauda, Martin schválil směr 19. 10. 2026):
 // potřeba z pole = podíl energie, který ves za uplynulý hospodářský rok potřebovala z obilí
-// a luštěnin, × dnešní roční potřeba; podíl nejméně minShare = 1 − strop masa (0,4) − strop
-// mléka a sýra (0,3) z diet.md – ovoce, vejce a med se do pojistky nepočítají (hlídá test)
+// a luštěnin, × dnešní roční potřeba; podíl nejméně minShare – pojistka, odvozená z dřívějších
+// stropů stravy (1 − strop masa 0,4 − strop mléka a sýra 0,3; stropy zrušeny 18. 11. 2026 – diet.md,
+// Strava po vrstvách a porážka celý rok – číslo zůstává)
 export const FIELD_FOOD = { minShare: 0.3 } as const;
 // fields.md – Výhled zásob k sklizni (čísla návrh Clauda): pojistka – zásoba z pole, která má
 // zbýt před další sklizní – 0,5 roční potřeby celé energie (≈ půl roku celé stravy; kalibrace

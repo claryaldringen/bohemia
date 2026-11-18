@@ -897,7 +897,8 @@ describe('kopie stavu', () => {
     s.pens![0]!.training = { startDay: day - 100 };
     s.hay = { kg: 2500, mowing: { partIds: [9, 10], required: 3, done: 1, yieldKg: 750 } };
     s.meatKg = 50;
-    s.cheeseKg = 20;
+    // sýr se jí hned (bez stropu) – zásoba, ať do 20. 11. zbude
+    s.cheeseKg = 2000;
     const state = advanceVillage(s, at(600, 11, 20), null);
     // orba s drnem, zimní seno a porážka – všechna nová pole stavu jsou vyplněná
     const work = seasonCrop(state.season!, 'winter') ?? springCrop(state.season!);

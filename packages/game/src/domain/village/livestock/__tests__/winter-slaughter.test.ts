@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../../calendar';
 import { foundVillage } from '../../core/actions';
-import { DIET, villageFoodNeed } from '../../core/diet';
+import { villageFoodNeed } from '../../core/diet';
 import { winterHayKg } from '../hay';
 import { WILDLIFE_LAND } from '../../rules/rules-wildlife';
 import { freshWildlife } from '../../wildlife/wildlife';
@@ -22,7 +22,7 @@ import {
   winterWaitHayKg,
 } from '../livestock';
 import { advanceVillage } from '../../core/simulate';
-import type { HerdSpecies, VillageState } from '../../types';
+import type { DietDay, HerdSpecies, VillageState } from '../../types';
 import { woolSheep } from '../wool';
 import { withBuiltFirstDwelling, withRoomyPens } from '../../__tests__/village-fixtures';
 
@@ -76,6 +76,13 @@ function kept(s: VillageState): Record<HerdSpecies, number> {
     cow: h.cow - (c?.cow ?? 0),
   });
 }
+
+/**
+ * Podíl energie, který dnes zbyl na maso – pevný příděl medu, mléko a vejce se jí před ním (diet.md
+ * – Strava po vrstvách a porážka celý rok).
+ */
+const afterDairyAndEggs = (diet: DietDay): number =>
+  1 - diet.shares.dairy - diet.shares.eggs - (diet.shares.honey ?? 0);
 
 const grown = (h: Record<HerdSpecies, number>): Record<HerdSpecies, number> =>
   herds({
@@ -195,8 +202,9 @@ describe('zimní porážka po dnech', () => {
     const waiting = cullingMeatKg(nov);
     expect(waiting).toBeGreaterThan(0);
     // přebytek nad čerstvou spotřebu zimy je uzený a počká, dokud se jí čerstvé
-    // první den porážky už se jí čerstvé maso – strop masa ve stravě
-    expect(nov.diet!.shares.freshMeat).toBeCloseTo(DIET.caps.meat, 6);
+    // první den porážky už se jí čerstvé maso – bez stropu do plné potřeby, po vejcích a mléce
+    expect(nov.diet!.shares.freshMeat).toBeCloseTo(afterDairyAndEggs(nov.diet!), 6);
+    expect(nov.diet!.energy).toBeCloseTo(1, 6);
     const next = advanceVillage(nov, day + 1, null);
     const perDay = freshMeatPerDayKg(nov, day + 1);
     expect(waiting - cullingMeatKg(next)).toBeCloseTo(perDay, 1);
@@ -205,10 +213,12 @@ describe('zimní porážka po dnech', () => {
     expect(
       next.livestock!.slaughterWork!.required - nov.livestock!.slaughterWork!.required,
     ).toBeCloseTo(perDay / LIVESTOCK.slaughterKgPerManDay, 6);
-    // čekající kusy vystačí skoro na celou zimu (ubývají i ztrátami), pak se čerstvé maso nejí
-    const march = advanceVillage(next, at(601, 3, 1), null);
-    expect(march.diet!.shares.freshMeat).toBeCloseTo(DIET.caps.meat, 6);
-    const later = advanceVillage(march, at(601, 4, 2), null);
+    // čekající kusy se porážejí na plnou potřebu – maso z nich se jí, dokud jsou (ubývají
+    // i ztrátami), pak se čerstvé maso nejí
+    const december = advanceVillage(next, at(600, 12, 1), null);
+    expect(cullingMeatKg(december)).toBeGreaterThan(0);
+    expect(december.diet!.shares.freshMeat).toBeCloseTo(afterDairyAndEggs(december.diet!), 6);
+    const later = advanceVillage(december, at(601, 4, 2), null);
     expect(later.livestock!.culling).toBeUndefined();
     expect(later.diet!.shares.freshMeat).toBeUndefined();
   });
@@ -261,14 +271,14 @@ describe('seno a čekající kusy', () => {
     expect(none.cow).toBeCloseTo(0, 6);
     expect(none.sheep).toBeLessThan(plenty.sheep);
     // napřed ubere krávy (porážejí se poslední, nejdéle žerou)
-    const some = winterWait(s, day, keep, killed, winterHayKg(keep, 0) * 1.2, 0);
+    const some = winterWait(s, day, keep, killed, winterHayKg(keep, 0) * 1.1, 0);
     expect(some.cow).toBeLessThan(plenty.cow);
     expect(some.sheep).toBeCloseTo(plenty.sheep, 6);
   });
 });
 
 describe('čerstvé maso ve stravě', () => {
-  it('čerstvé maso se jí napřed, uzené počká – strop masa platí pro obojí', () => {
+  it('čerstvé maso se jí napřed, uzené počká – bez stropu do plné potřeby', () => {
     const day = at(600, 12, 1);
     const s = village(day - 1);
     s.people = s.people.slice(0, 2);
@@ -276,9 +286,10 @@ describe('čerstvé maso ve stravě', () => {
     s.livestock!.herds = herds({ pig: 10 });
     s.livestock!.culling = herds({ pig: 4 });
     const next = advanceVillage(s, day, null);
-    // dnes jen čerstvé – na strop masa ve stravě
-    expect(next.diet!.shares.freshMeat).toBeCloseTo(DIET.caps.meat, 6);
-    expect(next.diet!.shares.meat).toBeCloseTo(DIET.caps.meat, 6);
+    // dnes jen čerstvé – do plné potřeby po vejcích a mléce (dřív strop masa 40 %)
+    expect(next.diet!.shares.freshMeat).toBeCloseTo(afterDairyAndEggs(next.diet!), 6);
+    expect(next.diet!.shares.meat).toBeCloseTo(afterDairyAndEggs(next.diet!), 6);
+    expect(next.diet!.energy).toBeCloseTo(1, 6);
     // uzené čeká (jen uzení ubere)
     expect(next.meatKg!).toBeGreaterThan(299);
     const need = villageFoodNeed(next, day);

@@ -60,14 +60,17 @@ import { advanceChunked, goldenWorld, stateFingerprint, YEAR } from './village-g
 // 17. 11. 2026 – D91 doplněk (Martin: „Tehdejší lidé zpracovali to zvíře komplet“): vůl na maso
 // 120 → 130 kg jako kráva (`oxMeatKg`) – jiné zásoby; dřív 6df903308768fe20
 // 18. 11. 2026 – strava po vrstvách, úloha 1; dřív 82b12dd84c08dd63
-const EXPECTED_YEAR_1 = '60a62e071fd0d3fd';
+// 18. 11. 2026 – strava po vrstvách, úloha 2; dřív 60a62e071fd0d3fd
+const EXPECTED_YEAR_1 = '9371ea6e5d066ae8';
 
 describe('zlatý otisk vsi', () => {
   const world = goldenWorld();
 
   it('po 20 letech má ves pole, stáda, zásoby řemesel i rod (základ otisku není prázdný)', () => {
     const s = world.start;
-    expect(s.fields.length).toBeGreaterThanOrEqual(5);
+    // 18. 11. 2026 – strava po vrstvách, úloha 2: maso, ryby a mléko bez stropů – ves potřebuje
+    // méně obilí a správce založil 4 pole; dřív aspoň 5
+    expect(s.fields.length).toBeGreaterThanOrEqual(4);
     expect(s.livestock?.herds).toBeDefined();
     expect(s.crafts).toBeDefined();
     expect(s.people.length).toBeGreaterThanOrEqual(10);

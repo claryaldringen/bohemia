@@ -18,7 +18,7 @@ import {
 } from '../people/lord';
 import { nextYearlyCommonLabor, yearlyCommonLabor } from '../buildings/dwellings';
 import { animalCareNeed, dailyMilk } from '../livestock/dairy';
-import { DIET, villageFoodNeed } from './diet';
+import { villageFoodNeed } from './diet';
 import {
   ploughDayFactor,
   ploughTeamsAfield,
@@ -948,15 +948,15 @@ function toilToday(ctx: WorkDay, owned: readonly FieldTaskEntry[], applied: Appl
 
 /**
  * Práce bokem dne – mimo práci vsi, jen pro postavy (population.md – Práce): dojení a sýr
- * z mléka, které se nevypije (strop mléka a sýra – diet.md), a péče o zvířata (ženy); domácí
- * výroba žen (`DOMESTIC` po domácnostech a lidech) a denní minimum, které pokryli starší
- * (`eldersDailyMin`).
+ * z mléka, které se nevypije (nad potřebu energie vsi – diet.md, bez stropů), a péče o zvířata
+ * (ženy); domácí výroba žen (`DOMESTIC` po domácnostech a lidech) a denní minimum, které pokryli
+ * starší (`eldersDailyMin`).
  */
 export function asideWork(state: VillageState, day: number, eldersDailyMin: number): AsideWork {
   const herds = villageHerds(state);
   const dams = villageDams(state);
   const milk = dailyMilk(dams, day);
-  const drinkable = DIET.caps.dairy * villageFoodNeed(state, day);
+  const drinkable = villageFoodNeed(state, day);
   const cheeseMilkL = milk.energy > drinkable ? milk.liters * (1 - drinkable / milk.energy) : 0;
   const animals = animalCareNeed(
     herds,

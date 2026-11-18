@@ -76,17 +76,24 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
     (pastva, seno, sláma i `mowKg`); `hayShortSlaughter(…, first)` – `feed` krávy k obnově volů, ovce
     na vlnu (`woolSheep`), pak `HAY_EATERS`.
 
-- **Strava a dobytek** ([diet.md](../design/diet.md)): jídlo dne `eatDiet` / `villageMeal`
-  (`diet.ts`) – ovoce (jablka; v rozhraní „ovoce“) rovným dílem do zkažení 1. 3., čerstvé mléko
-  a vejce, maso rovným dílem do zkažení 31. 8. (`daysUntilMeatEnd`; 1. 9. ráno se zbytek zkazí –
-  `spoilMeat`, kronika `meat-spoiled`, upozornění; maso ze září a října do porážky – Martin:
-  „uzené maso určitě také nevydrží 3 roky“), sýr do 1. 5. (`daysUntilMilking`), obilí
-  dorovná – výhled do sklizně (`DietResult.outlook`, `grainSpareKg`, obrácený
-  `grainAheadForOutlookKg`) počítá obilí i snopy po ztrátách skladováním do dne, kdy se snědí
-  (`grainEatenShare` – rovným dílem od dneška, po zkažení ovoce od jeho konce; fields.md –
-  Přídělový systém, Martin 15. 11. 2026), takže příděl se do žní nekloní; stropy ovoce 25 %,
-  maso 40 %, mléko a sýr 30 %, luštěniny 25 % potřeby energie
-  (`DIET`); luštěniny (`legumes.ts`) rovným dílem do sklizně 31. 7. (`daysUntilLegumeHarvest`).
+- **Strava a dobytek** ([diet.md](../design/diet.md) – Strava po vrstvách a porážka celý rok,
+  Martin 18. 11. 2026): jídlo dne `eatDiet` / `villageMeal` (`diet.ts`) **bez stropů** – každý
+  den do potřeby energie v pořadí pevný příděl medu, mléko, vejce, čerstvé maso (zimní porážka,
+  ryby a zvěř), uzené maso, sýr, ovoce (jablka; v rozhraní „ovoce“), luštěniny, obilí (nejvýš
+  vymlácená zásoba) a v hladu med; nevypité mléko → sýr (`cheeseFromMilk`), nesnědené čerstvé maso
+  se vyudí, nesnědená vejce se zkazí. Snědené dne celkem `DietResult.eaten` (`Eaten`, čerstvé maso
+  zvlášť v `freshMeatKg`). Maso se kazí 1. 9. (`daysUntilMeatEnd`; 1. 9. ráno zbytek – `spoilMeat`,
+  kronika `meat-spoiled`, upozornění; maso ze září a října do porážky – Martin: „uzené maso určitě
+  také nevydrží 3 roky“), ovoce 1. 3. **Výhled do sklizně** (`DietResult.outlook`, `grainSpareKg`,
+  obrácený `grainAheadForOutlookKg` – obě ze společného `dietPlan`, souhlasí přesně): jídlo mimo
+  obilí do sklizně `aheadEnergy` (dnešní mléko nejvýš potřeba dne, vejce dnes i dalších dnů, čerstvé
+  maso dne i `freshAheadEnergy`, mléko stád `milkAheadEnergy` – `milkEnergyBetween` za den nejvýš
+  potřeba –, uzené a ovoce nejvýš potřeba za dny do zkažení, sýr a luštěniny i snopy celé; celé
+  nejvýš potřeba × dny, bez medu) a obilí i snopy po ztrátách skladováním do dne, kdy se snědí
+  (`grainEatenShare` – rovným dílem od dneška; fields.md – Přídělový systém, Martin 15. 11. 2026).
+  Dnes se sní příděl × potřeba, ale aspoň tempem proti zkažení (`spoilPace` – vejce dnes, ovoce do
+  zkažení, maso do konce rovným dílem; návrh Clauda) a nejvýš celá potřeba – maso, které by se
+  zkazilo, se tak sní i v hladu nad příděl. Šetří se jen obilí (a v hladu med).
   **Bílkoviny** (Martin 18. 10. 2026): 1,6 g na kg tělesné váhy (`PROTEIN`, `proteinNeedPerDay`
   – 20 / 60 / 58 kg), nasycení = energie × kvalita (`dietQuality` = 0,6 + 0,34 × bílkoviny +
   0,06 × ovoce; jen obilí ≈ 80 %). **Mléko a sýr** (`dairy.ts`): dojí se samice, které letos rodily
@@ -123,22 +130,24 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   a porážku; pasáci nic nestojí a plán je nepočítá – výrostci omezí stádo jen přes nosnost
   `winterTargets` s `herdingCoverage`); hladový výběr po kusech (do 9. 11. 2026 i luštěniny) podle práce mínus
   ušetřené obilí na kg bílkovin navíc proti obilí – napřed co práci šetří, vždy, v pořadí
-  ovce → kozy → krávy → prasata (Martin: ovce napřed) do nosnosti a stropů
-  `DIET.caps`; pak do potřeby × 1,1 (`BALANCE.proteinReserve`) nejlevnější (přežvýkavci
+  ovce → kozy → krávy → prasata (Martin: ovce napřed) do nosnosti a stropů stravy (dnes maso
+  a mléko dohromady nejvýš celá potřeba energie – `sizeHerdsToNeed`, 18. 11. 2026); pak do
+  potřeby × 1,1 (`BALANCE.proteinReserve`) nejlevnější (přežvýkavci
   v pořadí, prasata a luštěniny cenou), nad 88 % (`minProteinCoverage`) jen bílkoviny levnější
   než z obilí (dnes jen stádo v nosnosti – výběr zůstal v historii). Týž plán `balancedPlan`
   (zásoba luštěnin stádo nezmenší) řídí seč 25. 5. a otavu 1. 8. (`wantedWinterHerds`) i porážku
-  1. 11. (plán luštěnin k osevu 1. 9. zrušen 9. 11. 2026); zbytek i dospělé kusy na maso, ale stádo v nosnosti jen
-     o tolik masa, kolik ves do 31. 8. sní pod stropem (`meatEatableKg` – zbytek
-     žije; co přeroste nosnost, jde vždy – diet.md, Chovné stádo podle potřeby); stádo pod potřebou dá na
+  1. 11. (plán luštěnin k osevu 1. 9. zrušen 9. 11. 2026); stádo v nosnosti plán nezmenšuje, na maso
+     jde, co přeroste nosnost (diet.md – Chovné stádo podle potřeby; „Na maso jen to, co ves sní“
+     zrušeno 18. 11. 2026 – Strava po vrstvách a porážka celý rok); stádo pod potřebou dá na
      maso navíc mláďata v pořadí prasata, krávy, kozy, ovce (`MEAT_ORDER`).
      **Nouzová porážka** (diet.md – Nouzová porážka, Martin 19. 10. 2026; `emergency-slaughter.ts`,
      `EMERGENCY_SLAUGHTER` v `rules*.ts`): v `eat` před jídlem dne, když výhled do sklizně nevychází
      (`dayMealInput` – týž vstup `eatDiet` jako jídlo dne), ves porazí zvířata navíc – prasata, kozy,
      krávy nad `breedingCows`, ovce nad `woolSheep`, chovný pár zůstane (`emergencySpare`); nejméně
      masa, se kterým výhled vyjde i s rezervou `reserveShare` (5 % potřeby do sklizně – půlení
-     v `emergencySlaughterPlan`, mléko zabitých dojnic se odečte), nejvýš kolik pod stropem masa
-     (`DIET.caps.meat` platí i v nouzi) pomůže. Maso přes `butcher` (uzení, zkažení 1. 9.), práce
+     v `emergencySlaughterPlan`, mléko zabitých dojnic se odečte), nejvýš kolik pomůže maso, které
+     ves do zkažení sní (výhled ho počítá nejvýš plnou potřebou za dny do konce masa). Maso přes
+     `butcher` (uzení, zkažení 1. 9.), práce
      mimo listopad `slaughterWork.emergency` (úloha `slaughter` hned), kronika `emergency-slaughter`
      (kusy), upozornění „Vesničané porazili 12 prasat navíc“ (`formatAnimals`). Prasata jen nad chovné
      prasnice (`emergencyPigFloor` – `EMERGENCY_SLAUGHTER.pigForestShare` 0,5 nosnosti lesa pro
@@ -156,7 +165,8 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
      výrostků dospělý `HERDING.adultShare`), bez
      starých kusů (`retiringHeads`), chovné minimum `breedingFloor` vždy; staré a nad nosnost na maso
      vždy, ostatní jen do spotřeby. Kusy na maso čekají přes zimu (`winterWait` – čerstvá
-     spotřeba zimy `freshMeatPerDayKg` × 151 dní, napřed prasata v lese, pak krávy, ovce, kozy; co
+     spotřeba zimy `freshMeatPerDayKg` – celá potřeba energie, bez stropu – × 151 dní, napřed
+     prasata v lese, pak krávy, ovce, kozy; co
      seno neuživí, hned do uzení) v `LivestockState.culling` (ve `herds`), `winterSlaughterDay`
      (husbandryDay) je porazí po dnech v pořadí kozy, ovce, krávy, prasata do `VillageState.freshMeatKg`
      – jí se napřed (`DietInput.freshMeatKg`, výhled `freshAheadEnergy` / `freshMeatAheadEnergy`,
@@ -570,19 +580,21 @@ Návrh: hides-honey.md – Klát u obydlí a Med v hladu, diet.md – Pojmy. Č�
   (`baseMealInput` v `core/meal-input.ts` i `villageMeal`) předá `honeyKg` (`wares.honeyKg`, i dnešní
   med z klátů – `waresDay` je ráno) a `honeyRationKg`.
 - `dietPlan`: pevný příděl `honeyEaten` = `min(zásoba, příděl)` – bez stropu, bez bílkovin a bez
-  vlivu na kvalitu stravy (`dietOf` – jen energie); jde do `today` (`todayOther` = dnešní jídlo
-  bez medu), do sklizně `honeyUntilHarvest` – příděl jen na dny, kdy zásoba vydrží (`honeyDays`;
-  med, který klády dají do žní, výhled nezná). `honeyAll` = energie celé zásoby.
-- `eatDiet` (Med v hladu, Martin 15. 11. 2026): stačí-li obilí do sklizně s pevným přídělem
-  (`grainNeed` s `honeyUntilHarvest`), jí se příděl a obilí navíc (`grainSpareKg`) počítá s medem
-  jen v něm. Jinak je celá zásoba jídlo jako obilí: med, který obilí doplní na plný příděl
-  (`honeyNeed`), stačí-li `honeyAll`, ves jí dosyta; jinak výhled `even` s `honeyAll`. Dnešní
-  obilí a med jsou jeden příděl `pool` (příděl dne − `todayOther`; ve dnech jen ovoce 0), med
-  z něj podílem `honeyShare` = med ÷ (obilí do sklizně `aheadEaten` + med) – obilí i med tak
-  vyjdou na den sklizně a obilí se sní rovným dílem, jak počítá `grainEatenShare`; nejvýš celá
-  zásoba, zbytek dnešního přídělu obilí. `grainAheadForOutlookKg` (přežívací zásoba –
-  `seedKeepKg`) počítá s `honeyAll` vždy – s nejmenším obilím na příděl jídla s pevným přídělem
-  dost není (i plný příděl pak doplní celá zásoba).
+  vlivu na kvalitu stravy (`dietOf` – jen energie), do sklizně `honeyUntilHarvest` – příděl jen
+  na dny, kdy zásoba vydrží (med, který klády dají do žní, výhled nezná). `honeyAll` = energie celé
+  zásoby. Jídlo mimo obilí do sklizně `aheadEnergy` med nezná.
+- `eatDiet` (Med v hladu, Martin 15. 11. 2026; diet.md – Strava po vrstvách, med za obilím):
+  stačí-li obilí do sklizně s pevným přídělem (`grainNeed` = potřeba do sklizně − `aheadEnergy`
+  − `honeyUntilHarvest`), jí se pevný příděl jako první jídlo dne – i když obilí stačí (návrh
+  Clauda: jinak by med nedal štěstí) – a obilí navíc (`grainSpareKg`) počítá s medem jen v něm.
+  Jinak je celá zásoba jídlo jako obilí za ostatním jídlem dne: med, který obilí doplní na plný
+  příděl (`honeyNeed`), stačí-li `honeyAll`, ves jí dosyta; jinak výhled = (`aheadEnergy` + obilí
+  - `honeyAll`) ÷ potřeba do sklizně. Co z dnešní energie zbude po mase, mléčném, ovoci
+    a luštěninách, je jeden příděl obilí a medu, med z něj podílem `honeyShare` = med ÷ (obilí do
+    sklizně `aheadEaten` + med) – obilí i med tak vyjdou na den sklizně; nejvýš celá zásoba, zbytek
+    obilí. `grainAheadForOutlookKg` (přežívací zásoba – `seedKeepKg`) je přesně obrácený výhled: pod
+    plným přídělem odečte `honeyAll`, na plný příděl jen `honeyUntilHarvest` (ves pak jí dosyta bez
+    zásoby medu).
 - `eat()` (`core/simulate-food.ts`) zapíše zbytek `state.wares.honeyKg = meal.honeyKg` – jen když
   `wares` existuje, kvůli jídlu nevznikne; med se nekazí.
 - Podíl `DietDay.shares.honey` jen, když se med jedl (jako `freshMeat`); `fieldShareOf`

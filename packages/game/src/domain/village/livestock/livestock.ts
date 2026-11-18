@@ -3,14 +3,7 @@ import { dateOfDayIndex, dayIndexOf, isLeapYear } from '../../calendar';
 import { dairyDams, yearlyMilk } from './dairy';
 import { foxEggFactor } from '../wildlife/fox-eggs';
 import { PREDATION } from '../rules/rules-wildlife';
-import {
-  DIET,
-  PROTEIN,
-  daysUntilMeatEnd,
-  meatEnergy,
-  proteinNeedPerDay,
-  villageFoodNeed,
-} from '../core/diet';
+import { DIET, PROTEIN, meatEnergy, proteinNeedPerDay, villageFoodNeed } from '../core/diet';
 import type { FoodCosts } from './economy';
 import { HERDING, herderCapacity, herdingDemand, type HerdingState } from './herding';
 import { isOvergrown } from '../fields/fields';
@@ -787,9 +780,12 @@ const WAIT_ORDER: readonly HerdSpecies[] = ['pig', 'cow', 'sheep', 'goat'];
  */
 const WINTER_SLAUGHTER_ORDER: readonly HerdSpecies[] = ['goat', 'sheep', 'cow', 'pig'];
 
-/** Kolik masa (kg) ves za den sní čerstvého – strop masa ve stravě (diet.md, 40 % energie). */
+/**
+ * Kolik masa (kg) ves za den nejvýš sní čerstvého – celou potřebu energie (diet.md – Strava po
+ * vrstvách a porážka celý rok, bez stropů; dřív strop masa 40 %).
+ */
 export function freshMeatPerDayKg(state: Pick<VillageState, 'people'>, day: number): number {
-  return (DIET.caps.meat * villageFoodNeed(state, day)) / DIET.meatEnergy;
+  return villageFoodNeed(state, day) / DIET.meatEnergy;
 }
 
 /**
@@ -905,8 +901,9 @@ export function cullingMeatKg(state: Pick<VillageState, 'livestock'>): number {
 }
 
 /**
- * Čerstvé maso, které ves sní od zítřka do konce zimní porážky (energie v kg obilí, za den nejvýš
- * strop masa – diet.md, Porážka v zimě) – výhled jídla do sklizně s ním počítá.
+ * Čerstvé maso, které ves sní od zítřka do konce zimní porážky (energie v kg obilí – maso kusů,
+ * které čekají, nejvýš celá potřeba za ty dny; diet.md, Porážka v zimě, bez stropů) – výhled jídla
+ * do sklizně s ním počítá.
  */
 export function freshMeatAheadEnergy(
   state: Pick<VillageState, 'livestock' | 'people'>,
@@ -916,7 +913,7 @@ export function freshMeatAheadEnergy(
   if (days <= 0) return 0;
   const kg = cullingMeatKg(state);
   if (kg <= EPSILON) return 0;
-  return Math.min(meatEnergy(kg), DIET.caps.meat * villageFoodNeed(state, day) * days);
+  return Math.min(meatEnergy(kg), villageFoodNeed(state, day) * days);
 }
 
 /**
@@ -1100,24 +1097,24 @@ export function sizeHerdsToNeed(
     energyNeed * grainProtein +
     eggsKg * (PROTEIN.perKg.eggs - DIET.energy.eggs * grainProtein) +
     stockLegumes * LEGUME_PROTEIN_GAIN;
-  const caps = { meat: DIET.caps.meat * energyNeed, dairy: DIET.caps.dairy * energyNeed };
-  const used = { meat: 0, dairy: 0 };
   // celé stádo v nosnosti v pořadí přednosti (oxen.md – Co nejvíc sena a co největší stáda) –
-  // maso a mléko po stropech energie
+  // maso a mléko dohromady nejvýš celá potřeba energie, víc nikdo nesní (diet.md – Strava po
+  // vrstvách a porážka celý rok, bez stropů; společný strop návrh Clauda – dřív maso 40 % a mléko
+  // 30 %)
+  let room = energyNeed;
   for (const species of HERD_PRIORITY) {
     const unit = keep[species];
     if (unit <= EPSILON) continue;
     const head = headEconomy(species, costs);
-    const meat = Math.min(head.meatEnergy * unit, Math.max(0, caps.meat - used.meat));
-    const dairy = Math.min(head.dairyEnergy * unit, Math.max(0, caps.dairy - used.dairy));
+    const meat = Math.min(head.meatEnergy * unit, Math.max(0, room));
+    const dairy = Math.min(head.dairyEnergy * unit, Math.max(0, room - meat));
     const meatShare = head.meatEnergy > 0 ? meat / (head.meatEnergy * unit) : 0;
     const dairyShare = head.dairyEnergy > 0 ? dairy / (head.dairyEnergy * unit) : 0;
     protein +=
       head.meatProtein * unit * meatShare +
       head.dairyProtein * unit * dairyShare -
       (meat + dairy) * grainProtein;
-    used.meat += meat;
-    used.dairy += dairy;
+    room -= meat + dairy;
   }
   return {
     keep: herdRecord((s) => keep[s]),
@@ -1217,15 +1214,6 @@ export function hayShortSlaughter(
   }
   butcher(state, kg);
   return { day, kind: 'hay-slaughter', kg: Math.round(kg), animals };
-}
-
-/**
- * Kolik masa (kg) ves od dneška do zkažení (31. 8. – `daysUntilMeatEnd`) sní pod stropem masa
- * (`DIET.caps.meat` energie) – podle dnešní potřeby jídla (diet.md – Trvanlivost masa, porážka).
- */
-export function meatEatableKg(state: Pick<VillageState, 'people'>, day: number): number {
-  const perDay = (DIET.caps.meat * villageFoodNeed(state, day)) / DIET.meatEnergy;
-  return perDay * Math.max(0, daysUntilMeatEnd(day));
 }
 
 /**

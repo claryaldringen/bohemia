@@ -16,7 +16,6 @@ import {
   herdBirths,
   herdLosses,
   herdProteinNeed,
-  meatEatableKg,
   meatNeedPerYear,
   proteinBudget,
   pastureHa,
@@ -334,9 +333,10 @@ describe('porážka (1. 11.)', () => {
     expect(kept(s).cow).toBeCloseTo(3 - old.cow, 9);
   });
 
-  it('stádo v nosnosti porážka nezredukuje nad to, co ves sní – staré kusy jdou na maso vždy', () => {
+  it('stádo v nosnosti porážka nezredukuje – staré kusy jdou na maso vždy', () => {
     // vesničané se snaží vyrobit co nejvíc jídla: prasata uživí les a práci nestojí (Martin);
-    // staré kusy ale na maso jdou, i když se maso nestihne sníst (Martin 19. 10. 2026)
+    // staré kusy ale na maso jdou, i když se maso nestihne sníst (Martin 19. 10. 2026); „Na maso
+    // jen to, co ves sní“ zrušeno (diet.md – Strava po vrstvách a porážka celý rok)
     const day = at(600, 11, 1);
     const s = village(day);
     addChildren(s, [8, 8, 9, 9, 10, 10, 11, 11], day);
@@ -346,8 +346,6 @@ describe('porážka (1. 11.)', () => {
     const old = retiringHeads(s.livestock!.herds, s.livestock!.young);
     expect(old.pig).toBeCloseTo(15, 9);
     const oldMeat = old.pig * LIVESTOCK.meatKg.pig + old.sheep * LIVESTOCK.meatKg.sheep;
-    // staré kusy dají víc masa, než ves do 31. 8. sní
-    expect(oldMeat + 100).toBeGreaterThan(meatEatableKg(s, day));
     const event = slaughter(s, day, { oxen: 0, hayKg: Infinity });
     expect(event).toMatchObject({ kind: 'slaughter', kg: Math.round(oldMeat) });
     // nic víc – zbytek v nosnosti žije

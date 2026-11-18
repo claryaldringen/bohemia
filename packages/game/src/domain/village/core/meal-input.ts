@@ -1,13 +1,7 @@
 // Vstup jídla dne bez osiva (diet.md) – společný pro jídlo dne (`dayMealInput`) a přežívací
 // zásobu do žní (`seedKeepKg` – fields.md, Úroda, Osivo ze zásob): obě počítají s touž stravou.
+import { dailyMilk, milkEnergyBetween, villageCheeseKg } from '../livestock/dairy';
 import {
-  dailyMilk,
-  daysUntilMilking,
-  milkEnergyBetween,
-  villageCheeseKg,
-} from '../livestock/dairy';
-import {
-  DIET,
   daysUntilMeatEnd,
   villageFoodNeed,
   villageHoneyRationKg,
@@ -19,7 +13,7 @@ import { dayPartLosses, winterEstimateLosses } from '../disasters/disasters';
 import { fieldFoodShare } from '../fields/field-food';
 import { daysUntilAppleRot } from './food';
 import { grainKeepInput } from '../fields/grain-pits';
-import { daysUntilLegumeHarvest, villageLegumesKg } from '../fields/legumes';
+import { villageLegumesKg } from '../fields/legumes';
 import { dailyEggsKg, freshMeatAheadEnergy, villageDams } from '../livestock/livestock';
 import { villageApplesKg } from '../buildings/orchard';
 import { sheavesOutlook } from '../fields/threshing';
@@ -30,9 +24,9 @@ import { daysUntilFoodHarvest, lateSpringCrop, unharvestedKg } from './year-plan
  * Vstup jídla dne (`eatDiet`) ze stavu na konci předchozího dne s celými zásobami obilí
  * a luštěnin – bez osiva, které ves nejí (to odečte `dayMealInput`): dnešní mléko (podojený podíl
  * `milked`) a vejce, mléko stád do sklizně, ovoce do zkažení (nádoby od hrnčíře –
- * `potteryCoverage`), maso do zkažení a čerstvé maso zimní porážky, sýr do dojení, luštěniny do
- * sklizně, med z klátů a snopy, které ves vymlátí. `dams` – dojné samice, se kterými se počítá
- * (bez údaje dojné samice vsi – `villageDams`).
+ * `potteryCoverage`), maso do zkažení a čerstvé maso dne i zimní porážky, sýr, luštěniny, med
+ * z klátů a snopy, které ves vymlátí. `dams` – dojné samice, se kterými se počítá (bez údaje
+ * dojné samice vsi – `villageDams`).
  */
 export function baseMealInput(
   state: VillageState,
@@ -75,7 +69,8 @@ export function baseMealInput(
     sheavesGrainKg: sheaves.grainKg + lateKg,
     sheavesLegumesKg: sheaves.legumesKg,
     meatKg: villageMeatKg(state),
-    // čerstvé maso zimní porážky – dnešní a do konce zimy (diet.md – Porážka v zimě)
+    // čerstvé maso dne (zimní porážka, ryby a drobná zvěř) a zimní porážky do konce zimy (diet.md –
+    // Porážka v zimě)
     freshMeatKg: state.freshMeatKg ?? 0,
     freshAheadEnergy: freshMeatAheadEnergy(state, day),
     fruitKg: villageApplesKg(state),
@@ -85,21 +80,15 @@ export function baseMealInput(
     milkEnergy: milk.energy * milked,
     eggsKg: dailyEggsKg(state),
     legumesKg: villageLegumesKg(state),
-    daysToLegumeHarvest: daysUntilLegumeHarvest(day),
     // med z klátů (i dnešní – `waresDay` ráno) pevným přídělem, v hladu i zásoba (hides-honey.md –
     // Klát u obydlí, Med v hladu)
     honeyKg: state.wares?.honeyKg ?? 0,
     honeyRationKg: villageHoneyRationKg(state, day),
     needPerDay: need,
     proteinNeedPerDay: villageProteinNeed(state, day),
-    daysToMilking: daysUntilMilking(day),
-    // výhled do sklizně počítá s mlékem stád (fields.md – Osev podle stravy)
-    milkAheadEnergy: milkEnergyBetween(
-      dams,
-      day + 1,
-      day + daysToHarvest - 1,
-      DIET.caps.dairy * need,
-    ),
+    // výhled do sklizně počítá s mlékem stád (fields.md – Osev podle stravy), za den nejvýš potřeba
+    // – víc nikdo nevypije (diet.md – Strava po vrstvách, bez stropů)
+    milkAheadEnergy: milkEnergyBetween(dams, day + 1, day + daysToHarvest - 1, need),
     daysToHarvest,
     // jablka v nádobách od hrnčíře vydrží déle (crafts.md)
     daysToRot: daysUntilAppleRot(day, potteryCoverage),

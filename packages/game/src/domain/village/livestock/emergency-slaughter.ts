@@ -1,6 +1,6 @@
 import { dateOfDayIndex } from '../../calendar';
 import { dailyMilk, dairyDams, milkEnergyBetween } from './dairy';
-import { DIET, eatDiet, meatEnergy, type DietInput, type DietResult } from '../core/diet';
+import { eatDiet, meatEnergy, type DietInput, type DietResult } from '../core/diet';
 import { breedingCows } from './husbandry';
 import {
   HERD_SPECIES,
@@ -27,9 +27,10 @@ import { woolSheep } from './wool';
 // spřežení a telata ve výcviku jsou v ohradách mimo stáda. Letošní mláďata ne – kromě selat od 1. 9.
 // (Martin 19. 10. 2026: „Ano ke všem návrhům“ – maso se 1. 9. kazí a do podzimní porážky ves
 // hladoví; nad chovnými prasnicemi jsou v září skoro jen selata). Maso jde do zásoby jako z podzimní
-// porážky (stejná výtěžnost, uzení, zkažení 1. 9.) a jí se rovným dílem do zkažení – nejvýš strop
-// masa ve stravě (DIET.caps.meat), ten platí i v nouzi. Podíl jídla z pole (fields.md – Osev podle
-// stravy) ho počítá jako jídlo z pole.
+// porážky (stejná výtěžnost, uzení, zkažení 1. 9.) a jí se v pořadí jídla bez stropů, do zkažení
+// aspoň rovným dílem (diet.md – Strava po vrstvách a porážka celý rok); výhled s ním počítá nejvýš
+// do plné potřeby za dny do zkažení. Podíl jídla z pole (fields.md – Osev podle stravy) ho počítá
+// jako jídlo z pole.
 
 /** Méně masa (kg) se jako porážka nebere – chyby desetinných čísel. */
 const MIN_KG = 0.5;
@@ -42,8 +43,9 @@ const SEARCH_STEPS = 60;
 /**
  * Vstup jídla dne (`eatDiet`) ze stavu na konci předchozího dne – co ves dnes jí a s čím do
  * sklizně počítá: dnešní mléko (podojený podíl `milked`) a vejce, mléko stád do sklizně,
- * ovoce do zkažení (nádoby od hrnčíře – `potteryCoverage`), maso do zkažení, sýr do dojení,
- * luštěniny do sklizně. `dams` – dojné samice, se kterými se počítá (bez údaje dojné samice vsi –
+ * ovoce do zkažení (nádoby od hrnčíře – `potteryCoverage`), maso do zkažení, sýr a luštěniny
+ * (`baseMealInput`) – bez osiva, které ves nejí. `dams` – dojné samice, se kterými se počítá (bez
+ * údaje dojné samice vsi –
  * `villageDams`).
  */
 export function dayMealInput(
@@ -79,7 +81,7 @@ function withMealDams(
       dams,
       day + 1,
       day + input.daysToHarvest - 1,
-      DIET.caps.dairy * input.needPerDay,
+      input.needPerDay,
     ),
   };
 }
@@ -156,8 +158,9 @@ export interface EmergencyPlan {
  * Kolik zvířat ves dnes porazí navíc (bez změny stavu): nic, když výhled jídla do sklizně
  * vychází. Jinak nejméně masa, se kterým výhled vyjde i s rezervou EMERGENCY_SLAUGHTER.reserveShare
  * potřeby do sklizně (ztráty zásob a uzení výhled nezná – bez rezervy by se poráželo den co den po
- * kouscích); když ani všechna zvířata navíc nestačí nebo maso narazí na strop ve stravě, tolik,
- * kolik ještě pomůže – zbytek ves ušetří na přídělu; taková porážka jen, zvedne-li příděl aspoň
+ * kouscích); když ani všechna zvířata navíc nestačí nebo se maso do zkažení nestihne sníst (výhled
+ * ho počítá nejvýš do plné potřeby za dny do zkažení), tolik, kolik ještě pomůže – zbytek ves
+ * ušetří na přídělu; taková porážka jen, zvedne-li příděl aspoň
  * o EMERGENCY_SLAUGHTER.minGain. Zabitím dojnic ubude i mléka do sklizně, výhled s tím počítá.
  */
 export function emergencySlaughterPlan(
@@ -196,7 +199,7 @@ export function emergencySlaughterPlan(
   };
   const reserve = EMERGENCY_SLAUGHTER.reserveShare;
   const best = meal(maxKg, reserve).outlook;
-  // cíl: plný příděl i s rezervou, nebo co nejvíc, kolik maso pod stropem a zvířata navíc dají
+  // cíl: plný příděl i s rezervou, nebo co nejvíc, kolik maso do zkažení a zvířata navíc dají
   const target = Math.min(1, best) - EPSILON;
   if (meal(0, reserve).outlook >= target) return null;
   let lo = 0;
@@ -207,7 +210,7 @@ export function emergencySlaughterPlan(
     else lo = mid;
   }
   if (hi < MIN_KG) return null;
-  // schodek celý nepokrytý (málo zvířat navíc, strop masa) – porážka jen, když příděl znatelně
+  // schodek celý nepokrytý (málo zvířat navíc, maso do zkažení) – porážka jen, když příděl znatelně
   // zvedne (EMERGENCY_SLAUGHTER.minGain); jinak by ves porážela po kusech
   const after = meal(hi, 0).outlook;
   if (after < 1 - EPSILON && after < today.outlook + EMERGENCY_SLAUGHTER.minGain) return null;

@@ -207,8 +207,9 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   (`sheavesOutlook`), luštěniny, uzené maso, sýr, jablka a med. Den po dni ráno ztráty jako
   výhled do sklizně (`grainKeepPerDay`, `legumeKeepPerDay`, `DAILY_MEAT_KEEP`,
   `DAILY_CHEESE_KEEP`), maso do zkažení (`daysUntilMeatSpoil`), jablka do shnití
-  (`daysUntilAppleRot`); ves jí napřed, co se kazí – ovoce, maso, sýr a luštěniny nejvýš do
-  `DIET.caps` –, pak obilí a nakonec med (jídlo jako obilí – Med v hladu). Počítá se do prvního
+  (`daysUntilAppleRot`); ves jí v pořadí jídla bez stropů (diet.md – Strava po vrstvách a porážka
+  celý rok, 18. 11. 2026) – uzené maso a sýr, ovoce, luštěniny, pak obilí a nakonec med (jídlo
+  jako obilí – Med v hladu). Počítá se do prvního
   dne bez plného přídělu (tolerance `SATIATION_EPSILON`), nejvýš do konce světa; nikdo nejí →
   null. `VillageSummary.foodLastsDays` → `VillageView.foodLastsDays` (chybí místo null) → řádek
   pod rozpisem plodin v liště (web-ui.md). Starší `storesMonths` (jen obilí ÷ potřeba) zůstává
