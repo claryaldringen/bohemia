@@ -196,31 +196,38 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   **Strava po vrstvách** (diet.md – Strava po vrstvách a porážka celý rok, 18. 11. 2026):
   `eatDiet` (`core/diet.ts`) sní den bez stropů – `dietPlan` spočítá výhled `aheadEnergy` (jídlo
   mimo obilí a med do sklizně), pevný příděl medu a tempo proti zkažení (`fruitPace` = ovoce ÷
-  dny do zkažení, `freshPace` = dnešní čerstvé maso ÷ dny do konce masa, `smokedShare` = díl
-  uzeného – zásoba po dnešní ztrátě ÷ dny do konce masa, poslední den zbytek, `spoilPace` i s
-  vejci) – to se sní napřed i v hojnosti, šetří se jen obilí a v hladu med. Uzené se nad svůj díl
-  nejí (od 18. 11. 2026, D98 – Martin: „Uzené rozlož“; zbytek dne bez něj) a výhled ho počítá
-  dílem (`min(smokedShare, potřeba) × min(dny, dny do konce masa)`). `tierMeal` (`core/tier-meal.ts`)
-  rozdělí snědené vsi mezi vrstvy: `rationShares` dá příděl (75 % všem, zbytek po vrstvách), pak
-  úrovně `LEVELS` – ovoce a pevný příděl medu všem stejně (`evenTakes`), ostatní po vrstvách
-  (`levelTakes`) v pořadí čerstvé maso, uzené, mléko, vejce, sýr, luštěniny, obilí, med navíc –
-  maso elitě napřed (od 18. 11. 2026, po závěrečné kontrole; pořadí jídla vsi v `eatDiet`
-  a `foodLastsDays` má mléko a vejce napřed – záměrně, množství je dané); co se nevejde do
-  přídělů, sní nejnižší vrstva s potřebou (`sink`). Vrstva
-  s potřebou 0 (lidé pryč) má energii 1 a nic nesní. `dietHappiness` počítá štěstí z maso +3,
-  ovoce +5 a med +2 po vrstvách a bere průměr přes jedlíky (`HungerSplit.eaters`). `eatDiet`
-  v hladu mírně kloní příděl během sezóny (trvanlivé mimo obilí se jí dřív, nejvýš ≈ 2 p. b.).
-  `eat` (`simulate-food.ts`) dělí energii dne
-  a příděl do sklizně (`ration` = příděl zbytku vsi; `hungry` a nouzová porážka celé vsi), jen
-  když ves šetří, nejí se dosyta nebo skupiny mají různý hlad – jinak výpočet jako dřív.
-  `peopleDay` posune hlad skupin, `populationDay(…, hunger)` bere hlad a energii skupiny člověka
-  (úmrtí) a matky (porody), `lodgeLifeDay` energii skupiny mistrů; štěstí a `summary` celou vsi.
-  **Stupně hladu** (population.md – Hlad a vymření, Martin 19. 10. 2026): `eat` zapíše příděl do
-  sklizně `VillageState.ration` (jen když ves šetří – `hungry`), `hungerLevel` v `summary.ts` →
-  `VillageSummary.hunger` (`fed` / `rationing` 90–100 % / `hungry` pod `STARVATION.fedFrom` /
-  `starving`) → `VillageView.hunger`, `VillageListItem.hunger`; upozornění „Ves šetří jídlem“
-  (info), „Ves hladoví“, „Lidé umírají hlady“ – jen nejvyšší stupeň, ohlásí se při zhoršení (i
-  z jiné vsi – `otherVillageNotices`).
+  dny do zkažení, `meatPace` = maso čerstvé i ostatní uzené ÷ dny do konce masa, `spoilPace` i s
+  vejci) – to se sní napřed i v hojnosti, šetří se jen obilí a v hladu med. **Dvě zásoby
+  uzeného** (D98 kolo 1, 18. 11. 2026 – Martin: „Uzené rozlož“ na otázku po uzeném z porážky
+  1. 11.): `VillageState.meatKg` je uzené celé, `slaughterMeatKg` jeho část ze zásoby z porážky
+  1. 11. (`slaughter` přičte kusy pod nůž hned); `core/meat-stocks.ts` – `villageSlaughterMeatKg`
+         (nejvýš celé uzené), `takeVillageMeatKg` (oheň, prodej, kořist, odchod, `appoint-lord` – součet
+         přesně, zásoba z 1. 11. poměrně). V jídle ostatní uzené hned za čerstvým, díl zásoby z 1. 11.
+         (`slaughterShare` = zásoba po dnešní ztrátě ÷ dny do konce masa, poslední den zbytek) až po
+         mléku, vejcích, čerstvém a ostatním uzeném – do plné potřeby (i nad příděl), co se nevejde,
+         zůstane; výhled ji počítá `min(díl, potřeba) × keptDays(min(dny, dny do konce masa))` (Σ
+         `DAILY_MEAT_KEEP`^j – i se ztrátou uzením), ostatní uzené celé, nejvýš potřeba za dny do konce
+         masa. Starší ves převede `smoked-meat-stocks` (níž). `tierMeal` (`core/tier-meal.ts`)
+         rozdělí snědené vsi mezi vrstvy: `rationShares` dá příděl (75 % všem, zbytek po vrstvách), pak
+         úrovně `LEVELS` – ovoce a pevný příděl medu všem stejně (`evenTakes`), ostatní po vrstvách
+         (`levelTakes`) v pořadí čerstvé maso, uzené, mléko, vejce, sýr, luštěniny, obilí, med navíc –
+         maso elitě napřed (od 18. 11. 2026, po závěrečné kontrole; pořadí jídla vsi v `eatDiet`
+         a `foodLastsDays` má mléko a vejce napřed – záměrně, množství je dané); co se nevejde do
+         přídělů, sní nejnižší vrstva s potřebou (`sink`). Vrstva
+         s potřebou 0 (lidé pryč) má energii 1 a nic nesní. `dietHappiness` počítá štěstí z maso +3,
+         ovoce +5 a med +2 po vrstvách a bere průměr přes jedlíky (`HungerSplit.eaters`). `eatDiet`
+         v hladu mírně kloní příděl během sezóny (trvanlivé mimo obilí se jí dřív, nejvýš ≈ 2 p. b.).
+         `eat` (`simulate-food.ts`) dělí energii dne
+         a příděl do sklizně (`ration` = příděl zbytku vsi; `hungry` a nouzová porážka celé vsi), jen
+         když ves šetří, nejí se dosyta nebo skupiny mají různý hlad – jinak výpočet jako dřív.
+         `peopleDay` posune hlad skupin, `populationDay(…, hunger)` bere hlad a energii skupiny člověka
+         (úmrtí) a matky (porody), `lodgeLifeDay` energii skupiny mistrů; štěstí a `summary` celou vsi.
+         **Stupně hladu** (population.md – Hlad a vymření, Martin 19. 10. 2026): `eat` zapíše příděl do
+         sklizně `VillageState.ration` (jen když ves šetří – `hungry`), `hungerLevel` v `summary.ts` →
+         `VillageSummary.hunger` (`fed` / `rationing` 90–100 % / `hungry` pod `STARVATION.fedFrom` /
+         `starving`) → `VillageView.hunger`, `VillageListItem.hunger`; upozornění „Ves šetří jídlem“
+         (info), „Ves hladoví“, „Lidé umírají hlady“ – jen nejvyšší stupeň, ohlásí se při zhoršení (i
+         z jiné vsi – `otherVillageNotices`).
 - **Na jak dlouho vystačí zásoby** (diet.md – Hlad; Martin 15. 11. 2026, D56): `foodLastsDays`
   (`core/food-lasts.ts`) – kolik dní od zítřka uživí dnešní zásoby lidi plným přídělem
   (`villageFoodNeed` zítřka, stálá), bez sklizní a příjmů (mléko, vejce, porážka, med z klátů).
@@ -229,8 +236,8 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   výhled do sklizně (`grainKeepPerDay`, `legumeKeepPerDay`, `DAILY_MEAT_KEEP`,
   `DAILY_CHEESE_KEEP`), maso do zkažení (`daysUntilMeatSpoil`), jablka do shnití
   (`daysUntilAppleRot`); ves jí v pořadí jídla bez stropů (diet.md – Strava po vrstvách a porážka
-  celý rok, 18. 11. 2026) – uzené maso jen svým dílem (zásoba ÷ dny do konce masa – `daysUntilMeatEnd`,
-  po 31. 10. přepočet; od D98), sýr, ovoce, luštěniny, pak obilí a nakonec med (jídlo
+  celý rok, 18. 11. 2026) – ostatní uzené maso hned, zásoba z porážky 1. 11.
+  (`villageSlaughterMeatKg`) jen svým dílem (zásoba ÷ dny do konce masa – `daysUntilMeatEnd`, po 31. 10. přepočet; D98), sýr, ovoce, luštěniny, pak obilí a nakonec med (jídlo
   jako obilí – Med v hladu). Počítá se do prvního
   dne bez plného přídělu (tolerance `SATIATION_EPSILON`), nejvýš do konce světa; nikdo nejí →
   null. `VillageSummary.foodLastsDays` → `VillageView.foodLastsDays` (chybí místo null) → řádek
@@ -1039,6 +1046,7 @@ založení (`foundVillage` / `foundedState`), převod ji doplní jen starším v
 | `quarry-area` – `withQuarriesBesideRocks`      | starý lom z výchozu na plochu u skal (mutuje – na kopii)   | ano (značka)       | krajina, překážky        | ne                           | oba     |
 | `people-names` – `withPeopleNames`             | jména lidem bez jména (muž rodu bez jména čeká na hráče)   | ano (při každém)   | –                        | ne (`foundVillage`)          | oba     |
 | `sheaf-work-by-kg` – `convertSheafWorkByKg`    | práce uložených snopů podle kg (D95)                       | ano (`byKg`)       | –                        | ne (sklizeň `byKg`)          | oba     |
+| `smoked-meat-stocks` – `smokedMeatStocks`      | uzené 1. 11.–31. 8. do zásoby z porážky 1. 11. (D98)       | ano (vždy číslo)   | –                        | ne (`foundVillage` – 0)      | oba     |
 
 „Zakládá novou ves“ = jedná na právě založené vsi; v závorce, kde tu část nová ves dostane při
 založení. „Při každém“ = bez příznaku, hlídá podmínku při každém průchodu (levné).

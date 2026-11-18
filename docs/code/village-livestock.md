@@ -79,15 +79,15 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
 - **Strava a dobytek** ([diet.md](../design/diet.md) – Strava po vrstvách a porážka celý rok,
   Martin 18. 11. 2026): jídlo dne `eatDiet` / `villageMeal` (`diet.ts`) **bez stropů** – každý
   den do potřeby energie: pevný příděl medu, napřed **tempo proti zkažení** i v hojnosti (vejce
-  dnes, ovoce ÷ dny do zkažení `fruitPace`, dnešní čerstvé maso ÷ dny do konce masa `freshPace`
-  a **díl uzeného** `smokedShare` – zásoba po dnešní ztrátě ÷ dny do konce masa, poslední den
-  zbytek; nad plnou potřebu se krátí uzené, čerstvé maso, ovoce, vejce naposled), pak zbytek
-  v pořadí mléko, vejce, čerstvé maso (zimní porážka, ryby a zvěř), sýr, ovoce (jablka; v rozhraní
-  „ovoce“), luštěniny, obilí (nejvýš vymlácená zásoba) a v hladu med. Uzené jen svým dílem, nad
-  něj ani v hojnosti, ani v hladu (od 18. 11. 2026, D98 – Martin: „Uzené rozlož“; dřív v pořadí
-  hned po čerstvém); nevypité mléko → sýr (`cheeseFromMilk`), nesnědené čerstvé maso se vyudí (jí
-  se pak dílem uzeného), nesnědená vejce se zkazí – ovoce ani maso, které jde sníst, se tak
-  nezkazí. Snědené dne celkem `DietResult.eaten` (`Eaten`, čerstvé maso
+  dnes, ovoce ÷ dny do zkažení `fruitPace`, maso ÷ dny do konce masa `meatPace` – z čerstvého
+  napřed, pak ostatní uzené; nad plnou potřebu se krátí maso, ovoce, vejce naposled), pak zbytek
+  v pořadí mléko, vejce, čerstvé maso (zimní porážka, ryby a zvěř), ostatní uzené, **díl zásoby
+  z porážky 1. 11.** (`slaughterShare` – `slaughterMeatKg` po dnešní ztrátě ÷ dny do konce masa,
+  poslední den zbytek; do plné potřeby i nad příděl, nad díl ne, co se nevejde, zůstane – D98 kolo
+  1, Martin 18. 11. 2026: „Uzené rozlož“), sýr, ovoce (jablka; v rozhraní „ovoce“), luštěniny,
+  obilí (nejvýš vymlácená zásoba) a v hladu med; nevypité mléko → sýr (`cheeseFromMilk`),
+  nesnědené čerstvé maso se vyudí (k ostatnímu uzenému), nesnědená vejce se zkazí – ovoce ani
+  maso, které jde sníst, se tak nezkazí. Snědené dne celkem `DietResult.eaten` (`Eaten`, čerstvé maso
   zvlášť v `freshMeatKg`). Maso se kazí 1. 9. (`daysUntilMeatEnd`; 1. 9. ráno zbytek – `spoilMeat`,
   kronika `meat-spoiled`, upozornění; maso ze září a října do porážky – Martin: „uzené maso určitě
   také nevydrží 3 roky“), ovoce 1. 3. **Výhled do sklizně** (`DietResult.outlook`, `grainSpareKg`,
@@ -98,14 +98,15 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   výhledu, nejvýš zbytek kvóty, jen rok kvóty od 1. 5. a sezóna do 30. 11., prosinec–březen 0;
   `villageMeal` ji dostává zvenku (`fresh.fishAheadEnergy`, small-game.ts přes zboží importuje
   diet.ts) –, mléko stád `milkAheadEnergy` – `milkEnergyBetween` za den nejvýš
-  potřeba –, uzené svým dílem (nejvýš potřeba dne) za dny výhledu do konce masa, ovoce nejvýš
-  potřeba za dny do zkažení, sýr a luštěniny i snopy celé; celé
+  potřeba –, ostatní uzené a ovoce nejvýš potřeba za dny do zkažení, zásoba z porážky 1. 11.
+  dílem (nejvýš potřeba dne) za dny výhledu do konce masa i se ztrátou uzením (`keptDays`), sýr
+  a luštěniny i snopy celé; celé
   nejvýš potřeba × dny, bez medu) a obilí i snopy po ztrátách skladováním do dne, kdy se snědí
   (`grainEatenShare` – rovným dílem od dneška, v hladu se příděl během sezóny mírně kloní, protože trvanlivé jídlo mimo obilí se jí dřív, nejvýš ≈ 2 p. b.; fields.md – Přídělový systém, Martin 15. 11. 2026).
   Dnes se sní příděl × potřeba, ale aspoň tempem proti zkažení (`spoilPace` – vejce dnes, ovoce do
-  zkažení, dnešní čerstvé maso do konce masa rovným dílem a díl uzeného; návrh Clauda) a nejvýš
-  celá potřeba – díl uzeného se tak sní i v hladu nad příděl, víc uzeného ne. Šetří se jen obilí
-  (a v hladu med).
+  zkažení, maso do konce rovným dílem; návrh Clauda) a nejvýš celá potřeba – maso, které by se
+  zkazilo, se tak sní i v hladu nad příděl (díl zásoby z 1. 11. také). Šetří se jen obilí (a v hladu
+  med).
   **Bílkoviny** (Martin 18. 10. 2026): 1,6 g na kg tělesné váhy (`PROTEIN`, `proteinNeedPerDay`
   – 20 / 60 / 58 kg), nasycení = energie × kvalita (`dietQuality` = 0,6 + 0,34 × bílkoviny +
   0,06 × ovoce; jen obilí ≈ 80 %). **Mléko a sýr** (`dairy.ts`): dojí se samice, které letos rodily
@@ -192,9 +193,10 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
      létě** (diet.md – Strava po vrstvách a porážka celý rok, V létě; `summer-slaughter.ts`, od
      jarních mláďat do podzimní porážky – `isSummerSlaughterSeason`): `summerSlaughterDay` (v jídle
      dne `eat` po práci, před nouzovou porážkou – počítá i dnešní ryby a oka) porazí jeden celý kus,
-     když rodu vojvody (`hungerSplit` – skupina 0) na dnešek nestačí dnešní čerstvé maso a dnešní
-     díl uzeného (`lordMeatShortKg`, `villageSmokedShareKg` v diet.ts – od 18. 11. 2026, D98; dřív
-     celá zásoba uzeného); nejmenší druh, jehož kus chybějící maso pokryje, jinak největší
+     když rodu vojvody (`hungerSplit` – skupina 0) na dnešek nestačí dnešní čerstvé maso, ostatní
+     uzené (celé) a dnešní díl zásoby z porážky 1. 11. (`lordMeatShortKg`, `villageSlaughterShareKg`
+     v diet.ts – D98 kolo 1; dřív celá zásoba uzeného); nejmenší druh, jehož kus chybějící maso
+     pokryje, jinak největší
      (`summerSlaughterPlan`), jen z kusů na maso `summerSlaughterCandidates`: staré kusy (`retiringHeads`) a dospělé kusy nad
      stádo přes zimu, obojí ze stáda i s kusy, které léto už vzalo (`summerSlaughtered` – ty se
      odečtou, odhad se letní porážkou nezmenšuje), nad `winterKeepTargets` (`summerWinterInput`: vstup jako
