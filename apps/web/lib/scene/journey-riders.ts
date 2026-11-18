@@ -76,6 +76,11 @@ export interface SceneJourney extends Pick<
   home: Pos | null;
   /** Sedlání nebo sesednutí skupiny doma (scéna ho jen přehraje – expedition-choreo.ts); jinak chybí. */
   horseWork?: HorseWork;
+  /**
+   * Kde a v kterém taktu hlouček naposledy stál, než vyrazil po současném úseku (`groupSetOut` –
+   * vlastní skupina, která jde); stojící hlouček a návštěvník – chybí.
+   */
+  setOut?: { tick: number; pos: Pos };
 }
 
 /** Muž výjezdu nakreslený ve scéně – poloha, směr a rychlost. */
@@ -329,23 +334,41 @@ export class JourneyGlide {
 
   /**
    * Nový stav `j` výjezdu, který scéna kreslí: přehrávání pokračuje odtud, kde je hlouček nakreslený
-   * (první stav stopy), stavy mezi ním a novým zůstanou. Stál-li hlouček (poslední dva stavy na
-   * stejném místě), kdy se rozjel, nevíme – pohyb k novému stavu potrvá jako dřív (`glideMs`).
+   * (první stav stopy), stavy mezi ním a novým zůstanou. Hlouček, který stál (poslední dva stavy na
+   * stejném místě – Martin 18. 11. 2026: „zezačátku jde hrozně pomalu“): stojící stav po stojícím
+   * (worker ho ukládá po 40 taktech) jen posune přehrávání na `PLAY_LAG_TICKS` za nový stav – dřív
+   * ho scéna hrála jako 40 taktů dlouhý posun na místě a stojící hlouček kreslila až 10 s pozadu;
+   * první stav v pohybu nese, kde a kdy hlouček naposledy stál (`setOut`) – do té doby stojí a pak
+   * jde tempem jádra. Bez údaje (návštěvník) kdy se rozjel, nevíme – pohyb k novému stavu potrvá
+   * jako dřív (`glideMs`).
    */
   private follow(was: Glide, j: SceneJourney, heading: Pos, to: RiderPose[], nowMs: number): Glide {
     const p = playTick(was, nowMs);
     const drawn = posesAt(was, nowMs);
     const between = was.track.filter((s) => s.tick > p && s.tick < j.tick);
+    // poslední stav, kde hlouček stál, než vyrazil (stál tam ještě v taktu `setOut.tick`)
+    const stood =
+      j.setOut !== undefined &&
+      j.setOut.tick > was.journey.tick &&
+      j.setOut.tick < j.tick &&
+      samePos(was.journey.pos, j.setOut.pos)
+        ? { tick: j.setOut.tick, poses: was.track[was.track.length - 1]!.poses }
+        : null;
     let start = p;
     // hlouček stál: rozjede se o tolik později, aby měl zásobu `PLAY_LAG_TICKS` (obvykle ≈ 1 s)
     let hold = 0;
     if (!was.moved && between.length === 0 && j.tick > p) {
-      start = Math.max(p, j.tick - glideMs(j.tick - p, nowMs - was.receivedAt) / TICK_MS);
+      const still = samePos(was.journey.pos, j.pos);
+      const lead =
+        still || stood
+          ? Math.min(stood?.tick ?? j.tick, j.tick - PLAY_LAG_TICKS)
+          : j.tick - glideMs(j.tick - p, nowMs - was.receivedAt) / TICK_MS;
+      start = Math.max(p, lead);
       hold = Math.max(0, PLAY_LAG_TICKS - (j.tick - start));
     }
     if (j.tick - start > PLAY_BEHIND_MAX_TICKS) start = j.tick - PLAY_LAG_TICKS;
     // stavy za novým začátkem (po zahozené zásobě začíná přehrávání dál)
-    const ahead = between.filter((s) => s.tick > start);
+    const ahead = [...between, ...(stood ? [stood] : [])].filter((s) => s.tick > start);
     const track: Sample[] =
       j.tick > start
         ? [

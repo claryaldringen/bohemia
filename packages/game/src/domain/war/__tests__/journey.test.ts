@@ -7,7 +7,7 @@ import { sameCell, type GridCell } from '../../village/people/world-grid';
 import type { TileCell, VillageState } from '../../village/types';
 import { dwelling, kin, village } from '../../village/__tests__/kin-fixtures';
 import type { CampaignMap, CampaignWorld } from '../campaign-types';
-import { journeyFinished, newJourney, stepJourney, type NewJourney } from '../journey';
+import { groupSetOut, journeyFinished, newJourney, stepJourney, type NewJourney } from '../journey';
 import type {
   JourneyIntent,
   JourneyMember,
@@ -291,6 +291,21 @@ describe('rozkaz go', () => {
     expect(arrivedOf(exactly)).toBe(at);
     expect(there.villageEvents).toEqual([]);
     expect(there.notices).toEqual([]);
+  });
+
+  it('groupSetOut – kde a kdy stojící hlouček vyrazil (scéna – Martin 18. 11. 2026)', () => {
+    // stojí doma bez rozkazu, „Jdi sem“ platí v taktu LAUNCH + 10 – v taktu LAUNCH + 9 ještě stál
+    const start = journey({ order: undefined });
+    const go = [intent(LAUNCH + 10, 0, { kind: 'go', pos: NEAR })];
+    const standing = stepJourney(start, LAUNCH + 9, go, worldOf()).state;
+    expect(groupSetOut(standing, standing.groups[0]!)).toBeNull();
+    for (const tick of [LAUNCH + 10, LAUNCH + 14, LAUNCH + 60]) {
+      const s = stepJourney(start, tick, go, worldOf()).state;
+      expect(s.groups[0]!.pos).not.toEqual(HOME.pos);
+      expect(groupSetOut(s, s.groups[0]!)).toEqual({ tick: LAUNCH + 9, pos: HOME.pos });
+    }
+    const there = stepJourney(start, LAUNCH + 400, go, worldOf()).state;
+    expect(groupSetOut(there, there.groups[0]!)).toBeNull();
   });
 
   it('cíl ve vodě se posune na nejbližší dosažitelné místo', () => {

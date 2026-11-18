@@ -381,7 +381,10 @@ untilTick, pen }`: vesničan `groomId` (null = nikdo doma), jezdci (id osob), ta
   jeho běžící výpravy (`activeOfPlayer`, jedna za domovskou ves; bod převede `upgradeJourney`,
   skončená a cizí výprava prázdno). `ExpeditionView` nese `villageId`, takt, den, domov a `homePos`,
   `parties[]` (`PartyView`: fáze, `controllable`, `leaderId` = `partyLeader` živých, `waitDaysLeft`,
-  `horseWork`, hloučky `groups[]` a lidé `people[]` s hloučkem, jezdcem, koněm, `strength` – na koni
+  `horseWork`, hloučky `groups[]` – u jdoucího hloučku i `setOut` (`groupSetOut` v `journey.ts`: začátek
+  současného úseku `leg.points[0]` a poslední takt, kdy tam stál – takt bodu bez taktů chůze, ušlé
+  metry louky ÷ krok skupiny `partyStepM`; scéna podle něj ví, kdy se stojící hlouček rozjel –
+  Scéna vsi) – a lidé `people[]` s hloučkem, jezdcem, koněm, `strength` – na koni
   `strengthMounted ?? strength` –, raněním, ženou a dítětem podle `bornDay` ve dni bodu) a `seen`
   (klíč `x,y` – znalost rodu sloučená s `seen` výpravy pro každé cizí políčko hloučku, jeden dotaz
   na políčko; domovská mapa nic).
@@ -611,9 +614,17 @@ inParty, atHomeMap, horseWork }`, `ButtonState` = `'hidden' | 'enabled' | { disa
   v nepravidelných kolech (≈ 1 s, déle s prací vsí) a server stav pošle při každém uložení; přehrávání drží
   zásobu zrychlením či zpomalením nejvýš o `PLAY_SLACK` (6 %). Dřív každý nový stav spustil nový
   posun z nakreslené polohy za `glideMs` – muž střídavě stál a dobíhal (měření: 0–10,5 m/s při
-  jádru 5,25 m/s). Hlouček, který stál (poslední dva stavy na místě), se rozjede s prvním stavem
-  v pohybu (pohyb k němu jako dřív `glideMs`) o tolik později, aby měl zásobu; zásoba nad 40 taktů
-  se zahodí. Stejný takt pohyb nepřeruší, omezený pohyb stojí na novém místě. Tempo jádra se mění
+  jádru 5,25 m/s). Hlouček, který stál (poslední dva stavy na místě – Martin 18. 11. 2026: „když ho
+  někam pošlu, tak zezačátku jde hrozně pomalu než se rozejde normální rychlostí“): stojící stav po
+  stojícím (worker stojící skupinu ukládá po `CHECKPOINT_TICKS` – 40 taktech) jen posune přehrávání
+  na `PLAY_LAG_TICKS` za nový stav – dřív ho scéna hrála jako 40 taktů dlouhý posun na místě, stojící
+  hlouček kreslila až 10 s pozadu a první krok roztáhla od posledního stojícího bodu (měření: rozkaz
+  10–30 taktů po stojícím bodu → 2–7 s stál, pak 2,5–7,5 s 0,17–0,7 m/s, tempo jádra 3,5–5,25 m/s až
+  po ≈ 10 s). První stav v pohybu nese `setOut` (kde a v kterém taktu hlouček naposledy stál –
+  `SceneJourney.setOut` z `PartyView`): stopa dostane stojící stav v tom taktu, hlouček stojí do
+  `setOut.tick` a pak jde tempem jádra, nejvýš `PLAY_LAG_TICKS` za stavem (návrh Clauda). Bez
+  údaje (návštěvník) se rozjede s prvním stavem v pohybu (pohyb k němu jako dřív `glideMs`) o tolik
+  později, aby měl zásobu; zásoba nad 40 taktů se zahodí. Stejný takt pohyb nepřeruší, omezený pohyb stojí na novém místě. Tempo jádra se mění
   jen s terénem (cesta × 1,5, les – war.md – Pohyb vojska). `headingOf` – směr z posunu, jinak k cíli.
   `SceneJourney.men[]` nese `look` (`line` muž rodu, `man` / `woman` vesničan a vesničanka, `child`;
   `lookOf` v `journey-view.ts`) a `led` (jezdec vede koně). `journeyFigures` – jezdci
@@ -661,7 +672,8 @@ inParty, atHomeMap, horseWork }`, `ButtonState` = `'hidden' | 'enabled' | { disa
   (praporek na souši) závisel na náhodné krajině a byl nestabilní – kryje ho unit test
   `journey.test.ts` (posunutý `group.goal` leží na souši) a `journey-marker.test.ts` (praporek na
   `group.goal`).
-- **Testy** – `lib/scene/__tests__/journey-riders.test.ts` (i stálé tempo při nepravidelných
+- **Testy** – `lib/scene/__tests__/journey-riders.test.ts` (i rozjezd dlouho stojícího hloučku tempem
+  jádra a stojící body bez zpoždění, stálé tempo při nepravidelných
   stavech – D49), `journey-marker.test.ts`,
   `lib/__tests__/journey-scene.test.ts`, `hooks/__tests__/use-journey-visitors.behavior.test.tsx`.
 
