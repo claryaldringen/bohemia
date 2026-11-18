@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../../calendar';
 import { foundVillage, type PartInput } from '../actions';
 import {
+  DIET,
+  daysUntilMeatEnd,
   daysUntilMeatSpoil,
   fruitEnergy,
   grainKeepPerDay,
@@ -100,21 +102,22 @@ describe('foodLastsDays', () => {
     expect(lasts(withSeed)).toBe(lasts(village({ storesKg: 2000 })));
   });
 
-  it('maso bez stropu do zkažení 1. 9. – samo dá plný příděl, jí se napřed', () => {
-    // krátký výhled – obilí, které maso ušetří, se do konce zásob skoro nezkazí
+  it('uzené jen svým dílem do konce masa jako jídlo dne – samo plný příděl nedá (D98)', () => {
     const grain = 300;
     const meat = 100;
     const plain = village({ storesKg: grain });
     const perDay = need(plain, NOVEMBER);
-    // maso samo uživí ves plným přídělem, dokud ho je (jen uzení ubírá)
-    const meatOnly = lasts(village({ meatKg: meat }));
-    expect(meatOnly).toBeGreaterThan(0);
-    expect(meatOnly).toBeLessThanOrEqual(meatEnergy(meat) / perDay);
-    expect(meatOnly).toBeGreaterThan(meatEnergy(meat) / perDay - 2);
-    // v listopadu se maso sní celé (do 1. 9. daleko) – přidá skoro celou svou energii
+    // díl uzeného (zásoba ÷ dny do 31. 8.) je zlomek potřeby – samo maso plný příděl nedá
+    const end = daysUntilMeatEnd(NOVEMBER + 1);
+    expect(meatEnergy(meat) / end).toBeLessThan(perDay);
+    expect(lasts(village({ meatKg: meat }))).toBe(0);
+    // s obilím díl uzeného obilí šetří – vydrží déle, ale méně, než kdyby se maso snědlo celé
     const novemberGain = lasts(village({ storesKg: grain, meatKg: meat })) - lasts(plain);
-    expect(novemberGain).toBeGreaterThan((0.8 * meatEnergy(meat)) / perDay);
-    expect(novemberGain).toBeLessThanOrEqual(meatEnergy(meat) / perDay + 1);
+    expect(novemberGain).toBeGreaterThan(0);
+    expect(novemberGain).toBeLessThan(meatEnergy(meat) / perDay - 1);
+    // díl aspoň na celou potřebu – uzené samo uživí ves do konce masa, 1. 9. ráno se zbytek zkazí
+    const plenty = (2 * perDay * end) / DIET.meatEnergy;
+    expect(lasts(village({ meatKg: plenty }))).toBe(end);
     // 20. 8. se do zkažení stihne jen 11 dní plné potřeby, zbytek přijde nazmar
     const august = at(601, 8, 20);
     expect(meatEnergy(meat) / perDay).toBeGreaterThan(11);

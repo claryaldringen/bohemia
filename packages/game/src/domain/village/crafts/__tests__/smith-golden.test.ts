@@ -216,6 +216,8 @@ describe('ves bez kováře a hrnčíře beze změny (crafts.md – Uhlí a ruda 
     // 18. 11. 2026 – strava po vrstvách, úloha 4 (porážka celý rok); dřív 71befe4b
     // 18. 11. 2026 – opravy po závěrečné kontrole stravy (maso elitě, ryby ve výhledu, porážka za
     // žní, podíl pasáků); dřív 77740d4
-    expect(hash(stripped)).toBe('f8960960');
+    // 18. 11. 2026 – D98 uzené rozložené do zkažení (díl uzeného do konce masa, letní porážka podle
+    // dnešního dílu); dřív f8960960
+    expect(hash(stripped)).toBe('e3144fbc');
   }, 120_000);
 });

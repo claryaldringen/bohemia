@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../../calendar';
 import { foundVillage } from '../../core/actions';
-import { meatEnergy, villageFoodNeed } from '../../core/diet';
+import { DAILY_MEAT_KEEP, daysUntilMeatEnd, meatEnergy, villageFoodNeed } from '../../core/diet';
 import { winterHayKg } from '../hay';
 import { WILDLIFE_LAND } from '../../rules/rules-wildlife';
 import { freshWildlife } from '../../wildlife/wildlife';
@@ -315,7 +315,7 @@ describe('seno a čekající kusy', () => {
 });
 
 describe('čerstvé maso ve stravě', () => {
-  it('čerstvé maso se jí napřed, uzené počká – bez stropu do plné potřeby', () => {
+  it('čerstvé maso se jí hned do plné potřeby, uzené jen svým dílem do konce masa (D98)', () => {
     const day = at(600, 12, 1);
     const s = village(day - 1);
     s.people = s.people.slice(0, 2);
@@ -323,13 +323,18 @@ describe('čerstvé maso ve stravě', () => {
     s.livestock!.herds = herds({ pig: 10 });
     s.livestock!.culling = herds({ pig: 4 });
     const next = advanceVillage(s, day, null);
-    // dnes jen čerstvé – do plné potřeby po vejcích a mléce (dřív strop masa 40 %)
-    expect(next.diet!.shares.freshMeat).toBeCloseTo(afterDairyAndEggs(next.diet!), 6);
-    expect(next.diet!.shares.meat).toBeCloseTo(afterDairyAndEggs(next.diet!), 6);
-    expect(next.diet!.energy).toBeCloseTo(1, 6);
-    // uzené čeká (jen uzení ubere)
-    expect(next.meatKg!).toBeGreaterThan(299);
     const need = villageFoodNeed(next, day);
     expect(need).toBeGreaterThan(0);
+    // díl uzeného – zásoba ÷ dny do 31. 8. (Martin 18. 11. 2026: „Uzené rozlož“)
+    const shareKg = (300 * DAILY_MEAT_KEEP) / daysUntilMeatEnd(day);
+    // maso do plné potřeby po vejcích a mléce (dřív strop masa 40 %): díl uzeného a čerstvé
+    expect(next.diet!.shares.meat).toBeCloseTo(afterDairyAndEggs(next.diet!), 6);
+    expect(next.diet!.shares.freshMeat).toBeCloseTo(
+      afterDairyAndEggs(next.diet!) - meatEnergy(shareKg) / need,
+      6,
+    );
+    expect(next.diet!.energy).toBeCloseTo(1, 6);
+    // z uzeného ubude jen díl a uzení – čerstvé, které se nesnědlo, se k němu vyudí
+    expect(next.meatKg!).toBeGreaterThanOrEqual(300 * DAILY_MEAT_KEEP - shareKg - 1e-9);
   });
 });

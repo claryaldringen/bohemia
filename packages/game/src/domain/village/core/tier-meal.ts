@@ -68,8 +68,9 @@ const extraHoneyOf = (eaten: Eaten): number => Math.max(0, eaten.honeyKg - ratio
  * ve `dietOf`).
  *
  * Pořadí rozdělení se od pořadí jídla vsi liší záměrně: co ves dnes sní, rozhodne `eatDiet`
- * (diet.ts – mléko a vejce napřed, nedají se uložit; totéž pořadí má předpověď `foodLastsDays`
- * ve food-lasts.ts) a množství je dané – tady se jen určuje, kdo co sní, a maso jde napřed elitě
+ * (diet.ts – mléko a vejce napřed, nedají se uložit, uzené jen svým dílem do zkažení; totéž
+ * pořadí má předpověď `foodLastsDays` ve food-lasts.ts) a množství je dané – tady se jen určuje,
+ * kdo co sní, a maso (i dnešní díl uzeného) jde napřed elitě
  * (Martin 18. 11. 2026: „Elita ať jí obecně víc masa celoročně“; dřív mléko a vejce před masem –
  * rod pil mléko a maso dostali ostatní). Změna pořadí jídla od Martina se dělá na všech třech
  * místech.

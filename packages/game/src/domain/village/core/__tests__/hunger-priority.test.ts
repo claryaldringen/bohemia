@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../../calendar';
 import { daysUntilHarvest } from '../food';
-import { DIET, DAILY_MEAT_KEEP, proteinNeedPerDay, villageFoodNeed } from '../diet';
+import {
+  DIET,
+  DAILY_MEAT_KEEP,
+  daysUntilMeatEnd,
+  proteinNeedPerDay,
+  villageFoodNeed,
+} from '../diet';
 import { eat } from '../simulate-food';
 import { NO_CRAFTS } from '../productivity';
 import { APPLE_FOOD_VALUE } from '../../rules';
@@ -192,8 +198,9 @@ describe('strava po vrstvách – štěstí ze stravy po lidech', () => {
     const day = START + 10;
     const s = village(3, 1.3);
     const need = villageFoodNeed(s, day);
-    // maso za 5 % potřeby vsi – rodu (2 ze 14 lidí) dá přes 20 % energie
-    s.meatKg = (0.05 * need) / DIET.meatEnergy / DAILY_MEAT_KEEP;
+    // dnešní díl uzeného (zásoba ÷ dny do konce masa – D98) za 5 % potřeby vsi – rodu (2 ze 14
+    // lidí) dá přes 20 % energie
+    s.meatKg = ((0.05 * need) / DIET.meatEnergy / DAILY_MEAT_KEEP) * daysUntilMeatEnd(day);
     const result = eat(s, day, NO_CRAFTS);
     expect(s.diet!.shares.meat).toBeCloseTo(0.05, 9);
     expect(result.diet.meat).toBeCloseTo((DIET.meatHappiness.max * 2) / 14, 9);
@@ -205,8 +212,8 @@ describe('strava po vrstvách – štěstí ze stravy po lidech', () => {
     const day = START + 10;
     const s = village(3, 1.3);
     const need = villageFoodNeed(s, day);
-    // maso za 30 % potřeby vsi (rod by se jím nasytil sám), ovoce za 10 %, med z klátů
-    s.meatKg = (0.3 * need) / DIET.meatEnergy / DAILY_MEAT_KEEP;
+    // díl uzeného za 30 % potřeby vsi (rod by se jím nasytil sám), ovoce za 10 %, med z klátů
+    s.meatKg = ((0.3 * need) / DIET.meatEnergy / DAILY_MEAT_KEEP) * daysUntilMeatEnd(day);
     s.applesKg = (0.1 * need) / APPLE_FOOD_VALUE;
     s.wares = { hides: 0, sheepFurs: 0, wildFurs: 0, honeyKg: 10, waxKg: 0 };
     const result = eat(s, day, NO_CRAFTS);
@@ -225,8 +232,8 @@ describe('strava po vrstvách – štěstí ze stravy po lidech', () => {
     for (const p of s.people)
       if (p.dwellingId === 3) p.away = { kind: 'labor', untilDay: day + 30 };
     const need = villageFoodNeed(s, day);
-    // maso za 10 % potřeby – sní ho celé rod (2 z 8 jedlíků)
-    s.meatKg = (0.1 * need) / DIET.meatEnergy / DAILY_MEAT_KEEP;
+    // díl uzeného za 10 % potřeby – sní ho celý rod (2 z 8 jedlíků)
+    s.meatKg = ((0.1 * need) / DIET.meatEnergy / DAILY_MEAT_KEEP) * daysUntilMeatEnd(day);
     const result = eat(s, day, NO_CRAFTS);
     expect(result.diet.meat).toBeCloseTo((DIET.meatHappiness.max * 2) / 8, 9);
   });

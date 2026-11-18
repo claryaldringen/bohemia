@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../../calendar';
 import { foundVillage } from '../../core/actions';
-import { DIET, meatEnergy } from '../../core/diet';
+import { DAILY_MEAT_KEEP, DIET, daysUntilMeatEnd, meatEnergy } from '../../core/diet';
 import { baseMealInput } from '../../core/meal-input';
 import { NO_CRAFTS } from '../../core/productivity';
 import { hungerSplit } from '../../people/hunger-groups';
@@ -19,6 +19,7 @@ import {
 } from '../livestock';
 import {
   freshMeatAheadEnergy,
+  lordMeatShortKg,
   summerSlaughterCandidates,
   summerSlaughterDay,
 } from '../summer-slaughter';
@@ -27,7 +28,8 @@ import { withBuiltFirstDwelling, withRoomyPens } from '../../__tests__/village-f
 
 // Porážka celý rok – léto (diet.md – Strava po vrstvách a porážka celý rok; Martin 18. 11. 2026:
 // „kníže a nobilita chce mít maso na stole nejlépe každý den“): v létě se porazí jeden celý kus,
-// jen když rodu vojvody na dnešek nestačí maso v zásobě – nejmenší, který potřebu pokryje, jinak
+// jen když rodu vojvody na dnešek nestačí dnešní čerstvé maso a dnešní díl uzeného (D98 – uzené
+// rovným dílem do zkažení) – nejmenší, který potřebu pokryje, jinak
 // největší; jen kusy, které by si ves 1. 11. nenechala, bez letošních mláďat (selata od 1. 9.)
 // a nikdy pod chovné minimum.
 
@@ -122,23 +124,43 @@ describe('letní porážka pro rod vojvody', () => {
     expect(next.freshMeatKg).toBeUndefined();
   });
 
-  it('zásoba stačí – rod má na dnešek uzené maso, nic se neporáží', () => {
+  it('dnešní díl uzeného stačí – rod má na dnešek maso, nic se neporáží', () => {
     const s = village(day);
     s.livestock!.herds = herds({ sheep: 20, cow: 10 });
-    s.meatKg = lordNeed(s, day) / DIET.meatEnergy + 0.1;
+    // díl uzeného = zásoba po dnešní ztrátě ÷ dny do konce masa (D98 – Martin 18. 11. 2026:
+    // „Uzené rozlož“)
+    s.meatKg = ((lordNeed(s, day) / DIET.meatEnergy) * daysUntilMeatEnd(day)) / DAILY_MEAT_KEEP + 1;
+    expect(lordMeatShortKg(s, day)).toBe(0);
     summerSlaughterDay(s, day, NO_HERDERS);
     expect(s.livestock!.herds).toEqual(herds({ sheep: 20, cow: 10 }));
     expect(s.freshMeatKg ?? 0).toBe(0);
   });
 
+  it('velká zásoba uzeného, ale dnešní díl rodu nestačí – porazí se kus (D98)', () => {
+    const s = village(day);
+    s.livestock!.herds = herds({ sheep: 20, cow: 10 });
+    s.livestock!.young = herds({});
+    // uzené na 20 dní plné potřeby rodu – dřív by rodu stačilo, s dílem do 31. 8. ne
+    const need = lordNeed(s, day);
+    s.meatKg = (20 * need) / DIET.meatEnergy;
+    const shareKg = (s.meatKg * DAILY_MEAT_KEEP) / daysUntilMeatEnd(day);
+    expect(daysUntilMeatEnd(day)).toBeGreaterThan(20);
+    expect(lordMeatShortKg(s, day)).toBeCloseTo(need / DIET.meatEnergy - shareKg, 9);
+    summerSlaughterDay(s, day, NO_HERDERS);
+    expect(s.livestock!.herds.sheep).toBeCloseTo(19, 9);
+    expect(s.freshMeatKg).toBeCloseTo(LIVESTOCK.meatKg.sheep, 9);
+  });
+
   it('dnešní ryby se počítají – porážka se rozhoduje po práci dne, před jídlem', () => {
-    // dva lidé v dvorci: polovinu masa rodu dá uzené, zbytek dnešní ryby z tůní
+    // dva lidé v dvorci: polovinu masa rodu dá dnešní díl uzeného, zbytek dnešní ryby z tůní
     const fishing = (fish: boolean): { before: VillageState; after: VillageState } => {
       const s = village(day - 1);
       s.people = s.people.slice(0, 2);
       s.livestock!.herds = herds({ sheep: 20, cow: 10 });
       s.livestock!.young = herds({});
-      s.meatKg = (0.5 * lordNeed(s, day)) / DIET.meatEnergy;
+      // dnešní díl uzeného (zásoba ÷ dny do konce masa – D98) dá rodu polovinu masa
+      s.meatKg =
+        ((0.5 * lordNeed(s, day)) / DIET.meatEnergy) * (daysUntilMeatEnd(day) / DAILY_MEAT_KEEP);
       const land = WILDLIFE_LAND.defaultLand;
       s.wildlife = freshWildlife(fish ? { ...land } : { ...land, waterHa: 0, pools: 0 }, 0);
       return { before: s, after: advanceVillage(s, day, null) };
@@ -291,7 +313,7 @@ describe('letní porážka pro rod vojvody', () => {
     summerSlaughterDay(s, day, NO_HERDERS);
     expect(s.livestock!.herds).toEqual(herds({ sheep: 20, cow: 10 }));
     expect(s.freshMeatKg ?? 0).toBe(0);
-    expect(freshMeatAheadEnergy(s, day, 60, NO_HERDERS)).toBe(0);
+    expect(freshMeatAheadEnergy(s, day, 60, NO_HERDERS, 0, 0)).toBe(0);
   });
 
   it('chovné minimum a letošní mláďata zůstanou – selata smějí na maso od 1. 9.', () => {
@@ -333,18 +355,18 @@ describe('letní porážka pro rod vojvody', () => {
     s.livestock!.young = herds({});
     const need = lordNeed(s, day);
     // 30 dní výhledu – dnešek a 29 dní od zítřka
-    expect(freshMeatAheadEnergy(s, day, 30, NO_HERDERS)).toBeCloseTo(need * 29, 9);
+    expect(freshMeatAheadEnergy(s, day, 30, NO_HERDERS, 0, 0)).toBeCloseTo(need * 29, 9);
     // kusů na maso je málo – víc, než dají, výhled nečeká
     s.livestock!.herds = herds({ sheep: 3.5 });
     expect(summerSlaughterCandidates(s, day, NO_HERDERS).sheep).toBeCloseTo(1.5, 9);
-    expect(freshMeatAheadEnergy(s, day, 300, NO_HERDERS)).toBeCloseTo(
+    expect(freshMeatAheadEnergy(s, day, 300, NO_HERDERS, 0, 0)).toBeCloseTo(
       meatEnergy(LIVESTOCK.meatKg.sheep),
       9,
     );
     // nejvýš do konce letní porážky (31. 10.)
     s.livestock!.herds = herds({ sheep: 200 });
     const october = at(601, 10, 21);
-    expect(freshMeatAheadEnergy(s, october, 300, NO_HERDERS)).toBeCloseTo(
+    expect(freshMeatAheadEnergy(s, october, 300, NO_HERDERS, 0, 0)).toBeCloseTo(
       lordNeed(s, october) * 10,
       9,
     );
@@ -357,12 +379,18 @@ describe('letní porážka pro rod vojvody', () => {
     const need = lordNeed(s, day);
     // uzené v zásobě a ryby jí rod napřed (porážka čeká, dokud mu stačí) – odečtou se celé
     s.meatKg = 10;
-    expect(freshMeatAheadEnergy(s, day, 30, NO_HERDERS, 5)).toBeCloseTo(
+    expect(freshMeatAheadEnergy(s, day, 30, NO_HERDERS, 5, 0)).toBeCloseTo(
       need * 29 - meatEnergy(10) - 5,
       9,
     );
+    // i dnešní čerstvé maso (dnešní kus, ryby a oka) – co se z něj nesní, se vyudí (D98; dřív
+    // v den porážky odhad vyšší o nesnědený zbytek kusu)
+    expect(freshMeatAheadEnergy(s, day, 30, NO_HERDERS, 5, 20)).toBeCloseTo(
+      need * 29 - meatEnergy(10 + 20) - 5,
+      9,
+    );
     // ryby pokryjí celou potřebu rodu – z letní porážky výhled nic nečeká
-    expect(freshMeatAheadEnergy(s, day, 30, NO_HERDERS, need * 29)).toBe(0);
+    expect(freshMeatAheadEnergy(s, day, 30, NO_HERDERS, need * 29, 0)).toBe(0);
     // ves s rybami a kusy na maso: vstup jídla dne bere týž odhad ryb jako výhled
     s.meatKg = 0;
     s.wildlife = freshWildlife({ ...WILDLIFE_LAND.defaultLand }, 0);

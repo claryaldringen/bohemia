@@ -631,15 +631,16 @@ function nextDayDiet(state: VillageState, day: number): { diet: DietDay; points:
   // letní odhad masa rodu je bez nich
   const fish = (daysToHarvest: number): number =>
     meatEnergy(fishAheadKg(state, next, daysToHarvest));
+  // zítřejší porážka – v zimě díl čekajících kusů, v létě kus pro rod vojvody (diet.md – Strava
+  // po vrstvách a porážka celý rok); letní odhad masa rodu je i bez ní
+  const freshKg =
+    winterSlaughterTodayKg(state, next) + (summerSlaughterPlan(state, next, winter)?.kg ?? 0);
   const meal = villageMeal(state, next, craftCoverage(state, next).pottery, {
     milk: dailyMilk(villageDams(state), next),
     eggsKg: dailyEggsKg(state),
-    // zítřejší porážka – v zimě díl čekajících kusů, v létě kus pro rod vojvody (diet.md – Strava
-    // po vrstvách a porážka celý rok)
-    meatKg:
-      winterSlaughterTodayKg(state, next) + (summerSlaughterPlan(state, next, winter)?.kg ?? 0),
+    meatKg: freshKg,
     meatAheadEnergy: (daysToHarvest) =>
-      freshMeatAheadEnergy(state, next, daysToHarvest, winter, fish(daysToHarvest)),
+      freshMeatAheadEnergy(state, next, daysToHarvest, winter, fish(daysToHarvest), freshKg),
     fishAheadEnergy: fish,
   });
   const split = hungerSplit(state, next);

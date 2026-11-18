@@ -257,9 +257,10 @@ function eatsFull(input: DietInput): boolean {
 /**
  * Krok 8: jídlo dne ze zásob (`eatDiet`; diet.md – Strava po vrstvách a porážka celý rok) – bez
  * stropů v pořadí pevný příděl medu, čerstvé mléko (dojí se vždy celé – ženy bokem, population.md
- * – Práce), vejce, čerstvé a uzené maso, sýr, ovoce, luštěniny, obilí a v hladu med (hides-honey.md
- * – Med v hladu). Snědené se rozdělí po vrstvách přednosti (`tierMeal` – Kdo dostane co): příděl
- * nad životním minimem a čím se naplní. Vrací nasycení vsi (energie × kvalita stravy), energii,
+ * – Práce), vejce, čerstvé maso, sýr, ovoce, luštěniny, obilí a v hladu med (hides-honey.md – Med
+ * v hladu); uzené jen svým dílem do zkažení (Martin 18. 11. 2026: „Uzené rozlož“). Snědené se
+ * rozdělí po vrstvách přednosti (`tierMeal` – Kdo dostane co): příděl nad životním minimem a čím
+ * se naplní. Vrací nasycení vsi (energie × kvalita stravy), energii,
  * štěstí z masa, ovoce a medu po lidech podle toho, co kdo snědl (`dietHappiness` – Spokojenost ze
  * stravy), a energii vrstev, když jídla není dost; zapíše začátek a konec hladu. Hlad začíná už
  * tehdy, když příděl energie podle výhledu do sklizně klesne pod plný – i když se dnes jí dosyta
@@ -275,8 +276,9 @@ export function eat(
   // co zásoby ubyly dnes (prodej, platby), jde z otevřené obilné jámy (production-chains.md –
   // Obilné jámy) – ztráta zásob v jídle dne podle jam
   drawGrainPits(state);
-  // v létě kus pro rod vojvody, když mu na dnešek nestačí maso v zásobě – i dnešní ryby a oka
-  // z práce dne (diet.md – Strava po vrstvách a porážka celý rok); práce porážky se udělá další dny
+  // v létě kus pro rod vojvody, když mu na dnešek nestačí dnešní čerstvé maso (i ryby a oka z práce
+  // dne) a dnešní díl uzeného (diet.md – Strava po vrstvách a porážka celý rok); práce porážky se
+  // udělá další dny
   summerSlaughterDay(state, day, () => summerWinterInput(state, day));
   // nevychází-li výhled do sklizně, ves napřed porazí zvířata navíc – teprve pak šetří přídělem
   // (diet.md – Nouzová porážka)

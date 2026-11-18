@@ -68,6 +68,8 @@ export function baseMealInput(
     : 0;
   // ryby od zítřka do sklizně – výhled i letní odhad masa rodu z jednoho čísla
   const fishAheadEnergy = meatEnergy(fishAheadKg(state, day, daysToHarvest));
+  // čerstvé maso dne (porážka, ryby a oka) – jídlo dne i letní odhad masa rodu z jednoho čísla
+  const freshMeatKg = state.freshMeatKg ?? 0;
   return {
     grainKg: state.storesKg,
     // zapečetěné obilné jámy ztrácí méně (production-chains.md – Obilné jámy)
@@ -76,15 +78,16 @@ export function baseMealInput(
     sheavesLegumesKg: sheaves.legumesKg,
     meatKg: villageMeatKg(state),
     // čerstvé maso dne (porážka, ryby a drobná zvěř) a od zítřka z porážky – v zimě čekající kusy,
-    // v létě maso pro rod vojvody bez uzeného a ryb, které rod sní napřed (diet.md – Strava po
-    // vrstvách a porážka celý rok, Výhled do sklizně)
-    freshMeatKg: state.freshMeatKg ?? 0,
+    // v létě maso pro rod vojvody bez uzeného, ryb a dnešního čerstvého, které rod sní napřed
+    // (diet.md – Strava po vrstvách a porážka celý rok, Výhled do sklizně)
+    freshMeatKg,
     freshAheadEnergy: freshMeatAheadEnergy(
       state,
       day,
       daysToHarvest,
       () => summerWinterInput(state, day),
       fishAheadEnergy,
+      freshMeatKg,
     ),
     // ryby, které ves ještě chytí od zítřka do sklizně, nejvýš do kvóty – jedním vstupem, ať je
     // plán nouzové porážky (týž vstup) nesečte dvakrát; dnešní úlovek je v čerstvém mase dne

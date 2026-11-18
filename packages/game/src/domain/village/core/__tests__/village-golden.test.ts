@@ -77,7 +77,9 @@ import { advanceChunked, goldenWorld, stateFingerprint, YEAR } from './village-g
 // 18. 11. 2026 – strava po vrstvách × D93–D96 (sloučení feat/landscape); dřív ffb78a93bb4e5d05
 // 18. 11. 2026 – opravy po závěrečné kontrole stravy (maso elitě před mlékem, ryby ve výhledu do
 // sklizně, porážka za žní a sečí, podíl pasáků i s letní porážkou); dřív be42183ebfc3b806
-const EXPECTED_YEAR_1 = '1a8f69a42f76bd25';
+// 18. 11. 2026 – D98 uzené rozložené do zkažení (Martin: „Uzené rozlož“ – díl uzeného do konce
+// masa, letní porážka podle dnešního dílu); dřív 1a8f69a42f76bd25
+const EXPECTED_YEAR_1 = '215559928a2709ce';
 // 18. 11. 2026 – D93 cesta přes plochu staveb; dřív 82b12dd84c08dd63 (vyšlapaná cesta přes plochu
 // staveb nevznikne a napojení ji obejde – jiné cesty a id; roky chůze nejvýš doba vyšlapání)
 // 18. 11. 2026 – D95 výmlat (Martin: „A, C, E“ – výmlat podle kg snopů, rod v zimě dorovná tempo

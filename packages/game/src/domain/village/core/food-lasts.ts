@@ -12,6 +12,7 @@ import type { VillageState } from '../types';
 import {
   DAILY_CHEESE_KEEP,
   DAILY_MEAT_KEEP,
+  daysUntilMeatEnd,
   daysUntilMeatSpoil,
   fruitEnergy,
   grainKeepPerDay,
@@ -34,10 +35,12 @@ import { SATIATION_EPSILON } from './simulate-plan';
  * dni stejným pravidlem jako výhled do sklizně (obilí `grainKeepPerDay` – nádoby a jámy,
  * luštěniny, maso, sýr), maso se 1. 9. ráno zkazí (`daysUntilMeatSpoil`), jablka shnijí
  * (`daysUntilAppleRot`). Ves jí v pořadí jídla bez stropů (diet.md – Strava po vrstvách a porážka
- * celý rok): napřed, co se kazí – uzené maso a sýr, ovoce, luštěniny –, pak obilí a nakonec med
- * (nekazí se; když jídla není dost, je jídlem jako obilí – hides-honey.md, Med v hladu). První
- * den, kdy plný příděl nevyjde, počítání skončí. Nikdo nejí ze zásob vsi → null; nejvýš do konce
- * světa.
+ * celý rok): napřed, co se kazí – uzené maso jen svým dílem (zásoba ÷ dny do konce masa –
+ * `daysUntilMeatEnd`, jako jídlo dne; Martin 18. 11. 2026: „Uzené rozlož“), sýr, ovoce,
+ * luštěniny –, pak obilí a nakonec med (nekazí se; když jídla není dost, je jídlem jako obilí –
+ * hides-honey.md, Med v hladu). Nad svůj díl se uzené nejí – když ostatní jídlo dojde, samo plný
+ * příděl nedá. První den, kdy plný příděl nevyjde, počítání skončí. Nikdo nejí ze zásob vsi →
+ * null; nejvýš do konce světa.
  */
 export function foodLastsDays(
   state: VillageState,
@@ -62,6 +65,8 @@ export function foodLastsDays(
     ? 0
     : daysUntilAppleRot(first, potteryCoverage);
   const meatDays = daysUntilMeatSpoil(first);
+  // konec masa – uzené se do něj jí rovným dílem; po něm (porážka 1. 11.) se přepočte
+  let meatEnd = daysUntilMeatEnd(first);
   const shortfall = need * SATIATION_EPSILON;
   let days = 0;
   for (let i = 0; first + i < TOTAL_GAME_DAYS; i++) {
@@ -71,16 +76,18 @@ export function foodLastsDays(
     meat = i < meatDays ? meat * DAILY_MEAT_KEEP : 0;
     cheese *= DAILY_CHEESE_KEEP;
     if (i >= fruitDays) fruit = 0;
+    if (i >= meatEnd) meatEnd = i + daysUntilMeatEnd(first + i);
     let left = need;
-    const eat = (stock: number): number => {
-      const eaten = Math.min(stock, left);
+    /** Sní ze zásoby `stock` nejvýš `most` – a nejvýš, kolik dnes zbývá do potřeby. */
+    const eat = (stock: number, most = stock): number => {
+      const eaten = Math.min(most, left);
       left -= eaten;
       return stock - eaten;
     };
     // pořadí jídla vsi jako `eatDiet` (diet.ts – bez mléka a vajec, předpověď nezná příjmy; bez
-    // tempa proti zkažení); rozdělení po vrstvách (`tierMeal`) má vlastní pořadí – změna pořadí od
-    // Martina na všech třech místech
-    meat = eat(meat);
+    // tempa proti zkažení, uzené jen svým dílem); rozdělení po vrstvách (`tierMeal`) má vlastní
+    // pořadí – změna pořadí od Martina na všech třech místech
+    meat = eat(meat, meat / (meatEnd - i));
     cheese = eat(cheese);
     fruit = eat(fruit);
     legumes = eat(legumes);
