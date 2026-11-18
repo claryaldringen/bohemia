@@ -28,7 +28,7 @@ export interface LivestockState {
   /**
    * Porážka a uzení – potřebné a odvedené člověkodny (celý rok, dokud nějaká čeká: zimní, letní
    * i nouzová porážka, maso z lovu a dosloužilých zvířat – diet.md, Strava po vrstvách a porážka
-   * celý rok); porážka 1. 11. začíná znovu. Chybí = žádná.
+   * celý rok); nedodělek letní porážky přebírá porážka 1. 11. Chybí = žádná.
    */
   slaughterWork?: { required: number; done: number } | null;
   /**
