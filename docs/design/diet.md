@@ -1411,6 +1411,11 @@ uhlídaný přes rok se počítal i za zimu, kdy se pasou jen prasata).
 
 ## Co hráč vidí
 
+- **Obilí v horní liště je bez hromady osiva** (Martin 18. 11. 2026 – volba E z rozboru Vlkova:
+  „A, C, E“; návrh Clauda): osivo okna setí i zimní osivo na jař ves nejí – číslo u ikony obilí
+  a řádek obilí v rozpisu je bez něj. Osivo má v rozpisu vlastní řádek s číslem, slova jen
+  v popisku (Tooltip, jako v panelu pole). Simulace se nemění (Vlkov 15. 3. 896: dřív Obilí
+  3 131 kg, z toho 3 124 kg osivo).
 - V horní liště **obilí, luštěniny, maso, mléko a sýr, ovoce** (ikony + čísla) a nasycení;
   tooltip nasycení ukáže energii a bílkoviny a podíly (ikony obilí / luštěniny / maso / mléko
   a sýr / vejce / ovoce s procenty).

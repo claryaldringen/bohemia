@@ -118,8 +118,8 @@ rodiny, samotný vojvoda až úplně nakonec“.
 
 - **Žně.** Ves počítá práci žní (červenec – žeň ozimu a lnu, srpen – žeň jaře a zbytek července,
   září – jař, kterou srpen nestihne; [fields.md](fields.md) – Žeň jaře i v září; výmlat od 9. 11.
-  2026 ne – počká do zimy, fields.md – Pořadí důležitosti polních prací a výmlat do zimy)
-  **bez rodiny**. V srpnu rodina pomáhá, aby jař byla sklizená do konce srpna, v září s tím, co
+  2026 ne – počká do zimy, fields.md – Pořadí důležitosti polních prací a výmlat do zimy; v zimě
+  Výmlat v zimě níž) **bez rodiny**. V srpnu rodina pomáhá, aby jař byla sklizená do konce srpna, v září s tím, co
   ves sama do 30. 9. nedožne (návrh Clauda). Když by je bez ní nestihla, pomůže rodina – kdo je **zrovna ve vsi**
   (ne na tažení, výpravě ani v jiné vsi) – jen prací, která chybí (chybějící práce ÷ práce rodiny
   po denním minimu dvorce, nejvýš celý den). Ves ji přepočítá každý den žní ze zbývající práce –
@@ -137,6 +137,16 @@ rodiny, samotný vojvoda až úplně nakonec“.
     nikdo z rodiny, ani chlapci): jeho kůň stojí a jízda ani výcvik koně nepostupují. Chlapci,
     muži, na které pole nedošlo, a vojvoda, dokud na pole nejde, jezdí a loví jako jindy (odešlí
     synové smějí vždy).
+- **Výmlat v zimě** (Martin 18. 11. 2026 – volba A z rozboru Vlkova: „A, C, E“; pravidlo návrh
+  Clauda): v okně výmlatu mimo žňové dny – v zimě (listopad–únor) – pomůže rodina, která je
+  zrovna ve vsi, vymlátit, co by ves sama do konce okna nestihla, **jen co chybí**. Ves každý den
+  potřebuje tempo **zbývající práce výmlatu v okně ÷ dny okna** (s dneškem). Co z tempa dnes po
+  všech pracích dne nevymlátí sama, dorovná rodina, nejvýš celou svou prací po denním minimu
+  dvorce. Kdo jde, je stejné jako ve žních: ženy a dcery, muži rodiny, vojvoda nakonec. Ves, která
+  tempo stíhá, rodinu nezapojí. Kdo dnes mlátí, cvičí jen zbytek dne (jako ve žních). Po konci
+  okna (březen–srpen) rodina nemlátí; mistři huti a kněz nemlátí nikdy ([zdivo](stone-masonry.md)
+  – Mezi stavbami čekají). Ve Vlkově 895/896 (12 lidí, 5 z rodu, 2 mistři) mlátili jen 3 lidé
+  a po okně zůstalo 159 čd snopů.
 - **S osevem rodina nepomáhá** – ~~bod 1: ves nestihne potřebný osev~~ (zrušeno 9. 11. 2026;
   potřeba úrody zmizela s cílem osevu – [pole](fields.md), Osivo bez cíle osevu).
 - **Při hladu rodina na pole nejde** – ~~bod 2: výhled jídla nevychází, celá rodina celý den do
