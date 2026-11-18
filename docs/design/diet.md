@@ -167,6 +167,18 @@ v hladu), nově platí celý rok, ne jen v hladu:
      drobné nepohodlí“; k 75 %: „75% je ok.“): hlad se sčítá pod 90 % (Hlad níž) a na 75 % hrozí
      smrt hlady dítěti a staršímu po ≈ 2,5 měsíce, dospělému po ≈ 4 měsících – běžné hladové jaro
      do sklizně lidé přežijí, umírat začnou, až když se hlad protáhne.
+   - **Přežívací zásoba do žní podle zbytku vsi** (návrh Clauda 18. 11. 2026 po přepočtu Vlkova;
+     Martin, 18. 11. 2026: „Nejde, aby elita měla plný příděl a rolníci byli pod hranicí
+     hladomoru.“): když ves drží zrno jako osivo, nechá si k jídlu jen přežívací zásobu
+     ([pole](fields.md) – Osivo ze zásob) – nejmenší zrno, při kterém hlad do žní nedojde k prahu
+     úmrtí. Ta se počítá na příděl **zbytku vsi** (nejnižší vrstvy s potřebou), protože ten
+     z přídělu dostane nejméně: nad životním minimem si ves nechá tolik, aby vyšší vrstvy byly syté
+     a zbytek vsi dostal svůj cílový příděl – příděl vsi = (potřeba vyšších vrstev + cílový příděl ×
+     potřeba zbytku vsi) ÷ potřeba vsi; pod minimem jedí všichni stejně, příděl vsi je cílový.
+     Ovoce a pevný příděl medu na tom nic nemění – jen plní příděly vrstev. Dřív se zásoba počítala
+     na příděl celé vsi a zbytek vsi z něj dostal jen 75 %: ve Vlkově 904–905 umřely děti hladem,
+     i když ves držela 9,5 t obilí jako osivo (rod vojvody 53–63 % potřeby vsi, ves jedla 0,86–0,90,
+     zbytek vsi 5 měsíců na 0,75, hlad zbytku vsi až 24,4 proti prahu dětí 12).
 2. **Čím se příděl naplní.** Napřed se rozdělí ovoce a pevný příděl medu – všem stejně (níž).
    Pak se na každé úrovni pořadí jídla napřed nají vrstva 1 do svého přídělu, pak vrstvy 2, 3
    a 4 – na první úrovni napřed čerstvé a uzené maso, pak mléko, vejce a sýr (Pořadí jídla). Vrstva,
@@ -254,6 +266,17 @@ jenom v zimě, v létě se maso rychle kazí“):
 - Malá ves v září až říjnu jí až 85–94 % energie z ryb.
 - V hladu se příděl během sezóny mírně kloní (trvanlivé mimo obilí se jí dřív – nejvýš ≈ 2
   procentní body).
+- **Dlouhý hladomor bez osiva** (otevřené – k rozhodnutí Martinovi, kód beze změny): při trvalém
+  přídělu 0,75 přibude za den (0,9 − 0,75) ÷ 0,9 ≈ 0,17 dne hladu – děti a starší dojdou k prahu
+  12 dní asi za 72 dní, dospělí k prahu 20 asi za 120 dní ([populace](population.md) – Hlad
+  a vymření). Přežívací zásoba podle zbytku vsi (Kdo dostane co) pomůže jen, dokud ves drží
+  osivo, které může sníst. Bez osiva a jiného jídla tak v dlouhém hladomoru umírá zbytek vsi,
+  zatímco rod vojvody jí nad životním minimem.
+- **Přežívací zásoba podle zbytku vsi – dopad** (přepočet Vlkova z 18. 11. 2026 ze snímku
+  k 20. 12. 896 na 10 let): úmrtí hladem 5 → 0 (všech úmrtí 13 → 9), nejvyšší hlad zbytku vsi 24,4 → 6,4,
+  lidí na konci 17 → 34. Ves si nechává víc zrna k jídlu a drží méně osiva (k 1. 11. 906 zimní
+  osivo 13,8 t → 3,5 t, přežívací zásoba 1,3 t → 3,0 t) a šetří jídlem déle (906: 85 → 204 dní)
+  – dvakrát víc lidí sní víc. Zda osev stačí na větší ves, ukáže deník vsi.
 
 **Rozhodnutí plánu** (návrh Clauda): pevný příděl medu se jí každý den, i když obilí stačí,
 a všem stejně; tempo proti zkažení (vejce, ovoce ÷ dny do zkažení, maso – čerstvé i uzené – ÷ dny
@@ -301,6 +324,12 @@ do sklizně po vrstvách (návrh Clauda; dnešní výhled odečítá maso, ovoce
   roku se nepočítá (opatrně – v dubnu jen zbytek loňské kvóty do 30. 4.). Od prosince do března
   (sezóna neběží) a bez letošního úlovku nic. Průměr přes dny sezóny, ne přes dny rybaření – dny,
   kdy ves nerybaří (žně), jsou v něm. Nouzová porážka počítá s týmiž rybami jednou.
+- **Maso z letní porážky pro rod** (návrh Clauda 18. 11. 2026 – dřív celá potřeba rodu, i když ji
+  část pokryjí ryby a uzené; zlatá ves 1. 5. odhad 294,5 proti 190,9 kg obilí energie, které
+  v okně opravdu přišly): potřeba rodu za letní dny výhledu (do 31. 10.) bez energie uzeného
+  v zásobě a ryb do konce výhledu (týž odhad jako Ryby do kvóty), nejvýš maso kusů, které smějí
+  na maso. Dokud rodu stačí jiné maso, ves neporáží; uzené i ryby jí celá ves a rod z nich dostane
+  nejvýš všechno – odečtou se celé, opatrně. Kdy ves kus porazí, se nemění (Porážka celý rok).
 
 **Stav vsi:** nové části stavu, budou-li potřeba, jsou volitelné a převádí je `VILLAGE_MIGRATIONS`
 jako vždy.
@@ -338,21 +367,25 @@ se přepíšou.
 - **Luštěniny už ne z pole (Martin, 9. 11. 2026):** „Luštěniny jsou podle mě píčovina. Co vím,
   tak je lidi pěstovali spíš doma na zahrádkách než na velkých polích…“ – ves je na poli nesel
   ([fields.md](fields.md), Luštěniny, zrušeno; zahrádky u obydlí probereme později). Zůstávají
-  **zbožím**: zásoba (obchod, platby, dávky, dorůstající luštěniny starších vsí) se jí jako dosud
-  – rovným dílem do července, nejvýš strop, bílkoviny navíc proti obilí. Ves bez zásoby jí obilí;
-  bílkoviny, které chybí, dorovná maso a mléko stád (Chovné stádo podle potřeby).
+  **zbožím**: zásoba (obchod, platby, dávky, dorůstající luštěniny starších vsí) se jí v pořadí
+  jídla za ovocem a před obilím, bez stropu (Strava po vrstvách a porážka celý rok – Pořadí jídla),
+  bílkoviny navíc proti obilí. Ves bez zásoby jí obilí; bílkoviny, které chybí, dorovná maso
+  a mléko stád (Chovné stádo podle potřeby).
 - **Luštěniny** (hrách a čočka): **22 % bílkovin**,
-  energie jako obilí (3 400 kcal/kg). Strop **25 % energie** ze stravy (dospělý ≈ 45 kg ročně;
-  rešerše: chléb čeledi v Mordenu 17–26 % hrachu – strop je návrh Clauda).
+  energie jako obilí (3 400 kcal/kg). Strop **25 % energie** (dospělý ≈ 45 kg ročně; rešerše: chléb
+  čeledi v Mordenu 17–26 % hrachu – strop je návrh Clauda) jídlo od 18. 11. 2026 neomezuje; zůstal
+  jen v odhadech – výhled zásob k sklizni ([pole](fields.md)) a bilance bílkovin stád (Maso a stáda
+  níž) počítají s luštěninami nejvýš do něj.
 - ~~**Kolik jich ves chce**~~ (do 9. 11. 2026 – cíl osevu luštěnin padl): každý kg luštěnin místo
   obilí se stejnou energií dá o **12 dkg bílkovin víc** (22 % proti 10 %). Od 19. 10. 2026 rozhodne **Rovnovážné hospodaření** (níž) – luštěniny
   soupeří cenou v práci se stády a ves je oseje k 1. 9., jen kde jsou levnější. Dřív: bílkoviny,
   které chybí po obilí (odhad obilí na 70 % energie), mléku stád a vejcích, nejvýš strop – s 1,6
   g/kg šly luštěniny ke stropu skoro vždy (cíl + rezerva 15 %); obilí má přednost dál.
-- **Jí se** rovným dílem celý rok do příští sklizně (31. 7.), nejvýš strop; počítají se do výhledu
-  energie jako maso a sýr. Ztráta skladováním jako obilí.
+- **Jí se** v pořadí jídla, jak jsou, bez rozvrhu do sklizně a bez stropu (od 18. 11. 2026 –
+  Pořadí jídla; dřívější znění [history](history/diet-history.md)); výhled do sklizně je počítá
+  celé (zásobu i snopy). Ztráta skladováním jako obilí.
 - **Maso a stáda:** potřeba masa = bílkoviny, které zbudou i po luštěninách – luštěniny podle
-  zásoby (rovným dílem do sklizně, přepočteno na rok, nejvýš strop). Ves s luštěninami tak chová
+  zásoby (odhad: rovným dílem do sklizně, přepočteno na rok, nejvýš strop). Ves s luštěninami tak chová
   menší stáda (pravidlo „ves chová, kolik potřebuje“ beze změny); první rok, než luštěniny
   sklidí, počítá jen s obilím, mlékem a vejci.
 - **Maso a štěstí** (Martin – „mírně“): až **+3** – plně od **20 % energie z masa**, méně poměrně
@@ -370,13 +403,15 @@ se přepíšou.
   ostatní řemeslníci“, „I s rodinami“): když jídla do sklizně nevystačí, jí napřed rod vojvody,
   pak domácnosti mistrů huti, pak řemeslníci a učni a teprve zbytek vsi si rozdělí, co zbude;
   skupina, na kterou nevyjde celý příděl, si dělí zbytek rovným dílem ([populace](population.md) –
-  Hlad a vymření, Přednost v hladu). Stejně se dělí výhled do sklizně ([pole](fields.md) –
-  Přídělový systém). Zásoby a strava se tím nemění – jen kdo z nich dostane.
+  Hlad a vymření, Přednost v hladu). Od 18. 11. 2026 jen nad životním minimem 75 % (Strava po
+  vrstvách a porážka celý rok – Kdo dostane co). Stejně se dělí výhled do sklizně ([pole](fields.md)
+  – Přídělový systém). Zásoby a strava se tím nemění – jen kdo z nich dostane.
 - **Na jak dlouho vystačí zásoby** (Martin, 15. 11. 2026: „dolů do panelu s plodinami napiš, na
   jak dlouho vystačí zásoby – budou se podle toho plánovat vojenská tažení“): panel plodin ukazuje,
   do kdy dnešní zásoby uživí lidi plným přídělem bez sklizně a bez příjmů (mléko, vejce, porážka),
-  se ztrátami ve skladu a kažením masa jako výhled; ves jí napřed, co se kazí, ve stropech stravy
-  (návrh Clauda).
+  se ztrátami ve skladu a kažením masa jako výhled; ves jí v pořadí jídla bez stropů – napřed, co
+  se kazí (uzené maso a sýr, ovoce, luštěniny), pak obilí a nakonec med (návrh Clauda; od 18. 11.
+  2026 – Pořadí jídla, dřív ve stropech stravy).
 
 ### Mléko a sýr (Martin: „Ovce, kozy i krávy jsou mléčná zvířata“; čísla rešerše)
 
@@ -390,12 +425,13 @@ se přepíšou.
   na dojnou samici: kráva
   **300 l** (květen–září naplno, říjen–listopad napůl), ovce **25 l** (15. 5. – 31. 8., po
   odstavu jehňat), koza **60 l** (květen–září). Energie mléka 640 / 700 / 1 050 kcal na litr.
-- **Čerstvé mléko se pije hned** – do stropu mléka a sýra (30 % energie); co se nevypije, zpracuje
+- **Čerstvé mléko se pije hned** – bez stropu, nejvýš potřeba dne (od 18. 11. 2026 – Pořadí
+  jídla; dřív do stropu mléka a sýra 30 % energie); co se nevypije, zpracuje
   se na **syřidlový sýr**: zůstane **75 % bílkovin** mléka, sýr má **25 % bílkovin**
   a 3 000 kcal/kg (z kravského a kozího ≈ 10 l na kg, z ovčího ≈ 6 l). Tvaroh zvlášť hra nevede
   (vydrží jen dny).
-- **Zásoba sýra** ztrácí **15 % ročně** a jí se rovným dílem **do 1. 5.** (začátek dojení, sýr
-  vydrží do té doby) – v zimě tak bílkoviny dává sýr.
+- **Zásoba sýra** ztrácí **15 % ročně** a jí se v pořadí jídla za masem, jak je – bez rozvrhu
+  do 1. 5. (od 18. 11. 2026 – Pořadí jídla; dřívější znění [history](history/diet-history.md)).
 
 ### Práce se zvířaty (Martin se ptal, jestli je započítaná; čísla rešerše, člověkoden 10 h)
 

@@ -87,3 +87,25 @@ masa 40 % platí i v nouzi“ (návrh Clauda).
 ## Med bez štěstí
 
 Neplatí od 18. 11. 2026 (med zvyšuje štěstí o +2 – diet.md, Strava po vrstvách a porážka celý rok, Med). Dřív v Pojmech: „Med dá jen energii – bez bílkovin, bez stropu, bez štěstí a bez vlivu na kvalitu stravy.“
+
+## Luštěniny, mléko a sýr rovným dílem a ve stropech
+
+Neplatí od 18. 11. 2026 (diet.md – Strava po vrstvách a porážka celý rok, Pořadí jídla – bez stropů: luštěniny, mléko i sýr se jedí v pořadí jídla, jak jsou; strop luštěnin 25 % zůstal jen v odhadech – výhled zásob k sklizni a bilance bílkovin stád). Zbytky dřívějšího znění v platném textu, přesunuté po kontrole 18. 11. 2026. Dřív v Luštěninách a štěstí z masa:
+
+- Luštěniny „Zůstávají **zbožím**: zásoba (obchod, platby, dávky, dorůstající luštěniny starších
+  vsí) se jí jako dosud – rovným dílem do července, nejvýš strop, bílkoviny navíc proti obilí.“
+- „**Luštěniny** (hrách a čočka): **22 % bílkovin**, energie jako obilí (3 400 kcal/kg). Strop
+  **25 % energie** ze stravy (dospělý ≈ 45 kg ročně; rešerše: chléb čeledi v Mordenu 17–26 %
+  hrachu – strop je návrh Clauda).“
+- „**Jí se** rovným dílem celý rok do příští sklizně (31. 7.), nejvýš strop; počítají se do výhledu
+  energie jako maso a sýr. Ztráta skladováním jako obilí.“
+
+Dřív v Hladu (Na jak dlouho vystačí zásoby): „ves jí napřed, co se kazí, ve stropech stravy (návrh
+Clauda).“
+
+Dřív v Mléku a sýru:
+
+- „**Čerstvé mléko se pije hned** – do stropu mléka a sýra (30 % energie); co se nevypije,
+  zpracuje se na **syřidlový sýr** …“
+- „**Zásoba sýra** ztrácí **15 % ročně** a jí se rovným dílem **do 1. 5.** (začátek dojení, sýr
+  vydrží do té doby) – v zimě tak bílkoviny dává sýr.“

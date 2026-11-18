@@ -71,8 +71,9 @@ export const SEED_KG_PER_HA = 175;
 // fields.md – Úroda, Osivo ze zásob (Martin 27. 10. 2026: „Osivo ze zásob při setí“; čísla návrh
 // Clauda): osivo bere setí ze zásob v den setí dílu (obilí ze zásob obilí, luštěniny z luštěnin).
 // Osev má přednost (Martin 6. 11. 2026: „Musí zasít – jinak by si prožrala budoucnost.“; vzorec
-// návrh Clauda): ves si do žní nechá jen přežívací zásobu – zrno na příděl potřeby z pole, při
-// kterém nahromaděný hlad do žní (STARVATION – pod fedFrom přibývá) nedosáhne prahu úmrtí
+// návrh Clauda): ves si do žní nechá jen přežívací zásobu – zrno na příděl, při kterém
+// nahromaděný hlad zbytku vsi do žní (STARVATION – pod fedFrom přibývá; příděl zbytku vsi podle
+// přednosti v hladu – návrh Clauda 18. 11. 2026) nedosáhne prahu úmrtí
 // nejcitlivější skupiny ve vsi (STARVATION.threshold) bez `marginDays`, s osivem jen na setí ani
 // prahu, od kterého ho ves sní (SEED_BUYING.eatFromStarvationDays); ostatní zrno je osivo. Osivo,
 // které na setí čeká, ves nejí – přežívací zásobu nikdy nezaseje (dřív prahy přídělu 0,5 do roční

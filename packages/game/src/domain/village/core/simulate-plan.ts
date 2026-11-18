@@ -880,10 +880,11 @@ export interface FieldTaskEntry {
 }
 
 /**
- * Sezónní úloha dne v rozdělení práce: polní úloha, práce v sadech, seč sena nebo porážka. Řadí se podle konce okna; při
- * shodě sklizeň jablek a porážka (maso se musí zpracovat hned) před polními úlohami (jablka zrají
- * v září a do konce října spadnou – ozim dostane zbytek podzimu, se kterým kapacita práce počítá),
- * péče o sad a seč až po nich.
+ * Sezónní úloha dne v rozdělení práce: polní úloha, práce v sadech, seč sena nebo porážka. Řadí se
+ * napřed podle skupiny úloh (`DAY_WORK_ORDER` – `dayTaskOrder`): porážka a uzení za žní, trháním
+ * lnu a nutnou sečí i otavou, před sklizní jablek; jablka před přípravou půdy a setím (zrají v září
+ * a do konce října spadnou – ozim dostane zbytek podzimu, se kterým kapacita práce počítá), péče
+ * o sad za nimi. Uvnitř skupiny podle konce okna a při shodě podle přednosti `tie`.
  */
 export interface DayTask {
   name: LaborTaskName;

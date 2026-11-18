@@ -195,9 +195,12 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
      nejvýš co by podzimní porážka vzala, nad `breedingFloor`. Maso do `freshMeatKg` (co rod nesní,
      sní ostatní, zbytek se vyudí), kůže `noteSlaughtered`, práce `addSlaughterWork` (udělá se další
      dny; nedodělek přejde do zimní porážky, 1. 11. ho dodělá s její prací); kronika ne. Odhad zimy (`summerWinterInput`) bere seno podle toho, co ves stihne posekat (`hayKg: Infinity`, na jaře je zásoba malá). `WinterInputSource` – vstup hotový, nebo až na požádání. Výhled do sklizně
-     `freshMeatAheadEnergy(state, day, daysToHarvest, input)` (`baseMealInput`, panel
-     `nextDayDiet`): v zimě maso čekajících kusů (nejvýš potřeba vsi do konce zimy), v létě potřeba
-     rodu × letní dny výhledu (do konce října), nejvýš maso celých kusů na maso. Práce porážky a
+     `freshMeatAheadEnergy(state, day, daysToHarvest, input, fishAheadEnergy)` (`baseMealInput`,
+     panel `nextDayDiet`): v zimě maso čekajících kusů (nejvýš potřeba vsi do konce zimy), v létě
+     potřeba rodu × letní dny výhledu (do konce října) bez energie uzeného v zásobě
+     (`villageMeatKg`) a ryb do konce výhledu (`fishAheadEnergy` – týž odhad `fishAheadKg`, který
+     jde do `DietInput.fishAheadEnergy`; od 18. 11. 2026, D97 – dřív celá potřeba rodu), nejvýš maso
+     celých kusů na maso. Práce porážky a
      uzení celý rok, dokud nějaká čeká (`slaughterRemaining`, úloha `slaughter`) – i maso z lovu a
      dosloužilých zvířat (dřív jen v zimě a v nouzi); v pořadí práce dne za žní, lnem a nutnou sečí
      i otavou (`DAY_WORK_ORDER`, od 18. 11. 2026 – maso je k jídlu hned, nedodělaná práce jídlu ani

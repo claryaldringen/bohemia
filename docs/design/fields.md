@@ -1701,6 +1701,12 @@ na vlnu – oděv, [diet.md](diet.md) – Oděv). Pravidla **návrh Clauda** pod
       odhadem ztráty do žní – zrno leží v průměru půl doby do žní). Dřív počítala jen s potřebou
       z pole (0,9 × denní potřeba z pole × (dny do žní − `slack`)) – mléko a maso byly rezerva navíc
       a ves s mlékem a masem si nechala víc zrna, než potřebovala.
+      **Podle zbytku vsi (návrh Clauda 18. 11. 2026):** příděl 0,9 × (1 − `slack` / dny do žní)
+      i hlad, ze kterého se `slack` počítá, jsou zbytku vsi – při přednosti v hladu dostává
+      nejméně ([strava](diet.md) – Kdo dostane co). Nad životním minimem 75 % si ves nechá zrno na
+      příděl vsi (potřeba vyšších vrstev + příděl × potřeba zbytku vsi) ÷ potřeba vsi – vyšší
+      vrstvy syté –, pod ním na týž příděl pro všechny. Dřív na příděl celé vsi: zbytek vsi z něj
+      dostal jen 75 % a ve Vlkově 904–905 umíraly děti hladem, i když ves držela osivo.
     - **Ostatní zrno je osivo:** smí do země bez stropu podle potřeby jídla – ves oře a seje díly
       v plánu (nutné i nad potřebu podle osevního postupu; úhor zůstává úhorem), dokud trvá okno,
       dokud díly nejsou oseté, nebo dokud osivo nedojde. Osivo bere setí v den setí dílu, takže co

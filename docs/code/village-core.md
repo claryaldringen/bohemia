@@ -188,7 +188,11 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   skupiny `starvationDays` – `groupStarvation` to čte jako výchozí hodnotu, takže položka ve
   `VILLAGE_MIGRATIONS` netřeba; člověk, který přejde do jiné skupiny – sňatek, stěhování, smrt
   řemeslníka –, má od té chvíle hlad své nové skupiny, hlad se vede po skupinách, ne po lidech).
-  `rationShares` při poměru ≥ 1 vrací samé jedničky (sytá ves bit po bitu jako dřív).
+  `rationShares` při poměru ≥ 1 vrací samé jedničky (sytá ves bit po bitu jako dřív). Obrácené
+  `villageRationFor(podíl, potřeby)` – nejmenší příděl vsi, při kterém nejnižší skupina s potřebou
+  (`lowestFedGroup`; bez zbytku vsi nejbližší vyšší) dostane `podíl`: do minima `podíl`, nad ním
+  (potřeba vyšších + `podíl` × potřeba nejnižší) ÷ potřeba vsi, nejvýš 1 – přežívací zásoba
+  `seedKeepKg` (village-fields.md, od 18. 11. 2026).
   **Strava po vrstvách** (diet.md – Strava po vrstvách a porážka celý rok, 18. 11. 2026):
   `eatDiet` (`core/diet.ts`) sní den bez stropů – `dietPlan` spočítá výhled `aheadEnergy` (jídlo
   mimo obilí a med do sklizně), pevný příděl medu a tempo proti zkažení (`fruitPace` = ovoce ÷

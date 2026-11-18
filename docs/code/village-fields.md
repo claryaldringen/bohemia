@@ -261,8 +261,11 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
 store, keepKg, needed)` = `reservedSeedKg` (jen `needed`) + max(hromada, běžné zrno − `keepKg`).
   `seedKeepKg` = přežívací zásoba do žní (zásoby i snopy; `slack` = nejnižší `STARVATION.threshold`
   skupin ve vsi – s `reservedSeedKg` nejvýš `SEED_BUYING.eatFromStarvationDays` –
-  − `SEED_STORES.marginDays` − `starvationDays`; cílový příděl 0,9 × (1 − `slack` / dny do žní),
-  zrno na něj `grainAheadForOutlookKg` nad `baseMealInput` (`meal-input.ts`) – i se ztrátami
+  − `SEED_STORES.marginDays` − hlad zbytku vsi; cílový příděl zbytku vsi 0,9 × (1 − `slack` / dny
+  do žní) – zbytek vsi = nejnižší vrstva s potřebou (`lowestFedGroup` nad `hungerSplit`, hlad
+  `groupStarvation` – u zbytku vsi `starvationDays`); na příděl vsi ho převede `villageRationFor`
+  (`people/hunger-groups.ts`, obrácené `rationShares` – od 18. 11. 2026, D97; dřív cíl pro celou
+  ves), zrno na něj `grainAheadForOutlookKg` nad `baseMealInput` (`meal-input.ts`) – i se ztrátami
   skladováním do žní (`grainEatenShare`, od 15. 11. 2026; dřív ÷ `grainKeepPerDay` ^ ((dny + 1) / 2))
   a s celou zásobou medu (hides-honey.md – Med v hladu; dřív med jen pevným přídělem)
   – ÷ `grainKeepPerDay` za dnešní ztrátu). `grainSeedTakenKg` – osivo obilí, které letošní nutná
