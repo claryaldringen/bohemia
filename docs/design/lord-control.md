@@ -82,8 +82,9 @@ Hráč vojvodu vybere a pošle ho jako jednotku v 0 A.D. (Martin). Podoba rozkaz
   a tam zastaví.
 - **Domů** – nejkratší cestou do vlastní vsi. Totéž je **Jdi sem do dvorce** vlastní vsi (dům
   i s pozemkem a dvorem) – Martin 18. 11. 2026: „když mám knížete označeného a pošlu ho do dvorce,
-  tak je to pro něj ten stejný příkaz jako návrat domů“. Lidé ze vsi, kteří jsou ve výběru s ním,
-  zůstanou doma; výběr jen z lidí doma jde do dvorce jako dřív (návrh Clauda).
+  tak je to pro něj ten stejný příkaz jako návrat domů“. Stejně pro ostatní lidi výpravy; lidé ze
+  vsi, kteří jsou ve výběru s nimi, zůstanou doma; výběr jen z lidí doma jde do dvorce jako dřív
+  (návrh Clauda).
 
 Nový rozkaz kdykoli nahradí starý. Rozkaz platí, i když hráč hru zavře – vojvoda dojede, postojí
 a vrátí se. Je to výjimka z pravidla tažení, které se bez hráče a zástupce po dni rozpadne

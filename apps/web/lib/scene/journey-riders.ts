@@ -339,8 +339,8 @@ export class JourneyGlide {
    * (worker ho ukládá po 40 taktech) jen posune přehrávání na `PLAY_LAG_TICKS` za nový stav – dřív
    * ho scéna hrála jako 40 taktů dlouhý posun na místě a stojící hlouček kreslila až 10 s pozadu;
    * první stav v pohybu nese, kde a kdy hlouček naposledy stál (`setOut`) – do té doby stojí a pak
-   * jde tempem jádra. Bez údaje (návštěvník) kdy se rozjel, nevíme – pohyb k novému stavu potrvá
-   * jako dřív (`glideMs`).
+   * jde tempem jádra. Totéž po dojetí (stav dojetí se posunul, ale hlouček pak stojí). Bez údaje
+   * (návštěvník) kdy se rozjel, nevíme – pohyb k novému stavu potrvá jako dřív (`glideMs`).
    */
   private follow(was: Glide, j: SceneJourney, heading: Pos, to: RiderPose[], nowMs: number): Glide {
     const p = playTick(was, nowMs);
@@ -354,11 +354,14 @@ export class JourneyGlide {
       samePos(was.journey.pos, j.setOut.pos)
         ? { tick: j.setOut.tick, poses: was.track[was.track.length - 1]!.poses }
         : null;
+    // stojí dál (stojící bod po stojícím nebo po dojetí)
+    const still = samePos(was.journey.pos, j.pos);
     let start = p;
-    // hlouček stál: rozjede se o tolik později, aby měl zásobu `PLAY_LAG_TICKS` (obvykle ≈ 1 s)
+    // hlouček stál: rozjede se o tolik později, aby měl zásobu `PLAY_LAG_TICKS` (obvykle ≈ 1 s);
+    // i po dojetí – stav dojetí se posunul (`moved`), ale stojící bod po něm worker uloží až za 40
+    // taktů a rozkaz přijde dřív (kontrola D94)
     let hold = 0;
-    if (!was.moved && between.length === 0 && j.tick > p) {
-      const still = samePos(was.journey.pos, j.pos);
+    if ((!was.moved || still || stood !== null) && between.length === 0 && j.tick > p) {
       const lead =
         still || stood
           ? Math.min(stood?.tick ?? j.tick, j.tick - PLAY_LAG_TICKS)

@@ -108,8 +108,10 @@ const MAX_PEOPLE = 200;
 /**
  * Rozkaz lidem, kteří už ve výpravě jsou – záměr na takt teď + `INTENT_LEAD_TICKS` bez zámku
  * a bez zápisu do vsi (Rozhodnutí 11). Je-li ve výběru někdo, kdo by šel ze vsi (rekrut), nezapíše
- * nic a vrátí `recruits` – volající pak pod zámkem hráče zavolá `musterExpedition`. Nezpůsobilí
- * z výběru vypadnou; nemůže-li nikdo, důvod prvního z nich (jinak `nobody`).
+ * nic a vrátí `recruits` – volající pak pod zámkem hráče zavolá `musterExpedition`. Výjimka:
+ * „Jdi sem“ do dvorce domovské vsi je pro členy Domů a rekruti z výběru vypadnou – zůstanou doma
+ * (`homeByManor`). Nezpůsobilí z výběru vypadnou; nemůže-li nikdo, důvod prvního z nich (jinak
+ * `nobody`).
  */
 export async function commandParty(
   deps: ExpeditionDeps,
@@ -117,14 +119,14 @@ export async function commandParty(
 ): Promise<ExpeditionResult | { ok: false; reason: 'recruits' }> {
   const selected = await select(deps, input);
   if (!selected.ok) return selected;
-  const { order, picked } = await homeByManor(deps, input, selected);
+  const { asked, picked } = await homeByManor(deps, input, selected);
   if (picked.chosen.recruits.length > 0) return { ok: false, reason: 'recruits' };
   // jen členové – výprava běží a domov je její
   const plan: Plan = { ...picked, home: picked.situation.journey!.home, houseId: null };
-  const refusal = await verify(deps, order, plan);
+  const refusal = await verify(deps, asked, plan);
   if (refusal !== null) return { ok: false, reason: refusal };
   const { journeyId, journey } = plan.situation;
-  const queued = await queue(deps, order, journeyId!, journey!.tick, memberIds(plan.chosen));
+  const queued = await queue(deps, asked, journeyId!, journey!.tick, memberIds(plan.chosen));
   return queued ? journeyOk(journeyId!) : NOBODY;
 }
 
@@ -149,12 +151,12 @@ export async function musterExpedition(
   for (let attempt = 0; attempt < 2; attempt++) {
     const selected = await select(deps, input);
     if (!selected.ok) return selected;
-    const { order, picked } = await homeByManor(deps, input, selected);
-    const plan = await homeOf(deps, order, picked);
+    const { asked, picked } = await homeByManor(deps, input, selected);
+    const plan = await homeOf(deps, asked, picked);
     if (!plan.ok) return plan;
-    const refusal = await verify(deps, order, plan);
+    const refusal = await verify(deps, asked, plan);
     if (refusal !== null) return { ok: false, reason: refusal };
-    const done = await carryOut(deps, order, plan);
+    const done = await carryOut(deps, asked, plan);
     if (done !== 'ended') return done;
   }
   return NOBODY;
@@ -162,17 +164,19 @@ export async function musterExpedition(
 
 /**
  * „Jdi sem“ do dvorce domovské vsi (dům, pozemek i dvůr – `manorArea`) je pro lidi výpravy Domů
- * (lord-control.md – Rozkazy; Martin 18. 11. 2026: „když mám knížete označeného a pošlu ho do
- * dvorce, tak je to pro něj ten stejný příkaz jako návrat domů“). Lidé ze vsi ve výběru zůstanou
- * doma – doma už jsou (návrh Clauda); výběr bez lidí výpravy jde do dvorce jako dřív. Bez políčka
- * rozkazu platí mapa vůdce výběru (jako `verifyOrder`).
+ * (lord-control.md – Rozkazy; Martin 18. 11. 2026 o knížeti: „když mám knížete označeného a pošlu
+ * ho do dvorce, tak je to pro něj ten stejný příkaz jako návrat domů“; pro ostatní lidi výpravy
+ * návrh Clauda). Lidé ze vsi ve výběru zůstanou doma – doma už jsou (návrh Clauda); výběr bez
+ * lidí výpravy jde do dvorce jako dřív. Bez políčka rozkazu platí mapa vůdce výběru (jako
+ * `verifyOrder`). Vrací vstup, se kterým se pokračuje (`asked` – příkaz Domů místo „Jdi sem“),
+ * a výběr.
  */
 async function homeByManor(
   deps: ExpeditionDeps,
   input: ExpeditionInput,
   picked: Picked,
-): Promise<{ order: ExpeditionInput; picked: Picked }> {
-  const same = { order: input, picked };
+): Promise<{ asked: ExpeditionInput; picked: Picked }> {
+  const same = { asked: input, picked };
   const { command } = input;
   const { journey, own } = picked.situation;
   const { members } = picked.chosen;
@@ -184,7 +188,7 @@ async function homeByManor(
   const area = manorArea(own.village.state, map.landscape);
   if (!area || !inManorArea(area, command.order.pos)) return same;
   return {
-    order: { ...input, command: { kind: 'order', order: { kind: 'home' } } },
+    asked: { ...input, command: { kind: 'order', order: { kind: 'home' } } },
     picked: { ...picked, chosen: { members, recruits: [] } },
   };
 }

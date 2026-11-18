@@ -3,7 +3,7 @@
 import { Landscape } from '@bohemia/game';
 import type { SceneChurch } from './church-view';
 import type { CartWorld, LogStack, UsableStructure } from '@bohemia/game';
-import type { PathFortification, manorArea } from '@bohemia/game';
+import type { Building, PathFortification } from '@bohemia/game';
 import type { SceneFortification } from './fort-view';
 import type { CartGoal } from './cart-routes';
 import { GraveMound } from '@bohemia/game';
@@ -383,7 +383,7 @@ export interface SceneVillage {
    * ním „Domů“ (server rozkaz „Jdi sem“ do dvorce bere jako Domů – Martin 18. 11. 2026). Ves bez
    * hotového dvorce – chybí.
    */
-  manorArea?: NonNullable<ReturnType<typeof manorArea>>;
+  manorArea?: Building;
   /**
    * Křižovatky (paths.md – Křižovatky) – střed, tvar, natočení, ramena (id úseků) a znamení.
    * Kreslí je scéna křižovatek (plán cest v2, Úloha 12); do té doby udusaný kruh ve středu, kde

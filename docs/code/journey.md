@@ -632,7 +632,10 @@ inParty, atHomeMap, horseWork }`, `ButtonState` = `'hidden' | 'enabled' | { disa
   10–30 taktů po stojícím bodu → 2–7 s stál, pak 2,5–7,5 s 0,17–0,7 m/s, tempo jádra 3,5–5,25 m/s až
   po ≈ 10 s). První stav v pohybu nese `setOut` (kde a v kterém taktu hlouček naposledy stál –
   `SceneJourney.setOut` z `PartyView`): stopa dostane stojící stav v tom taktu, hlouček stojí do
-  `setOut.tick` a pak jde tempem jádra, nejvýš `PLAY_LAG_TICKS` za stavem (návrh Clauda). Bez
+  `setOut.tick` a pak jde tempem jádra, nejvýš `PLAY_LAG_TICKS` za stavem (návrh Clauda). Totéž
+  platí po dojetí: stav dojetí se posunul (`moved`), stojící bod po něm worker uloží až za 40 taktů
+  a rozkaz přijde dřív – zásobu omezí i stojící stav (`still`) a `setOut` (kontrola D94: rozkaz
+  2,5–20 s po dojetí se dřív rozjel 4–9,6 s po serveru). Bez
   údaje (návštěvník) se rozjede s prvním stavem v pohybu (pohyb k němu jako dřív `glideMs`) o tolik
   později, aby měl zásobu; zásoba nad 40 taktů se zahodí. Stejný takt pohyb nepřeruší, omezený pohyb stojí na novém místě. Tempo jádra se mění
   jen s terénem (cesta × 1,5, les – war.md – Pohyb vojska). `headingOf` – směr z posunu, jinak k cíli.
@@ -683,7 +686,7 @@ inParty, atHomeMap, horseWork }`, `ButtonState` = `'hidden' | 'enabled' | { disa
   `journey.test.ts` (posunutý `group.goal` leží na souši) a `journey-marker.test.ts` (praporek na
   `group.goal`).
 - **Testy** – `lib/scene/__tests__/journey-riders.test.ts` (i rozjezd dlouho stojícího hloučku tempem
-  jádra a stojící body bez zpoždění, stálé tempo při nepravidelných
+  jádra, rozkaz 5–10 s po dojetí a stojící body bez zpoždění, stálé tempo při nepravidelných
   stavech – D49), `journey-marker.test.ts`,
   `lib/__tests__/journey-scene.test.ts`, `hooks/__tests__/use-journey-visitors.behavior.test.tsx`.
 

@@ -53,8 +53,9 @@ rozhraní, ale prostě skupina lidí, které hráč označil.
 ### Rozkazy, čekání a návrat
 
 - Jako u výjezdu: **Jdi sem**, **Přes okraj** (i na sousední mapy, Martin: „Je to tak, jak
-  říkáš“), **Domů**. Nový rozkaz nahradí starý. Jdi sem do dvorce vlastní vsi je pro lidi výpravy
-  Domů ([výjezd](lord-control.md) – Rozkazy; Martin 18. 11. 2026).
+  říkáš“), **Domů**. Nový rozkaz nahradí starý. Jdi sem do dvorce vlastní vsi je Domů – pro
+  knížete Martin 18. 11. 2026 ([výjezd](lord-control.md) – Rozkazy), pro ostatní lidi výpravy návrh
+  Clauda.
 - Skupina, se kterou hráč **3 herní dny** nepohne, jde domů a lidé se vrátí do práce (Martin).
   Platí i pro skupinu, která stojí ve vsi – třeba osedlaná a nikam neposlaná (návrh Clauda).
 - Doma se každý vrátí ke své práci. Jezdci sesednou a vesničan odvede koně do ohrady (Martin:

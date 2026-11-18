@@ -1,6 +1,6 @@
 import type { Landscape } from '../landscape';
 import { horsePens, isGrainHorse, penHorses } from '../village/livestock/horses';
-import { dwellingBox, inBuilding, pathPlotOf, type Building } from '../village/paths/network-grid';
+import { builtDwellingBuilding, inBuilding, type Building } from '../village/paths/network-grid';
 import { currentLord, isLineMan } from '../village/people/dynasty';
 import { villageHappiness } from '../village/people/happiness';
 import { villageManor } from '../village/people/manor';
@@ -90,21 +90,21 @@ export function ridingHorseOf(state: VillageState, personId: number, day: number
 /**
  * Dvorec vsi jako cíl rozkazu (lord-control.md – Rozkazy; Martin 18. 11. 2026: „když mám knížete
  * označeného a pošlu ho do dvorce, tak je to pro něj ten stejný příkaz jako návrat domů“): obdélník
- * hotového dvorce i s pozemkem a dvorem (`dwellingBox` – týž, který blokuje mřížka pochodu);
- * dvorec bez pozemku jen dům. Ves bez hotového dvorce null.
+ * hotového dvorce i s pozemkem a dvorem (`builtDwellingBuilding` – týž, ze kterého síť pěšin
+ * počítá bránu dvorce a který blokuje mřížka pochodu); dvorec bez pozemku jen dům. Ves bez
+ * hotového dvorce null.
  */
 export function manorArea(state: VillageState, landscape: Landscape): Building | null {
   const manor = villageManor(state);
   if (!manor) return null;
-  const box = dwellingBox({
+  const area = builtDwellingBuilding(landscape, {
     type: manor.type,
     position: manor.position,
-    built: true,
-    ...(manor.plot ? { plot: pathPlotOf(landscape, manor.plot) } : {}),
+    ...(manor.plot ? { plot: manor.plot } : {}),
     ...(manor.workshop ? { craft: manor.workshop.craft } : {}),
     ...(manor.plainShape ? { plainShape: true } : {}),
   });
-  return { position: { ...manor.position }, box: { ...box } };
+  return { position: { ...area.position }, box: { ...area.box } };
 }
 
 /** Leží bod `pos` v dvorci `area` (`manorArea`)? Stejně na serveru (rozkaz) i v prohlížeči (kurzor). */

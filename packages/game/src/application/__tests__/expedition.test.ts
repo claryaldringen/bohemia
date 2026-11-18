@@ -361,9 +361,20 @@ describe('musterExpedition – přidání lidí ze vsi', () => {
     const body = w.journeys.intents[3]!.body as Extract<JourneyCommand, { kind: 'order' }>;
     expect(body).toEqual({ kind: 'order', order: { kind: 'home' }, people: [20] });
     expect(JSON.stringify(await villageOf(w))).toBe(before);
+    // totéž přes musterExpedition (pod zámkem hráče): člen domů, rekrut ze vsi nikam neodejde
+    expect(await musterExpedition(w.deps, input(w.homeId, [20, 21], go(manor.x, manor.z)))).toEqual(
+      { ok: true, journeyId: 'jny-1' },
+    );
+    expect(w.journeys.intents[4]!.body).toEqual({
+      kind: 'order',
+      order: { kind: 'home' },
+      people: [20],
+    });
+    expect(personOf(await villageOf(w), 21).away).toBeUndefined();
+    expect(JSON.stringify(await villageOf(w))).toBe(before);
     // jen lidé doma: do dvorce jako dřív (vyjdou k němu)
     await musterExpedition(w.deps, input(w.homeId, [22], go(manor.x, manor.z)));
-    const recruits = w.journeys.intents[4]!.body as Extract<JourneyCommand, { kind: 'order' }>;
+    const recruits = w.journeys.intents[5]!.body as Extract<JourneyCommand, { kind: 'order' }>;
     expect(recruits.order).toMatchObject({ kind: 'go' });
     expect(recruits.recruits!.map((r) => r.ref.personId)).toEqual([22]);
   });

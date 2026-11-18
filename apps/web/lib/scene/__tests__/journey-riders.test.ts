@@ -240,6 +240,59 @@ describe('JourneyGlide – plynule mezi stavy ze serveru', () => {
     expect(lead.poses[0]!.z).toBeGreaterThan(20);
   });
 
+  it('dojetí → rozkaz za 5–10 s: vyrazí ≈ PLAY_LAG_TICKS po vyražení tempem jádra (kontrola D94)', () => {
+    // hlouček jde, v taktu 40 dojede; stojící bod worker uloží až za 40 taktů, rozkaz přijde dřív –
+    // dřív scéna přehrávala od dojetí (stav dojetí má `moved`) a rozjela se až 4–9,6 s po serveru
+    const speed = 3.5;
+    const lone = [man('1', false, true)];
+    const step = (speed * TICK_MS) / 1000;
+    for (const wait of [20, 30, 40]) {
+      const setOut = 40 + wait;
+      const walking = (tick: number): SceneJourney =>
+        journey({ tick, pos: { x: 10, z: 20 + tick * step }, men: lone });
+      const moving = (tick: number): SceneJourney =>
+        journey({
+          tick,
+          pos: { x: 10, z: 20 + 40 * step + (tick - setOut) * step },
+          setOut: { tick: setOut, pos: { x: 10, z: 20 + 40 * step } },
+          men: lone,
+        });
+      const arrivals: [number, SceneJourney][] = [
+        ...[0, 4, 8, 12, 16, 20, 24, 28, 32, 36].map((t): [number, SceneJourney] => [
+          t * TICK_MS + 100,
+          walking(t),
+        ]),
+        [40 * TICK_MS + 100, journey({ ...walking(40), arrived: true })],
+        ...[4, 8, 12, 16, 20, 24, 28].map((d): [number, SceneJourney] => [
+          (setOut + d) * TICK_MS + 100,
+          moving(setOut + d),
+        ]),
+      ];
+      const glide = new JourneyGlide();
+      let k = 0;
+      let prev: Pos | null = null;
+      let restart: number | null = null;
+      const speeds: number[] = [];
+      for (let t = 100; t <= (setOut + 28) * TICK_MS; t += 100) {
+        while (k < arrivals.length && arrivals[k]![0] <= t) {
+          glide.set([arrivals[k]![1]], arrivals[k]![0], false);
+          k++;
+        }
+        const p = glide.at(t, false).poses[0]!;
+        const moved = prev !== null && Math.hypot(p.x - prev.x, p.z - prev.z) > 1e-6;
+        if (moved && t > setOut * TICK_MS) {
+          restart ??= t;
+          if (t - restart >= 200) speeds.push(Math.hypot(p.x - prev!.x, p.z - prev!.z) / 0.1);
+        }
+        prev = p;
+      }
+      expect(restart).not.toBeNull();
+      expect(restart!).toBeLessThanOrEqual((setOut + PLAY_LAG_TICKS) * TICK_MS + 300);
+      expect(speeds.length).toBeGreaterThan(20);
+      for (const v of speeds) expect(Math.abs(v - speed) / speed).toBeLessThanOrEqual(0.1);
+    }
+  });
+
   it('zmizelý výjezd scéna nekreslí', () => {
     const glide = new JourneyGlide();
     glide.set([journey()], 0, false);
