@@ -634,8 +634,10 @@ export interface ThreshingStatus {
   /** Ves bez humna mlátí nouzově na udusané zemi (má snopy k výmlatu). */
   emergency: boolean;
   /**
-   * Výmlat nestihl okno, ač humno stálo celé okno, a ves mimo odklad mlátí jen na humnech – humno
-   * nestačí (humno postavené až po začátku okna se nepočítá – zpoždění je z pozdní stavby).
+   * Výmlat nestihl okno, ač humno stálo celé okno, a ruce výmlatu za den (`threshHands`) přetíží
+   * kapacitu humen – humno nestačí (humno postavené až po začátku okna se nepočítá – zpoždění je
+   * z pozdní stavby). S rukama pod kapacitou humen chybí ruce, ne humno: přebytek se od 21. 10. 2026
+   * mlátí nouzově, další humno by výmlat nezrychlilo (oprava 18. 11. 2026 – D95, Vlkov 896).
    */
   floorShort: boolean;
 }
@@ -659,6 +661,10 @@ export function threshingStatus(state: VillageState, day: number): ThreshingStat
     sheavesGrainKg: sheaves.grainKg,
     sheavesLegumesKg: sheaves.legumesKg,
     emergency: floors === 0 && work > EPSILON,
-    floorShort: floors > 0 && overdue,
+    // ruce jako výhled výmlatu (`sheafYields`) – bez údaje o rukou dost rukou
+    floorShort:
+      floors > 0 &&
+      overdue &&
+      (state.threshHands ?? Infinity) > floors * THRESHING.floorManDaysPerDay,
   };
 }

@@ -260,3 +260,42 @@ describe('cvičící rodina a plánování (lord.md – Den rodiny)', () => {
     expect(manor.free).toBeCloseTo(capacity - manor.dailyMin, 5);
   });
 });
+
+describe('výmlat v zimě – rodina dorovná, co ves do konce okna nestihne (lord.md – Kdy jde rodina na pole, D95)', () => {
+  // 10. 1. 601 – okno výmlatu jaře běží do konce února (49 dní s dneškem); bez humna nouzově
+  const winterSheaves = (work: number): VillageState => {
+    const s = lordVillage(4);
+    s.sheaves = { grainKg: work * 30, legumesKg: 0, work: { spring: work } };
+    return s;
+  };
+  const familyFieldDays = (from: VillageState, to: number): { days: number; s: VillageState } => {
+    let s = from;
+    let days = 0;
+    while (s.lastDay < to) {
+      s = advanceVillage(s, s.lastDay + 1, null);
+      if ((s.labor?.lord?.field ?? 0) > 0) days++;
+    }
+    return { days, s };
+  };
+
+  it('ves, která by okno sama nestihla, ho s rodinou stihne – rodina jen dorovná tempo', () => {
+    const { days, s } = familyFieldDays(winterSheaves(160), at(601, 2, 28));
+    expect(days).toBeGreaterThan(0);
+    // do konce okna vymláceno – nic nezůstane, aby se v březnu kazilo
+    expect(s.sheaves?.work?.spring ?? 0).toBeLessThan(1e-6);
+    expect(s.sheaves?.grainKg ?? 0).toBeLessThan(1e-6);
+  });
+
+  it('ves, která okno stíhá sama, rodinu na výmlat nezapojí', () => {
+    const { days, s } = familyFieldDays(winterSheaves(20), at(601, 2, 28));
+    expect(days).toBe(0);
+    expect(s.sheaves?.work?.spring ?? 0).toBeLessThan(1e-6);
+  });
+
+  it('po konci okna (březen) rodina nemlátí', () => {
+    const s = winterSheaves(160);
+    s.lastDay = at(601, 3, 1);
+    const { days } = familyFieldDays(s, at(601, 3, 20));
+    expect(days).toBe(0);
+  });
+});

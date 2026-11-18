@@ -673,6 +673,12 @@ function dayLabor(
     0,
   );
   const weedDaysLeft = weedDaysLeftOf(dayTasks, day);
+  // výmlat v zimě – rodina dorovná tempo, které ves k dokončení okna potřebuje (lord.md)
+  const threshPace = winterThreshPace(state, day, people);
+  const lordHelp =
+    manor && productivity > 0
+      ? (manor.help + (threshPace === undefined ? 0 : manor.free)) / productivity
+      : 0;
   const allocate = (jobs: CartJobsDay): DayAllocation =>
     allocateDay({
       capacity: Math.max(0, villageLabor - restingCarry),
@@ -686,8 +692,10 @@ function dayLabor(
       // muži plejí až po stavbách (fields.md – Pletí jednou a rychle; Martin 9. 11. 2026)
       menWeedLater: true,
       // celá rodina ve žních – jen žeň a výmlat, které ves nestihne (lord.md – Kdy jde rodina na
-      // pole); co z minima dvorce rodina nepokryje, platí ves
-      lordHelp: manor && productivity > 0 ? manor.help / productivity : 0,
+      // pole), v zimě výmlat jen do tempa okna (`threshPace`); co z minima dvorce rodina nepokryje,
+      // platí ves
+      lordHelp,
+      ...(threshPace === undefined ? {} : { threshPace }),
       manorMin: manor?.uncovered ?? 0,
       householdElders: householdElders(villagers, day, manorSkip),
       // péče o koně hned za denním minimem, před výpravami (horses.md – Péče)
@@ -721,6 +729,19 @@ function dayLabor(
         jobs.clay.reduce((sum, o) => sum + o.manDays, 0),
     });
   return { horses, horseCare, shoeingPlan, weeders, allocate };
+}
+
+/**
+ * Tempo výmlatu v zimě, které ves dnes potřebuje (lord.md – Kdy jde rodina na pole, Výmlat v zimě;
+ * Martin 18. 11. 2026 – volba A z D95, pravidlo návrh Clauda): cvičící rodina ve vsi mimo žňový
+ * den, plodiny s výmlatem v okně – zbývající práce výmlatu každé plodiny ÷ dny jejího okna
+ * (s dneškem; `threshSeasonTasks`). Bez rodiny, ve žňový den a mimo okno výmlatu undefined.
+ */
+function winterThreshPace(state: VillageState, day: number, people: DayPeople): number | undefined {
+  if (!people.manor || people.harvestDay || people.manor.free <= EPSILON) return undefined;
+  const tasks = threshSeasonTasks(state, day);
+  if (tasks.length === 0) return undefined;
+  return tasks.reduce((sum, t) => sum + t.remaining / Math.max(1, t.endDay - day + 1), 0);
 }
 
 /**

@@ -124,6 +124,14 @@ export interface DayAllocationInput {
    */
   lordHelp?: number;
   /**
+   * Výmlat v zimě (lord.md – Kdy jde rodina na pole, Výmlat v zimě; Martin 18. 11. 2026): tempo
+   * výmlatu, které ves dnes potřebuje, aby okno výmlatu stihla (práce po štěstí a světle – zbývající
+   * práce výmlatu v okně ÷ dny okna). Zásobník rodiny (`lordHelp`) pak na výmlat nejde hned za
+   * prací vsi, ale až po všech úlohách dne – jen tolik, kolik z tempa dnes výmlat vsi nevzal. Bez
+   * údaje rodina mlátí jako ve žních.
+   */
+  threshPace?: number;
+  /**
    * Denní minimum dvorce, které rodina nepokryje (`manorLabor` – `uncovered`, člověkodny po štěstí;
    * domácnost dvorce je jinak z `householdElders` vynechaná) – z práce vsi spolu s denním minimem;
    * bez údaje 0.
@@ -403,9 +411,12 @@ export function allocateDay(input: DayAllocationInput): DayAllocation {
       if (men > 0) later.push({ index: i, manDays: men });
       menWeed -= men;
     } else amount += take(remaining - amount);
-    // pomoc rodiny ve žních až po práci vsi – jen co ves dnes nestihne
+    // pomoc rodiny ve žních až po práci vsi – jen co ves dnes nestihne; výmlat v zimě až po všech
+    // úlohách dne (`threshPace`)
     const help =
-      HARVEST_HANDS_TASKS.has(task.name) && task.noLordHelp !== true
+      HARVEST_HANDS_TASKS.has(task.name) &&
+      task.noLordHelp !== true &&
+      !(task.name === 'thresh' && input.threshPace !== undefined)
         ? Math.max(0, Math.min(remaining - amount, helpLeft))
         : 0;
     helpLeft -= help;
@@ -425,6 +436,21 @@ export function allocateDay(input: DayAllocationInput): DayAllocation {
   input.tasks.forEach((task, i) => {
     if (task.name === 'weed') allot(task, i);
   });
+  // výmlat v zimě (lord.md – Výmlat v zimě): rodina dorovná jen tempo, které výmlat vsi dnes nevzal
+  if (input.threshPace !== undefined) {
+    const villageThresh = input.tasks.reduce(
+      (sum, task, i) => (task.name === 'thresh' ? sum + (taskAmounts[i] ?? 0) : sum),
+      0,
+    );
+    let missing = Math.max(0, input.threshPace - villageThresh);
+    input.tasks.forEach((task, i) => {
+      if (task.name !== 'thresh' || missing <= 0) return;
+      const help = Math.max(0, Math.min(task.remaining - (taskAmounts[i] ?? 0), helpLeft, missing));
+      helpLeft -= help;
+      missing -= help;
+      taskAmounts[i] = (taskAmounts[i] ?? 0) + help;
+    });
+  }
   input.tasks.forEach((task, i) => {
     taskAmounts[i] = (taskAmounts[i] ?? 0) + (followAmounts[i] ?? 0);
     tasks[task.name] += taskAmounts[i] ?? 0;

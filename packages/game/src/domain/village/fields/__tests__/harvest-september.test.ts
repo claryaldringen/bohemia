@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { THRESH_CALIBRATION_FERTILITY } from '../../rules';
 import { dateOfDayIndex, dayIndexOf } from '../../../calendar';
 import { foundVillage, type PartInput } from '../../core/actions';
 import { grossYieldPerHa } from '../fields';
@@ -9,7 +10,13 @@ import { type DayTask } from '../../core/simulate-plan';
 import { dayTaskOrder, fieldTasks } from '../../core/simulate-work';
 import { villageSheaves } from '../threshing';
 import type { SeasonCrop, VillageState } from '../../types';
-import { createCropWork, lateSpringCrop, seasonCrop, seasonCrops } from '../../core/year-plan';
+import {
+  createCropWork,
+  cropGrossPerHa,
+  lateSpringCrop,
+  seasonCrop,
+  seasonCrops,
+} from '../../core/year-plan';
 
 // Žeň jaře i v září (fields.md; Martin 9. 11. 2026: „Ano, ať se jař sklízí i v září“): co srpen
 // sklidil, jde 31. 8. do snopů, zbytek jaře zůstává na poli a dožne se v září – do snopů jde, až je
@@ -28,6 +35,9 @@ const PART_HA = 0.25;
 const PARTS = 8;
 /** Hrubá úroda obilí všech dílů při úrodnosti 70 (kg). */
 const GRAIN_KG = grossYieldPerHa(70) * PARTS * PART_HA;
+// výmlat podle kg snopů (production-chains.md – Humno, Práce výmlatu podle snopů; D95): úrodnost 70
+// dá o 6,5 % víc než běžná úroda – o tolik víc práce výmlatu než sazba na hektar
+const THRESH_SCALE = grossYieldPerHa(70) / cropGrossPerHa('spring', THRESH_CALIBRATION_FERTILITY);
 
 /**
  * Ves s hospodářským rokem 600/601: jař na PARTS dílech po 0,25 ha (úrodnost 70, první osev oběhu),
@@ -89,7 +99,7 @@ describe('žeň jaře i v září (fields.md – Žeň jaře i v září)', () =
     harvestLateSpring(s, at(601, 9, 12), false);
     expect(spring.harvestedKg).toBeCloseTo(GRAIN_KG, 6);
     expect(villageSheaves(s).grainKg).toBeCloseTo(GRAIN_KG, 6);
-    expect(villageSheaves(s).work!.spring).toBeCloseTo(spring.required.thresh, 9);
+    expect(villageSheaves(s).work!.spring).toBeCloseTo(spring.required.thresh * THRESH_SCALE, 9);
     expect(lateSpringCrop(s)).toBeUndefined();
     expect(s.parts.every((p) => p.state === 'ready' && p.sownYears === 1)).toBe(true);
     const reaps = s.chronicle.filter((e) => e.kind === 'harvest');
@@ -107,7 +117,10 @@ describe('žeň jaře i v září (fields.md – Žeň jaře i v září)', () =
     harvestLateSpring(s, at(601, 9, 30), true);
     expect(spring.harvestedKg).toBeCloseTo(0.7 * GRAIN_KG, 6);
     expect(villageSheaves(s).grainKg).toBeCloseTo(0.7 * GRAIN_KG, 6);
-    expect(villageSheaves(s).work!.spring).toBeCloseTo(0.7 * spring.required.thresh, 9);
+    expect(villageSheaves(s).work!.spring).toBeCloseTo(
+      0.7 * spring.required.thresh * THRESH_SCALE,
+      9,
+    );
   });
 
   it('jař sklizená do 31. 8. jde do snopů celá jako dřív', () => {

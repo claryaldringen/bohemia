@@ -223,9 +223,9 @@ Beze změny (milíř u buků – crafts.md); nošení uhlí ke kováři je dnes 
   (výmlat obilí 15 (10) čd/ha, luštěnin 10 (6) – [pole](fields.md) – Práce) platí pro **běžnou
   úrodu**: hrubou úrodu při úrodnosti 61,6 – průměr tří let osevu čerstvého dílu s přirozenou
   úrodností 70 (aktuální ≈ 88 %, pole – Úroda), tj. obilí ≈ 585 kg/ha (39 (58) kg zrna na čd),
-  luštěniny ≈ 468 kg/ha. Úroda pod běžnou se vymlátí úměrně rychleji, nad ní pomaleji (Vlkov 895:
-  ≈ 330 kg/ha, 28 kg na čd – dřív 335 čd na 9,5 t). Příplatek za vzdálenost dílu a deštivé léto
-  (+20 %) zůstávají.
+  luštěniny ≈ 468 kg/ha. Úroda pod běžnou se vymlátí úměrně rychleji, nad ní pomaleji (Vlkov – žeň
+  895 9,5 t: 237 čd výmlatu místo 332, tj. 40 místo 28 kg zrna na čd). Příplatek za vzdálenost dílu
+  a deštivé léto (+20 %) zůstávají.
 - **Odchod do nové vsi** (migration.md): snopy, které ves smí vymlátit, se dělí jako zásoby –
   odcházející si vezmou svůj díl (vymlácený), ve vsi zůstane poměrný díl snopů i práce výmlatu.
 - **Nošení** (návrh Clauda): práce výmlatu má v rozdělení práce dne cíl humno – k němu vede

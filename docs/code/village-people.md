@@ -91,7 +91,13 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
     vsi dá ve žňový den podíl z plánu (`manorLabor.help` – `lordHelpDay`,
     [village-fields.md](village-fields.md) – Rodina ve žních) v pořadí ženy a dcery → muži →
     vojvoda (`lordFieldShares`; `ManorLabor.freeLord` – minimum, na které ženy nestačí, kryjí
-    napřed synové). `lordFieldIds` = cvičící dnes na poli – nejezdí ani neloví. Pomoc při hladu (`lord.field`,
+    napřed synové). `lordFieldIds` = cvičící dnes na poli – nejezdí ani neloví.
+  - **Výmlat v zimě** (lord.md – Kdy jde rodina na pole, Výmlat v zimě; Martin 18. 11. 2026 – D95,
+    volba A): mimo žňový den v okně výmlatu `winterThreshPace` (`simulate-work.ts`) – zbývající
+    práce `threshSeasonTasks` ÷ dny okna – jde do `allocateDay` jako `threshPace` a zásobník
+    `lordHelp` je celá `manorLabor.free`. Rodina mlátí až po všech úlohách dne, jen rozdíl tempa
+    a výmlatu vsi dne; použitá práce jde do `lordFieldShares` jako ve žních (`trainLordDay`
+    krátí výcvik). `harvestFieldIds` (jízdy ve scéně) zimní výmlat nezná. Pomoc při hladu (`lord.field`,
     `lord.fedDays`, kronika `lord-to-field` / `lord-to-training`) zrušená – převod
     `withoutSowingHelp` (`lord.ts`) je smaže; staré zápisy kroniky web dál umí.
   - **Výcvik:** `trainLordDay` po jídle – cvičící `trainArms`, dospělí jen
