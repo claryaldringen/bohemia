@@ -476,6 +476,52 @@ describe('dvě zásoby uzeného – z porážky 1. 11. rovným dílem, ostatní 
     expect(share).toBeGreaterThan(meatEnergy(100 * DAILY_MEAT_KEEP) / 50);
   });
 
+  it('zásoba nad plnou potřebu do konce masa se jí napřed, před mlékem – 1. 9. jen nevyhnutelný zbytek (D98 kolo 2)', () => {
+    // mléko na půl potřeby každý den, zásoba z 1. 11. na dvojnásobek plné potřeby do 31. 8.
+    // (Martin 18. 11. 2026: „ať klidně všichni jedí jenom maso, pokud se tím zabrání jeho zkažení“)
+    const start = at(601, 11, 1);
+    const end = at(602, 9, 1);
+    const milkL = (0.5 * NEED) / DAIRY.energyPerL.cow;
+    let kg = (2 * NEED * (end - start)) / DIET.meatEnergy;
+    // nejmenší možný zbytek – každý den plná potřeba ze zásoby
+    let least = kg;
+    for (let day = start; day < end; day++) {
+      least = Math.max(0, least * DAILY_MEAT_KEEP - NEED / DIET.meatEnergy);
+    }
+    let milkDrunkL = 0;
+    for (let day = start; day < end; day++) {
+      const meal = eatDiet(
+        input({
+          ...cowMilk(milkL),
+          meatKg: kg,
+          slaughterMeatKg: kg,
+          daysToHarvest: 400,
+          daysToMeatEnd: daysUntilMeatEnd(day),
+        }),
+      );
+      milkDrunkL += meal.eaten.milkL;
+      kg = meal.meatKg;
+    }
+    expect(kg).toBeCloseTo(least, 6);
+    expect(least).toBeGreaterThan(0);
+    // maso napřed – mléko jde na sýr, dokud by se maso jinak zkazilo
+    expect(milkDrunkL).toBe(0);
+  });
+
+  it('nutně dnes před mlékem jen co by se jinak zkazilo – zbytek dílu až po mléku', () => {
+    // 10 dní do konce masa, zásoba na 9,3 dne plné potřeby – nutně dnes 0,3 potřeby (9,3 − 9)
+    const kg = (9.3 * NEED) / DIET.meatEnergy / DAILY_MEAT_KEEP;
+    const milkL = (0.5 * NEED) / DAIRY.energyPerL.cow;
+    const meal = eatDiet(
+      input({ ...cowMilk(milkL), meatKg: kg, slaughterMeatKg: kg, daysToMeatEnd: 10 }),
+    );
+    // nutně 0,3, mléko celé (0,5), zbytek dílu (0,93 − 0,3) jen do zbytku potřeby (0,2)
+    expect(meal.eaten.milkL).toBeCloseTo(milkL, 9);
+    expect(meatEnergy(meal.eaten.meatKg)).toBeCloseTo(0.5 * NEED, 9);
+    expect(meal.eaten.grainKg).toBeCloseTo(0, 9);
+    expect(meal.cheeseMadeKg).toBe(0);
+  });
+
   it('v hladu díl i nad dnešní příděl, víc ne – výhled počítá díl se ztrátou uzením do sklizně', () => {
     // obilí na ≈ 30 % potřeby do sklizně, zásoba z 1. 11. 1 000 kg do konce masa za 200 dní
     const grainKg = 0.3 * NEED * 100;
@@ -601,6 +647,8 @@ describe('výhled zná ztráty obilí skladováním do žní (fields.md – Př�
       // ztrátou uzením, ostatní uzené celé (D98)
       { meatKg: 2400, slaughterMeatKg: 2000, daysToMeatEnd: 400, eggsKg: 0.5 },
       { meatKg: 500, slaughterMeatKg: 500, daysToMeatEnd: 120, ...cowMilk(10) },
+      // zásoba z 1. 11. nad plnou potřebu do konce masa – nutný díl před mlékem (D98 kolo 2)
+      { meatKg: 9000, slaughterMeatKg: 8000, daysToMeatEnd: 200, ...cowMilk(20) },
       // hojnost – čerstvé maso zimní porážky do konce zimy, velké zásoby a med (bez obilí ≈ 75 %)
       {
         freshMeatKg: 5,

@@ -9,8 +9,10 @@ import { withRoomyPens } from '../../__tests__/village-fixtures';
 
 // Letní porážka nevybije stádo (diet.md – Strava po vrstvách a porážka celý rok; kontrola Úlohy 4,
 // 18. 11. 2026): zlatá ves se 40 kozami a 30 prasaty, prostornými ohradami a loukou. Léto nevezme
-// víc než kandidáti 1. 4. a stádo přes zimu je stejné jako bez letní porážky (táž ves, letní
-// porážka vypnutá). Pomalý test (zlatá ves se staví ≈ 12 s) – `npm run test:slow`.
+// víc než kandidáti 1. 4., sena je k 31. 10. aspoň 97 % sena vsi bez letní porážky a při stejném
+// seně je stádo přes zimu stejné jako bez letní porážky (táž ves, letní porážka vypnutá). Vliv
+// menší seče na stádo přes zimu test neměří (diet.md – Důsledky k vědomí: kozy dostávají seno
+// poslední, D98 kolo 1 −14 %). Pomalý test (zlatá ves se staví ≈ 12 s) – `npm run test:slow`.
 
 const summer = vi.hoisted(() => ({ off: false }));
 vi.mock('../summer-slaughter', async (importOriginal) => {
@@ -26,7 +28,7 @@ vi.mock('../summer-slaughter', async (importOriginal) => {
 const SPECIES: readonly HerdSpecies[] = ['goat', 'pig'];
 
 describe('letní porážka ve zlaté vsi', () => {
-  it('léto nevezme víc než kandidáti 1. 4. a stádo přes zimu je jako bez letní porážky', () => {
+  it('léto nevezme víc než kandidáti 1. 4. a při stejném seně je stádo přes zimu jako bez letní porážky', () => {
     const w = goldenWorld();
     const year = dateOfDayIndex(w.start.lastDay).year + 1;
     const march = dayIndexOf({ year, month: 3, day: 31 });

@@ -92,8 +92,14 @@ export function foodLastsDays(
     // pořadí jídla vsi jako `eatDiet` (diet.ts – bez mléka a vajec, předpověď nezná příjmy; bez
     // tempa proti zkažení; ostatní uzené hned, zásoba z porážky 1. 11. jen svým dílem); rozdělení
     // po vrstvách (`tierMeal`) má vlastní pořadí – změna pořadí od Martina na všech třech místech
+    // ze zásoby z porážky 1. 11. napřed, co by se do konce masa plnou potřebou nestihlo (jako
+    // `slaughterMust` v jídle dne), pak ostatní uzené a zbytek dílu
+    const share = slaughter / (meatEnd - i);
+    const must = Math.min(need, Math.max(0, slaughter - need * (meatEnd - i - 1)));
+    const before = slaughter;
+    slaughter = eat(slaughter, must);
     meat = eat(meat);
-    slaughter = eat(slaughter, slaughter / (meatEnd - i));
+    slaughter = eat(slaughter, Math.max(0, share - (before - slaughter)));
     cheese = eat(cheese);
     fruit = eat(fruit);
     legumes = eat(legumes);

@@ -399,12 +399,20 @@ interface DietPlan {
   aheadEnergy: number;
   /**
    * Tempo proti zkažení (energie za den – návrh Clauda): ovoce ÷ dny do zkažení, maso (ostatní
-   * uzené i dnešní čerstvé) ÷ dny do konce masa; `spoilPace` – i s vejci dne celkem: kolik se dnes
-   * aspoň sní, aby se vejce, ovoce a maso stihly sníst rovným dílem do zkažení.
+   * uzené i dnešní čerstvé) ÷ dny do konce masa; `spoilPace` – i s vejci dne a nutným dílem zásoby
+   * z porážky 1. 11. celkem: kolik se dnes aspoň sní, aby se vejce, ovoce a maso stihly sníst
+   * rovným dílem do zkažení.
    */
   fruitPace: number;
   meatPace: number;
   spoilPace: number;
+  /**
+   * Co ze zásoby z porážky 1. 11. se musí sníst dnes, jinak se zkazí (energie – Martin 18. 11. 2026:
+   * „Pokud bude přebytek masa, ať klidně všichni jedí jenom maso, pokud se tím zabrání jeho
+   * zkažení“): zásoba nad plnou potřebu za zbývající dny do konce masa (bez dneška), nejvýš plná
+   * potřeba – jí se v tempu proti zkažení, před mlékem (ruling koordinátora 18. 11. 2026).
+   */
+  slaughterMust: number;
   /**
    * Díl zásoby z porážky 1. 11. dnes (energie – diet.md, Pořadí jídla; Martin 18. 11. 2026: „Uzené
    * rozlož“): zásoba po dnešní ztrátě ÷ dny do konce masa, poslední den zbytek. Jí se až po mléku,
@@ -470,6 +478,12 @@ function dietPlan(input: DietInput): DietPlan {
   // vejce dnes, ovoce do zkažení, maso (ostatní uzené i čerstvé) do konce masa rovným dílem
   const fruitPace = rotDays > 0 ? fruitToday / rotDays : 0;
   const meatPace = meatEnergy(meat + fresh) / meatDays;
+  // ze zásoby z porážky 1. 11. dnes napřed, co by se jinak zkazilo – co nad plnou potřebu za
+  // zbývající dny do konce masa přebývá (poslední den celý zbytek), nejvýš plná potřeba
+  const slaughterMust = Math.min(
+    Math.max(0, need),
+    Math.max(0, meatEnergy(slaughter) - Math.max(0, need) * (meatDays - 1)),
+  );
   // med pevným přídělem z toho, co je (hides-honey.md – Klát u obydlí); do sklizně jen, dokud
   // zásoba vydrží – med, který klády dají do žní, výhled nezná. Když jídla do sklizně není dost,
   // je celá zásoba jídlo jako obilí (`honeyAll` – Med v hladu)
@@ -494,7 +508,8 @@ function dietPlan(input: DietInput): DietPlan {
     aheadEnergy: Math.min(need * days, ahead),
     fruitPace,
     meatPace,
-    spoilPace: eggsEnergy + fruitPace + meatPace,
+    spoilPace: eggsEnergy + fruitPace + meatPace + slaughterMust,
+    slaughterMust,
     slaughterShare,
     honeyEaten,
     honeyUntilHarvest: honeyEnergy(honeyEaten) * Math.min(days, honeyDays),
@@ -549,10 +564,11 @@ export function grainAheadForOutlookKg(input: DietInput, outlook: number): numbe
  *   co by se zkazilo, sní ostatní).
  * - Složení: pevný příděl medu (jí se, i když obilí stačí – návrh Clauda, jinak by med nikdy nedal
  *   štěstí), pak tempo proti zkažení – i v hojnosti, ať nic, co jde sníst, nepřijde nazmar; nad
- *   plnou potřebu se krátí od nejtrvanlivějšího (maso, ovoce, vejce naposled; návrh Clauda) –, pak
- *   zbytek v pořadí mléko, vejce, čerstvé maso, ostatní uzené, díl zásoby z porážky 1. 11.
- *   (`slaughterShare` – zásoba ÷ dny do konce masa, do plné potřeby i nad dnešní příděl, nad díl
- *   ne; co se nevejde, zůstane v zásobě – návrh Clauda 18. 11. 2026), sýr, ovoce, luštěniny a obilí
+ *   plnou potřebu se krátí od nejtrvanlivějšího (maso, ovoce, vejce naposled; návrh Clauda); na
+ *   konci tempa i nutný díl zásoby z porážky 1. 11. (`slaughterMust` – co by se jinak zkazilo) –,
+ *   pak zbytek v pořadí mléko, vejce, čerstvé maso, ostatní uzené, zbytek dílu zásoby z porážky
+ *   1. 11. (`slaughterShare` – zásoba ÷ dny do konce masa, do plné potřeby i nad dnešní příděl, nad
+ *   díl ne; co se nevejde, zůstane v zásobě – návrh Clauda 18. 11. 2026), sýr, ovoce, luštěniny a obilí
  *   (nejvýš vymlácená zásoba). V hladu je místo pevného přídělu med za obilím – podílem na obilí
  *   a medu, které se do sklizně snědí, obojí tak vyjde na den sklizně. Nevypité mléko se zpracuje
  *   na sýr, nesnědené čerstvé maso se vyudí (k ostatnímu uzenému), nesnědená vejce se zkazí.
@@ -641,6 +657,9 @@ export function eatDiet(input: DietInput): DietResult {
   eat('fruit', plan.fruitPace);
   eat('fresh', plan.meatPace);
   eat('smoked', plan.meatPace - (full.fresh - rest.fresh));
+  // ze zásoby z porážky 1. 11. napřed, před mlékem, co by se jinak do konce masa nestihlo sníst
+  // (Martin 18. 11. 2026: „ať klidně všichni jedí jenom maso, pokud se tím zabrání jeho zkažení“)
+  eat('slaughter', plan.slaughterMust);
   // zbytek dnešní energie v pořadí jídla vsi – mléko a vejce napřed (nedají se uložit), čerstvé
   // a ostatní uzené maso hned (Martin 18. 11. 2026: „pokud se porazí kus, tak se prostě ihned
   // rozdělí a sní“). Totéž pořadí má předpověď `foodLastsDays` (food-lasts.ts); rozdělení
@@ -650,7 +669,8 @@ export function eatDiet(input: DietInput): DietResult {
   // díl zásoby z porážky 1. 11. až po nich (Martin 18. 11. 2026: „První se musí jíst, to, co se
   // nejdřív zkazí“, „Uzené rozlož“) – do plné potřeby, i nad dnešní příděl (výhled s dílem
   // počítá); co se nevejde, zůstane v zásobě a díl dalších dnů se přepočte
-  const share = Math.min(rest.slaughter, plan.slaughterShare, Math.max(0, need - (start - left)));
+  const shareLeft = plan.slaughterShare - (full.slaughter - rest.slaughter);
+  const share = Math.max(0, Math.min(rest.slaughter, shareLeft, need - (start - left)));
   rest.slaughter -= share;
   left = Math.max(0, left - share);
   for (const food of ['cheese', 'fruit', 'legumes'] as const) eat(food);
