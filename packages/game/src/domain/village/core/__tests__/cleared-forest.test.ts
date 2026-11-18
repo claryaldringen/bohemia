@@ -175,4 +175,40 @@ describe('villageClearings', () => {
     });
     expect(villageClearings(landscape, layer, plotted, 10).areas).toEqual([]);
   });
+
+  it('pozemek bez natočení se středem mimo políčko je v lese paseka, na políčku dál ne (D96)', () => {
+    // 18. 11. 2026 – D96: pozemek má střed kdekoli pod kurzorem i bez natočení – nezabírá políčko,
+    // tak paseku tvoří čtverec sám (jako natočený); dřív stál jen na políčku
+    const house = (plot: object): VillageState =>
+      village({
+        dwellings: [
+          { id: 1, type: 'polozemnice', position: { x: 21, z: 6, rotation: Math.PI }, plot },
+        ],
+      });
+    const free = villageClearings(
+      landscape,
+      layer,
+      house({ cell: { x: 5, y: 4 }, variant: 'center', square: { x: 21.3, z: 6.4, rotation: 0 } }),
+      10,
+    );
+    expect(free.areas).toHaveLength(1);
+    expect(Math.min(...free.areas[0]!.map((p) => p[0]))).toBeCloseTo(21.3 - 7.5, 9);
+    expect(Math.max(...free.areas[0]!.map((p) => p[1]))).toBeCloseTo(6.4 + 7.5, 9);
+    // na políčku (i jako čtverec bez natočení ve středu políčka) paseku netvoří jako dřív
+    const onTile = house({ cell: { x: 5, y: 4 }, variant: 'center' });
+    expect(villageClearings(landscape, layer, onTile, 10).areas).toEqual([]);
+    const centered = house({
+      cell: { x: 5, y: 4 },
+      variant: 'center',
+      square: { x: 22.5, z: 7.5, rotation: 0 },
+    });
+    expect(villageClearings(landscape, layer, centered, 10).areas).toEqual([]);
+    // natočený o 90° ve středu políčka – čtverec jako dřív (`turnedSquare`)
+    const quarter = house({
+      cell: { x: 5, y: 4 },
+      variant: 'center',
+      square: { x: 22.5, z: 7.5, rotation: Math.PI / 2 },
+    });
+    expect(villageClearings(landscape, layer, quarter, 10).areas).toHaveLength(1);
+  });
 });
