@@ -63,6 +63,180 @@ Raně středověká strava nebyla jen obilí. Plné nasycení potřebuje kombina
 
 ## Pravidla (návrh Clauda, doladí se hraním)
 
+### Strava po vrstvách a porážka celý rok (Martin, 18. 11. 2026 – návrh ke schválení)
+
+**Proč.** Ve Vlkově od ledna do června 895 umřelo hlady 9 lidí, a přitom ve spíži leželo kolem
+1 000 kg uzeného masa: čerstvé maso ze zimní porážky naplnilo strop masa (40 % energie), uzené
+čekalo a zbylých 60 % mělo dát obilí, které chybělo. 1. 9. 895 se 603 kg masa zkazilo. Přednost
+v hladu (D92) navíc soustředila celý nedostatek na sedláky, kteří obdělávají pole – přepočet
+Vlkova ze zálohy 17. 11. 2026 13:38 dal se stejnými zásobami 22 lidí bez přednosti a 8 s ní.
+
+**Martin, 18. 11. 2026:**
+
+- „Pojďme tu stravu upravit komplet. Elita ať jí obecně víc masa celoročně. To samé s ovocem.
+  První se musí jíst, to, co se nejdřív zkazí, protože obilí lze skladovat“
+- „Mělo by se průběžně porážet celý rok (pokud je dost zvířat) v zimě jenom víc (kvůli stravě
+  a kvůli tomu, že se maso pomaleji kazí). Proč by se mělo porážet celý rok – kníže a nobilita
+  chce mít maso na stole nejlépe každý den. Odstupňování jednotlivých vrstev už znáš – kníže
+  a jeho rodina, cizí mistři, domácí řemeslníci, ostatní.“
+- „Pokud by se něco mělo zkazit, ať to dostane vrstva ostatní. Pokud bude přebytek masa, ať klidně
+  všichni jedí jenom maso, pokud se tím zabrání jeho zkažení. Množství masa a ovoce v jídelníčku
+  má také vliv na spokojenost“
+- „Strop bych úplně zrušil, je to zbytečný výpočet navíc. Pořadí jídla je jasné: 1. maso (a to
+  i ryby a drobná zvěř) 2. ovoce (sice se dá usušit a zvařit, ale čerstvé je nejlepší) 3. luštěniny 4. obilí“
+- „Mléko, sýr a vejce se musí jíst čerstvé, takže to dej na stejnou úroveň jako maso. Med je spíš
+  komodita a navíc se nekazí. Dej ho v pořadí za obilí – med se bude ve větší míře jíst až při
+  hladu, nicméně protože je sladký, zvyšuje štěstí“
+- „Ovoce zbude i na nižší vrstvy. Ostatně jabloně rostou podél cest a každý si může utrhnout co
+  chce“
+- „Mělo by se chovat co nejvíc je vesnice schopná uživit a upást. Dobytek se výhodně prodával na
+  dobytčích trzích. Obecně se vesnice bez zásahu snaží vyprodukovat co nejvíc všeho“
+
+**Cíle**
+
+- Kníže s rodinou má maso na stole každý den, když na to stádo stačí.
+- Nic se nezkazí, dokud to může někdo sníst: napřed se jí, co se zkazí nejdřív, obilí je zásoba.
+- Ves bez zásahu vyrábí co nejvíc všeho.
+- Maso, ovoce a med zvyšují spokojenost toho, kdo je jí.
+
+**Ne-cíle (teď)**
+
+- Sušení a vaření ovoce – jí se jen čerstvé (Martin: „čerstvé je nejlepší“).
+- Prodej dobytka na trzích – Martin ho uvedl jako důvod velkých stád; obchod dál vede hráč
+  a správce, ves sama dobytek neprodává (návrh Clauda).
+
+**Anti-cíle**
+
+- Maso se kazí, zatímco lidé hladoví.
+- Výpočet, který na výsledku nic nemění (Martin: „zbytečný výpočet navíc“).
+
+**Vrstvy** – tytéž čtyři skupiny jako přednost v hladu ([populace](population.md) – Přednost
+v hladu), nově platí celý rok, ne jen v hladu:
+
+1. rod vojvody ve vsi (vojvoda a rodina ve dvorci, domech elity i vedlejší manželky),
+2. domácnosti zahraničních mistrů huti,
+3. domácnosti domácích řemeslníků (obydlí s dílnou) a každý, kdo se řemeslo učí nebo vyučil,
+4. ostatní (i hosté).
+
+Člověk patří do nejvyšší vrstvy, kam ho řadí kterékoli pravidlo.
+
+**Pořadí jídla – bez stropů.** Každý den se každý nají do své potřeby energie v tomto pořadí:
+
+1. **maso** (z porážky, uzené, ryby a drobná zvěř), **mléko, sýr, vejce**,
+2. **ovoce**,
+3. **luštěniny**,
+4. **obilí**,
+5. **med**.
+
+- Stropy podílů energie (maso 40 %, ovoce 25 %, mléko a sýr 30 %, luštěniny 25 %) se ruší. Nikdo
+  nesní víc, než je jeho potřeba energie.
+- Kvalita stravy z bílkovin a ovoce zůstává (Bílkoviny a nasycení), takže cíl „samo obilí ani
+  samo ovoce nikdy úplně nenasytí“ platí dál i bez stropů.
+- Uvnitř první úrovně (návrh Clauda) se jí napřed mléko a vejce (nedají se uložit), pak čerstvé
+  maso, ryby a zvěř, pak uzené maso (zkazí se 1. 9.) a nakonec sýr. Nevypité mléko se zpracuje na
+  sýr, nesnědená vejce se zkazí.
+- Rychle se kazící jídlo se nešetří rovným dílem do zkažení jako dosud – jí se hned, jak je.
+  Šetří se jen obilí (a v hladu med) rovným dílem do sklizně, jako dnes (Přídělový systém,
+  [pole](fields.md)).
+- Ze dnešního čerstvého masa, které nikdo nesní, se vyudí uzené; z mléka, které nikdo nevypije,
+  je sýr – jako dnes.
+
+**Kdo dostane co** – ve dvou krocích.
+
+1. **Kolik energie dnes kdo sní (příděl).** Martin, 18. 11. 2026: „Nejde, aby elita měla plný
+   příděl a rolníci byli pod hranicí hladomoru. Elita sice bude mít víc jídla, ale pouze pokud to
+   neohrozí životní minimum pro poddané“.
+   - Když jídlo na dnešek (podle výhledu do sklizně) vystačí všem do plné potřeby, nají se všichni
+     dosyta.
+   - Když vystačí aspoň na **životní minimum – 75 % potřeby energie**, dostane napřed každý 75 %
+     své potřeby. Teprve to, co zbude nad tím, jde po vrstvách: vrstva 1 do plné potřeby, pak
+     vrstvy 2, 3 a 4.
+   - Když jídlo nevystačí ani na 75 % pro všechny, dostanou všichni stejný podíl své potřeby, bez
+     přednosti.
+   - Proč 75 % (Martin, 18. 11. 2026, k 90 %: „90% mi nepříjde jako nějaký velký hlad, jen jako
+     drobné nepohodlí“; k 75 %: „75% je ok.“): hlad se sčítá pod 90 % (Hlad níž) a na 75 % hrozí
+     smrt hlady dítěti a staršímu po ≈ 2,5 měsíce, dospělému po ≈ 4 měsících – běžné hladové jaro
+     do sklizně lidé přežijí, umírat začnou, až když se hlad protáhne.
+2. **Čím se příděl naplní.** Na každé úrovni pořadí jídla se napřed nají vrstva 1 do svého
+   přídělu, pak vrstvy 2, 3 a 4. Vrstva, na kterou celý díl úrovně nevyjde, si ho rozdělí rovným
+   dílem a nižší vrstvy z té úrovně nedostanou nic. Elita tak jí napřed maso, ale jen do svého
+   přídělu – na životní minimum ostatních se dorovná dalším jídlem.
+
+- „Rovným dílem“ znamená, že každý ve vrstvě dostane stejný podíl své potřeby – dítě tak sní méně
+  než dospělý, jako dnes v hladu (návrh Clauda).
+- **Ovoce** se po vrstvách nedělí: rozdělí se rovným dílem mezi všechny, kdo ještě nejsou sytí
+  (Martin: „každý si může utrhnout co chce“).
+- „Co by se zkazilo, dostane vrstva ostatní“ plyne z pořadí samo: co vyšší vrstvy nesnědí,
+  sní nižší, klidně jen maso.
+
+**Porážka celý rok** (nahrazuje „Porážka jen v zimě“ – Martin 19. 10. 2026: „porážky probíhaly
+jenom v zimě, v létě se maso rychle kazí“):
+
+- **Kolik:** na maso jdou staré kusy (doslouží 1/8 ovcí a koz, 1/10 krav, 1/4 prasnic za rok)
+  a kusy, které by si ves 1. 11. přes zimu stejně nenechala (nad nosnost zimy, místa v ohradách,
+  pasáky a místa pro mláďata). Během roku to ves odhaduje dnešními daty stejným výpočtem jako
+  1. 11. Chovné minimum a stádo přes zimu zůstávají jako dnes (návrh Clauda).
+- **V létě (1. 4.–31. 10.)** se poráží, jen když vrstvě 1 na dnešek nestačí maso v zásobě
+  (uzené se kazí, a proto se jí dřív). Porazí se nejmenší kus z těch, které na maso jdou a na
+  potřebu vrstvy 1 stačí; když nestačí žádný, největší z nich. Co z kusu vrstva 1 nesní, sní týž
+  den vrstvy pod ní, zbytek se vyudí. Letošní mláďata v létě na maso nejdou, kromě selat od 1. 9.
+  – jako u nouzové porážky (návrh Clauda).
+- **V zimě (1. 11.–31. 3.)** se kusy, které čekají na porážku, rozloží na zbývající dny zimy:
+  denně se porazí tolik masa, kolik dá zbývající maso čekajících kusů děleno zbývajícími dny, po
+  celých kusech. Kníže tak má maso každý den celou zimu a zimní maso se dělí po vrstvách od
+  vrstvy 1 (návrh Clauda podle „kníže … chce mít maso na stole nejlépe každý den“ a „v zimě jenom
+  víc“). Kusy, které ves senem neuživí, porazí hned a maso vyudí – jako dnes; to uzené se jí
+  hned po čerstvém, i když tím všichni jedí jen maso.
+- Odhad, které kusy na maso jdou, je čistá funkce stavu a dne, jako ostatní pravidla vsi; jak
+  často se přepočítává, je na staviteli. Chovné samice a chovný pár nejdou na maso nikdy.
+- Výtěžnost a ztráta uzením jako dnes (20 % ročně, 1. 9. se zbytek zkazí); práce porážky
+  a uzení jako dnes (1 člověkoden na 20 kg masa) – i v létě.
+- **Nouzová porážka** beze změny.
+- Ruší se „Na maso jen to, co ves sní“ (Chovné stádo podle potřeby): plán stádo pod nosnost
+  nezmenšuje o maso, které by ves pod stropem do 31. 8. snědla.
+
+**Stádo** beze změny – co největší stáda od 24. 10. 2026 ([orání rádlem](oxen.md) – Co nejvíc
+sena a co největší stáda); Martin to 18. 11. 2026 potvrdil.
+
+**Ryby a drobná zvěř** ([divoká zvěř](wildlife.md) – Drobná zvěř a ryby): podle „vesnice bez
+zásahu se snaží vyprodukovat co nejvíc všeho“ se ryby loví vždy (duben–listopad), ne jen když
+chybí bílkoviny nebo ves hladoví. Kvóty, kdo loví a kde zůstávají. Úlovek je čerstvé maso
+první úrovně a co z něj nikdo nesní, se vyudí jako maso (návrh Clauda).
+
+**Med** je v pořadí za obilím. Běžně se jí pevný příděl jako dnes (0,5 kg na člověka za rok, po
+vrstvách), v hladu celá zásoba jako obilí – jako dnes ([kůže, kožešiny, med a vosk](hides-honey.md)
+– Med v hladu). Nově zvyšuje štěstí: **+2**, dokud lidé jedí med (návrh Clauda – méně než ovoce
++5, medu je málo).
+
+**Spokojenost ze stravy** se počítá po lidech podle toho, co kdo snědl: maso až +3 (poměrně,
+plně od 20 % energie z masa – jako dnes), ovoce +5 a med +2 každý, kdo ten den ovoce nebo med
+jedl. Ves vezme průměr přes všechny lidi – stejně jako štěstí z nasycení u přednosti v hladu.
+Ve vsi s medem tak med při pevném přídělu dává +2 skoro pořád (návrh Clauda).
+
+**Hlad:** přednost v hladu ([populace](population.md) – Přednost v hladu) platí nově jen nad
+životním minimem (Kdo dostane co). Nahromaděný hlad po vrstvách, porody podle energie vrstvy
+matky, odchod mistrů podle energie jejich vrstvy a nouzová porážka podle výhledu celé vsi
+zůstávají.
+
+**Výhled do sklizně** počítá se vším jídlem mimo obilí, které do sklizně podle těchto pravidel
+přijde: se zásobami do jejich zkažení, mlékem a vejci, masem čekajících kusů v zimě a z letní
+porážky pro vrstvu 1 a s rybami do kvóty. Obilí (a v hladu med) pak dorovná zbytek rovným dílem
+do sklizně po vrstvách (návrh Clauda; dnešní výhled odečítá maso, ovoce a mléko podle stropů).
+
+**Stav vsi:** nové části stavu, budou-li potřeba, jsou volitelné a převádí je `VILLAGE_MIGRATIONS`
+jako vždy.
+
+**Co nahrazuje:** strop masa, ovoce, mléka a sýra a luštěnin (Bílkoviny a nasycení), „maso rovným
+dílem do porážky“ a „uzené až do stropu masa“, „Porážka jen v zimě“ (Porážka v zimě), „Na maso
+jen to, co ves sní“ (Chovné stádo podle potřeby), med bez štěstí (Pojmy), ryby „jen při
+potřebě“ ([divoká zvěř](wildlife.md)) a plné příděly vrstev v pořadí, i když zbytek vsi hladoví
+([populace](population.md) – Přednost v hladu, od 17. 11. 2026). Neplatné části se při zavedení
+přesunou do [history](history/).
+
+**Ověření** – Martin, 18. 11. 2026: „na to ser, na to máme vlkov“. Dopad se ověří přepočtem
+Vlkova ze zálohy 17. 11. 2026 13:38 a z dnešního stavu, bez měření na víc vsích. Zlaté otisky vsi
+se přepíšou.
+
 ### Bílkoviny a nasycení (Martin, 18. 10. 2026; tvar návrh Clauda)
 
 - **Potřeba bílkovin = 1,6 g na kg tělesné váhy denně** (Martin). Váha podle osteologie
