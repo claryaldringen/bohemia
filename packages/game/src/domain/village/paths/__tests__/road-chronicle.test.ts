@@ -211,4 +211,47 @@ describe('kronika – zarostlá cesta (D67)', () => {
     } as unknown as VillageState['routes'];
     expect(roadFormedNote(state, withCell, 1, day).years).toBe(15);
   });
+
+  it('roky chůze nejvýš jako doba vyšlapání z provozu cesty; trasa bez cest se nepočítá (D93)', () => {
+    // Martin 18. 11. 2026: „18 let na vyšlapání cesty je kurevsky dlouho, je to celá generace“
+    const day = FOUNDED + 18 * YEAR;
+    const cell = 1.25;
+    const window: GridWindow = {
+      width: 200,
+      height: 200,
+      originX: -125,
+      originZ: -125,
+      cellM: cell,
+    };
+    const along = (from: string, trips: number): StoredRoute => ({
+      from,
+      to: 'water',
+      purpose: 'water',
+      trips,
+      ...encodeRoute(
+        Array.from({ length: 65 }, (_, x) => 100 * window.width + x + 100),
+        window,
+      ),
+    });
+    const { net, state } = setup('water', null, true);
+    const withCell = { ...net, cellM: cell };
+    const yearsAt = (traffic: number[]): number | undefined => {
+      net.roads[0]!.traffic = traffic;
+      return roadFormedNote(state, withCell, 1, day).years;
+    };
+    // trasa z dvorce (před založením vsi): stáří 18 let
+    state.routes = { list: [along('d:12', 100)] } as unknown as VillageState['routes'];
+    // provoz neznámý (starší úsek) a pod 2 cesty denně (cesta k vchodu vzniká bez vyšlapání)
+    expect(yearsAt([])).toBe(18);
+    expect(yearsAt([1.5])).toBe(18);
+    // 10 cest denně: vyšlapáno za ⌈100 000 / (1 000 − 100)⌉ = 112 dní – pod půl roku bez doby
+    expect(yearsAt([10])).toBe(0);
+    // 2 cesty denně (nejmenší provoz, kde cesta vznikne): 1 000 dní ≈ 2,7 roku
+    expect(yearsAt([2])).toBe(3);
+    // trasa bez cest (trips 0) stáří neurčí – rozhoduje dílna (od 3. roku)
+    state.routes = {
+      list: [along('d:12', 0), along('d:13', 100)],
+    } as unknown as VillageState['routes'];
+    expect(yearsAt([])).toBe(15);
+  });
 });
