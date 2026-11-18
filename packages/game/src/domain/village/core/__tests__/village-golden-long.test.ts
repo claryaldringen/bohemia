@@ -46,8 +46,10 @@ import { goldenWorld, stateFingerprint, YEAR } from './village-golden-fixture';
 // 18. 11. 2026 – strava po vrstvách, úloha 2; dřív cd7bd43b11e74421 / cb235ea806f24818
 // 18. 11. 2026 – strava po vrstvách, úloha 2 (tempo proti zkažení napřed i v hojnosti); dřív
 // b6001ccd4e274037 / b8e6cbe3938ba593
-const EXPECTED_YEAR_2 = '1f4e71c751f2f92d';
-const EXPECTED_YEAR_3 = '7c864080e92c063e';
+// 18. 11. 2026 – strava po vrstvách, úloha 3 (jídlo po vrstvách, štěstí ze stravy po lidech a z medu);
+// dřív 1f4e71c751f2f92d / 7c864080e92c063e
+const EXPECTED_YEAR_2 = '2a2209659320ad84';
+const EXPECTED_YEAR_3 = 'd9a302302d49421b';
 
 describe('zlatý otisk vsi – delší běh', () => {
   it('po 2. a 3. roce dopočtu dá zapsané otisky', () => {

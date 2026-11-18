@@ -63,7 +63,9 @@ import { advanceChunked, goldenWorld, stateFingerprint, YEAR } from './village-g
 // 18. 11. 2026 – strava po vrstvách, úloha 2; dřív 60a62e071fd0d3fd
 // 18. 11. 2026 – strava po vrstvách, úloha 2 (tempo proti zkažení napřed i v hojnosti); dřív
 // 9371ea6e5d066ae8
-const EXPECTED_YEAR_1 = '776bb414d4028d91';
+// 18. 11. 2026 – strava po vrstvách, úloha 3 (jídlo po vrstvách, štěstí ze stravy po lidech a z medu);
+// dřív 776bb414d4028d91
+const EXPECTED_YEAR_1 = '79b920be6d62a4c2';
 
 describe('zlatý otisk vsi', () => {
   const world = goldenWorld();

@@ -34,11 +34,15 @@ import { EPSILON, SATIATION_EPSILON } from './simulate-plan';
 import { stockLastsDays, type StockKind } from './food-lasts';
 import { NO_CRAFTS } from './productivity';
 import { hungerSplit, rationShares, shownGroup, type HungerSplit } from '../people/hunger-groups';
+import { dietHappiness, tierMeal, type DietHappiness } from './tier-meal';
 
 /** Jak se dnes najedly skupiny přednosti v hladu (`hunger-groups.ts`). */
 export interface GroupMeal extends HungerSplit {
-  /** Energie dne po skupinách (0–1) – rod vojvody, mistři huti, řemeslníci, zbytek vsi. */
-  energy: number[];
+  /**
+   * Energie dne po skupinách (0–1) – rod vojvody, mistři huti, řemeslníci, zbytek vsi (`tierMeal`;
+   * prázdná skupina 1).
+   */
+  energy: readonly number[];
 }
 
 /**
@@ -249,18 +253,18 @@ function eatsFull(input: DietInput): boolean {
  * Krok 8: jídlo dne ze zásob (`eatDiet`; diet.md – Strava po vrstvách a porážka celý rok) – bez
  * stropů v pořadí pevný příděl medu, čerstvé mléko (dojí se vždy celé – ženy bokem, population.md
  * – Práce), vejce, čerstvé a uzené maso, sýr, ovoce, luštěniny, obilí a v hladu med (hides-honey.md
- * – Med v hladu); vrací nasycení
- * (energie × kvalita stravy), energii, jestli se jedlo ovoce, a podíl energie z masa (štěstí)
- * a zapíše začátek a konec hladu. Hlad začíná
- * už tehdy, když příděl energie podle výhledu do sklizně klesne pod plný – i když se dnes jí
- * dosyta ovocem a obilí nevystačí až po 1. 3. Po lidech dostanou obilí jezdečtí koně
- * (`feedHorseGrain`).
+ * – Med v hladu). Snědené se rozdělí po vrstvách přednosti (`tierMeal` – Kdo dostane co): příděl
+ * nad životním minimem a čím se naplní. Vrací nasycení vsi (energie × kvalita stravy), energii,
+ * štěstí z masa, ovoce a medu po lidech podle toho, co kdo snědl (`dietHappiness` – Spokojenost ze
+ * stravy), a energii vrstev, když jídla není dost; zapíše začátek a konec hladu. Hlad začíná už
+ * tehdy, když příděl energie podle výhledu do sklizně klesne pod plný – i když se dnes jí dosyta
+ * ovocem a obilí nevystačí až po 1. 3. Po lidech dostanou obilí jezdečtí koně (`feedHorseGrain`).
  */
 export function eat(
   state: VillageState,
   day: number,
   coverage: CraftCoverage,
-): { satiation: number; energy: number; fruit: boolean; meat: number; groups: GroupMeal | null } {
+): { satiation: number; energy: number; diet: DietHappiness; groups: GroupMeal | null } {
   const milked = 1;
   const need = villageFoodNeed(state, day);
   // co zásoby ubyly dnes (prodej, platby), jde z otevřené obilné jámy (production-chains.md –
@@ -302,14 +306,17 @@ export function eat(
   // co opravdu snědla
   const ration = Math.min(meal.outlook, meal.diet.energy);
   const hungry = ration < 1 - SATIATION_EPSILON;
-  // přednost v hladu (population.md – Přednost v hladu): rod vojvody, mistři huti a řemeslníci jedí
-  // napřed, zbytek vsi si rozdělí, co zbude; rozdělení se počítá jen, když jídla není dost nebo
-  // když skupiny mají každá jiný hlad
+  // jídlo po vrstvách (diet.md – Kdo dostane co): každý den – štěstí ze stravy se počítá po lidech
+  // podle toho, co kdo snědl (Spokojenost ze stravy)
+  const split = hungerSplit(state, day);
+  const tiers = tierMeal(split, meal.eaten);
+  // přednost v hladu (population.md – Přednost v hladu): nad životním minimem jedí napřed rod
+  // vojvody, mistři huti a řemeslníci; hlad po skupinách se vede jen, když jídla není dost nebo
+  // když skupiny mají každá jiný hlad – sytá ves má jediný hlad vsi jako dřív
   let groups: GroupMeal | null = null;
   let shownRation = ration;
   if (ration < 1 || meal.diet.energy < 1 || state.starvationGroups !== undefined) {
-    const split = hungerSplit(state, day);
-    groups = { ...split, energy: rationShares(meal.diet.energy, split.needs) };
+    groups = { ...split, energy: tiers.energy };
     // příděl do sklizně hráči ukazuje zbytek vsi (nejnižší neprázdná skupina)
     shownRation = rationShares(ration, split.needs)[shownGroup(split.counts)] ?? ration;
   }
@@ -334,8 +341,7 @@ export function eat(
   return {
     satiation: meal.diet.satiation,
     energy: meal.diet.energy,
-    fruit: meal.diet.shares.fruit > 0,
-    meat: meal.diet.shares.meat,
+    diet: dietHappiness(tiers, split.counts),
     groups,
   };
 }

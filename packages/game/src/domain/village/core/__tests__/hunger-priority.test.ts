@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../../calendar';
 import { daysUntilHarvest } from '../food';
-import { foodNeedPerDay } from '../../people/people';
+import { DIET, DAILY_MEAT_KEEP, proteinNeedPerDay, villageFoodNeed } from '../diet';
+import { eat } from '../simulate-food';
+import { NO_CRAFTS } from '../productivity';
+import { foodNeedPerDay, guestFoodNeedPerDay } from '../../people/people';
 import {
   advanceGroupStarvation,
   groupStarvation,
@@ -111,6 +114,41 @@ describe('přednost v hladu – rozdělení jídla', () => {
     // rest = 6 lidí ze 3. obydlí bez mistrovy domácnosti a učně + host
     expect(counts).toEqual([2, 3, 7, 7]);
     expect(needs.reduce((a, b) => a + b, 0)).toBeGreaterThan(0);
+  });
+
+  it('hosté jedí ve zbytku vsi – nesou potřebu jídla, bílkoviny ne', () => {
+    const s = village(1, 1);
+    const home = hungerSplit(s, START);
+    s.guests = [{ untilDay: START + 10 }, { untilDay: START }] as VillageState['guests'];
+    const split = hungerSplit(s, START);
+    expect(guestFoodNeedPerDay(s, START)).toBeGreaterThan(0);
+    expect(split.needs[3]).toBeCloseTo(home.needs[3]! + guestFoodNeedPerDay(s, START), 12);
+    expect(split.needs.slice(0, 3)).toEqual(home.needs.slice(0, 3));
+    expect(split.proteinNeeds).toEqual(home.proteinNeeds);
+    // bílkoviny vrstvy = potřeba bílkovin jejích lidí
+    for (let group = 0; group < 4; group++) {
+      const people = s.people.filter((p) => (split.groupOf.get(p.id) ?? 3) === group);
+      const protein = people.reduce((sum, p) => sum + proteinNeedPerDay(p, START), 0);
+      expect(split.proteinNeeds[group]).toBeCloseTo(protein, 12);
+    }
+    // součet potřeb vrstev = potřeba vsi (výhled a příděl jídla dne)
+    const total = split.needs.reduce((a, b) => a + b, 0);
+    expect(total).toBeCloseTo(villageFoodNeed(s, START), 12);
+  });
+});
+
+describe('strava po vrstvách – štěstí ze stravy po lidech', () => {
+  it('trochu masa sní rod vojvody – štěstí z masa jen jemu, ne celé vsi poměrně', () => {
+    const day = START + 10;
+    const s = village(3, 1.3);
+    const need = villageFoodNeed(s, day);
+    // maso za 5 % potřeby vsi – rodu (2 ze 14 lidí) dá přes 20 % energie
+    s.meatKg = (0.05 * need) / DIET.meatEnergy / DAILY_MEAT_KEEP;
+    const result = eat(s, day, NO_CRAFTS);
+    expect(s.diet!.shares.meat).toBeCloseTo(0.05, 9);
+    expect(result.diet.meat).toBeCloseTo((DIET.meatHappiness.max * 2) / 14, 9);
+    expect(result.diet.fruit).toBe(0);
+    expect(result.diet.honey).toBe(0);
   });
 });
 

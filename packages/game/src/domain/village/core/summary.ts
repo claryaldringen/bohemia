@@ -52,6 +52,8 @@ import {
 } from '../people/happiness';
 import { dailyMilk, dairyDams, villageCheeseKg, yearlyMilk } from '../livestock/dairy';
 import { villageMeal, villageMeatKg } from './diet';
+import { dietHappiness, tierMeal, type DietHappiness } from './tier-meal';
+import { hungerSplit } from '../people/hunger-groups';
 import { foodLastsDays } from './food-lasts';
 import { villageHayKg } from '../livestock/hay';
 import { horsesInPlaces, villageHorses } from '../livestock/horses';
@@ -618,11 +620,13 @@ function households(state: VillageState, day: number): HouseholdSummary[] {
 /**
  * Jídlo příštího dne: příděl ze zásob obilí, masa a ovoce do sklizně, se kterou ves počítá
  * (i červencová sklizeň ozimu – stejně jako jídlo v simulaci; 1. 3. ráno ovoce shnije,
- * v nádobách později – pokrytí nádobami jako simulace příští den).
+ * v nádobách později – pokrytí nádobami jako simulace příští den), a štěstí z masa, ovoce a medu
+ * po lidech podle vrstev jako simulace (`tierMeal`, `dietHappiness` – diet.md, Spokojenost ze
+ * stravy).
  */
-function nextDayDiet(state: VillageState, day: number): DietDay {
+function nextDayDiet(state: VillageState, day: number): { diet: DietDay; points: DietHappiness } {
   const next = Math.min(day + 1, TOTAL_GAME_DAYS - 1);
-  return villageMeal(state, next, craftCoverage(state, next).pottery, {
+  const meal = villageMeal(state, next, craftCoverage(state, next).pottery, {
     milk: dailyMilk(villageDams(state), next),
     eggsKg: dailyEggsKg(state),
     // zítřejší zimní porážka (diet.md – Porážka v zimě)
@@ -630,7 +634,9 @@ function nextDayDiet(state: VillageState, day: number): DietDay {
       ? Math.min(cullingMeatKg(state), freshMeatPerDayKg(state, next))
       : 0,
     meatAheadEnergy: freshMeatAheadEnergy(state, next),
-  }).diet;
+  });
+  const split = hungerSplit(state, next);
+  return { diet: meal.diet, points: dietHappiness(tierMeal(split, meal.eaten), split.counts) };
 }
 
 const DAYS_PER_SERVICE_YEAR = 365.25;
@@ -866,7 +872,7 @@ export function summarizeVillage(
   landscape: Landscape | null = null,
 ): VillageSummary {
   const needPerDay = state.people.reduce((sum, p) => sum + foodNeedPerDay(p, day), 0);
-  const diet = nextDayDiet(state, day);
+  const { diet, points: dietPoints } = nextDayDiet(state, day);
   const history = state.commonLaborHistory;
   const deathsPerYear = recentDeathsPerYear(state, day);
   const starvationDays = state.starvationDays ?? 0;
@@ -916,7 +922,14 @@ export function summarizeVillage(
       ageYears: orchardAgeYears(o, day),
       expectedYieldKg: orchardExpectedYieldKg(o, day),
     })),
-    happiness: happinessSummary(state, day, diet, obstacles, premiumSacredHappiness(landscape)),
+    happiness: happinessSummary(
+      state,
+      day,
+      diet.satiation,
+      dietPoints,
+      obstacles,
+      premiumSacredHappiness(landscape),
+    ),
     sacred: sacredSummary(state, day, obstacles),
     crafts: craftsSummary(state, day),
   };
@@ -1067,24 +1080,20 @@ export function kilnSummary(burner: Dwelling, kiln: CharcoalKiln): KilnSummary {
   };
 }
 
-/** Štěstí, jeho cíl a složky (cíl při jídle příštího dne). */
+/**
+ * Štěstí, jeho cíl a složky (cíl při jídle příštího dne – nasycení `satiation` a štěstí ze stravy
+ * po lidech `diet`).
+ */
 function happinessSummary(
   state: VillageState,
   day: number,
-  diet: DietDay,
+  satiation: number,
+  diet: DietHappiness,
   obstacles: ObstacleLayer | null,
   premiumSacred: number,
 ): HappinessSummary {
   const value = villageHappiness(state);
-  const factors = happinessFactors(
-    state,
-    day,
-    diet.satiation,
-    diet.shares.fruit > 0,
-    obstacles,
-    diet.shares.meat,
-    premiumSacred,
-  );
+  const factors = happinessFactors(state, day, satiation, diet, obstacles, premiumSacred);
   return {
     value,
     target: happinessTarget(factors),

@@ -538,7 +538,7 @@ function peopleDay(
   },
 ): boolean {
   const { toil, eaten, huntEvents, disasterEvents } = dayResult;
-  const { satiation, energy, fruit, meat, groups } = eaten;
+  const { satiation, energy, diet, groups } = eaten;
   // nahromaděný hlad se počítá z dnešní energie (hladem se umírá z energie, ne z pestrosti –
   // diet.md) – úmrtí dne podle něj (population.md); v hájení zůstává pod prahem, aby po něm lidé
   // umírali postupně
@@ -562,15 +562,14 @@ function peopleDay(
   ];
   // nová hlavní manželka a nástupnictví (lord.md – Rod vojvody); ves bez rodu nic
   state.chronicle.push(...dynastyDay(state, day));
-  // štěstí na konci dne – hlad, úmrtí, přeplněnost, dřina, zásoby, ovoce, maso a posvátná místa
-  // (happiness.md, diet.md)
+  // štěstí na konci dne – hlad, úmrtí, přeplněnost, dřina, zásoby, maso, ovoce a med po lidech
+  // a posvátná místa (happiness.md, diet.md – Spokojenost ze stravy)
   updateHappiness(state, day, {
     satiation,
     events: happinessEvents,
     toil,
-    fruit,
+    diet,
     obstacles,
-    meatShare: meat,
     premiumSacred: premiumSacredHappiness(landscape),
   });
   if (state.people.length === 0) {

@@ -23,7 +23,7 @@ import {
   type DietInput,
   type Eaten,
 } from '../diet';
-import { happinessFactors } from '../../people/happiness';
+import { summarizeVillage } from '../summary';
 import { HIVES, HONEY } from '../../rules/rules-wares';
 import { NO_CRAFTS, storageLossPerYear } from '../productivity';
 import { advanceVillage } from '../simulate';
@@ -737,7 +737,7 @@ describe('simulace – hlad jen z energie', () => {
     expect(end.hungry).toBe(false);
   });
 
-  it('ovoce, které se jí, přidá štěstí +5 (diet.md); bez stropu vytlačí obilí i s jeho bílkovinami', () => {
+  it('ovoce, které se jí, přidá štěstí +5 každému (diet.md); bez stropu vytlačí obilí i s jeho bílkovinami', () => {
     const base = withBuiltFirstDwelling(
       foundVillage({ seed: 2, day: at(600, 9, 2), dwellingPosition: { x: 0, z: 0, rotation: 0 } }),
     );
@@ -754,9 +754,11 @@ describe('simulace – hlad jen z energie', () => {
     expect(b.diet!.energy).toBeCloseTo(1, 9);
     // ovoce nemá bílkoviny – nasycení je nižší než s obilím
     expect(b.diet!.satiation).toBeLessThan(a.diet!.satiation);
-    const plain = happinessFactors(a, day, a.diet!.satiation, a.diet!.shares.fruit > 0);
-    const sweet = happinessFactors(b, day, b.diet!.satiation, b.diet!.shares.fruit > 0);
-    expect(sweet.fruit - plain.fruit).toBe(DIET.fruitHappiness);
+    // ovoce jí všichni, kdo nejsou sytí z masa a mléčného – štěstí po lidech v cíli panelu
+    const plain = summarizeVillage(a, day).happiness.factors;
+    const sweet = summarizeVillage(b, day).happiness.factors;
+    expect(plain.fruit).toBe(0);
+    expect(sweet.fruit).toBeCloseTo(DIET.fruitHappiness, 12);
     expect(sweet.hunger).toBeGreaterThan(plain.hunger);
   });
 });

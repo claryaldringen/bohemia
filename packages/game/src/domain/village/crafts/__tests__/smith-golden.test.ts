@@ -211,6 +211,7 @@ describe('ves bez kováře a hrnčíře beze změny (crafts.md – Uhlí a ruda 
     // 12845e84 (zboží bez D24) a 56ec5ab2 (D24 bez zboží)
     // hash 174f909e (17. 11. 2026, D91 (Martin 17. 11. 2026: „psi ať nic nespotřebovávají“ a maso krávy 120 → 130 kg): psi dvorce už nejedí obilí a z porážky je víc masa – jiné zásoby a jídlo; dřív d30e476f)
     // 18. 11. 2026 – strava po vrstvách, úloha 2; dřív 174f909e
-    expect(hash(stripped)).toBe('4830f206');
+    // 18. 11. 2026 – strava po vrstvách, úloha 3; dřív 4830f206
+    expect(hash(stripped)).toBe('87d3f686');
   }, 120_000);
 });
