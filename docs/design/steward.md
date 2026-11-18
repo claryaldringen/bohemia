@@ -183,13 +183,15 @@ a překážek a dřevo. Staví napřed to, co má nejvyšší hodnotu na cenu, a
   posledních 30 dní × `STEWARD.laborHorizonDays` (≈ 120 dní). Rozestavěné stavby se o práci dělí
   rovným dílem – víc naráz by všechny jen zpomalilo. Stavby hráče do rozpočtu počítá taky (bere jim
   práci), ale nikdy je nezruší.
-- **Cíl polí – maximum, které ves oseje** (Martin 18. 11. 2026 na otázku „Má správce stavět
+- **Cíl polí – maximum, které ves obdělá** (Martin 18. 11. 2026 na otázku „Má správce stavět
   tolik polí, kolik jich ves zvládne obdělat, bez ohledu na to, co jí?“: „Ano. Přebytky mohou jít
   na vazalské dávky, do zásob atd. Cílem vesnice je prostě produkovat maximum všeho.“; týž den:
-  „Obecně se vesnice bez zásahu snaží vyprodukovat co nejvíc všeho“; vzorec návrh Clauda): pole
-  v oběhu mají uživit tolik lidí, kolik uživí osev podle práce a osiva (model kapacity níž) ×
-  `STEWARD.fieldReserve` (≈ 1,1) – **bez ohledu na stravu**: maso, mléko ani ovoce cíl nezmenší,
-  přebytek obilí jde do zásob a na dávky. Rezerva dá vesničanům díly nad osev na kruté roky –
+  „Obecně se vesnice bez zásahu snaží vyprodukovat co nejvíc všeho“; obdělat = osít i sklidit –
+  Martin 9. 11. 2026: „Je lepší za každou cenu sklidit to, co už vyrostlo, než začínat pěstování
+  úplně od začátku“; vzorec návrh Clauda, od 19. 11. 2026 i se žněmi): pole v oběhu mají uživit
+  tolik lidí, kolik uživí osev, který ves stihne **osít i sklidit** a na který má osivo (model
+  kapacity níž – `workableHa`) × `STEWARD.fieldReserve` (≈ 1,1) – **bez ohledu na stravu**: maso,
+  mléko ani ovoce cíl nezmenší, přebytek obilí jde do zásob a na dávky. Rezerva dá vesničanům díly nad osev na kruté roky –
   osejí je sami (fields.md – Osevní postup po dílech); pole nad to by ves neosela, jen by
   zarůstala. **Ves bez pole v oběhu** (nová ves, všechna pole zarostlá nebo opuštěná) maximum
   osevu z půdy nezná – **opatrný cíl** (návrh Clauda 18. 11. 2026): dřívější výpočet z potřeby –
@@ -198,9 +200,10 @@ a překážek a dřevo. Staví napřed to, co má nejvyšší hodnotu na cenu, a
   pojistky za `FIELD_STORES.balanceYears` (3 roky), když brzdí půda – s **celou potřebou z pole**
   (podíl 1), takže strava ani tady cíl nezmenší; s prvním zakládaným dílem platí maximum.
   Dřívější cíl podle potřeby z pole: [historie](history/steward-history.md). **Důsledek
-  k vědomí** (měření 18. 11. 2026, zlatá ves po 20 letech pod správcem): 27 polí místo 5, v oběhu
-  32 ha místo 12, obilí 28 t místo 6 t, štěstí 90 místo 94 – ves o žních a setí ozimu nestíhá
-  (rok otisku 25 dní dřiny místo 2, srpen a září); viz Otevřené otázky 9.
+  k vědomí** (měření 18.–19. 11. 2026, zlatá ves po 20 letech pod správcem): 26 polí místo 5,
+  v oběhu 32 ha místo 12, obilí 28 t místo 6 t, štěstí 90 místo 94; cíl polí od 19. 11. 1,0–1,8×
+  dnešních polí (dřív bez žní 3,7–8,4×). Dny dřiny za 21 let 217 (BASE se 5 poli 120) – dřina je
+  hlavně v srpnu z pořadí dne (otava před výmlatem hned po žni), viz Otevřené otázky 10.
 
 ### Model kapacity vsi (návrh Clauda, 1. 11. 2026)
 
@@ -222,16 +225,32 @@ syna i v přelidněné vsi.
   luštěniny, ÷ 175 kg/ha – jen do konce setí (po dubnu se letošní osivo už neřeší a příští úrodu
   správce nezná);
 - **podle půdy** – díly v oběhu ÷ `ROTATION_FACTOR` (`fieldCapacity`).
+- **podle žní** (`harvestHa`, návrh Clauda 19. 11. 2026 – D99 kolo 1) – práce oken žní (červenec
+  a srpen, se žňovými rukama – `sowingCapacity`) bez nutné otavy (ze zápisu seče: otava, v 1. seči
+  její díl `HAY_CUTS.aftermathWorkShare`) a bez trhání lnu, ÷ žeň a výmlat hned po žni na osetý
+  hektar obilí (z plánu, bez něj podle sazeb; bez humna výmlat dražší). Září a říjen patří setí.
 
-Nejmenší z nich je **úzké hrdlo** letošního osevu. Osivo chybí jen do příští sklizně, pole stojí
+**Co ves obdělá** (`workableHa`, jen pro cíl polí – D99 kolo 1): nejmenší z osevu podle lidí
+v oknech setí, podle spřežení a podle žní. Proti „podle práce“ dvě opravy, které ukázalo srovnání
+se simulací (Vlkov výhled 158–179 ha, skutečně oseto 6–17 ha; zlatá ves 32–39 ha proti 11–12):
+okno vracení a kopání (září–listopad **i** březen–duben) už nese jaro – dřív se k němu jaro
+přičítalo ještě jednou (+ ≈ 40 % práce lidí i spřežení); orba stojí i lidi (oráč a honáček –
+stejně člověkodnů jako dní spřežení; simulace je účtuje, výhled ne – práce na hektar 6 proti
+skutečným 19–27 čd). Na den výhled se simulací sedí (plán 4,4–5,6 čd/den, skutečně 5,7–6,0).
+Ostatní čtenáři výhledu (plán sídla – blok domácnosti, odchod syna, ohrada volů, hrdla) čtou dál
+„podle práce“ beze změny – s opravou i tam měla zlatá ves v letech 2–9 štěstí o ≈ 10 bodů nižší
+(jiný rozvrh plánu, nová ves bez modly, sadu a ohrady); k rozhodnutí zvlášť.
+
+Nejmenší z osevu podle práce, osiva a půdy je **úzké hrdlo** letošního osevu. Osivo chybí jen do příští sklizně, pole stojí
 roky – pro pole a lidi rozhoduje **trvalé hrdlo** (půda, nebo práce): **udržitelní lidé** =
 „Pole uživí“ × osev trvalého hrdla ÷ osev podle půdy. Správce z výhledu:
 
-- **Cíl polí** = lidé, které uživí osev podle práce a osiva, × `fieldReserve` (od 18. 11. 2026
-  přímo cíl – Martin: „Cílem vesnice je prostě produkovat maximum všeho.“; dřív jen strop cíle
-  podle potřeby z pole – [historie](history/steward-history.md)) – pole, která ves neoseje, jen
-  zarůstají a vracení přílohu bere práci oknům setí. Doplnění pojistky jen v opatrném cíli vsi
-  bez pole a jen při úzkém hrdle půda.
+- **Cíl polí** = lidé, které uživí osev, který ves obdělá (`workableHa`) a na který má osivo,
+  × `fieldReserve` (od 18. 11. 2026 přímo cíl – Martin: „Cílem vesnice je prostě produkovat
+  maximum všeho.“; od 19. 11. 2026 i se žněmi; dřív jen strop cíle podle potřeby z pole –
+  [historie](history/steward-history.md)) – pole, která ves neoseje nebo nesklidí, jen zarůstají
+  a vracení přílohu bere práci oknům setí. Doplnění pojistky jen v opatrném cíli vsi bez pole
+  a jen při úzkém hrdle půda.
 - **Je kam pole rozšířit** jen při hrdle půda – při hrdle práce další pole nepomůžou. Odchod syna
   už na tom nezávisí (viz Kapacita mapy níž).
 - **Přelidnění** už se nepočítá z výhledu vsi, ale z **kapacity mapy** (viz níž; dřív udržitelní
@@ -350,10 +369,11 @@ Kroky 3 a 4 (`domain/village/steward/steward.ts` – `stewardDay`):
   zbývající práce všech rozestavěných staveb (hráčových, vesničanů i správcových). Nová ves bez
   historie volné práce má rozpočet 0 – první pole až s prvním dnem historie (příští den správce);
   obydlí pro čekající rodinu rozpočet nečeká.
-- **Cíl polí** (od 18. 11. 2026 – maximum, které ves oseje; dřívější znění
-  [historie](history/steward-history.md)): „Pole uživí podle dnešní půdy“ × min(osev podle práce;
-  osev podle osiva) ÷ osev podle půdy × `fieldReserve` (1,1) – proti „Pole uživí podle dnešní
-  půdy“. Obojí je v lidech při dnešní stravě, takže se strava zkrátí – v poměru i v bloku pole
+- **Cíl polí** (od 18. 11. 2026 – maximum, které ves obdělá, od 19. 11. 2026 i se žněmi;
+  dřívější znění [historie](history/steward-history.md)): „Pole uživí podle dnešní půdy“ ×
+  min(co ves obdělá – `workableHa`: osev podle lidí v oknech setí jednou i s orbou, podle
+  spřežení a podle žní; osev podle osiva) ÷ osev podle půdy × `fieldReserve` (1,1) – proti „Pole
+  uživí podle dnešní půdy“. Obojí je v lidech při dnešní stravě, takže se strava zkrátí – v poměru i v bloku pole
   (lidé na hektar); cíl v hektarech na stravě nezávisí. **Ves bez pole v oběhu** (osev podle půdy 0) nebo s osevem bez meze: opatrný cíl – (lidé × (výhled potřeby za `fieldLeadYears` = 2 roky
   ÷ dnešní potřeba) × `fieldReserve` ÷ `sowingYieldFactor` × úroda na člověka s celou potřebou
   z pole + (pojistka − zásoby, které k příští sklizni zbudou) ÷ `FIELD_STORES.balanceYears`, jen
@@ -1174,7 +1194,7 @@ kód, který se pak zahřeje, stojí ≈ 3× víc než zahřátý).
 | Správce nezná budoucnost (seed počasí, rozpis pohrom), jen co vidí hráč a četnosti z pravidel                                                         | návrh Clauda                                                                                                                               |
 | Režimy Nouze / Obnova / Růst podle pojistky zásob; rozpočet práce ≈ 120 dní volné práce                                                               | návrh Clauda                                                                                                                               |
 | Hodnota a cena v člověkodnech za rok (dřív i cíl polí na lidi za 2 roky × 1,1 – [historie](history/steward-history.md))                               | návrh Clauda                                                                                                                               |
-| Cíl polí = maximum, které ves oseje (lidé podle osevu práce a osiva × 1,1), bez ohledu na stravu; ves bez pole opatrně z potřeby s podílem 1          | Martin 18. 11. 2026 („Cílem vesnice je prostě produkovat maximum všeho.“); vzorec a opatrný cíl návrh Clauda                               |
+| Cíl polí = maximum, které ves obdělá – osít i sklidit (lidé podle osevu × 1,1), bez ohledu na stravu; ves bez pole opatrně z potřeby s podílem 1      | Martin 18. 11. 2026 („Cílem vesnice je prostě produkovat maximum všeho.“), 9. 11. 2026 (sklidit za každou cenu); vzorec návrh Clauda       |
 | Plán sídla ze šablon (shluk, řadová ves, samoty), hospodářství dům + blok polí, rezervy, uložený ve stavu                                             | návrh Clauda                                                                                                                               |
 | Území vsi do 800 m od středu; správce plánuje jen na svém území (Voroného buňky zrušeny 1. 11. 2026)                                                  | návrh Clauda                                                                                                                               |
 | Značka „postavil správce“ jako množina id `steward.built`; převod: bez stavu vypnutý                                                                  | návrh Clauda                                                                                                                               |
@@ -1234,13 +1254,18 @@ kód, který se pak zahřeje, stojí ≈ 3× víc než zahřátý).
    (třeba poměrný díl zásob až na rok, nebo stáda navíc), nebo je hladový první rok nové vsi
    výzva? **Uzavřeno** – Martin 1. 11. 2026 na otázku „Syn správce teď odchází jen s plně
    naloženou výpravou, takže odchodů je málo. Je to v pořádku?“: „ano“.
-9. **Cíl polí a práce žní** (18. 11. 2026, po cíli polí na maximum osevu) – výhled vsi měří osev
-   jen podle práce v oknech setí a osiva; žně, výmlat a pletí nepočítá. Zlatá ves po 20 letech
-   pod správcem má 27 polí místo 5 a v roce otisku 25 dní dřiny (14 v srpnu, 8 v září) místo 2 –
-   štěstí 87–90 místo 92–94; od roku 13 chce správce 4–8× víc polí, než má (cíl 135–235 lidí
-   proti 28–37), a zakládá je, dokud stačí rozpočet práce. Má cíl
-   polí brát i práci žní (maximum, které ves obdělá, ne jen oseje), nebo je dřina o žních cena
-   za maximum? Rozhodne Martin.
+9. ~~**Cíl polí a práce žní**~~ – **uzavřeno 19. 11. 2026:** cíl polí je nejvýš to, co ves
+   stihne osít i sklidit, × rezerva (Martin 18. 11. 2026 – „kolik jich ves zvládne obdělat“:
+   „Ano. … Cílem vesnice je prostě produkovat maximum všeho.“; 9. 11. 2026: „Je lepší za každou
+   cenu sklidit to, co už vyrostlo, než začínat pěstování úplně od začátku“; výpočet návrh
+   Clauda – Model kapacity vsi, Co ves obdělá). Dřív (18. 11.) výhled měřil jen setí a správce chtěl
+   od roku 13 4–8× víc polí, než měl; teď 1,0–1,8×.
+10. **Dřina v srpnu z pořadí dne** (19. 11. 2026, k rozhodnutí Martinovi, kód beze změny): otava
+    (srpen–září) jde v práci dne před výmlatem hned po žni (`DAY_WORK_ORDER`) a ve zlaté vsi bere
+    ≈ 4 týdny 4,9 čd/den – výmlat ozimu (okno srpen–září) má mezitím 0,3 čd/den a dřina, která počítá
+    zbytek dnešním tempem, padá na každý den otavy, dokud ozim čeká na výmlat. Má i ves se 5 poli
+    (BASE: rok 13 19 dní, rok 18 18, rok 20 32; za 21 let 120, s cílem polí na maximum 217). Mlátit
+    ozim před otavou, nebo počítat dřinu výmlatu až po otavě?
 
 **Na noc 30. → 31. 10. 2026 rozhodl Claude (Martin spí, ráno k potvrzení):** 1) v první verzi
 ne – správce staví lépe dál, akce pro hráče i správce až po potvrzení; 2) správce napřed kluče
