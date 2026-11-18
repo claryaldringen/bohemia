@@ -980,6 +980,12 @@ Návrh: [fortifications.md – Rozhraní](../design/fortifications.md); jádro a
   `fortPointsPlacement` z něj složí čáry (`lib/problem-marks.ts`, čistá funkce) do
   `FortPointsPreview.problem` a editor je kreslí červeně i přes terén (kroužky kolem ohybu, křížení
   a bran, obrysy staveb, vody a cizího opevnění). E2E háček `paintProblems`.
+- **Zásah do cest** (paths.md – Stavba přes cestu, Náhled u kurzoru – D96): stavba pod kurzorem
+  (`PlacementController`) i ohrada a hřbitov po čtvercích (`FieldPainter`, `PlacementMode.blocks`)
+  kreslí žlutě kusy cest, které by po postavení opustila (`roadsUnderPlanned` v
+  `lib/scene/placement-hints.ts`), a k varování u kurzoru připojí „Cesta se přeruší“
+  (`ROAD_CUT_WARNING`); stavbu to neblokuje. E2E háček `roadHints`, spec
+  `e2e/placement-road-hint.spec.ts`.
 - **Katalog staveb** (`lib/build-items.ts`): záznam `fortification` (zkratka **P**, ikona
   `build/opevneni.png`, `placement: 'fort-points'`) je rozcestník druhů `FORT_VARIANTS` (plot,
   palisáda, roštová a komorová hradba, val – ikony `resources/fort-*.png`, roštová a komorová

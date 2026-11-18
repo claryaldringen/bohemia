@@ -1,14 +1,10 @@
 import type { Scene } from '@babylonjs/core/scene';
-import {
-  GRID_TURNS,
-  rotatedPlot,
-  rotationTurn,
-  type DwellingType,
-  type Landscape,
-} from '@bohemia/game';
+import type { DwellingType, Landscape } from '@bohemia/game';
+import type { SceneRoad } from '../village-view';
 import { ChurchPlacer } from './church-placer';
 import { FieldPainter } from './field-painting';
 import { FortPointsEditor } from './fort-points-editor';
+import { plotUnderCursor, roadsUnderPlanned } from './placement-hints';
 import { tileAt, tileCenter } from './tile-at';
 import { PlacementController, type ActivePlacement } from './village-placement';
 import type { VillageRenderer } from './village-renderer';
@@ -26,6 +22,8 @@ export interface PlacementEnv {
   cameraAlpha: () => number;
   /** Překreslit v příštím snímku (SceneLoop.requestRender). */
   requestRender: () => void;
+  /** Pevné cesty vsi ve scéně – náhled zásahu stavby do cest; bez vsi žádné. */
+  roads?: () => readonly SceneRoad[];
 }
 
 /**
@@ -75,6 +73,7 @@ export function createPlacement(
         pickGround,
         decalHeight: (x, z) => village.decalHeight(x, z),
         requestRender,
+        roadsUnder: roadsUnderPlanned(landscape, env.roads ?? (() => [])),
       },
       mode,
       handlers,
@@ -93,26 +92,9 @@ export function createPlacement(
         const center = tileCenter(landscape, cell.x, cell.y);
         return { cell, x: center.worldX, z: center.worldZ, size: landscape.cellSizeM };
       },
-      plotAt: (x, z, rotation, variant) => {
-        // natočený pozemek (fields.md – Natočené stavby): po 90° políčko pod kurzorem,
-        // jinak čtverec se středem pod kurzorem – v ukládané podobě jako na serveru
-        let cx = x;
-        let cz = z;
-        if ((rotationTurn(rotation) ?? 0) % GRID_TURNS === 0) {
-          const cell = tileAt(landscape, x, z);
-          if (!cell) return null;
-          const center = tileCenter(landscape, cell.x, cell.y);
-          cx = center.worldX;
-          cz = center.worldZ;
-        }
-        const plot = rotatedPlot(landscape, { x: cx, z: cz, rotation }, variant);
-        if (!plot) return null;
-        const size = landscape.cellSizeM;
-        if (plot.square) return { plot, square: { ...plot.square, size } };
-        const center = tileCenter(landscape, plot.cell.x, plot.cell.y);
-        return { plot, square: { x: center.worldX, z: center.worldZ, size } };
-      },
+      plotAt: (x, z, rotation, variant) => plotUnderCursor(landscape, x, z, rotation, variant),
       ghostModel: (type) => village.ghostModel(type),
+      roadsUnder: roadsUnderPlanned(landscape, env.roads ?? (() => [])),
       baseHeight: (type, position) => {
         if (type === 'idol' || type === 'shrine') {
           return village.sacredBaseHeight(type, position);

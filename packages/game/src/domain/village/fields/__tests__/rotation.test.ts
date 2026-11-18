@@ -126,6 +126,42 @@ describe('natočený pozemek polozemnice (varianta a)', () => {
     ).toMatchObject({ cell: { x: 8, y: 8 } });
   });
 
+  it('pozemek bez natočení se středem mimo střed políčka projde kontrolou serveru (D96)', () => {
+    // 18. 11. 2026 – D96: pozemek má střed kdekoli pod kurzorem i bez natočení (Martin: „dokud
+    // ho nepootočím, skáče po jednotlivých mapových čtvercích“); dřív se přichytil na políčko
+    const plot = rotatedPlot(landscape, { x: 11.234, z: 4.5, rotation: 0 }, 'back-left')!;
+    expect(plot).toEqual({
+      cell: { x: 8, y: 8 },
+      variant: 'back-left',
+      square: { x: 11.23, z: 4.5, rotation: 0 },
+    });
+    expect(canonicalPlot(landscape, plot)).toEqual(plot);
+    expect(checkPlotPlacement(landscape, null, 'polozemnice', plot, EMPTY).ok).toBe(true);
+    // dům v rohu v osách krajiny, vchodem k brance jako na políčku
+    const house = plotHousePosition(landscape, plot);
+    const offset = PLOT_HOUSE_OFFSET_M['back-left'];
+    expect(house.x).toBeCloseTo(11.23 + offset.x, 9);
+    expect(house.z).toBeCloseTo(4.5 + offset.z, 9);
+    expect(house.rotation).toBeCloseTo(Math.PI, 9);
+    // čtverec není políčko: zabírá čtyři políčka zčásti (mnohoúhelník, ne políčko)
+    expect(plotShapes(landscape, plot)).toHaveLength(1);
+    expect(plotShapes(landscape, plot)[0]!.tile).toBeNull();
+    // na poli vezme dílům jen průnik (dohromady celý čtverec), po 90° taky
+    const village: PlacementVillage = {
+      dwellings: [],
+      constructions: [],
+      fields: [{ id: 7 }],
+      parts: block(7, 7, 3, 3).map((cell) => ({ cell, fieldId: 7, areaM2: CELL })),
+    };
+    for (const rotation of [0, Math.PI / 2]) {
+      const square = rotatedPlot(landscape, { x: 11.23, z: 4.5, rotation }, 'center')!;
+      const check = checkPlotPlacement(landscape, village, 'polozemnice', square, EMPTY);
+      expect(check.ok).toBe(true);
+      expect(check.takenLand.length).toBe(4);
+      expect(check.takenLand.reduce((sum, t) => sum + t.areaM2, 0)).toBeCloseTo(CELL, 6);
+    }
+  });
+
   it('dům stojí v rohu natočeného pozemku vchodem k brance', () => {
     const plot = rotatedPlot(landscape, { x: 7.5, z: 7.5, rotation: G30.rotation }, 'back-left')!;
     const house = plotHousePosition(landscape, plot);

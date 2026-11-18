@@ -254,6 +254,66 @@ export function blockedRun(
 }
 
 /**
+ * Vzorky osy po BLOCK_STEP_M a které z nich leží pod stavbou – v neprůchodné ploše `blocked`
+ * souvislým během aspoň BLOCK_MIN_RUN_M (kratší běh – roh okraje plochy – se nepočítá). Jeden
+ * výpočet pro pravidlo (`abandonBlockedStretches`) i náhled umisťování (`stretchesUnderBuilding`).
+ */
+function underBuilding(
+  points: readonly RoadPoint[],
+  blocked: (x: number, z: number) => boolean,
+): { samples: RoadPoint[]; under: boolean[] } {
+  const samples = resample(points, null, BLOCK_STEP_M).points;
+  const under = samples.map((p) => blocked(p.x, p.z));
+  for (let k = 0; k < under.length;) {
+    if (!under[k]) {
+      k++;
+      continue;
+    }
+    let end = k;
+    while (end + 1 < under.length && under[end + 1]) end++;
+    if (end - k + 1 < BLOCK_MIN_RUN_M / BLOCK_STEP_M) under.fill(false, k, end + 1);
+    k = end + 1;
+  }
+  return { samples, under };
+}
+
+/** Kus osy živé cesty, který by stavba opustila (`stretchesUnderBuilding`). */
+export interface RoadStretch {
+  roadId: number;
+  points: RoadPoint[];
+}
+
+/**
+ * Kusy os živých cest, které pravidlo kusu pod stavbou (`abandonBlockedStretches`) v ploše
+ * `blocked` opustí – náhled zásahu stavby do sítě cest (paths.md – Stavba přes cestu, Náhled
+ * u kurzoru – Martin 18. 11. 2026). Opuštěná cesta a cesta ve vylepšení (`frozen` – jako
+ * `Construction.roadIds` v pravidle) se nehodnotí; kus jsou souvislé vzorky pod stavbou (bez metru
+ * řezu navíc). Kratší zásah než BLOCK_MIN_RUN_M síť nezmění – žádný kus. Nic nemění.
+ */
+export function stretchesUnderBuilding(
+  roads: readonly Pick<Road, 'id' | 'points' | 'abandoned'>[],
+  blocked: (x: number, z: number) => boolean,
+  frozen: ReadonlySet<number> = new Set(),
+): RoadStretch[] {
+  const out: RoadStretch[] = [];
+  for (const road of roads) {
+    if (road.abandoned || frozen.has(road.id) || road.points.length < 2) continue;
+    const { samples, under } = underBuilding(road.points, blocked);
+    for (let k = 0; k < under.length;) {
+      if (!under[k]) {
+        k++;
+        continue;
+      }
+      let end = k;
+      while (end + 1 < under.length && under[end + 1]) end++;
+      out.push({ roadId: road.id, points: samples.slice(k, end + 1) });
+      k = end + 1;
+    }
+  }
+  return out;
+}
+
+/**
  * Kus pod hotovou stavbou je opuštěný (mutuje; paths.md – Stavba přes cestu, návrh Clauda – Vlkov
  * 23. 10. 2026): kus osy, který leží v neprůchodné ploše (`blocked`), se vyřízne jako opuštěný
  * úsek (`Road.abandoned`) – vypadne ze sítě a zaroste; zbytky po stranách žijí dál se starým id
@@ -276,20 +336,9 @@ export function abandonBlockedStretches(
   let changed = false;
   for (const road of [...roads.roads]) {
     if (road.abandoned || frozen.has(road.id) || road.points.length < 2) continue;
-    const samples = resample(road.points, null, BLOCK_STEP_M).points;
-    const at = lengthsAlong(samples);
-    const under = samples.map((p) => blocked(p.x, p.z));
     // krátké běhy v ploše (roh okraje) se nepočítají
-    for (let k = 0; k < under.length;) {
-      if (!under[k]) {
-        k++;
-        continue;
-      }
-      let end = k;
-      while (end + 1 < under.length && under[end + 1]) end++;
-      if (end - k + 1 < BLOCK_MIN_RUN_M / BLOCK_STEP_M) under.fill(false, k, end + 1);
-      k = end + 1;
-    }
+    const { samples, under } = underBuilding(road.points, blocked);
+    const at = lengthsAlong(samples);
     if (!under.some(Boolean)) continue;
     const length = at[at.length - 1]!;
     // řez leží o jeden vzorek (BLOCK_STEP_M) od stavby – opuštěný kus je o metr delší a živý zbytek
