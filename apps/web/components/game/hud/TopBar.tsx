@@ -28,6 +28,7 @@ import { FaithCross } from './BaptizeButton';
 import { Tooltip } from './Tooltip';
 import { LordAwayBadge } from './LordAwayBadge';
 import { VillageSwitcher } from './VillageSwitcher';
+import { seedName } from './selection/fields';
 
 /**
  * Stav jídla pro barvu ikony nasycení: syto / hlad / velký hlad. Řídí ho energie (hlad –
@@ -104,22 +105,31 @@ export interface StockRow {
   amount: number;
 }
 
-/** Rozpis zásob plodin (kg): obilí, luštěniny a jablka – snopy jsou mezistupeň zpracování, nepočítají se. */
+/**
+ * Rozpis zásob plodin (kg): obilí bez hromady osiva, osivo (jen když ho ves drží – popisek jako
+ * v panelu pole), luštěniny a jablka – snopy jsou mezistupeň zpracování, nepočítají se. Hromadu
+ * osiva (okna setí i zimní) ves nejí (diet.md – Co hráč vidí; Martin 18. 11. 2026 – volba E z D95).
+ */
 export function grainStockRows(
-  view: Pick<VillageView, 'storesKg' | 'legumesKg' | 'applesKg'>,
+  view: Pick<VillageView, 'storesKg' | 'legumesKg' | 'applesKg' | 'sowingSeed'>,
 ): StockRow[] {
+  const seed = view.sowingSeed;
+  const seedKg = seed ? Math.min(Math.max(0, seed.kg), Math.max(0, view.storesKg)) : 0;
   return [
-    { key: 'grain', icon: 'food', name: 'Obilí (kg)', amount: view.storesKg },
+    { key: 'grain', icon: 'food', name: 'Obilí (kg)', amount: view.storesKg - seedKg },
+    ...(seed ? [{ key: 'seed', icon: 'food', name: seedName(seed), amount: seedKg }] : []),
     { key: 'legumes', icon: 'legumes', name: 'Luštěniny (kg)', amount: view.legumesKg },
     { key: 'apples', icon: 'apples', name: 'Jablka (kg)', amount: view.applesKg },
   ];
 }
 
-/** Součet kg plodin v zásobě (obilí, luštěniny, jablka) – číslo u ikony obilí v liště. */
+/** Součet kg plodin v zásobě (obilí bez osiva, luštěniny, jablka) – číslo u ikony obilí v liště. */
 export function grainStockTotal(
-  view: Pick<VillageView, 'storesKg' | 'legumesKg' | 'applesKg'>,
+  view: Pick<VillageView, 'storesKg' | 'legumesKg' | 'applesKg' | 'sowingSeed'>,
 ): number {
-  return grainStockRows(view).reduce((sum, row) => sum + row.amount, 0);
+  return grainStockRows(view)
+    .filter((row) => row.key !== 'seed')
+    .reduce((sum, row) => sum + row.amount, 0);
 }
 
 /** Rozpis domácích zvířat vsi podle druhů (skot, voli, ovce, kozy, prasata, koně), jen druhy, které ves má. */
@@ -863,7 +873,7 @@ export function TopBar({
           </Resource>
           <StockBreakdown
             icon="food"
-            name="Obilí, luštěniny a jablka (kg)"
+            name="Obilí bez osiva, luštěniny a jablka (kg)"
             total={grainStockTotal(view)}
             rows={grainStockRows(view)}
             testId="village-stores"

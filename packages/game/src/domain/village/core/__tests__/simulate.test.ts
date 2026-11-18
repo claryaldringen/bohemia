@@ -33,10 +33,10 @@ import {
   createPlan,
   seasonCrops,
   seasonPartIds,
-  taskRemaining,
   seasonCrop,
   springCrop,
   dropSeasonCrop,
+  threshWorkForSheaves,
 } from '../year-plan';
 import {
   withBuiltFirstDwelling,
@@ -369,8 +369,14 @@ describe('advanceVillage – roční plán a sklizeň', () => {
     );
     // úroda je ve snopech, zásoby ji nemají (production-chains.md – Humno)
     expect(villageSheaves(s).grainKg).toBeCloseTo(springCrop(s.threshingSeason!).harvestedKg!, 6);
+    // výmlat podle kg snopů (production-chains.md – Humno, Práce výmlatu podle snopů; D95)
     expect(sheafWork(s, 'spring')).toBeCloseTo(
-      taskRemaining(springCrop(s.threshingSeason!), 'thresh'),
+      threshWorkForSheaves(
+        springCrop(s.threshingSeason!),
+        s.parts,
+        'spring',
+        springCrop(s.threshingSeason!).harvestedKg!,
+      ),
       6,
     );
     expect(s.storesKg).toBeLessThan(before.storesKg);
@@ -1478,7 +1484,12 @@ describe('advanceVillage – ozim a jař (fields.md – Ozim a jař)', () => {
     // ozim jde do snopů s prací výmlatu sklizené části (production-chains.md – Humno)
     expect(villageSheaves(harvested).grainKg).toBeGreaterThan(winterHarvest.kg - 1);
     expect(sheafWork(harvested, 'winter')).toBeCloseTo(
-      taskRemaining(seasonCrop(harvested.season!, 'winter')!, 'thresh'),
+      threshWorkForSheaves(
+        seasonCrop(harvested.season!, 'winter')!,
+        harvested.parts,
+        'winter',
+        seasonCrop(harvested.season!, 'winter')!.harvestedKg!,
+      ),
       6,
     );
     expect(harvested.storesKg).toBeLessThan(july.storesKg);

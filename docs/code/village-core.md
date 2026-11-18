@@ -1015,6 +1015,7 @@ založení (`foundVillage` / `foundedState`), převod ji doplní jen starším v
 | `fort-points` – `withFortPoints`               | opevnění po čtvercích na body (mutuje – na kopii)          | ano                | krajina                  | ne                           | oba     |
 | `quarry-area` – `withQuarriesBesideRocks`      | starý lom z výchozu na plochu u skal (mutuje – na kopii)   | ano (značka)       | krajina, překážky        | ne                           | oba     |
 | `people-names` – `withPeopleNames`             | jména lidem bez jména (muž rodu bez jména čeká na hráče)   | ano (při každém)   | –                        | ne (`foundVillage`)          | oba     |
+| `sheaf-work-by-kg` – `convertSheafWorkByKg`    | práce uložených snopů podle kg (D95)                       | ano (`byKg`)       | –                        | ne (sklizeň `byKg`)          | oba     |
 
 „Zakládá novou ves“ = jedná na právě založené vsi; v závorce, kde tu část nová ves dostane při
 založení. „Při každém“ = bez příznaku, hlídá podmínku při každém průchodu (levné).

@@ -3,12 +3,12 @@ import { dayIndexOf } from '../../../calendar';
 import { foundVillage, type PartInput } from '../../core/actions';
 import { grossYieldPerHa } from '../fields';
 import { NO_CRAFTS } from '../../core/productivity';
-import { LEGUMES } from '../../rules';
+import { LEGUMES, THRESH_CALIBRATION_FERTILITY } from '../../rules';
 import { harvest, harvestWinter } from '../../core/simulate-food';
 import { dayTaskOrder, fieldTasks } from '../../core/simulate-work';
 import type { Crop, SeasonCrop, VillageState } from '../../types';
 import { villageSheaves } from '../threshing';
-import { createCropWork, seasonCrop } from '../../core/year-plan';
+import { createCropWork, cropGrossPerHa, seasonCrop } from '../../core/year-plan';
 
 // Žně i v srpnu (fields.md; Martin 9. 11. 2026: „Ať sklízí i v srpnu“): ozim, luštěniny a len,
 // které červenec nedosklidí, se žnou v srpnu – co je sklizené do 31. 7., jde 31. 7. do snopů,
@@ -66,6 +66,9 @@ function village(reaped: Partial<Record<Crop, number>>): VillageState {
 const crop = (s: VillageState, c: Crop): SeasonCrop => seasonCrop(s.season!, c)!;
 /** Hrubá úroda obilí PER_CROP dílů při úrodnosti 70 (kg). */
 const GRAIN_KG = grossYieldPerHa(70) * PER_CROP * PART_HA;
+// výmlat podle kg snopů (production-chains.md – Humno, Práce výmlatu podle snopů; D95): čerstvý díl
+// s úrodností 70 dá o 6,5 % víc než běžná úroda – o tolik víc práce výmlatu než sazba na hektar
+const THRESH_SCALE = grossYieldPerHa(70) / cropGrossPerHa('spring', THRESH_CALIBRATION_FERTILITY);
 
 describe('žně i v srpnu (fields.md – Žně i v srpnu)', () => {
   it('ozim a luštěniny nedosklizené 31. 7.: do snopů jde červencová část, zbytek žatý v srpnu 31. 8.', () => {
@@ -83,8 +86,8 @@ describe('žně i v srpnu (fields.md – Žně i v srpnu)', () => {
     expect(july.grainKg).toBeCloseTo(0.6 * GRAIN_KG, 6);
     expect(july.legumesKg).toBeCloseTo(0.25 * GRAIN_KG * LEGUMES.yieldShare, 6);
     // výmlat jen sklizené části
-    expect(july.work!.winter).toBeCloseTo(0.6 * winter.required.thresh, 9);
-    expect(july.work!.legume).toBeCloseTo(0.25 * legume.required.thresh, 9);
+    expect(july.work!.winter).toBeCloseTo(0.6 * winter.required.thresh * THRESH_SCALE, 9);
+    expect(july.work!.legume).toBeCloseTo(0.25 * legume.required.thresh * THRESH_SCALE, 9);
     // druhé volání 31. 7. nic nepřidá
     harvestWinter(s, at(601, 7, 31));
     expect(villageSheaves(s).grainKg).toBeCloseTo(july.grainKg, 9);
@@ -102,8 +105,8 @@ describe('žně i v srpnu (fields.md – Žně i v srpnu)', () => {
     // ozim celý a jař (nežatá – 0) v obilí, luštěniny 75 % – co srpen nesklidil, propadlo
     expect(august.grainKg).toBeCloseTo(GRAIN_KG, 6);
     expect(august.legumesKg).toBeCloseTo(0.75 * GRAIN_KG * LEGUMES.yieldShare, 6);
-    expect(august.work!.winter).toBeCloseTo(winter.required.thresh, 9);
-    expect(august.work!.legume).toBeCloseTo(0.75 * legume.required.thresh, 9);
+    expect(august.work!.winter).toBeCloseTo(winter.required.thresh * THRESH_SCALE, 9);
+    expect(august.work!.legume).toBeCloseTo(0.75 * legume.required.thresh * THRESH_SCALE, 9);
     // kronika: červencová i srpnová žeň ozimu a luštěnin
     const reaps = s.chronicle.filter((e) => e.kind === 'harvest' && e.crop !== 'spring');
     expect(reaps.map((e) => [e.day, e.kind === 'harvest' && e.crop])).toEqual([

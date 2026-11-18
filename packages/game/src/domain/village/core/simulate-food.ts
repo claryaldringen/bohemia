@@ -27,7 +27,7 @@ import {
   seasonCrop,
   springCrop,
   taskRemaining,
-  threshRemainingAfter,
+  threshWorkForSheaves,
   type PartLosses,
 } from './year-plan';
 import { EPSILON, SATIATION_EPSILON } from './simulate-plan';
@@ -73,7 +73,10 @@ function sheaveCrop(
     losses,
     from,
   );
-  addSheaves(state, crop, kg, threshWork(state, day, threshRemainingAfter(work, from)));
+  // výmlat podle kg snopů – běžná úroda jako sazba na hektar (production-chains.md – Humno, Práce
+  // výmlatu podle snopů; Martin 18. 11. 2026)
+  const sheafWork = threshWorkForSheaves(work, state.parts, crop, kg, from);
+  addSheaves(state, crop, kg, threshWork(state, day, sheafWork));
   const total = (work.sheaved?.kg ?? 0) + kg;
   if (final || taskRemaining(work, 'harvest') <= EPSILON) work.harvestedKg = total;
   else work.sheaved = { harvest: work.done.harvest, kg: total };
