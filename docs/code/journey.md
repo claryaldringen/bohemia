@@ -377,6 +377,12 @@ untilTick, pen }`: vesničan `groomId` (null = nikdo doma), jezdci (id osob), ta
   míří (pro dotaz na válku; `home` = null), nebo `invalid` (neznámý druh rozkazu za běhu, bod mimo mapu, nekonečné číslo,
   `cross` na nesousední políčko) / `unreachable` (`reachableGoal` – skupina tam nedojde). Vyslání
   obojí hlásí jako `unreachable`, pozdější rozkaz `invalid` jako `refused`.
+- **Do dvorce = Domů** (Martin 18. 11. 2026; lord-control.md – Rozkazy) – `homeByManor`
+  (`expedition.ts`, v `commandParty` i `musterExpedition` hned po `select`): „Jdi sem“ s bodem
+  v dvorci domovské vsi (`manorArea` v `expedition-people.ts` – `dwellingBox` hotového dvorce
+  i s pozemkem a dvorem, týž obdélník jako v mřížce pochodu; `inManorArea`) na její mapě (bez
+  `cell` mapa vůdce výběru) je pro členy výpravy rozkaz `home`; rekruti z výběru vypadnou – zůstanou
+  doma, takže rozkaz jde bez zámku vsi (návrh Clauda). Výběr bez členů beze změny.
 - **`expeditionViewsFor(deps, { playerId })`** (`expedition-view.ts`) – pohledy hráče na **všechny**
   jeho běžící výpravy (`activeOfPlayer`, jedna za domovskou ves; bod převede `upgradeJourney`,
   skončená a cizí výprava prázdno). `ExpeditionView` nese `villageId`, takt, den, domov a `homePos`,
@@ -569,6 +575,10 @@ mapSizeM, cell })` (čistá funkce) – bez vybraných lidí nebo mimo terén nu
   na druhé straně ověří server). Odkud skupina vyráží: vybraná skupina na mapě scény (`group.pos`),
   jinak obydlí prvního z vybraných doma (`dwellingPoint`); jinde nápověda není. Jen vizuální
   nápověda – rozkaz dál ověřuje server.
+- **Kurzor Domů** – nad dvorcem vsi scény (`SceneVillage.manorArea` z `manorArea`,
+  `LandscapeScene.manorArea()`) s někým z vybraných ve výpravě jejich vsi je kurzor `HOME_CURSOR`
+  (ikona Domů `war/alarm-return-cursor.png`, 32 px) – jen ve scéně vsi, ne na cizí mapě; přednost
+  před kurzorem zákazu. Jen nápověda – rozkaz převede server (`homeByManor`).
 - **Hook** `components/game/village-game/use-expedition-orders.ts` – `useExpeditionOrders`: režim
   rozkazu je zapnutý, když výběr obsahuje lidi (s vybranou stavbou nebo polem pravé tlačítko výběr
   ruší jako dřív). Pravé tlačítko → `commandExpedition({ villageId, people, command })`, kde

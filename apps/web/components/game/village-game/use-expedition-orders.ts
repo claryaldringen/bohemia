@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   SEAT_CELL,
+  inManorArea,
   type ExpeditionCommand,
   type ExpeditionView,
   type GridCell,
@@ -49,6 +50,12 @@ const EDGE_CURSORS = {
   W: 'w-resize',
   NW: 'nw-resize',
 } as const;
+
+/**
+ * Kurzor nad dvorcem vsi s vybranými lidmi výpravy – ikona Domů (rozkaz „Jdi sem“ do dvorce bere
+ * server jako Domů – Martin 18. 11. 2026); jako kurzory akcí v 0 A.D., bez popisku.
+ */
+export const HOME_CURSOR = "url('/icons/war/alarm-return-cursor.png') 16 16, pointer";
 
 /** Jak dlouho zůstane důvod odmítnutí u kurzoru (ms). */
 const NOTE_MS = 2500;
@@ -305,6 +312,16 @@ export function useExpeditionOrders({
       return first && orderScene ? orderScene.dwellingPoint(first.home) : null;
     };
   }, [ids, homeViews, orderCell, chosenVillage, persons, orderScene]);
+  // Dvorec vsi scény, nad kterým je kurzor „Domů“: jen ve scéně vsi a s někým z vybraných ve výpravě
+  // jejich vsi (lidé doma jdou do dvorce jako dřív – server)
+  const manorRef = useRef<() => ReturnType<LandscapeScene['manorArea']>>(() => null);
+  useEffect(() => {
+    manorRef.current = (): ReturnType<LandscapeScene['manorArea']> => {
+      if (watching !== null || chosenVillage !== undefined || !scene) return null;
+      const out = ids.some((id) => partyMembersOf(views, villageId, id) !== null);
+      return out ? scene.manorArea() : null;
+    };
+  }, [watching, chosenVillage, scene, ids, views, villageId]);
   const active = ids.length > 0;
   useEffect(() => {
     if (!orderScene || !active) return;
@@ -325,6 +342,12 @@ export function useExpeditionOrders({
         if (click.kind === 'send') send({ kind: 'order', order: click.order }, screen);
       },
       hover: (point, screen) => {
+        // dvorec vsi: rozkaz je Domů
+        const manor = point ? manorRef.current() : null;
+        if (point && manor && inManorArea(manor, point)) {
+          setNote((prev) => (prev?.tone === 'info' ? null : prev));
+          return HOME_CURSOR;
+        }
         // místo, kam skupina nedojde (hustý les, voda, odříznutá oblast, okraj bez průchodu):
         // kurzor zákazu, bez popisku (jen vizuální nápověda – rozkaz ověří server)
         const from = point ? originRef.current() : null;

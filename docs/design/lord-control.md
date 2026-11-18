@@ -80,7 +80,10 @@ Hráč vojvodu vybere a pošle ho jako jednotku v 0 A.D. (Martin). Podoba rozkaz
 - **Jdi sem** – místo na mapě, na které vojvoda právě je.
 - **Přes okraj** – okraj mapy: skupina dojde k okraji, objeví se na opačném okraji sousední mapy
   a tam zastaví.
-- **Domů** – nejkratší cestou do vlastní vsi.
+- **Domů** – nejkratší cestou do vlastní vsi. Totéž je **Jdi sem do dvorce** vlastní vsi (dům
+  i s pozemkem a dvorem) – Martin 18. 11. 2026: „když mám knížete označeného a pošlu ho do dvorce,
+  tak je to pro něj ten stejný příkaz jako návrat domů“. Lidé ze vsi, kteří jsou ve výběru s ním,
+  zůstanou doma; výběr jen z lidí doma jde do dvorce jako dřív (návrh Clauda).
 
 Nový rozkaz kdykoli nahradí starý. Rozkaz platí, i když hráč hru zavře – vojvoda dojede, postojí
 a vrátí se. Je to výjimka z pravidla tažení, které se bez hráče a zástupce po dni rozpadne
@@ -219,6 +222,8 @@ Návrh Clauda.
   cíle. (Dnes pravé tlačítko výběr ruší – u vybraného vojvody ho ruší Esc nebo klik jinam.) Platí
   i na cizí mapě.
 - **Okraj mapy:** u okraje se kurzor změní v šipku, popisek „Na sousední mapu“.
+- **Dvorec:** s vybraným vojvodou (nebo jiným člověkem výpravy) je kurzor nad dvorcem vlastní vsi
+  ikona Domů – jako kurzory akcí v 0 A.D., bez popisku (návrh Clauda).
 - **Známá mapa:** oko u rodu v panelu Rod a vazalové a u cíle v panelu Vojsko otevře ve scéně
   mapu jeho vsi, jak ji rod zná; ⌂ vrátí na ves. Mapu, kterou rod nezná, oko neotevře.
 - **Na cestě:** portrét vojvody s podkovou v horní liště – klik přepne scénu na mapu, kde vojvoda

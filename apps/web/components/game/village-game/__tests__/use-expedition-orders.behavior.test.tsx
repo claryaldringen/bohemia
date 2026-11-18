@@ -14,6 +14,7 @@ vi.mock('@/app/game/actions/journey', () => ({
 }));
 
 import {
+  HOME_CURSOR,
   useExpeditionOrders,
   type ExpeditionOrders,
   type LordAway,
@@ -45,6 +46,12 @@ const person = (id: number, age: number, refusal?: 'young'): ScenePerson => ({
 });
 
 /** Scéna jen s tím, co hook používá: režim rozkazu a výběr. */
+/** Dvorec scény 10 × 10 m kolem (100, 100) – kurzor „Domů“. */
+const MANOR = {
+  position: { x: 100, z: 100, rotation: 0 },
+  box: { minX: -5, maxX: 5, minZ: -5, maxZ: 5 },
+};
+
 function fakeScene(grid: MarchGrid | null = null): {
   scene: LandscapeScene;
   mode: () => OrderMode | null;
@@ -52,6 +59,7 @@ function fakeScene(grid: MarchGrid | null = null): {
   let mode: OrderMode | null = null;
   const scene = {
     marchGrid: (): MarchGrid | null => grid,
+    manorArea: () => MANOR,
     dwellingPoint: (): { x: number; z: number } => ({ x: -50, z: 0 }),
     setOrderMode: (m: OrderMode | null): void => {
       mode = m;
@@ -267,5 +275,14 @@ describe('useExpeditionOrders – kurzor nad místem, kam se nedá dojít', () =
     // okraj mapy: západní okraj je dosažitelný (šipka přechodu), východní za lesem ne
     expect(mode()?.hover({ x: -950, z: 0 }, { x: 1, y: 1 })).toBe('w-resize');
     expect(mode()?.hover({ x: 950, z: 0 }, { x: 1, y: 1 })).toBe('not-allowed');
+  });
+
+  it('nad dvorcem je s člověkem výpravy kurzor Domů, s lidmi doma ne (Martin 18. 11. 2026)', () => {
+    const views = [expedition('v1', 'j1', [5])];
+    const { mode } = mount({ kind: 'person', id: 5 }, [person(5, 30)], { views });
+    expect(mode()?.hover({ x: 102, z: 97 }, { x: 1, y: 1 })).toBe(HOME_CURSOR);
+    expect(mode()?.hover({ x: 120, z: 100 }, { x: 1, y: 1 })).toBe('');
+    const home = mount({ kind: 'person', id: 6 }, [person(6, 30)], { views });
+    expect(home.mode()?.hover({ x: 102, z: 97 }, { x: 1, y: 1 })).toBe('');
   });
 });

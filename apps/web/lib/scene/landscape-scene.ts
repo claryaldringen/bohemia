@@ -1030,6 +1030,11 @@ export class LandscapeScene {
     this.pointer.setOrderMode(mode);
   }
 
+  /** Dvorec vsi scény pro kurzor „Domů“ (`SceneVillage.manorArea`); bez hotového dvorce null. */
+  manorArea(): SceneVillage['manorArea'] | null {
+    return this.villageState?.manorArea ?? null;
+  }
+
   /**
    * Mřížka pochodu mapy pro kurzor nad místem, kam skupina nedojde (march-cursor.ts): krajina,
    * vrstva překážek, vymýcený les vsi a průseky cest (`cursorRoads` – i kusy stezek ke kraji).
