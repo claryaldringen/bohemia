@@ -609,12 +609,13 @@ function villageDayTasks(ctx: WorkDay): DayTask[] {
     });
   }
   // porážka a uzení – maso se musí zpracovat hned, hned za výmlatem na dnešní jídlo (diet.md)
-  const butchery = slaughterRemaining(state, day);
+  const butchery = slaughterRemaining(state);
   if (butchery > 0) {
     dayTasks.push({
       name: 'slaughter',
       remaining: butchery,
-      // přes zimu po dnech, nouzová porážka i mimo ni – vždy v měsíci, kdy se porazilo (diet.md)
+      // celý rok – zimní porážka po dnech, letní pro rod vojvody, nouzová porážka i maso z lovu –
+      // vždy v měsíci, kdy se porazilo (diet.md)
       end: month,
       tie: 0,
       rank: 1,

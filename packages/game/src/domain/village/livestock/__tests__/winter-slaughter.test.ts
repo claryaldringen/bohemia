@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../../calendar';
 import { foundVillage } from '../../core/actions';
-import { villageFoodNeed } from '../../core/diet';
+import { meatEnergy, villageFoodNeed } from '../../core/diet';
 import { winterHayKg } from '../hay';
 import { WILDLIFE_LAND } from '../../rules/rules-wildlife';
 import { freshWildlife } from '../../wildlife/wildlife';
@@ -16,6 +16,7 @@ import {
   retiringHeads,
   slaughter,
   slaughterRemaining,
+  slaughterSeasonDaysLeft,
   wantedWinterHerds,
   winterSlaughterDay,
   winterWait,
@@ -189,7 +190,7 @@ describe('zimní porážka po dnech', () => {
     expect(event).toMatchObject({ kind: 'slaughter', kg: totalKg, fresh: Math.round(freshKg) });
   });
 
-  it('porážka jde po dnech přes zimu podle čerstvé spotřeby – maso se jí čerstvé', () => {
+  it('porážka jde po dnech přes celou zimu – denně díl čekajících kusů, maso se jí čerstvé', () => {
     const s = village(day - 1);
     s.people = s.people.slice(0, 2);
     s.livestock!.herds = herds({ pig: 8 });
@@ -201,29 +202,54 @@ describe('zimní porážka po dnech', () => {
     const nov = advanceVillage(s, day, null);
     const waiting = cullingMeatKg(nov);
     expect(waiting).toBeGreaterThan(0);
-    // přebytek nad čerstvou spotřebu zimy je uzený a počká, dokud se jí čerstvé
-    // první den porážky už se jí čerstvé maso – bez stropu do plné potřeby, po vejcích a mléce
-    expect(nov.diet!.shares.freshMeat).toBeCloseTo(afterDairyAndEggs(nov.diet!), 6);
+    // čekající kusy dají míň, než ves za zimu sní – žádný přebytek do uzení
+    expect(nov.meatKg ?? 0).toBeCloseTo(0, 6);
+    // první den porážky se jí čerstvé maso – díl na dnešek (maso čekajících ÷ dny zimy)
+    const firstKg = waiting / (slaughterSeasonDaysLeft(day) - 1);
+    const need = villageFoodNeed(nov, day);
+    // (čekající kusy ubývají i ztrátami stáda – na 4 desetinná místa)
+    expect(nov.diet!.shares.freshMeat).toBeCloseTo(meatEnergy(firstKg) / need, 4);
+    expect(nov.diet!.shares.freshMeat).toBeLessThan(afterDairyAndEggs(nov.diet!));
     expect(nov.diet!.energy).toBeCloseTo(1, 6);
     const next = advanceVillage(nov, day + 1, null);
-    const perDay = freshMeatPerDayKg(nov, day + 1);
+    const perDay = waiting / slaughterSeasonDaysLeft(day + 1);
     expect(waiting - cullingMeatKg(next)).toBeCloseTo(perDay, 1);
-    expect(next.meatKg!).toBeCloseTo(nov.meatKg!, 0);
-    // práce porážky – přes zimu po dnech, každý den za dnešní maso
+    expect(perDay).toBeCloseTo(firstKg, 1);
+    expect(next.meatKg ?? 0).toBeCloseTo(nov.meatKg ?? 0, 0);
+    // práce porážky – přes zimu po dnech, každý den za dnešní maso (i tady ztráty stáda)
     expect(
       next.livestock!.slaughterWork!.required - nov.livestock!.slaughterWork!.required,
-    ).toBeCloseTo(perDay / LIVESTOCK.slaughterKgPerManDay, 6);
-    // čekající kusy se porážejí na plnou potřebu – maso z nich se jí, dokud jsou (ubývají
-    // i ztrátami), pak se čerstvé maso nejí
+    ).toBeCloseTo(perDay / LIVESTOCK.slaughterKgPerManDay, 4);
+    // maso je každý den celou zimu (Martin 18. 11. 2026: „kníže … chce mít maso na stole nejlépe
+    // každý den“) – v prosinci i v březnu čekají kusy a jí se čerstvé
     const december = advanceVillage(next, at(600, 12, 1), null);
     expect(cullingMeatKg(december)).toBeGreaterThan(0);
-    expect(december.diet!.shares.freshMeat).toBeCloseTo(afterDairyAndEggs(december.diet!), 6);
-    const later = advanceVillage(december, at(601, 4, 2), null);
+    expect(december.diet!.shares.freshMeat).toBeGreaterThan(0);
+    const march = advanceVillage(december, at(601, 3, 20), null);
+    expect(cullingMeatKg(march)).toBeGreaterThan(0);
+    expect(march.diet!.shares.freshMeat).toBeGreaterThan(0);
+    const later = advanceVillage(march, at(601, 4, 2), null);
     expect(later.livestock!.culling).toBeUndefined();
-    expect(later.diet!.shares.freshMeat).toBeUndefined();
   });
 
-  it('do konce zimy se zbytek porazí a udí; od jara do podzimu se neporáží (kromě nouze)', () => {
+  it('zimní tempo – denně zbývající maso čekajících kusů děleno zbývajícími dny zimy', () => {
+    const december = at(600, 12, 1);
+    const s = village(december);
+    s.livestock!.herds = herds({ pig: 20, sheep: 10 });
+    s.livestock!.culling = herds({ pig: 9, sheep: 10 });
+    expect(cullingMeatKg(s)).toBeCloseTo(600, 9);
+    winterSlaughterDay(s, december);
+    expect(s.freshMeatKg).toBeCloseTo(600 / slaughterSeasonDaysLeft(december), 6);
+    // napřed ovce (žerou seno), prasata v lese naposled
+    expect(s.livestock!.culling!.pig).toBeCloseTo(9, 9);
+    expect(s.livestock!.herds.sheep).toBeCloseTo(10 - s.freshMeatKg! / LIVESTOCK.meatKg.sheep, 9);
+    // zítra stejný díl – zbytek se rozloží na zbývající dny
+    delete s.freshMeatKg;
+    winterSlaughterDay(s, december + 1);
+    expect(s.freshMeatKg).toBeCloseTo(600 / slaughterSeasonDaysLeft(december), 6);
+  });
+
+  it('do konce zimy se zbytek porazí a udí; od jara do podzimu jen kus pro rod vojvody', () => {
     const s = village(at(601, 3, 30));
     s.livestock!.herds = herds({ pig: 30, sheep: 20 });
     s.livestock!.culling = herds({ pig: 10, sheep: 5 });
@@ -233,15 +259,24 @@ describe('zimní porážka po dnech', () => {
     const smoked = s.meatKg!;
     expect(smoked).toBeGreaterThan(0);
     expect(s.livestock!.herds).toEqual(herds({ pig: 20, sheep: 15 }));
-    // jaro až podzim – stádo jen roste mláďaty a ubývá ztrátami, žádná porážka
+    // jaro až podzim – stádo roste mláďaty a ubývá ztrátami; poráží se jen kus pro rod vojvody,
+    // když mu nestačí maso v zásobě (diet.md – Strava po vrstvách a porážka celý rok), bez kroniky
     s.lastDay = at(601, 3, 31);
     delete s.freshMeatKg;
-    const autumn = advanceVillage(s, at(601, 10, 31), null);
+    const july = advanceVillage(s, at(601, 7, 31), null);
+    const autumn = advanceVillage(july, at(601, 10, 31), null);
     const kinds = new Set(autumn.chronicle.filter((e) => e.day > s.lastDay).map((e) => e.kind));
     expect(kinds.has('slaughter')).toBe(false);
     expect(kinds.has('emergency-slaughter')).toBe(false);
-    expect(autumn.livestock!.herds.pig).toBeGreaterThan(20);
-    expect(slaughterRemaining(autumn, at(601, 7, 1))).toBe(0);
+    // uzené ze zimy do léta došlo – rod dostal maso z letní porážky, chovné stádo i mláďata zůstala
+    const born = herds({ pig: 20 * LIVESTOCK.growth.pig, sheep: 15 * LIVESTOCK.growth.sheep });
+    const herd = july.livestock!.herds;
+    expect(herd.pig + herd.sheep).toBeLessThan(20 + 15 + born.pig + born.sheep - 1);
+    expect(herd.pig).toBeGreaterThan(20);
+    expect(july.livestock!.young.sheep).toBeGreaterThan(0);
+    expect(autumn.livestock!.herds.sheep).toBeGreaterThan(2);
+    // práce porážky i v létě – za den hotová
+    expect(slaughterRemaining(autumn)).toBeCloseTo(0, 6);
   });
 });
 
@@ -270,8 +305,9 @@ describe('seno a čekající kusy', () => {
     const none = winterWait(s, day, keep, killed, winterHayKg(keep, 0) / 0.98, 0);
     expect(none.cow).toBeCloseTo(0, 6);
     expect(none.sheep).toBeLessThan(plenty.sheep);
-    // napřed ubere krávy (porážejí se poslední, nejdéle žerou)
-    const some = winterWait(s, day, keep, killed, winterHayKg(keep, 0) * 1.1, 0);
+    // napřed ubere krávy (porážejí se poslední, nejdéle žerou); seno na ovce, které čekají celou
+    // zimu (porážka rozložená na zimu – bez krav i ovce čekají déle), ne na krávu
+    const some = winterWait(s, day, keep, killed, winterHayKg(keep, 0) * 1.25, 0);
     expect(some.cow).toBeLessThan(plenty.cow);
     expect(some.sheep).toBeCloseTo(plenty.sheep, 6);
   });

@@ -365,6 +365,9 @@ describe('převod – dobytek `cattle` uložený dřív', () => {
     s.trade!.expeditions[0]!.done = 143;
     // bez ohrady volů – krávy nejdou na telata do výcviku
     s.pens = s.pens!.filter((p) => p.species !== 'team');
+    // rod vojvody má uzené maso – letní porážka (diet.md – Strava po vrstvách a porážka celý rok)
+    // by jinak vzala krávu, kterou si ves přes zimu nenechá
+    s.meatKg = 500;
     const next = advanceVillage(s, DAY + 2, null, LANDSCAPE);
     expect(next.trade!.expeditions).toHaveLength(0);
     expect(next.chronicle.at(-1)).toMatchObject({ kind: 'trade-returned', get: { cows: 2 } });

@@ -65,13 +65,12 @@ import {
   pastureHa,
   pigForestHa,
   villageChickens,
-  cullingMeatKg,
-  freshMeatAheadEnergy,
-  freshMeatPerDayKg,
-  isSlaughterSeason,
   villageDams,
   villageHerds,
+  winterSlaughterTodayKg,
+  type WinterInput,
 } from '../livestock/livestock';
+import { freshMeatAheadEnergy, summerSlaughterPlan } from '../livestock/summer-slaughter';
 import {
   ableTeams,
   isTrained,
@@ -86,7 +85,7 @@ import {
   villagePens,
 } from '../livestock/oxen';
 import { cartTargets, oxenOverRoom, wantedOxen, wantedPloughPairs } from '../livestock/draft';
-import { herdPlaces, type HerdPlaces } from '../livestock/husbandry';
+import { herdPlaces, summerWinterInput, type HerdPlaces } from '../livestock/husbandry';
 import { oxenOf, penOccupancy, penPlaces, penSpecies } from '../livestock/pens';
 import {
   orchardAgeYears,
@@ -626,14 +625,15 @@ function households(state: VillageState, day: number): HouseholdSummary[] {
  */
 function nextDayDiet(state: VillageState, day: number): { diet: DietDay; points: DietHappiness } {
   const next = Math.min(day + 1, TOTAL_GAME_DAYS - 1);
+  const winter = (): WinterInput => summerWinterInput(state, next);
   const meal = villageMeal(state, next, craftCoverage(state, next).pottery, {
     milk: dailyMilk(villageDams(state), next),
     eggsKg: dailyEggsKg(state),
-    // zítřejší zimní porážka (diet.md – Porážka v zimě)
-    meatKg: isSlaughterSeason(next)
-      ? Math.min(cullingMeatKg(state), freshMeatPerDayKg(state, next))
-      : 0,
-    meatAheadEnergy: freshMeatAheadEnergy(state, next),
+    // zítřejší porážka – v zimě díl čekajících kusů, v létě kus pro rod vojvody (diet.md – Strava
+    // po vrstvách a porážka celý rok)
+    meatKg:
+      winterSlaughterTodayKg(state, next) + (summerSlaughterPlan(state, next, winter)?.kg ?? 0),
+    meatAheadEnergy: (daysToHarvest) => freshMeatAheadEnergy(state, next, daysToHarvest, winter),
   });
   const split = hungerSplit(state, next);
   return { diet: meal.diet, points: dietHappiness(tierMeal(split, meal.eaten), split.eaters) };

@@ -56,7 +56,9 @@ import {
   wantedWinterHerds,
   winterSlaughterDay,
   winterWaitHayKg,
+  type WinterInput,
 } from './livestock';
+import { summerSlaughterDay } from './summer-slaughter';
 import {
   closeCartYear,
   oxenCows,
@@ -300,11 +302,15 @@ export function villageFoodCosts(
   return foodCosts(state, day, toolCoverage, ableTeams(state, day) > 0);
 }
 
-/** Co ves o chovu ví (voli, krávy na mléko a voly, pasáci – výrostci, cena jídla v práci). */
+/**
+ * Co ves o chovu ví (voli, krávy na mléko a voly, pasáci – výrostci, cena jídla v práci). Bez
+ * `toolCoverage` bez ceny jídla v práci (`costs`) – stádo přes zimu (`winterKeepTargets`) ji
+ * nepotřebuje a spočítat ji stojí práci.
+ */
 function farmInput(
   state: VillageState,
   day: number,
-  toolCoverage: number,
+  toolCoverage?: number,
 ): {
   oxen: number;
   cowsComing?: number;
@@ -313,7 +319,7 @@ function farmInput(
   minSheep: number;
   oxenCows: number;
   herding: number;
-  costs: FoodCosts;
+  costs?: FoodCosts;
   room?: Record<HerdSpecies, number>;
   horsePastureHa?: number;
   horseHayKg?: number;
@@ -341,11 +347,35 @@ function farmInput(
     // zimní krmení: krávy k obnově volů, pak ovce na vlnu (diet.md – Zima bez sena)
     oxenCows: oxenRenewalCows(state),
     herding: herdingCoverage(state),
-    costs: villageFoodCosts(state, day, toolCoverage),
+    ...(toolCoverage !== undefined ? { costs: villageFoodCosts(state, day, toolCoverage) } : {}),
     // místa na noc – ohrady svého druhu a pár kusů u domů (oxen.md – Ohrady podle druhu); po
     // ročním odkladu (nová ves, převod)
     ...(pensLimitHerds(state, day) ? { room: herdRoom(state) } : {}),
   };
+}
+
+/**
+ * Co ves o zimě ví k porážce 1. 11. (`WinterInput` – diet.md, Porážka v zimě): chov (`farmInput`),
+ * seno a sláma, které dnes má (i ze snopů před výmlatem).
+ */
+export function winterInput(state: VillageState, day: number, toolCoverage: number): WinterInput {
+  return {
+    ...farmInput(state, day, toolCoverage),
+    hayKg: villageHayKg(state),
+    strawKg: strawComingKg(state),
+  };
+}
+
+/**
+ * Co ves o zimě ví v létě – letní odhad kusů na maso (diet.md – Strava po vrstvách a porážka celý
+ * rok: „dnešními daty stejným výpočtem jako 1. 11.“): totéž jako k porážce 1. 11. (`winterInput`),
+ * jen seno podle toho, kolik ho ves stihne posekat (`mowKg` – stádo, na které seče, jako plán seče
+ * `wantedWinterHerds`), ne podle dnešní zásoby – ta se sečí teprve plní; jaro a začátek léta by
+ * jinak počítaly se zimou bez sena a na maso by šly i kusy, které si ves 1. 11. nechá (návrh
+ * Clauda). Bez ceny jídla v práci – stádo přes zimu ji nepotřebuje.
+ */
+export function summerWinterInput(state: VillageState, day: number): WinterInput {
+  return { ...farmInput(state, day), hayKg: Infinity };
 }
 
 /** Místa na noc jednoho druhu stáda – pro panel ohrady (`herdPlaces`). */
@@ -484,11 +514,7 @@ export function husbandryDay(
   const spoiled = spoilMeat(state, day);
   if (spoiled) events.push(spoiled);
   if (isOn(date, SLAUGHTER_DAY)) {
-    const event = slaughter(state, day, {
-      ...farmInput(state, day, toolCoverage),
-      hayKg: villageHayKg(state),
-      strawKg: strawComingKg(state),
-    });
+    const event = slaughter(state, day, winterInput(state, day, toolCoverage));
     if (event) events.push(event);
     // vlna na oděv do další porážky – podle ovcí, které ves nechala přes zimu (diet.md – Oděv);
     // ovce na zimní porážku se do jara nedožijí
@@ -509,6 +535,9 @@ export function husbandryDay(
   }
   // zimní porážka po dnech – čerstvé maso dne; zbytek 31. 3. do uzení (diet.md – Porážka v zimě)
   winterSlaughterDay(state, day);
+  // v létě kus pro rod vojvody, když mu na dnešek nestačí maso v zásobě (diet.md – Strava po
+  // vrstvách a porážka celý rok) – co ves o zimě ví, až když je potřeba
+  summerSlaughterDay(state, day, () => summerWinterInput(state, day));
   // dlouhá zima: seno se krmí i v dubnu, pastva až od 1. 5. (disasters.md – Zima)
   if (isHayWinter(day, isLongWinter(state, day))) {
     // seno do konce března nevystačí – ves hned porazí kusy, na které nezbude, ať zvířata

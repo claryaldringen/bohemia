@@ -213,6 +213,7 @@ describe('ves bez kováře a hrnčíře beze změny (crafts.md – Uhlí a ruda 
     // 18. 11. 2026 – strava po vrstvách, úloha 2; dřív 174f909e
     // 18. 11. 2026 – strava po vrstvách, úloha 3; dřív 4830f206
     // 18. 11. 2026 – strava po vrstvách, úloha 3 (ovoce a pevný příděl medu všem stejně); dřív 87d3f686
-    expect(hash(stripped)).toBe('71befe4b');
+    // 18. 11. 2026 – strava po vrstvách, úloha 4 (porážka celý rok); dřív 71befe4b
+    expect(hash(stripped)).toBe('77740d4');
   }, 120_000);
 });

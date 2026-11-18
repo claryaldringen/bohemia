@@ -80,9 +80,11 @@ describe('pořadí a úseky dílů', () => {
 
 describe('postup po čtvercích', () => {
   // 22. 9.: výhled škod zvěře počítá násobek malé vsi jen z nesklizených dílů, osev se tak
-  // mírně posunul; v tento den je v ozimu vidět rozpracovaný díl i strniště.
+  // mírně posunul; v tento den je v ozimu vidět rozpracovaný díl i strniště. 18. 11. 2026 – práce
+  // porážky celý rok (diet.md – Strava po vrstvách a porážka celý rok) posunula práci: 22. 9. skončí
+  // kopání dne právě na hranici dílu (čelo hotové), proto 23. 9.
   it('kopání a setí ozimu: hotové díly v pořadí, zbytek čeká; čelo dne mezi nimi', () => {
-    const s = advanceVillage(village(), at(601, 9, 22), null);
+    const s = advanceVillage(village(), at(601, 9, 23), null);
     const winter = seasonCrop(s.season!, 'winter')!;
     const states = statesInOrder(s, winter.partIds);
     // od obydlí: nejdřív zasetí, pak zkopaní, pak loňské strniště – nikdy naopak

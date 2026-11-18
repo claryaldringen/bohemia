@@ -113,7 +113,7 @@ describe('nouzová porážka', () => {
       s.meatKg! / LIVESTOCK.slaughterKgPerManDay,
       9,
     );
-    expect(slaughterRemaining(s, day)).toBeCloseTo(s.meatKg! / LIVESTOCK.slaughterKgPerManDay, 6);
+    expect(slaughterRemaining(s)).toBeCloseTo(s.meatKg! / LIVESTOCK.slaughterKgPerManDay, 6);
     // druhý den už nic – rezerva drží
     expect(emergencySlaughterPlan(s, day, 0, 1)).toBeNull();
   });

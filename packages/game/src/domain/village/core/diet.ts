@@ -236,13 +236,13 @@ export interface DietInput {
   meatKg: number;
   fruitKg: number;
   /**
-   * Čerstvé maso dne (kg – zimní porážka, ryby a drobná zvěř; diet.md, Porážka v zimě): jí se před
-   * uzeným (`meatKg`); co se nesní, se udí. Bez údaje žádné.
+   * Čerstvé maso dne (kg – porážka v zimě i v létě, ryby a drobná zvěř; diet.md, Strava po vrstvách
+   * a porážka celý rok): jí se před uzeným (`meatKg`); co se nesní, se udí. Bez údaje žádné.
    */
   freshMeatKg?: number;
   /**
-   * Čerstvé maso od zítřka do konce zimní porážky (energie v kg obilí, nejvýš potřeba za ty dny –
-   * `freshMeatAheadEnergy`) – výhled s ním počítá. Bez údaje žádné.
+   * Čerstvé maso z porážky od zítřka do sklizně (energie v kg obilí – v zimě čekající kusy, v létě
+   * maso pro rod vojvody; `freshMeatAheadEnergy`) – výhled s ním počítá. Bez údaje žádné.
    */
   freshAheadEnergy?: number;
   /** Zásoba sýra (kg). */
@@ -398,8 +398,8 @@ function dietPlan(input: DietInput): DietPlan {
   const meatDays = Math.max(1, input.daysToMeatEnd);
   const fruitToday = rotDays > 0 ? fruitEnergy(fruit) : 0;
   // co se kazí, jen kolik se do zkažení stihne sníst plnou potřebou; mléko stád do sklizně za den
-  // nejvýš potřeba (`milkEnergyBetween`), čerstvé maso zimní porážky nejvýš potřeba za dny zimy
-  // (`freshMeatAheadEnergy`)
+  // nejvýš potřeba (`milkEnergyBetween`), čerstvé maso z porážky – v zimě nejvýš potřeba za dny
+  // zimy, v létě potřeba rodu vojvody (`freshMeatAheadEnergy`)
   const ahead =
     Math.min(milkEnergy, need) +
     eggsEnergy * days +
@@ -731,9 +731,13 @@ export function villageMeal(
   fresh: {
     milk: MilkYield;
     eggsKg: number;
-    /** Čerstvé maso dne a od zítřka ze zimní porážky (diet.md – Porážka v zimě). */
+    /** Čerstvé maso dne z porážky (diet.md – Strava po vrstvách a porážka celý rok). */
     meatKg?: number;
-    meatAheadEnergy?: number;
+    /**
+     * Čerstvé maso z porážky od zítřka do sklizně (energie) – číslo, nebo podle dní výhledu do
+     * sklizně (`freshMeatAheadEnergy`).
+     */
+    meatAheadEnergy?: number | ((daysToHarvest: number) => number);
   } = {
     milk: { liters: 0, proteinKg: 0, energy: 0 },
     eggsKg: 0,
@@ -758,7 +762,10 @@ export function villageMeal(
     sheavesLegumesKg: sheaves.legumesKg,
     meatKg: isMeatSpoilDay(day) ? 0 : villageMeatKg(state),
     freshMeatKg: fresh.meatKg ?? 0,
-    freshAheadEnergy: fresh.meatAheadEnergy ?? 0,
+    freshAheadEnergy:
+      typeof fresh.meatAheadEnergy === 'function'
+        ? fresh.meatAheadEnergy(daysToHarvest)
+        : (fresh.meatAheadEnergy ?? 0),
     fruitKg: applesSpoiled(day, potteryCoverage) ? 0 : villageApplesKg(state),
     cheeseKg: villageCheeseKg(state),
     milkL: fresh.milk.liters,

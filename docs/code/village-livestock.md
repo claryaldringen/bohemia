@@ -167,43 +167,60 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
      (`youngRoomTargets`, `nextSummerDay` 1. 7., `herderCapacity` z věku dnešních dětí – bez
      výrostků dospělý `HERDING.adultShare`), bez
      starých kusů (`retiringHeads`), chovné minimum `breedingFloor` vždy; staré a nad nosnost na maso
-     vždy, ostatní jen do spotřeby. Kusy na maso čekají přes zimu (`winterWait` – čerstvá
+     vždy, stádo v nosnosti zůstane celé. Kusy na maso čekají přes zimu (`winterWait` – čerstvá
      spotřeba zimy `freshMeatPerDayKg` – celá potřeba energie, bez stropu – × 151 dní, napřed
-     prasata v lese, pak krávy, ovce, kozy; co
-     seno neuživí, hned do uzení) v `LivestockState.culling` (ve `herds`), `winterSlaughterDay`
-     (husbandryDay) je porazí po dnech v pořadí kozy, ovce, krávy, prasata do `VillageState.freshMeatKg`
-     – jí se napřed (`DietInput.freshMeatKg`, výhled `freshAheadEnergy` / `freshMeatAheadEnergy`,
-     `DietDay.shares.freshMeat`), co se nesní, se udí; 31. 3. zbytek do uzení. Seč 1. 6. počítá se
-     senem čekajících (`winterWaitHayKg` ve `winterHayNeedKg`), práce porážky po dnech přes zimu
-     (`slaughterRemaining` – `isSlaughterSeason`), kronika `slaughter` s `fresh`.
-     **Oděv – vlna** (diet.md – Oděv; Martin 19. 10. 2026: „Ovce jsou hlavně kvůli vlně, aby se lidé
-     mohli vůbec oblékat.“; `wool.ts`, `WOOL` v `rules*.ts`): ovce na vlnu `woolSheep` (dospělý 1,6 kg,
-     dítě 0,8 kg ÷ 0,8 kg z ovce) jsou spodní hranicí ovcí – `minSheep` ve `farmInput` →
-     `winterTargets` (pastva a seno: voli, ovce na vlnu, krávy `minCows`, …; pasáci napřed ovce na
-     vlnu – `watchedShares`) i `sizeHerdsToNeed`, maso navíc z mláďat je nebere; osadníci nové vsi
-     `foundingLivestock` a seno na první zimu (`foundVillage` – `winterHayKg`). Vlna není
-     zásoba – porážka zapíše podíl oděvu `LivestockState.wool` (`recordWool`, kronika `wool-short`,
-     upozornění „Chybí vlna na oděv“ pod `WOOL.noticeBelow`), štěstí `HappinessFactors.wool` až −6 (`woolUnhappiness`); vsi
-     bez zápisu (dřívější) beze změny do porážky 1. 11. Práce na vlně je v `DOMESTIC` (přerozdělení). Zimní úhyn 1. 3. (do 24. 10. 2026 – nahradila ho `hayShortSlaughter`;
-     pod polovinou přídělu `herdHayCoverage`, chovný pár přežil, kronika
-     `herd-starved`). **Pasáci** (`herding.ts`, `HERDING`): plný pasák 40 krav (i voli), 100 ovcí či
-     koz, 50 prasat, výrostek 7–13 let `childShare` 40 %; **pasou výrostci** (`isYoungster`,
-     mimo práci vsi; starší ne – Martin 19. 10. 2026: „Když bude ve vsi málo vhodných
-     dětí na pasení, tak to omezí i velikost stád.“); `herdingDay` – kolik výrostků dnes pase;
-     **dospělý pasák** (diet.md – Pasáci, Dospělý pasák, od 2. 11. 2026): `adultHerding(state, day,
+     prasata v lese, pak krávy, ovce, kozy; co seno neuživí – čekající se porážejí rozložené na
+     celou zimu, `waitingHayKg` –, hned do uzení) v `LivestockState.culling` (ve `herds`),
+     `winterSlaughterDay` (husbandryDay) je porazí po dnech v pořadí kozy, ovce, krávy, prasata –
+     denně díl `winterSlaughterTodayKg` (maso čekajících ÷ zbývající dny zimy, i zlomky kusů; diet.md
+     – Strava po vrstvách a porážka celý rok, V zimě) do `VillageState.freshMeatKg` – jí se napřed
+     (`DietInput.freshMeatKg`, `DietDay.shares.freshMeat`), co se nesní, se udí; 31. 3. zbytek do
+     uzení. Seč 1. 6. počítá se senem čekajících (`winterWaitHayKg` ve `winterHayNeedKg`), kronika
+     `slaughter` s `fresh`. Vstup porážky 1. 11. `winterInput` (husbandry.ts – `farmInput`, seno
+     a sláma dnes).
+     **Porážka v létě** (diet.md – Strava po vrstvách a porážka celý rok, V létě; `summer-slaughter.ts`,
+     1. 4.–31. 10. – `isSummerSlaughterSeason`): `summerSlaughterDay` (husbandryDay, po zimní porážce)
+        porazí jeden celý kus, když rodu vojvody (`hungerSplit` – skupina 0) na dnešek nestačí maso
+        v zásobě – uzené a dnešní čerstvé (`lordMeatShortKg`); nejmenší druh, jehož kus chybějící maso
+        pokryje, jinak největší (`summerSlaughterPlan`), jen z kusů na maso `summerSlaughterCandidates`
+        – co by si ves 1. 11. nenechala (`winterKeepTargets` se `summerWinterInput`: vstup jako 1. 11.,
+        seno podle plánu seče místo dnešní zásoby), bez letošních mláďat (selata od 1. 9., ubývají
+        první), nad `breedingFloor`. Maso do `freshMeatKg` (co rod nesní, sní ostatní, zbytek se
+        vyudí), kůže `noteSlaughtered`, práce `addSlaughterWork`; kronika ne. `WinterInputSource` –
+        vstup hotový, nebo až na požádání (jen ve dny, kdy rodu chybí maso). Výhled do sklizně
+        `freshMeatAheadEnergy(state, day, daysToHarvest, input)` (`baseMealInput`, panel `nextDayDiet`):
+        v zimě maso čekajících kusů (nejvýš potřeba vsi do konce zimy), v létě potřeba rodu × letní dny
+        výhledu (do 31. 10.), nejvýš maso celých kusů na maso. Práce porážky a uzení celý rok, dokud
+        nějaká čeká (`slaughterRemaining`, úloha `slaughter`) – i maso z lovu a dosloužilých zvířat
+        (dřív jen v zimě a v nouzi).
+        **Oděv – vlna** (diet.md – Oděv; Martin 19. 10. 2026: „Ovce jsou hlavně kvůli vlně, aby se lidé
+        mohli vůbec oblékat.“; `wool.ts`, `WOOL` v `rules*.ts`): ovce na vlnu `woolSheep` (dospělý 1,6 kg,
+        dítě 0,8 kg ÷ 0,8 kg z ovce) jsou spodní hranicí ovcí – `minSheep` ve `farmInput` →
+        `winterTargets` (pastva a seno: voli, ovce na vlnu, krávy `minCows`, …; pasáci napřed ovce na
+        vlnu – `watchedShares`) i `sizeHerdsToNeed`, maso navíc z mláďat je nebere; osadníci nové vsi
+        `foundingLivestock` a seno na první zimu (`foundVillage` – `winterHayKg`). Vlna není
+        zásoba – porážka zapíše podíl oděvu `LivestockState.wool` (`recordWool`, kronika `wool-short`,
+        upozornění „Chybí vlna na oděv“ pod `WOOL.noticeBelow`), štěstí `HappinessFactors.wool` až −6 (`woolUnhappiness`); vsi
+        bez zápisu (dřívější) beze změny do porážky 1. 11. Práce na vlně je v `DOMESTIC` (přerozdělení). Zimní úhyn 1. 3. (do 24. 10. 2026 – nahradila ho `hayShortSlaughter`;
+        pod polovinou přídělu `herdHayCoverage`, chovný pár přežil, kronika
+        `herd-starved`). **Pasáci** (`herding.ts`, `HERDING`): plný pasák 40 krav (i voli), 100 ovcí či
+        koz, 50 prasat, výrostek 7–13 let `childShare` 40 %; **pasou výrostci** (`isYoungster`,
+        mimo práci vsi; starší ne – Martin 19. 10. 2026: „Když bude ve vsi málo vhodných
+        dětí na pasení, tak to omezí i velikost stád.“); `herdingDay` – kolik výrostků dnes pase;
+        **dospělý pasák** (diet.md – Pasáci, Dospělý pasák, od 2. 11. 2026): `adultHerding(state, day,
 oxen)` – jen ve vsi bez výrostků (`youngsterCount` 0), potřeba nejvýš `HERDING.adultShare` (0,4)
-     plných pasáků = člověkodní; `work` (simulate-work.ts) ji dá jako úlohu dne `herding` (`end`
-     Infinity, `tie` 4, `rank` 3 – za polními úlohami, nutnou sečí a hlídkou, před stavbami),
-     odvedená práce jde do `recordHerding(state, herding, adult)`; `labor-report.ts` ji zapíše jako
-     činnost `herding` (web: `herderCount`, `herderKinds` – dospělý u stáda). Nový stav není – platí
-     od dalšího dne. Přežvýkavci duben–říjen, prasata celý rok; `recordHerding` sčítá `LivestockState.herding` od
-     porážky do porážky, `herdingCoverage` jde do porážky, `pastureGrazing` a pastvy; `LaborDay.herders`
-     (výrostci u stád) → `SceneLabor.herders` → `herderKinds` ve `villager-plan-cast.ts`. Porážka a uzení jdou před polními úlohami (přes zimu po dnech).
-     Louka a les do 600 m pro pastvu jsou z krajiny ve stavu
-     (`LivestockState.land`) – doplní je `withLivestockLand` (založení vsi i migrace v
-     `updateVillage`); bez nich výchozí `LIVESTOCK.defaultLand`. Den hospodářství `husbandryDay`
-     (`husbandry.ts`) běží před plánem osevu: ztráty stád a seno ve stohu, ohrady a zimní úhyn,
-     mláďata, zkažené staré seno a plán seče, zkažené maso, porážka, zimní seno.
+        plných pasáků = člověkodní; `work` (simulate-work.ts) ji dá jako úlohu dne `herding` (`end`
+        Infinity, `tie` 4, `rank` 3 – za polními úlohami, nutnou sečí a hlídkou, před stavbami),
+        odvedená práce jde do `recordHerding(state, herding, adult)`; `labor-report.ts` ji zapíše jako
+        činnost `herding` (web: `herderCount`, `herderKinds` – dospělý u stáda). Nový stav není – platí
+        od dalšího dne. Přežvýkavci duben–říjen, prasata celý rok; `recordHerding` sčítá `LivestockState.herding` od
+        porážky do porážky, `herdingCoverage` jde do porážky, `pastureGrazing` a pastvy; `LaborDay.herders`
+        (výrostci u stád) → `SceneLabor.herders` → `herderKinds` ve `villager-plan-cast.ts`. Porážka a uzení jdou před polními úlohami (přes zimu po dnech).
+        Louka a les do 600 m pro pastvu jsou z krajiny ve stavu
+        (`LivestockState.land`) – doplní je `withLivestockLand` (založení vsi i migrace v
+        `updateVillage`); bez nich výchozí `LIVESTOCK.defaultLand`. Den hospodářství `husbandryDay`
+        (`husbandry.ts`) běží před plánem osevu: ztráty stád a seno ve stohu, ohrady a zimní úhyn,
+        mláďata, zkažené staré seno a plán seče, zkažené maso, porážka, zimní seno.
 
 - **Ohrada, spřežení a orba rádlem** ([oxen.md](../design/oxen.md), `oxen.ts`, `plough.ts`,
   `hay.ts`): ohrada (`BuildKind` `'pen'`, `penSquaresFromCells` / `checkPenPlacement` po
@@ -537,8 +554,8 @@ Návrh: `docs/design/expeditions.md` – Kůň. Kód: `livestock/horses-out.ts`.
 
 `LivestockState.slaughtered?: { day, heads }` – kolik kusů kterého druhu (i zlomky) se dnes
 porazilo; zapisuje `noteSlaughtered` (`livestock.ts`) při porážce 1. 11. (jen hned poražené, ne
-čekající na zimu), v zimní porážce po dnech i zbytku 31. 3., při porážce pro seno a při nouzové
-porážce. Nový den přepíše starý. `laborDay` z něj dělá `LaborDay.slaughterHeads`, scéna
+čekající na zimu), v zimní porážce po dnech i zbytku 31. 3., v letní porážce pro rod vojvody
+(`summerSlaughterDay`), při porážce pro seno a při nouzové porážce. Nový den přepíše starý. `laborDay` z něj dělá `LaborDay.slaughterHeads`, scéna
 `SceneLabor.slaughter`. Simulace ho nečte (nemění stav ani determinismus).
 
 ## Kůže, kožešiny, med a vosk (`wares/`)

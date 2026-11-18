@@ -188,6 +188,7 @@ describe('ves bez dílen beze změny (crafts.md – Učení řemesla)', () => {
     // 18. 11. 2026 – strava po vrstvách, úloha 1; dřív 410d1b2d
     // 18. 11. 2026 – strava po vrstvách, úloha 2; dřív 4d550d32
     // 18. 11. 2026 – strava po vrstvách, úloha 3; dřív 1625db9b
-    expect(hash(stripped)).toBe('13c48149');
+    // 18. 11. 2026 – strava po vrstvách, úloha 4 (porážka celý rok); dřív 13c48149
+    expect(hash(stripped)).toBe('db2944d6');
   }, 120_000);
 });

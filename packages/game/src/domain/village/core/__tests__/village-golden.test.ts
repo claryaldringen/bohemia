@@ -67,7 +67,9 @@ import { advanceChunked, goldenWorld, stateFingerprint, YEAR } from './village-g
 // dřív 776bb414d4028d91
 // 18. 11. 2026 – strava po vrstvách, úloha 3 (ovoce a pevný příděl medu všem stejně, štěstí ze
 // stravy přes jedlíky); dřív 79b920be6d62a4c2
-const EXPECTED_YEAR_1 = '9f3abbaffbff219f';
+// 18. 11. 2026 – strava po vrstvách, úloha 4 (porážka celý rok – v létě kus pro rod vojvody, v zimě
+// rozložená na celou zimu, práce porážky celý rok); dřív 9f3abbaffbff219f
+const EXPECTED_YEAR_1 = '9a95a3545a893d89';
 
 describe('zlatý otisk vsi', () => {
   const world = goldenWorld();

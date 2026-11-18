@@ -14,7 +14,9 @@ import { fieldFoodShare } from '../fields/field-food';
 import { daysUntilAppleRot } from './food';
 import { grainKeepInput } from '../fields/grain-pits';
 import { villageLegumesKg } from '../fields/legumes';
-import { dailyEggsKg, freshMeatAheadEnergy, villageDams } from '../livestock/livestock';
+import { dailyEggsKg, villageDams } from '../livestock/livestock';
+import { summerWinterInput } from '../livestock/husbandry';
+import { freshMeatAheadEnergy } from '../livestock/summer-slaughter';
 import { villageApplesKg } from '../buildings/orchard';
 import { sheavesOutlook } from '../fields/threshing';
 import type { HerdSpecies, VillageState } from '../types';
@@ -69,10 +71,13 @@ export function baseMealInput(
     sheavesGrainKg: sheaves.grainKg + lateKg,
     sheavesLegumesKg: sheaves.legumesKg,
     meatKg: villageMeatKg(state),
-    // čerstvé maso dne (zimní porážka, ryby a drobná zvěř) a zimní porážky do konce zimy (diet.md –
-    // Porážka v zimě)
+    // čerstvé maso dne (porážka, ryby a drobná zvěř) a od zítřka z porážky – v zimě čekající kusy,
+    // v létě maso pro rod vojvody (diet.md – Strava po vrstvách a porážka celý rok, Výhled do
+    // sklizně)
     freshMeatKg: state.freshMeatKg ?? 0,
-    freshAheadEnergy: freshMeatAheadEnergy(state, day),
+    freshAheadEnergy: freshMeatAheadEnergy(state, day, daysToHarvest, () =>
+      summerWinterInput(state, day),
+    ),
     fruitKg: villageApplesKg(state),
     cheeseKg: villageCheeseKg(state),
     milkL: milk.liters * milked,

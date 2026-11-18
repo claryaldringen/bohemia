@@ -232,7 +232,8 @@ describe('zlatý otisk – výběr dílů a práce vsi k 2. 9.', () => {
     // 120 → 130 kg): psi dvorce už nejedí obilí a výhled osevu ho nepočítá, větší maso z porážky
     // mění jídlo a zásoby – jiný výběr dílů; dřív 152:4c6912f4
     // 18. 11. 2026 – strava po vrstvách, úloha 1; dřív 159:d5b34cab
-    expect(fingerprint(plans)).toBe('163:569fec9e');
+    // 18. 11. 2026 – strava po vrstvách, úloha 4 (porážka celý rok); dřív 163:569fec9e
+    expect(fingerprint(plans)).toBe('156:aa2d6716');
   });
 });
 
