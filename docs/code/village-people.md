@@ -91,7 +91,12 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
     – `lordHelpDay`, v oknech setí `manorLabor.sowing` – `FarmSeason.lordSowing`,
     [village-fields.md](village-fields.md) – Rodina ve žních) v pořadí ženy a dcery → muži →
     vojvoda (`lordFieldShares`; `ManorLabor.freeLord` – minimum, na které ženy nestačí, kryjí
-    napřed synové). `lordFieldIds` = cvičící dnes na poli – nejezdí ani neloví.
+    napřed synové). `lordFieldIds` = cvičící dnes na poli – nejezdí ani neloví. Spotřebu dne
+    (`DayAllocation.lordField` – práce rodiny × délka dne) převede na lidi na celý dnešní den
+    `lordFieldSharesToday` (`used ÷ daylight`) – stejní lidé jako v plánu (`harvestFieldIds`;
+    D102 kolo 1, oprava chyby z 9. 11. 2026 – dřív v krátkém dni vojvoda při celém podílu cvičil).
+    Plán pošle rodinu na pole i v den, kdy na čele práce pro ni není (čelo blokuje orba spřežení) –
+    zjednodušení jako ve žních (lord.md – Příprava půdy a setí).
   - **Výmlat v zimě** (lord.md – Kdy jde rodina na pole, Výmlat v zimě; Martin 18. 11. 2026 – D95,
     volba A): v zimě (`WINTER_THRESH_WINDOW` – listopad–únor) mimo žňový den `winterThreshPace`
     (`simulate-work.ts`) – zbývající práce `threshSeasonTasks` ÷ dny okna – jde do `allocateDay`
@@ -100,7 +105,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
     pravidelnou práci vsi dne (`regularOutdoor` – po denním minimu a péči o koně, dnešní délkou dne,
     bez výprav, vozů, kování a úloh dne), mlátí až po všech úlohách dne a jinde ten den nepomáhá;
     jednorázový propad dne (porážka) nedorovná, zbytek dorovnají další dny okna. Použitá práce jde
-    do `lordFieldShares` jako ve žních (`trainLordDay` krátí výcvik). `harvestFieldIds` (jízdy ve
+    do `lordFieldSharesToday` jako ve žních (`trainLordDay` krátí výcvik). `harvestFieldIds` (jízdy ve
     scéně a hlídka polí) zná žně a okna setí (`help` + `sowing`), zimní výmlat ne. Pomoc při hladu (`lord.field`,
     `lord.fedDays`, kronika `lord-to-field` / `lord-to-training`) zrušená – převod
     `withoutSowingHelp` (`lord.ts`) je smaže; staré zápisy kroniky web dál umí.

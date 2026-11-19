@@ -253,7 +253,11 @@ hodnotou v hrdle práce – `firstYearLaborBound` – a návratnost humna v roce
 osivo stranou u dávek
 (`vassalage/spare.ts`, `domain-food.ts`: min(osev podle půdy, `laborHa`) × 175 kg). S opravou
 i tam měla zlatá ves v letech 2–9 štěstí o ≈ 10 bodů nižší (jiný rozvrh plánu, nová ves bez
-modly, sadu a ohrady) – oprava ostatních čtenářů je samostatná úloha.
+modly, sadu a ohrady) – oprava ostatních čtenářů je samostatná úloha. Jaro dvakrát: `laborHa`
+bere lidi i orbu z oken `autumn` + `spring`, okno `autumn` (vracení přílohu a kopání) ale už nese
+i březen–duben – jarní kapacita se tak sečte dvakrát (stejná chyba byla ve výhledu polí
+v rozhraní, tam opravená 19. 11. 2026 – D102 kolo 1; `workableHa` ji nemá – D99). Jak správce
+počítá okna, se řeší zvlášť (návrh Clauda, 19. 11. 2026).
 
 Nejmenší z osevu podle práce, osiva a půdy je **úzké hrdlo** letošního osevu. Osivo chybí jen do příští sklizně, pole stojí
 roky – pro pole a lidi rozhoduje **trvalé hrdlo** (půda, nebo práce): **udržitelní lidé** =

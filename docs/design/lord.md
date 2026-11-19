@@ -138,11 +138,20 @@ z vojvodovy rodiny, samotný vojvoda až úplně nakonec“.
   - Rodina jde na pole **až po práci vsi a žňových rukou** ([pole](fields.md) – Žně všemi
     rukama) – jen žeň a výmlat, které ves ten den sama nestihne, takže vsi neuvolní práci na
     stavby ani setí (návrh Clauda). V září, kdy se dožíná jař a zároveň připravuje a seje, dá
-    rodina každé práci nejvýš její podíl, dohromady nejvýš celý den (návrh Clauda).
+    rodina každé práci nejvýš její podíl, dohromady nejvýš celý den (návrh Clauda) – žeň napřed:
+    co rodina v září dá žni, s přípravou půdy a setím už nepočítá (návrh Clauda, 19. 11. 2026 –
+    dřív plán počítal září rodiny dvakrát, pro žeň i pro setí).
   - **Kdo je ten den na poli, nejezdí ani neloví** (návrh Clauda, 9. 11. 2026 – dřív nejezdil
     nikdo z rodiny, ani chlapci): jeho kůň stojí a jízda ani výcvik koně nepostupují. Chlapci,
     muži, na které pole nedošlo, a vojvoda, dokud na pole nejde, jezdí a loví jako jindy (odešlí
     synové smějí vždy).
+  - **Na poli se počítají lidé na celý den** (návrh Clauda, 19. 11. 2026 – oprava chyby
+    z 9. 11. 2026): práce, kterou rodina dnes na poli dá, je po délce dne (krátký den dá míň) –
+    kdo šel na pole, se počítá v lidech na celý dnešní den, stejně jako plán. Dřív se dělila prací
+    dlouhého dne, takže v listopadu, druhé půli října a začátkem března vojvoda (a část synů) při
+    celém podílu cvičil, jezdil a lovil, i když ho plán poslal na pole, a v červenci a srpnu se
+    přebytek práce žen připsal mužům – proti „Kdo je ten den na poli, nejezdí, neloví ani
+    necvičí“. Platí ve žních, s přípravou půdy a setím i při výmlatu v zimě.
 - **Příprava půdy a setí** (Martin 19. 11. 2026 – D102; podoba návrh Clauda): v oknech setí –
   ozim září–říjen, příprava jaře (vracení přílohu a kopání) září–listopad, jaro březen–duben – ves
   počítá práci přípravy půdy a setí (vracení přílohu s klučením, kopání, orba se spřežením
@@ -157,6 +166,17 @@ z vojvodovy rodiny, samotný vojvoda až úplně nakonec“.
   do konce okna (jako ve žních, dnešní délkou dne) – rodina, která je zrovna ve vsi, dá jen
   chybějící práci (chybějící práce ÷ práce rodiny po denním minimu dvorce, nejvýš celý den);
   ves to přepočítá každý den ze zbývající práce.
+  - **Volná práce vsi bez úloh, které jdou před přípravou půdy** (návrh Clauda, 19. 11. 2026 – D102
+    kolo 1): práce dne jde v pořadí důležitosti ([pole](fields.md) – Pořadí důležitosti polních
+    prací a výmlat do zimy) a před přípravou půdy a setím je i otava, porážka a výmlat na osivo – ves
+    jim dá ruce napřed. Volná práce vsi v okně setí je proto bez **zbytku nutné otavy** (do konce
+    září), **porážky a uzení, které čekají**, **zimní porážky** čekajících kusů po dnech okna
+    (listopad, březen) a **výmlatu na osivo** do konce okna (ve žňový den jen díl vsi – žňové ruce
+    mlátí s ní); jako dosklizeň jaře v září. Rodině se nic neubírá – s nimi nepomáhá. Sklizeň jablek
+    počítá zátěž okna; 1. seč, pletí a trhání lnu do oken setí nepadnou; výmlat na dnešní jídlo
+    a porážky, které ves ještě neudělala (letní porážka pro rod, kusy na zimu před 1. 11.), se
+    neodhadují – přepočet je uvidí, až nastanou. Dřív ve Vlkově 906 v září ves sekla otavu a rodina
+    dala 0,6 čd denně, spřežení orala 0,4 čd ze 2,7 čd.
   - **Jař:** vracení a kopání jde na podzim, kolik po ozimu zbude, zbytek se setím na jaře – okno
     kopání jaře končí až koncem dubna. Co chybí, dá rodina napřed na jaře; co jaro nestihne ani
     s celou rodinou, dá už na podzim (jako dřívější pomoc s osevem do 9. 11. 2026).
@@ -166,6 +186,10 @@ z vojvodovy rodiny, samotný vojvoda až úplně nakonec“.
     nejezdí, neloví ani necvičí** (jako ve žních).
   - **Čelo práce** počítá i s prací, kterou dnes dá rodina – jinak by rodině nezbyla rozdělaná
     práce (čelo nese tři dny práce lidí – fields.md, Postup práce po dílech).
+  - **Zjednodušení – plán bez čela** (návrh Clauda, 19. 11. 2026): podíl dne počítá i díly na
+    řadě, které na čelo ještě nepřišly, a plán pošle rodinu na pole i v den, kdy na čele práce pro
+    ni není (čelo blokuje orba spřežení) – jezdci ten den nehlídají pole, i když cvičí; stejně
+    jako ve žních. Ve Vlkově 906 a 908 v listopadu byla na poli jen 2,6 a 1,7 z 8 dospělých rodu.
   - **Postupně šlechta** (Martin 19. 11. 2026): v malé vsi rodina pracuje hodně, ve velké, která
     setí stihne sama, málo nebo vůbec – žádná mez velikosti vsi. Ves s málo dospělými mimo rodinu
     dál pracuje celá jako ostatní (Den rodiny).
@@ -1118,6 +1142,7 @@ dílu – 1 ÷ (vojvoda + synové od 16 let ve vsi), lidé z obydlí nejblíž d
 | Fáze 4: ne-senior ostatní vsi rodu jen vidí; los nástupce ½, zbytek mladší synové od 16 let; mladší syn z losu jen odchod na mapu; do vsi bez muže rodu se pošle muž rodu ([seniorát](seniorate.md)) | Martin (2. 11. 2026)   |
 | Fáze 4: za každého pozvaného hráče, který začal hrát, jedno nástupnictví bez losu ([seniorát](seniorate.md), [vazalství](vassalage.md))                                                              | Martin (2. 11. 2026)   |
 | Rodina pomáhá i s přípravou půdy a setím, které ves v okně sama nestihne na půdu s osivem (i díly na řadě mimo čelo); jen co chybí, po práci vsi; podoba návrh Clauda (D102)                         | Martin (19. 11. 2026)  |
+| Volná práce vsi v oknech setí bez otavy, porážky a výmlatu na osivo; v září rodina napřed žni; na poli lidé na celý den; plán bez čela – zjednodušení (D102 kolo 1)                                  | návrh Clauda           |
 
 ## Odpovědi Martina (23. 10. 2026)
 

@@ -2428,7 +2428,10 @@ Ovládání a vzhled jsou **návrh k potvrzení na náčrtech** (obydlí se umis
     luštěniny a len do konce dubna – vrácení a kopání napřed na podzim) a sklizně (ozim, luštěniny
     a len do konce července, jař do konce srpna i s výmlatem ozimu): zbytek letošní nutné práce
     proti volné práci vsi do konce okna i s pomocí cvičící rodiny vojvody, lidé i orba spřežení
-    (stejně jako Kdy jde rodina na pole – lord.md). Když nestačí, ukáže díl ikonu práce
+    (stejně jako Kdy jde rodina na pole – lord.md; volná práce vsi bez otavy, porážky a výmlatu na
+    osivo, které jdou před přípravou půdy, a jarní kapacita jen jednou – vracení a kopání jaře na
+    podzim jen z práce září–listopadu po ozimu; návrh Clauda, 19. 11. 2026 – dřív se jaro počítalo
+    dvakrát a varování pro jaro mohlo chybět). Když nestačí, ukáže díl ikonu práce
     s chybějícími člověkodny červeně a v popisku u kurzoru okna a kroky („Práce nestačí: příprava
     a setí do konce dubna – chybí 40 člověkodnů“). Díl hlásí jen kroky, které sám ještě nemá
     hotové (zasetý díl setí nehlásí); od 9. 11. 2026 hlásí všechny díly (jedna fronta – ~~díl

@@ -79,7 +79,8 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `HARVEST_CHORES` (`freeLabor` s `chores`), čelo práce dnešní. **Délka dne**
   (`daylight.ts` – `daylightFactor`, `DAYLIGHT_WORK`; lineárně mezi polovinami měsíců):
   `allocateDay` – `daylight` násobí `left` po kování, výpravách a vozech pro kováře a zásobníky
-  `light`, `harvestHands`, `weedChildren`, `lordHelp`, `lordSowing` (strop `lordFree`) a práci žen při pletí; `work()` násobí
+  `light`, `harvestHands`, `weedChildren`, `lordHelp`, `lordSowing` (strop `lordFree`) a práci žen při pletí
+  (kdo z rodiny byl na poli, převede zpět na lidi na celý den `lordFieldSharesToday`); `work()` násobí
   kapacitu spřežení (`teamsCap`) a robotu hostů. Plán: `sowingCapacity` a `ploughPairsForRotation`
   světlými dny oken (`windowDaylightLeft` / `windowDaylightWithout` v sowing.ts), čelo práce
   (`workFront`), ruce pro výmlat (`harvestLaborPerDay`) a tempo setí (`sowingHaPerDay`) dnešní

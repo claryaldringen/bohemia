@@ -19,6 +19,6 @@ Neplatí od 19. 11. 2026 (D102 – Martin na otázku „Má rod knížete pomáh
 Bod sekce do 19. 11. 2026:
 
 > - **S osevem rodina nepomáhá** – ~~bod 1: ves nestihne potřebný osev~~ (zrušeno 9. 11. 2026;
->   potřeba úrody zmizela s cílem osevu – [pole](fields.md), Osivo bez cíle osevu).
+>   potřeba úrody zmizela s cílem osevu – [pole](../fields.md), Osivo bez cíle osevu).
 
 Z rozboru Vlkova (D100, 19. 11. 2026): rod byl ve Vlkově 6–8 z 10–12 dospělých a mimo rod 4–6 dospělých v oknech setí neměli volnou práci – ves osela ≈ 8 ha z ≈ 105 ha na řadě.
