@@ -3,7 +3,13 @@ import { dayIndexOf } from '../../../calendar';
 import { foundVillage, type PartInput } from '../../core/actions';
 import { craftCoverage } from '../../crafts/crafts';
 import { allocateDay } from '../../core/labor';
-import { lordDayCounts, lordFieldShares, manorLabor, type LordFamily } from '../lord';
+import {
+  lordDayCounts,
+  lordFieldShares,
+  lordFieldSharesToday,
+  manorLabor,
+  type LordFamily,
+} from '../lord';
 import { NO_CRAFTS } from '../../core/productivity';
 import { advanceVillage } from '../../core/simulate';
 import { lordHelpDay, villageProductivity } from '../../core/simulate-plan';
@@ -128,7 +134,7 @@ describe('podíl dne rodiny ve žních (lordHarvestHelp)', () => {
     expect(lordHarvestHelp(load(), village, withLord)).toEqual({});
   });
 
-  it('s osevem rodina nepomáhá, ani když ves nestíhá', () => {
+  it('podíl žní zátěž přípravy půdy a setí nepočítá – s tou pomáhá podíl setí (lordSowingHelp)', () => {
     const short = load({ winterAutumn: 500, springSow: 500, springDig: 500 });
     expect(lordHarvestHelp(short, village, withLord)).toEqual({});
   });
@@ -174,7 +180,7 @@ describe('podíl dnešního dne (lordHelpShare)', () => {
 });
 
 describe('práce dne (manorLabor, allocateDay)', () => {
-  it('mimo žňový den (setí, zima) rodina nepomáhá, ani se starším plánem pomoci', () => {
+  it('podíl žní mimo žňový den (setí, zima) je 0, ani se starším plánem pomoci (setí – manorLabor.sowing)', () => {
     const s = sowingVillage(8000);
     s.people.push(person(15, 15, s.manorId!, 'female', { fatherId: 10, motherId: 11 }));
     s.season = {
@@ -184,7 +190,7 @@ describe('práce dne (manorLabor, allocateDay)', () => {
     } as unknown as FarmSeason;
     const coverage = craftCoverage(s, START);
     const p = villageProductivity(s, coverage);
-    // mimo žňový den (setí, zima) nic
+    // podíl žní mimo žňový den (setí, zima) nic – s přípravou půdy a setím pomáhá podíl setí (D102)
     expect(manorLabor(s, at(600, 10, 5), coverage.pottery, p).help).toBe(0);
     expect(manorLabor(s, at(600, 12, 5), coverage.pottery, p).help).toBe(0);
   });
@@ -279,6 +285,22 @@ describe('pořadí rodiny ve žních (lord.md – Kdy jde rodina na pole; Martin
     expect(lordFieldShares(manor, 5.5)).toEqual({ women: 1, men: 1, lord: 0.5 });
     // víc, než rodina má, nedá
     expect(lordFieldShares(manor, 9)).toEqual({ women: 1, men: 1, lord: 1 });
+  });
+
+  it('kdo je na poli, se počítá v lidech na celý dnešní den – jako plán (D102 kolo 1)', () => {
+    // krátký listopadový den: celý podíl dá jen 0,75 práce rodiny – na poli je ale celá rodina,
+    // i vojvoda (dřív 0,75 dne, vojvoda cvičil)
+    expect(lordFieldSharesToday(manor, 6 * 0.75, 0.75)).toEqual({ women: 1, men: 1, lord: 1 });
+    expect(lordFieldShares(manor, 6 * 0.75)).toEqual({ women: 1, men: 0.75, lord: 0 });
+    // dlouhý letní den: práce žen celého dne stačí – muži zůstanou (dřív se přebytek připsal mužům)
+    expect(lordFieldSharesToday(manor, 3 * 1.3, 1.3)).toEqual({ women: 1, men: 0, lord: 0 });
+    // týž podíl jako plán (`harvestFieldIds` – podíl × free) při jakékoli délce dne
+    for (const daylight of [0.6, 1, 1.4]) {
+      expect(lordFieldSharesToday(manor, 0.6 * 6 * daylight, daylight)).toEqual(
+        lordFieldShares(manor, 0.6 * 6),
+      );
+    }
+    expect(lordFieldSharesToday(manor, 2, 0)).toEqual({ women: 0, men: 0, lord: 0 });
   });
 
   it('bez žen jdou napřed muži, vojvoda zase poslední', () => {

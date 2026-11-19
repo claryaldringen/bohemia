@@ -12,7 +12,7 @@ import { daylightFactor } from './daylight';
 import {
   lordApartIds,
   lordDayCounts,
-  lordFieldShares,
+  lordFieldSharesToday,
   NO_LORD_FIELD,
   type LordFieldShares,
 } from '../people/lord';
@@ -878,7 +878,8 @@ interface LaborReportInput {
 
 /**
  * Rozdělení práce dne pro postavy (`state.labor` – labor-report.ts). Vrací práci rodiny, kterou
- * dnes žně spotřebovaly – napřed ženy a dcery, pak muži, vojvoda až nakonec (`lordFieldShares`);
+ * dnes úlohy spotřebovaly – napřed ženy a dcery, pak muži, vojvoda až nakonec, v lidech na celý
+ * dnešní den (`lordFieldSharesToday`);
  * zbytek dne cvičí (`trainLordDay`).
  */
 function laborReport(ctx: WorkDay, input: LaborReportInput): LordFieldShares {
@@ -890,7 +891,10 @@ function laborReport(ctx: WorkDay, input: LaborReportInput): LordFieldShares {
   const { weedMen, game, extraMow, wares, repairs, corvee, constructions } = common;
   const { trade, purchases, herding } = travel;
   const hayMowing = state.hay?.mowing;
-  const lordField = manor ? lordFieldShares(manor, allocation.lordField) : NO_LORD_FIELD;
+  // kdo je na poli – v lidech na celý dnešní den, stejně jako plán (D102 kolo 1)
+  const lordField = manor
+    ? lordFieldSharesToday(manor, allocation.lordField, daylight)
+    : NO_LORD_FIELD;
   state.labor = laborDay(state, day, {
     allocation,
     ...(family && manor

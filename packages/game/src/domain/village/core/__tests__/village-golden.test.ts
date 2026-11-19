@@ -92,7 +92,10 @@ import { advanceChunked, goldenWorld, stateFingerprint, YEAR } from './village-g
 // dřinou není): jiné štěstí, práce a zásoby; dřív aa479aa7d2ce28f7
 // 19. 11. 2026 – D101 pás jen ze stejné skupiny (oxen.md – Díly po dávkách: pás orby při přibírání
 // jen z dílů stejné skupiny přílohové soustavy, místo na čele u každého dílu); dřív dca6b32e4c8f4cbe
-const EXPECTED_YEAR_1 = '9564aeeb22d9ac4a';
+// 19. 11. 2026 – D102 kolo 1 – kdo z rodiny je na poli, se počítá v lidech na celý dnešní den
+// (lord.md – Kdy jde rodina na pole; dřív podle práce delšího dne – rodina ve zlaté vsi pomáhá jen
+// s výmlatem v zimě, podíl setí ani žní nedostane): jiný výcvik rodu; dřív 9564aeeb22d9ac4a
+const EXPECTED_YEAR_1 = 'ba7b005c3a4c561b';
 // 18. 11. 2026 – D93 cesta přes plochu staveb; dřív 82b12dd84c08dd63 (vyšlapaná cesta přes plochu
 // staveb nevznikne a napojení ji obejde – jiné cesty a id; roky chůze nejvýš doba vyšlapání)
 // 18. 11. 2026 – D95 výmlat (Martin: „A, C, E“ – výmlat podle kg snopů, rod v zimě dorovná tempo

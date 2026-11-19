@@ -413,6 +413,23 @@ export function lordFieldShares(
   return { women, men, lord: take(manor.freeLord) };
 }
 
+/**
+ * Kdo z rodiny dnes opravdu byl na poli (`work()` – žně, výmlat, příprava půdy a setí): práce
+ * `used`, kterou dnes rodině vzaly úlohy dne, je po délce dne (`allocateDay` – práce rodiny
+ * × `daylight`; štěstí už nese `ManorLabor.free`) – v lidech na celý dnešní den je to
+ * `used ÷ daylight` práce rodiny, stejně jako v plánu (`harvestFieldIds`), pořadí `lordFieldShares`.
+ * Návrh Clauda – oprava chyby z 9. 11. 2026 (dřív podle práce delšího dne: v krátkém dni vojvoda při
+ * celém podílu cvičil, v létě se přebytek žen připsal mužům) proti lord.md „Kdo je ten den na poli,
+ * nejezdí, neloví ani necvičí“.
+ */
+export function lordFieldSharesToday(
+  manor: Pick<ManorLabor, 'free' | 'freeMen' | 'freeLord'>,
+  used: number,
+  daylight: number,
+): LordFieldShares {
+  return daylight > 0 ? lordFieldShares(manor, used / daylight) : NO_LORD_FIELD;
+}
+
 /** Podíly dne na poli – číslo = celá rodina týmž podílem (testy a starší volání). */
 function fieldSharesOf(field: number | LordFieldShares): LordFieldShares {
   if (typeof field !== 'number') return field;

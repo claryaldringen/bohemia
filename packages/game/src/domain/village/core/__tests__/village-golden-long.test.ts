@@ -77,8 +77,10 @@ import { goldenWorld, stateFingerprint, YEAR } from './village-golden-fixture';
 // v tempu (viz village-golden.test.ts); dřív bc6cf2d0f3138154 a cde4d16e57f9748d
 // 19. 11. 2026 – D101 pás jen ze stejné skupiny (viz village-golden.test.ts); dřív
 // f5d8eb349980a618 a 8a159f25b32c5015
-const EXPECTED_YEAR_2 = '93be90921ee6ffe5';
-const EXPECTED_YEAR_3 = '88e6244142d5d5c8';
+// 19. 11. 2026 – D102 kolo 1 – kdo z rodiny je na poli, se počítá v lidech na celý dnešní den (viz
+// village-golden.test.ts); dřív 93be90921ee6ffe5 a 88e6244142d5d5c8
+const EXPECTED_YEAR_2 = '41d66ab3878da136';
+const EXPECTED_YEAR_3 = 'fec6f4384614a864';
 // 18. 11. 2026 – D93 cesta přes plochu staveb; dřív 168010dd35f7c1c7 a a499594da5514b49 (viz
 // village-golden.test.ts)
 // 18. 11. 2026 – D95 výmlat (výmlat podle kg snopů, rod v zimě dorovná tempo okna – viz
