@@ -421,8 +421,10 @@ function seasonSelection(
     : ableTeams(state, day) > 0;
   const front = workFront(state, day, coverage);
   const partsById = partsByIdOf(state.parts);
-  // spřežení orá po pásech (oxen.md – Co nejdelší brázda): díl přibude s celým svým pásem
-  // z rozvržení výběru plodiny, ať dávka dne nezkrátí brázdu (návrh Clauda, 25. 10. 2026)
+  // spřežení orá po pásech (oxen.md – Díly po dávkách): s dílem na řadě přibudou další díly jeho
+  // pásu, ať dávka dne nezkrátí brázdu (návrh Clauda, 25. 10. 2026) – pás jen z dílů stejné
+  // skupiny přílohové soustavy (`joinBands`) a každý díl jen s místem na čele, ať pás nepředběhne
+  // Pořadí dávek (fields.md; návrh Clauda 19. 11. 2026 – D101)
   const bandOf = plough ? joinBands(join, partsById) : null;
   const taken: SeasonJoin[] = [];
   const waiting: SeasonJoin[] = [];
@@ -434,8 +436,10 @@ function seasonSelection(
       waiting.push(j);
       continue;
     }
-    for (const id of bandOf?.(j) ?? [j.id]) {
+    for (const id of bandFrom(bandOf?.(j), j.id)) {
       if (inTaken.has(id)) continue;
+      // místo na čele u každého dílu pásu – čelo se jen plní, takže zbytek pásu počká ve výběru
+      if (!frontRoom(front, j.crop)) break;
       inTaken.add(id);
       taken.push({ id, crop: j.crop });
       const work = partWork(partsById.get(id)!, day, coverage.tools, plough, j.crop);
@@ -482,25 +486,52 @@ function grainShortage(state: VillageState, day: number): boolean {
 }
 
 /**
- * Pás každého dílu výběru (díly téže plodiny pásu v pořadí orby) z rozvržení orby dílů výběru po
- * plodinách (`ploughLayout`) – líně, jen bloky dílů, na které se volající zeptá
- * (`ploughBandFinder`; id ve výběru jsou různá – `turnSelection`). Díl bez pásu undefined.
+ * Pás každého dílu výběru (díly pásu v pořadí orby) z rozvržení orby dílů výběru téže plodiny
+ * a téže skupiny přílohové soustavy (`sowingGroup`, nouzové přílohy zvlášť – `ploughLayout`):
+ * k připravenému dílu tak pás nepřitáhne zarostlý příloh a k přílohu nouzový (fields.md – Pořadí
+ * dávek; návrh Clauda 19. 11. 2026 – D101, dřív pás z celého výběru plodiny). Líně, jen bloky
+ * dílů, na které se volající zeptá (`ploughBandFinder`; id ve výběru jsou různá –
+ * `turnSelection`). Díl bez pásu undefined.
  */
 function joinBands(
   join: readonly SeasonJoin[],
   partsById: ReadonlyMap<number, FieldPart>,
 ): (j: SeasonJoin) => readonly number[] | undefined {
-  const finders = new Map<Crop, (id: number) => readonly number[] | undefined>();
+  const keyOf = (j: SeasonJoin): string =>
+    `${j.crop}:${sowingGroup(partsById.get(j.id)!) ?? 'emergency'}`;
+  // díly výběru po plodině a skupině – jedním průchodem, až je potřeba
+  let lists: Map<string, FieldPart[]> | null = null;
+  const finders = new Map<string, (id: number) => readonly number[] | undefined>();
   return (j) => {
     if (!SEASON_CROPS.includes(j.crop)) return undefined;
-    let find = finders.get(j.crop);
+    const key = keyOf(j);
+    let find = finders.get(key);
     if (!find) {
-      const parts = join.filter((x) => x.crop === j.crop).map((x) => partsById.get(x.id)!);
-      find = ploughBandFinder(parts);
-      finders.set(j.crop, find);
+      if (!lists) {
+        lists = new Map();
+        for (const x of join) {
+          const k = keyOf(x);
+          const list = lists.get(k);
+          if (list) list.push(partsById.get(x.id)!);
+          else lists.set(k, [partsById.get(x.id)!]);
+        }
+      }
+      find = ploughBandFinder(lists.get(key) ?? []);
+      finders.set(key, find);
     }
     return find(j.id);
   };
+}
+
+/**
+ * Díly pásu v pořadí, ve kterém přibývají na čelo (`seasonSelection`): díl na řadě, pak dál podél
+ * brázdy do konce pásu a nakonec od něj zpět k začátku pásu – kus pásu, který čelo utne, je tak
+ * souvislý a díl na řadě v něm je vždy (návrh Clauda 19. 11. 2026 – D101). Díl bez pásu sám.
+ */
+function bandFrom(band: readonly number[] | undefined, id: number): readonly number[] {
+  const at = band ? band.indexOf(id) : -1;
+  if (!band || at < 0) return [id];
+  return [...band.slice(at), ...band.slice(0, at).reverse()];
 }
 
 /**

@@ -502,7 +502,8 @@ describe('orba po dávkách dílů (fields.md – Osevní postup po dílech; oxe
 
   it('díly přibývající po dávkách orá spřežení v pásech – brázda jako najednou', () => {
     // dřív dávka dne s vlastními bloky: ozim k 31. 10. jen 0,60 výkonu proti 1,02 najednou – teď
-    // díl přibude s celým pásem výběru
+    // díl přibude se svým pásem výběru (od 19. 11. 2026 – D101 jen díly téže skupiny přílohové
+    // soustavy, každý s místem na čele; nezačaté pásy se s další dávkou rozvrhnou znovu)
     const first = advanceVillage(village(), at(600, 9, 2), null);
     const october = advanceVillage(first, at(600, 10, 31), null);
     const april = advanceVillage(october, at(601, 4, 30), null);
@@ -522,6 +523,86 @@ describe('orba po dávkách dílů (fields.md – Osevní postup po dílech; oxe
       expect(season, crop).toBeGreaterThanOrEqual(0.9 * whole);
     }
   }, 120_000);
+});
+
+describe('pás při přibírání jen ze stejné skupiny (fields.md – Pořadí dávek; oxen.md – Díly po dávkách)', () => {
+  /** Ves se třemi páry a polem `parts`, se zrnem na osivo – díly přibývají po dávkách čela. */
+  function village(parts: FieldPart[]): VillageState {
+    const s = withBuiltFirstDwelling(
+      foundVillage({ seed: 11, day: DAY - 10, dwellingPosition: { x: 0, z: 0, rotation: 0 } }),
+    );
+    s.lastDay = DAY - 1;
+    s.fields = [{ id: 1 }];
+    s.parts = parts;
+    s.storesKg = 3_000;
+    s.meatKg = 300;
+    s.pens = [1, 2, 3].map((i) => ({
+      id: 900 + i,
+      cell: { x: 50 + i, y: 50 },
+      x: 50 + 10 * i,
+      z: 60,
+      builtDay: DAY - 800,
+      team: { readyDay: DAY - 10 },
+      training: null,
+    }));
+    s.hay = { kg: 50_000, mowing: null };
+    return s;
+  }
+  const ready = (p: FieldPart): FieldPart => ({ ...p, state: 'ready', sownYears: 0 });
+  /** Odpočatý příloh (≥ 95 %, skupina 3) zarostlý křovinami – vrácení ≈ 127 čd/ha. */
+  const shrubs = (p: FieldPart): FieldPart => ({
+    ...p,
+    state: 'fallow',
+    sownYears: 0,
+    fertilityShare: 1,
+    fallowSinceDay: DAY - 8 * 365,
+    overgrowthYears: 8,
+  });
+  const seasonIds = (s: VillageState): Set<number> =>
+    new Set(s.season ? seasonCrops(s.season).flatMap(({ work }) => work.partIds) : []);
+
+  it('k připravenému dílu pás nepřitáhne příloh s křovinami – připravené napřed, dokud mají místo', () => {
+    // řady po 24 dílech podél brázdy (osa x): 6 připravených u kraje, za nimi 18 přílohů
+    // s křovinami – dřív pás prvního připraveného dílu přibral celou řadu (≈ 52 čd vracení) a další
+    // připravené díly čekaly, až ho čelo dodělá
+    const parts = rect(1, 0, 0, 24, 16).map((p) => (p.cell!.x < 6 ? ready(p) : shrubs(p)));
+    const isReady = new Set(parts.filter((p) => p.state === 'ready').map((p) => p.id));
+    const readyWaiting = (s: VillageState): number[] =>
+      (s.season?.selection?.waiting ?? []).filter((j) => isReady.has(j.id)).map((j) => j.id);
+    let s = village(parts);
+    let took = 0;
+    for (let day = DAY; day <= at(600, 9, 30); day++) {
+      s = advanceVillage(s, day, null);
+      const ids = seasonIds(s);
+      if (day === DAY) took = ids.size;
+      // příloh přibude, až ve výběru nečeká žádný připravený díl (Pořadí dávek; díl odložený na
+      // jarní len ve výběru ozimu není)
+      if (readyWaiting(s).length > 0) {
+        expect(
+          [...ids].filter((id) => !isReady.has(id)),
+          `den ${day - DAY + 1}`,
+        ).toEqual([]);
+      }
+    }
+    // první den čelo utne dávku připravených dílů; do konce září jsou na čele všechny a čelo
+    // pokračuje přílohy
+    expect(took).toBeGreaterThan(0);
+    expect(took).toBeLessThan(isReady.size);
+    expect(readyWaiting(s)).toEqual([]);
+    expect([...seasonIds(s)].some((id) => !isReady.has(id))).toBe(true);
+  }, 60_000);
+
+  it('místo na čele u každého dílu pásu – dlouhý pás přibude jen po místo, jako díly po jednom', () => {
+    // pole 40 × 4 připravených dílů stejně daleko od obydlí: pás je řada 40 dílů; díly bez políčka
+    // jsou každý pás sám pro sebe – první den přibude stejně dílů (dřív s dílem celý pás)
+    const parts = rect(1, 0, 0, 40, 4).map((p) => ready({ ...p, distanceM: 60 }));
+    const banded = advanceVillage(village(parts), DAY, null);
+    const loose = advanceVillage(village(parts.map((p) => ({ ...p, cell: undefined }))), DAY, null);
+    const count = (s: VillageState): number => seasonCrop(s.season!, 'winter')!.partIds.length;
+    expect(count(banded)).toBeGreaterThan(0);
+    expect(count(banded)).toBeLessThan(parts.length);
+    expect(count(banded)).toBe(count(loose));
+  }, 60_000);
 });
 
 describe('pás dílu líně (ploughBandFinder)', () => {

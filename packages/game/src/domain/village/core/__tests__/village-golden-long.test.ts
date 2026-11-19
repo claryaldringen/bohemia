@@ -75,8 +75,10 @@ import { goldenWorld, stateFingerprint, YEAR } from './village-golden-fixture';
 // 9211b65615240ce4 a 426240b4c2f0f137
 // 19. 11. 2026 – D99 kolo 2 – žeň před otavou a lnem, výmlat v zimním okně, dřina s dnešní sečí
 // v tempu (viz village-golden.test.ts); dřív bc6cf2d0f3138154 a cde4d16e57f9748d
-const EXPECTED_YEAR_2 = 'f5d8eb349980a618';
-const EXPECTED_YEAR_3 = '8a159f25b32c5015';
+// 19. 11. 2026 – D101 pás jen ze stejné skupiny (viz village-golden.test.ts); dřív
+// f5d8eb349980a618 a 8a159f25b32c5015
+const EXPECTED_YEAR_2 = '93be90921ee6ffe5';
+const EXPECTED_YEAR_3 = '88e6244142d5d5c8';
 // 18. 11. 2026 – D93 cesta přes plochu staveb; dřív 168010dd35f7c1c7 a a499594da5514b49 (viz
 // village-golden.test.ts)
 // 18. 11. 2026 – D95 výmlat (výmlat podle kg snopů, rod v zimě dorovná tempo okna – viz
