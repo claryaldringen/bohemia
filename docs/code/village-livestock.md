@@ -299,9 +299,14 @@ oxen)` – jen ve vsi bez výrostků (`youngsterCount` 0), potřeba nejvýš `HE
   „Pokud je k dispozici rádlo, kopání motykou úplně vynech.“): plán s vycvičeným spřežením
   (`FarmSeason.ard`) orá všechny díly všech plodin (`CropWork.plough` – `partIds` = díly plodiny,
   `required.dig` 0, i prázdná plodina orbu má, ať přidané díly orá – `addToCropWork` podle
-  `work.plough`; nutné díly přibývají po dávkách čela – díl s celým pásem z rozvržení výběru
-  plodiny `joinBands` v `seasonDay`, nezačaté pásy se s dávkou rozvrhnou znovu
-  `relayUntouchedBands` v `plough-trip.ts`; díly po pásech – brázda jako najednou, test `plough-blocks.test.ts`, Orba po dávkách dílů); drn (`hasSod` – příloh ve fázi louky, louka založená rádlem `FieldPart.sod`)
+  `work.plough`; díly přibývají po dávkách čela – s dílem na řadě další díly jeho pásu
+  z rozvržení dílů výběru téže plodiny a téže skupiny přílohové soustavy (`joinBands` –
+  `sowingGroup`, nouzové přílohy zvlášť) v `seasonSelection`, každý díl pásu jen s místem na čele
+  (`frontRoom`), od dílu na řadě podél brázdy a zpět (`bandFrom`; D101 19. 11. 2026 – dřív celý
+  pás z celého výběru plodiny a místo jen u prvního dílu, oxen.md – Díly po dávkách), nezačaté
+  pásy se s dávkou rozvrhnou znovu `relayUntouchedBands` v `plough-trip.ts`; díly po pásech –
+  brázda jako najednou, test `plough-blocks.test.ts`, Orba po dávkách dílů a Pás při přibírání
+  jen ze stejné skupiny); drn (`hasSod` – příloh ve fázi louky, louka založená rádlem `FieldPart.sod`)
   `PLOUGH_SOD_FACTOR` (2,5×) práce a ve váze orby (`PloughWork.sodIds`), křoviny a mladý les
   vrácení ručně a pak běžná orba. Založení louky vsí se spřežením jen za překážky
   (`partFoundingCost(…, ard)`, díl dostane `sod`, bez překážek hotový hned – `foundPart` v `build`;

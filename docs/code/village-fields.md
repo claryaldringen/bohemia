@@ -48,9 +48,14 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   když rozdělaná příprava a setí v dnes otevřených oknech plodin se stejným nebo dřívějším
   koncem okna přípravy (`prepEnd`) je pod 3 dny volné práce (`freeLabor`) a orby
   (`ploughCapacityPerDay`); ostatní čekají – `seasonDay` je vrátí a `lordHelpDay` je přičte
-  k zátěži (`partWork`). Přibrané díly `addToCropWork` / `putSeasonCrop` (dávka dne
-  `workOrder`), `sowParts`; `release` (nezačaté díly nad
-  potřebu + `FIELD_STORES.trimMarginYears`, jen když nepřibírá obilí) → `releasePart`. Ves bez roku (založená během roku) ho dostane
+  k zátěži (`partWork`). Se spřežením přibude s dílem na řadě i zbytek jeho pásu orby – pás jen
+  z dílů výběru téže plodiny a téže skupiny přílohové soustavy (`joinBands` – `sowingGroup`,
+  nouzové přílohy zvlášť) a místo na čele (`frontRoom`) u každého dílu pásu, od dílu na řadě
+  podél brázdy a zpět (`bandFrom`); co se nevejde, čeká ve výběru (D101 19. 11. 2026 – dřív pás
+  z celého výběru plodiny přitáhl k připravenému dílu zarostlé přílohy; village-livestock.md –
+  Orba, oxen.md – Díly po dávkách). Přibrané díly `addToCropWork` / `putSeasonCrop` (dávka dne
+  `workOrder`), `sowParts`. Z letošní práce díl vypadne jen na konci okna setí (`releasePart`
+  v `sowingWindowsEnd`). Ves bez roku (založená během roku) ho dostane
   s prvním dílem. **Výběr jen s místem na čele** (`seasonJoins` → `seasonSelection`, výkon 31. 10. 2026): napřed čelo (`workFront`); nemá-li místo pro žádnou plodinu a ve stavu je
   `FarmSeason.selection` téhož `window` (`selectionWindow` – měsíc a plodiny, které smí začít),
   vrátí čekající díly z ní bez `turnSelection`

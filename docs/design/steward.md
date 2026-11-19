@@ -248,7 +248,9 @@ cíl je nad 12 ha, které ves osela a sklidila (test `village-golden-long.test.t
 **Známý dluh – dva modely práce v jednom výhledu:** ostatní čtenáři čtou dál „podle práce“
 (`laborHa` – jaro dvakrát, orba bez lidí): plán sídla (blok domácnosti, `planSize`), odchod syna
 (`stewardFedPeople`), ohrada volů (`teamPenValue`), hrdla `bottleneck` a `lasting` (Nouze ve
-`fieldStep`, doplnění pojistky, „je kam“) a vazalství – osivo stranou u dávek
+`fieldStep`, doplnění pojistky, „je kam“, v roce 0 mladé vsi humno a ohrady jen s kladnou
+hodnotou v hrdle práce – `firstYearLaborBound` – a návratnost humna v roce 0) a vazalství –
+osivo stranou u dávek
 (`vassalage/spare.ts`, `domain-food.ts`: min(osev podle půdy, `laborHa`) × 175 kg). S opravou
 i tam měla zlatá ves v letech 2–9 štěstí o ≈ 10 bodů nižší (jiný rozvrh plánu, nová ves bez
 modly, sadu a ohrady) – oprava ostatních čtenářů je samostatná úloha.

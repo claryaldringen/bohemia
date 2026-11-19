@@ -81,7 +81,8 @@ describe('den správce – dlouhý běh na skutečné krajině', () => {
     // osev podle lidí, spřežení, žní, výmlatu a osiva); pole k němu rostou tempem rozpočtu práce –
     // po 3 letech 8,2 z 19,1 (0,43), po 5 letech 0,67 (v této vsi váže osev lidmi v oknech setí).
     // Práh hlídá, že správce pole k cíli opravdu zakládá (dřív – cíl podle potřeby z pole – pole
-    // dorostla do 3 let k > 0,8 × cíl); horní mez cíle hlídá zlatý test v village-golden-long.test.ts
+    // dorostla do 3 let k > 0,8 × cíl); dolní mez cíle (cíl ne pod osetou plochou) hlídá zlatý
+    // test v village-golden-long.test.ts, horní mez cíle proti simulaci nehlídá žádný test
     expect(target.have).toBeGreaterThan(0.3 * target.need);
     const fields = s.parts.filter((p) => s.steward!.built.includes(p.id));
     expect(fields.length).toBeGreaterThan(0);
