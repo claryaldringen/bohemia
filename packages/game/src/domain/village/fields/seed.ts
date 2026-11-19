@@ -377,6 +377,23 @@ export function seedPrepShares(
 }
 
 /**
+ * Osivo, které ves na setí má (kg – lord.md, Kdy jde rodina na pole, Příprava půdy a setí; D102,
+ * návrh Clauda): obilí nad přežívací zásobu do žní (`seedKeepKg`) i se zrnem ve snopech, které ves
+ * vymlátí (`sheavesOutlook` – výmlat na osivo), a osivo jen na setí (`reservedSeedKg`); luštěniny
+ * ze zásoby a snopů. Stejné meze jako hromada osiva okna (`pileKg`), jen bez stropu vymláceného
+ * zrna. Podle něj rodina pomáhá jen s půdou, kterou ves osít může.
+ */
+export function seedForSowingKg(state: VillageState, day: number): SeedKg {
+  const reserved = reservedSeedKg(state);
+  const ordinary = Math.max(0, state.storesKg - reserved);
+  const sheaves = sheavesOutlook(state, day);
+  return {
+    grain: reserved + Math.max(0, ordinary + sheaves.grainKg - seedKeepKg(state, day)),
+    legumes: storeKg(state, 'legumes') + sheaves.legumesKg,
+  };
+}
+
+/**
  * Kolik osiva (kg) plodina dnes vezme, když zaseje `remaining` práce setí – ze zásob, které smí
  * do země; pro odečet od `sowable` dalších plodin téhož dne.
  */

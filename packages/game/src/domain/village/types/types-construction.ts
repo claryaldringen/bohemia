@@ -461,6 +461,13 @@ export interface FarmSeason {
    */
   lordHelp?: LordHelp;
   /**
+   * Podíl dne celé cvičící vojvodovy rodiny na přípravě půdy a setí po oknech setí (lord.md – Kdy
+   * jde rodina na pole, Příprava půdy a setí; Martin 19. 11. 2026 – D102; `lordSowingHelp`): jen
+   * když by ves bez rodiny do konce okna nestihla vrátit, zkopat (zorat) a osít půdu, na kterou má
+   * osivo. Přepočet každý den v oknech setí (`lordHelpDay`). Chybí = 0 (i plány starších vsí).
+   */
+  lordSowing?: LordHelp;
+  /**
    * Výběr dílů z posledního dne, kdy bylo na čele práce místo (fields.md – Postup práce po dílech,
    * výkon): čekající díly. Ve dny bez místa na čele ves nový výběr nedělá
    * a počítá s tímto; platí jen ve stejném měsíci a se stejnými plodinami, které smí začít
@@ -478,5 +485,8 @@ export interface SeedKg {
 }
 /** Okna volné práce vsi (`SowingCapacity` bez orby). */
 export type LordHelpWindow = 'autumnWinter' | 'autumn' | 'spring' | 'july' | 'august' | 'september';
-/** Podíl dne rodiny 0–1 po oknech žní (`HARVEST_HELP_WINDOWS`); okno bez pomoci chybí. */
+/**
+ * Podíl dne rodiny 0–1 po oknech – žní (`HARVEST_HELP_WINDOWS`, `FarmSeason.lordHelp`), nebo setí
+ * (`SOWING_HELP_WINDOWS`, `FarmSeason.lordSowing`); okno bez pomoci chybí.
+ */
 export type LordHelp = Partial<Record<LordHelpWindow, number>>;

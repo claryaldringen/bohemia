@@ -369,8 +369,9 @@ export function dayTaskOrder(a: DayTask, b: DayTask): number {
  * pracují zvlášť – jen v dílně (crafts.md, `workCrafts`); opravy jejich obydlí platí ves. Zvířata
  * (dojení a péči ženy, pasení výrostci) a domácí výrobu ženy – obojí bokem, z práce vsi
  * nebere (rozdělení práce je má jen pro postavy – `LaborDay.aside`). Cvičící vojvodova rodina
- * je mimo práci vsi (lord.md – Den rodiny), na pole jde jen ve žních, které ves sama nestíhá
- * (zásobník `lordHelp`). Všechna polní práce má přednost před stavbami
+ * je mimo práci vsi (lord.md – Den rodiny), na pole jde jen ve žních a s přípravou půdy a setím,
+ * které ves sama nestíhá (zásobníky `lordHelp`, `lordSowing`), a v zimě s výmlatem. Všechna polní
+ * práce má přednost před stavbami
  * (fields.md – Osevní postup po dílech, bod 3; Martin 9. 11. 2026: „Setí – to přece obstará pár
  * mužů s voly a ženy, pletí obstarají ženy a děti. Na sklizni se pak podílejí úplně všichni“) –
  * stavby dostanou, co zbude; muži plejí jen, co ženy a děti nestihnou, a až po stavbách.
@@ -679,10 +680,9 @@ function dayLabor(
   const weedDaysLeft = weedDaysLeftOf(dayTasks, day);
   // výmlat v zimě – rodina dorovná tempo, které ves k dokončení okna potřebuje (lord.md)
   const threshPace = winterThreshPace(state, day, people);
-  const lordHelp =
-    manor && productivity > 0
-      ? (manor.help + (threshPace === undefined ? 0 : manor.free)) / productivity
-      : 0;
+  // práce rodiny před štěstím (`allocateDay` ji násobí jako práci vsi)
+  const beforeProductivity = (labor: number): number =>
+    manor && productivity > 0 ? labor / productivity : 0;
   const allocate = (jobs: CartJobsDay): DayAllocation =>
     allocateDay({
       capacity: Math.max(0, villageLabor - restingCarry),
@@ -696,9 +696,12 @@ function dayLabor(
       // muži plejí až po stavbách (fields.md – Pletí jednou a rychle; Martin 9. 11. 2026)
       menWeedLater: true,
       // celá rodina ve žních – jen žeň a výmlat, které ves nestihne (lord.md – Kdy jde rodina na
-      // pole), v zimě výmlat jen do tempa okna (`threshPace`); co z minima dvorce rodina nepokryje,
-      // platí ves
-      lordHelp,
+      // pole), v oknech setí jen příprava půdy a setí, které ves nestihne (D102), v zimě výmlat jen
+      // do tempa okna (`threshPace`) – všechno dohromady nejvýš celá práce rodiny; co z minima
+      // dvorce rodina nepokryje, platí ves
+      lordHelp: beforeProductivity(manor?.help ?? 0),
+      lordSowing: beforeProductivity(manor?.sowing ?? 0),
+      lordFree: beforeProductivity(manor?.free ?? 0),
       ...(threshPace === undefined ? {} : { threshPace }),
       manorMin: manor?.uncovered ?? 0,
       householdElders: householdElders(villagers, day, manorSkip),

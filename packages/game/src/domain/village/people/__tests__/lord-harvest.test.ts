@@ -22,13 +22,17 @@ import { withBuiltFirstDwelling } from '../../__tests__/village-fixtures';
 // nestíhala sklizeň, ať se zapojí i celá vojvodova rodina, pokud je zrovna ve vsi“ a „Pokud se
 // nestíhá, jdou ženy z vojvodovy rodiny, pokud se i tak nestíhá, jdou muži z vojvodovy rodiny,
 // samotný vojvoda až úplně nakonec“): když ves žně sama nestíhá, dá rodina jen práci, která chybí –
-// napřed ženy a dcery, pak muži, vojvoda nakonec; zbytek dne cvičí. S osevem a při hladu nepomáhá.
+// napřed ženy a dcery, pak muži, vojvoda nakonec; zbytek dne cvičí. Při hladu nepomáhá; s přípravou
+// půdy a setím pomáhá vlastním podílem (lord-sowing.test.ts – D102).
 
 const at = (year: number, month: number, day: number): number => dayIndexOf({ year, month, day });
 const START = at(600, 8, 31);
 const PLAN_DAY = at(600, 9, 1);
 const OUTSIDE = 500;
-/** Zásoby, se kterými ves dřív osev bez rodiny nestihla (pomoc s osevem, zrušeno 9. 11. 2026). */
+/**
+ * Zásoby, se kterými ves osev bez rodiny nestihne (pomoc s osevem zrušená 9. 11. 2026, od 19. 11.
+ * 2026 zase – D102, lord-sowing.test.ts).
+ */
 const SHORT_STORES = 3500;
 
 const person = (
@@ -50,8 +54,8 @@ const parts = (count: number): PartInput[] =>
 
 /**
  * Ves k 31. 8. 600 s dostatkem půdy (600 dílů po 225 m², úrodnost 0,9): cvičící dvorec (vojvoda
- * 40, žena 38, syn 17 se snachou 16, syn 11) a 4 dospělí jinde. Se zásobami 1500 kg osev
- * bez rodiny nestihne (`SHORT_STORES`), s 8000 kg ano.
+ * 40, žena 38, syn 17 se snachou 16, syn 11) a 4 dospělí jinde. Se zásobami `SHORT_STORES` osev
+ * bez rodiny nestihne.
  */
 function sowingVillage(storesKg: number): VillageState {
   const s = withBuiltFirstDwelling(
@@ -224,11 +228,14 @@ describe('práce dne (manorLabor, allocateDay)', () => {
 });
 
 describe('rodina ve žních (lordHelpDay)', () => {
-  it('v okně setí rodina nepomáhá, ani když ves osev nestíhá – cvičí', () => {
+  it('v okně setí podíl žní nevzniká – s osevem pomáhá rodina podílem setí (D102)', () => {
     const planned = advanceVillage(sowingVillage(SHORT_STORES), PLAN_DAY, null);
     expect(planned.season!.lordHelp).toBeUndefined();
     const september = advanceVillage(planned, at(600, 9, 10), null);
-    expect(september.labor?.lord).toEqual({ training: 3, field: 0, household: 2 });
+    expect(september.season!.lordHelp).toBeUndefined();
+    // ves osev sama nestíhá – na poli obě ženy, syn i vojvoda, chlapec 11 let cvičí
+    expect(september.season!.lordSowing?.autumnWinter).toBeGreaterThan(0);
+    expect(september.labor?.lord).toEqual({ training: 1, field: 4, household: 0 });
   });
 
   it('žně, které ves sama nestíhá – podíl v červenci, srpnu a září; ves bez rodiny nic', () => {

@@ -54,6 +54,17 @@ const HARVEST_HANDS_TASKS: ReadonlySet<LaborTaskName> = new Set<LaborTaskName>([
   'thresh',
 ]);
 
+/**
+ * Úlohy přípravy půdy a setí, se kterými pomáhá vojvodova rodina (`lordSowing` – lord.md, Kdy jde
+ * rodina na pole, Příprava půdy a setí; D102): vracení přílohu, kopání, orba a setí.
+ */
+const TILLAGE_TASKS: ReadonlySet<LaborTaskName> = new Set<LaborTaskName>([
+  'reclaim',
+  'dig',
+  'plough',
+  'sow',
+]);
+
 export const LIGHT_LABOR_TASKS: ReadonlySet<LaborTaskName> = new Set<LaborTaskName>([
   'sow',
   'weed',
@@ -124,12 +135,27 @@ export interface DayAllocationInput {
    */
   lordHelp?: number;
   /**
+   * Pomoc vojvodovy rodiny s přípravou půdy a setím (lord.md – Kdy jde rodina na pole, Příprava
+   * půdy a setí; Martin 19. 11. 2026 – D102; `manorLabor` – `sowing`, člověkodny před štěstím) –
+   * zásobník jako `lordHelp`, až po práci vsi: pokryje jen vracení přílohu, kopání, orbu a setí
+   * (`TILLAGE_TASKS`), které ves dnes nestihne, takže vsi nikdy neuvolní práci na jiné úlohy ani
+   * stavby. Bez údaje 0.
+   */
+  lordSowing?: number;
+  /**
+   * Celá práce rodiny po denním minimu dvorce (`manorLabor` – `free`, člověkodny před štěstím) –
+   * strop všech pomocí dne dohromady (žně, příprava půdy a setí, výmlat v zimě). Bez údaje
+   * `lordHelp` + `lordSowing`.
+   */
+  lordFree?: number;
+  /**
    * Výmlat v zimě (lord.md – Kdy jde rodina na pole, Výmlat v zimě; Martin 18. 11. 2026): tempo
    * výmlatu, které ves dnes potřebuje, aby okno výmlatu stihla (práce po štěstí a světle – zbývající
-   * práce výmlatu v okně ÷ dny okna). Rodina (`lordHelp`) dnes dá jen díl výmlatu, který by ves do
+   * práce výmlatu v okně ÷ dny okna). Rodina (`lordFree`) dnes dá jen díl výmlatu, který by ves do
    * konce okna nestihla: tempo nad pravidelnou práci vsi dne – po denním minimu a péči o koně,
    * dnešní délkou dne, bez jednorázových srážek (výpravy, vozy, kování a úlohy dne jako porážka).
-   * Mlátí až po všech úlohách dne a jinde nepomáhá. Bez údaje rodina pomáhá jako ve žních.
+   * Mlátí až po všech úlohách dne (i po přípravě půdy a setí, se kterými v listopadu pomáhá
+   * – `lordSowing`) a jinak ten den nepomáhá. Bez údaje rodina pomáhá jako ve žních.
    */
   threshPace?: number;
   /**
@@ -223,7 +249,8 @@ export interface DayAllocation {
   /** Práce sedláků s vozy pro uhlí a rudu (nejvýš `carting`, po výpravách). */
   carting: number;
   /**
-   * Kolik práce vojvodovy rodiny (`lordHelp`, po štěstí) dnes žně a výmlat spotřebovaly.
+   * Kolik práce vojvodovy rodiny (`lordHelp`, `lordSowing`, po štěstí) dnes žně, výmlat, příprava
+   * půdy a setí spotřebovaly.
    */
   lordField: number;
   /** Kolik žňových rukou (`harvestHands`, po štěstí) dnes žeň a výmlat spotřebovaly. */
@@ -327,8 +354,14 @@ export function allocateDay(input: DayAllocationInput): DayAllocation {
   // děti při pletí (fields.md – Pletí – děti) – jen pletí, před dospělými
   const kidsPool = Math.max(0, (input.weedChildren ?? 0) * outdoor);
   let kidsLeft = kidsPool;
-  const helpPool = Math.max(0, (input.lordHelp ?? 0) * outdoor);
+  // pomoc rodiny (lord.md – Kdy jde rodina na pole): žně (`lordHelp`) a příprava půdy a setí
+  // (`lordSowing`) každá do svého podílu, všechno dohromady nejvýš celá práce rodiny (`lordFree`)
+  const harvestHelp = Math.max(0, input.lordHelp ?? 0);
+  const sowingHelp = Math.max(0, input.lordSowing ?? 0);
+  const helpPool = Math.max(0, (input.lordFree ?? harvestHelp + sowingHelp) * outdoor);
   let helpLeft = helpPool;
+  let harvestLeft = harvestHelp * outdoor;
+  let sowingLeft = sowingHelp * outdoor;
   const taskAmounts = input.tasks.map(() => 0);
   // pletí napřed (fields.md – Pletí jednou a rychle): děti, ženy řemeslníků, pak ženy vsi – jejich
   // práce nad jejich díl denního minima domácností
@@ -414,15 +447,20 @@ export function allocateDay(input: DayAllocationInput): DayAllocation {
       if (men > 0) later.push({ index: i, manDays: men });
       menWeed -= men;
     } else amount += take(remaining - amount);
-    // pomoc rodiny ve žních až po práci vsi – jen co ves dnes nestihne; výmlat v zimě až po všech
-    // úlohách dne (`threshPace`)
-    const help =
+    // pomoc rodiny ve žních a s přípravou půdy a setím až po práci vsi – jen co ves dnes
+    // nestihne; výmlat v zimě až po všech úlohách dne (`threshPace`)
+    const harvest =
       HARVEST_HANDS_TASKS.has(task.name) &&
-      task.noLordHelp !== true &&
-      input.threshPace === undefined
-        ? Math.max(0, Math.min(remaining - amount, helpLeft))
+      input.threshPace === undefined &&
+      task.noLordHelp !== true;
+    const tillage = TILLAGE_TASKS.has(task.name);
+    const help =
+      harvest || tillage
+        ? Math.max(0, Math.min(remaining - amount, helpLeft, harvest ? harvestLeft : sowingLeft))
         : 0;
     helpLeft -= help;
+    if (harvest) harvestLeft -= help;
+    else if (tillage) sowingLeft -= help;
     amount += help;
     if (task.follow && pair > 1) {
       const own = before + (amount - before) / pair;

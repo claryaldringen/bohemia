@@ -101,8 +101,8 @@ function cropWindows(crop: Crop): { sow: OutlookWindow; harvest: OutlookWindow }
 /**
  * Chybějící práce po oknech (jen okna, která letos ještě běží nebo přijdou, a kde chybí): zbytek
  * letošní práce (`planLoad` – i se sklizní jablek) proti volné práci
- * vsi do konce hospodářského roku (`sowingCapacity` i s cvičící rodinou – ta pomáhá jen ve žních,
- * když ves nestíhá). Jař: vrácení a kopání napřed na podzim, co po ozimu zbude,
+ * vsi do konce hospodářského roku (`sowingCapacity` i s cvičící rodinou – ta pomáhá ve žních
+ * a s přípravou půdy a setím, když ves nestíhá – lord.md, Kdy jde rodina na pole; D102). Jař: vrácení a kopání napřed na podzim, co po ozimu zbude,
  * zbytek se setím na jaře; žeň, kterou červenec nestihne, se žne v srpnu (`harvestOverflow`), co
  * nestihne srpen, v září (`augustOverflow` – fields.md, Žeň jaře i v září).
  */
