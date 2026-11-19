@@ -5,8 +5,16 @@ import { craftCoverage } from '../../crafts/crafts';
 import { allocateDay } from '../../core/labor';
 import { NO_CRAFTS } from '../../core/productivity';
 import { advanceVillage } from '../../core/simulate';
-import { lordHelpDay, villageProductivity } from '../../core/simulate-plan';
 import {
+  lordHelpDay,
+  sowingCapacity,
+  sowingHelpLoad,
+  villageProductivity,
+} from '../../core/simulate-plan';
+import { createCropWork, lateHarvestRemaining } from '../../core/year-plan';
+import { cullingMeatKg, LIVESTOCK } from '../../livestock/livestock';
+import {
+  cropLoadOf,
   lordSowingHelp,
   lordSowingShare,
   type CropLoad,
@@ -330,5 +338,159 @@ describe('rodina v okně setí (lordHelpDay, advanceVillage)', () => {
     const december = structuredClone(planned);
     lordHelpDay(december, at(600, 12, 5), craftCoverage(december, at(600, 12, 5)), null);
     expect(december.season!.lordSowing).toEqual(planned.season!.lordSowing);
+  });
+});
+
+describe('úlohy dne před přípravou půdy a chybějící práce (D102 kolo 1)', () => {
+  const DAY = at(600, 9, 2);
+  const planned = (count = 600, ready?: (s: VillageState) => void): VillageState => {
+    const s = sowingVillage(count);
+    ready?.(s);
+    return advanceVillage(s, PLAN_DAY, null);
+  };
+  const capacity = (
+    s: VillageState,
+    day: number,
+    options: Parameters<typeof sowingCapacity>[6] = {},
+  ): SowingCapacity =>
+    sowingCapacity(s, day, craftCoverage(s, day), false, null, undefined, options);
+  // nutná otava (2. seč) – zbývá `work` člověkodnů do 30. 9.
+  const withAftermath = (s: VillageState, work: number): VillageState => {
+    s.hay = {
+      ...(s.hay ?? { kg: 0 }),
+      mowing: { partIds: [], required: work, needed: work, done: 0, yieldKg: 1000, cut: 2 },
+    };
+    return s;
+  };
+  // jedno spřežení v ohradě (oxen.md – Jen rádlo)
+  const withTeam = (s: VillageState): void => {
+    s.pens = [
+      {
+        id: 900,
+        cell: { x: 8, y: 9 },
+        x: -22.5,
+        z: -7.5,
+        builtDay: START - 800,
+        team: { readyDay: START - 10 },
+        training: null,
+      },
+    ];
+  };
+
+  it('otava a porážka ubírají vsi okna setí, ve kterých dnešek leží – rodině ne', () => {
+    const s = withAftermath(planned(), 30);
+    s.livestock = { ...s.livestock!, slaughterWork: { required: 5, done: 0 } };
+    const plain = capacity(s, DAY);
+    const busy = capacity(s, DAY, { beforeTillage: true });
+    expect(plain.autumnWinter - busy.autumnWinter).toBeCloseTo(35, 9);
+    expect(plain.autumn - busy.autumn).toBeCloseTo(35, 9);
+    // jaro (březen–duben) dnešní úlohy nenese, žně taky ne
+    expect(busy.spring).toBe(plain.spring);
+    expect(busy.september).toBe(plain.september);
+    // práce rodiny v okně zůstane celá – s otavou a porážkou nepomáhá
+    const family = (options: Parameters<typeof sowingCapacity>[6]): number =>
+      capacity(s, DAY, { ...options, lord: true }).autumnWinter -
+      capacity(s, DAY, options).autumnWinter;
+    expect(family({ beforeTillage: true })).toBeCloseTo(family({}), 9);
+  });
+
+  it('zimní porážka po dnech – listopad nese podzim, březen podzim i jaro', () => {
+    const s = planned();
+    s.livestock = {
+      ...s.livestock!,
+      herds: { ...s.livestock!.herds, cow: 4 },
+      culling: { sheep: 0, goat: 0, pig: 0, cow: 2 },
+    };
+    const work = cullingMeatKg(s) / LIVESTOCK.slaughterKgPerManDay;
+    expect(work).toBeGreaterThan(0);
+    // 16. 11. 600: do 30. 11. 15 dní, březen 31, zima do 31. 3. 601 136 dní
+    const day = at(600, 11, 16);
+    const plain = capacity(s, day);
+    const busy = capacity(s, day, { beforeTillage: true });
+    expect(plain.autumn - busy.autumn).toBeCloseTo((work * 46) / 136, 9);
+    expect(plain.spring - busy.spring).toBeCloseTo((work * 31) / 136, 9);
+    // v září a říjnu ves kusy na zimu ještě nevybrala – nic
+    expect(capacity(s, DAY, { beforeTillage: true }).autumnWinter).toBeCloseTo(
+      capacity(s, DAY).autumnWinter,
+      9,
+    );
+  });
+
+  it('ves s otavou v září – rodina pomůže, i když přípravu a setí by jinak stihla sama', () => {
+    const fine = planned(40);
+    lordHelpDay(fine, DAY, craftCoverage(fine, DAY), null);
+    expect(fine.season!.lordSowing).toBeUndefined();
+    const mowing = withAftermath(planned(40), 2000);
+    lordHelpDay(mowing, DAY, craftCoverage(mowing, DAY), null);
+    expect(mowing.season!.lordSowing?.autumnWinter).toBeGreaterThan(0);
+  });
+
+  it('ves bez osiva – rodina nepomáhá, i když půdy na řadě je dost', () => {
+    const fed = planned();
+    lordHelpDay(fed, DAY, craftCoverage(fed, DAY), null);
+    expect(fed.season!.lordSowing?.autumnWinter).toBeGreaterThan(0);
+    const empty = planned();
+    empty.storesKg = 0;
+    delete empty.sowingSeed;
+    for (const crop of empty.season!.crops) if (crop.seedKg !== undefined) crop.seedKg = 0;
+    const load = cropLoadOf(sowingHelpLoad(empty, DAY, NO_CRAFTS.tools, false, undefined));
+    expect(load.winterAutumn).toBe(0);
+    lordHelpDay(empty, DAY, craftCoverage(empty, DAY), null);
+    expect(empty.season!.lordSowing).toBeUndefined();
+  });
+
+  it('ves s jedním spřežením – zátěž i podíl jen na to, co spřežení do konce okna zorají', () => {
+    // ruce vsi v září na otavě – sama nezorá ani to, co spřežení stihne
+    const s = withAftermath(planned(1200, withTeam), 150);
+    const coverage = craftCoverage(s, DAY);
+    const village = sowingCapacity(s, DAY, coverage, true, null, undefined, {
+      beforeTillage: true,
+    });
+    expect(village.plough).toBeDefined();
+    const capped = cropLoadOf(sowingHelpLoad(s, DAY, coverage.tools, true, village.plough));
+    const free = cropLoadOf(sowingHelpLoad(s, DAY, coverage.tools, true, undefined));
+    // orba ozimu nejvýš to, co spřežení do konce října zorá – víc rukou ji nezrychlí
+    expect(capped.ploughWinter).toBeCloseTo(village.plough!.autumnWinter, 6);
+    expect(free.ploughWinter).toBeGreaterThan(capped.ploughWinter + 1);
+    const withLord = sowingCapacity(s, DAY, coverage, true, null, undefined, {
+      lord: true,
+      beforeTillage: true,
+      ploughCapacity: village.plough!,
+    });
+    lordHelpDay(s, DAY, coverage, null);
+    const share = s.season!.lordSowing!.autumnWinter!;
+    expect(share).toBeCloseTo(
+      (capped.winterAutumn - village.autumnWinter) / (withLord.autumnWinter - village.autumnWinter),
+      9,
+    );
+    // bez stropu orby by rodina šla celá – zorat by to ale nestihla
+    expect(share).toBeLessThan(0.5);
+    expect(lordSowingHelp(free, village, withLord).autumnWinter).toBe(1);
+  });
+
+  it('v září dá rodina napřed žni jaře, kterou ves nestihne – setí jen zbytek', () => {
+    const s = planned();
+    const family = (state: VillageState): number =>
+      capacity(state, DAY, { lord: true }).autumnWinter - capacity(state, DAY).autumnWinter;
+    const late = structuredClone(s);
+    // loňská jař osetá a nesklizená – v září se dožíná (fields.md – Žeň jaře i v září)
+    const work = createCropWork(late.parts.slice(0, 300), at(599, 9, 1), 0, false);
+    work.done = { ...work.required };
+    work.done.harvest = 0;
+    work.done.thresh = 0;
+    work.required.harvest = 5000;
+    late.threshingSeason = {
+      startDay: at(599, 9, 1),
+      crops: [{ crop: 'spring', ...work, harvestedKg: null }],
+    } as unknown as FarmSeason;
+    // žeň, kterou ves se žňovými rukama v září nestihne, vezme rodině celé září
+    expect(lateHarvestRemaining(late)).toBe(5000);
+    const september = capacity(late, DAY, { lord: true }).september - capacity(late, DAY).september;
+    expect(september).toBeGreaterThan(0);
+    expect(family(s) - family(late)).toBeCloseTo(september, 6);
+    expect(capacity(late, DAY, { lord: true }).autumn - capacity(late, DAY).autumn).toBeCloseTo(
+      capacity(s, DAY, { lord: true }).autumn - capacity(s, DAY).autumn - september,
+      6,
+    );
   });
 });

@@ -604,10 +604,36 @@ export function seedThreshKg(state: VillageState, day: number, toolCoverage: num
     sowingHaPerDay(state, day, pile.crop, toolCoverage) *
     cropSeedPerHa(pile.crop) *
     THRESHING.seedDays;
-  const want = Math.min(ideal - reservedSeedKg(state), pace);
-  if (want <= ordinary + EPSILON) return 0;
+  return seedFromSheavesKg(state, day, Math.min(ideal - reservedSeedKg(state), pace));
+}
+
+/**
+ * Kolik zrna ves do konce okna setí ještě vymlátí na osivo (kg – výhled práce vsi před přípravou
+ * půdy, `sowingCapacity`; D102 kolo 1, návrh Clauda): jako `seedThreshKg`, jen na celý zbytek okna
+ * – osivo ideálního zbytku okna, nejvýš osivo plochy, kterou ves dnešním tempem (`sowingHaPerDay`)
+ * do konce okna zaseje (`sowingDaysLeft`). Zrno, které ves z vymláceného do konce okna sní, ani
+ * výmlat po přípravě půdy se nepočítají. Mimo okno setí (i v zimním osivu) 0.
+ */
+export function windowSeedThreshKg(state: VillageState, day: number, toolCoverage: number): number {
+  const pile = state.sowingSeed;
+  if (!pile || pile.beforeWindow) return 0;
+  const left = sowingDaysLeft(state, pile.crop, day);
+  if (left <= 0) return 0;
+  const ideal = (pile.totalKg * Math.min(pile.days, left)) / pile.days;
+  const sows =
+    sowingHaPerDay(state, day, pile.crop, toolCoverage) * cropSeedPerHa(pile.crop) * left;
+  return seedFromSheavesKg(state, day, Math.min(ideal - reservedSeedKg(state), sows));
+}
+
+/**
+ * Osivo `wantKg` (bez osiva jen na setí), které vymlácené zrno nepokryje – ze snopů nejvýš zrno nad
+ * přežívací zásobu do žní (`seedKeepKg`; výmlat zásobu nezvětší).
+ */
+function seedFromSheavesKg(state: VillageState, day: number, wantKg: number): number {
+  const ordinary = Math.max(0, state.storesKg - reservedSeedKg(state));
+  if (wantKg <= ordinary + EPSILON) return 0;
   const aboveKeep = ordinary + sheavesOutlook(state, day).grainKg - seedKeepKg(state, day);
-  return Math.max(0, Math.min(want, aboveKeep) - ordinary);
+  return Math.max(0, Math.min(wantKg, aboveKeep) - ordinary);
 }
 
 /**

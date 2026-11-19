@@ -122,8 +122,18 @@ function seasonShortfalls(
   // jako `lordHelpDay` – orba jaře; rok bez jaře podle ozimu
   const plough =
     (seasonCrop(season, 'spring') ?? seasonCrop(season, 'winter'))?.plough !== undefined;
-  const cap = sowingCapacity(state, day, coverage, plough, landscape, undefined, { lord: true });
-  const autumnLeft = Math.max(0, cap.autumn - load.winterAutumn);
+  // i bez úloh dne, které jdou před přípravou půdy – otava, porážka, výmlat na osivo (D102 kolo 1)
+  const cap = sowingCapacity(state, day, coverage, plough, landscape, undefined, {
+    lord: true,
+    beforeTillage: true,
+  });
+  // okno `autumn` (září–listopad i březen–duben) nese i jaro – podzim zvlášť je `autumn − spring`;
+  // co ozim nad svou kapacitu nestihne, hlásí už okno ozimu (D102 kolo 1 – dřív se jaro počítalo
+  // dvakrát)
+  const autumnLeft = Math.max(
+    0,
+    cap.autumn - cap.spring - Math.min(load.winterAutumn, cap.autumnWinter),
+  );
   const springOver = Math.max(0, load.springReclaim + load.springDig - autumnLeft);
   const people: Record<OutlookWindow, number> = {
     autumnWinter: load.winterAutumn - cap.autumnWinter,
@@ -138,7 +148,13 @@ function seasonShortfalls(
         autumnWinter: load.ploughWinter - cap.plough.autumnWinter,
         spring:
           load.ploughSpring -
-          (Math.max(0, cap.plough.autumn - load.ploughWinter) + cap.plough.spring),
+          (Math.max(
+            0,
+            cap.plough.autumn -
+              cap.plough.spring -
+              Math.min(load.ploughWinter, cap.plough.autumnWinter),
+          ) +
+            cap.plough.spring),
       }
     : {};
   const result: Partial<Record<OutlookWindow, { manDays: number; ploughManDays: number }>> = {};

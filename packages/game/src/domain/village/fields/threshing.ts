@@ -87,6 +87,17 @@ function kindWork(state: Pick<VillageState, 'sheaves'>, kind: SheafKind): number
   );
 }
 
+/**
+ * Práce výmlatu (člověkodny na humně), která ze snopů obilí dá `kg` zrna – průměrná práce na kg
+ * snopů obilí (jako `urgentProgress`), nejvýš všechna jejich práce; bez snopů 0.
+ */
+export function grainThreshWork(state: Pick<VillageState, 'sheaves'>, kg: number): number {
+  const pool = villageSheaves(state).grainKg;
+  const work = kindWork(state, 'grain');
+  if (kg <= EPSILON || pool <= EPSILON || work <= EPSILON) return 0;
+  return Math.min(work, (kg * work) / pool);
+}
+
 /** Počet hotových humen – na nich se mlátí (production-chains.md – Humno). */
 export function builtThreshingFloorCount(state: Pick<VillageState, 'threshingFloors'>): number {
   return (state.threshingFloors ?? []).filter(
