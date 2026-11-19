@@ -258,7 +258,8 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `sacred.ts`; body za úmrtí `deathPointsFor` = max(0,5; 5 − 0,06 × věk), věk nese událost kroniky `death.age`, bez něj dítě 5 / jinak 3): štěstí 0–100 (`VillageState.happiness` – hodnota, úmrtí posledního roku, dny dřiny
   posledních 60 dní; chybí = 50) se den po dni posouvá o denní podíl k cíli
   (`happinessTarget` z `happinessFactors`: hlad, úmrtí, přeplněnost, dřina `isToilDay` – ves by
-  běžící polní práce dnešním tempem nedodělala do konce oken –, zásoby, posvátná místa) – krok
+  běžící polní práce dnešním tempem nedodělala do konce oken; tempo v `toilToday` = dnešní polní
+  práce, výmlat i seč a otava `mowLabor` (od 19. 11. 2026 – D99 kolo 2) –, zásoby, posvátná místa) – krok
   `updateHappiness` na konci dne. Násobí veškerou práci: `allocateDay` má jediný háček
   `productivity` (`villageLaborFactor`, 0,8–1,1; násobí se i kapacita v `sowingCapacity`).
   **Posvátné duby a háje** jsou čistá funkce vrstvy překážek – `sacredSitesOf(layer)` (mezipaměť

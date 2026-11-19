@@ -334,13 +334,14 @@ jenom v zimě, v létě se maso rychle kazí“):
   zásobou z 1. 11. a těsným obilím. Možný směr: krátit díl ve výhledu o dny, kdy ho čerstvé
   čekajících kusů vytlačí.
 - ~~**Méně polí pod správcem**~~ – **uzavřeno 18. 11. 2026:** správce staví pole na maximum,
-  které ves oseje, bez ohledu na stravu ([správce](steward.md) – Cíl polí; Martin: „Cílem vesnice
-  je prostě produkovat maximum všeho.“). Dřív stavěl pole jen na podíl jídla, který nedá maso,
-  mléko a ovoce (podíl jídla z pole), a s masem a ovocem bez stropů ten podíl klesl – zlatá ves
-  po 20 letech pod správcem (závěrečná kontrola 18. 11. 2026): 9 polí místo 13, obilí 6 215 kg
-  místo 8 583 kg, štěstí 92–95 místo 94–98. Po změně (měření 18. 11. 2026 i se zásobou uzeného
-  z porážky 1. 11.): 27 polí místo 5, obilí 28 t místo 6 t, štěstí 90 místo 94 – ves o žních
-  nestíhá (správce – Otevřené otázky 9).
+  které ves obdělá – osít i sklidit –, bez ohledu na stravu ([správce](steward.md) – Cíl polí;
+  Martin: „Cílem vesnice je prostě produkovat maximum všeho.“). Dřív stavěl pole jen na podíl
+  jídla, který nedá maso, mléko a ovoce (podíl jídla z pole), a s masem a ovocem bez stropů ten
+  podíl klesl – zlatá ves po 20 letech pod správcem (závěrečná kontrola 18. 11. 2026): 9 polí
+  místo 13, obilí 6 215 kg místo 8 583 kg, štěstí 92–95 místo 94–98. Po změně (měření 19. 11. 2026
+  se žní a výmlatem v cíli a s opravenou dřinou – správce, Otevřené otázky 9 a 10): 26 polí
+  místo 5, obilí 28 t místo 6 t, v roce otisku 3 dny dřiny (dřív 25), štěstí na konci roku 20
+  90,6 místo 95,5.
 - Kus poražený koncem srpna se 1. 9. z velké části zkazí (uzené – mezera).
 - ≈ 2 týdny po sklizni jablek jí ves skoro jen ovoce, nasycení pak klesne (bez bílkovin), štěstí
   v součtu stejně (rozhodnuto podle Martinova pořadí).
