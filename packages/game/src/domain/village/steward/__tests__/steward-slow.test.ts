@@ -77,9 +77,11 @@ describe('den správce – dlouhý běh na skutečné krajině', () => {
   it('pole rostou k cíli a jsou správcova', () => {
     const s = atThree!;
     const target = fieldTarget(s, s.lastDay, NO_CRAFTS);
-    // 18. 11. 2026 – D99 cíl polí na maximum, které ves oseje (steward.md – Cíl polí): cíl je
-    // osev podle práce a osiva, pole k němu rostou po rozpočtu práce – po 3 letech 8,2 z 23,6
-    // (35 %); dřív pole dorostla k cíli podle potřeby z pole (> 0,8 × cíl)
+    // 19. 11. 2026 – D99 kolo 2 – cíl polí je maximum, které ves obdělá (steward.md – Cíl polí:
+    // osev podle lidí, spřežení, žní, výmlatu a osiva); pole k němu rostou tempem rozpočtu práce –
+    // po 3 letech 8,2 z 19,1 (0,43), po 5 letech 0,67 (v této vsi váže osev lidmi v oknech setí).
+    // Práh hlídá, že správce pole k cíli opravdu zakládá (dřív – cíl podle potřeby z pole – pole
+    // dorostla do 3 let k > 0,8 × cíl); horní mez cíle hlídá zlatý test v village-golden-long.test.ts
     expect(target.have).toBeGreaterThan(0.3 * target.need);
     const fields = s.parts.filter((p) => s.steward!.built.includes(p.id));
     expect(fields.length).toBeGreaterThan(0);

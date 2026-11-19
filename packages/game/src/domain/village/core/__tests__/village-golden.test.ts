@@ -87,7 +87,10 @@ import { advanceChunked, goldenWorld, stateFingerprint, YEAR } from './village-g
 // 19. 11. 2026 – D99 kolo 1 – cíl polí podle osevu i žní (výhled `workableHa`: okna setí jednou,
 // orba i lidmi, žeň a výmlat po žni v oknech žní po otavě – steward.md, Cíl polí); za 20 let 26 polí;
 // dřív ddd66c16e931952d
-const EXPECTED_YEAR_1 = 'aa479aa7d2ce28f7';
+// 19. 11. 2026 – D99 kolo 2 – žeň v oknech žní před otavou a lnem, výmlat v zimním okně (cíl polí)
+// a dřina s dnešní sečí a otavou v tempu (happiness.md – Plná práce ve špičce, která se stihne,
+// dřinou není): jiné štěstí, práce a zásoby; dřív aa479aa7d2ce28f7
+const EXPECTED_YEAR_1 = 'dca6b32e4c8f4cbe';
 // 18. 11. 2026 – D93 cesta přes plochu staveb; dřív 82b12dd84c08dd63 (vyšlapaná cesta přes plochu
 // staveb nevznikne a napojení ji obejde – jiné cesty a id; roky chůze nejvýš doba vyšlapání)
 // 18. 11. 2026 – D95 výmlat (Martin: „A, C, E“ – výmlat podle kg snopů, rod v zimě dorovná tempo

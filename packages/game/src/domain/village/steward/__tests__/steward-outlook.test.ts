@@ -74,7 +74,7 @@ describe('výhled vsi – model kapacity (steward.md – Model kapacity vsi)', (
     expect(stewardOutlook(empty, JUNE, NO_CRAFTS).seedHa).toBe(Infinity);
   });
 
-  it('cíl polí = maximum, které ves oseje, bez ohledu na stravu (D99, Martin 18. 11. 2026)', () => {
+  it('cíl polí = maximum, které ves obdělá, bez ohledu na stravu (D99, Martin 18. 11. 2026)', () => {
     // táž ves jen s obilím (podíl z pole 1) a s masem, mlékem a ovocem (z pole jen 55 % jídla);
     // v červnu osivo neomezuje – osev podle práce
     const grain = village(30);
@@ -103,17 +103,10 @@ describe('výhled vsi – model kapacity (steward.md – Model kapacity vsi)', (
     expect(b.need / b.have).toBeCloseTo(a.need / a.have, 9);
   });
 
-  it('cíl polí nikdy nad to, co ves stihne osít i sklidit – otava a žně (D99 kolo 1)', () => {
+  it('žeň jde před otavou i lnem – seč cíl polí nemění; výmlat má zimní okno (D99 kolo 2)', () => {
     const s = village(30);
     const o = stewardOutlook(s, JUNE, NO_CRAFTS);
-    // obdělat = osít i sklidit: nejvýš osev podle žní i podle dřívějšího výhledu setí
-    expect(o.workableHa).toBeLessThanOrEqual(o.harvestHa);
-    expect(o.workableHa).toBeLessThanOrEqual(o.laborHa);
-    const target = fieldTarget(s, JUNE, NO_CRAFTS, o);
-    expect(target.need).toBeLessThanOrEqual(
-      ((o.landPeople * o.harvestHa) / o.landHa) * STEWARD.fieldReserve + 1e-9,
-    );
-    // nutná otava, která vezme celou práci žní – ves nesklidí nic, správce pole nechce
+    // `DAY_WORK_ORDER`: žeň před lnem, senem i otavou – sebevětší zápis otavy výhled nezmění
     const mowing = {
       partIds: [],
       required: 1e6,
@@ -123,18 +116,11 @@ describe('výhled vsi – model kapacity (steward.md – Model kapacity vsi)', (
       cut: 2 as const,
     };
     const mown: VillageState = { ...s, hay: { kg: 0, mowing } };
-    const busy = stewardOutlook(mown, JUNE, NO_CRAFTS);
-    expect(busy.harvestHa).toBe(0);
-    expect(fieldTarget(mown, JUNE, NO_CRAFTS, busy).need).toBe(0);
-    // v 1. seči se otava čte jako díl nutné seče (`HAY_CUTS.aftermathWorkShare`)
-    const first: VillageState = { ...s, hay: { kg: 0, mowing: { ...mowing, needed: 50 } } };
-    const firstCut: VillageState = {
-      ...s,
-      hay: { kg: 0, mowing: { partIds: [], required: 50, needed: 50, done: 0, yieldKg: 0 } },
-    };
-    expect(stewardOutlook(firstCut, JUNE, NO_CRAFTS).harvestHa).toBeGreaterThan(
-      stewardOutlook(first, JUNE, NO_CRAFTS).harvestHa,
-    );
+    expect(stewardOutlook(mown, JUNE, NO_CRAFTS)).toEqual(o);
+    // výmlat ve vlastním okně do února (Martin 9. 11. 2026) – kladný a konečný, bez humna dražší
+    expect(o.threshHa).toBeGreaterThan(0);
+    expect(Number.isFinite(o.threshHa)).toBe(true);
+    expect(o.workableHa).toBeLessThanOrEqual(Math.min(o.harvestHa, o.threshHa));
   });
 
   it('ves bez pole v oběhu: opatrný cíl z potřeby s celou potřebou z pole (D99)', () => {

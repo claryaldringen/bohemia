@@ -1,4 +1,8 @@
 import { describe, expect, it } from 'vitest';
+import { dateOfDayIndex } from '../../../calendar';
+import { craftCoverage } from '../../crafts/crafts';
+import { fieldTarget } from '../../steward/steward';
+import { stewardOutlook } from '../../steward/steward-outlook';
 import { advanceVillage } from '../simulate';
 import { goldenWorld, stateFingerprint, YEAR } from './village-golden-fixture';
 
@@ -69,16 +73,42 @@ import { goldenWorld, stateFingerprint, YEAR } from './village-golden-fixture';
 // ohledu na stravu – viz village-golden.test.ts); dřív e528780d5ee19f50 a 0696bc715723e45d
 // 19. 11. 2026 – D99 kolo 1 – cíl polí podle osevu i žní (viz village-golden.test.ts); dřív
 // 9211b65615240ce4 a 426240b4c2f0f137
-const EXPECTED_YEAR_2 = 'bc6cf2d0f3138154';
-const EXPECTED_YEAR_3 = 'cde4d16e57f9748d';
+// 19. 11. 2026 – D99 kolo 2 – žeň před otavou a lnem, výmlat v zimním okně, dřina s dnešní sečí
+// v tempu (viz village-golden.test.ts); dřív bc6cf2d0f3138154 a cde4d16e57f9748d
+const EXPECTED_YEAR_2 = 'f5d8eb349980a618';
+const EXPECTED_YEAR_3 = '8a159f25b32c5015';
 // 18. 11. 2026 – D93 cesta přes plochu staveb; dřív 168010dd35f7c1c7 a a499594da5514b49 (viz
 // village-golden.test.ts)
 // 18. 11. 2026 – D95 výmlat (výmlat podle kg snopů, rod v zimě dorovná tempo okna – viz
 // village-golden.test.ts); dřív dea6984b000dcf8f a a1562c05b5f77eb7
 
 describe('zlatý otisk vsi – delší běh', () => {
+  const world = goldenWorld();
+
+  it('cíl polí nikdy pod polem, které ves oseje a sklidí – ve dnech bez dřiny (D99 kolo 2)', () => {
+    // steward.md – Cíl polí: maximum, které ves obdělá. Zlatá ves rok po roce otisku stihne
+    // osít i sklidit, co má (≈ 12 ha) – cíl v hektarech osevu (need ÷ have × osev podle půdy)
+    // nesmí být ve dnech, kdy ves všechno stíhá, pod dnešní osetou plochou
+    let s = world.start;
+    const end = s.lastDay + YEAR;
+    let checked = 0;
+    while (s.lastDay < end) {
+      s = advanceVillage(s, s.lastDay + 1, world.obstacles, world.landscape);
+      const date = dateOfDayIndex(s.lastDay);
+      if ((date.day !== 1 && date.day !== 15) || (s.happiness?.toil.at(-1) ?? 0) > 0) continue;
+      const coverage = craftCoverage(s, s.lastDay);
+      const outlook = stewardOutlook(s, s.lastDay, coverage);
+      const target = fieldTarget(s, s.lastDay, coverage, outlook);
+      const sownHa =
+        s.parts.filter((p) => p.state === 'sown').reduce((sum, p) => sum + p.areaM2, 0) / 10_000;
+      expect(target.have).toBeGreaterThan(0);
+      expect((target.need / target.have) * outlook.landHa).toBeGreaterThanOrEqual(sownHa);
+      checked++;
+    }
+    expect(checked).toBeGreaterThan(12);
+  });
+
   it('po 2. a 3. roce dopočtu dá zapsané otisky', () => {
-    const world = goldenWorld();
     let s = world.start;
     const prints: string[] = [];
     for (let year = 1; year <= 3; year++) {
