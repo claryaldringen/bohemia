@@ -463,8 +463,10 @@ Seno, dvě seče).
      najednou – úlohy dne jdou po úlohách přes celou plodinu (vrácení přílohu před kopáním), takže
      hladová ves by celý podzim jen vracela příloh na všech dílech a nezasela nic. Díly přibývají
      **po dávkách na čele práce**: rozdělaná příprava půdy a setí v oknech, která dnes běží, smí
-     být nejvýš na `WORK_FRONT_DAYS` = 3 dny volné práce vsi po denním minimu (spřežení na 3 dny
-     orby); další díl přibude, až čelo dávku dodělá – díl tak projde přípravou půdy až k setí,
+     být nejvýš na `WORK_FRONT_DAYS` = 3 dny volné práce vsi po denním minimu i s podílem dne
+     vojvodovy rodiny na přípravě půdy a setí ([lord.md](lord.md) – Kdy jde rodina na pole,
+     Příprava půdy a setí; D102, návrh Clauda – jinak by rodině nezbyla rozdělaná práce; spřežení
+     na 3 dny orby); další díl přibude, až čelo dávku dodělá – díl tak projde přípravou půdy až k setí,
      než ves vezme další. Na podzim brzdí ozim jen jeho vlastní čelo (len, luštěniny a jař
      s kopáním do listopadu ozim nepředběhnou). Žádný strop podle plánu: dokud je okno otevřené
      a potřeba trvá, ves bere další díly.
@@ -507,8 +509,12 @@ Seno, dvě seče).
    - Starší vsi (převod jednou a idempotentně, návrh Clauda): ozim a jař nad potřebu se slijí
      s ozimem a jaří i s hotovou prací, osivem a úrodou ve snopech (letošní rok i rok u výmlatu);
      roční potřeba z pole ve výběru dílů zmizí.
-   - **Vojvodova rodina** ([lord.md](lord.md) – Kdy jde rodina na pole) s osevem nepomáhá (od 9. 11. 2026 – Martin: „setí by mělo být v pohodě ne? Problém je spíš se žněmi“); jde jen na
-     žně, které ves sama nestíhá.
+   - **Vojvodova rodina** ([lord.md](lord.md) – Kdy jde rodina na pole) pomáhá s přípravou půdy
+     a setím, které ves v okně sama nestihne na všechnu půdu, na kterou má osivo – i s díly na
+     řadě, které na čelo ještě nepřišly (Martin 19. 11. 2026 – D102: „Ano. Na začátku vsi to jsou
+     spíš zemědělci. Až postupně, když je ves veliká se z rodu knížete stává postupně šlechta“; 9. 11. – 19. 11. 2026 s osevem nepomáhala – Martin 9. 11. 2026: „setí by mělo být v pohodě
+     ne? Problém je spíš se žněmi“), a se žněmi, které ves sama nestíhá. Jde až po práci vsi
+     a jen s tím, co chybí – ves, která setí stihne sama, rodinu nezapojí.
    - **Páry k rádlům** ([oxen.md](oxen.md) – Kolik volů ves chce): tolik párů, kolik v oknech orby
      zorá všechny díly na řadě v příštím hospodářském roce – nutné i nad potřebu, ves chce zorat
      všechno (návrh Clauda) –, nejvýš `OXEN.maxPairs`; mění se jako dosud, až když potřeba trvá dva

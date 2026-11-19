@@ -46,9 +46,10 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   (všechny díly na řadě bez stropu – luštěniny nikdy; v dávce obilí ozim
   před jaří) → **čelo práce** (`workFront`, `frontRoom`, `WORK_FRONT_DAYS`): díl přibude, jen
   když rozdělaná příprava a setí v dnes otevřených oknech plodin se stejným nebo dřívějším
-  koncem okna přípravy (`prepEnd`) je pod 3 dny volné práce (`freeLabor`) a orby
-  (`ploughCapacityPerDay`); ostatní čekají – `seasonDay` je vrátí a `lordHelpDay` je přičte
-  k zátěži (`partWork`). Se spřežením přibude s dílem na řadě i zbytek jeho pásu orby – pás jen
+  koncem okna přípravy (`prepEnd`) je pod 3 dny práce lidí (`frontLabor` – volná práce vsi
+  `freeLabor` a podíl rodiny na přípravě a setí `manorLabor.sowing`, D102) a orby
+  (`ploughCapacityPerDay`); ostatní čekají – `seasonDay` je vrátí (`FarmSeason.selection.waiting`)
+  a `lordHelpDay` je přičte k zátěži pomoci rodiny (`sowingHelpLoad` – `partWork`, jen s osivem). Se spřežením přibude s dílem na řadě i zbytek jeho pásu orby – pás jen
   z dílů výběru téže plodiny a téže skupiny přílohové soustavy (`joinBands` – `sowingGroup`,
   nouzové přílohy zvlášť) a místo na čele (`frontRoom`) u každého dílu pásu, od dílu na řadě
   podél brázdy a zpět (`bandFrom`); co se nevejde, čeká ve výběru (D101 19. 11. 2026 – dřív pás
@@ -95,7 +96,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   denním minimu dospělých (`adultDailyMin` – zvířata a domácí výroba bokem), bez cvičící
   vojvodovy rodiny. **Rodina ve žních** (lord.md – Kdy jde rodina na pole; Martin 9. 11. 2026):
   `lordHelpDay` (`simulate-plan.ts`) každý den v oknech žní `HARVEST_HELP_WINDOWS` (červenec,
-  srpen) zapíše do `FarmSeason.lordHelp` podíl dne rodiny (`lordHarvestHelp` ze zbývající práce
+  srpen, září) zapíše do `FarmSeason.lordHelp` podíl dne rodiny (`lordHarvestHelp` ze zbývající práce
   `planLoad` a `sowingCapacity` vsi od dneška bez rodiny a s ní – `{ lord: true }` přidá do
   července a srpna `manorLabor.free`, práci celé rodiny přítomné ve vsi po minimu dvorce:
   chybějící práce ÷ práce rodiny, nejvýš 1); necvičící rodina pomoc nemá. Den: ve žňový den
@@ -103,8 +104,25 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   po práci vsi a žňových rukou, jen žeň a výmlat (`HARVEST_HANDS_TASKS`; jen co ves dnes nestihne);
   kdo jde na pole, určí `lordFieldShares` (`lord.ts`) ze spotřeby: napřed ženy a dcery
   (`free − freeMen`), pak muži rodiny (`freeMen − freeLord`), vojvoda až nakonec (`freeLord`;
-  Martin 9. 11. 2026) – podíly `LordFieldShares` pro `trainLordDay`, `huntDay` a `lordDayCounts`. Pomoc
-  s osevem a při hladu (`lord.field`) je zrušená; převod `withoutSowingHelp` (`lord.ts`).
+  Martin 9. 11. 2026) – podíly `LordFieldShares` pro `trainLordDay`, `huntDay` a `lordDayCounts`.
+  **Rodina s přípravou půdy a setím** (lord.md – Kdy jde rodina na pole, Příprava půdy a setí;
+  Martin 19. 11. 2026 – D102): v oknech setí `SOWING_HELP_WINDOWS` (`autumnWinter`, `autumn`,
+  `spring`) zapíše `lordHelpDay` do `FarmSeason.lordSowing` podíly `lordSowingHelp` (sowing.ts – ozim
+  přímo, jař napřed na jaře a co jaro nestihne ani s rodinou, na podzim; okno `autumn` nese i jaro,
+  podzim zvlášť je `autumn − spring`) ze zátěže
+  `sowingHelpLoad` (simulate-plan.ts – zbytek plánu `planLoad` a čekající díly výběru
+  `FarmSeason.selection.waiting` po `partWork`, jen vracení, kopání, orba a setí na půdu, kterou
+  spřežení do konce okna zorají (`SowingCapacity.plough` – ozim `autumnWinter`, ostatní `autumn`),
+  a s osivem
+  `seedForSowingKg` v seed.ts – zrno nad `seedKeepKg` i se snopy a osivo jen na setí; napřed plán
+  po plodinách, pak čekající díly v pořadí výběru) proti `sowingCapacity` bez rodiny a s ní (`lord`
+  přidá i v oknech setí `manorLabor.free` letní skladby). Den: `lordSowingShare` × `free` =
+  `manorLabor.sowing` → `allocateDay` – `lordSowing` jen na `TILLAGE_TASKS` (vracení, kopání, orba,
+  setí) až po práci vsi; všechny pomoci dne dohromady nejvýš `lordFree` (= `manorLabor.free`), v listopadu
+  zimní výmlat (`threshPace`) až ze zbytku. Čelo práce (`workFront`) nese i `manorLabor.sowing`
+  (`frontLabor`). Pomoc při hladu (`lord.field`) je zrušená; převod `withoutSowingHelp`
+  (`lord.ts`) dál maže jen okna setí ve `FarmSeason.lordHelp` z doby do 9. 11. 2026 – nový podíl je
+  ve `lordSowing` (volitelný, převod netřeba).
   **Pletí – děti** (fields.md – Pletí – děti, 25. 10. 2026): `weedingChildren` (harvest-hands.ts)
   = věk výrostků 7–13 let mimo `lordTraineeIds` bez pasáků (`herdingDay` – `freeHerders.children`,
   pasou nejstarší); `work()` je počítá jen v den s úlohou `weed` a dá `allocateDay` zásobník
@@ -133,8 +151,8 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `freeMen`, `help` 0 – i ženatí synové v dvorci; vedlejší manželky vojvody mimo dvorec ne, jsou
   v `lordApartIds`, takže je nepočítá ani `harvestHelperLabor`) i `work()`; v `allocateDay` zásobníky `harvestHands` (`craftHarvestLabor`
   - výrostci od 10 let a starší po `HARVEST_HELPERS.perDay` – `harvestHelperLabor`, mimo
-    `lordApartIds`) a `lordHelp` jen na `HARVEST_HANDS_TASKS` (žeň, výmlat) za lehkou prací žen, před prací vsi,
-    nevyužité propadne; spotřebu mužů vrací `lordField` (podíl dne ÷ `freeMen`). `sowingCapacity`
+    `lordApartIds`) a `lordHelp` jen na `HARVEST_HANDS_TASKS` (žeň, výmlat) a `lordSowing` jen na
+    `TILLAGE_TASKS` (D102) – oba až po práci vsi, nevyužité propadne; spotřebu mužů vrací `lordField` (podíl dne ÷ `freeMen`). `sowingCapacity`
     přičte tytéž ruce (`craft + harvest` dílen, `freeMen`, `harvestHelperLabor` × štěstí) v oknech `july` a `august` a z výmlatu
     v podzimních oknech nechá vsi jen její díl (volná práce vsi ÷ (vsi + ruce)). Výhled jídla do sklizně (`eatDiet`) počítá s mlékem stád do sklizně
     (`milkAheadEnergy` z `milkEnergyBetween`) a celou zásobou sýra.

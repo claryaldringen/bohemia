@@ -546,8 +546,9 @@ Horse[]` (`id`, `bornDay`, `sex`, `training`, `riderId?`). `horses.ts` – `hors
   z `trainLordDay`: přírůstek 100 / (9 × 365,25) denně × podíl dne jezdce, bez obilí ½, stojí při
   `horsesCaredToday` < 1; plný výcvik → `horse-trained`. V dnech na poli (žně s rodinou) nejezdí
   jen cvičící na poli (`lordFieldIds` – podíl skupiny > 0; návrh Clauda 9. 11. 2026), chlapci
-  a ostatní jezdí; `lordRides` ve žňový den s pomocí rodiny vynechá, kdo jde podle plánu na pole
-  (`harvestFieldIds` – `manorLabor.help` a `lordFieldShares`).
+  a ostatní jezdí; `lordRides` ve žňový den a v okně setí s pomocí rodiny vynechá, kdo jde podle
+  plánu na pole (`harvestFieldIds` – `manorLabor.help` + `manorLabor.sowing` a `lordFieldShares`;
+  D102).
   `lord.ts` – `lordRides(state, day)` (pro scénu, jen čte): jezdci rodiny se svým koněm a hodinami
   jízdy (vojvoda první, pak od nejstaršího), každý `HORSES.borderRideEveryDays` (7.) den hotová
   zemská stezka k hranici (`trailId`, střídají se po id), doprovod výpravy, která dnes vyráží
