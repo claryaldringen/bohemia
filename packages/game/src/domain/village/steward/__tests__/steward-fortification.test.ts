@@ -54,6 +54,10 @@ const SEPT =
 
 const OPEN_OUTLOOK: StewardOutlook = {
   laborHa: Infinity,
+  workableHa: Infinity,
+  sowHa: Infinity,
+  harvestHa: Infinity,
+  threshHa: Infinity,
   seedHa: Infinity,
   landHa: 0,
   bottleneck: 'land',

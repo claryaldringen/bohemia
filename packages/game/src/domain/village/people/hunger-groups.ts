@@ -118,6 +118,42 @@ export function rationShares(
   });
 }
 
+/**
+ * Index nejnižší skupiny s potřebou jídla (zbytek vsi; bez něj nejbližší vyšší) – dostává
+ * z přídělu vsi nejmenší podíl (`rationShares`). Nikdo nejí −1.
+ */
+export function lowestFedGroup(needs: readonly number[]): number {
+  for (let g = needs.length - 1; g >= 0; g--) if ((needs[g] ?? 0) > 0) return g;
+  return -1;
+}
+
+/**
+ * Příděl vsi (podíl celé potřeby `needs`, 0–1), při kterém nejnižší skupina s potřebou
+ * (`lowestFedGroup` – zbytek vsi) dostane aspoň `share` své potřeby – obrácené `rationShares`
+ * (přežívací zásoba do žní – fields.md, Osivo ze zásob; diet.md – Kdo dostane co; návrh Clauda
+ * 18. 11. 2026). Do životního minima `minimum` jedí všichni stejně – příděl vsi je `share`; nad
+ * ním dostane nejnižší skupina víc než minimum až po plném přídělu vyšších skupin, příděl vsi je
+ * tedy (potřeba vyšších skupin + `share` × potřeba nejnižší) ÷ potřeba vsi. Nejvýš 1; ves, kde
+ * nikdo nejí, `share`.
+ */
+export function villageRationFor(
+  share: number,
+  needs: readonly number[],
+  minimum: number = HUNGER_PRIORITY.minimumShare,
+): number {
+  const target = Math.min(1, Math.max(0, share));
+  const last = lowestFedGroup(needs);
+  if (target <= minimum || last < 0) return target;
+  let total = 0;
+  let upper = 0;
+  needs.forEach((need, g) => {
+    const kg = Math.max(0, need);
+    total += kg;
+    if (g < last) upper += kg;
+  });
+  return Math.min(1, (upper + target * (needs[last] ?? 0)) / total);
+}
+
 /** Index skupiny, podle které se hladovění ukazuje hráči – nejnižší neprázdná (zbytek vsi). */
 export function shownGroup(counts: readonly number[]): number {
   for (let g = REST; g >= 0; g--) if ((counts[g] ?? 0) > 0) return g;

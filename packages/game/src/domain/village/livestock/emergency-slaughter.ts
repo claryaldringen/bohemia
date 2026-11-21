@@ -26,10 +26,10 @@ import { woolSheep } from './wool';
 // spřežení a telata ve výcviku jsou v ohradách mimo stáda. Letošní mláďata ne – kromě selat od 1. 9.
 // (Martin 19. 10. 2026: „Ano ke všem návrhům“ – maso se 1. 9. kazí a do podzimní porážky ves
 // hladoví; nad chovnými prasnicemi jsou v září skoro jen selata). Maso jde do zásoby jako z podzimní
-// porážky (stejná výtěžnost, uzení, zkažení 1. 9.) a jí se v pořadí jídla bez stropů, do zkažení
-// aspoň rovným dílem (diet.md – Strava po vrstvách a porážka celý rok); výhled s ním počítá nejvýš
-// do plné potřeby za dny do zkažení. Podíl jídla z pole (fields.md – Osev podle stravy) ho počítá
-// jako jídlo z pole.
+// porážky (stejná výtěžnost, uzení, zkažení 1. 9.) – do ostatního uzeného, které se jí v pořadí
+// jídla hned, do zkažení aspoň rovným dílem (diet.md – Pořadí jídla; rovným dílem do zkažení jen
+// zásoba z porážky 1. 11.); výhled s ním počítá nejvýš do plné potřeby za dny do zkažení. Podíl
+// jídla z pole (fields.md – Osev podle stravy) ho počítá jako jídlo z pole.
 
 /** Méně masa (kg) se jako porážka nebere – chyby desetinných čísel. */
 const MIN_KG = 0.5;

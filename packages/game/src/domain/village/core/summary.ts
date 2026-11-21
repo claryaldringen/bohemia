@@ -627,16 +627,21 @@ function households(state: VillageState, day: number): HouseholdSummary[] {
 function nextDayDiet(state: VillageState, day: number): { diet: DietDay; points: DietHappiness } {
   const next = Math.min(day + 1, TOTAL_GAME_DAYS - 1);
   const winter = (): WinterInput => summerWinterInput(state, next);
+  // ryby od pozítří do sklizně, nejvýš do kvóty – jako simulace (diet.md – Výhled do sklizně);
+  // letní odhad masa rodu je bez nich
+  const fish = (daysToHarvest: number): number =>
+    meatEnergy(fishAheadKg(state, next, daysToHarvest));
+  // zítřejší porážka – v zimě díl čekajících kusů, v létě kus pro rod vojvody (diet.md – Strava
+  // po vrstvách a porážka celý rok); letní odhad masa rodu je i bez ní
+  const freshKg =
+    winterSlaughterTodayKg(state, next) + (summerSlaughterPlan(state, next, winter)?.kg ?? 0);
   const meal = villageMeal(state, next, craftCoverage(state, next).pottery, {
     milk: dailyMilk(villageDams(state), next),
     eggsKg: dailyEggsKg(state),
-    // zítřejší porážka – v zimě díl čekajících kusů, v létě kus pro rod vojvody (diet.md – Strava
-    // po vrstvách a porážka celý rok)
-    meatKg:
-      winterSlaughterTodayKg(state, next) + (summerSlaughterPlan(state, next, winter)?.kg ?? 0),
-    meatAheadEnergy: (daysToHarvest) => freshMeatAheadEnergy(state, next, daysToHarvest, winter),
-    // ryby od pozítří do sklizně, nejvýš do kvóty – jako simulace (diet.md – Výhled do sklizně)
-    fishAheadEnergy: (daysToHarvest) => meatEnergy(fishAheadKg(state, next, daysToHarvest)),
+    meatKg: freshKg,
+    meatAheadEnergy: (daysToHarvest) =>
+      freshMeatAheadEnergy(state, next, daysToHarvest, winter, fish(daysToHarvest), freshKg),
+    fishAheadEnergy: fish,
   });
   const split = hungerSplit(state, next);
   return { diet: meal.diet, points: dietHappiness(tierMeal(split, meal.eaten), split.eaters) };

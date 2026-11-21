@@ -12,6 +12,7 @@ import type { VillageState } from '../types';
 import {
   DAILY_CHEESE_KEEP,
   DAILY_MEAT_KEEP,
+  daysUntilMeatEnd,
   daysUntilMeatSpoil,
   fruitEnergy,
   grainKeepPerDay,
@@ -20,6 +21,7 @@ import {
   meatEnergy,
   villageFoodNeed,
   villageMeatKg,
+  villageSlaughterMeatKg,
 } from './diet';
 import { applesSpoiled, daysUntilAppleRot } from './food';
 import { NO_CRAFTS } from './productivity';
@@ -34,10 +36,12 @@ import { SATIATION_EPSILON } from './simulate-plan';
  * dni stejným pravidlem jako výhled do sklizně (obilí `grainKeepPerDay` – nádoby a jámy,
  * luštěniny, maso, sýr), maso se 1. 9. ráno zkazí (`daysUntilMeatSpoil`), jablka shnijí
  * (`daysUntilAppleRot`). Ves jí v pořadí jídla bez stropů (diet.md – Strava po vrstvách a porážka
- * celý rok): napřed, co se kazí – uzené maso a sýr, ovoce, luštěniny –, pak obilí a nakonec med
- * (nekazí se; když jídla není dost, je jídlem jako obilí – hides-honey.md, Med v hladu). První
- * den, kdy plný příděl nevyjde, počítání skončí. Nikdo nejí ze zásob vsi → null; nejvýš do konce
- * světa.
+ * celý rok): napřed, co se kazí – ostatní uzené maso, zásoba z porážky 1. 11. jen svým dílem
+ * (zásoba ÷ dny do konce masa – `daysUntilMeatEnd`, jako jídlo dne; Martin 18. 11. 2026: „Uzené
+ * rozlož“), sýr, ovoce, luštěniny –, pak obilí a nakonec med (nekazí se; když jídla není dost, je
+ * jídlem jako obilí – hides-honey.md, Med v hladu). Nad svůj díl se zásoba z 1. 11. nejí – když
+ * ostatní jídlo dojde, sama plný příděl nedá. První den, kdy plný příděl nevyjde, počítání
+ * skončí. Nikdo nejí ze zásob vsi → null; nejvýš do konce světa.
  */
 export function foodLastsDays(
   state: VillageState,
@@ -54,7 +58,10 @@ export function foodLastsDays(
   // zásoby v energii (kg obilí)
   let grain = Math.max(0, state.storesKg - uneatenSeedKg(state)) + sheaves.grainKg;
   let legumes = legumeEnergy(villageLegumesKg(state) + sheaves.legumesKg);
-  let meat = meatEnergy(villageMeatKg(state));
+  // uzené: ostatní (jí se hned) a zásoba z porážky 1. 11. (jí se svým dílem)
+  const slaughterKg = villageSlaughterMeatKg(state);
+  let meat = meatEnergy(Math.max(0, villageMeatKg(state) - slaughterKg));
+  let slaughter = meatEnergy(slaughterKg);
   let cheese = villageCheeseKg(state) * DAIRY.cheeseEnergy;
   let fruit = fruitEnergy(villageApplesKg(state));
   let honey = honeyEnergy(state.wares?.honeyKg ?? 0);
@@ -62,6 +69,8 @@ export function foodLastsDays(
     ? 0
     : daysUntilAppleRot(first, potteryCoverage);
   const meatDays = daysUntilMeatSpoil(first);
+  // konec masa – zásoba z porážky 1. 11. se do něj jí rovným dílem; po něm se přepočte
+  let meatEnd = daysUntilMeatEnd(first);
   const shortfall = need * SATIATION_EPSILON;
   let days = 0;
   for (let i = 0; first + i < TOTAL_GAME_DAYS; i++) {
@@ -69,18 +78,28 @@ export function foodLastsDays(
     grain *= grainKeep;
     legumes *= legumeKeep;
     meat = i < meatDays ? meat * DAILY_MEAT_KEEP : 0;
+    slaughter = i < meatDays ? slaughter * DAILY_MEAT_KEEP : 0;
     cheese *= DAILY_CHEESE_KEEP;
     if (i >= fruitDays) fruit = 0;
+    if (i >= meatEnd) meatEnd = i + daysUntilMeatEnd(first + i);
     let left = need;
-    const eat = (stock: number): number => {
-      const eaten = Math.min(stock, left);
+    /** Sní ze zásoby `stock` nejvýš `most` – a nejvýš, kolik dnes zbývá do potřeby. */
+    const eat = (stock: number, most = stock): number => {
+      const eaten = Math.min(most, left);
       left -= eaten;
       return stock - eaten;
     };
     // pořadí jídla vsi jako `eatDiet` (diet.ts – bez mléka a vajec, předpověď nezná příjmy; bez
-    // tempa proti zkažení); rozdělení po vrstvách (`tierMeal`) má vlastní pořadí – změna pořadí od
-    // Martina na všech třech místech
+    // tempa proti zkažení; ostatní uzené hned, zásoba z porážky 1. 11. jen svým dílem); rozdělení
+    // po vrstvách (`tierMeal`) má vlastní pořadí – změna pořadí od Martina na všech třech místech
+    // ze zásoby z porážky 1. 11. napřed, co by se do konce masa plnou potřebou nestihlo (jako
+    // `slaughterMust` v jídle dne), pak ostatní uzené a zbytek dílu
+    const share = slaughter / (meatEnd - i);
+    const must = Math.min(need, Math.max(0, slaughter - need * (meatEnd - i - 1)));
+    const before = slaughter;
+    slaughter = eat(slaughter, must);
     meat = eat(meat);
+    slaughter = eat(slaughter, Math.max(0, share - (before - slaughter)));
     cheese = eat(cheese);
     fruit = eat(fruit);
     legumes = eat(legumes);

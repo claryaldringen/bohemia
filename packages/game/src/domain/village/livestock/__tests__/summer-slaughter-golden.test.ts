@@ -9,8 +9,10 @@ import { withRoomyPens } from '../../__tests__/village-fixtures';
 
 // Letní porážka nevybije stádo (diet.md – Strava po vrstvách a porážka celý rok; kontrola Úlohy 4,
 // 18. 11. 2026): zlatá ves se 40 kozami a 30 prasaty, prostornými ohradami a loukou. Léto nevezme
-// víc než kandidáti 1. 4. a stádo přes zimu je stejné jako bez letní porážky (táž ves, letní
-// porážka vypnutá). Pomalý test (zlatá ves se staví ≈ 12 s) – `npm run test:slow`.
+// víc než kandidáti 1. 4., sena je k 31. 10. aspoň 97 % sena vsi bez letní porážky a při stejném
+// seně je stádo přes zimu stejné jako bez letní porážky (táž ves, letní porážka vypnutá). Vliv
+// menší seče na stádo přes zimu test neměří (diet.md – Důsledky k vědomí: kozy dostávají seno
+// poslední, D98 kolo 1 −14 %). Pomalý test (zlatá ves se staví ≈ 12 s) – `npm run test:slow`.
 
 const summer = vi.hoisted(() => ({ off: false }));
 vi.mock('../summer-slaughter', async (importOriginal) => {
@@ -26,7 +28,7 @@ vi.mock('../summer-slaughter', async (importOriginal) => {
 const SPECIES: readonly HerdSpecies[] = ['goat', 'pig'];
 
 describe('letní porážka ve zlaté vsi', () => {
-  it('léto nevezme víc než kandidáti 1. 4. a stádo přes zimu je jako bez letní porážky', () => {
+  it('léto nevezme víc než kandidáti 1. 4. a při stejném seně je stádo přes zimu jako bez letní porážky', () => {
     const w = goldenWorld();
     const year = dateOfDayIndex(w.start.lastDay).year + 1;
     const march = dayIndexOf({ year, month: 3, day: 31 });
@@ -50,6 +52,16 @@ describe('letní porážka ve zlaté vsi', () => {
     const takenApril = april.livestock!.summerSlaughtered ?? {};
     const on = run(false);
     const off = run(true);
+    // seno k 31. 10.: menší stádo v létě potřebuje méně sena, seč je o kousek menší (zlatá ves po
+    // D98 kolo 1, 18. 11. 2026: 8 681 proti 8 809 kg)
+    expect(on.october.hay!.kg).toBeGreaterThan(0.97 * off.october.hay!.kg);
+    // stádo přes zimu se srovnává při stejném seně: kozy dostávají seno poslední, takže by na nich
+    // ležel celý rozdíl sena (128 kg ≈ 1,4 kozy – 14 %) a test by měřil seč, ne letní porážku
+    // (D98 kolo 1, 18. 11. 2026 – dřív se srovnávalo i s jiným senem)
+    const sameHay = structuredClone(on.october);
+    sameHay.hay!.kg = off.october.hay!.kg;
+    summer.off = false;
+    const onWinter = at(sameHay, 11, 2);
     const taken = on.october.livestock!.summerSlaughtered ?? {};
     expect(SPECIES.reduce((sum, sp) => sum + (taken[sp] ?? 0), 0)).toBeGreaterThan(0);
     for (const sp of SPECIES) {
@@ -59,7 +71,7 @@ describe('letní porážka ve zlaté vsi', () => {
       const kept = (r: VillageState): number =>
         r.livestock!.herds[sp] - (r.livestock!.culling?.[sp] ?? 0);
       // stejně až na ztráty stáda a jiné jídlo a práci za léto (≈ 0,6 %; bez opravy ≈ 50 %)
-      expect(Math.abs(kept(on.winter) - kept(off.winter))).toBeLessThanOrEqual(
+      expect(Math.abs(kept(onWinter) - kept(off.winter))).toBeLessThanOrEqual(
         0.02 * kept(off.winter),
       );
     }

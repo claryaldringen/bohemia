@@ -76,10 +76,14 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   sníh (`snowLies` – `snow.ts`, týž výpočet jako scéna, zima roku z `weatherOf`), voda 0 – vozy pro
   vodu nejedou. Minimum domácnosti podle období počítá `householdMinimum` (dvorec – `manorLabor`
   s `chores`, dílny – `workshopLabor`). Plán: okna setí letní skladba (`SUMMER_CHORES`), žně
-  `HARVEST_CHORES` (`freeLabor` s `chores`), čelo práce dnešní. **Délka dne**
+  `HARVEST_CHORES` (`freeLabor` s `chores`), čelo práce dnešní. `freeLabor` bere lidi `planVillagers`
+  (`morning-water.ts` – bez trvale nepřítomných `isAway`, mistrů huti a kněze `isLodgeIdle`, lidí na
+  cestě pro kování `ironTravellers`; D102 kolo 2) – tytéž jako `villagersToday`, které k nim přidá
+  denní vyřazení (dílny, rodina, lov, požár). **Délka dne**
   (`daylight.ts` – `daylightFactor`, `DAYLIGHT_WORK`; lineárně mezi polovinami měsíců):
   `allocateDay` – `daylight` násobí `left` po kování, výpravách a vozech pro kováře a zásobníky
-  `light`, `harvestHands`, `weedChildren`, `lordHelp` a práci žen při pletí; `work()` násobí
+  `light`, `harvestHands`, `weedChildren`, `lordHelp`, `lordSowing` (strop `lordFree`) a práci žen při pletí
+  (kdo z rodiny byl na poli, převede zpět na lidi na celý den `lordFieldSharesToday`); `work()` násobí
   kapacitu spřežení (`teamsCap`) a robotu hostů. Plán: `sowingCapacity` a `ploughPairsForRotation`
   světlými dny oken (`windowDaylightLeft` / `windowDaylightWithout` v sowing.ts), čelo práce
   (`workFront`), ruce pro výmlat (`harvestLaborPerDay`) a tempo setí (`sowingHaPerDay`) dnešní
@@ -87,8 +91,8 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   a roční odhady správce (`sacredLaborGainPerYear`, `raidLossManDays`). Rozdělení práce pro
   postavy (`laborDay`, `DayWork.daylight`) dělí venkovní podíly délkou dne – podíly jsou lidé, ne
   práce (domácnost, koně, dílny, výpravy a vozy pro kováře beze změny). Před prací dne (`simulate.ts`): 1. 9. `startSeason`, každý den `seasonDay` (konce oken
-  setí, nutné díly podle potřeby úrody – fields.md, Osevní postup po dílech) a `lordHelpDay`
-  (podíl dne rodiny na nutné práci) a 1. 5. `wildlifeYearDay` (roční přepočet zvěře; hned za ním `weatherDay` – kronika počasí kraje v den odhalení, `village-disasters.md` –, `dogsYear` smečka dvorce a `planHuntDay` ranní plán lovu, W4), 1. 6. `damageWindowStart` (ohrožené díly polí pro zvěř – wildlife.md, Škody); po `lordHelpDay` `settlePatrol` (jezdecká hlídka polí, W6), po práci dne `wildlifeDamageDay` (škoda zvěře a vran na nesklizených dílech, před jídlem) dále v závěru dne `huntDay` (úlovek velkého lovu), `patrolHuntDay` (úlovek z hlídky), a po sklizni jaře `wildlifeSeasonEnd` (kronika, vynulování ztrát dílů – podrobnosti `village-wildlife.md`); potřebné sezónní úlohy jsou práce nutných dílů – plodiny
+  setí, díly na řadě a čelo práce – fields.md, Osevní postup po dílech) a `lordHelpDay`
+  (podíly dne rodiny ve žních `lordHelp` a s přípravou půdy a setím `lordSowing` – D102) a 1. 5. `wildlifeYearDay` (roční přepočet zvěře; hned za ním `weatherDay` – kronika počasí kraje v den odhalení, `village-disasters.md` –, `dogsYear` smečka dvorce a `planHuntDay` ranní plán lovu, W4), 1. 6. `damageWindowStart` (ohrožené díly polí pro zvěř – wildlife.md, Škody); po `lordHelpDay` `settlePatrol` (jezdecká hlídka polí, W6), po práci dne `wildlifeDamageDay` (škoda zvěře a vran na nesklizených dílech, před jídlem) dále v závěru dne `huntDay` (úlovek velkého lovu), `patrolHuntDay` (úlovek z hlídky), a po sklizni jaře `wildlifeSeasonEnd` (kronika, vynulování ztrát dílů – podrobnosti `village-wildlife.md`); potřebné sezónní úlohy jsou práce nutných dílů – plodiny
   hospodářského roku (`fieldTasks` – všechny díly jedna fronta, díly nad potřebu zrušené 9. 11. 2026). `allocateDay`: denní minimum → péče o koně (`horseCare` – `horseCareLabor`, horses.md – Péče; pokrytí v `state.horsesCaredToday`) → výpravy (`away`) → potřebné sezónní úlohy v pořadí `dayTaskOrder` – **pevné pořadí skupin** `DAY_WORK_ORDER` (rules-fields.ts; `dayWorkGroup` v simulate-work.ts; fields.md – Pořadí důležitosti polních prací a výmlat do zimy, Martin 9. 11. 2026): výmlat na dnešní jídlo → žeň a odnos obilí (i luštěnin) → trhání lnu (ženy a děti napřed před všemi úlohami – `womenFirst`, Martin 10. 11. 2026) → nutná 1. seč (`mow`) → nutná otava (`mow` s `DayTask.aftermath` – skupina `'aftermath'` podle `mowingCut` plánu seče; Martin 10. 11. 2026: před orbou a setím ozimu, dřív ~~až po nich~~) → porážka a uzení (`slaughter` – od 18. 11. 2026 za žní a sečí, porážka celý rok; maso je k jídlu hned, práce jen spotřebuje ruce; v zimě se nežne ani neseče, tam hned za výmlatem na jídlo; dřív ~~hned za výmlatem na jídlo~~) → sklizeň jablek → pletí → výmlat na osivo (`ThreshTask.seed`, `seedThreshKg` v seed.ts) → příprava půdy a setí (vrácení přílohu, kopání, orba, setí – **orba rádlem první** uvnitř skupiny, oxen.md – Orba má přednost) → péče o sad → noční hlídka polí (`'watch'`, wildlife.md – Noční hlídka vesničanů) → výmlat → obilné jámy → dospělý pasák; uvnitř skupiny nejbližší konec okna, `tie` a `rank` (žeň a výmlat napřed ze žňových rukou – `harvestHands`, `lordHelp`, fields.md – Žně všemi rukama) → `common` (volná práce
   v liště, `commonLaborHistory`) do staveb (`build`) – **stavby jen z dílu mužů** (population.md –
   Práce, Stavby staví muži; Martin 14. 11. 2026: „D24 ano“): `allocateDay` vrací
@@ -125,9 +129,9 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `weedingChildren` v harvest-hands.ts, `WEEDING_CHILDREN` 0,5 čd; fields.md – Pletí – děti) →
   **`light`** (ženy řemeslníků, jen lehké úlohy) → u pletí **ženy vsi** (`womenLabor` – práce žen nad
   jejich díl denního minima `WEEDING_WOMEN.dailyMinShare`; pletí je bere napřed, i před úlohami
-  dřív v pořadí) → **`lordField`**
-  (vojvodova rodina na poli při hladu, jen úlohy dne, nikdy stavby; co nevyužije, propadne) →
-  obecná kapacita. **Pletí mužů až za ostatními úlohami dne** (fields.md – Pletí jednou a rychle):
+  dřív v pořadí) → obecná kapacita → **`lordField`** (vojvodova rodina až po práci vsi: žeň
+  a výmlat ze `lordHelp`, vracení, kopání, orba a setí ze `lordSowing` – D102, dohromady nejvýš
+  `lordFree`, v zimě výmlat do tempa okna ze zbytku; nikdy stavby; co nevyužije, propadne). **Pletí mužů až za ostatními úlohami dne** (fields.md – Pletí jednou a rychle):
   co děti a ženy nedoplejí, dostane obecnou kapacitu až po všech ostatních úlohách dne včetně
   nutné seče, a jen díl, který by děti a ženy dnešním skutečným tempem × `paceShare` do konce okna bez
   posledních `spareDays` dní nestihly (`weedDaysLeft`, `WEEDING_WOMEN`) – jen
@@ -188,12 +192,27 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   skupiny `starvationDays` – `groupStarvation` to čte jako výchozí hodnotu, takže položka ve
   `VILLAGE_MIGRATIONS` netřeba; člověk, který přejde do jiné skupiny – sňatek, stěhování, smrt
   řemeslníka –, má od té chvíle hlad své nové skupiny, hlad se vede po skupinách, ne po lidech).
-  `rationShares` při poměru ≥ 1 vrací samé jedničky (sytá ves bit po bitu jako dřív).
+  `rationShares` při poměru ≥ 1 vrací samé jedničky (sytá ves bit po bitu jako dřív). Obrácené
+  `villageRationFor(podíl, potřeby)` – nejmenší příděl vsi, při kterém nejnižší skupina s potřebou
+  (`lowestFedGroup`; bez zbytku vsi nejbližší vyšší) dostane `podíl`: do minima `podíl`, nad ním
+  (potřeba vyšších + `podíl` × potřeba nejnižší) ÷ potřeba vsi, nejvýš 1 – přežívací zásoba
+  `seedKeepKg` (village-fields.md, od 18. 11. 2026).
   **Strava po vrstvách** (diet.md – Strava po vrstvách a porážka celý rok, 18. 11. 2026):
   `eatDiet` (`core/diet.ts`) sní den bez stropů – `dietPlan` spočítá výhled `aheadEnergy` (jídlo
   mimo obilí a med do sklizně), pevný příděl medu a tempo proti zkažení (`fruitPace` = ovoce ÷
-  dny do zkažení, `meatPace` = maso čerstvé i uzené ÷ dny do konce masa, `spoilPace` i s vejci) –
-  to se sní napřed i v hojnosti, šetří se jen obilí a v hladu med. `tierMeal` (`core/tier-meal.ts`)
+  dny do zkažení, `meatPace` = maso čerstvé i ostatní uzené ÷ dny do konce masa, `spoilPace` i s
+  vejci) – to se sní napřed i v hojnosti, šetří se jen obilí a v hladu med. **Dvě zásoby
+  uzeného** (D98 kolo 1, 18. 11. 2026 – Martin: „Uzené rozlož“ na otázku po uzeném z listopadové
+  porážky): `VillageState.meatKg` je uzené celé, `slaughterMeatKg` jeho část ze zásoby z porážky
+  z 1. 11. (`slaughter` přičte kusy pod nůž hned); `core/meat-stocks.ts` – `villageSlaughterMeatKg`
+  (nejvýš celé uzené), `takeVillageMeatKg` (oheň, prodej, kořist, odchod, `appoint-lord` – součet
+  přesně, zásoba z 1. 11. poměrně). V jídle ostatní uzené hned za čerstvým, díl zásoby z 1. 11.
+  (`slaughterShare` = zásoba po dnešní ztrátě ÷ dny do konce masa, poslední den zbytek) až po
+  mléku, vejcích, čerstvém a ostatním uzeném – do plné potřeby (i nad příděl), co se nevejde,
+  zůstane; jen co by se jinak zkazilo (`slaughterMust` = zásoba − potřeba × (dny do konce masa
+  − 1), nejvýš potřeba – D98 kolo 2), se sní v tempu proti zkažení před mlékem; výhled ji počítá `min(díl, potřeba) × keptDays(min(dny, dny do konce masa))` (Σ
+  `DAILY_MEAT_KEEP`^j – i se ztrátou uzením), ostatní uzené celé, nejvýš potřeba za dny do konce
+  masa. Starší ves převede `smoked-meat-stocks` (níž). `tierMeal` (`core/tier-meal.ts`)
   rozdělí snědené vsi mezi vrstvy: `rationShares` dá příděl (75 % všem, zbytek po vrstvách), pak
   úrovně `LEVELS` – ovoce a pevný příděl medu všem stejně (`evenTakes`), ostatní po vrstvách
   (`levelTakes`) v pořadí čerstvé maso, uzené, mléko, vejce, sýr, luštěniny, obilí, med navíc –
@@ -222,7 +241,8 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   výhled do sklizně (`grainKeepPerDay`, `legumeKeepPerDay`, `DAILY_MEAT_KEEP`,
   `DAILY_CHEESE_KEEP`), maso do zkažení (`daysUntilMeatSpoil`), jablka do shnití
   (`daysUntilAppleRot`); ves jí v pořadí jídla bez stropů (diet.md – Strava po vrstvách a porážka
-  celý rok, 18. 11. 2026) – uzené maso a sýr, ovoce, luštěniny, pak obilí a nakonec med (jídlo
+  celý rok, 18. 11. 2026) – ostatní uzené maso hned, zásoba z porážky 1. 11.
+  (`villageSlaughterMeatKg`) jen svým dílem (zásoba ÷ dny do konce masa – `daysUntilMeatEnd`, po 31. 10. přepočet; D98), sýr, ovoce, luštěniny, pak obilí a nakonec med (jídlo
   jako obilí – Med v hladu). Počítá se do prvního
   dne bez plného přídělu (tolerance `SATIATION_EPSILON`), nejvýš do konce světa; nikdo nejí →
   null. `VillageSummary.foodLastsDays` → `VillageView.foodLastsDays` (chybí místo null) → řádek
@@ -242,7 +262,8 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `sacred.ts`; body za úmrtí `deathPointsFor` = max(0,5; 5 − 0,06 × věk), věk nese událost kroniky `death.age`, bez něj dítě 5 / jinak 3): štěstí 0–100 (`VillageState.happiness` – hodnota, úmrtí posledního roku, dny dřiny
   posledních 60 dní; chybí = 50) se den po dni posouvá o denní podíl k cíli
   (`happinessTarget` z `happinessFactors`: hlad, úmrtí, přeplněnost, dřina `isToilDay` – ves by
-  běžící polní práce dnešním tempem nedodělala do konce oken –, zásoby, posvátná místa) – krok
+  běžící polní práce dnešním tempem nedodělala do konce oken; tempo v `toilToday` = dnešní polní
+  práce, výmlat i seč a otava `mowLabor` (od 19. 11. 2026 – D99 kolo 2) –, zásoby, posvátná místa) – krok
   `updateHappiness` na konci dne. Násobí veškerou práci: `allocateDay` má jediný háček
   `productivity` (`villageLaborFactor`, 0,8–1,1; násobí se i kapacita v `sowingCapacity`).
   **Posvátné duby a háje** jsou čistá funkce vrstvy překážek – `sacredSitesOf(layer)` (mezipaměť
@@ -1031,6 +1052,7 @@ založení (`foundVillage` / `foundedState`), převod ji doplní jen starším v
 | `quarry-area` – `withQuarriesBesideRocks`      | starý lom z výchozu na plochu u skal (mutuje – na kopii)   | ano (značka)       | krajina, překážky        | ne                           | oba     |
 | `people-names` – `withPeopleNames`             | jména lidem bez jména (muž rodu bez jména čeká na hráče)   | ano (při každém)   | –                        | ne (`foundVillage`)          | oba     |
 | `sheaf-work-by-kg` – `convertSheafWorkByKg`    | práce uložených snopů podle kg (D95)                       | ano (`byKg`)       | –                        | ne (sklizeň `byKg`)          | oba     |
+| `smoked-meat-stocks` – `smokedMeatStocks`      | uzené 1. 11.–31. 8. do zásoby z porážky 1. 11. (D98)       | ano (vždy číslo)   | –                        | ne (`foundVillage` – 0)      | oba     |
 
 „Zakládá novou ves“ = jedná na právě založené vsi; v závorce, kde tu část nová ves dostane při
 založení. „Při každém“ = bez příznaku, hlídá podmínku při každém průchodu (levné).

@@ -7,6 +7,7 @@ import { foundVillage, type PartInput } from '../../core/actions';
 import { advanceVillage } from '../../core/simulate';
 import type { VillageState } from '../../types';
 import { seasonCrop, springCrop } from '../../core/year-plan';
+import { sowingCapacity } from '../../core/simulate-plan';
 
 // Výhled osetých dílů pro panel dílu a pole (fields.md – Co hráč vidí, Očekávaná úroda a jestli
 // práce stačí; návrh Clauda): úroda stejným výpočtem jako sklizeň, práce proti volné práci vsi.
@@ -107,5 +108,29 @@ describe('stačí práce do konce okna', () => {
       warned++;
     }
     expect(warned).toBeGreaterThan(0);
+  });
+
+  it('kopání, které podzim nestihl, jde s jarním setím – jaro se nepočítá dvakrát (D102 kolo 1)', () => {
+    const s = advanceVillage(village(), at(601, 3, 25), null);
+    const spring = springCrop(s.season!);
+    const day = s.lastDay;
+    const coverage = craftCoverage(s, day);
+    expect(outlookOf(s).size).toBeGreaterThan(0);
+    for (const o of outlookOf(s).values()) expect(o.short).toEqual([]);
+    // kopání na celou práci března a dubna – setí samo by se do jara vešlo, s kopáním ne (dřív okno
+    // `autumn` neslo i jaro a jarní kapacita se odečetla podruhé – varování chybělo)
+    const cap = sowingCapacity(s, day, coverage, spring.plough !== undefined, null, undefined, {
+      lord: true,
+      beforeTillage: true,
+    });
+    spring.required.dig = spring.done.dig + cap.autumn;
+    const sowLeft = spring.required.sow - spring.done.sow;
+    expect(sowLeft).toBeGreaterThan(0);
+    expect(sowLeft).toBeLessThan(cap.spring);
+    const shorts = [...outlookOf(s).values()].flatMap((o) =>
+      o.short.filter((x) => x.endMonth === 4),
+    );
+    expect(shorts.length).toBeGreaterThan(0);
+    for (const short of shorts) expect(short.manDays).toBeGreaterThan(0);
   });
 });

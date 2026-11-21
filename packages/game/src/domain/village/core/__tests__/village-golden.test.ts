@@ -77,7 +77,25 @@ import { advanceChunked, goldenWorld, stateFingerprint, YEAR } from './village-g
 // 18. 11. 2026 – strava po vrstvách × D93–D96 (sloučení feat/landscape); dřív ffb78a93bb4e5d05
 // 18. 11. 2026 – opravy po závěrečné kontrole stravy (maso elitě před mlékem, ryby ve výhledu do
 // sklizně, porážka za žní a sečí, podíl pasáků i s letní porážkou); dřív be42183ebfc3b806
-const EXPECTED_YEAR_1 = '1a8f69a42f76bd25';
+// 18. 11. 2026 – D98 uzené rozložené do zkažení (Martin: „Uzené rozlož“ – díl uzeného do konce
+// masa, letní porážka podle dnešního dílu); dřív 1a8f69a42f76bd25
+// 18. 11. 2026 – D98 kolo 1 – rozložená jen zásoba z porážky 1. 11. (ostatní uzené hned, díl až po
+// čerstvém, výhled se ztrátou uzením); dřív 215559928a2709ce
+// 18. 11. 2026 – D99 cíl polí na maximum (Martin: „Cílem vesnice je prostě produkovat maximum
+// všeho.“ – steward.md, Cíl polí): správce staví pole na maximum, které ves oseje, bez ohledu na
+// stravu – za 20 let 27 polí místo 5, jiné zásoby, práce a lidé; dřív 8261eafa1a521bd2
+// 19. 11. 2026 – D99 kolo 1 – cíl polí podle osevu i žní (výhled `workableHa`: okna setí jednou,
+// orba i lidmi, žeň a výmlat po žni v oknech žní po otavě – steward.md, Cíl polí); za 20 let 26 polí;
+// dřív ddd66c16e931952d
+// 19. 11. 2026 – D99 kolo 2 – žeň v oknech žní před otavou a lnem, výmlat v zimním okně (cíl polí)
+// a dřina s dnešní sečí a otavou v tempu (happiness.md – Plná práce ve špičce, která se stihne,
+// dřinou není): jiné štěstí, práce a zásoby; dřív aa479aa7d2ce28f7
+// 19. 11. 2026 – D101 pás jen ze stejné skupiny (oxen.md – Díly po dávkách: pás orby při přibírání
+// jen z dílů stejné skupiny přílohové soustavy, místo na čele u každého dílu); dřív dca6b32e4c8f4cbe
+// 19. 11. 2026 – D102 kolo 1 – kdo z rodiny je na poli, se počítá v lidech na celý dnešní den
+// (lord.md – Kdy jde rodina na pole; dřív podle práce delšího dne – rodina ve zlaté vsi pomáhá jen
+// s výmlatem v zimě, podíl setí ani žní nedostane): jiný výcvik rodu; dřív 9564aeeb22d9ac4a
+const EXPECTED_YEAR_1 = 'ba7b005c3a4c561b';
 // 18. 11. 2026 – D93 cesta přes plochu staveb; dřív 82b12dd84c08dd63 (vyšlapaná cesta přes plochu
 // staveb nevznikne a napojení ji obejde – jiné cesty a id; roky chůze nejvýš doba vyšlapání)
 // 18. 11. 2026 – D95 výmlat (Martin: „A, C, E“ – výmlat podle kg snopů, rod v zimě dorovná tempo
@@ -90,7 +108,9 @@ describe('zlatý otisk vsi', () => {
     const s = world.start;
     // 18. 11. 2026 – strava po vrstvách, úloha 2: maso, ryby a mléko bez stropů – ves potřebuje
     // méně obilí a správce založil 4 pole; dřív aspoň 5
-    expect(s.fields.length).toBeGreaterThanOrEqual(4);
+    // 18. 11. 2026 – D99 cíl polí na maximum, které ves oseje (steward.md – Cíl polí): 27 polí;
+    // dřív aspoň 4; 19. 11. 2026 – D99 kolo 1 (osev i žně): 26 polí
+    expect(s.fields.length).toBeGreaterThanOrEqual(20);
     expect(s.livestock?.herds).toBeDefined();
     expect(s.crafts).toBeDefined();
     expect(s.people.length).toBeGreaterThanOrEqual(10);

@@ -1,6 +1,7 @@
 import { createRandom, deriveSeed } from '../landscape/random';
 import { bury } from '../village/buildings/cemetery';
 import { drawGrainPits } from '../village/fields/grain-pits';
+import { takeVillageMeatKg } from '../village/core/meat-stocks';
 import { currentLord } from '../village/people/dynasty';
 import { chroniclePerson, deathWho } from '../village/people/estate';
 import { removePeople } from '../village/people/kinship';
@@ -420,7 +421,8 @@ function takeLoot(state: VillageState, want: RaidLoot, pitsFound: readonly numbe
   taken.legumesKg = Math.min(Math.max(0, want.legumesKg), state.legumesKg ?? 0);
   if (taken.legumesKg > 0) state.legumesKg = (state.legumesKg ?? 0) - taken.legumesKg;
   taken.meatKg = Math.min(Math.max(0, want.meatKg), state.meatKg ?? 0);
-  if (taken.meatKg > 0) state.meatKg = (state.meatKg ?? 0) - taken.meatKg;
+  // i zásobě z porážky 1. 11. poměrně (součet uzeného zůstává přesný)
+  if (taken.meatKg > 0) takeVillageMeatKg(state, taken.meatKg);
   taken.cheeseKg = Math.min(Math.max(0, want.cheeseKg), state.cheeseKg ?? 0);
   if (taken.cheeseKg > 0) state.cheeseKg = (state.cheeseKg ?? 0) - taken.cheeseKg;
   const herds = state.livestock;

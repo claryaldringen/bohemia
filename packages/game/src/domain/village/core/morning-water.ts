@@ -17,6 +17,21 @@ const EPS = 1e-9;
 const MONTHS = 12;
 
 /**
+ * Lidé, kteří se vsí pracují trvale (D102 kolo 2, návrh Clauda): bez trvale nepřítomných (`isAway` –
+ * tažení, robota, služba, zajetí), mistrů huti a kněze mezi stavbami (`isLodgeIdle`) a lidí na
+ * cestě pro kování (`ironTravellers`). Denní nepřítomnosti (lov, požár, nájezd) tu nejsou – plán
+ * je nezná. Jedno místo pro den (`villagersToday`) i plán kapacity (`freeLabor`); bez nich vrací
+ * týž seznam.
+ */
+export function planVillagers(state: VillageState, day: number): readonly Person[] {
+  const travelling = ironTravellers(state);
+  if (travelling.size === 0 && !state.people.some((p) => isLodgeIdle(p) || isAway(p, day))) {
+    return state.people;
+  }
+  return state.people.filter((p) => !isAway(p, day) && !isLodgeIdle(p) && !travelling.has(p.id));
+}
+
+/**
  * Lidé, kteří dnes pracují se vsí, a domácnosti dvorce a vedlejších manželek vojvody, jejichž
  * minimum kryje cvičící rodina (lord.md – Den rodiny, Rod vojvody – Manželky; `familyHomes`) –
  * jedno místo pravdy pro práci dne (`work`) i scénu (komu vůz přivezl vodu): bez domácností dílen, které dnes pracují v dílně (`crafts` – id obydlí), bez lidí na cestě pro kování
@@ -27,7 +42,6 @@ export function villagersToday(
   day: number,
   crafts: ReadonlySet<number>,
 ): { villagers: readonly Person[]; manorSkip: ReadonlySet<number> } {
-  const travelling = ironTravellers(state);
   const apart = lordApartIds(state, day);
   const family = trainingFamily(state, day);
   // pěší lovci dne (wildlife.md – Lov rodu) dnes ve vsi nepracují
@@ -36,27 +50,19 @@ export function villagersToday(
   const fighting = fireFighting(state, day);
   // v den nájezdu se lidé skrývají – nikdo ve vsi nepracuje (war.md – Ves během nájezdu nepracuje)
   if (raidHiding(state, day)) return { villagers: [], manorSkip: familyHomes(family) };
-  // mistři huti a kněz se vsí nepracují (stone-masonry.md – Mezi stavbami čekají)
-  const lodgeIdle = state.people.some(isLodgeIdle);
+  // trvale nepřítomní, mistři huti a kněz (stone-masonry.md – Mezi stavbami čekají) a lidé na cestě
+  // pro kování se vsí nepracují – tytéž lidi bere plán (`planVillagers`)
+  const base = planVillagers(state, day);
   const villagers =
-    crafts.size > 0 ||
-    travelling.size > 0 ||
-    apart.size > 0 ||
-    hunting.size > 0 ||
-    fighting ||
-    lodgeIdle ||
-    state.people.some((p) => isAway(p, day))
-      ? state.people.filter(
+    crafts.size > 0 || apart.size > 0 || hunting.size > 0 || fighting
+      ? base.filter(
           (p) =>
-            !isAway(p, day) &&
-            !isLodgeIdle(p) &&
             !crafts.has(p.dwellingId) &&
-            !travelling.has(p.id) &&
             !apart.has(p.id) &&
             !hunting.has(p.id) &&
             !(fighting && isAdult(p, day)),
         )
-      : state.people;
+      : base;
   return { villagers, manorSkip: familyHomes(family) };
 }
 

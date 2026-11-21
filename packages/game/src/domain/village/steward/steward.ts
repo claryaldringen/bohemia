@@ -14,14 +14,13 @@ import {
 import { HORSE_PEN_NO_SURPLUS } from '../livestock/horse-pen-payment';
 import { buildAffordability } from '../buildings/costs';
 import { craftCoverage } from '../crafts/crafts';
-import { averageRotationShare, fieldCapacity, netYieldPerHa } from '../fields/field-capacity';
 import {
-  bufferFill,
-  bufferKg,
-  fieldFoodShare,
-  steadyHarvestKg,
-  yearlyFoodNeed,
-} from '../fields/field-food';
+  averageRotationShare,
+  fieldCapacity,
+  harvestPerPersonKg,
+  netYieldPerHa,
+} from '../fields/field-capacity';
+import { bufferFill, bufferKg, steadyHarvestKg, yearlyFoodNeed } from '../fields/field-food';
 import { expectedYearlyFoodNeed } from '../fields/food-outlook';
 import { waitingHouseholds } from '../people/households';
 import { flushWear } from '../paths/wear';
@@ -206,23 +205,26 @@ export function laborBudget(state: VillageState): LaborBudget {
   return { freePerDay, remaining, left: freePerDay * STEWARD.laborHorizonDays - remaining };
 }
 
-/** Cíl polí v lidech: kolik lidí mají pole uživit a kolik uživí (i se zakládanými díly). */
+/**
+ * Cíl polí v lidech „Pole uživí“ při dnešní stravě: kolik lidí uživí pole, která ves oseje
+ * (`need`), a kolik uživí dnešní pole (`have`, i se zakládanými díly).
+ */
 export interface FieldTarget {
   need: number;
   have: number;
 }
 
 /**
- * Cíl polí (steward.md – Cíl polí): lidé za `STEWARD.fieldLeadYears` podle výhledu potřeby
- * (`expectedYearlyFoodNeed`) × `STEWARD.fieldReserve` ÷ očekávaná úroda let s počasím
- * (`sowingYieldFactor` – ves s ní seje taky) a navíc lidé, jejichž úroda by za
- * `FIELD_STORES.balanceYears` doplnila chybějící pojistku zásob – ustálený oběh pojistku jen
- * udržuje, ves bez ní by si ji z polí nikdy nenaplnila a jedla by osivo. Proti „Pole uživí podle
- * dnešní půdy“ (`fieldCapacity` – už × podíl dnešní půdy `soil`). Zakládané díly se počítají, jako
- * by už byly v oběhu – jinak by správce zakládal pole, dokud se první nedostaví.
- * Model kapacity vsi (`stewardOutlook`): potřeba nejvýš lidé, které uživí osev podle práce
- * a osiva × `STEWARD.fieldReserve` – pole nad to by ves neosela, jen by zarůstala; doplnění
- * pojistky jen, když je úzkým hrdlem půda (steward.md – Model kapacity vsi).
+ * Cíl polí (steward.md – Cíl polí; Martin 18. 11. 2026: „Cílem vesnice je prostě produkovat
+ * maximum všeho.“): maximum, které ves obdělá – lidé, které uživí osev, který ves stihne osít
+ * i sklidit a na který má osivo (`stewardOutlook` – `workableHa`, `seedHa`; Model kapacity vsi,
+ * D99 kolo 1) × `STEWARD.fieldReserve`, bez ohledu na stravu: maso,
+ * mléko ani ovoce cíl nezmenší, přebytek obilí jde do zásob a na dávky. Pole nad to by ves
+ * neosela, jen by zarůstala. Proti „Pole uživí podle dnešní půdy“ (`fieldCapacity` – už × podíl
+ * dnešní půdy `soil`); obojí v lidech při dnešní stravě, takže strava se v poměru i v blocích polí
+ * (`peoplePerHa`) zkrátí. Zakládané díly se počítají, jako by už byly v oběhu – jinak by správce
+ * zakládal pole, dokud se první nedostaví. Ves bez pole v oběhu (`landHa` 0) nebo s osevem bez
+ * meze maximum nezná – opatrný cíl z potřeby (`cautiousFieldNeed`).
  */
 export function fieldTarget(
   state: VillageState,
@@ -230,8 +232,7 @@ export function fieldTarget(
   coverage: CraftCoverage,
   outlook: StewardOutlook = stewardOutlook(state, day, coverage),
 ): FieldTarget {
-  const people = state.people.length;
-  if (people === 0) return { need: 0, have: 0 };
+  if (state.people.length === 0) return { need: 0, have: 0 };
   const parts = state.parts.map((p) =>
     p.state === 'founding' ? { ...p, state: 'fallow' as const } : p,
   );
@@ -241,30 +242,46 @@ export function fieldTarget(
     coverage.pottery,
   );
   const have = capacity?.people ?? 0;
+  const sowable = Math.min(outlook.workableHa, outlook.seedHa);
+  if (outlook.landHa > 0 && Number.isFinite(sowable)) {
+    return {
+      need: ((outlook.landPeople * sowable) / outlook.landHa) * STEWARD.fieldReserve,
+      have,
+    };
+  }
+  return { need: cautiousFieldNeed(state, day, coverage, outlook), have };
+}
+
+/**
+ * Opatrný cíl polí (steward.md – Cíl polí, Ves bez pole; návrh Clauda 18. 11. 2026), když výhled
+ * maximum osevu neurčí – ves bez pole v oběhu nebo osev bez meze: dřívější výpočet z potřeby
+ * s plnou potřebou z pole (podíl 1 – strava cíl nezmenší): lidé za `STEWARD.fieldLeadYears` podle
+ * výhledu potřeby (`expectedYearlyFoodNeed`) × `STEWARD.fieldReserve` ÷ očekávaná úroda let
+ * s počasím (`sowingYieldFactor`) a doplnění chybějící pojistky zásob za
+ * `FIELD_STORES.balanceYears`, když je úzkým hrdlem půda. Úroda, kterou to chce, se převede na lidi
+ * „Pole uživí“ při dnešní stravě (`harvestPerPersonKg`) – v jednotkách `have` a `peoplePerHa`;
+ * ves jen s obilím má týž cíl jako dřív.
+ */
+function cautiousFieldNeed(
+  state: VillageState,
+  day: number,
+  coverage: CraftCoverage,
+  outlook: StewardOutlook,
+): number {
+  const people = state.people.length;
   const today = expectedYearlyFoodNeed(state, day, day, day);
-  if (today <= 0) return { need: 0, have };
+  const fed = harvestPerPersonKg(state, day, coverage.pottery);
+  if (today <= 0 || fed <= 0) return 0;
   const ahead = day + Math.round(STEWARD.fieldLeadYears * DAYS_PER_YEAR);
   const later = expectedYearlyFoodNeed(state, day, ahead, ahead);
   const grown = ((people * later) / today) * STEWARD.fieldReserve;
-  // úroda na člověka jako v „Pole uživí“ (potřeba z pole a udržení pojistky)
+  // úroda na člověka s celou potřebou z pole a s udržením pojistky (jako „Pole uživí“ s podílem 1)
   const foodNeed = yearlyFoodNeed(state, day) / people;
-  const perPerson = steadyHarvestKg(
-    fieldFoodShare(state) * foodNeed,
-    bufferKg(foodNeed),
-    coverage.pottery,
-  );
+  const full = steadyHarvestKg(foodNeed, bufferKg(foodNeed), coverage.pottery);
   const targets = fieldStoresOutlook(state, day, coverage);
   const missingKg = Math.max(0, targets.bufferKg - targets.leftKg);
-  const refill =
-    perPerson > 0 && outlook.bottleneck === 'land'
-      ? missingKg / FIELD_STORES.balanceYears / perPerson
-      : 0;
-  const sowable = Math.min(outlook.laborHa, outlook.seedHa);
-  const workable =
-    outlook.landHa > 0 && Number.isFinite(sowable)
-      ? ((outlook.landPeople * sowable) / outlook.landHa) * STEWARD.fieldReserve
-      : Infinity;
-  return { need: Math.min(grown / sowingYieldFactor(state) + refill, workable), have };
+  const refillKg = outlook.bottleneck === 'land' ? missingKg / FIELD_STORES.balanceYears : 0;
+  return ((grown / sowingYieldFactor(state)) * full + refillKg) / fed;
 }
 
 /** Kolik lidí uživí hektar pole přirozené úrodnosti `fertility` v ustáleném oběhu. */

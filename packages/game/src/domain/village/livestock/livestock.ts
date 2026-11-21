@@ -362,14 +362,19 @@ function yearlyEnergyNeed(state: Pick<VillageState, 'people'>, day: number): num
   return state.people.reduce((sum, p) => sum + FOOD_NEED_KG_PER_YEAR[ageGroup(p, day)], 0);
 }
 
-/** Nejvýš tolik luštěnin (kg) sní ves za rok – strop podílu energie (diet.md – Luštěniny). */
-function legumeCapPerYear(state: Pick<VillageState, 'people'>, day: number): number {
-  return (LEGUMES.energyCap * yearlyEnergyNeed(state, day)) / LEGUMES.energy;
+/**
+ * Nejvýš tolik luštěnin (kg) sní ves za rok – celou potřebu energie, víc nikdo nesní. Strop podílu
+ * 25 % je zrušený i v odhadech, jako v jídle (diet.md – Strava po vrstvách a porážka celý rok;
+ * Martin 18. 11. 2026: „Strop bych úplně zrušil, je to zbytečný výpočet navíc“).
+ */
+function legumeMostPerYear(state: Pick<VillageState, 'people'>, day: number): number {
+  return yearlyEnergyNeed(state, day) / LEGUMES.energy;
 }
 
 /**
  * Roční bilance bílkovin vsi se stády `herds` (bez údaje dnešní stáda). Luštěniny podle zásoby
- * (rovným dílem do příští sklizně, přepočteno na rok, nejvýš strop) – vsi bez luštěnin 0.
+ * (rovným dílem do příští sklizně, přepočteno na rok, nejvýš celá potřeba energie – bez stropu)
+ * – vsi bez luštěnin 0.
  */
 export function proteinBudget(
   state: ProteinVillage,
@@ -387,7 +392,7 @@ export function proteinBudget(
   }
   const legumeKg = Math.min(
     legumeSupplyPerYear(state, day, DAYS_PER_YEAR),
-    legumeCapPerYear(state, day),
+    legumeMostPerYear(state, day),
   );
   return {
     need,
@@ -415,7 +420,10 @@ export function meatNeedPerYear(
   return Math.max(0, b.need - b.grain - b.milk - b.eggs - b.legumes) / PROTEIN.perKg.meat;
 }
 
-/** Přidá maso z porážky do uzení a práci na porážce a uzení (mutuje stav). */
+/**
+ * Přidá maso z porážky do uzení a práci na porážce a uzení (mutuje stav) – do ostatního uzeného,
+ * které se jí hned (zásobu z porážky 1. 11. přičte `slaughter`).
+ */
 export function butcher(state: VillageState, kg: number): void {
   if (kg <= 0) return;
   state.meatKg = (state.meatKg ?? 0) + kg;
@@ -1110,7 +1118,7 @@ export function sizeHerdsToNeed(
   const grainProtein = PROTEIN.perKg.grain;
   const stockLegumes = Math.min(
     legumeSupplyPerYear(state, day, DAYS_PER_YEAR),
-    legumeCapPerYear(state, day),
+    legumeMostPerYear(state, day),
   );
   let protein =
     energyNeed * grainProtein +
@@ -1248,8 +1256,8 @@ export function hayShortSlaughter(
  * rozšíří). Chovný pár, krávy na mléko a voly (`minCows`) a ovce na vlnu
  * (`minSheep`) zůstanou. Kusy na maso ves neporáží najednou: kolik přes zimu sní čerstvého, počká
  * a porazí se po dnech (`winterWait`, `winterSlaughterDay` – `LivestockState.culling`), zbytek se
- * porazí hned a maso se udí. Vrátí událost kroniky (kg masa celkem, `fresh` – z toho přes zimu),
- * nebo null.
+ * porazí hned a maso se udí – zásoba z porážky 1. 11. (`slaughterMeatKg`, jí se rovným dílem do
+ * konce masa). Vrátí událost kroniky (kg masa celkem, `fresh` – z toho přes zimu), nebo null.
  */
 export function slaughter(
   state: VillageState,
@@ -1322,6 +1330,9 @@ export function slaughter(
   livestock.slaughterWork = pending > EPSILON ? { required: pending, done: 0 } : null;
   if (meat <= EPSILON) return null;
   butcher(state, smoked);
+  // kusy pod nůž hned jsou zásoba z porážky 1. 11. – jí se rovným dílem do konce masa (diet.md –
+  // Pořadí jídla; Martin 18. 11. 2026: „Uzené rozlož“), ostatní uzené hned
+  state.slaughterMeatKg = (state.slaughterMeatKg ?? 0) + smoked;
   return {
     day,
     kind: 'slaughter',

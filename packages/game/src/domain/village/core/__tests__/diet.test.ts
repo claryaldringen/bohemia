@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../../calendar';
 import { foundVillage } from '../actions';
 import { DAIRY, daysUntilMilking } from '../../livestock/dairy';
+import { butcher } from '../../livestock/livestock';
 import { legumeEnergy } from '../../fields/legumes';
 import {
   DAILY_CHEESE_KEEP,
@@ -19,6 +20,7 @@ import {
   legumeKeepPerDay,
   meatEnergy,
   spoilMeat,
+  villageFoodNeed,
   villageHoneyRationKg,
   type DietInput,
   type Eaten,
@@ -397,6 +399,158 @@ function eatenShare(keep: number, from: number, count: number): number {
   return count / stored;
 }
 
+/** Kolik dílů zásoby z porážky 1. 11. se sní za `n` dní, když díl ubývá uzením (Σ keep^j). */
+const meatKeptDays = (n: number): number => {
+  let sum = 0;
+  for (let j = 0; j < n; j++) sum += DAILY_MEAT_KEEP ** j;
+  return sum;
+};
+
+describe('dvě zásoby uzeného – z porážky 1. 11. rovným dílem, ostatní hned (diet.md – Pořadí jídla; Martin 18. 11. 2026: „Uzené rozlož“)', () => {
+  it('zásoba z 1. 11. rovným dílem do zkažení – 304 kg ≈ 1 kg denně, 31. 8. nic nezbude', () => {
+    const start = at(601, 11, 1);
+    const end = at(602, 9, 1);
+    expect(daysUntilMeatEnd(start)).toBe(304);
+    let meatKg = 304;
+    const eaten: number[] = [];
+    for (let day = start; day < end; day++) {
+      const meal = eatDiet(
+        input({
+          meatKg,
+          slaughterMeatKg: meatKg,
+          daysToHarvest: 400,
+          daysToMeatEnd: daysUntilMeatEnd(day),
+        }),
+      );
+      eaten.push(meal.eaten.meatKg);
+      expect(meal.slaughterMeatKg).toBeCloseTo(meal.meatKg, 9);
+      meatKg = meal.meatKg;
+    }
+    expect(eaten[0]).toBeCloseTo((304 * DAILY_MEAT_KEEP) / 304, 9);
+    expect(eaten[0]).toBeCloseTo(1, 2);
+    // díl jen pomalu ubývá uzením (20 % ročně) – nic se nejí napřed ani nešetří na konec
+    expect(Math.min(...eaten)).toBeGreaterThan(0.8);
+    expect(Math.max(...eaten)).toBeLessThan(1);
+    // 31. 8. se sní zbytek – 1. 9. ráno se nic nezkazí
+    expect(meatKg).toBe(0);
+    expect(spoilMeat({ meatKg, slaughterMeatKg: 0 } as VillageState, end)).toBeNull();
+  });
+
+  it('ostatní uzené (zbytky kusu, lov) se jí hned za čerstvým, díl zásoby z 1. 11. až po něm', () => {
+    // ostatní uzené na 3 kg obilí energie, zásoba z 1. 11. 100 kg na 100 dní do konce masa
+    const otherKg = 3 / DIET.meatEnergy / DAILY_MEAT_KEEP;
+    const meal = eatDiet(input({ meatKg: otherKg + 100, slaughterMeatKg: 100 }));
+    const share = meatEnergy(100 * DAILY_MEAT_KEEP) / 100;
+    expect(meatEnergy(meal.eaten.meatKg)).toBeCloseTo(3 + share, 9);
+    expect(meal.eaten.grainKg).toBeCloseTo(NEED - 3 - share, 9);
+    // ostatní uzené se snědlo celé, ze zásoby z 1. 11. jen díl
+    expect(meal.slaughterMeatKg).toBeCloseTo(100 * DAILY_MEAT_KEEP - share / DIET.meatEnergy, 9);
+    expect(meal.meatKg).toBeCloseTo(meal.slaughterMeatKg, 9);
+  });
+
+  it('díl až po mléku, vejcích a čerstvém – co se do potřeby nevejde, zůstane a díl se přepočte', () => {
+    // mléko a čerstvé maso pokryjí celou potřebu – díl zásoby z 1. 11. dnes nevyjde (mléko se
+    // nevytlačí na sýr)
+    const milkL = (0.6 * NEED) / DAIRY.energyPerL.cow;
+    const freshMeatKg = (0.4 * NEED) / DIET.meatEnergy;
+    const today = eatDiet(
+      input({
+        ...cowMilk(milkL),
+        freshMeatKg,
+        meatKg: 100,
+        slaughterMeatKg: 100,
+        daysToMeatEnd: 50,
+      }),
+    );
+    expect(today.eaten.milkL).toBeCloseTo(milkL, 9);
+    expect(meatEnergy(today.eaten.freshMeatKg ?? 0)).toBeCloseTo(0.4 * NEED, 9);
+    expect(today.eaten.meatKg).toBeCloseTo(freshMeatKg, 9);
+    expect(today.cheeseMadeKg).toBe(0);
+    expect(today.slaughterMeatKg).toBeCloseTo(100 * DAILY_MEAT_KEEP, 9);
+    // druhý den bez mléka – díl je zbytek zásoby ÷ zbývající dny (větší než včera)
+    const next = eatDiet(
+      input({ meatKg: today.meatKg, slaughterMeatKg: today.slaughterMeatKg, daysToMeatEnd: 49 }),
+    );
+    const share = meatEnergy(today.slaughterMeatKg * DAILY_MEAT_KEEP) / 49;
+    expect(meatEnergy(next.eaten.meatKg)).toBeCloseTo(share, 9);
+    expect(share).toBeGreaterThan(meatEnergy(100 * DAILY_MEAT_KEEP) / 50);
+  });
+
+  it('zásoba nad plnou potřebu do konce masa se jí napřed, před mlékem – 1. 9. jen nevyhnutelný zbytek (D98 kolo 2)', () => {
+    // mléko na půl potřeby každý den, zásoba z 1. 11. na dvojnásobek plné potřeby do 31. 8.
+    // (Martin 18. 11. 2026: „ať klidně všichni jedí jenom maso, pokud se tím zabrání jeho zkažení“)
+    const start = at(601, 11, 1);
+    const end = at(602, 9, 1);
+    const milkL = (0.5 * NEED) / DAIRY.energyPerL.cow;
+    let kg = (2 * NEED * (end - start)) / DIET.meatEnergy;
+    // nejmenší možný zbytek – každý den plná potřeba ze zásoby
+    let least = kg;
+    for (let day = start; day < end; day++) {
+      least = Math.max(0, least * DAILY_MEAT_KEEP - NEED / DIET.meatEnergy);
+    }
+    let milkDrunkL = 0;
+    for (let day = start; day < end; day++) {
+      const meal = eatDiet(
+        input({
+          ...cowMilk(milkL),
+          meatKg: kg,
+          slaughterMeatKg: kg,
+          daysToHarvest: 400,
+          daysToMeatEnd: daysUntilMeatEnd(day),
+        }),
+      );
+      milkDrunkL += meal.eaten.milkL;
+      kg = meal.meatKg;
+    }
+    expect(kg).toBeCloseTo(least, 6);
+    expect(least).toBeGreaterThan(0);
+    // maso napřed – mléko jde na sýr, dokud by se maso jinak zkazilo
+    expect(milkDrunkL).toBe(0);
+  });
+
+  it('nutně dnes před mlékem jen co by se jinak zkazilo – zbytek dílu až po mléku', () => {
+    // 10 dní do konce masa, zásoba na 9,3 dne plné potřeby – nutně dnes 0,3 potřeby (9,3 − 9)
+    const kg = (9.3 * NEED) / DIET.meatEnergy / DAILY_MEAT_KEEP;
+    const milkL = (0.5 * NEED) / DAIRY.energyPerL.cow;
+    const meal = eatDiet(
+      input({ ...cowMilk(milkL), meatKg: kg, slaughterMeatKg: kg, daysToMeatEnd: 10 }),
+    );
+    // nutně 0,3, mléko celé (0,5), zbytek dílu (0,93 − 0,3) jen do zbytku potřeby (0,2)
+    expect(meal.eaten.milkL).toBeCloseTo(milkL, 9);
+    expect(meatEnergy(meal.eaten.meatKg)).toBeCloseTo(0.5 * NEED, 9);
+    expect(meal.eaten.grainKg).toBeCloseTo(0, 9);
+    expect(meal.cheeseMadeKg).toBe(0);
+  });
+
+  it('v hladu díl i nad dnešní příděl, víc ne – výhled počítá díl se ztrátou uzením do sklizně', () => {
+    // obilí na ≈ 30 % potřeby do sklizně, zásoba z 1. 11. 1 000 kg do konce masa za 200 dní
+    const grainKg = 0.3 * NEED * 100;
+    const slaughterMeatKg = 1000;
+    const meal = eatDiet(
+      input({ grainKg, meatKg: 1000, slaughterMeatKg, daysToHarvest: 100, daysToMeatEnd: 200 }),
+    );
+    const share = meatEnergy(slaughterMeatKg * DAILY_MEAT_KEEP) / 200;
+    const grain = grainKg * KEEP * eatenShare(KEEP, 0, 100);
+    expect(meal.outlook).toBeCloseTo((share * meatKeptDays(100) + grain) / (NEED * 100), 9);
+    expect(meatEnergy(meal.eaten.meatKg)).toBeCloseTo(share, 9);
+    expect(meal.eaten.grainKg).toBeCloseTo(meal.outlook * NEED - share, 9);
+    // díl větší než dnešní příděl – sní se celý (jinak by se zkazil), obilí dnes nic
+    const big = eatDiet(
+      input({
+        grainKg: 0,
+        meatKg: 3000,
+        slaughterMeatKg: 3000,
+        daysToHarvest: 100,
+        daysToMeatEnd: 200,
+      }),
+    );
+    const bigShare = meatEnergy(3000 * DAILY_MEAT_KEEP) / 200;
+    expect(big.outlook * NEED).toBeLessThan(bigShare);
+    expect(meatEnergy(big.eaten.meatKg)).toBeCloseTo(bigShare, 9);
+    expect(big.diet.energy * NEED).toBeCloseTo(bigShare, 9);
+  });
+});
+
 describe('výhled zná ztráty obilí skladováním do žní (fields.md – Přídělový systém; Martin 15. 11. 2026)', () => {
   const DAYS = 300;
   /** Ves se stálou potřebou a bez příjmu jídla jí den po dni do žní – výhledy dní a zbylé obilí. */
@@ -489,6 +643,12 @@ describe('výhled zná ztráty obilí skladováním do žní (fields.md – Př�
         honeyKg: 3,
         honeyRationKg: 0.05,
       },
+      // zásoba z porážky 1. 11. do konce masa dál než do sklizně – výhled ji počítá dílem se
+      // ztrátou uzením, ostatní uzené celé (D98)
+      { meatKg: 2400, slaughterMeatKg: 2000, daysToMeatEnd: 400, eggsKg: 0.5 },
+      { meatKg: 500, slaughterMeatKg: 500, daysToMeatEnd: 120, ...cowMilk(10) },
+      // zásoba z 1. 11. nad plnou potřebu do konce masa – nutný díl před mlékem (D98 kolo 2)
+      { meatKg: 9000, slaughterMeatKg: 8000, daysToMeatEnd: 200, ...cowMilk(20) },
       // hojnost – čerstvé maso zimní porážky do konce zimy, velké zásoby a med (bez obilí ≈ 75 %)
       {
         freshMeatKg: 5,
@@ -733,6 +893,41 @@ describe('med – pevný příděl (hides-honey.md – Klát u obydlí; diet.md 
     expect(bare.chronicle.some((e) => e.kind === 'hunger-began' && e.day > s.lastDay)).toBe(true);
     expect(plenty.wares!.honeyKg).toBeLessThan(1000 - 2 * days * villageHoneyRationKg(s, day));
     expect(plenty.wares!.honeyKg).toBeGreaterThan(0);
+  });
+});
+
+describe('simulace – ostatní uzené hned, zásoba z porážky 1. 11. dílem (D98 kolo 1)', () => {
+  it('maso z lovu (`butcher`) je ostatní uzené – jí se hned, ne dílem do 31. 8.', () => {
+    const village = (): VillageState => {
+      const s = withBuiltFirstDwelling(
+        foundVillage({
+          seed: 4,
+          day: at(600, 12, 1),
+          dwellingPosition: { x: 0, z: 0, rotation: 0 },
+        }),
+      );
+      s.storesKg = 50_000;
+      withoutSmallGame(s);
+      return s;
+    };
+    // divočák z lovu rodu večer předchozího dne (wildlife.md – Lov rodu: maso přes `butcher`)
+    const hunted = village();
+    const day = hunted.lastDay + 1;
+    butcher(hunted, 45);
+    const next = advanceVillage(hunted, day, null);
+    const need = villageFoodNeed(next, day);
+    expect(next.slaughterMeatKg).toBe(0);
+    // dnes se z něj sní víc než polovina potřeby vsi – jako dřív, ne díl
+    expect(45 * DAILY_MEAT_KEEP - next.meatKg!).toBeGreaterThan((0.5 * need) / DIET.meatEnergy);
+    // táž zásoba jako zásoba z porážky 1. 11. by dala jen díl do 31. 8.
+    const stock = village();
+    stock.meatKg = 45;
+    stock.slaughterMeatKg = 45;
+    const spread = advanceVillage(stock, day, null);
+    expect(45 * DAILY_MEAT_KEEP - spread.meatKg!).toBeCloseTo(
+      (45 * DAILY_MEAT_KEEP) / daysUntilMeatEnd(day),
+      6,
+    );
   });
 });
 

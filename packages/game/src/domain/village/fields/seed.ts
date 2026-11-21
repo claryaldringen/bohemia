@@ -21,6 +21,12 @@ import { drawGrainPits } from './grain-pits';
 import { dateOfDayIndex } from '../../calendar';
 import { ableTeams, oxenStrength } from '../livestock/oxen';
 import { ageGroup, laborPerDay } from '../people/people';
+import {
+  groupStarvation,
+  hungerSplit,
+  lowestFedGroup,
+  villageRationFor,
+} from '../people/hunger-groups';
 import { daylightFactor } from '../core/daylight';
 import { PLOUGH_HA_PER_DAY } from '../livestock/plough';
 import { fieldWorkPerHa } from '../core/productivity';
@@ -173,17 +179,22 @@ export function foodUntilHarvestKg(state: VillageState, day: number): number {
 /**
  * Přežívací zásoba do žní (kg obilí – zásoby i snopy; fields.md, Úroda, Osivo ze zásob; Martin
  * 6. 11. 2026: „Musí zasít“, výpočet ze stravy návrh Clauda): nejmenší zrno, při kterém celé
- * nasycení do žní nedovede nahromaděný hlad (`starvationDays`) k prahu úmrtí nejcitlivější skupiny
- * ve vsi (STARVATION.threshold – děti a starší 12, dospělí 20) bez SEED_STORES.marginDays; s osivem
- * jen na setí (`reservedSeedKg`) ani k prahu, od kterého ho ves sní
- * (SEED_BUYING.eatFromStarvationDays) – ostatní zrno je osivo. Pod STARVATION.fedFrom přibude za
- * den (fedFrom − příděl) / fedFrom dne hladu, ves tedy unese `slack` dní hladu: příděl energie do
- * žní aspoň fedFrom × (1 − slack / dny do žní). Obilí na něj spočte výhled jídla dne
- * (`grainAheadForOutlookKg`) s celou ostatní stravou ze vstupu jídla (`baseMealInput` – mléko stád
- * do sklizně, maso v zásobě a ze zimní porážky, sýr, vejce, luštěniny a ovoce) i se ztrátami
- * skladováním do žní (výhled je zná – fields.md, Přídělový systém); k tomu dnešní ztráta (zásoby jsou ze
- * včerejška, výhled až po dnešní ztrátě). `input` – vstup jídla dne bez osiva,
- * je-li po ruce (`dayMealInput`); jinak se spočte. Ves bez lidí 0.
+ * nasycení do žní nedovede nahromaděný hlad zbytku vsi k prahu úmrtí nejcitlivější skupiny ve vsi
+ * (STARVATION.threshold – děti a starší 12, dospělí 20) bez SEED_STORES.marginDays; s osivem jen
+ * na setí (`reservedSeedKg`) ani k prahu, od kterého ho ves sní (SEED_BUYING.eatFromStarvationDays)
+ * – ostatní zrno je osivo. Pod STARVATION.fedFrom přibude za den (fedFrom − příděl) / fedFrom dne
+ * hladu, ves tedy unese `slack` dní hladu: příděl energie do žní aspoň fedFrom × (1 − slack / dny
+ * do žní). Příděl i hlad jsou zbytku vsi – nejnižší vrstvy s potřebou (`lowestFedGroup`; hlad
+ * `groupStarvation`, u zbytku vsi `starvationDays`), která v přednosti v hladu dostává nejméně;
+ * na příděl vsi ho převede obrácené `rationShares` (`villageRationFor` – diet.md, Kdo dostane co;
+ * návrh Clauda 18. 11. 2026, Martin: „Nejde, aby elita měla plný příděl a rolníci byli pod
+ * hranicí hladomoru.“; dřív cílový příděl celé vsi – zbytek vsi pod ním dostal jen životní
+ * minimum). Obilí na něj spočte výhled jídla dne (`grainAheadForOutlookKg`) s celou ostatní stravou
+ * ze vstupu jídla (`baseMealInput` – mléko stád do sklizně, maso v zásobě a z porážky, ryby, sýr,
+ * vejce, luštěniny a ovoce) i se ztrátami skladováním do žní (výhled je zná – fields.md,
+ * Přídělový systém); k tomu dnešní ztráta (zásoby jsou ze včerejška, výhled až po dnešní ztrátě).
+ * `input` – vstup jídla dne bez osiva, je-li po ruce (`dayMealInput`); jinak se spočte. Ves bez
+ * lidí 0.
  */
 export function seedKeepKg(state: VillageState, day: number, input?: DietInput): number {
   if (state.people.length === 0) return 0;
@@ -192,12 +203,16 @@ export function seedKeepKg(state: VillageState, day: number, input?: DietInput):
     limit = Math.min(limit, STARVATION.threshold[ageGroup(person, day)]);
   }
   if (reservedSeedKg(state) > EPSILON) limit = Math.min(limit, SEED_BUYING.eatFromStarvationDays);
-  const slack = Math.max(0, limit - SEED_STORES.marginDays - (state.starvationDays ?? 0));
+  // zbytek vsi – nejnižší vrstva s potřebou (bez zbytku vsi nejbližší vyšší): její hlad a příděl
+  const { needs } = hungerSplit(state, day);
+  const group = lowestFedGroup(needs);
+  const hunger = group < 0 ? (state.starvationDays ?? 0) : (groupStarvation(state)[group] ?? 0);
+  const slack = Math.max(0, limit - SEED_STORES.marginDays - hunger);
   const meal = input ?? baseMealInput(state, day, craftCoverage(state, day).pottery, 1);
   const days = Math.max(1, meal.daysToHarvest);
   const ration = STARVATION.fedFrom * Math.max(0, 1 - slack / days);
   if (ration <= EPSILON) return 0;
-  return grainAheadForOutlookKg(meal, ration) / grainKeepPerDay(meal);
+  return grainAheadForOutlookKg(meal, villageRationFor(ration, needs)) / grainKeepPerDay(meal);
 }
 
 /** Osivo obilí, které letošní plán už vzal (kg – plány s osivem ze zásob). */
@@ -359,6 +374,23 @@ export function seedPrepShares(
     shares.set(work, Math.min(1, (work.seedKg + cover) / total));
   }
   return shares;
+}
+
+/**
+ * Osivo, které ves na setí má (kg – lord.md, Kdy jde rodina na pole, Příprava půdy a setí; D102,
+ * návrh Clauda): obilí nad přežívací zásobu do žní (`seedKeepKg`) i se zrnem ve snopech, které ves
+ * vymlátí (`sheavesOutlook` – výmlat na osivo), a osivo jen na setí (`reservedSeedKg`); luštěniny
+ * ze zásoby a snopů. Stejné meze jako hromada osiva okna (`pileKg`), jen bez stropu vymláceného
+ * zrna. Podle něj rodina pomáhá jen s půdou, kterou ves osít může.
+ */
+export function seedForSowingKg(state: VillageState, day: number): SeedKg {
+  const reserved = reservedSeedKg(state);
+  const ordinary = Math.max(0, state.storesKg - reserved);
+  const sheaves = sheavesOutlook(state, day);
+  return {
+    grain: reserved + Math.max(0, ordinary + sheaves.grainKg - seedKeepKg(state, day)),
+    legumes: storeKg(state, 'legumes') + sheaves.legumesKg,
+  };
 }
 
 /**
@@ -572,10 +604,46 @@ export function seedThreshKg(state: VillageState, day: number, toolCoverage: num
     sowingHaPerDay(state, day, pile.crop, toolCoverage) *
     cropSeedPerHa(pile.crop) *
     THRESHING.seedDays;
-  const want = Math.min(ideal - reservedSeedKg(state), pace);
-  if (want <= ordinary + EPSILON) return 0;
+  return seedFromSheavesKg(state, day, Math.min(ideal - reservedSeedKg(state), pace));
+}
+
+/**
+ * Kolik zrna ves do konce okna setí ještě vymlátí na osivo (kg – výhled práce vsi před přípravou
+ * půdy, `sowingCapacity`; D102 kolo 1, návrh Clauda): jako `seedThreshKg`, jen na celý zbytek okna
+ * – osivo ideálního zbytku okna, nejvýš osivo plochy, kterou ves dnešním tempem (`sowingHaPerDay`)
+ * do konce okna zaseje (`sowingDaysLeft`), a nejvýš osivo plochy, kterou počítá zátěž pomoci
+ * rodiny (`areaSeedKg` – `sowingHelpLoad`; D102 kolo 2, I2: ideál hromady okna dřív přestřelil
+ * ≈ 5×, protože setí brzdí ruce a spřežení, ne tempo). Zrno, které ves z vymláceného do konce okna sní, ani
+ * výmlat po přípravě půdy se nepočítají. Mimo okno setí (i v zimním osivu) 0.
+ */
+export function windowSeedThreshKg(
+  state: VillageState,
+  day: number,
+  toolCoverage: number,
+  areaSeedKg: () => number,
+): number {
+  const pile = state.sowingSeed;
+  if (!pile || pile.beforeWindow) return 0;
+  const left = sowingDaysLeft(state, pile.crop, day);
+  if (left <= 0) return 0;
+  const ideal = (pile.totalKg * Math.min(pile.days, left)) / pile.days;
+  const sows =
+    sowingHaPerDay(state, day, pile.crop, toolCoverage) * cropSeedPerHa(pile.crop) * left;
+  // nejvýš osivo plochy, kterou počítá zátěž pomoci rodiny – ideál hromady okna ji přestřelí, ves
+  // zaseje, co stihnou ruce a spřežení; osivo už vymlácené se odečte
+  const want = Math.min(ideal, sows, areaSeedKg()) - reservedSeedKg(state);
+  return seedFromSheavesKg(state, day, want);
+}
+
+/**
+ * Osivo `wantKg` (bez osiva jen na setí), které vymlácené zrno nepokryje – ze snopů nejvýš zrno nad
+ * přežívací zásobu do žní (`seedKeepKg`; výmlat zásobu nezvětší).
+ */
+function seedFromSheavesKg(state: VillageState, day: number, wantKg: number): number {
+  const ordinary = Math.max(0, state.storesKg - reservedSeedKg(state));
+  if (wantKg <= ordinary + EPSILON) return 0;
   const aboveKeep = ordinary + sheavesOutlook(state, day).grainKg - seedKeepKg(state, day);
-  return Math.max(0, Math.min(want, aboveKeep) - ordinary);
+  return Math.max(0, Math.min(wantKg, aboveKeep) - ordinary);
 }
 
 /**

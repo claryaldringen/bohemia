@@ -463,8 +463,10 @@ Seno, dvě seče).
      najednou – úlohy dne jdou po úlohách přes celou plodinu (vrácení přílohu před kopáním), takže
      hladová ves by celý podzim jen vracela příloh na všech dílech a nezasela nic. Díly přibývají
      **po dávkách na čele práce**: rozdělaná příprava půdy a setí v oknech, která dnes běží, smí
-     být nejvýš na `WORK_FRONT_DAYS` = 3 dny volné práce vsi po denním minimu (spřežení na 3 dny
-     orby); další díl přibude, až čelo dávku dodělá – díl tak projde přípravou půdy až k setí,
+     být nejvýš na `WORK_FRONT_DAYS` = 3 dny volné práce vsi po denním minimu i s podílem dne
+     vojvodovy rodiny na přípravě půdy a setí ([lord.md](lord.md) – Kdy jde rodina na pole,
+     Příprava půdy a setí; D102, návrh Clauda – jinak by rodině nezbyla rozdělaná práce; spřežení
+     na 3 dny orby); další díl přibude, až čelo dávku dodělá – díl tak projde přípravou půdy až k setí,
      než ves vezme další. Na podzim brzdí ozim jen jeho vlastní čelo (len, luštěniny a jař
      s kopáním do listopadu ozim nepředběhnou). Žádný strop podle plánu: dokud je okno otevřené
      a potřeba trvá, ves bere další díly.
@@ -507,8 +509,12 @@ Seno, dvě seče).
    - Starší vsi (převod jednou a idempotentně, návrh Clauda): ozim a jař nad potřebu se slijí
      s ozimem a jaří i s hotovou prací, osivem a úrodou ve snopech (letošní rok i rok u výmlatu);
      roční potřeba z pole ve výběru dílů zmizí.
-   - **Vojvodova rodina** ([lord.md](lord.md) – Kdy jde rodina na pole) s osevem nepomáhá (od 9. 11. 2026 – Martin: „setí by mělo být v pohodě ne? Problém je spíš se žněmi“); jde jen na
-     žně, které ves sama nestíhá.
+   - **Vojvodova rodina** ([lord.md](lord.md) – Kdy jde rodina na pole) pomáhá s přípravou půdy
+     a setím, které ves v okně sama nestihne na všechnu půdu, na kterou má osivo – i s díly na
+     řadě, které na čelo ještě nepřišly (Martin 19. 11. 2026 – D102: „Ano. Na začátku vsi to jsou
+     spíš zemědělci. Až postupně, když je ves veliká se z rodu knížete stává postupně šlechta“; 9. 11. – 19. 11. 2026 s osevem nepomáhala – Martin 9. 11. 2026: „setí by mělo být v pohodě
+     ne? Problém je spíš se žněmi“), a se žněmi, které ves sama nestíhá. Jde až po práci vsi
+     a jen s tím, co chybí – ves, která setí stihne sama, rodinu nezapojí.
    - **Páry k rádlům** ([oxen.md](oxen.md) – Kolik volů ves chce): tolik párů, kolik v oknech orby
      zorá všechny díly na řadě v příštím hospodářském roce – nutné i nad potřebu, ves chce zorat
      všechno (návrh Clauda) –, nejvýš `OXEN.maxPairs`; mění se jako dosud, až když potřeba trvá dva
@@ -1701,6 +1707,12 @@ na vlnu – oděv, [diet.md](diet.md) – Oděv). Pravidla **návrh Clauda** pod
       odhadem ztráty do žní – zrno leží v průměru půl doby do žní). Dřív počítala jen s potřebou
       z pole (0,9 × denní potřeba z pole × (dny do žní − `slack`)) – mléko a maso byly rezerva navíc
       a ves s mlékem a masem si nechala víc zrna, než potřebovala.
+      **Podle zbytku vsi (návrh Clauda 18. 11. 2026):** příděl 0,9 × (1 − `slack` / dny do žní)
+      i hlad, ze kterého se `slack` počítá, jsou zbytku vsi – při přednosti v hladu dostává
+      nejméně ([strava](diet.md) – Kdo dostane co). Nad životním minimem 75 % si ves nechá zrno na
+      příděl vsi (potřeba vyšších vrstev + příděl × potřeba zbytku vsi) ÷ potřeba vsi – vyšší
+      vrstvy syté –, pod ním na týž příděl pro všechny. Dřív na příděl celé vsi: zbytek vsi z něj
+      dostal jen 75 % a ve Vlkově 904–905 umíraly děti hladem, i když ves držela osivo.
     - **Ostatní zrno je osivo:** smí do země bez stropu podle potřeby jídla – ves oře a seje díly
       v plánu (nutné i nad potřebu podle osevního postupu; úhor zůstává úhorem), dokud trvá okno,
       dokud díly nejsou oseté, nebo dokud osivo nedojde. Osivo bere setí v den setí dílu, takže co
@@ -2416,7 +2428,10 @@ Ovládání a vzhled jsou **návrh k potvrzení na náčrtech** (obydlí se umis
     luštěniny a len do konce dubna – vrácení a kopání napřed na podzim) a sklizně (ozim, luštěniny
     a len do konce července, jař do konce srpna i s výmlatem ozimu): zbytek letošní nutné práce
     proti volné práci vsi do konce okna i s pomocí cvičící rodiny vojvody, lidé i orba spřežení
-    (stejně jako Kdy jde rodina na pole – lord.md). Když nestačí, ukáže díl ikonu práce
+    (stejně jako Kdy jde rodina na pole – lord.md; volná práce vsi bez otavy, porážky a výmlatu na
+    osivo, které jdou před přípravou půdy, a jarní kapacita jen jednou – vracení a kopání jaře na
+    podzim jen z práce září–listopadu po ozimu; návrh Clauda, 19. 11. 2026 – dřív se jaro počítalo
+    dvakrát a varování pro jaro mohlo chybět). Když nestačí, ukáže díl ikonu práce
     s chybějícími člověkodny červeně a v popisku u kurzoru okna a kroky („Práce nestačí: příprava
     a setí do konce dubna – chybí 40 člověkodnů“). Díl hlásí jen kroky, které sám ještě nemá
     hotové (zasetý díl setí nehlásí); od 9. 11. 2026 hlásí všechny díly (jedna fronta – ~~díl

@@ -3,6 +3,7 @@
 // nejstaršího vhodného muže z jiné vsi rodu s rodinou a jídlem. Čisté funkce bez I/O; stav vstupu
 // nemění `appointCandidate` ani `departAppointee`, `settleAppointee` mutuje stav jako kroky dne.
 import { cloneState } from '../core/clone';
+import { takeVillageMeatKg } from '../core/meat-stocks';
 import {
   isVillageAbandoned,
   isVillageTravelling,
@@ -167,7 +168,8 @@ export function departAppointee(
     applesKg: take(next.applesKg ?? 0, planned.applesKg),
   };
   next.storesKg -= food.grainKg;
-  if (next.meatKg !== undefined) next.meatKg -= food.meatKg;
+  // i zásobě z porážky 1. 11. poměrně (součet uzeného zůstává přesný)
+  takeVillageMeatKg(next, food.meatKg);
   if (next.cheeseKg !== undefined) next.cheeseKg -= food.cheeseKg;
   if (next.legumesKg !== undefined) next.legumesKg -= food.legumesKg;
   if (next.applesKg !== undefined) next.applesKg -= food.applesKg;

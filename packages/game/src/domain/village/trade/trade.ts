@@ -11,6 +11,7 @@
 // `cattle-trade.ts`) – jde po svých s honákem a potřebuje místo v ohradě svého druhu.
 // Čisté funkce bez I/O.
 import type { Landscape } from '../../landscape';
+import { takeVillageMeatKg } from '../core/meat-stocks';
 import { tradeCarts, trailCartPassable } from '../crafts/carts';
 import { charcoalStockKg, takeCharcoal } from '../crafts/charcoal';
 import { addExpeditionDemand } from '../livestock/draft';
@@ -202,7 +203,9 @@ export function addGood(state: VillageState, good: TradeGood, amount: number, da
       state.storesKg = Math.max(0, state.storesKg + amount);
       return;
     case 'meat':
-      state.meatKg = Math.max(0, (state.meatKg ?? 0) + amount);
+      // prodej ubere poměrně i zásobě z porážky 1. 11., koupené maso je ostatní uzené
+      if (amount < 0) takeVillageMeatKg(state, -amount);
+      else state.meatKg = (state.meatKg ?? 0) + amount;
       return;
     case 'cheese':
       state.cheeseKg = Math.max(0, (state.cheeseKg ?? 0) + amount);

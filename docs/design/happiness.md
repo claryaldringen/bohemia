@@ -2,9 +2,9 @@
 
 Stav: schváleno 18. 10. 2026 (Martin: „Ano, takhle je to dobré“), implementováno 18. 10. 2026
 (jádro `domain/village/people/happiness.ts` a `sacred.ts`, čísla v `rules.ts`). Rozhodnutí z implementace
-(definice dubu a háje, dřina, modla bez roviny) jsou níže v textu a v tabulce Rozhodnutí jako
-„rozhodnutí kontroléru“ – Martin je může změnit; hřbitov u dubu a zápis ušetření při vytyčení
-Martin potvrdil.
+(definice dubu a háje, modla bez roviny) jsou níže v textu a v tabulce Rozhodnutí jako
+„rozhodnutí kontroléru“, den dřiny jako „návrh Clauda“ – Martin je může změnit; hřbitov u dubu
+a zápis ušetření při vytyčení Martin potvrdil.
 
 ## Proč
 
@@ -37,10 +37,12 @@ Slovanů: posvátné duby, dubové háje, dřevěné modly a nakonec svatyni jak
     Úmrtí zapsaná před touto změnou (bez věku) ubírají postaru – dítě 5, dospělý a starší 3,
   - **přeplněnost:** podíl lidí v přeplněných domácnostech × **15**,
   - **dřina:** podíl dní za posledních 60, kdy ves nestihla práci v období (polní práce se
-    nedodělala), × **15**. Den dřiny (rozhodnutí kontroléru): ves by polní práce, které právě
+    nedodělala), × **15**. Den dřiny (návrh Clauda): ves by polní práce, které právě
     běží, dnešním tempem nedodělala do konce jejich oken – úlohy se řadí podle konce okna
     a zbývající práce se sčítá (co končí dřív, musí být hotové dřív). Plná práce ve špičce, která
-    se stihne, dřinou není.
+    se stihne, dřinou není. Do dnešního tempa patří i seč a otava – po seči ta práce přejde na
+    výmlat a polní práce (oprava 19. 11. 2026: dřív se otava do tempa nepočítala a každý den
+    otavy, dokud ozim čekal na výmlat, byl dnem dřiny – [správce](steward.md), Otevřené otázky 10).
 - **Co přidává:** posvátná místa (níže), dobré zásoby (zásoby na víc než rok; od 19. 10. 2026
   zásoby obilí a luštěnin na víc než rok potřeby z pole – [pole](history/fields-history.md), Osev podle stravy)
   **+5**, ovoce **+5** – dokud lidé jedí ovoce, je sladké (Martin – [strava](diet.md), od 18. 10. 2026), maso
@@ -242,7 +244,7 @@ Každé místo přidá k cílovému štěstí; posvátná místa dohromady nejv�
 | Čísla (výchozí 50, posun 10 %/měsíc, příspěvky a stropy, ceny, rozměry, definice háje)  | návrh Clauda                              |
 | Posvátný dub: velikost = výška modelu × měřítko, mimo les = ≤ 5 stromů do 15 m          | rozhodnutí kontroléru (implementace)      |
 | Háj: k 6 dubům v 25 m i převaha dubů ≥ 65 % (les je z třetiny dubový)                   | rozhodnutí kontroléru (implementace)      |
-| Den dřiny = ves dnešním tempem nestihne běžící polní práce do konce jejich oken         | rozhodnutí kontroléru (implementace)      |
+| Den dřiny = ves dnešním tempem nestihne běžící polní práce do konce jejich oken         | návrh Clauda (implementace)               |
 | Hřbitov na čtverec s posvátným dubem nesmí (pevná mřížka hrobů)                         | Martin potvrdil 18. 10. 2026              |
 | Ušetření dubu a háje se zapíše už při zahájení stavby (při vytyčení)                    | Martin potvrdil 18. 10. 2026              |
 | Modla nepotřebuje rovinu                                                                | rozhodnutí kontroléru (implementace)      |

@@ -742,13 +742,24 @@ Clauda**:
   `TEAM_TRAVEL`); ~~po cestě 500 m ≈ 6 %~~ (tam a zpět; od 24. 10. jen tam – po cestě 500 m
   ≈ 3 % v den výjezdu). ~~Cena cesty se spočítá, když spřežení začne nový blok~~
   (`PloughWork.trip`); bez krajiny (kalibrace) chůze k dílu.
-- **Díly po dávkách** (osevní postup po dílech – fields.md; návrh Clauda 25. 10. 2026): nutné
-  díly přibývají den po dni, jak se vejdou do čela práce, díly nad potřebu po jednom – každá
-  dávka s vlastními bloky by brázdu zkrátila (ozim ≈ 0,6 výkonu proti 1,0 najednou). Proto díl
-  přibude **s celým svým pásem** (pás z rozvržení dílů, které ves ten den pro plodinu vybrala;
-  u dílů nad potřebu z dílů na řadě) a pásy, na kterých ještě nezačala žádná práce, se s novou
-  dávkou rozvrhnou znovu. Rozpracovaný pás ani hotová práce se nemění; brázda vyjde jako u všech
-  dílů najednou, jen díly, o které potřeba během podzimu vzroste, se k zoraným pásům nepřipojí.
+- **Díly po dávkách** (osevní postup po dílech – fields.md; návrh Clauda 25. 10. 2026): díly
+  přibývají den po dni, jak se vejdou do čela práce – každá dávka s vlastními bloky by brázdu
+  zkrátila (ozim ≈ 0,6 výkonu proti 1,0 najednou). Proto s dílem na řadě přibudou i další díly
+  jeho pásu a pásy, na kterých ještě nezačala žádná práce, se s novou dávkou rozvrhnou znovu.
+  Rozpracovaný pás ani hotová práce se nemění; brázda vyjde skoro jako u všech dílů najednou,
+  jen díly, které přibudou, až pás začal, se k němu nepřipojí.
+  - **Pás jen ze stejné skupiny, místo u každého dílu** (návrh Clauda 19. 11. 2026 – oprava
+    vlastní chyby): pás se skládá jen z dílů, které ves ten den pro plodinu vybrala, **ve stejné
+    skupině přílohové soustavy** jako díl na řadě (připravené s připravenými, přílohy s přílohy
+    téže skupiny, nouzové přílohy zvlášť), a **každý díl pásu přibude, jen když je na čele
+    místo** – co se nevejde, počká ve výběru a přibude s další dávkou. Kus pásu, který čelo utne,
+    je souvislý: od dílu na řadě podél brázdy do konce pásu, pak zpět k jeho začátku.
+  - ~~Díl přibude s celým svým pásem z celého výběru plodiny~~ (místo na čele jen u prvního dílu
+    pásu): pás tak k připravenému dílu přitáhl i zarostlé přílohy (křoviny ≈ 127 čd/ha vracení)
+    a čelo s místem na 10–19 čd dostalo až 140 čd vracení. Vlkov (rozbor 19. 11. 2026, roky
+    897–907) dal na vracení 54 % práce na přípravu půdy a setí (2 001 z 3 723 čd) a čelo 38–59
+    dní z 61 nepřibralo nic, i když čekaly připravené díly – pás obcházel Pořadí dávek (fields.md
+    – připravené díly a díly s nejmenší prací přípravy napřed, nouzové přílohy až po nich).
 - **Plán osevu** počítá s výkonem podle tvaru polí, na která může ves zasít (průměr výkonu jejich
   pásů – `plannedFurrowEfficiency`), cestu neodhaduje (je malá).
 - **Ve scéně:** herní jádro posílá u dílů orby osu brázd a směr orby (`SceneFieldPart.furrow`) –

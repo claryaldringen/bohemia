@@ -87,3 +87,127 @@ masa 40 % platí i v nouzi“ (návrh Clauda).
 ## Med bez štěstí
 
 Neplatí od 18. 11. 2026 (med zvyšuje štěstí o +2 – diet.md, Strava po vrstvách a porážka celý rok, Med). Dřív v Pojmech: „Med dá jen energii – bez bílkovin, bez stropu, bez štěstí a bez vlivu na kvalitu stravy.“
+
+## Luštěniny, mléko a sýr rovným dílem a ve stropech
+
+Neplatí od 18. 11. 2026 (diet.md – Strava po vrstvách a porážka celý rok, Pořadí jídla – bez stropů: luštěniny, mléko i sýr se jedí v pořadí jídla, jak jsou; strop luštěnin 25 % zůstal jen v odhadech – výhled zásob k sklizni a bilance bílkovin stád – a od D98 téhož dne ani v nich, viz Strop luštěnin v odhadech níž). Zbytky dřívějšího znění v platném textu, přesunuté po kontrole 18. 11. 2026. Dřív v Luštěninách a štěstí z masa:
+
+- Luštěniny „Zůstávají **zbožím**: zásoba (obchod, platby, dávky, dorůstající luštěniny starších
+  vsí) se jí jako dosud – rovným dílem do července, nejvýš strop, bílkoviny navíc proti obilí.“
+- „**Luštěniny** (hrách a čočka): **22 % bílkovin**, energie jako obilí (3 400 kcal/kg). Strop
+  **25 % energie** ze stravy (dospělý ≈ 45 kg ročně; rešerše: chléb čeledi v Mordenu 17–26 %
+  hrachu – strop je návrh Clauda).“
+- „**Jí se** rovným dílem celý rok do příští sklizně (31. 7.), nejvýš strop; počítají se do výhledu
+  energie jako maso a sýr. Ztráta skladováním jako obilí.“
+
+Dřív v Hladu (Na jak dlouho vystačí zásoby): „ves jí napřed, co se kazí, ve stropech stravy (návrh
+Clauda).“
+
+Dřív v Mléku a sýru:
+
+- „**Čerstvé mléko se pije hned** – do stropu mléka a sýra (30 % energie); co se nevypije,
+  zpracuje se na **syřidlový sýr** …“
+- „**Zásoba sýra** ztrácí **15 % ročně** a jí se rovným dílem **do 1. 5.** (začátek dojení, sýr
+  vydrží do té doby) – v zimě tak bílkoviny dává sýr.“
+
+## Uzené hned po čerstvém
+
+Neplatí od 18. 11. 2026, D98 (Martin na otázku „Má se uzené z porážky 1. 11. sníst hned, nebo pomaleji, rozložené přes zimu a jaro?“: „Uzené rozlož“; diet.md – Strava po vrstvách a porážka celý rok, Pořadí jídla). Platilo od stravy po vrstvách téhož dne. Od opravného kola D98 (týž den) platí pro **ostatní uzené** zase – rovným dílem se rozkládá jen zásoba z porážky 1. 11. (diet.md – Pořadí jídla, Zásoba z porážky 1. 11. rovným dílem); neplatí jen pro ni. Dřív v Pořadí jídla:
+
+- „Uvnitř první úrovně (návrh Clauda) ves jí napřed mléko a vejce (nedají se uložit), pak čerstvé
+  maso, ryby a zvěř, pak uzené maso (zkazí se 1. 9.) a nakonec sýr.“
+- „**Tempo jídla** – … Čerstvé se jí hned, po vrstvách; co se ten den nesní, se vyudí a jí se
+  v dalších dnech stejně – pořadím, bez rozvrhu do zkažení (rovným dílem do zkažení jen nejméně,
+  když by se jinak zkazilo – tempo proti zkažení). Uzené z porážky 1. 11. se jí taky hned (co to
+  dělá – Důsledky k vědomí).“
+
+Dřív v Porážce celý rok: „**V létě (1. 4.–31. 10.)** se poráží, jen když vrstvě 1 na dnešek
+nestačí maso v zásobě (uzené se kazí, a proto se jí dřív).“ a „Kusy, které ves senem neuživí,
+porazí hned a maso vyudí – jako dnes; to uzené se jí hned po čerstvém, i když tím všichni jedí
+jen maso.“
+
+Dřív v Důsledcích k vědomí: „**Tempo jídla** (rozhodnuto Martinem 18. 11. 2026 – Pořadí jídla):
+maso, ryby a jablka se snědí, jak přijdou. Vlkov (stav DB 3.–12. 10. 896, závěrečná kontrola):
+listopad 96 % energie z masa, prosinec 67 %, únor až červen 897 0–4 % (dřív ≈ 20 % celoročně);
+jablka za 3 týdny (9.–29. 10. 94 % energie z ovoce); kvóta ryb za měsíc (zlatá ves květen 69 %
+energie z masa, srpen až říjen 0 %). Kníže má maso „každý den“ jen v nárazech.“
+
+Dřív v Rozhodnutích plánu: „tempo proti zkažení (vejce, ovoce ÷ dny do zkažení, maso – čerstvé
+i uzené – ÷ dny do konce masa) se sní napřed, i v hojnosti“.
+
+Dřív ve Výhledu do sklizně: „Obilí (a v hladu med) pak dorovná zbytek rovným dílem do sklizně po
+vrstvách (návrh Clauda; dnešní výhled odečítá maso, ovoce a mléko podle stropů).“ – závorka byla
+zbytek zrušených stropů (výhled stropy neměl); uzené výhled počítal celé, nejvýš potřebu za dny do
+konce masa.
+
+Dřív v Hladu (Na jak dlouho vystačí zásoby): „ves jí v pořadí jídla bez stropů – napřed, co se
+kazí (uzené maso a sýr, ovoce, luštěniny), pak obilí a nakonec med“.
+
+Dřív v Trvanlivosti masa:
+
+- „uzené maso se jí hned po čerstvém, bez stropu masa (Strava po vrstvách a porážka celý rok –
+  Pořadí jídla; dřívější „až čerstvé nestačí do stropu masa“: history)“.
+- „Uzené maso se jí napřed tempem do jeho zkažení 31. 8. (Strava po vrstvách a porážka celý
+  rok); 1. 9. ráno se zbytek zkazí …“
+- „Maso ze září a října (dosloužilé spřežení) se jí do porážky.“ a „Výhled energie do sklizně
+  počítá maso jen do jeho zkažení.“
+
+Dřív v Porážce v zimě: „**Ves jí napřed čerstvé maso**, uzené hned po něm (bez stropu)“. Dřív
+v Nouzové porážce (Maso): „jí se v pořadí jídla hned, do zkažení 1. 9. aspoň tempem proti
+zkažení (Strava po vrstvách a porážka celý rok; dřív „rovným dílem do zkažení“)“.
+
+## Strop luštěnin v odhadech
+
+Neplatí od 18. 11. 2026, D98 (Martin: „Strop bych úplně zrušil, je to zbytečný výpočet navíc“ – jídlo strop nemá od stravy po vrstvách, odhady teď také ne). Dřív v Luštěninách:
+
+- „Strop **25 % energie** (…) jídlo od 18. 11. 2026 neomezuje; zůstal jen v odhadech – výhled
+  zásob k sklizni ([pole](../fields.md)) a bilance bílkovin stád (Maso a stáda níž) počítají
+  s luštěninami nejvýš do něj.“
+- „**Maso a stáda:** potřeba masa = bílkoviny, které zbudou i po luštěninách – luštěniny podle
+  zásoby (odhad: rovným dílem do sklizně, přepočteno na rok, nejvýš strop).“
+
+Výhled zásob k sklizni tehdy počítal, že se do sklizně luštěnin sní nejvýš strop a zásoba nad něj
+zůstane na příští rok.
+
+## Všechno uzené rovným dílem do zkažení (D98)
+
+Platilo 18. 11. 2026 od D98 do jeho opravného kola téhož dne. Neplatí, protože Martinova otázka zněla jen na uzené z porážky 1. 11.: rozložení všeho uzeného (i zbytků letních kusů, lovu a hlídek) v létě hromadilo maso – ves porážela kus za kusem, dokud díl nepokryl potřebu rodu (ves zakladatelů 20 kusů místo 5), díl uzeného v tempu proti zkažení vytlačil mléko na sýr a úlovky se jedly až do srpna (diet.md – Pořadí jídla, Zásoba z porážky 1. 11. rovným dílem; kontrola D98). Dřív v Pořadí jídla:
+
+- **Uzené rovným dílem do zkažení** – Martin, 18. 11. 2026, na otázku „Má se uzené
+  z porážky 1. 11. sníst hned, nebo pomaleji, rozložené přes zimu a jaro?“: „Uzené rozlož“. Ze zásoby
+  uzeného se každý den sní jen její **díl** – zásoba ÷ dny do konce masa (od 1. 11. do 31. 8.
+  304 dní, maso ze září a října do porážky – Trvanlivost masa), poslední den zbytek, takže 1. 9.
+  se nic nezkazí (návrh Clauda). Díl je vlastní – nezávisí na tom, kolik je dnes čerstvého
+  masa. Nad svůj díl se uzené nejí ani v hojnosti, ani v hladu: zbytek dne dorovná obilí, v hladu
+  s medem, a výhled do sklizně počítá uzené jen jeho dílem (Výhled do sklizně). Díl se jí napřed
+  spolu s tempem proti zkažení; když díly vajec, ovoce a uzeného přesáhnou plnou potřebu, krátí
+  se od nejtrvanlivějšího – uzené první, vejce naposled. Dřívější „Uzené z porážky 1. 11. se jí
+  taky hned“: výš (Uzené hned po čerstvém).
+
+Dřív v Porážce celý rok:
+
+- **V létě (1. 4.–31. 10.)** se poráží, jen když vrstvě 1 na dnešek nestačí dnešní čerstvé maso
+  a dnešní díl uzeného (návrh Clauda 18. 11. 2026 – uzené se jí rovným dílem do zkažení, Pořadí
+  jídla; se zásobou celou by uzené z 1. 11. vydrželo do srpna a v létě by se neporáželo vůbec;
+  dřív „maso v zásobě“ celé). Porazí se nejmenší kus z těch, které na maso jdou a na
+  potřebu vrstvy 1 stačí; když nestačí žádný, největší z nich. Co z kusu vrstva 1 nesní, sní týž
+  den vrstvy pod ní, zbytek se vyudí. Letošní mláďata v létě na maso nejdou, kromě selat od 1. 9.
+  – jako u nouzové porážky (návrh Clauda).
+
+Dřív v Důsledcích k vědomí:
+
+- **Letní porážka pro rod podle dnešního dílu** (Porážka celý rok – V létě): spustí se, kdykoli
+  dnešní díl na stůl rodu nestačí – v létě častěji, nejvýš kusy, které smějí na maso. Kusy se
+  přitom hromadí do zásoby, dokud díl uzeného potřebu rodu nepokryje: ves zakladatelů (celá je
+  rod vojvody; 12 krav, 12 koz a 36 ovcí, test mléka) v červnu porazila 10 kusů za dva týdny
+  (9 koz a ovci), uzeného měla 206 kg a do 31. 8. pak jedla jen maso (99 % energie), mléko šlo celé
+  na sýr. Vlkov kusy na maso v létě nemá – porazil jako dřív jeden kus v září.
+
+Dřív ve Výhledu do sklizně:
+
+- **Uzené svým dílem** (návrh Clauda 18. 11. 2026 – Pořadí jídla, Uzené rovným dílem): výhled
+  počítá uzené tak, jak se sní – jeho dílem do konce výhledu: uzené × min(1, dny do sklizně ÷ dny
+  do konce masa), díl nejvýš potřeba dne (víc se nesní). Když se ozim sklízí 31. 7., uzené ze
+  srpna výhled do sklizně nepočítá. Dřív uzené celé, nejvýš potřeba za dny do konce masa – jedlo
+  se hned. Ztrátu uzením výhled dál nezná (u 304 dní rozložení ≈ 9 % uzeného – Nouzová porážka má
+  rezervu).

@@ -6,9 +6,9 @@ import { emptyTaskRecord, ploughRemaining, seasonCrop, type PartWork } from '../
 
 // Okna volné práce a zátěž osevu (fields.md – Ozim a jař, Osevní postup po dílech): kolik dnů
 // okna ještě zbývá (`windowDaysLeft`), práce, kterou rozběhnutý hospodářský rok ještě nese
-// (`planLoad`, `cropLoadOf`), a podíl dne rodiny vojvody na žních, když je ves sama nestíhá
-// (`lordHarvestHelp`, `lordHelpShare`). Které díly se osejí, určuje osevní postup
-// (`rotation.ts`).
+// (`planLoad`, `cropLoadOf`), a podíl dne rodiny vojvody na žních a na přípravě půdy a setí, když
+// je ves sama nestíhá (`lordHarvestHelp`, `lordHelpShare`, `lordSowingHelp`, `lordSowingShare`).
+// Které díly se osejí, určuje osevní postup (`rotation.ts`).
 // Ves se spřežením (oxen.md – Jen rádlo) orá všechno a nekope; orba se počítá do práce lidí
 // (oráč a honáček) jako kopání.
 
@@ -258,6 +258,13 @@ export function harvestOverflow(load: CropLoad, julyWork: number): number {
 export const HARVEST_HELP_WINDOWS: readonly LordHelpWindow[] = ['july', 'august', 'september'];
 
 /**
+ * Okna přípravy půdy a setí, ve kterých pomáhá vojvodova rodina (lord.md – Kdy jde rodina na pole,
+ * Příprava půdy a setí; Martin 19. 11. 2026 – D102): ozim září–říjen, podzim září–listopad (jař
+ * – vracení přílohu a kopání), jaro březen–duben.
+ */
+export const SOWING_HELP_WINDOWS: readonly LordHelpWindow[] = ['autumnWinter', 'autumn', 'spring'];
+
+/**
  * Podíl práce vojvodovy rodiny ve žních, aby ves stihla sklidit (lord.md – Kdy jde rodina na
  * pole; Martin 9. 11. 2026): chybějící práce (zátěž `load` nad volnou prací vsi bez rodiny
  * `village`) ÷ práce rodiny v okně (`withLord − village`), nejvýš 1 – jen tolik, kolik chybí. Kdo
@@ -266,8 +273,8 @@ export const HARVEST_HELP_WINDOWS: readonly LordHelpWindow[] = ['july', 'august'
  * (`harvestOverflow`), co nestihne srpen, do září (`augustOverflow` – v září zbytek jaře, kterou
  * srpen nedosklidil, `CropLoad.september`; fields.md – Žeň jaře i v září). V srpnu rodina pomáhá
  * jako dřív, aby jař byla sklizená do konce srpna – zářijová žeň bere práci setí ozimu (návrh
- * Clauda). S osevem rodina nepomáhá. Okna, kde nic nechybí, chybí; ves, která žně stihne sama,
- * dostane {}.
+ * Clauda). S přípravou půdy a setím pomáhá zvlášť (`lordSowingHelp`). Okna, kde nic nechybí,
+ * chybí; ves, která žně stihne sama, dostane {}.
  */
 export function lordHarvestHelp(
   load: CropLoad,
@@ -276,13 +283,7 @@ export function lordHarvestHelp(
 ): LordHelp {
   const help: LordHelp = {};
   // podíl okna podle chybějící práce; vrací práci, kterou rodina v okně dá
-  const add = (window: LordHelpWindow, missing: number): number => {
-    const family = withLord[window] - village[window];
-    if (missing <= EPSILON || family <= EPSILON) return 0;
-    const share = Math.min(1, missing / family);
-    help[window] = share;
-    return share * family;
-  };
+  const add = shareAdder(help, village, withLord);
   // co červenec nestihne ani s rodinou, se žne v srpnu (fields.md – Žně i v srpnu)
   const july = add('july', load.july - village.july);
   const august = add(
@@ -305,15 +306,92 @@ export function lordHarvestHelp(
  * Mimo žně a v plánu bez pomoci 0.
  */
 export function lordHelpShare(plan: FarmSeason | null, day: number): number {
-  const help = plan?.lordHelp;
+  return windowShare(plan?.lordHelp, HARVEST_HELP_WINDOWS, day);
+}
+
+/**
+ * Podíl dnešního dne, který cvičící rodina dá přípravě půdy a setí (`FarmSeason.lordSowing`,
+ * lord.md – Kdy jde rodina na pole, Příprava půdy a setí): nejvyšší podíl oken setí
+ * (`SOWING_HELP_WINDOWS`), do kterých dnešek padne. Mimo okna setí a v plánu bez pomoci 0.
+ */
+export function lordSowingShare(plan: FarmSeason | null, day: number): number {
+  return windowShare(plan?.lordSowing, SOWING_HELP_WINDOWS, day);
+}
+
+/** Nejvyšší podíl z `help` mezi okny `windows`, do kterých dnešek padne; bez podílů 0. */
+function windowShare(
+  help: LordHelp | undefined,
+  windows: readonly LordHelpWindow[],
+  day: number,
+): number {
   if (!help) return 0;
   const { month } = dateOfDayIndex(day);
   let share = 0;
-  for (const window of HARVEST_HELP_WINDOWS) {
+  for (const window of windows) {
     const inWindow = SOWING_CAPACITY_WINDOWS[window].some(
       ([from, to]) => month >= from && month <= to,
     );
     if (inWindow) share = Math.max(share, help[window] ?? 0);
   }
   return share;
+}
+
+/**
+ * Podíl práce vojvodovy rodiny na přípravě půdy a setí po oknech (lord.md – Kdy jde rodina na
+ * pole, Příprava půdy a setí; Martin 19. 11. 2026 – D102: „Na začátku vsi to jsou spíš zemědělci.
+ * Až postupně, když je ves veliká se z rodu knížete stává postupně šlechta“): stejně jako ve žních
+ * chybějící práce (zátěž `load` – vracení přílohu, kopání, orba a setí půdy, na kterou má ves
+ * osivo, i díly na řadě, které na čelo ještě nepřišly – nad volnou prací vsi bez rodiny `village`)
+ * ÷ práce rodiny v okně (`withLord − village`), nejvýš 1. Ozim v září–říjnu (se sklizní jablek,
+ * která jde v témže okně). Jař – vracení a kopání v září–listopadu, kolik ves po ozimu zvládne,
+ * zbytek se setím na jaře: co chybí, dá rodina napřed na jaře a co jaro nepokryje ani s celou
+ * rodinou, už na podzim – okno kopání jaře končí až koncem dubna (návrh Clauda jako dřívější pomoc
+ * s osevem do 9. 11. 2026). Okno `autumn` (vracení a kopání) nese i jaro – podzim zvlášť je
+ * `autumn − spring`; podzimní podíl kryje i pomoc s ozimem v září–říjnu (den bere nejvyšší podíl –
+ * `lordSowingShare`). Okna, kde nic nechybí, chybí; ves, která stihne sama, {}.
+ */
+export function lordSowingHelp(
+  load: CropLoad,
+  village: SowingCapacity,
+  withLord: SowingCapacity,
+): LordHelp {
+  const help: LordHelp = {};
+  const add = shareAdder(help, village, withLord);
+  const autumnWinter = add('autumnWinter', load.winterAutumn - village.autumnWinter);
+  // okno `autumn` je celá příprava jaře (září–listopad i březen–duben), `spring` jeho jarní výsek –
+  // podzim zvlášť je jejich rozdíl (jaro se nepočítá dvakrát)
+  const villageFall = Math.max(0, village.autumn - village.spring);
+  const familyFall = Math.max(
+    0,
+    withLord.autumn - village.autumn - (withLord.spring - village.spring),
+  );
+  // co ves v září–listopadu po ozimu ještě vrátí a zkope (ozim nad její práci dá rodina)
+  const fallLeft = Math.max(0, villageFall - Math.min(load.winterAutumn, village.autumnWinter));
+  const over = Math.max(0, load.springReclaim + load.springDig - fallLeft);
+  const short = load.springSow + over - village.spring;
+  // co jaro nestihne ani s celou rodinou, dá rodina už na podzim (jen příprava půdy) – podzimní
+  // podíl nese i pomoc s ozimem v září–říjnu
+  const rest = Math.min(over, short - add('spring', short));
+  if (rest > EPSILON && familyFall > EPSILON) {
+    help.autumn = Math.min(1, (autumnWinter + rest) / familyFall);
+  }
+  return help;
+}
+
+/**
+ * Zapíše do `help` podíl okna podle chybějící práce (`missing` ÷ práce rodiny v okně, nejvýš 1)
+ * a vrátí práci, kterou rodina v okně dá; okno, kde nic nechybí, nezapíše.
+ */
+function shareAdder(
+  help: LordHelp,
+  village: SowingCapacity,
+  withLord: SowingCapacity,
+): (window: LordHelpWindow, missing: number) => number {
+  return (window, missing) => {
+    const family = withLord[window] - village[window];
+    if (missing <= EPSILON || family <= EPSILON) return 0;
+    const share = Math.min(1, missing / family);
+    help[window] = share;
+    return share * family;
+  };
 }

@@ -76,6 +76,10 @@ function newConstructions(before: VillageState, after: VillageState): number[] {
 /** Výhled bez úzkého hrdla v práci a osivu (cíl polí jako dřív). */
 const OPEN_OUTLOOK: StewardOutlook = {
   laborHa: Infinity,
+  workableHa: Infinity,
+  sowHa: Infinity,
+  harvestHa: Infinity,
+  threshHa: Infinity,
   seedHa: Infinity,
   landHa: 0,
   bottleneck: 'land',
@@ -278,8 +282,11 @@ describe('den správce – režim a pole', () => {
     expect(workshopValue(s, SEPT, 'carpenter', NO_CRAFTS)).toBe(0);
   });
 
-  it('cíl polí doplní chybějící pojistku – ves bez zásob chce víc polí než ves s plnou', () => {
+  it('opatrný cíl vsi bez pole doplní chybějící pojistku – ves bez zásob chce víc polí než ves s plnou', () => {
+    // ves bez pole v oběhu maximum osevu nezná – opatrný cíl z potřeby (steward.md – Cíl polí;
+    // D99, 18. 11. 2026); ves s polem chce maximum, které oseje (steward-outlook.test.ts)
     const s = waitingVillage(SEPT);
+    expect(s.parts.length).toBe(0);
     const empty = fieldTarget({ ...s, storesKg: 0 }, SEPT, NO_CRAFTS);
     const full = fieldTarget({ ...s, storesKg: 20_000 }, SEPT, NO_CRAFTS);
     expect(empty.have).toBe(full.have);

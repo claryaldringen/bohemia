@@ -547,6 +547,14 @@ jich bude moci mít více), tak pro něj hra končí – musí začínat znovu.�
      celý rok, ne jen v hladu ([strava](diet.md) – Strava po vrstvách a porážka celý rok, Kdo
      dostane co). Dřívější plné příděly skupin v pořadí (17.–18. 11. 2026):
      [history](history/population-history.md).
+     **Přežívací zásoba do žní podle zbytku vsi** (návrh Clauda 18. 11. 2026 po přepočtu Vlkova,
+     kde v letech 904–905 umřely děti hladem, i když ves držela 9,5 t obilí jako osivo;
+     Martin 18. 11. 2026: „Nejde, aby elita měla plný příděl a rolníci byli pod hranicí hladomoru.“):
+     zrno, které si ves nechá k jídlu, když drží osivo ([pole](fields.md) – Osivo ze zásob), se
+     počítá na příděl a hlad zbytku vsi – dostává z přídělu nejméně. Nad životním minimem si ves
+     nechá tolik, aby vyšší skupiny byly syté a zbytek vsi dostal příděl, při kterém jeho hlad do
+     žní nedojde k prahu úmrtí; dřív se počítala na příděl celé vsi a zbytek vsi z něj dostal jen
+     75 % ([strava](diet.md) – Kdo dostane co).
      **Nahromaděný hlad** se vede pro každou skupinu zvlášť, riziko smrti hladem a hájení počítají
      s hladem skupiny člověka, porody brzdí energie skupiny matky; prahy a čísla se nemění.
      Mistři huti odcházejí při hladu podle energie své skupiny. **Hráč vidí** jako dřív – ikona

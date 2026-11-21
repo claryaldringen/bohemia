@@ -1,5 +1,13 @@
 import { dateOfDayIndex, dayIndexOf } from '../../calendar';
-import { DIET, SLAUGHTER_DAY, meatEnergy, villageFoodNeed, villageMeatKg } from '../core/diet';
+import {
+  DIET,
+  SLAUGHTER_DAY,
+  meatEnergy,
+  villageFoodNeed,
+  villageMeatKg,
+  villageSlaughterMeatKg,
+  villageSlaughterShareKg,
+} from '../core/diet';
 import { hungerSplit } from '../people/hunger-groups';
 import { EMERGENCY_SLAUGHTER } from '../rules';
 import {
@@ -22,8 +30,10 @@ import type { HerdSpecies, VillageState } from '../types';
 // se průběžně porážet celý rok (pokud je dost zvířat) v zimě jenom víc (kvůli stravě a kvůli tomu,
 // že se maso pomaleji kazí). Proč by se mělo porážet celý rok – kníže a nobilita chce mít maso na
 // stole nejlépe každý den.“). V létě (1. 4.–31. 10.) ves porazí jeden celý kus, jen když rodu
-// vojvody (vrstva 1 – `hungerSplit`, skupina 0) na dnešek nestačí maso v zásobě; co z kusu rod
-// nesní, sní týž den ostatní a zbytek se vyudí (`eatDiet`). Na maso jdou jen kusy, které by si ves
+// vojvody (vrstva 1 – `hungerSplit`, skupina 0) na dnešek nestačí dnešní čerstvé maso, ostatní
+// uzené (jí se hned) a dnešní díl zásoby z porážky 1. 11. (ta se jí rovným dílem – „Uzené
+// rozlož“); co z kusu rod nesní, sní týž den ostatní a zbytek se vyudí (`eatDiet`). Na maso jdou
+// jen kusy, které by si ves
 // 1. 11. stejně nenechala – staré kusy a kusy nad nosnost zimy (`winterKeepTargets`) –, bez
 // letošních mláďat (kromě selat od 1. 9.) a nikdy pod chovné minimum (`breedingFloor`). Podrobnosti
 // návrh Clauda; letní porážka nezapisuje kroniku (byla by denně). Zima – `winterSlaughterDay`.
@@ -94,14 +104,20 @@ export function summerSlaughterCandidates(
 
 /**
  * Kolik masa (kg) rodu vojvody dnes chybí: potřeba vrstvy 1 (`hungerSplit` – skupina 0) bez masa
- * v zásobě – uzeného i dnešního čerstvého (energie v kg obilí – `DIET.meatEnergy`). Ves bez rodu
- * ve vsi (vojvoda na výjezdu, ves správce) 0.
+ * na dnešek – dnešního čerstvého, ostatního uzeného (celé – jí se hned) a dnešního dílu zásoby
+ * z porážky 1. 11. (`villageSlaughterShareKg`; energie v kg obilí – `DIET.meatEnergy`). Zásoba
+ * z 1. 11. se jí rovným dílem do zkažení (Martin 18. 11. 2026: „Uzené rozlož“), proto rozhoduje
+ * její dnešní díl, ne celá (návrh Clauda – jinak by vydržela do srpna a v létě by se neporáželo
+ * vůbec). Ves bez rodu ve vsi (vojvoda na výjezdu, ves správce) 0.
  */
 export function lordMeatShortKg(state: VillageState, day: number): number {
   const need = hungerSplit(state, day).needs[0] ?? 0;
   if (need <= EPSILON) return 0;
-  const stock = meatEnergy(villageMeatKg(state) + (state.freshMeatKg ?? 0));
-  return Math.max(0, need - stock) / DIET.meatEnergy;
+  const other = villageMeatKg(state) - villageSlaughterMeatKg(state);
+  const today = meatEnergy(
+    (state.freshMeatKg ?? 0) + Math.max(0, other) + villageSlaughterShareKg(state, day),
+  );
+  return Math.max(0, need - today) / DIET.meatEnergy;
 }
 
 /** Letní porážka dne – druh a maso jednoho celého kusu. */
@@ -112,9 +128,9 @@ export interface SummerSlaughter {
 
 /**
  * Co ves dnes v létě porazí (bez změny stavu – diet.md, Porážka celý rok, V létě): nic mimo léto,
- * bez rodu ve vsi a když rodu na dnešek stačí maso v zásobě (`lordMeatShortKg`). Jinak jeden celý
- * kus
- * nejmenšího druhu, jehož maso chybějící maso pokryje a který má aspoň jeden celý kus na maso
+ * bez rodu ve vsi a když rodu na dnešek stačí dnešní čerstvé maso, ostatní uzené a dnešní díl
+ * zásoby z porážky 1. 11. (`lordMeatShortKg`). Jinak jeden celý
+ * kus nejmenšího druhu, jehož maso chybějící maso pokryje a který má aspoň jeden celý kus na maso
  * (`summerSlaughterCandidates`); když nepokryje žádný, největšího z nich. Bez kusů na maso nic.
  */
 export function summerSlaughterPlan(
@@ -138,8 +154,9 @@ export function summerSlaughterPlan(
  * scénu (`noteSlaughtered`), kus do čítače letos v létě poražených kusů
  * (`LivestockState.summerSlaughtered` – všechny letní kusy, staré i nad odhad zimy) a práce
  * porážky a uzení jako v zimě (1 člověkoden na LIVESTOCK.slaughterKgPerManDay kg – udělá se další
- * dny, za žní a sečí – `DAY_WORK_ORDER`). Kronika ne. Volá se v jídle dne po práci (`eat`), aby se počítaly i dnešní ryby
- * a oka. `input` – co ves o zimě ví (`WinterInput`, stačí až na požádání).
+ * dny, za žní a sečí – `DAY_WORK_ORDER`). Kronika ne. Volá se v jídle dne po práci (`eat`), aby
+ * se počítaly i dnešní ryby a oka. `input` – co ves o zimě ví (`WinterInput`, stačí až na
+ * požádání).
  */
 export function summerSlaughterDay(
   state: VillageState,
@@ -176,14 +193,23 @@ function summerDaysAhead(day: number, daysToHarvest: number): number {
  * - v zimě maso kusů, které čekají na zimní porážku (`cullingMeatKg`), nejvýš celá potřeba vsi do
  *   konce zimy;
  * - v létě maso z letní porážky pro rod vojvody – potřeba vrstvy 1 za letní dny výhledu
- *   (`daysToHarvest`, nejvýš do 31. 10.), nejvýš maso celých kusů, které na maso smějí
- *   (`summerSlaughterCandidates`). Bez `input` (co ves o zimě ví) a bez rodu ve vsi 0.
+ *   (`daysToHarvest`, nejvýš do 31. 10.) bez energie uzeného v zásobě, ryb do konce výhledu
+ *   (`fishAheadEnergy` – týž odhad jako výhled, `fishAheadKg`) a dnešního čerstvého masa
+ *   (`freshMeatKg` – dnešní kus, ryby a oka; výhled ho má v čerstvém mase dne a co se z něj nesní,
+ *   se vyudí): dokud rodu stačí jiné maso, ves neporáží (`lordMeatShortKg`); uzené, ryby i dnešní
+ *   kus jí celá ves, rod z nich dostane nejvýš všechno – odečtou se celé (opatrně; návrh Clauda
+ *   18. 11. 2026 – dřív celá potřeba rodu, výhled tak maso rodu počítal dvakrát; dnešní čerstvé od
+ *   D98 – dřív v den porážky odhad vyšší o nesnědený zbytek kusu). Nejvýš maso celých kusů, které
+ *   na maso smějí (`summerSlaughterCandidates`). Bez `input` (co ves o zimě ví) a bez rodu ve vsi
+ *   0.
  */
 export function freshMeatAheadEnergy(
   state: VillageState,
   day: number,
-  daysToHarvest = 0,
-  input?: WinterInputSource,
+  daysToHarvest: number,
+  input: WinterInputSource | undefined,
+  fishAheadEnergy: number,
+  freshMeatKg: number,
 ): number {
   if (isSlaughterSeason(day)) {
     const days = slaughterSeasonDaysLeft(day) - 1;
@@ -197,10 +223,15 @@ export function freshMeatAheadEnergy(
   if (days <= 0) return 0;
   const need = hungerSplit(state, day).needs[0] ?? 0;
   if (need <= EPSILON) return 0;
+  const short =
+    need * days -
+    meatEnergy(villageMeatKg(state) + Math.max(0, freshMeatKg)) -
+    Math.max(0, fishAheadEnergy);
+  if (short <= EPSILON) return 0;
   const candidates = summerSlaughterCandidates(state, day, winterInputOf(input));
   const kg = HERD_SPECIES.reduce(
     (sum, s) => sum + Math.floor(candidates[s] + EPSILON) * LIVESTOCK.meatKg[s],
     0,
   );
-  return Math.min(need * days, meatEnergy(kg));
+  return Math.min(short, meatEnergy(kg));
 }

@@ -87,20 +87,26 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
     s hysterezí; chybí = rodina pracuje jako ostatní, i ve starší vsi – převod netřeba).
     Cvičící rodina je mimo práci vsi, `manorLabor` kryje minimum dvorce (starší, pak dospělí
     rodiny; zbytek žen propadne). `LaborDay.lord` = počty `{ training, field, household }`.
-  - **Na pole jen ve žních** (lord.md – Kdy jde rodina na pole; Martin 9. 11. 2026): rodina ve
-    vsi dá ve žňový den podíl z plánu (`manorLabor.help` – `lordHelpDay`,
+  - **Na pole ve žních a s přípravou půdy a setím** (lord.md – Kdy jde rodina na pole; Martin 9. 11. a 19. 11. 2026 – D102): rodina ve vsi dá ve žňový den podíl z plánu (`manorLabor.help`
+    – `lordHelpDay`, v oknech setí `manorLabor.sowing` – `FarmSeason.lordSowing`,
     [village-fields.md](village-fields.md) – Rodina ve žních) v pořadí ženy a dcery → muži →
     vojvoda (`lordFieldShares`; `ManorLabor.freeLord` – minimum, na které ženy nestačí, kryjí
-    napřed synové). `lordFieldIds` = cvičící dnes na poli – nejezdí ani neloví.
+    napřed synové). `lordFieldIds` = cvičící dnes na poli – nejezdí ani neloví. Spotřebu dne
+    (`DayAllocation.lordField` – práce rodiny × délka dne) převede na lidi na celý dnešní den
+    `lordFieldSharesToday` (`used ÷ daylight`) – stejní lidé jako v plánu (`harvestFieldIds`;
+    D102 kolo 1, oprava chyby z 9. 11. 2026 – dřív v krátkém dni vojvoda při celém podílu cvičil).
+    Plán pošle rodinu na pole i v den, kdy na čele práce pro ni není (čelo blokuje orba spřežení) –
+    zjednodušení jako ve žních (lord.md – Příprava půdy a setí).
   - **Výmlat v zimě** (lord.md – Kdy jde rodina na pole, Výmlat v zimě; Martin 18. 11. 2026 – D95,
     volba A): v zimě (`WINTER_THRESH_WINDOW` – listopad–únor) mimo žňový den `winterThreshPace`
     (`simulate-work.ts`) – zbývající práce `threshSeasonTasks` ÷ dny okna – jde do `allocateDay`
-    jako `threshPace` a zásobník `lordHelp` je celá `manorLabor.free`. Rodina dá jen tempo nad
+    jako `threshPace` a strop pomoci `lordFree` je celá `manorLabor.free` (v listopadu napřed
+    `lordSowing` na přípravu jaře, výmlat ze zbytku – D102). Rodina dá jen tempo nad
     pravidelnou práci vsi dne (`regularOutdoor` – po denním minimu a péči o koně, dnešní délkou dne,
     bez výprav, vozů, kování a úloh dne), mlátí až po všech úlohách dne a jinde ten den nepomáhá;
     jednorázový propad dne (porážka) nedorovná, zbytek dorovnají další dny okna. Použitá práce jde
-    do `lordFieldShares` jako ve žních (`trainLordDay` krátí výcvik). `harvestFieldIds` (jízdy ve
-    scéně) zimní výmlat nezná. Pomoc při hladu (`lord.field`,
+    do `lordFieldSharesToday` jako ve žních (`trainLordDay` krátí výcvik). `harvestFieldIds` (jízdy ve
+    scéně a hlídka polí) zná žně a okna setí (`help` + `sowing`), zimní výmlat ne. Pomoc při hladu (`lord.field`,
     `lord.fedDays`, kronika `lord-to-field` / `lord-to-training`) zrušená – převod
     `withoutSowingHelp` (`lord.ts`) je smaže; staré zápisy kroniky web dál umí.
   - **Výcvik:** `trainLordDay` po jídle – cvičící `trainArms`, dospělí jen
