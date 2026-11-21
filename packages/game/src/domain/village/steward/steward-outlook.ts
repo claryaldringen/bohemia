@@ -34,12 +34,18 @@ export interface StewardOutlook {
   laborHa: number;
   /**
    * Cíl polí (D99 kolo 1 – Martin 18. 11. 2026, „kolik polí ves zvládne obdělat“): kolik ves
-   * stihne osít (okna setí jednou, orba i lidmi) **a** sklidit (`harvestHa`), nejmenší z nich (ha).
+   * stihne osít (`sowHa`, spřežením) **a** sklidit (`harvestHa`) i vymlátit (`threshHa`), nejmenší
+   * z nich (ha) – i s prací rodu vojvody (D103 – Martin 19. 11. 2026).
    */
   workableHa: number;
-  /** Osev, který ves stihne sklidit: žeň a odnos v oknech žní (červenec, srpen – ha). */
+  /**
+   * Osev, který ves s rodem stihne připravit a osít v oknech setí (okno vracení a kopání jednou,
+   * orba i lidmi – ha).
+   */
+  sowHa: number;
+  /** Osev, který ves s rodem stihne sklidit: žeň a odnos v oknech žní (červenec, srpen – ha). */
   harvestHa: number;
-  /** Osev, který ves stihne vymlátit v zimním okně výmlatu (listopad–únor – ha). */
+  /** Osev, který ves s rodem stihne vymlátit v zimním okně výmlatu (listopad–únor – ha). */
   threshHa: number;
   /** Osev podle osiva – letos vzaté a co smí do země (ha); mimo okna setí nekonečno. */
   seedHa: number;
@@ -164,12 +170,13 @@ function workPerSownHa(
 }
 
 /**
- * Výhled vsi (steward.md – Model kapacity vsi): osev podle práce = nejmenší z osevu podle lidí
- * (kapacita oken setí hospodářského roku – `sowingCapacity.autumn` od 1. 9., září–listopad
- * i březen–duben, lidé po denním minimu ÷ práce lidí na osetý hektar i s orbou), podle spřežení
- * (orba spřežení týchž oken ÷ orba na hektar), podle žní (`harvestHa` – práce oken žní ÷ žeň
- * a odnos na hektar) a podle výmlatu (`threshHa` – práce zimního okna výmlatu ÷ výmlat na hektar);
- * osev podle osiva = (osivo, které letošní plán vzal, + co smí
+ * Výhled vsi (steward.md – Model kapacity vsi): co ves obdělá (`workableHa`) = nejmenší z osevu
+ * podle lidí (`sowHa` – kapacita oken setí hospodářského roku – `sowingCapacity.autumn` od 1. 9.,
+ * září–listopad i březen–duben, lidé po denním minimu i s prací rodu vojvody – D103 ÷ práce lidí
+ * na osetý hektar i s orbou), podle spřežení (orba spřežení týchž oken ÷ orba na hektar), podle
+ * žní (`harvestHa` – práce oken žní i s rodem ÷ žeň a odnos na hektar) a podle výmlatu
+ * (`threshHa` – práce zimního okna výmlatu i s rodem ÷ výmlat na hektar); osev podle práce
+ * (`laborHa`) bez rodu; osev podle osiva = (osivo, které letošní plán vzal, + co smí
  * do země + luštěniny) ÷ `SEED_KG_PER_HA` – jen do konce setí (po dubnu se letošní osivo už
  * neřeší a příští ves ještě nezná); osev podle půdy z `fieldCapacity`. Udržitelní lidé = „Pole
  * uživí“ × osev trvalého hrdla (půda, nebo práce) ÷ osev podle půdy. Ves bez lidí nebo bez pole:
@@ -201,24 +208,37 @@ export function stewardOutlook(
       ? (windows.plough.autumn + windows.plough.spring) / work.plough
       : Infinity;
   const laborHa = Math.min(peopleHa, ploughHa);
+  // cíl polí i s prací rodu vojvody (D103 – Martin 19. 11. 2026 na otázku, má-li správce zakládat
+  // pole i na práci rodu: „Ano, maximálně zůstanou neobdělaná“): tentýž model jako plán pomoci
+  // rodiny (`lordHelpDay`) – práce cvičící rodiny, která je ve vsi, po denním minimu dvorce
+  // v oknech setí i žní a v zimním výmlatu (lord.md – Kdy jde rodina na pole); spřežení rodina
+  // nepřidá – orba se převezme. Rodina, která necvičí, pracuje jako ostatní a je už v práci vsi.
+  // `laborHa` dál bez rodiny (Známý dluh – steward.md, Model kapacity vsi)
+  const lordWindows = sowingCapacity(state, yearStart, coverage, plough, null, undefined, {
+    withoutLateHarvest: true,
+    lord: true,
+    ...(windows.plough ? { ploughCapacity: windows.plough } : {}),
+  });
   // cíl polí (D99 kolo 1): okno `autumn` (vracení přílohu a kopání – září–listopad i březen–duben)
   // už nese celé jaro, `spring` je jen jeho výsek pro setí – počítá se jednou; orba stojí i lidi
   const sowPeople = work.people + work.plough;
-  const sowHa = sowPeople > 0 ? windows.autumn / sowPeople : Infinity;
+  const sowHa = sowPeople > 0 ? lordWindows.autumn / sowPeople : Infinity;
   const teamHa = windows.plough && work.plough > 0 ? windows.plough.autumn / work.plough : Infinity;
   // sklidit (D99 kolo 2): žeň a odnos v oknech žní (červenec, srpen – se žňovými rukama), žeň jde
   // v práci dne před lnem i otavou (`DAY_WORK_ORDER`), proto se od nich nic neodečítá (Martin
   // 9. 11. 2026: „Je lepší za každou cenu sklidit to, co už vyrostlo, než začínat pěstování úplně
   // od začátku“); dosklizeň jaře v září je jednorázová (`withoutLateHarvest`)
-  const harvestHa = work.harvest > 0 ? (windows.july + windows.august) / work.harvest : Infinity;
+  const harvestHa =
+    work.harvest > 0 ? (lordWindows.july + lordWindows.august) / work.harvest : Infinity;
   // výmlat ve vlastním okně do února za polními pracemi (Martin 9. 11. 2026: „Výmlat prý počká
   // i docela hluboko do zimy“): práce zimního okna výmlatu (`WINTER_THRESH_WINDOW`) – volná práce
-  // dne jako v okně setí (`spring` na světlý den) × světlé dny okna; co ves vymlátí v září a říjnu
-  // vedle setí, se nepočítá (návrh Clauda – opatrně)
+  // dne jako v okně setí (`spring` na světlý den, i s rodinou – lord.md, Výmlat v zimě) × světlé
+  // dny okna; co ves vymlátí v září a říjnu vedle setí, se nepočítá (návrh Clauda – opatrně)
   const springLight = windowDaylightWithout(yearStart, WINDOWS.sow, SOW_AFTER_DIG_DAYS);
   const threshRoom =
     springLight > 0
-      ? (windows.spring / springLight) * windowDaylightWithout(yearStart, WINTER_THRESH_WINDOW, 0)
+      ? (lordWindows.spring / springLight) *
+        windowDaylightWithout(yearStart, WINTER_THRESH_WINDOW, 0)
       : 0;
   const threshHa = work.thresh > 0 ? threshRoom / work.thresh : Infinity;
   const workableHa = Math.min(sowHa, teamHa, harvestHa, threshHa);
@@ -237,6 +257,7 @@ export function stewardOutlook(
   return {
     laborHa,
     workableHa,
+    sowHa,
     harvestHa,
     threshHa,
     seedHa,

@@ -77,6 +77,7 @@ function newConstructions(before: VillageState, after: VillageState): number[] {
 const OPEN_OUTLOOK: StewardOutlook = {
   laborHa: Infinity,
   workableHa: Infinity,
+  sowHa: Infinity,
   harvestHa: Infinity,
   threshHa: Infinity,
   seedHa: Infinity,

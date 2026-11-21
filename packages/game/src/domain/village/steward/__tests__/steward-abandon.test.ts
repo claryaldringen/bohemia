@@ -111,6 +111,7 @@ function outlookOf(lackOfPeople: boolean): StewardOutlook {
   return {
     laborHa: lackOfPeople ? 0.01 : Infinity,
     workableHa: lackOfPeople ? 0.01 : Infinity,
+    sowHa: lackOfPeople ? 0.01 : Infinity,
     harvestHa: Infinity,
     threshHa: Infinity,
     seedHa: Infinity,

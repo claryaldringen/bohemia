@@ -76,6 +76,7 @@ function dayOn(year: number, month: number, d: number): number {
 const OPEN_OUTLOOK: StewardOutlook = {
   laborHa: Infinity,
   workableHa: Infinity,
+  sowHa: Infinity,
   harvestHa: Infinity,
   threshHa: Infinity,
   seedHa: Infinity,
