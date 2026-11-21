@@ -211,7 +211,7 @@ describe('ohrada', () => {
     // přímo: z 5,5 krávy při cíli 4 jen jedno tele, ze 4,6 žádné
     const t = withOxen(withTeam(day));
     t.pens![0]!.oxen = [];
-    // bez rádla – náhrada posledního páru neplatí (oxen.md – Co nejvíc sena a co největší stáda)
+    // bez rádla – náhrada páru neplatí (oxen.md – Co nejvíc sena a co největší stáda)
     t.ards = 0;
     t.livestock!.herds.cow = 5.5;
     expect(oxenTraining(t, day, goal(2, 1, 4), null)).toEqual({ calves: 1, ards: 0 });
@@ -234,7 +234,7 @@ describe('ohrada', () => {
     expect(oxenTraining(t, day, goal(4, 1, 4), null)).toEqual({ calves: 1, ards: 0 });
   });
 
-  it('náhrada posledního páru k orbě má přednost před cílem krav – dokud zůstane chovný pár', () => {
+  it('náhrada páru k orbě má přednost před cílem krav – dokud zůstane chovný pár', () => {
     const day = at(600, 5, 1);
     const t = withOxen(withTeam(day));
     // pár je v posledních 2 letech služby – bez náhrady by ves orala motykou
@@ -251,10 +251,34 @@ describe('ohrada', () => {
     // ves, která neorá (bez párů k rádlům), ani voli na vozy přednost nemají
     t.livestock!.herds.cow = 3.5;
     expect(oxenTraining(t, day, goal(1, 0, 4), null)).toMatch(/přírůstek/);
-    // jiný pár ještě slouží – druhý pár a voli na vozy jen z přírůstku
+    // jiný pár ještě slouží a ves chce jediný pár k rádlům – voli na vozy jen z přírůstku
     t.pens![0]!.oxen.push({ trainedDay: day - 10 }, { trainedDay: day - 10 });
     t.pens![0]!.extraSquares = [{ cell: { x: 3, y: 5 }, x: 50, z: 75 }];
-    expect(oxenTraining(t, day, goal(5, 2, 4), null)).toMatch(/přírůstek/);
+    expect(oxenTraining(t, day, goal(5, 1, 4), null)).toMatch(/přírůstek/);
+  });
+
+  it('náhrada platí pro všechny páry k rádlům, které ves chce – voli na vozy jen z přírůstku (Martin 21. 11. 2026)', () => {
+    const day = at(600, 5, 1);
+    const t = withOxen(withTeam(day));
+    // jeden pár orá mimo posledních 2 let služby, ves chce dva páry k rádlům
+    t.pens![0]!.oxen = [{ trainedDay: day - 365 }, { trainedDay: day - 365 }];
+    expect(lastingOxen(t, day)).toBe(2);
+    // chovné stádo 4 krávy, chovný pár krav zůstane: ze 4 krav dvě telata na druhý pár, ze 3 jedno
+    t.livestock!.herds.cow = 4;
+    expect(oxenTraining(t, day, goal(4, 2, 4), null)).toMatchObject({ calves: 2 });
+    t.livestock!.herds.cow = 3;
+    expect(oxenTraining(t, day, goal(4, 2, 4), null)).toMatchObject({ calves: 1 });
+    t.livestock!.herds.cow = 2;
+    expect(oxenTraining(t, day, goal(4, 2, 4), null)).toMatch(/přírůstek/);
+    // omezeno chybějícími voly (ves chce o jednoho vola víc, než má)
+    t.livestock!.herds.cow = 4;
+    expect(oxenTraining(t, day, goal(3, 2, 4), null)).toMatchObject({ calves: 1 });
+    // pár, který ves chce k rádlům, už má – voli na vozy pod cílem krav nedostanou nic
+    expect(oxenTraining(t, day, goal(4, 1, 4), null)).toMatch(/přírůstek/);
+    // telata nad páry k rádlům jen z přírůstku nad chovnými kravami
+    expect(oxenTraining(t, day, goal(6, 2, 4), null)).toMatchObject({ calves: 2 });
+    t.livestock!.herds.cow = 7;
+    expect(oxenTraining(t, day, goal(6, 2, 4), null)).toMatchObject({ calves: 3 });
   });
 
   it('v zimě začne výcvik, jen když seno vystačí volům i telatům do konce března', () => {
@@ -443,7 +467,7 @@ describe('náhrada volů (Martin 18. 10. 2026)', () => {
     expect(oxenTraining(s, day, goal(2, 1), null)).toEqual({ calves: 2, ards: 0 });
   });
 
-  it('náhrada posledního páru i pod cílem krav: ves neorá motykou ani den (návrh Clauda 20. 10. 2026)', () => {
+  it('náhrada páru i pod cílem krav: ves neorá motykou ani den (návrh Clauda 20. 10. 2026)', () => {
     const day = at(600, 5, 1);
     const s = withTeam(day);
     // chovné stádo 3,5 krávy, ve stádu jen 4,1 – přírůstek na pár nemá, chovný pár ale zůstane

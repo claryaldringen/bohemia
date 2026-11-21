@@ -642,8 +642,8 @@ a potah; „Ano, udělej to jak říkáš“). Návrh Clauda:
 - **Telata na voly jen z přírůstku nad chovnými kravami** (návrh Clauda, 20. 10. 2026 –
   dřív aspoň jedna kráva zůstala a Vlkov klesl na 1,2 krávy z cíle 4): výcvik vezme jen tolik
   telat, kolik je krav nad cílem `breedingCows`; jinak počká na mláďata 1. 4. Voli se cvičí i po
-  jednom (dvoukolák táhne jeden vůl). Výjimka: náhrada posledního páru k orbě vezme telata, dokud
-  zůstane chovný pár krav ([orba](oxen.md) – Náhrada posledního páru má přednost).
+  jednom (dvoukolák táhne jeden vůl). Výjimka: páry k orbě, které ves chce, vezmou telata, dokud
+  zůstane chovný pár krav (Martin 21. 11. 2026; [orba](oxen.md) – Páry k rádlům, které ves chce, mají přednost).
 - **Krávy navíc na telata** (rozhodnutí Clauda): když ves telata do výcviku potřebuje nebo bude
   potřebovat do dalších mláďat (voli, kteří jí za rok budou chybět do cíle – `oxenCalvesWanted`),
   nechá si při porážce 1. 11. tolik krav navíc nad chovné stádo (`minCows` plánu stáda), aby na
@@ -675,7 +675,7 @@ voly**“ (obchod – [obchod](trade.md), Dobytek ve třech druzích). Podrobnos
   pastva, seno, pasáci a místa v ohradách stádo omezují dál (krávy na voly jsou v pořadí pastvy
   a sena hned za voly a ovcemi na vlnu).
 - **Telata z přírůstku nad cílem** platí dál – větší cíl znamená, že malé stádo napřed roste
-  a teprve pak dává telata na voly navíc; náhrada posledního páru k orbě má přednost jako dřív.
+  a teprve pak dává telata na voly navíc; páry k orbě, které ves chce, mají přednost (od 21. 11. 2026 všechny, ne jen poslední).
   Rychleji jde dokoupit krávy nebo voly od sousedů ([obchod](trade.md) – Dobytek ve třech
   druzích). **Vlkov** (20. 10. 2026, 8 domácností, voli 2, chce 3, ohrada volů 6 míst): cíl
   ~~4~~ **8,5** krávy, stádo 2,6 krávy. Za 3 roky bez obchodu ≈ 3 krávy a od dubna 803 do dubna
