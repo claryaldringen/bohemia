@@ -45,7 +45,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   po volech a koních v pořadí přednosti, chybí-li na celý kus, hned porazí celé kusy (kozy,
   ovce, krávy) i všechny čekající (`culling`), chovný pár zůstane, maso do uzení – kronika
   `hay-slaughter`, upozornění „Chybí seno – porazili …“. Zimní úhyn je zrušen (kronika
-  `herd-starved` jen ze starších vsí). Náhrada posledního páru (`oxenTraining` – `lastPair`) platí
+  `herd-starved` jen ze starších vsí). Náhrada párů k rádlům (`oxenTraining` – `pairsShort`, `pairsOxen`) platí
   i po rozpadu páru, když ves má rádlo (`villageArds`). Ves sama nekupuje ani neprodává.
 - **Zima bez sena – pastva, sláma a chovné jádro** (diet.md a oxen.md – Zima bez sena; Martin 10. 11. 2026, čísla návrh Clauda): seč srpem `HAY_WORK_PER_HA` 46 / 40 čd/ha (rules-livestock.ts
   – 2× `HARVEST_WORK_PER_HA`). **Sníh:** `snowDaysAhead(day, days, winter)` a `snowDaysOfYear`
