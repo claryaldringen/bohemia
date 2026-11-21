@@ -410,7 +410,7 @@ interface DietPlan {
    * Co ze zásoby z porážky 1. 11. se musí sníst dnes, jinak se zkazí (energie – Martin 18. 11. 2026:
    * „Pokud bude přebytek masa, ať klidně všichni jedí jenom maso, pokud se tím zabrání jeho
    * zkažení“): zásoba nad plnou potřebu za zbývající dny do konce masa (bez dneška), nejvýš plná
-   * potřeba – jí se v tempu proti zkažení, před mlékem (ruling koordinátora 18. 11. 2026).
+   * potřeba – jí se v tempu proti zkažení, před mlékem (návrh Clauda 18. 11. 2026).
    */
   slaughterMust: number;
   /**

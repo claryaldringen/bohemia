@@ -220,8 +220,8 @@ syna i v přelidněné vsi.
 
 - **podle práce** – kapacita setí celého hospodářského roku od 1. 9. (`sowingCapacity`: podzim
   září–listopad a jaro březen–duben, lidé po denním minimu – **jen ti, kdo se vsí opravdu pracují:
-  bez mistrů huti a kněze mezi stavbami** (Martin: „Mezi stavbami jen čekají – nepracují na poli ani
-  ve vsi“, [stavební huť](stone-masonry.md)) **a bez trvale nepřítomných** (tažení, robota, služba,
+  bez mistrů huti a kněze mezi stavbami** (Martin 11. 11. 2026 – mezi stavbami jen čekají, nepracují
+  na poli ani ve vsi; [stavební huť](stone-masonry.md)) **a bez trvale nepřítomných** (tažení, robota, služba,
   zajetí, cesta pro kování – tytéž lidi jako den, `planVillagers`; denní nepřítomnosti – lov, požár,
   nájezd – plán nezná; oprava chyby z 11. 11. 2026, návrh Clauda, D102 kolo 2, 21. 11. 2026),
   se spřežením i orba) ÷ práce na

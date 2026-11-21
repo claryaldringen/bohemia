@@ -173,7 +173,7 @@ v hladu), nově platí celý rok, ne jen v hladu:
     potřeby rodu, dostanou ostatní vrstvy, víc než plnou potřebu vsi nikdo nesní. Mléko se tak
     nevytlačí na sýr a čerstvé maso zimní porážky jde do celé potřeby, jak s ním plán čekajících
     kusů počítá (Porážka v zimě).
-  - **Nutně dnes** (ruling koordinátora 18. 11. 2026 podle Martina, 18. 11. 2026: „Pokud bude
+  - **Nutně dnes** (návrh Clauda 18. 11. 2026 podle Martina, 18. 11. 2026: „Pokud bude
     přebytek masa, ať klidně všichni jedí jenom maso, pokud se tím zabrání jeho zkažení“): část
     zásoby, která by se jinak zkazila, se sní dnes napřed – před mlékem, v tempu proti zkažení:
     nutně dnes = zásoba − plná potřeba vsi × (dny do konce masa − 1), nejméně nic a nejvýš plná
