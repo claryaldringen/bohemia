@@ -76,7 +76,10 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   sníh (`snowLies` – `snow.ts`, týž výpočet jako scéna, zima roku z `weatherOf`), voda 0 – vozy pro
   vodu nejedou. Minimum domácnosti podle období počítá `householdMinimum` (dvorec – `manorLabor`
   s `chores`, dílny – `workshopLabor`). Plán: okna setí letní skladba (`SUMMER_CHORES`), žně
-  `HARVEST_CHORES` (`freeLabor` s `chores`), čelo práce dnešní. **Délka dne**
+  `HARVEST_CHORES` (`freeLabor` s `chores`), čelo práce dnešní. `freeLabor` bere lidi `planVillagers`
+  (`morning-water.ts` – bez trvale nepřítomných `isAway`, mistrů huti a kněze `isLodgeIdle`, lidí na
+  cestě pro kování `ironTravellers`; D102 kolo 2) – tytéž jako `villagersToday`, které k nim přidá
+  denní vyřazení (dílny, rodina, lov, požár). **Délka dne**
   (`daylight.ts` – `daylightFactor`, `DAYLIGHT_WORK`; lineárně mezi polovinami měsíců):
   `allocateDay` – `daylight` násobí `left` po kování, výpravách a vozech pro kováře a zásobníky
   `light`, `harvestHands`, `weedChildren`, `lordHelp`, `lordSowing` (strop `lordFree`) a práci žen při pletí

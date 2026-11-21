@@ -163,7 +163,8 @@ z vojvodovy rodiny, samotný vojvoda až úplně nakonec“.
   ozim do konce října, jař v celém okně kopání); napřed rozdělaná práce, pak díly na řadě
   v pořadí výběru. Žádný cíl ani plán osevu
   – ves seje maximum ([pole](fields.md) – Osevní postup po dílech). Proti ní stojí volná práce vsi
-  do konce okna (jako ve žních, dnešní délkou dne) – rodina, která je zrovna ve vsi, dá jen
+  do konce okna (jako ve žních, dnešní délkou dne; lidé jen ti, kdo se vsí pracují – bez mistrů huti,
+  kněze a trvale nepřítomných, jako den) – rodina, která je zrovna ve vsi, dá jen
   chybějící práci (chybějící práce ÷ práce rodiny po denním minimu dvorce, nejvýš celý den);
   ves to přepočítá každý den ze zbývající práce.
   - **Volná práce vsi bez úloh, které jdou před přípravou půdy** (návrh Clauda, 19. 11. 2026 – D102
@@ -172,7 +173,8 @@ z vojvodovy rodiny, samotný vojvoda až úplně nakonec“.
     jim dá ruce napřed. Volná práce vsi v okně setí je proto bez **zbytku nutné otavy** (do konce
     září), **porážky a uzení, které čekají**, **zimní porážky** čekajících kusů po dnech okna
     (listopad, březen) a **výmlatu na osivo** do konce okna (ve žňový den jen díl vsi – žňové ruce
-    mlátí s ní); jako dosklizeň jaře v září. Rodině se nic neubírá – s nimi nepomáhá. Sklizeň jablek
+    mlátí s ní; nejvýš osivo plochy, kterou počítá zátěž pomoci rodiny – ideál hromady okna ji
+    přestřelil ≈ 5×, ves zaseje, co stihnou ruce a spřežení; návrh Clauda, D102 kolo 2); jako dosklizeň jaře v září. Rodině se nic neubírá – s nimi nepomáhá. Sklizeň jablek
     počítá zátěž okna; 1. seč, pletí a trhání lnu do oken setí nepadnou; výmlat na dnešní jídlo
     a porážky, které ves ještě neudělala (letní porážka pro rod, kusy na zimu před 1. 11.), se
     neodhadují – přepočet je uvidí, až nastanou. Dřív ve Vlkově 906 v září ves sekla otavu a rodina

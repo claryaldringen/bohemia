@@ -218,7 +218,12 @@ syna i v přelidněné vsi.
 **Výhled vsi** (`stewardOutlook`, jednou za den správce) – kolik ves za hospodářský rok oseje:
 
 - **podle práce** – kapacita setí celého hospodářského roku od 1. 9. (`sowingCapacity`: podzim
-  září–listopad a jaro březen–duben, lidé po denním minimu, se spřežením i orba) ÷ práce na
+  září–listopad a jaro březen–duben, lidé po denním minimu – **jen ti, kdo se vsí opravdu pracují:
+  bez mistrů huti a kněze mezi stavbami** (Martin: „Mezi stavbami jen čekají – nepracují na poli ani
+  ve vsi“, [stavební huť](stone-masonry.md)) **a bez trvale nepřítomných** (tažení, robota, služba,
+  zajetí, cesta pro kování – tytéž lidi jako den, `planVillagers`; denní nepřítomnosti – lov, požár,
+  nájezd – plán nezná; oprava chyby z 11. 11. 2026, návrh Clauda, D102 kolo 2, 21. 11. 2026),
+  se spřežením i orba) ÷ práce na
   osetý hektar. Práce na hektar je z letošního plánu (vracení přílohu, kopání a setí dílů, které
   ves vzala – i se vzdáleností a stadiem přílohu); bez plánu podle sazeb: kopání (orba) a setí
   a vracení přílohu jednou za roky osevu dílu, × průměrný příplatek za vzdálenost;
@@ -244,6 +249,13 @@ dřív se k němu jaro přičítalo ještě jednou (+ ≈ 40 % práce lidí i sp
 hektar 6 proti skutečným 19–27 čd). Na den výhled se simulací sedí (plán 4,4–5,6 čd/den,
 skutečně 5,7–6,0). Zlatá ves: osev lidmi ≈ 39 ha, spřežením ≈ 23 ha, žní 16,5–17,3 ha – váže žeň,
 cíl je nad 12 ha, které ves osela a sklidila (test `village-golden-long.test.ts`).
+
+**Zjednodušení plánu (návrh Clauda, D102 kolo 2):** plán neodečítá práci „za den“, která jde před
+úlohami – péči o koně, kování, výpravy a nosiče, vozy pro kováře (v měřených říjnech 0, v listopadu
+0,9–2,1 čd/den); rozhodují se den po dni a přepočet dne je vidí, až nastanou. Plán také bere pro okna
+setí letní skladbu dne (plné minimum, voda domů), kdežto den v září a říjnu je žňový (poloviční
+minimum, voda na pole) – opatrné směrem, na kterém záleží; srovnání se skladbou dne je samostatná
+úloha.
 
 **Známý dluh – dva modely práce v jednom výhledu:** ostatní čtenáři čtou dál „podle práce“
 (`laborHa` – jaro dvakrát, orba bez lidí): plán sídla (blok domácnosti, `planSize`), odchod syna

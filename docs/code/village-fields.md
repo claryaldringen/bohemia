@@ -122,7 +122,8 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   kterou ves se žňovými rukama nestihne – `lordLate`, D102 kolo 1). Volná práce vsi v oknech setí
   je bez úloh dne, které jdou v `DAY_WORK_ORDER` před přípravou půdy (`beforeTillage` – D102 kolo 1,
   jen díl vsi, rodině ne): `beforeTillageToday` (nutná otava `mowingNeededRemaining`, porážka
-  `slaughterRemaining`, výmlat na osivo do konce okna `windowSeedThreshKg` v seed.ts ×
+  `slaughterRemaining`, výmlat na osivo do konce okna `windowSeedThreshKg` v seed.ts (nejvýš osivo plochy zátěže –
+  `sowingHelpWork(…).seedKg`, D102 kolo 2, I2) ×
   `grainThreshWork` v threshing.ts, ve žňový den jen díl vsi) do oken, ve kterých dnešek leží,
   a zimní porážka po dnech `winterSlaughterWork` (`cullingMeatKg` – listopad, březen); jablka nese
   zátěž (`planLoad`), dosklizeň jaře `late`; výmlat na dnešní jídlo a porážky, které ještě nenastaly,
