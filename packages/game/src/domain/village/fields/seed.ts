@@ -611,10 +611,17 @@ export function seedThreshKg(state: VillageState, day: number, toolCoverage: num
  * Kolik zrna ves do konce okna setí ještě vymlátí na osivo (kg – výhled práce vsi před přípravou
  * půdy, `sowingCapacity`; D102 kolo 1, návrh Clauda): jako `seedThreshKg`, jen na celý zbytek okna
  * – osivo ideálního zbytku okna, nejvýš osivo plochy, kterou ves dnešním tempem (`sowingHaPerDay`)
- * do konce okna zaseje (`sowingDaysLeft`). Zrno, které ves z vymláceného do konce okna sní, ani
+ * do konce okna zaseje (`sowingDaysLeft`), a nejvýš osivo plochy, kterou počítá zátěž pomoci
+ * rodiny (`areaSeedKg` – `sowingHelpLoad`; D102 kolo 2, I2: ideál hromady okna dřív přestřelil
+ * ≈ 5×, protože setí brzdí ruce a spřežení, ne tempo). Zrno, které ves z vymláceného do konce okna sní, ani
  * výmlat po přípravě půdy se nepočítají. Mimo okno setí (i v zimním osivu) 0.
  */
-export function windowSeedThreshKg(state: VillageState, day: number, toolCoverage: number): number {
+export function windowSeedThreshKg(
+  state: VillageState,
+  day: number,
+  toolCoverage: number,
+  areaSeedKg: () => number,
+): number {
   const pile = state.sowingSeed;
   if (!pile || pile.beforeWindow) return 0;
   const left = sowingDaysLeft(state, pile.crop, day);
@@ -622,7 +629,10 @@ export function windowSeedThreshKg(state: VillageState, day: number, toolCoverag
   const ideal = (pile.totalKg * Math.min(pile.days, left)) / pile.days;
   const sows =
     sowingHaPerDay(state, day, pile.crop, toolCoverage) * cropSeedPerHa(pile.crop) * left;
-  return seedFromSheavesKg(state, day, Math.min(ideal - reservedSeedKg(state), sows));
+  // nejvýš osivo plochy, kterou počítá zátěž pomoci rodiny – ideál hromady okna ji přestřelí, ves
+  // zaseje, co stihnou ruce a spřežení; osivo už vymlácené se odečte
+  const want = Math.min(ideal, sows, areaSeedKg()) - reservedSeedKg(state);
+  return seedFromSheavesKg(state, day, want);
 }
 
 /**

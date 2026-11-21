@@ -11,6 +11,8 @@ import {
   sowingHelpLoad,
   villageProductivity,
 } from '../../core/simulate-plan';
+import { villagersToday, planVillagers } from '../../core/morning-water';
+import { windowSeedThreshKg } from '../../fields/seed';
 import { createCropWork, lateHarvestRemaining } from '../../core/year-plan';
 import { cullingMeatKg, LIVESTOCK } from '../../livestock/livestock';
 import {
@@ -20,7 +22,7 @@ import {
   type CropLoad,
   type SowingCapacity,
 } from '../../fields/sowing';
-import { harvestFieldIds, lordFamily, manorLabor } from '../lord';
+import { harvestFieldIds, lordApartIds, lordFamily, manorLabor } from '../lord';
 import type { FarmSeason, Person, VillageState } from '../../types';
 import { dwelling } from '../../__tests__/kin-fixtures';
 import { withBuiltFirstDwelling } from '../../__tests__/village-fixtures';
@@ -410,8 +412,9 @@ describe('úlohy dne před přípravou půdy a chybějící práce (D102 kolo 1)
     expect(plain.autumn - busy.autumn).toBeCloseTo((work * 46) / 136, 9);
     expect(plain.spring - busy.spring).toBeCloseTo((work * 31) / 136, 9);
     // v září a říjnu ves kusy na zimu ještě nevybrala – nic
-    expect(capacity(s, DAY, { beforeTillage: true }).autumnWinter).toBeCloseTo(
-      capacity(s, DAY).autumnWinter,
+    // (okno `autumn` – září–listopad – zimní měsíce má, `autumnWinter` ne; D102 kolo 2, N2)
+    expect(capacity(s, DAY, { beforeTillage: true }).autumn).toBeCloseTo(
+      capacity(s, DAY).autumn,
       9,
     );
   });
@@ -492,5 +495,64 @@ describe('úlohy dne před přípravou půdy a chybějící práce (D102 kolo 1)
       capacity(s, DAY, { lord: true }).autumn - capacity(s, DAY).autumn - september,
       6,
     );
+  });
+});
+
+describe('plán počítá stejné lidi jako den (D102 kolo 2)', () => {
+  const DAY = at(600, 9, 2);
+  const capacity = (s: VillageState): SowingCapacity =>
+    sowingCapacity(s, DAY, craftCoverage(s, DAY), false, null, undefined, {});
+  const base = (): VillageState => advanceVillage(sowingVillage(600), PLAN_DAY, null);
+
+  it('mistr huti mezi stavbami a člověk na tažení do volné práce plánu nepatří', () => {
+    const plain = base();
+    const withIdle = structuredClone(plain);
+    withIdle.people = [
+      ...withIdle.people,
+      person(30, 30, OUTSIDE, 'male', { mason: 'builder' }),
+      person(31, 35, OUTSIDE, 'female', { priest: true }),
+      person(32, 28, OUTSIDE, 'male', { away: { kind: 'campaign', untilDay: DAY + 100 } }),
+    ];
+    expect(capacity(withIdle)).toEqual(capacity(plain));
+    // stejní lidé jako den (`villagersToday`) a jedna sdílená funkce
+    const crafts = new Set<number>();
+    const apart = lordApartIds(withIdle, DAY);
+    expect(apart.size).toBeGreaterThan(0);
+    expect(villagersToday(withIdle, DAY, crafts).villagers.map((p) => p.id)).toEqual(
+      planVillagers(withIdle, DAY)
+        .filter((p) => !apart.has(p.id))
+        .map((p) => p.id),
+    );
+    expect(planVillagers(withIdle, DAY)).toHaveLength(plain.people.length);
+    // bez nich bez změny – týž seznam
+    expect(planVillagers(plain, DAY)).toBe(plain.people);
+  });
+
+  it('denní nepřítomnost (lov, požár, nájezd) plán nezná – jen trvalá', () => {
+    const s = base();
+    const hunter = s.people.find((p) => p.dwellingId === OUTSIDE)!;
+    hunter.away = { kind: 'service', untilDay: DAY + 1 };
+    expect(planVillagers(s, DAY).some((p) => p.id === hunter.id)).toBe(false);
+    expect(planVillagers(s, DAY + 1).some((p) => p.id === hunter.id)).toBe(true);
+  });
+});
+
+describe('výmlat na osivo nejvýš na plochu zátěže (D102 kolo 2, I2)', () => {
+  const DAY = at(600, 9, 2);
+  it('odhad nepřestřelí osivo plochy; ideál hromady okna bez stropu ano', () => {
+    const s = advanceVillage(sowingVillage(600), PLAN_DAY, null);
+    // málo zásob, hodně snopů – ves musí mlátit na osivo
+    s.storesKg = 50;
+    s.sowingSeed = { crop: 'winter', totalKg: 9000, kg: 50, days: 60 } as never;
+    s.sheaves = { grainKg: 100000, legumesKg: 0 };
+    s.threshingGraceUntil = DAY + 100;
+    const tools = craftCoverage(s, DAY).tools;
+    const wide = windowSeedThreshKg(s, DAY, tools, () => Infinity);
+    const small = windowSeedThreshKg(s, DAY, tools, () => 100);
+    const none = windowSeedThreshKg(s, DAY, tools, () => 0);
+    expect(none).toBe(0);
+    // osivo plochy 100 kg, 50 kg ve stodole – vymlátit jen zbytek; bez stropu skoro ideál okna
+    expect(small).toBeCloseTo(50, 6);
+    expect(wide).toBeGreaterThan(small * 10);
   });
 });
