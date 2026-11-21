@@ -34,3 +34,32 @@ Dřív v Den správce – upřesnění:
 Dřív v tabulce Rozhodnutí: „Hodnota a cena v člověkodnech za rok; cíl polí na lidi za 2 roky × 1,1“
 (návrh Clauda) a „Model kapacity vsi: cíl polí nejvýš podle práce v oknech setí, „je kam“
 a přelidnění podle trvalého hrdla“ (návrh Clauda – Martin 1. 11. 2026: „Vylepši ho“).
+
+## Cíl polí bez práce rodu
+
+Neplatí od 21. 11. 2026 (D103 – Martin 19. 11. 2026 na otázku „Má správce zakládat pole i na práci
+rodu? Dnes plánuje pole jen na to, co ves zvládne bez rodu, a rod pak pomáhá jen na polích, která
+už ves má.“: „Ano, maximálně zůstanou neobdělaná“; steward.md – Model kapacity vsi, Pole i na
+práci rodu). Dřív v Modelu kapacity vsi:
+
+- **podle žní** (`harvestHa`, návrh Clauda 19. 11. 2026 – D99 kolo 2) – práce oken žní (červenec
+  a srpen, se žňovými rukama – `sowingCapacity`) ÷ žeň a odnos na osetý hektar obilí (z plánu, bez
+  něj podle sazeb × příplatek za vzdálenost). Žeň jde v práci dne před lnem, senem i otavou
+  (`DAY_WORK_ORDER`), nic se od ní neodečítá; dosklizeň jaře v září je jednorázová;
+- **podle výmlatu** (`threshHa`, návrh Clauda 19. 11. 2026) – výmlat má vlastní okno do února za
+  polními pracemi (Martin 9. 11. 2026: „Výmlat prý počká i docela hluboko do zimy“): volná práce
+  dne (jako v okně setí) × světlé dny zimního okna výmlatu (listopad–únor) ÷ výmlat na osetý
+  hektar (bez humna dražší); co ves vymlátí v září a říjnu vedle setí, se nepočítá (opatrně).
+
+**Co ves obdělá** (`workableHa`, jen pro cíl polí – D99 kola 1 a 2): nejmenší z osevu podle lidí
+v oknech setí, podle spřežení, podle žní a podle výmlatu. Proti „podle práce“ dvě opravy, které
+ukázalo srovnání se simulací (Vlkov výhled 158–179 ha, skutečně oseto 6–17 ha; zlatá ves
+32–39 ha proti 11–12): okno vracení a kopání (září–listopad **i** březen–duben) už nese jaro –
+dřív se k němu jaro přičítalo ještě jednou (+ ≈ 40 % práce lidí i spřežení); orba stojí i lidi
+(oráč a honáček – stejně člověkodnů jako dní spřežení; simulace je účtuje, výhled ne – práce na
+hektar 6 proti skutečným 19–27 čd). Na den výhled se simulací sedí (plán 4,4–5,6 čd/den,
+skutečně 5,7–6,0). Zlatá ves: osev lidmi ≈ 39 ha, spřežením ≈ 23 ha, žní 16,5–17,3 ha – váže žeň,
+cíl je nad 12 ha, které ves osela a sklidila (test `village-golden-long.test.ts`).
+
+Lidé v oknech setí, žní i výmlatu byli jen lidé vsi – cvičící rodina vojvody (mimo práci vsi) se
+nepočítala, rodina pak pomáhala jen na polích, která ves už měla.

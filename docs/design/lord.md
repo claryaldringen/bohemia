@@ -195,6 +195,10 @@ z vojvodovy rodiny, samotný vojvoda až úplně nakonec“.
   - **Postupně šlechta** (Martin 19. 11. 2026): v malé vsi rodina pracuje hodně, ve velké, která
     setí stihne sama, málo nebo vůbec – žádná mez velikosti vsi. Ves s málo dospělými mimo rodinu
     dál pracuje celá jako ostatní (Den rodiny).
+  - **Správce zakládá pole i na práci rodu** (Martin 19. 11. 2026 na otázku „Má správce zakládat
+    pole i na práci rodu?“: „Ano, maximálně zůstanou neobdělaná“ – D103): cíl polí počítá i s prací
+    cvičící rodiny, která je ve vsi, po denním minimu dvorce – v oknech setí, ve žních i ve výmlatu
+    v zimě ([správce](steward.md) – Model kapacity vsi, Pole i na práci rodu).
 - **Výmlat v zimě** (Martin 18. 11. 2026 – volba A z rozboru Vlkova: „A, C, E“; pravidlo návrh
   Clauda): v okně výmlatu mimo žňové dny – v zimě (listopad–únor) – pomůže rodina, která je
   zrovna ve vsi, vymlátit, co by ves sama do konce okna nestihla, **jen co chybí**. Ves každý den
