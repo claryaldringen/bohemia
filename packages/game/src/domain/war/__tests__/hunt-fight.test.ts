@@ -375,6 +375,43 @@ describe('souboj se zvěří – honba a uštvání jelena (plán 2026-11-22-hun
     }
   });
 
+  it('kapsa: lovec stojí u vody, jelen v kapse utíká a odpočívá → uteče nejpozději idleS od posledního pohybu lovce', () => {
+    const grid = stripGrid(0, -1, (p) => {
+      const dx = Math.abs(p.x - OUT.x);
+      const dz = Math.abs(p.z);
+      return Math.max(dx, dz) >= 10 && Math.max(dx, dz) <= 20;
+    });
+    const field: HuntField = { grid, hoursPerTick: MEADOW.hoursPerTick };
+    const f = hunt([walker(1, { pos: { x: OUT.x + 23, z: 0 } })]);
+    Object.assign(f.quarry, { pos: { ...OUT }, goal: null, state: 'stand' });
+    let lastMove = 0;
+    let last = { ...hunter(f, 1).pos };
+    runHunt(f, 4000, field, 5, () => {
+      const p = hunter(f, 1).pos;
+      if (p.x !== last.x || p.z !== last.z) lastMove = f.tick;
+      last = { ...p };
+    });
+    expect(f.outcome).toBe('escaped');
+    expect(f.tick - lastMove).toBeLessThanOrEqual(IDLE_TICKS + 40);
+  });
+
+  it('honba, kdy se vzdálenost zvětšuje (jelen je rychlejší než pěší lovec): zvíře neuteče, dokud ho lovec pronásleduje', () => {
+    const f = hunt([walker(1)]);
+    let grew = false;
+    let d = Infinity;
+    for (let t = 0; t < IDLE_TICKS + 200 && f.outcome === 'ongoing'; t++) {
+      tick(f);
+      const nd = Math.hypot(
+        hunter(f, 1).pos.x - f.quarry.pos.x,
+        hunter(f, 1).pos.z - f.quarry.pos.z,
+      );
+      if (nd > d && f.quarry.state === 'flee') grew = true;
+      d = nd;
+      expect(f.quarry.state).not.toBe('escape');
+    }
+    expect(grew).toBe(true);
+  });
+
   it('lovec se pohybuje, ale ke stojícímu zvířeti se nepřiblíží (klouže) → zvíře po idleS uteče', () => {
     // pruh vody přes celou mapu: lovec se u něj pohybuje (klouže), ale blíž k zvířeti se nedostane
     const f = hunt([walker(1)]);

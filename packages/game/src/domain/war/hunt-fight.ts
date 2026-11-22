@@ -306,7 +306,8 @@ export function huntFightTick(f: HuntFight, field: HuntField, rng: Random): void
   const wounds: Wounds = new Map();
   const was = q.pos;
   quarryStep(q, hunters, field.grid, rng, wounds);
-  // honba: zvíře před lovci utíká a opravdu se pohnulo (zaseklé v kapse nic neznamená)
+  // honba: zvíře před lovci utíká a opravdu se pohnulo (zaseklé v kapse nic neznamená); činností
+  // je jen tehdy, když se k němu týž takt pohnul aspoň jeden lovec (viz `huntersStep`)
   const fleeing = q.state === 'flee' && q.goal === null && !samePos(q.pos, was);
   const blows =
     q.state === 'escape' || q.state === 'gone'
@@ -489,7 +490,6 @@ function huntersStep(
   fleeing: boolean,
 ): Blow[] {
   const q = f.quarry;
-  if (fleeing) f.activeTick = f.tick;
   const walk = WAR.pace.metersPerSecond / TICKS_PER_SECOND;
   for (const h of hunters) {
     if (h.cooldown > 0) h.cooldown--;
@@ -497,7 +497,10 @@ function huntersStep(
     let progress = false;
     if (dist2(h.pos, q.pos) > MELEE_M2) {
       const step = walk * (h.mounted ? WAR.pace.riders : 1);
+      const from = h.pos;
       [moved, progress] = approach(h, q.pos, f.tick, field.grid, step);
+      // honba jen s pohybem lovce: jeho posun má kladnou složku ke zvířeti
+      if (fleeing && moved && towards(from, h.pos, q.pos)) progress = true;
     }
     const d2 = dist2(h.pos, q.pos);
     const reach = d2 <= MELEE_M2;
@@ -700,6 +703,11 @@ function approach(
   }
   h.pos = next;
   return [true, routed || dist2(next, to) < before];
+}
+
+/** Má posun z `from` do `to` kladnou složku ve směru ke zvířeti na `target`? */
+function towards(from: Pos, to: Pos, target: Pos): boolean {
+  return (to.x - from.x) * (target.x - from.x) + (to.z - from.z) * (target.z - from.z) > 0;
 }
 
 /**
