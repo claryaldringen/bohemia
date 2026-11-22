@@ -281,7 +281,7 @@ minimum)` (životní minimum všem, pod ním všem stejně, zbytek po vrstvách 
   posledních 60 dní; chybí = 50) se den po dni posouvá o denní podíl k cíli
   (`happinessTarget` z `happinessFactors`: hlad, úmrtí, přeplněnost, dřina `isToilDay` – ves by
   běžící polní práce dnešním tempem nedodělala do konce oken; tempo v `toilToday` = dnešní polní
-  práce, výmlat i seč a otava `mowLabor` (od 19. 11. 2026 – D99 kolo 2) –, zásoby, posvátná místa) – krok
+  práce, výmlat, seč a otava `mowLabor` (od 19. 11. 2026 – D99 kolo 2) a práce všech lidí na cestách `allocation.away` (výpravy, nákupy u sousedů, cesty pro kování) × světlo dne (od 22. 11. 2026 – D113; čistá `toilPace`, happiness.ts); termín úlohy = dny okna, které zbývají v jeho úsecích, `taskWindowDaysLeft` (D113) –, zásoby, posvátná místa) – krok
   `updateHappiness` na konci dne. Násobí veškerou práci: `allocateDay` má jediný háček
   `productivity` (`villageLaborFactor`, 0,8–1,1; násobí se i kapacita v `sowingCapacity`).
   **Posvátné duby a háje** jsou čistá funkce vrstvy překážek – `sacredSitesOf(layer)` (mezipaměť

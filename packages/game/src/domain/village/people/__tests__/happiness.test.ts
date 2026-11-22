@@ -10,11 +10,12 @@ import {
   happinessTarget,
   hungerPenalty,
   isToilDay,
+  toilPace,
   toilPenalty,
   updateHappiness,
   villageHappiness,
   villageLaborFactor,
-  windowEndDay,
+  taskWindowDaysLeft,
   deathPointsFor,
 } from '../happiness';
 import { ORCHARD_WINDOWS, WINDOWS } from '../../rules';
@@ -87,31 +88,61 @@ describe('štěstí – čísla z návrhu', () => {
   });
 
   it('dřina: ves dnešním tempem nestihne polní práce do konce okna (nejbližší termín první)', () => {
-    expect(isToilDay([{ remaining: 100, endDay: DAY + 50 }], 3, DAY)).toBe(false);
-    expect(isToilDay([{ remaining: 100, endDay: DAY + 50 }], 1, DAY)).toBe(true);
+    expect(isToilDay([{ remaining: 100, daysLeft: 50 }], 3)).toBe(false);
+    expect(isToilDay([{ remaining: 100, daysLeft: 50 }], 1)).toBe(true);
     // každá úloha zvlášť by stihla, dohromady ne: první termín 20 dní, druhý 40
     expect(
       isToilDay(
         [
-          { remaining: 50, endDay: DAY + 40 },
-          { remaining: 30, endDay: DAY + 20 },
+          { remaining: 50, daysLeft: 40 },
+          { remaining: 30, daysLeft: 20 },
         ],
         1.8,
-        DAY,
       ),
     ).toBe(true);
-    expect(isToilDay([{ remaining: 0, endDay: DAY }], 0, DAY)).toBe(false);
-    expect(isToilDay([], 0, DAY)).toBe(false);
+    expect(isToilDay([{ remaining: 0, daysLeft: 0 }], 0)).toBe(false);
+    expect(isToilDay([], 0)).toBe(false);
   });
 
-  it('konec okna: kopání v říjnu do 30. 11., péče o sad v prosinci do konce února, mimo okno null', () => {
-    expect(windowEndDay(WINDOWS.dig, at(600, 10, 5))).toBe(at(600, 11, 30));
-    expect(windowEndDay(WINDOWS.dig, at(601, 3, 5))).toBe(at(601, 4, 30));
-    expect(windowEndDay(ORCHARD_WINDOWS.care, at(600, 12, 5))).toBe(at(601, 2, 28));
-    expect(windowEndDay(ORCHARD_WINDOWS.care, at(601, 1, 5))).toBe(at(601, 2, 28));
-    // výmlat do konce února (fields.md – Pořadí důležitosti polních prací a výmlat do zimy)
-    expect(windowEndDay(WINDOWS.thresh, at(600, 9, 5))).toBe(at(601, 2, 28));
-    expect(windowEndDay(WINDOWS.sow, at(600, 10, 5))).toBeNull();
+  it('dřina: lidé na cestách jdou do tempa × světlo dne (D113)', () => {
+    const task = [{ remaining: 100, daysLeft: 10 }];
+    // bez nosičů tempo 6 nestačí (6 × 10 < 100)
+    expect(isToilDay(task, toilPace([6], 0, 0, 0, 1))).toBe(true);
+    // 5 lidí na cestě v létě: tempo 11 × 10 ≥ 100 → dřina není
+    expect(isToilDay(task, toilPace([6], 0, 0, 5, 1))).toBe(false);
+    // tytéž 5 lidí v zimě (světlo 0,5): přispějí jen 2,5 → tempo 8,5 nestačí
+    expect(toilPace([6], 0, 0, 5, 0.5)).toBeCloseTo(8.5);
+    expect(isToilDay(task, toilPace([6], 0, 0, 5, 0.5))).toBe(true);
+    // seč a výmlat se sčítají beze změny
+    expect(toilPace([1, 2], 3, 4, 0, 0.5)).toBe(10);
+  });
+
+  it('dny okna, které zbývají: kopání v říjnu počítá i březen a duben, zimní mezera ne (D113)', () => {
+    // 5. 10.: zbytek října (26) + listopad (30) + březen (31) + duben (30) – dnešek se nepočítá
+    expect(taskWindowDaysLeft(WINDOWS.dig, at(600, 10, 5))).toBe(26 + 30 + 31 + 30);
+    // 30. 11.: zbývá jen jarní úsek
+    expect(taskWindowDaysLeft(WINDOWS.dig, at(600, 11, 30))).toBe(31 + 30);
+    // na jaře jen zbytek jarního úseku
+    expect(taskWindowDaysLeft(WINDOWS.dig, at(601, 3, 5))).toBe(26 + 30);
+    expect(taskWindowDaysLeft(WINDOWS.dig, at(601, 4, 30))).toBe(0);
+    // péče o sad v prosinci pokračuje lednem a únorem (bez zimní mezery)
+    expect(taskWindowDaysLeft(ORCHARD_WINDOWS.care, at(600, 12, 5))).toBe(26 + 31 + 28);
+    expect(taskWindowDaysLeft(ORCHARD_WINDOWS.care, at(601, 1, 5))).toBe(26 + 28);
+    // výmlat přes Nový rok zůstává: 5. 9. → do konce února
+    expect(taskWindowDaysLeft(WINDOWS.thresh, at(600, 9, 5))).toBe(25 + 31 + 30 + 31 + 31 + 28);
+    expect(taskWindowDaysLeft(WINDOWS.sow, at(600, 10, 5))).toBeNull();
+  });
+
+  it('dřina: kopání pod jař 15. 10. – co ves stihne do konce dubna, dřina není (D113)', () => {
+    const day = at(600, 10, 15);
+    const left = taskWindowDaysLeft(WINDOWS.dig, day) ?? 0;
+    // 16 dní října + 30 + 31 + 30 = 107 dní okna
+    expect(left).toBe(16 + 30 + 31 + 30);
+    // 100 člověkodnů tempem 1/den: do konce dubna se stihne, do 30. 11. (46 dní) by ne
+    expect(isToilDay([{ remaining: 100, daysLeft: left }], 1)).toBe(false);
+    expect(isToilDay([{ remaining: 100, daysLeft: 46 }], 1)).toBe(true);
+    // nestihne ani do dubna
+    expect(isToilDay([{ remaining: 120, daysLeft: left }], 1)).toBe(true);
   });
 });
 

@@ -25,7 +25,7 @@ import {
   settlePloughTeams,
   type PloughTravels,
 } from '../livestock/plough-trip';
-import { isToilDay, windowEndDay } from '../people/happiness';
+import { isToilDay, taskWindowDaysLeft, toilPace } from '../people/happiness';
 import { mowingCut, mowingNeededRemaining } from '../livestock/hay';
 import { adultHerding } from '../livestock/herding';
 import { horseCareLabor, villageHorses } from '../livestock/horses';
@@ -435,7 +435,7 @@ export function work(
     workshops,
   });
   recordCommonLabor(state, allocation.common, allocation.build ?? allocation.common);
-  return { toil: toilToday(ctx, tasks.owned, applied), lordField };
+  return { toil: toilToday(ctx, tasks.owned, applied, allocation.away), lordField };
 }
 
 /** Začátek dne práce – převod staršího hospodářského roku a kontext dne (`WorkDay`). */
@@ -961,15 +961,26 @@ function recordCommonLabor(state: VillageState, common: number, build: number): 
 /**
  * Dřina: stihne ves dnešním tempem polní práce obou plodin do konce jejich oken? I výmlat ve
  * svém okně jako ostatní polní práce (production-chains.md – Humno); výmlat po okně termín nemá.
- * Do tempa patří i dnešní seč a otava (`mowLabor`) – po seči ta práce přejde na výmlat a polní
- * práce (happiness.md – Plná práce ve špičce, která se stihne, dřinou není; D99 kolo 2).
+ * Do tempa patří i dnešní seč a otava (`mowLabor`) a práce všech lidí na cestách (`away` – výpravy,
+ * nákupy u sousedů i cesty pro kování), která se počítá jako práce venku, tedy × světlo dne
+ * (`toilPace`) – po seči a po návratu ta práce přejde na výmlat a polní práce; termín úlohy se
+ * okna ve dvou úsecích počítá do konce posledního úseku (`taskWindowDaysLeft`, D113; happiness.md –
+ * Plná práce ve špičce, která se stihne, dřinou není; D99 kolo 2).
  */
-function toilToday(ctx: WorkDay, owned: readonly FieldTaskEntry[], applied: AppliedTasks): boolean {
+function toilToday(
+  ctx: WorkDay,
+  owned: readonly FieldTaskEntry[],
+  applied: AppliedTasks,
+  away: number,
+): boolean {
   const { state, day } = ctx;
   const { fieldWork, threshing } = applied;
-  const pace = fieldWork.reduce(
-    (sum, task) => sum + task.amount,
-    threshing.floor + threshing.ground + (applied.mowLabor ?? 0),
+  const pace = toilPace(
+    fieldWork.map((task) => task.amount),
+    threshing.floor + threshing.ground,
+    applied.mowLabor ?? 0,
+    away,
+    ctx.daylight,
   );
   // trhání lnu dřinu nepřidá – trhají ženy a děti a práce, která po obilí zbude (fields.md – Len,
   // návrh Clauda)
@@ -978,15 +989,18 @@ function toilToday(ctx: WorkDay, owned: readonly FieldTaskEntry[], applied: Appl
       .filter((task) => !flaxHarvest(task.crop, task.name))
       .map((task) => ({
         remaining: cropTaskRemaining(task.work, task.name),
-        endDay:
-          windowEndDay(cropTaskWindows(task.crop, task.name), day) ??
+        daysLeft:
+          taskWindowDaysLeft(cropTaskWindows(task.crop, task.name), day) ??
           (task.name === 'sow' && springSowingExtended(state, day, task.crop)
-            ? day + WEATHER_EFFECTS.longWinterSpringSowExtraDays - dateOfDayIndex(day).day
-            : day),
+            ? WEATHER_EFFECTS.longWinterSpringSowExtraDays - dateOfDayIndex(day).day
+            : 0),
       })),
-    ...threshSeasonTasks(state, day),
+    ...threshSeasonTasks(state, day).map((t) => ({
+      remaining: t.remaining,
+      daysLeft: t.endDay - day,
+    })),
   ];
-  return isToilDay(seasonTasks, pace, day);
+  return isToilDay(seasonTasks, pace);
 }
 
 /**

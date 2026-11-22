@@ -86,8 +86,10 @@ import { goldenWorld, stateFingerprint, YEAR } from './village-golden-fixture';
 // 22. 11. 2026 – D110 přílohy podle úzkého hrdla a setí zorané půdy před vracením přílohu (viz
 // village-golden.test.ts); samotné D110 dávalo dbe2afe8453e5b4b a 773e72f96b0b564a, dřív (s D112)
 // f3d932aac59a239d a 426c0fa9cabc9a88
-const EXPECTED_YEAR_2 = 'ba3b711dcd432b02';
-const EXPECTED_YEAR_3 = 'f8520591a147a522';
+// 22. 11. 2026 – D113 dřina: termín okna ve dvou úsecích a nosiči výprav v tempu (happiness.md –
+// Den dřiny; village-golden.test.ts); dřív ba3b711dcd432b02 a f8520591a147a522
+const EXPECTED_YEAR_2 = '276904dcac933306';
+const EXPECTED_YEAR_3 = 'c00f8436f673d2ba';
 // 18. 11. 2026 – D93 cesta přes plochu staveb; dřív 168010dd35f7c1c7 a a499594da5514b49 (viz
 // village-golden.test.ts)
 // 18. 11. 2026 – D95 výmlat (výmlat podle kg snopů, rod v zimě dorovná tempo okna – viz
