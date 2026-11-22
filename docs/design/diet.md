@@ -203,7 +203,7 @@ v hladu), nově platí celý rok, ne jen v hladu:
    - Když jídlo na dnešek (podle výhledu do sklizně) vystačí všem do plné potřeby, nají se všichni
      dosyta.
    - Když vystačí aspoň na **životní minimum – 75 % potřeby energie** (v dlouhém hladu víc – níž),
-     dostane napřed každý 75 % své potřeby. Teprve to, co zbude nad tím, jde po vrstvách: vrstva 1
+     dostane napřed každý toto minimum své potřeby (75 %, v dlouhém hladu víc). Teprve to, co zbude nad tím, jde po vrstvách: vrstva 1
      do plné potřeby, pak vrstvy 2, 3 a 4.
    - Když jídlo nevystačí ani na 75 % pro všechny, dostanou všichni stejný podíl své potřeby, bez
      přednosti.
@@ -211,13 +211,15 @@ v hladu), nově platí celý rok, ne jen v hladu:
      hladu uskrovnit, aby zbytek vsi přežil do sklizně?“: „ano“; provedení návrh Clauda): životní
      minimum je **víc než 75 %**, když by zbytek vsi se 75 % do sklizně nepřežil – je to příděl
      k přežití do žní, táž definice jako u přežívací zásoby (níž): 0,9 × (1 − rezerva ÷ dny do
-     sklizně), rezerva = práh úmrtí nejcitlivější skupiny ve vsi (děti a starší 12, dospělí 20 dní
-     hladu) − 1 den − nahromaděný hlad zbytku vsi. Nad minimem dál po vrstvách, pod ním všichni
+     sklizně), rezerva = práh úmrtí nejcitlivějšího člověka **ve zbytku vsi** – v nejnižší vrstvě, kterou
+     minimum chrání (děti a starší 12, dospělí 20 dní hladu; dítě v rodu minimum nezvedne) − 1 den
+     − nahromaděný hlad zbytku vsi (přežívací zásoba níž počítá opatrně s nejcitlivějším člověkem
+     celé vsi). Nad minimem dál po vrstvách, pod ním všichni
      stejně – rod dostane víc jen z jídla, které zbytek vsi k přežití do sklizně nepotřebuje; když
      jídlo nestačí ani na to, jedí všichni stejně (cena: ve zlém roce může umírat hlady i rod).
      Mez osiva jen na setí (5 dní hladu – [pole](fields.md), Osivo pro ves bez zásob) patří jen
      přežívací zásobě. Krátký hlad je beze změny – příděl k přežití je pak pod 75 %. Příklad: samí
-     dospělí a sklizeň za 151 dní → 78,7 %, s dětmi 83,4 %; sklizeň za 41 dní → 75 %.
+     dospělí a sklizeň za 151 dní → 78,7 %, s dítětem ve zbytku vsi 83,4 % (dítě v rodu nic nezmění); sklizeň za 41 dní → 75 %.
    - Proč 75 % (Martin, 18. 11. 2026, k 90 %: „90% mi nepříjde jako nějaký velký hlad, jen jako
      drobné nepohodlí“; k 75 %: „75% je ok.“): hlad se sčítá pod 90 % (Hlad níž) a na 75 % hrozí
      smrt hlady dítěti a staršímu po ≈ 2,5 měsíce, dospělému po ≈ 4 měsících – běžné hladové jaro
@@ -530,7 +532,10 @@ se přepíšou.
   se ztrátami ve skladu a kažením masa jako výhled; ves jí v pořadí jídla bez stropů – napřed, co
   se kazí – ostatní uzené maso, zásoba z porážky 1. 11. jen svým dílem jako jídlo dne (od 18. 11.
   2026, D98 – sama pak plný příděl nedá), sýr, ovoce, luštěniny –, pak obilí a nakonec med (návrh
-  Clauda; od 18. 11. 2026 – Pořadí jídla, dřív ve stropech stravy).
+  Clauda; od 18. 11. 2026 – Pořadí jídla, dřív ve stropech stravy). Ukazatel nezná hlad: zásobu
+  z porážky 1. 11. počítá dílem do konce masa i ve chvíli, kdy ji ves v hladu jí dílem do sklizně
+  (D112) – hodiny pak mohou ukázat méně dní než zbývá do žní. Díl podle hladu by do ukazatele
+  vnesl výhled do sklizně, který ukazatel záměrně nemá (bez sklizní a příjmů); návrh Clauda.
 
 ### Mléko a sýr (Martin: „Ovce, kozy i krávy jsou mléčná zvířata“; čísla rešerše)
 

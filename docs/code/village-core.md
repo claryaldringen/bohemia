@@ -187,12 +187,13 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `people/hunger-groups.ts` – `hungerSplit` (skupiny 0–3: `lordFamily`, `masterHousehold`, obydlí
   s dílnou a `Person.practice`, zbytek a hosté; potřeby a počty), `rationShares(poměr, potřeby,
 minimum)` (životní minimum všem, pod ním všem stejně, zbytek po vrstvách v pořadí; minimum
-  `rationMinimum(stav, den, potřeby, dny do žní)` = max(`HUNGER_PRIORITY.minimumShare` 75 %,
+  `rationMinimum(stav, den, potřeby, `groupOf`, dny do žní)` = max(`HUNGER_PRIORITY.minimumShare` 75 %,
   `survivalRation`) – v dlouhém hladu příděl k přežití zbytku vsi do žní, D112, Martin 22. 11.
   2026 „ano“ na uskromnění rodu; `survivalRation(práh, hlad, dny do žní)` = `STARVATION.fedFrom`
   × (1 − (práh − `SEED_STORES.marginDays` − hlad) / dny), `survivalLimit` = nejnižší
-  `STARVATION.threshold` lidí vsi a hlad nejnižší vrstvy s potřebou – táž definice jako
-  přežívací zásoba `seedKeepKg`, bez meze osiva; volá ho jídlo dne `eat` pro `tierMeal`
+  `STARVATION.threshold` lidí nejnižší vrstvy s potřebou (`groupOf` z `hungerSplit` – dítě v rodu
+  minimum zbytku vsi nezvedne; bez `groupOf` lidí celé vsi, tak ho volá `seedKeepKg`) a hlad té
+  vrstvy – táž definice jako přežívací zásoba, bez meze osiva; volá ho jídlo dne `eat` pro `tierMeal`
   i ukázaný příděl a předpověď štěstí `nextDayDiet`), `advanceGroupStarvation`
   (hlad skupin: `starvationDays` = nejnižší neprázdná skupina, `starvationGroups?` = skupiny 0–2,
   jen když se liší; prázdná skupina přebírá hlad nejbližší neprázdné; bez části stavu mají všechny

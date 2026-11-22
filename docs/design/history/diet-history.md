@@ -234,7 +234,7 @@ sklizně?“: „ano“). Dřív v oddílu Strava po vrstvách a porážka celý
 
 - **Dlouhý hladomor bez osiva** (otevřené – k rozhodnutí Martinovi, kód beze změny): při trvalém
   přídělu 0,75 přibude za den (0,9 − 0,75) ÷ 0,9 ≈ 0,17 dne hladu – děti a starší dojdou k prahu
-  12 dní asi za 72 dní, dospělí k prahu 20 asi za 120 dní ([populace](population.md) – Hlad
+  12 dní asi za 72 dní, dospělí k prahu 20 asi za 120 dní ([populace](../population.md) – Hlad
   a vymření). Přežívací zásoba podle zbytku vsi (Kdo dostane co) pomůže jen, dokud ves drží
   osivo, které může sníst. Bez osiva a jiného jídla tak v dlouhém hladomoru umírá zbytek vsi,
   zatímco rod vojvody jí nad životním minimem.
