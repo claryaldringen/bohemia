@@ -493,7 +493,15 @@ function startWork(
   const cap = Math.max(0, harvestCapKg);
   const yieldKg = Math.min(fullKg, cap);
   const work = fullKg > cap ? (required * cap) / fullKg : required;
-  if (work > 0) state.orchardWork = { task, required: work, done: 0, yieldKg };
+  if (work > 0) {
+    state.orchardWork = {
+      task,
+      required: work,
+      done: 0,
+      yieldKg,
+      ...(fullKg > cap ? { share: cap / fullKg } : {}),
+    };
+  }
   // ves bez sadů (i uložená před jejich zavedením) stav nemění
   else if (state.orchardWork !== undefined) state.orchardWork = null;
 }

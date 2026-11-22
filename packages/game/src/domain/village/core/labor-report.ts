@@ -553,7 +553,8 @@ function commonShares(book: ShareBook, state: VillageState, work: DayWork): void
       }
     }
   }
-  book.add('idle', { kind: 'village' }, allocation.common - invested);
+  // výsadba (`allocation.planting`) je mezi stavbami – co z ní zbude, přibylo ke společné práci
+  book.add('idle', { kind: 'village' }, allocation.common + (allocation.planting ?? 0) - invested);
 }
 
 /**

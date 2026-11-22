@@ -211,7 +211,9 @@ describe('strava po vrstvách – štěstí ze stravy po lidech', () => {
     s.applesKg = (0.1 * need) / APPLE_FOOD_VALUE;
     s.wares = { hides: 0, sheepFurs: 0, wildFurs: 0, honeyKg: 10, waxKg: 0 };
     const result = eat(s, day, NO_CRAFTS);
-    expect(s.diet!.shares.fruit).toBeCloseTo(0.1, 9);
+    // jablka nad 5 % energie jen místo obilí, které ves k bílkovinám nepotřebuje (diet.md – Pořadí
+    // jídla; D115 kolo 1) – ves bez přebytku bílkovin sní 5 %, zbytek počká
+    expect(s.diet!.shares.fruit).toBeCloseTo(DIET.fruitShare, 9);
     expect(s.diet!.shares.honey).toBeGreaterThan(0);
     expect(result.diet.fruit).toBeCloseTo(DIET.fruitHappiness, 12);
     expect(result.diet.honey).toBeCloseTo(HONEY.happiness, 12);

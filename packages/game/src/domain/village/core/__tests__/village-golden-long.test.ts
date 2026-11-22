@@ -91,8 +91,11 @@ import { goldenWorld, stateFingerprint, YEAR } from './village-golden-fixture';
 // 22. 11. 2026 – D115 ovoce na maximum, které ves sní – jabloně u cest a pak sad do cíle ovoce,
 // sklizeň jen do cíle (viz village-golden.test.ts); samotné D115 dávalo 2c734d3e24ff657c
 // a 0294e4d910303bbb, dřív (s D113) 276904dcac933306 a c00f8436f673d2ba
-const EXPECTED_YEAR_2 = '15be33d768040c40';
-const EXPECTED_YEAR_3 = 'b1cebf0f8cd73631';
+// 22. 11. 2026 – D115 kolo 1 (jablka nad 5 % energie jen bez ztráty bílkovin, cíl ovoce 5 %
+// energie, výsadba před vracením přílohu – jako rok 1 v village-golden.test.ts); dřív
+// 15be33d768040c40 a b1cebf0f8cd73631
+const EXPECTED_YEAR_2 = '52c6d23c8335e130';
+const EXPECTED_YEAR_3 = '94154d343904b93d';
 // 18. 11. 2026 – D93 cesta přes plochu staveb; dřív 168010dd35f7c1c7 a a499594da5514b49 (viz
 // village-golden.test.ts)
 // 18. 11. 2026 – D95 výmlat (výmlat podle kg snopů, rod v zimě dorovná tempo okna – viz

@@ -108,7 +108,12 @@ import { advanceChunked, goldenWorld, stateFingerprint, YEAR } from './village-g
 // 22. 11. 2026 – D115 ovoce na maximum, které ves sní (orchard.md – Jídlo, Práce; steward.md –
 // Jabloně u cest a sad): správce sází jabloně u cest a pak sad do cíle ovoce místo 5 % energie,
 // sklizeň jen do cíle; samotné D115 dávalo 78eaf33d62ac8181, dřív (s D113) e1c2e333a3b6fc16
-const EXPECTED_YEAR_1 = 'bfca7809b876c8c4';
+// 22. 11. 2026 – D115 kolo 1 (Martin: jablka nahrazují obilí jen bez ztráty bílkovin, výsadba před
+// klučením – diet.md, Pořadí jídla; fields.md, Pořadí důležitosti polních prací): jablka nad 5 %
+// energie jen místo obilí, které ves k bílkovinám nepotřebuje – zlatá ves bílkovin nazbyt nemá, cíl
+// ovoce je 5 % energie, sází a sklízí méně; výsadba dostane práci před vracením přílohu; dřív
+// bfca7809b876c8c4
+const EXPECTED_YEAR_1 = '2a715603b4362c5d';
 // 18. 11. 2026 – D93 cesta přes plochu staveb; dřív 82b12dd84c08dd63 (vyšlapaná cesta přes plochu
 // staveb nevznikne a napojení ji obejde – jiné cesty a id; roky chůze nejvýš doba vyšlapání)
 // 18. 11. 2026 – D95 výmlat (Martin: „A, C, E“ – výmlat podle kg snopů, rod v zimě dorovná tempo
@@ -123,8 +128,11 @@ describe('zlatý otisk vsi', () => {
     // méně obilí a správce založil 4 pole; dřív aspoň 5
     // 18. 11. 2026 – D99 cíl polí na maximum, které ves oseje (steward.md – Cíl polí): 27 polí;
     // dřív aspoň 4; 19. 11. 2026 – D99 kolo 1 (osev i žně): 26 polí; 22. 11. 2026 – D115 (jabloně
-    // u cest a sad do cíle ovoce): 18 polí při skoro stejné ploše polí, dřív aspoň 20
-    expect(s.fields.length).toBeGreaterThanOrEqual(15);
+    // u cest a sad do cíle ovoce): 18 polí při skoro stejné ploše polí, dřív aspoň 20;
+    // 22. 11. 2026 – D115 kolo 1: hlídá se plocha polí, ne počet (sad smí na pole a rozdělí ho) –
+    // po 20 letech ≈ 33,6 ha; dřív aspoň 15 polí
+    const fieldHa = s.parts.reduce((sum, p) => sum + p.areaM2, 0) / 10_000;
+    expect(fieldHa).toBeGreaterThanOrEqual(30);
     expect(s.livestock?.herds).toBeDefined();
     expect(s.crafts).toBeDefined();
     expect(s.people.length).toBeGreaterThanOrEqual(10);
