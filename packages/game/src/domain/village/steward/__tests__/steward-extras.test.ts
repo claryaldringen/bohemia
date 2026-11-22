@@ -36,6 +36,7 @@ import {
   type StewardMode,
 } from '../steward';
 import { craftCoverage } from '../../crafts/crafts';
+import { herdsOverRoom, penCapacity } from '../../livestock/pens';
 import { monthInWindow } from '../../buildings/orchard';
 import { ORCHARD_PLANTING_WINDOWS, THRESHING } from '../../rules/rules-fields';
 import { SACRED_BUILDINGS } from '../../rules/rules-people';
@@ -305,6 +306,26 @@ describe('steward-extras – humno, ohrady, posvátná místa a cesty', () => {
     const harvest = structuredClone(base);
     extraSteps(harvest, ctxOf(at(8)));
     expect(harvest.constructions.some((c) => c.kind === 'pen')).toBe(false);
+  });
+
+  it('plné stádo nad místy na člověka dostane další ohradu druhu (Martin 22. 11. 2026)', () => {
+    const s = structuredClone(grown);
+    s.pens = (s.pens ?? []).filter((p) => p.builtDay !== null);
+    s.constructions = s.constructions.filter((c) => c.kind !== 'pen');
+    if (!s.pens.some((p) => p.species === 'cattle')) penStep(s, ctxOf(at(3)));
+    const cattle = s.pens.find((p) => p.species === 'cattle') ?? s.pens[0]!;
+    s.constructions = s.constructions.filter((c) => c.kind !== 'pen');
+    s.pens = [{ ...cattle, species: 'cattle', builtDay: cattle.builtDay ?? 0 }];
+    // místa skotu už přesahují 0,25 na člověka, stádo je ale plné – ohrada přibude
+    s.people = s.people.slice(0, 2);
+    expect(penCapacity(s).cow).toBeGreaterThan(s.people.length * 0.25);
+    s.livestock = {
+      ...(s.livestock ?? ({} as NonNullable<VillageState['livestock']>)),
+      herds: { sheep: 0, goat: 0, pig: 0, cow: penCapacity(s).cow + 10 },
+    } as NonNullable<VillageState['livestock']>;
+    expect(herdsOverRoom(s)).toContain('cow');
+    penStep(s, ctxOf(at(3)));
+    expect(penStarted(s, 'cattle')).toBe(true);
   });
 
   it('modla podle návratnosti: v Růstu i v Obnově ano, v Nouzi ne', () => {

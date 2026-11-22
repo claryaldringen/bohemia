@@ -18,7 +18,7 @@ import {
 import { fieldWorkPerHa } from '../core/productivity';
 import { ploughWorkPerHa } from '../livestock/plough';
 import { oxPens, PEN_BY_SPECIES } from '../livestock/oxen';
-import { herdRoom, herdsOverRoom, penCapacity } from '../livestock/pens';
+import { herdRoom, herdsOverRoom } from '../livestock/pens';
 import { placementVillageOf } from '../placement/placement-village';
 import { penSquaresFromCells } from '../placement/placement-pens';
 import {
@@ -287,7 +287,8 @@ function sownWork(ctx: StewardContext): number {
 
 /**
  * Krok 7 – ohrady, jedna za den správce, mimo žně: (a) plné stádo druhu (ovce, kozy, prasata,
- * skot; kusy na noc pod hranicí `STEWARD.penPlacesPerPerson` × lidé) → ohrada druhu; (b) spřežení
+ * skot; ≥ 2 kusy a ≥ místa v ohradách a u domů) → ohrada druhu, bez meze na člověka (Martin
+ * 22. 11. 2026 – ves chová, co uživí; stádo pak roste do mezí pastvy, lesa, pasáků a sena); (b) spřežení
  * – ohrada volů, když ves má skot v ohradě, chovný pár krav a výrostky na pasení a orba ušetří na
  * osevu výhledu (kopání motykou − orba rádlem na osetý hektar) za `paybackYears` víc než seno volů
  * a ohrada (`teamPenValue`); (c) koně
@@ -300,15 +301,12 @@ export function penStep(state: VillageState, ctx: StewardContext): void {
   if ((state.pens ?? []).some((p) => p.builtDay === null)) return;
   if (state.constructions.some((c) => c.kind === 'pen')) return;
   const herds = state.livestock?.herds;
-  const places = penCapacity(state);
   const room = herdRoom(state);
   const over = new Set(herdsOverRoom(state));
-  const people = state.people.length;
   if (herds && !firstYearLaborBound(state, ctx)) {
     for (const [herd, pen] of HERD_PENS) {
       const full = over.has(herd) || Math.round(herds[herd]) >= Math.max(room[herd], 2);
-      const wanted = people * (STEWARD.penPlacesPerPerson[herd] ?? 0);
-      if (herds[herd] < 2 || !full || places[herd] >= wanted) continue;
+      if (herds[herd] < 2 || !full) continue;
       if (!fits(state, ctx, 'pen', BUILD_COSTS.pen.laborManDays)) return;
       if (buildPen(state, ctx, pen)) return;
     }

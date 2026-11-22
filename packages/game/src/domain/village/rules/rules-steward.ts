@@ -72,7 +72,7 @@ export const STEWARD = {
   /**
    * Plán sídla – Přednost ohrad a sadu (návrh Clauda 9. 11. 2026): bloky polí podle práce nesmí
    * vzít místo u domů, kde ves bude chtít ohrady a sad – plán napřed vyhradí `orchardSquares`
-   * čtverců sadu a čtverce ohrad (stáda podle `penPlacesPerPerson`, spřežení a koně po
+   * čtverců sadu a čtverce ohrad (stáda podle `penPlacesPerPerson` – jen rezerva, spřežení a koně po
    * `penSquares` čtverci), bloky polí dostanou zbytek.
    */
   planReserve: { orchardSquares: 2, teamSquares: 1, horseSquares: 1 },
@@ -174,7 +174,10 @@ export const STEWARD = {
   graveYears: 5,
   /** 6. Humno: vyplatí se, když úspora práce za tolik let pokryje jeho cenu. */
   paybackYears: 3,
-  /** 7. Ohrady: místa ohrad druhu na člověka (kusů), pod nimiž plné stádo druhu dostane ohradu. */
+  /**
+   * 7. Ohrady: místa ohrad druhu na člověka (kusů) – jen rezerva políček ohrad v plánu sídla
+   * (`reservedExtras`); ohradu druhu správce staví, kdykoli stádo naplní místa (Martin 22. 11. 2026).
+   */
   penPlacesPerPerson: { cow: 0.25, pig: 0.25, sheep: 0.5, goat: 0.25 } as Readonly<
     Record<string, number>
   >,
