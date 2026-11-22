@@ -10,6 +10,7 @@ import {
   happinessTarget,
   hungerPenalty,
   isToilDay,
+  toilPace,
   toilPenalty,
   updateHappiness,
   villageHappiness,
@@ -101,6 +102,19 @@ describe('štěstí – čísla z návrhu', () => {
     ).toBe(true);
     expect(isToilDay([{ remaining: 0, daysLeft: 0 }], 0)).toBe(false);
     expect(isToilDay([], 0)).toBe(false);
+  });
+
+  it('dřina: lidé na cestách jdou do tempa × světlo dne (D113)', () => {
+    const task = [{ remaining: 100, daysLeft: 10 }];
+    // bez nosičů tempo 6 nestačí (6 × 10 < 100)
+    expect(isToilDay(task, toilPace([6], 0, 0, 0, 1))).toBe(true);
+    // 5 lidí na cestě v létě: tempo 11 × 10 ≥ 100 → dřina není
+    expect(isToilDay(task, toilPace([6], 0, 0, 5, 1))).toBe(false);
+    // tytéž 5 lidí v zimě (světlo 0,5): přispějí jen 2,5 → tempo 8,5 nestačí
+    expect(toilPace([6], 0, 0, 5, 0.5)).toBeCloseTo(8.5);
+    expect(isToilDay(task, toilPace([6], 0, 0, 5, 0.5))).toBe(true);
+    // seč a výmlat se sčítají beze změny
+    expect(toilPace([1, 2], 3, 4, 0, 0.5)).toBe(10);
   });
 
   it('dny okna, které zbývají: kopání v říjnu počítá i březen a duben, zimní mezera ne (D113)', () => {

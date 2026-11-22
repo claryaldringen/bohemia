@@ -318,11 +318,27 @@ export function taskWindowDaysLeft(segments: readonly WindowSegment[], day: numb
 }
 
 /**
+ * Dnešní tempo polní práce pro dřinu: práce polních úloh, výmlatu a seče s otavou plus práce lidí
+ * na cestách (`away` v člověkodnech – výpravy, nákupy u sousedů, cesty pro kování; po návratu by
+ * šla na pole). Práce venku se dává do rozdělení dne před násobkem světla dne, proto se `away`
+ * násobí `daylight` – jinak by tempo v zimě nadsazovalo (D113, kolo 1).
+ */
+export function toilPace(
+  fieldWork: readonly number[],
+  threshing: number,
+  mowLabor: number,
+  away: number,
+  daylight: number,
+): number {
+  return fieldWork.reduce((sum, amount) => sum + amount, threshing + mowLabor + away * daylight);
+}
+
+/**
  * Dřina (happiness.md – „ves nestihla práci v období“): ves dnes nestíhá polní práce, když by je
- * dnešním tempem (`pace` – práce, kterou dnes dostaly polní úlohy) nedodělala do konce jejich
- * oken (dny, které jim v úsecích okna zbývají – `taskWindowDaysLeft`). Úlohy se řadí podle zbývajících
- * dní a zbývající práce se sčítá – co končí dřív, musí být
- * hotové dřív (zkouška rozvrhu podle nejbližšího termínu).
+ * dnešním tempem (`pace` – `toilPace`: práce polních úloh, výmlatu, seče a lidí na cestách)
+ * nedodělala do konce jejich oken (dny, které jim v úsecích okna zbývají – `taskWindowDaysLeft`).
+ * Úlohy se řadí podle zbývajících dní a zbývající práce se sčítá – co končí dřív, musí být hotové
+ * dřív (zkouška rozvrhu podle nejbližšího termínu; u úloh s různou mezerou jen přiblížení).
  */
 export function isToilDay(tasks: readonly SeasonTask[], pace: number): boolean {
   const open = tasks.filter((t) => t.remaining > 1e-9).sort((a, b) => a.daysLeft - b.daysLeft);
