@@ -592,9 +592,9 @@ plán ověřil: střed políčka, jeden čtverec bez mřížky.
   spotřebu jimi a pak až sadem“; „Obecně se drž pravidla vyprodukovat co nejvíce za co nejmenší
   množství práce.“): **cíl ovoce** = jablka, která ves sní, než se zkazí (orchard.md – Jídlo,
   `fruitTargetKg`) – podle pravidla jídla do 5 % energie a nad to jen místo obilí, které ves
-  k bílkovinám nepotřebuje (Martin 22. 11. 2026: „Ano“ na otázku „Mají jablka nahrazovat obilí jen tak, aby lidé nepřišli o bílkoviny?“ – „ves sází jen tolik stromů, kolik jablek
-  sní, aniž by přišla o bílkoviny, a zbytek obilí jí jako dnes“; cíl je 5 % potřeby energie
-  každého dne od 1. 9. do zkažení – přebytek bílkovin nepočítá, návrh Clauda, orchard.md – Jídlo). Výsadba dostane v oknech práci vsi po orbě, kopání a setí, před vracením přílohu
+  k bílkovinám nepotřebuje (Martin 22. 11. 2026: „Ano“ na otázku „Mají jablka nahrazovat obilí jen tak, aby lidé nepřišli o bílkoviny?“; doporučení Clauda k otázce: ves sází jen tolik stromů, kolik jablek
+  sní, aniž by přišla o bílkoviny, a zbytek obilí jí jako dnes; cíl je 5 % potřeby energie
+  každého dne od 1. 9. do zkažení – přebytek bílkovin nepočítá, návrh Clauda, orchard.md – Jídlo; cíl počítá jen dny od sklizně do zkažení bez nádob, proto vychází zhruba na polovinu dřívějšího cíle před D115 – 5 % roční potřeby – a ve vsi bez přebytku bílkovin správce sází méně než dřív; ve Vlkově se výsadba před klučením neprojeví, protože cíl pokrývají dnešní stromy; návrh Clauda, Martin to ví z odpovědi „Ano“ k bílkovinám). Výsadba dostane v oknech práci vsi po orbě, kopání a setí, před vracením přílohu
   (Martin 22. 11. 2026 – fields.md, Pořadí důležitosti polních prací). Chybí-li ho plná úroda sadů a jabloně u cest za 25 let (do pokrytí se počítají
   i vysazené, ještě neplodící stromy), správce sází napřed jabloně podél pevné cesty do
   `roadFieldM` (40 m) od dílu pole – jejich mez je délka takových cest; sad (čtverec) až na zbytek

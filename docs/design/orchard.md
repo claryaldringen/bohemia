@@ -94,8 +94,8 @@ rozhoduje, kolik louky a práce dá do jistoty na dlouho dopředu místo obilí 
   vždy, nad to jen místo obilí a luštěnin, které ves k bílkovinám nepotřebuje** (Martin 22. 11. 2026: „Ano“ na otázku „Mají jablka nahrazovat obilí jen tak, aby lidé nepřišli o bílkoviny?“
   – diet.md, Pořadí jídla).
   **Cíl ovoce** (Martin 22. 11. 2026 – „ano“ na přepnutí sadu a jabloní u cest na maximum, které
-  ves zvládne, a „Ano“ na otázku výš s doporučením: ves sází jen tolik stromů, kolik jablek sní,
-  aniž by přišla o bílkoviny, a zbytek obilí jí jako dnes; tvar návrh Clauda): jablka, která ves
+  ves zvládne, a „Ano“ na otázku výš; doporučení Clauda k otázce: ves sází jen tolik stromů, kolik
+  jablek sní, aniž by přišla o bílkoviny, a zbytek obilí jí jako dnes; tvar návrh Clauda): jablka, která ves
   sní od sklizně (1. 9.) do zkažení **bez nádob (1. 3.)** podle pravidla jídla – **5 %
   potřeby energie každého dne** jako jídlo dne (lidé doma podle věku toho dne a hosté), s dnešními
   lidmi – kdo se narodí, přibude nebo umře, odhad nezná (D115 kolo 2; do 22. 11. 2026 roční

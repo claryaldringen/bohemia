@@ -130,12 +130,12 @@ v hladu), nově platí celý rok, ne jen v hladu:
 
 - Stropy podílů energie (maso 40 %, ovoce 25 %, mléko a sýr 30 %, luštěniny 25 %) se ruší. Nikdo
   nesní víc, než je jeho potřeba energie.
-- **Jablka nad 5 % energie jen bez ztráty bílkovin** – Martin 22. 11. 2026: „Ano“ na otázku „Mají jablka nahrazovat obilí jen tak, aby lidé nepřišli o bílkoviny?“
-  s doporučením: ves sází jen tolik stromů, kolik jablek sní, aniž by přišla o bílkoviny, a zbytek
+- **Jablka nad 5 % energie jen bez ztráty bílkovin** – Martin 22. 11. 2026: „Ano“ na otázku „Mají jablka nahrazovat obilí jen tak, aby lidé nepřišli o bílkoviny?“;
+  doporučení Clauda k otázce: ves sází jen tolik stromů, kolik jablek sní, aniž by přišla o bílkoviny, a zbytek
   obilí jí jako dnes. Ovoce se jí dál napřed (2. v pořadí), **do 5 % potřeby energie vždy**
   (`DIET.fruitShare` – plné ovoce v kvalitě stravy, Bílkoviny a nasycení), **nad to jen místo
   obilí a luštěnin, které ves k bílkovinám nepotřebuje** – pokrytí bílkovin s jablky neklesne pod
-  min(1, pokrytí s jablky do 5 %). Návrh Clauda k provedení: tempo proti zkažení jen do 5 %;
+  min(1, pokrytí s jablky do 5 %). Návrh Clauda k provedení (D115 kolo 4): **tempo proti zkažení** – jablka, která by do dne zkažení zbyla (třeba po úmrtí nebo odchodu ve vsi bez nádob), ves sní rovným dílem do zkažení i nad 5 % (jako díl uzeného do zkažení; Martin 22. 11. 2026: „Pokud shnijí ta, co lidé nasbírali (utratili za ně práci) je to špatně“), pravidlo bílkovin platí pro jablka nad toto tempo; dřívější znění „tempo jen do 5 %“ neplatí;
   jablka navíc napřed místo obilí (v hladu s medem, který se jí s obilím), pak luštěnin – kolik
   bílkovin má ves nad potřebu; dnešní energii, kterou obilí nedorovná (vymlácené došlo), smí
   jablka doplnit vždy. Výhled do sklizně (Přídělový systém) počítá s jablky do 5 % a při plném
