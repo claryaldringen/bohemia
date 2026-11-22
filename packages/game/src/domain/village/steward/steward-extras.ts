@@ -7,7 +7,7 @@ import { yearlyFoodNeed } from '../fields/field-food';
 import { villageFoodCosts } from '../livestock/husbandry';
 import { horsePenPayment } from '../livestock/horse-pen-payment';
 import { LIVESTOCK } from '../livestock/livestock';
-import { oxYearCost } from '../livestock/draft';
+import { oxenOverRoom, oxYearCost } from '../livestock/draft';
 import { happinessLaborFactor, villageHappiness } from '../people/happiness';
 import {
   orchardAreaM2,
@@ -291,7 +291,8 @@ function sownWork(ctx: StewardContext): number {
  * 22. 11. 2026 – ves chová, co uživí; stádo pak roste do mezí pastvy, lesa, pasáků a sena); (b) spřežení
  * – ohrada volů, když ves má skot v ohradě, chovný pár krav a výrostky na pasení a orba ušetří na
  * osevu výhledu (kopání motykou − orba rádlem na osetý hektar) za `paybackYears` víc než seno volů
- * a ohrada (`teamPenValue`); (c) koně
+ * a ohrada (`teamPenValue`); další ohrada volů, když páry, které ves chce, nevejdou do míst
+ * (`oxenOverRoom`); (c) koně
  * v Růstu (v Obnově s nižší předností), když vojvodova rodina cvičí a ves nemá ohradu koní.
  * V roce 0 vsi s úzkým hrdlem práce (a) ani (b) ne – maso a mléko práci nezvednou
  * (`firstYearLaborBound`).
@@ -311,6 +312,11 @@ export function penStep(state: VillageState, ctx: StewardContext): void {
       if (buildPen(state, ctx, pen)) return;
     }
     if (teamPenValue(state, ctx) && fits(state, ctx, 'pen', BUILD_COSTS.pen.laborManDays)) {
+      if (buildPen(state, ctx, 'team')) return;
+    }
+    // ohrada volů plná: páry, které ves chce, se nevejdou do míst → další ohrada volů (jako
+    // u stád; návrh Clauda, Martin 22. 11. 2026 „ano“ na maximum, které ves zvládne)
+    if (oxenOverRoom(state) && fits(state, ctx, 'pen', BUILD_COSTS.pen.laborManDays)) {
       if (buildPen(state, ctx, 'team')) return;
     }
   }

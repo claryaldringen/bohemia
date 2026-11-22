@@ -31,7 +31,7 @@ import { PLOUGH_HA_PER_DAY, PLOUGH_SOD_FACTOR, hasSod, ploughWorkPerHa } from '.
 import { NO_CRAFTS } from '../../core/productivity';
 import { cloneState } from '../../core/clone';
 import { advanceVillage } from '../../core/simulate';
-import { ploughPairsForRotation } from '../../core/simulate-plan';
+import { staffedPloughPairs } from '../draft';
 import type { ChronicleEvent, FieldPart, VillageState } from '../../types';
 import {
   createCropWork,
@@ -588,53 +588,35 @@ describe('orba rádlem', () => {
     expect(createCropWork([part(1), sod], day, 0, false).plough).toBeUndefined();
   });
 
-  it('páry k rádlům zorají v oknech orby všechny díly na řadě – nejvýš OXEN.maxPairs', () => {
-    // fields.md – Osevní postup po dílech, Páry k rádlům: všechny díly na řadě (návrh Clauda)
+  it('páry k rádlům podle lidí – kolik párů ves obslouží, díly na řadě nerozhodují', () => {
+    // oxen.md – Kolik volů ves chce (Martin 22. 11. 2026 „ano“): oráč + setí na pár
+    // (OXEN.crewPerPair), nejméně 1, bez stropu
     const day = at(600, 9, 1);
     const s = withOxen(withTeam(day));
-    // dost lidí na všechny páry – jinak by počet párů omezila obsluha (test níž)
-    s.people = Array.from({ length: OXEN.maxPairs * OXEN.crewPerPair }, (_, i) => ({
-      ...s.people[0]!,
-      id: 1000 + i,
-    }));
-    const parts = (from: number, n: number, over: Partial<FieldPart> = {}): FieldPart[] =>
-      Array.from({ length: n }, (_, i) =>
-        part(from + i, { distanceM: 100 + i, state: 'ready', sownYears: 0, ...over }),
-      );
-    const pairs = (list: FieldPart[]): number => {
-      s.parts = list;
-      return ploughPairsForRotation(s, day, 0, null);
+    const adults = (n: number): VillageState['people'] =>
+      Array.from({ length: n }, (_, i) => ({ ...s.people[0]!, id: 1000 + i }));
+    expect(laborPerDay(s.people[0]!, day)).toBe(1);
+    const pairs = (people: VillageState['people'], parts: FieldPart[] = []): number => {
+      const v: VillageState = { ...s, people, parts };
+      return staffedPloughPairs(v, day);
     };
-    // pár zorá na podzim ≈ 0,3 ha × výkon brázdy 100 m za den – pět hektarů ozimu stihne sám
-    expect(pairs(parts(1, 5))).toBe(1);
-    const autumn = pairs(parts(1, 40));
-    expect(autumn).toBeGreaterThan(1);
-    expect(pairs(parts(1, 80))).toBeGreaterThanOrEqual(autumn);
-    expect(pairs(parts(1, 5000))).toBe(OXEN.maxPairs);
-    // úhor, který odpočívá, se neorá; díl v osevu se orá i na jaře – na hektar méně párů než první
-    // osev (ten se orá v okně ozimu)
-    const resting = { state: 'fallow' as const, fallowSinceDay: day - 100, fertilityShare: 0.3 };
-    expect(pairs([...parts(1, 5), ...parts(100, 500, resting)])).toBe(1);
-    const spring = pairs([
-      ...parts(1, 5),
-      ...parts(100, 70, { sownYears: 1, fertilityShare: 0.83 }),
-    ]);
-    expect(spring).toBeGreaterThan(1);
-    expect(spring).toBeLessThanOrEqual(autumn);
-  });
-
-  it('páry k rádlům nepřesáhnou to, co ves s lidmi obslouží', () => {
-    // oxen.md – Páry k rádlům: oráč + setí na pár (OXEN.crewPerPair), návrh Clauda
-    const day = at(600, 9, 1);
-    const s = withOxen(withTeam(day));
-    s.parts = Array.from({ length: 5000 }, (_, i) =>
+    expect(pairs([])).toBe(1);
+    expect(pairs(adults(OXEN.crewPerPair - 1))).toBe(1);
+    expect(pairs(adults(3 * OXEN.crewPerPair - 1))).toBe(2);
+    expect(pairs(adults(3 * OXEN.crewPerPair))).toBe(3);
+    expect(pairs(adults(9 * OXEN.crewPerPair))).toBe(9);
+    // pole nerozhoduje – bez dílů i s 5000 díly na řadě stejně
+    const big = Array.from({ length: 5000 }, (_, i) =>
       part(i + 1, { distanceM: 100 + (i % 7), state: 'ready', sownYears: 0 }),
     );
-    const adults = s.people.filter((p) => laborPerDay(p, day) >= 1);
-    expect(adults.length).toBeGreaterThan(0);
-    const staffed = Math.max(1, Math.floor(adults.length / OXEN.crewPerPair));
-    expect(ploughPairsForRotation(s, day, 0, null)).toBeLessThanOrEqual(staffed);
-    expect(ploughPairsForRotation(s, day, 0, null)).toBeLessThan(OXEN.maxPairs);
+    expect(pairs(adults(3 * OXEN.crewPerPair), big)).toBe(3);
+    expect(pairs(adults(3 * OXEN.crewPerPair), [part(1)])).toBe(3);
+    // obslouží jen lidé v práci – děti, zranění a lidé pryč ne
+    const people = adults(3 * OXEN.crewPerPair);
+    people[0] = { ...people[0]!, bornDay: day - 365 * 5 };
+    people[1] = { ...people[1]!, injuredUntilDay: day + 30 };
+    people[2] = { ...people[2]!, away: { kind: 'labor', untilDay: day + 30 } };
+    expect(pairs(people)).toBe(2);
   });
 
   it('slabí voli po zimě orají na jaře jen podílem; na podzim zase plnou silou', () => {

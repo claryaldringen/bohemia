@@ -2,7 +2,7 @@
 import { dateOfDayIndex, type CalendarDate } from '../../calendar';
 import { springSowingExtended } from '../disasters/weather-effects';
 import type { Landscape } from '../../landscape';
-import { nextPloughPairs } from '../livestock/draft';
+import { nextPloughPairs, staffedPloughPairs } from '../livestock/draft';
 import { craftHouseholds, workshopLabor } from '../crafts/crafts';
 import { harvestHandsDay, harvestHelperLabor } from '../fields/harvest-hands';
 import { closeFieldFoodYear, storesOutlook, type StoresOutlook } from '../fields/field-food';
@@ -59,7 +59,6 @@ import { laborPerDay } from '../people/people';
 import { dailyMinPerHousehold, woodToolsLaborFactor } from './productivity';
 import {
   FOREST_BONUS,
-  OXEN,
   PEAK_CAPACITY_SHARE,
   PLANNING_DAY,
   WINDOWS,
@@ -178,9 +177,14 @@ export function startSeason(
   // oděvu len je (fields.md – Len)
   state.season.flaxNeedKg = flaxNeedKg(state, day);
   // páry k rádlům, které ves chce (oxen.md – Kolik volů ves chce) – podle nich cvičí voly; nahoru
-  // hned, dolů po dvou plánech (`nextPloughPairs`); z celého pořadí dílů na řadě po postupu
+  // hned, dolů po dvou plánech (`nextPloughPairs`). Ves se správcem tolik, kolik jich obslouží
+  // lidmi (správce podle nich zakládá pole; návrh Clauda, Martin 22. 11. 2026 „ano“), ves bez
+  // správce pole nezakládá – páry podle dílů na řadě po postupu (nejvýš podle lidí)
   if (oxPens(state).length > 0) {
-    const need = ploughPairsForRotation(state, day, coverage.tools, landscape);
+    const need =
+      state.steward?.on === true
+        ? staffedPloughPairs(state, day)
+        : ploughPairsForRotation(state, day, coverage.tools, landscape);
     state.draft = {
       ...(state.draft ?? { fourWheelOffRoad: true }),
       ...nextPloughPairs(state, need),
@@ -1176,12 +1180,12 @@ export function sowingCapacity(
 
 /**
  * Páry k rádlům, které ves chce (oxen.md – Kolik volů ves chce; fields.md – Osevní postup po dílech,
- * Páry k rádlům): nejméně párů (nejvýš OXEN.maxPairs), které v oknech orby zorají všechny díly na
+ * Páry k rádlům): nejméně párů, které v oknech orby zorají všechny díly na
  * řadě v hospodářském roce od `day` (1. 9. po postupu dílů) – celé pořadí, ves chce zorat
  * všechno (návrh Clauda). První osev oběhu (odpočatý příloh, nový díl) se orá v podzimním okně
  * ozimu, díl v osevu kdykoli v oknech orby za rok – na podzim pod ozim nebo jař, na jaře pod jař
  * (fields.md – Přílohová soustava do roku 1100; návrh Clauda – páry jako za pevného sledu); výkon
- * páru `ploughCapacityPerDay` podle délky brázd dílů (`plannedFurrowEfficiency`); nejvýš tolik párů, kolik ves obslouží lidmi (`OXEN.crewPerPair`).
+ * páru `ploughCapacityPerDay` podle délky brázd dílů (`plannedFurrowEfficiency`); nejvýš tolik párů, kolik ves obslouží lidmi (`staffedPloughPairs`).
  * Přílohy 70–95 % (až po dílech na řadě) a nouzové (jen při nedostatku) nepočítá.
  */
 export function ploughPairsForRotation(
@@ -1205,10 +1209,8 @@ export function ploughPairsForRotation(
   const perPair =
     pairCapacityPerDay(toolCoverage) *
     plannedFurrowEfficiency([...autumn, ...anytime], state, landscape);
-  // páry, které ves s lidmi, co má, obslouží: oráč na pár a setí za ním (`OXEN.crewPerPair`)
-  const crew = state.people.reduce((sum, p) => sum + laborPerDay(p, day), 0);
-  const staffed = Math.max(1, Math.floor(crew / OXEN.crewPerPair + EPSILON));
-  const cap = Math.min(OXEN.maxPairs, staffed);
+  // páry, které ves s lidmi, co má, obslouží (`staffedPloughPairs`)
+  const cap = staffedPloughPairs(state, day);
   if (perPair <= 0) return cap;
   // dny oken orby do konce hospodářského roku – ozim jen na podzim, jař na podzim i na jaře
   // světlé dny oken (voli orají za světla – population.md, Skladba dne podle ročního období)

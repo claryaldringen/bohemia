@@ -582,6 +582,25 @@ describe('steward-extras – humno, ohrady, posvátná místa a cesty', () => {
     const noSowing = structuredClone(base);
     penStep(noSowing, ctxOf(day));
     expect(team(noSowing)).toBe(false);
+    // ohrada volů stojí (6 míst = 3 páry): 3 páry se vejdou, 4 páry (8 volů) ne – správce přistaví
+    // další ohradu volů (steward.md – Ohrada volů podle stáda a osevu; Martin 22. 11. 2026)
+    const built = (pairs: number): VillageState => {
+      const v = structuredClone(s);
+      for (const p of v.pens ?? []) if (p.species === 'team') p.builtDay ??= v.lastDay;
+      v.constructions = v.constructions.filter((c) => c.kind !== 'pen');
+      v.draft = {
+        ...(v.draft ?? { fourWheelOffRoad: true }),
+        ploughPairs: pairs,
+        ploughNeed: pairs,
+      };
+      return v;
+    };
+    const fits3 = built(3);
+    penStep(fits3, ctx(fits3));
+    expect(team(fits3)).toBe(false);
+    const over4 = built(4);
+    penStep(over4, ctx(over4));
+    expect(team(over4)).toBe(true);
   });
 
   it('vozová cesta: jen s vozem a s celou cenou v rozpočtu práce', () => {

@@ -32,9 +32,8 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `CROP_WINDOWS` (`WINDOWS` = jař, `WINTER_WINDOWS`) v `rules*.ts`. Krok 1 `startSeason`
   (`simulate-plan.ts`, 1. 9.): `closeFieldFoodYear`, `rotateAfterSeason` všech dílů (`rotation.ts`
   – díl, kterému po osevu zůstalo aspoň 70 %, `ready` v osevu, jinak příloh – přílohová soustava), prázdný rok
-  (`createSeason`, `ard` podle spřežení); pak páry k rádlům z `ploughPairsForRotation`
-  (`nextPloughPairs` v `draft.ts`; pod pojistkou i s nutnými díly mimo postup a nahoru hned –
-  `village-livestock.md`). Krok 2 `seasonDay` (každý den): konce oken setí – první den po setí
+  (`createSeason`, `ard` podle spřežení); pak páry k rádlům (`staffedPloughPairs` se správcem, `ploughPairsForRotation` bez něj;
+  `nextPloughPairs` v `draft.ts`; nahoru hned – `village-livestock.md`). Krok 2 `seasonDay` (každý den): konce oken setí – první den po setí
   ozimu jdou díly ozimu bez zasetého podílu (`unsownPartIds` – úsek setí nezačal) do jaře
   (`moveParts` v `land-taken.ts`: příprava půdy podle úseků `taskSpans`, na začátek pořadí jaře,
   `crop: 'spring'`); první den po setí jaře, luštěnin a lnu vypadnou nezasetí z práce
@@ -275,7 +274,6 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   dává připravenému dílu se `sownYears` > 0 skupinu 1. Převod starších vsí `withoutRotationNext`
   (v řetězu převodů `advanceVillage` za `withSowingRotation`): smaže `FieldPart.next` (pole z typu
   zmizelo), díl na řadě pod 70 % pošle od `lastDay` do přílohu; bez `next` vrátí tentýž stav.
-  `ploughPairsForRotation`: `first` do podzimního okna orby ozimu, `again` do všech oken orby.
   `THREE_FIELD_FROM_YEAR` = 1100 (`rules-fields.ts`) – jen mez pro budoucí trojpolí. Testy
   `sowing-rotation.test.ts` (rok po roku do 70 %, ozim po ozimu, příloh do 95 %, převod `next`).
 - **Osevní postup po dílech** (fields.md – Osevní postup po dílech a setí do konce okna, 25. 10.
@@ -505,7 +503,7 @@ tools)` = s hromadou `pileSowsKg` (osivo, které ves ještě zaseje: `sowingHaPe
   (`toAbandonedFallow` v `rotation.ts`), příloh zůstane, osetý roste a do přílohu jde 1. 9.
   v `rotateAfterSeason`; `returnPart` vyřazený opuštěný díl nechá ladem. Osev ho přeskočí přes
   `sowingGroup` (null), `isEmergencyFallow` (false) a `nextSowing` (`'rest'`) – na nich stojí
-  `sowingOrder`, `sowingBlocks` i `ploughPairsForRotation`;
+  `sowingOrder` i `sowingBlocks`;
   `partRotation` u něj ukáže úhor bez odpočinku, `fieldCapacity` ho nepočítá. Zarůstání, pastva
   a seč beze změny (opuštěný příloh je přílohem). Use-case `abandonVillageFieldParts`
   (`application/abandon-field-parts.ts`, právo `abandonFieldParts: 'build'`), server action
