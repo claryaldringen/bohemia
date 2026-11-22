@@ -206,15 +206,24 @@ volů (`draft.ts`).
 
 - **Páry k rádlům podle lidí** (D114 – na otázku „Má ves chtít tolik párů volů, kolik zvládne
   obsloužit lidmi?“ **Martin 22. 11. 2026: „ano“**; dřív nejméně párů, které zorají díly na řadě –
-  [historie](history/oxen-history.md), Páry k rádlům podle dílů na řadě): k 1. 9. ves chce **tolik
-  párů, kolik obslouží lidmi** – pár chce oráče a setí za zoranou částí (0,3 ha za den × 10
+  [historie](history/oxen-history.md), Páry k rádlům podle dílů na řadě): k 1. 9. **ves se správcem**
+  chce **tolik párů, kolik obslouží lidmi** – pár chce oráče a setí za zoranou částí (0,3 ha za den × 10
   člověkodnů na hektar ≈ 3), tedy `OXEN.crewPerPair` = 4 dospělí na pár (návrh Clauda 25. 10.
-  2026, dřív strop); nejméně 1 pár, nejvýš `OXEN.maxPairs` = 8. To je **potřeba** toho roku
+  2026, dřív strop); nejméně 1 pár, **bez stropu** (`OXEN.maxPairs` zrušeno – bylo jen pojistkou
+  hledání párů k dílům; návrh Clauda 22. 11. 2026, opravné kolo 1: 36 dospělých = 9 párů). To je **potřeba** toho roku
   (`DraftState.ploughNeed`, `staffedPloughPairs`); do prvního plánu pár na každou ohradu volů.
-  Díly na řadě nerozhodují: s víc páry stačí orba spřežení na víc polí a správce podle ní založí
+  U vsi se správcem díly na řadě nerozhodují: s víc páry stačí orba spřežení na víc polí a správce podle ní založí
   víc polí ([správce](steward.md) – Spřežení podle lidí); co páry nezorají, se dál nezaseje (Jen
   rádlo). Cena (v otázce): víc telat jde do výcviku místo mezi krávy na mléko (Páry k rádlům, které
   ves chce, mají přednost výš – Martin 21. 11. 2026) a voli sní víc sena. Obecně Martin 22. 11. 2026: „Obecně se drž pravidla vyprodukovat co nejvíce za co nejmenší množství práce.“
+- **Ves bez správce** (návrh Clauda 22. 11. 2026, opravné kolo 1): pole sama nezakládá, a kdyby
+  chtěla páry podle lidí, cvičila by a krmila páry, které nemají co orat – práce a seno naprázdno
+  (Martin 22. 11. 2026: „Obecně se drž pravidla vyprodukovat co nejvíce za co nejmenší množství
+  práce.“). Chce proto páry jako dřív – nejméně párů, které v oknech orby zorají díly na řadě
+  (`ploughPairsForRotation`), nejvýš tolik, kolik obslouží lidmi (`staffedPloughPairs`).
+- **Ohrada volů roste s páry:** když páry, které ves chce, nevejdou do míst ohrad volů (`oxenOverRoom`),
+  správce přistaví další ohradu volů (`penStep`; jako stádům – [správce](steward.md), Ohrada volů
+  podle stáda a osevu; Martin 22. 11. 2026 „ano“ na maximum, které ves zvládne).
 - **Kdo pár obslouží** (návrh Clauda 22. 11. 2026): dospělí, kteří k 1. 9. pracují (`laborPerDay`
   – ne děti, zranění ani lidé pryč), stejně jako dřívější strop podle lidí. Ne volná práce po
   denním minimu z výhledu osevu (`sowHa` – správce): `crewPerPair` je počet lidí u páru, ne

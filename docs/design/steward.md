@@ -255,11 +255,13 @@ skutečně 5,7–6,0). Zlatá ves: osev lidmi ≈ 39 ha, spřežením ≈ 23 ha,
 cíl je nad 12 ha, které ves osela a sklidila (test `village-golden-long.test.ts`).
 
 **Spřežení podle lidí** (D114): osev podle spřežení počítá páry s rádlem, které ves má
-(`ableTeams`). Kolik párů ves chce a cvičí, je od 22. 11. 2026 tolik, kolik jich obslouží lidmi
+(`ableTeams`). Kolik párů ves se správcem chce a cvičí, je od 22. 11. 2026 tolik, kolik jich obslouží lidmi
 (Martin 22. 11. 2026: „ano“ – [orba](oxen.md), Kolik volů ves chce, Páry k rádlům podle lidí); dřív
 jen tolik, kolik zoraly díly na řadě, takže pole, na která by víc párů stačilo, správce nezaložil.
 Teď osev podle spřežení roste s páry, jak je ves vycvičí (výcvik 2 roky), a cíl polí s ním – dál
-nejvýš na osev podle lidí, žní a výmlatu.
+nejvýš na osev podle lidí, žní a výmlatu. Ves bez správce pole nezakládá, takže páry podle lidí by
+cvičila a krmila naprázdno – chce páry podle dílů na řadě, nejvýš podle lidí (návrh Clauda 22. 11.
+2026, opravné kolo 1; [orba](oxen.md)).
 
 **Pole i na práci rodu** (D103): Martin 19. 11. 2026 na otázku „Má správce zakládat pole i na práci
 rodu? Dnes plánuje pole jen na to, co ves zvládne bez rodu, a rod pak pomáhá jen na polích, která
@@ -708,6 +710,12 @@ a ves pro voly, kteří nepřijdou, seče seno.
   krávy nemá a ohrada přišla o roky později nebo vůbec. Od 1. do 2. 11. 2026 navíc jen s výrostky
   na pasení (`youngsterHerders`); od 2. 11. 2026 pase ve vsi bez výrostků dospělý (diet.md –
   Pasáci, Dospělý pasák), podmínka odpadla.
+- **Další ohrada volů, když se páry nevejdou** (návrh Clauda 22. 11. 2026, opravné kolo 1 –
+  Martin 22. 11. 2026 „ano“ na otázku, zda se i ohrady přepnou na maximum, které ves zvládne):
+  ves se správcem chce páry podle lidí (Spřežení podle lidí výš) a jedna ohrada volů má 6 míst =
+  3 páry. Když páry, které ves chce, nevejdou do míst ohrad volů (`oxenOverRoom`), správce – jako
+  u stád, jednu ohradu za den správce, mimo žně a v rozpočtu práce – přistaví další ohradu volů.
+  Bez nového čísla.
 - **Úspora orby podle výhledu**: osev = nejmenší z osevů výhledu (práce, osivo, půda –
   `StewardOutlook`), ne osev podle půdy (`fieldCapacity`). Orba ušetří ≈ 90 člověkodní na hektar
   v oknech setí (kopání 100 − orba 10) – vyplatí se vždy, když se něco oseje.

@@ -345,12 +345,13 @@ díl se osévá, dokud dává, a pak leží ladem, dokud se neodpočine.
    dostane díl na řadě ozim, len tedy přibývá až v listopadu (kopání pod jař) a na jaře.
    **Změna 10. 11. 2026:** ves si díly na příští len **odloží předem** – viz Len, „Díly na len
    si ves odloží na podzim“; pořadí „napřed díly v osevu“ je pryč, len bere nejúrodnější díly na řadě.
-5. **Páry k rádlům** ([oxen.md](oxen.md) – Kolik volů ves chce): **od 22. 11. 2026 podle lidí**
-   (D114 – Martin 22. 11. 2026 „ano“): ves chce tolik párů, kolik obslouží lidmi, díly na řadě
-   nerozhodují ([historie](history/oxen-history.md) – Páry k rádlům podle dílů na řadě). Dřív
-   ~~(návrh Clauda – páry jako za pevného sledu): první osev oběhu (odpočatý příloh, nový díl) se
+5. **Páry k rádlům** ([oxen.md](oxen.md) – Kolik volů ves chce): **od 22. 11. 2026 ves se správcem
+   podle lidí** (D114 – Martin 22. 11. 2026 „ano“): chce tolik párů, kolik obslouží lidmi, díly na
+   řadě nerozhodují; **ves bez správce** (pole nezakládá) dál podle dílů na řadě, nejvýš podle lidí
+   (návrh Clauda, opravné kolo 1 – [oxen.md](oxen.md)). Díly na řadě se počítají (návrh Clauda –
+   páry jako za pevného sledu): první osev oběhu (odpočatý příloh, nový díl) se
    počítá do podzimního okna orby ozimu, díl v osevu do všech oken orby za rok (na podzim i na
-   jaře)~~.
+   jaře).
 6. **Co hráč vidí:** panel dílu ukazuje kolikátý osev oběhu (1., 2., 3.) a **Příště** podle
    prvního okna; díl v osevu po sklizni je ve scéně strniště do další práce.
 7. **Starší vsi** (převod jednou a idempotentně, návrh Clauda – `withoutRotationNext`): díl s
@@ -548,11 +549,11 @@ Seno, dvě seče).
      spíš zemědělci. Až postupně, když je ves veliká se z rodu knížete stává postupně šlechta“; 9. 11. – 19. 11. 2026 s osevem nepomáhala – Martin 9. 11. 2026: „setí by mělo být v pohodě
      ne? Problém je spíš se žněmi“), a se žněmi, které ves sama nestíhá. Jde až po práci vsi
      a jen s tím, co chybí – ves, která setí stihne sama, rodinu nezapojí.
-   - **Páry k rádlům** ([oxen.md](oxen.md) – Kolik volů ves chce): od 22. 11. 2026 tolik párů,
-     kolik ves obslouží lidmi (D114 – Martin 22. 11. 2026 „ano“), nejvýš `OXEN.maxPairs`; dřív
-     ~~tolik párů, kolik v oknech orby zorá všechny díly na řadě v příštím hospodářském roce –
-     nutné i nad potřebu, ves chce zorat všechno (návrh Clauda) –, nejvýš `OXEN.maxPairs`; mění
-     se jako dosud, až když potřeba trvá dva roky~~ (nahoru hned, dolů po dvou plánech – oxen.md).
+   - **Páry k rádlům** ([oxen.md](oxen.md) – Kolik volů ves chce): od 22. 11. 2026 ves se správcem
+     tolik párů, kolik obslouží lidmi (D114 – Martin 22. 11. 2026 „ano“), bez stropu; ves bez správce
+     jen podle dílů na řadě, nejvýš podle lidí; dílová část ~~tolik párů, kolik v oknech orby zorá všechny díly na řadě v příštím hospodářském roce –
+     nutné i nad potřebu, ves chce zorat všechno (návrh Clauda)~~ platí dál jen pro ves bez správce
+     (nahoru hned, dolů po dvou plánech – oxen.md).
 
 4. **Seno a volná práce beze změny:** nutná seč jde dál za polními úlohami a před stavbami, seč
    navíc po práci na dílech nad potřebu (jako dosud po osevu navíc). Volná práce v liště i zápis

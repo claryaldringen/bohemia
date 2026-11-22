@@ -353,8 +353,7 @@ oxen)` – jen ve vsi bez výrostků (`youngsterCount` 0), potřeba nejvýš `HE
   `oxenCalvesWanted` v `minCows`), převod starých vsí `withOxen` (spřežení = 2 voli, výcvik = 2 telata – čtení
   přes `oxenOf` funguje i bez převodu). `draft.ts`: páry k rádlům k 1. 9. (potřeba `DraftState.ploughNeed` – kolik párů
   ves obslouží lidmi, `staffedPloughPairs` – dospělí v práci dne (`laborPerDay`) ÷
-  `OXEN.crewPerPair`, nejméně 1, nejvýš `OXEN.maxPairs`; díly na řadě nerozhodují – D114, Martin 22. 11. 2026, oxen.md – Kolik volů ves chce, Páry k rádlům podle lidí; dřív nejméně párů na díly
-  na řadě – history/oxen-history.md; volá `startSeason` v `simulate-plan.ts`; páry `ploughPairs` –
+  `OXEN.crewPerPair`, nejméně 1, bez stropu; ves se správcem (`steward.on`) – díly na řadě nerozhodují, ves bez správce `ploughPairsForRotation` (`simulate-plan.ts`: nejméně párů na díly na řadě, nejvýš `staffedPloughPairs`) – D114, Martin 22. 11. 2026, oxen.md – Kolik volů ves chce, Páry k rádlům podle lidí; volá `startSeason` v `simulate-plan.ts`; páry `ploughPairs` –
   `nextPloughPairs` je zvýší hned na potřebu (Martin 27. 10. 2026), sníží jen po dvou plánech
   níž), rok vozů
   (`DraftState.demand.days` – každý den `CartDemandDay`: dnešní nošení podél pevných cest
