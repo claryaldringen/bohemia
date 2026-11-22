@@ -27,6 +27,7 @@ export * from './battle';
 export {
   addHunters,
   dropHunters,
+  fightResult,
   huntFightTick,
   newHuntFight,
   releaseQuarry,

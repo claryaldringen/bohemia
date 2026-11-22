@@ -229,15 +229,28 @@ export const HUNT_QUARRY = {
 /**
  * Souboj se zvěří (`hunt-fight.ts`; návrh Clauda – hunting.md, Pravidla 4–7; plán
  * 2026-11-22-hunting – Rozhodnutí 4, 5, 7): zvíře vyběhne `emergeM` m z lesa ke dvorci; nikdo na ně
- * nejde `idleS` s skutečného času → uteče do lesa (Martin: „když se dlouho nic neděje“); uštvaný
- * jelen či laň stojí, dokud nenabere tento podíl výdrže; výcvik nejvýš `maxHours` herních hodin
- * za lov.
+ * nejde `idleS` sekund skutečného času → uteče do lesa (Martin: „když se dlouho nic neděje“);
+ * uštvaný jelen či laň stojí, dokud nenabere tento podíl výdrže; výcvik nejvýš `maxHours` herních
+ * hodin za lov.
  */
 export const HUNT_FIGHT = {
   emergeM: 40,
   idleS: 60,
   spentUntil: 0.5,
   maxHours: 6,
+  /**
+   * Brána umu na kance a bachyni (Martin: „nováček to nezvládne, protože je potřeba trefit se
+   * kanci shora přímo za krk“, z koně „ještě náročnější“): rána zblízka pod ní vždy mine – pěšky
+   * boj, z koně boj i jízda (čísla návrh Clauda – hunting.md, Pravidla 4–6).
+   */
+  boarGate: { foot: { combat: 60 }, mounted: { combat: 60, riding: 70 } },
+  /**
+   * Kůň jezdce (hunting.md – Pravidla 6: „kůň může v boji s kancem nebo medvědem utrpět také“):
+   * tolikátý díl zásahů kance, bachyně a medvěda do jezdce jde do koně, a zdraví koně (návrh Clauda
+   * – hunting.md, Pravidla 4–6).
+   */
+  horseHitShare: 0.5,
+  horseHealth: 100,
 } as const;
 
 /**

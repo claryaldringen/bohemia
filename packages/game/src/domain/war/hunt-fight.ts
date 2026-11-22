@@ -1,7 +1,8 @@
 import { length2 } from '../landscape/det-math';
 import type { Random } from '../landscape/random';
 import { HUNT_FIGHT, HUNT_QUARRY } from '../village/rules/rules-wildlife';
-import type { QuarryKind } from '../village/types';
+import type { HuntResult, QuarryKind } from '../village/types';
+import { shotHit, spreadRadiusM, type ShotCandidate } from './aim';
 import { alongEdge, hitDamage, NO_WALLS, paceAt } from './battle';
 import type { MarchGrid, Pos } from './march-grid';
 import { dist2 } from './orders';
@@ -10,11 +11,12 @@ import { TICKS_PER_SECOND } from './ticks';
 
 // Souboj se zvěří (hunting.md – Pravidla 4–7; plán 2026-11-22-hunting – Rozhodnutí 5, 7, 9):
 // vyhnané zvíře a útočníci po taktech jako boj (4 za sekundu) s čísly a primitivy boje – tempo
-// pochodu (`WAR.pace`), rána zblízka (`WAR.combat`, `hitDamage`), krok po mřížce (`paceAt`,
-// `alongEdge` bez stěn). `battleTick` se nepoužije – je svázaný s tažením, opevněním a skupinami.
-// Pořadí taktu je pevné: zvíře (stav, pohyb) → útočníci podle `personId` (pohyb, rány) → rány se
-// použijí po všech → konec. Stav je JSON, takt čte jen stav, pole a náhodu taktu – výsledek
-// nezávisí na kouscích taktů. Jen det-math.
+// pochodu (`WAR.pace`), rána zblízka a šíp (`WAR.combat`, `hitDamage`, `spreadRadiusM`,
+// `shotHit`), padlý či raněný (`WAR.downed`), krok po mřížce (`paceAt`, `alongEdge` bez stěn).
+// `battleTick` se nepoužije – je svázaný s tažením, opevněním a skupinami. Pořadí taktu je pevné:
+// zvíře (stav, pohyb, rána) → útočníci podle `personId` (pohyb všech, pak rány a šípy) → rány se
+// použijí po všech (zvíře, pak lovci a koně) → konec. Stav je JSON, takt čte jen stav, pole
+// a náhodu taktu – výsledek nezávisí na kouscích taktů. Jen det-math.
 
 /**
  * Stav zvířete: `hidden` v lese (honci ještě nedošli), `stand`, `flee` (utíká – i vyběhnutí
@@ -35,6 +37,7 @@ export interface Quarry {
   /** Sekundy útěku, které zvíře ještě vydrží (jelen, laň). */
   stamina: number;
   state: QuarryState;
+  /** Takty do další rány (kanec, bachyně, vlk, medvěd – odstup `WAR.combat.meleeSeconds`). */
   cooldown: number;
   /** Na koho útočí (personId). */
   aim: number | null;
@@ -72,8 +75,12 @@ export interface HuntFighter extends NewHunter {
   killed: boolean;
   cooldown: number;
   hits: number;
-  /** Herní hodiny výcviku z honby a boje (Rozhodnutí 7). */
+  /**
+   * Herní hodiny výcviku z honby z koně, boje zblízka a střelby (Rozhodnutí 7) – syrové za celý
+   * lov; strop `HUNT_FIGHT.maxHours` až ve výsledku (`fightResult`).
+   */
   hours: HuntSkills;
+  /** Kůň padl (kanec, bachyně, medvěd) – jezdec bojuje dál pěšky; ves koně ztratí. */
   horseLost?: true;
   /**
    * Hráč mu dal jiný rozkaz (`dropHunters`) – v souboji dál nejedná, zvíře si ho nevšímá; hodiny
@@ -104,15 +111,33 @@ export interface HuntField {
 type QuarryRules = (typeof HUNT_QUARRY)[QuarryKind];
 /** Jelen a laň – utíkají a unavují se. */
 type FlightRules = Extract<QuarryRules, { staminaS: number }>;
+/** Kanec, bachyně, vlk a medvěd – brání se. */
+type DefendRules = Extract<QuarryRules, { chargeM: number }>;
 
-const MELEE_TICKS = WAR.combat.meleeSeconds * TICKS_PER_SECOND;
-const MELEE_M2 = WAR.combat.meleeM * WAR.combat.meleeM;
+const C = WAR.combat;
+const MELEE_TICKS = C.meleeSeconds * TICKS_PER_SECOND;
+const BOW_TICKS = C.bowSeconds * TICKS_PER_SECOND;
+const MELEE_M2 = C.meleeM * C.meleeM;
+const BOW_MIN_M2 = C.bowMinM * C.bowMinM;
+const BOW_MAX_M2 = C.bowMaxM * C.bowMaxM;
 const IDLE_TICKS = HUNT_FIGHT.idleS * TICKS_PER_SECOND;
-/** Zdraví koně jezdce na začátku lovu – jako muž (`WAR.combat.health`). */
-const HORSE_HEALTH = WAR.combat.health;
 /** Cíl kroku útěku – dost daleko, aby krok měl plnou délku. */
 const FLEE_REACH_M = 1000;
 const NO_FILLS = NO_WALLS.fills;
+/**
+ * Kanec a bachyně – rána zblízka jen nad branou umu (`HUNT_FIGHT.boarGate`; hunting.md – Pravidla
+ * 4: „rána shora za krk“).
+ */
+const GATED: ReadonlySet<QuarryKind> = new Set<QuarryKind>(['boar', 'sow']);
+/**
+ * Kanec, bachyně a medvěd – zásah jezdce smí jít do koně (`HUNT_FIGHT.horseHitShare`; hunting.md –
+ * Pravidla 6); vlk jde vždy po jezdci.
+ */
+const HORSE_HITTERS: ReadonlySet<QuarryKind> = new Set<QuarryKind>(['boar', 'sow', 'bear']);
+/** Kandidát šípu – zvíře (ostatní kandidáti jsou lovci podle `personId`). */
+const QUARRY_ID = 'quarry';
+/** Viditelná plocha lovce pro šíp – stojící muž (`WAR.combat.aim`). */
+const HUNTER_AREA_M2 = C.aim.visibleM2.standing;
 
 /** Nový souboj: zvíře `kind` skryté v lese u dveří `door`, bez útočníků. */
 export function newHuntFight(kind: QuarryKind, door: Pos, tick: number): HuntFight {
@@ -154,8 +179,8 @@ export function releaseQuarry(f: HuntFight, out: Pos, tick: number): void {
 
 /**
  * Útočníci na zvíře (povel hráče). Kdo už útočí, nebo padl, se nepřidá znovu; odvolaný
- * (`dropHunters`) se vrátí s polohou, koněm a silou z `hunters` a s hodinami výcviku z dřívějška.
- * Povel je činnost – posune `activeTick`.
+ * (`dropHunters`) se vrátí s polohou, koněm a silou z `hunters` a s hodinami výcviku z dřívějška –
+ * komu v souboji padl kůň (`horseLost`), ten se vrátí pěšky. Povel je činnost – posune `activeTick`.
  */
 export function addHunters(f: HuntFight, hunters: readonly NewHunter[], tick: number): void {
   if (f.outcome !== 'ongoing') return;
@@ -166,7 +191,7 @@ export function addHunters(f: HuntFight, hunters: readonly NewHunter[], tick: nu
     if (!prev) {
       f.hunters.push({
         ...newHunter(h),
-        horseHealth: h.mounted ? HORSE_HEALTH : null,
+        horseHealth: h.mounted ? HUNT_FIGHT.horseHealth : null,
         state: 'chase',
         killed: false,
         cooldown: 0,
@@ -174,15 +199,16 @@ export function addHunters(f: HuntFight, hunters: readonly NewHunter[], tick: nu
         hours: { bow: 0, combat: 0, riding: 0 },
       });
     } else if (prev.left && prev.state !== 'down') {
-      // zraněný kůň zůstane zraněný; nový (nebo žádný dřív) má plné zdraví
+      // zraněný kůň zůstane zraněný; nový (nebo žádný dřív) má plné zdraví; padlý kůň se nevrátí
       const horse = prev.horseHealth !== null && prev.horseHealth > 0 ? prev.horseHealth : null;
       const back: HuntFighter = {
         ...prev,
         ...newHunter(h),
-        horseHealth: h.mounted ? (horse ?? HORSE_HEALTH) : null,
+        horseHealth: h.mounted ? (horse ?? HUNT_FIGHT.horseHealth) : null,
         state: 'chase',
       };
       delete back.left;
+      if (back.horseLost) unhorse(back);
       f.hunters[i] = back;
     } else {
       continue;
@@ -206,11 +232,58 @@ export function dropHunters(f: HuntFight, personIds: readonly number[]): void {
 }
 
 /**
+ * Výsledek souboje pro ves (`applyHuntResult`; hunting.md – Pravidla 5–7): jména útočníků podle
+ * `personId` (kdo zvíře složil, napřed; chybějící jméno se vynechá), výcvik každého s hodinami nad
+ * nulou – strop `HUNT_FIGHT.maxHours` zkrátí všechny dovednosti stejným dílem (návrh Clauda),
+ * padlí (`killed` → `dead`, jinak `wounded`) a padlí koně podle `horses` (kůň jezdce podle
+ * `personId`). Bere všechny útočníky, i odvolané (`left`) – výcvik a zranění jim zůstanou. Stav
+ * souboje nemění.
+ */
+export function fightResult(
+  f: HuntFight,
+  names: ReadonlyMap<number, string>,
+  horses: ReadonlyMap<number, number>,
+): HuntResult {
+  const killer = f.hunters.filter((h) => h.personId === f.killer);
+  const order = [...killer, ...f.hunters.filter((h) => h.personId !== f.killer)];
+  const result: HuntResult = {
+    quarry: f.quarry.kind,
+    killed: f.outcome === 'killed',
+    names: [],
+    trained: [],
+    casualties: [],
+    horsesLost: [],
+  };
+  for (const h of order) {
+    const name = names.get(h.personId);
+    if (name !== undefined) result.names.push(name);
+  }
+  for (const h of f.hunters) {
+    const hours = cappedHours(h.hours);
+    if (hours) result.trained.push({ personId: h.personId, hours });
+    if (h.state === 'down') {
+      result.casualties.push({ personId: h.personId, outcome: h.killed ? 'dead' : 'wounded' });
+    }
+    const horse = h.horseLost ? horses.get(h.personId) : undefined;
+    if (horse !== undefined) result.horsesLost.push(horse);
+  }
+  return result;
+}
+
+/** Hodiny výcviku se stropem `maxHours` (stejným dílem); null = nic necvičil. */
+function cappedHours(t: HuntSkills): HuntSkills | null {
+  const sum = t.bow + t.combat + t.riding;
+  if (sum <= 0) return null;
+  const k = sum > HUNT_FIGHT.maxHours ? HUNT_FIGHT.maxHours / sum : 1;
+  return { bow: t.bow * k, combat: t.combat * k, riding: t.riding * k };
+}
+
+/**
  * Jeden takt souboje (mění `f` na místě, `f.tick + 1`); po konci (`outcome` ≠ ongoing) nic.
  * Skryté zvíře čeká – takt jen přičte. Útočník na nohou s povelem, který se ten takt pohnul,
- * nebo má zvíře na dosah rány, posune `activeTick` (lovec zaseknutý u překážky jen stojí – návrh
- * Clauda); po `idleS × TICKS_PER_SECOND` taktech bez něj zvíře běží k `door` (`escape`) a u dveří
- * zmizí (`gone`, `escaped`).
+ * má zvíře na dosah rány, nebo na ně míří lukem, posune `activeTick` (lovec zaseknutý u překážky
+ * jen stojí – návrh Clauda); po `idleS × TICKS_PER_SECOND` taktech bez něj zvíře běží k `door`
+ * (`escape`) a u dveří zmizí (`gone`, `escaped`).
  */
 export function huntFightTick(f: HuntFight, field: HuntField, rng: Random): void {
   if (f.outcome !== 'ongoing') return;
@@ -218,19 +291,28 @@ export function huntFightTick(f: HuntFight, field: HuntField, rng: Random): void
   const q = f.quarry;
   if (q.state === 'hidden') return;
   const hunters = f.hunters.filter(onFoot);
-  quarryStep(q, hunters, field.grid);
+  const wounds: Wounds = new Map();
+  quarryStep(q, hunters, field.grid, rng, wounds);
   const blows =
-    q.state === 'escape' || q.state === 'gone' ? [] : huntersStep(f, hunters, field, rng);
+    q.state === 'escape' || q.state === 'gone' ? [] : huntersStep(f, hunters, field, rng, wounds);
   applyBlows(f, blows);
+  applyWounds(f, wounds, rng);
   settle(f);
 }
 
 // --- Zvíře ------------------------------------------------------------------------------------
 
-/** Stav a krok zvířete v taktu. */
-function quarryStep(q: Quarry, hunters: readonly HuntFighter[], grid: MarchGrid | null): void {
+/** Stav, krok a rána zvířete v taktu. */
+function quarryStep(
+  q: Quarry,
+  hunters: readonly HuntFighter[],
+  grid: MarchGrid | null,
+  rng: Random,
+  wounds: Wounds,
+): void {
   const r = HUNT_QUARRY[q.kind];
   const perTick = r.paceMS / TICKS_PER_SECOND;
+  if (q.cooldown > 0) q.cooldown--;
   if (q.state === 'escape') {
     // u dveří, nebo k nim neprojde (zaseknuté u překážky – návrh Clauda) → zmizí v lese
     if (!moveTo(q, q.door, perTick, grid) || samePos(q.pos, q.door)) q.state = 'gone';
@@ -240,9 +322,42 @@ function quarryStep(q: Quarry, hunters: readonly HuntFighter[], grid: MarchGrid 
     flightStep(q, r, hunters, grid, perTick);
     return;
   }
-  // kanec, bachyně, vlk a medvěd zatím jen vyběhnou a stojí
-  if (q.goal) runOut(q, q.goal, perTick, grid);
-  else q.state = 'stand';
+  defendStep(q, r, hunters, grid, perTick, rng, wounds);
+}
+
+/**
+ * Kanec, bachyně, vlk a medvěd (hunting.md – Pravidla 4, 6: „se brání“, mohou lovce zranit nebo
+ * zabít): útočník do `chargeM` → útok (`charge`) na nejbližšího – běží k němu a na dosah rány
+ * udeří po odstupu `meleeSeconds`, zda rána padne, los 1 : 1 (`WAR.combat`), ubere
+ * `hitDamage(síla zvířete)`. Zásah kance, bachyně a medvěda do jezdce jde losem `horseHitShare`
+ * do koně. Nikdo blízko – vyběhne z lesa a stojí.
+ */
+function defendStep(
+  q: Quarry,
+  r: DefendRules,
+  hunters: readonly HuntFighter[],
+  grid: MarchGrid | null,
+  perTick: number,
+  rng: Random,
+  wounds: Wounds,
+): void {
+  const near = nearestHunter(q.pos, hunters);
+  if (!near || dist2(near.pos, q.pos) > r.chargeM * r.chargeM) {
+    q.aim = null;
+    if (q.goal) runOut(q, q.goal, perTick, grid);
+    else q.state = 'stand';
+    return;
+  }
+  q.goal = null;
+  q.state = 'charge';
+  q.aim = near.personId;
+  if (dist2(near.pos, q.pos) > MELEE_M2) moveTo(q, near.pos, perTick, grid);
+  else face(q, near.pos.x - q.pos.x, near.pos.z - q.pos.z);
+  if (q.cooldown > 0 || dist2(near.pos, q.pos) > MELEE_M2) return;
+  q.cooldown = MELEE_TICKS;
+  if (rng.next() >= C.hitChance) return;
+  const horse = near.mounted && HORSE_HITTERS.has(q.kind) && rng.next() < HUNT_FIGHT.horseHitShare;
+  wound(wounds, near.personId, hitDamage(r.strength, false), horse);
 }
 
 /**
@@ -338,19 +453,23 @@ function nearestHunter(p: Pos, hunters: readonly HuntFighter[]): HuntFighter | n
 }
 
 /**
- * Útočníci v pořadí `personId`: krok ke zvířeti tempem pochodu (jezdec × `WAR.pace.riders`), na
- * dosah rány stojí; rána zblízka po odstupu `meleeSeconds`, zda padne, los 1 : 1 (jeden
- * `rng.next()` na ránu). Hodiny výcviku: takt na dosah rány → boj, honba z koně → jízda.
+ * Útočníci v pořadí `personId`: napřed se pohnou všichni (šíp tak vidí lovce už na nových
+ * místech – jako boj), pak rány. Krok ke zvířeti tempem pochodu (jezdec × `WAR.pace.riders`), na
+ * dosah rány stojí. Rána zblízka po odstupu `meleeSeconds`, zda padne, los 1 : 1 (jeden
+ * `rng.next()` na ránu); na kance a bachyni pod branou umu vždy mine (los se táhne i tak). Muž
+ * rodu s lukem míří na zvíře v pásmu luku (20–60 m) a jde dál – zvíře lukem nedrží na odstup
+ * (návrh Clauda) – a po odstupu `bowSeconds` vystřelí (`shoot`). Hodiny výcviku: takt na dosah
+ * rány → boj, jinak takt s lukem v pásmu → luk, honba z koně → jízda.
  */
 function huntersStep(
   f: HuntFight,
   hunters: readonly HuntFighter[],
   field: HuntField,
   rng: Random,
+  wounds: Wounds,
 ): Blow[] {
   const q = f.quarry;
   const walk = WAR.pace.metersPerSecond / TICKS_PER_SECOND;
-  const blows: Blow[] = [];
   for (const h of hunters) {
     if (h.cooldown > 0) h.cooldown--;
     let moved = false;
@@ -361,34 +480,91 @@ function huntersStep(
         moved = true;
       }
     }
-    const reach = dist2(h.pos, q.pos) <= MELEE_M2;
+    const d2 = dist2(h.pos, q.pos);
+    const reach = d2 <= MELEE_M2;
+    const aiming = !reach && bowReady(h, d2);
     h.state = reach ? 'fight' : 'chase';
-    if (moved || reach) f.activeTick = f.tick;
+    if (moved || reach || aiming) f.activeTick = f.tick;
     if (reach) train(h, 'combat', field.hoursPerTick);
-    else if (moved && h.mounted) train(h, 'riding', field.hoursPerTick);
-    if (!reach || h.cooldown > 0) continue;
-    h.cooldown = MELEE_TICKS;
-    if (rng.next() < WAR.combat.hitChance) {
-      blows.push({ personId: h.personId, damage: hitDamage(h.strength, false) });
+    else if (aiming) train(h, 'bow', field.hoursPerTick);
+    if (!reach && moved && h.mounted) train(h, 'riding', field.hoursPerTick);
+  }
+  const blows: Blow[] = [];
+  for (const h of hunters) {
+    if (h.cooldown > 0) continue;
+    const d2 = dist2(h.pos, q.pos);
+    if (d2 <= MELEE_M2) {
+      h.cooldown = MELEE_TICKS;
+      const lands = rng.next() < C.hitChance;
+      if (lands && aboveGate(h, q.kind)) {
+        blows.push({ personId: h.personId, damage: hitDamage(h.strength, false) });
+      }
+    } else if (bowReady(h, d2)) {
+      h.cooldown = BOW_TICKS;
+      shoot(h, q, hunters, d2, rng, blows, wounds);
     }
   }
   return blows;
 }
 
 /**
- * Hodiny výcviku (Rozhodnutí 7): součet nejvýš `HUNT_FIGHT.maxHours` – přetečení zkrátí všechny
- * dovednosti stejným dílem, takže jezdec cvičí jízdu i boj, i když honba sama 6 h přesáhne
- * (návrh Clauda).
+ * Rána zblízka na kance a bachyni padne jen nad branou umu (`HUNT_FIGHT.boarGate` – pěšky boj,
+ * z koně boj i jízda); ostatní zvěř brána nechrání.
+ */
+function aboveGate(h: HuntFighter, kind: QuarryKind): boolean {
+  if (!GATED.has(kind)) return true;
+  const g = HUNT_FIGHT.boarGate;
+  if (!h.mounted) return h.skills.combat >= g.foot.combat;
+  return h.skills.combat >= g.mounted.combat && h.skills.riding >= g.mounted.riding;
+}
+
+/**
+ * Míří lukem: muž rodu (nosí luk) s dovedností luku nad nulou a zvíře v pásmu luku
+ * (`bowMinM`–`bowMaxM`), mimo dosah rány zblízka.
+ */
+function bowReady(h: HuntFighter, d2: number): boolean {
+  return h.lineMan && h.skills.bow > 0 && d2 > MELEE_M2 && d2 >= BOW_MIN_M2 && d2 <= BOW_MAX_M2;
+}
+
+/**
+ * Výstřel na zvíře (war.md – Boj; fortifications.md – Střelba a viditelná plocha): kruh rozptylu
+ * podle luku střelce a vzdálenosti (`spreadRadiusM`), v něm zvíře (`areaM2`) a ostatní lovci na
+ * nohou (stojící muž); dva losy – zda šíp trefí a koho (`shotHit`). Zvíře i lovec ztratí
+ * `hitDamage(síla střelce, luk)`.
+ */
+function shoot(
+  h: HuntFighter,
+  q: Quarry,
+  hunters: readonly HuntFighter[],
+  d2: number,
+  rng: Random,
+  blows: Blow[],
+  wounds: Wounds,
+): void {
+  const radius = spreadRadiusM(h.skills.bow, Math.sqrt(d2));
+  const r2 = radius * radius;
+  const candidates: ShotCandidate[] = [
+    { id: QUARRY_ID, side: 'defend', areaM2: HUNT_QUARRY[q.kind].areaM2 },
+  ];
+  for (const o of hunters) {
+    if (o === h || dist2(o.pos, q.pos) > r2 + 1e-9) continue;
+    candidates.push({ id: String(o.personId), side: 'attack', areaM2: HUNTER_AREA_M2 });
+  }
+  const roll = rng.next();
+  const pick = rng.next();
+  const hit = shotHit(candidates, radius, roll, pick);
+  if (hit === null) return;
+  const damage = hitDamage(h.strength, true);
+  if (hit === QUARRY_ID) blows.push({ personId: h.personId, damage });
+  else wound(wounds, Number(hit), damage, false);
+}
+
+/**
+ * Hodiny výcviku (Rozhodnutí 7) – syrové za celý lov; strop `HUNT_FIGHT.maxHours` až ve výsledku
+ * (`fightResult`), takže dělení mezi dovednosti odpovídá celému lovu, ne jeho konci.
  */
 function train(h: HuntFighter, skill: keyof HuntSkills, hours: number): void {
-  const t = h.hours;
-  t[skill] += hours;
-  const sum = t.bow + t.combat + t.riding;
-  if (sum <= HUNT_FIGHT.maxHours) return;
-  const k = HUNT_FIGHT.maxHours / sum;
-  t.bow *= k;
-  t.combat *= k;
-  t.riding *= k;
+  h.hours[skill] += hours;
 }
 
 /** Rány taktu po všech v pořadí útočníků; složil ho ten, jehož rána zdraví srazila na nulu. */
@@ -403,6 +579,52 @@ function applyBlows(f: HuntFight, blows: readonly Blow[]): void {
   q.health = 0;
   q.state = 'dead';
   q.goal = null;
+}
+
+/** Rány lovcům v taktu podle `personId`: zdraví muže a koně a počet zásahů. */
+type Wounds = Map<number, { man: number; horse: number; hits: number }>;
+
+function wound(wounds: Wounds, personId: number, damage: number, horse: boolean): void {
+  const w = wounds.get(personId) ?? { man: 0, horse: 0, hits: 0 };
+  if (horse) w.horse += damage;
+  else w.man += damage;
+  w.hits++;
+  wounds.set(personId, w);
+}
+
+/**
+ * Rány lovcům po všech v pořadí `personId` (kdo padne, v tomto taktu ještě udeřil – jako boj):
+ * kůň na nule padne (`horseLost`) a jezdec bojuje dál pěšky; muž na nule padne (`down`) – mrtvý,
+ * nebo raněný losem jako v boji (`WAR.downed`: 1 : 1, muž rodu raněný 2 ze 3).
+ */
+function applyWounds(f: HuntFight, wounds: Wounds, rng: Random): void {
+  if (wounds.size === 0) return;
+  for (const h of f.hunters) {
+    const w = wounds.get(h.personId);
+    if (!w || h.state === 'down') continue;
+    h.hits += w.hits;
+    if (w.horse > 0 && h.horseHealth !== null) {
+      h.horseHealth = Math.max(0, h.horseHealth - w.horse);
+      if (h.horseHealth === 0) {
+        h.horseLost = true;
+        unhorse(h);
+      }
+    }
+    if (w.man <= 0) continue;
+    h.health -= w.man;
+    if (h.health > 0) continue;
+    h.health = 0;
+    h.state = 'down';
+    const killed = h.lineMan ? 1 - WAR.downed.lineWoundedShare : WAR.downed.killedShare;
+    h.killed = rng.next() < killed;
+  }
+}
+
+/** Jezdec bez koně (padl) – pěšky, síla pěšáka. */
+function unhorse(h: HuntFighter): void {
+  h.mounted = false;
+  h.strength = h.footStrength;
+  h.horseHealth = 0;
 }
 
 /** Konec taktu: zabité, zmizelé, nebo nečinnost → útěk do lesa. */
