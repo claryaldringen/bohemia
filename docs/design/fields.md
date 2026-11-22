@@ -2071,13 +2071,14 @@ Stav: **Martin, 18. 10. 2026:** „Chtěl bych, aby pole neměnilo fáze, které
   (klučení křovin a mladého lesa; s motykou i drn louky) se smí zorat nebo zkopat, až ho lidé
   vyklučí, a zasít, až je zoraný (zkopaný) – stav vyklučení do včerejška. Díly pásu orby se orají
   spolu, pruh po pruhu (oxen.md – Co nejdelší brázda), takže pás počká, dokud lidé nevyklučí všechny
-  jeho díly; pás s nevyklučeným dílem a s díly bez klučení (louka, díl v osevu) se rozdělí – kus
-  bez klučení se zorá hned, kratší brázdou. Rádlo, motyka a setí v práci dne nevyklučený díl
+  jeho díly (návrh Clauda: delší brázda; ve Vlkově bez ztráty – platně zaseto na dílech
+  s klučením 52,8 → 53,3 ha); pás s nevyklučeným dílem a s díly bez klučení (louka, díl v osevu)
+  se rozdělí – kus bez klučení se zorá hned, kratší brázdou, pole pásů zůstane v pořadí orby. Rádlo, motyka a setí v práci dne nevyklučený díl
   přeskočí a pokračují dalším připraveným dílem v pořadí: každý den jdou nezačaté díly, které na
   vyklučení čekají, v pořadí za připravené (louky, díly v osevu, vyklučené díly) – spřežení tak
   nečeká, dokud má co orat. Obě skupiny drží dosavadní pořadí, vracení přílohu jde dál po dílech
-  s klučením v témže pořadí. Pořadí přílohů (úzké hrdlo), čelo práce po zdrojích, setí zoraného
-  před klučením a výsadba před klučením zůstávají. Dřív rádlo i setí šly po dílech v pořadí práce
+  s klučením v témže pořadí. Pořadí přílohů (úzké hrdlo), čelo práce po zdrojích a setí zoraného
+  před klučením zůstávají. Co zbývá, je ve Známém dluhu (účtování práce po dílech). Dřív rádlo i setí šly po dílech v pořadí práce
   a na vyklučení nečekaly (Vlkov 10 let: zoráno před vyklučením 33 ha, zaseto 30 ha – historie).
 - **Co je na dílu vidět** (`fieldPartLooks` → `FieldLook` scény): **bare** – rozrytý drn
   (zakládaný díl, připravený, nově založený před kopáním), **plowed** – zkopaný, **sown** –
@@ -2611,8 +2612,13 @@ Ovládání a vzhled jsou **návrh k potvrzení na náčrtech** (obydlí se umis
 
 ## Známý dluh
 
-- ~~Orba a setí až po vyklučení~~ – vyřešeno 22. 11. 2026 (D116, Postup práce po čtvercích – Orba
-  a setí až po vyklučení); dřívější znění v [historii](history/fields-history.md).
+- **Orba, kopání a setí až po vyklučení** – vyřešeno 22. 11. 2026 (D116, Postup práce po čtvercích –
+  Orba a setí až po vyklučení; dřívější znění v [historii](history/fields-history.md)). **Zůstává:**
+  - **Účtování práce úlohy jedním číslem** s vahou dílu plocha × vzdálenost – přibraná dávka dílů
+    s jinou prací posune polohy hotových dílů (vracení přílohu může couvnout a už zoraný díl ukázat
+    jako nevyklučený, přeřazení začatého úseku připíše hotovou práci jiným dílům). Samostatná úloha
+    později: účtovat práci po dílech.
+  - **Přesun ozimu do jara** (`moveParts`) nepřemapuje úseky práce na nové pořadí dílů.
 
 ## Na stavitelovi
 

@@ -395,8 +395,9 @@ tools)` = s hromadou `pileSowsKg` (osivo, které ves ještě zaseje: `sowingHaPe
   prací na váhu dílu – nebo ve vsi z doby před opravou); za řezem napřed připravené, pak čekající
   (kus pásu čeká, dokud má nevyklučený díl), obojí v dosavadním pořadí – vracení přílohu
   (vyklučené jsou vždy před nevyklučenými) zůstane, kde bylo. Pás s nevyklučeným dílem a díly bez
-  klučení se rozdělí na kus bez klučení a kus s klučením (osa, směr, blok stejné); pás přes řez
-  (neměl by nastat) pořadí nemění. `CropWork.partIds` ve vsi, která orá celou plodinu, dostane
+  klučení se rozdělí na kus bez klučení a kus s klučením (osa, směr, blok stejné), `plough.bands`
+  se přeřadí podle prvního dílu pásu v novém pořadí (spoléhá na to `ploughBlockEndPart` a
+  `relayUntouchedBands`); pás přes řez (neměl by nastat) pořadí nemění. `CropWork.partIds` ve vsi, která orá celou plodinu, dostane
   pořadí orby; plán starší vsi s motykou a ves bez spřežení po dílech. Testy
   `fields/__tests__/tillage-order.test.ts`.
 - **Postup práce po čtvercích** (Martin – fields.md): kopání, setí a sklizeň mění díl, až k němu
