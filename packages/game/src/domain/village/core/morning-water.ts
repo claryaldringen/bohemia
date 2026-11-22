@@ -3,7 +3,6 @@ import { dateOfDayIndex, dayIndexOf } from '../../calendar';
 import type { WaterCartPlan } from '../crafts/cart-jobs';
 import { ironTravellers } from '../crafts/crafts';
 import { fireFighting } from '../disasters/firefighting';
-import { huntFootIds } from '../wildlife/hunt-party';
 import { isAdult, isAway } from '../people/people';
 import { raidHiding } from '../fortification/state/raid-day';
 import { householdWater, type DayChores, type HouseholdWater } from './labor';
@@ -44,8 +43,6 @@ export function villagersToday(
 ): { villagers: readonly Person[]; manorSkip: ReadonlySet<number> } {
   const apart = lordApartIds(state, day);
   const family = trainingFamily(state, day);
-  // pěší lovci dne (wildlife.md – Lov rodu) dnes ve vsi nepracují
-  const hunting = huntFootIds(state, day);
   // v den požáru hasí všichni dospělí a nedělají nic jiného (disasters.md – Hašení)
   const fighting = fireFighting(state, day);
   // v den nájezdu se lidé skrývají – nikdo ve vsi nepracuje (war.md – Ves během nájezdu nepracuje)
@@ -54,13 +51,9 @@ export function villagersToday(
   // pro kování se vsí nepracují – tytéž lidi bere plán (`planVillagers`)
   const base = planVillagers(state, day);
   const villagers =
-    crafts.size > 0 || apart.size > 0 || hunting.size > 0 || fighting
+    crafts.size > 0 || apart.size > 0 || fighting
       ? base.filter(
-          (p) =>
-            !crafts.has(p.dwellingId) &&
-            !apart.has(p.id) &&
-            !hunting.has(p.id) &&
-            !(fighting && isAdult(p, day)),
+          (p) => !crafts.has(p.dwellingId) && !apart.has(p.id) && !(fighting && isAdult(p, day)),
         )
       : base;
   return { villagers, manorSkip: familyHomes(family) };

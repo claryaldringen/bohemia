@@ -115,6 +115,37 @@ describe('podíl medu v jídle (`foreign-goods` – trade.md, Jen společné sur
   });
 });
 
+describe('lov bez kalendáře a lovu navíc (hunting.md – Pravidla 1)', () => {
+  it('ze stavu lovu zmizí naděje, lov dne a lov navíc, úlovek roku zůstane; podruhé beze změny', () => {
+    const old = migrateVillage(founded(), load);
+    const year = { boar: 2, deer: 1, wolves: 0, bear: 0, meatKg: 140, days: 3 };
+    const legacy = {
+      hope: { boar: 0.4, deer: 0.2, wolf: 0, bear: 0 },
+      today: { day: DAY, target: 'game', riders: [], foot: [1], extra: true },
+      extraDay: DAY,
+      lastExtraDay: DAY,
+      year: { ...year },
+    };
+    Object.assign(old.wildlife!, { hunt: legacy });
+    const once = migrateVillage(old, advance);
+    expect(once.wildlife!.hunt).toEqual({ year });
+    expect(migrateVillage(once, advance)).toBe(once);
+    expect(migrateVillage(once, load)).toBe(once);
+    // vstupní stav beze změny
+    expect(old.wildlife!.hunt).toBe(legacy);
+    expect(Object.keys(legacy)).toEqual(['hope', 'today', 'extraDay', 'lastExtraDay', 'year']);
+  });
+
+  it('nový stav lovu (úlovek roku a honci) se nepřevádí', () => {
+    const s = migrateVillage(founded(), load);
+    s.wildlife!.hunt = {
+      year: { boar: 0, deer: 0, wolves: 0, bear: 0, meatKg: 0, days: 0 },
+      beaters: { day: DAY + 1, men: 6 },
+    };
+    expect(migrateVillage(s, advance)).toBe(s);
+  });
+});
+
 describe('dvě zásoby uzeného (diet.md – Pořadí jídla, Uzené z porážky 1. 11. rovným dílem)', () => {
   /** Ves před převodem – uzené 400 kg bez rozdělení na zásoby, poslední den `lastDay`. */
   const unconverted = (lastDay: number): VillageState => {

@@ -10,7 +10,6 @@ import { FIELD_GUARD } from '../../rules/rules-wildlife';
 import { advanceVillage } from '../../core/simulate';
 import { dayTaskOrder } from '../../core/simulate-work';
 import type { CropWork, Person, VillageState } from '../../types';
-import { emptyHunt } from '../hunt';
 import { freshWildlife, withWildlife } from '../wildlife';
 import {
   dailyThreatShare,
@@ -191,6 +190,10 @@ describe('jezdecká hlídka (wildlife.md – Jezdecká hlídka)', () => {
     expect(year.meatKg).toBeGreaterThan(0);
     expect(year.days).toBe(0);
     expect(s.meatKg ?? 0).toBeGreaterThanOrEqual(year.meatKg);
+    // naděje úlovku je hlídky (zlomek prasete), stav lovu nese jen úlovek roku
+    expect(s.wildlife!.patrolHope).toBeGreaterThanOrEqual(0);
+    expect(s.wildlife!.patrolHope).toBeLessThan(1);
+    expect(Object.keys(s.wildlife!.hunt!)).toEqual(['year']);
   });
 });
 
@@ -296,29 +299,16 @@ describe('noční hlídka (wildlife.md – Noční hlídka vesničanů)', () => 
 });
 
 describe('opravy hlídky po recenzi (W6)', () => {
-  it('lovec a zraněný jezdec hlídku nejedou (nepočítají se do síly)', () => {
+  it('zraněný jezdec hlídku nejede (nepočítá se do síly)', () => {
     const base = guardVillage(2, 3);
     const full = riderPatrol(base, JUNE);
     expect(full.power).toBeGreaterThan(0);
-    const hunting = cloneState(base);
-    const horseId = hunting.pens![0]!.horses!.find((x) => x.riderId === LORD_ID)!.id;
-    hunting.wildlife!.hunt = {
-      ...(hunting.wildlife!.hunt ?? emptyHunt()),
-      today: {
-        day: JUNE,
-        target: 'game',
-        riders: [{ personId: LORD_ID, horseId }],
-        foot: [],
-        extra: false,
-      },
-    };
-    expect(riderPatrol(hunting, JUNE).power).toBeLessThan(full.power);
     const hurt = cloneState(base);
     hurt.people.find((p) => p.id === LORD_ID)!.injuredUntilDay = JUNE + 30;
     expect(riderPatrol(hurt, JUNE).power).toBeLessThan(full.power);
-    // lovec není hlídkou dvakrát: škoda i úlovek berou z téhož dne stejnou hodnotu
-    settlePatrol(hunting, JUNE);
-    expect(patrolOfDay(hunting, JUNE)).toMatchObject(riderPatrol(hunting, JUNE));
+    // škoda i úlovek berou z téhož dne stejnou hodnotu
+    settlePatrol(hurt, JUNE);
+    expect(patrolOfDay(hurt, JUNE)).toMatchObject(riderPatrol(hurt, JUNE));
   });
 
   it('hlídka dne se spočte jednou: pozdější zranění ji nezmění', () => {

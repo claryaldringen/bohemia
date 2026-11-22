@@ -5,14 +5,12 @@ import { isUnshod } from '../livestock/horse-shoeing-term';
 import { horsePens, isGrainHorse, penHorses } from '../livestock/horses';
 import { currentLord, isDynastyTracked, isElite, isLineMan, lineMen } from './dynasty';
 import { harvestHandsDay } from '../fields/harvest-hands';
-import { huntToday } from '../wildlife/hunt-party';
 import { householdHead } from './households';
 import { adultDailyMin, householdMinimum, SUMMER_CHORES, type DayChores } from '../core/labor';
 import { villageManorId } from './manor';
 import { ageGroup, ageYears, isAway, isInjured, laborPerDay } from './people';
 import { dailyMinPerHousehold } from '../core/productivity';
 import { AGE, ARMS_CAPS, HORSES, LORD, type ArmsSource } from '../rules';
-import { HUNT } from '../rules/rules-wildlife';
 import { HARVEST_HELP_WINDOWS, lordHelpShare, lordSowingShare } from '../fields/sowing';
 import type {
   ArmsSkills,
@@ -449,8 +447,8 @@ function traineeFieldShare(
 }
 
 /**
- * Cvičící, kteří jsou dnes na poli (podíl dne > 0) – nejezdí a neloví (horses.md – Výcvik koně
- * a jezdec, wildlife.md – Lov rodu; návrh Clauda: jen kdo je ten den na poli).
+ * Cvičící, kteří jsou dnes na poli (podíl dne > 0) – nejezdí (horses.md – Výcvik koně a jezdec;
+ * návrh Clauda: jen kdo je ten den na poli).
  */
 export function lordFieldIds(
   family: LordFamily,
@@ -627,12 +625,8 @@ export function trainLordDay(
       ? new Set([...paired].filter((id) => !onField.has(id)))
       : paired;
   const riding = new Map<number, number>();
-  // den lovu je výcvik (wildlife.md – Lov rodu): jezdec jízda 3 h a luk 3 h, pěší luk 2 h a boj 4 h
-  const hunt = state.wildlife?.hunt?.today;
-  const huntRiders = new Set(hunt?.day === day ? hunt.riders.map((r) => r.personId) : []);
-  const huntFoot = new Set(hunt?.day === day ? hunt.foot : []);
   for (const p of state.people) {
-    // zraněný na lovu necvičí (wildlife.md – Nebezpečí pro lidi) a nezapomíná
+    // zraněný necvičí (wildlife.md – Nebezpečí pro lidi) a nezapomíná
     if (isInjured(p, day)) continue;
     // kdo je pryč (výprava, tažení, robota…), necvičí a zapomíná; pár s koněm drží dál
     if (isAway(p, day)) {
@@ -641,26 +635,15 @@ export function trainLordDay(
     }
     if (family && trainees.has(p.id)) {
       const share = 1 - traineeFieldShare(p, day, family, shares);
-      const hunting = huntRiders.has(p.id) || huntFoot.has(p.id);
-      const h = hunting
-        ? HUNT.training[huntRiders.has(p.id) ? 'rider' : 'foot']
-        : trainingHours(p, day, family.lord, mounted.has(p.id));
+      const h = trainingHours(p, day, family.lord, mounted.has(p.id));
       if (share > 0 && h.bow + h.combat + h.riding > 0) {
         const hours = { bow: h.bow * share, combat: h.combat * share, riding: h.riding * share };
-        p.arms = trainArms(
-          p.arms ?? NO_ARMS,
-          hours,
-          trainingCap(p, day, hunting ? 'hunt' : 'home'),
-        );
+        p.arms = trainArms(p.arms ?? NO_ARMS, hours, trainingCap(p, day, 'home'));
         if (hours.riding > 0) riding.set(p.id, share);
         continue;
       }
     }
-    // odešlý syn na lovu cvičí oštěpem místo zapomínání (wildlife.md – Lov rodu)
-    if (huntFoot.has(p.id)) {
-      const hours = HUNT.training.foot;
-      p.arms = trainArms(p.arms ?? NO_ARMS, hours, trainingCap(p, day, 'hunt'));
-    } else if (p.arms) p.arms = decayArms(p.arms);
+    if (p.arms) p.arms = decayArms(p.arms);
   }
   return family ? trainHorsesDay(state, day, riding) : [];
 }
@@ -714,17 +697,15 @@ export function lordRides(state: VillageState, day: number): LordRides | null {
   // jde podle plánu pomoci na pole (`lordFieldShares` – ženy, muži, vojvoda; kůň stojí)
   const onField = harvestFieldIds(state, day, family);
   const trainees = new Map(family.trainees.filter((p) => !onField.has(p.id)).map((p) => [p.id, p]));
-  const hunting = new Set(huntToday(state, day)?.riders.map((r) => r.personId));
   const lordId = family.lord?.id;
   const riders: (LordRide & { bornDay: number })[] = [];
   for (const pen of horsePens(state)) {
     for (const horse of penHorses(pen)) {
       const rider = horse.riderId === undefined ? undefined : trainees.get(horse.riderId);
-      // zraněný nejezdí; kdo dnes loví, objížďku nejede (wildlife.md – Lov rodu)
+      // zraněný nejezdí (wildlife.md – Nebezpečí pro lidi)
       if (!rider || !isGrainHorse(horse, day) || isInjured(rider, day)) continue;
       // jezdec na výpravě je pryč (expeditions.md) – objížďku nejede
       if (isAway(rider, day)) continue;
-      if (hunting.has(rider.id)) continue;
       const hours = trainingHours(rider, day, family.lord, true).riding;
       if (hours <= 0) continue;
       riders.push({

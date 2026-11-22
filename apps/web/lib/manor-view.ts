@@ -15,7 +15,7 @@ import {
   goodWorth,
   horseTradeRoom,
   isHorseGood,
-  canDeclareHunt,
+  huntDenied,
   HUNT_DENIED_TEXT,
   lordFamily,
   stanceOf,
@@ -156,9 +156,9 @@ export interface ManorMember extends DwellingResident {
   horse: boolean;
 }
 
-/** Proč dnes nejde vyhlásit lov navíc (česky), nebo null. */
+/** Proč dnes nejde vyhlásit lov (česky; hunting.md – Pravidla 2), nebo null. */
 function huntDeniedText(state: VillageState, day: number): string | null {
-  const denied = canDeclareHunt(state, day);
+  const denied = huntDenied(state, day, false);
   return denied === null ? null : HUNT_DENIED_TEXT[denied];
 }
 
@@ -179,7 +179,7 @@ export interface VillageManor {
   prisoners?: PrisonerView[];
   /** Postoj vsi před cizím vojskem (war.md – Obránci); bez nastavení `flee`. */
   stance: DefenseStance;
-  /** Lov navíc na zítřek: důvod odepření česky, nebo null (lze vyhlásit; wildlife.md – Lov rodu). */
+  /** Lov: důvod odepření česky, nebo null (lze vyhlásit; hunting.md – Pravidla 2). */
   huntDenied: string | null;
   /** Lov rodu letos a psi dvorce (wildlife.md – Co hráč vidí); bez psů a úlovku chybí. */
   hunt?: HuntView;

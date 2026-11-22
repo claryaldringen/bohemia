@@ -10,7 +10,7 @@ import { declareHuntInVillage } from '../declare-hunt';
 import type { SeedSource } from '../settlements';
 import { InMemoryVillages } from './in-memory-villages';
 
-// Lov navíc na pokyn hráče (wildlife.md – Lov rodu: Kdy; Martin 24. 10. 2026: „Obojí“).
+// Lov na tlačítko dvorce (hunting.md – Pravidla 2): hájení odepře, jinak honci na zítřek.
 
 const landscape = makeLandscape();
 const seeds: SeedSource = { nextSeed: () => 4242 };
@@ -46,22 +46,7 @@ describe('declareHuntInVillage', () => {
     expect(villages.saves).toBe(saves);
   });
 
-  it('v létě bez rodiny, která by šla na lov, odepře "není kdo"', async () => {
-    const { villages, villageId } = await setup();
-    const summer = dayIndexOf({ year: 503, month: 7, day: 10 });
-    const result = await declareHuntInVillage(
-      { villages },
-      { villageId, today: summer, landscape },
-    );
-    expect(result.ok).toBe(false);
-    if (!result.ok) {
-      expect([HUNT_DENIED_TEXT['no-hunters'], HUNT_DENIED_TEXT['closed-season']]).toContain(
-        result.reason,
-      );
-    }
-  });
-
-  it('v létě s rodem a zvěří vyhlásí lov na zítřek; druhý hned po něm odepře', async () => {
+  it('v létě vyhlásí lov – honci chybí zítra; druhý lov týž den honce přičte', async () => {
     const { villages, villageId } = await setup();
     const summer = at(602, 7, 10);
     villages.edit(villageId, (state) => {
@@ -69,23 +54,21 @@ describe('declareHuntInVillage', () => {
       delete base.dynasty;
       const fixture = withDynasty(base);
       fixture.lastDay = summer - 1;
-      for (const p of fixture.people) {
-        if (p.sex === 'male') p.arms = { bow: 85, combat: 85, riding: 85 };
-      }
       fixture.wildlife = freshWildlife({ ...WILDLIFE_LAND.defaultLand }, 0);
       Object.assign(state, fixture);
     });
     const first = await declareHuntInVillage({ villages }, { villageId, today: summer, landscape });
     expect(first.ok).toBe(true);
     if (!first.ok) return;
-    expect(first.village.state.wildlife?.hunt?.extraDay).toBe(summer + 1);
+    expect(first.village.state.lastDay).toBe(summer);
+    expect(first.village.state.wildlife?.hunt?.beaters).toEqual({ day: summer + 1, men: 6 });
     const second = await declareHuntInVillage(
       { villages },
       { villageId, today: summer, landscape },
     );
-    expect(second).toEqual({ ok: false, reason: HUNT_DENIED_TEXT.already });
+    expect(second.ok).toBe(true);
     const stored = villages.records.get(villageId)!.state;
-    expect(stored.wildlife?.hunt?.lastExtraDay).toBe(summer + 1);
+    expect(stored.wildlife?.hunt?.beaters).toEqual({ day: summer + 1, men: 12 });
   });
 
   it('cizí ves odmítne', async () => {

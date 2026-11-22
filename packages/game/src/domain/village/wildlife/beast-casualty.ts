@@ -1,10 +1,10 @@
 // Šelma napadla muže výjezdu (lord-control.md – Nebezpečí, bod 3; wildlife.md – Nebezpečí pro
-// lidi): schránka vsi použije událost `journey-casualty`. Čísla losu jsou čísla lovu (`HUNT_RISK`)
+// lidi): schránka vsi použije událost `journey-casualty`. Čísla losu jsou `PREDATOR_RISK`
 // a los je na výjezdu (`predatorDay`); ves už jen zapíše následek.
 import { deathWho } from '../people/estate';
 import { removePeople } from '../people/kinship';
 import { ageGroup, ageYears } from '../people/people';
-import { HUNT_RISK } from '../rules/rules-wildlife';
+import { PREDATOR_RISK } from '../rules/rules-wildlife';
 import type { ChronicleEvent, VillageState } from '../types';
 
 /**
@@ -21,7 +21,7 @@ export function applyJourneyCasualty(
   const p = state.people.find((x) => x.id === body.personId);
   if (!p) return [];
   if (body.outcome === 'wounded') {
-    p.injuredUntilDay = Math.max(p.injuredUntilDay ?? 0, day + 1 + HUNT_RISK.injuryDays);
+    p.injuredUntilDay = Math.max(p.injuredUntilDay ?? 0, day + 1 + PREDATOR_RISK.injuryDays);
     return [];
   }
   const event: ChronicleEvent = {

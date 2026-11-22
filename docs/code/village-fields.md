@@ -117,7 +117,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   po práci vsi a žňových rukou, jen žeň a výmlat (`HARVEST_HANDS_TASKS`; jen co ves dnes nestihne);
   kdo jde na pole, určí `lordFieldShares` (`lord.ts`) ze spotřeby: napřed ženy a dcery
   (`free − freeMen`), pak muži rodiny (`freeMen − freeLord`), vojvoda až nakonec (`freeLord`;
-  Martin 9. 11. 2026) – podíly `LordFieldShares` pro `trainLordDay`, `huntDay` a `lordDayCounts`;
+  Martin 9. 11. 2026) – podíly `LordFieldShares` pro `trainLordDay` a `lordDayCounts`;
   spotřebu (zásobník × délka dne) převede na lidi na celý dnešní den `lordFieldSharesToday`
   (`used ÷ daylight` – jako plán `harvestFieldIds`; D102 kolo 1, i zimní výmlat).
   **Rodina s přípravou půdy a setím** (lord.md – Kdy jde rodina na pole, Příprava půdy a setí;

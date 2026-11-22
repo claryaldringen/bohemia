@@ -1,22 +1,22 @@
-// Kdo může lovit a kolik psů dvorec chce (wildlife.md – Lov rodu: Kdo; Psi – smečka dvorce).
+// Lovci rodu a kolik psů dvorec chce (wildlife.md – Lov rodu: Kdo; Psi – smečka dvorce).
 import { lineMen } from '../people/dynasty';
 import type { LordFamily } from '../people/lord';
 import { villageManorId } from '../people/manor';
 import { ageGroup, ageYears, isInjured } from '../people/people';
 import { HUNT, MANOR_DOGS } from '../rules/rules-wildlife';
-import type { HuntDay, Person, VillageState } from '../types';
+import type { Person, VillageState } from '../types';
 
 /** Možní lovci rodu: muži rodiny od 14 let (`family.trainees`) a odešlí synové rodu. */
 export interface HuntPool {
-  /** Muži dvorce od 14 let (na koni, nebo pěšky). */
+  /** Muži dvorce od 14 let. */
   manor: Person[];
-  /** Synové rodu, kteří po sňatku odešli z dvorce a pracují jako rolníci – jen pěšky. */
+  /** Synové rodu, kteří po sňatku odešli z dvorce a pracují jako rolníci. */
   away: Person[];
 }
 
 /**
- * Z koho se skládá lov dne (bez zraněných a bez koní – ty řeší `planHuntDay`). Děti na lov nechodí
- * (Martin 27. 10. 2026) – chlapci dvorce do 13 let v den lovu cvičí doma jako jindy.
+ * Lovci rodu (bez zraněných), podle kterých dvorec chová psy (`dogsWanted`). Děti na lov nechodí
+ * (Martin 27. 10. 2026) – chlapci dvorce do 13 let se nepočítají.
  */
 export function huntPool(
   state: Pick<VillageState, 'people' | 'manorId' | 'dwellings' | 'constructions' | 'dynasty'>,
@@ -45,26 +45,9 @@ export function dogsWanted(pool: HuntPool): number {
   return Math.min(MANOR_DOGS.max, hunters * MANOR_DOGS.perHunter + MANOR_DOGS.extra);
 }
 
-/** Lov dne, je-li pro `day` naplánovaný (po `planHuntDay`); jinak null. */
-export function huntToday(state: Pick<VillageState, 'wildlife'>, day: number): HuntDay | null {
-  const today = state.wildlife?.hunt?.today;
-  return today && today.day === day ? today : null;
-}
-
-const NO_IDS: ReadonlySet<number> = new Set();
-
-/** Id pěších lovců dne, kteří dnes chybí v práci vsi (`villagersToday`). */
-export function huntFootIds(
-  state: Pick<VillageState, 'wildlife'>,
-  day: number,
-): ReadonlySet<number> {
-  const today = huntToday(state, day);
-  return today && today.foot.length > 0 ? new Set(today.foot) : NO_IDS;
-}
-
 const DOG_EPSILON = 1e-6;
 
-/** Psi smečky, kteří dnes loví (celé kusy). */
+/** Psi smečky dvorce v celých kusech (jezdecká hlídka polí – `riderPatrol`). */
 export function huntingDogs(state: Pick<VillageState, 'wildlife'>): number {
   return Math.floor((state.wildlife?.dogs?.count ?? 0) + DOG_EPSILON);
 }

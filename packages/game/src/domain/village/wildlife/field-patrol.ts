@@ -62,8 +62,9 @@ export function settlePatrol(state: VillageState, day: number): void {
 }
 
 /**
- * Úlovek z hlídky (po `huntDay`): naděje prasat roste o `0,01 × Σ sil × prasata ÷ strop`, celé
- * kusy se uloví (dospělá napřed), maso jde přes porážku a do ročního součtu lovu (bez dne lovu).
+ * Úlovek z hlídky (večer, před výcvikem rodiny): naděje prasat hlídky (`patrolHope`) roste
+ * o `0,01 × Σ sil × prasata ÷ strop`, celé kusy se uloví (dospělá napřed), maso jde přes porážku
+ * a do ročního součtu lovu (bez dne lovu).
  */
 export function patrolHuntDay(state: VillageState, day: number): void {
   const w = state.wildlife;
@@ -74,12 +75,11 @@ export function patrolHuntDay(state: VillageState, day: number): void {
   const boar = w.boar;
   const stock = boar.adults + boar.piglets;
   if (stock <= EPSILON) return;
-  const hunt = (w.hunt ??= emptyHunt());
   const share = caps.boar > EPSILON ? Math.min(1, stock / caps.boar) : 1;
-  hunt.hope.boar += FIELD_GUARD.huntPerPower * power * share;
+  let hope = (w.patrolHope ?? 0) + FIELD_GUARD.huntPerPower * power * share;
   let kills = 0;
   let meatKg = 0;
-  while (hunt.hope.boar >= 1 - EPSILON) {
+  while (hope >= 1 - EPSILON) {
     if (boar.adults >= 1 - EPSILON) {
       boar.adults -= 1;
       meatKg += HUNT.meatKg.boar;
@@ -87,13 +87,14 @@ export function patrolHuntDay(state: VillageState, day: number): void {
       boar.piglets -= 1;
       meatKg += HUNT.meatKg.piglet;
     } else break;
-    hunt.hope.boar -= 1;
+    hope -= 1;
     kills += 1;
   }
-  hunt.hope.boar = Math.min(1, Math.max(0, hunt.hope.boar));
+  w.patrolHope = Math.min(1, Math.max(0, hope));
   if (kills === 0) return;
   butcher(state, meatKg);
   addSmallHides(state, kills);
+  const hunt = (w.hunt ??= emptyHunt());
   hunt.year.boar += kills;
   hunt.year.meatKg += meatKg;
 }

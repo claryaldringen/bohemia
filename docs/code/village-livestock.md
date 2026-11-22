@@ -610,9 +610,10 @@ chybějící hodnota je 0, převod není potřeba. Jmenuje se `wares`, ne `goods
   `addWildFurs`, `addSlaughterWares(state, species, heads)` (ovce dá `sheepFurs`, kráva `hides`,
   koza a prase `smallHides`). Nulový přírůstek stav nezakládá.
 - Napojení: `noteSlaughtered` (`livestock.ts`, tedy i nouzová porážka) volá `addSlaughterWares`,
-  `retireOxen` (`oxen.ts`) `addHides(oxen)` – koně kůži nedávají; `huntDay` (`wildlife/hunt.ts`)
-  `addHides(deer)` a `addSmallHides(boar)` (vlk a medvěd kůži nedávají), `patrolHuntDay`
-  (`field-patrol.ts`) `addSmallHides(kills)`.
+  `retireOxen` (`oxen.ts`) `addHides(oxen)` – koně kůži nedávají; `patrolHuntDay`
+  (`field-patrol.ts`) `addSmallHides(kills)`. Kalendářní lov rodu (dřív `addHides(deer)`
+  a `addSmallHides(boar)`) je pryč – kůže z nového lovu (hunting.md – Pravidla 7) přidá plán
+  2026-11-22-hunting.
 - Klát: `HIVES` (`rules/rules-wares.ts`) – 6 kg medu a 0,4 kg vosku za rok na obydlí, přibývá
   1. 5.–30. 9. (`beesFlying`, `seasonDays` = 153); `hivesDay` (`wares/hives.ts`) přidá denně
      `dwellings.length × roční ÷ seasonDays`. Bez obydlí `wares` nevznikne.

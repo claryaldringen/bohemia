@@ -117,6 +117,11 @@ export const PREDATION = {
   fox: { eggShare: 0.02, eggMax: 0.08 },
   /** Kolik dní zpět se pamatují dny, kdy šelmy strhly celý kus. */
   killDaysKept: 30,
+  /**
+   * Upozornění „Vlci strhávají dobytek“ (wildlife.md – Co hráč vidí): aspoň tolik dní se strhnutým
+   * kusem za posledních `killDaysKept` dní (dřív i podmínka lovu vlků).
+   */
+  noticeKillDays: 2,
 } as const;
 
 /** Psi dvorce (wildlife.md – Psi – smečka dvorce). */
@@ -131,52 +136,33 @@ export const MANOR_DOGS = {
   lossPerYear: 0.1,
 } as const;
 
-/** Velký lov rodu (wildlife.md – Lov rodu: Kdo, Kdy, Kolik). */
+/** Lov na tlačítko dvorce (hunting.md – Pravidla 2, 4, 7). */
 export const HUNT = {
-  /** Sezóna 1. 11. – konec února, každý 7. den od 1. 11. */
-  season: { fromMonth: 11, toMonth: 2 },
-  everyDays: 7,
-  /** Lovec dvorce od 14 let; děti na lov nechodí (Martin 27. 10. 2026). */
-  riderFromAge: 14,
-  /** Síla jezdce: `riderPower ÷ 100 × (bowBase + bowPerSkill × luk ÷ 100)`. */
-  bowBase: 0.5,
-  bowPerSkill: 0.5,
-  /** Pěší: `(luk + boj) ÷ 200`, bez psa tolik z toho. */
-  noDogShare: 0.5,
   /**
-   * Základ úlovku na den lovu: koeficient na sílu jezdců a pěších (wildlife.md – Kolik). Pěší prasata
-   * 0,3 (dřív 0,2, změřeno: typický rod bez koní ≈ 1 prase za zimu, ne za 2–3 zimy).
+   * Lovec dvorce od 14 let; děti na lov nechodí (Martin 27. 10. 2026) – podle lovců rodu chová
+   * dvorec psy (`huntPool`, `dogsWanted`).
    */
-  base: {
-    boar: { rider: 0.15, foot: 0.15 * 0.3 },
-    deer: { rider: 0.1, foot: 0.1 * 0.5 },
-    wolves: { rider: 0.05, foot: 0.05 * 0.5 },
-    bear: { rider: 0, foot: 0.2 },
-  },
-  /** Maso do zásoby (kg): dospělé prase, sele, jelen, laň, medvěd. */
-  meatKg: { boar: 45, piglet: 15, stag: 90, hind: 50, bear: 100 },
-  /** Jeleni se loví, dokud jich je aspoň tolik na laň (1 na 3 laně). */
-  stagsPerHind: 1 / 3,
-  /** Vlci dostanou den, když šelmy za posledních 30 dní strhly aspoň tolik kusů dobytka. */
-  wolfKills: 2,
-  /** Medvěd jen v listopadu, na každý druhý lov sezóny (návrh Clauda, ať listopad nepropadne). */
-  bearMonth: 11,
-  bearEveryNth: 2,
-  /** Lov navíc na pokyn hráče (wildlife.md – Kdy): ne v březnu až květnu, jednou za 3 dny. */
-  extra: { closedFromMonth: 3, closedToMonth: 5, minGapDays: 3 },
-  /** Hodiny výcviku v den lovu (celý den místo výcviku, 6 h). */
-  training: {
-    rider: { bow: 3, combat: 0, riding: 3 },
-    foot: { bow: 2, combat: 4, riding: 0 },
-  },
+  riderFromAge: 14,
+  /** Na zvíře jdou muži od 14 let, ženy a děti ne (hunting.md – Pravidla 4; Martin 22. 11. 2026). */
+  minAge: 14,
+  /**
+   * Maso do zásoby (kg; wildlife.md – Kolik): kanec a bachyně, sele (úlovek z hlídky), jelen, laň,
+   * medvěd; vlk bez masa.
+   */
+  meatKg: { boar: 45, sow: 45, piglet: 15, stag: 90, hind: 50, bear: 100, wolf: 0 },
+  /** Hájení březen až květen – lov nejde vyhlásit (hunting.md – Pravidla 2; Martin „ok“). */
+  closedMonths: { from: 3, to: 5 },
+  /** Honci: tolik mužů celý den mimo práci vsi (hunting.md – Pravidla 2, 3). */
+  beaters: { men: 6 },
 } as const;
 
 /**
- * Nebezpečí na lovu (wildlife.md – Nebezpečí pro lidi): na lovce a den zranění `injury` (u medvěda
- * × (1 − boj ÷ 200)) a smrt `death` × (2 − boj ÷ 100), pěšky × `footDeathFactor`. Jelen, zajíc a vlk
- * bez šance na zranění i smrt; zraněný nepracuje, necvičí ani neloví `injuryDays` dní.
+ * Šelmy na výjezdu (journey-predators.ts; wildlife.md – Nebezpečí pro lidi; hunting.md – Pravidla
+ * 10 – čísla bývalého lovu beze změny): na muže a den zranění `injury` (u medvěda × (1 − boj ÷ 200))
+ * a smrt `death` × (2 − boj ÷ 100), pěšky × `footDeathFactor`; vlci čísly prasat. Zraněný
+ * nepracuje, necvičí ani neloví `injuryDays` dní.
  */
-export const HUNT_RISK = {
+export const PREDATOR_RISK = {
   injuryDays: 60,
   boar: { injury: 0.005, death: 0.0002 },
   bear: { injury: 0.05, death: 0.003 },

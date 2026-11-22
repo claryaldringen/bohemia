@@ -105,8 +105,6 @@ describe('huntView', () => {
   it('úlovky letos, maso a psi s obilím za den', () => {
     const s = village();
     s.wildlife!.hunt = {
-      hope: { boar: 0, deer: 0, wolf: 0, bear: 0 },
-      today: null,
       year: { boar: 2, deer: 1, wolves: 0, bear: 0, meatKg: 140, days: 3 },
     };
     s.wildlife!.smallGame = {

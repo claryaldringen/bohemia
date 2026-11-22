@@ -1381,7 +1381,7 @@ async function shiftPlayerTo(email: string, month: number, day: number): Promise
   return target;
 }
 
-test('dvorec: lov navíc – v dubnu je hájení, v létě se zítra loví', async ({ page }) => {
+test('dvorec: lov – v dubnu je hájení, v létě honci na zítřek', async ({ page }) => {
   const { email, seat: s } = await newPlayer(page, 'lov');
   const spots = villageSpots(s.landscape);
 
@@ -1461,25 +1461,14 @@ test('dvorec: lov navíc – v dubnu je hájení, v létě se zítra loví', asy
     .toBe(1);
   await expect(hunt).toBeEnabled({ timeout: 20_000 });
   await hunt.click();
+  // honci chybí v práci vsi zítra (hunting.md – Pravidla 2)
   await expect
-    .poll(async () => (await villageState(s.settlementId)).wildlife?.hunt?.extraDay, {
+    .poll(async () => (await villageState(s.settlementId)).wildlife?.hunt?.beaters?.day, {
       timeout: 30_000,
     })
     .toBe(july + 1);
   await expect(page.locator('[data-testid="village-notice"][data-kind="error"]')).toHaveCount(0);
-  // druhý lov hned po něm tlačítko nepustí
-  await expect(hunt).toBeDisabled({ timeout: 20_000 });
   expect(dateOfDayIndex(july).month).toBe(7);
-
-  // Zítra: čas hráče o dva dny dál – ves se dopočítá a lov proběhl
-  await shiftPlayerTo(email, 7, 12);
-  await page.reload();
-  await expect(readyScene(page)).toBeVisible({ timeout: 60_000 });
-  await expect
-    .poll(async () => (await villageState(s.settlementId)).wildlife?.hunt?.year.days ?? 0, {
-      timeout: 30_000,
-    })
-    .toBeGreaterThanOrEqual(1);
 });
 
 test('divoká zvěř ve scéně: modely se načtou a klik na zvíře otevře panel druhu', async ({

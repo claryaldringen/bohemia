@@ -9,7 +9,8 @@ vojska mapu po mapě (Ú6.4), tažení po taktech, boj a dohra (Ú6.5–Ú6.17) 
 
 - `ARMS_CAPS = { home: 50, hunt: 70, war: 100 }` v `domain/village/rules/rules-lord.ts` (war.md – Síla).
 - `trainingCap(person, day, source)` v `lord.ts` – menší z věku (`armsCap`) a zdroje. `trainLordDay`
-  cvičí doma se stropem 50, v den lovu (jezdec, pěší syn) se stropem 70; válka (100) zatím nikoho
+  cvičí doma se stropem 50; den lovu už výcvikem není (kalendářní lov je pryč – hunting.md, Pravidla
+  1), strop lovu 70 bude cvičit souboj se zvěří (plán 2026-11-22-hunting); válka (100) zatím nikoho
   necvičí.
 - `domain/village/people/arms-caps.ts` – `withArmsCaps(state)`: dovednosti (i `best`) nad 70 jednou stáhne
   na 70; příznak `VillageState.armsCapped` zaručí, že se válečná zkušenost nad 70 už nesráží.

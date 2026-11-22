@@ -1,24 +1,25 @@
 import type { Landscape } from '../domain/landscape';
-import { canDeclareHunt, declareHunt, HUNT_DENIED_TEXT } from '../domain/village';
+import { HUNT_DENIED_TEXT, huntDenied, reserveBeaters } from '../domain/village';
 import { cloneState } from '../domain/village/core/clone';
 import { updateLivingVillage } from './update-village';
 import type { VillageRepository, VillageResult } from './villages';
 
-// Lov navíc na pokyn hráče (wildlife.md – Lov rodu: Kdy; Martin 24. 10. 2026: „Obojí“ – rod loví
-// sám podle kalendáře a hráč může vyhlásit lov navíc; omezení navrhl Claude).
+// Lov na tlačítko dvorce (hunting.md – Pravidla 2; Martin 22. 11. 2026): kalendářní lov a lov
+// navíc nahradil lov, který hráč vyhlásí, kdykoli není hájení a lov vsi neběží.
 
 export interface DeclareHuntInput {
   /** Ves (id), ve které hráč jedná. */
   villageId: string;
-  /** Dnešní herní den (index dne) – ves se nejdřív dopočítá do dneška, lov je zítra. */
+  /** Dnešní herní den (index dne) – ves se nejdřív dopočítá do dneška, honci chybí zítra. */
   today: number;
   /** Krajina sídla – ves se s ní dopočítává. */
   landscape: Landscape;
 }
 
 /**
- * Hráč vyhlásí lov navíc na zítřek. Ves se nejdřív dopočítá do dneška; důvod odepření (hájení,
- * 3 dny od minulého, není kdo, už vyhlášen) se vrací jako `reason` česky a nic se neuloží.
+ * Hráč vyhlásí lov. Ves se nejdřív dopočítá do dneška; důvod odepření (`huntDenied` – hájení,
+ * lov běží) se vrací jako `reason` česky a nic se neuloží. Jinak ves zítra uvolní honce
+ * (`reserveBeaters`) a uloží se.
  */
 export function declareHuntInVillage(
   deps: { villages: VillageRepository },
@@ -30,11 +31,11 @@ export function declareHuntInVillage(
     input.today,
     input.landscape,
     (state) => {
-      const denied = canDeclareHunt(state, state.lastDay);
+      const denied = huntDenied(state, state.lastDay, false);
       if (denied) return { ok: false, reason: HUNT_DENIED_TEXT[denied] };
       const next = cloneState(state);
-      const late = declareHunt(next, next.lastDay);
-      return late ? { ok: false, reason: HUNT_DENIED_TEXT[late] } : { ok: true, state: next };
+      reserveBeaters(next, next.lastDay);
+      return { ok: true, state: next };
     },
   );
 }

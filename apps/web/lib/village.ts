@@ -894,7 +894,7 @@ export function setStewardForPlayer(
   );
 }
 
-/** Hráč vyhlásí lov navíc na zítřek (wildlife.md – Lov rodu: Kdy) – důvod odepření řeší use-case. */
+/** Hráč vyhlásí lov (hunting.md – Pravidla 2) – důvod odepření řeší use-case. */
 export function declareHuntForPlayer(
   playerId: string,
   villageId: string,

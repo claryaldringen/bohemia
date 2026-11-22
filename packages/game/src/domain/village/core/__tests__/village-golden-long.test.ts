@@ -101,8 +101,10 @@ import { goldenWorld, stateFingerprint, YEAR } from './village-golden-fixture';
 // village-golden.test.ts); dřív 52c6d23c8335e130 a 94154d343904b93d
 // 22. 11. 2026 – sloučení D115 a D116: samotné D116 dávalo b84ae41eb7cc5622 a c08953986f92aaef,
 // samotné D115 ecc70f3c0369f446 a 284eb814c86ed715
-const EXPECTED_YEAR_2 = '2898394913221238';
-const EXPECTED_YEAR_3 = '59b939771586ed9f';
+// 22. 11. 2026 – nový lov (hunting.md), úloha 2: kalendářní lov a lov navíc pryč (jako rok 1
+// v village-golden.test.ts); dřív 2898394913221238 a 59b939771586ed9f
+const EXPECTED_YEAR_2 = '95311388581112d0';
+const EXPECTED_YEAR_3 = '73877a12a6acf84e';
 // 18. 11. 2026 – D93 cesta přes plochu staveb; dřív 168010dd35f7c1c7 a a499594da5514b49 (viz
 // village-golden.test.ts)
 // 18. 11. 2026 – D95 výmlat (výmlat podle kg snopů, rod v zimě dorovná tempo okna – viz

@@ -108,74 +108,48 @@ windowDays` (ozim 61, jař 92) denně na každý nesklizený ohrožený díl. Mi
   skoro nulový (stáda rostou víc: ovce 45,9 vs 43,3), vejce −4 %, hlad 0, rok 59,9 s (dřív 60,3 s).
   Podrobnosti `diag-wildlife/w3.txt`.
 
-## Psi dvorce a velký lov rodu (W4, `manor-dogs.ts`, `hunt.ts`, `hunt-party.ts`)
+## Psi dvorce (W4, `manor-dogs.ts`, `hunt-party.ts`)
 
-- **Kdo může lovit** (`huntPool` v `hunt-party.ts`): muži cvičící rodiny od 14 let (`manor`,
+- **Lovci rodu** (`huntPool` v `hunt-party.ts`): muži cvičící rodiny od 14 let (`manor`,
   `HUNT.riderFromAge`) a odešlí synové rodu (`away`: `lineMen` mimo dvorec, dospělí 14–44 let
-  s `arms`) – jen pěšky. **Děti na lov nechodí** (Martin 27. 10. 2026) – ani na kalendářní lov, ani
-  na lov navíc; chlapci 10–13 let v den lovu cvičí doma jako jindy (`trainLordDay`) a jedou objížďku
-  (`lordRides`), scéna lov nekreslí (nový lov ve scéně: plán 2026-11-22-hunting, Úloha 10). Pojistka v `huntRisk`
-  (dítě nezahyne ani se nezraní) zůstává. `dogsWanted` = počet lovců (`manor` + `away`) + 1,
-  nejvýš 8 (`MANOR_DOGS`).
+  s `arms`), bez zraněných; děti se nepočítají (Martin 27. 10. 2026). Podle nich dvorec chová psy:
+  `dogsWanted` = počet lovců (`manor` + `away`) + 1, nejvýš 8 (`MANOR_DOGS`).
 - **Psi:** `WildlifeState.dogs { count }` (starší `fed` se nečte) vzniká hned (`dogsYear` zakládá smečku `wanted` psů, kdykoli ji ves nemá a má lovce;
-  jednou, `dogs` pak existuje) a dál 1. 5. (`wildlifeYearDay`: −10 %, nejvýš 2 štěňata do chtěného počtu vždy). Psi nic nespotřebovávají (D91, Martin 17. 11. 2026) – žádné obilí, krmení psů ani jejich obilí ve výhledu osevu už nejsou, `dogs-ungrained` už nevzniká (v `LASTING_NOTICES` zůstává jen pro doběh starších vsí). Do lovu jde `huntingDogs` = celé kusy; psi jdou k pěším od
-  nejsilnějšího, pěší bez psa má poloviční sílu.
-- **Ráno** (`planHuntDay` v `simulateDay` po `wildlifeYearDay`, před `work()`): `hunt.today`
-  (`HuntDay { target, riders, foot, extra }`). Kalendář `huntSeasonIndex`: 1. 11. + 7k dní do
-  konce února (18 dní, leden a únor se počítají od 61. dne sezóny); mimo ně `extraDay` (W5). Rodina
-  musí cvičit (`trainingFamily`). Jezdec = muž s koněm po `assignRiders` (nepodkutý kůň –
-  `isUnshod` – nejezdí, všichni pěšky); jezdec jede jen když `ridesBetter` (příspěvek na prasata
-  i jeleny podle `HUNT.base` ≥ pěšího se psem), jinak jde pěšky. Rodina na poli ve žních –
-  `huntDay` vyřadí jezdce i pěší z rodiny, kteří jsou dnes na poli (`lordFieldIds`), ostatní a odešlí synové ano. Cíl: **medvěd** (listopad, každý druhý lov, jen když je;
-  všichni pěšky), **vlci** (aspoň 2 dny škod v `predation.killDays` za 30 dní, ≥ 1 vlk), jinak
-  **prasata a jeleni zároveň**. Pěší jsou mimo `villagersToday` (`huntFootIds`) – nepracují.
-- **Úlovek** (`huntDay` před `trainLordDay`, dostane `lordField`): síla jezdce `riderPower ÷ 100 × (0,5 + 0,5 × luk ÷ 100)`, pěšího `(luk + boj) ÷ 200`
-  (bez psa ½). `hunt.hope[druh] += (základ_jezdci × Σjezdci + základ_pěší × Σpěší) × min(1, stav ÷
-strop)` (`HUNT.base`); celé kusy se uloví, zbytek naděje nejvýš 1. Prasata dospělá napřed, selata
-  jen bez dospělých; jelen, je-li jich ≥ ⅓ počtu laní (kontrola před úlovkem); laň jen nad
-  stropem jelení zvěře; kolouši nikdy. Vlci bez masa; medvěd `bear = { present: false,
-backDay: bearBackDay(day) }`.
-- **Maso:** `butcher(state, kg)` (45 / 15 / 90 / 50 / 100 kg) = uzené maso + práce porážky
-  (1 čd na 20 kg, úloha `slaughter` jen v sezóně porážky nebo nouzově – lov je v zimě).
-- **Kronika:** `hunt { kills, meatKg, names }` jednou za den lovu (jen s úlovkem), `names[0]` =
-  nejsilnější lovec dne; `hunt.year` (kusy a kg od 1. 5., `days` = dny lovu) se nuluje v `dogsYear`
-  v místě `wildlifeYearDay`.
-- **Výcvik:** v den lovu `trainLordDay` bere hodiny `HUNT.training` (jezdec jízda 3 h + luk 3 h,
-  pěší luk 2 h + boj 4 h) místo `trainingHours`; koně se cvičí jako při jízdě, odešlý syn na lovu
-  cvičí (`trainArms`) místo `decayArms`.
-- **Čísla:** typický rod (vojvoda, syn 17, chlapec 11 na vycvičených koních + odešlý syn, 3 psi,
-  výchozí krajina): zima ≈ 4 prasata, 1 jelen a (v prvním roce) medvěd, ≈ 370 kg masa; bez koní
-  (`HUNT.base.boar.foot` 0,15 × 0,3) ≈ 1 prase za zimu. Místo pro W5: `extraDay`, `lastExtraDay`, `HuntDay.extra`.
-- **Vlkov (kopie 5. 6. 820, 2 roky):** bez koní a s jedním dospělým synem rodu nikdo nelovil víc než
-  zlomky (naděje prasat 0,35, jelenů 0,6), 2 psi; rok 56 s (dřív 59,9 s). `diag-wildlife/w4.txt`.
+  jednou, `dogs` pak existuje) a dál 1. 5. (`wildlifeYearDay`: −10 %, nejvýš 2 štěňata do chtěného počtu vždy). Psi nic nespotřebovávají (D91, Martin 17. 11. 2026) – žádné obilí, krmení psů ani jejich obilí ve výhledu osevu už nejsou, `dogs-ungrained` už nevzniká (v `LASTING_NOTICES` zůstává jen pro doběh starších vsí). `huntingDogs` = celé kusy smečky (síla jezdecké hlídky polí – `riderPatrol`).
+- **Kalendářní lov rodu je pryč** (hunting.md – Pravidla 1; plán 2026-11-22-hunting, Úloha 2): lov
+  listopad–únor každý 7. den, úlovek akumulátorem, pěší lovci mimo práci vsi, den lovu jako výcvik
+  (6 h, strop 70) a riziko lovu skončily. Převod `calendar-hunt` (`migrations.ts`, poslední
+  v `VILLAGE_MIGRATIONS`) smaže ze stavu lovu `hope`, `today`, `extraDay` a `lastExtraDay`; zlomek
+  naděje prasat se do hlídky polí nepřenáší. Zůstává `hunt.year` (kusy a kg od 1. 5., `days` = dny
+  lovu; panel dvorce) – nuluje ho `wildlifeYearDay` 1. 5., plní ho úlovek z hlídky (Obrana polí).
+  `emptyHunt` = `{ year }` s nulami. Kronika `hunt` (`kills`, `meatKg`, `names`) a `hunt-injury`
+  v typech zůstávají.
 
-## Riziko lovu a lov navíc (W5, `hunt.ts`, `application/declare-hunt.ts`)
+## Lov na tlačítko dvorce (`hunt.ts`, `application/declare-hunt.ts`)
 
-- **Riziko** (`huntRisk(state, day, quarry)`, volá ho `huntDay` na konci dne lovu; `quarry` = `'boar'`, když
-  je cílem `game` a jsou prasata, `'bear'` při lovu medvěda, jinak žádné riziko – jelen a vlk bez
-  zranění i smrti). Čísla v `HUNT_RISK` (`rules-wildlife.ts`): zranění prasata 0,5 %, medvěd
-  5 % × (1 − boj ÷ 200); smrt prasata 0,02 %, medvěd 0,3 %, obojí × (2 − boj ÷ 100) a × 2 pěšky.
-  Lovci (jezdci + pěší) podle id, každý vždy **dva losy** (zranění, smrt) z vlastního proudu
-  `createRandom(deriveSeed(seed, 'hunt:' + day))` – porody a úmrtí (`'day:'`) se nemění. Smrt má
-  přednost: `bury` + `removePeople`, událost `death { cause: 'hunt', prey }` (do štěstí jde přes
-  `events` v `simulateDay`), mrtvý zmizí z `hunt.today`; nástupnictví a konec rodu řeší `dynastyDay`
-  týž den. Zranění: `Person.injuredUntilDay = day + 1 + 60`, kronika `hunt-injury`.
-- **Zraněný** (`isInjured` v `people.ts`): `laborPerDay` 0, `huntPool` ho vynechá (`manor`,
-  `away`), `trainLordDay` ho přeskočí (necvičí ani nezapomíná), `lordRides` ho nevyvede na objížďku.
-- **Lov navíc:** `canDeclareHunt(state, day)` (`day` = dnešní odsimulovaný den, lov je zítra) vrací
-  `null` nebo `'closed-season'` (zítra březen–květen, `HUNT.extra`), `'already'` (zítra je lov
-  vyhlášený nebo kalendářní), `'too-soon'` (méně než 3 dny od `lastExtraDay`), `'no-hunters'` (rodina
-  necvičí, nebo není muž dvorce mimo pole / odešlý syn zdravý). `declareHunt` zapíše `extraDay` a
-  `lastExtraDay` = `day + 1`; `planHuntDay` ho zítra vezme (`HuntDay.extra`). Jezdci lovu nejedou
-  objížďku (`lordRides` je vynechá) a pěší chybí v práci. Texty důvodů `HUNT_DENIED_TEXT`.
+Návrh: [hunting.md](../design/hunting.md) – Pravidla 2, 11; stavba po úlohách plánu
+2026-11-22-hunting.
+
+- **Kdy:** `huntDenied(state, day, running)` (`day` = dnešní odsimulovaný den) vrací `null`, nebo
+  `'closed-season'` (březen–květen, `HUNT.closedMonths`) a `'already'` (lov vsi běží – `running`;
+  use-case zatím posílá `false`). Bez meze „jednou za 3 dny“ (Pravidla 11). Texty důvodů
+  `HUNT_DENIED_TEXT`.
+- **Honci:** `reserveBeaters(state, day)` zapíše `HuntState.beaters { day: day + 1, men }` –
+  `HUNT.beaters.men` (6) mužů zítra celý den mimo práci vsi (dnešek je spočtený od rána); druhý lov
+  téhož dne honce přičte, lov jiného dne starou rezervaci přepíše. Ves bez `wildlife` nic.
 - **Use-case** `declareHuntInVillage` (`updateLivingVillage`: ves se dopočítá do dneška, důvod
-  odepření jde jako `reason`, nic se neuloží). Server action `declareHunt({ villageId })`
-  (`parseDeclareHuntInput` → `declareHuntForPlayer`).
-- **UI:** `VillageManor.huntDenied` (`manor-view.ts`) = text důvodu, nebo null; tlačítko
-  `manor-hunt` (ikona oštěpu) v `ManorUpgrades`, zašedlé s červeným důvodem v tooltipu.
+  odepření jde jako `reason` a nic se neuloží; jinak `reserveBeaters` a uložit). Server action
+  `declareHunt({ villageId })` (`parseDeclareHuntInput` → `declareHuntForPlayer`).
+- **UI:** `VillageManor.huntDenied` (`manor-view.ts`) = text důvodu z `huntDenied`, nebo null;
+  tlačítko `manor-hunt` (ikona oštěpu) v `ManorUpgrades`, zašedlé s červeným důvodem v tooltipu.
+- **Zraněný** (`isInjured` v `people.ts`; zranění šelmou trvá `PREDATOR_RISK.injuryDays` = 60 dní):
+  `laborPerDay` 0, `huntPool` ho vynechá (`manor`, `away`), `trainLordDay` ho přeskočí (necvičí ani
+  nezapomíná), `lordRides` ho nevyvede na objížďku.
+- **Lov správce** (`needSteps` – steward.md, Obilí a lov v nouzi) je dočasně pryč, správce kupuje
+  jen obilí; `steward.summerHunts` a `STEWARD.huntsPerSummer` zůstávají.
 
-- **Výjezd vojvody (Úloha 13)** – jediné místo mimo lov, kde zvěř ohrozí člověka: týmiž čísly
-  `HUNT_RISK` (vlci čísly prasat) losuje `predatorDay` pro osamělého vojvodu nebo dvojici v hustém
+- **Výjezd vojvody (Úloha 13)** – zvěř ohrozí člověka na výjezdu: čísly `PREDATOR_RISK` (čísla
+  bývalého lovu beze změny, vlci čísly prasat) losuje `predatorDay` pro osamělého vojvodu nebo dvojici v hustém
   lese; ves ho doručí schránkou (`journey-casualty`, `beast-casualty.ts`). Zvěř mapy se vsí je
   `VillageState.wildlife` té vsi; prázdná mapa dostane strop podle krajiny kolem středu mapy
   (`wildlifeOfEmptyMap`, `wildlifeLandAtCenter`) – podrobně `docs/code/journey.md` – Šelmy.
@@ -221,12 +195,12 @@ vrány `1 − pokrytí`.
 
 - **Jezdecká hlídka:** `riderPatrol(state, day)` (`field-patrol.ts`) – jezdci z `lordRides`
   (nepodkutý kůň, ne v hladový den na poli, ne ve žňový den cvičících mužů ani v den výpravy k hranici),
-  červen–říjen; lovec dne (`hunt.today.riders`) ani zraněný (`isInjured`) nejede – obojí řeší `lordRides`, test v `field-guard.test.ts`. Síla jezdce = `riderPower ÷ 100`; `cut = min(0,6; 0,25 × Σ sil × min(1,5; 1 + 0,1 × psi))`.
-  Pravidlo „jezdec jen když je silnější než pěšky“ (`ridesBetter` z W4) se zde nepoužívá – kdo jezdí
-  objížďku, určuje `lordRides`, ne lov. Jen čte stav. **Jednou za den:** `settlePatrol` (v `simulateDay` před `wildlifeDamageDay`) uloží `WildlifeState.patrol` `{ day, power, cut }`; škodu (`dailyThreatShare`) i úlovek (`patrolHuntDay`) čte `patrolOfDay` – stejná hodnota, i když lov dne zraní jezdce až později.
-- **Úlovek z hlídky:** `patrolHuntDay` (v `simulateDay` hned za `huntDay`): `hope.boar += 0,01 × Σ sil ×
-prasata ÷ strop`, celé kusy z dospělých napřed, maso přes `butcher`, do `hunt.year` (kusy a kg,
-  `days` se nezvyšuje). `emptyHunt` se exportuje z `hunt.ts`.
+  červen–říjen; zraněný (`isInjured`) nejede – řeší `lordRides`, test v `field-guard.test.ts`. Síla jezdce = `riderPower ÷ 100`; `cut = min(0,6; 0,25 × Σ sil × min(1,5; 1 + 0,1 × psi))`.
+  Kdo jezdí objížďku, určuje `lordRides`. Jen čte stav. **Jednou za den:** `settlePatrol` (v `simulateDay` před `wildlifeDamageDay`) uloží `WildlifeState.patrol` `{ day, power, cut }`; škodu (`dailyThreatShare`) i úlovek (`patrolHuntDay`) čte `patrolOfDay` – stejná hodnota, i když lov dne zraní jezdce až později.
+- **Úlovek z hlídky:** `patrolHuntDay` (ve večeru rodiny `lordEveningDay`, před `trainLordDay`):
+  `WildlifeState.patrolHope += 0,01 × Σ sil × prasata ÷ strop` (vlastní naděje hlídky – dřív ji
+  sdílel kalendářní lov), celé kusy z dospělých napřed, maso přes `butcher`, do `hunt.year` (kusy
+  a kg, `days` se nezvyšuje; `w.hunt ??= emptyHunt()` až s úlovkem).
 - **Noční hlídka – plán 1. 6.:** `planWatch` (volá `damageWindowStart`; hrozba z `dailyThreatShare(…, false)`, tedy bez jezdecké hlídky) uloží `WildlifeState.watch`
   (`FieldWatch`): díly s hrozbou za sezónu (`dailyThreatShare` × délka okna plodiny, nejvýš `maxShare`)
   aspoň 10 %, největší napřed. 1. stupeň zdarma – staří a výrostci 7–13 let mimo cvičící rodinu

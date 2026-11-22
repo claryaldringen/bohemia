@@ -114,8 +114,8 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
     (`trainingHours(…, hasHorse)`) cvičí jen jezdec s koněm – páry `assignRiders`
     (`horse-riders.ts`, i když rodina necvičí); bez koně jízda 0 a hodiny jdou do luku a boje.
     Koně pod jezdci, kteří dnes jezdili, cvičí `trainHorsesDay` – `trainLordDay` vrací kroniku.
-    **Den lovu** (`hunt.today`, W4 – `docs/code/village-wildlife.md`): hodiny `HUNT.training` místo
-    `trainingHours`, odešlí synové na lovu cvičí místo `decayArms`.
+    Den lovu už výcvikem není – kalendářní lov rodu je pryč (hunting.md – Pravidla 1;
+    `docs/code/village-wildlife.md` – Psi dvorce).
   - **Pasáci:** synové cvičící rodiny nepasou (`lordTraineeIds` v `youngsterCount`,
     `herdingDay`, `youngsterHerders`).
 - **Jména všech lidí** ([population.md](../design/population.md) – Jména; Martin 15. 11. 2026,

@@ -1,10 +1,10 @@
 // Šelmy v hustém lese (lord-control.md – Nebezpečí, bod 3; wildlife.md – Nebezpečí pro lidi):
 // osamělého vojvodu nebo malou družinu (nejvýš `JOURNEY.predatorGroupMax` mužů) v hustém lese
-// napadne medvěd nebo vlci. Čísla jsou čísla lovu (`HUNT_RISK`) – žádná nová. Los je čistá funkce
-// seedu výjezdu, dne a pořadí muže, takže nezávisí na kouskování dopočtu.
+// napadne medvěd nebo vlci. Čísla jsou čísla bývalého lovu (`PREDATOR_RISK`) – žádná nová. Los je
+// čistá funkce seedu výjezdu, dne a pořadí muže, takže nezávisí na kouskování dopočtu.
 import { createRandom, deriveSeed } from '../landscape/random';
 import type { Landscape } from '../landscape';
-import { HUNT_RISK } from '../village/rules/rules-wildlife';
+import { PREDATOR_RISK } from '../village/rules/rules-wildlife';
 import type { VillageState } from '../village/types';
 import { wildlifeOfEmptyMap } from '../village/wildlife/wildlife';
 import type { JourneyMember } from './journey-types';
@@ -45,7 +45,7 @@ export function predatorDay(input: {
   if (!input.inForest || (!wildlife.bear && !wildlife.wolves)) return [];
   if (members.filter((m) => m.status === 'active').length > JOURNEY.predatorGroupMax) return [];
   const by = wildlife.bear ? 'bear' : 'wolves';
-  const rules = wildlife.bear ? HUNT_RISK.bear : HUNT_RISK.boar;
+  const rules = wildlife.bear ? PREDATOR_RISK.bear : PREDATOR_RISK.boar;
   const stream = input.group ? `predators:${input.day}:${input.group}` : 'predators:' + input.day;
   const random = createRandom(deriveSeed(input.seed, stream));
   const hits: PredatorHit[] = [];
@@ -55,7 +55,7 @@ export function predatorDay(input: {
     if (m.status !== 'active') return;
     const fight = Math.min(100, Math.max(0, m.fight));
     const injury = wildlife.bear ? rules.injury * (1 - fight / 200) : rules.injury;
-    const death = rules.death * (2 - fight / 100) * (m.mounted ? 1 : HUNT_RISK.footDeathFactor);
+    const death = rules.death * (2 - fight / 100) * (m.mounted ? 1 : PREDATOR_RISK.footDeathFactor);
     if (deathRoll < death) hits.push({ index, outcome: 'dead', by });
     else if (injuryRoll < injury) hits.push({ index, outcome: 'wounded', by });
   });

@@ -923,10 +923,10 @@ vidí). Znalost ve scéně tažení – Znalost rodu (Tažení ve scéně, Úloh
   `predators:<den>:<id hloučku>` (`predatorDay` – `group`; plán 2026-11-14 – Rozhodnutí 9); každý
   člověk hloučku v pořadí `members` dostane vždy
   oba losy (zranění, smrt), padlí losy spotřebují, ale nezasáhnou – vcelku = po kouscích. Čísla
-  jsou čísla lovu (`HUNT_RISK`, `village-wildlife.md` – Riziko lovu): medvěd zranění
-  5 % × (1 − boj ÷ 200) a smrt 0,3 % × (2 − boj ÷ 100), jen vlci čísla lovu prasat (0,5 %,
-  0,02 %); pěšky smrt × 2; boj je `JourneyMember.fight`. Je-li medvěd i vlci, útočí medvěd. Žádné
-  nové číslo.
+  jsou `PREDATOR_RISK` (`rules-wildlife.ts`; čísla bývalého kalendářního lovu beze změny –
+  hunting.md, Pravidla 10): medvěd zranění 5 % × (1 − boj ÷ 200) a smrt 0,3 % × (2 − boj ÷ 100),
+  vlci čísla prasat (0,5 %, 0,02 %); pěšky smrt × 2; boj je `JourneyMember.fight`. Je-li medvěd
+  i vlci, útočí medvěd. Žádné nové číslo.
 - **Zvěř mapy** `wildlifeOfMap(map, village)`: mapa se vsí bere `VillageState.wildlife` té vsi
   (`villageIds[0]` přes `villageAt` – stejná ves, kterou čte `discover`, žádná navíc; ulovený
   medvěd = bezpečno, dokud se nevrátí); prázdná mapa nebo ves bez `wildlife` zvěř na stropu podle

@@ -735,17 +735,17 @@ Návrh: [wildlife.md](../design/wildlife.md) – Co hráč vidí. Pohled jen čt
   `/dev/panels?panel=zver-prase` (`zver-vlci`, `zver-medved`).
 - **Panel dvorce:** `huntView` → `VillageManor.hunt` (`ManorHunt`): ikony úlovků letos s čísly (prasata, jelení zvěř,
   vlci, medvěd, zajíci, ryby v kg), maso v kg a smečka „6 / 7“ (psi / kolik jich dvorec chce; psi obilí nejedí). Bez psů a úlovku řádek chybí. Tlačítko
-  lovu navíc (`manor-hunt`) je z W5.
+  lovu (`manor-hunt`, důvod zašednutí `huntDenied` – village-wildlife.md, Lov na tlačítko dvorce).
 - **Panel dílu:** `fieldDamageViews` → `VillageFieldPart.damage` → `FieldDamage`: ikona prasete a škoda letos v %
   (červeně od 10 %, popisek kg a vzdálenost k lesu), ikona ohně (`watch-fire`), když se díl dnes hlídá
   (noční hlídka, 1. 6.–31. 8.). Díl mimo ohrožení škodu nemá.
 - **Upozornění** (`village-notices.ts`): `boar-damage` „Divoká prasata ničí úrodu“ (průměrná škoda dílů u lesa
-  letos > 5 %, vážená plochou), `wolves-killing` „Vlci strhávají dobytek“ (2 kusy za 30 dní).
+  letos > 5 %, vážená plochou), `wolves-killing` „Vlci strhávají dobytek“ (2 dny se strhnutým kusem za 30 dní – `PREDATION.noticeKillDays`).
 - **Kronika** (`village-view-chronicle.ts`): „Medvěd se vrátil do lesů.“, „Zvěř a vrány zničily letos N kg
   obilí na polích.“; úlovek se jménem lovce, strhnutý dobytek a zranění na lovu z W4–W5.
 - **Dev panely:** `/dev/panels?panel=dvorec` (lov a psi), `pole-dil` (škoda a oheň), `zver-prase`, `zver-vlci`, `zver-medved`.
 - **Testy:** `lib/__tests__/wildlife-view.test.ts`, `components/game/hud/__tests__/WildlifePanel.test.tsx`,
-  upozornění ve `village-notices.test.ts`; e2e „díl pole ukáže škodu zvěře letos“ a psi v testu lovu navíc.
+  upozornění ve `village-notices.test.ts`; e2e „díl pole ukáže škodu zvěře letos“ a psi v testu „dvorec: lov“.
 
 ## Počasí a pohromy v rozhraní (P10, `lib/disasters-view.ts`)
 

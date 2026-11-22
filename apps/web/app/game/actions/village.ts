@@ -297,8 +297,8 @@ export async function setSteward(input: unknown): Promise<VillageActionResult> {
 }
 
 /**
- * Lov navíc na zítřek (wildlife.md – Lov rodu: Kdy): `{ villageId }`. Hájení, 3 dny od minulého
- * lovu, nikdo k lovu a už vyhlášený lov odmítne use-case s důvodem česky.
+ * Lov (hunting.md – Pravidla 2): `{ villageId }`. Hájení a běžící lov odmítne use-case s důvodem
+ * česky; jinak honci chybí v práci vsi zítra.
  */
 export async function declareHunt(input: unknown): Promise<VillageActionResult> {
   return villageAction(input, parseDeclareHuntInput, (id, villageId) =>

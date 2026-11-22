@@ -81,7 +81,6 @@ import {
 } from './simulate-plan';
 import { work } from './simulate-work';
 import { patrolHuntDay, settlePatrol } from '../wildlife/field-patrol';
-import { huntDay, planHuntDay } from '../wildlife/hunt';
 import { dogsYear } from '../wildlife/manor-dogs';
 import { conversionDay } from '../people/conversion';
 import { wildlifeYearDay } from '../wildlife/wildlife';
@@ -244,14 +243,14 @@ function* simulateDaySteps(
   remnantsDay(state, day, landscape, idsBefore);
   const eaten = marriagesAndMealDay(state, day, coverage);
   yield;
-  const huntEvents = lordEveningDay(state, day, lordField);
-  const dayResult = { toil, eaten, huntEvents, disasterEvents };
+  lordEveningDay(state, day, lordField);
+  const dayResult = { toil, eaten, disasterEvents };
   // vymřelá ves se dál nesimuluje (ani sklizeň dne)
   if (!peopleDay(state, day, landscape, obstacles, dayResult)) return;
   harvestAndUpkeepDay(state, day, date, landscape, obstacles);
 }
 
-/** Ráno dne: výcvik rodiny vojvody, roční přepočet zvěře, počasí kraje, ochrana dílů, teplé sady, psi a plán lovu. */
+/** Ráno dne: výcvik rodiny vojvody, roční přepočet zvěře, počasí kraje, ochrana dílů, teplé sady a psi. */
 function morningDay(
   state: VillageState,
   day: number,
@@ -273,8 +272,6 @@ function morningDay(
   if (landscape) markSunnyOrchards(state, landscape);
   // psi dvorce 1. 5.: úbytek a štěňata (wildlife.md – Psi)
   dogsYear(state, day);
-  // velký lov rodu: kdo dnes loví – pěší lovci jsou mimo práci vsi (wildlife.md – Lov rodu)
-  planHuntDay(state, day);
 }
 
 /** Cesty a vzdálenosti chůze: měsíční kontrola cest, cesty přes pole, brány v opevnění a přepočet tras (se zastávkami). */
@@ -505,27 +502,23 @@ function marriagesAndMealDay(
   return eat(state, day, coverage);
 }
 
-/** Večer rodiny vojvody: hlášení porážky, velký lov, lov z hlídky a výcvik. Vrací události lovu. */
+/** Večer rodiny vojvody: hlášení porážky, lov z hlídky a výcvik. */
 function lordEveningDay(
   state: VillageState,
   day: number,
   lordField: ReturnType<typeof work>['lordField'],
-): ReturnType<typeof huntDay> {
+): void {
   // letní a nouzová porážka běží až v `eat()`, po `work()` – doplnit hlášení kusů do dnešního rozvrhu práce
   // (jen hlášení pro scénu, simulaci to nemění)
   const slaughteredToday = state.livestock?.slaughtered;
   if (state.labor?.day === day && slaughteredToday?.day === day) {
     state.labor.slaughterHeads = { ...slaughteredToday.heads };
   }
-  // vojvodova rodina (lord.md): výcvik dne – kdo necvičil (na poli ve žních), zapomíná
-  // úlovek velkého lovu a maso do zásoby; den lovu je výcvik (wildlife.md – Lov rodu)
-  const huntEvents = huntDay(state, day, lordField);
-  state.chronicle.push(...huntEvents);
   // úlovek prasat z jezdecké hlídky polí (červen–říjen; wildlife.md – Obrana polí)
   patrolHuntDay(state, day);
+  // vojvodova rodina (lord.md): výcvik dne – kdo necvičil (na poli ve žních), zapomíná –
   // a koně pod jezdci (horses.md – Výcvik koně a jezdec) – po péči (`work()`) a obilí (`eat()`)
   state.chronicle.push(...trainLordDay(state, day, lordField));
-  return huntEvents;
 }
 
 /** Lidé na konci dne: hlad, úmrtí, nástupnictví a štěstí. Vrací, jestli ves žije (vymřelá se dál nesimuluje). */
@@ -537,11 +530,10 @@ function peopleDay(
   dayResult: {
     toil: boolean;
     eaten: ReturnType<typeof eat>;
-    huntEvents: ReturnType<typeof huntDay>;
     disasterEvents: ReturnType<typeof localDisastersDay>;
   },
 ): boolean {
-  const { toil, eaten, huntEvents, disasterEvents } = dayResult;
+  const { toil, eaten, disasterEvents } = dayResult;
   const { satiation, energy, diet, groups } = eaten;
   // nahromaděný hlad se počítá z dnešní energie (hladem se umírá z energie, ne z pestrosti –
   // diet.md) – úmrtí dne podle něj (population.md); v hájení zůstává pod prahem, aby po něm lidé
@@ -558,12 +550,8 @@ function peopleDay(
   }
   const events = populationDay(state, day, satiation, energy, hunger);
   state.chronicle.push(...events);
-  // kdo zahynul na lovu, ves oplakává jako každé úmrtí (štěstí), i když zápis dělá lov
-  const happinessEvents = [
-    ...events,
-    ...huntEvents.filter((e) => e.kind === 'death'),
-    ...disasterEvents.filter((e) => e.kind === 'death'),
-  ];
+  // kdo zahynul při pohromě, ves oplakává jako každé úmrtí (štěstí), i když zápis dělá pohroma
+  const happinessEvents = [...events, ...disasterEvents.filter((e) => e.kind === 'death')];
   // nová hlavní manželka a nástupnictví (lord.md – Rod vojvody); ves bez rodu nic
   state.chronicle.push(...dynastyDay(state, day));
   // štěstí na konci dne – hlad, úmrtí, přeplněnost, dřina, zásoby, maso, ovoce a med po lidech

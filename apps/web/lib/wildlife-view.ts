@@ -4,7 +4,6 @@
 // vsi, žádný přepočet krajiny (pohled se počítá při každém dotazování).
 import {
   FIELD_GUARD,
-  HUNT,
   PREDATION,
   crowFlocks,
   dateOfDayIndex,
@@ -115,10 +114,10 @@ function killedHeadsOf(w: WildlifeState): number {
   return Math.round(heads.sheep + heads.goat + heads.pig + heads.cow);
 }
 
-/** Šelmy strhly aspoň `HUNT.wolfKills` kusů za posledních `PREDATION.killDaysKept` dní. */
+/** Šelmy strhly kus aspoň `PREDATION.noticeKillDays` dní za posledních `PREDATION.killDaysKept` dní. */
 function wolvesTroubling(w: WildlifeState, day: number): boolean {
   const since = day - PREDATION.killDaysKept;
-  return (w.predation?.killDays ?? []).filter((d) => d > since).length >= HUNT.wolfKills;
+  return (w.predation?.killDays ?? []).filter((d) => d > since).length >= PREDATION.noticeKillDays;
 }
 
 /** Průměrná letošní škoda dílů u lesa (podíl úrody, vážený plochou dílů). */

@@ -28,7 +28,7 @@ export {
 } from './disasters/weather-effects';
 export * from './wildlife/hunt';
 export { dogsYear } from './wildlife/manor-dogs';
-export { dogsWanted, huntFootIds, huntingDogs, huntPool, huntToday } from './wildlife/hunt-party';
+export { dogsWanted, huntingDogs, huntPool } from './wildlife/hunt-party';
 export { fishingPools, wildlifeLandAt, type FishingPool } from './wildlife/wildlife-land';
 export * from './livestock/hay';
 export * from './livestock/plough';
