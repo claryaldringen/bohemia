@@ -117,3 +117,25 @@ export function riderPower(rider: Pick<Person, 'arms'>, horse: Pick<Horse, 'trai
   const training = Math.min(1, Math.max(0, horse.training / HORSES.trainingFull));
   return (rider.arms?.riding ?? 0) * (base + perTraining * training);
 }
+
+/**
+ * Kůň jezdce padl (hunting.md – Pravidla 6; mutuje stav): zmizí z ohrady koní i z koní bez ohrady
+ * a jezdec venku na něm už nejede (`away.horseId` pryč – jde dál pěšky). Vrací, zda kůň ve vsi byl
+ * (chybějící kůň – nic, výsledek se smí doručit i po druhé).
+ */
+export function loseHorse(state: VillageState, horseId: number): boolean {
+  let lost = false;
+  for (const pen of horsePens(state)) {
+    const horses = penHorses(pen);
+    if (!horses.some((h) => h.id === horseId)) continue;
+    pen.horses = horses.filter((h) => h.id !== horseId);
+    lost = true;
+  }
+  if (state.looseHorses?.some((h) => h.id === horseId)) {
+    state.looseHorses = state.looseHorses.filter((h) => h.id !== horseId);
+    lost = true;
+  }
+  if (!lost) return false;
+  for (const p of state.people) if (p.away?.horseId === horseId) delete p.away.horseId;
+  return true;
+}

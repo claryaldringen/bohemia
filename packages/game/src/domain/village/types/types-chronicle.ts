@@ -7,7 +7,7 @@ import type { ChurchWork, MasonCraft } from './types-masonry';
 import type { AbandonedStructure, Crop, TileCell, UsableStructure } from './types-land';
 import type { HerdSpecies, PenSpecies } from './types-livestock';
 import type { AwayKind, DwellingType } from './types-people';
-import type { HuntKills } from './types-wildlife';
+import type { HuntKills, QuarryKind } from './types-wildlife';
 import type { FloodLevel, SummerWeather, TornadoStrength, WinterWeather } from './types-disasters';
 import type { CartJob, CartKind, JunctionShape } from './types-roads';
 import type { Direction8 } from './types-state';
@@ -383,8 +383,12 @@ export type ChronicleEvent = { day: number } & (
       cause?: 'hunger' | 'hunt' | 'flood' | 'tornado' | 'war' | 'wounds' | 'beast';
       /** Šelma, která muže zabila na cestě (`cause: 'beast'`). */
       by?: 'bear' | 'wolves';
-      /** Zvěř, na jejímž lovu muž zahynul (`cause: 'hunt'`). */
-      prey?: 'boar' | 'bear';
+      /**
+       * Zvěř, na jejímž lovu muž zahynul (`cause: 'hunt'`) – kanec, bachyně, vlk, medvěd; jelen
+       * a laň, když lovce zasáhl šíp druhého lovce (plán 2026-11-22-hunting – Rozhodnutí 5).
+       * Starší zápisy jen `boar` (divočák) a `bear`.
+       */
+      prey?: QuarryKind;
       name?: string;
       /** Id zemřelého (vždy spolu s `name`) – den smrti muže rodu pro los nástupnictví hráče. */
       personId?: number;
@@ -598,10 +602,16 @@ export type ChronicleEvent = { day: number } & (
   | { kind: 'bear-returned' }
   /** Šelmy strhly dobytek (wildlife.md – Vlci na dobytku; `heads` – celé kusy dne). */
   | { kind: 'predator-kill'; species: HerdSpecies; by: 'wolf' | 'bear'; heads: number }
-  /** Velký lov rodu (wildlife.md – Lov rodu): úlovek dne, maso do zásoby a nejlepší lovec. */
+  /**
+   * Úlovek lovu (hunting.md – Pravidla 7; `applyHuntResult`): kus zvěře, maso do zásoby a útočníci
+   * – první složil zvíře. Starší zápisy jsou úlovek dne kalendářního lovu rodu (nejlepší lovec).
+   */
   | { kind: 'hunt'; kills: HuntKills; meatKg: number; names: string[] }
-  /** Lovec byl zraněn a 60 dní nepracuje (wildlife.md – Nebezpečí pro lidi). */
-  | { kind: 'hunt-injury'; prey: 'boar' | 'bear'; name?: string }
+  /**
+   * Lovec byl zraněn a 60 dní nepracuje (hunting.md – Pravidla 6): zvířetem, nebo šípem druhého
+   * lovce (i na lovu jelena a laně). Starší zápisy jen `boar` (divočák) a `bear`.
+   */
+  | { kind: 'hunt-injury'; prey: QuarryKind; name?: string }
   /** Po žních: zvěř a vrány zničily `kg` obilí na polích (wildlife.md – Škody). */
   | { kind: 'wildlife-damage'; kg: number }
   /** Sad dosloužil (60. rok) a vrátil se v louku. */

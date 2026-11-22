@@ -11,6 +11,7 @@ import { dismissGuests, endAway, hostGuests } from '../../vassalage/guests';
 import { receiveShipment } from '../../vassalage/shipment';
 import { applyJourneyHorse } from '../livestock/horses-out';
 import { applyJourneyCasualty } from '../wildlife/beast-casualty';
+import { applyHuntResult } from '../wildlife/hunt';
 import { pruneThreats } from '../fortification/threat';
 import {
   applyCampaignReturn,
@@ -39,6 +40,7 @@ import type {
   FlightMode,
   Guest,
   HerdSpecies,
+  HuntResult,
   PersonRef,
   RefugeePerson,
   ShipmentBody,
@@ -129,6 +131,12 @@ export type VillageEventBody =
    * `null` = sesedl doma, kůň je zase v ohradě. Idempotentní.
    */
   | { kind: 'journey-horse'; journeyId: string; personId: number; horseId: number | null }
+  /**
+   * Konec lovu výpravy `journeyId` (hunting.md – Pravidla 7; plán 2026-11-22-hunting – Rozhodnutí
+   * 6; `applyHuntResult`): úlovek, výcvik, rány lovců a padlí koně. Výprava ho vydá jednou při
+   * zabití nebo útěku zvířete (`ref` `journey:<id>:hunt:<huntId>` – druhé doručení zahodí schránka).
+   */
+  | { kind: 'hunt-result'; journeyId: string; huntId: number; result: HuntResult }
   /**
    * Den nájezdu (war.md – Ves během nájezdu nepracuje; plán 2026-11-03 – Úloha 6.7): cizí vojsko je
    * dnes na mapě vsi – lidé se skrývají a ves dnes nepracuje (`VillageState.raidDay`). Tažení ho
@@ -342,6 +350,8 @@ function applyEvent(state: VillageState, day: number, body: VillageEventBody): C
       return applyJourneyCasualty(state, day, body);
     case 'journey-horse':
       return applyJourneyHorse(state, day, body);
+    case 'hunt-result':
+      return applyHuntResult(state, day, structuredClone(body.result));
     case 'raid-day':
       state.raidDay = day;
       return [];

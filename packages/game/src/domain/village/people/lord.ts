@@ -592,7 +592,8 @@ export function withoutSowingHelp(state: VillageState): VillageState {
   return next;
 }
 
-const NO_ARMS: ArmsSkills = { bow: 0, combat: 0, riding: 0 };
+/** Muž bez výcviku – výchozí dovednosti pro `trainArms` (výcvik rodu, lov). */
+export const NO_ARMS: ArmsSkills = { bow: 0, combat: 0, riding: 0 };
 
 /**
  * Výcvik dne (lord.md – Výcvik a zkušenost; mutuje lidi a koně): cvičící rodiny dostanou

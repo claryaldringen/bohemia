@@ -3,7 +3,7 @@ import { dateOfDayIndex, dayIndexOf } from '../../calendar';
 import type { WaterCartPlan } from '../crafts/cart-jobs';
 import { ironTravellers } from '../crafts/crafts';
 import { fireFighting } from '../disasters/firefighting';
-import { isAdult, isAway } from '../people/people';
+import { awayFromWork, isAdult } from '../people/people';
 import { raidHiding } from '../fortification/state/raid-day';
 import { householdWater, type DayChores, type HouseholdWater } from './labor';
 import { dayChores } from './day-chores';
@@ -16,18 +16,20 @@ const EPS = 1e-9;
 const MONTHS = 12;
 
 /**
- * Lidé, kteří se vsí pracují trvale (D102 kolo 2, návrh Clauda): bez trvale nepřítomných (`isAway` –
- * tažení, robota, služba, zajetí), mistrů huti a kněze mezi stavbami (`isLodgeIdle`) a lidí na
- * cestě pro kování (`ironTravellers`). Denní nepřítomnosti (lov, požár, nájezd) tu nejsou – plán
- * je nezná. Jedno místo pro den (`villagersToday`) i plán kapacity (`freeLabor`); bez nich vrací
- * týž seznam.
+ * Lidé, kteří se vsí pracují trvale (D102 kolo 2, návrh Clauda): bez trvale nepřítomných
+ * (`awayFromWork` – tažení, robota, služba, zajetí, výprava; útočník lovu se počítá jako doma),
+ * mistrů huti a kněze mezi stavbami (`isLodgeIdle`) a lidí na cestě pro kování (`ironTravellers`).
+ * Denní nepřítomnosti (honci, požár, nájezd) tu nejsou – plán je nezná. Jedno místo pro den
+ * (`villagersToday`) i plán kapacity (`freeLabor`); bez nich vrací týž seznam.
  */
 export function planVillagers(state: VillageState, day: number): readonly Person[] {
   const travelling = ironTravellers(state);
-  if (travelling.size === 0 && !state.people.some((p) => isLodgeIdle(p) || isAway(p, day))) {
+  if (travelling.size === 0 && !state.people.some((p) => isLodgeIdle(p) || awayFromWork(p, day))) {
     return state.people;
   }
-  return state.people.filter((p) => !isAway(p, day) && !isLodgeIdle(p) && !travelling.has(p.id));
+  return state.people.filter(
+    (p) => !awayFromWork(p, day) && !isLodgeIdle(p) && !travelling.has(p.id),
+  );
 }
 
 /**

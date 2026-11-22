@@ -46,22 +46,44 @@ describe('declareHuntInVillage', () => {
     expect(villages.saves).toBe(saves);
   });
 
-  it('v létě vyhlásí lov – honci chybí zítra; druhý lov týž den honce přičte', async () => {
+  /** Ves rodu v létě (dopočítaná do předvečera `summer`) se zvěří a `men` muži navíc mimo dvorec. */
+  async function summerVillage(
+    summer: number,
+    men: number,
+  ): Promise<{
+    villages: InMemoryVillages;
+    villageId: string;
+  }> {
     const { villages, villageId } = await setup();
-    const summer = at(602, 7, 10);
     villages.edit(villageId, (state) => {
       const base = horseVillage(null, 2, 4);
       delete base.dynasty;
       const fixture = withDynasty(base);
       fixture.lastDay = summer - 1;
       fixture.wildlife = freshWildlife({ ...WILDLIFE_LAND.defaultLand }, 0);
+      const home = fixture.people.find((p) => p.id === 20)!.dwellingId;
+      for (let i = 0; i < men; i++) {
+        fixture.people.push({
+          id: 500 + i,
+          bornDay: summer - 9000 - i,
+          dwellingId: home,
+          sex: 'male',
+        });
+      }
       Object.assign(state, fixture);
     });
+    return { villages, villageId };
+  }
+
+  it('v létě vyhlásí lov – honci chybí zítra, pořadí vyhlášení přibude; druhý lov týž den honce přičte', async () => {
+    const summer = at(602, 7, 10);
+    const { villages, villageId } = await summerVillage(summer, 16);
     const first = await declareHuntInVillage({ villages }, { villageId, today: summer, landscape });
     expect(first.ok).toBe(true);
     if (!first.ok) return;
     expect(first.village.state.lastDay).toBe(summer);
     expect(first.village.state.wildlife?.hunt?.beaters).toEqual({ day: summer + 1, men: 6 });
+    expect(first.village.state.wildlife?.hunt?.declared).toBe(1);
     const second = await declareHuntInVillage(
       { villages },
       { villageId, today: summer, landscape },
@@ -69,6 +91,26 @@ describe('declareHuntInVillage', () => {
     expect(second.ok).toBe(true);
     const stored = villages.records.get(villageId)!.state;
     expect(stored.wildlife?.hunt?.beaters).toEqual({ day: summer + 1, men: 12 });
+    expect(stored.wildlife?.hunt?.declared).toBe(2);
+  });
+
+  it('malá ves, která zítra neuvolní 6 mužů na honce, lov nevyhlásí a nic neuloží', async () => {
+    const summer = at(602, 7, 10);
+    const { villages, villageId } = await summerVillage(summer, 0);
+    const saves = villages.saves;
+    const result = await declareHuntInVillage(
+      { villages },
+      { villageId, today: summer, landscape },
+    );
+    expect(result).toEqual({ ok: false, reason: HUNT_DENIED_TEXT['no-beaters'] });
+    expect(villages.saves).toBe(saves);
+  });
+
+  it('31. 5. smí – honci jdou 1. 6., po hájení', async () => {
+    const may = at(602, 5, 31);
+    const { villages, villageId } = await summerVillage(may, 16);
+    const result = await declareHuntInVillage({ villages }, { villageId, today: may, landscape });
+    expect(result.ok).toBe(true);
   });
 
   it('cizí ves odmítne', async () => {

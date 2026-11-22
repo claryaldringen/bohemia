@@ -452,3 +452,46 @@ describe('stavby staví muži (population.md – Práce, Stavby staví muži; �
     expect(menCommon(9.5, 0, 0)).toBe(0);
   });
 });
+
+describe('honci lovu (hunting.md – Pravidla 2: z dílu mužů na stavby, ne z úloh dne)', () => {
+  // 20 dospělých – 14 mužů a 6 žen; ženy pokosí 2 čd, mužům na stavby zbude 14 čd
+  const input = {
+    ...base,
+    capacity: 20,
+    womenLabor: 6,
+    tasks: [{ name: 'mow' as const, remaining: 2 }],
+  };
+  // 10 dospělých – 4 muži a 6 žen; seč vezme ženám všechno a mužům 2 čd, na stavby zbudou 2 čd
+  const inputWithBuild2 = {
+    ...base,
+    capacity: 10,
+    womenLabor: 6,
+    tasks: [{ name: 'mow' as const, remaining: 6 - DAILY_MIN + 2 }],
+  };
+
+  it('honci vezmou z dílu mužů na stavby a ze společné práce, úlohy dne zůstanou', () => {
+    const base = allocateDay(input);
+    expect(base.build).toBeCloseTo(14, 9);
+    expect(base.beaters).toBeUndefined();
+    const hunt = allocateDay({ ...input, beaters: 6 });
+    expect(hunt.beaters).toBeCloseTo(6, 9);
+    expect(hunt.build).toBeCloseTo((base.build ?? 0) - 6, 9);
+    expect(hunt.common).toBeCloseTo(base.common - 6, 9);
+    expect(hunt.tasks).toEqual(base.tasks); // žně, orba a setí nedotčené
+    expect(hunt.taskAmounts).toEqual(base.taskAmounts);
+  });
+
+  it('honci nejvýš celý díl mužů na stavby – víc ves nedá', () => {
+    const base = allocateDay(inputWithBuild2);
+    expect(base.build).toBeCloseTo(2, 9);
+    const short = allocateDay({ ...inputWithBuild2, beaters: 6 });
+    expect(short.beaters).toBeCloseTo(2, 9);
+    expect(short.build).toBeCloseTo(0, 9);
+    expect(short.common).toBeCloseTo(base.common - 2, 9);
+    expect(short.tasks).toEqual(base.tasks);
+  });
+
+  it('bez honců (0 nebo bez údaje) rozdělení beze změny', () => {
+    expect(allocateDay({ ...input, beaters: 0 })).toEqual(allocateDay(input));
+  });
+});

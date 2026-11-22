@@ -1391,7 +1391,8 @@ test('dvorec: lov – v dubnu je hájení, v létě honci na zítřek', async ({
   await expect(readyScene(page)).toBeVisible({ timeout: 60_000 });
   await found(page, spots.dwelling);
 
-  // Dvorec, vedle čtyři dospělí (rodina cvičí a loví) a zvěř ve stavu, jaký ukládá server
+  // Dvorec, vedle dospělí – dost mužů, aby ves zítra uvolnila 6 honců z dílu na stavby
+  // (hunting.md – Pravidla 2; rodina cvičí a loví) – a zvěř ve stavu, jaký ukládá server
   const state = withBuiltFirstDwelling(await villageState(s.settlementId));
   const [neighbour] = freeHomes(s.landscape, spots.dwelling, [spots.dwelling], 1);
   const home = state.nextId++;
@@ -1403,7 +1404,8 @@ test('dvorec: lov – v dubnu je hájení, v létě honci na zítřek', async ({
     position: neighbour!,
   });
   const adultBorn = state.lastDay - Math.ceil(20 * 365.25);
-  for (const sex of ['male', 'male', 'female', 'female'] as const) {
+  const sexes: ('male' | 'female')[] = [...Array<'male'>(12).fill('male'), 'female', 'female'];
+  for (const sex of sexes) {
     state.people.push({ id: state.nextId++, bornDay: adultBorn, dwellingId: home, sex });
   }
   state.storesKg = 4000;

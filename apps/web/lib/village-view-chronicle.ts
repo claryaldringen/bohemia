@@ -24,6 +24,7 @@ import {
   type ChronicleLandmark,
   type ChronicleRoadEnd,
   type PenSpecies,
+  type QuarryKind,
   type LandTaker,
   type ConstructionKind,
   type ConstructionSummary,
@@ -232,6 +233,19 @@ function mainWifeText(event: Extract<ChronicleEvent, { kind: 'main-wife' }>): st
   return `${event.wife} se stala hlavní manželkou ${manEstateGenitive(event.estate, event.name)}.`;
 }
 
+/**
+ * Zvěř lovu v 2. pádě („zahynul na lovu medvěda“, „zraněn na lovu bachyně“; hunting.md – Pravidla
+ * 6). Kanec je „divočák“ jako ve starších zápisech, které jiné prase než `boar` neznaly.
+ */
+const PREY_GENITIVE: Record<QuarryKind, string> = {
+  stag: 'jelena',
+  hind: 'laně',
+  boar: 'divočáka',
+  sow: 'bachyně',
+  wolf: 'vlka',
+  bear: 'medvěda',
+};
+
 /** Věk na začátku věty o smrti: „Ve věku 64 let“, „Ve věku 1 roku“, „V prvním roce života“. */
 function agePrefix(age: number): string {
   if (age < 1) return 'V prvním roce života';
@@ -251,7 +265,7 @@ function deathLine(event: Extract<ChronicleEvent, { kind: 'death' }>): string {
     : (event.name ?? OLD_DEATH_WHO[event.group]);
   // rod slovesa: žena, staré „dítě“ (střední), jinak muž
   const ending = female ? 'a' : !event.estate && !event.name && event.group === 'child' ? 'o' : '';
-  const prey = event.prey === 'bear' ? 'medvěda' : 'divočáka';
+  const prey = PREY_GENITIVE[event.prey ?? 'boar'];
   const [verb, rest = ''] = ((): [string, string?] => {
     switch (event.cause) {
       case 'hunger':
@@ -1350,10 +1364,8 @@ export function chronicleText(event: ChronicleEvent, villageName: string, seed?:
         : `Ve vsi už nežije žádný muž rodu – posledním vojvodou byl ${event.name}.`;
     case 'death':
       return deathLine(event);
-    case 'hunt-injury': {
-      const prey = event.prey === 'bear' ? 'medvěda' : 'divočáka';
-      return `${event.name ?? 'Lovec'} byl zraněn na lovu ${prey} – 60 dní nepracuje.`;
-    }
+    case 'hunt-injury':
+      return `${event.name ?? 'Lovec'} byl zraněn na lovu ${PREY_GENITIVE[event.prey]} – 60 dní nepracuje.`;
     case 'village-extinct':
       return `Zemřel poslední obyvatel – ves ${villageName} vymřela.`;
     case 'household-founded':

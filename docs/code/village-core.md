@@ -101,7 +101,13 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   denní minimum a úlohy dne (i pletí a len) nesou napřed ženy a muži je doplní, jen když práce žen
   nestačí, práci „za den“ (koně, kování, výpravy, vozy pro kováře) nesou muži; bez `womenLabor`
   staví všichni. Pletí žen bere dál jen jejich práci nad `WEEDING_WOMEN.dailyMinShare`
-  minima. `commonWorkDay` dá `buildDay`
+  minima. **Honci lovu** (hunting.md – Pravidla 2; plán 2026-11-22-hunting, Úloha 3): po všech
+  úlohách dne vezme `allocateDay` `DayAllocationInput.beaters` (člověkodny – `dayLabor`
+  v simulate-work.ts: `hunt.beaters.men` × `LABOR_PER_DAY.adult`, jen když `hunt.beaters.day` je
+  dnešek; starší rezervace zůstává ve stavu a nepočítá se) z dílu mužů na stavby –
+  `DayAllocation.beaters` = min(honci, díl mužů), `common` i `build` o ně menší, úlohy dne
+  (pole v oknech, žně) nedotčené; stavby a opravy den počkají. Do `commonLaborHistory` jde díl
+  mužů po honcích. `commonWorkDay` dá `buildDay`
   nejvýš díl mužů (vozy s kládami a drobná zvěř hladové vsi berou ze společné práce jako dřív),
   hosté na robotě a tesař staví dál celí; posledních 30 dní (`commonLaborHistory` – lišta, rozpočet
   správce, „Stavby stojí“) je díl mužů, roční průměr (`commonLaborYearly` – doprava dávek, robota,

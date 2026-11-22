@@ -1,8 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { foundVillage } from '../actions';
+import { cloneState } from '../clone';
 import { applyInboxDay, type VillageEvent } from '../inbox';
 import { advanceVillage, advanceVillageSteps } from '../simulate';
-import type { ChronicleEvent, VillageState } from '../../types';
+import { WILDLIFE_LAND } from '../../rules/rules-wildlife';
+import type { ChronicleEvent, HuntResult, VillageState } from '../../types';
+import { applyHuntResult } from '../../wildlife/hunt';
+import { freshWildlife } from '../../wildlife/wildlife';
+import { at, horse, horseVillage, LORD_ID, SON_ID } from '../../__tests__/horse-fixtures';
 import { withBuiltFirstDwelling } from '../../__tests__/village-fixtures';
 
 const FOUNDED = 200;
@@ -159,5 +164,44 @@ describe('schránka vsi – rod-baptized', () => {
     expect(state.faith?.rodBaptizedDay).toBe(300);
     applyInboxDay(state, 301, [baptized(2, 301)]);
     expect(state.faith?.rodBaptizedDay).toBe(300);
+  });
+});
+
+describe('schránka vsi – hunt-result (hunting.md – Pravidla 7; plán 2026-11-22-hunting – Rozhodnutí 6)', () => {
+  it('dá totéž jako přímé volání applyHuntResult (stav i kronika) a tělo události nemění', () => {
+    const day = at(602, 7, 10);
+    const direct = horseVillage([{ ...horse(1, 8, 'male', 100), riderId: LORD_ID }], 2, 4);
+    direct.lastDay = day - 1;
+    direct.wildlife = freshWildlife({ ...WILDLIFE_LAND.defaultLand }, 0);
+    direct.wildlife.boar = { adults: 6, piglets: 4 };
+    direct.people.find((p) => p.id === SON_ID)!.name = 'Lutobor';
+    const result: HuntResult = {
+      quarry: 'boar',
+      killed: true,
+      names: ['Lutobor'],
+      trained: [{ personId: LORD_ID, hours: { bow: 1, combat: 2, riding: 3 } }],
+      casualties: [
+        { personId: SON_ID, outcome: 'wounded' },
+        { personId: 20, outcome: 'dead' },
+      ],
+      horsesLost: [1],
+    };
+    const viaInbox = cloneState(direct);
+    const expected = applyHuntResult(direct, day, structuredClone(result));
+    const event: VillageEvent = {
+      id: 'e1',
+      villageId: 'v1',
+      day,
+      seq: 1,
+      body: { kind: 'hunt-result', journeyId: 'j1', huntId: 1, result },
+    };
+    const chronicle = applyInboxDay(viaInbox, day, [event]);
+    expect(chronicle).toEqual(expected);
+    expect(chronicle.map((e) => e.kind)).toEqual(['hunt', 'hunt-injury', 'death']);
+    expect(viaInbox).toEqual(direct);
+    // kronika nedrží odkazy do těla události
+    const hunt = chronicle.find((e) => e.kind === 'hunt');
+    if (hunt?.kind === 'hunt') hunt.names.push('Další');
+    expect(result.names).toEqual(['Lutobor']);
   });
 });

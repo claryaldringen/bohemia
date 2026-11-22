@@ -127,21 +127,54 @@ windowDays` (ozim 61, jař 92) denně na každý nesklizený ohrožený díl. Mi
 
 ## Lov na tlačítko dvorce (`hunt.ts`, `application/declare-hunt.ts`)
 
-Návrh: [hunting.md](../design/hunting.md) – Pravidla 2, 11; stavba po úlohách plánu
+Návrh: [hunting.md](../design/hunting.md) – Pravidla 2, 3, 5–7, 11; stavba po úlohách plánu
 2026-11-22-hunting.
 
-- **Kdy:** `huntDenied(state, day, running)` (`day` = dnešní odsimulovaný den) vrací `null`, nebo
-  `'closed-season'` (březen–květen, `HUNT.closedMonths`) a `'already'` (lov vsi běží – `running`;
-  use-case zatím posílá `false`). Bez meze „jednou za 3 dny“ (Pravidla 11). Texty důvodů
-  `HUNT_DENIED_TEXT`.
-- **Honci:** `reserveBeaters(state, day)` zapíše `HuntState.beaters { day: day + 1, men }` –
-  `HUNT.beaters.men` (6) mužů zítra celý den mimo práci vsi (dnešek je spočtený od rána); druhý lov
-  téhož dne honce přičte, lov jiného dne starou rezervaci přepíše. Ves bez `wildlife` nic.
-- **Use-case** `declareHuntInVillage` (`updateLivingVillage`: ves se dopočítá do dneška, důvod
-  odepření jde jako `reason` a nic se neuloží; jinak `reserveBeaters` a uložit). Server action
-  `declareHunt({ villageId })` (`parseDeclareHuntInput` → `declareHuntForPlayer`).
-- **UI:** `VillageManor.huntDenied` (`manor-view.ts`) = text důvodu z `huntDenied`, nebo null;
-  tlačítko `manor-hunt` (ikona oštěpu) v `ManorUpgrades`, zašedlé s červeným důvodem v tooltipu.
+- **Kdy:** `huntDenied(state, day, running)` – `day` je **den honců** (zítřek dne vyhlášení;
+  sezóna i ostatní důvody se posuzují na něj: 31. 5. s honci 1. 6. lze, 28. 2. s honci 1. 3. ne;
+  volající posílá `lastDay + 1`) – vrací `null`, nebo důvod v pořadí `'closed-season'`
+  (březen–květen, `HUNT.closedMonths`) → `'already'` (lov vsi běží – `running`; use-case zatím
+  posílá `false`) → `'no-game'` (v lese vsi není velká zvěř – součet vah `quarryWeights` je 0, nebo
+  ves nemá `wildlife`; Martin „Ano“) → `'no-beaters'` (`canSpareBeaters` dne vyhlášení). Bez meze
+  „jednou za 3 dny“ (Pravidla 11). Texty důvodů `HUNT_DENIED_TEXT` („V lese vsi není zvěř.“,
+  „Ves zítra neuvolní 6 mužů na honce.“).
+- **Honci:** `canSpareBeaters(state, day)` – dnešní díl mužů na stavby (poslední
+  `commonLaborHistory`) ≥ (`men` už rezervovaných na `day + 1` + `HUNT.beaters.men`) ×
+  `LABOR_PER_DAY.adult`; bez historie false. `reserveBeaters(state, day, men = HUNT.beaters.men)`
+  zapíše `HuntState.beaters { day: day + 1, men }` – mužů zítra celý den mimo práci vsi (dnešek je
+  spočtený od rána); druhý lov téhož dne honce přičte, lov jiného dne starou rezervaci přepíše. Ves
+  bez `wildlife` nic. Práci vezme `allocateDay` z dílu mužů na stavby (`beaters` – village-core.md).
+- **Útočník lovu platí jen jeden den** (Martin 22. 11. 2026: „lov může teoreticky trvat libolně
+  dlouho, ale práce těch lidí se odečte pouze za 1 den“): muž výpravy s `away.huntId` (`PersonAway`
+  – útočník lovu `huntId` výpravy `refId`) je dál pryč (`isAway` – scéna, jídlo, výcvik), ale práce
+  vsi ho počítá jako doma – `awayFromWork` v `laborPerDay` a `planVillagers`. Jeden den práce
+  zaplatí jako honec: `reserveBeaters(state, lastDay, počet útočníků)`. Značku dává a bere výprava
+  (Úlohy 6–7 plánu).
+- **Los zvířete:** `pickQuarry(w, seed, day, n)` – váhy `quarryWeights` (jelen = `deer.stags`,
+  laň = `deer.hinds`, kanec i bachyně = `boar.adults ÷ 2` – stav je nerozlišuje, vlk = `wolves`,
+  medvěd = 1, žije-li v kraji; stav pod 1 kus váhu nemá, mláďata nikdy) v pevném pořadí
+  `QUARRY_KINDS`, jeden los `createRandom(deriveSeed(seed, 'quarry:' + day + ':' + n))` × součet;
+  bez váhy null. `n` = pořadí vyhlášení `HuntState.declared` (`countDeclaredHunt` ho po vyhlášení
+  zvýší) – druhý lov téhož dne losuje z jiného proudu.
+- **Výsledek lovu:** `applyHuntResult(state, day, r: HuntResult)` (mutuje, vrací kroniku) – vždy
+  `hunt.year.days` + 1; zabité zvíře: zvěř −1 (nejníž 0; medvěd `present: false`, `backDay` =
+  `bearBackDay`), maso `HUNT.meatKg` přes `butcher` (vlk 0), kůže – jelen a laň `addHides`, kanec
+  a bachyně `addSmallHides`, vlk a medvěd nic; `hunt.year` po druzích (`HuntKills`) a kg; kronika
+  `hunt` (`names` – první složil zvíře). Výcvik `trainArms(…, trainingCap(p, day, 'hunt'))` (strop
+  70), raněný `injuredUntilDay` = max(dosavadní, den + 1 + `PREDATOR_RISK.injuryDays`) a kronika
+  `hunt-injury`, padlý kronika `death` (`cause: 'hunt'`, `prey`), `bury`, `removePeople`; padlí koně
+  `loseHorse` (horse-riders.ts – z ohrady i z koní bez ohrady, jezdci zmizí `away.horseId`).
+  Chybějící osoba či kůň se přeskočí. `prey` (kronika `death` a `hunt-injury`) je `QuarryKind` –
+  i jelen a laň, když lovce zasáhl šíp druhého lovce; web má texty `PREY_GENITIVE`.
+- **Schránka:** událost `hunt-result` (`journeyId`, `huntId`, `result`) – výprava ji vydá jednou při
+  zabití nebo útěku zvířete; `applyInboxDay` volá `applyHuntResult` s kopií těla.
+- **Use-case** `declareHuntInVillage` (`updateLivingVillage`: ves se dopočítá do dneška,
+  `huntDenied(state, lastDay + 1, false)` – důvod odepření jde jako `reason` a nic se neuloží; jinak
+  `reserveBeaters`, `countDeclaredHunt` a uložit). Server action `declareHunt({ villageId })`
+  (`parseDeclareHuntInput` → `declareHuntForPlayer`).
+- **UI:** `VillageManor.huntDenied` (`manor-view.ts`) = text důvodu z `huntDenied` na den honců
+  (`day + 1`), nebo null; tlačítko `manor-hunt` (ikona oštěpu) v `ManorUpgrades`, zašedlé
+  s červeným důvodem v tooltipu.
 - **Zraněný** (`isInjured` v `people.ts`; zranění šelmou trvá `PREDATOR_RISK.injuryDays` = 60 dní):
   `laborPerDay` 0, `huntPool` ho vynechá (`manor`, `away`), `trainLordDay` ho přeskočí (necvičí ani
   nezapomíná), `lordRides` ho nevyvede na objížďku.

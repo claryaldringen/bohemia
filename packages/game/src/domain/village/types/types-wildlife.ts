@@ -124,8 +124,40 @@ export interface HuntKills {
 export interface HuntState {
   /** Úlovek od 1. 5. – kusy po druzích, kg masa, dny lovu (panel dvorce). */
   year: HuntKills & { meatKg: number; days: number };
-  /** Honci na den `day`: `men` mužů celý den mimo práci vsi (hunting.md – Pravidla 2). */
+  /**
+   * Honci na den `day`: `men` mužů celý den mimo práci vsi (hunting.md – Pravidla 2) – práci dne
+   * `day` vezmou z dílu mužů na stavby (`allocateDay` – `beaters`).
+   */
   beaters?: { day: number; men: number };
+  /**
+   * Počet vyhlášených lovů vsi – pořadí vyhlášení je štítek losu zvířete (`pickQuarry`), takže
+   * druhý lov téhož dne vyžene jiné zvíře. Chybí = 0.
+   */
+  declared?: number;
+}
+
+/**
+ * Zvíře, které honci vyženou (hunting.md – Pravidla 3): jelen, laň, kanec, bachyně, vlk, medvěd.
+ * Kanec i bachyně jsou ve stavu zvěře dospělá prasata (`boar.adults`) – stav je nerozlišuje.
+ */
+export type QuarryKind = 'stag' | 'hind' | 'boar' | 'sow' | 'wolf' | 'bear';
+
+/**
+ * Výsledek lovu pro ves (hunting.md – Pravidla 5–7; `applyHuntResult`): vydá ho výprava jednou
+ * při konci lovu (událost schránky `hunt-result`), nebo lov správce v kroku dne.
+ */
+export interface HuntResult {
+  quarry: QuarryKind;
+  /** Zvíře padlo (jinak uteklo do lesa). */
+  killed: boolean;
+  /** Jména útočníků, první = kdo zvíře složil (kronika `hunt`). */
+  names: string[];
+  /** Herní hodiny výcviku po lidech (plán 2026-11-22-hunting – Rozhodnutí 7). */
+  trained: { personId: number; hours: { bow: number; combat: number; riding: number } }[];
+  /** Lovci, které zvíře (nebo šíp druhého lovce) zranilo nebo zabilo. */
+  casualties: { personId: number; outcome: 'wounded' | 'dead' }[];
+  /** Id koní, kteří v boji padli – z vsi se ztratí (`loseHorse`). */
+  horsesLost: number[];
 }
 
 /** Škody šelem na dobytku (wildlife.md – Vlci na dobytku): akumulátory celých kusů do kroniky. */

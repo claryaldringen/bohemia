@@ -156,9 +156,12 @@ export interface ManorMember extends DwellingResident {
   horse: boolean;
 }
 
-/** Proč dnes nejde vyhlásit lov (česky; hunting.md – Pravidla 2), nebo null. */
+/**
+ * Proč dnes nejde vyhlásit lov (česky; hunting.md – Pravidla 2), nebo null – důvody se posuzují
+ * na den honců, zítřek (`huntDenied(state, day + 1, …)` jako use-case).
+ */
 function huntDeniedText(state: VillageState, day: number): string | null {
-  const denied = huntDenied(state, day, false);
+  const denied = huntDenied(state, day + 1, false);
   return denied === null ? null : HUNT_DENIED_TEXT[denied];
 }
 
