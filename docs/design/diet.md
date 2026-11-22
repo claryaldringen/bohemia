@@ -212,14 +212,14 @@ v hladu), nově platí celý rok, ne jen v hladu:
      minimum je **víc než 75 %**, když by zbytek vsi se 75 % do sklizně nepřežil – je to příděl
      k přežití do žní, táž definice jako u přežívací zásoby (níž): 0,9 × (1 − rezerva ÷ dny do
      sklizně), rezerva = práh úmrtí nejcitlivějšího člověka **ve zbytku vsi** – v nejnižší vrstvě, kterou
-     minimum chrání (děti a starší 12, dospělí 20 dní hladu; dítě v rodu minimum nezvedne) − 1 den
+     minimum chrání (děti a starší 12, dospělí 20 dní hladu): práh dětí a starších, když v ní je dítě nebo starší, kdo do sklizně zestárne, nebo žena v plodném věku (dítě narozené do sklizně přibude do vrstvy a převezme její hlad); jinak práh dospělých, takže dítě v rodu minimum nezvedne – 1 den
      − nahromaděný hlad zbytku vsi (přežívací zásoba níž počítá opatrně s nejcitlivějším člověkem
      celé vsi). Nad minimem dál po vrstvách, pod ním všichni
      stejně – rod dostane víc jen z jídla, které zbytek vsi k přežití do sklizně nepotřebuje; když
      jídlo nestačí ani na to, jedí všichni stejně (cena: ve zlém roce může umírat hlady i rod).
      Mez osiva jen na setí (5 dní hladu – [pole](fields.md), Osivo pro ves bez zásob) patří jen
      přežívací zásobě. Krátký hlad je beze změny – příděl k přežití je pak pod 75 %. Příklad: samí
-     dospělí a sklizeň za 151 dní → 78,7 %, s dítětem ve zbytku vsi 83,4 % (dítě v rodu nic nezmění); sklizeň za 41 dní → 75 %.
+     muži v produktivním věku a sklizeň za 151 dní → 78,7 %, s dítětem nebo ženou v plodném věku ve zbytku vsi 83,4 % (dítě v rodu nic nezmění); sklizeň za 41 dní → 75 %.
    - Proč 75 % (Martin, 18. 11. 2026, k 90 %: „90% mi nepříjde jako nějaký velký hlad, jen jako
      drobné nepohodlí“; k 75 %: „75% je ok.“): hlad se sčítá pod 90 % (Hlad níž) a na 75 % hrozí
      smrt hlady dítěti a staršímu po ≈ 2,5 měsíce, dospělému po ≈ 4 měsících – běžné hladové jaro

@@ -191,8 +191,8 @@ minimum)` (životní minimum všem, pod ním všem stejně, zbytek po vrstvách 
   `survivalRation`) – v dlouhém hladu příděl k přežití zbytku vsi do žní, D112, Martin 22. 11.
   2026 „ano“ na uskromnění rodu; `survivalRation(práh, hlad, dny do žní)` = `STARVATION.fedFrom`
   × (1 − (práh − `SEED_STORES.marginDays` − hlad) / dny), `survivalLimit` = nejnižší
-  `STARVATION.threshold` lidí nejnižší vrstvy s potřebou (`groupOf` z `hungerSplit` – dítě v rodu
-  minimum zbytku vsi nezvedne; bez `groupOf` lidí celé vsi, tak ho volá `seedKeepKg`) a hlad té
+  `STARVATION.threshold` lidí nejnižší vrstvy s potřebou (`groupOf` z `hungerSplit`; práh dětí a starších, když v ní je dítě, starší, kdo do žní zestárne
+  (`daysToHarvest`), nebo žena v plodném věku, jinak dospělých – dítě v rodu minimum zbytku vsi nezvedne; bez `groupOf` lidí celé vsi, tak ho volá `seedKeepKg`) a hlad té
   vrstvy – táž definice jako přežívací zásoba, bez meze osiva; volá ho jídlo dne `eat` pro `tierMeal`
   i ukázaný příděl a předpověď štěstí `nextDayDiet`), `advanceGroupStarvation`
   (hlad skupin: `starvationDays` = nejnižší neprázdná skupina, `starvationGroups?` = skupiny 0–2,
