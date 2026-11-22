@@ -7,6 +7,7 @@ import {
   isEmergencyFallow,
   isSowableFertility,
   partOvergrowthYears,
+  type FallowRank,
 } from './fields';
 import { expectedFlaxKg, flaxAllowedIn, seasonHarvestYear } from './flax';
 import { EMERGENCY_GROUP, sowingBlocks, villageHoldings } from './holdings';
@@ -207,6 +208,11 @@ export interface TurnOptions {
    * žní (`seedKeepKg`): k práci přibudou i přílohy 70–95 % a nouzové přílohy 40–70 %.
    */
   shortage: boolean;
+  /**
+   * Pořadí stadia odpočatého přílohu podle toho, co vsi chybí (`fallowOrder`; fields.md – Pořadí
+   * dávek) – přílohy ≥ 95 % a 70–95 % napřed nejlevnější stadia; bez něj se podle stadia nedělí.
+   */
+  fallowRank?: FallowRank;
 }
 
 /** Díly seřazené podle id – výběr nezávisí na pořadí dílů ve stavu. */
@@ -306,7 +312,7 @@ export function turnSelection(
     return crop;
   };
   // na díl za vodou bez brodu se nedojde – neobdělává se a zaroste (`FieldPart.unreachable`)
-  const blocks = sowingBlocks(parts, holdings)
+  const blocks = sowingBlocks(parts, holdings, undefined, options.fallowRank)
     .flat()
     .filter((p) => !p.unreachable);
   const turn = blocks.filter((p) => onTurn(kind(p)));

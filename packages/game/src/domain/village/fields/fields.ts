@@ -90,13 +90,10 @@ export function overgrowthStage(years: number): OvergrowthStage {
 }
 
 /**
- * Pořadí stadia zarůstání dílu – louka 0, křoví 1, mladý les 2 (fields.md – Pořadí dávek):
- * čím zarostlejší díl, tím dražší vrácení do osevu.
+ * Pořadí stadia odpočatého přílohu do osevu (menší první, stejné = stejná cena) – podle toho, co
+ * vsi chybí (`fallowOrder` v core/fallow-order.ts; fields.md – Pořadí dávek).
  */
-export function overgrowthRank(part: Pick<FieldPart, 'overgrowthYears'>): number {
-  const stage = overgrowthStage(partOvergrowthYears(part));
-  return stage === 'meadow' ? 0 : stage === 'shrubs' ? 1 : 2;
-}
+export type FallowRank = (part: FieldPart) => number;
 
 /** Roky přílohu bez pastvy a seče (díly mimo příloh a vsi uložené dřív 0). */
 export function partOvergrowthYears(part: Pick<FieldPart, 'overgrowthYears'>): number {
@@ -253,18 +250,30 @@ export function isEmergencyFallow(p: FieldPart): boolean {
 
 /**
  * Díly, které smí ves osít, v pořadí ze spec: osetý (≥ 0,7), připravený, příloh ≥ 0,95
- * (nejmladší první), příloh ≥ 0,7 (nejúrodnější první). Díly nemění. Ves s hospodářstvími bere
- * díly po úsecích (`sowingBlocks` v holdings.ts).
+ * (nejmladší první), příloh ≥ 0,7 (nejúrodnější první); s `fallowRank` přílohy obou skupin napřed
+ * podle pořadí stadia (fields.md – Pořadí dávek). Díly nemění. Ves s hospodářstvími bere díly po
+ * úsecích (`sowingBlocks` v holdings.ts).
  */
-export function sowingOrder(parts: FieldPart[]): FieldPart[] {
+export function sowingOrder(parts: FieldPart[], fallowRank?: FallowRank): FieldPart[] {
   const since = (p: FieldPart): number => p.fallowSinceDay ?? -Infinity;
   const byDistance = (a: FieldPart, b: FieldPart): number => a.distanceM - b.distanceM;
   const inGroup = (group: SowingGroup): FieldPart[] =>
     parts.filter((p) => sowingGroup(p) === group);
+  // pořadí stadia každého přílohu jednou
+  const ranks = new Map<FieldPart, number>();
+  const rankOf = (p: FieldPart): number => {
+    if (!fallowRank) return 0;
+    let rank = ranks.get(p);
+    if (rank === undefined) ranks.set(p, (rank = fallowRank(p)));
+    return rank;
+  };
+  const byRank = (a: FieldPart, b: FieldPart): number => rankOf(a) - rankOf(b);
   const group1 = inGroup(1).sort(byDistance);
   const group2 = inGroup(2).sort(byDistance);
-  const group3 = inGroup(3).sort((a, b) => since(b) - since(a) || byDistance(a, b));
-  const group4 = inGroup(4).sort((a, b) => b.fertilityShare - a.fertilityShare || byDistance(a, b));
+  const group3 = inGroup(3).sort((a, b) => byRank(a, b) || since(b) - since(a) || byDistance(a, b));
+  const group4 = inGroup(4).sort(
+    (a, b) => byRank(a, b) || b.fertilityShare - a.fertilityShare || byDistance(a, b),
+  );
   return [...group1, ...group2, ...group3, ...group4];
 }
 

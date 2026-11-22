@@ -1,9 +1,9 @@
 import { CELL_SIZE_M, LANDSCAPE_SIZE } from '../../landscape';
 import {
   isEmergencyFallow,
-  overgrowthRank,
   sowingGroup,
   sowingOrder,
+  type FallowRank,
   type SowingGroup,
 } from './fields';
 import { gridKey, squareCenter } from '../placement/square-grid';
@@ -372,16 +372,8 @@ function blockGroup(p: FieldPart): BlockGroup | null {
   return sowingGroup(p) ?? (isEmergencyFallow(p) ? EMERGENCY_GROUP : null);
 }
 
-/** Bez dělení podle stadia zarůstání (skupiny mimo přílohy ≥ 95 % a 70–95 %). */
-const NO_STAGE = -1;
-
-/**
- * Stadia zarůstání, po kterých se dělí bloky skupiny (fields.md – Pořadí dávek): přílohy
- * ≥ 95 % a 70–95 % napřed louky, pak křoví, nakonec mladý les; ostatní skupiny nedělené.
- */
-function stagesOf(group: BlockGroup): readonly number[] {
-  return group === 3 || group === 4 ? [0, 1, 2] : [NO_STAGE];
-}
+/** Bez dělení podle stadia (skupiny mimo přílohy ≥ 95 % a 70–95 %, výběr bez `FallowRank`). */
+const NO_RANK = -1;
 
 /** Blok osevu – díly jednoho úseku ve stejné skupině přílohové soustavy, od domu ven. */
 interface SowingBlock {
@@ -391,8 +383,8 @@ interface SowingBlock {
   /** Hospodářství (id obydlí; díly bez políčka mají společné null). */
   holding: number | null;
   areaM2: number;
-  /** Stadium zarůstání bloku přílohu (skupiny 3 a 4), jinak `NO_STAGE`. */
-  stage: number;
+  /** Pořadí stadia bloku přílohu (`FallowRank`, skupiny 3 a 4), jinak `NO_RANK`. */
+  rank: number;
   /** Klíč pořadí v hospodářství (menší první). */
   key: number[];
 }
@@ -413,22 +405,24 @@ function compareKeys(a: readonly number[], b: readonly number[]): number {
  * v hospodářství:
  * - osévané díly: od úseku nejblíž domu,
  * - čerstvě založené: nejdřív bloky, před kterými v úseku neleží příloh, pak nejblíž domu,
- * - přílohy ≥ 95 %: napřed louky, pak křoví, nakonec mladý les (Martin 22. 11. 2026 – bloky se
- *   dělí podle stadia zarůstání); v každém stadiu nejdřív bez přílohu před sebou, pak úseky, které
- *   se už osévají (ves úsek dokončí), pak nejvíc odpočaté a nejblíž domu,
- * - přílohy 70–95 %: stejně napřed louky, křoví, mladý les; v stadiu nejvíc zotavené, pak bez
- *   přílohu před sebou, rozběhnuté úseky, nejblíž domu,
- * - jen s `onlyGroup` = `EMERGENCY_GROUP` přílohy 40–70 % (nouzový osev) – stejně jako 70–95 %.
+ * - přílohy ≥ 95 %: s `fallowRank` napřed stadia nejlevnější na tom, co vsi chybí (bloky se dělí
+ *   podle pořadí stadia – fields.md, Pořadí dávek); v každém nejdřív bez přílohu před sebou, pak
+ *   úseky, které se už osévají (ves úsek dokončí), pak nejvíc odpočaté a nejblíž domu,
+ * - přílohy 70–95 %: stejně po pořadí stadia; v něm nejvíc zotavené, pak bez přílohu před sebou,
+ *   rozběhnuté úseky, nejblíž domu,
+ * - jen s `onlyGroup` = `EMERGENCY_GROUP` přílohy 40–70 % (nouzový osev) – stejně jako 70–95 %
+ *   (bez dělení podle stadia).
  * Mezi hospodářstvími se bloky střídají tak, aby každé mělo vybraný stejný podíl své plochy –
- * všechna hospodářství tak obíhají stejně rychle; fronty se tvoří po skupině a stadiu, takže louky
- * všech hospodářství přijdou před křovím kteréhokoli z nich. Ves bez hospodářství (bez domů nebo jen
- * s díly bez políčka) bere díly po jednom v dřívějším pořadí `sowingOrder`. `onlyGroup` – jen
- * bloky jedné skupiny (hotové díly během roku). Díly nemění.
+ * všechna hospodářství tak obíhají stejně rychle; fronty se tvoří po skupině a pořadí stadia, takže
+ * levnější stadium všech hospodářství přijde před dražším kteréhokoli z nich. Ves bez hospodářství
+ * (bez domů nebo jen s díly bez políčka) bere díly po jednom v dřívějším pořadí `sowingOrder`
+ * (i s `fallowRank`). `onlyGroup` – jen bloky jedné skupiny (hotové díly během roku). Díly nemění.
  */
 export function sowingBlocks(
   parts: readonly FieldPart[],
   holdings: FieldHoldings,
   onlyGroup?: BlockGroup,
+  fallowRank?: FallowRank,
 ): FieldPart[][] {
   if (!holdings.active) {
     if (onlyGroup === EMERGENCY_GROUP) {
@@ -439,7 +433,7 @@ export function sowingBlocks(
         .map((p) => [p]);
     }
     const candidates = onlyGroup ? parts.filter((p) => sowingGroup(p) === onlyGroup) : [...parts];
-    return sowingOrder(candidates).map((p) => [p]);
+    return sowingOrder(candidates, fallowRank).map((p) => [p]);
   }
   // nouzový osev jen na vyžádání – běžné pořadí bere skupiny 1–4
   const groups: readonly BlockGroup[] =
@@ -462,10 +456,15 @@ export function sowingBlocks(
     for (const group of groups) {
       if (!groupOf.includes(group)) continue;
       const inGroup = list.filter((_, i) => groupOf[i] === group);
-      for (const stage of stagesOf(group)) {
-        const members =
-          stage === NO_STAGE ? inGroup : inGroup.filter((p) => overgrowthRank(p) === stage);
-        if (members.length === 0) continue;
+      // přílohy ≥ 95 % a 70–95 % po pořadí stadia (`FallowRank`) – blok jen z dílů jednoho
+      const byRank = new Map<number, FieldPart[]>();
+      for (const p of inGroup) {
+        const rank = fallowRank && (group === 3 || group === 4) ? fallowRank(p) : NO_RANK;
+        const members = byRank.get(rank);
+        if (members) members.push(p);
+        else byRank.set(rank, [p]);
+      }
+      for (const [rank, members] of byRank) {
         const first = list.indexOf(members[0]!);
         // před blokem v úseku neleží příloh – sedlák k němu nemusí přes úhor
         const clear = list.slice(0, first).every((p) => p.state !== 'fallow') ? 0 : 1;
@@ -490,19 +489,25 @@ export function sowingBlocks(
           sector,
           holding,
           areaM2: members.reduce((sum, p) => sum + p.areaM2, 0),
-          stage,
+          rank,
           key,
         });
       }
     }
   }
+  // fronty hospodářství po skupině a pořadí stadia – v každé skupině od nejmenšího pořadí
+  const passes: [BlockGroup, number][] = [];
+  for (const group of groups) {
+    const ranks = new Set(blocks.filter((b) => b.group === group).map((b) => b.rank));
+    for (const rank of [...ranks].sort((a, b) => a - b)) passes.push([group, rank]);
+  }
   const taken = new Map<number | null, number>();
   const result: FieldPart[][] = [];
-  for (const [group, stage] of groups.flatMap((g) => stagesOf(g).map((s) => [g, s] as const))) {
+  for (const [group, rank] of passes) {
     if (onlyGroup !== undefined && group !== onlyGroup) continue;
     const queues = new Map<number | null, SowingBlock[]>();
     for (const block of blocks) {
-      if (block.group !== group || block.stage !== stage) continue;
+      if (block.group !== group || block.rank !== rank) continue;
       const queue = queues.get(block.holding) ?? [];
       queue.push(block);
       queues.set(block.holding, queue);

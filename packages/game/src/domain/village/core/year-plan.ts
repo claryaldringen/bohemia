@@ -29,6 +29,7 @@ import {
 import type {
   Crop,
   CropWork,
+  FallowStage,
   FieldPart,
   FieldTask,
   TaskName,
@@ -109,6 +110,35 @@ export function partWork(
     work.sow = (work.plough / (PLOUGH_HA_PER_DAY * ploughWorkPerHa(toolCoverage))) * SOWERS.perTeam;
   }
   return work;
+}
+
+/** Práce přípravy hektaru půdy po zdrojích (člověkodny) – lidé a spřežení. */
+export interface PrepWorkPerHa {
+  people: number;
+  plough: number;
+}
+
+/**
+ * Příprava hektaru přílohu ve stadiu `stage` k setí po zdrojích, jako ji počítá `partWork` (bez
+ * příplatku za vzdálenost): s rádlem (`plough`) louka jen orbu drnu křížem (`PLOUGH_SOD_FACTOR`)
+ * a rozsévače za ní, křoví a mladý les klučení rukama, orbu a setí; motykou vrácení podle stadia
+ * (louka drn), kopání a setí – vše lidé. Ceny pro pořadí přílohů do osevu (fields.md – Pořadí
+ * dávek).
+ */
+export function fallowPrepPerHa(
+  stage: FallowStage,
+  toolCoverage: number,
+  plough: boolean,
+): PrepWorkPerHa {
+  const reclaim = reclaimCostPerHa(stage, toolCoverage);
+  if (!plough) {
+    const dig = fieldWorkPerHa('dig', toolCoverage);
+    return { people: reclaim + dig + fieldWorkPerHa('sow', toolCoverage), plough: 0 };
+  }
+  const sod = stage === 'meadow';
+  const ploughPerHa = ploughWorkPerHa(toolCoverage) * (sod ? PLOUGH_SOD_FACTOR : 1);
+  const sow = (ploughPerHa / (PLOUGH_HA_PER_DAY * ploughWorkPerHa(toolCoverage))) * SOWERS.perTeam;
+  return { people: (sod ? 0 : reclaim) + sow, plough: ploughPerHa };
 }
 
 /**

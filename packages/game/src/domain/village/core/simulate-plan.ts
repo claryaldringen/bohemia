@@ -6,7 +6,8 @@ import { nextPloughPairs } from '../livestock/draft';
 import { craftHouseholds, workshopLabor } from '../crafts/crafts';
 import { harvestHandsDay, harvestHelperLabor } from '../fields/harvest-hands';
 import { closeFieldFoodYear, storesOutlook, type StoresOutlook } from '../fields/field-food';
-import { overgrowthRank, sowingGroup } from '../fields/fields';
+import { sowingGroup, type FallowRank } from '../fields/fields';
+import { fallowOrder } from './fallow-order';
 import { taskPosition, taskSpans, unsownPartIds } from '../fields/field-progress';
 import { dropFromWork, moveParts, shrinkInPlan } from '../buildings/land-taken';
 import { ploughBandFinder } from '../livestock/plough-blocks';
@@ -122,6 +123,7 @@ import {
   seasonCrops,
   springCrop,
   type CropTask,
+  type PrepWorkPerHa,
   windowEndOf,
 } from './year-plan';
 import { partsByIdOf } from './parts-by-id';
@@ -333,11 +335,10 @@ function prepEnd(crop: Crop, day: number): number {
 }
 
 /**
- * Na čele je místo pro další díl plodiny – rozdělaná práce lidí i spřežení, která má v práci dne
- * přednost nebo stejný konec okna (`prepEnd`), je pod tím, co ves stihne. Len, luštěniny a jař
- * s oknem do listopadu tak na podzim nebrzdí ozim.
+ * Rozdělaná práce čela, která má v práci dne přednost před plodinou `crop` nebo stejný konec okna
+ * (`prepEnd`) – lidé a spřežení (člověkodny).
  */
-function frontRoom(front: Front, crop: Crop): boolean {
+function frontLoad(front: Front, crop: Crop): PrepWorkPerHa {
   const end = prepEnd(crop, front.day);
   let people = 0;
   let plough = 0;
@@ -346,21 +347,25 @@ function frontRoom(front: Front, crop: Crop): boolean {
     people += front.people[c] ?? 0;
     plough += front.plough[c] ?? 0;
   }
+  return { people, plough };
+}
+
+/**
+ * Na čele je místo pro další díl plodiny – rozdělaná práce lidí i spřežení, která má v práci dne
+ * přednost nebo stejný konec okna (`frontLoad`), je pod tím, co ves stihne. Len, luštěniny a jař
+ * s oknem do listopadu tak na podzim nebrzdí ozim.
+ */
+function frontRoom(front: Front, crop: Crop): boolean {
+  const load = frontLoad(front, crop);
   return (
-    people < front.peopleRoom - EPSILON &&
-    (front.ploughRoom <= 0 || plough < front.ploughRoom - EPSILON)
+    load.people < front.peopleRoom - EPSILON &&
+    (front.ploughRoom <= 0 || load.plough < front.ploughRoom - EPSILON)
   );
 }
 
 /** Na čele je místo u lidí – rozdělaná práce lidí jako ve `frontRoom`, spřežení se nehlídá. */
 function peopleRoom(front: Front, crop: Crop): boolean {
-  const end = prepEnd(crop, front.day);
-  let people = 0;
-  for (const c of Object.keys(front.people) as Crop[]) {
-    if (prepEnd(c, front.day) > end) continue;
-    people += front.people[c] ?? 0;
-  }
-  return people < front.peopleRoom - EPSILON;
+  return frontLoad(front, crop).people < front.peopleRoom - EPSILON;
 }
 
 /**
@@ -468,22 +473,33 @@ function seasonSelection(
   day: number,
   coverage: CraftCoverage,
 ): { waiting: SeasonJoin[] } {
-  const join = turnSelection(state, day, {
-    flaxNeedKg: state.season?.flaxNeedKg ?? 0,
-    shortage: grainShortage(state, day),
-  });
-  if (join.length === 0) return { waiting: [] };
   // jař se buď celá orá, nebo celá kope (oxen.md – Jen rádlo) – nové plodiny jako jař
   const plough = state.season
     ? springCrop(state.season).plough !== undefined
     : ableTeams(state, day) > 0;
-  const front = workFront(state, day, coverage);
+  // čelo jednou – až u prvního přílohu ve výběru, jinak po výběru
+  let current: Front | null = null;
+  const frontNow = (): Front => (current ??= workFront(state, day, coverage));
+  // odpočaté přílohy napřed nejlevnější na tom, co vsi chybí – podle volného místa na čele před
+  // přibráním pro plodinu, kterou dnes dostanou (fields.md – Pořadí dávek)
+  const fallowRank = fallowOrder(day, coverage.tools, plough, () => {
+    const front = frontNow();
+    const load = frontLoad(front, sowingCropToday('first', day) ?? 'spring');
+    return { people: front.peopleRoom - load.people, plough: front.ploughRoom - load.plough };
+  });
+  const join = turnSelection(state, day, {
+    flaxNeedKg: state.season?.flaxNeedKg ?? 0,
+    shortage: grainShortage(state, day),
+    fallowRank,
+  });
+  if (join.length === 0) return { waiting: [] };
+  const front = frontNow();
   const partsById = partsByIdOf(state.parts);
   // spřežení orá po pásech (oxen.md – Díly po dávkách): s dílem na řadě přibudou další díly jeho
   // pásu, ať dávka dne nezkrátí brázdu (návrh Clauda, 25. 10. 2026) – pás jen z dílů stejné
-  // skupiny přílohové soustavy (`joinBands`) a každý díl jen s místem na čele, ať pás nepředběhne
-  // Pořadí dávek (fields.md; návrh Clauda 19. 11. 2026 – D101)
-  const bandOf = plough ? joinBands(join, partsById) : null;
+  // skupiny přílohové soustavy a stejného pořadí stadia (`joinBands`) a každý díl jen s místem na
+  // čele, ať pás nepředběhne Pořadí dávek (fields.md; návrh Clauda 19. 11. 2026 – D101)
+  const bandOf = plough ? joinBands(join, partsById, fallowRank) : null;
   const taken: SeasonJoin[] = [];
   const waiting: SeasonJoin[] = [];
   const inTaken = new Set<number>();
@@ -549,18 +565,23 @@ function grainShortage(state: VillageState, day: number): boolean {
 /**
  * Pás každého dílu výběru (díly pásu v pořadí orby) z rozvržení orby dílů výběru téže plodiny,
  * téže skupiny přílohové soustavy (`sowingGroup`, nouzové přílohy zvlášť – `ploughLayout`)
- * a téhož stadia zarůstání (`overgrowthRank`): k připravenému dílu tak pás nepřitáhne zarostlý
- * příloh, k přílohu nouzový a k louce křoví ani mladý les (fields.md – Pořadí dávek; návrh Clauda
- * 19. 11. 2026 – D101, dřív pás z celého výběru plodiny; stadia Martin 22. 11. 2026). Líně, jen bloky
+ * a u přílohů ≥ 95 % a 70–95 % téhož pořadí stadia (`fallowRank`): k připravenému dílu tak pás
+ * nepřitáhne zarostlý příloh, k přílohu nouzový a k levnému stadiu dražší (fields.md – Pořadí
+ * dávek; návrh Clauda 19. 11. 2026 – D101, dřív pás z celého výběru plodiny). Líně, jen bloky
  * dílů, na které se volající zeptá (`ploughBandFinder`; id ve výběru jsou různá –
  * `turnSelection`). Díl bez pásu undefined.
  */
 function joinBands(
   join: readonly SeasonJoin[],
   partsById: ReadonlyMap<number, FieldPart>,
+  fallowRank: FallowRank,
 ): (j: SeasonJoin) => readonly number[] | undefined {
-  const keyOf = (j: SeasonJoin): string =>
-    `${j.crop}:${sowingGroup(partsById.get(j.id)!) ?? 'emergency'}:${overgrowthRank(partsById.get(j.id)!)}`;
+  const keyOf = (j: SeasonJoin): string => {
+    const part = partsById.get(j.id)!;
+    const group = sowingGroup(part);
+    const rank = group === 3 || group === 4 ? fallowRank(part) : '';
+    return `${j.crop}:${group ?? 'emergency'}:${rank}`;
+  };
   // díly výběru po plodině a skupině – jedním průchodem, až je potřeba
   let lists: Map<string, FieldPart[]> | null = null;
   const finders = new Map<string, (id: number) => readonly number[] | undefined>();
