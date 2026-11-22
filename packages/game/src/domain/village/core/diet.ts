@@ -400,8 +400,8 @@ interface DietPlan {
   fruitToday: number;
   /**
    * Nejvýš kolik ovoce (energie) se za den sní (diet.md – Pořadí jídla; Martin 22. 11. 2026):
-   * do 5 % potřeby energie vždy (`fruitAlways`), v hladu i jablka k přídělu (`hungerFruit`), nad
-   * to jen ovoce navíc, které nahradí obilí a luštěniny, jež ves k bílkovinám nepotřebuje
+   * do 5 % potřeby energie vždy (`fruitAlways`) a tempo proti zkažení (co by do zkažení zbylo),
+   * v hladu i jablka k přídělu (`hungerFruit`), nad to jen ovoce navíc, které nahradí obilí a luštěniny, jež ves k bílkovinám nepotřebuje
    * (`fruitSpare`). Bez potřeby bílkovin bez omezení.
    */
   fruitMost: number;
@@ -416,8 +416,8 @@ interface DietPlan {
    */
   aheadEnergy: number;
   /**
-   * Tempo proti zkažení (energie za den – návrh Clauda): ovoce ÷ dny do zkažení (nejvýš 5 % potřeby
-   * – `fruitAlways`, v hladu i s jablky k přídělu – `hungerFruit`), maso (ostatní
+   * Tempo proti zkažení (energie za den – návrh Clauda): ovoce ÷ dny do zkažení (i nad 5 % potřeby –
+   * co by zbylo, ves sní rovným dílem), maso (ostatní
    * uzené i dnešní čerstvé) ÷ dny do konce masa; `spoilPace` – i s vejci dne a nutným dílem zásoby
    * z porážky 1. 11. celkem: kolik se dnes aspoň sní, aby se vejce, ovoce a maso stihly sníst
    * rovným dílem do zkažení.
@@ -501,7 +501,12 @@ function dietPlan(
   const fruitToday = rotDays > 0 ? fruitEnergy(fruit) : 0;
   // ovoce do 5 % potřeby vždy, v hladu i jablka k přídělu, nad to jen navíc podle bílkovin
   // (diet.md – Pořadí jídla)
-  const fruitPaceMost = fruitAlways(input) + Math.max(0, hungerFruit);
+  // jablka, která by do dne zkažení zbyla, ves sní rovným dílem do zkažení i nad 5 % (tempo proti
+  // zkažení – Martin 22. 11. 2026: „Pokud shnijí ta, co lidé nasbírali (utratili za ně práci) je
+  // to špatně“; návrh Clauda: ves bez nádob po úmrtí nebo odchodu), pravidlo bílkovin platí až nad
+  // toto tempo
+  const rotPace = rotDays > 0 ? fruitToday / rotDays : 0;
+  const fruitPaceMost = Math.max(fruitAlways(input), rotPace) + Math.max(0, hungerFruit);
   const fruitMost = fruitPaceMost + Math.max(0, fruitExtra);
   const fruitAhead = Math.min(fruitToday, Math.min(need, fruitMost) * Math.min(days, rotDays));
   // díl zásoby z porážky 1. 11. – rovným dílem do konce masa, v hladu do sklizně, je-li dřív
@@ -529,7 +534,7 @@ function dietPlan(
     legumeEnergy(legumes + Math.max(0, input.sheavesLegumesKg ?? 0));
   // vejce dnes, ovoce do zkažení (nejvýš 5 % potřeby, v hladu i s jablky k přídělu), maso
   // (ostatní uzené i čerstvé) do konce masa rovným dílem
-  const fruitPace = rotDays > 0 ? Math.min(fruitToday / rotDays, fruitPaceMost) : 0;
+  const fruitPace = Math.min(rotPace, fruitPaceMost);
   const meatPace = meatEnergy(meat + fresh) / meatDays;
   // ze zásoby z porážky 1. 11. dnes napřed, co by se jinak zkazilo – co nad plnou potřebu za
   // zbývající dny do konce masa přebývá (poslední den celý zbytek), nejvýš plná potřeba

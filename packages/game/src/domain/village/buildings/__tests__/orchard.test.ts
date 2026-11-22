@@ -55,7 +55,7 @@ import { summarizeVillage } from '../../core/summary';
 import type { ChronicleEvent, Orchard, Position, TileCell, VillageState } from '../../types';
 import { block, makeLandscape } from '../../__tests__/placement-fixtures';
 import { withBuiltFirstDwelling } from '../../__tests__/village-fixtures';
-import { seasonCrop } from '../../core/year-plan';
+import { seasonCrop, springCrop } from '../../core/year-plan';
 import { fruitEatenUntilRotKg, fruitTargetKg } from '../fruit-target';
 import { DIET, villageFoodNeed } from '../../core/diet';
 import { yearlyFoodNeed } from '../../fields/field-food';
@@ -549,10 +549,24 @@ describe('advanceVillage – sad', () => {
     s.sheaves = { grainKg: 0, legumesKg: 0 };
     // sklizeň jen podle cíle ovoce (D115; ve vsi bez přebytku bílkovin 5 % energie – kolo 1) –
     // první den se sklidí celá, i před ozimem; příprava půdy dostane, co zbude
+    // hosté (děti uprchlíků – nepracují, jí) zvednou cíl, aby sklizeň vzala celý den práce
+    s.guests = Array.from({ length: 3000 }, (_, i) => ({
+      ref: { villageId: 'pan', personId: i + 1 },
+      kind: 'refuge' as const,
+      untilDay: at(602, 6, 1),
+      adult: true as const,
+      bornDay: at(601, 9, 1) - 3 * 365,
+    }));
     const day = advanceVillage(s, at(601, 9, 1), null);
-    expect(day.orchardWork!.required).toBeGreaterThan(0);
-    expect(day.orchardWork!.done).toBeCloseTo(day.orchardWork!.required, 9);
+    // sklizeň vzala celý den práce (nedokončená) a pole nedostalo nic
+    expect(day.orchardWork!.required).toBeGreaterThan(day.orchardWork!.done);
+    // i před ozimem – jablka se sklízejí první, ozim dostane zbytek podzimu
+    expect(day.orchardWork!.done).toBeGreaterThan(1);
     expect(seasonCrop(day.season, 'winter')).toBeDefined();
+    for (const work of [day.season && springCrop(day.season), seasonCrop(day.season, 'winter')]) {
+      expect(work?.done.dig ?? 0).toBe(0);
+      expect(work?.done.reclaim ?? 0).toBe(0);
+    }
   });
 
   it('hlad hlásí hned, když obilí po zkažení jablek (1. 3.) nevystačí – ne až 1. 3.', () => {
@@ -562,9 +576,9 @@ describe('advanceVillage – sad', () => {
     s.hungry = false;
     const next = advanceVillage(s, at(601, 10, 2), null);
     const summary = summarizeVillage(next, next.lastDay);
-    // jablka nad 5 % energie, se kterými výhled nepočítá, se jí k hladovému přídělu navíc – dnes
-    // dosyta, obilí ani bílkoviny neubudou (diet.md – Pořadí jídla; D115 kolo 1); obilí po zkažení
-    // jablek ale do sklizně nevystačí, výhled je pod plným přídělem
+    // v hladu jsou jablka nad 5 % energie jídlo k přídělu a výhled s nimi počítá (`hungerFruit`;
+    // diet.md – Pořadí jídla; D115 kolo 2) – dnes dosyta, obilí ani bílkoviny neubudou; obilí po
+    // zkažení jablek ale do sklizně nevystačí, výhled je pod plným přídělem
     expect(next.diet!.shares.fruit).toBeGreaterThan(0.8);
     expect(next.diet!.energy).toBeCloseTo(1, 9);
     expect(next.hungry).toBe(true);
@@ -877,19 +891,18 @@ describe('cíl ovoce a sklizeň jen toho, co se sní (D115 – Martin 22. 11. 20
     expect(fruitTargetKg(herds, day)).toBeCloseTo(five(181), 6);
   });
 
-  it('strop sklizně počítá snědení do zkažení bez nádob (D115 kolo 3)', () => {
-    // Martin 22. 11. 2026: „Pokud shnijí ta, co lidé nasbírali (utratili za ně práci) je to špatně“
-    // – nádoby ubývají a lidé umírají, jablka pak shnijí dřív než 1. 5.
-    const day = at(602, 9, 1);
-    const s = settledVillage(day);
-    delete s.livestock;
-    // 1. 9. 602 → 1. 3. 603: 181 dní (s nádobami do 1. 5. by jich bylo 242)
-    const need = yearlyFoodNeed(s, day);
-    expect(fruitTargetKg(s, day)).toBeCloseTo(
-      (need * DIET.fruitShare * 181) / 365 / APPLE_FOOD_VALUE,
-      6,
-    );
-    expect(fruitEatenUntilRotKg(s, day)).toBeCloseTo(fruitTargetKg(s, day), 6);
+  it('strop sklizně počítá snědení do zkažení bez nádob i ve vsi, která nádoby má (D115 kolo 3)', () => {
+    // ves s plným pokrytím nádobami (jablka vydrží do 1. 5.) sklidí jen, co sní do 1. 3. – cíl
+    // nádoby nevidí; březen a duben jsou rezerva na úmrtí a ubývání nádob (návrh Clauda)
+    const s = withOrchard(settledVillage(at(602, 8, 31)), 400, at(570, 4, 1));
+    s.crafts = { charcoalKg: 0, potteryKg: 10_000 };
+    const sept = advanceVillage(s, at(602, 9, 1), null);
+    // 181 dní 5 % potřeby (1. 9. → 1. 3.), ne 242 dní s nádobami – s nádobami by vyšla o třetinu víc
+    let need = 0;
+    for (let d = sept.lastDay; d < sept.lastDay + 181; d++) need += villageFoodNeed(sept, d);
+    const expected = (DIET.fruitShare * need) / APPLE_FOOD_VALUE;
+    expect(sept.orchardWork!.yieldKg).toBeLessThanOrEqual(1.01 * expected);
+    expect(sept.orchardWork!.yieldKg).toBeGreaterThan(0.95 * expected);
   });
 
   it('cíl počítá potřebu každého dne – kdo během sezóny dospěje, od toho dne jí víc (D115 kolo 2)', () => {
@@ -965,6 +978,30 @@ describe('cíl ovoce a sklizeň jen toho, co se sní (D115 – Martin 22. 11. 20
     none.applesKg = 700;
     orchardSeasonDay(none, day, 0, () => 600);
     expect(none.orchardWork ?? null).toBeNull();
+  });
+
+  it('ves bez nádob: po úmrtí dospělého 1. 10. nasbíraná jablka do 1. 3. neshnijí (D115 kolo 4)', () => {
+    // Martin 22. 11. 2026: „Pokud shnijí ta, co lidé nasbírali (utratili za ně práci) je to špatně“
+    // – úmrtí po sklizni ubere z jedlíků, jablka nad 5 % potřeby ves sní rovným dílem do zkažení
+    // (tempo proti zkažení; návrh Clauda)
+    const s = withOrchard(settledVillage(at(602, 8, 31)), 400, at(570, 4, 1));
+    expect(s.people.length).toBeGreaterThan(2);
+    // sytá ves bez stád (bílkovin není nazbyt) – jablka jí jen do 5 % potřeby, bez tempa proti zkažení by zbytek shnil
+    s.storesKg = 20_000;
+    delete s.livestock;
+    s.meatKg = 0;
+    s.sheaves = { grainKg: 0, legumesKg: 0 };
+    const harvested = advanceVillage(s, at(602, 10, 1), null);
+    const apples = harvested.applesKg ?? 0;
+    expect(apples).toBeGreaterThan(50);
+    // úmrtí dospělého – jablka, která měl sníst, zbývají ostatním
+    const adult = harvested.people.findIndex((p) => p.bornDay < at(602, 10, 1) - 20 * 366);
+    expect(adult).toBeGreaterThanOrEqual(0);
+    harvested.people.splice(adult, 1);
+    const feb = advanceVillage(harvested, at(603, 2, 28), null);
+    const end = advanceVillage(feb, at(603, 3, 2), null);
+    expect(feb.applesKg ?? 0).toBeLessThan(1);
+    expect(end.applesKg ?? 0).toBe(0);
   });
 
   it('velký sad v malé vsi: sklizeň jen podle cíle, nasbíraná jablka do 1. 3. nehnijí', () => {
