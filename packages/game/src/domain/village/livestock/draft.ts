@@ -1,6 +1,7 @@
 import { CART_KINDS, cartLoadRatio, villageCarts } from '../crafts/carts';
 import { HAY, HAY_WINTER_DAYS } from './hay';
 import { oxPens, oxPlaces, villageOxen } from './oxen';
+import { laborPerDay } from '../people/people';
 import {
   CARPENTRY,
   CARTS,
@@ -21,20 +22,20 @@ import type {
 // Kolik volů a vozů ves chce (oxen.md – Kolik volů ves chce, wagons.md – Kolik vozů ves chce;
 // Martin 20. 10. 2026: „Vesnice určitě potřebuje více vozů. Ať to funguje jako se stády - ohrada
 // pro voly udrží určitý počet spřežení a když bude vesnice potřebovat víc vozů, ohrada se musí
-// zvětšit.“). Páry k rádlům podle dílů na řadě (1. 9.), vozy podle loňského provozu (rok vozů od
-// 1. 11.): další vůz se vyplatí, když loni ušetřil (nebo by ušetřil) víc práce, než stojí – práce
-// tesaře na 10 let života vozu a seno pro voly, které by ves kvůli němu držela navíc. Voli se sdílí
-// – orba (podzim a jaro) a svoz (léto) se nepřekrývají, takže ves chce nejvyšší současnou potřebu:
-// páry k rádlům, nebo voly všech vozů naráz, ne součet. Strop je místo v ohradách volů.
+// zvětšit.“). Páry k rádlům podle lidí, kteří je obslouží (1. 9.), vozy podle loňského provozu (rok
+// vozů od 1. 11.): další vůz se vyplatí, když loni ušetřil (nebo by ušetřil) víc práce, než stojí –
+// práce tesaře na 10 let života vozu a seno pro voly, které by ves kvůli němu držela navíc. Voli se
+// sdílí – orba (podzim a jaro) a svoz (léto) se nepřekrývají, takže ves chce nejvyšší současnou
+// potřebu: páry k rádlům, nebo voly všech vozů naráz, ne součet. Strop je místo v ohradách volů.
 
 /** Tolerance proti chybám desetinných čísel. */
 const EPSILON = 1e-9;
 const DAYS_PER_YEAR = 365.25;
 
 /**
- * Páry k rádlům, které ves chce (k 1. 9. – `DraftState.ploughPairs`): tolik, aby voli zorali
- * všechny díly na řadě v oknech orby. Bez údaje (ves uložená dřív, nová ohrada) pár na každou
- * ohradu volů – jako dřív spřežení na ohradu. Bez ohrady volů 0.
+ * Páry k rádlům, které ves chce (k 1. 9. – `DraftState.ploughPairs`): tolik, kolik jich ves obslouží
+ * lidmi (`staffedPloughPairs`). Bez údaje (ves uložená dřív, nová ohrada) pár na každou ohradu
+ * volů – jako dřív spřežení na ohradu. Bez ohrady volů 0.
  */
 export function wantedPloughPairs(state: Pick<VillageState, 'pens' | 'draft'>): number {
   const pens = oxPens(state).length;
@@ -43,10 +44,24 @@ export function wantedPloughPairs(state: Pick<VillageState, 'pens' | 'draft'>): 
 }
 
 /**
- * Páry k rádlům (oxen.md – Kolik volů ves chce): `need` = kolik párů by letos stačilo zorat všechny
- * díly na řadě (`ploughPairsForRotation`). Když orba na ně nestačí (`need` nad páry, které ves má), ves páry **zvýší hned**
- * (Martin 27. 10. 2026 k doplňování párů a rádel: „Nejen že smí, ale dokonce by měla“) – volné
- * páry osadí rádly a další vycvičí. Sníží je s hysterezí (návrh Clauda 20. 10. 2026): jen když
+ * Páry k rádlům podle lidí (oxen.md – Kolik volů ves chce; Martin 22. 11. 2026 „ano“ na otázku „Má
+ * ves chtít tolik párů volů, kolik zvládne obsloužit lidmi?“): tolik párů, kolik ves s lidmi, co
+ * má v den `day` v práci (`laborPerDay` – dospělí, ne zranění ani pryč), obslouží – oráč na pár
+ * a setí za zoranou částí (`OXEN.crewPerPair`); nejméně 1, nejvýš `OXEN.maxPairs`. Díly na řadě
+ * nerozhodují (dřív nejméně párů, které je zorají – návrh Clauda 25. 10. 2026): s víc páry orba
+ * spřežení stačí na víc polí a správce podle ní pole založí (steward.md – Model kapacity vsi).
+ */
+export function staffedPloughPairs(state: Pick<VillageState, 'people'>, day: number): number {
+  const crew = state.people.reduce((sum, p) => sum + laborPerDay(p, day), 0);
+  const staffed = Math.max(1, Math.floor(crew / OXEN.crewPerPair + EPSILON));
+  return Math.min(OXEN.maxPairs, staffed);
+}
+
+/**
+ * Páry k rádlům (oxen.md – Kolik volů ves chce): `need` = kolik párů ves letos obslouží lidmi
+ * (`staffedPloughPairs`). Když ves obslouží víc párů, než chtěla, páry **zvýší hned** (Martin
+ * 27. 10. 2026 k doplňování párů a rádel: „Nejen že smí, ale dokonce by měla“) – volné páry
+ * osadí rádly a další vycvičí. Sníží je s hysterezí (návrh Clauda 20. 10. 2026): jen když
  * potřeba leží dva roky po sobě níž – na větší z obou potřeb; jeden slabší rok tak nezastaví
  * náhradu páru, který ves potřebuje (výcvik trvá 2 roky, pár slouží 10). Bez loňského údaje se
  * loňská potřeba bere jako dnešní páry (pár na ohradu volů).

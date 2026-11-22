@@ -418,11 +418,15 @@ export interface CartYear {
 /** Kolik volů a vozů ves chce (oxen.md – Kolik volů ves chce, wagons.md – Kolik vozů ves chce). */
 export interface DraftState {
   /**
-   * Páry k rádlům, které ves drží (k 1. 9. podle dílů na řadě, s hysterezí – `nextPloughPairs`): mění se,
-   * jen když potřeba dva roky po sobě leží nad nebo pod nimi.
+   * Páry k rádlům, které ves drží (k 1. 9. podle lidí, kteří je obslouží – `staffedPloughPairs`,
+   * s hysterezí – `nextPloughPairs`): nahoru hned, dolů, jen když potřeba dva roky po sobě leží
+   * pod nimi.
    */
   ploughPairs?: number;
-  /** Kolik párů by loni stačilo zorat všechny díly na řadě (potřeba k 1. 9. – pro hysterezi). */
+  /**
+   * Kolik párů ves loni obsloužila lidmi (potřeba k 1. 9. – pro hysterezi; uložené před 22. 11. 2026
+   * nejméně párů, které zorají díly na řadě – do příštího 1. 9.).
+   */
   ploughNeed?: number;
   /** Rok vozů, který běží (od 1. 11.). */
   demand?: CartDemand;

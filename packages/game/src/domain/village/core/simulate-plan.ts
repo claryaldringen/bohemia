@@ -2,7 +2,7 @@
 import { dateOfDayIndex, type CalendarDate } from '../../calendar';
 import { springSowingExtended } from '../disasters/weather-effects';
 import type { Landscape } from '../../landscape';
-import { nextPloughPairs } from '../livestock/draft';
+import { nextPloughPairs, staffedPloughPairs } from '../livestock/draft';
 import { craftHouseholds, workshopLabor } from '../crafts/crafts';
 import { harvestHandsDay, harvestHelperLabor } from '../fields/harvest-hands';
 import { closeFieldFoodYear, storesOutlook, type StoresOutlook } from '../fields/field-food';
@@ -11,20 +11,14 @@ import { fallowOrder } from './fallow-order';
 import { taskPosition, taskSpans, unsownPartIds } from '../fields/field-progress';
 import { dropFromWork, moveParts, shrinkInPlan } from '../buildings/land-taken';
 import { ploughBandFinder } from '../livestock/plough-blocks';
-import {
-  plannedFurrowEfficiency,
-  relayUntouchedBands,
-  sowingFurrowEfficiency,
-} from '../livestock/plough-trip';
+import { relayUntouchedBands, sowingFurrowEfficiency } from '../livestock/plough-trip';
 import { villageLaborFactor } from '../people/happiness';
 import { familyHomes, lordApartIds, manorLabor, trainingFamily } from '../people/lord';
 import { villageHoldings, workOrder } from '../fields/holdings';
 import { flaxNeedKg } from '../fields/flax';
-import { ableTeams, oxPens, pairCapacityPerDay, ploughCapacityPerDay } from '../livestock/oxen';
+import { ableTeams, oxPens, ploughCapacityPerDay } from '../livestock/oxen';
 import {
   clearedLogs,
-  nextSowing,
-  onTurn,
   returnPart,
   rotateAfterSeason,
   sowingCropToday,
@@ -59,7 +53,6 @@ import { laborPerDay } from '../people/people';
 import { dailyMinPerHousehold, woodToolsLaborFactor } from './productivity';
 import {
   FOREST_BONUS,
-  OXEN,
   PEAK_CAPACITY_SHARE,
   PLANNING_DAY,
   WINDOWS,
@@ -156,12 +149,7 @@ export function isOn(date: CalendarDate, target: DayOfYear): boolean {
  * (fields.md – Osevní postup po dílech): každý díl se posune v postupu (`rotateAfterSeason`),
  * letošní práce přibývá den po dni (`seasonDay`). Ves bez plánu – nic dopředu nevybírá.
  */
-export function startSeason(
-  state: VillageState,
-  day: number,
-  coverage: CraftCoverage,
-  landscape: Landscape | null,
-): void {
+export function startSeason(state: VillageState, day: number, coverage: CraftCoverage): void {
   // kolik jídla ves za uplynulý rok potřebovala z pole – podle toho potřeba z pole ve výhledu
   // zásob k sklizni (fields.md – Výhled zásob k sklizni, Osev podle stravy)
   closeFieldFoodYear(state);
@@ -177,10 +165,11 @@ export function startSeason(
   // len do potřeby na oděv k 1. 9. – podle ní ves vybírá díly lnu a při trhání zapíše, na kolik
   // oděvu len je (fields.md – Len)
   state.season.flaxNeedKg = flaxNeedKg(state, day);
-  // páry k rádlům, které ves chce (oxen.md – Kolik volů ves chce) – podle nich cvičí voly; nahoru
-  // hned, dolů po dvou plánech (`nextPloughPairs`); z celého pořadí dílů na řadě po postupu
+  // páry k rádlům, které ves chce (oxen.md – Kolik volů ves chce) – podle nich cvičí voly; tolik,
+  // kolik jich ves obslouží lidmi (Martin 22. 11. 2026); nahoru hned, dolů po dvou plánech
+  // (`nextPloughPairs`)
   if (oxPens(state).length > 0) {
-    const need = ploughPairsForRotation(state, day, coverage.tools, landscape);
+    const need = staffedPloughPairs(state, day);
     state.draft = {
       ...(state.draft ?? { fourWheelOffRoad: true }),
       ...nextPloughPairs(state, need),
@@ -1172,53 +1161,6 @@ export function sowingCapacity(
   };
   const ploughCap = ploughOf();
   return ploughCap ? { ...people, plough: ploughCap } : people;
-}
-
-/**
- * Páry k rádlům, které ves chce (oxen.md – Kolik volů ves chce; fields.md – Osevní postup po dílech,
- * Páry k rádlům): nejméně párů (nejvýš OXEN.maxPairs), které v oknech orby zorají všechny díly na
- * řadě v hospodářském roce od `day` (1. 9. po postupu dílů) – celé pořadí, ves chce zorat
- * všechno (návrh Clauda). První osev oběhu (odpočatý příloh, nový díl) se orá v podzimním okně
- * ozimu, díl v osevu kdykoli v oknech orby za rok – na podzim pod ozim nebo jař, na jaře pod jař
- * (fields.md – Přílohová soustava do roku 1100; návrh Clauda – páry jako za pevného sledu); výkon
- * páru `ploughCapacityPerDay` podle délky brázd dílů (`plannedFurrowEfficiency`); nejvýš tolik párů, kolik ves obslouží lidmi (`OXEN.crewPerPair`).
- * Přílohy 70–95 % (až po dílech na řadě) a nouzové (jen při nedostatku) nepočítá.
- */
-export function ploughPairsForRotation(
-  state: VillageState,
-  day: number,
-  toolCoverage: number,
-  landscape: Landscape | null,
-): number {
-  const autumn: FieldPart[] = [];
-  const anytime: FieldPart[] = [];
-  for (const part of state.parts) {
-    const kind = nextSowing(part);
-    if (!onTurn(kind)) continue;
-    (kind === 'again' ? anytime : autumn).push(part);
-  }
-  if (autumn.length + anytime.length === 0) return 1;
-  const load = (parts: readonly FieldPart[], crop: Crop): number =>
-    parts.reduce((sum, p) => sum + partWork(p, day, toolCoverage, true, crop).plough, 0);
-  const autumnLoad = load(autumn, 'winter');
-  const allLoad = autumnLoad + load(anytime, 'spring');
-  const perPair =
-    pairCapacityPerDay(toolCoverage) *
-    plannedFurrowEfficiency([...autumn, ...anytime], state, landscape);
-  // páry, které ves s lidmi, co má, obslouží: oráč na pár a setí za ním (`OXEN.crewPerPair`)
-  const crew = state.people.reduce((sum, p) => sum + laborPerDay(p, day), 0);
-  const staffed = Math.max(1, Math.floor(crew / OXEN.crewPerPair + EPSILON));
-  const cap = Math.min(OXEN.maxPairs, staffed);
-  if (perPair <= 0) return cap;
-  // dny oken orby do konce hospodářského roku – ozim jen na podzim, jař na podzim i na jaře
-  // světlé dny oken (voli orají za světla – population.md, Skladba dne podle ročního období)
-  const days = (crop: Crop): number =>
-    Math.max(1, windowDaylightWithout(day, cropTaskWindows(crop, 'plough'), SOW_AFTER_DIG_DAYS));
-  const pairs = Math.max(
-    autumnLoad / (perPair * days('winter')),
-    allLoad / (perPair * days('spring')),
-  );
-  return Math.min(cap, Math.max(1, Math.ceil(pairs - EPSILON)));
 }
 
 /** Zbývající sklizeň jablek (září–říjen) – kapacita práce v oknech s ní počítá (orchard.md). */

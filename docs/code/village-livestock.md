@@ -351,14 +351,12 @@ oxen)` – jen ve vsi bez výrostků (`youngsterCount` 0), potřeba nejvýš `HE
   (`oxenTrainingTarget`, páry, telata jen nad `breedingCows` – `calvesForTraining`, veřejně
   `trainableCalves` pro seno; krávy navíc na telata
   `oxenCalvesWanted` v `minCows`), převod starých vsí `withOxen` (spřežení = 2 voli, výcvik = 2 telata – čtení
-  přes `oxenOf` funguje i bez převodu). `draft.ts`: páry k rádlům k 1. 9. (potřeba `DraftState.ploughNeed` – nejméně
-  párů, které v oknech orby zorají všechny díly na řadě po postupu,
-  `ploughPairsForRotation` v `simulate-plan.ts`: ozim v podzimním okně, jař na podzim a na jaře,
-  výkon páru `pairCapacityPerDay` × `plannedFurrowEfficiency`; páry `ploughPairs` –
-  `nextPloughPairs` je zvýší hned na potřebu, když orba nestačí (Martin 27. 10. 2026), sníží
-  jen po dvou plánech níž; **pod pojistkou zásob** (`bufferFill` < 1 k 1. 9. – oxen.md, Kolik
-  volů ves chce, Pod pojistkou) `startSeason` předá `ploughPairsForRotation` i výběr nutných dílů
-  (nouzové přílohy mimo postup)), rok vozů
+  přes `oxenOf` funguje i bez převodu). `draft.ts`: páry k rádlům k 1. 9. (potřeba `DraftState.ploughNeed` – kolik párů
+  ves obslouží lidmi, `staffedPloughPairs` – dospělí v práci dne (`laborPerDay`) ÷
+  `OXEN.crewPerPair`, nejméně 1, nejvýš `OXEN.maxPairs`; díly na řadě nerozhodují – D114, Martin 22. 11. 2026, oxen.md – Kolik volů ves chce, Páry k rádlům podle lidí; dřív nejméně párů na díly
+  na řadě – history/oxen-history.md; volá `startSeason` v `simulate-plan.ts`; páry `ploughPairs` –
+  `nextPloughPairs` je zvýší hned na potřebu (Martin 27. 10. 2026), sníží jen po dvou plánech
+  níž), rok vozů
   (`DraftState.demand.days` – každý den `CartDemandDay`: dnešní nošení podél pevných cest
   a jinam, úspory jízd dvoukoláku pro uhlí, rudu, hlínu a vodu, den orby; čtyřkoláky výprav
   `'four-wheel'`; `addCartDemand`, `addExpeditionDemand`; 1. 11. `closeCartYear` → `lastYear`

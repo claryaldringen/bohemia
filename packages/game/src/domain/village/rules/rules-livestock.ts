@@ -170,8 +170,8 @@ export const HORSE_SHOEING = {
  * „Dejme možnost 1.“ – podrobnosti návrh Clauda): voli jsou býčci – polovina telat, ≈ 0,2 býčka na
  * kus stáda skotu a rok (LIVESTOCK.growth.cow 0,4 × polovina); vůl slouží 10 let, takže obměna
  * desetiny volů ročně chce 0,1 ÷ 0,2 = 0,5 krávy na vola (dřív 0,25 – počítalo se se všemi telaty);
- * krávy na voly se ke kravám na mléko přičítají. Nejvýš `maxPairs` párů k rádlům (pojistka hledání
- * párů k rádlům – `ploughPairsForRotation`).
+ * krávy na voly se ke kravám na mléko přičítají. Nejvýš `maxPairs` párů k rádlům, i když ves
+ * obslouží víc (`staffedPloughPairs`; dřív pojistka hledání párů k dílům na řadě).
  */
 export const OXEN = {
   trainingYears: 2,
@@ -184,8 +184,8 @@ export const OXEN = {
   // volů v zimním krmení – diet.md, Zima bez sena: `oxenRenewalCows`)
   bullCalfShare: 0.5,
   // lidí (dospělých na plný úvazek) na jeden pár v oknech orby: oráč + setí za zoranou částí
-  // (0,3 ha za den × 10 člověkodnů na hektar setí ≈ 3) – víc párů, než ves s lidmi obslouží,
-  // nechce (oxen.md – Páry k rádlům; návrh Clauda)
+  // (0,3 ha za den × 10 člověkodnů na hektar setí ≈ 3; návrh Clauda) – ves chce tolik párů, kolik
+  // s lidmi obslouží (oxen.md – Kolik volů ves chce; Martin 22. 11. 2026, `staffedPloughPairs`)
   crewPerPair: 4,
 } as const;
 /**

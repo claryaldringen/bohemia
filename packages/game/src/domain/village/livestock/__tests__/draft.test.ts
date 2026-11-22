@@ -21,7 +21,7 @@ import { advanceVillage } from '../../core/simulate';
 import { summarizeVillage } from '../../core/summary';
 import { fourWheelSavings } from '../../trade/trade';
 import { HAY, HAY_WINTER_DAYS } from '../hay';
-import { OXEN } from '../../rules';
+import { DRAFT_OXEN, OXEN } from '../../rules';
 import type { CartYear, FieldPart, Pen, VillageState } from '../../types';
 import { withBuiltFirstDwelling, withRoomyPens } from '../../__tests__/village-fixtures';
 
@@ -196,21 +196,17 @@ describe('krávy na obměnu volů (diet.md)', () => {
   });
 });
 
-describe('páry k rádlům podle dílů na řadě (1. 9.)', () => {
-  it('malá ves chce jeden pár; ves, která osévá víc, než pár zorá, víc párů', () => {
-    const small = withOxPen(village());
-    small.fields = [{ id: 1 }];
-    small.parts = Array.from({ length: 4 }, (_, i) => part(i + 1, { cell: { x: i, y: 0 } }));
-    const planned = advanceVillage(small, at(600, 9, 2), null);
-    expect(planned.draft?.ploughPairs).toBe(1);
+describe('páry k rádlům podle lidí (1. 9.)', () => {
+  // oxen.md – Kolik volů ves chce (Martin 22. 11. 2026 „ano“ na otázku „Má ves chtít tolik párů
+  // volů, kolik zvládne obsloužit lidmi?“): pár obslouží OXEN.crewPerPair dospělých
 
-    const big = withOxPen(village());
-    big.people = Array.from({ length: 80 }, (_, i) => person(10 + i, 20 + (i % 20), 1, DAY));
-    // zásoby nad pojistkou
-    big.storesKg = 1e6;
-    big.fields = [{ id: 1 }];
-    // přílohy ve fázi louky s drnem – orba 2,5× déle
-    big.parts = Array.from({ length: 60 }, (_, i) =>
+  /** Malé pole – čtyři díly, které zorá jeden pár. */
+  const smallParts = (): FieldPart[] =>
+    Array.from({ length: 4 }, (_, i) => part(i + 1, { cell: { x: i, y: 0 } }));
+
+  /** Velké pole – přílohy ve fázi louky s drnem (orba 2,5× déle) na víc párů. */
+  const bigParts = (): FieldPart[] =>
+    Array.from({ length: 60 }, (_, i) =>
       part(i + 1, {
         cell: { x: i % 10, y: Math.floor(i / 10) },
         state: 'fallow',
@@ -218,14 +214,62 @@ describe('páry k rádlům podle dílů na řadě (1. 9.)', () => {
         fallowSinceDay: at(594, 9, 1),
       }),
     );
+
+  it('ves s lidmi na víc párů, než potřebují díly na řadě, chce páry podle lidí', () => {
+    // 13 dospělých a dítě – 3 páry, i když čtyři malé díly zorá jeden pár
+    const s = withOxPen(village());
+    s.people = [
+      ...Array.from({ length: 13 }, (_, i) => person(10 + i, 20 + i, 1, DAY)),
+      person(30, 5, 1, DAY),
+    ];
+    s.fields = [{ id: 1 }];
+    s.parts = smallParts();
+    const planned = advanceVillage(s, at(600, 9, 2), null);
+    expect(Math.floor(13 / OXEN.crewPerPair)).toBe(3);
+    expect(planned.draft).toMatchObject({ ploughPairs: 3, ploughNeed: 3 });
+    // na páry ves chce voly (a krávy na jejich obměnu)
+    expect(wantedOxen(planned)).toBe(3 * DRAFT_OXEN.ard);
+
+    // velká ves (80 dospělých) chce nejvíc párů (OXEN.maxPairs) i s malým polem
+    const big = withOxPen(village());
+    big.people = Array.from({ length: 80 }, (_, i) => person(10 + i, 20 + (i % 20), 1, DAY));
+    big.fields = [{ id: 1 }];
+    big.parts = smallParts();
     const plannedBig = advanceVillage(big, at(600, 9, 2), null);
-    // potřeba víc párů – orba nestačí, ves páry zvýší hned (Martin 27. 10. 2026)
-    expect(plannedBig.draft!.ploughNeed).toBeGreaterThan(1);
-    expect(plannedBig.draft!.ploughPairs).toBe(plannedBig.draft!.ploughNeed);
-    // pod pojistkou zásob ves páry zvýší hned (oxen.md – Kolik volů ves chce, Pod pojistkou)
-    const hungry = advanceVillage({ ...big, storesKg: 0 }, at(600, 9, 2), null);
-    expect(hungry.draft!.ploughPairs).toBe(hungry.draft!.ploughNeed);
-    expect(hungry.draft!.ploughPairs).toBeGreaterThan(1);
+    expect(plannedBig.draft).toMatchObject({
+      ploughPairs: OXEN.maxPairs,
+      ploughNeed: OXEN.maxPairs,
+    });
+  });
+
+  it('ves s málo lidmi chce jako dřív – tolik párů, kolik obslouží, aspoň jeden', () => {
+    // 4 dospělí a dítě: jeden pár, i když velké pole by zoralo víc párů
+    const s = withOxPen(village());
+    s.fields = [{ id: 1 }];
+    s.parts = bigParts();
+    const planned = advanceVillage(s, at(600, 9, 2), null);
+    expect(planned.draft).toMatchObject({ ploughPairs: 1, ploughNeed: 1 });
+    expect(wantedOxen(planned)).toBe(DRAFT_OXEN.ard);
+
+    // dva dospělí – pořád jeden pár (nejméně 1)
+    const few = withOxPen(village());
+    few.people = few.people.slice(0, 2);
+    few.fields = [{ id: 1 }];
+    few.parts = bigParts();
+    expect(advanceVillage(few, at(600, 9, 2), null).draft).toMatchObject({
+      ploughPairs: 1,
+      ploughNeed: 1,
+    });
+
+    // 9 dospělých, z nich 2 zranění na lovu – 7 v práci obslouží jeden pár, ne dva
+    const hurt = withOxPen(village());
+    hurt.people = Array.from({ length: 9 }, (_, i) => ({
+      ...person(10 + i, 25 + i, 1, DAY),
+      ...(i < 2 ? { injuredUntilDay: at(600, 10, 1) } : {}),
+    }));
+    hurt.fields = [{ id: 1 }];
+    hurt.parts = bigParts();
+    expect(advanceVillage(hurt, at(600, 9, 2), null).draft).toMatchObject({ ploughPairs: 1 });
   });
 
   it('páry zvýší hned, když orba nestačí; sníží až po dvou plánech níž (Martin 27. 10. 2026)', () => {

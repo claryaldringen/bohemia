@@ -356,7 +356,7 @@ function seasonPlanDay(
   famineMemoryDay(state, day);
   // 1. 1.: dospělí pohané se v pokřtěném rodě obracejí (christianity.md – Obrácení)
   state.chronicle.push(...conversionDay(state, day));
-  if (isOn(date, PLANNING_DAY)) startSeason(state, day, coverage, landscape);
+  if (isOn(date, PLANNING_DAY)) startSeason(state, day, coverage);
   const waiting = seasonDay(state, day, coverage);
   return waiting;
 }
