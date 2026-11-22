@@ -653,7 +653,8 @@ Clauda**:
   Jde do ceny orby i do kapacity spřežení (kapacita je v člověkodnech orby, takže drnu zorá
   spřežení za den 2,5× méně). Pořád je to zlomek motyky (drn 100 + kopání 100).
 - **Křoviny a mladý les** se při vrácení klučí ručně jako dřív (keře a kořeny rádlo neprojede,
-  drn s kořeny tím zmizí), pak se orají běžně.
+  drn s kořeny tím zmizí), pak se orají běžně (plán čela; jádro díl může zorat dřív, než ho lidé
+  doklučí – fields.md, Známý dluh).
 - **Založení pole na louce:** ves se spřežením louku motykou nezakládá – zaplatí jen překážky
   (bez překážek je díl připravený hned) a díl nese drn (`FieldPart.sod`) do první orby. Křoviny
   a les se zakládají jako dřív. Když ves spřežení do plánu ztratí, drn rozruší motyka jako vrácení
@@ -661,7 +662,12 @@ Clauda**:
 - **Kapacita:** osevní postup (čelo práce a `sowingCapacity`; do 9. 11. 2026 i `neededSelection` – historie) hlídá i orbu spřežení v jejích
   oknech – ozim v září–říjnu (bez posledního dne, ať se zaseje i poslední zoraný pruh), jař
   a luštěniny na podzim, kolik po ozimu zbude, a zbytek v březnu–dubnu. Co spřežení nestihnou,
-  ves nezaseje (motyka nepomůže); víc ohrad se spřežením = víc kapacity. Orbu dál dělají lidé
+  ves nezaseje (motyka nepomůže); víc ohrad se spřežením = víc kapacity. Místo spřežení na čele
+  práce drží jen orba dílů připravených k orbě – louka (drn), díl v osevu, vyklučený díl; díl,
+  který lidé teprve klučí (křoví, mladý les), zabere místo u spřežení, až je vyklučený, ať voli
+  orají naplno, zatímco lidé klučí (návrh Clauda, Martin 22. 11. 2026: „Ok, udělej to tak.“;
+  fields.md – Pořadí dávek, Čelo práce po zdrojích). Čelo je plán: jádro orá po dílech v pořadí
+  práce a díl před vyklučením zorat smí (fields.md – Známý dluh). Orbu dál dělají lidé
   (oráč a honáček), proto se počítá i do práce lidí. Jedno spřežení zorá za podzim ≈ 27 ha a na
   jaře ≈ 18 ha bez drnu – běžná ves osévá jednotky hektarů, hladovět kvůli tomu nebude; osev podle
   zásob a pojistka platí dál.
@@ -763,7 +769,10 @@ Clauda**:
     a čelo s místem na 10–19 čd dostalo až 140 čd vracení. Vlkov (rozbor 19. 11. 2026, roky
     897–907) dal na vracení 54 % práce na přípravu půdy a setí (2 001 z 3 723 čd) a čelo 38–59
     dní z 61 nepřibralo nic, i když čekaly připravené díly – pás obcházel Pořadí dávek (fields.md
-    – připravené díly a díly s nejmenší prací přípravy napřed, nouzové přílohy až po nich).
+    – připravené díly a díly s nejmenší prací přípravy napřed, nouzové přílohy až po nich;
+    od 22. 11. 2026 i přílohy napřed stadium nejlevnější na tom, co vsi chybí – když chybí
+    spřežení, křoví a mladý les před loukou (drn se orá křížem 2,5× déle), když chybí lidé, louka
+    před křovím a mladým lesem – a pás jen z dílů téhož pořadí stadia).
 - **Plán osevu** počítá s výkonem podle tvaru polí, na která může ves zasít (průměr výkonu jejich
   pásů – `plannedFurrowEfficiency`), cestu neodhaduje (je malá).
 - **Ve scéně:** herní jádro posílá u dílů orby osu brázd a směr orby (`SceneFieldPart.furrow`) –

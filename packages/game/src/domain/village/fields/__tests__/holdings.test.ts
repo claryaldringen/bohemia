@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../../calendar';
 import { CELL_SIZE_M, LANDSCAPE_SIZE } from '../../../landscape';
 import { fieldPartLooks } from '../field-progress';
-import { sowingOrder } from '../fields';
+import { fallowStage, sowingOrder, type FallowRank } from '../fields';
+import { fallowRanks } from '../../core/fallow-order';
 import {
   fieldHoldings,
   sowingBlocks,
@@ -199,6 +200,114 @@ describe('osev po úsecích', () => {
       ids(lane(60)), // celý úsek od domu
       ids(lane(61).slice(5)), // až nakonec – před ním leží vyčerpaný příloh
     ]);
+  });
+
+  describe('přílohy podle toho, co vsi chybí (fields.md – Pořadí dávek)', () => {
+    // louka (0 let bez seče, ladem od roku 500), křoví (6 let), mladý les (20 let)
+    const DAY = at(600, 9, 1);
+    const YEARS = { meadow: 0, shrubs: 6, forest: 20 } as const;
+    const lane = (parts: FieldPart[], stage: keyof typeof YEARS, share: number): void => {
+      for (const p of parts)
+        Object.assign(p, {
+          state: 'fallow',
+          fallowSinceDay: 0,
+          overgrowthYears: YEARS[stage],
+          fertilityShare: share,
+        });
+    };
+    const stagesOf = (blocks: FieldPart[][]): number[] =>
+      blocks.map((b) => b[0]!.overgrowthYears ?? 0);
+    /** Volné místo na čele (člověkodny), když chybí spřežení, nebo lidé. */
+    const FREE = { plough: { people: 30, plough: 1 }, people: { people: 1, plough: 30 } } as const;
+    /** Pořadí stadia, když chybí `scarce` – ves s rádlem bez železa (`fallowRanks`). */
+    const rankFor = (scarce: keyof typeof FREE): FallowRank => {
+      const ranks = fallowRanks(FREE[scarce], 0, true);
+      return (p) => ranks[fallowStage(p, DAY)];
+    };
+
+    function threeLanes(): { parts: FieldPart[]; h: FieldHoldings } {
+      const cells: TileCell[] = [];
+      for (let y = 61; y <= 63; y++) for (let x = 59; x <= 61; x++) cells.push({ x, y });
+      const parts = cells.map((cell, i) => part(i + 1, { cell }));
+      return { parts, h: fieldHoldings([house(1, { x: 60, y: 60 })], parts) };
+    }
+
+    it.each([
+      ['≥ 95 %', 1, 'plough', [6, 20, 0]],
+      ['≥ 95 %', 1, 'people', [0, 6, 20]],
+      ['70–95 %', 0.9, 'plough', [6, 20, 0]],
+      ['70–95 %', 0.9, 'people', [0, 6, 20]],
+    ] as const)(
+      'přílohy %s, chybí %s: napřed stadium nejlevnější na tom, co chybí (spřežení – křoví, mladý les, louka; lidé – louka, křoví, mladý les)',
+      (_n, share, scarce, order) => {
+        const { parts, h } = threeLanes();
+        // pás s mladým lesem je nejodpočatější a první v pořadí úseků, louka nejméně
+        const lanes = h.sectors.map((s) => s.partIds.map((id) => parts[id - 1]!));
+        lane(lanes[0]!, 'forest', share);
+        lane(lanes[1]!, 'shrubs', share - 0.001);
+        lane(lanes[2]!, 'meadow', share - 0.002);
+        expect(stagesOf(sowingBlocks(parts, h, undefined, rankFor(scarce)))).toEqual(order);
+        // bez pořadí stadia jako dřív – nejvíc odpočaté první
+        expect(stagesOf(sowingBlocks(parts, h))).toEqual([20, 6, 0]);
+      },
+    );
+
+    it('v jednom pásu se bloky dělí podle pořadí stadia', () => {
+      const { parts, h } = threeLanes();
+      const sector = h.sectors[0]!;
+      const ids = sector.partIds;
+      const stages = ['forest', 'shrubs', 'meadow'] as const;
+      ids.forEach((id, i) => lane([parts[id - 1]!], stages[i % 3]!, 1));
+      const blocks = sowingBlocks(parts, h, undefined, rankFor('people')).filter((b) =>
+        ids.includes(b[0]!.id),
+      );
+      expect(stagesOf(blocks)).toEqual([...stagesOf(blocks)].sort((a, b) => a - b));
+      for (const b of blocks) expect(new Set(b.map((p) => p.overgrowthYears)).size).toBe(1);
+    });
+
+    it.each([
+      ['lidé', 'people', 0, 6],
+      ['spřežení', 'plough', 6, 0],
+    ] as const)(
+      'chybí %s: levnější stadium všech hospodářství před dražším kteréhokoli z nich',
+      (_n, scarce, first, last) => {
+        const houses = [house(1, { x: 40, y: 40 }), house(2, { x: 80, y: 40 })];
+        const a = square({ x: 40, y: 40 }, 2).map((cell, i) => part(i + 1, { cell }));
+        const b = square({ x: 80, y: 40 }, 2).map((cell, i) => part(1000 + i, { cell }));
+        const parts = [...a, ...b];
+        lane(a, 'shrubs', 1);
+        lane(b, 'meadow', 1);
+        const blocks = sowingBlocks(
+          parts,
+          fieldHoldings(houses, parts),
+          undefined,
+          rankFor(scarce),
+        );
+        const stages = stagesOf(blocks);
+        expect(stages.slice(0, stages.indexOf(last))).toEqual(stages.filter((x) => x === first));
+        expect(stages.at(-1)).toBe(last);
+      },
+    );
+
+    it.each([
+      ['spřežení', 'plough', [6, 20, 0]],
+      ['lidé', 'people', [0, 6, 20]],
+    ] as const)('ves bez hospodářství – chybí %s: stejné pořadí stadií', (_n, scarce, order) => {
+      // díly bez políčka – ves bez hospodářství bere díly po jednom (`sowingOrder`); mladý les
+      // nejblíž
+      const parts = [
+        part(1, { distanceM: 300 }),
+        part(2, { distanceM: 200 }),
+        part(3, { distanceM: 100 }),
+      ];
+      lane([parts[0]!], 'meadow', 1);
+      lane([parts[1]!], 'shrubs', 1);
+      lane([parts[2]!], 'forest', 1);
+      const h = fieldHoldings([house(1, { x: 60, y: 60 })], parts);
+      expect(h.active).toBe(false);
+      expect(stagesOf(sowingBlocks(parts, h, undefined, rankFor(scarce)))).toEqual(order);
+      expect(stagesOf(sowingOrder(parts, rankFor(scarce)).map((p) => [p]))).toEqual(order);
+    });
   });
 
   it('osev se dělí mezi hospodářství podle velikosti', () => {

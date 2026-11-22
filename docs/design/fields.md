@@ -481,8 +481,38 @@ Seno, dvě seče).
      rezervy** (proti hladu – obilí má přednost), ~~luštěniny~~ (zrušeno 9. 11. 2026), pak obilí
      do celé potřeby úrody;
      obilí v pořadí přílohové soustavy (připravené díly a díly s nejmenší prací přípravy, blíž
-     k domu, nouzové přílohy až po nich), v dávce ozim před jaří (jeho okno končí dřív). Dávka
-     dne jde po úsecích od domu ven (Postup práce po čtvercích).
+     k domu, nouzové přílohy až po nich; **přílohy napřed stadium nejlevnější na tom, co vsi
+     chybí** – Martin 22. 11. 2026: „Ok, udělej to tak. Obecně se drž pravidla vyprodukovat co
+     nejvíce za co nejmenší množství práce.“, [dřívější znění](history/fields-history.md#přílohy-podle-odpočatosti-bez-stadia-zarůstání)),
+     v dávce ozim před jaří (jeho okno končí dřív). Dávka dne jde po úsecích od domu ven (Postup
+     práce po čtvercích). **Přílohy podle úzkého hrdla** (návrh Clauda 22. 11. 2026 podle
+     Martinova pravidla výš, [dřívější znění](history/fields-history.md#přílohy-napřed-louky)):
+     odpočaté přílohy (≥ 95 %, stejně tak 70–95 %) se berou po stadiích – mladý příloh, louka,
+     křoví, mladý les. V den výběru ves u každého stadia spočítá, kolik hektarů ho čelo práce ještě
+     vezme: volné místo na čele u lidí a u spřežení (co za dny čela udělají bez rozdělané práce
+     plodiny) děleno cenou hektaru stadia u lidí a u spřežení – dojde dřív to místo, kterému stadium
+     dá míň hektarů, a tolik hektarů stadium dá. Napřed stadium s nejvíc hektary. Ceny jsou ceny
+     přípravy (Práce, Zarůstání; oxen.md – Jen rádlo): s rádlem louka jen orbu drnu křížem
+     (2,5× orby) a rozsévače za ní, křoví a mladý les klučení rukama (60–100 a 150–250 čd/ha),
+     orbu a setí, mladý příloh orbu a setí; motykou vše lidé (kopání, vrácení – u louky drn – a
+     setí). **Když chybí spřežení** (orba na čele skoro naplno), vyjde napřed mladý příloh, křoví
+     a mladý les, louky až potom; **když chybí lidé**, napřed mladý příloh a louky, pak křoví
+     a mladý les; motykou mladý příloh, křoví, louka, mladý les (bez železa jsou křoví a louka
+     stejně drahé). Shoda se láme cenou u lidí, pak u spřežení – stadia, která omezuje totéž místo,
+     tak rozhodne druhý zdroj –, pak dřívějšími klíči (bez přílohu před sebou, rozběhnuté úseky,
+     odpočinek, vzdálenost). **Čelo práce po zdrojích** (návrh Clauda, Martin 22. 11. 2026): díl
+     s ručním klučením (křoví, mladý les) stačí na čele místo u lidí – čelo počítá jeho orbu
+     u spřežení až po vyklučení (plán), takže ruce nestojí, když spřežení orají naplno (jádro
+     ale díl zorat i zasít smí dřív, než ho lidé doklučí – zjednodušení, viz Známý dluh); díl bez klučení (louka – orba
+     drnu, díl v osevu) potřebuje místo u lidí i u spřežení. **Místo u spřežení drží jen orba dílů
+     připravených k orbě** (louka – drn, díl v osevu, vyklučený díl; návrh Clauda: zarostlé díly
+     klučí lidé rukama, když voli orají naplno – Martin 22. 11. 2026: „Ok, udělej to tak.“): díl v klučení zabere místo
+     u spřežení, až ho lidé vyklučí – do té doby se na čelo vejdou louky, které spřežení zorá hned.
+     Dřív orba dílů v klučení zaplnila místo u spřežení hned při přibrání, louky čekaly a spřežení
+     s nimi (oprava návrh Clauda 22. 11. 2026, D110 – Vlkov 10 let s opravou a se setím zoraného
+     před klučením (Pořadí důležitosti polních prací) 120,2 t zrna proti 115,4 t). Pás orby se skládá jen z dílů téhož
+     pořadí stadia. Výběr z paměti (Výběr bez stropu) platí, jen když na čele nemají místo lidé –
+     díl s klučením se jinak vejde.
    - **Klády jen za skácené stromy** (Zarůstání): mladý les na přibraném dílu dá klády, až přes
      díl přejde čelo vracení přílohu – ne při přibrání. Vyklučený díl si to pamatuje: když ho ves
      uvolní (nezasetá jař 1. 5., velká zásoba), vrátí se jako příloh bez lesa a křovin a klády
@@ -920,7 +950,13 @@ nestačí na všechno):
    (Martin 9. 11. 2026: „Otava až po orbě a setí ozimu“ – platilo 9.–10. 11. 2026, nahrazeno),
 4. **sklizeň jablek**,
 5. **pletí** (ženy a děti – muži jen zbytek a až po stavbách),
-6. **orba, příprava půdy a setí** (vrácení přílohu, klučení, kopání, orba, setí),
+6. **orba, příprava půdy a setí** (vrácení přílohu, klučení, kopání, orba, setí) – uvnitř orba
+   rádlem první (oxen.md – Orba má přednost), **setí zorané a zkopané půdy před vracením přílohu
+   téže plodiny** (návrh Clauda 22. 11. 2026, D110 – Martin: „vyprodukovat co nejvíce za co
+   nejmenší množství práce“): klučení dílů na později nevytlačí setí toho, co je zorané
+   (jádro seje i díl zorený před vyklučením – viz Známý dluh). Dřív šlo
+   vracení přílohu první a Vlkov 905–914 nechal na konci dubna 3–20 čd setí zorané jaře nezaseté
+   (v březnu a dubnu 30–60 dní, kdy klučení vzalo práci setí zoraného),
 7. **noční hlídka polí** proti zvěři,
 8. **výmlat**.
 
@@ -2090,10 +2126,18 @@ ležel osetý prstenec za přílohem – sedlák chodil přes úhor (viz Naměř
   čerstvě založené, přílohy ≥ 95 %, přílohy 70–95 %), v nich bloky:
   - osévané díly – od úseku nejblíž domu,
   - čerstvě založené – nejdřív bloky, před kterými v úseku neleží příloh, pak nejblíž domu,
-  - přílohy ≥ 95 % – nejdřív bez přílohu před sebou (sedlák nejde přes úhor), pak úseky, které se
-    už osévají (ves úsek dokončí – vnější část úseku se oseje rok po vnitřní), pak nejvíc odpočaté
-    (dřív nejmladší příloh) a nejblíž domu,
-  - přílohy 70–95 % – nejvíc zotavené, pak bez přílohu před sebou, rozběhnuté úseky, nejblíž domu.
+  - přílohy ≥ 95 % – **napřed stadium nejlevnější na tom, co vsi chybí** (Martin 22. 11. 2026:
+    „Obecně se drž pravidla vyprodukovat co nejvíce za co nejmenší množství práce.“ – viz Pořadí
+    dávek, přílohy podle úzkého hrdla: když chybí spřežení, křoví a mladý les před loukou, když
+    chybí lidé, louka před křovím a mladým lesem; bloky se dělí podle pořadí stadia a levnější
+    stadium všech hospodářství jde před dražším kteréhokoli z nich); v každém stadiu nejdřív bez
+    přílohu před sebou (sedlák nejde přes úhor), pak úseky, které se už osévají (ves úsek dokončí
+    – vnější část úseku se oseje rok po vnitřní), pak nejvíc odpočaté (dřív nejmladší příloh)
+    a nejblíž domu,
+  - přílohy 70–95 % – stejně po pořadí stadia; v každém stadiu nejvíc zotavené, pak bez přílohu
+    před sebou, rozběhnuté úseky, nejblíž domu.
+
+  Ves bez hospodářství bere přílohy po jednom ve stejném pořadí stadií.
 
   Když cíl osevu potřebuje jen část bloku, bere ves díly od domu ven. Mezi hospodářstvími se bloky
   střídají tak, aby každé mělo osetý stejný podíl své plochy – všechna obíhají stejně rychle.
@@ -2546,6 +2590,15 @@ Ovládání a vzhled jsou **návrh k potvrzení na náčrtech** (obydlí se umis
 - **Druhy plodin** (ozim a jař už jsou – viz Ozim a jař; dál žito a pšenice zvlášť, proso
   s osivem 10–25 kg/ha, luštěniny), vymrzání ozimu s počasím, **zvířata, seno a pastva**,
   **les a dřevo** (využití vykáceného dřeva), zahrady a rybolov.
+
+## Známý dluh
+
+- **Orba a setí až po vyklučení.** Čelo práce počítá orbu dílu v klučení u spřežení až po
+  vyklučení, jádro ale rádlo i setí po dílech vede v pořadí práce a na vyklučení dílu nečeká:
+  díl s křovím nebo mladým lesem se může zorat a zasít dřív, než ho lidé doklučí. Měření kontroly
+  D110 (Vlkov 10 let): zoráno před vyklučením základ 34,7 ha / větev 32,8 ha, zaseto před
+  vyklučením 6,3 / 29,2 ha (jař 0,1 / 19,2 ha); do konce okna ale zůstalo zaseto a nevyklučeno jen
+  1,8 ha (základ 1,2 ha), zisk z toho ≤ 2 %. Řeší se samostatnou úlohou.
 
 ## Na stavitelovi
 

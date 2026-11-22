@@ -19,10 +19,13 @@ import {
   travelShare,
   type PloughTravels,
 } from '../plough-trip';
-import { FURROW, TEAM_TRAVEL } from '../../rules';
+import { FURROW, TEAM_TRAVEL, WORK_FRONT_DAYS } from '../../rules';
+import { daylightFactor } from '../../core/daylight';
+import { NO_CRAFTS } from '../../core/productivity';
+import { ploughCapacityPerDay } from '../oxen';
 import { advanceVillage } from '../../core/simulate';
-import type { DayTask } from '../../core/simulate-plan';
-import { dayTaskOrder } from '../../core/simulate-work';
+import { seasonDay, type DayTask } from '../../core/simulate-plan';
+import { dayTaskOrder, fieldTasks } from '../../core/simulate-work';
 import type { CropWork, FieldPart, VillageState } from '../../types';
 import {
   addToCropWork,
@@ -558,6 +561,15 @@ describe('pás při přibírání jen ze stejné skupiny (fields.md – Pořadí
     fallowSinceDay: DAY - 8 * 365,
     overgrowthYears: 8,
   });
+  /** Odpočatá louka (≥ 95 %, skupina 3) – vrácení bez klučení, jen orba drnu. */
+  const meadow = (p: FieldPart): FieldPart => ({
+    ...p,
+    state: 'fallow',
+    sownYears: 0,
+    fertilityShare: 1,
+    fallowSinceDay: DAY - 3 * 365,
+    overgrowthYears: 0,
+  });
   const seasonIds = (s: VillageState): Set<number> =>
     new Set(s.season ? seasonCrops(s.season).flatMap(({ work }) => work.partIds) : []);
 
@@ -591,6 +603,161 @@ describe('pás při přibírání jen ze stejné skupiny (fields.md – Pořadí
     expect(readyWaiting(s)).toEqual([]);
     expect([...seasonIds(s)].some((id) => !isReady.has(id))).toBe(true);
   }, 60_000);
+
+  it('chybí lidé (tři páry): louky napřed, dokud mají místo – pás louky nepřitáhne křoví', () => {
+    // řady po 24 dílech podél brázdy: 6 odpočatých luk u kraje, za nimi 18 přílohů s křovinami
+    // (skupina 3 jako louky) – dřív pás první louky přibral celou řadu včetně křovin; tři páry
+    // zorají víc hektarů luk, než lidé vyklučí křoví (fields.md – Pořadí dávek)
+    const parts = rect(1, 0, 0, 24, 16).map((p) => (p.cell!.x < 6 ? meadow(p) : shrubs(p)));
+    const isMeadow = new Set(parts.filter((p) => p.overgrowthYears === 0).map((p) => p.id));
+    let s = village(parts);
+    let checked = 0;
+    for (let day = DAY; day <= at(600, 9, 30); day++) {
+      s = advanceVillage(s, day, null);
+      const meadowsWaiting = (s.season?.selection?.waiting ?? []).some((j) => isMeadow.has(j.id));
+      if (!meadowsWaiting) continue;
+      checked++;
+      expect(
+        [...seasonIds(s)].filter((id) => !isMeadow.has(id)),
+        `den ${day - DAY + 1}`,
+      ).toEqual([]);
+    }
+    expect(checked).toBeGreaterThan(0);
+  }, 60_000);
+
+  it('spřežení naplno nezastaví klučení – zarostlé díly přibudou, i když louky čekají na orbu', () => {
+    // 384 odpočatých luk zaplní čelo spřežení; křoviny se vyklučí rukama, ať ruce nestojí
+    // (návrh Clauda, Martin 22. 11. 2026: „Ok, udělej to tak.“) – orba přijde po vyklučení
+    const parts = [
+      ...rect(1, 0, 0, 24, 16).map((p) => meadow({ ...p, distanceM: 60 })),
+      ...rect(1000, 0, 40, 6, 4).map((p) => shrubs({ ...p, distanceM: 200 })),
+    ];
+    const isShrub = new Set(parts.filter((p) => p.overgrowthYears === 8).map((p) => p.id));
+    let s = village(parts);
+    // jeden pár spřežení – orba je užší hrdlo než ruce
+    s.pens = s.pens?.slice(0, 1);
+    // zarostlých dílů na čele po dnech, kdy louky čekají na místo u spřežení
+    const shrubsOnFront: number[] = [];
+    for (let day = DAY; day <= at(600, 9, 30); day++) {
+      s = advanceVillage(s, day, null);
+      const meadowsWaiting = (s.season?.selection?.waiting ?? []).some((j) => !isShrub.has(j.id));
+      if (meadowsWaiting)
+        shrubsOnFront.push([...seasonIds(s)].filter((id) => isShrub.has(id)).length);
+    }
+    expect(shrubsOnFront[0]).toBeGreaterThan(0);
+  }, 60_000);
+
+  /** Louky a za nimi křoví (jiná id), jeden den výběru – zbytek čeká ve výběru z paměti. */
+  function afterFirstDay(): { s: VillageState; isShrub: Set<number>; winter: CropWork } {
+    const parts = [
+      ...rect(1, 0, 0, 24, 16).map((p) => meadow({ ...p, distanceM: 60 })),
+      ...rect(1000, 0, 40, 6, 4).map((p) => shrubs({ ...p, distanceM: 200 })),
+    ];
+    const isShrub = new Set(parts.filter((p) => p.overgrowthYears === 8).map((p) => p.id));
+    const s = advanceVillage(village(parts), DAY, null);
+    const winter = seasonCrop(s.season!, 'winter')!;
+    // lidé svou práci na čele dodělali – u lidí je na čele místo
+    for (const task of ['reclaim', 'dig', 'sow'] as const)
+      winter.done[task] = winter.required[task];
+    return { s, isShrub, winter };
+  }
+  const newIds = (s: VillageState, before: Set<number>): number[] =>
+    [...seasonIds(s)].filter((id) => !before.has(id));
+
+  it('chybí spřežení: křoví před loukou – na zbytek místa u spřežení napřed díly bez drnu', () => {
+    // spřežení má na čele orbu skoro na celé dny čela (volné 0,3 čd): luk by zoralo 0,012 ha,
+    // křoví 0,03 ha – lidé napřed klučí křoví, louka (drn 2,5× orby) počká (fields.md – Pořadí
+    // dávek; Martin 22. 11. 2026)
+    const { s, isShrub, winter } = afterFirstDay();
+    const day = DAY + 1;
+    const room = WORK_FRONT_DAYS * ploughCapacityPerDay(s, 0, day) * daylightFactor(day);
+    winter.plough!.required = winter.plough!.done + room - 0.3;
+    const before = seasonIds(s);
+    expect(s.season?.selection?.waiting.some((j) => !isShrub.has(j.id))).toBe(true);
+    seasonDay(s, day, NO_CRAFTS);
+    const added = newIds(s, before);
+    expect(added.filter((id) => isShrub.has(id)).length).toBeGreaterThan(0);
+    expect(added.filter((id) => !isShrub.has(id))).toEqual([]);
+  });
+
+  it('výběr z paměti: spřežení naplno, lidé mají místo – ves výběr zopakuje a přibere křoví', () => {
+    // čelo bez místa u spřežení, ale s místem u lidí: díl s klučením se vejde (`partRoom`), takže
+    // ves výběr nebere z paměti (ta platí, jen když nemají místo lidé – fields.md, Postup práce
+    // po dílech)
+    const { s, isShrub, winter } = afterFirstDay();
+    winter.plough!.required = winter.plough!.done + 1_000;
+    expect(s.season?.selection?.waiting.some((j) => isShrub.has(j.id))).toBe(true);
+    const before = seasonIds(s);
+    seasonDay(s, DAY + 1, NO_CRAFTS);
+    const added = newIds(s, before);
+    expect(added.filter((id) => isShrub.has(id)).length).toBeGreaterThan(0);
+    expect(added.filter((id) => !isShrub.has(id))).toEqual([]);
+  });
+
+  /**
+   * Na čele jen křoví (jeden pár spřežení), jeho zbývající orba přes celé dny čela; lidé mají
+   * místo. `reclaimed` – lidé křoví doklučili. Druhý den přibudou do výběru odpočaté louky.
+   */
+  function shrubsOnFront(reclaimed: boolean): { s: VillageState; meadowIds: Set<number> } {
+    let s = village(rect(1000, 0, 40, 2, 1).map((p) => shrubs({ ...p, distanceM: 200 })));
+    s.pens = s.pens?.slice(0, 1);
+    s = advanceVillage(s, DAY, null);
+    const winter = seasonCrop(s.season!, 'winter')!;
+    expect(winter.reclaimIds?.length).toBeGreaterThan(0);
+    const day = DAY + 1;
+    const room = WORK_FRONT_DAYS * ploughCapacityPerDay(s, 0, day) * daylightFactor(day);
+    winter.plough!.required = winter.plough!.done + room + 1;
+    // lidé mají na čele místo – zbývá jen kus klučení, kopání a setí hotové
+    for (const task of ['dig', 'sow'] as const) winter.done[task] = winter.required[task];
+    winter.required.reclaim = 0.5;
+    winter.done.reclaim = reclaimed ? 0.5 : 0;
+    const meadows = rect(1, 0, 0, 6, 1).map((p) => meadow({ ...p, distanceM: 60 }));
+    s.parts.push(...meadows);
+    return { s, meadowIds: new Set(meadows.map((p) => p.id)) };
+  }
+
+  it('orba dílů v klučení místo u spřežení nedrží – louka přibude, vyklučený díl místo zabere', () => {
+    // návrh Clauda: voli orají naplno, zarostlé díly klučí lidé rukama (Martin 22. 11. 2026:
+    // „Ok, udělej to tak.“) – místo
+    // u spřežení na čele drží jen orba dílů připravených k orbě (fields.md – Pořadí dávek)
+    const waiting = shrubsOnFront(false);
+    const before = seasonIds(waiting.s);
+    seasonDay(waiting.s, DAY + 1, NO_CRAFTS);
+    expect(newIds(waiting.s, before).some((id) => waiting.meadowIds.has(id))).toBe(true);
+    // po vyklučení zabere orba křoví místo u spřežení – louka počká
+    const done = shrubsOnFront(true);
+    const was = seasonIds(done.s);
+    seasonDay(done.s, DAY + 1, NO_CRAFTS);
+    expect(newIds(done.s, was).filter((id) => done.meadowIds.has(id))).toEqual([]);
+    expect(done.s.season?.selection?.waiting.some((j) => done.meadowIds.has(j.id))).toBe(true);
+  });
+
+  it('setí zorané půdy před klučením – klučení na později setí zoraného nevytlačí', () => {
+    // křoví zorané do včerejška, nezaseté, a ještě kus klučení: lidé napřed sejí, co je zorané
+    // (fields.md – Pořadí důležitosti polních prací; D110)
+    const { s } = shrubsOnFront(false);
+    const winter = seasonCrop(s.season!, 'winter')!;
+    winter.plough!.done = winter.plough!.required;
+    winter.done.sow = 0;
+    const tasks = fieldTasks(s, DAY + 1, 0).map(
+      (e) =>
+        ({
+          name: e.name,
+          remaining: e.remaining,
+          end: e.end,
+          tie: 1,
+          rank: e.rank,
+          field: e,
+        }) as DayTask,
+    );
+    const sow = tasks.find((t) => t.name === 'sow' && t.field?.crop === 'winter');
+    const reclaim = tasks.find((t) => t.name === 'reclaim' && t.field?.crop === 'winter');
+    expect(sow && reclaim).toBeTruthy();
+    expect([...tasks].sort(dayTaskOrder).filter((t) => t === sow || t === reclaim)).toEqual([
+      sow,
+      reclaim,
+    ]);
+  });
 
   it('místo na čele u každého dílu pásu – dlouhý pás přibude jen po místo, jako díly po jednom', () => {
     // pole 40 × 4 připravených dílů stejně daleko od obydlí: pás je řada 40 dílů; díly bez políčka

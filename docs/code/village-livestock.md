@@ -306,8 +306,8 @@ oxen)` – jen ve vsi bez výrostků (`youngsterCount` 0), potřeba nejvýš `HE
   `required.dig` 0, i prázdná plodina orbu má, ať přidané díly orá – `addToCropWork` podle
   `work.plough`; díly přibývají po dávkách čela – s dílem na řadě další díly jeho pásu
   z rozvržení dílů výběru téže plodiny a téže skupiny přílohové soustavy (`joinBands` –
-  `sowingGroup`, nouzové přílohy zvlášť) v `seasonSelection`, každý díl pásu jen s místem na čele
-  (`frontRoom`), od dílu na řadě podél brázdy a zpět (`bandFrom`; D101 19. 11. 2026 – dřív celý
+  `sowingGroup`, nouzové přílohy zvlášť) v `seasonSelection` po pořadí stadia (`FallowRank`, fallow-order.ts), každý díl pásu jen s místem
+  na čele (`partRoom` – díl s klučením stačí místo u lidí, jinak `frontRoom`; fields.md – Čelo práce po zdrojích), od dílu na řadě podél brázdy a zpět (`bandFrom`; D101 19. 11. 2026 – dřív celý
   pás z celého výběru plodiny a místo jen u prvního dílu, oxen.md – Díly po dávkách), nezačaté
   pásy se s dávkou rozvrhnou znovu `relayUntouchedBands` v `plough-trip.ts`; díly po pásech –
   brázda jako najednou, test `plough-blocks.test.ts`, Orba po dávkách dílů a Pás při přibírání
