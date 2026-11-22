@@ -16,6 +16,7 @@ import {
 } from '../../core/food';
 import {
   firstOrchardSeason,
+  harvestedApplesKg,
   nextHarvestSeason,
   orchardAgeYears,
   orchardExpectedYieldKg,
@@ -23,12 +24,14 @@ import {
   orchardPlantingNeed,
   orchardSeason,
   orchardSeasonDay,
+  orchardWorkRemaining,
   orchardYear,
   orchardYieldShare,
   renewalQuota,
   squareDueForRenewal,
   squareExpectedYieldKg,
   villageOrchards,
+  workOrchards,
 } from '../orchard';
 import {
   MAX_ORCHARD_CELLS,
@@ -37,7 +40,9 @@ import {
 } from '../../placement/placement';
 import { NO_CRAFTS } from '../../core/productivity';
 import {
+  AGE,
   APPLE_FOOD_VALUE,
+  FOOD_NEED_KG_PER_YEAR,
   LOGS_PER_CLEARED_TREE,
   OBSTACLE_COST,
   ORCHARD,
@@ -51,8 +56,8 @@ import type { ChronicleEvent, Orchard, Position, TileCell, VillageState } from '
 import { block, makeLandscape } from '../../__tests__/placement-fixtures';
 import { withBuiltFirstDwelling } from '../../__tests__/village-fixtures';
 import { seasonCrop } from '../../core/year-plan';
-import { fruitTargetKg } from '../fruit-target';
-import { DIET } from '../../core/diet';
+import { fruitEatenUntilRotKg, fruitTargetKg } from '../fruit-target';
+import { DIET, villageFoodNeed } from '../../core/diet';
 import { yearlyFoodNeed } from '../../fields/field-food';
 
 const at = (year: number, month: number, day: number): number => dayIndexOf({ year, month, day });
@@ -524,9 +529,9 @@ describe('advanceVillage – sad', () => {
     expect(winter.orchardWork!.required).toBeCloseTo(10 * ha(40), 6);
     // nasbíraná jablka se do zkažení snědla – 1. 3. nic neshnije
     const lastFeb = advanceVillage(winter, at(602, 2, 28), null);
-    // (jablka jen do 5 % potřeby dne – cíl z dnešních lidí a potřeby za rok; zbytek nejvýš 5 %
-    // nasbíraných – D115 kolo 1, otázka ve zprávě)
-    expect(lastFeb.applesKg ?? 0).toBeLessThan(0.05 * kg);
+    // (sklizeň každý den nejvýš jablka, která ves od toho dne do zkažení sní – 5 % potřeby každého
+    // dne; D115 kolo 2)
+    expect(lastFeb.applesKg ?? 0).toBeLessThan(1);
     expect(lastFeb.orchardWork!.done).toBeCloseTo(lastFeb.orchardWork!.required, 6);
     const march = advanceVillage(lastFeb, at(602, 3, 1), null);
     expect(march.applesKg).toBe(0);
@@ -871,6 +876,62 @@ describe('cíl ovoce a sklizeň jen toho, co se sní (D115 – Martin 22. 11. 20
       herds: { sheep: 0, goat: 0, pig: 40, cow: 0 },
     } as NonNullable<VillageState['livestock']>;
     expect(fruitTargetKg(herds, day, 0)).toBeCloseTo(five(181), 6);
+  });
+
+  it('cíl počítá potřebu každého dne – kdo během sezóny dospěje, od toho dne jí víc (D115 kolo 2)', () => {
+    const day = at(602, 9, 1);
+    const s = settledVillage(day);
+    delete s.livestock;
+    const before = fruitTargetKg(s, day, 0);
+    // dítě, které 1. 12. 602 dospěje – do té doby potřeba dítěte, pak dospělého
+    const adultDay = at(602, 12, 1);
+    const child = structuredClone(s.people[0]!);
+    child.id = 9_999;
+    // (věk v letech po 365,25 dne – people.ts)
+    child.bornDay = adultDay - Math.ceil(AGE.adult * 365.25);
+    s.people.push(child);
+    const perDay = (k: number): number => (DIET.fruitShare * k) / 365 / APPLE_FOOD_VALUE;
+    const childDays = adultDay - day;
+    const adultDays = daysUntilAppleRot(day, 0) - childDays;
+    expect(fruitTargetKg(s, day, 0) - before).toBeCloseTo(
+      perDay(FOOD_NEED_KG_PER_YEAR.child * childDays + FOOD_NEED_KG_PER_YEAR.adult * adultDays),
+      6,
+    );
+    // od pozdějšího dne jen dny od něj (sklizeň v běhu)
+    const later = at(602, 10, 1);
+    expect(fruitEatenUntilRotKg(s, later, 0)).toBeCloseTo(
+      fruitTargetKg(s, day, 0) -
+        Array.from({ length: later - day }, (_, i) => day + i).reduce(
+          (sum, d) => sum + (DIET.fruitShare * villageFoodNeed(s, d)) / APPLE_FOOD_VALUE,
+          0,
+        ),
+      6,
+    );
+  });
+
+  it('sklizeň v běhu nasbírá nejvýš jablka, která ves od dneška do zkažení sní (D115 kolo 2)', () => {
+    const day = at(602, 9, 1);
+    const s = withOrchard(settledVillage(day - 1), 40, at(570, 4, 1));
+    orchardSeasonDay(s, day, 0, () => 600);
+    const work = s.orchardWork!;
+    expect(work.yieldKg).toBeCloseTo(600, 6);
+    // část sklizně hotová (150 kg), ves z nich 30 kg snědla; pak dny bez sklizně – od dneška ves
+    // sní už jen 400 kg, zbytek plánu se zkrátí na 400 − 120 kg
+    workOrchards(s, work.required / 4);
+    expect(s.applesKg).toBeCloseTo(150, 6);
+    s.applesKg = 120;
+    const before = { ...work };
+    orchardSeasonDay(s, at(602, 9, 20), 0, () => 400);
+    const cut = s.orchardWork!;
+    expect(harvestedApplesKg(cut)).toBeCloseTo(150, 6);
+    expect(cut.yieldKg - harvestedApplesKg(cut)).toBeCloseTo(280, 6);
+    // úroda na člověkoden stejná, díl úrody stromů ubyl s ní
+    expect(cut.yieldKg / cut.required).toBeCloseTo(before.yieldKg / before.required, 9);
+    expect(cut.share).toBeCloseTo(((before.share ?? 1) * cut.yieldKg) / before.yieldKg, 9);
+    // zásoba pokryje, co ves do zkažení sní – sklizeň skončí bez další práce
+    orchardSeasonDay(s, at(602, 9, 21), 0, () => 100);
+    expect(orchardWorkRemaining(s.orchardWork)).toBeCloseTo(0, 9);
+    expect(harvestedApplesKg(s.orchardWork!)).toBeCloseTo(150, 6);
   });
 
   it('sklizeň 1. 9. nasbírá nejvýš cíl bez zásoby jablek – zbytek zůstane na stromech bez práce', () => {

@@ -31,7 +31,7 @@ import { settleSowingSeed } from '../fields/seed';
 import { seedBuyingDay } from '../fields/seed-buying';
 import { sacredOakEvents } from '../people/sacred-life';
 import { orchardSeasonDay } from '../buildings/orchard';
-import { fruitTargetKg } from '../buildings/fruit-target';
+import { fruitEatenUntilRotKg } from '../buildings/fruit-target';
 import {
   inLuckyYears,
   nextStarvationDays,
@@ -318,9 +318,9 @@ function storesAndHerdsDay(
   state.chronicle.push(...retireCarts(state, day));
   // sady: shnilá jablka, konec péče a stárnutí (1. 3.), začátek a konec sklizně a péče, obnova
   // starých čtverců v oknech výsadby (stavba ze společné práce – dostane práci už dnes); sklizeň
-  // jen tolik jablek, kolik ves do zkažení sní (cíl ovoce – orchard.md, Práce)
+  // jen tolik jablek, kolik ves od dneška do zkažení sní (cíl ovoce – orchard.md, Práce)
   for (const event of orchardSeasonDay(state, day, coverage.pottery, (s) =>
-    fruitTargetKg(s, day, coverage.pottery),
+    fruitEatenUntilRotKg(s, day, coverage.pottery),
   )) {
     // zásoba jablek po sklizni (kronika – Martin 17. 11. 2026)
     if (event.kind === 'apple-harvest') {

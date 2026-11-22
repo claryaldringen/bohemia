@@ -1052,20 +1052,41 @@ describe('jablka nad 5 % energie jen bez ztráty bílkovin (diet.md – Pořadí
     expect(meal.grainSpareKg - at5.grainSpareKg).toBeCloseTo(spareE * ROT, 6);
   });
 
-  it('v hladu: výhled s jablky jen do 5 %, jablka navíc jen k přídělu – obilí ani bílkoviny neubudou', () => {
-    // obilí na 30 % potřeby do sklizně
+  it('v hladu: jablka nad 5 % jsou jídlo k přídělu – výhled s nimi počítá, jí se rovným dílem do zkažení (D115 kolo 2)', () => {
+    // obilí na 30 % potřeby do sklizně (100 dní), jablek na plnou potřebu do zkažení (50 dní) –
+    // do plné potřeby do sklizně chybí víc, než jablka nad 5 % dají
     const over = { grainKg: (0.3 * NEED * 100) / KEEP, daysToRot: ROT };
     const meal = eatDiet(input({ ...over, fruitKg: plenty }));
     const at5 = eatDiet(input({ ...over, fruitKg: fruitAt5 }));
+    expect(at5.outlook).toBeLessThan(1);
+    // výhled počítá i s jablky nad 5 % – všemi, která ves do zkažení sní (dřív jen do 5 %)
+    const extra = (1 - DIET.fruitShare) * NEED * ROT;
+    expect(meal.outlook).toBeCloseTo(at5.outlook + extra / (NEED * 100), 9);
     expect(meal.outlook).toBeLessThan(1);
-    expect(meal.outlook).toBeCloseTo(at5.outlook, 9);
-    // obilí se jí stejně, jablka nad 5 % navíc do plné potřeby (jinak by shnila)
-    expect(meal.eaten.grainKg).toBeCloseTo(at5.eaten.grainKg, 9);
-    expect(meal.diet.protein).toBeCloseTo(at5.diet.protein, 9);
+    // jídlo dne: jablka rovným dílem do zkažení (tempo proti zkažení) – dnes dosyta jablky, obilí
+    // zůstane na dny po zkažení; do sklizně se sní celé, bílkoviny tak neubudou
+    expect(fruitEnergy(meal.eaten.fruitKg)).toBeCloseTo(NEED, 9);
     expect(meal.diet.energy).toBeCloseTo(1, 9);
-    expect(at5.diet.energy).toBeLessThan(1);
+    expect(meal.eaten.grainKg).toBeCloseTo(0, 9);
     // obrácený výhled souhlasí – na tentýž příděl chce tutéž zásobu obilí
     const ahead = grainAheadForOutlookKg(input({ ...over, fruitKg: plenty }), meal.outlook);
     expect(ahead).toBeCloseTo(over.grainKg * KEEP, 6);
+  });
+
+  it('v hladu: dají-li jablka nad 5 % plný příděl, ves nehladoví – jí jich jen, kolik chybí (D115 kolo 2)', () => {
+    // obilí na 60 % potřeby do sklizně – s jablky do 5 % ves hladoví, se všemi jablky ne
+    const over = { grainKg: (0.6 * NEED * 100) / KEEP, daysToRot: ROT };
+    const at5 = eatDiet(input({ ...over, fruitKg: fruitAt5 }));
+    expect(at5.outlook).toBeLessThan(1);
+    const meal = eatDiet(input({ ...over, fruitKg: plenty }));
+    // výhled plný – ves nehlásí hlad ani neporáží v nouzi; obilí navíc koním žádné (jablka jen
+    // místo obilí, které do sklizně chybí)
+    expect(meal.outlook).toBe(1);
+    expect(meal.diet.energy).toBeCloseTo(1, 9);
+    expect(meal.grainSpareKg).toBeCloseTo(0, 6);
+    // jablka nad 5 %: kolik do plné potřeby chybí, rovným dílem do zkažení
+    const missing = (1 - at5.outlook) * NEED * 100;
+    expect(fruitEnergy(meal.eaten.fruitKg)).toBeCloseTo(DIET.fruitShare * NEED + missing / ROT, 9);
+    expect(meal.eaten.grainKg).toBeCloseTo(NEED - DIET.fruitShare * NEED - missing / ROT, 9);
   });
 });

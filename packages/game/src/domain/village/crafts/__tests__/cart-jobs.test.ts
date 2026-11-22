@@ -233,7 +233,9 @@ describe('jablka ze sadu vozem (orchard.md – Jablka vozem)', () => {
       task: 'harvest',
       required: ORCHARD.harvestPerHa * ha,
       done: 0,
-      yieldKg: ORCHARD.fullYieldKgPerHa * ha,
+      // úroda v plánu pod jablky, která ves od 20. 9. do zkažení sní – sklizeň v běhu se
+      // nezkrátí (orchard.md – Práce; D115 kolo 2) a jablek přibývá podle práce
+      yieldKg: 100,
     };
     return s;
   }
