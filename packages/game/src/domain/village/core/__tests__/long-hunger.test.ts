@@ -121,9 +121,10 @@ describe('dlouhý hlad – rod se uskrovní, aby zbytek vsi přežil do sklizně
     expect(energy[3]).toBeCloseTo(0.8, 9);
   });
 
-  it('dítě v rodu nezvedne minimum zbytku vsi, který jsou samí dospělí', () => {
+  it('dítě v rodu nezvedne minimum zbytku vsi, který jsou samí muži v produktivním věku', () => {
     const day = at(700, 4, 3);
     const s = village(day, 0.8, 'lord');
+    for (const p of s.people) if (p.id >= 30) p.sex = 'male';
     expect(hungerSplit(s, day).groupOf.get(50)).toBe(0);
     const minimum = survival(STARVATION.threshold.adult, 151);
     // práh dospělých dá ≈ 78,7 %, práh dítěte celé vsi by dal 83,4 % a rod by nedostal nic navíc
@@ -133,10 +134,34 @@ describe('dlouhý hlad – rod se uskrovní, aby zbytek vsi přežil do sklizně
     expect(energy[0]).toBeGreaterThan(0.8);
   });
 
+  it('žena v plodném věku ve zbytku vsi: minimum podle prahu dětí (dítě převezme hlad vrstvy)', () => {
+    const day = at(700, 4, 3);
+    const s = village(day, 0.8, 'lord');
+    for (const p of s.people) if (p.id >= 30) p.sex = 'male';
+    s.people.find((p) => p.id === 30)!.sex = 'female';
+    const minimum = survival(STARVATION.threshold.child, 151);
+    expect(minimum).toBeGreaterThan(0.8);
+    const energy = eat(s, day, NO_CRAFTS).groups!.energy;
+    expect(energy[0]).toBeCloseTo(0.8, 9);
+    expect(energy[3]).toBeCloseTo(0.8, 9);
+  });
+
+  it('dospělý, který do sklizně zestárne: minimum podle prahu starších', () => {
+    const day = at(700, 4, 3);
+    const s = village(day, 0.8, 'lord');
+    for (const p of s.people) if (p.id >= 30) p.sex = 'male';
+    // 44 let a 3 měsíce: do žní za 151 dní mu bude 45
+    s.people.find((p) => p.id === 30)!.bornDay = day - Math.floor(44.9 * YEAR);
+    expect(survival(STARVATION.threshold.elder, 151)).toBeGreaterThan(0.8);
+    const energy = eat(s, day, NO_CRAFTS).groups!.energy;
+    expect(energy[3]).toBeCloseTo(0.8, 9);
+  });
+
   it('den po dni do žní: zbytek vsi nepřekročí práh dospělých, rod jí víc jen nad minimem', () => {
     const start = at(700, 4, 3);
     // dítě v rodu, zbytek vsi samí dospělí; jídlo na 80 % do žní
     let s = village(start, 0.8, 'lord');
+    for (const p of s.people) if (p.id >= 30) p.sex = 'male';
     const threshold = STARVATION.threshold.adult;
     let lordHungerSum = 0;
     let restHungerSum = 0;

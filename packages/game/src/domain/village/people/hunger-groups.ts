@@ -1,9 +1,9 @@
-import { ageGroup, foodNeedPerDay, guestFoodNeedPerDay } from './people';
+import { ageGroup, ageYears, foodNeedPerDay, guestFoodNeedPerDay } from './people';
 import { proteinNeedPerDay } from '../core/diet';
 import { lordFamily } from './lord';
 import { masterHousehold } from './lodge-life';
 import { nextStarvationDays } from './population';
-import { HUNGER_PRIORITY, STARVATION } from '../rules/rules-people';
+import { AGE, HUNGER_PRIORITY, STARVATION } from '../rules/rules-people';
 import { SEED_STORES } from '../rules/rules-fields';
 import type { Person, VillageState } from '../types';
 
@@ -114,19 +114,32 @@ export function survivalRation(limit: number, hunger: number, daysToHarvest: num
  * hlad `groupStarvation`, bez ní hlad vsi `starvationDays`), která v přednosti v hladu dostává
  * nejméně. Bez `groupOf` je práh nejcitlivějšího člověka celé vsi (opatrný, pro přežívací zásobu
  * `seedKeepKg`); s `groupOf` (`HungerSplit.groupOf`) jen lidí té nejnižší vrstvy, kterou minimum
- * chrání – dítě v rodu nezvedne minimum zbytku vsi ze samých dospělých (návrh Clauda 22. 11. 2026).
+ * chrání, a to s výhledem do žní (`daysToHarvest`): práh dětí a starších, když v ní je dítě nebo
+ * starší, kdo do žní zestárne (`AGE.elder`), nebo žena v plodném věku (`AGE.fertile` až
+ * `AGE.elder` – dítě narozené do žní přibude do vrstvy a hlad převezme); jinak práh dospělých –
+ * dítě v rodu nezvedne minimum zbytku vsi ze samých mužů v produktivním věku (návrh Clauda
+ * 22. 11. 2026).
  */
 export function survivalLimit(
   state: VillageState,
   day: number,
   needs: readonly number[],
   groupOf?: ReadonlyMap<number, number>,
+  daysToHarvest = 0,
 ): { limit: number; hunger: number } {
   const group = lowestFedGroup(needs);
   let limit = Infinity;
   for (const person of state.people) {
     if (groupOf !== undefined && group >= 0 && (groupOf.get(person.id) ?? REST) !== group) continue;
     limit = Math.min(limit, STARVATION.threshold[ageGroup(person, day)]);
+    if (groupOf === undefined) continue;
+    const age = ageYears(person.bornDay, day);
+    const ageAtHarvest = ageYears(person.bornDay, day + Math.max(0, daysToHarvest));
+    // do žní zestárne, nebo může porodit dítě, které do vrstvy přijde s jejím hladem
+    if (ageAtHarvest >= AGE.elder) limit = Math.min(limit, STARVATION.threshold.elder);
+    if (person.sex === 'female' && ageAtHarvest >= AGE.fertile && age < AGE.elder) {
+      limit = Math.min(limit, STARVATION.threshold.child);
+    }
   }
   const hunger = group < 0 ? (state.starvationDays ?? 0) : (groupStarvation(state)[group] ?? 0);
   return { limit, hunger };
@@ -135,7 +148,7 @@ export function survivalLimit(
 /**
  * Životní minimum přídělu (podíl potřeby 0–1 – diet.md, Kdo dostane co; `rationShares`):
  * HUNGER_PRIORITY.minimumShare (75 %), v dlouhém hladu víc – příděl k přežití zbytku vsi do žní
- * (`survivalRation`, `survivalLimit` – práh lidí té nejnižší skupiny, kterou minimum chrání; Martin 22. 11. 2026 na otázku „Má se rod v dlouhém hladu
+ * (`survivalRation`, `survivalLimit` – práh lidí té nejnižší skupiny, kterou minimum chrání, i dětí a starších, kteří do žní přibudou; Martin 22. 11. 2026 na otázku „Má se rod v dlouhém hladu
  * uskrovnit, aby zbytek vsi přežil do sklizně?“: „ano“). Mez osiva jen na setí
  * (SEED_BUYING.eatFromStarvationDays) sem nepatří – jen přežívací zásobě (`seedKeepKg`).
  */
@@ -146,7 +159,7 @@ export function rationMinimum(
   groupOf: ReadonlyMap<number, number>,
   daysToHarvest: number,
 ): number {
-  const { limit, hunger } = survivalLimit(state, day, needs, groupOf);
+  const { limit, hunger } = survivalLimit(state, day, needs, groupOf, daysToHarvest);
   return Math.max(HUNGER_PRIORITY.minimumShare, survivalRation(limit, hunger, daysToHarvest));
 }
 
