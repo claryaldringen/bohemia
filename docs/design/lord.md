@@ -713,7 +713,11 @@ Clauda.
   (Martin). Bydlí-li jinde, vrátí se do dvorce s matkou a sourozenci do 16 let; cvičí jako chlapci
   jeho věku (Den rodiny), jméno mu dá hráč, jestli ho ještě nemá. Matka dvorec drží a vede
   domácnost – vdá-li se, muž se přižení k ní (jako k vdově, která drží dům – kinship.md)
-  a pracuje jako zeť; chlapec tak z dvorce neodejde.
+  a pracuje jako zeť; chlapec tak z dvorce neodejde. Stařešinou rodu ([seniorát](seniorate.md)) je
+  přitom nejstarší muž rodu, který zůstává ve svém domě – Martin 22. 11. 2026 na otázku „Má být
+  knížetem vždy stařešina rodu, tedy nejstarší muž rodu, a při nástupu se nastěhovat do dvorce?“
+  (Vlkov: knížetem dvouletý Dalibor, stařešinou jeho strýc Rostislav, 33 let): „Otázka ohledně
+  stařešiny - nechme to jak to je.“
 - Vdovy po vojvodovi zůstávají v dvorci se svými dětmi, dokud se nevdají (vdávají se hned –
   kinship.md), svobodní synové zůstávají a cvičí. **Přeplní-li se dvorec**, odchází jako vedlejší
   manželka nejdřív vdova s nejstarším synem (ne matka vojvody) se svobodnými dětmi, pak vedlejší manželky
