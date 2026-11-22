@@ -43,6 +43,8 @@ zabije, honci ho odnesou do dvorce na tyči mezi sebou a jeho maso a kožešina 
 - **Ves bez hráče a bez správce** (otázka, zda má lovit sama): „Vesničané si loví jen drobnou zvěř a ryby pro vlastní
   potřebu“.
 - **Poslední muž rodu** (otázka, zda ho smí lov zabít): „Správce je NPC hráč, takže na lov chodí on.“
+- **Les bez zvěře** (otázka, zda má tlačítko lovu zašednout s důvodem „V lese vsi není zvěř“, když v lese vsi nežije žádná
+  velká zvěř): „Ano“.
 
 ## Pravidla
 
