@@ -12,7 +12,7 @@ s libovolně skupinami hráče (`parties`) a jejich hloučky (`groups`).
 
 - **Stav** – `journey-types.ts`: `JourneyState` je JSON (kontrolní bod): `kind: 'journey'`, `seed`,
   `tick` a `day` posledního spočteného taktu, `throughDay` (jako u tažení – mez bariéry vsí),
-  `phase: 'out' | 'done'` (výprava bez skupin = `done`), hráč, rod (`houseId`), domovská ves `home`
+  `phase: 'out' | 'done'` (výprava bez skupin a bez lovu = `done`), hráč, rod (`houseId`), domovská ves `home`
   (`CampaignVillage`), lidé `members`, hloučky `groups`, `marchGridVersion` (verze mřížky pochodu
   úseků hloučků – Převod níž), skupiny `parties` a `nextId` (další volné id skupiny i hloučku – jedna
   řada). `leaderName` zůstává jen v převedených bodech.
@@ -97,8 +97,10 @@ intents, world)` → `JourneyStep { state, villageEvents, notices, knowledge?, w
 - **Návrat** – hlouček skupiny `returning`, který doma dojde, skončí (`finishGroup`): domovská ves
   dostane `away-ends` s `personIds` jeho živých (`refId` = id výpravy, `untilDay` den nato –
   schránka na následující den jako výsledky tažení; `ref` = `journey:<id>:<takt>:<n>`; ves
-  `personIds` čte od Úlohy 2). Poslední hlouček výpravy – i když výprava skončí tím, že nikdo
-  nežije (`afterLosses`) – pošle `away-ends` bez `personIds` (`everyoneHome`): domů jde každý, kdo
+  `personIds` čte od Úlohy 2). Konec výpravy (`settleDone` – bez skupin a bez lovu; poslední
+  hlouček doma, nebo už nikdo nežije – `afterLosses`, nebo konec lovu – Lov níž) pošle `away-ends`
+  bez `personIds` (`everyoneHome`; běží-li lov, poslední hlouček dostane `personIds` jako každý jiný
+  a konec ohlásí až lov): domů jde každý, kdo
   je s výpravou pryč, i člověk přidaný záměrem, na který krok před koncem už nedošel (plán
   2026-11-14 – Review Focus 2, Úloha 5; návrh Clauda). Hráč dostane upozornění `journey-returned` `{ journeyId, leader?, female? }`
   s vůdcem hloučku (`partyLeader`; bez jména `leader` chybí) – text „Bořivoj se vrátil.“
@@ -942,3 +944,51 @@ vidí). Znalost ve scéně tažení – Znalost rodu (Tažení ve scéně, Úloh
   „Bořivoje zabili na cestě vlci.“ (`village-view-chronicle.ts`).
 - **Testy:** `journey-predators.test.ts` (četnost přes 20 000 seedů v toleranci, zvěř mapy, výjezd
   v lese, vcelku = po kouscích, schránka vsi).
+
+## Lov (plán 2026-11-22-hunting, Úlohy 6–7)
+
+Lov vsi je součást výpravy domovské vsi (`docs/design/hunting.md`; plán – Rozhodnutí 1, 3, 4, 6):
+`JourneyState.hunt` (`JourneyHunt`), nejvýš jeden na výpravu. Moduly `domain/war/hunt-beaters.ts`
+(honci) a `journey-hunt.ts` (lov v taktu výpravy); souboj se zvířetem je `hunt-fight.ts`
+(`docs/code/war.md` – Souboj se zvěří).
+
+- **Stav** – `JourneyHunt`: `id` z `nextId` výpravy (řada skupin a hloučků), `day` vyhlášení,
+  `dogs` (psi dvorce – jen scéna), `out` (kam zvíře vyběhne), `beaters` (`HuntBeaters`), `fight`
+  (`HuntFight`), `reported` (výsledek už vydán). Starší body lov nemají.
+- **Vyhlášení** – bez běžící výpravy `newJourney` s `hunt` a bez lidí: výprava nemá skupinu ani
+  hlouček (`nextId` 1, lov dostane id 1); jinak příkaz `{ kind: 'hunt', start }` (`applyCommand` →
+  `startHunt(s, start, s.tick)` – honci vyjdou v taktu příkazu; běží-li lov, příkaz se zahodí).
+  `HuntStart` (`quarry`, `day`, `door`, `out`, `dogs`) spočte `huntStartOf(grid, manor, …)`:
+  dveře hustého lesa nejbližší ke dvorci (`nearestForestDoor`) a výběh `HUNT_FIGHT.emergeM` (40 m)
+  od nich po přímce ke dvorci; mapa bez hustého lesa → null.
+- **Honci** – `beatersPlan(home.pos, door, takt)`: ze dvorce ke dveřím tempem pochodu
+  (`WAR.pace.metersPerSecond` ÷ 4 m za takt), `arriveTick` = start + ⌈vzdálenost ÷ krok⌉. Konec lovu
+  `endBeaters(b, takt, at, carry)` – honci se otočí, kde jsou; s úlovkem honci 0 a 1 dojdou ke
+  zvířeti (`at`) a nesou ho na tyči do dvorce tempem × `HUNT_FIGHT.carryPaceShare` (0,7 – návrh
+  Clauda), ostatní jdou rovnou domů; bez úlovku všichni domů; `homeTick` – doma je poslední; druhý
+  konec nic nezmění. `beatersAt(b, takt, index)` – poloha pro scénu: přímky mezi body, řada napříč
+  směrem dvorec → dveře po 1,5 m (honci 0 a 1 po obou stranách osy – zvíře na tyči visí na ní; tam
+  i zpět jde každý po své stopě), `carrying`; před vyhlášením, po vlastním návratu a po `homeTick`
+  null. Honci jsou kulisa bez vlivu na souboj – jejich práci platí ves (`reserveBeaters`).
+- **Takt** – `journeyTick` volá `huntTick` (přes `huntStep`) za příkazy a čekáním, před pohybem
+  hloučků: honci u dveří (`arriveTick`) → skryté zvíře vyběhne (`releaseQuarry`); souboj taktu
+  `huntFightTick` na mřížce pochodu domovské mapy pro den taktu (`gridOf` jako pohyb hloučků;
+  skryté zvíře ji nepotřebuje), náhoda `tickRandom(seed, takt, 'hunt:<id>')`; souboj se počítá jen
+  za takty po svém vzniku (`HuntFight.tick`). Konec souboje (zabití, nebo útěk po `idleS` bez
+  činnosti) → `endBeaters` (s úlovkem přes místo, kde zvíře padlo) a jednou `hunt-result`
+  (`fightResult`; jména a koně jezdců z `members`) do domovské vsi na den taktu, `ref`
+  `journey:<id>:hunt:<id lovu>` – opakovaný krok vydá týž `ref` a druhé doručení zahodí schránka.
+  V taktu `homeTick` lov ze stavu zmizí.
+- **Konec výpravy** – `settleDone` (všechna místa, kde výprava končila – `afterLosses`,
+  `finishGroup`, konec lovu): `done` a `everyoneHome` až bez skupin a bez lovu. Lov výpravu drží,
+  dokud honci nedojdou domů, i když lidé jsou doma nebo padli; výprava jen s lovem skončí s ním.
+  Skupiny venku (i na sousední mapě) lov nezmění. Zaniklá domovská ves (`homeDay`) ukončí výpravu
+  i s lovem hned a bez výsledku – hloučky ve stavu zůstávají, proto ne přes `settleDone`.
+- **Mapa** – běží-li lov, úvodní kontrola `stepJourney` chce i mapu domovského políčka (bez ní
+  `waiting`), i když na ní žádný hlouček nestojí.
+- **Testy** – `hunt-beaters.test.ts` (dveře a výběh, bez lesa null, honci v půli cesty, stání
+  u dveří, odnos přes `at` pomaleji, ostatní rovnou, po `homeTick` null, JSON), `journey-hunt.test.ts`
+  (výprava jen s lovem: vyběhnutí v `arriveTick`, útěk po `idleS`, výsledek jednou, `done` v taktu
+  `homeTick`; skupina na sousední mapě beze změny; druhé „hunt“ se zahodí; `ref` a různá id lovů; po
+  1 / 7 / 40 taktech přes JSON = vcelku; chybějící domovská mapa; zaniklá ves),
+  `application/__tests__/village-inbox.test.ts` (výsledek lovu doručený dvakrát ves použije jednou).

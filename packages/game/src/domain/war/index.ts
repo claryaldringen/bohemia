@@ -39,6 +39,7 @@ export {
   type Quarry as HuntQuarry,
   type QuarryState,
 } from './hunt-fight';
+export * from './hunt-beaters';
 export * from './aim';
 export * from './defenders';
 export * from './flight';

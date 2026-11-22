@@ -4,6 +4,7 @@ import type { Pen, VillageState } from '../village/types';
 import { cellKey, type TickContext, type TickOut } from './campaign-tick';
 import type { CampaignPlace } from './campaign-types';
 import { homeVillage, horseWorkTicks, pickGroom, riderHorse, sendHorse } from './journey-horses';
+import { startHunt } from './journey-hunt';
 import type {
   HorseWork,
   JourneyCommand,
@@ -47,7 +48,8 @@ function leads(a: JourneyMember, b: JourneyMember): boolean {
 
 /**
  * Příkaz v taktu (`stepJourney` ho volá pro každý záměr v pořadí `seq`): rozkaz lidem (`order`),
- * odvolání domů (`recall`), Osedlat (`saddle`) a Sesednout (`dismount`). Rozkazy hráče platí jen
+ * odvolání domů (`recall`), Osedlat (`saddle`), Sesednout (`dismount`) a lov vsi (`hunt` –
+ * `startHunt`, honci vyjdou v tomto taktu; běží-li jiný lov, nic). Rozkazy hráče platí jen
  * pro skupiny bez `leaderless`, `recall` pro všechny. `ctx` je svět taktu pro příkazy, které čtou ves
  * (koně a vesničan); `out` dostane znalost map hloučků, které příkaz zastavil (zastavení je dojetí),
  * a události do vsi (`journey-horse`).
@@ -70,6 +72,9 @@ export function applyCommand(
       break;
     case 'dismount':
       dismount(s, command, ctx);
+      break;
+    case 'hunt':
+      startHunt(s, command.start, s.tick);
       break;
   }
 }

@@ -13,6 +13,8 @@ import {
   stampNotices,
 } from './campaign-tick';
 import type { CampaignNotice, CampaignVillage, CampaignWorld } from './campaign-types';
+import type { HuntStart } from './hunt-beaters';
+import { huntTick, startHunt } from './journey-hunt';
 import { finishHorseWork, loseHorses } from './journey-horses';
 import {
   applyCommand,
@@ -48,7 +50,9 @@ import { dayOfTick, hoursPerTick, TICKS_PER_SECOND, tickOfMs } from './ticks';
 // jako tažení (`campaign.ts`), se kterým sdílí takty, pohyb po mapách (`movement.ts`), tempo
 // (`marchSpeed`) a svět (`CampaignWorld`). Takt po taktu: kontrola lidí a koní doma a šelmy na
 // začátku nového dne, konec práce s koňmi (`finishHorseWork`), příkazy taktu podle `seq`
-// (`applyCommand` – dělení a spojení skupin, Osedlat, Sesednout), konec čekání, pohyb hloučků.
+// (`applyCommand` – dělení a spojení skupin, Osedlat, Sesednout, lov), konec čekání, lov vsi
+// (`huntTick` – plán 2026-11-22-hunting, Úloha 6), pohyb hloučků. Výprava skončí, až nemá
+// skupiny ani lov (`settleDone`).
 // Proti tažení výprava neveze zásoby, nemrzne, bez hráče se nerozpadá a vsím na cestě
 // nic neohlašuje – lidé jedí dál ze zásob své vsi. Výsledek nezávisí na tom, po jakých kouscích
 // taktů se počítá – stav je JSON a takt čte jen stav, příkazy a svět. Jen det-math
@@ -67,15 +71,22 @@ export interface NewJourney {
   recruits: JourneyRecruit[];
   /** První rozkaz (lord-control.md – Rozkazy); chybí – skupina stojí doma a čeká. */
   order?: JourneyOrder;
+  /**
+   * Lov vsi (plán 2026-11-22-hunting – Rozhodnutí 1): vyhlášení bez běžící výpravy založí výpravu
+   * bez lidí jen s lovem – bez skupiny (`recruits` prázdné).
+   */
+  hunt?: HuntStart;
 }
 
 /**
  * Výchozí stav výpravy: skupina 0 s hloučkem 0 doma (`nextId` 1) a první rozkaz `order`. Rozkaz,
  * který neplatí (přes okraj na nesousední políčko), se zahodí – skupina stojí doma jako bez rozkazu
  * a po čekání výprava skončí. Úseky vzniknou po současné mřížce pochodu (`marchGridVersion`).
+ * S lovem (`hunt`) začne lov v taktu vyslání; výprava jen s lovem (bez lidí) skupinu nemá.
  */
 export function newJourney(input: NewJourney, clock: WorldClock): JourneyState {
   const tick = tickOfMs(input.startMs, clock);
+  const people = input.recruits.length > 0 || input.hunt === undefined;
   const state: JourneyState = {
     kind: 'journey',
     id: input.id,
@@ -88,25 +99,28 @@ export function newJourney(input: NewJourney, clock: WorldClock): JourneyState {
     houseId: input.houseId,
     home: structuredClone(input.home),
     members: input.recruits.map((r) => recruitMember(r, 0)),
-    groups: [
-      {
-        id: 0,
-        party: 0,
-        order: 'follow-leader',
-        cell: { ...input.home.cell },
-        pos: { ...input.home.pos },
-        goal: null,
-        route: [],
-        leg: null,
-        arrived: true,
-        crossings: [],
-      },
-    ],
+    groups: people
+      ? [
+          {
+            id: 0,
+            party: 0,
+            order: 'follow-leader',
+            cell: { ...input.home.cell },
+            pos: { ...input.home.pos },
+            goal: null,
+            route: [],
+            leg: null,
+            arrived: true,
+            crossings: [],
+          },
+        ]
+      : [],
     marchGridVersion: MARCH_GRID_VERSION,
-    parties: [{ id: 0, phase: 'out', arrivedTick: tick }],
+    parties: people ? [{ id: 0, phase: 'out', arrivedTick: tick }] : [],
     nextId: 1,
   };
-  if (input.order) orderParty(state, state.parties[0]!, input.order, state.groups[0]!);
+  if (input.order && people) orderParty(state, state.parties[0]!, input.order, state.groups[0]!);
+  if (input.hunt) startHunt(state, input.hunt, tick);
   return state;
 }
 
@@ -140,6 +154,11 @@ export function stepJourney(
   let current = start;
   let next = 0;
   const upfront = missingMaps(start, world);
+  // lov běží na domovské mapě, i když na ní žádný hlouček nestojí
+  const home = start.home.cell;
+  if (start.hunt && !upfront.some((c) => sameCell(c, home)) && world.landscapeOf(home) === null) {
+    upfront.push({ ...home });
+  }
   if (upfront.length > 0) {
     return { state: start, villageEvents, notices, waiting: { cells: upfront, villageIds: [] } };
   }
@@ -201,8 +220,21 @@ function journeyTick(
     if (p.horseWork !== undefined) continue;
     if (p.phase === 'out' && p.arrivedTick !== null && tick - p.arrivedTick > wait) turnHome(s, p);
   }
+  huntStep(s, tick, ctx, out);
   moveGroups(s, ctx, out);
   return s;
+}
+
+/**
+ * Lov vsi v taktu (`huntTick`): výsledek do vsi; padl-li někdo z výpravy, `afterLosses`; lov, který
+ * skončil (honci doma), ukončí výpravu bez skupin (`settleDone`).
+ */
+function huntStep(s: JourneyState, tick: number, ctx: TickContext, out: TickOut): void {
+  if (s.hunt === undefined) return;
+  const hunt = huntTick(s, tick, ctx);
+  out.events.push(...hunt.events);
+  if (hunt.losses) afterLosses(s, out);
+  settleDone(s, out);
 }
 
 /** Čekání na místě v taktech (`JOURNEY.waitDays` herních dní) – jako `absentTicks` u tažení. */
@@ -215,8 +247,8 @@ function waitTicks(clock: WorldClock): number {
  * a zima: žádné jídlo, mráz ani dezerce). Lidé zůstávají ve stavu domovské vsi, jedí z jejích zásob
  * a mohou tam zemřít (stáří, hlad): kdo ve stavu vsi není, je `fallen` (`afterLosses`). Jezdec,
  * jehož kůň ve vsi už není, ho ztratí (`loseHorses`). Domovská ves, která zanikla (`villageGone`),
- * výpravu ukončí bez událostí – není, komu je poslat; co lidé věděli o mapách, kde stojí, jde rodu.
- * Ves, která den ještě nemá spočtený, krok zastaví jako u tažení (`MissingData`).
+ * výpravu ukončí bez událostí i s lovem – není, komu je poslat; co lidé věděli o mapách, kde stojí,
+ * jde rodu. Ves, která den ještě nemá spočtený, krok zastaví jako u tažení (`MissingData`).
  */
 function homeDay(s: JourneyState, ctx: TickContext, out: TickOut): void {
   const home = s.home.villageId;
@@ -225,6 +257,8 @@ function homeDay(s: JourneyState, ctx: TickContext, out: TickOut): void {
     if (!ctx.world.villageGone?.(home)) throw new MissingData([], [home]);
     const cells = new Map(s.groups.map((g) => [cellKey(g.cell), g.cell]));
     for (const cell of cells.values()) shareKnowledge(s, cell, out);
+    // hloučky ve stavu zůstávají (konec přímo, ne `settleDone`)
+    delete s.hunt;
     s.phase = 'done';
     return;
   }
@@ -240,7 +274,7 @@ function homeDay(s: JourneyState, ctx: TickContext, out: TickOut): void {
  * Po ztrátách (Úloha 1 – Ztráty): hlouček bez živých zmizí i s padlými – nikdo se nevrací, události
  * nejsou; co o jeho mapě výprava věděla, jde rodu (tam jeho cesta skončila). Skupina bez hloučků
  * zmizí. Skupina, ve které padl vojvoda, je `leaderless` a jde domů sama (vrací-li se už, jde dál).
- * Výprava bez skupin končí (`everyoneHome`).
+ * Výprava bez skupin končí, neběží-li lov (`settleDone`).
  */
 function afterLosses(s: JourneyState, out: TickOut): void {
   const alive = new Set(s.members.filter((m) => m.status === 'active').map((m) => m.group));
@@ -277,18 +311,26 @@ function afterLosses(s: JourneyState, out: TickOut): void {
     p.leaderless = true;
     if (p.phase === 'out') turnHome(s, p);
   }
-  if (s.parties.length === 0) {
-    s.phase = 'done';
-    everyoneHome(s, out);
-  }
+  settleDone(s, out);
 }
 
 /**
- * Výprava končí (poslední hlouček doma, nebo už nikdo nežije) – domovská ves dostane `away-ends`
- * bez `personIds`: od začátku dalšího dne je doma každý, kdo je pryč s touto výpravou (plán
- * 2026-11-14 – Review Focus 2; návrh Clauda). Kryje i lidi, které hráč přidal záměrem přijatým
- * těsně před koncem výpravy, na který už krok nedojde (`musterExpedition` je ve vsi poslal pryč
- * dřív, než výprava skončila) – nikdo tak nezůstane `away: journey` bez běžící výpravy.
+ * Konec výpravy (plán 2026-11-22-hunting – Rozhodnutí 1): `done`, až nemá skupiny ani lov – lov
+ * výpravu drží, dokud honci nedojdou domů, i když lidé jsou doma nebo padli; výprava jen s lovem
+ * (bez lidí) skončí s ním. Konec ohlásí `everyoneHome`; skončenou výpravu nic nezmění.
+ */
+function settleDone(s: JourneyState, out: TickOut): void {
+  if (journeyFinished(s) || s.parties.length > 0 || s.hunt !== undefined) return;
+  s.phase = 'done';
+  everyoneHome(s, out);
+}
+
+/**
+ * Výprava končí (poslední hlouček doma, nebo už nikdo nežije, a lov neběží) – domovská ves dostane
+ * `away-ends` bez `personIds`: od začátku dalšího dne je doma každý, kdo je pryč s touto výpravou
+ * (plán 2026-11-14 – Review Focus 2; návrh Clauda). Kryje i lidi, které hráč přidal záměrem
+ * přijatým těsně před koncem výpravy, na který už krok nedojde (`musterExpedition` je ve vsi
+ * poslal pryč dřív, než výprava skončila) – nikdo tak nezůstane `away: journey` bez běžící výpravy.
  */
 function everyoneHome(s: JourneyState, out: TickOut): void {
   const day = s.day + 1;
@@ -492,17 +534,19 @@ function discover(s: JourneyState, ctx: TickContext): void {
  * Hlouček skupiny, která se vrací, došel domů (lord-control.md – Na místě a návrat; Úloha 1 –
  * Návrat): domovská ves dostane `away-ends` s jeho živými (`personIds`) – jsou od začátku dalšího
  * dne zase doma (schránka na následující den jako výsledky tažení; `ref` je jedinečný: takt
- * a pořadí v něm), poslední hlouček výpravy bez `personIds` (`everyoneHome`) – a hráč upozornění
- * „Bořivoj se vrátil.“ s vůdcem hloučku (`partyLeader`). Skupina, která ztratila vojvodu,
- * upozornění nemá – vojvoda se nevrátil (návrh Clauda). Hlouček i jeho lidé ze stavu zmizí, skupina
- * bez hloučků taky; výprava bez skupin končí. Jen po dojetí domů – uvízlý návrat stojí (`moveGroups`).
+ * a pořadí v něm), poslední hlouček výpravy bez lovu bez `personIds` (`everyoneHome`) – a hráč
+ * upozornění „Bořivoj se vrátil.“ s vůdcem hloučku (`partyLeader`). Skupina, která ztratila
+ * vojvodu, upozornění nemá – vojvoda se nevrátil (návrh Clauda). Hlouček i jeho lidé ze stavu
+ * zmizí, skupina bez hloučků taky; výprava bez skupin končí, neběží-li lov (`settleDone` – jinak
+ * skončí s ním). Jen po dojetí domů – uvízlý návrat stojí (`moveGroups`).
  */
 function finishGroup(s: JourneyState, g: JourneyGroup, party: JourneyParty, out: TickOut): void {
   const living = s.members.filter((m) => m.group === g.id && m.status === 'active');
   shareKnowledge(s, g.cell, out);
   const day = s.day + 1;
-  if (s.groups.every((x) => x === g)) everyoneHome(s, out);
-  else if (living.length > 0) {
+  // poslední hlouček bez lovu ohlásí konec výpravy (`settleDone` níž)
+  const last = s.hunt === undefined && s.groups.every((x) => x === g);
+  if (!last && living.length > 0) {
     out.events.push({
       villageId: s.home.villageId,
       day,
@@ -531,5 +575,5 @@ function finishGroup(s: JourneyState, g: JourneyGroup, party: JourneyParty, out:
   s.members = s.members.filter((m) => m.group !== g.id);
   s.groups = s.groups.filter((x) => x !== g);
   if (!s.groups.some((x) => x.party === party.id)) s.parties = s.parties.filter((p) => p !== party);
-  if (s.parties.length === 0) s.phase = 'done';
+  settleDone(s, out);
 }

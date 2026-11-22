@@ -251,6 +251,11 @@ export const HUNT_FIGHT = {
    */
   horseHitShare: 0.5,
   horseHealth: 100,
+  /**
+   * Dva honci se zabitým zvířetem na tyči jdou do dvorce tímto dílem tempa pochodu (hunting.md –
+   * Pravidla 7: „honci ho odnesou do dvorce na tyči mezi sebou“; číslo návrh Clauda).
+   */
+  carryPaceShare: 0.7,
 } as const;
 
 /**
