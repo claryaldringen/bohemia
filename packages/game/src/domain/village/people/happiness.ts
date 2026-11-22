@@ -278,53 +278,58 @@ export function updateHappiness(
   state.happiness.value = memory.value + (target - memory.value) * DAILY_SHARE;
 }
 
-/** Polní úloha, která dnes běží: kolik práce zbývá po dnešku a kdy končí její okno (den). */
+/** Polní úloha, která dnes běží: kolik práce zbývá po dnešku a kolik dní okna jí ještě zbývá. */
 export interface SeasonTask {
   remaining: number;
-  /** Poslední den okna (index dne). */
-  endDay: number;
+  /** Dny okna po dnešku, v nichž se ještě smí pracovat (zimní mezera mezi úseky se nepočítá). */
+  daysLeft: number;
 }
 
 /**
- * Poslední den aktuálního úseku okna (index dne), nebo null mimo okno. Úsek do prosince
- * pokračuje lednem dalšího roku, když okno má úsek od ledna (výmlat do konce února).
+ * Dny okna po dnešku (D113): kolik dní úlohy v úsecích okna zbývá do konce jejího posledního úseku
+ * – kopání pod jař počítá na podzim i březen a duben, mezeru mezi nimi ne (úsek, který začíná
+ * dřív v roce než předchozí, patří do dalšího roku; výmlat přes Nový rok tak pokračuje lednem).
+ * Mimo okno null.
  */
-export function windowEndDay(segments: readonly WindowSegment[], day: number): number | null {
+export function taskWindowDaysLeft(segments: readonly WindowSegment[], day: number): number | null {
   const { year, month } = dateOfDayIndex(day);
-  const current = segments.find(([from, to]) => month >= from && month <= to);
-  if (!current) return null;
-  let endYear = year;
-  let endMonth = current[1];
-  if (endMonth === MONTHS_PER_YEAR) {
-    const next = segments.find(([from]) => from === 1);
-    if (next) {
-      endYear = year + 1;
-      endMonth = next[1];
+  const index = segments.findIndex(([from, to]) => month >= from && month <= to);
+  if (index < 0) return null;
+  const firstDay = (y: number, m: number): number => {
+    // první den měsíce; za koncem světa poslední den světa + 1
+    try {
+      return dayIndexOf({ year: y, month: m, day: 1 });
+    } catch {
+      return TOTAL_GAME_DAYS;
     }
+  };
+  let total = 0;
+  let segYear = year;
+  let previousEnd = 0;
+  for (let k = index; k < segments.length; k++) {
+    const [from, to] = segments[k] as WindowSegment;
+    if (k > index && from <= previousEnd) segYear++;
+    previousEnd = to;
+    const start = firstDay(segYear, from);
+    const after = to === MONTHS_PER_YEAR ? firstDay(segYear + 1, 1) : firstDay(segYear, to + 1);
+    total += Math.max(0, after - Math.max(start, day + 1));
   }
-  // první den po okně − 1; za koncem světa poslední den světa
-  const afterYear = endMonth === MONTHS_PER_YEAR ? endYear + 1 : endYear;
-  const afterMonth = endMonth === MONTHS_PER_YEAR ? 1 : endMonth + 1;
-  try {
-    return dayIndexOf({ year: afterYear, month: afterMonth, day: 1 }) - 1;
-  } catch {
-    return TOTAL_GAME_DAYS - 1;
-  }
+  return total;
 }
 
 /**
  * Dřina (happiness.md – „ves nestihla práci v období“): ves dnes nestíhá polní práce, když by je
  * dnešním tempem (`pace` – práce, kterou dnes dostaly polní úlohy) nedodělala do konce jejich
- * oken. Úlohy se řadí podle konce okna a zbývající práce se sčítá – co končí dřív, musí být
+ * oken (dny, které jim v úsecích okna zbývají – `taskWindowDaysLeft`). Úlohy se řadí podle zbývajících
+ * dní a zbývající práce se sčítá – co končí dřív, musí být
  * hotové dřív (zkouška rozvrhu podle nejbližšího termínu).
  */
-export function isToilDay(tasks: readonly SeasonTask[], pace: number, day: number): boolean {
-  const open = tasks.filter((t) => t.remaining > 1e-9).sort((a, b) => a.endDay - b.endDay);
+export function isToilDay(tasks: readonly SeasonTask[], pace: number): boolean {
+  const open = tasks.filter((t) => t.remaining > 1e-9).sort((a, b) => a.daysLeft - b.daysLeft);
   let cumulative = 0;
   for (const task of open) {
     cumulative += task.remaining;
-    const daysLeft = Math.max(0, task.endDay - day);
-    if (cumulative > pace * daysLeft + 1e-9) return true;
+    if (cumulative > pace * task.daysLeft + 1e-9) return true;
   }
   return false;
 }
