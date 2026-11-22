@@ -88,8 +88,11 @@ import { goldenWorld, stateFingerprint, YEAR } from './village-golden-fixture';
 // f3d932aac59a239d a 426c0fa9cabc9a88
 // 22. 11. 2026 – D113 dřina: termín okna ve dvou úsecích a nosiči výprav v tempu (happiness.md –
 // Den dřiny; village-golden.test.ts); dřív ba3b711dcd432b02 a f8520591a147a522
-const EXPECTED_YEAR_2 = '276904dcac933306';
-const EXPECTED_YEAR_3 = 'c00f8436f673d2ba';
+// 22. 11. 2026 – D115 ovoce na maximum, které ves sní – jabloně u cest a pak sad do cíle ovoce,
+// sklizeň jen do cíle (viz village-golden.test.ts); samotné D115 dávalo 2c734d3e24ff657c
+// a 0294e4d910303bbb, dřív (s D113) 276904dcac933306 a c00f8436f673d2ba
+const EXPECTED_YEAR_2 = '15be33d768040c40';
+const EXPECTED_YEAR_3 = 'b1cebf0f8cd73631';
 // 18. 11. 2026 – D93 cesta přes plochu staveb; dřív 168010dd35f7c1c7 a a499594da5514b49 (viz
 // village-golden.test.ts)
 // 18. 11. 2026 – D95 výmlat (výmlat podle kg snopů, rod v zimě dorovná tempo okna – viz

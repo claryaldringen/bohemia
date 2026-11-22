@@ -105,7 +105,10 @@ import { advanceChunked, goldenWorld, stateFingerprint, YEAR } from './village-g
 // než lidé klučí další; samotné D110 dávalo 3ce521beed488abd, dřív (s D112) 1bf98727bddab557
 // 22. 11. 2026 – D113 dřina: termín okna ve dvou úsecích a nosiči výprav v tempu (happiness.md –
 // Den dřiny): jiné dny dřiny, tedy štěstí a práce vsi od prvního roku; dřív 147e3ff19545d884
-const EXPECTED_YEAR_1 = 'e1c2e333a3b6fc16';
+// 22. 11. 2026 – D115 ovoce na maximum, které ves sní (orchard.md – Jídlo, Práce; steward.md –
+// Jabloně u cest a sad): správce sází jabloně u cest a pak sad do cíle ovoce místo 5 % energie,
+// sklizeň jen do cíle; samotné D115 dávalo 78eaf33d62ac8181, dřív (s D113) e1c2e333a3b6fc16
+const EXPECTED_YEAR_1 = 'bfca7809b876c8c4';
 // 18. 11. 2026 – D93 cesta přes plochu staveb; dřív 82b12dd84c08dd63 (vyšlapaná cesta přes plochu
 // staveb nevznikne a napojení ji obejde – jiné cesty a id; roky chůze nejvýš doba vyšlapání)
 // 18. 11. 2026 – D95 výmlat (Martin: „A, C, E“ – výmlat podle kg snopů, rod v zimě dorovná tempo
@@ -119,8 +122,9 @@ describe('zlatý otisk vsi', () => {
     // 18. 11. 2026 – strava po vrstvách, úloha 2: maso, ryby a mléko bez stropů – ves potřebuje
     // méně obilí a správce založil 4 pole; dřív aspoň 5
     // 18. 11. 2026 – D99 cíl polí na maximum, které ves oseje (steward.md – Cíl polí): 27 polí;
-    // dřív aspoň 4; 19. 11. 2026 – D99 kolo 1 (osev i žně): 26 polí
-    expect(s.fields.length).toBeGreaterThanOrEqual(20);
+    // dřív aspoň 4; 19. 11. 2026 – D99 kolo 1 (osev i žně): 26 polí; 22. 11. 2026 – D115 (jabloně
+    // u cest a sad do cíle ovoce): 18 polí při skoro stejné ploše polí, dřív aspoň 20
+    expect(s.fields.length).toBeGreaterThanOrEqual(15);
     expect(s.livestock?.herds).toBeDefined();
     expect(s.crafts).toBeDefined();
     expect(s.people.length).toBeGreaterThanOrEqual(10);
