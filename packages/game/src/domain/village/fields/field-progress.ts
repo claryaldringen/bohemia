@@ -226,16 +226,17 @@ export function taskPosition(work: CropWork, task: PartTask, done?: number): num
 }
 
 /**
- * Díly plodiny, na kterých už začala práce – některá úloha (i orba) přešla začátek jejich úseku
- * (fields.md – Osevní postup po dílech). Úseky dílů se spočítají jednou za úlohu.
+ * Díly plodiny, na kterých už začala práce – některá úloha `tasks` (i orba) přešla začátek jejich
+ * úseku (fields.md – Osevní postup po dílech). Úseky dílů se spočítají jednou za úlohu.
  */
 export function startedPartIds(
   work: CropWork,
   partsById: ReadonlyMap<number, FieldPart>,
   day: number,
+  tasks: readonly PartTask[] = PART_TASKS,
 ): Set<number> {
   const started = new Set<number>();
-  for (const task of PART_TASKS) {
+  for (const task of tasks) {
     // úloha bez práce (ozim se neplete, bez přílohu se nevrací) díl nezačala
     const required = task === 'plough' ? (work.plough?.required ?? 0) : work.required[task];
     if (required <= 0) continue;
@@ -245,6 +246,51 @@ export function startedPartIds(
     }
   }
   return started;
+}
+
+/**
+ * Díly s vracením přílohu (`reclaimIds` – křoviny a mladý les, s motykou i drn louky), přes které
+ * vracení ještě nedošlo celé, i rozpracovaný – na ty orba ani motyka zatím nesmí (fields.md –
+ * Postup práce po dílech, orba a setí až po vyklučení). Žádný takový díl null.
+ */
+export function unreclaimedPartIds(
+  work: CropWork,
+  partsById: ReadonlyMap<number, FieldPart>,
+  day: number,
+): Set<number> | null {
+  if (!work.reclaimIds || work.reclaimIds.length === 0) return null;
+  const position = taskPosition(work, 'reclaim');
+  const unreclaimed = new Set<number>();
+  for (const span of taskSpans(work, partsById, 'reclaim', day)) {
+    if (!isDone(span, position)) unreclaimed.add(span.id);
+  }
+  return unreclaimed.size > 0 ? unreclaimed : null;
+}
+
+/**
+ * Kolik orby, kopání nebo setí plodina smí (člověkodny – fields.md, Postup práce po dílech, orba
+ * a setí až po vyklučení): úloha dojde nejvýš na začátek prvního úseku, který ještě nedodělala a na
+ * kterém je díl dosud nevyklučený (`unreclaimedPartIds`, stav do včerejška; díly pásu mají společný
+ * úsek). Takové díly dá za připravené `readyTillageFirst` – rádlo i motyka tak pokračují dalším
+ * připraveným dílem v pořadí a setí jde za nimi.
+ */
+export function tillableRemaining(
+  work: CropWork,
+  partsById: ReadonlyMap<number, FieldPart>,
+  task: 'plough' | 'dig' | 'sow',
+  day: number,
+): number {
+  const remaining = cropTaskRemaining(work, task);
+  if (remaining <= 0) return 0;
+  const unreclaimed = unreclaimedPartIds(work, partsById, day);
+  if (!unreclaimed) return remaining;
+  const position = taskPosition(work, task);
+  const blocked = taskSpans(work, partsById, task, day).find(
+    (s) => !isDone(s, position) && unreclaimed.has(s.id),
+  );
+  if (!blocked) return remaining;
+  const required = task === 'plough' ? (work.plough?.required ?? 0) : work.required[task];
+  return Math.min(remaining, Math.max(0, (blocked.start - position) * required));
 }
 
 /** Díl je v úloze hotový – úloha došla za jeho konec. */
@@ -310,6 +356,12 @@ export function fieldFrontiers(state: VillageState, day: number): Map<number, Pa
         cropTaskWindows(crop, task).some(([from, to]) => month >= from && month <= to) ||
         (task === 'sow' && springSowingExtended(state, day, crop));
       if (!open || cropTaskRemaining(work, task) <= 0) continue;
+      // rádlo a motyka čekají na vyklučení – čelo, na kterém se dnes nepracuje, se neukáže
+      if (
+        (task === 'plough' || task === 'dig') &&
+        tillableRemaining(work, partsById, task, day) <= 0
+      )
+        continue;
       const id = frontierPart(work, partsById, task, day);
       if (id === null) continue;
       frontiers.set(id, [...(frontiers.get(id) ?? []), task]);

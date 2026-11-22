@@ -733,11 +733,19 @@ describe('pás při přibírání jen ze stejné skupiny (fields.md – Pořadí
   });
 
   it('setí zorané půdy před klučením – klučení na později setí zoraného nevytlačí', () => {
-    // křoví zorané do včerejška, nezaseté, a ještě kus klučení: lidé napřed sejí, co je zorané
-    // (fields.md – Pořadí důležitosti polních prací; D110)
-    const { s } = shrubsOnFront(false);
+    // křoví vyklučené a zorané do včerejška, nezaseté, a další křoví ještě v klučení: lidé napřed
+    // sejí, co je zorané (fields.md – Pořadí důležitosti polních prací; D110) – zorané je jen
+    // vyklučené (orba a setí až po vyklučení, D116)
+    const { s } = shrubsOnFront(true);
     const winter = seasonCrop(s.season!, 'winter')!;
-    winter.plough!.done = winter.plough!.required;
+    const more = rect(2000, 0, 60, 1, 1).map((p) => shrubs({ ...p, distanceM: 300 }));
+    s.parts.push(...more);
+    addToCropWork(winter, more, DAY + 1, 0, undefined, 'winter');
+    const byId = new Map(s.parts.map((p) => [p.id, p]));
+    const startOf = (task: 'reclaim' | 'plough'): number =>
+      taskSpans(winter, byId, task, DAY + 1).find((x) => x.id === 2000)!.start;
+    winter.done.reclaim = startOf('reclaim') * winter.required.reclaim;
+    winter.plough!.done = startOf('plough') * winter.plough!.required;
     winter.done.sow = 0;
     const tasks = fieldTasks(s, DAY + 1, 0).map(
       (e) =>

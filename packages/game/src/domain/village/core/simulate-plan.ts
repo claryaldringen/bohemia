@@ -8,7 +8,13 @@ import { harvestHandsDay, harvestHelperLabor } from '../fields/harvest-hands';
 import { closeFieldFoodYear, storesOutlook, type StoresOutlook } from '../fields/field-food';
 import { sowingGroup, type FallowRank } from '../fields/fields';
 import { fallowOrder } from './fallow-order';
-import { taskPosition, taskSpans, unsownPartIds } from '../fields/field-progress';
+import {
+  taskPosition,
+  taskSpans,
+  unreclaimedPartIds,
+  unsownPartIds,
+} from '../fields/field-progress';
+import { readyTillageFirst } from '../fields/tillage-order';
 import { dropFromWork, moveParts, shrinkInPlan } from '../buildings/land-taken';
 import { ploughBandFinder } from '../livestock/plough-blocks';
 import {
@@ -298,9 +304,9 @@ function addToFront(
 /**
  * Zbývající orba plodiny po dílech (člověkodny – fields.md, Pořadí dávek, Čelo práce po zdrojích):
  * `ready` na dílech připravených k orbě (louka – drn, díl v osevu, vyklučený díl), `reclaiming`
- * na dílech, přes které vrácení přílohu ještě nedošlo – návrh Clauda: zarostlé díly klučí lidé
- * rukama, voli orají naplno (Martin 22. 11. 2026: „Ok, udělej to tak.“). Čelo je plán: jádro
- * díl zorat i zasít smí dřív, než ho lidé vyklučí (fields.md – Známý dluh).
+ * na dílech, které čekají na vyklučení – návrh Clauda: zarostlé díly klučí lidé rukama, voli
+ * orají naplno (Martin 22. 11. 2026: „Ok, udělej to tak.“). Jako jádro (`tillableRemaining`):
+ * díly pásu se orají spolu, takže čeká celý úsek orby s dosud nevyklučeným dílem.
  */
 function ploughSplit(
   work: CropWork,
@@ -313,17 +319,17 @@ function ploughSplit(
     return { ready: all, reclaiming: 0 };
   }
   const byId = partsById();
-  const reclaimAt = taskPosition(work, 'reclaim');
-  const inReclaim = new Set<number>();
-  for (const span of taskSpans(work, byId, 'reclaim', day)) {
-    if (span.end > reclaimAt + EPSILON) inReclaim.add(span.id);
-  }
-  if (inReclaim.size === 0) return { ready: all, reclaiming: 0 };
-  // podíl zbývající orby na dílech v klučení – úseky orby za tím, kam orba došla
+  const inReclaim = unreclaimedPartIds(work, byId, day);
+  if (!inReclaim) return { ready: all, reclaiming: 0 };
+  // podíl zbývající orby na úsecích orby s dílem v klučení (díly pásu mají společný úsek) – za
+  // tím, kam orba došla
   const ploughAt = taskPosition(work, 'plough');
+  const spans = taskSpans(work, byId, 'plough', day);
+  const waiting = new Set<number>();
+  for (const span of spans) if (inReclaim.has(span.id)) waiting.add(span.start);
   let share = 0;
-  for (const span of taskSpans(work, byId, 'plough', day)) {
-    if (!inReclaim.has(span.id) || span.end <= ploughAt + EPSILON) continue;
+  for (const span of spans) {
+    if (!waiting.has(span.start) || span.end <= ploughAt + EPSILON) continue;
     share += (span.end - Math.max(span.start, ploughAt)) * (span.share ?? 1);
   }
   const reclaiming = Math.min(all, share * plough.required);
@@ -417,8 +423,8 @@ function peopleRoom(front: Front, crop: Crop): boolean {
 
 /**
  * Díl se vejde na čelo (fields.md – Pořadí dávek). Díl s ručním klučením (křoví, mladý les) stačí
- * místo u lidí – čelo počítá jeho orbu u spřežení až po vyklučení, a ruce tak nestojí, když orají
- * naplno (jádro ale díl zorat smí dřív – fields.md, Známý dluh).
+ * místo u lidí – rádlo ho zorá až po vyklučení (`tillableRemaining`), čelo tak jeho orbu počítá
+ * u spřežení až potom, a ruce nestojí, když orají naplno.
  * Díl bez klučení (louka – orba drnu, díl v osevu) potřebuje místo u lidí i u spřežení
  * (`frontRoom`). Jen pro testy se exportuje.
  */
@@ -463,11 +469,15 @@ function fellReclaimed(state: VillageState, season: FarmSeason, day: number): vo
  * vybere všechny díly na řadě v pořadí přílohové soustavy (`turnSelection` – bez odhadu úrody
  * a bez stropu). K práci přibere z výběru jen dávku na čele (`workFront`) – další díly, až čelo
  * dávku dodělá; co do konce okna nepřibere, počká. Ves bez hospodářského roku (založená během
- * roku) ho dostane s prvním dílem. Nakonec hromada osiva okna setí a zimní osivo
- * (`sowingSeedDay`). Vrací díly výběru, které na čelo práce nepřišly (`work()` – čekající plodiny).
+ * roku) ho dostane s prvním dílem. Pak díly, které čekají na vyklučení, za připravené
+ * (`readyTillageFirst` – rádlo a motyka až po vyklučení). Nakonec hromada osiva okna setí a zimní
+ * osivo (`sowingSeedDay`). Vrací díly výběru, které na čelo práce nepřišly (`work()` – čekající plodiny).
  */
 export function seasonDay(state: VillageState, day: number, coverage: CraftCoverage): SeasonJoin[] {
   const { waiting } = seasonJoins(state, day, coverage);
+  // rádlo a motyka jen na vyklučené díly – díly, které na vyklučení čekají, za připravené
+  // (fields.md – Postup práce po dílech, orba a setí až po vyklučení; D116)
+  readyTillageFirst(state, day);
   // hromada osiva okna setí po výběru dílů dne (fields.md – Osivo bez cíle osevu)
   sowingSeedDay(state, day);
   return waiting;

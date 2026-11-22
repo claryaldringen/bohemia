@@ -37,6 +37,7 @@ import type { ChurchWork, Construction, CropWork } from '../types';
 import { churchCraftWork, churchMorning, gainMasonryXp } from '../buildings/church-build';
 import { seedKeepKg, takeSeed } from '../fields/seed';
 import { addCropTaskWork, cropTaskDone, cropTaskRemaining, type CropTask } from './year-plan';
+import { tillableRemaining } from '../fields/field-progress';
 import { payWatch } from '../wildlife/wildlife-damage';
 import { fortUpkeep } from '../fortification/decay';
 import { build, decayEmptyDwellings, woodworkToday, type StoneCarts } from './simulate-build';
@@ -222,10 +223,10 @@ export function applyDayTasks(
     if (haul && crew > 0) recordTaskHaul(ctx, task, labor, crew, haul, haulWork);
     if (task.field) {
       const before = cropTaskDone(task.field.work, task.field.name);
-      // seje se jen zpracovaná půda – i dnes zoraná a zkopaná
+      // seje se jen zpracovaná půda – i dnes zoraná a zkopaná, a jen vyklučená (D116)
       const done =
         task.field.name === 'sow'
-          ? Math.min(amount, cropTaskRemaining(task.field.work, 'sow'))
+          ? Math.min(amount, tillableRemaining(task.field.work, partsById, 'sow', day))
           : amount;
       addCropTaskWork(task.field.work, task.field.name, done);
       const after = cropTaskDone(task.field.work, task.field.name);
