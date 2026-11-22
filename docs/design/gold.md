@@ -1,6 +1,6 @@
 # Zlato a klenoty – rýžování, šperkař, mincovna (issue #13)
 
-Stav: **návrh – čeká na schválení** (22. 11. 2026, po kontrole stavitelem a Martinových odpovědích). Co řekl Martin, je u bodu s datem; ostatní je návrh
+Stav: **schváleno** – Martin 22. 11. 2026 na otázku „Schvaluješ oba návrhy a takové pořadí?“ (obchod s trhy a mincemi, zlato a klenoty; šest plánů: konec smyšlených sousedů, trh bez mincí, vesničané a správce na trhu, kupci a mince, otroci, zlato): „Ano“. Co řekl Martin, je u bodu s datem; ostatní je návrh
 Clauda. Stojí na mincích z [obchodu](markets.md) a na prémiové krajině Zlatonosný potok
 ([prémiové krajiny](premium-landscapes.md), [krajina](landscape.md) – 3–6 náplavů zlatonosného písku).
 

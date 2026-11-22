@@ -1,6 +1,6 @@
 # Obchod – trhy, kupci a mince (issue #11)
 
-Stav: **návrh – čeká na schválení** (22. 11. 2026, po kontrole stavitelem a Martinových odpovědích). Co řekl Martin, je u bodu s datem; ostatní je návrh
+Stav: **schváleno** – Martin 22. 11. 2026 na otázku „Schvaluješ oba návrhy a takové pořadí?“ (obchod s trhy a mincemi, zlato a klenoty; šest plánů: konec smyšlených sousedů, trh bez mincí, vesničané a správce na trhu, kupci a mince, otroci, zlato): „Ano“. Co řekl Martin, je u bodu s datem; ostatní je návrh
 Clauda. Nahrazuje obchod se smyšlenými sousedy ([obchod](trade.md) – Sousedé, varianta a) a navazuje na rozpracovaný
 návrh [sousedních vsí](neighbours.md), jehož body 2–8 Martin odložil právě do této kapitoly.
 
