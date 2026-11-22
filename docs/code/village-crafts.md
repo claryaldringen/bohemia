@@ -81,8 +81,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   8): `crafts/burner-camp.ts`, čísla `BURNER_CAMP`. Stav `Workshop.camp` (`BurnerCamp` – id
   z `nextId`, střed, natočení, `done` v čd, `builtDay`), opuštěné `VillageState.campRemnants`
   (`CampRemnant` – nedostavěná nese `done`, scéna ji kreslí jako staveniště, které zarůstá);
-  obojí volitelné; zemnici má **jen uhlíř v nadzemní dílně** (`isHouseType(dwelling.type)`, Martin
-  15. 11. 2026) – `workBurner` u uhlíře v dnešní dílně nestaví `moveCamp` ani nepoužívá `anchor`
+  obojí volitelné; zemnici má **jen uhlíř v nadzemní dílně** (`isHouseType(dwelling.type)`, Martin 15. 11. 2026) – `workBurner` u uhlíře v dnešní dílně nestaví `moveCamp` ani nepoužívá `anchor`
   a případnou zemnici na začátku dne opustí (`abandonCamp`); odnos na tyči se nemění. Dílna ze starší vsi zemnici nemá a rozdělaný milíř dojede bez ní. Kde
   `workBurner` začíná nový milíř: `campUsable` (15 nejbližších volných buků do
   `reuseRadiusM` od zemnice) → `startKiln` s `anchor` (první buk nejblíž zemnici, chůze se dál
@@ -213,6 +212,25 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   upozornění „Vesničané koupili nástroje u souseda (sever)“, `VillageCrafts.sources` (`craftSources`),
   `VillageView.purchases`, panel dvorce `BuyingRow` (výrobky se šipkou ke zdroji, nákup na cestě),
   panel dílny bez vstupů `SelectionWorkshop.buying`; řádek kalibrace „Nákup u sousedů“.
+- **Vozy u nákupu u sousedů** ([crafts.md](../design/crafts.md) – Nákup u sousedů, Vozy; Martin 19. 10. 2026: „Až bude vůz, pojedou zásoby na voze a ušetří se člověkodny.“; Martin 22. 11. 2026
+  „ano“ – ves bez tesaře si vůz koupí u souseda): `purchase-carts.ts`. Volní voli
+  `purchaseOxen` (doma, ve dny orby bez párů u rádel – `ploughingToday`: spřežení na poli, nebo
+  orba v okně, která zbývá), vozy `purchaseCarts` (doma – `cartsAway`, každý se svými voly,
+  čtyřkoláky napřed), jen po hotové stezce sjízdné pro vozy (`cartRoutePassable` –
+  `trailCartPassable`; krajinou ne). Doprava `purchaseTransport`: pěšky `tripOf` (přesunuté sem,
+  `craft-buying.ts` ho dál vyváží), nebo n vozů jako výprava (plné jízdy, zbytek aspoň půl vozu =
+  jízda navíc, menší zbytek nosiči, s vozem `CARTS.tradeCrew`, skupina nejvýš `groupCap`) – vozy jen
+  s menší prací; strop nákupu za 60 dní `transportLoadKg`. `PurchasePlan.carts` (druhy),
+  `CraftPurchase.carts` (id) – vozy a jejich voli jsou do návratu pryč (`cartsAway`, `oxenAway`).
+  Koupě vozu: `PurchaseItem` `'cart'` v témže pořadí podle poměru – ves bez pracujícího tesaře,
+  `missingCart`, volní voli na vůz (`DRAFT_OXEN`), nejbližší soused s tesařem po sjízdné stezce
+  (`nearestCartMaker`), cena `cartPriceKg` (0,96 × `cartValueKg` – práce tesaře × 4 kg obilí za den
+  jako dřevěné nářadí, klády za hodnotu klády, kování za hodnotu nástrojů: dvoukolák 320, čtyřkolák
+  640 kg), celá z přebytku; ušetří `cartYearSaving` (draft.ts – rozdíl loňské úspory vozů s vozem
+  navíc a bez, mínus voli navíc) × `CARTS.lifespanYears`. `CraftPurchase.cart` – voli jdou se
+  skupinou (`oxenAway`), `finishPurchases` → `addCart`, kronika `crafts-bought` s `cart`
+  („Vlkovští směnili 307 kg obilí za dvoukolák s Lhotskými.“), upozornění „Vesničané koupili
+  dvoukolák u souseda (sever)“ (`productList` s vozem).
 
 - **Učení řemesla** ([crafts.md](../design/crafts.md) – Učení řemesla; Martin 20. 10. 2026:
   „Každý řemeslník vychovává svého nástupce - syna. Pokud je řemeslník úplně nový, trvá mu, než se
