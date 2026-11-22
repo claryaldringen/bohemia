@@ -661,7 +661,11 @@ Clauda**:
 - **Kapacita:** osevní postup (čelo práce a `sowingCapacity`; do 9. 11. 2026 i `neededSelection` – historie) hlídá i orbu spřežení v jejích
   oknech – ozim v září–říjnu (bez posledního dne, ať se zaseje i poslední zoraný pruh), jař
   a luštěniny na podzim, kolik po ozimu zbude, a zbytek v březnu–dubnu. Co spřežení nestihnou,
-  ves nezaseje (motyka nepomůže); víc ohrad se spřežením = víc kapacity. Orbu dál dělají lidé
+  ves nezaseje (motyka nepomůže); víc ohrad se spřežením = víc kapacity. Místo spřežení na čele
+  práce drží jen orba dílů připravených k orbě – louka (drn), díl v osevu, vyklučený díl; díl,
+  který lidé teprve klučí (křoví, mladý les), zabere místo u spřežení, až je vyklučený, ať voli
+  orají naplno, zatímco lidé klučí (fields.md – Pořadí dávek, Čelo práce po zdrojích;
+  Martin 22. 11. 2026). Orbu dál dělají lidé
   (oráč a honáček), proto se počítá i do práce lidí. Jedno spřežení zorá za podzim ≈ 27 ha a na
   jaře ≈ 18 ha bez drnu – běžná ves osévá jednotky hektarů, hladovět kvůli tomu nebude; osev podle
   zásob a pojistka platí dál.

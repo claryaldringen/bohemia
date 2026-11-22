@@ -50,7 +50,11 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `freeLabor` a podíl rodiny na přípravě a setí `manorLabor.sowing`, D102) a orby
   (`ploughCapacityPerDay`) – díl s ručním klučením (vrácení přílohu > 0) stačí místo u lidí,
   ostatní potřebují i místo u spřežení (`partRoom`, `peopleRoom`, rozdělaná práce `frontLoad`;
-  výběr z paměti hlídá jen `peopleRoom`); ostatní čekají – `seasonDay` je vrátí (`FarmSeason.selection.waiting`)
+  výběr z paměti hlídá jen `peopleRoom`); místo u spřežení drží jen orba dílů připravených
+  k orbě – `ploughSplit` dělí zbývající orbu plodiny po úsecích vrácení přílohu a orby
+  (`taskSpans`, `taskPosition`) na díly připravené (`ready`) a díly, přes které vrácení ještě
+  nedošlo (`reclaiming` – do čela spřežení nejde, bez spřežení doma ji `addToFront` přičte lidem);
+  přibraný díl s klučením přičte orbu stejně (D110 kolo 2); ostatní čekají – `seasonDay` je vrátí (`FarmSeason.selection.waiting`)
   a `lordHelpDay` je přičte k zátěži pomoci rodiny (`sowingHelpLoad` – `partWork`, jen s osivem).
   **Přílohy podle úzkého hrdla** (core/fallow-order.ts, D110): před `turnSelection` volné místo
   čela pro plodinu dne (`peopleRoom`/`ploughRoom` minus `frontLoad`) → `fallowOrder` →

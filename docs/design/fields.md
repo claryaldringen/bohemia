@@ -503,7 +503,13 @@ Seno, dvě seče).
      odpočinek, vzdálenost). **Čelo práce po zdrojích** (návrh Clauda, Martin 22. 11. 2026): díl
      s ručním klučením (křoví, mladý les) stačí na čele místo u lidí – spřežení ho zorají, až ho
      lidé vyklučí, takže ruce nestojí, když spřežení orají naplno; díl bez klučení (louka – orba
-     drnu, díl v osevu) potřebuje místo u lidí i u spřežení. Pás orby se skládá jen z dílů téhož
+     drnu, díl v osevu) potřebuje místo u lidí i u spřežení. **Místo u spřežení drží jen orba dílů
+     připravených k orbě** (louka – drn, díl v osevu, vyklučený díl; Martin 22. 11. 2026:
+     „zarostlé díly klučí lidé rukama, když voli orají naplno“): díl v klučení zabere místo
+     u spřežení, až ho lidé vyklučí – do té doby se na čelo vejdou louky, které spřežení zorá hned.
+     Dřív orba dílů v klučení zaplnila místo u spřežení hned při přibrání, louky čekaly a spřežení
+     s nimi (oprava návrh Clauda 22. 11. 2026, D110 – Vlkov 10 let s opravou a se setím zoraného
+     před klučením (Pořadí důležitosti polních prací) 120,2 t zrna proti 115,4 t). Pás orby se skládá jen z dílů téhož
      pořadí stadia. Výběr z paměti (Výběr bez stropu) platí, jen když na čele nemají místo lidé –
      díl s klučením se jinak vejde.
    - **Klády jen za skácené stromy** (Zarůstání): mladý les na přibraném dílu dá klády, až přes
@@ -943,7 +949,12 @@ nestačí na všechno):
    (Martin 9. 11. 2026: „Otava až po orbě a setí ozimu“ – platilo 9.–10. 11. 2026, nahrazeno),
 4. **sklizeň jablek**,
 5. **pletí** (ženy a děti – muži jen zbytek a až po stavbách),
-6. **orba, příprava půdy a setí** (vrácení přílohu, klučení, kopání, orba, setí),
+6. **orba, příprava půdy a setí** (vrácení přílohu, klučení, kopání, orba, setí) – uvnitř orba
+   rádlem první (oxen.md – Orba má přednost), **setí zorané a zkopané půdy před vracením přílohu
+   téže plodiny** (návrh Clauda 22. 11. 2026, D110 – Martin: „vyprodukovat co nejvíce za co
+   nejmenší množství práce“): klučení dílů na později nevytlačí setí toho, co je zorané. Dřív šlo
+   vracení přílohu první a Vlkov 905–914 nechal na konci dubna 3–20 čd setí zorané jaře nezaseté
+   (v březnu a dubnu 30–60 dní, kdy klučení vzalo práci setí zoraného),
 7. **noční hlídka polí** proti zvěři,
 8. **výmlat**.
 
