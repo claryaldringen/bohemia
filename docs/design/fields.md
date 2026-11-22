@@ -501,11 +501,12 @@ Seno, dvě seče).
      stejně drahé). Shoda se láme cenou u lidí, pak u spřežení – stadia, která omezuje totéž místo,
      tak rozhodne druhý zdroj –, pak dřívějšími klíči (bez přílohu před sebou, rozběhnuté úseky,
      odpočinek, vzdálenost). **Čelo práce po zdrojích** (návrh Clauda, Martin 22. 11. 2026): díl
-     s ručním klučením (křoví, mladý les) stačí na čele místo u lidí – spřežení ho zorají, až ho
-     lidé vyklučí, takže ruce nestojí, když spřežení orají naplno; díl bez klučení (louka – orba
+     s ručním klučením (křoví, mladý les) stačí na čele místo u lidí – čelo počítá jeho orbu
+     u spřežení až po vyklučení (plán), takže ruce nestojí, když spřežení orají naplno (jádro
+     ale díl zorat i zasít smí dřív, než ho lidé doklučí – zjednodušení, viz Známý dluh); díl bez klučení (louka – orba
      drnu, díl v osevu) potřebuje místo u lidí i u spřežení. **Místo u spřežení drží jen orba dílů
-     připravených k orbě** (louka – drn, díl v osevu, vyklučený díl; Martin 22. 11. 2026:
-     „zarostlé díly klučí lidé rukama, když voli orají naplno“): díl v klučení zabere místo
+     připravených k orbě** (louka – drn, díl v osevu, vyklučený díl; návrh Clauda: zarostlé díly
+     klučí lidé rukama, když voli orají naplno – Martin 22. 11. 2026: „Ok, udělej to tak.“): díl v klučení zabere místo
      u spřežení, až ho lidé vyklučí – do té doby se na čelo vejdou louky, které spřežení zorá hned.
      Dřív orba dílů v klučení zaplnila místo u spřežení hned při přibrání, louky čekaly a spřežení
      s nimi (oprava návrh Clauda 22. 11. 2026, D110 – Vlkov 10 let s opravou a se setím zoraného
@@ -952,7 +953,8 @@ nestačí na všechno):
 6. **orba, příprava půdy a setí** (vrácení přílohu, klučení, kopání, orba, setí) – uvnitř orba
    rádlem první (oxen.md – Orba má přednost), **setí zorané a zkopané půdy před vracením přílohu
    téže plodiny** (návrh Clauda 22. 11. 2026, D110 – Martin: „vyprodukovat co nejvíce za co
-   nejmenší množství práce“): klučení dílů na později nevytlačí setí toho, co je zorané. Dřív šlo
+   nejmenší množství práce“): klučení dílů na později nevytlačí setí toho, co je zorané
+   (jádro seje i díl zorený před vyklučením – viz Známý dluh). Dřív šlo
    vracení přílohu první a Vlkov 905–914 nechal na konci dubna 3–20 čd setí zorané jaře nezaseté
    (v březnu a dubnu 30–60 dní, kdy klučení vzalo práci setí zoraného),
 7. **noční hlídka polí** proti zvěři,
@@ -2588,6 +2590,15 @@ Ovládání a vzhled jsou **návrh k potvrzení na náčrtech** (obydlí se umis
 - **Druhy plodin** (ozim a jař už jsou – viz Ozim a jař; dál žito a pšenice zvlášť, proso
   s osivem 10–25 kg/ha, luštěniny), vymrzání ozimu s počasím, **zvířata, seno a pastva**,
   **les a dřevo** (využití vykáceného dřeva), zahrady a rybolov.
+
+## Známý dluh
+
+- **Orba a setí až po vyklučení.** Čelo práce počítá orbu dílu v klučení u spřežení až po
+  vyklučení, jádro ale rádlo i setí po dílech vede v pořadí práce a na vyklučení dílu nečeká:
+  díl s křovím nebo mladým lesem se může zorat a zasít dřív, než ho lidé doklučí. Měření kontroly
+  D110 (Vlkov 10 let): zoráno před vyklučením základ 34,7 ha / větev 32,8 ha, zaseto před
+  vyklučením 6,3 / 29,2 ha (jař 0,1 / 19,2 ha); do konce okna ale zůstalo zaseto a nevyklučeno jen
+  1,8 ha (základ 1,2 ha), zisk z toho ≤ 2 %. Řeší se samostatnou úlohou.
 
 ## Na stavitelovi
 

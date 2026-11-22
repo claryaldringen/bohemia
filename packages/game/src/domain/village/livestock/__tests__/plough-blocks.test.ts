@@ -627,7 +627,7 @@ describe('pás při přibírání jen ze stejné skupiny (fields.md – Pořadí
 
   it('spřežení naplno nezastaví klučení – zarostlé díly přibudou, i když louky čekají na orbu', () => {
     // 384 odpočatých luk zaplní čelo spřežení; křoviny se vyklučí rukama, ať ruce nestojí
-    // (Martin 22. 11. 2026) – orba přijde po vyklučení
+    // (návrh Clauda, Martin 22. 11. 2026: „Ok, udělej to tak.“) – orba přijde po vyklučení
     const parts = [
       ...rect(1, 0, 0, 24, 16).map((p) => meadow({ ...p, distanceM: 60 })),
       ...rect(1000, 0, 40, 6, 4).map((p) => shrubs({ ...p, distanceM: 200 })),
@@ -717,7 +717,8 @@ describe('pás při přibírání jen ze stejné skupiny (fields.md – Pořadí
   }
 
   it('orba dílů v klučení místo u spřežení nedrží – louka přibude, vyklučený díl místo zabere', () => {
-    // voli orají naplno, zarostlé díly klučí lidé rukama (Martin 22. 11. 2026) – místo
+    // návrh Clauda: voli orají naplno, zarostlé díly klučí lidé rukama (Martin 22. 11. 2026:
+    // „Ok, udělej to tak.“) – místo
     // u spřežení na čele drží jen orba dílů připravených k orbě (fields.md – Pořadí dávek)
     const waiting = shrubsOnFront(false);
     const before = seasonIds(waiting.s);

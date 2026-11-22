@@ -294,8 +294,9 @@ function addToFront(
 /**
  * Zbývající orba plodiny po dílech (člověkodny – fields.md, Pořadí dávek, Čelo práce po zdrojích):
  * `ready` na dílech připravených k orbě (louka – drn, díl v osevu, vyklučený díl), `reclaiming`
- * na dílech, přes které vrácení přílohu ještě nedošlo – zarostlé díly klučí lidé rukama, voli
- * orají naplno (Martin 22. 11. 2026).
+ * na dílech, přes které vrácení přílohu ještě nedošlo – návrh Clauda: zarostlé díly klučí lidé
+ * rukama, voli orají naplno (Martin 22. 11. 2026: „Ok, udělej to tak.“). Čelo je plán: jádro
+ * díl zorat i zasít smí dřív, než ho lidé vyklučí (fields.md – Známý dluh).
  */
 function ploughSplit(
   work: CropWork,
@@ -412,7 +413,8 @@ function peopleRoom(front: Front, crop: Crop): boolean {
 
 /**
  * Díl se vejde na čelo (fields.md – Pořadí dávek). Díl s ručním klučením (křoví, mladý les) stačí
- * místo u lidí – spřežení na něm zorají, až ho lidé vyklučí, a ruce tak nestojí, když orají naplno.
+ * místo u lidí – čelo počítá jeho orbu u spřežení až po vyklučení, a ruce tak nestojí, když orají
+ * naplno (jádro ale díl zorat smí dřív – fields.md, Známý dluh).
  * Díl bez klučení (louka – orba drnu, díl v osevu) potřebuje místo u lidí i u spřežení
  * (`frontRoom`). Jen pro testy se exportuje.
  */

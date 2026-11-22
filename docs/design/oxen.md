@@ -653,7 +653,8 @@ Clauda**:
   Jde do ceny orby i do kapacity spřežení (kapacita je v člověkodnech orby, takže drnu zorá
   spřežení za den 2,5× méně). Pořád je to zlomek motyky (drn 100 + kopání 100).
 - **Křoviny a mladý les** se při vrácení klučí ručně jako dřív (keře a kořeny rádlo neprojede,
-  drn s kořeny tím zmizí), pak se orají běžně.
+  drn s kořeny tím zmizí), pak se orají běžně (plán čela; jádro díl může zorat dřív, než ho lidé
+  doklučí – fields.md, Známý dluh).
 - **Založení pole na louce:** ves se spřežením louku motykou nezakládá – zaplatí jen překážky
   (bez překážek je díl připravený hned) a díl nese drn (`FieldPart.sod`) do první orby. Křoviny
   a les se zakládají jako dřív. Když ves spřežení do plánu ztratí, drn rozruší motyka jako vrácení
@@ -664,8 +665,9 @@ Clauda**:
   ves nezaseje (motyka nepomůže); víc ohrad se spřežením = víc kapacity. Místo spřežení na čele
   práce drží jen orba dílů připravených k orbě – louka (drn), díl v osevu, vyklučený díl; díl,
   který lidé teprve klučí (křoví, mladý les), zabere místo u spřežení, až je vyklučený, ať voli
-  orají naplno, zatímco lidé klučí (fields.md – Pořadí dávek, Čelo práce po zdrojích;
-  Martin 22. 11. 2026). Orbu dál dělají lidé
+  orají naplno, zatímco lidé klučí (návrh Clauda, Martin 22. 11. 2026: „Ok, udělej to tak.“;
+  fields.md – Pořadí dávek, Čelo práce po zdrojích). Čelo je plán: jádro orá po dílech v pořadí
+  práce a díl před vyklučením zorat smí (fields.md – Známý dluh). Orbu dál dělají lidé
   (oráč a honáček), proto se počítá i do práce lidí. Jedno spřežení zorá za podzim ≈ 27 ha a na
   jaře ≈ 18 ha bez drnu – běžná ves osévá jednotky hektarů, hladovět kvůli tomu nebude; osev podle
   zásob a pojistka platí dál.
