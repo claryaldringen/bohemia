@@ -50,9 +50,10 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   (`ploughCapacityPerDay`) – díl s ručním klučením (vrácení přílohu > 0) stačí místo u lidí,
   ostatní potřebují i místo u spřežení (`partRoom`, `peopleRoom`, rozdělaná práce `frontLoad`;
   výběr z paměti hlídá jen `peopleRoom`); místo u spřežení drží jen orba dílů připravených
-  k orbě – `ploughSplit` dělí zbývající orbu plodiny po úsecích vrácení přílohu a orby
-  (`taskSpans`, `taskPosition`) na díly připravené (`ready`) a díly, přes které vrácení ještě
-  nedošlo (`reclaiming` – do čela spřežení nejde, bez spřežení doma ji `addToFront` přičte lidem);
+  k orbě – `ploughSplit` dělí zbývající orbu plodiny po úsecích orby (`taskSpans`,
+  `taskPosition`) na připravené (`ready`) a úseky s dílem, přes který vrácení ještě nedošlo
+  (`unreclaimedPartIds`; díly pásu mají společný úsek, čeká celý – jako `tillableRemaining`):
+  `reclaiming` – do čela spřežení nejde, bez spřežení doma ji `addToFront` přičte lidem;
   přibraný díl s klučením přičte orbu stejně (D110 kolo 2); ostatní čekají – `seasonDay` je vrátí (`FarmSeason.selection.waiting`)
   a `lordHelpDay` je přičte k zátěži pomoci rodiny (`sowingHelpLoad` – `partWork`, jen s osivem).
   **Přílohy podle úzkého hrdla** (core/fallow-order.ts, D110): před `turnSelection` volné místo
@@ -382,6 +383,23 @@ tools)` = s hromadou `pileSowsKg` (osivo, které ves ještě zaseje: `sowingHaPe
   v otevřeném okně setí (ne ozim, ne `surplus`) → podíl plánu, na který stačí `seedKg` + osivo
   z poolu (`sowableSeedKg` + `sheaves.grainKg` / `legumesKg`, dělí se v pořadí `seasonCrops`).
   `fieldTasks` omezí `reclaim`, `dig` a `plough` na podíl × potřebná práce − hotová.
+- **Orba a setí až po vyklučení** (fields.md – Postup práce po čtvercích; D116, návrh Clauda):
+  `field-progress.ts` – `unreclaimedPartIds` (díly `reclaimIds`, přes které úsek vracení přílohu
+  nedošel celý, i rozpracovaný) a `tillableRemaining` (orba, kopání a setí dojdou nejvýš na začátek
+  prvního nedodělaného úseku s takovým dílem – díly pásu mají společný úsek); volá ho `fieldTasks`
+  (orba, kopání, setí), `applyDayTasks` (strop setí dne) a `fieldFrontiers`. `fields/tillage-order.ts`
+  – `readyTillageFirst` z `seasonDay` po přibrání dílů (před `sowingSeedDay`): v každé plodině
+  s nevyklučeným dílem `readyOrder` – řez za posledním dílem, na kterém začala orba, kopání, setí,
+  pletí nebo žeň (`startedPartIds` s `tasks`), i se zbytkem jeho pásu; začatý úsek s nevyklučeným
+  dílem na konci jde za řez (poloha práce se do něj dostane jen posunem – přibraná dávka s jinou
+  prací na váhu dílu – nebo ve vsi z doby před opravou); za řezem napřed připravené, pak čekající
+  (kus pásu čeká, dokud má nevyklučený díl), obojí v dosavadním pořadí – vracení přílohu
+  (vyklučené jsou vždy před nevyklučenými) zůstane, kde bylo. Pás s nevyklučeným dílem a díly bez
+  klučení se rozdělí na kus bez klučení a kus s klučením (osa, směr, blok stejné), `plough.bands`
+  se přeřadí podle prvního dílu pásu v novém pořadí (spoléhá na to `ploughBlockEndPart` a
+  `relayUntouchedBands`); pás přes řez (neměl by nastat) pořadí nemění. `CropWork.partIds` ve vsi, která orá celou plodinu, dostane
+  pořadí orby; plán starší vsi s motykou a ves bez spřežení po dílech. Testy
+  `fields/__tests__/tillage-order.test.ts`.
 - **Postup práce po čtvercích** (Martin – fields.md): kopání, setí a sklizeň mění díl, až k němu
   dojde práce. `field-progress.ts` (jen čte): díly plodiny v pořadí `CropWork.partIds` (dávka
   po úsecích hospodářství od domu ven – řadí `createCropWork` s `workOrder`, ves bez hospodářství

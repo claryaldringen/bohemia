@@ -519,3 +519,10 @@ Původně v sekcích: Osevní postup po dílech (Pořadí dávek) a Hospodařen�
 Původně v sekcích: Osevní postup po dílech (Pořadí dávek) a Hospodaření podle polohy domů (22. 11. 2026 nahrazeno pořadím podle úzkého hrdla).
 
 - ~~Přílohy ≥ 95 % i 70–95 % napřed louky, pak křoví, nakonec mladý les~~ (Martin 22. 11. 2026, F1 rozboru zahálky při setí) – louka se s rádlem orá jako drn 2,5× déle než vyklučený díl, takže v letech, kdy chybí spřežení (nebo ves kope motykou), louky napřed plýtvaly právě tím, čeho měla ves nejméně: Vlkov 908 s jedním párem 10,9 místo 13,9 ha ozimu. Nahrazeno pořadím podle toho, co vsi chybí (návrh Clauda podle Martinova pravidla „vyprodukovat co nejvíce za co nejmenší množství práce“, 22. 11. 2026).
+
+### Orba a setí bez čekání na vyklučení (Známý dluh)
+
+Původně v sekci Známý dluh (a odkazy z Osevního postupu po dílech – Čelo práce po zdrojích – a z Pořadí důležitosti polních prací). Neplatí od 22. 11. 2026 (D116 – orba a setí až po vyklučení, fields.md – Postup práce po čtvercích).
+
+- ~~**Orba a setí až po vyklučení.** Čelo práce počítá orbu dílu v klučení u spřežení až po vyklučení, jádro ale rádlo i setí po dílech vede v pořadí práce a na vyklučení dílu nečeká: díl s křovím nebo mladým lesem se může zorat a zasít dřív, než ho lidé doklučí. Měření kontroly D110 (Vlkov 10 let): zoráno před vyklučením základ 34,7 ha / větev 32,8 ha, zaseto před vyklučením 6,3 / 29,2 ha (jař 0,1 / 19,2 ha); do konce okna ale zůstalo zaseto a nevyklučeno jen 1,8 ha (základ 1,2 ha), zisk z toho ≤ 2 %. Řeší se samostatnou úlohou.~~
+- ~~(jádro ale díl zorat i zasít smí dřív, než ho lidé doklučí – zjednodušení, viz Známý dluh)~~ a ~~(jádro seje i díl zoraný před vyklučením – viz Známý dluh)~~ – fyzicky to nejde, na křoví ani mladý les se neorá a neseje. Nahrazeno: rádlo, motyka a setí díl s klučením přeskočí, dokud ho lidé nevyklučí, a pokračují dalšími připravenými díly (návrh Clauda 22. 11. 2026 – D116).

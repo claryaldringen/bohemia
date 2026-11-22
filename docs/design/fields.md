@@ -506,8 +506,8 @@ Seno, dvě seče).
      tak rozhodne druhý zdroj –, pak dřívějšími klíči (bez přílohu před sebou, rozběhnuté úseky,
      odpočinek, vzdálenost). **Čelo práce po zdrojích** (návrh Clauda, Martin 22. 11. 2026): díl
      s ručním klučením (křoví, mladý les) stačí na čele místo u lidí – čelo počítá jeho orbu
-     u spřežení až po vyklučení (plán), takže ruce nestojí, když spřežení orají naplno (jádro
-     ale díl zorat i zasít smí dřív, než ho lidé doklučí – zjednodušení, viz Známý dluh); díl bez klučení (louka – orba
+     u spřežení až po vyklučení – rádlo ho dřív nezačne (Postup práce po čtvercích – Orba a setí
+     až po vyklučení), takže ruce nestojí, když spřežení orají naplno; díl bez klučení (louka – orba
      drnu, díl v osevu) potřebuje místo u lidí i u spřežení. **Místo u spřežení drží jen orba dílů
      připravených k orbě** (louka – drn, díl v osevu, vyklučený díl; návrh Clauda: zarostlé díly
      klučí lidé rukama, když voli orají naplno – Martin 22. 11. 2026: „Ok, udělej to tak.“): díl v klučení zabere místo
@@ -959,7 +959,7 @@ nestačí na všechno):
    rádlem první (oxen.md – Orba má přednost), **setí zorané a zkopané půdy před vracením přílohu
    téže plodiny** (návrh Clauda 22. 11. 2026, D110 – Martin: „vyprodukovat co nejvíce za co
    nejmenší množství práce“): klučení dílů na později nevytlačí setí toho, co je zorané
-   (jádro seje i díl zoraný před vyklučením – viz Známý dluh). Dřív šlo
+   (zorané je jen vyklučené – Postup práce po čtvercích, Orba a setí až po vyklučení). Dřív šlo
    vracení přílohu první a Vlkov 905–914 nechal na konci dubna 3–20 čd setí zorané jaře nezaseté
    (v březnu a dubnu 30–60 dní, kdy klučení vzalo práci setí zoraného),
 7. **noční hlídka polí** proti zvěři,
@@ -2066,6 +2066,20 @@ Stav: **Martin, 18. 10. 2026:** „Chtěl bych, aby pole neměnilo fáze, které
   zkopané – setí nikdy nepředběhne kopání), sklizeň (jen zasetá) a pletí (bez dílů po vymýceném
   lese – ty se nepletou) a vrácení přílohu (jen díly, které se vracejí s drnem). Simulace se tím
   nemění – úroda se počítá dál za celou plodinu.
+- **Orba a setí až po vyklučení** (návrh Clauda 22. 11. 2026 – D116, oprava modelu, ne nové
+  pravidlo; bez nových čísel): na křoví a mladý les se neorá a neseje. Díl s vracením přílohu
+  (klučení křovin a mladého lesa; s motykou i drn louky) se smí zorat nebo zkopat, až ho lidé
+  vyklučí, a zasít, až je zoraný (zkopaný) – stav vyklučení do včerejška. Díly pásu orby se orají
+  spolu, pruh po pruhu (oxen.md – Co nejdelší brázda), takže pás počká, dokud lidé nevyklučí všechny
+  jeho díly (návrh Clauda: delší brázda; ve Vlkově bez ztráty – platně zaseto na dílech
+  s klučením 52,8 → 53,3 ha); pás s nevyklučeným dílem a s díly bez klučení (louka, díl v osevu)
+  se rozdělí – kus bez klučení se zorá hned, kratší brázdou, pole pásů zůstane v pořadí orby. Rádlo, motyka a setí v práci dne nevyklučený díl
+  přeskočí a pokračují dalším připraveným dílem v pořadí: každý den jdou nezačaté díly, které na
+  vyklučení čekají, v pořadí za připravené (louky, díly v osevu, vyklučené díly) – spřežení tak
+  nečeká, dokud má co orat. Obě skupiny drží dosavadní pořadí, vracení přílohu jde dál po dílech
+  s klučením v témže pořadí. Pořadí přílohů (úzké hrdlo), čelo práce po zdrojích a setí zoraného
+  před klučením zůstávají. Co zbývá, je ve Známém dluhu (účtování práce po dílech). Dřív rádlo i setí šly po dílech v pořadí práce
+  a na vyklučení nečekaly (Vlkov 10 let: zoráno před vyklučením 33 ha, zaseto 30 ha – historie).
 - **Co je na dílu vidět** (`fieldPartLooks` → `FieldLook` scény): **bare** – rozrytý drn
   (zakládaný díl, připravený, nově založený před kopáním), **plowed** – zkopaný, **sown** –
   zasetý, **sprouted** – vzešlé osení, **green** – zelené obilí, **ripe** – zralé, nesklizené
@@ -2598,12 +2612,13 @@ Ovládání a vzhled jsou **návrh k potvrzení na náčrtech** (obydlí se umis
 
 ## Známý dluh
 
-- **Orba a setí až po vyklučení.** Čelo práce počítá orbu dílu v klučení u spřežení až po
-  vyklučení, jádro ale rádlo i setí po dílech vede v pořadí práce a na vyklučení dílu nečeká:
-  díl s křovím nebo mladým lesem se může zorat a zasít dřív, než ho lidé doklučí. Měření kontroly
-  D110 (Vlkov 10 let): zoráno před vyklučením základ 34,7 ha / větev 32,8 ha, zaseto před
-  vyklučením 6,3 / 29,2 ha (jař 0,1 / 19,2 ha); do konce okna ale zůstalo zaseto a nevyklučeno jen
-  1,8 ha (základ 1,2 ha), zisk z toho ≤ 2 %. Řeší se samostatnou úlohou.
+- **Orba, kopání a setí až po vyklučení** – vyřešeno 22. 11. 2026 (D116, Postup práce po čtvercích –
+  Orba a setí až po vyklučení; dřívější znění v [historii](history/fields-history.md)). **Zůstává:**
+  - **Účtování práce úlohy jedním číslem** s vahou dílu plocha × vzdálenost – přibraná dávka dílů
+    s jinou prací posune polohy hotových dílů (vracení přílohu může couvnout a už zoraný díl ukázat
+    jako nevyklučený, přeřazení začatého úseku připíše hotovou práci jiným dílům). Samostatná úloha
+    později: účtovat práci po dílech.
+  - **Přesun ozimu do jara** (`moveParts`) nepřemapuje úseky práce na nové pořadí dílů.
 
 ## Na stavitelovi
 

@@ -105,7 +105,10 @@ import { advanceChunked, goldenWorld, stateFingerprint, YEAR } from './village-g
 // než lidé klučí další; samotné D110 dávalo 3ce521beed488abd, dřív (s D112) 1bf98727bddab557
 // 22. 11. 2026 – D113 dřina: termín okna ve dvou úsecích a nosiči výprav v tempu (happiness.md –
 // Den dřiny): jiné dny dřiny, tedy štěstí a práce vsi od prvního roku; dřív 147e3ff19545d884
-const EXPECTED_YEAR_1 = 'e1c2e333a3b6fc16';
+// 22. 11. 2026 – D116 orba a setí až po vyklučení (fields.md – Postup práce po čtvercích): zlatá ves
+// v prvních letech kope motykou a díly s drnem louky zkope (a oseje) až po vrácení přílohu, mezitím
+// připravené díly – jiné pořadí kopání a setí, tedy úroda a dál celá ves; dřív e1c2e333a3b6fc16
+const EXPECTED_YEAR_1 = '396a222ecc30da6b';
 // 18. 11. 2026 – D93 cesta přes plochu staveb; dřív 82b12dd84c08dd63 (vyšlapaná cesta přes plochu
 // staveb nevznikne a napojení ji obejde – jiné cesty a id; roky chůze nejvýš doba vyšlapání)
 // 18. 11. 2026 – D95 výmlat (Martin: „A, C, E“ – výmlat podle kg snopů, rod v zimě dorovná tempo

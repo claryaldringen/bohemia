@@ -8,6 +8,7 @@ import { purchaseTravelers } from '../crafts/craft-buying';
 import { ironTripHelpers } from '../crafts/cart-iron';
 import { craftHarvestLabor, craftLightLabor } from '../crafts/crafts';
 import { harvestHelperLabor, weedingChildren } from '../fields/harvest-hands';
+import { tillableRemaining } from '../fields/field-progress';
 import { daylightFactor } from './daylight';
 import {
   lordApartIds,
@@ -137,6 +138,7 @@ export function fieldTasks(
 ): FieldTaskEntry[] {
   const month = dateOfDayIndex(day).month;
   const entries: FieldTaskEntry[] = [];
+  let partsById: ReadonlyMap<number, FieldPart> | null = null;
   // setí jen na tolik dílů, na kolik má ves osivo (fields.md – Úroda, Osivo ze zásob)
   let seed: { byId: ReadonlyMap<number, FieldPart>; sowable: SeedKg } | null = null;
   const seedCap = (crop: Crop, work: CropWork, wanted: number): number => {
@@ -174,7 +176,12 @@ export function fieldTasks(
     // trhání lnu jde za žněmi obilí skupinou dne (`dayTaskOrder` – DAY_WORK_ORDER)
     const end = windowEnd;
     const rank = CROP_ORDER.indexOf(crop) * TASK_ORDER.length + order;
-    let remaining = cropTaskRemaining(work, name);
+    // rádlo, motyka a setí jen na díly, které lidé vyklučili (fields.md – Postup práce po čtvercích,
+    // orba a setí až po vyklučení; D116)
+    let remaining =
+      name === 'plough' || name === 'dig' || name === 'sow'
+        ? tillableRemaining(work, (partsById ??= partsByIdOf(state.parts)), name, day)
+        : cropTaskRemaining(work, name);
     // příprava půdy jaře jen na díly, na které je osivo (`seedPrepShares`)
     const prep =
       name === 'sow' || name === 'weed' || name === 'harvest' ? undefined : prepShares?.get(work);
