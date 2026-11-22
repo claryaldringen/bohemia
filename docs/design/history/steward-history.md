@@ -105,3 +105,11 @@ aby lidé nepřišli o bílkoviny?“). Znění z orchard.md – Jídlo:
 
 Ve Vlkově byl cíl 6,9–9,9 t jablek (≈ 88 % energie od září do února); kontrola D115 ukázala, že
 s pokrytým cílem jablka vytlačí obilí i s bílkovinami (pokrytí bílkovin v zimě 0,68 → 0,17).
+
+## Cíl ovoce z roční potřeby lidí 1. 9. (D115 kolo 1, neplatí od 22. 11. 2026 – kolo 2)
+
+Platilo 22. 11. 2026 (D115 kolo 1). Cíl ovoce byl 5 % roční potřeby energie lidí vsi 1. 9.
+(všichni lidé vsi podle věku 1. 9.) rovným dílem na dny od 1. 9. do zkažení a sklizeň se zkrátila
+jen 1. 9. Jídlo dne ale jí 5 % potřeby dne (lidé doma, věk toho dne) a jablka, dokud nejsou
+nasbíraná, sníst nemůže – Vlkov sklízel někdy až v říjnu a za rok shnilo 23–102 kg nasbíraných
+jablek (3–15 % sklizně).

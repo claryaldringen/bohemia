@@ -247,3 +247,11 @@ bez omezení: tempem proti zkažení (zásoba ÷ dny do zkažení) napřed před
 zbylou potřebou před luštěninami a obilím; výhled do sklizně počítal s ovocem až do plné potřeby
 za dny do zkažení. Jablka tak vytlačila obilí i luštěniny s jejich bílkovinami (kontrola D115:
 Vlkov s pokrytým cílem ovoce – v zimě 90 % energie z ovoce, pokrytí bílkovin 0,68 → 0,17).
+
+## Jablka v hladu k přídělu navíc (D115 kolo 1, neplatí od 22. 11. 2026 – kolo 2)
+
+Platilo 22. 11. 2026 (D115 kolo 1, návrh Clauda). Výhled do sklizně v hladu počítal jen s jablky
+do 5 % potřeby; obilí se dělilo rovně do sklizně a jablka, se kterými výhled nepočítal, se jedla
+k přídělu navíc do plné potřeby – nic nenahradila. Ves tak hlásila hlad (a mohla porážet v nouzi),
+i když se jablky jedla dosyta. Nahrazeno pravidlem, že v hladu jsou jablka nad 5 % jídlo k přídělu
+a výhled s nimi počítá (Pořadí jídla).

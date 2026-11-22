@@ -219,9 +219,13 @@ minimum)` (životní minimum všem, pod ním všem stejně, zbytek po vrstvách 
   do 5 %, z něj `fruitSpare` – energie, kterou nic nedorovnalo (`Served.unmet`), plus obilí
   (v hladu s medem – `grainPart`, bílkoviny jako samo obilí) a luštěniny nad potřebu bílkovin – a
   s ním znovu. Při plném přídělu se `fruitSpare` spočte napřed a výhled (i `grainSpareKg`) s ním
-  počítá; v hladu výhled jen s ovocem do 5 % a `serveMeal` s `bonus` sní k přídělu jablka nad
-  `fruitAhead` (nad dnešní díl) do plné potřeby. Bez potřeby bílkovin (`proteinNeedPerDay`
-  chybí) bez omezení jako dřív. Obrácený výhled `grainAheadForOutlookKg` počítá s ovocem do 5 %. **Dvě zásoby
+  počítá; v hladu (výhled s ovocem do 5 % pod 1, po dílu zásoby z porážky do sklizně) přidá
+  `hungerFruit` jablka nad 5 % – `fruitAhead` plánu se všemi jablky (`dietPlan` s `hungerFruit`
+  = ∞) bez `fruitAhead` do 5 %, nejvýš chybějící energie do sklizně (s celou zásobou medu),
+  ÷ dny do zkažení (nejvýš do sklizně) – jako 4. vstup `dietPlan` (zvedne `fruitMost` i strop
+  `fruitPace`); výhled se s nimi spočte znovu (D115 kolo 2). Bez potřeby bílkovin
+  (`proteinNeedPerDay` chybí) bez omezení jako dřív. Obrácený výhled `grainAheadForOutlookKg` pod
+  cílem 1 se všemi jablky (`hungerFruit` = ∞), cíl 1 s ovocem do 5 %. **Dvě zásoby
   uzeného** (D98 kolo 1, 18. 11. 2026 – Martin: „Uzené rozlož“ na otázku po uzeném z listopadové
   porážky): `VillageState.meatKg` je uzené celé, `slaughterMeatKg` jeho část ze zásoby z porážky
   z 1. 11. (`slaughter` přičte kusy pod nůž hned); `core/meat-stocks.ts` – `villageSlaughterMeatKg`
@@ -271,7 +275,9 @@ minimum)` (životní minimum všem, pod ním všem stejně, zbytek po vrstvách 
   (`daysUntilAppleRot`); ves jí v pořadí jídla bez stropů (diet.md – Strava po vrstvách a porážka
   celý rok, 18. 11. 2026) – ostatní uzené maso hned, zásoba z porážky 1. 11.
   (`villageSlaughterMeatKg`) jen svým dílem (zásoba ÷ dny do konce masa – `daysUntilMeatEnd`, po 31. 10. přepočet; D98), sýr, ovoce, luštěniny, pak obilí a nakonec med (jídlo
-  jako obilí – Med v hladu). Počítá se do prvního
+  jako obilí – Med v hladu). Ovoce jako jídlo dne v hladu (předpověď nezná sklizeň): do 5 %
+  potřeby (`DIET.fruitShare`, s potřebou bílkovin `villageProteinNeed`) a jablka nad 5 % rovným
+  dílem do zkažení, co nic nedorovná, doplní zbylá jablka (D115 kolo 2). Počítá se do prvního
   dne bez plného přídělu (tolerance `SATIATION_EPSILON`), nejvýš do konce světa; nikdo nejí →
   null. `VillageSummary.foodLastsDays` → `VillageView.foodLastsDays` (chybí místo null) → řádek
   pod rozpisem plodin v liště (web-ui.md). Starší `storesMonths` (jen obilí ÷ potřeba) zůstává

@@ -139,9 +139,14 @@ v hladu), nově platí celý rok, ne jen v hladu:
   jablka navíc napřed místo obilí (v hladu s medem, který se jí s obilím), pak luštěnin – kolik
   bílkovin má ves nad potřebu; dnešní energii, kterou obilí nedorovná (vymlácené došlo), smí
   jablka doplnit vždy. Výhled do sklizně (Přídělový systém) počítá s jablky do 5 % a při plném
-  přídělu i s jablky navíc, která ves dnes sní. V hladu se obilí dělí rovně do sklizně a jablka, se
-  kterými výhled nepočítá, se jí k přídělu navíc do plné potřeby – nic nenahradí, bílkoviny
-  neubudou a jablka neshnijí. Co ves nesní, nesklidí – cíl ovoce ([sad](orchard.md) – Jídlo)
+  přídělu i s jablky navíc, která ves dnes sní. **V hladu** (výhled s jablky do 5 % nedá plný
+  příděl) jsou jablka nad 5 % jídlo k přídělu: výhled s nimi počítá – nejvýš kolik do plné
+  potřeby do sklizně chybí – a jídlo dne je jí rovným dílem do zkažení (i v tempu proti zkažení);
+  obilí, které ušetří, ves do sklizně sní, takže bílkoviny do sklizně neubudou. Dají-li jablka
+  plný příděl, ves nehlásí hlad ani neporáží v nouzi. Rozhoduje výhled s jablky do 5 % (bez
+  kruhu). Výhled i jídlo dne mají totéž pravidlo, předpověď „vystačí na“ (Hlad) také – nezná
+  sklizeň, jablka nad 5 % tedy jí rovným dílem do zkažení všechna (D115 kolo 2; předtím se v hladu
+  jedla k přídělu navíc a výhled je neviděl – [historie](history/diet-history.md)). Co ves nesní, nesklidí – cíl ovoce ([sad](orchard.md) – Jídlo)
   počítá podle téhož pravidla. Mléko, maso a sýr jablka nevytlačí. Dřív (18.–22. 11. 2026)
   vytlačila jablka bez omezení obilí i luštěniny s jejich bílkovinami
   ([historie](history/diet-history.md)).

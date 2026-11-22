@@ -79,8 +79,10 @@ rozhoduje, kolik louky a práce dá do jistoty na dlouho dopředu místo obilí 
   - **sklízí se jen to, co se sní** (Martin 22. 11. 2026: „U těch jablek - tam nejde ani tak
     o jablka, ale o práci. Pokud jablka zůstanou na stromech, je to ok. Pokud shnijí ta, co lidé
     nasbírali (utratili za ně práci) je to špatně“): sklizeň 1. 9. nasbírá nejvýš cíl ovoce
-    (Jídlo níž) bez zásoby jablek, kterou ves už má; zbytek zůstane na stromech a práci nestojí –
-    práce sklizně poměrně k nasbíraným jablkům (návrh Clauda).
+    (Jídlo níž) bez zásoby jablek, kterou ves už má, a **každý další den sklizně nejvýš jablka,
+    která ves od toho dne do zkažení sní** (bez zásoby) – dny, kdy jablka ještě nebyla nasbíraná,
+    je ves sníst nemohla (Vlkov sklízel až v říjnu a září shnilo); zbytek zůstane na stromech
+    a práci nestojí – práce sklizně poměrně k nasbíraným jablkům (návrh Clauda; D115 kolo 2).
 - **Jídlo:** od 18. 10. 2026 podle [stravy](diet.md) – jablka jsou v rozhraní **ovoce**, jí se
   napřed, hned, jak jsou (diet.md – Pořadí jídla; do 18. 11. 2026 nejvýš čtvrtina energie –
   stropy zrušeny; samo ovoce nenasytí kvalitou stravy), a přidají štěstí +5 – **do 5 % energie
@@ -90,11 +92,15 @@ rozhoduje, kolik louky a práce dá do jistoty na dlouho dopředu místo obilí 
   ves zvládne, a „Ano“ na otázku výš s doporučením: ves sází jen tolik stromů, kolik jablek sní,
   aniž by přišla o bílkoviny, a zbytek obilí jí jako dnes; tvar návrh Clauda): jablka, která ves
   sní od sklizně (1. 9.) do zkažení (1. 3., s nádobami do 1. 5.) podle pravidla jídla – **5 %
-  potřeby energie lidí vsi** (za rok, rovným dílem na dny od sklizně do zkažení). Návrh Clauda:
-  jablka navíc při přebytku bílkovin cíl nepočítá – odhad přebytku ze stád 1. 9. (roční průměr
-  mléka a masa i maso porážky 1. 11.) ve Vlkově přebytek nadsadil (stáda nad chovným stádem
-  se poráží a prodávají) a nasbíraná jablka shnila (až 961 kg za rok); při skutečném přebytku je
-  ves sní ze zásoby (diet.md – Pořadí jídla). Přebytek bílkovin má podle čísel pravidel jen ves
+  potřeby energie každého dne** jako jídlo dne (lidé doma podle věku toho dne a hosté), s dnešními
+  lidmi – kdo se narodí, přibude nebo umře, odhad nezná (D115 kolo 2; do 22. 11. 2026 roční
+  potřeba z lidí 1. 9. rovným dílem na dny – zbylo 23–102 kg nasbíraných jablek za rok). Návrh
+  Clauda: jablka navíc při přebytku bílkovin cíl nepočítá – odhad přebytku ze stád 1. 9. (roční
+  průměr mléka a masa i maso porážky 1. 11.) ve Vlkově přebytek nadsadil (stáda nad chovným
+  stádem se poráží a prodávají) a nasbíraná jablka shnila (až 961 kg za rok; Martin 22. 11. 2026:
+  „Pokud shnijí ta, co lidé nasbírali (utratili za ně práci) je to špatně“). Cíl 5 % je opatrný –
+  při skutečném přebytku ves jablka nad 5 % bez ztráty bílkovin sní ze zásoby, kterou nasbírá
+  (diet.md – Pořadí jídla). Přebytek bílkovin má podle čísel pravidel jen ves
   s většinou energie z masa – mléko má na kg obilí energie méně bílkovin, než lidé potřebují. Podle cíle správce sází jabloně u cest a sad
   ([správce](steward.md) – Jabloně u cest a sad) a podle něj se sklízí (Práce výš). Dřívější cíl
   a pravidlo do 22. 11. 2026 (5 % energie) jsou v [historii správce](history/steward-history.md).
@@ -105,9 +111,11 @@ rozhoduje, kolik louky a práce dá do jistoty na dlouho dopředu místo obilí 
   nádobami). Přídělový systém (fields.md) počítá jen s jablky, která se
   stihnou sníst do konce února, a jen s těmi, která ves podle pravidla jídla sní – do 5 % potřeby
   a při plném přídělu i s jablky navíc místo obilí nad bílkoviny. Když jídlo do sklizně
-  nevystačí, dělí se obilí rovně do sklizně a jablka, se kterými výhled nepočítá, se jí k přídělu
-  navíc do plné potřeby – obilí ani bílkoviny neubudou a jablka neshnijí (návrh Clauda, diet.md –
-  Pořadí jídla; dřív se do zkažení jedla jen jablka a obilí zůstalo na dobu po nich). Hlad (upozornění a kronika) začíná, jakmile
+  nevystačí (výhled s jablky do 5 % nedá plný příděl), jsou jablka nad 5 % jídlo k přídělu –
+  výhled s nimi počítá, nejvýš kolik do plné potřeby chybí, a jí se rovným dílem do zkažení;
+  obilí, které ušetří, ves do sklizně sní, bílkoviny tak neubudou. Dají-li jablka plný příděl, ves
+  nehladoví ani neporáží v nouzi (návrh Clauda, diet.md – Pořadí jídla; D115 kolo 2 – předtím se
+  jedla k přídělu navíc a výhled je neviděl). Hlad (upozornění a kronika) začíná, jakmile
   příděl podle výhledu do sklizně klesne pod plný – i když se zatím jí dosyta jablky a obilí
   nevystačí až po 1. 3. Jablka nemají ztráty ze skladování. Plánování osevu a rezerva obilí se
   jablky nemění.
