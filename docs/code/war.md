@@ -986,7 +986,9 @@ výchozí návrh Clauda; tempo, rány, šíp a padlí z `WAR.pace`, `WAR.combat`
   i tak): pěšky boj 60, z koně boj 60 a jízda 70. Jezdci pod branou jízdy, kterému padne kůň,
   platí brána pěšky (boj 70 kance pěšky zabít může). Šíp kance a bachyni jen zraní – zdraví
   neklesne pod 1 (`Blow.arrow`; návrh Clauda: Martin „trefit se kanci shora přímo za krk“ – nováček
-  s lukem prase nezabije, smrtelná je rána úderem přes bránu); jelena, laň, vlka a medvěda šíp zabije.
+  s lukem prase nezabije, smrtelná je rána úderem přes bránu); nižší zdraví šíp nezvedne a prase,
+  které týž takt srazil úder, neoživí (omezení jen při kladném zdraví před šípem – kontrola Úlohy 5);
+  jelena, laň, vlka a medvěda šíp zabije.
 - **Luk** (Rozhodnutí 5) – muž rodu (`lineMan`) s lukem nad 0 míří na zvíře v pásmu luku (20–60 m),
   mimo dosah rány zblízka, a po 4 s vystřelí: kruh rozptylu `spreadRadiusM(luk, vzdálenost)`
   kolem zvířete, kandidáti `ShotCandidate` – zvíře (`areaM2`, strana `defend`) a ostatní lovci
@@ -1016,7 +1018,7 @@ výchozí návrh Clauda; tempo, rány, šíp a padlí z `WAR.pace`, `WAR.combat`
   seedech; jezdec rychlejší – medián ≤ 480; jelen nezraní; nikdo nejde → útěk po 240 taktech
   a `escaped`; `dropHunters` → útěk; odvolaný se vrátí s hodinami; syrové hodiny jízdy a strop
   6 h ve výsledku poměrně; po 1 / 7 / 40 taktech přes JSON = vcelku – i medvěd s ranami, koněm
-  a šípy; pruh vody v mřížce – lovec ho obejde po objížďce a zabije, v uzavřené kapse stojí a zvíře uteče, klouzání bez postupu nečiní; šíp prase nezabije; nováček (boj 20) kance nezraní a padne;
+  a šípy; pruh vody v mřížce – lovec ho obejde po objížďce a zabije, v uzavřené kapse stojí a zvíře uteče, klouzání bez postupu nečiní; lovec ve výklenku vody a jelen, který před ním v kapse dlouho klouže podél vody – útěk nejpozději `idleS` od posledního pohybu lovce (se starou podmínkou „honba bez pohybu lovce“ test selže); šíp prase nezabije, po smrtelném úderu v témže taktu ho neoživí a zdraví pod 1 nezvedne; nováček (boj 20) kance nezraní a padne;
   boj 70 pěšky kance i bachyni zabije; z koně jízda 40 kance nezraní, jízda 80 zabije; osamělý
   lovec proti medvědovi padne, tři muži boj 70 ho složí; vlka boj 40 zabije; kůň padne a jezdec
   bojuje pěšky, vlk koně nezraní; luk 80 trefí jelena víckrát než luk 10, vesničan nestřílí; šíp

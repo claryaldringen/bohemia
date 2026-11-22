@@ -450,7 +450,10 @@ function face(q: Quarry, dx: number, dz: number): void {
 interface Blow {
   personId: number;
   damage: number;
-  /** Šíp – kance a bachyni jen zraní (zdraví nejvýš na 1), smrtelná je rána úderem. */
+  /**
+   * Šíp – kance a bachyni jen zraní (zdraví nejvýš na 1; nižší nezvedne, sraženého úderem
+   * neoživí), smrtelná je rána úderem.
+   */
   arrow?: true;
 }
 
@@ -593,9 +596,13 @@ function train(h: HuntFighter, skill: keyof HuntSkills, hours: number): void {
 function applyBlows(f: HuntFight, blows: readonly Blow[]): void {
   const q = f.quarry;
   for (const b of blows) {
+    const before = q.health;
     q.health -= b.damage;
-    // „trefit se kanci shora přímo za krk“ umí jen úder přes bránu umu (návrh Clauda)
-    if (b.arrow && GATED.has(q.kind)) q.health = Math.max(1, q.health);
+    // „trefit se kanci shora přímo za krk“ umí jen úder přes bránu umu (návrh Clauda); šíp zdraví
+    // nesrazí pod 1, ale ani nezvedne – prase, které týž takt srazil úder, neoživí
+    if (b.arrow && GATED.has(q.kind) && before > 0) {
+      q.health = Math.max(Math.min(1, before), q.health);
+    }
     q.hits++;
     if (q.health <= 0 && f.killer === null) f.killer = b.personId;
   }
