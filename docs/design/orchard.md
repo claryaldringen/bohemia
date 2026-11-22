@@ -83,6 +83,11 @@ rozhoduje, kolik louky a práce dá do jistoty na dlouho dopředu místo obilí 
     která ves od toho dne do zkažení sní** (bez zásoby) – dny, kdy jablka ještě nebyla nasbíraná,
     je ves sníst nemohla (Vlkov sklízel až v říjnu a září shnilo); zbytek zůstane na stromech
     a práci nestojí – práce sklizně poměrně k nasbíraným jablkům (návrh Clauda; D115 kolo 2).
+    **Strop počítá zkažení bez nádob (1. 3.), i když ves nádoby má** (návrh Clauda, D115 kolo 3;
+    Martin 22. 11. 2026: „Pokud shnijí ta, co lidé nasbírali (utratili za ně práci) je to špatně“):
+    nádoby přes zimu ubývají (pokrytí klesne a jablka shnijí dřív než 1. 5.) a lidé umírají, takže
+    březen a duben jsou rezerva – jablka se jedí dál jako dosud a s nádobami vydrží do 1. 5., ale
+    nasbírá se jich jen tolik, aby je ves snědla do 1. 3.; co zůstane na stromech, nevadí.
 - **Jídlo:** od 18. 10. 2026 podle [stravy](diet.md) – jablka jsou v rozhraní **ovoce**, jí se
   napřed, hned, jak jsou (diet.md – Pořadí jídla; do 18. 11. 2026 nejvýš čtvrtina energie –
   stropy zrušeny; samo ovoce nenasytí kvalitou stravy), a přidají štěstí +5 – **do 5 % energie
@@ -91,7 +96,7 @@ rozhoduje, kolik louky a práce dá do jistoty na dlouho dopředu místo obilí 
   **Cíl ovoce** (Martin 22. 11. 2026 – „ano“ na přepnutí sadu a jabloní u cest na maximum, které
   ves zvládne, a „Ano“ na otázku výš s doporučením: ves sází jen tolik stromů, kolik jablek sní,
   aniž by přišla o bílkoviny, a zbytek obilí jí jako dnes; tvar návrh Clauda): jablka, která ves
-  sní od sklizně (1. 9.) do zkažení (1. 3., s nádobami do 1. 5.) podle pravidla jídla – **5 %
+  sní od sklizně (1. 9.) do zkažení **bez nádob (1. 3.)** podle pravidla jídla – **5 %
   potřeby energie každého dne** jako jídlo dne (lidé doma podle věku toho dne a hosté), s dnešními
   lidmi – kdo se narodí, přibude nebo umře, odhad nezná (D115 kolo 2; do 22. 11. 2026 roční
   potřeba z lidí 1. 9. rovným dílem na dny – zbylo 23–102 kg nasbíraných jablek za rok). Návrh
