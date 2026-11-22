@@ -3,13 +3,13 @@ import { dayIndexOf } from '../../../calendar';
 import { foundVillage } from '../../core/actions';
 import { advanceVillage } from '../../core/simulate';
 import { fieldTasks } from '../../core/simulate-work';
-import { createCropWork, seasonCrops } from '../../core/year-plan';
-import { taskPosition, taskSpans, type PartSpan } from '../field-progress';
+import { createCropWork, cropTaskRemaining, seasonCrops } from '../../core/year-plan';
+import { taskPosition, taskSpans, tillableRemaining, type PartSpan } from '../field-progress';
 import { readyTillageFirst } from '../tillage-order';
 import type { CropWork, FieldPart, VillageState } from '../../types';
 import { withBuiltFirstDwelling } from '../../__tests__/village-fixtures';
 
-// Orba a setí až po vyklučení (fields.md – Postup práce po dílech; D116, návrh Clauda – oprava
+// Orba a setí až po vyklučení (fields.md – Postup práce po čtvercích; D116, návrh Clauda – oprava
 // modelu): díl s křovím nebo mladým lesem rádlo ani motyka nezačnou, dokud ho lidé nevyklučí,
 // a zaseje se, až je zoraný; rádlo mezitím orá další připravené díly v pořadí.
 
@@ -148,7 +148,7 @@ function run(teams: boolean): {
   return { ahead, busyWhileClearing, sownAfter, clearing };
 }
 
-describe('orba a setí až po vyklučení (fields.md – Postup práce po dílech; D116)', () => {
+describe('orba a setí až po vyklučení (fields.md – Postup práce po čtvercích; D116)', () => {
   it('díl v klučení se nezorá ani nezaseje, rádlo mezitím orá další díly, po vyklučení se zorá a zaseje', () => {
     const { ahead, busyWhileClearing, sownAfter, clearing } = run(true);
     // dřív rádlo zoralo křoví v pořadí hned první den a setí šlo za ním
@@ -164,41 +164,114 @@ describe('orba a setí až po vyklučení (fields.md – Postup práce po dílec
     expect(sownAfter).toBeGreaterThan(0);
   }, 60_000);
 
-  it('práce dne: rádlo a motyka na nevyklučený díl nejdou; nevyklučené díly jdou za připravené', () => {
-    for (const plough of [true, false]) {
+  it.each([true, false])(
+    'práce dne: %s – rádlo (motyka) na nevyklučený díl nejde; nevyklučené díly jdou za připravené',
+    (plough) => {
+      {
+        const parts = fieldParts().map((p) => ({
+          ...p,
+          state: p.state === 'fallow' ? p.state : ('sown' as const),
+        }));
+        const s = village(parts, plough);
+        // pořadí práce: křoví první (jako nejbližší obydlí), za ním připravené díly
+        const work = createCropWork(parts, DAY, 0, plough, (ps) => [...ps], 'winter');
+        const shrubIds = [1, 2, 3, 4, 5, 6];
+        expect([...work.reclaimIds!].sort((a, b) => a - b)).toEqual(shrubIds);
+        expect([...work.partIds.slice(0, 6)].sort((a, b) => a - b)).toEqual(shrubIds);
+        s.season = {
+          startDay: DAY,
+          ...(plough ? { ard: true as const } : {}),
+          crops: [{ crop: 'winter', ...work }],
+        };
+        const till = plough ? 'plough' : 'dig';
+        const remaining = (): number =>
+          fieldTasks(s, DAY, 1_000).find((e) => e.name === till)?.remaining ?? 0;
+        // křoví první v pořadí: rádlo (motyka) počká, napřed se nesmí ani kus
+        expect(remaining(), till).toBe(0);
+        // nevyklučené za připravené – rádlo (motyka) jde na připravené díly
+        readyTillageFirst(s, DAY);
+        const crop = s.season.crops[0]!;
+        expect([...crop.partIds.slice(-6)].sort((a, b) => a - b)).toEqual(shrubIds);
+        if (plough) expect(crop.plough!.partIds).toEqual(crop.partIds);
+        const required = plough ? crop.plough!.required : crop.required.dig;
+        const byId = new Map(s.parts.map((p) => [p.id, p]));
+        const spans = taskSpans(crop, byId, till, DAY);
+        const readyEnd = spans.find((x) => x.id === 1)!.start;
+        expect(remaining(), till).toBeCloseTo(readyEnd * required, 9);
+        // po vyklučení všechna zbývající práce
+        crop.done.reclaim = crop.required.reclaim;
+        expect(remaining(), till).toBeCloseTo(required, 9);
+      }
+    },
+  );
+
+  /** Pole 6 × 3 se sloupcem křovin (x = 2) napříč řadami – každá řada je pás s křovím uprostřed. */
+  function columnWork(): { s: VillageState; crop: CropWork; byId: Map<number, FieldPart> } {
+    const parts = fieldParts().map((p) => ({
+      ...p,
+      ...(p.cell!.x === 2 ? shrubs(p) : { state: 'sown' as const }),
+    }));
+    const s = village(parts, true);
+    const work = createCropWork(parts, DAY, 0, true, (ps) => [...ps], 'winter');
+    s.season = { startDay: DAY, ard: true, crops: [{ crop: 'winter', ...work }] };
+    return { s, crop: s.season.crops[0]!, byId: new Map(s.parts.map((p) => [p.id, p])) };
+  }
+
+  it('pás s křovím a s připravenými díly se rozdělí; pole pásů zůstane v pořadí orby', () => {
+    const { s, crop, byId } = columnWork();
+    expect(tillableRemaining(crop, byId, 'plough', DAY)).toBe(0);
+    readyTillageFirst(s, DAY);
+    const plough = crop.plough!;
+    // kus bez klučení i kus s klučením každého pásu, pásy v pořadí prvního dílu v `partIds`
+    expect(plough.bands!.length).toBeGreaterThan(3);
+    const first = plough.bands!.map((b) =>
+      Math.min(...b.partIds.map((id) => plough.partIds.indexOf(id))),
+    );
+    expect(first).toEqual([...first].sort((a, b) => a - b));
+    expect(plough.bands!.flatMap((b) => b.partIds).sort((a, b) => a - b)).toEqual(
+      [...plough.partIds].sort((a, b) => a - b),
+    );
+    // kusy bez klučení se orají hned, čekající za nimi
+    expect(tillableRemaining(crop, byId, 'plough', DAY)).toBeGreaterThan(0);
+    const waiting = new Set([3, 9, 15]);
+    expect(plough.partIds.slice(-3).every((id) => waiting.has(id))).toBe(true);
+  });
+
+  it('začatý úsek s nevyklučeným dílem jde za řez a práce připadne dalším připraveným dílům; setí také', () => {
+    for (const into of [0.5, 0.45]) {
       const parts = fieldParts().map((p) => ({
         ...p,
-        state: p.state === 'fallow' ? p.state : ('sown' as const),
+        ...(p.cell!.y === 1 ? shrubs(p) : { state: 'sown' as const }),
       }));
-      const s = village(parts, plough);
-      // pořadí práce: křoví první (jako nejbližší obydlí), za ním připravené díly
-      const work = createCropWork(parts, DAY, 0, plough, (ps) => [...ps], 'winter');
-      const shrubIds = [1, 2, 3, 4, 5, 6];
-      expect([...work.reclaimIds!].sort((a, b) => a - b)).toEqual(shrubIds);
-      expect([...work.partIds.slice(0, 6)].sort((a, b) => a - b)).toEqual(shrubIds);
-      s.season = {
-        startDay: DAY,
-        ...(plough ? { ard: true as const } : {}),
-        crops: [{ crop: 'winter', ...work }],
-      };
-      const till = plough ? 'plough' : 'dig';
-      const remaining = (): number =>
-        fieldTasks(s, DAY, 1_000).find((e) => e.name === till)?.remaining ?? 0;
-      // křoví první v pořadí: rádlo (motyka) počká, napřed se nesmí ani kus
-      expect(remaining(), till).toBe(0);
-      // nevyklučené za připravené – rádlo (motyka) jde na připravené díly
-      readyTillageFirst(s, DAY);
+      const s = village(parts, true);
+      const work = createCropWork(parts, DAY, 0, true, (ps) => [...ps], 'winter');
+      s.season = { startDay: DAY, ard: true, crops: [{ crop: 'winter', ...work }] };
       const crop = s.season.crops[0]!;
-      expect([...crop.partIds.slice(-6)].sort((a, b) => a - b)).toEqual(shrubIds);
-      if (plough) expect(crop.plough!.partIds).toEqual(crop.partIds);
-      const required = plough ? crop.plough!.required : crop.required.dig;
       const byId = new Map(s.parts.map((p) => [p.id, p]));
-      const spans = taskSpans(crop, byId, till, DAY);
-      const readyEnd = spans.find((x) => x.id === 1)!.start;
-      expect(remaining(), till).toBeCloseTo(readyEnd * required, 9);
-      // po vyklučení všechna zbývající práce
-      crop.done.reclaim = crop.required.reclaim;
-      expect(remaining(), till).toBeCloseTo(required, 9);
+      // poloha práce uvnitř pásu křovin 7–12 (posun přibranou dávkou nebo ves z doby před opravou)
+      crop.done.reclaim = 0;
+      crop.plough!.done = into * crop.plough!.required;
+      crop.done.sow = 0.4 * crop.required.sow;
+      readyTillageFirst(s, DAY);
+      const unreclaimed = new Set([7, 8, 9, 10, 11, 12]);
+      // orba i setí dál smí (poloha připadla dalšímu připravenému dílu), na křoví ne
+      expect(tillableRemaining(crop, byId, 'plough', DAY)).toBeGreaterThan(0);
+      expect(tillableRemaining(crop, byId, 'sow', DAY)).toBeGreaterThan(0);
+      for (const task of ['plough', 'sow'] as const) {
+        const position = taskPosition(crop, task);
+        for (const span of taskSpans(crop, byId, task, DAY)) {
+          if (unreclaimed.has(span.id))
+            expect(position, `${task} ${span.id}`).toBeLessThanOrEqual(span.start + 1e-6);
+        }
+      }
+      // strop setí = zbývající setí do začátku prvního nevyklučeného dílu
+      expect(tillableRemaining(crop, byId, 'sow', DAY)).toBeLessThanOrEqual(
+        cropTaskRemaining(crop, 'sow'),
+      );
+      // druhý den beze změny
+      const ids = [...crop.plough!.partIds];
+      readyTillageFirst(s, DAY + 1);
+      expect(crop.plough!.partIds).toEqual(ids);
     }
   });
 });

@@ -176,7 +176,7 @@ export function fieldTasks(
     // trhání lnu jde za žněmi obilí skupinou dne (`dayTaskOrder` – DAY_WORK_ORDER)
     const end = windowEnd;
     const rank = CROP_ORDER.indexOf(crop) * TASK_ORDER.length + order;
-    // rádlo, motyka a setí jen na díly, které lidé vyklučili (fields.md – Postup práce po dílech,
+    // rádlo, motyka a setí jen na díly, které lidé vyklučili (fields.md – Postup práce po čtvercích,
     // orba a setí až po vyklučení; D116)
     let remaining =
       name === 'plough' || name === 'dig' || name === 'sow'

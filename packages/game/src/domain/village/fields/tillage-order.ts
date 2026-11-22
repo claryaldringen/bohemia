@@ -3,7 +3,7 @@ import { seasonCrops } from '../core/year-plan';
 import type { CropWork, FieldPart, PloughBand, VillageState } from '../types';
 import { startedPartIds, unreclaimedPartIds, type PartTask } from './field-progress';
 
-// Orba a setí až po vyklučení (fields.md – Postup práce po dílech; návrh Clauda 22. 11. 2026 –
+// Orba a setí až po vyklučení (fields.md – Postup práce po čtvercích; návrh Clauda 22. 11. 2026 –
 // D116, oprava modelu, ne nové pravidlo): práce plodiny jde po dílech v pořadí `partIds` (orba po
 // `plough.partIds`, díly pásu spolu) a díl s vracením přílohu, který lidé ještě klučí, rádlo ani
 // motyka nezačnou (`tillableRemaining`) – na křoví a mladý les se neorá a neseje. Ať rádlo nečeká,
@@ -132,8 +132,16 @@ function readyOrder(
   const order = [...ids.slice(0, cut), ...ready, ...waiting];
   const divided = [...split.values()].some((pieces) => pieces.length > 1);
   if (!divided && order.every((id, i) => id === ids[i])) return null;
-  if (!divided) return { ids: order };
-  return { ids: order, bands: bands!.flatMap((band) => split.get(band) ?? [band]) };
+  if (!bands) return { ids: order };
+  // pole pásů v pořadí orby (podle prvního dílu pásu v novém pořadí) – spoléhá na něj
+  // `ploughBlockEndPart` i `relayUntouchedBands` (livestock/plough-trip.ts)
+  const rank = new Map(order.map((id, i) => [id, i]));
+  const first = (band: PloughBand): number =>
+    Math.min(...band.partIds.map((id) => rank.get(id) ?? Infinity));
+  const sorted = bands
+    .flatMap((band) => split.get(band) ?? [band])
+    .sort((a, b) => first(a) - first(b));
+  return { ids: order, bands: sorted };
 }
 
 /** Stejné díly ve stejném pořadí. */

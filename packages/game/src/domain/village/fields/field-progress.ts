@@ -251,7 +251,7 @@ export function startedPartIds(
 /**
  * Díly s vracením přílohu (`reclaimIds` – křoviny a mladý les, s motykou i drn louky), přes které
  * vracení ještě nedošlo celé, i rozpracovaný – na ty orba ani motyka zatím nesmí (fields.md –
- * Postup práce po dílech, orba a setí až po vyklučení). Žádný takový díl null.
+ * Postup práce po čtvercích, orba a setí až po vyklučení). Žádný takový díl null.
  */
 export function unreclaimedPartIds(
   work: CropWork,
@@ -268,7 +268,7 @@ export function unreclaimedPartIds(
 }
 
 /**
- * Kolik orby, kopání nebo setí plodina smí (člověkodny – fields.md, Postup práce po dílech, orba
+ * Kolik orby, kopání nebo setí plodina smí (člověkodny – fields.md, Postup práce po čtvercích, orba
  * a setí až po vyklučení): úloha dojde nejvýš na začátek prvního úseku, který ještě nedodělala a na
  * kterém je díl dosud nevyklučený (`unreclaimedPartIds`, stav do včerejška; díly pásu mají společný
  * úsek). Takové díly dá za připravené `readyTillageFirst` – rádlo i motyka tak pokračují dalším

@@ -476,7 +476,7 @@ function fellReclaimed(state: VillageState, season: FarmSeason, day: number): vo
 export function seasonDay(state: VillageState, day: number, coverage: CraftCoverage): SeasonJoin[] {
   const { waiting } = seasonJoins(state, day, coverage);
   // rádlo a motyka jen na vyklučené díly – díly, které na vyklučení čekají, za připravené
-  // (fields.md – Postup práce po dílech, orba a setí až po vyklučení; D116)
+  // (fields.md – Postup práce po čtvercích, orba a setí až po vyklučení; D116)
   readyTillageFirst(state, day);
   // hromada osiva okna setí po výběru dílů dne (fields.md – Osivo bez cíle osevu)
   sowingSeedDay(state, day);
