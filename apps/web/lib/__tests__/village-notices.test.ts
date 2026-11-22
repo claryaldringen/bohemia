@@ -1031,6 +1031,30 @@ describe('nákup u sousedů (crafts.md)', () => {
       },
     ]);
   });
+
+  it('koupený vůz napřed (crafts.md – Nákup u sousedů, Vozy)', () => {
+    const after = view({
+      dayIndex: 1003,
+      chronicle: [
+        {
+          day: 1002,
+          kind: 'crafts-bought',
+          direction: 'N',
+          products: ['woodToolsKg'],
+          cart: 'four-wheel',
+          dateLabel: '',
+          text: '',
+        },
+      ],
+    });
+    expect(newNotices(view({ dayIndex: 1000 }), after)).toEqual([
+      {
+        kind: 'crafts-bought',
+        tone: 'info',
+        text: 'Vesničané koupili čtyřkolák a dřevěné nářadí u souseda (sever)',
+      },
+    ]);
+  });
 });
 
 describe('lineNameNotice – muži rodu bez jména (lord.md – Kde se jméno zadává)', () => {

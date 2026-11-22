@@ -116,7 +116,9 @@ function tradeCaravans(state: VillageState): SceneExpedition[] {
  * Skupina nákupu u souseda jako karavana (crafts.md – Nákup u sousedů): nosiči nesou platbu tam
  * a výrobky zpátky, po hotové stezce, jinak po přímce od vsi ke kraji mapy (`line`). Jde-li skupina
  * vícekrát (`tripDays` < `days`), karavana jde každou cestu zvlášť – postup v právě běžící cestě,
- * den za den 1 ÷ dny cesty (lidé jdou každý den, nečekají na volné ruce).
+ * den za den 1 ÷ dny cesty (lidé jdou každý den, nečekají na volné ruce). Jede-li nákup vozem
+ * (crafts.md – Nákup u sousedů, Vozy), jedou vozy vsi a s každým honák a pomocník
+ * (CARTS.tradeCrew, ve skupině `group`) – jako vozy výpravy.
  */
 function purchaseCaravan(state: VillageState, p: CraftPurchase): SceneExpedition {
   const trip = Math.max(1, Math.min(p.days, p.tripDays ?? p.days));
@@ -127,7 +129,7 @@ function purchaseCaravan(state: VillageState, p: CraftPurchase): SceneExpedition
     trailId: p.trailId,
     ...(p.trailId === null ? { line: purchaseLine(state, p) } : {}),
     porters: p.group,
-    carts: [],
+    carts: [...(p.carts ?? [])],
     cartCrew: CARTS.tradeCrew,
     leaving: [],
     coming: [],

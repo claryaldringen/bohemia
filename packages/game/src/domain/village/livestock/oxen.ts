@@ -145,10 +145,14 @@ export function villageArds(state: Pick<VillageState, 'pens' | 'ards'>): number 
 
 /**
  * Voli, kteří táhnou vozy výprav na cestě (wagons.md – Obchod): čtyřkolák dva, dvoukolák jeden
- * (DRAFT_OXEN).
+ * (DRAFT_OXEN) – i vozy nákupu u sousedů a voli, kteří jdou se skupinou nákupu pro koupený vůz
+ * (crafts.md – Nákup u sousedů, Vozy).
  */
 export function oxenAway(
-  state: Pick<VillageState, 'carts' | 'trade'> & { dwellings?: VillageState['dwellings'] },
+  state: Pick<VillageState, 'carts' | 'trade'> & {
+    dwellings?: VillageState['dwellings'];
+    purchases?: VillageState['purchases'];
+  },
 ): number {
   const kinds = new Map((state.carts ?? []).map((c) => [c.id, c.kind]));
   let n = 0;
@@ -163,6 +167,13 @@ export function oxenAway(
     const id = d.workshop?.ironTrip?.cartId;
     const kind = id === undefined ? undefined : kinds.get(id);
     if (kind) n += DRAFT_OXEN[kind];
+  }
+  for (const p of state.purchases ?? []) {
+    for (const id of p.carts ?? []) {
+      const kind = kinds.get(id);
+      if (kind) n += DRAFT_OXEN[kind];
+    }
+    if (p.cart) n += DRAFT_OXEN[p.cart];
   }
   return n;
 }

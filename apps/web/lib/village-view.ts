@@ -185,7 +185,11 @@ export function chronicle(state: VillageState, name: string): VillageView['chron
             ? { horses: event.foals }
             : {}),
       ...(event.kind === 'crafts-bought'
-        ? { direction: event.direction, products: boughtProducts(event.get) }
+        ? {
+            direction: event.direction,
+            products: boughtProducts(event.get),
+            ...(event.cart ? { cart: event.cart } : {}),
+          }
         : {}),
       ...(event.kind === 'iron-trip'
         ? {

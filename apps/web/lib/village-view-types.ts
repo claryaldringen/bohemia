@@ -7,6 +7,7 @@ import type { FortStoneSupply, VillageFortification } from './fort-view';
 import type { DwellingResident } from './person-view';
 import { SceneVillage } from './village-view-scene-types';
 import {
+  CART_NAMES,
   type TradeGood,
   CRAFT_PRODUCTS,
   type RoadKind,
@@ -721,6 +722,8 @@ export interface VillageView {
     direction?: Direction8;
     /** Co ves koupila u souseda (`crafts-bought` – crafts.md, Nákup u sousedů). */
     products?: CraftProduct[];
+    /** Vůz, který ves koupila u souseda (`crafts-bought` – crafts.md, Nákup u sousedů, Vozy). */
+    cart?: CartKind;
     /**
      * Cesta pro kování k vozu (`iron-trip`, `iron-brought` – wagons.md, Kování vozů): do které vsi
      * (jméno), jestli šel syn tesaře, kolik nosičů šlo s ním, nebo jestli platbu vezl vůz.
@@ -828,9 +831,15 @@ export function boughtProducts(get: CraftPurchaseGoods): CraftProduct[] {
   return CRAFT_PRODUCTS.filter((p) => (get[p] ?? 0) > 0);
 }
 
-/** Výčet výrobků česky: „nástroje, keramiku a dřevěné nářadí“. */
-export function productList(products: readonly CraftProduct[]): string {
-  const names = products.map((p) => PRODUCT_NAMES[p]);
+/**
+ * Výčet výrobků česky: „nástroje, keramiku a dřevěné nářadí“; s koupeným vozem napřed vůz
+ * („dvoukolák a nástroje“).
+ */
+export function productList(products: readonly CraftProduct[], cart?: CartKind): string {
+  const names = [
+    ...(cart ? [CART_NAMES[cart].toLowerCase()] : []),
+    ...products.map((p) => PRODUCT_NAMES[p]),
+  ];
   return names.length <= 1
     ? (names[0] ?? '')
     : `${names.slice(0, -1).join(', ')} a ${names[names.length - 1]}`;

@@ -76,13 +76,18 @@ export function addCart(state: VillageState, kind: CartKind, day: number): Cart 
 
 /**
  * Vozy, které jsou s výpravou na cestě (id) – i vůz, který veze platbu za kování k vozu (wagons.md
- * – Kování vozů; `ironTrip.cartId` u dílny tesaře – bez obydlí ve vstupu jen výpravy).
+ * – Kování vozů; `ironTrip.cartId` u dílny tesaře – bez obydlí ve vstupu jen výpravy) a vozy
+ * s nákupem u sousedů (crafts.md – Nákup u sousedů, Vozy).
  */
 export function cartsAway(
-  state: Pick<VillageState, 'trade'> & { dwellings?: VillageState['dwellings'] },
+  state: Pick<VillageState, 'trade'> & {
+    dwellings?: VillageState['dwellings'];
+    purchases?: VillageState['purchases'];
+  },
 ): Set<number> {
   const away = new Set<number>();
   for (const e of state.trade?.expeditions ?? []) for (const id of e.carts ?? []) away.add(id);
+  for (const p of state.purchases ?? []) for (const id of p.carts ?? []) away.add(id);
   for (const d of state.dwellings ?? []) {
     const id = d.workshop?.ironTrip?.cartId;
     if (id !== undefined) away.add(id);

@@ -531,7 +531,7 @@ const CHRONICLE_NOTICES: Partial<
   'crafts-bought': (entry) => ({
     kind: 'crafts-bought',
     tone: 'info',
-    text: `Vesničané koupili ${productList(entry.products ?? [])} u souseda${
+    text: `Vesničané koupili ${productList(entry.products ?? [], entry.cart)} u souseda${
       entry.direction ? ` (${DIRECTION_NAMES[entry.direction].name})` : ''
     }`,
   }),

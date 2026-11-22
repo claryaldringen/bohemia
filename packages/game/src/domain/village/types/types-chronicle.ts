@@ -697,6 +697,8 @@ export type ChronicleEvent = { day: number } & (
       direction: Direction8;
       get: CraftPurchaseGoods;
       pay: CraftPurchasePay;
+      /** Koupený vůz (crafts.md – Nákup u sousedů, Vozy); chybí = žádný. */
+      cart?: CartKind;
     }
   /**
    * Ves koupila u sousedů osivo na setí nutných dílů (fields.md – Osivo pro ves bez zásob): kg
