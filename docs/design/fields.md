@@ -954,7 +954,7 @@ nestačí na všechno):
    rádlem první (oxen.md – Orba má přednost), **setí zorané a zkopané půdy před vracením přílohu
    téže plodiny** (návrh Clauda 22. 11. 2026, D110 – Martin: „vyprodukovat co nejvíce za co
    nejmenší množství práce“): klučení dílů na později nevytlačí setí toho, co je zorané
-   (jádro seje i díl zorený před vyklučením – viz Známý dluh). Dřív šlo
+   (jádro seje i díl zoraný před vyklučením – viz Známý dluh). Dřív šlo
    vracení přílohu první a Vlkov 905–914 nechal na konci dubna 3–20 čd setí zorané jaře nezaseté
    (v březnu a dubnu 30–60 dní, kdy klučení vzalo práci setí zoraného),
 7. **noční hlídka polí** proti zvěři,
