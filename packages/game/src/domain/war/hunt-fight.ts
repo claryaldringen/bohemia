@@ -4,7 +4,9 @@ import { HUNT_FIGHT, HUNT_QUARRY } from '../village/rules/rules-wildlife';
 import type { HuntResult, QuarryKind } from '../village/types';
 import { shotHit, spreadRadiusM, type ShotCandidate } from './aim';
 import { alongEdge, hitDamage, NO_WALLS, paceAt } from './battle';
-import type { MarchGrid, Pos } from './march-grid';
+import { marchPath, marchReachable } from './march';
+import { marchCellCenter, type MarchGrid, type Pos } from './march-grid';
+import { lineClear } from './march-smooth';
 import { dist2 } from './orders';
 import { WAR } from './rules-war';
 import { TICKS_PER_SECOND } from './ticks';
@@ -87,6 +89,13 @@ export interface HuntFighter extends NewHunter {
    * výcviku a zranění mu zůstanou pro výsledek. Nový útok (`addHunters`) ho vrátí.
    */
   left?: true;
+  /**
+   * Objížďka neprůchodné buňky po mřížce (`marchPath`): body, kudy jde ke zvířeti, než na něj
+   * vede přímka; chybí = jde rovně. Stav je JSON a nezávisí na dělení taktů.
+   */
+  route?: Pos[];
+  /** Takt souboje, kdy muž naposled hledal objížďku (nejvýš jednou za `DETOUR_RETRY_TICKS`). */
+  detourTick?: number;
 }
 
 /** Souboj se zvířetem (JSON). */
@@ -121,6 +130,8 @@ const MELEE_M2 = C.meleeM * C.meleeM;
 const BOW_MIN_M2 = C.bowMinM * C.bowMinM;
 const BOW_MAX_M2 = C.bowMaxM * C.bowMaxM;
 const IDLE_TICKS = HUNT_FIGHT.idleS * TICKS_PER_SECOND;
+/** Objížďku hledá lovec nejvýš jednou za tolik taktů (jako v boji – výkon). */
+const DETOUR_RETRY_TICKS = WAR.battle.detourRetryTicks;
 /** Cíl kroku útěku – dost daleko, aby krok měl plnou délku. */
 const FLEE_REACH_M = 1000;
 const NO_FILLS = NO_WALLS.fills;
@@ -280,9 +291,10 @@ function cappedHours(t: HuntSkills): HuntSkills | null {
 
 /**
  * Jeden takt souboje (mění `f` na místě, `f.tick + 1`); po konci (`outcome` ≠ ongoing) nic.
- * Skryté zvíře čeká – takt jen přičte. Útočník na nohou s povelem, který se ten takt pohnul,
- * má zvíře na dosah rány, nebo na ně míří lukem, posune `activeTick` (lovec zaseknutý u překážky
- * jen stojí – návrh Clauda); po `idleS × TICKS_PER_SECOND` taktech bez něj zvíře běží k `door`
+ * Skryté zvíře čeká – takt jen přičte. Činnost (posune `activeTick`): útočník na nohou s povelem
+ * se ke zvířeti přiblížil (nebo šel po objížďce), má je na dosah rány či střely, nebo zvíře před
+ * lovci utíká (honba); kdo jen klouže podél překážky či přešlapuje, činný není (návrh Clauda –
+ * lov bez postupu skončí, i když hráč nic nezadá). Po `idleS × TICKS_PER_SECOND` taktech bez něj zvíře běží k `door`
  * (`escape`) a u dveří zmizí (`gone`, `escaped`).
  */
 export function huntFightTick(f: HuntFight, field: HuntField, rng: Random): void {
@@ -292,9 +304,14 @@ export function huntFightTick(f: HuntFight, field: HuntField, rng: Random): void
   if (q.state === 'hidden') return;
   const hunters = f.hunters.filter(onFoot);
   const wounds: Wounds = new Map();
+  const was = q.pos;
   quarryStep(q, hunters, field.grid, rng, wounds);
+  // honba: zvíře před lovci utíká a opravdu se pohnulo (zaseklé v kapse nic neznamená)
+  const fleeing = q.state === 'flee' && q.goal === null && !samePos(q.pos, was);
   const blows =
-    q.state === 'escape' || q.state === 'gone' ? [] : huntersStep(f, hunters, field, rng, wounds);
+    q.state === 'escape' || q.state === 'gone'
+      ? []
+      : huntersStep(f, hunters, field, rng, wounds, fleeing);
   applyBlows(f, blows);
   applyWounds(f, wounds, rng);
   settle(f);
@@ -432,6 +449,8 @@ function face(q: Quarry, dx: number, dz: number): void {
 interface Blow {
   personId: number;
   damage: number;
+  /** Šíp – kance a bachyni jen zraní (zdraví nejvýš na 1), smrtelná je rána úderem. */
+  arrow?: true;
 }
 
 /** Útočník na nohou s povelem. */
@@ -459,7 +478,7 @@ function nearestHunter(p: Pos, hunters: readonly HuntFighter[]): HuntFighter | n
  * `rng.next()` na ránu); na kance a bachyni pod branou umu vždy mine (los se táhne i tak). Muž
  * rodu s lukem míří na zvíře v pásmu luku (20–60 m) a jde dál – zvíře lukem nedrží na odstup
  * (návrh Clauda) – a po odstupu `bowSeconds` vystřelí (`shoot`). Hodiny výcviku: takt na dosah
- * rány → boj, jinak takt s lukem v pásmu → luk, honba z koně → jízda.
+ * rány → boj, jinak takt, kdy je střela připravená (odstup 0) a zvíře v pásmu luku → luk, honba z koně → jízda.
  */
 function huntersStep(
   f: HuntFight,
@@ -467,26 +486,26 @@ function huntersStep(
   field: HuntField,
   rng: Random,
   wounds: Wounds,
+  fleeing: boolean,
 ): Blow[] {
   const q = f.quarry;
+  if (fleeing) f.activeTick = f.tick;
   const walk = WAR.pace.metersPerSecond / TICKS_PER_SECOND;
   for (const h of hunters) {
     if (h.cooldown > 0) h.cooldown--;
     let moved = false;
+    let progress = false;
     if (dist2(h.pos, q.pos) > MELEE_M2) {
-      const next = stepToward(h.pos, q.pos, walk * (h.mounted ? WAR.pace.riders : 1), field.grid);
-      if (next) {
-        h.pos = next;
-        moved = true;
-      }
+      const step = walk * (h.mounted ? WAR.pace.riders : 1);
+      [moved, progress] = approach(h, q.pos, f.tick, field.grid, step);
     }
     const d2 = dist2(h.pos, q.pos);
     const reach = d2 <= MELEE_M2;
     const aiming = !reach && bowReady(h, d2);
     h.state = reach ? 'fight' : 'chase';
-    if (moved || reach || aiming) f.activeTick = f.tick;
+    if (progress || reach || aiming) f.activeTick = f.tick;
     if (reach) train(h, 'combat', field.hoursPerTick);
-    else if (aiming) train(h, 'bow', field.hoursPerTick);
+    else if (aiming && h.cooldown === 0) train(h, 'bow', field.hoursPerTick);
     if (!reach && moved && h.mounted) train(h, 'riding', field.hoursPerTick);
   }
   const blows: Blow[] = [];
@@ -555,7 +574,7 @@ function shoot(
   const hit = shotHit(candidates, radius, roll, pick);
   if (hit === null) return;
   const damage = hitDamage(h.strength, true);
-  if (hit === QUARRY_ID) blows.push({ personId: h.personId, damage });
+  if (hit === QUARRY_ID) blows.push({ personId: h.personId, damage, arrow: true });
   else wound(wounds, Number(hit), damage, false);
 }
 
@@ -572,6 +591,8 @@ function applyBlows(f: HuntFight, blows: readonly Blow[]): void {
   const q = f.quarry;
   for (const b of blows) {
     q.health -= b.damage;
+    // „trefit se kanci shora přímo za krk“ umí jen úder přes bránu umu (návrh Clauda)
+    if (b.arrow && GATED.has(q.kind)) q.health = Math.max(1, q.health);
     q.hits++;
     if (q.health <= 0 && f.killer === null) f.killer = b.personId;
   }
@@ -639,6 +660,62 @@ function settle(f: HuntFight): void {
 }
 
 // --- Pohyb ------------------------------------------------------------------------------------
+
+/**
+ * Krok lovce ke zvířeti na `to`. Vede-li přímka buňkou, kam boj nevstoupí (voda, les, sráz), jde po
+ * objížďce (`route` z `marchPath`, jako `detour` v boji; hledá se nejvýš jednou za
+ * `DETOUR_RETRY_TICKS`); jinak rovně (skluz podél kraje – `stepToward`). Vrací [pohnul se, postoupil]:
+ * postup = přiblížil se, nebo šel po objížďce.
+ */
+function approach(
+  h: HuntFighter,
+  to: Pos,
+  tick: number,
+  grid: MarchGrid | null,
+  step: number,
+): [boolean, boolean] {
+  let target = to;
+  let routed = false;
+  if (grid) {
+    const open = (c: number): boolean => paceAt(grid, marchCellCenter(grid, c), NO_FILLS) > 0;
+    if (lineClear(grid, h.pos, to, open)) delete h.route;
+    else {
+      while (h.route && h.route.length > 0 && dist2(h.pos, h.route[0]!) <= 1) h.route.shift();
+      if (!h.route || h.route.length === 0) {
+        delete h.route;
+        const around = detourPoints(h, to, tick, grid);
+        if (around) h.route = around;
+      }
+      if (h.route && h.route.length > 0) {
+        target = h.route[0]!;
+        routed = true;
+      }
+    }
+  }
+  const before = dist2(h.pos, to);
+  const next = stepToward(h.pos, target, step, grid);
+  if (!next) {
+    delete h.route;
+    return [false, false];
+  }
+  h.pos = next;
+  return [true, routed || dist2(next, to) < before];
+}
+
+/**
+ * Vnitřní body trasy `marchPath` od lovce k `to` ; null = nehledá se (odstup
+ * `DETOUR_RETRY_TICKS`), zvíře je v uzavřené kapse (nedosažitelné) nebo je trasa přímá.
+ */
+function detourPoints(h: HuntFighter, to: Pos, tick: number, grid: MarchGrid): Pos[] | null {
+  if (h.detourTick !== undefined && tick - h.detourTick < DETOUR_RETRY_TICKS) return null;
+  h.detourTick = tick;
+  // zvíře v uzavřené kapse (cíl nedosažitelný) – lovec k nejbližšímu místu nechodí, jen stojí
+  if (!marchReachable(grid, h.pos, to)) return null;
+  const path = marchPath(grid, h.pos, to);
+  if (!path) return null;
+  const points = path.points.slice(1, -1);
+  return points.length === 0 ? null : points.map((p) => ({ x: p.x, z: p.z }));
+}
 
 /**
  * Krok z `from` k `to` délkou `perTick` m × tempo buňky (`paceAt`; v neprůchodné × 1), bez mřížky

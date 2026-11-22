@@ -960,7 +960,11 @@ výchozí návrh Clauda; tempo, rány, šíp a padlí z `WAR.pace`, `WAR.combat`
   útočníci podle `personId` (napřed pohyb všech, pak rány a šípy) → rány po všech: zvířeti
   (složil ten, jehož rána srazila zdraví na nulu – `killer`; `dead`, `killed`), pak lovcům a koním
   (`applyWounds`) → konec. Pohyb: krok k cíli délkou tempo ÷ 4 × `paceAt` (v buňce s tempem 0 × 1;
-  bez mřížky × 1), na dosah kroku přímo do cíle; krok do buňky s tempem 0 sklouzne podél jejího
+  bez mřížky × 1), na dosah kroku přímo do cíle; vede-li přímka k zvířeti buňkou s tempem 0, jde
+  lovec po objížďce (`approach`, `detourPoints`: vnitřní body `marchPath` jako `detour` v
+  `battle.ts`, uložené v `route` lovce a hledané nejvýš jednou za `detourRetryTicks` = 20 taktů,
+  `detourTick`; jakmile je přímka čistá, trasa se zahodí; zvíře v uzavřené kapse – `marchReachable`
+  je false – se neobchází, lovec stojí); krok do buňky s tempem 0 sklouzne podél jejího
   kraje (`alongEdge` s prázdnými stěnami `NO_WALLS` – obojí export z `battle.ts`), z mapy mřížky
   ven nevede. Lovec pěšky 3,5 m/s, jezdec × 1,5; na dosah rány (3 m) stojí. Rána zblízka po 2 s,
   los 1 : 1 (jeden `rng.next()` na ránu), ubere `hitDamage(síla, false)`.
@@ -980,7 +984,9 @@ výchozí návrh Clauda; tempo, rány, šíp a padlí z `WAR.pace`, `WAR.combat`
 - **Brána umu** (Martin: „nováček to nezvládne … trefit se kanci shora přímo za krk“, z koně
   „ještě náročnější“) – rána zblízka na kance a bachyni pod `boarGate` vždy mine (los se táhne
   i tak): pěšky boj 60, z koně boj 60 a jízda 70. Jezdci pod branou jízdy, kterému padne kůň,
-  platí brána pěšky (boj 70 kance pěšky zabít může). Šípů se brána netýká.
+  platí brána pěšky (boj 70 kance pěšky zabít může). Šíp kance a bachyni jen zraní – zdraví
+  neklesne pod 1 (`Blow.arrow`; návrh Clauda: Martin „trefit se kanci shora přímo za krk“ – nováček
+  s lukem prase nezabije, smrtelná je rána úderem přes bránu); jelena, laň, vlka a medvěda šíp zabije.
 - **Luk** (Rozhodnutí 5) – muž rodu (`lineMan`) s lukem nad 0 míří na zvíře v pásmu luku (20–60 m),
   mimo dosah rány zblízka, a po 4 s vystřelí: kruh rozptylu `spreadRadiusM(luk, vzdálenost)`
   kolem zvířete, kandidáti `ShotCandidate` – zvíře (`areaM2`, strana `defend`) a ostatní lovci
@@ -989,11 +995,13 @@ výchozí návrh Clauda; tempo, rány, šíp a padlí z `WAR.pace`, `WAR.combat`
   Lukostřelec jde přitom dál ke zvířeti – zvíře lukem na odstup nedrží (návrh Clauda: v boji
   střelec v pásmu stojí, na lovu by stál nekonečně na 60 m od jelena a kance či medvěda by bez
   rizika ustřílel zpoza `chargeM`).
-- **Útěk** – útočník na nohou s povelem, který se ten takt pohnul, má zvíře na dosah rány, nebo na
-  ně míří lukem, posune `activeTick` (lovec zaseknutý u překážky jen stojí – návrh Clauda); po
-  `idleS × 4` taktech bez něj `escape` k `door` – útočníci si ho už nevšímají; u dveří, nebo když
-  k nim neprojde, `gone` a `escaped`. Když všichni padnou, zvíře po `idleS` uteče.
-- **Výcvik** (Rozhodnutí 7) – takt na dosah rány → `combat`, jinak takt s lukem v pásmu → `bow`,
+- **Útěk** – činnost (posune `activeTick`) je jen postup: útočník na nohou s povelem se ke zvířeti
+  ten takt přiblížil (nebo jde po objížďce), má je na dosah rány či střely, nebo zvíře před lovci
+  utíká a opravdu se pohnulo (honba). Kdo jen klouže podél překážky či přešlapuje, činný není
+  (návrh Clauda – lov bez postupu skončí i bez hráče; Martin: „lov může teoreticky trvat libovolně
+  dlouho“, tvrdý strop délky tedy není); po `idleS × 4` taktech bez činnosti `escape` k `door` –
+  útočníci si ho už nevšímají; u dveří, nebo když k nim neprojde, `gone` a `escaped`. Když všichni padnou, zvíře po `idleS` uteče.
+- **Výcvik** (Rozhodnutí 7) – takt na dosah rány → `combat`, jinak takt výstřelu (střela připravená, zvíře v pásmu luku) → `bow`,
   honba z koně → `riding`, pěší honba nic; `hours` drží syrové hodiny celého lovu (návrh Clauda,
   kontrola Úlohy 4 – M2), strop `maxHours` až `fightResult` – přetečení zkrátí všechny dovednosti
   stejným dílem, takže dělení odpovídá celému lovu (6 h je při herním dni 86,4 s jen ≈ 22 s
@@ -1007,7 +1015,7 @@ výchozí návrh Clauda; tempo, rány, šíp a padlí z `WAR.pace`, `WAR.combat`
   seedech; jezdec rychlejší – medián ≤ 480; jelen nezraní; nikdo nejde → útěk po 240 taktech
   a `escaped`; `dropHunters` → útěk; odvolaný se vrátí s hodinami; syrové hodiny jízdy a strop
   6 h ve výsledku poměrně; po 1 / 7 / 40 taktech přes JSON = vcelku – i medvěd s ranami, koněm
-  a šípy; pruh vody v mřížce – lovec sklouzne podél kraje; nováček (boj 20) kance nezraní a padne;
+  a šípy; pruh vody v mřížce – lovec ho obejde po objížďce a zabije, v uzavřené kapse stojí a zvíře uteče, klouzání bez postupu nečiní; šíp prase nezabije; nováček (boj 20) kance nezraní a padne;
   boj 70 pěšky kance i bachyni zabije; z koně jízda 40 kance nezraní, jízda 80 zabije; osamělý
   lovec proti medvědovi padne, tři muži boj 70 ho složí; vlka boj 40 zabije; kůň padne a jezdec
   bojuje pěšky, vlk koně nezraní; luk 80 trefí jelena víckrát než luk 10, vesničan nestřílí; šíp

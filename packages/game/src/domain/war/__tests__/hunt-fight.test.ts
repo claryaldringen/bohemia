@@ -301,21 +301,95 @@ describe('souboj se zvěří – honba a uštvání jelena (plán 2026-11-22-hun
     const grid: MarchGrid = { ...base, pace };
     const field: HuntField = { grid, hoursPerTick: MEADOW.hoursPerTick };
     const f = hunt([walker(1, { pos: { x: 120, z: 60 } })]);
-    let alongEdge = 0;
     let nearest = Infinity;
     const n = runHunt(f, 2000, field, 5, () => {
       const h = hunter(f, 1);
       expect(grid.pace[marchCellAt(grid, h.pos)]!).toBeGreaterThan(0);
       expect(grid.pace[marchCellAt(grid, f.quarry.pos)]!).toBeGreaterThan(0);
-      // u východního kraje pruhu (buňka x = 82,5 m) nad jeho koncem
-      if (h.pos.x > 80 && h.pos.x < 84 && h.pos.z > 0) alongEdge++;
       nearest = Math.min(nearest, Math.hypot(h.pos.x - f.quarry.pos.x, h.pos.z - f.quarry.pos.z));
     });
-    expect(alongEdge).toBeGreaterThan(10);
     expect(nearest).toBeLessThanOrEqual(WAR.combat.meleeM);
     expect(f.outcome).toBe('killed');
     expect(f.killer).toBe(1);
     expect(n).toBeLessThan(2000);
+  });
+
+  /** Mřížka s pruhem vody x 70–80 m, z od `zFrom` do `zTo` m. */
+  function stripGrid(
+    zFrom: number,
+    zTo: number,
+    extra: (p: Pos) => boolean = () => false,
+  ): MarchGrid {
+    const base = battleField().grid;
+    const pace = Float32Array.from(base.pace);
+    for (let c = 0; c < pace.length; c++) {
+      const p = marchCellCenter(base, c);
+      if ((p.x >= 70 && p.x <= 80 && p.z >= zFrom && p.z <= zTo) || extra(p)) pace[c] = 0;
+    }
+    return { ...base, pace };
+  }
+
+  it('objížďka: voda kolmo přes cestu lovce (zvíře přímo za pruhem), průchod na kraji → lovec dojde a zabije', () => {
+    const grid = stripGrid(-60, 60);
+    const field: HuntField = { grid, hoursPerTick: MEADOW.hoursPerTick };
+    const f = hunt([walker(1)]);
+    Object.assign(f.quarry, { pos: { ...OUT }, goal: null, state: 'stand' });
+    let around = false;
+    runHunt(f, 4000, field, 5, () => {
+      const h = hunter(f, 1);
+      expect(grid.pace[marchCellAt(grid, h.pos)]!).toBeGreaterThan(0);
+      if (h.route && h.route.length > 0) around = true;
+    });
+    expect(around).toBe(true);
+    expect(f.outcome).toBe('killed');
+    expect(f.killer).toBe(1);
+  });
+
+  it('objížďka: výsledek nezávisí na dělení taktů (JSON mezi takty)', () => {
+    const grid = stripGrid(-60, 60);
+    const field: HuntField = { grid, hoursPerTick: MEADOW.hoursPerTick };
+    const a = hunt([walker(1)]);
+    const b = hunt([walker(1)]);
+    for (let t = 0; t < 600 && a.outcome === 'ongoing'; t++) {
+      tick(a, field, 5);
+      tick(b, field, 5);
+      Object.assign(b, JSON.parse(JSON.stringify(b)));
+      b.hunters = JSON.parse(JSON.stringify(b.hunters));
+    }
+    expect(JSON.stringify(b)).toBe(JSON.stringify(a));
+  });
+
+  it('uzavřená kapsa kolem zvířete: lovec stojí a zvíře po idleS uteče (bez hráče lov skončí)', () => {
+    const grid = stripGrid(0, -1, (p) => {
+      const dx = Math.abs(p.x - OUT.x);
+      const dz = Math.abs(p.z);
+      return Math.max(dx, dz) >= 10 && Math.max(dx, dz) <= 20;
+    });
+    const field: HuntField = { grid, hoursPerTick: MEADOW.hoursPerTick };
+    expect(grid.pace[marchCellAt(grid, OUT)]!).toBeGreaterThan(0);
+    for (const kind of ['stag', 'boar'] as const) {
+      const f = hunt([veteran(1)], kind);
+      Object.assign(f.quarry, { pos: { ...OUT }, goal: null, state: 'stand' });
+      runHunt(f, 4000, field, 5);
+      expect(f.outcome).toBe('escaped');
+    }
+  });
+
+  it('lovec se pohybuje, ale ke stojícímu zvířeti se nepřiblíží (klouže) → zvíře po idleS uteče', () => {
+    // pruh vody přes celou mapu: lovec se u něj pohybuje (klouže), ale blíž k zvířeti se nedostane
+    const f = hunt([walker(1)]);
+    Object.assign(f.quarry, { pos: { ...OUT }, goal: null, state: 'stand' });
+    const grid = stripGrid(-1000, 1000);
+    const field: HuntField = { grid, hoursPerTick: MEADOW.hoursPerTick };
+    let moves = 0;
+    let last = { ...hunter(f, 1).pos };
+    runHunt(f, 4000, field, 5, () => {
+      const p = hunter(f, 1).pos;
+      if (p.x !== last.x || p.z !== last.z) moves++;
+      last = { ...p };
+    });
+    expect(moves).toBeGreaterThan(0);
+    expect(f.outcome).toBe('escaped');
   });
 });
 
@@ -377,7 +451,7 @@ describe('souboj se zvěří – kanec, vlk, medvěd, rány lovců, kůň a luk 
     expect(killSeeds('sow', () => [veteran(1)]).length).toBeGreaterThanOrEqual(12);
   });
 
-  it('z koně: boj 70 a jízda 40 kance nezabije nikdy, boj 70 a jízda 80 aspoň ve 12 z 20', () => {
+  it('dokud jezdec sedí na koni, kance nezraní (boj 70, jízda 40); boj 70 a jízda 80 ho zabije aspoň ve 12 z 20', () => {
     for (const seed of SEEDS) {
       const f = hunt([horseman(1, 40)], 'boar');
       runHunt(f, LONG, MEADOW, seed, () => {
@@ -485,9 +559,72 @@ describe('souboj se zvěří – kanec, vlk, medvěd, rány lovců, kůň a luk 
     expect(master.hits).toBeGreaterThan(novice.hits);
     expect(master.bowHours).toBeGreaterThan(0);
     expect(novice.bowHours).toBeGreaterThan(0);
+    // hodiny luku přibývají jen v taktu výstřelu (střela připravená, zvíře v pásmu luku)
+    const f = hunt([], 'stag');
+    runHunt(f, 40, MEADOW, 3);
+    addHunters(
+      f,
+      [walker(1, { pos: { x: OUT.x + 40, z: 0 }, skills: { bow: 80, combat: 50, riding: 0 } })],
+      f.tick,
+    );
+    let shots = 0;
+    for (let t = 0; t < 200 && f.outcome === 'ongoing'; t++) {
+      const h = hunter(f, 1);
+      const before = h.hours.bow;
+      const ready = h.cooldown <= 1;
+      tick(f, MEADOW, 3);
+      const d = Math.hypot(h.pos.x - f.quarry.pos.x, h.pos.z - f.quarry.pos.z);
+      const grew = h.hours.bow > before;
+      if (grew) {
+        shots++;
+        expect(ready).toBe(true);
+        expect(d).toBeGreaterThan(WAR.combat.meleeM);
+      }
+    }
+    expect(shots).toBeGreaterThan(0);
     // luk nosí jen muž rodu – vesničan nestřílí ani necvičí
     const villager = arrows({ lineMan: false, skills: { bow: 80, combat: 50, riding: 0 } });
     expect(villager).toEqual({ hits: 0, bowHours: 0 });
+  });
+
+  it('šíp kance a bachyni nezabije: luk 80, boj 0 jen zraní (zdraví aspoň 1); lovec s bojem nad branou dorazí', () => {
+    for (const kind of ['boar', 'sow'] as const) {
+      let wounded = 0;
+      for (const seed of SEEDS) {
+        const f = hunt(
+          [walker(1, { pos: { x: 100, z: 0 }, skills: { bow: 80, combat: 0, riding: 0 } })],
+          kind,
+        );
+        f.quarry.health = 3;
+        runHunt(f, LONG, MEADOW, seed, () => {
+          expect(f.quarry.health).toBeGreaterThanOrEqual(1);
+          expect(f.quarry.state).not.toBe('dead');
+        });
+        expect(f.outcome).not.toBe('killed');
+        if (f.quarry.health === 1) wounded++;
+      }
+      expect(wounded).toBeGreaterThan(0);
+      // raněného (zdraví 1) dorazí lovec s bojem nad branou
+      expect(
+        SEEDS.filter((seed) => {
+          const f = hunt([veteran(1)], kind);
+          f.quarry.health = 1;
+          runHunt(f, LONG, MEADOW, seed);
+          return f.outcome === 'killed';
+        }).length,
+      ).toBeGreaterThanOrEqual(12);
+    }
+    // jelen a vlk šípem padnou dál
+    for (const kind of ['stag', 'wolf'] as const) {
+      const f = hunt(
+        [walker(1, { pos: { x: 100, z: 0 }, skills: { bow: 80, combat: 0, riding: 0 } })],
+        kind,
+      );
+      f.quarry.health = 0.01;
+      f.quarry.state = 'stand';
+      runHunt(f, 400, MEADOW, 4);
+      expect(f.outcome).toBe('killed');
+    }
   });
 
   it('šíp trefí i druhého lovce stojícího u zvířete (seed, kde se to stane)', () => {

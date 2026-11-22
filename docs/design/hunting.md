@@ -64,7 +64,8 @@ zabije, honci ho odnesou do dvorce na tyči mezi sebou a jeho maso a kožešina 
    svých dovedností (luk, boj, jízda 0–100).
    - **Kanec a bachyně** (Martin): zabije je jen lovec s dost bojového umu – rána shora za krk; z koně navíc s dost jezdeckého
      umu. Nováček nezvládne – rána mine a kanec útočí. Prahy dovedností pěšky a z koně návrh Clauda (rešerše, čísla
-     v `rules`).
+     v `rules`). Šíp kance a bachyni jen zraní (zdraví neklesne pod 1) – smrtelná je až rána úderem přes bránu umu
+     (návrh Clauda).
    - **Jelen a laň** (Martin): stačí je uštvat – útočník je honí, po čase (podle tempa a vytrvalosti, návrh Clauda)
      zastaví a nechají se zabít; z koně rychleji.
    - **Vlk a medvěd** se brání jako kanec; medvěd je nejsilnější.
