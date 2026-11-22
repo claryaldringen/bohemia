@@ -1,11 +1,18 @@
 # Sousední vsi – vsi rodu místo smyšlených sousedů
 
-Stav: **rozpracovaný návrh – odložený** (22. 11. 2026). Martin, 22. 11. 2026, při procházení bodů návrhu: „Obchod teď
-ideálně nech jak je - bude to docela velká kapitola, kterou pak uděláme samostatně“. Do té doby platí obchod se
-smyšlenými sousedy ([obchod](trade.md)) a sňatky z okolí ([příbuzenství](kinship.md)) beze změny. Níž je, co Martin k
-návrhu už rozhodl, a návrhy Clauda, které ještě neprošel (z bodů 1–8 shrnutí Martin prošel bod 1 – sousedy mohou být i
-vsi jiných hráčů; u bodu 2 – výpis souseda – se procházení zastavilo). Co řekl Martin, je u bodu s datem; ostatní je návrh
-Clauda.
+Stav: **rozpracovaný návrh – zbytek patří do nové kapitoly obchodu** (22. 11. 2026). Do té doby platí obchod se
+smyšlenými sousedy ([obchod](trade.md)) a sňatky z okolí ([příbuzenství](kinship.md)) beze změny. Martin prošel osm bodů
+shrnutí návrhu Clauda (22. 11. 2026):
+
+- bod 1 (kdo je soused) – rozhodnuto: „Sousedy mohou být i vsi jiných hráčů“;
+- bod 2 (výpis nabídky a poptávky souseda): „Obchod teď ideálně nech jak je - bude to docela velká kapitola, kterou pak
+  uděláme samostatně“;
+- bod 3 (soused bere platbu jako dnes, i když ji nepotřebuje): „Ne, tohle navrhneme s novým obchodem.“;
+- body 4–8 (přesun zboží a vrácení nevzaté platby, nákup osiva s cestou, výměna skutečných lidí, zánik souseda během cesty,
+  převod starších vsí) – na otázku, zda patří do nového obchodu: „Ano patří“.
+
+Pravidla níž jsou tedy pro body 2–8 jen podklad Clauda pro kapitolu obchodu, ne schválené znění. Co řekl Martin, je u bodu
+s datem; ostatní je návrh Clauda.
 
 ## Proč
 
