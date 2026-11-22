@@ -228,6 +228,44 @@ describe('honci na zítřek (hunting.md – Pravidla 2)', () => {
   });
 });
 
+describe('honci v práci dne (hunting.md – Pravidla 2)', () => {
+  /** Ves dopočítaná o jediný den `d` s rezervací honců (`beaters`), nebo bez ní. */
+  function workedDay(d: number, beaters?: { day: number; men: number }): VillageState {
+    const s = huntVillage(3, 3);
+    s.lastDay = d - 1;
+    if (beaters) s.wildlife!.hunt = { ...emptyHunt(), beaters };
+    return advanceVillage(s, d, null, null);
+  }
+
+  it('lov nejde jen ob den: po dni s honci ves zítřejší lov opět uvolní (díl se zapíše před honci)', () => {
+    const d = dayOf(7, 10);
+    const none = workedDay(d);
+    const s = workedDay(d, { day: d, men: 6 });
+    // díl mužů na stavby v historii je týž s honci i bez nich (zapsaný před odečtením honců)
+    expect(s.commonLaborHistory).toEqual(none.commonLaborHistory);
+    expect(s.commonLaborHistory.at(-1)!).toBeGreaterThan(0);
+    // lov zítřka proto stojí jen na mužích vsi, ne na tom, že dnes lovil
+    expect(canSpareBeaters(s, d)).toBe(canSpareBeaters(none, d));
+    expect(huntDenied(s, d + 1, false)).toBe(huntDenied(none, d + 1, false));
+    // ves s dost muži (dnešní díl 20 čd) po dni s honci lov zítřka vyhlásí
+    s.commonLaborHistory = [20];
+    expect(huntDenied(s, d + 1, false)).toBeNull();
+  });
+
+  it('rezervace honců na jiný den se do práce dne nepočítá', () => {
+    const d = dayOf(7, 10);
+    const none = workedDay(d);
+    const stale = workedDay(d, { day: d - 1, men: 6 });
+    const future = workedDay(d, { day: d + 1, men: 6 });
+    expect(stale.commonLaborHistory).toEqual(none.commonLaborHistory);
+    expect(future.commonLaborHistory).toEqual(none.commonLaborHistory);
+    // a rezervace na dnešek práci opravdu bere (společná práce klesne, díl před honci ne)
+    const today = workedDay(d, { day: d, men: 6 });
+    expect(today.commonLaborHistory).toEqual(none.commonLaborHistory);
+    expect(today.commonLaborYearly).toBeLessThan(none.commonLaborYearly!);
+  });
+});
+
 describe('kalendářní lov je pryč (hunting.md – Pravidla 1)', () => {
   it('bývalý den lovu (1. 11.): odešlý syn pracuje se vsí, muži dvorce jedou objížďku', () => {
     const s = advanceVillage(huntVillage(3, 3), START_WINTER, null, null);

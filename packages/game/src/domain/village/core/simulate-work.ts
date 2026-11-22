@@ -443,7 +443,13 @@ export function work(
     travel,
     workshops,
   });
-  recordCommonLabor(state, allocation.common, allocation.build ?? allocation.common);
+  // díl mužů na stavby do historie před honci (`allocation.beaters`): lov nesmí sám sobě
+  // zmenšit zítřejší díl, jinak by ves mohla lovit jen ob den (hunting.md – Pravidla 2)
+  recordCommonLabor(
+    state,
+    allocation.common,
+    (allocation.build ?? allocation.common) + (allocation.beaters ?? 0),
+  );
   return { toil: toilToday(ctx, tasks.owned, applied, allocation.away), lordField };
 }
 
