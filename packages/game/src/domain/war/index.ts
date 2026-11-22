@@ -23,6 +23,21 @@ export * from './muster';
 export * from './supplies';
 export * from './desertion';
 export * from './battle';
+// souboj se zvěří – `Quarry` je v balíku i lom (village), ven jde jako `HuntQuarry`
+export {
+  addHunters,
+  dropHunters,
+  huntFightTick,
+  newHuntFight,
+  releaseQuarry,
+  type HuntField,
+  type HuntFight,
+  type HuntFighter,
+  type HuntSkills,
+  type NewHunter,
+  type Quarry as HuntQuarry,
+  type QuarryState,
+} from './hunt-fight';
 export * from './aim';
 export * from './defenders';
 export * from './flight';

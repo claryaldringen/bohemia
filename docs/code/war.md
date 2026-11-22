@@ -931,6 +931,54 @@ a místo prolomení v `battle.ts` (`wallsOf`), pochod v `march-grid.ts`. Čísla
   75 m ano, bez věže ne; věž vidí na 200 m; pochod – ramena blokují u zavřené brány; prolomený díl
   ramena nechá, zbořený ne; bitva s věží po 1 / 7 / 40 přes JSON = vcelku).
 
+## Souboj se zvěří (plán 2026-11-22-hunting)
+
+hunting.md – Pravidla 4–7; plán 2026-11-22-hunting – Rozhodnutí 4, 5, 7, 9 (Úloha 4: pohyb, honba
+a uštvání jelena a laně). Vyhnané zvíře a útočníci po taktech jako boj (4 za sekundu), s čísly
+a primitivy boje – `battleTick` se nepoužije, je svázaný s tažením, opevněním a skupinami. Čísla
+zvěře v `HUNT_QUARRY` (zdraví, síla, tempo, výdrž, zotavení, pozornost, útok, plocha pro šíp)
+a souboje v `HUNT_FIGHT` (`emergeM` 40, `idleS` 60, `spentUntil` 0,5, `maxHours` 6) – obojí
+`rules-wildlife.ts`, výchozí návrh Clauda; tempo a rány z `WAR.pace` a `WAR.combat`.
+
+- **Stav** – `domain/war/hunt-fight.ts`: `HuntFight` (JSON) – `quarry` (`Quarry`: druh, poloha,
+  `heading` pro scénu, `goal` vyběhnutí, zdraví, `stamina` v sekundách útěku, `state` `hidden` |
+  `stand` | `flee` | `spent` | `charge` | `dead` | `escape` | `gone`, `cooldown`, `aim`, `hits`,
+  `door`), `hunters` (`HuntFighter` podle `personId`: poloha, jezdec, síla teď a pěšky
+  `footStrength`, dovednosti `HuntSkills`, muž rodu `lineMan`, zdraví, kůň `horseHealth`, `state`
+  `chase` | `fight` | `down`, `cooldown`, `hits`, `hours` – herní hodiny výcviku, `left` –
+  odvolaný), `tick`, `activeTick`, `outcome` `ongoing` | `killed` | `escaped`, `killer`.
+  Z balíku jde `Quarry` jako `HuntQuarry` (jméno `Quarry` má lom).
+- **Průběh** – `newHuntFight(druh, dveře, takt)` – zvíře skryté u dveří lesa (takty jen běží,
+  nečinnost se nepočítá); `releaseQuarry(f, ven, takt)` – vyběhne k bodu `ven` (`flee` bez únavy;
+  odtud běží nečinnost); `addHunters` – útočníci na zvíře (kdo už útočí nebo padl, nepřibude;
+  odvolaný se vrátí s hodinami); `dropHunters` – jiný rozkaz hráče: `left`, v souboji dál
+  nejedná a zvíře si ho nevšímá, hodiny a zranění mu zůstanou pro výsledek.
+- **Takt** – `huntFightTick(f, pole, rng)` (`HuntField` – mřížka pochodu, null = rovná louka;
+  `hoursPerTick`) mění `f` na místě; po konci nic. Pořadí pevné: zvíře (stav, pohyb) → útočníci
+  podle `personId` (pohyb, rány) → rány po všech (složil ten, jehož rána srazila zdraví na nulu –
+  `killer`; `dead`, `killed`) → konec. Pohyb: krok k cíli délkou tempo ÷ 4 × `paceAt` (v buňce
+  s tempem 0 × 1; bez mřížky × 1), na dosah kroku přímo do cíle; krok do buňky s tempem 0
+  sklouzne podél jejího kraje (`alongEdge` s prázdnými stěnami `NO_WALLS` – obojí export z
+  `battle.ts`), z mapy mřížky ven nevede. Lovec pěšky 3,5 m/s, jezdec × 1,5; na dosah rány
+  (3 m) stojí. Rána zblízka po 2 s, los 1 : 1 (jeden `rng.next()` na ránu), ubere
+  `hitDamage(síla, false)`.
+- **Jelen a laň** (Martin: „stačí je uštvat“) – útočník do `alertM` (60 m) a výdrž > 0 → utíká
+  od nejbližšího (výdrž −1 s za sekundu), jinak stojí a výdrž se vrací (`recoverPerS`); výdrž 0 →
+  `spent`, stojí, dokud nenabere polovinu. Pěší (3,5 m/s) ho drží na ≈ 60 m a uštve za ≈ 40 s
+  honby, jezdec (5,25 m/s proti 4,5) ho dohání a uštve za 30 s. Kanec, bachyně, vlk a medvěd zatím jen
+  vyběhnou a stojí (obrana, rány lovců, kůň a luk – Úloha 5).
+- **Útěk** – útočník na nohou s povelem, který se ten takt pohnul, nebo má zvíře na dosah rány,
+  posune `activeTick` (lovec zaseknutý u překážky jen stojí – návrh Clauda); po `idleS × 4`
+  taktech bez něj `escape` k `door` – útočníci si ho už nevšímají; u dveří, nebo když k nim
+  neprojde, `gone` a `escaped`.
+- **Výcvik** (Rozhodnutí 7) – takt na dosah rány → `combat`, honba z koně → `riding`, pěší honba
+  nic; součet nejvýš `maxHours` – přetečení zkrátí všechny dovednosti stejným dílem, takže jezdec
+  cvičí jízdu i boj (návrh Clauda; 6 h je při herním dni 86,4 s jen ≈ 22 s skutečného času).
+- **Testy** – `__tests__/hunt-fight.test.ts` (pěší uštve a zabije jelena do 960 taktů ve 20
+  seedech; jezdec rychlejší – medián ≤ 480; jelen nezraní; nikdo nejde → útěk po 240 taktech
+  a `escaped`; `dropHunters` → útěk; odvolaný se vrátí s hodinami; hodiny jízdy a strop 6 h;
+  po 1 / 7 / 40 taktech přes JSON = vcelku; pruh vody v mřížce – lovec sklouzne podél kraje).
+
 ## Bariéra dopočtu a dny nájezdu (Ú6.7)
 
 Plán 2026-11-03 – rozhodnutí 13, Úloha 6.7. Ves čeká jen na tažení u sebe, tažení jen na ves ke dni

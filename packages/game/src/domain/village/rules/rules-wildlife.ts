@@ -157,6 +157,90 @@ export const HUNT = {
 } as const;
 
 /**
+ * Vyhnaná zvěř v souboji (`hunt-fight.ts`; návrh Clauda – hunting.md, Pravidla 4–6; plán
+ * 2026-11-22-hunting – Rozhodnutí 5, 9): zdraví, síla rány (`hitDamage`), tempo (m/s), výdrž útěku
+ * (s), zotavení výdrže (s za sekundu bez útěku) a pozornost (útěk před lovcem do tolika m) – jen
+ * jelen a laň; útok na lovce do `chargeM` m – kanec, bachyně, vlk a medvěd; viditelná plocha
+ * pro šíp (m², `aim.ts`). Null = druh to nemá.
+ */
+export const HUNT_QUARRY = {
+  stag: {
+    health: 60,
+    strength: 0,
+    paceMS: 4.5,
+    staminaS: 30,
+    recoverPerS: 0.2,
+    alertM: 60,
+    chargeM: null,
+    areaM2: 1.0,
+  },
+  hind: {
+    health: 45,
+    strength: 0,
+    paceMS: 4.5,
+    staminaS: 30,
+    recoverPerS: 0.2,
+    alertM: 60,
+    chargeM: null,
+    areaM2: 0.8,
+  },
+  boar: {
+    health: 30,
+    strength: 1.5,
+    paceMS: 4.0,
+    staminaS: null,
+    recoverPerS: null,
+    alertM: null,
+    chargeM: 12,
+    areaM2: 0.5,
+  },
+  sow: {
+    health: 26,
+    strength: 1.2,
+    paceMS: 4.0,
+    staminaS: null,
+    recoverPerS: null,
+    alertM: null,
+    chargeM: 12,
+    areaM2: 0.45,
+  },
+  wolf: {
+    health: 30,
+    strength: 0.8,
+    paceMS: 4.5,
+    staminaS: null,
+    recoverPerS: null,
+    alertM: null,
+    chargeM: 15,
+    areaM2: 0.4,
+  },
+  bear: {
+    health: 160,
+    strength: 3.0,
+    paceMS: 3.5,
+    staminaS: null,
+    recoverPerS: null,
+    alertM: null,
+    chargeM: 10,
+    areaM2: 1.2,
+  },
+} as const;
+
+/**
+ * Souboj se zvěří (`hunt-fight.ts`; návrh Clauda – hunting.md, Pravidla 4–7; plán
+ * 2026-11-22-hunting – Rozhodnutí 4, 5, 7): zvíře vyběhne `emergeM` m z lesa ke dvorci; nikdo na ně
+ * nejde `idleS` s skutečného času → uteče do lesa (Martin: „když se dlouho nic neděje“); uštvaný
+ * jelen či laň stojí, dokud nenabere tento podíl výdrže; výcvik nejvýš `maxHours` herních hodin
+ * za lov.
+ */
+export const HUNT_FIGHT = {
+  emergeM: 40,
+  idleS: 60,
+  spentUntil: 0.5,
+  maxHours: 6,
+} as const;
+
+/**
  * Šelmy na výjezdu (journey-predators.ts; wildlife.md – Nebezpečí pro lidi; hunting.md – Pravidla
  * 10 – čísla bývalého lovu beze změny): na muže a den zranění `injury` (u medvěda × (1 − boj ÷ 200))
  * a smrt `death` × (2 − boj ÷ 100), pěšky × `footDeathFactor`; vlci čísly prasat. Zraněný
