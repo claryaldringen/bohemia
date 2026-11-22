@@ -558,6 +558,15 @@ describe('pás při přibírání jen ze stejné skupiny (fields.md – Pořadí
     fallowSinceDay: DAY - 8 * 365,
     overgrowthYears: 8,
   });
+  /** Odpočatá louka (≥ 95 %, skupina 3) – vrácení bez klučení, jen orba drnu. */
+  const meadow = (p: FieldPart): FieldPart => ({
+    ...p,
+    state: 'fallow',
+    sownYears: 0,
+    fertilityShare: 1,
+    fallowSinceDay: DAY - 3 * 365,
+    overgrowthYears: 0,
+  });
   const seasonIds = (s: VillageState): Set<number> =>
     new Set(s.season ? seasonCrops(s.season).flatMap(({ work }) => work.partIds) : []);
 
@@ -595,14 +604,6 @@ describe('pás při přibírání jen ze stejné skupiny (fields.md – Pořadí
   it('pás louky nepřitáhne zarostlé díly téže skupiny – louky napřed, dokud mají místo', () => {
     // řady po 24 dílech podél brázdy: 6 odpočatých luk u kraje, za nimi 18 přílohů s křovinami
     // (skupina 3 jako louky) – dřív pás první louky přibral celou řadu včetně křovin
-    const meadow = (p: FieldPart): FieldPart => ({
-      ...p,
-      state: 'fallow',
-      sownYears: 0,
-      fertilityShare: 1,
-      fallowSinceDay: DAY - 3 * 365,
-      overgrowthYears: 0,
-    });
     const parts = rect(1, 0, 0, 24, 16).map((p) => (p.cell!.x < 6 ? meadow(p) : shrubs(p)));
     const isMeadow = new Set(parts.filter((p) => p.overgrowthYears === 0).map((p) => p.id));
     let s = village(parts);
@@ -618,6 +619,28 @@ describe('pás při přibírání jen ze stejné skupiny (fields.md – Pořadí
       ).toEqual([]);
     }
     expect(checked).toBeGreaterThan(0);
+  }, 60_000);
+
+  it('spřežení naplno nezastaví klučení – zarostlé díly přibudou, i když louky čekají na orbu', () => {
+    // 384 odpočatých luk zaplní čelo spřežení; křoviny se vyklučí rukama, ať ruce nestojí
+    // (Martin 22. 11. 2026) – orba přijde po vyklučení
+    const parts = [
+      ...rect(1, 0, 0, 24, 16).map((p) => meadow({ ...p, distanceM: 60 })),
+      ...rect(2, 0, 40, 6, 4).map((p) => shrubs({ ...p, distanceM: 200 })),
+    ];
+    const isShrub = new Set(parts.filter((p) => p.overgrowthYears === 8).map((p) => p.id));
+    let s = village(parts);
+    // jeden pár spřežení – orba je užší hrdlo než ruce
+    s.pens = s.pens?.slice(0, 1);
+    // zarostlých dílů na čele po dnech, kdy louky čekají na místo u spřežení
+    const shrubsOnFront: number[] = [];
+    for (let day = DAY; day <= at(600, 9, 30); day++) {
+      s = advanceVillage(s, day, null);
+      const meadowsWaiting = (s.season?.selection?.waiting ?? []).some((j) => !isShrub.has(j.id));
+      if (meadowsWaiting)
+        shrubsOnFront.push([...seasonIds(s)].filter((id) => isShrub.has(id)).length);
+    }
+    expect(shrubsOnFront[0]).toBeGreaterThan(0);
   }, 60_000);
 
   it('místo na čele u každého dílu pásu – dlouhý pás přibude jen po místo, jako díly po jednom', () => {

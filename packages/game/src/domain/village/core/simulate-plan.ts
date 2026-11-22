@@ -259,7 +259,7 @@ const FRONT_TASKS = ['reclaim', 'dig', 'sow'] as const;
  * Rozdělaná práce čela po plodinách – lidé a spřežení (člověkodny) – a kolik jí ves za
  * `WORK_FRONT_DAYS` udělá.
  */
-interface Front {
+export interface Front {
   day: number;
   people: Partial<Record<Crop, number>>;
   plough: Partial<Record<Crop, number>>;
@@ -352,6 +352,27 @@ function frontRoom(front: Front, crop: Crop): boolean {
   );
 }
 
+/** Na čele je místo u lidí – rozdělaná práce lidí jako ve `frontRoom`, spřežení se nehlídá. */
+function peopleRoom(front: Front, crop: Crop): boolean {
+  const end = prepEnd(crop, front.day);
+  let people = 0;
+  for (const c of Object.keys(front.people) as Crop[]) {
+    if (prepEnd(c, front.day) > end) continue;
+    people += front.people[c] ?? 0;
+  }
+  return people < front.peopleRoom - EPSILON;
+}
+
+/**
+ * Díl se vejde na čelo (fields.md – Pořadí dávek). Díl s ručním klučením (křoví, mladý les) stačí
+ * místo u lidí – spřežení na něm zorají, až ho lidé vyklučí, a ruce tak nestojí, když orají naplno.
+ * Díl bez klučení (louka – orba drnu, díl v osevu) potřebuje místo u lidí i u spřežení
+ * (`frontRoom`). Jen pro testy se exportuje.
+ */
+export function partRoom(front: Front, crop: Crop, work: { readonly reclaim: number }): boolean {
+  return work.reclaim > EPSILON ? peopleRoom(front, crop) : frontRoom(front, crop);
+}
+
 /**
  * Klády za mladý les skácený při vracení přílohu (fields.md – Zarůstání, forest.md – Mýcení): za
  * díly, přes které čelo vracení přílohu došlo, dospělé stromy jako v lese vsi stejného stáří (za
@@ -414,13 +435,14 @@ function seasonJoins(
     if (state.season) delete state.season.selection;
     return none;
   }
-  // čelo bez místa pro jakoukoli plodinu – žádný díl dnes nepřibude, ves nový výběr nedělá
+  // čelo bez místa u lidí pro jakoukoli plodinu – žádný díl dnes nepřibude (díl s klučením
+  // stačí místo u lidí, `partRoom`), ves nový výběr nedělá
   // a čekající díly bere z posledního dne s místem na čele (fields.md – Postup práce po dílech)
   const window = selectionWindow(day);
   const held = state.season?.selection;
   if (held?.window === window) {
     const full = workFront(state, day, coverage);
-    if (!SEASON_CROPS.some((crop) => frontRoom(full, crop))) {
+    if (!SEASON_CROPS.some((crop) => peopleRoom(full, crop))) {
       return { waiting: held.waiting };
     }
   }
@@ -465,20 +487,23 @@ function seasonSelection(
   const taken: SeasonJoin[] = [];
   const waiting: SeasonJoin[] = [];
   const inTaken = new Set<number>();
+  const workOf = (id: number, crop: Crop): ReturnType<typeof partWork> =>
+    partWork(partsById.get(id)!, day, coverage.tools, plough, crop);
   for (const j of join) {
     if (inTaken.has(j.id)) continue;
     // co se do čela nevejde, počká – díly s pozdějším koncem okna nepředběhnou
-    if (!frontRoom(front, j.crop)) {
+    const head = workOf(j.id, j.crop);
+    if (!partRoom(front, j.crop, head)) {
       waiting.push(j);
       continue;
     }
     for (const id of bandFrom(bandOf?.(j), j.id)) {
       if (inTaken.has(id)) continue;
       // místo na čele u každého dílu pásu – čelo se jen plní, takže zbytek pásu počká ve výběru
-      if (!frontRoom(front, j.crop)) break;
+      const work = id === j.id ? head : workOf(id, j.crop);
+      if (!partRoom(front, j.crop, work)) break;
       inTaken.add(id);
       taken.push({ id, crop: j.crop });
-      const work = partWork(partsById.get(id)!, day, coverage.tools, plough, j.crop);
       addToFront(front, j.crop, work, work.plough);
     }
   }
