@@ -154,12 +154,23 @@ v hladu), nově platí celý rok, ne jen v hladu:
   Uzené jsou proto **dvě zásoby** (návrh Clauda po kontrole 18. 11. 2026):
   - **zásoba z porážky 1. 11.** – maso kusů, které 1. 11. jdou pod nůž hned (i ty, které ves
     senem neuživí). Každý den se z ní sní jen její **díl** – zásoba ÷ dny do konce masa (od 1. 11.
-    do 31. 8. 304 dní – Trvanlivost masa), poslední den zbytek; 1. 9. se zkazí jen to, co se ani
-    plnou potřebou do 31. 8. nestihne sníst (Nutně dnes níž);
+    do 31. 8. 304 dní – Trvanlivost masa), v hladu ÷ dny do sklizně, je-li dřív (V hladu do
+    sklizně níž), poslední den zbytek; 1. 9. se zkazí jen to, co se ani plnou potřebou do 31. 8.
+    nestihne sníst (Nutně dnes níž);
   - **ostatní uzené** – co se nesnědlo z čerstvého masa (letní porážka, denní zimní porážka
     čekajících kusů, ryby, oka), maso z lovu a hlídek polí, z dosloužilých koní a volů a z nouzové
     porážky. Jí se hned v pořadí jídla, za čerstvým masem, do plné potřeby – „ihned rozdělí
     a sní“.
+  - **V hladu do sklizně** (návrh Clauda 22. 11. 2026 podle Martinova pravidla z téhož dne
+    „Obecně se drž pravidla vyprodukovat co nejvíce za co nejmenší množství práce.“): když ves
+    hladoví – výhled do sklizně s dnešním dílem nedá plný příděl –, je díl zásoba ÷ dny do
+    sklizně, je-li sklizeň dřív než konec masa (sklizeň ozimu 31. 7.); mimo hlad beze změny.
+    Výhled i jídlo dne počítají tentýž díl: o hladu rozhoduje výhled s dnešním dílem, a když vyjde
+    hlad, spočte se výhled znovu s dílem do sklizně (ten výhled jen zvedne, třeba až na plný
+    příděl – žádný kruh, ves nikdy nejí méně než s dnešním dílem). Nic tak v hladu nečeká na dobu
+    po sklizni a nouzová porážka nedorovnává díl za dny po ní. Obrácený výhled (přežívací
+    zásoba) pod plným přídělem počítá s dílem do sklizně taky. Dřívější stav (srpnový díl
+    čekal): [history](history/diet-history.md).
   - **Proč jen zásoba z 1. 11.:** Martinova otázka zněla na ni. Když se rovným dílem rozkládalo
     všechno uzené (D98, týž den), ves v létě porážela kus za kusem, dokud díl nepokryl potřebu
     rodu, a hromadila uzené na měsíce – ves zakladatelů 20 kusů místo 5 a mléko šlo místo do
@@ -191,11 +202,22 @@ v hladu), nově platí celý rok, ne jen v hladu:
    neohrozí životní minimum pro poddané“.
    - Když jídlo na dnešek (podle výhledu do sklizně) vystačí všem do plné potřeby, nají se všichni
      dosyta.
-   - Když vystačí aspoň na **životní minimum – 75 % potřeby energie**, dostane napřed každý 75 %
-     své potřeby. Teprve to, co zbude nad tím, jde po vrstvách: vrstva 1 do plné potřeby, pak
-     vrstvy 2, 3 a 4.
+   - Když vystačí aspoň na **životní minimum – 75 % potřeby energie** (v dlouhém hladu víc – níž),
+     dostane napřed každý 75 % své potřeby. Teprve to, co zbude nad tím, jde po vrstvách: vrstva 1
+     do plné potřeby, pak vrstvy 2, 3 a 4.
    - Když jídlo nevystačí ani na 75 % pro všechny, dostanou všichni stejný podíl své potřeby, bez
      přednosti.
+   - **V dlouhém hladu se rod uskrovní** (Martin, 22. 11. 2026, na otázku „Má se rod v dlouhém
+     hladu uskrovnit, aby zbytek vsi přežil do sklizně?“: „ano“; provedení návrh Clauda): životní
+     minimum je **víc než 75 %**, když by zbytek vsi se 75 % do sklizně nepřežil – je to příděl
+     k přežití do žní, táž definice jako u přežívací zásoby (níž): 0,9 × (1 − rezerva ÷ dny do
+     sklizně), rezerva = práh úmrtí nejcitlivější skupiny ve vsi (děti a starší 12, dospělí 20 dní
+     hladu) − 1 den − nahromaděný hlad zbytku vsi. Nad minimem dál po vrstvách, pod ním všichni
+     stejně – rod dostane víc jen z jídla, které zbytek vsi k přežití do sklizně nepotřebuje; když
+     jídlo nestačí ani na to, jedí všichni stejně (cena: ve zlém roce může umírat hlady i rod).
+     Mez osiva jen na setí (5 dní hladu – [pole](fields.md), Osivo pro ves bez zásob) patří jen
+     přežívací zásobě. Krátký hlad je beze změny – příděl k přežití je pak pod 75 %. Příklad: samí
+     dospělí a sklizeň za 151 dní → 78,7 %, s dětmi 83,4 %; sklizeň za 41 dní → 75 %.
    - Proč 75 % (Martin, 18. 11. 2026, k 90 %: „90% mi nepříjde jako nějaký velký hlad, jen jako
      drobné nepohodlí“; k 75 %: „75% je ok.“): hlad se sčítá pod 90 % (Hlad níž) a na 75 % hrozí
      smrt hlady dítěti a staršímu po ≈ 2,5 měsíce, dospělému po ≈ 4 měsících – běžné hladové jaro
@@ -208,7 +230,10 @@ v hladu), nově platí celý rok, ne jen v hladu:
      z přídělu dostane nejméně: nad životním minimem si ves nechá tolik, aby vyšší vrstvy byly syté
      a zbytek vsi dostal svůj cílový příděl – příděl vsi = (potřeba vyšších vrstev + cílový příděl ×
      potřeba zbytku vsi) ÷ potřeba vsi; pod minimem jedí všichni stejně, příděl vsi je cílový.
-     Ovoce a pevný příděl medu na tom nic nemění – jen plní příděly vrstev. Dřív se zásoba počítala
+     Ovoce a pevný příděl medu na tom nic nemění – jen plní příděly vrstev. Uskromnění rodu
+     v dlouhém hladu (výš) zásobu nemění: jeho minimum je nejvýš její cílový příděl, takže při
+     přídělu vsi z obráceného výpočtu jsou vyšší vrstvy syté a zbytek vsi dostane svůj cíl jako
+     dřív (návrh Clauda 22. 11. 2026). Dřív se zásoba počítala
      na příděl celé vsi a zbytek vsi z něj dostal jen 75 %: ve Vlkově 904–905 umřely děti hladem,
      i když ves držela 9,5 t obilí jako osivo (rod vojvody 53–63 % potřeby vsi, ves jedla 0,86–0,90,
      zbytek vsi 5 měsíců na 0,75, hlad zbytku vsi až 24,4 proti prahu dětí 12).
@@ -315,13 +340,11 @@ jenom v zimě, v létě se maso rychle kazí“):
   a v červnu až srpnu ≈ 50 % energie z mléka a sýra, Vlkov jeden kus v září. Když se rovným dílem
   rozkládalo všechno uzené (D98), byly to v téže vsi 20 kusů (273 kg) a mléko šlo na sýr
   (history).
-- **V hladu čeká srpnový díl** (k vědomí Martinovi): když je sklizeň dřív než konec masa
-  (sklizeň ozimu 31. 7.), výhled i jídlo berou ze zásoby z 1. 11. jen díl za dny do sklizně –
-  zbytek čeká do srpna, i když lidé hladovějí. Nouzová porážka díru dorovná 1 : 1 – díly zásoby
-  z 1. 11. za dny po sklizni (se sklizní 31. 7. k 1. 11. ≈ 31/304 zásoby, k 1. 7. polovina zbytku);
-  její maso je ostatní uzené a výhled ho bere celé (v D98 násobek až ≈ 2,8×, s opravným kolem
-  zmizel). Ve Vlkově za 13 let bez zhoršení úmrtí. Možný směr: v hladu díl ÷ min(dny do konce
-  masa, dny do sklizně).
+- ~~**V hladu čeká srpnový díl**~~ – **uzavřeno 22. 11. 2026:** v hladu je díl zásoby z 1. 11.
+  zásoba ÷ dny do sklizně, je-li sklizeň dřív než konec masa – výhled i jídlo s tímtéž dílem
+  (Pořadí jídla – V hladu do sklizně; návrh Clauda podle Martinova pravidla „Obecně se drž
+  pravidla vyprodukovat co nejvíce za co nejmenší množství práce.“). Dřívější znění:
+  [history](history/diet-history.md).
 - **Výhled počítá díl i ve dnech, kdy ho jídlo odloží** (k vědomí Martinovi; kontrola opravného
   kola D98, kód beze změny): výhled bere díl zásoby z 1. 11. každý den do sklizně, jídlo ho ale
   nesní, kdykoli mléko, vejce, čerstvé a ostatní uzené plnou potřebu už pokryjí (v zimě čerstvé
@@ -348,12 +371,9 @@ jenom v zimě, v létě se maso rychle kazí“):
 - Malá ves v září až říjnu jí až 85–94 % energie z ryb.
 - V hladu se příděl během sezóny mírně kloní (trvanlivé mimo obilí se jí dřív – nejvýš ≈ 2
   procentní body).
-- **Dlouhý hladomor bez osiva** (otevřené – k rozhodnutí Martinovi, kód beze změny): při trvalém
-  přídělu 0,75 přibude za den (0,9 − 0,75) ÷ 0,9 ≈ 0,17 dne hladu – děti a starší dojdou k prahu
-  12 dní asi za 72 dní, dospělí k prahu 20 asi za 120 dní ([populace](population.md) – Hlad
-  a vymření). Přežívací zásoba podle zbytku vsi (Kdo dostane co) pomůže jen, dokud ves drží
-  osivo, které může sníst. Bez osiva a jiného jídla tak v dlouhém hladomoru umírá zbytek vsi,
-  zatímco rod vojvody jí nad životním minimem.
+- ~~**Dlouhý hladomor bez osiva**~~ – **uzavřeno 22. 11. 2026:** v dlouhém hladu se rod
+  uskrovní – životní minimum je příděl k přežití zbytku vsi do sklizně, je-li víc než 75 % (Kdo
+  dostane co; Martin: „ano“). Dřívější znění: [history](history/diet-history.md).
 - **Přežívací zásoba podle zbytku vsi – dopad** (přepočet Vlkova z 18. 11. 2026 ze snímku
   k 20. 12. 896 na 10 let): úmrtí hladem 5 → 0 (všech úmrtí 13 → 9), nejvyšší hlad zbytku vsi 24,4 → 6,4,
   lidí na konci 17 → 34. Ves si nechává víc zrna k jídlu a drží méně osiva (k 1. 11. 906 zimní
@@ -403,8 +423,9 @@ do sklizně po vrstvách (návrh Clauda).
   z porážky 1. 11. rovným dílem): výhled ji počítá tak, jak se sní – dílem do konce výhledu i se
   ztrátou uzením (díl každý den ubude o úbytek uzením): díl × (1 − kⁿ) ÷ (1 − k), k = denní
   úbytek uzením (20 % ročně), n = dny do sklizně, nejvýš do konce masa; díl nejvýš potřeba dne
-  (víc se nesní). Když se ozim sklízí 31. 7., srpnový díl výhled do sklizně nepočítá. Ostatní
-  uzené jako dřív – celé, nejvýš potřeba za dny do konce masa (jí se hned).
+  (víc se nesní). Když se ozim sklízí 31. 7., srpnový díl výhled do sklizně mimo hlad nepočítá;
+  v hladu je díl do sklizně a výhled počítá celou zásobu (Pořadí jídla – V hladu do sklizně).
+  Ostatní uzené jako dřív – celé, nejvýš potřeba za dny do konce masa (jí se hned).
 
 - **Ryby do kvóty** (návrh Clauda po závěrečné kontrole 18. 11. 2026 – dřív výhled znal jen dnešní
   úlovek): ryby, které ves ještě chytí = letošní průměrný úlovek na den rybářské sezóny ×

@@ -543,7 +543,8 @@ jich bude moci mít více), tak pro něj hra končí – musí začínat znovu.�
      **Od 18. 11. 2026** (Martin: „Nejde, aby elita měla plný příděl a rolníci byli pod hranicí
      hladomoru“; k hranici „75% je ok.“) platí přednost jen **nad životním minimem 75 % potřeby
      energie**: napřed dostane každý 75 % své potřeby a teprve zbytek jde po vrstvách; když jídlo
-     nevystačí ani na 75 % pro všechny, dostanou všichni stejný podíl bez přednosti. Vrstvy platí
+     nevystačí ani na 75 % pro všechny, dostanou všichni stejný podíl bez přednosti. **Od 22. 11. 2026** (Martin: „ano“ na uskromnění rodu v dlouhém hladu) je životní minimum
+     v dlouhém hladu víc než 75 % – příděl, se kterým zbytek vsi přežije do sklizně. Vrstvy platí
      celý rok, ne jen v hladu ([strava](diet.md) – Strava po vrstvách a porážka celý rok, Kdo
      dostane co). Dřívější plné příděly skupin v pořadí (17.–18. 11. 2026):
      [history](history/population-history.md).

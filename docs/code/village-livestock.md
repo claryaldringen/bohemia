@@ -87,7 +87,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   napřed, pak ostatní uzené; nad plnou potřebu se krátí maso, ovoce, vejce naposled), pak zbytek
   v pořadí mléko, vejce, čerstvé maso (zimní porážka, ryby a zvěř), ostatní uzené, **díl zásoby
   z porážky 1. 11.** (`slaughterShare` – `slaughterMeatKg` po dnešní ztrátě ÷ dny do konce masa,
-  poslední den zbytek; do plné potřeby i nad příděl, nad díl ne, co se nevejde, zůstane – D98 kolo
+  v hladu ÷ min(dny do konce masa, dny do sklizně) – D112, poslední den zbytek; do plné potřeby i nad příděl, nad díl ne, co se nevejde, zůstane – D98 kolo
   1, Martin 18. 11. 2026: „Uzené rozlož“; co by se do konce masa jinak zkazilo – `slaughterMust` –
   se sní napřed v tempu, před mlékem – D98 kolo 2), sýr, ovoce (jablka; v rozhraní „ovoce“), luštěniny,
   obilí (nejvýš vymlácená zásoba) a v hladu med; nevypité mléko → sýr (`cheeseFromMilk`),
@@ -200,7 +200,8 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
      dne `eat` po práci, před nouzovou porážkou – počítá i dnešní ryby a oka) porazí jeden celý kus,
      když rodu vojvody (`hungerSplit` – skupina 0) na dnešek nestačí dnešní čerstvé maso, ostatní
      uzené (celé) a dnešní díl zásoby z porážky 1. 11. (`lordMeatShortKg`, `villageSlaughterShareKg`
-     v diet.ts – D98 kolo 1; dřív celá zásoba uzeného); nejmenší druh, jehož kus chybějící maso
+     v diet.ts – D98 kolo 1; dřív celá zásoba uzeného; díl mimo hlad – díl do sklizně v hladu
+     pozná až výhled jídla dne, D112); nejmenší druh, jehož kus chybějící maso
      pokryje, jinak největší
      (`summerSlaughterPlan`), jen z kusů na maso `summerSlaughterCandidates`: staré kusy (`retiringHeads`) a dospělé kusy nad
      stádo přes zimu, obojí ze stáda i s kusy, které léto už vzalo (`summerSlaughtered` – ty se
