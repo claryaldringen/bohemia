@@ -3,29 +3,23 @@
 // (`RidePlan`) a téže čisté funkce času (`rideState`) – jezdec sedí na koni bez vazby mezi meshi.
 // Žádný nový vertex atribut: sed je klip, výška sedla jen posun matice instance (`VillagerPose.lift`).
 // Kdo, kdy a na kterém koni jede, určuje jádro (`SceneLord.riders`, `lordRides`); scéna jen kreslí.
-import type { SceneHunt, SceneLord, SceneRide, SceneVillage } from '../village-view';
+import type { SceneLord, SceneRide, SceneVillage } from '../village-view';
 import type { DayWindow } from './caravan';
 import { LIVESTOCK_EPOCH_MS, type Area, type LivestockPose } from './livestock-motion';
 import {
   fieldRing,
-  cutWay,
-  HUNT_PACE,
-  HUNT_SWEEP_M,
-  HUNT_WAY_SHARE,
-  huntRoute,
   loopRoute,
   RIDE_PACE,
   rideDistance,
   rideGroups,
   rideSpot,
   trailRoute,
-  wayLength,
   WINTER_RING_M,
   type RideLeg,
   type RideRoute,
   type RideSpot,
 } from './rider-route';
-import { drillSeconds, LORD_CYCLE, LORD_CYCLE_S, HUNT_BRIDGE_S, rideSlot } from './lord-day';
+import { drillSeconds, LORD_CYCLE_S, rideSlot } from './lord-day';
 import type { TrainingSpot } from './training-ground-layout';
 import type { PoseFn } from './villager-motion';
 import { squareCorners } from './villager-plan-geometry';
@@ -407,151 +401,6 @@ export function hitchSpot(hitch: TrainingSpot, index: number): TrainingSpot {
     headingX: hitch.headingX,
     headingZ: hitch.headingZ,
   };
-}
-
-/**
- * Lov ve skutečném čase (wildlife.md – Ve scéně, návrh Clauda; villagers.md – Činnosti od začátku
- * do konce): lovci vyrazí za šera dne lovu (`HUNT_START_H`) a lov trvá `HUNT_REAL_S` – půlku tam
- * k lesu a v lese, půlku zpět – přirozenou chůzí a krokem až klusem. Deset minut je ≈ 7 herních
- * dní, tedy jako kalendář lovu (každých 7 dní); jádro lov dál počítá za jeden den.
- */
-export const HUNT_REAL_S = 600;
-/** Hodina dne lovu, kdy lovci vyrazí. */
-export const HUNT_START_H = 3;
-/** Pěší lovci jdou za sebou po tolika m, střídavě kousek vlevo a vpravo. */
-const FOOT_GAP_M = 1.8;
-const FOOT_SIDE_M = 0.6;
-
-/** Vstup plánu lovu – lov dne, kůl u brány, okraj lesa u zvěře, cesta a schůdná zem. */
-export interface HuntPlanInput {
-  hunt: SceneHunt;
-  hitch: TrainingSpot;
-  edge: Point;
-  /** Nejbližší okraj lesa od kůlu – lovci k němu, když les u zvěře nestihnou (`huntWay`). */
-  nearEdge?: Point | null;
-  leg: RideLeg;
-  walkable(x: number, z: number): boolean;
-  window: DayWindow | null;
-}
-
-/**
- * Cesta lovců (wildlife.md – Ve scéně): k lesu u zvěře, když ho stihnou (pěší svižnou chůzí
- * `HUNT_PACE.foot.max`, jezdci klusem za `HUNT_WAY_SHARE` půlky lovu); jinak k bližšímu z obou
- * okrajů lesa a nejdál, kam dojdou – v půlce lovu se nikdy neotáčejí v poli.
- */
-export function huntWay(
-  way: readonly Point[],
-  near: readonly Point[] | null,
-  halfS: number,
-  foot: boolean,
-): Point[] {
-  const wayS = HUNT_WAY_SHARE * halfS;
-  const fastest = foot ? HUNT_PACE.foot.max : HUNT_PACE.ride.max;
-  let best = way;
-  if (near && wayLength(way) > fastest * wayS && wayLength(near) < wayLength(way)) best = near;
-  return cutWay(best, fastest * wayS);
-}
-
-/**
- * Body, mezi kterými lovci v lese chodí (`HUNT_SWEEP_M`): podél okraje lesa na obě strany a kus do
- * lesa – kolmo na směr od kůlu k okraji. Kde se nedá stát, kratší; nikde – null.
- */
-export function huntSweep(
-  from: Point,
-  edge: Point,
-  walkable: (x: number, z: number) => boolean,
-): [Point, Point] | null {
-  const dx = edge.x - from.x;
-  const dz = edge.z - from.z;
-  const n = Math.hypot(dx, dz) || 1;
-  const ix = dx / n;
-  const iz = dz / n;
-  const side = (sign: number): Point | null => {
-    for (const f of [1, 0.5]) {
-      const p = {
-        x: edge.x + ix * HUNT_SWEEP_M.inward * f - iz * HUNT_SWEEP_M.along * f * sign,
-        z: edge.z + iz * HUNT_SWEEP_M.inward * f + ix * HUNT_SWEEP_M.along * f * sign,
-      };
-      if (walkable(p.x, p.z)) return p;
-    }
-    return null;
-  };
-  const a = side(1);
-  const b = side(-1);
-  if (!a && !b) return null;
-  return [a ?? edge, b ?? edge];
-}
-
-/**
- * Začátek a konec lovu ve skutečném čase (ms): od šera dne lovu (`window` – okno dne lovu,
- * `HUNT_START_H`) v nejbližší chvíli, kdy jezdci dne rodiny vyjíždějí (lord-day.ts – `rideSlot`;
- * návrh Clauda: lovci jsou pak u koní a lov nahradí výcvikovou jízdu cyklu), a aspoň
- * `HUNT_BRIDGE_S` po začátku dne lovu (lovci k té chvíli dojdou ke kůlu), `HUNT_REAL_S` dlouho.
- * Bez okna null.
- */
-export function huntSpan(window: DayWindow | null): readonly [number, number] | null {
-  if (!window || window.endMs <= window.startMs) return null;
-  const earliest = Math.max(
-    window.startMs + HUNT_START_H * hourSeconds(window) * 1000,
-    window.startMs + HUNT_BRIDGE_S * 1000,
-  );
-  const t = (earliest - LIVESTOCK_EPOCH_MS) / 1000;
-  const k = Math.ceil((t - LORD_CYCLE.ride) / LORD_CYCLE_S);
-  const startMs = LIVESTOCK_EPOCH_MS + (k * LORD_CYCLE_S + LORD_CYCLE.ride) * 1000;
-  return [startMs, startMs + HUNT_REAL_S * 1000];
-}
-
-/**
- * Plány lovu (wildlife.md – Ve scéně; jádro `hunt.today`): jezdci jako blok jízdy (`rideState` –
- * půlku lovu tam, pak po téže trase zpět), ale ve skutečném čase (`huntSpan` – `span` plánu, přes
- * víc herních dní) a po trase k okraji lesa u zvěře (`huntRoute`) – vojvoda vede, po dvou; pěší
- * s oštěpy za nimi vlastním tempem v řadě (`foot` – plán bez koně, `horseId` −1). `window` je okno
- * dne lovu. Bez hodin světa se neloví.
- */
-export function huntPlans(input: HuntPlanInput): { rides: RidePlan[]; foot: RidePlan[] } {
-  const { hunt, hitch, edge, leg, walkable, window } = input;
-  const span = huntSpan(window);
-  if (!span) return { rides: [], foot: [] };
-  const halfS = HUNT_REAL_S / 2;
-  const wayTo = (to: Point): Point[] => {
-    const found = leg(hitch, to);
-    return found && found.length >= 2 ? [hitch, ...found.slice(1, -1), to] : [hitch, to];
-  };
-  const way = wayTo(edge);
-  const near = input.nearEdge ? wayTo(input.nearEdge) : null;
-  const sweep = huntSweep(hitch, edge, walkable);
-  const route = (foot: boolean): RideRoute | null => {
-    const go = huntWay(way, near, halfS, foot);
-    const end = go[go.length - 1]!;
-    return huntRoute(go, end === edge ? sweep : huntSweep(hitch, end, walkable), foot, halfS);
-  };
-  const rideRoute = hunt.riders.length > 0 ? route(false) : null;
-  const footRoute = hunt.foot.length > 0 ? route(true) : null;
-  const rides = hunt.riders.map((r, k): RidePlan => ({
-    riderId: r.id,
-    horseId: r.horseId,
-    route: rideRoute,
-    behind: Math.floor(k / 2) * GAP_M,
-    side: hunt.riders.length === 1 ? 0 : (k % 2 === 0 ? 1 : -1) * SIDE_M,
-    offset: 0,
-    blocks: null,
-    span,
-    hitch: hitchSpot(hitch, k),
-    window,
-  }));
-  const foot = hunt.foot.map((id, k): RidePlan => ({
-    riderId: id,
-    horseId: -1,
-    route: footRoute,
-    behind: k * FOOT_GAP_M,
-    side: (k % 2 === 0 ? -1 : 1) * FOOT_SIDE_M,
-    offset: 0,
-    blocks: null,
-    span,
-    hitch: { ...hitch },
-    window,
-  }));
-  return { rides, foot };
 }
 
 /**

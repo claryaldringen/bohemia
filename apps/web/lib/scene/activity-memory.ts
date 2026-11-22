@@ -6,13 +6,7 @@
 // den. Data vsi je pak už nemají, scéna je ale dohraje (návrh Clauda): pamatuje si každou viděnou
 // karavanu (i s vozy, jak jely) a běžící lov do jejich konce ve skutečném čase. Prohlížeč, který
 // ves otevře později, karavanu vrácenou v jádru už nevidí – jen ty, které jádro ještě má.
-import type {
-  SceneCart,
-  SceneExpedition,
-  SceneHunt,
-  SceneLord,
-  SceneVillage,
-} from '../village-view';
+import type { SceneCart, SceneExpedition, SceneLord, SceneVillage } from '../village-view';
 import { LIVESTOCK_EPOCH_MS } from './livestock-motion';
 import { cycleIndex, LORD_CYCLE, LORD_CYCLE_S } from './lord-day';
 import {
@@ -22,7 +16,6 @@ import {
   caravanTimeline,
   type DayWindow,
 } from './caravan';
-import { huntSpan } from './riders';
 import { route } from './villager-motion';
 
 /** Karavana, kterou scéna viděla: data výpravy, vozy, jak jely, a konec ve skutečném čase (ms). */
@@ -114,7 +107,6 @@ export function caravanEndMs(
 /** Paměť běžících činností scény – jedna na ves (landscape-scene.ts). */
 export class ActivityMemory {
   private caravans = new Map<string, SeenCaravan>();
-  private hunt: { hunt: SceneHunt; endMs: number } | null = null;
   /** Jízdy rodiny, jak byly na začátku běžící výcvikové jízdy cyklu (`slot`). */
   private ride: {
     slot: number;
@@ -158,13 +150,6 @@ export class ActivityMemory {
         ...(village.carts ? { carts } : {}),
       };
     }
-    const hunt = this.huntAt(village, nowMs, dayWindow);
-    if (hunt !== (village.wildlife?.hunt ?? null) && village.wildlife) {
-      const wildlife = { ...village.wildlife };
-      if (hunt) wildlife.hunt = hunt;
-      else delete wildlife.hunt;
-      out = { ...out, wildlife };
-    }
     return this.rideAt(out, nowMs);
   }
 
@@ -197,22 +182,5 @@ export class ActivityMemory {
     delete kept.borderTrailId;
     delete kept.escort;
     return { ...village, labor: { ...village.labor, lord: { ...kept, ...this.ride.lord } } };
-  }
-
-  /** Lov, který je teď vidět: běžící zapamatovaný, jinak lov z dat (bez dne lovu beze změny). */
-  private huntAt(
-    village: SceneVillage,
-    nowMs: number,
-    dayWindow: (day: number) => DayWindow | null,
-  ): SceneHunt | null {
-    const today = village.wildlife?.hunt ?? null;
-    if (today && today.day === undefined) return today;
-    if (this.hunt && this.hunt.endMs <= nowMs) this.hunt = null;
-    // běžící lov dohraje – nový lov jiného dne až po návratu lovců
-    if (this.hunt && (!today || today.day !== this.hunt.hunt.day)) return this.hunt.hunt;
-    if (!today) return null;
-    const span = huntSpan(dayWindow(today.day!));
-    if (span && span[1] > nowMs) this.hunt = { hunt: today, endMs: span[1] };
-    return today;
   }
 }

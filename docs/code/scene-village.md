@@ -612,45 +612,20 @@ podle osetých ha dílů `sown`) a `fishShare` (biomasa ÷ strop).
 
 ## Lovci, psi, hlídky a rybáři ve scéně (wildlife Úloha W11)
 
-Data: `SceneWildlife` (`sceneDefense` ve `lib/wildlife-view.ts`) – `hunt` (jádro `hunt.today`:
-cíl, jezdci s koňmi, pěší, `kills` – celé kusy dne, jádro je zapíše v `huntDay`), `dogs` (celé kusy
+Data: `SceneWildlife` (`sceneDefense` ve `lib/wildlife-view.ts`) – `dogs` (celé kusy
 smečky, nejvýš 8), `patrol` (jezdecká hlídka dne se silou > 0), `watchParts` (díly noční hlídky)
 a `pools` (loviště dnešních rybářů – jádro `fishingPools`: tůně do 1 km jako `land.pools`, od
 nejbližší, bod osy u nejhlubšího místa se směrem toku a šířkou vody; bez tůně, kde jádro rybaří
 na `waterHa`, bod osy potoka nejblíž vsi – `streamSpot`; bez potoka nic). Nová pole zvěř
 nepřeplánují (`wildlifeKey` bere jen pole W10).
 
-- **Lov** (`huntPlans` v `riders.ts`, `huntRoute` v `rider-route.ts`): jezdci lovu jsou plány jízdy
-  (`RidePlan`) ve skutečném čase (`RidePlan.span` z `huntSpan` – od 3 h dne lovu `HUNT_START_H`
-  `HUNT_REAL_S` 600 s, přes ≈ 7 herních dní; `rideBlockAt` vrací sekundy) – `rideState` jede půlku
-  lovu po trase tam a pak po téže trase zpět, koně kreslí livestock.ts a ohrada je skryje (`ridingHorseIds`) jako u objížďky.
-  Trasa: od kůlu u brány po pěšinách (`walkRoute`) k okraji lesa u zvěře (`VillageWildlife.huntSpot`
-  – první stanoviště skupiny na okraji lesa podle cíle: prasata, jinak jelení, vlci, medvěd; bez
-  zvěře ve scéně `forestEdge` – první kruh kolem kůlu se 3 stromy), pak sem a tam podél okraje
-  (`huntSweep`, ±22 m, 6 m do lesa), dokud trasa nepokryje půlku lovu (nikdy se nepřetočí). Tempo
-  `HUNT_PACE`: pěší 1,0–1,45 m/s (svižná chůze, klip `walk-spear` nejvýš ≈ 1,25×), jezdci krokem až
-  klusem (1,5–3 m/s); okno lovu je den lovu (`SceneHunt.day`). Jádro má lov jen v den lovu – běžící
-  lov si scéna pamatuje do návratu lovců (`ActivityMemory` v `activity-memory.ts`, nový lov jiného
-  dne až po něm) a jezdci lovu mezitím nejedou objížďku.
-  Tempo cesty k lesu = délka ÷ 70 % půlky bloku v mezích `HUNT_PACE` (jezdci 1,5–6 m/s – klus nad
-  1,5, pěší 1–3,2 m/s, k dalšímu lesu poklusem až 4,5 m/s). Cestu volí `huntWay` zvlášť pro jezdce
-  a pěší: les u zvěře dál, než stihnou (pěší ≈ 73 m chůzí, jezdci ≈ 136 m) → nejbližší okraj lesa
-  (`forestEdge`, `nearEdge`), a cesta zkrácená na dosah (`cutWay` – pěší poklusem ≈ 100 m), sweep
-  pak kolem konce cesty – nikdy se neotočí v poli. Pěší lovci
-  (`footHunterPose` ve `villager-plan-lord.ts`) jdou stejnou trasou vlastním tempem v řadě; na
-  okraji lesa a na krajích sweepu je úsek 0,3 m tempem 0,05 m/s – lovec stojí s oštěpem
-  (`spear-thrust`); cestou tam i zpět nese oštěp (`walk-spear`). Zastávka hned
-  u okraje je nutná – na kraj sweepu (≈ 23 m krokem) by po cestě (70 % půlky bloku) nedošli. **Úlovek:** první pěší lovec nese cestou zpět maso
-  (`carry-meat`), když jádro dnes ulovilo (`kills` > 0) – bez nového modelu (kus na koni by
-  potřeboval mršinu natočenou podle koně). Cvičící mimo blok cvičí, odešlí synové jsou doma.
-  Prasata před lovci utíkají sama (útěk W10 – lovci jsou postavy).
+- **Lov:** starý kalendářní lov (přehrávka `hunt.today` – jezdci i pěší lovci, `huntPlans`) ze scény zmizel; nový lov ve scéně: plán 2026-11-22-hunting, Úloha 10. Do té doby rodina jede jen objížďku (`ridePlans`).
 - **Psi** (`dogs.ts`, kreslí `VillageLivestock.setDogs` – druh `dog` z `dog.glb`, velikost 1,1):
   na kruhu 4,5 m kolem kůlu u brány chodí po oblouku sem a tam (46 s) a na krajích čichají
   (morph `lie` – hlava u země); v bloku vůdce běží vedle něj (2,2 m před, 1,5 m stranou, krok podle
   tempa, kde pěší stojí, čichají); prvních a posledních `DOG_JOIN_S` (3 s) bloku dobíhají od
   svého místa u dvorce k vůdci a zpět (lerp – neskočí). Model psa se načte líně, až má ves psy
-  (`loadDog`). V den lovu všichni s pěšími (bez pěších s jezdci), v den hlídky
-  nejvýš 3 s jezdci objížďky. Plány psů jdou s postavami (`DraftCrew.dogs`, `onCrew`).
+  (`loadDog`). V den hlídky nejvýš 3 s jezdci objížďky. Plány psů jdou s postavami (`DraftCrew.dogs`, `onCrew`).
 - **Hlídka:** jezdecká = dosavadní objížďka (`fieldRing`) se psy. Noční hlídku scéna nekreslí – hra
   nemá noc a oheň by ve dne vypadal jako požár na poli; ve dne na každém hlídaném dílu nejvýš jedno
   dítě s řehtačkou (`watchChildren`, nejvýš 4; klipy `walk-rattle` / `idle-rattle` – řehtačka
@@ -860,8 +835,7 @@ Kdo, kdy a na kterém koni jede, určuje jádro (`lordRides` → `SceneLord.ride
   `plan.length`).
   Týž stroj (`leadPath`, `leadPose`, `leadGate`) vede koně z ohrady ke kůlu i při odjezdu a příjezdu
   výjezdu vojvody (journey.md – Sedlání, připojení a návrat; `expeditionYard`).
-  Lov (`huntSpan`) začíná v chvíli výcvikové jízdy cyklu (`rideSlot`), aspoň `HUNT_BRIDGE_S` po
-  začátku dne lovu. Jízda k hranici a doprovod se
+  Jízda k hranici a doprovod se
   do bloku nevejdou – jen vyjedou a vrátí se, neprojedou celou trasu (známé omezení, doprovod
   není sladěný s karavanou; horses.md – Kdy jsou jezdci venku). Plány jdou přes `DraftCrew.rides` → `VillageVillagers.rides()`
   → `onCrew` → `VillageLivestock.setRides`.

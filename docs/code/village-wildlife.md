@@ -114,7 +114,7 @@ windowDays` (ozim 61, jař 92) denně na každý nesklizený ohrožený díl. Mi
   `HUNT.riderFromAge`) a odešlí synové rodu (`away`: `lineMen` mimo dvorec, dospělí 14–44 let
   s `arms`) – jen pěšky. **Děti na lov nechodí** (Martin 27. 10. 2026) – ani na kalendářní lov, ani
   na lov navíc; chlapci 10–13 let v den lovu cvičí doma jako jindy (`trainLordDay`) a jedou objížďku
-  (`lordRides`), scéna je mezi lovci nekreslí (čte jen `hunt.today`; `SceneHunt.day` – scéna lov hraje ve skutečném čase 10 minut od dne lovu a běžící lov si pamatuje do návratu lovců, scene-village.md – Lov). Pojistka v `huntRisk`
+  (`lordRides`), scéna lov nekreslí (nový lov ve scéně: plán 2026-11-22-hunting, Úloha 10). Pojistka v `huntRisk`
   (dítě nezahyne ani se nezraní) zůstává. `dogsWanted` = počet lovců (`manor` + `away`) + 1,
   nejvýš 8 (`MANOR_DOGS`).
 - **Psi:** `WildlifeState.dogs { count }` (starší `fed` se nečte) vzniká hned (`dogsYear` zakládá smečku `wanted` psů, kdykoli ji ves nemá a má lovce;

@@ -579,8 +579,6 @@ export class LandscapeScene {
         this.war.setExpeditionYard(this.villagers?.yard() ?? null);
         this.war.setChoreoPeople(this.villagers?.choreoPeople() ?? null);
       },
-      // lovci jdou k okraji lesa u zvěře (wildlife.md – Ve scéně) – zvěř se plánuje před postavami
-      huntSpot: (target) => this.wildlife?.huntSpot(target) ?? null,
     });
     this.villagers.select(this.selection.personId);
     this.selection.syncDraft();

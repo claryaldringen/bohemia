@@ -2,14 +2,12 @@
 // bojují ve dvojici nebo u kůlu a vyjíždějí na koních, ženy rodiny pracují u dvorce jako ženy
 // u domů. Kdo, kolik a zda vůbec cvičí, určuje jádro (`SceneLabor.lord`); den rodiny ve skutečném
 // čase (vyjde z dvorce → luk a boj → jízda → u dvorku → vejde) skládá lord-day.ts.
-import type { SceneHunt, SceneLabor, SceneLord } from '../village-view';
+import type { SceneLabor, SceneLord } from '../village-view';
 import { type DayWindow } from './caravan';
 import { dogPlans, type DogPlan } from './dogs';
-import { LIVESTOCK_EPOCH_MS } from './livestock-motion';
 import {
   drillSeconds,
   householdPose,
-  HUNT_BRIDGE_S,
   memoSteps,
   traineePose,
   traineeSteps,
@@ -18,30 +16,24 @@ import {
   type TraineeDay,
 } from './lord-day';
 import type { ExpeditionYard, YardHorse } from './expedition-choreo';
-import { HUNT_PACE } from './rider-route';
 import {
-  createRideState,
   hitchSpot as horseHitchSpot,
-  huntPlans,
   isRiding,
   leaderSpot,
   leadPath,
   leadRepeat,
   leadTimes,
   LEAD_M_S,
-  rideBlockAt,
   ridePlans,
   riderPose,
-  rideState,
   type RidePlan,
   withLead,
 } from './riders';
 import { groomCandidates, groomedHorses } from './ride-grooms';
 import { horseGate } from './villager-plan-shoeing';
 import { cast, figure } from './villager-plan-cast';
-import { hash01 } from './smoke-schedule';
 import { doorPoint, free, walkRoute } from './villager-plan-geometry';
-import { FIGURE_SCALE, type Context, type PlannedVillager } from './villager-plan-types';
+import { type Context, type PlannedVillager } from './villager-plan-types';
 import {
   createVillagerPose,
   route,
@@ -237,44 +229,6 @@ function walkBetween(
   return out;
 }
 
-/**
- * Lovec z rodiny (wildlife.md – Ve scéně): lov (`hunt`, ve skutečném čase `span` – ms) přeruší den
- * rodiny (`base`); `HUNT_BRIDGE_S` před lovem dojde chůzí tam, kde lov začíná (u kůlu, ke koni),
- * po lovu odtud dojde tam, kde ho den rodiny zastihne – nikdy se nepřenese střihem.
- */
-function huntBridge(
-  base: PoseFn,
-  hunt: PoseFn,
-  span: readonly [number, number],
-  speed: number,
-): PoseFn {
-  const hs = (span[0] - LIVESTOCK_EPOCH_MS) / 1000;
-  const he = (span[1] - LIVESTOCK_EPOCH_MS) / 1000;
-  const probe = createVillagerPose();
-  const at = (fn: PoseFn, t: number, herds: Parameters<PoseFn>[1]): PosePoint => {
-    probe.hidden = false;
-    const p = fn(t, herds, probe);
-    return { x: p.x, z: p.z, hx: p.headingX, hz: p.headingZ, hidden: p.hidden === true };
-  };
-  let into: [PosePoint, PosePoint] | null = null;
-  let back: [PosePoint, PosePoint] | null = null;
-  return (t, herds, out) => {
-    if (t >= hs && t < he) return hunt(t, herds, out);
-    if (t >= hs - HUNT_BRIDGE_S && t < hs) {
-      into ??= [at(base, hs - HUNT_BRIDGE_S, herds), { ...at(hunt, hs, herds), hidden: false }];
-      return walkBetween(out, into[0], into[1], t - (hs - HUNT_BRIDGE_S), HUNT_BRIDGE_S, speed);
-    }
-    if (t >= he && t < he + HUNT_BRIDGE_S) {
-      back ??= [
-        { ...at(hunt, he - 1e-3, herds), hidden: false },
-        at(base, he + HUNT_BRIDGE_S, herds),
-      ];
-      return walkBetween(out, back[0], back[1], t - he, HUNT_BRIDGE_S, speed);
-    }
-    return base(t, herds, out);
-  };
-}
-
 /** Jezdec bez podkoního dojde k brance ohrady (a od ní po jízdě zpět) nejvýš za tolik s. */
 export const SELF_LEAD_BRIDGE_S = 40;
 
@@ -350,8 +304,6 @@ export function lordFigures(
   ctx: Context,
   labor: SceneLabor,
   window: DayWindow | null,
-  huntSpot: HuntSpotFn | null = null,
-  huntWindow: DayWindow | null = window,
 ): { people: PlannedVillager[]; rides: RidePlan[]; dogs: DogPlan[] } {
   const lord = labor.lord;
   if (!lord || !ctx.roster) return { people: [], rides: [], dogs: [] };
@@ -362,15 +314,6 @@ export function lordFigures(
   const hitch = hitchSpot(ground);
   const leg = pathLeg(ctx);
   const wild = ctx.village.wildlife;
-  // lov (wildlife.md – Ve scéně): jezdci a pěší s oštěpy k okraji lesa u zvěře a zpět – ve
-  // skutečném čase od dne lovu (`huntWindow`)
-  const hunt = wild?.hunt ? huntParty(ctx, wild.hunt, hitch, leg, huntWindow, huntSpot) : null;
-  const huntSpan = hunt?.rides[0]?.span ?? hunt?.foot[0]?.span ?? null;
-  // jezdci lovu objížďku nejedou, když jsou na lovu (s cestou ke kůlu a zpět) – kůň je na lovu
-  const hunters = new Set((wild?.hunt?.riders ?? []).map((r) => r.id));
-  const busy: readonly [number, number] | null = huntSpan
-    ? [huntSpan[0] - HUNT_BRIDGE_S * 1000, huntSpan[1] + HUNT_BRIDGE_S * 1000]
-    : null;
   const patrolRides = ridePlans({
     village: ctx.village,
     lord,
@@ -378,14 +321,11 @@ export function lordFigures(
     homes: ctx.homes.map((h) => ({ x: h.position.x, z: h.position.z })),
     leg,
     window,
-  }).flatMap((r): RidePlan[] =>
-    !hunters.has(r.riderId) ? [r] : busy && r.span ? [{ ...r, except: busy }] : [],
-  );
+  });
   // kůň dojde z ohrady ke kůlu před jízdou a vrátí se po ní (riders.ts – `withLead`): z branky
   // ohrady, kde stojí, kousek před ni – vyjde a vejde u branky (`leadGate`)
   const ledPatrol = patrolRides.map((r) => withLead(r, leadGate(ctx, r.horseId), leg));
-  const ledHunt = (hunt?.rides ?? []).map((r) => withLead(r, leadGate(ctx, r.horseId), leg));
-  const rides = [...ledPatrol, ...ledHunt];
+  const rides = ledPatrol;
   // koně vyvede a odvede podkoní (D69 – ride-grooms.ts); na koho nezbude rolník, vede jezdec sám
   const groomed = groomedHorses(
     rides,
@@ -394,15 +334,10 @@ export function lordFigures(
   const selfLed = (r: RidePlan | undefined): RidePlan | null =>
     r?.lead && r.span && !groomed.has(r.horseId) ? r : null;
   const ledPatrolOf = new Map(ledPatrol.map((r) => [r.riderId, r]));
-  const ledHuntOf = new Map(ledHunt.map((r) => [r.riderId, r]));
   const patrolOf = new Map(patrolRides.map((r) => [r.riderId, r]));
-  const huntRideOf = new Map((hunt?.rides ?? []).map((r) => [r.riderId, r]));
-  const walking = new Map((hunt?.foot ?? []).map((r) => [r.riderId, r]));
-  const carrier = hunt && (wild?.hunt?.kills ?? 0) > 0 ? (hunt.foot[0]?.riderId ?? null) : null;
   const dogs = dogPlans({
     count: wild?.dogs ?? 0,
     hitch,
-    hunt: hunt ?? { rides: [], foot: [] },
     rides: patrolRides,
     patrol: wild?.patrol === true,
     free: (x, z) => free(ctx, x, z),
@@ -454,7 +389,6 @@ export function lordFigures(
             return routes.get(home) ?? null;
           }
         : null,
-      busy: hunters.has(hours.id) || walking.has(hours.id) ? busy : null,
     };
     const mounted = patrol ? riderPose(patrol) : null;
     let pose: PoseFn = traineePose({
@@ -472,28 +406,11 @@ export function lordFigures(
       const onFoot = pose;
       pose = (t, herds, o) => (isRiding(patrol, t) ? mounted(t, herds, o) : onFoot(t, herds, o));
     }
-    const huntRide = huntRideOf.get(hours.id);
-    const foot = walking.get(hours.id);
-    if (huntRide?.span) pose = huntBridge(pose, riderPose(huntRide), huntRide.span, speed);
-    else if (foot?.span)
-      pose = huntBridge(pose, footHunterPose(foot, carrier === hours.id, null), foot.span, speed);
     // bez podkoního jezdec dojde pro koně k brance a po jízdě ho odvede do ohrady sám (D69)
-    for (const own of [selfLed(ledPatrolOf.get(hours.id)), selfLed(ledHuntOf.get(hours.id))]) {
+    for (const own of [selfLed(ledPatrolOf.get(hours.id))]) {
       if (own) pose = selfLead(pose, own, speed);
     }
     out.push(figure(c, pose, 'natural', { kind: 'lord', household: false }));
-    walking.delete(hours.id);
-  }
-  // pěší lovci mimo cvičící (odešlí synové rodu) – jen v bloku lovu, jinak jsou doma
-  for (const [id, plan] of walking) {
-    const c = cast(ctx, `hunt:${id}`, { women: 0, child: false }, () => ctx.roster!.takeId(id));
-    if (!c) continue;
-    out.push(
-      figure(c, footHunterPose(plan, carrier === id, null), 'natural', {
-        kind: 'lord',
-        household: false,
-      }),
-    );
   }
   const home =
     ctx.homes.find((h) => h.id === lord.home) ?? ctx.houses.find((h) => h.id === lord.home);
@@ -533,96 +450,4 @@ export function lordFigures(
     });
   }
   return { people: out, rides, dogs };
-}
-
-/** Okraj lesa u zvěře pro lov dne (VillageWildlife – skupina na okraji lesa podle cíle), nebo null. */
-export type HuntSpotFn = (target: SceneHunt['target']) => Point | null;
-
-/** Hledání okraje lesa: kruhy po tolika m až do dosahu a kolik směrů na kruhu. */
-const EDGE_SEARCH = { from: 30, step: 15, to: 360, dirs: 24, trees: 3, half: 6 } as const;
-
-/**
- * Okraj lesa nejblíž kůlu (bez zvěře ve scéně): první kruh, na kterém je schůdné místo
- * s aspoň třemi stromy kolem – směr začíná podle losu dne. Nikde – null.
- */
-export function forestEdge(ctx: Context, from: Point): Point | null {
-  const start = hash01(ctx.seed, ctx.day, 613) * Math.PI * 2;
-  for (let r = EDGE_SEARCH.from; r <= EDGE_SEARCH.to; r += EDGE_SEARCH.step) {
-    for (let k = 0; k < EDGE_SEARCH.dirs; k++) {
-      const a = start + (k / EDGE_SEARCH.dirs) * Math.PI * 2;
-      const x = from.x + Math.cos(a) * r;
-      const z = from.z + Math.sin(a) * r;
-      if (!ctx.ground.walkable(x, z)) continue;
-      if (
-        ctx.ground.treesIn(x, z, EDGE_SEARCH.half, EDGE_SEARCH.trees).length >= EDGE_SEARCH.trees
-      ) {
-        return { x, z };
-      }
-    }
-  }
-  return null;
-}
-
-/**
- * Plány lovu dne: k okraji lesa u zvěře (`huntSpot`), jinak k nejbližšímu okraji lesa – k němu
- * i když les u zvěře nestihnou (`huntWay`).
- */
-function huntParty(
-  ctx: Context,
-  hunt: SceneHunt,
-  hitch: TrainingSpot,
-  leg: (a: Point, b: Point) => Point[],
-  window: DayWindow | null,
-  huntSpot: HuntSpotFn | null,
-): { rides: RidePlan[]; foot: RidePlan[] } | null {
-  const spot = huntSpot?.(hunt.target) ?? null;
-  // nejbližší okraj lesa – bez zvěře ve scéně cíl, jinak když lovci les u zvěře nestihnou
-  const near = forestEdge(ctx, hitch);
-  const edge = spot ?? near;
-  if (!edge) return null;
-  return huntPlans({
-    hunt,
-    hitch,
-    edge,
-    nearEdge: near,
-    leg,
-    walkable: (x, z) => ctx.ground.walkable(x, z),
-    window,
-  });
-}
-
-/**
- * Pěší lovec (wildlife.md – Ve scéně): v bloku lovu jde po trase lovu (`rideState` jako jezdec –
- * tam, v lese sem a tam, zpět) s oštěpem (`walk-spear`); kde trasa stojí, drží oštěp
- * (`spear-thrust`); nosič úlovku nese cestou zpět maso (`carry-meat`). Mimo blok `otherwise`
- * (cvičí na dvorku), bez ní doma.
- */
-export function footHunterPose(plan: RidePlan, carrier: boolean, otherwise: PoseFn | null): PoseFn {
-  const state = createRideState();
-  return (t, herds, out) => {
-    const block = rideBlockAt(plan, t);
-    if (!block || !plan.route) {
-      if (otherwise) return otherwise(t, herds, out);
-      out.hidden = true;
-      return out;
-    }
-    rideState(plan, t, state);
-    const back = block.elapsed > block.length / 2;
-    out.x = state.x;
-    out.z = state.z;
-    out.headingX = state.headingX;
-    out.headingZ = state.headingZ;
-    out.stage = 'hunt';
-    if (state.pace <= HUNT_PACE.stop * 2) {
-      out.clip = 'spear-thrust';
-      out.pace = 1;
-    } else if (back && carrier) {
-      out.clip = 'carry-meat';
-      out.pace = state.pace / walkSpeed('man', 'carry-meat', FIGURE_SCALE);
-    } else {
-      out.clip = 'walk-spear';
-      out.pace = state.pace / walkSpeed('man', 'walk-spear', FIGURE_SCALE);
-    }
-    return out;
-  };
 }

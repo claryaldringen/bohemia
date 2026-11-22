@@ -141,23 +141,6 @@ export class VillageWildlife {
   }
 
   /**
-   * Okraj lesa u zvěře pro lov dne (wildlife.md – Ve scéně): první stanoviště skupiny na okraji
-   * lesa podle cíle (prasata, jinak jelení; vlci; medvěd), jinak kterékoli na okraji lesa; bez
-   * zvěře ve scéně null.
-   */
-  huntSpot(target: 'game' | 'wolves' | 'bear'): { x: number; z: number } | null {
-    const groups = (this.plan?.groups ?? []).filter((g) => g.zone === 'edge' || g.zone === 'verge');
-    const wanted: readonly WildlifeSpecies[] =
-      target === 'game' ? ['boar', 'deer'] : target === 'wolves' ? ['wolf'] : ['bear'];
-    for (const species of [...wanted, null]) {
-      const group = groups.find((g) => species === null || g.species === species);
-      const spot = group?.herd.route[0];
-      if (spot) return { x: spot.x, z: spot.z };
-    }
-    return null;
-  }
-
-  /**
    * Posune zvěř v záběru `camera` na okamžik `nowMs` (bez kamery všechnu). Vrátí true, když se
    * v záběru něco pohnulo.
    */

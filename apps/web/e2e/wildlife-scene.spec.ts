@@ -39,7 +39,6 @@ interface DevScene {
     stream: { x: number; y: number; halfWidthLeft: number; halfWidthRight: number }[];
   };
   rtsCamera: { camera: { radius: number; lowerRadiusLimit: number | null; beta: number } };
-  wildlife: { huntSpot(target: string): Spot | null } | null;
 }
 type DevWindow = Window & { __bohemiaDev?: { scene: DevScene }; __fixedNow?: number };
 
@@ -212,23 +211,8 @@ for (const renderer of ['webgl', 'webgpu'] as const) {
     await shot(page, `${p}2-prasata`, of('wild-boar'), 28);
     await shot(page, `${p}3-prasata-dil`, focus.part, 45);
     await shot(page, `${p}4-zajic`, of('wild-hare'), 10);
-    // psi u dvorce před lovem (2 h)
+    // psi u dvorce (2 h)
     await shot(page, `${p}5-psi-dvorec`, focus.home, 40);
-    // lov – cesta ven (5 h) a u lesa (11 h)
-    const edge = await page.evaluate(
-      () => (window as unknown as DevWindow).__bohemiaDev!.scene.wildlife?.huntSpot('game') ?? null,
-    );
-    const mid = edge
-      ? { x: (edge.x + focus.home.x) / 2, z: (edge.z + focus.home.z) / 2 }
-      : focus.home;
-    await setHour(page, 3.3);
-    await shot(page, `${p}6-lovci-vyrazi`, focus.home, 45);
-    await setHour(page, 5);
-    await shot(page, `${p}6b-lovci-cesta`, mid, 80);
-    await setHour(page, 11);
-    await shot(page, `${p}7-lovci-les`, edge, 70);
-    await setHour(page, 19);
-    await shot(page, `${p}8-lovci-zpet`, mid, 60);
     await setHour(page, 10);
     await shot(page, `${p}9-rybari`, focus.pool as Spot | null, 70);
     // první rybář stojí na levém břehu tůně (anglerSpot) – výřez břehu s vodou

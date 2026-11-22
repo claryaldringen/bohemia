@@ -11,7 +11,6 @@ import {
   dogsWanted,
   fishingPools,
   huntPool,
-  isInjured,
   lordFamily,
   villageHerds,
   wildlifeCaps,
@@ -218,28 +217,14 @@ export function sceneWildlife(
 /** Psi nejvýš (wildlife.md – Psi: dvorec chce nejvýš 8). */
 const SCENE_DOGS_MAX = 8;
 
-/** Lov, psi, hlídky a rybáři dne pro scénu (W11; wildlife.md – Ve scéně). */
+/** Psi, hlídky a rybáři dne pro scénu (W11; wildlife.md – Ve scéně). */
 function sceneDefense(
   state: VillageState,
   w: WildlifeState,
   day: number,
   landscape: Landscape | null,
-): Pick<SceneWildlife, 'hunt' | 'dogs' | 'patrol' | 'watchParts' | 'pools'> {
-  const out: Pick<SceneWildlife, 'hunt' | 'dogs' | 'patrol' | 'watchParts' | 'pools'> = {};
-  const hunt = w.hunt?.today;
-  // zraněný zůstává doma (D79) – i lovec, který se na lovu zranil, se ve scéně nekreslí
-  const hurt = new Set(state.people.filter((p) => isInjured(p, day)).map((p) => p.id));
-  const riders = hunt?.riders.filter((r) => !hurt.has(r.personId)) ?? [];
-  const foot = hunt?.foot.filter((id) => !hurt.has(id)) ?? [];
-  if (hunt && hunt.day === day && riders.length + foot.length > 0) {
-    out.hunt = {
-      day: hunt.day,
-      target: hunt.target,
-      riders: riders.map((r) => ({ id: r.personId, horseId: r.horseId })),
-      foot,
-      kills: hunt.kills ?? 0,
-    };
-  }
+): Pick<SceneWildlife, 'dogs' | 'patrol' | 'watchParts' | 'pools'> {
+  const out: Pick<SceneWildlife, 'dogs' | 'patrol' | 'watchParts' | 'pools'> = {};
   const dogs = Math.min(SCENE_DOGS_MAX, Math.floor((w.dogs?.count ?? 0) + EPSILON));
   if (dogs > 0) out.dogs = dogs;
   if (w.patrol && w.patrol.day === day && w.patrol.power > EPSILON) out.patrol = true;

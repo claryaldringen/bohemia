@@ -2,20 +2,9 @@ import { describe, expect, it } from 'vitest';
 import type { SceneLord } from '../../village-view';
 import { createLivestockPose, LIVESTOCK_EPOCH_MS } from '../livestock-motion';
 import { LORD_CYCLE, LORD_CYCLE_S } from '../lord-day';
-import {
-  HUNT_PACE,
-  RIDE_PACE,
-  HUNT_SWEEP_M,
-  HUNT_WAY_SHARE,
-  huntRoute,
-  straightLeg,
-  wayLength,
-} from '../rider-route';
+import { RIDE_PACE, straightLeg } from '../rider-route';
 import {
   createRideState,
-  HUNT_REAL_S,
-  huntPlans,
-  huntSpan,
   isAway,
   isRiding,
   LEAD_M_S,
@@ -30,7 +19,6 @@ import {
   type RidePlanInput,
 } from '../riders';
 import { createVillagerPose } from '../villager-motion';
-import type { Point } from '../villager-plan-types';
 
 const LORD: SceneLord = {
   home: 1,
@@ -241,111 +229,5 @@ describe('jezdec na koni (horses.md – Ve scéně)', () => {
 
   it('bez jezdců žádné jízdy', () => {
     expect(ridePlans(input({ ...LORD, riders: [] }))).toEqual([]);
-  });
-});
-
-describe('lov ve scéně (huntPlans – wildlife.md, Ve scéně)', () => {
-  const hunt = {
-    target: 'game' as const,
-    riders: [
-      { id: 10, horseId: 1 },
-      { id: 12, horseId: 2 },
-    ],
-    foot: [20, 21],
-    kills: 1,
-  };
-  const huntInput = {
-    hunt,
-    hitch: { x: 4, z: 0, headingX: 1, headingZ: 0 },
-    edge: { x: 104, z: 0 },
-    leg: straightLeg,
-    walkable: (): boolean => true,
-    window,
-  };
-  /** Lov ve skutečném čase (s): od šera dne lovu, až rodina vyjíždí (`huntSpan`), HUNT_REAL_S dlouho. */
-  const HUNT_T = huntSpan(window)!.map((ms) => (ms - LIVESTOCK_EPOCH_MS) / 1000) as [
-    number,
-    number,
-  ];
-
-  it('jezdci a pěší vyrazí za šera, v půlce lovu jsou u lesa a na konci zase u kůlu', () => {
-    const { rides, foot } = huntPlans(huntInput);
-    expect(rides.map((r) => r.riderId)).toEqual([10, 12]);
-    expect(foot.map((r) => r.riderId)).toEqual([20, 21]);
-    const state = createRideState();
-    for (const plan of [rides[0]!, foot[0]!]) {
-      expect(isRiding(plan, HUNT_T[0] - 2)).toBe(false);
-      expect(isRiding(plan, HUNT_T[1] + 2)).toBe(false);
-      rideState(plan, (HUNT_T[0] + HUNT_T[1]) / 2 - 1, state);
-      // u okraje lesa (sem a tam podél něj nejvýš o HUNT_SWEEP_M)
-      expect(Math.hypot(state.x - 104, state.z)).toBeLessThan(HUNT_SWEEP_M.along + 8);
-      rideState(plan, HUNT_T[1] - 0.05, state);
-      expect(Math.hypot(state.x - 4, state.z)).toBeLessThan(6);
-    }
-  });
-
-  it('trasa pokryje půlku bloku – jízda se nepřetočí na začátek; pěší stojí s oštěpem', () => {
-    const halfS = HUNT_REAL_S / 2;
-    const way = [huntInput.hitch, { x: 44, z: 0 }];
-    const sweep: [Point, Point] = [
-      { x: 50, z: 20 },
-      { x: 50, z: -20 },
-    ];
-    const ride = huntRoute(way, sweep, false, halfS)!;
-    const walk = huntRoute(way, sweep, true, halfS)!;
-    expect(ride.period).toBeGreaterThanOrEqual(halfS);
-    expect(walk.period).toBeGreaterThanOrEqual(halfS);
-    expect(Math.max(...ride.pace)).toBeLessThanOrEqual(HUNT_PACE.ride.max);
-    expect(walk.pace.some((p) => p === HUNT_PACE.stop)).toBe(true);
-    expect(ride.pace.some((p) => p === HUNT_PACE.stop)).toBe(false);
-  });
-
-  it('pěší lovec stojí s oštěpem u okraje lesa dřív, než se v půlce bloku obrátí', () => {
-    const halfS = HUNT_REAL_S / 2;
-    // cesta k lesu na hranici dosahu – zabere celých 70 % půlky bloku
-    const way = [huntInput.hitch, { x: 104, z: 0 }];
-    const sweep: [Point, Point] = [
-      { x: 110, z: 22 },
-      { x: 110, z: -22 },
-    ];
-    const walk = huntRoute(way, sweep, true, halfS)!;
-    const k = walk.pace.findIndex((p) => p === HUNT_PACE.stop);
-    expect(k).toBeGreaterThan(0);
-    // úsek zastávky začne i skončí před obratem
-    expect(walk.times[k + 1]!).toBeLessThan(halfS);
-    expect(Math.hypot(walk.points[k + 1]!.x - 104, walk.points[k + 1]!.z)).toBeLessThan(0.5);
-  });
-
-  it('lovci vždy stihnou dojít k lesu a vrátit se – daleký les u zvěře nahradí bližší', () => {
-    const halfS = HUNT_REAL_S / 2;
-    const state = createRideState();
-    // les u zvěře dál, než dojdou pěší chůzí i jezdci klusem za 70 % půlky lovu
-    const far = { ...huntInput, edge: { x: 1004, z: 0 } };
-    // bližší okraj lesa 90 m od kůlu – pěší i jezdci k němu
-    const near = huntPlans({ ...far, nearEdge: { x: 4, z: 90 } });
-    for (const plan of [near.foot[0]!, near.rides[0]!]) {
-      rideState(plan, (HUNT_T[0] + HUNT_T[1]) / 2 - 1, state);
-      expect(Math.hypot(state.x - 4, state.z - 90)).toBeLessThan(HUNT_SWEEP_M.along + 8);
-    }
-    // bez bližšího lesa svižnou chůzí, nejdál kam za cestu dojdou – cesta se vejde do půlky lovu
-    const alone = huntPlans(far).foot[0]!;
-    const route = alone.route!;
-    const wayEnd = route.points.findIndex((p) => p.x > 1003 || p.z !== 0);
-    expect(Math.max(...route.pace)).toBeLessThanOrEqual(HUNT_PACE.foot.max);
-    expect(route.times[wayEnd === -1 ? route.points.length - 1 : wayEnd - 1]!).toBeLessThanOrEqual(
-      HUNT_WAY_SHARE * halfS + 1e-6,
-    );
-    expect(wayLength(route.points.slice(0, 2))).toBeLessThanOrEqual(
-      HUNT_PACE.foot.max * HUNT_WAY_SHARE * halfS + 1e-6,
-    );
-    for (const plan of [near.foot[0]!, near.rides[0]!, alone]) {
-      rideState(plan, HUNT_T[1] - 0.05, state);
-      expect(Math.hypot(state.x - 4, state.z)).toBeLessThan(6);
-    }
-  });
-
-  it('plán lovu je čistá funkce vstupu a bez hodin světa se neloví', () => {
-    expect(JSON.stringify(huntPlans(huntInput))).toBe(JSON.stringify(huntPlans(huntInput)));
-    expect(huntPlans({ ...huntInput, window: null })).toEqual({ rides: [], foot: [] });
   });
 });

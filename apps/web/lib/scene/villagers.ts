@@ -10,7 +10,6 @@ import { FishingLines, fishingLine } from './fishing-lines';
 import type { ChoreoPeople, ExpeditionYard } from './expedition-choreo';
 import { isRiding, rideArea, ridePlansKey, type RidePlan } from './riders';
 import { groomCandidates, groomedHorses, groomRides, RideGrooms } from './ride-grooms';
-import type { HuntSpotFn } from './villager-plan-lord';
 import '@babylonjs/core/Meshes/thinInstanceMesh';
 import '@babylonjs/loaders/glTF';
 import { BakedVertexAnimationManager } from '@babylonjs/core/BakedVertexAnimation/bakedVertexAnimationManager';
@@ -112,8 +111,6 @@ const WREATH_CELLS = '90.0';
 const HAIR_CODE: Record<HairLook, number> = { natural: 0, grey: 1, linen: 2, madder: 3, wreath: 4 };
 
 export interface VillagersEnvironment {
-  /** Okraj lesa u zvěře pro lov dne (VillageWildlife.huntSpot); bez údaje nejbližší okraj lesa. */
-  huntSpot?: HuntSpotFn;
   /** Vrstva překážek krajiny – stromy ke kácení. */
   layer: ObstacleLayer;
   /** Schůdná země (přes celou krajinu, počítaná líně – livestock-placement.ts), bez obydlí null. */
@@ -756,7 +753,6 @@ export class VillageVillagers {
       funerals: this.funerals,
       weddings: this.weddings,
       draft: this.draft,
-      ...(this.env.huntSpot ? { huntSpot: this.env.huntSpot } : {}),
     });
     this.setCrew(plan.crew);
     this.setSlaughter(plan.slaughter);
@@ -1316,10 +1312,9 @@ function villageKey(village: SceneVillage, draft: DraftCrews): string {
     village.funerals ?? null,
     village.weddings ?? null,
     (village.trails ?? []).map((t) => [t.id, t.points.length]),
-    // lov, psi, hlídka, děti s řehtačkou a rybáři dne (wildlife.md – Ve scéně)
+    // psi, hlídka, děti s řehtačkou a rybáři dne (wildlife.md – Ve scéně)
     village.wildlife
       ? [
-          village.wildlife.hunt ?? null,
           village.wildlife.dogs ?? 0,
           village.wildlife.patrol ?? false,
           village.wildlife.watchParts ?? null,

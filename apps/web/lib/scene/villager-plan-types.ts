@@ -2,7 +2,6 @@
 import type { DogPlan } from './dogs';
 import type { ExpeditionYard } from './expedition-choreo';
 import type { RidePlan } from './riders';
-import type { HuntSpotFn } from './villager-plan-lord';
 import { type Craft, type DwellingType, type Position, type ShapeFrame } from '@bohemia/game';
 import type { LaborActivity, SceneCraftYard, SceneVillage } from '../village-view';
 import { type DayWindow } from './caravan';
@@ -298,11 +297,6 @@ export interface VillagerPlanOptions {
    * postavy). Bez údaje nikdo.
    */
   draft?: DraftCrews;
-  /**
-   * Okraj lesa u zvěře pro lov dne (VillageWildlife.huntSpot – wildlife.md, Ve scéně); bez údaje
-   * nebo bez zvěře ve scéně jdou lovci k nejbližšímu okraji lesa (`forestEdge`).
-   */
-  huntSpot?: HuntSpotFn;
 }
 
 /** Spřežení a vozy dne, které kreslí ves – kolik spřežení s rádlem a id zapřažených vozů. */
