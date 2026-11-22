@@ -506,3 +506,10 @@ Původně v sekci: Osevní postup po dílech a setí do konce okna (25. 10. 2026
   nezačne, oseje se díl na jaře jaří (bod 2) a po ní jde do úhoru – v oběhu jsou vždy nejvýš dva
   osevy (návrh Clauda). Luštěniny a len jako první osev mají po sobě úhor (jsou místo jaře, ne
   zmeškaný ozim).
+
+### Přílohy podle odpočatosti bez stadia zarůstání
+
+Původně v sekcích: Osevní postup po dílech (Pořadí dávek) a Hospodaření podle polohy domů (22. 11. 2026 nahrazeno pořadím podle stadia zarůstání).
+
+- ~~Přílohy ≥ 95 %: nejdřív bez přílohu před sebou, pak rozběhnuté úseky, pak nejvíc odpočaté (dřív nejmladší příloh) a nejblíž domu; přílohy 70–95 %: nejvíc zotavené, pak bez přílohu před sebou, rozběhnuté úseky, nejblíž domu~~ – stadium zarůstání (louka, křoví, mladý les) v pořadí chybělo, takže ves klučila mladý les (≈ 5 čd/díl) a křoviny (≈ 2 čd/díl), zatímco ladem ležely louky (≈ 0,23 čd lidí a 0,43 čd orby na díl). Nahrazeno: napřed louky, pak křoví, nakonec mladý les (Martin 22. 11. 2026: „Ok, udělej to tak. Obecně se drž pravidla vyprodukovat co nejvíce za co nejmenší množství práce.“).
+- ~~Díl přibude na čelo, jen když je místo u lidí i u spřežení (i díl, který se musí klučit)~~ – spřežení na plno pak zastavila i ruce, které mohly klučit zarostlé díly. Nahrazeno čelem po zdrojích: díl s klučením stačí místo u lidí (návrh Clauda, Martin 22. 11. 2026).

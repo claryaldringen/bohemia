@@ -763,7 +763,8 @@ Clauda**:
     a čelo s místem na 10–19 čd dostalo až 140 čd vracení. Vlkov (rozbor 19. 11. 2026, roky
     897–907) dal na vracení 54 % práce na přípravu půdy a setí (2 001 z 3 723 čd) a čelo 38–59
     dní z 61 nepřibralo nic, i když čekaly připravené díly – pás obcházel Pořadí dávek (fields.md
-    – připravené díly a díly s nejmenší prací přípravy napřed, nouzové přílohy až po nich).
+    – připravené díly a díly s nejmenší prací přípravy napřed, nouzové přílohy až po nich;
+    od 22. 11. 2026 i přílohy napřed louky, pak křoví a mladý les a pás jen z dílů téhož stadia).
 - **Plán osevu** počítá s výkonem podle tvaru polí, na která může ves zasít (průměr výkonu jejich
   pásů – `plannedFurrowEfficiency`), cestu neodhaduje (je malá).
 - **Ve scéně:** herní jádro posílá u dílů orby osu brázd a směr orby (`SceneFieldPart.furrow`) –

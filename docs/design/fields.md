@@ -481,8 +481,15 @@ Seno, dvě seče).
      rezervy** (proti hladu – obilí má přednost), ~~luštěniny~~ (zrušeno 9. 11. 2026), pak obilí
      do celé potřeby úrody;
      obilí v pořadí přílohové soustavy (připravené díly a díly s nejmenší prací přípravy, blíž
-     k domu, nouzové přílohy až po nich), v dávce ozim před jaří (jeho okno končí dřív). Dávka
-     dne jde po úsecích od domu ven (Postup práce po čtvercích).
+     k domu, nouzové přílohy až po nich; **přílohy napřed louky, pak křoví, nakonec mladý les** –
+     Martin 22. 11. 2026: „Ok, udělej to tak. Obecně se drž pravidla vyprodukovat co nejvíce za
+     co nejmenší množství práce.“, [dřívější znění](history/fields-history.md#přílohy-podle-odpočatosti-bez-stadia-zarůstání)),
+     v dávce ozim před jaří (jeho okno končí dřív). Dávka dne jde po úsecích od domu ven (Postup
+     práce po čtvercích). **Čelo práce po zdrojích** (návrh Clauda, Martin 22. 11. 2026): díl
+     s ručním klučením (křoví, mladý les) stačí na čele místo u lidí – spřežení ho zorají, až ho
+     lidé vyklučí, takže ruce nestojí, když spřežení orají naplno; díl bez klučení (louka – orba
+     drnu, díl v osevu) potřebuje místo u lidí i u spřežení. Pás orby se skládá jen z dílů téhož
+     stadia zarůstání. Výběr z paměti (Výběr bez stropu) hlídá místo u lidí.
    - **Klády jen za skácené stromy** (Zarůstání): mladý les na přibraném dílu dá klády, až přes
      díl přejde čelo vracení přílohu – ne při přibrání. Vyklučený díl si to pamatuje: když ho ves
      uvolní (nezasetá jař 1. 5., velká zásoba), vrátí se jako příloh bez lesa a křovin a klády
@@ -2090,10 +2097,13 @@ ležel osetý prstenec za přílohem – sedlák chodil přes úhor (viz Naměř
   čerstvě založené, přílohy ≥ 95 %, přílohy 70–95 %), v nich bloky:
   - osévané díly – od úseku nejblíž domu,
   - čerstvě založené – nejdřív bloky, před kterými v úseku neleží příloh, pak nejblíž domu,
-  - přílohy ≥ 95 % – nejdřív bez přílohu před sebou (sedlák nejde přes úhor), pak úseky, které se
-    už osévají (ves úsek dokončí – vnější část úseku se oseje rok po vnitřní), pak nejvíc odpočaté
-    (dřív nejmladší příloh) a nejblíž domu,
-  - přílohy 70–95 % – nejvíc zotavené, pak bez přílohu před sebou, rozběhnuté úseky, nejblíž domu.
+  - přílohy ≥ 95 % – **napřed louky, pak křoví, nakonec mladý les** (Martin 22. 11. 2026, viz
+    Pořadí dávek; bloky se dělí podle stadia zarůstání a louky všech hospodářství jdou před
+    křovím kteréhokoli z nich); v každém stadiu nejdřív bez přílohu před sebou (sedlák nejde
+    přes úhor), pak úseky, které se už osévají (ves úsek dokončí – vnější část úseku se oseje rok
+    po vnitřní), pak nejvíc odpočaté (dřív nejmladší příloh) a nejblíž domu,
+  - přílohy 70–95 % – stejně napřed louky, křoví, mladý les; v každém stadiu nejvíc zotavené,
+    pak bez přílohu před sebou, rozběhnuté úseky, nejblíž domu.
 
   Když cíl osevu potřebuje jen část bloku, bere ves díly od domu ven. Mezi hospodářstvími se bloky
   střídají tak, aby každé mělo osetý stejný podíl své plochy – všechna obíhají stejně rychle.

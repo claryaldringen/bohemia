@@ -48,7 +48,9 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   když rozdělaná příprava a setí v dnes otevřených oknech plodin se stejným nebo dřívějším
   koncem okna přípravy (`prepEnd`) je pod 3 dny práce lidí (`frontLabor` – volná práce vsi
   `freeLabor` a podíl rodiny na přípravě a setí `manorLabor.sowing`, D102) a orby
-  (`ploughCapacityPerDay`); ostatní čekají – `seasonDay` je vrátí (`FarmSeason.selection.waiting`)
+  (`ploughCapacityPerDay`) – díl s ručním klučením (vrácení přílohu > 0) stačí místo u lidí,
+  ostatní potřebují i místo u spřežení (`partRoom`, `peopleRoom`; výběr z paměti hlídá jen
+  `peopleRoom`); ostatní čekají – `seasonDay` je vrátí (`FarmSeason.selection.waiting`)
   a `lordHelpDay` je přičte k zátěži pomoci rodiny (`sowingHelpLoad` – `partWork`, jen s osivem). Se spřežením přibude s dílem na řadě i zbytek jeho pásu orby – pás jen
   z dílů výběru téže plodiny a téže skupiny přílohové soustavy (`joinBands` – `sowingGroup`,
   nouzové přílohy zvlášť) a místo na čele (`frontRoom`) u každého dílu pásu, od dílu na řadě
@@ -432,8 +434,8 @@ tools)` = s hromadou `pileSowsKg` (osivo, které ves ještě zaseje: `sowingHaPe
   domu (vzdušnou čarou; `villageHoldings`/`fieldHoldings`), hospodářství se dělí na úseky od domu
   (prstence po 15 m, v každém tolik dílů po směru, kolik čtverců má první prstenec – výseče kolem
   samoty, lány za domy v řadě). Nic se neukládá, vše se odvodí z polohy domů a čtverců. Plán osevu
-  bere `sowingBlocks` (bloky úseku ve skupině přílohové soustavy od domu ven, osev mezi
-  hospodářstvími podle plochy) a osevní postup bere díly na řadě po blocích; pořadí práce
+  bere `sowingBlocks` (bloky úseku ve skupině přílohové soustavy od domu ven, přílohy navíc podle
+  stadia zarůstání `overgrowthRank` – louka, křoví, mladý les; osev mezi hospodářstvími podle plochy) a osevní postup bere díly na řadě po blocích; pořadí práce
   `workOrder`. Ves bez hospodářství (bez domů nebo bez políček – i `measure-village.ts --land v1`)
   jede dřívějším pořadím bit po bitu; kalibrace na skutečných krajinách hospodaří podle domů. Měření `packages/game/scripts/measure-holdings.ts`; na
   `/dev/landscape` tlačítka „Hospodaření“ (ukázka po 20 letech simulace), „Úseky“ (překryv
