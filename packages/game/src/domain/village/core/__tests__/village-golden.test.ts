@@ -97,7 +97,10 @@ import { advanceChunked, goldenWorld, stateFingerprint, YEAR } from './village-g
 // s výmlatem v zimě, podíl setí ani žní nedostane): jiný výcvik rodu; dřív 9564aeeb22d9ac4a
 // 22. 11. 2026 – D107 seno po loukách od nejbližší, ne průměrem plánu (oxen.md – Seno): jiné seno
 // ze seče i strop stád; dřív ba7b005c3a4c561b
-const EXPECTED_YEAR_1 = '507a01df3e12d2eb';
+// 22. 11. 2026 – D110 přílohy do osevu podle úzkého hrdla (dřív 083f1e356785126b) a setí zorané
+// půdy před vracením přílohu téže plodiny (fields.md – Pořadí důležitosti polních prací): zlatá
+// ves zaseje zorané díly dřív, než lidé klučí další; dřív 507a01df3e12d2eb
+const EXPECTED_YEAR_1 = '3ce521beed488abd';
 // 18. 11. 2026 – D93 cesta přes plochu staveb; dřív 82b12dd84c08dd63 (vyšlapaná cesta přes plochu
 // staveb nevznikne a napojení ji obejde – jiné cesty a id; roky chůze nejvýš doba vyšlapání)
 // 18. 11. 2026 – D95 výmlat (Martin: „A, C, E“ – výmlat podle kg snopů, rod v zimě dorovná tempo

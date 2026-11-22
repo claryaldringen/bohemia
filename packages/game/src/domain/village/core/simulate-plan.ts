@@ -269,21 +269,60 @@ export interface Front {
   ploughRoom: number;
 }
 
-/** Přičte k čelu práci úloh plodiny, jejichž okno dnes běží (`work` – zbytek nebo práce dílu). */
+/**
+ * Přičte k čelu práci úloh plodiny, jejichž okno dnes běží (`work` – zbytek nebo práce dílu).
+ * `plough` – orba dílů připravených k orbě, `reclaiming` – orba dílů, které lidé teprve klučí: ta
+ * místo u spřežení nedrží, zabere ho, až je díl vyklučený (`ploughSplit`).
+ */
 function addToFront(
   front: Front,
   crop: Crop,
   work: Readonly<Record<(typeof FRONT_TASKS)[number], number>>,
   plough: number,
+  reclaiming = 0,
 ): void {
   let people = 0;
   for (const task of FRONT_TASKS) if (windowOpen(crop, task, front.day)) people += work[task];
   if (windowOpen(crop, 'dig', front.day)) {
-    // bez spřežení doma orbu dodělá motyka – počítá se do práce lidí
+    // bez spřežení doma orbu dodělá motyka – počítá se do práce lidí, i na dílech v klučení
     if (front.ploughRoom > 0) front.plough[crop] = (front.plough[crop] ?? 0) + plough;
-    else people += plough;
+    else people += plough + reclaiming;
   }
   front.people[crop] = (front.people[crop] ?? 0) + people;
+}
+
+/**
+ * Zbývající orba plodiny po dílech (člověkodny – fields.md, Pořadí dávek, Čelo práce po zdrojích):
+ * `ready` na dílech připravených k orbě (louka – drn, díl v osevu, vyklučený díl), `reclaiming`
+ * na dílech, přes které vrácení přílohu ještě nedošlo – zarostlé díly klučí lidé rukama, voli
+ * orají naplno (Martin 22. 11. 2026).
+ */
+function ploughSplit(
+  work: CropWork,
+  partsById: () => ReadonlyMap<number, FieldPart>,
+  day: number,
+): { ready: number; reclaiming: number } {
+  const all = ploughRemaining(work);
+  const plough = work.plough;
+  if (!plough || all <= EPSILON || !work.reclaimIds || work.reclaimIds.length === 0) {
+    return { ready: all, reclaiming: 0 };
+  }
+  const byId = partsById();
+  const reclaimAt = taskPosition(work, 'reclaim');
+  const inReclaim = new Set<number>();
+  for (const span of taskSpans(work, byId, 'reclaim', day)) {
+    if (span.end > reclaimAt + EPSILON) inReclaim.add(span.id);
+  }
+  if (inReclaim.size === 0) return { ready: all, reclaiming: 0 };
+  // podíl zbývající orby na dílech v klučení – úseky orby za tím, kam orba došla
+  const ploughAt = taskPosition(work, 'plough');
+  let share = 0;
+  for (const span of taskSpans(work, byId, 'plough', day)) {
+    if (!inReclaim.has(span.id) || span.end <= ploughAt + EPSILON) continue;
+    share += (span.end - Math.max(span.start, ploughAt)) * (span.share ?? 1);
+  }
+  const reclaiming = Math.min(all, share * plough.required);
+  return { ready: all - reclaiming, reclaiming };
 }
 
 /**
@@ -311,11 +350,14 @@ function workFront(state: VillageState, day: number, coverage: CraftCoverage): F
       WORK_FRONT_DAYS * ploughCapacityPerDay(state, coverage.tools, day) * daylightFactor(day),
   };
   if (!state.season) return front;
+  let byId: ReadonlyMap<number, FieldPart> | null = null;
+  const partsById = (): ReadonlyMap<number, FieldPart> => (byId ??= partsByIdOf(state.parts));
   for (const { crop, work } of seasonCrops(state.season)) {
     const rest = (task: (typeof FRONT_TASKS)[number]): number =>
       Math.max(0, work.required[task] - work.done[task]);
     const left = { reclaim: rest('reclaim'), dig: rest('dig'), sow: rest('sow') };
-    addToFront(front, crop, left, ploughRemaining(work));
+    const plough = ploughSplit(work, partsById, day);
+    addToFront(front, crop, left, plough.ready, plough.reclaiming);
   }
   return front;
 }
@@ -520,7 +562,9 @@ function seasonSelection(
       if (!partRoom(front, j.crop, work)) break;
       inTaken.add(id);
       taken.push({ id, crop: j.crop });
-      addToFront(front, j.crop, work, work.plough);
+      // orba dílu s klučením zabere místo u spřežení, až ho lidé vyklučí (`ploughSplit`)
+      if (work.reclaim > EPSILON) addToFront(front, j.crop, work, 0, work.plough);
+      else addToFront(front, j.crop, work, work.plough);
     }
   }
   if (taken.length === 0) return { waiting };

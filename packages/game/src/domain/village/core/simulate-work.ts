@@ -124,7 +124,7 @@ import {
  * Polní úlohy dne: práce všech dílů letošní práce po plodinách (bez výmlatu – ten mlátí snopy, `threshTasks`), orba
  * rádlem v oknech kopání (spřežení zvládnou nejvýš `ploughCap` člověkodní za den – oxen.md).
  * Nejbližší konec okna první, při shodě ozim před jaří a pořadí úloh (TASK_ORDER; orba před
- * kopáním). Setí týž den hned za orbou a motykou (fields.md – Práce; Martin 9. 11. 2026: „Setí by
+ * kopáním, setí zpracované půdy před vracením přílohu). Setí týž den hned za orbou a motykou (fields.md – Práce; Martin 9. 11. 2026: „Setí by
  * mělo probíhat ihned po orbě. Za oráčem by měl jít někdo z rodiny a rovnou zasívat“): úloha setí
  * nese jen zpracovanou půdu do včerejška, orba a kopání nesou setí za sebou (`sowRatio` – kolik
  * dovolí osivo).
@@ -164,8 +164,13 @@ export function fieldTasks(
       windowEndOf(cropTaskWindows(crop, name), month) ??
       (name === 'sow' && springSowingExtended(state, day, crop) ? month : null);
     if (windowEnd === null) return;
+    // setí zorané a zkopané půdy do včerejška před vracením přílohu téže plodiny – co je zorané,
+    // se v okně zaseje, klučení je práce na později (fields.md – Pořadí důležitosti polních
+    // prací; D110, Martin 22. 11. 2026: „vyprodukovat co nejvíce za co nejmenší množství práce“)
     const order =
-      TASK_ORDER.indexOf(name === 'plough' ? 'dig' : name) - (name === 'plough' ? 0.5 : 0);
+      name === 'sow'
+        ? -0.5
+        : TASK_ORDER.indexOf(name === 'plough' ? 'dig' : name) - (name === 'plough' ? 0.5 : 0);
     // trhání lnu jde za žněmi obilí skupinou dne (`dayTaskOrder` – DAY_WORK_ORDER)
     const end = windowEnd;
     const rank = CROP_ORDER.indexOf(crop) * TASK_ORDER.length + order;
