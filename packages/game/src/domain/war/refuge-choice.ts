@@ -4,6 +4,7 @@ import { refugeCapacity } from '../village/fortification/refuge';
 import type { Fortification } from '../village/fortification/types';
 import { fortOutlineOf } from '../village/fortification/convert';
 import { isUnshod } from '../village/livestock/horse-shoeing-term';
+import { cartsAway } from '../village/crafts/carts';
 import { isGrainHorse, villageHorses } from '../village/livestock/horses';
 import { isTrained, oxenHome } from '../village/livestock/oxen';
 import { ageYears, isAway, isInjured } from '../village/people/people';
@@ -116,17 +117,6 @@ export interface FlightLoad {
   /** Vozy se spřežením (jen „se vším“). */
   carts: number;
   pace: GroupPace;
-}
-
-/** Vozy na výpravě nebo s platbou za kování – doma nejsou (jako `oxenAway`). */
-function cartsAway(state: Pick<VillageState, 'trade' | 'dwellings'>): Set<number> {
-  const away = new Set<number>();
-  for (const e of state.trade?.expeditions ?? []) for (const id of e.carts ?? []) away.add(id);
-  for (const d of state.dwellings) {
-    const id = d.workshop?.ironTrip?.cartId;
-    if (id !== undefined) away.add(id);
-  }
-  return away;
 }
 
 /**
