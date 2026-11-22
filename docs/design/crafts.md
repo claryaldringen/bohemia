@@ -887,9 +887,10 @@ návrh Clauda; čísla v `rules/` (`CRAFT_BUYING`), rešerše
 - **Vozy (22. 11. 2026):** Martin (19. 10. 2026, [obchod](trade.md) – Ve scéně, karavana): „Až
   bude vůz, pojedou zásoby na voze a ušetří se člověkodny.“; CLAUDE.md: „Vesničané sami používají,
   co jim ulehčí práci (Martin) – hráč jim to nezadává.“ Na otázku „Má si ves bez tesaře umět koupit
-  vůz u souseda, který tesaře má, když se jí to vyplatí?“ Martin 22. 11. 2026: „ano“ – rozhoduje
-  se stejně jako u nástrojů nebo keramiky (koupí, jen když jí vůz ušetří víc práce, než stojí);
-  vůz potřebuje tažné zvíře (dvoukolák jeden vůl, čtyřkolák pár), ves bez volů by ho nekoupila.
+  vůz u souseda, který tesaře má, když se jí to vyplatí?“ Martin 22. 11. 2026: „ano“. Vysvětlení
+  Clauda k otázce: rozhoduje se stejně jako u nástrojů nebo keramiky (koupí, jen když jí vůz
+  ušetří víc práce, než stojí); vůz potřebuje tažné zvíře (dvoukolák jeden vůl, čtyřkolák pár),
+  ves bez volů by ho nekoupila.
   Podrobnosti návrh Clauda (čísla jen ta, která už jsou – `CARTS`, `CARPENTRY`, `CART_IRON`,
   `CRAFT_BUYING`):
   - **Nákup vozem:** má-li ves doma vůz a voly, kteří ten den neorají (ve dny orby a se spřežením
