@@ -575,7 +575,8 @@ plán ověřil: střed políčka, jeden čtverec bez mřížky.
   `THRESHING.emergencyWork` + polní práce osevu × `emergencyLoss`) za `paybackYears` (3) převýší
   jeho práci; další, když výmlat nestíhá (`floorShort`). Do 31. 7.
 - **Ohrady:** druh stáda s plným stádem (≥ 2 kusy a ≥ místa v ohradách a u domů) → ohrada druhu,
-  bez meze na člověka (Martin 22. 11. 2026: „Cílem vesnice je prostě produkovat maximum všeho“ –
+  bez meze na člověka (Martin 18. 11. 2026: „Cílem vesnice je prostě produkovat maximum všeho.“; Martin 22. 11. 2026
+  na otázku „Mají se i tato tři místa přepnout na maximum, které ves zvládne?“ odpověděl „ano“ –
   ohrada se staví, kdykoli stádo naplní místa; dřív jen pod `penPlacesPerPerson` × lidé, návrh
   Clauda – [steward-history.md](history/steward-history.md)); `penPlacesPerPerson` zůstává jen pro
   rezervu políček ohrad v plánu sídla (Přednost ohrad a sadu níž); spřežení, když ves má ohradu skotu, chovný pár krav a výrostky na

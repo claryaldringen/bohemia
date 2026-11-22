@@ -68,6 +68,6 @@ nepočítala, rodina pak pomáhala jen na polích, která ves už měla.
 
 Krok 7 správce stavěl ohradu druhu, jen když bylo stádo plné (≥ 2 kusy a ≥ místa v ohradách
 a u domů) **a** místa ohrad druhu byla pod `STEWARD.penPlacesPerPerson` × lidé (skot 0,25,
-prasata 0,25, ovce 0,5, kozy 0,25 míst na člověka). Zrušeno: Martin 22. 11. 2026 (na otázku, zda
-se ohrady mají stavět na maximum, které ves zvládne) odpověděl „ano“ – opora Martin 18. 11. 2026:
+prasata 0,25, ovce 0,5, kozy 0,25 míst na člověka). Zrušeno: Martin 22. 11. 2026 na otázku „Mají se i tato tři místa přepnout na maximum, které ves
+zvládne?“ (jedno z míst: ohrady jen do míst na člověka) odpověděl „ano“ – opora Martin 18. 11. 2026:
 „Cílem vesnice je prostě produkovat maximum všeho.“ Platí [steward.md – Ostatní stavby, Ohrady](../steward.md).
