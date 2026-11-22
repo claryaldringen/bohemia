@@ -995,48 +995,48 @@ Rozhodnutí kontroléru při implementaci (18. 10. 2026) – kde návrh necháva
 
 ## Rozhodnutí
 
-| Rozhodnutí                                                                                                      | Kdo                                          |
-| --------------------------------------------------------------------------------------------------------------- | -------------------------------------------- |
-| Uhlíř pálí uhlí pro kováře; kovář dělá nástroje → produktivita práce celé vsi                                   | Martin                                       |
-| Hrnčíř zvyšuje produktivitu výroby potravin                                                                     | Martin                                       |
-| Dílna je obydlí, řemeslo provozuje domácnost, která v ní bydlí; prázdná nic nevyrábí                            | Martin                                       |
-| Řemeslník nepracuje na poli – ves ho musí uživit z nadvýroby                                                    | Martin                                       |
-| Kovář si železo taví sám z bahenní rudy, žádný horník ani obchod                                                | Martin                                       |
-| Vzhled budov (hrnčíř, kovář, uhlíř s milířem)                                                                   | Martin                                       |
-| Řemeslník na plný úvazek; přebytek do zásoby, bez vstupu stojí (místo výroby na 2 roky)                         | Martin (17. 10. 2026)                        |
-| Účinky jako meze produktivity – bez řemesel nejhorší mez, s plným pokrytím nejlepší (místo +30 / −15 %)         | Martin (17. 10. 2026)                        |
-| 1 kg nástrojů = 10 čd a 50 kg uhlí; keramika 1 strom na 500 kg; strom = velký strom                             | Martin – oprava podle rešerše 17. 10. 2026   |
-| Hrnčíř: ztráty zásob 10 → 5 %, denní minimum 0,5 → 0,45                                                         | Martin – oprava podle rešerše 17. 10. 2026   |
-| Cena dílny +30 %                                                                                                | návrh Clauda                                 |
-| Výkony 10 kg uhlí/čd, 120 kg uhlí ze stromu, 1 čd na 1 kg keramiky                                              | návrh Clauda                                 |
-| Potřeby: 3 kg nástrojů na pracujícího (−30 %/rok), 5 kg nádob na člověka (−40 %/rok)                            | návrh Clauda                                 |
-| Doba (keramika v ruce do 10. st.) se neřeší – letopočet začátku se může posunout                                | Martin (17. 10. 2026)                        |
-| Implementační rozhodnutí (milíř, celá domácnost v dílně, opotřebení, jablka poměrně…) – viz Implementace        | kontrolér (18. 10. 2026)                     |
-| Uhlíř pálí jen buky, staví milíř, sází mladé buky; mýtina roste a chodí dál                                     | Martin (18. 10. 2026)                        |
-| Milíř = 15 buků; práce: kácení 2, příprava 6, stavba 2, pálení 8 dní, vytahání 2 čd/buk                         | návrh Clauda podle rešerše 18. 10. 2026      |
-| ~~Milíř u dílny do 150 m, dál v lese u dávky s přirážkou za chůzi~~ – nahrazeno: milíř u skácených buků         | návrh Clauda podle rešerše 18. 10. 2026      |
-| Sazenice buku 0,1 čd v oknech výsadby, dospělá za 60 let                                                        | návrh Clauda podle rešerše 18. 10. 2026      |
-| ~~Uhlíř pálí jen do zásoby na rok spotřeby kovářů~~ – nahrazeno: milíř stojí vždy                               | návrh Clauda (18. 10. 2026)                  |
-| Řemeslník s volným časem pracuje na poli jako zbytek vsi; vyrábí podle potřeby (místo výroby bez konce)         | Martin (18. 10. 2026)                        |
-| Kovář a hrnčíř vyrábějí do zásoby = potřeba + opotřebení za rok (× 1,3 nástroje, × 1,4 keramika)                | návrh Clauda (18. 10. 2026)                  |
-| Bez vstupu (uhlí, dřevo) má řemeslník volný čas a pracuje se vsí                                                | návrh Clauda – výklad Martina (18. 10. 2026) |
-| Do budoucna: řemeslník vyrábí i pro ostatní vsi hráče, s financemi prodává přebytky                             | Martin (18. 10. 2026)                        |
-| Tesař – vozy, dřevěné nářadí, pomoc stavbám (wagons.md)                                                         | Martin (19. 10. 2026)                        |
-| Výrobky řemeslníků vesničané kupují u sousedů sami, když se jim to vyplatí; vlastní řemeslník přednost          | Martin (19. 10. 2026)                        |
-| Řemeslník vychovává nástupce – syna; nový se řemeslo učí (výkon 50 → 100 % za 5 let praxe)                      | Martin (20. 10. 2026)                        |
-| Nákup 15. 11., u nejbližšího souseda, platba obilím z přebytku, skupina s předností, doba služby                | návrh Clauda (19. 10. 2026)                  |
-| Pořadí nákupu podle poměru ušetřené práce k ceně (z jednoho přebytku)                                           | rozhodnutí Clauda (19. 10. 2026)             |
-| Milíř stojí vždy, kouří při pálení, vypálený se rozebírá podle toho, jak kovář uhlí odebírá                     | Martin (19. 10. 2026)                        |
-| ~~Jeden milíř na uhlíře, nový až po rozebrání; uhlí na 30 dní kování~~ – nahrazeno: rovnováha                   | návrh Clauda (19. 10. 2026)                  |
-| ~~Zbytek milíře před novým uhlíř vytahá celý~~ – nahrazeno: další milíř začne včas, smí stát dva                | návrh Clauda (19. 10. 2026)                  |
-| Bez kováře vypálený milíř čeká, další se nestaví; uhlí z milíře jde prodat sousedovi                            | rozhodnutí Clauda (19. 10. 2026)             |
-| ~~Uhlí z milíře ke kováři vozem – odnos (pětina vytahání) nahradí jízdy, posádka z domácnosti uhlíře~~          | návrh Clauda (19. 10. 2026)                  |
-| Uhlí a ruda kováře – synové, rudiště, vůz se sedlákem (podrobně v části Uhlí a ruda kováře)                     | Martin (20. 10. 2026)                        |
-| Milíř u skácených buků a rovnováha uhlíř – kovář (podrobně v částech Milíř u skácených buků, Rovnováha)         | Martin (20. 10. 2026)                        |
-| Kovář taví houbu, překove na hřivny, kove nástroje do vybavení; v liště hřivny                                  | Martin (20. 10. 2026)                        |
-| Rozdělení ceny kování na tavbu, překování a kování, výtěžky 25 % a 60 %, 1,2 kg hřiven na kg nástrojů           | návrh Clauda (20. 10. 2026)                  |
-| Měchař – dospělý z domácnosti nebo syn 10–13 (nepase), sám kovář polovičním tempem                              | návrh Clauda (20. 10. 2026)                  |
-| Vybavení do potřeby, hřivny na rok obnovy, kovárna jde do dílny až s prací na celý den                          | návrh Clauda (20. 10. 2026)                  |
-| Starší vsi: zásoba nástrojů do vybavení do potřeby, přebytek na hřivny (÷ 1,2)                                  | návrh Clauda (20. 10. 2026)                  |
-| Ves bez tesaře si koupí vůz u souseda s tesařem, když se vyplatí a má vola                                      | Martin („ano“, 22. 11. 2026)                 |
-| Nákup vozem jako výprava, jen po sjízdné stezce a jen když je levnější; cena vozu z práce tesaře, klád a kování | návrh Clauda (22. 11. 2026)                  |
+| Rozhodnutí                                                                                               | Kdo                                          |
+| -------------------------------------------------------------------------------------------------------- | -------------------------------------------- |
+| Uhlíř pálí uhlí pro kováře; kovář dělá nástroje → produktivita práce celé vsi                            | Martin                                       |
+| Hrnčíř zvyšuje produktivitu výroby potravin                                                              | Martin                                       |
+| Dílna je obydlí, řemeslo provozuje domácnost, která v ní bydlí; prázdná nic nevyrábí                     | Martin                                       |
+| Řemeslník nepracuje na poli – ves ho musí uživit z nadvýroby                                             | Martin                                       |
+| Kovář si železo taví sám z bahenní rudy, žádný horník ani obchod                                         | Martin                                       |
+| Vzhled budov (hrnčíř, kovář, uhlíř s milířem)                                                            | Martin                                       |
+| Řemeslník na plný úvazek; přebytek do zásoby, bez vstupu stojí (místo výroby na 2 roky)                  | Martin (17. 10. 2026)                        |
+| Účinky jako meze produktivity – bez řemesel nejhorší mez, s plným pokrytím nejlepší (místo +30 / −15 %)  | Martin (17. 10. 2026)                        |
+| 1 kg nástrojů = 10 čd a 50 kg uhlí; keramika 1 strom na 500 kg; strom = velký strom                      | Martin – oprava podle rešerše 17. 10. 2026   |
+| Hrnčíř: ztráty zásob 10 → 5 %, denní minimum 0,5 → 0,45                                                  | Martin – oprava podle rešerše 17. 10. 2026   |
+| Cena dílny +30 %                                                                                         | návrh Clauda                                 |
+| Výkony 10 kg uhlí/čd, 120 kg uhlí ze stromu, 1 čd na 1 kg keramiky                                       | návrh Clauda                                 |
+| Potřeby: 3 kg nástrojů na pracujícího (−30 %/rok), 5 kg nádob na člověka (−40 %/rok)                     | návrh Clauda                                 |
+| Doba (keramika v ruce do 10. st.) se neřeší – letopočet začátku se může posunout                         | Martin (17. 10. 2026)                        |
+| Implementační rozhodnutí (milíř, celá domácnost v dílně, opotřebení, jablka poměrně…) – viz Implementace | kontrolér (18. 10. 2026)                     |
+| Uhlíř pálí jen buky, staví milíř, sází mladé buky; mýtina roste a chodí dál                              | Martin (18. 10. 2026)                        |
+| Milíř = 15 buků; práce: kácení 2, příprava 6, stavba 2, pálení 8 dní, vytahání 2 čd/buk                  | návrh Clauda podle rešerše 18. 10. 2026      |
+| ~~Milíř u dílny do 150 m, dál v lese u dávky s přirážkou za chůzi~~ – nahrazeno: milíř u skácených buků  | návrh Clauda podle rešerše 18. 10. 2026      |
+| Sazenice buku 0,1 čd v oknech výsadby, dospělá za 60 let                                                 | návrh Clauda podle rešerše 18. 10. 2026      |
+| ~~Uhlíř pálí jen do zásoby na rok spotřeby kovářů~~ – nahrazeno: milíř stojí vždy                        | návrh Clauda (18. 10. 2026)                  |
+| Řemeslník s volným časem pracuje na poli jako zbytek vsi; vyrábí podle potřeby (místo výroby bez konce)  | Martin (18. 10. 2026)                        |
+| Kovář a hrnčíř vyrábějí do zásoby = potřeba + opotřebení za rok (× 1,3 nástroje, × 1,4 keramika)         | návrh Clauda (18. 10. 2026)                  |
+| Bez vstupu (uhlí, dřevo) má řemeslník volný čas a pracuje se vsí                                         | návrh Clauda – výklad Martina (18. 10. 2026) |
+| Do budoucna: řemeslník vyrábí i pro ostatní vsi hráče, s financemi prodává přebytky                      | Martin (18. 10. 2026)                        |
+| Tesař – vozy, dřevěné nářadí, pomoc stavbám (wagons.md)                                                  | Martin (19. 10. 2026)                        |
+| Výrobky řemeslníků vesničané kupují u sousedů sami, když se jim to vyplatí; vlastní řemeslník přednost   | Martin (19. 10. 2026)                        |
+| Řemeslník vychovává nástupce – syna; nový se řemeslo učí (výkon 50 → 100 % za 5 let praxe)               | Martin (20. 10. 2026)                        |
+| Nákup 15. 11., u nejbližšího souseda, platba obilím z přebytku, skupina s předností, doba služby         | návrh Clauda (19. 10. 2026)                  |
+| Pořadí nákupu podle poměru ušetřené práce k ceně (z jednoho přebytku)                                    | rozhodnutí Clauda (19. 10. 2026)             |
+| Milíř stojí vždy, kouří při pálení, vypálený se rozebírá podle toho, jak kovář uhlí odebírá              | Martin (19. 10. 2026)                        |
+| ~~Jeden milíř na uhlíře, nový až po rozebrání; uhlí na 30 dní kování~~ – nahrazeno: rovnováha            | návrh Clauda (19. 10. 2026)                  |
+| ~~Zbytek milíře před novým uhlíř vytahá celý~~ – nahrazeno: další milíř začne včas, smí stát dva         | návrh Clauda (19. 10. 2026)                  |
+| Bez kováře vypálený milíř čeká, další se nestaví; uhlí z milíře jde prodat sousedovi                     | rozhodnutí Clauda (19. 10. 2026)             |
+| ~~Uhlí z milíře ke kováři vozem – odnos (pětina vytahání) nahradí jízdy, posádka z domácnosti uhlíře~~   | návrh Clauda (19. 10. 2026)                  |
+| Uhlí a ruda kováře – synové, rudiště, vůz se sedlákem (podrobně v části Uhlí a ruda kováře)              | Martin (20. 10. 2026)                        |
+| Milíř u skácených buků a rovnováha uhlíř – kovář (podrobně v částech Milíř u skácených buků, Rovnováha)  | Martin (20. 10. 2026)                        |
+| Kovář taví houbu, překove na hřivny, kove nástroje do vybavení; v liště hřivny                           | Martin (20. 10. 2026)                        |
+| Rozdělení ceny kování na tavbu, překování a kování, výtěžky 25 % a 60 %, 1,2 kg hřiven na kg nástrojů    | návrh Clauda (20. 10. 2026)                  |
+| Měchař – dospělý z domácnosti nebo syn 10–13 (nepase), sám kovář polovičním tempem                       | návrh Clauda (20. 10. 2026)                  |
+| Vybavení do potřeby, hřivny na rok obnovy, kovárna jde do dílny až s prací na celý den                   | návrh Clauda (20. 10. 2026)                  |
+| Starší vsi: zásoba nástrojů do vybavení do potřeby, přebytek na hřivny (÷ 1,2)                           | návrh Clauda (20. 10. 2026)                  |
+| Ves bez tesaře si koupí vůz u souseda s tesařem, když se vyplatí a má vola                               | Martin („ano“, 22. 11. 2026)                 |
+| Nákup vozem jen po sjízdné stezce a když je levnější; cena vozu z práce tesaře, klád a kování            | návrh Clauda (22. 11. 2026)                  |
