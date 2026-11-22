@@ -590,7 +590,7 @@ describe('orba rádlem', () => {
 
   it('páry k rádlům podle lidí – kolik párů ves obslouží, díly na řadě nerozhodují', () => {
     // oxen.md – Kolik volů ves chce (Martin 22. 11. 2026 „ano“): oráč + setí na pár
-    // (OXEN.crewPerPair), nejméně 1, nejvýš OXEN.maxPairs
+    // (OXEN.crewPerPair), nejméně 1, bez stropu
     const day = at(600, 9, 1);
     const s = withOxen(withTeam(day));
     const adults = (n: number): VillageState['people'] =>
@@ -604,7 +604,7 @@ describe('orba rádlem', () => {
     expect(pairs(adults(OXEN.crewPerPair - 1))).toBe(1);
     expect(pairs(adults(3 * OXEN.crewPerPair - 1))).toBe(2);
     expect(pairs(adults(3 * OXEN.crewPerPair))).toBe(3);
-    expect(pairs(adults(100))).toBe(OXEN.maxPairs);
+    expect(pairs(adults(9 * OXEN.crewPerPair))).toBe(9);
     // pole nerozhoduje – bez dílů i s 5000 díly na řadě stejně
     const big = Array.from({ length: 5000 }, (_, i) =>
       part(i + 1, { distanceM: 100 + (i % 7), state: 'ready', sownYears: 0 }),

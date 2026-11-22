@@ -47,14 +47,15 @@ export function wantedPloughPairs(state: Pick<VillageState, 'pens' | 'draft'>): 
  * Páry k rádlům podle lidí (oxen.md – Kolik volů ves chce; Martin 22. 11. 2026 „ano“ na otázku „Má
  * ves chtít tolik párů volů, kolik zvládne obsloužit lidmi?“): tolik párů, kolik ves s lidmi, co
  * má v den `day` v práci (`laborPerDay` – dospělí, ne zranění ani pryč), obslouží – oráč na pár
- * a setí za zoranou částí (`OXEN.crewPerPair`); nejméně 1, nejvýš `OXEN.maxPairs`. Díly na řadě
- * nerozhodují (dřív nejméně párů, které je zorají – návrh Clauda 25. 10. 2026): s víc páry orba
- * spřežení stačí na víc polí a správce podle ní pole založí (steward.md – Model kapacity vsi).
+ * a setí za zoranou částí (`OXEN.crewPerPair`); nejméně 1, bez stropu. Pro ves se správcem –
+ * díly na řadě nerozhodují: s víc páry orba spřežení stačí na víc polí a správce podle ní pole
+ * založí (steward.md – Model kapacity vsi). Ves bez správce pole nezakládá, chce páry podle dílů na
+ * řadě (`ploughPairsForRotation`), nejvýš tolik, kolik obslouží lidmi (návrh Clauda).
  */
 export function staffedPloughPairs(state: Pick<VillageState, 'people'>, day: number): number {
   const crew = state.people.reduce((sum, p) => sum + laborPerDay(p, day), 0);
   const staffed = Math.max(1, Math.floor(crew / OXEN.crewPerPair + EPSILON));
-  return Math.min(OXEN.maxPairs, staffed);
+  return staffed;
 }
 
 /**

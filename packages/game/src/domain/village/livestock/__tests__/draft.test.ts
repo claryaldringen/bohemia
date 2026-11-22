@@ -198,7 +198,14 @@ describe('krávy na obměnu volů (diet.md)', () => {
 
 describe('páry k rádlům podle lidí (1. 9.)', () => {
   // oxen.md – Kolik volů ves chce (Martin 22. 11. 2026 „ano“ na otázku „Má ves chtít tolik párů
-  // volů, kolik zvládne obsloužit lidmi?“): pár obslouží OXEN.crewPerPair dospělých
+  // volů, kolik zvládne obsloužit lidmi?“): ves se správcem chce tolik párů, kolik obslouží lidmi
+  // (pár = OXEN.crewPerPair dospělých); ves bez správce podle dílů na řadě, nejvýš podle lidí
+
+  /** Ves, kterou řídí správce (pole zakládá podle párů). */
+  const stewarded = (s: VillageState): VillageState => {
+    s.steward = { on: true, sinceDay: DAY, built: [] };
+    return s;
+  };
 
   /** Malé pole – čtyři díly, které zorá jeden pár. */
   const smallParts = (): FieldPart[] =>
@@ -215,9 +222,9 @@ describe('páry k rádlům podle lidí (1. 9.)', () => {
       }),
     );
 
-  it('ves s lidmi na víc párů, než potřebují díly na řadě, chce páry podle lidí', () => {
+  it('ves se správcem s lidmi na víc párů, než potřebují díly na řadě, chce páry podle lidí', () => {
     // 13 dospělých a dítě – 3 páry, i když čtyři malé díly zorá jeden pár
-    const s = withOxPen(village());
+    const s = stewarded(withOxPen(village()));
     s.people = [
       ...Array.from({ length: 13 }, (_, i) => person(10 + i, 20 + i, 1, DAY)),
       person(30, 5, 1, DAY),
@@ -230,16 +237,32 @@ describe('páry k rádlům podle lidí (1. 9.)', () => {
     // na páry ves chce voly (a krávy na jejich obměnu)
     expect(wantedOxen(planned)).toBe(3 * DRAFT_OXEN.ard);
 
-    // velká ves (80 dospělých) chce nejvíc párů (OXEN.maxPairs) i s malým polem
-    const big = withOxPen(village());
-    big.people = Array.from({ length: 80 }, (_, i) => person(10 + i, 20 + (i % 20), 1, DAY));
+    // 36 dospělých – 9 párů, bez stropu 8 (Martin 22. 11. 2026 „ano“ na páry podle lidí)
+    const big = stewarded(withOxPen(village()));
+    big.people = Array.from({ length: 36 }, (_, i) => person(10 + i, 20 + (i % 20), 1, DAY));
     big.fields = [{ id: 1 }];
     big.parts = smallParts();
     const plannedBig = advanceVillage(big, at(600, 9, 2), null);
-    expect(plannedBig.draft).toMatchObject({
-      ploughPairs: OXEN.maxPairs,
-      ploughNeed: OXEN.maxPairs,
-    });
+    expect(plannedBig.draft).toMatchObject({ ploughPairs: 9, ploughNeed: 9 });
+  });
+
+  it('ves bez správce chce páry podle dílů na řadě, nejvýš podle lidí', () => {
+    // pole bez správce nikdo nezakládá – páry navíc by nemělo co orat (steward.md – Spřežení
+    // podle lidí; Martin 22. 11. 2026 „co nejvíce za co nejmenší množství práce“)
+    const few = withOxPen(village());
+    few.people = Array.from({ length: 36 }, (_, i) => person(10 + i, 20 + (i % 20), 1, DAY));
+    few.fields = [{ id: 1 }];
+    few.parts = smallParts();
+    // čtyři malé díly zorá jeden pár, i když lidí je na 9
+    expect(advanceVillage(few, at(600, 9, 2), null).draft).toMatchObject({ ploughPairs: 1 });
+    // velké pole – víc párů, než zorá lidé (13 dospělých = 3 páry) → nejvýš podle lidí
+    const many = withOxPen(village());
+    many.people = Array.from({ length: 13 }, (_, i) => person(10 + i, 20 + i, 1, DAY));
+    many.fields = [{ id: 1 }];
+    many.parts = bigParts();
+    const planned = advanceVillage(many, at(600, 9, 2), null).draft!;
+    expect(planned.ploughPairs).toBeGreaterThan(1);
+    expect(planned.ploughPairs).toBeLessThanOrEqual(3);
   });
 
   it('ves s málo lidmi chce jako dřív – tolik párů, kolik obslouží, aspoň jeden', () => {
