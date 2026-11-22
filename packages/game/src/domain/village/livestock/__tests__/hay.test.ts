@@ -13,17 +13,21 @@ import {
   isMowingSeason,
   mow,
   mownPartIds,
+  mowingSpans,
+  mowingYieldPerHa,
   oxenHayCoverage,
   planAftermath,
   planMowing,
+  recordMowingLabor,
   rotHay,
   spoilOldHay,
+  startMowingSeason,
   winterHayKg,
 } from '../hay';
 import { mowingNeed, winterHayNeedKg } from '../husbandry';
 import { HAY_CUTS, HAY_WORK_PER_HA } from '../../rules';
 import { advanceVillage } from '../../core/simulate';
-import type { FieldPart, HerdSpecies, VillageState } from '../../types';
+import type { FieldPart, HayMowing, HerdSpecies, VillageState } from '../../types';
 import { makeLandscape } from '../../__tests__/placement-fixtures';
 import { withBuiltFirstDwelling } from '../../__tests__/village-fixtures';
 
@@ -192,6 +196,115 @@ describe('plán seče', () => {
     expect(s.hay.kg).toBeCloseTo(750, 9);
     mow(s, 10);
     expect(s.hay.kg).toBeCloseTo(1500, 9);
+  });
+
+  it('méně práce než plán = seno nejbližších luk, ne průměr plánu (oxen.md – Seno)', () => {
+    const day = at(600, 5, 25);
+    const s = village(day);
+    s.parts = [meadow(1, 600), meadow(2, 100), meadow(3, 300)];
+    const mowing = planMowing(s, day, need(3000, 9000))!;
+    expect(mowing.partIds).toEqual([2, 3, 1]);
+    s.hay = { kg: 0, mowing };
+    const spans = mowingSpans(mowing, new Map(s.parts.map((p) => [p.id, p])));
+    const perMeadow = HAY.yieldKgPerHa;
+    // práce na nejbližší louku = její úsek plánu; dražší vzdálené louky tím seno neředí
+    mow(s, mowing.required * spans[0]!.end);
+    expect(s.hay.kg).toBeCloseTo(perMeadow, 6);
+    mow(s, (mowing.required * (spans[1]!.end - spans[0]!.end)) / 2);
+    expect(s.hay.kg).toBeCloseTo(perMeadow * 1.5, 6);
+    mow(s, mowing.required);
+    expect(s.hay.kg).toBeCloseTo(mowing.yieldKg, 6);
+  });
+
+  describe('hraniční případy seče po loukách', () => {
+    /** Tři louky po 1 ha (nejbližší napřed: 2, 3, 1) a plán seče nad stropem 9 t. */
+    function planned(cut?: 2): { s: VillageState; mowing: HayMowing; first: number } {
+      const day = at(600, 5, 25);
+      const s = village(day);
+      s.parts = [meadow(1, 600), meadow(2, 100), meadow(3, 300)];
+      const base = planMowing(s, day, need(3000, 9000))!;
+      const mowing: HayMowing =
+        cut === 2
+          ? { ...base, cut: 2, yieldKg: base.yieldKg * HAY_CUTS.aftermathYieldShare }
+          : base;
+      s.hay = { kg: 0, mowing };
+      const spans = mowingSpans(mowing, new Map(s.parts.map((p) => [p.id, p])));
+      return { s, mowing, first: mowing.required * spans[0]!.end };
+    }
+    const perHa = (mowing: HayMowing): number => mowingYieldPerHa(mowing);
+
+    it.each([[undefined], [2 as const]])('práce přesně na hranici první louky (cut %s)', (cut) => {
+      const { s, mowing, first } = planned(cut);
+      mow(s, first);
+      expect(s.hay!.kg).toBeCloseTo(perHa(mowing), 6);
+    });
+
+    it('nulová práce = 0 kg, seč i zápis volné práce', () => {
+      const { s, mowing } = planned();
+      mow(s, 0);
+      expect(s.hay!.kg).toBe(0);
+      expect(mowing.done).toBe(0);
+      startMowingSeason(s);
+      recordMowingLabor(s, at(600, 6, 1), 0, 0);
+      expect(s.hay!.mowFree!.first).toBe(0);
+    });
+
+    it.each([[undefined], [2 as const]])(
+      'práce nad plán = nejvýš celé seno plánu (cut %s)',
+      (cut) => {
+        const { s, mowing } = planned(cut);
+        mow(s, mowing.required * 5);
+        expect(s.hay!.kg).toBeCloseTo(mowing.yieldKg, 6);
+        expect(mowing.done).toBe(mowing.required);
+      },
+    );
+
+    it.each([
+      ['uprostřed první louky', 0.5],
+      ['na hranici první louky', 1],
+      ['uprostřed druhé louky', 1.5],
+      ['na hranici druhé louky', 2],
+      ['celý plán', 3],
+    ])('round-trip seno → práce → seno (%s)', (_name, meadows) => {
+      for (const cut of [undefined, 2 as const]) {
+        const { s, mowing } = planned(cut);
+        startMowingSeason(s);
+        const day = cut === 2 ? at(600, 8, 10) : at(600, 6, 1);
+        const key = cut === 2 ? 'second' : 'first';
+        const kg = meadows * perHa(mowing);
+        s.hay!.mowFree![key] = kg;
+        // nulová práce navíc seno nezmění a nic nezkreslí převod tam a zpět
+        recordMowingLabor(s, day, 0, 0);
+        expect(s.hay!.mowFree![key]).toBeCloseTo(kg, 6);
+        // dvě půlky téže práce dají totéž co jedna dávka
+        recordMowingLabor(s, day, 0.25, 0);
+        recordMowingLabor(s, day, 0.25, 0);
+        const both = s.hay!.mowFree![key];
+        s.hay!.mowFree![key] = kg;
+        recordMowingLabor(s, day, 0.5, 0);
+        expect(both).toBeCloseTo(s.hay!.mowFree![key], 6);
+        expect(both).toBeGreaterThan(kg);
+      }
+    });
+  });
+
+  it('volná práce sezóny se převede na seno týmž pořadím luk (strop stád)', () => {
+    const day = at(600, 5, 25);
+    const s = village(day);
+    s.parts = [meadow(1, 600), meadow(2, 100), meadow(3, 300)];
+    const mowing = planMowing(s, day, need(3000, 9000))!;
+    s.hay = { kg: 0, mowing };
+    startMowingSeason(s);
+    const spans = mowingSpans(mowing, new Map(s.parts.map((p) => [p.id, p])));
+    const first = mowing.required * spans[0]!.end;
+    // dva dny práce po částech dají totéž co jedna dávka
+    recordMowingLabor(s, day, first / 2, 0);
+    recordMowingLabor(s, day + 1, first / 2, 0);
+    expect(s.hay.mowFree!.first).toBeCloseTo(HAY.yieldKgPerHa, 6);
+    // práce nad plán (všechny louky už jsou posečené) dává seno průměrem plánu
+    recordMowingLabor(s, day + 2, mowing.required, 0);
+    const average = mowing.yieldKg / mowing.required;
+    expect(s.hay.mowFree!.first).toBeCloseTo(mowing.yieldKg + first * average, 6);
   });
 });
 

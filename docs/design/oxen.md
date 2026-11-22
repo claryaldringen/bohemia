@@ -340,13 +340,13 @@ práce seče počítá sušení a svoz a stoh se kazí (návrh Clauda podle
   a kozy jen ve dnech se sněhem (≈ 93 dní – kráva ≈ 0,47 t, ovce ≈ 0,09 t), napřed sláma; vůl
   celou zimu ≈ 0,9 t (Zima bez sena níž). Dřív 10 kg denně (1,5 t za zimu) na krávu i vola a ovce
   a kozy nic.
-- **Kolik se seče:** 1. 6. ves naplánuje seno na zimní stádo, které si chce nechat (nosnost pastvy,
+- **Kolik se seče:** 25. 5. ves naplánuje seno na zimní stádo, které si chce nechat (nosnost pastvy,
   lesa a pasáků zmenšená podle potřeby – diet.md), a na voly ohrad (ohrada bez spřežení počítá se
   dvěma), se ztrátou ve stohu do zkrmení (≈ 6 %).
 - **Práce seče:** ~~seč kosou (≈ akr – 0,4 ha – za den na sekáče), obracení a sušení, hrabání do
   kup, svoz a stohování – meze 15 → 10 člověkodní na hektar (bez kos od kováře → s nimi)~~ – od 10. 11. 2026 seč srpem **46 → 40 čd/ha** (Zima bez sena níž). Dřív 6 čd/ha jen za seč.
 - **Stoh** ztrácí **10 % ročně** (počasí, plíseň ve vnější vrstvě) a **zbytek loňského sena se
-  k nové seči (1. 6.) zkazí**.
+  k nové seči (25. 5.) zkazí**.
 - **Přes zimu** dostanou seno první voli, ~~krávy, ovce a kozy se podělí o zbytek poměrně k dávce~~
   (od 10. 11. 2026 koně, a krávy, ovce a kozy jen ve sněhu, napřed sláma – Zima bez sena níž).
   **Nosnost** k porážce (1. 11.) bere seno pro všechny, kdo ho jedí – voli, krávy na mléko a voly,

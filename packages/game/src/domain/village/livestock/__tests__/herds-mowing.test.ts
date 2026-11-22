@@ -1,3 +1,4 @@
+import { partsByIdOf } from '../../core/parts-by-id';
 import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../../calendar';
 import { foundVillage } from '../../core/actions';
@@ -9,6 +10,7 @@ import {
   PLAN_HAY_KEEP,
   mowingCapacityKg,
   mowingRemaining,
+  mowingSpans,
   recordMowingLabor,
   winterHayAvailable,
 } from '../hay';
@@ -132,10 +134,13 @@ describe('práce na seč – kolik sena ves stihne posekat', () => {
       mowing: { partIds: [1, 2, 3], required: 300, done: 0, yieldKg: 4500 },
       mowFree: { first: 0, second: 0 },
     };
+    // práce jde na nejbližší louku (její úsek plánu), ne průměrem plánu
+    const nearest = mowingSpans(s.hay.mowing!, partsByIdOf(s.parts))[0]!;
+    const kg = (1500 * 10) / (300 * nearest.end);
     recordMowingLabor(s, at(600, 6, 10), 10, 0);
-    expect(s.hay.mowFree!.first).toBeCloseTo(150, 9);
+    expect(s.hay.mowFree!.first).toBeCloseTo(kg, 9);
     recordMowingLabor(s, at(600, 7, 10), 10, 0);
-    expect(s.hay.mowFree!.first).toBeCloseTo(150, 9);
+    expect(s.hay.mowFree!.first).toBeCloseTo(kg, 9);
     // seč rozjetá před zápisem (převod) – letos bez stropu
     delete s.hay.mowFree;
     recordMowingLabor(s, at(600, 6, 11), 10, 0);

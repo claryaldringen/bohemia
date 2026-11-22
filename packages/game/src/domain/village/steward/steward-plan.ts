@@ -552,9 +552,9 @@ interface ExtraReserve {
  * nesmí vzít místo u stojících domů, kde ves bude chtít ohrady a sad – jinak ho pole zaberou
  * a přepočtený plán (nové domy u stojících) už slot ohrady ani sadu nenajde. Vyhradí se
  * `planReserve.orchardSquares` políček sadu do `ORCHARD_HOUSE_TILES` od stojícího domu a políčka
- * ohrad do `PEN_HOUSE_TILES` (stáda, která ves má, podle `penPlacesPerPerson` × lidé plánu,
- * spřežení a koně) – volná louka území mimo dvůr domu, nejlepší podle stejného skóre jako sloty
- * (`rankSlots`). Vyhrazená políčka nedostane blok polí ani nový dům a ostatní sloty (`rankSlots`).
+ * ohrad do `PEN_HOUSE_TILES` (stáda, která ves má, podle `penPlacesPerPerson` × lidé plánu –
+ * rezerva, ne strop ohrad, spřežení a koně) – volná louka území mimo dvůr domu, nejlepší podle
+ * stejného skóre jako sloty (`rankSlots`). Vyhrazená políčka nedostane blok polí ani nový dům a ostatní sloty (`rankSlots`).
  */
 function reservedExtras(
   state: VillageState,
