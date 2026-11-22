@@ -610,12 +610,66 @@ export function recordMowingLabor(
   if (cut === null) return;
   const kind = cut === 2 ? { cut: 2 as const } : {};
   const mowing = state.hay?.mowing;
-  const kgPerManDay =
-    mowing && mowingCut(mowing) === cut && mowing.required > EPSILON
-      ? mowing.yieldKg / mowing.required
-      : mowingYieldPerHa(kind) / (hayWorkPerHa(toolCoverage) * mowingWorkShare(kind));
-  if (cut === 1) free.first += labor * kgPerManDay;
-  else free.second += labor * kgPerManDay;
+  const key = cut === 1 ? 'first' : 'second';
+  if (mowing && mowingCut(mowing) === cut && mowing.required > EPSILON) {
+    // práce jde na louky v pořadí seče od nejbližší – k už zapsanému senu se přidá další úsek
+    const partsById = partsByIdOf(state.parts);
+    const done = mowingWorkAtKg(mowing, partsById, free[key]);
+    free[key] = mowingKgAtWork(mowing, partsById, done + labor);
+    return;
+  }
+  free[key] +=
+    labor * (mowingYieldPerHa(kind) / (hayWorkPerHa(toolCoverage) * mowingWorkShare(kind)));
+}
+
+/**
+ * Seno (kg při plném výnosu) z prvních `work` člověkodní seče – louky v pořadí seče od nejbližší
+ * (`squareSpans`), ne průměrem plánu; práce nad plán dává seno průměrem plánu. Seč bez luk
+ * (uložená bez dílů) počítá průměrem plánu.
+ */
+function mowingKgAtWork(
+  mowing: HayMowing,
+  partsById: ReadonlyMap<number, FieldPart>,
+  work: number,
+): number {
+  const average = mowing.yieldKg / mowing.required;
+  const over = Math.max(0, work - mowing.required) * average;
+  const position = Math.min(1, Math.max(0, work) / mowing.required);
+  const spans = squareSpans(mowing, partsById);
+  if (spans.length === 0) return mowing.yieldKg * position + over;
+  const perHa = mowingYieldPerHa(mowing);
+  let kg = 0;
+  for (const { square, start, end } of spans) {
+    if (start >= position) break;
+    const share = end > start ? (Math.min(position, end) - start) / (end - start) : 1;
+    kg += share * (square.areaM2 / M2_PER_HA) * perHa;
+  }
+  return kg + over;
+}
+
+/** Opak `mowingKgAtWork`: kolik práce seče od začátku dalo `kg` sena. */
+function mowingWorkAtKg(
+  mowing: HayMowing,
+  partsById: ReadonlyMap<number, FieldPart>,
+  kg: number,
+): number {
+  if (kg <= EPSILON) return 0;
+  const average = mowing.yieldKg / mowing.required;
+  const spans = squareSpans(mowing, partsById);
+  const perHa = mowingYieldPerHa(mowing);
+  const whole =
+    spans.length === 0 ? mowing.yieldKg : mowingKgAtWork(mowing, partsById, mowing.required);
+  if (kg >= whole) return mowing.required + (average > EPSILON ? (kg - whole) / average : 0);
+  if (spans.length === 0) return (mowing.required * kg) / whole;
+  let rest = kg;
+  for (const { square, start, end } of spans) {
+    const spanKg = (square.areaM2 / M2_PER_HA) * perHa;
+    if (rest <= spanKg) {
+      return mowing.required * (start + (spanKg > 0 ? (rest / spanKg) * (end - start) : 0));
+    }
+    rest -= spanKg;
+  }
+  return mowing.required;
 }
 
 /** Začátek sezóny seče (25. 5.) – zápis volné práce od nuly (mutuje stav; bez sena nic). */
@@ -715,7 +769,11 @@ export function mow(state: VillageState, amount: number, day: number | null = nu
   // kroupy potloukly zbylé louky (disasters.md – Kroupy)
   const weather =
     (mowing.hailFactor ?? 1) * (day === null ? 1 : mowingWeatherFactor(state, day, mowing));
-  hay.kg += (mowing.yieldKg * weather * (mowing.done - before)) / mowing.required;
+  // seno po loukách od nejbližší (úseky práce), ne průměrem celého plánu
+  const partsById = partsByIdOf(state.parts);
+  hay.kg +=
+    weather *
+    (mowingKgAtWork(mowing, partsById, mowing.done) - mowingKgAtWork(mowing, partsById, before));
 }
 
 /** Kolik práce seče je hotové 0–1 (bez práce 1). */

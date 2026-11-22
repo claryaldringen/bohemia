@@ -13,11 +13,14 @@ import {
   isMowingSeason,
   mow,
   mownPartIds,
+  mowingSpans,
   oxenHayCoverage,
   planAftermath,
   planMowing,
+  recordMowingLabor,
   rotHay,
   spoilOldHay,
+  startMowingSeason,
   winterHayKg,
 } from '../hay';
 import { mowingNeed, winterHayNeedKg } from '../husbandry';
@@ -192,6 +195,43 @@ describe('plán seče', () => {
     expect(s.hay.kg).toBeCloseTo(750, 9);
     mow(s, 10);
     expect(s.hay.kg).toBeCloseTo(1500, 9);
+  });
+
+  it('méně práce než plán = seno nejbližších luk, ne průměr plánu (oxen.md – Seno)', () => {
+    const day = at(600, 5, 25);
+    const s = village(day);
+    s.parts = [meadow(1, 600), meadow(2, 100), meadow(3, 300)];
+    const mowing = planMowing(s, day, need(3000, 9000))!;
+    expect(mowing.partIds).toEqual([2, 3, 1]);
+    s.hay = { kg: 0, mowing };
+    const spans = mowingSpans(mowing, new Map(s.parts.map((p) => [p.id, p])));
+    const perMeadow = HAY.yieldKgPerHa;
+    // práce na nejbližší louku = její úsek plánu; dražší vzdálené louky tím seno neředí
+    mow(s, mowing.required * spans[0]!.end);
+    expect(s.hay.kg).toBeCloseTo(perMeadow, 6);
+    mow(s, (mowing.required * (spans[1]!.end - spans[0]!.end)) / 2);
+    expect(s.hay.kg).toBeCloseTo(perMeadow * 1.5, 6);
+    mow(s, mowing.required);
+    expect(s.hay.kg).toBeCloseTo(mowing.yieldKg, 6);
+  });
+
+  it('volná práce sezóny se převede na seno týmž pořadím luk (strop stád)', () => {
+    const day = at(600, 5, 25);
+    const s = village(day);
+    s.parts = [meadow(1, 600), meadow(2, 100), meadow(3, 300)];
+    const mowing = planMowing(s, day, need(3000, 9000))!;
+    s.hay = { kg: 0, mowing };
+    startMowingSeason(s);
+    const spans = mowingSpans(mowing, new Map(s.parts.map((p) => [p.id, p])));
+    const first = mowing.required * spans[0]!.end;
+    // dva dny práce po částech dají totéž co jedna dávka
+    recordMowingLabor(s, day, first / 2, 0);
+    recordMowingLabor(s, day + 1, first / 2, 0);
+    expect(s.hay.mowFree!.first).toBeCloseTo(HAY.yieldKgPerHa, 6);
+    // práce nad plán (všechny louky už jsou posečené) dává seno průměrem plánu
+    recordMowingLabor(s, day + 2, mowing.required, 0);
+    const average = mowing.yieldKg / mowing.required;
+    expect(s.hay.mowFree!.first).toBeCloseTo(mowing.yieldKg + first * average, 6);
   });
 });
 

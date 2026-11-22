@@ -26,7 +26,11 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `aftermathWorkShare` 0,6). `mowingNeed` (husbandry.ts): `necessaryKg` = dnešní stádo (nejvýš
   `wantedWinterHerds`), voli `hayOxen`, koně a čekající na porážku; `capKg` = `winterHayNeedKg`
   × (1 + `reserve` 0,2). Plán (`mowingPlan` v hay.ts) bere louky od nejbližší do stropu bez zásoby
-  (`mowingTargets`), `needed` = práce do nutného. Otava nahradí `hay.mowing` (`cut: 2`,
+  (`mowingTargets`), `needed` = práce do nutného. **Seno po loukách od nejbližší** (D107): `mow`
+  připisuje seno po úsecích louky v pořadí seče (`squareSpans`, `mowingKgAtWork`), ne průměrem
+  plánu (`yieldKg × práce ÷ required`) – méně práce než plán dá seno nejbližších luk; totéž
+  `recordMowingLabor` (volná práce sezóny → `mowFree`, `mowingWorkAtKg` je opak `mowingKgAtWork`,
+  práce nad plán dává průměr plánu). Otava nahradí `hay.mowing` (`cut: 2`,
   `firstCut` – posečené díly, plocha přirozených luk a seno 1. seče: `mownPartIds`,
   `hayPlanPartIds`, `hayPlanNaturalHa`, `seasonHayYieldKg`); bez potřeby otavy zůstane 1. seč.
   Okno podle seče `isMowingSeason(day, cut)` / `mowingCut`. Práce (simulate-work.ts): úloha

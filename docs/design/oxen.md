@@ -340,7 +340,7 @@ práce seče počítá sušení a svoz a stoh se kazí (návrh Clauda podle
   a kozy jen ve dnech se sněhem (≈ 93 dní – kráva ≈ 0,47 t, ovce ≈ 0,09 t), napřed sláma; vůl
   celou zimu ≈ 0,9 t (Zima bez sena níž). Dřív 10 kg denně (1,5 t za zimu) na krávu i vola a ovce
   a kozy nic.
-- **Kolik se seče:** 1. 6. ves naplánuje seno na zimní stádo, které si chce nechat (nosnost pastvy,
+- **Kolik se seče:** 25. 5. ves naplánuje seno na zimní stádo, které si chce nechat (nosnost pastvy,
   lesa a pasáků zmenšená podle potřeby – diet.md), a na voly ohrad (ohrada bez spřežení počítá se
   dvěma), se ztrátou ve stohu do zkrmení (≈ 6 %).
 - **Práce seče:** ~~seč kosou (≈ akr – 0,4 ha – za den na sekáče), obracení a sušení, hrabání do
