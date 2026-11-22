@@ -48,12 +48,13 @@ Slovanů: posvátné duby, dubové háje, dřevěné modly a nakonec svatyni jak
       pod jař: září–listopad a březen–duben) má termín na konci **posledního úseku**, ne
       aktuálního, a do tempa se počítají jen dny, které v úsecích okna ještě zbývají (zimní
       mezera ne). Dřív měla na podzim termín 30. 11., ačkoli pokračuje na jaře a plán s jarem
-      počítá – mladá ves měla dřinu přes 50 ze 107 dní kvůli termínu, který neplatil. Výmlat přes
+      počítá – mladá ves měla dřinu 50 ze 107 dní kvůli termínu, který neplatil. Výmlat přes
       Nový rok (září–prosinec a leden–únor) se nemění.
     - **Nosiči výprav v tempu:** výprava bere práci hned po denním minimu ([obchod](trade.md),
       Doprava), takže ve dny výpravy dostaly polní úlohy méně a tempo vyšlo nízké. Dnešní práce
-      lidí na výpravách patří do tempa jako seč a otava – po návratu ta práce přejde na polní
-      práce. Dřívější znění: [historie](history/happiness-history.md).
+      všech lidí na cestách – výprav, nákupů u sousedů i cest pro kování – patří do tempa jako seč
+      a otava, **× světlo dne** jako každá práce venku (jinak by tempo v zimě nadsazovalo) – po
+      návratu ta práce přejde na polní práce. Dřívější znění: [historie](history/happiness-history.md).
 - **Co přidává:** posvátná místa (níže), dobré zásoby (zásoby na víc než rok; od 19. 10. 2026
   zásoby obilí a luštěnin na víc než rok potřeby z pole – [pole](history/fields-history.md), Osev podle stravy)
   **+5**, ovoce **+5** – dokud lidé jedí ovoce, je sladké (Martin – [strava](diet.md), od 18. 10. 2026), maso

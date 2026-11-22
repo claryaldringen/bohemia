@@ -1,10 +1,10 @@
 # Štěstí – historie (neplatné sekce)
 
-Sem patří části [happiness.md](../happiness.md), které přestaly platit; zachované doslova, aby šlo dohledat, proč se od nich ustoupilo. **Nic z tohoto textu neplatí** – platný stav je v happiness.md.
+Sem patří části [happiness.md](../happiness.md), které přestaly platit; zachované, aby šlo dohledat, proč se od nich ustoupilo. **Nic z tohoto textu neplatí** – platný stav je v happiness.md.
 
 ## Den dřiny: termín podle aktuálního úseku okna a výprava mimo tempo
 
-Neplatí od 22. 11. 2026 (návrh Clauda, D113; happiness.md – Štěstí, dřina). Dřív:
+Neplatí od 22. 11. 2026 (návrh Clauda, D113; happiness.md – Štěstí, dřina). Dřívější znění je tu převyprávěné, ne doslovné. Dřív:
 
 - Den dřiny: ves by polní práce, které právě běží, dnešním tempem nedodělala do konce jejich
   oken – úlohy se řadí podle **konce okna** a zbývající práce se sčítá. Termín úlohy byl konec
