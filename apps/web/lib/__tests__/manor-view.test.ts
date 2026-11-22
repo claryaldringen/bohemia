@@ -298,6 +298,33 @@ describe('zásilka do vsi jiného hráče ve scéně (vassalage.md – Doprava a
   });
 });
 
+describe('nákup u sousedů vozem ve scéně (crafts.md – Nákup u sousedů, Vozy)', () => {
+  it('karavana nákupu ukáže vozy vsi a s každým honáka a pomocníka', () => {
+    const s = village();
+    s.lastDay = DAY;
+    s.trade!.expeditions = [];
+    s.purchases = [
+      {
+        direction: 'N',
+        startedDay: DAY - 2,
+        group: 2,
+        days: 12,
+        tripDays: 6,
+        done: 2,
+        trailId: 3,
+        edge: { x: 0, z: 960 },
+        get: { toolsKg: 20 },
+        pay: { grainKg: 1200 },
+        carts: [4],
+      },
+    ];
+    const [e] = sceneExpeditions(s);
+    expect(e).toMatchObject({ trailId: 3, porters: 2, carts: [4], cartCrew: 2 });
+    s.purchases[0]!.carts = undefined;
+    expect(sceneExpeditions(s)[0]!.carts).toEqual([]);
+  });
+});
+
 describe('rodina ve dvorci (lord.md – Co hráč vidí)', () => {
   it('obyvatelé dvorce od nejstaršího; cvičící muži mají dovednosti, ženy ne', () => {
     const s = village();

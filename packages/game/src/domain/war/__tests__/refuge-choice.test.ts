@@ -341,6 +341,16 @@ describe('co nesou (Otevřené 7)', () => {
       'all',
     );
     expect(away.carts).toBe(0);
+    // vůz s nákupem u sousedů (`purchases`) je pryč stejně jako vůz na výpravě
+    const buying = flightLoad(
+      home({
+        ...carts,
+        purchases: [{ carts: [2] }] as unknown as VillageState['purchases'],
+      }),
+      DAY,
+      'all',
+    );
+    expect(buying.carts).toBe(0);
     expect(flightLoad(home(carts), DAY, 'forest').carts).toBe(0);
     expect(flightLoad(home(carts), DAY, 'forest').foodKg).toBe(135);
   });

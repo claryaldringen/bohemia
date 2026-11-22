@@ -139,7 +139,10 @@ směr)` – stálá povaha podle druhu souseda (`neighbourKind` – obilnáři, 
   souseda (`newcomerProfiles`); postavy `caravanFigures` ve `villager-plan.ts` (podíl `trade`
   se pak nekreslí; `VillagerPose.hidden` za krajem mapy), vůz v čele `caravanCartPlan`
   (`CartCaravan` v `cart-layout.ts`, `CartPose.hidden`); obal postav zahrne celé stezky
-  s karavanou (`caravanExtent`). Ukázka `/dev/landscape` – **Karavana**. Use-case `sendExpedition`,
+  s karavanou (`caravanExtent`). **Karavana nákupu u sousedů** (`purchaseCaravan` – crafts.md,
+  Nákup u sousedů): `porters` = skupina nákupu (i posádky vozů), jede-li vozem, `carts` z
+  `CraftPurchase.carts` a `cartCrew` `CARTS.tradeCrew` jako u výprav (vozy tempem volů –
+  `caravanSpeed`; Vozy, D117). Ukázka `/dev/landscape` – **Karavana**. Use-case `sendExpedition`,
   server action `sendExpedition` (`{ villageId, direction, give, get, givePeople?, getPeople? }` –
   `parseSendExpeditionInput`).
   Web: `VillageManor.neighbours` (`neighbourViews` – ceny řádků × `goodWorth` jako na serveru, jinak

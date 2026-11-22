@@ -1,6 +1,7 @@
 // Typy stavu vsi – Obchod se sousedy.
 // Rozcestník je `types.ts`; tento soubor jen drží část typů.
 
+import type { CartKind } from './types-roads';
 import type { TradedHorse } from './types-livestock';
 import type { Person, Sex } from './types-people';
 import type { Direction8 } from './types-state';
@@ -208,6 +209,17 @@ export interface CraftPurchase {
   edge: { x: number; z: number };
   get: CraftPurchaseGoods;
   pay: CraftPurchasePay;
+  /**
+   * Vozy vsi, které s nákupem jedou (id) – náklad na voze místo nosičů, s každým vozem honák
+   * a pomocník (crafts.md – Nákup u sousedů, Vozy); vozy i jejich voli jsou do návratu pryč. Chybí =
+   * skupina jde pěšky.
+   */
+  carts?: number[];
+  /**
+   * Vůz, který ves u souseda s tesařem kupuje (crafts.md – Nákup u sousedů, Vozy) – voli ho táhnou
+   * domů (dvoukolák jeden, čtyřkolák pár) a jsou se skupinou do návratu pryč. Chybí = žádný.
+   */
+  cart?: CartKind;
 }
 
 /** Obchod vsi se sousedy (trade.md). */

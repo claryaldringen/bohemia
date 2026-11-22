@@ -841,7 +841,8 @@ návrh Clauda; čísla v `rules/` (`CRAFT_BUYING`), rešerše
   30 / 40 / 20 %; lesní ves 40 / 20 / 60 % (dřevaři mají tesaře). Deterministicky ze seedu vsi
   a směru. Řemeslníci jsou kolem každé vsi dvakrát, takže každé řemeslo jde koupit.
 - **Co ves kupuje:** nástroje (kovář), keramiku (hrnčíř) a dřevěné nářadí (tesař) – výrobky,
-  které posouvají meze produktivity. Uhlí ne (je jen pro kováře), vozy zatím ne.
+  které posouvají meze produktivity – a od 22. 11. 2026 **vůz** od tesaře (Vozy níž). Uhlí ne (je
+  jen pro kováře).
 - **Kdy:** jednou za rok **15. 11.** – po sklizni, ozimu, sklizni jablek a porážce, kdy je
   volno a přebytek (Martin: září až listopad). Starší vsi se do té doby nemění.
 - **Vlastní řemeslník má přednost:** ves kupuje jen výrobek, na který nemá pracujícího
@@ -883,6 +884,43 @@ návrh Clauda; čísla v `rules/` (`CRAFT_BUYING`), rešerše
 - **Ve scéně:** skupina jde jako karavana výpravy ([obchod](trade.md) – Ve scéně) – nosiči
   s platbou tam a s výrobky zpátky, po hotové stezce, jinak rovně krajinou od dvorce ke kraji mapy;
   jde-li vícekrát, karavana jde každou cestu zvlášť.
+- **Vozy (22. 11. 2026):** Martin (19. 10. 2026, [obchod](trade.md) – Ve scéně, karavana): „Až
+  bude vůz, pojedou zásoby na voze a ušetří se člověkodny.“; CLAUDE.md: „Vesničané sami používají,
+  co jim ulehčí práci (Martin) – hráč jim to nezadává.“ Na otázku „Má si ves bez tesaře umět koupit
+  vůz u souseda, který tesaře má, když se jí to vyplatí?“ Martin 22. 11. 2026: „ano“. Vysvětlení
+  Clauda k otázce: rozhoduje se stejně jako u nástrojů nebo keramiky (koupí, jen když jí vůz
+  ušetří víc práce, než stojí); vůz potřebuje tažné zvíře (dvoukolák jeden vůl, čtyřkolák pár),
+  ves bez volů by ho nekoupila.
+  Podrobnosti návrh Clauda (čísla jen ta, která už jsou – `CARTS`, `CARPENTRY`, `CART_IRON`,
+  `CRAFT_BUYING`):
+  - **Nákup vozem:** má-li ves doma vůz a voly, kteří ten den neorají (ve dny orby a se spřežením
+    na poli jdou páry napřed k rádlům – [vozy](wagons.md), Co vozy vozí; vozy na výpravě, pro
+    kování nebo s jiným nákupem jsou pryč), a vede-li k sousedovi hotová zemská stezka sjízdná pro
+    vozy (krajinou ke kraji mapy vůz nejede – jako vůz pro kování), jede nákup **vozem jako
+    výprava**: náklad na voze (dvoukolák 400 kg, čtyřkolák 800 kg, čtyřkoláky napřed), s každým
+    vozem honák a pomocník, vozy jedou tolikrát, kolikrát se naplní (zbytek aspoň půl vozu = jízda
+    navíc, menší zbytek nesou nosiči), dny cesty jako pěšky (výprava s vozem také). Vůz se vezme,
+    **jen když je cesta vozem levnější v práci** než nosiči (jako vůz pro uhlí); posádka se musí
+    vejít do skupiny (nejvýš polovina dospělých). Rozhodnutí o nákupu počítá s levnější cestou
+    a za 60 dní ves koupí tolik, kolik odveze i vůz. Vozy a jejich voli jsou do návratu pryč –
+    doma nevozí a neorají. Ve scéně jede karavana nákupu s vozy jako výprava.
+  - **Vůz od tesaře souseda:** ves **bez pracujícího tesaře** (dílna bez obyvatel nebo bez dřeva se
+    nepočítá), která vůz chce (stejný výpočet jako tesař – [vozy](wagons.md), Kolik vozů ves chce,
+    první chybějící druh, dvoukolák napřed) a má na něj **volné tažné zvíře** (dvoukolák jeden
+    vycvičený vůl, čtyřkolák pár, kteří ten den neorají), ho koupí u nejbližšího souseda s tesařem,
+    kam vede sjízdná stezka – voli jdou se skupinou a vůz dovedou domů (do návratu jsou pryč).
+    **Cena** jen z čísel, která už jsou, ocenění jako ostatní výrobky (hodnota v kg obilí, nabízené
+    zboží za 0,96): práce tesaře (dvoukolák 25, čtyřkolák 50 čd) za den tesaře jako u dřevěného
+    nářadí (2 kg obilí za kg při 0,5 čd na kg = 4 kg obilí za den), klády (1 / 2) za hodnotu klády
+    v obchodu (40 kg) a kování (3 / 6 kg) za hodnotu nástrojů (60 kg za kg – jako kování k vozu):
+    **dvoukolák 320 kg obilí** (100 + 40 + 180), **čtyřkolák 640 kg**, soused chce 307 / 614 kg.
+    Platí se celý z přebytku nad pojistkou (jinak nic) a nosí se tam jako jiná platba. **Ušetří**,
+    co by vůz navíc ušetřil podle loňského roku vozů (úspora vozů s ním a bez něj mínus voli navíc
+    nad páry k rádlům – jako tesař, jen bez ceny vozu) za 10 let služby; kupuje, jen když to
+    převýší práci za platbu a cestu. Ve stejném pořadí jako ostatní výrobky (poměr ušetřené práce
+    k ceně), jeden vůz za rok. Kronika „Vlkovští směnili 307 kg obilí za dvoukolák s Lhotskými.“,
+    upozornění „Vesničané koupili dvoukolák u souseda (sever)“.
+  - Dřív ves vůz koupit neuměla a nákup šel vždy pěšky – [historie](history/crafts-history.md).
 - **Námět (zatím ne):** nákup u hráčovy vlastní vsi v sousední mapě, když tam řemeslník je –
   simulace jedné vsi o jiných mapách neví (vsi na téže mapě od 1. 11. 2026 nejsou – jedna ves,
   jedna mapa); šlo
@@ -1001,3 +1039,5 @@ Rozhodnutí kontroléru při implementaci (18. 10. 2026) – kde návrh necháva
 | Měchař – dospělý z domácnosti nebo syn 10–13 (nepase), sám kovář polovičním tempem                       | návrh Clauda (20. 10. 2026)                  |
 | Vybavení do potřeby, hřivny na rok obnovy, kovárna jde do dílny až s prací na celý den                   | návrh Clauda (20. 10. 2026)                  |
 | Starší vsi: zásoba nástrojů do vybavení do potřeby, přebytek na hřivny (÷ 1,2)                           | návrh Clauda (20. 10. 2026)                  |
+| Ves bez tesaře si koupí vůz u souseda s tesařem, když se vyplatí a má vola                               | Martin („ano“, 22. 11. 2026)                 |
+| Nákup vozem jen po sjízdné stezce a když je levnější; cena vozu z práce tesaře, klád a kování            | návrh Clauda (22. 11. 2026)                  |

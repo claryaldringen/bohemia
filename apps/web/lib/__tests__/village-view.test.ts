@@ -3326,6 +3326,23 @@ describe('kronika – nákup u sousedů (crafts.md)', () => {
       'Vlkovští směnili 50 kg obilí za 10 kg keramiky s obyvateli sousední vsi.',
     );
   });
+
+  it('koupený vůz napřed (crafts.md – Nákup u sousedů, Vozy)', () => {
+    const cart = (get: { woodToolsKg?: number }): ChronicleEvent => ({
+      day: DAY,
+      kind: 'crafts-bought',
+      direction: 'NE',
+      get,
+      pay: { grainKg: 307.2 },
+      cart: 'two-wheel',
+    });
+    expect(chronicleText(cart({}), 'Libice', 4)).toBe(
+      'Libičtí směnili 307 kg obilí za dvoukolák se Sedleckými.',
+    );
+    expect(chronicleText(cart({ woodToolsKg: 30 }), 'Libice', 4)).toBe(
+      'Libičtí směnili 307 kg obilí za dvoukolák a 30 kg dřevěného nářadí se Sedleckými.',
+    );
+  });
 });
 
 describe('kronika – kování koní (horses.md – Kování)', () => {

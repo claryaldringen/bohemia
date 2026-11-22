@@ -130,6 +130,13 @@ níž je návrh Clauda, čísla v `CART_JOBS` (`rules.ts`).
      kámen nalámaný ten den pro kostel, hradbu nebo zásobu; náklad 400 kg, sedlák z práce vsi,
      jede, když ušetří nošení v nůších. Pravidla a čísla: [fortifications.md](fortifications.md) –
      Kámen, Nošení kamene a vůz.
+- **Nákup u sousedů (22. 11. 2026):** Martin (19. 10. 2026): „Až bude vůz, pojedou zásoby na voze
+  a ušetří se člověkodny.“ Má-li ves doma vůz s voly, kteří ten den neorají (jako svoz – ve dny
+  orby a se spřežením na poli páry napřed k rádlům), a k sousedovi vede sjízdná zemská stezka, jede 15. 11. nákup u sousedů vozem jako výprava (čtyřkoláky napřed, honák a pomocník na vůz,
+  opakované jízdy, menší zbytek nosiči) – jen když je to v práci levnější než nosiči. Ves bez
+  tesaře si vůz koupí u souseda s tesařem, když ho chce (Kolik vozů ves chce) a má na něj vola
+  (Martin 22. 11. 2026 „ano“). Pravidla, cena vozu a čísla: [crafts.md](crafts.md) – Nákup
+  u sousedů, Vozy (návrh Clauda).
 - **Spřežení doma:** jako svoz – dvoukolák se spřežením, které neorá ani nejede s výpravou;
   čtyřkolák jezdí jen s výpravami. Za den nejvýš 8 jízd (CARTS.loadsPerCartDay) a co se vejde do
   10hodinového dne – voli jdou s vozem ≈ 0,8 m/s po louce, po cestě rychleji (vozová síť).
@@ -263,7 +270,7 @@ Návrh Clauda, Martin schválil („Ano, udělej to jak říkáš“) včetně v
 | Klády ke stavbám                   | krátké    | dlouhé, výhodnější                       | ve hře (čtyřkolák ke stromům u pevných cest)                              |
 | Uhlí, osivo, voda                  | ano       | uhlí od milíře v lese po cestě, voda ano | ve hře (uhlí a vodu levnější vůz; osivo dvoukolák)                        |
 | Ruda z rudiště                     | ano       | –                                        | ve hře (crafts.md – Uhlí a ruda kováře)                                   |
-| Výpravy po stezce, nákup u sousedů | –         | ano                                      | ve hře                                                                    |
+| Výpravy po stezce, nákup u sousedů | ano       | ano, napřed                              | ve hře (nákup u sousedů vozem od 22. 11. 2026 – crafts.md, Vozy)          |
 | **Hlína pro hrnčíře** od potoka    | ano       | –                                        | ve hře (crafts.md – Hlína hrnčíře): hliniště, hrnčíř kope, sedlák s vozem |
 | **Jablka ze sadu** do vsi          | ano       | ano, kam dojede                          | ve hře (orchard.md – Jablka vozem): čtvrtina sklizně jako odnos snopů     |
 | **Stěhování do nové vsi**          | ano       | ano                                      | ve hře (migration.md – Vůz při odchodu): volný vůz s voly, víc jídla      |

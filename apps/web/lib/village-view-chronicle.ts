@@ -1134,10 +1134,12 @@ function craftsBoughtText(
       { kg: event.pay.grainKg ?? 0, genitive: 'obilí' },
       { kg: event.pay.legumesKg ?? 0, genitive: 'luštěnin' },
     ]) ?? 'obilí';
-  const get =
-    kgList(
-      CRAFT_PRODUCTS.map((p) => ({ kg: event.get[p] ?? 0, genitive: PRODUCT_GENITIVES[p] })),
-    ) ?? 'výrobky řemeslníků';
+  const goods = kgList(
+    CRAFT_PRODUCTS.map((p) => ({ kg: event.get[p] ?? 0, genitive: PRODUCT_GENITIVES[p] })),
+  );
+  // koupený vůz (crafts.md – Nákup u sousedů, Vozy) – „za dvoukolák a 9 kg nástrojů“
+  const cart = event.cart ? CART_NAMES[event.cart].toLowerCase() : null;
+  const get = cart && goods ? `${cart} a ${goods}` : (cart ?? goods ?? 'výrobky řemeslníků');
   const partner =
     seed === undefined
       ? 's obyvateli sousední vsi'
