@@ -254,6 +254,13 @@ hektar 6 proti skutečným 19–27 čd). Na den výhled se simulací sedí (plá
 skutečně 5,7–6,0). Zlatá ves: osev lidmi ≈ 39 ha, spřežením ≈ 23 ha, žní 16,5–17,3 ha – váže žeň,
 cíl je nad 12 ha, které ves osela a sklidila (test `village-golden-long.test.ts`).
 
+**Spřežení podle lidí** (D114): osev podle spřežení počítá páry s rádlem, které ves má
+(`ableTeams`). Kolik párů ves chce a cvičí, je od 22. 11. 2026 tolik, kolik jich obslouží lidmi
+(Martin 22. 11. 2026: „ano“ – [orba](oxen.md), Kolik volů ves chce, Páry k rádlům podle lidí); dřív
+jen tolik, kolik zoraly díly na řadě, takže pole, na která by víc párů stačilo, správce nezaložil.
+Teď osev podle spřežení roste s páry, jak je ves vycvičí (výcvik 2 roky), a cíl polí s ním – dál
+nejvýš na osev podle lidí, žní a výmlatu.
+
 **Pole i na práci rodu** (D103): Martin 19. 11. 2026 na otázku „Má správce zakládat pole i na práci
 rodu? Dnes plánuje pole jen na to, co ves zvládne bez rodu, a rod pak pomáhá jen na polích, která
 už ves má.“: „Ano, maximálně zůstanou neobdělaná“ (dřív cíl polí bez rodu –
