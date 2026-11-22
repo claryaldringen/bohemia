@@ -478,6 +478,11 @@ se přepíšou.
   a plná strava 75 / 20 / 5 % energie z obilí, masa a ovoce – nahrazeno bílkovinami.
 - **Stropy podílů energie zrušeny 18. 11. 2026** (Strava po vrstvách a porážka celý rok, Pořadí jídla – bez stropů). Dřívější znění: [history](history/diet-history.md).
 - **Ovoce a štěstí:** když lidé jedí ovoce, štěstí **+5** (sladké – Martin; [štěstí](happiness.md)).
+- **5 % ovoce je jen kvalita stravy** (`DIET.fruitShare`): kolik jabloní u cest a sadu ves má
+  a kolik jablek sklidí, určuje cíl ovoce – jablka, která ves sní do zkažení ([sad](orchard.md) –
+  Jídlo; Martin 22. 11. 2026 – „ano“ na otázku „Mají se i tato tři místa přepnout na maximum,
+  které ves zvládne?“). Dřív (do 22. 11. 2026) správce sázel jen do 5 % energie
+  ([steward-history.md](history/steward-history.md)).
 
 ### Luštěniny a štěstí z masa (Martin, 18. 10. 2026; čísla rešerše a návrh Clauda)
 

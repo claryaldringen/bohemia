@@ -72,9 +72,24 @@ rozhoduje, kolik louky a práce dá do jistoty na dlouho dopředu místo obilí 
     první, ozim dostane zbytek podzimu, se kterým plán osevu počítá) i před kopáním jaře (okno
     končí dřív). Jablka přibývají do zásob postupně, jak se sklízí; co se do konce října
     nestihne, spadne a shnije (úroda × podíl sklizené práce).
+  - **sklízí se jen to, co se sní** (Martin 22. 11. 2026: „U těch jablek - tam nejde ani tak
+    o jablka, ale o práci. Pokud jablka zůstanou na stromech, je to ok. Pokud shnijí ta, co lidé
+    nasbírali (utratili za ně práci) je to špatně“): sklizeň 1. 9. nasbírá nejvýš cíl ovoce
+    (Jídlo níž) bez zásoby jablek, kterou ves už má; zbytek zůstane na stromech a práci nestojí –
+    práce sklizně poměrně k nasbíraným jablkům (návrh Clauda).
 - **Jídlo:** od 18. 10. 2026 podle [stravy](diet.md) – jablka jsou v rozhraní **ovoce**, jí se
-  přednostně rovným dílem do zkažení, ale pokryjí nejvýš čtvrtinu energie (samo ovoce nenasytí)
-  a přidají štěstí +5. Původní pravidlo: sklizená jablka jdou do zásob vsi zvlášť a **jí se
+  přednostně rovným dílem do zkažení (do 18. 11. 2026 nejvýš čtvrtina energie – stropy zrušeny,
+  diet.md – Pořadí jídla; samo ovoce nenasytí kvalitou stravy) a přidají štěstí +5.
+  **Cíl ovoce** (Martin 22. 11. 2026 – „ano“ na přepnutí sadu a jabloní u cest na maximum, které
+  ves zvládne; tvar návrh Clauda): jablka, která ves sní od sklizně (1. 9.) do zkažení (1. 3.,
+  s nádobami do 1. 5.) v pořadí jídla – napřed maso, mléko a sýr a vejce, pak ovoce rovným dílem
+  do zkažení, až po něm luštěniny a obilí (diet.md – Pořadí jídla). Počítá se z potřeby energie
+  lidí vsi za rok bez energie, kterou za rok dají stáda (mléko dojných samic, maso mláďat nad
+  chovné stádo) a slepice, rozložené rovným dílem na dny roku – na dny od sklizně do zkažení.
+  Podle cíle správce sází jabloně u cest a sad ([správce](steward.md) – Jabloně u cest a sad)
+  a podle něj se sklízí (Práce výš). Dřív (do 22. 11. 2026) správce sázel jen do 5 % energie
+  z ovoce (`DIET.fruitShare` – ta zůstává jen pro kvalitu stravy, diet.md – Bílkoviny
+  a nasycení). Původní pravidlo: sklizená jablka jdou do zásob vsi zvlášť a **jí se
   přednostně** před obilím; co zbude k **1. 3.** (ráno), shnije – s nádobami od hrnčíře později,
   s plným pokrytím až 1. 5. ([řemesla](crafts.md) – den zkažení se posouvá poměrně k pokrytí
   nádobami). Přídělový systém (fields.md) počítá jen s jablky, která se
@@ -179,6 +194,11 @@ po 10 m střídavě po stranách úseku. Každá jabloň je jako sad na strom (1
 0,44 čd jen v oknech jara a podzimu, plody od 6. roku, plná úroda ≈ 17 kg od 25. roku, péče
 v zimě a sklizeň v září–říjnu spolu se sady, jablka do stejné zásoby ovoce; po 60 letech souš
 a místo je volné. Ve scéně stejné modely a roční období jako v sadu.
+
+Správce je sází **napřed, před sadem** – dokud ovoce nepokryje cíl ovoce (Pravidla – Jídlo), jen
+podél pevných cest kolem polí (do 40 m od dílu), takže mez je délka takových cest; sad až na
+zbytek (Martin 22. 11. 2026: „Nezapomeň na jabloně podél cést - ideální je pokrývat spotřebu jimi
+a pak až sadem“; [správce](steward.md) – Jabloně u cest a sad).
 
 ## Jablka vozem
 

@@ -387,8 +387,10 @@ svého druhu (pole a čtverce po blocích) a všechny čerpají ze stejného roz
    (oxen.md); ovce, kozy, prasata a skot podle stravy a stád (diet.md – maso, sýr); koně
    s vojvodovou rodinou, která cvičí (horses.md; krok Růstu – v Obnově s nižší předností). Mimo
    žně.
-8. **Sad, jabloně u cest** – ovoce ve stravě pod plnou potřebou; jabloně podél pevné cesty, která
-   vede kolem polí (zeleň chrání díly – disasters.md, Ochrana dílu). V oknech výsadby (orchard.md).
+8. **Jabloně u cest, pak sad** – dokud ovoce nepokryje cíl ovoce (jablka, která ves sní do
+   zkažení – orchard.md, Jídlo): napřed jabloně podél pevné cesty, která vede kolem polí (zeleň
+   chrání díly – disasters.md, Ochrana dílu), sad až na zbytek, když u cest není místo. V oknech
+   výsadby (orchard.md).
 9. **Posvátná místa** – podle návratnosti (Posvátná místa podle návratnosti níž) a duby k mání;
    napřed modla, svatyně jedna (happiness.md). Mimo žně.
    9a. **Opevnění** – podle hrozby z války a nájezdů ([opevnění](fortifications.md) – Správce,
@@ -585,12 +587,20 @@ plán ověřil: střed políčka, jeden čtverec bez mřížky.
   koně, když vojvodova rodina cvičí (krok Růstu). Mimo žně (1. 7. – 31. 8.). Plán ověřuje sloty
   ohrad pro skot; před stavbou se slot ověří pro stavěný druh (napojení na ohradu téhož druhu,
   cena koní) – slot, který se mu nehodí, zůstane v plánu pro jiný druh.
-- **Sad a jabloně u cest:** potřeba jablek = plná potřeba energie × `DIET.fruitShare` ÷
-  `APPLE_FOOD_VALUE`; chybí-li ji plocha sadů a jabloní (plná úroda), napřed čtverec sadu, pak
-  jabloně podél pevné cesty do `roadFieldM` (40 m) od dílu pole. Jen v oknech výsadby. V Obnově
-  jen první zdroj ovoce (ves bez sadu i jabloní), další čtverce až v Růstu – s pěti sady z Obnovy
-  v letech 3–5 hladověla zdravá ves na seedu krajiny 2 v letech 14–18 (až 12 dní), s jedním ne
-  (měření 31. 10. 2026).
+- **Jabloně u cest a sad** (Martin 22. 11. 2026 – „ano“ na otázku „Mají se i tato tři místa
+  přepnout na maximum, které ves zvládne?“; „Nezapomeň na jabloně podél cést - ideální je pokrývat
+  spotřebu jimi a pak až sadem“; „Obecně se drž pravidla vyprodukovat co nejvíce za co nejmenší
+  množství práce.“): **cíl ovoce** = jablka, která ves sní, než se zkazí (orchard.md – Jídlo,
+  `fruitTargetKg`). Chybí-li ho plná úroda sadů a jabloně u cest za 25 let (do pokrytí se počítají
+  i vysazené, ještě neplodící stromy), správce sází napřed jabloně podél pevné cesty do
+  `roadFieldM` (40 m) od dílu pole – jejich mez je délka takových cest; sad (čtverec) až na zbytek
+  cíle, když u žádné takové cesty není místo (návrh Clauda: správce je všechny prošel a cesty bez
+  volného místa odložil na `retryDays`). Jen v oknech výsadby, jedna výsadba sadu nebo jabloní
+  najednou, v rozpočtu práce (`fits`) a na slotech u domů jako dřív. V Obnově jen první zdroj
+  ovoce (ves bez sadu i jabloní), další až v Růstu – s pěti sady z Obnovy v letech 3–5 hladověla
+  zdravá ves na seedu krajiny 2 v letech 14–18 (až 12 dní), s jedním ne (měření 31. 10. 2026).
+  Dřív (do 22. 11. 2026) jen do 5 % energie z ovoce a napřed sad –
+  [steward-history.md](history/steward-history.md).
 - **Posvátná místa:** modla (nejvýš dvě), pak svatyně, když se vrátí za `sacredPaybackYears` let
   režimu (Posvátná místa podle návratnosti níž; do 2. 11. 2026 práh štěstí 60); místo nejbližší
   středu vsi do `sacredSearchTiles`, které projde kontrolou umístění. Mimo žně. Odklad v mladé vsi
