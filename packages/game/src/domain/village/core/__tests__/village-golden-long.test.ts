@@ -94,8 +94,10 @@ import { goldenWorld, stateFingerprint, YEAR } from './village-golden-fixture';
 // 22. 11. 2026 – D115 kolo 1 (jablka nad 5 % energie jen bez ztráty bílkovin, cíl ovoce 5 %
 // energie, výsadba před vracením přílohu – jako rok 1 v village-golden.test.ts); dřív
 // 15be33d768040c40 a b1cebf0f8cd73631
-const EXPECTED_YEAR_2 = '52c6d23c8335e130';
-const EXPECTED_YEAR_3 = '94154d343904b93d';
+// 22. 11. 2026 – D115 kolo 3 (strop sklizně a cíl ovoce do zkažení bez nádob, jako rok 1 ve
+// village-golden.test.ts); dřív 52c6d23c8335e130 a 94154d343904b93d
+const EXPECTED_YEAR_2 = 'ecc70f3c0369f446';
+const EXPECTED_YEAR_3 = '284eb814c86ed715';
 // 18. 11. 2026 – D93 cesta přes plochu staveb; dřív 168010dd35f7c1c7 a a499594da5514b49 (viz
 // village-golden.test.ts)
 // 18. 11. 2026 – D95 výmlat (výmlat podle kg snopů, rod v zimě dorovná tempo okna – viz

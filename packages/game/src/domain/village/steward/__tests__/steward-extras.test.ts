@@ -518,7 +518,7 @@ describe('steward-extras – humno, ohrady, posvátná místa a cesty', () => {
     // cíl ovoce podle jídla – jablka do 5 % energie, nad to jen místo obilí, které ves
     // k bílkovinám nepotřebuje (Martin 22. 11. 2026); ves bez přebytku bílkovin má cíl 5 % energie
     // za dny do zkažení – méně než 5 % energie za celý rok
-    const target = fruitTargetKg(base, day, NO_CRAFTS.pottery);
+    const target = fruitTargetKg(base, day);
     expect(target).toBeGreaterThan(0);
     expect(target).toBeLessThan((yearlyFoodNeed(base, day) * DIET.fruitShare) / APPLE_FOOD_VALUE);
     const squareKg = (ORCHARD.fullYieldKgPerHa * 225) / 10_000;

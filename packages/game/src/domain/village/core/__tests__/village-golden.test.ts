@@ -113,7 +113,10 @@ import { advanceChunked, goldenWorld, stateFingerprint, YEAR } from './village-g
 // energie jen místo obilí, které ves k bílkovinám nepotřebuje – zlatá ves bílkovin nazbyt nemá, cíl
 // ovoce je 5 % energie, sází a sklízí méně; výsadba dostane práci před vracením přílohu; dřív
 // bfca7809b876c8c4
-const EXPECTED_YEAR_1 = '2a715603b4362c5d';
+// 22. 11. 2026 – D115 kolo 3 (Martin: nasbíraná jablka nesmí shnít): strop sklizně a cíl ovoce
+// počítají snědení do zkažení bez nádob (1. 3.), i když ves nádoby má – zlatá ves s nádobami
+// sklidí méně jablek; dřív 2a715603b4362c5d
+const EXPECTED_YEAR_1 = '7bbbccaf2a7eb247';
 // 18. 11. 2026 – D93 cesta přes plochu staveb; dřív 82b12dd84c08dd63 (vyšlapaná cesta přes plochu
 // staveb nevznikne a napojení ji obejde – jiné cesty a id; roky chůze nejvýš doba vyšlapání)
 // 18. 11. 2026 – D95 výmlat (Martin: „A, C, E“ – výmlat podle kg snopů, rod v zimě dorovná tempo

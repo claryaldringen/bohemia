@@ -375,7 +375,7 @@ function teamPenValue(state: VillageState, ctx: StewardContext): boolean {
  * 22. 11. 2026 – maximum, které ves zvládne).
  */
 function fruitShortfallKg(state: VillageState, ctx: StewardContext): number {
-  const needKg = fruitTargetKg(state, ctx.day, ctx.coverage.pottery);
+  const needKg = fruitTargetKg(state, ctx.day);
   const orchardKg = villageOrchards(state)
     .filter((o) => o.disusedDay === undefined)
     .reduce((sum, o) => sum + (orchardAreaM2(o) / 10_000) * ORCHARD.fullYieldKgPerHa, 0);

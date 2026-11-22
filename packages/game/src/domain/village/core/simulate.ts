@@ -320,7 +320,7 @@ function storesAndHerdsDay(
   // starých čtverců v oknech výsadby (stavba ze společné práce – dostane práci už dnes); sklizeň
   // jen tolik jablek, kolik ves od dneška do zkažení sní (cíl ovoce – orchard.md, Práce)
   for (const event of orchardSeasonDay(state, day, coverage.pottery, (s) =>
-    fruitEatenUntilRotKg(s, day, coverage.pottery),
+    fruitEatenUntilRotKg(s, day),
   )) {
     // zásoba jablek po sklizni (kronika – Martin 17. 11. 2026)
     if (event.kind === 'apple-harvest') {
