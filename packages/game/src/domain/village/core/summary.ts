@@ -53,7 +53,7 @@ import {
 import { dailyMilk, dairyDams, villageCheeseKg, yearlyMilk } from '../livestock/dairy';
 import { meatEnergy, villageMeal, villageMeatKg } from './diet';
 import { dietHappiness, tierMeal, type DietHappiness } from './tier-meal';
-import { hungerSplit } from '../people/hunger-groups';
+import { hungerSplit, rationMinimum } from '../people/hunger-groups';
 import { foodLastsDays } from './food-lasts';
 import { villageHayKg } from '../livestock/hay';
 import { horsesInPlaces, villageHorses } from '../livestock/horses';
@@ -644,7 +644,11 @@ function nextDayDiet(state: VillageState, day: number): { diet: DietDay; points:
     fishAheadEnergy: fish,
   });
   const split = hungerSplit(state, next);
-  return { diet: meal.diet, points: dietHappiness(tierMeal(split, meal.eaten), split.eaters) };
+  const minimum = rationMinimum(state, next, split.needs, split.groupOf, meal.daysToHarvest);
+  return {
+    diet: meal.diet,
+    points: dietHappiness(tierMeal(split, meal.eaten, minimum), split.eaters),
+  };
 }
 
 const DAYS_PER_SERVICE_YEAR = 365.25;

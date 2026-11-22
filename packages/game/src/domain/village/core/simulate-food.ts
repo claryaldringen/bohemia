@@ -35,7 +35,13 @@ import {
 import { EPSILON, SATIATION_EPSILON } from './simulate-plan';
 import { stockLastsDays, type StockKind } from './food-lasts';
 import { NO_CRAFTS } from './productivity';
-import { hungerSplit, rationShares, shownGroup, type HungerSplit } from '../people/hunger-groups';
+import {
+  hungerSplit,
+  rationMinimum,
+  rationShares,
+  shownGroup,
+  type HungerSplit,
+} from '../people/hunger-groups';
 import { dietHappiness, tierMeal, type DietHappiness } from './tier-meal';
 
 /** Jak se dnes najedly skupiny přednosti v hladu (`hunger-groups.ts`). */
@@ -324,7 +330,10 @@ export function eat(
   // jídlo po vrstvách (diet.md – Kdo dostane co): každý den – štěstí ze stravy se počítá po lidech
   // podle toho, co kdo snědl (Spokojenost ze stravy)
   const split = hungerSplit(state, day);
-  const tiers = tierMeal(split, meal.eaten);
+  // životní minimum přídělu – v dlouhém hladu příděl k přežití zbytku vsi do žní (Martin
+  // 22. 11. 2026: „ano“ – rod se uskrovní)
+  const minimum = rationMinimum(state, day, split.needs, split.groupOf, mealInput.daysToHarvest);
+  const tiers = tierMeal(split, meal.eaten, minimum);
   // přednost v hladu (population.md – Přednost v hladu): nad životním minimem jedí napřed rod
   // vojvody, mistři huti a řemeslníci; hlad po skupinách se vede jen, když jídla není dost nebo
   // když skupiny mají každá jiný hlad – sytá ves má jediný hlad vsi jako dřív
@@ -333,7 +342,7 @@ export function eat(
   if (ration < 1 || meal.diet.energy < 1 || state.starvationGroups !== undefined) {
     groups = { ...split, energy: tiers.energy };
     // příděl do sklizně hráči ukazuje zbytek vsi (nejnižší neprázdná skupina)
-    shownRation = rationShares(ration, split.needs)[shownGroup(split.counts)] ?? ration;
+    shownRation = rationShares(ration, split.needs, minimum)[shownGroup(split.counts)] ?? ration;
   }
   // příděl do sklizně, když ves šetří – stupeň upozornění (population.md – Co hráč vidí)
   if (hungry) state.ration = shownRation;

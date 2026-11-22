@@ -20,24 +20,17 @@ import { fieldFoodShare } from './field-food';
 import { drawGrainPits } from './grain-pits';
 import { dateOfDayIndex } from '../../calendar';
 import { ableTeams, oxenStrength } from '../livestock/oxen';
-import { ageGroup, laborPerDay } from '../people/people';
+import { laborPerDay } from '../people/people';
 import {
-  groupStarvation,
   hungerSplit,
-  lowestFedGroup,
+  survivalLimit,
+  survivalRation,
   villageRationFor,
 } from '../people/hunger-groups';
 import { daylightFactor } from '../core/daylight';
 import { PLOUGH_HA_PER_DAY } from '../livestock/plough';
 import { fieldWorkPerHa } from '../core/productivity';
-import {
-  CROP_WINDOWS,
-  PEAK_CAPACITY_SHARE,
-  SEED_BUYING,
-  SEED_STORES,
-  STARVATION,
-  THRESHING,
-} from '../rules';
+import { CROP_WINDOWS, PEAK_CAPACITY_SHARE, SEED_BUYING, THRESHING } from '../rules';
 import { windowDaysLeft } from './sowing';
 import { nextSowing, onTurn } from './rotation';
 import { sheavesOutlook } from './threshing';
@@ -182,10 +175,12 @@ export function foodUntilHarvestKg(state: VillageState, day: number): number {
  * nasycení do žní nedovede nahromaděný hlad zbytku vsi k prahu úmrtí nejcitlivější skupiny ve vsi
  * (STARVATION.threshold – děti a starší 12, dospělí 20) bez SEED_STORES.marginDays; s osivem jen
  * na setí (`reservedSeedKg`) ani k prahu, od kterého ho ves sní (SEED_BUYING.eatFromStarvationDays)
- * – ostatní zrno je osivo. Pod STARVATION.fedFrom přibude za den (fedFrom − příděl) / fedFrom dne
- * hladu, ves tedy unese `slack` dní hladu: příděl energie do žní aspoň fedFrom × (1 − slack / dny
- * do žní). Příděl i hlad jsou zbytku vsi – nejnižší vrstvy s potřebou (`lowestFedGroup`; hlad
- * `groupStarvation`, u zbytku vsi `starvationDays`), která v přednosti v hladu dostává nejméně;
+ * – ostatní zrno je osivo. Příděl energie do žní je příděl k přežití (`survivalRation` – táž
+ * definice jako životní minimum přídělu `rationMinimum`, jen s mezí osiva): pod STARVATION.fedFrom
+ * přibude za den (fedFrom − příděl) / fedFrom dne hladu, ves tedy unese `slack` dní hladu, příděl
+ * je fedFrom × (1 − slack / dny do žní). Příděl i hlad jsou zbytku vsi – nejnižší vrstvy
+ * s potřebou (`survivalLimit` – `lowestFedGroup`; hlad `groupStarvation`, u zbytku vsi
+ * `starvationDays`), která v přednosti v hladu dostává nejméně;
  * na příděl vsi ho převede obrácené `rationShares` (`villageRationFor` – diet.md, Kdo dostane co;
  * návrh Clauda 18. 11. 2026, Martin: „Nejde, aby elita měla plný příděl a rolníci byli pod
  * hranicí hladomoru.“; dřív cílový příděl celé vsi – zbytek vsi pod ním dostal jen životní
@@ -198,20 +193,18 @@ export function foodUntilHarvestKg(state: VillageState, day: number): number {
  */
 export function seedKeepKg(state: VillageState, day: number, input?: DietInput): number {
   if (state.people.length === 0) return 0;
-  let limit = Infinity;
-  for (const person of state.people) {
-    limit = Math.min(limit, STARVATION.threshold[ageGroup(person, day)]);
-  }
-  if (reservedSeedKg(state) > EPSILON) limit = Math.min(limit, SEED_BUYING.eatFromStarvationDays);
   // zbytek vsi – nejnižší vrstva s potřebou (bez zbytku vsi nejbližší vyšší): její hlad a příděl
   const { needs } = hungerSplit(state, day);
-  const group = lowestFedGroup(needs);
-  const hunger = group < 0 ? (state.starvationDays ?? 0) : (groupStarvation(state)[group] ?? 0);
-  const slack = Math.max(0, limit - SEED_STORES.marginDays - hunger);
+  const { limit, hunger } = survivalLimit(state, day, needs);
   const meal = input ?? baseMealInput(state, day, craftCoverage(state, day).pottery, 1);
-  const days = Math.max(1, meal.daysToHarvest);
-  const ration = STARVATION.fedFrom * Math.max(0, 1 - slack / days);
+  // s osivem jen na setí ani k prahu, od kterého ho ves sní – mez jen přežívací zásoby, ne přídělu
+  const seedLimit =
+    reservedSeedKg(state) > EPSILON ? Math.min(limit, SEED_BUYING.eatFromStarvationDays) : limit;
+  const ration = survivalRation(seedLimit, hunger, meal.daysToHarvest);
   if (ration <= EPSILON) return 0;
+  // příděl vsi, se kterým zbytek vsi dostane `ration` a vyšší vrstvy (nad 75 %) jedí dosyta –
+  // přežívací zásoba se životním minimem přídělu (`rationMinimum`) nemění: to je nejvýš `ration`,
+  // rozdělení při tomto přídělu vsi tedy dá zbytku vsi právě `ration`
   return grainAheadForOutlookKg(meal, villageRationFor(ration, needs)) / grainKeepPerDay(meal);
 }
 

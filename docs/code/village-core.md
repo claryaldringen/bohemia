@@ -185,8 +185,16 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `abandonedVillageAt` lidi a dobytek opuštěné vsi nezobrazí (přepínač vsí ukáže 0 lidí).
   **Přednost v hladu** (population.md – Přednost v hladu, Martin 17. 11. 2026, D92):
   `people/hunger-groups.ts` – `hungerSplit` (skupiny 0–3: `lordFamily`, `masterHousehold`, obydlí
-  s dílnou a `Person.practice`, zbytek a hosté; potřeby a počty), `rationShares(poměr, potřeby)`
-  (životní minimum `HUNGER_PRIORITY.minimumShare` 75 % všem, pod ním všem stejně, zbytek po vrstvách v pořadí), `advanceGroupStarvation`
+  s dílnou a `Person.practice`, zbytek a hosté; potřeby a počty), `rationShares(poměr, potřeby,
+minimum)` (životní minimum všem, pod ním všem stejně, zbytek po vrstvách v pořadí; minimum
+  `rationMinimum(stav, den, potřeby, `groupOf`, dny do žní)` = max(`HUNGER_PRIORITY.minimumShare` 75 %,
+  `survivalRation`) – v dlouhém hladu příděl k přežití zbytku vsi do žní, D112, Martin 22. 11.
+  2026 „ano“ na uskromnění rodu; `survivalRation(práh, hlad, dny do žní)` = `STARVATION.fedFrom`
+  × (1 − (práh − `SEED_STORES.marginDays` − hlad) / dny), `survivalLimit` = nejnižší
+  `STARVATION.threshold` lidí nejnižší vrstvy s potřebou (`groupOf` z `hungerSplit`; práh dětí a starších, když v ní je dítě, starší, kdo do žní zestárne
+  (`daysToHarvest`), nebo žena v plodném věku, jinak dospělých – dítě v rodu minimum zbytku vsi nezvedne; bez `groupOf` lidí celé vsi, tak ho volá `seedKeepKg`) a hlad té
+  vrstvy – táž definice jako přežívací zásoba, bez meze osiva; volá ho jídlo dne `eat` pro `tierMeal`
+  i ukázaný příděl a předpověď štěstí `nextDayDiet`), `advanceGroupStarvation`
   (hlad skupin: `starvationDays` = nejnižší neprázdná skupina, `starvationGroups?` = skupiny 0–2,
   jen když se liší; prázdná skupina přebírá hlad nejbližší neprázdné; bez části stavu mají všechny
   skupiny `starvationDays` – `groupStarvation` to čte jako výchozí hodnotu, takže položka ve
@@ -196,7 +204,9 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `villageRationFor(podíl, potřeby)` – nejmenší příděl vsi, při kterém nejnižší skupina s potřebou
   (`lowestFedGroup`; bez zbytku vsi nejbližší vyšší) dostane `podíl`: do minima `podíl`, nad ním
   (potřeba vyšších + `podíl` × potřeba nejnižší) ÷ potřeba vsi, nejvýš 1 – přežívací zásoba
-  `seedKeepKg` (village-fields.md, od 18. 11. 2026).
+  `seedKeepKg` (village-fields.md, od 18. 11. 2026) s minimem 75 %: `rationMinimum` je nejvýš
+  cíl přežívací zásoby, rozdělení při tomto přídělu vsi dá zbytku vsi týž cíl (D112 – zásoba
+  beze změny, test `long-hunger.test.ts`).
   **Strava po vrstvách** (diet.md – Strava po vrstvách a porážka celý rok, 18. 11. 2026):
   `eatDiet` (`core/diet.ts`) sní den bez stropů – `dietPlan` spočítá výhled `aheadEnergy` (jídlo
   mimo obilí a med do sklizně), pevný příděl medu a tempo proti zkažení (`fruitPace` = ovoce ÷
@@ -207,13 +217,21 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   z 1. 11. (`slaughter` přičte kusy pod nůž hned); `core/meat-stocks.ts` – `villageSlaughterMeatKg`
   (nejvýš celé uzené), `takeVillageMeatKg` (oheň, prodej, kořist, odchod, `appoint-lord` – součet
   přesně, zásoba z 1. 11. poměrně). V jídle ostatní uzené hned za čerstvým, díl zásoby z 1. 11.
-  (`slaughterShare` = zásoba po dnešní ztrátě ÷ dny do konce masa, poslední den zbytek) až po
+  (`slaughterShare` = zásoba po dnešní ztrátě ÷ dny do konce masa, v hladu ÷ min(dny do konce
+  masa, dny do sklizně) – `dietPlan(input, untilHarvest)`, D112; poslední den zbytek) až po
   mléku, vejcích, čerstvém a ostatním uzeném – do plné potřeby (i nad příděl), co se nevejde,
   zůstane; jen co by se jinak zkazilo (`slaughterMust` = zásoba − potřeba × (dny do konce masa
-  − 1), nejvýš potřeba – D98 kolo 2), se sní v tempu proti zkažení před mlékem; výhled ji počítá `min(díl, potřeba) × keptDays(min(dny, dny do konce masa))` (Σ
+  − 1), nejvýš potřeba – D98 kolo 2), se sní v tempu proti zkažení před mlékem. Hlad pozná
+  `eatDiet` výhledem s dílem do konce masa (`harvestOutlook`): pod plným přídělem, se zásobou
+  z 1. 11. a sklizní dřív než konec masa spočte `dietPlan(input, true)` a výhled znovu – jídlo
+  dne i výhled pak mají díl do sklizně (bez kruhu: díl do sklizně výhled jen zvedá);
+  `grainAheadForOutlookKg` pod plným přídělem počítá s dílem do sklizně taky (přesně obrácený
+  výhled), na plný příděl s dílem do konce masa (D112). `DietResult.daysToHarvest` = dny výhledu.
+  Výhled ji počítá `min(díl, potřeba) × keptDays(min(dny, dny do konce masa))` (Σ
   `DAILY_MEAT_KEEP`^j – i se ztrátou uzením), ostatní uzené celé, nejvýš potřeba za dny do konce
   masa. Starší ves převede `smoked-meat-stocks` (níž). `tierMeal` (`core/tier-meal.ts`)
-  rozdělí snědené vsi mezi vrstvy: `rationShares` dá příděl (75 % všem, zbytek po vrstvách), pak
+  rozdělí snědené vsi mezi vrstvy: `rationShares` dá příděl (životní minimum `minimum` všem –
+  75 %, v dlouhém hladu `rationMinimum` –, zbytek po vrstvách), pak
   úrovně `LEVELS` – ovoce a pevný příděl medu všem stejně (`evenTakes`), ostatní po vrstvách
   (`levelTakes`) v pořadí čerstvé maso, uzené, mléko, vejce, sýr, luštěniny, obilí, med navíc –
   maso elitě napřed (od 18. 11. 2026, po závěrečné kontrole; pořadí jídla vsi v `eatDiet`

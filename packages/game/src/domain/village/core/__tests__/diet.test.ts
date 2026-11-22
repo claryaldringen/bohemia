@@ -522,19 +522,21 @@ describe('dvě zásoby uzeného – z porážky 1. 11. rovným dílem, ostatní 
     expect(meal.cheeseMadeKg).toBe(0);
   });
 
-  it('v hladu díl i nad dnešní příděl, víc ne – výhled počítá díl se ztrátou uzením do sklizně', () => {
-    // obilí na ≈ 30 % potřeby do sklizně, zásoba z 1. 11. 1 000 kg do konce masa za 200 dní
+  it('v hladu díl do sklizně i nad dnešní příděl, víc ne – výhled počítá díl se ztrátou uzením', () => {
+    // obilí na ≈ 30 % potřeby do sklizně, zásoba z 1. 11. 1 000 kg do konce masa za 200 dní,
+    // sklizeň za 100 – v hladu se jí díl do sklizně (diet.md – V hladu do sklizně; D112)
     const grainKg = 0.3 * NEED * 100;
     const slaughterMeatKg = 1000;
     const meal = eatDiet(
       input({ grainKg, meatKg: 1000, slaughterMeatKg, daysToHarvest: 100, daysToMeatEnd: 200 }),
     );
-    const share = meatEnergy(slaughterMeatKg * DAILY_MEAT_KEEP) / 200;
+    const share = meatEnergy(slaughterMeatKg * DAILY_MEAT_KEEP) / 100;
     const grain = grainKg * KEEP * eatenShare(KEEP, 0, 100);
     expect(meal.outlook).toBeCloseTo((share * meatKeptDays(100) + grain) / (NEED * 100), 9);
     expect(meatEnergy(meal.eaten.meatKg)).toBeCloseTo(share, 9);
     expect(meal.eaten.grainKg).toBeCloseTo(meal.outlook * NEED - share, 9);
-    // díl větší než dnešní příděl – sní se celý (jinak by se zkazil), obilí dnes nic
+    // díl větší než dnešní příděl – sní se do plné potřeby, víc ne (zbytek zůstane v zásobě),
+    // obilí dnes nic
     const big = eatDiet(
       input({
         grainKg: 0,
@@ -544,10 +546,12 @@ describe('dvě zásoby uzeného – z porážky 1. 11. rovným dílem, ostatní 
         daysToMeatEnd: 200,
       }),
     );
-    const bigShare = meatEnergy(3000 * DAILY_MEAT_KEEP) / 200;
-    expect(big.outlook * NEED).toBeLessThan(bigShare);
-    expect(meatEnergy(big.eaten.meatKg)).toBeCloseTo(bigShare, 9);
-    expect(big.diet.energy * NEED).toBeCloseTo(bigShare, 9);
+    expect(meatEnergy(3000 * DAILY_MEAT_KEEP) / 100).toBeGreaterThan(NEED);
+    expect(big.outlook).toBeLessThan(1);
+    expect(meatEnergy(big.eaten.meatKg)).toBeCloseTo(NEED, 9);
+    expect(big.diet.energy).toBeCloseTo(1, 9);
+    expect(big.eaten.grainKg).toBe(0);
+    expect(big.slaughterMeatKg).toBeCloseTo(3000 * DAILY_MEAT_KEEP - NEED / DIET.meatEnergy, 6);
   });
 });
 

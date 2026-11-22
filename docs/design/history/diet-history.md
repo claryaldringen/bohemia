@@ -211,3 +211,30 @@ Dřív ve Výhledu do sklizně:
   srpna výhled do sklizně nepočítá. Dřív uzené celé, nejvýš potřeba za dny do konce masa – jedlo
   se hned. Ztrátu uzením výhled dál nezná (u 304 dní rozložení ≈ 9 % uzeného – Nouzová porážka má
   rezervu).
+
+## V hladu čeká srpnový díl
+
+Neplatí od 22. 11. 2026 (v hladu díl do sklizně – [strava](../diet.md), Pořadí jídla, V hladu do
+sklizně; návrh Clauda podle Martinova pravidla z 22. 11. 2026 „Obecně se drž pravidla vyprodukovat
+co nejvíce za co nejmenší množství práce.“). Dřív v oddílu Strava po vrstvách a porážka celý rok – Důsledky k vědomí:
+
+- **V hladu čeká srpnový díl** (k vědomí Martinovi): když je sklizeň dřív než konec masa
+  (sklizeň ozimu 31. 7.), výhled i jídlo berou ze zásoby z 1. 11. jen díl za dny do sklizně –
+  zbytek čeká do srpna, i když lidé hladovějí. Nouzová porážka díru dorovná 1 : 1 – díly zásoby
+  z 1. 11. za dny po sklizni (se sklizní 31. 7. k 1. 11. ≈ 31/304 zásoby, k 1. 7. polovina zbytku);
+  její maso je ostatní uzené a výhled ho bere celé (v D98 násobek až ≈ 2,8×, s opravným kolem
+  zmizel). Ve Vlkově za 13 let bez zhoršení úmrtí. Možný směr: v hladu díl ÷ min(dny do konce
+  masa, dny do sklizně).
+
+## Dlouhý hladomor bez osiva
+
+Neplatí od 22. 11. 2026 (v dlouhém hladu se rod uskrovní – [strava](../diet.md), Kdo dostane co;
+Martin 22. 11. 2026 na otázku „Má se rod v dlouhém hladu uskrovnit, aby zbytek vsi přežil do
+sklizně?“: „ano“). Dřív v oddílu Strava po vrstvách a porážka celý rok – Důsledky k vědomí:
+
+- **Dlouhý hladomor bez osiva** (otevřené – k rozhodnutí Martinovi, kód beze změny): při trvalém
+  přídělu 0,75 přibude za den (0,9 − 0,75) ÷ 0,9 ≈ 0,17 dne hladu – děti a starší dojdou k prahu
+  12 dní asi za 72 dní, dospělí k prahu 20 asi za 120 dní ([populace](../population.md) – Hlad
+  a vymření). Přežívací zásoba podle zbytku vsi (Kdo dostane co) pomůže jen, dokud ves drží
+  osivo, které může sníst. Bez osiva a jiného jídla tak v dlouhém hladomoru umírá zbytek vsi,
+  zatímco rod vojvody jí nad životním minimem.

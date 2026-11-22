@@ -37,7 +37,8 @@ import { SATIATION_EPSILON } from './simulate-plan';
  * luštěniny, maso, sýr), maso se 1. 9. ráno zkazí (`daysUntilMeatSpoil`), jablka shnijí
  * (`daysUntilAppleRot`). Ves jí v pořadí jídla bez stropů (diet.md – Strava po vrstvách a porážka
  * celý rok): napřed, co se kazí – ostatní uzené maso, zásoba z porážky 1. 11. jen svým dílem
- * (zásoba ÷ dny do konce masa – `daysUntilMeatEnd`, jako jídlo dne; Martin 18. 11. 2026: „Uzené
+ * (zásoba ÷ dny do konce masa – `daysUntilMeatEnd`, jako jídlo dne mimo hlad – předpověď plného
+ * přídělu sklizeň nezná; Martin 18. 11. 2026: „Uzené
  * rozlož“), sýr, ovoce, luštěniny –, pak obilí a nakonec med (nekazí se; když jídla není dost, je
  * jídlem jako obilí – hides-honey.md, Med v hladu). Nad svůj díl se zásoba z 1. 11. nejí – když
  * ostatní jídlo dojde, sama plný příděl nedá. První den, kdy plný příděl nevyjde, počítání

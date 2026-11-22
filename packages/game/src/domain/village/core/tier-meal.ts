@@ -2,6 +2,7 @@ import { legumeEnergy } from '../fields/legumes';
 import { DAIRY } from '../livestock/dairy';
 import { rationShares, type HungerSplit } from '../people/hunger-groups';
 import { HONEY } from '../rules/rules-wares';
+import { HUNGER_PRIORITY } from '../rules/rules-people';
 import type { DietDay } from '../types';
 import {
   DIET,
@@ -220,8 +221,9 @@ function levelTakes(
 /**
  * Rozdělí snědené vsi `eaten` mezi vrstvy s potřebami `split` (diet.md – Kdo dostane co).
  * 1. Příděl: poměr energie snědeného k potřebě všech vrstev (nad potřebou se ořízne na 1) –
- *    `rationShares`: dosyta všichni, nad životním minimem 75 % každý minimum a zbytek po vrstvách,
- *    pod ním všichni stejný podíl své potřeby.
+ *    `rationShares`: dosyta všichni, nad životním minimem `minimum` (75 %, v dlouhém hladu příděl
+ *    k přežití zbytku vsi do žní – `rationMinimum`) každý minimum a zbytek po vrstvách, pod ním
+ *    všichni stejný podíl své potřeby.
  * 2. Čím se naplní: úrovně jídla (`LEVELS`) – ovoce a pevný příděl medu všem stejně podle potřeby
  *    (i sytým, nejvýš do přídělu), ostatní po vrstvách 0 → 3 do zbytku přídělu. Vrstva bez potřeby
  *    nic nesní a má plnou energii.
@@ -229,11 +231,12 @@ function levelTakes(
 export function tierMeal(
   split: Pick<HungerSplit, 'needs' | 'proteinNeeds'>,
   eaten: Eaten,
+  minimum: number = HUNGER_PRIORITY.minimumShare,
 ): TierMeal {
   const needs = split.needs.map((need) => Math.max(0, need));
   const total = needs.reduce((sum, need) => sum + need, 0);
   // energie snědeného proti potřebě všech vrstev (dietOf ořízne na 1)
-  const shares = rationShares(dietOf(total, 0, eaten).energy, needs);
+  const shares = rationShares(dietOf(total, 0, eaten).energy, needs, minimum);
   const room = needs.map((need, t) => need * (shares[t] ?? 0));
   let sink = needs.length - 1;
   while (sink > 0 && (needs[sink] ?? 0) <= 0) sink--;
