@@ -108,7 +108,20 @@ import { advanceChunked, goldenWorld, stateFingerprint, YEAR } from './village-g
 // 22. 11. 2026 – D116 orba a setí až po vyklučení (fields.md – Postup práce po čtvercích): zlatá ves
 // v prvních letech kope motykou a díly s drnem louky zkope (a oseje) až po vrácení přílohu, mezitím
 // připravené díly – jiné pořadí kopání a setí, tedy úroda a dál celá ves; dřív e1c2e333a3b6fc16
-const EXPECTED_YEAR_1 = '396a222ecc30da6b';
+// 22. 11. 2026 – D115 ovoce na maximum, které ves sní (orchard.md – Jídlo, Práce; steward.md –
+// Jabloně u cest a sad): správce sází jabloně u cest a pak sad do cíle ovoce místo 5 % energie,
+// sklizeň jen do cíle; samotné D115 dávalo 78eaf33d62ac8181, dřív (s D113) e1c2e333a3b6fc16
+// 22. 11. 2026 – D115 kolo 1 (Martin: jablka nahrazují obilí jen bez ztráty bílkovin, výsadba před
+// klučením – diet.md, Pořadí jídla; fields.md, Pořadí důležitosti polních prací): jablka nad 5 %
+// energie jen místo obilí, které ves k bílkovinám nepotřebuje – zlatá ves bílkovin nazbyt nemá, cíl
+// ovoce je 5 % energie, sází a sklízí méně; výsadba dostane práci před vracením přílohu; dřív
+// bfca7809b876c8c4
+// 22. 11. 2026 – D115 kolo 3 (Martin: nasbíraná jablka nesmí shnít): strop sklizně a cíl ovoce
+// počítají snědení do zkažení bez nádob (1. 3.), i když ves nádoby má – zlatá ves s nádobami
+// sklidí méně jablek; dřív 2a715603b4362c5d
+// 22. 11. 2026 – sloučení D115 a D116 (ovoce a orba až po vyklučení): samotné D116 dávalo
+// 396a222ecc30da6b, samotné D115 7bbbccaf2a7eb247
+const EXPECTED_YEAR_1 = '9491b1cfb67cdbc7';
 // 18. 11. 2026 – D93 cesta přes plochu staveb; dřív 82b12dd84c08dd63 (vyšlapaná cesta přes plochu
 // staveb nevznikne a napojení ji obejde – jiné cesty a id; roky chůze nejvýš doba vyšlapání)
 // 18. 11. 2026 – D95 výmlat (Martin: „A, C, E“ – výmlat podle kg snopů, rod v zimě dorovná tempo
@@ -122,8 +135,12 @@ describe('zlatý otisk vsi', () => {
     // 18. 11. 2026 – strava po vrstvách, úloha 2: maso, ryby a mléko bez stropů – ves potřebuje
     // méně obilí a správce založil 4 pole; dřív aspoň 5
     // 18. 11. 2026 – D99 cíl polí na maximum, které ves oseje (steward.md – Cíl polí): 27 polí;
-    // dřív aspoň 4; 19. 11. 2026 – D99 kolo 1 (osev i žně): 26 polí
-    expect(s.fields.length).toBeGreaterThanOrEqual(20);
+    // dřív aspoň 4; 19. 11. 2026 – D99 kolo 1 (osev i žně): 26 polí; 22. 11. 2026 – D115 (jabloně
+    // u cest a sad do cíle ovoce): 18 polí při skoro stejné ploše polí, dřív aspoň 20;
+    // 22. 11. 2026 – D115 kolo 1: hlídá se plocha polí, ne počet (sad smí na pole a rozdělí ho) –
+    // po 20 letech ≈ 33,6 ha; dřív aspoň 15 polí
+    const fieldHa = s.parts.reduce((sum, p) => sum + p.areaM2, 0) / 10_000;
+    expect(fieldHa).toBeGreaterThanOrEqual(30);
     expect(s.livestock?.herds).toBeDefined();
     expect(s.crafts).toBeDefined();
     expect(s.people.length).toBeGreaterThanOrEqual(10);

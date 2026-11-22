@@ -166,7 +166,16 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   jara a podzimu (`orchardPlantingNeed` mimo okna 0), čtverec dostane `plantedDay`. Rok sadu
   začíná 1. 3. (`orchardYear`), úroda `orchardYieldShare`. Sezónní práce celé vsi
   (`VillageState.orchardWork` – sklizeň září–říjen, péče v zimě; `orchardSeasonDay` na začátku
-  dne) jde do `allocateDay` mezi polní úlohy podle konce okna. Jablka `applesKg` se jí před
+  dne) jde do `allocateDay` mezi polní úlohy podle konce okna. Sklizeň 1. 9. nasbírá nejvýš
+  jablka, která ves od dneška do zkažení sní, bez zásoby jablek (`startWork` s `harvestCapKg`;
+  úroda i práce poměrně – orchard.md, Práce; D115), a každý další den sklizně znovu – `capHarvest`
+  zkrátí zbytek úrody i práce stejným dílem (nasbírané i úroda na člověkoden zůstanou): `simulate.ts`
+  předá `orchardSeasonDay` funkci `fruitEatenUntilRotKg` (`fruit-target.ts` – Σ `DIET.fruitShare`
+  × `villageFoodNeed` dne přes dny do zkažení bez nádob `daysUntilAppleRot(from)` – i u vsi s nádobami, rezerva na úmrtí a ubývání nádob, D115 kolo 3 – ÷ `APPLE_FOOD_VALUE`, s dnešními
+  lidmi; přebytek bílkovin nepočítá – D115 kola 1 a 2); cíl ovoce pro správce `fruitTargetKg` je
+  totéž od 1. 9. roku dne. Bez funkce (testy) se sklízí vše. Zkrácená sklizeň si pamatuje díl
+  úrody `OrchardWork.share` (nasbírané ÷ plná úroda) – zábor čtverce (`shrinkOrchardWork` v land-taken.ts) ubere úrodu i práci jen
+  tímto dílem. Jablka `applesKg` se jí před
   obilím (`eatMeal` ve `food.ts`, bez jablek přesně `eatDay`) a ráno 1. 3. shnijí; osev se jimi
   neřídí. Hlad (`hungry`) se řídí výhledem `outlook` – hlásí se hned, když obilí po zkažení
   jablek nevystačí. Překážky čtverce zmizí s první prací na něm a dospělé stromy (nevyhrazené

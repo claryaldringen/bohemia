@@ -233,6 +233,15 @@ export interface DayAllocationInput {
    * z práce vsi po výpravách, před úlohami dne; bez údaje 0.
    */
   carting?: number;
+  /**
+   * Výsadba jabloní u cest a sadu v oknech výsadby (orchard.md – Výsadba; Martin 22. 11. 2026:
+   * „ano“ – výsadba má v jarních a podzimních oknech přednost před klučením zarostlých přílohů,
+   * orba a setí na daný rok dál před výsadbou): práce, kterou výsadba dnes potřebuje (`manDays`),
+   * a pořadí úloh (`order` – indexy `tasks`), ve kterém dostane práci vsi před úlohou na místě
+   * `slot` (po orbě, kopání a setí, před vracením přílohu – `plantingOrder`). Chybí = bez výsadby,
+   * úlohy v pořadí `tasks`.
+   */
+  planting?: { manDays: number; order: readonly number[]; slot: number };
 }
 
 export interface DayAllocation {
@@ -272,6 +281,11 @@ export interface DayAllocation {
    * (`afterConstructions`). Ukazatel volné práce a „má na to“ (`commonLaborHistory`).
    */
   common: number;
+  /**
+   * Práce výsadby jabloní u cest a sadu (`DayAllocationInput.planting`) – jde do výsadby před
+   * společnou prací (`plantFruit`), co nespotřebuje, přibude ke společné práci. Chybí = 0.
+   */
+  planting?: number;
   /**
    * Díl společné práce, který zbude mužům – jen ten jde na stavby (population.md – Práce, Stavby
    * staví muži; Martin 14. 11. 2026: „D24 ano“ – `menCommon`); co z `common` zbude, jde po stavbách
@@ -470,10 +484,18 @@ export function allocateDay(input: DayAllocationInput): DayAllocation {
     if (task.name === 'weed') menWeed -= amount - before;
     taskAmounts[i] = amount;
   };
-  // ostatní úlohy v pořadí, pletí až za nimi – co děti a ženy nestihly, doplejí muži zbylou prací
-  input.tasks.forEach((task, i) => {
-    if (task.name !== 'weed') allot(task, i);
+  // ostatní úlohy v pořadí, pletí až za nimi – co děti a ženy nestihly, doplejí muži zbylou prací;
+  // výsadba jabloní a sadu v oknech výsadby po orbě, kopání a setí, před vracením přílohu (Martin
+  // 22. 11. 2026) – úlohy v pořadí `planting.order`, výsadba před úlohou na místě `slot`
+  const planting = input.planting;
+  let plantingLabor = 0;
+  const order = planting?.order ?? input.tasks.map((_, i) => i);
+  order.forEach((i, k) => {
+    if (planting && k === planting.slot) plantingLabor = take(planting.manDays);
+    const task = input.tasks[i];
+    if (task && task.name !== 'weed') allot(task, i);
   });
+  if (planting && planting.slot >= order.length) plantingLabor = take(planting.manDays);
   input.tasks.forEach((task, i) => {
     if (task.name === 'weed') allot(task, i);
   });
@@ -508,6 +530,7 @@ export function allocateDay(input: DayAllocationInput): DayAllocation {
     tasks,
     taskAmounts,
     common: left,
+    ...(plantingLabor > 0 ? { planting: plantingLabor } : {}),
     build: menCommon(outdoorLeft, womenOutdoor, left),
   };
 }

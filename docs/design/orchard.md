@@ -41,11 +41,15 @@ rozhoduje, kolik louky a práce dá do jistoty na dlouho dopředu místo obilí 
   sklizeň si nechá sklizený podíl). Nevysazený čtverec, který dům sebere celý, předá překážky
   staveništi domu. Když dům zanikne, plocha se do sadu nevrací.
 - **Výsadba:** **80 člověkodní/ha** + překážky jako u pole (tabulka ve
-  [fields.md](fields.md); skalní výchoz se neodstraní a plocha pod ním se nepočítá) ze společné
-  práce vsi; sází se jen na jaře (březen–duben) nebo na podzim (září–listopad) – okna jako kopání
-  (návrh Clauda). Mimo okna stavba sadu společnou práci nebere a čeká; čtverce se sázejí od
-  nejbližšího k obydlím. Polní práce mají přednost (pořadí práce ve [fields.md](fields.md)) –
-  mladá ves, která má na podzim všechnu práci v poli, vysadí sad až na jaře. Překážky z čtverce
+  [fields.md](fields.md); skalní výchoz se neodstraní a plocha pod ním se nepočítá); sází se jen
+  na jaře (březen–duben) nebo na podzim (září–listopad) – okna jako kopání (návrh Clauda). Mimo
+  okna stavba sadu práci nebere a čeká; čtverce se sázejí od nejbližšího k obydlím. V oknech
+  dostane výsadba sadu i jabloní u cest práci vsi **po orbě, kopání a setí, ale před vracením
+  přílohu** (Martin 22. 11. 2026: „ano“ na otázku „Má výsadba jabloní a sadu dostat v jarních
+  a podzimních oknech přednost před klučením zarostlých přílohů?“ – pořadí práce ve
+  [fields.md](fields.md), Pořadí důležitosti polních prací); co nespotřebuje, jde do společné
+  práce. Mladá ves, která má na podzim všechnu práci na orbě a setí, vysadí sad až na jaře
+  (dřív, do 22. 11. 2026, brala výsadba jen společnou práci po všech polních pracích). Překážky z čtverce
   zmizí, jakmile se na něm začne pracovat (nejdřív se vyklidí – sazenice nestojí mezi kameny
   a keři); dospělé stromy, které nevyhradila stavba obydlí, přitom dají klády na hromadu jako
   u dílu pole ([les a dřevo](forest.md)). Stromy čtverců, které se ještě nezačaly sázet, patří
@@ -72,15 +76,51 @@ rozhoduje, kolik louky a práce dá do jistoty na dlouho dopředu místo obilí 
     první, ozim dostane zbytek podzimu, se kterým plán osevu počítá) i před kopáním jaře (okno
     končí dřív). Jablka přibývají do zásob postupně, jak se sklízí; co se do konce října
     nestihne, spadne a shnije (úroda × podíl sklizené práce).
+  - **sklízí se jen to, co se sní** (Martin 22. 11. 2026: „U těch jablek - tam nejde ani tak
+    o jablka, ale o práci. Pokud jablka zůstanou na stromech, je to ok. Pokud shnijí ta, co lidé
+    nasbírali (utratili za ně práci) je to špatně“): sklizeň 1. 9. nasbírá nejvýš cíl ovoce
+    (Jídlo níž) bez zásoby jablek, kterou ves už má, a **každý další den sklizně nejvýš jablka,
+    která ves od toho dne do zkažení sní** (bez zásoby) – dny, kdy jablka ještě nebyla nasbíraná,
+    je ves sníst nemohla (Vlkov sklízel až v říjnu a září shnilo); zbytek zůstane na stromech
+    a práci nestojí – práce sklizně poměrně k nasbíraným jablkům (návrh Clauda; D115 kolo 2).
+    **Strop počítá zkažení bez nádob (1. 3.), i když ves nádoby má** (návrh Clauda, D115 kolo 3;
+    Martin 22. 11. 2026: „Pokud shnijí ta, co lidé nasbírali (utratili za ně práci) je to špatně“):
+    nádoby přes zimu ubývají (pokrytí klesne a jablka shnijí dřív než 1. 5.) a lidé umírají, takže
+    březen a duben jsou rezerva – jablka se jedí dál jako dosud a s nádobami vydrží do 1. 5., ale
+    nasbírá se jich jen tolik, aby je ves snědla do 1. 3.; co zůstane na stromech, nevadí.
 - **Jídlo:** od 18. 10. 2026 podle [stravy](diet.md) – jablka jsou v rozhraní **ovoce**, jí se
-  přednostně rovným dílem do zkažení, ale pokryjí nejvýš čtvrtinu energie (samo ovoce nenasytí)
-  a přidají štěstí +5. Původní pravidlo: sklizená jablka jdou do zásob vsi zvlášť a **jí se
+  napřed, hned, jak jsou (diet.md – Pořadí jídla; do 18. 11. 2026 nejvýš čtvrtina energie –
+  stropy zrušeny; samo ovoce nenasytí kvalitou stravy), a přidají štěstí +5 – **do 5 % energie
+  vždy, nad to jen místo obilí a luštěnin, které ves k bílkovinám nepotřebuje** (Martin 22. 11. 2026: „Ano“ na otázku „Mají jablka nahrazovat obilí jen tak, aby lidé nepřišli o bílkoviny?“
+  – diet.md, Pořadí jídla).
+  **Cíl ovoce** (Martin 22. 11. 2026 – „ano“ na přepnutí sadu a jabloní u cest na maximum, které
+  ves zvládne, a „Ano“ na otázku výš; doporučení Clauda k otázce: ves sází jen tolik stromů, kolik
+  jablek sní, aniž by přišla o bílkoviny, a zbytek obilí jí jako dnes; tvar návrh Clauda): jablka, která ves
+  sní od sklizně (1. 9.) do zkažení **bez nádob (1. 3.)** podle pravidla jídla – **5 %
+  potřeby energie každého dne** jako jídlo dne (lidé doma podle věku toho dne a hosté), s dnešními
+  lidmi – kdo se narodí, přibude nebo umře, odhad nezná (D115 kolo 2; do 22. 11. 2026 roční
+  potřeba z lidí 1. 9. rovným dílem na dny – zbylo 23–102 kg nasbíraných jablek za rok). Návrh
+  Clauda: jablka navíc při přebytku bílkovin cíl nepočítá – odhad přebytku ze stád 1. 9. (roční
+  průměr mléka a masa i maso porážky 1. 11.) ve Vlkově přebytek nadsadil (stáda nad chovným
+  stádem se poráží a prodávají) a nasbíraná jablka shnila (až 961 kg za rok; Martin 22. 11. 2026:
+  „Pokud shnijí ta, co lidé nasbírali (utratili za ně práci) je to špatně“). Cíl 5 % je opatrný –
+  při skutečném přebytku ves jablka nad 5 % bez ztráty bílkovin sní ze zásoby, kterou nasbírá
+  (diet.md – Pořadí jídla). Přebytek bílkovin má podle čísel pravidel jen ves
+  s většinou energie z masa – mléko má na kg obilí energie méně bílkovin, než lidé potřebují. Podle cíle správce sází jabloně u cest a sad
+  ([správce](steward.md) – Jabloně u cest a sad) a podle něj se sklízí (Práce výš). Dřívější cíl
+  a pravidlo do 22. 11. 2026 (5 % energie) jsou v [historii správce](history/steward-history.md).
+  `DIET.fruitShare` (5 %) je i plné ovoce v kvalitě stravy (diet.md – Bílkoviny a nasycení).
+  Původní pravidlo: sklizená jablka jdou do zásob vsi zvlášť a **jí se
   přednostně** před obilím; co zbude k **1. 3.** (ráno), shnije – s nádobami od hrnčíře později,
   s plným pokrytím až 1. 5. ([řemesla](crafts.md) – den zkažení se posouvá poměrně k pokrytí
   nádobami). Přídělový systém (fields.md) počítá jen s jablky, která se
-  stihnou sníst do konce února: když jídlo do sklizně nevystačí, dělí se rovně – a když jablek
-  je víc, než se při rovném přídělu stihne sníst, jí se do zkažení jen jablka (nejvýš dosyta)
-  a obilí zůstane na dobu po nich (návrh Clauda). Hlad (upozornění a kronika) začíná, jakmile
+  stihnou sníst do konce února, a jen s těmi, která ves podle pravidla jídla sní – do 5 % potřeby
+  a při plném přídělu i s jablky navíc místo obilí nad bílkoviny. Když jídlo do sklizně
+  nevystačí (výhled s jablky do 5 % nedá plný příděl), jsou jablka nad 5 % jídlo k přídělu –
+  výhled s nimi počítá, nejvýš kolik do plné potřeby chybí, a jí se rovným dílem do zkažení;
+  obilí, které ušetří, ves do sklizně sní, bílkoviny tak neubudou. Dají-li jablka plný příděl, ves
+  nehladoví ani neporáží v nouzi (návrh Clauda, diet.md – Pořadí jídla; D115 kolo 2 – předtím se
+  jedla k přídělu navíc a výhled je neviděl). Hlad (upozornění a kronika) začíná, jakmile
   příděl podle výhledu do sklizně klesne pod plný – i když se zatím jí dosyta jablky a obilí
   nevystačí až po 1. 3. Jablka nemají ztráty ze skladování. Plánování osevu a rezerva obilí se
   jablky nemění.
@@ -179,6 +219,11 @@ po 10 m střídavě po stranách úseku. Každá jabloň je jako sad na strom (1
 0,44 čd jen v oknech jara a podzimu, plody od 6. roku, plná úroda ≈ 17 kg od 25. roku, péče
 v zimě a sklizeň v září–říjnu spolu se sady, jablka do stejné zásoby ovoce; po 60 letech souš
 a místo je volné. Ve scéně stejné modely a roční období jako v sadu.
+
+Správce je sází **napřed, před sadem** – dokud ovoce nepokryje cíl ovoce (Pravidla – Jídlo), jen
+podél pevných cest kolem polí (do 40 m od dílu), takže mez je délka takových cest; sad až na
+zbytek (Martin 22. 11. 2026: „Nezapomeň na jabloně podél cést - ideální je pokrývat spotřebu jimi
+a pak až sadem“; [správce](steward.md) – Jabloně u cest a sad).
 
 ## Jablka vozem
 

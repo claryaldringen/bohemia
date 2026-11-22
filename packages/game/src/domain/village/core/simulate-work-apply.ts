@@ -40,7 +40,13 @@ import { addCropTaskWork, cropTaskDone, cropTaskRemaining, type CropTask } from 
 import { tillableRemaining } from '../fields/field-progress';
 import { payWatch } from '../wildlife/wildlife-damage';
 import { fortUpkeep } from '../fortification/decay';
-import { build, decayEmptyDwellings, woodworkToday, type StoneCarts } from './simulate-build';
+import {
+  build,
+  decayEmptyDwellings,
+  plantFruit,
+  woodworkToday,
+  type StoneCarts,
+} from './simulate-build';
 import {
   haulLogs,
   logsDemand,
@@ -519,7 +525,11 @@ export function commonWorkDay(
   // příští rok drží stáda; pletí mužů po stavbách ji nezmenší
   recordMowingLabor(state, day, applied.mowWork + allocation.common, coverage.tools);
   const hauled = commonHauls(ctx, carts, cartJobs, jobs, allocation.common, applied.haulWork);
-  let common = hauled.common;
+  // výsadba jabloní u cest a sadu z práce výsadby dne (`allocation.planting` – po orbě, kopání
+  // a setí, před vracením přílohu; Martin 22. 11. 2026); co nespotřebuje, přibude ke společné práci
+  const plantingLabor = allocation.planting ?? 0;
+  const planted = plantFruit(state, day, plantingLabor);
+  let common = hauled.common + plantingLabor - planted.reduce((sum, w) => sum + w.manDays, 0);
   // hladovějící ves chytá ryby a zajíce hned za polními úlohami, před stavbami (wildlife.md –
   // Drobná zvěř a ryby); jinak až ze zbytku práce po pletí mužů a seči navíc (`freeLaborDay`)
   let game: SmallGameResult = { manDays: 0, shares: [] };
@@ -548,7 +558,9 @@ export function commonWorkDay(
     { free: freeLabor, women },
     game,
   );
-  return { ...built, ...free };
+  return planted.length > 0
+    ? { ...built, constructions: [...planted, ...built.constructions], ...free }
+    : { ...built, ...free };
 }
 
 /**

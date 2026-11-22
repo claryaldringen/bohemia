@@ -686,7 +686,8 @@ function shrinkOrchards(
 
 /**
  * Rozběhnutá sezónní práce v sadech (sklizeň, péče) přijde o podíl čtverce – potřebná práce
- * i úroda jablek ubudou, hotový podíl zůstane (sklizená jablka už jsou v zásobách).
+ * i úroda jablek ubudou, hotový podíl zůstane (sklizená jablka už jsou v zásobách). Sklizeň
+ * zkrácená na cíl ovoce ubude poměrně – jen svým dílem úrody čtverce (`OrchardWork.share`).
  */
 function shrinkOrchardWork(
   state: VillageState,
@@ -698,9 +699,10 @@ function shrinkOrchardWork(
   if (!work || work.required <= 0) return;
   const part = work.task === 'harvest' ? squareHarvestWork(square, day) : squareCareWork(square);
   const progress = Math.min(1, work.done / work.required);
-  work.required = Math.max(0, work.required - share * part);
+  const cut = share * (work.share ?? 1);
+  work.required = Math.max(0, work.required - cut * part);
   work.done = progress * work.required;
   if (work.task === 'harvest') {
-    work.yieldKg = Math.max(0, work.yieldKg - share * squareYieldKg(square, day));
+    work.yieldKg = Math.max(0, work.yieldKg - cut * squareYieldKg(square, day));
   }
 }

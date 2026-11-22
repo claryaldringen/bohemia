@@ -413,14 +413,18 @@ const SEASON_START: DayOfYear = { month: ORCHARD_SEASON.startMonth, day: 1 };
 /**
  * Začátek dne v sadech (mutuje stav, před prací a jídlem dne). 1. 3.: nesnědená jablka shnijí
  * (v nádobách později – `applesSpoiled` podle pokrytí nádobami, crafts.md), péče končí
- * a čtverce v 60. roce sadu se vrátí v louku. 1. 9.: sklizeň (práce podle úrody). 1. 11.: konec
- * sklizně – nesklizená jablka spadla a shnila. 1. 12.: péče o vysazené stromy. Každý den v oknech
- * výsadby: vesničané zařadí staré čtverce do obnovy (`renewOrchards`).
+ * a čtverce v 60. roce sadu se vrátí v louku. 1. 9.: sklizeň (práce podle úrody) – nejvýš tolik
+ * jablek, kolik ves od dneška do zkažení sní (`fruitLeftKg` – `fruitEatenUntilRotKg`, bez zásoby
+ * jablek, kterou už má – orchard.md, Práce), a každý další den sklizně znovu: co se nestihlo
+ * nasbírat, než ho ves mohla jíst, se už nesbírá (`capHarvest`); bez `fruitLeftKg` sklidí
+ * všechno. 1. 11.: konec sklizně – nesklizená jablka spadla a shnila. 1. 12.: péče o vysazené
+ * stromy. Každý den v oknech výsadby: vesničané zařadí staré čtverce do obnovy (`renewOrchards`).
  */
 export function orchardSeasonDay(
   state: VillageState,
   day: number,
   potteryCoverage = 0,
+  fruitLeftKg: (state: VillageState) => number = () => Infinity,
 ): ChronicleEvent[] {
   const date = dateOfDayIndex(day);
   const events: ChronicleEvent[] = [];
@@ -436,7 +440,14 @@ export function orchardSeasonDay(
     if (kg > 0) events.push({ day, kind: 'apple-harvest', kg });
     state.orchardWork = null;
   }
-  if (isOn(date, HARVEST_SEASON.start)) startWork(state, day, 'harvest');
+  if (isOn(date, HARVEST_SEASON.start)) {
+    startWork(state, day, 'harvest', fruitLeftKg(state) - villageApplesKg(state));
+  } else if (state.orchardWork?.task === 'harvest' && orchardWorkRemaining(state.orchardWork) > 0) {
+    // sklizeň v běhu nasbírá nejvýš jablka, která ves od dneška do zkažení sní – dny, kdy jablka
+    // ještě nebyla nasbíraná, je sníst nemohla (Martin 22. 11. 2026: „Pokud shnijí ta, co lidé
+    // nasbírali (utratili za ně práci) je to špatně“)
+    capHarvest(state.orchardWork, fruitLeftKg(state) - villageApplesKg(state));
+  }
   if (isOn(date, CARE_SEASON.start)) startWork(state, day, 'care');
   events.push(...renewOrchards(state, day));
   return events;
@@ -454,9 +465,16 @@ export function applesAfterHail(state: Pick<VillageState, 'disasters'>, day: num
 
 /**
  * Rozběhne sezónní práci ve všech sadech i u jabloní podél pevných cest (roads.md – jabloně jako
- * sad na strom); bez potřebné práce žádnou.
+ * sad na strom); bez potřebné práce žádnou. Sklizeň nasbírá nejvýš `harvestCapKg` jablek – zbytek
+ * zůstane na stromech a práci nestojí (Martin 22. 11. 2026: „Pokud jablka zůstanou na stromech, je
+ * to ok“); práce poměrně k nasbíraným jablkům (návrh Clauda).
  */
-function startWork(state: VillageState, day: number, task: OrchardWork['task']): void {
+function startWork(
+  state: VillageState,
+  day: number,
+  task: OrchardWork['task'],
+  harvestCapKg = Infinity,
+): void {
   // opuštěný sad se neošetřuje ani nesklízí (demolition.md – Rozhodnutí)
   const squares = villageOrchards(state)
     .filter((o) => o.disusedDay === undefined)
@@ -473,12 +491,23 @@ function startWork(state: VillageState, day: number, task: OrchardWork['task']):
       0,
     );
   // kroupy téhož roku potloukly jablka v sadech (disasters.md – Kroupy)
-  const yieldKg =
+  const fullKg =
     task === 'harvest'
       ? squares.reduce((s, q) => s + squareYieldKg(q, day), 0) * applesAfterHail(state, day) +
         apples.reduce((s, a) => s + roadAppleYieldKg(a, day), 0)
       : 0;
-  if (required > 0) state.orchardWork = { task, required, done: 0, yieldKg };
+  const cap = Math.max(0, harvestCapKg);
+  const yieldKg = Math.min(fullKg, cap);
+  const work = fullKg > cap ? (required * cap) / fullKg : required;
+  if (work > 0) {
+    state.orchardWork = {
+      task,
+      required: work,
+      done: 0,
+      yieldKg,
+      ...(fullKg > cap ? { share: cap / fullKg } : {}),
+    };
+  }
   // ves bez sadů (i uložená před jejich zavedením) stav nemění
   else if (state.orchardWork !== undefined) state.orchardWork = null;
 }
@@ -494,6 +523,23 @@ export function workOrchards(state: VillageState, amount: number): void {
   work.done = Math.min(work.required, work.done + amount);
   const gained = harvestedApplesKg(work) - before;
   if (gained > 0) state.applesKg = villageApplesKg(state) + gained;
+}
+
+/**
+ * Sklizeň v běhu nasbírá nejvýš `capKg` dalších jablek (mutuje práci): zbytek úrody i práce se
+ * zkrátí stejným dílem – úroda na člověkoden i nasbíraná jablka zůstanou, díl úrody stromů
+ * v plánu (`share`) ubude s nimi (orchard.md – Práce; jablka na stromech práci nestojí).
+ */
+function capHarvest(work: OrchardWork, capKg: number): void {
+  if (work.required <= 0) return;
+  const left = work.yieldKg * (1 - Math.min(1, work.done / work.required));
+  const cap = Math.max(0, capKg);
+  if (left <= cap) return;
+  const required = work.done + ((work.required - work.done) * cap) / left;
+  const kept = required / work.required;
+  work.yieldKg *= kept;
+  work.share = (work.share ?? 1) * kept;
+  work.required = required;
 }
 
 /** 1. 3. (v nádobách později): jablka, která se nesnědla, shnila (mutuje stav). */

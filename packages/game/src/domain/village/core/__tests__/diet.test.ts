@@ -151,16 +151,27 @@ describe('eatDiet – pořadí jídla bez stropů (diet.md – Strava po vrstvá
     expect(meal.diet.energy).toBeCloseTo(1, 9);
   });
 
-  it('ovoce před luštěninami a obilím, bez stropu 25 %', () => {
-    // ovoce na 60 % potřeby, luštěniny na víc než zbytek
+  it('ovoce před luštěninami a obilím, bez stropu 25 % – nad 5 % jen místo luštěnin a obilí, které ves k bílkovinám nepotřebuje', () => {
+    // ovoce na 60 % potřeby, luštěniny na víc než zbytek; bez potřeby bílkovin ovoce bez omezení
     const fruitKg = (0.6 * NEED) / fruitEnergy(1);
-    const meal = eatDiet(input({ fruitKg, legumesKg: 100, daysToRot: 50 }));
+    const meal = eatDiet(input({ fruitKg, legumesKg: 100, daysToRot: 50, proteinNeedPerDay: 0 }));
     expect(fruitEnergy(meal.eaten.fruitKg)).toBeCloseTo(0.6 * NEED, 9);
     expect(fruitEnergy(meal.eaten.fruitKg)).toBeGreaterThan(0.25 * NEED);
     expect(meal.fruitKg).toBe(0);
     // luštěniny dorovnají zbytek potřeby, obilí se dnes nejí
     expect(legumeEnergy(meal.eaten.legumesKg)).toBeCloseTo(0.4 * NEED, 9);
     expect(meal.eaten.grainKg).toBe(0);
+    // s potřebou bílkovin (Martin 22. 11. 2026): ovoce do 5 % vždy, nad to jen místo luštěnin, které
+    // ves k bílkovinám nepotřebuje – pokrytí bílkovin právě 1
+    const ruled = eatDiet(input({ fruitKg, legumesKg: 100, daysToRot: 50 }));
+    const legumesAt5 = (1 - DIET.fruitShare) * NEED;
+    const spareE =
+      (legumesAt5 * PROTEIN.perKg.legumes - PROTEIN_NEED) /
+      (PROTEIN.perKg.legumes / legumeEnergy(1));
+    expect(spareE).toBeGreaterThan(0);
+    expect(fruitEnergy(ruled.eaten.fruitKg)).toBeCloseTo(DIET.fruitShare * NEED + spareE, 9);
+    expect(ruled.diet.protein).toBeCloseTo(1, 9);
+    expect(ruled.diet.energy).toBeCloseTo(1, 9);
     // samo ovoce nasytí energií, ne kvalitou – samo obilí ani samo ovoce nikdy úplně nenasytí
     const fruitOnly = eatDiet(input({ grainKg: 0, fruitKg: 1e6, daysToRot: 50 }));
     expect(fruitOnly.diet.energy).toBeCloseTo(1, 9);
@@ -204,9 +215,12 @@ describe('eatDiet – pořadí jídla bez stropů (diet.md – Strava po vrstvá
   });
 
   it('i v hojnosti se napřed sní, co by se zkazilo – ovoce do zkažení celé, i když mléko nasytí samo', () => {
-    // mléko dne pokryje celou potřebu, ovoce na 120 kg obilí shnije za 60 dní
+    // mléko dne pokryje celou potřebu, ovoce na 120 kg obilí shnije za 60 dní; bez potřeby
+    // bílkovin (ovoce bez omezení – s ní jen do 5 % potřeby, níž)
     const fruitKg = 120 / fruitEnergy(1);
-    const today = eatDiet(input({ ...cowMilk(1000), fruitKg, daysToRot: 60 }));
+    const noProtein = (over: Partial<DietInput>): DietInput =>
+      input({ proteinNeedPerDay: 0, ...over });
+    const today = eatDiet(noProtein({ ...cowMilk(1000), fruitKg, daysToRot: 60 }));
     expect(fruitEnergy(today.eaten.fruitKg)).toBeGreaterThanOrEqual(
       fruitEnergy(fruitKg) / 60 - 1e-9,
     );
@@ -217,13 +231,21 @@ describe('eatDiet – pořadí jídla bez stropů (diet.md – Strava po vrstvá
     // den po dni do zkažení (1. 3.) – ovoce nezbude
     let left = fruitKg;
     for (let day = 0; day < 60; day++) {
-      left = eatDiet(input({ ...cowMilk(1000), fruitKg: left, daysToRot: 60 - day })).fruitKg;
+      left = eatDiet(noProtein({ ...cowMilk(1000), fruitKg: left, daysToRot: 60 - day })).fruitKg;
     }
     expect(left).toBeCloseTo(0, 9);
     // totéž s čerstvým masem zimní porážky na celou potřebu
-    const meat = eatDiet(input({ freshMeatKg: NEED / DIET.meatEnergy, fruitKg, daysToRot: 60 }));
+    const meat = eatDiet(
+      noProtein({ freshMeatKg: NEED / DIET.meatEnergy, fruitKg, daysToRot: 60 }),
+    );
     expect(fruitEnergy(meat.eaten.fruitKg)).toBeCloseTo(fruitEnergy(fruitKg) / 60, 9);
     expect(meat.meatKg).toBeGreaterThan(0);
+    // s potřebou bílkovin (Martin 22. 11. 2026): ovoce do 5 % potřeby vždy, nad to jen místo obilí
+    // a luštěnin; co by do zkažení zbylo, ves sní rovným dílem (tempo proti zkažení – nasbíraná
+    // jablka nesmí shnít) – i nad 5 %, mléko ovoce nevytlačí
+    const ruled = eatDiet(input({ ...cowMilk(1000), fruitKg, daysToRot: 60 }));
+    expect(fruitEnergy(ruled.eaten.fruitKg)).toBeCloseTo(fruitEnergy(fruitKg) / 60, 9);
+    expect(ruled.eaten.milkEnergy).toBeCloseTo(NEED - fruitEnergy(fruitKg) / 60, 9);
   });
 
   it('v hladu mléko nevytlačí ovoce ani uzené pod jejich tempo proti zkažení', () => {
@@ -606,13 +628,14 @@ describe('výhled zná ztráty obilí skladováním do žní (fields.md – Př�
 
   it('s ovocem napřed: ovoce se do zkažení sní celé, obilí počká a vyjde právě do žní', () => {
     // ovoce na 50 % potřeby po 100 dní do zkažení, cíl 20 % – do zkažení se jí jen ovoce, tempem
-    // proti zkažení (výhled 20 % je průměr do žní)
+    // proti zkažení (výhled 20 % je průměr do žní); bez potřeby bílkovin – ovoce bez omezení
+    // (s ní jen do 5 % potřeby a navíc místo obilí, které ves k bílkovinám nepotřebuje – níž)
     const fruitKg = (0.5 * NEED * 100) / fruitEnergy(1);
     const ahead = grainAheadForOutlookKg(
-      input({ grainKg: 0, fruitKg, daysToHarvest: DAYS, daysToRot: 100 }),
+      input({ grainKg: 0, fruitKg, daysToHarvest: DAYS, daysToRot: 100, proteinNeedPerDay: 0 }),
       0.2,
     );
-    const run = untilHarvest({ grainKg: ahead / KEEP, fruitKg }, 100);
+    const run = untilHarvest({ grainKg: ahead / KEEP, fruitKg, proteinNeedPerDay: 0 }, 100);
     expect(run.outlooks[0]).toBeCloseTo(0.2, 9);
     expect(spread(run.energy.slice(0, 100))).toBeLessThan(1e-9);
     expect(run.energy[0]).toBeCloseTo(0.5, 9);
@@ -955,28 +978,113 @@ describe('simulace – hlad jen z energie', () => {
     expect(end.hungry).toBe(false);
   });
 
-  it('ovoce, které se jí, přidá štěstí +5 každému (diet.md); bez stropu vytlačí obilí i s jeho bílkovinami', () => {
+  it('ovoce, které se jí, přidá štěstí +5 každému (diet.md); obilí vytlačí jen do 5 % energie – bílkoviny zůstanou', () => {
     const base = withBuiltFirstDwelling(
       foundVillage({ seed: 2, day: at(600, 9, 2), dwellingPosition: { x: 0, z: 0, rotation: 0 } }),
     );
     base.storesKg = 50_000;
     withoutSmallGame(base);
     const withFruit = structuredClone(base);
-    withFruit.applesKg = 2000;
+    withFruit.applesKg = 100; // tempo proti zkažení pod 5 % – 5 % platí vždy
     const day = at(600, 10, 1);
     const a = advanceVillage(base, day, null);
     const b = advanceVillage(withFruit, day, null);
-    // ovoce se jí před obilím, kolik ho je – dřív nejvýš 25 % energie
+    // ovoce se jí před obilím – ve vsi bez přebytku bílkovin jen do 5 % energie (Martin 22. 11. 2026:
+    // jablka nahrazují obilí jen tak, aby lidé nepřišli o bílkoviny; dřív bez stropu vytlačilo
+    // obilí i s jeho bílkovinami, do 18. 11. 2026 nejvýš 25 % energie)
     expect(a.diet!.shares.fruit).toBe(0);
-    expect(b.diet!.shares.fruit).toBeGreaterThan(0.5);
+    expect(a.diet!.protein).toBeLessThan(1);
+    expect(b.diet!.shares.fruit).toBeCloseTo(DIET.fruitShare, 2);
     expect(b.diet!.energy).toBeCloseTo(1, 9);
-    // ovoce nemá bílkoviny – nasycení je nižší než s obilím
-    expect(b.diet!.satiation).toBeLessThan(a.diet!.satiation);
+    // ovoce do 5 % ubere bílkoviny nejvýš o 5 % (obilí je ve stravě i s vejci a mlékem)
+    expect(b.diet!.protein).toBeLessThan(a.diet!.protein);
+    expect(b.diet!.protein).toBeGreaterThan(a.diet!.protein * (1 - DIET.fruitShare));
+    // plné ovoce v kvalitě stravy – nasycení vyšší než se samým obilím
+    expect(b.diet!.satiation).toBeGreaterThan(a.diet!.satiation);
     // ovoce jí všichni, kdo nejsou sytí z masa a mléčného – štěstí po lidech v cíli panelu
     const plain = summarizeVillage(a, day).happiness.factors;
     const sweet = summarizeVillage(b, day).happiness.factors;
     expect(plain.fruit).toBe(0);
     expect(sweet.fruit).toBeCloseTo(DIET.fruitHappiness, 12);
-    expect(sweet.hunger).toBeGreaterThan(plain.hunger);
+    // vyšší nasycení – horší strava ubere štěstí méně (dřív ovoce bez bílkovin víc)
+    expect(sweet.hunger).toBeLessThan(plain.hunger);
+  });
+});
+
+describe('jablka nad 5 % energie jen bez ztráty bílkovin (diet.md – Pořadí jídla; Martin 22. 11. 2026)', () => {
+  // Martin 22. 11. 2026: „Ano“ na otázku „Mají jablka nahrazovat obilí jen tak, aby lidé nepřišli
+  // o bílkoviny?“ – do 5 % energie vždy, nad to jen místo obilí a luštěnin, které ves k bílkovinám
+  // nepotřebuje; pokrytí bílkovin neklesne pod min(1, pokrytí s jablky do 5 %)
+  const ROT = 50;
+  /** Jablka přesně na 5 % potřeby do zkažení – tempo proti zkažení je právě 5 %. */
+  const fruitAt5 = (DIET.fruitShare * NEED * ROT) / fruitEnergy(1);
+  /** Jablka na celou potřebu do zkažení. */
+  const plenty = (NEED * ROT) / fruitEnergy(1);
+
+  it('ves s málo masem a mlékem: jablka jen do 5 % energie, bílkoviny jako s jablky do 5 %', () => {
+    const at5 = eatDiet(input({ fruitKg: fruitAt5, daysToRot: ROT }));
+    expect(at5.diet.shares.fruit).toBeCloseTo(DIET.fruitShare, 9);
+    expect(at5.diet.protein).toBeLessThan(1);
+    expect(at5.eaten.grainKg).toBeCloseTo((1 - DIET.fruitShare) * NEED, 9);
+    // zásoba nad to se sní rovným dílem do zkažení (tempo proti zkažení – nasbíraná jablka nesmí
+    // shnít, i když to ubere bílkoviny): dvojnásobek = 10 % denně, celá potřeba = vše z jablek
+    const double = eatDiet(input({ fruitKg: 2 * fruitAt5, daysToRot: ROT }));
+    expect(double.diet.shares.fruit).toBeCloseTo(2 * DIET.fruitShare, 9);
+    const meal = eatDiet(input({ fruitKg: plenty, daysToRot: ROT }));
+    expect(meal.diet.shares.fruit).toBeCloseTo(1, 9);
+    expect(meal.fruitKg).toBeCloseTo(plenty * (1 - 1 / ROT), 6);
+  });
+
+  it('ves s přebytkem bílkovin: jablka nad 5 % místo obilí, které k bílkovinám nepotřebuje – pokrytí 1', () => {
+    // čerstvé maso na 60 % potřeby – bílkovin nazbyt
+    const meatE = 0.6 * NEED;
+    const over = { freshMeatKg: meatE / DIET.meatEnergy, daysToRot: ROT };
+    const meal = eatDiet(input({ ...over, fruitKg: fruitAt5 }));
+    // s jablky do 5 %: maso, jablka 5 %, obilí zbytek – bílkoviny nad potřebu
+    const grainAt5 = NEED - meatE - DIET.fruitShare * NEED;
+    const proteinAt5 =
+      (meatE / DIET.meatEnergy) * PROTEIN.perKg.meat + grainAt5 * PROTEIN.perKg.grain;
+    expect(proteinAt5).toBeGreaterThan(PROTEIN_NEED);
+    const spareE = (proteinAt5 - PROTEIN_NEED) / PROTEIN.perKg.grain;
+    expect(fruitEnergy(meal.eaten.fruitKg)).toBeCloseTo(DIET.fruitShare * NEED + spareE, 9);
+    expect(meal.eaten.grainKg).toBeCloseTo(grainAt5 - spareE, 9);
+    expect(meal.diet.protein).toBeCloseTo(1, 9);
+    expect(meal.diet.energy).toBeCloseTo(1, 9);
+  });
+
+  it('v hladu: jablka nad 5 % jsou jídlo k přídělu – výhled s nimi počítá, jí se rovným dílem do zkažení (D115 kolo 2)', () => {
+    // obilí na 30 % potřeby do sklizně (100 dní), jablek na plnou potřebu do zkažení (50 dní) –
+    // do plné potřeby do sklizně chybí víc, než jablka nad 5 % dají
+    const over = { grainKg: (0.3 * NEED * 100) / KEEP, daysToRot: ROT };
+    const meal = eatDiet(input({ ...over, fruitKg: plenty }));
+    const at5 = eatDiet(input({ ...over, fruitKg: fruitAt5 }));
+    expect(at5.outlook).toBeLessThan(1);
+    // výhled počítá i s jablky nad 5 % – všemi, která ves do zkažení sní (dřív jen do 5 %)
+    const extra = (1 - DIET.fruitShare) * NEED * ROT;
+    expect(meal.outlook).toBeCloseTo(at5.outlook + extra / (NEED * 100), 9);
+    expect(meal.outlook).toBeLessThan(1);
+    // jídlo dne: jablka rovným dílem do zkažení (tempo proti zkažení) – dnes dosyta jablky, obilí
+    // zůstane na dny po zkažení; do sklizně se sní celé, bílkoviny tak neubudou
+    expect(fruitEnergy(meal.eaten.fruitKg)).toBeCloseTo(NEED, 9);
+    expect(meal.diet.energy).toBeCloseTo(1, 9);
+    expect(meal.eaten.grainKg).toBeCloseTo(0, 9);
+    // obrácený výhled souhlasí – na tentýž příděl chce tutéž zásobu obilí
+    const ahead = grainAheadForOutlookKg(input({ ...over, fruitKg: plenty }), meal.outlook);
+    expect(ahead).toBeCloseTo(over.grainKg * KEEP, 6);
+  });
+
+  it('v hladu: dají-li jablka nad 5 % plný příděl, ves nehladoví – jí jich jen, kolik chybí (D115 kolo 2)', () => {
+    // obilí na 60 % potřeby do sklizně – s jablky do 5 % ves hladoví, se všemi jablky ne
+    const over = { grainKg: (0.6 * NEED * 100) / KEEP, daysToRot: ROT };
+    const at5 = eatDiet(input({ ...over, fruitKg: fruitAt5 }));
+    expect(at5.outlook).toBeLessThan(1);
+    const meal = eatDiet(input({ ...over, fruitKg: plenty }));
+    // výhled plný – ves nehlásí hlad ani neporáží v nouzi
+    expect(meal.outlook).toBe(1);
+    expect(meal.diet.energy).toBeCloseTo(1, 9);
+    // jablka rovným dílem do zkažení (tempo proti zkažení) – zásoba na celou potřebu do zkažení
+    // se sní celou potřebou, nic nezbyde a obilí se dnes neotevře
+    expect(fruitEnergy(meal.eaten.fruitKg)).toBeCloseTo(NEED, 9);
+    expect(meal.eaten.grainKg).toBeCloseTo(0, 9);
   });
 });

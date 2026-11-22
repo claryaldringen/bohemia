@@ -961,7 +961,19 @@ nestačí na všechno):
    nejmenší množství práce“): klučení dílů na později nevytlačí setí toho, co je zorané
    (zorané je jen vyklučené – Postup práce po čtvercích, Orba a setí až po vyklučení). Dřív šlo
    vracení přílohu první a Vlkov 905–914 nechal na konci dubna 3–20 čd setí zorané jaře nezaseté
-   (v březnu a dubnu 30–60 dní, kdy klučení vzalo práci setí zoraného),
+   (v březnu a dubnu 30–60 dní, kdy klučení vzalo práci setí zoraného);
+   **výsadba jabloní u cest a sadu v oknech výsadby po orbě, kopání a setí, ale před vracením
+   přílohu** (Martin 22. 11. 2026: „ano“ na otázku „Má výsadba jabloní a sadu dostat v jarních
+   a podzimních oknech přednost před klučením zarostlých přílohů?“; vysvětlení Clauda k otázce: orba
+   a setí na daný rok dál mají přednost před výsadbou; jabloň u cesty stojí pár dní práce a jablka
+   dává desítky let). Návrh Clauda – kdo výsadbu nese: práci výsadby (`take(planting.manDays)` v
+   `allocateDay`) ubere ves z dílu, který zbyl po úlohách dne, napřed ženám a mužům společně, ne
+   jen z dílu mužů jako ostatní stavby (population.md – Stavby staví muži); rozdělení práce pro
+   postavy ji ukazuje mezi stavbami.
+   Návrh Clauda: výsadba dostane práci vsi hned před vracením přílohu – i před vším, co jde v pořadí
+   za ním (péče o sad, hlídka, výmlat, obilné jámy, pasák); co nespotřebuje, jde do společné práce.
+   Dřív (do 22. 11. 2026) brala výsadba jen společnou práci po polních pracích a Vlkov v oknech
+   výsadby nevysadil nic (volná práce 0 čd za den),
 7. **noční hlídka polí** proti zvěři,
 8. **výmlat**.
 

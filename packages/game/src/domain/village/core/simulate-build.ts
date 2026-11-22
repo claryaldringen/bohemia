@@ -244,6 +244,32 @@ export function build(
 }
 
 /**
+ * Práce, kterou dnes potřebuje rozestavěná výsadba jabloní u cest a sadu (`constructionNeed` –
+ * mimo okna výsadby 0). Dostane ji v práci dne po orbě, kopání a setí, před vracením přílohu
+ * (`DayAllocationInput.planting`; Martin 22. 11. 2026).
+ */
+export function fruitPlantingNeed(state: VillageState, day: number): number {
+  let need = 0;
+  for (const c of state.constructions) {
+    if (c.kind === 'road-apples') need += roadApplesNeed(c, day);
+    else if (c.kind === 'orchard') need += orchardPlantingNeed(state, c, day);
+  }
+  return need;
+}
+
+/**
+ * Výsadba z práce výsadby dne (`DayAllocation.planting`) před společnou prací: napřed jabloně
+ * u cest, pak sad (`build` po druzích – rozestavěná bývá nejvýš jedna výsadba). Vrátí práci po
+ * stavbách jako `build`; co výsadba nespotřebuje, zbude.
+ */
+export function plantFruit(state: VillageState, day: number, labor: number): ConstructionWork[] {
+  if (labor <= 0) return [];
+  const roads = build(state, day, labor, 0, 'road-apples');
+  const used = roads.reduce((sum, w) => sum + w.manDays, 0);
+  return [...roads, ...build(state, day, labor - used, 0, 'orchard')];
+}
+
+/**
  * Dřevěná práce staveb dne (čd bez tesaře – wagons.md, Tesař): kolik z `common` práce rozdělené
  * rovným dílem jako ve `build` připadne na dřevěné části staveb. Stav nemění.
  */

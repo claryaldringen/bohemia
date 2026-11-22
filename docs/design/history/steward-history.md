@@ -71,3 +71,45 @@ a u domů) **a** místa ohrad druhu byla pod `STEWARD.penPlacesPerPerson` × lid
 prasata 0,25, ovce 0,5, kozy 0,25 míst na člověka). Zrušeno: Martin 22. 11. 2026 na otázku „Mají se i tato tři místa přepnout na maximum, které ves
 zvládne?“ (jedno z míst: ohrady jen do míst na člověka) odpověděl „ano“ – opora Martin 18. 11. 2026:
 „Cílem vesnice je prostě produkovat maximum všeho.“ Platí [steward.md – Ostatní stavby, Ohrady](../steward.md).
+
+## Sad a jabloně u cest podle 5 % energie (neplatí od 22. 11. 2026)
+
+Neplatí od 22. 11. 2026 (Martin: „ano“ na otázku „Mají se i tato tři místa přepnout na maximum, které ves zvládne?“; „Nezapomeň na jabloně podél cést - ideální je pokrývat spotřebu jimi a pak až sadem“; steward.md – Ostatní stavby – upřesnění, Jabloně u cest a sad). Ves s ovocem nad 5 % energie (Vlkov 6–10 %) nesázela nic a staré jabloně u cest dožívaly (rozbor D106). Dřív v Rozhodovacím pořadí v den správce:
+
+8. **Sad, jabloně u cest** – ovoce ve stravě pod plnou potřebou; jabloně podél pevné cesty, která
+   vede kolem polí (zeleň chrání díly – disasters.md, Ochrana dílu). V oknech výsadby (orchard.md).
+
+Dřív v Ostatních stavbách – upřesnění:
+
+- **Sad a jabloně u cest:** potřeba jablek = plná potřeba energie × `DIET.fruitShare` ÷
+  `APPLE_FOOD_VALUE`; chybí-li ji plocha sadů a jabloní (plná úroda), napřed čtverec sadu, pak
+  jabloně podél pevné cesty do `roadFieldM` (40 m) od dílu pole. Jen v oknech výsadby. V Obnově
+  jen první zdroj ovoce (ves bez sadu i jabloní), další čtverce až v Růstu – s pěti sady z Obnovy
+  v letech 3–5 hladověla zdravá ves na seedu krajiny 2 v letech 14–18 (až 12 dní), s jedním ne
+  (měření 31. 10. 2026).
+
+## Cíl ovoce – celá potřeba po mase, mléce a vejcích (D115, neplatí od 22. 11. 2026 – kolo 1)
+
+Platilo 22. 11. 2026 (D115, před Martinovým „Ano“ na otázku „Mají jablka nahrazovat obilí jen tak,
+aby lidé nepřišli o bílkoviny?“). Znění z orchard.md – Jídlo:
+
+- **Cíl ovoce** (Martin 22. 11. 2026 – „ano“ na přepnutí sadu a jabloní u cest na maximum, které
+  ves zvládne; tvar návrh Clauda): jablka, která ves sní od sklizně (1. 9.) do zkažení (1. 3.,
+  s nádobami do 1. 5.) v pořadí jídla – napřed maso, mléko a sýr a vejce, pak ovoce rovným dílem
+  do zkažení, až po něm luštěniny a obilí (diet.md – Pořadí jídla). Počítá se z potřeby energie
+  lidí vsi za rok bez energie, kterou za rok dají stáda (mléko dojných samic, maso mláďat nad
+  chovné stádo) a slepice, rozložené rovným dílem na dny roku – na dny od sklizně do zkažení.
+- Výsadba sadu i jabloní u cest brala jen společnou práci vsi po všech polních pracích (orchard.md
+  – Výsadba: „ze společné práce vsi … Polní práce mají přednost“) – Vlkov v oknech výsadby za
+  10 let nevysadil nic (volná práce 0 čd za den, D115).
+
+Ve Vlkově byl cíl 6,9–9,9 t jablek (≈ 88 % energie od září do února); kontrola D115 ukázala, že
+s pokrytým cílem jablka vytlačí obilí i s bílkovinami (pokrytí bílkovin v zimě 0,68 → 0,17).
+
+## Cíl ovoce z roční potřeby lidí 1. 9. (D115 kolo 1, neplatí od 22. 11. 2026 – kolo 2)
+
+Platilo 22. 11. 2026 (D115 kolo 1). Cíl ovoce byl 5 % roční potřeby energie lidí vsi 1. 9.
+(všichni lidé vsi podle věku 1. 9.) rovným dílem na dny od 1. 9. do zkažení a sklizeň se zkrátila
+jen 1. 9. Jídlo dne ale jí 5 % potřeby dne (lidé doma, věk toho dne) a jablka, dokud nejsou
+nasbíraná, sníst nemůže – Vlkov sklízel někdy až v říjnu a za rok shnilo 23–102 kg nasbíraných
+jablek (3–15 % sklizně).

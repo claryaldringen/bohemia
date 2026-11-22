@@ -31,6 +31,7 @@ import { settleSowingSeed } from '../fields/seed';
 import { seedBuyingDay } from '../fields/seed-buying';
 import { sacredOakEvents } from '../people/sacred-life';
 import { orchardSeasonDay } from '../buildings/orchard';
+import { fruitEatenUntilRotKg } from '../buildings/fruit-target';
 import {
   inLuckyYears,
   nextStarvationDays,
@@ -316,8 +317,11 @@ function storesAndHerdsDay(
   // vozy, které dosloužily – tesař vyrobí nové (wagons.md – Vůz)
   state.chronicle.push(...retireCarts(state, day));
   // sady: shnilá jablka, konec péče a stárnutí (1. 3.), začátek a konec sklizně a péče, obnova
-  // starých čtverců v oknech výsadby (stavba ze společné práce – dostane práci už dnes)
-  for (const event of orchardSeasonDay(state, day, coverage.pottery)) {
+  // starých čtverců v oknech výsadby (stavba ze společné práce – dostane práci už dnes); sklizeň
+  // jen tolik jablek, kolik ves od dneška do zkažení sní (cíl ovoce – orchard.md, Práce)
+  for (const event of orchardSeasonDay(state, day, coverage.pottery, (s) =>
+    fruitEatenUntilRotKg(s, day),
+  )) {
     // zásoba jablek po sklizni (kronika – Martin 17. 11. 2026)
     if (event.kind === 'apple-harvest') {
       const outlook = stockLastsDays(state, day, 'apples', coverage.pottery);

@@ -8,8 +8,12 @@ import {
   obstaclesOf,
   tileCenterWorld,
 } from '../../../landscape';
-import { foundVillage } from '../../core/actions';
-import { bufferFill } from '../../fields/field-food';
+import { foundOrchard, foundVillage } from '../../core/actions';
+import { DIET } from '../../core/diet';
+import { fruitTargetKg } from '../../buildings/fruit-target';
+import { orchardAreaM2, villageOrchards } from '../../buildings/orchard';
+import { APPLE_FOOD_VALUE, ORCHARD } from '../../rules';
+import { bufferFill, yearlyFoodNeed } from '../../fields/field-food';
 import { fieldWorkPerHa, NO_CRAFTS } from '../../core/productivity';
 import { STEWARD } from '../../rules/rules-steward';
 import { advanceVillage } from '../../core/simulate';
@@ -504,6 +508,71 @@ describe('steward-extras – humno, ohrady, posvátná místa a cesty', () => {
     for (const r of spring.roads!.roads) r.grade = 'improved';
     roadApplesStep(spring, ctxOf(at(6)));
     expect(kinds(spring)).not.toContain('road-apples');
+  });
+
+  it('jabloně u cest jen do cíle ovoce – ve vsi bez přebytku bílkovin 5 % energie (D115 kolo 1)', () => {
+    const day = at(10);
+    const base = withLeft(grown, 10_000);
+    base.orchards = [];
+    for (const r of base.roads!.roads) r.grade = 'improved';
+    // cíl ovoce podle jídla – jablka do 5 % energie, nad to jen místo obilí, které ves
+    // k bílkovinám nepotřebuje (Martin 22. 11. 2026); ves bez přebytku bílkovin má cíl 5 % energie
+    // za dny do zkažení – méně než 5 % energie za celý rok
+    const target = fruitTargetKg(base, day);
+    expect(target).toBeGreaterThan(0);
+    expect(target).toBeLessThan((yearlyFoodNeed(base, day) * DIET.fruitShare) / APPLE_FOOD_VALUE);
+    const squareKg = (ORCHARD.fullYieldKgPerHa * 225) / 10_000;
+    /** Ves se sadem, který plnou úrodou dá aspoň `kg` jablek. */
+    const withOrchardOf = (kg: number): typeof base => {
+      const cells = Array.from({ length: Math.ceil(kg / squareKg) }, (_, i) => ({
+        cell: { x: i, y: 0 },
+        areaM2: 225,
+        distanceM: 80,
+        obstacleCost: 0,
+      }));
+      const s = foundOrchard(base, base.lastDay, { squares: cells });
+      s.constructions = s.constructions.filter((c) => c.kind !== 'orchard');
+      return s;
+    };
+    const orchardKg = (s: typeof base): number =>
+      villageOrchards(s).reduce(
+        (sum, o) => sum + (orchardAreaM2(o) / 10_000) * ORCHARD.fullYieldKgPerHa,
+        0,
+      );
+    // sad pod cílem – správce začne jabloně u cest
+    const short = withOrchardOf(0.5 * target);
+    expect(orchardKg(short)).toBeLessThan(target);
+    roadApplesStep(short, ctxOf(day));
+    expect(kinds(short)).toContain('road-apples');
+    // sad nad cíl – jablka by ves nesnědla, jabloně nesází
+    const covered = withOrchardOf(1.5 * target);
+    expect(orchardKg(covered)).toBeGreaterThan(target);
+    roadApplesStep(covered, ctxOf(day));
+    expect(kinds(covered)).not.toContain('road-apples');
+  });
+
+  it('sad až po jabloních u cest – jen když u pevných cest kolem polí není místo (D115)', () => {
+    const day = at(10);
+    const base = withLeft(grown, 10_000);
+    base.orchards = [];
+    for (const r of base.roads!.roads) r.grade = 'improved';
+    // místo u cest je – den správce začne jabloně, sad ne
+    const both = structuredClone(base);
+    extraSteps(both, ctxOf(day));
+    expect(kinds(both)).toContain('road-apples');
+    expect(kinds(both)).not.toContain('orchard');
+    const orchardOnly = structuredClone(base);
+    orchardStep(orchardOnly, ctxOf(day));
+    expect(kinds(orchardOnly)).not.toContain('orchard');
+    // u žádné cesty místo není (správce je prošel a odložil) – sad na zbytek cíle
+    const full = structuredClone(base);
+    full.steward!.skips = full.roads!.roads.map((r) => ({
+      kind: 'road-apples',
+      id: r.id,
+      untilDay: day + STEWARD.retryDays,
+    }));
+    orchardStep(full, ctxOf(day));
+    expect(kinds(full)).toContain('orchard');
   });
 
   it('ohrada koní: cvičící rodina, v Růstu i Obnově; bez výcviku ne', () => {

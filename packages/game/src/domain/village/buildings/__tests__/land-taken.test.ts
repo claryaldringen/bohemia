@@ -374,6 +374,25 @@ describe('giveWayToBuilding – sad', () => {
     expect(s.orchardWork.done).toBeCloseTo(required * 0.375, 9);
     expect(s.orchardWork.yieldKg).toBeCloseTo(yieldKg * 0.75, 9);
   });
+
+  it('sklizeň zkrácená na cíl ovoce ubude jen poměrně – ne o plnou úrodu čtverce (D115 kolo 1)', () => {
+    const s = foundOrchard(base(), FOUNDED, { squares: squares(block(2, 5, 2, 1)) });
+    s.constructions = s.constructions.filter((c) => c.kind !== 'orchard');
+    for (const q of villageOrchards(s)[0]!.squares) {
+      q.plantedDay = FOUNDED - Math.ceil(30 * YEAR);
+      q.plantingDone = q.plantingCost;
+    }
+    const day = at(600, 9, 20);
+    const square = villageOrchards(s)[0]!.squares[0]!;
+    // sklízí se jen 40 % úrody obou čtverců (cíl ovoce)
+    const required = 0.4 * 2 * squareHarvestWork(square, day);
+    const yieldKg = 0.4 * 2 * squareYieldKg(square, day);
+    s.orchardWork = { task: 'harvest', required, done: 0, yieldKg, share: 0.4 };
+    giveWayToBuilding(s, day, [{ cell: square.cell, areaM2: CELL, cellAreaM2: CELL }]);
+    // celý čtverec pryč – sklizeň ubude o 40 % jeho úrody a práce, ne o celou
+    expect(s.orchardWork.yieldKg).toBeCloseTo(0.4 * squareYieldKg(square, day), 9);
+    expect(s.orchardWork.required).toBeCloseTo(0.4 * squareHarvestWork(square, day), 9);
+  });
 });
 
 describe('startNewDwelling – pole ustoupí stavbě', () => {

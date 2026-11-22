@@ -369,6 +369,12 @@ export interface OrchardWork {
   /** Sklizeň: kg jablek při plné sklizni (péče 0). */
   yieldKg: number;
   /**
+   * Sklizeň zkrácená na cíl ovoce (orchard.md – Práce; `orchardSeasonDay`): díl úrody stromů, který
+   * se sklízí (0–1) – zábor čtverce ubere úrodu i práci sklizně jen tímto dílem
+   * (`shrinkOrchardWork`). Chybí = celá úroda.
+   */
+  share?: number;
+  /**
    * Odnos jablek, který převzaly vozy (orchard.md – Jablka vozem; čd sklizně) – nejvýš
    * ORCHARD.harvestCarryShare sklizně na čtvercích, kam vůz dojede. Chybí = 0.
    */

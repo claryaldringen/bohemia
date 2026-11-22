@@ -209,16 +209,22 @@ export function dietOf(needPerDay: number, proteinNeedKg: number, eaten: Eaten):
     1,
     shares.grain + shares.meat + shares.dairy + shares.eggs + shares.fruit + shares.legumes + honey,
   );
-  const proteinKg =
+  const proteinKg = proteinKgOf(eaten);
+  const protein = proteinNeedKg > 0 ? Math.min(1, proteinKg / proteinNeedKg) : 1;
+  const diversity = dietQuality(protein, shares.fruit / DIET.fruitShare);
+  return { energy, protein, diversity, satiation: energy * diversity, shares };
+}
+
+/** Bílkoviny snědeného jídla (kg – PROTEIN.perKg, mléko podle druhu). */
+function proteinKgOf(eaten: Eaten): number {
+  return (
     eaten.grainKg * PROTEIN.perKg.grain +
     eaten.meatKg * PROTEIN.perKg.meat +
     eaten.cheeseKg * PROTEIN.perKg.cheese +
     eaten.eggsKg * PROTEIN.perKg.eggs +
     eaten.legumesKg * PROTEIN.perKg.legumes +
-    eaten.milkProteinKg;
-  const protein = proteinNeedKg > 0 ? Math.min(1, proteinKg / proteinNeedKg) : 1;
-  const diversity = dietQuality(protein, shares.fruit / DIET.fruitShare);
-  return { energy, protein, diversity, satiation: energy * diversity, shares };
+    eaten.milkProteinKg
+  );
 }
 
 /** Vstup jídla dne – zásoby na konci včerejška, dnešní mléko a vejce, potřeba a výhled. */
@@ -393,15 +399,25 @@ interface DietPlan {
   /** Energie ovoce, které jde dnes jíst (po zkažení 0). */
   fruitToday: number;
   /**
+   * Nejvýš kolik ovoce (energie) se za den sní (diet.md – Pořadí jídla; Martin 22. 11. 2026):
+   * do 5 % potřeby energie vždy (`fruitAlways`) a tempo proti zkažení (co by do zkažení zbylo),
+   * v hladu i jablka k přídělu (`hungerFruit`), nad to jen ovoce navíc, které nahradí obilí a luštěniny, jež ves k bílkovinám nepotřebuje
+   * (`fruitSpare`). Bez potřeby bílkovin bez omezení.
+   */
+  fruitMost: number;
+  /** Ovoce, se kterým výhled do sklizně počítá (energie – nejvýš `fruitMost` za dny do zkažení). */
+  fruitAhead: number;
+  /**
    * Jídlo mimo obilí a med do sklizně (energie): dnešní mléko (nejvýš potřeba dne – zbytek je sýr),
    * vejce dnes i dalších dnů, čerstvé maso dne i z porážky do sklizně, ryby od zítřka, mléko stád
-   * do sklizně, ostatní uzené a ovoce nejvýš potřeba za dny do zkažení, zásoba z porážky 1. 11.
+   * do sklizně, ostatní uzené nejvýš potřeba a ovoce nejvýš `fruitMost` za dny do zkažení, zásoba z porážky 1. 11.
    * svým dílem (nejvýš potřeba dne) za dny výhledu do konce masa i se ztrátou uzením, sýr
    * a luštěniny (i snopy) po ztrátách – celé nejvýš potřeba za dny do sklizně.
    */
   aheadEnergy: number;
   /**
-   * Tempo proti zkažení (energie za den – návrh Clauda): ovoce ÷ dny do zkažení, maso (ostatní
+   * Tempo proti zkažení (energie za den – návrh Clauda): ovoce ÷ dny do zkažení (i nad 5 % potřeby –
+   * co by zbylo, ves sní rovným dílem), maso (ostatní
    * uzené i dnešní čerstvé) ÷ dny do konce masa; `spoilPace` – i s vejci dne a nutným dílem zásoby
    * z porážky 1. 11. celkem: kolik se dnes aspoň sní, aby se vejce, ovoce a maso stihly sníst
    * rovným dílem do zkažení.
@@ -441,11 +457,31 @@ function keptDays(count: number): number {
 }
 
 /**
+ * Ovoce, které se za den sní vždy (energie – diet.md, Pořadí jídla; Martin 22. 11. 2026: „Ano“ na
+ * otázku „Mají jablka nahrazovat obilí jen tak, aby lidé nepřišli o bílkoviny?“): do 5 % potřeby
+ * energie (`DIET.fruitShare` – plné ovoce v kvalitě stravy). Nad to jen ovoce navíc (`fruitSpare`).
+ * Bez potřeby bílkovin (vstup bez údaje – bílkoviny pokryté) bez omezení.
+ */
+function fruitAlways(input: DietInput): number {
+  return (input.proteinNeedPerDay ?? 0) > 0
+    ? DIET.fruitShare * Math.max(0, input.needPerDay)
+    : Infinity;
+}
+
+/**
  * Zásoby dne po ztrátách a jídlo mimo obilí do sklizně (`eatDiet`) – na zásobě obilí nezávisí.
  * `untilHarvest` – ves je v hladu: díl zásoby z porážky 1. 11. do sklizně, je-li dřív než konec
- * masa (diet.md – V hladu do sklizně).
+ * masa (diet.md – V hladu do sklizně). `fruitExtra` – ovoce navíc nad 5 % potřeby za den
+ * (`fruitSpare`); `hungerFruit` – jablka nad 5 % potřeby za den, která ves v hladu jí k přídělu
+ * (`hungerFruit`) – i v tempu proti zkažení; bez nich se ovoce jí a do výhledu počítá nejvýš 5 %
+ * potřeby (`fruitAlways`).
  */
-function dietPlan(input: DietInput, untilHarvest = false): DietPlan {
+function dietPlan(
+  input: DietInput,
+  untilHarvest = false,
+  fruitExtra = 0,
+  hungerFruit = 0,
+): DietPlan {
   // uzené celé po dnešní ztrátě – z něj zásoba z porážky 1. 11. (nejvýš celé) a ostatní uzené
   const smoked = Math.max(0, input.meatKg) * DAILY_MEAT_KEEP;
   const slaughter = Math.min(smoked, Math.max(0, input.slaughterMeatKg ?? 0) * DAILY_MEAT_KEEP);
@@ -463,6 +499,16 @@ function dietPlan(input: DietInput, untilHarvest = false): DietPlan {
   const rotDays = Math.max(0, input.daysToRot);
   const meatDays = Math.max(1, input.daysToMeatEnd);
   const fruitToday = rotDays > 0 ? fruitEnergy(fruit) : 0;
+  // ovoce do 5 % potřeby vždy, v hladu i jablka k přídělu, nad to jen navíc podle bílkovin
+  // (diet.md – Pořadí jídla)
+  // jablka, která by do dne zkažení zbyla, ves sní rovným dílem do zkažení i nad 5 % (tempo proti
+  // zkažení – Martin 22. 11. 2026: „Pokud shnijí ta, co lidé nasbírali (utratili za ně práci) je
+  // to špatně“; návrh Clauda: ves bez nádob po úmrtí nebo odchodu), pravidlo bílkovin platí až nad
+  // toto tempo
+  const rotPace = rotDays > 0 ? fruitToday / rotDays : 0;
+  const fruitPaceMost = Math.max(fruitAlways(input), rotPace) + Math.max(0, hungerFruit);
+  const fruitMost = fruitPaceMost + Math.max(0, fruitExtra);
+  const fruitAhead = Math.min(fruitToday, Math.min(need, fruitMost) * Math.min(days, rotDays));
   // díl zásoby z porážky 1. 11. – rovným dílem do konce masa, v hladu do sklizně, je-li dřív
   // (návrh Clauda 22. 11. 2026 – Martin: „vyprodukovat co nejvíce za co nejmenší množství práce“);
   // poslední den (dny 1) zbytek
@@ -483,11 +529,12 @@ function dietPlan(input: DietInput, untilHarvest = false): DietPlan {
     Math.max(0, input.milkAheadEnergy ?? 0) +
     Math.min(meatEnergy(meat), need * Math.min(days, meatDays)) +
     Math.min(slaughterShare, need) * keptDays(Math.min(days, meatDays)) +
-    Math.min(fruitToday, need * Math.min(days, rotDays)) +
+    fruitAhead +
     cheese * DAIRY.cheeseEnergy +
     legumeEnergy(legumes + Math.max(0, input.sheavesLegumesKg ?? 0));
-  // vejce dnes, ovoce do zkažení, maso (ostatní uzené i čerstvé) do konce masa rovným dílem
-  const fruitPace = rotDays > 0 ? fruitToday / rotDays : 0;
+  // vejce dnes, ovoce do zkažení (nejvýš 5 % potřeby, v hladu i s jablky k přídělu), maso
+  // (ostatní uzené i čerstvé) do konce masa rovným dílem
+  const fruitPace = Math.min(rotPace, fruitPaceMost);
   const meatPace = meatEnergy(meat + fresh) / meatDays;
   // ze zásoby z porážky 1. 11. dnes napřed, co by se jinak zkazilo – co nad plnou potřebu za
   // zbývající dny do konce masa přebývá (poslední den celý zbytek), nejvýš plná potřeba
@@ -516,6 +563,8 @@ function dietPlan(input: DietInput, untilHarvest = false): DietPlan {
     eggs,
     eggsEnergy,
     fruitToday,
+    fruitMost,
+    fruitAhead,
     aheadEnergy: Math.min(need * days, ahead),
     fruitPace,
     meatPace,
@@ -547,14 +596,23 @@ function eatenKg(kg: number, energy: number, eaten: number): number {
  * s pevným přídělem medu do sklizně – ves pak jí dosyta bez zásoby medu. Přesně obrácený výhled
  * `eatDiet` (fields.md – Osivo ze zásob, přežívací zásoba), i se ztrátami skladováním do žní
  * (`grainEatenShare`). Platí pro cíl pod 1 (v hladu); plný příděl `eatDiet` dá i s menším obilím
- * přes díl zásoby z porážky do sklizně, cíl 1 tu tedy dává horní odhad, ne nejmenší obilí.
+ * přes díl zásoby z porážky do sklizně, cíl 1 tu tedy dává horní odhad, ne nejmenší obilí. Pod
+ * plným přídělem se všemi jablky, která ves do zkažení sní (v hladu jablka k přídělu –
+ * `hungerFruit`; pod plným přídělem jich do něj vždy chybí víc, než jich je), cíl 1 jen s jablky
+ * do 5 % (`fruitAlways`) – při plném přídělu výhled počítá i s ovocem navíc (`fruitSpare`), i tím
+ * je cíl 1 horní odhad.
  */
 export function grainAheadForOutlookKg(input: DietInput, outlook: number): number {
   const target = Math.min(1, outlook);
   if (input.needPerDay <= 0 || target <= 0) return 0;
   // pod plným přídělem je ves v hladu – zásoba z porážky 1. 11. dílem do sklizně jako v `eatDiet`
   // (s ním výhled vyjde výš než s dílem do konce masa, se kterým `eatDiet` hlad pozná)
-  const { need, days, aheadEnergy, honeyAll, honeyUntilHarvest } = dietPlan(input, target < 1);
+  const { need, days, aheadEnergy, honeyAll, honeyUntilHarvest } = dietPlan(
+    input,
+    target < 1,
+    0,
+    target < 1 ? Infinity : 0,
+  );
   const honey = target < 1 ? honeyAll : honeyUntilHarvest;
   const eaten = target * need * days - aheadEnergy - honey;
   return Math.max(0, eaten) / grainEatenShare(grainKeepPerDay(input), 0, days);
@@ -616,6 +674,11 @@ function harvestOutlook(plan: DietPlan, aheadEaten: number): HarvestOutlook {
  *   než konec masa – výhled se s ním spočte znovu a jídlo dne jí tentýž díl. Rozhoduje výhled
  *   s dnešním dílem, ne s dílem do sklizně (ten zvedne výhled třeba až na plný – bez kruhu); díl do
  *   sklizně výhled jen zvedá, ves tak nikdy nejí méně než dřív a nic nečeká na dobu po sklizni.
+ * - V hladu jablka k přídělu (diet.md – Pořadí jídla; návrh Clauda k Martinovu 22. 11. 2026):
+ *   nedá-li výhled s jablky do 5 % potřeby plný příděl, jsou jablka nad 5 % jídlo – výhled s nimi
+ *   počítá, nejvýš kolik do plné potřeby do sklizně chybí, a jídlo dne je jí rovným dílem do
+ *   zkažení (`hungerFruit`). Obilí, které ušetří, ves do sklizně sní – bílkoviny neubudou.
+ *   Rozhoduje výhled s jablky do 5 % (bez kruhu).
  * - Dnes se sní příděl × potřeba, ale aspoň tempem proti zkažení – vejce dnes, ovoce do zkažení
  *   a maso (čerstvé a ostatní uzené) do konce rovným dílem – a nejvýš celá potřeba (návrh Clauda:
  *   co by se zkazilo, sní ostatní).
@@ -659,7 +722,25 @@ export function eatDiet(input: DietInput): DietResult {
   // obilí, které se do sklizně opravdu sní – zbytek zásob mezitím ubude skladováním (rovným dílem
   // od dneška; fields.md – Přídělový systém)
   const aheadEaten = ahead * grainEatenShare(keep, 0, first.days);
+  let plan = first;
   let view = harvestOutlook(first, aheadEaten);
+  // ovoce nad 5 % potřeby jen místo obilí a luštěnin, které ves k bílkovinám nepotřebuje (diet.md –
+  // Pořadí jídla; Martin 22. 11. 2026) – bez potřeby bílkovin bez omezení
+  const proteinNeed = Math.max(0, input.proteinNeedPerDay ?? 0);
+  const limited = Number.isFinite(first.fruitMost) && first.fruitToday > 0;
+  // při plném přídělu výhled počítá i s ovocem navíc, které ves dnes sní (obilí navíc dostanou
+  // koně); v hladu s jablky k přídělu (níž)
+  let spare = 0;
+  let served: Served | null = null;
+  if (limited && view.outlook >= 1) {
+    served = serveMeal(first, view, grain, first.fruitMost);
+    spare = fruitSpare(served, proteinNeed);
+    if (spare > 0) {
+      plan = dietPlan(input, false, spare);
+      view = harvestOutlook(plan, aheadEaten);
+      served = null;
+    }
+  }
   // v hladu (výhled s dnešním dílem nedá plný příděl) zásoba z porážky 1. 11. dílem do sklizně,
   // je-li dřív než konec masa – výhled i jídlo dne s tímtéž dílem (diet.md – V hladu do sklizně)
   const hungry =
@@ -667,10 +748,99 @@ export function eatDiet(input: DietInput): DietResult {
     first.slaughter > 0 &&
     Math.max(1, input.daysToHarvest) < Math.max(1, input.daysToMeatEnd);
   // plán, ze kterého se čte celé jídlo dne (až po rozhodnutí o hladu – díl `slaughterShare`)
-  const plan = hungry ? dietPlan(input, true) : first;
-  if (hungry) view = harvestOutlook(plan, aheadEaten);
+  if (hungry) {
+    plan = dietPlan(input, true);
+    view = harvestOutlook(plan, aheadEaten);
+  }
+  // v hladu (výhled s jablky do 5 % nedá plný příděl) jablka nad 5 % k přídělu – výhled s nimi
+  // počítá a jídlo dne je jí rovným dílem do zkažení; dá-li s nimi výhled plný příděl, ves
+  // nehladoví ani neporáží v nouzi (diet.md – Pořadí jídla)
+  if (limited && view.outlook < 1) {
+    const extra = hungerFruit(input, plan, hungry, aheadEaten);
+    if (extra > 0) {
+      plan = dietPlan(input, hungry, 0, extra);
+      view = harvestOutlook(plan, aheadEaten);
+    }
+  }
+  // jídlo dne: s ovocem do 5 % potřeby (v hladu i s jablky k přídělu), a nedorovná-li jeho energii
+  // nic jiného nebo má-li ves bílkovin nazbyt, s ovocem navíc (`fruitSpare`) – při plném přídělu
+  // je spočtené výš
+  let fruitMost = plan.fruitMost;
+  if (limited && spare === 0) {
+    fruitMost += fruitSpare(served ?? serveMeal(plan, view, grain, fruitMost), proteinNeed);
+  }
+  served = serveMeal(plan, view, grain, fruitMost);
   const { need, meat, slaughter, fresh, fruit, cheese, legumes, honey, milkProtein } = plan;
-  const { outlook, grainSpareKg, honeyShare } = view;
+  const { eaten } = served;
+  // z mléka, které se nevypilo, je sýr
+  const made = cheeseFromMilk(milkProtein * (1 - served.drunkShare));
+  return {
+    // poslední den před sklizní se snědí celé zásoby – ořez chyb zaokrouhlení pod nulu
+    grainKg: Math.max(0, grain - eaten.grainKg),
+    // co se z čerstvého masa nesnědlo, se udí – k ostatnímu uzenému
+    meatKg:
+      Math.max(0, meat - served.smokedKg) +
+      Math.max(0, slaughter - served.slaughterKg) +
+      Math.max(0, fresh - served.freshKg),
+    slaughterMeatKg: Math.max(0, slaughter - served.slaughterKg),
+    fruitKg: Math.max(0, fruit - eaten.fruitKg),
+    cheeseKg: Math.max(0, cheese - eaten.cheeseKg) + made,
+    cheeseMadeKg: made,
+    legumesKg: Math.max(0, legumes - eaten.legumesKg),
+    // med se nekazí – zbytek se hromadí
+    honeyKg: Math.max(0, honey - eaten.honeyKg),
+    eaten,
+    diet: dietOf(need, proteinNeed, eaten),
+    outlook: Math.min(1, view.outlook),
+    grainSpareKg: view.grainSpareKg,
+    daysToHarvest: plan.days,
+  };
+}
+
+/**
+ * Jablka nad 5 % potřeby, která ves v hladu sní k přídělu (energie za den – diet.md, Pořadí jídla;
+ * návrh Clauda k Martinovu 22. 11. 2026 – v hladu ves obilí do sklizně sní tak jako tak, jablka
+ * místo něj tak bílkoviny neuberou): ta, se kterými výhled s jablky do 5 % (`plan`) nepočítá,
+ * nejvýš kolik do plné potřeby do sklizně chybí (s celou zásobou medu – `harvestOutlook`), rovným
+ * dílem na dny do zkažení (nejvýš do sklizně). Výhled i jídlo dne s nimi počítají stejně.
+ */
+function hungerFruit(
+  input: DietInput,
+  plan: DietPlan,
+  untilHarvest: boolean,
+  aheadEaten: number,
+): number {
+  const days = Math.min(plan.days, Math.max(0, input.daysToRot));
+  if (days <= 0) return 0;
+  const all = dietPlan(input, untilHarvest, 0, Infinity);
+  const missing = plan.need * plan.days - plan.aheadEnergy - aheadEaten - plan.honeyAll;
+  return Math.max(0, Math.min(all.fruitAhead - plan.fruitAhead, missing)) / days;
+}
+
+/** Jídlo dne v pořadí jídla vsi (`serveMeal`) – co se snědlo a co z dnešní energie zbylo. */
+interface Served {
+  eaten: Eaten;
+  /** Díl dnešního mléka, který se vypil (0–1). */
+  drunkShare: number;
+  /** Snědené maso (kg) – čerstvé, ostatní uzené a ze zásoby z porážky 1. 11. */
+  freshKg: number;
+  smokedKg: number;
+  slaughterKg: number;
+  /** Energie obilí (v hladu i s medem, který se jí s obilím) – ovoce navíc ji smí nahradit. */
+  grainPart: number;
+  /** Dnešní energie, kterou nedorovnalo nic (vymlácené obilí došlo) – ovoce navíc ji smí doplnit. */
+  unmet: number;
+}
+
+/**
+ * Jídlo dne podle plánu `plan` a výhledu `view` (`eatDiet`) s nejvýš `fruitMost` ovoce (energie):
+ * dnes příděl × potřeba, ale aspoň tempem proti zkažení a nejvýš celá potřeba; pevný příděl medu,
+ * tempo proti zkažení, pak pořadí jídla vsi a obilí (v hladu s medem) – `grain` = vymlácená zásoba
+ * po dnešní ztrátě.
+ */
+function serveMeal(plan: DietPlan, view: HarvestOutlook, grain: number, fruitMost: number): Served {
+  const { need, meat, slaughter, fresh, fruit, cheese, legumes, honey, milkProtein } = plan;
+  const { outlook, honeyShare } = view;
   const { honeyEaten } = plan;
   // dnes příděl, ale aspoň tempem proti zkažení a nejvýš celá potřeba
   let left = Math.min(need, Math.max(outlook * need, plan.spoilPace));
@@ -721,7 +891,10 @@ export function eatDiet(input: DietInput): DietResult {
   const share = Math.max(0, Math.min(rest.slaughter, shareLeft, need - (start - left)));
   rest.slaughter -= share;
   left = Math.max(0, left - share);
-  for (const food of ['cheese', 'fruit', 'legumes'] as const) eat(food);
+  // sýr, ovoce nejvýš `fruitMost` za den (i s tempem proti zkažení), luštěniny
+  eat('cheese');
+  eat('fruit', fruitMost - (full.fruit - rest.fruit));
+  eat('legumes');
   // obilí dorovná zbytek, v hladu s medem
   let honeyToday = eatenKg(honeyEaten, rationE, honeyRationE);
   let grainToday = left;
@@ -730,6 +903,8 @@ export function eatDiet(input: DietInput): DietResult {
     grainToday = left - honeyEnergy(honeyToday);
   }
   grainToday = Math.max(0, Math.min(grain, grainToday));
+  const honeyWithGrain = honeyShare !== null ? honeyEnergy(honeyToday) : 0;
+  const unmet = Math.max(0, left - honeyWithGrain - grainToday);
   /** Kolik kg zásoby `kg` jídla `food` se dnes snědlo. */
   const kgOf = (food: keyof typeof full, kg: number): number =>
     eatenKg(kg, full[food], full[food] - rest[food]);
@@ -754,29 +929,33 @@ export function eatDiet(input: DietInput): DietResult {
     honeyKg: honeyToday,
     ...(honeyRationKg > 0 ? { honeyRationKg } : {}),
   };
-  // z mléka, které se nevypilo, je sýr
-  const made = cheeseFromMilk(milkProtein * (1 - drunkShare));
   return {
-    // poslední den před sklizní se snědí celé zásoby – ořez chyb zaokrouhlení pod nulu
-    grainKg: Math.max(0, grain - grainToday),
-    // co se z čerstvého masa nesnědlo, se udí – k ostatnímu uzenému
-    meatKg:
-      Math.max(0, meat - smokedKg) +
-      Math.max(0, slaughter - slaughterKg) +
-      Math.max(0, fresh - freshKg),
-    slaughterMeatKg: Math.max(0, slaughter - slaughterKg),
-    fruitKg: Math.max(0, fruit - eaten.fruitKg),
-    cheeseKg: Math.max(0, cheese - eaten.cheeseKg) + made,
-    cheeseMadeKg: made,
-    legumesKg: Math.max(0, legumes - eaten.legumesKg),
-    // med se nekazí – zbytek se hromadí
-    honeyKg: Math.max(0, honey - honeyToday),
     eaten,
-    diet: dietOf(need, input.proteinNeedPerDay ?? 0, eaten),
-    outlook: Math.min(1, outlook),
-    grainSpareKg,
-    daysToHarvest: plan.days,
+    drunkShare,
+    freshKg,
+    smokedKg,
+    slaughterKg,
+    grainPart: grainToday + honeyWithGrain,
+    unmet,
   };
+}
+
+/**
+ * Ovoce navíc nad 5 % potřeby (energie za den – diet.md, Pořadí jídla; Martin 22. 11. 2026: „Ano“
+ * na otázku „Mají jablka nahrazovat obilí jen tak, aby lidé nepřišli o bílkoviny?“) z jídla dne
+ * s ovocem do 5 % (`served`): napřed dnešní energie, kterou nic jiného nedorovnalo, pak obilí
+ * (v hladu s medem – každý díl jako samo obilí, opatrně) a nakonec luštěniny, které ves
+ * k bílkovinám nepotřebuje – bílkoviny nad potřebu ÷ bílkoviny v energii obilí, pak luštěnin.
+ * Pokrytí bílkovin tak s ovocem navíc neklesne pod min(1, pokrytí s ovocem do 5 %).
+ */
+function fruitSpare(served: Served, proteinNeed: number): number {
+  let surplus = Math.max(0, proteinKgOf(served.eaten) - proteinNeed);
+  const fromGrain = Math.min(served.grainPart, surplus / PROTEIN.perKg.grain);
+  surplus -= fromGrain * PROTEIN.perKg.grain;
+  const legumesE = legumeEnergy(served.eaten.legumesKg);
+  const legumeProtein = PROTEIN.perKg.legumes / legumeEnergy(1);
+  const fromLegumes = legumesE > 0 ? Math.min(legumesE, Math.max(0, surplus) / legumeProtein) : 0;
+  return served.unmet + fromGrain + fromLegumes;
 }
 
 /**

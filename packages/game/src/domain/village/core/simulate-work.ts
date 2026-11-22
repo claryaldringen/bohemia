@@ -98,6 +98,7 @@ import {
 import { watchWanted } from '../wildlife/wildlife-damage';
 import { bestWaterPlan, type CartJobsDay } from './simulate-hauls';
 import { DayTask, EPSILON, FieldTaskEntry, householdCount } from './simulate-plan';
+import { fruitPlantingNeed } from './simulate-build';
 import { WEATHER_EFFECTS } from '../rules/rules-disasters';
 import { springSowingExtended, springSowingHeld } from '../disasters/weather-effects';
 import { partsByIdOf } from './parts-by-id';
@@ -695,6 +696,8 @@ function dayLabor(
   // práce rodiny před štěstím (`allocateDay` ji násobí jako práci vsi)
   const beforeProductivity = (labor: number): number =>
     manor && productivity > 0 ? labor / productivity : 0;
+  // výsadba jabloní u cest a sadu v oknech výsadby – po orbě, kopání a setí, před vracením přílohu
+  const planting = plantingOrder(dayTasks, fruitPlantingNeed(state, day));
   const allocate = (jobs: CartJobsDay): DayAllocation =>
     allocateDay({
       capacity: Math.max(0, villageLabor - restingCarry),
@@ -728,6 +731,7 @@ function dayLabor(
       minimumShare: chores.minimumShare,
       daylight,
       tasks: allocationTasks(dayTasks),
+      ...(planting ? { planting } : {}),
       potteryCoverage: coverage.pottery,
       productivity,
       // lidé na výpravách k sousedům (trade.md – Doprava, Martin 19. 10. 2026): jejich práce jde po
@@ -782,6 +786,31 @@ function weedDaysLeftOf(dayTasks: readonly DayTask[], day: number): number | und
           : { year: dateOfDayIndex(day).year, month: weedEnd + 1, day: 1 },
       ) - day
     : undefined;
+}
+
+/**
+ * Pořadí úloh dne s výsadbou jabloní u cest a sadu (`DayAllocationInput.planting`; orchard.md –
+ * Výsadba; Martin 22. 11. 2026: „ano“ na otázku „Má výsadba jabloní a sadu dostat v jarních
+ * a podzimních oknech přednost před klučením zarostlých přílohů?“ – orba a setí na daný rok dál
+ * mají přednost): úlohy skupin před přípravou půdy a příprava půdy bez vracení přílohu (orba,
+ * kopání, setí) v pořadí dne, pak výsadba (`slot`), pak vracení přílohu a skupiny za přípravou půdy
+ * (`DAY_WORK_ORDER`). Bez práce výsadby (mimo okna, bez rozestavěné výsadby) undefined – pořadí
+ * úloh beze změny. Jen pro testy se exportuje.
+ */
+export function plantingOrder(
+  dayTasks: readonly DayTask[],
+  manDays: number,
+): { manDays: number; order: number[]; slot: number } | undefined {
+  if (manDays <= EPSILON) return undefined;
+  const tillage = DAY_WORK_ORDER.indexOf('tillage');
+  const before: number[] = [];
+  const after: number[] = [];
+  dayTasks.forEach((task, i) => {
+    const group = DAY_WORK_ORDER.indexOf(dayWorkGroup(task));
+    const first = group < tillage || (group === tillage && task.name !== 'reclaim');
+    (first ? before : after).push(i);
+  });
+  return { manDays, order: [...before, ...after], slot: before.length };
 }
 
 /**

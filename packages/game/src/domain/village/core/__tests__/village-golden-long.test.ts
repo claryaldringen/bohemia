@@ -91,8 +91,18 @@ import { goldenWorld, stateFingerprint, YEAR } from './village-golden-fixture';
 // 22. 11. 2026 – D116 orba a setí až po vyklučení (fields.md – Postup práce po čtvercích;
 // village-golden.test.ts – zlatá ves v prvních letech kope díly s drnem až po vrácení přílohu);
 // dřív 276904dcac933306 a c00f8436f673d2ba
-const EXPECTED_YEAR_2 = 'b84ae41eb7cc5622';
-const EXPECTED_YEAR_3 = 'c08953986f92aaef';
+// 22. 11. 2026 – D115 ovoce na maximum, které ves sní – jabloně u cest a pak sad do cíle ovoce,
+// sklizeň jen do cíle (viz village-golden.test.ts); samotné D115 dávalo 2c734d3e24ff657c
+// a 0294e4d910303bbb, dřív (s D113) 276904dcac933306 a c00f8436f673d2ba
+// 22. 11. 2026 – D115 kolo 1 (jablka nad 5 % energie jen bez ztráty bílkovin, cíl ovoce 5 %
+// energie, výsadba před vracením přílohu – jako rok 1 v village-golden.test.ts); dřív
+// 15be33d768040c40 a b1cebf0f8cd73631
+// 22. 11. 2026 – D115 kolo 3 (strop sklizně a cíl ovoce do zkažení bez nádob, jako rok 1 ve
+// village-golden.test.ts); dřív 52c6d23c8335e130 a 94154d343904b93d
+// 22. 11. 2026 – sloučení D115 a D116: samotné D116 dávalo b84ae41eb7cc5622 a c08953986f92aaef,
+// samotné D115 ecc70f3c0369f446 a 284eb814c86ed715
+const EXPECTED_YEAR_2 = '2898394913221238';
+const EXPECTED_YEAR_3 = '59b939771586ed9f';
 // 18. 11. 2026 – D93 cesta přes plochu staveb; dřív 168010dd35f7c1c7 a a499594da5514b49 (viz
 // village-golden.test.ts)
 // 18. 11. 2026 – D95 výmlat (výmlat podle kg snopů, rod v zimě dorovná tempo okna – viz

@@ -3,7 +3,7 @@ import type { BuildIntent } from '../buildings/build-intent';
 import { BUILD_COSTS } from '../buildings/costs';
 import { villageCemeteries } from '../buildings/cemetery';
 import { fieldCapacity } from '../fields/field-capacity';
-import { yearlyFoodNeed } from '../fields/field-food';
+import { fruitTargetKg } from '../buildings/fruit-target';
 import { villageFoodCosts } from '../livestock/husbandry';
 import { horsePenPayment } from '../livestock/horse-pen-payment';
 import { LIVESTOCK } from '../livestock/livestock';
@@ -61,13 +61,7 @@ import {
 } from '../rules/rules-people';
 import { usedPlaces } from '../people/burials';
 import { ageGroup, laborPerDay } from '../people/people';
-import {
-  APPLE_FOOD_VALUE,
-  ORCHARD,
-  ORCHARD_PLANTING_WINDOWS,
-  THRESHING,
-} from '../rules/rules-fields';
-import { DIET } from '../core/diet';
+import { ORCHARD, ORCHARD_PLANTING_WINDOWS, THRESHING } from '../rules/rules-fields';
 import { OXEN } from '../rules/rules-livestock';
 import { CART_SPEED, TEAM_TRAVEL, WAGON_ROAD } from '../rules/rules-roads';
 import { STEWARD } from '../rules/rules-steward';
@@ -100,7 +94,7 @@ import type {
 import { premiumSacredHappiness } from '../core/premium-effects';
 
 // Kroky 5 až 10 dne správce (steward.md – Rozhodovací pořadí v den správce, Ostatní stavby):
-// hřbitov, humno, ohrady, sad a jabloně u cest, posvátná místa, cesty. Každý krok začne nejvýš
+// hřbitov, humno, ohrady, jabloně u cest a sad, posvátná místa, cesty. Každý krok začne nejvýš
 // jednu stavbu, jen v režimech `STEWARD.stepModes`, jen v rozpočtu práce sdíleném s poli
 // a obydlími (`laborBudget`; kroky Růstu v Obnově jen jeho část – `fits`) a výhradně přes
 // `startStewardBuild` / `trySlots` (cena předem a kontrola místa jako u hráče). Sloty (hřbitov, sad, ohrada, humno) bere z plánu sídla – ve
@@ -125,8 +119,9 @@ export function extraSteps(state: VillageState, ctx: StewardContext): void {
   if (allowed(ctx, 'cemetery')) cemeteryStep(state, ctx);
   if (allowed(ctx, 'threshing')) threshingStep(state, ctx);
   if (allowed(ctx, 'pen')) penStep(state, ctx);
-  if (allowed(ctx, 'orchard')) orchardStep(state, ctx);
+  // napřed jabloně u cest, pak sad (Martin 22. 11. 2026)
   if (allowed(ctx, 'roadApples')) roadApplesStep(state, ctx);
+  if (allowed(ctx, 'orchard')) orchardStep(state, ctx);
   if (allowed(ctx, 'sacred')) sacredStep(state, ctx);
   if (allowed(ctx, 'fortification')) fortificationStep(state, ctx);
   if (allowed(ctx, 'road')) roadStep(state, ctx);
@@ -378,11 +373,15 @@ function teamPenValue(state: VillageState, ctx: StewardContext): boolean {
   return (saved - hay) * STEWARD.paybackYears > pen;
 }
 
-// --- 8. sad a jabloně u cest -----------------------------------------------------------
+// --- 8. jabloně u cest a sad -----------------------------------------------------------
 
-/** Chybí ovoce: roční plocha sadů a jabloní u cest dá méně jablek než plná potřeba stravy. */
+/**
+ * Chybí ovoce (kg jablek): plná úroda sadů a jabloně u cest za 25 let (i vysazené, ještě
+ * neplodící) dají méně jablek, než ves sní do zkažení (cíl ovoce – `fruitTargetKg`; Martin
+ * 22. 11. 2026 – maximum, které ves zvládne).
+ */
 function fruitShortfallKg(state: VillageState, ctx: StewardContext): number {
-  const needKg = (yearlyFoodNeed(state, ctx.day) * DIET.fruitShare) / APPLE_FOOD_VALUE;
+  const needKg = fruitTargetKg(state, ctx.day);
   const orchardKg = villageOrchards(state)
     .filter((o) => o.disusedDay === undefined)
     .reduce((sum, o) => sum + (orchardAreaM2(o) / 10_000) * ORCHARD.fullYieldKgPerHa, 0);
@@ -400,12 +399,16 @@ function fruitAllowed(state: VillageState, ctx: StewardContext): boolean {
   return villageOrchards(state).length === 0 && villageRoadApples(state).length === 0;
 }
 
-/** Krok 8 – sad: ovoce ve stravě pod plnou potřebou → čtverec sadu v okně výsadby. */
+/**
+ * Krok 8 – sad: ovoce nepokryje cíl a u pevných cest kolem polí už není místo na jabloně → čtverec
+ * sadu v okně výsadby (Martin 22. 11. 2026: „ideální je pokrývat spotřebu jimi a pak až sadem“).
+ */
 export function orchardStep(state: VillageState, ctx: StewardContext): void {
   if (!monthInWindow(ORCHARD_PLANTING_WINDOWS, ctx.date.month)) return;
   if (!fruitAllowed(state, ctx)) return;
   if (state.constructions.some((c) => c.kind === 'orchard' || c.kind === 'road-apples')) return;
   if (fruitShortfallKg(state, ctx) <= 0) return;
+  if (appleRoads(state, ctx).some((r) => !skipped(state, ctx, 'road-apples', r.id))) return;
   if (!fits(state, ctx, 'orchard', BUILD_COSTS.orchard.laborManDays * cellHa(ctx.landscape)))
     return;
   trySlots(state, ctx, 'orchard', (tile): BuildIntent => ({
@@ -426,17 +429,24 @@ function roadByFields(state: VillageState, ctx: StewardContext, road: Road): boo
   return false;
 }
 
-/** Jabloně podél pevné cesty kolem polí, když ovoce pořád chybí a sad nevznikl (okno výsadby). */
+/** Pevné cesty kolem polí, podél kterých správce sází jabloně (ne vyšlapané ani opuštěné). */
+function appleRoads(state: VillageState, ctx: StewardContext): Road[] {
+  return (state.roads?.roads ?? []).filter(
+    (r) => r.abandoned !== true && r.grade !== 'trodden' && roadByFields(state, ctx, r),
+  );
+}
+
+/**
+ * Krok 8 – jabloně podél pevné cesty kolem polí, dokud ovoce nepokryje cíl (okno výsadby) – před
+ * sadem. Cesta bez volného místa se odloží (`skip`); sad přijde na řadu, až jsou odložené všechny.
+ */
 export function roadApplesStep(state: VillageState, ctx: StewardContext): void {
   if (!monthInWindow(ORCHARD_PLANTING_WINDOWS, ctx.date.month)) return;
   if (!fruitAllowed(state, ctx)) return;
   if (state.constructions.some((c) => c.kind === 'orchard' || c.kind === 'road-apples')) return;
   if (fruitShortfallKg(state, ctx) <= 0) return;
-  const roads = (state.roads?.roads ?? []).filter(
-    (r) => r.abandoned !== true && r.grade !== 'trodden' && roadByFields(state, ctx, r),
-  );
   let tries = 0;
-  for (const road of roads) {
+  for (const road of appleRoads(state, ctx)) {
     if (skipped(state, ctx, 'road-apples', road.id)) continue;
     if (tries++ >= STEWARD.slotTries) return;
     const option = roadApplesOption(state, road.id, ctx.day, ctx.landscape, ctx.obstacles);

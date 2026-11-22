@@ -238,3 +238,20 @@ sklizně?“: „ano“). Dřív v oddílu Strava po vrstvách a porážka celý
   a vymření). Přežívací zásoba podle zbytku vsi (Kdo dostane co) pomůže jen, dokud ves drží
   osivo, které může sníst. Bez osiva a jiného jídla tak v dlouhém hladomoru umírá zbytek vsi,
   zatímco rod vojvody jí nad životním minimem.
+
+## Ovoce bez omezení nad 5 % energie (18.–22. 11. 2026)
+
+Od zrušení stropů (Martin 18. 11. 2026: „Strop bych úplně zrušil“) do Martinova „Ano“ 22. 11. 2026
+na otázku „Mají jablka nahrazovat obilí jen tak, aby lidé nepřišli o bílkoviny?“ se ovoce jedlo
+bez omezení: tempem proti zkažení (zásoba ÷ dny do zkažení) napřed před mlékem a masem a pak celou
+zbylou potřebou před luštěninami a obilím; výhled do sklizně počítal s ovocem až do plné potřeby
+za dny do zkažení. Jablka tak vytlačila obilí i luštěniny s jejich bílkovinami (kontrola D115:
+Vlkov s pokrytým cílem ovoce – v zimě 90 % energie z ovoce, pokrytí bílkovin 0,68 → 0,17).
+
+## Jablka v hladu k přídělu navíc (D115 kolo 1, neplatí od 22. 11. 2026 – kolo 2)
+
+Platilo 22. 11. 2026 (D115 kolo 1, návrh Clauda). Výhled do sklizně v hladu počítal jen s jablky
+do 5 % potřeby; obilí se dělilo rovně do sklizně a jablka, se kterými výhled nepočítal, se jedla
+k přídělu navíc do plné potřeby – nic nenahradila. Ves tak hlásila hlad (a mohla porážet v nouzi),
+i když se jablky jedla dosyta. Nahrazeno pravidlem, že v hladu jsou jablka nad 5 % jídlo k přídělu
+a výhled s nimi počítá (Pořadí jídla).

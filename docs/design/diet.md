@@ -130,6 +130,26 @@ v hladu), nově platí celý rok, ne jen v hladu:
 
 - Stropy podílů energie (maso 40 %, ovoce 25 %, mléko a sýr 30 %, luštěniny 25 %) se ruší. Nikdo
   nesní víc, než je jeho potřeba energie.
+- **Jablka nad 5 % energie jen bez ztráty bílkovin** – Martin 22. 11. 2026: „Ano“ na otázku „Mají jablka nahrazovat obilí jen tak, aby lidé nepřišli o bílkoviny?“;
+  doporučení Clauda k otázce: ves sází jen tolik stromů, kolik jablek sní, aniž by přišla o bílkoviny, a zbytek
+  obilí jí jako dnes. Ovoce se jí dál napřed (2. v pořadí), **do 5 % potřeby energie vždy**
+  (`DIET.fruitShare` – plné ovoce v kvalitě stravy, Bílkoviny a nasycení), **nad to jen místo
+  obilí a luštěnin, které ves k bílkovinám nepotřebuje** – pokrytí bílkovin s jablky neklesne pod
+  min(1, pokrytí s jablky do 5 %). Návrh Clauda k provedení (D115 kolo 4): **tempo proti zkažení** – jablka, která by do dne zkažení zbyla (třeba po úmrtí nebo odchodu ve vsi bez nádob), ves sní rovným dílem do zkažení i nad 5 % (jako díl uzeného do zkažení; Martin 22. 11. 2026: „Pokud shnijí ta, co lidé nasbírali (utratili za ně práci) je to špatně“), pravidlo bílkovin platí pro jablka nad toto tempo; dřívější znění „tempo jen do 5 %“ neplatí;
+  jablka navíc napřed místo obilí (v hladu s medem, který se jí s obilím), pak luštěnin – kolik
+  bílkovin má ves nad potřebu; dnešní energii, kterou obilí nedorovná (vymlácené došlo), smí
+  jablka doplnit vždy. Výhled do sklizně (Přídělový systém) počítá s jablky do 5 % a při plném
+  přídělu i s jablky navíc, která ves dnes sní. **V hladu** (výhled s jablky do 5 % nedá plný
+  příděl) jsou jablka nad 5 % jídlo k přídělu: výhled s nimi počítá – nejvýš kolik do plné
+  potřeby do sklizně chybí – a jídlo dne je jí rovným dílem do zkažení (i v tempu proti zkažení);
+  obilí, které ušetří, ves do sklizně sní, takže bílkoviny do sklizně neubudou. Dají-li jablka
+  plný příděl, ves nehlásí hlad ani neporáží v nouzi. Rozhoduje výhled s jablky do 5 % (bez
+  kruhu). Výhled i jídlo dne mají totéž pravidlo, předpověď „vystačí na“ (Hlad) také – nezná
+  sklizeň, jablka nad 5 % tedy jí rovným dílem do zkažení všechna (D115 kolo 2; předtím se v hladu
+  jedla k přídělu navíc a výhled je neviděl – [historie](history/diet-history.md)). Co ves nesní, nesklidí – cíl ovoce ([sad](orchard.md) – Jídlo)
+  počítá podle téhož pravidla. Mléko, maso a sýr jablka nevytlačí. Dřív (18.–22. 11. 2026)
+  vytlačila jablka bez omezení obilí i luštěniny s jejich bílkovinami
+  ([historie](history/diet-history.md)).
 - Kvalita stravy z bílkovin a ovoce zůstává (Bílkoviny a nasycení), takže cíl „samo obilí ani
   samo ovoce nikdy úplně nenasytí“ platí dál i bez stropů.
 - Uvnitř první úrovně (návrh Clauda) ves jí napřed mléko a vejce (nedají se uložit), pak čerstvé
@@ -478,6 +498,11 @@ se přepíšou.
   a plná strava 75 / 20 / 5 % energie z obilí, masa a ovoce – nahrazeno bílkovinami.
 - **Stropy podílů energie zrušeny 18. 11. 2026** (Strava po vrstvách a porážka celý rok, Pořadí jídla – bez stropů). Dřívější znění: [history](history/diet-history.md).
 - **Ovoce a štěstí:** když lidé jedí ovoce, štěstí **+5** (sladké – Martin; [štěstí](happiness.md)).
+- **5 % ovoce je jen kvalita stravy** (`DIET.fruitShare`): kolik jabloní u cest a sadu ves má
+  a kolik jablek sklidí, určuje cíl ovoce – jablka, která ves sní do zkažení ([sad](orchard.md) –
+  Jídlo; Martin 22. 11. 2026 – „ano“ na otázku „Mají se i tato tři místa přepnout na maximum,
+  které ves zvládne?“). Dřív (do 22. 11. 2026) správce sázel jen do 5 % energie
+  ([steward-history.md](history/steward-history.md)).
 
 ### Luštěniny a štěstí z masa (Martin, 18. 10. 2026; čísla rešerše a návrh Clauda)
 

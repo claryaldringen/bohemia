@@ -71,9 +71,12 @@ describe('letní porážka ve zlaté vsi', () => {
       const kept = (r: VillageState): number =>
         r.livestock!.herds[sp] - (r.livestock!.culling?.[sp] ?? 0);
       // stejně až na ztráty stáda a jiné jídlo a práci za léto (≈ 0,6 %; po D113 – jiné dny dřiny, tedy
-      // štěstí a práce – na stádě kolem 7 kusů i ≈ 1,2 % kvůli jednomu kusu; bez opravy ≈ 50 %)
+      // štěstí a práce – na stádě kolem 7 kusů i ≈ 1,2 % kvůli jednomu kusu; bez opravy ≈ 50 %);
+      // D115 (jabloně u cest a sad do cíle ovoce) mění pole a stáda zlaté vsi: přes zimu zbude
+      // ≈ 2,6 kozy a rozdíl 0,23 kusu je 8,9 % – na tak malém stádě mez nejvýš půl kusu (bez opravy
+      // letní porážky by chybělo ≈ 50 %, tedy přes kus)
       expect(Math.abs(kept(onWinter) - kept(off.winter))).toBeLessThanOrEqual(
-        0.02 * kept(off.winter),
+        Math.max(0.02 * kept(off.winter), 0.5),
       );
     }
   }, 600_000);

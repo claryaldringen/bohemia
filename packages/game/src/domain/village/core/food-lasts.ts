@@ -12,6 +12,7 @@ import type { VillageState } from '../types';
 import {
   DAILY_CHEESE_KEEP,
   DAILY_MEAT_KEEP,
+  DIET,
   daysUntilMeatEnd,
   daysUntilMeatSpoil,
   fruitEnergy,
@@ -21,6 +22,7 @@ import {
   meatEnergy,
   villageFoodNeed,
   villageMeatKg,
+  villageProteinNeed,
   villageSlaughterMeatKg,
 } from './diet';
 import { applesSpoiled, daysUntilAppleRot } from './food';
@@ -40,7 +42,11 @@ import { SATIATION_EPSILON } from './simulate-plan';
  * (zásoba ÷ dny do konce masa – `daysUntilMeatEnd`, jako jídlo dne mimo hlad – předpověď plného
  * přídělu sklizeň nezná; Martin 18. 11. 2026: „Uzené
  * rozlož“), sýr, ovoce, luštěniny –, pak obilí a nakonec med (nekazí se; když jídla není dost, je
- * jídlem jako obilí – hides-honey.md, Med v hladu). Nad svůj díl se zásoba z 1. 11. nejí – když
+ * jídlem jako obilí – hides-honey.md, Med v hladu). Ovoce jako jídlo dne v hladu (diet.md – Pořadí
+ * jídla; předpověď nezná sklizeň ani příjmy, jídla do plné potřeby tedy chybí vždy): do 5 % potřeby
+ * a jablka nad to rovným dílem do zkažení (`hungerFruit` v `eatDiet` – do sklizně nejvýš, kolik
+ * chybí; bez sklizně všechna); energii, kterou nic jiného nedorovná, doplní jablka vždy
+ * (`fruitSpare`). Bez potřeby bílkovin jablka bez omezení. Nad svůj díl se zásoba z 1. 11. nejí – když
  * ostatní jídlo dojde, sama plný příděl nedá. První den, kdy plný příděl nevyjde, počítání
  * skončí. Nikdo nejí ze zásob vsi → null; nejvýš do konce světa.
  */
@@ -53,6 +59,9 @@ export function foodLastsDays(
   const need = villageFoodNeed(state, Math.min(first, TOTAL_GAME_DAYS - 1));
   if (need <= 0) return null;
   if (first >= TOTAL_GAME_DAYS) return 0;
+  // ovoce, které se za den sní vždy – 5 % potřeby, bez potřeby bílkovin bez omezení (`fruitAlways`)
+  const fruitAlways =
+    villageProteinNeed(state, first) > 0 ? DIET.fruitShare * need : Number.POSITIVE_INFINITY;
   const grainKeep = grainKeepPerDay({ ...grainKeepInput(state, potteryCoverage), potteryCoverage });
   const legumeKeep = legumeKeepPerDay(potteryCoverage);
   const sheaves = sheavesOutlook(state, first);
@@ -102,10 +111,16 @@ export function foodLastsDays(
     meat = eat(meat);
     slaughter = eat(slaughter, Math.max(0, share - (before - slaughter)));
     cheese = eat(cheese);
-    fruit = eat(fruit);
+    // ovoce do 5 % potřeby a jablka nad to rovným dílem do zkažení (jako jídlo dne v hladu)
+    const rotLeft = fruitDays - i;
+    const fruitMost =
+      rotLeft > 0 ? fruitAlways + Math.max(0, fruit - fruitAlways * rotLeft) / rotLeft : 0;
+    fruit = eat(fruit, Math.min(fruit, fruitMost));
     legumes = eat(legumes);
     grain = eat(grain);
     honey = eat(honey);
+    // co nic jiného nedorovnalo, doplní jablka (`fruitSpare`)
+    fruit = eat(fruit);
     if (left > shortfall) break;
     days++;
   }
