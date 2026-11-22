@@ -77,7 +77,8 @@ export const SEED_KG_PER_HA = 175;
 // nejcitlivější skupiny ve vsi (STARVATION.threshold) bez `marginDays`, s osivem jen na setí ani
 // prahu, od kterého ho ves sní (SEED_BUYING.eatFromStarvationDays); ostatní zrno je osivo. Osivo,
 // které na setí čeká, ves nejí – přežívací zásobu nikdy nezaseje (dřív prahy přídělu 0,5 do roční
-// potřeby z pole a 1 nad ni).
+// potřeby z pole a 1 nad ni). Týž příděl k přežití (`survivalRation`, bez meze osiva) je v dlouhém
+// hladu životní minimum přídělu (diet.md – Kdo dostane co; Martin 22. 11. 2026: „ano“).
 export const SEED_STORES = { marginDays: 1 } as const;
 // fields.md – Osivo ze zásob, Osivo pro ves bez zásob (Martin 27. 10. 2026: „ok, jak navrhuješ“;
 // čísla návrh Clauda): ves, které na setí dílů na řadě chybí osivo, ho koupí u sousedů

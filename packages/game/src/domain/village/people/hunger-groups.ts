@@ -1,9 +1,10 @@
-import { foodNeedPerDay, guestFoodNeedPerDay } from './people';
+import { ageGroup, foodNeedPerDay, guestFoodNeedPerDay } from './people';
 import { proteinNeedPerDay } from '../core/diet';
 import { lordFamily } from './lord';
 import { masterHousehold } from './lodge-life';
 import { nextStarvationDays } from './population';
-import { HUNGER_PRIORITY } from '../rules/rules-people';
+import { HUNGER_PRIORITY, STARVATION } from '../rules/rules-people';
+import { SEED_STORES } from '../rules/rules-fields';
 import type { Person, VillageState } from '../types';
 
 // Přednost v hladu (population.md – Hlad a vymření, Přednost v hladu; diet.md – Hlad; Martin
@@ -94,13 +95,66 @@ export function hungerSplit(state: VillageState, day: number): HungerSplit {
 }
 
 /**
+ * Příděl k přežití do žní (podíl potřeby 0–1 – population.md, Hlad a vymření; fields.md, Osivo ze
+ * zásob; diet.md, Kdo dostane co): nejmenší příděl, se kterým nahromaděný hlad `hunger` do žní
+ * (`daysToHarvest` dní, nejméně 1) nedojde k prahu úmrtí `limit` bez rezervy SEED_STORES.marginDays.
+ * Pod STARVATION.fedFrom přibude za den (fedFrom − příděl) ÷ fedFrom dne hladu, ves tedy unese
+ * `slack` dní hladu: příděl fedFrom × (1 − slack ÷ dny do žní); 0, když hlad práh do žní nedostihne
+ * ani bez jídla. Jedna definice pro přežívací zásobu (`seedKeepKg`) i životní minimum přídělu
+ * (`rationMinimum` – návrh Clauda 22. 11. 2026).
+ */
+export function survivalRation(limit: number, hunger: number, daysToHarvest: number): number {
+  const slack = Math.max(0, limit - SEED_STORES.marginDays - hunger);
+  return STARVATION.fedFrom * Math.max(0, 1 - slack / Math.max(1, daysToHarvest));
+}
+
+/**
+ * Práh úmrtí hladem nejcitlivější skupiny ve vsi (`limit` – dny, STARVATION.threshold: děti
+ * a starší 12, dospělí 20; ves bez lidí nekonečno) a nahromaděný hlad zbytku vsi (`hunger`) –
+ * nejnižší vrstvy s potřebou `needs` (`lowestFedGroup`; hlad `groupStarvation`, bez ní hlad vsi
+ * `starvationDays`), která v přednosti v hladu dostává nejméně.
+ */
+export function survivalLimit(
+  state: VillageState,
+  day: number,
+  needs: readonly number[],
+): { limit: number; hunger: number } {
+  let limit = Infinity;
+  for (const person of state.people) {
+    limit = Math.min(limit, STARVATION.threshold[ageGroup(person, day)]);
+  }
+  const group = lowestFedGroup(needs);
+  const hunger = group < 0 ? (state.starvationDays ?? 0) : (groupStarvation(state)[group] ?? 0);
+  return { limit, hunger };
+}
+
+/**
+ * Životní minimum přídělu (podíl potřeby 0–1 – diet.md, Kdo dostane co; `rationShares`):
+ * HUNGER_PRIORITY.minimumShare (75 %), v dlouhém hladu víc – příděl k přežití zbytku vsi do žní
+ * (`survivalRation`, `survivalLimit`; Martin 22. 11. 2026 na otázku „Má se rod v dlouhém hladu
+ * uskrovnit, aby zbytek vsi přežil do sklizně?“: „ano“). Mez osiva jen na setí
+ * (SEED_BUYING.eatFromStarvationDays) sem nepatří – jen přežívací zásobě (`seedKeepKg`).
+ */
+export function rationMinimum(
+  state: VillageState,
+  day: number,
+  needs: readonly number[],
+  daysToHarvest: number,
+): number {
+  const { limit, hunger } = survivalLimit(state, day, needs);
+  return Math.max(HUNGER_PRIORITY.minimumShare, survivalRation(limit, hunger, daysToHarvest));
+}
+
+/**
  * Energie skupin (0–1), když se z potřeby `needs` jí `ratio` celé potřeby vsi. Každá skupina má
- * nárok na životní minimum `minimum` (75 %) své potřeby – Martin 18. 11. 2026: „Nejde, aby elita
- * měla plný příděl a rolníci byli pod hranicí hladomoru…“, „75% je ok.“ Pod minimem jedí všichni
- * stejně (`ratio`); nad ním dostane každý minimum a zbytek se rozdělí po vrstvách v pořadí přednosti
- * až do plného přídělu (diet.md – Kdo dostane co). Skupina bez potřeby má plno (nikdo v ní
- * nehladoví). Při `ratio` ≥ 1 dostanou všechny přesně 1 – odečítání po skupinách by v plovoucí
- * čárce u poslední skupiny mohlo dát 0,9999999999999999 a sytá ves by se od dřívějšího výpočtu lišila.
+ * nárok na životní minimum `minimum` své potřeby – 75 % (Martin 18. 11. 2026: „Nejde, aby elita
+ * měla plný příděl a rolníci byli pod hranicí hladomoru…“, „75% je ok.“), v dlouhém hladu příděl
+ * k přežití zbytku vsi do žní (`rationMinimum`; Martin 22. 11. 2026: „ano“ – rod se uskrovní).
+ * Pod minimem jedí všichni stejně (`ratio`); nad ním dostane každý minimum a zbytek se rozdělí po
+ * vrstvách v pořadí přednosti až do plného přídělu (diet.md – Kdo dostane co). Skupina bez potřeby
+ * má plno (nikdo v ní nehladoví). Při `ratio` ≥ 1 dostanou všechny přesně 1 – odečítání po
+ * skupinách by v plovoucí čárce u poslední skupiny mohlo dát 0,9999999999999999 a sytá ves by se od
+ * dřívějšího výpočtu lišila.
  */
 export function rationShares(
   ratio: number,
@@ -134,7 +188,9 @@ export function lowestFedGroup(needs: readonly number[]): number {
  * 18. 11. 2026). Do životního minima `minimum` jedí všichni stejně – příděl vsi je `share`; nad
  * ním dostane nejnižší skupina víc než minimum až po plném přídělu vyšších skupin, příděl vsi je
  * tedy (potřeba vyšších skupin + `share` × potřeba nejnižší) ÷ potřeba vsi. Nejvýš 1; ves, kde
- * nikdo nejí, `share`.
+ * nikdo nejí, `share`. Přežívací zásoba počítá s minimem 75 % – vyšší vrstvy syté, zbytek vsi
+ * `share`; životní minimum dlouhého hladu (`rationMinimum`) je nejvýš její cíl, rozdělení při tomto
+ * přídělu vsi tak dá zbytku vsi totéž (diet.md – Kdo dostane co).
  */
 export function villageRationFor(
   share: number,
