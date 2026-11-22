@@ -201,6 +201,70 @@ describe('osev po úsecích', () => {
     ]);
   });
 
+  describe('přílohy podle stadia zarůstání (fields.md – Zarůstání)', () => {
+    // pás po třech dílech: louka (0 let), křoví (6 let), mladý les (20 let)
+    const YEARS = { meadow: 0, shrubs: 6, forest: 20 } as const;
+    const lane = (parts: FieldPart[], stage: keyof typeof YEARS, share: number): void => {
+      for (const p of parts)
+        Object.assign(p, {
+          state: 'fallow',
+          fallowSinceDay: 0,
+          overgrowthYears: YEARS[stage],
+          fertilityShare: share,
+        });
+    };
+    const stagesOf = (blocks: FieldPart[][]): number[] =>
+      blocks.map((b) => b[0]!.overgrowthYears ?? 0);
+
+    function threeLanes(): { parts: FieldPart[]; h: FieldHoldings } {
+      const cells: TileCell[] = [];
+      for (let y = 61; y <= 63; y++) for (let x = 59; x <= 61; x++) cells.push({ x, y });
+      const parts = cells.map((cell, i) => part(i + 1, { cell }));
+      return { parts, h: fieldHoldings([house(1, { x: 60, y: 60 })], parts) };
+    }
+
+    it.each([
+      ['≥ 95 %', [1, 1, 1]],
+      ['70–95 %', [0.9, 0.9, 0.9]],
+    ])(
+      'přílohy %s: louka před křovím před mladým lesem, i když je les odpočatější',
+      (_n, shares) => {
+        const { parts, h } = threeLanes();
+        // pás s mladým lesem je nejodpočatější a první v pořadí úseků, louka nejméně
+        const lanes = h.sectors.map((s) => s.partIds.map((id) => parts[id - 1]!));
+        lane(lanes[0]!, 'forest', shares[0]!);
+        lane(lanes[1]!, 'shrubs', shares[1]! - 0.001);
+        lane(lanes[2]!, 'meadow', shares[2]! - 0.002);
+        expect(stagesOf(sowingBlocks(parts, h))).toEqual([0, 6, 20]);
+      },
+    );
+
+    it('v jednom pásu se bloky dělí podle stadia', () => {
+      const { parts, h } = threeLanes();
+      const sector = h.sectors[0]!;
+      const ids = sector.partIds;
+      const stages = ['forest', 'shrubs', 'meadow'] as const;
+      ids.forEach((id, i) => lane([parts[id - 1]!], stages[i % 3]!, 1));
+      const blocks = sowingBlocks(parts, h).filter((b) => ids.includes(b[0]!.id));
+      expect(stagesOf(blocks)).toEqual([...stagesOf(blocks)].sort((a, b) => a - b));
+      for (const b of blocks) expect(new Set(b.map((p) => p.overgrowthYears)).size).toBe(1);
+    });
+
+    it('louky všech hospodářství před křovím kteréhokoli z nich', () => {
+      const houses = [house(1, { x: 40, y: 40 }), house(2, { x: 80, y: 40 })];
+      const a = square({ x: 40, y: 40 }, 2).map((cell, i) => part(i + 1, { cell }));
+      const b = square({ x: 80, y: 40 }, 2).map((cell, i) => part(1000 + i, { cell }));
+      const parts = [...a, ...b];
+      lane(a, 'shrubs', 1);
+      lane(b, 'meadow', 1);
+      const blocks = sowingBlocks(parts, fieldHoldings(houses, parts));
+      const stages = stagesOf(blocks);
+      expect(stages).toEqual([...stages].sort((x, y) => x - y));
+      expect(stages[0]).toBe(0);
+      expect(stages.at(-1)).toBe(6);
+    });
+  });
+
   it('osev se dělí mezi hospodářství podle velikosti', () => {
     const houses = [house(1, { x: 40, y: 40 }), house(2, { x: 80, y: 40 })];
     const big = square({ x: 40, y: 40 }, 6).map((cell, i) => part(i + 1, { cell }));

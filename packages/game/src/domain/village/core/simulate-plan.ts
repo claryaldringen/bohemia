@@ -6,7 +6,7 @@ import { nextPloughPairs } from '../livestock/draft';
 import { craftHouseholds, workshopLabor } from '../crafts/crafts';
 import { harvestHandsDay, harvestHelperLabor } from '../fields/harvest-hands';
 import { closeFieldFoodYear, storesOutlook, type StoresOutlook } from '../fields/field-food';
-import { sowingGroup } from '../fields/fields';
+import { overgrowthRank, sowingGroup } from '../fields/fields';
 import { taskPosition, taskSpans, unsownPartIds } from '../fields/field-progress';
 import { dropFromWork, moveParts, shrinkInPlan } from '../buildings/land-taken';
 import { ploughBandFinder } from '../livestock/plough-blocks';
@@ -522,10 +522,11 @@ function grainShortage(state: VillageState, day: number): boolean {
 }
 
 /**
- * Pás každého dílu výběru (díly pásu v pořadí orby) z rozvržení orby dílů výběru téže plodiny
- * a téže skupiny přílohové soustavy (`sowingGroup`, nouzové přílohy zvlášť – `ploughLayout`):
- * k připravenému dílu tak pás nepřitáhne zarostlý příloh a k přílohu nouzový (fields.md – Pořadí
- * dávek; návrh Clauda 19. 11. 2026 – D101, dřív pás z celého výběru plodiny). Líně, jen bloky
+ * Pás každého dílu výběru (díly pásu v pořadí orby) z rozvržení orby dílů výběru téže plodiny,
+ * téže skupiny přílohové soustavy (`sowingGroup`, nouzové přílohy zvlášť – `ploughLayout`)
+ * a téhož stadia zarůstání (`overgrowthRank`): k připravenému dílu tak pás nepřitáhne zarostlý
+ * příloh, k přílohu nouzový a k louce křoví ani mladý les (fields.md – Pořadí dávek; návrh Clauda
+ * 19. 11. 2026 – D101, dřív pás z celého výběru plodiny; stadia Martin 22. 11. 2026). Líně, jen bloky
  * dílů, na které se volající zeptá (`ploughBandFinder`; id ve výběru jsou různá –
  * `turnSelection`). Díl bez pásu undefined.
  */
@@ -534,7 +535,7 @@ function joinBands(
   partsById: ReadonlyMap<number, FieldPart>,
 ): (j: SeasonJoin) => readonly number[] | undefined {
   const keyOf = (j: SeasonJoin): string =>
-    `${j.crop}:${sowingGroup(partsById.get(j.id)!) ?? 'emergency'}`;
+    `${j.crop}:${sowingGroup(partsById.get(j.id)!) ?? 'emergency'}:${overgrowthRank(partsById.get(j.id)!)}`;
   // díly výběru po plodině a skupině – jedním průchodem, až je potřeba
   let lists: Map<string, FieldPart[]> | null = null;
   const finders = new Map<string, (id: number) => readonly number[] | undefined>();

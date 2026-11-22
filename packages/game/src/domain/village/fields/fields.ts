@@ -89,6 +89,15 @@ export function overgrowthStage(years: number): OvergrowthStage {
   return stage;
 }
 
+/**
+ * Pořadí stadia zarůstání dílu – louka 0, křoví 1, mladý les 2 (fields.md – Pořadí dávek):
+ * čím zarostlejší díl, tím dražší vrácení do osevu.
+ */
+export function overgrowthRank(part: Pick<FieldPart, 'overgrowthYears'>): number {
+  const stage = overgrowthStage(partOvergrowthYears(part));
+  return stage === 'meadow' ? 0 : stage === 'shrubs' ? 1 : 2;
+}
+
 /** Roky přílohu bez pastvy a seče (díly mimo příloh a vsi uložené dřív 0). */
 export function partOvergrowthYears(part: Pick<FieldPart, 'overgrowthYears'>): number {
   return part.overgrowthYears ?? 0;

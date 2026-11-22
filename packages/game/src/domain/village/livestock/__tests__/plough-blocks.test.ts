@@ -592,6 +592,34 @@ describe('pás při přibírání jen ze stejné skupiny (fields.md – Pořadí
     expect([...seasonIds(s)].some((id) => !isReady.has(id))).toBe(true);
   }, 60_000);
 
+  it('pás louky nepřitáhne zarostlé díly téže skupiny – louky napřed, dokud mají místo', () => {
+    // řady po 24 dílech podél brázdy: 6 odpočatých luk u kraje, za nimi 18 přílohů s křovinami
+    // (skupina 3 jako louky) – dřív pás první louky přibral celou řadu včetně křovin
+    const meadow = (p: FieldPart): FieldPart => ({
+      ...p,
+      state: 'fallow',
+      sownYears: 0,
+      fertilityShare: 1,
+      fallowSinceDay: DAY - 3 * 365,
+      overgrowthYears: 0,
+    });
+    const parts = rect(1, 0, 0, 24, 16).map((p) => (p.cell!.x < 6 ? meadow(p) : shrubs(p)));
+    const isMeadow = new Set(parts.filter((p) => p.overgrowthYears === 0).map((p) => p.id));
+    let s = village(parts);
+    let checked = 0;
+    for (let day = DAY; day <= at(600, 9, 30); day++) {
+      s = advanceVillage(s, day, null);
+      const meadowsWaiting = (s.season?.selection?.waiting ?? []).some((j) => isMeadow.has(j.id));
+      if (!meadowsWaiting) continue;
+      checked++;
+      expect(
+        [...seasonIds(s)].filter((id) => !isMeadow.has(id)),
+        `den ${day - DAY + 1}`,
+      ).toEqual([]);
+    }
+    expect(checked).toBeGreaterThan(0);
+  }, 60_000);
+
   it('místo na čele u každého dílu pásu – dlouhý pás přibude jen po místo, jako díly po jednom', () => {
     // pole 40 × 4 připravených dílů stejně daleko od obydlí: pás je řada 40 dílů; díly bez políčka
     // jsou každý pás sám pro sebe – první den přibude stejně dílů (dřív s dílem celý pás)
