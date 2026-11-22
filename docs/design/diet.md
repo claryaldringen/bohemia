@@ -130,6 +130,21 @@ v hladu), nově platí celý rok, ne jen v hladu:
 
 - Stropy podílů energie (maso 40 %, ovoce 25 %, mléko a sýr 30 %, luštěniny 25 %) se ruší. Nikdo
   nesní víc, než je jeho potřeba energie.
+- **Jablka nad 5 % energie jen bez ztráty bílkovin** – Martin 22. 11. 2026: „Ano“ na otázku „Mají jablka nahrazovat obilí jen tak, aby lidé nepřišli o bílkoviny?“
+  s doporučením: ves sází jen tolik stromů, kolik jablek sní, aniž by přišla o bílkoviny, a zbytek
+  obilí jí jako dnes. Ovoce se jí dál napřed (2. v pořadí), **do 5 % potřeby energie vždy**
+  (`DIET.fruitShare` – plné ovoce v kvalitě stravy, Bílkoviny a nasycení), **nad to jen místo
+  obilí a luštěnin, které ves k bílkovinám nepotřebuje** – pokrytí bílkovin s jablky neklesne pod
+  min(1, pokrytí s jablky do 5 %). Návrh Clauda k provedení: tempo proti zkažení jen do 5 %;
+  jablka navíc napřed místo obilí (v hladu s medem, který se jí s obilím), pak luštěnin – kolik
+  bílkovin má ves nad potřebu; dnešní energii, kterou obilí nedorovná (vymlácené došlo), smí
+  jablka doplnit vždy. Výhled do sklizně (Přídělový systém) počítá s jablky do 5 % a při plném
+  přídělu i s jablky navíc, která ves dnes sní. V hladu se obilí dělí rovně do sklizně a jablka, se
+  kterými výhled nepočítá, se jí k přídělu navíc do plné potřeby – nic nenahradí, bílkoviny
+  neubudou a jablka neshnijí. Co ves nesní, nesklidí – cíl ovoce ([sad](orchard.md) – Jídlo)
+  počítá podle téhož pravidla. Mléko, maso a sýr jablka nevytlačí. Dřív (18.–22. 11. 2026)
+  vytlačila jablka bez omezení obilí i luštěniny s jejich bílkovinami
+  ([historie](history/diet-history.md)).
 - Kvalita stravy z bílkovin a ovoce zůstává (Bílkoviny a nasycení), takže cíl „samo obilí ani
   samo ovoce nikdy úplně nenasytí“ platí dál i bez stropů.
 - Uvnitř první úrovně (návrh Clauda) ves jí napřed mléko a vejce (nedají se uložit), pak čerstvé

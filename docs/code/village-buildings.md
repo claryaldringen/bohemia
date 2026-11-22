@@ -169,9 +169,11 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   dne) jde do `allocateDay` mezi polní úlohy podle konce okna. Sklizeň 1. 9. nasbírá nejvýš cíl
   ovoce bez zásoby jablek (`startWork` s `harvestCapKg`; úroda i práce poměrně – orchard.md, Práce;
   D115): `simulate.ts` předá `orchardSeasonDay` funkci `fruitTargetKg` (`fruit-target.ts` –
-  `yearlyFoodNeed` bez `yearlyMilk`, masa `yearlyMeatPerHead` a vajec `dailyEggsKg` za rok, krát
-  dny od 1. 9. do zkažení `daysUntilAppleRot` ÷ 365 ÷ `APPLE_FOOD_VALUE`); bez ní (testy) se
-  sklízí vše. Jablka `applesKg` se jí před
+  `DIET.fruitShare` × `yearlyFoodNeed` × dny od 1. 9. do zkažení `daysUntilAppleRot` ÷ 365 ÷
+  `APPLE_FOOD_VALUE`; přebytek bílkovin nepočítá – D115 kolo 1);
+  bez ní (testy) se sklízí vše. Zkrácená sklizeň si pamatuje díl úrody `OrchardWork.share`
+  (cíl ÷ plná úroda) – zábor čtverce (`shrinkOrchardWork` v land-taken.ts) ubere úrodu i práci jen
+  tímto dílem. Jablka `applesKg` se jí před
   obilím (`eatMeal` ve `food.ts`, bez jablek přesně `eatDay`) a ráno 1. 3. shnijí; osev se jimi
   neřídí. Hlad (`hungry`) se řídí výhledem `outlook` – hlásí se hned, když obilí po zkažení
   jablek nevystačí. Překážky čtverce zmizí s první prací na něm a dospělé stromy (nevyhrazené

@@ -87,3 +87,21 @@ Dřív v Ostatních stavbách – upřesnění:
   jen první zdroj ovoce (ves bez sadu i jabloní), další čtverce až v Růstu – s pěti sady z Obnovy
   v letech 3–5 hladověla zdravá ves na seedu krajiny 2 v letech 14–18 (až 12 dní), s jedním ne
   (měření 31. 10. 2026).
+
+## Cíl ovoce – celá potřeba po mase, mléce a vejcích (D115, neplatí od 22. 11. 2026 – kolo 1)
+
+Platilo 22. 11. 2026 (D115, před Martinovým „Ano“ na otázku „Mají jablka nahrazovat obilí jen tak,
+aby lidé nepřišli o bílkoviny?“). Znění z orchard.md – Jídlo:
+
+- **Cíl ovoce** (Martin 22. 11. 2026 – „ano“ na přepnutí sadu a jabloní u cest na maximum, které
+  ves zvládne; tvar návrh Clauda): jablka, která ves sní od sklizně (1. 9.) do zkažení (1. 3.,
+  s nádobami do 1. 5.) v pořadí jídla – napřed maso, mléko a sýr a vejce, pak ovoce rovným dílem
+  do zkažení, až po něm luštěniny a obilí (diet.md – Pořadí jídla). Počítá se z potřeby energie
+  lidí vsi za rok bez energie, kterou za rok dají stáda (mléko dojných samic, maso mláďat nad
+  chovné stádo) a slepice, rozložené rovným dílem na dny roku – na dny od sklizně do zkažení.
+- Výsadba sadu i jabloní u cest brala jen společnou práci vsi po všech polních pracích (orchard.md
+  – Výsadba: „ze společné práce vsi … Polní práce mají přednost“) – Vlkov v oknech výsadby za
+  10 let nevysadil nic (volná práce 0 čd za den, D115).
+
+Ve Vlkově byl cíl 6,9–9,9 t jablek (≈ 88 % energie od září do února); kontrola D115 ukázala, že
+s pokrytým cílem jablka vytlačí obilí i s bílkovinami (pokrytí bílkovin v zimě 0,68 → 0,17).
