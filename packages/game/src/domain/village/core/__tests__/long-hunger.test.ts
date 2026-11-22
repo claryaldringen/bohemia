@@ -11,10 +11,16 @@ import {
   type DietInput,
 } from '../diet';
 import { eat } from '../simulate-food';
+import { advanceVillage } from '../simulate';
 import { NO_CRAFTS } from '../productivity';
 import { SEED_STORES, STARVATION } from '../../rules';
 import { HUNGER_PRIORITY } from '../../rules/rules-people';
-import { hungerSplit, rationShares, villageRationFor } from '../../people/hunger-groups';
+import {
+  groupStarvation,
+  hungerSplit,
+  rationShares,
+  villageRationFor,
+} from '../../people/hunger-groups';
 import { dayMealInput, emergencySlaughterPlan } from '../../livestock/emergency-slaughter';
 import { seedKeepKg } from '../../fields/seed';
 import { withBuiltFirstDwelling, withoutSmallGame } from '../../__tests__/village-fixtures';
@@ -31,7 +37,7 @@ const YEAR = 365.25;
  * Ves ke dni `day`: dvorec vojvody (vojvoda a žena – rod) a zbytek vsi (12 dospělých, s `child`
  * i dítě); bez polí, stád a jiného jídla. Obilí dá výhled do sklizně právě `ration`.
  */
-function village(day: number, ration: number, child = false): VillageState {
+function village(day: number, ration: number, child: boolean | 'lord' = false): VillageState {
   const born = (age: number): number => day - Math.ceil((age + 0.5) * YEAR);
   const adult = (id: number, dwellingId: number, extra: Partial<Person> = {}): Person => ({
     id,
@@ -43,7 +49,7 @@ function village(day: number, ration: number, child = false): VillageState {
     adult(10, 1, { sex: 'male', spouseId: 11 }),
     adult(11, 1, { sex: 'female', spouseId: 10 }),
     ...Array.from({ length: 12 }, (_, i) => adult(30 + i, 3)),
-    ...(child ? [{ id: 50, bornDay: born(8), dwellingId: 3 }] : []),
+    ...(child ? [{ id: 50, bornDay: born(8), dwellingId: child === 'lord' ? 1 : 3 }] : []),
   ];
   const state = withoutSmallGame({
     seed: 5,
@@ -113,6 +119,38 @@ describe('dlouhý hlad – rod se uskrovní, aby zbytek vsi přežil do sklizně
     const energy = eat(s, day, NO_CRAFTS).groups!.energy;
     expect(energy[0]).toBeCloseTo(0.8, 9);
     expect(energy[3]).toBeCloseTo(0.8, 9);
+  });
+
+  it('dítě v rodu nezvedne minimum zbytku vsi, který jsou samí dospělí', () => {
+    const day = at(700, 4, 3);
+    const s = village(day, 0.8, 'lord');
+    expect(hungerSplit(s, day).groupOf.get(50)).toBe(0);
+    const minimum = survival(STARVATION.threshold.adult, 151);
+    // práh dospělých dá ≈ 78,7 %, práh dítěte celé vsi by dal 83,4 % a rod by nedostal nic navíc
+    expect(minimum).toBeLessThan(0.8);
+    const energy = eat(s, day, NO_CRAFTS).groups!.energy;
+    expect(energy[3]).toBeCloseTo(minimum, 9);
+    expect(energy[0]).toBeGreaterThan(0.8);
+  });
+
+  it('den po dni do žní: zbytek vsi nepřekročí práh dospělých, rod jí víc jen nad minimem', () => {
+    const start = at(700, 4, 3);
+    // dítě v rodu, zbytek vsi samí dospělí; jídlo na 80 % do žní
+    let s = village(start, 0.8, 'lord');
+    const threshold = STARVATION.threshold.adult;
+    let lordHungerSum = 0;
+    let restHungerSum = 0;
+    for (let day = start; day < start + 148; day++) {
+      s = advanceVillage(s, day + 1, null);
+      const [g0, , , g3] = groupStarvation(s) as [number, number, number, number];
+      expect(g3).toBeLessThan(threshold);
+      expect(g0).toBeLessThanOrEqual(g3 + 1e-9);
+      lordHungerSum += g0;
+      restHungerSum += g3;
+    }
+    // zbytek vsi hladoví (jídlo je jen na 80 %), rod méně – jí nad minimem
+    expect(restHungerSum).toBeGreaterThan(0);
+    expect(lordHungerSum).toBeLessThan(restHungerSum);
   });
 
   it('krátký hlad (sklizeň za 41 dní) beze změny – minimum 75 % a zbytek po vrstvách', () => {

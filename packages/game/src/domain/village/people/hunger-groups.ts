@@ -109,21 +109,25 @@ export function survivalRation(limit: number, hunger: number, daysToHarvest: num
 }
 
 /**
- * Práh úmrtí hladem nejcitlivější skupiny ve vsi (`limit` – dny, STARVATION.threshold: děti
- * a starší 12, dospělí 20; ves bez lidí nekonečno) a nahromaděný hlad zbytku vsi (`hunger`) –
- * nejnižší vrstvy s potřebou `needs` (`lowestFedGroup`; hlad `groupStarvation`, bez ní hlad vsi
- * `starvationDays`), která v přednosti v hladu dostává nejméně.
+ * Práh úmrtí hladem (`limit` – dny, STARVATION.threshold: děti a starší 12, dospělí 20; bez lidí
+ * nekonečno) a nahromaděný hlad (`hunger`) nejnižší vrstvy s potřebou `needs` (`lowestFedGroup`;
+ * hlad `groupStarvation`, bez ní hlad vsi `starvationDays`), která v přednosti v hladu dostává
+ * nejméně. Bez `groupOf` je práh nejcitlivějšího člověka celé vsi (opatrný, pro přežívací zásobu
+ * `seedKeepKg`); s `groupOf` (`HungerSplit.groupOf`) jen lidí té nejnižší vrstvy, kterou minimum
+ * chrání – dítě v rodu nezvedne minimum zbytku vsi ze samých dospělých (návrh Clauda 22. 11. 2026).
  */
 export function survivalLimit(
   state: VillageState,
   day: number,
   needs: readonly number[],
+  groupOf?: ReadonlyMap<number, number>,
 ): { limit: number; hunger: number } {
+  const group = lowestFedGroup(needs);
   let limit = Infinity;
   for (const person of state.people) {
+    if (groupOf !== undefined && group >= 0 && (groupOf.get(person.id) ?? REST) !== group) continue;
     limit = Math.min(limit, STARVATION.threshold[ageGroup(person, day)]);
   }
-  const group = lowestFedGroup(needs);
   const hunger = group < 0 ? (state.starvationDays ?? 0) : (groupStarvation(state)[group] ?? 0);
   return { limit, hunger };
 }
@@ -131,7 +135,7 @@ export function survivalLimit(
 /**
  * Životní minimum přídělu (podíl potřeby 0–1 – diet.md, Kdo dostane co; `rationShares`):
  * HUNGER_PRIORITY.minimumShare (75 %), v dlouhém hladu víc – příděl k přežití zbytku vsi do žní
- * (`survivalRation`, `survivalLimit`; Martin 22. 11. 2026 na otázku „Má se rod v dlouhém hladu
+ * (`survivalRation`, `survivalLimit` – práh lidí té nejnižší skupiny, kterou minimum chrání; Martin 22. 11. 2026 na otázku „Má se rod v dlouhém hladu
  * uskrovnit, aby zbytek vsi přežil do sklizně?“: „ano“). Mez osiva jen na setí
  * (SEED_BUYING.eatFromStarvationDays) sem nepatří – jen přežívací zásobě (`seedKeepKg`).
  */
@@ -139,9 +143,10 @@ export function rationMinimum(
   state: VillageState,
   day: number,
   needs: readonly number[],
+  groupOf: ReadonlyMap<number, number>,
   daysToHarvest: number,
 ): number {
-  const { limit, hunger } = survivalLimit(state, day, needs);
+  const { limit, hunger } = survivalLimit(state, day, needs, groupOf);
   return Math.max(HUNGER_PRIORITY.minimumShare, survivalRation(limit, hunger, daysToHarvest));
 }
 

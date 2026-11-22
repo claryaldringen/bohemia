@@ -234,22 +234,26 @@ describe('strava po vrstvách – štěstí ze stravy po lidech', () => {
 });
 
 describe('přednost v hladu – dopočet vsi', () => {
-  it('v krátkém nedostatku na 83 % (nad minimem) rod nehladoví, řemeslníci jedí víc než zbytek vsi', () => {
+  it('v krátkém nedostatku na 80 % (nad minimem) rod nehladoví, řemeslníci jedí víc než zbytek vsi', () => {
     // sklizeň za 62 dní – zbytek vsi přežije do žní i s minimem 75 % (v dlouhém hladu se rod
     // uskrovní – long-hunger.test.ts); za kratší dobu do žní ztratí obilí skladováním méně, proto
-    // 83 %
+    // 80 %
     const start = dayIndexOf({ year: 701, month: 7, day: 1 });
+    let craftsmenHungry = 0;
     for (let seed = 1; seed <= 8; seed++) {
-      const s = advanceVillage(village(seed, 0.83, start), start + 24, null);
+      const s = advanceVillage(village(seed, 0.8, start), start + 24, null);
       const [g0, , g2, g3] = groupStarvation(s) as [number, number, number, number];
       // rod dostane plný příděl, řemeslníci víc než zbytek (zbytek má jen minimum; podle úmrtí
       // a porodů za 24 dní jsou řemeslníci někdy už sytí)
       expect(g0).toBe(0);
+      if (g2 > 0) craftsmenHungry++;
       expect(g3).toBeGreaterThan(g2);
       expect(s.starvationDays).toBe(g3);
       // hráč vidí hlad zbytku
       expect(summarizeVillage(s, start + 24).hunger).not.toBe('fed');
     }
+    // řemeslníci nad minimem nejsou nasycení celí – ve většině vsí už hladoví
+    expect(craftsmenHungry).toBeGreaterThanOrEqual(4);
   });
 
   it('pod životním minimem 75 % hladoví všichni stejně, i rod', () => {

@@ -332,7 +332,7 @@ export function eat(
   const split = hungerSplit(state, day);
   // životní minimum přídělu – v dlouhém hladu příděl k přežití zbytku vsi do žní (Martin
   // 22. 11. 2026: „ano“ – rod se uskrovní)
-  const minimum = rationMinimum(state, day, split.needs, mealInput.daysToHarvest);
+  const minimum = rationMinimum(state, day, split.needs, split.groupOf, mealInput.daysToHarvest);
   const tiers = tierMeal(split, meal.eaten, minimum);
   // přednost v hladu (population.md – Přednost v hladu): nad životním minimem jedí napřed rod
   // vojvody, mistři huti a řemeslníci; hlad po skupinách se vede jen, když jídla není dost nebo

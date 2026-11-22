@@ -644,7 +644,7 @@ function nextDayDiet(state: VillageState, day: number): { diet: DietDay; points:
     fishAheadEnergy: fish,
   });
   const split = hungerSplit(state, next);
-  const minimum = rationMinimum(state, next, split.needs, meal.daysToHarvest);
+  const minimum = rationMinimum(state, next, split.needs, split.groupOf, meal.daysToHarvest);
   return {
     diet: meal.diet,
     points: dietHappiness(tierMeal(split, meal.eaten, minimum), split.eaters),

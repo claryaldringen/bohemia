@@ -546,7 +546,8 @@ function eatenKg(kg: number, energy: number, eaten: number): number {
  * je celá zásoba medu jídlo jako obilí (hides-honey.md – Med v hladu), plný příděl počítá jen
  * s pevným přídělem medu do sklizně – ves pak jí dosyta bez zásoby medu. Přesně obrácený výhled
  * `eatDiet` (fields.md – Osivo ze zásob, přežívací zásoba), i se ztrátami skladováním do žní
- * (`grainEatenShare`).
+ * (`grainEatenShare`). Platí pro cíl pod 1 (v hladu); plný příděl `eatDiet` dá i s menším obilím
+ * přes díl zásoby z porážky do sklizně, cíl 1 tu tedy dává horní odhad, ne nejmenší obilí.
  */
 export function grainAheadForOutlookKg(input: DietInput, outlook: number): number {
   const target = Math.min(1, outlook);
@@ -632,44 +633,43 @@ function harvestOutlook(plan: DietPlan, aheadEaten: number): HarvestOutlook {
 export function eatDiet(input: DietInput): DietResult {
   const keep = grainKeepPerDay(input);
   const grain = input.grainKg * keep;
-  let plan = dietPlan(input);
-  const { need, meat, slaughter, fresh, fruit, cheese, legumes, honey, milkProtein } = plan;
+  const first = dietPlan(input);
   // snopy, které ves vymlátí – výhled do sklizně s nimi počítá, jí se jen vymlácené
   // (production-chains.md – Humno)
   const ahead = grain + Math.max(0, input.sheavesGrainKg ?? 0);
-  if (need <= 0) {
+  if (first.need <= 0) {
     // nikdo nejí – mléko na sýr
-    const made = cheeseFromMilk(milkProtein);
+    const made = cheeseFromMilk(first.milkProtein);
     return {
       grainKg: grain,
-      meatKg: meat + slaughter + fresh,
-      slaughterMeatKg: slaughter,
-      fruitKg: fruit,
-      cheeseKg: cheese + made,
+      meatKg: first.meat + first.slaughter + first.fresh,
+      slaughterMeatKg: first.slaughter,
+      fruitKg: first.fruit,
+      cheeseKg: first.cheese + made,
       cheeseMadeKg: made,
-      legumesKg: legumes,
-      honeyKg: honey,
+      legumesKg: first.legumes,
+      honeyKg: first.honey,
       eaten: nothingEaten(),
       diet: dietOf(0, 0, NOTHING),
       outlook: 1,
       grainSpareKg: ahead,
-      daysToHarvest: plan.days,
+      daysToHarvest: first.days,
     };
   }
   // obilí, které se do sklizně opravdu sní – zbytek zásob mezitím ubude skladováním (rovným dílem
   // od dneška; fields.md – Přídělový systém)
-  const aheadEaten = ahead * grainEatenShare(keep, 0, plan.days);
-  let view = harvestOutlook(plan, aheadEaten);
+  const aheadEaten = ahead * grainEatenShare(keep, 0, first.days);
+  let view = harvestOutlook(first, aheadEaten);
   // v hladu (výhled s dnešním dílem nedá plný příděl) zásoba z porážky 1. 11. dílem do sklizně,
   // je-li dřív než konec masa – výhled i jídlo dne s tímtéž dílem (diet.md – V hladu do sklizně)
-  if (
+  const hungry =
     view.outlook < 1 &&
-    slaughter > 0 &&
-    Math.max(1, input.daysToHarvest) < Math.max(1, input.daysToMeatEnd)
-  ) {
-    plan = dietPlan(input, true);
-    view = harvestOutlook(plan, aheadEaten);
-  }
+    first.slaughter > 0 &&
+    Math.max(1, input.daysToHarvest) < Math.max(1, input.daysToMeatEnd);
+  // plán, ze kterého se čte celé jídlo dne (až po rozhodnutí o hladu – díl `slaughterShare`)
+  const plan = hungry ? dietPlan(input, true) : first;
+  if (hungry) view = harvestOutlook(plan, aheadEaten);
+  const { need, meat, slaughter, fresh, fruit, cheese, legumes, honey, milkProtein } = plan;
   const { outlook, grainSpareKg, honeyShare } = view;
   const { honeyEaten } = plan;
   // dnes příděl, ale aspoň tempem proti zkažení a nejvýš celá potřeba
