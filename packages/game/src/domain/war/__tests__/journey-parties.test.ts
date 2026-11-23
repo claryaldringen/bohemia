@@ -5,6 +5,7 @@ import type { GridCell } from '../../village/people/world-grid';
 import type { VillageState } from '../../village/types';
 import type { CampaignMap, CampaignWorld } from '../campaign-types';
 import { journeyFinished, newJourney, stepJourney } from '../journey';
+import { upgradeJourney } from '../journey-upgrade';
 import { partyLeader } from '../journey-parties';
 import { predatorDay } from '../journey-predators';
 import type {
@@ -535,8 +536,11 @@ describe('výprava místní mřížky rodu – lovci mapu vsi neopustí (lov od�
         (g.goal === null || (g.goal.cell.x === HOME.cell.x && g.goal.cell.y === HOME.cell.y)),
     );
 
-  it('příznak drží nová výprava i převod staršího bodu, běžná výprava ho nemá', () => {
+  it('příznak drží nová výprava i bod bez verze mřížky po převodu (upgradeJourney), běžná výprava ho nemá', () => {
     expect(local([person(1)]).localGrid).toBe(true);
+    const older = { ...local([person(1)]) };
+    delete older.marchGridVersion;
+    expect(upgradeJourney(older).localGrid).toBe(true);
     expect(start([person(1)]).localGrid).toBeUndefined();
   });
 

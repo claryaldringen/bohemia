@@ -746,6 +746,9 @@ describe('stepJourneys', () => {
     expect((await stored(journeys)).phase).toBe('out');
   });
 
+  // Pojistka: výsledek (přes okraj nepřejde, bez znalosti a války) dává doména; aserce znalosti a
+  // války by prošly i bez stráží v kroku workeru. Test pevně hlídá jen to, že se mapa bere
+  // z krajiny vsi a ne z políčka světa.
   it('výprava místní mřížky (lov odříznutého nováčka): mapa jen místní cestou, přes okraj nepřejde, znalost ani válka', async () => {
     const s = await setup();
     await startWar(s);
