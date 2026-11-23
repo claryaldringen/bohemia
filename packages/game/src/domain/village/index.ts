@@ -385,6 +385,9 @@ export * from './trade/trail';
 export { TRAIL_END_BAND_M, trailExitsOf, type TrailExit } from './trade/trail-exits';
 export { landscapeTrailLines } from './trade/premium-route';
 export * from './trade/goods';
+// trh – ceny v mincovní míře a zápočet tržního dne (markets.md – Rozhodnutí plánu 2, body 3 a 4)
+export { initialPrice, nextPrices, priceOf } from './trade/market-prices';
+export { clearMarket, partyTotals } from './trade/market-clearing';
 export { legacyNeighbourName } from './trade/legacy-neighbours';
 export * from './trade/trade';
 // dobytek v obchodu – příchod a odchod dobytka (`addCattle`, `removeCattle`) jsou kroky obchodu

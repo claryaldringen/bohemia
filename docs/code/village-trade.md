@@ -152,6 +152,30 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   – **zásilka do vsi jiného hráče** (`TradeExpedition.kind = 'shipment'`, bez stezky, bez návratu
   zboží) je táž výprava s jinou událostí na konci: `docs/code/vassalage.md` – Zásilky mezi vsemi hráčů.
 
+- **Trh – ceny a zápočet** (markets.md – Pravidla 4 a 5, Rozhodnutí plánu 2, body 3 a 4; čisté
+  funkce `trade/market-prices.ts` a `trade/market-clearing.ts`, typy `types-market.ts`, čísla
+  `MARKET` v `rules-market.ts`). **Ceny** `MarketPrices` (mince za kg, kus nebo m³; chybí =
+  výchozí): `initialPrice` = hodnota v kg obilí (`TRADE_GOOD_VALUES`) ÷ `MARKET.grainKgPerCoin`
+  (15 kg obilí za minci – kráva 40 mincí), `priceOf` zapamatovaná nebo výchozí; `nextPrices` ze
+  součtů nabídek S a seznamů D tržního dne P × (1 + `MARKET.priceStep` × (D − S) / (D + S)) – za
+  den nejvýš ±10 %, nikdy na nulu, zboží bez nabídky i poptávky beze změny (nový objekt). **Zápočet**
+  `clearMarket(parties, prices)`: strany `MarketParty` (`key`, nabídka `offer`, seznam `wants`)
+  v pořadí hostitel, pak výpravy podle příjezdu; každá prodá přesně za tolik, za kolik koupí, kus
+  jen celý (`PIECE_GOODS` / `isPieceGood` v `goods.ts` – dobytek, koně, klády, kámen, kůže,
+  kožešiny), kg libovolně. Kola se stropem V = min(hodnota nabídky, hodnota seznamu): strana prodá
+  nejvýš za V a koupí nejvýš za V, kupci v pořadí stran a zboží seznamu v pořadí `TRADE_GOODS`, od
+  prodávajících v pořadí stran; kupující koupí jen od strany svého kruhu (`tradeCircles` – silně
+  souvislé komponenty grafu „kupuje od“, jinak by se prodávajícímu hodnota nevrátila). Nevyrovnaná
+  strana (|utrženo − utraceno| > `EPS` = 10⁻⁶ mince) → V = min(V, utrženo, utraceno) u všech a nové
+  kolo; po `CLEARING_ROUNDS` (32, technická mez, ne pravidlo) se poslední nevyrovnaná strana vyřadí
+  a počítá se bez ní. Výsledek `MarketClearing`: `trades` (`MarketTrade` – kdo komu, co, kolik)
+  v pořadí přidělení, `offered` / `wanted` součty celých nabídek a seznamů všech stran pro
+  `nextPrices`; `partyTotals` – co strana prodala a koupila. Proti zadání plánu dvě změny (návrh
+  Clauda): strop omezuje, za kolik strana prodá, ne které zboží (nabídka oříznutá předem v pořadí
+  `TRADE_GOODS` – obilí hostitele by vytlačilo jeho klády a dobytek), a kruhy. Na 4 × 8 000
+  náhodných trzích se 3–6 stranami obchoduje o 40–60 % víc trhů, vymění se o 28–76 % víc zboží
+  a strana se vyřadí v 1 trhu z 32 000 (podle zadání ve 22).
+
 - **Jen společné suroviny** (trade.md – Jen společné suroviny; Martin 19. 10. 2026: „Nech jen
   společné suroviny, nezaváděj nové.“): obchod zná jen zboží, které má i ves (`TradeGood`,
   `TRADE_GOODS`). Zboží zvenku (sůl, železo, med, kožešiny – dřívější soubor zboží) ve hře není.
