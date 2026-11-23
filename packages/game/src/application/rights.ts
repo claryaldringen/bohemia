@@ -119,6 +119,8 @@ export const ACTION_RIGHTS = {
   declareHunt: 'steward',
   renameVillage: 'steward',
   forceDevDisaster: 'steward',
+  // výprava na trh (markets.md – Pravidla 2) – obchod vsi: právo `trade` (správce ho má)
+  sendMarketExpedition: 'trade',
   // vojsko a tažení (war.md) – jen držitel vlastní vsi; správce cizí vsi válčit nesmí
   planCampaign: 'war',
   launchCampaign: 'war',

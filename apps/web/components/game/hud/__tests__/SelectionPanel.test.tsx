@@ -860,6 +860,7 @@ describe('SelectionPanel – rozvržení', () => {
         type: 'dvorec',
         manor: {
           dwellingId: 3,
+          market: { stock: {}, homeCarts: [], oxenHome: 0, adults: 0, day: 0, trips: [] },
           stance: 'flee',
           huntDenied: null,
         },
@@ -884,6 +885,7 @@ describe('SelectionPanel – rozvržení', () => {
         type: 'dvorec',
         manor: {
           dwellingId: 3,
+          market: { stock: {}, homeCarts: [], oxenHome: 0, adults: 0, day: 0, trips: [] },
           stance: 'flee',
           huntDenied: null,
         },

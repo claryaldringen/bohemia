@@ -5,6 +5,13 @@ import {
   huntDenied,
   HUNT_DENIED_TEXT,
   lordFamily,
+  marketFreeAdults,
+  oxenHome,
+  tradeHomeCarts,
+  TRADE_GOODS,
+  villageGoodStock,
+  type MarketTripCheck,
+  type TradeGoods,
   stanceOf,
   villageManor,
   type DefenseStance,
@@ -20,6 +27,7 @@ import {
 } from './person-view';
 import { ROLE_NAMES } from './person-roles';
 import { huntView, type HuntView } from './wildlife-view';
+import { marketTripViews, type MarketTripView } from './market-view';
 
 /**
  * Obyvatel dvorce (lord.md – Co hráč vidí): portrét, role a věk; muži rodiny od 7 let (cvičí) nesou
@@ -67,6 +75,25 @@ export interface VillageManor {
   dwellingId: number;
   /** Obyvatelé dvorce od nejstaršího (lord.md – Co hráč vidí). */
   family?: ManorMember[];
+  /**
+   * Trh (markets.md – Rozhodnutí plánu 2, bod 9): vstup kontroly výpravy bez vzdálenosti
+   * (`MarketTripCheck` – náhled ve webu volá `checkMarketTrip` jádra) a výpravy na cestě.
+   */
+  market: Omit<MarketTripCheck, 'cells'> & { trips: MarketTripView[] };
+}
+
+/** Vstup kontroly výpravy na trh ze stavu vsi (zásoby všech druhů zboží, vozy, voli, volní dospělí). */
+function marketField(state: VillageState, day: number): VillageManor['market'] {
+  const stock: TradeGoods = {};
+  for (const good of TRADE_GOODS) stock[good] = villageGoodStock(state, good, day);
+  return {
+    stock,
+    homeCarts: tradeHomeCarts(state).map((c) => c.kind),
+    oxenHome: oxenHome(state, day),
+    adults: marketFreeAdults(state, day),
+    day,
+    trips: marketTripViews(state, day),
+  };
 }
 
 /** Obyvatelé dvorce s rolí a dovednostmi (muži rodiny od 7 let vždy, i s nulami). */
@@ -131,5 +158,6 @@ export function manorView(
     huntDenied: huntDeniedText(state, day, huntRunning),
     ...huntField(state, day),
     family: manorFamily(state, day),
+    market: marketField(state, day),
   };
 }

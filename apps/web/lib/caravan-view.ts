@@ -17,6 +17,7 @@ import {
   type CraftPurchase,
   type Dwelling,
   type IronTrip,
+  type MarketTrip,
   type TradeExpedition,
   type TradeGoods,
   type VillageState,
@@ -63,10 +64,61 @@ export function sceneExpeditions(state: VillageState): SceneExpedition[] {
   ];
 }
 
+/**
+ * Výprava na trh jako karavana (markets.md – Rozhodnutí plánu 2, bod 2; Martin 22. 11. 2026: „ráno
+ * se vyrazí a večer vrátí“): jako zásilka ke kraji mapy ve směru prvního kroku cesty, tam s `give`,
+ * zpátky nosiči. Postup jde podle kalendáře, ne z `done` a `cost` – termín je pevný: cesta tam od
+ * `startedDay` (`travelDays` dní, aspoň den), ve dnech pobytu karavana stojí za krajem mapy (tempo
+ * 0), cesta zpět od `arriveDay` + pobyt do `returnDay`. Postup platí pro právě běžící cestu.
+ */
+function marketCaravan(
+  state: VillageState,
+  e: TradeExpedition & { market: MarketTrip },
+): SceneExpedition {
+  const day = state.lastDay;
+  const { arriveDay, stayDays, travelDays } = e.market;
+  const stayEnd = arriveDay + stayDays;
+  const leg = Math.max(1, travelDays);
+  const round = (n: number): number => Math.round(n * 1e4) / 1e4;
+  let startDay = e.startedDay;
+  let progress = 1;
+  let rate = 0;
+  if (day < arriveDay) {
+    progress = Math.min(1, (day - e.startedDay + 1) / leg);
+    rate = 1 / leg;
+  } else if (day >= stayEnd) {
+    startDay = stayEnd;
+    progress = Math.min(1, (day - stayEnd + 1) / leg);
+    rate = day < e.market.returnDay ? 1 / leg : 0;
+  }
+  return {
+    id: e.id,
+    trailId: null,
+    line: purchaseLine(state, purchaseRoute(state, e.destination?.firstStep ?? e.direction, null)),
+    porters: e.porters,
+    carts: [...(e.carts ?? [])],
+    cartCrew: CARTS.tradeCrew,
+    leaving: [],
+    coming: [],
+    carriesOut: carries(e.give),
+    carriesBack: false,
+    ...(Object.keys(e.give).some(isCattleGood)
+      ? { cattle: { out: herdOf(e.give), back: herdOf({}) } }
+      : {}),
+    progress: round(progress),
+    rate: round(rate),
+    day,
+    startDay,
+    onMap: Math.max(0.2, (leg - TRADE.beyondEdgeDays) / leg),
+    trip: { kind: 'trade', to: e.market.name },
+  };
+}
+
 /** Výpravy k sousedům (trade.md – Ve scéně). */
 function tradeCaravans(state: VillageState): SceneExpedition[] {
   const day = state.lastDay;
   return (state.trade?.expeditions ?? []).map((e) => {
+    if (e.kind === 'market' && e.market) return marketCaravan(state, { ...e, market: e.market });
     const today = expeditionToday(state, e);
     // dnešní tempo – výprava vyslaná dnes vyrazí plným tempem
     const perDay = today === null ? e.porters : today;

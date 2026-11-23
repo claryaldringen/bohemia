@@ -155,6 +155,65 @@ describe('zásilka do vsi jiného hráče ve scéně (vassalage.md – Doprava a
   });
 });
 
+describe('výprava na trh ve scéně (markets.md – Rozhodnutí plánu 2, bod 2)', () => {
+  /** Ves s výpravou na trh: vyrazí DAY, cesta 1 den, pobyt 3 dny, doma DAY + 8. */
+  function withMarketTrip(day: number): ReturnType<typeof village> {
+    const s = village();
+    s.lastDay = day;
+    s.trade!.expeditions = [
+      {
+        id: 9,
+        kind: 'market',
+        direction: 'E',
+        trailId: -1,
+        startedDay: DAY,
+        give: { grain: 300 },
+        get: {},
+        porters: 12,
+        days: 5,
+        cost: 60,
+        done: 0,
+        destination: { cells: 2, firstStep: 'E' },
+        market: {
+          key: 'market:h:9',
+          villageId: 'v-2',
+          name: 'Lhota',
+          wants: {},
+          stayDays: 3,
+          travelDays: 1,
+          arriveDay: DAY + 1,
+          returnDay: DAY + 5,
+        },
+      },
+    ];
+    s.labor = { day, shares: [] };
+    return s;
+  }
+
+  it('bez stezky, čára ke kraji ve směru prvního kroku, jméno cílové vsi', () => {
+    const [e] = sceneExpeditions(withMarketTrip(DAY));
+    expect(e).toMatchObject({ id: 9, trailId: null, carriesOut: true, carriesBack: false });
+    expect(e!.line![1]!.x).toBeGreaterThan(e!.line![0]!.x);
+    expect(e!.trip).toEqual({ kind: 'trade', to: 'Lhota' });
+  });
+
+  it('ve dnech pobytu stojí – tempo 0 a stejný postup; jinak jde podle kalendáře', () => {
+    const at = (day: number) => sceneExpeditions(withMarketTrip(day))[0]!;
+    // cesta tam DAY, pobyt DAY + 1 … DAY + 3, cesta zpět DAY + 4, doma DAY + 5
+    expect(at(DAY)).toMatchObject({ progress: 1, startDay: DAY });
+    expect(at(DAY).rate).toBeGreaterThan(0);
+    const first = at(DAY + 1);
+    const middle = at(DAY + 2);
+    expect(first.rate).toBe(0);
+    expect(middle.rate).toBe(0);
+    expect(middle.progress).toBe(first.progress);
+    expect(at(DAY + 3).rate).toBe(0);
+    const back = at(DAY + 4);
+    expect(back.rate).toBeGreaterThan(0);
+    expect(back.startDay).toBe(DAY + 4);
+  });
+});
+
 describe('nákup u sousedů vozem ve scéně (crafts.md – Nákup u sousedů, Vozy)', () => {
   it('karavana nákupu ukáže vozy vsi a s každým honáka a pomocníka', () => {
     const s = village();

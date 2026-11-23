@@ -87,6 +87,7 @@ describe('vylepšení vsi ve dvorci', () => {
       <ManorUpgrades
         manor={{
           dwellingId: 1,
+          market: { stock: {}, homeCarts: [], oxenHome: 0, adults: 0, day: 0, trips: [] },
           stance: 'flee',
           huntDenied: null,
         }}
@@ -103,7 +104,12 @@ describe('tlačítko lovu ve dvorci', () => {
   const huntButton = (huntDenied: string | null): string =>
     renderToStaticMarkup(
       <ManorUpgrades
-        manor={{ dwellingId: 1, stance: 'flee', huntDenied }}
+        manor={{
+          dwellingId: 1,
+          stance: 'flee',
+          huntDenied,
+          market: { stock: {}, homeCarts: [], oxenHome: 0, adults: 0, day: 0, trips: [] },
+        }}
         onDeclareHunt={async () => null}
       />,
     );

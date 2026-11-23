@@ -7,6 +7,7 @@ export * from './actions/army';
 export * from './actions/dev';
 export * from './actions/fortification';
 export * from './actions/house';
+export * from './actions/market';
 export * from './actions/vassalage';
 export * from './actions/view';
 export * from './actions/village';

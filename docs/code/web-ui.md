@@ -8,7 +8,8 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `chooseLanguageAction`; ořez pohledu o to, co klient zná), `village.ts` (stavby, pole, cesty,
   osoby, odchody, `foundVillage`, `restartGame`, …), `fortification.ts` (hradby), `army.ts`
   (panel vojska, tažení, pokyny, `orderBreakout`), `alarm.ts`, `house.ts` (rod, pozvánky, jednání,
-  stížnosti, správce, nováček), `vassalage.ts` (odvody, svolání, průchody, odúmrť, ochrana),
+  stížnosti, správce, nováček), `market.ts` (`getMarketOverview`, `sendMarketExpedition` – trh),
+  `vassalage.ts` (odvody, svolání, průchody, odúmrť, ochrana),
   `dev.ts` (jen `devMode`: `forceDevDisaster`, `skipTime`). Sdílené pomocníky (`playerId`,
   `villageAction`, `NOT_SIGNED_IN`, kontroly tvaru `isId`/`isRecord`/`isText`) drží
   `actions/_shared.ts` **bez** `'use server'` (v takovém souboru smí být exportem jen async
@@ -1258,6 +1259,31 @@ na které stojí.
 plní `manorView` (`stanceOf`), volba jde přes server action `setDefenseStance` → `setDefenseStanceForPlayer`
 (`lib/village.ts`, právo `war` – bez něj tlačítka zašednou s důvodem). Upozornění `foreign-army` →
 „Cizí vojsko u vsi Kněžice!“ (`lib/player-notices.ts`, panel války). Test: `ManorStance.behavior.test.tsx`.
+
+## Trh v rozhraní – akce a pohledy (markets.md; plán 2 „Obchod 2“ – Úloha 7)
+
+- **Akce** (`app/game/actions/market.ts`, `'use server'`): `getMarketOverview({ villageId })` →
+  `marketOverviewForPlayer` (`lib/village.ts`, pohled bez práva přes `context` jako
+  `panelOptionsForPlayer`; use-case `marketOverview`) a `sendMarketExpedition(input)` →
+  `sendMarketExpeditionForPlayer` (přes `guardedAction`, právo `trade` v `ACTION_RIGHTS`; use-case
+  `sendMarketExpedition` s `today: ctx.day`; úspěch = pohled na ves, odmítnutí `{ refused }` →
+  `{ error: důvod }`). Vstup `{ villageId, targetVillageId, give, wants, stayDays }` převádí
+  `parseMarketExpeditionInput` (`lib/village-input.ts`) – jen tvar (celá nezáporná čísla, známé
+  zboží, id vsi), pravidla hlídá jádro (`MARKET_BAD_ORDER`, `checkMarketTrip`).
+- **Pohledy** (`lib/market-view.ts`): `marketTripViews(state, day)` – výpravy na trh na cestě
+  (fáze `out` / `market` / `back` / `waiting`, `daysLeft`); `marketPreview(order, market, cells)` –
+  náhled výpravy (nosiči, vozy, dny pryč, důvod) jen převede `checkMarketTrip` jádra, vlastní
+  pravidla nemá. Vstup náhledu je `VillageManor.market` (`lib/manor-view.ts`): zásoby všech druhů
+  zboží (`villageGoodStock`), vozy doma (`tradeHomeCarts`), voli (`oxenHome`), volní dospělí
+  (`marketFreeAdults`), den a výpravy na cestě.
+- **Karavana** (`lib/caravan-view.ts` – `marketCaravan`): výprava `'market'` jde jako zásilka bez
+  stezky po čáře ke kraji mapy ve směru `destination.firstStep`, tam s `give`, zpět nosiči,
+  `trip: { kind: 'trade', to: jméno cílové vsi }`. Postup jde podle kalendáře (termín je pevný):
+  cesta tam od `startedDay`, ve dnech pobytu stojí za krajem mapy (`rate` 0, `progress` 1), zpět od
+  `arriveDay` + pobyt do `returnDay`.
+- **Příkaz panelu**: `VillageCommands.sendMarket(targetVillageId, order)`
+  (`components/game/village-game/village-commands.ts`) vrací důvod odepření česky, nebo `null`.
+  Panel Trh je v další úloze.
 
 ## Rozkaz „Probít se“ (fortifications.md – Obrana bez násobku 3, `hud/BreakoutButton.tsx`)
 
