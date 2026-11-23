@@ -7,7 +7,10 @@
 // (takt WATER_FPS scény), při omezeném pohybu stojí na posledním pohledu.
 import '@babylonjs/core/Meshes/thinInstanceMesh';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
+import type { Camera } from '@babylonjs/core/Cameras/camera';
+import { BoundingInfo } from '@babylonjs/core/Culling/boundingInfo';
 import { Color3 } from '@babylonjs/core/Maths/math.color';
+import { Vector3 } from '@babylonjs/core/Maths/math.vector';
 import type { Mesh } from '@babylonjs/core/Meshes/mesh';
 import { CreateCylinder } from '@babylonjs/core/Meshes/Builders/cylinderBuilder';
 import type { Scene } from '@babylonjs/core/scene';
@@ -57,6 +60,9 @@ const LYING_LIFT_M: Record<WildModel, number> = {
 /** Délka skoku zvířete (m na cyklus kroku při měřítku 1) a běhu psa (dogs.ts – běh). */
 const QUARRY_STRIDE_M = 1.6;
 const DOG_STRIDE_M = 1.7;
+/** Okraj obálky lovu kolem postav (m) a její svislé rozpětí od nuly (výška terénu a postav). */
+const BOUNDS_PAD_M = 4;
+const BOUNDS_Y_M = 120;
 /** Dolů hledí stojící pes (čichá). */
 const DOG_SNIFF = 1;
 
@@ -105,7 +111,11 @@ export class HuntRenderer {
   private lastMs = 0;
   private shown: HuntStats = { quarry: null, beaters: [], dogs: 0, pole: null };
   /** Klíč posledního zápisu – kreslí se jen při změně. */
-  private written = '';
+  private written: HuntStats | null = null;
+  /** Obálka všeho, co lov kreslí – lov mimo záběr kamery se nekreslí. */
+  private readonly bounds = new BoundingInfo(Vector3.Zero(), Vector3.Zero());
+  private readonly boundsMin = new Vector3();
+  private readonly boundsMax = new Vector3();
   private readonly pose = createLivestockPose();
   private disposed = false;
 
@@ -134,10 +144,15 @@ export class HuntRenderer {
     return this.write(nowMs);
   }
 
-  /** Pohyb mezi pohledy, chůze honců a psů, prach – true, když se něco hnulo. */
-  animate(nowMs: number): boolean {
+  /**
+   * Pohyb mezi pohledy, chůze honců a psů, prach – true, když se něco hnulo v záběru `camera`
+   * (bez kamery se bere, že vše je vidět). Stojící honci a lov mimo záběr nekreslí.
+   */
+  animate(nowMs: number, camera: Camera | null = null): boolean {
     if (!this.active || this.frozen) return false;
-    return this.write(nowMs);
+    const moved = this.write(nowMs);
+    if (!moved) return false;
+    return camera === null || camera.isInFrustum(this.bounds);
   }
 
   /** Vyhnané zvíře pod kurzorem (CSS px) – jen živé, které je vidět; jinak null. */
@@ -208,11 +223,36 @@ export class HuntRenderer {
       dogs: dogs.length,
       pole: pole ? { ...pole.mid } : null,
     };
-    const key = JSON.stringify(this.shown);
-    const changed = key !== this.written;
-    this.written = key;
-    // honci hrají klipy (VAT) – dokud nějaký stojí ve scéně, kreslí se v taktu animací
-    return changed || dusting || (!this.frozen && beaters.length > 0);
+    const changed = !sameStats(this.shown, this.written);
+    this.written = this.shown;
+    this.updateBounds(this.shown);
+    // honci a psi hrají klipy chůze (VAT) – dokud se někdo hýbe, kreslí se v taktu animací;
+    // stojící (klip idle) se nekreslí
+    const walking =
+      beaters.some((b) => b.speed > STAND_M_S) || dogs.some((d) => d.speed > STAND_M_S);
+    return changed || dusting || (!this.frozen && walking);
+  }
+
+  /** Obálka zvířete, honců a tyče (pro test záběru kamery). */
+  private updateBounds(shown: HuntStats): void {
+    const points: { x: number; z: number }[] = [...shown.beaters];
+    if (shown.quarry) points.push(shown.quarry.pos);
+    if (shown.pole) points.push(shown.pole);
+    if (points.length === 0) return;
+    let minX = Infinity;
+    let minZ = Infinity;
+    let maxX = -Infinity;
+    let maxZ = -Infinity;
+    for (const p of points) {
+      minX = Math.min(minX, p.x);
+      maxX = Math.max(maxX, p.x);
+      minZ = Math.min(minZ, p.z);
+      maxZ = Math.max(maxZ, p.z);
+    }
+    // psi a výška postav: okraj navíc; terén pod lovem neznáme celý, tak široké svislé rozpětí
+    this.boundsMin.set(minX - BOUNDS_PAD_M, -BOUNDS_Y_M, minZ - BOUNDS_PAD_M);
+    this.boundsMax.set(maxX + BOUNDS_PAD_M, BOUNDS_Y_M, maxZ + BOUNDS_PAD_M);
+    this.bounds.reConstruct(this.boundsMin, this.boundsMax);
   }
 
   /** Nový zásah (rány přibyly) – prach u zvířete; nový lov (i po načtení) prach nezvedne. */
@@ -427,7 +467,13 @@ export class HuntRenderer {
       this.manLoading = true;
       void loadBakedModel(this.scene, '/models/people/man.glb').then(
         (model) => {
-          if (this.disposed || !model) return;
+          if (!model) return;
+          if (this.disposed) {
+            // renderer zanikl během načítání – textury modelu nikdo jiný neuvolní
+            model.texture?.dispose();
+            model.mask?.dispose();
+            return;
+          }
           this.man = createBakedFigure(this.scene, 'hunt-man', model);
           ensureFigures(this.man, 6, true);
           this.loaded();
@@ -470,7 +516,7 @@ export class HuntRenderer {
 
   /** Dočtený model – zapsat lov znovu a překreslit. */
   private loaded(): void {
-    this.written = '';
+    this.written = null;
     this.write(Date.now());
     this.env.onLoaded();
   }
@@ -513,4 +559,26 @@ function writeBasis(
     ],
     0,
   );
+}
+
+/** Jsou dva zápisy lovu stejné (zvíře, honci, psi a tyč se stejnými čísly)? Bez alokace. */
+function sameStats(a: HuntStats, b: HuntStats | null): boolean {
+  if (b === null) return false;
+  if (a.dogs !== b.dogs || a.beaters.length !== b.beaters.length) return false;
+  if ((a.pole === null) !== (b.pole === null)) return false;
+  if (a.pole && b.pole && (a.pole.x !== b.pole.x || a.pole.z !== b.pole.z)) return false;
+  const p = a.quarry;
+  const q = b.quarry;
+  if ((p === null) !== (q === null)) return false;
+  if (p && q) {
+    for (const key of Object.keys(p) as (keyof typeof p)[]) {
+      if (key === 'pos') {
+        if (p.pos.x !== q.pos.x || p.pos.z !== q.pos.z) return false;
+      } else if (p[key] !== q[key]) return false;
+    }
+  }
+  return a.beaters.every((m, i) => {
+    const n = b.beaters[i];
+    return n !== undefined && m.x === n.x && m.z === n.z && m.carrying === n.carrying;
+  });
 }

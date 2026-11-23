@@ -251,7 +251,7 @@ export class SceneWarView {
   /** Vojsko a boj – mezi takty plynule, šípy a prach; lov; true, když se něco v záběru hnulo. */
   animate(epochMs: number, camera: Camera): boolean {
     const army = this.army?.animate(epochMs, camera) ?? false;
-    const hunt = this.hunt?.animate(epochMs) ?? false;
+    const hunt = this.hunt?.animate(epochMs, camera) ?? false;
     return army || hunt;
   }
 

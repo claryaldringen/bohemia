@@ -1,3 +1,4 @@
+import type { Camera } from '@babylonjs/core/Cameras/camera';
 import { NullEngine } from '@babylonjs/core/Engines/nullEngine';
 import { Scene } from '@babylonjs/core/scene';
 import { beatersPlan, endBeaters } from '@bohemia/game';
@@ -100,5 +101,31 @@ describe('HuntRenderer', () => {
     expect(renderer.quarryHit(0, -0.5, project)).not.toBeNull();
     expect(renderer.quarryHit(40, 0, project)).toBeNull();
     expect(loaded).toBe(0);
+  });
+
+  it('animate nekreslí po návratu honců ani bez lovu', () => {
+    const hunt = carried();
+    renderer.set({ ...hunt, tick: hunt.beaters.homeTick! }, 1_000, false);
+    // čas jde dál – honci dojdou domů (homeTick) a lov zmizí
+    renderer.animate(60_000);
+    expect(renderer.stats().beaters).toHaveLength(0);
+    expect(renderer.animate(61_000)).toBe(false);
+    renderer.set(null, 3_000, false);
+    expect(renderer.animate(4_000)).toBe(false);
+  });
+
+  it('animate jen v záběru kamery a jen při změně', () => {
+    const hunt: SceneHunt = { ...carried(), outcome: 'ongoing', tick: 60 };
+    hunt.beaters.end = null;
+    hunt.beaters.homeTick = null;
+    renderer.set(hunt, 1_000, false);
+    const camera = (inView: boolean): Camera =>
+      ({ isInFrustum: () => inView }) as unknown as Camera;
+    // honci jdou na místo – v záběru se kreslí, mimo záběr ne
+    expect(renderer.animate(2_000, camera(true))).toBe(true);
+    expect(renderer.animate(3_000, camera(false))).toBe(false);
+    // omezený pohyb: stojí
+    renderer.set(hunt, 4_000, true);
+    expect(renderer.animate(5_000, camera(true))).toBe(false);
   });
 });
