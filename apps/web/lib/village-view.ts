@@ -584,7 +584,7 @@ export function buildVillageView(
     },
     livestock: summary.livestock,
     woodLogs: wholeLogs(summary.woodLogs),
-    crafts: craftsView(state, summary, landscape),
+    crafts: craftsView(state, summary),
     storesMonths: summary.storesMonths,
     ...(summary.foodLastsDays !== null ? { foodLastsDays: summary.foodLastsDays } : {}),
     satiation: summary.satiation,

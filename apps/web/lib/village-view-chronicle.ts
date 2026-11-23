@@ -1590,9 +1590,12 @@ export function chronicleText(event: ChronicleEvent, villageName: string, seed?:
       return `Vesničané koupili u sousedů ${formatInteger(event.seedKg)} kg obilí na osivo – zaplatili ${pay}.${change}`;
     }
     case 'seed-short':
+      // bez důvodu – ves osivo nekupuje (markets.md – Pravidla 1); starší zápisy s důvodem
       return event.reason === 'supply'
         ? `Na setí chybí ${formatInteger(event.shortKg)} kg osiva a sousedé letos víc obilí nemají – díly bez osiva vesničané nezasejí.`
-        : `Na setí chybí ${formatInteger(event.shortKg)} kg osiva a vesničané nemají čím ho u sousedů zaplatit – díly bez osiva nezasejí.`;
+        : event.reason === 'pay'
+          ? `Na setí chybí ${formatInteger(event.shortKg)} kg osiva a vesničané nemají čím ho u sousedů zaplatit – díly bez osiva nezasejí.`
+          : `Na setí chybí ${formatInteger(event.shortKg)} kg osiva – díly bez osiva vesničané nezasejí.`;
     case 'crafts-bought':
       return craftsBoughtText(event, villageName, seed);
     case 'trade-returned':

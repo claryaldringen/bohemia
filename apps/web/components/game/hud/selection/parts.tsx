@@ -76,6 +76,7 @@ export function Stat({
   name,
   testId,
   alert = false,
+  dim = false,
   children,
 }: {
   /** Ikona suroviny v `public/icons/resources/` bez přípony. */
@@ -86,12 +87,20 @@ export function Stat({
   testId?: string;
   /** Číslo červeně (něco chybí). */
   alert?: boolean;
+  /** Zašedlá ikona (ves to nemá – jako zašedlé tlačítko v 0 A.D.). */
+  dim?: boolean;
   children: ReactNode;
 }): ReactElement {
   return (
     <Tooltip content={name} placement="above">
       <span className="flex shrink-0 items-center gap-1 whitespace-nowrap" tabIndex={0}>
-        <img src={src ?? `/icons/resources/${icon}.png`} alt="" width={20} height={20} />
+        <img
+          src={src ?? `/icons/resources/${icon}.png`}
+          alt=""
+          width={20}
+          height={20}
+          {...(dim ? { className: 'opacity-45 grayscale' } : {})}
+        />
         <span
           data-testid={testId}
           {...(alert ? { 'data-alert': true } : {})}

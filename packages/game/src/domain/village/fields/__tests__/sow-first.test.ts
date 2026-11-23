@@ -105,7 +105,7 @@ describe('osev má přednost (fields.md – Osivo ze zásob; Martin 6. 11. 2026)
     expect(outlook).toBeLessThan(1);
     expect(outlook).toBeGreaterThan(target - 1e-9);
     // nahromaděný hlad ves zná – s ním si nechá víc; s osivem jen na setí nejvýš do prahu, od
-    // kterého by ho ves snědla (SEED_BUYING)
+    // kterého by ho ves snědla (SEED_RESERVE)
     expect(seedKeepKg({ ...s, starvationDays: 6 }, START)).toBeGreaterThan(keep);
     expect(seedKeepKg({ ...s, reservedSeedKg: 100 }, START)).toBeGreaterThan(keep);
     // ves bez lidí si nic nenechá

@@ -120,6 +120,12 @@ describe('kování dne pro scénu', () => {
     const day = shoeingDay(s, DUE, null)!;
     expect(day.own).toBe(false);
     expect(day.horses.map((h) => h.horseId)).toEqual([1, 2]);
+    // cizí kovář přišel ze směru v záznamu – ke kraji mapy na sever (+z)
+    expect(day.route).toMatchObject({ direction: 'N', trailId: null, edge: { z: 960 } });
+    // záznam starší než 14. 11. 2026 směr nemá – kovář bez cesty
+    const old = stable();
+    old.chronicle.push({ day: DUE, kind: 'horses-shod', horses: 2, own: false });
+    expect(shoeingDay(old, DUE, null)!.route).toBeNull();
   });
 });
 

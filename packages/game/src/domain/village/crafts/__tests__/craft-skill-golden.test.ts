@@ -192,6 +192,8 @@ describe('ves bez dílen beze změny (crafts.md – Učení řemesla)', () => {
     // 18. 11. 2026 – D98 uzené rozložené do zkažení (díl uzeného do konce masa, letní porážka podle
     // dnešního dílu); dřív db2944d6
     // 18. 11. 2026 – D98 kolo 1 – rozložená jen zásoba z porážky 1. 11.; dřív c976a3a
-    expect(hash(stripped)).toBe('6988f81');
+    // 23. 11. 2026 – konec smyšlených sousedů (markets.md – Pravidla 1), úloha 3: ves bez dílen už
+    // 15. 11. nekupuje nástroje, keramiku ani dřevěné nářadí u sousedů; dřív 6988f81
+    expect(hash(stripped)).toBe('2be8ef10');
   }, 120_000);
 });

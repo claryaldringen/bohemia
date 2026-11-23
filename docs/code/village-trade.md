@@ -233,13 +233,10 @@ směr)` – stálá povaha podle druhu souseda (`neighbourKind` – obilnáři, 
   (`horseTradeRoom`), popisek řádku a důvod v náhledu (`trade-quote.ts`, `NO_HORSE_ROOM` – koně
   všech tří druhů dohromady); karavana koně nenese (`carries`).
 
-- **Nákup osiva** (trade.md – Nákup osiva, fields.md – Osivo pro ves bez zásob; Martin 27. 10.
-  2026): `seed-buying.ts` – ves bez osiva na nutné díly ho 1. 9. a 1. 3. sama koupí (`buySeed`):
-  zásoba obilí sousedů `neighbourStock` (po zlém roce menší – `seasonSupply`) ubude přes
-  `storeStock` (z `trade.ts`), platba hřivny → krávy `surplusCows` (husbandry.ts – nad
-  `breedingCows` + `oxenCalvesWanted`, jako porážka; od 2. 11. 2026, dřív `cattleForSale` nad
-  `TRADE.keepCows`) v `sellPrice` × `goodWorth`,
-  bez stezky a bez nosičů (zboží hned); podrobnosti village-fields.md – Osivo pro ves bez zásob.
+- **Nákup osiva** (trade.md – Nákup osiva, fields.md – Osivo pro ves bez zásob): zrušen 23. 11.
+  2026 (markets.md – Pravidla 1) – ves bez osiva na nutné díly ho nekoupí, 1. 9. a 1. 3. jen
+  zapíše do kroniky, kolik chybí (`seedReserveDay` v `seed-reserve.ts`); podrobnosti
+  village-fields.md – Osivo pro ves bez zásob.
 - **Výměna lidí** (trade.md – Výměna lidí; Martin 19. 10. 2026: „Se sousedem půjde vyměnit
   i lidi…“, „Mohou se stěhovat celé rodiny i jen dospělí. Podle toho, co je v nabídce.“;
   `people-trade.ts`): soused má na rok obchodu lidi navíc, nebo je shání (`neighbourPeople` – ze

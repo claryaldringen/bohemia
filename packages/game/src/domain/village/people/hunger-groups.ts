@@ -150,7 +150,7 @@ export function survivalLimit(
  * HUNGER_PRIORITY.minimumShare (75 %), v dlouhém hladu víc – příděl k přežití zbytku vsi do žní
  * (`survivalRation`, `survivalLimit` – práh lidí té nejnižší skupiny, kterou minimum chrání, i dětí a starších, kteří do žní přibudou; Martin 22. 11. 2026 na otázku „Má se rod v dlouhém hladu
  * uskrovnit, aby zbytek vsi přežil do sklizně?“: „ano“). Mez osiva jen na setí
- * (SEED_BUYING.eatFromStarvationDays) sem nepatří – jen přežívací zásobě (`seedKeepKg`).
+ * (SEED_RESERVE.eatFromStarvationDays) sem nepatří – jen přežívací zásobě (`seedKeepKg`).
  */
 export function rationMinimum(
   state: VillageState,

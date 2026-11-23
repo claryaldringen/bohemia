@@ -235,7 +235,10 @@ describe('zlatý otisk – výběr dílů a práce vsi k 2. 9.', () => {
     // 18. 11. 2026 – strava po vrstvách, úloha 4 (porážka celý rok); dřív 163:569fec9e
     // 18. 11. 2026 – strava po vrstvách, úloha 4, opravné kolo 1 (letní porážka po práci dne); dřív
     // 156:aa2d6716 (zpět na plány před úlohou 4)
-    expect(fingerprint(plans)).toBe('163:569fec9e');
+    // 23. 11. 2026 – konec smyšlených sousedů (markets.md – Pravidla 1), úloha 3: ves bez řemeslníků
+    // už 15. 11. nekupuje nástroje, keramiku ani dřevěné nářadí u sousedů – jiná práce, zásoby
+    // a výběr dílů; dřív 163:569fec9e
+    expect(fingerprint(plans)).toBe('148:83128328');
   });
 });
 

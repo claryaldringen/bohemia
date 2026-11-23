@@ -3362,6 +3362,26 @@ describe('kronika – nákup u sousedů (crafts.md)', () => {
   });
 });
 
+describe('kronika – chybí osivo (fields.md – Osivo pro ves bez zásob)', () => {
+  it('bez nákupu jen kolik chybí; starší zápisy s důvodem beze změny (markets.md – Pravidla 1)', () => {
+    const short = (reason?: 'pay' | 'supply'): ChronicleEvent => ({
+      day: DAY,
+      kind: 'seed-short',
+      shortKg: 412.4,
+      ...(reason ? { reason } : {}),
+    });
+    expect(chronicleText(short(), 'Vlkov')).toBe(
+      'Na setí chybí 412 kg osiva – díly bez osiva vesničané nezasejí.',
+    );
+    expect(chronicleText(short('pay'), 'Vlkov')).toBe(
+      'Na setí chybí 412 kg osiva a vesničané nemají čím ho u sousedů zaplatit – díly bez osiva nezasejí.',
+    );
+    expect(chronicleText(short('supply'), 'Vlkov')).toBe(
+      'Na setí chybí 412 kg osiva a sousedé letos víc obilí nemají – díly bez osiva vesničané nezasejí.',
+    );
+  });
+});
+
 describe('kronika – kování koní (horses.md – Kování)', () => {
   it('vlastní kovář, kovář ze sousední vsi jménem, starší zápis bez směru', () => {
     const shod = (own: boolean, direction?: 'NE'): ChronicleEvent => ({

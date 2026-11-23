@@ -147,9 +147,9 @@ počasí počítá jako dřív** (zlaté otisky beze změny). Funkce v `weather-
   (`isCruelYear`) ¼ a ×0,5. Zásobu krátí `seasonSupply` (jen `grain`, `Math.floor`; `neighbourStock`
   jí předá počasí vsi), ceny počítá jediná funkce `goodWorth(state, good, day)` v `trade.ts` (obilí 1, ostatní zboží včetně
   luštěnin násobek roku obchodu dne `day`) a používá ji `tradeQuote` (`credit` i `price` včetně koní;
-  lidé beze změny), platba za ohradu koní a její vrácení (`horse-pen-payment.ts`, hřivny, zvířata,
-  luštěniny, koně) a nákupy řemesel (`productPrice(product, state, day)`, luštěniny v `pay`,
-  `ironPriceKg` kování). Uložený zbytek roku (`NeighbourStock`) se nepřepočítává.
+  lidé beze změny) a platba za ohradu koní a její vrácení (`horse-pen-payment.ts`, hřivny,
+  zvířata, luštěniny, koně); nákupy řemesel a kování u sousedů zrušeny (markets.md – Pravidla 1).
+  Uložený zbytek roku (`NeighbourStock`) se nepřepočítává.
 - **Mimo násobek:** jen panelový údaj `paymentValueKg` (součet zaplacených kg) a lidé.
 - **Zvěř** (`wildlife.ts`, `DISASTER_WILDLIFE`): `wildlifeYearDay` 1. 5. po holomrazné nebo dlouhé
   zimě tohoto roku odečte navíc 10 % jelení zvěře (`deerYear`) a 15 % dospělých prasat
@@ -162,7 +162,7 @@ počasí počítá jako dřív** (zlaté otisky beze změny). Funkce v `weather-
 Návrh: `docs/design/disasters.md` – Kraj a ochrana nové vsi, Místní pohromy – jedna ves.
 
 - **Krok dne** – `localDisastersDay(state, day, landscape, obstacles)` (`local-disasters.ts`)
-  v `simulateDay` po `damageWindowStart`, před `startPurchases` a `work()` (krok 6 Pořadí dne
+  v `simulateDay` po `damageWindowStart`, před `seedReserveDay` a `work()` (krok 6 Pořadí dne
   v plánu): v pevném pořadí smršť (`tornadoDay`), kroupy (`hailDay`), povodeň (`floodDay`),
   požár (`fireDay`). Vrací zápisy kroniky; úmrtí (P6, P9) jdou i do štěstí jako u lovu
   (`happinessEvents`). Samostatný soubor kvůli cyklu importů: `disasters.ts` čte i strava

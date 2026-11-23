@@ -7,14 +7,12 @@ import {
   DRAFT_OXEN,
   LEAVING,
   ORCHARD,
-  PRODUCT_CRAFT,
   sacredBuildingHappiness,
   type CartKind,
   type PremiumSiteKind,
   type PremiumType,
   type Craft,
   type Crop,
-  type Direction8,
   type DwellingType,
   type FamilyCounts,
   type FieldSurface,
@@ -138,11 +136,6 @@ export interface SelectionWorkshop {
    * vůz (druh, průběh 0–1), pokrytí dřevěné práce staveb posledního dne 0–1 a kování k vozu
    * (wagons.md – Kování vozů); ostatní dílny null.
    */
-  /**
-   * Ves výrobek dílny dokupuje u souseda (vlastní řemeslník nemá vstupy – crafts.md, Nákup
-   * u sousedů): směr a dny cesty; jinak chybí.
-   */
-  buying?: { direction: Direction8; days: number };
   carpenter: {
     carts: VillageView['crafts']['carts'];
     cartTargets: VillageView['crafts']['cartTargets'];
@@ -161,7 +154,10 @@ export interface SelectionWorkshop {
   clay?: NonNullable<VillageView['crafts']['workshops'][number]['clay']>;
 }
 
-/** Nákup u sousedů v panelu dvorce (crafts.md – Nákup u sousedů). */
+/**
+ * Výrobky řemeslníků v panelu dvorce: vlastní řemeslník, nebo žádný (markets.md – Pravidla 1),
+ * a nákupy u sousedů uložené na cestě do návratu (crafts.md – Nákup u sousedů).
+ */
 export interface SelectionBuying {
   sources: VillageCraftSource[];
   purchases: VillagePurchase[];
@@ -206,8 +202,8 @@ type SelectionKinds =
        */
       lordWifeHome?: string | null;
       /**
-       * Dvorec: kde ves bere výrobky řemeslníků a nákupy u sousedů na cestě (crafts.md – Nákup
-       * u sousedů); u ostatních obydlí chybí.
+       * Dvorec: má ves na výrobky vlastního řemeslníka a nákupy u sousedů na cestě (crafts.md –
+       * Nákup u sousedů; markets.md – Pravidla 1); u ostatních obydlí chybí.
        */
       buying?: SelectionBuying;
       /** Odejít do nové vsi (migration.md); když domácnost odejít nemůže, null. */
@@ -1682,14 +1678,7 @@ function workshopDetails(view: VillageView, dwellingId: number): SelectionWorksh
         ? (view.crafts.coverage.woodTools ?? 0)
         : null;
   const carpenter = workshop.carpenter;
-  // ves výrobek dílny dokupuje u souseda (vlastní řemeslník nemá vstupy – crafts.md)
-  const source = view.crafts.sources?.find((s) => PRODUCT_CRAFT[s.product] === workshop.craft);
-  const buying =
-    source && !source.own && source.direction !== null && source.days !== null
-      ? { direction: source.direction, days: source.days }
-      : null;
   return {
-    ...(buying ? { buying } : {}),
     craft: workshop.craft,
     activity: workshop.activity,
     laborPerDay: workshop.laborPerDay,

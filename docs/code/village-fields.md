@@ -309,7 +309,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `drawGrainPits`); dosévané luštěniny starších vsí jen z `legumesKg`. `sowableSeedKg(state,
 store, keepKg, needed)` = `reservedSeedKg` (jen `needed`) + max(hromada, běžné zrno − `keepKg`).
   `seedKeepKg` = přežívací zásoba do žní (zásoby i snopy; `slack` = nejnižší `STARVATION.threshold`
-  skupin ve vsi – s `reservedSeedKg` nejvýš `SEED_BUYING.eatFromStarvationDays` –
+  skupin ve vsi – s `reservedSeedKg` nejvýš `SEED_RESERVE.eatFromStarvationDays` –
   − `SEED_STORES.marginDays` − hlad zbytku vsi; cílový příděl zbytku vsi 0,9 × (1 − `slack` / dny
   do žní) – `survivalRation` a `survivalLimit` v `people/hunger-groups.ts`, táž definice jako
   životní minimum přídělu `rationMinimum` (D112, bez meze osiva) – zbytek vsi = nejnižší vrstva
@@ -366,19 +366,18 @@ tools)` = s hromadou `pileSowsKg` (osivo, které ves ještě zaseje: `sowingHaPe
   práce jde i před orbou (`dayTaskOrder`) – orba nese setí za sebou a jinak by jídlu dne vzala
   práci (Vlkov 1. 10. 871: hromada držela celé zásoby, 4,9 t ve snopech, příděl 0,115).
 - **Osivo pro ves bez zásob** (fields.md – Osivo ze zásob, Osivo pro ves bez zásob; Martin 27. 10. 2026): `VillageState.reservedSeedKg` = osivo ve `storesKg` jen na setí (osadníků –
-  `Settlers.seedKg`, village-people.md; koupené). `reservedSeedKg()` ho omezí zásobami;
+  `Settlers.seedKg`, village-people.md; zakladatelů). `reservedSeedKg()` ho omezí zásobami;
   `sowableSeedKg` ho přičte vždy a přežívací zásobu počítá ze zbytku zásob (obilí nad potřebu ho
   nedostane); ves ho nesní nikdy (`uneatenSeedKg`); `takeSeed(…, keepKg)` u nutných dílů bere napřed
   běžné zrno nad přežívací zásobu (`seedKeepKg` – `work()` jednou za den `sowKeepKg`), pak
   rezervu, pak zbytek zásob (oprava 2. 11. 2026, dřív rezervu napřed).
-  `seed-buying.ts` (`seedBuyingDay` v `simulateDay` po `startPurchases`): 1. 6.
-  (`SEED_BUYING.releaseDay`) ho smaže; 1. 9. a 1. 3. (`SEED_BUYING.days`) `seedShortKg` = osivo
-  na díly na řadě v okně (`windowSeedNeedKg`) − `sowableSeedKg` − snopy; od `minKg` `buySeed`: zásoba obilí sousedů (`neighbourStock` ve směrech
-  `NEIGHBOR_DIRECTIONS`, ubude `storeStock`), cena `buyPrice('grain')`, platba hřivny → krávy
-  `surplusCows` (husbandry.ts – nad krávy na mléko a voly, jako porážka; od 2. 11. 2026, dřív
-  `cattleForSale`) (`sellPrice` × `goodWorth`), přeplatek obilím do zásob (`changeKg`); kronika
-  `seed-bought` / `seed-short` (`reason`: `pay`, když `getKg` < zásoba sousedů, jinak `supply` –
-  oprava 2. 11. 2026; upozornění `seed-short`).
+  `seed-reserve.ts` (`seedReserveDay` v `simulateDay` po `localDisastersDay`, před `work()`):
+  1. 6. (`SEED_RESERVE.releaseDay`) ho smaže; 1. 9. a 1. 3. (`SEED_RESERVE.days`) `seedShortKg`
+     = osivo na díly na řadě v okně (`windowSeedNeedKg`) − `sowableSeedKg` − snopy; od `minKg`
+     kronika `seed-short` bez `reason` („Na setí chybí N kg osiva – díly bez osiva vesničané
+     nezasejí.“, upozornění „Chybí osivo na setí“) – díly bez osiva se nezasejí. Nákup osiva
+     u sousedů (hřivny a krávy za obilí sousedů) zrušen 23. 11. 2026 (markets.md – Pravidla 1);
+     starší kronika `seed-bought` a `seed-short` s `reason` (`pay` / `supply`) se čte dál.
 - **Příprava jaře jen na díly s osivem** (fields.md – Osivo ze zásob; oprava, návrh Clauda 2. 11. 2026): `seedPrepShares` (seed.ts) v březnu–dubnu – nutné plány jaře, luštěnin a lnu
   v otevřeném okně setí (ne ozim, ne `surplus`) → podíl plánu, na který stačí `seedKg` + osivo
   z poolu (`sowableSeedKg` + `sheaves.grainKg` / `legumesKg`, dělí se v pořadí `seasonCrops`).

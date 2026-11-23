@@ -1,8 +1,8 @@
 import type { Landscape } from '../../landscape';
 import {
   PRODUCT_CRAFT,
-  nearestCraftsman,
   ownCraftsmanWorks,
+  purchaseRoute,
   type PurchaseRoute,
 } from '../crafts/craft-buying';
 import { isUnshod, nextShoeingDay, shoeingDue } from './horse-shoeing-term';
@@ -117,8 +117,8 @@ export interface ShoeingDay {
 
 /**
  * Kování dne `day` jen ke čtení (scéna – kovář dojde k ohradě; horses.md – Kování): z kroniky
- * `horses-shod` toho dne, koně z ohrad koní, cizímu kováři směr k nejbližšímu sousedovi
- * s kovářem (`nearestCraftsman` – stejně jako `planShoeing`). Bez kování dne null.
+ * `horses-shod` toho dne, koně z ohrad koní, cizímu kováři cesta ze směru v záznamu
+ * (`purchaseRoute`; záznam starší než 14. 11. 2026 směr nemá – bez cesty). Bez kování dne null.
  */
 export function shoeingDay(
   state: VillageState,
@@ -143,6 +143,7 @@ export function shoeingDay(
       .map((h) => ({ penId: pen.id, horseId: h.id })),
   );
   if (horses.length === 0) return null;
-  const route = event.own ? null : nearestCraftsman(state, 'smith', landscape);
+  const route =
+    event.own || !event.direction ? null : purchaseRoute(state, event.direction, landscape);
   return { own: event.own, horses, route };
 }

@@ -1,5 +1,5 @@
 import type { DwellingResident, LodgeView } from '@/lib/person-view';
-import type { VillageFieldPart } from '@/lib/village-view-types';
+import { PRODUCT_TITLES, type VillageFieldPart } from '@/lib/village-view-types';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import type { SelectionDetails, SelectionWorkshop } from '@/lib/selection-details';
@@ -1196,15 +1196,15 @@ describe('SelectionPanel – kovárna (crafts.md – Uhlí a ruda kováře)', ()
   });
 });
 
-describe('SelectionPanel – nákup u sousedů (crafts.md)', () => {
-  it('dvorec ukáže, kde ves bere výrobky, a nákup na cestě – jen ikony', () => {
+describe('SelectionPanel – výrobky řemeslníků na dvorci (crafts.md; markets.md – Pravidla 1)', () => {
+  it('dvorec ukáže vlastní dílnu ✓, jinak zašedlou ikonu, a nákup na cestě – jen ikony', () => {
     const html = render(
       dwelling({
         buying: {
           sources: [
-            { product: 'toolsKg', own: false, direction: 'N', days: 6, trail: true },
-            { product: 'potteryKg', own: true, direction: null, days: null, trail: false },
-            { product: 'woodToolsKg', own: false, direction: null, days: null, trail: false },
+            { product: 'toolsKg', own: false },
+            { product: 'potteryKg', own: true },
+            { product: 'woodToolsKg', own: false },
           ],
           purchases: [
             {
@@ -1219,10 +1219,41 @@ describe('SelectionPanel – nákup u sousedů (crafts.md)', () => {
         },
       }),
     );
-    expect(html).toMatch(/data-testid="selection-buying-toolsKg"[^>]*>↑</);
+    // bez vlastního řemeslníka zašedlá ikona bez čísla, věta jen v popisku
+    expect(html).toContain(`${PRODUCT_TITLES.toolsKg} – ve vsi není řemeslník`);
+    expect(html).toContain(`${PRODUCT_TITLES.woodToolsKg} – ve vsi není řemeslník`);
+    expect(html).toMatch(/src="\/icons\/resources\/tools\.png"[^>]*class="[^"]*grayscale/);
+    expect(html).toMatch(/data-testid="selection-buying-toolsKg"[^>]*><\/span>/);
+    expect(html).not.toContain('u souseda (');
     expect(html).toMatch(/data-testid="selection-buying-potteryKg"[^>]*>✓</);
+    expect(html).not.toMatch(/src="\/icons\/resources\/pottery\.png"[^>]*grayscale/);
+    // nákup na cestě ze starší vsi doběhne (markets.md bod 10)
     expect(html).toMatch(/data-testid="selection-buying-trip"[^>]*>↑ 4</);
     expect(html).toContain('/icons/resources/wood-tools.png');
+  });
+
+  it('panel dílny bez vstupů nedokupuje u souseda', () => {
+    const html = render(
+      dwelling({
+        type: 'polozemnice',
+        workshop: {
+          craft: 'potter',
+          activity: 'no-clay',
+          laborPerDay: 0,
+          outputPerDayKg: 0,
+          stockKg: 4,
+          coverage: 0.2,
+          kiln: null,
+          kilns: [],
+          toPlant: 0,
+          skill: { share: 1, years: 5, apprentices: [] },
+          carpenter: null,
+        },
+      }),
+    );
+    expect(html).toContain('Nemá hlínu');
+    expect(html).not.toContain('selection-workshop-buying');
+    expect(html).not.toContain('u souseda');
   });
 });
 

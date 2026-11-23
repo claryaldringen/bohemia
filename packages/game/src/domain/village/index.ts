@@ -274,16 +274,14 @@ export * from './crafts/burner-camp';
 export * from './crafts/smith-supply';
 // odnos uhlí na tyči (workshops.md – Uhlíř – odnos uhlí na tyči) – den volá simulate-work
 export * from './crafts/charcoal-pole';
-// nákup u sousedů (crafts.md) – kroky simulace (odchod, cesta, návrat) volá simulate.ts
+// výrobky řemeslníků jen od vlastních řemeslníků; nákup u sousedů uložený na cestě doběhne
+// (crafts.md; markets.md – Pravidla 1) – kroky simulace (cesta, návrat) volá simulate.ts
 export {
   CRAFT_PRODUCTS,
   PRODUCT_CRAFT,
   craftSources,
-  neighbourCrafts,
   ownCraftsmanWorks,
   paymentValueKg,
-  planPurchases,
-  productPrice,
   purchaseDaysLeft,
   purchaseLine,
   purchaseRoute,
@@ -291,7 +289,6 @@ export {
   purchaseTravelers,
   type CraftProduct,
   type CraftSource,
-  type PurchasePlan,
   type PurchaseRoute,
 } from './crafts/craft-buying';
 // tesař a vozy (wagons.md) – kroky simulace (pomoc stavbám, výroba, svoz) volá simulate.ts

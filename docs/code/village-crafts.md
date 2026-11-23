@@ -187,50 +187,28 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   v `ore-site-layout.ts`), náklad `wagon{2,4}-clay`, ikona `resources/clay.png`;
   `/dev/panels?panel=hrncir`.
 
-- **Nákup u sousedů** ([crafts.md](../design/crafts.md) – Nákup u sousedů, Martin 19. 10. 2026:
-  „Nástroje ať vesničané obchodují individuálně… Sami si spočítají, jestli se jim to vyplatí.“;
-  čísla `CRAFT_BUYING` v `rules*.ts`, rešerše `research/2026-10-19-craft-buying.md`):
-  `craft-buying.ts`. Sousedé mají řemeslníky podle druhu (`neighbourCrafts` – řemeslníci kováře,
-  hrnčíře i tesaře jistě, ostatní s pravděpodobností). Ves se rozhoduje sama 15. 11.
-  (`startPurchases` na začátku dne – `planPurchases`): u výrobku bez vlastního pracujícího
-  řemeslníka (`ownCraftsmanWorks` – dílna bez vstupů se nepočítá) chybí do `craftTargets` –
-  nejbližší soused s řemeslníkem (`purchaseRoute`: po hotové stezce `trailTripDays`, jinak krajinou
-  ke kraji mapy × 1,5 a den navíc), cena `productPrice` (0,96 hodnoty), platba obilím nebo
-  luštěninami z přebytku nad pojistkou (`storesOutlook` – `leftKg − bufferKg`) nejlevnější v práci
-  (`villageFoodCosts`; u nástrojů při pokrytí po nákupu), skupina polovina dospělých (nejvýš 8)
-  po 25 kg, nejvýš 60 dní; koupí, když práce ušetřená za dobu služby (1 ÷ opotřebení let –
-  nástroje polní práce a seč, keramika ztráty zásob a denní minimum, dřevěné nářadí práce vsi)
-  převýší práci za platbu a cestu – z jednoho přebytku napřed nejvyšší poměr ušetřené práce
-  k ceně (rozhodnutí Clauda). `VillageState.purchases` (`CraftPurchase` – směr, skupina, dny,
-  stezka nebo bod na kraji `edge`, zboží a platba); lidé na cestě chybí v práci vsi od prvního dne
+- **Nákup u sousedů – zrušen, nákupy na cestě doběhnou** ([crafts.md](../design/crafts.md) –
+  Nákup u sousedů; [markets.md](../design/markets.md) – Pravidla 1, bod 10; Martin 22. 11. 2026:
+  „Ves by měla být schopná přežít a rozvíjet se dle současných pravidel i bez obchodu“):
+  `craft-buying.ts`. Ves výrobky řemeslníků (nástroje, keramika, dřevěné nářadí) ani vůz
+  u sousedů nekupuje – má je jen od vlastních pracujících řemeslníků (`ownCraftsmanWorks` – dílna
+  bez vstupů se nepočítá; `craftSources` → `VillageCrafts.sources`, panel dvorce `BuyingRow`:
+  vlastní ✓, jinak zašedlá ikona „… – ve vsi není řemeslník“). Nákup uložený ve starší vsi na
+  cestě (`VillageState.purchases`, `CraftPurchase` – směr, skupina, dny, stezka nebo bod na kraji
+  `edge`, zboží, platba, vozy vsi `carts`, koupený vůz `cart`) doběhne: lidé chybí v práci vsi
   (`purchaseTravelers` – kapacita `allocateDay`), `walkPurchases` → podíl práce `trade` s cílem
-  stezky nebo `{ kind: 'edge' }`; ve scéně karavana (`sceneExpeditions` v `caravan-view.ts` –
-  `SceneExpedition` s `trailId` null a čarou `line` od dvorce ke kraji – `purchaseLine`, každá
-  cesta tam a zpět zvlášť podle `CraftPurchase.tripDays`; body cesty `caravanPoints`),
-  `finishPurchases` → zásoby a kronika `crafts-bought`. Web: kronika jako směna jménem obyvatel
-  („Vlkovští směnili 394 kg obilí za 120 kg keramiky s Lhotskými.“ – web-ui.md, Panel Kronika),
-  upozornění „Vesničané koupili nástroje u souseda (sever)“, `VillageCrafts.sources` (`craftSources`),
-  `VillageView.purchases`, panel dvorce `BuyingRow` (výrobky se šipkou ke zdroji, nákup na cestě),
-  panel dílny bez vstupů `SelectionWorkshop.buying`; řádek kalibrace „Nákup u sousedů“.
-- **Vozy u nákupu u sousedů** ([crafts.md](../design/crafts.md) – Nákup u sousedů, Vozy; Martin 19. 10. 2026: „Až bude vůz, pojedou zásoby na voze a ušetří se člověkodny.“; Martin 22. 11. 2026
-  „ano“ – ves bez tesaře si vůz koupí u souseda): `purchase-carts.ts`. Volní voli
-  `purchaseOxen` (doma, ve dny orby bez párů u rádel – `ploughingToday`: spřežení na poli, nebo
-  orba v okně, která zbývá), vozy `purchaseCarts` (doma – `cartsAway`, každý se svými voly,
-  čtyřkoláky napřed), jen po hotové stezce sjízdné pro vozy (`cartRoutePassable` –
-  `trailCartPassable`; krajinou ne). Doprava `purchaseTransport`: pěšky `tripOf` (přesunuté sem,
-  `craft-buying.ts` ho dál vyváží), nebo n vozů jako výprava (plné jízdy, zbytek aspoň půl vozu =
-  jízda navíc, menší zbytek nosiči, s vozem `CARTS.tradeCrew`, skupina nejvýš `groupCap`) – vozy jen
-  s menší prací; strop nákupu za 60 dní `transportLoadKg`. `PurchasePlan.carts` (druhy),
-  `CraftPurchase.carts` (id) – vozy a jejich voli jsou do návratu pryč (`cartsAway`, `oxenAway`).
-  Koupě vozu: `PurchaseItem` `'cart'` v témže pořadí podle poměru – ves bez pracujícího tesaře,
-  `missingCart`, volní voli na vůz (`DRAFT_OXEN`), nejbližší soused s tesařem po sjízdné stezce
-  (`nearestCartMaker`), cena `cartPriceKg` (0,96 × `cartValueKg` – práce tesaře × 4 kg obilí za den
-  jako dřevěné nářadí, klády za hodnotu klády, kování za hodnotu nástrojů: dvoukolák 320, čtyřkolák
-  640 kg), celá z přebytku; ušetří `cartYearSaving` (draft.ts – rozdíl loňské úspory vozů s vozem
-  navíc a bez, mínus voli navíc) × `CARTS.lifespanYears`. `CraftPurchase.cart` – voli jdou se
-  skupinou (`oxenAway`), `finishPurchases` → `addCart`, kronika `crafts-bought` s `cart`
-  („Vlkovští směnili 307 kg obilí za dvoukolák s Lhotskými.“), upozornění „Vesničané koupili
-  dvoukolák u souseda (sever)“ (`productList` s vozem).
+  stezky nebo `{ kind: 'edge' }`, vozy a voli jsou do návratu pryč (`cartsAway`, `oxenAway`); ve
+  scéně karavana (`sceneExpeditions` v `caravan-view.ts` – `SceneExpedition` s `trailId` null
+  a čarou `line` od dvorce ke kraji – `purchaseLine`, každá cesta tam a zpět zvlášť podle
+  `CraftPurchase.tripDays`; body cesty `caravanPoints`); `finishPurchases` → nástroje do vybavení,
+  keramika a dřevěné nářadí do zásob, vůz `addCart`, kronika `crafts-bought` („Vlkovští směnili
+  394 kg obilí za 120 kg keramiky s Lhotskými.“ – web-ui.md, Panel Kronika), upozornění
+  „Vesničané koupili nástroje u souseda (sever)“, `VillageView.purchases` (nákup na cestě
+  v `BuyingRow`). Zůstává cesta ke kraji mapy ve směru `purchaseRoute` (po hotové stezce
+  `trailTripDays`, jinak krajinou × `CRAFT_BUYING.offTrailFactor` a `offTrailExtraDays` – karavana
+  zásilky, cizí kovář ze starší kroniky) a přebytek k platbě `paymentPool` (ohrada koní).
+  Rozhodnutí 15. 11. o nákupu, ceny výrobků a vozu, vozy nákupu i koupě vozu u tesaře souseda
+  zrušeny 23. 11. 2026 – vrátí se s trhem skutečných vsí (markets.md bod 9).
 
 - **Učení řemesla** ([crafts.md](../design/crafts.md) – Učení řemesla; Martin 20. 10. 2026:
   „Každý řemeslník vychovává svého nástupce - syna. Pokud je řemeslník úplně nový, trvá mu, než se
@@ -360,10 +338,10 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
     `iron-rates.ts` (ceny kroků `SMELT`, `REFINE`, `FORGE`, `ORE_KG_PER_TOOL_KG`, `smeltOreKg`),
     `crafts.ts` (`workSmith`, `smithIronDeficit`, `smithBarsTargetKg`, `ironOrderBarsKg`,
     `cartIronBarsKg`, `smithBellowsToday`, `smithIronSummary`, `SmithIronSummary`), `trade.ts`
-    (`withIronBarsTrade`), `cart-iron.ts`, `craft-buying.ts` (`productStock`), `summary.ts`,
+    (`withIronBarsTrade`), `cart-iron.ts`, `summary.ts`,
     `labor-report.ts` (syn u měchu), `simulate.ts` (měchaři před pasením, převody).
-  - **Pravidla:** `IRON`, `TRADE_GOOD_VALUES.ironBars`, `CRAFT_BUYING.toolsValueKg`,
-    `NEIGHBOURS.kinds` (`ironBars`); `SMITH_SUPPLY.oreKgPerToolKg` zrušeno.
+  - **Pravidla:** `IRON`, `TRADE_GOOD_VALUES.ironBars`, `NEIGHBOURS.kinds` (`ironBars`);
+    `SMITH_SUPPLY.oreKgPerToolKg` zrušeno.
   - **Stav:** `VillageState.toolEquipmentKg`, `CraftStocks.ironBarsKg` / `bloomKg` (bez `toolsKg`),
     `TradeGood` `ironBars`, `WorkshopActivity` `smelting` / `refining`, `WorkshopDay.smelt` /
     `refine`, `SmithSupply.bellows`, `DugOptions.needKg`.

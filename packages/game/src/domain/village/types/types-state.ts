@@ -270,8 +270,9 @@ export interface VillageState {
   storesKg: number;
   /**
    * Osivo ve `storesKg`, které ves má jen na setí a nesní ho (fields.md – Osivo ze zásob, Osivo pro
-   * ves bez zásob): přinesené osadníky dceřiné vsi a koupené u sousedů. Do země smí i pod přežívací
-   * zásobou (setí ho bere až po běžném zrnu nad ní); co do 1. 6. nezaseje, je obyčejné zrno. Chybí = žádné.
+   * ves bez zásob): přinesené osadníky dceřiné vsi a zakladateli (dřív i koupené u sousedů – nákup
+   * zrušen, markets.md – Pravidla 1). Do země smí i pod přežívací zásobou (setí ho bere až po
+   * běžném zrnu nad ní); co do 1. 6. nezaseje, je obyčejné zrno. Chybí = žádné.
    */
   reservedSeedKg?: number;
   /**
@@ -536,7 +537,7 @@ export interface VillageState {
   /**
    * Nástroje ve vybavení domácností (kg – production-chains.md, Nástroje jako vybavení
    * domácností): nejsou zásoba vsi, opotřebují se v užívání a kovář je doplňuje z hřiven; nákup
-   * u sousedů je přidá sem. Pokrytí potřeby nástroji = vybavení ÷ potřeba (`craftCoverage`). Ves
+   * u sousedů uložený na cestě je s návratem přidá sem. Pokrytí potřeby nástroji = vybavení ÷ potřeba (`craftCoverage`). Ves
    * uložená před hřivnami ho dostane ze zásoby nástrojů (`withToolEquipment`); chybí = 0.
    */
   toolEquipmentKg?: number;

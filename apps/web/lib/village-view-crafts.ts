@@ -303,11 +303,7 @@ function workshopOutputKg(craft: Craft, labor: number, coverage: CraftCoverage):
 }
 
 /** Řemesla pro lištu a panel výběru. */
-export function craftsView(
-  state: VillageState,
-  summary: VillageSummary,
-  landscape: Landscape | null,
-): VillageCrafts {
+export function craftsView(state: VillageState, summary: VillageSummary): VillageCrafts {
   const { stocks, needs, coverage, workshops, carts, cartTargets } = summary.crafts;
   const present =
     workshops.length > 0 ||
@@ -382,13 +378,7 @@ export function craftsView(
     })),
     carts: carts.map((c) => ({ ...c, condition: Math.round(c.condition * 100) / 100 })),
     cartTargets,
-    sources: craftSources(state, landscape).map((source) => ({
-      product: source.product,
-      own: source.own,
-      direction: source.route?.direction ?? null,
-      days: source.route?.days ?? null,
-      trail: source.route?.trailId !== null && source.route !== null,
-    })),
+    sources: craftSources(state).map((source) => ({ product: source.product, own: source.own })),
   };
 }
 

@@ -40,7 +40,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `buildings/dwelling-shape.ts`, `forest/log-piles.ts` a `steward/` `steward.ts`,
   `steward-extras.ts`, `steward-land.ts`, `steward-plan.ts`, `steward-rebuild.ts`.
 
-- **API jádra:** `foundVillage` (4 lidé, zásoby – zakladatelé s vojvodou `FOUNDERS_STORES`: jídlo `foodYears` + osivo `seedYears` roční potřeby, osivo jako `reservedSeedKg` s lhůtou `reservedSeedUntilDay` = den založení + `seedKeepYears`; `seedBuyingDay` ji 1. 6. ani 1. 12. před lhůtou neuvolní, jen ve skutečném hladu; `takeSeed` na ni sáhne, až když běžné zrno nad `keepKg` nestačí (village-fields.md – Osivo pro ves bez zásob); ves, která šetří (`hungry`), ji v lhůtě zkrátí na `foundersSeedKeepKg` (seed-buying.ts – osivo na díly na řadě příštího okna, `windowSeedNeedKg`); `fieldStoresOutlook` ji v lhůtě nepočítá za jídlo – `keptSeedKg`, seed.ts; ves bez rodu `START_STORES_MONTHS` + `START_SEED_YEARS`, ves z výpravy svůj náklad –, stavba první zemnice, volitelně první pole),
+- **API jádra:** `foundVillage` (4 lidé, zásoby – zakladatelé s vojvodou `FOUNDERS_STORES`: jídlo `foodYears` + osivo `seedYears` roční potřeby, osivo jako `reservedSeedKg` s lhůtou `reservedSeedUntilDay` = den založení + `seedKeepYears`; `seedReserveDay` ji 1. 6. ani 1. 12. před lhůtou neuvolní, jen ve skutečném hladu; `takeSeed` na ni sáhne, až když běžné zrno nad `keepKg` nestačí (village-fields.md – Osivo pro ves bez zásob); ves, která šetří (`hungry`), ji v lhůtě zkrátí na `foundersSeedKeepKg` (seed-reserve.ts – osivo na díly na řadě příštího okna, `windowSeedNeedKg`); `fieldStoresOutlook` ji v lhůtě nepočítá za jídlo – `keptSeedKg`, seed.ts; ves bez rodu `START_STORES_MONTHS` + `START_SEED_YEARS`, ves z výpravy svůj náklad –, stavba první zemnice, volitelně první pole),
   `advanceVillage(state, toDay)` (dopočítá ves do dne včetně) a akce hráče `startNewDwelling`,
   `startWorkshop`, `foundField`, `foundCemetery`, `foundOrchard`, `foundPen`, `startTrail`
   a `startExpedition` (trade.md); spřežení se cvičí samo (`trainTeamsWhenReady`). Stav
@@ -389,7 +389,7 @@ kroniky`sacred-oak-died`/`sacred-snag-fell`(upozornění přes`CHRONICLE_NOTICES
     se mohl takto změnit dalším dopočtem jiné vsi; krajina zvěře se přepočítá každý 1. 5.
 - **Pořadí dne – pohromy** (plán pohrom – Pořadí dne): `weatherDay` a `partProtectionDay` hned
   za `wildlifeYearDay`; `famineMemoryDay` před `startSeason`; **`localDisastersDay`** (smršť,
-  kroupy, povodeň, požár – `local-disasters.ts`) po `damageWindowStart`, před `startPurchases`
+  kroupy, povodeň, požár – `local-disasters.ts`) po `damageWindowStart`, před `seedReserveDay`
   a `work()` – požár nastaví `disasters.fireFight` a `villagersToday` / `work()` dnes vidí dospělé
   u hašení. Pohromy nedávají nová id
   (kontrola `moveGrainFromCoveredPits` beze změny). Podrobnosti: village-disasters.md.

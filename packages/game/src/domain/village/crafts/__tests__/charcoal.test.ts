@@ -669,7 +669,10 @@ describe('rovnováha uhlíř – kovář (crafts.md – Rovnováha uhlíř – k
 
   it('kovář v rovnováze nečeká – uhlíř začne další milíř včas', () => {
     let s = village();
-    s.crafts = { charcoalKg: 0, potteryKg: 0 };
+    // dřevěné nářadí ves dřív kupovala 15. 11. u souseda s tesařem (nákup zrušen – markets.md,
+    // Pravidla 1); bez něj je práce vsi o 5 % dražší (WOOD_TOOLS_LABOR), cykly milíře delší a kovář
+    // čeká den na konci cyklu – zásoba nářadí ho drží jako dřív nákup
+    s.crafts = { charcoalKg: 0, potteryKg: 0, woodToolsKg: 1000 };
     const waiting: number[] = [];
     let twoKilns = 0;
     let firstDraw: number | null = null;

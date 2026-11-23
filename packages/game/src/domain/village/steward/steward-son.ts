@@ -288,7 +288,7 @@ export interface DepartureFed {
  * Inteligentní hráč by to tak udělal“): kolikrát osev vlastní prací (`stewardFedPeople`) uživí
  * lidi mateřské vsi (stav `after` z `departWithSon`; i podle osiva na příští osev – past osiva)
  * a nové vsi (osadníci – stav, jak ho založí `foundVillage`; jen podle práce – osivo výpravy hlídá
- * `stewardExpedition` a chybějící ves koupí u sousedů, fields.md – Osivo pro ves bez zásob). Nová
+ * `stewardExpedition`, fields.md – Osivo pro ves bez zásob). Nová
  * ves seje na úrodnosti mateřské vsi (sousední mapa) s odpočatou půdou a stravou mateřské vsi.
  * Mateřská ves bez polí – obojí 0 (úrodnost neznámá, sama nic neoseje).
  */

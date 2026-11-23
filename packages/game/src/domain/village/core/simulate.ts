@@ -5,7 +5,7 @@ import type { Landscape, ObstacleLayer } from '../../landscape';
 import { abandonmentCheck, abandonmentDay } from '../buildings/abandonment';
 import { retireCarts } from '../crafts/carts';
 import { updateOrePits } from '../crafts/smith-supply';
-import { finishPurchases, startPurchases } from '../crafts/craft-buying';
+import { finishPurchases } from '../crafts/craft-buying';
 import { cartIronDay } from '../crafts/cart-iron';
 import { cloneState } from './clone';
 import { updateKilnRemnants } from '../crafts/charcoal';
@@ -28,7 +28,7 @@ import { villageSacredOaks } from '../people/sacred';
 import { moveGrainFromCoveredPits } from '../fields/grain-pit-site';
 import { spoilSheaves } from '../fields/threshing';
 import { settleSowingSeed } from '../fields/seed';
-import { seedBuyingDay } from '../fields/seed-buying';
+import { seedReserveDay } from '../fields/seed-reserve';
 import { sacredOakEvents } from '../people/sacred-life';
 import { orchardSeasonDay } from '../buildings/orchard';
 import { fruitEatenUntilRotKg } from '../buildings/fruit-target';
@@ -363,7 +363,7 @@ function seasonPlanDay(
   return waiting;
 }
 
-/** Práce dne: pomoc rodiny, škody zvěře, místní pohromy, nákupy, osivo a `work()`; osivo za nestihnuté setí zpět. */
+/** Práce dne: pomoc rodiny, škody zvěře, místní pohromy, rezerva osiva a `work()`; osivo za nestihnuté setí zpět. */
 function workDayStep(
   state: VillageState,
   day: number,
@@ -380,15 +380,14 @@ function workDayStep(
   // zvěř: 1. 6. ohrožené díly polí podle vzdálenosti od lesa (wildlife.md – Škody)
   damageWindowStart(state, day, landscape);
   // místní pohromy (disasters.md – Místní pohromy – jedna ves): smršť, kroupy, povodeň, požár –
-  // po plánu dne, před nákupy a prací; při požáru dnes dospělí hasí (`villagersToday`, `work()`)
+  // po plánu dne, před rezervou osiva a prací; při požáru dnes dospělí hasí (`villagersToday`,
+  // `work()`)
   const disasterEvents = localDisastersDay(state, day, landscape, obstacles);
   state.chronicle.push(...disasterEvents);
-  // nákup výrobků řemeslníků u sousedů – jednou za rok po sklizni, ves se rozhodne sama
-  // (crafts.md – Nákup u sousedů); skupina vyrazí hned
-  startPurchases(state, day, coverage, landscape);
-  // osivo pro ves bez zásob – 1. 9. a 1. 3. ho ves koupí u sousedů, 1. 6. je nezaseté obyčejné
-  // zrno (fields.md – Osivo pro ves bez zásob); po plánu dne, před prací
-  state.chronicle.push(...seedBuyingDay(state, day));
+  // rezerva osiva – 1. 6. je nezaseté osivo obyčejné zrno, 1. 9. a 1. 3. kronika, kolik osiva
+  // chybí (fields.md – Osivo pro ves bez zásob; nákup u sousedů zrušen – markets.md, Pravidla 1);
+  // po plánu dne, před prací
+  state.chronicle.push(...seedReserveDay(state, day));
   const { toil, lordField } = work(
     state,
     day,

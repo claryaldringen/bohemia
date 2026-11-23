@@ -6,7 +6,6 @@ import { DISASTER_TRADE, DISASTER_WILDLIFE } from '../../rules/rules-disasters';
 import { goodWorth, sellPrice, tradeQuote } from '../trade';
 import { horsePenPayment } from '../../livestock/horse-pen-payment';
 import { craftCoverage } from '../../crafts/crafts';
-import { productPrice } from '../../crafts/craft-buying';
 import { tradeWeather } from '../trade-weather';
 import type { Direction8, VillageState, YearWeather } from '../../types';
 import { wildlifeYearDay, withWildlife } from '../../wildlife/wildlife';
@@ -130,20 +129,6 @@ describe('násobek ceny platí pro veškerý obchod', () => {
     expect(a.ironBarsKg).toBeGreaterThan(0);
     expect(b.ironBarsKg).toBeGreaterThanOrEqual(2 * a.ironBarsKg - 1);
     expect(b.ironBarsKg * sellPrice('ironBars') * 0.5).toBeGreaterThanOrEqual(5600 - 1e-6);
-  });
-
-  it('nákup výrobku u řemeslníka souseda je po krutém roce za polovinu obilí', () => {
-    expect(productPrice('potteryKg', village(null), DAY)).toBeCloseTo(3 * 0.96, 9);
-    expect(productPrice('potteryKg', village({ summer: 'drought' }), DAY)).toBeCloseTo(
-      3 * 0.96 * 0.5,
-      9,
-    );
-    expect(productPrice('toolsKg', village({ summer: 'dry' }), DAY)).toBeCloseTo(
-      60 * 0.96 * 0.67,
-      9,
-    );
-    // bez stavu a dne (panel, staré volání) beze změny
-    expect(productPrice('potteryKg')).toBeCloseTo(3 * 0.96, 9);
   });
 });
 

@@ -358,13 +358,13 @@ export const DEV_PANELS: readonly {
       residents: residentsOf([63, 41, 38, 35, 33, 29, 26, 14, 11, 8, 5, 1]),
       rebuild: { progress: 0.3, type: 'dvorec', treesToFell: 7 },
       manor,
-      // nákup u sousedů (crafts.md): nástroje a keramika u souseda, dřevěné nářadí od vlastního
-      // tesaře; skupina jde pro nástroje na sever
+      // výrobky řemeslníků (crafts.md; markets.md – Pravidla 1): nástroje a keramiku ves nemá od
+      // koho (zašedlé), dřevěné nářadí od vlastního tesaře; nákup ze starší vsi ještě na cestě
       buying: {
         sources: [
-          { product: 'toolsKg', own: false, direction: 'N', days: 6, trail: true },
-          { product: 'potteryKg', own: false, direction: 'NE', days: 8, trail: false },
-          { product: 'woodToolsKg', own: true, direction: null, days: null, trail: false },
+          { product: 'toolsKg', own: false },
+          { product: 'potteryKg', own: false },
+          { product: 'woodToolsKg', own: true },
         ],
         purchases: [
           {
