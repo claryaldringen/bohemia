@@ -1642,7 +1642,6 @@ function sonDetails(view: VillageView): SelectionSon[] {
   });
 }
 
-/** Odchod domácností vybraných obydlí `ids`; když žádná odejít nemůže, null. */
 /**
  * Řádek výrobků dvorce: výrobek bez pracujícího řemeslníka, jehož dílna stojí bez vstupu, nese
  * důvod jako upozornění (`workshopStopNotice` – „Kovář nemá uhlí“); bez dílny nic.
@@ -1661,6 +1660,7 @@ function buyingDetails(view: VillageView, sources: VillageCraftSource[]): Select
   };
 }
 
+/** Odchod domácností vybraných obydlí `ids`; když žádná odejít nemůže, null. */
 function leaveDetails(view: VillageView, ids: readonly number[]): SelectionLeave | null {
   if (view.extinct || view.abandoned || view.journey) return null;
   const leaving = view.households.filter(
