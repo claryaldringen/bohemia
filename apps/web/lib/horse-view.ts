@@ -12,7 +12,6 @@ import {
   horsesUngrained,
   horsesWanted,
   penHorses,
-  craftCoverage,
   shoeingView,
   stallionId,
   villageHorses,
@@ -98,7 +97,7 @@ export function horsesView(state: VillageState, day: number): VillageHorses | nu
     grainKgPerDay: horseGrainToday(all, day),
     ungrained: horsesUngrained(state, day),
     hayWinterKg: Math.round(horseHayDailyKg(all, day, fed) * HAY_WINTER_DAYS),
-    shoeing: shoeingView(state, day, craftCoverage(state, day)),
+    shoeing: shoeingView(state, day),
     horses,
   };
 }

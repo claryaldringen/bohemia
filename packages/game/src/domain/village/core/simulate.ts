@@ -422,9 +422,9 @@ function afterWorkDay(
   roadSwathDay(state, day, obstacles, landscape, swathRoadsInWork(state));
   state.chronicle.push(...finishExpeditions(state, day));
   state.chronicle.push(...finishPurchases(state, day));
-  // kování vozů (wagons.md – Kování vozů): vůz s hotovou dřevěnou prací ze zásoby nástrojů, ves bez
-  // kováře pošle tesaře nebo jeho syna do nejbližší vsi s kovářem; kdo se vrátil, vůz dokončí
-  state.chronicle.push(...cartIronDay(state, day, landscape));
+  // kování vozů (wagons.md – Kování vozů): vůz s hotovou dřevěnou prací vezme kování z hřiven vsi;
+  // kdo se vrátil z cesty uložené ve starší vsi, vůz dokončí
+  state.chronicle.push(...cartIronDay(state, day));
   finishConstructions(state, day, landscape ?? undefined);
   // dvorec vojvody – po zániku dvorce nejstarší obydlí, starší ves dvorec dostane (trade.md)
   keepManor(state);

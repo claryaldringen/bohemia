@@ -252,20 +252,11 @@ export { FORGE, ORE_KG_PER_TOOL_KG, REFINE, SMELT, smeltOreKg } from './crafts/i
 // kování vozů (wagons.md – Kování vozů) – krok dne volá simulate.ts
 export {
   cartIronKg,
-  ironCarrier,
-  ironPriceKg,
-  ironDestinations,
-  ironOptions,
-  ironPlan,
-  freeIronCart,
   ironTripDaysLeft,
   ironTripHelpers,
   ironTripLine,
   ironTripShares,
-  smithAtHome,
   withoutSameMapVillages,
-  type IronPlan,
-  type IronRoute,
 } from './crafts/cart-iron';
 // učení řemesla (crafts.md – Učení řemesla) – den praxe volá simulate.ts
 export {
@@ -442,7 +433,6 @@ export {
   isUnshod,
   nextShoeingDay,
   planShoeing,
-  shoeingCosts,
   shoeingDay,
   shoeingView,
   type ShoeingDay,

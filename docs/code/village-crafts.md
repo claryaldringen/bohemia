@@ -339,30 +339,21 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   ni chodí méně lidí (Postavy – Provoz na cestách).
 
 - **Kování vozů** ([wagons.md](../design/wagons.md) – Kování vozů; Martin 20. 10. 2026: „…vozy
-  mají železnou složku. Pokud vesnice nemá kováře, musí tesař (nebo jeho syn, pokud ho má) dojít do
-  nejbližší vesnice, kde kovář je“; čísla `CART_IRON`): `cart-iron.ts`. Dvoukolák 3 kg, čtyřkolák
-  6 kg kování ze zásoby nástrojů. Vůz s hotovou dřevěnou prací čeká (`cartAwaitingIron` v crafts.ts –
+  mají železnou složku“; čísla `CART_IRON`): `cart-iron.ts`. Dvoukolák 3 kg, čtyřkolák 6 kg kování
+  z hřiven (1,2 kg hřiven na kg). Vůz s hotovou dřevěnou prací čeká (`cartAwaitingIron` v crafts.ts –
   `workCarpenter` ho nedokončí, tesař dělá nářadí, `nextProduct` ho nepočítá); krok dne
-  `cartIronDay` (po `finishPurchases`) vezme kování ze zásoby a vůz dokončí (`cart-made`), vlastní
-  kovář (`smithAtHome`) ho vyrobí jako zakázku (`ironOrderBarsKg` v
-  `restingCrafters`, `smithsForgeCharcoalKg`, `smithsCharcoalPerYear`), jinak `Workshop.ironTrip`
-  (`IronTrip`): syn tesaře od 14 (`ironCarrier`), nebo tesař jde do vsi s kovářem s nejmenší prací
-  vsi celkem (`ironDestinations` – sousedé `neighbourCrafts` přes
-  `purchaseRoute(…, from)` od dílny; `ironOptions` – pěšky s nosiči i vozem, `ironPlan` – nejméně
-  čd, při shodě kratší cesta; úspora vozu proti cestě pěšky do roku vozů – `addCartDemand`),
-  platba obilím `ironPriceKg` ze zásob, jen když ves nešetří jídlem (`hungry`); kronika `iron-trip`
-  (`porters`, `byCart`), `iron-brought`. Na cestě chybí v dílně (`workshopLabor` – `away`) i ve vsi
-  (`ironTravellers` v `work`). **Platbu sám neunese** (Martin: „Buď si musel půjčit vůz nebo muselo
-  jít alespoň 6 lidí“): volný vůz s voly po zemské stezce sjízdné pro vozy (`freeIronCart` – dvoukolák
-  napřed, `IronTrip.cartId`, sedlák z vsi `CART_IRON.cartCrew`; vůz a vůl pryč – `cartsAway`
-  a `oxenAway` čtou i `dwellings`), jinak nosiči po 25 kg jako nákup u sousedů (`tripOf`,
-  `groupCap` z craft-buying – 173 kg = tesař a 6 nosičů, `IronTrip.porters`; málo dospělých →
-  víckrát, `tripDays`). Nosiči a sedlák chybí v práci vsi (`ironTripHelpers` do `away`,
-  `ironTripShares` – podíl `trade`). Web: `carpenter.iron` (`ironSummary` v summary.ts – i `porters`
-  a `cart`), panel `IronStat` („Čeká na kování“, „Syn tesaře jde se 6 nosiči…“, „Tesař jede s vozem
-  a sedlákem…“ s dny), upozornění (`ironTripWho`), scéna skupina nosičů nebo vůz (`ironCaravan`
-  v `caravan-view.ts` – `ironTripLine`, cesty po `tripDays`; vůz jede jako vůz výpravy – job `trade`
-  v `sceneCarts`).
+  `cartIronDay(state, day)` (po `finishPurchases`) vezme kování z hřiven vsi (`cartIronBarsKg`)
+  a vůz dokončí (`cart-made`); vlastní kovář ho vyrobí jako zakázku (`ironOrderBarsKg` v
+  `restingCrafters`, `smithsForgeCharcoalKg`, `smithsCharcoalPerYear`). **Ves bez kováře a bez
+  hřiven vůz nedokončí – čeká** (23. 11. 2026 – markets.md, Pravidla 1: cesta tesaře pro kování
+  k sousedovi zrušena, vrátí se se skutečnými sousedy v plánu 3). Cesta uložená ve starší vsi
+  (`Workshop.ironTrip`, `IronTrip`) doběhne: den po dni `done`, po návratu `iron-brought` a vůz
+  hotový, kdo zemřel, kování nepřinese. Na cestě chybí v dílně (`workshopLabor` – `away`) i ve vsi
+  (`ironTravellers` v `work`); nosiči a sedlák s vozem (`CART_IRON.cartCrew`) chybí v práci vsi
+  (`ironTripHelpers` do `away`, `ironTripShares` – podíl `trade`; `cartsAway` a `oxenAway` čtou
+  i `dwellings`). Web: `carpenter.iron` (`ironSummary` v summary.ts), panel `IronStat` („Čeká na
+  kování“, u cesty ze starší vsi dny), scéna skupina nosičů nebo vůz (`ironCaravan` v
+  `caravan-view.ts` – `ironTripLine`).
 
 - **Kovář – houba, hřivny a vybavení** ([production-chains.md](../design/production-chains.md) – Kovář): řetěz ruda + uhlí → houba (tavba s měchařem – dospělý z domácnosti nebo syn od 10, sám kovář polovičním tempem) → hřivny → nástroje jako vybavení domácností (kuje se jen z hřiven nad rezervou na příští kování koní – `shoeingBarsKg`, kování má přednost); v liště jen hřivny, v obchodu `ironBars`.
   - **Soubory:** `packages/game/src/domain/village/crafts/iron.ts` (řetěz, měchař, převod vybavení),

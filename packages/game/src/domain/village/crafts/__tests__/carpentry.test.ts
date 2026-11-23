@@ -172,6 +172,8 @@ describe('dílna tesaře (wagons.md – Tesař)', () => {
 
   it('vyrobí dvoukolák, který se vyplatí – 25 čd a kláda, kronika', () => {
     const s = withCartYear(withTeam(withCarpenter(village())), [100]);
+    // ves bez kováře má kování z hřiven (cesta pro kování k sousedovi zrušena – markets.md)
+    s.crafts = { charcoalKg: 0, potteryKg: 0, ironBarsKg: 20 };
     expect(missingCart(s)).toBe('two-wheel');
     const next = advanceVillage(s, DAY + 90, null);
     expect(next.carts).toHaveLength(1);
@@ -567,6 +569,7 @@ describe('dosah vozu – vozová síť (wagons.md – fáze 2)', () => {
 describe('determinismus – tesař a vozy na kouscích nezávisí', () => {
   it('dopočet najednou = po kouscích', () => {
     const s = withCartYear(withTeam(withCarpenter(village())), [100]);
+    s.crafts = { charcoalKg: 0, potteryKg: 0, ironBarsKg: 20 };
     s.constructions = [polozemnice(DAY, 300)];
     const whole = advanceVillage(s, DAY + 200, null);
     let pieces = s;

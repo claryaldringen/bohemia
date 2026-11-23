@@ -4,16 +4,12 @@ import {
   isUnshod,
   nextShoeingDay,
   planShoeing,
-  shoeingCosts,
   shoeingDay,
   shoeingView,
 } from '../horse-shoeing';
-import { NEIGHBOR_DIRECTIONS } from '../../rules';
-import { neighbourCrafts, paymentPool } from '../../crafts/craft-buying';
 import { newWorkshop } from '../../crafts/crafts';
 import { trainHorsesDay } from '../horse-riders';
 import { lordRides } from '../../people/lord';
-import { NO_CRAFTS } from '../../core/productivity';
 import { HORSE_SHOEING } from '../../rules';
 import { advanceVillage } from '../../core/simulate';
 import type { VillageState } from '../../types';
@@ -28,7 +24,7 @@ const DUE = START + HORSE_SHOEING.everyDays;
 /** Ves se dvěma jezdeckými koňmi a termínem kování od START. */
 function stable(): VillageState {
   const s = horseVillage([horse(1, 8, 'male', 50), horse(2, 6, 'male', 10)]);
-  planShoeing(s, START, NO_CRAFTS, null);
+  planShoeing(s, START);
   return s;
 }
 
@@ -44,33 +40,29 @@ function withSmith(s: VillageState, bars: number): VillageState {
   return s;
 }
 
-/** Cizí kovář, který je dosažitelný (některý soused ho má). */
-const hasNeighbourSmith = (s: VillageState): boolean =>
-  NEIGHBOR_DIRECTIONS.some((d) => neighbourCrafts(s.seed, d).includes('smith'));
-
 describe('termín kování', () => {
   it('první termín je 60 dní od prvního dne s jezdeckými koňmi, převod je idempotentní', () => {
     const s = horseVillage([horse(1, 8, 'male', 50)]);
     expect(s.shoeing).toBeUndefined();
-    planShoeing(s, START, NO_CRAFTS, null);
+    planShoeing(s, START);
     expect(nextShoeingDay(s)).toBe(DUE);
-    planShoeing(s, START + 5, NO_CRAFTS, null);
+    planShoeing(s, START + 5);
     expect(s.shoeing).toEqual({ lastDay: START });
   });
 
   it('klisny a hříbata se nekují; bez jezdeckých koní termín zanikne', () => {
     const s = horseVillage([horse(1, 8, 'female'), horse(2, 2)]);
-    expect(planShoeing(s, START, NO_CRAFTS, null)).toBeNull();
+    expect(planShoeing(s, START)).toBeNull();
     expect(s.shoeing).toBeUndefined();
     const t = stable();
     t.pens![0]!.horses = [horse(3, 8, 'female')];
-    planShoeing(t, START + 10, NO_CRAFTS, null);
+    planShoeing(t, START + 10);
     expect(t.shoeing).toBeUndefined();
   });
 
   it('před termínem se nekuje a kůň je podkutý', () => {
     const s = stable();
-    expect(planShoeing(s, DUE - 1, NO_CRAFTS, null)).toBeNull();
+    expect(planShoeing(s, DUE - 1)).toBeNull();
     expect(isUnshod(s, DUE - 1)).toBe(false);
   });
 });
@@ -78,8 +70,8 @@ describe('termín kování', () => {
 describe('vlastní kovář', () => {
   it('kuje z práce vsi a hřiven kovárny, termín se posune', () => {
     const s = withSmith(stable(), 5);
-    const plan = planShoeing(s, DUE, NO_CRAFTS, null)!;
-    expect(plan.own).toBe(true);
+    const plan = planShoeing(s, DUE)!;
+    expect(plan.horses).toBe(2);
     expect(plan.manDays).toBeCloseTo(2 * HORSE_SHOEING.manDays, 9);
     // bez práce se nekuje a kůň je po termínu nepodkutý
     expect(finishShoeing(s, DUE, plan, 0)).toEqual([]);
@@ -91,18 +83,28 @@ describe('vlastní kovář', () => {
     expect(isUnshod(s, DUE)).toBe(false);
   });
 
-  it('bez dost hřiven kovář nekuje – hledá se cizí kovář', () => {
+  it('bez dost hřiven kovář nekuje – kůň je po termínu nepodkutý', () => {
     const s = withSmith(stable(), 0.1);
-    s.storesKg = 0;
-    const plan = planShoeing(s, DUE, NO_CRAFTS, null);
-    expect(plan?.own ?? false).toBe(false);
+    s.storesKg = 200_000;
+    expect(planShoeing(s, DUE)).toBeNull();
+    expect(isUnshod(s, DUE)).toBe(true);
+  });
+
+  it('ves bez kovárny kuje nikdo – 10 dní po termínu je kůň nepodkutý, zásoby zůstanou', () => {
+    const s = stable();
+    s.storesKg = 200_000;
+    s.legumesKg = 500;
+    for (let d = DUE; d < DUE + 10; d++) expect(planShoeing(s, d)).toBeNull();
+    expect(isUnshod(s, DUE + 10)).toBe(true);
+    expect(s.storesKg).toBe(200_000);
+    expect(s.legumesKg).toBe(500);
   });
 });
 
 describe('kování dne pro scénu', () => {
   it('vlastní kovář: koně ohrady, bez cesty; jiný den nic', () => {
     const s = withSmith(stable(), 5);
-    const plan = planShoeing(s, DUE, NO_CRAFTS, null)!;
+    const plan = planShoeing(s, DUE)!;
     s.chronicle.push(...finishShoeing(s, DUE, plan, plan.manDays));
     const day = shoeingDay(s, DUE, null)!;
     expect(day.own).toBe(true);
@@ -112,14 +114,12 @@ describe('kování dne pro scénu', () => {
     expect(shoeingDay(s, DUE - 1, null)).toBeNull();
   });
 
-  it('cizí kovář: směr a bod na kraji mapy jako plán kování', () => {
+  it('záznam cizího kováře ze starší kroniky se dál přečte', () => {
     const s = stable();
-    s.storesKg = 200_000;
-    const plan = planShoeing(s, DUE, NO_CRAFTS, null)!;
-    s.chronicle.push(...finishShoeing(s, DUE, plan, 0));
+    s.chronicle.push({ day: DUE, kind: 'horses-shod', horses: 2, own: false, direction: 'N' });
     const day = shoeingDay(s, DUE, null)!;
     expect(day.own).toBe(false);
-    expect(day.route).toEqual(plan.route);
+    expect(day.horses.map((h) => h.horseId)).toEqual([1, 2]);
   });
 });
 
@@ -133,75 +133,19 @@ describe('rezerva hřiven', () => {
   });
 });
 
-describe('cizí kovář', () => {
-  it('bez kováře ve vsi přijde soused, platí se z přebytku nad pojistkou', () => {
-    const s = stable();
-    s.storesKg = 200_000;
-    expect(hasNeighbourSmith(s)).toBe(true);
-    const plan = planShoeing(s, DUE, NO_CRAFTS, null);
-    expect(plan).not.toBeNull();
-    expect(plan!.own).toBe(false);
-    expect(plan!.grainKg + plan!.legumesKg).toBeGreaterThan(0);
-    expect(plan!.grainKg).toBeLessThanOrEqual(s.storesKg);
-    const before = s.storesKg;
-    // kronika nese směr souseda, odkud kovář přišel (jméno vsi v kronice)
-    expect(finishShoeing(s, DUE, plan, 0)[0]).toEqual({
-      day: DUE,
-      kind: 'horses-shod',
-      horses: plan!.horses,
-      own: false,
-      direction: plan!.route!.direction,
-    });
-    expect(s.storesKg).toBeCloseTo(before - plan!.grainKg, 6);
-  });
-
-  it('bez přebytku ves nezaplatí – koně zůstanou nepodkutí, kuje se zkusí znovu', () => {
-    const s = stable();
-    s.storesKg = 0;
-    expect(planShoeing(s, DUE, NO_CRAFTS, null)).toBeNull();
-    expect(isUnshod(s, DUE)).toBe(true);
-    expect(isUnshod(s, DUE + 20)).toBe(true);
-  });
-
-  it('platí i z pojistky, jen ne pod nulu zásob do sklizně', () => {
-    const s = stable();
-    // zásoba, při které přebytek nad pojistkou je nulový, ale zásoby do sklizně zbývají
-    let found = 0;
-    for (let kg = 0; kg <= 400_000; kg += 250) {
-      s.storesKg = kg;
-      const cost = shoeingView(s, DUE, NO_CRAFTS)?.foreignKg ?? 0;
-      const over = paymentPool(s, DUE, NO_CRAFTS).energyKg;
-      const all = paymentPool(s, DUE, NO_CRAFTS, true).energyKg;
-      if (over === 0 && all > 2 * cost) {
-        found = kg;
-        break;
-      }
-    }
-    expect(found).toBeGreaterThan(0);
-    s.storesKg = found;
-    const plan = planShoeing(s, DUE, NO_CRAFTS, null);
-    expect(plan).not.toBeNull();
-    expect(plan!.own).toBe(false);
-    // ves, které by po platbě nezbylo jídlo do sklizně, nezaplatí
-    s.storesKg = 0;
-    expect(planShoeing(s, DUE, NO_CRAFTS, null)).toBeNull();
-  });
-
-  it('cizí kovář je aspoň 3x dražší než vlastní', () => {
-    const s = stable();
-    for (const route of [4, 8, 14]) {
-      const costs = shoeingCosts(s, DUE, NO_CRAFTS, 2, route);
-      expect(costs.foreign / costs.own).toBeGreaterThanOrEqual(3);
-    }
-  });
-
-  it('panel: termín a zdroj', () => {
+describe('panel kování', () => {
+  it('termín a zdroj vlastního kováře', () => {
     const s = withSmith(stable(), 5);
-    expect(shoeingView(s, START + 10, NO_CRAFTS)).toMatchObject({
+    expect(shoeingView(s, START + 10)).toMatchObject({
       daysLeft: 50,
       unshod: false,
       source: 'own',
     });
+  });
+
+  it('bez kováře zdroj none, po termínu nepodkutý', () => {
+    const s = stable();
+    expect(shoeingView(s, DUE + 3)).toMatchObject({ source: 'none', unshod: true });
   });
 });
 
@@ -209,7 +153,7 @@ describe('panel starší vsi', () => {
   it('ves bez uloženého termínu ukáže první termín od dneška', () => {
     const s = horseVillage([horse(1, 8, 'male', 50)]);
     expect(s.shoeing).toBeUndefined();
-    expect(shoeingView(s, START, NO_CRAFTS)).toMatchObject({
+    expect(shoeingView(s, START)).toMatchObject({
       daysLeft: HORSE_SHOEING.everyDays,
       unshod: false,
     });
@@ -243,7 +187,7 @@ describe('nepodkutý kůň', () => {
 describe('determinismus', () => {
   it('dopočet vcelku je stejný jako po dnech', () => {
     const make = (): VillageState => {
-      const s = stable();
+      const s = withSmith(stable(), 50);
       s.storesKg = 30_000;
       return s;
     };

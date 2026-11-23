@@ -130,7 +130,9 @@ import { advanceChunked, goldenWorld, stateFingerprint, YEAR } from './village-g
 // 23. 11. 2026 – konec smyšlených sousedů (markets.md – Pravidla 1), úloha 1: sňatky jen ve vsi,
 // žádné nevěsty a ženiši z okolí, nikdo se nevdává pryč, žádné další manželky mužů rodu; dřív
 // 533796fc14c305d9
-const EXPECTED_YEAR_1 = '725a41ac28867b5d';
+// 23. 11. 2026 – konec smyšlených sousedů (markets.md – Pravidla 1), úloha 2: kovář jen vlastní –
+// žádný cizí kovář ke koním a žádné kování vozů u souseda; dřív 725a41ac28867b5d
+const EXPECTED_YEAR_1 = '2eb026657107226c';
 // 18. 11. 2026 – D93 cesta přes plochu staveb; dřív 82b12dd84c08dd63 (vyšlapaná cesta přes plochu
 // staveb nevznikne a napojení ji obejde – jiné cesty a id; roky chůze nejvýš doba vyšlapání)
 // 18. 11. 2026 – D95 výmlat (Martin: „A, C, E“ – výmlat podle kg snopů, rod v zimě dorovná tempo

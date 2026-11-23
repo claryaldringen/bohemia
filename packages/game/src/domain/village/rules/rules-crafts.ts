@@ -415,17 +415,13 @@ export const CRAFT_BUYING = {
 } as const;
 /**
  * wagons.md – Kování vozů (Martin 20. 10. 2026: „Ano. A taky přidej tedy pravidlo, že vozy mají
- * železnou složku. Pokud vesnice nemá kováře, musí tesař (nebo jeho syn, pokud ho má) dojít do
- * nejbližší vesnice, kde kovář je“; „pokud zaplatil 173 kg obilí, tak nemohl jít sám. Buď si musel
- * půjčit vůz nebo muselo jít alespoň 6 lidí, aby to obilí unesli“; čísla návrh Clauda): kování
- * vozu – osy, hřeby, obruče a kování nábojů – dvoukolák 3 kg, čtyřkolák 6 kg; ve vsi se kove
- * z hřiven (IRON.barsPerToolKg na kg kování – production-chains.md, Kovář); pro kování jde syn
- * tesaře od `fetchFromAge` let, jinak tesař – platbu veze vůz, se kterým jede `cartCrew` sedlák
- * z vsi, nebo ji nesou nosiči po TRADE.porterKg.
+ * železnou složku“; čísla návrh Clauda): kování vozu – osy, hřeby, obruče a kování nábojů –
+ * dvoukolák 3 kg, čtyřkolák 6 kg; ve vsi se kove z hřiven (IRON.barsPerToolKg na kg kování –
+ * production-chains.md, Kovář). `cartCrew` – sedlák z vsi s vozem na cestě pro kování uložené
+ * ve starší vsi (cesta u souseda zrušena – markets.md – Pravidla 1).
  */
 export const CART_IRON = {
   kg: { 'two-wheel': 3, 'four-wheel': 6 },
-  fetchFromAge: 14,
   cartCrew: 1,
 } as const satisfies { kg: Record<CartKind, number> } & Record<string, unknown>;
 // wagons.md – Vůz (Martin 19. 10. 2026: vozy vozí seno, snopy, klády a zboží výprav místo nosičů;

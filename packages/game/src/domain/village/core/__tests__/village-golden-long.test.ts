@@ -109,8 +109,11 @@ import { goldenWorld, stateFingerprint, YEAR } from './village-golden-fixture';
 // 23. 11. 2026 – konec smyšlených sousedů (markets.md – Pravidla 1), úloha 1: sňatky jen ve vsi,
 // žádné další manželky mužů rodu (jako rok 1 v village-golden.test.ts); dřív 93549b751d2d64b2
 // a f2217a39e0c66fe2
-const EXPECTED_YEAR_2 = 'e3052b1b782137a1';
-const EXPECTED_YEAR_3 = '452002572548e183';
+// 23. 11. 2026 – konec smyšlených sousedů (markets.md – Pravidla 1), úloha 2: kovář jen vlastní,
+// bez cizího kováře ke koním a kování vozů u souseda (jako rok 1 v village-golden.test.ts); dřív
+// e3052b1b782137a1 a 452002572548e183
+const EXPECTED_YEAR_2 = 'cb76e472098a0444';
+const EXPECTED_YEAR_3 = '7caad49566be1db2';
 // 18. 11. 2026 – D93 cesta přes plochu staveb; dřív 168010dd35f7c1c7 a a499594da5514b49 (viz
 // village-golden.test.ts)
 // 18. 11. 2026 – D95 výmlat (výmlat podle kg snopů, rod v zimě dorovná tempo okna – viz

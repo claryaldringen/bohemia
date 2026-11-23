@@ -372,7 +372,7 @@ describe('kování vozu z hřiven (wagons.md – Kování vozů)', () => {
     s.people.push(person(600, 30, 60, s.lastDay, { sex: 'male' }));
     carpenter.workshop!.cart = { kind: 'two-wheel', done: 1_000 };
     s.crafts!.ironBarsKg = 5;
-    const events = cartIronDay(s, s.lastDay + 1, null);
+    const events = cartIronDay(s, s.lastDay + 1);
     expect(events.map((e) => e.kind)).toEqual(['cart-made']);
     expect(s.crafts!.ironBarsKg).toBeCloseTo(5 - 3 * 1.2, 9);
   });
