@@ -147,7 +147,7 @@ function decideDay(
   };
   // hlad dne pro příští den správce (Nouze, jen když hlad roste)
   if (state.steward) state.steward.lastHunger = state.starvationDays ?? 0;
-  // krok 2a – nouze: obilí od sousedů, když hrozí hlad, a lov, když zvěř škodí (steward-needs.ts)
+  // krok 2a – nouze: lov, když zvěř škodí (steward-needs.ts)
   needSteps(state, ctx);
   fieldStep(state, ctx);
   // výměna špatných vlastních dílů pole za lepší místo plánu – jednou za rok v září
@@ -360,26 +360,6 @@ function asOf(state: VillageState, day: number): VillageState {
 function replaceState(target: VillageState, source: VillageState): void {
   for (const key of Object.keys(target)) if (!(key in source)) Reflect.deleteProperty(target, key);
   Object.assign(target, source);
-}
-
-/**
- * Akce správce, která není stavba (mutuje stav – výprava za obilím): mutující jádro akce hráče
- * `act` (`launchExpedition`) v den správce na vsi dopočítané do něj (`lastDay` jako u `asOf`);
- * `lastDay` dopočtu zůstane i po chybě akce. Ves se nekopíruje (village-core.md – Výkon dopočtu),
- * a tak vyšlapanost cest smí zůstat v pracovních políčkách dopočtu (bez `flushWear`).
- */
-export function stewardAction(
-  state: VillageState,
-  day: number,
-  act: (asOfDay: VillageState) => void,
-): void {
-  const lastDay = state.lastDay;
-  state.lastDay = day;
-  try {
-    act(state);
-  } finally {
-    state.lastDay = lastDay;
-  }
 }
 
 /**

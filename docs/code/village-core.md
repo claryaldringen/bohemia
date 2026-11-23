@@ -863,10 +863,7 @@ afterDay, toDay)` – události `afterDay < day ≤ toDay` podle dne a `seq`. Sc
   kopírují stav akce staveb (`actions.ts` – obydlí, dílna, pole, hřbitov, sad, posvátné místo,
   humno; `startRoadUpgrade`, `startTrail`, `startWagonRoad`, `startRoadApples`, `startPen`)
   – `structuredClone` celého stavu byla u velké vsi polovina času dne správce (2. 11. 2026).
-  Výprava správce za obilím (`grainStep`) kopii vsi nedělá vůbec – mutující jádro
-  `launchExpedition`, akce hráče `startExpedition` kopíruje dál: zahřáté roky 2–3 Vlkova
-  `structuredClone` pod `stewardAction` 0,38–0,39 s → 0,01 s, celkem 9,5–9,9 s → 9,0–9,4 s
-  (9. 11. 2026), stav po 1–3 letech vcelku i po 37 dnech bit po bitu týž. **Záznamy
+  **Záznamy
   v `clearedObstacles`, `felledTrees`, `chronicle` a body pevných cest se nemění na místě** – kopie
   stavu je sdílí (kopíruje jen seznamy); změna záznamu = nový objekt na jeho místě (`plantOnStump`,
   `mergeHaySlaughter`, `mergeFields`). V testech je hlídá `freezeSharedRecords` (`src/test-setup.ts`

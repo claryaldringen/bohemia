@@ -16,14 +16,8 @@ import { STEWARD } from '../../rules/rules-steward';
 import { advanceVillage } from '../../core/simulate';
 import { fieldStoresOutlook } from '../../core/simulate-plan';
 import { newSteward } from '../steward-state';
-import {
-  constructionLogsLeft,
-  grainDeal,
-  grainStep,
-  needSteps,
-  type NeedContext,
-} from '../steward-needs';
-import { tradeQuote } from '../../trade/trade';
+import { needSteps, type NeedContext } from '../steward-needs';
+import { TRADE } from '../../rules/rules-trade';
 import { finishTrail, startTrail } from '../../trade/trail';
 import type { Direction8, VillageState } from '../../types';
 import { LANDSCAPE } from '../../__tests__/paths-fixtures';
@@ -84,128 +78,21 @@ function shortOf(state: VillageState, day = DAY): number {
   return fieldStoresOutlook(state, day, craftCoverage(state, day)).shortKg;
 }
 
-describe('obilí v nouzi – výprava za obchodem (steward.md – Obilí a lov v nouzi)', () => {
-  it('hrozí hlad: výprava k obilnáři, koupí chybějící obilí a platí zbožím, které shání', () => {
+describe('správce v nouzi nekupuje obilí (markets.md – Pravidla 1)', () => {
+  it('hrozí hlad, stezka i hřivny jsou, a přesto žádná výprava za obilím', () => {
     const s = hungry();
-    const short = shortOf(s);
-    expect(short).toBeGreaterThan(STEWARD.grainMinKg);
-    expect(grainStep(s, ctxOf(s), short)).toBe(true);
-    const expeditions = s.trade!.expeditions;
-    expect(expeditions).toHaveLength(1);
-    const e = expeditions[0]!;
-    const neighbour = neighbourOf(s.seed, e.direction);
-    expect(neighbour.offers).toContain('grain');
-    expect(e.get.grain).toBeGreaterThanOrEqual(STEWARD.grainMinKg);
-    // jen chybějící (a přeplatek posledního kusu), ne víc
-    const logCredit = 50;
-    expect(e.get.grain!).toBeLessThanOrEqual(Math.ceil(short) + logCredit);
-    for (const g of Object.keys(e.give)) {
-      expect(STEWARD.grainPayment).toContain(g);
-      expect(neighbour.demands).toContain(g);
-    }
-    // nosičů nejvýš polovina dospělých
-    const adults = s.people.filter((p) => ageGroup(p, DAY) === 'adult').length;
-    expect(e.porters).toBeLessThanOrEqual(
-      Math.max(1, Math.floor(adults * STEWARD.grainPorterShare)),
-    );
-    expect(s.chronicle.at(-1)?.kind).toBe('trade-departed');
-    // stejná výměna projde kontrolou hráče
-    const again = hungry();
-    const deal = grainDeal(again, DAY, LANDSCAPE, short)!;
-    expect(tradeQuote(again, deal.offer, DAY, LANDSCAPE).blocked).toBeNull();
-  });
-
-  it('bez hrozícího hladu výprava nevyrazí', () => {
-    const s = hungry();
-    s.storesKg = 50_000;
-    expect(shortOf(s)).toBe(0);
+    expect(shortOf(s)).toBeGreaterThan(TRADE.porterKg);
     needSteps(s, ctxOf(s));
-    expect(s.trade?.expeditions ?? []).toHaveLength(0);
+    expect(s.trade?.expeditions ?? []).toEqual([]);
+    expect(s.chronicle.some((e) => e.kind === 'trade-departed')).toBe(false);
   });
 
-  it('bez čím platit výprava nevyrazí (jídlem ani dobytkem neplatí)', () => {
-    const s = hungry();
-    s.woodLogs = 0;
-    s.crafts = { charcoalKg: 0, potteryKg: 0, ironBarsKg: 0 };
-    s.meatKg = 500;
-    s.cheeseKg = 500;
-    expect(grainStep(s, ctxOf(s), shortOf(s))).toBe(false);
-    expect(s.trade?.expeditions ?? []).toHaveLength(0);
-  });
-
-  it('bez hotové stezky k obilnáři nic', () => {
-    const s = withBuiltFirstDwelling(
-      foundVillage({ seed: SEED, day: DAY, dwellingPosition: { x: 0, z: 0, rotation: Math.PI } }),
-    );
-    s.lastDay = DAY;
-    s.storesKg = 0;
-    s.woodLogs = 30;
-    withAdults(s, 8);
-    expect(grainStep(s, ctxOf(s), shortOf(s))).toBe(false);
-  });
-
-  it('malá ves, která neunese ani kládu (2 dospělí → 1 nosič), nic nekoupí', () => {
-    const s = hungry();
-    let kept = 0;
-    s.people = s.people.filter((p) => ageGroup(p, DAY) !== 'adult' || kept++ < 2);
-    expect(grainDeal(s, DAY, LANDSCAPE, shortOf(s))).toBeNull();
-  });
-
-  it('nejvýš jedna výprava naráz – ani vedle výpravy hráče', () => {
-    const s = hungry();
-    const ctx = ctxOf(s);
-    expect(grainStep(s, ctx, shortOf(s))).toBe(true);
-    expect(grainStep(s, ctx, shortOf(s))).toBe(false);
-    expect(s.trade!.expeditions).toHaveLength(1);
-  });
-
-  it('nepřekročí, co soused má, ani polovinu dospělých jako nosiče', () => {
-    const s = hungry();
-    const deal = grainDeal(s, DAY, LANDSCAPE, 100_000)!;
-    expect(deal).not.toBeNull();
-    const quote = tradeQuote(s, deal.offer, DAY, LANDSCAPE);
-    const adults = s.people.filter((p) => ageGroup(p, DAY) === 'adult').length;
-    expect(quote.porters).toBeLessThanOrEqual(
-      Math.max(1, Math.floor(adults * STEWARD.grainPorterShare)),
-    );
-  });
-
-  it('deterministicky: stejný stav a den dají stejnou výpravu', () => {
+  it('deterministicky: stejný stav a den dají stejný výsledek', () => {
     const a = hungry();
     const b = cloneState(a);
     needSteps(a, ctxOf(a));
     needSteps(b, ctxOf(b));
     expect(JSON.stringify(a)).toBe(JSON.stringify(b));
-  });
-});
-
-describe('obilí v nouzi – rezerva klád staveb', () => {
-  it('klády, které rozestavěné stavby ještě vezmou, správce neprodá', () => {
-    const s = hungry();
-    const free = grainDeal(s, DAY, LANDSCAPE, shortOf(s))!;
-    expect(free.offer.give.logs).toBeGreaterThan(0);
-    // rozestavěná stavba, které chybí skácet tolik stromů, kolik je na hromadě
-    const reserved = hungry();
-    const logs = reserved.woodLogs ?? 0;
-    reserved.constructions.push({
-      id: 9000,
-      kind: 'pen',
-      startedDay: DAY,
-      cost: 100,
-      done: 0,
-      dwellingType: null,
-      position: null,
-      dwellingId: null,
-      fieldId: null,
-      wood: {
-        trees: logs,
-        fromPile: 0,
-        fell: Array.from({ length: logs }, () => ({ id: null, cost: 1 })),
-        felled: 0,
-      },
-    });
-    expect(constructionLogsLeft(reserved)).toBe(logs);
-    expect(grainDeal(reserved, DAY, LANDSCAPE, shortOf(reserved))?.offer.give.logs).toBeUndefined();
   });
 });
 
@@ -263,7 +150,7 @@ describe('krok 2a v dopočtu vsi (determinismus)', () => {
     return s;
   }
 
-  it('po kouscích stejně jako vcelku – výprava za obilím', { timeout: 120_000 }, () => {
+  it('po kouscích stejně jako vcelku – bez výpravy za obilím', { timeout: 120_000 }, () => {
     const start = stewarded();
     const to = START + 60;
     const whole = advanceVillage(start, to, obstacles, landscape);
@@ -272,6 +159,6 @@ describe('krok 2a v dopočtu vsi (determinismus)', () => {
       chunked = advanceVillage(chunked, Math.min(to, chunked.lastDay + 7), obstacles, landscape);
     }
     expect(JSON.stringify(chunked)).toBe(JSON.stringify(whole));
-    expect(whole.chronicle.some((e) => e.kind === 'trade-departed')).toBe(true);
+    expect(whole.chronicle.some((e) => e.kind === 'trade-departed')).toBe(false);
   });
 });
