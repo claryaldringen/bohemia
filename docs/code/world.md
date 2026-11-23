@@ -190,6 +190,13 @@ hráč)`) a rod s `house.placed_at` null. Pozvaný je na mapě hned (`placed_at`
   webu; pořadí zámek hráče → transakce umisťování) – přesídlení sídla (Svobodný i los s pánem) se
   tak nepotká se zakládáním vsi téhož hráče; zámek drží jen los jednoho rodu, chyba rodu kolo
   nepřeruší.
+- **Lov odříznutého** (hunting.md – Lov odříznutého nováčka): ves v místní mřížce (sídlo i ves syna)
+  loví ve výpravě místní mřížky rodu – `JourneyState.localGrid`, domov na `Settlement.localCell`,
+  mapa z krajiny vsi (`JourneyCells.villageMapOf`), lovci mapu vsi neopustí (`leavesLocalMap`),
+  bez znalosti rodu a války ([journey.md](journey.md) – Lov). Během lovu ovládá výpravu jako každá ves;
+  bez lovu jsou výpravy odříznutého dál `unreachable` (`musterExpedition` – `homeOf`). Scéna a pohled: `homeCellOf` (místní políčko místo
+  políčka světa), pokračování stezek sousedů odříznuté sídlo nemá (`viewOf` – `mapCell` bez
+  `SEAT_CELL`).
 - **Panel rodu odříznutého:** adresář ho nezná, proto `WorldDirectory.isolatedEntriesOf` (sídlo
   v místní mřížce) – vlastní rod v panelu a nováček v žádosti u pána. `HousePanelData.isolated`,
   `inviteReason` (`INVITE_NEEDS_PLACEMENT`), `PanelNegotiation.newcomer`; `NewcomerRequest.lordName`.

@@ -76,6 +76,8 @@ export interface NewJourney {
    * bez lidí jen s lovem – bez skupiny (`recruits` prázdné).
    */
   hunt?: HuntStart;
+  /** Výprava v místní mřížce rodu – lov odříznutého nováčka (`JourneyState.localGrid`). */
+  localGrid?: true;
 }
 
 /**
@@ -98,6 +100,7 @@ export function newJourney(input: NewJourney, clock: WorldClock): JourneyState {
     playerId: input.playerId,
     houseId: input.houseId,
     home: structuredClone(input.home),
+    ...(input.localGrid ? { localGrid: true as const } : {}),
     members: input.recruits.map((r) => recruitMember(r, 0)),
     groups: people
       ? [

@@ -94,7 +94,7 @@ async function setup(change?: (s: VillageState) => void): Promise<World> {
     settlements,
     campaigns,
     journeys,
-    cells: { mapOf: () => Promise.resolve(MAP) },
+    cells: { mapOf: () => Promise.resolve(MAP), villageMapOf: () => Promise.resolve(MAP) },
     world: OFFICIAL_WORLD,
     seeds: { nextSeed: () => 77 },
     newId: () => `jny-${++n}`,

@@ -6,7 +6,7 @@ import {
   type ExpeditionVisitor,
   type PartyView,
 } from '@bohemia/game';
-import { sceneJourneysOf } from '../journey-view';
+import { homeCellOf, sceneHuntOf, sceneJourneysOf } from '../journey-view';
 import { selectedPartyKeys } from '../scene/journey-marker';
 import { journeyFormation, selectedRider } from '../scene/journey-riders';
 import { sceneLabor } from '../village-view-scene';
@@ -275,5 +275,56 @@ describe('muži na výjezdu nejsou v dni rodiny', () => {
     }
     expect(taken.has(id)).toBe(false);
     expect(taken.size).toBe(all.length - 1);
+  });
+});
+
+describe('ves odříznutého nováčka – lov ve výpravě místní mřížky rodu (hunting.md)', () => {
+  /** Ves syna v místní mřížce – políčko se stejnými čísly ve světě je cizí mapa. */
+  const LOCAL = { x: 1, y: 0 };
+
+  it('homeCellOf: políčko světa, v odříznuté krajině místní políčko, jinak null', () => {
+    expect(homeCellOf({ worldCell: HOME, localCell: null })).toEqual(HOME);
+    expect(homeCellOf({ worldCell: null, localCell: LOCAL })).toEqual(LOCAL);
+    expect(homeCellOf({ worldCell: null })).toBeNull();
+  });
+
+  it('scéna vsi ukáže útočníky a lov výpravy na místním políčku (rozkazy míří na místní políčko)', () => {
+    const base = view();
+    const party = base.parties[0]!;
+    const local = view({
+      localGrid: true,
+      home: LOCAL,
+      parties: [
+        {
+          ...party,
+          groups: party.groups.map((g) => ({
+            ...g,
+            cell: LOCAL,
+            goal: { cell: LOCAL, pos: { x: 40, z: 6 } },
+          })),
+        },
+      ],
+      hunt: {
+        quarry: null,
+        beaters: {
+          from: { x: 5, z: 5 },
+          door: { x: -95, z: 5 },
+          startTick: 40,
+          end: null,
+        },
+        dogs: 2,
+        strikers: [7],
+        outcome: null,
+        tick: 50,
+      } as unknown as NonNullable<ExpeditionView['hunt']>,
+    });
+    const cell = homeCellOf({ worldCell: null, localCell: LOCAL });
+    const list = sceneJourneysOf({ own: [local], visitors: [], cell, villageId: 'v1' });
+    expect(list.map((j) => j.men.length)).toEqual([2]);
+    expect(sceneHuntOf([local], 'v1')).toMatchObject({ journeyId: 'j1', dogs: 2 });
+    // dřív: odříznutá ves bez políčka světa (`homeCell` null) hloučky nekreslila
+    expect(sceneJourneysOf({ own: [local], visitors: [], cell: null, villageId: 'v1' })).toEqual(
+      [],
+    );
   });
 });

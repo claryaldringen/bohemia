@@ -150,6 +150,13 @@ describe('journey repository', () => {
     expect(await journeys.onCell({ x: 9, y: 7 })).toEqual([]);
   });
 
+  it('onCell výpravu místní mřížky rodu (lov odříznutého nováčka) nenajde – místní políčko není políčkem světa', async () => {
+    await journeys.create(state(100, { localGrid: true }), NOW);
+    expect(await journeys.onCell({ x: 4, y: 2 })).toEqual([]);
+    expect(await journeys.activeIn('a', 'v')).toBe(ID);
+    expect((await journeys.checkpoint(ID))!.state.localGrid).toBe(true);
+  });
+
   it('záměr s taktem nejvýš bodem odmítne, za bodem zapíše; seq roste', async () => {
     await journeys.create(state(100), NOW);
     expect(await journeys.addIntent(ID, { tick: 100, byPlayer: 'a', body: HOME })).toBeNull();

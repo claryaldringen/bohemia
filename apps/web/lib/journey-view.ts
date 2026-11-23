@@ -26,6 +26,33 @@ export type {
 } from '@bohemia/game';
 
 /**
+ * Políčko mapy vsi pro scénu a rozkazy výprav (`homeCell` – `orderCell`, hloučky na mapě vsi):
+ * políčko světa sídla; ves v odříznuté krajině místní políčko sídla – na něm stojí výprava místní
+ * mřížky rodu (lov odříznutého nováčka, `ExpeditionView.localGrid`); jinak null.
+ */
+export function homeCellOf(settlement: {
+  worldCell: GridCell | null;
+  localCell?: GridCell | null;
+}): GridCell | null {
+  const cell = settlement.worldCell ?? settlement.localCell ?? null;
+  return cell ? { x: cell.x, y: cell.y } : null;
+}
+
+/**
+ * Stojí některý hlouček výpravy světa na políčku `cell` nebo vedle něj (8 směrů)? Výprava místní
+ * mřížky rodu (`localGrid`) se nepočítá – její políčka nejsou políčky světa.
+ */
+export function partyNearCell(views: readonly ExpeditionView[], cell: GridCell): boolean {
+  return views.some(
+    (v) =>
+      !v.localGrid &&
+      v.parties.some((p) =>
+        p.groups.some((g) => Math.abs(g.cell.x - cell.x) <= 1 && Math.abs(g.cell.y - cell.y) <= 1),
+      ),
+  );
+}
+
+/**
  * Jak často přibývá nový stav výpravy ze serveru – kolo workeru, které ukládá jedoucí skupinu
  * (journey.md – Worker); podle toho se mezi dvěma stavy interpoluje.
  */

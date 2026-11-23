@@ -115,6 +115,25 @@ Rozhodnutí plánu, která návrh nechal na staviteli (podrobně v plánu – Ro
 Odpovědi na otázky plánu (Martin 22. 11. 2026): útočníci platí jen jeden den práce, po lovu se vrátí s honci do dvorce, a když
 v lese vsi není velká zvěř, tlačítko zašedne („Ano“).
 
+## Lov odříznutého nováčka (23. 11. 2026)
+
+Claude Martinovi 23. 11. 2026 navrhl: „Navrhuju, aby odříznutý nováček lovil jako každý jiný. Jeho lovci by jen nesměli
+odejít z mapy vsi, stejně jako dnes nikam nedojdou jeho ostatní výpravy.“ Martin odpověděl: „nováček ať loví“.
+
+- Každá ves v odříznuté krajině ([nováčci](newcomers.md) – sídlo i vsi synů v místní mřížce rodu) smí vyhlásit lov a lov
+  běží stejně jako jinde: honci, zvíře, útočníci, pravé tlačítko, odnos a výsledek schránkou vsi.
+- Lov běží na mapě vsi – na krajině odříznuté vsi, ne na mapě světa. Lovci mapu vsi neopustí: „Přes okraj“ i rozkaz na
+  jinou mapu odmítne hra jako ostatní výpravy odříznutého – „Tam nedojde.“
+- Během lovu ovládá odříznutý výpravu jako kdokoli jiný (Osedlat, „Jdi sem“ po mapě vsi, útok na zvíře); z mapy vsi nikdo
+  neodejde. Bez lovu nemá výpravu, ke které by se lidé přidali, a ostatní výpravy dál dostanou „Tam nedojde.“ (návrh
+  Clauda).
+- Lov vyhlášený, dokud výprava místní mřížky ještě běží (útočníci jdou domů), jde do ní – `declare-hunt.ts` bere `from`
+  z `journey` (návrh Clauda).
+- Rod se z lovu nic nedozví o mapách světa a válka na lov nesahá – mapa vsi v odříznuté krajině mapou světa není (návrh
+  Clauda).
+- Umístí-li rod na mapu světa uprostřed lovu, lov doběhne na mapě vsi – krajina se umístěním nemění; další lov už běží jako
+  ve světě (návrh Clauda).
+
 ## Co se ověří
 
 - Vlkov a zlatá ves bez kalendářního lovu: škody zvěře na polích, maso a kožešiny, dovednosti rodu – rozdíl proti dnešku
