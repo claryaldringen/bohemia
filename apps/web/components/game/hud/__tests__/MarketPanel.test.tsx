@@ -81,14 +81,18 @@ describe('přehled vsí', () => {
       villages: [
         village(),
         village({ villageId: 'v-2', name: 'Dolany', own: false, travelDays: 2, cells: 3 }),
+        village({ villageId: 'v-3', name: 'Brod', own: false, travelDays: 1, cells: 2 }),
+        village({ villageId: 'v-4', name: 'Dáli', own: false, travelDays: 5, cells: 6 }),
       ],
     });
     const rows = host.querySelectorAll('[data-testid="market-village"]');
-    expect(rows).toHaveLength(2);
+    expect(rows).toHaveLength(4);
     expect(rows[0]?.textContent).toContain('Lhota');
     expect(rows[0]?.textContent).toContain('Ráno tam, večer zpět');
     expect(rows[0]?.getAttribute('data-own')).toBe('true');
-    expect(rows[1]?.textContent).toContain('2 dní cesty');
+    expect(rows[1]?.textContent).toContain('2 dny cesty');
+    expect(rows[2]?.textContent).toContain('1 den cesty');
+    expect(rows[3]?.textContent).toContain('5 dní cesty');
     expect(rows[1]?.getAttribute('data-own')).toBe('false');
   });
 

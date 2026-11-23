@@ -18,7 +18,8 @@ export function priceOf(prices: MarketPrices | undefined, good: TradeGood): numb
 /**
  * Ceny po tržním dni (nový objekt): P' = P × (1 + `MARKET.priceStep` × (D − S) / (D + S)), D =
  * kolik se zboží žádalo (součet seznamů stran), S = kolik se ho nabízelo (součet nabídek) – víc
- * poptávky dráž, víc nabídky levněji, za den nejvýš o `priceStep` a nikdy na nulu. Zboží bez
+ * poptávky dráž, víc nabídky levněji, za den nejvýš o `priceStep`; cena neklesne pod výchozí
+ * (`initialPrice`, Martin 23. 11. 2026 – Spodní cena) a nahoru je bez meze (Horní cena). Zboží bez
  * nabídky i poptávky cenu nemění.
  */
 export function nextPrices(

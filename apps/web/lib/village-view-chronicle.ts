@@ -932,18 +932,23 @@ function marketDepartedText(event: Extract<ChronicleEvent, { kind: 'market-depar
  * Bez jména vsi (záznam výpravy chyběl) jen „z trhu“.
  */
 function marketReturnedText(event: Extract<ChronicleEvent, { kind: 'market-returned' }>): string {
+  const exchange = [
+    ...(hasAnyGoods(event.sold) ? [`prodala ${goodsText(event.sold)}`] : []),
+    ...(hasAnyGoods(event.bought) ? [`koupila ${goodsText(event.bought)}`] : []),
+  ];
   if (event.returned) {
+    // výprava už na trhu obchodovala, než ves zanikla – vezla zpět jen to, co jí zbylo
+    if (exchange.length > 0) {
+      const from = event.villageName ? ` ze vsi ${event.villageName}` : '';
+      return `Výprava se vrátila${from} – ${exchange.join(', ')}; ves už nestojí.`;
+    }
     return event.villageName
       ? `Výprava se vrátila ze vsi ${event.villageName} se vším, co vezla – ves už nestojí.`
       : 'Výprava se vrátila se vším, co vezla – ves už nestojí.';
   }
   const from = event.villageName ? `z trhu ve vsi ${event.villageName}` : 'z trhu';
-  const parts = [
-    ...(hasAnyGoods(event.sold) ? [`prodala ${goodsText(event.sold)}`] : []),
-    ...(hasAnyGoods(event.bought) ? [`koupila ${goodsText(event.bought)}`] : []),
-  ];
-  return parts.length > 0
-    ? `Výprava se vrátila ${from} – ${parts.join(', ')}.`
+  return exchange.length > 0
+    ? `Výprava se vrátila ${from} – ${exchange.join(', ')}.`
     : `Výprava se vrátila ${from} – nic nevyměnila.`;
 }
 

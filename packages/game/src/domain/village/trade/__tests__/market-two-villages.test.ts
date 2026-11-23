@@ -29,6 +29,10 @@ describe('výprava na trh mezi dvěma vsemi (markets.md – Co se ověří, bod 
     const held = m1.chronicle.find((e): e is Held => e.kind === 'market-held')!;
     const h1 = advanceVillage(withoutOutbox(sent.state), D + 2, null, null, asEvents(m1.outbox!));
     const back = h1.chronicle.find((e) => e.kind === 'market-returned')!;
+    // kronika hostitele: nejdřív příjezd výpravy, pak obchod (morning.push – ranní zápisy po ranách)
+    const kinds = m1.chronicle.map((e) => e.kind);
+    expect(kinds.indexOf('market-arrived')).toBeGreaterThanOrEqual(0);
+    expect(kinds.indexOf('market-arrived')).toBeLessThan(kinds.indexOf('market-held'));
     // odešlo z H (týž den, bez simulace)
     expect(h.storesKg - sent.state.storesKg).toBeCloseTo(600, 6);
     expect(result.sold.grain! + (result.unsold.grain ?? 0)).toBeCloseTo(600, 6);

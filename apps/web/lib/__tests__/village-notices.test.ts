@@ -1008,6 +1008,25 @@ describe('kování vozů (wagons.md – Kování vozů)', () => {
   });
 });
 
+describe('výprava na trh (markets.md – Pravidla 3)', () => {
+  it('návrat z trhu – krátký fakt z kroniky', () => {
+    const after = view({
+      dayIndex: 1003,
+      chronicle: [
+        {
+          day: 1002,
+          kind: 'market-returned',
+          dateLabel: '',
+          text: '',
+        },
+      ],
+    });
+    expect(newNotices(view({ dayIndex: 1000 }), after)).toEqual([
+      { kind: 'market-returned', tone: 'info', text: 'Výprava se vrátila z trhu' },
+    ]);
+  });
+});
+
 describe('nákup u sousedů (crafts.md)', () => {
   it('vesničané koupili výrobky u souseda – krátký fakt z kroniky', () => {
     const after = view({

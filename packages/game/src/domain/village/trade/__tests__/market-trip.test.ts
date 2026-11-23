@@ -248,7 +248,7 @@ describe('výprava na trh – opravné kolo (tažní voli, volní lidé, tvar ob
       ok: false,
       reason: MARKET_NO_PEOPLE,
     });
-    // druhá projde, když na ni lidé zbydou
+    // druhá s krávou se odmítne – volní lidé došli; další blok ukazuje, že s lidmi projde
     expect(departMarket(first.state, D, order({}, { cows: 1 }), target)).toMatchObject({
       ok: false,
     });

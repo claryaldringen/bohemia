@@ -160,7 +160,8 @@ export type MarketCheck =
  * Jediné místo kontrol výpravy (markets.md – Rozhodnutí plánu 2, bod 2) – volá ho planMarketTrip
  * i náhled ve webu. V pořadí: pobyt celé dny, nejméně `MARKET.minStayDays`; zboží `give` nejvýš,
  * co ves má (`stock` – chovné krávy ani koně pod jezdci se tak prodat nedají); vozy jen s voly,
- * které zbudou po prodeji (`cartsWithOxen`); nosiči nejvýš volní dospělí; tvar objednávky (konečná nezáporná čísla, kusy celé) napřed; návrat před koncem světa. Prázdné `give` i `wants`
+ * které zbudou po prodeji (`cartsWithOxen`); nosiči nejvýš volní dospělí; tvar objednávky
+ * (konečná nezáporná čísla, kusy celé) napřed; návrat před koncem světa. Prázdné `give` i `wants`
  * jsou dovolené (výprava „na pivo“). Data: výprava vyrazí ráno dne po odeslání (`departDay`),
  * na trh přijde po dnech cesty (`arriveDay`), tržní dny `arriveDay` … `arriveDay` + pobyt − 1,
  * `returnDay` je první den doma.

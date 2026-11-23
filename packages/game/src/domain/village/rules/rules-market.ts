@@ -8,7 +8,7 @@
  *   za minci. Rešerše research/2026-10-18-trade-values.md: Frankfurt 794 – žito 3 denáry za modius
  *   ≈ 37–49 kg, tedy ≈ 12–16 kg za denár; Ibráhím ibn Jákúb – za minci jídlo na měsíc.
  * - Po každém tržním dni P' = P × (1 + `priceStep` × (D − S) / (D + S)), D = kolik se zboží žádalo,
- *   S = kolik se ho nabízelo: za den nejvýš ±10 %, nikdy na nulu, jiné meze nejsou; zboží bez
+ *   S = kolik se ho nabízelo: za den nejvýš ±10 %, dno je výchozí cena (Martin 23. 11. 2026, markets.md – Martinova rozhodnutí, Spodní cena), nahoru bez meze (Horní cena); zboží bez
  *   nabídky i poptávky cenu nemění.
  */
 export const MARKET = {

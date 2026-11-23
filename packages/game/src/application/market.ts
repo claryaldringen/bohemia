@@ -122,7 +122,12 @@ async function collect(
     }
   }
   if (!homePlace.isolated) {
-    for (const id of await villagesAt(deps, ringCells(homePlace.cell, 1), steward ? input.playerId : null)) add(id, null);
+    for (const id of await villagesAt(
+      deps,
+      ringCells(homePlace.cell, 1),
+      steward ? input.playerId : null,
+    ))
+      add(id, null);
     // 3. mapy ze znalosti rodu: jen ves, jejíž stavby rod na mapě viděl (world.md – Co je veřejné)
     if (house) {
       for (const known of await deps.knowledge.knownCellsOf(house.id)) {

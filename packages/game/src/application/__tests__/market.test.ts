@@ -289,9 +289,10 @@ describe('sendMarketExpedition', () => {
     await seeFar(w);
     const version = (await w.villages.find(w.ids.h))!.version;
     for (const target of [w.ids.own, w.ids.far]) {
-      expect(
-        await sendMarketExpedition(w.deps, { ...input(w, target), actorId: 'ps' }),
-      ).toEqual({ ok: false, reason: MARKET_UNKNOWN });
+      expect(await sendMarketExpedition(w.deps, { ...input(w, target), actorId: 'ps' })).toEqual({
+        ok: false,
+        reason: MARKET_UNKNOWN,
+      });
     }
     expect((await w.villages.find(w.ids.h))!.version).toBe(version);
     // soused projde i za správce

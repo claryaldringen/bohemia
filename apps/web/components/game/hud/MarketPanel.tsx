@@ -3,6 +3,7 @@
 import { useMemo, useState, type ReactElement, type ReactNode } from 'react';
 import {
   dateOfDayIndex,
+  MARKET,
   TRADE_GOODS,
   type Craft,
   type MarketOrder,
@@ -15,7 +16,7 @@ import { formatGameDate } from '@/lib/game-date';
 import type { VillageManor } from '@/lib/manor-view';
 import { marketPreview, type MarketTripPhase } from '@/lib/market-view';
 import { TRADE_GOOD_NAMES } from '@/lib/trade-names';
-import { formatDecimal, formatInteger } from '@/lib/village-format';
+import { formatDecimal, formatInteger, plural } from '@/lib/village-format';
 import { Dialog } from './Dialog';
 import { useRightDenied } from './rights';
 import { Tooltip } from './Tooltip';
@@ -166,7 +167,9 @@ function VillageRow({
 }): ReactElement {
   const blocked = village.blocked !== null;
   const distance =
-    village.travelDays === 0 ? 'Ráno tam, večer zpět' : `${village.travelDays} dní cesty`;
+    village.travelDays === 0
+      ? 'Ráno tam, večer zpět'
+      : `${village.travelDays} ${plural(village.travelDays, 'den', 'dny', 'dní')} cesty`;
   return (
     <div
       data-testid="market-village"
@@ -443,7 +446,7 @@ export function MarketPanel({
               <Stepper
                 testId="market-stay"
                 value={stayDays}
-                min={1}
+                min={MARKET.minStayDays}
                 max={Number.MAX_SAFE_INTEGER}
                 step={1}
                 label="Dny na trhu"

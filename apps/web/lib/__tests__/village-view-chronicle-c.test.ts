@@ -388,6 +388,10 @@ describe('kronika – výprava na trh (markets.md – Pravidla 2 a 3)', () => {
     expect(returned({ unsold: { grain: 600 }, returned: true })).toBe(
       'Výprava se vrátila ze vsi Lhota se vším, co vezla – ves už nestojí.',
     );
+    // ves zanikla až po obchodu – výprava vezla zpět jen zbytek
+    expect(returned({ sold: { grain: 600 }, bought: { cows: 1 }, returned: true })).toBe(
+      'Výprava se vrátila ze vsi Lhota – prodala 600 kg obilí, koupila 1 ks krav; ves už nestojí.',
+    );
     // záznam výpravy chyběl – jméno vsi neznámé
     expect(returned({ villageName: '', sold: { grain: 600 }, bought: { cows: 1 } })).toBe(
       'Výprava se vrátila z trhu – prodala 600 kg obilí, koupila 1 ks krav.',
