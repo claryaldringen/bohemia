@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { OFFICIAL_WORLD } from '../../domain/calendar';
 import { CURRENT_LAYER_VERSIONS } from '../../domain/landscape';
-import { at, horseVillage } from '../../domain/village/__tests__/horse-fixtures';
+import { at, horse, horseVillage } from '../../domain/village/__tests__/horse-fixtures';
 import { HUNT_FIGHT, WILDLIFE_LAND } from '../../domain/village/rules/rules-wildlife';
 import type { VillageState } from '../../domain/village/types';
 import { emptyHunt, pickQuarry } from '../../domain/village/wildlife/hunt';
@@ -245,32 +245,55 @@ describe('declareHuntInVillage – vyhlášení lovu (plán 2026-11-22-hunting, 
     expect(j.hunt?.beaters.door.x).toBeLessThan(-200);
   });
 
-  it('odříznutý nováček s lovem: ostatní výpravy dál unreachable, útok na zvíře ne', async () => {
-    const w = await setup(lhota(), FOREST, { unplaced: true, local: true });
+  it('odříznutý nováček: bez lovu lidé ze vsi unreachable, během lovu jako v každé vsi, z mapy vsi nikdo neodejde', async () => {
+    const state = lhota();
+    const withHorse = horseVillage([{ ...horse(1, 6), riderId: 12 }], 1, 4);
+    state.pens = withHorse.pens;
+    const w = await setup(state, FOREST, { unplaced: true, local: true });
     const deps: ExpeditionDeps = {
       ...w.deps,
       campaigns: new InMemoryCampaigns(),
       atWar: () => Promise.resolve(true),
     };
-    const send = (command: ExpeditionCommand): ReturnType<typeof musterExpedition> =>
+    const send = (command: ExpeditionCommand, people = [20]): ReturnType<typeof musterExpedition> =>
       musterExpedition(deps, {
         playerId: 'pa',
         villageId: w.homeId,
-        people: [20],
+        people,
         command,
         now: NOW,
       });
     const go = { kind: 'order', order: { kind: 'go', pos: { x: 105, z: 5 } } } as const;
-    // bez lovu výprava nemá odkud vyjet
+    // bez lovu výprava nemá odkud vyjet ani osedlat
     expect(await send(go)).toEqual({ ok: false, reason: 'unreachable' });
+    expect(await send({ kind: 'saddle' }, [12])).toEqual({ ok: false, reason: 'unreachable' });
     expect(await declare(w)).toEqual({ ok: true, journeyId: 'jny-1' });
-    // s lovem: lidé ze vsi s rozkazem i přes okraj dál unreachable, nikdo neodešel
-    expect(await send(go)).toEqual({ ok: false, reason: 'unreachable' });
+    // Osedlat s vesničanem během lovu: jede, člověk stojí na domovském místním políčku
+    expect(await send({ kind: 'saddle' }, [12])).toEqual({ ok: true, journeyId: 'jny-1' });
+    // jezdec je ve výpravě jako rekrut na domovském místním políčku (záměr přidá worker)
+    const saddle = w.journeys.intents.at(-1)?.body as {
+      kind: string;
+      recruits: { ref: { personId: number } }[];
+    };
+    expect(saddle.kind).toBe('saddle');
+    expect(saddle.recruits.map((r) => r.ref.personId)).toEqual([12]);
+    expect((await villageOf(w)).people.find((p) => p.id === 12)?.away).toEqual({
+      kind: 'journey',
+      refId: 'jny-1',
+    });
+    // „Jdi sem“ po mapě vsi projde
+    expect(await send(go)).toEqual({ ok: true, journeyId: 'jny-1' });
+    // jinou mapu (přes okraj) zná hranice mapy vsi: unreachable, nikdo dalších neodešel
     const east = { kind: 'order', order: { kind: 'cross', cell: { x: 1, y: 0 } } } as const;
-    expect(await send(east)).toEqual({ ok: false, reason: 'unreachable' });
-    expect((await villageOf(w)).people.find((p) => p.id === 20)?.away).toBeUndefined();
+    expect(await send(east, [22])).toEqual({ ok: false, reason: 'unreachable' });
+    const other = {
+      kind: 'order',
+      order: { kind: 'go', pos: { x: 5, z: 5 }, cell: { x: 1, y: 0 } },
+    } as const;
+    expect(await send(other, [22])).toEqual({ ok: false, reason: 'unreachable' });
+    expect((await villageOf(w)).people.find((p) => p.id === 22)?.away).toBeUndefined();
     // útok na zvíře zatím v lese – důvod lovu, ne místní mřížky
-    expect(await send({ kind: 'strike' })).toEqual({ ok: false, reason: 'no-quarry' });
+    expect(await send({ kind: 'strike' }, [22])).toEqual({ ok: false, reason: 'no-quarry' });
   });
 
   it('rod bez místa na mapě světa se sídlem na políčku světa – unreachable jako výprava, nic se neuloží', async () => {

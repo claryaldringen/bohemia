@@ -287,9 +287,9 @@ async function select(
 
 /**
  * Domov výpravy: běžící výpravy, jinak nové – rod hráče (`no-village`) s místem na mapě světa
- * (`unreachable`) a dvorec vsi (`journeyHome`). Lov odříznutého nováčka (výprava místní mřížky
- * rodu – `localGrid`) bere ze vsi jen útočníky na zvíře; ostatní výpravy odříznutého dál nikam
- * nedojdou (`unreachable`; hunting.md – Lov odříznutého nováčka).
+ * (`unreachable`) a dvorec vsi (`journeyHome`). Odříznutý nováček bez běžící výpravy místní
+ * mřížky (lovu) nemá odkud vyjet (`unreachable`); během lovu je ves jako každá jiná, hranici mapy
+ * vsi drží `verifyOrder` (hunting.md – Lov odříznutého nováčka).
  */
 async function homeOf(
   deps: ExpeditionDeps,
@@ -297,9 +297,6 @@ async function homeOf(
   picked: Picked,
 ): Promise<Plan | { ok: false; reason: ExpeditionRefusal }> {
   const { own, journey } = picked.situation;
-  if (journey?.localGrid && picked.chosen.recruits.length > 0 && input.command.kind !== 'strike') {
-    return { ok: false, reason: 'unreachable' };
-  }
   if (journey) return { ...picked, home: journey.home, houseId: null };
   const house = await deps.houses.activeOf(input.playerId);
   const cell = own.settlement.worldCell;
