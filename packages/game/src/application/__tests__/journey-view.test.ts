@@ -70,7 +70,7 @@ async function setup(map: CampaignMap = MAP): Promise<{
     settlements,
     campaigns: new InMemoryCampaigns(),
     journeys,
-    cells: { mapOf: () => Promise.resolve(map) },
+    cells: { mapOf: () => Promise.resolve(map), villageMapOf: () => Promise.resolve(map) },
     world: OFFICIAL_WORLD,
     seeds: { nextSeed: () => 77 },
     newId: () => 'jny-1',

@@ -17,10 +17,21 @@ import { createCampaignCells } from '../campaign-cells';
 
 const CELLS = [0, 1, 2, 3].map((i) => ({ x: 40 + 3 * i, y: -30 }));
 
+/** Svět bez sídel. */
+const NO_SETTLEMENTS = {
+  holderAt: () => Promise.resolve(null),
+  listActive: () => Promise.resolve([]),
+  find: () => Promise.resolve(null),
+};
+
 function cells(): ReturnType<typeof createCampaignCells> {
   return createCampaignCells({
-    settlements: { holderAt: () => Promise.resolve(null), listActive: () => Promise.resolve([]) },
-    villages: { stampsOf: () => Promise.resolve([]), find: () => Promise.resolve(null) },
+    settlements: NO_SETTLEMENTS,
+    villages: {
+      stampsOf: () => Promise.resolve([]),
+      stampsOfVillages: () => Promise.resolve([]),
+      find: () => Promise.resolve(null),
+    },
     landscapes: {
       landscapeOf: () => {
         throw new Error('bez sídel');
@@ -106,9 +117,10 @@ describe('createCampaignCells – vstupy zemských stezek sousedů (plán 2026-1
   } {
     const finds: string[] = [];
     const cells = createCampaignCells({
-      settlements: { holderAt: () => Promise.resolve(null), listActive: () => Promise.resolve([]) },
+      settlements: NO_SETTLEMENTS,
       villages: {
         stampsOf: () => Promise.resolve([]),
+        stampsOfVillages: () => Promise.resolve([]),
         find: (id): Promise<VillageRecord | null> => {
           finds.push(id);
           return Promise.resolve({ id, settlementId: 's', name: 'Ves', state, version: 7 });
@@ -156,9 +168,10 @@ describe('createCampaignCells – vstupy zemských stezek sousedů (plán 2026-1
       exits: null,
     }));
     const cells = createCampaignCells({
-      settlements: { holderAt: () => Promise.resolve(null), listActive: () => Promise.resolve([]) },
+      settlements: NO_SETTLEMENTS,
       villages: {
         stampsOf: () => Promise.resolve([]),
+        stampsOfVillages: () => Promise.resolve([]),
         find: (id): Promise<VillageRecord | null> => {
           finds.push(id);
           return Promise.resolve({ id, settlementId: 's', name: 'Ves', state, version: 1 });

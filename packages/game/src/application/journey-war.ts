@@ -52,7 +52,8 @@ export interface RecallJourneysDeps {
  * za hráče odvolání domů (`recall` těch políček) s taktem jako jeho rozkaz (teď +
  * `INTENT_LEAD_TICKS`). Kde hloučky mohou být: políčka a cíle hloučků v kontrolním bodu a políčka
  * rozkazů „Přes okraj“ (a „Jdi sem“ na jinou mapu) zapsaných po bodu – worker bod ukládá jen po 40
- * taktech, hlouček tak už mohl přejet. Vrací počet zapsaných záměrů.
+ * taktech, hlouček tak už mohl přejet. Výprava místní mřížky rodu (`localGrid`) se nikdy neodvolá –
+ * válka na ni nesahá. Vrací počet zapsaných záměrů.
  */
 export async function recallJourneysAtWar(
   deps: RecallJourneysDeps,
@@ -69,6 +70,8 @@ export async function recallJourneysAtWar(
       const point = await deps.journeys.checkpoint(journeyId);
       if (!point) continue;
       const state = upgradeJourney(point.state);
+      // výprava místní mřížky rodu (lov odříznutého nováčka) – místní políčko není políčkem světa
+      if (state.localGrid) continue;
       const aims = (await deps.journeys.intentsAfter(journeyId, state.tick)).flatMap((i) => {
         const command = commandOf(i.body);
         if (i.byPlayer !== own.playerId || command.kind !== 'order') return [];

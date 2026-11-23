@@ -7,10 +7,11 @@ import {
   settlementLandscape,
   trailEntriesOf,
   trailExitsOf,
-  type CampaignCells,
   type CampaignMap,
   type GridCell,
+  type JourneyCells,
   type LandscapeSource,
+  type Settlement,
   type SettlementRepository,
   type TrailEntry,
   type TrailExit,
@@ -22,8 +23,11 @@ import { LruCache } from './landscape-cache';
 /** Kolik krajin prázdných políček držet pro tažení (krajina s vrstvou překážek ≈ 2 MB). */
 export const CAMPAIGN_CELL_CACHE_SIZE = 16;
 
-/** Mapy políček pro tažení a výjezdy s velikostí mezipaměti prázdných map podle potřeby kola. */
-export interface WorkerCampaignCells extends CampaignCells {
+/**
+ * Mapy políček pro tažení a výjezdy (i mapa vsi výpravy místní mřížky rodu – `villageMapOf`)
+ * s velikostí mezipaměti prázdných map podle potřeby kola.
+ */
+export interface WorkerCampaignCells extends JourneyCells {
   /**
    * Kolo workeru bude číst `cells` map (`cellsInNeed` – políčka z paměti tažení i výjezdů): LRU
    * prázdných map pojme všechny a k tomu `CAMPAIGN_CELL_CACHE_SIZE` nových (nejméně tolik), takže
@@ -48,11 +52,19 @@ const NEIGHBOURS = 8;
  * 8 sousedních políčkách (`trailExits` – jeden dotaz), LRU drží dál jen krajinu a překážky. Ves,
  * jejíž souhrn výstupy nenese (uložený dřív), se načte celá (`find` + `trailExitsOf`) jednou na
  * verzi – výstupy v paměti podle `id@verze`. Bez zdroje výstupů žádné vstupy.
+ *
+ * Mapa vsi v místní mřížce rodu (`villageMapOf` – lov odříznutého nováčka, hunting.md): sídlo se
+ * hledá podle vsi (otisk vsi → sídlo), nikdy podle políčka – místní políčko se stejnými čísly jako
+ * políčko světa by dalo cizí mapu. Krajina z uloženého seedu sídla (sdílená mezipaměť krajin), vsi
+ * sídla, bez vstupů stezek (místní mřížka sousedy ve světě nemá).
  */
 export function createCampaignCells(deps: {
-  settlements: Pick<SettlementRepository, 'holderAt' | 'listActive'>;
-  /** Otisky – id vsí sídla bez načtení jejich stavu; celá ves jen pro výstupy bez souhrnu. */
-  villages: Pick<VillageRepository, 'stampsOf' | 'find'>;
+  settlements: Pick<SettlementRepository, 'holderAt' | 'listActive' | 'find'>;
+  /**
+   * Otisky – id vsí sídla bez načtení jejich stavu (`stampsOf`), sídlo vsi (`stampsOfVillages`);
+   * celá ves jen pro výstupy bez souhrnu.
+   */
+  villages: Pick<VillageRepository, 'stampsOf' | 'stampsOfVillages' | 'find'>;
   landscapes: LandscapeSource;
   worldSeed: number;
   capacity?: number;
@@ -84,6 +96,18 @@ export function createCampaignCells(deps: {
     return trailEntriesOf(cell, neighbours);
   }
 
+  /** Mapa sídla – krajina z uloženého seedu a vsi sídla, bez vstupů stezek. */
+  async function settlementMap(settlement: Settlement): Promise<CampaignMap> {
+    const landscape = settlementLandscape(settlement, deps.landscapes);
+    const villages = await deps.villages.stampsOf([settlement.id]);
+    return {
+      landscape,
+      obstacles: obstaclesOf(landscape),
+      villageIds: villages.map((v) => v.id),
+      trailEntries: [],
+    };
+  }
+
   /** Mapa políčka bez vstupů stezek (prázdné políčko z LRU). */
   async function landOf(cell: GridCell): Promise<CampaignMap> {
     const same = (c: { x: number; y: number }): boolean => c.x === cell.x && c.y === cell.y;
@@ -94,16 +118,7 @@ export function createCampaignCells(deps: {
       const settlement = (await deps.settlements.listActive(holder)).find((s) =>
         same(s.worldCell ?? SEAT_CELL),
       );
-      if (settlement) {
-        const landscape = settlementLandscape(settlement, deps.landscapes);
-        const villages = await deps.villages.stampsOf([settlement.id]);
-        return {
-          landscape,
-          obstacles: obstaclesOf(landscape),
-          villageIds: villages.map((v) => v.id),
-          trailEntries: [],
-        };
-      }
+      if (settlement) return settlementMap(settlement);
     }
     const key = `${cell.x},${cell.y}`;
     const cached = empty.get(key);
@@ -131,6 +146,15 @@ export function createCampaignCells(deps: {
       const map = await landOf(cell);
       if (!deps.trailExits) return map;
       return { ...map, trailEntries: await entriesOf(deps.trailExits, cell) };
+    },
+    async villageMapOf(villageId) {
+      const [stamp] = await deps.villages.stampsOfVillages([villageId]);
+      if (!stamp) throw new Error(`Ves ${villageId} neexistuje – mapu vsi nelze načíst.`);
+      const settlement = await deps.settlements.find(stamp.settlementId);
+      if (!settlement) {
+        throw new Error(`Sídlo vsi ${villageId} není aktivní – mapu vsi nelze načíst.`);
+      }
+      return settlementMap(settlement);
     },
   };
 }

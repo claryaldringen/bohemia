@@ -4,7 +4,9 @@ import type {
   CampaignMap,
   CampaignOutbox,
   CampaignState,
+  CampaignVillage,
   IntentBody,
+  JourneyState,
 } from '../domain/war';
 import {
   campaignFinished,
@@ -13,7 +15,7 @@ import {
   tickOfMs,
 } from '../domain/war';
 import type { WorldClock } from '../domain/calendar';
-import type { GridCell } from '../domain/village/people/world-grid';
+import { sameCell, type GridCell } from '../domain/village/people/world-grid';
 import type { HouseRepository } from './houses';
 import type { SettlementRepository } from './settlements';
 import type { VillageRepository } from './villages';
@@ -108,6 +110,41 @@ export interface CampaignLock {
 /** Mapy políček světa pro tažení – krajina (se vsí z uloženého seedu) a vsi na ní. */
 export interface CampaignCells {
   mapOf(cell: GridCell): Promise<CampaignMap>;
+}
+
+/**
+ * Mapy výprav (výjezd, výprava, lov): políčka světa (`mapOf`) a k tomu mapa vsi v místní mřížce
+ * rodu – lov odříznutého nováčka (hunting.md – Lov odříznutého nováčka; `JourneyState.localGrid`).
+ */
+export interface JourneyCells extends CampaignCells {
+  /**
+   * Mapa sídla, na kterém ves `villageId` stojí: krajina z jeho uloženého seedu a jeho vsi, bez
+   * vstupů zemských stezek (místní mřížka sousedy na mapě světa nemá). Hledá se podle vsi, ne podle
+   * políčka – místní políčko není políčkem světa (stejná čísla by daly cizí mapu) a sídlo, které
+   * mezitím umístili na mapu světa, má krajinu stejnou. Neznámá ves nebo sídlo – chyba.
+   */
+  villageMapOf(villageId: string): Promise<CampaignMap>;
+}
+
+/**
+ * Mapy pro výpravu `journey`: ve světě `cells` beze změny; výprava místní mřížky rodu (`localGrid`)
+ * má jen domovskou mapu – krajinu domovské vsi (`villageMapOf`), nikdy políčko světa se stejnými
+ * čísly. Jiné políčko nemá – lidé mapu vsi neopustí (`leavesLocalMap`), dotaz na ně je chyba.
+ */
+export function journeyCells(
+  cells: JourneyCells,
+  journey: Pick<JourneyState, 'localGrid'> & { home: Pick<CampaignVillage, 'villageId' | 'cell'> },
+): CampaignCells {
+  if (journey.localGrid !== true) return cells;
+  const home = journey.home;
+  return {
+    mapOf: (cell) =>
+      sameCell(cell, home.cell)
+        ? cells.villageMapOf(home.villageId)
+        : Promise.reject(
+            new Error(`Výprava místní mřížky nemá mapu políčka (${cell.x}, ${cell.y}).`),
+          ),
+  };
 }
 
 /** Ves s políčkem světa, na kterém stojí. */

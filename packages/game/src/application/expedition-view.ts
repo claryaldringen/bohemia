@@ -78,6 +78,11 @@ export interface ExpeditionView {
   tick: number;
   day: number;
   home: GridCell;
+  /**
+   * Výprava v místní mřížce rodu – lov odříznutého nováčka (`JourneyState.localGrid`): `home`
+   * a políčka hloučků jsou místní políčka, ne políčka světa (web podle nich cizí mapy nedává).
+   */
+  localGrid?: true;
   /** Dvorec domovské vsi – odkud výprava vyjela a kam se vrací. */
   homePos: Pos;
   parties: PartyView[];
@@ -181,6 +186,7 @@ export async function expeditionViewsFor(
       tick: state.tick,
       day: state.day,
       home: { ...state.home.cell },
+      ...(state.localGrid ? { localGrid: true as const } : {}),
       homePos: { ...state.home.pos },
       parties: state.parties.map((party) => partyView(deps, state, party)),
       seen: await seenOnMaps(deps, state),

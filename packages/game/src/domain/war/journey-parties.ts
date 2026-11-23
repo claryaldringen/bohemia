@@ -179,7 +179,10 @@ function orderPeople(
   const at = leader.group < 0 ? s.home : s.groups.find((g) => g.id === leader.group)!;
   const from: CampaignPlace = { cell: { ...at.cell }, pos: { ...at.pos } };
   const order = command.order;
-  if (order.kind === 'cross' && directionBetween(from.cell, order.cell) === null) {
+  if (
+    (order.kind === 'cross' && directionBetween(from.cell, order.cell) === null) ||
+    leavesLocalMap(s, order)
+  ) {
     standAtHome(s, fresh, out);
     return;
   }
@@ -607,6 +610,7 @@ export function orderParty(
   order: JourneyOrder,
   from: CampaignPlace,
 ): void {
+  if (leavesLocalMap(s, order)) return;
   const groups = s.groups.filter((g) => g.party === party.id);
   switch (order.kind) {
     case 'go': {
@@ -632,6 +636,20 @@ export function orderParty(
       break;
   }
   party.arrivedTick = null;
+}
+
+/**
+ * Vede rozkaz z mapy vsi výpravy v místní mřížce rodu (`localGrid` – lov odříznutého nováčka;
+ * hunting.md – Lov odříznutého nováčka)? „Přes okraj“ vždy, „Jdi sem“ na jiné políčko než domovské;
+ * takový rozkaz se zahodí jako „Přes okraj“ na nesousední políčko. Výprava ve světě – nikdy.
+ */
+export function leavesLocalMap(
+  s: Pick<JourneyState, 'localGrid' | 'home'>,
+  order: JourneyOrder,
+): boolean {
+  if (s.localGrid !== true) return false;
+  if (order.kind === 'cross') return true;
+  return order.kind === 'go' && order.cell !== undefined && !sameCell(order.cell, s.home.cell);
 }
 
 /**

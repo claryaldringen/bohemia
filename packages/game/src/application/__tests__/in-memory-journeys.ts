@@ -80,6 +80,8 @@ export class InMemoryJourneys implements JourneyRepository {
         .filter(([, r]) => {
           if (r.status !== 'active') return false;
           const s = JSON.parse(r.state) as JourneyState;
+          // výprava místní mřížky rodu nestojí na políčku světa (jako adaptér)
+          if (s.localGrid) return false;
           return s.groups.some((g) => g.cell.x === cell.x && g.cell.y === cell.y);
         })
         .map(([id]) => id),

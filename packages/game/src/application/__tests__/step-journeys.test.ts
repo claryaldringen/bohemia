@@ -18,7 +18,7 @@ import {
   type NewJourney,
 } from '../../domain/war';
 import { LAUNCH, MEADOW, SUMMER, world } from '../../domain/war/__tests__/campaign-fixtures';
-import type { CampaignCells } from '../campaigns';
+import type { JourneyCells } from '../campaigns';
 import { houseAtWarOn, recallJourneysAtWar, type RecallJourneysDeps } from '../journey-war';
 import { newCampaignMemory, stepCampaigns } from '../step-campaigns';
 import { playerSeesChange, stepJourneys, type StepJourneysDeps } from '../step-journeys';
@@ -173,7 +173,10 @@ async function setup(): Promise<Setup> {
     layerVersions: CURRENT_LAYER_VERSIONS,
     worldCell: EAST,
   });
-  const cells: CampaignCells = { mapOf: () => Promise.resolve(MEADOW) };
+  const cells: JourneyCells = {
+    mapOf: () => Promise.resolve(MEADOW),
+    villageMapOf: () => Promise.reject(new Error('jen výprava místní mřížky')),
+  };
   const deps: StepJourneysDeps = {
     journeys,
     campaignLock: lock,
@@ -702,8 +705,9 @@ describe('stepJourneys', () => {
       state: village([], [], { lastDay: SUMMER - 1, ...mark }),
       version: 1,
     });
-    const cells: CampaignCells = {
+    const cells: JourneyCells = {
       mapOf: () => Promise.resolve({ ...MEADOW, villageIds: ['spici', 'lhota'] }),
+      villageMapOf: () => Promise.reject(new Error('jen výprava místní mřížky')),
     };
     await journeys.create(journey());
     const outcomes = await rounds({ ...deps, cells }, LAUNCH + 1, LAUNCH + 801);
@@ -721,8 +725,9 @@ describe('stepJourneys', () => {
       state: village([], [], { lastDay: SUMMER - 1 }),
       version: 1,
     });
-    const cells: CampaignCells = {
+    const cells: JourneyCells = {
       mapOf: () => Promise.resolve({ ...MEADOW, villageIds: ['zivy', 'lhota'] }),
+      villageMapOf: () => Promise.reject(new Error('jen výprava místní mřížky')),
     };
     await journeys.create(journey());
     const outcomes = await rounds({ ...deps, cells }, LAUNCH + 1, LAUNCH + 801);
@@ -739,6 +744,44 @@ describe('stepJourneys', () => {
     const outcomes = await rounds(deps, LAUNCH + 1, LAUNCH + 401);
     expect(outcomes.at(-1)).toBe('waiting');
     expect((await stored(journeys)).phase).toBe('out');
+  });
+
+  it('výprava místní mřížky (lov odříznutého nováčka): mapa jen místní cestou, přes okraj nepřejde, znalost ani válka', async () => {
+    const s = await setup();
+    await startWar(s);
+    const villageMaps: string[] = [];
+    let worldMaps = 0;
+    let wars = 0;
+    s.deps.cells = {
+      // políčko světa se stejnými čísly je cizí mapa (rod `pb` na EAST, sídlo `pa` na (0, 0))
+      mapOf: () => {
+        worldMaps++;
+        return Promise.reject(new Error('políčko světa'));
+      },
+      villageMapOf: (villageId) => {
+        villageMaps.push(villageId);
+        return Promise.resolve(MEADOW);
+      },
+    };
+    s.deps.atWar = () => {
+      wars++;
+      return Promise.resolve(true);
+    };
+    await s.journeys.create(journey({ localGrid: true }));
+    await s.journeys.addIntent('j1', {
+      ...SECOND_EAST,
+      body: { ...SECOND_EAST.body, people: [1, 2] },
+    });
+    const outcomes = await rounds(s.deps, LAUNCH, LAUNCH + 400);
+    expect(outcomes).not.toContain('failed');
+    const state = await stored(s.journeys);
+    expect(state.localGrid).toBe(true);
+    expect(state.groups.length).toBeGreaterThan(0);
+    for (const g of state.groups) expect(g.cell).toEqual(HOME.cell);
+    expect(worldMaps).toBe(0);
+    expect(new Set(villageMaps)).toEqual(new Set(['lhota']));
+    expect(wars).toBe(0);
+    expect(s.knowledge.merges).toBe(0);
   });
 });
 
@@ -827,6 +870,15 @@ describe('recallJourneysAtWar', () => {
     await s.journeys.create(journey());
     await s.journeys.create(
       journey({ id: 'j2', playerId: 'pc', order: { kind: 'cross', cell: north } }),
+    );
+    await recallAt(s, LAUNCH + 10);
+    expect(s.journeys.intents).toEqual([]);
+  });
+
+  it('výprava místní mřížky na místním políčku se stejnými čísly jako mapa protivníka – válka na ni nesahá', async () => {
+    const s = await setup();
+    await s.journeys.create(
+      journey({ localGrid: true, home: { ...HOME, cell: { ...EAST } }, order: undefined }),
     );
     await recallAt(s, LAUNCH + 10);
     expect(s.journeys.intents).toEqual([]);

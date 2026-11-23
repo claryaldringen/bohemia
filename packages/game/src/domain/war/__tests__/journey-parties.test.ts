@@ -508,3 +508,63 @@ describe('determinismus', () => {
     expect(parts.notices).toEqual(whole.notices);
   });
 });
+
+describe('výprava místní mřížky rodu – lovci mapu vsi neopustí (lov odříznutého nováčka)', () => {
+  /** Výprava ve vsi odříznutého nováčka – domov v místní mřížce rodu (`localGrid`). */
+  function local(recruits: JourneyRecruit[], order?: JourneyOrder): JourneyState {
+    return newJourney(
+      {
+        id: 'j1',
+        seed: 42,
+        playerId: 'p1',
+        houseId: 'h1',
+        home: HOME,
+        recruits,
+        startMs: msOfTick(LAUNCH, clock),
+        localGrid: true,
+        ...(order ? { order } : {}),
+      },
+      clock,
+    );
+  }
+  const onHome = (s: JourneyState): boolean =>
+    s.groups.every(
+      (g) =>
+        g.cell.x === HOME.cell.x &&
+        g.cell.y === HOME.cell.y &&
+        (g.goal === null || (g.goal.cell.x === HOME.cell.x && g.goal.cell.y === HOME.cell.y)),
+    );
+
+  it('příznak drží nová výprava i převod staršího bodu, běžná výprava ho nemá', () => {
+    expect(local([person(1)]).localGrid).toBe(true);
+    expect(start([person(1)]).localGrid).toBeUndefined();
+  });
+
+  it('„Přes okraj“ ani „Jdi sem“ na jinou mapu se zahodí – lidé zůstanou na mapě vsi', () => {
+    const intents = [
+      order(LAUNCH + 2, 0, { kind: 'cross', cell: EAST }),
+      order(LAUNCH + 40, 1, { kind: 'go', pos: A, cell: EAST }),
+    ];
+    const s = stepJourney(local([person(1), person(2)]), LAUNCH + 400, intents, worldOf());
+    expect(onHome(s.state)).toBe(true);
+    expect(s.knowledge).toBeUndefined();
+    // táž výprava ve světě míří na sousední mapu
+    const world = stepJourney(start([person(1), person(2)]), LAUNCH + 400, intents, worldOf());
+    expect(world.state.groups.some((g) => g.goal?.cell.x === EAST.x)).toBe(true);
+  });
+
+  it('nový člověk ze vsi s rozkazem za okraj stojí doma v nové skupině bez rozkazu', () => {
+    const intents = [order(LAUNCH + 2, 0, { kind: 'cross', cell: EAST }, [], [person(3)])];
+    const s = stepJourney(local([person(1)], go(A)), LAUNCH + 4, intents, worldOf()).state;
+    expect(onHome(s)).toBe(true);
+    expect(groupOf(s, 3).goal).toBeNull();
+    expect(groupOf(s, 3).party).not.toBe(groupOf(s, 1).party);
+  });
+
+  it('„Jdi sem“ na mapě vsi (bez políčka i s domovským) jde jako jinde', () => {
+    const intents = [order(LAUNCH + 2, 0, { kind: 'go', pos: C, cell: HOME.cell })];
+    const s = stepJourney(local([person(1)], go(A)), LAUNCH + 600, intents, worldOf()).state;
+    expect(groupOf(s, 1).pos).toEqual(C);
+    expect(onHome(s)).toBe(true);
+  });
+});
