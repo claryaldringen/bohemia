@@ -4,7 +4,8 @@ import { cloneState } from '../clone';
 import { applyInboxDay, type VillageEvent } from '../inbox';
 import { advanceVillage, advanceVillageSteps } from '../simulate';
 import { WILDLIFE_LAND } from '../../rules/rules-wildlife';
-import type { ChronicleEvent, HuntResult, VillageState } from '../../types';
+import type { ChronicleEvent, HuntResult, Person, VillageState } from '../../types';
+import { awayFromWork } from '../../people/people';
 import { applyHuntResult } from '../../wildlife/hunt';
 import { freshWildlife } from '../../wildlife/wildlife';
 import { at, horse, horseVillage, LORD_ID, SON_ID } from '../../__tests__/horse-fixtures';
@@ -203,5 +204,38 @@ describe('schránka vsi – hunt-result (hunting.md – Pravidla 7; plán 2026-1
     const hunt = chronicle.find((e) => e.kind === 'hunt');
     if (hunt?.kind === 'hunt') hunt.names.push('Další');
     expect(result.names).toEqual(['Lutobor']);
+  });
+});
+
+describe('schránka vsi – hunt-leave (plán 2026-11-22-hunting – Rozhodnutí 3, Úloha 7)', () => {
+  it('útočníkům téhož lovu a výpravy smaže away.huntId – práce je zase počítá jako pryč', () => {
+    const day = at(602, 7, 10);
+    const s = horseVillage([], 2, 4);
+    s.lastDay = day - 1;
+    const [a, b, c, d] = s.people.slice(0, 4).map((p) => p.id) as [number, number, number, number];
+    const person = (id: number): Person => s.people.find((p) => p.id === id)!;
+    person(a).away = { kind: 'journey', refId: 'j1', huntId: 1 };
+    person(b).away = { kind: 'journey', refId: 'j1', huntId: 2 };
+    person(c).away = { kind: 'journey', refId: 'j2', huntId: 1 };
+    person(d).away = { kind: 'journey', refId: 'j1', huntId: 1 };
+    const event: VillageEvent = {
+      id: 'e1',
+      villageId: 'v1',
+      day,
+      seq: 1,
+      body: { kind: 'hunt-leave', journeyId: 'j1', huntId: 1, personIds: [a, b, c] },
+    };
+    expect(applyInboxDay(s, day, [event])).toEqual([]);
+    expect(person(a).away).toEqual({ kind: 'journey', refId: 'j1' });
+    expect(awayFromWork(person(a), day)).toBe(true);
+    // jiný lov, jiná výprava a kdo v události není – beze změny
+    expect(person(b).away?.huntId).toBe(2);
+    expect(person(c).away?.huntId).toBe(1);
+    expect(person(d).away?.huntId).toBe(1);
+    expect(awayFromWork(person(d), day)).toBe(false);
+    // podruhé nic
+    const again = structuredClone(s);
+    applyInboxDay(again, day, [event]);
+    expect(again).toEqual(s);
   });
 });

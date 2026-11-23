@@ -5,11 +5,12 @@ import { currentLord, isLineMan } from '../village/people/dynasty';
 import { villageHappiness } from '../village/people/happiness';
 import { villageManor } from '../village/people/manor';
 import { ageYears, isAway, isInjured } from '../village/people/people';
+import { HUNT } from '../village/rules/rules-wildlife';
 import type { Horse, Person, VillageState } from '../village/types';
 import type { JourneyRecruit } from './journey-types';
 import type { Pos } from './march-grid';
 import { JOURNEY, WAR } from './rules-war';
-import { lineManStrength, villagerStrength } from './strength';
+import { bowSkillOf, lineManStrength, villagerStrength } from './strength';
 
 // Lidé ze vsi na výpravu (expeditions.md – Kdo smí jít; plán 2026-11-14 – Rozhodnutí 8, Úloha 5):
 // kdo smí jít a s čím jde – síla do meče, boj proti šelmám, jezdecký kůň. Use-case výpravy
@@ -41,11 +42,30 @@ export function expeditionRecruit(
 }
 
 /**
+ * Člověk `person` vsi `state` ve dni `day` jako útočník na vyhnané zvíře (hunting.md – Pravidla 4;
+ * plán 2026-11-22-hunting – Úloha 7: muži od `HUNT.minAge` let, ženy a děti ne), nebo důvod, proč
+ * nejde: žena (`woman`), mladší 14 let (`young`), jinak jako na výpravu (`expeditionRecruit` –
+ * raněný, na tažení, pryč).
+ */
+export function huntRecruit(
+  state: VillageState,
+  person: Person,
+  day: number,
+  villageId = '',
+): JourneyRecruit | ExpeditionPersonRefusal | 'woman' {
+  if (person.sex === 'female') return 'woman';
+  if (ageYears(person.bornDay, day) < HUNT.minAge) return 'young';
+  return expeditionRecruit(state, person, day, villageId);
+}
+
+/**
  * Data člověka na výpravu bez ověření, smí-li jít (`expeditionRecruit`): vojvoda (`currentLord`), boj `arms.combat` (proti šelmám – kdo bránit
  * neumí, má vyšší riziko), jméno, žena, den narození a síla do meče (Rozhodnutí 8; war.md – Síla:
  * bojují muži od 16 let): muž rodu `lineManStrength` pěšky, na svém jezdeckém koni
  * `strengthMounted`; vesničan `villagerStrength` podle štěstí vsi (jako nábor); ženy a mladší 0.
- * Jezdec (`horseId`) – kdo má v ohradě jezdeckého koně se svým `riderId` (`ridingHorseOf`).
+ * Jezdec (`horseId`) – kdo má v ohradě jezdeckého koně se svým `riderId` (`ridingHorseOf`). Pro lov
+ * (plán 2026-11-22-hunting – Úloha 7) jako obránce (`defenderRoster`): muž rodu (`isLineMan`, bez
+ * meze věku) `line` a luk (`bowSkillOf`), jízda z `arms`, kdo cvičil.
  */
 export function recruitOf(
   state: VillageState,
@@ -71,6 +91,8 @@ export function recruitOf(
     bornDay: person.bornDay,
     ...(horse ? { horseId: horse.id } : {}),
     ...(horse && line ? { strengthMounted: lineManStrength(person, horse) } : {}),
+    ...(person.arms ? { riding: person.arms.riding } : {}),
+    ...(isLineMan(person) ? { line: true as const, bow: bowSkillOf(person) } : {}),
   };
 }
 

@@ -148,8 +148,11 @@ Návrh: [hunting.md](../design/hunting.md) – Pravidla 2, 3, 5–7, 11; stavba 
   dlouho, ale práce těch lidí se odečte pouze za 1 den“): muž výpravy s `away.huntId` (`PersonAway`
   – útočník lovu `huntId` výpravy `refId`) je dál pryč (`isAway` – scéna, jídlo, výcvik), ale práce
   vsi ho počítá jako doma – `awayFromWork` v `laborPerDay` a `planVillagers`. Jeden den práce
-  zaplatí jako honec: `reserveBeaters(state, lastDay, počet útočníků)`. Značku dává a bere výprava
-  (Úlohy 6–7 plánu).
+  zaplatí jako honec: `reserveBeaters(state, lastDay, počet útočníků)`. Značku dává use-case útoku
+  novým lidem ze vsi (Úloha 9 – `sendAway` s `huntId`); kdo byl ve výpravě už předtím, je pryč jako
+  dosud. Bere ji návrat domů (`away-ends`), nebo `hunt-leave` – útočník dostal rozkaz ven a je zase
+  běžná výprava (`endHuntAway`: smaže `away.huntId` jen lidem s týmž `refId` i `huntId`,
+  idempotentní; výprava – journey.md, Lov).
 - **Los zvířete:** `pickQuarry(w, seed, day, n)` – váhy `quarryWeights` (jelen = `deer.stags`,
   laň = `deer.hinds`, kanec i bachyně = `boar.adults ÷ 2` – stav je nerozlišuje, vlk = `wolves`,
   medvěd = 1, žije-li v kraji; stav pod 1 kus váhu nemá, mláďata nikdy) v pevném pořadí
@@ -167,7 +170,8 @@ Návrh: [hunting.md](../design/hunting.md) – Pravidla 2, 3, 5–7, 11; stavba 
   Chybějící osoba či kůň se přeskočí. `prey` (kronika `death` a `hunt-injury`) je `QuarryKind` –
   i jelen a laň, když lovce zasáhl šíp druhého lovce; web má texty `PREY_GENITIVE`.
 - **Schránka:** událost `hunt-result` (`journeyId`, `huntId`, `result`) – výprava ji vydá jednou při
-  zabití nebo útěku zvířete; `applyInboxDay` volá `applyHuntResult` s kopií těla.
+  zabití nebo útěku zvířete; `applyInboxDay` volá `applyHuntResult` s kopií těla. Událost
+  `hunt-leave` (`journeyId`, `huntId`, `personIds`) → `endHuntAway`.
 - **Use-case** `declareHuntInVillage` (`updateLivingVillage`: ves se dopočítá do dneška,
   `huntDenied(state, lastDay + 1, false)` – důvod odepření jde jako `reason` a nic se neuloží; jinak
   `reserveBeaters`, `countDeclaredHunt` a uložit). Server action `declareHunt({ villageId })`

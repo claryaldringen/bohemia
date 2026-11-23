@@ -954,7 +954,10 @@ Lov vsi je součást výpravy domovské vsi (`docs/design/hunting.md`; plán –
 
 - **Stav** – `JourneyHunt`: `id` z `nextId` výpravy (řada skupin a hloučků), `day` vyhlášení,
   `dogs` (psi dvorce – jen scéna), `out` (kam zvíře vyběhne), `beaters` (`HuntBeaters`), `fight`
-  (`HuntFight`), `reported` (výsledek už vydán). Starší body lov nemají.
+  (`HuntFight`), `reported` (výsledek už vydán), `strikers` (`HuntStriker` – jméno a jezdecký kůň
+  útočníka z `joinHunt`, každý jednou). Skupina, která útočí, má `JourneyParty.hunting`; člověk
+  výpravy nese pro souboj `bow`, `riding` a `line` (boj je `fight`) a `huntId` – ves ho počítá jako
+  útočníka (níž). Starší body nic z toho nemají.
 - **Vyhlášení** – bez běžící výpravy `newJourney` s `hunt` a bez lidí: výprava nemá skupinu ani
   hlouček (`nextId` 1, lov dostane id 1); jinak příkaz `{ kind: 'hunt', start }` (`applyCommand` →
   `startHunt(s, start, s.tick)` – honci vyjdou v taktu příkazu; běží-li lov, příkaz se zahodí).
@@ -970,18 +973,58 @@ Lov vsi je součást výpravy domovské vsi (`docs/design/hunting.md`; plán –
   směrem dvorec → dveře po 1,5 m (honci 0 a 1 po obou stranách osy – zvíře na tyči visí na ní; tam
   i zpět jde každý po své stopě), `carrying`; před vyhlášením, po vlastním návratu a po `homeTick`
   null. Honci jsou kulisa bez vlivu na souboj – jejich práci platí ves (`reserveBeaters`).
+- **Útok** (`strike`, Úloha 7; hunting.md – Pravidla 4) – příkaz `strike` s `people` a `recruits`
+  (`applyCommand` → `strike`): bez zvířete venku (`quarryOut` – ne `hidden`, `dead`, `escape`,
+  `gone`) se zahodí – noví lidé ze vsi (use-case je už poslal pryč) jdou hned domů (`goHome` – nová
+  skupina doma a `turnHome`, `away-ends` s nimi). Z výběru vypadnou a zůstanou, kde jsou, ti, kdo
+  nejdou (`strikeRefusal`): žena `woman`, mladší `HUNT.minAge` (14) let z `bornDay` `young` (chybí –
+  smí), raněný `wounded` (plán – Rozhodnutí 2, Review Focus 1), mimo domovskou mapu (souboj běží na
+  ní) nebo jezdec, kterému se sedlá či sesedá (`horseWork`), `away` – poslední dva návrh Clauda.
+  Ostatní tvoří skupinu jako rozkaz (`gatherParty` – společné s `orderPeople`: celá jedna skupina si
+  nechá id, jinak nová; zbytek stojí, `stopRest`), skupina zastaví (`stopRest`), loví (`hunting` –
+  lhůta `waitDays` neběží), každý živý stojí ve vlastním hloučku na místě toho svého (`standApart` –
+  padlí zůstanou s prvním) a `joinHunt` je přidá do souboje (`addHunters`): jezdec = `mounted`
+  a `horse: 'ridden'` se `strengthMounted ?? strength`, pěšky `strength`, dovednosti luk
+  (`bow ?? 0`), boj (`fight`) a jízda (`riding ?? 0`), `lineMan` = `line`, zdraví `health`. Takt
+  povelu je už taktem souboje – útočníci udělají první krok (jako rozkaz). Lidé ze vsi:
+  `huntRecruit` (`expedition-people.ts`) – žena `woman`, mladší 14 let `young`, jinak
+  `expeditionRecruit`; `recruitOf` dává muži rodu (`isLineMan`, jako `defenderRoster`) `line` a luk
+  (`bowSkillOf`), jízdu z `arms`.
+- **Útočník a práce vsi** (plán – Rozhodnutí 3; Martin 22. 11. 2026: „práce těch lidí se odečte
+  pouze za 1 den“): nový člověk ze vsi, který přišel povelem, dostane `huntId` = id lovu – use-case
+  (Úloha 9) ho ve vsi pošle pryč s `away.huntId` téhož lovu a `reserveBeaters(state, lastDay, n)`;
+  kdo byl ve výpravě už předtím, je pryč jako dosud (bez značky). Rozkaz ven („Jdi sem“, „Přes
+  okraj“ – ne „Domů“) člověku se značkou z něj dělá běžnou výpravu (`releaseStrikers`): ves dostane
+  `hunt-leave` (`journeyId`, `huntId`, `personIds`) na den po rozkazu a značka zmizí (village-wildlife.md
+  – `endHuntAway`). Domů jde se značkou – návrat ji vezme (`away-ends`).
+- **Opuštění lovu** – `leaveHunt(s, party)`: v běžícím souboji lidé skupiny dál nejednají
+  (`dropHunters` – výcvik a rány jim zůstanou pro výsledek), `hunting` zmizí; dál platí nový rozkaz.
+  Rozkaz (`orderPeople` → `quitHunt`): celá lovící skupina → `leaveHunt`, část → `dropHunters` jen
+  vybraným a zbytek loví dál. `turnHome` (odvolání `recall`, skupina bez vojvody v `afterLosses`,
+  konec lovu) lov opustí sám. Osedlat a Sesednout útočníka v souboji nezmění (`offHunt` – kůň
+  bojovníka je stav souboje; návrh Clauda) – po jiném rozkazu jde obojí. Bojovník, jehož člověk
+  v lovící skupině není (zemřel doma), v souboji dál nejedná (`dropStrays` před taktem souboje).
 - **Takt** – `journeyTick` volá `huntTick` (přes `huntStep`) za příkazy a čekáním, před pohybem
   hloučků: honci u dveří (`arriveTick`) → skryté zvíře vyběhne (`releaseQuarry`); souboj taktu
   `huntFightTick` na mřížce pochodu domovské mapy pro den taktu (`gridOf` jako pohyb hloučků;
   skryté zvíře ji nepotřebuje), náhoda `tickRandom(seed, takt, 'hunt:<id>')`; souboj se počítá jen
   za takty po svém vzniku (`HuntFight.tick`). Konec souboje (zabití, nebo útěk po `idleS` bez
   činnosti) → `endBeaters` (s úlovkem přes místo, kde zvíře padlo) a jednou `hunt-result`
-  (`fightResult`; jména a koně jezdců z `members`) do domovské vsi na den taktu, `ref`
-  `journey:<id>:hunt:<id lovu>` – opakovaný krok vydá týž `ref` a druhé doručení zahodí schránka.
-  V taktu `homeTick` lov ze stavu zmizí.
+  (`fightResult`; jména a koně jezdců ze `strikers`, jinak z `members`) do domovské vsi na den
+  taktu, `ref` `journey:<id>:hunt:<id lovu>` – opakovaný krok vydá týž `ref` a druhé doručení
+  zahodí schránka. Po taktu souboje dostanou útočníci stav svého bojovníka (`syncStrikers`): hlouček
+  polohu, člověk `health`; padlý kůň (`horseLost`) → `mounted` false, `horse` i `horseId` pryč (ves
+  koně ztratí výsledkem); `down` a `killed` → `fallen`, jinak `wounded` a `woundedDay` – nová ztráta
+  dá `HuntTickOut.losses` a `huntStep` zavolá `afterLosses` (padlý zmizí i se svým hloučkem, jméno
+  a kůň zůstanou ve `strikers`; padlý vojvoda – skupina `leaderless` jde domů). Konec souboje dá
+  `HuntTickOut.ended`: lovící skupiny jdou domů s honci (`turnHome` – cíl `home.pos` je dvorec, odkud
+  honci vyšli; plán – Otázky vyřešeno 2), pozdější rozkaz hráče návrat nahradí. V taktu `homeTick`
+  lov ze stavu zmizí.
 - **Konec výpravy** – `settleDone` (všechna místa, kde výprava končila – `afterLosses`,
   `finishGroup`, konec lovu): `done` a `everyoneHome` až bez skupin a bez lovu. Lov výpravu drží,
   dokud honci nedojdou domů, i když lidé jsou doma nebo padli; výprava jen s lovem skončí s ním.
+  Útočníci, kteří šli domů s honci, mají `away-ends` po hloučcích (`finishGroup`); výprava skončí,
+  až jsou doma oni i honci.
   Skupiny venku (i na sousední mapě) lov nezmění. Zaniklá domovská ves (`homeDay`) ukončí výpravu
   i s lovem hned a bez výsledku – hloučky ve stavu zůstávají, proto ne přes `settleDone`.
 - **Mapa** – běží-li lov, úvodní kontrola `stepJourney` chce i mapu domovského políčka (bez ní
@@ -990,5 +1033,12 @@ Lov vsi je součást výpravy domovské vsi (`docs/design/hunting.md`; plán –
   u dveří, odnos přes `at` pomaleji, ostatní rovnou, po `homeTick` null, JSON), `journey-hunt.test.ts`
   (výprava jen s lovem: vyběhnutí v `arriveTick`, útěk po `idleS`, výsledek jednou, `done` v taktu
   `homeTick`; skupina na sousední mapě beze změny; druhé „hunt“ se zahodí; `ref` a různá id lovů; po
-  1 / 7 / 40 taktech přes JSON = vcelku; chybějící domovská mapa; zaniklá ves),
-  `application/__tests__/village-inbox.test.ts` (výsledek lovu doručený dvakrát ves použije jednou).
+  1 / 7 / 40 taktech přes JSON = vcelku; chybějící domovská mapa; zaniklá ves; útok – vlastní
+  hlouček s polohou bojovníka, žena, chlapec 13 let a raněný vypadnou, zahozený útok (bez lovu,
+  skryté a mrtvé zvíře; noví lidé hned domů), jezdec na koni se `strengthMounted`, zabitý jelen
+  (`names[0]` kdo složil, jízda ve výcviku, tyč honců 0 a 1, konec výpravy s posledním honcem), kanec
+  srazí nováčka, padlý vojvoda a padlý kůň ve výsledku, „Jdi sem“ během lovu, `hunt-leave` jen
+  rozkazem ven, odvolání a Osedlat / Sesednout, se strike po 1 / 7 / 40 taktech = vcelku),
+  `expedition-people.test.ts` (`huntRecruit`, `line`, luk a jízda rekruta),
+  `application/__tests__/village-inbox.test.ts` (výsledek lovu doručený dvakrát ves použije jednou),
+  `village/core/__tests__/inbox.test.ts` (`hunt-leave`).

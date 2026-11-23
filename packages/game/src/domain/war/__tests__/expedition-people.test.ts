@@ -3,8 +3,9 @@ import { horse, horseVillage, START, YEAR } from '../../village/__tests__/horse-
 import { villageHappiness } from '../../village/people/happiness';
 import type { Person, VillageState } from '../../village/types';
 import { sendAway } from '../../vassalage';
-import { expeditionRecruit } from '../expedition-people';
+import { expeditionRecruit, huntRecruit } from '../expedition-people';
 import type { JourneyRecruit } from '../journey-types';
+import { HUNT } from '../../village/rules/rules-wildlife';
 import { JOURNEY } from '../rules-war';
 import { lineManStrength, villagerStrength } from '../strength';
 
@@ -88,5 +89,35 @@ describe('expeditionRecruit', () => {
     // hříbě s jezdcem není jezdecký kůň
     s.pens![0]!.horses!.find((h) => h.id === 2)!.riderId = 10;
     expect(recruit(s, 10).horseId).toBeUndefined();
+  });
+});
+
+describe('huntRecruit a dovednosti rekruta (plán 2026-11-22-hunting – Úloha 7)', () => {
+  it('žena → woman, mladší 14 let → young, muž 14 let jde; raněný jako výprava', () => {
+    const s = lhota();
+    expect(HUNT.minAge).toBe(14);
+    expect(huntRecruit(s, person(s, 11), START)).toBe('woman');
+    expect(huntRecruit(s, person(s, 21), START)).toBe('woman');
+    person(s, 14).bornDay = START - Math.ceil(13.5 * YEAR);
+    expect(huntRecruit(s, person(s, 14), START)).toBe('young');
+    person(s, 14).bornDay = START - Math.ceil(14 * YEAR) - 10;
+    expect(huntRecruit(s, person(s, 14), START, 'lhota')).toMatchObject({
+      ref: { villageId: 'lhota', personId: 14 },
+      line: true,
+    });
+    person(s, 20).woundedUntil = START + 3;
+    expect(huntRecruit(s, person(s, 20), START)).toBe('wounded');
+    expect(typeof huntRecruit(s, person(s, 22), START)).toBe('object');
+  });
+
+  it('muž rodu nese line, luk a jízdu z arms (jako obránce); vesničan bez nich', () => {
+    const s = lhota();
+    expect(recruit(s, 12)).toMatchObject({ line: true, bow: 20, riding: 40, fight: 60 });
+    expect(recruit(s, 10)).toMatchObject({ line: true, bow: 0 });
+    expect(recruit(s, 10).riding).toBeUndefined();
+    const villager = recruit(s, 20);
+    expect(villager.line).toBeUndefined();
+    expect(villager.bow).toBeUndefined();
+    expect(villager.riding).toBeUndefined();
   });
 });

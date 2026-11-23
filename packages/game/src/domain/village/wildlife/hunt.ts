@@ -176,6 +176,26 @@ const KILL_KIND: Record<QuarryKind, keyof HuntKills> = {
 };
 
 /**
+ * Útočníci lovu `huntId` výpravy `journeyId` zůstali venku jako běžná výprava (událost `hunt-leave`;
+ * plán 2026-11-22-hunting – Rozhodnutí 3; mutuje stav): lidem `personIds`, kteří jsou pryč s touto
+ * výpravou jako útočníci téhož lovu, zmizí `away.huntId` – práce vsi je zase počítá jako pryč
+ * (`awayFromWork`). Kdo už je doma nebo pryč jinak, beze změny – idempotentní.
+ */
+export function endHuntAway(
+  state: VillageState,
+  journeyId: string,
+  huntId: number,
+  personIds: readonly number[],
+): void {
+  const ids = new Set(personIds);
+  for (const p of state.people) {
+    const away = p.away;
+    if (!ids.has(p.id) || away?.kind !== 'journey' || away.refId !== journeyId) continue;
+    if (away.huntId === huntId) delete away.huntId;
+  }
+}
+
+/**
  * Výsledek lovu ve vsi (mutuje stav, vrací kroniku; hunting.md – Pravidla 5–7; plán
  * 2026-11-22-hunting – Rozhodnutí 6, 7, 10): vždy den lovu navíc (`hunt.year.days`); zabité zvíře
  * ubude ze zvěře, dá maso, kůži, úlovek roku a kroniku `hunt` (`takeQuarry`); útočníci se vycvičí

@@ -1,10 +1,13 @@
 import { cloneData } from '../village/core/clone';
+import { ageYears } from '../village/people/people';
 import { directionBetween, sameCell, type GridCell } from '../village/people/world-grid';
+import { HUNT } from '../village/rules/rules-wildlife';
 import type { Pen, VillageState } from '../village/types';
 import { cellKey, type TickContext, type TickOut } from './campaign-tick';
 import type { CampaignPlace } from './campaign-types';
+import { dropHunters } from './hunt-fight';
 import { homeVillage, horseWorkTicks, pickGroom, riderHorse, sendHorse } from './journey-horses';
-import { startHunt } from './journey-hunt';
+import { joinHunt, leaveHunt, quarryOut, startHunt } from './journey-hunt';
 import type {
   HorseWork,
   JourneyCommand,
@@ -48,11 +51,11 @@ function leads(a: JourneyMember, b: JourneyMember): boolean {
 
 /**
  * Příkaz v taktu (`stepJourney` ho volá pro každý záměr v pořadí `seq`): rozkaz lidem (`order`),
- * odvolání domů (`recall`), Osedlat (`saddle`), Sesednout (`dismount`) a lov vsi (`hunt` –
- * `startHunt`, honci vyjdou v tomto taktu; běží-li jiný lov, nic). Rozkazy hráče platí jen
- * pro skupiny bez `leaderless`, `recall` pro všechny. `ctx` je svět taktu pro příkazy, které čtou ves
- * (koně a vesničan); `out` dostane znalost map hloučků, které příkaz zastavil (zastavení je dojetí),
- * a události do vsi (`journey-horse`).
+ * odvolání domů (`recall`), Osedlat (`saddle`), Sesednout (`dismount`), lov vsi (`hunt` –
+ * `startHunt`, honci vyjdou v tomto taktu; běží-li jiný lov, nic) a útok na zvíře (`strike`).
+ * Rozkazy hráče platí jen pro skupiny bez `leaderless`, `recall` pro všechny. `ctx` je svět taktu
+ * pro příkazy, které čtou ves (koně a vesničan); `out` dostane znalost map hloučků, které příkaz
+ * zastavil (zastavení je dojetí), a události do vsi (`journey-horse`, `hunt-leave`).
  */
 export function applyCommand(
   s: JourneyState,
@@ -75,6 +78,9 @@ export function applyCommand(
       break;
     case 'hunt':
       startHunt(s, command.start, s.tick);
+      break;
+    case 'strike':
+      strike(s, command, out);
       break;
   }
 }
@@ -155,37 +161,51 @@ function standAtHome(s: JourneyState, fresh: readonly JourneyMember[], out: Tick
  * skupina hráče poslouchá (chybí = všichni takoví), a noví lidé `recruits` (id, která ve výpravě
  * nejsou) – ti stojí doma v novém hloučku. Napřed ověření: „Přes okraj“ na políčko nesousedící
  * s hloučkem vůdce výběru se zahodí; noví lidé ale ze vsi už odešli (`musterExpedition`), proto
- * stojí doma v nové skupině bez rozkazu (`standAtHome` – jako u Osedlat). Pak:
- * - vybraní tvoří jednu skupinu – výběr právě celé jedné skupiny (nováčci navíc) si nechá její id,
- *   jinak dostane nové (`nextId`);
- * - skupina, z níž je vybraná jen část, si nechá zbytek: její hloučky zastaví a lhůta jí běží od
- *   tohoto taktu; smíšený hlouček se rozdělí (vybraní v novém hloučku na stejném místě);
- * - hloučky výběru, které stojí na stejném místě, splynou (nováčci doma tak přejdou do hloučku
- *   skupiny, která stojí celá doma);
- * - práce s koňmi jde s jezdci (`carryHorseWork`);
- * - rozkaz dostanou všechny hloučky skupiny (`orderParty`).
+ * stojí doma v nové skupině bez rozkazu (`standAtHome` – jako u Osedlat). Pak vybraní, kteří útočí
+ * na zvíře, lov opustí (`quitHunt`), tvoří jednu skupinu (`gatherParty`), její hloučky, které stojí
+ * na stejném místě, splynou (nováčci doma tak přejdou do hloučku skupiny, která stojí celá doma)
+ * a rozkaz dostanou všechny hloučky skupiny (`orderParty`).
  */
 function orderPeople(
   s: JourneyState,
   command: Extract<JourneyCommand, { kind: 'order' }>,
   out: TickOut,
 ): void {
-  const parties = new Map(s.parties.map((p) => [p.id, p]));
-  const groups = new Map(s.groups.map((g) => [g.id, g]));
-  const partyOf = (m: JourneyMember): JourneyParty => parties.get(groups.get(m.group)!.party)!;
   const chosen = chosenMembers(s, command.people);
   const fresh = freshMembers(s, command.recruits ?? []);
   if (chosen.length === 0 && fresh.length === 0) return;
   // místo vůdce výběru (nový člověk stojí doma) – k němu se měří „Jdi sem“ i „Přes okraj“
   const leader = partyLeader([...chosen, ...fresh])!;
-  const at = leader.group < 0 ? s.home : groups.get(leader.group)!;
+  const at = leader.group < 0 ? s.home : s.groups.find((g) => g.id === leader.group)!;
   const from: CampaignPlace = { cell: { ...at.cell }, pos: { ...at.pos } };
   const order = command.order;
   if (order.kind === 'cross' && directionBetween(from.cell, order.cell) === null) {
     standAtHome(s, fresh, out);
     return;
   }
+  quitHunt(s, chosen, order.kind !== 'home', out);
+  const target = gatherParty(s, chosen, fresh, out);
+  mergeGroups(s, target.id, (a, b) => a.arrived && b.arrived && samePlace(a, b));
+  orderParty(s, target, order, from);
+}
 
+/**
+ * Vybraní `chosen` a noví lidé `fresh` tvoří jednu skupinu (Rozhodnutí 3) a ta se vrátí:
+ * - výběr právě celé jedné skupiny (nováčci navíc) si nechá její id, jinak dostane nové (`nextId`);
+ * - skupina, z níž je vybraná jen část, si nechá zbytek: její hloučky zastaví a lhůta jí běží od
+ *   tohoto taktu (`stopRest`); smíšený hlouček se rozdělí (vybraní v novém hloučku na stejném místě);
+ * - noví lidé stojí doma v novém hloučku skupiny (`joinAtHome`);
+ * - práce s koňmi jde s jezdci (`carryHorseWork`).
+ */
+function gatherParty(
+  s: JourneyState,
+  chosen: readonly JourneyMember[],
+  fresh: readonly JourneyMember[],
+  out: TickOut,
+): JourneyParty {
+  const parties = new Map(s.parties.map((p) => [p.id, p]));
+  const groups = new Map(s.groups.map((g) => [g.id, g]));
+  const partyOf = (m: JourneyMember): JourneyParty => parties.get(groups.get(m.group)!.party)!;
   const picked = new Set(chosen.map((m) => m.ref.personId));
   const touched = s.parties.filter((p) => chosen.some((m) => partyOf(m) === p));
   const only = touched.length === 1 ? touched[0]! : null;
@@ -218,8 +238,142 @@ function orderPeople(
   if (fresh.length > 0) joinAtHome(s, target.id, fresh, out);
   for (const p of touched) if (p !== target) stopRest(s, p, out);
   s.parties = s.parties.filter((p) => s.groups.some((g) => g.party === p.id));
-  mergeGroups(s, target.id, (a, b) => a.arrived && b.arrived && samePlace(a, b));
-  orderParty(s, target, order, from);
+  return target;
+}
+
+/**
+ * Vybraní `chosen`, kteří útočí na zvíře, lov opustí (plán 2026-11-22-hunting – Úloha 7): celá
+ * skupina s `hunting` → `leaveHunt`; z části skupiny v běžícím souboji dál nejednají jen oni
+ * (`dropHunters`) a zbytek loví dál. Rozkaz ven (`outbound` – ne Domů) dělá z lidí, které ves počítá
+ * jako útočníky (`huntId`), běžnou výpravu – `releaseStrikers`.
+ */
+function quitHunt(
+  s: JourneyState,
+  chosen: readonly JourneyMember[],
+  outbound: boolean,
+  out: TickOut,
+): void {
+  const picked = new Set(chosen.map((m) => m.ref.personId));
+  const partyOfGroup = new Map(s.groups.map((g) => [g.id, g.party]));
+  for (const p of [...s.parties]) {
+    if (!p.hunting) continue;
+    const inside = s.members.filter((m) => partyOfGroup.get(m.group) === p.id);
+    const mine = inside.filter((m) => picked.has(m.ref.personId)).map((m) => m.ref.personId);
+    if (mine.length === 0) continue;
+    if (inside.every((m) => m.status !== 'active' || picked.has(m.ref.personId))) {
+      leaveHunt(s, p.id);
+    } else if (s.hunt?.fight.outcome === 'ongoing') {
+      dropHunters(s.hunt.fight, mine);
+    }
+  }
+  if (outbound) releaseStrikers(s, chosen, out);
+}
+
+/**
+ * Lidé `members`, které ves počítá jako útočníky lovu (`huntId`), zůstávají venku jako běžná výprava
+ * (plán 2026-11-22-hunting – Rozhodnutí 3): ves dostane `hunt-leave` na den po rozkazu (od něj je
+ * práce vsi zase počítá jako pryč – jako `away-ends` od dalšího dne) a značka zmizí. Kdo byl ve
+ * výpravě už předtím, značku nemá – nic.
+ */
+function releaseStrikers(s: JourneyState, members: readonly JourneyMember[], out: TickOut): void {
+  const byHunt = new Map<number, number[]>();
+  for (const m of members) {
+    if (m.huntId === undefined) continue;
+    byHunt.set(m.huntId, [...(byHunt.get(m.huntId) ?? []), m.ref.personId]);
+    delete m.huntId;
+  }
+  for (const [huntId, personIds] of byHunt) {
+    out.events.push({
+      villageId: s.home.villageId,
+      day: s.day + 1,
+      ref: `journey:${s.id}:${s.tick}:${out.events.length}`,
+      body: { kind: 'hunt-leave', journeyId: s.id, huntId, personIds },
+    });
+  }
+}
+
+/** Proč člověk výpravy na zvíře nejde (`strikeRefusal`). */
+export type StrikeRefusal = 'woman' | 'young' | 'wounded' | 'away';
+
+/**
+ * Proč člověk `m` výpravy `s` na zvíře nejde (povel `strike`; hunting.md – Pravidla 4): žena
+ * (`woman`), mladší `HUNT.minAge` let z `bornDay` (`young`; chybí – smí), raněný (`wounded` – plán,
+ * Rozhodnutí 2), mimo domovskou mapu, kde běží souboj, nebo mu vesničan sedlá či odvádí koně
+ * (`away` – návrh Clauda); jinak null. Nový člověk ze vsi (bez hloučku) stojí doma.
+ */
+export function strikeRefusal(s: JourneyState, m: JourneyMember): StrikeRefusal | null {
+  if (m.female === true) return 'woman';
+  if (m.bornDay !== undefined && ageYears(m.bornDay, s.day) < HUNT.minAge) return 'young';
+  if (m.wounded) return 'wounded';
+  const cell = s.groups.find((g) => g.id === m.group)?.cell ?? s.home.cell;
+  const saddling = s.parties.some((p) => p.horseWork?.riders.includes(m.ref.personId) === true);
+  if (saddling || !sameCell(cell, s.home.cell)) return 'away';
+  return null;
+}
+
+/**
+ * Útok na vyhnané zvíře (`strike`; hunting.md – Pravidla 4; plán 2026-11-22-hunting – Úloha 7): bez
+ * zvířete venku (`quarryOut`) se zahodí – noví lidé ze vsi ale už odešli (use-case je poslal pryč),
+ * proto se hned vrátí (`goHome`). Z vybraných vypadnou a zůstanou, kde jsou, ti, kdo nejdou
+ * (`strikeRefusal` – žena, mladší 14 let, raněný, mimo domovskou mapu, práce s koňmi). Ostatní
+ * tvoří skupinu jako rozkaz (`gatherParty`), ta loví
+ * (`hunting`, lhůta neběží), každý stojí ve vlastním hloučku na místě toho svého (`standApart`)
+ * a `joinHunt` je přidá do souboje. Noví lidé ze vsi jsou ve vsi útočníci lovu (`huntId` – use-case
+ * je tak značí; kdo byl ve výpravě, je pryč jako dosud).
+ */
+function strike(
+  s: JourneyState,
+  command: Extract<JourneyCommand, { kind: 'strike' }>,
+  out: TickOut,
+): void {
+  const fresh = freshMembers(s, command.recruits ?? []);
+  const hunt = s.hunt;
+  if (hunt === undefined || !quarryOut(hunt)) {
+    goHome(s, fresh, out);
+    return;
+  }
+  const chosen = chosenMembers(s, command.people).filter((m) => strikeRefusal(s, m) === null);
+  const ready = fresh.filter((m) => strikeRefusal(s, m) === null);
+  goHome(
+    s,
+    fresh.filter((m) => !ready.includes(m)),
+    out,
+  );
+  if (chosen.length === 0 && ready.length === 0) return;
+  for (const m of ready) m.huntId = hunt.id;
+  const target = gatherParty(s, chosen, ready, out);
+  stopRest(s, target, out);
+  target.hunting = true;
+  standApart(s, target);
+  joinHunt(s, target.id, s.tick);
+}
+
+/**
+ * Noví lidé ze vsi, kteří nikam nejdou (zahozený útok) – ze vsi už odešli, proto se hned vrátí:
+ * nová skupina doma jde domů (`away-ends` s nimi po dojetí). Nikdo nový – nic.
+ */
+function goHome(s: JourneyState, fresh: readonly JourneyMember[], out: TickOut): void {
+  if (fresh.length === 0) return;
+  const party: JourneyParty = { id: s.nextId++, phase: 'out', arrivedTick: s.tick };
+  s.parties.push(party);
+  joinAtHome(s, party.id, fresh, out);
+  turnHome(s, party);
+}
+
+/**
+ * Každý živý člověk skupiny `party` stojí ve vlastním hloučku na místě toho svého (útok – poloha
+ * hloučku je poloha bojovníka): první živý zůstane v původním hloučku i s padlými, ostatní dostanou
+ * kopii hloučku s novým id (`nextId`).
+ */
+function standApart(s: JourneyState, party: JourneyParty): void {
+  for (const g of s.groups.filter((x) => x.party === party.id)) {
+    const living = s.members.filter((m) => m.group === g.id && m.status === 'active');
+    for (const m of living.slice(1)) {
+      const own: JourneyGroup = { ...cloneData(g), id: s.nextId++ };
+      s.groups.push(own);
+      m.group = own.id;
+    }
+  }
 }
 
 /**
@@ -282,7 +436,7 @@ function saddle(
   ctx: TickContext,
   out: TickOut,
 ): void {
-  const chosen = chosenMembers(s, command.people);
+  const chosen = offHunt(s, chosenMembers(s, command.people));
   const fresh = freshMembers(s, command.recruits ?? []);
   if (fresh.length > 0) {
     standAtHome(s, fresh, out);
@@ -347,7 +501,7 @@ function dismount(
   command: Extract<JourneyCommand, { kind: 'dismount' }>,
   ctx: TickContext,
 ): void {
-  const chosen = chosenMembers(s, command.people).filter((m) => m.horse === 'ridden');
+  const chosen = offHunt(s, chosenMembers(s, command.people)).filter((m) => m.horse === 'ridden');
   if (chosen.length === 0) return;
   const groups = new Map(s.groups.map((g) => [g.id, g]));
   const skip = new Set(s.members.map((m) => m.ref.personId));
@@ -392,6 +546,17 @@ function dismount(
       m.horse = 'led';
     }
   }
+}
+
+/**
+ * Lidé z `members` mimo skupiny, které útočí na zvíře – Osedlat a Sesednout útočníka v souboji
+ * nezmění (kůň bojovníka je stav souboje; návrh Clauda – jiný rozkaz lov opustí, pak jde obojí).
+ */
+function offHunt(s: JourneyState, members: JourneyMember[]): JourneyMember[] {
+  const hunting = new Set(s.parties.filter((p) => p.hunting).map((p) => p.id));
+  if (hunting.size === 0) return members;
+  const partyOfGroup = new Map(s.groups.map((g) => [g.id, g.party]));
+  return members.filter((m) => !hunting.has(partyOfGroup.get(m.group)!));
 }
 
 /** Domovská ves taktu (`homeVillage`) načtená jen jednou a jen tehdy, když ji příkaz potřebuje. */
@@ -481,8 +646,12 @@ function recall(s: JourneyState, cells: readonly GridCell[]): void {
   }
 }
 
-/** Skupina jde domů bez rozkazu hráče – po čekání, ztrátě vojvody nebo odvolání. */
+/**
+ * Skupina jde domů bez rozkazu hráče – po čekání, ztrátě vojvody, odvolání nebo konci lovu; skupina,
+ * která útočí na zvíře, napřed lov opustí (`leaveHunt`).
+ */
 export function turnHome(s: JourneyState, party: JourneyParty): void {
+  leaveHunt(s, party.id);
   party.phase = 'returning';
   party.arrivedTick = null;
   delete party.crossing;
@@ -540,6 +709,9 @@ export function recruitMember(recruit: JourneyRecruit, group: number): JourneyMe
     ...(recruit.name === undefined ? {} : { name: recruit.name }),
     ...(recruit.female ? { female: true as const } : {}),
     ...(recruit.bornDay === undefined ? {} : { bornDay: recruit.bornDay }),
+    ...(recruit.bow === undefined ? {} : { bow: recruit.bow }),
+    ...(recruit.riding === undefined ? {} : { riding: recruit.riding }),
+    ...(recruit.line ? { line: true as const } : {}),
   };
 }
 

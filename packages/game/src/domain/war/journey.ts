@@ -216,8 +216,9 @@ function journeyTick(
   for (const intent of intents) applyCommand(s, commandOf(intent.body), ctx, out);
   const wait = waitTicks(ctx.world.clock);
   for (const p of s.parties) {
-    // při práci s koňmi lhůta neběží – po ní začne znovu (`finishHorseWork`)
-    if (p.horseWork !== undefined) continue;
+    // při práci s koňmi lhůta neběží – po ní začne znovu (`finishHorseWork`); při útoku na zvíře
+    // taky – po lovu jde skupina domů s honci (`huntStep`)
+    if (p.horseWork !== undefined || p.hunting) continue;
     if (p.phase === 'out' && p.arrivedTick !== null && tick - p.arrivedTick > wait) turnHome(s, p);
   }
   huntStep(s, tick, ctx, out);
@@ -226,14 +227,17 @@ function journeyTick(
 }
 
 /**
- * Lov vsi v taktu (`huntTick`): výsledek do vsi; padl-li někdo z výpravy, `afterLosses`; lov, který
- * skončil (honci doma), ukončí výpravu bez skupin (`settleDone`).
+ * Lov vsi v taktu (`huntTick`): výsledek do vsi; padl-li někdo z výpravy, `afterLosses`; v taktu
+ * konce souboje jdou útočníci (skupiny s `hunting`) domů s honci (`turnHome` – cíl `home.pos` je
+ * dvorec, odkud honci vyšli; plán – Otázky vyřešeno 2), pozdější rozkaz hráče návrat nahradí; lov,
+ * který skončil (honci doma), ukončí výpravu bez skupin (`settleDone`).
  */
 function huntStep(s: JourneyState, tick: number, ctx: TickContext, out: TickOut): void {
   if (s.hunt === undefined) return;
   const hunt = huntTick(s, tick, ctx);
   out.events.push(...hunt.events);
   if (hunt.losses) afterLosses(s, out);
+  if (hunt.ended) for (const p of s.parties) if (p.hunting) turnHome(s, p);
   settleDone(s, out);
 }
 
