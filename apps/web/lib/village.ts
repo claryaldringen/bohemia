@@ -946,6 +946,7 @@ export function marketOverviewForPlayer(
     if (!ctx.ok) return { error: ctx.error };
     const all = await marketOverview(gameDeps(), {
       playerId: ctx.playerId,
+      actorId: ctx.actorId,
       villageId: ctx.villageId,
     });
     return all ?? { error: NOT_PLAYER_VILLAGE };
@@ -964,6 +965,7 @@ export async function sendMarketExpeditionForPlayer(
   const done = await guardedAction(playerId, villageId, 'sendMarketExpedition', (ctx) =>
     sendMarketExpedition(gameDeps(), {
       playerId: ctx.playerId,
+      actorId: ctx.actorId,
       villageId: ctx.villageId,
       targetVillageId: input.targetVillageId,
       order: input.order,

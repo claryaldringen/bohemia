@@ -9,8 +9,7 @@ import {
   type MarketTarget,
   type VillageNews,
 } from '../domain/village';
-import { ringCells } from '../domain/world/placement';
-import { cellDistance } from '../domain/world/placement';
+import { cellDistance, ringCells } from '../domain/world/placement';
 import type { GridCell } from '../domain/village/people/world-grid';
 import type { HouseRepository } from './houses';
 import type { KnowledgeRepository } from './knowledge';
@@ -63,12 +62,16 @@ function newsOf(home: VillageRecord, villageId: string): VillageNews | null {
   return home.state.news?.find((n) => n.villageId === villageId) ?? null;
 }
 
-/** Vsi sídel na políčkách `cells` (jejich držitelé na sousedních mapách). */
-async function villagesAt(deps: MarketDeps, cells: readonly GridCell[]): Promise<string[]> {
+/** Vsi sídel na políčkách `cells` (jejich držitelé na sousedních mapách), bez vsí hráče `except`. */
+async function villagesAt(
+  deps: MarketDeps,
+  cells: readonly GridCell[],
+  except: string | null,
+): Promise<string[]> {
   const out: string[] = [];
   for (const cell of cells) {
     const holder = await deps.settlements.holderAt(cell);
-    if (holder === null) continue;
+    if (holder === null || holder === except) continue;
     for (const settlement of await deps.settlements.listActive(holder)) {
       const at = settlement.worldCell;
       if (at?.x !== cell.x || at.y !== cell.y) continue;
@@ -94,13 +97,15 @@ async function houseNameOf(deps: MarketDeps, holderId: string): Promise<string |
  */
 async function collect(
   deps: MarketDeps,
-  input: { playerId: string; villageId: string },
+  input: { playerId: string; villageId: string; actorId?: string },
 ): Promise<Candidate[] | null> {
   const home = await deps.villages.find(input.villageId);
   if (!home) return null;
   const homePlace = await placeOf(deps, home);
   if (!homePlace || homePlace.ownerId !== input.playerId) return null;
-  const house = await deps.houses.activeOf(input.playerId);
+  // správce cizí vsi (jednající ≠ držitel) o ostatních vsích držitele ani o jeho znalosti mapy neví
+  const steward = input.actorId !== undefined && input.actorId !== input.playerId;
+  const house = steward ? null : await deps.houses.activeOf(input.playerId);
 
   // id vsi → co o ní rod viděl (null – nic)
   const ids = new Map<string, { day: number; houses: number; crafts: Craft[] } | null>();
@@ -110,12 +115,14 @@ async function collect(
   };
 
   // 1. vlastní vsi, 2. sousední mapy (odříznutý rod je nemá – místní mřížka není mapa světa)
-  for (const settlement of await deps.settlements.listActive(input.playerId)) {
-    for (const village of await deps.villages.listBySettlement(settlement.id))
-      add(village.id, null);
+  if (!steward) {
+    for (const settlement of await deps.settlements.listActive(input.playerId)) {
+      for (const village of await deps.villages.listBySettlement(settlement.id))
+        add(village.id, null);
+    }
   }
   if (!homePlace.isolated) {
-    for (const id of await villagesAt(deps, ringCells(homePlace.cell, 1))) add(id, null);
+    for (const id of await villagesAt(deps, ringCells(homePlace.cell, 1), steward ? input.playerId : null)) add(id, null);
     // 3. mapy ze znalosti rodu: jen ves, jejíž stavby rod na mapě viděl (world.md – Co je veřejné)
     if (house) {
       for (const known of await deps.knowledge.knownCellsOf(house.id)) {
@@ -186,7 +193,7 @@ function blockedReason(record: VillageRecord, cells: number): string | null {
  */
 export async function marketOverview(
   deps: MarketDeps,
-  input: { playerId: string; villageId: string },
+  input: { playerId: string; villageId: string; actorId?: string },
 ): Promise<MarketVillage[] | null> {
   return (await collect(deps, input))?.map((c) => c.village) ?? null;
 }
@@ -202,6 +209,8 @@ export async function sendMarketExpedition(
   input: {
     playerId: string;
     villageId: string;
+    /** Jednající hráč; liší-li se od `playerId`, je to správce a ostatní vsi držitele nevidí. */
+    actorId?: string;
     targetVillageId: string;
     order: MarketOrder;
     today: number;

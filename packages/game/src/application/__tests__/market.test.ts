@@ -194,6 +194,22 @@ describe('marketOverview', () => {
     expect(overview.map((v) => v.name)).toEqual(['Dolní']);
   });
 
+  it('správce cizí vsi nevidí ostatní vsi držitele ani jeho znalost mapy, sousedy a zprávy ano', async () => {
+    const w = await world();
+    await seeFar(w);
+    await setState(w, w.ids.h, (s) => ({
+      ...s,
+      news: [{ villageId: w.ids.news, name: 'Daleká', report, prices: { grain: 0.9 } }],
+    }));
+    const overview = (await marketOverview(w.deps, {
+      playerId: 'pa',
+      actorId: 'ps',
+      villageId: w.ids.h,
+    }))!;
+    // Dolní (druhá ves držitele) a Horní (jen ze znalosti rodu) mizí; Lhota (soused) a Daleká (zpráva) zůstávají
+    expect(overview.map((v) => v.name)).toEqual(['Lhota', 'Daleká']);
+  });
+
   it('ves, která není hráče, vrátí null', async () => {
     const w = await world();
     expect(await marketOverview(w.deps, { playerId: 'pb', villageId: w.ids.h })).toBeNull();
@@ -266,6 +282,21 @@ describe('sendMarketExpedition', () => {
       ok: false,
       reason: MARKET_UNKNOWN,
     });
+  });
+
+  it('správce nesmí zvolit ostatní vsi držitele ani vsi z jeho znalosti mapy', async () => {
+    const w = await world();
+    await seeFar(w);
+    const version = (await w.villages.find(w.ids.h))!.version;
+    for (const target of [w.ids.own, w.ids.far]) {
+      expect(
+        await sendMarketExpedition(w.deps, { ...input(w, target), actorId: 'ps' }),
+      ).toEqual({ ok: false, reason: MARKET_UNKNOWN });
+    }
+    expect((await w.villages.find(w.ids.h))!.version).toBe(version);
+    // soused projde i za správce
+    const ok = await sendMarketExpedition(w.deps, { ...input(w), actorId: 'ps' });
+    expect(ok.ok).toBe(true);
   });
 
   it('pobyt musí být celý a kladný', async () => {
