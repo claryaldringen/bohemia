@@ -1,7 +1,7 @@
 # Obchod – trhy, kupci a mince (issue #11)
 
 Stav: **schváleno** – Martin 22. 11. 2026 na otázku „Schvaluješ oba návrhy a takové pořadí?“ (obchod s trhy a mincemi, zlato a klenoty; šest plánů: konec smyšlených sousedů, trh bez mincí, vesničané a správce na trhu, kupci a mince, otroci, zlato): „Ano“. Co řekl Martin, je u bodu s datem; ostatní je návrh
-Clauda. **Plán 1 (konec smyšlených sousedů) hotový 23. 11. 2026** (větev `feat/markets-1`, issue #11) – viz Rozhodnutí plánu 1. Nahrazuje obchod se smyšlenými sousedy ([obchod](trade.md) – Sousedé, varianta a) a navazuje na rozpracovaný
+Clauda. **Plán 1 (konec smyšlených sousedů) hotový 23. 11. 2026** (větev `feat/markets-1`, issue #11) – viz Rozhodnutí plánu 1. **Plán 2 (trh bez mincí) hotový 23. 11. 2026** (větev `feat/markets-2`, issue #11) – viz Rozhodnutí plánu 2. Nahrazuje obchod se smyšlenými sousedy ([obchod](trade.md) – Sousedé, varianta a) a navazuje na rozpracovaný
 návrh [sousedních vsí](neighbours.md), jehož body 2–8 Martin odložil právě do této kapitoly.
 
 ## Proč
@@ -112,7 +112,7 @@ obchodníkům se do hry dostanou mince - obchodníci jimi budou platit za zbož�
 
 ## Rozhodnutí plánu 1 (návrh Clauda, 23. 11. 2026)
 
-Plán 1 smazal smyšlené sousedy z jádra, převodu starších vsí i rozhraní; nic z toho nevrátí, dokud nepřijdou skutečné vsi a trhy (plány 2 a 3). Rozhodnutí níž jsou **návrh Clauda** – Martin se předem neptal a je mu oznámeno; kde se plán 1 chová jinak, než by čekal, je to uvedeno.
+Plán 1 smazal smyšlené sousedy z jádra, převodu starších vsí i rozhraní; nic z toho nevrátí, dokud nepřijdou skutečné vsi a trhy (plány 2 a 3). Rozhodnutí níž jsou **návrh Clauda** – Martin je předem neschvaloval, jsou mu oznámená; kde se plán 1 chová jinak, než by čekal, je to uvedeno.
 
 1. **Každá vazba na okolí skončí a vrátí se se skutečnými vsemi:** obchodní výprava hráče, výprava správce za obilím, nákup nástrojů, keramiky, dřevěného nářadí a vozů 15. 11., nákup osiva 1. 9. a 1. 3., cesta tesaře pro kování vozů, cizí kovář ke koním, nevěsta a ženich z okolí, další manželky mužů rodu, výměna lidí, železo (hřivny) jako platba a zlý rok kraje u zásob sousedů. Zůstává: koně se stavbou první ohrady, mistři huti a kněz (přicházejí na pozvání z dálky), obchod mezi hráči jednáním, zásilky vazalů, zemská stezka, právo `trade` v seniorátu a zdražení zboží v kraji po zlém roce (`goodWorth`).
 2. **Přes skutečnou ves jde už teď jen popisek konce cesty** na kraji mapy („Cesta do <ves>“ podle vlastní vsi na sousední mapě, jinak „Cesta na sever“) – je to jen pohled. Cokoli dalšího potřebuje, aby druhá ves zboží nebo člověka opravdu dala a vzala, a to staví plán 2.
@@ -122,6 +122,18 @@ Plán 1 smazal smyšlené sousedy z jádra, převodu starších vsí i rozhraní
 6. **Odpověď na Otázku „další manželky mužů rodu“:** další manželky (2.–4.) mužů rodu z okolí do plánu 3 nepřibývají a náhrada ze vsi se nezavádí. Výměna lidí je podle Pravidel 1 jen se skutečnými vsemi a ze vsi by to bylo nové pravidlo, o které Martin nežádal; sonda Vlkova (D118) měřila bez nich a rod roste. Není to Martinova odpověď – Martinovi se oznamuje; je-li to špatně, rod roste do plánu 3 pomaleji a doplnit manželky ze vsi je malá změna v `dynasty-wives.ts`.
 7. **Kovář bez dřevěného nářadí čeká ≈ den na konci cyklu milíře** (přijatý důsledek; číslo `CHARCOAL_BALANCE` se nemění). Dřívější přípravek (nářadí od souseda) to maskoval; jde-li o víc než den na cyklus, rezerva je jedno číslo v `rules`.
 8. **Ves se správcem bez nástrojů a osiva z obchodu má po 20 letech menší pole:** zlatá ves vychází na ≈ 24 ha místo ≈ 34 (mez testu 22 ha přijata), 1. 3. 505 chybí ≈ 147 kg osiva a plánů lnu ubylo ze 163 na 148. Je to herní důsledek konce nákupů, zvláštní sonda osivo × nástroje se nedělá; menší cíl polí vsí bez kováře se napraví nákupem na trhu v plánu 3.
+
+## Rozhodnutí plánu 2 (návrh Clauda, 23. 11. 2026)
+
+Plán 2 přidal trh ve vsi, výpravu na trh a přehled vsí, ale ještě bez mincí a kupců (plány 3 a 4). Rozhodnutí níž jsou **návrh Clauda** – Martin je předem neschvaloval, jsou mu oznámená, kromě těch, kde je jeho slovo doslova (doba cesty, spodní cena); kde se trh chová jinak, než by hráč čekal, je to uvedeno. Čísla jsou v `MARKET` (`rules-market.ts`).
+
+1. **Výprava stojí na karavaně a schránce vsi** (zásilka mezi skutečnými vsemi), ne na výpravě po taktech. **Válka obchod nezakazuje** – podmínku „v nepřátelství se neobchoduje“ z podkladu neighbours.md Martin neschválil, výprava jede i do vsi, s níž je hráč ve válce.
+2. **Doba cesty** (Martin 22. 11. 2026: „ráno se vyrazí a večer vrátí“): cesta tam trvá max(0, políčka − `MARKET.dayTripCells`) × `MARKET.daysPerCell` dní (`dayTripCells = 1`, `daysPerCell = 1`, pobyt nejméně `MARKET.minStayDays = 1`). Ves na sousední mapě je ráno tam a večer zpět, každá další mapa přidá den tam a den zpět. **Doprovod jezdce výpravu na trh nedoprovází** – nemá zemskou stezku (horses.md – Doprovod výpravy) a jezdec by chyběl v hlídce polí.
+3. **Model ceny:** výchozí cena z hodnoty zboží, kurz 15 kg obilí za minci (`MARKET.grainKgPerCoin`), po tržním dni posun o nejvýš ±10 % (`MARKET.priceStep = 0,1`); **dno ceny je výchozí hodnota** (Martin 23. 11. 2026, viz Martinova rozhodnutí – Spodní cena).
+4. **Řídký trh bez mincí.** Zápočet je výměna zboží za zboží (vyrovnaný barter v mincovní míře každý tržní den, nic se nepřenáší do dalšího dne). Hostitel bez potřeby nic neprodá a výprava prodá jen za to, co hostitel shání; trh zůstane řídký, dokud nepřijdou mince (plán 4).
+5. **Co hostitel nabízí a shání:** jen makrokomodity (obilí, krávy, voli, koně, klády, kámen). **Klády a kámen hostitele jdou na prodej celé hromady.** Kámen se veze jako u zásilky – 2 lidé na započatých 800 kg (`expeditionLaborNeed`). **Prodaní tažní voli vůz výpravy netáhnou** (vůz domů jede bez spřežení, které výprava prodala). **Nosiči se berou jen z volných lidí vsi** – kdo už má práci, na trh nejede.
+6. **Oběh mezi vsemi:** **zboží od pozdního hostitele může přijít po lidech** – hostitel pozadu s dopočtem znamená čekat; lidé jsou doma v plánovaný den, zboží a zpráva přijdou, až hostitel výsledek zapíše. Zanikl-li hostitel, vrátí se výprava s tím, co drží.
+7. **Zpráva na pivo ukáže posledních 10 obchodníků** (`MARKET.report.traders = 10`). Je to **technický strop, ne pravidlo hry** – stav vsi nesmí růst donekonečna, hostitel si proto pamatuje jen posledních 10 příjezdů. Lidé a domy se hlásí zaokrouhleně na 5 (`MARKET.report.round = 5`, nejméně 5, je-li aspoň jeden); **domy jsou včetně opuštěných**. Jiný strop (třeba časový) je jedno číslo.
 
 ## Co se ověří
 
@@ -134,6 +146,7 @@ Plán 1 smazal smyšlené sousedy z jádra, převodu starších vsí i rozhraní
   25 lidí, rod 9. Obilí 1. 8. 914: 28 t proti 38 t. Nástroje a keramika klesnou na 0 a sklizně 907–912 jsou nižší
   (911: 6,2 t proti 11,0 t).
 - Dvě vsi a kupec: výprava, trh, cena, mince – v součtu nic nevznikne ani nezmizí, kromě mincí od kupců.
+  **Ověřeno 23. 11. 2026** bez kupců a mincí – `market-two-villages.test.ts` (výprava prodá obilí a koupí krávu): v součtu nic nevznikne ani nezmizí, co výprava prodala, hostitel koupil, a co koupila, hostitel prodal; cena i zpráva přijdou domů.
 
 ## Navazuje
 
