@@ -89,7 +89,6 @@ describe('vylepšení vsi ve dvorci', () => {
           dwellingId: 1,
           stance: 'flee',
           huntDenied: null,
-          trailBuilt: true,
         }}
       />,
     );
@@ -104,7 +103,7 @@ describe('tlačítko lovu ve dvorci', () => {
   const huntButton = (huntDenied: string | null): string =>
     renderToStaticMarkup(
       <ManorUpgrades
-        manor={{ dwellingId: 1, stance: 'flee', huntDenied, trailBuilt: false }}
+        manor={{ dwellingId: 1, stance: 'flee', huntDenied }}
         onDeclareHunt={async () => null}
       />,
     );

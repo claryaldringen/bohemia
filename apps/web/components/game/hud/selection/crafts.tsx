@@ -542,8 +542,8 @@ export function CarpenterStats({
 
 /**
  * Dvorec: výrobky řemeslníků – vlastní dílna ✓, bez vlastního řemeslníka zašedlá ikona (nákup
- * u sousedů zrušen – markets.md, Pravidla 1) – a nákupy uložené na cestě (lidé a dny do návratu).
- * Jen ikony, věty v popiscích.
+ * u sousedů zrušen – markets.md, Pravidla 1; dílna, která stojí bez vstupu, řekne v popisku proč)
+ * – a nákupy uložené na cestě (lidé a dny do návratu). Jen ikony, věty v popiscích.
  */
 export function BuyingRow({ buying }: { buying: SelectionBuying }): ReactElement {
   return (
@@ -553,11 +553,9 @@ export function BuyingRow({ buying }: { buying: SelectionBuying }): ReactElement
           key={source.product}
           icon={PRODUCT_ICONS[source.product]}
           dim={!source.own}
-          name={
-            source.own
-              ? `${PRODUCT_TITLES[source.product]} – vlastní řemeslník`
-              : `${PRODUCT_TITLES[source.product]} – ve vsi není řemeslník`
-          }
+          name={`${PRODUCT_TITLES[source.product]} – ${
+            source.own ? 'vlastní řemeslník' : (source.stopped ?? 've vsi není řemeslník')
+          }`}
           testId={`selection-buying-${source.product}`}
         >
           {source.own ? '✓' : null}

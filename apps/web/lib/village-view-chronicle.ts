@@ -767,8 +767,8 @@ const DIRECTION_ADVERBS: Record<Direction8, string> = {
 /**
  * Kde leží křižovatka (D66; Martin 15. 11. 2026: „Třeba poblíž kterého významného místa se
  * nacházejí?“): „u kovárny“ (2. pád – z `RoadEndForms.from` bez „od“), „pod dvorcem“, „nad
- * potokem“ (7. pád), u kraje mapy „u severního kraje mapy“, bez místa blízko „uprostřed vsi“, „na severní straně vsi“, „severně od vsi“. Neznámé
- * místo null.
+ * potokem“ (7. pád), u kraje mapy „u severního kraje mapy“, bez místa blízko „uprostřed vsi“,
+ * „na severní straně vsi“, „severně od vsi“. Neznámé místo null.
  */
 export function landmarkPhrase(near: ChronicleLandmark): string | null {
   switch (near.kind) {
@@ -1138,8 +1138,8 @@ function horsesShodText(
 }
 
 /**
- * Text události kroniky česky. `seed` – seed vsi pro jména sousedů (`legacyNeighbourName` – kovář a směna
- * se sousedem jménem vsi); bez něj se soused jménem nepíše.
+ * Text události kroniky česky. `seed` – seed vsi pro jména sousedů (`legacyNeighbourName` – kovář
+ * a směna se sousedem jménem vsi); bez něj se soused jménem nepíše.
  */
 export function chronicleText(event: ChronicleEvent, villageName: string, seed?: number): string {
   switch (event.kind) {

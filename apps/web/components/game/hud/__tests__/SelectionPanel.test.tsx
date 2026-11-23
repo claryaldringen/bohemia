@@ -4,6 +4,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import type { SelectionDetails, SelectionWorkshop } from '@/lib/selection-details';
 import type { VillageHorses } from '@/lib/horse-view';
+import { WORKSHOP_STOP_NOTICES, workshopStopNotice } from '@/lib/village-notices';
 import { JourneyBanner, LeaveCompass } from '../RelocationControls';
 import { SelectionPanel } from '../SelectionPanel';
 
@@ -861,7 +862,6 @@ describe('SelectionPanel – rozvržení', () => {
           dwellingId: 3,
           stance: 'flee',
           huntDenied: null,
-          trailBuilt: false,
         },
       }),
     );
@@ -886,7 +886,6 @@ describe('SelectionPanel – rozvržení', () => {
           dwellingId: 3,
           stance: 'flee',
           huntDenied: null,
-          trailBuilt: false,
         },
         leave: { households: [3], people: 4, foodKg: 50, cart: null, directions: [] },
       }),
@@ -1228,6 +1227,32 @@ describe('SelectionPanel – výrobky řemeslníků na dvorci (crafts.md; market
     // nákup na cestě ze starší vsi doběhne (markets.md bod 10)
     expect(html).toMatch(/data-testid="selection-buying-trip"[^>]*>↑ 4</);
     expect(html).toContain('/icons/resources/wood-tools.png');
+  });
+
+  it('dílna, která stojí bez vstupu, řekne v popisku proč – text upozornění (final Minor 5)', () => {
+    const html = render(
+      dwelling({
+        buying: {
+          sources: [
+            { product: 'toolsKg', own: false, stopped: WORKSHOP_STOP_NOTICES['no-charcoal'] },
+            { product: 'potteryKg', own: false },
+            { product: 'woodToolsKg', own: true },
+          ],
+          purchases: [],
+        },
+      }),
+    );
+    expect(html).toContain(`${PRODUCT_TITLES.toolsKg} – Kovář nemá uhlí`);
+    expect(html).not.toContain(`${PRODUCT_TITLES.toolsKg} – ve vsi není řemeslník`);
+    expect(html).toMatch(/src="\/icons\/resources\/tools\.png"[^>]*class="[^"]*grayscale/);
+    expect(html).toContain(`${PRODUCT_TITLES.potteryKg} – ve vsi není řemeslník`);
+    // důvod je týž text jako upozornění dílny bez vstupu (village-notices.ts)
+    expect(workshopStopNotice({ craft: 'smith', activity: 'no-ore' })).toBe('Kovář nemá rudu');
+    expect(workshopStopNotice({ craft: 'potter', activity: 'no-clay' })).toBe('Hrnčíř nemá hlínu');
+    expect(workshopStopNotice({ craft: 'carpenter', activity: 'no-wood' })).toBe(
+      'Tesař nemá klády',
+    );
+    expect(workshopStopNotice({ craft: 'smith', activity: 'empty' })).toBeNull();
   });
 
   it('panel dílny bez vstupů nedokupuje u souseda', () => {

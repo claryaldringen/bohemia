@@ -1,5 +1,6 @@
 import {
   ABANDON_FOUNDING,
+  PRODUCT_CRAFT,
   type GridCell,
   HORSES,
   AGE,
@@ -97,6 +98,7 @@ import {
   type VillageRoad,
   type VillageView,
 } from './village-view';
+import { workshopStopNotice } from './village-notices';
 
 // Co ukáže panel výběru (dole uprostřed, jako v 0 A.D.) o vybraném obydlí (i řemeslné dílně –
 // crafts.md), dílu pole a celém poli (fields.md – Co hráč vidí), hřbitovu, čtverci sadu a celém
@@ -159,8 +161,13 @@ export interface SelectionWorkshop {
  * a nákupy u sousedů uložené na cestě do návratu (crafts.md – Nákup u sousedů).
  */
 export interface SelectionBuying {
-  sources: VillageCraftSource[];
+  sources: SelectionCraftSource[];
   purchases: VillagePurchase[];
+}
+
+/** Výrobek v řádku dvorce; dílna, která stojí bez vstupu, nese text upozornění (`stopped`). */
+export interface SelectionCraftSource extends VillageCraftSource {
+  stopped?: string;
 }
 
 /** Společné údaje panelů opevnění: id, druh a nástavba valu. */
@@ -1091,7 +1098,7 @@ function selectionKinds(
       ...(view?.manor?.dwellingId === household.dwellingId ? { wares: view.wares } : {}),
       lordWifeHome: lordWifeHome(view, scene, household.dwellingId),
       ...(view?.manor?.dwellingId === household.dwellingId && view.crafts.sources
-        ? { buying: { sources: view.crafts.sources, purchases: view.purchases ?? [] } }
+        ? { buying: buyingDetails(view, view.crafts.sources) }
         : {}),
       leave: view ? leaveDetails(view, [household.dwellingId]) : null,
       ...(view?.manor?.dwellingId === household.dwellingId && view.dynasty
@@ -1636,6 +1643,24 @@ function sonDetails(view: VillageView): SelectionSon[] {
 }
 
 /** Odchod domácností vybraných obydlí `ids`; když žádná odejít nemůže, null. */
+/**
+ * Řádek výrobků dvorce: výrobek bez pracujícího řemeslníka, jehož dílna stojí bez vstupu, nese
+ * důvod jako upozornění (`workshopStopNotice` – „Kovář nemá uhlí“); bez dílny nic.
+ */
+function buyingDetails(view: VillageView, sources: VillageCraftSource[]): SelectionBuying {
+  return {
+    sources: sources.map((source) => {
+      if (source.own) return source;
+      const stopped = view.crafts.workshops
+        .filter((w) => w.craft === PRODUCT_CRAFT[source.product])
+        .map(workshopStopNotice)
+        .find((text) => text !== null);
+      return stopped ? { ...source, stopped } : source;
+    }),
+    purchases: view.purchases ?? [],
+  };
+}
+
 function leaveDetails(view: VillageView, ids: readonly number[]): SelectionLeave | null {
   if (view.extinct || view.abandoned || view.journey) return null;
   const leaving = view.households.filter(

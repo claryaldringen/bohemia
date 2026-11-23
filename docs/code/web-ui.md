@@ -119,7 +119,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   (`panelOptionsOf` – sousedé z mapy, opuštěná ves), až když hráč otevře kompas (`ManorPanel`) nebo
   vybere cestu (`RoadBody`); `hooks/use-panel-options.ts` (`PanelOptionsContext` z `VillageGame`,
   klíč = `VillageView.stamp`) se s novým pohledem zeptá znovu a do odpovědi drží předchozí nabídku.
-  Pohled nese jen `manor.trailBuilt`; ukázky panelů (`/dev/panels`) mají nabídky v `DEV_PANEL_OPTIONS`.
+  Pohled stezky nenese; ukázky panelů (`/dev/panels`) mají nabídky v `DEV_PANEL_OPTIONS`.
 - **Velké části pohledu jen při změně** (`lib/view-pieces.ts`): `packViewPieces` (server action
   `getVillageView` – `trimKnown`) spočítá otisky kusů (`pieceKey` – cyrb53 JSONu a délka) dílů polí
   v pohledu (`f<i>`) i ve scéně (`s<i>`) po `PIECE_ITEMS` = 32, vstupu vozových tras (`we`, `wo`),

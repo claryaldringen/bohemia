@@ -14,7 +14,6 @@ const manor = (stance: DefenseStance): VillageManor => ({
   dwellingId: 1,
   stance,
   huntDenied: null,
-  trailBuilt: false,
 });
 
 async function mount(stance: DefenseStance, onSetStance: (s: DefenseStance) => Promise<null>) {

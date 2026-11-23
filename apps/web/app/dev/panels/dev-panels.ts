@@ -69,7 +69,6 @@ const manor: VillageManor = {
     meatKg: 410,
     dogs: { count: 6, wanted: 7 },
   },
-  trailBuilt: trails.some((t) => t.status === 'built'),
   family: [
     {
       id: 1,

@@ -193,7 +193,9 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `craft-buying.ts`. Ves výrobky řemeslníků (nástroje, keramika, dřevěné nářadí) ani vůz
   u sousedů nekupuje – má je jen od vlastních pracujících řemeslníků (`ownCraftsmanWorks` – dílna
   bez vstupů se nepočítá; `craftSources` → `VillageCrafts.sources`, panel dvorce `BuyingRow`:
-  vlastní ✓, jinak zašedlá ikona „… – ve vsi není řemeslník“). Nákup uložený ve starší vsi na
+  vlastní ✓, jinak zašedlá ikona „… – ve vsi není řemeslník“; stojí-li vlastní dílna bez vstupu,
+  popisek řekne důvod textem upozornění – `buyingDetails` v `selection-details.ts`,
+  `workshopStopNotice`: „Nástroje – Kovář nemá uhlí“). Nákup uložený ve starší vsi na
   cestě (`VillageState.purchases`, `CraftPurchase` – směr, skupina, dny, stezka nebo bod na kraji
   `edge`, zboží, platba, vozy vsi `carts`, koupený vůz `cart`) doběhne: lidé chybí v práci vsi
   (`purchaseTravelers` – kapacita `allocateDay`), `walkPurchases` → podíl práce `trade` s cílem

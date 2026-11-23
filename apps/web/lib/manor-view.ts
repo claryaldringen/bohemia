@@ -7,7 +7,6 @@ import {
   lordFamily,
   stanceOf,
   villageManor,
-  villageTrails,
   type DefenseStance,
   type TradeExpedition,
   type VillageState,
@@ -61,13 +60,11 @@ export interface VillageManor {
   huntDenied: string | null;
   /** Lov rodu letos a psi dvorce (wildlife.md – Co hráč vidí); bez psů a úlovku chybí. */
   hunt?: HuntView;
-  /** Obydlí (id domácnosti), které je dvorcem. */
-  dwellingId: number;
   /**
-   * Stojí aspoň jedna hotová zemská stezka. Stezky do 8 směrů (hotové, rozestavěné a nabídka
+   * Obydlí (id domácnosti), které je dvorcem. Stezky do 8 směrů (hotové, rozestavěné a nabídka
    * nových – cena, délka, důvod) pošle server až na vyžádání panelu (`panelOptionsOf`).
    */
-  trailBuilt: boolean;
+  dwellingId: number;
   /** Obyvatelé dvorce od nejstaršího (lord.md – Co hráč vidí). */
   family?: ManorMember[];
 }
@@ -133,7 +130,6 @@ export function manorView(
     stance: stanceOf(state),
     huntDenied: huntDeniedText(state, day, huntRunning),
     ...huntField(state, day),
-    trailBuilt: villageTrails(state).some((t) => t.builtDay !== null),
     family: manorFamily(state, day),
   };
 }
