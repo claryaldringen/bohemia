@@ -63,6 +63,8 @@ export function huntRecruit(
  * neumí, má vyšší riziko), jméno, žena, den narození a síla do meče (Rozhodnutí 8; war.md – Síla:
  * bojují muži od 16 let): muž rodu `lineManStrength` pěšky, na svém jezdeckém koni
  * `strengthMounted`; vesničan `villagerStrength` podle štěstí vsi (jako nábor); ženy a mladší 0.
+ * Muž rodu má sílu už od `HUNT.minAge` let jako obránce (`defenderRoster` – muži rodu od 14 let;
+ * plán 2026-11-22-hunting – Úloha 8: útočník 14–15 let by jinak na lovu nic nezabil).
  * Jezdec (`horseId`) – kdo má v ohradě jezdeckého koně se svým `riderId` (`ridingHorseOf`). Pro lov
  * (plán 2026-11-22-hunting – Úloha 7) jako obránce (`defenderRoster`): muž rodu (`isLineMan`, bez
  * meze věku) `line` a luk (`bowSkillOf`), jízda z `arms`, kdo cvičil.
@@ -74,11 +76,11 @@ export function recruitOf(
   villageId = '',
 ): JourneyRecruit {
   const horse = ridingHorseOf(state, person.id, day);
-  const fights = ageYears(person.bornDay, day) >= WAR.army.minAge;
-  const line = fights && isLineMan(person);
+  const age = ageYears(person.bornDay, day);
+  const line = age >= HUNT.minAge && isLineMan(person);
   let strength = 0;
   if (line) strength = lineManStrength(person, null);
-  else if (fights && person.sex === 'male') {
+  else if (age >= WAR.army.minAge && person.sex === 'male') {
     strength = villagerStrength(false, villageHappiness(state));
   }
   return {

@@ -209,8 +209,9 @@ untilTick, pen }`: vesničan `groomId` (null = nikdo doma), jezdci (id osob), ta
     i vojvoda) `young`, `isInjured` `wounded`, pryč na tažení `campaign`, jinak pryč `away`
     (`ExpeditionPersonRefusal`); jinak rekrut z `recruitOf` – `lord` (`currentLord`), `fight` =
     `arms.combat`, jméno, žena, `bornDay`, jezdec `horseId` (`ridingHorseOf` – `riderId`, jezdecký
-    kůň jako `riderHorse`) a síla: muž rodu od 16 `lineManStrength` (na svém koni
-    `strengthMounted`), vesničan od 16 `villagerStrength` se štěstím vsi, ženy a mladší 0. Stav vsi
+    kůň jako `riderHorse`) a síla: muž rodu od 14 (`HUNT.minAge` – jako obránce `defenderRoster`;
+    plán 2026-11-22-hunting, Úloha 8) `lineManStrength` (na svém koni `strengthMounted`), vesničan
+    od 16 `villagerStrength` se štěstím vsi, ženy a mladší 0. Stav vsi
     své id nezná – `ref.villageId` doplní volající.
   - **Rozdělení výběru** (`people` – celá čísla bez duplicit, 1–200, jinak `nobody`): člen = osoba
     s `away: journey` výpravy `activeIn` (domovská ves výběru), živá v jejím bodu (`upgradeJourney`)
@@ -989,7 +990,7 @@ Lov vsi je součást výpravy domovské vsi (`docs/design/hunting.md`; plán –
   povelu je už taktem souboje – útočníci udělají první krok (jako rozkaz). Lidé ze vsi:
   `huntRecruit` (`expedition-people.ts`) – žena `woman`, mladší 14 let `young`, jinak
   `expeditionRecruit`; `recruitOf` dává muži rodu (`isLineMan`, jako `defenderRoster`) `line` a luk
-  (`bowSkillOf`), jízdu z `arms`.
+  (`bowSkillOf`), jízdu z `arms` a sílu už od 14 let (útočník 14–15 let tak na lovu bije).
 - **Útočník a práce vsi** (plán – Rozhodnutí 3; Martin 22. 11. 2026: „práce těch lidí se odečte
   pouze za 1 den“): nový člověk ze vsi, který přišel povelem, dostane `huntId` = id lovu – use-case
   (Úloha 9) ho ve vsi pošle pryč s `away.huntId` téhož lovu a `reserveBeaters(state, lastDay, n)`;

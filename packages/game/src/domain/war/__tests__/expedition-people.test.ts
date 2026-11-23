@@ -110,6 +110,25 @@ describe('huntRecruit a dovednosti rekruta (plán 2026-11-22-hunting – Úloha 
     expect(typeof huntRecruit(s, person(s, 22), START)).toBe('object');
   });
 
+  it('síla útočníka 14 let: muž rodu jako obránce (i na svém koni), vesničan dál 0', () => {
+    const s = lhota();
+    const fourteen = START - Math.ceil(14 * YEAR) - 10;
+    const boy = person(s, 14);
+    boy.bornDay = fourteen;
+    boy.arms = { bow: 30, combat: 40, riding: 50 };
+    s.pens![0]!.horses!.find((h) => h.id === 1)!.riderId = 14;
+    const horse1 = s.pens![0]!.horses!.find((h) => h.id === 1)!;
+    const line = huntRecruit(s, boy, START) as JourneyRecruit;
+    expect(line.strength).toBe(lineManStrength(boy, null));
+    expect(line.strength).toBeGreaterThan(0);
+    expect(line.strengthMounted).toBe(lineManStrength(boy, horse1));
+    // vesničan 14 let jde, ale do meče ho bere až `WAR.army.minAge` (ostatní beze změny)
+    person(s, 22).bornDay = fourteen;
+    const villager = huntRecruit(s, person(s, 22), START) as JourneyRecruit;
+    expect(villager.strength).toBe(0);
+    expect(villager.strengthMounted).toBeUndefined();
+  });
+
   it('muž rodu nese line, luk a jízdu z arms (jako obránce); vesničan bez nich', () => {
     const s = lhota();
     expect(recruit(s, 12)).toMatchObject({ line: true, bow: 20, riding: 40, fight: 60 });
