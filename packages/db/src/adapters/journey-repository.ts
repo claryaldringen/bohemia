@@ -71,7 +71,8 @@ export function createJourneyRepository(db: Database): JourneyRepository {
     },
 
     async onCell(cell: GridCell): Promise<string[]> {
-      // políčko skupiny je jen v bodu (`state.groups`)
+      // políčko skupiny je jen v bodu (`state.groups`); výprava místní mřížky rodu (`localGrid` –
+      // lov odříznutého nováčka) stojí na místním políčku, ne na políčku světa se stejnými čísly
       const at = JSON.stringify([{ cell: { x: cell.x, y: cell.y } }]);
       const rows = await db
         .select({ id: journey.id })
@@ -81,6 +82,7 @@ export function createJourneyRepository(db: Database): JourneyRepository {
           and(
             eq(journey.status, 'active'),
             sql`${journeyCheckpoint.state}->'groups' @> ${at}::jsonb`,
+            sql`${journeyCheckpoint.state}->'localGrid' IS NULL`,
           ),
         )
         .orderBy(asc(journey.createdAt), asc(journey.id));

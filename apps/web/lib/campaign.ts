@@ -3,10 +3,10 @@ import {
   campaignsOf,
   campaignViewFor,
   commandCampaign,
-  type CampaignCells,
   type CampaignCommand,
   type CampaignCommandDeps,
   type CampaignCommandResult,
+  type JourneyCells,
   type MarchGrid,
   type TargetDwelling,
 } from '@bohemia/game';
@@ -27,10 +27,13 @@ import type { CampaignSummary, CampaignView } from './campaign-view';
 const SIGHT_GRIDS = new LruCache<string, MarchGrid>(4);
 /** Obydlí cílových vsí po herních dnech – celý stav vsi se nečte při každém dotazu pohledu. */
 const TARGETS = new LruCache<string, readonly TargetDwelling[]>(16);
-let cells: CampaignCells | null = null;
+let cells: JourneyCells | null = null;
 
-/** Mapy políček pro tažení (sdílená mezipaměť krajin, prázdná políčka v LRU) – jedny na proces. */
-export function campaignCells(): CampaignCells {
+/**
+ * Mapy políček pro tažení a výpravy (sdílená mezipaměť krajin, prázdná políčka v LRU) – jedny na
+ * proces; i mapa vsi výpravy místní mřížky rodu (`villageMapOf` – lov odříznutého nováčka).
+ */
+export function campaignCells(): JourneyCells {
   if (cells) return cells;
   const deps = gameDeps();
   cells = createCampaignCells({

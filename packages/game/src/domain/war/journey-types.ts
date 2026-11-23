@@ -187,6 +187,13 @@ export interface JourneyState {
   leaderName?: string;
   /** Domovská ves – odtud lidé vyšli a sem se vracejí. */
   home: CampaignVillage;
+  /**
+   * Výprava v místní mřížce rodu – lov vsi odříznutého nováčka (hunting.md – Lov odříznutého
+   * nováčka; newcomers.md): `home.cell` je místní políčko sídla (`Settlement.localCell`), ne políčko
+   * světa, mapa je krajina domovské vsi a lidé mapu vsi neopustí (`leavesLocalMap`). Chybí – výprava
+   * na mapě světa (i starší body).
+   */
+  localGrid?: true;
   members: JourneyMember[];
   /** Hloučky všech skupin. */
   groups: JourneyGroup[];

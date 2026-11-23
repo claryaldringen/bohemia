@@ -16,7 +16,13 @@ export * from './campaign-knowledge';
 export * from './journey-types';
 export * from './journey';
 export { commandOf, upgradeJourney } from './journey-upgrade';
-export { applyCommand, partyLeader, strikeRefusal, type StrikeRefusal } from './journey-parties';
+export {
+  applyCommand,
+  leavesLocalMap,
+  partyLeader,
+  strikeRefusal,
+  type StrikeRefusal,
+} from './journey-parties';
 export { quarryOut } from './journey-hunt';
 export { horseWorkTicks, pickGroom, riderHorse } from './journey-horses';
 export * from './expedition-people';

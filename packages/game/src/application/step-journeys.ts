@@ -13,7 +13,7 @@ import {
   type JourneyIntent,
   type JourneyState,
 } from '../domain/war';
-import type { CampaignCells, CampaignLock } from './campaigns';
+import { journeyCells, type CampaignLock, type JourneyCells } from './campaigns';
 import type { JourneyRepository } from './journeys';
 import type { KnowledgeRepository } from './knowledge';
 import type { NoticeRepository } from './notices';
@@ -35,12 +35,15 @@ import type { VillageRepository } from './villages';
 // i upozornění se po pádu mezi uložením a doručením doručí z bodu v dalším kole. Navíc válka:
 // vjede-li hlouček skupiny venku na mapu rodu, se kterým je hráčův rod ve válce, kolo za hráče
 // přidá odvolání domů (`recall` – lord-control.md, Pořadí zavedení: na mapu rodu ve válce vojvoda
-// nevjede). Starší kontrolní bod (jedna skupina) převede `upgradeJourney`.
+// nevjede). Starší kontrolní bod (jedna skupina) převede `upgradeJourney`. Výprava místní mřížky
+// rodu (`localGrid` – lov odříznutého nováčka; hunting.md – Lov odříznutého nováčka) čte jen mapu
+// domovské vsi (`journeyCells`), válka na ni nesahá a znalost rodu se z ní nezapisuje – její
+// políčko není políčkem světa.
 
 export interface StepJourneysDeps {
   journeys: JourneyRepository;
   campaignLock: CampaignLock;
-  cells: CampaignCells;
+  cells: JourneyCells;
   /** Vsi výjezdu – s pamětí workeru se celý stav načte jen u vsí, jejichž otisk se změnil. */
   villages: Pick<VillageRepository, 'find' | 'stampsOfVillages' | 'archivedOf' | 'inbox'>;
   notices: Pick<NoticeRepository, 'post'>;
@@ -108,13 +111,18 @@ async function stepOne(
   const states = deps.memory?.states;
   const start = roundStart(states?.get(journeyId), checkpoint, intents, toTick);
   states?.delete(journeyId);
-  const step = await computeWithLoads(deps, start, (state, world) =>
+  // výprava místní mřížky rodu: jen mapa domovské vsi, bez války a bez znalosti rodu
+  const local = from.localGrid === true;
+  const cells = journeyCells(deps.cells, from);
+  const step = await computeWithLoads({ ...deps, cells }, start, (state, world) =>
     stepJourney(state, toTick, intents, world),
   );
   if (step.state.tick === from.tick) return 'waiting';
-  await homeFromWar(deps, start, step.state, intents, toTick);
+  if (!local) await homeFromWar(deps, start, step.state, intents, toTick);
 
-  const knowledge = (step.knowledge ?? []).map((k) => ({ houseId: step.state.houseId, ...k }));
+  const knowledge = local
+    ? []
+    : (step.knowledge ?? []).map((k) => ({ houseId: step.state.houseId, ...k }));
   const outbox: CampaignOutbox | null =
     step.villageEvents.length > 0 || step.notices.length > 0 || knowledge.length > 0
       ? {

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { OFFICIAL_WORLD } from '../../domain/calendar';
 import { CURRENT_LAYER_VERSIONS } from '../../domain/landscape';
-import { at, horseVillage } from '../../domain/village/__tests__/horse-fixtures';
+import { at, horse, horseVillage } from '../../domain/village/__tests__/horse-fixtures';
 import { HUNT_FIGHT, WILDLIFE_LAND } from '../../domain/village/rules/rules-wildlife';
 import type { VillageState } from '../../domain/village/types';
 import { emptyHunt, pickQuarry } from '../../domain/village/wildlife/hunt';
@@ -14,8 +14,11 @@ import {
   type JourneyState,
 } from '../../domain/war';
 import { land } from '../../domain/war/__tests__/battle-fixtures';
+import type { GridCell } from '../../domain/village/people/world-grid';
 import { declareHuntInVillage, type DeclareHuntDeps } from '../declare-hunt';
+import { musterExpedition, type ExpeditionCommand, type ExpeditionDeps } from '../expedition';
 import { VILLAGE_ABANDONED, VILLAGE_EXTINCT, VILLAGE_TRAVELLING } from '../update-village';
+import { InMemoryCampaigns } from './in-memory-campaigns';
 import { InMemoryHouses } from './in-memory-houses';
 import { InMemoryJourneys } from './in-memory-journeys';
 import { InMemorySettlements } from './in-memory-settlements';
@@ -51,10 +54,13 @@ interface World {
   houseId: string;
 }
 
-/** Odříznutý nováček: rod bez místa na mapě světa (`unplaced`), sídlo v místní mřížce (`local`). */
+/**
+ * Odříznutý nováček: rod bez místa na mapě světa (`unplaced`), ves v místní mřížce rodu (`local` –
+ * sídlo na (0, 0), nebo ves syna na zadaném místním políčku).
+ */
 interface Isolation {
   unplaced?: boolean;
-  local?: boolean;
+  local?: boolean | GridCell;
 }
 
 async function setup(
@@ -75,7 +81,11 @@ async function setup(
   const seat = isolation.local
     ? (await settlements.createSeat({ ...place, localCell: { x: 0, y: 0 } }))!
     : await settlements.seatAtOrigin(place);
-  const home = await villages.add(seat.id, 'Lhota', state);
+  const son =
+    typeof isolation.local === 'object'
+      ? (await settlements.create({ ...place, landscapeSeed: 2, localCell: isolation.local }))!
+      : null;
+  const home = await villages.add((son ?? seat).id, 'Lhota', state);
   const journeys = new InMemoryJourneys();
   let n = 0;
   const deps: DeclareHuntDeps = {
@@ -83,7 +93,11 @@ async function setup(
     villages,
     houses,
     journeys,
-    cells: { mapOf: () => Promise.resolve(map) },
+    cells: {
+      // políčko světa se stejnými čísly je cizí mapa – ves v místní mřížce má svou jen `villageMapOf`
+      mapOf: () => Promise.resolve(isolation.local ? MEADOW : map),
+      villageMapOf: (id) => Promise.resolve(isolation.local && id === home.id ? map : MEADOW),
+    },
     world: OFFICIAL_WORLD,
     seeds: { nextSeed: () => 77 },
     newId: () => `jny-${++n}`,
@@ -210,10 +224,80 @@ describe('declareHuntInVillage – vyhlášení lovu (plán 2026-11-22-hunting, 
     expect(hunt?.declared).toBe(1);
   });
 
-  it('odříznutý nováček (rod bez místa na mapě světa, sídlo bez políčka světa) – unreachable jako výprava, nic se neuloží', async () => {
-    await deniedWith(await setup(lhota(), FOREST, { unplaced: true, local: true }), 'unreachable');
+  it('odříznutý nováček (rod bez místa na mapě světa, sídlo v místní mřížce) – lov ve výpravě místní mřížky z krajiny vsi', async () => {
+    const w = await setup(lhota(), FOREST, { unplaced: true, local: true });
+    expect(await declare(w)).toEqual({ ok: true, journeyId: 'jny-1' });
+    expect((await villageOf(w)).wildlife?.hunt?.beaters).toEqual({ day: SUMMER + 1, men: 6 });
+    const j = await journeyOf(w, 'jny-1');
+    expect(j.localGrid).toBe(true);
+    expect(j.home).toMatchObject({ villageId: w.homeId, cell: { x: 0, y: 0 } });
+    // dveře hustého lesa z krajiny vsi (`villageMapOf`) – políčko světa (0, 0) je louka bez lesa
+    expect(j.hunt?.beaters.door.x).toBeLessThan(-200);
+    // lov běží – druhé vyhlášení už ne
+    await deniedWith(w, 'already');
+  });
+
+  it('ves syna v místní mřížce: domov na jejím místním políčku, mapa z její krajiny', async () => {
+    const w = await setup(lhota(), FOREST, { unplaced: true, local: { x: 1, y: -1 } });
+    expect(await declare(w)).toEqual({ ok: true, journeyId: 'jny-1' });
+    const j = await journeyOf(w, 'jny-1');
+    expect(j).toMatchObject({ localGrid: true, home: { cell: { x: 1, y: -1 } } });
+    expect(j.hunt?.beaters.door.x).toBeLessThan(-200);
+  });
+
+  it('odříznutý nováček: bez lovu lidé ze vsi unreachable, během lovu jako v každé vsi, z mapy vsi nikdo neodejde', async () => {
+    const state = lhota();
+    const withHorse = horseVillage([{ ...horse(1, 6), riderId: 12 }], 1, 4);
+    state.pens = withHorse.pens;
+    const w = await setup(state, FOREST, { unplaced: true, local: true });
+    const deps: ExpeditionDeps = {
+      ...w.deps,
+      campaigns: new InMemoryCampaigns(),
+      atWar: () => Promise.resolve(true),
+    };
+    const send = (command: ExpeditionCommand, people = [20]): ReturnType<typeof musterExpedition> =>
+      musterExpedition(deps, {
+        playerId: 'pa',
+        villageId: w.homeId,
+        people,
+        command,
+        now: NOW,
+      });
+    const go = { kind: 'order', order: { kind: 'go', pos: { x: 105, z: 5 } } } as const;
+    // bez lovu výprava nemá odkud vyjet ani osedlat
+    expect(await send(go)).toEqual({ ok: false, reason: 'unreachable' });
+    expect(await send({ kind: 'saddle' }, [12])).toEqual({ ok: false, reason: 'unreachable' });
+    expect(await declare(w)).toEqual({ ok: true, journeyId: 'jny-1' });
+    // Osedlat s vesničanem během lovu: jede, člověk stojí na domovském místním políčku
+    expect(await send({ kind: 'saddle' }, [12])).toEqual({ ok: true, journeyId: 'jny-1' });
+    // jezdec je ve výpravě jako rekrut na domovském místním políčku (záměr přidá worker)
+    const saddle = w.journeys.intents.at(-1)?.body as {
+      kind: string;
+      recruits: { ref: { personId: number } }[];
+    };
+    expect(saddle.kind).toBe('saddle');
+    expect(saddle.recruits.map((r) => r.ref.personId)).toEqual([12]);
+    expect((await villageOf(w)).people.find((p) => p.id === 12)?.away).toEqual({
+      kind: 'journey',
+      refId: 'jny-1',
+    });
+    // „Jdi sem“ po mapě vsi projde
+    expect(await send(go)).toEqual({ ok: true, journeyId: 'jny-1' });
+    // jinou mapu (přes okraj) zná hranice mapy vsi: unreachable, nikdo dalších neodešel
+    const east = { kind: 'order', order: { kind: 'cross', cell: { x: 1, y: 0 } } } as const;
+    expect(await send(east, [22])).toEqual({ ok: false, reason: 'unreachable' });
+    const other = {
+      kind: 'order',
+      order: { kind: 'go', pos: { x: 5, z: 5 }, cell: { x: 1, y: 0 } },
+    } as const;
+    expect(await send(other, [22])).toEqual({ ok: false, reason: 'unreachable' });
+    expect((await villageOf(w)).people.find((p) => p.id === 22)?.away).toBeUndefined();
+    // útok na zvíře zatím v lese – důvod lovu, ne místní mřížky
+    expect(await send({ kind: 'strike' }, [22])).toEqual({ ok: false, reason: 'no-quarry' });
+  });
+
+  it('rod bez místa na mapě světa se sídlem na políčku světa – unreachable jako výprava, nic se neuloží', async () => {
     await deniedWith(await setup(lhota(), FOREST, { unplaced: true }), 'unreachable');
-    await deniedWith(await setup(lhota(), FOREST, { local: true }), 'unreachable');
   });
 
   it('víc lovů za den: hráč i správce na zítřek, honci obou se sečtou', async () => {

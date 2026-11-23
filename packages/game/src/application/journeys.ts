@@ -23,7 +23,10 @@ export interface JourneyRepository {
   activeIn(playerId: string, villageId: string): Promise<string | null>;
   /** Id všech běžících výprav hráče (z různých vsí), podle založení a id. */
   activeOfPlayer(playerId: string): Promise<string[]>;
-  /** Id běžících výjezdů, jejichž hlouček stojí na políčku světa `cell`. */
+  /**
+   * Id běžících výjezdů, jejichž hlouček stojí na políčku světa `cell` – výprava místní mřížky rodu
+   * (`localGrid`) ne, její políčka nejsou políčky světa.
+   */
   onCell(cell: GridCell): Promise<string[]>;
   checkpoint(journeyId: string): Promise<JourneyCheckpoint | null>;
   /** Záměry s taktem větším než `tick`, podle taktu a `seq`. */

@@ -8,6 +8,7 @@ import {
   lordJourneyViewOf,
   knownEyeState,
   nextKnownCell,
+  partyNearCell,
   UNKNOWN_MAP,
 } from '../journey-view';
 
@@ -167,5 +168,18 @@ describe('klíče pro události serveru', () => {
     expect(visitorsKey([v])).toBe('j:1:5:2');
     expect(visitorsKey([v])).not.toBe(visitorsKey([w]));
     expect(visitorsKey([])).toBe('');
+  });
+});
+
+describe('partyNearCell', () => {
+  it('výprava místní mřížky na místním (0, 0) není blízko políčka světa (0, 0), výprava světa ano', () => {
+    const at = (cell: { x: number; y: number }, localGrid = false): ExpeditionView => ({
+      ...view({ x: 0, z: 0 }, cell),
+      ...(localGrid ? { localGrid: true as const } : {}),
+    });
+    expect(partyNearCell([at({ x: 0, y: 0 }, true)], { x: 0, y: 0 })).toBe(false);
+    expect(partyNearCell([at({ x: 0, y: 0 })], { x: 0, y: 0 })).toBe(true);
+    expect(partyNearCell([at({ x: 0, y: 0 })], { x: 1, y: -1 })).toBe(true);
+    expect(partyNearCell([at({ x: 0, y: 0 })], { x: 2, y: 0 })).toBe(false);
   });
 });

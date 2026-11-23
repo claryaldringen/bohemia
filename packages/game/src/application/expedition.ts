@@ -12,6 +12,7 @@ import {
   huntRecruit,
   inManorArea,
   INTENT_LEAD_TICKS,
+  leavesLocalMap,
   manorArea,
   marchGrid,
   newJourney,
@@ -35,7 +36,7 @@ import {
 } from '../domain/war';
 import { recruitMember } from '../domain/war/journey-parties';
 import { mapGrid } from './campaign-view';
-import type { CampaignCells, CampaignRepository } from './campaigns';
+import { journeyCells, type CampaignRepository, type JourneyCells } from './campaigns';
 import type { HouseRepository } from './houses';
 import { orderAim } from './journey-order';
 import type { JourneyRepository } from './journeys';
@@ -107,8 +108,11 @@ export interface ExpeditionDeps extends PlayerVillagesDeps {
   houses: Pick<HouseRepository, 'activeOf'>;
   villages: VillageRepository;
   journeys: Pick<JourneyRepository, 'activeIn' | 'checkpoint' | 'create' | 'addIntent'>;
-  /** Mapy políček – krajina a překážky pro ověření rozkazu a domov výpravy. */
-  cells: CampaignCells;
+  /**
+   * Mapy políček – krajina a překážky pro ověření rozkazu a domov výpravy; výprava místní mřížky
+   * rodu (lov odříznutého nováčka) z krajiny vsi (`journeyCells`).
+   */
+  cells: JourneyCells;
   world: WorldClock;
   seeds: SeedSource;
   /** Nové id výpravy (uuid). */
@@ -203,7 +207,7 @@ async function homeByManor(
   if (command.kind !== 'order' || command.order.kind !== 'go' || !journey || !leader) return same;
   const cell = command.order.cell ?? journey.groups.find((g) => g.id === leader.group)!.cell;
   if (!sameCell(cell, journey.home.cell)) return same;
-  const map = await mapOn(deps, picked.maps, cell);
+  const map = await mapOn(deps, picked.maps, cell, journey);
   const area = manorArea(own.village.state, map.landscape);
   if (!area || !inManorArea(area, command.order.pos)) return same;
   return {
@@ -283,7 +287,9 @@ async function select(
 
 /**
  * Domov výpravy: běžící výpravy, jinak nové – rod hráče (`no-village`) s místem na mapě světa
- * (`unreachable`) a dvorec vsi (`journeyHome`).
+ * (`unreachable`) a dvorec vsi (`journeyHome`). Odříznutý nováček bez běžící výpravy místní
+ * mřížky (lovu) nemá odkud vyjet (`unreachable`); během lovu je ves jako každá jiná, hranici mapy
+ * vsi drží `verifyOrder` (hunting.md – Lov odříznutého nováčka).
  */
 async function homeOf(
   deps: ExpeditionDeps,
@@ -296,7 +302,7 @@ async function homeOf(
   const cell = own.settlement.worldCell;
   if (!house) return { ok: false, reason: 'no-village' };
   if (house.placedAt === null || !cell) return { ok: false, reason: 'unreachable' };
-  const map = await mapOn(deps, picked.maps, cell);
+  const map = await mapOn(deps, picked.maps, cell, null);
   const home: CampaignVillage = {
     villageId: own.village.id,
     name: own.village.name,
@@ -453,7 +459,8 @@ async function verify(
  * Rozkaz (lord-control.md – Rozkazy; Rozhodnutí 3): měří se od místa vůdce výběru (`partyLeader`
  * – jako krok výpravy; rekrut stojí doma), „Jdi sem“ s políčkem od vůdce těch z výběru, kdo na
  * něm stojí (nikdo – `unreachable`). Špatný vstup a místo, kam nedojdou, je `unreachable`; políčko
- * cíle rodu ve válce `war-there`.
+ * cíle rodu ve válce `war-there`. Výprava místní mřížky rodu (`localGrid`): rozkaz z mapy vsi
+ * (`leavesLocalMap`) je `unreachable` a válka se neptá – místní políčko není políčkem světa.
  */
 async function verifyOrder(
   deps: ExpeditionDeps,
@@ -461,7 +468,9 @@ async function verifyOrder(
   plan: Plan,
   order: JourneyOrder,
 ): Promise<ExpeditionRefusal | null> {
-  const groups = new Map(plan.situation.journey?.groups.map((g) => [g.id, g]) ?? []);
+  const journey = plan.situation.journey;
+  if (journey && leavesLocalMap(journey, order)) return 'unreachable';
+  const groups = new Map(journey?.groups.map((g) => [g.id, g]) ?? []);
   const places = [
     ...plan.chosen.members.map((m) => ({ who: m, at: groups.get(m.group)! as CampaignPlace })),
     ...plan.chosen.recruits.map((r) => ({ who: recruitMember(r, -1), at: plan.home })),
@@ -474,6 +483,7 @@ async function verifyOrder(
   const grid = order.kind === 'go' ? await gridOn(deps, plan, from.cell) : null;
   const aim = orderAim(order, from.cell, from.pos, () => grid!);
   if (aim === 'invalid' || aim === 'unreachable') return 'unreachable';
+  if (journey?.localGrid) return null;
   if (aim !== null && (await deps.atWar(input.playerId, aim))) return 'war-there';
   return null;
 }
@@ -500,16 +510,20 @@ function saddleRefusal(plan: Plan): ExpeditionRefusal | null {
   return horseHome ? 'horse-home' : 'nobody';
 }
 
-/** Mapa políčka – jednou za use-case (`CampaignCells.mapOf`). */
+/**
+ * Mapa políčka – jednou za use-case (`CampaignCells.mapOf`); výprava místní mřížky rodu z krajiny
+ * vsi (`journeyCells`).
+ */
 async function mapOn(
   deps: ExpeditionDeps,
   maps: Map<string, CampaignMap>,
   cell: GridCell,
+  journey: JourneyState | null,
 ): Promise<CampaignMap> {
   const key = `${cell.x},${cell.y}`;
   let map = maps.get(key);
   if (!map) {
-    map = await deps.cells.mapOf(cell);
+    map = await (journey ? journeyCells(deps.cells, journey) : deps.cells).mapOf(cell);
     maps.set(key, map);
   }
   return map;
@@ -522,7 +536,7 @@ async function mapOn(
 async function gridOn(deps: ExpeditionDeps, plan: Plan, cell: GridCell): Promise<MarchGrid> {
   const { own, day } = plan.situation;
   if (!sameCell(cell, plan.home.cell)) return mapGrid(deps, cell, day);
-  const map = await mapOn(deps, plan.maps, cell);
+  const map = await mapOn(deps, plan.maps, cell, plan.situation.journey);
   return marchGrid(map.landscape, map.obstacles, own.village.state, {
     day,
     trailContinuations: continuationsOf(map, own.village.state, day),

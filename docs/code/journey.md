@@ -1035,6 +1035,26 @@ Lov vsi je součást výpravy domovské vsi (`docs/design/hunting.md`; plán –
   i s lovem hned a bez výsledku – hloučky ve stavu zůstávají, proto ne přes `settleDone`.
 - **Mapa** – běží-li lov, úvodní kontrola `stepJourney` chce i mapu domovského políčka (bez ní
   `waiting`), i když na ní žádný hlouček nestojí.
+- **Výprava místní mřížky rodu – lov odříznutého nováčka** (hunting.md – Lov odříznutého nováčka):
+  příznak `JourneyState.localGrid` (nová volitelná část stavu, `NewJourney.localGrid`; starší body ho
+  nemají – `upgradeJourney` ho jen nese) a `home.cell` = `Settlement.localCell`. Vznikne jen
+  vyhlášením lovu ve vsi, jejíž sídlo leží v místní mřížce (`newHome` – `isIsolated`). **Mapa:** port
+  `JourneyCells` (`CampaignCells` + `villageMapOf(villageId)` – krajina sídla vsi z uloženého seedu,
+  jeho vsi, bez vstupů stezek; adaptér `packages/server/src/campaign-cells.ts`, sídlo podle otisku
+  vsi, ne podle políčka, takže platí i po umístění rodu uprostřed lovu; neznámá ves a sídlo v archivu
+  chyba). `journeyCells(cells, výprava)` dá výpravě místní mřížky jen domovskou mapu z `villageMapOf`
+  – nikdy políčko světa se stejnými čísly, jiné políčko je chyba; používá ho `declareHuntInVillage`,
+  `stepJourneys` (`computeWithLoads` s těmito mapami) a výprava (`mapOn` v `expedition.ts`).
+  **Okraj:** doména zahodí rozkaz, který vede z mapy vsi (`leavesLocalMap` – „Přes okraj“ vždy, „Jdi
+  sem“ na jiné políčko; v `orderPeople` jako „Přes okraj“ na nesousední políčko – noví lidé stojí
+  doma v nové skupině – a v `orderParty`); use-case ho odmítne `unreachable` (`verifyOrder`) a válku
+  se neptá. `homeOf` (`musterExpedition`) k běžící výpravě místní mřížky bere lidi ze vsi jako
+  u každé výpravy (Osedlat, „Jdi sem“ po mapě vsi, útok); bez lovu je výprava odříznutého
+  `unreachable` jako dřív.
+  **Znalost a válka:** `stepJourneys` výpravě místní mřížky znalost rodu nezapíše a `homeFromWar` se
+  neptá, `recallJourneysAtWar` ji přeskočí, `onCell` (návštěvníci mapy) ji nevrací (adaptér
+  `state->'localGrid' IS NULL`). Pohled `ExpeditionView.localGrid`; web podle něj nedá cizí mapu
+  (`journeyMapForPlayer`) a scéna vsi kreslí útočníky na místním políčku (`homeCellOf` – web-ui.md).
 - **Vyhlášení – use-case** (Úloha 9 – `application/declare-hunt.ts`): `declareHuntInVillage` se
   vstupem `playerId`, `villageId` a `now` → `DeclareHuntResult` (`{ ok: true, journeyId }`, nebo
   `reason` `HuntDenied` | `no-village` | `unreachable` | `busy` | `VILLAGE_EXTINCT` / `VILLAGE_ABANDONED` /
@@ -1046,10 +1066,11 @@ Lov vsi je součást výpravy domovské vsi (`docs/design/hunting.md`; plán –
   a důvody `huntDenied` na den honců (`lastDay + 1`; `running` je jen lov běžící ve výpravě – víc
   lovů za den smí, každý zaplatí své honce, `reserveBeaters` je sčítá; selže-li zápis výpravy,
   `unreserveBeaters` rezervaci a pořadí vrátí) napřed na uloženém stavu bez mapy → domov výpravy
-  (`newHome` jako `musterExpedition` – `homeOf`: bez rodu `no-village`, rod bez místa na mapě světa
-  nebo sídlo bez políčka světa – odříznutý nováček – `unreachable`, web text výprav „Tam nedojde.“;
-  tlačítko kvůli tomu nezašedne, zda má odříznutý nováček lovit, rozhodne Martin) → mapa domovského
-  políčka → zápis vsi (`editVillage`, souběh `busy`): důvody znovu
+  (`newHome`: bez rodu `no-village`; ves v místní mřížce rodu – `isIsolated(sídlo)`, sídlo i ves
+  syna odříznutého nováčka – výprava místní mřížky, viz níž; jinak jako `musterExpedition` –
+  `homeOf`: rod bez místa na mapě světa nebo sídlo bez políčka světa `unreachable`, web text výprav
+  „Tam nedojde.“) → mapa domovského políčka (`journeyCells`) → zápis vsi (`editVillage`, souběh
+  `busy`): důvody znovu
   na čerstvém stavu, `countDeclaredHunt`, zvíře `pickQuarry(zvěř, seed vsi, lastDay, declared)`
   (pořadí po přičtení – jako lov správce), dvorec výpravy (běžící `home`, jinak `journeyHome`),
   `huntStartOf` z mřížky pochodu (`marchGrid` se stezkami sousedů) – bez hustého lesa `no-game`
@@ -1095,10 +1116,19 @@ Lov vsi je součást výpravy domovské vsi (`docs/design/hunting.md`; plán –
   `hunt` výpravě venku se skupinami beze změny, `already` – lov ve výpravě i čekající záměr prvního
   lovu (ves zaplatí honce jednou), honci zítra, lov správce –,
   `closed-season`, `no-beaters`, `no-game` – mapa bez lesa i ves bez zvěře –, `no-village`,
-  `unreachable` – odříznutý nováček, `busy`;
+  `unreachable` – rod bez místa se sídlem na políčku světa, `busy`; odříznutý nováček – sídlo i ves
+  syna – lov ve výpravě místní mřížky s mapou z `villageMapOf`, `musterExpedition` bez lovu
+  `unreachable`, během lovu Osedlat i „Jdi sem“ po mapě vsi projdou a jiná mapa je `unreachable`;
   nic se neuloží), `expedition.test.ts` (strike: vojvoda ze vsi se značkou a dnem práce, žena
   `woman`, chlapec 13 let `young`, `no-quarry` bez výpravy, bez lovu i se zvířetem v lese, člen bez
   zámku vsi, člen se značkou předchozího lovu přes `musterExpedition`), `expedition-view.test.ts`
   (`hunt` null, skryté zvíře, zvíře venku, `strikers`, zmizelé, `huntRunning`, `huntRunningIn` –
   i čekající záměr `hunt`), `step-journeys.test.ts`
   (`playerSeesChange` u lovu; utíkající zvíře uloží bod každé kolo, skryté až po `CHECKPOINT_TICKS`).
+  Lov odříznutého nováčka: `journey-parties.test.ts` (výprava místní mřížky – „Přes okraj“ i „Jdi
+  sem“ na jinou mapu se zahodí, nový člověk stojí doma, „Jdi sem“ na mapě vsi jde),
+  `step-journeys.test.ts` (mapa jen `villageMapOf`, přes okraj nepřejde, bez znalosti a války;
+  `recallJourneysAtWar` ji přeskočí), db `journey-repository.db.test.ts` (`onCell` ji nevrací)
+  a `packages/server/src/__tests__/campaign-cells.db.test.ts` (`villageMapOf` – krajina vsi, ne
+  políčko světa (0, 0), ves syna, po umístění rodu, neznámá ves a archiv), web
+  `lib/__tests__/journey-scene.test.ts` (`homeCellOf`, útočníci a lov ve scéně odříznuté vsi).
