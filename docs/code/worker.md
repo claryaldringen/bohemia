@@ -139,6 +139,23 @@ v `advance-world.test.ts`, i se zásilkou ve schránce).
   herní den, se zahřátím mezipamětí), další roky 5,0–6,5 s (≈ 14–18 ms na den), tj. za 3 skutečné
   dny (≈ 8,2 herního roku) ≈ 45–55 s na ves; nájezd čeká, než ji worker dožene.
 
+## Pošta mezi vsemi
+
+markets.md – Rozhodnutí plánu 2, bod 6; `application/village-mail.ts` (village-core.md – Schránka
+vsi, village-trade.md – Pošta mezi vsemi). Ves zprávy pro jiné vsi (příjezd výpravy na trh, výsledek
+trhu) nechá v odchozí schránce `outbox`; `advancePlayer` ji doručí pod zámkem hráče:
+
+- **Dopočtená ves:** po `loadVillage` ve stejném `tryRun` jako odchody správce, má-li poštu
+  (`hasVillageMail` – stav už je v paměti, ves bez pošty nestojí ani dotaz) – i bez odchodů správce.
+- **Ves, kterou už dopočítal web** (`stamp.lastDay ≥ cíl` – přeskočí se): `deliverVillageMailSafely`
+  ve vlastním `tryRun` – načte ves sama (jeden `find`; otisk poštu neprozradí), bez pošty nic
+  neuloží (verze přeskočené vsi beze změny). Pád webu mezi uložením vsi a doručením tak dožene
+  příští dávka hráče. Do `PlayerStep.villages` ani `days` se nepočítá; zámek drží web → `busy`.
+- **Kdy:** hráče bere fronta, jen když má ves pozadu – ves na dnešku bez jiné vsi pozadu se
+  doručí nejpozději s dalším herním dnem (≈ 86 s). Výprava po termínu u hostitele pozadu čeká
+  (`hasVillageMail` platí, dokud výsledek nepřijde – každá dávka hráče se na hostitele podívá).
+- Chyba doručení (`deliverVillageMailSafely` – log) dávku nezastaví; zprávy zůstanou v `outbox`.
+
 ## Výjimky a omezení
 
 - **Sousedé na mapě s víc vsemi:** ve workeru vidí ves při dávce sousedy tak staré, jak jsou uložení

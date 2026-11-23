@@ -225,7 +225,8 @@ ves>:<id výpravy>`, `stayDays`, `travelDays`, zboží `goods` – koně i tady 
     trhu. `marketResult` je jediné místo, kde vzniká `MarketResult` (`sold`, `bought`, `unsold` –
     co zbylo, koně domů `horses` – neprodaní i koupení, `report?`, `prices?`, `returned?`);
     nepoužitý příjezd nic neprodal ani nekoupil a domů jde vše, co vezl. Výsledek použije domovská
-    ves (`applyMarketResult` – Výprava na trh níž); odchozí schránku zatím nikdo nedoručuje.
+    ves (`applyMarketResult` – Výprava na trh níž); odchozí schránku doručí `deliverVillageMail`
+    (Pošta mezi vsemi níž).
   - **Koně:** `takeHorses(state, druh, n, day)` (`horse-trade.ts`) – koně z `horsesToSell`
     odejdou z ohrad a vrátí se jako `TradedHorse` (den narození, pohlaví, výcvik); používá ho
     i `dispatchShipment` (zásilky beze změny výsledku), `removeHorses` je `takeHorses` bez výsledku.
@@ -274,8 +275,35 @@ ves>:<id výpravy>`, `stayDays`, `travelDays`, zboží `goods` – koně i tady 
     do vsi (`addGood`, koně po kusech `addHorses`) – i bez záznamu výpravy, nic nezmizí –, výprava
     s klíčem výsledku se smaže, zpráva na pivo s cenami trhu do `news` (`rememberNews`, jen se
     záznamem výpravy) a kronika `market-returned` (`returned` – hostitel zanikl; bez záznamu
-    výpravy s prázdným jménem vsi). Výsledek přijde nejdřív v `returnDay`; doručení mezi vsemi
-    (odchozí schránka, zaniklý hostitel) zatím chybí.
+    výpravy s prázdným jménem vsi). Výsledek přijde nejdřív v `returnDay`.
+- **Pošta mezi vsemi** (markets.md – Rozhodnutí plánu 2, bod 6; `application/village-mail.ts`,
+  odchozí schránka obecně: village-core.md – Schránka vsi). Příjezd i výsledek jdou odchozí
+  schránkou (`outbox`) a `deliverVillageMail` je zapíše do schránek cílových vsí – po odeslání
+  výpravy a po dopočtu za odchody správce (`advancePlayer`, `dynastyForVillage`,
+  `advanceDynasty`). Worker doručí i ves, kterou už dopočítal web a kterou proto nedopočítává
+  (`stamp.lastDay ≥ cíl` – worker.md, Pošta mezi vsemi), takže pád webu mezi uložením vsi
+  a doručením dožene příští kolo. Každá zpráva výpravy má pevný `ref` (`…:in`, `…:out`) – domů
+  přijde nejvýš jeden výsledek, i když ho zapíše hostitel i domovská ves.
+  - **Výprava po termínu** (`lastDay ≥ returnDay`, výsledek nepřišel – `hasVillageMail`): domovská
+    ves načte hostitele. Výsledek v jeho odchozí schránce zapíše sama (hostitel ho pak zapíše
+    znovu – zahodí se). Jinak, je-li hostitel pryč (`sleeps` – vymřel, opuštěn, ves chybí;
+    `placeOf` null – sídlo v archivu): nepoužitý příjezd (ve schránce hostitele po jeho `lastDay` –
+    `inbox.pending` do `TOTAL_GAME_DAYS`) se vrátí jako `marketResult(příjezd, { returned: true })`
+    se vším, co výprava vezla; výprava, která už na trhu stojí (`market.visitors`), s tím, co drží
+    (`unsold`, `bought`, koně). Výsledek jde do vlastní schránky s `ref` `marketResultRef` na den
+    `lastDay + 1`. Živý hostitel pozadu znamená čekat – lidé jsou doma v plánovaný den, zboží
+    přijde se zprávou v nejbližší nespočtený den. Příjezd v odchozí schránce vsi se za nepoužitý
+    bere jen u hostitele, jehož ves chybí (návrh Clauda, upřesnění zadání): u existujícího ho
+    doručení právě zapsalo do jeho schránky a zpráva, kterou minule nešlo smazat, nedokazuje, že ji
+    hostitel nepoužil – vrácení se vším by zdvojilo zboží (test „příjezd, který minule nešlo
+    smazat“).
+  - **Pomocníci zásilek** (`application/shipments.ts`, exportované beze změny chování pro poštu
+    a výpravu na trh): `sleeps`, `placeOf` (`ShipmentPlace` – políčko, držitel, odříznutí),
+    `stepToward`, `crossesIsolation`.
+  - **Testy:** `application/__tests__/village-mail.test.ts` (kolo tam a zpět, hostitel pozadu,
+    vymřelý a archivovaný hostitel, zmizelá ves, chyba a souběh, web po dopočtu) a
+    `advance-world.test.ts` – Pošta mezi vsemi ve workeru (ves dopočtená webem, zámek, kola workeru
+    = ruční postup); dva hráči na sousedních mapách v `__tests__/market-world.ts`.
 - **Jen společné suroviny** (trade.md – Jen společné suroviny; Martin 19. 10. 2026: „Nech jen
   společné suroviny, nezaváděj nové.“): obchod zná jen zboží, které má i ves (`TradeGood`,
   `TRADE_GOODS`). Zboží zvenku (sůl, železo, med, kožešiny – dřívější soubor zboží) ve hře není.

@@ -100,8 +100,11 @@ export interface ShipmentDeps {
 export type SendShipmentResult =
   { ok: true; shipmentId: string; arrivesDay: number } | { ok: false; reason: string };
 
-/** Ves se nesimuluje – nic neposílá ani nepřijímá. */
-function sleeps(record: VillageRecord | null): boolean {
+/**
+ * Ves se nesimuluje – nic neposílá ani nepřijímá (záznam chybí, vymřela, opuštěná). Sdílí ho
+ * pošta mezi vsemi (`village-mail.ts`).
+ */
+export function sleeps(record: VillageRecord | null): boolean {
   return record === null || isVillageExtinct(record.state) || isVillageAbandoned(record.state);
 }
 
@@ -115,7 +118,10 @@ export async function canReceive(
 }
 
 /** Směr prvního kroku z políčka `from` k `to` (stejné políčko – sever). */
-function stepToward(from: { x: number; y: number }, to: { x: number; y: number }): Direction8 {
+export function stepToward(
+  from: { x: number; y: number },
+  to: { x: number; y: number },
+): Direction8 {
   const sx = Math.sign(to.x - from.x);
   const sy = Math.sign(to.y - from.y);
   for (const [direction, step] of Object.entries(GRID_STEPS) as [
@@ -128,7 +134,7 @@ function stepToward(from: { x: number; y: number }, to: { x: number; y: number }
 }
 
 /** Kde ves leží: políčko a držitel; `isolated` – v místní mřížce odříznutého rodu. */
-interface ShipmentPlace {
+export interface ShipmentPlace {
   cell: { x: number; y: number };
   ownerId: string;
   isolated: boolean;
@@ -142,9 +148,9 @@ export function settlementCell(settlement: Settlement): WorldCell {
   return settlement.worldCell ?? settlement.localCell ?? { x: 0, y: 0 };
 }
 
-/** Poloha vsi (`settlementCell`) a držitel. */
-async function placeOf(
-  deps: Pick<ShipmentDeps, 'settlements'>,
+/** Poloha vsi (`settlementCell`) a držitel; sídlo v archivu nebo neznámé – null. */
+export async function placeOf(
+  deps: { settlements: Pick<SettlementRepository, 'find'> },
   village: VillageRecord,
 ): Promise<ShipmentPlace | null> {
   const settlement = await deps.settlements.find(village.settlementId);
@@ -157,7 +163,7 @@ async function placeOf(
 }
 
 /** Odříznutý rod posílá jen mezi vlastními vsemi – cizí ho nevidí a on je (newcomers.md). */
-function crossesIsolation(a: ShipmentPlace, b: ShipmentPlace): boolean {
+export function crossesIsolation(a: ShipmentPlace, b: ShipmentPlace): boolean {
   return (a.isolated || b.isolated) && a.ownerId !== b.ownerId;
 }
 

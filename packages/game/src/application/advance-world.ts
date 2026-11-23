@@ -8,6 +8,7 @@ import { closeDynastyDay, type DynastyDeps } from './restart-game';
 import { settleStewardDeparturesSafely } from './settle-steward-departures';
 import type { Settlement } from './settlements';
 import { heldDay } from './village-holds';
+import { deliverVillageMailSafely, hasVillageMail } from './village-mail';
 import type { VillageRecord, VillageStamp } from './villages';
 import type { PlayerBehind, WorldQueue } from './world-queue';
 import { awakeSince } from './activity';
@@ -76,11 +77,15 @@ export interface PlayerStep {
  * (`tryRun`) dopočte do `T` (`loadVillage` – s přestávkami `pause`; ves s tažením u ní nejvýš do
  * meze bariéry `VillageHolds` – ves na mezi se do nejstaršího dne nepočítá) a vybaví se její odchozí
  * schránky správce (`settleStewardDeparturesSafely` – nová ves syna vznikne v den odchodu a je
- * pozadu, vezme ji další kolo). Ves na cestě se posouvá jako každá jiná – se správcem ji založí
- * simulace v den příjezdu, bez něj čeká na hráče. Když se něco posunulo, jedno závěrečné držení
- * zjistí konec rodu (`closeDynastyDay` v den `T`) – jen když jsou všechny nespící vsi právě na `T`;
- * ze smíšených dnů (web mezitím posunul ves, nová ves ze schránky) by mohl vyjít falešný konec
- * rodu, a tak se ověří po další dávce (nejpozději na dnešku). Spící vsi se nepočítají vůbec.
+ * pozadu, vezme ji další kolo) a doručí se její odchozí schránka (`deliverVillageMailSafely`, má-li
+ * poštu – `hasVillageMail`). Ves, kterou už dopočítal web (`lastDay` ≥ cíl), se nedopočítává – pod
+ * zámkem se jen doručí její odchozí schránka (pád webu mezi uložením vsi a doručením; bez pošty nic
+ * neuloží) a do `villages` ani `days` se nepočítá. Ves na cestě se posouvá jako každá jiná – se
+ * správcem ji založí simulace v den příjezdu, bez něj čeká na hráče. Když se něco posunulo, jedno
+ * závěrečné držení zjistí konec rodu (`closeDynastyDay` v den `T`) – jen když jsou všechny nespící
+ * vsi právě na `T`; ze smíšených dnů (web mezitím posunul ves, nová ves ze schránky) by mohl vyjít
+ * falešný konec rodu, a tak se ověří po další dávce (nejpozději na dnešku). Spící vsi se
+ * nepočítají vůbec.
  */
 export async function advancePlayer(
   deps: AdvancePlayerDeps,
@@ -125,9 +130,20 @@ export async function advancePlayer(
     let failure: { villageId: string; cause: unknown } | null = null;
     for (const stamp of awake) {
       const to = Math.min(target, dayOf(stamp));
-      if (stamp.lastDay >= to) continue;
       villageId = stamp.id;
       try {
+        if (stamp.lastDay >= to) {
+          // ves dopočítal web – worker ji nedopočítává, jen doručí její odchozí schránku (pád webu
+          // mezi uložením vsi a doručením – village-mail.ts); do vsí ani dní dávky se nepočítá
+          const delivered = await deps.locks.tryRun(input.playerId, () =>
+            deliverVillageMailSafely(deps, stamp.id),
+          );
+          if (!delivered.ran) {
+            step.outcome = 'busy';
+            return finish();
+          }
+          continue;
+        }
         const settlement = settlements.find((s) => s.id === stamp.settlementId);
         if (!settlement) continue;
         const landscape = settlementLandscape(settlement, deps.landscapes);
@@ -137,13 +153,16 @@ export async function advancePlayer(
             today: to,
             landscape,
           });
-          if (!village || pendingStewardDepartures(village.state).length === 0) {
-            return { village, founded: 0 };
-          }
-          const founded = await settleStewardDeparturesSafely(deps, {
-            playerId: input.playerId,
-            villageId: stamp.id,
-          });
+          if (!village) return { village, founded: 0 };
+          const founded =
+            pendingStewardDepartures(village.state).length === 0
+              ? []
+              : await settleStewardDeparturesSafely(deps, {
+                  playerId: input.playerId,
+                  villageId: stamp.id,
+                });
+          // odchozí schránka vsi (village-mail.ts) – i bez odchodů správce; bez pošty ani dotaz
+          if (hasVillageMail(village.state)) await deliverVillageMailSafely(deps, stamp.id);
           return { village, founded: founded.length };
         });
         if (!held.ran) {

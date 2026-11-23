@@ -415,10 +415,24 @@ seq, body }`, `NewVillageEvent` (bez `id` a `seq`, s jedinečným `ref` – idem
   větev v `applyEvent` (kompilátor ohlídá úplnost).
   - **Trh** (markets.md – Rozhodnutí plánu 2, bod 6; village-trade.md – Trh ve vsi): těla
     `MarketMailBody` – `{ kind: 'market-arrive'; arrival }` (výprava přijela na trh vsi –
-    `joinMarket`) a `{ kind: 'market-result'; result }` (výsledek trhu pro domovskou ves výpravy;
-    zatím se nepoužije – vrátí `[]`). Posílá je odchozí schránka vsi (`VillageState.outbox`,
+    `joinMarket`) a `{ kind: 'market-result'; result }` (výsledek trhu pro domovskou ves výpravy –
+    `applyMarketResult`). Posílá je odchozí schránka vsi (`VillageState.outbox`,
     `VillageMail` – stejný tvar jako `NewVillageEvent`), `ref` příjezdu `marketArrivalRef`,
     výsledku `marketResultRef`.
+  - **Odchozí schránka** (`application/village-mail.ts`; markets.md – Rozhodnutí plánu 2, bod 6):
+    ves sama do cizí vsi nepíše – zprávy pro jiné vsi nechá v `outbox` a `deliverVillageMail(deps,
+villageId)` je zapíše do schránek cílových vsí (`inbox.post`, druhý zápis téhož `ref` se
+    zahodí) a doručené smaže verzovaným zápisem vsi (při souběhu znovu, nejvýš `MAIL_ATTEMPTS` = 5 –
+    technická mez, ne pravidlo; prázdný `outbox` ze stavu zmizí). Existenci cílových vsí ověří
+    jeden levný dotaz `stampsOfVillages`: příjezd do zmizelé vsi se změní ve výsledek `returned`
+    se vším do vlastní schránky na den plánovaného návratu (den příjezdu + pobyt + cesta – lidé
+    jsou doma v plánovaný den, návrh Clauda), výsledek pro zmizelou domovskou ves se zahodí.
+    `hasVillageMail(state)` – neprázdný `outbox` nebo výprava na trh po termínu bez výsledku; jen
+    s ní se doručuje po dopočtu (`advancePlayer`, `dynastyForVillage`, `advanceDynasty` – za
+    odchody správce), takže ves bez pošty nestojí ani dotaz navíc. `deliverVillageMailSafely`
+    chybu zapíše do logu a vrátí 0 – dopočet nezastaví, zprávy zůstanou v `outbox` a doručí je
+    příští volání (idempotentně podle `ref`). Výprava po termínu a zaniklý hostitel:
+    village-trade.md – Pošta mezi vsemi.
   - **Kde se použijí:** `advanceVillageSteps(state, toDay, obstacles, landscape, inbox = [])` na
     začátku dne `d`, před `simulateDaySteps(d)`, použije události dne `d` v pořadí `seq`
     (`applyInboxDay` – mutuje klon stavu jako kroky dne, zápisy kroniky vrací). Události mimo
