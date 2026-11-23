@@ -46,7 +46,7 @@ const ANIMATE_RANGE_M = 900;
 /** Výška obalu skupiny nad terénem (m) – nejvyšší je jelen s parožím. */
 const HEAD_ROOM_M = 2.6;
 /** Výška zvířete (m při měřítku 1) pro výběr kliknutím – průmět od nohou po hřbet. */
-const PICK_HEIGHT_M: Record<WildModel, number> = {
+export const PICK_HEIGHT_M: Record<WildModel, number> = {
   'wild-boar': 0.9,
   'wild-stag': 1.7,
   'wild-hind': 1.4,
@@ -56,7 +56,7 @@ const PICK_HEIGHT_M: Record<WildModel, number> = {
   'wild-hare': 0.35,
 };
 /** Klik do tolika CSS px od průmětu zvířete ho vybere. */
-const PICK_PX = 14;
+export const PICK_PX = 14;
 
 export interface WildlifeEnvironment {
   landscape: Landscape;

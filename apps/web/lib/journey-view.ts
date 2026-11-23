@@ -3,6 +3,7 @@ import type {
   ExpeditionView,
   ExpeditionVisitor,
   GridCell,
+  HuntView,
   JourneyView,
   PartyView,
   Pos,
@@ -232,6 +233,28 @@ export function partiesOf(views: readonly ExpeditionView[], villageId: string | 
   return views
     .filter((v) => villageId === null || v.villageId === villageId)
     .flatMap((v) => v.parties);
+}
+
+/**
+ * Lov vsi ve scéně (plán 2026-11-22-hunting – Úloha 10): pohled na lov a výprava, ve které běží.
+ * `tick` – takt výpravy, ke kterému pohled platí: po konci souboje takt souboje stojí (zvíře se už
+ * nehne), honci ale jdou dál a scéna podle taktu přehrává jejich cestu (`QuarryGlide`).
+ */
+export type SceneHunt = HuntView & { journeyId: string };
+
+/**
+ * Lov vsi scény `villageId` z pohledů vlastních výprav (jedna výprava na ves, lov v ní nejvýš
+ * jeden – Rozhodnutí 1); lov jiné vsi, žádný a bez vsi scény null. Útočníky kreslí scéna jako lidi
+ * výpravy (hlouček má polohu bojovníka), tady jen zvíře, honci a psi.
+ */
+export function sceneHuntOf(
+  own: readonly ExpeditionView[],
+  villageId: string | null,
+): SceneHunt | null {
+  if (villageId === null) return null;
+  const view = own.find((v) => v.villageId === villageId && v.hunt !== null);
+  if (!view?.hunt) return null;
+  return { ...view.hunt, journeyId: view.journeyId, tick: Math.max(view.hunt.tick, view.tick) };
 }
 
 /** Vzhled člověka výpravy: dítě, žena, muž rodu (vojvoda a jezdci) nebo vesničan. */

@@ -674,7 +674,7 @@ export class ArmyRenderer {
   private writeFigures(list: readonly ArmyFigure[], t: number, frozen: boolean): void {
     for (const [kind, k] of this.figures) {
       const mine = list.filter((x) => x.kind === kind);
-      ensure(k, mine.length);
+      ensureFigures(k, mine.length);
       mine.forEach((fig, i) => writeFigure(k, i, fig, this.env.groundHeight(fig.x, fig.z), frozen));
       k.mesh.thinInstanceCount = mine.length;
       k.mesh.setEnabled(mine.length > 0);
@@ -1050,12 +1050,12 @@ export class ArmyRenderer {
       } else console.warn('Model obléhání (žebříky, otepi) se nepodařilo načíst.');
       if (man.status === 'fulfilled' && man.value) {
         const k = createBakedFigure(this.scene, 'army-man', man.value);
-        ensure(k, 8, true);
+        ensureFigures(k, 8, true);
         this.figures.set('man', k);
       } else console.warn('Model muže vojska se nepodařilo načíst.');
       if (woman.status === 'fulfilled' && woman.value) {
         const k = createBakedFigure(this.scene, 'army-woman', woman.value);
-        ensure(k, 4, true);
+        ensureFigures(k, 4, true);
         this.figures.set('woman', k);
       }
       for (const [species, r] of [
@@ -1172,7 +1172,7 @@ export class ArmyRenderer {
 }
 
 /** Buffery instancí postav aspoň pro `n` (rostou po dvojnásobku). */
-function ensure(k: BakedKind, n: number, force = false): void {
+export function ensureFigures(k: BakedKind, n: number, force = false): void {
   if (!force && k.matrices.length >= Math.max(1, n) * 16) return;
   const cap = Math.max(1, n) * 2;
   k.matrices = new Float32Array(cap * 16);
@@ -1184,7 +1184,7 @@ function ensure(k: BakedKind, n: number, force = false): void {
 }
 
 /** Matice a klip postavy: stojí ve směru pohledu, padlý leží na zemi tváří dolů. */
-function writeFigure(
+export function writeFigure(
   k: BakedKind,
   slot: number,
   fig: ArmyFigure,

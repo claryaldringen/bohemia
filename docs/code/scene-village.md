@@ -639,6 +639,46 @@ nepřeplánují (`wildlifeKey` bere jen pole W10).
   vlevo, 1,5 m vzhůru) 2 m dál k vodě; konec leží 0,3 m pod terénem, takže za strmým břehem končí viditelná čára
   na hladině. Všechny vlasce jeden LinesMesh, přestaví se jen se změnou postav. Oka se nekreslí.
 
+## Lov ve scéně (hunting.md – Pravidla 3 a 7; plán 2026-11-22-hunting – Úloha 10)
+
+Data: `SceneHunt` (`lib/journey-view.ts`) – pohled na lov (`HuntView`) z výpravy vsi scény
+(`sceneHuntOf` – jen výprava vsi `villageId`) s `journeyId`; `tick` je takt výpravy (po konci
+souboje takt souboje stojí, honci jdou dál). Scéna ho dostane `setHunt` (null – žádný), kreslí
+`HuntRenderer` (`hunt-renderer.ts`) vedle vojska a výprav v `SceneWarView`; pózy jsou čisté
+funkce v `hunt-scene.ts`.
+
+- **Zvíře** – `QuarryGlide`: pohledy se přehrávají jako `JourneyGlide` (D49) podle taktů
+  (`TICK_MS`) se zpožděním `PLAY_LAG_TICKS`, tempo nejvýš ± `PLAY_SLACK`, zásoba nad
+  `PLAY_BEHIND_MAX_TICKS` se zahodí – zvíře a útočníci (hloučky výpravy) mají stejné zpoždění.
+  Takt se odvozuje od přijetí pohledu, ne od hodin světa (`msOfTick`): scéna má ve vývojovém skoku
+  v čase hodiny posunuté o celé dny, výprava běží v taktech světa (návrh Clauda). Mezi dvěma
+  pohledy se zvíře posune rovnoměrně, stav a rány platí od taktu pohledu; utíkající do lesa
+  (`escape`) jde ke dveřím lesa a zmizí s pohledem, kde je pryč; v lese a zmizelé se nekreslí.
+  Modely `wild-*` jako zvěř u vsi (`quarryModel` – bachyně je kanec v měřítku 0,85, ostatní 1),
+  krok podle ušlé dráhy. Zabité leží na boku (`LYING_LIFT_M` – bok nad terénem).
+- **Honci** – `beaterFigures` podle `beatersAt` v taktu přehrávání (`tickAt` jde dál i za poslední
+  pohled – cesta honců je čistá funkce taktu): kdo ještě nevyšel, nebo je už doma, chybí (nosiči
+  jdou pomaleji, ostatní jsou doma dřív). Směr podle chůze (příští takt), u lesa stojí čelem k lesu.
+  Postava `man.glb` jako lidé výprav (`ensureFigures` a `writeFigure` z `army-renderer.ts`, oděv
+  `ARMY_LOOKS`), klip `walk` / `idle`, nosiči `carry-pole-back` (ruka na rameni bez rekvizity –
+  `carry-pole` nese košatinu s uhlím).
+- **Odnos na tyči** – nesou-li honci 0 a 1 úlovek (`carrying`), visí zvíře hřbetem dolů uprostřed
+  tyče mezi nimi (`poleBetween` – střed, směr a vzdálenost nosičů), trupem napříč tyčí (mezi
+  nosiči, kteří jdou vedle sebe); tyč je válec 3 m (`CreateCylinder`, ⌀ 7 cm) na ramenou 1,7 m nad
+  terénem. Od `homeTick` se nekreslí nic.
+- **Psi** – `huntDogFigures`: `dogs` psů (nejvýš `HUNT_DOGS_MAX` = 8 jako smečka u dvorce), pes `k`
+  jde 1,8 m za honcem `k mod 6` a 0,9 m stranou, stojící čichá. Dokud lov trvá, smečka u dvorce je
+  nekreslí (`withoutHuntDogs` v `setVillage`).
+- **Zásah** – nové rány (`hitsAt`) zvednou prach u zvířete (`dustAt` z `battle-fx.ts` jako srážka
+  v boji); nový lov ani nové načtení stránky prach nezvedne.
+- **Útočníci** jsou lidé výpravy s vlastním hloučkem – kreslí je `ArmyRenderer` stávající cestou
+  (`sceneJourneysOf`), `HuntRenderer` ne.
+- **Výběr** – `quarryAt` (`quarryHit`): průmět od nohou po hřbet živého zvířete do `PICK_PX` od
+  kurzoru (`PICK_HEIGHT_M` z `wildlife.ts`); padlé cílem povelu není.
+- **Kreslení** – jen při změně: `animate` porovná nakreslené (`HuntStats`) a vrátí true i za chůze
+  honců (klipy VAT) a prachu; omezený pohyb kreslí poslední pohled (`lastTick`). Modely se stahují
+  až s prvním lovem, zvíře až vyběhne (v lese druh pohled nemá). `huntStats` – stav pro e2e.
+
 ## Kůň a hříbě (modely – Úloha 8; ve scéně Úloha 10)
 
 `apps/web/public/models/fauna/horse.glb` (≈ 175 kB, 2,2 m dlouhý) a `foal.glb` (≈ 165 kB, 1,3 m,
