@@ -176,24 +176,9 @@ describe('křest ve dni simulace (schránka, porody, vcelku = po kouscích)', ()
       lord: { name: 'Bořivoj' },
     }),
   );
-  // druhá manželka se syny ve vlastní zemnici, jak ji tam po stavbě druhého obydlí pošle přeplněný
-  // dvorec (lord.md – Zakladatelé, Manželky – Bydlení): test měří děti po křtu a v přeplněném
-  // dvorci (9 zakladatelů v zemnici o 6 místech) se rodí málo
-  const secondWifeHome = start.nextId++;
-  start.dwellings.push({
-    id: secondWifeHome,
-    type: 'zemnice',
-    builtDay: FOUNDED,
-    condition: 1,
-    position: { x: 30, z: 0, rotation: 0 },
-  });
-  const secondWife = wivesOf(start, currentLord(start)!)[1]!;
-  for (const p of start.people) {
-    if (p.id === secondWife.id || p.motherId === secondWife.id) p.dwellingId = secondWifeHome;
-  }
-  // po zániku dalších manželek z okolí (markets.md – Pravidla 1) rodí po křtu jen hlavní manželka;
-  // zakladatelská je při křtu u konce plodného věku – test měří děti po křtu, proto je mladší a ves
-  // nehladoví
+  // test měří děti vojvody po křtu – ty rodí jen hlavní manželka, ostatní křest propustí
+  // (christianity.md – Křest rodu, Jediná manželka). Zakladatelská hlavní manželka je při křtu
+  // u konce plodného věku, proto je mladší a ves nehladoví – jinak se po křtu dítě narodit nemusí
   wivesOf(start, currentLord(start)!)[0]!.bornDay = FOUNDED - 28 * 365;
   start.storesKg = 60_000;
   const baptismDay = FOUNDED + Math.round(1.5 * YEAR);

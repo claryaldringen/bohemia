@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../../calendar';
 import { foundVillage } from '../../core/actions';
-import { cartIronDay, cartIronKg, ironTripHelpers, withoutSameMapVillages } from '../cart-iron';
+import {
+  cartIronDay,
+  cartIronKg,
+  ironTripHelpers,
+  ironTripShares,
+  withoutSameMapVillages,
+} from '../cart-iron';
 import { summarizeVillage } from '../../core/summary';
 import {
   cartAwaitingIron,
@@ -15,7 +21,7 @@ import {
 import { barsReserveKg } from '../iron';
 import { restingCarpenters } from '../carpentry';
 import { NO_CRAFTS } from '../../core/productivity';
-import { CARPENTRY, CRAFT_BASE } from '../../rules';
+import { CARPENTRY, CART_IRON, CRAFT_BASE } from '../../rules';
 import { advanceVillage } from '../../core/simulate';
 import type { ChronicleEvent, Craft, Person, VillageState } from '../../types';
 import { withBuiltFirstDwelling } from '../../__tests__/village-fixtures';
@@ -239,6 +245,47 @@ describe('ves bez kováře – vůz čeká na kování (markets.md – Pravidla 
     expect(cartIronDay(s, DAY + 1)).toEqual([]);
     expect(carpenter(s).ironTrip).toBeNull();
     expect(carpenter(s).cart).not.toBeNull();
+  });
+
+  it('uložená cesta ze starší vsi – nosiči a sedlák s vozem chybí v práci vsi (ironTripHelpers, ironTripShares)', () => {
+    const s = withWaitingCart(village(), [16]);
+    const trip = {
+      personId: 62,
+      son: true,
+      startedDay: DAY - 5,
+      days: 3,
+      done: 1,
+      kg: 3,
+      grainKg: 170,
+    };
+    const edge = { x: 0, z: 100 };
+    // nosiči krajinou ke kraji mapy
+    carpenter(s).ironTrip = {
+      ...trip,
+      porters: 2,
+      to: { kind: 'neighbour', name: 'Lhota', direction: 'N', trailId: null, edge },
+    };
+    expect(ironTripHelpers(s)).toBe(2);
+    expect(ironTripShares(s)).toEqual([
+      { target: { kind: 'edge', direction: 'N', x: 0, z: 100 }, manDays: 2 },
+    ]);
+    // vůz se sedlákem po zemské stezce
+    carpenter(s).ironTrip = {
+      ...trip,
+      cartId: 7,
+      to: { kind: 'neighbour', name: 'Lhota', direction: 'N', trailId: 3, edge },
+    };
+    expect(ironTripHelpers(s)).toBe(CART_IRON.cartCrew);
+    expect(ironTripShares(s)).toEqual([
+      { target: { kind: 'trail', id: 3 }, manDays: CART_IRON.cartCrew },
+    ]);
+    // jen tesař nebo syn – chybí v dílně, ne v práci vsi
+    carpenter(s).ironTrip = {
+      ...trip,
+      to: { kind: 'neighbour', name: 'Lhota', direction: 'N', trailId: null, edge },
+    };
+    expect(ironTripHelpers(s)).toBe(0);
+    expect(ironTripShares(s)).toEqual([]);
   });
 
   it('v simulaci: ves bez kováře a hřiven vůz nedokončí a dopočet nezávisí na kouscích', () => {
