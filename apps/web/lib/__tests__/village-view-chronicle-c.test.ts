@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { legacyNeighbourName, type ChronicleEvent, type ChronicleRoadEnd } from '@bohemia/game';
 import { chroniclePage } from '../chronicle-view';
 import { chronicleText, orchardRenewalText, roadBetween } from '../village-view-chronicle';
+import { fromVillage, withVillagersOf } from '../village-name-cases';
 
 const DAY = 100;
 const SEED = 7;
@@ -255,7 +256,7 @@ describe('kronika – sad a cesty k sousedům', () => {
         'Ves',
         SEED,
       ),
-    ).toMatch(/^Kovář (z|ze) .+ okul koně\.$/);
+    ).toBe(`Kovář ${fromVillage(name('N'))} okul koně.`);
     expect(
       chronicleText(
         {
@@ -268,7 +269,7 @@ describe('kronika – sad a cesty k sousedům', () => {
         'Libice',
         SEED,
       ),
-    ).toContain(name('NE').slice(0, 3));
+    ).toBe(`Libičtí směnili 100 kg obilí za 9 kg nástrojů ${withVillagersOf(name('NE'))}.`);
     expect(
       chronicleText({ day: DAY, kind: 'trade-returned', direction: 'N', get: { grain: 5 } }, 'X'),
     ).toBe('Nosiči se vrátili ze severu – přinesli 5 kg obilí.');
