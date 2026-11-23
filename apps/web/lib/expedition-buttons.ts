@@ -20,7 +20,12 @@ export interface ExpeditionPersonState {
   atHomeMap: boolean;
   /** Jeho skupina právě sedlá nebo odsedlává. */
   horseWork: boolean;
+  /** Je útočník v souboji se zvěří lovu (server Osedlat a Sesednout během lovu ignoruje). */
+  striking: boolean;
 }
+
+/** Důvod zašedlého Osedlat a Sesednout u útočníka v souboji se zvěří. */
+const STRIKING_REASON = 'Je v souboji se zvěří.';
 
 /** Stav tlačítka: skryté, povolené, nebo zašedlé s důvodem do popisku. */
 export type ButtonState = 'hidden' | 'enabled' | { disabled: string };
@@ -42,14 +47,19 @@ export function expeditionButtons(
   const unmounted = people.filter((p) => p.rider && !p.mounted);
   let saddle: ButtonState = 'hidden';
   if (unmounted.length > 0) {
-    if (unmounted.some((p) => p.horseWork)) saddle = { disabled: 'Skupina právě sedlá.' };
+    if (unmounted.some((p) => p.striking)) saddle = { disabled: STRIKING_REASON };
+    else if (unmounted.some((p) => p.horseWork)) saddle = { disabled: 'Skupina právě sedlá.' };
     else if (unmounted.every((p) => !p.atHomeMap && p.horse === null))
       saddle = { disabled: 'Kůň je doma.' };
     else saddle = 'enabled';
   }
+  const mounted = people.filter((p) => p.mounted);
+  let dismount: ButtonState = 'hidden';
+  if (mounted.length > 0)
+    dismount = mounted.some((p) => p.striking) ? { disabled: STRIKING_REASON } : 'enabled';
   return {
     saddle,
-    dismount: people.some((p) => p.mounted) ? 'enabled' : 'hidden',
+    dismount,
     home: people.some((p) => p.inParty) ? 'enabled' : 'hidden',
   };
 }
@@ -66,6 +76,7 @@ export function expeditionPersonState(
   id: number,
   parties: readonly PartyView[],
   homeCell: GridCell | null,
+  strikers: readonly number[] = [],
 ): ExpeditionPersonState | null {
   for (const party of parties) {
     const member = party.people.find((m) => m.personId === id);
@@ -79,6 +90,7 @@ export function expeditionPersonState(
       inParty: true,
       atHomeMap: homeCell === null || group === undefined || sameCell(group.cell, homeCell),
       horseWork: party.horseWork !== null,
+      striking: strikers.includes(id),
     };
   }
   if (!person?.expedition || person.expedition.inParty) return null;
@@ -90,5 +102,6 @@ export function expeditionPersonState(
     inParty: false,
     atHomeMap: true,
     horseWork: false,
+    striking: false,
   };
 }

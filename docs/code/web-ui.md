@@ -406,6 +406,17 @@ villageId)`. Z levných otisků (`stampsOf` – `last_day`, `asleep`) se dopočt
   z nich stane skupina, venku se přesměruje; u okraje mapy přes okraj) – Esc a klik jinam výběr
   ruší jako dřív.
 
+  **Lov** (hunting.md; plán 2026-11-22-hunting, Úloha 11): tlačítko lovu ve dvorci (`manor-hunt`,
+  `ManorUpgrades`) volá `declareHunt`; zašedne s důvodem (`manor.huntDenied`, texty
+  `HUNT_DENIED_TEXT`; `already` z `huntRunning` výpravy vsi, `manorView(…, huntRunning)` posuzuje
+  den honců, zítřek). **Pravé tlačítko na vyhnané zvíře** (`LandscapeScene.quarryAt` – pozice
+  kurzoru, ne terén) s vybranými lidmi pošle `commandExpedition` `{ kind: 'strike' }`
+  (`use-expedition-orders.ts`); odmítnutí je důvod u kurzoru (`expeditionReason(…, strike)`:
+  `woman` „Na lov chodí jen muži“, `young` „Na lov až od 14 let“, `no-quarry` „Zvíře tu není“).
+  Osedlat a Sesednout útočníka v souboji jsou zašedlé (`striking` v `ExpeditionPersonState`).
+  `useJourneyScene` předává scéně lov vsi (`sceneHuntOf` → `setHunt`) vedle výprav.
+  `HuntRenderer.animate(nowMs, camera)` kreslí jen pohybující se lov v záběru kamery.
+
   Vždy: WASD / šipky a kurzor u okraje okna posouvají, kolečko i rozevření prstů na trackpadu
   (Ctrl + kolečko, v Safari `gesturechange`) přibližují, Q/E otáčí, R vrátí pohled na ves
   (`setCameraHome`). Malování pole, sadu, hřbitova a ohrady: [ a ] jen před prvním čtvercem
@@ -951,7 +962,7 @@ action `levyDialogs()` (rozdělení po vsích se počítá až tehdy, ne s dotaz
   `build` – `BuildGrid` (i zkratky – `startBuild`), zrušení stavby, vylepšení cest / vozová cesta /
   jabloně (`selection/roads.tsx`), zemská stezka (`TrailCompass`); `evacuate` – Odejít (`RelocationControls`); `sendSons` – odchod se synem (`LeaveCompass right`);
   `nameSons` – `LineNamePanel`; `steward` – `StewardToggle` (jen zobrazená ves; ves v seznamu
-  jiná než zobrazená právo nezná, rozhodne server), přejmenování vsi, lov navíc; `trade` – Vyslat
+  jiná než zobrazená právo nezná, rozhodne server), přejmenování vsi, lov; `trade` – Vyslat
   výpravu (`NeighbourTrade`). Pohled na ves a výběr zůstávají – dívat se smí každý hráč rodu.
 - **Stolec:** `public/icons/house/throne.png` (render z Blenderu). `VillageListItem.senior`
   (`villageListItem(…, seniorVillageId)` z `House.senior`) → stolec u vsi seniora v `VillageList`

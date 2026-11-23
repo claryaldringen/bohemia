@@ -298,6 +298,21 @@ export function useExpeditionOrders({
   useEffect(() => {
     refusalRef.current = refusal;
   }, [refusal]);
+  // Důvod, proč nikdo z vybraných nemůže na lov: jako `refusal`, jen s věkem a ženou pro lov
+  const strikeRefusal = useMemo((): string | null => {
+    if (chosenVillage !== undefined) return null;
+    const chosen = ids.map((id) => persons.find((p) => p.id === id));
+    if (chosen.length === 0 || chosen.some((p) => p?.expedition?.refusal === undefined))
+      return null;
+    const first = chosen[0];
+    return first?.expedition?.refusal
+      ? expeditionReason(first.expedition.refusal, first.sex === 'female', true)
+      : null;
+  }, [ids, persons, chosenVillage]);
+  const strikeRefusalRef = useRef(strikeRefusal);
+  useEffect(() => {
+    strikeRefusalRef.current = strikeRefusal;
+  }, [strikeRefusal]);
   // Odkud vybraní vyrazí (kurzor „sem se nedá dojít“): skupina na mapě scény, nově z domu
   // obydlí prvního z vybraných; jinde (skupina na jiné mapě, lidé jiné vsi) nápověda nebývá
   const originRef = useRef<() => Pos | null>(() => null);
@@ -327,6 +342,13 @@ export function useExpeditionOrders({
     if (!orderScene || !active) return;
     orderScene.setOrderMode({
       order: (point, screen) => {
+        // pravé tlačítko na vyhnané zvíře lovu = útok (hunting.md – Soubor); rozhodne server
+        if (!watching && orderScene.quarryAt(screen.x, screen.y)) {
+          if (sending.current) return;
+          if (strikeRefusalRef.current !== null) showError(strikeRefusalRef.current, screen);
+          else send({ kind: 'strike' }, screen);
+          return;
+        }
         const order = orderFromClick({
           selected: true,
           point,
@@ -365,15 +387,16 @@ export function useExpeditionOrders({
       },
     });
     return () => orderScene.setOrderMode(null);
-  }, [orderScene, active, orderMapSizeM, orderCell, send, showError]);
+  }, [orderScene, active, orderMapSizeM, orderCell, send, showError, watching]);
 
   const buttons = useMemo((): ExpeditionPersonState[] => {
     const parties = partiesOf(homeViews, home);
     // lidé jiné vsi: jen podle její výpravy (lidi vsi scény `persons` nemají), doma = její mapa
     const atHome = chosenVillage === undefined ? homeCell : (homeViews[0]?.home ?? null);
+    const strikers = homeViews.flatMap((v) => v.hunt?.strikers ?? []);
     return ids.flatMap((id) => {
       const person = chosenVillage === undefined ? persons.find((p) => p.id === id) : undefined;
-      const state = expeditionPersonState(person, id, parties, atHome);
+      const state = expeditionPersonState(person, id, parties, atHome, strikers);
       return state ? [state] : [];
     });
   }, [ids, homeViews, home, chosenVillage, persons, homeCell]);

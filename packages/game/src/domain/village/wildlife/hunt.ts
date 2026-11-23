@@ -43,7 +43,7 @@ export type HuntDenied = 'closed-season' | 'no-beaters' | 'already' | 'no-game';
 /** Důvody odepření lovu (`huntDenied`) česky pro hráče – červeně u zašedlého tlačítka. */
 export const HUNT_DENIED_TEXT: Record<HuntDenied, string> = {
   'closed-season': 'Zvěř má hájení – od března do května se neloví.',
-  'no-beaters': `Ves zítra neuvolní ${HUNT.beaters.men} mužů na honce.`,
+  'no-beaters': `Ves zítra neuvolní ${HUNT.beaters.men} mužů na naháňku.`,
   already: 'Lov už běží.',
   'no-game': 'V lese vsi není zvěř.',
 };

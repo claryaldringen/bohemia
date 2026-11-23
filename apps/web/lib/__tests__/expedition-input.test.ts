@@ -28,6 +28,11 @@ describe('parseExpeditionInput', () => {
     expect(parseExpeditionInput(input({ command: { kind: 'dismount' } }))?.command).toEqual({
       kind: 'dismount',
     });
+    // útok na vyhnané zvíře lovu
+    expect(parseExpeditionInput(input({ command: { kind: 'strike' } }))?.command).toEqual({
+      kind: 'strike',
+    });
+    expect(parseExpeditionInput(input({ command: { kind: 'strike', x: 1 } }))).toBeNull();
   });
 
   it('go smí mít cell s celými čísly', () => {

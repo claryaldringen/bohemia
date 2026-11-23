@@ -114,6 +114,29 @@ describe('vylepšení vsi ve dvorci', () => {
   });
 });
 
+describe('tlačítko lovu ve dvorci', () => {
+  const huntButton = (huntDenied: string | null): string =>
+    renderToStaticMarkup(
+      <ManorUpgrades
+        manor={{ dwellingId: 1, stance: 'flee', huntDenied, trailBuilt: false, neighbours: [] }}
+        onDeclareHunt={async () => null}
+      />,
+    );
+
+  it('běží-li lov: tlačítko zašedlé a důvod v popisku', () => {
+    const html = huntButton('Lov už běží.');
+    expect(button(html, 'manor-hunt')).toContain('disabled=""');
+    expect(html).toMatch(/data-testid="hunt-blocked"[^>]*>Lov už běží\./);
+  });
+
+  it('bez důvodu je tlačítko povolené a popisek je jen Lov', () => {
+    const html = huntButton(null);
+    expect(button(html, 'manor-hunt')).not.toContain('disabled=""');
+    expect(html).not.toContain('hunt-blocked');
+    expect(html).not.toContain('navíc');
+  });
+});
+
 describe('rodina ve dvorci (lord.md – Co hráč vidí)', () => {
   const member = (over: Partial<ManorMember>): ManorMember => ({
     id: 1,

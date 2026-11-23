@@ -137,7 +137,7 @@ Návrh: [hunting.md](../design/hunting.md) – Pravidla 2, 3, 5–7, 11; stavba 
   posílá `false`) → `'no-game'` (v lese vsi není velká zvěř – součet vah `quarryWeights` je 0, nebo
   ves nemá `wildlife`; Martin „Ano“) → `'no-beaters'` (`canSpareBeaters` dne vyhlášení). Bez meze
   „jednou za 3 dny“ (Pravidla 11). Texty důvodů `HUNT_DENIED_TEXT` („V lese vsi není zvěř.“,
-  „Ves zítra neuvolní 6 mužů na honce.“).
+  „Ves zítra neuvolní 6 mužů na naháňku.“).
 - **Honci:** `canSpareBeaters(state, day)` – dnešní díl mužů na stavby (poslední
   `commonLaborHistory`) ≥ (`men` už rezervovaných na `day + 1` + `HUNT.beaters.men`) ×
   `LABOR_PER_DAY.adult`; bez historie false. `reserveBeaters(state, day, men = HUNT.beaters.men)`

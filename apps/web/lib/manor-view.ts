@@ -160,8 +160,8 @@ export interface ManorMember extends DwellingResident {
  * Proč dnes nejde vyhlásit lov (česky; hunting.md – Pravidla 2), nebo null – důvody se posuzují
  * na den honců, zítřek (`huntDenied(state, day + 1, …)` jako use-case).
  */
-function huntDeniedText(state: VillageState, day: number): string | null {
-  const denied = huntDenied(state, day + 1, false);
+function huntDeniedText(state: VillageState, day: number, running: boolean): string | null {
+  const denied = huntDenied(state, day + 1, running);
   return denied === null ? null : HUNT_DENIED_TEXT[denied];
 }
 
@@ -390,6 +390,8 @@ export function manorView(
   landscape: Landscape,
   day: number,
   ownMaps: Partial<Record<Direction8, string>> = {},
+  /** Lov vsi už běží ve výpravě (`huntRunning` use-case). */
+  huntRunning = false,
 ): VillageManor | null {
   const manor = villageManor(state);
   if (!manor || state.extinctDay !== undefined) return null;
@@ -406,7 +408,7 @@ export function manorView(
         }
       : {}),
     stance: stanceOf(state),
-    huntDenied: huntDeniedText(state, day),
+    huntDenied: huntDeniedText(state, day, huntRunning),
     ...huntField(state, day),
     trailBuilt: villageTrails(state).some((t) => t.builtDay !== null),
     // tím směrem, kde leží vlastní ves, soused bez simulace není (migration.md)

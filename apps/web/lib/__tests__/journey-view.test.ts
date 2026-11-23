@@ -83,6 +83,13 @@ describe('lordJourneyViewOf', () => {
 });
 
 describe('expeditionReason', () => {
+  it('útok na zvíře: lovecké důvody', () => {
+    expect(expeditionReason('young')).toBe('Od 12 let.');
+    expect(expeditionReason('young', false, true)).toBe('Na lov až od 14 let.');
+    expect(expeditionReason('woman', true, true)).toBe('Na lov chodí jen muži.');
+    expect(expeditionReason('no-quarry', false, true)).toBe('Zvíře tu není.');
+  });
+
   it('texty důvodů z plánu, rod podle pohlaví', () => {
     expect(expeditionReason('wounded')).toBe('Je raněný.');
     expect(expeditionReason('wounded', true)).toBe('Je raněná.');

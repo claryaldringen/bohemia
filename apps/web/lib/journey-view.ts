@@ -72,10 +72,11 @@ export type ExpeditionReason = ExpeditionRefusal | 'refused';
  * Text důvodu u kurzoru (expeditions.md – Kdo smí jít; texty z plánu 2026-11-14); `female` – raněná
  * místo raněný (důvod prvního z výběru, který nemůže).
  */
-export function expeditionReason(reason: ExpeditionReason, female = false): string {
+export function expeditionReason(reason: ExpeditionReason, female = false, strike = false): string {
   switch (reason) {
     case 'young':
-      return 'Od 12 let.';
+      // na lov (útok na zvíře) až od 14 let, na běžnou výpravu od 12
+      return strike ? 'Na lov až od 14 let.' : 'Od 12 let.';
     case 'wounded':
       return female ? 'Je raněná.' : 'Je raněný.';
     case 'campaign':

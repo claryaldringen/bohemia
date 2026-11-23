@@ -22,6 +22,7 @@ const person = (o: Partial<ExpeditionPersonState> = {}): ExpeditionPersonState =
   inParty: false,
   atHomeMap: true,
   horseWork: false,
+  striking: false,
   ...o,
 });
 
@@ -69,6 +70,14 @@ describe('expeditionButtons', () => {
     expect(expeditionButtons([person({ inParty: true, horseWork: true })]).saddle).toEqual({
       disabled: 'Skupina právě sedlá.',
     });
+  });
+
+  it('útočník v souboji se zvěří – Osedlat i Sesednout zašedlé s důvodem', () => {
+    const reason = { disabled: 'Je v souboji se zvěří.' };
+    expect(expeditionButtons([person({ inParty: true, striking: true })]).saddle).toEqual(reason);
+    expect(
+      expeditionButtons([person({ inParty: true, mounted: true, striking: true })]).dismount,
+    ).toEqual(reason);
   });
 
   it('vesničan – Osedlat i Sesednout skryté', () => {

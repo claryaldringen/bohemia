@@ -38,7 +38,7 @@ export interface RelocationActions {
 export interface ManorActions {
   /** Zadá stavbu zemské stezky do směru (server action) – hotovo, až se vrátí. */
   onBuildTrail?: (direction: Direction8) => Promise<void>;
-  /** Vyhlásí lov navíc na zítřek (server action) – vrátí důvod odepření, nebo null. */
+  /** Vyhlásí lov s honci na zítřek (server action) – vrátí důvod odepření, nebo null. */
   onDeclareHunt?: () => Promise<string | null | void>;
   /** Nastaví postoj vsi před cizím vojskem (war.md – Obránci) – vrátí důvod odepření, nebo null. */
   onSetStance?: (stance: DefenseStance) => Promise<string | null | void>;

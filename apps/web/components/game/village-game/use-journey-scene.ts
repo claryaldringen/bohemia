@@ -4,7 +4,7 @@ import { useEffect, useMemo } from 'react';
 import type { GridCell } from '@bohemia/game';
 import { useJourneyVisitors } from '@/hooks/use-journey-visitors';
 import { setE2EHook, type E2EHooks } from '@/lib/e2e-hooks';
-import { sceneJourneysOf, type ExpeditionView } from '@/lib/journey-view';
+import { sceneHuntOf, sceneJourneysOf, type ExpeditionView } from '@/lib/journey-view';
 import type { LandscapeScene } from '@/lib/scene/landscape-scene';
 import type { SceneJourney } from '@/lib/scene/journey-riders';
 
@@ -34,6 +34,13 @@ export function useJourneyScene({
   useEffect(() => {
     scene?.setJourneys(journeys);
   }, [scene, journeys]);
+
+  // lov vsi scény (honci, vyhnané zvíře a psi) vedle výprav – scéna kreslí jen lov své vsi
+  const hunt = useMemo(() => sceneHuntOf(own, villageId), [own, villageId]);
+  useEffect(() => {
+    scene?.setHunt(hunt);
+    return () => scene?.setHunt(null);
+  }, [scene, hunt]);
 
   useEffect(() => {
     if (!scene) return;

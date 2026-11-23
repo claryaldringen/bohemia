@@ -32,6 +32,7 @@ import {
   type VillageState,
   WORLD,
 } from '@bohemia/game';
+import { huntOfSettlement } from './journey-helpers';
 import { openDevTime, openGameMenu, useUniqueClientIp } from './helpers';
 import {
   block,
@@ -1463,6 +1464,10 @@ test('dvorec: lov – v dubnu je hájení, v létě honci na zítřek', async ({
     .toBe(1);
   await expect(hunt).toBeEnabled({ timeout: 20_000 });
   await hunt.click();
+  // lov běží ve výpravě vsi: tlačítko zašedne s důvodem „Lov už běží“ a výprava nese `hunt`
+  await expect(hunt).toBeDisabled({ timeout: 30_000 });
+  await expect(panel.getByTestId('hunt-blocked')).toContainText('Lov už běží');
+  await expect.poll(() => huntOfSettlement(s.settlementId), { timeout: 30_000 }).not.toBeNull();
   // honci chybí v práci vsi zítra (hunting.md – Pravidla 2)
   await expect
     .poll(async () => (await villageState(s.settlementId)).wildlife?.hunt?.beaters?.day, {

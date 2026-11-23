@@ -26,6 +26,7 @@ let root: Root;
 beforeEach(() => {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   commandExpedition.mockReset();
+  quarryUnderCursor = false;
   host = document.createElement('div');
   document.body.append(host);
   root = createRoot(host);
@@ -52,6 +53,9 @@ const MANOR = {
   box: { minX: -5, maxX: 5, minZ: -5, maxZ: 5 },
 };
 
+/** Je pod kurzorem vyhnané zvíře? (zkušební scéna) */
+let quarryUnderCursor = false;
+
 function fakeScene(grid: MarchGrid | null = null): {
   scene: LandscapeScene;
   mode: () => OrderMode | null;
@@ -59,6 +63,7 @@ function fakeScene(grid: MarchGrid | null = null): {
   let mode: OrderMode | null = null;
   const scene = {
     marchGrid: (): MarchGrid | null => grid,
+    quarryAt: (): boolean => quarryUnderCursor,
     manorArea: () => MANOR,
     dwellingPoint: (): { x: number; z: number } => ({ x: -50, z: 0 }),
     setOrderMode: (m: OrderMode | null): void => {
@@ -201,6 +206,43 @@ describe('useExpeditionOrders – pravé tlačítko pro vybrané lidi', () => {
   it('bez vybraných lidí režim rozkazu není (pravé tlačítko ruší výběr)', () => {
     const { mode } = mount({ kind: 'dwelling', id: 1 }, [person(5, 30)]);
     expect(mode()).toBeNull();
+  });
+});
+
+describe('useExpeditionOrders – útok na zvíře lovu', () => {
+  it('pravé tlačítko na zvíře pošle útok, ne rozkaz Jdi sem', async () => {
+    commandExpedition.mockResolvedValue({ ok: true });
+    quarryUnderCursor = true;
+    const { mode } = mount({ kind: 'person', id: 5 }, [person(5, 30)]);
+    await act(async () => mode()?.order({ x: 10, z: 20 }, { x: 1, y: 1 }));
+    await flush();
+    expect(commandExpedition).toHaveBeenCalledTimes(1);
+    expect(commandExpedition).toHaveBeenCalledWith({
+      villageId: 'v1',
+      people: [5],
+      command: { kind: 'strike' },
+    });
+  });
+
+  it('odmítnutí serverem (žena) je důvod u kurzoru', async () => {
+    commandExpedition.mockResolvedValue({ error: 'Na lov chodí jen muži.' });
+    quarryUnderCursor = true;
+    const { mode } = mount({ kind: 'person', id: 5 }, [person(5, 30)]);
+    await act(async () => mode()?.order({ x: 10, z: 20 }, { x: 4, y: 5 }));
+    await flush();
+    expect(latest?.note).toMatchObject({
+      text: 'Na lov chodí jen muži.',
+      tone: 'error',
+      screen: { x: 4, y: 5 },
+    });
+  });
+
+  it('dítě do 12 let: důvod lovu bez volání serveru', () => {
+    quarryUnderCursor = true;
+    const { mode } = mount({ kind: 'person', id: 8 }, [person(8, 8, 'young')]);
+    act(() => mode()?.order({ x: 10, z: 20 }, { x: 5, y: 6 }));
+    expect(commandExpedition).not.toHaveBeenCalled();
+    expect(latest?.note).toMatchObject({ text: 'Na lov až od 14 let.' });
   });
 });
 
