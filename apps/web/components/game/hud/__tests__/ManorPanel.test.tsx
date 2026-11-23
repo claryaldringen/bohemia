@@ -82,7 +82,7 @@ describe('růžice zemských stezek', () => {
 });
 
 describe('vylepšení vsi ve dvorci', () => {
-  it('stezka, lov a vojsko; tlačítko Obchod není (markets.md – Pravidla 1)', () => {
+  it('stezka, lov, vojsko a obchod (markets.md – Pravidla 1)', () => {
     const html = renderToStaticMarkup(
       <ManorUpgrades
         manor={{
@@ -95,8 +95,25 @@ describe('vylepšení vsi ve dvorci', () => {
     );
     expect(html).toContain('data-testid="manor-trail"');
     expect(html).toContain('data-testid="manor-hunt"');
+    expect(html).toContain('data-testid="manor-market"');
     expect(html).not.toContain('manor-trade');
-    expect(html).not.toContain('trade-blocked');
+  });
+
+  it('tlačítko Obchod otevře panel Trh; bez obsluhy je zašedlé', () => {
+    const manor = {
+      dwellingId: 1,
+      market: { stock: {}, homeCarts: [], oxenHome: 0, adults: 0, day: 0, trips: [] },
+      stance: 'flee' as const,
+      huntDenied: null,
+    };
+    expect(button(renderToStaticMarkup(<ManorUpgrades manor={manor} />), 'manor-market')).toContain(
+      'disabled=""',
+    );
+    const html = renderToStaticMarkup(
+      <ManorUpgrades manor={manor} onOpenMarket={() => undefined} />,
+    );
+    expect(button(html, 'manor-market')).not.toContain('disabled=""');
+    expect(html).toContain('/icons/build/obchod.png');
   });
 });
 

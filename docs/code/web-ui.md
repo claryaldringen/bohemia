@@ -1283,7 +1283,27 @@ plní `manorView` (`stanceOf`), volba jde přes server action `setDefenseStance`
   `arriveDay` + pobyt do `returnDay`.
 - **Příkaz panelu**: `VillageCommands.sendMarket(targetVillageId, order)`
   (`components/game/village-game/village-commands.ts`) vrací důvod odepření česky, nebo `null`.
-  Panel Trh je v další úloze.
+
+## Panel Trh (markets.md – Pravidla 9; plán 2 „Obchod 2“ – Úloha 8, `hud/MarketPanel.tsx`)
+
+- **Otevření**: tlačítko `manor-market` (ikona `icons/build/obchod.png`, Tooltip „Obchod“, zašedlé
+  bez práva `trade` – `useRightDenied`) v `ManorUpgrades` (`hud/ManorPanel.tsx`) volá `onOpenMarket`
+  (`ManorActions` v `selection/dwelling.tsx` → `SelectionPanel`). `usePanels`
+  (`village-game/use-panels.ts`) drží `market` (`open`, `villages`, `error`), `openMarket` načte
+  `getMarketOverview` až při otevření (jako seznam známých map) a `closeMarket`; `VillagePanels`
+  vykreslí `MarketPanel` nad scénou jako `Dialog` s `view.manor.market`, odeslání jde přes
+  `commands.sendMarket`.
+- **Panel** je jen pohled a záměr, žádná herní logika. Řádky `market-village` (jméno, dny cesty –
+  Tooltip „Ráno tam, večer zpět“ / „{n} dní cesty“, vlastní rod; zašedlá ves s důvodem v Tooltip),
+  zpráva `market-report` vybrané vsi (lidé a domy „≈ N“, řemesla, obchodníci, ceny; Tooltip „Zpráva z
+  {datum}“; bez zprávy „?“, jen z výjezdů domy a řemesla), sloupce „Dáš“ (`market-give-<good>`, jen
+  zboží ve skladu, nejvýš tolik, kolik ves má) a „Dostaneš“ (`market-want-<good>`) s `-minus` /
+  `-plus` (kg po 100, kusy a m³ po 1), `market-stay` (dny na trhu, nejméně 1), `market-preview`
+  (nosiči, vozy, dny pryč z `marketPreview`), `market-send` (Tooltip „Vyslat výpravu“ nebo důvod
+  z náhledu, bez vsi „Vyber ves.“), `market-error` (důvod od serveru do změny výběru) a
+  `market-trip` (výprava na cestě – jméno vsi, ikona fáze, dny do návratu).
+- **Testy**: `hud/__tests__/MarketPanel.test.tsx`, `ManorPanel.test.tsx`; e2e `e2e/market.spec.ts`
+  (výprava z dvorce do vlastní vsi na sousední mapě, výprava ve stavu a příjezd ve schránce).
 
 ## Rozkaz „Probít se“ (fortifications.md – Obrana bez násobku 3, `hud/BreakoutButton.tsx`)
 

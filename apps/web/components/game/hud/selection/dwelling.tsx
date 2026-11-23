@@ -41,6 +41,8 @@ export interface ManorActions {
   /** Nastaví postoj vsi před cizím vojskem (war.md – Obránci) – vrátí důvod odepření, nebo null. */
   onSetStance?: (stance: DefenseStance) => Promise<string | null | void>;
   onDecidePrisoner?: (id: string, action: PrisonerAction) => Promise<string | null | void>;
+  /** Otevře panel Trh (markets.md – Pravidla 9) – otevření a data panelu řeší `usePanels`. */
+  onOpenMarket?: () => void;
   /**
    * Varování a útěk (war.md – Varování, poslové a útěk do hradiště): pohled a příkazy – řádek
    * ikon pod postojem vsi, jen když ves o vojsku ví nebo má lidi na útěku.
@@ -63,6 +65,7 @@ export function DwellingBody({
   onDeclareHunt,
   onSetStance,
   onDecidePrisoner,
+  onOpenMarket,
   alarm,
   steward,
   onSetSteward,
@@ -133,6 +136,7 @@ export function DwellingBody({
               onDeclareHunt={onDeclareHunt}
               onSetStance={onSetStance}
               onDecidePrisoner={onDecidePrisoner}
+              {...(onOpenMarket ? { onOpenMarket } : {})}
             />
           )}
           {details.manor && alarm && <AlarmButtons {...alarm} />}
