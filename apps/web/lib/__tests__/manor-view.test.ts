@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { dayIndexOf, foundVillage, type Person, type VillageState } from '@bohemia/game';
+import {
+  dayIndexOf,
+  foundVillage,
+  legacyNeighbourName,
+  type Person,
+  type VillageState,
+} from '@bohemia/game';
 import { sceneExpeditions } from '../caravan-view';
 import { manorFamily } from '../manor-view';
 
@@ -110,6 +116,8 @@ describe('výprava pro karavanu ve scéně (trade.md – Ve scéně)', () => {
     expect(e!.coming).toHaveLength(4);
     expect(e!.coming.map((p) => p.sex).slice(0, 2)).toEqual(['male', 'female']);
     expect(e!.coming[3]!.sex).toBe('female');
+    // výprava ze starší vsi jde k dřívějšímu sousedovi – jméno jako dřív (legacyNeighbourName)
+    expect(e!.trip).toEqual({ kind: 'trade', to: legacyNeighbourName(s.seed, 'S') });
     // výprava dnes nepostoupila – stojí
     s.labor = { day: DAY, shares: [] };
     expect(sceneExpeditions(s)[0]!.rate).toBe(0);
@@ -169,6 +177,7 @@ describe('nákup u sousedů vozem ve scéně (crafts.md – Nákup u sousedů, V
     ];
     const [e] = sceneExpeditions(s);
     expect(e).toMatchObject({ trailId: 3, porters: 2, carts: [4], cartCrew: 2 });
+    expect(e!.trip).toEqual({ kind: 'purchase', to: legacyNeighbourName(s.seed, 'N') });
     s.purchases[0]!.carts = undefined;
     expect(sceneExpeditions(s)[0]!.carts).toEqual([]);
   });

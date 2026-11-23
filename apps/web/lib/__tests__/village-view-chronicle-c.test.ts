@@ -273,9 +273,36 @@ describe('kronika – sad a cesty k sousedům', () => {
     expect(
       chronicleText({ day: DAY, kind: 'trade-returned', direction: 'N', get: { grain: 5 } }, 'X'),
     ).toBe('Nosiči se vrátili ze severu – přinesli 5 kg obilí.');
+    expect(chronicleText({ day: DAY, kind: 'bride-from-outside', dwellingId: 1 }, 'X', SEED)).toBe(
+      'Muž si přivedl nevěstu ze sousední vsi.',
+    );
+    expect(chronicleText({ day: DAY, kind: 'groom-from-outside', dwellingId: 1 }, 'X', SEED)).toBe(
+      'K ženě se přiženil muž ze sousední vsi.',
+    );
     expect(
-      chronicleText({ day: DAY, kind: 'bride-from-outside', dwellingId: 1 }, 'X', SEED),
-    ).toBeTypeOf('string');
+      chronicleText(
+        { day: DAY, kind: 'groom-from-outside', dwellingId: 1, widow: true },
+        'X',
+        SEED,
+      ),
+    ).toBe('K vdově se přiženil muž ze sousední vsi.');
+    expect(chronicleText({ day: DAY, kind: 'married-away', dwellingId: 1 }, 'X', SEED)).toBe(
+      'Dcera se vdala do sousední vsi.',
+    );
+    expect(
+      chronicleText(
+        { day: DAY, kind: 'newcomer', direction: 'S', group: 'family', people: 4, dwellingId: 1 },
+        'X',
+        SEED,
+      ),
+    ).toBe('Z jihu přišla rodina – 4 lidé.');
+    expect(
+      chronicleText(
+        { day: DAY, kind: 'newcomer', direction: 'N', group: 'man', people: 1, dwellingId: 1 },
+        'X',
+        SEED,
+      ),
+    ).toBe('Ze severu přišel svobodný muž.');
     expect(
       chronicleText({ day: DAY, kind: 'trail-built', trailId: 1, direction: 'N' }, 'X', SEED),
     ).toBe('Zemská stezka na sever je dostavěná.');
