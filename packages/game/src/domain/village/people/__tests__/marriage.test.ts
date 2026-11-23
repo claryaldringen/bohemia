@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ageYears, occupants } from '../people';
+import { occupants } from '../people';
 import {
   arrangeMarriages,
   holdsHome,
@@ -8,14 +8,13 @@ import {
   weddingChancePerDay,
   weddingHome,
 } from '../marriage';
-import { MARRIAGE, MARRIAGE_STORES, NEIGHBOR_DIRECTIONS } from '../../rules';
+import { MARRIAGE_STORES } from '../../rules';
 import type { ChronicleEvent, VillageState } from '../../types';
 import { DAY, couple, dwelling, kin, village } from '../../__tests__/kin-fixtures';
 
-// Sňatky (kinship.md – Sňatky; Martin, 18. 10. 2026: sňatky s okolím varianta „c“, detaily návrh
-// Clauda; 19. 10. 2026: vdova se vdá co nejdřív, populace co nejvíc roste): muž a žena
-// (příbuzenství se nehlídá – Martin 23. 11. 2026), žena se stěhuje k muži (když drží dům ona a on ne, přižení se on);
-// z okolí nevěsta ≈ 30 % ročně, ženich 10 % (k vdově a dědičce 50 %), pryč 20 %.
+// Sňatky (kinship.md – Sňatky; Martin, 18. 10. 2026; 19. 10. 2026: vdova se vdá co nejdřív, populace co nejvíc roste): muž a žena
+// (příbuzenství se nehlídá – Martin 23. 11. 2026), žena se stěhuje k muži (když drží dům ona a on ne,
+// přižení se on); nevěsty, ženichy ani odchod z vsi okolí nedává (markets.md – Pravidla 1).
 
 const person = (s: VillageState, id: number): VillageState['people'][number] =>
   s.people.find((p) => p.id === id)!;
@@ -266,7 +265,7 @@ describe('vdovy a vdovci (Martin, 19. 10. 2026)', () => {
   });
 });
 
-describe('sňatky s okolím', () => {
+describe('sňatky jen ve vsi (markets.md – Pravidla 1; Martin 22. 11. 2026: „dokud bude vesnice bez spojení s okolím, ať se lidé berou mezi sebou“)', () => {
   /** Svobodný muž 25 let a jeho rodiče – ve vsi pro něj nevěsta není. */
   const bachelor = (seed: number): VillageState => {
     const s = village(
@@ -292,179 +291,68 @@ describe('sňatky s okolím', () => {
     s.seed = seed;
     return s;
   };
-  /** Dny do první události z okolí (nejvýš rok), nebo null. */
-  const firstYear = (s: VillageState): number | null => {
-    for (let day = DAY; day < DAY + 365; day++) {
-      if (arrangeMarriages(s, day).length > 0) return day;
-    }
-    return null;
-  };
+  const OUTSIDE = ['bride-from-outside', 'groom-from-outside', 'married-away'];
 
-  it('svobodný muž si přivede ženu z okolí (16–22 let, odkud přišla) – asi 30 % ročně', () => {
-    let married = 0;
-    for (let seed = 1; seed <= 400; seed++) {
+  it('svobodný muž bez nevěsty ve vsi si nikoho z okolí nepřivede – rok sňatků', () => {
+    for (let seed = 1; seed <= 20; seed++) {
       const s = bachelor(seed);
-      const day = firstYear(s);
-      if (day === null) continue;
-      married++;
-      const bride = s.people.find((p) => p.id >= 1000)!;
-      expect(bride).toMatchObject({ sex: 'female', dwellingId: 1, spouseId: 3 });
-      expect(bride.motherId).toBeUndefined();
-      expect(ageYears(bride.bornDay, day)).toBeGreaterThanOrEqual(16);
-      expect(ageYears(bride.bornDay, day)).toBeLessThanOrEqual(22);
-      expect(NEIGHBOR_DIRECTIONS).toContain(bride.origin);
-      expect(person(s, 3).spouseId).toBe(bride.id);
+      const people = s.people.length;
+      const nextId = s.nextId;
+      const events: ChronicleEvent[] = [];
+      for (let d = DAY; d < DAY + 365; d++) events.push(...arrangeMarriages(s, d));
+      expect(events).toEqual([]);
+      expect(s.people).toHaveLength(people);
+      expect(s.nextId).toBe(nextId);
     }
-    expect(married / 400).toBeGreaterThan(0.24);
-    expect(married / 400).toBeLessThan(0.36);
   });
 
-  it('ke svobodné ženě se přižení muž z okolí (≈ 10 % ročně), nebo se vdá pryč (≈ 20 %)', () => {
-    let gone = 0;
-    let grooms = 0;
-    for (let seed = 1; seed <= 600; seed++) {
+  it('svobodná žena bez muže ve vsi se nevdá pryč a nikdo k ní nepřijde', () => {
+    for (let seed = 1; seed <= 20; seed++) {
       const s = maiden(seed);
-      const day = firstYear(s);
-      if (day === null) continue;
-      if (s.emigrants?.length) {
-        gone++;
-        expect(occupants(s, 1).map((p) => p.id)).toEqual([1, 2, 4]);
-        expect(s.emigrants).toHaveLength(1);
-        expect(s.emigrants[0]).toMatchObject({ id: 3, sex: 'female', motherId: 2, fatherId: 1 });
-        expect(NEIGHBOR_DIRECTIONS).toContain(s.emigrants[0]?.direction);
-        continue;
-      }
-      grooms++;
-      const groom = s.people.find((p) => p.id >= 1000)!;
-      expect(groom).toMatchObject({ sex: 'male', dwellingId: 1, spouseId: 3 });
-      expect(groom.fatherId).toBeUndefined();
-      expect(NEIGHBOR_DIRECTIONS).toContain(groom.origin);
-      // o 2 roky mladší až o 8 let starší než nevěsta, od 18 let
-      const gap = (person(s, 3).bornDay - groom.bornDay) / 365.25;
-      expect(ageYears(groom.bornDay, day)).toBeGreaterThanOrEqual(18);
-      expect(gap).toBeGreaterThanOrEqual(-2.01);
-      expect(gap).toBeLessThanOrEqual(8.01);
-      expect(person(s, 3)).toMatchObject({ spouseId: groom.id, nextBirthFrom: day + 274 });
-      expect(s.chronicle).toEqual([]);
-    }
-    expect(gone / 600).toBeGreaterThan(0.14);
-    expect(gone / 600).toBeLessThan(0.25);
-    expect(grooms / 600).toBeGreaterThan(0.06);
-    expect(grooms / 600).toBeLessThan(0.14);
-  });
-
-  it('k vdově, dědičce a ženě z domu bez mužů se přižení muž z okolí (≈ 50 % ročně), pryč ne', () => {
-    /** Vdova 30 let s dítětem, sama v zemnici. */
-    const widow = (seed: number): VillageState => {
-      const s = village([
-        kin({ id: 1, age: 30, sex: 'female' }),
-        kin({ id: 2, age: 6, sex: 'male', mother: 1, father: 90 }),
-      ]);
-      s.seed = seed;
-      return s;
-    };
-    /** Dcera 20 let a matka 46 – dcera drží dům, muž v něm není. */
-    const fatherless = (seed: number): VillageState => {
-      const s = village([
-        kin({ id: 1, age: 46, sex: 'female' }),
-        kin({ id: 2, age: 20, sex: 'female', mother: 1, father: 90 }),
-      ]);
-      s.seed = seed;
-      return s;
-    };
-    for (const make of [widow, fatherless]) {
-      let grooms = 0;
-      for (let seed = 1; seed <= 300; seed++) {
-        const s = make(seed);
-        const events: ChronicleEvent[] = [];
-        for (let day = DAY; day < DAY + 365 && events.length === 0; day++) {
-          events.push(...arrangeMarriages(s, day));
-        }
-        expect(s.emigrants ?? []).toEqual([]);
-        if (events.length === 0) continue;
-        grooms++;
-        expect(events[0]).toMatchObject({ kind: 'groom-from-outside', dwellingId: 1 });
-        expect(events[0]?.kind === 'groom-from-outside' && events[0].widow).toBe(
-          make === widow ? true : undefined,
-        );
-      }
-      expect(grooms / 300).toBeGreaterThan(0.42);
-      expect(grooms / 300).toBeLessThan(0.58);
+      const emigrantsBefore = structuredClone(s.emigrants ?? []);
+      const nextId = s.nextId;
+      const events: ChronicleEvent[] = [];
+      for (let d = DAY; d < DAY + 365; d++) events.push(...arrangeMarriages(s, d));
+      expect(events.filter((e) => OUTSIDE.includes(e.kind))).toEqual([]);
+      expect(s.emigrants ?? []).toEqual(emigrantsBefore);
+      expect(s.nextId).toBe(nextId);
+      expect(person(s, 3).spouseId).toBeUndefined();
     }
   });
 
-  it('svatba s okolím nese v kronice ženicha a nevěstu (kinship.md – Svatba ve scéně)', () => {
-    const first = (s: VillageState): ChronicleEvent | undefined => {
-      for (let day = DAY; day < DAY + 365; day++) {
-        const events = arrangeMarriages(s, day);
-        if (events.length > 0) return events[0];
-      }
-      return undefined;
-    };
-    let brides = 0;
-    let grooms = 0;
-    for (let seed = 1; seed <= 60; seed++) {
-      const b = bachelor(seed);
-      const bride = first(b);
-      if (bride) {
-        brides++;
-        const id = b.people.find((p) => p.id >= 1000)!.id;
-        expect(bride).toMatchObject({ kind: 'bride-from-outside', groomId: 3, brideId: id });
-      }
-      const m = maiden(seed);
-      const groom = first(m);
-      if (groom?.kind === 'groom-from-outside') {
-        grooms++;
-        const id = m.people.find((p) => p.id >= 1000)!.id;
-        expect(groom).toMatchObject({ dwellingId: 1, groomId: id, brideId: 3 });
-      }
-    }
-    expect(brides).toBeGreaterThan(0);
-    expect(grooms).toBeGreaterThan(0);
+  it('vdova i dědička bez muže se nevdají pryč, nikdo nepřijde', () => {
+    const s = village(
+      [kin({ id: 1, age: 35, sex: 'female' }), kin({ id: 2, age: 8, sex: 'male', mother: 1 })],
+      [dwelling(1)],
+    );
+    const nextId = s.nextId;
+    const events: ChronicleEvent[] = [];
+    for (let d = DAY; d < DAY + 3 * 365; d++) events.push(...arrangeMarriages(s, d));
+    expect(events).toEqual([]);
+    expect(s.nextId).toBe(nextId);
+    expect(s.emigrants ?? []).toEqual([]);
   });
 
-  it('vdovec si z okolí přivede ženu nejvýš o 20 let mladší', () => {
-    for (let seed = 1; seed <= 300; seed++) {
-      const s = village([
-        kin({ id: 1, age: 50, sex: 'male' }),
-        kin({ id: 2, age: 15, sex: 'male', father: 1, mother: 90 }),
-      ]);
-      s.seed = seed;
-      const day = firstYear(s);
-      if (day === null) continue;
-      const bride = s.people.find((p) => p.id >= 1000)!;
-      const gap = (bride.bornDay - person(s, 1).bornDay) / 365.25;
-      expect(gap).toBeLessThanOrEqual(20.01);
-      expect(gap).toBeGreaterThanOrEqual(13.99);
-      expect(bride.nextBirthFrom).toBe(day + 274);
-    }
+  it('bratranec a sestřenice se vezmou (příbuzenství se nehlídá)', () => {
+    const s = village(
+      [
+        ...couple({ id: 1, age: 50, home: 1 }, { id: 2, age: 46, home: 1 }).map((k) => kin(k)),
+        kin({ id: 3, age: 24, sex: 'male', home: 1, father: 1, mother: 2 }),
+        ...couple({ id: 4, age: 49, home: 2 }, { id: 5, age: 45, home: 2 }).map((k) => kin(k)),
+        kin({ id: 6, age: 21, sex: 'female', home: 2, father: 4, mother: 5 }),
+      ],
+      [dwelling(1), dwelling(2)],
+    );
+    const events = arrangeMarriages(s, DAY);
+    expect(events.some((e) => e.kind === 'marriage')).toBe(true);
   });
 
-  it('kdo má ve vsi s kým se vzít, z okolí si nikoho nebere; v hladu nevěsta ani ženich nepřijde', () => {
-    for (let seed = 1; seed <= 50; seed++) {
-      const s = bachelor(seed);
-      s.people.push(kin({ id: 9, age: 22, sex: 'female', home: 2 }));
-      s.dwellings.push(dwelling(2));
-      const events = arrangeMarriages(s, DAY);
-      expect(events.map((e) => e.kind)).toEqual(['marriage']);
-    }
-    let brides = 0;
-    for (let seed = 1; seed <= 200; seed++) {
-      const s = bachelor(seed);
-      s.hungry = true;
-      if (firstYear(s) !== null) brides++;
-      const m = maiden(seed);
-      m.hungry = true;
-      firstYear(m);
-      expect(m.people.filter((p) => p.id >= 1000)).toEqual([]);
-    }
-    expect(brides).toBe(0);
-  });
-
-  it('stejný stav ve stejný den – stejná svatba z okolí (los ze seedu vsi a dne)', () => {
+  it('stejný stav ve stejný den – stejný výsledek (los ze seedu vsi a dne)', () => {
     const a = bachelor(7);
     const b = bachelor(7);
-    expect(firstYear(a)).toBe(firstYear(b));
+    for (let d = DAY; d < DAY + 200; d++) {
+      expect(arrangeMarriages(a, d)).toEqual(arrangeMarriages(b, d));
+    }
     expect(a).toEqual(b);
   });
 });
@@ -493,18 +381,14 @@ describe('sňatky čekají na zásoby (kinship.md; Martin 27. 10. 2026)', () => 
   };
 
   it('odklad průměrně waitYears × (1 − naplnění) let; nad pojistkou beze změny', () => {
-    expect(weddingChancePerDay(null, 1)).toBe(1);
-    expect(weddingChancePerDay(0.3, 1.2)).toBeCloseTo(1 - 0.7 ** (1 / 365), 12);
+    expect(weddingChancePerDay(1)).toBe(1);
+    expect(weddingChancePerDay(1.2)).toBe(1);
     // prázdné zásoby: střední čekání waitYears let
-    const empty = weddingChancePerDay(null, 0);
+    const empty = weddingChancePerDay(0);
     expect(1 / (empty * 365)).toBeCloseTo(MARRIAGE_STORES.waitYears, 1);
     // v půli pojistky polovina
-    const half = weddingChancePerDay(null, 0.5);
+    const half = weddingChancePerDay(0.5);
     expect(1 / (half * 365)).toBeCloseTo(MARRIAGE_STORES.waitYears / 2, 1);
-    // svatba z okolí čeká navíc – šance menší než bez odkladu, ale nikdy 0
-    const outside = weddingChancePerDay(MARRIAGE.outside.bridePerYear, 0);
-    expect(outside).toBeGreaterThan(0);
-    expect(outside).toBeLessThan(weddingChancePerDay(MARRIAGE.outside.bridePerYear, 1));
   });
 
   it('pod pojistkou se svatba odloží, nad ní proběhne hned', () => {
@@ -533,9 +417,9 @@ describe('sňatky čekají na zásoby (kinship.md; Martin 27. 10. 2026)', () => 
     expect(mean).toBeLessThan(MARRIAGE_STORES.waitYears / 2 + 0.4);
   });
 
-  it('snoubenci, kteří čekají, si nevezmou nikoho jiného ani z okolí', () => {
+  it('snoubenci, kteří čekají, si nevezmou nikoho jiného', () => {
     const s = pair(7);
     s.people.push(kin({ id: 8, age: 21, sex: 'female', home: 2 }));
-    expect(arrangeMarriages(s, DAY, () => 0).filter((e) => e.kind !== 'married-away')).toEqual([]);
+    expect(arrangeMarriages(s, DAY, () => 0)).toEqual([]);
   });
 });

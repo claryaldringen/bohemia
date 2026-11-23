@@ -40,7 +40,8 @@ function violations(s: VillageState): string[] {
   const first = s.dynasty?.lords[0]?.id;
   for (const man of s.people.filter((p) => p.sex === 'male')) {
     const wives = wivesOf(s, man);
-    if (wives.length > LORD.maxWives) out.push(`muž ${man.id} má ${wives.length} manželek`);
+    if (wives.length > LORD.founders.wifeAges.length)
+      out.push(`muž ${man.id} má ${wives.length} manželek`);
     if (man.spouseId !== undefined) {
       const w = byId.get(man.spouseId);
       if (!w || w.spouseId !== man.id) out.push(`muž ${man.id}: spouseId neodpovídá`);

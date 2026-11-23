@@ -1,23 +1,10 @@
-// Manželky mužů rodu (lord.md – Rod vojvody, Manželky): další manželky z okolí a nová hlavní
-// manželka po smrti hlavní. U ženy je `spouseId` její muž (i u vedlejší), u muže hlavní manželka –
-// symetrie platí jen pro hlavní (docs/code/village-people.md – Příbuzenství). Kroky dne mutují stav.
-import { createRandom, deriveSeed } from '../../landscape/random';
-import { isDynastyTracked, isLineMan, wivesOf } from './dynasty';
+// Manželky mužů rodu (lord.md – Rod vojvody, Manželky): nová hlavní manželka po smrti hlavní
+// (další manželky z okolí zanikly – markets.md – Pravidla 1). U ženy je `spouseId` její muž (i u
+// vedlejší), u muže hlavní manželka – symetrie platí jen pro hlavní (docs/code/village-people.md –
+// Příbuzenství). Kroky dne mutují stav.
+import { wivesOf } from './dynasty';
 import { chronicleEstate } from './estate';
-import { rodBaptized } from './faith';
-import { neighbor, weddingChancePerDay } from './marriage';
-import { ageYears } from './people';
-import { personName } from './people-names';
-import { BIRTH_SPACING } from '../rules';
-import { LORD } from '../rules/rules-lord';
 import type { ChronicleEstate, ChronicleEvent, Person, VillageState } from '../types';
-
-const DAYS_PER_YEAR = 365.25;
-
-/** Denní pravděpodobnost události, která nastane `perYear` ročně. */
-function perDay(perYear: number): number {
-  return 1 - (1 - perYear) ** (1 / 365);
-}
 
 /**
  * Kdo v zápisu o ženě muže rodu (Martin 15. 11. 2026: „Vojvoda Lutobor si vzal Dobravu.“,
@@ -40,82 +27,6 @@ function wivesWho(
 /** Od nejstaršího; při shodě data narození nižší id. */
 function byAge(a: Person, b: Person): number {
   return a.bornDay - b.bornDay || a.id - b.id;
-}
-
-/** Kolik žijících manželek má který muž (podle `spouseId` žen). */
-function wifeCounts(state: VillageState): Map<number, number> {
-  const counts = new Map<number, number>();
-  for (const w of state.people) {
-    if (w.sex === 'female' && w.spouseId !== undefined) {
-      counts.set(w.spouseId, (counts.get(w.spouseId) ?? 0) + 1);
-    }
-  }
-  return counts;
-}
-
-/**
- * Kde bude další manželka bydlet (lord.md – Manželky – Bydlení; Martin 24. 10. 2026: „Vedlejší
- * manželky odcházejí do vlastních obydlí až teprve, je-li dvorec přeplněný.“): vždy v domě muže,
- * i když ho přeplní – z přeplněného domu pak při osídlení odchází vedlejší manželka s nejstarším
- * synem (`secondaryWifeFamilies`). Muž bez obydlí – nikde (nepřijde).
- */
-function extraWifeHome(state: VillageState, man: Person): number | undefined {
-  return state.dwellings.some((d) => d.id === man.dwellingId) ? man.dwellingId : undefined;
-}
-
-/**
- * Další manželky z okolí dne (lord.md – Manželky): muž rodu od LORD.extraWifeFromAge let s 1 až
- * LORD.maxWives − 1 žijícími manželkami si s LORD.extraWifePerYear ročně přivede ženu z okolí
- * (16–22 let, rodiče neznámí). Muži v pořadí id, jeden los na muže z vlastního proudu
- * (`'wife:' + den`), takže sňatky ani porody vsi se nemění. V hladu nepřijde, jinak bydlí v domě
- * muže (`extraWifeHome`). Hlavní manželka muže (`spouseId`) zůstává. Pod pojistkou zásob
- * (`storesFill` < 1) přijde se šancí `weddingChancePerDay` jako svatba z okolí (kinship.md –
- * Sňatky čekají na zásoby). Ves bez rodu a ves pokřtěného rodu (christianity.md – Jediná manželka:
- * nové vedlejší manželky už nepřibudou, ani za nástupce narozeného před křtem) – nic. Mutuje stav,
- * vrací kroniku.
- */
-export function extraWivesDay(
-  state: VillageState,
-  day: number,
-  storesFill: () => number = () => 1,
-): ChronicleEvent[] {
-  if (!isDynastyTracked(state) || rodBaptized(state)) return [];
-  const men = state.people
-    .filter((p) => isLineMan(p) && ageYears(p.bornDay, day) >= LORD.extraWifeFromAge)
-    .sort((a, b) => a.id - b.id);
-  if (men.length === 0) return [];
-  const counts = wifeCounts(state);
-  const random = createRandom(deriveSeed(state.seed, 'wife:' + day));
-  const chance = perDay(LORD.extraWifePerYear);
-  const events: ChronicleEvent[] = [];
-  for (const man of men) {
-    const count = counts.get(man.id) ?? 0;
-    // bez manželky se muž rodu žení jako dosud (první manželka – `arrangeMarriages`)
-    if (count < 1 || count >= LORD.maxWives) continue;
-    // los vždy – hlad ani místo nemění losy ostatních mužů
-    const roll = random.next();
-    if (roll >= chance || state.hungry) continue;
-    if (roll >= weddingChancePerDay(LORD.extraWifePerYear, storesFill())) continue;
-    const home = extraWifeHome(state, man);
-    if (home === undefined) continue;
-    const { from, to } = LORD.extraWifeAge;
-    const years = from + random.next() * (to - from);
-    const wife: Person = {
-      id: state.nextId++,
-      bornDay: day - Math.ceil(years * DAYS_PER_YEAR),
-      dwellingId: home,
-      sex: 'female',
-      spouseId: man.id,
-      origin: neighbor(random.next()),
-      nextBirthFrom: day + BIRTH_SPACING.afterWeddingDays,
-    };
-    // jméno při příchodu (population.md – Jména) – vlastní proud, losy vsi se nemění
-    wife.name = personName(state, wife);
-    state.people.push(wife);
-    counts.set(man.id, count + 1);
-    events.push({ day, kind: 'extra-wife', ...wivesWho(state, man, wife, day) });
-  }
-  return events;
 }
 
 /**

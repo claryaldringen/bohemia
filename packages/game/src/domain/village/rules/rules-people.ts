@@ -182,23 +182,18 @@ export const BOY_SHARE = 105 / 205;
 export const MARRIAGE = {
   maxAgeGapYears: 15,
   maxAgeGapWidowedYears: 20,
-  outsideFromAge: 18,
-  brideAge: { from: 16, to: 22 },
-  groomAge: { below: 2, above: 8 },
-  outside: { bridePerYear: 0.3, groomPerYear: 0.1, awayPerYear: 0.2, favouredGroomPerYear: 0.5 },
 } as const;
 // kinship.md – Sňatky čekají na zásoby (Martin 27. 10. 2026: „Ano“ – návrh Clauda): dokud výhled
 // zásob z pole k příští sklizni nedosáhne pojistky (0,5 roční potřeby, v paměti hladu 0,75), čeká
-// každá svatba – ve vsi, z okolí i další manželka muže rodu – navíc průměrně `waitYears` × (1 −
-// naplnění pojistky) let (exponenciálně, los dne): při prázdných zásobách ≈ 3 roky, v půli pojistky
+// každá svatba ve vsi navíc průměrně `waitYears` × (1 − naplnění pojistky) let (exponenciálně,
+// los dne): při prázdných zásobách ≈ 3 roky, v půli pojistky
 // ≈ 1,5 roku. Sňatky se zpomalí, nikdy nezastaví – ves, která pojistku nikdy nemá, nevymře. Číslo
 // návrh Clauda: v raně novověké Evropě se sňatky v krizových letech odkládaly o 1–3 roky
 // (Malthusova „preventivní brzda“, evropský sňatkový vzorec – Hajnal 1965; po krizi se dohnaly).
 export const MARRIAGE_STORES = {
   waitYears: 3,
 } as const;
-// kinship.md – Sňatky z okolí (návrh Clauda, kvůli válce – war.md): nevěsta z okolí si pamatuje,
-// ze které sousední vsi přišla, a dcera, kam se vdala – směr je los z osmi sousedů
+// war.md – směr osmi sousedních vsí (původ osadníků, kam se kdo odstěhoval)
 export const NEIGHBOR_DIRECTIONS = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'] as const;
 // fields.md – Práce (denní minimum domácností – meze: s hrnčířem 0,45); population.md – Práce
 export const DAILY_MIN_PER_HOUSEHOLD: Bounds = { worst: 0.5, best: 0.45 };
