@@ -4,7 +4,7 @@ Sem patří části [wagons.md](../wagons.md), které přestaly platit; zachovan
 
 ## Nákup u sousedů vozem
 
-Neplatí od 23. 11. 2026 (Martin 22. 11. 2026: sousedé jsou skutečné vsi a obchod jde přes trhy, [markets.md](../markets.md) – plán 1). Dřív v wagons.md:
+Neplatí od 23. 11. 2026 (konec smyšlených sousedů – [markets.md](../markets.md), Pravidla 1, schválené Martinem 22. 11. 2026; jeho slova doslova v [neighbours.md](../neighbours.md) – Martinova rozhodnutí, Než syn odejde, ves neobchoduje). Dřív v wagons.md:
 
 - **Nákup u sousedů (22. 11. 2026):** Martin (19. 10. 2026): „Až bude vůz, pojedou zásoby na voze
   a ušetří se člověkodny.“ Má-li ves doma vůz s voly, kteří ten den neorají (jako svoz – ve dny
@@ -16,7 +16,7 @@ Neplatí od 23. 11. 2026 (Martin 22. 11. 2026: sousedé jsou skutečné vsi a ob
 
 ## Kování vozů – cesta k sousedovi (ironOptions, ironPlan, nosiči, vůz)
 
-Neplatí od 23. 11. 2026 (Martin 22. 11. 2026: sousedé jsou skutečné vsi a obchod jde přes trhy, [markets.md](../markets.md) – plán 1). Dřív v wagons.md:
+Neplatí od 23. 11. 2026 (konec smyšlených sousedů – [markets.md](../markets.md), Pravidla 1, schválené Martinem 22. 11. 2026; jeho slova doslova v [neighbours.md](../neighbours.md) – Martinova rozhodnutí, Než syn odejde, ves neobchoduje). Dřív v wagons.md:
 
 - **Ves bez kováře:** syn tesaře **od 14 let** (nejstarší), jinak tesař sám, dojde do **nejbližší
   vsi s kovářem** a přinese kování:
@@ -92,7 +92,7 @@ Sondy bez kováře (kovárna zrušená) na čerstvém stavu z 31. 1. 801, kdy ve
 
 ## Kování vozů – řádky rozhodnutí o cestě k sousedovi
 
-Neplatí od 23. 11. 2026 (Martin 22. 11. 2026: sousedé jsou skutečné vsi a obchod jde přes trhy, [markets.md](../markets.md) – plán 1). Dřív v wagons.md:
+Neplatí od 23. 11. 2026 (konec smyšlených sousedů – [markets.md](../markets.md), Pravidla 1, schválené Martinem 22. 11. 2026; jeho slova doslova v [neighbours.md](../neighbours.md) – Martinova rozhodnutí, Než syn odejde, ves neobchoduje). Dřív v wagons.md:
 
 | Rozhodnutí                                                                                          | Kdo                   |
 | --------------------------------------------------------------------------------------------------- | --------------------- |

@@ -125,6 +125,10 @@ Plán 1 smazal smyšlené sousedy z jádra, převodu starších vsí i rozhraní
   **Ověřeno 23. 11. 2026** (sonda se sňatky bez příbuzenství – [příbuzenství](kinship.md), 30 let od 12. 5. 904):
   přežije a roste – 21 lidí (rod 8) → 35 lidí (rod 11) v roce 934, s okolím 38 (rod 11), nikdo nezemřel hladem.
   Nástroje a keramika bez nákupu dojdou (víc práce na poli, hlad nehrozí).
+  **Přepočet Vlkova po plánu 1 – 23. 11. 2026** (10 let od 12. 5. 904, sonda D118, plán 1 proti stavu před ním):
+  podmínky splněny – 21 lidí a rod 8 → 22 lidí a rod 10, hladem nikdo, error, nan a codecFail 0; stav před plánem 1:
+  25 lidí, rod 9. Obilí 1. 8. 914: 28 t proti 38 t. Nástroje a keramika klesnou na 0 a sklizně 907–912 jsou nižší
+  (911: 6,2 t proti 11,0 t).
 - Dvě vsi a kupec: výprava, trh, cena, mince – v součtu nic nevznikne ani nezmizí, kromě mincí od kupců.
 
 ## Navazuje

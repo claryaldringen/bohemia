@@ -4,7 +4,7 @@ Sem patří části [disasters.md](../disasters.md), které přestaly platit; za
 
 ## Obchod – obilí sousedů po zlém roce
 
-Neplatí od 23. 11. 2026 (Martin 22. 11. 2026: sousedé jsou skutečné vsi a obchod jde přes trhy, [markets.md](../markets.md) – plán 1). Dřív v disasters.md:
+Neplatí od 23. 11. 2026 (konec smyšlených sousedů – [markets.md](../markets.md), Pravidla 1, schválené Martinem 22. 11. 2026; jeho slova doslova v [neighbours.md](../neighbours.md) – Martinova rozhodnutí, Než syn odejde, ves neobchoduje). Dřív v disasters.md:
 
 - **Obchod** ([obchod](trade.md) – Sousedé): sousedé jsou ve stejném kraji. Při doplnění **1. 11.**
   po zlém roce mají **poloviční zásobu obilí** a ostatní zboží stojí **méně obilí** (×0,67, tedy

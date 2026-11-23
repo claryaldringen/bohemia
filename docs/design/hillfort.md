@@ -86,7 +86,8 @@ přirozený cíl nájezdu – zásoby celé domény na jednom místě – a dův
 
 - **Doména** = vsi, které hráč drží ([vazalství](vassalage.md) – Hráč jako držitel).
 - **Odkud:** přebytek vlastních vsí, dávky vazalů a nákup (Martin – „Všechno“). Nákup dělá hráč
-  výpravou za obchodem, správce v nouzi sám ([správce](steward.md) – Obilí a lov v nouzi).
+  výpravou za obchodem – od 23. 11. 2026 do trhů ([obchod – trhy a mince](markets.md), plány 2
+  a 3) žádný, ani správce v nouzi ([správce](steward.md) – Lov v nouzi).
 - **Kam – automaticky** do každé vsi domény, které chybí (Martin – „B“), ne jen do „hradišť“.
   Chybí = výhled jídla vsi do příští sklizně nevychází – týž výhled, ze kterého správce kupuje
   obilí (návrh Clauda – nový odhad nevzniká).

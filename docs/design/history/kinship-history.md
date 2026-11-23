@@ -15,7 +15,7 @@ Neplatí od 23. 11. 2026 (Martin: „Vynechme příbuznost. Je to mechanika nav�
 
 ## Sňatky z okolí
 
-Neplatí od 23. 11. 2026 (Martin 22. 11. 2026: sousedé jsou skutečné vsi a obchod jde přes trhy, [markets.md](../markets.md) – plán 1). Dřív v kinship.md:
+Neplatí od 23. 11. 2026 (Martin 22. 11. 2026 – [neighbours.md](../neighbours.md), Martinova rozhodnutí, Sňatky: „…dokud bude vesnice bez spojení s okolím, ať se lidé berou mezi sebou…“; [markets.md](../markets.md) – Pravidla 1). Dřív v kinship.md:
 
 - **Z okolí (Martin – c):** dokud okolní vsi nejsou, svobodný muž od 18 let, který ve vsi
   nemá s kým se oženit, si **každý rok s pravděpodobností ≈ 30 %** přivede ženu z okolí (16–22
@@ -25,3 +25,17 @@ Neplatí od 23. 11. 2026 (Martin 22. 11. 2026: sousedé jsou skutečné vsi a ob
   s ≈ 20 % ročně **vdá pryč** (dřív jen pryč, 30 % ročně). Ves tak lidi z okolí bere i dává
   (návrh Clauda). Až budou okolní vsi (NPC vojvodové, další hráči – [válka](war.md),
   [stěhování](migration.md)), sňatky půjdou přes ně.
+
+Dřív v kinship.md – Implementace (do 23. 11. 2026):
+
+- **Z okolí:** denní pravděpodobnosti odpovídají ročním (nevěsta 30 %, ženich 10 % a 50 %, pryč
+  20 %), jeden los dne na člověka; „nemá s kým se vzít“ = ve vsi není nikdo, s kým by svatba dnes
+  šla. Z okolí nikdo nepřijde do přeplněného domu ani **když ves hladoví** (byl by jen další
+  jedlík) – dřív platilo jen pro nevěstu. Ženich z okolí je o 2 roky mladší až o 8 let starší než
+  nevěsta (od 18 let); nevěsta z okolí 16–22 let, staršímu muži nejvýš o povolený rozdíl mladší
+  (do 44 let – 50letý vdovec si přivede ženu 30–36letou). Dcera se vdá pryč, jen když se její
+  domácnost odchodem nerozpadne; vdova (s dětmi), dědička a žena z domu bez mužů pryč nejdou.
+  Kronika „Ženich z okolí“ jako „Nevěsta z okolí“ (upozornění).
+
+Dřív v kinship.md – Muži rodu vojvody (do 23. 11. 2026): „**Muži rodu vojvody** (návrh issue #9, Martin 24. 10. 2026)
+smějí mít až 4 manželky; první je hlavní a podle pravidel výš, další (vedlejší) jen z okolí.“

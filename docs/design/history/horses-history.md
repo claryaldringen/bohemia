@@ -4,7 +4,7 @@ Sem patří části [horses.md](../horses.md), které přestaly platit; zachovan
 
 ## Nákup a prodej koní od souseda
 
-Neplatí od 23. 11. 2026 (Martin 22. 11. 2026: sousedé jsou skutečné vsi a obchod jde přes trhy, [markets.md](../markets.md) – plán 1). Dřív v horses.md:
+Neplatí od 23. 11. 2026 (konec smyšlených sousedů – [markets.md](../markets.md), Pravidla 1, schválené Martinem 22. 11. 2026; jeho slova doslova v [neighbours.md](../neighbours.md) – Martinova rozhodnutí, Než syn odejde, ves neobchoduje). Dřív v horses.md:
 
 Tři řádky v panelu obchodu jako u dobytka ([obchod](trade.md) – Dobytek ve třech druzích):
 
@@ -35,7 +35,7 @@ Tři řádky v panelu obchodu jako u dobytka ([obchod](trade.md) – Dobytek ve 
 
 ## Kování – cizí kovář
 
-Neplatí od 23. 11. 2026 (Martin 22. 11. 2026: sousedé jsou skutečné vsi a obchod jde přes trhy, [markets.md](../markets.md) – plán 1). Dřív v horses.md:
+Neplatí od 23. 11. 2026 (konec smyšlených sousedů – [markets.md](../markets.md), Pravidla 1, schválené Martinem 22. 11. 2026; jeho slova doslova v [neighbours.md](../neighbours.md) – Martinova rozhodnutí, Než syn odejde, ves neobchoduje). Dřív v horses.md:
 
 - **Cizí kovář**, když vlastní není nebo nemá hřivny: přijde nejbližší soused s kovářem (`nearestCraftsman` z `craft-buying.ts` – cesta jako nákup u sousedů, po stezce nebo krajinou). Ves platí obilím a pak luštěninami. Kování je malý nutný výdaj (≈ 36 kg obilí), proto smí **sáhnout i do pojistky** (návrh Clauda, oprava 26. 10. 2026; `paymentPool(..., intoBuffer)`), ale nikdy tak, aby ves neměla jídlo do příští sklizně (zásoby k příští sklizni − cena ≥ 0; Martin: ves za normálních okolností nemá hladovět). Nákup u sousedů a ohrada koní dál platí jen z přebytku nad pojistkou. Cena = (dny cesty tam i zpět + 0,5 čd na koně) × cena jídla v práci (`foodCosts` – kg obilí na člověkoden) + hřivny za cenu souseda (`buyPrice('ironBars')`).
 - **Vlkov (stav v lokální DB 26. 10. 2026):** 1 jezdecký kůň, vlastní kovárna je, ale hřiven má 0,08 kg; nejbližší soused je na východě, 5 dní tam i zpět po stezce. Vlastní kovář vychází na **4,0 čd** (0,5 čd práce + 0,5 kg hřiven oceněných prací na vytavení), cizí na **14,4 čd** – **3,6×** dráž. S rostoucím počtem koní podíl klesá (cesta se rozloží, železo ne): 2 koně 3,0×, 5 koní 2,6×, 10 koní 2,5× – pořád „násobně“, ale pod 3× jen u větších stájí.

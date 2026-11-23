@@ -1,6 +1,6 @@
 # Dvorec vojvody, zemská stezka a obchod se sousedy
 
-> **Od 23. 11. 2026 neplatí** obchod se smyšlenými sousedy (markets.md – Rozhodnutí plánu 1, návrh Clauda); zbylé zmínky níž o sousedech, nákupech a výpravách k nim jsou dřívější stav. Zbytek („Jak je postavené“, Rozhodnutí) o sousedech a obchodu je historický; jeho místo přebírá [obchod – trhy a mince](markets.md).
+> **Od 23. 11. 2026 neplatí** obchod se smyšlenými sousedy (markets.md – Pravidla 1, Martin 22. 11. 2026); zbylé zmínky níž o sousedech, nákupech a výpravách k nim jsou dřívější stav. Dřívější text o sousedech, cenách a panelu obchodu je v [historii](history/trade-history.md); řádky Rozhodnutí o sousedech a obchodu jsou historické. Jeho místo přebírá [obchod – trhy a mince](markets.md).
 
 Stav: schváleno 18. 10. 2026 (Martin: „Ano, spusť to takhle“; obchod se sousedem bez simulace –
 varianta „a“). **Implementace hotová** (18. 10. 2026) – dvorec, zemská stezka, sousedé a obchod;
@@ -153,16 +153,6 @@ Návrh Clauda (18. 10. 2026) – detaily, které návrh výš nechal otevřené:
   práce. Hotová stezka (`Trail.builtDay`) je upravená cesta – nezaroste (kus pod hotovou stavbou se opustí, paths.md – Stavba přes cestu).
 - **Dny cesty:** 2 dny do 400 m stezky, každých dalších 250 m den navíc, nejvýš 6, a 1 den za
   krajem mapy (tedy 3–7 dní celkem).
-- **Sousedé:** povaha ze seedu vsi a směru (`neighbourOf` – dokud mapy nemají polohu ve světě,
-  stojí za „seed světa“ seed vsi; od 1. 11. 2026 má mapa jen jednu ves – jedna ves, jedna mapa). Od 19. 10.
-  2026 má soused druh (`neighbourKind` – každý ze 4 druhů dvakrát kolem vsi) a podle něj nabízí
-  2–3 druhy zboží a shání 2–3 – viz [Jen společné suroviny](#jen-společné-suroviny); do té doby
-  nabízel aspoň jedno zboží zvenku. Roční zásoba každého nabízeného zboží v hodnotě 600–1 500 kg
-  obilí, poptávka 800–2 000 kg; rok obchodu začíná 1. 11. a ukládá se jen, co z něj zbývá.
-- **Ceny:** přirážka 20 % platí oběma směry, sháněné zboží soused bere o 20 % dráž a nabízené
-  prodá o 20 % levněji: ves za kus sháněného zboží dostane hodnota ÷ 1,2 × 1,2 = 1 × hodnota,
-  za kus nabízeného zaplatí hodnota × 1,2 × 0,8 = 0,96 × hodnota. Obchoduje se jen sháněným
-  (ves dává) a nabízeným (ves dostává) zboží – jinak by soused byl nekonečný zdroj.
 - **Doprava:** nosiči = víc z cest tam a zpět: náklad ÷ 25 kg (kláda váží 100 kg – bez vozu ji nesou **dva lidé**, Martin 22. 10. 2026; s vozem vždy na voze) + honák na každých 10 kusů dobytka; aspoň 1. Práce = nosiči
   × dny. **Lidé na výpravě mají vlastní podíl práce** (Martin 19. 10. 2026: „Ano, udělej to
   tak.“ – na návrh Clauda níž): každý den výprava vezme tolik člověkodní, kolik s ní jde lidí
@@ -175,49 +165,14 @@ Návrh Clauda (18. 10. 2026) – detaily, které návrh výš nechal otevřené:
   cesty neponesou a jejich práce ve vsi je jen zlomek. **Denní minimum domácností má přednost** –
   vaření, voda, oheň a péče o malé děti (fields.md – Práce) se neodkládají, výprava je dobrovolná;
   zdržet se tak může jen malá ves, která po denním minimu nemá dost dospělých (panel to ukáže).
-  Platí pro každou výpravu ve vsi, i pro nákup u sousedů. Zboží, které ves dává, odejde hned,
+  Platí pro každou výpravu ve vsi. Zboží, které ves dává, odejde hned,
   přinesené dorazí po návratu. Ves si nechá aspoň 2 krávy. Kalibrace se nemění (běží bez obchodu
   – ověřeno `measure-village 20 20`).
-- ~~**Zboží zvenku:** sůl 3 kg na člověka a rok (≈ 8 g denně), dokud je, štěstí +3; kožešiny se
-  opotřebí 20 % ročně, štěstí +2 × (kožešiny ÷ lidé, nejvýš 1); med rovným dílem do roka,
-  nejvýš 5 % potřeby energie (0,9 kg obilí na kg), štěstí jako ovoce (+5, se zralým ovocem se
-  nesčítá); kovář z koupeného železa jen kuje – 1,2 kg železa, 3 čd a 10 kg uhlí na 1 kg
-  nástrojů (místo 10 čd a 50 kg uhlí z rudy), železo bere přednostně.~~ Zrušeno 19. 10. 2026.
-- **Rozhraní:** v panelu dvorce (obydlí s portrétem „Dvorec vojvody“) dvě ikony – Zemská stezka
-  otevře růžici 8 šipek kolem dvorce (cena, délka a dny cesty v popisku, zahrazený směr zašedlý
-  s důvodem, hotová stezka zlatě, rozestavěná s průběhem) a Obchod (jen s hotovou stezkou) panel
-  obchodu – sousedé po hotových stezkách, posuvníky „dáš“ (nejvýš co ves má a soused vezme)
-  a „dostaneš“ (nejvýš zásoba souseda), bilance pro souseda, nosiči, dny a práce, tlačítko
-  vyslat výpravu; výprava na cestě ukáže náklad a průběh. ~~Zboží zvenku v horní liště, med
-  v popisku nasycení.~~ (zrušeno 19. 10. 2026)
-- **Čitelnost panelu obchodu** (Martin 19. 10. 2026: „U toho obchodu – absolutně netuším, co je
-  nabídka a co poptávka.“; návrh Clauda, Martin: „Ano, udělej to tak“): nahoře soused se směrem
-  („Lužany (sever)“) a vpravo bilance pro souseda s ikonou vah – zeleně, když je výměna pro
-  souseda v pořádku (≥ 0), červeně, když je záporná; popisek „Bilance pro souseda (kg obilí) –
-  musí být aspoň 0“. Pod tím dva sloupce s **viditelnými hlavičkami** „Dáš“ (portrét dvorce →,
-  ze vsi ven) a „Dostaneš“ (→ portrét dvorce, do vsi) – jediná slova v panelu, výjimka z pravidla
-  bez popisků jako „Prodat“ a „Koupit“ v 0 A.D. Popisek řádku řekne, co soused chce: u „Dáš“
-  „Soused shání – vezme ještě 1 500 kg“, u „Dostaneš“ „Soused nabízí – má ještě 4 kusy“
-  (jednotky kg, kusy, rodiny, muži, ženy), pod tím cena v kg obilí. Dole nosiči, dny cesty, práce
-  a tlačítko vyslat výpravu. Záložky sousedů jen, když je jich víc.
-- **Po odeslání** (Martin 19. 10. 2026: „Vyslal jsem obchodní výpravu, ale dál nějak nevím, co se
-  bude dít.“ – ve Vlkově server výpravu odmítl, protože posuvník zůstal z loňského roku obchodu
-  na 3 mužích a soused jich letos měl 2; chybu ukázal jen mizející řádek nahoře; návrh Clauda):
-  - **posuvníky se ořežou** na dnešní meze souseda s každým novým pohledem na ves (nový herní den,
-    nový rok obchodu od 1. 11.) – odeslat jde jen to, co panel ukazuje (`clampSelection`);
-  - **kontrola jádra už před odesláním**: náhled v prohlížeči dělá stejné kontroly a se stejnými
-    důvody jako server (`tradeQuote`) – tlačítko je zašedlé a důvod je v popisku, jako u staveb;
-  - **chyba serveru zůstane v panelu** červeně pod tlačítkem, dokud hráč výběr nezmění (a jako
-    krátký řádek nahoře);
-  - **panel zůstane otevřený** a po úspěchu ukáže **výpravu na cestě**: soused a směr, co nese
-    a koho vede (Dáš), co přinese a kdo přijde (Dostaneš), průběh, nosiči a vozy a za kolik dní se
-    vrátí dnešním tempem;
-  - **tempo dne:** lidé na výpravě mají vlastní podíl práce (viz Doprava) – výprava jde plným
-    tempem; jen ves, která po denním minimu nemá dost dospělých, se zdrží – panel to ukáže
-    přesýpacími hodinami s popiskem „Málo dospělých – dnes šlo 1 z 2 lidí výpravy, výprava se
-    zdrží.“, bez nikoho „Výprava stojí – po denním minimu domácností dnes ve vsi nezbyl nikdo, kdo
-    by šel.“ (návrat „?“); výprava vyslaná dnes „vyrazí zítra“;
-  - **vozy:** u práce panel zeleně ukáže, kolik člověkodní vozy ušetří proti nosičům.
+- **Rozhraní:** v panelu dvorce (obydlí s portrétem „Dvorec vojvody“) ikona Zemská stezka otevře
+  růžici 8 šipek kolem dvorce (cena, délka a dny cesty v popisku, zahrazený směr zašedlý
+  s důvodem, hotová stezka zlatě, rozestavěná s průběhem). Ikona Obchod a panel obchodu
+  skončily 23. 11. 2026 se smyšlenými sousedy – dřívější text je v
+  [historii](history/trade-history.md).
 - **Nosiči jako vlastní podíl práce – Martin schválil 19. 10. 2026** („Ano, udělej to tak.“):
   výprava dřív brala práci až ze společné práce vsi a bez ní stála uprostřed cesty (Vlkov: volná
   práce ≈ 7 člověkodní denně na 12 nosičů – výprava za 60 člověkodní trvala 9 dní místo 5; o žních
@@ -237,8 +192,7 @@ Návrh Clauda (18. 10. 2026) – detaily, které návrh výš nechal otevřené:
     `newcomerProfiles` – stejní lidé, kteří se pak ve vsi objeví);
   - **s vozem** jede náklad na voze v čele karavany, s vozem jdou jen dva lidé (honák u spřežení
     a pomocník vedle vozu) a lidé, kteří se stěhují, jdou za vozem; vůz jede od ohrady na stezku,
-    za krajem mapy zmizí a vrátí se po stezce k ohradě čelem dopředu; panel obchodu ukáže, kolik
-    člověkodní vůz ušetřil;
+    za krajem mapy zmizí a vrátí se po stezce k ohradě čelem dopředu;
   - **časový rozvrh:** karavana jde podle postupu výpravy v herním čase (odvedená práce ÷ cena),
     v herním dni plynule dnešním tempem – dojde domů právě, když se výprava v jádru vrátí. Dny
     cesty bez dne za krajem mapy se dělí napůl tam a zpátky; den za krajem mapy (`beyondEdgeDays`)

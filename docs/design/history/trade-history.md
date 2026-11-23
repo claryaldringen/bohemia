@@ -4,7 +4,7 @@ Sem patří části [trade.md](../trade.md), které přestaly platit; zachované
 
 ## Sousedé (bez simulace – varianta a)
 
-Neplatí od 23. 11. 2026 (Martin 22. 11. 2026: sousedé jsou skutečné vsi a obchod jde přes trhy, [markets.md](../markets.md) – plán 1). Dřív v trade.md:
+Neplatí od 23. 11. 2026 (konec smyšlených sousedů – [markets.md](../markets.md), Pravidla 1, schválené Martinem 22. 11. 2026; jeho slova doslova v [neighbours.md](../neighbours.md) – Martinova rozhodnutí, Než syn odejde, ves neobchoduje). Dřív v trade.md:
 
 - V každém z 8 směrů je soused s **povahou** určenou deterministicky ze seedu světa a směru
   (návrh Clauda): 2–3 druhy zboží **nabízí** (přebytek – levně), 2–3 **shání** (dražší).
@@ -20,7 +20,7 @@ Neplatí od 23. 11. 2026 (Martin 22. 11. 2026: sousedé jsou skutečné vsi a ob
 
 ## Obchod se sousedy
 
-Neplatí od 23. 11. 2026 (Martin 22. 11. 2026: sousedé jsou skutečné vsi a obchod jde přes trhy, [markets.md](../markets.md) – plán 1). Dřív v trade.md:
+Neplatí od 23. 11. 2026 (konec smyšlených sousedů – [markets.md](../markets.md), Pravidla 1, schválené Martinem 22. 11. 2026; jeho slova doslova v [neighbours.md](../neighbours.md) – Martinova rozhodnutí, Než syn odejde, ves neobchoduje). Dřív v trade.md:
 
 - **Výměnou, ne za peníze** (návrh Clauda). Každé zboží má hodnotu v kg obilí: obilí 1,
   luštěniny 1, maso 3, sýr 4, keramika 3, uhlí 0,5, hřivny 45 (kg), kráva 600, kláda 40 (kus), kámen 60 (m³) –
@@ -58,7 +58,7 @@ Neplatí od 23. 11. 2026 (Martin 22. 11. 2026: sousedé jsou skutečné vsi a ob
 
 ## Jen společné suroviny
 
-Neplatí od 23. 11. 2026 (Martin 22. 11. 2026: sousedé jsou skutečné vsi a obchod jde přes trhy, [markets.md](../markets.md) – plán 1). Dřív v trade.md:
+Neplatí od 23. 11. 2026 (konec smyšlených sousedů – [markets.md](../markets.md), Pravidla 1, schválené Martinem 22. 11. 2026; jeho slova doslova v [neighbours.md](../neighbours.md) – Martinova rozhodnutí, Než syn odejde, ves neobchoduje). Dřív v trade.md:
 
 Stav: **Martin rozhodl 19. 10. 2026** – „Nech jen společné suroviny, nezaváděj nové.“ (upřesnil
 variantu „a“: odebrat zboží zvenku). Detaily níž jsou návrh Clauda.
@@ -138,7 +138,7 @@ variantu „a“: odebrat zboží zvenku). Detaily níž jsou návrh Clauda.
 
 ## Výměna lidí se sousedem
 
-Neplatí od 23. 11. 2026 (Martin 22. 11. 2026: sousedé jsou skutečné vsi a obchod jde přes trhy, [markets.md](../markets.md) – plán 1). Dřív v trade.md:
+Neplatí od 23. 11. 2026 (konec smyšlených sousedů – [markets.md](../markets.md), Pravidla 1, schválené Martinem 22. 11. 2026; jeho slova doslova v [neighbours.md](../neighbours.md) – Martinova rozhodnutí, Než syn odejde, ves neobchoduje). Dřív v trade.md:
 
 Stav: **Martin rozhodl 19. 10. 2026** – „Se sousedem půjde vyměnit i lidi... např. když on jich
 bude mít moc a nebude je moci uživit, může jich pár vyměnit s námi za nějaké suroviny a opačně.“
@@ -216,7 +216,7 @@ objednává i dává:
 
 ## Hřivny místo nástrojů (obchod a nákup u souseda)
 
-Neplatí od 23. 11. 2026 (Martin 22. 11. 2026: sousedé jsou skutečné vsi a obchod jde přes trhy, [markets.md](../markets.md) – plán 1). Dřív v trade.md:
+Neplatí od 23. 11. 2026 (konec smyšlených sousedů – [markets.md](../markets.md), Pravidla 1, schválené Martinem 22. 11. 2026; jeho slova doslova v [neighbours.md](../neighbours.md) – Martinova rozhodnutí, Než syn odejde, ves neobchoduje). Dřív v trade.md:
 
 Martin (20. 10. 2026, [výrobní řetězy](production-chains.md) – Kovář): kovář vytaví houbu
 a překove ji na hřivny, „ze kterých může vyrábět nástroje nebo mohou jít na obchod“; „V liště
@@ -240,7 +240,7 @@ jenom hřivny“.
 
 ## Dobytek ve třech druzích (obchod)
 
-Neplatí od 23. 11. 2026 (Martin 22. 11. 2026: sousedé jsou skutečné vsi a obchod jde přes trhy, [markets.md](../markets.md) – plán 1). Dřív v trade.md:
+Neplatí od 23. 11. 2026 (konec smyšlených sousedů – [markets.md](../markets.md), Pravidla 1, schválené Martinem 22. 11. 2026; jeho slova doslova v [neighbours.md](../neighbours.md) – Martinova rozhodnutí, Než syn odejde, ves neobchoduje). Dřív v trade.md:
 
 Martin, 20. 10. 2026 (k otázce, jak zvětšit stádo krav – „Dejme možnost 1.“, cíl krav podle volů,
 viz [strava](diet.md) – Krávy na obměnu volů): „**s dobytkem by také mělo jít obchodovat.
@@ -303,3 +303,62 @@ Podrobnosti níž jsou návrh Clauda. Implementace `cattle-trade.ts` (jádro) a 
   `withoutForeignGoods`): dobytek v uloženém zbytku roku sousedů, ve výpravách na cestě a v kronice
   výprav = krávy; zbytek roku souseda dostane druhy dobytka podle dnešní povahy (nové druhy plné
   roční množství), ať ho převod zboží zvenku nezahodí.
+
+## Jak je postavené – sousedé, ceny a panel obchodu
+
+Neplatí od 23. 11. 2026 (konec smyšlených sousedů – [markets.md](../markets.md), Pravidla 1, schválené Martinem 22. 11. 2026; jeho slova doslova v [neighbours.md](../neighbours.md) – Martinova rozhodnutí, Než syn odejde, ves neobchoduje). Dřív v trade.md – Jak je postavené:
+
+- **Sousedé:** povaha ze seedu vsi a směru (`neighbourOf` – dokud mapy nemají polohu ve světě,
+  stojí za „seed světa“ seed vsi; od 1. 11. 2026 má mapa jen jednu ves – jedna ves, jedna mapa). Od 19. 10.
+  2026 má soused druh (`neighbourKind` – každý ze 4 druhů dvakrát kolem vsi) a podle něj nabízí
+  2–3 druhy zboží a shání 2–3 – viz [Jen společné suroviny](#jen-společné-suroviny); do té doby
+  nabízel aspoň jedno zboží zvenku. Roční zásoba každého nabízeného zboží v hodnotě 600–1 500 kg
+  obilí, poptávka 800–2 000 kg; rok obchodu začíná 1. 11. a ukládá se jen, co z něj zbývá.
+- **Ceny:** přirážka 20 % platí oběma směry, sháněné zboží soused bere o 20 % dráž a nabízené
+  prodá o 20 % levněji: ves za kus sháněného zboží dostane hodnota ÷ 1,2 × 1,2 = 1 × hodnota,
+  za kus nabízeného zaplatí hodnota × 1,2 × 0,8 = 0,96 × hodnota. Obchoduje se jen sháněným
+  (ves dává) a nabízeným (ves dostává) zboží – jinak by soused byl nekonečný zdroj.
+- ~~**Zboží zvenku:** sůl 3 kg na člověka a rok (≈ 8 g denně), dokud je, štěstí +3; kožešiny se
+  opotřebí 20 % ročně, štěstí +2 × (kožešiny ÷ lidé, nejvýš 1); med rovným dílem do roka,
+  nejvýš 5 % potřeby energie (0,9 kg obilí na kg), štěstí jako ovoce (+5, se zralým ovocem se
+  nesčítá); kovář z koupeného železa jen kuje – 1,2 kg železa, 3 čd a 10 kg uhlí na 1 kg
+  nástrojů (místo 10 čd a 50 kg uhlí z rudy), železo bere přednostně.~~ Zrušeno 19. 10. 2026.
+- **Rozhraní:** v panelu dvorce (obydlí s portrétem „Dvorec vojvody“) dvě ikony – Zemská stezka
+  otevře růžici 8 šipek kolem dvorce (cena, délka a dny cesty v popisku, zahrazený směr zašedlý
+  s důvodem, hotová stezka zlatě, rozestavěná s průběhem) a Obchod (jen s hotovou stezkou) panel
+  obchodu – sousedé po hotových stezkách, posuvníky „dáš“ (nejvýš co ves má a soused vezme)
+  a „dostaneš“ (nejvýš zásoba souseda), bilance pro souseda, nosiči, dny a práce, tlačítko
+  vyslat výpravu; výprava na cestě ukáže náklad a průběh. ~~Zboží zvenku v horní liště, med
+  v popisku nasycení.~~ (zrušeno 19. 10. 2026)
+- **Čitelnost panelu obchodu** (Martin 19. 10. 2026: „U toho obchodu – absolutně netuším, co je
+  nabídka a co poptávka.“; návrh Clauda, Martin: „Ano, udělej to tak“): nahoře soused se směrem
+  („Lužany (sever)“) a vpravo bilance pro souseda s ikonou vah – zeleně, když je výměna pro
+  souseda v pořádku (≥ 0), červeně, když je záporná; popisek „Bilance pro souseda (kg obilí) –
+  musí být aspoň 0“. Pod tím dva sloupce s **viditelnými hlavičkami** „Dáš“ (portrét dvorce →,
+  ze vsi ven) a „Dostaneš“ (→ portrét dvorce, do vsi) – jediná slova v panelu, výjimka z pravidla
+  bez popisků jako „Prodat“ a „Koupit“ v 0 A.D. Popisek řádku řekne, co soused chce: u „Dáš“
+  „Soused shání – vezme ještě 1 500 kg“, u „Dostaneš“ „Soused nabízí – má ještě 4 kusy“
+  (jednotky kg, kusy, rodiny, muži, ženy), pod tím cena v kg obilí. Dole nosiči, dny cesty, práce
+  a tlačítko vyslat výpravu. Záložky sousedů jen, když je jich víc.
+- **Po odeslání** (Martin 19. 10. 2026: „Vyslal jsem obchodní výpravu, ale dál nějak nevím, co se
+  bude dít.“ – ve Vlkově server výpravu odmítl, protože posuvník zůstal z loňského roku obchodu
+  na 3 mužích a soused jich letos měl 2; chybu ukázal jen mizející řádek nahoře; návrh Clauda):
+  - **posuvníky se ořežou** na dnešní meze souseda s každým novým pohledem na ves (nový herní den,
+    nový rok obchodu od 1. 11.) – odeslat jde jen to, co panel ukazuje (`clampSelection`);
+  - **kontrola jádra už před odesláním**: náhled v prohlížeči dělá stejné kontroly a se stejnými
+    důvody jako server (`tradeQuote`) – tlačítko je zašedlé a důvod je v popisku, jako u staveb;
+  - **chyba serveru zůstane v panelu** červeně pod tlačítkem, dokud hráč výběr nezmění (a jako
+    krátký řádek nahoře);
+  - **panel zůstane otevřený** a po úspěchu ukáže **výpravu na cestě**: soused a směr, co nese
+    a koho vede (Dáš), co přinese a kdo přijde (Dostaneš), průběh, nosiči a vozy a za kolik dní se
+    vrátí dnešním tempem;
+  - **tempo dne:** lidé na výpravě mají vlastní podíl práce (viz Doprava) – výprava jde plným
+    tempem; jen ves, která po denním minimu nemá dost dospělých, se zdrží – panel to ukáže
+    přesýpacími hodinami s popiskem „Málo dospělých – dnes šlo 1 z 2 lidí výpravy, výprava se
+    zdrží.“, bez nikoho „Výprava stojí – po denním minimu domácností dnes ve vsi nezbyl nikdo, kdo
+    by šel.“ (návrat „?“); výprava vyslaná dnes „vyrazí zítra“;
+  - **vozy:** u práce panel zeleně ukáže, kolik člověkodní vozy ušetří proti nosičům.
+
+Z bodu Doprava: „Platí pro každou výpravu ve vsi, i pro nákup u sousedů.“ Z bodu Ve scéně – karavana: „vůz jede od
+ohrady na stezku, za krajem mapy zmizí a vrátí se po stezce k ohradě čelem dopředu; panel obchodu ukáže, kolik
+člověkodní vůz ušetřil;“

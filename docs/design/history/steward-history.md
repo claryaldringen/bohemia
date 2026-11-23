@@ -116,7 +116,7 @@ jablek (3–15 % sklizně).
 
 ## Obilí v nouzi (výprava za obilím)
 
-Neplatí od 23. 11. 2026 (Martin 22. 11. 2026: sousedé jsou skutečné vsi a obchod jde přes trhy, [markets.md](../markets.md) – plán 1). Dřív v steward.md:
+Neplatí od 23. 11. 2026 (konec smyšlených sousedů – [markets.md](../markets.md), Pravidla 1, schválené Martinem 22. 11. 2026; jeho slova doslova v [neighbours.md](../neighbours.md) – Martinova rozhodnutí, Než syn odejde, ves neobchoduje). Dřív v steward.md:
 
 - **Kdy hrozí hlad:** z výhledu zásob do žní, ze kterého správce počítá režim a pojistku
   (`fieldStoresOutlook` – osivo, které ves z hromady okna nebo zimního osiva ještě zaseje, se nejí;

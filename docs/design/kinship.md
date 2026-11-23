@@ -1,6 +1,6 @@
 # Příbuzenství a pohlaví – rodiny ve vsi
 
-> **Od 23. 11. 2026 se nevěsty ani ženichové z okolí nepřivádějí** (markets.md – Rozhodnutí plánu 1, návrh Clauda); zmínky níž o „okolí“ jsou dřívější stav, sňatky se skutečnými sousedy přijdou s plánem 3.
+> **Od 23. 11. 2026 se nevěsty ani ženichové z okolí nepřivádějí** (Martin 22. 11. 2026 – [sousední vsi](neighbours.md), Martinova rozhodnutí, Sňatky; markets.md – Pravidla 1); zmínky níž o „okolí“ jsou dřívější stav, sňatky se skutečnými sousedy přijdou s plánem 3.
 
 Stav: **23. 11. 2026 Martin zrušil hlídání příbuzenství u sňatků.** Na otázku, odkud ves bez spojení s okolím
 vezme nevěsty a ženichy (sonda: zákaz do bratranců zakázal ve Vlkově od roku 923 každý možný pár): „Vynechme
@@ -71,9 +71,11 @@ dědictví, sňatky a nástupnictví potřebují vědět, kdo je čí. Postavy v
   dům ona a on ne, přižení se on k ní** (Martin: „Když drží vlastní dům (vdova s dětmi), muž se
   k ní přiženit smí – přestěhuje se on, když není dědicem svého domu.“). Kdo se stěhuje, vezme
   s sebou **vlastní děti mladší 16 let**. Kronika „Svatba“ jako dnes.
-- **Z okolí:** ves se sňatky z okolí nepočítá – lidé se berou mezi sebou (Martin 23. 11. 2026: „Vynechme příbuznost“; návrh Clauda, markets.md – Rozhodnutí plánu 1); sňatky se skutečnými sousedy přijdou s plánem 3. Dřívější pravidla jsou v [historii](history/kinship-history.md).
-- **Muži rodu vojvody** (návrh issue #9, Martin 24. 10. 2026) smějí mít až 4 manželky; první je
-  hlavní a podle pravidel výš, další (vedlejší) jen z okolí. Vedlejší manželka bydlí s mužem,
+- **Z okolí:** ves se sňatky z okolí nepočítá – lidé se berou mezi sebou (Martin 22. 11. 2026: „…dokud bude vesnice bez spojení s okolím, ať se lidé berou mezi sebou…“ – [sousední vsi](neighbours.md), Martinova rozhodnutí, Sňatky; markets.md – Pravidla 1); sňatky se skutečnými sousedy přijdou s plánem 3. Dřívější pravidla jsou v [historii](history/kinship-history.md).
+- **Muži rodu vojvody** (návrh issue #9, Martin 24. 10. 2026) smějí mít víc manželek; první je
+  hlavní a podle pravidel výš. Další (vedlejší) dřív přicházely jen z okolí, takže od 23. 11. 2026
+  nepřibývají a vedlejší manželky mají jen zakladatelé ([vojvodova rodina](lord.md) – Manželky,
+  Další manželky). Vedlejší manželka bydlí s mužem,
   dokud jeho dům není přeplněný, pak se svými dětmi ve vlastním obydlí – [vojvodova
   rodina](lord.md), Manželky. Ostatní muži mají jednu manželku.
 - **Vdovy a vdovci** se znovu žení a vdávají co nejdřív – žádná čekací doba; dítě s novým mužem
@@ -249,14 +251,9 @@ vsi blízké příbuzné, nebudou chtít útočit):
   první, pak od nejstaršího svobodného, každý s nejbližším věkem, se kterým svatba jde; jeden
   sňatek na člověka a den, krok 6 simulace po obsazení prázdných obydlí. Kronika rozliší
   vdovu a ženicha, který se přiženil („Svatba – k vdově se přiženil muž ze vsi.“).
-- **Z okolí:** denní pravděpodobnosti odpovídají ročním (nevěsta 30 %, ženich 10 % a 50 %, pryč
-  20 %), jeden los dne na člověka; „nemá s kým se vzít“ = ve vsi není nikdo, s kým by svatba dnes
-  šla. Z okolí nikdo nepřijde do přeplněného domu ani **když ves hladoví** (byl by jen další
-  jedlík) – dřív platilo jen pro nevěstu. Ženich z okolí je o 2 roky mladší až o 8 let starší než
-  nevěsta (od 18 let); nevěsta z okolí 16–22 let, staršímu muži nejvýš o povolený rozdíl mladší
-  (do 44 let – 50letý vdovec si přivede ženu 30–36letou). Dcera se vdá pryč, jen když se její
-  domácnost odchodem nerozpadne; vdova (s dětmi), dědička a žena z domu bez mužů pryč nejdou.
-  Kronika „Ženich z okolí“ jako „Nevěsta z okolí“ (upozornění).
+- **Z okolí:** od 23. 11. 2026 nikdo nepřichází ani neodchází (Sňatky – Z okolí výš); staré zápisy
+  kroniky „Nevěsta z okolí“, „Ženich z okolí“ a „Dcera se vdala pryč“ zůstávají. Dřívější pravidla
+  implementace jsou v [historii](history/kinship-history.md) – Sňatky z okolí.
 - **Vdova s malými dětmi se vdává** (Martin, 19. 10. 2026) – dřív zůstávala v domě manžela,
   dokud jí děti nebyly 14 (ve Vlkově proto 21letá matka pětiletého syna nesměla za nikoho).
 - **Po svatbě nejdřív za 9 měsíců dítě** (population.md – rozestup porodů); stejně zakladatelé
@@ -335,7 +332,8 @@ odchodu svobodného syna z plného domu):
 | Rozhodnutí                                                                                 | Kdo                                       |
 | ------------------------------------------------------------------------------------------ | ----------------------------------------- |
 | Pohlaví, matka, otec, manžel; děti jen manželské páry                                      | Martin                                    |
-| Sňatky z okolí: teď abstraktně, až budou okolní vsi, přes ně (varianta c)                  | Martin                                    |
+| ~~Sňatky z okolí: teď abstraktně, až budou okolní vsi, přes ně (varianta c)~~              | Martin                                    |
+| Bez spojení s okolím se lidé berou mezi sebou, pak partner z náhodné dostupné vsi (plán 3) | Martin (22. 11. 2026)                     |
 | 105 chlapců na 100 dívek; žena plodná 16–44, muž od 16 bez meze; zakladatelé dva páry      | návrh Clauda                              |
 | Sňatky nehlídají příbuzenství („Nehlídat nic“); žena se stěhuje k muži; rozdíl do ≈ 15 let | Martin 23. 11. 2026 / návrh Clauda        |
 | ~~Z okolí ≈ 30 % ročně pro svobodného muže / ženu od 18 bez možného partnera ve vsi~~      | návrh Clauda                              |
@@ -347,10 +345,10 @@ odchodu svobodného syna z plného domu):
 | Sňatky čekají na pojistku zásob – odklad průměrně 3 roky × (1 − naplnění), nikdy zákaz     | Martin (27. 10. 2026), návrh Clauda       |
 | Nevěsta z okolí si pamatuje směr vsi, vdaná pryč zůstane v rodokmenu se směrem (válka)     | návrh Clauda                              |
 | Domácnost drží člověk 16–44; rozpad k příbuzným; ~~vdova s dětmi do 14 se nevdává~~        | návrh Clauda                              |
-| ~~Svatba nepřeplní dům víc než o jednoho~~; v hladu nevěsta z okolí nepřijde               | návrh Clauda                              |
+| ~~Svatba nepřeplní dům víc než o jednoho~~; ~~v hladu nevěsta z okolí nepřijde~~           | návrh Clauda                              |
 | Vdova se vdává co nejdřív, nejlépe ve vsi; s dětmi; žena jde k muži i do přeplnění         | Martin (19. 10. 2026)                     |
 | Drží-li dům žena a muž ne, přižení se muž k ní (i z okolí)                                 | Martin (19. 10. 2026)                     |
 | Vdovy a vdovci mají přednost; rozdíl věku u nich 20 let; děti do 16 jdou s rodičem         | návrh Clauda (19. 10. 2026)               |
 | Drží-li dům oba, stěhuje se, u koho bude méně těsno; přeplnění ani rozpad svatbě nebrání   | návrh Clauda (19. 10. 2026)               |
-| Ženich z okolí 10 % ročně (vdově, dědičce, ženě z domu bez mužů 50 %), pryč 20 % ročně     | návrh Clauda (19. 10. 2026)               |
-| Nevěsta z okolí 30 % ročně; v hladu a do přeplněného domu z okolí nikdo nepřijde           | návrh Clauda                              |
+| ~~Ženich z okolí 10 % ročně (vdově, dědičce, ženě z domu bez mužů 50 %), pryč 20 % ročně~~ | návrh Clauda (19. 10. 2026)               |
+| ~~Nevěsta z okolí 30 % ročně; v hladu a do přeplněného domu z okolí nikdo nepřijde~~       | návrh Clauda                              |

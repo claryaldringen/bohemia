@@ -1745,7 +1745,7 @@ na vlnu – oděv, [diet.md](diet.md) – Oděv). Pravidla **návrh Clauda** pod
       přibude za den (0,9 − příděl) / 0,9 dne hladu, ves tedy unese `slack` = práh − 1 − hlad dní
       a nechá si **0,9 × denní potřeba z pole × (dny do žní − slack)** (nejméně 0; s hladem nad
       prahem 0,9 celé potřeby do žní). Má-li ves osivo jen na setí (níže), počítá místo prahu úmrtí
-      s 5 dny, od kterých by ho snědla (SEED_BUYING.eatFromStarvationDays) – osivo jen na setí tak
+      s 5 dny, od kterých by ho snědla (SEED_RESERVE.eatFromStarvationDays) – osivo jen na setí tak
       nesní. Ves ji jí vždy.
       **Výpočet ze stravy (oprava, návrh Clauda 6. 11. 2026):** hlad se hromadí z energie celé
       stravy, ne jen z obilí, takže přežívací zásoba je nejmenší zrno, při kterém **celé nasycení
@@ -1825,7 +1825,7 @@ na vlnu – oděv, [diet.md](diet.md) – Oděv). Pravidla **návrh Clauda** pod
       a 1. 6. / 1. 12. se uvolní jako dřív, ves zaseje stejně). Co do **1. 6.** (po setí jaře
       i s odkladem za počasí) nezaseje, je obyčejné zrno; rezerva nad osivo jaře se uvolní už
       **1. 12.** (po setí ozimu). **Při skutečném hladu** (5 dnů bez jídla, dřív než začnou umírat
-      – SEED_BUYING.eatFromStarvationDays) ji ves sní: osivo se šetří, ne za cenu smrti (návrh Clauda).
+      – SEED_RESERVE.eatFromStarvationDays) ji ves sní: osivo se šetří, ne za cenu smrti (návrh Clauda).
     - **Osivo zakladatelů první vsi** (Zásoby a nasycení – Start; Martin 2. 11. 2026) je stejná
       rezerva, jen se **do lhůty (15 let od založení) neuvolní 1. 6. ani 1. 12.** a cíle osevu ho
       nepočítají za jídlo (ves kvůli němu neoseje méně) – slouží na víc osevů. Při skutečném hladu

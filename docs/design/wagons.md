@@ -326,17 +326,17 @@ Podrobnosti jsou návrh Clauda (čísla `CART_IRON` v `rules.ts`, modul `cart-ir
   zakázku** – kove nad zásobu do potřeby vsi, dokud vůz čeká (`smithToolsTarget` = zásoba do
   potřeby + kování čekajících vozů; i uhlíř podle toho nosí uhlí). „Ves s kovářem“ = obývaná
   kovárna, která má kde kopat rudu a odkud brát uhlí (bez uhlí jen s uhlířem ve vsi).
-- **Ves bez kováře:** vůz bez hřiven čeká na kování, dokud ves kováře nemá; cesta tesaře do jiné vsi zanikla s obchodem se smyšlenými sousedy (cíl a doprava `ironOptions` / `ironPlan` ani platba obilím už neexistují) a vrátí se se zakázkami u skutečných kovářů (markets.md – plán 3). Dřívější text včetně sondy na Vlkově je v [historii](history/wagons-history.md).
+- **Ves bez kováře:** vůz bez hřiven čeká na kování, dokud ves kováře nemá; cesta tesaře do jiné vsi zanikla s obchodem se smyšlenými sousedy (cíl, doprava ani platba obilím už nejsou) a vrátí se se zakázkami u skutečných kovářů (markets.md – plán 3). Dřívější text včetně sondy na Vlkově je v [historii](history/wagons-history.md).
 
 ### Rozhodnutí – kování vozů
 
-| Rozhodnutí                                                                                    | Kdo                   |
-| --------------------------------------------------------------------------------------------- | --------------------- |
-| Vozy mají železnou složku; ves bez kováře pošle tesaře (nebo syna) do nejbližší vsi s kovářem | Martin (20. 10. 2026) |
-| ~~Cesta je vidět jako karavana – jen jedna postava~~ – nahrazeno: skupina nosičů, nebo vůz    | Martin (20. 10. 2026) |
-| Dvoukolák 3 kg, čtyřkolák 6 kg kování                                                         | návrh Clauda          |
-| Kování ze zásoby nástrojů (žádná nová zásoba)                                                 | rozhodnutí Clauda     |
-| Vůz bez kování čeká, tesař dělá nářadí; kovář kování vyrobí přednostně jako zakázku           | návrh Clauda          |
+| Rozhodnutí                                                                                        | Kdo                   |
+| ------------------------------------------------------------------------------------------------- | --------------------- |
+| Vozy mají železnou složku; ~~ves bez kováře pošle tesaře (nebo syna) do nejbližší vsi s kovářem~~ | Martin (20. 10. 2026) |
+| ~~Cesta je vidět jako karavana – jen jedna postava~~ – nahrazeno: skupina nosičů, nebo vůz        | Martin (20. 10. 2026) |
+| Dvoukolák 3 kg, čtyřkolák 6 kg kování                                                             | návrh Clauda          |
+| Kování ze zásoby nástrojů (žádná nová zásoba)                                                     | rozhodnutí Clauda     |
+| Vůz bez kování čeká, tesař dělá nářadí; kovář kování vyrobí přednostně jako zakázku               | návrh Clauda          |
 
 ## Vozová síť a vyjeté cesty
 

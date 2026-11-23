@@ -529,7 +529,7 @@ Původně v sekci Známý dluh (a odkazy z Osevního postupu po dílech – Čel
 
 ## Osivo pro ves bez zásob – nákup u sousedů
 
-Neplatí od 23. 11. 2026 (Martin 22. 11. 2026: sousedé jsou skutečné vsi a obchod jde přes trhy, [markets.md](../markets.md) – plán 1). Dřív v fields.md:
+Neplatí od 23. 11. 2026 (konec smyšlených sousedů – [markets.md](../markets.md), Pravidla 1, schválené Martinem 22. 11. 2026; jeho slova doslova v [neighbours.md](../neighbours.md) – Martinova rozhodnutí, Než syn odejde, ves neobchoduje). Dřív v fields.md:
 
     - **Ves si osivo koupí u sousedů** ([obchod](trade.md) – Nákup osiva): **1. 9.** (před setím
       ozimu) a **1. 3.** (před setím jaře) spočítá osivo nutných dílů plánu, které čeká na setí

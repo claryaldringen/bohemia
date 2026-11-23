@@ -13,7 +13,7 @@ Nákup šel vždy pěšky (skupina nosičů po 25 kg), i když ves vůz měla.
 
 ## Nákup u sousedů a Vozy
 
-Neplatí od 23. 11. 2026 (Martin 22. 11. 2026: sousedé jsou skutečné vsi a obchod jde přes trhy, [markets.md](../markets.md) – plán 1). Dřív v crafts.md:
+Neplatí od 23. 11. 2026 (konec smyšlených sousedů – [markets.md](../markets.md), Pravidla 1, schválené Martinem 22. 11. 2026; jeho slova doslova v [neighbours.md](../neighbours.md) – Martinova rozhodnutí, Než syn odejde, ves neobchoduje). Dřív v crafts.md:
 
 Martin (19. 10. 2026): „Nástroje ať vesničané obchodují individuálně. Např. pokud ve vedlejší
 vesnici kovář je a u nás ne, ať si vesničané od něj koupí nástroje za něco z toho, co vesnice
