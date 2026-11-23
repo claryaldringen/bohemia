@@ -42,7 +42,7 @@ postavit, vylepšit nebo může vesnici úplně vystěhovat a založit jinde.**�
   simulací.
 - **Ne-cíl (první verze, návrh Clauda):** přestěhování domácnosti hráčem vybrané, odchod
   vybraných obydlí bez syna – nejsou stavby; viz Otevřené otázky. Výpravy za obchodem
-  (`startExpedition`) a lov navíc (`declareHunt`) správce dělá **jen v nouzi** (Martin 8. 11. 2026:
+  (`startExpedition`) a lov (`declareNpcHunt`) správce dělá **jen v nouzi** (Martin 8. 11. 2026:
   „A“) – obchod ani lov mimo nouzi ne; viz Obilí a lov v nouzi.
 - **Anti-cíl:** správce, který **ví budoucnost** – seed počasí, rozpis pohrom, náhodu dne. Zná jen
   to, co by věděl zkušený hráč: krajinu, kroniku, počasí, které už je vidět (`revealedWeather`),
@@ -523,8 +523,8 @@ Kroky 3 a 4 (`domain/village/steward/steward.ts` – `stewardDay`):
 Martin 8. 11. 2026 k otázce 3 (Výpravy za obchodem a velký lov rodu): „A“ – **obojí, ale jen
 v nouzi: obilí kupuje, jen když hrozí hlad, a na lov vyrazí, jen když zvěř škodí na polích.**
 Správce jedná **stejnými akcemi jako hráč** – výprava za obchodem (`tradeQuote` +
-`startExpedition`, [obchod](trade.md)) a lov navíc (`canDeclareHunt` + `declareHunt`,
-[zvěř](wildlife.md) – Lov rodu: Kdy) – se stejnými kontrolami. Krok 2a, každý den správce, před
+`startExpedition`, [obchod](trade.md)) a lov navíc (`huntDenied` + `declareNpcHunt`,
+[hunting.md](hunting.md) – Pravidla 8: Martin 22. 11. 2026: „Správce je NPC hráč, takže na lov chodí on.“) – se stejnými kontrolami. Krok 2a, každý den správce, před
 stavbami; rozhoduje jen ze stavu vsi a dne, bez náhody.
 
 - **Kdy hrozí hlad:** z výhledu zásob do žní, ze kterého správce počítá režim a pojistku
@@ -554,13 +554,17 @@ stavbami; rozhoduje jen ze stavu vsi a dne, bez náhody.
   z pole – stejný práh jako noční hlídka dílu (`FIELD_GUARD.night.threat`); lov je další stupeň
   obrany polí. Loňská škoda platí od 1. 6. (zkušený hráč ví, že zvěř chodí na tatáž pole); letošní
   sama by se na práh dostala až koncem léta.
-- **Lov:** lov navíc na zítřek, jen když ho pravidla dovolí (`canDeclareHunt` – mimo hájení,
-  aspoň 3 dny od minulého, cvičící rodina a lovci); správce rozhoduje jednou za `everyDays` (10)
-  dní, takže loví nejvýš jednou za 10 dní a vždy jen jeden lov naráz. Cíl lovu volí pravidla lovu
-  (prasata a jeleni, vlci při škodách na dobytku). **Nejvýš `STEWARD.huntsPerSummer` (3) lovů za
-  léto** (červen–srpen; návrh Clauda, 8. 11. 2026 – princip „správce v nouzi“ schválil Martin):
-  den lovu chybí v hlídce, výcviku a práci synů, takže lov každých 10 dní by léto vyjedl; počítá
-  se v `steward.summerHunts` (rok a počet, volitelná část stavu).
+- **Lov** (nový lov – [hunting.md](hunting.md), Pravidla 8; Martin 22. 11. 2026: „Správce je NPC hráč, takže na lov chodí
+  on.“): správce vyhlásí lov na zítřek, jen když zvěř škodí na polích (červen–srpen, škoda letos nebo loni aspoň
+  `STEWARD.huntDamageShare` roční potřeby obilí z pole) a pravidla lov dovolí (`huntDenied` – mimo hájení březen–květen,
+  lov správce na zítřek ještě není, v lese vsi je velká zvěř, ves zítra uvolní honce); správce rozhoduje jednou za
+  `everyDays` (10) dní.
+  Lov dopočte ves zítra v kroku dne bez scény (`npcHuntDay`): jdou nejvýš `HUNT.npc.hunters` (2) nejlepší muži, na kance
+  a bachyni jen nad branou umu (bez nich zvíře uteče), souboj na rovné louce. Zvíře losuje stejný los jako při lovu hráče
+  (`pickQuarry`). **Nejvýš `STEWARD.huntsPerSummer` (3) lovů za léto** (červen–srpen; návrh Clauda, 8. 11. 2026 – princip
+  „správce v nouzi“ schválil Martin): lovci chybí v práci vsi (jeden den, jako útočníci hráče) a na lov se vyráží jen kvůli
+  škodám na polích; počítá se v `steward.summerHunts` (rok a počet, volitelná část stavu). Bez správce a bez hráče velkou zvěř
+  nikdo neloví (hunting.md – Pravidla 9).
 
 ### Ostatní stavby – upřesnění (návrh Clauda – `STEWARD` v `rules-steward.ts`, `steward-extras.ts`)
 

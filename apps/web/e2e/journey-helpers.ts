@@ -134,7 +134,9 @@ export async function placeJourney(
 }
 
 /** Lov běžící výpravy hráče ze sídla `settlementId` (stav v kontrolním bodu); žádný – null. */
-export async function huntOfSettlement(settlementId: string): Promise<unknown> {
+export async function huntOfSettlement(
+  settlementId: string,
+): Promise<NonNullable<JourneyState['hunt']> | null> {
   const [row] = await query<{ state: JourneyState }>(
     `SELECT c.state FROM journey j
        JOIN journey_checkpoint c ON c.journey_id = j.id

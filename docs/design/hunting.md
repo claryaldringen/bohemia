@@ -1,6 +1,8 @@
 # Lov – naháňka a souboj se zvěří (issue #12)
 
-Stav: **schváleno** – Martin 22. 11. 2026 (po kontrole stavitelem): „Jo, schvaluji návrh lovu“. Co řekl Martin, je u bodu s datem; ostatní je návrh Clauda. Nahrazuje
+Stav: **implementováno** (issue #12, plán `docs/superpowers/plans/2026-11-22-hunting.md`, úlohy 1–12; kód: [journey.md](../code/journey.md) – Lov,
+[village-wildlife.md](../code/village-wildlife.md) – Lov na tlačítko dvorce, [war.md](../code/war.md) – Souboj se zvěří, [scene-village.md](../code/scene-village.md)
+– Lov ve scéně). Schváleno – Martin 22. 11. 2026 (po kontrole stavitelem): „Jo, schvaluji návrh lovu“. Co řekl Martin, je u bodu s datem; ostatní je návrh Clauda. Nahrazuje
 oddíl Lov rodu v [divoké zvěři](wildlife.md) (kalendářní lov a lov navíc).
 
 ## Proč
@@ -90,11 +92,38 @@ zabije, honci ho odnesou do dvorce na tyči mezi sebou a jeho maso a kožešina 
 11. **Bez meze „jednou za 3 dny“:** Martin dal jen dva důvody zašednutí tlačítka (sezóna, honci). Lovit tak jde i každý
     herní den, zvěř doroste jen při ročním přepočtu 1. 5. (wildlife.md) – přelovená krajina se tak projeví sama.
 
+## Rozhodnutí při stavbě (návrh Clauda 22. 11. 2026)
+
+Rozhodnutí plánu, která návrh nechal na staviteli (podrobně v plánu – Rozhodnutí plánu 1–10):
+
+1. **Lov je součást výpravy domovské vsi** – nejvýš jeden na výpravu; vyhlášení bez běžící výpravy založí výpravu bez lidí
+   jen s lovem, ta skončí, až nemá skupiny ani lov (`JourneyState.hunt`).
+2. **Útočník** je muž od 14 let, ne raněný, ne pryč jinde; jezdec jen osedlaný, noví lidé ze vsi pěšky. Po zabití se vrátí
+   s honci do dvorce, po útěku zvířete také; jiný rozkaz hráče má přednost.
+3. **Honci a psi** jsou kulisa bez vlivu na souboj; ves zaplatí práci honců **zítra** a útočníci jen **jeden den** (Martin 22. 11. 2026: „práce těch lidí se odečte pouze za 1 den“).
+4. **Los zvířete** podle vah ze stavu zvěře (kanec i bachyně z `boar.adults ÷ 2`, medvěd, žije-li v kraji) ze seedu vsi,
+   dne a pořadí vyhlášení; zvíře vyběhne u dveří hustého lesa nejbližších ke dvorci.
+5. **Chování zvířete:** jelen a laň utíkají a unavují se, kanec, bachyně, vlk a medvěd stojí a útočí; na kance a bachyni
+   zasáhne jen nad branou umu; po 60 s bez útočníka uteče.
+6. **Výsledek** vydá výprava jednou událostí `hunt-result` při konci lovu, odnos na tyči je dohra scény.
+7. **Výcvik** z herních hodin honby (jízda, boj, luk), nejvýš 6 h za lov, strop 70.
+8. **Správce** vyhlásí lov na zítřek a dopočte ho v kroku dne bez scény – nejvýš 2 nejlepší muži, rovná louka.
+9. **Čísla zvěře a souboje** (`HUNT_QUARRY`, `HUNT_FIGHT`) jsou výchozí návrh Clauda, ladí se jen v `rules-wildlife.ts`.
+10. **Šelmy na výjezdu beze změny** – `HUNT_RISK` je nově `PREDATOR_RISK`, zranění na lovu trvá 60 dní jako dnes.
+
+Odpovědi na otázky plánu (Martin 22. 11. 2026): útočníci platí jen jeden den práce, po lovu se vrátí s honci do dvorce, a když
+v lese vsi není velká zvěř, tlačítko zašedne („Ano“).
+
 ## Co se ověří
 
 - Vlkov a zlatá ves bez kalendářního lovu: škody zvěře na polích, maso a kožešiny, dovednosti rodu – rozdíl proti dnešku
   (lov dřív cvičil rod 17 dní v zimě).
 - Lov ve scéně: honci, zvíře, útok, odnos na tyči – e2e.
+
+Výsledek (23. 11. 2026, [village-wildlife.md](../code/village-wildlife.md) – Vlkov): živý Vlkov 2 roky den po dni před lovem
+a po něm – škody na polích beze změny (483 / 608 kg před, 483 / 609 kg po), maso z lovu 90 kg → 0 kg (správce lov
+nevyhlásil, hráč v DB nevyhlašuje – záměr Pravidel 9), dovednosti rodu o desetinu bodu jinak. Lov se tedy projeví, až když
+ho hráč nebo správce vyhlásí.
 
 ## Nechává se na stavitele
 

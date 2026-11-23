@@ -169,6 +169,9 @@ vesničanů.
   utíkají). **Jediná výjimka je výjezd vojvody:** osamělého vojvodu nebo malou družinu (nejvýš
   dva muži) v hustém lese napadne medvěd nebo vlci, a to **týmiž čísly jako na lovu** (zranění
   i smrt níže; vlci čísly lovu prasat) – [lord-control.md](lord-control.md) – Nebezpečí, bod 3.
+- **Na lovu** (nový lov – [hunting.md](hunting.md)) zraňuje a zabíjí lovce zvíře v souboji; níž uvedená čísla na lovce
+  a den jsou čísla šelem výjezdu (`PREDATOR_RISK` v `rules-wildlife.ts`, dřív `HUNT_RISK`; zranění trvá `PREDATOR_RISK.injuryDays`
+  = 60 dní) a platí dál jen pro výjezd vojvody. Původní text kalendářního lovu:
 - **Na lovu** může být lovec zraněn: na lovu prasat **0,5 %**, na lovu medvěda **5 % × (1 −
   boj ÷ 200)** na lovce a den, náhodou ze seedu vsi a dne. Zraněný **60 dní** necvičí, neloví ani
   nepracuje.
@@ -235,6 +238,11 @@ kde to nestačí.
 - **Užitek:** pěší lovec se psem loví za dva (níž), psi na objížďce zesílí hlídku (výš).
 
 ## Lov rodu (Martin – kdo a čím; kdy a kolik návrh Clauda)
+
+> **Nahrazeno novým lovem** (Martin 22. 11. 2026, issue #12: „Má ho nahradit.“ – [hunting.md](hunting.md)): kalendářní lov
+> rodu (listopad–únor, každý 7. den) a lov navíc už neexistují. Velkou zvěř loví hráč nebo správce na tlačítko dvorce –
+> naháňka, vyhnané zvíře a souboj pod povelem hráče. Níž zůstává původní návrh jako historie a podklad čísel (kdo loví, čím,
+> přínos z koně); platí z něj jen to, co hunting.md výslovně přebírá.
 
 ### Kdo
 

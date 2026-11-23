@@ -47,6 +47,15 @@ s `pool ≥ 0,5` do dosahu, sloučené po 60 m. Počítá se **jen při převodu
 Les 118 ha, louky a pole 132 ha, voda 5,6 ha, 3 tůně; stropy: jelení 5,9, prasata 5,0, zajíci 19,8,
 lišky 2, vlci 0,9, medvěd ne (pod 150 ha lesa), ryby 1 681 kg. Převod ≈ 10 ms.
 
+**Přepočet po novém lovu (hunting.md, plán 2026-11-22-hunting – Úloha 12; živý stav 23. 11. 2026, 2 roky od 20. 4. 909,
+den po dni, správce zapnutý):** kód před lovem (`e47f25ca`, kalendářní lov rodu) × po lovu (HEAD větve `feat/hunting`).
+Škody zvěře na polích v sezóně 909 / 910: před 483 / 608 kg, po 483 / 609 kg (beze změny – škody nezávisí na lovu rodu,
+jen na stavu zvěře, a ten se za dva roky lovem skoro nehne). Maso z lovu: před 90 kg (1 jelen, úlovek do 30. 4. 909),
+po 0 kg – správce nový lov nevyhlásil a hráč v DB nevyhlašuje (před: za 2 roky 1 záznam lovu a 1 zranění lovce v kronice);
+bez tlačítka hráče tedy ves velkou zvěř neloví, což je záměr návrhu (hunting.md – Pravidla 9). Kůže z lovu 0 / 0.
+Dovednosti rodu (průměr mužů rodu, luk / boj / jízda) po 2 letech: před 42,6 / 44,1 / 2,6, po 42,7 / 43,8 / 2,7 –
+rozdíl do 0,3 bodu za 2 roky (kalendářní lov rodu cvičil málo). Vojvoda sám dovednosti nemá (0 / 0 / 0, jako dosud).
+
 ## Škody na polích (W2, `wildlife-damage.ts`)
 
 Pravidla: [wildlife.md](../design/wildlife.md) – Škody, Prasata a jeleni na polích. Čísla jsou

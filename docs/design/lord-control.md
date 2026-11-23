@@ -168,7 +168,9 @@ Hrozí jen nepřítel ve válce a šelmy. Čísla a upřesnění návrh Clauda.
 3. **Šelmy** napadnou jen osamělého vojvodu nebo skupinu nejvýš dvou mužů, a jen v hustém lese.
    Den v hustém lese na mapě, kde žije medvěd, je pro každého z nich jako den lovu medvěda
    ([zvěř](wildlife.md) – Nebezpečí pro lidi): zranění 5 % × (1 − boj ÷ 200), smrt 0,3 % × (2 − boj
-   ÷ 100), pěšky smrt × 2. Kde žijí jen vlci, platí čísla lovu prasat (0,5 % a 0,02 %). Los ze
+   ÷ 100), pěšky smrt × 2. Kde žijí jen vlci, platí čísla lovu prasat (0,5 % a 0,02 %) – od nového lovu
+   (22. 11. 2026, [hunting.md](hunting.md)) jsou to čísla šelem výjezdu `PREDATOR_RISK` (`rules-wildlife.ts`, dřív
+   `HUNT_RISK`), beze změny a bez vazby na lov. Los ze
    seedu výjezdu a dne. **Kde žije medvěd:** na mapě se vsí platí pro celou mapu stav zvěře té vsi
    (ulovený medvěd = bezpečno, dokud se nevrátí); na prázdné mapě je zvěř na stropu podle krajiny,
    jako u nově založené vsi uprostřed mapy. Mění větu „zvěř nikoho nezraní mimo lov“.
@@ -246,16 +248,16 @@ Návrh Clauda.
 
 ## Čísla
 
-| Co                               | Hodnota                              | Odkud               |
-| -------------------------------- | ------------------------------------ | ------------------- |
-| čekání na místě                  | 3 herní dny                          | Martin 12. 11. 2026 |
-| věk vojvody a družiny            | od 16 let                            | [válka](war.md)     |
-| tempo                            | ≈ 3,5 m/s, jezdci × 1,5, sníh × 0,75 | [válka](war.md)     |
-| dohled                           | 150 m, z lesa a do lesa 50 m         | [válka](war.md)     |
-| výpad obránců                    | síla ≥ 1,5 × síla družiny            | [válka](war.md)     |
-| domácí jezdci při pronásledování | tempo × 1,2                          | návrh Clauda        |
-| šelmy – skupina nejvýš           | 2 muži                               | Martin 13. 11. 2026 |
-| šelmy – den v hustém lese        | čísla lovu medvěda, nebo prasat      | [zvěř](wildlife.md) |
+| Co                               | Hodnota                               | Odkud               |
+| -------------------------------- | ------------------------------------- | ------------------- |
+| čekání na místě                  | 3 herní dny                           | Martin 12. 11. 2026 |
+| věk vojvody a družiny            | od 16 let                             | [válka](war.md)     |
+| tempo                            | ≈ 3,5 m/s, jezdci × 1,5, sníh × 0,75  | [válka](war.md)     |
+| dohled                           | 150 m, z lesa a do lesa 50 m          | [válka](war.md)     |
+| výpad obránců                    | síla ≥ 1,5 × síla družiny             | [válka](war.md)     |
+| domácí jezdci při pronásledování | tempo × 1,2                           | návrh Clauda        |
+| šelmy – skupina nejvýš           | 2 muži                                | Martin 13. 11. 2026 |
+| šelmy – den v hustém lese        | `PREDATOR_RISK`: medvěd, nebo prasata | [zvěř](wildlife.md) |
 
 ## Pořadí zavedení (návrh Clauda)
 
