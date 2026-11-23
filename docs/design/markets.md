@@ -53,8 +53,8 @@ obchodníkům se do hry dostanou mince - obchodníci jimi budou platit za zbož�
 - **Města na stezkách:** na doporučení, aby na mapách podél kupecké stezky smějí vznikat i vsi synů a dalších hráčů
   (prémiovou výhodou zůstane brod nebo průsmyk): „ok“.
 - **Spodní cena:** na otázku Clauda „Má mít prodávající spodní cenu, pod kterou neprodá?“ (bez dna cena při přebytku klesá
-  o 10 % každý tržní den – po zhruba 140 dnech by si výprava odvezla 20 klád za 5 g sýra) Martin zvolil „Ano, výchozí
-  hodnotu“ s popisem: „Nikdo neprodá pod tím, co má zboží ve hře cenu dnes (hodnota v obilí přepočtená na mince). Co se
+  o 10 % každý tržní den – po zhruba 140 dnech by si výprava odvezla 20 klád za 5 g sýra) Martin zvolil možnost „Ano,
+  výchozí hodnota“ s popisem: „Nikdo neprodá pod tím, co má zboží ve hře cenu dnes (hodnota v obilí přepočtená na mince). Co se
   za tu cenu neprodá, zůstane hostiteli nebo si to výprava odveze domů. Nahoru roste cena volně.“ (Martin 23. 11. 2026)
 - **Otrok:** na otázku, zda jde zajatého pohana prodat jen hned po odvedení, nebo kdykoli, dokud je pohan: „Kdykoliv. Od
   zajetí bude prostě vedený jako otrok“.
