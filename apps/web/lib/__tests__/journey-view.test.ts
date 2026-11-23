@@ -33,6 +33,7 @@ const view = (pos: { x: number; z: number }, cell = { x: 1, y: 1 }, tick = 10): 
   home: { x: 0, y: 0 },
   homePos: { x: 5, z: 5 },
   seen: { '1,1': { trail: [], parts: [] } as unknown as SeenCell },
+  hunt: null,
   parties: [
     {
       id: 0,

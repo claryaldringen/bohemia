@@ -120,6 +120,7 @@ function expedition(villageId: string, journeyId: string, ids: number[]): Expedi
     day: 1,
     home: { x: 2, y: 3 },
     homePos: { x: 0, z: 0 },
+    hunt: null,
     parties: [
       {
         id: 0,

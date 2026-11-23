@@ -206,6 +206,32 @@ export function endHuntAway(
 }
 
 /**
+ * Útočníci jiného lovu výpravy `journeyId` jdou na lov `huntId` (povel `strike`; mutuje stav; plán
+ * 2026-11-22-hunting – Rozhodnutí 3, Martin 22. 11. 2026: „práce těch lidí se odečte pouze za
+ * 1 den“ – jeden den na každý lov, návrh Clauda): lidem `personIds`, kteří jsou pryč s touto
+ * výpravou se značkou jiného lovu, se značka změní na `huntId`. Vrací jejich počet – tolik dní práce
+ * ves zaplatí (`reserveBeaters`). Kdo je doma, pryč jinak, ve výpravě bez značky (pryč jako dosud),
+ * nebo už se značkou `huntId`, beze změny – idempotentní.
+ */
+export function moveHuntAway(
+  state: VillageState,
+  journeyId: string,
+  huntId: number,
+  personIds: readonly number[],
+): number {
+  const ids = new Set(personIds);
+  let moved = 0;
+  for (const p of state.people) {
+    const away = p.away;
+    if (!ids.has(p.id) || away?.kind !== 'journey' || away.refId !== journeyId) continue;
+    if (away.huntId === undefined || away.huntId === huntId) continue;
+    away.huntId = huntId;
+    moved++;
+  }
+  return moved;
+}
+
+/**
  * Výsledek lovu ve vsi (mutuje stav, vrací kroniku; hunting.md – Pravidla 5–7; plán
  * 2026-11-22-hunting – Rozhodnutí 6, 7, 10): vždy den lovu navíc (`hunt.year.days`); zabité zvíře
  * ubude ze zvěře, dá maso, kůži, úlovek roku a kroniku `hunt` (`takeQuarry`); útočníci se vycvičí

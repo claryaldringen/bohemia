@@ -725,6 +725,21 @@ describe('útok na zvíře – povel strike (plán 2026-11-22-hunting, Úloha 7)
     expect(s.state.parties.some((p) => p.hunting)).toBe(false);
   });
 
+  it('člen se značkou předchozího lovu jde na další lov – dostane značku toho lovu (jeden den na každý lov)', () => {
+    const world = worldOf();
+    // osoba 2 přišla na lov 7 téže výpravy a vrací se se značkou; vojvoda je ve výpravě bez značky
+    const s0 = edited(withHunt([hunter(1), hunter(2), hunter(3)]), (s) => {
+      member(s, 2)!.huntId = 7;
+      member(s, 3)!.huntId = 7;
+    });
+    const s = stepJourney(s0, ARRIVE + 1, [strikeOf(ARRIVE + 1, 1, [1, 2])], world).state;
+    expect(s.hunt?.id).toBe(1);
+    expect(member(s, 2)?.huntId).toBe(1);
+    expect(member(s, 1)?.huntId).toBeUndefined();
+    // kdo na zvíře nejde, má značku dál
+    expect(member(s, 3)?.huntId).toBe(7);
+  });
+
   it('odvolání (recall) útočníky z lovu stáhne domů; Osedlat a Sesednout útočníka nezmění', () => {
     const world = worldOf();
     const s0 = withHunt([hunter(1, { strengthMounted: 3 }), hunter(2)]);

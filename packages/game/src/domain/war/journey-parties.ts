@@ -319,7 +319,9 @@ export function strikeRefusal(s: JourneyState, m: JourneyMember): StrikeRefusal 
  * tvoří skupinu jako rozkaz (`gatherParty`), ta loví
  * (`hunting`, lhůta neběží), každý stojí ve vlastním hloučku na místě toho svého (`standApart`)
  * a `joinHunt` je přidá do souboje. Noví lidé ze vsi jsou ve vsi útočníci lovu (`huntId` – use-case
- * je tak značí; kdo byl ve výpravě, je pryč jako dosud).
+ * je tak značí; kdo byl ve výpravě, je pryč jako dosud). Člen se značkou jiného lovu (přišel na
+ * předchozí lov) dostane značku tohoto – use-case mu ji změnil i ve vsi a ves zaplatí další den
+ * (`moveHuntAway`; jeden den práce na každý lov – návrh Clauda).
  */
 function strike(
   s: JourneyState,
@@ -341,6 +343,7 @@ function strike(
   );
   if (chosen.length === 0 && ready.length === 0) return;
   for (const m of ready) m.huntId = hunt.id;
+  for (const m of chosen) if (m.huntId !== undefined) m.huntId = hunt.id;
   const target = gatherParty(s, chosen, ready, out);
   stopRest(s, target, out);
   target.hunting = true;

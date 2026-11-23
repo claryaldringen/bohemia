@@ -3,18 +3,22 @@ import type { Landscape } from '../domain/landscape';
 import { villageGate } from '../domain/village/people/departure';
 import { villageManor, villageManorId } from '../domain/village/people/manor';
 import { sameCell, type GridCell } from '../domain/village/people/world-grid';
-import type { VillageState } from '../domain/village/types';
+import type { Person, VillageState } from '../domain/village/types';
+import { moveHuntAway, reserveBeaters } from '../domain/village/wildlife/hunt';
 import { sendAway } from '../domain/vassalage';
 import {
   continuationsOf,
   expeditionRecruit,
+  huntRecruit,
   inManorArea,
   INTENT_LEAD_TICKS,
   manorArea,
   marchGrid,
   newJourney,
   partyLeader,
+  quarryOut,
   riderHorse,
+  strikeRefusal,
   tickOfMs,
   upgradeJourney,
   type CampaignMap,
@@ -51,26 +55,37 @@ import type { VillageRepository } from './villages';
 // ze vsi (rekruti), ověří příkaz a zapíše ho jako záměr výpravy – krok výpravy (`applyCommand`)
 // podle id lidí skupiny dělí, spojuje a nové lidi přidá. Rozkaz jen členům jde bez zámku vsi
 // (`commandParty`), s rekruty přes zámek hráče a úpravu vsi (`musterExpedition`). Jedna běžící
-// výprava na domovskou ves hráče (`activeIn`).
-
-/** Příkaz hráče vybraným lidem: rozkaz (Jdi sem, Přes okraj, Domů), Osedlat, Sesednout. */
-export type ExpeditionCommand =
-  { kind: 'order'; order: JourneyOrder } | { kind: 'saddle' } | { kind: 'dismount' };
+// výprava na domovskou ves hráče (`activeIn`). Útok na vyhnané zvíře (`strike` – hunting.md –
+// Pravidla 4; plán 2026-11-22-hunting, Úloha 9) jde touž cestou: lidé ze vsi jdou s `huntRecruit`
+// a se značkou lovu a ves zaplatí jeden den jejich práce jako honců.
 
 /**
- * Proč příkaz nejde: důvod člověka (`ExpeditionPersonRefusal` – nikdo jiný z výběru nemůže), cizí
- * ves (`no-village`), z výběru nemůže nikdo (`nobody`), rekruti z napadené vsi
- * (`village-attacked`), tam nedojdou (`unreachable`), tam je válka (`war-there`), jezdci venku mají
- * koně doma (`horse-home`), zápis vsi se při souběhu nepovedl ani po opakování (`busy`).
+ * Příkaz hráče vybraným lidem: rozkaz (Jdi sem, Přes okraj, Domů), Osedlat, Sesednout a útok na
+ * vyhnané zvíře lovu (`strike`).
+ */
+export type ExpeditionCommand =
+  | { kind: 'order'; order: JourneyOrder }
+  | { kind: 'saddle' }
+  | { kind: 'dismount' }
+  | { kind: 'strike' };
+
+/**
+ * Proč příkaz nejde: důvod člověka (`ExpeditionPersonRefusal`; na zvíře i žena – `woman` – nikdo
+ * jiný z výběru nemůže), cizí ves (`no-village`), z výběru nemůže nikdo (`nobody`), rekruti
+ * z napadené vsi (`village-attacked`), tam nedojdou (`unreachable`), tam je válka (`war-there`),
+ * jezdci venku mají koně doma (`horse-home`), zvíře lovu není venku (`no-quarry` – lov neběží, zvíře
+ * je v lese, padlé, nebo na útěku), zápis vsi se při souběhu nepovedl ani po opakování (`busy`).
  */
 export type ExpeditionRefusal =
   | ExpeditionPersonRefusal
+  | 'woman'
   | 'no-village'
   | 'nobody'
   | 'village-attacked'
   | 'unreachable'
   | 'war-there'
   | 'horse-home'
+  | 'no-quarry'
   | 'busy';
 
 export type ExpeditionResult =
@@ -107,11 +122,11 @@ const MAX_PEOPLE = 200;
 
 /**
  * Rozkaz lidem, kteří už ve výpravě jsou – záměr na takt teď + `INTENT_LEAD_TICKS` bez zámku
- * a bez zápisu do vsi (Rozhodnutí 11). Je-li ve výběru někdo, kdo by šel ze vsi (rekrut), nezapíše
- * nic a vrátí `recruits` – volající pak pod zámkem hráče zavolá `musterExpedition`. Výjimka:
- * „Jdi sem“ do dvorce domovské vsi je pro členy Domů a rekruti z výběru vypadnou – zůstanou doma
- * (`homeByManor`). Nezpůsobilí z výběru vypadnou; nemůže-li nikdo, důvod prvního z nich (jinak
- * `nobody`).
+ * a bez zápisu do vsi (Rozhodnutí 11). Je-li ve výběru někdo, kdo by šel ze vsi (rekrut), nebo
+ * útočník předchozího lovu, kterému ves změní značku (`rejoining`), nezapíše nic a vrátí `recruits`
+ * – volající pak pod zámkem hráče zavolá `musterExpedition`. Výjimka: „Jdi sem“ do dvorce domovské
+ * vsi je pro členy Domů a rekruti z výběru vypadnou – zůstanou doma (`homeByManor`). Nezpůsobilí
+ * z výběru vypadnou; nemůže-li nikdo, důvod prvního z nich (jinak `nobody`).
  */
 export async function commandParty(
   deps: ExpeditionDeps,
@@ -120,7 +135,9 @@ export async function commandParty(
   const selected = await select(deps, input);
   if (!selected.ok) return selected;
   const { asked, picked } = await homeByManor(deps, input, selected);
-  if (picked.chosen.recruits.length > 0) return { ok: false, reason: 'recruits' };
+  if (picked.chosen.recruits.length > 0 || rejoining(picked, asked.command).length > 0) {
+    return { ok: false, reason: 'recruits' };
+  }
   // jen členové – výprava běží a domov je její
   const plan: Plan = { ...picked, home: picked.situation.journey!.home, houseId: null };
   const refusal = await verify(deps, asked, plan);
@@ -134,7 +151,9 @@ export async function commandParty(
  * Vybraní lidé dostanou příkaz a způsobilí lidé ze vsi se k výpravě domovské vsi přidají – volající
  * drží zámek hráče (web `guardedAction`):
  * 1. ves – rekruti odejdou (`away: journey` s id výpravy, bez výpravy nové `newId()`); ověří se
- *    znovu na čerstvém stavu vsi (souběžný zápis) – kdo mezitím nesmí, příkaz odmítne celý;
+ *    znovu na čerstvém stavu vsi (souběžný zápis) – kdo mezitím nesmí, příkaz odmítne celý; na
+ *    zvíře (`strike`) odejdou se značkou lovu (`away.huntId`), útočníci předchozího lovu dostanou
+ *    značku tohoto (`moveHuntAway`) a ves zaplatí den práce každého z nich (`reserveBeaters`);
  * 2. bez výpravy ji založí (`newJourney` s rekruty a rozkazem); Osedlat a Sesednout jdou hned
  *    po založení jako záměr;
  * 3. s výpravou záměr s id členů a rekruty (`addIntent`);
@@ -232,7 +251,8 @@ interface Plan extends Picked {
 
 /**
  * Výběr hráče rozdělený podle příkazu (bez zápisu a bez dotazu na rod a mapy): špatný výběr
- * (`nobody`), cizí ves (`no-village`), nikdo nemůže (důvod prvního odmítnutého, jinak `nobody`).
+ * (`nobody`), cizí ves (`no-village`), útok bez zvířete venku (`no-quarry` – `quarryOut`), nikdo
+ * nemůže (důvod prvního odmítnutého, jinak `nobody`).
  */
 async function select(
   deps: ExpeditionDeps,
@@ -250,7 +270,10 @@ async function select(
     journeyId: journey ? id : null,
     journey,
   };
-  const split = splitPeople(situation, input.people);
+  if (input.command.kind === 'strike' && !(journey?.hunt && quarryOut(journey.hunt))) {
+    return { ok: false, reason: 'no-quarry' };
+  }
+  const split = splitPeople(situation, input.people, input.command);
   const chosen = chooseFor(input.command, split, journey);
   if (chosen.members.length === 0 && chosen.recruits.length === 0) {
     return { ok: false, reason: split.refusal ?? 'nobody' };
@@ -298,17 +321,19 @@ function validPeople(people: unknown): people is number[] {
  * Rozdělení výběru (Rozhodnutí 3): člen = osoba s `away: journey` běžící výpravy, která je v jejím
  * bodu živá a jejíž skupina hráče poslouchá (ne `leaderless`); ostatní přes `expeditionRecruit` –
  * nezpůsobilí vypadnou (první důvod se pamatuje). Kdo z hloučku právě došel domů (v bodu už není,
- * ves ho má pryč do `away-ends`), je tak `away`. Id, které ve vsi není, se přeskočí.
+ * ves ho má pryč do `away-ends`), je tak `away`. Id, které ve vsi není, se přeskočí. Na zvíře
+ * (`strike`) jde člen jen bez důvodu `strikeRefusal` a člověk ze vsi přes `huntRecruit`.
  */
 function splitPeople(
   situation: Situation,
   people: readonly number[],
-): Chosen & { refusal: ExpeditionPersonRefusal | null } {
+  command: ExpeditionCommand,
+): Chosen & { refusal: ExpeditionRefusal | null } {
   const { own, day, journey } = situation;
   const state = own.village.state;
   const persons = new Map(state.people.map((p) => [p.id, p]));
   const members = journey ? commandable(journey) : new Map<number, JourneyMember>();
-  const out: Chosen & { refusal: ExpeditionPersonRefusal | null } = {
+  const out: Chosen & { refusal: ExpeditionRefusal | null } = {
     members: [],
     recruits: [],
     refusal: null,
@@ -320,14 +345,42 @@ function splitPeople(
     const member =
       away?.kind === 'journey' && away.refId === journey?.id ? members.get(id) : undefined;
     if (member) {
-      out.members.push(member);
+      const refusal = command.kind === 'strike' ? strikeRefusal(journey!, member) : null;
+      if (refusal !== null) out.refusal ??= refusal;
+      else out.members.push(member);
       continue;
     }
-    const recruit = expeditionRecruit(state, person, day, own.village.id);
+    const recruit = recruitFor(command, state, person, day, own.village.id);
     if (typeof recruit === 'string') out.refusal ??= recruit;
     else out.recruits.push(recruit);
   }
   return out;
+}
+
+/** Člověk ze vsi pro příkaz: na zvíře `huntRecruit` (žena a mladší 14 let ne), jinak `expeditionRecruit`. */
+function recruitFor(
+  command: ExpeditionCommand,
+  state: VillageState,
+  person: Person,
+  day: number,
+  villageId: string,
+): JourneyRecruit | ExpeditionRefusal {
+  return command.kind === 'strike'
+    ? huntRecruit(state, person, day, villageId)
+    : expeditionRecruit(state, person, day, villageId);
+}
+
+/**
+ * Členové výběru, kteří jdou na zvíře se značkou jiného lovu (přišli ze vsi na předchozí lov
+ * výpravy): ves jim značku změní a zaplatí další den práce (`moveHuntAway`; jeden den na každý lov –
+ * Martin 22. 11. 2026: „práce těch lidí se odečte pouze za 1 den“, návrh Clauda). Jiný příkaz nikdo.
+ */
+function rejoining(picked: Picked, command: ExpeditionCommand): number[] {
+  const hunt = picked.situation.journey?.hunt;
+  if (command.kind !== 'strike' || hunt === undefined) return [];
+  return picked.chosen.members
+    .filter((m) => m.huntId !== undefined && m.huntId !== hunt.id)
+    .map((m) => m.ref.personId);
 }
 
 /** Živí lidé výpravy ve skupinách, které hráče poslouchají (ne `leaderless`), podle id osoby. */
@@ -342,17 +395,19 @@ function commandable(s: JourneyState): Map<number, JourneyMember> {
 }
 
 /**
- * Kdo příkaz dostane: rozkaz – všichni; Osedlat – členové skupin, které s koňmi nepracují, a ze
- * vsi jen jezdci (návrh Clauda – ostatní pracují dál, přidá je až rozkaz); Sesednout – jen členové
- * skupin bez práce s koňmi (lidé ze vsi na koni nesedí). Skupina s prací s koňmi Osedlat ani
- * Sesednout nevidí (`journey-parties.ts`).
+ * Kdo příkaz dostane: rozkaz a útok na zvíře – všichni; Osedlat – členové skupin, které s koňmi
+ * nepracují, a ze vsi jen jezdci (návrh Clauda – ostatní pracují dál, přidá je až rozkaz);
+ * Sesednout – jen členové skupin bez práce s koňmi (lidé ze vsi na koni nesedí). Skupina s prací
+ * s koňmi Osedlat ani Sesednout nevidí (`journey-parties.ts`).
  */
 function chooseFor(
   command: ExpeditionCommand,
   split: Chosen,
   journey: JourneyState | null,
 ): Chosen {
-  if (command.kind === 'order') return { members: split.members, recruits: split.recruits };
+  if (command.kind === 'order' || command.kind === 'strike') {
+    return { members: split.members, recruits: split.recruits };
+  }
   const busy = new Set(journey?.parties.filter((p) => p.horseWork).map((p) => p.id) ?? []);
   const partyOf = new Map(journey?.groups.map((g) => [g.id, g.party]) ?? []);
   const members = split.members.filter((m) => !busy.has(partyOf.get(m.group)!));
@@ -363,7 +418,8 @@ function chooseFor(
 /**
  * Ověření příkazu (null = jde): s rekruty napřed cizí vojsko na mapě vsi (`activeAgainst` →
  * `village-attacked`); rozkaz přes `orderAim` z hloučku vůdce výběru (rekruti stojí doma) –
- * `go.cell` musí být políčko někoho z výběru; Osedlat a Sesednout podle koní.
+ * `go.cell` musí být políčko někoho z výběru; Osedlat a Sesednout podle koní; útok na zvíře ověřil
+ * už výběr (`no-quarry`, důvody lidí).
  */
 async function verify(
   deps: ExpeditionDeps,
@@ -384,6 +440,8 @@ async function verify(
       return saddleRefusal(plan);
     case 'dismount':
       return chosen.members.some((m) => m.horse === 'ridden') ? null : 'nobody';
+    case 'strike':
+      return null;
     default:
       // typy druh vyčerpaly, za běhu přijde cokoli od klienta
       input.command satisfies never;
@@ -472,8 +530,9 @@ async function gridOn(deps: ExpeditionDeps, plan: Plan, cell: GridCell): Promise
 }
 
 /**
- * Zápis (kroky 1–3 a 5 `musterExpedition`): bez rekrutů jen záměr. `ended` – výprava mezitím
- * skončila (`addIntent` null), rekruti jsou zase doma.
+ * Zápis (kroky 1–3 a 5 `musterExpedition`): bez rekrutů (a bez útočníků předchozího lovu –
+ * `rejoining`) jen záměr. `ended` – výprava mezitím skončila (`addIntent` null), rekruti jsou zase
+ * doma.
  */
 async function carryOut(
   deps: ExpeditionDeps,
@@ -481,13 +540,16 @@ async function carryOut(
   plan: Plan,
 ): Promise<ExpeditionResult | 'ended'> {
   const { situation, chosen } = plan;
-  if (chosen.recruits.length === 0) {
+  const rejoin = rejoining(plan, input.command);
+  if (chosen.recruits.length === 0 && rejoin.length === 0) {
     const id = situation.journeyId!;
     const queued = await queue(deps, input, id, situation.journey!.tick, memberIds(chosen));
     return queued ? journeyOk(id) : 'ended';
   }
   const villageId = situation.own.village.id;
   const journeyId = situation.journeyId ?? deps.newId();
+  // útok na zvíře: značka lovu z bodu, který use-case četl (`select` – zvíře je venku)
+  const huntId = input.command.kind === 'strike' ? situation.journey?.hunt?.id : undefined;
   let sent: JourneyRecruit[] = [];
   const failed = await editVillage<ExpeditionRefusal>(
     deps.villages,
@@ -495,12 +557,18 @@ async function carryOut(
     (fresh) => {
       const again = freshRecruits(fresh, chosen.recruits, input.command, villageId);
       if (typeof again === 'string') return again;
-      sendAway(
-        fresh,
-        fresh.lastDay,
-        again.map((r) => r.ref.personId),
-        { kind: 'journey', refId: journeyId },
-      );
+      const ids = again.map((r) => r.ref.personId);
+      sendAway(fresh, fresh.lastDay, ids, {
+        kind: 'journey',
+        refId: journeyId,
+        ...(huntId === undefined ? {} : { huntId }),
+      });
+      if (huntId !== undefined) {
+        // útočník lovu zaplatí jeden den práce jako honec – noví ze vsi i ti, kdo jdou z předchozího
+        // lovu (plán 2026-11-22-hunting – Rozhodnutí 3; Martin 22. 11. 2026)
+        const paid = ids.length + moveHuntAway(fresh, journeyId, huntId, rejoin);
+        if (paid > 0) reserveBeaters(fresh, fresh.lastDay, paid);
+      }
       sent = again;
       return null;
     },
@@ -551,7 +619,7 @@ function memberIds(chosen: Chosen): number[] {
 
 /**
  * Rekruti ověření znovu na čerstvém stavu vsi (souběžný zápis): data z čerstvého stavu; kdo mezitím
- * nesmí (Osedlat – nebo už nemá koně), odmítne celý příkaz svým důvodem.
+ * nesmí (Osedlat – nebo už nemá koně; na zvíře `huntRecruit`), odmítne celý příkaz svým důvodem.
  */
 function freshRecruits(
   state: VillageState,
@@ -563,7 +631,7 @@ function freshRecruits(
   const out: JourneyRecruit[] = [];
   for (const r of recruits) {
     const person = state.people.find((p) => p.id === r.ref.personId);
-    const now = person ? expeditionRecruit(state, person, day, villageId) : 'away';
+    const now = person ? recruitFor(command, state, person, day, villageId) : 'away';
     if (typeof now === 'string') return now;
     if (command.kind === 'saddle' && now.horseId === undefined) return 'nobody';
     out.push(now);
@@ -605,6 +673,8 @@ function bodyOf(
       return { kind: 'saddle', people, ...fresh };
     case 'dismount':
       return { kind: 'dismount', people };
+    case 'strike':
+      return { kind: 'strike', people, ...fresh };
   }
 }
 
@@ -658,9 +728,10 @@ async function release(
  * ji vyvedla nejbližší volnou buňkou a kolem pozemku (D49, Martin 15. 11. 2026: „vyběhl boční
  * stěnou domu a velkým obloukem…“). Hráč staví ves, kde chce – místo vsi krajiny (`villagePlace`)
  * od ní může ležet daleko (Martinův Vlkov ≈ 430 m). Dokud zakladatelé první zemnici staví,
- * staveniště dvorce; ves bez obydlí i staveniště – místo vsi krajiny.
+ * staveniště dvorce; ves bez obydlí i staveniště – místo vsi krajiny. Odtud vyjdou i honci lovu
+ * (`declare-hunt.ts`).
  */
-function journeyHome(state: VillageState, cell: GridCell, landscape: Landscape): Pos {
+export function journeyHome(state: VillageState, cell: GridCell, landscape: Landscape): Pos {
   if (villageManor(state)) return villageGate(state, landscape);
   const manorId = villageManorId(state);
   const site =

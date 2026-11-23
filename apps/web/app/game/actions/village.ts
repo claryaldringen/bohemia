@@ -37,8 +37,10 @@ import {
   setStewardForPlayer,
   renameVillageForPlayer,
   upgradeRoadForPlayer,
+  type DeclareHuntRefusal,
   type VillageActionResult,
 } from '@/lib/village';
+import { HUNT_DENIED_TEXT, NOT_PLAYER_VILLAGE } from '@bohemia/game';
 import {
   parseBuildTrailInput,
   parseAbandonFieldPartsInput,
@@ -297,13 +299,27 @@ export async function setSteward(input: unknown): Promise<VillageActionResult> {
 }
 
 /**
- * Lov (hunting.md – Pravidla 2): `{ villageId }`. Hájení a běžící lov odmítne use-case s důvodem
- * česky; jinak honci chybí v práci vsi zítra.
+ * Lov (hunting.md – Pravidla 2; plán 2026-11-22-hunting – Úloha 9): `{ villageId }`. Lov běží ve
+ * výpravě vsi a honci chybí v práci vsi zítra – vrátí pohled na ves; důvod odepření use-case
+ * (`DeclareHuntRefusal`) jde jako chyba česky.
  */
 export async function declareHunt(input: unknown): Promise<VillageActionResult> {
-  return villageAction(input, parseDeclareHuntInput, (id, villageId) =>
-    declareHuntForPlayer(id, villageId),
-  );
+  return villageAction(input, parseDeclareHuntInput, async (id, villageId) => {
+    const result = await declareHuntForPlayer(id, villageId);
+    return 'refused' in result ? { error: huntRefusalText(result.refused) } : result;
+  });
+}
+
+/** Důvod odepření lovu česky – důvody vsi `HUNT_DENIED_TEXT`. */
+function huntRefusalText(reason: DeclareHuntRefusal): string {
+  switch (reason) {
+    case 'no-village':
+      return NOT_PLAYER_VILLAGE;
+    case 'busy':
+      return 'Zkus to znovu.';
+    default:
+      return HUNT_DENIED_TEXT[reason];
+  }
 }
 
 /** Postoj vsi před cizím vojskem (war.md – Obránci): `{ villageId, stance }`. */

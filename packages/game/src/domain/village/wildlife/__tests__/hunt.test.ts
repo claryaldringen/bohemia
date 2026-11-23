@@ -5,6 +5,7 @@ import {
   emptyHunt,
   HUNT_DENIED_TEXT,
   huntDenied,
+  moveHuntAway,
   pickQuarry,
   reserveBeaters,
 } from '../hunt';
@@ -205,6 +206,24 @@ describe('útočník lovu platí jen jeden den práce (Martin 22. 11. 2026)', ()
     reserveBeaters(s, d);
     reserveBeaters(s, d, 1);
     expect(s.wildlife!.hunt!.beaters).toEqual({ day: d + 1, men: 7 });
+  });
+
+  it('útočník předchozího lovu jde na další lov téže výpravy – značka toho lovu, platí další den', () => {
+    const s = villageOn(7, 10);
+    const person = (id: number): Person => s.people.find((p) => p.id === id)!;
+    person(20).away = { kind: 'journey', refId: 'j1', huntId: 1 };
+    person(22).away = { kind: 'journey', refId: 'j1' };
+    person(10).away = { kind: 'journey', refId: 'j2', huntId: 1 };
+    person(12).away = { kind: 'journey', refId: 'j1', huntId: 2 };
+    // 20 ano; 22 je výprava bez značky, 10 jiná výprava, 12 už má značku lovu 2, 11 je doma
+    expect(moveHuntAway(s, 'j1', 2, [20, 22, 10, 12, 11])).toBe(1);
+    expect(person(20).away).toEqual({ kind: 'journey', refId: 'j1', huntId: 2 });
+    expect(person(22).away).toEqual({ kind: 'journey', refId: 'j1' });
+    expect(person(10).away?.huntId).toBe(1);
+    expect(person(12).away?.huntId).toBe(2);
+    expect(person(11).away).toBeUndefined();
+    // podruhé nic
+    expect(moveHuntAway(s, 'j1', 2, [20])).toBe(0);
   });
 });
 

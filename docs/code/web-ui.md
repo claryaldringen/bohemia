@@ -62,9 +62,13 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   přijímá volitelné `lordName` (`parseFoundVillageInput`; písmena ověří use-case, bez jména vojvoda
   čeká) a ves zakládá vždy vojvoda s manželkami a syny; `nameLineMan({ villageId, personId, name })`
   pojmenuje vojvodu nebo jeho syna (`parseNameLineManInput` → `nameLineManForPlayer` → use-case
-  `nameLineManInVillage`); `declareHunt({ villageId })` vyhlásí lov navíc na zítřek
-  (`parseDeclareHuntInput` → `declareHuntForPlayer` → `declareHuntInVillage`, tlačítko
-  `manor-hunt` v `ManorUpgrades`; důvod odepření dává pohled `VillageManor.huntDenied`).
+  `nameLineManInVillage`); `declareHunt({ villageId })` vyhlásí lov – honci chybí v práci vsi
+  zítra a lov běží ve výpravě vsi (`parseDeclareHuntInput` → `declareHuntForPlayer` pod zámkem
+  hráče – závislosti jako u výpravy, `now` – → `declareHuntInVillage`, journey.md – Lov; tlačítko
+  `manor-hunt` v `ManorUpgrades`; důvod odepření dává pohled `VillageManor.huntDenied`). Povede se –
+  pohled na ves; odepřený – `{ refused: DeclareHuntRefusal }` a server action z něj dá `{ error }`
+  česky (`huntRefusalText`: důvody vsi `HUNT_DENIED_TEXT`, cizí ves `NOT_PLAYER_VILLAGE`, souběh
+  „Zkus to znovu.“).
   Composition root `lib/village.ts` (pohled na ves
   dopočítá všechny vsi hráče – přepínač a konec hry), `lib/village-view.ts` (DTO, smí i do
   prohlížeče – `id`, `settlementId`, `villages` pro přepínač), `lib/village-list.ts`. Vybraná ves se pamatuje

@@ -1,4 +1,5 @@
 import 'server-only';
+import { randomUUID } from 'node:crypto';
 import {
   createHouseRepository,
   createSettlementRepository,
@@ -25,6 +26,7 @@ import {
   foundVillageForSettlement,
   newcomerFoundingReason,
   declareHuntInVillage,
+  type DeclareHuntResult,
   setDefenseStanceInVillage,
   forceBadYear,
   forceDisaster,
@@ -97,7 +99,7 @@ import {
 } from '@bohemia/game';
 import { getDatabase, getPlayerLock } from './db';
 import { exclusivePlayer } from './exclusive';
-import { cachedVillages, withVillageCache } from '@bohemia/server';
+import { cachedVillages, currentWorld, withVillageCache } from '@bohemia/server';
 import {
   currentStewardViewStampOfPlayer,
   currentViewStampOfPlayer,
@@ -894,17 +896,36 @@ export function setStewardForPlayer(
   );
 }
 
-/** Hráč vyhlásí lov (hunting.md – Pravidla 2) – důvod odepření řeší use-case. */
-export function declareHuntForPlayer(
+/** Proč lov nejde vyhlásit (`DeclareHuntResult`) – text dá server action. */
+export type DeclareHuntRefusal = Extract<DeclareHuntResult, { ok: false }>['reason'];
+
+/**
+ * Hráč vyhlásí lov (hunting.md – Pravidla 2; plán 2026-11-22-hunting – Úloha 9) pod zámkem hráče
+ * (ves dopočtená do dneška): use-case `declareHuntInVillage` – lov běží ve výpravě vsi a ves zítra
+ * uvolní honce. Povede se – pohled na ves; jinak důvod use-case (`refused`).
+ */
+export async function declareHuntForPlayer(
   playerId: string,
   villageId: string,
-): Promise<VillageActionResult> {
-  return actOn(playerId, villageId, 'declareHunt', (ctx) =>
-    declareHuntInVillage(
-      { villages: villages() },
-      { villageId: ctx.villageId, today: ctx.day, landscape: ctx.landscape },
-    ),
-  );
+): Promise<VillageActionResult | { refused: DeclareHuntRefusal }> {
+  const done = await guardedAction(playerId, villageId, 'declareHunt', (ctx) => {
+    const deps = gameDeps();
+    return declareHuntInVillage(
+      {
+        settlements: deps.settlements,
+        villages: villages(),
+        houses: deps.houses,
+        journeys: deps.journeys,
+        cells: campaignCells(),
+        world: currentWorld(),
+        seeds: deps.seeds,
+        newId: randomUUID,
+      },
+      { playerId: ctx.playerId, villageId: ctx.villageId, now: new Date() },
+    );
+  });
+  if (!done.ok) return done.result;
+  return done.value.ok ? viewOf(done.ctx) : { refused: done.value.reason };
 }
 
 /** Hráč nastaví postoj vsi před cizím vojskem (war.md – Obránci); právo `war`. */

@@ -308,7 +308,8 @@ untilTick, pen }`: vesničan `groomId` (null = nikdo doma), jezdci (id osob), ta
   doručit. Stojící skupina se uloží nejvýš po `CHECKPOINT_TICKS` (40) taktech; hned se uloží s událostmi,
   na konci výjezdu, když výjezd čeká na ves (bariéra – mez vsi povyroste) a když se od uloženého
   bodu změnilo, co hráč vidí (`playerSeesChange`: poloha, cíl nebo dojetí hloučku podle id, fáze,
-  `arrivedTick` a `horseWork` skupin, `mounted`/`horse`/hlouček členů, uplatněný záměr; bod se
+  `arrivedTick`, `horseWork` a `hunting` skupin, `mounted`/`horse`/hlouček členů, lov – Lov, Pohled,
+  uplatněný záměr; bod se
   napřed převede `upgradeJourney`) – jedoucí skupina se tak ukládá každé kolo (≈ 1 s) a vojvoda na klik reaguje do vteřiny
   (Martin 14. 11. 2026: „kliknu do mapy… strašně dlouho mu trvá, než se rozjede“).
 - **Dopočet s načítáním** – `computeWithLoads(deps, state, step)` v `step-campaigns.ts` je
@@ -947,7 +948,7 @@ vidí). Znalost ve scéně tažení – Znalost rodu (Tažení ve scéně, Úloh
 - **Testy:** `journey-predators.test.ts` (četnost přes 20 000 seedů v toleranci, zvěř mapy, výjezd
   v lese, vcelku = po kouscích, schránka vsi).
 
-## Lov (plán 2026-11-22-hunting, Úlohy 6–7)
+## Lov (plán 2026-11-22-hunting, Úlohy 6–7, 9)
 
 Lov vsi je součást výpravy domovské vsi (`docs/design/hunting.md`; plán – Rozhodnutí 1, 3, 4, 6):
 `JourneyState.hunt` (`JourneyHunt`), nejvýš jeden na výpravu. Moduly `domain/war/hunt-beaters.ts`
@@ -996,7 +997,9 @@ Lov vsi je součást výpravy domovské vsi (`docs/design/hunting.md`; plán –
 - **Útočník a práce vsi** (plán – Rozhodnutí 3; Martin 22. 11. 2026: „práce těch lidí se odečte
   pouze za 1 den“): nový člověk ze vsi, který přišel povelem, dostane `huntId` = id lovu – use-case
   (Úloha 9) ho ve vsi pošle pryč s `away.huntId` téhož lovu a `reserveBeaters(state, lastDay, n)`;
-  kdo byl ve výpravě už předtím, je pryč jako dosud (bez značky). Rozkaz ven („Jdi sem“, „Přes
+  kdo byl ve výpravě už předtím, je pryč jako dosud (bez značky). Člen se značkou jiného lovu (přišel
+  na předchozí lov a ještě je venku) dostane v `strike` značku tohoto lovu a ves za něj zaplatí další
+  den (`moveHuntAway` – jeden den na každý lov, návrh Clauda). Rozkaz ven („Jdi sem“, „Přes
   okraj“ – ne „Domů“) člověku se značkou z něj dělá běžnou výpravu (`releaseStrikers`): ves dostane
   `hunt-leave` (`journeyId`, `huntId`, `personIds`) na den po rozkazu a značka zmizí (village-wildlife.md
   – `endHuntAway`). Domů jde se značkou – návrat ji vezme (`away-ends`).
@@ -1032,6 +1035,40 @@ Lov vsi je součást výpravy domovské vsi (`docs/design/hunting.md`; plán –
   i s lovem hned a bez výsledku – hloučky ve stavu zůstávají, proto ne přes `settleDone`.
 - **Mapa** – běží-li lov, úvodní kontrola `stepJourney` chce i mapu domovského políčka (bez ní
   `waiting`), i když na ní žádný hlouček nestojí.
+- **Vyhlášení – use-case** (Úloha 9 – `application/declare-hunt.ts`): `declareHuntInVillage` se
+  vstupem `playerId`, `villageId` a `now` → `DeclareHuntResult` (`{ ok: true, journeyId }`, nebo
+  `reason` `HuntDenied` | `no-village` | `busy`); `DeclareHuntDeps` jako u výpravy (vsi, výpravy,
+  rod, mapy `cells`, hodiny světa, seedy, `newId`). Ves hráče (`findPlayerVillage`) → běžící výprava
+  vsi (`activeIn`) a lov v ní (`huntRunning`) → důvody `huntDenied` na den honců (`lastDay + 1`;
+  běží i lov, který už ve vsi na ten den je – `huntOnDay`, lov hráče i správce; jeden lov ve vsi za
+  den, návrh Clauda) napřed na uloženém stavu bez mapy → rod s místem na mapě světa
+  (`no-village`) → mapa domovského políčka → zápis vsi (`editVillage`, souběh `busy`): důvody znovu
+  na čerstvém stavu, `countDeclaredHunt`, zvíře `pickQuarry(zvěř, seed vsi, lastDay, declared)`
+  (pořadí po přičtení – jako lov správce), dvorec výpravy (běžící `home`, jinak `journeyHome`),
+  `huntStartOf` z mřížky pochodu (`marchGrid` se stezkami sousedů) – bez hustého lesa `no-game`
+  bez uložení; jinak `reserveBeaters`. Pak výprava běží → záměr `{ kind: 'hunt', start }` na takt
+  teď + `INTENT_LEAD_TICKS` (nejdřív za bodem); jinak – i když mezitím skončila – `create`
+  (`newJourney` s `hunt`, `recruits` prázdné, domov a rod skončené výpravy). Ves platí napřed:
+  pozdější chyba zápisu výpravy honce nevrátí (záměr ani výpravu nejde vzít zpět).
+- **Povel `strike` – use-case** (Úloha 9 – `application/expedition.ts`): `ExpeditionCommand`
+  `{ kind: 'strike' }`, cestou `commandParty` / `musterExpedition` jako rozkaz. Bez lovu se zvířetem
+  venku (`quarryOut` v přečteném bodu) `no-quarry` – nic se nezapíše. Členové výpravy jdou přes
+  `strikeRefusal` (první důvod, nemůže-li nikdo – `woman`, `young`, `wounded`, `away`), lidé ze vsi
+  přes `huntRecruit` (`woman`, `young`, jinak jako výprava). Jen členové bez značky jiného lovu →
+  záměr `{ kind: 'strike', people }` bez zámku vsi; rekruti nebo člen se značkou jiného lovu
+  (`rejoining`) → `recruits` a `musterExpedition` pod zámkem: rekruti odejdou s `away.huntId` lovu
+  z bodu, členům se značka změní (`moveHuntAway`) a ves zaplatí den práce každého z nich
+  (`reserveBeaters(state, lastDay, n)`); záměr `{ kind: 'strike', people, recruits }`.
+  `ExpeditionRefusal` má navíc `woman` a `no-quarry` (texty `expeditionReason` ve webu).
+- **Pohled** (Úloha 9 – `application/expedition-view.ts`): `ExpeditionView.hunt` – `HuntView`, nebo
+  null bez lovu: `quarry` (druh, poloha, směr, stav, rány; null, je-li zvíře v lese – `hidden` –,
+  nebo zmizelé – `gone`; padlé ano), `beaters` (`HuntBeaters` – polohu honců spočte scéna z taktu,
+  `beatersAt`), `dogs`, `strikers` (osoby bojovníků, kteří v souboji jednají – ne `left` ani `down`),
+  `outcome` a `tick` (takt souboje – `HuntFight.tick`). `huntRunning(stav)` – běžící výprava má lov
+  (tlačítko lovu `already`). Worker uloží bod hned (`playerSeesChange` → `huntSeesChange`), když lov
+  začal nebo zmizel, zvíře se pohnulo, změnilo stav nebo dostalo ránu, souboj skončil, honci zvedli
+  úlovek (`beaters.end`), útočník změnil stav nebo dostal ránu, nebo skupina začala či přestala lovit
+  (`hunting`) – utíkající zvíře se tak ukládá každé kolo, honci kvůli své chůzi ne.
 - **Testy** – `hunt-beaters.test.ts` (dveře a výběh, bez lesa null, honci v půli cesty, stání
   u dveří, odnos přes `at` pomaleji, ostatní rovnou, po `homeTick` null, JSON), `journey-hunt.test.ts`
   (výprava jen s lovem: vyběhnutí v `arriveTick`, útěk po `idleS`, výsledek jednou, `done` v taktu
@@ -1044,4 +1081,13 @@ Lov vsi je součást výpravy domovské vsi (`docs/design/hunting.md`; plán –
   rozkazem ven, odvolání a Osedlat / Sesednout, se strike po 1 / 7 / 40 taktech = vcelku),
   `expedition-people.test.ts` (`huntRecruit`, `line`, luk a jízda rekruta),
   `application/__tests__/village-inbox.test.ts` (výsledek lovu doručený dvakrát ves použije jednou),
-  `village/core/__tests__/inbox.test.ts` (`hunt-leave`).
+  `village/core/__tests__/inbox.test.ts` (`hunt-leave`); Úloha 9 – `journey-hunt.test.ts` (člen se
+  značkou předchozího lovu dostane značku dalšího), `wildlife/__tests__/hunt.test.ts`
+  (`moveHuntAway`), `application/__tests__/declare-hunt.test.ts` (nová výprava jen s lovem, záměr
+  `hunt` výpravě venku se skupinami beze změny, `already` – lov ve výpravě, honci zítra, lov správce –,
+  `closed-season`, `no-beaters`, `no-game` – mapa bez lesa i ves bez zvěře –, `no-village`, `busy`;
+  nic se neuloží), `expedition.test.ts` (strike: vojvoda ze vsi se značkou a dnem práce, žena
+  `woman`, chlapec 13 let `young`, `no-quarry` bez výpravy, bez lovu i se zvířetem v lese, člen bez
+  zámku vsi, člen se značkou předchozího lovu přes `musterExpedition`), `expedition-view.test.ts`
+  (`hunt` null, skryté zvíře, zvíře venku, `strikers`, zmizelé, `huntRunning`), `step-journeys.test.ts`
+  (`playerSeesChange` u lovu; utíkající zvíře uloží bod každé kolo, skryté až po `CHECKPOINT_TICKS`).

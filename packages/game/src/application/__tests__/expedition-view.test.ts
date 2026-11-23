@@ -1,7 +1,17 @@
 import { describe, expect, it } from 'vitest';
-import { msOfTick, newJourney, type JourneyRecruit, type JourneyState } from '../../domain/war';
+import {
+  addHunters,
+  dropHunters,
+  msOfTick,
+  newJourney,
+  releaseQuarry,
+  type HuntStart,
+  type JourneyRecruit,
+  type JourneyState,
+  type NewHunter,
+} from '../../domain/war';
 import { LAUNCH, world } from '../../domain/war/__tests__/campaign-fixtures';
-import { expeditionViewsFor } from '../expedition-view';
+import { expeditionViewsFor, huntRunning } from '../expedition-view';
 import { InMemoryJourneys } from './in-memory-journeys';
 import { InMemoryKnowledge } from './in-memory-knowledge';
 
@@ -137,5 +147,102 @@ describe('expeditionViewsFor', () => {
     await journeys.create(home);
     const views = await expeditionViewsFor(deps(journeys, knowledge), { playerId: 'pa' });
     expect(views[1]!.seen).toEqual({});
+  });
+});
+
+describe('pohled na lov (plán 2026-11-22-hunting, Úloha 9)', () => {
+  const START: HuntStart = {
+    quarry: 'stag',
+    day: 7,
+    door: { x: -95, z: 5 },
+    out: { x: -55, z: 5 },
+    dogs: 2,
+  };
+
+  function hunting(): JourneyState {
+    return newJourney(
+      {
+        id: 'j1',
+        seed: 5,
+        playerId: 'pa',
+        houseId: 'h-pa',
+        home: { villageId: 'lhota', name: 'lhota', cell: { x: 0, y: 0 }, pos: { x: 5, z: 5 } },
+        recruits: [person(1), person(2)],
+        startMs: msOfTick(LAUNCH, world),
+        hunt: START,
+      },
+      world,
+    );
+  }
+
+  function striker(personId: number): NewHunter {
+    return {
+      personId,
+      pos: { x: 5, z: 5 },
+      mounted: false,
+      strength: 2,
+      footStrength: 2,
+      skills: { bow: 0, combat: 50, riding: 0 },
+      lineMan: false,
+      health: 100,
+    };
+  }
+
+  it('výprava bez lovu – hunt null; zvíře ještě v lese – quarry null, honci a psi', async () => {
+    const journeys = new InMemoryJourneys();
+    await journeys.create(expedition('j0', 'brod', [person(3, { lord: true })]));
+    const state = hunting();
+    await journeys.create(state);
+    const [plain, view] = await expeditionViewsFor(deps(journeys), { playerId: 'pa' });
+    expect(plain!.hunt).toBeNull();
+    expect(view!.hunt).toEqual({
+      quarry: null,
+      beaters: state.hunt!.beaters,
+      dogs: 2,
+      strikers: [],
+      outcome: 'ongoing',
+      tick: LAUNCH,
+    });
+  });
+
+  it('zvíře venku s polohou, směrem, stavem a ranami; útočníci jen ti, kdo v souboji jednají', async () => {
+    const journeys = new InMemoryJourneys();
+    const state = hunting();
+    const f = state.hunt!.fight;
+    releaseQuarry(f, state.hunt!.out, LAUNCH + 3);
+    f.quarry.pos = { x: -80, z: 5 };
+    f.quarry.hits = 1;
+    addHunters(f, [striker(1), striker(2)], LAUNCH + 3);
+    dropHunters(f, [2]);
+    f.tick = LAUNCH + 3;
+    await journeys.create(state);
+    const [view] = await expeditionViewsFor(deps(journeys), { playerId: 'pa' });
+    expect(view!.hunt).toMatchObject({
+      quarry: {
+        kind: 'stag',
+        pos: { x: -80, z: 5 },
+        heading: f.quarry.heading,
+        state: 'flee',
+        hits: 1,
+      },
+      strikers: [1],
+      outcome: 'ongoing',
+      tick: LAUNCH + 3,
+    });
+    // zmizelé zvíře (utekl do lesa) – quarry null, výsledek „escaped“
+    f.quarry.state = 'gone';
+    f.outcome = 'escaped';
+    const gone = new InMemoryJourneys();
+    await gone.create(state);
+    const [after] = await expeditionViewsFor(deps(gone), { playerId: 'pa' });
+    expect(after!.hunt).toMatchObject({ quarry: null, outcome: 'escaped' });
+  });
+
+  it('huntRunning – jen běžící výprava s lovem', () => {
+    expect(huntRunning(null)).toBe(false);
+    expect(huntRunning(expedition('j0', 'brod', [person(3)]))).toBe(false);
+    const state = hunting();
+    expect(huntRunning(state)).toBe(true);
+    expect(huntRunning({ ...state, phase: 'done' })).toBe(false);
   });
 });

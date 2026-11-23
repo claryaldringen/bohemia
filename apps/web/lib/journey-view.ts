@@ -89,6 +89,11 @@ export function expeditionReason(reason: ExpeditionReason, female = false): stri
       return 'Tam je válka.';
     case 'horse-home':
       return 'Kůň je doma.';
+    // útok na zvíře (plán 2026-11-22-hunting – Úloha 11, texty)
+    case 'woman':
+      return 'Na lov chodí jen muži.';
+    case 'no-quarry':
+      return 'Zvíře tu není.';
     case 'busy':
       return 'Zkus to znovu.';
     case 'no-village':

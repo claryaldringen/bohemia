@@ -171,10 +171,15 @@ Návrh: [hunting.md](../design/hunting.md) – Pravidla 2, 3, 5–7, 11; stavba 
   i jelen a laň, když lovce zasáhl šíp druhého lovce; web má texty `PREY_GENITIVE`.
 - **Schránka:** událost `hunt-result` (`journeyId`, `huntId`, `result`) – výprava ji vydá jednou při
   zabití nebo útěku zvířete; `applyInboxDay` volá `applyHuntResult` s kopií těla. Událost
-  `hunt-leave` (`journeyId`, `huntId`, `personIds`) → `endHuntAway`.
-- **Use-case** `declareHuntInVillage` (`updateLivingVillage`: ves se dopočítá do dneška,
-  `huntDenied(state, lastDay + 1, false)` – důvod odepření jde jako `reason` a nic se neuloží; jinak
-  `reserveBeaters`, `countDeclaredHunt` a uložit). Server action `declareHunt({ villageId })`
+  `hunt-leave` (`journeyId`, `huntId`, `personIds`) → `endHuntAway`. Opačný směr bez schránky:
+  útočník předchozího lovu, který jde v povelu `strike` na další lov téže výpravy, dostane od use-case
+  značku nového lovu (`moveHuntAway` – vrací počet, ves za ně zaplatí další den `reserveBeaters`;
+  jeden den na každý lov, návrh Clauda).
+- **Use-case** `declareHuntInVillage` (`application/declare-hunt.ts`, journey.md – Lov, Vyhlášení):
+  důvody `huntDenied(state, lastDay + 1, běží)` – běží lov ve výpravě vsi (`huntRunning`) nebo je na
+  ten den ve vsi už lov hráče či správce (`huntOnDay`) – jdou jako `reason` a nic se neuloží; jinak
+  `countDeclaredHunt`, zvíře `pickQuarry`, začátek lovu `huntStartOf` (bez hustého lesa `no-game`),
+  `reserveBeaters` a lov ve výpravě vsi. Server action `declareHunt({ villageId })`
   (`parseDeclareHuntInput` → `declareHuntForPlayer`).
 - **UI:** `VillageManor.huntDenied` (`manor-view.ts`) = text důvodu z `huntDenied` na den honců
   (`day + 1`), nebo null; tlačítko `manor-hunt` (ikona oštěpu) v `ManorUpgrades`, zašedlé
