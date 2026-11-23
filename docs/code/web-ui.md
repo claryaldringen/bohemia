@@ -54,7 +54,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `placeDwelling`, `cancelConstruction`, `leaveVillage`,
   `settleJourney`, `placeWorkshop` (vstup `{ craft, position, type? }` – `type` `vypleteny` | `srub` je nadzemní dílna, `parsePlaceWorkshopInput`; nabídka staveb nese `BuildOption.variants.vypleteny` / `.srub` s cenou a rokem),
   `placeField`, `placeCemetery`, `placeOrchard`, `placeSacred`, `placePen`,
-  `buildTrail`, `sendExpedition`, `declareHunt`, `renameVillage`, `nameLineMan` → `VillageView` / `null` / `{ error }`; `restartGame(input?)` → `{ ok: true }` /
+  `buildTrail`, `declareHunt`, `renameVillage`, `nameLineMan` → `VillageView` / `null` / `{ error }`; `restartGame(input?)` → `{ ok: true }` /
   `{ error }`). **Každá akce nad vsí nese `villageId`** (UUID – `villageIdOf` v
   `lib/village-input.ts`) a server ověří, že ves patří hráči (`context` v `lib/village.ts` →
   `findPlayerVillage`); `getVillageView({ villageId: null })` = první ves hráče (zakládá-li ves,
@@ -785,8 +785,8 @@ Návrh: [disasters.md – Co hráč vidí](../design/disasters.md). Jádro a č�
   (`partLossesView` – počasí, které je vidět, s ochranou dílu a plodinou roku sklizně; kroupy,
   povodeň, smršť z `disasters.losses`) → řádky `partLossRows` jako škoda zvěře („−60 %“, červeně
   od 10 %, dobré léto „+15 %“), testy `selection-protection`, `selection-loss-*`.
-- **Obchod** – `VillageNeighbour.dearth` (`tradeDearth` – rok obchodu od 1. 11., tedy vždy minulé
-  léto): ikona `dearth` u jména souseda (`NeighbourName`), popisek `dearthLabel` z `DISASTER_TRADE`.
+- **Obchod** – ikona zdražení u jména souseda zmizela s panelem obchodu (markets.md – Pravidla 1);
+  zdražení zboží v kraji (`goodWorth`) zůstává.
 - **Upozornění** (`village-notices.ts`, `DisasterNoticeKind`): z počasí, které se ukázalo
   (`weatherNotices` ve `villageNotices` – ohlásí se, když nově vznikne): „Sucho – nejvíc trpí pole
   bez stromů“ (sucho i kruté sucho), „Mokré žně“, „Holomráz – ozim vymrzá“; z kroniky
@@ -970,8 +970,8 @@ action `levyDialogs()` (rozdělení po vsích se počítá až tehdy, ne s dotaz
   `build` – `BuildGrid` (i zkratky – `startBuild`), zrušení stavby, vylepšení cest / vozová cesta /
   jabloně (`selection/roads.tsx`), zemská stezka (`TrailCompass`); `evacuate` – Odejít (`RelocationControls`); `sendSons` – odchod se synem (`LeaveCompass right`);
   `nameSons` – `LineNamePanel`; `steward` – `StewardToggle` (jen zobrazená ves; ves v seznamu
-  jiná než zobrazená právo nezná, rozhodne server), přejmenování vsi, lov; `trade` – Vyslat
-  výpravu (`NeighbourTrade`). Pohled na ves a výběr zůstávají – dívat se smí každý hráč rodu.
+  jiná než zobrazená právo nezná, rozhodne server), přejmenování vsi, lov; `trade` – právo
+  zůstává, výpravu dnes nic nepoužívá (plán 2). Pohled na ves a výběr zůstávají – dívat se smí každý hráč rodu.
 - **Stolec:** `public/icons/house/throne.png` (render z Blenderu). `VillageListItem.senior`
   (`villageListItem(…, seniorVillageId)` z `House.senior`) → stolec u vsi seniora v `VillageList`
   (popisek „Senior rodu“) vedle praporce „Tvůj muž“.
@@ -1610,11 +1610,10 @@ nová pravidla (návrh Clauda).
     polem“) z `ChronicleRoadEnd` (jádro `paths/road-chronicle.ts` – `chronicleRoadEnds` podle
     `roadChainEnds` jako panel cesty: obydlí podle druhu, dílna podle řemesla, místo podle předpony
     klíče trasy, tvar křižovatky, směr kraje mapy); neznámé místo – věta bez konců. **Kraj mapy
-    je soused** (Martin 15. 11. 2026: „ta cesta přece někam vede“): se `seed` vsi „z rozcestí do
-    Lhoty“, „od kovárny do Lhoty“ (`RoadEndForms.from` – „od“, u křižovatky „z“), přes celou mapu
-    „z Lhoty do Kněžic“ (`edgeVillage` – `neighbourOf(seed, direction).name`, `toVillage` – „do
-    Lhoty“, opisem „do vsi X“); neznámé druhé místo jen „do Lhoty“; bez seedu kraj mapy jako místo.
-    Panel cesty: „Cesta do Lhoty“ místo „Kraj mapy – sever“ (`road-end-view.ts`, šipka zůstává).
+    je místo** („mezi rozcestím a severním krajem mapy“) – smyšlený soused už není (markets.md –
+    Pravidla 1; staré zápisy mají jen konce, jména sousedů v nich nebyla). Panel cesty
+    (`road-end-view.ts`, šipka zůstává): „Cesta do Lhoty“ s vlastní vsí na sousední mapě v tom směru
+    (`ownMapsAround`, `toVillage` – „do Lhoty“), jinak „Cesta na sever“.
   - **Křižovatka podle místa** (D66; `ChronicleRoadEnd.near` – `ChronicleLandmark` uložený při
     vzniku zápisu, starší zápisy bez něj): „mezi rozcestím u kovárny a polem“, „mezi křižovatkou
     pod dvorcem a kovárnou“, „z rozcestí nad potokem do Lhoty“, kraj mapy „u hranice

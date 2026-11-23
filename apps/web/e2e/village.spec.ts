@@ -1,12 +1,8 @@
 import { test, expect, type Locator } from '@playwright/test';
 import {
-  buyPrice,
   dateOfDayIndex,
   dayIndexOf,
   cemeteryPartsFromCells,
-  neighbourOf,
-  sellPrice,
-  villageGoodStock,
   clearingFellCost,
   fellDueTrees,
   foundField,
@@ -1110,7 +1106,7 @@ test('seniorát – v cizí vsi rodu stavební lišta zašedne s důvodem, senio
   await expect(first).toBeEnabled({ timeout: 30_000 });
 });
 
-test('ves postaví ve dvorci zemskou stezku a pošle po ní výpravu k sousedovi', async ({ page }) => {
+test('ves postaví ve dvorci zemskou stezku – obchod se sousedy není', async ({ page }) => {
   const { seat: s } = await newPlayer(page, 'obchod');
   const spots = villageSpots(s.landscape);
   await found(page, spots.dwelling);
@@ -1146,7 +1142,7 @@ test('ves postaví ve dvorci zemskou stezku a pošle po ní výpravu k sousedovi
       { timeout: 30_000 },
     )
     .toBe(1);
-  await expect(panel.getByTestId('manor-trade')).toBeDisabled();
+  await expect(panel.getByTestId('manor-trade')).toHaveCount(0);
 
   // Zemská stezka: růžice 8 směrů – první směr, kudy stezka vede
   await panel.getByTestId('manor-trail').click();
@@ -1162,9 +1158,10 @@ test('ves postaví ve dvorci zemskou stezku a pošle po ní výpravu k sousedovi
     .toBe(1);
   await expect(page.locator('[data-testid="village-notice"][data-kind="error"]')).toHaveCount(0);
 
-  // Stezka je dostavěná (jako po letech práce) – obchod se otevře
+  // Stezka je dostavěná (jako po letech práce) – tlačítko Obchod přesto nepřibude
   const built = await villageState(s.settlementId);
   const trail = built.trails![0]!;
+  expect(trail.direction).toBe(direction);
   trail.builtDay = built.lastDay;
   built.constructions = built.constructions.filter((c) => c.trail === undefined);
   for (const road of built.roads?.roads ?? []) {
@@ -1172,29 +1169,9 @@ test('ves postaví ve dvorci zemskou stezku a pošle po ní výpravu k sousedovi
   }
   await writeVillageState(s.settlementId, built);
   await pollVillage(page);
-  await expect(panel.getByTestId('manor-trade')).toBeEnabled({ timeout: 20_000 });
-  await panel.getByTestId('manor-trade').click();
-  await expect(page.getByTestId('trade-panel')).toBeVisible();
-
-  // Výhodná výměna: kus nabízeného zboží za sháněné, které ves má
-  const neighbour = neighbourOf(built.seed, trail.direction);
-  const want = neighbour.offers[0]!;
-  const pay = neighbour.demands.find(
-    (g) => villageGoodStock(built, g) * sellPrice(g) >= buyPrice(want),
-  )!;
-  const amount = Math.ceil(buyPrice(want) / sellPrice(pay));
-  await page.getByTestId(`trade-get-${want}`).locator('input').fill('1');
-  await page.getByTestId(`trade-give-${pay}`).locator('input').fill(String(amount));
-  await expect(page.getByTestId('trade-balance')).toHaveAttribute('data-fair', 'true');
-  await page.getByTestId('trade-send').click();
-  await expect
-    .poll(async () => (await villageState(s.settlementId)).trade?.expeditions.length ?? 0, {
-      timeout: 30_000,
-    })
-    .toBe(1);
-  const sent = await villageState(s.settlementId);
-  expect(sent.trade!.expeditions[0]).toMatchObject({ direction, get: { [want]: 1 } });
-  expect(sent.chronicle.some((e) => e.kind === 'trade-departed')).toBe(true);
+  await expect(panel.getByTestId('manor-trail')).toBeEnabled({ timeout: 20_000 });
+  await expect(panel.getByTestId('manor-trade')).toHaveCount(0);
+  await expect(page.getByTestId('trade-panel')).toHaveCount(0);
 });
 
 test('lidé odejdou na novou mapu – po cestě umístí první zemnici', async ({ page }) => {

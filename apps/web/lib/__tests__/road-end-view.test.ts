@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { neighbourOf, type Road, type VillageState } from '@bohemia/game';
+import { type Road, type VillageState } from '@bohemia/game';
 import { roadEndView } from '../road-end-view';
-import { toVillage } from '../village-name-cases';
 
 // Konce cesty v panelu (paths.md – pravidlo 11, Co hráč vidí; Martin 25. 10. 2026).
 
@@ -88,13 +87,21 @@ describe('roadEndView', () => {
     expect(
       roadEndView(state, roads, junction, { kind: 'place', place: 'water', at: 'at' }).name,
     ).toBe('Křižovatka u potoka');
-    // cesta přes kraj mapy se jmenuje podle souseda, ke kterému vede (Martin 15. 11. 2026)
-    const north = neighbourOf(state.seed, 'N').name;
-    expect(roadEndView(state, roads, { kind: 'edge', direction: 'N' })).toMatchObject({
-      name: `Cesta ${toVillage(north)}`,
+    // cesta přes kraj mapy: s vlastní vsí v tom směru „Cesta do Lhoty“, jinak jen strana světa
+    expect(
+      roadEndView(state, roads, { kind: 'edge', direction: 'N' }, null, { N: 'Lhota' }),
+    ).toMatchObject({
+      name: 'Cesta do Lhoty',
       arrow: '↑',
       target: null,
     });
+    expect(roadEndView(state, roads, { kind: 'edge', direction: 'N' })).toMatchObject({
+      name: 'Cesta na sever',
+      arrow: '↑',
+    });
+    expect(
+      roadEndView(state, roads, { kind: 'edge', direction: 'S' }, null, { N: 'Lhota' }).name,
+    ).toBe('Cesta na jih');
     expect(roadEndView(state, roads, { kind: 'road', roadId: 7 })).toMatchObject({
       target: { kind: 'road', id: 3 },
       alert: true,

@@ -22,10 +22,6 @@ const BUILD_OPTIONS: Partial<Record<BuildItem['kind'], null>> = Object.fromEntri
 /** Akce panelu – chvíli „běží“ a nic neudělají. */
 const wait = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 300));
 
-/** Výprava – server ji odmítne (ukázka chyby v panelu obchodu, trade.md – Rozhraní). */
-const refuse = (): Promise<string> =>
-  new Promise((resolve) => setTimeout(() => resolve('Tolik lidí soused letos nemá.'), 300));
-
 /** Příkaz varování – nic neudělá a ikona zašedne s důvodem (ukázka po odeslání). */
 const alarmRefuse = (): Promise<string> =>
   new Promise((resolve) => setTimeout(() => resolve('Ukázka – nic se nestalo.'), 300));
@@ -127,7 +123,6 @@ export function DevPanelsView({ initial }: { initial: string | null }): ReactEle
         onUpgradeRoad={wait}
         onPlantRoadApples={wait}
         onBuildTrail={wait}
-        onSendExpedition={refuse}
         alarm={
           sample.alarm
             ? { view: sample.alarm, onCommand: alarmRefuse, onReturn: alarmRefuse }

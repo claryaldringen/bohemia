@@ -862,7 +862,6 @@ describe('SelectionPanel – rozvržení', () => {
           stance: 'flee',
           huntDenied: null,
           trailBuilt: false,
-          neighbours: [],
         },
       }),
     );
@@ -888,7 +887,6 @@ describe('SelectionPanel – rozvržení', () => {
           stance: 'flee',
           huntDenied: null,
           trailBuilt: false,
-          neighbours: [],
         },
         leave: { households: [3], people: 4, foodKg: 50, cart: null, directions: [] },
       }),

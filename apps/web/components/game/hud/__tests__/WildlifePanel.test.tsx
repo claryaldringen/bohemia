@@ -86,7 +86,6 @@ describe('lov a psi na dvorci', () => {
       stance: 'flee',
       huntDenied: null,
       trailBuilt: false,
-      neighbours: [],
       hunt,
     };
     expect(manor.hunt?.dogs?.count).toBe(6);

@@ -386,6 +386,7 @@ export * from './trade/trail';
 export { TRAIL_END_BAND_M, trailExitsOf, type TrailExit } from './trade/trail-exits';
 export { landscapeTrailLines } from './trade/premium-route';
 export * from './trade/neighbours';
+export { legacyNeighbourName } from './trade/legacy-neighbours';
 export * from './trade/trade';
 // dobytek v obchodu – příchod a odchod dobytka (`addCattle`, `removeCattle`) jsou kroky obchodu
 export {

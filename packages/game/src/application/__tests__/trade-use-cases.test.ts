@@ -1,22 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../domain/calendar';
-import {
-  TRAIL_BLOCKED,
-  UNFAIR,
-  buyPrice,
-  neighbourOf,
-  sellPrice,
-  tradeSeason,
-  villageGoodStock,
-  type Direction8,
-  type TradeGoods,
-} from '../../domain/village';
+import { TRAIL_BLOCKED, type Direction8 } from '../../domain/village';
 import { LANDSCAPE } from '../../domain/village/__tests__/paths-fixtures';
 import { withBuiltFirstDwelling } from '../../domain/village/__tests__/village-fixtures';
 import { UNKNOWN_DIRECTION, buildTrail } from '../build-trail';
 import { foundVillageForSettlement } from '../found-village';
 import { loadVillage } from '../load-village';
-import { OWN_VILLAGE_TRADE, sendExpedition } from '../send-expedition';
 import { InMemoryVillages } from './in-memory-villages';
 
 // Zemská stezka a obchod (trade.md) – use-casy nad uloženou vsí (repozitář v paměti).
@@ -64,91 +53,6 @@ describe('buildTrail', () => {
     if (!result.ok) return;
     expect(result.village.state.trails).toHaveLength(1);
     expect(result.village.state.constructions.some((c) => c.trail !== undefined)).toBe(true);
-  });
-});
-
-describe('sendExpedition', () => {
-  it('server výměnu ověří znovu – nevýhodnou odmítne, výhodnou pošle', async () => {
-    const { villages, villageId } = await settled();
-    const base = { villageId, landscape: LANDSCAPE, today: TODAY };
-    const built = await buildTrail({ villages }, { ...base, direction: 'S' });
-    if (!built.ok) throw new Error(built.reason);
-    villages.edit(villageId, (state) => {
-      state.trails![0]!.builtDay = TODAY;
-      state.constructions = state.constructions.filter((c) => c.trail === undefined);
-    });
-    const state = (await villages.find(villageId))!.state;
-    const n = neighbourOf(state.seed, 'S');
-    const want = n.offers[0]!;
-    const get = { [want]: 1 } as TradeGoods;
-    expect(await sendExpedition({ villages }, { ...base, direction: 'S', give: {}, get })).toEqual({
-      ok: false,
-      reason: UNFAIR,
-    });
-    const pay = n.demands.find((g) => villageGoodStock(state, g) * sellPrice(g) >= buyPrice(want))!;
-    const give = { [pay]: Math.ceil(buyPrice(want) / sellPrice(pay)) } as TradeGoods;
-    // tím směrem leží vlastní ves – soused bez simulace tam není (migration.md)
-    expect(
-      await sendExpedition(
-        { villages },
-        { ...base, direction: 'S', give, get, ownDirections: ['S'] },
-      ),
-    ).toEqual({ ok: false, reason: OWN_VILLAGE_TRADE });
-    const sent = await sendExpedition({ villages }, { ...base, direction: 'S', give, get });
-    expect(sent.ok).toBe(true);
-    if (!sent.ok) return;
-    expect(sent.village.state.trade!.expeditions).toHaveLength(1);
-  });
-});
-
-describe('sendExpedition s lidmi (trade.md – Výměna lidí)', () => {
-  it('server lidi ocení a pošle – za svobodného dospělého souseda obilí nebo jiné zboží', async () => {
-    const { villages, villageId } = await settled();
-    const base = { villageId, landscape: LANDSCAPE, today: TODAY };
-    const built = await buildTrail({ villages }, { ...base, direction: 'S' });
-    if (!built.ok) throw new Error(built.reason);
-    villages.edit(villageId, (state) => {
-      state.trails![0]!.builtDay = TODAY;
-      state.constructions = state.constructions.filter((c) => c.trail === undefined);
-      const n = neighbourOf(state.seed, 'S');
-      state.trade = {
-        neighbours: [
-          {
-            direction: 'S',
-            season: tradeSeason(TODAY),
-            supply: { ...n.supply },
-            demand: { ...n.demand },
-            people: {
-              families: [],
-              men: 0,
-              women: 1,
-              takes: { families: 0, men: 0, women: 0 },
-            },
-          },
-        ],
-        expeditions: [],
-        nextId: 1,
-      };
-    });
-    const state = (await villages.find(villageId))!.state;
-    const n = neighbourOf(state.seed, 'S');
-    const getPeople = { families: 0, men: 0, women: 1 };
-    expect(
-      await sendExpedition({ villages }, { ...base, direction: 'S', give: {}, get: {}, getPeople }),
-    ).toEqual({ ok: false, reason: UNFAIR });
-    const pay = n.demands.find((g) => villageGoodStock(state, g) * sellPrice(g) >= 360)!;
-    const give = { [pay]: Math.ceil(360 / sellPrice(pay)) } as TradeGoods;
-    const sent = await sendExpedition(
-      { villages },
-      { ...base, direction: 'S', give, get: {}, getPeople },
-    );
-    expect(sent.ok).toBe(true);
-    if (!sent.ok) return;
-    expect(sent.village.state.trade!.expeditions[0]!.getPeople).toEqual({
-      families: [],
-      men: 0,
-      women: 1,
-    });
   });
 });
 

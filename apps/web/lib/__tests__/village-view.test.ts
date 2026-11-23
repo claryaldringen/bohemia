@@ -194,8 +194,8 @@ describe('dvorec – lov už běží (plán 2026-11-22-hunting – Úloha 11)', 
     // léto mimo hájení – bez běžícího lovu jiný důvod (nebo žádný), s ním `already`
     const summer = dayIndexOf({ year: 503, month: 7, day: 10 });
     const s = settled();
-    expect(manorView(s, landscape, summer)!.huntDenied).not.toBe(HUNT_DENIED_TEXT.already);
-    expect(manorView(s, landscape, summer, {}, true)!.huntDenied).toBe(HUNT_DENIED_TEXT.already);
+    expect(manorView(s, summer)!.huntDenied).not.toBe(HUNT_DENIED_TEXT.already);
+    expect(manorView(s, summer, true)!.huntDenied).toBe(HUNT_DENIED_TEXT.already);
     const view = buildVillageView(record(s), landscape, summer, { huntRunning: true });
     expect(view.manor?.huntDenied).toBe(HUNT_DENIED_TEXT.already);
     expect(buildVillageView(record(s), landscape, summer).manor?.huntDenied).not.toBe(

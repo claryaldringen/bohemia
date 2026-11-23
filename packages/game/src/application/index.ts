@@ -60,7 +60,6 @@ export * from './place-church';
 export * from './upgrade-road';
 export * from './build-wagon-road';
 export * from './build-trail';
-export * from './send-expedition';
 export * from './plant-road-apples';
 export * from './rename-village';
 export * from './restart-game';

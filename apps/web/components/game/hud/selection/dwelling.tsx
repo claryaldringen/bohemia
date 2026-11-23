@@ -1,16 +1,14 @@
 /** Panel výběru obydlí, dvorce vojvody a skupiny obydlí. */
 import { type ReactElement } from 'react';
-import { type DefenseStance, Direction8, TradeGoods } from '@bohemia/game';
+import { type DefenseStance, Direction8 } from '@bohemia/game';
 import { VillageTarget } from '@/lib/scene/village-picking';
 import { type SelectionDetails } from '@/lib/selection-details';
-import { PreviewPeople } from '@/lib/trade-quote';
 import type { DwellingResident } from '@/lib/person-view';
 import { Tooltip } from '../Tooltip';
 import { StewardToggle } from '../StewardToggle';
 import { ManorUpgrades } from '../ManorPanel';
 import { AlarmButtons, type AlarmActions } from '../AlarmButtons';
 import type { PrisonerAction } from '../PrisonersPanel';
-import { TradePanel } from '../TradePanel';
 import { LeaveControls } from '../RelocationControls';
 import { Stat, Bar, ROW, Commands, WoodToFell } from './parts';
 import { ManorHunt } from './wildlife';
@@ -48,16 +46,6 @@ export interface ManorActions {
    * ikon pod postojem vsi, jen když ves o vojsku ví nebo má lidi na útěku.
    */
   alarm?: AlarmActions;
-  /**
-   * Vyšle výpravu k sousedovi (server action) – hotovo, až se vrátí; vrátí důvod, proč ji server
-   * odmítl, nebo null (panel obchodu ho ukáže pod tlačítkem).
-   */
-  onSendExpedition?: (
-    direction: Direction8,
-    give: TradeGoods,
-    get: TradeGoods,
-    people: PreviewPeople,
-  ) => Promise<string | null | void>;
 }
 
 /** Popisek dočasně ubytovaných (demolition.md – Obydlí): „Dočasně tu bydlí 3 lidé z opuštěného domu“. */
@@ -75,7 +63,6 @@ export function DwellingBody({
   onDeclareHunt,
   onSetStance,
   onDecidePrisoner,
-  onSendExpedition,
   alarm,
   steward,
   onSetSteward,
@@ -146,12 +133,6 @@ export function DwellingBody({
               onDeclareHunt={onDeclareHunt}
               onSetStance={onSetStance}
               onDecidePrisoner={onDecidePrisoner}
-              trade={() => (
-                <TradePanel
-                  neighbours={details.manor?.neighbours ?? []}
-                  onSend={onSendExpedition}
-                />
-              )}
             />
           )}
           {details.manor && alarm && <AlarmButtons {...alarm} />}

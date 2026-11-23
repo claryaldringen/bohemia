@@ -172,9 +172,8 @@ export function TrailCompass({
 }
 
 /**
- * Vylepšení vsi ve dvorci: tlačítko zemské stezky (otevře růžici směrů) a obchodu (otevře panel
- * obchodu – jen s hotovou stezkou). `trade` – obsah panelu obchodu (TradePanel). Růžice i obchod
- * se otevřou nad panelem výběru (`hud-popup` – panel se nezvětší) a zavře je stisk myši mimo ně.
+ * Vylepšení vsi ve dvorci: tlačítko zemské stezky (otevře růžici směrů), lov a vojsko. Růžice se
+ * otevře nad panelem výběru (`hud-popup` – panel se nezvětší) a zavře ji stisk myši mimo ni.
  */
 export function ManorUpgrades({
   manor,
@@ -182,7 +181,6 @@ export function ManorUpgrades({
   onDeclareHunt,
   onSetStance,
   onDecidePrisoner,
-  trade,
 }: {
   manor: VillageManor;
   onBuildTrail?: (direction: Direction8) => Promise<void>;
@@ -190,9 +188,8 @@ export function ManorUpgrades({
   onSetStance?: (stance: DefenseStance) => Promise<string | null | void>;
   /** Rozhodnutí o zajatci (držet, propustit, popravit); vrací důvod odmítnutí. */
   onDecidePrisoner?: (id: string, action: PrisonerAction) => Promise<string | null | void>;
-  trade?: (close: () => void) => ReactNode;
 }): ReactElement {
-  const [open, setOpen] = useState<'trail' | 'trade' | 'army' | null>(null);
+  const [open, setOpen] = useState<'trail' | 'army' | null>(null);
   const warDenied = useRightDenied('war');
   const villageId = useVillageId();
   const [busy, setBusy] = useState(false);
@@ -204,12 +201,10 @@ export function ManorUpgrades({
     setBusy(true);
     void onBuildTrail(direction).finally(() => setBusy(false));
   };
-  const anyBuilt = manor.trailBuilt;
   // stezky do 8 směrů server spočítá až pro otevřený kompas (panel-options.ts)
   const asked = usePanelOptions(open === 'trail' ? { panel: 'trails' } : null);
   const trails = asked?.panel === 'trails' ? asked.trails : null;
-  const toggle = (what: 'trail' | 'trade' | 'army'): void =>
-    setOpen((o) => (o === what ? null : what));
+  const toggle = (what: 'trail' | 'army'): void => setOpen((o) => (o === what ? null : what));
   return (
     <div ref={rootRef} data-testid="manor-upgrades" className="flex items-center gap-1.5">
       <Tooltip placement="above" content="Zemská stezka">
@@ -262,37 +257,6 @@ export function ManorUpgrades({
             width={40}
             height={40}
             className="h-full w-full object-contain p-1"
-          />
-        </button>
-      </Tooltip>
-      <Tooltip
-        placement="above"
-        content={
-          <span className="flex flex-col gap-0.5">
-            <span>Obchod</span>
-            {!anyBuilt && (
-              <span data-testid="trade-blocked" className="font-semibold text-red-400">
-                Nejdřív je potřeba postavit zemskou stezku.
-              </span>
-            )}
-          </span>
-        }
-      >
-        <button
-          type="button"
-          data-testid="manor-trade"
-          aria-label="Obchod"
-          aria-expanded={open === 'trade'}
-          disabled={!anyBuilt || !trade}
-          onClick={() => toggle('trade')}
-          className={iconButton(false)}
-        >
-          <img
-            src="/icons/build/obchod.png"
-            alt=""
-            width={40}
-            height={40}
-            className="h-full w-full"
           />
         </button>
       </Tooltip>
@@ -361,11 +325,6 @@ export function ManorUpgrades({
       {open === 'trail' && (
         <div className="hud-panel hud-popup p-2" data-hud-block>
           {trails && <TrailCompass trails={trails} busy={busy} onBuild={build} />}
-        </div>
-      )}
-      {open === 'trade' && trade && (
-        <div className="hud-panel hud-popup p-2" data-hud-block>
-          {trade(() => setOpen(null))}
         </div>
       )}
     </div>

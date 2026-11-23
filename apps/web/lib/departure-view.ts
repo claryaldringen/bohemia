@@ -117,7 +117,8 @@ interface PlacedSettlement {
 
 /**
  * Vlastní vsi na sousedních mapách sídla `settlementId` po směrech (jméno první vsi té mapy) –
- * tím směrem se neodchází a neobchoduje (vlastní ves nahradí souseda bez simulace – migration.md).
+ * tím směrem se neodchází (vlastní ves nahradí souseda bez simulace – migration.md) a konec cesty na kraji mapy
+ * ji jmenuje.
  */
 export function ownMapsAround(
   settlements: readonly PlacedSettlement[],
@@ -143,7 +144,7 @@ export function ownMapsAround(
   return around;
 }
 
-/** Tím směrem leží vlastní ves – odejít ani obchodovat tam zatím nejde. */
+/** Tím směrem leží vlastní ves – odejít tam zatím nejde. */
 export function ownVillageThere(name: string): string {
   return `Tím směrem leží tvoje ves ${name}.`;
 }

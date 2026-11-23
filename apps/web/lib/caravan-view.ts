@@ -10,7 +10,7 @@ import {
   isCattleGood,
   isLivestockGood,
   ironTripLine,
-  neighbourOf,
+  legacyNeighbourName,
   purchaseRoute,
   newcomerProfiles,
   purchaseLine,
@@ -107,7 +107,7 @@ function tradeCaravans(state: VillageState): SceneExpedition[] {
       onMap: tripDays > 0 ? Math.max(0.2, (tripDays - TRADE.beyondEdgeDays) / tripDays) : 1,
       ...(shipment
         ? {}
-        : { trip: { kind: 'trade', to: neighbourOf(state.seed, e.direction).name } }),
+        : { trip: { kind: 'trade', to: legacyNeighbourName(state.seed, e.direction) } }),
     };
   });
 }
@@ -140,7 +140,7 @@ function purchaseCaravan(state: VillageState, p: CraftPurchase): SceneExpedition
     day: state.lastDay,
     startDay: p.startedDay + round * trip,
     onMap: Math.max(0.2, (trip - TRADE.beyondEdgeDays) / trip),
-    trip: { kind: 'purchase', to: neighbourOf(state.seed, p.direction).name },
+    trip: { kind: 'purchase', to: legacyNeighbourName(state.seed, p.direction) },
   };
 }
 

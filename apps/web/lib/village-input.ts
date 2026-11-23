@@ -7,7 +7,6 @@ import {
   DIRECTIONS,
   PEN_SPECIES,
   PLOT_VARIANTS,
-  TRADE_GOOD_VALUES,
   type Craft,
   type ChurchDims,
   type ChurchType,
@@ -20,9 +19,6 @@ import {
   type FortKind,
   type WallKind,
   type FortTop,
-  type TradeGood,
-  type TradeGoods,
-  type TradePeople,
   type DwellingPlot,
   type LeaveDestination,
   type PenSpecies,
@@ -376,9 +372,6 @@ export function parseUpgradeRoadInput(
   return { roadId: roadId as number, upgrade };
 }
 
-/** Nejvíc zboží jednoho druhu, které server v nabídce obchodu vůbec přijme. */
-const MAX_RAW_TRADE_AMOUNT = 1_000_000;
-
 /** Směr stezky (trade.md – 8 směrů), jinak null. */
 export function parseDirection(value: unknown): Direction8 | null {
   return DIRECTIONS.find((d) => d === value) ?? null;
@@ -389,68 +382,6 @@ export function parseBuildTrailInput(value: unknown): { direction: Direction8 } 
   if (!isRecord(value)) return null;
   const direction = parseDirection(value.direction);
   return direction ? { direction } : null;
-}
-
-/** Zboží `{ druh: množství }` – známé druhy, celá nezáporná čísla, jinak null. */
-export function parseTradeGoods(value: unknown): TradeGoods | null {
-  if (!isRecord(value)) return null;
-  const goods: TradeGoods = {};
-  for (const [key, amount] of Object.entries(value)) {
-    if (!(key in TRADE_GOOD_VALUES)) return null;
-    if (!Number.isInteger(amount) || (amount as number) < 0) return null;
-    if ((amount as number) > MAX_RAW_TRADE_AMOUNT) return null;
-    if ((amount as number) > 0) goods[key as TradeGood] = amount as number;
-  }
-  return goods;
-}
-
-/** Nejvíc rodin či dospělých jednoho druhu, které server ve výměně lidí vůbec přijme. */
-const MAX_RAW_TRADE_PEOPLE = 100;
-
-/**
- * Lidé ve výměně `{ families, men, women }` (trade.md – Výměna lidí – muži a ženy zvlášť) – celá
- * nezáporná čísla, chybějící druh 0; chybí celé = nikdo (undefined), jinak null.
- */
-export function parseTradePeople(value: unknown): TradePeople | undefined | null {
-  if (value === undefined) return undefined;
-  if (!isRecord(value)) return null;
-  const count = (n: unknown): number | null =>
-    n === undefined
-      ? 0
-      : Number.isInteger(n) && (n as number) >= 0 && (n as number) <= MAX_RAW_TRADE_PEOPLE
-        ? (n as number)
-        : null;
-  const families = count(value.families);
-  const men = count(value.men);
-  const women = count(value.women);
-  return families === null || men === null || women === null ? null : { families, men, women };
-}
-
-/**
- * Vstup výpravy k sousedovi `{ direction, give, get, givePeople?, getPeople? }` (trade.md –
- * Obchod, Výměna lidí), jinak null.
- */
-export function parseSendExpeditionInput(value: unknown): {
-  direction: Direction8;
-  give: TradeGoods;
-  get: TradeGoods;
-  givePeople?: TradePeople;
-  getPeople?: TradePeople;
-} | null {
-  if (!isRecord(value)) return null;
-  const direction = parseDirection(value.direction);
-  const give = parseTradeGoods(value.give);
-  const get = parseTradeGoods(value.get);
-  const givePeople = parseTradePeople(value.givePeople);
-  const getPeople = parseTradePeople(value.getPeople);
-  if (!direction || !give || !get || givePeople === null || getPeople === null) return null;
-  return {
-    direction,
-    give,
-    get,
-    ...(givePeople ? { givePeople } : {}),
-    ...(getPeople ? { getPeople } : {}),
-  };
 }
 
 /** Vstup výsadby jabloní podél pevné cesty `{ roadId }` (roads.md), jinak null. */

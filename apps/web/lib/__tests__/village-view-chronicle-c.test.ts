@@ -1,10 +1,9 @@
 // Kronika – dávka C (Martin 15. 11. 2026): obnova sadu jedním zápisem, cesty k sousedům, úmrtí
 // a návraty z tažení kronikářsky.
 import { describe, expect, it } from 'vitest';
-import { neighbourOf, type ChronicleEvent, type ChronicleRoadEnd } from '@bohemia/game';
+import { legacyNeighbourName, type ChronicleEvent, type ChronicleRoadEnd } from '@bohemia/game';
 import { chroniclePage } from '../chronicle-view';
 import { chronicleText, orchardRenewalText, roadBetween } from '../village-view-chronicle';
-import { fromVillage, toVillage } from '../village-name-cases';
 
 const DAY = 100;
 const SEED = 7;
@@ -233,26 +232,51 @@ describe('kronika – sad a cesty k sousedům', () => {
     ]);
   });
 
-  it('kraj mapy – cesta vede do sousední vsi', () => {
+  it('kraj mapy – cesta vede k okraji mapy, smyšlený soused už není', () => {
     const junction: ChronicleRoadEnd = { kind: 'junction', shape: 'y' };
     const south: ChronicleRoadEnd = { kind: 'edge', direction: 'S' };
     const north: ChronicleRoadEnd = { kind: 'edge', direction: 'N' };
-    const to = toVillage(neighbourOf(SEED, 'S').name);
-    expect(roadBetween([south, junction], SEED)).toBe(`z rozcestí ${to}`);
-    expect(
-      roadBetween([{ kind: 'dwelling', type: 'polozemnice', craft: 'smith' }, south], SEED),
-    ).toBe(`od kovárny ${to}`);
-    expect(roadBetween([north, south], SEED)).toBe(
-      `${fromVillage(neighbourOf(SEED, 'N').name)} ${to}`,
-    );
+    expect(roadBetween([junction, south])).toBe('mezi rozcestím a jižním krajem mapy');
+    expect(roadBetween([north, south])).toBe('mezi severním krajem mapy a jižním krajem mapy');
     expect(
       chronicleText(
         { day: DAY, kind: 'road-formed', roadId: 1, years: 12, ends: [junction, south] },
         'Ves',
         SEED,
       ),
-    ).toBe(`Po 12 letech chůze lidé vyšlapali cestu z rozcestí ${to}.`);
-    // bez seedu vsi kraj mapy jako místo
-    expect(roadBetween([junction, south])).toBe('mezi rozcestím a jižním krajem mapy');
+    ).toBe('Po 12 letech chůze lidé vyšlapali cestu mezi rozcestím a jižním krajem mapy.');
+  });
+
+  it('staré zápisy o sousedech zůstávají se jménem dřívějšího souseda; stezka už obchod neslibuje', () => {
+    const name = (d: 'N' | 'NE'): string => legacyNeighbourName(SEED, d);
+    expect(
+      chronicleText(
+        { day: DAY, kind: 'horses-shod', horses: 2, own: false, direction: 'N' },
+        'Ves',
+        SEED,
+      ),
+    ).toMatch(/^Kovář (z|ze) .+ okul koně\.$/);
+    expect(
+      chronicleText(
+        {
+          day: DAY,
+          kind: 'crafts-bought',
+          direction: 'NE',
+          get: { toolsKg: 9 },
+          pay: { grainKg: 100 },
+        },
+        'Libice',
+        SEED,
+      ),
+    ).toContain(name('NE').slice(0, 3));
+    expect(
+      chronicleText({ day: DAY, kind: 'trade-returned', direction: 'N', get: { grain: 5 } }, 'X'),
+    ).toBe('Nosiči se vrátili ze severu – přinesli 5 kg obilí.');
+    expect(
+      chronicleText({ day: DAY, kind: 'bride-from-outside', dwellingId: 1 }, 'X', SEED),
+    ).toBeTypeOf('string');
+    expect(
+      chronicleText({ day: DAY, kind: 'trail-built', trailId: 1, direction: 'N' }, 'X', SEED),
+    ).toBe('Zemská stezka na sever je dostavěná.');
   });
 });

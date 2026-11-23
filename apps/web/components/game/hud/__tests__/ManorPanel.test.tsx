@@ -82,35 +82,21 @@ describe('růžice zemských stezek', () => {
 });
 
 describe('vylepšení vsi ve dvorci', () => {
-  it('stezka a obchod; obchod bez hotové stezky zašedlý s důvodem', () => {
+  it('stezka, lov a vojsko; tlačítko Obchod není (markets.md – Pravidla 1)', () => {
     const html = renderToStaticMarkup(
       <ManorUpgrades
         manor={{
           dwellingId: 1,
           stance: 'flee',
           huntDenied: null,
-          trailBuilt: false,
-          neighbours: [],
+          trailBuilt: true,
         }}
-        trade={() => null}
       />,
     );
     expect(html).toContain('data-testid="manor-trail"');
-    expect(button(html, 'manor-trade')).toContain('disabled=""');
-    expect(html).toContain('Nejdřív je potřeba postavit zemskou stezku.');
-    const built = renderToStaticMarkup(
-      <ManorUpgrades
-        manor={{
-          dwellingId: 1,
-          stance: 'flee',
-          huntDenied: null,
-          trailBuilt: trails.some((t) => t.status === 'built'),
-          neighbours: [],
-        }}
-        trade={() => null}
-      />,
-    );
-    expect(button(built, 'manor-trade')).not.toContain('disabled=""');
+    expect(html).toContain('data-testid="manor-hunt"');
+    expect(html).not.toContain('manor-trade');
+    expect(html).not.toContain('trade-blocked');
   });
 });
 
@@ -118,7 +104,7 @@ describe('tlačítko lovu ve dvorci', () => {
   const huntButton = (huntDenied: string | null): string =>
     renderToStaticMarkup(
       <ManorUpgrades
-        manor={{ dwellingId: 1, stance: 'flee', huntDenied, trailBuilt: false, neighbours: [] }}
+        manor={{ dwellingId: 1, stance: 'flee', huntDenied, trailBuilt: false }}
         onDeclareHunt={async () => null}
       />,
     );
