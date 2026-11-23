@@ -9,7 +9,7 @@ import { HUNT } from '../village/rules/rules-wildlife';
 import type { Horse, Person, VillageState } from '../village/types';
 import type { JourneyRecruit } from './journey-types';
 import type { Pos } from './march-grid';
-import { JOURNEY, WAR } from './rules-war';
+import { JOURNEY } from './rules-war';
 import { bowSkillOf, lineManStrength, villagerStrength } from './strength';
 
 // Lidé ze vsi na výpravu (expeditions.md – Kdo smí jít; plán 2026-11-14 – Rozhodnutí 8, Úloha 5):
@@ -62,7 +62,8 @@ export function huntRecruit(
  * Data člověka na výpravu bez ověření, smí-li jít (`expeditionRecruit`): vojvoda (`currentLord`), boj `arms.combat` (proti šelmám – kdo bránit
  * neumí, má vyšší riziko), jméno, žena, den narození a síla do meče (Rozhodnutí 8; war.md – Síla:
  * bojují muži od 16 let): muž rodu `lineManStrength` pěšky, na svém jezdeckém koni
- * `strengthMounted`; vesničan `villagerStrength` podle štěstí vsi (jako nábor); ženy a mladší 0.
+ * `strengthMounted`; vesničan `villagerStrength` podle štěstí vsi (jako nábor) taky od `HUNT.minAge` let – sílu čte jen lov,
+ * vojsko bere lidi přes `muster.ts` s `WAR.army.minAge`; ženy a mladší 0.
  * Muž rodu má sílu už od `HUNT.minAge` let jako obránce (`defenderRoster` – muži rodu od 14 let;
  * plán 2026-11-22-hunting – Úloha 8: útočník 14–15 let by jinak na lovu nic nezabil).
  * Jezdec (`horseId`) – kdo má v ohradě jezdeckého koně se svým `riderId` (`ridingHorseOf`). Pro lov
@@ -80,7 +81,7 @@ export function recruitOf(
   const line = age >= HUNT.minAge && isLineMan(person);
   let strength = 0;
   if (line) strength = lineManStrength(person, null);
-  else if (age >= WAR.army.minAge && person.sex === 'male') {
+  else if (age >= HUNT.minAge && person.sex === 'male') {
     strength = villagerStrength(false, villageHappiness(state));
   }
   return {

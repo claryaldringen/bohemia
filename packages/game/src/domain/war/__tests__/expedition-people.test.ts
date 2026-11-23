@@ -110,7 +110,7 @@ describe('huntRecruit a dovednosti rekruta (plán 2026-11-22-hunting – Úloha 
     expect(typeof huntRecruit(s, person(s, 22), START)).toBe('object');
   });
 
-  it('síla útočníka 14 let: muž rodu jako obránce (i na svém koni), vesničan dál 0', () => {
+  it('síla útočníka 14 let: muž rodu jako obránce (i na svém koni), vesničan taky silou vesničana', () => {
     const s = lhota();
     const fourteen = START - Math.ceil(14 * YEAR) - 10;
     const boy = person(s, 14);
@@ -122,10 +122,11 @@ describe('huntRecruit a dovednosti rekruta (plán 2026-11-22-hunting – Úloha 
     expect(line.strength).toBe(lineManStrength(boy, null));
     expect(line.strength).toBeGreaterThan(0);
     expect(line.strengthMounted).toBe(lineManStrength(boy, horse1));
-    // vesničan 14 let jde, ale do meče ho bere až `WAR.army.minAge` (ostatní beze změny)
+    // vesničan 14 let má sílu vesničana jako u správce (do meče ho vojsko bere až od `WAR.army.minAge`)
     person(s, 22).bornDay = fourteen;
     const villager = huntRecruit(s, person(s, 22), START) as JourneyRecruit;
-    expect(villager.strength).toBe(0);
+    expect(villager.strength).toBeCloseTo(villagerStrength(false, villageHappiness(s)));
+    expect(villager.strength).toBeGreaterThan(0);
     expect(villager.strengthMounted).toBeUndefined();
   });
 

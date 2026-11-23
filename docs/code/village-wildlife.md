@@ -199,11 +199,13 @@ Návrh: [hunting.md](../design/hunting.md) – Pravidla 2, 3, 5–7, 11; stavba 
   **Lovci:** `npcHunters(state, day, quarry)` – muži od `HUNT.minAge`, ne `isAway`, ne
   `isInjured`; jezdec, kdo má pár (`assignRiders` na kopii ohrad s `trainingFamily` ??
   `lordFamily` – jako výcvik dne) s jezdeckým koněm a ves není `isUnshod`; muž rodu síla
-  `lineManStrength` (s koněm / bez) a dovednosti z `arms`, vesničan `villagerStrength` podle štěstí
-  a nuly; zdraví 100; na kance a bachyni jen nad branou umu (`aboveGate` z `hunt-fight.ts` –
+  `lineManStrength` (s koněm / bez), vesničan `villagerStrength` podle štěstí (jako `recruitOf` u
+  hráče), oba dovednosti z `arms`; zdraví 100; na kance a bachyni jen nad branou umu (`aboveGate` z `hunt-fight.ts` –
   z koně, jinak pěšky, jinak nejde); pořadí boj + (jezdec ? jízda : 0) sestupně, pak id; prvních
   `HUNT.npc.hunters` (2). Poslední muž rodu nemá ochranu. Ves bez správce velkou zvěř neloví
-  (Pravidla 9 – `needSteps` volá jen den správce). Testy `__tests__/npc-hunt.test.ts`.
+  (Pravidla 9 – `needSteps` volá jen den správce). **Jeden lov ve vsi za den:** `huntWanted` bere
+  jako běžící i lov hráče (`huntOnDay(state, den honců)` v `hunt.ts` – `hunt.beaters.day` nebo
+  `hunt.npc.day`); opačný směr (hráč při lovu správce) hlídá use-case přes `huntDenied`. Testy `__tests__/npc-hunt.test.ts`.
 
 - **Výjezd vojvody (Úloha 13)** – zvěř ohrozí člověka na výjezdu: čísly `PREDATOR_RISK` (čísla
   bývalého lovu beze změny, vlci čísly prasat) losuje `predatorDay` pro osamělého vojvodu nebo dvojici v hustém

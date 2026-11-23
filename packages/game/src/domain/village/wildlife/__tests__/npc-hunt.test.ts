@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { npcHuntDay, npcHunters } from '../npc-hunt';
-import { emptyHunt } from '../hunt';
+import { emptyHunt, huntOnDay } from '../hunt';
 import { freshWildlife } from '../wildlife';
 import { cloneState } from '../../core/clone';
 import { advanceVillage } from '../../core/simulate';
@@ -13,6 +13,7 @@ import { huntWanted, needSteps } from '../../steward/steward-needs';
 import type { ArmsSkills, VillageState, WildlifeState } from '../../types';
 import { at, horse, horseVillage, LORD_ID, SON_ID, YOUTH_ID } from '../../__tests__/horse-fixtures';
 import { LANDSCAPE } from '../../__tests__/paths-fixtures';
+import { recruitOf } from '../../../war/expedition-people';
 
 // Lov správce bez scény (hunting.md – Pravidla 8, 9; plán 2026-11-22-hunting – Rozhodnutí 8,
 // Úloha 8): správce vyhlásí lov na zítřek, když zvěř škodí na polích, a zítra ho ves dopočte
@@ -181,6 +182,40 @@ describe('lovci správce (`npcHunters`)', () => {
     expect(npcHunters(foot, DAY, 'stag')).toHaveLength(2);
     foot.people.find((p) => p.id === SON_ID)!.arms = { bow: 0, combat: 59, riding: 50 };
     expect(npcHunters(foot, DAY, 'boar').map((h) => h.personId)).toEqual([LORD_ID]);
+  });
+});
+
+describe('lov hráče a správce stejně (opravné kolo 1)', () => {
+  it('vesničan 14 let má u hráče i správce stejnou sílu', () => {
+    const s = village({ deer: { stags: 5, hinds: 0, calves: 0 } });
+    s.people.find((p) => p.id === SON_ID)!.injuredUntilDay = DAY + 5;
+    s.people.find((p) => p.id === LORD_ID)!.away = { kind: 'labor', untilDay: DAY + 5 };
+    const boy = s.people.find((p) => p.id === VILLAGERS[0])!;
+    boy.bornDay = DAY - Math.ceil(14 * 365.25);
+    const hunter = npcHunters(s, DAY, 'stag').find((h) => h.personId === boy.id)!;
+    expect(hunter.strength).toBeGreaterThan(0);
+    expect(recruitOf(s, boy, DAY).strength).toBe(hunter.strength);
+  });
+
+  it('vesničan s arms.combat nad branou prasete jde u správce na kance', () => {
+    const s = village({ boar: { adults: 6, piglets: 0 } }, { bow: 0, combat: 0, riding: 0 });
+    for (const id of [LORD_ID, SON_ID])
+      s.people.find((p) => p.id === id)!.away = { kind: 'labor', untilDay: DAY + 5 };
+    expect(npcHunters(s, DAY, 'boar')).toEqual([]);
+    const man = s.people.find((p) => p.id === VILLAGERS[0])!;
+    man.arms = { bow: 0, combat: HUNT_FIGHT.boarGate.foot.combat, riding: 0 };
+    const hunters = npcHunters(s, DAY, 'boar');
+    expect(hunters.map((h) => h.personId)).toEqual([man.id]);
+    expect(hunters[0]!.skills.combat).toBe(man.arms.combat);
+  });
+
+  it('hráč vyhlásil lov na zítřek → správce týž den lov nevyhlásí', () => {
+    const s = damaged(1_000_000);
+    expect(huntWanted(s, DAY, 0)).toBe(true);
+    s.wildlife!.hunt = { ...emptyHunt(), beaters: { day: DAY + 1, men: HUNT.beaters.men } };
+    expect(huntOnDay(s, DAY + 1)).toBe(true);
+    expect(huntOnDay(s, DAY + 2)).toBe(false);
+    expect(huntWanted(s, DAY, 0)).toBe(false);
   });
 });
 

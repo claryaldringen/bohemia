@@ -49,6 +49,16 @@ export const HUNT_DENIED_TEXT: Record<HuntDenied, string> = {
 };
 
 /**
+ * Je ve vsi na den honců `day` už vyhlášený lov (hráčův i správcův)? Honci (`hunt.beaters.day`)
+ * i den lovu správce (`hunt.npc.day`) – jeden lov ve vsi za den; použije volající jako `running`
+ * v `huntDenied`.
+ */
+export function huntOnDay(state: VillageState, day: number): boolean {
+  const hunt = state.wildlife?.hunt;
+  return hunt?.beaters?.day === day || hunt?.npc?.day === day;
+}
+
+/**
  * Smí ves vyhlásit lov s honci na den `day` (hunting.md – Pravidla 2, 11)? `day` je den honců –
  * zítřek dne vyhlášení: sezóna i ostatní důvody se posuzují na něj (31. 5. s honci 1. 6. lze,
  * 28. 2. s honci 1. 3. ne). Vrací null, nebo důvod v pořadí: hájení (`HUNT.closedMonths`) → lov vsi

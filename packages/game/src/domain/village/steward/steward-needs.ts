@@ -1,6 +1,6 @@
 import { dateOfDayIndex } from '../../calendar';
 import type { Landscape } from '../../landscape';
-import { huntDenied } from '../wildlife/hunt';
+import { huntDenied, huntOnDay } from '../wildlife/hunt';
 import { declareNpcHunt } from '../wildlife/npc-hunt';
 import { neighbourOf, neighbourStock } from '../trade/neighbours';
 import { ageGroup } from '../people/people';
@@ -74,8 +74,7 @@ export function huntWanted(state: VillageState, day: number, needKg: number): bo
   if (summerHuntsOf(state, day) >= STEWARD.huntsPerSummer) return false;
   const kg = Math.max(damage.totalKg, damage.lastYearKg ?? 0);
   if (kg <= EPSILON || kg < STEWARD.huntDamageShare * needKg) return false;
-  const running = state.wildlife?.hunt?.npc?.day === day + 1;
-  return huntDenied(state, day + 1, running) === null;
+  return huntDenied(state, day + 1, huntOnDay(state, day + 1)) === null;
 }
 
 /** Kolik lovů správce letos v létě vyhlásil (`steward.summerHunts`). */

@@ -100,7 +100,7 @@ function hunterOf(
   quarry: QuarryKind,
 ): NpcHunter | null {
   const line = isLineMan(p);
-  const skills = line ? armsSkills(p) : { ...NO_SKILLS };
+  const skills = armsSkills(p);
   const footStrength = line ? lineManStrength(p, null) : villager;
   const base = { personId: p.id, pos: { ...HUNTERS_AT }, footStrength, skills, lineMan: line };
   const onFoot: NpcHunter = {
