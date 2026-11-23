@@ -262,8 +262,9 @@ async function viewOf(
   if (!current) return { error: NO_VILLAGE };
   const from = status.settlements.find((s) => s.id === current.settlementId);
   // pokračování zemských stezek sousedních vsí na mapě této vsi (trade.md) – bez polohy v mřížce
-  // žádné; do pohledu jde jako osy, scéna z nich kreslí hotovou cestu s průsekem
-  const mapCell = from?.worldCell ?? (from?.isSeat ? SEAT_CELL : null);
+  // světa žádné (odříznuté sídlo v místní mřížce nemá sousedy ve světě – jako mapa lovu,
+  // `villageMapOf`); do pohledu jde jako osy, scéna z nich kreslí hotovou cestu s průsekem
+  const mapCell = from?.worldCell ?? (from?.isSeat && !from.localCell ? SEAT_CELL : null);
   const trailContinuations = mapCell
     ? await mapTrailContinuations(
         { cells: campaignCells(), villages: gameDeps().villages },

@@ -3,6 +3,7 @@ import type { ReactElement } from 'react';
 import { ServerEventsProvider } from '@/components/game/ServerEventsProvider';
 import { VillageGame } from '@/components/game/VillageGame';
 import { gameEntryForPlayer, languageChoiceForPlayer, playerToday } from '@/lib/game';
+import { homeCellOf } from '@/lib/journey-view';
 import { encodeLandscape } from '@/lib/landscape-transfer';
 import { getSession } from '@/lib/session';
 import { villageViewForEntry } from '@/lib/village';
@@ -35,11 +36,8 @@ export default async function GamePage(): Promise<ReactElement> {
           devMode={session.user.devMode === true}
           email={session.user.email}
           languageChoice={languageChoice}
-          homeCell={
-            entry.settlement.worldCell
-              ? { x: entry.settlement.worldCell.x, y: entry.settlement.worldCell.y }
-              : null
-          }
+          // ves v odříznuté krajině – místní políčko (lov ve výpravě místní mřížky rodu)
+          homeCell={homeCellOf(entry.settlement)}
           initialNowMs={Date.now()}
         />
       </ServerEventsProvider>
