@@ -534,7 +534,7 @@ Další testy:
   - `finishExpeditions` – `'market'` přeskočí.
 - Modify: `core/simulate-work.ts` (předat `day`), `core/inbox.ts` (tělo `market-result` → `applyMarketResult`), `core/simulate.ts` (`marketTripsDay(next, day)` hned za `returnHome`), `index.ts`, `apps/web/lib/village-view-chronicle.ts` (texty níž) + test
 - Modify: `docs/code/village-trade.md` (oddíl „Výprava na trh“, karavana – druh `'market'`), `docs/code/village-core.md` (Pořadí práce dne)
-- Test: `trade/__tests__/market-trip.test.ts`, `trade/__tests__/market-two-villages.test.ts`, `trade/__tests__/expedition-trips.test.ts` (zásilky beze změny), zlaté otisky (beze změny)
+- Test: `trade/__tests__/market-trip.test.ts`, `trade/__tests__/market-two-villages.test.ts`, `domain/vassalage/__tests__/shipment.test.ts` (zásilky beze změny; `expedition-trips.test.ts` smazala Úloha 6 plánu 1 s `expeditionTransport`), zlaté otisky (beze změny)
 
 **Interfaces:**
 
