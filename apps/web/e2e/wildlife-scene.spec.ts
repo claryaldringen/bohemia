@@ -1,7 +1,7 @@
 import { mkdirSync } from 'node:fs';
 import { test, expect, type Page } from '@playwright/test';
 
-// Divoká zvěř, lovci, psi, rybáři a děti s řehtačkou ve scéně (wildlife.md – Ve scéně) na
+// Divoká zvěř, psi, rybáři a děti s řehtačkou ve scéně (wildlife.md – Ve scéně) na
 // vývojové ukázce vsi (/dev/landscape). Ukázka v produkčním buildu e2e testů není (404), test
 // proto běží jen s `WILDLIFE_DEV_URL` (adresa vývojového serveru, např. http://localhost:3014),
 // jinak se přeskočí. `WILDLIFE_SHOTS=<složka>` uloží malé snímky (výřez 800 × 500).
@@ -72,7 +72,7 @@ async function shot(page: Page, name: string, at: Spot | null, radius = 30): Pro
 }
 
 for (const renderer of ['webgl', 'webgpu'] as const) {
-  test(`zvěř, lovci, psi a rybáři ve scéně ukázky (${renderer})`, async ({ page }) => {
+  test(`zvěř, psi a rybáři ve scéně ukázky (${renderer})`, async ({ page }) => {
     if (SHOTS_DIR) mkdirSync(SHOTS_DIR, { recursive: true });
     const errors: string[] = [];
     page.on('pageerror', (e) => errors.push(e.message));
@@ -109,7 +109,7 @@ for (const renderer of ['webgl', 'webgpu'] as const) {
     );
     await setHour(page, 2);
 
-    // zvěř, lov, psi, hlídka a rybáři dne – jako je posílá server (SceneWildlife)
+    // zvěř, psi, hlídka a rybáři dne – jako je posílá server (SceneWildlife)
     const focus = await page.evaluate(() => {
       const scene = (window as unknown as DevWindow).__bohemiaDev!.scene;
       const v = scene.villageState!;
@@ -154,8 +154,6 @@ for (const renderer of ['webgl', 'webgpu'] as const) {
         ...v,
         labor: {
           ...v.labor,
-          // pěší lovec nemá koně – v objížďce jezdců by místo lovu cvičil
-          lord: { ...lord, riders: lord.riders.slice(1) },
           persons: [...persons, ...extra],
           shares: pool ? [...shares, fish] : shares,
         },
@@ -175,12 +173,6 @@ for (const renderer of ['webgl', 'webgpu'] as const) {
           topPartId: parts[0]?.id,
           crowFlocks: 2,
           fishShare: 0.8,
-          hunt: {
-            target: 'game',
-            riders: lord.riders.slice(1),
-            foot: lord.riders.slice(0, 1).map((r) => r.id),
-            kills: 1,
-          },
           dogs: 5,
           watchParts: parts.slice(1, 3).map((p) => p.id),
           ...(pool ? { pools: [pool] } : {}),

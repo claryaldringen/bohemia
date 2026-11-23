@@ -311,7 +311,6 @@ describe('vojvodova rodina – co právě dělá', () => {
     expect(lord('hitch')).toBe('jde ke koni');
     expect(lord('wait')).toBe('čeká u koně');
     expect(lord('ride')).toBe('jede na koni');
-    expect(lord('hunt')).toBe('je na lovu');
     expect(lord('visit')).toBe('jde za manželkou');
     expect(lord('visit', true)).toBe('je u manželky');
     expect(lord(null, true)).toBe('doma');

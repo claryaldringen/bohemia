@@ -293,10 +293,9 @@ export type VillagerStage =
   // výcvik vojvodovy rodiny (lord.md): střílí z luku, bojuje
   | 'bow'
   | 'combat'
-  // den rodiny (lord-day.ts): ke koni, na koni, na lovu, cesta k vedlejší manželce a u ní
+  // den rodiny (lord-day.ts): ke koni, na koni, cesta k vedlejší manželce a u ní
   | 'hitch'
   | 'ride'
-  | 'hunt'
   | 'visit'
   // žena u dveří (villagers.md – Fáze činností, Žena): přede, vaří, tká, hlídá malé děti
   | 'spin'

@@ -619,7 +619,7 @@ nejbližší, bod osy u nejhlubšího místa se směrem toku a šířkou vody; b
 na `waterHa`, bod osy potoka nejblíž vsi – `streamSpot`; bez potoka nic). Nová pole zvěř
 nepřeplánují (`wildlifeKey` bere jen pole W10).
 
-- **Lov:** starý kalendářní lov (přehrávka `hunt.today` – jezdci i pěší lovci, `huntPlans`) ze scény zmizel; nový lov ve scéně: plán 2026-11-22-hunting, Úloha 10. Do té doby rodina jede jen objížďku (`ridePlans`).
+- **Lov:** starý kalendářní lov (přehrávka `hunt.today` – jezdci i pěší lovci) ze scény zmizel; nový lov jde s výpravou vsi – Lov ve scéně níž. Rodina jede jen objížďku (`ridePlans`).
 - **Psi** (`dogs.ts`, kreslí `VillageLivestock.setDogs` – druh `dog` z `dog.glb`, velikost 1,1):
   na kruhu 4,5 m kolem kůlu u brány chodí po oblouku sem a tam (46 s) a na krajích čichají
   (morph `lie` – hlava u země); v bloku vůdce běží vedle něj (2,2 m před, 1,5 m stranou, krok podle

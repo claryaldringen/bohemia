@@ -189,8 +189,8 @@ const DOOR_CHORE_TEXTS: Partial<Record<VillagerStage, string>> = {
 };
 
 /**
- * Muž rodiny podle úseku dne rodiny (lord-day.ts – `traineePose`, riders.ts, lov): cvičí, jde
- * mezi místy, stojí u dvorce, u koně, na koni, na lovu, cestou k vedlejší manželce.
+ * Muž rodiny podle úseku dne rodiny (lord-day.ts – `traineePose`, riders.ts): cvičí, jde
+ * mezi místy, stojí u dvorce, u koně, na koni, cestou k vedlejší manželce.
  */
 const LORD_TEXTS: Partial<Record<VillagerStage, string>> = {
   bow: 'cvičí lukostřelbu',
@@ -201,7 +201,6 @@ const LORD_TEXTS: Partial<Record<VillagerStage, string>> = {
   hitch: 'jde ke koni',
   wait: 'čeká u koně',
   ride: 'jede na koni',
-  hunt: 'je na lovu',
   visit: 'jde za manželkou',
 };
 

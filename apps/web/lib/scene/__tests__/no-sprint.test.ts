@@ -1,6 +1,6 @@
 // Lidé ve scéně nesprintují (villagers.md – Činnosti od začátku do konce; Martin 1. 11. 2026:
-// „Občas ve hře vidím nějakého vesničana, jak brutálně sprintuje“): kování, lov rodu, karavany
-// a svoz úrody jdou přirozenou chůzí – rychlost nejvýš ≈ 1,3× chůze a klip chůze nejvýš ≈ 1,3× –
+// „Občas ve hře vidím nějakého vesničana, jak brutálně sprintuje“): kování, trasa k lesu
+// (`huntRoute`), karavany, výcviková jízda a svoz úrody jdou přirozenou chůzí – rychlost nejvýš ≈ 1,3× chůze a klip chůze nejvýš ≈ 1,3× –
 // ve skutečném čase přes tolik herních dní, kolik trvají.
 import { describe, expect, it } from 'vitest';
 import type { SceneExpedition, SceneLord, SceneVillage } from '../../village-view';
@@ -20,7 +20,7 @@ const window = (day: number): { startMs: number; endMs: number } => ({
 });
 const LENGTHS = [100, 300, 600, 1000];
 const BRISK = 1.3;
-/** Půlka deseti minut lovu (s) – tam nebo zpět. */
+/** Půlka desetiminutového bloku trasy k lesu (s) – tam nebo zpět. */
 const HUNT_HALF_S = 300;
 
 describe('lidé ve scéně nesprintují', () => {
@@ -34,7 +34,7 @@ describe('lidé ve scéně nesprintují', () => {
     }
   });
 
-  it('pěší lovci jdou k lesu chůzí, jezdci nejvýš klusem', () => {
+  it('trasa k lesu: pěší jdou chůzí, jezdci nejvýš klusem', () => {
     const foot = walkSpeed('man', 'walk-spear', 1.2);
     for (const m of LENGTHS) {
       const way = [
@@ -119,7 +119,7 @@ function expedition(over: Partial<SceneExpedition> = {}): SceneExpedition {
 const village = (over: Partial<SceneVillage>): SceneVillage =>
   ({ dwellings: [], fields: [], trails: [TRAIL], ...over }) as SceneVillage;
 
-describe('scéna dohraje karavanu a lov, které data už nemají (activity-memory.ts)', () => {
+describe('scéna dohraje karavanu a výcvikovou jízdu, které data už nemají (activity-memory.ts)', () => {
   it('karavana vrácená v jádru jde ve scéně dál, po návratu ve skutečném čase zmizí', () => {
     const memory = new ActivityMemory();
     const e = expedition();
@@ -210,7 +210,7 @@ describe('výcviková jízda rodiny dojede, jak začala (activity-memory.ts)', (
     const memory = new ActivityMemory();
     const first = memory.apply(withLord({ riders: RIDERS }), slot(5, 1), window);
     expect(first.labor?.lord?.riders).toEqual(RIDERS);
-    // další herní den uprostřed jízdy: jezdec loví (jádro ho mezi jezdci nemá), den jízdy k hranici
+    // další herní den uprostřed jízdy: jezdec je pryč (jádro ho mezi jezdci nemá), den jízdy k hranici
     const mid = memory.apply(withLord({ borderTrailId: 3 }), slot(5, 90), window);
     expect(mid.labor?.lord?.riders).toEqual(RIDERS);
     expect(mid.labor?.lord?.borderTrailId).toBeUndefined();

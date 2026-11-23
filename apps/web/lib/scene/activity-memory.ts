@@ -1,11 +1,12 @@
 // Činnosti, které ve scéně ještě běží, i když je data dalšího dne už nemají (villagers.md –
 // Činnosti od začátku do konce; Martin 31. 10. 2026: „Ve vykreslování by lidé měli dělat své
 // činnosti od začátku do konce, bez ohledu na to, že např. cesta pro vodu trvá třeba několik dní.
-// Z hlediska hry by se to počítalo jako teď“). Karavana a lov jdou ve skutečném čase přirozenou
-// chůzí a trvají mnohem déle než v jádru – výprava se v jádru vrátí za pár herních dní, lov je
-// den. Data vsi je pak už nemají, scéna je ale dohraje (návrh Clauda): pamatuje si každou viděnou
-// karavanu (i s vozy, jak jely) a běžící lov do jejich konce ve skutečném čase. Prohlížeč, který
-// ves otevře později, karavanu vrácenou v jádru už nevidí – jen ty, které jádro ještě má.
+// Z hlediska hry by se to počítalo jako teď“). Karavana a výcviková jízda rodiny jdou ve skutečném
+// čase přirozenou chůzí a trvají mnohem déle než v jádru – výprava se v jádru vrátí za pár herních
+// dní. Data vsi je pak už nemají, scéna je ale dohraje (návrh Clauda): pamatuje si každou viděnou
+// karavanu (i s vozy, jak jely) a běžící jízdu do jejich konce ve skutečném čase. Prohlížeč, který
+// ves otevře později, karavanu vrácenou v jádru už nevidí – jen ty, které jádro ještě má. Lov vsi
+// jde s výpravou (hunt-scene.ts) – paměť ho nedrží.
 import type { SceneCart, SceneExpedition, SceneLord, SceneVillage } from '../village-view';
 import { LIVESTOCK_EPOCH_MS } from './livestock-motion';
 import { cycleIndex, LORD_CYCLE, LORD_CYCLE_S } from './lord-day';
@@ -115,8 +116,8 @@ export class ActivityMemory {
 
   /**
    * Ves doplněná o činnosti, které ve skutečném čase `nowMs` ještě běží: karavany, které data už
-   * nemají (napřed – vůz dojede rozjetou cestu, než vyrazí na další), s vozy, jak jely; a lov, dokud
-   * se lovci nevrátí – nový lov se ukáže až po návratu z běžícího. Vstupní ves nemění.
+   * nemají (napřed – vůz dojede rozjetou cestu, než vyrazí na další), s vozy, jak jely; a výcviková
+   * jízda rodiny, jak začala (`rideAt`). Vstupní ves nemění.
    */
   apply(
     village: SceneVillage,
@@ -157,7 +158,7 @@ export class ActivityMemory {
    * Výcviková jízda cyklu (lord-day.ts – `rideSlot`) trvá minuty, tedy přes víc herních dní – kdo
    * jede, kudy (objížďka, k hranici) a doprovod výpravy zůstanou až do jejího konce takové, jaké
    * byly, když scéna jízdu poprvé viděla (jinak by jezdec uprostřed jízdy přeskočil na jinou trasu
-   * nebo zmizel, když ho data dalšího dne už nemají – lov, zranění). Mimo jízdu beze změny.
+   * nebo zmizel, když ho data dalšího dne už nemají – výprava, zranění). Mimo jízdu beze změny.
    */
   private rideAt(village: SceneVillage, nowMs: number): SceneVillage {
     const t = (nowMs - LIVESTOCK_EPOCH_MS) / 1000;

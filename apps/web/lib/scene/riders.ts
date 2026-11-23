@@ -59,14 +59,13 @@ export interface RidePlan {
    */
   blocks: readonly (readonly [number, number])[] | null;
   /**
-   * Jízda ve skutečném čase (ms od–do) místo bloků dne – lov (`huntPlans`) jde přes víc herních
-   * dní, výcviková jízda (`ridePlans`) se opakuje v každém cyklu dne rodiny (`period`). S ním se
-   * `blocks` nečtou.
+   * Jízda ve skutečném čase (ms od–do) místo bloků dne – jde přes víc herních dní; výcviková jízda
+   * (`ridePlans`) se opakuje v každém cyklu dne rodiny (`period`). S ním se `blocks` nečtou.
    */
   span?: readonly [number, number];
   /** Jízda `span` se opakuje po tolika ms (lord-day.ts – cyklus dne rodiny). */
   period?: number;
-  /** Opakovaná jízda, která zasáhne do tohoto času (ms od–do – lov jezdce), se nejede. */
+  /** Opakovaná jízda, která zasáhne do tohoto času (ms od–do – jiná jízda jezdce), se nejede. */
   except?: readonly [number, number];
   /** Kde kůň stojí, když se nejede – u kůlu u brány dvorce, čelem ke kůlu. */
   hitch: TrainingSpot;

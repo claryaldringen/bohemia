@@ -205,8 +205,6 @@ function walkBetween(
 ): VillagerPose {
   out.hidden = false;
   delete out.lift;
-  // k lovu a z něj (panel postavy – person-activity.ts)
-  out.stage = 'hunt';
   const d = Math.hypot(b.x - a.x, b.z - a.z);
   const dur = Math.min(span, d / speed);
   if (since >= dur) {
