@@ -409,8 +409,11 @@ villageId)`. Z levných otisků (`stampsOf` – `last_day`, `asleep`) se dopočt
   **Lov** (hunting.md; plán 2026-11-22-hunting, Úloha 11): tlačítko lovu ve dvorci (`manor-hunt`,
   `ManorUpgrades`) volá `declareHunt`; zašedne s důvodem (`manor.huntDenied`, texty
   `HUNT_DENIED_TEXT`; `already` z `huntRunningIn` – lov ve výpravě vsi, nebo čekající záměr –,
-  `manorView(…, huntRunning)` posuzuje den honců, zítřek); odříznutý nováček dostane po kliknutí
-  text výprav `unreachable` „Tam nedojde.“ (`huntRefusalText`). **Pravé tlačítko na vyhnané zvíře** (`LandscapeScene.quarryAt` – pozice
+  `manorView(…, huntRunning)` posuzuje den honců, zítřek); `unreachable` (rod bez místa se sídlem
+  na políčku světa) dostane text výprav „Tam nedojde.“ (`huntRefusalText`). Odříznutý nováček loví
+  ve výpravě místní mřížky rodu ([journey.md](journey.md) – Lov): `homeCell` stránky hry je
+  `homeCellOf(sídlo)` – políčko světa, v odříznuté krajině místní políčko –, takže scéna kreslí
+  útočníky (`sceneJourneysOf`) a rozkazy pravým tlačítkem míří na mapu vsi (`orderCell`). **Pravé tlačítko na vyhnané zvíře** (`LandscapeScene.quarryAt` – pozice
   kurzoru, ne terén) s vybranými lidmi pošle `commandExpedition` `{ kind: 'strike' }`
   (`use-expedition-orders.ts`); odmítnutí je důvod u kurzoru (`expeditionReason(…, strike)`:
   `woman` „Na lov chodí jen muži“, `young` „Na lov až od 14 let“, `no-quarry` „Zvíře tu není“).

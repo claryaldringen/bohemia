@@ -95,6 +95,10 @@ odříznutý navždy.
   nejsou vázané na mapu světa). Ostatní hráči mu nemohou nic poslat ani nabídnout – v adresáři
   rodů není. Pozvánku vydat nesmí, dokud není na mapě světa – pozvaný by neměl
   kde začít (návrh Clauda).
+- **Lov ano, výpravy ven ne:** každá ves v odříznuté krajině (sídlo i vsi synů) smí lovit jako
+  každá jiná ([lov](hunting.md) – Lov odříznutého nováčka; Martin 23. 11. 2026: „nováček ať
+  loví“). Lovci mapu vsi neopustí a ze vsi jdou k lovu jen útočníci na zvíře; ostatní výpravy
+  odříznutého nikam nedojdou („Tam nedojde.“) – mimo mapu vsi pro něj svět není.
 - **Shluk se nevejde** (návrh Clauda): hledá se nejbližší místo, kam se vejde celý shluk se
   stejnými odstupy od cizích map (2 políčka u vazala, 3 u svobodného).
 - **Jak dlouho:** Martin 7. 11. 2026: „**Týden normálního času. Pak se přiřadí náhodně
