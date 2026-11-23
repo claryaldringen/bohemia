@@ -1048,8 +1048,9 @@ Lov vsi je součást výpravy domovské vsi (`docs/design/hunting.md`; plán –
   **Okraj:** doména zahodí rozkaz, který vede z mapy vsi (`leavesLocalMap` – „Přes okraj“ vždy, „Jdi
   sem“ na jiné políčko; v `orderPeople` jako „Přes okraj“ na nesousední políčko – noví lidé stojí
   doma v nové skupině – a v `orderParty`); use-case ho odmítne `unreachable` (`verifyOrder`) a válku
-  se neptá. `homeOf` (`musterExpedition`) bere k výpravě místní mřížky ze vsi jen útočníky
-  (`strike`), jinak `unreachable` – bez lovu je výprava odříznutého `unreachable` jako dřív.
+  se neptá. `homeOf` (`musterExpedition`) k běžící výpravě místní mřížky bere lidi ze vsi jako
+  u každé výpravy (Osedlat, „Jdi sem“ po mapě vsi, útok); bez lovu je výprava odříznutého
+  `unreachable` jako dřív.
   **Znalost a válka:** `stepJourneys` výpravě místní mřížky znalost rodu nezapíše a `homeFromWar` se
   neptá, `recallJourneysAtWar` ji přeskočí, `onCell` (návštěvníci mapy) ji nevrací (adaptér
   `state->'localGrid' IS NULL`). Pohled `ExpeditionView.localGrid`; web podle něj nedá cizí mapu
@@ -1116,8 +1117,8 @@ Lov vsi je součást výpravy domovské vsi (`docs/design/hunting.md`; plán –
   lovu (ves zaplatí honce jednou), honci zítra, lov správce –,
   `closed-season`, `no-beaters`, `no-game` – mapa bez lesa i ves bez zvěře –, `no-village`,
   `unreachable` – rod bez místa se sídlem na políčku světa, `busy`; odříznutý nováček – sídlo i ves
-  syna – lov ve výpravě místní mřížky s mapou z `villageMapOf`, `musterExpedition` s lovem dál
-  `unreachable`, útok na zvíře ne;
+  syna – lov ve výpravě místní mřížky s mapou z `villageMapOf`, `musterExpedition` bez lovu
+  `unreachable`, během lovu Osedlat i „Jdi sem“ po mapě vsi projdou a jiná mapa je `unreachable`;
   nic se neuloží), `expedition.test.ts` (strike: vojvoda ze vsi se značkou a dnem práce, žena
   `woman`, chlapec 13 let `young`, `no-quarry` bez výpravy, bez lovu i se zvířetem v lese, člen bez
   zámku vsi, člen se značkou předchozího lovu přes `musterExpedition`), `expedition-view.test.ts`

@@ -124,8 +124,11 @@ odejít z mapy vsi, stejně jako dnes nikam nedojdou jeho ostatní výpravy.“ 
   běží stejně jako jinde: honci, zvíře, útočníci, pravé tlačítko, odnos a výsledek schránkou vsi.
 - Lov běží na mapě vsi – na krajině odříznuté vsi, ne na mapě světa. Lovci mapu vsi neopustí: „Přes okraj“ i rozkaz na
   jinou mapu odmítne hra jako ostatní výpravy odříznutého – „Tam nedojde.“
-- Ze vsi jdou k lovu jen útočníci na zvíře (pravé tlačítko); ostatní výpravy odříznutého nikam nedojdou jako dřív
-  (návrh Clauda).
+- Během lovu ovládá odříznutý výpravu jako kdokoli jiný (Osedlat, „Jdi sem“ po mapě vsi, útok na zvíře); z mapy vsi nikdo
+  neodejde. Bez lovu nemá výpravu, ke které by se lidé přidali, a ostatní výpravy dál dostanou „Tam nedojde.“ (návrh
+  Clauda).
+- Lov vyhlášený, dokud výprava místní mřížky ještě běží (útočníci jdou domů), jde do ní – `declare-hunt.ts` bere `from`
+  z `journey` (návrh Clauda).
 - Rod se z lovu nic nedozví o mapách světa a válka na lov nesahá – mapa vsi v odříznuté krajině mapou světa není (návrh
   Clauda).
 - Umístí-li rod na mapu světa uprostřed lovu, lov doběhne na mapě vsi – krajina se umístěním nemění; další lov už běží jako
