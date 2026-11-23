@@ -240,11 +240,11 @@ function wed(
  * Sňatky dne (mutuje stav – kinship.md, Sňatky): nejdřív ve vsi – vdovy a vdovci mají přednost
  * (Martin, 19. 10. 2026 – vdova se má vdát co nejdřív, nejlépe ve vsi), pak ostatní svobodní od
  * nejstaršího, každý s nejbližším věkem, se kterým svatba jde (`bestMatch`); jeden sňatek na
- * člověka; okolí nevěsty ani ženichy nedává (markets.md – Pravidla 1). Los ze seedu vsi a dne (každý v pořadí id), takže
- * výsledek nezávisí na kouscích dopočtu. Pod pojistkou zásob (`storesFill` < 1 – kinship.md,
- * Sňatky čekají na zásoby) se svatba ve vsi koná jen s denní šancí `weddingChancePerDay`, jinak
- * snoubenci dnes čekají (nevezmou se ani s jiným); `storesFill` se volá, jen když je svatba na
- * řadě. Vrací události kroniky.
+ * člověka; okolí nevěsty ani ženichy nedává (markets.md – Pravidla 1). Los ze seedu vsi a dne
+ * (každý v pořadí id), takže výsledek nezávisí na kouscích dopočtu. Pod pojistkou zásob
+ * (`storesFill` < 1 – kinship.md, Sňatky čekají na zásoby) se svatba ve vsi koná jen s denní
+ * šancí `weddingChancePerDay`, jinak snoubenci dnes čekají (nevezmou se ani s jiným); `storesFill`
+ * se volá, jen když je svatba na řadě. Vrací události kroniky.
  */
 export function arrangeMarriages(
   state: VillageState,
@@ -254,7 +254,7 @@ export function arrangeMarriages(
   const parents = parentIds(state);
   const events: ChronicleEvent[] = [];
   const married = new Set<number>();
-  // los čekání na zásoby z vlastního proudu – losy sňatků s okolím se nemění
+  // los čekání na zásoby – proud čekání je vlastní ('wedding-wait:' + den)
   const waitRandom = createRandom(deriveSeed(state.seed, 'wedding-wait:' + day));
   const list = singles(state, day);
   const widowed = list.filter((p) => parents.has(p.id));

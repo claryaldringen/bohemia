@@ -363,7 +363,10 @@ function seasonPlanDay(
   return waiting;
 }
 
-/** Práce dne: pomoc rodiny, škody zvěře, místní pohromy, rezerva osiva a `work()`; osivo za nestihnuté setí zpět. */
+/**
+ * Práce dne: pomoc rodiny, škody zvěře, místní pohromy, rezerva osiva a `work()`; osivo za
+ * nestihnuté setí zpět.
+ */
 function workDayStep(
   state: VillageState,
   day: number,
@@ -483,9 +486,10 @@ function marriagesAndMealDay(
 ): ReturnType<typeof eat> {
   // sňatky mezi domy – svobodní ve dvou domech se vezmou (population.md – Sňatky mezi domy); muž
   // bez hlavní manželky, který nějakou manželku má (osadníci výpravy), se před nimi nežení
-  // (lord.md – Nová hlavní manželka); svatby čekají, dokud výhled zásob k příští sklizni nemá pojistku (kinship.md – Sňatky čekají
-  // na zásoby; Martin 27. 10. 2026) – naplnění se spočítá jednou za den, jen když je svatba na řadě;
-  // v hájení ne (hladem v něm nikdo nezemře, ves má růst – population.md, Hájení)
+  // (lord.md – Nová hlavní manželka); svatby čekají, dokud výhled zásob k příští sklizni nemá
+  // pojistku (kinship.md – Sňatky čekají na zásoby; Martin 27. 10. 2026) – naplnění se spočítá
+  // jednou za den, jen když je svatba na řadě; v hájení ne (hladem v něm nikdo nezemře, ves má
+  // růst – population.md, Hájení)
   let fill: number | undefined;
   const lucky = inLuckyYears(state.foundedDay, day);
   const storesFill = (): number =>

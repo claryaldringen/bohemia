@@ -73,14 +73,14 @@ function villageCenter(state: VillageState): { x: number; z: number } {
  * Cesta ke kraji mapy ve směru (crafts.md – Nákup u sousedů; karavana zásilky, cizí kovář ze starší
  * kroniky): po hotové zemské stezce dny jako výprava (`trailTripDays`); bez ní lidé jdou krajinou
  * rovně ke kraji mapy – delší (× CRAFT_BUYING.offTrailFactor) a den navíc. Bez krajiny (kalibrace)
- * se počítá s mapou obvyklé velikosti. `from` – odkud se jde krajinou (výchozí dvorec).
+ * se počítá s mapou obvyklé velikosti. Krajinou se jde od dvorce (`villageCenter`).
  */
 export function purchaseRoute(
   state: VillageState,
   direction: Direction8,
   landscape: Landscape | null,
-  from: { x: number; z: number } = villageCenter(state),
 ): PurchaseRoute {
+  const from = villageCenter(state);
   const half = landscape
     ? (landscape.size * landscape.cellSizeM) / 2
     : (LANDSCAPE_SIZE * CELL_SIZE_M) / 2;
@@ -139,10 +139,9 @@ export interface PaymentPool {
 }
 
 /**
- * Přebytek obilí a luštěnin nad pojistkou zásob (výhled zásob – field-food.ts, `storesOutlook`). S `intoBuffer`
- * smí platba sáhnout i do pojistky – ne pod nulu zásob k příští sklizni (nutný malý výdaj, např.
- * kování koní – horses.md, Kování). Vymlácené zrno k platbě je bez zrna na dnešní jídlo
- * (`foodGrainReserveKg` – jako výmlat na dnešní jídlo), hromady osiva (okno i zimní osivo) a osiva jen na setí
+ * Přebytek obilí a luštěnin nad pojistkou zásob (výhled zásob – field-food.ts, `storesOutlook`).
+ * Vymlácené zrno k platbě je bez zrna na dnešní jídlo (`foodGrainReserveKg` – jako výmlat na dnešní
+ * jídlo), hromady osiva (okno i zimní osivo) a osiva jen na setí
  * (oprava, návrh Clauda 9. 11. 2026: Vlkov 1. 8. 873 zaplatil kování 41 kg vymláceného zrna
  * a příděl dne spadl na 0,55 – pojistka počítá i snopy, které se teprve vymlátí).
  */
@@ -150,7 +149,6 @@ export function paymentPool(
   state: VillageState,
   day: number,
   coverage: CraftCoverage,
-  intoBuffer = false,
 ): PaymentPool {
   // osivo, které ves ještě zaseje, a osivo jen na setí ves nezaplatí (jako `fieldStoresOutlook`)
   const outlook = storesOutlook(
@@ -160,7 +158,7 @@ export function paymentPool(
     seedOutsideFoodKg(state, day, coverage.tools),
   );
   return {
-    energyKg: Math.max(0, outlook.leftKg - (intoBuffer ? 0 : outlook.bufferKg)),
+    energyKg: Math.max(0, outlook.leftKg - outlook.bufferKg),
     grainKg: Math.max(
       0,
       state.storesKg - uneatenSeedKg(state) - foodGrainReserveKg(villageFoodNeed(state, day)),

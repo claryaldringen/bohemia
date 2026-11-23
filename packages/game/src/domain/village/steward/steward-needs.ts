@@ -17,8 +17,8 @@ import type { VillageState } from '../types';
 
 const EPSILON = 1e-9;
 
-/** Podklady kroku 0 – den, krajina (sjízdnost stezky pro vozy) a pokrytí řemesly. */
-export type NeedContext = Pick<StewardContext, 'day' | 'landscape' | 'coverage'>;
+/** Podklady kroku 2a – den a pokrytí řemesly (výhled zásob). */
+export type NeedContext = Pick<StewardContext, 'day' | 'coverage'>;
 
 /**
  * Krok 2a (mutuje stav): lov na zítřek, když zvěř škodí (`huntWanted` → `declareNpcHunt`, lov se

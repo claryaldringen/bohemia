@@ -12,7 +12,6 @@ import { newSteward } from '../../steward/steward-state';
 import { huntWanted, needSteps } from '../../steward/steward-needs';
 import type { ArmsSkills, VillageState, WildlifeState } from '../../types';
 import { at, horse, horseVillage, LORD_ID, SON_ID, YOUTH_ID } from '../../__tests__/horse-fixtures';
-import { LANDSCAPE } from '../../__tests__/paths-fixtures';
 import { recruitOf } from '../../../war/expedition-people';
 
 // Lov správce bez scény (hunting.md – Pravidla 8, 9; plán 2026-11-22-hunting – Rozhodnutí 8,
@@ -91,7 +90,7 @@ function damaged(kg: number): VillageState {
 describe('správce vyhlásí lov (hunting.md – Pravidla 8)', () => {
   it('škody v červenci → správce vyhlásí lov na zítřek (beaters i npc), týž den podruhé ne', () => {
     const s = damaged(1_000_000);
-    const ctx = { day: DAY, landscape: LANDSCAPE, coverage: craftCoverage(s, DAY) };
+    const ctx = { day: DAY, coverage: craftCoverage(s, DAY) };
     needSteps(s, ctx);
     const hunt = s.wildlife!.hunt!;
     expect(hunt.npc).toEqual({ day: DAY + 1 });

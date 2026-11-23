@@ -332,9 +332,9 @@ describe('osivo – nálezy recenze', () => {
     s.sheaves = { grainKg: 20_000, legumesKg: 0 };
     const food = foodGrainReserveKg(villageFoodNeed(s, day));
     expect(food).toBeGreaterThan(0);
-    expect(paymentPool(s, day, NO_CRAFTS, true).grainKg).toBeCloseTo(Math.max(0, 41 - food), 9);
+    expect(paymentPool(s, day, NO_CRAFTS).grainKg).toBeCloseTo(Math.max(0, 41 - food), 9);
     s.storesKg = 1000;
     s.sowingSeed = { crop: 'winter', totalKg: 300, days: 61, kg: 300 };
-    expect(paymentPool(s, day, NO_CRAFTS, true).grainKg).toBeCloseTo(1000 - 300 - food, 9);
+    expect(paymentPool(s, day, NO_CRAFTS).grainKg).toBeCloseTo(1000 - 300 - food, 9);
   });
 });

@@ -314,7 +314,7 @@ export const STEWARD = {
   huntDamageShare: FIELD_GUARD.night.threat,
   /**
    * Krok 2a – Lov v nouzi nejvýš tolikrát za léto (měsíce škod červen–srpen); den lovu chybí
-   * v hlídce, výcviku a práci synů (steward.md – Obilí a lov v nouzi; návrh Clauda, 8. 11. 2026).
+   * v hlídce, výcviku a práci synů (steward.md – Lov v nouzi; návrh Clauda, 8. 11. 2026).
    */
   huntsPerSummer: 3,
 } as const;

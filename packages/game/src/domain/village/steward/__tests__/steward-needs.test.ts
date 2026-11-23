@@ -21,9 +21,9 @@ import type { Direction8, VillageState } from '../../types';
 import { LANDSCAPE } from '../../__tests__/paths-fixtures';
 import { withBuiltFirstDwelling } from '../../__tests__/village-fixtures';
 
-// Krok 2a dne správce – nouze (steward.md – Obilí a lov v nouzi; Martin 8. 11. 2026: „A“): obilí
-// kupuje výpravou za obchodem, jen když hrozí hlad. Lov správce (hunting.md – Pravidla 8) testuje
-// `wildlife/__tests__/npc-hunt.test.ts`.
+// Krok 2a dne správce – nouze (steward.md – Lov v nouzi; Martin 8. 11. 2026: „A“): obilí od sousedů
+// už nekupuje (markets.md – Pravidla 1), ani když hrozí hlad. Lov správce (hunting.md – Pravidla 8)
+// testuje `wildlife/__tests__/npc-hunt.test.ts`.
 
 const DAY = dayIndexOf({ year: 600, month: 12, day: 1 });
 const SEED = 11;
@@ -82,7 +82,7 @@ function withAdults(state: VillageState, n: number): void {
 }
 
 function ctxOf(state: VillageState, day = DAY): NeedContext {
-  return { day, landscape: LANDSCAPE, coverage: craftCoverage(state, day) };
+  return { day, coverage: craftCoverage(state, day) };
 }
 
 function shortOf(state: VillageState, day = DAY): number {
