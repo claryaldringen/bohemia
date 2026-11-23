@@ -109,6 +109,9 @@ obchodníkům se do hry dostanou mince - obchodníci jimi budou platit za zbož�
 ## Co se ověří
 
 - Vlkov 10 let bez smyšlených sousedů (bez obchodu, sňatky ve vsi): přežije a roste? Když ne, ozvat se Martinovi.
+  **Ověřeno 23. 11. 2026** (sonda se sňatky bez příbuzenství – [příbuzenství](kinship.md), 30 let od 12. 5. 904):
+  přežije a roste – 21 lidí (rod 8) → 35 lidí (rod 11) v roce 934, s okolím 38 (rod 11), nikdo nezemřel hladem.
+  Nástroje a keramika bez nákupu dojdou (víc práce na poli, hlad nehrozí).
 - Dvě vsi a kupec: výprava, trh, cena, mince – v součtu nic nevznikne ani nezmizí, kromě mincí od kupců.
 
 ## Navazuje
