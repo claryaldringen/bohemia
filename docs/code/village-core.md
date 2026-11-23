@@ -299,7 +299,7 @@ minimum)` (životní minimum všem, pod ním všem stejně, zbytek po vrstvách 
   `populationSentence` (`lib/village-view-chronicle.ts`).
 
 - **Štěstí a posvátná místa** ([happiness.md](../design/happiness.md), `happiness.ts`,
-  `sacred.ts`; body za úmrtí `deathPointsFor` = max(0,5; 5 − 0,06 × věk), věk nese událost kroniky `death.age`, bez něj dítě 5 / jinak 3): štěstí 0–100 (`VillageState.happiness` – hodnota, úmrtí posledního roku, dny dřiny
+  `sacred.ts`; body za úmrtí `deathPointsFor` = max(0,5; 5 − 0,06 × věk), věk nese událost kroniky `death.age`, bez něj dítě 5 / jinak 3; úmrtí dne se berou z událostí `death` populace, lovu správce, pohrom a ze začátku dne – schránky `applyInboxDay` a ran `woundDeathsDay`, tj. `morningDeaths` v `advanceVillage` → `peopleDay`; zajatí a odvedení `death` nemají): štěstí 0–100 (`VillageState.happiness` – hodnota, úmrtí posledního roku, dny dřiny
   posledních 60 dní; chybí = 50) se den po dni posouvá o denní podíl k cíli
   (`happinessTarget` z `happinessFactors`: hlad, úmrtí, přeplněnost, dřina `isToilDay` – ves by
   běžící polní práce dnešním tempem nedodělala do konce oken; tempo v `toilToday` = dnešní polní

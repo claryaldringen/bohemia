@@ -115,6 +115,8 @@ Rozhodnutí plánu, která návrh nechal na staviteli (podrobně v plánu – Ro
 Odpovědi na otázky plánu (Martin 22. 11. 2026): útočníci platí jen jeden den práce, po lovu se vrátí s honci do dvorce, a když
 v lese vsi není velká zvěř, tlačítko zašedne („Ano“).
 
+Úmrtí lovců snižují štěstí vsi jako každé úmrtí (Martin 23. 11. 2026: „Ano“ – [happiness.md](happiness.md), úmrtí).
+
 ## Lov odříznutého nováčka (23. 11. 2026)
 
 Claude Martinovi 23. 11. 2026 navrhl: „Navrhuju, aby odříznutý nováček lovil jako každý jiný. Jeho lovci by jen nesměli

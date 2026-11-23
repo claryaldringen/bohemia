@@ -34,6 +34,12 @@ Slovanů: posvátné duby, dubové háje, dřevěné modly a nakonec svatyni jak
     dohromady nejvýš **−20** – Martin (24. 10. 2026): „Ať úmrtí dál srážejí štěstí, ale tím
     způsobem, že čím starší zemřelý bude, tím míň to štěstí ubere.“ Čísla návrh Clauda:
     novorozenec 5, 15 let 4,1, 30 let 3,2, 50 let 2, 60 let 1,4, 70 let 0,8, od 75 let 0,5.
+    **Úmrtí z výprav a války** (23. 11. 2026): Claude se Martina zeptal: „Mají úmrtí lovců tvé
+    výpravy a padlých ve válce snižovat štěstí vsi stejně jako ostatní úmrtí?“ (s doporučením
+    ano – lov správce štěstí už snižuje). Martin: „Ano“. Každé úmrtí člověka vsi, o kterém se ves
+    dozví schránkou (lovec na výpravě, padlí a zabití ve válce, posel a skupina zabité vojskem)
+    nebo které přijde na rány z nájezdu, ubere stejně jako úmrtí ve vsi, od dne zprávy; odvedení
+    a zajatí nejsou mrtví, nic se nepočítá dvakrát (návrh Clauda).
     Úmrtí zapsaná před touto změnou (bez věku) ubírají postaru – dítě 5, dospělý a starší 3,
   - **přeplněnost:** podíl lidí v přeplněných domácnostech × **15**,
   - **dřina:** podíl dní za posledních 60, kdy ves nestihla práci v období (polní práce se

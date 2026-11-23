@@ -64,7 +64,7 @@ import {
   THRESH_END_DAY,
   WINTER_HARVEST_DAY,
 } from '../rules';
-import type { VillageState } from '../types';
+import type { ChronicleEvent, VillageState } from '../types';
 import { rotLogs } from '../forest/wood';
 import { localDisastersDay } from '../disasters/local-disasters';
 import { migrateVillage } from './migrations';
@@ -159,10 +159,19 @@ export function* advanceVillageSteps(
     next.chronicle.push(...returnHome(next, day));
     // události schránky dne – na začátku dne, před jeho simulací (village-core.md – Schránka vsi)
     const events = eventsByDay.get(day);
-    if (events) next.chronicle.push(...applyInboxDay(next, day, events));
+    const morning: ChronicleEvent[] = events ? applyInboxDay(next, day, events) : [];
     // úmrtí na rány z nájezdu (war.md – Ztráty) – nástupnictví po nich ještě týž den (`dynastyDay`)
-    next.chronicle.push(...woundDeathsDay(next, day));
-    yield* simulateDaySteps(next, day, obstacles, landscape);
+    morning.push(...woundDeathsDay(next, day));
+    next.chronicle.push(...morning);
+    // kdo zahynul na výpravě nebo ve válce a ves se to dozvěděla dnes, oplakává jako každé úmrtí
+    // (happiness.md – Úmrtí; Martin 23. 11. 2026) – zajatí a odvedení v kronice `death` nemají
+    yield* simulateDaySteps(
+      next,
+      day,
+      obstacles,
+      landscape,
+      morning.filter((e) => e.kind === 'death'),
+    );
     // jméno každému, kdo dnes přišel bez jména (population.md – Jména) – na konci dne, ať výsledek
     // nezávisí na kouscích dopočtu (narození a další manželky ho dostanou hned)
     nameUnnamed(next);
@@ -217,6 +226,7 @@ function* simulateDaySteps(
   day: number,
   obstacles: ObstacleLayer | null,
   landscape: Landscape | null,
+  morningDeaths: readonly ChronicleEvent[] = [],
 ): Generator<void, void, void> {
   const date = dateOfDayIndex(day);
   morningDay(state, day, landscape, obstacles);
@@ -245,7 +255,7 @@ function* simulateDaySteps(
   const eaten = marriagesAndMealDay(state, day, coverage);
   yield;
   const huntEvents = lordEveningDay(state, day, lordField);
-  const dayResult = { toil, eaten, huntEvents, disasterEvents };
+  const dayResult = { toil, eaten, huntEvents, disasterEvents, morningDeaths };
   // vymřelá ves se dál nesimuluje (ani sklizeň dne)
   if (!peopleDay(state, day, landscape, obstacles, dayResult)) return;
   harvestAndUpkeepDay(state, day, date, landscape, obstacles);
@@ -540,9 +550,10 @@ function peopleDay(
     eaten: ReturnType<typeof eat>;
     huntEvents: ReturnType<typeof npcHuntDay>;
     disasterEvents: ReturnType<typeof localDisastersDay>;
+    morningDeaths: readonly ChronicleEvent[];
   },
 ): boolean {
-  const { toil, eaten, huntEvents, disasterEvents } = dayResult;
+  const { toil, eaten, huntEvents, disasterEvents, morningDeaths } = dayResult;
   const { satiation, energy, diet, groups } = eaten;
   // nahromaděný hlad se počítá z dnešní energie (hladem se umírá z energie, ne z pestrosti –
   // diet.md) – úmrtí dne podle něj (population.md); v hájení zůstává pod prahem, aby po něm lidé
@@ -565,6 +576,7 @@ function peopleDay(
     ...events,
     ...huntEvents.filter((e) => e.kind === 'death'),
     ...disasterEvents.filter((e) => e.kind === 'death'),
+    ...morningDeaths,
   ];
   // nová hlavní manželka a nástupnictví (lord.md – Rod vojvody); ves bez rodu nic
   state.chronicle.push(...dynastyDay(state, day));
