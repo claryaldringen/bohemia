@@ -388,13 +388,15 @@ export * from './trade/goods';
 // trh – ceny v mincovní míře a zápočet tržního dne (markets.md – Rozhodnutí plánu 2, body 3 a 4)
 export { initialPrice, nextPrices, priceOf } from './trade/market-prices';
 export { clearMarket, partyTotals } from './trade/market-clearing';
+export { marketStance } from './trade/market-stance';
+export { roughCount, villageReport } from './trade/village-report';
 export { legacyNeighbourName } from './trade/legacy-neighbours';
 export * from './trade/trade';
 // dobytek v obchodu – příchod a odchod dobytka (`addCattle`, `removeCattle`) jsou kroky obchodu
 export { boughtOxTrainedDay, cattleForSale, withCattleKinds } from './trade/cattle-trade';
 // koně v obchodu (horses.md – Nákup a prodej) – příchod a odchod koní (`addHorses`,
 // `removeHorses`) jsou kroky obchodu
-export { horseValueKg, horsesForSale } from './trade/horse-trade';
+export { horseValueKg, horsesForSale, horsesOf } from './trade/horse-trade';
 // koně po kusech (horses.md – Koně po kusech): věk, druh a místa ohrad koní pro scénu a rozhraní
 export {
   horseAgeYears,

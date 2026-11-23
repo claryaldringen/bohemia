@@ -175,6 +175,22 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `TRADE_GOODS` – obilí hostitele by vytlačilo jeho klády a dobytek), kruhy, a krok 5 vyřadí
   z nevyrovnaných poslední v pořadí stran.
 
+- **Trh – co ves nabízí a shání, zpráva na pivo** (markets.md – Pravidla 3 a 8, Rozhodnutí plánu 2,
+  body 5 a 7). `marketStance(state, day)` (`trade/market-stance.ts`) vrátí `MarketStance`
+  (`offer`, `wants`) hostitelské vsi – jen makrokomodity výhledu dávek, `stewardOutlook` se počítá
+  jednou a `villageSpare` celý se nevolá. Obilí: nabídka `grainSpareKg`, shání
+  `grainReserveKg − grainOnHandKg` (`vassalage/spare.ts`); krávy a voli: nabídka `cattleSpare`,
+  shání krav `breedingCows + oxenCalvesWanted − krávy` (celé nahoru) a vycvičených volů
+  `oxenTrainingTarget − villageOxen − oxenComing`; koně po druzích: nabídka
+  `min(horsesForSale, horsesOf − chce)`, shání `chce − horsesOf` (`chce` = `horsesWanted`);
+  klády a kámen jen nabízí celou hromadu. Nabídka je nejvýš `villageGoodStock`, nulové položky se
+  nezapisují, stav se nemění. `horsesOf(state, druh, day)` (`trade/horse-trade.ts`) počítá koně
+  druhu v ohradách i pod jezdcem (prodat jde jen `horsesForSale`). `villageReport(state, day)`
+  (`trade/village-report.ts`) složí `VillageReport`: lidé a hotová obydlí `roughCount` (násobek
+  `MARKET.report.round`, nejméně 5), řemesla s pracujícím řemeslníkem (`ownCraftsmanWorks`) v pořadí
+  potter, smith, burner, carpenter a obchodníci z `state.market.arrivals` (`VillageMarket`) od
+  nejnovějšího, nejvýš `MARKET.report.traders` – technický strop paměti vsi, ne pravidlo hry (návrh
+  Clauda).
 - **Jen společné suroviny** (trade.md – Jen společné suroviny; Martin 19. 10. 2026: „Nech jen
   společné suroviny, nezaváděj nové.“): obchod zná jen zboží, které má i ves (`TradeGood`,
   `TRADE_GOODS`). Zboží zvenku (sůl, železo, med, kožešiny – dřívější soubor zboží) ve hře není.

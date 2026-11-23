@@ -38,17 +38,25 @@ const DAYS_PER_YEAR = 365;
 /** Tolerance proti chybám desetinných čísel. */
 const EPSILON = 1e-9;
 
+/** Obilí ve vsi (kg): zásoby a zrno nevymlácených snopů. */
+export function grainOnHandKg(state: VillageState): number {
+  return Math.max(0, state.storesKg) + Math.max(0, state.sheaves?.grainKg ?? 0);
+}
+
 /**
- * Obilí nad pojistku (kg): zásoby a zrno nevymlácených snopů bez VASSALAGE.reserveYears ročních
- * potřeb – jídlo z pole (`yearlyFieldNeed`) a osivo na osev, který ves zvládne (menší z osevu
- * podle půdy a podle práce – `stewardOutlook`). Ves v hladu nedá nic.
+ * Pojistka obilí (kg): `VASSALAGE.reserveYears` ročních potřeb – jídlo z pole (`yearlyFieldNeed`)
+ * a osivo na osev, který ves zvládne (menší z osevu podle půdy a podle práce – `stewardOutlook`).
  */
-function grainSpareKg(state: VillageState, day: number, outlook: StewardOutlook): number {
-  if (state.hungry) return 0;
-  const have = Math.max(0, state.storesKg) + Math.max(0, state.sheaves?.grainKg ?? 0);
+export function grainReserveKg(state: VillageState, day: number, outlook: StewardOutlook): number {
   const seedKg = Math.min(outlook.landHa, outlook.laborHa) * SEED_KG_PER_HA;
-  const reserve = VASSALAGE.reserveYears * (yearlyFieldNeed(state, day) + seedKg);
-  return Math.max(0, Math.floor(have - reserve + EPSILON));
+  return VASSALAGE.reserveYears * (yearlyFieldNeed(state, day) + seedKg);
+}
+
+/** Obilí nad pojistku (kg) – zásoby bez `grainReserveKg`. Ves v hladu nedá nic. */
+export function grainSpareKg(state: VillageState, day: number, outlook: StewardOutlook): number {
+  if (state.hungry) return 0;
+  const reserve = grainReserveKg(state, day, outlook);
+  return Math.max(0, Math.floor(grainOnHandKg(state) - reserve + EPSILON));
 }
 
 /**

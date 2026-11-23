@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { foundVillage } from '../../core/actions';
-import { horseValueKg, horsesForSale, horsesToSell } from '../horse-trade';
+import { horseValueKg, horsesForSale, horsesOf, horsesToSell } from '../horse-trade';
 import { horsesWanted } from '../../livestock/horse-breeding';
 import { villageHorses } from '../../livestock/horses';
 import { HORSES } from '../../rules';
@@ -111,5 +111,28 @@ describe('koně z výpravy na cestě (markets.md – Pravidla 10)', () => {
     expect(villageHorses(full)).toHaveLength(5);
     const noPen = returnedWith(village(null), [bought], DAY + 6);
     expect(villageHorses(noPen)).toHaveLength(0);
+  });
+});
+
+describe('koně druhu ve vsi (horsesOf)', () => {
+  it('kůň pod jezdcem se počítá, prodat ho nejde', () => {
+    const ridden = village([
+      { ...horse(1, 8, 'male', 80, DAY), riderId: 7 },
+      horse(2, 5, 'male', 20, DAY),
+    ]);
+    expect(horsesOf(ridden, 'ridingHorses', DAY)).toBe(2);
+    expect(horsesForSale(ridden, 'ridingHorses', DAY)).toBe(1);
+  });
+
+  it('druh podle věku a pohlaví', () => {
+    const s = village([
+      horse(1, 2, 'male', 0, DAY),
+      horse(2, 9, 'female', 0, DAY),
+      horse(3, 6, 'male', 0, DAY),
+    ]);
+    expect(horsesOf(s, 'foals', DAY)).toBe(1);
+    expect(horsesOf(s, 'mares', DAY)).toBe(1);
+    expect(horsesOf(s, 'ridingHorses', DAY)).toBe(1);
+    expect(horsesOf(village(null), 'mares', DAY)).toBe(0);
   });
 });

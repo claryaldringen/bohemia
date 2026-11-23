@@ -56,6 +56,15 @@ export function horsesForSale(state: VillageState, good: HorseGood, day: number)
   return sellableHorses(state, good, day).length;
 }
 
+/**
+ * Kolik koní druhu `good` ves v den `day` má – v ohradách i pod jezdcem (druh podle věku a pohlaví
+ * jako u `sellableHorses`). Prodat jde jen `horsesForSale`; tohle je počet pro porovnání s tím,
+ * kolik koní ves chce (`horsesWanted`) – trh (markets.md – Rozhodnutí plánu 2, bod 5).
+ */
+export function horsesOf(state: VillageState, good: HorseGood, day: number): number {
+  return villageHorses(state).filter((h) => tradeKind(h, day) === good).length;
+}
+
 /** Koně, které ves při prodeji `n` kusů druhu `good` dá – v pořadí prodeje. */
 export function horsesToSell(
   state: VillageState,

@@ -30,6 +30,9 @@ Z dnešních zásob (nejvíc vypovídá 1. 11. po výmlatu) nad pojistku vsi (n�
 
 - **Obilí** – zásoby + zrno nevymlácených snopů − 2 × (roční jídlo z pole `yearlyFieldNeed` + osivo
   na osev `min(landHa, laborHa)` ze `stewardOutlook` × `SEED_KG_PER_HA`). Ves v hladu (`hungry`) 0.
+- **Obilí – součásti** – `grainOnHandKg` (zásoby + zrno snopů), `grainReserveKg` (pojistka s osivem
+  z `outlook`) a `grainSpareKg` jsou vytažené a exportované (trh – `marketStance`); výsledek výhledu
+  se nezměnil.
 - **Seno** – zásoba − `winterHayNeedKg` (stáda, voli, koně) ÷ `winterHayAvailable(1)` (ztráty ve stohu).
 - **Dobytek** – krávy `surplusCows` (chovné + na telata do výcviku); voli nad `oxenTrainingTarget`
   – napřed mladí, pak vycvičení prodejní (`cattleForSale`).

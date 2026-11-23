@@ -13,4 +13,11 @@
 export const MARKET = {
   grainKgPerCoin: 15,
   priceStep: 0.1,
+  /**
+   * Zpráva na pivo (markets.md – Pravidla 8, Rozhodnutí plánu 2, bod 7): lidé a domy se hlásí
+   * zaokrouhleně na násobek `round` (nejméně `round`, je-li aspoň jeden). `traders` je technický
+   * strop paměti vsi, ne pravidlo hry (návrh Clauda): hostitel si pamatuje jen posledních
+   * `traders` příjezdů obchodníků, aby stav vsi nerostl donekonečna.
+   */
+  report: { round: 5, traders: 10 },
 } as const;

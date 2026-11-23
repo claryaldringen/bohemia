@@ -62,6 +62,7 @@ import type {
 } from './types-people';
 import type { CartDrive, RoadGrade, VillageRoads } from './types-roads';
 import type { VillageRoutes } from './types-routes';
+import type { VillageMarket } from './types-market';
 import type { CraftPurchase, VillageTrade } from './types-trade';
 import type { WildlifeState } from './types-wildlife';
 import type { DisasterState } from './types-disasters';
@@ -697,6 +698,8 @@ export interface VillageState {
   trails?: Trail[];
   /** Obchod se sousedy – zásoby a poptávka sousedů a výpravy (trade.md – Obchod); chybí = nic. */
   trade?: VillageTrade;
+  /** Trh vsi (markets.md – Rozhodnutí plánu 2) – paměť příjezdů obchodníků; chybí = nic. */
+  market?: VillageMarket;
   /** Vozy vsi (wagons.md – Vůz) – vyrábí je tesař; chybí = žádné. */
   carts?: Cart[];
   /**

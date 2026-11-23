@@ -6,6 +6,7 @@ import type { VillageState } from '../../village/types';
 import { withBuiltFirstDwelling } from '../../village/__tests__/village-fixtures';
 import { noMacroGoods } from '../macro';
 import { VASSALAGE } from '../rules-vassalage';
+import { found } from '../../village/core/__tests__/simulate-fixtures';
 import { villageSpare } from '../spare';
 import { houseSpare, transportLimit } from '../transport';
 
@@ -123,5 +124,24 @@ describe('doprava a výhled rodu (transportLimit, houseSpare)', () => {
     transportLimit(s, NOV_1, 3);
     houseSpare([{ state: s, cell: { x: 2, y: 2 } }], TARGET, noMacroGoods());
     expect(s).toEqual(before);
+  });
+
+  it('výhled po vytažení pojistky obilí beze změny', () => {
+    const s = vlkov();
+    s.storesKg = 50_000;
+    const withField = found(NOV_1);
+    withField.storesKg = 50_000;
+    // pevná čísla ze změny „vytáhnout grainReserveKg“ – výsledek musí zůstat
+    expect(villageSpare(s, NOV_1).grainKg).toBe(48_880);
+    expect(villageSpare(withField, NOV_1)).toEqual({
+      grainKg: 48_706,
+      hayKg: 40,
+      cattle: { cows: 0, youngOxen: 0, trainedOxen: 0 },
+      horses: 0,
+      logs: 0,
+      stoneM3: 0,
+      people: { families: 0, men: 0, women: 0 },
+      laborDays: 0,
+    });
   });
 });
