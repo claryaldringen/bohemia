@@ -1,5 +1,7 @@
 # Příbuzenství a pohlaví – rodiny ve vsi
 
+> **Od 23. 11. 2026 se nevěsty ani ženichové z okolí nepřivádějí** (markets.md – Rozhodnutí plánu 1, návrh Clauda); zmínky níž o „okolí“ jsou dřívější stav, sňatky se skutečnými sousedy přijdou s plánem 3.
+
 Stav: **23. 11. 2026 Martin zrušil hlídání příbuzenství u sňatků.** Na otázku, odkud ves bez spojení s okolím
 vezme nevěsty a ženichy (sonda: zákaz do bratranců zakázal ve Vlkově od roku 923 každý možný pár): „Vynechme
 příbuznost. Je to mechanika navíc“; na otázku, zda zakázat aspoň sňatky sourozenců a rodičů s dětmi: „Nehlídat nic“.
@@ -69,14 +71,7 @@ dědictví, sňatky a nástupnictví potřebují vědět, kdo je čí. Postavy v
   dům ona a on ne, přižení se on k ní** (Martin: „Když drží vlastní dům (vdova s dětmi), muž se
   k ní přiženit smí – přestěhuje se on, když není dědicem svého domu.“). Kdo se stěhuje, vezme
   s sebou **vlastní děti mladší 16 let**. Kronika „Svatba“ jako dnes.
-- **Z okolí (Martin – c):** dokud okolní vsi nejsou, svobodný muž od 18 let, který ve vsi
-  nemá s kým se oženit, si **každý rok s pravděpodobností ≈ 30 %** přivede ženu z okolí (16–22
-  let, rodiče neznámí). **Ke svobodné ženě od 18 let bez možného ženicha ve vsi se přižení muž
-  z okolí** (Martin, 19. 10. 2026 – návrh růstu): k vdově, ženě, která drží dům (dědička), a k ženě
-  z domu bez mužů s **≈ 50 % ročně** – ta se pryč nevdává; k ostatním s ≈ 10 % ročně, nebo se
-  s ≈ 20 % ročně **vdá pryč** (dřív jen pryč, 30 % ročně). Ves tak lidi z okolí bere i dává
-  (návrh Clauda). Až budou okolní vsi (NPC vojvodové, další hráči – [válka](war.md),
-  [stěhování](migration.md)), sňatky půjdou přes ně.
+- **Z okolí:** ves se sňatky z okolí nepočítá – lidé se berou mezi sebou (Martin 23. 11. 2026: „Vynechme příbuznost“; návrh Clauda, markets.md – Rozhodnutí plánu 1); sňatky se skutečnými sousedy přijdou s plánem 3. Dřívější pravidla jsou v [historii](history/kinship-history.md).
 - **Muži rodu vojvody** (návrh issue #9, Martin 24. 10. 2026) smějí mít až 4 manželky; první je
   hlavní a podle pravidel výš, další (vedlejší) jen z okolí. Vedlejší manželka bydlí s mužem,
   dokud jeho dům není přeplněný, pak se svými dětmi ve vlastním obydlí – [vojvodova

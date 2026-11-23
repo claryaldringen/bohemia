@@ -727,8 +727,7 @@ voly**“ (obchod – [obchod](trade.md), Dobytek ve třech druzích). Podrobnos
   a sena hned za voly a ovcemi na vlnu).
 - **Telata z přírůstku nad cílem** platí dál – větší cíl znamená, že malé stádo napřed roste
   a teprve pak dává telata na voly navíc; páry k orbě, které ves chce, mají přednost (od 21. 11. 2026 všechny, ne jen poslední).
-  Rychleji jde dokoupit krávy nebo voly od sousedů ([obchod](trade.md) – Dobytek ve třech
-  druzích). **Vlkov** (20. 10. 2026, 8 domácností, voli 2, chce 3, ohrada volů 6 míst): cíl
+  Dokoupit krávy nebo voly od sousedů dnes nejde (zaniklo 23. 11. 2026 – markets.md, plán 1). **Vlkov** (20. 10. 2026, 8 domácností, voli 2, chce 3, ohrada volů 6 míst): cíl
   ~~4~~ **8,5** krávy, stádo 2,6 krávy. Za 3 roky bez obchodu ≈ 3 krávy a od dubna 803 do dubna
   805 žádný pár k orbě (starý pár dosloužil, z malého stáda šlo jen tele ročně); s koupí mladého
   a vycvičeného vola od pastevců hned po načtení ≈ 6 krav (telata na voly nejdou) a pár chybí jen
@@ -746,7 +745,7 @@ Martin na otázku „Má se chovné stádo zmenšovat podle toho, kolik masa ves
   hospodaření** (níž – cena v práci, rezerva 10 %; dřív pořadí ovce → kozy → krávy → prasata
   a čtvrtina navíc). Zbytek – **i dospělé kusy** – jde na maso. Chovné kusy pod nosností se
   nepřidávají, voli spřežení se nepočítají.
-- **Rezerva** (návrh Clauda): ves do příští porážky roste (porody, nevěsty z okolí – pár procent
+- **Rezerva** (návrh Clauda): ves do příští porážky roste (porody – pár procent
   ročně), odhad bílkovin z obilí je hrubý a zimní úhyn nebo neuhlídané kusy můžou stádo zmenšit.
   Víc by jen shnilo – maso vydrží jen do 31. 8. Dřív 25 %, od 19. 10. 2026 10 % (Rovnovážné
   hospodaření – víc stojí práci).

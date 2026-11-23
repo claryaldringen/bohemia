@@ -129,36 +129,11 @@ stojí obilí a práci vsi hned, užitek přinese až s lovem a válkou.
   a doslouží stejně jako kůň v ohradě – od 20 let jde 1. 11. na maso (Martin 31. 10. 2026: kůň
   čekající bez ohrady „stárne, doslouží a umírá jako kůň v ohradě“). Nad potřebu se u něj
   nepočítá – ves ještě nemá ohradu ani místa.
-- **První koně:** přivede je stavba první ohrady koní (viz Koně se stavbou ohrady); další se koupí od souseda (zemská stezka) nebo se odchovají.
+- **První koně:** přivede je stavba první ohrady koní (viz Koně se stavbou ohrady); další se odchovají (koupě od souseda zanikla 23. 11. 2026 – markets.md, plán 1).
 
 ## Nákup a prodej (Martin – jako ostatní zvířata; čísla návrh Clauda)
 
-Tři řádky v panelu obchodu jako u dobytka ([obchod](trade.md) – Dobytek ve třech druzích):
-
-| Druh             | Cena (kg obilí)                         | Proč                                                 |
-| ---------------- | --------------------------------------- | ---------------------------------------------------- |
-| hříbě (do 3 let) | **800**                                 | víc než mladý vůl (350) – kůň je vzácný, chov dražší |
-| chovná klisna    | **1 600**                               | nese chov; víc než vycvičený vůl (1 200)             |
-| jezdecký kůň     | **2 400** (3 roky) – **3 600** (12 let) | lineárně podle výcviku; 2–3 vycvičení voli           |
-
-- **Proč 2–3 voli:** údržba koně stála ≈ 1,4× vola (Langdon) a jezdecký kůň byl věc prestiže, ne
-  práce; raně středověké sazby dávají koni násobek vola (ripuárské právo – v rešerši 18. 10.
-  neověřeno). Přirážky jako u ostatního zboží (soused prodá za 0,96 hodnoty).
-- **Koupený jezdecký kůň** přijde se svým věkem a výcvikem (soused prodá koně 3–12 let, ne
-  dosluhujícího).
-- **Kdo nabízí a shání:** **pastevci** nabízejí hříbata a klisny, jezdecké koně jen některý rok
-  (v polovině let); **obilnáři a řemeslníci** shánějí jezdecké koně (jejich vojvodové jezdí taky)
-  a – návrh Clauda při implementaci – i hříbata a klisny na vlastní chov, ať má ves komu prodat,
-  co jí z chovu přebývá; **lesní ves** koně nemá. Roční množství 1–3 koně každého druhu.
-- **Koupené hříbě** má 1–3 roky (odstavené, má vlastní místo) a pohlaví ze seedu, **koupená
-  klisna** 4–12 let (návrh Clauda).
-- **Ves prodá** hříbata, klisny nad chovné a jezdecké koně bez jezdce – nikdy koně, na kterém
-  někdo jezdí. Jezdecké koně napřed nejméně vycvičené; když na žádném nikdo nejezdí, nejlépe
-  vycvičený zůstane jako hřebec – i bez klisny (Martin 31. 10. 2026: „Hřebce držet vždy“).
-- **Místo:** koupený kůň potřebuje volné místo v ohradě koní („Tolik koní se do ohrady koní
-  nevejde.“).
-- **Doprava:** po svých s honákem jako dobytek, **honák na 4 koně** (koně se vedou na ohlávce, ne
-  ženou).
+Koně od souseda se nekupují ani neprodávají; první koně přivede stavba ohrady a další jsou z chovu. Obchod s koňmi přijde s trhy (markets.md – plán 2). Dřívější text je v [historii](history/horses-history.md).
 
 ## Výcvik koně a jezdec (Martin – 3 až 12 let; čísla návrh Clauda)
 
@@ -268,11 +243,10 @@ Martin 26. 10. 2026: „Jezdeckého koně je potřeba každé dva měsíce kovat
 
 - **Kdo a kdy:** každý jezdecký kůň (samec od 3 let) se kuje **každé 2 měsíce** (Martin); celá ves najednou, pevný termín **60 dní** od posledního kování (`VillageState.shoeing.lastDay`). Termín vznikne první den, kdy ves má jezdecké koně (i u starších vsí – převod jednou a idempotentně), a zanikne, když je nemá. Klisny a hříbata se nekují.
 - **Vlastní kovář** (pracující kovárna, v zásobě aspoň hřivny na všechny koně): **0,5 čd** práce vsi na koně (0,2 osazení + 0,3 překování podkov) a **0,5 kg hřiven** ze zásoby kovárny na koně. Původní návrh 0,2 čd a 1 kg byl nesmyslný proti řetězu kovárny: 1 kg hotových výrobků z hřiven stojí 1,5 čd kování a 1,2 kg hřiven, takže šest kování ročně by spotřebovalo víc železa než nástroje 12 lidí. Sada čtyř podkov váží ≈ 1 kg, po dvou měsících se obrousí asi třetina a zbytek se překove – nové železo je ≈ 0,4 kg výrobků = 0,5 kg hřiven. Kovář proto drží v zásobě hřivny i na příští kování (`shoeingBarsKg` v `smithBarsTargetKg`). **Rezerva hřiven** (návrh Clauda, oprava 26. 10. 2026): kování koní má přednost před doplňováním vybavení – kovárna kuje nástroje jen z hřiven nad rezervou na příští kování (počet jezdeckých koní × 0,5 kg), jinak by je spotřebovala dřív, než se nahromadí 0,5 kg (ve Vlkově zůstávalo ≈ 0,13 kg celý rok). Ves bez jezdeckých koní nic nerezervuje.
-- **Cizí kovář**, když vlastní není nebo nemá hřivny: přijde nejbližší soused s kovářem (`nearestCraftsman` z `craft-buying.ts` – cesta jako nákup u sousedů, po stezce nebo krajinou). Ves platí obilím a pak luštěninami. Kování je malý nutný výdaj (≈ 36 kg obilí), proto smí **sáhnout i do pojistky** (návrh Clauda, oprava 26. 10. 2026; `paymentPool(..., intoBuffer)`), ale nikdy tak, aby ves neměla jídlo do příští sklizně (zásoby k příští sklizni − cena ≥ 0; Martin: ves za normálních okolností nemá hladovět). Nákup u sousedů a ohrada koní dál platí jen z přebytku nad pojistkou. Cena = (dny cesty tam i zpět + 0,5 čd na koně) × cena jídla v práci (`foodCosts` – kg obilí na člověkoden) + hřivny za cenu souseda (`buyPrice('ironBars')`).
-- **Vlkov (stav v lokální DB 26. 10. 2026):** 1 jezdecký kůň, vlastní kovárna je, ale hřiven má 0,08 kg; nejbližší soused je na východě, 5 dní tam i zpět po stezce. Vlastní kovář vychází na **4,0 čd** (0,5 čd práce + 0,5 kg hřiven oceněných prací na vytavení), cizí na **14,4 čd** – **3,6×** dráž. S rostoucím počtem koní podíl klesá (cesta se rozloží, železo ne): 2 koně 3,0×, 5 koní 2,6×, 10 koní 2,5× – pořád „násobně“, ale pod 3× jen u větších stájí.
-- **Nepodkutý kůň** (termín nastal a kovat nebylo jak – vlastní kovář nemá práci ani hřivny, soused chybí, nebo ves nemá přebytek na platbu): nejezdí (`lordRides` nevrací jízdy), výcvik koně nepostupuje (`trainHorsesDay`); chov, krmení a péče beze změny. Ves to zkusí znovu každý den. Upozornění se nedává (Martin 9. 11. 2026, viz Kronika).
+- **Cizí kovář** zanikl: koně kuje jen vlastní kovář (0,5 čd a 0,5 kg hřiven na koně), jinak jsou nepodkutí; kování od kováře skutečného souseda přijde s plánem 3. Dřívější text a sonda na Vlkově jsou v [historii](history/horses-history.md).
+- **Nepodkutý kůň** (termín nastal a kovat nebylo jak – vlastní kovář chybí, nemá práci nebo hřivny): nejezdí (`lordRides` nevrací jízdy), výcvik koně nepostupuje (`trainHorsesDay`); chov, krmení a péče beze změny. Ves to zkusí znovu každý den. Upozornění se nedává (Martin 9. 11. 2026, viz Kronika).
 - **Kronika:** „Kovář okul koně“ / „Kovář z Lhoty okul koně“ (jméno vsi, odkud kovář přišel – Martin 14. 11. 2026) – jednou za 2 měsíce, tedy šest záznamů ročně, jako ostatní roční události koní. **Upozornění se nedává** – Martin 27. 10. 2026: „Ano na jedno upozornění být nemusí, děje se to automaticky. Jen každý kovář musí fyzicky dojít do té ohrady a koně okovat.“ Ani na nepodkutého koně se upozornění nedává – Martin 9. 11. 2026: „to, že kůň není okovaný nepiš do upozornění, hráč s tím stejně nic neudělá“; stav ukazuje panel ohrady koní (červeně).
-- **Ve scéně** (Martin 27. 10. 2026 – kovář fyzicky dojde k ohradě; podrobnosti návrh Clauda): v den kování (kronika `horses-shod` toho dne) jde kovář k brance ohrady koní a u kůlu vedle branky kuje jezdecké koně **jednoho po druhém** – kůň stojí uvázaný podél plotu hlavou ke kůlu (mimo ohradu, v ohradě mezitím chybí), kovář u předního kopyta v předklonu s kladívkem; na začátku každého koně chvíli stojí (přivádí ho). Kování jde ve skutečném čase od začátku dne kování (1. 11. 2026, návrh Clauda – villagers.md, Činnosti od začátku do konce): kovář jde běžnou chůzí a každého koně kuje 2 minuty. **Vlastní kovář** je muž z domácnosti kovárny – vyjde od kovárny po pěšinách, po kování se stejnou cestou vrátí, mimo cestu je v kovárně. **Cizí kovář** přichází ze směru souseda, ke kterému by ves šla nakoupit (`nearestCraftsman`) – po zemské stezce, jinak krajinou od kraje mapy – a stejnou cestou odchází; není to člověk vsi. Cizí kovář z kraje mapy tak jde i přes deset herních dní – jádro kování dál počítá za jeden den. Bez hotové ohrady koní nebo bez cesty stojí podíl práce `horse-shoeing` u plotu jako dřív.
+- **Ve scéně** (Martin 27. 10. 2026 – kovář fyzicky dojde k ohradě; podrobnosti návrh Clauda): v den kování (kronika `horses-shod` toho dne) jde kovář k brance ohrady koní a u kůlu vedle branky kuje jezdecké koně **jednoho po druhém** – kůň stojí uvázaný podél plotu hlavou ke kůlu (mimo ohradu, v ohradě mezitím chybí), kovář u předního kopyta v předklonu s kladívkem; na začátku každého koně chvíli stojí (přivádí ho). Kování jde ve skutečném čase od začátku dne kování (1. 11. 2026, návrh Clauda – villagers.md, Činnosti od začátku do konce): kovář jde běžnou chůzí a každého koně kuje 2 minuty. **Vlastní kovář** je muž z domácnosti kovárny – vyjde od kovárny po pěšinách, po kování se stejnou cestou vrátí, mimo cestu je v kovárně. Bez hotové ohrady koní nebo bez cesty stojí podíl práce `horse-shoeing` u plotu jako dřív.
 - **Panel ohrady koní:** ikona koně s číslem – dny do kování (a za lomítkem cena cizího kováře v kg obilí); červeně, když koně nejsou podkutí. Popisek (Tooltip) říká, kdo kuje.
 - Čísla (60 dní, 0,5 čd, 0,5 kg hřiven) jsou v `HORSE_SHOEING` v `rules-livestock.ts`.
 

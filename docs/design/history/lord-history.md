@@ -22,3 +22,15 @@ Bod sekce do 19. 11. 2026:
 >   potřeba úrody zmizela s cílem osevu – [pole](../fields.md), Osivo bez cíle osevu).
 
 Z rozboru Vlkova (D100, 19. 11. 2026): rod byl ve Vlkově 6–8 z 10–12 dospělých a mimo rod 4–6 dospělých v oknech setí neměli volnou práci – ves osela ≈ 8 ha z ≈ 105 ha na řadě.
+
+## Další manželky mužů rodu z okolí
+
+Neplatí od 23. 11. 2026 (Martin 22. 11. 2026: sousedé jsou skutečné vsi a obchod jde přes trhy, [markets.md](../markets.md) – plán 1). Dřív v lord.md:
+
+- **Další manželky (2.–4.)** jen **z okolí** – žena 16–22 let, rodiče neznámí, s **≈ 30 % ročně**
+  pro muže rodu od 18 let s 1–3 žijícími manželkami (jako nevěsta z okolí). Proč z okolí: muži
+  rodu nesmějí brát ženy mužům vsi, ves by přišla o sňatky. V hladu nepřijde. Přijde **vždy do
+  domu muže**, i když ho přeplní – z přeplněného domu pak odchází vedlejší manželka podle Bydlení
+  (Martin, 24. 10. 2026: „Vedlejší manželky odcházejí do vlastních obydlí až teprve, je-li dvorec
+  přeplněný.“; dřívější návrh Clauda – do prázdného obydlí, je-li dům muže plný – zrušen po
+  recenzi 24. 10. 2026). Bere si ji, kdykoli má méně než 4 – i po smrti manželky.

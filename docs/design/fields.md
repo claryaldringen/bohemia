@@ -1816,22 +1816,7 @@ na vlnu – oděv, [diet.md](diet.md) – Oděv). Pravidla **návrh Clauda** pod
       jídle na **180 dní** (LEAVING.cartSeedFoodDays; 5 dospělých a vůz 400 kg: jídlo ≈ 260 kg
       místo 125, osivo zbytek). Pěšky tak nesou málo (rodina se dvěma nosiči 40 kg ≈ 0,23 ha).
       Poměrný díl se počítá ze zásob **bez rezervy osiva** mateřské vsi (ta zůstane jí).
-    - **Ves si osivo koupí u sousedů** ([obchod](trade.md) – Nákup osiva): **1. 9.** (před setím
-      ozimu) a **1. 3.** (před setím jaře) spočítá osivo nutných dílů plánu, které čeká na setí
-      (bez dílů nad potřebu; chybějící luštěniny za obilí), a odečte osivo, které smí do země, i zrno
-      a luštěniny v nevymlácených snopech (výmlat je dá – oprava, návrh Clauda 6. 11. 2026).
-      Chybí-li aspoň 5 kg, koupí **jen chybějící osivo** – nejvýš kolik obilí sousedé letos ještě
-      mají (po zlém roce kraje méně) – a zaplatí, **čím může bez ohrožení: hřivnami, pak kravami
-      nad ty, které ves drží na mléko a voly** – jako porážka: chovné krávy (kráva na 2 domácnosti,
-      s ohradou volů i krávy na obměnu volů) a krávy na telata do výcviku (`surplusCows`; **změna 2. 11. 2026**, návrh Clauda, Martin: „Ostatní jsi rozhodl dobře“ – dřív krávy nad dvě,
-      TRADE.keepCows, takže ves v pasti osiva prodávala krávy, které drží na voly, a voli nikdy
-      nevznikli), **nejvýš jednu za nákup** (SEED_BUYING.maxCows, návrh Clauda; cena jako v obchodu, po zlém roce kraje nižší). Jídlem ani voly neplatí.
-      Přeplatek za poslední kus dá soused v obilí do zásob (k jídlu), kolik ho ještě má. Zboží se
-      vymění hned (bez cesty nosičů). Nekoupí-li dost (nemá čím zaplatit, sousedé nemají), díly
-      bez osiva **nezaseje** a kronika to zapíše (upozornění „Chybí osivo na setí“). Důvod
-      v kronice: **platba**, když za ni ves dostane méně obilí, než sousedé mají, jinak **zásoba
-      sousedů** (oprava 2. 11. 2026 – dřív „sousedé nemají“, kdykoli neměli celé chybějící
-      množství, i když ves neměla čím zaplatit ani to, co měli).
+    - **Nákup osiva u sousedů zanikl:** ves bez osiva na nutné díly ho nekupuje; chybějící osivo dílům nezasadí a kronika zapíše upozornění „Chybí osivo na setí“ (osivo na trhu přijde s plánem 3). Dřívější text je v [historii](history/fields-history.md).
     - **Osivo osadníků a koupené ves nesní** – je jen na setí, do země smí i pod přežívací zásobou;
       koně a obilné jámy ho nesahají. Nutné díly sejí **napřed z běžného zrna nad přežívací zásobu**
       (od 6. 11. 2026, dřív nad příděl 1), pak z této rezervy a teprve pak ze zrna pod příděl (oprava,

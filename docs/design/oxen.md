@@ -257,7 +257,7 @@ volů (`draft.ts`).
   ves si je nechá při porážce; telata na voly jen z přírůstku nad nimi. Když ves telata do
   výcviku potřebuje (`oxenCalvesWanted` – voli, kteří jí chybí do cíle), nechá si při porážce
   1. 11. tolik krav navíc nad chovné stádo, aby na jaře z přírůstku byla.
-- **Dobytek od sousedů** ([obchod](trade.md) – Dobytek ve třech druzích; Martin, 20. 10. 2026:
+- **Dobytek od sousedů** (od 23. 11. 2026 zanikl – [obchod](trade.md), historie; markets.md, plán 1; dřív: Martin, 20. 10. 2026:
   „s dobytkem by také mělo jít obchodovat. Představuju si tři kategorie - krávy, mladé voly (musí
   se vycvičit) a vycvičené voly“): mladí voli jdou do ohrady volů na výcvik (vycvičí se 2 roky od
   příchodu), vycvičení voli táhnou hned a mají za sebou 3 roky služby; oba potřebují místo
@@ -392,7 +392,7 @@ vracelo na chovný pár):
    jde na maso (prasata → kozy → ovce → krávy). Když seno během zimy nevystačí do konce března,
    ves **hned porazí** tolik kusů (kozy → ovce → krávy), aby ostatní měli celou dávku – zvířata
    nehladoví (dřív zimní úhyn 1. 3.). Chovný pár zůstane vždy (přežije o větvích a slámě).
-4. **Prodej jen hráč** (obchod se sousedy, trade.md) – ves sama zvířata neprodává ani nekupuje
+4. **Prodej jen hráč** (obchod se sousedy zanikl 23. 11. 2026, markets.md – plán 2) – ves sama zvířata neprodává ani nekupuje
    (Martin 24. 10. 2026 odmítl, aby ves kupovala voly sama).
 5. **Náhrada volů i po rozpadu páru.** Náhrada párů k orbě (telata z přírůstku nad
    chovným párem krav; od 21. 11. 2026 pro všechny páry, které ves chce) platí i tehdy, když už ves pár nemá, pokud má rádlo a pár nemá ani necvičí

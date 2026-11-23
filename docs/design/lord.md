@@ -1,5 +1,7 @@
 # Vojvodova rodina – výcvik místo pole
 
+> **Od 23. 11. 2026 nepřibývají další manželky z okolí** ani nevěsty z okolí (markets.md – Rozhodnutí plánu 1, návrh Clauda); zmínky níž jsou dřívější stav.
+
 Stav: **schváleno** (Martin 23. 10. 2026: „Schvaluji, implementuj“) (23. 10. 2026, issue #8). **Implementováno** (sloučeno ≈ 24.–31. 10. 2026, kód viz [village-people.md](../code/village-people.md)). Koně, na kterých
 vojvoda a synové jezdí, popisuje [koně](horses.md) (issue #5). Čísla zdůvodňuje
 [rešerše](research/2026-10-23-horses-lord.md). Co níž není výslovně Martinovo, je návrh Clauda.
@@ -512,13 +514,7 @@ Clauda.
   její smrti viz Nová hlavní manželka.
 - **První manželka** jako dosud – sňatek ve vsi nebo nevěsta z okolí ([příbuzenství](kinship.md) –
   Sňatky).
-- **Další manželky (2.–4.)** jen **z okolí** – žena 16–22 let, rodiče neznámí, s **≈ 30 % ročně**
-  pro muže rodu od 18 let s 1–3 žijícími manželkami (jako nevěsta z okolí). Proč z okolí: muži
-  rodu nesmějí brát ženy mužům vsi, ves by přišla o sňatky. V hladu nepřijde. Přijde **vždy do
-  domu muže**, i když ho přeplní – z přeplněného domu pak odchází vedlejší manželka podle Bydlení
-  (Martin, 24. 10. 2026: „Vedlejší manželky odcházejí do vlastních obydlí až teprve, je-li dvorec
-  přeplněný.“; dřívější návrh Clauda – do prázdného obydlí, je-li dům muže plný – zrušen po
-  recenzi 24. 10. 2026). Bere si ji, kdykoli má méně než 4 – i po smrti manželky.
+- **Další manželky (2.–4.)** nepřibývají: dřív je muž rodu bral z okolí, a to už není. Náhradu ze vsi hra nezavádí (návrh Clauda, markets.md – Rozhodnutí plánu 1; Martinovi oznámeno). Dřívější pravidlo je v [historii](history/lord-history.md).
 - **Bydlení** (Martin): vedlejší manželky bydlí s mužem, **dokud jeho dům není přeplněný** –
   vojvoda tak může žít v dvorci se dvěma manželkami a jejich dětmi. Je-li přeplněný, odchází
   **vedlejší manželka s nejstarším synem, který by se mohl starat už o dům**, se svými svobodnými

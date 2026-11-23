@@ -1,7 +1,7 @@
 # Obchod – trhy, kupci a mince (issue #11)
 
 Stav: **schváleno** – Martin 22. 11. 2026 na otázku „Schvaluješ oba návrhy a takové pořadí?“ (obchod s trhy a mincemi, zlato a klenoty; šest plánů: konec smyšlených sousedů, trh bez mincí, vesničané a správce na trhu, kupci a mince, otroci, zlato): „Ano“. Co řekl Martin, je u bodu s datem; ostatní je návrh
-Clauda. Nahrazuje obchod se smyšlenými sousedy ([obchod](trade.md) – Sousedé, varianta a) a navazuje na rozpracovaný
+Clauda. **Plán 1 (konec smyšlených sousedů) hotový 23. 11. 2026** (větev `feat/markets-1`, issue #11) – viz Rozhodnutí plánu 1. Nahrazuje obchod se smyšlenými sousedy ([obchod](trade.md) – Sousedé, varianta a) a navazuje na rozpracovaný
 návrh [sousedních vsí](neighbours.md), jehož body 2–8 Martin odložil právě do této kapitoly.
 
 ## Proč
@@ -105,6 +105,19 @@ obchodníkům se do hry dostanou mince - obchodníci jimi budou platit za zbož�
 9. **Vesničané a správce:** vesničané jedou na nejbližší trh s řemeslníkem pro nástroje, keramiku, dřevěné nářadí, vozy
    a osivo, když se jim to vyplatí (dnešní rozhodování nákupu u sousedů); správce sestavuje výpravy jako hráč.
 10. **Starší vsi:** smyšlení sousedé ze stavu zmizí; výpravy a nákupy na cestě k nim doběhnou (převod jednou).
+
+## Rozhodnutí plánu 1 (návrh Clauda, 23. 11. 2026)
+
+Plán 1 smazal smyšlené sousedy z jádra, převodu starších vsí i rozhraní; nic z toho nevrátí, dokud nepřijdou skutečné vsi a trhy (plány 2 a 3). Rozhodnutí níž jsou **návrh Clauda** – Martin se předem neptal a je mu oznámeno; kde se plán 1 chová jinak, než by čekal, je to uvedeno.
+
+1. **Každá vazba na okolí skončí a vrátí se se skutečnými vsemi:** obchodní výprava hráče, výprava správce za obilím, nákup nástrojů, keramiky, dřevěného nářadí a vozů 15. 11., nákup osiva 1. 9. a 1. 3., cesta tesaře pro kování vozů, cizí kovář ke koním, nevěsta a ženich z okolí, další manželky mužů rodu, výměna lidí, železo (hřivny) jako platba a zlý rok kraje u zásob sousedů. Zůstává: koně se stavbou první ohrady, mistři huti a kněz (přicházejí na pozvání z dálky), obchod mezi hráči jednáním, zásilky vazalů, zemská stezka, právo `trade` v seniorátu a zdražení zboží v kraji po zlém roce (`goodWorth`).
+2. **Přes skutečnou ves jde už teď jen popisek konce cesty** na kraji mapy („Cesta do <ves>“ podle vlastní vsi na sousední mapě, jinak „Cesta na sever“) – je to jen pohled. Cokoli dalšího potřebuje, aby druhá ves zboží nebo člověka opravdu dala a vzala, a to staví plán 2.
+3. **Hráč přestane vidět** tlačítko Obchod a panel obchodu, v panelu dvorce ukáže řádek výrobků jen vlastní dílnu (jinak zašedlou ikonu „<výrobek> – ve vsi není řemeslník“) a v panelu dílny zmizí „vesničané dokupují u souseda“; upozornění „Nevěsta z okolí“, „Ženich z okolí“, „Dcera se vdala pryč“ a „Vesničané koupili …“ už nepřijdou, staré zápisy zůstanou v kronice.
+4. **Na cestě doběhne** (bod 10 Pravidel): výprava k sousedovi přinese zboží, dobytek, koně i lidi, nákup výrobky a vůz, cesta pro kování dokončí vůz; karavana a kronika jmenují dřívějšího souseda (`legacyNeighbourName`). Starší vsi se převedou jednou a idempotentně.
+5. **Soubory se přejmenovaly, kde by jméno lhalo:** `trade/neighbours.ts` na `trade/goods.ts`, `fields/seed-buying.ts` na `fields/seed-reserve.ts`, `SEED_BUYING` na `SEED_RESERVE`.
+6. **Odpověď na Otázku „další manželky mužů rodu“:** další manželky (2.–4.) mužů rodu z okolí do plánu 3 nepřibývají a náhrada ze vsi se nezavádí. Výměna lidí je podle Pravidel 1 jen se skutečnými vsemi a ze vsi by to bylo nové pravidlo, o které Martin nežádal; sonda Vlkova (D118) měřila bez nich a rod roste. Není to Martinova odpověď – Martinovi se oznamuje; je-li to špatně, rod roste do plánu 3 pomaleji a doplnit manželky ze vsi je malá změna v `dynasty-wives.ts`.
+7. **Kovář bez dřevěného nářadí čeká ≈ den na konci cyklu milíře** (přijatý důsledek; číslo `CHARCOAL_BALANCE` se nemění). Dřívější přípravek (nářadí od souseda) to maskoval; jde-li o víc než den na cyklus, rezerva je jedno číslo v `rules`.
+8. **Ves se správcem bez nástrojů a osiva z obchodu má po 20 letech menší pole:** zlatá ves vychází na ≈ 24 ha místo ≈ 34 (mez testu 22 ha přijata), 1. 3. 505 chybí ≈ 147 kg osiva a plánů lnu ubylo ze 163 na 148. Je to herní důsledek konce nákupů, zvláštní sonda osivo × nástroje se nedělá; menší cíl polí vsí bez kováře se napraví nákupem na trhu v plánu 3.
 
 ## Co se ověří
 

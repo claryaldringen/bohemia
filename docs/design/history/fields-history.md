@@ -526,3 +526,24 @@ Původně v sekci Známý dluh (a odkazy z Osevního postupu po dílech – Čel
 
 - ~~**Orba a setí až po vyklučení.** Čelo práce počítá orbu dílu v klučení u spřežení až po vyklučení, jádro ale rádlo i setí po dílech vede v pořadí práce a na vyklučení dílu nečeká: díl s křovím nebo mladým lesem se může zorat a zasít dřív, než ho lidé doklučí. Měření kontroly D110 (Vlkov 10 let): zoráno před vyklučením základ 34,7 ha / větev 32,8 ha, zaseto před vyklučením 6,3 / 29,2 ha (jař 0,1 / 19,2 ha); do konce okna ale zůstalo zaseto a nevyklučeno jen 1,8 ha (základ 1,2 ha), zisk z toho ≤ 2 %. Řeší se samostatnou úlohou.~~
 - ~~(jádro ale díl zorat i zasít smí dřív, než ho lidé doklučí – zjednodušení, viz Známý dluh)~~ a ~~(jádro seje i díl zoraný před vyklučením – viz Známý dluh)~~ – fyzicky to nejde, na křoví ani mladý les se neorá a neseje. Nahrazeno: rádlo, motyka a setí díl s klučením přeskočí, dokud ho lidé nevyklučí, a pokračují dalšími připravenými díly (návrh Clauda 22. 11. 2026 – D116).
+
+## Osivo pro ves bez zásob – nákup u sousedů
+
+Neplatí od 23. 11. 2026 (Martin 22. 11. 2026: sousedé jsou skutečné vsi a obchod jde přes trhy, [markets.md](../markets.md) – plán 1). Dřív v fields.md:
+
+    - **Ves si osivo koupí u sousedů** ([obchod](trade.md) – Nákup osiva): **1. 9.** (před setím
+      ozimu) a **1. 3.** (před setím jaře) spočítá osivo nutných dílů plánu, které čeká na setí
+      (bez dílů nad potřebu; chybějící luštěniny za obilí), a odečte osivo, které smí do země, i zrno
+      a luštěniny v nevymlácených snopech (výmlat je dá – oprava, návrh Clauda 6. 11. 2026).
+      Chybí-li aspoň 5 kg, koupí **jen chybějící osivo** – nejvýš kolik obilí sousedé letos ještě
+      mají (po zlém roce kraje méně) – a zaplatí, **čím může bez ohrožení: hřivnami, pak kravami
+      nad ty, které ves drží na mléko a voly** – jako porážka: chovné krávy (kráva na 2 domácnosti,
+      s ohradou volů i krávy na obměnu volů) a krávy na telata do výcviku (`surplusCows`; **změna 2. 11. 2026**, návrh Clauda, Martin: „Ostatní jsi rozhodl dobře“ – dřív krávy nad dvě,
+      TRADE.keepCows, takže ves v pasti osiva prodávala krávy, které drží na voly, a voli nikdy
+      nevznikli), **nejvýš jednu za nákup** (SEED_BUYING.maxCows, návrh Clauda; cena jako v obchodu, po zlém roce kraje nižší). Jídlem ani voly neplatí.
+      Přeplatek za poslední kus dá soused v obilí do zásob (k jídlu), kolik ho ještě má. Zboží se
+      vymění hned (bez cesty nosičů). Nekoupí-li dost (nemá čím zaplatit, sousedé nemají), díly
+      bez osiva **nezaseje** a kronika to zapíše (upozornění „Chybí osivo na setí“). Důvod
+      v kronice: **platba**, když za ni ves dostane méně obilí, než sousedé mají, jinak **zásoba
+      sousedů** (oprava 2. 11. 2026 – dřív „sousedé nemají“, kdykoli neměli celé chybějící
+      množství, i když ves neměla čím zaplatit ani to, co měli).

@@ -113,3 +113,30 @@ Platilo 22. 11. 2026 (D115 kolo 1). Cíl ovoce byl 5 % roční potřeby energie 
 jen 1. 9. Jídlo dne ale jí 5 % potřeby dne (lidé doma, věk toho dne) a jablka, dokud nejsou
 nasbíraná, sníst nemůže – Vlkov sklízel někdy až v říjnu a za rok shnilo 23–102 kg nasbíraných
 jablek (3–15 % sklizně).
+
+## Obilí v nouzi (výprava za obilím)
+
+Neplatí od 23. 11. 2026 (Martin 22. 11. 2026: sousedé jsou skutečné vsi a obchod jde přes trhy, [markets.md](../markets.md) – plán 1). Dřív v steward.md:
+
+- **Kdy hrozí hlad:** z výhledu zásob do žní, ze kterého správce počítá režim a pojistku
+  (`fieldStoresOutlook` – osivo, které ves z hromady okna nebo zimního osiva ještě zaseje, se nejí;
+  [pole](fields.md) – Výhled zásob k sklizni): potřeba z pole do příští sklizně
+  i se ztrátami skladováním bez zásob, které ves smí sníst (obilí, snopy, luštěniny), chybí aspoň
+  o `STEWARD.grainMinKg` (25 kg – náklad jednoho nosiče, `TRADE.porterKg`).
+- **Komu:** sousedovi, který obilí nabízí (obilnáři), s hotovou zemskou stezkou a bez výpravy na
+  cestě; z nich tomu, kdo přinese nejvíc obilí (při shodě méně práce, pak pořadí směrů).
+- **Kolik:** jen co chybí, nejvýš co soused letos ještě má; za přeplatek posledního kusu platby
+  vezme obilí navíc (jako nákup osiva – [pole](fields.md), Osivo pro ves bez zásob). Výprava nese
+  nejvýš `STEWARD.grainPorterShare` (polovinu) dospělých vsi jako nosiče – jinak správce nákup
+  úměrně zmenší; ostatní drží práci vsi. Ves, která neunese ani kládu (2 dospělí → 1 nosič, kláda
+  potřebuje 2), nic nekoupí.
+- **Čím platí:** `STEWARD.grainPayment` v pořadí hřivny → keramika → uhlí → klády – zboží, které
+  ves nejí a bez kterého hospodaří (jako nákup osiva: jídlem ani dobytkem neplatí), napřed
+  s nejvyšší hodnotou na kg nákladu, ať je výprava nejmenší; jen co soused shání a co letos ještě
+  vezme. Obilnáři shánějí vždy klády, takže ves s kládami platí skoro vždy. Nemá-li čím, nekoupí.
+  **Klády staveb neprodá** (návrh Clauda, 8. 11. 2026 – „správce v nouzi“, princip schválil
+  Martin): z hromady platí jen klády nad rezervu rozestavěných staveb vsi = dřevo, které stavby
+  ještě vezmou (stromy, které pro ně ještě nikdo neskácel; klády z hromady si stavba bere už při
+  zahájení).
+- **Nejvýš jedna výprava naráz** – správce nevyšle výpravu, dokud je jakákoli výprava za obchodem
+  na cestě (i hráčova; zásilky dávek pánovi se nepočítají).

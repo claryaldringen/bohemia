@@ -1,5 +1,7 @@
 # Lidé ve vsi (postavy)
 
+> **Od 23. 11. 2026 nejsou ve scéně lidé z okolí na svatbách, výpravy k smyšleným sousedům ani cizí kovář** (markets.md – Rozhodnutí plánu 1); zmínky níž jsou dřívější stav.
+
 Stav: Martin schválil 18. 10. 2026 („Jo, postavičky vypadají dobře. Zapoj je do hry.“ – po
 ukázce postav z 0 A.D.). Implementováno 18. 10. 2026: rozdělení práce dne v jádře
 `packages/game/src/domain/village/core/labor-report.ts`, rozmístění postav
