@@ -408,14 +408,19 @@ villageId)`. Z levných otisků (`stampsOf` – `last_day`, `asleep`) se dopočt
 
   **Lov** (hunting.md; plán 2026-11-22-hunting, Úloha 11): tlačítko lovu ve dvorci (`manor-hunt`,
   `ManorUpgrades`) volá `declareHunt`; zašedne s důvodem (`manor.huntDenied`, texty
-  `HUNT_DENIED_TEXT`; `already` z `huntRunning` výpravy vsi, `manorView(…, huntRunning)` posuzuje
-  den honců, zítřek). **Pravé tlačítko na vyhnané zvíře** (`LandscapeScene.quarryAt` – pozice
+  `HUNT_DENIED_TEXT`; `already` z `huntRunningIn` – lov ve výpravě vsi, nebo čekající záměr –,
+  `manorView(…, huntRunning)` posuzuje den honců, zítřek); odříznutý nováček dostane po kliknutí
+  text výprav `unreachable` „Tam nedojde.“ (`huntRefusalText`). **Pravé tlačítko na vyhnané zvíře** (`LandscapeScene.quarryAt` – pozice
   kurzoru, ne terén) s vybranými lidmi pošle `commandExpedition` `{ kind: 'strike' }`
   (`use-expedition-orders.ts`); odmítnutí je důvod u kurzoru (`expeditionReason(…, strike)`:
   `woman` „Na lov chodí jen muži“, `young` „Na lov až od 14 let“, `no-quarry` „Zvíře tu není“).
+  Klient odmítne jen výběr, ve kterém nemůže nikdo (důvod prvního); smíšený výběr rozhodne server.
   Osedlat a Sesednout útočníka v souboji jsou zašedlé (`striking` v `ExpeditionPersonState`).
-  `useJourneyScene` předává scéně lov vsi (`sceneHuntOf` → `setHunt`) vedle výprav.
-  `HuntRenderer.animate(nowMs, camera)` kreslí jen pohybující se lov v záběru kamery.
+  `useJourneyScene` předává scéně lov vsi (`sceneHuntOf` → `setHunt`) vedle výprav – nový pohled
+  každý takt jen předá, `setHunt(null)` až při odpojení nebo výměně scény (úklid mezi takty by
+  zahodil plynulý pohyb zvířete a prach zásahu a přestavěl ves).
+  `HuntRenderer.animate(nowMs, camera)` kreslí jen pohybující se lov v záběru kamery (zapisuje
+  i mimo záběr; změnu mimo záběr ukáže překreslení po pohybu kamery).
 
   Vždy: WASD / šipky a kurzor u okraje okna posouvají, kolečko i rozevření prstů na trackpadu
   (Ctrl + kolečko, v Safari `gesturechange`) přibližují, Q/E otáčí, R vrátí pohled na ves

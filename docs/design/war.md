@@ -256,9 +256,7 @@ přítomný hráč velí obraně sám; mřížka map s přechodem okrajem.
   - **Vojenská zkušenost** muže rodu = **(boj + luk) ÷ 2** (návrh Clauda); jízda je v násobku koně.
   - **Den lovu** (návrh Clauda; od 22. 11. 2026 nový lov – [hunting.md](hunting.md), Pravidla 10): lov cvičí, co lovec
     v souboji se zvířetem používá – boj, z koně jízdu, luk jen při střelbě (herní hodiny honby, nejvýš 6 h za lov), strop
-    zůstává **70** (`trainingCap(…, 'hunt')`). Původní znění pro kalendářní lov: lov rodu je výcvik jako dosud ([divoká zvěř](wildlife.md) – Lov
-    rodu: jezdec luk a jízda, pěší luk a boj), ale **se stropem 70**; hodiny dne lovu zůstávají
-    podle wildlife.md (6 h), jízda i luk rostou sazbou z lord.md.
+    zůstává **70** (`trainingCap(…, 'hunt')`). Původní znění pro kalendářní lov je v [historii](history/war-history.md).
   - **Vesničan** – Martin 3. 11. 2026: „Nebudeme to řešit, všichni vesničané budou mít víceméně
     stejnou (a malou) bojovou hodnotu.“ Dovednost lov u vesničanů se **nezavádí**; vesničan má
     pevnou sílu (návrh Clauda: **0,4**).

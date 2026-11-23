@@ -382,7 +382,7 @@ svého druhu (pole a čtverce po blocích) a všechny čerpají ze stejného roz
    v pasti osiva hladoví (viz Odchod syna – upřesnění, Past osiva). Jen **31. 8.** – po žních,
    před plánem osevu 1. 9., takže mateřská ves plánuje osev už pro menší počet lidí.
    2a. **Nouze – obilí a lov** (Martin 8. 11. 2026: „A“) – výprava za obilím, když zásoby do žní
-   nestačí, a lov navíc, když zvěř škodí na polích (viz Obilí a lov v nouzi). Každý den správce,
+   nestačí, a lov, když zvěř škodí na polích (viz Obilí a lov v nouzi). Každý den správce,
    před stavbami. Nestaví – rozpočet práce nebere.
 3. **Pole** – pole v oběhu pod cílem polí; další blok čtverců z plánu. Louka a křoviny 1. 9. až 28. 2. a 15. 6. až 31. 7. (mimo setí a žně – práce je volná), les 1. 10. až 31. 1.
 4. **Obydlí nebo dílna** – `waitingHouseholds > 0`: jedna stavba na čekající rodinu; dílna místo
@@ -523,9 +523,10 @@ Kroky 3 a 4 (`domain/village/steward/steward.ts` – `stewardDay`):
 Martin 8. 11. 2026 k otázce 3 (Výpravy za obchodem a velký lov rodu): „A“ – **obojí, ale jen
 v nouzi: obilí kupuje, jen když hrozí hlad, a na lov vyrazí, jen když zvěř škodí na polích.**
 Správce jedná **stejnými akcemi jako hráč** – výprava za obchodem (`tradeQuote` +
-`startExpedition`, [obchod](trade.md)) a lov navíc (`huntDenied` + `declareNpcHunt`,
-[hunting.md](hunting.md) – Pravidla 8: Martin 22. 11. 2026: „Správce je NPC hráč, takže na lov chodí on.“) – se stejnými kontrolami. Krok 2a, každý den správce, před
-stavbami; rozhoduje jen ze stavu vsi a dne, bez náhody.
+`startExpedition`, [obchod](trade.md)) a lov (`huntDenied` + `declareNpcHunt`,
+[hunting.md](hunting.md) – Pravidla 8: Martin 22. 11. 2026: „Správce je vlastně NPC hráč, takže by měl mít možnost
+dělat téměř vše, co skutečný hráč“) – se stejnými kontrolami; lov se mu dopočte bez scény (`npcHuntDay`). Krok 2a,
+každý den správce, před stavbami; rozhoduje jen ze stavu vsi a dne, bez náhody.
 
 - **Kdy hrozí hlad:** z výhledu zásob do žní, ze kterého správce počítá režim a pojistku
   (`fieldStoresOutlook` – osivo, které ves z hromady okna nebo zimního osiva ještě zaseje, se nejí;
@@ -554,8 +555,8 @@ stavbami; rozhoduje jen ze stavu vsi a dne, bez náhody.
   z pole – stejný práh jako noční hlídka dílu (`FIELD_GUARD.night.threat`); lov je další stupeň
   obrany polí. Loňská škoda platí od 1. 6. (zkušený hráč ví, že zvěř chodí na tatáž pole); letošní
   sama by se na práh dostala až koncem léta.
-- **Lov** (nový lov – [hunting.md](hunting.md), Pravidla 8; Martin 22. 11. 2026: „Správce je NPC hráč, takže na lov chodí
-  on.“): správce vyhlásí lov na zítřek, jen když zvěř škodí na polích (červen–srpen, škoda letos nebo loni aspoň
+- **Lov** (nový lov – [hunting.md](hunting.md), Pravidla 8; Martin 22. 11. 2026: „Správce je vlastně NPC hráč, takže by
+  měl mít možnost dělat téměř vše, co skutečný hráč“): správce vyhlásí lov na zítřek, jen když zvěř škodí na polích (červen–srpen, škoda letos nebo loni aspoň
   `STEWARD.huntDamageShare` roční potřeby obilí z pole) a pravidla lov dovolí (`huntDenied` – mimo hájení březen–květen,
   lov správce na zítřek ještě není, v lese vsi je velká zvěř, ves zítra uvolní honce); správce rozhoduje jednou za
   `everyDays` (10) dní.
@@ -1326,7 +1327,7 @@ kód, který se pak zahřeje, stojí ≈ 3× víc než zahřátý).
 | Měření: využití oběhu = 1 − odpočatá půda ladem, vracení přílohu ≤ 24 %, založení a vzdálenost dílů jen info                                          | návrh Clauda (2. 11. 2026)                                                                                                                 |
 | Měření: čas správce na hodinách CPU vlákna; akce staveb kopírují stav přes `cloneState`                                                               | návrh Clauda (2. 11. 2026)                                                                                                                 |
 | Posvátná místa podle návratnosti: přínos štěstí k práci vsi za horizont režimu (Růst 25, Obnova 5) proti ceně stavby                                  | návrh Clauda (2. 11. 2026)                                                                                                                 |
-| Obchod a lov jen v nouzi: obilí výpravou, když hrozí hlad, lov navíc, když zvěř škodí na polích – akcemi hráče                                        | Martin (8. 11. 2026: „A“), pravidla návrh Clauda                                                                                           |
+| Obchod a lov jen v nouzi: obilí výpravou, když hrozí hlad, lov, když zvěř škodí na polích – akcemi hráče                                              | Martin (8. 11. 2026: „A“), pravidla návrh Clauda                                                                                           |
 | Správce v nouzi: lov nejvýš 3× za léto, klády rozestavěných staveb neprodá                                                                            | Martin (8. 11. 2026 – princip), čísla návrh Clauda                                                                                         |
 | Správce opouští díly, když jsou špatné, ne když má málo lidí: v září vymění své díly o 20 % horší než volné místo plánu za nové pole tam (akce hráče) | Martin (8. 11. 2026: „A“; „Já měl za to, že správce pole opouští, když jsou na hovno, ne když má málo lidí“; „ok“), kritérium návrh Clauda |
 

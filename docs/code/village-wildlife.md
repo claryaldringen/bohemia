@@ -185,7 +185,7 @@ Návrh: [hunting.md](../design/hunting.md) – Pravidla 2, 3, 5–7, 11; stavba 
   značku nového lovu (`moveHuntAway` – vrací počet, ves za ně zaplatí další den `reserveBeaters`;
   jeden den na každý lov, návrh Clauda).
 - **Use-case** `declareHuntInVillage` (`application/declare-hunt.ts`, journey.md – Lov, Vyhlášení):
-  důvody `huntDenied(state, lastDay + 1, běží)` – běží lov ve výpravě vsi (`huntRunning`) – jdou jako `reason` a nic se neuloží; jinak
+  důvody `huntDenied(state, lastDay + 1, běží)` – běží lov ve výpravě vsi, nebo čeká jeho záměr (`huntRunningIn`) – jdou jako `reason` a nic se neuloží; jinak
   `countDeclaredHunt`, zvíře `pickQuarry`, začátek lovu `huntStartOf` (bez hustého lesa `no-game`),
   `reserveBeaters` a lov ve výpravě vsi. Server action `declareHunt({ villageId })`
   (`parseDeclareHuntInput` → `declareHuntForPlayer`).
@@ -195,8 +195,8 @@ Návrh: [hunting.md](../design/hunting.md) – Pravidla 2, 3, 5–7, 11; stavba 
 - **Zraněný** (`isInjured` v `people.ts`; zranění šelmou trvá `PREDATOR_RISK.injuryDays` = 60 dní):
   `laborPerDay` 0, `huntPool` ho vynechá (`manor`, `away`), `trainLordDay` ho přeskočí (necvičí ani
   nezapomíná), `lordRides` ho nevyvede na objížďku.
-- **Lov správce** (`npc-hunt.ts`; hunting.md – Pravidla 8, 9; Martin 22. 11. 2026: „Správce je NPC
-  hráč, takže na lov chodí on.“): **vyhlášení** – krok 2a správce (`needSteps` → `huntWanted`,
+- **Lov správce** (`npc-hunt.ts`; hunting.md – Pravidla 8, 9; Martin 22. 11. 2026: „Správce je vlastně
+  NPC hráč, takže by měl mít možnost dělat téměř vše, co skutečný hráč“): **vyhlášení** – krok 2a správce (`needSteps` → `huntWanted`,
   village-steward.md – Obilí a lov v nouzi) zavolá `declareNpcHunt(state, day)`: `reserveBeaters`
   na zítřek pro `HUNT.beaters.men` + `HUNT.npc.hunters` mužů (lovci správce platí jeden den práce
   jako útočníci hráče – Martin: „práce těch lidí se odečte pouze za 1 den“), `HuntState.npc` =

@@ -79,11 +79,12 @@ zabije, honci ho odnesou do dvorce na tyči mezi sebou a jeho maso a kožešina 
    jako dnes (wildlife.md – Kolik, převod úlovku). Kus zvěře ubude ze stavu zvěře. **Když se dlouho nic neděje** (lovec
    jen stojí), zvíře uteče zpět do lesa a honci jdou domů (Martin). Ves dopočítává po herních dnech, proto se výsledek
    lovu (maso, kůže, úbytek zvěře, zranění a smrt, výcvik) zapíše vsi schránkou v nejbližší herní den (návrh Clauda).
-8. **Správce** (Martin – NPC hráč: „Správce je NPC hráč, takže na lov chodí on.“): vyhlásí lov touž akcí, když zvěř škodí
-   na polích (návrh Clauda – stejná podmínka jako dnes), a lov se mu **dopočítá bez scény**: útočníky vybere jako hráč
-   (nejlepší dostupní muži podle dovedností a zvířete – na kance jen ten, kdo má umění), výsledek podle mechaniky boje
-   a náhody ze seedu; riziko nese stejné jako hráč, žádná zvláštní ochrana posledního muže rodu. Když hráč vyhlásí lov
-   a nikoho na zvíře nepošle, zvíře po čase uteče (bod 7).
+8. **Správce** (Martin 22. 11. 2026: „Správce je vlastně NPC hráč, takže by měl mít možnost dělat téměř vše, co skutečný
+   hráč“): vyhlásí lov touž akcí, když zvěř škodí na polích (návrh Clauda – stejná podmínka jako dnes), a lov se mu
+   **dopočítá bez scény**: útočníky vybere jako hráč (nejlepší dostupní muži podle dovedností a zvířete – na kance jen
+   ten, kdo má umění), výsledek podle mechaniky boje a náhody ze seedu; riziko nese stejné jako hráč, žádná zvláštní
+   ochrana posledního muže rodu (Martin 22. 11. 2026 na otázku, zda ho smí lov zabít: „Správce je NPC hráč, takže na lov
+   chodí on.“). Když hráč vyhlásí lov a nikoho na zvíře nepošle, zvíře po čase uteče (bod 7).
 9. **Ves bez hráče a bez správce** velkou zvěř neloví – vesničané loví jen drobnou zvěř a ryby pro vlastní potřebu jako
    dnes (Martin).
 10. **Výcvik a strop:** lov cvičí, co lovec používá – boj, z koně jízdu, luk jen při střelbě; platí strop dovedností jako
@@ -125,7 +126,12 @@ a po něm – škody na polích beze změny (483 / 608 kg před, 483 / 609 kg po
 nevyhlásil, hráč v DB nevyhlašuje – záměr Pravidel 9), dovednosti rodu o desetinu bodu jinak. Lov se tedy projeví, až když
 ho hráč nebo správce vyhlásí.
 
-## Nechává se na stavitele
+## Co nechal návrh na staviteli – hotovo (úlohy 1–12, 23. 11. 2026)
 
-Zvíře jako bojová jednotka (pohyb, útěk, obrana), útok povelem jako v boji, sjednocení se scénou boje a výjezdu, prahy
-a tempa (rešerše), správcův dopočet, převod stavu (rozběhnutý lov navíc, akumulátor úlovku), rozhraní.
+Všechno je postavené; rozhodnutí jsou v oddílu Rozhodnutí při stavbě, podrobnosti v mapě kódu. Zvíře jako bojová
+jednotka (pohyb, útěk, obrana) a útok povelem jako v boji – [war.md](../code/war.md) – Souboj se zvěří
+a [journey.md](../code/journey.md) – Lov; scéna lovu vedle scény boje a výjezdu – [scene-village.md](../code/scene-village.md)
+– Lov ve scéně; prahy a tempa podle rešerše – `HUNT_QUARRY` a `HUNT_FIGHT` v `rules-wildlife.ts`; tlačítko dvorce
+a správcův dopočet (`npcHuntDay`) – [village-wildlife.md](../code/village-wildlife.md) – Lov na tlačítko dvorce; převod
+stavu (převod `calendar-hunt` smaže rozběhnutý lov navíc i akumulátor úlovku) – tamtéž, Psi dvorce; rozhraní (tlačítko
+lovu ve dvorci, útok pravým tlačítkem na zvíře) – [web-ui.md](../code/web-ui.md).

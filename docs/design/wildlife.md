@@ -167,22 +167,12 @@ vesničanů.
 
 - Zvěř **nikoho nezabije** ani nezraní mimo lov – medvěd i vlci se lidem vyhýbají (ve scéně
   utíkají). **Jediná výjimka je výjezd vojvody:** osamělého vojvodu nebo malou družinu (nejvýš
-  dva muži) v hustém lese napadne medvěd nebo vlci, a to **týmiž čísly jako na lovu** (zranění
-  i smrt níže; vlci čísly lovu prasat) – [lord-control.md](lord-control.md) – Nebezpečí, bod 3.
-- **Na lovu** (nový lov – [hunting.md](hunting.md)) zraňuje a zabíjí lovce zvíře v souboji; níž uvedená čísla na lovce
-  a den jsou čísla šelem výjezdu (`PREDATOR_RISK` v `rules-wildlife.ts`, dřív `HUNT_RISK`; zranění trvá `PREDATOR_RISK.injuryDays`
-  = 60 dní) a platí dál jen pro výjezd vojvody. Původní text kalendářního lovu:
-- **Na lovu** může být lovec zraněn: na lovu prasat **0,5 %**, na lovu medvěda **5 % × (1 −
-  boj ÷ 200)** na lovce a den, náhodou ze seedu vsi a dne. Zraněný **60 dní** necvičí, neloví ani
-  nepracuje.
-- **Vzácně i smrt** (Martin, 24. 10. 2026: „Vzácně i smrt“; čísla návrh Clauda): na lovu prasat
-  **0,02 %**, na lovu medvěda **0,3 %** na lovce a den (jelen, zajíc a vlk bez šance na smrt),
-  vynásobeno **(2 − boj ÷ 100)** (vyšší při nízké dovednosti) a **× 2 pěšky bez koně**; los ze
-  stejného seedu vsi a dne jako zranění, nezávisle na něm. Typicky tak rod přijde o lovce
-  **jednou za několik desítek let** (zima se třemi lovci ≈ 1 %). Zabít může i vojvodu a dědice –
-  nástupnictví podle [vojvodovy rodiny](lord.md) (Rod vojvody); **vymře-li rod po meči, hra
-  končí** (Rod vojvody – Konec rodu), takže lov může konec hry způsobit. Kronika: „Bořivoj zahynul
-  na lovu divočáka“.
+  dva muži) v hustém lese napadne medvěd nebo vlci, a to **čísly bývalého kalendářního lovu**
+  (vlci čísly lovu prasat) – [lord-control.md](lord-control.md) – Nebezpečí, bod 3.
+- **Na lovu** (nový lov – [hunting.md](hunting.md)) zraňuje a zabíjí lovce zvíře v souboji; čísla na lovce a den
+  z kalendářního lovu zůstala beze změny jen šelmám na výjezdu (`PREDATOR_RISK` v `rules-wildlife.ts`, dřív `HUNT_RISK` –
+  čísla v lord-control.md, zranění trvá `PREDATOR_RISK.injuryDays` = 60 dní), jejich původní znění pro kalendářní lov
+  je v [historii](history/wildlife-history.md).
 
 ## Obrana polí (Martin – lov z koně, hlídání, psi; čísla návrh Clauda)
 

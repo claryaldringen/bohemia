@@ -998,7 +998,9 @@ výchozí návrh Clauda; tempo, rány, šíp a padlí z `WAR.pace`, `WAR.combat`
   střelec v pásmu stojí, na lovu by stál nekonečně na 60 m od jelena a kance či medvěda by bez
   rizika ustřílel zpoza `chargeM`).
 - **Útěk** – činnost (posune `activeTick`) je jen postup: útočník na nohou s povelem se ke zvířeti
-  ten takt přiblížil (nebo jde po objížďce), má je na dosah rány či střely, nebo zvíře před lovci
+  ten takt přiblížil (nebo jde po objížďce), má je na dosah rány či střely (střely ne na kance a bachyni
+  se zdravím ≤ 1 – šíp je už nesrazí, lukostřelec uvízlý v pásmu luku by lov držel navždy; `arrowCounts`
+  v `huntersStep`), nebo zvíře před lovci
   utíká, opravdu se pohnulo a aspoň jeden lovec se týž takt pohnul směrem k němu (honba; Martin 22. 11.:
   nečinnost je nečinnost lovce, ne zvířete). Kdo jen klouže podél překážky či přešlapuje, činný není
   (návrh Clauda – lov bez postupu skončí i bez hráče; Martin: „lov může teoreticky trvat libovolně

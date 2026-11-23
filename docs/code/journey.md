@@ -1037,14 +1037,19 @@ Lov vsi je součást výpravy domovské vsi (`docs/design/hunting.md`; plán –
   `waiting`), i když na ní žádný hlouček nestojí.
 - **Vyhlášení – use-case** (Úloha 9 – `application/declare-hunt.ts`): `declareHuntInVillage` se
   vstupem `playerId`, `villageId` a `now` → `DeclareHuntResult` (`{ ok: true, journeyId }`, nebo
-  `reason` `HuntDenied` | `no-village` | `busy` | `VILLAGE_EXTINCT` / `VILLAGE_ABANDONED` /
+  `reason` `HuntDenied` | `no-village` | `unreachable` | `busy` | `VILLAGE_EXTINCT` / `VILLAGE_ABANDONED` /
   `VILLAGE_TRAVELLING` – ves nežije); `DeclareHuntDeps` jako u výpravy (vsi, výpravy,
   rod, mapy `cells`, hodiny světa, seedy, `newId`). Ves hráče (`findPlayerVillage`) → běžící výprava
-  vsi (`activeIn`) a lov v ní (`huntRunning`) → ves žije (vymřelá, opuštěná, na cestě se odmítnou)
+  vsi a lov v ní (`villageJourneyHunt` – lov v bodu výpravy, `huntRunning`, nebo nevyřízený záměr `hunt`
+  za bodem, `intentsAfter`; jinak by druhé vyhlášení před uplatněním záměru ves zaplatilo znovu
+  a výprava by druhý lov zahodila) → ves žije (vymřelá, opuštěná, na cestě se odmítnou)
   a důvody `huntDenied` na den honců (`lastDay + 1`; `running` je jen lov běžící ve výpravě – víc
   lovů za den smí, každý zaplatí své honce, `reserveBeaters` je sčítá; selže-li zápis výpravy,
-  `unreserveBeaters` rezervaci a pořadí vrátí) napřed na uloženém stavu bez mapy → rod s místem na mapě světa
-  (`no-village`) → mapa domovského políčka → zápis vsi (`editVillage`, souběh `busy`): důvody znovu
+  `unreserveBeaters` rezervaci a pořadí vrátí) napřed na uloženém stavu bez mapy → domov výpravy
+  (`newHome` jako `musterExpedition` – `homeOf`: bez rodu `no-village`, rod bez místa na mapě světa
+  nebo sídlo bez políčka světa – odříznutý nováček – `unreachable`, web text výprav „Tam nedojde.“;
+  tlačítko kvůli tomu nezašedne, zda má odříznutý nováček lovit, rozhodne Martin) → mapa domovského
+  políčka → zápis vsi (`editVillage`, souběh `busy`): důvody znovu
   na čerstvém stavu, `countDeclaredHunt`, zvíře `pickQuarry(zvěř, seed vsi, lastDay, declared)`
   (pořadí po přičtení – jako lov správce), dvorec výpravy (běžící `home`, jinak `journeyHome`),
   `huntStartOf` z mřížky pochodu (`marchGrid` se stezkami sousedů) – bez hustého lesa `no-game`
@@ -1066,8 +1071,9 @@ Lov vsi je součást výpravy domovské vsi (`docs/design/hunting.md`; plán –
   null bez lovu: `quarry` (druh, poloha, směr, stav, rány; null, je-li zvíře v lese – `hidden` –,
   nebo zmizelé – `gone`; padlé ano), `beaters` (`HuntBeaters` – polohu honců spočte scéna z taktu,
   `beatersAt`), `dogs`, `strikers` (osoby bojovníků, kteří v souboji jednají – ne `left` ani `down`),
-  `outcome` a `tick` (takt souboje – `HuntFight.tick`). `huntRunning(stav)` – běžící výprava má lov
-  (tlačítko lovu `already`). Worker uloží bod hned (`playerSeesChange` → `huntSeesChange`), když lov
+  `outcome` a `tick` (takt souboje – `HuntFight.tick`). `huntRunning(stav)` – běžící výprava má lov;
+  `huntRunningIn(deps, hráč, ves)` – lov vsi běží v bodu výpravy, nebo čeká jeho záměr (`villageJourneyHunt`;
+  tlačítko lovu `already` – web `viewOf`, vyhlášení `declareHuntInVillage`). Worker uloží bod hned (`playerSeesChange` → `huntSeesChange`), když lov
   začal nebo zmizel, zvíře se pohnulo, změnilo stav nebo dostalo ránu, souboj skončil, honci zvedli
   úlovek (`beaters.end`), útočník změnil stav nebo dostal ránu, nebo skupina začala či přestala lovit
   (`hunting`) – utíkající zvíře se tak ukládá každé kolo, honci kvůli své chůzi ne.
@@ -1086,10 +1092,13 @@ Lov vsi je součást výpravy domovské vsi (`docs/design/hunting.md`; plán –
   `village/core/__tests__/inbox.test.ts` (`hunt-leave`); Úloha 9 – `journey-hunt.test.ts` (člen se
   značkou předchozího lovu dostane značku dalšího), `wildlife/__tests__/hunt.test.ts`
   (`moveHuntAway`), `application/__tests__/declare-hunt.test.ts` (nová výprava jen s lovem, záměr
-  `hunt` výpravě venku se skupinami beze změny, `already` – lov ve výpravě, honci zítra, lov správce –,
-  `closed-season`, `no-beaters`, `no-game` – mapa bez lesa i ves bez zvěře –, `no-village`, `busy`;
+  `hunt` výpravě venku se skupinami beze změny, `already` – lov ve výpravě i čekající záměr prvního
+  lovu (ves zaplatí honce jednou), honci zítra, lov správce –,
+  `closed-season`, `no-beaters`, `no-game` – mapa bez lesa i ves bez zvěře –, `no-village`,
+  `unreachable` – odříznutý nováček, `busy`;
   nic se neuloží), `expedition.test.ts` (strike: vojvoda ze vsi se značkou a dnem práce, žena
   `woman`, chlapec 13 let `young`, `no-quarry` bez výpravy, bez lovu i se zvířetem v lese, člen bez
   zámku vsi, člen se značkou předchozího lovu přes `musterExpedition`), `expedition-view.test.ts`
-  (`hunt` null, skryté zvíře, zvíře venku, `strikers`, zmizelé, `huntRunning`), `step-journeys.test.ts`
+  (`hunt` null, skryté zvíře, zvíře venku, `strikers`, zmizelé, `huntRunning`, `huntRunningIn` –
+  i čekající záměr `hunt`), `step-journeys.test.ts`
   (`playerSeesChange` u lovu; utíkající zvíře uloží bod každé kolo, skryté až po `CHECKPOINT_TICKS`).
