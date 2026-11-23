@@ -53,9 +53,15 @@ obchodníkům se do hry dostanou mince - obchodníci jimi budou platit za zbož�
 - **Města na stezkách:** na doporučení, aby na mapách podél kupecké stezky smějí vznikat i vsi synů a dalších hráčů
   (prémiovou výhodou zůstane brod nebo průsmyk): „ok“.
 - **Spodní cena:** na otázku Clauda „Má mít prodávající spodní cenu, pod kterou neprodá?“ (bez dna cena při přebytku klesá
-  o 10 % každý tržní den – po zhruba 140 dnech by si výprava odvezla 20 klád za 5 g sýra) Martin zvolil možnost „Ano,
-  výchozí hodnota“ s popisem: „Nikdo neprodá pod tím, co má zboží ve hře cenu dnes (hodnota v obilí přepočtená na mince). Co se
-  za tu cenu neprodá, zůstane hostiteli nebo si to výprava odveze domů. Nahoru roste cena volně.“ (Martin 23. 11. 2026)
+  o 10 % každý tržní den – po zhruba 140 dnech by si výprava odvezla 20 klád za 5 g sýra) Martin 23. 11. 2026 zvolil
+  možnost „Ano, výchozí hodnota“ (popis možnosti od Clauda: „Nikdo neprodá pod tím, co má zboží ve hře cenu dnes (hodnota
+  v obilí přepočtená na mince). Co se za tu cenu neprodá, zůstane hostiteli nebo si to výprava odveze domů. Nahoru roste cena
+  volně.“).
+- **Horní cena:** na otázku Clauda „Cena na trhu nahoru roste volně, jak jsi zvolil. Když ale ves obilí shání každý tržní
+  den a nikdo ho nepřiveze, cena roste o 10 % denně bez konce. Po 50 tržních dnech je obilí 117× dražší, po 100 dnech
+  13 800×, a kdo pak přiveze pár kil, odnese za ně obrovské množství zboží. Co s tím?“ (možnosti: „Cena se hýbe jen při
+  obchodu“, „Strop 10× výchozí hodnoty“, „Nechat bez stropu“) Martin 23. 11. 2026 zvolil možnost „Nechat bez stropu“ –
+  cena nahoru nemá mez, kód se nemění.
 - **Otrok:** na otázku, zda jde zajatého pohana prodat jen hned po odvedení, nebo kdykoli, dokud je pohan: „Kdykoliv. Od
   zajetí bude prostě vedený jako otrok“.
 - Z návrhu [sousedních vsí](neighbours.md) (22. 11. 2026): sousedé jsou skutečné vsi – vsi rodu vzniklé odchodem syna
@@ -130,8 +136,8 @@ Plán 2 přidal trh ve vsi, výpravu na trh a přehled vsí, ale ještě bez min
 1. **Výprava stojí na karavaně a schránce vsi** (zásilka mezi skutečnými vsemi), ne na výpravě po taktech. **Válka obchod nezakazuje** – podmínku „v nepřátelství se neobchoduje“ z podkladu neighbours.md Martin neschválil, výprava jede i do vsi, s níž je hráč ve válce.
 2. **Doba cesty** (Martin 22. 11. 2026: „ráno se vyrazí a večer vrátí“): cesta tam trvá max(0, políčka − `MARKET.dayTripCells`) × `MARKET.daysPerCell` dní (`dayTripCells = 1`, `daysPerCell = 1`, pobyt nejméně `MARKET.minStayDays = 1`). Ves na sousední mapě je ráno tam a večer zpět, každá další mapa přidá den tam a den zpět. **Doprovod jezdce výpravu na trh nedoprovází** – nemá zemskou stezku (horses.md – Doprovod výpravy) a jezdec by chyběl v hlídce polí.
 3. **Model ceny:** výchozí cena z hodnoty zboží, kurz 15 kg obilí za minci (`MARKET.grainKgPerCoin`), po tržním dni posun o nejvýš ±10 % (`MARKET.priceStep = 0,1`); **dno ceny je výchozí hodnota** (Martin 23. 11. 2026, viz Martinova rozhodnutí – Spodní cena).
-4. **Řídký trh bez mincí.** Zápočet je výměna zboží za zboží (vyrovnaný barter v mincovní míře každý tržní den, nic se nepřenáší do dalšího dne). Hostitel bez potřeby nic neprodá a výprava prodá jen za to, co hostitel shání; trh zůstane řídký, dokud nepřijdou mince (plán 4).
-5. **Co hostitel nabízí a shání:** jen makrokomodity (obilí, krávy, voli, koně, klády, kámen). **Klády a kámen hostitele jdou na prodej celé hromady.** Kámen se veze jako u zásilky – 2 lidé na započatých 800 kg (`expeditionLaborNeed`). **Prodaní tažní voli vůz výpravy netáhnou** (vůz domů jede bez spřežení, které výprava prodala). **Nosiči se berou jen z volných lidí vsi** – kdo už má práci, na trh nejede.
+4. **Řídký trh bez mincí.** Zápočet je výměna zboží za zboží (vyrovnaný barter v mincovní míře každý tržní den, nic se nepřenáší do dalšího dne). Hostitel bez potřeby nic neprodá a výprava prodá jen za to, co má trh na seznamu (co hostitel shání, ale i co chce jiná výprava – výpravy smějí obchodovat i mezi sebou, ne jen s hostitelem); trh zůstane řídký, dokud nepřijdou mince (plán 4).
+5. **Co hostitel nabízí a shání:** jen makrokomodity (obilí, krávy, voli, koně, klády, kámen). **Klády a kámen hostitele jdou na prodej celé hromady.** Kámen se veze jako u zásilky – 2 lidé na započatých 800 kg (posádku počítá `marketCrew`, `legCrew`). **Prodaní tažní voli vůz výpravy netáhnou** (vůz domů jede bez spřežení, které výprava prodala). **Nosiči se berou jen z volných lidí vsi** – kdo už má práci, na trh nejede.
 6. **Oběh mezi vsemi:** **zboží od pozdního hostitele může přijít po lidech** – hostitel pozadu s dopočtem znamená čekat; lidé jsou doma v plánovaný den, zboží a zpráva přijdou, až hostitel výsledek zapíše. Zanikl-li hostitel, vrátí se výprava s tím, co drží.
 7. **Zpráva na pivo ukáže posledních 10 obchodníků** (`MARKET.report.traders = 10`). Je to **technický strop, ne pravidlo hry** – stav vsi nesmí růst donekonečna, hostitel si proto pamatuje jen posledních 10 příjezdů. Lidé a domy se hlásí zaokrouhleně na 5 (`MARKET.report.round = 5`, nejméně 5, je-li aspoň jeden); **domy jsou včetně opuštěných**. Jiný strop (třeba časový) je jedno číslo.
 

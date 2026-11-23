@@ -443,7 +443,7 @@ villageId })` (vlastní ves → hráč sám, spravovaná cizí → `settlement.o
   dopočítává ves dál podle vlastníka sídla (u držitele).
 - **Pohled správce** (`viewOf`): dopočet a ves jsou držitelovy, ale přepínač (`switcherItems`) je správcův –
   jeho vlastní vsi + spravované cizí (`stewardedVillagesOf`, položka `stewarded: true`); `gameOver`, `ownMaps`,
-  `mapsBlocked` a otisk se pro správce nesestavují (nic o ostatních vsích držitele). `gameEntryForPlayer`
+  `mapsBlocked` a otisk se pro správce nesestavují (nic o ostatních vsích držitele); stejně panel Trh (`marketOverview` s `actorId`): správce nevidí ostatní vsi držitele ani jeho znalost mapy, jen sousední mapy a zprávy spravované vsi. `gameEntryForPlayer`
   přijme jako zapamatovanou ves i spravovanou cizí.
 - **Panel:** `HousePanelData.stewardships` (ves + správce, jen pro držitele) → řádek „Správci vsí“ s tlačítkem
   Odvolat (`dismissSteward` server action).

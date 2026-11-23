@@ -379,7 +379,7 @@ Počasí kraje mění hodnotu zboží od 1. 11. – [village-disasters.md](villa
   (`holderAt` → `listActive` → ves sídla), vsi z map ze znalosti rodu (`knownCellsOf`, jen ves,
   jejíž stavbu rod viděl; `seen` = domy a řemesla z `knowledge.of`) a vsi ze zpráv na pivo (`news`
   domovské vsi). Bez domovské vsi a archivovaných sídel; odříznutý rod vidí jen své vsi
-  (`crossesIsolation`). Zaniklá ves (`sleeps`) je v přehledu s `blocked: MARKET_GONE`, ves na cestě
+  (`crossesIsolation`). **Správce cizí vsi** (`actorId` ≠ `playerId`) nevidí ostatní vsi držitele ani jeho znalost mapy a nesmí je zvolit (`MARKET_UNKNOWN`): zůstávají vsi na sousedních mapách (bez vsí držitele) a vsi ze zpráv spravované vsi. Zaniklá ves (`sleeps`) je v přehledu s `blocked: MARKET_GONE`, ves na cestě
   s `VILLAGE_TRAVELLING`; válka obchod nezakazuje. Řazeno podle `cells`, pak jména.
   `sendMarketExpedition` vezme cíl jen z přehledu a bez `blocked` (jinak `MARKET_UNKNOWN` nebo
   důvod blokace), ves pozadu napřed dopočte do `today` (`updateLivingVillage`), zavolá `departMarket`
