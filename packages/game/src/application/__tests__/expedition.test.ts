@@ -5,18 +5,24 @@ import { villageManor } from '../../domain/village/people/manor';
 import { CURRENT_LAYER_VERSIONS } from '../../domain/landscape';
 import { horse, horseVillage, START, YEAR } from '../../domain/village/__tests__/horse-fixtures';
 import { isAway } from '../../domain/village/people/people';
+import { WILDLIFE_LAND } from '../../domain/village/rules/rules-wildlife';
 import type { Person, VillageState } from '../../domain/village/types';
+import { freshWildlife } from '../../domain/village/wildlife/wildlife';
 import { endAway } from '../../domain/vassalage/guests';
 import {
   INTENT_LEAD_TICKS,
+  newJourney,
+  releaseQuarry,
   stepJourney,
   tickOfMs,
   type CampaignMap,
   type CampaignWorld,
+  type HuntStart,
   type JourneyCommand,
   type JourneyOrder,
   type JourneyState,
 } from '../../domain/war';
+import { startHunt } from '../../domain/war/journey-hunt';
 import { land } from '../../domain/war/__tests__/battle-fixtures';
 import { campaign } from '../../domain/war/__tests__/campaign-fixtures';
 import {
@@ -464,5 +470,179 @@ describe('musterExpedition – přidání lidí ze vsi', () => {
       journeyId: 'jny-1',
     });
     expect(w.journeys.intents.map((i) => (i.body as { people: number[] }).people)).toEqual([[22]]);
+  });
+});
+
+describe('povel strike – útok na zvíře (plán 2026-11-22-hunting, Úloha 9)', () => {
+  const STRIKE: ExpeditionCommand = { kind: 'strike' };
+  /** Lov z dvorce: dveře lesa 100 m na západ, výběh 40 m od nich. */
+  const HUNT_START: HuntStart = {
+    quarry: 'stag',
+    day: START,
+    door: { x: -100, z: 0 },
+    out: { x: -60, z: 0 },
+    dogs: 0,
+  };
+
+  /** Lhota se zvěří (honci a útočníci se platí z rezervace lovu); chlapec 14 má 13 let. */
+  function withGame(s: VillageState): void {
+    s.wildlife = freshWildlife({ ...WILDLIFE_LAND.defaultLand }, 0);
+    personOf(s, 14).bornDay = s.lastDay - Math.ceil(13.5 * YEAR);
+  }
+
+  /** Lov výpravy `id` začne a zvíře hned vyběhne z lesa (honci došli). */
+  function quarryOutIn(w: World, id: string): void {
+    rewrite(w, id, (s) => {
+      startHunt(s, HUNT_START, s.tick);
+      releaseQuarry(s.hunt!.fight, s.hunt!.out, s.tick);
+    });
+  }
+
+  /** Výprava Lhoty jen s lovem (`jny-h`, lov 1), zvíře venku. */
+  async function huntOnly(): Promise<World> {
+    const w = await setup(withGame);
+    const state = newJourney(
+      {
+        id: 'jny-h',
+        seed: 3,
+        playerId: 'pa',
+        houseId: 'h-pa',
+        home: { villageId: w.homeId, name: 'Lhota', cell: { x: 0, y: 0 }, pos: { x: 0, z: 6 } },
+        recruits: [],
+        startMs: NOW.getTime() - 10_000,
+        hunt: HUNT_START,
+      },
+      OFFICIAL_WORLD,
+    );
+    await w.journeys.create(state);
+    rewrite(w, 'jny-h', (s) => releaseQuarry(s.hunt!.fight, s.hunt!.out, s.tick));
+    return w;
+  }
+
+  function recruitIds(w: World): number[] {
+    const body = w.journeys.intents.at(-1)!.body as JourneyCommand;
+    return body.kind === 'strike' ? (body.recruits ?? []).map((r) => r.ref.personId) : [];
+  }
+
+  it('vojvoda ze vsi: odejde se značkou lovu, ves zaplatí den jeho práce, záměr strike s ním', async () => {
+    const w = await huntOnly();
+    expect(await commandParty(w.deps, input(w.homeId, [10], STRIKE))).toEqual({
+      ok: false,
+      reason: 'recruits',
+    });
+    expect(await musterExpedition(w.deps, input(w.homeId, [10], STRIKE))).toEqual({
+      ok: true,
+      journeyId: 'jny-h',
+    });
+    const v = await villageOf(w);
+    expect(personOf(v, 10).away).toEqual({ kind: 'journey', refId: 'jny-h', huntId: 1 });
+    expect(v.wildlife?.hunt?.beaters).toEqual({ day: v.lastDay + 1, men: 1 });
+    expect(w.journeys.intents).toHaveLength(1);
+    expect(w.journeys.intents[0]).toMatchObject({
+      journeyId: 'jny-h',
+      tick: tickOfMs(NOW.getTime(), OFFICIAL_WORLD) + INTENT_LEAD_TICKS,
+      body: { kind: 'strike', people: [] },
+    });
+    expect(recruitIds(w)).toEqual([10]);
+  });
+
+  it('žena – woman, chlapec 13 let – young; s vojvodou z výběru vypadnou a zůstanou doma', async () => {
+    const w = await huntOnly();
+    expect(await commandParty(w.deps, input(w.homeId, [11], STRIKE))).toEqual({
+      ok: false,
+      reason: 'woman',
+    });
+    expect(await musterExpedition(w.deps, input(w.homeId, [11], STRIKE))).toEqual({
+      ok: false,
+      reason: 'woman',
+    });
+    expect(await musterExpedition(w.deps, input(w.homeId, [14], STRIKE))).toEqual({
+      ok: false,
+      reason: 'young',
+    });
+    expect(w.journeys.intents).toEqual([]);
+    expect(await musterExpedition(w.deps, input(w.homeId, [11, 14, 10], STRIKE))).toEqual({
+      ok: true,
+      journeyId: 'jny-h',
+    });
+    const v = await villageOf(w);
+    expect([10, 11, 14].map((id) => personOf(v, id).away?.huntId)).toEqual([
+      1,
+      undefined,
+      undefined,
+    ]);
+    expect(recruitIds(w)).toEqual([10]);
+  });
+
+  it('bez lovu, bez výpravy i se zvířetem ještě v lese – no-quarry, nic se nezapíše', async () => {
+    const w = await setup(withGame);
+    const none = { ok: false, reason: 'no-quarry' };
+    expect(await commandParty(w.deps, input(w.homeId, [10], STRIKE))).toEqual(none);
+    expect(await musterExpedition(w.deps, input(w.homeId, [10], STRIKE))).toEqual(none);
+    await musterExpedition(w.deps, input(w.homeId, [20], GO));
+    const saves = w.villages.saves;
+    expect(await musterExpedition(w.deps, input(w.homeId, [10, 20], STRIKE))).toEqual(none);
+    rewrite(w, 'jny-1', (s) => startHunt(s, HUNT_START, s.tick));
+    expect(await commandParty(w.deps, input(w.homeId, [20], STRIKE))).toEqual(none);
+    expect(await musterExpedition(w.deps, input(w.homeId, [10], STRIKE))).toEqual(none);
+    expect(w.villages.saves).toBe(saves);
+    expect(w.journeys.intents).toHaveLength(0);
+  });
+
+  it('člen výpravy útočí bez zámku vsi; člen se značkou předchozího lovu dostane značku tohoto a zaplatí další den', async () => {
+    const w = await setup(withGame);
+    await musterExpedition(w.deps, input(w.homeId, [20, 21, 22], GO));
+    quarryOutIn(w, 'jny-1');
+    const huntId = (await journeyOf(w, 'jny-1')).hunt!.id;
+    const saves = w.villages.saves;
+    expect(await commandParty(w.deps, input(w.homeId, [20, 21], STRIKE))).toEqual({
+      ok: true,
+      journeyId: 'jny-1',
+    });
+    expect(w.villages.saves).toBe(saves);
+    expect(w.journeys.intents.at(-1)!.body).toEqual({ kind: 'strike', people: [20] });
+    // žena ve výpravě na zvíře nejde
+    expect(await commandParty(w.deps, input(w.homeId, [21], STRIKE))).toEqual({
+      ok: false,
+      reason: 'woman',
+    });
+
+    // 22 přišel na předchozí lov téže výpravy (lov 7) a ves ho počítá jako jeho útočníka
+    rewrite(w, 'jny-1', (s) => {
+      s.members.find((m) => m.ref.personId === 22)!.huntId = 7;
+    });
+    w.villages.edit(w.homeId, (s) => {
+      personOf(s, 22).away = { kind: 'journey', refId: 'jny-1', huntId: 7 };
+    });
+    expect(await commandParty(w.deps, input(w.homeId, [22], STRIKE))).toEqual({
+      ok: false,
+      reason: 'recruits',
+    });
+    expect(await musterExpedition(w.deps, input(w.homeId, [22, 20], STRIKE))).toEqual({
+      ok: true,
+      journeyId: 'jny-1',
+    });
+    const v = await villageOf(w);
+    expect(personOf(v, 22).away).toEqual({ kind: 'journey', refId: 'jny-1', huntId });
+    expect(personOf(v, 20).away).toEqual({ kind: 'journey', refId: 'jny-1' });
+    expect(v.wildlife?.hunt?.beaters).toEqual({ day: v.lastDay + 1, men: 1 });
+    expect(w.journeys.intents.at(-1)!.body).toEqual({ kind: 'strike', people: [22, 20] });
+  });
+
+  it('značka lovu ve výpravě se liší od značky ve vsi: ves přeznačí jen, co sedí – bez značky ve vsi nezaplatí', async () => {
+    const w = await setup(withGame);
+    await musterExpedition(w.deps, input(w.homeId, [20, 21, 22], GO));
+    quarryOutIn(w, 'jny-1');
+    // výprava eviduje 22 jako útočníka lovu 7, ves o značce neví (away bez huntId)
+    rewrite(w, 'jny-1', (s) => {
+      s.members.find((m) => m.ref.personId === 22)!.huntId = 7;
+    });
+    expect(await musterExpedition(w.deps, input(w.homeId, [22], STRIKE))).toEqual({
+      ok: true,
+      journeyId: 'jny-1',
+    });
+    const v = await villageOf(w);
+    expect(personOf(v, 22).away).toEqual({ kind: 'journey', refId: 'jny-1' });
+    expect(v.wildlife?.hunt?.beaters).toBeUndefined();
   });
 });

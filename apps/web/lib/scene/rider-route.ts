@@ -249,11 +249,11 @@ export function trailRoute(
 }
 
 /**
- * Tempo lovu (m/s; wildlife.md – Ve scéně, návrh Clauda): lov jde ve skutečném čase (riders.ts –
- * `HUNT_REAL_S`, villagers.md – Činnosti od začátku do konce), žádný časosběr – cesta k okraji lesa
- * trvá nejvýš 70 % půlky lovu, jezdci krokem až klusem, pěší chůzí, k dalšímu lesu nejvýš svižnou
- * chůzí (`max` ≈ 1,25× chůze s oštěpem) a dál jdou jen ke kraji svého dosahu (`huntWay` – k lesu
- * u zvěře, nestihnou-li ho, k nejbližšímu okraji lesa). V lese krokem (`sweep`); pěší se
+ * Tempo jízdy k lesu (m/s; wildlife.md – Ve scéně, návrh Clauda): jde ve skutečném čase
+ * (villagers.md – Činnosti od začátku do konce), žádný časosběr – cesta k okraji lesa
+ * trvá nejvýš 70 % půlky bloku, jezdci krokem až klusem, pěší chůzí, k dalšímu lesu nejvýš svižnou
+ * chůzí (`max` ≈ 1,25× chůze s oštěpem) a dál jdou jen ke kraji svého dosahu. V lese krokem
+ * (`sweep`); pěší se
  * zastavují s oštěpem (`stop` – úsek `HUNT_STOP_M` tak pomalu, že stojí, scéna hraje
  * `spear-thrust`).
  */

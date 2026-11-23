@@ -4,7 +4,7 @@ import { useEffect, useMemo } from 'react';
 import type { GridCell } from '@bohemia/game';
 import { useJourneyVisitors } from '@/hooks/use-journey-visitors';
 import { setE2EHook, type E2EHooks } from '@/lib/e2e-hooks';
-import { sceneJourneysOf, type ExpeditionView } from '@/lib/journey-view';
+import { sceneHuntOf, sceneJourneysOf, type ExpeditionView } from '@/lib/journey-view';
 import type { LandscapeScene } from '@/lib/scene/landscape-scene';
 import type { SceneJourney } from '@/lib/scene/journey-riders';
 
@@ -34,6 +34,16 @@ export function useJourneyScene({
   useEffect(() => {
     scene?.setJourneys(journeys);
   }, [scene, journeys]);
+
+  // lov vsi scény (honci, vyhnané zvíře a psi) vedle výprav – scéna kreslí jen lov své vsi; nový
+  // pohled každý takt lovu se jen předá – úklid `setHunt(null)` mezi takty by zahodil plynulý
+  // pohyb zvířete a prach zásahu (`HuntRenderer.set`) a ves by se přestavěla (psi u dvorce)
+  const hunt = useMemo(() => sceneHuntOf(own, villageId), [own, villageId]);
+  useEffect(() => {
+    scene?.setHunt(hunt);
+  }, [scene, hunt]);
+  // lov ze scény zmizí až s odpojením hooku nebo výměnou scény
+  useEffect(() => () => scene?.setHunt(null), [scene]);
 
   useEffect(() => {
     if (!scene) return;

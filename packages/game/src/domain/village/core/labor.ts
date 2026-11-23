@@ -242,6 +242,12 @@ export interface DayAllocationInput {
    * úlohy v pořadí `tasks`.
    */
   planting?: { manDays: number; order: readonly number[]; slot: number };
+  /**
+   * Honci lovu dne (hunting.md – Pravidla 2; Martin „Ano, jak navrhuješ“; člověkodny –
+   * `hunt.beaters.men` × `LABOR_PER_DAY.adult`): lov má přednost před stavbami a opravami, ne
+   * před úlohami dne – honci vezmou nejvýš díl mužů na stavby (`DayAllocation.beaters`). Bez údaje 0.
+   */
+  beaters?: number;
 }
 
 export interface DayAllocation {
@@ -290,8 +296,14 @@ export interface DayAllocation {
    * Díl společné práce, který zbude mužům – jen ten jde na stavby (population.md – Práce, Stavby
    * staví muži; Martin 14. 11. 2026: „D24 ano“ – `menCommon`); co z `common` zbude, jde po stavbách
    * do oprav obydlí a dál. Chybí (rozdělení sestavené mimo `allocateDay`) = celá `common`.
+   * Honci lovu (`beaters`) jsou z něj už odečtení.
    */
   build?: number;
+  /**
+   * Co dnes vzali honci lovu (`DayAllocationInput.beaters`, nejvýš díl mužů na stavby) – ze
+   * společné práce i z dílu mužů na stavby. Chybí = 0.
+   */
+  beaters?: number;
 }
 
 /**
@@ -299,8 +311,9 @@ export interface DayAllocation {
  * věnují primárně té stavbě – zemědělství jenom natolik, aby vesnice neměla hlad“): minimum
  * (s přirážkou za chůzi pro vodu – `householdWater`) → péče o koně (horses.md – Péče) →
  * lidé na výpravách → sedláci s vozy pro kováře → potřebné sezónní úlohy (polní, v sadech, seč, porážka) v daném pořadí →
- * společná práce (stavby jen z dílu mužů – `build`, `menCommon`; po nich opravy obydlí –
- * `afterConstructions`). Denní minimum domácnosti kryjí napřed její starší (`adultDailyMin`).
+ * honci lovu z dílu mužů na stavby (`beaters`; hunting.md – Pravidla 2) → společná práce (stavby
+ * jen z dílu mužů – `build`, `menCommon`; po nich opravy obydlí – `afterConstructions`). Denní
+ * minimum domácnosti kryjí napřed její starší (`adultDailyMin`).
  */
 export function allocateDay(input: DayAllocationInput): DayAllocation {
   const productivity = input.productivity ?? 1;
@@ -515,6 +528,10 @@ export function allocateDay(input: DayAllocationInput): DayAllocation {
     taskAmounts[i] = (taskAmounts[i] ?? 0) + (followAmounts[i] ?? 0);
     tasks[task.name] += taskAmounts[i] ?? 0;
   });
+  // honci lovu (hunting.md – Pravidla 2): po všech úlohách dne, z dílu mužů na stavby – stavby
+  // a opravy den počkají, pole v oknech a žně ne
+  const menBuild = menCommon(outdoorLeft, womenOutdoor, left);
+  const beaters = Math.max(0, Math.min(input.beaters ?? 0, menBuild));
   return {
     dailyMin,
     eldersDailyMin,
@@ -529,9 +546,10 @@ export function allocateDay(input: DayAllocationInput): DayAllocation {
     ...(later.length > 0 ? { menWeed: later } : {}),
     tasks,
     taskAmounts,
-    common: left,
+    common: left - beaters,
     ...(plantingLabor > 0 ? { planting: plantingLabor } : {}),
-    build: menCommon(outdoorLeft, womenOutdoor, left),
+    build: menBuild - beaters,
+    ...(beaters > 0 ? { beaters } : {}),
   };
 }
 

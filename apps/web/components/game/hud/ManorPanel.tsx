@@ -235,7 +235,7 @@ export function ManorUpgrades({
         denied={huntDenied}
         content={
           <span className="flex flex-col gap-0.5">
-            <span>Lov navíc</span>
+            <span>Lov</span>
             {manor.huntDenied !== null && (
               <span data-testid="hunt-blocked" className="font-semibold text-red-400">
                 {manor.huntDenied}
@@ -247,7 +247,7 @@ export function ManorUpgrades({
         <button
           type="button"
           data-testid="manor-hunt"
-          aria-label="Lov navíc"
+          aria-label="Lov"
           disabled={manor.huntDenied !== null || !onDeclareHunt || busy || huntDenied !== null}
           onClick={() => {
             if (!onDeclareHunt || busy) return;

@@ -6,6 +6,7 @@ import {
   surfaceAt,
   tileCenterWorld,
   type ExpeditionView,
+  type JourneyHunt,
   type SeenCell,
   type Landscape,
   type PlacementVillage,
@@ -15,6 +16,8 @@ import {
 import { E2E_ENV } from '../playwright.config';
 import { useUniqueClientIp } from './helpers';
 import {
+  huntOfSettlement,
+  addVillagers,
   journeyScene,
   placeJourney,
   placeReturning,
@@ -28,7 +31,9 @@ import {
   homeSpot,
   query,
   readyScene,
+  shiftPlayerTo,
   villageState,
+  writeVillageState,
 } from './village-helpers';
 
 // Scéna cizí mapy za vojvodou (journey.md – Scéna cizí mapy; plán 2026-11-13 – Úloha 9b), hra
@@ -353,4 +358,128 @@ test('scéna jde za vojvodou na cizí mapu: mlha, objevené stavby, rozkazy a n�
   await expect(readyScene(a)).toBeVisible({ timeout: 150_000 });
   // portrét vojvody v liště zmizí, až ves zpracuje návrat (`away`) – ve zpomaleném světě e2e později
   await ctxs[0]!.close();
+});
+
+// Lov s workerem (hunting.md – Pravidla 2–7; plán 2026-11-22-hunting – Úloha 12): léto, vyhlášení
+// tlačítkem dvorce, worker vede honce a zvíře, vojvoda se pravým tlačítkem na zvíře vrhne do
+// souboje a po dalším herním dni ves zapíše výsledek (den lovu, maso při zabití, odnos na tyči).
+test('lov: tlačítko dvorce, útok pravým tlačítkem na zvíře a výsledek ve vsi', async ({
+  browser,
+}) => {
+  test.setTimeout(900_000);
+  const ctx = await browser.newContext();
+  await useUniqueClientIp(ctx);
+  const page = await ctx.newPage();
+  const V = await villageWithMen(page, 'lovworker', 'Bořivoj');
+  const settlementId = V.seat.settlementId;
+  const [owner] = await query<{ email: string }>(
+    `SELECT u.email FROM "user" u JOIN settlement s ON s.owner_id = u.id WHERE s.id = $1`,
+    [settlementId],
+  );
+  const email = owner!.email;
+
+  // dost dospělých mužů, aby ves zítra uvolnila 6 honců, a zásoby, ať ves nehladoví
+  await addVillagers(settlementId, 14);
+  await changeVillageState(settlementId, (st) => ({
+    ...st,
+    storesKg: 4000,
+    lord: { trains: true },
+  }));
+  // léto: čas hráče na 10. 7., stav vsi o den před ním (worker dopočte 10. 7. a založí historii práce)
+  const july = await shiftPlayerTo(email, 7, 10);
+  const summer = await villageState(settlementId);
+  summer.lastDay = july - 1;
+  await writeVillageState(settlementId, summer);
+  await page.reload();
+  await expect(readyScene(page)).toBeVisible({ timeout: 60_000 });
+  await page.keyboard.press('r');
+
+  const panel = page.getByTestId('selection-panel');
+  const hunt = panel.getByTestId('manor-hunt');
+  await expect
+    .poll(
+      async () => {
+        const at = await screenOf(page, V.dwelling.x, V.dwelling.z);
+        await page.mouse.move(at.x - 3, at.y);
+        await page.mouse.click(at.x, at.y);
+        return panel.getByTestId('manor-upgrades').count();
+      },
+      { timeout: 60_000 },
+    )
+    .toBe(1);
+  await expect(hunt).toBeEnabled({ timeout: 120_000 });
+  const before = (await villageState(settlementId)).wildlife?.hunt?.year ?? { days: 0, meatKg: 0 };
+  await hunt.click();
+  await expect.poll(() => huntOfSettlement(settlementId), { timeout: 60_000 }).not.toBeNull();
+
+  // honci dojdou k lesu a zvíře vyběhne (worker vede lov v taktech výpravy)
+  await expect
+    .poll(async () => (await huntOfSettlement(settlementId))?.fight?.quarry.state, {
+      timeout: 300_000,
+      intervals: [2000],
+    })
+    .not.toBe('hidden');
+  const fightOf = async (): Promise<NonNullable<JourneyHunt['fight']> | null> =>
+    (await huntOfSettlement(settlementId))?.fight ?? null;
+  const quarryKind = (await fightOf())?.quarry.kind;
+
+  // vybrat vojvodu (portrét v panelu dvorce) a pravým tlačítkem na zvíře – klik se opakuje, dokud
+  // je zvíře venku, až do útočníka v souboji, nebo konce lovu (zvíře uteklo dřív, než klik trefil)
+  await panel.getByTestId(`resident-select-${V.lordId}`).click();
+  await expect(panel).toHaveAttribute('data-kind', 'person', { timeout: 30_000 });
+  let struck = false;
+  await expect
+    .poll(
+      async () => {
+        const fight = await fightOf();
+        if (fight && fight.hunters.length > 0) struck = true;
+        if (!fight || fight.outcome !== 'ongoing' || struck) return true;
+        const stats = await page.evaluate(() => window.__bohemiaE2E!.huntStats!());
+        if (!stats.quarry || stats.quarry.lying) return false;
+        const { x, z } = stats.quarry.pos;
+        await page.evaluate(([px, pz]) => window.__bohemiaE2E!.moveCameraTo!(px!, pz!), [x, z]);
+        const at = await page.evaluate(
+          ([px, pz]) => window.__bohemiaE2E!.projectToScreen!(px!, pz!),
+          [x, z],
+        );
+        // klik trochu nad patu – zvíře stojí na bodu, výška modelu je nad ním
+        if (at) await page.mouse.click(at.x, at.y - 14, { button: 'right' });
+        return false;
+      },
+      { timeout: 240_000, intervals: [1500] },
+    )
+    .toBe(true);
+  // útočník je povinný, dokud lov běží; skončil-li lov dřív (zvíře uteklo po nečinnosti), cesta
+  // útoku se tentokrát neověří – výsledek lovu ve vsi níž ano
+  if (!struck) {
+    expect((await fightOf())?.outcome ?? 'gone').not.toBe('ongoing');
+    test
+      .info()
+      .annotations.push({ type: 'lov', description: 'zvíře uteklo dřív, než klik trefil' });
+  }
+
+  // souboj doběhne: zvíře padne, nebo uteče
+  await expect
+    .poll(async () => (await fightOf())?.outcome, { timeout: 300_000, intervals: [3000] })
+    .not.toBe('ongoing');
+  const outcome = (await fightOf())?.outcome;
+  if (outcome === 'killed') {
+    // zabité zvíře nesou honci na tyči
+    const beaters = (await huntOfSettlement(settlementId))?.beaters;
+    expect(beaters?.end?.carry).toBe(true);
+  }
+
+  // další herní den: ves zapíše výsledek lovu (den lovu, při zabití maso)
+  await shiftPlayerTo(email, 7, 11);
+  await expect
+    .poll(async () => (await villageState(settlementId)).wildlife?.hunt?.year.days ?? 0, {
+      timeout: 300_000,
+      intervals: [2000],
+    })
+    .toBeGreaterThanOrEqual(before.days + 1);
+  const after = (await villageState(settlementId)).wildlife!.hunt!.year;
+  if (outcome === 'killed' && quarryKind !== 'wolf') {
+    expect(after.meatKg).toBeGreaterThan(before.meatKg);
+  }
+  await ctx.close();
 });

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../domain/calendar';
 import type { NewVillageEvent, VillageState } from '../../domain/village';
+import { HUNT } from '../../domain/village/rules/rules-wildlife';
 import { makeLandscape } from '../../domain/village/__tests__/placement-fixtures';
 import { foundVillageForSettlement } from '../found-village';
 import { loadVillage } from '../load-village';
@@ -109,6 +110,39 @@ describe('schránka vsi v dopočtu', () => {
     expect(messages(state)).toEqual([{ day: TODAY + 6, name: 'Posel' }]);
     // další dopočet událost znovu nepoužije
     expect(messages(await load(villages, villageId, TODAY + 12))).toHaveLength(1);
+  });
+
+  it('výsledek lovu výpravy doručený dvakrát (týž ref) ves použije jednou (plán 2026-11-22-hunting)', async () => {
+    const { villages, villageId } = await founded();
+    const hunt: NewVillageEvent = {
+      villageId,
+      day: TODAY + 2,
+      ref: 'journey:j-1:hunt:1',
+      body: {
+        kind: 'hunt-result',
+        journeyId: 'j-1',
+        huntId: 1,
+        result: {
+          quarry: 'stag',
+          killed: true,
+          names: ['Bořivoj'],
+          trained: [],
+          casualties: [],
+          horsesLost: [],
+        },
+      },
+    };
+    expect(await villages.inbox.post(hunt)).not.toBeNull();
+    // opakovaný krok výpravy (worker po pádu) vydá tutéž událost znovu
+    expect(await villages.inbox.post(structuredClone({ ...hunt, day: TODAY + 3 }))).toBeNull();
+    const state = await load(villages, villageId, TODAY + 6);
+    const hunts = state.chronicle.filter((e) => e.kind === 'hunt');
+    expect(hunts).toEqual([
+      expect.objectContaining({ day: TODAY + 2, names: ['Bořivoj'], meatKg: HUNT.meatKg.stag }),
+    ]);
+    // další dopočet výsledek znovu nepoužije
+    const later = await load(villages, villageId, TODAY + 9);
+    expect(later.chronicle.filter((e) => e.kind === 'hunt')).toHaveLength(1);
   });
 
   it('zápis zvedne verzi vsi', async () => {

@@ -1,16 +1,15 @@
 // Lidé ve scéně nesprintují (villagers.md – Činnosti od začátku do konce; Martin 1. 11. 2026:
-// „Občas ve hře vidím nějakého vesničana, jak brutálně sprintuje“): kování, lov rodu, karavany
-// a svoz úrody jdou přirozenou chůzí – rychlost nejvýš ≈ 1,3× chůze a klip chůze nejvýš ≈ 1,3× –
+// „Občas ve hře vidím nějakého vesničana, jak brutálně sprintuje“): kování, trasa k lesu
+// (`huntRoute`), karavany, výcviková jízda a svoz úrody jdou přirozenou chůzí – rychlost nejvýš ≈ 1,3× chůze a klip chůze nejvýš ≈ 1,3× –
 // ve skutečném čase přes tolik herních dní, kolik trvají.
 import { describe, expect, it } from 'vitest';
 import type { SceneExpedition, SceneLord, SceneVillage } from '../../village-view';
 import { LIVESTOCK_EPOCH_MS } from '../livestock-motion';
-import { HUNT_BRIDGE_S, LORD_CYCLE, LORD_CYCLE_S } from '../lord-day';
+import { LORD_CYCLE, LORD_CYCLE_S } from '../lord-day';
 import { ActivityMemory, caravanEndMs } from '../activity-memory';
 import { CART_SPEED_M_S, shuttleAt, shuttleRoute } from '../cart-layout';
 import { caravanHead, caravanSpeed, caravanTimeline } from '../caravan';
 import { HUNT_PACE, huntRoute } from '../rider-route';
-import { HUNT_REAL_S, huntSpan } from '../riders';
 import { shoeingSchedule } from '../shoeing-plan';
 import { walkSpeed } from '../villager-motion';
 
@@ -21,6 +20,8 @@ const window = (day: number): { startMs: number; endMs: number } => ({
 });
 const LENGTHS = [100, 300, 600, 1000];
 const BRISK = 1.3;
+/** Půlka desetiminutového bloku trasy k lesu (s) – tam nebo zpět. */
+const HUNT_HALF_S = 300;
 
 describe('lidé ve scéně nesprintují', () => {
   it('kovář jde ke koním a zpět chůzí – kování trvá ve skutečném čase', () => {
@@ -33,27 +34,18 @@ describe('lidé ve scéně nesprintují', () => {
     }
   });
 
-  it('pěší lovci jdou k lesu chůzí, jezdci nejvýš klusem', () => {
+  it('trasa k lesu: pěší jdou chůzí, jezdci nejvýš klusem', () => {
     const foot = walkSpeed('man', 'walk-spear', 1.2);
     for (const m of LENGTHS) {
       const way = [
         { x: 0, z: 0 },
         { x: m, z: 0 },
       ];
-      const walking = huntRoute(way, null, true, HUNT_REAL_S / 2)!;
+      const walking = huntRoute(way, null, true, HUNT_HALF_S)!;
       expect(Math.max(...walking.pace) / foot, `${m} m`).toBeLessThanOrEqual(BRISK);
-      const riding = huntRoute(way, null, false, HUNT_REAL_S / 2)!;
+      const riding = huntRoute(way, null, false, HUNT_HALF_S)!;
       expect(Math.max(...riding.pace), `${m} m`).toBeLessThanOrEqual(HUNT_PACE.ride.max);
     }
-    // lov za šera dne lovu, deset minut skutečného času
-    const [from, to] = huntSpan(window(5))!;
-    expect(from).toBeGreaterThan(window(5).startMs);
-    expect(to - from).toBe(HUNT_REAL_S * 1000);
-    // v chvíli výcvikové jízdy cyklu (lovci jsou u koní), lovci ke kůlu stihnou dojít
-    const slot = (from - LIVESTOCK_EPOCH_MS) / 1000 - LORD_CYCLE.ride;
-    expect(((slot % LORD_CYCLE_S) + LORD_CYCLE_S) % LORD_CYCLE_S).toBeCloseTo(0, 6);
-    expect(from - window(5).startMs).toBeGreaterThanOrEqual(HUNT_BRIDGE_S * 1000);
-    expect(from - window(5).startMs).toBeLessThan((HUNT_BRIDGE_S + LORD_CYCLE_S) * 1000);
   });
 
   it('karavana jde chůzí, s vozem nebo dobytkem tempem volů', () => {
@@ -127,7 +119,7 @@ function expedition(over: Partial<SceneExpedition> = {}): SceneExpedition {
 const village = (over: Partial<SceneVillage>): SceneVillage =>
   ({ dwellings: [], fields: [], trails: [TRAIL], ...over }) as SceneVillage;
 
-describe('scéna dohraje karavanu a lov, které data už nemají (activity-memory.ts)', () => {
+describe('scéna dohraje karavanu a výcvikovou jízdu, které data už nemají (activity-memory.ts)', () => {
   it('karavana vrácená v jádru jde ve scéně dál, po návratu ve skutečném čase zmizí', () => {
     const memory = new ActivityMemory();
     const e = expedition();
@@ -203,32 +195,6 @@ describe('scéna dohraje karavanu a lov, které data už nemají (activity-memor
     const both = memory.apply(village({ expeditions: [next] }), window(14).startMs, window);
     expect(both.expeditions?.map((x) => x.startDay)).toEqual([10, 14]);
   });
-
-  it('lov běží, dokud se lovci nevrátí; nový lov jiného dne až po návratu', () => {
-    const memory = new ActivityMemory();
-    const wild = (hunt?: { day: number }): SceneVillage['wildlife'] =>
-      ({
-        shown: { stags: 0, hinds: 0, calves: 0, boars: 0 },
-        month: 11,
-        crowFlocks: 0,
-        fishShare: 0,
-        ...(hunt ? { hunt: { ...hunt, target: 'game', riders: [], foot: [1, 2], kills: 0 } } : {}),
-      }) as SceneVillage['wildlife'];
-    const hunt = memory.apply(village({ wildlife: wild({ day: 20 }) }), window(20).startMs, window);
-    expect(hunt.wildlife?.hunt?.day).toBe(20);
-    const [, end] = huntSpan(window(20))!;
-    // druhý den jádro lov nemá, scéna ho dohrává
-    expect(
-      memory.apply(village({ wildlife: wild() }), window(21).startMs, window).wildlife?.hunt?.day,
-    ).toBe(20);
-    // lov navíc za tři dny – lovci jsou ještě v lese, nový lov se neukáže
-    const extra = memory.apply(village({ wildlife: wild({ day: 23 }) }), end - 1000, window);
-    expect(extra.wildlife?.hunt?.day).toBe(20);
-    // po návratu nic
-    expect(
-      memory.apply(village({ wildlife: wild() }), end + 1, window).wildlife?.hunt,
-    ).toBeUndefined();
-  });
 });
 
 describe('výcviková jízda rodiny dojede, jak začala (activity-memory.ts)', () => {
@@ -244,7 +210,7 @@ describe('výcviková jízda rodiny dojede, jak začala (activity-memory.ts)', (
     const memory = new ActivityMemory();
     const first = memory.apply(withLord({ riders: RIDERS }), slot(5, 1), window);
     expect(first.labor?.lord?.riders).toEqual(RIDERS);
-    // další herní den uprostřed jízdy: jezdec loví (jádro ho mezi jezdci nemá), den jízdy k hranici
+    // další herní den uprostřed jízdy: jezdec je pryč (jádro ho mezi jezdci nemá), den jízdy k hranici
     const mid = memory.apply(withLord({ borderTrailId: 3 }), slot(5, 90), window);
     expect(mid.labor?.lord?.riders).toEqual(RIDERS);
     expect(mid.labor?.lord?.borderTrailId).toBeUndefined();

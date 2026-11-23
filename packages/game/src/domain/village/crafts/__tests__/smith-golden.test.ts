@@ -219,6 +219,9 @@ describe('ves bez kováře a hrnčíře beze změny (crafts.md – Uhlí a ruda 
     // 18. 11. 2026 – D98 uzené rozložené do zkažení (díl uzeného do konce masa, letní porážka podle
     // dnešního dílu); dřív f8960960
     // 18. 11. 2026 – D98 kolo 1 – rozložená jen zásoba z porážky 1. 11.; dřív e3144fbc
-    expect(hash(stripped)).toBe('fe7259fc');
+    // 22. 11. 2026 – nový lov (hunting.md), úloha 2: kalendářní lov a lov navíc pryč – pěší lovci
+    // nechybí v práci vsi, maso z lovu ani výcvik dne lovu; hlídka polí s vlastní nadějí úlovku;
+    // dřív fe7259fc
+    expect(hash(stripped)).toBe('4ae421e6');
   }, 120_000);
 });

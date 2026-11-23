@@ -1,404 +1,351 @@
-// Velký lov rodu (wildlife.md – Lov rodu): kdo a kdy loví (`planHuntDay` ráno), úlovek dne
-// a maso do zásoby (`huntDay` před výcvikem). Úlovek jde akumulátorem bez náhody; jediný los je
-// riziko zranění a smrti (`huntRisk`, vlastní proud ze seedu vsi a dne). Lov navíc na pokyn hráče
-// (`canDeclareHunt`, `declareHunt`) vyhlásí hráč přes use-case `declareHuntInVillage`.
-import { deathWho } from '../people/estate';
-import { addHides, addSmallHides } from '../wares/wares';
+// Lov vsi (hunting.md – Pravidla 1–3, 5–7, 11): kalendářní lov rodu a lov navíc jsou pryč. Lov se
+// vyhlásí tlačítkem dvorce, kdykoli to dovolí důvody `huntDenied` – bez meze „jednou za 3 dny“.
+// Ves zaplatí práci honců zítra, dnešek je spočtený od rána (`reserveBeaters` → `allocateDay`).
+// Zvíře losuje `pickQuarry` podle počtů zvěře; výsledek lovu (úlovek, výcvik, rány, koně) zapíše
+// `applyHuntResult` – událost schránky `hunt-result`, nebo lov správce v kroku dne. Úlovek roku
+// (`hunt.year`) čte panel dvorce; plní ho i úlovek z jezdecké hlídky (`field-patrol.ts`).
 import { dateOfDayIndex } from '../../calendar';
 import { createRandom, deriveSeed } from '../../landscape/random';
 import { bury } from '../buildings/cemetery';
+import { loseHorse } from '../livestock/horse-riders';
+import { butcher } from '../livestock/livestock';
+import { deathWho } from '../people/estate';
 import { removePeople } from '../people/kinship';
-import { assignRiders, riderPower } from '../livestock/horse-riders';
-import { isUnshod } from '../livestock/horse-shoeing-term';
-import { huntingDogs, huntPool } from './hunt-party';
-import { villageHerds, butcher } from '../livestock/livestock';
-import { lordFieldIds, trainingFamily, type LordFieldShares } from '../people/lord';
+import { NO_ARMS, trainArms, trainingCap } from '../people/lord';
 import { ageGroup, ageYears } from '../people/people';
-import { HUNT, HUNT_RISK, PREDATION } from '../rules/rules-wildlife';
+import { LABOR_PER_DAY } from '../rules/rules-people';
+import { HUNT, PREDATOR_RISK } from '../rules/rules-wildlife';
 import type {
   ChronicleEvent,
-  Horse,
-  HuntDay,
   HuntKills,
+  HuntResult,
   HuntState,
-  Person,
+  QuarryKind,
   VillageState,
   WildlifeState,
 } from '../types';
-import { bearBackDay, wildlifeCaps } from './wildlife';
-import { villageHorses } from '../livestock/horses';
+import { addHides, addSmallHides } from '../wares/wares';
+import { bearBackDay } from './wildlife';
 
 const EPSILON = 1e-9;
 
+/** Lov vsi, která ještě nelovila: prázdný úlovek roku, bez honců. */
 export function emptyHunt(): HuntState {
-  return {
-    hope: { boar: 0, deer: 0, wolf: 0, bear: 0 },
-    today: null,
-    year: { boar: 0, deer: 0, wolves: 0, bear: 0, meatKg: 0, days: 0 },
-  };
+  return { year: { boar: 0, deer: 0, wolves: 0, bear: 0, meatKg: 0, days: 0 } };
 }
 
 /**
- * Pořadí dne lovu v sezóně (0 = 1. 11., 7 = 8. 11., …), nebo null mimo sezónu 1. 11. – konec února.
- * Leden a únor se počítají od 1. 11. předchozího roku (61 dní do 1. 1.).
+ * Proč nejde lov vyhlásit (hunting.md – Pravidla 2): hájení (březen–květen), ves neuvolní honce,
+ * lov vsi už běží, v lese vsi není velká zvěř (Martin 22. 11. 2026: „Ano“).
  */
-export function huntSeasonIndex(day: number): number | null {
-  const { month, day: d } = dateOfDayIndex(day);
-  const { fromMonth, toMonth } = HUNT.season;
-  let offset: number;
-  if (month === fromMonth) offset = d - 1;
-  else if (month === fromMonth + 1) offset = 30 + d - 1;
-  else if (month === 1) offset = 61 + d - 1;
-  else if (month === toMonth) offset = 92 + d - 1;
-  else return null;
-  return offset % HUNT.everyDays === 0 ? offset / HUNT.everyDays : null;
-}
+export type HuntDenied = 'closed-season' | 'no-beaters' | 'already' | 'no-game';
 
-/** Je `day` den kalendářního lovu (každý 7. den od 1. 11. do konce února)? */
-export function isHuntCalendarDay(day: number): boolean {
-  return huntSeasonIndex(day) !== null;
-}
+/** Důvody odepření lovu (`huntDenied`) česky pro hráče – červeně u zašedlého tlačítka. */
+export const HUNT_DENIED_TEXT: Record<HuntDenied, string> = {
+  'closed-season': 'Zvěř má hájení – od března do května se neloví.',
+  'no-beaters': `Ves zítra neuvolní ${HUNT.beaters.men} mužů na naháňku.`,
+  already: 'Lov už běží.',
+  'no-game': 'V lese vsi není zvěř.',
+};
 
-/** Šelmy za posledních 30 dní strhly aspoň `HUNT.wolfKills` kusů dobytka a vlci jsou. */
-function wolvesTroubling(w: WildlifeState, day: number): boolean {
-  if (w.wolves < 1 - EPSILON) return false;
-  const since = day - PREDATION.killDaysKept;
-  return (w.predation?.killDays ?? []).filter((d) => d > since).length >= HUNT.wolfKills;
+/**
+ * Smí ves vyhlásit lov s honci na den `day` (hunting.md – Pravidla 2, 11)? `day` je den honců –
+ * zítřek dne vyhlášení: sezóna i ostatní důvody se posuzují na něj (31. 5. s honci 1. 6. lze,
+ * 28. 2. s honci 1. 3. ne). Vrací null, nebo důvod v pořadí: hájení (`HUNT.closedMonths`) → lov vsi
+ * běží (`running`) → v lese vsi není velká zvěř (`pickQuarry` nemá z čeho losovat; ves bez stavu
+ * zvěře taky) → ves honce neuvolní (`canSpareBeaters` dne vyhlášení).
+ */
+export function huntDenied(state: VillageState, day: number, running: boolean): HuntDenied | null {
+  const { month } = dateOfDayIndex(day);
+  if (month >= HUNT.closedMonths.from && month <= HUNT.closedMonths.to) return 'closed-season';
+  if (running) return 'already';
+  if (!state.wildlife || weightSum(quarryWeights(state.wildlife)) <= 0) return 'no-game';
+  if (!canSpareBeaters(state, day - 1)) return 'no-beaters';
+  return null;
 }
 
 /**
- * Lov dne (mutuje `hunt.today`; volá se ráno, po `updateLordTraining` a před `work()` – pěší lovci
- * jsou pak mimo práci vsi): kalendářní den nebo lov navíc, rodina cvičí. Jezdci jsou cvičící muži
- * od 14 let s koněm (`assignRiders`; nepodkutý kůň nejezdí); pěší jsou muži dvorce bez koně
- * a odešlí synové rodu od 14 let. Děti na lov nechodí (Martin 27. 10. 2026). Na medvěda jdou všichni
- * pěšky. Cíl: medvěd (listopad, každý druhý lov), vlci (aspoň 2 dny škod za 30 dní), jinak
- * prasata a jeleni.
+ * Uvolní ves zítra (`day + 1`) další honce (hunting.md – Pravidla 2: 6 mužů na celý den z dílu mužů
+ * na stavby)? Dnešní díl mužů na stavby (poslední hodnota `commonLaborHistory`) musí pokrýt honce,
+ * kteří už na zítřek jsou (`hunt.beaters` – druhý lov téhož dne je přičte), i nové
+ * `HUNT.beaters.men`. Bez historie (ves ještě nepracovala) ne.
  */
-export function planHuntDay(state: VillageState, day: number): void {
-  const w = state.wildlife;
-  if (!w) return;
-  const extra = w.hunt?.extraDay === day;
-  const index = huntSeasonIndex(day);
-  const family = index !== null || extra ? trainingFamily(state, day) : null;
-  if (!family || (index === null && !extra)) {
-    if (w.hunt?.today) w.hunt.today = null;
-    return;
-  }
-  const hunt = (w.hunt ??= emptyHunt());
-  hunt.today = null;
-  const pool = huntPool(state, day, family);
-  const mounted = isUnshod(state, day) ? new Set<number>() : assignRiders(state, day, family);
-  const horseOf = new Map<number, Horse>();
-  for (const h of villageHorses(state)) if (h.riderId !== undefined) horseOf.set(h.riderId, h);
-  const bear =
-    index !== null &&
-    w.bear.present &&
-    dateOfDayIndex(day).month === HUNT.bearMonth &&
-    index % HUNT.bearEveryNth === HUNT.bearEveryNth - 1;
-  const target: HuntDay['target'] = bear ? 'bear' : wolvesTroubling(w, day) ? 'wolves' : 'game';
-  const riders: HuntDay['riders'] = [];
-  const foot: number[] = [];
-  const mount = (p: Person): boolean => {
-    const horse = horseOf.get(p.id);
-    if (target === 'bear' || !horse || !mounted.has(p.id)) return false;
-    // slabý jezdec je na koni horší než pěšky se psem – pak jde pěšky a kůň zůstane (návrh Clauda)
-    if (!ridesBetter(p, horse)) return false;
-    riders.push({ personId: p.id, horseId: horse.id });
-    return true;
-  };
-  // rodina na poli ve žních neloví (`huntDay` – jen odešlí synové)
-  for (const p of pool.manor) if (!mount(p)) foot.push(p.id);
-  for (const p of pool.away) foot.push(p.id);
-  if (riders.length === 0 && foot.length === 0) return;
-  hunt.today = { day, target, riders, foot, extra };
-}
-
-/** Síla jezdce (wildlife.md – Kolik): `riderPower ÷ 100 × (0,5 + 0,5 × luk ÷ 100)`. */
-function riderStrength(p: Person, horse: Horse): number {
-  const bow = (p.arms?.bow ?? 0) / 100;
-  return (riderPower({ arms: p.arms }, horse) / 100) * (HUNT.bowBase + HUNT.bowPerSkill * bow);
-}
-
-/** Síla pěšího: `(luk + boj) ÷ 200`, bez psa polovina. */
-function footStrength(p: Person, withDog: boolean): number {
-  const base = ((p.arms?.bow ?? 0) + (p.arms?.combat ?? 0)) / 200;
-  return withDog ? base : base * HUNT.noDogShare;
+export function canSpareBeaters(state: VillageState, day: number): boolean {
+  const history = state.commonLaborHistory;
+  const build = history[history.length - 1];
+  if (build === undefined) return false;
+  const beaters = state.wildlife?.hunt?.beaters;
+  const reserved = beaters?.day === day + 1 ? beaters.men : 0;
+  return build + EPSILON >= (reserved + HUNT.beaters.men) * LABOR_PER_DAY.adult;
 }
 
 /**
- * Vyplatí se jezdci kůň? Úlovek jezdce i pěšího se váží koeficienty `HUNT.base` (jezdec uloví z téže
- * síly víc), proto se porovnává příspěvek na prasata i jeleny, ne holá síla (návrh Clauda).
+ * Honci na `day + 1` (mutuje stav; hunting.md – Pravidla 2): `men` mužů (bez údaje
+ * `HUNT.beaters.men`) zítra celý den chybí v práci vsi – dnešní práce je spočtená od rána. Druhý
+ * lov téhož dne honce přičte, lov jiného dne starou rezervaci přepíše. Touž cestou zaplatí jeden
+ * den práce útočník lovu výpravy (`men` = počet útočníků; jinak ho práce vsi počítá jako doma –
+ * `awayFromWork`). Ves bez stavu zvěře nic.
  */
-function ridesBetter(p: Person, horse: Horse): boolean {
-  const rider = riderStrength(p, horse);
-  const foot = footStrength(p, true);
-  const { boar, deer } = HUNT.base;
-  return (
-    rider * boar.rider >= foot * boar.foot - EPSILON &&
-    rider * deer.rider >= foot * deer.foot - EPSILON
-  );
-}
-
-/** Podíl stavu na stropu (nejvýš 1); strop 0 s nenulovým stavem = 1. */
-function stockShare(stock: number, cap: number): number {
-  if (stock <= EPSILON) return 0;
-  return cap > EPSILON ? Math.min(1, stock / cap) : 1;
-}
-
-/** Ulovit z `hope` celé kusy, nejvýš `limit`; vrací kolik, zbytek naděje nejvýš 1. */
-function takeWhole(hope: number, limit: number): { kills: number; hope: number } {
-  const kills = Math.max(0, Math.min(Math.floor(hope + EPSILON), limit));
-  return { kills, hope: Math.min(1, hope - kills) };
-}
-
-/**
- * Úlovek dne (mutuje stav; před `trainLordDay`): naděje druhu roste o sílu lovců × základ × stav ÷
- * strop, celé kusy se uloví a odečtou ze stavu zvěře, maso jde přes porážku (1 člověkoden na 20 kg
- * a uzení – Martin 26. 10. 2026). Rodina na poli ve žních (`lordFieldShare` > 0) neloví
- * (ani na koních, ani pěšky; odešlí synové smějí). Jedna událost kroniky za den se jménem nejlepšího lovce.
- */
-export function huntDay(
+export function reserveBeaters(
   state: VillageState,
   day: number,
-  lordField: number | LordFieldShares = 0,
-): ChronicleEvent[] {
+  men: number = HUNT.beaters.men,
+): void {
   const w = state.wildlife;
-  const hunt = w?.hunt;
-  const today = hunt?.today;
-  if (!w || !hunt || !today || today.day !== day) return [];
-  const family = trainingFamily(state, day);
-  const onField = family ? lordFieldIds(family, day, lordField) : new Set<number>();
-  if (onField.size > 0) {
-    // kdo z rodiny je dnes na poli, neloví – ani na koni, ani pěšky (ostatní smějí)
-    today.riders = today.riders.filter((r) => !onField.has(r.personId));
-    today.foot = today.foot.filter((id) => !onField.has(id));
+  if (!w) return;
+  const hunt = (w.hunt ??= emptyHunt());
+  const tomorrow = day + 1;
+  const reserved = hunt.beaters?.day === tomorrow ? hunt.beaters.men : 0;
+  hunt.beaters = { day: tomorrow, men: reserved + men };
+}
+
+/**
+ * Vrátí rezervaci honců a pořadí vyhlášení jednoho lovu (mutuje stav) – lov se nepodařilo zapsat
+ * do výpravy. Odečte `men` mužů z rezervace na `day + 1` (rezervace na nulu zmizí) a `declared` o 1.
+ */
+export function unreserveBeaters(
+  state: VillageState,
+  day: number,
+  men: number = HUNT.beaters.men,
+): void {
+  const hunt = state.wildlife?.hunt;
+  if (!hunt) return;
+  if (hunt.beaters?.day === day + 1) {
+    const left = hunt.beaters.men - men;
+    if (left > 0) hunt.beaters = { day: day + 1, men: left };
+    else delete hunt.beaters;
   }
-  const caps = wildlifeCaps(w.land, villageHerds(state).pig);
+  if (hunt.declared !== undefined) hunt.declared = Math.max(0, hunt.declared - 1);
+}
+
+/**
+ * Lov je vyhlášený (mutuje stav): pořadí vyhlášení `hunt.declared` + 1 – štítek losu zvířete
+ * (`pickQuarry`), takže další lov vyžene jiné zvíře. Ves bez stavu zvěře nic.
+ */
+export function countDeclaredHunt(state: VillageState): void {
+  const w = state.wildlife;
+  if (!w) return;
+  const hunt = (w.hunt ??= emptyHunt());
+  hunt.declared = (hunt.declared ?? 0) + 1;
+}
+
+/** Druhy zvířete v pevném pořadí losu (plán 2026-11-22-hunting – Rozhodnutí 4). */
+export const QUARRY_KINDS: readonly QuarryKind[] = ['stag', 'hind', 'boar', 'sow', 'wolf', 'bear'];
+
+/**
+ * Váhy losu zvířete (hunting.md – Pravidla 3: „náhodou podle počtu té zvěře v lese vsi“; plán
+ * 2026-11-22-hunting – Rozhodnutí 4): jelen = jeleni, laň = laně, kanec i bachyně = polovina
+ * dospělých prasat (stav je nerozlišuje), vlk = vlci, medvěd = 1, žije-li v kraji (bez omezení
+ * měsíce). Stav zvěře pod 1 kus váhu nemá (prasata podle všech dospělých), mláďata nikdy.
+ */
+export function quarryWeights(w: WildlifeState): Record<QuarryKind, number> {
+  const whole = (n: number): number => (n >= 1 - EPSILON ? n : 0);
+  const pigs = whole(w.boar.adults) / 2;
+  return {
+    stag: whole(w.deer.stags),
+    hind: whole(w.deer.hinds),
+    boar: pigs,
+    sow: pigs,
+    wolf: whole(w.wolves),
+    bear: w.bear.present ? 1 : 0,
+  };
+}
+
+/** Součet vah losu – 0 = v lese vsi není velká zvěř (`no-game`). */
+function weightSum(weights: Record<QuarryKind, number>): number {
+  return QUARRY_KINDS.reduce((sum, kind) => sum + weights[kind], 0);
+}
+
+/**
+ * Zvíře, které honci vyženou (hunting.md – Pravidla 3; plán 2026-11-22-hunting – Rozhodnutí 4):
+ * jeden los ze seedu vsi, dne a pořadí vyhlášení `n` (`hunt.declared` – další lov téhož dne
+ * losuje z jiného proudu) × součet vah (`quarryWeights`), druhy v pevném pořadí `QUARRY_KINDS`.
+ * Bez zvěře s vahou null. Stav nemění.
+ */
+export function pickQuarry(
+  w: WildlifeState,
+  seed: number,
+  day: number,
+  n: number,
+): QuarryKind | null {
+  const weights = quarryWeights(w);
+  const total = weightSum(weights);
+  if (total <= 0) return null;
+  let roll = createRandom(deriveSeed(seed, 'quarry:' + day + ':' + n)).next() * total;
+  let last: QuarryKind | null = null;
+  for (const kind of QUARRY_KINDS) {
+    const weight = weights[kind];
+    if (weight <= 0) continue;
+    if (roll < weight) return kind;
+    roll -= weight;
+    last = kind;
+  }
+  // zaokrouhlení na samém konci součtu – poslední druh s vahou
+  return last;
+}
+
+/** Kus zvířete v úlovku roku a v kronice (`HuntKills`). */
+const KILL_KIND: Record<QuarryKind, keyof HuntKills> = {
+  stag: 'deer',
+  hind: 'deer',
+  boar: 'boar',
+  sow: 'boar',
+  wolf: 'wolves',
+  bear: 'bear',
+};
+
+/**
+ * Útočníci lovu `huntId` výpravy `journeyId` zůstali venku jako běžná výprava (událost `hunt-leave`;
+ * plán 2026-11-22-hunting – Rozhodnutí 3; mutuje stav): lidem `personIds`, kteří jsou pryč s touto
+ * výpravou jako útočníci téhož lovu, zmizí `away.huntId` – práce vsi je zase počítá jako pryč
+ * (`awayFromWork`). Kdo už je doma nebo pryč jinak, beze změny – idempotentní.
+ */
+export function endHuntAway(
+  state: VillageState,
+  journeyId: string,
+  huntId: number,
+  personIds: readonly number[],
+): void {
+  const ids = new Set(personIds);
+  for (const p of state.people) {
+    const away = p.away;
+    if (!ids.has(p.id) || away?.kind !== 'journey' || away.refId !== journeyId) continue;
+    if (away.huntId === huntId) delete away.huntId;
+  }
+}
+
+/**
+ * Útočníci jiného lovu výpravy `journeyId` jdou na lov `huntId` (povel `strike`; mutuje stav; plán
+ * 2026-11-22-hunting – Rozhodnutí 3, Martin 22. 11. 2026: „práce těch lidí se odečte pouze za
+ * 1 den“ – jeden den na každý lov, návrh Clauda): lidem `personIds`, kteří jsou pryč s touto
+ * výpravou se značkou jiného lovu, se značka změní na `huntId`. Vrací jejich počet – tolik dní práce
+ * ves zaplatí (`reserveBeaters`). Kdo je doma, pryč jinak, ve výpravě bez značky (pryč jako dosud),
+ * nebo už se značkou `huntId`, beze změny – idempotentní.
+ */
+export function moveHuntAway(
+  state: VillageState,
+  journeyId: string,
+  huntId: number,
+  personIds: readonly number[],
+): number {
+  const ids = new Set(personIds);
+  let moved = 0;
+  for (const p of state.people) {
+    const away = p.away;
+    if (!ids.has(p.id) || away?.kind !== 'journey' || away.refId !== journeyId) continue;
+    if (away.huntId === undefined || away.huntId === huntId) continue;
+    away.huntId = huntId;
+    moved++;
+  }
+  return moved;
+}
+
+/**
+ * Výsledek lovu ve vsi (mutuje stav, vrací kroniku; hunting.md – Pravidla 5–7; plán
+ * 2026-11-22-hunting – Rozhodnutí 6, 7, 10): vždy den lovu navíc (`hunt.year.days`); zabité zvíře
+ * ubude ze zvěře, dá maso, kůži, úlovek roku a kroniku `hunt` (`takeQuarry`); útočníci se vycvičí
+ * (strop lovu 70), ranění a padlí lovci (`huntCasualties`) a padlí koně (`loseHorse`). Chybějící
+ * osoba či kůň se přeskočí – výsledek platí i po smrti nebo odchodu lovce.
+ */
+export function applyHuntResult(state: VillageState, day: number, r: HuntResult): ChronicleEvent[] {
+  const w = state.wildlife;
+  if (w) (w.hunt ??= emptyHunt()).year.days += 1;
+  const events = r.killed ? takeQuarry(state, day, r) : [];
   const people = new Map(state.people.map((p) => [p.id, p]));
-  const horses = new Map(villageHorses(state).map((h) => [h.id, h]));
-  const strengths: { id: number; value: number }[] = [];
-  let riders = 0;
-  for (const r of today.riders) {
-    const p = people.get(r.personId);
-    const horse = horses.get(r.horseId);
-    if (!p || !horse) continue;
-    const value = riderStrength(p, horse);
-    riders += value;
-    strengths.push({ id: p.id, value });
+  for (const t of r.trained) {
+    const p = people.get(t.personId);
+    if (p) p.arms = trainArms(p.arms ?? NO_ARMS, t.hours, trainingCap(p, day, 'hunt'));
   }
-  // psi se rozdělí pěším – napřed nejsilnějším
-  const footers = today.foot
-    .map((id) => people.get(id))
-    .filter((p): p is Person => p !== undefined)
-    .map((p) => ({ p, base: footStrength(p, true) }))
-    .sort((a, b) => b.base - a.base || a.p.id - b.p.id);
-  const dogs = huntingDogs(state);
-  let foot = 0;
-  footers.forEach(({ p, base }, i) => {
-    const value = i < dogs ? base : base * HUNT.noDogShare;
-    foot += value;
-    strengths.push({ id: p.id, value });
-  });
-  // zvěř, která může lovce zranit (před úlovkem – ulovená zvěř riziko neruší)
-  const quarry: 'boar' | 'bear' | null =
-    today.target === 'bear'
-      ? w.bear.present
-        ? 'bear'
-        : null
-      : today.target === 'game' && w.boar.adults + w.boar.piglets >= 1 - EPSILON
-        ? 'boar'
-        : null;
-  const base = HUNT.base;
-  const kills: HuntKills = { boar: 0, deer: 0, wolves: 0, bear: 0 };
-  let meatKg = 0;
-  if (today.target === 'game') {
-    // prasata: napřed dospělá, selata až bez dospělých
-    const boar = w.boar;
-    hunt.hope.boar +=
-      (base.boar.rider * riders + base.boar.foot * foot) *
-      stockShare(boar.adults + boar.piglets, caps.boar);
-    let boarHope = hunt.hope.boar;
-    for (; boarHope >= 1 - EPSILON; boarHope -= 1) {
-      if (boar.adults >= 1 - EPSILON) {
-        boar.adults -= 1;
-        meatKg += HUNT.meatKg.boar;
-      } else if (boar.piglets >= 1 - EPSILON) {
-        boar.piglets -= 1;
-        meatKg += HUNT.meatKg.piglet;
-      } else break;
-      kills.boar += 1;
-    }
-    hunt.hope.boar = Math.min(1, Math.max(0, boarHope));
-    // jelení zvěř: jeleni, dokud jich je aspoň 1 na 3 laně; laně jen nad stropem; kolouši nikdy
-    const deer = w.deer;
-    hunt.hope.deer +=
-      (base.deer.rider * riders + base.deer.foot * foot) *
-      stockShare(deer.stags + deer.hinds + deer.calves, caps.deer);
-    let deerHope = hunt.hope.deer;
-    for (; deerHope >= 1 - EPSILON; deerHope -= 1) {
-      if (deer.stags >= 1 - EPSILON && deer.stags >= deer.hinds * HUNT.stagsPerHind - EPSILON) {
-        deer.stags -= 1;
-        meatKg += HUNT.meatKg.stag;
-      } else if (
-        deer.hinds >= 1 - EPSILON &&
-        deer.stags + deer.hinds + deer.calves > caps.deer + EPSILON
-      ) {
-        deer.hinds -= 1;
-        meatKg += HUNT.meatKg.hind;
-      } else break;
-      kills.deer += 1;
-    }
-    hunt.hope.deer = Math.min(1, Math.max(0, deerHope));
-  } else if (today.target === 'wolves') {
-    hunt.hope.wolf +=
-      (base.wolves.rider * riders + base.wolves.foot * foot) * stockShare(w.wolves, caps.wolves);
-    const taken = takeWhole(hunt.hope.wolf, Math.floor(w.wolves + EPSILON));
-    w.wolves -= taken.kills;
-    kills.wolves = taken.kills;
-    hunt.hope.wolf = taken.hope;
-  } else if (w.bear.present) {
-    hunt.hope.bear += base.bear.foot * foot;
-    const taken = takeWhole(hunt.hope.bear, 1);
-    if (taken.kills > 0) {
-      w.bear = { present: false, backDay: bearBackDay(day) };
-      kills.bear = 1;
-      meatKg += HUNT.meatKg.bear;
-    }
-    hunt.hope.bear = taken.hope;
-  }
-  hunt.year.days += 1;
-  const events: ChronicleEvent[] = [];
-  const total = kills.boar + kills.deer + kills.wolves + kills.bear;
-  today.kills = total;
-  if (total > 0) {
-    if (meatKg > 0) butcher(state, meatKg);
-    // kůži dá jen divočák a jelen (vlk a medvěd v návrhu nejsou – hides-honey.md); jelení se
-    // zpracuje jako kůže skotu, divočákova jako prasečí (`HIDES`)
-    addHides(state, kills.deer);
-    addSmallHides(state, kills.boar);
-    hunt.year.boar += kills.boar;
-    hunt.year.deer += kills.deer;
-    hunt.year.wolves += kills.wolves;
-    hunt.year.bear += kills.bear;
-    hunt.year.meatKg += meatKg;
-  }
-  // losy smrti proběhnou před výběrem jména – nejlepší je nejlepší z těch, kdo lov přežili
-  const risk = quarry ? huntRisk(state, day, quarry) : [];
-  if (total > 0) {
-    const alive = new Map(state.people.map((p) => [p.id, p]));
-    const best = strengths
-      .filter((s) => alive.has(s.id))
-      .sort((a, b) => b.value - a.value || a.id - b.id)[0];
-    const name = best ? alive.get(best.id)?.name : undefined;
-    events.push({ day, kind: 'hunt', kills, meatKg, names: name ? [name] : [] });
-  }
-  events.push(...risk);
+  events.push(...huntCasualties(state, day, r));
+  for (const horseId of r.horsesLost) loseHorse(state, horseId);
   return events;
 }
 
 /**
- * Zranění a smrt na lovu (wildlife.md – Nebezpečí pro lidi; mutuje stav): lovci podle id, každý
- * dostane vždy oba losy (zranění, smrt) z vlastního proudu `hunt:` + den, ať pořadí losů nezávisí
- * na výsledku a losy porodů a úmrtí (`day:`) zůstanou stejné. Zraněný 60 dní nepracuje, necvičí
- * ani neloví; mrtvého lovce pohřbí hřbitov, nástupnictví řeší `dynastyDay` týž den.
+ * Zabité zvíře (hunting.md – Pravidla 7; wildlife.md – Kolik): kus ubude ze zvěře (nejníž 0;
+ * medvěd odejde a jiný se vrátí – `bearBackDay`), maso do zásoby (`HUNT.meatKg` – vlk nic), kůže
+ * (jelen a laň kůže skotu, kanec a bachyně menší kůže, vlk a medvěd nic – hides-honey.md), úlovek
+ * roku po druzích a kronika `hunt` se jmény útočníků.
  */
-export function huntRisk(
-  state: VillageState,
-  day: number,
-  quarry: 'boar' | 'bear',
-): ChronicleEvent[] {
-  const today = state.wildlife?.hunt?.today;
-  if (!today || today.day !== day) return [];
-  const mounted = new Set(today.riders.map((r) => r.personId));
-  const ids = [...new Set([...mounted, ...today.foot])].sort((a, b) => a - b);
-  const rules = HUNT_RISK[quarry];
-  const random = createRandom(deriveSeed(state.seed, 'hunt:' + day));
+function takeQuarry(state: VillageState, day: number, r: HuntResult): ChronicleEvent[] {
+  const w = state.wildlife;
+  if (w) removeQuarry(w, r.quarry, day);
+  const meatKg = HUNT.meatKg[r.quarry];
+  if (meatKg > 0) butcher(state, meatKg);
+  if (r.quarry === 'stag' || r.quarry === 'hind') addHides(state, 1);
+  else if (r.quarry === 'boar' || r.quarry === 'sow') addSmallHides(state, 1);
+  const kills: HuntKills = { boar: 0, deer: 0, wolves: 0, bear: 0 };
+  kills[KILL_KIND[r.quarry]] = 1;
+  const year = w?.hunt?.year;
+  if (year) {
+    year[KILL_KIND[r.quarry]] += 1;
+    year.meatKg += meatKg;
+  }
+  return [{ day, kind: 'hunt', kills, meatKg, names: [...r.names] }];
+}
+
+/** Kus zvířete ubude ze stavu zvěře (nejníž 0); ulovený medvěd z kraje odejde. */
+function removeQuarry(w: WildlifeState, quarry: QuarryKind, day: number): void {
+  switch (quarry) {
+    case 'stag':
+      w.deer.stags = Math.max(0, w.deer.stags - 1);
+      return;
+    case 'hind':
+      w.deer.hinds = Math.max(0, w.deer.hinds - 1);
+      return;
+    case 'boar':
+    case 'sow':
+      w.boar.adults = Math.max(0, w.boar.adults - 1);
+      return;
+    case 'wolf':
+      w.wolves = Math.max(0, w.wolves - 1);
+      return;
+    case 'bear':
+      w.bear = { present: false, backDay: bearBackDay(day) };
+  }
+}
+
+/**
+ * Ranění a padlí lovci (hunting.md – Pravidla 6; plán 2026-11-22-hunting – Rozhodnutí 10): každý
+ * jednou, smrt má přednost. Raněný 60 dní nepracuje, necvičí ani neloví (`PREDATOR_RISK.injuryDays`,
+ * delší ránu nezkrátí; kronika `hunt-injury`), padlý zemře – kronika `death` (`cause: 'hunt'`),
+ * hřbitov a nástupnictví (`dynastyDay` týž den) jako po bývalém riziku lovu.
+ */
+function huntCasualties(state: VillageState, day: number, r: HuntResult): ChronicleEvent[] {
+  const outcomes = new Map<number, 'wounded' | 'dead'>();
+  for (const c of r.casualties) {
+    if (outcomes.get(c.personId) !== 'dead') outcomes.set(c.personId, c.outcome);
+  }
   const people = new Map(state.people.map((p) => [p.id, p]));
   const events: ChronicleEvent[] = [];
   const dead = new Set<number>();
-  for (const id of ids) {
-    const injuryRoll = random.next();
-    const deathRoll = random.next();
+  for (const [id, outcome] of outcomes) {
     const p = people.get(id);
     if (!p) continue;
-    // děti na lov nechodí (Martin 27. 10. 2026); kdyby se tam dítě dostalo, nezahyne ani se nezraní
-    if (ageGroup(p, day) === 'child') continue;
-    const combat = Math.min(100, Math.max(0, p.arms?.combat ?? 0));
-    const injury = quarry === 'bear' ? rules.injury * (1 - combat / 200) : rules.injury;
-    const death =
-      rules.death * (2 - combat / 100) * (mounted.has(id) ? 1 : HUNT_RISK.footDeathFactor);
-    const name = p.name === undefined ? {} : { name: p.name };
-    if (deathRoll < death) {
-      dead.add(id);
+    if (outcome === 'wounded') {
+      p.injuredUntilDay = Math.max(p.injuredUntilDay ?? 0, day + 1 + PREDATOR_RISK.injuryDays);
       events.push({
         day,
-        kind: 'death',
-        group: ageGroup(p, day),
-        age: ageYears(p.bornDay, day),
-        cause: 'hunt',
-        prey: quarry,
-        ...deathWho(state, p, day),
-        population: state.people.length - dead.size,
+        kind: 'hunt-injury',
+        prey: r.quarry,
+        ...(p.name === undefined ? {} : { name: p.name }),
       });
-      const full = bury(state, day, p);
-      if (full) events.push(full);
-    } else if (injuryRoll < injury) {
-      p.injuredUntilDay = day + 1 + HUNT_RISK.injuryDays;
-      events.push({ day, kind: 'hunt-injury', prey: quarry, ...name });
+      continue;
     }
+    dead.add(id);
+    events.push({
+      day,
+      kind: 'death',
+      group: ageGroup(p, day),
+      age: ageYears(p.bornDay, day),
+      cause: 'hunt',
+      prey: r.quarry,
+      ...deathWho(state, p, day),
+      population: state.people.length - dead.size,
+    });
+    const full = bury(state, day, p);
+    if (full) events.push(full);
   }
-  if (dead.size > 0) {
-    removePeople(state, dead);
-    today.riders = today.riders.filter((r) => !dead.has(r.personId));
-    today.foot = today.foot.filter((id) => !dead.has(id));
-  }
+  if (dead.size > 0) removePeople(state, dead);
   return events;
-}
-
-/** Důvody, proč nejde vyhlásit lov navíc (`canDeclareHunt`), česky pro hráče. */
-export const HUNT_DENIED_TEXT = {
-  'closed-season': 'Zvěř má hájení – od března do května se neloví.',
-  'too-soon': `Lovci si ještě nevydechli – lov navíc nejdřív za ${HUNT.extra.minGapDays} dny po minulém.`,
-  'no-hunters': 'Na lov není kdo jít.',
-  already: 'Lov už je na zítřek vyhlášen.',
-} as const;
-
-export type HuntDenied = keyof typeof HUNT_DENIED_TEXT;
-
-/**
- * Smí hráč vyhlásit lov navíc (wildlife.md – Kdy; Martin 24. 10. 2026: „Obojí“)? `day` je dnešní
- * (odsimulovaný) den, lov je zítra. Vrací null, nebo důvod: hájení (březen–květen), méně než 3 dny
- * od minulého lovu navíc, lov už je zítra (vyhlášený nebo v kalendáři), nebo není kdo.
- */
-export function canDeclareHunt(state: VillageState, day: number): HuntDenied | null {
-  const target = day + 1;
-  const { month } = dateOfDayIndex(target);
-  if (month >= HUNT.extra.closedFromMonth && month <= HUNT.extra.closedToMonth) {
-    return 'closed-season';
-  }
-  const w = state.wildlife;
-  if (w?.hunt?.extraDay === target || isHuntCalendarDay(target)) return 'already';
-  const last = w?.hunt?.lastExtraDay;
-  if (last !== undefined && target - last < HUNT.extra.minGapDays) return 'too-soon';
-  const family = trainingFamily(state, target);
-  if (!family) return 'no-hunters';
-  const pool = huntPool(state, target, family);
-  const hunters = pool.manor.length + pool.away.length;
-  return hunters > 0 ? null : 'no-hunters';
-}
-
-/**
- * Hráč vyhlásí lov navíc na zítřek (mutuje stav; `day` = dnešní odsimulovaný den): zapíše
- * `extraDay` a `lastExtraDay`, zítra ho vezme `planHuntDay`. Mimo zimu den lovu chybí v hlídce,
- * výcviku a práci odešlých synů (cena rozhodnutí – návrh Clauda). Vrací důvod odepření, nebo null.
- */
-export function declareHunt(state: VillageState, day: number): HuntDenied | null {
-  const denied = canDeclareHunt(state, day);
-  if (denied) return denied;
-  const w = state.wildlife;
-  if (!w) return 'no-hunters';
-  const hunt = (w.hunt ??= emptyHunt());
-  hunt.extraDay = day + 1;
-  hunt.lastExtraDay = day + 1;
-  return null;
 }

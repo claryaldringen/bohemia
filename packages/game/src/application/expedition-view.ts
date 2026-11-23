@@ -1,26 +1,34 @@
 import type { GridCell } from '../domain/village/people/world-grid';
 import { sameCell } from '../domain/village/people/world-grid';
 import { ageGroupOf } from '../domain/village/people/people';
+import type { QuarryKind } from '../domain/village/types';
 import {
+  commandOf,
   groupSetOut,
   mergeKnowledge,
   partyLeader,
   upgradeJourney,
   type CampaignPlace,
   type HorseWork,
+  type HuntBeaters,
+  type HuntFight,
+  type JourneyHunt,
   type JourneyMember,
   type JourneyParty,
   type JourneyState,
   type MemberHorse,
   type Pos,
+  type QuarryState,
   type SeenCell,
 } from '../domain/war';
 import { cellKey } from '../domain/war/campaign-tick';
 import { controllable, membersOf, waitDaysLeft, type JourneyReadDeps } from './journey-view';
+import type { JourneyRepository } from './journeys';
 
 // Pohled hráče na jeho výpravy (expeditions.md – Výběr a skupina, Ve scéně; plán 2026-11-14 –
 // Úloha 6). Web nic nepočítá: čte kontrolní bod každé běžící výpravy hráče (jedna za domovskou
-// ves) a ukazuje skupiny a hloučky. Starší bod převede `upgradeJourney` (jedna skupina).
+// ves) a ukazuje skupiny a hloučky a lov vsi (`hunt` – plán 2026-11-22-hunting, Úloha 9). Starší
+// bod převede `upgradeJourney` (jedna skupina).
 
 /** Skupina výpravy, jak ji vidí její hráč. */
 export interface PartyView {
@@ -78,6 +86,80 @@ export interface ExpeditionView {
    * co výprava viděla teď (`mergeKnowledge`). Domovská mapa tu není – hráč ji zná celou.
    */
   seen: Record<string, SeenCell>;
+  /** Lov vsi ve výpravě (plán 2026-11-22-hunting – Úloha 9); null – žádný neběží. */
+  hunt: HuntView | null;
+}
+
+/**
+ * Lov vsi, jak ho vidí hráč (plán 2026-11-22-hunting – Úloha 9): zvíře, honci (polohu spočte scéna
+ * z taktu – `beatersAt`), psi a útočníci. Útočníky kreslí scéna jako lidi výpravy (jejich hlouček
+ * má polohu bojovníka).
+ */
+export interface HuntView {
+  /** null – zvíře je ještě v lese, nebo už zmizelo. */
+  quarry: { kind: QuarryKind; pos: Pos; heading: Pos; state: QuarryState; hits: number } | null;
+  beaters: HuntBeaters;
+  dogs: number;
+  /** Útočníci v souboji (personId). */
+  strikers: number[];
+  outcome: HuntFight['outcome'];
+  /** Takt souboje, ke kterému platí poloha a stav zvířete (`HuntFight.tick`). */
+  tick: number;
+}
+
+/**
+ * Běží ve výpravě lov vsi (plán 2026-11-22-hunting – Rozhodnutí 1: nejvýš jeden; tlačítko lovu
+ * zašedne s `already`)? Lov trvá, dokud honci nejsou doma; skončená výprava a žádná – ne.
+ */
+export function huntRunning(state: JourneyState | null): boolean {
+  return state !== null && state.phase !== 'done' && state.hunt !== undefined;
+}
+
+/** Porty pro `huntRunningIn` – běžící výprava vsi, její kontrolní bod a záměry za ním. */
+export interface HuntRunningDeps {
+  journeys: Pick<JourneyRepository, 'activeIn' | 'checkpoint' | 'intentsAfter'>;
+}
+
+/** Běžící výprava vsi (`id`, stav bodu převedený `upgradeJourney`) a zda v ní běží lov vsi. */
+export interface VillageJourneyHunt {
+  id: string | null;
+  journey: JourneyState | null;
+  running: boolean;
+}
+
+/**
+ * Běžící výprava hráče ze vsi `villageId` a zda v ní běží lov vsi: lov v kontrolním bodu
+ * (`huntRunning`), nebo nevyřízený záměr `hunt` za bodem – s lidmi venku jde vyhlášení záměrem
+ * na takt teď + `INTENT_LEAD_TICKS` a do bodu se dostane až s workerem (záměry za bodem čte
+ * i `recallJourneysAtWar`). Jinak by druhé vyhlášení před uplatněním záměru prošlo, ves by
+ * zaplatila honce dvakrát a výprava by druhý lov zahodila (`startHunt`).
+ */
+export async function villageJourneyHunt(
+  deps: HuntRunningDeps,
+  playerId: string,
+  villageId: string,
+): Promise<VillageJourneyHunt> {
+  const id = await deps.journeys.activeIn(playerId, villageId);
+  const point = id === null ? null : await deps.journeys.checkpoint(id);
+  const journey = point ? upgradeJourney(point.state) : null;
+  if (id === null || journey === null || journey.phase === 'done') {
+    return { id, journey, running: false };
+  }
+  if (huntRunning(journey)) return { id, journey, running: true };
+  const intents = await deps.journeys.intentsAfter(id, journey.tick);
+  return { id, journey, running: intents.some((i) => commandOf(i.body).kind === 'hunt') };
+}
+
+/**
+ * Běží lov vsi `villageId` hráče (`villageJourneyHunt` – v bodu výpravy, nebo čeká jeho záměr)?
+ * Tlačítko lovu pak zašedne s `already` a vyhlášení se odmítne (`declareHuntInVillage`).
+ */
+export async function huntRunningIn(
+  deps: HuntRunningDeps,
+  playerId: string,
+  villageId: string,
+): Promise<boolean> {
+  return (await villageJourneyHunt(deps, playerId, villageId)).running;
 }
 
 /**
@@ -102,9 +184,38 @@ export async function expeditionViewsFor(
       homePos: { ...state.home.pos },
       parties: state.parties.map((party) => partyView(deps, state, party)),
       seen: await seenOnMaps(deps, state),
+      hunt: state.hunt ? huntView(state.hunt) : null,
     });
   }
   return views;
+}
+
+/** Zvíře v lese (`hidden`) a zmizelé (`gone`) scéna nekreslí. */
+const UNSEEN: ReadonlySet<QuarryState> = new Set<QuarryState>(['hidden', 'gone']);
+
+/**
+ * Pohled na lov: zvíře venku (i padlé – leží, dokud ho honci neodnesou), honci a psi; útočníci jsou
+ * bojovníci, kteří v souboji jednají – ne odvolaní (`left`) ani padlí (`down`).
+ */
+function huntView(hunt: JourneyHunt): HuntView {
+  const f = hunt.fight;
+  const q = f.quarry;
+  return {
+    quarry: UNSEEN.has(q.state)
+      ? null
+      : {
+          kind: q.kind,
+          pos: { ...q.pos },
+          heading: { ...q.heading },
+          state: q.state,
+          hits: q.hits,
+        },
+    beaters: structuredClone(hunt.beaters),
+    dogs: hunt.dogs,
+    strikers: f.hunters.filter((h) => !h.left && h.state !== 'down').map((h) => h.personId),
+    outcome: f.outcome,
+    tick: f.tick,
+  };
 }
 
 function partyView(deps: JourneyReadDeps, state: JourneyState, party: JourneyParty): PartyView {

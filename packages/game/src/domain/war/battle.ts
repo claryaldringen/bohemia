@@ -592,12 +592,18 @@ interface Spot {
  * Stěny, průchody a místa prolomení každého opevnění v tomto taktu; zasypané kusy vodního příkopu
  * (průchozí jako suchý příkop – `moatFillPace`).
  */
-interface Walls {
+export interface Walls {
   lines: WallLine[][];
   openings: Opening[][];
   spots: Spot[][];
   fills: MoatFill[];
 }
+
+/**
+ * Žádné stěny ani zasypání – pohyb po mřížce mimo opevnění (souboj se zvěří – `hunt-fight.ts`).
+ * Sdílený objekt, nikdo ho nemění.
+ */
+export const NO_WALLS: Walls = { lines: [], openings: [], spots: [], fills: [] };
 
 /**
  * Úsek blokuje: stojí a stojí na něm hradba – holý val (i s nedostavěnou či zbořenou hradbou) se
@@ -854,7 +860,12 @@ function firstWall(
  * Tempo buňky mřížky; stěny opevnění řeší úsečky, ne buňky; boj ve vsi stavby neblokují; zasypaný
  * kus vodního příkopu se přejde jako suchý (`moatFillPace`).
  */
-function paceAt(grid: MarchGrid, p: Pos, fills: readonly MoatFill[], attacker = false): number {
+export function paceAt(
+  grid: MarchGrid,
+  p: Pos,
+  fills: readonly MoatFill[],
+  attacker = false,
+): number {
   const c = marchCellAt(grid, p);
   const flags = grid.flags[c]!;
   if ((flags & (MARCH_WALL | MARCH_BUILDING)) !== 0) {
@@ -913,7 +924,7 @@ function leashGap(leash: Leash, p: Pos): number {
  * smí a kde mu v cestě nestojí stěna (plán 2026-11-16-dense-forest – Úloha 5: jinak by u kraje
  * hustého lesa stál, dokud se cíl nezmění, a boj by se zastavil). Null = ani jedna osa.
  */
-function alongEdge(pos: Pos, q: Pos, grid: MarchGrid, walls: Walls): Pos | null {
+export function alongEdge(pos: Pos, q: Pos, grid: MarchGrid, walls: Walls): Pos | null {
   const sx = q.x - pos.x;
   const sz = q.z - pos.z;
   const xs = { x: pos.x + sx, z: pos.z };

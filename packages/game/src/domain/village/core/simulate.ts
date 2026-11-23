@@ -81,7 +81,7 @@ import {
 } from './simulate-plan';
 import { work } from './simulate-work';
 import { patrolHuntDay, settlePatrol } from '../wildlife/field-patrol';
-import { huntDay, planHuntDay } from '../wildlife/hunt';
+import { npcHuntDay } from '../wildlife/npc-hunt';
 import { dogsYear } from '../wildlife/manor-dogs';
 import { conversionDay } from '../people/conversion';
 import { wildlifeYearDay } from '../wildlife/wildlife';
@@ -251,7 +251,7 @@ function* simulateDaySteps(
   harvestAndUpkeepDay(state, day, date, landscape, obstacles);
 }
 
-/** Ráno dne: výcvik rodiny vojvody, roční přepočet zvěře, počasí kraje, ochrana dílů, teplé sady, psi a plán lovu. */
+/** Ráno dne: výcvik rodiny vojvody, roční přepočet zvěře, počasí kraje, ochrana dílů, teplé sady a psi. */
 function morningDay(
   state: VillageState,
   day: number,
@@ -273,8 +273,6 @@ function morningDay(
   if (landscape) markSunnyOrchards(state, landscape);
   // psi dvorce 1. 5.: úbytek a štěňata (wildlife.md – Psi)
   dogsYear(state, day);
-  // velký lov rodu: kdo dnes loví – pěší lovci jsou mimo práci vsi (wildlife.md – Lov rodu)
-  planHuntDay(state, day);
 }
 
 /** Cesty a vzdálenosti chůze: měsíční kontrola cest, cesty přes pole, brány v opevnění a přepočet tras (se zastávkami). */
@@ -505,24 +503,26 @@ function marriagesAndMealDay(
   return eat(state, day, coverage);
 }
 
-/** Večer rodiny vojvody: hlášení porážky, velký lov, lov z hlídky a výcvik. Vrací události lovu. */
+/** Večer rodiny vojvody: hlášení porážky, lov správce, lov z hlídky a výcvik. Vrací události lovu správce. */
 function lordEveningDay(
   state: VillageState,
   day: number,
   lordField: ReturnType<typeof work>['lordField'],
-): ReturnType<typeof huntDay> {
+): ReturnType<typeof npcHuntDay> {
   // letní a nouzová porážka běží až v `eat()`, po `work()` – doplnit hlášení kusů do dnešního rozvrhu práce
   // (jen hlášení pro scénu, simulaci to nemění)
   const slaughteredToday = state.livestock?.slaughtered;
   if (state.labor?.day === day && slaughteredToday?.day === day) {
     state.labor.slaughterHeads = { ...slaughteredToday.heads };
   }
-  // vojvodova rodina (lord.md): výcvik dne – kdo necvičil (na poli ve žních), zapomíná
-  // úlovek velkého lovu a maso do zásoby; den lovu je výcvik (wildlife.md – Lov rodu)
-  const huntEvents = huntDay(state, day, lordField);
+  // lov správce bez scény (hunting.md – Pravidla 8): v den lovu po práci (honci a lovci chyběli
+  // v práci dne – `allocateDay`) souboj se zvěří na louce a výsledek hned ve vsi – úlovek, výcvik,
+  // rány a smrt lovců; před výcvikem dne (padlý ani raněný už necvičí)
+  const huntEvents = npcHuntDay(state, day);
   state.chronicle.push(...huntEvents);
   // úlovek prasat z jezdecké hlídky polí (červen–říjen; wildlife.md – Obrana polí)
   patrolHuntDay(state, day);
+  // vojvodova rodina (lord.md): výcvik dne – kdo necvičil (na poli ve žních), zapomíná –
   // a koně pod jezdci (horses.md – Výcvik koně a jezdec) – po péči (`work()`) a obilí (`eat()`)
   state.chronicle.push(...trainLordDay(state, day, lordField));
   return huntEvents;
@@ -537,7 +537,7 @@ function peopleDay(
   dayResult: {
     toil: boolean;
     eaten: ReturnType<typeof eat>;
-    huntEvents: ReturnType<typeof huntDay>;
+    huntEvents: ReturnType<typeof npcHuntDay>;
     disasterEvents: ReturnType<typeof localDisastersDay>;
   },
 ): boolean {
@@ -558,7 +558,8 @@ function peopleDay(
   }
   const events = populationDay(state, day, satiation, energy, hunger);
   state.chronicle.push(...events);
-  // kdo zahynul na lovu, ves oplakává jako každé úmrtí (štěstí), i když zápis dělá lov
+  // kdo zahynul na lovu správce nebo při pohromě, ves oplakává jako každé úmrtí (štěstí), i když
+  // zápis dělá lov či pohroma
   const happinessEvents = [
     ...events,
     ...huntEvents.filter((e) => e.kind === 'death'),

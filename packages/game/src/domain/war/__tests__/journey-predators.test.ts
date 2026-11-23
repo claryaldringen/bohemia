@@ -12,7 +12,7 @@ import { landscapeTrailLines } from '../../village/trade/premium-route';
 import { applyInboxDay, type VillageEvent } from '../../village/core/inbox';
 import { isInjured } from '../../village/people/people';
 import { dynastyDay } from '../../village/people/succession';
-import { HUNT_RISK } from '../../village/rules/rules-wildlife';
+import { PREDATOR_RISK } from '../../village/rules/rules-wildlife';
 import type { VillageState } from '../../village/types';
 import { freshWildlife, wildlifeOfEmptyMap } from '../../village/wildlife/wildlife';
 import { DAY, kin, trackedVillage, village } from '../../village/__tests__/kin-fixtures';
@@ -33,7 +33,8 @@ import { msOfTick } from '../ticks';
 import { flat, LAUNCH, MEADOW, world as clock } from './campaign-fixtures';
 
 // Šelmy v hustém lese (lord-control.md – Nebezpečí, bod 3; plán 2026-11-13 – Úloha 13): čísla
-// zranění a smrti jsou čísla lovu (`HUNT_RISK`), losuje se jednou za den ze seedu výjezdu a dne.
+// zranění a smrti jsou čísla bývalého lovu (`PREDATOR_RISK`), losuje se jednou za den ze seedu
+// výjezdu a dne.
 
 function man(index: number, extra: Partial<JourneyMember> = {}): JourneyMember {
   return {
@@ -100,19 +101,19 @@ describe('predatorDay', () => {
   it('medvěd: zranění 5 % × (1 − boj ÷ 200), smrt 0,3 % × (2 − boj ÷ 100); pěšky smrt × 2', () => {
     const mounted = [man(0, { fight: 50 }), man(1)];
     const foot = [man(0, { fight: 50, mounted: false }), man(1)];
-    const injury = HUNT_RISK.bear.injury * (1 - 50 / 200);
-    const death = HUNT_RISK.bear.death * (2 - 50 / 100);
+    const injury = PREDATOR_RISK.bear.injury * (1 - 50 / 200);
+    const death = PREDATOR_RISK.bear.death * (2 - 50 / 100);
     near(frequency(mounted, BEAR, 'dead'), death);
-    near(frequency(foot, BEAR, 'dead'), death * HUNT_RISK.footDeathFactor);
+    near(frequency(foot, BEAR, 'dead'), death * PREDATOR_RISK.footDeathFactor);
     // zranění jen tam, kde se nevylosovala smrt
     near(frequency(mounted, BEAR, 'wounded'), injury * (1 - death));
   });
 
   it('jen vlci: čísla lovu prasat (0,5 % a 0,02 %)', () => {
     const members = [man(0, { fight: 80 }), man(1)];
-    const death = HUNT_RISK.boar.death * (2 - 80 / 100);
+    const death = PREDATOR_RISK.boar.death * (2 - 80 / 100);
     near(frequency(members, WOLVES, 'dead', 60_000), death, 60_000);
-    near(frequency(members, WOLVES, 'wounded', 60_000), HUNT_RISK.boar.injury, 60_000);
+    near(frequency(members, WOLVES, 'wounded', 60_000), PREDATOR_RISK.boar.injury, 60_000);
     const out = predatorDay({ members, inForest: true, wildlife: WOLVES, seed: 1, day: 1 });
     expect(out.every((o) => o.by === 'wolves')).toBe(true);
   });
@@ -423,7 +424,7 @@ describe('schránka vsi – journey-casualty', () => {
     const chronicle = applyInboxDay(v, DAY + 1, [casualty('wounded', 'bear')]);
     expect(chronicle).toEqual([]);
     const p = v.people.find((x) => x.id === 10)!;
-    expect(p.injuredUntilDay).toBe(DAY + 1 + 1 + HUNT_RISK.injuryDays);
+    expect(p.injuredUntilDay).toBe(DAY + 1 + 1 + PREDATOR_RISK.injuryDays);
     expect(isInjured(p, DAY + 60)).toBe(true);
     expect(isInjured(p, DAY + 70)).toBe(false);
   });

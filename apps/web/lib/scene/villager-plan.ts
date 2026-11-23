@@ -233,10 +233,7 @@ export function planVillagersWithCrew(
   staff.caravanCarts();
   // vojvodova rodina na dvorku (lord.md – Ve scéně): jediní, kdo stojí na oploceném pozemku
   // dvorce – cvičí, nebo vede domácnost; do práce vsi nejde
-  // lov jde ve skutečném čase od svého dne (riders.ts – `huntSpan`)
-  const huntDay = village.wildlife?.hunt?.day;
-  const huntWindow = huntDay !== undefined ? (options.dayWindow?.(huntDay) ?? null) : dayWindow;
-  const family = lordFigures(ctx, labor, dayWindow, options.huntSpot ?? null, huntWindow);
+  const family = lordFigures(ctx, labor, dayWindow);
   if (family.rides.length > 0) crew.rides = family.rides;
   if (family.dogs.length > 0) crew.dogs = family.dogs;
   // odjezd a příjezd výjezdu vojvody (expedition-choreo.ts) – vchod, brána a koně u kůlu

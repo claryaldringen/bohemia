@@ -444,6 +444,8 @@ function buildOptions(
 
 /** Co pohled na jednu ves sám neví – zjistí ho vstupní bod přes `dynastyStatus`. */
 export interface VillageViewContext {
+  /** Lov vsi už běží ve výpravě (`huntRunning`) – tlačítko lovu zašedne s `already`. */
+  huntRunning?: boolean;
   /** Hráči vymřely všechny vsi (ne jen tahle), nebo vymřel rod. */
   gameOver?: boolean;
   /** Rod vymřel po meči – kronika rodu (`lineEndView` přes všechny vsi hráče). */
@@ -704,7 +706,7 @@ export function buildVillageView(
     chronicle: chronicle(state, name),
     purchases: purchaseViews(state),
     lastMarriageDay: lastMarriageDay(state),
-    manor: manorView(state, landscape, day, context.ownMaps ?? {}),
+    manor: manorView(state, landscape, day, context.ownMaps ?? {}, context.huntRunning ?? false),
     ...wildlifeField(state, day),
     ...weatherField(state, day),
     ...dugSitesField(state, day),

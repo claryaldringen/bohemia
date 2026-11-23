@@ -48,8 +48,10 @@ export function useSceneE2EHooks(scene: LandscapeScene | null): void {
     setE2EHook('wildAnimals', () => scene.wildAnimals());
     setE2EHook('moveCameraTo', (x, z) => scene.moveCameraTo(x, z));
     setE2EHook('armyStats', () => scene.armyStats());
+    setE2EHook('huntStats', () => scene.huntStats());
     return () => {
       setE2EHook('armyStats', undefined);
+      setE2EHook('huntStats', undefined);
       setE2EHook('projectToScreen', undefined);
       setE2EHook('slaughterMeshes', undefined);
       setE2EHook('wildAnimals', undefined);

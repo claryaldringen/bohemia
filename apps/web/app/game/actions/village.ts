@@ -37,8 +37,11 @@ import {
   setStewardForPlayer,
   renameVillageForPlayer,
   upgradeRoadForPlayer,
+  type DeclareHuntRefusal,
   type VillageActionResult,
 } from '@/lib/village';
+import { expeditionReason } from '@/lib/journey-view';
+import { HUNT_DENIED_TEXT, NOT_PLAYER_VILLAGE } from '@bohemia/game';
 import {
   parseBuildTrailInput,
   parseAbandonFieldPartsInput,
@@ -297,13 +300,36 @@ export async function setSteward(input: unknown): Promise<VillageActionResult> {
 }
 
 /**
- * Lov navíc na zítřek (wildlife.md – Lov rodu: Kdy): `{ villageId }`. Hájení, 3 dny od minulého
- * lovu, nikdo k lovu a už vyhlášený lov odmítne use-case s důvodem česky.
+ * Lov (hunting.md – Pravidla 2; plán 2026-11-22-hunting – Úloha 9): `{ villageId }`. Lov běží ve
+ * výpravě vsi a honci chybí v práci vsi zítra – vrátí pohled na ves; důvod odepření use-case
+ * (`DeclareHuntRefusal`) jde jako chyba česky.
  */
 export async function declareHunt(input: unknown): Promise<VillageActionResult> {
-  return villageAction(input, parseDeclareHuntInput, (id, villageId) =>
-    declareHuntForPlayer(id, villageId),
-  );
+  return villageAction(input, parseDeclareHuntInput, async (id, villageId) => {
+    const result = await declareHuntForPlayer(id, villageId);
+    return 'refused' in result ? { error: huntRefusalText(result.refused) } : result;
+  });
+}
+
+/** Důvod odepření lovu česky – důvody vsi `HUNT_DENIED_TEXT`. */
+function huntRefusalText(reason: DeclareHuntRefusal): string {
+  switch (reason) {
+    case 'no-village':
+      return NOT_PLAYER_VILLAGE;
+    case 'unreachable':
+      // odříznutý nováček – výprava s lovem nemá odkud vyjet; text jako u výprav
+      return expeditionReason('unreachable');
+    case 'busy':
+      return 'Zkus to znovu.';
+    case 'closed-season':
+    case 'no-beaters':
+    case 'already':
+    case 'no-game':
+      return HUNT_DENIED_TEXT[reason];
+    default:
+      // ves nežije – use-case vrací rovnou text (jako ostatní akce vsi)
+      return reason;
+  }
 }
 
 /** Postoj vsi před cizím vojskem (war.md – Obránci): `{ villageId, stance }`. */

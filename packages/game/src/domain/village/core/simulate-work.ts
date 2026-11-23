@@ -61,6 +61,7 @@ import {
   DOMESTIC,
   GRAIN_PITS,
   HARVEST_DAY,
+  LABOR_PER_DAY,
   LATE_HARVEST_DAY,
   ORCHARD_WINDOWS,
   WEEDING_CHILDREN,
@@ -442,7 +443,13 @@ export function work(
     travel,
     workshops,
   });
-  recordCommonLabor(state, allocation.common, allocation.build ?? allocation.common);
+  // díl mužů na stavby do historie před honci (`allocation.beaters`): lov nesmí sám sobě
+  // zmenšit zítřejší díl, jinak by ves mohla lovit jen ob den (hunting.md – Pravidla 2)
+  recordCommonLabor(
+    state,
+    allocation.common,
+    (allocation.build ?? allocation.common) + (allocation.beaters ?? 0),
+  );
   return { toil: toilToday(ctx, tasks.owned, applied, allocation.away), lordField };
 }
 
@@ -698,9 +705,14 @@ function dayLabor(
     manor && productivity > 0 ? labor / productivity : 0;
   // výsadba jabloní u cest a sadu v oknech výsadby – po orbě, kopání a setí, před vracením přílohu
   const planting = plantingOrder(dayTasks, fruitPlantingNeed(state, day));
+  // honci lovu (hunting.md – Pravidla 2): rezervace na dnešek (`reserveBeaters`) – starší
+  // rezervace zůstává ve stavu a nepočítá se
+  const reserved = state.wildlife?.hunt?.beaters;
+  const beaters = reserved?.day === day ? reserved.men * LABOR_PER_DAY.adult : 0;
   const allocate = (jobs: CartJobsDay): DayAllocation =>
     allocateDay({
       capacity: Math.max(0, villageLabor - restingCarry),
+      beaters,
       // ženy řemeslníků: zbytek po domácnosti jde jen na lehčí polní práce se vsí (crafts.md)
       light: craftLightLabor(state, day, crafts, coverage.pottery, productivity),
       harvestHands,

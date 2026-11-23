@@ -7,7 +7,6 @@ import type { Landscape } from '../../landscape/types';
 import { PATH_WATER_SPOT } from '../paths/terrain';
 import { groundSpots, nearestSpot, walkGroundOf } from '../paths/walking';
 import { ironTravellers } from '../crafts/crafts';
-import { huntFootIds } from '../wildlife/hunt-party';
 import { isAdult } from '../people/people';
 import { FIRE } from '../rules/rules-disasters';
 import type { FireFight, Person, VillageState } from '../types';
@@ -21,17 +20,16 @@ export function chainEfficiency(distanceM: number, people: number): number {
 }
 
 /**
- * Dospělí, kteří dnes hasí: jen ti, kdo jsou dnes ve vsi – mimo pěší lovci (`huntFootIds`)
- * a kdo je na cestě pro kování (`ironTravellers`). Vojvodova rodina, která cvičí na dvorci, je ve
- * vsi, takže hasí taky (návrh Clauda).
+ * Dospělí, kteří dnes hasí: jen ti, kdo jsou dnes ve vsi – mimo ty, kdo jsou na cestě pro kování
+ * (`ironTravellers`). Vojvodova rodina, která cvičí na dvorci, je ve vsi, takže hasí taky (návrh
+ * Clauda).
  */
 export function fireFighters(
-  state: Pick<VillageState, 'people' | 'dwellings' | 'wildlife'>,
+  state: Pick<VillageState, 'people' | 'dwellings'>,
   day: number,
 ): Person[] {
   const away = ironTravellers(state);
-  const hunting = huntFootIds(state, day);
-  return state.people.filter((p) => isAdult(p, day) && !away.has(p.id) && !hunting.has(p.id));
+  return state.people.filter((p) => isAdult(p, day) && !away.has(p.id));
 }
 
 /**

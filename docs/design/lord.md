@@ -26,6 +26,9 @@ pocítí, že vojvodův dvůr něco stojí – a že rod, který nemá komu vele
 - **Cíl:** ve **žních a výmlatu** jdou na pole i cvičící muži rodiny (Martin 24. 10. 2026: „Dílny
   i vojvodova rodina“ – mění pravidlo „vojvoda a synové nepracují na poli“, issue #8).
 - **Cíl:** na **dvorku dvorce stojí terče** na lukostřelbu (Martin).
+- **Lov jako výcvik** (Martin 22. 11. 2026: „tím že je mechanika stejná jako boj, tak se tím ten boj cvičí. Pokud to bude
+  vojvoda provozovat na koni, tak si tím cvičí i jízdu.“ – [hunting.md](hunting.md)): kalendářní lov rodu zrušen, rod
+  cvičí na lovu, který vyhlásí hráč tlačítkem dvorce (nebo správce) – boj, z koně jízdu, lukem luk; strop dovedností 70.
 - **Cíl:** výcvik se **ukládá u člověka** jako zkušenost – lov a válka ho později využijí (návrh
   Clauda).
 - **Ne-cíl (teď):** zbraně jako suroviny (luky, šípy, meče, štíty) – stejně jako ve

@@ -323,7 +323,7 @@ z + ':' + na)`, nezávisí na pořadí průchodu): každá nově hořící stavb
   stavbě (řetěz se staví rovně). `waterWalkM` je jiné číslo ke stejnému místu: váží chůzi po
   pěšinách a cestách (rychlejší než louka), proto bývá menší než geometrická vzdálenost (Vlkov
   ≈ 296 vs. ≈ 455 m); lidé = dospělí, kdo jsou dnes ve vsi
-  (`fireFighters(state, day)`: `isAdult` mimo pěší lovce `huntFootIds` a cestu pro kování `ironTravellers`; cvičící rodina vojvody na dvorci hasí); rozestup = vzdálenost ÷ lidé; **účinnost = min(1; 2,5 ÷ rozestup)**
+  (`fireFighters(state, day)`: `isAdult` mimo cestu pro kování `ironTravellers`; cvičící rodina vojvody na dvorci hasí); rozestup = vzdálenost ÷ lidé; **účinnost = min(1; 2,5 ÷ rozestup)**
   (`chainEfficiency`; bez lidí 0, u vody 1). Bez krajiny nebo bez vody je účinnost 0.
 - **Pro scénu (P13)** – plán jde do `state.disasters.fireFight` (`FireFight`: den, hořící obydlí,
   `water` {x, z} nebo null, `distanceM`, `people`, `spacingM`, `efficiency`) – jen ke čtení,

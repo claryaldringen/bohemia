@@ -25,11 +25,22 @@ export function ageGroupOf(bornDay: number, day: number): 'child' | 'adult' | 'e
 /**
  * Pracovní síla vsi (pole a stavby) za den (population.md – Práce): dospělý 1; starší 0 – kryjí jen
  * denní minimum své domácnosti (`adultDailyMin` v labor.ts); dítě 0 – výrostci 7–13 let pasou
- * (herding.ts); zraněný na lovu 0; kdo je pryč na čas (`isAway` – robota…), doma nepracuje.
+ * (herding.ts); zraněný na lovu 0; kdo je pryč na čas (`awayFromWork` – robota…), doma nepracuje.
  */
 export function laborPerDay(person: Person, day: number): number {
-  if (isInjured(person, day) || isAway(person, day)) return 0;
+  if (isInjured(person, day) || awayFromWork(person, day)) return 0;
   return ageGroup(person, day) === 'adult' ? LABOR_PER_DAY.adult : 0;
+}
+
+/**
+ * Chybí člověk dnes v práci vsi? Kdo je pryč na čas (`isAway`) – kromě útočníka lovu výpravy
+ * (`away.huntId`; hunting.md – Pravidla 2, Martin 22. 11. 2026: „práce těch lidí se odečte pouze
+ * za 1 den“): toho práce vsi počítá jako doma po celý lov a jeden den zaplatí jako honec
+ * (`reserveBeaters`). Pryč je dál – scéna, výprava, jídlo a výcvik se řídí `isAway`.
+ */
+export function awayFromWork(person: Pick<Person, 'away'>, day: number): boolean {
+  const away = person.away;
+  return isAway(person, day) && !(away?.kind === 'journey' && away.huntId !== undefined);
 }
 
 /**

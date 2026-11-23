@@ -23,5 +23,7 @@ export async function commandExpedition(input: unknown): Promise<{ ok: true } | 
   if (parsed === null) return { error: INVALID_INPUT };
   const result = await withVillageCache(() => commandExpeditionForPlayer(id, parsed));
   if ('error' in result) return result;
-  return result.ok ? { ok: true } : { error: expeditionReason(result.reason) };
+  return result.ok
+    ? { ok: true }
+    : { error: expeditionReason(result.reason, false, parsed.command.kind === 'strike') };
 }

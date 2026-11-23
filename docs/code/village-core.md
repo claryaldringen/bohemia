@@ -92,7 +92,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   postavy (`laborDay`, `DayWork.daylight`) dělí venkovní podíly délkou dne – podíly jsou lidé, ne
   práce (domácnost, koně, dílny, výpravy a vozy pro kováře beze změny). Před prací dne (`simulate.ts`): 1. 9. `startSeason`, každý den `seasonDay` (konce oken
   setí, díly na řadě a čelo práce – fields.md, Osevní postup po dílech) a `lordHelpDay`
-  (podíly dne rodiny ve žních `lordHelp` a s přípravou půdy a setím `lordSowing` – D102) a 1. 5. `wildlifeYearDay` (roční přepočet zvěře; hned za ním `weatherDay` – kronika počasí kraje v den odhalení, `village-disasters.md` –, `dogsYear` smečka dvorce a `planHuntDay` ranní plán lovu, W4), 1. 6. `damageWindowStart` (ohrožené díly polí pro zvěř – wildlife.md, Škody); po `lordHelpDay` `settlePatrol` (jezdecká hlídka polí, W6), po práci dne `wildlifeDamageDay` (škoda zvěře a vran na nesklizených dílech, před jídlem) dále v závěru dne `huntDay` (úlovek velkého lovu), `patrolHuntDay` (úlovek z hlídky), a po sklizni jaře `wildlifeSeasonEnd` (kronika, vynulování ztrát dílů – podrobnosti `village-wildlife.md`); potřebné sezónní úlohy jsou práce nutných dílů – plodiny
+  (podíly dne rodiny ve žních `lordHelp` a s přípravou půdy a setím `lordSowing` – D102) a 1. 5. `wildlifeYearDay` (roční přepočet zvěře; hned za ním `weatherDay` – kronika počasí kraje v den odhalení, `village-disasters.md` –, `dogsYear` smečka dvorce, W4), 1. 6. `damageWindowStart` (ohrožené díly polí pro zvěř – wildlife.md, Škody); po `lordHelpDay` `settlePatrol` (jezdecká hlídka polí, W6), po práci dne `wildlifeDamageDay` (škoda zvěře a vran na nesklizených dílech, před jídlem) dále v závěru dne `patrolHuntDay` (úlovek z hlídky), a po sklizni jaře `wildlifeSeasonEnd` (kronika, vynulování ztrát dílů – podrobnosti `village-wildlife.md`); potřebné sezónní úlohy jsou práce nutných dílů – plodiny
   hospodářského roku (`fieldTasks` – všechny díly jedna fronta, díly nad potřebu zrušené 9. 11. 2026). `allocateDay`: denní minimum → péče o koně (`horseCare` – `horseCareLabor`, horses.md – Péče; pokrytí v `state.horsesCaredToday`) → výpravy (`away`) → potřebné sezónní úlohy v pořadí `dayTaskOrder` – **pevné pořadí skupin** `DAY_WORK_ORDER` (rules-fields.ts; `dayWorkGroup` v simulate-work.ts; fields.md – Pořadí důležitosti polních prací a výmlat do zimy, Martin 9. 11. 2026): výmlat na dnešní jídlo → žeň a odnos obilí (i luštěnin) → trhání lnu (ženy a děti napřed před všemi úlohami – `womenFirst`, Martin 10. 11. 2026) → nutná 1. seč (`mow`) → nutná otava (`mow` s `DayTask.aftermath` – skupina `'aftermath'` podle `mowingCut` plánu seče; Martin 10. 11. 2026: před orbou a setím ozimu, dřív ~~až po nich~~) → porážka a uzení (`slaughter` – od 18. 11. 2026 za žní a sečí, porážka celý rok; maso je k jídlu hned, práce jen spotřebuje ruce; v zimě se nežne ani neseče, tam hned za výmlatem na jídlo; dřív ~~hned za výmlatem na jídlo~~) → sklizeň jablek → pletí → výmlat na osivo (`ThreshTask.seed`, `seedThreshKg` v seed.ts) → příprava půdy a setí (vrácení přílohu, kopání, orba, setí – **orba rádlem první** uvnitř skupiny, oxen.md – Orba má přednost; **setí zorané a zkopané půdy před vracením přílohu téže plodiny**, rank −0,5 ve `fieldTasks`; zorané je jen vyklučené – orba, kopání a setí po `tillableRemaining`, village-fields.md – Orba a setí až po vyklučení; **výsadba jabloní u cest a sadu** v oknech výsadby po orbě, kopání a setí, před vracením přílohu – `DayAllocationInput.planting` s pořadím úloh `plantingOrder` (simulate-work.ts) a prací `fruitPlantingNeed` (simulate-build.ts), Martin 22. 11. 2026; práce `DayAllocation.planting` jde v `commonWorkDay` do `plantFruit` – `build` po druzích, napřed jabloně, pak sad –, zbytek do společné práce; v rozdělení práce pro postavy je mezi stavbami) → péče o sad → noční hlídka polí (`'watch'`, wildlife.md – Noční hlídka vesničanů) → výmlat → obilné jámy → dospělý pasák; uvnitř skupiny nejbližší konec okna, `tie` a `rank` (žeň a výmlat napřed ze žňových rukou – `harvestHands`, `lordHelp`, fields.md – Žně všemi rukama) → `common` (volná práce
   v liště, `commonLaborHistory`) do staveb (`build`) – **stavby jen z dílu mužů** (population.md –
   Práce, Stavby staví muži; Martin 14. 11. 2026: „D24 ano“): `allocateDay` vrací
@@ -101,7 +101,13 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   denní minimum a úlohy dne (i pletí a len) nesou napřed ženy a muži je doplní, jen když práce žen
   nestačí, práci „za den“ (koně, kování, výpravy, vozy pro kováře) nesou muži; bez `womenLabor`
   staví všichni. Pletí žen bere dál jen jejich práci nad `WEEDING_WOMEN.dailyMinShare`
-  minima. `commonWorkDay` dá `buildDay`
+  minima. **Honci lovu** (hunting.md – Pravidla 2; plán 2026-11-22-hunting, Úloha 3): po všech
+  úlohách dne vezme `allocateDay` `DayAllocationInput.beaters` (člověkodny – `dayLabor`
+  v simulate-work.ts: `hunt.beaters.men` × `LABOR_PER_DAY.adult`, jen když `hunt.beaters.day` je
+  dnešek; starší rezervace zůstává ve stavu a nepočítá se) z dílu mužů na stavby –
+  `DayAllocation.beaters` = min(honci, díl mužů), `common` i `build` o ně menší, úlohy dne
+  (pole v oknech, žně) nedotčené; stavby a opravy den počkají. Do `commonLaborHistory` jde díl
+  mužů po honcích. `commonWorkDay` dá `buildDay`
   nejvýš díl mužů (vozy s kládami a drobná zvěř hladové vsi berou ze společné práce jako dřív),
   hosté na robotě a tesař staví dál celí; posledních 30 dní (`commonLaborHistory` – lišta, rozpočet
   správce, „Stavby stojí“) je díl mužů, roční průměr (`commonLaborYearly` – doprava dávek, robota,
@@ -352,7 +358,8 @@ kroniky`sacred-oak-died`/`sacred-snag-fell`(upozornění přes`CHRONICLE_NOTICES
   Den (`simulateDaySteps`, 11. 11. 2026 rozložený beze změny výsledku) skládá pojmenované kroky:
   `morningDay` → `routesDaySteps` (zastávky) → `craftCoverage` → `storesAndHerdsDay` →
   `seasonPlanDay` → `workDayStep` (`work()`) → `afterWorkDay` → `remnantsDay` (obilné jámy pod
-  novými stavbami podle `idsBefore`) → `marriagesAndMealDay` (`eat`) → `lordEveningDay` →
+  novými stavbami podle `idsBefore`) → `marriagesAndMealDay` (`eat`) → `lordEveningDay` (lov
+  správce `npcHuntDay`, úlovek z hlídky, výcvik dne – village-wildlife.md, Lov správce) →
   `peopleDay` (vymřelá ves končí) → `harvestAndUpkeepDay`; zastávky (`yield`) mezi kroky zůstaly.
   - **Zlatý otisk celé vsi** (`village-golden.test.ts`, `village-golden-fixture.ts`): ves ze seedu
     4242 v krajině seedu 1, od založení pod správcem, po 20 letech (10 polí, stáda, uhlíř, hrnčíř,
@@ -384,7 +391,7 @@ kroniky`sacred-oak-died`/`sacred-snag-fell`(upozornění přes`CHRONICLE_NOTICES
   za `wildlifeYearDay`; `famineMemoryDay` před `startSeason`; **`localDisastersDay`** (smršť,
   kroupy, povodeň, požár – `local-disasters.ts`) po `damageWindowStart`, před `startPurchases`
   a `work()` – požár nastaví `disasters.fireFight` a `villagersToday` / `work()` dnes vidí dospělé
-  u hašení; pěší lovci dne (`planHuntDay`) už jsou mimo ves a nehasí. Pohromy nedávají nová id
+  u hašení. Pohromy nedávají nová id
   (kontrola `moveGrainFromCoveredPits` beze změny). Podrobnosti: village-disasters.md.
 
 - **Dopočet po kouscích na serveru:** `advanceVillageSteps` je `advanceVillage` po dnech

@@ -1,4 +1,5 @@
 import type { CartRoutesRequest, CartRoutesResult } from './cart-routes';
+import type { HuntStats } from './scene/hunt-renderer';
 import type { PlacementResult } from './scene/village-types';
 
 // Háčky pro Playwright testy (apps/web/e2e). Existují jen v buildu s NEXT_PUBLIC_E2E_HOOKS=1 –
@@ -34,6 +35,8 @@ export interface E2EHooks {
     /** Naplánované skupiny (první stanoviště) – modely se načtou až se zvěří v záběru. */
     groups: { species: string; x: number; z: number }[];
   };
+  /** Lov ve scéně (hunting.md – Ve scéně): vyhnané zvíře (poloha, na tyči), honci, psi a tyč – kam kliknout. */
+  huntStats?: () => HuntStats;
   /** Meshe vojska, které scéna kreslí, a počty instancí (war.md – Ve scéně – napojení na hru). */
   armyStats?: () => { name: string; count: number }[];
   /**

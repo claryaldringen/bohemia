@@ -23,10 +23,10 @@ function parsePeople(value: unknown): number[] | null {
   return new Set(ids).size === ids.length ? ids : null;
 }
 
-/** Příkaz: Jdi sem (i s mapou `cell`), Přes okraj, Domů, Osedlat, Sesednout; jinak null. */
+/** Příkaz: Jdi sem (i s mapou `cell`), Přes okraj, Domů, Osedlat, Sesednout, Útok na zvíře; jinak null. */
 function parseCommand(value: unknown): ExpeditionCommand | null {
   if (!isRecord(value)) return null;
-  if (value.kind === 'saddle' || value.kind === 'dismount') {
+  if (value.kind === 'saddle' || value.kind === 'dismount' || value.kind === 'strike') {
     return Object.keys(value).length === 1 ? { kind: value.kind } : null;
   }
   if (value.kind === 'go' && 'cell' in value) {
@@ -45,7 +45,7 @@ function parseCommand(value: unknown): ExpeditionCommand | null {
 
 /**
  * `{ villageId, people, command }` – příkaz vybraným lidem vsi. `command` je rozkaz jako
- * u `parseJourneyOrder` (`go` smí mít navíc `cell`), nebo `{ kind: 'saddle' | 'dismount' }`.
+ * u `parseJourneyOrder` (`go` smí mít navíc `cell`), nebo `{ kind: 'saddle' | 'dismount' | 'strike' }`.
  */
 export function parseExpeditionInput(
   raw: unknown,

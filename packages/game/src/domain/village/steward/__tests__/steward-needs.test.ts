@@ -9,14 +9,10 @@ import {
 import { foundVillage } from '../../core/actions';
 import { cloneState } from '../../core/clone';
 import { craftCoverage } from '../../crafts/crafts';
-import { withDynasty } from '../../people/dynasty';
-import { canDeclareHunt, declareHunt } from '../../wildlife/hunt';
-import { updateLordTraining } from '../../people/lord';
 import { neighbourOf } from '../../trade/neighbours';
 import { ageGroup } from '../../people/people';
 import { NEIGHBOR_DIRECTIONS } from '../../rules';
 import { STEWARD } from '../../rules/rules-steward';
-import { WILDLIFE_LAND } from '../../rules/rules-wildlife';
 import { advanceVillage } from '../../core/simulate';
 import { fieldStoresOutlook } from '../../core/simulate-plan';
 import { newSteward } from '../steward-state';
@@ -24,20 +20,18 @@ import {
   constructionLogsLeft,
   grainDeal,
   grainStep,
-  huntWanted,
   needSteps,
   type NeedContext,
 } from '../steward-needs';
 import { tradeQuote } from '../../trade/trade';
 import { finishTrail, startTrail } from '../../trade/trail';
 import type { Direction8, VillageState } from '../../types';
-import { freshWildlife } from '../../wildlife/wildlife';
-import { at, horse, horseVillage, LORD_ID, SON_ID } from '../../__tests__/horse-fixtures';
 import { LANDSCAPE } from '../../__tests__/paths-fixtures';
 import { withBuiltFirstDwelling } from '../../__tests__/village-fixtures';
 
 // Krok 2a dne správce – nouze (steward.md – Obilí a lov v nouzi; Martin 8. 11. 2026: „A“): obilí
-// kupuje výpravou za obchodem, jen když hrozí hlad, a lov navíc vyhlásí, jen když zvěř škodí.
+// kupuje výpravou za obchodem, jen když hrozí hlad. Lov správce (hunting.md – Pravidla 8) testuje
+// `wildlife/__tests__/npc-hunt.test.ts`.
 
 const DAY = dayIndexOf({ year: 600, month: 12, day: 1 });
 const SEED = 11;
@@ -185,102 +179,6 @@ describe('obilí v nouzi – výprava za obchodem (steward.md – Obilí a lov v
   });
 });
 
-const ARMS = { bow: 85, combat: 85, riding: 85 };
-const SUMMER = at(602, 7, 10);
-
-/** Dvorec s koňmi, rodem a zvěří; škoda zvěře letos `kg` (loni `lastKg`). */
-function damaged(day: number, kg: number, lastKg?: number): VillageState {
-  const list = Array.from({ length: 2 }, (_, i) => ({
-    ...horse(1 + i, 8, 'male', 100),
-    riderId: [LORD_ID, SON_ID][i],
-  }));
-  const base = horseVillage(list, 2, 4);
-  delete base.dynasty;
-  const s = cloneState(withDynasty(base));
-  s.lastDay = day - 1;
-  for (const p of s.people) if (p.sex === 'male') p.arms = { ...ARMS };
-  s.wildlife = freshWildlife({ ...WILDLIFE_LAND.defaultLand }, 0);
-  s.wildlife.damage = {
-    fromDay: day - 30,
-    risk: [],
-    parts: {},
-    topPartId: null,
-    totalKg: kg,
-    ...(lastKg !== undefined ? { lastYearKg: lastKg } : {}),
-  };
-  s.horsesCaredToday = 1;
-  s.horsesFed = true;
-  updateLordTraining(s, day);
-  return s;
-}
-
-describe('lov v nouzi – lov navíc, když zvěř škodí (steward.md – Obilí a lov v nouzi)', () => {
-  const NEED = 2000;
-  const OVER = STEWARD.huntDamageShare * NEED + 1;
-
-  it('škoda nad prahem v létě: lov navíc zítra', () => {
-    const s = damaged(SUMMER, OVER);
-    expect(huntWanted(s, SUMMER, NEED)).toBe(true);
-    expect(declareHunt(s, SUMMER)).toBeNull();
-    expect(s.wildlife!.hunt!.extraDay).toBe(SUMMER + 1);
-  });
-
-  it('loňská škoda stačí – zvěř škodí známým polím od 1. 6.', () => {
-    const june = at(602, 6, 5);
-    expect(huntWanted(damaged(june, 0, OVER), june, NEED)).toBe(true);
-  });
-
-  it('bez škod nebo pod prahem nic', () => {
-    expect(huntWanted(damaged(SUMMER, 0), SUMMER, NEED)).toBe(false);
-    expect(huntWanted(damaged(SUMMER, OVER - 2), SUMMER, NEED)).toBe(false);
-    const none = damaged(SUMMER, 0);
-    delete none.wildlife!.damage;
-    expect(huntWanted(none, SUMMER, NEED)).toBe(false);
-  });
-
-  it('mimo měsíce škod nic (podzim, hájení na jaře)', () => {
-    const sept = at(602, 9, 10);
-    expect(huntWanted(damaged(sept, OVER), sept, NEED)).toBe(false);
-    const april = at(602, 4, 10);
-    expect(huntWanted(damaged(april, OVER), april, NEED)).toBe(false);
-  });
-
-  it('nejvýš jeden lov naráz a ne častěji, než pravidla lovu dovolí', () => {
-    const s = damaged(SUMMER, OVER);
-    expect(declareHunt(s, SUMMER)).toBeNull();
-    // zítra už vyhlášen
-    expect(canDeclareHunt(s, SUMMER)).toBe('already');
-    expect(huntWanted(s, SUMMER, NEED)).toBe(false);
-    // pozítří příliš brzy po minulém
-    expect(huntWanted(s, SUMMER + 1, NEED)).toBe(false);
-  });
-
-  it('krok 2a vyhlásí lov jen se škodou; bez zvěře ve vsi nic', () => {
-    const s = damaged(SUMMER, 1_000_000);
-    needSteps(s, ctxOf(s, SUMMER));
-    expect(s.wildlife!.hunt?.extraDay).toBe(SUMMER + 1);
-    const calm = damaged(SUMMER, 0);
-    needSteps(calm, ctxOf(calm, SUMMER));
-    expect(calm.wildlife!.hunt?.extraDay).toBeUndefined();
-  });
-
-  it('nejvýš STEWARD.huntsPerSummer lovů za léto, další léto znovu', () => {
-    const june = at(602, 6, 10);
-    const s = damaged(june, 1_000_000);
-    s.steward = newSteward(june, true);
-    let hunts = 0;
-    for (let day = june; day <= at(602, 8, 25); day += STEWARD.everyDays) {
-      needSteps(s, ctxOf(s, day));
-      if (s.wildlife!.hunt?.extraDay === day + 1) hunts++;
-    }
-    expect(hunts).toBe(STEWARD.huntsPerSummer);
-    expect(s.steward.summerHunts).toEqual({ year: 602, count: STEWARD.huntsPerSummer });
-    const nextJune = at(603, 6, 10);
-    expect(huntWanted(s, nextJune, NEED)).toBe(canDeclareHunt(s, nextJune) === null);
-    expect(canDeclareHunt(s, nextJune)).toBeNull();
-  });
-});
-
 describe('obilí v nouzi – rezerva klád staveb', () => {
   it('klády, které rozestavěné stavby ještě vezmou, správce neprodá', () => {
     const s = hungry();
@@ -365,7 +263,7 @@ describe('krok 2a v dopočtu vsi (determinismus)', () => {
     return s;
   }
 
-  it('po kouscích stejně jako vcelku – výprava za obilím i lov', { timeout: 120_000 }, () => {
+  it('po kouscích stejně jako vcelku – výprava za obilím', { timeout: 120_000 }, () => {
     const start = stewarded();
     const to = START + 60;
     const whole = advanceVillage(start, to, obstacles, landscape);
@@ -375,6 +273,5 @@ describe('krok 2a v dopočtu vsi (determinismus)', () => {
     }
     expect(JSON.stringify(chunked)).toBe(JSON.stringify(whole));
     expect(whole.chronicle.some((e) => e.kind === 'trade-departed')).toBe(true);
-    expect(whole.wildlife?.hunt?.lastExtraDay).toBeGreaterThan(START);
   });
 });

@@ -77,6 +77,9 @@ import { SceneSelection, type DraftListener, type PersonListener } from './scene
 import { SceneWarView } from './scene-war';
 import { withoutMen } from './expedition-choreo';
 import { journeyHorseIds, type SceneJourney } from './journey-riders';
+import { HUNT_DOGS_MAX, withoutHuntDogs } from './hunt-scene';
+import type { HuntStats } from './hunt-renderer';
+import type { SceneHunt } from '../journey-view';
 import { ShadowCasters } from './shadow-casters';
 import { chunkGrid } from './scenery-chunks';
 import { SceneryCulling } from './scenery-culling';
@@ -219,6 +222,8 @@ export class LandscapeScene {
   private villageState: SceneVillage | null = null;
   /** Výjezdy vojvody na mapě a koně jejich jezdců (ohrada je nekreslí). */
   private journeyList: readonly SceneJourney[] = [];
+  /** Psi dvorce, kteří jdou s honci lovu – smečka u dvorce je nekreslí (hunt-scene.ts). */
+  private huntDogs = 0;
   private journeyHorses: ReadonlySet<number> = new Set();
   /** Muži vsi, kteří přijíždějí z výjezdu do dvorce (expedition-choreo.ts) – den rodiny je nekreslí. */
   private arrivingMen: ReadonlySet<number> = new Set();
@@ -579,8 +584,6 @@ export class LandscapeScene {
         this.war.setExpeditionYard(this.villagers?.yard() ?? null);
         this.war.setChoreoPeople(this.villagers?.choreoPeople() ?? null);
       },
-      // lovci jdou k okraji lesa u zvěře (wildlife.md – Ve scéně) – zvěř se plánuje před postavami
-      huntSpot: (target) => this.wildlife?.huntSpot(target) ?? null,
     });
     this.villagers.select(this.selection.personId);
     this.selection.syncDraft();
@@ -684,11 +687,11 @@ export class LandscapeScene {
     this.villageSource = source;
     // kostely vsi (churches.md – Scéna) – ves bez kostela nic nemění
     if (source.churches || this.churchList.length > 0) this.setChurches(source.churches ?? []);
-    // karavany a lov se dohrají ve skutečném čase, i když je data dalšího dne už nemají
-    const village = this.activities.apply(
-      source,
-      Date.now(),
-      (day) => this.village?.gameDayWindow(day) ?? null,
+    // karavany se dohrají ve skutečném čase, i když je data dalšího dne už nemají; psi s honci
+    // lovu nejsou u dvorce
+    const village = withoutHuntDogs(
+      this.activities.apply(source, Date.now(), (day) => this.village?.gameDayWindow(day) ?? null),
+      this.huntDogs,
     );
     this.villageState = village;
     this.syncLitBands();
@@ -718,6 +721,31 @@ export class LandscapeScene {
     this.journeyList = list;
     this.journeyHorses = journeyHorseIds(this.villageState, list);
     this.war.setJourneys(list);
+  }
+
+  /**
+   * Lov vsi (plán 2026-11-22-hunting – Úloha 10): vyhnané zvíře, honci se psy dvorce a odnos
+   * úlovku na tyči; null – žádný. Útočníky kreslí výprava (`setJourneys`). Psi, kteří jdou
+   * s honci, u dvorce chybí, dokud lov trvá.
+   */
+  setHunt(hunt: SceneHunt | null): void {
+    this.war.setHunt(hunt);
+    const dogs = hunt ? Math.min(hunt.dogs, HUNT_DOGS_MAX) : 0;
+    if (dogs === this.huntDogs) return;
+    this.huntDogs = dogs;
+    if (this.villageSource) this.setVillage(this.villageSource);
+  }
+
+  /** Je pod kurzorem vyhnané zvíře? (cíl povelu – Úloha 11) */
+  quarryAt(x: number, y: number): boolean {
+    const camera = this.rtsCamera?.camera;
+    if (!camera) return false;
+    return this.war.quarryHit(x, y, screenProjector(this.engine, this.canvas, camera)) !== null;
+  }
+
+  /** Lov ve scéně pro e2e – zvíře (i na tyči), honci, psi a tyč. */
+  huntStats(): HuntStats {
+    return this.war.huntStats();
   }
 
   /**

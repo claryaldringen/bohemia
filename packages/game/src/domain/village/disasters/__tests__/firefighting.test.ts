@@ -101,22 +101,15 @@ describe('den požáru', () => {
     expect(villagersToday(state, DAY + 1, new Set()).villagers).toHaveLength(4);
   });
 
-  it('mimo ves nehasí pěší lovci ani kdo jde pro kování; cvičící rodina na dvorci ano', () => {
+  it('mimo ves nehasí, kdo jde pro kování', () => {
     const state = village(adults(5));
-    state.wildlife = {
-      hunt: {
-        hope: { boar: 0, deer: 0, wolf: 0, bear: 0 },
-        today: { day: DAY, target: 'deer', riders: [], foot: [1, 2], extra: false },
-        year: { boar: 0, deer: 0, wolves: 0, bear: 0, meatKg: 0, days: 0 },
-      },
-    } as unknown as VillageState['wildlife'];
     state.dwellings[1]!.workshop = {
       ...newWorkshop('smith'),
       ironTrip: { personId: 3 } as never,
     } as Dwelling['workshop'];
-    expect(fireFighters(state, DAY).map((p) => p.id)).toEqual([4, 5]);
+    expect(fireFighters(state, DAY).map((p) => p.id)).toEqual([1, 2, 4, 5]);
     fireDay(state, DAY, null, null);
-    expect(state.disasters?.fireFight?.people).toBe(2);
+    expect(state.disasters?.fireFight?.people).toBe(4);
   });
 
   it('starý plán hašení se druhý den smaže, dnešní zůstane', () => {

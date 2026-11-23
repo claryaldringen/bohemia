@@ -46,7 +46,7 @@ const ANIMATE_RANGE_M = 900;
 /** Výška obalu skupiny nad terénem (m) – nejvyšší je jelen s parožím. */
 const HEAD_ROOM_M = 2.6;
 /** Výška zvířete (m při měřítku 1) pro výběr kliknutím – průmět od nohou po hřbet. */
-const PICK_HEIGHT_M: Record<WildModel, number> = {
+export const PICK_HEIGHT_M: Record<WildModel, number> = {
   'wild-boar': 0.9,
   'wild-stag': 1.7,
   'wild-hind': 1.4,
@@ -56,7 +56,7 @@ const PICK_HEIGHT_M: Record<WildModel, number> = {
   'wild-hare': 0.35,
 };
 /** Klik do tolika CSS px od průmětu zvířete ho vybere. */
-const PICK_PX = 14;
+export const PICK_PX = 14;
 
 export interface WildlifeEnvironment {
   landscape: Landscape;
@@ -138,23 +138,6 @@ export class VillageWildlife {
     const ground = village.wildlife ? this.env.ground(village) : null;
     this.plan = ground ? planWildlife(village, ground, villageSeed(this.env.landscape)) : null;
     return this.rebuild(nowMs);
-  }
-
-  /**
-   * Okraj lesa u zvěře pro lov dne (wildlife.md – Ve scéně): první stanoviště skupiny na okraji
-   * lesa podle cíle (prasata, jinak jelení; vlci; medvěd), jinak kterékoli na okraji lesa; bez
-   * zvěře ve scéně null.
-   */
-  huntSpot(target: 'game' | 'wolves' | 'bear'): { x: number; z: number } | null {
-    const groups = (this.plan?.groups ?? []).filter((g) => g.zone === 'edge' || g.zone === 'verge');
-    const wanted: readonly WildlifeSpecies[] =
-      target === 'game' ? ['boar', 'deer'] : target === 'wolves' ? ['wolf'] : ['bear'];
-    for (const species of [...wanted, null]) {
-      const group = groups.find((g) => species === null || g.species === species);
-      const spot = group?.herd.route[0];
-      if (spot) return { x: spot.x, z: spot.z };
-    }
-    return null;
   }
 
   /**

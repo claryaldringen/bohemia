@@ -133,6 +133,20 @@ export async function placeJourney(
   await query('UPDATE journey_checkpoint SET state = $2 WHERE journey_id = $1', [row.id, state]);
 }
 
+/** Lov běžící výpravy hráče ze sídla `settlementId` (stav v kontrolním bodu); žádný – null. */
+export async function huntOfSettlement(
+  settlementId: string,
+): Promise<NonNullable<JourneyState['hunt']> | null> {
+  const [row] = await query<{ state: JourneyState }>(
+    `SELECT c.state FROM journey j
+       JOIN journey_checkpoint c ON c.journey_id = j.id
+       JOIN settlement s ON s.owner_id = j.player_id
+     WHERE s.id = $1 AND j.status = 'active'`,
+    [settlementId],
+  );
+  return row?.state.hunt ?? null;
+}
+
 /** Do vsi (stav) přidá `count` dospělých vesničanů bez jména a mimo rod; vrátí jejich id. */
 export async function addVillagers(settlementId: string, count: number): Promise<number[]> {
   const ids: number[] = [];

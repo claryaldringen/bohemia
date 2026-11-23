@@ -9,6 +9,7 @@ import {
   tickOfMs,
   upgradeJourney,
   type CampaignOutbox,
+  type JourneyHunt,
   type JourneyIntent,
   type JourneyState,
 } from '../domain/war';
@@ -154,9 +155,10 @@ async function stepOne(
 
 /**
  * Změnilo se od uloženého bodu, co hráč vidí (poloha, cíl nebo dojetí hloučku, fáze výpravy
- * i skupin), nebo se v kole uplatnil jeho záměr? Hloučky a skupiny se porovnávají podle id. Web čte
- * pohled z kontrolního bodu – jedoucí hlouček se proto ukládá každé kolo (≈ 1 s), ať lidé na klik
- * reagují do vteřiny; stojící zůstávají na `CHECKPOINT_TICKS`.
+ * i skupin, lov – `huntSeesChange`), nebo se v kole uplatnil jeho záměr? Hloučky a skupiny se
+ * porovnávají podle id. Web čte pohled z kontrolního bodu – jedoucí hlouček i utíkající zvíře se
+ * proto ukládají každé kolo (≈ 1 s), ať lidé na klik reagují do vteřiny; stojící zůstávají na
+ * `CHECKPOINT_TICKS`.
  */
 export function playerSeesChange(
   from: JourneyState,
@@ -166,6 +168,7 @@ export function playerSeesChange(
   if (from.phase !== to.phase || from.groups.length !== to.groups.length) return true;
   if (from.parties.length !== to.parties.length) return true;
   if (intents.some((i) => i.tick <= to.tick)) return true;
+  if (huntSeesChange(from.hunt, to.hunt)) return true;
   const parties = new Map(from.parties.map((p) => [p.id, p]));
   if (
     to.parties.some((p) => {
@@ -173,6 +176,7 @@ export function playerSeesChange(
       return (
         was?.phase !== p.phase ||
         was.arrivedTick !== p.arrivedTick ||
+        was.hunting !== p.hunting ||
         JSON.stringify(was.horseWork) !== JSON.stringify(p.horseWork)
       );
     })
@@ -203,6 +207,31 @@ export function playerSeesChange(
       was.goal?.cell.y !== g.goal?.cell.y ||
       was.goal?.pos.x !== g.goal?.pos.x ||
       was.goal?.pos.z !== g.goal?.pos.z
+    );
+  });
+}
+
+/**
+ * Změnil se lov tak, že to hráč vidí (plán 2026-11-22-hunting – Úloha 9)? Lov začal nebo zmizel,
+ * poloha, stav a rány zvířete, konec souboje, odnos (`beaters.end`), stav a rány útočníků. Cesta
+ * honců je funkce taktu (`beatersAt`) – kvůli ní se bod neukládá.
+ */
+function huntSeesChange(from: JourneyHunt | undefined, to: JourneyHunt | undefined): boolean {
+  if (from === undefined || to === undefined) return from !== to;
+  if (from.id !== to.id) return true;
+  const [a, b] = [from.fight, to.fight];
+  if (a.outcome !== b.outcome || a.hunters.length !== b.hunters.length) return true;
+  const [qa, qb] = [a.quarry, b.quarry];
+  if (qa.state !== qb.state || qa.hits !== qb.hits) return true;
+  if (qa.pos.x !== qb.pos.x || qa.pos.z !== qb.pos.z) return true;
+  if (JSON.stringify(from.beaters.end) !== JSON.stringify(to.beaters.end)) return true;
+  return b.hunters.some((h, i) => {
+    const was = a.hunters[i]!;
+    return (
+      was.personId !== h.personId ||
+      was.state !== h.state ||
+      was.hits !== h.hits ||
+      was.left !== h.left
     );
   });
 }

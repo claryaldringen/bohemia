@@ -4,13 +4,17 @@ import { kin, village } from '../../domain/village/__tests__/kin-fixtures';
 import { sameCell, type GridCell } from '../../domain/village/people/world-grid';
 import type { VillageState } from '../../domain/village/types';
 import {
+  addHunters,
   INTENT_LEAD_TICKS,
   msOfTick,
   newJourney,
+  releaseQuarry,
   stepJourney,
   type CampaignWorld,
+  type HuntStart,
   type JourneyRecruit,
   type JourneyState,
+  type NewHunter,
   type NewJourney,
 } from '../../domain/war';
 import { LAUNCH, MEADOW, SUMMER, world } from '../../domain/war/__tests__/campaign-fixtures';
@@ -55,6 +59,27 @@ const SECOND_EAST = {
     order: { kind: 'cross' as const, cell: EAST },
     people: [2],
   },
+};
+
+/** Lov z Lhoty: dveře lesa 100 m na západ od dvorce, jelen vyběhne 40 m ke dvorci. */
+const HUNT_START: HuntStart = {
+  quarry: 'stag',
+  day: SUMMER,
+  door: { x: -95, z: 5 },
+  out: { x: -55, z: 5 },
+  dogs: 1,
+};
+
+/** Útočník souboje u dvorce (osobu doplní test). */
+const STRIKER: NewHunter = {
+  personId: 0,
+  pos: { x: 5, z: 5 },
+  mounted: false,
+  strength: 2,
+  footStrength: 2,
+  skills: { bow: 0, combat: 50, riding: 0 },
+  lineMan: false,
+  health: 100,
 };
 
 /** Muž výjezdu – osoba 1 je vojvoda Bořivoj. */
@@ -561,6 +586,63 @@ describe('stepJourneys', () => {
       ];
       for (const edit of edits) expect(playerSeesChange(base(), changed(edit), [])).toBe(true);
     });
+
+    it('lov (plán 2026-11-22-hunting, Úloha 9): zvíře, konec souboje, odnos, útočníci a lovící skupina', () => {
+      // výprava s lovem: zvíře venku, osoba 1 útočí
+      const hunting = (): JourneyState => {
+        const s = journey({ order: STAND, hunt: HUNT_START });
+        const f = s.hunt!.fight;
+        releaseQuarry(f, s.hunt!.out, LAUNCH);
+        addHunters(f, [{ ...STRIKER, personId: 1 }], LAUNCH);
+        return s;
+      };
+      const edit = (change: (s: JourneyState) => void): JourneyState => {
+        const s = structuredClone(hunting());
+        change(s);
+        return s;
+      };
+      expect(playerSeesChange(hunting(), structuredClone(hunting()), [])).toBe(false);
+      const edits: ((s: JourneyState) => void)[] = [
+        (s) => (s.hunt!.fight.quarry.pos = { x: -94, z: 5 }),
+        (s) => (s.hunt!.fight.quarry.state = 'stand'),
+        (s) => (s.hunt!.fight.quarry.hits = 1),
+        (s) => (s.hunt!.fight.outcome = 'killed'),
+        (s) => (s.hunt!.beaters.end = { tick: LAUNCH + 9, at: { x: -60, z: 5 }, carry: true }),
+        (s) => (s.hunt!.fight.hunters[0]!.state = 'fight'),
+        (s) => (s.hunt!.fight.hunters[0]!.hits = 2),
+        (s) => (s.hunt!.fight.hunters[0]!.left = true),
+        (s) => (s.parties[0]!.hunting = true),
+        (s) => delete s.hunt,
+      ];
+      for (const change of edits) expect(playerSeesChange(hunting(), edit(change), [])).toBe(true);
+      // lov přibyl (bez záměru – výprava ho dostala při založení)
+      expect(playerSeesChange(journey({ order: STAND }), hunting(), [])).toBe(true);
+      // honci jdou – jejich poloha je funkce taktu, bod kvůli nim nečeká
+      expect(
+        playerSeesChange(
+          hunting(),
+          edit((s) => (s.hunt!.fight.tick += 4)),
+          [],
+        ),
+      ).toBe(false);
+    });
+  });
+
+  it('utíkající zvíře uloží bod každé kolo; skryté v lese až po CHECKPOINT_TICKS (plán 2026-11-22-hunting, Úloha 9)', async () => {
+    const { deps, journeys } = await setup();
+    await journeys.create(journey({ recruits: [], order: STAND, hunt: HUNT_START }));
+    const hidden = recordSaves(journeys);
+    await rounds(deps, LAUNCH + 4, LAUNCH + 36);
+    expect(hidden).toHaveLength(0);
+    // honci u dveří lesa – zvíře vyběhne a běží 40 m ven
+    const arrive = (await stored(journeys)).hunt!.beaters.arriveTick;
+    await rounds(deps, LAUNCH + 40, arrive);
+    const running = recordSaves(journeys);
+    await rounds(deps, arrive + 4, arrive + 24);
+    const quarries = running.map((s) => (JSON.parse(s) as JourneyState).hunt!.fight.quarry);
+    expect(quarries).toHaveLength(6);
+    expect(new Set(quarries.map((q) => q.pos.x)).size).toBe(6);
+    expect(quarries.every((q) => q.state === 'flee')).toBe(true);
   });
 
   it('chyba jednoho výjezdu nezastaví ostatní; výjezd s cizím zámkem se přeskočí', async () => {

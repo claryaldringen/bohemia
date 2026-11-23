@@ -62,9 +62,13 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   přijímá volitelné `lordName` (`parseFoundVillageInput`; písmena ověří use-case, bez jména vojvoda
   čeká) a ves zakládá vždy vojvoda s manželkami a syny; `nameLineMan({ villageId, personId, name })`
   pojmenuje vojvodu nebo jeho syna (`parseNameLineManInput` → `nameLineManForPlayer` → use-case
-  `nameLineManInVillage`); `declareHunt({ villageId })` vyhlásí lov navíc na zítřek
-  (`parseDeclareHuntInput` → `declareHuntForPlayer` → `declareHuntInVillage`, tlačítko
-  `manor-hunt` v `ManorUpgrades`; důvod odepření dává pohled `VillageManor.huntDenied`).
+  `nameLineManInVillage`); `declareHunt({ villageId })` vyhlásí lov – honci chybí v práci vsi
+  zítra a lov běží ve výpravě vsi (`parseDeclareHuntInput` → `declareHuntForPlayer` pod zámkem
+  hráče – závislosti jako u výpravy, `now` – → `declareHuntInVillage`, journey.md – Lov; tlačítko
+  `manor-hunt` v `ManorUpgrades`; důvod odepření dává pohled `VillageManor.huntDenied`). Povede se –
+  pohled na ves; odepřený – `{ refused: DeclareHuntRefusal }` a server action z něj dá `{ error }`
+  česky (`huntRefusalText`: důvody vsi `HUNT_DENIED_TEXT`, cizí ves `NOT_PLAYER_VILLAGE`, souběh
+  „Zkus to znovu.“).
   Composition root `lib/village.ts` (pohled na ves
   dopočítá všechny vsi hráče – přepínač a konec hry), `lib/village-view.ts` (DTO, smí i do
   prohlížeče – `id`, `settlementId`, `villages` pro přepínač), `lib/village-list.ts`. Vybraná ves se pamatuje
@@ -402,6 +406,22 @@ villageId)`. Z levných otisků (`stampsOf` – `last_day`, `asleep`) se dopočt
   z nich stane skupina, venku se přesměruje; u okraje mapy přes okraj) – Esc a klik jinam výběr
   ruší jako dřív.
 
+  **Lov** (hunting.md; plán 2026-11-22-hunting, Úloha 11): tlačítko lovu ve dvorci (`manor-hunt`,
+  `ManorUpgrades`) volá `declareHunt`; zašedne s důvodem (`manor.huntDenied`, texty
+  `HUNT_DENIED_TEXT`; `already` z `huntRunningIn` – lov ve výpravě vsi, nebo čekající záměr –,
+  `manorView(…, huntRunning)` posuzuje den honců, zítřek); odříznutý nováček dostane po kliknutí
+  text výprav `unreachable` „Tam nedojde.“ (`huntRefusalText`). **Pravé tlačítko na vyhnané zvíře** (`LandscapeScene.quarryAt` – pozice
+  kurzoru, ne terén) s vybranými lidmi pošle `commandExpedition` `{ kind: 'strike' }`
+  (`use-expedition-orders.ts`); odmítnutí je důvod u kurzoru (`expeditionReason(…, strike)`:
+  `woman` „Na lov chodí jen muži“, `young` „Na lov až od 14 let“, `no-quarry` „Zvíře tu není“).
+  Klient odmítne jen výběr, ve kterém nemůže nikdo (důvod prvního); smíšený výběr rozhodne server.
+  Osedlat a Sesednout útočníka v souboji jsou zašedlé (`striking` v `ExpeditionPersonState`).
+  `useJourneyScene` předává scéně lov vsi (`sceneHuntOf` → `setHunt`) vedle výprav – nový pohled
+  každý takt jen předá, `setHunt(null)` až při odpojení nebo výměně scény (úklid mezi takty by
+  zahodil plynulý pohyb zvířete a prach zásahu a přestavěl ves).
+  `HuntRenderer.animate(nowMs, camera)` kreslí jen pohybující se lov v záběru kamery (zapisuje
+  i mimo záběr; změnu mimo záběr ukáže překreslení po pohybu kamery).
+
   Vždy: WASD / šipky a kurzor u okraje okna posouvají, kolečko i rozevření prstů na trackpadu
   (Ctrl + kolečko, v Safari `gesturechange`) přibližují, Q/E otáčí, R vrátí pohled na ves
   (`setCameraHome`). Malování pole, sadu, hřbitova a ohrady: [ a ] jen před prvním čtvercem
@@ -735,17 +755,17 @@ Návrh: [wildlife.md](../design/wildlife.md) – Co hráč vidí. Pohled jen čt
   `/dev/panels?panel=zver-prase` (`zver-vlci`, `zver-medved`).
 - **Panel dvorce:** `huntView` → `VillageManor.hunt` (`ManorHunt`): ikony úlovků letos s čísly (prasata, jelení zvěř,
   vlci, medvěd, zajíci, ryby v kg), maso v kg a smečka „6 / 7“ (psi / kolik jich dvorec chce; psi obilí nejedí). Bez psů a úlovku řádek chybí. Tlačítko
-  lovu navíc (`manor-hunt`) je z W5.
+  lovu (`manor-hunt`, důvod zašednutí `huntDenied` – village-wildlife.md, Lov na tlačítko dvorce).
 - **Panel dílu:** `fieldDamageViews` → `VillageFieldPart.damage` → `FieldDamage`: ikona prasete a škoda letos v %
   (červeně od 10 %, popisek kg a vzdálenost k lesu), ikona ohně (`watch-fire`), když se díl dnes hlídá
   (noční hlídka, 1. 6.–31. 8.). Díl mimo ohrožení škodu nemá.
 - **Upozornění** (`village-notices.ts`): `boar-damage` „Divoká prasata ničí úrodu“ (průměrná škoda dílů u lesa
-  letos > 5 %, vážená plochou), `wolves-killing` „Vlci strhávají dobytek“ (2 kusy za 30 dní).
+  letos > 5 %, vážená plochou), `wolves-killing` „Vlci strhávají dobytek“ (2 dny se strhnutým kusem za 30 dní – `PREDATION.noticeKillDays`).
 - **Kronika** (`village-view-chronicle.ts`): „Medvěd se vrátil do lesů.“, „Zvěř a vrány zničily letos N kg
   obilí na polích.“; úlovek se jménem lovce, strhnutý dobytek a zranění na lovu z W4–W5.
 - **Dev panely:** `/dev/panels?panel=dvorec` (lov a psi), `pole-dil` (škoda a oheň), `zver-prase`, `zver-vlci`, `zver-medved`.
 - **Testy:** `lib/__tests__/wildlife-view.test.ts`, `components/game/hud/__tests__/WildlifePanel.test.tsx`,
-  upozornění ve `village-notices.test.ts`; e2e „díl pole ukáže škodu zvěře letos“ a psi v testu lovu navíc.
+  upozornění ve `village-notices.test.ts`; e2e „díl pole ukáže škodu zvěře letos“ a psi v testu „dvorec: lov“.
 
 ## Počasí a pohromy v rozhraní (P10, `lib/disasters-view.ts`)
 
@@ -947,7 +967,7 @@ action `levyDialogs()` (rozdělení po vsích se počítá až tehdy, ne s dotaz
   `build` – `BuildGrid` (i zkratky – `startBuild`), zrušení stavby, vylepšení cest / vozová cesta /
   jabloně (`selection/roads.tsx`), zemská stezka (`TrailCompass`); `evacuate` – Odejít (`RelocationControls`); `sendSons` – odchod se synem (`LeaveCompass right`);
   `nameSons` – `LineNamePanel`; `steward` – `StewardToggle` (jen zobrazená ves; ves v seznamu
-  jiná než zobrazená právo nezná, rozhodne server), přejmenování vsi, lov navíc; `trade` – Vyslat
+  jiná než zobrazená právo nezná, rozhodne server), přejmenování vsi, lov; `trade` – Vyslat
   výpravu (`NeighbourTrade`). Pohled na ves a výběr zůstávají – dívat se smí každý hráč rodu.
 - **Stolec:** `public/icons/house/throne.png` (render z Blenderu). `VillageListItem.senior`
   (`villageListItem(…, seniorVillageId)` z `House.senior`) → stolec u vsi seniora v `VillageList`

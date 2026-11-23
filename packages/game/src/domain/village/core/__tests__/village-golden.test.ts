@@ -121,7 +121,13 @@ import { advanceChunked, goldenWorld, stateFingerprint, YEAR } from './village-g
 // sklidí méně jablek; dřív 2a715603b4362c5d
 // 22. 11. 2026 – sloučení D115 a D116 (ovoce a orba až po vyklučení): samotné D116 dávalo
 // 396a222ecc30da6b, samotné D115 7bbbccaf2a7eb247
-const EXPECTED_YEAR_1 = '9491b1cfb67cdbc7';
+// 22. 11. 2026 – nový lov (hunting.md), úloha 2: kalendářní lov a lov navíc pryč – pěší lovci
+// nechybí v práci vsi, maso z lovu ani výcvik dne lovu; hlídka polí s vlastní nadějí úlovku;
+// dřív 9491b1cfb67cdbc7
+// 22. 11. 2026 – nový lov (hunting.md), úloha 8: správce loví sám – v přípravě 29. 7. 521 vyhlásil
+// lov (škody zvěře), 30. 7. 521 chybělo v práci vsi 6 honců a 2 lovci, vyběhla bachyně a nikdo
+// nad branou umu nešel – utekla; dřív 044cbd4b3f6f8f38
+const EXPECTED_YEAR_1 = '533796fc14c305d9';
 // 18. 11. 2026 – D93 cesta přes plochu staveb; dřív 82b12dd84c08dd63 (vyšlapaná cesta přes plochu
 // staveb nevznikne a napojení ji obejde – jiné cesty a id; roky chůze nejvýš doba vyšlapání)
 // 18. 11. 2026 – D95 výmlat (Martin: „A, C, E“ – výmlat podle kg snopů, rod v zimě dorovná tempo

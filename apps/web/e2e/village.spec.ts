@@ -3,7 +3,6 @@ import {
   buyPrice,
   dateOfDayIndex,
   dayIndexOf,
-  getWorldState,
   cemeteryPartsFromCells,
   neighbourOf,
   sellPrice,
@@ -32,6 +31,7 @@ import {
   type VillageState,
   WORLD,
 } from '@bohemia/game';
+import { huntOfSettlement } from './journey-helpers';
 import { openDevTime, openGameMenu, useUniqueClientIp } from './helpers';
 import {
   block,
@@ -48,6 +48,7 @@ import {
   readyScene,
   seat,
   selectAllDwellings,
+  shiftPlayerTo,
   twoHouseholds,
   villageSpots,
   villageOnNextMap,
@@ -1362,26 +1363,7 @@ test('mladší syn po pohřbu zvolí směr – výprava vyrazí hned, mateřská
   await expect(page.getByTestId('player-departure')).toHaveCount(0);
 });
 
-/** Posune čas hráče tak, aby jeho dnešek byl `month`. `day`. příštího herního roku (accounts.md). */
-async function shiftPlayerTo(email: string, month: number, day: number): Promise<number> {
-  const world = {
-    startMs: Date.parse('2000-01-01T00:00:00+01:00'),
-    endMs: Date.parse('2200-01-01T00:00:00+01:00'),
-  };
-  const now = getWorldState(Date.now(), world);
-  if (now.status !== 'running') throw new Error('Testovací svět neběží.');
-  const today = dayIndexOf(now.date);
-  const target = dayIndexOf({ year: now.date.year + 1, month, day });
-  await query(
-    `INSERT INTO player_time_offset (player_id, offset_days)
-     SELECT id, $2 FROM "user" WHERE email = $1
-     ON CONFLICT (player_id) DO UPDATE SET offset_days = $2, updated_at = now()`,
-    [email, target - today],
-  );
-  return target;
-}
-
-test('dvorec: lov navíc – v dubnu je hájení, v létě se zítra loví', async ({ page }) => {
+test('dvorec: lov – v dubnu je hájení, v létě honci na zítřek', async ({ page }) => {
   const { email, seat: s } = await newPlayer(page, 'lov');
   const spots = villageSpots(s.landscape);
 
@@ -1391,7 +1373,8 @@ test('dvorec: lov navíc – v dubnu je hájení, v létě se zítra loví', asy
   await expect(readyScene(page)).toBeVisible({ timeout: 60_000 });
   await found(page, spots.dwelling);
 
-  // Dvorec, vedle čtyři dospělí (rodina cvičí a loví) a zvěř ve stavu, jaký ukládá server
+  // Dvorec, vedle dospělí – dost mužů, aby ves zítra uvolnila 6 honců z dílu na stavby
+  // (hunting.md – Pravidla 2; rodina cvičí a loví) – a zvěř ve stavu, jaký ukládá server
   const state = withBuiltFirstDwelling(await villageState(s.settlementId));
   const [neighbour] = freeHomes(s.landscape, spots.dwelling, [spots.dwelling], 1);
   const home = state.nextId++;
@@ -1403,7 +1386,8 @@ test('dvorec: lov navíc – v dubnu je hájení, v létě se zítra loví', asy
     position: neighbour!,
   });
   const adultBorn = state.lastDay - Math.ceil(20 * 365.25);
-  for (const sex of ['male', 'male', 'female', 'female'] as const) {
+  const sexes: ('male' | 'female')[] = [...Array<'male'>(12).fill('male'), 'female', 'female'];
+  for (const sex of sexes) {
     state.people.push({ id: state.nextId++, bornDay: adultBorn, dwellingId: home, sex });
   }
   state.storesKg = 4000;
@@ -1461,25 +1445,18 @@ test('dvorec: lov navíc – v dubnu je hájení, v létě se zítra loví', asy
     .toBe(1);
   await expect(hunt).toBeEnabled({ timeout: 20_000 });
   await hunt.click();
+  // lov běží ve výpravě vsi: tlačítko zašedne s důvodem „Lov už běží“ a výprava nese `hunt`
+  await expect(hunt).toBeDisabled({ timeout: 30_000 });
+  await expect(panel.getByTestId('hunt-blocked')).toContainText('Lov už běží');
+  await expect.poll(() => huntOfSettlement(s.settlementId), { timeout: 30_000 }).not.toBeNull();
+  // honci chybí v práci vsi zítra (hunting.md – Pravidla 2)
   await expect
-    .poll(async () => (await villageState(s.settlementId)).wildlife?.hunt?.extraDay, {
+    .poll(async () => (await villageState(s.settlementId)).wildlife?.hunt?.beaters?.day, {
       timeout: 30_000,
     })
     .toBe(july + 1);
   await expect(page.locator('[data-testid="village-notice"][data-kind="error"]')).toHaveCount(0);
-  // druhý lov hned po něm tlačítko nepustí
-  await expect(hunt).toBeDisabled({ timeout: 20_000 });
   expect(dateOfDayIndex(july).month).toBe(7);
-
-  // Zítra: čas hráče o dva dny dál – ves se dopočítá a lov proběhl
-  await shiftPlayerTo(email, 7, 12);
-  await page.reload();
-  await expect(readyScene(page)).toBeVisible({ timeout: 60_000 });
-  await expect
-    .poll(async () => (await villageState(s.settlementId)).wildlife?.hunt?.year.days ?? 0, {
-      timeout: 30_000,
-    })
-    .toBeGreaterThanOrEqual(1);
 });
 
 test('divoká zvěř ve scéně: modely se načtou a klik na zvíře otevře panel druhu', async ({

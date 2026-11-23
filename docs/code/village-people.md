@@ -114,8 +114,8 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
     (`trainingHours(…, hasHorse)`) cvičí jen jezdec s koněm – páry `assignRiders`
     (`horse-riders.ts`, i když rodina necvičí); bez koně jízda 0 a hodiny jdou do luku a boje.
     Koně pod jezdci, kteří dnes jezdili, cvičí `trainHorsesDay` – `trainLordDay` vrací kroniku.
-    **Den lovu** (`hunt.today`, W4 – `docs/code/village-wildlife.md`): hodiny `HUNT.training` místo
-    `trainingHours`, odešlí synové na lovu cvičí místo `decayArms`.
+    Den lovu už výcvikem není – kalendářní lov rodu je pryč (hunting.md – Pravidla 1;
+    `docs/code/village-wildlife.md` – Psi dvorce).
   - **Pasáci:** synové cvičící rodiny nepasou (`lordTraineeIds` v `youngsterCount`,
     `herdingDay`, `youngsterHerders`).
 - **Jména všech lidí** ([population.md](../design/population.md) – Jména; Martin 15. 11. 2026,
@@ -690,7 +690,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   jádro dává jen počty, jména volí scéna), tam není a je mezi ostatními. Obsazení `lordFigures` jde hned po pohřbu a karavanách
   (`takeId` – do práce vsi pak rodina nejde). Panel muže rodiny podle úseku (`stage` z `traineePose`:
   `out` na cvičiště, `back` ke dvorci, `hitch` ke koni, `wait` u koně, `visit` k manželce a u ní;
-  `ride` na koni – `riderPose`; `hunt` – pěší lovec a `huntBridge`; texty `LORD_TEXTS`
+  `ride` na koni – `riderPose`; `hunt` – pěší lovec (zatím nekreslí se, nový lov Úloha 10); texty `LORD_TEXTS`
   v `person-activity.ts`). **Den rodiny ve skutečném čase** (`lord-day.ts`,
   návrh Clauda; lord.md – Ve scéně, villagers.md – Bez časosběru): cyklus `LORD_CYCLE_S` 20 minut
   zarovnaný na `LIVESTOCK_EPOCH_MS` (celá rodina naráz), `traineeSteps(day, k)` dá kroky cyklu `k`
@@ -704,8 +704,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   skrytý, zpět nejpozději `backBy` (5 min do dalšího cyklu – další cyklus začne až po návratu
   a `HOME_MIN_S`); nevejde-li se aspoň `minStay` nebo zasáhne do lovu (`busy`), v cyklu nejde.
   `traineePose` – chůze rovně tempem chůze (vladař `walk-lord`), skrytý jen doma a u manželky,
-  noc herního dne nic neschovává. Lov přeruší den (`huntBridge` – `HUNT_BRIDGE_S` 40 s chůzí ke
-  kůlu a po lovu zpět). Ženy domácnosti `householdPose` – cyklus `HOUSEHOLD_CYCLE_S` 10 min
+  noc herního dne nic neschovává. Lov den zatím nepřerušuje (přehrávka lovu zmizela, nový lov Úloha 10). Ženy domácnosti `householdPose` – cyklus `HOUSEHOLD_CYCLE_S` 10 min
   posunutý podle ženy: doma 1–2 min, pak celé otočky pochůzky mezi vchodem a kouskem dvora (jako
   `fetcher`) a vejde. Luk: dráhy cvičiště, na střídačku po dvou výstřelech
   (`bow-draw` 2,2 s, `bow-release`), ostatní čekají v řadě za střelcem – k terči a zpět do řady
@@ -767,9 +766,7 @@ Porážka (návrh `slaughter`): klipy `butcher` (`gather_meat` + nůž, klek), `
 
 ## Lovci, rybáři a děti s řehtačkou (postavy – wildlife Úloha W11)
 
-- **Lovci:** jezdci lovu sedí na koni po trase lovu (`huntPlans`), pěší lovci jdou za nimi
-  (`footHunterPose`) – cvičící muži dvorce mimo blok lovu cvičí, odešlí synové rodu se berou
-  z rozpisu (`takeId`) jen na blok lovu, jinak jsou doma. Panel: úloha `lord`.
+- **Lovci:** starou přehrávku lovu scéna nekreslí (nový lov ve scéně: plán 2026-11-22-hunting, Úloha 10); cvičící muži dvorce cvičí a jedou objížďku. Panel: úloha `lord`.
 - **Rybáři:** podíl práce `fish` s cílem tůně – postava na břehu s prutem (`anglers`), panel
   podle podílu práce. Oka (`snare` – v zimě, small-game.ts): nejvýš 3 postavy klečí s okem
   na okraji lesa nejblíž vsi (`snarers`, `SNARE_EDGE` – stromy do 160 m od středu vsi, po

@@ -225,7 +225,7 @@ export const PLAY_LAG_TICKS = 8;
 /** O kolik přehrávání zrychlí či zpomalí, aby drželo zásobu (podíl) – tempo postavy nejvýš ± 6 %. */
 export const PLAY_SLACK = 0.06;
 /** Zásoba nad tolik taktů (po přestávce, ve skrytém panelu) se zahodí – hlouček skočí blíž. */
-const PLAY_BEHIND_MAX_TICKS = 40;
+export const PLAY_BEHIND_MAX_TICKS = 40;
 
 const samePos = (a: Pos | null, b: Pos | null): boolean =>
   a === b || (a !== null && b !== null && a.x === b.x && a.z === b.z);

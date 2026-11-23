@@ -38,7 +38,7 @@ export interface WildlifeState {
   predation?: Predation;
   /** Psi dvorce (W4; wildlife.md – Psi); chybí = dvorec psy ještě nechová. */
   dogs?: ManorDogs;
-  /** Velký lov rodu (W4; wildlife.md – Lov rodu); chybí = rod ještě nelovil. */
+  /** Lov vsi (hunting.md) – úlovek roku a honci; chybí = ves ještě nelovila. */
   hunt?: HuntState;
   /** Ryby a oka vesničanů (W7; wildlife.md – Drobná zvěř a ryby); chybí = ještě nic nechytali. */
   smallGame?: SmallGameState;
@@ -46,6 +46,11 @@ export interface WildlifeState {
   watch?: FieldWatch;
   /** Jezdecká hlídka dnešního dne spočtená jednou (W6): škoda polí i úlovek z hlídky ji čtou stejnou. */
   patrol?: { day: number; power: number; cut: number };
+  /**
+   * Naděje úlovku prasat z jezdecké hlídky (W6, `patrolHuntDay`) – celé kusy se uloví, zlomek zůstane
+   * (bez náhody); chybí = 0. Dřív sdílela naději prasat kalendářního lovu (`hunt.hope.boar`).
+   */
+  patrolHope?: number;
 }
 
 /** Úlovek ryb a zajíců od 1. 5. (kg masa se počítá zvlášť). */
@@ -112,32 +117,52 @@ export interface HuntKills {
   bear: number;
 }
 
-/** Velký lov rodu (wildlife.md – Lov rodu): akumulátory úlovku, lov dne a součty roku. */
+/**
+ * Lov vsi (hunting.md): úlovek roku a honci na zítřek. Starší vsi nesly i kalendářní lov a lov
+ * navíc (`hope`, `today`, `extraDay`, `lastExtraDay`) – převod `calendar-hunt` je smaže.
+ */
 export interface HuntState {
-  /** Naděje úlovku po druzích – celé kusy se uloví, zlomek zůstane (bez náhody). */
-  hope: { boar: number; deer: number; wolf: number; bear: number };
-  /** Lov dne – rozhodne `planHuntDay` ráno; null = dnes se neloví. */
-  today: HuntDay | null;
-  /** Lov navíc na pokyn hráče (den; až W5). */
-  extraDay?: number | null;
-  /** Poslední lov navíc (omezení 1× za 3 dny; až W5). */
-  lastExtraDay?: number;
-  /** Úlovek od 1. 5.: kusy po druzích, kg masa a dnů lovu (panel dvorce). */
+  /** Úlovek od 1. 5. – kusy po druzích, kg masa, dny lovu (panel dvorce). */
   year: HuntKills & { meatKg: number; days: number };
+  /**
+   * Honci na den `day`: `men` mužů celý den mimo práci vsi (hunting.md – Pravidla 2) – práci dne
+   * `day` vezmou z dílu mužů na stavby (`allocateDay` – `beaters`).
+   */
+  beaters?: { day: number; men: number };
+  /**
+   * Počet vyhlášených lovů vsi – pořadí vyhlášení je štítek losu zvířete (`pickQuarry`), takže
+   * druhý lov téhož dne vyžene jiné zvíře. Chybí = 0.
+   */
+  declared?: number;
+  /**
+   * Lov správce (hunting.md – Pravidla 8; plán 2026-11-22-hunting – Úloha 8): v den `day` ho ves
+   * dopočte v kroku dne bez scény (`npcHuntDay`). Chybí = správce lov nevyhlásil.
+   */
+  npc?: { day: number };
 }
 
-/** Lov jednoho dne: cíl, kdo jede na koni a kdo jde pěšky (id lidí). */
-export interface HuntDay {
-  day: number;
-  /** Prasata a jeleni zároveň / vlci / medvěd. */
-  target: 'game' | 'wolves' | 'bear';
-  riders: { personId: number; horseId: number }[];
-  /** Pěší lovci: muži dvorce bez koně a odešlí synové rodu. */
-  foot: number[];
-  /** Lov navíc na pokyn hráče (až W5). */
-  extra: boolean;
-  /** Celé kusy uloveného dne (po `huntDay`; scéna – nosič s masem cestou zpět). Chybí = ještě se nelovilo. */
-  kills?: number;
+/**
+ * Zvíře, které honci vyženou (hunting.md – Pravidla 3): jelen, laň, kanec, bachyně, vlk, medvěd.
+ * Kanec i bachyně jsou ve stavu zvěře dospělá prasata (`boar.adults`) – stav je nerozlišuje.
+ */
+export type QuarryKind = 'stag' | 'hind' | 'boar' | 'sow' | 'wolf' | 'bear';
+
+/**
+ * Výsledek lovu pro ves (hunting.md – Pravidla 5–7; `applyHuntResult`): vydá ho výprava jednou
+ * při konci lovu (událost schránky `hunt-result`), nebo lov správce v kroku dne.
+ */
+export interface HuntResult {
+  quarry: QuarryKind;
+  /** Zvíře padlo (jinak uteklo do lesa). */
+  killed: boolean;
+  /** Jména útočníků, první = kdo zvíře složil (kronika `hunt`). */
+  names: string[];
+  /** Herní hodiny výcviku po lidech (plán 2026-11-22-hunting – Rozhodnutí 7). */
+  trained: { personId: number; hours: { bow: number; combat: number; riding: number } }[];
+  /** Lovci, které zvíře (nebo šíp druhého lovce) zranilo nebo zabilo. */
+  casualties: { personId: number; outcome: 'wounded' | 'dead' }[];
+  /** Id koní, kteří v boji padli – z vsi se ztratí (`loseHorse`). */
+  horsesLost: number[];
 }
 
 /** Škody šelem na dobytku (wildlife.md – Vlci na dobytku): akumulátory celých kusů do kroniky. */

@@ -10,6 +10,8 @@ import {
 } from '@bohemia/db/village-state';
 import {
   checkDwellingPlacement,
+  dayIndexOf,
+  getWorldState,
   checkPlotPlacement,
   continuationsOf,
   directionBetween,
@@ -568,4 +570,23 @@ export async function selectAllDwellings(page: Page): Promise<ReturnType<Page['g
     )
     .toBe('dwellings');
   return panel;
+}
+
+/** Posune čas hráče tak, aby jeho dnešek byl `month`. `day`. příštího herního roku (accounts.md). */
+export async function shiftPlayerTo(email: string, month: number, day: number): Promise<number> {
+  const world = {
+    startMs: Date.parse('2000-01-01T00:00:00+01:00'),
+    endMs: Date.parse('2200-01-01T00:00:00+01:00'),
+  };
+  const now = getWorldState(Date.now(), world);
+  if (now.status !== 'running') throw new Error('Testovací svět neběží.');
+  const today = dayIndexOf(now.date);
+  const target = dayIndexOf({ year: now.date.year + 1, month, day });
+  await query(
+    `INSERT INTO player_time_offset (player_id, offset_days)
+     SELECT id, $2 FROM "user" WHERE email = $1
+     ON CONFLICT (player_id) DO UPDATE SET offset_days = $2, updated_at = now()`,
+    [email, target - today],
+  );
+  return target;
 }

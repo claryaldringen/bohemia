@@ -15,7 +15,7 @@ import {
   goodWorth,
   horseTradeRoom,
   isHorseGood,
-  canDeclareHunt,
+  huntDenied,
   HUNT_DENIED_TEXT,
   lordFamily,
   stanceOf,
@@ -156,9 +156,12 @@ export interface ManorMember extends DwellingResident {
   horse: boolean;
 }
 
-/** Proč dnes nejde vyhlásit lov navíc (česky), nebo null. */
-function huntDeniedText(state: VillageState, day: number): string | null {
-  const denied = canDeclareHunt(state, day);
+/**
+ * Proč dnes nejde vyhlásit lov (česky; hunting.md – Pravidla 2), nebo null – důvody se posuzují
+ * na den honců, zítřek (`huntDenied(state, day + 1, …)` jako use-case).
+ */
+function huntDeniedText(state: VillageState, day: number, running: boolean): string | null {
+  const denied = huntDenied(state, day + 1, running);
   return denied === null ? null : HUNT_DENIED_TEXT[denied];
 }
 
@@ -179,7 +182,7 @@ export interface VillageManor {
   prisoners?: PrisonerView[];
   /** Postoj vsi před cizím vojskem (war.md – Obránci); bez nastavení `flee`. */
   stance: DefenseStance;
-  /** Lov navíc na zítřek: důvod odepření česky, nebo null (lze vyhlásit; wildlife.md – Lov rodu). */
+  /** Lov: důvod odepření česky, nebo null (lze vyhlásit; hunting.md – Pravidla 2). */
   huntDenied: string | null;
   /** Lov rodu letos a psi dvorce (wildlife.md – Co hráč vidí); bez psů a úlovku chybí. */
   hunt?: HuntView;
@@ -387,6 +390,8 @@ export function manorView(
   landscape: Landscape,
   day: number,
   ownMaps: Partial<Record<Direction8, string>> = {},
+  /** Lov vsi už běží ve výpravě (`huntRunning` use-case). */
+  huntRunning = false,
 ): VillageManor | null {
   const manor = villageManor(state);
   if (!manor || state.extinctDay !== undefined) return null;
@@ -403,7 +408,7 @@ export function manorView(
         }
       : {}),
     stance: stanceOf(state),
-    huntDenied: huntDeniedText(state, day),
+    huntDenied: huntDeniedText(state, day, huntRunning),
     ...huntField(state, day),
     trailBuilt: villageTrails(state).some((t) => t.builtDay !== null),
     // tím směrem, kde leží vlastní ves, soused bez simulace není (migration.md)

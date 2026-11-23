@@ -129,6 +129,19 @@ describe('kronika – úmrtí kronikářsky', () => {
         'Ves',
       ),
     ).toBe('Ve věku 25 let zahynul na lovu medvěda syn vojvody Bořivoje Radim.');
+    // nový lov (hunting.md – Pravidla 6): bachyně, vlk; jelen a laň jen šípem druhého lovce
+    expect(
+      chronicleText(death({ age: 25, name: 'Radim', cause: 'hunt', prey: 'sow' }), 'Ves'),
+    ).toContain('zahynul na lovu bachyně');
+    expect(
+      chronicleText(death({ age: 25, name: 'Radim', cause: 'hunt', prey: 'stag' }), 'Ves'),
+    ).toContain('zahynul na lovu jelena');
+    expect(
+      chronicleText({ day: DAY, kind: 'hunt-injury', prey: 'wolf', name: 'Radim' }, 'Ves'),
+    ).toBe('Radim byl zraněn na lovu vlka – 60 dní nepracuje.');
+    expect(chronicleText({ day: DAY, kind: 'hunt-injury', prey: 'hind' }, 'Ves')).toBe(
+      'Lovec byl zraněn na lovu laně – 60 dní nepracuje.',
+    );
   });
 
   it('starší zápisy bez postavení a bez věku', () => {

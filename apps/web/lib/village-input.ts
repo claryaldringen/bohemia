@@ -644,7 +644,7 @@ export function parseSetStewardInput(value: unknown): { on: boolean } | null {
   return typeof value.on === 'boolean' ? { on: value.on } : null;
 }
 
-/** Vstup vyhlášení lovu navíc `{}` (jen `villageId`, který čte `villageAction`), jinak null. */
+/** Vstup vyhlášení lovu `{}` (jen `villageId`, který čte `villageAction`), jinak null. */
 export function parseDeclareHuntInput(value: unknown): Record<string, never> | null {
   return isRecord(value) ? {} : null;
 }

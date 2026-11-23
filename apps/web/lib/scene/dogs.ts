@@ -45,12 +45,10 @@ export interface DogPlan {
   side: number;
 }
 
-/** Vstup plánu psů – kolik jich je, kde je kůl u brány, lov a hlídka dne. */
+/** Vstup plánu psů – kolik jich je, kde je kůl u brány a hlídka dne. */
 export interface DogPlanInput {
   count: number;
   hitch: Point;
-  /** Plány lovu dne – pěší napřed (psi běží s nimi), jinak jezdci. */
-  hunt: { rides: readonly RidePlan[]; foot: readonly RidePlan[] };
   /** Plány jízd dne (objížďka) a zda je to hlídka (jádro `patrol`). */
   rides: readonly RidePlan[];
   patrol: boolean;
@@ -59,20 +57,12 @@ export interface DogPlanInput {
 }
 
 /**
- * Psi dne (wildlife.md – Psi): všichni u dvorce na kruhu kolem kůlu u brány; v den lovu všichni
- * s lovci (pěší napřed – pes loví s pěším, jinak s jezdci), v den hlídky nejvýš `PATROL_DOGS` psů
+ * Psi dne (wildlife.md – Psi): všichni u dvorce na kruhu kolem kůlu u brány; v den hlídky nejvýš `PATROL_DOGS` psů
  * s jezdci objížďky. Vůdci se střídají, psi vedle nich střídavě vlevo a vpravo.
  */
 export function dogPlans(input: DogPlanInput): DogPlan[] {
-  const { count, hitch, hunt, rides, patrol, free } = input;
-  const leaders: readonly RidePlan[] =
-    hunt.foot.length > 0
-      ? hunt.foot
-      : hunt.rides.length > 0
-        ? hunt.rides
-        : patrol
-          ? rides.filter((r) => r.route !== null)
-          : [];
+  const { count, hitch, rides, patrol, free } = input;
+  const leaders: readonly RidePlan[] = patrol ? rides.filter((r) => r.route !== null) : [];
   const out: DogPlan[] = [];
   let slot = 0;
   for (let k = 0; k < count; k++) {
@@ -86,9 +76,7 @@ export function dogPlans(input: DogPlanInput): DogPlan[] {
         break;
       }
     }
-    const hunting = hunt.foot.length + hunt.rides.length > 0;
-    const leader =
-      leaders.length > 0 && (hunting || k < PATROL_DOGS) ? leaders[k % leaders.length]! : null;
+    const leader = leaders.length > 0 && k < PATROL_DOGS ? leaders[k % leaders.length]! : null;
     out.push({
       home,
       angle: k * 2.1,

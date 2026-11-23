@@ -166,6 +166,13 @@ export interface PersonAway {
    * na koni jen muž rodu) – je pryč s jezdcem; padne-li posel nebo ho odvedou, kůň se nevrátí.
    */
   horseId?: number;
+  /**
+   * Útočník lovu `huntId` výpravy `refId` (`kind: 'journey'`; hunting.md – Pravidla 2; Martin
+   * 22. 11. 2026: „lov může teoreticky trvat libolně dlouho, ale práce těch lidí se odečte pouze
+   * za 1 den“): práce vsi ho počítá jako doma (`awayFromWork`), jeden den práce zaplatí jako
+   * honec (`reserveBeaters`). Jinak je pryč jako ostatní výprava. Chybí – není na lovu.
+   */
+  huntId?: number;
 }
 
 /** Odkaz na osobu napříč vsemi: ves a číslo osoby v jejím stavu (stejný tvar jako u rodů). */

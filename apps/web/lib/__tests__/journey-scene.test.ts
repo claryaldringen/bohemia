@@ -41,6 +41,7 @@ function view(over: Partial<ExpeditionView> = {}): ExpeditionView {
     home: HOME,
     homePos: { x: 5, z: 5 },
     seen: {},
+    hunt: null,
     parties: [
       {
         id: 0,

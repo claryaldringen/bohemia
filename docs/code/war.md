@@ -9,7 +9,8 @@ vojska mapu po mapě (Ú6.4), tažení po taktech, boj a dohra (Ú6.5–Ú6.17) 
 
 - `ARMS_CAPS = { home: 50, hunt: 70, war: 100 }` v `domain/village/rules/rules-lord.ts` (war.md – Síla).
 - `trainingCap(person, day, source)` v `lord.ts` – menší z věku (`armsCap`) a zdroje. `trainLordDay`
-  cvičí doma se stropem 50, v den lovu (jezdec, pěší syn) se stropem 70; válka (100) zatím nikoho
+  cvičí doma se stropem 50; den lovu už výcvikem není (kalendářní lov je pryč – hunting.md, Pravidla
+  1), strop lovu 70 bude cvičit souboj se zvěří (plán 2026-11-22-hunting); válka (100) zatím nikoho
   necvičí.
 - `domain/village/people/arms-caps.ts` – `withArmsCaps(state)`: dovednosti (i `best`) nad 70 jednou stáhne
   na 70; příznak `VillageState.armsCapped` zaručí, že se válečná zkušenost nad 70 už nesráží.
@@ -929,6 +930,101 @@ a místo prolomení v `battle.ts` (`wallsOf`), pochod v `march-grid.ts`. Čísla
   u vrat; obránci na obou ramenech zasahují útočníka v uličce; věž 4 obránci napřed; z věže luk na
   75 m ano, bez věže ne; věž vidí na 200 m; pochod – ramena blokují u zavřené brány; prolomený díl
   ramena nechá, zbořený ne; bitva s věží po 1 / 7 / 40 přes JSON = vcelku).
+
+## Souboj se zvěří (plán 2026-11-22-hunting)
+
+hunting.md – Pravidla 4–7; plán 2026-11-22-hunting – Rozhodnutí 4, 5, 7, 9 (Úloha 4: pohyb, honba
+a uštvání jelena a laně; Úloha 5: kanec, bachyně, vlk a medvěd se brání, rány lovců, kůň a luk,
+výsledek). Vyhnané zvíře a útočníci po taktech jako boj (4 za sekundu), s čísly a primitivy boje –
+`battleTick` se nepoužije, je svázaný s tažením, opevněním a skupinami. Čísla zvěře v `HUNT_QUARRY`
+(zdraví, síla, tempo, výdrž, zotavení, pozornost, útok, plocha pro šíp) a souboje v `HUNT_FIGHT`
+(`emergeM` 40, `idleS` 60, `spentUntil` 0,5, `maxHours` 6, brána umu `boarGate` – pěšky boj 60,
+z koně boj 60 a jízda 70, `horseHitShare` 0,5, `horseHealth` 100) – obojí `rules-wildlife.ts`,
+výchozí návrh Clauda; tempo, rány, šíp a padlí z `WAR.pace`, `WAR.combat` a `WAR.downed`.
+
+- **Stav** – `domain/war/hunt-fight.ts`: `HuntFight` (JSON) – `quarry` (`Quarry`: druh, poloha,
+  `heading` pro scénu, `goal` vyběhnutí, zdraví, `stamina` v sekundách útěku, `state` `hidden` |
+  `stand` | `flee` | `spent` | `charge` | `dead` | `escape` | `gone`, `cooldown`, `aim`, `hits`,
+  `door`), `hunters` (`HuntFighter` podle `personId`: poloha, jezdec, síla teď a pěšky
+  `footStrength`, dovednosti `HuntSkills`, muž rodu `lineMan`, zdraví, kůň `horseHealth`, `state`
+  `chase` | `fight` | `down`, `killed`, `cooldown`, `hits`, `hours` – syrové herní hodiny výcviku,
+  `horseLost` – padlý kůň, `left` – odvolaný), `tick`, `activeTick`, `outcome` `ongoing` |
+  `killed` | `escaped`, `killer`. Z balíku jde `Quarry` jako `HuntQuarry` (jméno `Quarry` má lom).
+- **Průběh** – `newHuntFight(druh, dveře, takt)` – zvíře skryté u dveří lesa (takty jen běží,
+  nečinnost se nepočítá); `releaseQuarry(f, ven, takt)` – vyběhne k bodu `ven` (`flee` bez únavy;
+  odtud běží nečinnost); `addHunters` – útočníci na zvíře (kdo už útočí nebo padl, nepřibude;
+  odvolaný se vrátí s hodinami, komu padl kůň, ten pěšky); `dropHunters` – jiný rozkaz hráče:
+  `left`, v souboji dál nejedná a zvíře si ho nevšímá, hodiny a zranění mu zůstanou pro výsledek.
+- **Takt** – `huntFightTick(f, pole, rng)` (`HuntField` – mřížka pochodu, null = rovná louka;
+  `hoursPerTick`) mění `f` na místě; po konci nic. Pořadí pevné: zvíře (stav, pohyb, rána) →
+  útočníci podle `personId` (napřed pohyb všech, pak rány a šípy) → rány po všech: zvířeti
+  (složil ten, jehož rána srazila zdraví na nulu – `killer`; `dead`, `killed`), pak lovcům a koním
+  (`applyWounds`) → konec. Pohyb: krok k cíli délkou tempo ÷ 4 × `paceAt` (v buňce s tempem 0 × 1;
+  bez mřížky × 1), na dosah kroku přímo do cíle; vede-li přímka k zvířeti buňkou s tempem 0, jde
+  lovec po objížďce (`approach`, `detourPoints`: vnitřní body `marchPath` jako `detour` v
+  `battle.ts`, uložené v `route` lovce a hledané nejvýš jednou za `detourRetryTicks` = 20 taktů,
+  `detourTick`; jakmile je přímka čistá, trasa se zahodí; zvíře v uzavřené kapse – `marchReachable`
+  je false – se neobchází, lovec stojí); krok do buňky s tempem 0 sklouzne podél jejího
+  kraje (`alongEdge` s prázdnými stěnami `NO_WALLS` – obojí export z `battle.ts`), z mapy mřížky
+  ven nevede. Lovec pěšky 3,5 m/s, jezdec × 1,5; na dosah rány (3 m) stojí. Rána zblízka po 2 s,
+  los 1 : 1 (jeden `rng.next()` na ránu), ubere `hitDamage(síla, false)`.
+- **Jelen a laň** (Martin: „stačí je uštvat“) – útočník do `alertM` (60 m) a výdrž > 0 → utíká
+  od nejbližšího (výdrž −1 s za sekundu), jinak stojí a výdrž se vrací (`recoverPerS`); výdrž 0 →
+  `spent`, stojí, dokud nenabere polovinu. Pěší (3,5 m/s) ho drží na ≈ 60 m a uštve za ≈ 40 s
+  honby, jezdec (5,25 m/s proti 4,5) ho dohání a uštve za 30 s. Lovce nezraní.
+- **Kanec, bachyně, vlk a medvěd** (hunting.md – Pravidla 4, 6: brání se, mohou lovce zranit nebo
+  zabít) – vyběhnou a stojí; útočník do `chargeM` (kanec a bachyně 12 m, vlk 15, medvěd 10) →
+  `charge` na nejbližšího (`aim`): běží k němu a na dosah rány udeří po 2 s, los 1 : 1, ubere
+  `hitDamage(síla zvířete, false)` (kanec 15, bachyně 12, vlk 8, medvěd 30). Zásah kance, bachyně
+  a medvěda do jezdce jde losem `horseHitShare` do koně (`horseHealth`); kůň na nule padne
+  (`horseLost`), jezdec bojuje dál pěšky silou pěšáka (`footStrength`). Lovec na nule padne
+  (`down`) – mrtvý, nebo raněný losem jako v boji (`WAR.downed`: 1 : 1, muž rodu raněný 2 ze 3);
+  posledního muže rodu nic nechrání (Martin). Rány se sečtou a použijí po všech – kdo padne,
+  v tom taktu ještě udeřil.
+- **Brána umu** (Martin: „nováček to nezvládne … trefit se kanci shora přímo za krk“, z koně
+  „ještě náročnější“) – rána zblízka na kance a bachyni pod `boarGate` vždy mine (los se táhne
+  i tak): pěšky boj 60, z koně boj 60 a jízda 70. Jezdci pod branou jízdy, kterému padne kůň,
+  platí brána pěšky (boj 70 kance pěšky zabít může). Šíp kance a bachyni jen zraní – zdraví
+  neklesne pod 1 (`Blow.arrow`; návrh Clauda: Martin „trefit se kanci shora přímo za krk“ – nováček
+  s lukem prase nezabije, smrtelná je rána úderem přes bránu); nižší zdraví šíp nezvedne a prase,
+  které týž takt srazil úder, neoživí (omezení jen při kladném zdraví před šípem – kontrola Úlohy 5);
+  jelena, laň, vlka a medvěda šíp zabije.
+- **Luk** (Rozhodnutí 5) – muž rodu (`lineMan`) s lukem nad 0 míří na zvíře v pásmu luku (20–60 m),
+  mimo dosah rány zblízka, a po 4 s vystřelí: kruh rozptylu `spreadRadiusM(luk, vzdálenost)`
+  kolem zvířete, kandidáti `ShotCandidate` – zvíře (`areaM2`, strana `defend`) a ostatní lovci
+  na nohou v kruhu (0,85 m², `attack`); `shotHit` (dva losy) – zásah zvířete
+  `hitDamage(síla střelce, true)`, zásah lovce mu ubere totéž (šíp smí trefit i druhého lovce).
+  Lukostřelec jde přitom dál ke zvířeti – zvíře lukem na odstup nedrží (návrh Clauda: v boji
+  střelec v pásmu stojí, na lovu by stál nekonečně na 60 m od jelena a kance či medvěda by bez
+  rizika ustřílel zpoza `chargeM`).
+- **Útěk** – činnost (posune `activeTick`) je jen postup: útočník na nohou s povelem se ke zvířeti
+  ten takt přiblížil (nebo jde po objížďce), má je na dosah rány či střely (střely ne na kance a bachyni
+  se zdravím ≤ 1 – šíp je už nesrazí, lukostřelec uvízlý v pásmu luku by lov držel navždy; `arrowCounts`
+  v `huntersStep`), nebo zvíře před lovci
+  utíká, opravdu se pohnulo a aspoň jeden lovec se týž takt pohnul směrem k němu (honba; Martin 22. 11.:
+  nečinnost je nečinnost lovce, ne zvířete). Kdo jen klouže podél překážky či přešlapuje, činný není
+  (návrh Clauda – lov bez postupu skončí i bez hráče; Martin: „lov může teoreticky trvat libovolně
+  dlouho“, tvrdý strop délky tedy není); po `idleS × 4` taktech bez činnosti `escape` k `door` –
+  útočníci si ho už nevšímají; u dveří, nebo když k nim neprojde, `gone` a `escaped`. Když všichni padnou, zvíře po `idleS` uteče.
+- **Výcvik** (Rozhodnutí 7) – takt na dosah rány → `combat`, jinak takt výstřelu (střela připravená, zvíře v pásmu luku) → `bow`,
+  honba z koně → `riding`, pěší honba nic; `hours` drží syrové hodiny celého lovu (návrh Clauda,
+  kontrola Úlohy 4 – M2), strop `maxHours` až `fightResult` – přetečení zkrátí všechny dovednosti
+  stejným dílem, takže dělení odpovídá celému lovu (6 h je při herním dni 86,4 s jen ≈ 22 s
+  skutečného času).
+- **Výsledek** – `fightResult(f, jména, koně)` → `HuntResult` pro ves (`applyHuntResult`): `killed`
+  = `outcome === 'killed'`, `names` útočníků podle `personId` (kdo složil, napřed; chybějící
+  jméno se vynechá), `trained` jen s hodinami nad nulou (se stropem), `casualties` z `down`
+  (`killed` → `dead`, jinak `wounded`), `horsesLost` – id koně (`koně` podle `personId`) těch
+  s `horseLost`. Bere všechny útočníky, i odvolané (`left`); stav souboje nemění.
+- **Testy** – `__tests__/hunt-fight.test.ts` (pěší uštve a zabije jelena do 960 taktů ve 20
+  seedech; jezdec rychlejší – medián ≤ 480; jelen nezraní; nikdo nejde → útěk po 240 taktech
+  a `escaped`; `dropHunters` → útěk; odvolaný se vrátí s hodinami; syrové hodiny jízdy a strop
+  6 h ve výsledku poměrně; po 1 / 7 / 40 taktech přes JSON = vcelku – i medvěd s ranami, koněm
+  a šípy; pruh vody v mřížce – lovec ho obejde po objížďce a zabije, v uzavřené kapse stojí a zvíře uteče, klouzání bez postupu nečiní; lovec ve výklenku vody a jelen, který před ním v kapse dlouho klouže podél vody – útěk nejpozději `idleS` od posledního pohybu lovce (se starou podmínkou „honba bez pohybu lovce“ test selže); šíp prase nezabije, po smrtelném úderu v témže taktu ho neoživí a zdraví pod 1 nezvedne; nováček (boj 20) kance nezraní a padne;
+  boj 70 pěšky kance i bachyni zabije; z koně jízda 40 kance nezraní, jízda 80 zabije; osamělý
+  lovec proti medvědovi padne, tři muži boj 70 ho složí; vlka boj 40 zabije; kůň padne a jezdec
+  bojuje pěšky, vlk koně nezraní; luk 80 trefí jelena víckrát než luk 10, vesničan nestřílí; šíp
+  trefí druhého lovce u zvířete; `fightResult`).
 
 ## Bariéra dopočtu a dny nájezdu (Ú6.7)
 

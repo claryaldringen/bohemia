@@ -246,7 +246,27 @@ export const VILLAGE_MIGRATIONS: readonly VillageMigration[] = [
   { id: 'sheaf-work-by-kg', since: '2026-11-18', run: sheafWorkByKg },
   // dvě zásoby uzeného – z porážky 1. 11. rovným dílem, ostatní hned (diet.md – Pořadí jídla)
   { id: 'smoked-meat-stocks', since: '2026-11-18', run: smokedMeatStocks },
+  // konec kalendářního lovu a lovu navíc (hunting.md – Pravidla 1) – zůstane úlovek roku
+  { id: 'calendar-hunt', since: '2026-11-22', run: withoutCalendarHunt },
 ];
+
+/** Pole stavu lovu, která nesl kalendářní lov rodu a lov navíc (hunting.md – Pravidla 1). */
+const CALENDAR_HUNT_KEYS = ['hope', 'today', 'extraDay', 'lastExtraDay'] as const;
+
+/**
+ * Kalendářní lov rodu a lov navíc jsou pryč (hunting.md – Pravidla 1): ze stavu lovu zmizí naděje
+ * úlovku, lov dne a lov navíc; úlovek roku (`hunt.year`) zůstane. Zlomek naděje prasat se do
+ * hlídky polí nepřenáší – hlídka začne vlastní (`WildlifeState.patrolHope`) od nuly. Na kopii,
+ * jen když ves některé z polí má.
+ */
+function withoutCalendarHunt(state: VillageState): VillageState {
+  const hunt = state.wildlife?.hunt;
+  if (!hunt || !CALENDAR_HUNT_KEYS.some((key) => key in hunt)) return state;
+  const next = cloneState(state);
+  const legacy = next.wildlife?.hunt as Partial<Record<string, unknown>> | undefined;
+  for (const key of CALENDAR_HUNT_KEYS) delete legacy?.[key];
+  return next;
+}
 
 /**
  * Uzené ve vsi před dvěma zásobami (diet.md – Pořadí jídla, Uzené z porážky 1. 11. rovným dílem):

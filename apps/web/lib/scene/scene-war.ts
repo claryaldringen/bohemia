@@ -2,9 +2,11 @@ import type { ArcRotateCamera } from '@babylonjs/core/Cameras/arcRotateCamera';
 import type { Camera } from '@babylonjs/core/Cameras/camera';
 import type { Scene } from '@babylonjs/core/scene';
 import { surfaceAt, type Landscape } from '@bohemia/game';
+import type { SceneHunt } from '../journey-view';
 import { ArmyRenderer, type SceneWar } from './army-renderer';
 import type { LitBand } from './fog-of-war';
 import type { ChoreoPeople, ExpeditionScenePhase, ExpeditionYard } from './expedition-choreo';
+import { HuntRenderer, type HuntStats } from './hunt-renderer';
 import {
   JourneyMarker,
   journeyMarks,
@@ -47,6 +49,9 @@ export class SceneWarView {
   private trail: readonly (readonly [number, number])[] | null = null;
   /** Pásy cest nad závojem (mapa rodu nebo vazala – army-renderer.ts `setLitBands`). */
   private lit: { bands: readonly LitBand[]; key: string } | null = null;
+  /** Lov vsi – zvíře, honci, psi a tyč (hunt-renderer.ts); útočníky kreslí vojsko jako výpravu. */
+  private hunt: HuntRenderer | null = null;
+  private huntView: SceneHunt | null = null;
 
   constructor(private readonly deps: WarViewDeps) {}
 
@@ -69,6 +74,14 @@ export class SceneWarView {
     });
     this.marker?.dispose();
     this.marker = new JourneyMarker(this.deps.scene, decalHeight);
+    this.hunt?.dispose();
+    this.hunt = new HuntRenderer(this.deps.scene, {
+      groundHeight: decalHeight,
+      onLoaded: () => {
+        this.deps.requestRender();
+      },
+    });
+    if (this.huntView) this.hunt.set(this.huntView, Date.now(), this.deps.reducedMotion());
     this.army.setExpeditionYard(this.yard);
     this.army.setChoreoPeople(this.people);
     this.army.selectJourneyMen(this.selectedMen, this.selectedVillage);
@@ -123,6 +136,25 @@ export class SceneWarView {
       this.journeys,
       selectedPartyKeys(this.journeys, this.selectedMen, this.selectedVillage),
     );
+  }
+
+  /**
+   * Lov vsi ve scéně (plán 2026-11-22-hunting – Úloha 10): vyhnané zvíře, honci, psi a odnos na
+   * tyči; null – žádný. Drží se i přes novou krajinu.
+   */
+  setHunt(hunt: SceneHunt | null): void {
+    this.huntView = hunt;
+    if (this.hunt?.set(hunt, Date.now(), this.deps.reducedMotion())) this.deps.requestRender();
+  }
+
+  /** Živé vyhnané zvíře pod kurzorem (CSS px) – cíl povelu; nic – null. */
+  quarryHit(x: number, y: number, project: Project): { distance: number } | null {
+    return this.hunt?.quarryHit(x, y, project) ?? null;
+  }
+
+  /** Lov, jak je nakreslený (e2e). */
+  huntStats(): HuntStats {
+    return this.hunt?.stats() ?? { quarry: null, beaters: [], dogs: 0, pole: null };
   }
 
   /** Muž výjezdu pod kurzorem (CSS px) – výběr klikem; nic – null. */
@@ -216,13 +248,16 @@ export class SceneWarView {
     return this.army?.stats() ?? [];
   }
 
-  /** Vojsko a boj – mezi takty plynule, šípy a prach; true, když se něco v záběru hnulo. */
+  /** Vojsko a boj – mezi takty plynule, šípy a prach; lov; true, když se něco v záběru hnulo. */
   animate(epochMs: number, camera: Camera): boolean {
-    return this.army?.animate(epochMs, camera) ?? false;
+    const army = this.army?.animate(epochMs, camera) ?? false;
+    const hunt = this.hunt?.animate(epochMs, camera) ?? false;
+    return army || hunt;
   }
 
   dispose(): void {
     this.army?.dispose();
     this.marker?.dispose();
+    this.hunt?.dispose();
   }
 }
