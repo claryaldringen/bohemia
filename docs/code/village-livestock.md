@@ -555,9 +555,11 @@ Horse[]` (`id`, `bornDay`, `sex`, `training`, `riderId?`). `horses.ts` – `hors
   `lord.ts` – `lordRides(state, day)` (pro scénu, jen čte): jezdci rodiny se svým koněm a hodinami
   jízdy (vojvoda první, pak od nejstaršího), každý `HORSES.borderRideEveryDays` (7.) den hotová
   zemská stezka k hranici (`trailId`, střídají se po id), doprovod výpravy, která dnes vyráží
-  (`escort` – nejstarší jezdec mimo vojvodu); v dnech na poli null. `riderPower` = jízda ×
-  (0,4 + 0,6 × výcvik) jen pro panel. Čísla v `HORSES` (`birthDay`, `foalEveryYears`, `maresBase`,
-  `ridersPerMare`, `trainingFull`, `trainedAtYears`, `riderPower`, `borderRideEveryDays`).
+  (`escort` – nejstarší jezdec mimo vojvodu; jen výprava k sousedovi po stezce – bez druhu,
+  zásilka ani výprava na trh stezku nemají, markets.md – Rozhodnutí plánu 2, bod 2); v dnech na
+  poli null. `riderPower` = jízda × (0,4 + 0,6 × výcvik) jen pro panel. Čísla v `HORSES`
+  (`birthDay`, `foalEveryYears`, `maresBase`, `ridersPerMare`, `trainingFull`, `trainedAtYears`,
+  `riderPower`, `borderRideEveryDays`).
 
 ## Koně se stavbou ohrady
 

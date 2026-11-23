@@ -1,9 +1,10 @@
-// Typy trhu – ceny v mincovní míře, zápočet tržního dne a trh ve vsi hostitele (markets.md –
-// Pravidla 3, 4, 5 a 8, Rozhodnutí plánu 2, body 3–7). Rozcestník je `types.ts`; tento soubor jen
-// drží část typů.
+// Typy trhu – ceny v mincovní míře, zápočet tržního dne, trh ve vsi hostitele a výprava na trh
+// (markets.md – Pravidla 2, 3, 4, 5 a 8, Rozhodnutí plánu 2, body 2–7). Rozcestník je `types.ts`;
+// tento soubor jen drží část typů.
 
 import type { Craft } from './types-crafts';
 import type { TradedHorse } from './types-livestock';
+import type { Direction8 } from './types-state';
 import type { HorseGood, TradeGood, TradeGoods } from './types-trade';
 
 /**
@@ -175,6 +176,48 @@ export interface VillageNews {
   name: string;
   report: VillageReport;
   prices?: MarketPrices;
+}
+
+/**
+ * Co hráč výpravě na trh zadá (markets.md – Pravidla 2 a 3; Martin 22. 11. 2026: „Výprava bude
+ * mít určeno, jak dlouho na místě zůstane.“): zboží na prodej `give` (koně jako počty po druzích),
+ * seznam `wants` (bez cenových mezí) a celé dny na trhu `stayDays`.
+ */
+export interface MarketOrder {
+  give: TradeGoods;
+  wants: TradeGoods;
+  stayDays: number;
+}
+
+/**
+ * Kam výprava na trh jede (markets.md – Rozhodnutí plánu 2, body 2 a 6): hostitelská ves, kolik
+ * políček mapy světa je daleko, první krok cesty (karavana ve scéně jde ke kraji mapy v tom směru)
+ * a domovská ves výpravy (klíč výpravy a jméno pro hostitele).
+ */
+export interface MarketTarget {
+  villageId: string;
+  name: string;
+  cells: number;
+  firstStep: Direction8;
+  homeVillageId: string;
+  homeName: string;
+}
+
+/**
+ * Výprava na trh na cestě (`TradeExpedition.market` – markets.md, Rozhodnutí plánu 2, body 2
+ * a 6): klíč `market:<domovská ves>:<id výpravy>`, hostitelská ves, seznam, dny pobytu a cesty
+ * tam, den příjezdu na trh a `returnDay` – první den doma (lidé a vozy jsou pryč ve dnech
+ * `startedDay` … `returnDay` − 1). Zboží přijde s výsledkem trhu (`applyMarketResult`).
+ */
+export interface MarketTrip {
+  key: string;
+  villageId: string;
+  name: string;
+  wants: TradeGoods;
+  stayDays: number;
+  travelDays: number;
+  arriveDay: number;
+  returnDay: number;
 }
 
 /** Zpráva na pivo o vsi (markets.md – Pravidla 8). */

@@ -400,6 +400,25 @@ export {
   marketResultRef,
   rememberNews,
 } from './trade/market';
+// výprava na trh – domovská ves (markets.md – Rozhodnutí plánu 2, body 1, 2 a 6): kontroly
+// a odchod, lidé a vozy pryč v pevné dny, výsledek trhu domů (kroky dne volá simulate.ts a schránka)
+export {
+  MARKET_NO_PEOPLE,
+  MARKET_OVER_STOCK,
+  MARKET_STAY,
+  MARKET_STONE_CART,
+  MARKET_WORLD_END,
+  applyMarketResult,
+  checkMarketTrip,
+  departMarket,
+  marketCrew,
+  marketTravelDays,
+  marketTripsDay,
+  planMarketTrip,
+  type MarketCheck,
+  type MarketPlan,
+  type MarketTripCheck,
+} from './trade/market-trip';
 export { legacyNeighbourName } from './trade/legacy-neighbours';
 export * from './trade/trade';
 // dobytek v obchodu – příchod a odchod dobytka (`addCattle`, `removeCattle`) jsou kroky obchodu

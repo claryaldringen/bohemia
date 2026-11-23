@@ -9,11 +9,9 @@ import type {
   MarketHorse,
   MarketResult,
   MarketVisitor,
-  VillageReport,
   VillageState,
 } from '../../types';
-import { at, horse, horseVillage } from '../../__tests__/horse-fixtures';
-import { dwelling } from '../../__tests__/kin-fixtures';
+import { horse, horseVillage } from '../../__tests__/horse-fixtures';
 import {
   joinMarket,
   marketArrivalRef,
@@ -24,44 +22,11 @@ import {
 } from '../market';
 import { initialPrice } from '../market-prices';
 import { marketStance } from '../market-stance';
+import { D, marketVillage, report } from './market-fixtures';
 
 // Trh ve vsi hostitele (markets.md – Pravidla 3, 5 a 8; Rozhodnutí plánu 2, body 4–7): výprava
 // přijde událostí schránky, každý tržní den se hostitel a výpravy vyrovnají zápočtem a po pobytu
 // výprava odjede – výsledek jde do odchozí schránky vsi k domovské vsi.
-
-const D = at(601, 6, 15);
-
-/**
- * Ves M: dvorec a 5 dospělých, každý ve svém domě (6 domácností – chovné jádro 3 krávy), 8 krav
- * a obilí `shortKg` pod pojistkou (ne v hladu); dopočítaná do dne před D.
- */
-function marketVillage(shortKg = 3_000): VillageState {
-  const s = horseVillage(null, 2, 5);
-  s.people
-    .filter((p) => p.dwellingId !== s.manorId)
-    .forEach((p, i) => {
-      const id = 500 + i;
-      if (!s.dwellings.some((d) => d.id === id)) {
-        s.dwellings.push({ ...dwelling(id), position: { x: 30 + 12 * i, z: 0, rotation: 0 } });
-      }
-      p.dwellingId = id;
-    });
-  s.livestock!.herds.cow = 8;
-  s.lastDay = D - 1;
-  s.storesKg = 0;
-  // bez zásob shání ves celou pojistku
-  s.storesKg = marketStance(s, D).wants.grain! - shortKg;
-  return s;
-}
-
-/** Zpráva na pivo o domovské vsi výpravy. */
-const report: VillageReport = {
-  day: D - 2,
-  people: 25,
-  houses: 5,
-  crafts: ['potter'],
-  traders: [],
-};
 
 /** Výprava z Vlkova: 600 kg obilí za krávu, den na trhu, k sousední vsi. */
 function arrival(fields: Partial<MarketArrival> = {}): MarketArrival {
@@ -320,6 +285,25 @@ describe('trh ve vsi hostitele – koně', () => {
     expect(s.storesKg - h.storesKg).toBeCloseTo(-1_600, 6);
   });
 
+  it('koně na trhu jen po kusech – klisna v počtech bez kusu se neprodá a nic za ni nepřijde', () => {
+    const h = horseVillage([horse(1, 8, 'female', 0, D), horse(2, 9, 'male', 50, D)]);
+    h.lastDay = D - 1;
+    expect(marketStance(h, D).wants.mares).toBe(1);
+    const s = structuredClone(h);
+    const events = joinMarket(
+      s,
+      D,
+      arrival({ goods: { mares: 1 }, horses: [], wants: { grain: 2_000 } }),
+    );
+    expect(events).toEqual([{ day: D, kind: 'market-arrived', villageName: 'Vlkov', goods: {} }]);
+    expect(s.market!.visitors[0]!.goods).toEqual({});
+    marketDay(s, D);
+    const result = resultOf(s, 'market:h:1');
+    expect(result).toMatchObject({ sold: {}, bought: {}, unsold: {}, horses: [] });
+    expect(villageHorses(s)).toHaveLength(2);
+    expect(s.storesKg).toBe(h.storesKg);
+  });
+
   it('hostitel prodá klisnu v pořadí prodeje (napřed nejstarší), hříbata výpravy jdou do ohrady', () => {
     const mares = [5, 6, 10, 12].map((years, i) => horse(i + 1, years, 'female', 0, D));
     const h = horseVillage([...mares, horse(9, 9, 'male', 50, D)]);
@@ -353,7 +337,11 @@ describe('trh ve vsi hostitele – koně', () => {
 describe('trh ve vsi hostitele – příjezd, výsledek a zprávy', () => {
   it('příjezd: návštěvník v pořadí, poznámka o obchodníkovi, zpráva a kronika; týž klíč nic', () => {
     const s = marketVillage();
-    const a = arrival({ goods: { grain: 600, mares: 1 }, horses: [] });
+    const mare: MarketHorse = {
+      good: 'mares',
+      horse: { bornDay: D - 5 * 365, sex: 'female', training: 0 },
+    };
+    const a = arrival({ goods: { grain: 600, mares: 1 }, horses: [mare] });
     const chronicle = joinMarket(s, D, a);
     expect(chronicle).toEqual([
       { day: D, kind: 'market-arrived', villageName: 'Vlkov', goods: { grain: 600, mares: 1 } },
@@ -370,7 +358,7 @@ describe('trh ve vsi hostitele – příjezd, výsledek a zprávy', () => {
         lastDay: D,
         travelDays: 0,
         goods: { grain: 600, mares: 1 },
-        horses: [],
+        horses: [mare],
         wants: { cows: 1 },
         sold: {},
         bought: {},

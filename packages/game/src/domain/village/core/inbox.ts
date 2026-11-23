@@ -35,6 +35,7 @@ import {
   applyRefugeHidden,
 } from '../fortification/state/refugees';
 import { joinMarket } from '../trade/market';
+import { applyMarketResult } from '../trade/market-trip';
 import type {
   AwayKind,
   ChronicleEvent,
@@ -295,7 +296,7 @@ export type VillageEventBody =
   /**
    * Trh (markets.md – Rozhodnutí plánu 2, bod 6) – zprávy z odchozí schránky jiné vsi
    * (`VillageMail`): výprava přijela na trh vsi (`market-arrive` – `joinMarket`) a výsledek trhu
-   * pro výpravu, která se vrací domů (`market-result`).
+   * pro výpravu, která se vrací domů (`market-result` – `applyMarketResult`).
    */
   | MarketMailBody;
 
@@ -408,8 +409,7 @@ function applyEvent(state: VillageState, day: number, body: VillageEventBody): C
     case 'market-arrive':
       return joinMarket(state, day, body.arrival);
     case 'market-result':
-      // použije Úloha 4 (`applyMarketResult`) – doručí ho až Úloha 5, do té doby nikam nedojde
-      return [];
+      return applyMarketResult(state, day, body.result);
     default:
       return unknownBody(body);
   }

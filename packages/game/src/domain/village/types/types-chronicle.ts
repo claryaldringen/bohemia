@@ -707,6 +707,30 @@ export type ChronicleEvent = { day: number } & (
   /** Tržní den – co ves na svém trhu prodala a koupila (markets.md – Pravidla 3 a 5). */
   | { kind: 'market-held'; sold: TradeGoods; bought: TradeGoods }
   /**
+   * Výprava vyrazila na trh vsi `villageName` (markets.md – Pravidla 2 a 3) – co veze na prodej
+   * (koně jako počty po druzích), co shání a první den doma (`returnDay`).
+   */
+  | {
+      kind: 'market-departed';
+      villageName: string;
+      give: TradeGoods;
+      wants: TradeGoods;
+      returnDay: number;
+    }
+  /**
+   * Výprava se vrátila z trhu vsi `villageName` (markets.md – Pravidla 3) – co prodala, koupila
+   * a co se neprodalo; `returned` – hostitelská ves zanikla a výprava přivezla, co drží
+   * (Rozhodnutí plánu 2, bod 6). Prázdné `villageName` – záznam výpravy chyběl.
+   */
+  | {
+      kind: 'market-returned';
+      villageName: string;
+      sold: TradeGoods;
+      bought: TradeGoods;
+      unsold: TradeGoods;
+      returned?: true;
+    }
+  /**
    * Vesničané koupili výrobky řemeslníků u souseda (crafts.md – Nákup u sousedů; nový nákup
    * zrušen – markets.md, Pravidla 1, zápis přibude jen s návratem nákupu uloženého na cestě) – kg
    * nástrojů, keramiky a dřevěného nářadí, čím platili (kg obilí a luštěnin).

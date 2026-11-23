@@ -127,12 +127,12 @@ describe('výprava na cestě (markets.md – Pravidla 10)', () => {
   it('nosiči berou nejvýš svůj počet za den; zboží dorazí po návratu', () => {
     const s = onTheWay(trading());
     const e = s.trade!.expeditions[0]!;
-    const work = workExpeditions(s, 100);
+    const work = workExpeditions(s, 100, DAY + 1);
     expect(work.used).toBe(Math.min(e.porters, e.cost));
     expect(work.shares).toEqual([{ trailId: e.trailId, manDays: work.used }]);
     // málo společné práce – cesta trvá déle
     const slow = structuredClone(s);
-    expect(workExpeditions(slow, 0.5).used).toBe(0.5);
+    expect(workExpeditions(slow, 0.5, DAY + 1).used).toBe(0.5);
     // dokončená práce – zboží dorazí
     e.done = e.cost;
     const before = villageGoodStock(s, 'cheese');
@@ -170,7 +170,7 @@ describe('výprava na cestě (markets.md – Pravidla 10)', () => {
     base.nextId = 800;
     const s = onTheWay(base, { give: { meat: 300 }, get: {}, porters: 12 });
     const e = s.trade!.expeditions[0]!;
-    expect(expeditionLaborNeed(s)).toBe(e.porters);
+    expect(expeditionLaborNeed(s, DAY + 1)).toBe(e.porters);
     const whole = advanceVillage(s, DAY + e.days + 2, null, LANDSCAPE);
     const returned = whole.chronicle.find((ev) => ev.kind === 'trade-returned');
     // přesně dny cesty – nosiči jdou před úlohami dne, společná práce na ně nečeká
@@ -232,7 +232,9 @@ describe('výprava na cestě (markets.md – Pravidla 10)', () => {
     expect(tradeCarts(s, DAY).map((c) => c.id)).toEqual([1]);
     const away = onTheWay(s, { carts: [1] });
     expect(tradeCarts(away, DAY)).toEqual([]);
-    expect(workExpeditions(structuredClone(away), 100).shares[0]).toMatchObject({ carts: 1 });
+    expect(workExpeditions(structuredClone(away), 100, DAY + 1).shares[0]).toMatchObject({
+      carts: 1,
+    });
     const e = away.trade!.expeditions[0]!;
     e.done = e.cost;
     finishExpeditions(away, DAY + e.days);

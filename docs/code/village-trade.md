@@ -119,14 +119,16 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
 - **Výprava na cestě** (`TradeExpedition`; markets.md – Pravidla 10): výprava k dřívějšímu
   sousedovi uložená před koncem smyšlených sousedů doběhne – nová nevyrazí; přinese zboží,
   dobytek, koně i lidi. **Lidé na výpravě mají vlastní podíl práce** (Martin 19. 10. 2026):
-  jediné pravidlo pro každou výpravu ve `state.trade.expeditions` (i zásilku) –
-  `expeditionLaborToday` = `expeditionLaborNeed` (každá výprava kolik s ní jde lidí – nosiči,
-  honáci, posádky vozů –, nejvýš co jí zbývá), nejvýš kolik je dospělých mimo dílny; jde do
-  `allocateDay` jako `away` hned po denním minimu domácností (to má přednost), před úlohami dne –
-  výprava trvá přesně své dny cesty, zdrží se jen ves bez dost dospělých;
-  `workExpeditions(state, allocation.away)` ho rozdělí mezi výpravy (v rozdělení práce dne nejde
-  ze společné práce – `idle` nezmenší); `finishExpeditions` (po práci – zboží do zásob, kronika
-  `trade-returned`; staré `trade-departed` v kronice zůstávají). Rozdělení práce: činnost `trade`, cíl `{ kind: 'trail' }`
+  jediné pravidlo pro každou výpravu ve `state.trade.expeditions` (i zásilku a výpravu na trh) –
+  `expeditionLaborToday` = `expeditionLaborNeed(state, day)` (každá výprava kolik s ní jde lidí –
+  nosiči, honáci, posádky vozů –, nejvýš co jí zbývá; výprava na trh jen v okně dní – Výprava na
+  trh níž), nejvýš kolik je dospělých mimo dílny; jde do `allocateDay` jako `away` hned po denním
+  minimu domácností (to má přednost), před úlohami dne – výprava trvá přesně své dny cesty, zdrží
+  se jen ves bez dost dospělých (výprava na trh ne – má pevný termín);
+  `workExpeditions(state, allocation.away, day)` ho rozdělí mezi výpravy (v rozdělení práce dne
+  nejde ze společné práce – `idle` nezmenší); `finishExpeditions` (po práci – zboží do zásob,
+  kronika `trade-returned`; staré `trade-departed` v kronice zůstávají; výpravu na trh nechá – tu
+  uzavře výsledek trhu). Rozdělení práce: činnost `trade`, cíl `{ kind: 'trail' }`
   – ve scéně jde výprava jako **karavana** (`scene/caravan.ts`, data `SceneVillage.expeditions`
   z `lib/caravan-view.ts`): jedna skupina po zemské stezce ve skutečném čase od začátku dne, kdy
   běžící cesta začala (`SceneExpedition.startDay`; `caravanTimeline` – tam chůzí 1,2 m/s, s vozy
@@ -151,6 +153,8 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `trade/legacy-neighbours.ts` – týž los jako dřív).
   – **zásilka do vsi jiného hráče** (`TradeExpedition.kind = 'shipment'`, bez stezky, bez návratu
   zboží) je táž výprava s jinou událostí na konci: `docs/code/vassalage.md` – Zásilky mezi vsemi hráčů.
+  – **výprava na trh** (`TradeExpedition.kind = 'market'`, bez stezky, zboží přijde s výsledkem
+  trhu) – Výprava na trh níž.
 
 - **Trh – ceny a zápočet** (markets.md – Pravidla 4 a 5, Rozhodnutí plánu 2, body 3 a 4; čisté
   funkce `trade/market-prices.ts` a `trade/market-clearing.ts`, typy `types-market.ts`, čísla
@@ -200,7 +204,8 @@ ves>:<id výpravy>`, `stayDays`, `travelDays`, zboží `goods` – koně i tady 
     druzích, koně po kusech `MarketHorse` { `good`, `horse` }, seznam `wants`, zpráva na pivo
     `report`). `joinMarket(state, day, arrival)` založí trh, chybí-li, přidá návštěvníka
     `MarketVisitor` s `order` = `nextOrder` a `lastDay` = den + `stayDays` − 1 (kopie, kladné
-    položky), poznámku do `arrivals` (posledních `MARKET.report.traders`), zprávu o domovské vsi
+    položky; počty koní ve zboží jsou počty kusů v `horses` po druzích – kůň, který nepřišel, se
+    neprodá), poznámku do `arrivals` (posledních `MARKET.report.traders`), zprávu o domovské vsi
     (`rememberNews` → `VillageState.news`, `VillageNews` – jedna na ves, novější `report.day`
     vyhrává, při stejném dni pozdější zpráva) a kroniku `market-arrived`. Týž klíč podruhé (výprava
     na trhu nebo její výsledek v odchozí schránce) nic neudělá.
@@ -219,15 +224,52 @@ ves>:<id výpravy>`, `stayDays`, `travelDays`, zboží `goods` – koně i tady 
     `…:out`; příjezd má `marketArrivalRef` = `…:in`) se zprávou o hostiteli (`villageReport`) a cenami
     trhu. `marketResult` je jediné místo, kde vzniká `MarketResult` (`sold`, `bought`, `unsold` –
     co zbylo, koně domů `horses` – neprodaní i koupení, `report?`, `prices?`, `returned?`);
-    nepoužitý příjezd nic neprodal ani nekoupil a domů jde vše, co vezl. Výsledek domovská ves
-    zatím nepoužije (větev `market-result` ve schránce vrátí `[]`) a odchozí schránku zatím nikdo
-    nedoručuje.
+    nepoužitý příjezd nic neprodal ani nekoupil a domů jde vše, co vezl. Výsledek použije domovská
+    ves (`applyMarketResult` – Výprava na trh níž); odchozí schránku zatím nikdo nedoručuje.
   - **Koně:** `takeHorses(state, druh, n, day)` (`horse-trade.ts`) – koně z `horsesToSell`
     odejdou z ohrad a vrátí se jako `TradedHorse` (den narození, pohlaví, výcvik); používá ho
     i `dispatchShipment` (zásilky beze změny výsledku), `removeHorses` je `takeHorses` bez výsledku.
   - **Stav:** `market`, `outbox` a `news` jsou volitelné a zapíšou se až při prvním použití –
     ves bez návštěv simuluje stejně (zlaté otisky beze změny), převod se nepřidává. Zaniklá ves se
     nesimuluje a schránku nepoužije.
+- **Výprava na trh** (markets.md – Pravidla 2 a 3, Rozhodnutí plánu 2, body 1, 2 a 6;
+  `trade/market-trip.ts`, typy `MarketOrder`, `MarketTarget`, `MarketTrip` v `types-market.ts`,
+  čísla `MARKET.dayTripCells`, `daysPerCell`, `minStayDays`). Výprava domovské vsi je druh karavany
+  (`TradeExpedition.kind = 'market'`, `trailId` −1, `destination` { `cells`, `firstStep` },
+  `market` – `MarketTrip`: klíč, hostitel, seznam, pobyt, dny cesty, `arriveDay`, `returnDay`).
+  - **Dny:** `marketTravelDays(cells)` = max(0, políčka − `dayTripCells`) × `daysPerCell` – ves
+    na sousední mapě ráno tam a večer zpět (Martin 22. 11. 2026), každá další mapa den tam a den
+    zpět. Výprava vyrazí ráno dne po odeslání (`departDay` = dnešek + 1 – dnešek vsi je spočtený),
+    `arriveDay` = `departDay` + cesta, tržní dny `arriveDay` … `arriveDay` + pobyt − 1,
+    `returnDay` = `arriveDay` + pobyt + cesta je první den doma.
+  - **Lidé:** `marketCrew(give, wants, carts)` – jedna jízda: vozy (`tradeCarts`, v jeho pořadí)
+    vezou napřed kámen, pak kg zboží, pak celé klády, s každým `CARTS.tradeCrew` lidí; co se
+    nevejde, nesou nosiči (`TRADE.porterKg`), klády po `TRADE.logCarriers`, dobytek a koně ženou
+    honáci; nosiči = víc z cesty tam (`give`) a zpět (`wants`), aspoň 1; zvolí počet vozů
+    s nejméně lidmi (při shodě méně vozů); kámen, který se na vozy nevejde, → null.
+  - **Kontroly:** `checkMarketTrip(order, input)` – jediné místo (server i náhled ve webu, vstup
+    `MarketTripCheck` bez stavu): pobyt celé dny ≥ `minStayDays` (`MARKET_STAY`), zboží nejvýš
+    `villageGoodStock` (`MARKET_OVER_STOCK`), kámen jen vozem (`MARKET_STONE_CART`), nosiči
+    nejvýš dospělí vsi (`MARKET_NO_PEOPLE`), návrat před koncem světa (`MARKET_WORLD_END`).
+    Prázdné `give` i `wants` jsou dovolené (výprava na pivo). `planMarketTrip` vstup složí ze
+    stavu (dospělí mimo lidi pryč – `awayFromWork`) a přidá `cartIds`.
+  - **Odchod:** `departMarket(state, day, order, target)` (kopie stavu): zboží `give` odejde
+    (`addGood` záporně, koně po kusech `takeHorses`), výprava s `porters`, `carts`, `days` =
+    2 × cesta + pobyt a `cost` = nosiči × dny, klíč `market:<domovská ves>:<id>`; do odchozí
+    schránky příjezd (`market-arrive`, `marketArrivalRef`) k hostiteli na `arriveDay` se zprávou
+    na pivo o domovské vsi (`villageReport`) a kronika `market-departed`.
+  - **Pryč v pevné dny** (Rozhodnutí 2 – termín trhu je pevný): `expeditionLaborNeed` /
+    `workExpeditions` berou nosiče výpravy na trh jen ve dnech `startedDay` … `returnDay` − 1,
+    mimo ně nic, i když vsi chyběli dospělí; výprava nemá podíl po stezce. `marketTripsDay` (krok
+    dne hned za `returnHome`) od `returnDay` vrátí vozy se spřežením (výpravě zmizí `carts`).
+    `finishExpeditions` výpravu na trh nechá a jezdec vojvody ji nedoprovází (`lordRides` – jen
+    výprava po stezce).
+  - **Návrat:** událost schránky `market-result` → `applyMarketResult`: koupené a neprodané zboží
+    do vsi (`addGood`, koně po kusech `addHorses`) – i bez záznamu výpravy, nic nezmizí –, výprava
+    s klíčem výsledku se smaže, zpráva na pivo s cenami trhu do `news` (`rememberNews`, jen se
+    záznamem výpravy) a kronika `market-returned` (`returned` – hostitel zanikl; bez záznamu
+    výpravy s prázdným jménem vsi). Výsledek přijde nejdřív v `returnDay`; doručení mezi vsemi
+    (odchozí schránka, zaniklý hostitel) zatím chybí.
 - **Jen společné suroviny** (trade.md – Jen společné suroviny; Martin 19. 10. 2026: „Nech jen
   společné suroviny, nezaváděj nové.“): obchod zná jen zboží, které má i ves (`TradeGood`,
   `TRADE_GOODS`). Zboží zvenku (sůl, železo, med, kožešiny – dřívější soubor zboží) ve hře není.

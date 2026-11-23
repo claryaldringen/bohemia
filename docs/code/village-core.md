@@ -91,7 +91,8 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   a roční odhady správce (`sacredLaborGainPerYear`, `raidLossManDays`). Rozdělení práce pro
   postavy (`laborDay`, `DayWork.daylight`) dělí venkovní podíly délkou dne – podíly jsou lidé, ne
   práce (domácnost, koně, dílny, výpravy a vozy pro kováře beze změny). Ráno každého dne
-  (`advanceVillageSteps`): návraty domů (`returnHome`), události schránky (`applyInboxDay`), hned
+  (`advanceVillageSteps`): návraty domů (`returnHome`), vozy výprav na trh od prvního dne doma
+  (`marketTripsDay` – village-trade.md, Výprava na trh), události schránky (`applyInboxDay`), hned
   po nich **trh ve vsi** (`marketDay` – výprava, která dnes přijela, obchoduje už dnes; zápisy
   kroniky za příjezdem; village-trade.md – Trh ve vsi) a úmrtí na rány (`woundDeathsDay`). Před prací dne (`simulate.ts`): 1. 9. `startSeason`, každý den `seasonDay` (konce oken
   setí, díly na řadě a čelo práce – fields.md, Osevní postup po dílech) a `lordHelpDay`

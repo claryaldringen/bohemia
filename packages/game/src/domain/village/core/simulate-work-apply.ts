@@ -322,7 +322,7 @@ export function smithHerdingTravel(
     allocation.away,
     purchases.reduce((sum, p) => sum + p.manDays, 0),
   );
-  const trade = workExpeditions(state, allocation.away - purchaseLabor);
+  const trade = workExpeditions(state, allocation.away - purchaseLabor, day);
   return { smithCarts, fetchPlans, bellows, herding, purchases, trade };
 }
 

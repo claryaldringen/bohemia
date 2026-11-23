@@ -41,6 +41,7 @@ import {
 import { advanceGroupStarvation } from '../people/hunger-groups';
 import { keepManor } from '../people/manor';
 import { marketDay } from '../trade/market';
+import { marketTripsDay } from '../trade/market-trip';
 import { finishExpeditions } from '../trade/trade';
 import { swathRoadsInWork, trailsDay } from '../trade/trail';
 import { roadSwathDay } from '../roads/road-swath';
@@ -158,6 +159,9 @@ export function* advanceVillageSteps(
     // návraty domů a odchody hostů v pevný den (plán 2026-11-03 – rozhodnutí 11) – před
     // událostmi dne, ať host, který dnes odchází, a nový host, který dnes přijde, nesplynou
     next.chronicle.push(...returnHome(next, day));
+    // výprava na trh (markets.md – Rozhodnutí plánu 2, bod 2): od prvního dne doma jsou vozy se
+    // spřežením zase ve vsi, i když výsledek trhu ještě nepřišel
+    marketTripsDay(next, day);
     // události schránky dne – na začátku dne, před jeho simulací (village-core.md – Schránka vsi)
     const events = eventsByDay.get(day);
     const morning: ChronicleEvent[] = events ? applyInboxDay(next, day, events) : [];

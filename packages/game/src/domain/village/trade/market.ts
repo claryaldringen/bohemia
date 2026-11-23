@@ -90,7 +90,8 @@ function takeFrom(goods: TradeGoods, good: TradeGood, amount: number): void {
  * výprava stojí na trhu v pořadí příjezdu do `lastDay` = den + `stayDays` − 1, poznámka
  * o obchodníkovi (posledních `MARKET.report.traders` – technický strop paměti vsi, ne pravidlo
  * hry) a zpráva o její vsi (`rememberNews`). Vrací zápis kroniky. Týž klíč podruhé (výprava na
- * trhu nebo její výsledek v odchozí schránce) nic neudělá. Příjezd se ukládá kopií.
+ * trhu nebo její výsledek v odchozí schránce) nic neudělá. Příjezd se ukládá kopií. Počty koní ve
+ * zboží jsou počty kusů v `horses` po druzích – kůň, který nepřišel, se neprodá.
  */
 export function joinMarket(
   state: VillageState,
@@ -102,7 +103,11 @@ export function joinMarket(
     (state.outbox?.some((mail) => mail.ref === marketResultRef(arrival.key)) ?? false);
   if (known) return [];
   const market = (state.market ??= { prices: {}, visitors: [], nextOrder: 1, arrivals: [] });
-  const goods = positiveGoods(arrival.goods);
+  const horseCounts: TradeGoods = {};
+  for (const good of HORSE_GOODS) {
+    horseCounts[good] = arrival.horses.filter((h) => h.good === good).length;
+  }
+  const goods = positiveGoods({ ...arrival.goods, ...horseCounts });
   market.visitors.push({
     key: arrival.key,
     fromVillageId: arrival.fromVillageId,

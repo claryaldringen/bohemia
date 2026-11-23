@@ -1,4 +1,5 @@
-// Trh – ceny v mincovní míře (část rozdělených pravidel, rozcestník je rules.ts).
+// Trh – ceny v mincovní míře a dny výpravy na trh (část rozdělených pravidel, rozcestník je
+// rules.ts).
 
 /**
  * markets.md – Rozhodnutí plánu 2, bod 3 (návrh Clauda; markets.md – Pravidla 4 nechává „o kolik
@@ -20,4 +21,13 @@ export const MARKET = {
    * `traders` příjezdů obchodníků, aby stav vsi nerostl donekonečna.
    */
   report: { round: 5, traders: 10 },
+  /**
+   * Doba cesty výpravy na trh (markets.md – Rozhodnutí plánu 2, bod 2, návrh Clauda; Martin 22. 11.
+   * 2026: „ráno se vyrazí a večer vrátí“): cesta tam trvá max(0, políčka − `dayTripCells`) ×
+   * `daysPerCell` dní – ves na sousední mapě (i úhlopříčně, ≈ 2–4 km) je ráno tam a večer zpět,
+   * každá další mapa přidá den tam a den zpět. Pobyt je celý počet dní, nejméně `minStayDays`.
+   */
+  dayTripCells: 1,
+  daysPerCell: 1,
+  minStayDays: 1,
 } as const;
