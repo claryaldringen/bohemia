@@ -583,6 +583,7 @@ o evakuaci (defaultní nastavení).“
 
 ## Ztráty
 
+- **Štěstí:** padlí, zabití a umřelí na rány snižují štěstí vsi jako každé úmrtí, od dne zprávy; odvedení a zajatí ne (Martin 23. 11. 2026: „Ano“ – [happiness.md](happiness.md), úmrtí).
 - **Padlí** chybí natrvalo; ves může zchudnout až k hladu a vymření (Martin 18. 10.). Padlí
   obránci se pohřbí na hřbitově vsi jako ostatní mrtví; padlí útočníci zůstanou na cizí mapě.
 - **Ranění** (Martin 2. 11. 2026 – „ok“): **60 herních dní** (≈ 1 h 26 min) nepracují ani
