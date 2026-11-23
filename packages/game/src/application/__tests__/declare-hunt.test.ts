@@ -15,6 +15,7 @@ import {
 } from '../../domain/war';
 import { land } from '../../domain/war/__tests__/battle-fixtures';
 import { declareHuntInVillage, type DeclareHuntDeps } from '../declare-hunt';
+import { VILLAGE_ABANDONED, VILLAGE_EXTINCT, VILLAGE_TRAVELLING } from '../update-village';
 import { InMemoryHouses } from './in-memory-houses';
 import { InMemoryJourneys } from './in-memory-journeys';
 import { InMemorySettlements } from './in-memory-settlements';
@@ -172,24 +173,81 @@ describe('declareHuntInVillage – vyhlášení lovu (plán 2026-11-22-hunting, 
     expect(v.people.find((p) => p.id === 20)!.away).toEqual({ kind: 'journey', refId: 'jny-0' });
   });
 
-  it('already – výprava vsi s lovem; druhý lov téhož dne ani lov správce zítra', async () => {
+  it('already – lov vsi už běží ve výpravě', async () => {
     const w = await setup();
     expect((await declare(w)).ok).toBe(true);
     await deniedWith(w, 'already');
+  });
 
-    // výprava s lovem už doběhla, ale na zítřek už jsou honci (jeden lov ve vsi za den)
-    const sameDay = await setup();
-    sameDay.villages.edit(sameDay.homeId, (s) => {
-      s.wildlife!.hunt = { ...emptyHunt(), beaters: { day: SUMMER + 1, men: 6 } };
+  it('víc lovů za den: hráč i správce na zítřek, honci obou se sečtou', async () => {
+    const w = await setup();
+    w.villages.edit(w.homeId, (s) => {
+      // správce vyhlásil lov na zítřek (jeho honci a lovec jsou v rezervaci)
+      s.wildlife!.hunt = {
+        ...emptyHunt(),
+        npc: { day: SUMMER + 1 },
+        beaters: { day: SUMMER + 1, men: 7 },
+      };
+      s.commonLaborHistory = [40];
     });
-    await deniedWith(sameDay, 'already');
+    expect(await declare(w)).toEqual({ ok: true, journeyId: 'jny-1' });
+    const v = await villageOf(w);
+    expect(v.wildlife?.hunt?.beaters).toEqual({ day: SUMMER + 1, men: 13 });
+    expect(v.wildlife?.hunt?.npc).toEqual({ day: SUMMER + 1 });
+  });
 
-    // správce vyhlásil lov na zítřek
-    const steward = await setup();
-    steward.villages.edit(steward.homeId, (s) => {
-      s.wildlife!.hunt = { ...emptyHunt(), npc: { day: SUMMER + 1 } };
+  it('dva lovy hráče po sobě týž den: první skončil, druhý projde a rezervace se sečte', async () => {
+    const w = await setup();
+    w.villages.edit(w.homeId, (s) => {
+      s.commonLaborHistory = [40];
     });
-    await deniedWith(steward, 'already');
+    expect(await declare(w)).toEqual({ ok: true, journeyId: 'jny-1' });
+    w.journeys.rows.get('jny-1')!.status = 'done';
+    expect(await declare(w)).toEqual({ ok: true, journeyId: 'jny-2' });
+    const v = await villageOf(w);
+    expect(v.wildlife?.hunt?.beaters).toEqual({ day: SUMMER + 1, men: 12 });
+    expect(v.wildlife?.hunt?.declared).toBe(2);
+  });
+
+  it('nežijící ves lov nevyhlásí a nic neuloží – vymřelá, opuštěná, na cestě', async () => {
+    const cases: [(s: VillageState) => void, string][] = [
+      [(s) => (s.extinctDay = SUMMER - 5), VILLAGE_EXTINCT],
+      [(s) => (s.abandonedDay = SUMMER - 5), VILLAGE_ABANDONED],
+      [
+        (s) => (s.journey = { startDay: SUMMER - 1 } as unknown as VillageState['journey']),
+        VILLAGE_TRAVELLING,
+      ],
+    ];
+    for (const [mark, reason] of cases) {
+      const state = lhota();
+      mark(state);
+      await deniedWith(await setup(state), reason);
+    }
+  });
+
+  it('zápis výpravy selže: ves honce i pořadí vyhlášení vrátí', async () => {
+    const w = await setup();
+    w.journeys.failCreate = new Error('db');
+    await expect(declare(w)).rejects.toThrow('db');
+    const hunt = (await villageOf(w)).wildlife?.hunt;
+    expect(hunt?.beaters).toBeUndefined();
+    expect(hunt?.declared ?? 0).toBe(0);
+  });
+
+  it('výprava mezitím skončila (záměr nevyšel): lov dostane novou výpravu se stejným domovem', async () => {
+    const w = await setup();
+    await running(w);
+    w.journeys.addIntent = () => {
+      w.journeys.rows.get('jny-0')!.status = 'done';
+      return Promise.resolve(null);
+    };
+    expect(await declare(w)).toEqual({ ok: true, journeyId: 'jny-1' });
+    expect((await journeyOf(w, 'jny-1')).home).toMatchObject({
+      villageId: w.homeId,
+      pos: { x: 5, z: 5 },
+    });
+    expect((await journeyOf(w, 'jny-1')).hunt).toBeDefined();
+    expect((await villageOf(w)).wildlife?.hunt?.beaters).toEqual({ day: SUMMER + 1, men: 6 });
   });
 
   it('closed-season – v dubnu hájení', async () => {

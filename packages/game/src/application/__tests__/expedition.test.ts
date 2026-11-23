@@ -628,4 +628,21 @@ describe('povel strike – útok na zvíře (plán 2026-11-22-hunting, Úloha 9)
     expect(v.wildlife?.hunt?.beaters).toEqual({ day: v.lastDay + 1, men: 1 });
     expect(w.journeys.intents.at(-1)!.body).toEqual({ kind: 'strike', people: [22, 20] });
   });
+
+  it('značka lovu ve výpravě se liší od značky ve vsi: ves přeznačí jen, co sedí – bez značky ve vsi nezaplatí', async () => {
+    const w = await setup(withGame);
+    await musterExpedition(w.deps, input(w.homeId, [20, 21, 22], GO));
+    quarryOutIn(w, 'jny-1');
+    // výprava eviduje 22 jako útočníka lovu 7, ves o značce neví (away bez huntId)
+    rewrite(w, 'jny-1', (s) => {
+      s.members.find((m) => m.ref.personId === 22)!.huntId = 7;
+    });
+    expect(await musterExpedition(w.deps, input(w.homeId, [22], STRIKE))).toEqual({
+      ok: true,
+      journeyId: 'jny-1',
+    });
+    const v = await villageOf(w);
+    expect(personOf(v, 22).away).toEqual({ kind: 'journey', refId: 'jny-1' });
+    expect(v.wildlife?.hunt?.beaters).toBeUndefined();
+  });
 });

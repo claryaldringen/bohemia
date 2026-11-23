@@ -227,7 +227,12 @@ function huntSeesChange(from: JourneyHunt | undefined, to: JourneyHunt | undefin
   if (JSON.stringify(from.beaters.end) !== JSON.stringify(to.beaters.end)) return true;
   return b.hunters.some((h, i) => {
     const was = a.hunters[i]!;
-    return was.personId !== h.personId || was.state !== h.state || was.hits !== h.hits;
+    return (
+      was.personId !== h.personId ||
+      was.state !== h.state ||
+      was.hits !== h.hits ||
+      was.left !== h.left
+    );
   });
 }
 

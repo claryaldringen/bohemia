@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { npcHuntDay, npcHunters } from '../npc-hunt';
-import { emptyHunt, huntOnDay } from '../hunt';
+import { emptyHunt } from '../hunt';
 import { freshWildlife } from '../wildlife';
 import { cloneState } from '../../core/clone';
 import { advanceVillage } from '../../core/simulate';
@@ -207,15 +207,6 @@ describe('lov hráče a správce stejně (opravné kolo 1)', () => {
     const hunters = npcHunters(s, DAY, 'boar');
     expect(hunters.map((h) => h.personId)).toEqual([man.id]);
     expect(hunters[0]!.skills.combat).toBe(man.arms.combat);
-  });
-
-  it('hráč vyhlásil lov na zítřek → správce týž den lov nevyhlásí', () => {
-    const s = damaged(1_000_000);
-    expect(huntWanted(s, DAY, 0)).toBe(true);
-    s.wildlife!.hunt = { ...emptyHunt(), beaters: { day: DAY + 1, men: HUNT.beaters.men } };
-    expect(huntOnDay(s, DAY + 1)).toBe(true);
-    expect(huntOnDay(s, DAY + 2)).toBe(false);
-    expect(huntWanted(s, DAY, 0)).toBe(false);
   });
 });
 

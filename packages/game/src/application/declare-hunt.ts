@@ -3,9 +3,12 @@ import {
   countDeclaredHunt,
   huntDenied,
   huntingDogs,
-  huntOnDay,
+  isVillageAbandoned,
+  isVillageExtinct,
+  isVillageTravelling,
   pickQuarry,
   reserveBeaters,
+  unreserveBeaters,
   type HuntDenied,
 } from '../domain/village';
 import type { VillageState } from '../domain/village/types';
@@ -19,6 +22,7 @@ import {
   upgradeJourney,
   type CampaignVillage,
   type HuntStart,
+  type JourneyState,
 } from '../domain/war';
 import type { CampaignCells } from './campaigns';
 import { journeyHome } from './expedition';
@@ -27,6 +31,7 @@ import type { HouseRepository } from './houses';
 import type { JourneyRepository } from './journeys';
 import { editVillage, findPlayerVillage, type PlayerVillagesDeps } from './player-villages';
 import type { SeedSource } from './settlements';
+import { VILLAGE_ABANDONED, VILLAGE_EXTINCT, VILLAGE_TRAVELLING } from './update-village';
 import type { VillageRepository } from './villages';
 
 // Vyhlášení lovu (hunting.md – Pravidla 2, 3; plán 2026-11-22-hunting – Rozhodnutí 1, 3, 4,
@@ -50,19 +55,24 @@ export interface DeclareHuntDeps extends PlayerVillagesDeps {
 
 /**
  * Lov běží ve výpravě `journeyId`, nebo proč nejde: důvod vsi (`HuntDenied`), cizí ves nebo rod
- * bez místa na mapě světa (`no-village`), zápis vsi se při souběhu nepovedl ani po opakování
- * (`busy`).
+ * bez místa na mapě světa (`no-village`), ves nežije (vymřelá, opuštěná, lidé na cestě – stejné
+ * texty jako u ostatních akcí vsi, `updateLivingVillage`), zápis vsi se při souběhu nepovedl ani po
+ * opakování (`busy`).
  */
 export type DeclareHuntResult =
-  { ok: true; journeyId: string } | { ok: false; reason: HuntDenied | 'no-village' | 'busy' };
+  | { ok: true; journeyId: string }
+  | { ok: false; reason: HuntDenied | DeadVillage | 'no-village' | 'busy' };
+
+/** Ves nežije – texty jako u `updateLivingVillage`. */
+type DeadVillage = typeof VILLAGE_EXTINCT | typeof VILLAGE_ABANDONED | typeof VILLAGE_TRAVELLING;
 
 const NO_VILLAGE = { ok: false, reason: 'no-village' } as const;
 
 /**
  * Hráč vyhlásí lov ve vsi `villageId` (volající drží zámek hráče – web `guardedAction`):
  * 1. ves hráče (`no-village`), běžící výprava vsi (`activeIn`) a lov v ní (`huntRunning`);
- * 2. důvody na den honců – zítřek dne vsi (`huntDenied(stav, lastDay + 1, běží)`; běží i tehdy, je-li
- *    na ten den ve vsi už lov hráče nebo správce – `huntOnDay`, jeden lov ve vsi za den) – napřed na
+ * 2. ves žije (nevymřelá, neopuštěná, ne na cestě) a důvody na den honců – zítřek dne vsi
+ *    (`huntDenied(stav, lastDay + 1, běží)`; víc lovů za den smí, každý zaplatí své honce) – napřed na
  *    uloženém stavu (bez mapy), znovu na čerstvém při zápisu; důvod se vrátí a nic se neuloží;
  * 3. zvíře losem `pickQuarry` (seed vsi, den vsi a pořadí vyhlášení po `countDeclaredHunt`)
  *    a začátek lovu `huntStartOf` z mřížky pochodu domovské mapy – dveře hustého lesa nejbližší
@@ -90,8 +100,8 @@ export async function declareHuntInVillage(
   const houseId = journey?.houseId ?? (await placedHouse(deps, input.playerId));
   if (!cell || houseId === null) return NO_VILLAGE;
   const map = await deps.cells.mapOf(cell);
-  const chosen: { start?: HuntStart; home?: CampaignVillage } = {};
-  const failed = await editVillage<HuntDenied | 'busy'>(
+  const chosen: { start?: HuntStart; home?: CampaignVillage; day?: number } = {};
+  const failed = await editVillage<HuntDenied | DeadVillage | 'busy'>(
     deps.villages,
     villageId,
     (state) => {
@@ -117,6 +127,7 @@ export async function declareHuntInVillage(
       reserveBeaters(state, day);
       chosen.start = start;
       chosen.home = home;
+      chosen.day = day;
       return null;
     },
     'busy',
@@ -124,6 +135,36 @@ export async function declareHuntInVillage(
   if (failed !== null) return { ok: false, reason: failed };
   const start = chosen.start!;
 
+  try {
+    return await startHunt(deps, input, { journey, id, houseId, start, home: chosen.home! });
+  } catch (error) {
+    // zápis výpravy selhal – ves lov nezaplatí (jako `musterExpedition` vrací rekruty)
+    await editVillage<'gone'>(
+      deps.villages,
+      villageId,
+      (state) => {
+        unreserveBeaters(state, chosen.day!);
+        return null;
+      },
+      'gone',
+    );
+    throw error;
+  }
+}
+
+/** Lov do výpravy: záměr běžící, jinak nová výprava jen s lovem (domov a lidé beze změny). */
+async function startHunt(
+  deps: DeclareHuntDeps,
+  input: { playerId: string; villageId: string; now: Date },
+  run: {
+    journey: JourneyState | null;
+    id: string | null;
+    houseId: string;
+    start: HuntStart;
+    home: CampaignVillage;
+  },
+): Promise<DeclareHuntResult> {
+  const { journey, id, start } = run;
   if (journey && id !== null) {
     const tick =
       Math.max(tickOfMs(input.now.getTime(), deps.world), journey.tick) + INTENT_LEAD_TICKS;
@@ -140,8 +181,8 @@ export async function declareHuntInVillage(
         id: journeyId,
         seed: deps.seeds.nextSeed(),
         playerId: input.playerId,
-        houseId,
-        home: structuredClone(chosen.home!),
+        houseId: run.houseId,
+        home: structuredClone(run.home),
         recruits: [],
         startMs: input.now.getTime(),
         hunt: start,
@@ -154,13 +195,15 @@ export async function declareHuntInVillage(
 }
 
 /**
- * Proč ves lov nevyhlásí (`huntDenied` na den honců – zítřek dne vsi): lov běží ve výpravě
- * (`running`), nebo je na ten den ve vsi už lov hráče či správce (`huntOnDay` – jeden lov ve vsi za
- * den, návrh Clauda); null – smí.
+ * Proč ves lov nevyhlásí: nežije (vymřelá, opuštěná, lidé na cestě – spící ves by zaplatila honce,
+ * kteří neexistují), nebo `huntDenied` na den honců (zítřek dne vsi) – `running` = lov běží ve
+ * výpravě; null – smí.
  */
-function deniedOn(state: VillageState, running: boolean): HuntDenied | null {
-  const day = state.lastDay + 1;
-  return huntDenied(state, day, running || huntOnDay(state, day));
+function deniedOn(state: VillageState, running: boolean): HuntDenied | DeadVillage | null {
+  if (isVillageExtinct(state)) return VILLAGE_EXTINCT;
+  if (isVillageAbandoned(state)) return VILLAGE_ABANDONED;
+  if (isVillageTravelling(state)) return VILLAGE_TRAVELLING;
+  return huntDenied(state, state.lastDay + 1, running);
 }
 
 /** Rod hráče s místem na mapě světa (id), jinak null – výprava nemá odkud vyjet. */

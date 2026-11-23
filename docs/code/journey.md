@@ -1037,11 +1037,13 @@ Lov vsi je součást výpravy domovské vsi (`docs/design/hunting.md`; plán –
   `waiting`), i když na ní žádný hlouček nestojí.
 - **Vyhlášení – use-case** (Úloha 9 – `application/declare-hunt.ts`): `declareHuntInVillage` se
   vstupem `playerId`, `villageId` a `now` → `DeclareHuntResult` (`{ ok: true, journeyId }`, nebo
-  `reason` `HuntDenied` | `no-village` | `busy`); `DeclareHuntDeps` jako u výpravy (vsi, výpravy,
+  `reason` `HuntDenied` | `no-village` | `busy` | `VILLAGE_EXTINCT` / `VILLAGE_ABANDONED` /
+  `VILLAGE_TRAVELLING` – ves nežije); `DeclareHuntDeps` jako u výpravy (vsi, výpravy,
   rod, mapy `cells`, hodiny světa, seedy, `newId`). Ves hráče (`findPlayerVillage`) → běžící výprava
-  vsi (`activeIn`) a lov v ní (`huntRunning`) → důvody `huntDenied` na den honců (`lastDay + 1`;
-  běží i lov, který už ve vsi na ten den je – `huntOnDay`, lov hráče i správce; jeden lov ve vsi za
-  den, návrh Clauda) napřed na uloženém stavu bez mapy → rod s místem na mapě světa
+  vsi (`activeIn`) a lov v ní (`huntRunning`) → ves žije (vymřelá, opuštěná, na cestě se odmítnou)
+  a důvody `huntDenied` na den honců (`lastDay + 1`; `running` je jen lov běžící ve výpravě – víc
+  lovů za den smí, každý zaplatí své honce, `reserveBeaters` je sčítá; selže-li zápis výpravy,
+  `unreserveBeaters` rezervaci a pořadí vrátí) napřed na uloženém stavu bez mapy → rod s místem na mapě světa
   (`no-village`) → mapa domovského políčka → zápis vsi (`editVillage`, souběh `busy`): důvody znovu
   na čerstvém stavu, `countDeclaredHunt`, zvíře `pickQuarry(zvěř, seed vsi, lastDay, declared)`
   (pořadí po přičtení – jako lov správce), dvorec výpravy (běžící `home`, jinak `journeyHome`),

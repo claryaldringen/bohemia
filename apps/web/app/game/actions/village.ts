@@ -317,8 +317,14 @@ function huntRefusalText(reason: DeclareHuntRefusal): string {
       return NOT_PLAYER_VILLAGE;
     case 'busy':
       return 'Zkus to znovu.';
-    default:
+    case 'closed-season':
+    case 'no-beaters':
+    case 'already':
+    case 'no-game':
       return HUNT_DENIED_TEXT[reason];
+    default:
+      // ves nežije – use-case vrací rovnou text (jako ostatní akce vsi)
+      return reason;
   }
 }
 

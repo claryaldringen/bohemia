@@ -610,6 +610,7 @@ describe('stepJourneys', () => {
         (s) => (s.hunt!.beaters.end = { tick: LAUNCH + 9, at: { x: -60, z: 5 }, carry: true }),
         (s) => (s.hunt!.fight.hunters[0]!.state = 'fight'),
         (s) => (s.hunt!.fight.hunters[0]!.hits = 2),
+        (s) => (s.hunt!.fight.hunters[0]!.left = true),
         (s) => (s.parties[0]!.hunting = true),
         (s) => delete s.hunt,
       ];

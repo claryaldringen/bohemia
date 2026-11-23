@@ -49,16 +49,6 @@ export const HUNT_DENIED_TEXT: Record<HuntDenied, string> = {
 };
 
 /**
- * Je ve vsi na den honců `day` už vyhlášený lov (hráčův i správcův)? Honci (`hunt.beaters.day`)
- * i den lovu správce (`hunt.npc.day`) – jeden lov ve vsi za den; použije volající jako `running`
- * v `huntDenied`.
- */
-export function huntOnDay(state: VillageState, day: number): boolean {
-  const hunt = state.wildlife?.hunt;
-  return hunt?.beaters?.day === day || hunt?.npc?.day === day;
-}
-
-/**
  * Smí ves vyhlásit lov s honci na den `day` (hunting.md – Pravidla 2, 11)? `day` je den honců –
  * zítřek dne vyhlášení: sezóna i ostatní důvody se posuzují na něj (31. 5. s honci 1. 6. lze,
  * 28. 2. s honci 1. 3. ne). Vrací null, nebo důvod v pořadí: hájení (`HUNT.closedMonths`) → lov vsi
@@ -107,6 +97,25 @@ export function reserveBeaters(
   const tomorrow = day + 1;
   const reserved = hunt.beaters?.day === tomorrow ? hunt.beaters.men : 0;
   hunt.beaters = { day: tomorrow, men: reserved + men };
+}
+
+/**
+ * Vrátí rezervaci honců a pořadí vyhlášení jednoho lovu (mutuje stav) – lov se nepodařilo zapsat
+ * do výpravy. Odečte `men` mužů z rezervace na `day + 1` (rezervace na nulu zmizí) a `declared` o 1.
+ */
+export function unreserveBeaters(
+  state: VillageState,
+  day: number,
+  men: number = HUNT.beaters.men,
+): void {
+  const hunt = state.wildlife?.hunt;
+  if (!hunt) return;
+  if (hunt.beaters?.day === day + 1) {
+    const left = hunt.beaters.men - men;
+    if (left > 0) hunt.beaters = { day: day + 1, men: left };
+    else delete hunt.beaters;
+  }
+  if (hunt.declared !== undefined) hunt.declared = Math.max(0, hunt.declared - 1);
 }
 
 /**
