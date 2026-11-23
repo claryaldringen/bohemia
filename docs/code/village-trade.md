@@ -243,16 +243,22 @@ ves>:<id výpravy>`, `stayDays`, `travelDays`, zboží `goods` – koně i tady 
     `arriveDay` = `departDay` + cesta, tržní dny `arriveDay` … `arriveDay` + pobyt − 1,
     `returnDay` = `arriveDay` + pobyt + cesta je první den doma.
   - **Lidé:** `marketCrew(give, wants, carts)` – jedna jízda: vozy (`tradeCarts`, v jeho pořadí)
-    vezou napřed kámen, pak kg zboží, pak celé klády, s každým `CARTS.tradeCrew` lidí; co se
-    nevejde, nesou nosiči (`TRADE.porterKg`), klády po `TRADE.logCarriers`, dobytek a koně ženou
-    honáci; nosiči = víc z cesty tam (`give`) a zpět (`wants`), aspoň 1; zvolí počet vozů
-    s nejméně lidmi (při shodě méně vozů); kámen, který se na vozy nevejde, → null.
+    vezou kg zboží a celé klády, s každým `CARTS.tradeCrew` lidí; co se nevejde, nesou nosiči
+    (`TRADE.porterKg`), klády po `TRADE.logCarriers`, dobytek a koně ženou honáci; kámen se
+    nakládá jako u zásilky vazala (`shipment.ts`) – na každý započatý náklad čtyřkoláku
+    `CARTS.tradeCrew` lidí, vůz netřeba; nosiči = víc z cesty tam (`give`) a zpět (`wants`),
+    aspoň 1; zvolí počet vozů s nejméně lidmi (při shodě méně vozů).
   - **Kontroly:** `checkMarketTrip(order, input)` – jediné místo (server i náhled ve webu, vstup
-    `MarketTripCheck` bez stavu): pobyt celé dny ≥ `minStayDays` (`MARKET_STAY`), zboží nejvýš
-    `villageGoodStock` (`MARKET_OVER_STOCK`), kámen jen vozem (`MARKET_STONE_CART`), nosiči
-    nejvýš dospělí vsi (`MARKET_NO_PEOPLE`), návrat před koncem světa (`MARKET_WORLD_END`).
+    `MarketTripCheck` bez stavu – `stock`, `homeCarts` (`tradeHomeCarts`, bez ohledu na voly),
+    `oxenHome`, `adults`, `cells`, `day`): tvar objednávky (konečná nezáporná čísla, kusové zboží
+    celé – `MARKET_BAD_ORDER`), pobyt celé dny ≥ `minStayDays` (`MARKET_STAY`), zboží nejvýš
+    `villageGoodStock` (`MARKET_OVER_STOCK`), vozy jen s voly, které po prodeji zbudou
+    (`cartsWithOxen(homeCarts, oxenHome − give.trainedOxen)` – sdílí ho `tradeCarts`), nosiči
+    nejvýš volní dospělí (`MARKET_NO_PEOPLE`), návrat před koncem světa (`MARKET_WORLD_END`).
     Prázdné `give` i `wants` jsou dovolené (výprava na pivo). `planMarketTrip` vstup složí ze
-    stavu (dospělí mimo lidi pryč – `awayFromWork`) a přidá `cartIds`.
+    stavu a přidá `cartIds`; `marketFreeAdults(state, day)` = dospělí mimo lidi pryč (`awayFromWork`)
+    − `expeditionLaborNeed(day + 1)` − `purchaseTravelers` − `ironTripHelpers` (jeden pomocník
+    pro server i náhled).
   - **Odchod:** `departMarket(state, day, order, target)` (kopie stavu): zboží `give` odejde
     (`addGood` záporně, koně po kusech `takeHorses`), výprava s `porters`, `carts`, `days` =
     2 × cesta + pobyt a `cost` = nosiči × dny, klíč `market:<domovská ves>:<id>`; do odchozí

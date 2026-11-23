@@ -6,14 +6,16 @@ import {
   MARKET_NO_PEOPLE,
   MARKET_OVER_STOCK,
   MARKET_STAY,
-  MARKET_STONE_CART,
+  MARKET_BAD_ORDER,
   MARKET_WORLD_END,
   applyMarketResult,
   checkMarketTrip,
   departMarket,
   marketCrew,
+  marketFreeAdults,
   marketTravelDays,
   marketTripsDay,
+  planMarketTrip,
   type MarketTripCheck,
 } from '../market-trip';
 import { expeditionLaborNeed, finishExpeditions, workExpeditions } from '../trade';
@@ -36,11 +38,12 @@ describe('výprava na trh – dny cesty a lidé (Rozhodnutí plánu 2, bod 2)', 
       carts: 1,
     });
     expect(marketCrew({ logs: 3 }, {}, [])).toEqual({ porters: 6, carts: 0 });
-    expect(marketCrew({ stone: 1 }, {}, [])).toBeNull();
+    // kámen jako u zásilky vazala: na náklad čtyřkoláku (800 kg) dva lidé, vůz netřeba
+    expect(marketCrew({ stone: 1 }, {}, [])).toEqual({ porters: 8, carts: 0 });
     expect(marketCrew({}, {}, [])).toEqual({ porters: 1, carts: 0 });
   });
 
-  it('co se na vozy naráz nevejde, nesou lidé – kámen se na vozy vejít musí (návrh Clauda)', () => {
+  it('co se na vozy naráz nevejde, nesou lidé; kámen po nákladech čtyřkoláku jako zásilka vazala', () => {
     // čtyřkolák 800 kg: 1 000 kg obilí – 200 kg nesou nosiči (8) a 2 lidé u vozu
     expect(marketCrew({ grain: 1_000 }, {}, ['four-wheel'])).toEqual({ porters: 10, carts: 1 });
     // na vůz napřed kg zboží, pak celé klády: 700 kg obilí a 1 kláda, 2 klády nesou 4 lidé
@@ -48,10 +51,9 @@ describe('výprava na trh – dny cesty a lidé (Rozhodnutí plánu 2, bod 2)', 
       porters: 6,
       carts: 1,
     });
-    // 1 m³ kamene = 2 500 kg – na jeden čtyřkolák se nevejde, na čtyři ano
-    expect(marketCrew({ stone: 1 }, {}, ['four-wheel'])).toBeNull();
+    // 1 m³ kamene = 2 500 kg = 4 náklady čtyřkoláku po 2 lidech, vozy výpravy na to nezáleží
+    expect(marketCrew({ stone: 1 }, {}, ['four-wheel'])).toEqual({ porters: 8, carts: 0 });
     const four = ['four-wheel', 'four-wheel', 'four-wheel', 'four-wheel'] as const;
-    expect(marketCrew({ stone: 1 }, {}, four)).toEqual({ porters: 8, carts: 4 });
     // víc vozů, než je třeba, nejede – při stejném počtu lidí méně vozů
     expect(marketCrew({ grain: 600 }, {}, four)).toEqual({ porters: 2, carts: 1 });
   });
@@ -61,7 +63,8 @@ describe('výprava na trh – kontroly (Rozhodnutí plánu 2, bod 2)', () => {
   const order = (give: TradeGoods, stayDays = 1): MarketOrder => ({ give, wants: {}, stayDays });
   const base: MarketTripCheck = {
     stock: { cows: 3, grain: 10_000, stone: 5 },
-    carts: [],
+    homeCarts: [],
+    oxenHome: 0,
     adults: 12,
     cells: 1,
     day: D,
@@ -86,9 +89,9 @@ describe('výprava na trh – kontroly (Rozhodnutí plánu 2, bod 2)', () => {
       ok: false,
       reason: MARKET_OVER_STOCK,
     });
-    expect(checkMarketTrip(order({ stone: 1 }), base)).toEqual({
+    expect(checkMarketTrip(order({ cows: 0.5 }), base)).toEqual({
       ok: false,
-      reason: MARKET_STONE_CART,
+      reason: MARKET_BAD_ORDER,
     });
     // 30 nosičů
     expect(checkMarketTrip(order({ grain: 750 }), base)).toEqual({
@@ -179,5 +182,107 @@ describe('výprava na trh – odchod a návrat (Rozhodnutí plánu 2, body 2 a 6
     const orphan = structuredClone(h);
     applyMarketResult(orphan, D + 2, res);
     expect(orphan.livestock!.herds.cow - h.livestock!.herds.cow).toBe(1);
+  });
+});
+
+describe('výprava na trh – opravné kolo (tažní voli, volní lidé, tvar objednávky, kámen)', () => {
+  const order = (give: TradeGoods, wants: TradeGoods = {}): MarketOrder => ({
+    give,
+    wants,
+    stayDays: 1,
+  });
+  const base: MarketTripCheck = {
+    stock: { cows: 3, trainedOxen: 4, grain: 10_000, stone: 5 },
+    homeCarts: ['four-wheel'],
+    oxenHome: 2,
+    adults: 40,
+    cells: 1,
+    day: D,
+  };
+
+  it('prodaní tažní voli netáhnou vůz – výprava jede bez něj a nosičů je tolik, kolik náklad bez vozu chce', () => {
+    // vůz s voly by 800 kg obilí vezl se 2 lidmi, bez vozu je to 32
+    expect(checkMarketTrip(order({}, { grain: 800 }), base)).toMatchObject({
+      porters: 2,
+      carts: 1,
+    });
+    expect(checkMarketTrip(order({ trainedOxen: 2 }, { grain: 800 }), base)).toMatchObject({
+      ok: true,
+      porters: 32,
+      carts: 0,
+    });
+    expect(
+      checkMarketTrip(order({ trainedOxen: 2 }, { grain: 800 }), { ...base, adults: 12 }),
+    ).toEqual({ ok: false, reason: MARKET_NO_PEOPLE });
+    // ves se čtyřmi voly, která prodá dva, vůz pojede
+    expect(
+      checkMarketTrip(order({ trainedOxen: 2 }, { grain: 800 }), { ...base, oxenHome: 4 }),
+    ).toMatchObject({ porters: 3, carts: 1 });
+    // ve stavu: výprava neodveze vůz, jehož voly prodala
+    const sent = planMarketTrip(
+      homeVillage(),
+      D,
+      order({ trainedOxen: 2 }, { grain: 800 }),
+      target,
+    );
+    expect(sent).toEqual({ ok: false, reason: MARKET_NO_PEOPLE });
+    const small = planMarketTrip(
+      homeVillage(),
+      D,
+      order({ trainedOxen: 2 }, { grain: 100 }),
+      target,
+    );
+    expect(small).toMatchObject({ ok: true, carts: 0, cartIds: [] });
+  });
+
+  it('nosiči jsou volní lidé: druhá výprava téhož dne, na kterou nikdo nezbyl, se odmítne', () => {
+    const h = homeVillage();
+    expect(marketFreeAdults(h, D)).toBe(8);
+    // 1 m³ kamene zpět = 4 náklady po 2 lidech = 8 nosičů, tedy všichni dospělí
+    const wantsStone = order({}, { stone: 1 });
+    const first = departMarket(h, D, wantsStone, target);
+    if (!first.ok) throw new Error(first.reason);
+    expect(first.trip.wants).toEqual({ stone: 1 });
+    expect(marketFreeAdults(first.state, D)).toBe(0);
+    expect(departMarket(first.state, D, wantsStone, target)).toEqual({
+      ok: false,
+      reason: MARKET_NO_PEOPLE,
+    });
+    // druhá projde, když na ni lidé zbydou
+    expect(departMarket(first.state, D, order({}, { cows: 1 }), target)).toMatchObject({
+      ok: false,
+    });
+    const few = homeVillage();
+    const cheap = departMarket(few, D, order({}, { cows: 1 }), target);
+    if (!cheap.ok) throw new Error(cheap.reason);
+    expect(marketFreeAdults(cheap.state, D)).toBe(7);
+    expect(departMarket(cheap.state, D, order({}, { cows: 1 }), target).ok).toBe(true);
+  });
+
+  it('tvar objednávky hlídá jádro: necelé kusy, záporná a nekonečná čísla, NaN', () => {
+    const bad = { ok: false, reason: MARKET_BAD_ORDER };
+    expect(checkMarketTrip(order({ trainedOxen: 0.5 }), base)).toEqual(bad);
+    expect(checkMarketTrip(order({}, { cows: 1.5 }), base)).toEqual(bad);
+    expect(checkMarketTrip(order({}, { stone: 0.5 }), base)).toEqual(bad);
+    expect(checkMarketTrip(order({ grain: Number.NaN }), base)).toEqual(bad);
+    expect(checkMarketTrip(order({}, { grain: Number.POSITIVE_INFINITY }), base)).toEqual(bad);
+    expect(checkMarketTrip(order({ grain: -5 }), base)).toEqual(bad);
+    // kg se dělí libovolně
+    expect(checkMarketTrip(order({ grain: 12.5 }), base)).toMatchObject({ ok: true });
+  });
+
+  it('kámen jako u zásilky vazala: po nákladech čtyřkoláku, výprava nepotřebuje vůz', () => {
+    const none = { ...base, homeCarts: [], oxenHome: 0 };
+    expect(checkMarketTrip(order({ stone: 1 }), none)).toMatchObject({
+      ok: true,
+      porters: 8,
+      carts: 0,
+    });
+    expect(checkMarketTrip(order({ stone: 2 }), none)).toMatchObject({ ok: true, porters: 14 });
+    // omezují ho jen lidé, a to s pravdivým důvodem
+    expect(checkMarketTrip(order({ stone: 1 }), { ...none, adults: 6 })).toEqual({
+      ok: false,
+      reason: MARKET_NO_PEOPLE,
+    });
   });
 });
