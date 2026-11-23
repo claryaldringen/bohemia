@@ -30,8 +30,8 @@ import { LANDSCAPE } from '../../__tests__/paths-fixtures';
 import { withBuiltFirstDwelling } from '../../__tests__/village-fixtures';
 
 // Krok 2a dne správce – nouze (steward.md – Obilí a lov v nouzi; Martin 8. 11. 2026: „A“): obilí
-// kupuje výpravou za obchodem, jen když hrozí hlad. Lov v nouzi je dočasně pryč (hunting.md –
-// Pravidla 8, lov správce bez scény).
+// kupuje výpravou za obchodem, jen když hrozí hlad. Lov správce (hunting.md – Pravidla 8) testuje
+// `wildlife/__tests__/npc-hunt.test.ts`.
 
 const DAY = dayIndexOf({ year: 600, month: 12, day: 1 });
 const SEED = 11;

@@ -103,8 +103,11 @@ import { goldenWorld, stateFingerprint, YEAR } from './village-golden-fixture';
 // samotné D115 ecc70f3c0369f446 a 284eb814c86ed715
 // 22. 11. 2026 – nový lov (hunting.md), úloha 2: kalendářní lov a lov navíc pryč (jako rok 1
 // v village-golden.test.ts); dřív 2898394913221238 a 59b939771586ed9f
-const EXPECTED_YEAR_2 = '95311388581112d0';
-const EXPECTED_YEAR_3 = '73877a12a6acf84e';
+// 22. 11. 2026 – nový lov (hunting.md), úloha 8: správce loví sám – jediný lov je v přípravě
+// 30. 7. 521 (bachyně utekla, jako rok 1 v village-golden.test.ts), v letech 524–526 správce lov
+// nevyhlásil; dřív 95311388581112d0 a 73877a12a6acf84e
+const EXPECTED_YEAR_2 = '93549b751d2d64b2';
+const EXPECTED_YEAR_3 = 'f2217a39e0c66fe2';
 // 18. 11. 2026 – D93 cesta přes plochu staveb; dřív 168010dd35f7c1c7 a a499594da5514b49 (viz
 // village-golden.test.ts)
 // 18. 11. 2026 – D95 výmlat (výmlat podle kg snopů, rod v zimě dorovná tempo okna – viz

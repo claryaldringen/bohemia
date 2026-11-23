@@ -1,8 +1,12 @@
+import { dateOfDayIndex } from '../../calendar';
 import type { Landscape } from '../../landscape';
+import { huntDenied } from '../wildlife/hunt';
+import { declareNpcHunt } from '../wildlife/npc-hunt';
 import { neighbourOf, neighbourStock } from '../trade/neighbours';
 import { ageGroup } from '../people/people';
 import { NEIGHBOR_DIRECTIONS } from '../rules';
 import { STEWARD } from '../rules/rules-steward';
+import { FIELD_DAMAGE } from '../rules/rules-wildlife';
 import { fieldStoresOutlook } from '../core/simulate-plan';
 import { stewardAction, type StewardContext } from './steward';
 import {
@@ -19,12 +23,12 @@ import { builtTrail } from '../trade/trail';
 import type { Direction8, NeighbourStock, TradeGood, TradeGoods, VillageState } from '../types';
 
 // Krok 2a dne správce – nouze (steward.md – Obilí a lov v nouzi; Martin 8. 11. 2026: „A“ – obojí,
-// ale jen v nouzi): obilí od sousedů kupuje, jen když hrozí hlad. Správce jedná stejnou akcí jako
-// hráč – výprava za obchodem (`tradeQuote` + `startExpedition` – v den správce její mutující jádro
-// `launchExpedition` bez kopie vsi) – se stejnými kontrolami (stezka, poptávka a zásoba souseda,
-// bilance). Lov v nouzi je dočasně pryč – kalendářní lov a lov navíc nahradil lov na tlačítko
-// dvorce (hunting.md – Pravidla 8). Rozhoduje jen ze stavu vsi a dne, bez náhody – výsledek
-// nezávisí na kouscích dopočtu.
+// ale jen v nouzi): obilí od sousedů kupuje, jen když hrozí hlad, a lov vyhlásí, jen když zvěř
+// škodí na polích. Správce jedná stejnými akcemi jako hráč – výprava za obchodem (`tradeQuote` +
+// `startExpedition` – v den správce její mutující jádro `launchExpedition` bez kopie vsi) a lov na
+// zítřek (`huntDenied` + `declareNpcHunt`; hunting.md – Pravidla 8: „Správce je NPC hráč, takže na
+// lov chodí on.“) – se stejnými kontrolami (stezka, poptávka a zásoba souseda, bilance, hájení,
+// honci). Rozhoduje jen ze stavu vsi a dne, bez náhody – výsledek nezávisí na kouscích dopočtu.
 
 const EPSILON = 1e-9;
 /** Kolikrát správce zmenší nákup, než se výprava vejde do nosičů (`grainPorterShare`). */
@@ -41,12 +45,50 @@ export interface GrainDeal {
 }
 
 /**
- * Krok 2a (mutuje stav): výprava za obilím, když hrozí hlad – podle výhledu zásob do žní
+ * Krok 2a (mutuje stav): výprava za obilím, když hrozí hlad, a lov na zítřek, když zvěř škodí
+ * (`huntWanted` → `declareNpcHunt`, lov se zapíše do letošního léta). Oba podle výhledu zásob do žní
  * (`fieldStoresOutlook` – tentýž, ze kterého počítá režim a pojistku).
  */
 export function needSteps(state: VillageState, ctx: NeedContext): void {
   const targets = fieldStoresOutlook(state, ctx.day, ctx.coverage);
   grainStep(state, ctx, targets.shortKg);
+  if (huntWanted(state, ctx.day, targets.needKg)) {
+    declareNpcHunt(state, ctx.day);
+    countSummerHunt(state, ctx.day);
+  }
+}
+
+/**
+ * Lov správce (stav nemění; hunting.md – Pravidla 8 – stejná podmínka jako dřív u lovu navíc):
+ * zvěř škodí na polích – v měsících škod (`FIELD_DAMAGE.windowMonths`) je škoda letos nebo loni
+ * aspoň `STEWARD.huntDamageShare` roční potřeby obilí z pole `needKg` – a lov s honci zítra pravidla
+ * lovu dovolí (`huntDenied` na den honců – hájení, lov správce na zítřek už je, zvěř v lese, honci).
+ * Nejvýš `STEWARD.huntsPerSummer` lovů za léto.
+ */
+export function huntWanted(state: VillageState, day: number, needKg: number): boolean {
+  const damage = state.wildlife?.damage;
+  if (!damage) return false;
+  const { month } = dateOfDayIndex(day);
+  const window = FIELD_DAMAGE.windowMonths;
+  if (month < window.from || month > window.to) return false;
+  if (summerHuntsOf(state, day) >= STEWARD.huntsPerSummer) return false;
+  const kg = Math.max(damage.totalKg, damage.lastYearKg ?? 0);
+  if (kg <= EPSILON || kg < STEWARD.huntDamageShare * needKg) return false;
+  const running = state.wildlife?.hunt?.npc?.day === day + 1;
+  return huntDenied(state, day + 1, running) === null;
+}
+
+/** Kolik lovů správce letos v létě vyhlásil (`steward.summerHunts`). */
+function summerHuntsOf(state: VillageState, day: number): number {
+  const hunts = state.steward?.summerHunts;
+  return hunts?.year === dateOfDayIndex(day).year ? hunts.count : 0;
+}
+
+/** Zapíše vyhlášený lov správce do letošního léta (mutuje stav). */
+function countSummerHunt(state: VillageState, day: number): void {
+  if (!state.steward) return;
+  const year = dateOfDayIndex(day).year;
+  state.steward.summerHunts = { year, count: summerHuntsOf(state, day) + 1 };
 }
 
 /**

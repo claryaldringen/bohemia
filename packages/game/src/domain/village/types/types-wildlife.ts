@@ -134,6 +134,11 @@ export interface HuntState {
    * druhý lov téhož dne vyžene jiné zvíře. Chybí = 0.
    */
   declared?: number;
+  /**
+   * Lov správce (hunting.md – Pravidla 8; plán 2026-11-22-hunting – Úloha 8): v den `day` ho ves
+   * dopočte v kroku dne bez scény (`npcHuntDay`). Chybí = správce lov nevyhlásil.
+   */
+  npc?: { day: number };
 }
 
 /**

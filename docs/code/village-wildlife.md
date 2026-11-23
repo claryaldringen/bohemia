@@ -182,8 +182,28 @@ Návrh: [hunting.md](../design/hunting.md) – Pravidla 2, 3, 5–7, 11; stavba 
 - **Zraněný** (`isInjured` v `people.ts`; zranění šelmou trvá `PREDATOR_RISK.injuryDays` = 60 dní):
   `laborPerDay` 0, `huntPool` ho vynechá (`manor`, `away`), `trainLordDay` ho přeskočí (necvičí ani
   nezapomíná), `lordRides` ho nevyvede na objížďku.
-- **Lov správce** (`needSteps` – steward.md, Obilí a lov v nouzi) je dočasně pryč, správce kupuje
-  jen obilí; `steward.summerHunts` a `STEWARD.huntsPerSummer` zůstávají.
+- **Lov správce** (`npc-hunt.ts`; hunting.md – Pravidla 8, 9; Martin 22. 11. 2026: „Správce je NPC
+  hráč, takže na lov chodí on.“): **vyhlášení** – krok 2a správce (`needSteps` → `huntWanted`,
+  village-steward.md – Obilí a lov v nouzi) zavolá `declareNpcHunt(state, day)`: `reserveBeaters`
+  na zítřek pro `HUNT.beaters.men` + `HUNT.npc.hunters` mužů (lovci správce platí jeden den práce
+  jako útočníci hráče – Martin: „práce těch lidí se odečte pouze za 1 den“), `HuntState.npc` =
+  `{ day: day + 1 }` a `countDeclaredHunt`. **Den lovu** – `npcHuntDay(state, day)` ve večeru rodiny
+  (`lordEveningDay` po `work()`, před `patrolHuntDay` a `trainLordDay`; kronika do `chronicle`,
+  padlí lovci do štěstí dne jako každé úmrtí): jen při `hunt.npc.day === day` (značka zmizí);
+  zvíře `pickQuarry(w, seed, day, hunt.declared ?? 0)` (bez zvěře nic), lovci `npcHunters`;
+  souboj `hunt-fight.ts` na rovné louce bez mřížky – lovci v (0, 0), dveře lesa (`startM` +
+  `doorM`, 0), výběh (`startM`, 0) (`HUNT.npc` 40 m a 20 m) –, takty do konce, nejvýš
+  `HUNT.npc.maxTicks` (2 400 = 10 minut), pak zvíře uteče; náhoda jedním proudem
+  `createRandom(deriveSeed(seed, 'hunt:' + day))`, hodiny výcviku `hoursPerTick(OFFICIAL_WORLD)`;
+  výsledek `applyHuntResult(state, day, fightResult(…))` – i bez lovců (zvíře uteče, `days` + 1).
+  **Lovci:** `npcHunters(state, day, quarry)` – muži od `HUNT.minAge`, ne `isAway`, ne
+  `isInjured`; jezdec, kdo má pár (`assignRiders` na kopii ohrad s `trainingFamily` ??
+  `lordFamily` – jako výcvik dne) s jezdeckým koněm a ves není `isUnshod`; muž rodu síla
+  `lineManStrength` (s koněm / bez) a dovednosti z `arms`, vesničan `villagerStrength` podle štěstí
+  a nuly; zdraví 100; na kance a bachyni jen nad branou umu (`aboveGate` z `hunt-fight.ts` –
+  z koně, jinak pěšky, jinak nejde); pořadí boj + (jezdec ? jízda : 0) sestupně, pak id; prvních
+  `HUNT.npc.hunters` (2). Poslední muž rodu nemá ochranu. Ves bez správce velkou zvěř neloví
+  (Pravidla 9 – `needSteps` volá jen den správce). Testy `__tests__/npc-hunt.test.ts`.
 
 - **Výjezd vojvody (Úloha 13)** – zvěř ohrozí člověka na výjezdu: čísly `PREDATOR_RISK` (čísla
   bývalého lovu beze změny, vlci čísly prasat) losuje `predatorDay` pro osamělého vojvodu nebo dvojici v hustém

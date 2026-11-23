@@ -358,7 +358,8 @@ kroniky`sacred-oak-died`/`sacred-snag-fell`(upozornění přes`CHRONICLE_NOTICES
   Den (`simulateDaySteps`, 11. 11. 2026 rozložený beze změny výsledku) skládá pojmenované kroky:
   `morningDay` → `routesDaySteps` (zastávky) → `craftCoverage` → `storesAndHerdsDay` →
   `seasonPlanDay` → `workDayStep` (`work()`) → `afterWorkDay` → `remnantsDay` (obilné jámy pod
-  novými stavbami podle `idsBefore`) → `marriagesAndMealDay` (`eat`) → `lordEveningDay` →
+  novými stavbami podle `idsBefore`) → `marriagesAndMealDay` (`eat`) → `lordEveningDay` (lov
+  správce `npcHuntDay`, úlovek z hlídky, výcvik dne – village-wildlife.md, Lov správce) →
   `peopleDay` (vymřelá ves končí) → `harvestAndUpkeepDay`; zastávky (`yield`) mezi kroky zůstaly.
   - **Zlatý otisk celé vsi** (`village-golden.test.ts`, `village-golden-fixture.ts`): ves ze seedu
     4242 v krajině seedu 1, od založení pod správcem, po 20 letech (10 polí, stáda, uhlíř, hrnčíř,

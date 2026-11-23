@@ -154,6 +154,13 @@ export const HUNT = {
   closedMonths: { from: 3, to: 5 },
   /** Honci: tolik mužů celý den mimo práci vsi (hunting.md – Pravidla 2, 3). */
   beaters: { men: 6 },
+  /**
+   * Lov správce bez scény (hunting.md – Pravidla 8; plán 2026-11-22-hunting – Rozhodnutí 8, Úloha
+   * 8; čísla návrh Clauda): na zvíře jde nejvýš `hunters` nejlepších mužů; rovná louka – zvíře
+   * vyběhne z dveří lesa `doorM` m za místem výběhu až `startM` m od lovců; souboj nejvýš
+   * `maxTicks` taktů (10 minut skutečného času), pak zvíře uteče.
+   */
+  npc: { hunters: 2, startM: 40, doorM: 20, maxTicks: 2400 },
 } as const;
 
 /**

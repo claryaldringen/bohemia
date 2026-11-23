@@ -81,6 +81,7 @@ import {
 } from './simulate-plan';
 import { work } from './simulate-work';
 import { patrolHuntDay, settlePatrol } from '../wildlife/field-patrol';
+import { npcHuntDay } from '../wildlife/npc-hunt';
 import { dogsYear } from '../wildlife/manor-dogs';
 import { conversionDay } from '../people/conversion';
 import { wildlifeYearDay } from '../wildlife/wildlife';
@@ -243,8 +244,8 @@ function* simulateDaySteps(
   remnantsDay(state, day, landscape, idsBefore);
   const eaten = marriagesAndMealDay(state, day, coverage);
   yield;
-  lordEveningDay(state, day, lordField);
-  const dayResult = { toil, eaten, disasterEvents };
+  const huntEvents = lordEveningDay(state, day, lordField);
+  const dayResult = { toil, eaten, huntEvents, disasterEvents };
   // vymřelá ves se dál nesimuluje (ani sklizeň dne)
   if (!peopleDay(state, day, landscape, obstacles, dayResult)) return;
   harvestAndUpkeepDay(state, day, date, landscape, obstacles);
@@ -502,23 +503,29 @@ function marriagesAndMealDay(
   return eat(state, day, coverage);
 }
 
-/** Večer rodiny vojvody: hlášení porážky, lov z hlídky a výcvik. */
+/** Večer rodiny vojvody: hlášení porážky, lov správce, lov z hlídky a výcvik. Vrací události lovu správce. */
 function lordEveningDay(
   state: VillageState,
   day: number,
   lordField: ReturnType<typeof work>['lordField'],
-): void {
+): ReturnType<typeof npcHuntDay> {
   // letní a nouzová porážka běží až v `eat()`, po `work()` – doplnit hlášení kusů do dnešního rozvrhu práce
   // (jen hlášení pro scénu, simulaci to nemění)
   const slaughteredToday = state.livestock?.slaughtered;
   if (state.labor?.day === day && slaughteredToday?.day === day) {
     state.labor.slaughterHeads = { ...slaughteredToday.heads };
   }
+  // lov správce bez scény (hunting.md – Pravidla 8): v den lovu po práci (honci a lovci chyběli
+  // v práci dne – `allocateDay`) souboj se zvěří na louce a výsledek hned ve vsi – úlovek, výcvik,
+  // rány a smrt lovců; před výcvikem dne (padlý ani raněný už necvičí)
+  const huntEvents = npcHuntDay(state, day);
+  state.chronicle.push(...huntEvents);
   // úlovek prasat z jezdecké hlídky polí (červen–říjen; wildlife.md – Obrana polí)
   patrolHuntDay(state, day);
   // vojvodova rodina (lord.md): výcvik dne – kdo necvičil (na poli ve žních), zapomíná –
   // a koně pod jezdci (horses.md – Výcvik koně a jezdec) – po péči (`work()`) a obilí (`eat()`)
   state.chronicle.push(...trainLordDay(state, day, lordField));
+  return huntEvents;
 }
 
 /** Lidé na konci dne: hlad, úmrtí, nástupnictví a štěstí. Vrací, jestli ves žije (vymřelá se dál nesimuluje). */
@@ -530,10 +537,11 @@ function peopleDay(
   dayResult: {
     toil: boolean;
     eaten: ReturnType<typeof eat>;
+    huntEvents: ReturnType<typeof npcHuntDay>;
     disasterEvents: ReturnType<typeof localDisastersDay>;
   },
 ): boolean {
-  const { toil, eaten, disasterEvents } = dayResult;
+  const { toil, eaten, huntEvents, disasterEvents } = dayResult;
   const { satiation, energy, diet, groups } = eaten;
   // nahromaděný hlad se počítá z dnešní energie (hladem se umírá z energie, ne z pestrosti –
   // diet.md) – úmrtí dne podle něj (population.md); v hájení zůstává pod prahem, aby po něm lidé
@@ -550,8 +558,13 @@ function peopleDay(
   }
   const events = populationDay(state, day, satiation, energy, hunger);
   state.chronicle.push(...events);
-  // kdo zahynul při pohromě, ves oplakává jako každé úmrtí (štěstí), i když zápis dělá pohroma
-  const happinessEvents = [...events, ...disasterEvents.filter((e) => e.kind === 'death')];
+  // kdo zahynul na lovu správce nebo při pohromě, ves oplakává jako každé úmrtí (štěstí), i když
+  // zápis dělá lov či pohroma
+  const happinessEvents = [
+    ...events,
+    ...huntEvents.filter((e) => e.kind === 'death'),
+    ...disasterEvents.filter((e) => e.kind === 'death'),
+  ];
   // nová hlavní manželka a nástupnictví (lord.md – Rod vojvody); ves bez rodu nic
   state.chronicle.push(...dynastyDay(state, day));
   // štěstí na konci dne – hlad, úmrtí, přeplněnost, dřina, zásoby, maso, ovoce a med po lidech

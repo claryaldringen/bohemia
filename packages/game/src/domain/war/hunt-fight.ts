@@ -534,9 +534,9 @@ function huntersStep(
 
 /**
  * Rána zblízka na kance a bachyni padne jen nad branou umu (`HUNT_FIGHT.boarGate` – pěšky boj,
- * z koně boj i jízda); ostatní zvěř brána nechrání.
+ * z koně boj i jízda); ostatní zvěř brána nechrání. Podle ní vybírá i správce (`npcHunters`).
  */
-function aboveGate(h: HuntFighter, kind: QuarryKind): boolean {
+export function aboveGate(h: Pick<NewHunter, 'mounted' | 'skills'>, kind: QuarryKind): boolean {
   if (!GATED.has(kind)) return true;
   const g = HUNT_FIGHT.boarGate;
   if (!h.mounted) return h.skills.combat >= g.foot.combat;
