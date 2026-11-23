@@ -10,24 +10,28 @@
 //    u každého zboží svého seznamu v pořadí `TRADE_GOODS` koupí min(zbývá na seznamu, co ostatní
 //    strany téhož kruhu ještě smějí prodat, zbývá rozpočtu ÷ cena) – od prodávajících v pořadí
 //    stran (napřed hostitel, pak výpravy podle příjezdu – Martin);
-// 3. |utrženo − utraceno| ≤ EPS u všech stran → hotovo;
+// 3. |utrženo − utraceno| ≤ TOLERANCE × max(utrženo, utraceno) u všech stran → hotovo;
 // 4. jinak V = min(V, utrženo, utraceno) u každé strany a nové kolo od nuly – stropy jen klesají,
 //    a když se nehnou, je každá strana vyrovnaná;
 // 5. strana nevyrovnaná po posledním kole ten den neobchoduje: vyřadí se (z nevyrovnaných ta
 //    poslední v pořadí) a počítá se znovu bez ní.
-// Proti zadání plánu dvě změny (změřeno na náhodných trzích – víc trhů obchoduje, víc zboží se
+// Proti zadání plánu tři změny (změřeno na náhodných trzích – víc trhů obchoduje, víc zboží se
 // vymění, méně kol): strop omezuje, za kolik strana prodá, ne které zboží – nabídka oříznutá na V
 // předem v pořadí `TRADE_GOODS` by nechala obilí hostitele vytlačit z trhu jeho klády a dobytek,
 // o které kupci stojí; a kupující koupí jen od strany ze svého kruhu (`tradeCircles`) – prodej, za
 // který se hodnota nemůže vrátit, by prodávajícího nechal nevyrovnaného a stropy by klesaly kolo
-// po kole o kousek.
+// po kole o kousek; a krok 5 vyřadí z nevyrovnaných poslední v pořadí stran.
 import type { MarketClearing, MarketParty, MarketPrices, MarketTrade, TradeGoods } from '../types';
 import { TRADE_GOODS, isPieceGood } from './goods';
 import { priceOf } from './market-prices';
 
 // Technické meze algoritmu, ne pravidla hry (proto ne v rules*.ts):
-/** Strana je vyrovnaná, když se utrženo a utraceno liší nejvýš o tolik mincí. */
-const EPS = 1e-6;
+/**
+ * Strana je vyrovnaná, když se utrženo a utraceno liší nejvýš o tento podíl většího z nich –
+ * relativně, aby výsledek nezávisel na měřítku cen (absolutní mez by při nízkých cenách pustila
+ * jednostranný převod a při vysokých by kvůli šumu plovoucí čárky obchod zrušila).
+ */
+const TOLERANCE = 1e-7;
 /** Šum plovoucí čárky: kusy se počítají ⌊x + NOISE⌋, zbytek do NOISE × původní hodnoty je nula. */
 const NOISE = 1e-9;
 /** Nejvýš tolik kol zápočtu – strana nevyrovnaná po posledním kole ten den neobchoduje. */
@@ -171,9 +175,11 @@ function clearingRound(
   return { trades, ledgers };
 }
 
-/** Vyrovnaná strana: utrženo a utraceno se liší nejvýš o EPS. */
+/** Vyrovnaná strana: utrženo a utraceno se liší nejvýš o `TOLERANCE` většího z nich. */
 function isBalanced(ledger: Ledger): boolean {
-  return Math.abs(ledger.earned - ledger.spent) <= EPS;
+  return (
+    Math.abs(ledger.earned - ledger.spent) <= TOLERANCE * Math.max(ledger.earned, ledger.spent)
+  );
 }
 
 /** Kola zápočtu (kroky 1–4): poslední kolo – vyrovnané, nebo po `CLEARING_ROUNDS` kolech. */

@@ -166,15 +166,14 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   nejvýš za V a koupí nejvýš za V, kupci v pořadí stran a zboží seznamu v pořadí `TRADE_GOODS`, od
   prodávajících v pořadí stran; kupující koupí jen od strany svého kruhu (`tradeCircles` – silně
   souvislé komponenty grafu „kupuje od“, jinak by se prodávajícímu hodnota nevrátila). Nevyrovnaná
-  strana (|utrženo − utraceno| > `EPS` = 10⁻⁶ mince) → V = min(V, utrženo, utraceno) u všech a nové
+  strana (|utrženo − utraceno| > `TOLERANCE` = 10⁻⁷ většího z obou, relativně – výsledek nezávisí na měřítku cen) → V = min(V, utrženo, utraceno) u všech a nové
   kolo; po `CLEARING_ROUNDS` (32, technická mez, ne pravidlo) se poslední nevyrovnaná strana vyřadí
   a počítá se bez ní. Výsledek `MarketClearing`: `trades` (`MarketTrade` – kdo komu, co, kolik)
   v pořadí přidělení, `offered` / `wanted` součty celých nabídek a seznamů všech stran pro
-  `nextPrices`; `partyTotals` – co strana prodala a koupila. Proti zadání plánu dvě změny (návrh
+  `nextPrices`; `partyTotals` – co strana prodala a koupila. Proti zadání plánu tři změny (návrh
   Clauda): strop omezuje, za kolik strana prodá, ne které zboží (nabídka oříznutá předem v pořadí
-  `TRADE_GOODS` – obilí hostitele by vytlačilo jeho klády a dobytek), a kruhy. Na 4 × 8 000
-  náhodných trzích se 3–6 stranami obchoduje o 40–60 % víc trhů, vymění se o 28–76 % víc zboží
-  a strana se vyřadí v 1 trhu z 32 000 (podle zadání ve 22).
+  `TRADE_GOODS` – obilí hostitele by vytlačilo jeho klády a dobytek), kruhy, a krok 5 vyřadí
+  z nevyrovnaných poslední v pořadí stran.
 
 - **Jen společné suroviny** (trade.md – Jen společné suroviny; Martin 19. 10. 2026: „Nech jen
   společné suroviny, nezaváděj nové.“): obchod zná jen zboží, které má i ves (`TradeGood`,

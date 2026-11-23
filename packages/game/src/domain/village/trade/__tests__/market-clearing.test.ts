@@ -105,7 +105,7 @@ describe('zápočet tržního dne (markets.md – Pravidla 5, Rozhodnutí plánu
     expect(market.trades.some((t) => t.buyer === 'B' && t.seller === 'A')).toBe(false);
   });
 
-  it('strana nevyrovnaná po posledním kole ten den neobchoduje, ostatní se vyrovnají bez ní', () => {
+  it('známá mez heuristiky: strana, která se do posledního kola neustálí, ten den neobchoduje', () => {
     // dvojice A s B a C s E spojuje obilí: A chce víc obilí, než má B, a dokupuje od C – stropy
     // klesají kolo po kole o kousek a do posledního kola se neustálí. Poslední nevyrovnaná strana
     // (C) se vyřadí, E pak nemá od koho koupit obilí a A s B se vymění bez nich
@@ -124,6 +124,54 @@ describe('zápočet tržního dne (markets.md – Pravidla 5, Rozhodnutí plánu
     expect(market.trades.every((t) => t.seller !== 'C' && t.buyer !== 'C')).toBe(true);
     expect(market.trades.every((t) => t.seller !== 'E' && t.buyer !== 'E')).toBe(true);
     expect(market.offered).toEqual({ grain: 5700, cheese: 5100, meat: 2000, honey: 700 });
+  });
+
+  describe('měřítko cen (technická mez zápočtu – relativní tolerance)', () => {
+    const scaled = (factor: number): MarketPrices => {
+      const prices: MarketPrices = {};
+      for (const good of TRADE_GOODS) prices[good] = initialPrice(good) * factor;
+      return prices;
+    };
+    const trio = [B, A, C];
+    // trh, kde se strana C do posledního kola neustálí (viz výš) – při malých cenách by ji
+    // absolutní tolerance nechala projít nevyrovnanou
+    const unsettled = [
+      party('A', { cheese: 3000 }, { grain: 2500, honey: 1600 }),
+      party('B', { honey: 700, grain: 2400 }, { cheese: 1900 }),
+      party('C', { grain: 2700 }, { meat: 800 }),
+      party('D', { cheese: 2100, grain: 600 }, {}),
+      party('E', { meat: 2000 }, { grain: 2400 }),
+    ];
+    // X nabízí maso, ale nikdo ho nechce a sama nic nechce: strana bez protějšku nic neprodá
+    const lonely = [
+      party('A', { cheese: 1000 }, { honey: 1000 }),
+      party('B', { honey: 1000 }, { cheese: 1000 }),
+      party('X', { meat: 500 }, {}),
+    ];
+
+    it.each([1e-9, 1e9])('ceny ×%s dají tytéž výměny jako běžné ceny', (factor) => {
+      for (const parties of [trio, lonely, unsettled]) {
+        const base = clearMarket(parties, scaled(1));
+        const other = clearMarket(parties, scaled(factor));
+        expect(other.trades.length).toBe(base.trades.length);
+        other.trades.forEach((t, i) => {
+          const b = base.trades[i]!;
+          expect([t.seller, t.buyer, t.good]).toEqual([b.seller, b.buyer, b.good]);
+          expect(t.amount).toBeCloseTo(b.amount, 6);
+        });
+      }
+    });
+
+    it.each([1e-9, 1e9])(
+      'při cenách ×%s strana bez protějšku nic neprodá ani nekoupí',
+      (factor) => {
+        const market = clearMarket(lonely, scaled(factor));
+        expect(partyTotals(market, 'X')).toEqual({ sold: {}, bought: {} });
+        const settled = clearMarket(unsettled, scaled(factor));
+        expect(partyTotals(settled, 'C')).toEqual({ sold: {}, bought: {} });
+        expect(partyTotals(settled, 'E')).toEqual({ sold: {}, bought: {} });
+      },
+    );
   });
 
   it('vstup se nemění', () => {
