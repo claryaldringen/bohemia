@@ -165,11 +165,16 @@ async function overdueResult(
   // nepoužitý příjezd: hostitel existuje – jen jeho schránka (příjezd z odchozí schránky vsi do ní
   // zapsal už krok 1; zpráva, kterou minule nešlo smazat, nedokazuje, že ji hostitel nepoužil);
   // hostitel chybí – příjezd v odchozí schránce vsi (krok 1 ho už vrátil – zápis se zahodí)
-  const unused = host
-    ? await pendingArrival(deps, host, trip.key)
-    : outboxArrival(outbox, trip.key);
+  // zaniklý hostitel se mohl dopočítat přes den příjezdu (spící ves dál posouvá `lastDay`), proto
+  // se příjezd hledá od `arriveDay − 1`, ne od `lastDay`; napřed návštěvník – použitý příjezd je
+  // vidět jinde (návštěvník na trhu, výsledek v `outbox` hostitele, nebo už ve schránce domova)
   const visitor = host?.state.market?.visitors.find((v) => v.key === trip.key);
-  const from = unused ?? visitor;
+  const unused = visitor
+    ? null
+    : host
+      ? await pendingArrival(deps, host, trip)
+      : outboxArrival(outbox, trip.key);
+  const from = visitor ?? unused;
   if (!from) return null;
   return resultMail(home.id, home.state.lastDay + 1, marketResult(from, { returned: true }));
 }
@@ -184,11 +189,11 @@ function outboxArrival(outbox: readonly VillageMail[], key: string): MarketArriv
 async function pendingArrival(
   deps: VillageMailDeps,
   host: VillageRecord,
-  key: string,
+  trip: MarketTrip,
 ): Promise<MarketArrival | null> {
-  const pending = await deps.villages.inbox.pending(host.id, host.state.lastDay, TOTAL_GAME_DAYS);
+  const pending = await deps.villages.inbox.pending(host.id, trip.arriveDay - 1, TOTAL_GAME_DAYS);
   for (const event of pending) {
-    if (event.body.kind === 'market-arrive' && event.body.arrival.key === key) {
+    if (event.body.kind === 'market-arrive' && event.body.arrival.key === trip.key) {
       return event.body.arrival;
     }
   }

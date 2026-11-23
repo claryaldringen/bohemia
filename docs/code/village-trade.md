@@ -287,11 +287,12 @@ ves>:<id výpravy>`, `stayDays`, `travelDays`, zboží `goods` – koně i tady 
   - **Výprava po termínu** (`lastDay ≥ returnDay`, výsledek nepřišel – `hasVillageMail`): domovská
     ves načte hostitele. Výsledek v jeho odchozí schránce zapíše sama (hostitel ho pak zapíše
     znovu – zahodí se). Jinak, je-li hostitel pryč (`sleeps` – vymřel, opuštěn, ves chybí;
-    `placeOf` null – sídlo v archivu): nepoužitý příjezd (ve schránce hostitele po jeho `lastDay` –
-    `inbox.pending` do `TOTAL_GAME_DAYS`) se vrátí jako `marketResult(příjezd, { returned: true })`
+    `placeOf` null – sídlo v archivu): nepoužitý příjezd (ve schránce hostitele od `arriveDay − 1` –
+    `inbox.pending` do `TOTAL_GAME_DAYS`; ne od jeho `lastDay`, spící ves se dopočtem přes den příjezdu
+    posune dál; napřed se hledá návštěvník) se vrátí jako `marketResult(příjezd, { returned: true })`
     se vším, co výprava vezla; výprava, která už na trhu stojí (`market.visitors`), s tím, co drží
     (`unsold`, `bought`, koně). Výsledek jde do vlastní schránky s `ref` `marketResultRef` na den
-    `lastDay + 1`. Živý hostitel pozadu znamená čekat – lidé jsou doma v plánovaný den, zboží
+    `lastDay + 1`. Archivované vsi nikdo nedopočítává – snímek, ze kterého se výsledek vezme, je konečný. Živý hostitel pozadu znamená čekat – lidé jsou doma v plánovaný den, zboží
     přijde se zprávou v nejbližší nespočtený den. Příjezd v odchozí schránce vsi se za nepoužitý
     bere jen u hostitele, jehož ves chybí (návrh Clauda, upřesnění zadání): u existujícího ho
     doručení právě zapsalo do jeho schránky a zpráva, kterou minule nešlo smazat, nedokazuje, že ji

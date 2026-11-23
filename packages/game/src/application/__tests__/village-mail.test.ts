@@ -135,7 +135,8 @@ describe('deliverVillageMail – pošta mezi vsemi', () => {
         unsold: visitor.goods,
       }),
     ]);
-    // i kdyby se M dopočetla dál, její výsledek je týž `ref` – druhý zápis se zahodí
+    // druhý výsledek má týž `ref` a zahodí se; že se zboží nerozejde, platí jen proto, že archivované
+    // vsi nikdo nedopočítává (snímek, ze kterého H výsledek vzala, je konečný)
     await w.load(w.m, D + 3);
     expect(w.state(w.m).outbox).toHaveLength(1);
     expect(await deliverVillageMail(w.deps, w.m)).toBe(0);
@@ -254,5 +255,27 @@ describe('web po dopočtu doručí odchozí schránky vsí hráče', () => {
     await advanceDynasty(w.deps, { playerId: H_PLAYER, today: D + 1 });
     expect(w.state(w.h).outbox).toBeUndefined();
     expect(await w.villages.inbox.pending(w.m, -1, TOTAL_GAME_DAYS)).toHaveLength(1);
+  });
+});
+
+describe('hostitel vymře v dopočtu přes den příjezdu', () => {
+  it('příjezd přeskočený spící vsí se vrátí se vším, jednou', async () => {
+    const w = await marketWorld();
+    await w.depart(ORDER);
+    expect(await deliverVillageMail(w.deps, w.h)).toBe(1);
+    w.villages.edit(w.m, (s) => {
+      s.people = [];
+    });
+    await w.load(w.m, D + 3);
+    expect(w.state(w.m).extinctDay).toBe(D);
+    expect(w.state(w.m).lastDay).toBe(D + 3);
+    await w.load(w.h, D + 2);
+    expect(await deliverVillageMail(w.deps, w.h)).toBe(1);
+    expect(await deliverVillageMail(w.deps, w.h)).toBe(0);
+    await w.load(w.h, D + 3);
+    expect(returnedOf(w.state(w.h))).toEqual([
+      expect.objectContaining({ returned: true, unsold: { grain: 600 } }),
+    ]);
+    expect(hasVillageMail(w.state(w.h))).toBe(false);
   });
 });

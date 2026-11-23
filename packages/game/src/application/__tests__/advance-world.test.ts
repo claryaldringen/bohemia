@@ -577,7 +577,9 @@ describe('pošta mezi vsemi ve workeru (village-mail.ts; markets.md – Rozhodnu
   });
 
   it.each([1, WORLD_STEP_DAYS])('kola workeru po %i dnech = ruční postup', async (stepDays) => {
-    // ručně: po odeslání web doručí, M se dopočte a doručí, pak H
+    // ručně: po odeslání web doručí, M se dopočte a doručí, pak H. Rovnost platí díky pořadí:
+    // M je o den víc pozadu, takže ji fronta vezme první; kdyby šla napřed H, doběhla by s
+    // `stepDays` 10 na D + 2 dřív, než M výsledek vyrobí, a výsledek by padl na D + 3.
     const manual = await marketWorld();
     await manual.depart(ORDER);
     await deliverVillageMail(manual.deps, manual.h);
