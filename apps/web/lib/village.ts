@@ -26,8 +26,7 @@ import {
   foundVillageForSettlement,
   newcomerFoundingReason,
   declareHuntInVillage,
-  huntRunning,
-  upgradeJourney,
+  huntRunningIn,
   type DeclareHuntResult,
   setDefenseStanceInVillage,
   forceBadYear,
@@ -273,12 +272,11 @@ async function viewOf(
         current.state,
       )
     : [];
+  // lov vsi už běží ve výpravě vsi, nebo čeká jeho záměr (tlačítko lovu zašedne s „Lov už běží“)
+  const huntOn = await huntRunningIn(gameDeps(), ctx.playerId, current.id);
   // správce vidí jen zobrazenou ves: konec rodu, mapy a ostatní vsi držitele mu nepatří
-  // lov vsi už běží ve výpravě vsi (tlačítko lovu zašedne s „Lov už běží“)
-  const huntId = await gameDeps().journeys.activeIn(ctx.playerId, current.id);
-  const huntPoint = huntId === null ? null : await gameDeps().journeys.checkpoint(huntId);
   const view = buildVillageView(current, ctx.landscape, ctx.day, {
-    huntRunning: huntRunning(huntPoint ? upgradeJourney(huntPoint.state) : null),
+    huntRunning: huntOn,
     gameOver: stewarding ? false : status.gameOver,
     lineEnded: !stewarding && status.gameOver ? lineEndView(status.villages) : null,
     villages: await switcherItems(ctx, status, access?.senior?.villageId),

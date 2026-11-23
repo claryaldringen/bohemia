@@ -244,6 +244,24 @@ describe('useExpeditionOrders – útok na zvíře lovu', () => {
     expect(commandExpedition).not.toHaveBeenCalled();
     expect(latest?.note).toMatchObject({ text: 'Na lov až od 14 let.' });
   });
+
+  it('smíšený výběr (žena, dívka do 12 let a muž): klient neodmítne, útok jde na server', async () => {
+    commandExpedition.mockResolvedValue({ ok: true });
+    quarryUnderCursor = true;
+    const woman: ScenePerson = { ...person(6, 25), sex: 'female' };
+    const girl: ScenePerson = { ...person(7, 9, 'young'), sex: 'female' };
+    const { mode } = mount({ kind: 'people', ids: [6, 7, 5] }, [woman, girl, person(5, 30)]);
+    await act(async () => mode()?.order({ x: 10, z: 20 }, { x: 1, y: 1 }));
+    await flush();
+    // kdo z výběru smí, rozhodne server – klient odmítá, jen když nemůže nikdo
+    expect(commandExpedition).toHaveBeenCalledTimes(1);
+    expect(commandExpedition).toHaveBeenCalledWith({
+      villageId: 'v1',
+      people: [6, 7, 5],
+      command: { kind: 'strike' },
+    });
+    expect(latest?.note ?? null).toBeNull();
+  });
 });
 
 describe('useExpeditionOrders – dvě vsi hráče, stejné id osoby (id je jedinečné jen ve vsi)', () => {

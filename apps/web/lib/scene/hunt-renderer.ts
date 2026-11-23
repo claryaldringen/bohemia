@@ -150,6 +150,8 @@ export class HuntRenderer {
    */
   animate(nowMs: number, camera: Camera | null = null): boolean {
     if (!this.active || this.frozen) return false;
+    // zapisuje se (meshe i `written`) i mimo záběr – překreslení se jen nevyžádá; změnu, která
+    // nastala mimo záběr, ukáže překreslení po pohybu kamery (kreslí scénu samo)
     const moved = this.write(nowMs);
     if (!moved) return false;
     return camera === null || camera.isInFrustum(this.bounds);

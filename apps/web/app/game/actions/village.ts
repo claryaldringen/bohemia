@@ -40,6 +40,7 @@ import {
   type DeclareHuntRefusal,
   type VillageActionResult,
 } from '@/lib/village';
+import { expeditionReason } from '@/lib/journey-view';
 import { HUNT_DENIED_TEXT, NOT_PLAYER_VILLAGE } from '@bohemia/game';
 import {
   parseBuildTrailInput,
@@ -315,6 +316,9 @@ function huntRefusalText(reason: DeclareHuntRefusal): string {
   switch (reason) {
     case 'no-village':
       return NOT_PLAYER_VILLAGE;
+    case 'unreachable':
+      // odříznutý nováček – výprava s lovem nemá odkud vyjet; text jako u výprav
+      return expeditionReason('unreachable');
     case 'busy':
       return 'Zkus to znovu.';
     case 'closed-season':

@@ -35,12 +35,15 @@ export function useJourneyScene({
     scene?.setJourneys(journeys);
   }, [scene, journeys]);
 
-  // lov vsi scény (honci, vyhnané zvíře a psi) vedle výprav – scéna kreslí jen lov své vsi
+  // lov vsi scény (honci, vyhnané zvíře a psi) vedle výprav – scéna kreslí jen lov své vsi; nový
+  // pohled každý takt lovu se jen předá – úklid `setHunt(null)` mezi takty by zahodil plynulý
+  // pohyb zvířete a prach zásahu (`HuntRenderer.set`) a ves by se přestavěla (psi u dvorce)
   const hunt = useMemo(() => sceneHuntOf(own, villageId), [own, villageId]);
   useEffect(() => {
     scene?.setHunt(hunt);
-    return () => scene?.setHunt(null);
   }, [scene, hunt]);
+  // lov ze scény zmizí až s odpojením hooku nebo výměnou scény
+  useEffect(() => () => scene?.setHunt(null), [scene]);
 
   useEffect(() => {
     if (!scene) return;
