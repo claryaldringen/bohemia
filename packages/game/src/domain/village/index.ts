@@ -390,12 +390,22 @@ export { initialPrice, nextPrices, priceOf } from './trade/market-prices';
 export { clearMarket, partyTotals } from './trade/market-clearing';
 export { marketStance } from './trade/market-stance';
 export { roughCount, villageReport } from './trade/village-report';
+// trh ve vsi hostitele (markets.md – Rozhodnutí plánu 2, body 4–7) – příjezd výpravy, tržní den
+// (krok dne volá simulate.ts), výsledek do odchozí schránky a zprávy na pivo
+export {
+  joinMarket,
+  marketArrivalRef,
+  marketDay,
+  marketResult,
+  marketResultRef,
+  rememberNews,
+} from './trade/market';
 export { legacyNeighbourName } from './trade/legacy-neighbours';
 export * from './trade/trade';
 // dobytek v obchodu – příchod a odchod dobytka (`addCattle`, `removeCattle`) jsou kroky obchodu
 export { boughtOxTrainedDay, cattleForSale, withCattleKinds } from './trade/cattle-trade';
 // koně v obchodu (horses.md – Nákup a prodej) – příchod a odchod koní (`addHorses`,
-// `removeHorses`) jsou kroky obchodu
+// `removeHorses`, `takeHorses`) jsou kroky obchodu
 export { horseValueKg, horsesForSale, horsesOf } from './trade/horse-trade';
 // koně po kusech (horses.md – Koně po kusech): věk, druh a místa ohrad koní pro scénu a rozhraní
 export {

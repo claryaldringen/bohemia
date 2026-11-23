@@ -1568,6 +1568,13 @@ export function chronicleText(event: ChronicleEvent, villageName: string, seed?:
         'přišli s nimi',
         event.people,
       );
+    case 'market-arrived':
+      // trh ve vsi (markets.md – Pravidla 3); výprava jen na pivo bez zboží
+      return Object.values(event.goods).some((n) => (n ?? 0) > 0)
+        ? `Na trh přišla výprava ze vsi ${event.villageName} – ${goodsText(event.goods)}.`
+        : `Na trh přišla výprava ze vsi ${event.villageName}.`;
+    case 'market-held':
+      return `Na trhu ves prodala ${goodsText(event.sold)} a koupila ${goodsText(event.bought)}.`;
     case 'newcomer':
       return newcomerText(event.direction, event.group, event.people);
     case 'structure-fell':

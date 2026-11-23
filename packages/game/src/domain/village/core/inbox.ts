@@ -34,6 +34,7 @@ import {
   applyRefugeDepart,
   applyRefugeHidden,
 } from '../fortification/state/refugees';
+import { joinMarket } from '../trade/market';
 import type {
   AwayKind,
   ChronicleEvent,
@@ -41,6 +42,7 @@ import type {
   Guest,
   HerdSpecies,
   HuntResult,
+  MarketMailBody,
   PersonRef,
   RefugeePerson,
   ShipmentBody,
@@ -289,7 +291,13 @@ export type VillageEventBody =
    * Rod `houseId` se pokřtil (christianity.md – Křest rodu; `sendRodBaptized`): ves zapíše den křtu
    * a ve vsi vojvody ho pokřtí a propustí vedlejší manželky (`baptizeVillage`); idempotentní.
    */
-  | ({ kind: 'rod-baptized' } & RodBaptism);
+  | ({ kind: 'rod-baptized' } & RodBaptism)
+  /**
+   * Trh (markets.md – Rozhodnutí plánu 2, bod 6) – zprávy z odchozí schránky jiné vsi
+   * (`VillageMail`): výprava přijela na trh vsi (`market-arrive` – `joinMarket`) a výsledek trhu
+   * pro výpravu, která se vrací domů (`market-result`).
+   */
+  | MarketMailBody;
 
 /**
  * Událost ve schránce vsi `villageId`. `day` = herní den, na jehož začátku se použije (nikdy ne
@@ -397,6 +405,11 @@ function applyEvent(state: VillageState, day: number, body: VillageEventBody): C
       return applyRefugeBack(state, day, body);
     case 'rod-baptized':
       return baptizeVillage(state, day, body);
+    case 'market-arrive':
+      return joinMarket(state, day, body.arrival);
+    case 'market-result':
+      // použije Úloha 4 (`applyMarketResult`) – doručí ho až Úloha 5, do té doby nikam nedojde
+      return [];
     default:
       return unknownBody(body);
   }

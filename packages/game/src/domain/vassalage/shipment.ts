@@ -1,7 +1,7 @@
 import { addCattle, cattleForSale, removeCattle } from '../village/trade/cattle-trade';
 import { cloneState } from '../village/core/clone';
 import { villageHayKg } from '../village/livestock/hay';
-import { addHorses, horsesForSale, horsesToSell, removeHorses } from '../village/trade/horse-trade';
+import { addHorses, horsesForSale, takeHorses } from '../village/trade/horse-trade';
 import { removePeople } from '../village/people/kinship';
 import { ensureLivestock, LIVESTOCK } from '../village/livestock/livestock';
 import { logArrivalPoint } from '../village/forest/log-piles';
@@ -219,14 +219,7 @@ export function dispatchShipment(
   for (const good of HORSE_GOODS) {
     const n = Math.min(horsesLeft, horsesForSale(next, good, day));
     if (n <= 0) continue;
-    for (const h of horsesToSell(next, good, n, day)) {
-      horses.push({
-        bornDay: h.bornDay,
-        sex: h.sex,
-        training: h.training,
-      });
-    }
-    removeHorses(next, good, n, day);
+    horses.push(...takeHorses(next, good, n, day));
     horsesLeft -= n;
   }
   // lidé: kdo odchází, v rodokmenu zůstane jako odešlý ve směru cesty

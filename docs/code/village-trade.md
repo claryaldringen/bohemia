@@ -191,6 +191,43 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   potter, smith, burner, carpenter a obchodníci z `state.market.arrivals` (`VillageMarket`) od
   nejnovějšího, nejvýš `MARKET.report.traders` – technický strop paměti vsi, ne pravidlo hry (návrh
   Clauda).
+- **Trh ve vsi** (markets.md – Pravidla 2, 3, 5 a 8, Rozhodnutí plánu 2, body 4–7; `trade/market.ts`,
+  typy `types-market.ts`). Trh drží stav hostitelské vsi (`VillageState.market` – `VillageMarket`:
+  ceny `prices`, výpravy na trhu `visitors`, `nextOrder`, paměť příjezdů `arrivals`) a počítá jen
+  ze stavu hostitele a událostí schránky dne, takže výsledek nezávisí na kouscích dopočtu.
+  - **Příjezd:** událost schránky `market-arrive` s `MarketArrival` (klíč `market:<domovská
+ves>:<id výpravy>`, `stayDays`, `travelDays`, zboží `goods` – koně i tady jako počty po
+    druzích, koně po kusech `MarketHorse` { `good`, `horse` }, seznam `wants`, zpráva na pivo
+    `report`). `joinMarket(state, day, arrival)` založí trh, chybí-li, přidá návštěvníka
+    `MarketVisitor` s `order` = `nextOrder` a `lastDay` = den + `stayDays` − 1 (kopie, kladné
+    položky), poznámku do `arrivals` (posledních `MARKET.report.traders`), zprávu o domovské vsi
+    (`rememberNews` → `VillageState.news`, `VillageNews` – jedna na ves, novější `report.day`
+    vyhrává, při stejném dni pozdější zpráva) a kroniku `market-arrived`. Týž klíč podruhé (výprava
+    na trhu nebo její výsledek v odchozí schránce) nic neudělá.
+  - **Tržní den:** `marketDay(state, day)` – krok dne hned po událostech schránky
+    (village-core.md – Pořadí práce dne). Bez návštěvníků nic (stav beze změny, klíč `market`
+    nevznikne). Jinak strany zápočtu hostitel (`'host'`, `marketStance`) a návštěvníci podle
+    `order`, `clearMarket` za ceny `market.prices`. Vyrovnání (`settleTrades`): hostitel prodané
+    ubere (`addGood` záporně, koně `takeHorses` v pořadí prodeje) a koupené přidá (`addGood`, koně
+    `addHorses`); návštěvníkovi ubude z `goods` a `wants` a přibude do `sold` a `bought`, koupení
+    koně po kusech do `boughtHorses` – od hostitele z `takeHorses`, od výpravy její první kusy
+    druhu; zbytky do šumu plovoucí čárky se smažou. Pak `market.prices = nextPrices(…)` z nabídek
+    a seznamů dne a kronika `market-held` (co ves prodala a koupila – jen když něco).
+  - **Odjezd:** návštěvník s `lastDay ≤ day` odjede – do odchozí schránky `VillageState.outbox`
+    (`VillageMail` { `villageId`, `day`, `ref`, `body` } – tvar nové události schránky) jde
+    `market-result` k domovské vsi na den `day + 1 + travelDays` (`ref` `marketResultRef` =
+    `…:out`; příjezd má `marketArrivalRef` = `…:in`) se zprávou o hostiteli (`villageReport`) a cenami
+    trhu. `marketResult` je jediné místo, kde vzniká `MarketResult` (`sold`, `bought`, `unsold` –
+    co zbylo, koně domů `horses` – neprodaní i koupení, `report?`, `prices?`, `returned?`);
+    nepoužitý příjezd nic neprodal ani nekoupil a domů jde vše, co vezl. Výsledek domovská ves
+    zatím nepoužije (větev `market-result` ve schránce vrátí `[]`) a odchozí schránku zatím nikdo
+    nedoručuje.
+  - **Koně:** `takeHorses(state, druh, n, day)` (`horse-trade.ts`) – koně z `horsesToSell`
+    odejdou z ohrad a vrátí se jako `TradedHorse` (den narození, pohlaví, výcvik); používá ho
+    i `dispatchShipment` (zásilky beze změny výsledku), `removeHorses` je `takeHorses` bez výsledku.
+  - **Stav:** `market`, `outbox` a `news` jsou volitelné a zapíšou se až při prvním použití –
+    ves bez návštěv simuluje stejně (zlaté otisky beze změny), převod se nepřidává. Zaniklá ves se
+    nesimuluje a schránku nepoužije.
 - **Jen společné suroviny** (trade.md – Jen společné suroviny; Martin 19. 10. 2026: „Nech jen
   společné suroviny, nezaváděj nové.“): obchod zná jen zboží, které má i ves (`TradeGood`,
   `TRADE_GOODS`). Zboží zvenku (sůl, železo, med, kožešiny – dřívější soubor zboží) ve hře není.

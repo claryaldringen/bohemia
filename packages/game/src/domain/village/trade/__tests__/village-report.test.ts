@@ -50,7 +50,7 @@ describe('zpráva na pivo (villageReport)', () => {
       day: day - 11 + i,
       goods: ['grain'],
     }));
-    s.market = { arrivals };
+    s.market = { prices: {}, visitors: [], nextOrder: 1, arrivals };
     const r = villageReport(s, day);
     expect(MARKET.report.traders).toBe(10);
     expect(r.traders.map((t) => t.day)).toEqual(Array.from({ length: 10 }, (_, i) => day - i));
@@ -59,7 +59,12 @@ describe('zpráva na pivo (villageReport)', () => {
 
   it('stav nemění', () => {
     const s = horseVillage([]);
-    s.market = { arrivals: [{ name: 'A', day, goods: [] }] };
+    s.market = {
+      prices: {},
+      visitors: [],
+      nextOrder: 1,
+      arrivals: [{ name: 'A', day, goods: [] }],
+    };
     const before = structuredClone(s);
     villageReport(s, day);
     expect(s).toEqual(before);

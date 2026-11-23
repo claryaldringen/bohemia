@@ -308,3 +308,28 @@ describe('kronika – sad a cesty k sousedům', () => {
     ).toBe('Zemská stezka na sever je dostavěná.');
   });
 });
+
+describe('kronika – trh ve vsi (markets.md – Pravidla 3)', () => {
+  it('příjezd výpravy se zbožím i jen na pivo; tržní den', () => {
+    expect(
+      chronicleText(
+        {
+          day: DAY,
+          kind: 'market-arrived',
+          villageName: 'Vlkov',
+          goods: { grain: 600, mares: 1 },
+        },
+        'X',
+      ),
+    ).toBe('Na trh přišla výprava ze vsi Vlkov – 600 kg obilí, 1 ks klisen.');
+    expect(
+      chronicleText({ day: DAY, kind: 'market-arrived', villageName: 'Vlkov', goods: {} }, 'X'),
+    ).toBe('Na trh přišla výprava ze vsi Vlkov.');
+    expect(
+      chronicleText(
+        { day: DAY, kind: 'market-held', sold: { cows: 1 }, bought: { grain: 599.9999999 } },
+        'X',
+      ),
+    ).toBe('Na trhu ves prodala 1 ks krav a koupila 600 kg obilí.');
+  });
+});

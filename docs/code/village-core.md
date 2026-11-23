@@ -21,7 +21,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   | `livestock/`           | stáda, seno, ohrady, voli a koně, orba, mléko, vlna, potřeba tažných zvířat                                       | `village-livestock.md`      |
   | `people/`              | lidé, příbuzenství, domácnosti, sňatky, rod a vojvoda, dvorec, víra a posvátná místa, štěstí, pohřby, odchod      | `village-people.md`         |
   | `crafts/`              | dílny, kovář, uhlíř, hrnčíř, tesař, vozy, nákup u sousedů                                                         | `village-crafts.md`         |
-  | `trade/`               | obchod se sousedy, zemská stezka, výměna lidí a dobytka, počasí obchodu                                           | `village-trade.md`          |
+  | `trade/`               | obchod, zemská stezka, trh ve vsi (ceny, zápočet, výpravy na trhu), výměna lidí a dobytka, počasí obchodu         | `village-trade.md`          |
   | `buildings/`           | stavby, obydlí, chátrání a oprava, bourání, hřbitov, sad, pole a sad pod stavbou                                  | `village-buildings.md`      |
   | `placement/`           | umisťování staveb `placement*.ts`, geometrie (`polygon.ts`, `squares.ts`, `square-grid.ts`, `plot-cells.ts`)      | `village-buildings.md`      |
   | `roads/`               | vylepšení cest, vozová cesta, jabloně a stromy u cest, cesta přes pole                                            | `village-roads.md`          |
@@ -90,7 +90,10 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   délkou dne. Bez délky dne zůstávají řemeslo v dílnách, tesařova pomoc stavbám, jízdy vozu za den
   a roční odhady správce (`sacredLaborGainPerYear`, `raidLossManDays`). Rozdělení práce pro
   postavy (`laborDay`, `DayWork.daylight`) dělí venkovní podíly délkou dne – podíly jsou lidé, ne
-  práce (domácnost, koně, dílny, výpravy a vozy pro kováře beze změny). Před prací dne (`simulate.ts`): 1. 9. `startSeason`, každý den `seasonDay` (konce oken
+  práce (domácnost, koně, dílny, výpravy a vozy pro kováře beze změny). Ráno každého dne
+  (`advanceVillageSteps`): návraty domů (`returnHome`), události schránky (`applyInboxDay`), hned
+  po nich **trh ve vsi** (`marketDay` – výprava, která dnes přijela, obchoduje už dnes; zápisy
+  kroniky za příjezdem; village-trade.md – Trh ve vsi) a úmrtí na rány (`woundDeathsDay`). Před prací dne (`simulate.ts`): 1. 9. `startSeason`, každý den `seasonDay` (konce oken
   setí, díly na řadě a čelo práce – fields.md, Osevní postup po dílech) a `lordHelpDay`
   (podíly dne rodiny ve žních `lordHelp` a s přípravou půdy a setím `lordSowing` – D102) a 1. 5. `wildlifeYearDay` (roční přepočet zvěře; hned za ním `weatherDay` – kronika počasí kraje v den odhalení, `village-disasters.md` –, `dogsYear` smečka dvorce, W4), 1. 6. `damageWindowStart` (ohrožené díly polí pro zvěř – wildlife.md, Škody); po `lordHelpDay` `settlePatrol` (jezdecká hlídka polí, W6), po práci dne `wildlifeDamageDay` (škoda zvěře a vran na nesklizených dílech, před jídlem) dále v závěru dne `patrolHuntDay` (úlovek z hlídky), a po sklizni jaře `wildlifeSeasonEnd` (kronika, vynulování ztrát dílů – podrobnosti `village-wildlife.md`); potřebné sezónní úlohy jsou práce nutných dílů – plodiny
   hospodářského roku (`fieldTasks` – všechny díly jedna fronta, díly nad potřebu zrušené 9. 11. 2026). `allocateDay`: denní minimum → péče o koně (`horseCare` – `horseCareLabor`, horses.md – Péče; pokrytí v `state.horsesCaredToday`) → výpravy (`away`) → potřebné sezónní úlohy v pořadí `dayTaskOrder` – **pevné pořadí skupin** `DAY_WORK_ORDER` (rules-fields.ts; `dayWorkGroup` v simulate-work.ts; fields.md – Pořadí důležitosti polních prací a výmlat do zimy, Martin 9. 11. 2026): výmlat na dnešní jídlo → žeň a odnos obilí (i luštěnin) → trhání lnu (ženy a děti napřed před všemi úlohami – `womenFirst`, Martin 10. 11. 2026) → nutná 1. seč (`mow`) → nutná otava (`mow` s `DayTask.aftermath` – skupina `'aftermath'` podle `mowingCut` plánu seče; Martin 10. 11. 2026: před orbou a setím ozimu, dřív ~~až po nich~~) → porážka a uzení (`slaughter` – od 18. 11. 2026 za žní a sečí, porážka celý rok; maso je k jídlu hned, práce jen spotřebuje ruce; v zimě se nežne ani neseče, tam hned za výmlatem na jídlo; dřív ~~hned za výmlatem na jídlo~~) → sklizeň jablek → pletí → výmlat na osivo (`ThreshTask.seed`, `seedThreshKg` v seed.ts) → příprava půdy a setí (vrácení přílohu, kopání, orba, setí – **orba rádlem první** uvnitř skupiny, oxen.md – Orba má přednost; **setí zorané a zkopané půdy před vracením přílohu téže plodiny**, rank −0,5 ve `fieldTasks`; zorané je jen vyklučené – orba, kopání a setí po `tillableRemaining`, village-fields.md – Orba a setí až po vyklučení; **výsadba jabloní u cest a sadu** v oknech výsadby po orbě, kopání a setí, před vracením přílohu – `DayAllocationInput.planting` s pořadím úloh `plantingOrder` (simulate-work.ts) a prací `fruitPlantingNeed` (simulate-build.ts), Martin 22. 11. 2026; práce `DayAllocation.planting` jde v `commonWorkDay` do `plantFruit` – `build` po druzích, napřed jabloně, pak sad –, zbytek do společné práce; v rozdělení práce pro postavy je mezi stavbami) → péče o sad → noční hlídka polí (`'watch'`, wildlife.md – Noční hlídka vesničanů) → výmlat → obilné jámy → dospělý pasák; uvnitř skupiny nejbližší konec okna, `tie` a `rank` (žeň a výmlat napřed ze žňových rukou – `harvestHands`, `lordHelp`, fields.md – Žně všemi rukama) → `common` (volná práce
@@ -409,6 +412,12 @@ seq, body }`, `NewVillageEvent` (bez `id` a `seq`, s jedinečným `ref` – idem
   s dnem použití) a `{ kind: 'lord-arrives'; party; fromVillageId }` (příjezd dosazeného vojvody –
   `settleAppointee`, village-people.md – Dosazení vojvody do vsi bez muže rodu); nový druh = nová
   větev v `applyEvent` (kompilátor ohlídá úplnost).
+  - **Trh** (markets.md – Rozhodnutí plánu 2, bod 6; village-trade.md – Trh ve vsi): těla
+    `MarketMailBody` – `{ kind: 'market-arrive'; arrival }` (výprava přijela na trh vsi –
+    `joinMarket`) a `{ kind: 'market-result'; result }` (výsledek trhu pro domovskou ves výpravy;
+    zatím se nepoužije – vrátí `[]`). Posílá je odchozí schránka vsi (`VillageState.outbox`,
+    `VillageMail` – stejný tvar jako `NewVillageEvent`), `ref` příjezdu `marketArrivalRef`,
+    výsledku `marketResultRef`.
   - **Kde se použijí:** `advanceVillageSteps(state, toDay, obstacles, landscape, inbox = [])` na
     začátku dne `d`, před `simulateDaySteps(d)`, použije události dne `d` v pořadí `seq`
     (`applyInboxDay` – mutuje klon stavu jako kroky dne, zápisy kroniky vrací). Události mimo

@@ -1,9 +1,10 @@
 // Koně ve třech druzích (docs/design/horses.md – Nákup a prodej; Martin 23. 10. 2026: koně jako
 // ostatní zvířata; ceny a podrobnosti návrh Clauda): hříbata, chovné klisny a jezdečtí koně – kusy
 // v ohradě koní. Ves dá hříbata, klisny nad chovné a jezdecké koně bez jezdce – nikdy koně, na
-// kterém někdo jezdí (zásilky vazalů, platba koní nové ohrady). Jezdecký kůň má cenu za kus podle
-// výcviku (`horseValueKg`). Koně, které přivede výprava na cestě (markets.md – Pravidla 10),
-// přijdou do ohrad koní (`addHorses`). Vzor `cattle-trade.ts`. Čisté funkce bez I/O.
+// kterém někdo jezdí (zásilky vazalů, platba koní nové ohrady, trh ve vsi – markets.md). Jezdecký
+// kůň má cenu za kus podle výcviku (`horseValueKg`). Koně, které přivede výprava na cestě
+// (markets.md – Pravidla 10) nebo koupí ves na trhu, přijdou do ohrad koní (`addHorses`). Vzor
+// `cattle-trade.ts`. Čisté funkce bez I/O.
 import { butcher } from '../livestock/livestock';
 import { horsesWanted } from '../livestock/horse-breeding';
 import {
@@ -76,15 +77,30 @@ export function horsesToSell(
 }
 
 /**
- * Prodaní koně odejdou (mutuje stav) – `horsesToSell`. Volá se až po kontrole (`horsesForSale`).
+ * Prodaní koně odejdou z ohrad (mutuje stav) – `horsesToSell` – a vrátí se jako koně v obchodu
+ * (den narození, pohlaví, výcvik; bez id a jezdce) v pořadí prodeje: zásilky vazalů
+ * (`dispatchShipment`) a prodej hostitele na trhu (`marketDay`). Volá se až po kontrole
+ * (`horsesForSale`).
  */
-export function removeHorses(state: VillageState, good: HorseGood, n: number, day: number): void {
-  if (n <= 0) return;
-  const sold = new Set(horsesToSell(state, good, n, day).map((h) => h.id));
+export function takeHorses(
+  state: VillageState,
+  good: HorseGood,
+  n: number,
+  day: number,
+): TradedHorse[] {
+  if (n <= 0) return [];
+  const given = horsesToSell(state, good, n, day);
+  const sold = new Set(given.map((h) => h.id));
   for (const pen of horsePens(state)) {
     const horses = penHorses(pen);
     if (horses.some((h) => sold.has(h.id))) pen.horses = horses.filter((h) => !sold.has(h.id));
   }
+  return given.map((h) => ({ bornDay: h.bornDay, sex: h.sex, training: h.training }));
+}
+
+/** Prodaní koně odejdou (mutuje stav) – `takeHorses` bez koní v obchodu. */
+export function removeHorses(state: VillageState, good: HorseGood, n: number, day: number): void {
+  takeHorses(state, good, n, day);
 }
 
 /**

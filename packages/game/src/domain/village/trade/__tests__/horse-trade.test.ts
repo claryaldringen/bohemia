@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { foundVillage } from '../../core/actions';
-import { horseValueKg, horsesForSale, horsesOf, horsesToSell } from '../horse-trade';
+import { horseValueKg, horsesForSale, horsesOf, horsesToSell, takeHorses } from '../horse-trade';
 import { horsesWanted } from '../../livestock/horse-breeding';
 import { villageHorses } from '../../livestock/horses';
 import { HORSES } from '../../rules';
@@ -89,6 +89,17 @@ describe('koně, které ves dá', () => {
     const left = villageHorses(s);
     expect(left.map((h) => h.id)).toEqual([1, 3, 4, 5, 6]);
     expect(left[0]!.riderId).toBe(7);
+  });
+
+  it('takeHorses: dávaní koně odejdou z ohrad a vrátí se bez id a jezdce v pořadí prodeje', () => {
+    const s = village(herd(), 3);
+    const given = horsesToSell(s, 'ridingHorses', 2, DAY);
+    expect(takeHorses(s, 'ridingHorses', 2, DAY)).toEqual(
+      given.map((h) => ({ bornDay: h.bornDay, sex: h.sex, training: h.training })),
+    );
+    expect(villageHorses(s).map((h) => h.id)).toEqual([1, 4, 5, 6]);
+    expect(takeHorses(s, 'foals', 0, DAY)).toEqual([]);
+    expect(villageHorses(s)).toHaveLength(4);
   });
 });
 

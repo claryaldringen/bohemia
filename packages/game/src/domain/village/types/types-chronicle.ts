@@ -700,6 +700,13 @@ export type ChronicleEvent = { day: number } & (
    */
   | { kind: 'trade-returned'; direction: Direction8; get: TradeGoods; people?: TradePeople }
   /**
+   * Na trh vsi přišla výprava z jiné vsi (markets.md – Pravidla 3) – odkud a co veze (koně jako
+   * počty po druzích; výprava jen na pivo bez zboží).
+   */
+  | { kind: 'market-arrived'; villageName: string; goods: TradeGoods }
+  /** Tržní den – co ves na svém trhu prodala a koupila (markets.md – Pravidla 3 a 5). */
+  | { kind: 'market-held'; sold: TradeGoods; bought: TradeGoods }
+  /**
    * Vesničané koupili výrobky řemeslníků u souseda (crafts.md – Nákup u sousedů; nový nákup
    * zrušen – markets.md, Pravidla 1, zápis přibude jen s návratem nákupu uloženého na cestě) – kg
    * nástrojů, keramiky a dřevěného nářadí, čím platili (kg obilí a luštěnin).

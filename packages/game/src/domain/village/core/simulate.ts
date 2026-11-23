@@ -40,6 +40,7 @@ import {
 } from '../people/population';
 import { advanceGroupStarvation } from '../people/hunger-groups';
 import { keepManor } from '../people/manor';
+import { marketDay } from '../trade/market';
 import { finishExpeditions } from '../trade/trade';
 import { swathRoadsInWork, trailsDay } from '../trade/trail';
 import { roadSwathDay } from '../roads/road-swath';
@@ -160,6 +161,9 @@ export function* advanceVillageSteps(
     // události schránky dne – na začátku dne, před jeho simulací (village-core.md – Schránka vsi)
     const events = eventsByDay.get(day);
     const morning: ChronicleEvent[] = events ? applyInboxDay(next, day, events) : [];
+    // trh ve vsi (markets.md – Pravidla 3) hned po událostech schránky – výprava, která dnes
+    // přijela, obchoduje už dnes; v kronice po zápisu o příjezdu
+    morning.push(...marketDay(next, day));
     // úmrtí na rány z nájezdu (war.md – Ztráty) – nástupnictví po nich ještě týž den (`dynastyDay`)
     morning.push(...woundDeathsDay(next, day));
     next.chronicle.push(...morning);
