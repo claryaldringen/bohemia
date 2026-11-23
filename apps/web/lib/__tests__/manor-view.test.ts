@@ -58,7 +58,6 @@ function village(): VillageState {
     { id: 1, direction: 'S', pieces: [], lengthM: 500, startedDay: DAY - 100, builtDay: DAY - 1 },
   ];
   s.trade = {
-    neighbours: [],
     expeditions: [],
     nextId: 1,
   };

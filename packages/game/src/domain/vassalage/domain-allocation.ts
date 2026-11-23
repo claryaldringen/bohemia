@@ -1,4 +1,4 @@
-import { CATTLE_GOODS } from '../village/trade/neighbours';
+import { CATTLE_GOODS } from '../village/trade/goods';
 import type { CattleGood } from '../village/types';
 import type { MacroGoods } from './macro';
 

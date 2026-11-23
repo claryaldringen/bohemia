@@ -8,7 +8,7 @@ import {
   ploughPairsHome,
 } from '../livestock/oxen';
 import { oxenOf } from '../livestock/pens';
-import { axisCartCheck, type CartTarget } from '../paths/cart';
+import { type CartTarget } from '../paths/cart';
 import { villageCartEstimates } from '../paths/cart-estimate';
 import { addRoadCartTrips } from '../paths/roads';
 import { CARTS, DRAFT_OXEN } from '../rules';
@@ -26,10 +26,8 @@ import type {
   FieldPart,
   HayMowing,
   Ox,
-  Trail,
   VillageState,
 } from '../types';
-import { trailTerrain } from '../paths/terrain';
 import { woodFellingCost } from '../forest/wood';
 
 // Vozy (wagons.md – Vůz): zásoba vsi, kterou vyrábí tesař (carpentry.ts). Vůz stojí u ohrady
@@ -684,22 +682,4 @@ export function addHaulTrips(
   // s deníkem jízd dne se jízdy jen zapíšou (`flushCartTrips` – provoz cest)
   if (log) log.push(...list);
   else if (state.roads) addRoadCartTrips(state.roads, list);
-}
-
-/**
- * Projede vůz zemskou stezkou (wagons.md – Obchod; `axisCartCheck` – sklon ve směru jízdy do
- * meze a voda jen brodem)? Osa stezky = její úseky pevných cest od vsi ven. Bez krajiny ano.
- */
-export function trailCartPassable(
-  state: Pick<VillageState, 'roads'>,
-  trail: Pick<Trail, 'pieces'>,
-  landscape: Landscape | null,
-): boolean {
-  if (!landscape) return true;
-  const roads = new Map((state.roads?.roads ?? []).map((r) => [r.id, r]));
-  const terrain = trailTerrain(landscape, null);
-  return trail.pieces.every((piece) => {
-    const road = roads.get(piece.roadId);
-    return !road || axisCartCheck(road.points, terrain).passable;
-  });
 }

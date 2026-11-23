@@ -269,12 +269,6 @@ function runningDemand(state: VillageState, day: number): CartDemand {
   return (draft.demand ??= emptyDemand(day));
 }
 
-/** Přičte úspory vozů (od největší) k řadě k-tých vozů. */
-function addSavings(row: number[], savings: readonly number[], max: number): void {
-  const sorted = savings.filter((s) => s > EPSILON).sort((a, b) => b - a);
-  for (let k = 0; k < sorted.length && k < max; k++) row[k] = (row[k] ?? 0) + sorted[k]!;
-}
-
 /** Na setiny. */
 function cents(value: number): number {
   return Math.round(value * 100) / 100;
@@ -311,21 +305,6 @@ export function addCartDemand(
     ...(plough ? { p: 1 as const } : {}),
   };
   (demand.days ??= []).push(rec);
-}
-
-/**
- * Výprava a čtyřkoláky (wagons.md – Kolik vozů ves chce; mutuje stav): kolik práce by ušetřil
- * k-tý čtyřkolák (`savings` – nosiči, které vůz nahradí, krát dny cesty) – do roku vozů. Jen ves
- * s rokem vozů (s ohradou volů).
- */
-export function addExpeditionDemand(
-  state: VillageState,
-  day: number,
-  savings: readonly number[],
-): void {
-  if (!oxPens(state).some((p) => p.builtDay !== null)) return;
-  const demand = runningDemand(state, day);
-  addSavings(demand['four-wheel'], savings, CART_DEMAND.maxCarts['four-wheel']);
 }
 
 /**

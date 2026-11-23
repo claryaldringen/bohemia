@@ -1597,7 +1597,7 @@ nová pravidla (návrh Clauda).
   bere čtvrtým parametrem): kovář ze sousední vsi „Kovář z Hrušova okul koně.“ (`horses-shod`
   s `direction`, starší zápis „Kovář z jiné vsi okul koně.“) a nákup u souseda jako směna
   „Vlkovští směnili 394 kg obilí za 120 kg keramiky se Sedleckými.“ (`crafts-bought` – obě strany
-  v kg, zbytek pod půl kila se nepíše); jméno souseda `neighbourOf(seed, direction).name`. Pády jmen
+  v kg, zbytek pod půl kila se nepíše); jméno dřívějšího souseda `legacyNeighbourName(seed, direction)` (markets.md – Pravidla 10). Pády jmen
   vsí `lib/village-name-cases.ts` (`fromVillage` – „z Lhoty“, „ze Sedlce“; `villagersOf` –
   „Vlkovští“; `withVillagersOf` – „s Lhotskými“): vzory podle konce jména z generátoru (-ice,
   -any, -ov, -ín, -ec, -á, -í, -a) a výčet jmen, která konec nerozhodne (Libice v jednotném čísle,

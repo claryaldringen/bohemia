@@ -17,7 +17,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `withCowsComing` v `mowingNeed` a `winterHayNeedKg`; otava má v seči všechny posečené louky
   1. seče se stropem práce `HayMowing.wanted` (`mowingRemaining`, `mowingNeededRemaining`),
      přibude-li dobytek (`hayCattle` > `HayMowing.cattle`), `raiseAftermath` strop zvedne.
-     `cattleRoom` (cattle-trade.ts) – krávy nejvýš `min(penCapacity.cow, roomForWinter(herdRoom))`.
+     Krávy nejvýš `min(penCapacity.cow, roomForWinter(herdRoom))`.
      Nouzová porážka `EMERGENCY_SLAUGHTER.order` prasata, kozy, ovce, krávy.
 - **Dvě seče podle stád** (oxen.md – Seno, dvě seče; Martin 25. 10. 2026, návrh Clauda schválený):
   `HAY_CUTS` (rules-livestock.ts) – 1. seč 25. 5. – 30. 6. (`MOWING_DAY`, plán `planMowing`),
@@ -357,8 +357,9 @@ oxen)` – jen ve vsi bez výrostků (`youngsterCount` 0), potřeba nejvýš `HE
   `nextPloughPairs` je zvýší hned na potřebu (Martin 27. 10. 2026), sníží jen po dvou plánech
   níž), rok vozů
   (`DraftState.demand.days` – každý den `CartDemandDay`: dnešní nošení podél pevných cest
-  a jinam, úspory jízd dvoukoláku pro uhlí, rudu, hlínu a vodu, den orby; čtyřkoláky výprav
-  `'four-wheel'`; `addCartDemand`, `addExpeditionDemand`; 1. 11. `closeCartYear` → `lastYear`
+  a jinam, úspory jízd dvoukoláku pro uhlí, rudu, hlínu a vodu, den orby; řada čtyřkoláků výprav
+  `'four-wheel'` – po konci výprav k sousedům (markets.md – Pravidla 1) ji nic nepřičítá, starší rok
+  ji nese dál; `addCartDemand`; 1. 11. `closeCartYear` → `lastYear`
   = tabulka úspor `CartYear` – `base[dvoukoláky][čtyřkoláky]`, ve dny orby `plough[…][…][voli]`,
   den `cartDayValue` – s cenou vola `oxYearCost`; rok uložený dřív s úsporami k-tých vozů se čte
   dál), volba `chooseCarts` (úspora mínus cena vozu na 10 let
@@ -514,7 +515,7 @@ oxen)` – jen ve vsi bez výrostků (`youngsterCount` 0), potřeba nejvýš `HE
 - **Ohrada koní a koně po kusech** (horses.md, issue #5): `PenSpecies` + `'horse'`, `Pen.horses?:
 Horse[]` (`id`, `bornDay`, `sex`, `training`, `riderId?`). `horses.ts` – `horsePens`,
   `villageHorses`, `horseKind` (hříbě do roku / klisna / jezdecký samec), `horsePlaces` (4 na hotový
-  čtverec, `PEN_PLACES_PER_SQUARE.horse`), `horseRoom` (hříbě místo nezabírá). Cena čtverce
+  čtverec, `PEN_PLACES_PER_SQUARE.horse`), `horsesInPlaces` (hříbě do roku místo nezabírá). Cena čtverce
   50 čd a 8 stromů (`PEN_BY_SPECIES.horse`; `penBuildLabor` / `penLaborManDays` / `penTrees` berou
   druh, rozšíření bere druh cílové ohrady), plot podle délky beze změny (`PEN_FENCE`).
   `penOccupancy` počítá koně ohrady (chátrání `abandonment.ts` beze změny – prázdná ohrada chátrá).

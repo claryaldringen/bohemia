@@ -15,7 +15,7 @@ import { storesOutlook } from '../../fields/field-food';
 import { breedingCows, oxenCalvesWanted, surplusCows } from '../husbandry';
 import { horsePenValueKg, withHorsePenStock } from '../horse-stock';
 import { penSquaresFromCells } from '../../placement/placement';
-import { HORSE_PEN_STOCK, HORSE_TRADE, TRADE_GOOD_VALUES } from '../../rules';
+import { HORSE_PEN_STOCK, TRADE_GOOD_VALUES } from '../../rules';
 import { advanceVillage } from '../../core/simulate';
 import { sellPrice } from '../../trade/trade';
 import type { PenInput } from '../oxen';
@@ -54,10 +54,6 @@ describe('cena ohrady koní', () => {
         HORSE_PEN_STOCK.mares * TRADE_GOOD_VALUES.mares.valueKg,
     );
     expect(horsePenValueKg()).toBe(5600);
-    expect(HORSE_PEN_STOCK.stallionAgeYears).toBeGreaterThanOrEqual(
-      HORSE_TRADE.ages.ridingHorses.from,
-    );
-    expect(HORSE_PEN_STOCK.mareAgeYears).toBeGreaterThanOrEqual(HORSE_TRADE.ages.mares.from);
   });
 
   it('bez přebytku je stavba zablokovaná', () => {

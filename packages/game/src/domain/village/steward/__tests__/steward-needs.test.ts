@@ -9,9 +9,7 @@ import {
 import { foundVillage } from '../../core/actions';
 import { cloneState } from '../../core/clone';
 import { craftCoverage } from '../../crafts/crafts';
-import { neighbourOf } from '../../trade/neighbours';
 import { ageGroup } from '../../people/people';
-import { NEIGHBOR_DIRECTIONS } from '../../rules';
 import { STEWARD } from '../../rules/rules-steward';
 import { advanceVillage } from '../../core/simulate';
 import { fieldStoresOutlook } from '../../core/simulate-plan';
@@ -30,9 +28,22 @@ import { withBuiltFirstDwelling } from '../../__tests__/village-fixtures';
 const DAY = dayIndexOf({ year: 600, month: 12, day: 1 });
 const SEED = 11;
 
-/** Směr k sousedovi, který nabízí obilí. */
+/**
+ * Směry stezek fixtury – kde ves seedu dřív měla obilnáře (smyšlení sousedé skončili – markets.md,
+ * Pravidla 1); fixtury zůstávají stejné jako dřív.
+ */
+const GRAIN_DIRECTIONS: Record<number, readonly Direction8[]> = {
+  11: ['NE', 'S'],
+  12: ['SE'],
+  13: ['SE', 'NW'],
+  14: ['SE', 'NW'],
+  15: ['W', 'NW'],
+  16: ['E', 'W'],
+};
+
+/** Směr stezky fixtury pro seed vsi. */
 function grainDirection(seed: number): Direction8 {
-  const dir = NEIGHBOR_DIRECTIONS.find((d) => neighbourOf(seed, d).offers.includes('grain'));
+  const dir = GRAIN_DIRECTIONS[seed]?.[0];
   if (!dir) throw new Error('žádný obilnář');
   return dir;
 }
@@ -118,8 +129,7 @@ describe('krok 2a v dopočtu vsi (determinismus)', () => {
         steward: newSteward(START, true),
       });
       s = advanceVillage(s, START - 1, obstacles, landscape);
-      for (const dir of NEIGHBOR_DIRECTIONS) {
-        if (!neighbourOf(seed, dir).offers.includes('grain')) continue;
+      for (const dir of GRAIN_DIRECTIONS[seed] ?? []) {
         try {
           return withNeeds(startTrail(s, START - 1, dir, landscape, obstacles));
         } catch {

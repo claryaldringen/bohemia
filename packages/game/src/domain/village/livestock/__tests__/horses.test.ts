@@ -4,15 +4,7 @@ import { packObstacles } from '../../../landscape';
 import { abandonmentDay, stockedPenIds } from '../../buildings/abandonment';
 import { foundPen, foundVillage } from '../../core/actions';
 import { cancelConstruction } from '../../buildings/cancel-construction';
-import {
-  horseKind,
-  horsePlaces,
-  horsePens,
-  horseRoom,
-  penHorses,
-  stallionId,
-  villageHorses,
-} from '../horses';
+import { horseKind, horsePlaces, horsePens, penHorses, stallionId, villageHorses } from '../horses';
 import {
   PEN,
   PEN_BY_SPECIES,
@@ -132,7 +124,6 @@ describe('ohrada koní', () => {
     expect(horseKind(foal, DAY)).toBe('foal');
     expect(horseKind(mare, DAY)).toBe('mare');
     expect(horseKind(stallion, DAY)).toBe('riding');
-    expect(horseRoom(s, DAY)).toBe(4 - 2);
     expect(horsePens(s)).toHaveLength(1);
     expect(penHorses(s.pens[0]!)).toHaveLength(3);
     expect(penOccupancy(s).get(9)).toBe(3);

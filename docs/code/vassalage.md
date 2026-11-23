@@ -79,8 +79,8 @@ odměny – dialogy a jednání ji jen volají). Návrh: `docs/design/vassalage.
   cesty); ves dostane `TradeExpedition { kind: 'shipment', destination: { cells, firstStep },
 trailId: -1, give, porters, days = 4 × cells, cost = porters × days }` – nosiči, honáci a vozkové
   jdou ze společné práce vsi zdarma (`expeditionLaborToday`), po návratu výprava bez zápisu zmizí
-  (`finishExpeditions`). Do podílů práce po stezkách (`workExpeditions`) zásilka nepatří, soused
-  v témže směru ji nevidí (`expeditionTo`) a vojvodův doprovod ji nevybere (`lord.ts`). Robota
+  (`finishExpeditions`). Do podílů práce po stezkách (`workExpeditions`) zásilka nepatří
+  a vojvodův doprovod ji nevybere (`lord.ts`). Robota
   (`laborDays`) zásilkou nejde. **Mez dopravy (`transportLimit`) funkce nehlídá** – hlídá ji dialog
   a výhled (`houseSpare`), jinak by test s chudou vsí odmítal i malou zásilku.
 - **Doba cesty** (`shipmentDays`): příjezd za `2 × cells` dní (`VASSALAGE.travelDaysPerCell`), uvnitř

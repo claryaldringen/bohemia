@@ -2,7 +2,6 @@ import { partsByIdOf } from '../../core/parts-by-id';
 import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../../calendar';
 import { foundVillage } from '../../core/actions';
-import { cattleRoom } from '../../trade/cattle-trade';
 import {
   HAY,
   HAY_WINTER_DAYS,
@@ -104,7 +103,7 @@ function coming(s: VillageState, get: TradeGoods): void {
     cost: 10,
     done: 0,
   };
-  s.trade = { neighbours: s.trade?.neighbours ?? [], nextId: 2, expeditions: [expedition] };
+  s.trade = { nextId: 2, expeditions: [expedition] };
 }
 
 describe('práce na seč – kolik sena ves stihne posekat', () => {
@@ -200,18 +199,15 @@ describe('místa v ohradách před senem', () => {
   });
 });
 
-describe('koupený dobytek', () => {
-  it('obchod koupí jen krávy, které se i s jarními telaty vejdou – 1. 11. zůstanou', () => {
+describe('dobytek z výpravy na cestě (markets.md – Pravidla 10)', () => {
+  it('krávy, které se i s jarními telaty vejdou, 1. 11. zůstanou', () => {
     const s = grazing();
     s.pens = [pen(4, 'cattle', 1, 6)];
     s.livestock!.herds.cow = 2;
     const winter = roomForWinter(herdRoom(s), 'cow');
     const room = Math.floor(Math.min(penCapacity(s).cow, winter) - 2 + 1e-9);
-    expect(cattleRoom(s, 'cows')).toBe(room);
-    // krávy na cestě místo zabírají
+    // krávy na cestě – po návratu je porážka kvůli místům nechá
     coming(s, { cows: room });
-    expect(cattleRoom(s, 'cows')).toBe(0);
-    // po návratu – porážka kvůli místům je nechá
     s.livestock!.herds.cow += room;
     s.trade!.expeditions = [];
     const t = winterTargets(s, at(600, 11, 1), { oxen: 0, hayKg: Infinity, room: herdRoom(s) });

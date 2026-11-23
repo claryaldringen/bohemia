@@ -8,7 +8,7 @@ import { horsesWanted } from '../village/livestock/horse-breeding';
 import { horsesForSale } from '../village/trade/horse-trade';
 import { villageHorses } from '../village/livestock/horses';
 import { surplusCows, winterHayNeedKg } from '../village/livestock/husbandry';
-import { HORSE_GOODS } from '../village/trade/neighbours';
+import { HORSE_GOODS } from '../village/trade/goods';
 import { isTrained, oxPens } from '../village/livestock/oxen';
 import { oxenOf } from '../village/livestock/pens';
 import { ageGroup } from '../village/people/people';

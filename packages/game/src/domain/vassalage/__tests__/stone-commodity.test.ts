@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { addStone, stoneOnHand } from '../../village/fortification/state/stone';
-import { addGood, buyPrice, sellPrice, villageGoodStock } from '../../village/trade/trade';
+import { addGood, sellPrice, villageGoodStock } from '../../village/trade/trade';
 import { dispatchShipment, receiveShipment } from '../shipment';
 import { noMacroGoods, stoneOf } from '../macro';
 import { VASSALAGE } from '../rules-vassalage';
@@ -83,6 +83,5 @@ describe('kámen jako makrokomodita', () => {
     addGood(s, 'stone', -3, DAY);
     expect(stoneOnHand(s)).toBeCloseTo(4, 9);
     expect(sellPrice('stone')).toBeCloseTo(60, 9);
-    expect(buyPrice('stone')).toBeCloseTo(60 * 0.96, 9);
   });
 });

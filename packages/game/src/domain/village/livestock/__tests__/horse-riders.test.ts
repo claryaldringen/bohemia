@@ -204,7 +204,6 @@ describe('jízdy dne (horses.md – Kdy a kam se jezdí, dokud není lov)', () =
     const s = riding([horse(1, 5), horse(2, 6)]);
     const day = START + 1;
     s.trade = {
-      neighbours: [],
       nextId: 2,
       expeditions: [{ id: 1, trailId: 4, startedDay: day } as unknown as TradeExpedition],
     };

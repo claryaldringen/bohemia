@@ -292,4 +292,4 @@ Pohled a komponenty: `apps/web/lib/wildlife-view.ts`, podrobnosti v [web-ui.md](
 v rozhraní. Z jádra se čte jen `WildlifeState` (`damage`, `watch`, `dogs`, `hunt`, `smallGame`,
 `predation`) a `wildlifeCaps`, `dogsWanted`, `huntPool`, `lordFamily`; nic se nepřepočítává.
 
-Zlá zima a kruté sucho krátí jelení zvěř a selata 1. 5. – [village-disasters.md](village-disasters.md#kraj-kolem-vsi-sousedé-a-zvěř-p4).
+Zlá zima a kruté sucho krátí jelení zvěř a selata 1. 5. – [village-disasters.md](village-disasters.md#kraj-kolem-vsi-hodnota-zboží-a-zvěř-p4).

@@ -20,22 +20,18 @@ import {
   withToolEquipment,
 } from '../iron';
 import { FORGE, ORE_KG_PER_TOOL_KG, REFINE, SMELT } from '../iron-rates';
-import { neighbourOf, TRADE_GOODS } from '../../trade/neighbours';
+import { TRADE_GOODS } from '../../trade/goods';
 import { NO_CRAFTS } from '../../core/productivity';
-import { CRAFT_BASE, IRON, NEIGHBOR_DIRECTIONS, TRADE_GOOD_VALUES } from '../../rules';
+import { CRAFT_BASE, IRON, TRADE_GOOD_VALUES } from '../../rules';
 import { advanceVillage } from '../../core/simulate';
 import { summarizeVillage } from '../../core/summary';
 import {
   sellPrice,
-  startExpedition,
-  tradeQuote,
   villageGoodStock,
   withIronBarsTrade,
   withoutForeignGoods,
 } from '../../trade/trade';
-import { finishTrail, startTrail } from '../../trade/trail';
-import type { Craft, Dwelling, Person, TradeGoods, VillageState } from '../../types';
-import { LANDSCAPE } from '../../__tests__/paths-fixtures';
+import type { Craft, Dwelling, Person, VillageState } from '../../types';
 import { withBuiltFirstDwelling } from '../../__tests__/village-fixtures';
 
 // Kovář – od rudy po hřivny a nástroje (production-chains.md – Kovář; Martin 20. 10. 2026): ruda
@@ -387,39 +383,6 @@ describe('obchod s hřivnami (production-chains.md – Kovář, trade.md)', () =
     const s = village();
     s.crafts!.ironBarsKg = 12.7;
     expect(villageGoodStock(s, 'ironBars')).toBe(12);
-    // řemeslníci nabízejí hřivny, ostatní je shánějí – v nějakém směru vždy
-    const kinds = NEIGHBOR_DIRECTIONS.map((d) => neighbourOf(5, d));
-    expect(kinds.some((n) => n.offers.includes('ironBars') || n.demands.includes('ironBars'))).toBe(
-      true,
-    );
-  });
-
-  it('ves prodá hřivny sousedovi, který je shání – nosiči je odnesou', () => {
-    for (let seed = 1; seed < 60; seed++) {
-      const direction = NEIGHBOR_DIRECTIONS.find((d) =>
-        neighbourOf(seed, d).demands.includes('ironBars'),
-      );
-      if (!direction) continue;
-      const base = withBuiltFirstDwelling(
-        foundVillage({ seed, day: WINTER, dwellingPosition: { x: 0, z: 0, rotation: Math.PI } }),
-      );
-      base.lastDay = WINTER;
-      const s = startTrail(base, WINTER, direction, LANDSCAPE, null);
-      const c = s.constructions.find((x) => x.trail !== undefined);
-      if (!c) continue;
-      finishTrail(s, c, WINTER);
-      s.constructions = s.constructions.filter((x) => x !== c);
-      s.crafts = { charcoalKg: 0, potteryKg: 0, ironBarsKg: 10.5 };
-      const offer = { direction, give: { ironBars: 10 }, get: {} };
-      const quote = tradeQuote(s, offer, WINTER);
-      expect(quote.blocked).toBeNull();
-      expect(quote.credit).toBeCloseTo(10 * sellPrice('ironBars'), 9);
-      const next = startExpedition(s, WINTER, offer);
-      expect(next.crafts!.ironBarsKg).toBeCloseTo(0.5, 9);
-      expect(next.trade!.expeditions[0]!.give).toEqual({ ironBars: 10 });
-      return;
-    }
-    throw new Error('žádný soused nesháněl hřivny');
   });
 });
 
@@ -450,23 +413,10 @@ describe('převod starší vsi (production-chains.md – Kovář, Starší vsi)'
     expect(withToolEquipment(plain)).toBe(plain);
   });
 
-  it('nástroje v obchodu → hřivny: zbytek roku souseda, výprava na cestě a kronika', () => {
+  it('nástroje v obchodu → hřivny: výprava na cestě a kronika', () => {
     const s = village();
-    const direction = NEIGHBOR_DIRECTIONS.find(
-      (d) =>
-        neighbourOf(s.seed, d).offers.includes('ironBars') ||
-        neighbourOf(s.seed, d).demands.includes('ironBars'),
-    )!;
-    const neighbour = neighbourOf(s.seed, direction);
-    const legacy = (goods: TradeGoods): Record<string, number> => {
-      const out: Record<string, number> = {};
-      for (const [k, v] of Object.entries(goods)) out[k === 'ironBars' ? 'tools' : k] = v ?? 0;
-      return out;
-    };
-    const supply = legacy(neighbour.supply);
-    const demand = legacy(neighbour.demand);
+    const direction = 'S';
     s.trade = {
-      neighbours: [{ direction, season: 600, supply, demand }],
       expeditions: [
         {
           id: 1,
@@ -487,12 +437,6 @@ describe('převod starší vsi (production-chains.md – Kovář, Starší vsi)'
       { day: s.lastDay - 1, kind: 'trade-departed', direction, give: { tools: 12 } },
     ] as unknown as VillageState['chronicle'];
     const next = withoutForeignGoods(withIronBarsTrade(s));
-    const stock = next.trade!.neighbours[0]!;
-    // zbytek roku zůstal (sedí na povahu souseda) – nástroje jsou hřivny
-    const key = 'tools' in supply ? 'supply' : 'demand';
-    const before = (key === 'supply' ? supply : demand).tools!;
-    expect(stock[key].ironBars).toBe(Math.round(before / 1.2));
-    expect('tools' in stock[key]).toBe(false);
     expect(next.trade!.expeditions[0]!.get).toEqual({ ironBars: 5 });
     expect(next.trade!.expeditions[0]!.give).toEqual({ grain: 500 });
     expect(next.chronicle[0]).toMatchObject({ give: { ironBars: 10 } });
