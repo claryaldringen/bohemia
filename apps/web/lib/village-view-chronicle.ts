@@ -908,6 +908,50 @@ function tradeTripText(
   return `${lead} – ${carry} ${goodsText(goods)}; ${withThem} ${who}.`;
 }
 
+/** Je ve zboží aspoň něco? */
+function hasAnyGoods(goods: TradeGoods): boolean {
+  return Object.values(goods).some((n) => (n ?? 0) > 0);
+}
+
+/**
+ * Věta kroniky o výpravě na trh, která vyrazila (markets.md – Pravidla 2 a 3): co veze, co shání
+ * – prázdná část se vynechá – a kdy bude doma.
+ */
+function marketDepartedText(event: Extract<ChronicleEvent, { kind: 'market-departed' }>): string {
+  const parts = [
+    ...(hasAnyGoods(event.give) ? [`veze ${goodsText(event.give)}`] : []),
+    ...(hasAnyGoods(event.wants) ? [`shání ${goodsText(event.wants)}`] : []),
+  ];
+  const what = parts.length > 0 ? ` – ${parts.join(', ')}` : '';
+  return `Výprava vyrazila na trh do vsi ${event.villageName}${what}; doma bude ${formatGameDate(dateOfDayIndex(event.returnDay))}.`;
+}
+
+/**
+ * Věta kroniky o výpravě, která se vrátila z trhu (markets.md – Pravidla 3): co prodala a koupila,
+ * nic nevyměnila, nebo přivezla vše zpět ze vsi, která už nestojí (Rozhodnutí plánu 2, bod 6).
+ * Bez jména vsi (záznam výpravy chyběl) jen „z trhu“.
+ */
+function marketReturnedText(event: Extract<ChronicleEvent, { kind: 'market-returned' }>): string {
+  const exchange = [
+    ...(hasAnyGoods(event.sold) ? [`prodala ${goodsText(event.sold)}`] : []),
+    ...(hasAnyGoods(event.bought) ? [`koupila ${goodsText(event.bought)}`] : []),
+  ];
+  if (event.returned) {
+    // výprava už na trhu obchodovala, než ves zanikla – vezla zpět jen to, co jí zbylo
+    if (exchange.length > 0) {
+      const from = event.villageName ? ` ze vsi ${event.villageName}` : '';
+      return `Výprava se vrátila${from} – ${exchange.join(', ')}; ves už nestojí.`;
+    }
+    return event.villageName
+      ? `Výprava se vrátila ze vsi ${event.villageName} se vším, co vezla – ves už nestojí.`
+      : 'Výprava se vrátila se vším, co vezla – ves už nestojí.';
+  }
+  const from = event.villageName ? `z trhu ve vsi ${event.villageName}` : 'z trhu';
+  return exchange.length > 0
+    ? `Výprava se vrátila ${from} – ${exchange.join(', ')}.`
+    : `Výprava se vrátila ${from} – nic nevyměnila.`;
+}
+
 /** Kam lidé odešli na čas (robota, služba…) – za slovesem. */
 const AWAY_TEXTS: Record<AwayKind, string> = {
   labor: 'na robotu',
@@ -1568,6 +1612,17 @@ export function chronicleText(event: ChronicleEvent, villageName: string, seed?:
         'přišli s nimi',
         event.people,
       );
+    case 'market-arrived':
+      // trh ve vsi (markets.md – Pravidla 3); výprava jen na pivo bez zboží
+      return Object.values(event.goods).some((n) => (n ?? 0) > 0)
+        ? `Na trh přišla výprava ze vsi ${event.villageName} – ${goodsText(event.goods)}.`
+        : `Na trh přišla výprava ze vsi ${event.villageName}.`;
+    case 'market-held':
+      return `Na trhu ves prodala ${goodsText(event.sold)} a koupila ${goodsText(event.bought)}.`;
+    case 'market-departed':
+      return marketDepartedText(event);
+    case 'market-returned':
+      return marketReturnedText(event);
     case 'newcomer':
       return newcomerText(event.direction, event.group, event.people);
     case 'structure-fell':

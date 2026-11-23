@@ -1,5 +1,5 @@
 import type { ComponentProps, RefObject } from 'react';
-import type { Direction8 } from '@bohemia/game';
+import type { Direction8, MarketOrder } from '@bohemia/game';
 import {
   abandonFieldParts,
   abandonStructure,
@@ -11,6 +11,7 @@ import {
   choosePlayerDeparture,
   decidePrisonerAction,
   declareHunt,
+  sendMarketExpedition,
   demolishFortificationSection,
   demolishStructure,
   ennobleVillager,
@@ -86,6 +87,8 @@ export interface VillageCommands {
   ennoble: (personId: number, targetVillageId: string) => Promise<string | null>;
   /** Hráč v kůži mladšího syna zvolil směr odchodu po pohřbu (seniorate.md, bod 4). */
   choosePlayerDeparture: (direction: Direction8, sonName?: string) => Promise<string | null>;
+  /** Pošle výpravu na trh (markets.md – Pravidla 2); důvod odepření vrátí česky, panel ho ukáže u tlačítka. */
+  sendMarket: (targetVillageId: string, order: MarketOrder) => Promise<string | null>;
   /** Obsluhy panelu výběru. */
   selection: SelectionCommands;
 }
@@ -299,9 +302,19 @@ export function villageCommands({
     },
   };
 
+  const sendMarket = (targetVillageId: string, order: MarketOrder): Promise<string | null> => {
+    const villageId = viewRef.current?.id;
+    return villageId
+      ? runAction(() => sendMarketExpedition({ villageId, targetVillageId, ...order })).then(
+          reported,
+        )
+      : Promise.resolve(null);
+  };
+
   return {
     rename,
     toggleSteward,
+    sendMarket,
     ennoble,
     choosePlayerDeparture: choosePlayerDepartureFromPanel,
     selection,

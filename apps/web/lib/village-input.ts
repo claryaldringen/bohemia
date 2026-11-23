@@ -13,6 +13,9 @@ import {
   type HouseType,
   type MasonCraft,
   type MasonryCircle,
+  type MarketOrder,
+  type TradeGoods,
+  TRADE_GOODS,
   HOUSE_TYPES_BEST_FIRST,
   MASON_CRAFTS,
   type Direction8,
@@ -578,6 +581,37 @@ export function parseSetStewardInput(value: unknown): { on: boolean } | null {
 /** Vstup vyhlášení lovu `{}` (jen `villageId`, který čte `villageAction`), jinak null. */
 export function parseDeclareHuntInput(value: unknown): Record<string, never> | null {
   return isRecord(value) ? {} : null;
+}
+
+/** Zboží objednávky trhu `{ zboží: celé nezáporné číslo }` (kg nebo kusy), neznámé zboží → null. */
+function parseTradeGoods(value: unknown): TradeGoods | null {
+  if (value === undefined) return {};
+  if (!isRecord(value)) return null;
+  const out: TradeGoods = {};
+  for (const [good, amount] of Object.entries(value)) {
+    if (!(TRADE_GOODS as readonly string[]).includes(good)) return null;
+    if (!Number.isInteger(amount) || (amount as number) < 0) return null;
+    out[good as keyof TradeGoods] = amount as number;
+  }
+  return out;
+}
+
+/**
+ * Vstup výpravy na trh `{ targetVillageId, give, wants, stayDays }` (markets.md – Pravidla 2): jen
+ * převede tvar (celá nezáporná čísla, známé zboží, id vsi); pravidla (sklad, lidé, pobyt aspoň den)
+ * hlídá jádro. Jinak null.
+ */
+export function parseMarketExpeditionInput(
+  value: unknown,
+): { targetVillageId: string; order: MarketOrder } | null {
+  if (!isRecord(value)) return null;
+  const targetVillageId = parseVillageId(value.targetVillageId);
+  const give = parseTradeGoods(value.give);
+  const wants = parseTradeGoods(value.wants);
+  const { stayDays } = value;
+  if (targetVillageId === null || give === null || wants === null) return null;
+  if (!Number.isInteger(stayDays) || (stayDays as number) < 0) return null;
+  return { targetVillageId, order: { give, wants, stayDays: stayDays as number } };
 }
 
 /** Vstup nastavení postoje vsi `{ stance }` (war.md – Obránci), jinak null. */

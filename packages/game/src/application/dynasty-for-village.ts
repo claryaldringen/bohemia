@@ -15,6 +15,7 @@ import { settleSuccessionOf } from './player-departure';
 import { closeDynastyDay, type DynastyDeps, type DynastyInput } from './restart-game';
 import { settleStewardDeparturesSafely } from './settle-steward-departures';
 import type { Settlement } from './settlements';
+import { deliverVillageMailSafely, hasVillageMail } from './village-mail';
 import {
   isFullVillage,
   type DynastyVillage,
@@ -88,7 +89,8 @@ interface Collected {
 /**
  * Stav rodu pro pohled a akci na ves `villageId` (plán workeru – 3. Web po workeru): zobrazená ves
  * a každá jiná nespící ves téže mapy nebo víc než `WORKER_LAG_DAYS` pozadu se dopočtou do dneška (a vybaví se
- * jejich odchozí schránky správce – nová ves syna se v přepínači objeví hned), vsi téže mapy se
+ * jejich odchozí schránky správce – nová ves syna se v přepínači objeví hned; pak se doručí odchozí
+ * schránky celých vsí s poštou – `deliverVillageMailSafely`, village-mail.ts), vsi téže mapy se
  * vrátí celé, vsi jiných map jen souhrnem (`digestsOf` – bez přenosu a parsování stavu; ves bez
  * souhrnu se načte celá). Konec hry ze souhrnů pozná `isGameOverOf`; když nastal (nebo vymřel
  * rod), načtou se vsi celé a rozhodne se jako dřív: všechny vsi na dnešku – `closeDynastyDay`,
@@ -138,6 +140,12 @@ async function dynastyViewOf(
     }
     if (settled === 0) break;
     collected = await collect(deps, input);
+  }
+  // odchozí schránky celých vsí (village-mail.ts) – po kolech odchodů, i nové vsi; souhrn stav nenese
+  for (const village of collected.villages) {
+    if (isFullVillage(village) && hasVillageMail(village.state)) {
+      await deliverVillageMailSafely(deps, village.id);
+    }
   }
   const { settlements, villages } = collected;
   const facts = villages.map(factsOf);

@@ -12,7 +12,10 @@ import {
 } from '../../domain/village';
 import { DAY, trackedVillage, type KinSpec } from '../../domain/village/__tests__/kin-fixtures';
 import { makeLandscape } from '../../domain/village/__tests__/placement-fixtures';
+import { D } from '../../domain/village/trade/__tests__/market-fixtures';
+import { TOTAL_GAME_DAYS } from '../../domain/calendar';
 import {
+  advancePlayer,
   advanceWorldStep,
   WORLD_STEP_DAYS,
   type WorldStep,
@@ -23,11 +26,14 @@ import { dynastyForVillage } from '../dynasty-for-village';
 import { isFullVillage } from '../villages';
 import { loadVillage } from '../load-village';
 import type { LandscapeSource } from '../settlements';
+import { deliverVillageMail } from '../village-mail';
+import type { PlayerLock } from '../locks';
 import { InMemoryPlayerLock } from './in-memory-locks';
 import { InMemorySettlements } from './in-memory-settlements';
 import { InMemoryTimeOffsets } from './in-memory-time-offsets';
 import { InMemoryVillages } from './in-memory-villages';
 import { InMemoryWorldQueue } from './in-memory-world-queue';
+import { H_PLAYER, M_PLAYER, marketWorld, returnedOf, type MarketWorld } from './market-world';
 
 const TODAY = DAY + 30;
 const landscape = makeLandscape({ size: 48 });
@@ -497,5 +503,102 @@ describe('uspání nečinných (absence.md – Zátěž serveru)', () => {
 
     expect(touched?.state.lastDay).toBe(TODAY);
     expect(JSON.stringify(touched!.state)).toBe(JSON.stringify(awake.state(a!)));
+  });
+});
+
+describe('pošta mezi vsemi ve workeru (village-mail.ts; markets.md – Rozhodnutí plánu 2, bod 6)', () => {
+  const ORDER = { give: { grain: 600 }, wants: { cows: 1 }, stayDays: 1 };
+  const advance = (
+    w: MarketWorld,
+    playerId: string,
+    today: number,
+  ): ReturnType<typeof advancePlayer> =>
+    advancePlayer(w.deps, { playerId, today, stepDays: WORLD_STEP_DAYS });
+
+  it('web dopočte, worker doručí: ves na dnešku nedopočítá, příjezd zapíše jednou', async () => {
+    const w = await marketWorld();
+    // pád webu po uložení H – odchozí schránka se nedoručila
+    const trip = await w.depart(ORDER);
+    const first = await advance(w, H_PLAYER, D);
+    expect(first).toMatchObject({ outcome: 'done', villages: 0, days: 0 });
+    expect(w.state(w.h).lastDay).toBe(D);
+    const arrivals = await w.villages.inbox.pending(w.m, D, D + 1);
+    expect(arrivals).toEqual([
+      expect.objectContaining({
+        day: D + 1,
+        body: expect.objectContaining({ kind: 'market-arrive' }),
+      }),
+    ]);
+    expect(arrivals[0]!.body).toMatchObject({ arrival: { key: trip.key } });
+    expect(trip.key.startsWith(`market:${w.h}:`)).toBe(true);
+    expect(w.state(w.h).outbox).toBeUndefined();
+    const version = w.version(w.h);
+    expect(await advance(w, H_PLAYER, D)).toMatchObject({ outcome: 'done', villages: 0 });
+    expect(await w.villages.inbox.pending(w.m, -1, TOTAL_GAME_DAYS)).toHaveLength(1);
+    expect(w.version(w.h)).toBe(version);
+  });
+
+  it('totéž pro hostitele: výsledek z odchozí schránky M dopočtené webem jde do schránky H', async () => {
+    const w = await marketWorld();
+    const trip = await w.depart(ORDER);
+    await deliverVillageMail(w.deps, w.h);
+    await w.load(w.m, D + 1);
+    expect(w.state(w.m).outbox).toHaveLength(1);
+    const step = await advance(w, M_PLAYER, D + 1);
+    expect(step).toMatchObject({ outcome: 'done', villages: 0 });
+    const results = await w.villages.inbox.pending(w.h, -1, TOTAL_GAME_DAYS);
+    expect(results).toEqual([
+      expect.objectContaining({
+        day: D + 2,
+        body: expect.objectContaining({ kind: 'market-result' }),
+      }),
+    ]);
+    expect(results[0]!.body).toMatchObject({ result: { key: trip.key } });
+    expect(w.state(w.m).outbox).toBeUndefined();
+  });
+
+  it('zámek mezitím vzal web – doručení vsi na dnešku se přeskočí (busy)', async () => {
+    const w = await marketWorld();
+    await w.depart(ORDER);
+    // přijetí odúmrti zámek dostane, doručení už ne
+    let tries = 0;
+    const locks: PlayerLock = {
+      run: (playerId, run) => w.locks.run(playerId, run),
+      tryRun: (playerId, run) =>
+        tries++ === 0 ? w.locks.tryRun(playerId, run) : Promise.resolve({ ran: false }),
+    };
+    const step = await advancePlayer(
+      { ...w.deps, locks },
+      { playerId: H_PLAYER, today: D, stepDays: WORLD_STEP_DAYS },
+    );
+    expect(step).toMatchObject({ outcome: 'busy', villages: 0 });
+    expect(tries).toBe(2);
+    expect(w.state(w.h).outbox).toHaveLength(1);
+  });
+
+  it.each([1, WORLD_STEP_DAYS])('kola workeru po %i dnech = ruční postup', async (stepDays) => {
+    // ručně: po odeslání web doručí, M se dopočte a doručí, pak H. Rovnost platí díky pořadí:
+    // M je o den víc pozadu, takže ji fronta vezme první; kdyby šla napřed H, doběhla by s
+    // `stepDays` 10 na D + 2 dřív, než M výsledek vyrobí, a výsledek by padl na D + 3.
+    const manual = await marketWorld();
+    await manual.depart(ORDER);
+    await deliverVillageMail(manual.deps, manual.h);
+    await manual.load(manual.m, D + 1);
+    await deliverVillageMail(manual.deps, manual.m);
+    await manual.load(manual.h, D + 2);
+    await manual.load(manual.m, D + 2);
+    expect(returnedOf(manual.state(manual.h))).toHaveLength(1);
+
+    // worker: po odeslání web doručí, zbytek kola workeru do dneška D + 2
+    const worker = await marketWorld();
+    await worker.depart(ORDER);
+    await deliverVillageMail(worker.deps, worker.h);
+    for (let round = 0; ; round++) {
+      expect(round).toBeLessThan(20);
+      const step = await advanceWorldStep(worker.deps, { worldDay: D + 2, stepDays, limit: 10 });
+      if (step.idle) break;
+    }
+    expect(JSON.stringify(worker.state(worker.h))).toBe(JSON.stringify(manual.state(manual.h)));
+    expect(JSON.stringify(worker.state(worker.m))).toBe(JSON.stringify(manual.state(manual.m)));
   });
 });

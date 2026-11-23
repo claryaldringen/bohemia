@@ -156,7 +156,7 @@ Koně od souseda se nekupují ani neprodávají; první koně přivede stavba oh
 - **Jednou za 7 dní k hranici:** ves se zemskou stezkou místo objížďky dojede po stezce k okraji
   mapy a zpět – hlídka na cestě k sousedům.
 - **Doprovod výpravy:** když vyráží výprava k sousedům, nejstarší volný jezdec ji doprovodí po
-  stezce k okraji mapy a vrátí se (jen ve scéně, počítá se mu jako jízda).
+  stezce k okraji mapy a vrátí se (jen ve scéně, počítá se mu jako jízda). Doprovod má jen výprava po zemské stezce; výprava na trh a zásilka stezku nemají, a tak ani doprovod ([obchod](markets.md), plán 2, návrh Clauda).
 - **V zimě** se sněhem jen kratší okruh kolem vsi.
 - **Jen po pěšinách, mezích a loukách**, nikdy přes osetý čtverec. Objížďka **nemění síť pěšin**
   (není to pochůzka, která pěšinu vyšlape) – deterministická síť zůstane, jak je.

@@ -183,26 +183,44 @@ export function cartLoadRatio(kind: CartKind): number {
 }
 
 /**
+ * Které z vozů `homeCarts` utáhnou voli `oxen` (oxen.md – Potah: čtyřkolák táhnou dva, dvoukolák
+ * jeden) – v pořadí vozů; vůz, na který voli nezbudou, zůstane doma. Jediné pravidlo „vůz jede jen
+ * se svými voly“ – sdílí ho `tradeCarts` i kontrola výpravy na trh (náhled ve webu).
+ */
+export function cartsWithOxen<T extends { kind: CartKind }>(
+  homeCarts: readonly T[],
+  oxen: number,
+): T[] {
+  let left = oxen;
+  const out: T[] = [];
+  for (const cart of homeCarts) {
+    if (left < cartOxen(cart.kind)) continue;
+    left -= cartOxen(cart.kind);
+    out.push(cart);
+  }
+  return out;
+}
+
+/**
+ * Vozy doma (ne na výpravě, u nákupu ani na cestě pro kování) pro výpravu bez ohledu na voly –
+ * čtyřkoláky napřed (víc nákladu), pak dvoukoláky; v pořadí id.
+ */
+export function tradeHomeCarts(state: Pick<VillageState, 'carts' | 'trade'>): Cart[] {
+  const away = cartsAway(state);
+  return villageCarts(state)
+    .filter((c) => !away.has(c.id))
+    .sort((a, b) => CART_KINDS.indexOf(b.kind) - CART_KINDS.indexOf(a.kind) || a.id - b.id);
+}
+
+/**
  * Vozy pro výpravu (wagons.md – Obchod): doma a s vycvičenými voly, kteří nejsou s jinou výpravou
- * (čtyřkolák táhnou dva, dvoukolák jeden – oxen.md, Potah) – čtyřkoláky napřed (víc nákladu), pak
- * dvoukoláky; v pořadí id. Vůz, na který voli nezbudou, zůstane doma.
+ * (`cartsWithOxen` nad `tradeHomeCarts`). Vůz, na který voli nezbudou, zůstane doma.
  */
 export function tradeCarts(
   state: Pick<VillageState, 'carts' | 'pens' | 'trade'>,
   day: number,
 ): Cart[] {
-  const away = cartsAway(state);
-  let oxen = oxenHome(state, day);
-  const home = villageCarts(state)
-    .filter((c) => !away.has(c.id))
-    .sort((a, b) => CART_KINDS.indexOf(b.kind) - CART_KINDS.indexOf(a.kind) || a.id - b.id);
-  const out: Cart[] = [];
-  for (const cart of home) {
-    if (oxen < cartOxen(cart.kind)) continue;
-    oxen -= cartOxen(cart.kind);
-    out.push(cart);
-  }
-  return out;
+  return cartsWithOxen(tradeHomeCarts(state), oxenHome(state, day));
 }
 
 // --- svoz --------------------------------------------------------------------------------

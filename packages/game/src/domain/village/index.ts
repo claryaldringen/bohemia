@@ -322,6 +322,8 @@ export {
   sowingCartReach,
   cartOxen,
   tradeCarts,
+  tradeHomeCarts,
+  cartsWithOxen,
   villageCartAccess,
   villageCarts,
   type CartAccess,
@@ -385,13 +387,48 @@ export * from './trade/trail';
 export { TRAIL_END_BAND_M, trailExitsOf, type TrailExit } from './trade/trail-exits';
 export { landscapeTrailLines } from './trade/premium-route';
 export * from './trade/goods';
+// trh – ceny v mincovní míře a zápočet tržního dne (markets.md – Rozhodnutí plánu 2, body 3 a 4)
+export { initialPrice, nextPrices, priceOf } from './trade/market-prices';
+export { clearMarket, partyTotals } from './trade/market-clearing';
+export { marketStance } from './trade/market-stance';
+export { roughCount, villageReport } from './trade/village-report';
+// trh ve vsi hostitele (markets.md – Rozhodnutí plánu 2, body 4–7) – příjezd výpravy, tržní den
+// (krok dne volá simulate.ts), výsledek do odchozí schránky a zprávy na pivo
+export {
+  joinMarket,
+  marketArrivalRef,
+  marketDay,
+  marketResult,
+  marketResultRef,
+  rememberNews,
+} from './trade/market';
+// výprava na trh – domovská ves (markets.md – Rozhodnutí plánu 2, body 1, 2 a 6): kontroly
+// a odchod, lidé a vozy pryč v pevné dny, výsledek trhu domů (kroky dne volá simulate.ts a schránka)
+export {
+  MARKET_NO_PEOPLE,
+  MARKET_OVER_STOCK,
+  MARKET_STAY,
+  MARKET_BAD_ORDER,
+  MARKET_WORLD_END,
+  applyMarketResult,
+  checkMarketTrip,
+  departMarket,
+  marketCrew,
+  marketTravelDays,
+  marketTripsDay,
+  planMarketTrip,
+  marketFreeAdults,
+  type MarketCheck,
+  type MarketPlan,
+  type MarketTripCheck,
+} from './trade/market-trip';
 export { legacyNeighbourName } from './trade/legacy-neighbours';
 export * from './trade/trade';
 // dobytek v obchodu – příchod a odchod dobytka (`addCattle`, `removeCattle`) jsou kroky obchodu
 export { boughtOxTrainedDay, cattleForSale, withCattleKinds } from './trade/cattle-trade';
 // koně v obchodu (horses.md – Nákup a prodej) – příchod a odchod koní (`addHorses`,
-// `removeHorses`) jsou kroky obchodu
-export { horseValueKg, horsesForSale } from './trade/horse-trade';
+// `removeHorses`, `takeHorses`) jsou kroky obchodu
+export { horseValueKg, horsesForSale, horsesOf } from './trade/horse-trade';
 // koně po kusech (horses.md – Koně po kusech): věk, druh a místa ohrad koní pro scénu a rozhraní
 export {
   horseAgeYears,

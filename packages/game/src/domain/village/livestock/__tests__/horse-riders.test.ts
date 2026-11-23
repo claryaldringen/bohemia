@@ -217,4 +217,19 @@ describe('jízdy dne (horses.md – Kdy a kam se jezdí, dokud není lov)', () =
     expect(rides.riders.map((r) => r.riderId)).toEqual([LORD_ID]);
     expect(lordRides(s, day + 1)!.escort).toBeNull();
   });
+
+  it('výpravu na trh nikdo nedoprovází – nemá stezku, jezdci jedou jako jindy', () => {
+    const s = riding([horse(1, 5), horse(2, 6)]);
+    const day = START + 1;
+    const market = {
+      id: 1,
+      kind: 'market',
+      trailId: -1,
+      startedDay: day,
+    } as unknown as TradeExpedition;
+    s.trade = { nextId: 2, expeditions: [market] };
+    const rides = lordRides(s, day)!;
+    expect(rides.escort).toBeNull();
+    expect(rides.riders.map((r) => r.riderId)).toEqual([LORD_ID, SON_ID]);
+  });
 });

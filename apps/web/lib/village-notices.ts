@@ -107,6 +107,8 @@ export type NoticeKind =
   | 'trail-built'
   | 'trade-departed'
   | 'trade-returned'
+  /** Výprava na trh se vrátila (markets.md – Pravidla 3). */
+  | 'market-returned'
   /** S výpravou přišli lidé od souseda (trade.md – Výměna lidí). */
   | 'newcomer-family'
   | 'newcomer-man'
@@ -553,6 +555,12 @@ const CHRONICLE_NOTICES: Partial<
   'trail-built': () => ({ kind: 'trail-built', tone: 'info', text: 'Zemská stezka je dostavěná' }),
   'trade-departed': () => ({ kind: 'trade-departed', tone: 'info', text: 'Výprava vyrazila' }),
   'trade-returned': () => ({ kind: 'trade-returned', tone: 'info', text: 'Výprava se vrátila' }),
+  // výprava na trh (markets.md – Pravidla 3); podrobnosti jsou v kronice
+  'market-returned': () => ({
+    kind: 'market-returned',
+    tone: 'info',
+    text: 'Výprava se vrátila z trhu',
+  }),
   // vozy od tesaře (wagons.md – Vůz)
   'cart-made': () => ({ kind: 'cart-made', tone: 'info', text: 'Tesař vyrobil vůz' }),
   'cart-worn-out': () => ({ kind: 'cart-worn-out', tone: 'warn', text: 'Vůz dosloužil' }),

@@ -3,6 +3,7 @@
 
 import type { CartKind } from './types-roads';
 import type { TradedHorse } from './types-livestock';
+import type { MarketTrip } from './types-market';
 import type { Person, Sex } from './types-people';
 import type { Direction8 } from './types-state';
 
@@ -83,11 +84,19 @@ export interface TradeExpedition {
   /**
    * Druh výpravy: `'shipment'` = zásilka do vsi jiného hráče (vassalage.md – Doprava a cílová
    * ves; `dispatchShipment`) – nosiči a honáci se vrátí bez zboží, zboží a lidé dojdou schránkou
-   * cílové vsi. Chybí = obchod se sousedem. Zásilka nemá stezku (`trailId` −1).
+   * cílové vsi. `'market'` = výprava na trh jiné vsi (markets.md – Rozhodnutí plánu 2, body 1, 2
+   * a 6; `departMarket`) – lidé a vozy pryč v pevné dny (`market.returnDay`), zboží přijde
+   * s výsledkem trhu schránkou (`applyMarketResult`). Chybí = obchod se sousedem po stezce. Zásilka
+   * ani výprava na trh nemá stezku (`trailId` −1).
    */
-  kind?: 'shipment';
-  /** Zásilka: kolik políček mapy světa výprava urazí a kam první krok (karavana ve scéně). */
+  kind?: 'shipment' | 'market';
+  /**
+   * Zásilka a výprava na trh: kolik políček mapy světa výprava urazí a kam první krok (karavana
+   * ve scéně).
+   */
   destination?: { cells: number; firstStep: Direction8 };
+  /** Výprava na trh (`kind` `'market'`): kam, s jakým seznamem a kdy je doma. */
+  market?: MarketTrip;
   /**
    * Zásilka: id řádku `shipment` v databázi (application/shipments.ts) – značka, že zboží už ze
    * vsi odešlo; obnova po pádu podle ní pozná, že zásilku stačí dopsat do schránky.

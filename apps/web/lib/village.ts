@@ -26,6 +26,10 @@ import {
   foundVillageForSettlement,
   newcomerFoundingReason,
   declareHuntInVillage,
+  marketOverview,
+  sendMarketExpedition,
+  type MarketOrder,
+  type MarketVillage,
   huntRunningIn,
   type DeclareHuntResult,
   setDefenseStanceInVillage,
@@ -925,6 +929,49 @@ export async function declareHuntForPlayer(
       { playerId: ctx.playerId, villageId: ctx.villageId, now: new Date() },
     );
   });
+  if (!done.ok) return done.result;
+  return done.value.ok ? viewOf(done.ctx) : { refused: done.value.reason };
+}
+
+/**
+ * Přehled vsí, kam smí výprava z vsi na trh (markets.md – Pravidla 8; `marketOverview`): pohled bez
+ * práva jako panel voleb – dívat se smí každý hráč rodu. Právo `trade` ověří až odeslání.
+ */
+export function marketOverviewForPlayer(
+  playerId: string,
+  villageId: string,
+): Promise<MarketVillage[] | { error: string }> {
+  return withVillageCache(async () => {
+    const ctx = await context(playerId, villageId);
+    if (!ctx.ok) return { error: ctx.error };
+    const all = await marketOverview(gameDeps(), {
+      playerId: ctx.playerId,
+      actorId: ctx.actorId,
+      villageId: ctx.villageId,
+    });
+    return all ?? { error: NOT_PLAYER_VILLAGE };
+  });
+}
+
+/**
+ * Hráč pošle výpravu na trh (markets.md – Pravidla 2 a 3; `sendMarketExpedition`) pod zámkem hráče,
+ * právo `trade`. Povede se – pohled na ves; jinak důvod use-case (`refused`).
+ */
+export async function sendMarketExpeditionForPlayer(
+  playerId: string,
+  villageId: string,
+  input: { targetVillageId: string; order: MarketOrder },
+): Promise<VillageActionResult | { refused: string }> {
+  const done = await guardedAction(playerId, villageId, 'sendMarketExpedition', (ctx) =>
+    sendMarketExpedition(gameDeps(), {
+      playerId: ctx.playerId,
+      actorId: ctx.actorId,
+      villageId: ctx.villageId,
+      targetVillageId: input.targetVillageId,
+      order: input.order,
+      today: ctx.day,
+    }),
+  );
   if (!done.ok) return done.result;
   return done.value.ok ? viewOf(done.ctx) : { refused: done.value.reason };
 }

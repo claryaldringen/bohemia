@@ -30,6 +30,9 @@ Z dnešních zásob (nejvíc vypovídá 1. 11. po výmlatu) nad pojistku vsi (n�
 
 - **Obilí** – zásoby + zrno nevymlácených snopů − 2 × (roční jídlo z pole `yearlyFieldNeed` + osivo
   na osev `min(landHa, laborHa)` ze `stewardOutlook` × `SEED_KG_PER_HA`). Ves v hladu (`hungry`) 0.
+- **Obilí – součásti** – `grainOnHandKg` (zásoby + zrno snopů), `grainReserveKg` (pojistka s osivem
+  z `outlook`) a `grainSpareKg` jsou vytažené a exportované (trh – `marketStance`); výsledek výhledu
+  se nezměnil.
 - **Seno** – zásoba − `winterHayNeedKg` (stáda, voli, koně) ÷ `winterHayAvailable(1)` (ztráty ve stohu).
 - **Dobytek** – krávy `surplusCows` (chovné + na telata do výcviku); voli nad `oxenTrainingTarget`
   – napřed mladí, pak vycvičení prodejní (`cattleForSale`).
@@ -440,7 +443,7 @@ villageId })` (vlastní ves → hráč sám, spravovaná cizí → `settlement.o
   dopočítává ves dál podle vlastníka sídla (u držitele).
 - **Pohled správce** (`viewOf`): dopočet a ves jsou držitelovy, ale přepínač (`switcherItems`) je správcův –
   jeho vlastní vsi + spravované cizí (`stewardedVillagesOf`, položka `stewarded: true`); `gameOver`, `ownMaps`,
-  `mapsBlocked` a otisk se pro správce nesestavují (nic o ostatních vsích držitele). `gameEntryForPlayer`
+  `mapsBlocked` a otisk se pro správce nesestavují (nic o ostatních vsích držitele); stejně panel Trh (`marketOverview` s `actorId`): správce nevidí ostatní vsi držitele ani jeho znalost mapy, jen sousední mapy a zprávy spravované vsi. `gameEntryForPlayer`
   přijme jako zapamatovanou ves i spravovanou cizí.
 - **Panel:** `HousePanelData.stewardships` (ves + správce, jen pro držitele) → řádek „Správci vsí“ s tlačítkem
   Odvolat (`dismissSteward` server action).

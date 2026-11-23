@@ -181,6 +181,7 @@ export function ManorUpgrades({
   onDeclareHunt,
   onSetStance,
   onDecidePrisoner,
+  onOpenMarket,
 }: {
   manor: VillageManor;
   onBuildTrail?: (direction: Direction8) => Promise<void>;
@@ -188,12 +189,15 @@ export function ManorUpgrades({
   onSetStance?: (stance: DefenseStance) => Promise<string | null | void>;
   /** Rozhodnutí o zajatci (držet, propustit, popravit); vrací důvod odmítnutí. */
   onDecidePrisoner?: (id: string, action: PrisonerAction) => Promise<string | null | void>;
+  /** Otevře panel Trh (markets.md – Pravidla 9); bez obsluhy je tlačítko zašedlé. */
+  onOpenMarket?: () => void;
 }): ReactElement {
   const [open, setOpen] = useState<'trail' | 'army' | null>(null);
   const warDenied = useRightDenied('war');
   const villageId = useVillageId();
   const [busy, setBusy] = useState(false);
   const huntDenied = useRightDenied('steward');
+  const tradeDenied = useRightDenied('trade');
   const rootRef = useRef<HTMLDivElement>(null);
   useDismiss(open !== null, rootRef, () => setOpen(null));
   const build = (direction: Direction8): void => {
@@ -257,6 +261,24 @@ export function ManorUpgrades({
             width={40}
             height={40}
             className="h-full w-full object-contain p-1"
+          />
+        </button>
+      </Tooltip>
+      <Tooltip placement="above" denied={tradeDenied} content="Obchod">
+        <button
+          type="button"
+          data-testid="manor-market"
+          aria-label="Obchod"
+          disabled={!onOpenMarket || tradeDenied !== null}
+          onClick={() => onOpenMarket?.()}
+          className={iconButton(false)}
+        >
+          <img
+            src="/icons/build/obchod.png"
+            alt=""
+            width={40}
+            height={40}
+            className="h-full w-full"
           />
         </button>
       </Tooltip>

@@ -720,8 +720,11 @@ export function lordRides(state: VillageState, day: number): LordRides | null {
   }
   const rank = (r: { riderId: number }): number => (r.riderId === lordId ? 0 : 1);
   riders.sort((a, b) => rank(a) - rank(b) || a.bornDay - b.bornDay || a.riderId - b.riderId);
+  // doprovod jede po stezce výpravy (horses.md – Doprovod výpravy) – jen výprava k sousedovi po
+  // stezce (bez druhu), zásilka ani výprava na trh stezku nemají (markets.md – Rozhodnutí plánu 2,
+  // bod 2)
   const leaving = (state.trade?.expeditions ?? [])
-    .filter((e) => e.kind !== 'shipment' && e.startedDay === day)
+    .filter((e) => e.kind === undefined && e.startedDay === day)
     .sort((a, b) => a.id - b.id)[0];
   const escortRider = leaving ? (riders.find((r) => rank(r) === 1) ?? riders[0]) : undefined;
   const ride = ({ riderId, horseId, training, hours }: LordRide): LordRide => ({

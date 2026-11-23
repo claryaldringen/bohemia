@@ -272,6 +272,8 @@ hráč)`) a rod s `house.placed_at` null. Pozvaný je na mapě hned (`placed_at`
   od 16 let (`PUBLIC_MAN_MIN_AGE`) s jménem, věkem a názvem vsi. **Nic dalšího** – zásoby, výzbroj,
   koně, lidé vsí ani seed počasí. `PublicHouse` se skládá pole po poli (ne kopií souhrnu) a test
   hlídá, že odpověď neobsahuje klíče `arms`, `horse`, `stores`, `people`, `weatherSeed`.
+- Přehled vsí pro obchod (`marketOverview`, `application/market.ts`) čte jen jméno hlavy rodu z téhož
+  souhrnu a nic dalšího nezveřejňuje (`village-trade.md` – Přehled vsí).
 - Data jdou ze souhrnu vsi (`VillageDigest.publicLineMen`, verze 2) – stav vsí se nenačítá. Ves bez
   souhrnu současné verze se v adresáři nepočítá, dokud ji worker neuloží.
 - **Dotaz**: jeden SQL na živé rody se sídelním sídlem (řazení

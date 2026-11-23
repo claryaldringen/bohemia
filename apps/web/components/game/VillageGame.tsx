@@ -453,6 +453,7 @@ export function VillageGame({
                 onGateMode={setGateFort}
                 wagonPlan={wagonPlan}
                 {...commands.selection}
+                onOpenMarket={() => void panels.openMarket()}
               />
               <BuildGrid
                 options={build.options}
@@ -542,6 +543,7 @@ export function VillageGame({
                 chronicle={chronicle}
                 noticeHistory={noticeHistory}
                 onSelectVillage={switchVillage}
+                onSendMarket={commands.sendMarket}
               />
               {view?.journey && <JourneyBanner journey={view.journey} />}
               {view?.pendingDeparture && !view.journey && (

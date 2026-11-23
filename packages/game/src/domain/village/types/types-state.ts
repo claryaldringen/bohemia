@@ -62,6 +62,7 @@ import type {
 } from './types-people';
 import type { CartDrive, RoadGrade, VillageRoads } from './types-roads';
 import type { VillageRoutes } from './types-routes';
+import type { VillageMail, VillageMarket, VillageNews } from './types-market';
 import type { CraftPurchase, VillageTrade } from './types-trade';
 import type { WildlifeState } from './types-wildlife';
 import type { DisasterState } from './types-disasters';
@@ -697,6 +698,23 @@ export interface VillageState {
   trails?: Trail[];
   /** Obchod se sousedy – zásoby a poptávka sousedů a výpravy (trade.md – Obchod); chybí = nic. */
   trade?: VillageTrade;
+  /**
+   * Trh vsi (markets.md – Pravidla 3, Rozhodnutí plánu 2) – ceny, výpravy na trhu a paměť příjezdů
+   * obchodníků. Vznikne s první výpravou, která přijede; chybí = nic.
+   */
+  market?: VillageMarket;
+  /**
+   * Odchozí schránka vsi (markets.md – Pravidla 3, Rozhodnutí plánu 2, bod 6): zprávy pro jiné
+   * vsi – příjezd výpravy na cizí trh a výsledek trhu pro výpravu, která odjela. Vsi se dopočítávají
+   * zvlášť, proto zprávu zapíše do schránky cílové vsi až server po uložení vsi a doručené smaže.
+   * Chybí = prázdná.
+   */
+  outbox?: VillageMail[];
+  /**
+   * Zprávy na pivo o jiných vsích (markets.md – Pravidla 8): jedna na ves, novější vyhrává – od
+   * obchodníků, kteří přijeli k nám, a od vlastních výprav s cenami trhu. Chybí = žádné.
+   */
+  news?: VillageNews[];
   /** Vozy vsi (wagons.md – Vůz) – vyrábí je tesař; chybí = žádné. */
   carts?: Cart[];
   /**

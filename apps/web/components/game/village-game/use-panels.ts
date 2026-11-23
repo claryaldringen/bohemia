@@ -1,8 +1,13 @@
 'use client';
 
-import { useCallback, useState, type RefObject } from 'react';
-import type { LevyDialogView } from '@bohemia/game';
-import { levyDialogs, passagesToAnswer, protectionView } from '@/app/game/actions';
+import { useCallback, useRef, useState, type RefObject } from 'react';
+import type { LevyDialogView, MarketVillage } from '@bohemia/game';
+import {
+  getMarketOverview,
+  levyDialogs,
+  passagesToAnswer,
+  protectionView,
+} from '@/app/game/actions';
 import type { ProtectionView } from '@/lib/protection';
 import type { PassageView, SummonsDialogView } from '@/lib/summons';
 import type { VillageView } from '@/lib/village-view';
@@ -40,6 +45,10 @@ export interface Panels {
   };
   openLevy: () => Promise<void>;
   closeLevy: () => void;
+  /** Panel Trh (markets.md – Pravidla 9) – přehled vsí se načte až při otevření. */
+  market: { open: boolean; villages: MarketVillage[] | null; error: string | null };
+  openMarket: () => Promise<void>;
+  closeMarket: () => void;
 }
 
 /**
@@ -139,6 +148,32 @@ export function usePanels({
     setLevy(null);
     void refreshHouse();
   }, [refreshHouse]);
+  const [marketOpen, setMarketOpen] = useState(false);
+  const [marketVillages, setMarketVillages] = useState<MarketVillage[] | null>(null);
+  const [marketError, setMarketError] = useState<string | null>(null);
+  // číslo posledního otevření – zpožděná odpověď staršího otevření (nebo po zavření) stav nepřepíše
+  const marketRequest = useRef(0);
+  const openMarket = useCallback(async (): Promise<void> => {
+    const villageId = viewRef.current?.id;
+    if (!villageId) return;
+    const request = ++marketRequest.current;
+    setMenuOpen(false);
+    setMarketError(null);
+    setMarketVillages(null);
+    setMarketOpen(true);
+    try {
+      const result = await getMarketOverview({ villageId });
+      if (request !== marketRequest.current) return;
+      if ('error' in result) setMarketError(result.error);
+      else setMarketVillages(result);
+    } catch {
+      if (request === marketRequest.current) setMarketError(CONNECTION_FAILED);
+    }
+  }, [viewRef]);
+  const closeMarket = useCallback((): void => {
+    marketRequest.current += 1;
+    setMarketOpen(false);
+  }, []);
   const showMenu = useCallback((): void => {
     setHouseOpen(false);
     setWarOpen(false);
@@ -149,7 +184,8 @@ export function usePanels({
     setHouseOpen(false);
     setWarOpen(false);
     setMenuOpen(false);
-  }, []);
+    closeMarket();
+  }, [closeMarket]);
 
   return {
     menuOpen,
@@ -169,5 +205,8 @@ export function usePanels({
     levy: { open: levyOpen, dialogs: levy, summons, error: levyError },
     openLevy,
     closeLevy,
+    market: { open: marketOpen, villages: marketVillages, error: marketError },
+    openMarket,
+    closeMarket,
   };
 }

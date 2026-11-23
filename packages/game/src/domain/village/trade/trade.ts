@@ -239,17 +239,28 @@ export function expeditionCartLoads(
 }
 
 /**
- * Kolik lidí je dnes na výpravách k sousedům (trade.md – Doprava; Martin 19. 10. 2026: „Ano,
- * udělej to tak.“ – nosiči mají vlastní podíl práce): každá výprava na cestě chce denně tolik
- * člověkodní, kolik s ní jde lidí (nosiči, honáci a pomocníci u vozů), nejvýš co jí zbývá. Krok
- * práce je vezme po denním minimu a před rozdělením dne (`allocateDay` – `away`), takže výprava trvá
- * přesně dny z náhledu. Platí pro každou výpravu ve `state.trade.expeditions` (i nákup u sousedů).
+ * Kolik člověkodní chce výprava v den `day`: tolik, kolik s ní jde lidí, nejvýš co jí zbývá.
+ * Výprava na trh (markets.md – Rozhodnutí plánu 2, bod 2: termín trhu je pevný) jen ve dnech
+ * `startedDay` … `market.returnDay` − 1 – mimo ně nic, i když jí práce zbývá (vsi chyběli
+ * dospělí).
  */
-export function expeditionLaborNeed(state: Pick<VillageState, 'trade'>): number {
-  return (state.trade?.expeditions ?? []).reduce(
-    (sum, e) => sum + Math.min(e.porters, Math.max(0, e.cost - e.done)),
-    0,
-  );
+function expeditionNeedOn(e: TradeExpedition, day: number): number {
+  if (e.kind === 'market' && !(e.market && day >= e.startedDay && day < e.market.returnDay)) {
+    return 0;
+  }
+  return Math.min(e.porters, Math.max(0, e.cost - e.done));
+}
+
+/**
+ * Kolik lidí je v den `day` na výpravách (trade.md – Doprava; Martin 19. 10. 2026: „Ano, udělej to
+ * tak.“ – nosiči mají vlastní podíl práce): každá výprava na cestě chce denně tolik člověkodní,
+ * kolik s ní jde lidí (nosiči, honáci a pomocníci u vozů), nejvýš co jí zbývá; výprava na trh jen
+ * v dnech cesty a pobytu (`expeditionNeedOn`). Krok práce je vezme po denním minimu a před
+ * rozdělením dne (`allocateDay` – `away`), takže výprava trvá přesně dny z náhledu. Platí pro
+ * každou výpravu ve `state.trade.expeditions` (i nákup u sousedů).
+ */
+export function expeditionLaborNeed(state: Pick<VillageState, 'trade'>, day: number): number {
+  return (state.trade?.expeditions ?? []).reduce((sum, e) => sum + expeditionNeedOn(e, day), 0);
 }
 
 /**
@@ -266,31 +277,34 @@ export function expeditionLaborToday(
   day: number,
   extra = 0,
 ): number {
-  const need = expeditionLaborNeed(state) + extra;
+  const need = expeditionLaborNeed(state, day) + extra;
   if (need <= 0) return 0;
   return Math.min(need, people.filter((p) => ageGroup(p, day) === 'adult').length);
 }
 
 /**
- * Práce nosičů dne (mutuje stav – krok práce): rozdělí práci lidí na výpravách (`allocateDay` –
- * `away`, nejvýš `expeditionLaborToday`) – každá výprava nejvýš tolik, kolik má lidí, v pořadí
- * výprav. Když ves lidí na výpravu nemá (po denním minimu, jen dospělí), cesta trvá déle. Vrátí
+ * Práce nosičů dne `day` (mutuje stav – krok práce): rozdělí práci lidí na výpravách
+ * (`allocateDay` – `away`, nejvýš `expeditionLaborToday`) – každá výprava nejvýš tolik, kolik má
+ * lidí, v pořadí výprav; výprava na trh jen ve dnech cesty a pobytu. Když ves lidí na výpravu nemá
+ * (po denním minimu, jen dospělí), cesta trvá déle – výprava na trh ne, ta má pevný termín. Vrátí
  * použitou práci a podíly po stezkách.
  */
 export function workExpeditions(
   state: VillageState,
   away: number,
+  day: number,
 ): { used: number; shares: { trailId: number; manDays: number; carts?: number }[] } {
   const shares: { trailId: number; manDays: number; carts?: number }[] = [];
   let left = away;
   for (const e of state.trade?.expeditions ?? []) {
     if (left <= EPSILON) break;
-    const take = Math.min(left, e.porters, Math.max(0, e.cost - e.done));
+    const take = Math.min(left, expeditionNeedOn(e, day));
     if (take <= 0) continue;
     e.done += take;
     left -= take;
-    // zásilka do vsi jiného hráče nejde po stezce k sousedovi – do podílů po stezkách nepatří
-    if (e.kind === 'shipment') continue;
+    // zásilka do vsi jiného hráče ani výprava na trh nejde po stezce k sousedovi – do podílů po
+    // stezkách nepatří
+    if (e.kind === 'shipment' || e.kind === 'market') continue;
     shares.push({
       trailId: e.trailId,
       manDays: take,
@@ -302,13 +316,17 @@ export function workExpeditions(
 
 /**
  * Vrácené výpravy (mutuje stav): přinesené zboží do zásob vsi, lidé od souseda do obydlí
- * (`settleNewcomers`), kronika.
+ * (`settleNewcomers`), kronika. Výprava na trh tu zůstane – uzavře ji až výsledek trhu
+ * (`applyMarketResult`).
  */
 export function finishExpeditions(state: VillageState, day: number): ChronicleEvent[] {
   const trade = state.trade;
   if (!trade || trade.expeditions.length === 0) return [];
   const events: ChronicleEvent[] = [];
   trade.expeditions = trade.expeditions.filter((e) => {
+    // výprava na trh (markets.md – Rozhodnutí plánu 2, bod 6): lidé a vozy jsou doma v pevný den,
+    // zboží přijde se zprávou z trhu
+    if (e.kind === 'market') return true;
     if (e.done + EPSILON < e.cost) return true;
     // zásilka (vassalage.md – Doprava a cílová ves): nosiči se vrátili bez zboží, to dojde
     // schránkou cílové vsi

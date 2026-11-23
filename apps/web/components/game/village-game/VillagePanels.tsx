@@ -1,7 +1,7 @@
 'use client';
 
 import type { ReactElement, RefObject } from 'react';
-import { dateOfDayIndex } from '@bohemia/game';
+import { dateOfDayIndex, type MarketOrder } from '@bohemia/game';
 import {
   announceWarPassage,
   answerComplaintAction,
@@ -36,6 +36,7 @@ import { EscheatDialog } from '../hud/EscheatDialog';
 import { GameMenu } from '../hud/GameMenu';
 import { HousePanel } from '../hud/HousePanel';
 import { LevyDialog } from '../hud/LevyDialog';
+import { MarketPanel } from '../hud/MarketPanel';
 import { NoticesPanel } from '../hud/NoticesPanel';
 import { WarPanel } from '../hud/WarPanel';
 import type { House } from './use-house';
@@ -62,6 +63,7 @@ export function VillagePanels({
   chronicle,
   noticeHistory,
   onSelectVillage,
+  onSendMarket,
 }: {
   view: VillageView | null;
   viewRef: RefObject<VillageView | null>;
@@ -82,6 +84,8 @@ export function VillagePanels({
   chronicle: ChronicleControl;
   noticeHistory: NoticesControl;
   onSelectVillage: (village: VillageListItem) => void;
+  /** Pošle výpravu na trh; vrátí důvod odmítnutí, nebo null. */
+  onSendMarket: (targetVillageId: string, order: MarketOrder) => Promise<string | null>;
 }): ReactElement {
   const { negotiate, refresh: refreshHouse, refreshEscheats } = house;
   const { warAction } = panels;
@@ -246,6 +250,15 @@ export function VillagePanels({
             return result;
           }}
           onClose={house.closeEscheats}
+        />
+      )}
+      {panels.market.open && !menuShown && view?.manor && (
+        <MarketPanel
+          villages={panels.market.villages}
+          error={panels.market.error}
+          market={view.manor.market}
+          onSend={onSendMarket}
+          onClose={panels.closeMarket}
         />
       )}
       {panels.levy.open && !menuShown && (

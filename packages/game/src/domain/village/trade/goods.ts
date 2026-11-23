@@ -43,3 +43,22 @@ export const TRADE_GOODS: readonly TradeGood[] = [
   'furs',
   'wax',
 ];
+
+/**
+ * Kusové zboží v pořadí panelu – dobytek, koně, klády, kámen (m³), kůže a kožešiny (jednotky jako
+ * `TRADE_GOOD_NAMES` ve webu: kusy a m³); ostatní zboží je v kg. Na trhu se prodává jen po celých
+ * kusech, kg se dělí libovolně (markets.md – Rozhodnutí plánu 2, bod 4).
+ */
+export const PIECE_GOODS: readonly TradeGood[] = [
+  ...CATTLE_GOODS,
+  ...HORSE_GOODS,
+  'logs',
+  'stone',
+  'hides',
+  'furs',
+];
+
+/** Je zboží kusové (kusy nebo m³, ne kg)? */
+export function isPieceGood(good: TradeGood): boolean {
+  return PIECE_GOODS.includes(good);
+}

@@ -1,7 +1,13 @@
 // Kronika – dávka C (Martin 15. 11. 2026): obnova sadu jedním zápisem, cesty k sousedům, úmrtí
 // a návraty z tažení kronikářsky.
 import { describe, expect, it } from 'vitest';
-import { legacyNeighbourName, type ChronicleEvent, type ChronicleRoadEnd } from '@bohemia/game';
+import {
+  dayIndexOf,
+  legacyNeighbourName,
+  type ChronicleEvent,
+  type ChronicleRoadEnd,
+  type TradeGoods,
+} from '@bohemia/game';
 import { chroniclePage } from '../chronicle-view';
 import { chronicleText, orchardRenewalText, roadBetween } from '../village-view-chronicle';
 import { fromVillage, withVillagersOf } from '../village-name-cases';
@@ -306,5 +312,92 @@ describe('kronika – sad a cesty k sousedům', () => {
     expect(
       chronicleText({ day: DAY, kind: 'trail-built', trailId: 1, direction: 'N' }, 'X', SEED),
     ).toBe('Zemská stezka na sever je dostavěná.');
+  });
+});
+
+describe('kronika – trh ve vsi (markets.md – Pravidla 3)', () => {
+  it('příjezd výpravy se zbožím i jen na pivo; tržní den', () => {
+    expect(
+      chronicleText(
+        {
+          day: DAY,
+          kind: 'market-arrived',
+          villageName: 'Vlkov',
+          goods: { grain: 600, mares: 1 },
+        },
+        'X',
+      ),
+    ).toBe('Na trh přišla výprava ze vsi Vlkov – 600 kg obilí, 1 ks klisen.');
+    expect(
+      chronicleText({ day: DAY, kind: 'market-arrived', villageName: 'Vlkov', goods: {} }, 'X'),
+    ).toBe('Na trh přišla výprava ze vsi Vlkov.');
+    expect(
+      chronicleText(
+        { day: DAY, kind: 'market-held', sold: { cows: 1 }, bought: { grain: 599.9999999 } },
+        'X',
+      ),
+    ).toBe('Na trhu ves prodala 1 ks krav a koupila 600 kg obilí.');
+  });
+});
+
+describe('kronika – výprava na trh (markets.md – Pravidla 2 a 3)', () => {
+  const returnDay = dayIndexOf({ year: 601, month: 6, day: 17 });
+  const departed = (give: TradeGoods, wants: TradeGoods): string =>
+    chronicleText(
+      { day: DAY, kind: 'market-departed', villageName: 'Lhota', give, wants, returnDay },
+      'X',
+    );
+  const returned = (
+    fields: Partial<Extract<ChronicleEvent, { kind: 'market-returned' }>>,
+  ): string =>
+    chronicleText(
+      {
+        day: DAY,
+        kind: 'market-returned',
+        villageName: 'Lhota',
+        sold: {},
+        bought: {},
+        unsold: {},
+        ...fields,
+      },
+      'X',
+    );
+
+  it('odchod – co veze a shání, prázdná část se vynechá; den návratu', () => {
+    expect(departed({ grain: 600 }, { cows: 1 })).toBe(
+      'Výprava vyrazila na trh do vsi Lhota – veze 600 kg obilí, shání 1 ks krav; doma bude 17. června 601.',
+    );
+    expect(departed({ grain: 600 }, {})).toBe(
+      'Výprava vyrazila na trh do vsi Lhota – veze 600 kg obilí; doma bude 17. června 601.',
+    );
+    expect(departed({}, { cows: 1 })).toBe(
+      'Výprava vyrazila na trh do vsi Lhota – shání 1 ks krav; doma bude 17. června 601.',
+    );
+    expect(departed({}, {})).toBe(
+      'Výprava vyrazila na trh do vsi Lhota; doma bude 17. června 601.',
+    );
+  });
+
+  it('návrat – co prodala a koupila, nic nevyměnila, ze zaniklé vsi se vším', () => {
+    expect(returned({ sold: { grain: 600 }, bought: { cows: 1 } })).toBe(
+      'Výprava se vrátila z trhu ve vsi Lhota – prodala 600 kg obilí, koupila 1 ks krav.',
+    );
+    expect(returned({ unsold: { grain: 600 } })).toBe(
+      'Výprava se vrátila z trhu ve vsi Lhota – nic nevyměnila.',
+    );
+    expect(returned({ unsold: { grain: 600 }, returned: true })).toBe(
+      'Výprava se vrátila ze vsi Lhota se vším, co vezla – ves už nestojí.',
+    );
+    // ves zanikla až po obchodu – výprava vezla zpět jen zbytek
+    expect(returned({ sold: { grain: 600 }, bought: { cows: 1 }, returned: true })).toBe(
+      'Výprava se vrátila ze vsi Lhota – prodala 600 kg obilí, koupila 1 ks krav; ves už nestojí.',
+    );
+    // záznam výpravy chyběl – jméno vsi neznámé
+    expect(returned({ villageName: '', sold: { grain: 600 }, bought: { cows: 1 } })).toBe(
+      'Výprava se vrátila z trhu – prodala 600 kg obilí, koupila 1 ks krav.',
+    );
+    expect(returned({ villageName: '', returned: true })).toBe(
+      'Výprava se vrátila se vším, co vezla – ves už nestojí.',
+    );
   });
 });

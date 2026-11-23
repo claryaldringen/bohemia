@@ -24,6 +24,7 @@ import {
   parseUpgradeRoadInput,
   parseLeaveVillageInput,
   parseSettleJourneyInput,
+  parseMarketExpeditionInput,
 } from '../village-input';
 
 describe('ověření vstupu server actions vsi', () => {
@@ -401,5 +402,38 @@ describe('parseSetDefenseStanceInput (war.md – Obránci)', () => {
     expect(parseSetDefenseStanceInput({ stance: 'defend' })).toEqual({ stance: 'defend' });
     expect(parseSetDefenseStanceInput({ stance: 'flee' })).toEqual({ stance: 'flee' });
     expect(parseSetDefenseStanceInput({ stance: 'surrender' })).toBeNull();
+  });
+});
+
+describe('vstup výpravy na trh', () => {
+  const ok = {
+    villageId: '11111111-1111-4111-8111-111111111111',
+    targetVillageId: '22222222-2222-4222-8222-222222222222',
+    give: { grain: 200, cows: 2 },
+    wants: { meat: 50 },
+    stayDays: 3,
+  };
+
+  it('převede objednávku a cíl', () => {
+    expect(parseMarketExpeditionInput(ok)).toEqual({
+      targetVillageId: '22222222-2222-4222-8222-222222222222',
+      order: { give: { grain: 200, cows: 2 }, wants: { meat: 50 }, stayDays: 3 },
+    });
+    expect(parseMarketExpeditionInput({ ...ok, give: undefined, wants: undefined })).toMatchObject({
+      order: { give: {}, wants: {} },
+    });
+  });
+
+  it('odmítne záporná čísla, desetiny, neznámé zboží a špatný tvar', () => {
+    expect(parseMarketExpeditionInput({ ...ok, give: { grain: -1 } })).toBeNull();
+    expect(parseMarketExpeditionInput({ ...ok, give: { cows: 1.5 } })).toBeNull();
+    expect(parseMarketExpeditionInput({ ...ok, wants: { grain: 10.5 } })).toBeNull();
+    expect(parseMarketExpeditionInput({ ...ok, give: { gold: 5 } })).toBeNull();
+    expect(parseMarketExpeditionInput({ ...ok, give: { grain: NaN } })).toBeNull();
+    expect(parseMarketExpeditionInput({ ...ok, stayDays: 1.5 })).toBeNull();
+    expect(parseMarketExpeditionInput({ ...ok, stayDays: -1 })).toBeNull();
+    expect(parseMarketExpeditionInput({ ...ok, targetVillageId: '' })).toBeNull();
+    expect(parseMarketExpeditionInput({ ...ok, give: [] })).toBeNull();
+    expect(parseMarketExpeditionInput(null)).toBeNull();
   });
 });
