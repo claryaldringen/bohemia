@@ -127,7 +127,16 @@ import { advanceChunked, goldenWorld, stateFingerprint, YEAR } from './village-g
 // 22. 11. 2026 – nový lov (hunting.md), úloha 8: správce loví sám – v přípravě 29. 7. 521 vyhlásil
 // lov (škody zvěře), 30. 7. 521 chybělo v práci vsi 6 honců a 2 lovci, vyběhla bachyně a nikdo
 // nad branou umu nešel – utekla; dřív 044cbd4b3f6f8f38
-const EXPECTED_YEAR_1 = '533796fc14c305d9';
+// 23. 11. 2026 – konec smyšlených sousedů (markets.md – Pravidla 1), úloha 1: sňatky jen ve vsi,
+// žádné nevěsty a ženiši z okolí, nikdo se nevdává pryč, žádné další manželky mužů rodu; dřív
+// 533796fc14c305d9
+// 23. 11. 2026 – konec smyšlených sousedů (markets.md – Pravidla 1), úloha 2: kovář jen vlastní –
+// žádný cizí kovář ke koním a žádné kování vozů u souseda; dřív 725a41ac28867b5d
+// 23. 11. 2026 – konec smyšlených sousedů (markets.md – Pravidla 1), úloha 3: ves bez řemeslníků už
+// 15. 11. nekupuje nástroje, keramiku ani dřevěné nářadí u sousedů a osivo nekupuje (1. 3. 505
+// kronika jen zapíše, že chybí 147 kg osiva) – za 20 let bez nástrojů menší cíl polí (≈ 24,4 ha
+// místo ≈ 33,6 ha); dřív 2eb026657107226c
+const EXPECTED_YEAR_1 = 'ae20588895d2a041';
 // 18. 11. 2026 – D93 cesta přes plochu staveb; dřív 82b12dd84c08dd63 (vyšlapaná cesta přes plochu
 // staveb nevznikne a napojení ji obejde – jiné cesty a id; roky chůze nejvýš doba vyšlapání)
 // 18. 11. 2026 – D95 výmlat (Martin: „A, C, E“ – výmlat podle kg snopů, rod v zimě dorovná tempo
@@ -145,8 +154,11 @@ describe('zlatý otisk vsi', () => {
     // u cest a sad do cíle ovoce): 18 polí při skoro stejné ploše polí, dřív aspoň 20;
     // 22. 11. 2026 – D115 kolo 1: hlídá se plocha polí, ne počet (sad smí na pole a rozdělí ho) –
     // po 20 letech ≈ 33,6 ha; dřív aspoň 15 polí
+    // 23. 11. 2026 – konec smyšlených sousedů (markets.md – Pravidla 1), úloha 3: ves bez kováře už
+    // nekupuje nástroje u sousedů – pokrytí nástroji 0, polní práce dražší a cíl polí menší; po 20
+    // letech ≈ 24,4 ha; dřív aspoň 30
     const fieldHa = s.parts.reduce((sum, p) => sum + p.areaM2, 0) / 10_000;
-    expect(fieldHa).toBeGreaterThanOrEqual(30);
+    expect(fieldHa).toBeGreaterThanOrEqual(22);
     expect(s.livestock?.herds).toBeDefined();
     expect(s.crafts).toBeDefined();
     expect(s.people.length).toBeGreaterThanOrEqual(10);

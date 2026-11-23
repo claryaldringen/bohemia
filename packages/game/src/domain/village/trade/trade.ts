@@ -1,80 +1,34 @@
-// Obchod se sousedy po zemské stezce (docs/design/trade.md – Obchod). Výměnou podle hodnot v kg
-// obilí: soused bere s přirážkou 20 %, sháněné zboží platí o 20 % dráž, nabízené prodá o 20 %
-// levněji; bilance hodnoty musí být pro souseda nezáporná. Zboží nesou nosiči po stezce (25 kg
-// na člověka, dobytek se žene), cesta tam a zpět 2–6 dní podle délky stezky + 1 den za krajem
-// mapy; práce nosičů jde ze společné práce vsi (jako stavba) a zboží dorazí, až se vrátí. Jedna
-// výprava na souseda naráz. Obchoduje se jen zbožím, které má i ves (Martin 19. 10. 2026: „Nech jen
-// společné suroviny, nezaváděj nové.“) – starší vsi o zboží zvenku přijdou (`withoutForeignGoods`).
-// Se sousedem jdou vyměnit i lidé – rodiny a svobodní dospělí (trade.md – Výměna lidí,
-// `people-trade.ts`): odejdou hned s výpravou, lidé od souseda přijdou s jejím návratem. Dobytek ve
-// třech druzích – krávy, mladí a vycvičení voli (trade.md – Dobytek ve třech druzích,
-// `cattle-trade.ts`) – jde po svých s honákem a potřebuje místo v ohradě svého druhu.
-// Čisté funkce bez I/O.
-import type { Landscape } from '../../landscape';
+// Obchod vsi (docs/design/markets.md): zboží obchodu ve vsi (`villageGoodStock`, `addGood`), jeho
+// hodnota v kg obilí (`sellPrice`, `goodWorth` – platba koní nové ohrady) a výpravy na cestě.
+// Smyšlení sousedé za krajem mapy skončili (markets.md – Pravidla 1): výprava k sousedovi už
+// nevyrazí, uložená výprava na cestě ale doběhne (markets.md – Pravidla 10) – nosiči a honáci
+// pracují ze společné práce vsi (`workExpeditions`) a s návratem přinesou zboží, dobytek, koně
+// i lidi (`finishExpeditions`, `settleNewcomers`). Tytéž kroky nesou zásilky vazalů (vassalage.md –
+// Doprava a cílová ves). Převody starších vsí: hřivny místo nástrojů a jen společné suroviny
+// (Martin 19. 10. 2026: „Nech jen společné suroviny, nezaváděj nové.“). Čisté funkce bez I/O.
 import { takeVillageMeatKg } from '../core/meat-stocks';
-import { tradeCarts, trailCartPassable } from '../crafts/carts';
 import { charcoalStockKg, takeCharcoal } from '../crafts/charcoal';
-import { addExpeditionDemand } from '../livestock/draft';
-import { removePeople } from '../people/kinship';
 import { ageGroup } from '../people/people';
-import {
-  addCattle,
-  cattleForSale,
-  cattleRoomBlocked,
-  removeCattle,
-  withoutSoldOxen,
-} from './cattle-trade';
-import {
-  NO_PEOPLE,
-  emigrantGroups,
-  emigrantList,
-  neighbourFamilyValue,
-  newcomerProfiles,
-  peopleCount,
-  settleNewcomers,
-  tradePeopleCount,
-  type Emigrants,
-} from './people-trade';
-import {
-  addHorses,
-  boughtHorses,
-  horseRoomBlocked,
-  horseValueKg,
-  horsesForSale,
-  horsesSaleValues,
-  offeredHorses,
-  removeHorses,
-} from './horse-trade';
+import { addCattle, cattleForSale, removeCattle } from './cattle-trade';
+import { newcomerProfiles, settleNewcomers } from './people-trade';
+import { addHorses, horsesForSale, removeHorses } from './horse-trade';
 import { logArrivalPoint } from '../forest/log-piles';
 import { addStone, stoneOnHand, takeStone } from '../fortification/state/stone';
 import { addLogs, takeLogs, woodLogs } from '../forest/wood';
-import {
-  TRADE_GOODS,
-  isCattleGood,
-  isHorseGood,
-  isLivestockGood,
-  neighbourOf,
-  neighbourStock,
-  tradeSeason,
-} from './neighbours';
-import { CARTS, CART_DEMAND, HIDES, IRON, PEOPLE_TRADE, TRADE, TRADE_GOOD_VALUES } from '../rules';
+import { TRADE_GOODS, isCattleGood, isHorseGood, isLivestockGood } from './goods';
+import { CARTS, HIDES, IRON, TRADE, TRADE_GOOD_VALUES } from '../rules';
 import { ensureWares } from '../wares/wares';
-import { tradeWeather } from './trade-weather';
-import { builtTrail, trailTripDays } from './trail';
+import { tradeSeason, tradeWeather } from './trade-weather';
 import type {
   CartKind,
   ChronicleEvent,
   ComingPeople,
-  Direction8,
-  NeighbourPeople,
-  NeighbourStock,
   Person,
   TradeExpedition,
   TradeGood,
   TradeGoods,
   TradePeople,
   VillageState,
-  VillageTrade,
 } from '../types';
 
 const EPSILON = 1e-9;
@@ -84,16 +38,11 @@ export function sellValue(valueKg: number): number {
   return (valueKg / (1 + TRADE.markup)) * (1 + TRADE.demandBonus);
 }
 
-/** Kolik kg obilí soused chce za nabízené v hodnotě `valueKg` – × přirážka × sleva. */
-export function buyValue(valueKg: number): number {
-  return valueKg * (1 + TRADE.markup) * (1 - TRADE.offerDiscount);
-}
-
 /**
  * Násobek hodnoty zboží `good` v den `day` po zlém / krutém roce kraje (disasters.md – Obchod):
  * obilí 1, ostatní zboží (i luštěniny) 1, 0,67 nebo 0,5 – ves dostane za zboží méně obilí a
- * naopak za obilí si koupí méně zboží. Platí pro veškerý obchod včetně plateb (tradeQuote, ohrada
- * koní, nákupy řemesel). Ves bez `weatherSeed` má vždy 1.
+ * naopak za obilí si koupí méně zboží (platba koní nové ohrady – `horsePenPayment`). Ves bez
+ * `weatherSeed` má vždy 1.
  */
 export function goodWorth(
   state: Pick<VillageState, 'weatherSeed' | 'disasters'>,
@@ -106,21 +55,6 @@ export function goodWorth(
 /** Kolik kg obilí soused dá za kus sháněného zboží – hodnota ÷ přirážka × příplatek za sháněné. */
 export function sellPrice(good: TradeGood): number {
   return sellValue(TRADE_GOOD_VALUES[good].valueKg);
-}
-
-/** Kolik kg obilí soused chce za kus nabízeného zboží – hodnota × přirážka × sleva za nabízené. */
-export function buyPrice(good: TradeGood): number {
-  return buyValue(TRADE_GOOD_VALUES[good].valueKg);
-}
-
-/** Kolik kg obilí soused chce za svobodného dospělého, kterého dá (trade.md – Výměna lidí). */
-export function adultBuyPrice(): number {
-  return buyValue(PEOPLE_TRADE.adultValueKg);
-}
-
-/** Kolik kg obilí soused chce za svou rodinu s `children` dětmi. */
-export function familyBuyPrice(children: number): number {
-  return buyValue(neighbourFamilyValue(children));
 }
 
 /** Kolik kůže skotu je kůže kozí nebo prasečí (plocha – hides-honey.md – Zpracování v domácnosti). */
@@ -284,103 +218,6 @@ function entries(goods: TradeGoods): [TradeGood, number][] {
 }
 
 /**
- * Nosiči výpravy – víc z cesty tam a zpět, aspoň jeden (i pro prohlížeč – náhled v panelu).
- * S vozy (`carts` – druhy vozů, které má ves pro výpravu, v pořadí výběru – `tradeCarts`) jde
- * náklad na vozy a s každým vozem 2 lidé (wagons.md – Obchod) – `expeditionTransport`.
- */
-export function expeditionPorters(
-  give: TradeGoods,
-  get: TradeGoods,
-  carts: readonly CartKind[] = [],
-): number {
-  return expeditionTransport(give, get, carts).porters;
-}
-
-/**
- * Doprava výpravy (wagons.md – Obchod, Opakované jízdy vozu; Martin 22. 10. 2026: „Ať jede vůz
- * klidně několikrát a lidi ať jsou jen na doplnění – ať je každá cesta co nejvíc optimální.“):
- * kolik vozů z nabídnutých (`carts` – v pořadí výběru, čtyřkoláky napřed) jede, kolikrát se
- * s nimi jede (`trips`) a kolik lidí jde najednou. Vozy jedou spolu tolikrát, kolikrát se naplní
- * celé (aspoň jednou, a to i s menším nákladem); zbytek nákladu a dobytek nesou a ženou lidé
- * rovnoměrně rozdělení mezi jízdy a s každým vozem jdou CARTS.tradeCrew lidé. Klády jedou s vozem
- * vždy na voze (vozů je tolik jízd, aby se vešly), bez vozu je nesou dva lidé na kládu. Zvolí se
- * počet vozů s nejmenší prací (lidé × jízdy), při shodě méně vozů.
- */
-export function expeditionTransport(
-  give: TradeGoods,
-  get: TradeGoods,
-  carts: readonly CartKind[] = [],
-): { porters: number; carts: number; trips: number; work: number } {
-  // klády a kámen jedou, je-li vůz, vždy na voze (kámen 2 500 kg na m³ nikdo nenese)
-  const hasLogs =
-    (give.logs ?? 0) > 0 || (get.logs ?? 0) > 0 || (give.stone ?? 0) > 0 || (get.stone ?? 0) > 0;
-  let best: { porters: number; carts: number; trips: number; work: number } | null = null;
-  for (let n = hasLogs && carts.length > 0 ? 1 : 0; n <= carts.length; n++) {
-    const used = carts.slice(0, n);
-    const a = legCrew(give, used);
-    const b = legCrew(get, used);
-    const trips = Math.max(a.trips, b.trips);
-    const ca = a.crew(trips);
-    const cb = b.crew(trips);
-    const crews = ca.map((x, j) => Math.max(n === 0 ? 1 : 0, x, cb[j] ?? 0) + n * CARTS.tradeCrew);
-    const porters = Math.max(...crews);
-    const work = crews.reduce((sum, x) => sum + x, 0);
-    if (best === null || work < best.work) best = { porters, carts: n, trips, work };
-  }
-  return best ?? { porters: 1, carts: 0, trips: 1, work: 1 };
-}
-
-/**
- * Jedna cesta (tam nebo zpět) s vozy `carts`: kolik jízd vozů potřebuje (plné jízdy, jízda navíc
- * od zbytku `TRADE.restTripShare` vozu, klády na voze) a kolik lidí (nosičů a honáků) jde při
- * každé z `trips` jízd – zbytek se dělí přesně (floor + zbytek po jednom na první jízdy).
- */
-function legCrew(
-  goods: TradeGoods,
-  carts: readonly CartKind[],
-): { trips: number; crew: (trips: number) => number[] } {
-  let kg = 0;
-  let logKg = 0;
-  let logs = 0;
-  let stoneKg = 0;
-  let heads = 0;
-  let horses = 0;
-  for (const [good, amount] of entries(goods)) {
-    if (isCattleGood(good)) heads += amount;
-    else if (isHorseGood(good)) horses += amount;
-    else {
-      kg += amount * TRADE_GOOD_VALUES[good].carryKg;
-      if (good === 'stone') stoneKg += amount * TRADE_GOOD_VALUES[good].carryKg;
-      if (good === 'logs') {
-        logKg += amount * TRADE_GOOD_VALUES[good].carryKg;
-        logs += amount;
-      }
-    }
-  }
-  // dobytek se žene, koně se vedou na ohlávce – honáci zvlášť (horses.md – Nákup a prodej)
-  const drovers =
-    Math.ceil(heads / TRADE.headsPerDrover - EPSILON) +
-    Math.ceil(horses / TRADE.horsesPerDrover - EPSILON);
-  if (carts.length === 0) {
-    const units =
-      Math.ceil((kg - logKg) / TRADE.porterKg - EPSILON) + logs * TRADE.logCarriers + drovers;
-    return { trips: 1, crew: () => [units] };
-  }
-  const load = carts.reduce((sum, kind) => sum + CARTS.loadKg[kind], 0);
-  const full = Math.floor(kg / load + EPSILON);
-  const extra = kg - full * load >= TRADE.restTripShare * load - EPSILON ? 1 : 0;
-  const trips = Math.max(1, full + extra, Math.ceil((logKg + stoneKg) / load - EPSILON));
-  return {
-    trips,
-    crew: (n) => {
-      const rest = Math.max(0, kg - n * load);
-      const total = Math.ceil(rest / TRADE.porterKg - EPSILON) + drovers;
-      return Array.from({ length: n }, (_, j) => Math.floor(total / n) + (j < total % n ? 1 : 0));
-    },
-  };
-}
-
-/**
  * Kolik kg nákladu veze při jedné jízdě každý z vozů výpravy (`kinds` – druhy vozů, `trips` jízd):
  * větší z cest tam a zpět, nejvýš nosnost vozů, rozdělený podle nosnosti (zobrazení nákladu
  * vozu – wagons.md, Opakované jízdy vozu). Bez vozů prázdné.
@@ -399,363 +236,6 @@ export function expeditionCartLoads(
   if (capacity <= 0) return [];
   const load = Math.min(capacity, Math.max(kg(e.give), kg(e.get)));
   return kinds.map((kind) => Math.round((load * CARTS.loadKg[kind]) / capacity));
-}
-
-/**
- * Kolik práce by výpravě ušetřil k-tý čtyřkolák (čd – wagons.md, Kolik vozů ves chce): nosiči,
- * které vůz nahradí (`expeditionTransport` s k čtyřkoláky – lidé × jízdy), krát dny cesty; jen dokud vozy
- * pomáhají (nejvýš CART_DEMAND.maxCarts).
- */
-export function fourWheelSavings(give: TradeGoods, get: TradeGoods, days: number): number[] {
-  const out: number[] = [];
-  const work = (carts: readonly CartKind[]): number => {
-    const t = expeditionTransport(give, get, carts);
-    return t.work;
-  };
-  let spent = work([]);
-  for (let k = 1; k <= CART_DEMAND.maxCarts['four-wheel']; k++) {
-    const next = work(Array.from({ length: k }, (): CartKind => 'four-wheel'));
-    if (next >= spent) break;
-    out.push((spent - next) * days);
-    spent = next;
-  }
-  return out;
-}
-
-/**
- * Návrh výměny se sousedem ve směru – co ves dá a co dostane, i lidé (trade.md – Výměna lidí:
- * kolik rodin a svobodných dospělých ves dá a vezme; chybí = nikdo).
- */
-export interface TradeOffer {
-  direction: Direction8;
-  give: TradeGoods;
-  get: TradeGoods;
-  givePeople?: TradePeople;
-  getPeople?: TradePeople;
-}
-
-/** Ocenění výměny a výpravy: hodnoty pro souseda, nosiči, dny a práce, nebo proč nejde. */
-export interface TradeQuote {
-  /** Kolik kg obilí soused za dané zboží připíše a kolik chce za své. */
-  credit: number;
-  price: number;
-  /** Bilance pro souseda (kg obilí) – musí být ≥ 0. */
-  balance: number;
-  /** Nosiči (víc z cesty tam a zpět, aspoň 1), dny cesty tam a zpět a práce (lidé × dny). */
-  porters: number;
-  /** Kolikrát vozy pojedou (bez vozů 1); dny jsou součet všech jízd. */
-  trips: number;
-  /** Vozy, které s výpravou pojedou (wagons.md – Obchod; druhy v pořadí výběru). */
-  carts: CartKind[];
-  days: number;
-  manDays: number;
-  /** Proč výprava nejde (česky), nebo null. */
-  blocked: string | null;
-}
-
-export const NO_TRAIL = 'K tomuto sousedovi zatím nevede hotová stezka.';
-export const EXPEDITION_AWAY = 'Výprava k tomuto sousedovi je ještě na cestě.';
-export const NOTHING_TO_TRADE = 'Zatím se nic nevyměňuje.';
-export const NOT_WANTED = 'Tohle soused nechce.';
-export const NOT_OFFERED = 'Tohle soused nenabízí.';
-export const OVER_DEMAND = 'Tolik soused letos nevezme.';
-export const OVER_SUPPLY = 'Tolik soused letos nemá.';
-export const OVER_STOCK = 'Tolik ves nemá.';
-export const UNFAIR = 'Za to by soused prodělal – přidej, nebo uber.';
-export const NO_PEOPLE_WANTED = 'Lidi soused letos nevezme.';
-export const NO_PEOPLE_OFFERED = 'Lidi soused letos nedá.';
-export const OVER_PEOPLE_DEMAND = 'Tolik lidí soused letos nevezme.';
-export const OVER_PEOPLE_SUPPLY = 'Tolik lidí soused letos nemá.';
-export const NO_EMIGRANTS =
-  'Tolik lidí ves dát nemůže – bez dědiců, dvorce a bez rozpadu domácností.';
-
-/** Výprava k sousedovi ve směru, která je na cestě; jinak null. */
-export function expeditionTo(
-  state: Pick<VillageState, 'trade'>,
-  direction: Direction8,
-): TradeExpedition | null {
-  return (
-    state.trade?.expeditions.find((e) => e.kind !== 'shipment' && e.direction === direction) ?? null
-  );
-}
-
-/**
- * Ocení výměnu v den `day` a zkontroluje ji: hotová stezka, žádná výprava na cestě, soused dané
- * zboží shání (nejvýš zbytek roční poptávky) a nabízené má (nejvýš zbytek zásoby), ves má, co dává,
- * koupený dobytek se vejde do ohrad svého druhu (`cattleRoomBlocked`) a bilance pro souseda ≥ 0.
- * Nosiči a práce i u zamítnuté výměny (náhled v panelu). Vozy jedou jen po stezce sjízdné pro
- * vozy (`landscape` – `trailCartPassable`; bez krajiny vždy) a jen s voly, které ves neprodává.
- */
-export function tradeQuote(
-  state: VillageState,
-  offer: TradeOffer,
-  day: number,
-  landscape: Landscape | null = null,
-): TradeQuote {
-  const neighbour = neighbourOf(state.seed, offer.direction);
-  const stock = neighbourStock(state, offer.direction, day);
-  const give = entries(offer.give);
-  const get = entries(offer.get);
-  const givePeople = offer.givePeople ?? NO_PEOPLE;
-  const getPeople = offer.getPeople ?? NO_PEOPLE;
-  const people = stockPeople(stock);
-  const leaving = emigrantGroups(state, day, givePeople);
-  // jezdečtí koně za kus podle výcviku (horses.md – Nákup a prodej): prodaní napřed nejméně
-  // vycvičení, koupení podle nabídky souseda (`offeredHorses`)
-  // po zlém roce kraje je ostatní zboží v kg obilí levnější, obilí dražší (disasters.md – Obchod)
-  const worth = (g: TradeGood): number => goodWorth(state, g, day);
-  const giveCredit = (g: TradeGood, n: number): number =>
-    worth(g) *
-    (g === 'ridingHorses'
-      ? horsesSaleValues(state, g, n, day).reduce((sum, v) => sum + sellValue(v), 0)
-      : n * sellPrice(g));
-  const getPrice = (g: TradeGood, n: number): number =>
-    worth(g) *
-    (g === 'ridingHorses'
-      ? offeredHorses(state, offer.direction, g, n, day).reduce(
-          (sum, h) => sum + buyValue(horseValueKg(h)),
-          0,
-        )
-      : n * buyPrice(g));
-  const credit =
-    give.reduce((sum, [g, n]) => sum + giveCredit(g, n), 0) +
-    emigrantList(leaving).reduce((sum, g) => sum + sellValue(g.valueKg), 0);
-  const price =
-    get.reduce((sum, [g, n]) => sum + getPrice(g, n), 0) +
-    people.families
-      .slice(0, getPeople.families)
-      .reduce((sum, children) => sum + familyBuyPrice(children), 0) +
-    (Math.min(getPeople.men, people.men) + Math.min(getPeople.women, people.women)) *
-      adultBuyPrice();
-  const trail = builtTrail(state, offer.direction);
-  const days = trail ? trailTripDays(trail.lengthM) : 0;
-  // vozy s voly, kteří jsou doma – náklad místo nosičů, jen po sjízdné stezce (wagons.md –
-  // Obchod, axisCartCheck)
-  const available =
-    trail && trailCartPassable(state, trail, landscape)
-      ? tradeCarts(withoutSoldOxen(state, offer.give, day), day).map((c) => c.kind)
-      : [];
-  const transport = expeditionTransport(offer.give, offer.get, available);
-  const porters = transport.porters;
-  const quote = {
-    credit: round2(credit),
-    price: round2(price),
-    balance: round2(credit - price),
-    porters,
-    trips: transport.trips,
-    carts: available.slice(0, transport.carts),
-    days: days * transport.trips,
-    manDays: transport.work * days,
-  };
-  const blocked = ((): string | null => {
-    if (!trail) return NO_TRAIL;
-    if (expeditionTo(state, offer.direction)) return EXPEDITION_AWAY;
-    const noPeople = tradePeopleCount(givePeople) + tradePeopleCount(getPeople) === 0;
-    if (give.length === 0 && get.length === 0 && noPeople) return NOTHING_TO_TRADE;
-    const peopleBlock = peopleBlocked(people, givePeople, getPeople, leaving);
-    if (peopleBlock) return peopleBlock;
-    for (const [g, n] of give) {
-      if (!neighbour.demands.includes(g)) return NOT_WANTED;
-      if (n > (stock.demand[g] ?? 0)) return OVER_DEMAND;
-      if (n > villageGoodStock(state, g, day)) return OVER_STOCK;
-    }
-    for (const [g, n] of get) {
-      if (!neighbour.offers.includes(g)) return NOT_OFFERED;
-      if (n > (stock.supply[g] ?? 0)) return OVER_SUPPLY;
-    }
-    const room = cattleRoomBlocked(state, offer.get) ?? horseRoomBlocked(state, offer.get, day);
-    if (room) return room;
-    if (credit + EPSILON < price) return UNFAIR;
-    return null;
-  })();
-  return { ...quote, blocked };
-}
-
-function round2(v: number): number {
-  return Math.round(v * 100) / 100;
-}
-
-/** Lidé souseda ze zbytku roku (`neighbourStock` je doplní vždy). */
-function stockPeople(stock: NeighbourStock): NeighbourPeople {
-  return stock.people ?? { families: [], men: 0, women: 0, takes: { ...NO_PEOPLE } };
-}
-
-/** Proč lidé ve výměně nejdou (trade.md – Výměna lidí), nebo null. */
-function peopleBlocked(
-  people: NeighbourPeople,
-  give: TradePeople,
-  get: TradePeople,
-  leaving: Emigrants,
-): string | null {
-  const { takes } = people;
-  if (tradePeopleCount(give) > 0) {
-    if (tradePeopleCount(takes) === 0) return NO_PEOPLE_WANTED;
-    if (give.families > takes.families || give.men > takes.men || give.women > takes.women) {
-      return OVER_PEOPLE_DEMAND;
-    }
-    if (
-      leaving.families.length < give.families ||
-      leaving.men.length < give.men ||
-      leaving.women.length < give.women
-    ) {
-      return NO_EMIGRANTS;
-    }
-  }
-  if (tradePeopleCount(get) > 0) {
-    if (people.families.length + people.men + people.women === 0) return NO_PEOPLE_OFFERED;
-    if (get.families > people.families.length || get.men > people.men || get.women > people.women) {
-      return OVER_PEOPLE_SUPPLY;
-    }
-  }
-  return null;
-}
-
-/** Obchod vsi (založí prázdný – mutuje stav). */
-function tradeOf(state: VillageState): VillageTrade {
-  return (state.trade ??= { neighbours: [], expeditions: [], nextId: 1 });
-}
-
-/** Uloží zbytek roku souseda (mutuje stav). */
-export function storeStock(state: VillageState, stock: NeighbourStock): void {
-  const trade = tradeOf(state);
-  trade.neighbours = [...trade.neighbours.filter((n) => n.direction !== stock.direction), stock];
-}
-
-/**
- * Výprava vyrazí (trade.md – Obchod): zboží, které ves dává, se odebere ze zásob a soused ho
- * odepíše ze své poptávky, nabízené ze své zásoby; nosiči jdou od zítřka ze společné práce vsi
- * (nosiči × dny). Lidé, které ves dává (trade.md – Výměna lidí – `emigrantGroups`), odejdou hned
- * a v rodokmenu zůstanou jako odešlí ve směru souseda (`removePeople`); lidé souseda přijdou
- * s návratem výpravy. Lidé nic nenesou a nosiče nepotřebují. RangeError, když výměna nejde
- * (`tradeQuote` – důvod česky). Konvence dne jako u ostatních akcí. Akce hráče – stav nemění
- * (kopie vsi, na ní `launchExpedition`).
- */
-export function startExpedition(
-  state: VillageState,
-  day: number,
-  offer: TradeOffer,
-  landscape: Landscape | null = null,
-): VillageState {
-  const quote = checkedQuote(state, offer, day, landscape);
-  const next = structuredClone(state);
-  departExpedition(next, day, offer, quote, landscape);
-  return next;
-}
-
-/**
- * Výprava vyrazí jako `startExpedition`, ale mutuje stav – bez kopie celé vsi (správce v simulaci:
- * výprava za obilím, village-core.md – Výkon dopočtu). RangeError, když výměna nejde – stav pak
- * zůstane beze změny.
- */
-export function launchExpedition(
-  state: VillageState,
-  day: number,
-  offer: TradeOffer,
-  landscape: Landscape | null = null,
-): void {
-  departExpedition(state, day, offer, checkedQuote(state, offer, day, landscape), landscape);
-}
-
-/** Náhled výměny (`tradeQuote`), která jde; jinak RangeError s důvodem. */
-function checkedQuote(
-  state: VillageState,
-  offer: TradeOffer,
-  day: number,
-  landscape: Landscape | null,
-): TradeQuote {
-  const quote = tradeQuote(state, offer, day, landscape);
-  if (quote.blocked) throw new RangeError(quote.blocked);
-  return quote;
-}
-
-/**
- * Jádro výpravy (mutuje stav) podle náhledu `quote`, který jde. Co se čte z vsi před výpravou
- * (koně z nabídky, vozy a jejich voli, sjízdnost stezky), se přečte napřed – před odečtením zboží
- * a odchodem lidí.
- */
-function departExpedition(
-  next: VillageState,
-  day: number,
-  offer: TradeOffer,
-  quote: TradeQuote,
-  landscape: Landscape | null,
-): void {
-  const trail = builtTrail(next, offer.direction)!;
-  const stock = structuredClone(neighbourStock(next, offer.direction, day));
-  const give = Object.fromEntries(entries(offer.give)) as TradeGoods;
-  const get = Object.fromEntries(entries(offer.get)) as TradeGoods;
-  // koupení koně s věkem a výcvikem z nabídky souseda – před odečtením ze zásoby souseda
-  const horses = boughtHorses(next, offer.direction, get, day);
-  // vozy výpravy (s nimi jejich voli) jsou do návratu pryč (wagons.md – Obchod) – jen s voly,
-  // které ves neprodala
-  const carts = tradeCarts(withoutSoldOxen(next, give, day), day)
-    .slice(0, quote.carts.length)
-    .map((c) => c.id);
-  const cartPassable = trailCartPassable(next, trail, landscape);
-  for (const [g, n] of entries(give)) {
-    addGood(next, g, -n, day);
-    stock.demand[g] = (stock.demand[g] ?? 0) - n;
-  }
-  for (const [g, n] of entries(get)) stock.supply[g] = (stock.supply[g] ?? 0) - n;
-  // lidé (trade.md – Výměna lidí): naši odejdou hned s výpravou, lidé souseda přijdou s návratem
-  const givePeople = offer.givePeople ?? NO_PEOPLE;
-  const getPeople = offer.getPeople ?? NO_PEOPLE;
-  const people = stockPeople(stock);
-  const leaving = emigrantGroups(next, day, givePeople);
-  const groups = emigrantList(leaving);
-  // kdo odchází – pohlaví a den narození (postavy karavany ve scéně jdou s výpravou tam)
-  const members = groups.flatMap((g) =>
-    g.people.map((p) => ({ sex: p.sex ?? 'male', bornDay: p.bornDay, group: g.kind })),
-  );
-  const emigrated = new Map(
-    groups.flatMap((g) => g.people.map((p) => [p.id, offer.direction] as const)),
-  );
-  removePeople(next, new Set(emigrated.keys()), emigrated);
-  people.takes = {
-    families: people.takes.families - givePeople.families,
-    men: people.takes.men - givePeople.men,
-    women: people.takes.women - givePeople.women,
-  };
-  const coming = {
-    families: people.families.slice(0, getPeople.families),
-    men: getPeople.men,
-    women: getPeople.women,
-  };
-  people.families = people.families.slice(getPeople.families);
-  people.men -= getPeople.men;
-  people.women -= getPeople.women;
-  storeStock(next, { ...stock, people });
-  const sent = tradePeopleCount(givePeople) > 0;
-  const fetched = tradePeopleCount(getPeople) > 0;
-  const trade = tradeOf(next);
-  // co by výpravě ušetřily čtyřkoláky – do roku vozů (wagons.md – Kolik vozů ves chce)
-  if (cartPassable) {
-    addExpeditionDemand(next, day, fourWheelSavings(give, get, quote.days / quote.trips));
-  }
-  trade.expeditions.push({
-    id: trade.nextId++,
-    direction: offer.direction,
-    trailId: trail.id,
-    startedDay: day,
-    give,
-    get,
-    porters: quote.porters,
-    ...(quote.trips > 1 ? { trips: quote.trips } : {}),
-    ...(carts.length > 0 ? { carts } : {}),
-    days: quote.days,
-    cost: quote.manDays,
-    done: 0,
-    ...(sent ? { givePeople: { ...givePeople, people: peopleCount(groups), members } } : {}),
-    ...(fetched ? { getPeople: coming } : {}),
-    ...(horses.length > 0 ? { horses } : {}),
-  });
-  next.chronicle.push({
-    day,
-    kind: 'trade-departed',
-    direction: offer.direction,
-    give,
-    ...(sent ? { people: { ...givePeople } } : {}),
-  });
 }
 
 /**
@@ -872,10 +352,9 @@ type ToolGoods = TradeGoods & { tools?: number };
 
 /**
  * Zboží s nástroji `tools` (uložené před hřivnami) převedenými na hřivny – kg ÷ IRON.barsPerToolKg
- * na celé kg (jako zásoba nástrojů ve vsi – `withToolEquipment`); `keepEmpty` nechá i 0 kg (zbytek
- * roku souseda – druhy zboží musí sedět na jeho povahu). Bez nástrojů týž objekt.
+ * na celé kg (jako zásoba nástrojů ve vsi – `withToolEquipment`). Bez nástrojů týž objekt.
  */
-function renamedTools(goods: TradeGoods, keepEmpty = false): TradeGoods {
+function renamedTools(goods: TradeGoods): TradeGoods {
   const legacy = goods as ToolGoods;
   if (legacy.tools === undefined) return goods;
   const out: ToolGoods = { ...legacy };
@@ -883,26 +362,20 @@ function renamedTools(goods: TradeGoods, keepEmpty = false): TradeGoods {
   const bars =
     (out.ironBars ?? 0) +
     Math.max(legacy.tools > 0 ? 1 : 0, Math.round(legacy.tools / IRON.barsPerToolKg));
-  if (bars > 0 || keepEmpty) out.ironBars = bars;
+  if (bars > 0) out.ironBars = bars;
   return out;
 }
 
 /**
  * Hřivny místo nástrojů v obchodu vsi uložené dřív (production-chains.md – Kovář; Martin 20. 10.
- * 2026: „V liště jenom hřivny“): nástroje `tools` ve zbytku roku sousedů, ve výpravách na cestě
- * a v kronice výprav se převedou na hřivny (kg ÷ 1,2 – `renamedTools`) – zbytek roku souseda pak
- * sedí na jeho dnešní povahu (hřivny místo nástrojů) a výprava přinese hřivny. Běží před
- * `withoutForeignGoods` (ten by nástroje jako neznámé zboží zahodil). Bez čeho převádět, vrátí
- * tentýž objekt; idempotentní (jako `withCattleKinds`).
+ * 2026: „V liště jenom hřivny“): nástroje `tools` ve výpravách na cestě a v kronice výprav se
+ * převedou na hřivny (kg ÷ 1,2 – `renamedTools`) – výprava přinese hřivny. Zbytky roku sousedů
+ * nechá – smaže je převod `withoutFictionalNeighbours`. Běží před `withoutForeignGoods` (ten by
+ * nástroje jako neznámé zboží zahodil). Bez čeho převádět, vrátí tentýž objekt; idempotentní
+ * (jako `withCattleKinds`).
  */
 export function withIronBarsTrade(state: VillageState): VillageState {
   const trade = state.trade;
-  const neighbours = trade?.neighbours.map((n) => {
-    const supply = renamedTools(n.supply, true);
-    const demand = renamedTools(n.demand, true);
-    return supply === n.supply && demand === n.demand ? n : { ...n, supply, demand };
-  });
-  const neighboursChanged = neighbours?.some((n, i) => n !== trade!.neighbours[i]) ?? false;
   const expeditions = trade?.expeditions.map((e) => {
     const give = renamedTools(e.give);
     const get = renamedTools(e.get);
@@ -914,12 +387,10 @@ export function withIronBarsTrade(state: VillageState): VillageState {
     (event.kind === 'trade-departed' && 'tools' in event.give) ||
     (event.kind === 'trade-returned' && 'tools' in event.get);
   const chronicleChanged = state.chronicle.some(legacyEvent);
-  if (!neighboursChanged && !expeditionsChanged && !chronicleChanged) return state;
+  if (!expeditionsChanged && !chronicleChanged) return state;
   return {
     ...state,
-    ...(trade && (neighboursChanged || expeditionsChanged)
-      ? { trade: { ...trade, neighbours: neighbours!, expeditions: expeditions! } }
-      : {}),
+    ...(trade && expeditionsChanged ? { trade: { ...trade, expeditions: expeditions! } } : {}),
     ...(chronicleChanged
       ? {
           chronicle: state.chronicle.map((event) => {
@@ -949,22 +420,6 @@ function knownGoods(goods: TradeGoods): TradeGoods {
   return Object.fromEntries(Object.entries(goods).filter(([key]) => isTradeGood(key)));
 }
 
-/**
- * Druhy zboží jsou přesně `goods` (bez ohledu na pořadí) – kromě koní: zbytek roku uložený před
- * koňmi je nemá a dostane je až při doplnění 1. 11. (horses.md – Nákup a prodej).
- */
-function sameGoods(stock: TradeGoods, goods: readonly TradeGood[]): boolean {
-  const keys = Object.keys(stock).filter((g) => !isHorseGood(g));
-  const wanted = goods.filter((g) => !isHorseGood(g));
-  return keys.length === wanted.length && wanted.every((g) => g in stock);
-}
-
-/** Uložený zbytek roku souseda sedí na jeho povahu – nabídka i poptávka mají jeho druhy zboží. */
-function fitsNeighbour(stock: NeighbourStock, seed: number): boolean {
-  const neighbour = neighbourOf(seed, stock.direction);
-  return sameGoods(stock.supply, neighbour.offers) && sameGoods(stock.demand, neighbour.demands);
-}
-
 /** Událost kroniky o výpravě se zbožím, které obchod nezná. */
 function foreignTradeEvent(event: ChronicleEvent): boolean {
   return (
@@ -977,12 +432,11 @@ function foreignTradeEvent(event: ChronicleEvent): boolean {
  * Ves bez zboží zvenku (trade.md – Jen společné suroviny; Martin 19. 10. 2026: „Nech jen společné
  * suroviny, nezaváděj nové.“). Starší ves přijde o zásoby soli, železa, medu a kožešin
  * (`VillageState.goods`) a o podíl medu v posledním jídle – jen ves bez zboží vsi (`wares`); ves
- * se zbožím jí med z klátů (hides-honey.md – Klát u obydlí) a podíl jí zůstane. Uložený zbytek roku
- * souseda, který nesedí na jeho dnešní povahu (soused nabízel zboží zvenku), se zahodí – soused má
- * do 1. 11. plné roční zásoby a poptávku. Výprava na cestě, která měla přinést zboží zvenku, se ruší
- * celá: nosiči přinesou zpět, co nesli (`get` = `give`), ves nic neztratí ani nezíská. Z kroniky
- * výprav zboží zvenku zmizí. Bez čeho převádět, vrátí tentýž objekt; idempotentní (jako
- * `withKinship`).
+ * se zbožím jí med z klátů (hides-honey.md – Klát u obydlí) a podíl jí zůstane. Výprava na cestě,
+ * která měla přinést zboží zvenku, se ruší celá: nosiči přinesou zpět, co nesli (`get` = `give`),
+ * ves nic neztratí ani nezíská. Z kroniky výprav zboží zvenku zmizí. Zbytky roku sousedů nechá –
+ * smaže je převod `withoutFictionalNeighbours`. Bez čeho převádět, vrátí tentýž objekt;
+ * idempotentní (jako `withKinship`).
  */
 export function withoutForeignGoods(state: VillageState): VillageState {
   const legacy = state as VillageState & { goods?: unknown };
@@ -990,17 +444,10 @@ export function withoutForeignGoods(state: VillageState): VillageState {
   // převod běží při každém načtení – podíl medu ze zboží zvenku má jen ves bez zboží vsi
   const foreignHoney = shares?.honey !== undefined && state.wares === undefined;
   const trade = state.trade;
-  const staleStocks = trade?.neighbours.some((n) => !fitsNeighbour(n, state.seed)) ?? false;
   const foreignExpeditions =
     trade?.expeditions.some((e) => hasForeign(e.give) || hasForeign(e.get)) ?? false;
   const foreignEvents = state.chronicle.some(foreignTradeEvent);
-  if (
-    legacy.goods === undefined &&
-    !foreignHoney &&
-    !staleStocks &&
-    !foreignExpeditions &&
-    !foreignEvents
-  ) {
+  if (legacy.goods === undefined && !foreignHoney && !foreignExpeditions && !foreignEvents) {
     return state;
   }
   const next: VillageState & { goods?: unknown } = { ...state };
@@ -1012,10 +459,9 @@ export function withoutForeignGoods(state: VillageState): VillageState {
       shares: { grain, meat, dairy, eggs, fruit, ...(legumes !== undefined ? { legumes } : {}) },
     };
   }
-  if (trade && (staleStocks || foreignExpeditions)) {
+  if (trade && foreignExpeditions) {
     next.trade = {
       ...trade,
-      neighbours: trade.neighbours.filter((n) => fitsNeighbour(n, state.seed)),
       expeditions: trade.expeditions.map((e) =>
         hasForeign(e.give) || hasForeign(e.get)
           ? { ...e, give: knownGoods(e.give), get: knownGoods(hasForeign(e.get) ? e.give : e.get) }

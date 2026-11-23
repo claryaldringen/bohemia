@@ -1,8 +1,10 @@
 # Sousední vsi – vsi rodu místo smyšlených sousedů
 
-Stav: **rozpracovaný návrh – zbytek patří do nové kapitoly obchodu** (22. 11. 2026). Do té doby platí obchod se
-smyšlenými sousedy ([obchod](trade.md)) a sňatky z okolí ([příbuzenství](kinship.md)) beze změny. Martin prošel osm bodů
-shrnutí návrhu Clauda (22. 11. 2026):
+**Plán 1 obchodu hotový 23. 11. 2026:** body 13 (než syn odejde – žádný obchod, nákup, výměna lidí, koně od souseda, cizí kovář ani sňatky zvenku) a 14 (starší vsi – smyšlení sousedé zmizeli ze stavu, na cestě doběhne) jsou hotové ([markets.md](markets.md) – Rozhodnutí plánu 1); ostatní body čekají na plány 2 a 3.
+
+Stav: **rozpracovaný návrh – zbytek patří do nové kapitoly obchodu** (22. 11. 2026). Obchod se smyšlenými sousedy
+([obchod](trade.md)) a sňatky z okolí ([příbuzenství](kinship.md)) skončily s plánem 1 obchodu 23. 11. 2026 (bod 13);
+do plánů 2 a 3 ves neobchoduje a lidé se berou mezi sebou. Martin prošel osm bodů shrnutí návrhu Clauda (22. 11. 2026):
 
 - bod 1 (kdo je soused) – rozhodnuto: „Sousedy mohou být i vsi jiných hráčů“;
 - bod 2 (výpis nabídky a poptávky souseda): „Obchod teď ideálně nech jak je - bude to docela velká kapitola, kterou pak

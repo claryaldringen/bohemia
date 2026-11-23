@@ -1,139 +1,28 @@
-// Obchod se sousedy a výměna lidí (část rozdělených pravidel, rozcestník je rules.ts).
+// Obchod – hodnoty zboží, doprava, koně a lidé výprav na cestě (část rozdělených pravidel,
+// rozcestník je rules.ts).
 
-import type { HorseGood, NeighbourGood, TradeGood } from '../types';
+import type { TradeGood } from '../types';
 
-// trade.md – Obchod (návrh Clauda, schváleno 18. 10. 2026): výměna podle hodnot v kg obilí. Soused
-// bere s přirážkou ≈ 20 % (prodává o ni dráž, kupuje o ni levněji), co shání, za to dá o 20 % víc,
-// co nabízí, dá o 20 % levněji: ves za sháněné zboží dostane hodnotu ÷ 1,2 × 1,2 = 1 × hodnota,
-// nabízené zboží platí hodnotou × 1,2 × 0,8 = 0,96. Nosič unese 25 kg (dobytek se žene – honák na
-// 10 kusů, návrh Clauda); vozy jedou tolikrát, kolikrát se naplní celé, zbytek nesou lidé
-// rovnoměrně mezi jízdy (wagons.md – Obchod, Martin 22. 10. 2026); cesta tam a zpět 2–6 dní podle délky stezky (2 dny do 400 m, každých
-// dalších 250 m den navíc – návrh Clauda) + 1 den za krajem mapy. Zásoby a poptávka sousedů se
-// doplní 1. 11. Ves si nechá aspoň 2 krávy (chovný pár – návrh Clauda). Krávy a voli jdou po svých
-// s honákem – jako lidé ve výměně lidí nepotřebují nosiče, honák je člověk výpravy. Koně
-// (horses.md – Nákup a prodej, návrh Clauda) se vedou na ohlávce, ne ženou – honák na 4 koně.
+// trade.md – Obchod (návrh Clauda, schváleno 18. 10. 2026): hodnoty v kg obilí – ves za zboží
+// dostane hodnotu ÷ přirážka 1,2 × příplatek 1,2 = 1 × hodnota (`sellValue` – platba koní nové
+// ohrady). Nosič unese 25 kg, kládu bez vozu nesou dva; dobytek se žene – honák na 10 kusů, koně
+// se vedou na ohlávce – honák na 4 koně (horses.md – Nákup a prodej, návrh Clauda); cesta tam
+// a zpět 2–6 dní podle délky stezky (2 dny do 400 m, každých dalších 250 m den navíc – návrh
+// Clauda) + 1 den za krajem mapy (zásilky vazalů, výprava na cestě). Rok obchodu začíná 1. 11.
+// (zdražení zboží po zlém roce kraje – `tradeSeason`). Ves si nechá aspoň 2 krávy (chovný pár –
+// návrh Clauda). Smyšlení sousedé za krajem mapy skončili (markets.md – Pravidla 1).
 export const TRADE = {
   markup: 0.2,
   demandBonus: 0.2,
-  offerDiscount: 0.2,
   porterKg: 25,
   headsPerDrover: 10,
   horsesPerDrover: 4,
   logCarriers: 2,
-  // wagons.md – Opakované jízdy vozu: zbytek aspoň půl vozu = vůz jede ještě jednou (Martin 23. 10. 2026)
-  restTripShare: 0.5,
   tripDays: { min: 2, max: 6, fromM: 400, perDayM: 250 },
   beyondEdgeDays: 1,
   restockDay: { month: 11, day: 1 },
   keepCows: 2,
 } as const;
-// trade.md – Sousedé (Martin 19. 10. 2026: „Nech jen společné suroviny, nezaváděj nové.“ – soused
-// obchoduje jen se zbožím, které má i ves; druhy sousedů návrh Clauda): soused se něčím živí – to
-// nabízí (2–3 druhy ze své nabídky `offers`, je-li jich tolik) – a shání, čeho sám nemá dost (2–3
-// druhy: `always` vždy, zbytek ze svých potřeb `needs`); nabízené a sháněné se nepřekrývají. Kolem
-// vsi je každý druh souseda dvakrát (8 směrů), takže co ves potřebuje, to některý soused nabízí,
-// a co jí přebývá (obilí, maso, sýr, klády po mýcení), to některý shání. Roční zásoba každého
-// nabízeného zboží v hodnotě 600–1 500 kg obilí, poptávka po sháněném 800–2 000 kg obilí.
-export const NEIGHBOURS = {
-  offers: { min: 2, max: 3 },
-  demands: { min: 2, max: 3 },
-  supplyKg: { from: 600, to: 1500 },
-  demandKg: { from: 800, to: 2000 },
-  kinds: {
-    // obilnáři z bezlesé roviny – obilí, luštěniny, dobytek; klády vždy
-    farmers: {
-      offers: ['grain', 'legumes', 'cattle'],
-      always: 'logs',
-      needs: ['meat', 'cheese', 'pottery', 'ironBars', 'charcoal'],
-    },
-    // pastevci – dobytek, maso, sýr; obilí vždy
-    herders: {
-      offers: ['cattle', 'meat', 'cheese'],
-      always: 'grain',
-      needs: ['legumes', 'logs', 'pottery', 'ironBars'],
-    },
-    // lesní ves (dřevaři a uhlíři) – klády, uhlí, maso; obilí vždy
-    woodsmen: {
-      offers: ['logs', 'charcoal', 'meat'],
-      always: 'grain',
-      needs: ['legumes', 'cheese', 'pottery', 'ironBars'],
-    },
-    // řemeslníci (hrnčíři a kováři) – keramika, hřivny (production-chains.md – Kovář); obilí vždy
-    crafters: {
-      offers: ['pottery', 'ironBars'],
-      always: 'grain',
-      needs: ['legumes', 'meat', 'cheese', 'logs', 'charcoal', 'cattle'],
-    },
-  },
-  /**
-   * Dobytek ve třech druzích (trade.md – Dobytek ve třech druzích; Martin 20. 10. 2026: „s dobytkem
-   * by také mělo jít obchodovat. Představuju si tři kategorie - krávy, mladé voly (musí se
-   * vycvičit) a vycvičené voly“; rozdělení podle povahy návrh Clauda): `cattle` v povaze souseda
-   * se rozloží na druhy dobytka – pastevci nabízejí všechny tři (a vždy, i když jim los dobytek
-   * nedal), obilnáři krávy a mladé voly (vycvičené potřebují na orbu sami), řemeslníci shánějí
-   * všechny tři (tažné voly na svoz, krávy na mléko, mladé voly si vycvičí).
-   */
-  cattleKinds: {
-    farmers: ['cows', 'youngOxen'],
-    herders: ['cows', 'youngOxen', 'trainedOxen'],
-    woodsmen: [],
-    crafters: ['cows', 'youngOxen', 'trainedOxen'],
-  },
-  cattleAlways: ['herders'],
-  /**
-   * Koně podle povahy (horses.md – Nákup a prodej, návrh Clauda): pastevci nabízejí hříbata,
-   * klisny a jezdecké koně (ty jen některý rok – `HORSE_TRADE.ridingYearChance`), obilnáři
-   * a řemeslníci shánějí jezdecké koně (jejich vojvodové jezdí taky) – a hříbata a klisny na
-   * vlastní chov, ať má ves komu prodat, co jí z chovu přebývá; lesní ves koně nemá.
-   */
-  /**
-   * Kámen (trade.md – Kámen; Martin 8. 11. 2026: „kámen může být komoditou v obchodě“, druhy sousedů
-   * a čísla návrh Clauda): lesní ves v kopcích a řemeslníci (kameníci, stavitelé) kámen nabízejí,
-   * obilnáři a pastevci z roviny ho shánějí na hradby a stavby. Roční množství m³ losem z vlastního
-   * proudu (ostatní zboží souseda se nemění).
-   */
-  stoneKinds: {
-    farmers: 'demands',
-    herders: 'demands',
-    woodsmen: 'offers',
-    crafters: 'offers',
-  },
-  stoneM3: { from: 10, to: 40 },
-  /**
-   * Kůže, kožešiny, med a vosk (hides-honey.md – Obchod; návrh Clauda): pastevci a lesní ves je
-   * nabízejí (maso, kůže a kožešiny z lovu, med z brtí), obilnáři a řemeslníci shánějí (kožišnictví,
-   * svíčky, sladké pečivo). Roční množství losem z vlastního proudu (ostatní zboží souseda se
-   * nemění): kůže 5–20 ks, kožešiny 10–40 ks, med 20–80 kg, vosk 2–8 kg.
-   */
-  waresKinds: {
-    farmers: 'demands',
-    herders: 'offers',
-    woodsmen: 'offers',
-    crafters: 'demands',
-  },
-  waresAmounts: {
-    hides: { from: 5, to: 20 },
-    furs: { from: 10, to: 40 },
-    honey: { from: 20, to: 80 },
-    wax: { from: 2, to: 8 },
-  },
-  horseKinds: {
-    farmers: { offers: [], demands: ['foals', 'mares', 'ridingHorses'] },
-    herders: { offers: ['foals', 'mares', 'ridingHorses'], demands: [] },
-    woodsmen: { offers: [], demands: [] },
-    crafters: { offers: [], demands: ['foals', 'mares', 'ridingHorses'] },
-  },
-} as const satisfies Record<string, unknown> & {
-  kinds: Record<
-    string,
-    { offers: readonly NeighbourGood[]; always: NeighbourGood; needs: readonly NeighbourGood[] }
-  >;
-  cattleKinds: Record<string, readonly TradeGood[]>;
-  cattleAlways: readonly string[];
-  stoneKinds: Record<string, 'offers' | 'demands'>;
-  waresKinds: Record<string, 'offers' | 'demands'>;
-  horseKinds: Record<string, { offers: readonly HorseGood[]; demands: readonly HorseGood[] }>;
-};
 // trade.md – Obchod, hodnoty zboží v kg obilí (rešerše research/2026-10-18-trade-values.md, návrh
 // Clauda): obilí 1, luštěniny 1, maso 3, sýr 4, keramika 3, uhlí 0,5 (kg), kráva 600, kláda 40
 // (kus). Hřivny (production-chains.md – Kovář, návrh Clauda) 45 za kg – nástroje 60 bez kování
@@ -177,27 +66,14 @@ export const TRADE_GOOD_VALUES = {
  * hříbě 800 kg obilí (víc než mladý vůl – kůň je vzácný, chov dražší), chovná klisna 1 600 (víc
  * než vycvičený vůl), jezdecký kůň 2 400 (3 roky, nevycvičený) – 3 600 (12 let, vycvičený)
  * lineárně podle výcviku (`ridingPerTrainingKg` za celý výcvik – 2–3 vycvičení voli; údržba koně
- * ≈ 1,4× vola). Soused má každého koně 1–3 kusy ročně, pastevci jezdecké koně jen některý rok
- * (`ridingYearChance`). Koupený kůň přijde se svým věkem: hříbě 1–3 roky (odstavené, má vlastní
- * místo), klisna 4–12 let (chovná), jezdecký kůň 3–12 let s výcvikem podle věku – soused
- * neprodá dosluhujícího.
+ * ≈ 1,4× vola).
  */
 export const HORSE_TRADE = {
   ridingPerTrainingKg: 1200,
-  perYear: { min: 1, max: 3 },
-  ridingYearChance: 0.5,
-  ages: {
-    foals: { from: 1, to: 3 },
-    mares: { from: 4, to: 12 },
-    ridingHorses: { from: 3, to: 12 },
-  },
-} as const satisfies Record<string, unknown> & {
-  ages: Record<HorseGood, { from: number; to: number }>;
-};
+} as const;
 /**
  * horses.md – Koně se stavbou ohrady (Martin 26. 10. 2026; čísla návrh Clauda): nově dokončená
- * ohrada koní přivede hřebce (jezdecký kůň 3 roky, bez výcviku) a dvě klisny (4 roky) – věky
- * z dolních mezí `HORSE_TRADE.ages`. Cena koní (`horsePenValueKg`) se odvodí z cen obchodu
+ * ohrada koní přivede hřebce (jezdecký kůň 3 roky, bez výcviku) a dvě klisny (4 roky). Cena koní (`horsePenValueKg`) se odvodí z cen obchodu
  * (`TRADE_GOOD_VALUES`) a platí se předem z přebytku vsi: hřivny, zvířata, obilí (`horsePenPayment`).
  */
 export const HORSE_PEN_STOCK = {
@@ -213,24 +89,11 @@ export const HORSE_PEN_STOCK = {
  * mladé voly napřed ty, které výcvik čeká nejdéle.
  */
 export const CATTLE_TRADE = { servedYears: 3 } as const;
-// trade.md – Výměna lidí (Martin 19. 10. 2026: „Se sousedem půjde vyměnit i lidi... např. když on
-// jich bude mít moc a nebude je moci uživit, může jich pár vyměnit s námi za nějaké suroviny
-// a opačně.“, „Mohou se stěhovat celé rodiny i jen dospělí. Podle toho, co je v nabídce.“; čísla
-// návrh Clauda): dospělý má hodnotu ≈ dvouleté spotřeby jídla (2 × 180 kg obilí), dítě do 14 let
-// polovinu, přirážky jako u zboží. Rok obchodu: soused má s pravděpodobností 40 % lidi navíc
-// (0–2 rodiny a 0–3 svobodné dospělé, aspoň jednoho člověka), s 30 % lidi shání (vezme 0–2 rodiny
-// a 0–3 dospělé, aspoň jednoho), jinak lidi nemění. Rodina souseda: muž 24–38 let, žena o 0–6 let
-// mladší (nejméně 18 + 3 roky na dítě), 0–3 děti – nejmladší 0–2 roky, mezi dětmi 2–3 roky;
-// svobodný dospělý muž nebo žena 16–26 let. Muži a ženy zvlášť (Martin 19. 10. 2026): pohlaví
-// každého svobodného dospělého souseda se losuje 1 : 1 už v nabídce a poptávce.
+// trade.md – Výměna lidí (Martin 19. 10. 2026; čísla návrh Clauda): lidé, které přivede výprava
+// na cestě (markets.md – Pravidla 10). Rodina souseda: muž 24–38 let, žena o 0–6 let mladší
+// (nejméně 18 + 3 roky na dítě), děti – nejmladší 0–2 roky, mezi dětmi 2–3 roky; svobodný dospělý
+// muž nebo žena 16–26 let.
 export const PEOPLE_TRADE = {
-  adultValueKg: 360,
-  childShare: 0.5,
-  surplusChance: 0.4,
-  shortageChance: 0.3,
-  families: { min: 0, max: 2 },
-  adults: { min: 0, max: 3 },
-  children: { min: 0, max: 3 },
   husbandAge: { from: 24, to: 38 },
   wifeYounger: { from: 0, to: 6 },
   wifeMinAge: 18,

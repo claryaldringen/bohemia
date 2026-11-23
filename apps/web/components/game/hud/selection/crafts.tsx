@@ -386,15 +386,6 @@ export function WorkshopRow({
       {workshop.iron && <SmithIronStats iron={workshop.iron} />}
       {workshop.ore && <SmithOreStats ore={workshop.ore} />}
       {workshop.clay && <PotterClayStats clay={workshop.clay} />}
-      {workshop.buying && (
-        <Stat
-          icon={product.icon}
-          name={`Vlastní dílna nemá vstupy – vesničané dokupují u souseda (${DIRECTION_NAMES[workshop.buying.direction].name}, ${workshop.buying.days} dní cesty)`}
-          testId="selection-workshop-buying"
-        >
-          {DIRECTION_NAMES[workshop.buying.direction].arrow}
-        </Stat>
-      )}
       {workshop.craft === 'burner' && workshop.toPlant > 0 && workshop.activity !== 'planting' && (
         <Stat
           icon="labor"
@@ -550,9 +541,9 @@ export function CarpenterStats({
 }
 
 /**
- * Dvorec: kde ves bere výrobky řemeslníků (crafts.md – Nákup u sousedů) – ikona výrobku se šipkou
- * k sousedovi s řemeslníkem (vlastní dílna ✓) a nákupy na cestě (lidé a dny do návratu). Jen
- * ikony, věty v popiscích.
+ * Dvorec: výrobky řemeslníků – vlastní dílna ✓, bez vlastního řemeslníka zašedlá ikona (nákup
+ * u sousedů zrušen – markets.md, Pravidla 1; dílna, která stojí bez vstupu, řekne v popisku proč)
+ * – a nákupy uložené na cestě (lidé a dny do návratu). Jen ikony, věty v popiscích.
  */
 export function BuyingRow({ buying }: { buying: SelectionBuying }): ReactElement {
   return (
@@ -561,16 +552,13 @@ export function BuyingRow({ buying }: { buying: SelectionBuying }): ReactElement
         <Stat
           key={source.product}
           icon={PRODUCT_ICONS[source.product]}
-          name={
-            source.own
-              ? `${PRODUCT_TITLES[source.product]} – vlastní řemeslník`
-              : source.direction
-                ? `${PRODUCT_TITLES[source.product]} – vesničané kupují u souseda (${DIRECTION_NAMES[source.direction].name}, ${source.days} dní cesty${source.trail ? ' po stezce' : ' krajinou'}), když se jim to vyplatí`
-                : `${PRODUCT_TITLES[source.product]} – žádný soused je nedělá`
-          }
+          dim={!source.own}
+          name={`${PRODUCT_TITLES[source.product]} – ${
+            source.own ? 'vlastní řemeslník' : (source.stopped ?? 've vsi není řemeslník')
+          }`}
           testId={`selection-buying-${source.product}`}
         >
-          {source.own ? '✓' : source.direction ? DIRECTION_NAMES[source.direction].arrow : '–'}
+          {source.own ? '✓' : null}
         </Stat>
       ))}
       {buying.purchases.map((purchase, k) => (

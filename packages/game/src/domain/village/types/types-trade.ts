@@ -1,4 +1,4 @@
-// Typy stavu vsi – Obchod se sousedy.
+// Typy stavu vsi – zboží obchodu, výpravy na cestě a zásilky.
 // Rozcestník je `types.ts`; tento soubor jen drží část typů.
 
 import type { CartKind } from './types-roads';
@@ -45,34 +45,8 @@ export type TradeGood =
   | 'furs'
   | 'wax';
 
-/**
- * Zboží v povaze souseda (NEIGHBOURS.kinds): zboží obchodu, nebo dobytek vcelku (`cattle`) – ten
- * se podle druhu souseda rozloží na krávy a voly (`NEIGHBOURS.cattleKinds`, `neighbourOf`).
- */
-export type NeighbourGood = Exclude<TradeGood, CattleGood | HorseGood> | 'cattle';
-
 /** Množství zboží (jen uvedené druhy, kg nebo kusy podle druhu). */
 export type TradeGoods = Partial<Record<TradeGood, number>>;
-
-/**
- * Soused v jednom směru – co mu letos zbývá z nabídky a kolik ještě vezme ze sháněného
- * (trade.md – Sousedé: roční zásoby a poptávka, doplnění 1. 11.). Povaha (co nabízí a shání) se
- * nemění a počítá se ze seedu světa (`neighbourOf`), ukládá se jen, co z roku zbývá.
- */
-export interface NeighbourStock {
-  direction: Direction8;
-  /** Rok obchodu (herní rok, ve kterém začal 1. 11.), ke kterému zásoby platí. */
-  season: number;
-  /** Co soused ještě letos dá (nabízené zboží). */
-  supply: TradeGoods;
-  /** Kolik soused ještě letos vezme (sháněné zboží). */
-  demand: TradeGoods;
-  /**
-   * Lidé, které soused letos ještě dá a vezme (trade.md – Výměna lidí). Chybí u zbytku roku
-   * uloženého před výměnou lidí – pak platí celý rok podle povahy (`neighbourPeople`).
-   */
-  people?: NeighbourPeople;
-}
 
 /**
  * Lidé ve výměně se sousedem (trade.md – Výměna lidí): rodiny a svobodní muži a ženy zvlášť
@@ -98,21 +72,6 @@ export interface ComingPeople {
 
 /** Kdo přišel od souseda (trade.md – Výměna lidí): rodina, svobodný muž, svobodná žena. */
 export type NewcomerGroup = 'family' | 'man' | 'woman';
-
-/**
- * Lidé souseda na rok obchodu (trade.md – Výměna lidí): rodiny a svobodní muži a ženy, které
- * neuživí a dá je, a kolik lidí naopak vezme. Zbytek roku uložený před muži a ženami zvlášť má
- * `adults` – převede ho `storedNeighbourPeople`.
- */
-export interface NeighbourPeople {
-  /** Rodiny, které soused dá – počet dětí v každé; ves bere od první. */
-  families: number[];
-  /** Svobodní muži a ženy, které soused dá. */
-  men: number;
-  women: number;
-  /** Kolik rodin a svobodných mužů a žen soused vezme. */
-  takes: TradePeople;
-}
 
 /**
  * Výprava nosičů k sousedovi (trade.md – Obchod): zboží, které nesou tam (už odebrané ze zásob
@@ -172,7 +131,7 @@ export interface TradeExpedition {
   carts?: number[];
   /**
    * Koně, které výprava přivede (horses.md – Nákup a prodej) – věk a výcvik z nabídky souseda
-   * v den odchodu (`offeredHorses`), v pořadí hříbata, klisny, jezdečtí koně. Chybí = žádní.
+   * v den odchodu, v pořadí hříbata, klisny, jezdečtí koně. Chybí = žádní.
    */
   horses?: TradedHorse[];
 }
@@ -222,9 +181,12 @@ export interface CraftPurchase {
   cart?: CartKind;
 }
 
-/** Obchod vsi se sousedy (trade.md). */
+/**
+ * Výpravy vsi na cestě (markets.md – Pravidla 10): výprava k dřívějšímu sousedovi uložená před
+ * koncem smyšlených sousedů a zásilky vazalů. Zbytky roku sousedů (`neighbours`) smazal převod
+ * `withoutFictionalNeighbours`.
+ */
 export interface VillageTrade {
-  neighbours: NeighbourStock[];
   expeditions: TradeExpedition[];
   /** Další id výpravy. */
   nextId: number;

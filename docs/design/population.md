@@ -1,5 +1,7 @@
 # Obyvatelstvo a obydlí vesnice
 
+> **Od 23. 11. 2026 nepřicházejí nevěsty ani ženichové z okolí a ves nekupuje u smyšlených sousedů** (markets.md – Rozhodnutí plánu 1); zmínky níž o „okolí“ jsou dřívější stav.
+
 Stav: schváleno 17. 10. 2026 (Martin: „asi ok, doladíme později“), týž den upraveno umístění
 obydlí a společná pole (Martin) a odemčení nového obydlí – hráč staví, kdy chce (Martin). Týž den
 oprava čísel podle rešerše (Martin – úmrtnost dospělých, porody od 16 let, životnost zemnice;

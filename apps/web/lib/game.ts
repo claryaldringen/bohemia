@@ -45,7 +45,6 @@ import {
   settlementLandscape,
   skipTime,
   type ChooseLanguageResult,
-  type Direction8,
   type DynastyView,
   type EnterGameResult,
   type Landscape,
@@ -60,7 +59,6 @@ import {
   type VillageRight,
   villageAccess,
 } from '@bohemia/game';
-import { ownMapsAround } from './departure-view';
 import { getDatabase, getPlayerLock } from './db';
 import { exclusivePlayer, exclusivePlayerShared } from './exclusive';
 import { formatWorldState } from './game-date';
@@ -407,20 +405,6 @@ export async function dynastyOfPlayerLocked(
   villageId: string,
 ): Promise<DynastyView> {
   return dynastyForVillage(dynastyDeps(), { playerId, today, villageId });
-}
-
-/**
- * Vlastní vsi na sousedních mapách sídla `settlementId` po směrech (migration.md) – levně, bez
- * načtení stavů vsí (jména z otisků).
- */
-export async function ownMapsOfPlayer(
-  playerId: string,
-  settlementId: string,
-): Promise<Partial<Record<Direction8, string>>> {
-  const db = getDatabase();
-  const settlements = await createSettlementRepository(db).listActive(playerId);
-  const stamps = await createVillageRepository(db).stampsOf(settlements.map((s) => s.id));
-  return ownMapsAround(settlements, stamps, settlementId);
 }
 
 /** Závislosti use-casů nad vsemi hráče (sídla, vsi, mezipaměť krajin, seedy). */

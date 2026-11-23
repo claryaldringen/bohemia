@@ -19,7 +19,6 @@ import { LIVESTOCK } from '../livestock';
 import { withFourWheelReach } from '../../crafts/carts';
 import { advanceVillage } from '../../core/simulate';
 import { summarizeVillage } from '../../core/summary';
-import { fourWheelSavings } from '../../trade/trade';
 import { HAY, HAY_WINTER_DAYS } from '../hay';
 import { DRAFT_OXEN, OXEN } from '../../rules';
 import type { CartYear, FieldPart, Pen, VillageState } from '../../types';
@@ -396,12 +395,6 @@ describe('rok vozů (wagons.md – Kolik vozů ves chce)', () => {
     // na kouscích nezávisí
     const pieces = advanceVillage(advanceVillage(s, day + 4, null), day + 10, null);
     expect(pieces).toEqual(next);
-  });
-
-  it('výprava zapíše, co by ušetřily čtyřkoláky – nosiči krát dny cesty', () => {
-    // 1 600 kg obilí = 64 nosičů; čtyřkolák jede dvakrát (2 lidé × 2 jízdy), druhý nic neušetří
-    expect(fourWheelSavings({ grain: 1600 }, {}, 4)).toEqual([(64 - 4) * 4]);
-    expect(fourWheelSavings({ grain: 20 }, {}, 4)).toEqual([]);
   });
 });
 

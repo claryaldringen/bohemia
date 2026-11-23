@@ -124,8 +124,8 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   (`needsPersonName` – bez jména a bez `line`). `personName(state, person)` – seznam podle pohlaví,
   los z vlastního proudu `'person-name:' + id` (losy vsi se nemění), přednostně jméno, které nenosí
   nikdo žijící. Jméno dostane narozené dítě v `populationDay` hned po `markNewborn` (zápis `birth`
-  nese `name` a `female`), další manželka v `extraWivesDay` při příchodu; ostatní příchozí (nevěsta
-  a ženich z okolí, rodina od souseda, kněz, schránka) `nameUnnamed` na konci každého dne dopočtu
+  nese `name` a `female`), ostatní příchozí (staré nevěsty
+  a ženichy z okolí, rodina od souseda, kněz, schránka) `nameUnnamed` na konci každého dne dopočtu
   (`advanceVillageSteps` – výsledek nezávisí na kouscích) a zakladatelé na konci `foundVillage`.
   Starší vsi převod `people-names` (`withPeopleNames`, konec seznamu převodů). Zápisy úmrtí
   (`deathWho`) a návratů (`chroniclePerson`) nesou jméno každého; `headName` v postavení jen
@@ -226,12 +226,9 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   - **Manželky** (`dynasty-wives.ts`, lord.md – Manželky): `spouseId` je **asymetrický** – žena
     ukazuje na muže (i vedlejší), muž jen na hlavní; manželky muže = ženy s jeho id. Vedlejší
     manželka se za živého muže nevdává (`isSingle`), smrt muže ovdoví všechny (`removePeople`),
-    smrt hlavní smaže `spouseId` muže. `extraWivesDay` (krok po `arrangeMarriages`): muž rodu od
-    `LORD.extraWifeFromAge` s 1–3 žijícími manželkami, v pořadí id jeden los (proud
-    `'wife:' + den`, `LORD.extraWifePerYear`), ne v hladu; žena z okolí 16–22 let s `origin`
-    a svatební pauzou porodů bydlí **vždy v domě muže**, i když ho přeplní (`extraWifeHome`;
-    Martin 24. 10. 2026 – vedlejší odchází až z přeplněného domu, viz Bydlení rodu); kronika
-    `extra-wife`. Ves bez rodu – nic. `ensureMainWives` (v `dynastyDay` i před `arrangeMarriages` – osadníci výpravy, kde muž
+    smrt hlavní smaže `spouseId` muže. Další manželky z okolí zanikly (markets.md – Pravidla 1,
+    konec smyšlených sousedů; kronika `extra-wife` zůstává jen ve starých záznamech) – víc manželek
+    mají jen zakladatelé a osadníci výpravy. `ensureMainWives` (v `dynastyDay` i před `arrangeMarriages` – osadníci výpravy, kde muž
     přišel jen s vedlejší): muž bez `spouseId` se žijícími manželkami dostane hlavní – matku
     nejstaršího žijícího syna, jehož matka žije, jinak nejnižší id; jejím synům `mainWifeSon`,
     nebydlí-li s ním, přestěhuje se k němu se svobodnými dětmi i do přeplněného (kronika
@@ -267,23 +264,21 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `maxAgeGapWidowedYears` 20). Kam (`weddingHome`): **žena k muži**, i do přeplněného domu; drží-li
   dům ona a on ne (`holdsHome` – po jeho odchodu s dětmi do 16 by doma nezůstal nikdo 16–44), **on
   k ní**; drží-li oba, kde bude méně těsno, při shodě žena. Stěhuje se i s vlastními dětmi do 16
-  (`dependants`); nevěsta dostane `nextBirthFrom` (9 měsíců). Okolí (`MARRIAGE.outside`, los ze
-  seedu a dne, kdo nemá s kým): muž od 18 nevěsta 30 % ročně (16–22, staršímu nejvýš o povolený
-  rozdíl mladší, `origin`); žena od 18 ženich z okolí 10 % ročně (vdova, dědička – `holdsHome`
-  – a žena z domu bez mužů 50 %, `favouredBride`), jinak pryč 20 % ročně (záznam v `emigrants`;
-  vdova, dědička ani žena z domu bez mužů ne); v hladu a do přeplněného domu z okolí nikdo.
+  (`dependants`); nevěsta dostane `nextBirthFrom` (9 měsíců). Kdo ve vsi nemá s kým, zůstane
+  svobodný: nevěsta ani ženich z okolí nepřijdou a nikdo se nevdá pryč (Martin 22. 11. 2026:
+  „dokud bude vesnice bez spojení s okolím, ať se lidé berou mezi sebou“; markets.md – Pravidla 1);
+  sňatky se skutečnými sousedy vrátí plán 3.
   **Čekání na zásoby** (kinship.md – Sňatky čekají na zásoby; Martin 27. 10. 2026):
-  `arrangeMarriages(state, day, storesFill)` a `extraWivesDay(…, storesFill)` – `simulate.ts`
+  `arrangeMarriages(state, day, storesFill)` – `simulate.ts`
   předá líně počítané naplnění pojistky `bufferFill(fieldStoresOutlook(…))` (`field-food.ts`,
   výhled `leftKg` / `bufferKg`, jednou za den, jen když je svatba na řadě; v hájení – `inLuckyYears`
   – vždy 1). Pod 1 se svatba ve vsi
-  koná s denní šancí `weddingChancePerDay(null, fill)` (střední odklad
+  koná s denní šancí `weddingChancePerDay(fill)` (střední odklad
   `MARRIAGE_STORES.waitYears` × (1 − fill), vlastní los `'wedding-wait:' + den`; čekající snoubenci
-  jsou ten den zabraní), z okolí a další manželka s `weddingChancePerDay(perYear, fill)` – nad
-  pojistkou přesně `perDay(perYear)`, losy beze změny; vdát se pryč beze změny.
-  Kronika `marriage` (`groomMoved`, `widow`), `bride-from-outside`, `groom-from-outside`
-  (`widow`), `married-away`; upozornění „Svatba“ (`VillageView.lastMarriageDay`), „Nevěsta
-  z okolí“, „Ženich z okolí“, „Dcera se vdala pryč“.
+  jsou ten den zabraní); nad pojistkou (`fill` ≥ 1) hned.
+  Kronika `marriage` (`groomMoved`, `widow`); `bride-from-outside`, `groom-from-outside`
+  (`widow`) a `married-away` zůstávají jen ve starých záznamech; upozornění „Svatba“
+  (`VillageView.lastMarriageDay`), staré „Nevěsta z okolí“, „Ženich z okolí“, „Dcera se vdala pryč“.
   **Svatba ve scéně** (kinship.md – Svatba ve scéně; Martin, GitHub issue #2: „Jako máme pohřeb,
   udělej i svatbu. Svatebčané půjdou na některé z posvátných míst v okolí, kde budou oddáni.“ –
   jen zobrazení): události svatby nesou `groomId` / `brideId` (`WeddingCouple`) a `marriage`
@@ -919,8 +914,7 @@ správce); stojící a rozestavěné zůstávají.
   zůstávají `line`. Z přeplněného domu odcházejí jako vdovy po vojvodech (`lordWidows` – svobodná
   matka dítěte kteréhokoli vojvody z `dynasty.lords`). NPC rod (`npc`) – jen ve vsi, kterou ještě
   řídí: `faith.nobles` a křest hlavy vsi bez kroniky.
-- **Pokřtěný rod ve vsi:** `extraWivesDay` nic nepřidá (ani za nástupce narozeného před křtem);
-  dítě je křesťan, je-li křesťan aspoň jeden rodič (`populationDay`).
+- **Pokřtěný rod ve vsi:** dítě je křesťan, je-li křesťan aspoň jeden rodič (`populationDay`).
 - **Nová ves rodu:** `departLeavers` dá osadníkům `Settlers.rodBaptizedDay`, `travellingVillage`,
   `settlersOf` a `foundVillage` ho nesou (`faithOfSettlers` – bez `desecrated`); ves na cestě
   použije ze schránky jen `rod-baptized` bez `lord` (`withJourneyInbox`; `arrive` v `simulate.ts`

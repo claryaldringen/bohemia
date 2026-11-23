@@ -110,7 +110,7 @@ jsou to kalorie jako každé jiné.“
 
 ## Obchod
 
-- Nové zboží ves má, proto ho smí měnit se sousedy ([obchod](trade.md) – Jen společné suroviny).
+- Nové zboží ves má, proto ho smí měnit na trhu (markets.md; smyšlení sousedé zanikli 23. 11. 2026).
   Ceny v obchodní stupnici – určí implementace podle dnešních cen surovin.
 - Dávky vazalů v novém zboží později.
 

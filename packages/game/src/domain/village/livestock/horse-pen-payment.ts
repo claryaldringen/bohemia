@@ -9,7 +9,7 @@ import {
 } from '../trade/horse-trade';
 import { horsePens, isFoalByAge } from './horses';
 import { surplusCows } from './husbandry';
-import { HORSE_GOODS } from '../trade/neighbours';
+import { HORSE_GOODS } from '../trade/goods';
 import { addGood, goodWorth, sellPrice as plainPrice, sellValue } from '../trade/trade';
 import type {
   CraftCoverage,

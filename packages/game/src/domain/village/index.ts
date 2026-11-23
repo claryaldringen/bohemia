@@ -252,20 +252,11 @@ export { FORGE, ORE_KG_PER_TOOL_KG, REFINE, SMELT, smeltOreKg } from './crafts/i
 // kování vozů (wagons.md – Kování vozů) – krok dne volá simulate.ts
 export {
   cartIronKg,
-  ironCarrier,
-  ironPriceKg,
-  ironDestinations,
-  ironOptions,
-  ironPlan,
-  freeIronCart,
   ironTripDaysLeft,
   ironTripHelpers,
   ironTripLine,
   ironTripShares,
-  smithAtHome,
   withoutSameMapVillages,
-  type IronPlan,
-  type IronRoute,
 } from './crafts/cart-iron';
 // učení řemesla (crafts.md – Učení řemesla) – den praxe volá simulate.ts
 export {
@@ -283,16 +274,14 @@ export * from './crafts/burner-camp';
 export * from './crafts/smith-supply';
 // odnos uhlí na tyči (workshops.md – Uhlíř – odnos uhlí na tyči) – den volá simulate-work
 export * from './crafts/charcoal-pole';
-// nákup u sousedů (crafts.md) – kroky simulace (odchod, cesta, návrat) volá simulate.ts
+// výrobky řemeslníků jen od vlastních řemeslníků; nákup u sousedů uložený na cestě doběhne
+// (crafts.md; markets.md – Pravidla 1) – kroky simulace (cesta, návrat) volá simulate.ts
 export {
   CRAFT_PRODUCTS,
   PRODUCT_CRAFT,
   craftSources,
-  neighbourCrafts,
   ownCraftsmanWorks,
   paymentValueKg,
-  planPurchases,
-  productPrice,
   purchaseDaysLeft,
   purchaseLine,
   purchaseRoute,
@@ -300,7 +289,6 @@ export {
   purchaseTravelers,
   type CraftProduct,
   type CraftSource,
-  type PurchasePlan,
   type PurchaseRoute,
 } from './crafts/craft-buying';
 // tesař a vozy (wagons.md) – kroky simulace (pomoc stavbám, výroba, svoz) volá simulate.ts
@@ -334,7 +322,6 @@ export {
   sowingCartReach,
   cartOxen,
   tradeCarts,
-  trailCartPassable,
   villageCartAccess,
   villageCarts,
   type CartAccess,
@@ -397,29 +384,14 @@ export {
 export * from './trade/trail';
 export { TRAIL_END_BAND_M, trailExitsOf, type TrailExit } from './trade/trail-exits';
 export { landscapeTrailLines } from './trade/premium-route';
-export * from './trade/neighbours';
+export * from './trade/goods';
+export { legacyNeighbourName } from './trade/legacy-neighbours';
 export * from './trade/trade';
 // dobytek v obchodu – příchod a odchod dobytka (`addCattle`, `removeCattle`) jsou kroky obchodu
-export {
-  NO_COW_ROOM,
-  NO_OX_ROOM,
-  boughtOxTrainedDay,
-  cattleForSale,
-  cattleRoom,
-  cattleRoomBlocked,
-  withCattleKinds,
-} from './trade/cattle-trade';
+export { boughtOxTrainedDay, cattleForSale, withCattleKinds } from './trade/cattle-trade';
 // koně v obchodu (horses.md – Nákup a prodej) – příchod a odchod koní (`addHorses`,
 // `removeHorses`) jsou kroky obchodu
-export {
-  NO_HORSE_ROOM,
-  horseRoomBlocked,
-  horseTradeRoom,
-  horseValueKg,
-  horsesForSale,
-  horsesSaleValues,
-  offeredHorses,
-} from './trade/horse-trade';
+export { horseValueKg, horsesForSale } from './trade/horse-trade';
 // koně po kusech (horses.md – Koně po kusech): věk, druh a místa ohrad koní pro scénu a rozhraní
 export {
   horseAgeYears,
@@ -442,7 +414,6 @@ export {
   isUnshod,
   nextShoeingDay,
   planShoeing,
-  shoeingCosts,
   shoeingDay,
   shoeingView,
   type ShoeingDay,
@@ -452,16 +423,13 @@ export {
 export { horsePenValueKg, withHorsePenStock } from './livestock/horse-stock';
 export { withForestClearing } from './forest/forest-clearing-migration';
 export { HORSE_PEN_NO_SURPLUS, horsePenPayment } from './livestock/horse-pen-payment';
-// výměna lidí se sousedem – příchod lidí (`settleNewcomers`) je krok simulace a zůstává uvnitř
+// lidé, které ves dá (zásilky vazalů), a lidé z výpravy na cestě – příchod lidí (`settleNewcomers`)
+// je krok simulace a zůstává uvnitř
 export {
   NO_PEOPLE,
   emigrantGroups,
   emigrantList,
-  neighbourFamilyValue,
-  neighbourPeople,
   newcomerProfiles,
-  personValue,
-  storedNeighbourPeople,
   tradePeopleCount,
   type EmigrantGroup,
   type Emigrants,

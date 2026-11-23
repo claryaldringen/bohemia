@@ -5,7 +5,7 @@ import { addHorses, horsesForSale, horsesToSell, removeHorses } from '../village
 import { removePeople } from '../village/people/kinship';
 import { ensureLivestock, LIVESTOCK } from '../village/livestock/livestock';
 import { logArrivalPoint } from '../village/forest/log-piles';
-import { CATTLE_GOODS, HORSE_GOODS } from '../village/trade/neighbours';
+import { CATTLE_GOODS, HORSE_GOODS } from '../village/trade/goods';
 import {
   emigrantGroups,
   emigrantList,
@@ -206,7 +206,7 @@ export function dispatchShipment(
   const reason = shortage(state, day, bundle) ?? overTransport(state, day, input.cells, bundle);
   if (reason !== null) return { ok: false, reason };
   const next = cloneState(state);
-  const trade = (next.trade ??= { neighbours: [], expeditions: [], nextId: 1 });
+  const trade = (next.trade ??= { expeditions: [], nextId: 1 });
   const id = trade.nextId++;
   next.storesKg = Math.max(0, next.storesKg - bundle.grainKg);
   if (bundle.hayKg > 0 && next.hay) next.hay.kg = Math.max(0, next.hay.kg - bundle.hayKg);

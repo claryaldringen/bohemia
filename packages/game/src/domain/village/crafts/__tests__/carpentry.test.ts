@@ -21,7 +21,6 @@ import {
   villageCartAccess,
   teamsHomeShare,
   tradeCarts,
-  trailCartPassable,
 } from '../carts';
 import { BUILD_COSTS } from '../../buildings/costs';
 import {
@@ -36,7 +35,6 @@ import { craftCoverage, craftTargets, newWorkshop } from '../crafts';
 import { carpenterWorkFactor, woodToolsLaborFactor, woodworkLabor } from '../../core/productivity';
 import { CARPENTRY, CARTS, CRAFT_BASE, workshopCost, workshopTrees } from '../../rules';
 import { advanceVillage } from '../../core/simulate';
-import { expeditionTransport } from '../../trade/trade';
 import type { CartDemand, Construction, FieldPart, VillageState } from '../../types';
 import { LANDSCAPE } from '../../__tests__/paths-fixtures';
 import { withBuiltFirstDwelling } from '../../__tests__/village-fixtures';
@@ -172,6 +170,8 @@ describe('dílna tesaře (wagons.md – Tesař)', () => {
 
   it('vyrobí dvoukolák, který se vyplatí – 25 čd a kláda, kronika', () => {
     const s = withCartYear(withTeam(withCarpenter(village())), [100]);
+    // ves bez kováře má kování z hřiven (cesta pro kování k sousedovi zrušena – markets.md)
+    s.crafts = { charcoalKg: 0, potteryKg: 0, ironBarsKg: 20 };
     expect(missingCart(s)).toBe('two-wheel');
     const next = advanceVillage(s, DAY + 90, null);
     expect(next.carts).toHaveLength(1);
@@ -390,7 +390,6 @@ describe('vozy (wagons.md – Vůz)', () => {
     expect(haulCartsToday(s, DAY, true)).toBe(0);
     expect(tradeCarts(s, DAY).map((c) => c.id)).toEqual([1]);
     s.trade = {
-      neighbours: [],
       nextId: 2,
       expeditions: [
         {
@@ -411,31 +410,6 @@ describe('vozy (wagons.md – Vůz)', () => {
     expect(haulCartsToday(s, DAY, false)).toBe(0);
     expect(tradeCarts(s, DAY)).toEqual([]);
     expect(teamsHomeShare(s, DAY)).toBe(0);
-  });
-
-  it('výprava s vozem – náklad na voze, dva lidé místo nosičů', () => {
-    expect(expeditionTransport({ grain: 400 }, {}, [])).toMatchObject({
-      porters: 16,
-      carts: 0,
-      trips: 1,
-    });
-    expect(expeditionTransport({ grain: 400 }, {}, ['two-wheel'])).toMatchObject({
-      porters: CARTS.tradeCrew,
-      carts: 1,
-      trips: 1,
-    });
-    // čtyřkolák napřed, druhý vůz jen když ušetří lidi
-    expect(expeditionTransport({ grain: 1000 }, {}, ['four-wheel', 'two-wheel'])).toMatchObject({
-      porters: 4,
-      carts: 2,
-      trips: 1,
-    });
-    // malý náklad – vůz se nevyplatí
-    expect(expeditionTransport({ grain: 25 }, {}, ['two-wheel'])).toMatchObject({
-      porters: 1,
-      carts: 0,
-      trips: 1,
-    });
   });
 });
 
@@ -513,32 +487,6 @@ describe('dosah vozu – vozová síť (wagons.md – fáze 2)', () => {
     expect(reach.points).toHaveLength(2);
   });
 
-  it('výprava s vozem jen po stezce sjízdné pro vozy (potok bez brodu ne)', () => {
-    const road = (id: number, z0: number, z1: number) => ({
-      id,
-      points: [
-        { x: 20, z: z0 },
-        { x: 20, z: z1 },
-      ],
-      bornDay: DAY,
-      grade: 'improved' as const,
-      traffic: [],
-      spots: [],
-    });
-    const s = onMap();
-    s.roads = {
-      nextId: 3,
-      roads: [road(1, 0, 60), road(2, 60, 120)],
-      trees: [],
-      labor: { from: DAY, days: 0, shares: [] },
-    };
-    const piece = (roadId: number) => ({ roadId, grade: 'improved' as const, manDays: 0 });
-    expect(trailCartPassable(s, { pieces: [piece(1)] }, LANDSCAPE)).toBe(true);
-    // úsek přes potok (z 75–90) bez brodu – vůz neprojede, nesou nosiči
-    expect(trailCartPassable(s, { pieces: [piece(1), piece(2)] }, LANDSCAPE)).toBe(false);
-    expect(trailCartPassable(s, { pieces: [piece(2)] }, null)).toBe(true);
-  });
-
   it('svoz sena po síti – dosah se uloží u seče, jízdy jdou do ročního provozu cest', () => {
     const day = at(601, 6, 10);
     const s = onMap(day);
@@ -567,6 +515,7 @@ describe('dosah vozu – vozová síť (wagons.md – fáze 2)', () => {
 describe('determinismus – tesař a vozy na kouscích nezávisí', () => {
   it('dopočet najednou = po kouscích', () => {
     const s = withCartYear(withTeam(withCarpenter(village())), [100]);
+    s.crafts = { charcoalKg: 0, potteryKg: 0, ironBarsKg: 20 };
     s.constructions = [polozemnice(DAY, 300)];
     const whole = advanceVillage(s, DAY + 200, null);
     let pieces = s;

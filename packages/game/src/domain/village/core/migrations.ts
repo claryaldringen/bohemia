@@ -45,6 +45,7 @@ import { withDwellingShapes } from '../buildings/shape-migration';
 import { withSteward } from '../steward/steward-state';
 import { convertSheafWorkByKg, needsSheafWorkByKg, withThreshingGrace } from '../fields/threshing';
 import { withIronBarsTrade, withoutForeignGoods } from '../trade/trade';
+import { withoutFictionalNeighbours } from '../trade/legacy-neighbours';
 import type { VillageState } from '../types';
 import { withWeatherSeed } from '../disasters/weather';
 import { withWildlife } from '../wildlife/wildlife';
@@ -248,6 +249,9 @@ export const VILLAGE_MIGRATIONS: readonly VillageMigration[] = [
   { id: 'smoked-meat-stocks', since: '2026-11-18', run: smokedMeatStocks },
   // konec kalendářního lovu a lovu navíc (hunting.md – Pravidla 1) – zůstane úlovek roku
   { id: 'calendar-hunt', since: '2026-11-22', run: withoutCalendarHunt },
+  // konec smyšlených sousedů (markets.md – Pravidla 10) – zbytky roku sousedů zmizí, výpravy na
+  // cestě doběhnou
+  { id: 'fictional-neighbours', since: '2026-11-23', run: withoutFictionalNeighbours },
 ];
 
 /** Pole stavu lovu, která nesl kalendářní lov rodu a lov navíc (hunting.md – Pravidla 1). */

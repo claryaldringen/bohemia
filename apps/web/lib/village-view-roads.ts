@@ -43,6 +43,7 @@ import {
   orePitOvergrowth,
   squareCenter,
   type ConstructionSummary,
+  type Direction8,
   type Landscape,
   type ObstacleChanges,
   type Road,
@@ -306,6 +307,8 @@ export function roadViews(
   landscape: Landscape,
   day: number,
   summary: VillageSummary,
+  /** Vlastní vsi na sousedních mapách po směrech – konce cest na kraji mapy. */
+  ownMaps: Partial<Record<Direction8, string>> = {},
 ): VillageRoad[] {
   const roads = state.roads?.roads ?? [];
   if (roads.length === 0) return [];
@@ -324,8 +327,8 @@ export function roadViews(
     // křižovatka podle významného místa u ní (D66)
     const near = found ? roadEndLandmarks(state, endsNet, found) : [null, null];
     const ends: [VillageRoadEnd, VillageRoadEnd] = [
-      roadEndView(state, roads, found?.[0] ?? { kind: 'none' }, near[0]),
-      roadEndView(state, roads, found?.[1] ?? { kind: 'none' }, near[1]),
+      roadEndView(state, roads, found?.[0] ?? { kind: 'none' }, near[0], ownMaps),
+      roadEndView(state, roads, found?.[1] ?? { kind: 'none' }, near[1], ownMaps),
     ];
     const members = chain.map((link) => link.road);
     const ids = new Set(members.map((r) => r.id));

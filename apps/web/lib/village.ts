@@ -65,7 +65,6 @@ import {
   buildWagonRoad,
   upgradeRoad,
   buildTrail,
-  sendExpedition,
   villageViewStamp,
   ACTION_RIGHTS,
   type VillageAction,
@@ -79,8 +78,6 @@ import {
   type DwellingPlot,
   type BuildableDwellingType,
   type Direction8,
-  type TradeGoods,
-  type TradePeople,
   type Landscape,
   type Position,
   type SacredBuildingKind,
@@ -107,7 +104,6 @@ import {
   dynastyOfPlayer,
   dynastyOfPlayerLocked,
   enterGameForPlayer,
-  ownMapsOfPlayer,
   firstVillageOfPlayer,
   gameDeps,
   landscapeOfSettlement,
@@ -1320,39 +1316,6 @@ export function buildTrailForPlayer(
         landscape: ctx.landscape,
         today: ctx.day,
         direction: input.direction,
-      },
-    ),
-  );
-}
-
-/** Výprava nosičů k sousedovi po hotové stezce (trade.md – Obchod), i s lidmi (Výměna lidí). */
-export function sendExpeditionForPlayer(
-  playerId: string,
-  villageId: string,
-  input: {
-    direction: Direction8;
-    give: TradeGoods;
-    get: TradeGoods;
-    givePeople?: TradePeople;
-    getPeople?: TradePeople;
-  },
-): Promise<VillageActionResult> {
-  return actOn(playerId, villageId, 'sendExpedition', async (ctx) =>
-    sendExpedition(
-      { villages: villages() },
-      {
-        villageId: ctx.villageId,
-        landscape: ctx.landscape,
-        today: ctx.day,
-        direction: input.direction,
-        give: input.give,
-        get: input.get,
-        ...(input.givePeople ? { givePeople: input.givePeople } : {}),
-        ...(input.getPeople ? { getPeople: input.getPeople } : {}),
-        // tím směrem, kde leží vlastní ves, soused bez simulace není (migration.md)
-        ownDirections: Object.keys(
-          await ownMapsOfPlayer(ctx.playerId, ctx.settlementId),
-        ) as Direction8[],
       },
     ),
   );

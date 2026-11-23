@@ -109,7 +109,6 @@ export function SelectionPanel({
   onDeclareHunt,
   onSetStance,
   onDecidePrisoner,
-  onSendExpedition,
   alarm,
   onSetSteward,
   onFortAction,
@@ -428,7 +427,6 @@ export function SelectionPanel({
         onDeclareHunt={onDeclareHunt}
         onSetStance={onSetStance}
         onDecidePrisoner={onDecidePrisoner}
-        onSendExpedition={onSendExpedition}
         alarm={alarm}
         steward={details.steward}
         onSetSteward={onSetSteward}

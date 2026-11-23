@@ -35,12 +35,12 @@ export const PREMIUM_TEXTS: Record<PremiumType, PremiumTexts> = {
   fertile: { short: 'Úrodná krajina', now: 'Víc obilí z hektaru', later: null },
   'ford-hill': {
     short: 'Brod se stezkou',
-    now: 'Cesta od počátku, levnější obchod se sousedy',
+    now: 'Cesta od počátku',
     later: 'Mýto na brodu, trh, obrana',
   },
   'mountain-pass': {
     short: 'Horský průsmyk',
-    now: 'Cesta od počátku, levnější obchod se sousedy',
+    now: 'Cesta od počátku',
     later: 'Mýto, obrana průsmyku, kupci ze vzdálených krajů',
   },
   'iron-ore': {

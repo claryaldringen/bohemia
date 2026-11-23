@@ -3,9 +3,9 @@
 // označit.“). Jádro určí, co na konci je (`chainEnds` – kotvy jako úklid), tady se z toho stane
 // název do popisku, ikona a cíl výběru.
 import {
-  neighbourOf,
   roadChainIds,
   type ChronicleLandmark,
+  type Direction8,
   type Road,
   type RoadEnd,
   type VillageState,
@@ -137,6 +137,14 @@ function placeView(state: VillageState, place: string): VillageRoadEnd {
   };
 }
 
+/** Název konce cesty na kraji mapy: „Cesta do Lhoty“ s vlastní vsí v tom směru, jinak „Cesta na sever“. */
+function roadEdgeName(direction: Direction8, ownMaps: Partial<Record<Direction8, string>>): string {
+  const own = ownMaps[direction];
+  return own !== undefined
+    ? `Cesta ${toVillage(own)}`
+    : `Cesta na ${DIRECTION_NAMES[direction].name}`;
+}
+
 /**
  * Konec cesty pro panel – název, ikona, cíl výběru a výpis do konzole. Křižovatka s významným
  * místem u ní (`near` – `roadEndLandmarks`, D66): „Rozcestí u kovárny“, „Křižovatka pod dvorcem“.
@@ -146,6 +154,8 @@ export function roadEndView(
   roads: readonly Road[],
   end: RoadEnd,
   near?: ChronicleLandmark | null,
+  /** Vlastní vsi na sousedních mapách po směrech (`ownMapsAround`) – konec cesty na kraji mapy. */
+  ownMaps: Partial<Record<Direction8, string>> = {},
 ): VillageRoadEnd {
   switch (end.kind) {
     case 'place':
@@ -153,7 +163,7 @@ export function roadEndView(
     case 'junction': {
       const junction = (state.roads?.junctions ?? []).find((j) => j.id === end.id);
       const shape = junction?.shape ?? 'cross';
-      const where = near ? landmarkPhrase(near, state.seed) : null;
+      const where = near ? landmarkPhrase(near) : null;
       return {
         kind: 'junction',
         name: where === null ? JUNCTION_NAMES[shape] : `${JUNCTION_NAMES[shape]} ${where}`,
@@ -165,11 +175,11 @@ export function roadEndView(
       };
     }
     case 'edge':
-      // cesta přes kraj mapy vede k sousedovi v tom směru (Martin 15. 11. 2026: „ta cesta přece
-      // někam vede“)
+      // cesta přes kraj mapy vede tam, kde leží vlastní ves (Martin 15. 11. 2026: „ta cesta přece
+      // někam vede“), jinak jen na stranu světa – smyšlený soused už není (markets.md – Pravidla 1)
       return {
         kind: 'edge',
-        name: `Cesta ${toVillage(neighbourOf(state.seed, end.direction).name)}`,
+        name: roadEdgeName(end.direction, ownMaps),
         icon: null,
         arrow: DIRECTION_NAMES[end.direction].arrow,
         target: null,

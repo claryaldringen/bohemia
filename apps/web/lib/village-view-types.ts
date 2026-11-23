@@ -404,20 +404,16 @@ export interface VillageCrafts {
   carts: VillageCart[];
   cartTargets: Readonly<Record<CartKind, number>>;
   /**
-   * Kde ves bere nástroje, keramiku a dřevěné nářadí (crafts.md – Nákup u sousedů): vlastní
-   * pracující řemeslník, nebo nejbližší soused s řemeslníkem (směr, dny cesty, po stezce);
-   * chybí = neznámo (starší pohledy, testy).
+   * Kde ves bere nástroje, keramiku a dřevěné nářadí: jen od vlastního pracujícího řemeslníka
+   * (nákup u sousedů zrušen – markets.md, Pravidla 1); chybí = neznámo (starší pohledy, testy).
    */
   sources?: VillageCraftSource[];
 }
 
-/** Odkud ves bere výrobek řemeslníků (crafts.md – Nákup u sousedů). */
+/** Má ves na výrobek řemeslníků vlastního pracujícího řemeslníka (`CraftSource` z jádra). */
 export interface VillageCraftSource {
   product: CraftProduct;
   own: boolean;
-  direction: Direction8 | null;
-  days: number | null;
-  trail: boolean;
 }
 
 /** Práva hráče ve vsi pro rozhraní (`VillageRights` z jádra bez množiny – jde přes JSON). */

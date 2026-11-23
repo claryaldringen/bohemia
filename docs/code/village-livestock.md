@@ -17,7 +17,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `withCowsComing` v `mowingNeed` a `winterHayNeedKg`; otava má v seči všechny posečené louky
   1. seče se stropem práce `HayMowing.wanted` (`mowingRemaining`, `mowingNeededRemaining`),
      přibude-li dobytek (`hayCattle` > `HayMowing.cattle`), `raiseAftermath` strop zvedne.
-     `cattleRoom` (cattle-trade.ts) – krávy nejvýš `min(penCapacity.cow, roomForWinter(herdRoom))`.
+     Krávy nejvýš `min(penCapacity.cow, roomForWinter(herdRoom))`.
      Nouzová porážka `EMERGENCY_SLAUGHTER.order` prasata, kozy, ovce, krávy.
 - **Dvě seče podle stád** (oxen.md – Seno, dvě seče; Martin 25. 10. 2026, návrh Clauda schválený):
   `HAY_CUTS` (rules-livestock.ts) – 1. seč 25. 5. – 30. 6. (`MOWING_DAY`, plán `planMowing`),
@@ -32,7 +32,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `recordMowingLabor` (volná práce sezóny → `mowFree`, `mowingWorkAtKg` je opak `mowingKgAtWork`,
   práce nad plán dává průměr plánu). Otava nahradí `hay.mowing` (`cut: 2`,
   `firstCut` – posečené díly, plocha přirozených luk a seno 1. seče: `mownPartIds`,
-  `hayPlanPartIds`, `hayPlanNaturalHa`, `seasonHayYieldKg`); bez potřeby otavy zůstane 1. seč.
+  `hayPlanPartIds`, `hayPlanNaturalHa`); bez potřeby otavy zůstane 1. seč.
   Okno podle seče `isMowingSeason(day, cut)` / `mowingCut`. Práce (simulate-work.ts): úloha
   `mow` jen s nutnou prací (`mowingNeededRemaining`), `end: Infinity`, `tie: 3` – za všemi
   úlohami dne, před stavbami; **seč navíc** (`extraMow`) až po stavbách, opravách a osevu navíc,
@@ -357,8 +357,9 @@ oxen)` – jen ve vsi bez výrostků (`youngsterCount` 0), potřeba nejvýš `HE
   `nextPloughPairs` je zvýší hned na potřebu (Martin 27. 10. 2026), sníží jen po dvou plánech
   níž), rok vozů
   (`DraftState.demand.days` – každý den `CartDemandDay`: dnešní nošení podél pevných cest
-  a jinam, úspory jízd dvoukoláku pro uhlí, rudu, hlínu a vodu, den orby; čtyřkoláky výprav
-  `'four-wheel'`; `addCartDemand`, `addExpeditionDemand`; 1. 11. `closeCartYear` → `lastYear`
+  a jinam, úspory jízd dvoukoláku pro uhlí, rudu, hlínu a vodu, den orby; řada čtyřkoláků výprav
+  `'four-wheel'` – po konci výprav k sousedům (markets.md – Pravidla 1) ji nic nepřičítá, starší rok
+  ji nese dál; `addCartDemand`; 1. 11. `closeCartYear` → `lastYear`
   = tabulka úspor `CartYear` – `base[dvoukoláky][čtyřkoláky]`, ve dny orby `plough[…][…][voli]`,
   den `cartDayValue` – s cenou vola `oxYearCost`; rok uložený dřív s úsporami k-tých vozů se čte
   dál), volba `chooseCarts` (úspora mínus cena vozu na 10 let
@@ -514,7 +515,7 @@ oxen)` – jen ve vsi bez výrostků (`youngsterCount` 0), potřeba nejvýš `HE
 - **Ohrada koní a koně po kusech** (horses.md, issue #5): `PenSpecies` + `'horse'`, `Pen.horses?:
 Horse[]` (`id`, `bornDay`, `sex`, `training`, `riderId?`). `horses.ts` – `horsePens`,
   `villageHorses`, `horseKind` (hříbě do roku / klisna / jezdecký samec), `horsePlaces` (4 na hotový
-  čtverec, `PEN_PLACES_PER_SQUARE.horse`), `horseRoom` (hříbě místo nezabírá). Cena čtverce
+  čtverec, `PEN_PLACES_PER_SQUARE.horse`), `horsesInPlaces` (hříbě do roku místo nezabírá). Cena čtverce
   50 čd a 8 stromů (`PEN_BY_SPECIES.horse`; `penBuildLabor` / `penLaborManDays` / `penTrees` berou
   druh, rozšíření bere druh cílové ohrady), plot podle délky beze změny (`PEN_FENCE`).
   `penOccupancy` počítá koně ohrady (chátrání `abandonment.ts` beze změny – prázdná ohrada chátrá).
@@ -571,13 +572,13 @@ Návrh: `docs/design/horses.md` – Koně se stavbou ohrady.
 
 Návrh: `docs/design/horses.md` – Kování. Čísla: `HORSE_SHOEING` v `rules-livestock.ts`.
 
-- `horse-shoeing-term.ts` – `nextShoeingDay`, `isUnshod` (lehký modul bez cyklu). `horse-shoeing.ts` – `planShoeing` (plán dne: vlastní kovář, nebo platba cizímu; převod `state.shoeing`), `finishShoeing` (po rozdělení práce: odečte hřivny nebo platbu, posune termín, kronika `horses-shod` – u cizího kováře se směrem souseda `direction`, kronika ho píše jménem vsi), `shoeingCosts` (člověkodny vlastní a cizí), `shoeingView` (panel). Cizí kovář: `nearestCraftsman` (`craft-buying.ts`) a `paymentPool`. Napřed levná kontrola: je-li už samo železo (`foreignIronKg`) nad tím, co ves z přebytku zaplatí (`payableKg` – obilí, pak luštěniny, s rezervou na zaokrouhlení), dnes se nekuje a drahá cena práce (`villageFoodCosts`) se nepočítá – jen zrychlení, rozhodnutí i platba týž (Vlkov bez kováře ≈ 200 marných pokusů za rok).
+- `horse-shoeing-term.ts` – `nextShoeingDay`, `isUnshod` (lehký modul bez cyklu). `horse-shoeing.ts` – `planShoeing(state, day)` (plán dne jen s vlastním kovářem – pracující kovárna se zásobou hřiven, `ShoeingPlan { horses, manDays }`; bez něj null; převod `state.shoeing`), `finishShoeing` (po rozdělení práce: odečte hřivny, posune termín, kronika `horses-shod`), `shoeingView(state, day)` (panel – `source` `own` / `none`). Kovář z jiné vsi zrušen (23. 11. 2026 – markets.md, Pravidla 1; vrátí se se skutečnými sousedy): bez vlastního kováře je kůň po termínu nepodkutý a nic se neplatí. Záznam `horses-shod` s `own: false` ze starší kroniky dál čte `shoeingDay`.
 - Pořadí ve dni: v `work()` (`simulate-work.ts`) hned po výpočtu péče o koně `planShoeing`; práce vlastního kováře (`shoeing` v `labor.ts`) se bere z práce vsi hned za péčí o koně, před výpravami; po rozdělení práce `finishShoeing` (kování se povede jen s celou prací). Výcvik (`trainLordDay` → `trainHorsesDay`) běží až po `work()`, takže kůň podkutý dnes ještě jezdí. Práce kováře je z práce vsi (ne z dílny), protože výrobu dílny škáluje jen počet dní, ne zakázky.
 - Nepodkutý kůň (`isUnshod`): `trainHorsesDay` nic nepřidá a `lordRides` vrací null (scéna nevyvádí koně).
-- Kovárna drží hřivny i na kování (`shoeingBarsKg` v `smithBarsTargetKg`, `crafts.ts`) a kuje nástroje jen z hřiven nad touto rezervou (`workSmith`, krok 1). Cizí kovář se platí přes `paymentPool(state, day, coverage, true)` – i z pojistky, ne pod nulu zásob k příští sklizni (`leftKg`).
+- Kovárna drží hřivny i na kování (`shoeingBarsKg` v `smithBarsTargetKg`, `crafts.ts`) a kuje nástroje jen z hřiven nad touto rezervou (`workSmith`, krok 1).
 - Výcvik jezdce bez podkutého koně (návrh Clauda): `trainLordDay` bere v den po termínu (`isUnshod`) jezdce jako bez koně (`mounted` = `NO_RIDERS`), takže cvičí luk a boj jako ve dnech na poli. `lordRides` (jízdy do scény) v ten den vrací null. Práce kování je všechno nebo nic (`allocateDay`) – částečná práce se neodečte. `shoeingView` u starší vsi bez uloženého termínu ukáže termín od dneška (převod `ensureTerm` proběhne v prvním dni v `planShoeing`).
 - Známá drobnost: `lordRides` se pro scénu vyhodnocuje před `work()`, takže v den termínu scéna jezdce neukáže, i když ho kovář týž den okuje (od druhého dne jezdí).
-- Kování dne jen ke čtení: `shoeingDay(state, day, landscape)` (`horse-shoeing.ts`) – z kroniky `horses-shod` toho dne: vlastní / cizí, koně (ohrada, kůň) a cizímu kováři cesta `nearestCraftsman` (směr, stezka, bod na kraji mapy). Pohled: `sceneShoeing` v `village-view-scene.ts` → `SceneLabor.shoeing` (`own`, `horses`, `trailId`, nebo `line` – `purchaseLine` jako nákup u sousedů); `sceneLabor` dostává krajinu.
+- Kování dne jen ke čtení: `shoeingDay(state, day, landscape)` (`horse-shoeing.ts`) – z kroniky `horses-shod` toho dne: vlastní / cizí (jen starší záznam), koně (ohrada, kůň) a cizímu kováři cesta ze směru v záznamu `purchaseRoute` (směr, stezka, bod na kraji mapy; záznam bez směru – starší než 14. 11. 2026 – bez cesty). Pohled: `sceneShoeing` v `village-view-scene.ts` → `SceneLabor.shoeing` (`own`, `horses`, `trailId`, nebo `line` – `purchaseLine` jako nákup u sousedů); `sceneLabor` dostává krajinu.
 - Scéna (podrobně `docs/code/scene-village.md` – Kování ve scéně): s `SceneLabor.shoeing` jde kovář k brance ohrady koní (`villager-plan-shoeing.ts`) a podíl `horse-shoeing` už postavu u plotu nemá. Bez kování dne (starší rozdělení práce) kuje u plotu muž z domácnosti kovárny (`shareWorker` v `villager-plan.ts`, kovář a synové, záložně starší chlapec; `horse-shoeing` je v `CRAFT_ACTIVITIES`, `WOMEN['horse-shoeing'] = 0`).
 - Web: `horse-view.ts` (`shoeing`), blok koní v `selection/fields.tsx` (nepodkutý kůň červeně); upozornění se nedává ani na nepodkutého koně (Martin 9. 11. 2026), kování samo se neohlašuje (Martin 27. 10. 2026), zůstává v kronice (`village-view-chronicle.ts`).
 

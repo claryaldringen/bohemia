@@ -1,20 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../../calendar';
 import { foundVillage } from '../../core/actions';
-import { neighbourOf, neighbourStock } from '../neighbours';
 import { DISASTER_TRADE, DISASTER_WILDLIFE } from '../../rules/rules-disasters';
-import { goodWorth, sellPrice, tradeQuote } from '../trade';
+import { goodWorth, sellPrice } from '../trade';
 import { horsePenPayment } from '../../livestock/horse-pen-payment';
 import { craftCoverage } from '../../crafts/crafts';
-import { productPrice } from '../../crafts/craft-buying';
-import { tradeWeather } from '../trade-weather';
-import type { Direction8, VillageState, YearWeather } from '../../types';
+import { tradeSeason, tradeWeather } from '../trade-weather';
+import type { VillageState, YearWeather } from '../../types';
 import { wildlifeYearDay, withWildlife } from '../../wildlife/wildlife';
 import { WILDLIFE_LAND } from '../../rules/rules-wildlife';
 import { withBuiltFirstDwelling } from '../../__tests__/village-fixtures';
 
-// Sousedé a zvěř podle počasí kraje (disasters.md – Co z toho plyne, Obchod a Zvěř): zásoba obilí
-// a hodnota zboží po zlém a krutém roce, zvěř po zlé zimě a suchu, ves bez počasí beze změny.
+// Hodnota zboží a zvěř podle počasí kraje (disasters.md – Co z toho plyne, Obchod a Zvěř): hodnota
+// zboží po zlém a krutém roce, zvěř po zlé zimě a suchu, ves bez počasí beze změny.
 
 const at = (year: number, month: number, day: number): number => dayIndexOf({ year, month, day });
 const DAY = at(600, 12, 1); // rok obchodu 600 (doplněno 1. 11. 600)
@@ -30,18 +28,12 @@ function village(forced: Forced | null, year = 600): VillageState {
   return s;
 }
 
-const DIRECTIONS: Direction8[] = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
-/** Směr souseda, který nabízí obilí (pastevci a lesní ves ho nabízejí, obilnáři ne – ti shánějí). */
-function grainSeller(seed: number): Direction8 {
-  return DIRECTIONS.find((d) => neighbourOf(seed, d).supply.grain !== undefined)!;
-}
-
-describe('sousedé po zlém roce', () => {
-  it('násobky: normální 1 a 1, zlý ½ a 0,67, krutý ¼ a 0,5', () => {
-    expect(tradeWeather(village(null), 600)).toEqual({ grainStock: 1, goodsValue: 1 });
-    expect(tradeWeather(village({ summer: 'dry' }), 600)).toEqual(DISASTER_TRADE.bad);
+describe('zboží po zlém roce', () => {
+  it('hodnota zboží: normální rok 1, po zlém 0,67, po krutém 0,5', () => {
+    expect(tradeWeather(village(null), 600)).toEqual({ goodsValue: 1 });
+    expect(tradeWeather(village({ summer: 'dry' }), 600)).toEqual({ goodsValue: 0.67 });
     expect(tradeWeather(village({ summer: 'wet' }), 600)).toEqual(DISASTER_TRADE.bad);
-    expect(tradeWeather(village({ summer: 'drought' }), 600)).toEqual(DISASTER_TRADE.cruel);
+    expect(tradeWeather(village({ summer: 'drought' }), 600)).toEqual({ goodsValue: 0.5 });
     expect(tradeWeather(village({ summer: 'wetHarvest' }), 600)).toEqual(DISASTER_TRADE.cruel);
     // holomráz se zlým létem je krutý rok, holomráz sám ne
     expect(tradeWeather(village({ summer: 'dry', winter: 'blackFrost' }), 600).goodsValue).toBe(
@@ -50,62 +42,19 @@ describe('sousedé po zlém roce', () => {
     expect(tradeWeather(village({ winter: 'blackFrost' }), 600).goodsValue).toBe(1);
   });
 
-  it('zásoba obilí souseda 1. 11.: plná, poloviční, čtvrtinová', () => {
-    const seed = 11;
-    const dir = grainSeller(seed);
-    const full = neighbourOf(seed, dir).supply.grain!;
-    const stock = (forced: Forced | null): number =>
-      neighbourStock(village(forced), dir, DAY).supply.grain!;
-    expect(stock(null)).toBe(full);
-    expect(stock({ summer: 'normal' })).toBe(full);
-    expect(stock({ summer: 'dry' })).toBe(Math.floor(full * 0.5));
-    expect(stock({ summer: 'drought' })).toBe(Math.floor(full * 0.25));
-  });
-
-  it('jiné zboží se nekrátí a rok obchodu je rok doplnění', () => {
-    const seed = 11;
-    for (const dir of DIRECTIONS) {
-      const base = neighbourOf(seed, dir).supply;
-      const bad = neighbourStock(village({ summer: 'drought' }), dir, DAY).supply;
-      for (const g of Object.keys(base) as (keyof typeof base)[]) {
-        if (g !== 'grain') expect(bad[g]).toBe(base[g]);
-      }
-    }
-    // před 1. 11. 600 platí zásoba roku 599 (zlý rok 600 se ještě neprojevil)
-    const dir = grainSeller(seed);
-    const before = neighbourStock(village({ summer: 'drought' }), dir, at(600, 10, 1));
-    expect(before.supply.grain).toBe(neighbourOf(seed, dir).supply.grain);
-  });
-
-  it('cena: po krutém roce za sháněné zboží kg obilí ×0,5, za obilí beze změny', () => {
-    const seed = 11;
-    const plain = village(null);
+  it('rok obchodu začíná 1. 11. – zlý rok 600 platí až od 1. 11. 600', () => {
+    expect(tradeSeason(DAY)).toBe(600);
+    expect(tradeSeason(at(600, 10, 31))).toBe(599);
+    expect(tradeSeason(at(600, 11, 1))).toBe(600);
     const cruel = village({ summer: 'drought' });
-    const n = neighbourOf(seed, 'S');
-    // výměna bez stezky je blokovaná, ocenění (credit) se ale počítá vždy
-    const demanded = n.demands.find((g) => g !== 'grain');
-    const offer = (
-      g: string,
-    ): { direction: Direction8; give: Record<string, number>; get: object } => ({
-      direction: 'S',
-      give: { [g]: 4 },
-      get: {},
-    });
-    if (demanded) {
-      const a = tradeQuote(plain, offer(demanded) as never, DAY).credit;
-      const b = tradeQuote(cruel, offer(demanded) as never, DAY).credit;
-      expect(a).toBeGreaterThan(0);
-      expect(b).toBeCloseTo(a * 0.5, 2);
-    }
-    const grain = tradeQuote(plain, offer('grain') as never, DAY).credit;
-    expect(tradeQuote(cruel, offer('grain') as never, DAY).credit).toBe(grain);
+    expect(goodWorth(cruel, 'cows', at(600, 10, 1))).toBe(1);
+    expect(goodWorth(cruel, 'cows', DAY)).toBe(0.5);
   });
 
-  it('ves bez počasí: zásoba i ceny beze změny', () => {
+  it('ves bez počasí: hodnota zboží beze změny', () => {
     const s = village(null);
     expect(s.weatherSeed).toBeUndefined();
-    const dir = grainSeller(11);
-    expect(neighbourStock(s, dir, DAY).supply.grain).toBe(neighbourOf(11, dir).supply.grain);
+    expect(tradeWeather(s, 600)).toEqual({ goodsValue: 1 });
   });
 });
 
@@ -130,20 +79,6 @@ describe('násobek ceny platí pro veškerý obchod', () => {
     expect(a.ironBarsKg).toBeGreaterThan(0);
     expect(b.ironBarsKg).toBeGreaterThanOrEqual(2 * a.ironBarsKg - 1);
     expect(b.ironBarsKg * sellPrice('ironBars') * 0.5).toBeGreaterThanOrEqual(5600 - 1e-6);
-  });
-
-  it('nákup výrobku u řemeslníka souseda je po krutém roce za polovinu obilí', () => {
-    expect(productPrice('potteryKg', village(null), DAY)).toBeCloseTo(3 * 0.96, 9);
-    expect(productPrice('potteryKg', village({ summer: 'drought' }), DAY)).toBeCloseTo(
-      3 * 0.96 * 0.5,
-      9,
-    );
-    expect(productPrice('toolsKg', village({ summer: 'dry' }), DAY)).toBeCloseTo(
-      60 * 0.96 * 0.67,
-      9,
-    );
-    // bez stavu a dne (panel, staré volání) beze změny
-    expect(productPrice('potteryKg')).toBeCloseTo(3 * 0.96, 9);
   });
 });
 

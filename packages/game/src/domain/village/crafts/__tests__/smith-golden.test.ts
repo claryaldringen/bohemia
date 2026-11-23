@@ -222,6 +222,8 @@ describe('ves bez kováře a hrnčíře beze změny (crafts.md – Uhlí a ruda 
     // 22. 11. 2026 – nový lov (hunting.md), úloha 2: kalendářní lov a lov navíc pryč – pěší lovci
     // nechybí v práci vsi, maso z lovu ani výcvik dne lovu; hlídka polí s vlastní nadějí úlovku;
     // dřív fe7259fc
-    expect(hash(stripped)).toBe('4ae421e6');
+    // 23. 11. 2026 – konec smyšlených sousedů (markets.md – Pravidla 1), úloha 3: ves bez kováře
+    // a hrnčíře už 15. 11. nekupuje nástroje ani keramiku u sousedů; dřív 4ae421e6
+    expect(hash(stripped)).toBe('f65f077b');
   }, 120_000);
 });

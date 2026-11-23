@@ -4,16 +4,11 @@
 
 import {
   cropWeatherOf,
-  DISASTER_TRADE,
   harvestYearOf,
   hasWeather,
-  isBadSummer,
-  isCruelYear,
   partWeatherFactor,
   PROTECTION,
   revealedWeather,
-  tradeSeason,
-  weatherOf,
   LOCAL_DISASTER_KINDS,
   type ChronicleEvent,
   type Crop,
@@ -206,24 +201,6 @@ export function partLossRows(
   row('flood', 'flood', 'Povodeň – ztráta úrody dílu letos');
   row('tornado', 'tornado', 'Smršť – polehlé obilí dílu letos');
   return rows;
-}
-
-/**
- * Sousedé po zlém roce (disasters.md – Kraj kolem vsi; trade-weather.ts): obilí zdražilo – zlý rok,
- * nebo krutý. Rok obchodu začíná 1. 11. po létě, takže jde vždy o minulé počasí.
- */
-export function tradeDearth(state: WeatherState, day: number): 'bad' | 'cruel' | undefined {
-  if (!hasWeather(state)) return undefined;
-  const weather = weatherOf(state, tradeSeason(day));
-  if (isCruelYear(weather)) return 'cruel';
-  return isBadSummer(weather.summer) ? 'bad' : undefined;
-}
-
-/** Popisek ikony zdražení v obchodu (disasters.md – Kraj kolem vsi): ceny z `DISASTER_TRADE`. */
-export function dearthLabel(dearth: 'bad' | 'cruel'): string {
-  const t = DISASTER_TRADE[dearth];
-  const year = dearth === 'cruel' ? 'krutém' : 'zlém';
-  return `Kraj po ${year} roce – obilí zdražilo: zboží za obilí ${signedPercent(t.goodsValue)}, obilí sousedů ${signedPercent(t.grainStock)}`;
 }
 
 // ---------------------------------------------------------------- upozornění ----

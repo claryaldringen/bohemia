@@ -1,28 +1,23 @@
+// Lidé od souseda a lidé, které ves dá (docs/design/trade.md – Výměna lidí; Martin 19. 10. 2026).
+// Výměna lidí se smyšlenými sousedy skončila s obchodní výpravou (markets.md – Pravidla 1); kód
+// zůstává pro to, co je na cestě a co nesou zásilky vazalů (vassalage.md – Doprava a cílová ves):
+// koho ves smí dát (`emigrantGroups` – nikdy dědice domu, vojvodovu domácnost ani nikoho, bez koho
+// by se domácnost rozpadla) a kam přijdou lidé, které přivede výprava na cestě (`settleNewcomers`,
+// markets.md – Pravidla 10). Čisté funkce bez I/O, náhoda ze seedu vsi.
 import { isDisused } from '../buildings/disused';
 import { isHouseType } from '../buildings/log-house';
-// Výměna lidí se sousedem (docs/design/trade.md – Výměna lidí; Martin 19. 10. 2026: „Se sousedem
-// půjde vyměnit i lidi... např. když on jich bude mít moc a nebude je moci uživit, může jich pár
-// vyměnit s námi za nějaké suroviny a opačně.“, „Mohou se stěhovat celé rodiny i jen dospělí.
-// Podle toho, co je v nabídce.“; detaily návrh Clauda). Soused má na rok obchodu lidi navíc, nebo
-// lidi shání (`neighbourPeople`); vyměňují se celé rodiny (muž, žena a jejich svobodné děti)
-// a svobodní muži a ženy 16–44 let zvlášť (Martin 19. 10. 2026 – ve vsi pak bude, s kým založit
-// domácnost) za zboží podle hodnoty v kg obilí. Koho ves dá, vybere jádro
-// (`emigrantGroups`) – nikdy dědice domu, vojvodovu domácnost ani nikoho, bez koho by se domácnost
-// rozpadla; odejdou hned s výpravou. Lidé od souseda přijdou s návratem výpravy
-// (`settleNewcomers`). Čisté funkce bez I/O, náhoda ze seedu vsi.
 import { createRandom, deriveSeed, type Random } from '../../landscape/random';
 import { isDynastyTracked, lineMen } from '../people/dynasty';
 import { familiesOf, unmarriedHeir } from '../people/households';
 import { villageManorId } from '../people/manor';
 import { isSingle } from '../people/marriage';
-import { ageGroup, householdBreaksUp, isAway, isFertile, occupants } from '../people/people';
+import { householdBreaksUp, isAway, isFertile, occupants } from '../people/people';
 import { DWELLINGS, PEOPLE_TRADE } from '../rules';
 import type {
   ChronicleEvent,
   ComingPeople,
   Direction8,
   Dwelling,
-  NeighbourPeople,
   NewcomerGroup,
   Person,
   Sex,
@@ -45,115 +40,12 @@ function between(rnd: Random, from: number, to: number): number {
   return from + Math.floor(rnd.next() * (to - from + 1));
 }
 
-/** Svobodní dospělí podle losu pohlaví – muži a ženy zvlášť (každý dospělý jeden los). */
-function splitAdults(rnd: Random, adults: number): { men: number; women: number } {
-  let men = 0;
-  for (let i = 0; i < adults; i++) if (rnd.next() < 0.5) men++;
-  return { men, women: adults - men };
-}
-
-/**
- * Lidé souseda ve směru `direction` na rok obchodu `season` (trade.md – Výměna lidí, návrh Clauda):
- * deterministicky ze seedu, směru a roku – s PEOPLE_TRADE.surplusChance má lidi navíc (0–2 rodiny
- * s 0–3 dětmi a 0–3 svobodné dospělé, aspoň jednoho), s PEOPLE_TRADE.shortageChance lidi shání
- * (vezme 0–2 rodiny a 0–3 dospělé, aspoň jednoho), jinak lidi nemění. Svobodní dospělí jsou muži
- * a ženy zvlášť (Martin 19. 10. 2026) – pohlaví se losuje až na konci, takže rodiny a počet
- * dospělých jsou stejné jako dřív, kdy se pohlaví losovalo až při příchodu.
- */
-export function neighbourPeople(
-  seed: number,
-  direction: Direction8,
-  season: number,
-): NeighbourPeople {
-  const rnd = createRandom(deriveSeed(seed, `neighbour-people:${direction}:${season}`));
-  const roll = rnd.next();
-  const { families, adults, children } = PEOPLE_TRADE;
-  const count = (): { families: number; adults: number } => {
-    const f = between(rnd, families.min, families.max);
-    const a = between(rnd, adults.min, adults.max);
-    return f + a > 0 ? { families: f, adults: a } : { families: 0, adults: 1 };
-  };
-  if (roll < PEOPLE_TRADE.surplusChance) {
-    const offer = count();
-    const kids = Array.from({ length: offer.families }, () =>
-      between(rnd, children.min, children.max),
-    );
-    return { families: kids, ...splitAdults(rnd, offer.adults), takes: { ...NO_PEOPLE } };
-  }
-  if (roll < PEOPLE_TRADE.surplusChance + PEOPLE_TRADE.shortageChance) {
-    const want = count();
-    return {
-      families: [],
-      men: 0,
-      women: 0,
-      takes: { families: want.families, ...splitAdults(rnd, want.adults) },
-    };
-  }
-  return { families: [], men: 0, women: 0, takes: { ...NO_PEOPLE } };
-}
-
-/** Zbytek roku souseda uložený před muži a ženami zvlášť – dospělí bez pohlaví. */
-interface LegacyPeople {
-  families: number[];
-  adults?: number;
-  men?: number;
-  women?: number;
-  takes: { families: number; adults?: number; men?: number; women?: number };
-}
-
-/**
- * Lidé souseda ze zbytku roku – uložené dřív s `adults` (bez pohlaví) se deterministicky převedou
- * na muže a ženy podle povahy roku (`neighbourPeople`): nejdřív tolik mužů, kolik jich soused
- * ten rok měl, zbytek ženy. Nové se vrátí beze změny.
- */
-export function storedNeighbourPeople(
-  stored: NeighbourPeople,
-  seed: number,
-  direction: Direction8,
-  season: number,
-): NeighbourPeople {
-  const legacy = stored as LegacyPeople;
-  if (legacy.adults === undefined && legacy.takes.adults === undefined) return stored;
-  const nature = neighbourPeople(seed, direction, season);
-  const split = (
-    adults: number | undefined,
-    men: number | undefined,
-    women: number | undefined,
-    natureMen: number,
-  ): { men: number; women: number } => {
-    if (adults === undefined) return { men: men ?? 0, women: women ?? 0 };
-    const m = Math.min(natureMen, adults);
-    return { men: m, women: adults - m };
-  };
-  return {
-    families: [...legacy.families],
-    ...split(legacy.adults, legacy.men, legacy.women, nature.men),
-    takes: {
-      families: legacy.takes.families,
-      ...split(legacy.takes.adults, legacy.takes.men, legacy.takes.women, nature.takes.men),
-    },
-  };
-}
-
-/** Hodnota člověka v kg obilí – dospělý PEOPLE_TRADE.adultValueKg, dítě do 14 let polovina. */
-export function personValue(person: Person, day: number): number {
-  const share = ageGroup(person, day) === 'child' ? PEOPLE_TRADE.childShare : 1;
-  return PEOPLE_TRADE.adultValueKg * share;
-}
-
-/** Hodnota rodiny souseda s `children` dětmi (muž, žena a děti) v kg obilí. */
-export function neighbourFamilyValue(children: number): number {
-  return PEOPLE_TRADE.adultValueKg * (2 + children * PEOPLE_TRADE.childShare);
-}
-
-/** Skupina lidí, kterou ves může dát sousedovi – rodina, nebo svobodný muž či žena. */
+/** Skupina lidí, kterou ves může dát (zásilka vazalů) – rodina, nebo svobodný muž či žena. */
 export interface EmigrantGroup {
   kind: NewcomerGroup;
   /** Domácnost, ze které odchází. */
   dwellingId: number;
   people: Person[];
-  /** Hodnota v kg obilí (`personValue`). */
-  valueKg: number;
 }
 
 /** Přeplnění domácnosti obydlí: lidé − kapacita. */
@@ -200,7 +92,7 @@ function nextFamily(state: VillageState, day: number): EmigrantGroup | undefined
     const family = familiesOf(state, dwelling, day).find(
       (f) => !f.people.some((p) => kept(p) || isAway(p, day)),
     );
-    if (family) return group('family', dwelling.id, family.people, day);
+    if (family) return group('family', dwelling.id, family.people);
   }
   return undefined;
 }
@@ -229,20 +121,14 @@ function nextSingle(state: VillageState, day: number, sex: Sex): EmigrantGroup |
     for (const p of singles) {
       const staying = members.filter((m) => m !== p);
       if (staying.length === 0 || householdBreaksUp(staying, day)) continue;
-      return group(sex === 'male' ? 'man' : 'woman', dwelling.id, [p], day);
+      return group(sex === 'male' ? 'man' : 'woman', dwelling.id, [p]);
     }
   }
   return undefined;
 }
 
-function group(
-  kind: EmigrantGroup['kind'],
-  dwellingId: number,
-  people: Person[],
-  day: number,
-): EmigrantGroup {
-  const valueKg = people.reduce((sum, p) => sum + personValue(p, day), 0);
-  return { kind, dwellingId, people, valueKg };
+function group(kind: EmigrantGroup['kind'], dwellingId: number, people: Person[]): EmigrantGroup {
+  return { kind, dwellingId, people };
 }
 
 /** Koho ves dá – rodiny, svobodní muži a svobodné ženy (v pořadí výběru). */

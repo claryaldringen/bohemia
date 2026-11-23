@@ -1,5 +1,6 @@
 import {
   ABANDON_FOUNDING,
+  PRODUCT_CRAFT,
   type GridCell,
   HORSES,
   AGE,
@@ -7,14 +8,12 @@ import {
   DRAFT_OXEN,
   LEAVING,
   ORCHARD,
-  PRODUCT_CRAFT,
   sacredBuildingHappiness,
   type CartKind,
   type PremiumSiteKind,
   type PremiumType,
   type Craft,
   type Crop,
-  type Direction8,
   type DwellingType,
   type FamilyCounts,
   type FieldSurface,
@@ -99,6 +98,7 @@ import {
   type VillageRoad,
   type VillageView,
 } from './village-view';
+import { workshopStopNotice } from './village-notices';
 
 // Co ukáže panel výběru (dole uprostřed, jako v 0 A.D.) o vybraném obydlí (i řemeslné dílně –
 // crafts.md), dílu pole a celém poli (fields.md – Co hráč vidí), hřbitovu, čtverci sadu a celém
@@ -138,11 +138,6 @@ export interface SelectionWorkshop {
    * vůz (druh, průběh 0–1), pokrytí dřevěné práce staveb posledního dne 0–1 a kování k vozu
    * (wagons.md – Kování vozů); ostatní dílny null.
    */
-  /**
-   * Ves výrobek dílny dokupuje u souseda (vlastní řemeslník nemá vstupy – crafts.md, Nákup
-   * u sousedů): směr a dny cesty; jinak chybí.
-   */
-  buying?: { direction: Direction8; days: number };
   carpenter: {
     carts: VillageView['crafts']['carts'];
     cartTargets: VillageView['crafts']['cartTargets'];
@@ -161,10 +156,18 @@ export interface SelectionWorkshop {
   clay?: NonNullable<VillageView['crafts']['workshops'][number]['clay']>;
 }
 
-/** Nákup u sousedů v panelu dvorce (crafts.md – Nákup u sousedů). */
+/**
+ * Výrobky řemeslníků v panelu dvorce: vlastní řemeslník, nebo žádný (markets.md – Pravidla 1),
+ * a nákupy u sousedů uložené na cestě do návratu (crafts.md – Nákup u sousedů).
+ */
 export interface SelectionBuying {
-  sources: VillageCraftSource[];
+  sources: SelectionCraftSource[];
   purchases: VillagePurchase[];
+}
+
+/** Výrobek v řádku dvorce; dílna, která stojí bez vstupu, nese text upozornění (`stopped`). */
+export interface SelectionCraftSource extends VillageCraftSource {
+  stopped?: string;
 }
 
 /** Společné údaje panelů opevnění: id, druh a nástavba valu. */
@@ -206,8 +209,8 @@ type SelectionKinds =
        */
       lordWifeHome?: string | null;
       /**
-       * Dvorec: kde ves bere výrobky řemeslníků a nákupy u sousedů na cestě (crafts.md – Nákup
-       * u sousedů); u ostatních obydlí chybí.
+       * Dvorec: má ves na výrobky vlastního řemeslníka a nákupy u sousedů na cestě (crafts.md –
+       * Nákup u sousedů; markets.md – Pravidla 1); u ostatních obydlí chybí.
        */
       buying?: SelectionBuying;
       /** Odejít do nové vsi (migration.md); když domácnost odejít nemůže, null. */
@@ -1095,7 +1098,7 @@ function selectionKinds(
       ...(view?.manor?.dwellingId === household.dwellingId ? { wares: view.wares } : {}),
       lordWifeHome: lordWifeHome(view, scene, household.dwellingId),
       ...(view?.manor?.dwellingId === household.dwellingId && view.crafts.sources
-        ? { buying: { sources: view.crafts.sources, purchases: view.purchases ?? [] } }
+        ? { buying: buyingDetails(view, view.crafts.sources) }
         : {}),
       leave: view ? leaveDetails(view, [household.dwellingId]) : null,
       ...(view?.manor?.dwellingId === household.dwellingId && view.dynasty
@@ -1639,6 +1642,24 @@ function sonDetails(view: VillageView): SelectionSon[] {
   });
 }
 
+/**
+ * Řádek výrobků dvorce: výrobek bez pracujícího řemeslníka, jehož dílna stojí bez vstupu, nese
+ * důvod jako upozornění (`workshopStopNotice` – „Kovář nemá uhlí“); bez dílny nic.
+ */
+function buyingDetails(view: VillageView, sources: VillageCraftSource[]): SelectionBuying {
+  return {
+    sources: sources.map((source) => {
+      if (source.own) return source;
+      const stopped = view.crafts.workshops
+        .filter((w) => w.craft === PRODUCT_CRAFT[source.product])
+        .map(workshopStopNotice)
+        .find((text) => text !== null);
+      return stopped ? { ...source, stopped } : source;
+    }),
+    purchases: view.purchases ?? [],
+  };
+}
+
 /** Odchod domácností vybraných obydlí `ids`; když žádná odejít nemůže, null. */
 function leaveDetails(view: VillageView, ids: readonly number[]): SelectionLeave | null {
   if (view.extinct || view.abandoned || view.journey) return null;
@@ -1682,14 +1703,7 @@ function workshopDetails(view: VillageView, dwellingId: number): SelectionWorksh
         ? (view.crafts.coverage.woodTools ?? 0)
         : null;
   const carpenter = workshop.carpenter;
-  // ves výrobek dílny dokupuje u souseda (vlastní řemeslník nemá vstupy – crafts.md)
-  const source = view.crafts.sources?.find((s) => PRODUCT_CRAFT[s.product] === workshop.craft);
-  const buying =
-    source && !source.own && source.direction !== null && source.days !== null
-      ? { direction: source.direction, days: source.days }
-      : null;
   return {
-    ...(buying ? { buying } : {}),
     craft: workshop.craft,
     activity: workshop.activity,
     laborPerDay: workshop.laborPerDay,

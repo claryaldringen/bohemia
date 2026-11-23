@@ -480,7 +480,6 @@ describe('dobytek v karavaně (trade.md – Dobytek ve třech druzích)', () => 
       people: [],
       trade: {
         nextId: 2,
-        neighbours: [],
         expeditions: [
           {
             id: 1,

@@ -197,7 +197,7 @@ Návrh: [hunting.md](../design/hunting.md) – Pravidla 2, 3, 5–7, 11; stavba 
   nezapomíná), `lordRides` ho nevyvede na objížďku.
 - **Lov správce** (`npc-hunt.ts`; hunting.md – Pravidla 8, 9; Martin 22. 11. 2026: „Správce je vlastně
   NPC hráč, takže by měl mít možnost dělat téměř vše, co skutečný hráč“): **vyhlášení** – krok 2a správce (`needSteps` → `huntWanted`,
-  village-steward.md – Obilí a lov v nouzi) zavolá `declareNpcHunt(state, day)`: `reserveBeaters`
+  village-steward.md – Lov v nouzi) zavolá `declareNpcHunt(state, day)`: `reserveBeaters`
   na zítřek pro `HUNT.beaters.men` + `HUNT.npc.hunters` mužů (lovci správce platí jeden den práce
   jako útočníci hráče – Martin: „práce těch lidí se odečte pouze za 1 den“), `HuntState.npc` =
   `{ day: day + 1 }` a `countDeclaredHunt`. **Den lovu** – `npcHuntDay(state, day)` ve večeru rodiny
@@ -292,4 +292,4 @@ Pohled a komponenty: `apps/web/lib/wildlife-view.ts`, podrobnosti v [web-ui.md](
 v rozhraní. Z jádra se čte jen `WildlifeState` (`damage`, `watch`, `dogs`, `hunt`, `smallGame`,
 `predation`) a `wildlifeCaps`, `dogsWanted`, `huntPool`, `lordFamily`; nic se nepřepočítává.
 
-Zlá zima a kruté sucho krátí jelení zvěř a selata 1. 5. – [village-disasters.md](village-disasters.md#kraj-kolem-vsi-sousedé-a-zvěř-p4).
+Zlá zima a kruté sucho krátí jelení zvěř a selata 1. 5. – [village-disasters.md](village-disasters.md#kraj-kolem-vsi-hodnota-zboží-a-zvěř-p4).

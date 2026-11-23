@@ -90,8 +90,8 @@ odříznutý navždy.
 - **Vsi rodu** (odchod syna na novou mapu – [stěhování](migration.md)) vznikají i v odříznuté
   krajině vedle sebe ve vlastní malé mřížce; při umístění se celý shluk přesune na mapu světa
   a vzájemné polohy zůstanou (návrh Clauda).
-- **Ves běží** jako každá jiná – worker ji dopočítává, i když hráč není online. NPC sousedé
-  a zemská stezka ([obchod](trade.md) – Sousedé bez simulace) fungují jako dnes (návrh Clauda –
+- **Ves běží** jako každá jiná – worker ji dopočítává, i když hráč není online. Zemská
+  stezka ([obchod](trade.md)) funguje jako dnes (smyšlení sousedé zanikli 23. 11. 2026 – markets.md, plán 1) (návrh Clauda –
   nejsou vázané na mapu světa). Ostatní hráči mu nemohou nic poslat ani nabídnout – v adresáři
   rodů není. Pozvánku vydat nesmí, dokud není na mapě světa – pozvaný by neměl
   kde začít (návrh Clauda).

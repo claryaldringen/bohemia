@@ -1,42 +1,26 @@
-// Sňatky (kinship.md – Sňatky; Martin, 18. 10. 2026: „Pojďme na příbuzenství a pohlaví“, sňatky
-// s okolím varianta „c“, detaily návrh Clauda; 19. 10. 2026: „Vdova by se měla snažit co nejdříve
+// Sňatky (kinship.md – Sňatky; Martin, 18. 10. 2026: „Pojďme na příbuzenství a pohlaví“;
+// 19. 10. 2026: „Vdova by se měla snažit co nejdříve
 // vdát, ideálně ve vesnici. Obecně by měla být pravidla nastavena tak, aby se populace co nejvíce
-// rozrůstala.“). Berou se jen svobodný muž a svobodná žena, kteří nejsou blízcí příbuzní; žena se
+// rozrůstala.“). Berou se jen svobodný muž a svobodná žena; žena se
 // stěhuje k muži i s vlastními dětmi, jen když drží dům a muž ne, přižení se muž k ní. Kdo ve vsi
-// nemá s kým se vzít, toho bere nebo dává okolí – zatím abstraktně (nevěsta a ženich z okolí,
-// dcera se vdá pryč). Krok simulace `arrangeMarriages` stav mění, ostatní funkce jen čtou.
+// nemá s kým se vzít, zůstane svobodný – okolí nevěsty ani ženichy nedává a nikdo se nevdává pryč
+// (markets.md – Pravidla 1; Martin 22. 11. 2026: „dokud bude vesnice bez spojení s okolím, ať se
+// lidé berou mezi sebou“). Krok simulace `arrangeMarriages` stav mění, ostatní funkce jen čtou.
 import { createRandom, deriveSeed } from '../../landscape/random';
 import { holdsManor } from './dynasty';
-import { ageGapYears, removePeople } from './kinship';
-import { ageYears, holdsHousehold, householdBreaksUp, isFertile, occupants } from './people';
-import {
-  AGE,
-  BIRTH_SPACING,
-  DWELLINGS,
-  MARRIAGE,
-  MARRIAGE_STORES,
-  NEIGHBOR_DIRECTIONS,
-} from '../rules';
-import type { ChronicleEvent, NeighborDirection, Person, VillageState } from '../types';
-
-const DAYS_PER_YEAR = 365.25;
-
-/** Denní pravděpodobnost události, která nastane `perYear` ročně. */
-function perDay(perYear: number): number {
-  return 1 - (1 - perYear) ** (1 / 365);
-}
+import { ageGapYears } from './kinship';
+import { ageYears, holdsHousehold, isFertile, occupants } from './people';
+import { AGE, BIRTH_SPACING, DWELLINGS, MARRIAGE, MARRIAGE_STORES } from '../rules';
+import type { ChronicleEvent, Person, VillageState } from '../types';
 
 /**
  * Denní šance svatby podle naplnění pojistky zásob `fill` (kinship.md – Sňatky čekají na zásoby;
- * Martin 27. 10. 2026): pod pojistkou čeká svatba navíc průměrně MARRIAGE_STORES.waitYears ×
- * (1 − `fill`) let. `perYear` – roční pravděpodobnost svatby bez čekání (z okolí, další manželka),
- * `null` – svatba hned (ve vsi). Nad pojistkou (`fill` ≥ 1) beze změny.
+ * Martin 27. 10. 2026): pod pojistkou čeká svatba průměrně MARRIAGE_STORES.waitYears ×
+ * (1 − `fill`) let. Nad pojistkou (`fill` ≥ 1) se koná hned.
  */
-export function weddingChancePerDay(perYear: number | null, fill: number): number {
-  if (fill >= 1) return perYear === null ? 1 : perDay(perYear);
-  const delay = MARRIAGE_STORES.waitYears * (1 - Math.max(0, fill));
-  // průměrné čekání svatby bez pojistky (roční pravděpodobnost → střední doba) a odklad navíc
-  const meanYears = (perYear === null ? 0 : -1 / Math.log(1 - perYear)) + delay;
+export function weddingChancePerDay(fill: number): number {
+  if (fill >= 1) return 1;
+  const meanYears = MARRIAGE_STORES.waitYears * (1 - Math.max(0, fill));
   if (meanYears <= 0) return 1;
   return 1 - Math.exp(-1 / (meanYears * 365));
 }
@@ -256,11 +240,11 @@ function wed(
  * Sňatky dne (mutuje stav – kinship.md, Sňatky): nejdřív ve vsi – vdovy a vdovci mají přednost
  * (Martin, 19. 10. 2026 – vdova se má vdát co nejdřív, nejlépe ve vsi), pak ostatní svobodní od
  * nejstaršího, každý s nejbližším věkem, se kterým svatba jde (`bestMatch`); jeden sňatek na
- * člověka. Pak s okolím (`outsideMarriages`). Los ze seedu vsi a dne (každý v pořadí id), takže
- * výsledek nezávisí na kouscích dopočtu. Pod pojistkou zásob (`storesFill` < 1 – kinship.md,
- * Sňatky čekají na zásoby) se svatba ve vsi koná jen s denní šancí `weddingChancePerDay`, jinak
- * snoubenci dnes čekají (nevezmou se ani s jiným); `storesFill` se volá, jen když je svatba na
- * řadě. Vrací události kroniky.
+ * člověka; okolí nevěsty ani ženichy nedává (markets.md – Pravidla 1). Los ze seedu vsi a dne
+ * (každý v pořadí id), takže výsledek nezávisí na kouscích dopočtu. Pod pojistkou zásob
+ * (`storesFill` < 1 – kinship.md, Sňatky čekají na zásoby) se svatba ve vsi koná jen s denní
+ * šancí `weddingChancePerDay`, jinak snoubenci dnes čekají (nevezmou se ani s jiným); `storesFill`
+ * se volá, jen když je svatba na řadě. Vrací události kroniky.
  */
 export function arrangeMarriages(
   state: VillageState,
@@ -270,7 +254,7 @@ export function arrangeMarriages(
   const parents = parentIds(state);
   const events: ChronicleEvent[] = [];
   const married = new Set<number>();
-  // los čekání na zásoby z vlastního proudu – losy sňatků s okolím se nemění
+  // los čekání na zásoby – proud čekání je vlastní ('wedding-wait:' + den)
   const waitRandom = createRandom(deriveSeed(state.seed, 'wedding-wait:' + day));
   const list = singles(state, day);
   const widowed = list.filter((p) => parents.has(p.id));
@@ -285,8 +269,8 @@ export function arrangeMarriages(
     );
     if (!b) continue;
     const fill = storesFill();
-    if (fill < 1 && waitRandom.next() >= weddingChancePerDay(null, fill)) {
-      // snoubenci čekají na zásoby – dnes se nevezmou ani s jiným (ani s okolím)
+    if (fill < 1 && waitRandom.next() >= weddingChancePerDay(fill)) {
+      // snoubenci čekají na zásoby – dnes se nevezmou ani s jiným
       married.add(a.id);
       married.add(b.id);
       continue;
@@ -296,143 +280,5 @@ export function arrangeMarriages(
     married.add(a.id);
     married.add(b.id);
   }
-  events.push(...outsideMarriages(state, day, parents, married, storesFill));
   return events;
-}
-
-/**
- * Patří svobodná žena mezi ty, ke kterým se muž z okolí přižení raději, než aby se vdala pryč
- * (Martin, 19. 10. 2026 – „hlavně k vdově nebo dceři z domu bez mužů“)? Vdova (má děti), žena,
- * která drží dům (`holdsHome` – dědička), nebo žena z domu, kde není jiný muž od 16 let.
- */
-function favouredBride(
-  state: VillageState,
-  woman: Person,
-  day: number,
-  parents: ReadonlySet<number>,
-): boolean {
-  if (parents.has(woman.id) || holdsHome(state, woman, day)) return true;
-  return !occupants(state, woman.dwellingId).some(
-    (m) => m.sex === 'male' && ageYears(m.bornDay, day) >= AGE.fertile,
-  );
-}
-
-/** Je dům člověka `p` přeplněný (víc lidí než míst)? Neexistující dům ano. */
-function crowded(state: VillageState, p: Person): boolean {
-  const home = state.dwellings.find((d) => d.id === p.dwellingId);
-  return !home || occupants(state, home.id).length > DWELLINGS[home.type].capacity;
-}
-
-/**
- * Sňatky s okolím dne (mutuje stav – Martin, varianta c): svobodní od MARRIAGE.outsideFromAge
- * let, kteří ve vsi nemají s kým se vzít, v pořadí id, jeden los dne. Muž si s denní
- * pravděpodobností odpovídající MARRIAGE.outside.bridePerYear ročně přivede nevěstu z okolí
- * (rodiče neznámí, odkud přišla); k ženě se přižení muž z okolí (groomPerYear, u vdovy, dědičky
- * a ženy z domu bez mužů favouredGroomPerYear), jinak se s awayPerYear vdá pryč (vdova, dědička
- * ani žena z domu bez mužů ne), když se jí domácnost odchodem nerozpadne. Z okolí nikdo nepřijde,
- * když ves hladoví (byla by jen další ústa), ani do přeplněného domu (návrh Clauda). Pod pojistkou
- * zásob (`storesFill` < 1) je šance nevěsty a ženicha z okolí menší (`weddingChancePerDay`);
- * vdát se pryč jde dál.
- */
-function outsideMarriages(
-  state: VillageState,
-  day: number,
-  parents: ReadonlySet<number>,
-  married: ReadonlySet<number>,
-  storesFill: () => number,
-): ChronicleEvent[] {
-  const events: ChronicleEvent[] = [];
-  const random = createRandom(deriveSeed(state.seed, 'marriage:' + day));
-  const candidates = singles(state, day)
-    .filter((p) => !married.has(p.id) && ageYears(p.bornDay, day) >= MARRIAGE.outsideFromAge)
-    .sort((a, b) => a.id - b.id);
-  const leaving = new Map<number, NeighborDirection>();
-  for (const p of candidates) {
-    const village = singles(state, day).filter((c) => !leaving.has(c.id));
-    if (bestMatch(state, day, p, village, parents)) continue;
-    const roll = random.next();
-    const age = (day - p.bornDay) / DAYS_PER_YEAR;
-    const widowed = parents.has(p.id);
-    if (p.sex === 'male') {
-      if (roll >= perDay(MARRIAGE.outside.bridePerYear)) continue;
-      if (roll >= weddingChancePerDay(MARRIAGE.outside.bridePerYear, storesFill())) continue;
-      if (state.hungry || crowded(state, p)) continue;
-      // nevěsta 16–22 let; starší muž si bere ženu nejvýš o povolený rozdíl mladší, do 44 let
-      const from = Math.min(
-        AGE.elder - 1,
-        Math.max(MARRIAGE.brideAge.from, age - maxAgeGap(widowed)),
-      );
-      const to = Math.min(AGE.elder - 1, Math.max(MARRIAGE.brideAge.to, from + 6));
-      const years = from + random.next() * (to - from);
-      const bride: Person = {
-        id: state.nextId++,
-        bornDay: day - Math.ceil(years * DAYS_PER_YEAR),
-        dwellingId: p.dwellingId,
-        sex: 'female',
-        spouseId: p.id,
-        origin: neighbor(random.next()),
-      };
-      startMarriage(bride, day);
-      p.spouseId = bride.id;
-      state.people.push(bride);
-      events.push({
-        day,
-        kind: 'bride-from-outside',
-        dwellingId: p.dwellingId,
-        groomId: p.id,
-        brideId: bride.id,
-        ...(p.line !== true || p.name === undefined ? {} : { name: p.name }),
-      });
-      continue;
-    }
-    const favoured = favouredBride(state, p, day, parents);
-    const groomChance = perDay(
-      favoured ? MARRIAGE.outside.favouredGroomPerYear : MARRIAGE.outside.groomPerYear,
-    );
-    const awayChance = favoured ? 0 : perDay(MARRIAGE.outside.awayPerYear);
-    if (roll < groomChance) {
-      const perYear = favoured
-        ? MARRIAGE.outside.favouredGroomPerYear
-        : MARRIAGE.outside.groomPerYear;
-      if (roll >= weddingChancePerDay(perYear, storesFill())) continue;
-      if (state.hungry || crowded(state, p)) continue;
-      // ženich o 2 roky mladší až o 8 let starší, od 18 let
-      const from = Math.max(MARRIAGE.outsideFromAge, age - MARRIAGE.groomAge.below);
-      const years = from + random.next() * (age + MARRIAGE.groomAge.above - from);
-      const groom: Person = {
-        id: state.nextId++,
-        bornDay: day - Math.ceil(years * DAYS_PER_YEAR),
-        dwellingId: p.dwellingId,
-        sex: 'male',
-        spouseId: p.id,
-        origin: neighbor(random.next()),
-      };
-      p.spouseId = groom.id;
-      startMarriage(p, day);
-      state.people.push(groom);
-      events.push({
-        day,
-        kind: 'groom-from-outside',
-        dwellingId: p.dwellingId,
-        ...(widowed ? { widow: true as const } : {}),
-        groomId: groom.id,
-        brideId: p.id,
-      });
-    } else if (roll < groomChance + awayChance) {
-      const staying = occupants(state, p.dwellingId).filter(
-        (q) => q.id !== p.id && !leaving.has(q.id),
-      );
-      if (householdBreaksUp(staying, day)) continue;
-      leaving.set(p.id, neighbor(random.next()));
-      events.push({ day, kind: 'married-away', dwellingId: p.dwellingId });
-    }
-  }
-  removePeople(state, new Set(leaving.keys()), leaving);
-  return events;
-}
-
-/** Sousední ves podle losu 0–1 – jeden z osmi směrů (NEIGHBOR_DIRECTIONS). */
-export function neighbor(roll: number): NeighborDirection {
-  const i = Math.min(NEIGHBOR_DIRECTIONS.length - 1, Math.floor(roll * NEIGHBOR_DIRECTIONS.length));
-  return NEIGHBOR_DIRECTIONS[i] ?? 'N';
 }

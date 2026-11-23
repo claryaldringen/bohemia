@@ -41,7 +41,7 @@ export function junctionViews(
     junctions.length > 0 && landscape ? roadEndsNetwork(state, landscape).terrain : null;
   return junctions.map((j) => {
     const near = junctionLandmark(state, j, terrain);
-    const place = near ? landmarkPhrase(near, state.seed) : null;
+    const place = near ? landmarkPhrase(near) : null;
     return {
       id: j.id,
       shape: j.shape,

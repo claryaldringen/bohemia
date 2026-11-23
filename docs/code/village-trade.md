@@ -106,25 +106,27 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
     23,1 % mapy (bez něj 3,0 %), E (49; 0) 22,2 % (2,1 %), S (48; −1) 26,6 % (0 %) – vždy celá
     největší oblast. První `continuationsOf` mapy ≈ 0,5 s, další z paměti ≈ 0,02 ms.
 
-- **Sousedé a obchod** (trade.md – Sousedé, Obchod; `neighbours.ts`, `trade.ts`): `neighbourOf(seed,
-směr)` – stálá povaha podle druhu souseda (`neighbourKind` – obilnáři, pastevci, lesní ves,
-  řemeslníci, každý dvakrát kolem vsi; `NEIGHBOURS.kinds`: 2–3 nabízí ze své nabídky, 2–3 shání –
-  `always` vždy, zbytek z `needs`), roční zásoby a poptávka `NEIGHBOURS`, jméno
-  `suggestVillageName` – kronika ho skloňuje: kovář a směna se sousedem, web-ui.md – Panel
-  Kronika), `neighbourStock` – zbytek roku obchodu
-  (`tradeSeason` – od 1. 11.), ukládá se jen `VillageTrade.neighbours`. Hodnoty zboží v kg obilí
-  `TRADE_GOOD_VALUES` (rešerše `research/2026-10-18-trade-values.md`), ceny `sellPrice` / `buyPrice`
-  (přirážka a příplatky `TRADE`), `tradeQuote` – kontrola a ocenění (bilance pro souseda ≥ 0,
-  nosiči `expeditionPorters`, dny, práce; důvody česky). `startExpedition` odebere zboží a zapíše
-  výpravu (`TradeExpedition`). **Lidé na výpravě mají vlastní podíl práce** (Martin 19. 10. 2026):
-  jediné pravidlo pro každou výpravu ve `state.trade.expeditions` (i nákup u sousedů) –
+- **Konec smyšlených sousedů** (markets.md – Pravidla 1 a 10; 23. 11. 2026): sousedé za krajem
+  mapy – povaha, roční zásoby a poptávka, výměna lidí – skončili; ves neobchoduje, nekupuje, nikoho
+  nedá ani nepřijme. Z obchodu zůstává zboží ve vsi (`goods.ts` – `TRADE_GOODS`, druhy dobytka
+  a koní; `villageGoodStock`, `addGood` v `trade.ts`) a jeho hodnota v kg obilí
+  `TRADE_GOOD_VALUES` (rešerše `research/2026-10-18-trade-values.md`) – `sellPrice` a `goodWorth`
+  (zdražení zboží po zlém roce kraje, rok obchodu `tradeSeason` od 1. 11.) platí koně nové ohrady
+  (`horsePenPayment`). Uložené zbytky roku sousedů (`neighbours`) smaže převod
+  `fictional-neighbours` (`withoutFictionalNeighbours` v `trade/legacy-neighbours.ts`, poslední
+  v `VILLAGE_MIGRATIONS` – village-core.md, Převody starších vsí); `VillageTrade` = `expeditions`
+  a `nextId` (zásilka z vsi bez obchodu ho založí – `dispatchShipment`).
+- **Výprava na cestě** (`TradeExpedition`; markets.md – Pravidla 10): výprava k dřívějšímu
+  sousedovi uložená před koncem smyšlených sousedů doběhne – nová nevyrazí; přinese zboží,
+  dobytek, koně i lidi. **Lidé na výpravě mají vlastní podíl práce** (Martin 19. 10. 2026):
+  jediné pravidlo pro každou výpravu ve `state.trade.expeditions` (i zásilku) –
   `expeditionLaborToday` = `expeditionLaborNeed` (každá výprava kolik s ní jde lidí – nosiči,
   honáci, posádky vozů –, nejvýš co jí zbývá), nejvýš kolik je dospělých mimo dílny; jde do
   `allocateDay` jako `away` hned po denním minimu domácností (to má přednost), před úlohami dne –
-  výprava trvá přesně dny z náhledu, zdrží se jen ves bez dost dospělých;
+  výprava trvá přesně své dny cesty, zdrží se jen ves bez dost dospělých;
   `workExpeditions(state, allocation.away)` ho rozdělí mezi výpravy (v rozdělení práce dne nejde
   ze společné práce – `idle` nezmenší); `finishExpeditions` (po práci – zboží do zásob, kronika
-  `trade-departed` / `trade-returned`). Rozdělení práce: činnost `trade`, cíl `{ kind: 'trail' }`
+  `trade-returned`; staré `trade-departed` v kronice zůstávají). Rozdělení práce: činnost `trade`, cíl `{ kind: 'trail' }`
   – ve scéně jde výprava jako **karavana** (`scene/caravan.ts`, data `SceneVillage.expeditions`
   z `lib/caravan-view.ts`): jedna skupina po zemské stezce ve skutečném čase od začátku dne, kdy
   běžící cesta začala (`SceneExpedition.startDay`; `caravanTimeline` – tam chůzí 1,2 m/s, s vozy
@@ -142,128 +144,78 @@ směr)` – stálá povaha podle druhu souseda (`neighbourKind` – obilnáři, 
   s karavanou (`caravanExtent`). **Karavana nákupu u sousedů** (`purchaseCaravan` – crafts.md,
   Nákup u sousedů): `porters` = skupina nákupu (i posádky vozů), jede-li vozem, `carts` z
   `CraftPurchase.carts` a `cartCrew` `CARTS.tradeCrew` jako u výprav (vozy tempem volů –
-  `caravanSpeed`; Vozy, D117). Ukázka `/dev/landscape` – **Karavana**. Use-case `sendExpedition`,
-  server action `sendExpedition` (`{ villageId, direction, give, get, givePeople?, getPeople? }` –
-  `parseSendExpeditionInput`).
-  Web: `VillageManor.neighbours` (`neighbourViews` – ceny řádků × `goodWorth` jako na serveru, jinak
-  by po zlém roce kraje náhled ukázal férovou výměnu, kterou server odmítne), panel
-  `hud/TradePanel.tsx` (soused a směr,
-  bilance pro souseda ikonou vah `resources/balance.png` – zeleně ≥ 0, červeně záporná –, dva
-  sloupce v `hud-inset` s viditelnými hlavičkami „Dáš“ / „Dostaneš“ a portrétem dvorce, řádky
-  `TradeRow` s popiskem „Soused shání – vezme ještě …“ / „Soused nabízí – má ještě …“
-  – `tradeAmountText`; záložky sousedů jen při víc sousedech; náhled `lib/trade-quote.ts`),
-  upozornění, ikona `icons/build/obchod.png`. **Po odeslání** (Martin 19. 10. 2026 – „dál nějak
-  nevím, co se bude dít“): výběr se s novým pohledem ořízne na meze souseda (`clampSelection`,
-  `tradeLimits` – úprava stavu během renderu při změně `neighbour`), náhled `tradePreview` dělá
-  všechny kontroly `tradeQuote` se stejnými důvody (konstanty z jádra), `onSend` vrací důvod
-  odmítnutí – panel zůstane otevřený a ukáže ho červeně (`trade-error`), dokud se výběr nezmění;
-  výprava na cestě `ExpeditionView` (`expeditionView` v `manor-view.ts`: `daysLeft`, `pace`
-  `full` / `slow` / `waiting` / `starting` z podílu `trade` v rozdělení práce dne; `slow`
-  a `waiting` jen výjimečně – málo dospělých, přesýpací hodiny „Výprava stojí“ / „Málo
-  dospělých“); u práce kolik vozy ušetří (`savedManDays`).
+  `caravanSpeed`; Vozy, D117). Ukázka `/dev/landscape` – **Karavana**. Panel obchodu se sousedy, use-case
+  `sendExpedition` ani server action zmizely (markets.md – Pravidla 1; 23. 11. 2026): tlačítko Obchod
+  ve dvorci není, `VillageManor` nenese sousedy. Výprava na cestě dál doběhne v `finishExpeditions`
+  a karavana a kronika ji jmenují jménem dřívějšího souseda (`legacyNeighbourName` v
+  `trade/legacy-neighbours.ts` – týž los jako dřív).
   – **zásilka do vsi jiného hráče** (`TradeExpedition.kind = 'shipment'`, bez stezky, bez návratu
   zboží) je táž výprava s jinou událostí na konci: `docs/code/vassalage.md` – Zásilky mezi vsemi hráčů.
 
 - **Jen společné suroviny** (trade.md – Jen společné suroviny; Martin 19. 10. 2026: „Nech jen
-  společné suroviny, nezaváděj nové.“): obchod zná jen zboží, které má i ves (`TradeGood` – obilí,
-  luštěniny, maso, sýr, dobytek, klády, keramika, nástroje, uhlí; `TRADE_GOODS`). Zboží zvenku
-  (sůl, železo, med, kožešiny – dřívější soubor zboží) ve hře není. Starší vsi převede
-  `withoutForeignGoods` (`trade.ts`; v `updateVillage` i na začátku `advanceVillage`, bez příznaku,
-  idempotentně): zahodí `goods` a podíl medu v jídle, uložený zbytek roku souseda, který nesedí na
-  jeho povahu, a výpravu na cestě pro zboží zvenku zruší – nosiči přinesou zpět, co nesli
-  (`get` = `give`); z kroniky výprav zboží zvenku zmizí.
+  společné suroviny, nezaváděj nové.“): obchod zná jen zboží, které má i ves (`TradeGood`,
+  `TRADE_GOODS`). Zboží zvenku (sůl, železo, med, kožešiny – dřívější soubor zboží) ve hře není.
+  Starší vsi převede `withoutForeignGoods` (`trade.ts`; v `updateVillage` i na začátku
+  `advanceVillage`, bez příznaku, idempotentně): zahodí `goods` a podíl medu v jídle a výpravu na
+  cestě pro zboží zvenku zruší – nosiči přinesou zpět, co nesli (`get` = `give`); z kroniky výprav
+  zboží zvenku zmizí. Hřivny místo nástrojů ve výpravách a kronice převede `withIronBarsTrade`.
 
-- **Kůže, kožešiny, med a vosk** (trade.md – Jen společné suroviny; hides-honey.md – Obchod):
-  `TradeGood` += `honey` / `hides` / `furs` / `wax` (`TRADE_GOODS` za kamenem). Hodnoty v
-  `TRADE_GOOD_VALUES`, druhy sousedů a roční množství `NEIGHBOURS.waresKinds` / `waresAmounts`
-  (`rules-trade.ts`), losy `waresAmounts` v `neighbours.ts` z proudu `neighbour-wares:{směr}`.
-  Zásoba ve vsi `villageGoodStock` (`trade.ts`): `floor` z `hides` + `smallHides × smallHideRatio()`
-  (`HIDES.smallHideM2 / hideM2`), ze `sheepFurs + wildFurs`, z `honeyKg` a `waxKg`; `addGood` při
-  prodeji bere napřed velké kůže a kožešiny z lovu, nákup kůží jde do `hides`, kožešin do
-  `wildFurs` (`ensureWares`). Rozpis kůží a kožešin pro popisek: `VillageNeighbour.wares`
-  (`manor-view.ts`) → `waresNote` v `TradePanel.tsx`. Názvy a ikony: `TRADE_GOOD_NAMES`
-  (`trade-names.ts`); kronika je bere z `goodsText`. Zbytek roku souseda uložený bez nového zboží
-  zahodí `fitsNeighbour` (`withoutForeignGoods`) – soused dostane plný rok.
+- **Kůže, kožešiny, med a vosk** (hides-honey.md – Obchod): `TradeGood` += `honey` / `hides` /
+  `furs` / `wax` (`TRADE_GOODS` za kamenem), hodnoty v `TRADE_GOOD_VALUES`. Zásoba ve vsi
+  `villageGoodStock` (`trade.ts`): `floor` z `hides` + `smallHides × smallHideRatio()`
+  (`HIDES.smallHideM2 / hideM2`), ze `sheepFurs + wildFurs`, z `honeyKg` a `waxKg`; `addGood`
+  ubírá napřed velké kůže a kožešiny z lovu, přidané kůže jdou do `hides`, kožešiny do `wildFurs`
+  (`ensureWares`). Názvy a ikony: `TRADE_GOOD_NAMES` (`trade-names.ts`); kronika je bere
+  z `goodsText`.
 
 - **Dobytek ve třech druzích** (trade.md – Dobytek ve třech druzích; Martin 20. 10. 2026: „s
   dobytkem by také mělo jít obchodovat. Představuju si tři kategorie - krávy, mladé voly (musí se
   vycvičit) a vycvičené voly“; `cattle-trade.ts`): `CattleGood` = `cows` / `youngOxen` /
   `trainedOxen` (`CATTLE_GOODS`, `isCattleGood`) místo `cattle`; hodnoty 600 / 350 / 1 200 kg obilí
-  (rešerše `research/2026-10-20-cattle-trade.md`). Koupené krávy do stáda skotu jen do volných míst
-  ohrad skotu, voli do ohrad volů (mladí i vycvičení sdílejí místa) – `cattleRoom`,
-  `cattleRoomBlocked` v `tradeQuote` (`NO_COW_ROOM`, `NO_OX_ROOM`), bez dobytka na cestě; po návratu
-  `addCattle` (mladý vůl `oxTrainedDay` od příchodu, vycvičený se `CATTLE_TRADE.servedYears` 3 roky
-  služby – `boughtOxTrainedDay`; kdo se nevejde, do `looseOxen`). Prodej `cattleForSale` /
+  (rešerše `research/2026-10-20-cattle-trade.md`). Dobytek z výpravy na cestě přijde
+  v `finishExpeditions` – `addCattle` (krávy do stáda skotu, mladý vůl `oxTrainedDay` od příchodu,
+  vycvičený se `CATTLE_TRADE.servedYears` 3 roky služby – `boughtOxTrainedDay`; kdo se do ohrad
+  volů nevejde, do `looseOxen`). Co ves dá (zásilky vazalů – vassalage.md): `cattleForSale` /
   `removeCattle` (krávy bez chovného páru, mladí voli z výcviku – nejdelší výcvik napřed, vycvičení
   doma mimo posledních 2 let služby – nejstarší napřed); `villageGoodStock(state, good, day)`.
-  Voli na cestě (`oxenComing`) jsou v `lastingOxen` a místech výcviku; pár bez rádla dostane rádlo
-  bez výcviku (`ardsWithoutTraining` v `trainTeamsWhenReady`). Prodaní vycvičení voli vůz výpravy
-  netáhnou (`withoutSoldOxen`). Dobytek jde po svých s honákem (`carriers`). Sousedé: v povaze
-  zůstává `cattle` (`NeighbourGood`, pořadí losu beze změny – ostatní zboží souseda stejné) a rozloží
-  se podle druhu (`NEIGHBOURS.cattleKinds` – pastevci všechny tři vždy, obilnáři krávy a mladé
-  voly, řemeslníci shánějí všechny tři). Převod `withCattleKinds` (před `withoutForeignGoods`,
-  v `updateVillage` i `advanceVillage`). Web: `VillageNeighbour.room`, `tradeLimits` / `tradePreview`
-  s místy, řádky s ikonami `cow`, `young-ox` (menší světlejší vůl – `icons.py`), `ox` a popiskem
-  místa v ohradě; karavana – `SceneExpedition.cattle`, `CaravanColumn.animals` po dvou za vozy,
-  kreslí `VillageLivestock` modelem krávy (`caravan-cattle.ts`).
+  Krávy a voli na cestě (`cowsComing`, `oxenComing`) jsou v `lastingOxen`, místech výcviku a seči;
+  pár bez rádla dostane rádlo bez výcviku (`ardsWithoutTraining` v `trainTeamsWhenReady`). Dobytek
+  jde po svých s honákem (`carriers`). Převod `withCattleKinds` (před `withoutForeignGoods`,
+  v `updateVillage` i `advanceVillage`) přejmenuje `cattle` výprav a kroniky na krávy. Ikony
+  `cow`, `young-ox` (menší světlejší vůl – `icons.py`) a `ox`; karavana – `SceneExpedition.cattle`,
+  `CaravanColumn.animals` po dvou za vozy, kreslí `VillageLivestock` modelem krávy
+  (`caravan-cattle.ts`).
 
 - **Koně ve třech druzích** (horses.md – Nákup a prodej; Martin 23. 10. 2026: koně jako ostatní
   zvířata; čísla návrh Clauda; `horse-trade.ts`): `HorseGood` = `foals` | `mares` |
   `ridingHorses` (kusy, `HORSE_GOODS`, `isHorseGood`, `isLivestockGood` = dobytek nebo koně).
   Hodnoty `TRADE_GOOD_VALUES` 800 / 1 600 / 2 400 – jezdecký kůň má cenu **za kus** podle výcviku
-  (`horseValueKg` = 2 400 + 1 200 × výcvik/100): `tradeQuote` sčítá prodávané koně
-  (`horsesSaleValues` – napřed nejméně vycvičení) a koně souseda (`offeredHorses`). Ves prodá
-  (`horsesForSale`) jen koně bez jezdce: hříbata do 3 let (napřed nejstarší), klisny nad chovné
-  (`horsesWanted.mares` nejmladších zůstane) a jezdecké koně – bez koně s jezdcem
-  zůstane nejlépe vycvičený hřebec (i bez klisny). Koupě potřebuje místo v ohradách koní (`horseTradeRoom` – bez
-  koní na cestě, `horseRoomBlocked` – „Tolik koní se do ohrady koní nevejde.“). Koupení koně se
-  věkem a výcvikem určí při odchodu výpravy (`boughtHorses` → `TradeExpedition.horses?`, chybí =
-  žádní): los ze seedu souseda, roku obchodu, druhu a pořadí koně v roce (`neighbour-horse:…`) –
-  hříbě 1–3 roky, klisna 4–12, jezdecký kůň 3–12 s výcvikem podle věku; `finishExpeditions` je
-  přidá (`addHorses` – do volných míst, přebytek do první ohrady koní, bez ohrady na maso).
-  Doprava: honák na 4 koně (`TRADE.horsesPerDrover`) zvlášť od honáků dobytka (`legCrew`). Sousedé:
-  koně mimo povahu (`PROFILE_ORDER` bez nich – ostatní zboží souseda beze změny, hlídá otisk
-  v `neighbours.test.ts`), `NEIGHBOURS.horseKinds` – pastevci nabízejí všechny tři, obilnáři
-  a řemeslníci shánějí všechny tři, lesní ves nic; 1–3 kusy z proudu `neighbour-horses:<směr>`.
-  Jezdecké koně mají pastevci jen některý rok (`seasonSupply` – `HORSE_TRADE.ridingYearChance`,
-  proud `neighbour-horses:<směr>:<rok>`). Uložený zbytek roku bez koní se nezahodí (`sameGoods`
-  koně nepočítá) – koně přibudou 1. 11. Web: názvy a ikony `foal`, `mare`, `horse` v `TRADE_GOOD_NAMES`, řádky v panelu
-  obchodu jako u dobytka (`TradePanel`); `manor-view.ts` je neskrývá, jen řádek nabídky se zásobou 0
-  (pastevec v roce bez jezdeckých koní) vynechá. Místo v ohradách koní `VillageNeighbour.room.horses`
-  (`horseTradeRoom`), popisek řádku a důvod v náhledu (`trade-quote.ts`, `NO_HORSE_ROOM` – koně
-  všech tří druhů dohromady); karavana koně nenese (`carries`).
+  (`horseValueKg` = 2 400 + 1 200 × výcvik/100; platba koní nové ohrady, půjčky vazalů). Ves dá
+  (`horsesForSale`, `horsesToSell`) jen koně bez jezdce: hříbata do 3 let (napřed nejstarší),
+  klisny nad chovné (`horsesWanted.mares` nejmladších zůstane) a jezdecké koně – napřed nejméně
+  vycvičené; bez koně s jezdcem zůstane nejlépe vycvičený hřebec (i bez klisny). Koně výpravy na
+  cestě mají věk a výcvik uložené od odchodu (`TradeExpedition.horses?`, chybí = žádní);
+  `finishExpeditions` je přidá (`addHorses` – do volných míst, přebytek do první ohrady koní, bez
+  ohrady na maso). Doprava zásilek: honák na 4 koně (`TRADE.horsesPerDrover`). Web: názvy a ikony
+  `foal`, `mare`, `horse` v `TRADE_GOOD_NAMES`; karavana koně nenese (`carries`).
 
-- **Nákup osiva** (trade.md – Nákup osiva, fields.md – Osivo pro ves bez zásob; Martin 27. 10.
-  2026): `seed-buying.ts` – ves bez osiva na nutné díly ho 1. 9. a 1. 3. sama koupí (`buySeed`):
-  zásoba obilí sousedů `neighbourStock` (po zlém roce menší – `seasonSupply`) ubude přes
-  `storeStock` (z `trade.ts`), platba hřivny → krávy `surplusCows` (husbandry.ts – nad
-  `breedingCows` + `oxenCalvesWanted`, jako porážka; od 2. 11. 2026, dřív `cattleForSale` nad
-  `TRADE.keepCows`) v `sellPrice` × `goodWorth`,
-  bez stezky a bez nosičů (zboží hned); podrobnosti village-fields.md – Osivo pro ves bez zásob.
-- **Výměna lidí** (trade.md – Výměna lidí; Martin 19. 10. 2026: „Se sousedem půjde vyměnit
-  i lidi…“, „Mohou se stěhovat celé rodiny i jen dospělí. Podle toho, co je v nabídce.“;
-  `people-trade.ts`): soused má na rok obchodu lidi navíc, nebo je shání (`neighbourPeople` – ze
-  seedu, směru a roku; `NeighbourStock.people` – `families` počty dětí rodin, které dá, `men`,
-  `women`, `takes`; chybí u zbytku roku uloženého dřív – doplní `neighbourStock`, uložený
-  s `adults` převede `storedNeighbourPeople`). **Muži a ženy zvlášť** (Martin 19. 10. 2026 – dvě
-  ženy od souseda neměly s kým založit domácnost): `TradePeople` = `families`, `men`, `women`,
-  pohlaví svobodných souseda se losuje v nabídce (na konci losu – rodiny a počty beze změny);
-  výprava s `getPeople.adults` (uložená dřív) losuje pohlaví při příchodu jako dřív. Cena `PEOPLE_TRADE`
-  (dospělý 360 kg obilí, dítě polovina – `personValue`, `neighbourFamilyValue`, přirážky
-  `sellValue` / `buyValue`). `TradeOffer.givePeople` / `getPeople` (`TradePeople`);
-  `tradeQuote` je ocení a zkontroluje (`NO_PEOPLE_WANTED`, `OVER_PEOPLE_DEMAND`,
-  `NO_EMIGRANTS`…). Koho ves dá, vybere `emigrantGroups` (`Emigrants` – rodiny podle
-  `familiesOf`, pak svobodní muži, pak ženy 16–44 – `nextSingle`, z nejvíc přeplněného domu, ne
-  dvorec, ne dědic – `unmarriedHeir` v `households.ts` –, ne rozpad domácnosti, ve vsi s rodem ne
-  muž rodu ani manželka muže rodu – `keptByLine`, lord.md – Manželky; postupně, prefix
-  stálý); odejdou hned v `startExpedition` (`removePeople` se směrem, `TradeExpedition.givePeople`
-  i s `members` – pohlaví a den narození pro postavy karavany). Lidé souseda
-  (`TradeExpedition.getPeople`, `ComingPeople`) přijdou v `finishExpeditions` – `settleNewcomers`
-  podle `newcomerProfiles` (pohlaví a věk z losu ze seedu a id výpravy – stejně pro postavy ve
-  scéně; rodina do prázdného obydlí, jinak do domu s nejvíc místy mimo dvorec, svobodný do
-  obydleného domu s nejvíc místy; kronika `newcomer`). Lidé nosiče nepotřebují. Web:
-  `VillageNeighbour.people` (`neighbourViews` – `offers`, `takes`, `have` po výběru jádra), náhled
-  `tradePreview(…, people)`, řádky rodina / muž / žena v `TradePanel` (ikony
-  `resources/family.png`, `man.png`, `woman.png`), upozornění „Přišla rodina ze severu“.
+- **Nákup osiva** (trade.md – Nákup osiva, fields.md – Osivo pro ves bez zásob): zrušen 23. 11.
+  2026 (markets.md – Pravidla 1) – ves bez osiva na nutné díly ho nekoupí, 1. 9. a 1. 3. jen
+  zapíše do kroniky, kolik chybí (`seedReserveDay` v `seed-reserve.ts`); podrobnosti
+  village-fields.md – Osivo pro ves bez zásob.
+- **Lidé – koho ves dá a kdo přijde** (trade.md – Výměna lidí; Martin 19. 10. 2026;
+  `people-trade.ts`): výměna lidí se sousedy skončila s obchodní výpravou (markets.md – Pravidla 1).
+  Koho ves smí dát (zásilky vazalů – vassalage.md), vybere `emigrantGroups` (`Emigrants` – rodiny
+  podle `familiesOf`, pak svobodní muži, pak ženy 16–44 – `nextSingle`, z nejvíc přeplněného domu,
+  ne dvorec, ne dědic – `unmarriedHeir` v `households.ts` –, ne rozpad domácnosti, ve vsi s rodem
+  ne muž rodu ani manželka muže rodu – `keptByLine`, lord.md – Manželky; postupně, prefix stálý).
+  **Muži a ženy zvlášť** (Martin 19. 10. 2026): `TradePeople` = `families`, `men`, `women`.
+  Lidé z výpravy na cestě (`TradeExpedition.getPeople`, `ComingPeople`) přijdou
+  v `finishExpeditions` – `settleNewcomers` podle `newcomerProfiles` (pohlaví a věk z losu ze seedu
+  a id výpravy, věky `PEOPLE_TRADE` – stejně pro postavy ve scéně; výprava s `getPeople.adults`
+  uložená dřív losuje pohlaví jako dřív; rodina do prázdného obydlí, jinak do domu s nejvíc místy
+  mimo dvorec, svobodný do obydleného domu s nejvíc místy; kronika `newcomer`). Kdo s výpravou
+  odešel, nese `TradeExpedition.givePeople` i s `members` (pohlaví a den narození pro postavy
+  karavany). Ikony `resources/family.png`, `man.png`, `woman.png` zůstaly.
 
-Počasí kraje mění zásoby a ceny sousedů 1. 11. – [village-disasters.md](village-disasters.md#kraj-kolem-vsi-sousedé-a-zvěř-p4).
+Počasí kraje mění hodnotu zboží od 1. 11. – [village-disasters.md](village-disasters.md#kraj-kolem-vsi-hodnota-zboží-a-zvěř-p4).

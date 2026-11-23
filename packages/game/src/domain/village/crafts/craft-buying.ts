@@ -1,52 +1,18 @@
-import { seasonHayYieldKg } from '../livestock/hay';
-import { dateOfDayIndex } from '../../calendar';
 import type { Landscape } from '../../landscape';
-import { createRandom, deriveSeed } from '../../landscape/random';
 import { CELL_SIZE_M, LANDSCAPE_SIZE } from '../../landscape/types';
-import { craftNeeds, craftStocks, craftTargets, occupiedWorkshops } from './crafts';
+import { occupiedWorkshops } from './crafts';
 import { addCart } from './carts';
-import {
-  cartPriceKg,
-  cartRoutePassable,
-  purchaseCarts,
-  purchaseOxen,
-  purchaseTransport,
-  transportLoadKg,
-} from './purchase-carts';
-import { cartYearSaving, missingCart } from '../livestock/draft';
 import { toolEquipmentKg } from './iron';
 import { storesOutlook } from '../fields/field-food';
-import { expectedNetKg } from '../fields/fields';
-import { villageLaborFactor } from '../people/happiness';
-import { lordApartIds } from '../people/lord';
-import { villageFoodCosts } from '../livestock/husbandry';
 import { villageLegumesKg } from '../fields/legumes';
 import { seedOutsideFoodKg, uneatenSeedKg } from '../fields/seed';
 import { foodGrainReserveKg } from '../fields/threshing';
 import { villageFoodNeed } from '../core/diet';
 import { villageManor } from '../people/manor';
-import { neighbourKind } from '../trade/neighbours';
-import { ageGroup, laborPerDay } from '../people/people';
-import {
-  dailyMinPerHousehold,
-  storageLossPerYear,
-  woodToolsLaborFactor,
-} from '../core/productivity';
-import {
-  CARTS,
-  CRAFT_BUYING,
-  CRAFT_NEEDS,
-  DRAFT_OXEN,
-  LEGUMES,
-  NEIGHBOR_DIRECTIONS,
-  TRADE,
-  TRADE_GOOD_VALUES,
-  WOOD_TOOLS,
-} from '../rules';
-import { buyValue, goodWorth, sellPrice } from '../trade/trade';
+import { CRAFT_BUYING } from '../rules';
+import { sellPrice } from '../trade/trade';
 import { DIRECTION_VECTORS, builtTrail, trailTripDays } from '../trade/trail';
 import type {
-  CartKind,
   ChronicleEvent,
   Craft,
   CraftCoverage,
@@ -58,31 +24,22 @@ import type {
   VillageState,
 } from '../types';
 
-// Nákup u sousedů (crafts.md – Nákup u sousedů; Martin 19. 10. 2026: „Nástroje ať vesničané
-// obchodují individuálně. Např. pokud ve vedlejší vesnici kovář je a u nás ne, ať si vesničané od
-// něj koupí nástroje za něco z toho, co vesnice produkuje. Sami si spočítají, jestli se jim to
-// vyplatí. Až bude kovář u nás, budou pravděpodobněji nakupovat u něj, protože si ušetří cestu.
-// S ostatními řemesly to bude stejné.“). Ves se jednou za rok po sklizni sama rozhodne (bez
-// hráče – princip „co ulehčí práci, ves použije sama“, oxen.md): u každého výrobku řemeslníků
-// (nástroje, keramika, dřevěné nářadí), na který nemá vlastního řemeslníka, porovná práci, kterou
-// jí výrobek za dobu služby ušetří (meze produktivity), s prací za platbu (obilí nebo luštěniny
-// z přebytku nad pojistkou zásob – cena jídla v práci, economy.ts) a za cestu malé skupiny
-// k nejbližšímu sousedovi s řemeslníkem. Kupuje jen do zásoby (`craftTargets`) a jen když se to
-// vyplatí; zboží přinesou s návratem. Má-li ves vůz a volné voly, jede nákup po sjízdné stezce
-// vozem, když je to levnější; ves bez tesaře si u souseda s tesařem koupí vůz, který chce
-// (crafts.md – Nákup u sousedů, Vozy; purchase-carts.ts). Kroky simulace mutují stav – volat na
-// klonu; čisté funkce stavu, deterministicky, na kouscích dopočtu nezávisí.
-
-export { tripOf } from './purchase-carts';
+// Výrobky řemeslníků – nástroje, keramika a dřevěné nářadí – má ves jen od vlastních pracujících
+// řemeslníků (`craftSources`). Nákup u sousedů zrušen (markets.md – Pravidla 1; Martin 22. 11. 2026:
+// „Ves by měla být schopná přežít a rozvíjet se dle současných pravidel i bez obchodu“; vrátí se
+// s trhem skutečných vsí – markets.md bod 9). Nákup uložený na cestě ve starší vsi doběhne
+// (markets.md bod 10): skupina dojde, přinese výrobky a koupený vůz (`walkPurchases`,
+// `finishPurchases`). Zůstává i cesta ke kraji mapy ve směru (`purchaseRoute` – karavany zásilek,
+// cizí kovář ze starší kroniky) a přebytek k platbě (`paymentPool` – ohrada koní). Kroky simulace
+// mutují stav – volat na klonu; čisté funkce stavu, deterministicky, na kouscích dopočtu nezávisí.
 
 /** Tolerance proti chybám desetinných čísel. */
 const EPSILON = 1e-9;
-const DAYS_PER_YEAR = 365;
 
-/** Výrobek řemeslníků, který ves kupuje (kg v zásobách řemesel). */
+/** Výrobek řemeslníků (kg v zásobách řemesel; nákup na cestě ho nese v `CraftPurchase.get`). */
 export type CraftProduct = keyof CraftPurchaseGoods;
 
-/** Výrobky řemeslníků (pořadí při shodě – nákup jde podle poměru ušetřené práce k ceně). */
+/** Výrobky řemeslníků v pořadí panelu a kroniky. */
 export const CRAFT_PRODUCTS: readonly CraftProduct[] = ['toolsKg', 'potteryKg', 'woodToolsKg'];
 
 /** Kdo výrobek dělá. */
@@ -92,55 +49,7 @@ export const PRODUCT_CRAFT: Readonly<Record<CraftProduct, Craft>> = {
   woodToolsKg: 'carpenter',
 };
 
-/** Řemesla, která soused může mít (v pořadí losu). */
-const NEIGHBOUR_CRAFT_ORDER = ['smith', 'potter', 'carpenter'] as const;
-
-/** Opotřebení výrobku za rok (podíl) – výrobek slouží 1 ÷ opotřebení let. */
-const WEAR_PER_YEAR: Readonly<Record<CraftProduct, number>> = {
-  toolsKg: CRAFT_NEEDS.toolWearPerYear,
-  potteryKg: CRAFT_NEEDS.potteryBreakagePerYear,
-  woodToolsKg: WOOD_TOOLS.wearPerYear,
-};
-
-/**
- * Řemeslníci souseda ve směru (crafts.md – Nákup u sousedů): podle toho, čím se soused živí
- * (`neighbourKind`) – řemeslníci mají kováře, hrnčíře i tesaře jistě, ostatní někdy
- * (CRAFT_BUYING.crafts). Deterministicky ze seedu vsi a směru.
- */
-export function neighbourCrafts(seed: number, direction: Direction8): Craft[] {
-  const odds = CRAFT_BUYING.crafts[neighbourKind(seed, direction)];
-  const rnd = createRandom(deriveSeed(seed, `neighbour-crafts:${direction}`));
-  // los pro každé řemeslo vždy – výsledek nezávisí na ostatních
-  return NEIGHBOUR_CRAFT_ORDER.filter((craft) => rnd.next() < odds[craft]);
-}
-
-/**
- * Kolik kg obilí soused chce za kg výrobku (nabízené zboží – hodnota × 0,96, trade.md); nástroje
- * nejsou zboží obchodu (na obchod jdou hřivny – production-chains.md, Kovář), kovář souseda je
- * prodá za CRAFT_BUYING.toolsValueKg.
- */
-export function productPrice(
-  product: CraftProduct,
-  state?: Pick<VillageState, 'weatherSeed' | 'disasters'>,
-  day?: number,
-): number {
-  // po zlém roce kraje soused dá výrobek za méně obilí (`goodWorth`, disasters.md – Obchod)
-  const worth = state && day !== undefined ? goodWorth(state, 'pottery', day) : 1;
-  if (product === 'woodToolsKg') return worth * buyValue(CRAFT_BUYING.woodToolsValueKg);
-  if (product === 'toolsKg') return worth * buyValue(CRAFT_BUYING.toolsValueKg);
-  return worth * buyValue(TRADE_GOOD_VALUES.pottery.valueKg);
-}
-
-/**
- * Kolik výrobku ves má (kg): nástroje ve vybavení domácností (production-chains.md – Nástroje jako
- * vybavení domácností), keramika a dřevěné nářadí v zásobě.
- */
-function productStock(state: VillageState, product: CraftProduct): number {
-  if (product === 'toolsKg') return toolEquipmentKg(state);
-  return craftStocks(state)[product] ?? 0;
-}
-
-/** Cesta k sousedovi – po hotové zemské stezce, nebo krajinou ke kraji mapy. */
+/** Cesta ke kraji mapy ve směru – po hotové zemské stezce, nebo krajinou. */
 export interface PurchaseRoute {
   direction: Direction8;
   /** Hotová zemská stezka (id), nebo null – jde se krajinou. */
@@ -161,17 +70,17 @@ function villageCenter(state: VillageState): { x: number; z: number } {
 }
 
 /**
- * Cesta k sousedovi ve směru (crafts.md – Nákup u sousedů): po hotové zemské stezce dny jako
- * výprava (`trailTripDays`); bez ní lidé jdou krajinou rovně ke kraji mapy – delší (× CRAFT_BUYING.
- * offTrailFactor) a den navíc. Bez krajiny (kalibrace) se počítá s mapou obvyklé velikosti.
- * `from` – odkud se jde krajinou (výchozí dvorec – nákup; tesař pro kování od dílny – wagons.md).
+ * Cesta ke kraji mapy ve směru (crafts.md – Nákup u sousedů; karavana zásilky, cizí kovář ze starší
+ * kroniky): po hotové zemské stezce dny jako výprava (`trailTripDays`); bez ní lidé jdou krajinou
+ * rovně ke kraji mapy – delší (× CRAFT_BUYING.offTrailFactor) a den navíc. Bez krajiny (kalibrace)
+ * se počítá s mapou obvyklé velikosti. Krajinou se jde od dvorce (`villageCenter`).
  */
 export function purchaseRoute(
   state: VillageState,
   direction: Direction8,
   landscape: Landscape | null,
-  from: { x: number; z: number } = villageCenter(state),
 ): PurchaseRoute {
+  const from = villageCenter(state);
   const half = landscape
     ? (landscape.size * landscape.cellSizeM) / 2
     : (LANDSCAPE_SIZE * CELL_SIZE_M) / 2;
@@ -186,64 +95,27 @@ export function purchaseRoute(
   return { direction, trailId: null, days, edge };
 }
 
-/** Nejbližší soused s řemeslníkem `craft` (nejméně dní cesty, při shodě v pořadí směrů). */
-export function nearestCraftsman(
-  state: VillageState,
-  craft: Craft,
-  landscape: Landscape | null,
-): PurchaseRoute | null {
-  let best: PurchaseRoute | null = null;
-  for (const direction of NEIGHBOR_DIRECTIONS) {
-    if (!neighbourCrafts(state.seed, direction).includes(craft)) continue;
-    const route = purchaseRoute(state, direction, landscape);
-    if (!best || route.days < best.days) best = route;
-  }
-  return best;
-}
-
-/**
- * Nejbližší soused s tesařem, kam dojede vůz (crafts.md – Nákup u sousedů, Vozy): koupený vůz voli
- * dovedou domů jen po hotové zemské stezce sjízdné pro vozy (`cartRoutePassable`). Nejméně dní
- * cesty, při shodě v pořadí směrů; jinak null.
- */
-function nearestCartMaker(state: VillageState, landscape: Landscape | null): PurchaseRoute | null {
-  let best: PurchaseRoute | null = null;
-  for (const direction of NEIGHBOR_DIRECTIONS) {
-    if (!neighbourCrafts(state.seed, direction).includes('carpenter')) continue;
-    const route = purchaseRoute(state, direction, landscape);
-    if (!cartRoutePassable(state, route.trailId, landscape)) continue;
-    if (!best || route.days < best.days) best = route;
-  }
-  return best;
-}
-
-/** Kde ves výrobky řemeslníků bere – vlastní dílna, nebo nejbližší soused (panel). */
+/** Kde ves výrobek řemeslníků bere (panel dvorce). */
 export interface CraftSource {
   product: CraftProduct;
-  /** Vlastní pracující řemeslník – nikam se nechodí. */
+  /** Vlastní pracující řemeslník; jinak ho ves nemá odkud vzít. */
   own: boolean;
-  /** Nejbližší soused s řemeslníkem (bez vlastního), jinak null. */
-  route: PurchaseRoute | null;
 }
 
 /**
- * Kde ves bere nástroje, keramiku a dřevěné nářadí (crafts.md – Nákup u sousedů): vlastní
- * pracující řemeslník má přednost, jinak nejbližší soused s řemeslníkem (kam by šla nakoupit).
+ * Kde ves bere nástroje, keramiku a dřevěné nářadí: jen od vlastního pracujícího řemeslníka
+ * (`ownCraftsmanWorks`) – nákup u sousedů zrušen (markets.md – Pravidla 1).
  */
-export function craftSources(state: VillageState, landscape: Landscape | null): CraftSource[] {
-  return CRAFT_PRODUCTS.map((product) => {
-    const own = ownCraftsmanWorks(state, PRODUCT_CRAFT[product]);
-    return {
-      product,
-      own,
-      route: own ? null : nearestCraftsman(state, PRODUCT_CRAFT[product], landscape),
-    };
-  });
+export function craftSources(state: VillageState): CraftSource[] {
+  return CRAFT_PRODUCTS.map((product) => ({
+    product,
+    own: ownCraftsmanWorks(state, PRODUCT_CRAFT[product]),
+  }));
 }
 
 /**
- * Pracuje ve vsi vlastní řemeslník, který výrobek dělá (obývaná dílna, která má vstupy – ne bez uhlí
- * ani bez dřeva)? Pak má přednost – ves u souseda nekupuje (crafts.md – Nákup u sousedů).
+ * Pracuje ve vsi vlastní řemeslník, který výrobek dělá (obývaná dílna, která má vstupy – ne bez uhlí,
+ * dřeva, rudy ani hlíny)?
  */
 export function ownCraftsmanWorks(state: VillageState, craft: Craft): boolean {
   return occupiedWorkshops(state, craft).some((d) => {
@@ -258,66 +130,7 @@ export function ownCraftsmanWorks(state: VillageState, craft: Craft): boolean {
   });
 }
 
-/** Pokrytí potřeby zásobou 0–1 (jako `craftCoverage`). */
-function coverageOf(stock: number, need: number): number {
-  if (need <= 0) return stock > EPSILON ? 1 : 0;
-  return Math.min(1, Math.max(0, stock / need));
-}
-
-/** Co ves o sobě ví pro rozhodnutí o nákupu (jednou za rozhodnutí). */
-interface BuyingContext {
-  day: number;
-  coverage: CraftCoverage;
-  needs: ReturnType<typeof craftNeeds>;
-  /** Čistá úroda dílů v osevu za rok (kg) a seno letošní seče (kg). */
-  grainKg: number;
-  hayKg: number;
-  /** Zásoby obilí a luštěnin (kg) – ztráty skladováním. */
-  storedKg: number;
-  households: number;
-  /** Práce vsi za rok (čd, se štěstím). */
-  yearlyLabor: number;
-  /** Cena jídla v práci (čd na kg) při dnešním pokrytí nástroji. */
-  grainPerKg: number;
-}
-
-/**
- * Kolik práce za rok ušetří pokrytí `to` místo `from` (crafts.md – Účinek, meze produktivity):
- * nástroje – polní práce dílů v osevu a seč (cena jídla v práci při obou pokrytích), keramika –
- * ztráty zásob a denní minimum domácností, dřevěné nářadí – práce celé vsi.
- */
-function yearlySaving(
-  state: VillageState,
-  ctx: BuyingContext,
-  product: CraftProduct,
-  from: number,
-  to: number,
-): number {
-  if (to <= from + EPSILON) return 0;
-  if (product === 'toolsKg') {
-    const before = villageFoodCosts(state, ctx.day, from);
-    const after = villageFoodCosts(state, ctx.day, to);
-    return (
-      ctx.grainKg * (before.grainPerKg - after.grainPerKg) +
-      ctx.hayKg * (before.hayPerKg - after.hayPerKg)
-    );
-  }
-  if (product === 'potteryKg') {
-    const stores = ctx.storedKg * (storageLossPerYear(from) - storageLossPerYear(to));
-    const minimum =
-      ctx.households * DAYS_PER_YEAR * (dailyMinPerHousehold(from) - dailyMinPerHousehold(to));
-    return stores * ctx.grainPerKg + minimum;
-  }
-  return ctx.yearlyLabor * (woodToolsLaborFactor(to) - woodToolsLaborFactor(from));
-}
-
-/** Cena jídla v práci při jiném pokrytí nástroji (obilí na platbu za nástroje). */
-function withToolCoverage(state: VillageState, ctx: BuyingContext, tools: number): BuyingContext {
-  const costs = villageFoodCosts(state, ctx.day, tools);
-  return { ...ctx, grainPerKg: costs.grainPerKg };
-}
-
-/** Čím ves může platit – přebytek obilí a luštěnin nad pojistkou zásob (kg) a cena v práci. */
+/** Čím ves může platit – přebytek obilí a luštěnin nad pojistkou zásob (kg; ohrada koní). */
 export interface PaymentPool {
   /** Přebytek energie nad pojistkou k příští sklizni (kg obilí). */
   energyKg: number;
@@ -326,10 +139,9 @@ export interface PaymentPool {
 }
 
 /**
- * Přebytek obilí a luštěnin nad pojistkou zásob (výhled zásob – field-food.ts, `storesOutlook`). S `intoBuffer`
- * smí platba sáhnout i do pojistky – ne pod nulu zásob k příští sklizni (nutný malý výdaj, např.
- * kování koní – horses.md, Kování). Vymlácené zrno k platbě je bez zrna na dnešní jídlo
- * (`foodGrainReserveKg` – jako výmlat na dnešní jídlo), hromady osiva (okno i zimní osivo) a osiva jen na setí
+ * Přebytek obilí a luštěnin nad pojistkou zásob (výhled zásob – field-food.ts, `storesOutlook`).
+ * Vymlácené zrno k platbě je bez zrna na dnešní jídlo (`foodGrainReserveKg` – jako výmlat na dnešní
+ * jídlo), hromady osiva (okno i zimní osivo) a osiva jen na setí
  * (oprava, návrh Clauda 9. 11. 2026: Vlkov 1. 8. 873 zaplatil kování 41 kg vymláceného zrna
  * a příděl dne spadl na 0,55 – pojistka počítá i snopy, které se teprve vymlátí).
  */
@@ -337,7 +149,6 @@ export function paymentPool(
   state: VillageState,
   day: number,
   coverage: CraftCoverage,
-  intoBuffer = false,
 ): PaymentPool {
   // osivo, které ves ještě zaseje, a osivo jen na setí ves nezaplatí (jako `fieldStoresOutlook`)
   const outlook = storesOutlook(
@@ -347,322 +158,13 @@ export function paymentPool(
     seedOutsideFoodKg(state, day, coverage.tools),
   );
   return {
-    energyKg: Math.max(0, outlook.leftKg - (intoBuffer ? 0 : outlook.bufferKg)),
+    energyKg: Math.max(0, outlook.leftKg - outlook.bufferKg),
     grainKg: Math.max(
       0,
       state.storesKg - uneatenSeedKg(state) - foodGrainReserveKg(villageFoodNeed(state, day)),
     ),
     legumesKg: villageLegumesKg(state),
   };
-}
-
-/**
- * Zaplatí hodnotu `valueKg` (kg obilí u souseda) z přebytku (mutuje `pool`): nejlevnější v práci
- * i s nošením první (obilí, nebo luštěniny – cena jídla v práci a den cesty na každých 25 kg).
- * Vrátí platbu a práci za ni (čd) – nebo méně, když přebytek nestačí.
- */
-function pay(
-  state: VillageState,
-  ctx: BuyingContext,
-  pool: PaymentPool,
-  valueKg: number,
-  days: number,
-): { pay: CraftPurchasePay; paidKg: number; labor: number; weightKg: number } {
-  const carry = days / TRADE.porterKg;
-  const options = [
-    {
-      key: 'grainKg' as const,
-      value: sellPrice('grain'),
-      labor: ctx.grainPerKg + carry,
-      energy: 1,
-    },
-    {
-      key: 'legumesKg' as const,
-      value: sellPrice('legumes') * goodWorth(state, 'legumes', ctx.day),
-      // luštěniny ves na poli nepěstuje (fields.md – Luštěniny, zrušeno) – kilogram stojí obilí,
-      // které ves místo nich sní (návrh Clauda 9. 11. 2026)
-      labor: ctx.grainPerKg * LEGUMES.energy + carry,
-      energy: LEGUMES.energy,
-    },
-  ].sort((a, b) => a.labor / a.value - b.labor / b.value);
-  const out: CraftPurchasePay = {};
-  let left = valueKg;
-  let labor = 0;
-  let weightKg = 0;
-  for (const option of options) {
-    if (left <= EPSILON) break;
-    const kg = Math.min(left / option.value, pool[option.key], pool.energyKg / option.energy);
-    if (kg <= EPSILON) continue;
-    out[option.key] = (out[option.key] ?? 0) + kg;
-    pool[option.key] -= kg;
-    pool.energyKg -= kg * option.energy;
-    left -= kg * option.value;
-    labor += kg * (option.labor - carry);
-    weightKg += kg;
-  }
-  return { pay: out, paidKg: valueKg - Math.max(0, left), labor, weightKg };
-}
-
-/**
- * Kolik dospělých může jít (malá skupina – CRAFT_BUYING.groupShare dospělých, aspoň 1, nejvýš
- * maxGroup) – i nosiči platby za kování k vozu (wagons.md – Kování vozů).
- */
-export function groupCap(state: VillageState, day: number): number {
-  const adults = state.people.filter((p) => ageGroup(p, day) === 'adult').length;
-  return Math.max(1, Math.min(CRAFT_BUYING.maxGroup, Math.floor(adults * CRAFT_BUYING.groupShare)));
-}
-
-/** Co ves u souseda kupuje – výrobek řemeslníků, nebo vůz od tesaře (crafts.md – Nákup u sousedů). */
-export type PurchaseItem = CraftProduct | 'cart';
-
-/** Nákup, který ves zvažuje – výrobek, u koho, kolik, čím platí, co ušetří a co stojí. */
-export interface PurchasePlan {
-  product: PurchaseItem;
-  /** Vůz, který ves kupuje (jen `product` 'cart'). */
-  cart?: CartKind;
-  route: PurchaseRoute;
-  /** Kg výrobku (vůz – 1 kus). */
-  kg: number;
-  pay: CraftPurchasePay;
-  /** Vozy vsi, se kterými by nákup jel (druhy, `purchaseTransport`) – prázdné = pěšky. */
-  carts: CartKind[];
-  /** Práce, kterou výrobek ušetří za dobu služby (čd). */
-  savedManDays: number;
-  /** Práce za platbu a cestu (čd). */
-  costManDays: number;
-  /** Vyplatí se – ves koupí. */
-  worthIt: boolean;
-}
-
-/** Kolik práce nákup ušetří na čd, které stojí (platba a cesta). */
-function ratio(plan: PurchasePlan): number {
-  return plan.savedManDays / Math.max(EPSILON, plan.costManDays);
-}
-
-/**
- * Co by ves dnes nakoupila (crafts.md – Nákup u sousedů; stav nemění): u každého výrobku bez
- * vlastního pracujícího řemeslníka chybí do zásoby (`craftTargets`) – u nejbližšího souseda
- * s řemeslníkem by koupila, kolik zaplatí z přebytku, a porovnala práci, kterou to za dobu služby
- * výrobku (1 ÷ opotřebení let) ušetří, s prací za platbu a cestu (každý výrobek s vlastní cestou
- * – spojená cesta je levnější). Z jednoho přebytku napřed výrobek, který ušetří nejvíc práce na
- * práci, kterou stojí; ostatní pak podle zbylého přebytku (nevýhodné v plánu s `worthIt` false).
- */
-export function planPurchases(
-  state: VillageState,
-  day: number,
-  coverage: CraftCoverage,
-  landscape: Landscape | null,
-): PurchasePlan[] {
-  const targets = craftTargets(state, day);
-  const needs = craftNeeds(state, day);
-  const costs = villageFoodCosts(state, day, coverage.tools);
-  const sown = state.parts.filter((p) => p.state === 'sown' || p.state === 'ready');
-  // cvičící vojvodova rodina práci vsi nedává (lord.md – Den rodiny)
-  const apart = lordApartIds(state, day);
-  const ctx: BuyingContext = {
-    day,
-    coverage,
-    needs,
-    grainKg: sown.reduce((sum, p) => sum + Math.max(0, expectedNetKg(p, day)), 0),
-    hayKg: seasonHayYieldKg(state.hay?.mowing),
-    storedKg: Math.max(0, state.storesKg) + villageLegumesKg(state),
-    households: new Set(state.people.map((p) => p.dwellingId)).size,
-    yearlyLabor:
-      state.people.reduce((sum, p) => sum + (apart.has(p.id) ? 0 : laborPerDay(p, day)), 0) *
-      DAYS_PER_YEAR *
-      villageLaborFactor(state),
-    grainPerKg: costs.grainPerKg,
-  };
-  const pool = paymentPool(state, day, coverage);
-  const cap = groupCap(state, day);
-  // voli, kteří dnes neorají (vozy nákupu, koupený vůz); `reserved` – voli pro koupený vůz
-  const freeOxen = purchaseOxen(state, day);
-  let reserved = 0;
-  // vozy, se kterými může nákup jet (po sjízdné stezce, voli z `oxen`) – druhy v pořadí výběru
-  const routeCarts = (route: PurchaseRoute, oxen: number): CartKind[] =>
-    cartRoutePassable(state, route.trailId, landscape)
-      ? purchaseCarts(state, oxen).map((c) => c.kind)
-      : [];
-  // nákup výrobku při dnešním přebytku `from` – na zkoušku (`trial` – přebytek po platbě)
-  const consider = (
-    product: CraftProduct,
-    from: PaymentPool,
-  ): { plan: PurchasePlan; trial: PaymentPool } | null => {
-    const craft = PRODUCT_CRAFT[product];
-    if (ownCraftsmanWorks(state, craft)) return null;
-    const stock = productStock(state, product);
-    const wanted = targets[product] - stock;
-    if (wanted < CRAFT_BUYING.minKg) return null;
-    const route = nearestCraftsman(state, craft, landscape);
-    if (!route) return null;
-    const price = productPrice(product, state, day);
-    const need = needs[product];
-    // obilí na platbu ves vypěstuje znovu – u nástrojů už s nimi (cena jídla v práci při pokrytí
-    // po nákupu), u ostatních výrobků při dnešním pokrytí nástroji
-    const payCtx =
-      product === 'toolsKg' ? withToolCoverage(state, ctx, coverageOf(stock + wanted, need)) : ctx;
-    // vozy nákupu – levnější cesta (crafts.md – Nákup u sousedů, Vozy)
-    const kinds = routeCarts(route, freeOxen - reserved);
-    // skupina unese za nejvýš CRAFT_BUYING.maxDays dní jen tolik – víc ves koupí příští rok
-    const carryKg =
-      Math.max(1, Math.floor(CRAFT_BUYING.maxDays / route.days)) * transportLoadKg(cap, kinds);
-    const trial = { ...from };
-    const paid = pay(state, payCtx, trial, Math.min(wanted * price, carryKg), route.days);
-    const kg = paid.paidKg / price;
-    if (kg < CRAFT_BUYING.minKg) return null;
-    const trip = purchaseTransport(Math.max(paid.weightKg, kg), route.days, cap, kinds);
-    const years = 1 / WEAR_PER_YEAR[product];
-    const saved =
-      yearlySaving(state, ctx, product, coverageOf(stock, need), coverageOf(stock + kg, need)) *
-      years;
-    const cost = paid.labor + trip.labor;
-    return {
-      plan: {
-        product,
-        route,
-        kg,
-        pay: paid.pay,
-        savedManDays: saved,
-        costManDays: cost,
-        worthIt: saved > cost + EPSILON,
-        carts: kinds.slice(0, trip.carts),
-      },
-      trial,
-    };
-  };
-  // vůz od tesaře souseda (crafts.md – Nákup u sousedů, Vozy; Martin 22. 11. 2026 „ano“): ves bez
-  // pracujícího tesaře, která vůz chce a nemá (`missingCart` – Kolik vozů ves chce), s voly, kteří
-  // ho dovedou domů, u nejbližšího souseda s tesařem po sjízdné stezce; celý vůz z přebytku, nebo
-  // nic. Ušetří, co další vůz podle loňského roku vozů (`cartYearSaving`) za CARTS.lifespanYears let
-  const considerCart = (from: PaymentPool): { plan: PurchasePlan; trial: PaymentPool } | null => {
-    if (ownCraftsmanWorks(state, 'carpenter')) return null;
-    if ((state.purchases ?? []).some((p) => p.cart)) return null;
-    const kind = missingCart(state);
-    if (!kind) return null;
-    const oxen = freeOxen - reserved - DRAFT_OXEN[kind];
-    if (oxen < 0) return null;
-    const route = nearestCartMaker(state, landscape);
-    if (!route) return null;
-    const kinds = routeCarts(route, oxen);
-    const price = cartPriceKg(kind, state, day);
-    const trial = { ...from };
-    const paid = pay(state, ctx, trial, price, route.days);
-    if (paid.paidKg < price - EPSILON) return null;
-    const rounds = Math.max(1, Math.floor(CRAFT_BUYING.maxDays / route.days));
-    if (paid.weightKg > rounds * transportLoadKg(cap, kinds) + EPSILON) return null;
-    const trip = purchaseTransport(paid.weightKg, route.days, cap, kinds);
-    const saved = cartYearSaving(state, kind) * CARTS.lifespanYears;
-    const cost = paid.labor + trip.labor;
-    return {
-      plan: {
-        product: 'cart',
-        cart: kind,
-        route,
-        kg: 1,
-        pay: paid.pay,
-        savedManDays: saved,
-        costManDays: cost,
-        worthIt: saved > cost + EPSILON,
-        carts: kinds.slice(0, trip.carts),
-      },
-      trial,
-    };
-  };
-  // z jednoho přebytku napřed to, co ušetří nejvíc práce na práci, kterou stojí (rozhodnutí
-  // Clauda – crafts.md, Nákup u sousedů); po každém nákupu ostatní znovu podle zbylého přebytku
-  const plans: PurchasePlan[] = [];
-  let left: PurchaseItem[] = [...CRAFT_PRODUCTS, 'cart'];
-  while (left.length > 0) {
-    const options = left
-      .map((item) => (item === 'cart' ? considerCart(pool) : consider(item, pool)))
-      .filter((o): o is NonNullable<typeof o> => o !== null);
-    const best = options
-      .filter((o) => o.plan.worthIt)
-      .reduce<(typeof options)[number] | null>(
-        (top, o) => (top === null || ratio(o.plan) > ratio(top.plan) + EPSILON ? o : top),
-        null,
-      );
-    if (!best) {
-      plans.push(...options.map((o) => o.plan));
-      break;
-    }
-    Object.assign(pool, best.trial);
-    plans.push(best.plan);
-    // voli pro koupený vůz jdou se skupinou – vozy dalších nákupů jen se zbylými
-    if (best.plan.cart) reserved += DRAFT_OXEN[best.plan.cart];
-    left = options.filter((o) => o !== best).map((o) => o.plan.product);
-  }
-  return plans;
-}
-
-/** Je dnes den, kdy se ves rozhoduje o nákupu (CRAFT_BUYING.day – po sklizni)? */
-export function isBuyingDay(day: number): boolean {
-  const date = dateOfDayIndex(day);
-  return date.month === CRAFT_BUYING.day.month && date.day === CRAFT_BUYING.day.day;
-}
-
-/**
- * Den rozhodnutí o nákupu (mutuje stav – krok dne): co se vyplatí, ves koupí – nákupy u téhož
- * souseda jdou jednou cestou (pěšky, nebo vozy – `purchaseTransport`), platba se hned odebere ze
- * zásob a skupina vyrazí (lidé, vozy nákupu a voli pro koupený vůz jsou celé dny pryč). Mimo den
- * rozhodnutí nic.
- */
-export function startPurchases(
-  state: VillageState,
-  day: number,
-  coverage: CraftCoverage,
-  landscape: Landscape | null,
-): void {
-  if (!isBuyingDay(day) || state.people.length === 0) return;
-  const plans = planPurchases(state, day, coverage, landscape).filter((p) => p.worthIt);
-  if (plans.length === 0) return;
-  const cap = groupCap(state, day);
-  // voli pro koupené vozy, jejichž nákup ještě nevyrazil (vyrazivší počítá `oxenAway`)
-  let reserved = plans.reduce((sum, p) => sum + (p.cart ? DRAFT_OXEN[p.cart] : 0), 0);
-  for (const direction of NEIGHBOR_DIRECTIONS) {
-    const here = plans.filter((p) => p.route.direction === direction);
-    if (here.length === 0) continue;
-    const get: CraftPurchaseGoods = {};
-    const paid: CraftPurchasePay = {};
-    let cart: CartKind | undefined;
-    for (const plan of here) {
-      if (plan.product === 'cart') cart = plan.cart;
-      else get[plan.product] = (get[plan.product] ?? 0) + plan.kg;
-      for (const key of ['grainKg', 'legumesKg'] as const) {
-        if (plan.pay[key]) paid[key] = (paid[key] ?? 0) + plan.pay[key]!;
-      }
-    }
-    const route = here[0]!.route;
-    const goodsKg = Object.values(get).reduce((sum, kg) => sum + (kg ?? 0), 0);
-    const payKg = (paid.grainKg ?? 0) + (paid.legumesKg ?? 0);
-    const home = cartRoutePassable(state, route.trailId, landscape)
-      ? purchaseCarts(state, purchaseOxen(state, day) - reserved)
-      : [];
-    const trip = purchaseTransport(
-      Math.max(goodsKg, payKg),
-      route.days,
-      cap,
-      home.map((c) => c.kind),
-    );
-    const carts = home.slice(0, trip.carts).map((c) => c.id);
-    if (cart) reserved -= DRAFT_OXEN[cart];
-    state.storesKg = Math.max(0, state.storesKg - (paid.grainKg ?? 0));
-    if (paid.legumesKg) state.legumesKg = Math.max(0, villageLegumesKg(state) - paid.legumesKg);
-    (state.purchases ??= []).push({
-      direction,
-      startedDay: day,
-      group: trip.group,
-      days: trip.days,
-      tripDays: route.days,
-      done: 0,
-      trailId: route.trailId,
-      edge: { x: Math.round(route.edge.x * 10) / 10, z: Math.round(route.edge.z * 10) / 10 },
-      get,
-      pay: paid,
-      ...(carts.length > 0 ? { carts } : {}),
-      ...(cart ? { cart } : {}),
-    });
-  }
 }
 
 /** Lidé, kteří jsou dnes s nákupem pryč (práce vsi bez nich – crafts.md, Nákup u sousedů). */

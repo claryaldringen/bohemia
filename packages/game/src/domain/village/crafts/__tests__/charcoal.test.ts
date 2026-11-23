@@ -667,10 +667,26 @@ describe('rovnováha uhlíř – kovář (crafts.md – Rovnováha uhlíř – k
     expect(restingCrafters(s, DAY + 2, NO_CRAFTS).has(BURNER)).toBe(false);
   });
 
-  it('kovář v rovnováze nečeká – uhlíř začne další milíř včas', () => {
+  /**
+   * Čtyři roky uhlíře a kováře po dnech: dny, kdy kovář čeká na uhlí (`waiting`), z nich dny, kdy
+   * je další milíř právě vypálený a celá dávka uhlí je ještě u něj (`waitingFresh` – konec cyklu),
+   * a první den rozebírání milíře.
+   */
+  function balanceRun(woodToolsKg?: number): {
+    s: VillageState;
+    waiting: number[];
+    waitingFresh: number[];
+    twoKilns: number;
+    firstDraw: number | null;
+  } {
     let s = village();
-    s.crafts = { charcoalKg: 0, potteryKg: 0 };
+    s.crafts = {
+      charcoalKg: 0,
+      potteryKg: 0,
+      ...(woodToolsKg === undefined ? {} : { woodToolsKg }),
+    };
     const waiting: number[] = [];
+    const waitingFresh: number[] = [];
     let twoKilns = 0;
     let firstDraw: number | null = null;
     const end = DAY + 4 * 365;
@@ -680,10 +696,21 @@ describe('rovnováha uhlíř – kovář (crafts.md – Rovnováha uhlíř – k
       s.toolEquipmentKg = 0;
       if (s.dwellings.find((x) => x.id === SMITH)!.workshop!.activity === 'no-charcoal') {
         waiting.push(d - DAY);
+        const fresh = (k: CharcoalKiln): boolean =>
+          k.stage === 'draw' && kilnCharcoalKg(k) === CHARCOAL_KILN.trees * 120;
+        if (kilnsOf(s).some(fresh)) waitingFresh.push(d - DAY);
       }
       if (kilnsOf(s).length === 2) twoKilns++;
       if (firstDraw === null && kilnsOf(s).some((k) => k.stage === 'draw')) firstDraw = d - DAY;
     }
+    return { s, waiting, waitingFresh, twoKilns, firstDraw };
+  }
+
+  it('kovář v rovnováze s dřevěným nářadím nečeká – uhlíř začne další milíř včas', () => {
+    // dřevěné nářadí ves dřív kupovala 15. 11. u souseda s tesařem (nákup zrušen – markets.md,
+    // Pravidla 1); bez něj je práce vsi o 5 % dražší (WOOD_TOOLS_LABOR) a cykly milíře delší –
+    // viz test bez nářadí níž
+    const { s, waiting, twoKilns, firstDraw } = balanceRun(1000);
     // kovář čeká jen na úplně první milíř – pak má uhlí vždy
     expect(firstDraw).not.toBeNull();
     expect(waiting.length).toBeGreaterThan(0);
@@ -691,6 +718,18 @@ describe('rovnováha uhlíř – kovář (crafts.md – Rovnováha uhlíř – k
     // další milíř se chystá, zatímco vypálený se rozebírá
     expect(twoKilns).toBeGreaterThan(0);
     expect(burnerOf(s).kilnCycles!.length).toBe(CHARCOAL_BALANCE.cycles);
+  }, 120_000);
+
+  it('bez dřevěného nářadí kovář čeká nejvýš den na konci cyklu milíře (přijatý důsledek)', () => {
+    // markets.md – Rozhodnutí plánu 1, bod 7: CHARCOAL_BALANCE se nemění, den čekání na cyklus se
+    // přijímá; čeká-li kovář déle než den, rezerva je jedno číslo v rules
+    const { waiting, waitingFresh, firstDraw } = balanceRun();
+    expect(firstDraw).not.toBeNull();
+    const late = waiting.filter((d) => d > firstDraw!);
+    // jen jednotlivé dny – nikdy dva dny po sobě
+    expect(late.filter((d) => late.includes(d - 1))).toEqual([]);
+    // a jen na konci cyklu – další milíř je právě vypálený, uhlí kováři uhlíř donese zítra
+    expect(late.filter((d) => !waitingFresh.includes(d))).toEqual([]);
   }, 120_000);
 
   it('prodané uhlí se bere napřed u kováře, pak z vypálených milířů – rozebraný zmizí', () => {

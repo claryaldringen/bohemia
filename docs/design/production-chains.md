@@ -70,8 +70,7 @@ Uhlí a ruda kováře). Nově (podle Martina, čísla návrh Clauda – upřesn�
 4. **Nástroje z hřiven:** kovář kove nástroje, když je ves potřebuje (obnova opotřebení
    vybavení domácností, kování vozů – wagons.md), a odnese je do domácností.
 5. **Obchod:** na obchod jdou hřivny (TradeGood `tools` se mění na `ironBars` – „Hřivny“). Ves
-   bez kováře si nástroje (vybavení) kupuje u sousedů sama jako dnes (nákup u sousedů); v panelu
-   obchodu jsou jen hřivny (návrh Clauda).
+   bez kováře si nástroje nekupuje (od 23. 11. 2026 nejsou smyšlení sousedé – markets.md, plán 1; nákup na trhu přijde s plánem 3).
 6. **Kolik hřiven** (návrh Clauda): kovář taví podle potřeby vsi a drží zásobu hřiven na rok
    obnovy vybavení – z ní se prodává; přebytky navíc netaví (Martin 18. 10. 2026 – přebytky
    prodá až finanční systém).
@@ -112,8 +111,8 @@ hřivny a vybavení; čísla `IRON` v `rules.ts`, rešerše
 - **Nástroje** nejsou zásoba: každá domácnost má vybavení (kg nástrojů na dospělého jako dnes
   potřeba `craftNeeds`), které se opotřebuje. Pokrytí `craftCoverage.tools` = podíl vybavení
   domácností – meze produktivity platí jako dnes (bez řemesel `worst`, plné vybavení `best`).
-- Kovář z hřiven doplňuje vybavení podle potřeby; když hřivny chybí, taví. Bez kováře: nákup
-  nástrojů u sousedů jako dnes (craft-buying.ts – kupuje se vybavení), nebo hřiven.
+- Kovář z hřiven doplňuje vybavení podle potřeby; když hřivny chybí, taví. Bez kováře: nástroje
+  se nekupují (od 23. 11. 2026 – markets.md, plán 1; trh přijde s plánem 3).
 - **Starší vsi:** dnešní zásoba nástrojů se převede na vybavení domácností (rozdělí se), přebytek
   nad potřebu na hřivny (kg → kg / 1,2).
 

@@ -135,6 +135,10 @@ describe('práva ve vsích rodu – tabulka situací', () => {
 });
 
 describe('každá akce nad vsí odmítne hráče bez práva', () => {
+  it('obchodní výprava k sousedovi v tabulce akcí není (markets.md – Pravidla 1)', () => {
+    expect('sendExpedition' in ACTION_RIGHTS).toBe(false);
+  });
+
   // Seznam akcí je `ACTION_RIGHTS`; vstupní bod (`actOn` v apps/web/lib/village.ts) bere jméno
   // akce jen odtud a test apps/web/lib/__tests__/action-rights.test.ts hlídá, že žádná
   // `…ForPlayer` akce nezůstane mimo. Nová akce = nový klíč v `ACTION_RIGHTS` → tenhle test ji

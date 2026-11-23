@@ -1,4 +1,4 @@
-import { CATTLE_GOODS } from '../village/trade/neighbours';
+import { CATTLE_GOODS } from '../village/trade/goods';
 import { TRADE_GOOD_VALUES } from '../village/rules/rules-trade';
 import { addMacro, noMacroGoods, stoneOf, type MacroBundle, type MacroGoods } from './macro';
 import { VASSALAGE } from './rules-vassalage';

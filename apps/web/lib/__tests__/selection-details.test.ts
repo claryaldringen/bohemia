@@ -372,6 +372,14 @@ describe('selectionDetails', () => {
     });
   });
 
+  it('dílna bez vstupů nedokupuje u souseda (markets.md – Pravidla 1)', () => {
+    const sources = [{ product: 'toolsKg' as const, own: false }];
+    const withSources = { ...view, crafts: { ...view.crafts, sources } };
+    const details = selectionDetails(withSources, scene, { kind: 'dwelling', id: 2 });
+    expect(details).toMatchObject({ workshop: { craft: 'smith', activity: 'no-charcoal' } });
+    expect(details && 'workshop' in details ? details.workshop : null).not.toHaveProperty('buying');
+  });
+
   it('staveniště: typ, celý průběh i s kácením a stromy ke skácení (bez vsi ze scény)', () => {
     expect(selectionDetails(view, scene, { kind: 'dwelling', id: 9 })).toEqual({
       kind: 'site',

@@ -10,7 +10,6 @@ import {
   demolishStructureForPlayer,
   restoreStructureForPlayer,
   cancelConstructionForPlayer,
-  sendExpeditionForPlayer,
   foundVillageForPlayer,
   placeCemeteryForPlayer,
   placeDwellingForPlayer,
@@ -47,7 +46,6 @@ import {
   parseAbandonFieldPartsInput,
   parseStructureUseInput,
   parseCancelConstructionInput,
-  parseSendExpeditionInput,
   parseFoundVillageInput,
   parsePlaceCemeteryInput,
   parsePlaceDwellingInput,
@@ -236,14 +234,6 @@ export async function upgradeRoad(input: unknown): Promise<VillageActionResult> 
  */
 export async function buildTrail(input: unknown): Promise<VillageActionResult> {
   return villageAction(input, parseBuildTrailInput, buildTrailForPlayer);
-}
-
-/**
- * Výprava nosičů k sousedovi (trade.md – Obchod): `{ villageId, direction, give, get }` (zboží
- * `{ druh: množství }`) – server výměnu ověří znovu (`tradeQuote`).
- */
-export async function sendExpedition(input: unknown): Promise<VillageActionResult> {
-  return villageAction(input, parseSendExpeditionInput, sendExpeditionForPlayer);
 }
 
 /**

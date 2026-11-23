@@ -307,13 +307,13 @@ export const FIRE = {
 } as const;
 
 /**
- * Sousedé po zlém roce (disasters.md – Co z toho plyne, Obchod; návrh Clauda, rešerše, schváleno
- * Martinem 27. 10. 2026): při doplnění 1. 11. zásoba obilí a hodnota ostatního zboží v kg obilí
- * (obilí je dražší). Zlý rok = zlé léto, krutý = `isCruelYear`.
+ * Zboží po zlém roce (disasters.md – Co z toho plyne, Obchod; návrh Clauda, rešerše, schváleno
+ * Martinem 27. 10. 2026): od 1. 11. hodnota ostatního zboží v kg obilí (obilí je dražší). Zlý rok
+ * = zlé léto, krutý = `isCruelYear`.
  */
 export const DISASTER_TRADE = {
-  bad: { grainStock: 0.5, goodsValue: 0.67 },
-  cruel: { grainStock: 0.25, goodsValue: 0.5 },
+  bad: { goodsValue: 0.67 },
+  cruel: { goodsValue: 0.5 },
 } as const;
 
 /**

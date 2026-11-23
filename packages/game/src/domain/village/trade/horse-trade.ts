@@ -1,29 +1,21 @@
-// Koně v obchodu se sousedy ve třech druzích (docs/design/horses.md – Nákup a prodej; Martin 23. 10.
-// 2026: koně jde nakupovat a prodávat jako ostatní zvířata; ceny a podrobnosti návrh Clauda):
-// hříbata, chovné klisny a jezdečtí koně – kusy do ohrady koní. Ves prodá hříbata, klisny nad
-// chovné a jezdecké koně bez jezdce – nikdy koně, na kterém někdo jezdí. Jezdecký kůň má cenu za
-// kus podle výcviku (`horseValueKg`). Koupený kůň přijde se svým věkem a výcvikem (los ze seedu
-// souseda a roku obchodu) a potřebuje místo v ohradě koní. Koně jdou po svých s honákem
-// (trade.ts – honák na 4 koně). Vzor `cattle-trade.ts`. Čisté funkce bez I/O.
-import { createRandom, deriveSeed } from '../../landscape/random';
+// Koně ve třech druzích (docs/design/horses.md – Nákup a prodej; Martin 23. 10. 2026: koně jako
+// ostatní zvířata; ceny a podrobnosti návrh Clauda): hříbata, chovné klisny a jezdečtí koně – kusy
+// v ohradě koní. Ves dá hříbata, klisny nad chovné a jezdecké koně bez jezdce – nikdy koně, na
+// kterém někdo jezdí (zásilky vazalů, platba koní nové ohrady). Jezdecký kůň má cenu za kus podle
+// výcviku (`horseValueKg`). Koně, které přivede výprava na cestě (markets.md – Pravidla 10),
+// přijdou do ohrad koní (`addHorses`). Vzor `cattle-trade.ts`. Čisté funkce bez I/O.
 import { butcher } from '../livestock/livestock';
 import { horsesWanted } from '../livestock/horse-breeding';
 import {
   horsePens,
-  horseRoom,
   horsesInPlaces,
   isFoalByAge,
   penHorses,
   villageHorses,
 } from '../livestock/horses';
-import { HORSE_GOODS, neighbourOf, neighbourStock, seasonSupply, tradeSeason } from './neighbours';
 import { builtPenSquares } from '../livestock/pens';
 import { HORSES, HORSE_TRADE, PEN_PLACES_PER_SQUARE, TRADE_GOOD_VALUES } from '../rules';
-import type { Direction8, Horse, HorseGood, TradeGoods, TradedHorse, VillageState } from '../types';
-
-const DAYS_PER_YEAR = 365.25;
-
-export const NO_HORSE_ROOM = 'Tolik koní se do ohrady koní nevejde.';
+import type { Horse, HorseGood, TradedHorse, VillageState } from '../types';
 
 /**
  * Hodnota jezdeckého koně v kg obilí (horses.md – Nákup a prodej): 2 400 nevycvičený – 3 600
@@ -72,108 +64,6 @@ export function horsesToSell(
   day: number,
 ): Horse[] {
   return sellableHorses(state, good, day).slice(0, Math.max(0, n));
-}
-
-/**
- * Za kolik kg obilí (hodnota) ves prodá `n` koní druhu `good`: jezdečtí koně za kus podle výcviku
- * (`horseValueKg`) – koně navíc nad prodejné za základ; ostatní druhy za hodnotu zboží.
- */
-export function horsesSaleValues(
-  state: VillageState,
-  good: HorseGood,
-  n: number,
-  day: number,
-): number[] {
-  const base = TRADE_GOOD_VALUES[good].valueKg;
-  if (good !== 'ridingHorses') return Array.from({ length: n }, () => base);
-  const chosen = horsesToSell(state, good, n, day).map(horseValueKg);
-  return [...chosen, ...Array.from({ length: n - chosen.length }, () => base)];
-}
-
-/** Koně, které výpravy na cestě teprve přivedou. */
-function horsesComing(state: Pick<VillageState, 'trade'>): number {
-  return (state.trade?.expeditions ?? []).reduce(
-    (sum, e) => sum + HORSE_GOODS.reduce((n, g) => n + (e.get[g] ?? 0), 0),
-    0,
-  );
-}
-
-/**
- * Kolik koní se do vsi vejde (kusy): volná místa hotových ohrad koní bez koní, které výpravy na
- * cestě teprve přivedou (koupený kůň má vlastní místo – hříbě od souseda je odstavené).
- */
-export function horseTradeRoom(state: VillageState, day: number): number {
-  return Math.max(0, horseRoom(state, day) - horsesComing(state));
-}
-
-/** Proč se koně, které ves dostane (`get`), do ohrad koní nevejdou, nebo null. */
-export function horseRoomBlocked(state: VillageState, get: TradeGoods, day: number): string | null {
-  const n = HORSE_GOODS.reduce((sum, g) => sum + (get[g] ?? 0), 0);
-  return n > 0 && n > horseTradeRoom(state, day) ? NO_HORSE_ROOM : null;
-}
-
-/** Výcvik koně podle věku (horses.md – Výcvik koně): 0 % ve 3 letech – 100 % ve 12. */
-function trainingAtAge(ageYears: number): number {
-  const span = HORSES.trainedAtYears - HORSES.serviceFromYears;
-  const share = Math.min(1, Math.max(0, (ageYears - HORSES.serviceFromYears) / span));
-  return Math.round(share * HORSES.trainingFull);
-}
-
-/**
- * Kůň `index` druhu `good`, kterého soused ve směru prodává v roce obchodu `season` – věk ze seedu
- * souseda a roku (HORSE_TRADE.ages), den narození k `day`. Hříbě má pohlaví ze seedu, klisna je
- * klisna, jezdecký kůň samec s výcvikem podle věku.
- */
-function neighbourHorse(
-  seed: number,
-  direction: Direction8,
-  season: number,
-  good: HorseGood,
-  index: number,
-  day: number,
-): TradedHorse {
-  const rnd = createRandom(
-    deriveSeed(seed, `neighbour-horse:${direction}:${season}:${good}:${index}`),
-  );
-  const { from, to } = HORSE_TRADE.ages[good];
-  const age = from + (to - from) * rnd.next();
-  const sex: Horse['sex'] =
-    good === 'mares' ? 'female' : good === 'ridingHorses' || rnd.next() < 0.5 ? 'male' : 'female';
-  return {
-    bornDay: day - Math.round(age * DAYS_PER_YEAR),
-    sex,
-    training: good === 'ridingHorses' ? trainingAtAge(age) : 0,
-  };
-}
-
-/**
- * Dalších `n` koní druhu `good`, které soused ve směru v den `day` prodá – v pořadí, v jakém je ves
- * za rok obchodu kupuje (od prvního, kterého ještě nekoupila).
- */
-export function offeredHorses(
-  state: Pick<VillageState, 'seed' | 'trade'>,
-  direction: Direction8,
-  good: HorseGood,
-  n: number,
-  day: number,
-): TradedHorse[] {
-  const season = tradeSeason(day);
-  const full = seasonSupply(neighbourOf(state.seed, direction), state.seed, season)[good] ?? 0;
-  const left = neighbourStock(state, direction, day).supply[good] ?? 0;
-  const first = Math.max(0, full - left);
-  return Array.from({ length: Math.max(0, n) }, (_, k) =>
-    neighbourHorse(state.seed, direction, season, good, first + k, day),
-  );
-}
-
-/** Koně, které ves za `get` dostane (hříbata, klisny, jezdečtí koně), v den `day`. */
-export function boughtHorses(
-  state: Pick<VillageState, 'seed' | 'trade'>,
-  direction: Direction8,
-  get: TradeGoods,
-  day: number,
-): TradedHorse[] {
-  return HORSE_GOODS.flatMap((g) => offeredHorses(state, direction, g, get[g] ?? 0, day));
 }
 
 /**

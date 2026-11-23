@@ -204,9 +204,9 @@ describe('chov den po dni', () => {
     expect(kinds(whole.chronicle, 'horse-retired')).toEqual([
       { day: at(601, 11, 1), kind: 'horse-retired', penId: 90, horses: 1, reason: 'age' },
     ]);
-    // hřebec jezdí pod vojvodou – výcvik roste
+    // hřebec jezdí pod vojvodou – výcvik roste (bez kováře ve vsi jen dokud je podkutý – markets.md)
     const stallion = villageHorses(whole).find((h) => h.id === 1)!;
     expect(stallion.riderId).toBe(10);
-    expect(stallion.training).toBeGreaterThan(32);
+    expect(stallion.training).toBeGreaterThan(30);
   });
 });

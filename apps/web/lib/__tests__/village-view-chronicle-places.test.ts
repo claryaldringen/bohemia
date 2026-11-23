@@ -1,8 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { ChronicleEvent, ChronicleRoadEnd } from '@bohemia/game';
-import { neighbourOf } from '@bohemia/game';
 import { chronicleText, landmarkPhrase, roadBetween } from '../village-view-chronicle';
-import { withVillagersOf } from '../village-name-cases';
 
 // Kronika – cesty, opevnění a ohrady popsané místem (Martin 14. 11. 2026).
 
@@ -237,10 +235,8 @@ describe('kronika – křižovatka podle významného místa (D66)', () => {
     );
   });
 
-  it('kraj mapy – soused, bez místa poloha vůči vsi, starší zápis postaru', () => {
-    const north = neighbourOf(7, 'N').name;
+  it('kraj mapy, bez místa poloha vůči vsi, starší zápis postaru', () => {
     const edge = { kind: 'edge', direction: 'N' } as const;
-    expect(landmarkPhrase(edge, 7)).toBe(`u hranice ${withVillagersOf(north)}`);
     expect(landmarkPhrase(edge)).toBe('u severního kraje mapy');
     expect(landmarkPhrase({ kind: 'village' })).toBe('uprostřed vsi');
     expect(landmarkPhrase({ kind: 'village', direction: 'SW' })).toBe('na jihozápadní straně vsi');
@@ -250,9 +246,8 @@ describe('kronika – křižovatka podle významného místa (D66)', () => {
     expect(roadBetween([cross({ kind: 'village', direction: 'E', outside: true }), water])).toBe(
       'mezi křižovatkou východně od vsi a potokem',
     );
-    // k sousedovi „z rozcestí u kovárny do Lhoty“
-    expect(roadBetween([fork(smith), { kind: 'edge', direction: 'N' }], 7)).toMatch(
-      /^z rozcestí u kovárny do /,
+    expect(roadBetween([fork(smith), { kind: 'edge', direction: 'N' }])).toBe(
+      'mezi rozcestím u kovárny a severním krajem mapy',
     );
     expect(roadBetween([fork(), manor])).toBe('mezi rozcestím a dvorcem');
   });

@@ -1,7 +1,7 @@
 import type { DwellingResident } from '@/lib/person-view';
 import type { PanelOptionsSource } from '@/hooks/use-panel-options';
 import { ABANDON_FOUNDING, DIRECTIONS, type TrailOption } from '@bohemia/game';
-import type { VillageManor, VillageNeighbour } from '@/lib/manor-view';
+import type { VillageManor } from '@/lib/manor-view';
 import type { SelectionDetails, SelectionLeave } from '@/lib/selection-details';
 import type { VillageListItem } from '@/lib/village-list';
 import type { AlarmView } from '@/lib/alarm-view';
@@ -44,132 +44,6 @@ const trails: TrailOption[] = DIRECTIONS.map((direction) => ({
           : null,
 }));
 
-const NOBODY = { families: 0, men: 0, women: 0 };
-
-const neighbours: VillageNeighbour[] = [
-  {
-    // pastevci – krávy, mladí voli do výcviku a vycvičení voli (trade.md – Dobytek ve třech
-    // druzích); do ohrady volů se vejdou ještě 3 voli
-    direction: 'N',
-    name: 'Lhota',
-    lengthM: 640,
-    tripDays: 4,
-    offers: [
-      { good: 'meat', price: 2.88, left: 420 },
-      { good: 'cows', price: 576, left: 2 },
-      { good: 'youngOxen', price: 336, left: 3 },
-      { good: 'trainedOxen', price: 1152, left: 1 },
-    ],
-    demands: [
-      { good: 'grain', price: 1, left: 1700, have: 12400 },
-      { good: 'legumes', price: 1, left: 900, have: 640 },
-    ],
-    people: {
-      offers: { families: [], men: 0, women: 0, adultPrice: 345.6 },
-      takes: NOBODY,
-      have: { families: [], men: 0, women: 0, adultCredit: 360 },
-    },
-    expedition: null,
-    carts: [],
-    room: { cows: 38, oxen: 3, horses: 0 },
-    wares: { bigHides: 0, smallHides: 0, wildFurs: 0, sheepFurs: 0 },
-  },
-  {
-    direction: 'E',
-    name: 'Stará Boleslav',
-    lengthM: 820,
-    tripDays: 5,
-    offers: [
-      { good: 'pottery', price: 2.88, left: 400 },
-      { good: 'ironBars', price: 43.2, left: 25 },
-    ],
-    demands: [
-      { good: 'grain', price: 1, left: 1500, have: 12400 },
-      { good: 'cheese', price: 4, left: 300, have: 1450 },
-      { good: 'logs', price: 40, left: 40, have: 26 },
-    ],
-    // soused má letos lidi navíc – rodinu se dvěma dětmi, svobodného muže a dvě svobodné ženy
-    // (trade.md – Výměna lidí, muži a ženy zvlášť)
-    people: {
-      offers: { families: [{ people: 4, price: 1036.8 }], men: 1, women: 2, adultPrice: 345.6 },
-      takes: NOBODY,
-      have: { families: [], men: 0, women: 0, adultCredit: 360 },
-    },
-    expedition: null,
-    // ves má čtyřkolák a spřežení doma – náklad jde na vůz (wagons.md – Obchod)
-    carts: ['four-wheel'],
-    room: { cows: 38, oxen: 4, horses: 0 },
-    wares: { bigHides: 0, smallHides: 0, wildFurs: 0, sheepFurs: 0 },
-  },
-  {
-    direction: 'S',
-    name: 'Kouřim',
-    lengthM: 1200,
-    tripDays: 7,
-    // pastevci – krávy, mladí a vycvičení voli (trade.md – Dobytek ve třech druzích)
-    offers: [
-      { good: 'meat', price: 2.88, left: 350 },
-      { good: 'cows', price: 576, left: 2 },
-      { good: 'youngOxen', price: 336, left: 3 },
-      { good: 'trainedOxen', price: 1152, left: 1 },
-    ],
-    demands: [{ good: 'grain', price: 1, left: 1800, have: 12400 }],
-    // soused lidi shání – ves by dala rodinu ze tří a svobodnou ženu
-    people: {
-      offers: { families: [], men: 0, women: 0, adultPrice: 345.6 },
-      takes: { families: 1, men: 1, women: 1 },
-      have: { families: [{ people: 3, credit: 900 }], men: 0, women: 1, adultCredit: 360 },
-    },
-    // výprava stojí – po denním minimu nezbyl nikdo, kdo by šel (výjimka – malá ves)
-    expedition: {
-      give: { meat: 289 },
-      get: {},
-      givePeople: NOBODY,
-      getPeople: { families: 0, men: 1, women: 1 },
-      porters: 12,
-      carts: 0,
-      days: 5,
-      progress: 0.6,
-      daysLeft: null,
-      pace: 'waiting',
-      today: 0,
-    },
-    carts: [],
-    room: { cows: 38, oxen: 4, horses: 0 },
-    wares: { bigHides: 0, smallHides: 0, wildFurs: 0, sheepFurs: 0 },
-  },
-  {
-    direction: 'W',
-    name: 'Mokrá',
-    lengthM: 960,
-    tripDays: 6,
-    offers: [{ good: 'ironBars', price: 43.2, left: 25 }],
-    demands: [{ good: 'grain', price: 1, left: 1200, have: 12400 }],
-    people: {
-      offers: { families: [], men: 0, women: 0, adultPrice: 345.6 },
-      takes: NOBODY,
-      have: { families: [], men: 0, women: 0, adultCredit: 360 },
-    },
-    // výprava s vozem jde pomaleji – volné práce je míň, než je lidí výpravy
-    expedition: {
-      give: { grain: 900 },
-      get: { ironBars: 15 },
-      givePeople: { families: 1, men: 0, women: 0 },
-      getPeople: NOBODY,
-      porters: 4,
-      carts: 1,
-      days: 6,
-      progress: 0.35,
-      daysLeft: 6,
-      pace: 'slow',
-      today: 2.6,
-    },
-    carts: [],
-    room: { cows: 38, oxen: 3, horses: 0 },
-    wares: { bigHides: 0, smallHides: 0, wildFurs: 0, sheepFurs: 0 },
-  },
-];
-
 /** Obyvatelé z věků (ukázka a testy) – portrét podle věku, role z věku. */
 const residentsOf = (ages: number[]): DwellingResident[] =>
   ages.map((age, i) => ({
@@ -195,8 +69,6 @@ const manor: VillageManor = {
     meatKg: 410,
     dogs: { count: 6, wanted: 7 },
   },
-  trailBuilt: trails.some((t) => t.status === 'built'),
-  neighbours,
   family: [
     {
       id: 1,
@@ -358,13 +230,13 @@ export const DEV_PANELS: readonly {
       residents: residentsOf([63, 41, 38, 35, 33, 29, 26, 14, 11, 8, 5, 1]),
       rebuild: { progress: 0.3, type: 'dvorec', treesToFell: 7 },
       manor,
-      // nákup u sousedů (crafts.md): nástroje a keramika u souseda, dřevěné nářadí od vlastního
-      // tesaře; skupina jde pro nástroje na sever
+      // výrobky řemeslníků (crafts.md; markets.md – Pravidla 1): nástroje a keramiku ves nemá od
+      // koho (zašedlé), dřevěné nářadí od vlastního tesaře; nákup ze starší vsi ještě na cestě
       buying: {
         sources: [
-          { product: 'toolsKg', own: false, direction: 'N', days: 6, trail: true },
-          { product: 'potteryKg', own: false, direction: 'NE', days: 8, trail: false },
-          { product: 'woodToolsKg', own: true, direction: null, days: null, trail: false },
+          { product: 'toolsKg', own: false },
+          { product: 'potteryKg', own: false },
+          { product: 'woodToolsKg', own: true },
         ],
         purchases: [
           {

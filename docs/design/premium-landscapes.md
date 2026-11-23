@@ -104,8 +104,8 @@ rámec.
   sídla se do sdíleného světa nepřenášejí).
 - **Obchodní stezka kostry** je jiná věc než zemská stezka vsi (trade.md – postaví si ji ves
   k sousedovi). Stezka kostry je **hotová dálková cesta od počátku** (návrh Clauda): vede mapou
-  přes brod nebo průsmyk a obchod se sousedy v obou jejích směrech jde hned, jako po hotové zemské
-  stezce – bez stavby.
+  přes brod nebo průsmyk a po ní vyjedou obchodní výpravy a kupci v obou směrech hned, jako po hotové zemské
+  stezce – bez stavby (obchod až s trhem – markets.md, plány 2 a 4; Martin 22. 11. 2026 „Po obchodní stezce budou jezdit karavany …“; obchod se smyšlenými sousedy zanikl 23. 11. 2026).
 
 ## Typy krajin
 
@@ -115,14 +115,14 @@ Hodnota v čase je v Kalibraci.
 
 ### Od Martina
 
-| Typ                                                                | Krajina                                                        | Hned                                                                        | Později                                                                                | Kotva                             |
-| ------------------------------------------------------------------ | -------------------------------------------------------------- | --------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- | --------------------------------- |
-| **Hluboká ložiska drahých kovů** (zlato, stříbro)                  | žíla ve skalnatém hřbetu (výchozy, rudné kameny)               | nic                                                                         | hornictví (Martin: „po 500 letech, s rozvojem hornictví“) – hodně kovu                 | hornické město                    |
-| **Zlatonosný potok**                                               | potok s náplavy zlatonosného písku                             | nic (do rýžování)                                                           | rýžování hned, jak bude mechanika (Martin: „půjde rýžovat hned“) – málo kovu, ale brzy | trhová ves, později město         |
-| **Splavná řeka** (kostra)                                          | široká řeka přes mapu, rovná niva, místo pro přístaviště       | niva s loukami (seno), ryby (později)                                       | doprava po řece, přístav, obchod s ostatními hráči                                     | přístavní město                   |
-| **Velmi úrodná krajina** (spraš, černozem – Polabí, Žatecko, Haná) | louky s vysokou přirozenou úrodností, méně lesa (pásmo platí)  | víc obilí na hektar – měřitelné hned                                        | –                                                                                      | velké sídlo, město                |
-| **Vyvýšenina nad brodem s obchodní stezkou** (kostra)              | řeka s brodem, nad ním ostrožna nebo pahorek, stezka přes brod | vyšlapaná cesta od počátku, obchod se sousedy po stezce levnější (trade.md) | mýto na brodu, trh, obrana                                                             | hradiště nad brodem, trhové město |
-| **Horský průsmyk s obchodní stezkou** (kostra)                     | hřbety po stranách, sedlo, stezka skrz                         | cesta od počátku, levnější obchod                                           | mýto, obrana průsmyku, kupci ze vzdálených krajů                                       | strážní hradiště, trhové město    |
+| Typ                                                                | Krajina                                                        | Hned                                                                 | Později                                                                                | Kotva                             |
+| ------------------------------------------------------------------ | -------------------------------------------------------------- | -------------------------------------------------------------------- | -------------------------------------------------------------------------------------- | --------------------------------- |
+| **Hluboká ložiska drahých kovů** (zlato, stříbro)                  | žíla ve skalnatém hřbetu (výchozy, rudné kameny)               | nic                                                                  | hornictví (Martin: „po 500 letech, s rozvojem hornictví“) – hodně kovu                 | hornické město                    |
+| **Zlatonosný potok**                                               | potok s náplavy zlatonosného písku                             | nic (do rýžování)                                                    | rýžování hned, jak bude mechanika (Martin: „půjde rýžovat hned“) – málo kovu, ale brzy | trhová ves, později město         |
+| **Splavná řeka** (kostra)                                          | široká řeka přes mapu, rovná niva, místo pro přístaviště       | niva s loukami (seno), ryby (později)                                | doprava po řece, přístav, obchod s ostatními hráči                                     | přístavní město                   |
+| **Velmi úrodná krajina** (spraš, černozem – Polabí, Žatecko, Haná) | louky s vysokou přirozenou úrodností, méně lesa (pásmo platí)  | víc obilí na hektar – měřitelné hned                                 | –                                                                                      | velké sídlo, město                |
+| **Vyvýšenina nad brodem s obchodní stezkou** (kostra)              | řeka s brodem, nad ním ostrožna nebo pahorek, stezka přes brod | vyšlapaná cesta od počátku, obchod po stezce až s trhem (markets.md) | mýto na brodu, trh, obrana                                                             | hradiště nad brodem, trhové město |
+| **Horský průsmyk s obchodní stezkou** (kostra)                     | hřbety po stranách, sedlo, stezka skrz                         | cesta od počátku, obchod až s trhem (markets.md)                     | mýto, obrana průsmyku, kupci ze vzdálených krajů                                       | strážní hradiště, trhové město    |
 
 ### Další návrhy (návrh Clauda; Martin: „Asi můžeš udělat všechny typy najednou. Přecejen to jsou krajiny. To, že ještě neumíme těžit např. zlato, by nemělo vadit“)
 
@@ -147,8 +147,7 @@ většina zatím nemá mechaniku: „Všechny, nerovnost přijmout“): hra při
 ostrého spuštění; hráč na typu bez mechaniky do jejího příchodu výhodu nemá a nic se mu nevrací.
 Kalibrace počítá s plánem, kdy mechanika přijde (Kalibrace).
 
-**Nové suroviny:** obchod dnes zná jen suroviny, které má i ves (trade.md – Jen společné suroviny,
-Martin 19. 10. 2026). Zlato, sůl, med, vosk, kožešiny a kámen přijdou **až s mechanikou svého
+**Nové suroviny:** obchod jen se surovinami, které má i ves (Martin 19. 10. 2026; dnes trh a kupci – markets.md). Zlato, sůl, med, vosk, kožešiny a kámen přijdou **až s mechanikou svého
 typu** – do té doby jsou jen v krajině (otevřená otázka, jestli to Martin takto chce).
 
 ## Kalibrace

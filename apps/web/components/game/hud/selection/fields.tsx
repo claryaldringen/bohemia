@@ -701,15 +701,12 @@ const HORSE_KIND_NAMES: Record<VillageHorse['kind'], { icon: string; name: strin
   riding: { icon: 'horse', name: 'Jezdecký kůň' },
 };
 
-/** Popisek kování koní: dny do termínu, kdo kuje a cena cizího kováře (horses.md – Kování). */
+/** Popisek kování koní: dny do termínu a kdo kuje (horses.md – Kování). */
 function shoeingName(s: NonNullable<VillageHorses['shoeing']>): string {
   const when = s.unshod
     ? 'Jezdecký kůň není podkutý – nejezdí a nevycvičuje se'
     : `Dny do kování jezdeckých koní: ${formatInteger(Math.max(0, s.daysLeft))}`;
   if (s.source === 'own') return `${when}; kuje vlastní kovář`;
-  if (s.source === 'foreign') {
-    return `${when}; kuje kovář z jiné vsi (cesta ${formatInteger(s.foreignDays)} ${plural(s.foreignDays, 'den', 'dny', 'dní')}, cena ${formatInteger(s.foreignKg)} kg obilí)`;
-  }
   return `${when}; kovář chybí`;
 }
 
@@ -756,9 +753,6 @@ function HorsesBlock({ horses, penId }: { horses: VillageHorses; penId: number }
             alert={horses.shoeing.unshod}
           >
             {formatInteger(Math.max(0, horses.shoeing.daysLeft))}
-            {horses.shoeing.source === 'foreign'
-              ? ` / ${formatInteger(horses.shoeing.foreignKg)}`
-              : ''}
           </Stat>
         )}
       </div>

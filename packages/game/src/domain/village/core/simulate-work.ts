@@ -667,7 +667,7 @@ function dayLabor(
   people: DayPeople,
   cartJobs: DayCartJobs,
 ): DayLabor {
-  const { state, day, coverage, landscape, daylight } = ctx;
+  const { state, day, coverage, daylight } = ctx;
   const { dayTasks } = tasks;
   const { crafts, villagers, manorSkip, harvestDay, chores, waterNeeds, manor, productivity } =
     people;
@@ -675,8 +675,8 @@ function dayLabor(
   // péče o koně – hodina denně na koně z práce vsi (horses.md – Péče)
   const horses = villageHorses(state);
   const horseCare = horseCareLabor(horses, day);
-  // kování koní (horses.md – Kování): v den termínu vlastní kovář z práce vsi, jinak platba cizímu
-  const shoeingPlan = planShoeing(state, day, coverage, landscape);
+  // kování koní (horses.md – Kování): v den termínu vlastní kovář z práce vsi
+  const shoeingPlan = planShoeing(state, day);
   // žně všemi rukama (fields.md – Žně všemi rukama): ve žňový den řemeslníci se syny, výrostci
   // a starší jen na žeň a výmlat (cvičící rodina – chlapci cvičí, starší kryjí dvorec – ne)
   // – výrostci a starší (`harvestYouth`) jdou napřed na trhání lnu (fields.md – Len)
@@ -734,7 +734,7 @@ function dayLabor(
       householdElders: householdElders(villagers, day, manorSkip),
       // péče o koně hned za denním minimem, před výpravami (horses.md – Péče)
       horseCare,
-      shoeing: shoeingPlan?.own ? shoeingPlan.manDays : 0,
+      shoeing: shoeingPlan ? shoeingPlan.manDays : 0,
       // chůze pro vodu nad denní minimum (population.md – Práce, paths.md – Pochůzky pro vodu); vodu,
       // kterou přivezl vůz, nenosí a platí díl práce posádky (wagons.md – Co vozy vozí)
       householdWater: (jobs.water ? jobs.water.water : waterNeeds.map((h) => h.labor)).map(

@@ -56,11 +56,6 @@ export function horsesInPlaces(horses: readonly Horse[], day: number): number {
   return horses.filter((h) => horseKind(h, day) !== 'foal').length;
 }
 
-/** Volná místa v ohradách koní (nikdy záporná). */
-export function horseRoom(state: Pick<VillageState, 'pens'>, day: number): number {
-  return Math.max(0, horsePlaces(state) - horsesInPlaces(villageHorses(state), day));
-}
-
 /**
  * Péče o koně dnes (člověkodny – horses.md, Péče; Martin 23. 10. 2026): hodina denně na koně celý
  * rok z práce vsi, hříbě do roka s klisnou nic navíc.

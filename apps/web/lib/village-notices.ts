@@ -1,4 +1,11 @@
-import type { AbandonedStructure, HerdSpecies, HungerLevel, NewcomerGroup } from '@bohemia/game';
+import type {
+  AbandonedStructure,
+  Craft,
+  HerdSpecies,
+  HungerLevel,
+  NewcomerGroup,
+  WorkshopActivity,
+} from '@bohemia/game';
 import { DIRECTION_NAMES, NEWCOMER_TEXTS } from './trade-names';
 import { formatAnimals, formatInteger } from './village-format';
 import { ironTripWho, productList, type VillageView } from './village-view';
@@ -127,6 +134,37 @@ export type NoticeKind =
    */
   | DisasterNoticeKind;
 
+/**
+ * Upozornění na dílnu, která stojí bez vstupu (crafts.md) – týž text ukáže i popisek řádku výrobků
+ * v panelu dvorce (`workshopStopNotice`).
+ */
+export const WORKSHOP_STOP_NOTICES = {
+  'no-charcoal': 'Kovář nemá uhlí',
+  'no-ore': 'Kovář nemá rudu',
+  'no-clay': 'Hrnčíř nemá hlínu',
+  'no-wood': 'Dílna nemá co kácet',
+  'carpenter-no-wood': 'Tesař nemá klády',
+} as const;
+
+/** Text upozornění dílny, která stojí bez vstupu (`WORKSHOP_STOP_NOTICES`); jinak null. */
+export function workshopStopNotice(workshop: {
+  craft: Craft;
+  activity: WorkshopActivity;
+}): string | null {
+  switch (workshop.activity) {
+    case 'no-charcoal':
+    case 'no-ore':
+    case 'no-clay':
+      return WORKSHOP_STOP_NOTICES[workshop.activity];
+    case 'no-wood':
+      return WORKSHOP_STOP_NOTICES[
+        workshop.craft === 'carpenter' ? 'carpenter-no-wood' : 'no-wood'
+      ];
+    default:
+      return null;
+  }
+}
+
 export interface VillageNotice {
   kind: NoticeKind;
   /** info = zpráva, warn = problém. */
@@ -208,20 +246,24 @@ export function villageNotices(view: VillageView): VillageNotice[] {
   }
   // dílny bez vstupu stojí (crafts.md)
   if (view.crafts.workshops.some((w) => w.activity === 'no-charcoal')) {
-    notices.push({ kind: 'no-charcoal', tone: 'warn', text: 'Kovář nemá uhlí' });
+    notices.push({ kind: 'no-charcoal', tone: 'warn', text: WORKSHOP_STOP_NOTICES['no-charcoal'] });
   }
   if (view.crafts.workshops.some((w) => w.activity === 'no-ore')) {
-    notices.push({ kind: 'no-ore', tone: 'warn', text: 'Kovář nemá rudu' });
+    notices.push({ kind: 'no-ore', tone: 'warn', text: WORKSHOP_STOP_NOTICES['no-ore'] });
   }
   if (view.crafts.workshops.some((w) => w.activity === 'no-clay')) {
-    notices.push({ kind: 'no-clay', tone: 'warn', text: 'Hrnčíř nemá hlínu' });
+    notices.push({ kind: 'no-clay', tone: 'warn', text: WORKSHOP_STOP_NOTICES['no-clay'] });
   }
   if (view.crafts.workshops.some((w) => w.activity === 'no-wood' && w.craft !== 'carpenter')) {
-    notices.push({ kind: 'no-wood', tone: 'warn', text: 'Dílna nemá co kácet' });
+    notices.push({ kind: 'no-wood', tone: 'warn', text: WORKSHOP_STOP_NOTICES['no-wood'] });
   }
   // tesař bez klád na hromadě a bez stromů ke kácení (wagons.md)
   if (view.crafts.workshops.some((w) => w.activity === 'no-wood' && w.craft === 'carpenter')) {
-    notices.push({ kind: 'carpenter-no-wood', tone: 'warn', text: 'Tesař nemá klády' });
+    notices.push({
+      kind: 'carpenter-no-wood',
+      tone: 'warn',
+      text: WORKSHOP_STOP_NOTICES['carpenter-no-wood'],
+    });
   }
   // rodina, která smí odejít, nemá kam (dřív „Domácnost je plná“ – od 19. 10. 2026 smí ženatý pár
   // odejít i z neplného domu, kinship.md – Lidé k osídlení)

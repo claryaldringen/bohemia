@@ -6,7 +6,6 @@ import { departWithSon } from '../son-departure';
 import { travellingVillage, settlersOf } from '../departure';
 import { currentLord, isElite, isLineMan, wivesOf } from '../dynasty';
 import { secondaryWifeFamilies } from '../dynasty-housing';
-import { extraWivesDay } from '../dynasty-wives';
 import { isChristian, rodBaptized } from '../faith';
 import { applyInboxDay, type VillageEvent } from '../../core/inbox';
 import { lordFamily } from '../lord';
@@ -167,30 +166,6 @@ describe('baptizeVillage – ves, kterou řídí NPC rod', () => {
   });
 });
 
-describe('extraWivesDay v pokřtěné vsi (Review Focus 2)', () => {
-  /** Ves po smrti pokřtěného vojvody: vojvodou je syn 30 (pohan narozený před křtem) s ženou. */
-  function successorVillage(baptized: boolean): VillageState {
-    const s = trackedVillage(couple({ id: LORD_ID, age: 22 }, { id: 11, age: 20 }), [dwelling(1)], {
-      ...(baptized ? { faith: { rodBaptizedDay: DAY - 400 } } : {}),
-    });
-    return s;
-  }
-
-  it('nové vedlejší manželky nepřibudou ani za pohanského nástupce', () => {
-    const count = (s: VillageState): number => {
-      let n = 0;
-      for (let d = DAY + 1; d < DAY + 1 + Math.round(10 * YEAR); d++) {
-        n += extraWivesDay(s, d).filter((e) => e.kind === 'extra-wife').length;
-      }
-      return n;
-    };
-    expect(count(successorVillage(false))).toBeGreaterThan(0);
-    const baptized = successorVillage(true);
-    expect(isChristian(currentLord(baptized)!)).toBe(false);
-    expect(count(baptized)).toBe(0);
-  });
-});
-
 describe('křest ve dni simulace (schránka, porody, vcelku = po kouscích)', () => {
   const FOUNDED = 200;
   const start = withBuiltFirstDwelling(
@@ -201,23 +176,13 @@ describe('křest ve dni simulace (schránka, porody, vcelku = po kouscích)', ()
       lord: { name: 'Bořivoj' },
     }),
   );
-  // druhá manželka se syny ve vlastní zemnici, jak ji tam po stavbě druhého obydlí pošle přeplněný
-  // dvorec (lord.md – Zakladatelé, Manželky – Bydlení): test měří děti po křtu a v přeplněném
-  // dvorci (9 zakladatelů v zemnici o 6 místech) se rodí málo
-  const secondWifeHome = start.nextId++;
-  start.dwellings.push({
-    id: secondWifeHome,
-    type: 'zemnice',
-    builtDay: FOUNDED,
-    condition: 1,
-    position: { x: 30, z: 0, rotation: 0 },
-  });
-  const secondWife = wivesOf(start, currentLord(start)!)[1]!;
-  for (const p of start.people) {
-    if (p.id === secondWife.id || p.motherId === secondWife.id) p.dwellingId = secondWifeHome;
-  }
+  // test měří děti vojvody po křtu – ty rodí jen hlavní manželka, ostatní křest propustí
+  // (christianity.md – Křest rodu, Jediná manželka). Zakladatelská hlavní manželka je při křtu
+  // u konce plodného věku, proto je mladší a ves nehladoví – jinak se po křtu dítě narodit nemusí
+  wivesOf(start, currentLord(start)!)[0]!.bornDay = FOUNDED - 28 * 365;
+  start.storesKg = 60_000;
   const baptismDay = FOUNDED + Math.round(1.5 * YEAR);
-  const end = FOUNDED + Math.round(4 * YEAR);
+  const end = FOUNDED + Math.round(8 * YEAR);
   const events: VillageEvent[] = [
     {
       id: 'b1',

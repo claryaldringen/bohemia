@@ -1,21 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import {
-  buyPrice,
   dayIndexOf,
   foundVillage,
-  goodWorth,
-  neighbourOf,
-  sellPrice,
-  tradeSeason,
+  legacyNeighbourName,
   type Person,
   type VillageState,
 } from '@bohemia/game';
 import { sceneExpeditions } from '../caravan-view';
-import { expeditionView, manorFamily, neighbourViews } from '../manor-view';
-import { tradePreview } from '../trade-quote';
+import { manorFamily } from '../manor-view';
 
-// Sousedé po hotových stezkách pro panel obchodu (trade.md) – výměna lidí: koho soused dá a vezme
-// a koho by ves dala, stejně jako server (`tradeQuote`).
+// Dvorec vojvody a karavany ve scéně (trade.md) – panel obchodu se sousedy zmizel (markets.md).
 
 const DAY = dayIndexOf({ year: 600, month: 5, day: 1 });
 const YEAR = 365.25;
@@ -69,151 +63,12 @@ function village(): VillageState {
   s.trails = [
     { id: 1, direction: 'S', pieces: [], lengthM: 500, startedDay: DAY - 100, builtDay: DAY - 1 },
   ];
-  const n = neighbourOf(s.seed, 'S');
   s.trade = {
-    neighbours: [
-      {
-        direction: 'S',
-        season: tradeSeason(DAY),
-        supply: { ...n.supply },
-        demand: { ...n.demand },
-        people: {
-          families: [2],
-          men: 1,
-          women: 0,
-          takes: { families: 2, men: 2, women: 3 },
-        },
-      },
-    ],
     expeditions: [],
     nextId: 1,
   };
   return s;
 }
-
-describe('výměna lidí v panelu obchodu (trade.md – Výměna lidí)', () => {
-  it('koho soused dá a vezme a koho by ves dala – jen tolik, kolik server pustí', () => {
-    const [n] = neighbourViews(village(), DAY);
-    expect(n!.people.offers).toEqual({
-      families: [{ people: 4, price: 1036.8 }],
-      men: 1,
-      women: 0,
-      adultPrice: 345.6,
-    });
-    expect(n!.people.takes).toEqual({ families: 2, men: 2, women: 3 });
-    // jediná rodina, která smí odejít (mladší syn se ženou a dítětem), a svobodná dcera
-    expect(n!.people.have).toEqual({
-      families: [{ people: 3, credit: 900 }],
-      men: 0,
-      women: 1,
-      adultCredit: 360,
-    });
-    const preview = tradePreview(
-      n!,
-      {},
-      {},
-      {
-        give: { families: 1, men: 0, women: 1 },
-        get: { families: 0, men: 0, women: 0 },
-      },
-    );
-    expect(preview.credit).toBe(1260);
-    expect(preview.blocked).toBeNull();
-  });
-});
-
-// Po zlém roce kraje bere soused zboží levněji (disasters.md – Obchod) – náhled musí počítat jako
-// server, jinak ukáže férovou výměnu, kterou server odmítne (Martin 15. 11. 2026: 231 kg masa za
-// dva muže – v panelu +2, server „Za to by soused prodělal“).
-describe('ceny v panelu obchodu po zlém roce kraje', () => {
-  it('zboží za obilí za cenu jako na serveru (`goodWorth`)', () => {
-    const base = village();
-    const worse = Array.from({ length: 200 }, (_, i) => ({ ...base, weatherSeed: i + 1 })).find(
-      (s) => goodWorth(s, 'meat', DAY) < 1,
-    )!;
-    expect(worse).toBeDefined();
-    const [n] = neighbourViews(worse, DAY);
-    const rows = [...n!.offers, ...n!.demands];
-    expect(rows.some((row) => row.good !== 'grain')).toBe(true);
-    for (const row of n!.offers) {
-      expect(row.price).toBeCloseTo(buyPrice(row.good) * goodWorth(worse, row.good, DAY), 2);
-    }
-    for (const row of n!.demands) {
-      expect(row.price).toBeCloseTo(sellPrice(row.good) * goodWorth(worse, row.good, DAY), 2);
-      if (row.good !== 'grain') expect(row.price).toBeLessThan(sellPrice(row.good));
-    }
-  });
-});
-
-describe('koně v panelu obchodu (horses.md – Nákup a prodej)', () => {
-  it('řádky koní se ukážou, jen když je soused nabízí (zásoba 0 se skryje); místo v ohradě', () => {
-    const s = village();
-    // pastevci na severu nabízejí koně všech tří druhů; jezdecké jen některý rok (zásoba 0)
-    const herders = neighbourOf(s.seed, 'N');
-    s.trails![0]!.direction = 'N';
-    s.trade!.neighbours = [
-      {
-        ...s.trade!.neighbours![0]!,
-        direction: 'N',
-        supply: { ...herders.supply, foals: 2, mares: 1, ridingHorses: 0 },
-        demand: { ...herders.demand },
-      },
-    ];
-    const [n] = neighbourViews(s, DAY);
-    expect(n!.offers.find((r) => r.good === 'foals')?.left).toBe(2);
-    expect(n!.offers.some((r) => r.good === 'mares')).toBe(true);
-    expect(n!.offers.some((r) => r.good === 'ridingHorses')).toBe(false);
-    // statkáři na jihu koně shánějí – řádek se ukáže
-    s.trails![0]!.direction = 'S';
-    s.trade!.neighbours = [{ ...s.trade!.neighbours![0]!, direction: 'S' }];
-    expect(neighbourViews(s, DAY)[0]!.demands.some((r) => r.good === 'foals')).toBe(true);
-    // ves bez ohrady koní koně nevezme
-    expect(n!.room.horses).toBe(0);
-  });
-});
-
-describe('výprava na cestě v panelu – tempo z práce dne (trade.md – Obchod)', () => {
-  const sent = (today: number | null, done = 24): VillageState => {
-    const s = village();
-    s.lastDay = DAY;
-    s.trade!.expeditions = [
-      {
-        id: 1,
-        direction: 'S',
-        trailId: 1,
-        startedDay: today === null ? DAY : DAY - 3,
-        give: { meat: 289 },
-        get: {},
-        porters: 12,
-        days: 5,
-        cost: 60,
-        done,
-        getPeople: { families: [], adults: 2 },
-      },
-    ];
-    s.labor = {
-      day: DAY,
-      shares:
-        today === null || today === 0
-          ? []
-          : [{ activity: 'trade', target: { kind: 'trail', id: 1 }, manDays: today }],
-    };
-    return s;
-  };
-
-  it('plné tempo, zdržení, stání (ves bez dospělých) a výprava vyslaná dnes', () => {
-    const view = (s: VillageState): ReturnType<typeof expeditionView> =>
-      expeditionView(s, s.trade!.expeditions[0]!);
-    expect(view(sent(12))).toMatchObject({ pace: 'full', daysLeft: 3, today: 12, progress: 0.4 });
-    expect(view(sent(7.18))).toMatchObject({ pace: 'slow', daysLeft: 6, today: 7.18 });
-    expect(view(sent(0))).toMatchObject({ pace: 'waiting', daysLeft: null, today: 0 });
-    expect(view(sent(null, 0))).toMatchObject({ pace: 'starting', daysLeft: 5, today: null });
-    // poslední den stačilo méně než nosiči – není to zdržení
-    expect(view(sent(4, 60))).toMatchObject({ pace: 'full', daysLeft: 0 });
-    // výprava uložená s dospělými bez pohlaví – v panelu polovina muži, zbytek ženy
-    expect(view(sent(12)).getPeople).toEqual({ families: 0, men: 1, women: 1 });
-  });
-});
 
 describe('výprava pro karavanu ve scéně (trade.md – Ve scéně)', () => {
   it('kdo jde tam a zpátky, postup a dnešní tempo', () => {
@@ -261,6 +116,8 @@ describe('výprava pro karavanu ve scéně (trade.md – Ve scéně)', () => {
     expect(e!.coming).toHaveLength(4);
     expect(e!.coming.map((p) => p.sex).slice(0, 2)).toEqual(['male', 'female']);
     expect(e!.coming[3]!.sex).toBe('female');
+    // výprava ze starší vsi jde k dřívějšímu sousedovi – jméno jako dřív (legacyNeighbourName)
+    expect(e!.trip).toEqual({ kind: 'trade', to: legacyNeighbourName(s.seed, 'S') });
     // výprava dnes nepostoupila – stojí
     s.labor = { day: DAY, shares: [] };
     expect(sceneExpeditions(s)[0]!.rate).toBe(0);
@@ -320,6 +177,7 @@ describe('nákup u sousedů vozem ve scéně (crafts.md – Nákup u sousedů, V
     ];
     const [e] = sceneExpeditions(s);
     expect(e).toMatchObject({ trailId: 3, porters: 2, carts: [4], cartCrew: 2 });
+    expect(e!.trip).toEqual({ kind: 'purchase', to: legacyNeighbourName(s.seed, 'N') });
     s.purchases[0]!.carts = undefined;
     expect(sceneExpeditions(s)[0]!.carts).toEqual([]);
   });

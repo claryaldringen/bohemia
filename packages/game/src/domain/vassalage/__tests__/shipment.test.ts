@@ -136,6 +136,20 @@ describe('zásilka (dispatchShipment, receiveShipment)', () => {
     expect(e.give).toEqual({ grain: 100 });
   });
 
+  it('zásilka z vsi bez obchodu založí jen výpravy a další id (markets.md – Pravidla 10)', () => {
+    const from = sender();
+    delete from.trade;
+    const sent = dispatchShipment(from, DAY, {
+      bundle: bundle({ grainKg: 100 }),
+      cells: 4,
+      firstStep: 'N',
+    });
+    if (!sent.ok) throw new Error('čekalo se odeslání');
+    const e = sent.state.trade!.expeditions[0]!;
+    expect(sent.state.trade).toEqual({ expeditions: [e], nextId: 2 });
+    expect(e).toMatchObject({ id: 1, kind: 'shipment', give: { grain: 100 } });
+  });
+
   it('nedostatek vrátí důvod česky a ves nezmění', () => {
     const from = sender();
     const copy = structuredClone(from);

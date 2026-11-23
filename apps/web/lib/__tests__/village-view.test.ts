@@ -194,8 +194,8 @@ describe('dvorec – lov už běží (plán 2026-11-22-hunting – Úloha 11)', 
     // léto mimo hájení – bez běžícího lovu jiný důvod (nebo žádný), s ním `already`
     const summer = dayIndexOf({ year: 503, month: 7, day: 10 });
     const s = settled();
-    expect(manorView(s, landscape, summer)!.huntDenied).not.toBe(HUNT_DENIED_TEXT.already);
-    expect(manorView(s, landscape, summer, {}, true)!.huntDenied).toBe(HUNT_DENIED_TEXT.already);
+    expect(manorView(s, summer)!.huntDenied).not.toBe(HUNT_DENIED_TEXT.already);
+    expect(manorView(s, summer, true)!.huntDenied).toBe(HUNT_DENIED_TEXT.already);
     const view = buildVillageView(record(s), landscape, summer, { huntRunning: true });
     expect(view.manor?.huntDenied).toBe(HUNT_DENIED_TEXT.already);
     expect(buildVillageView(record(s), landscape, summer).manor?.huntDenied).not.toBe(
@@ -3358,6 +3358,26 @@ describe('kronika – nákup u sousedů (crafts.md)', () => {
     );
     expect(chronicleText(cart({ woodToolsKg: 30 }), 'Libice', 4)).toBe(
       'Libičtí směnili 307 kg obilí za dvoukolák a 30 kg dřevěného nářadí se Sedleckými.',
+    );
+  });
+});
+
+describe('kronika – chybí osivo (fields.md – Osivo pro ves bez zásob)', () => {
+  it('bez nákupu jen kolik chybí; starší zápisy s důvodem beze změny (markets.md – Pravidla 1)', () => {
+    const short = (reason?: 'pay' | 'supply'): ChronicleEvent => ({
+      day: DAY,
+      kind: 'seed-short',
+      shortKg: 412.4,
+      ...(reason ? { reason } : {}),
+    });
+    expect(chronicleText(short(), 'Vlkov')).toBe(
+      'Na setí chybí 412 kg osiva – díly bez osiva vesničané nezasejí.',
+    );
+    expect(chronicleText(short('pay'), 'Vlkov')).toBe(
+      'Na setí chybí 412 kg osiva a vesničané nemají čím ho u sousedů zaplatit – díly bez osiva nezasejí.',
+    );
+    expect(chronicleText(short('supply'), 'Vlkov')).toBe(
+      'Na setí chybí 412 kg osiva a sousedé letos víc obilí nemají – díly bez osiva vesničané nezasejí.',
     );
   });
 });

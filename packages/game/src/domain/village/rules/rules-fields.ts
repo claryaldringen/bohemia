@@ -30,7 +30,7 @@ export const START_SEED_YEARS = 0.5;
 // – Zakladatelé) přinese jídlo na `foodYears` roční potřeby zakladatelů a osivo na `seedYears`
 // roční potřeby (osivo jen na setí – `VillageState.reservedSeedKg`) – 9 dospělých × 180 kg =
 // 1 620 kg: 4 860 kg jídla a 3 240 kg osiva (od 15. 11. 2026 se 4 syny; dřív 5 lidí – 2 700
-// a 1 800 kg); osivo se do `seedKeepYears` let od založení neuvolní 1. 6. ani 1. 12. (SEED_BUYING)
+// a 1 800 kg); osivo se do `seedKeepYears` let od založení neuvolní 1. 6. ani 1. 12. (SEED_RESERVE)
 // a výhled zásob ho nepočítá za jídlo – slouží na víc osevů, dokud nedorostou první děti; sní se
 // jen ve skutečném hladu. Ztráty skladováním (STORAGE_LOSS_PER_YEAR) jdou z celé zásoby obilí –
 // rezerva je nejvýš tolik, kolik obilí zbývá.
@@ -75,21 +75,21 @@ export const SEED_KG_PER_HA = 175;
 // nahromaděný hlad zbytku vsi do žní (STARVATION – pod fedFrom přibývá; příděl zbytku vsi podle
 // přednosti v hladu – návrh Clauda 18. 11. 2026) nedosáhne prahu úmrtí
 // nejcitlivější skupiny ve vsi (STARVATION.threshold) bez `marginDays`, s osivem jen na setí ani
-// prahu, od kterého ho ves sní (SEED_BUYING.eatFromStarvationDays); ostatní zrno je osivo. Osivo,
+// prahu, od kterého ho ves sní (SEED_RESERVE.eatFromStarvationDays); ostatní zrno je osivo. Osivo,
 // které na setí čeká, ves nejí – přežívací zásobu nikdy nezaseje (dřív prahy přídělu 0,5 do roční
 // potřeby z pole a 1 nad ni). Týž příděl k přežití (`survivalRation`, bez meze osiva) je v dlouhém
 // hladu životní minimum přídělu (diet.md – Kdo dostane co; Martin 22. 11. 2026: „ano“).
 export const SEED_STORES = { marginDays: 1 } as const;
 // fields.md – Osivo ze zásob, Osivo pro ves bez zásob (Martin 27. 10. 2026: „ok, jak navrhuješ“;
-// čísla návrh Clauda): ves, které na setí dílů na řadě chybí osivo, ho koupí u sousedů
-// v den `days` – 1. 9. před setím ozimu, 1. 3. před setím jaře –, nejméně `minKg`. Koupené osivo
-// (i osivo osadníků – LEAVING.seedKgPerCarrier) ves nesní; co do `releaseDay` (1. 6. – po setí
-// jaře i s odkladem za počasí) nezaseje, je obyčejné zrno; rezerva nad osivo jaře se uvolní už
-// `winterReleaseDay` (1. 12. – po setí ozimu). Při hladovění (`eatFromStarvationDays` = 5 dnů bez jídla, dřív než začnou umírat – STARVATION.threshold)
-// ves rezervu sní – osivo se šetří, ne za cenu smrti. Za jeden nákup nejvýš `maxCows` kráva (návrh Clauda:
-// ves přijde nejvýš o jednu dojnici nad krávy, které drží na mléko a voly – `surplusCows`; od 2. 11.
-// 2026, dřív nad dvě – `TRADE.keepCows`, který dál platí pro obchod hráče).
-export const SEED_BUYING = {
+// čísla návrh Clauda): osivo jen na setí (osadníků – LEAVING.seedKgPerCarrier, zakladatelů –
+// FOUNDERS_STORES) ves nesní; co do `releaseDay` (1. 6. – po setí jaře i s odkladem za počasí)
+// nezaseje, je obyčejné zrno; rezerva nad osivo jaře se uvolní už `winterReleaseDay` (1. 12. – po
+// setí ozimu). Při hladovění (`eatFromStarvationDays` = 5 dnů bez jídla, dřív než začnou umírat –
+// STARVATION.threshold) ves rezervu sní – osivo se šetří, ne za cenu smrti. Ves, které na setí
+// dílů na řadě chybí osivo, to v den `days` – 1. 9. před setím ozimu, 1. 3. před setím jaře –
+// zapíše do kroniky, chybí-li aspoň `minKg`; koupit ho nemá kde (nákup osiva u sousedů zrušen –
+// markets.md, Pravidla 1).
+export const SEED_RESERVE = {
   days: [
     { month: 9, day: 1 },
     { month: 3, day: 1 },
@@ -97,7 +97,6 @@ export const SEED_BUYING = {
   minKg: 5,
   releaseDay: { month: 6, day: 1 },
   winterReleaseDay: { month: 12, day: 1 },
-  maxCows: 1,
   eatFromStarvationDays: 5,
 } as const;
 // fields.md – Úroda (neopletený díl), Zarůstání

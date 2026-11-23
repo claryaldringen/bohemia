@@ -311,9 +311,8 @@ export function occupiedWorkshops(state: VillageState, craft: Craft): Dwelling[]
 /**
  * Zásoba, do které řemeslníci vyrábějí (kg, crafts.md – Podle potřeby, návrh Clauda): potřeba vsi
  * a k ní opotřebení za CRAFT_NEEDS.reserveYears – nástroje potřeba × 1,3, keramika × 1,4. Ves
- * s takovou zásobou má potřebu pokrytou i za rok, kdy se část opotřebí. Nástroje do vybavení takto
- * kupuje ves bez kováře u sousedů (crafts.md – Nákup u sousedů); kovář drží vybavení na potřebě
- * a zásobu na rok obnovy v hřivnách (`smithBarsTargetKg` – production-chains.md, Kovář).
+ * s takovou zásobou má potřebu pokrytou i za rok, kdy se část opotřebí. Kovář drží vybavení na
+ * potřebě a zásobu na rok obnovy v hřivnách (`smithBarsTargetKg` – production-chains.md, Kovář).
  */
 export function craftTargets(state: Pick<VillageState, 'people'>, day: number): CraftNeeds {
   const needs = craftNeeds(state, day);

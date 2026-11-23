@@ -452,7 +452,7 @@ export interface VillageViewContext {
   lineEnded?: LineEndView | null;
   /** Všechny vsi hráče pro přepínač; bez nich jen tahle ves. */
   villages?: VillageListItem[];
-  /** Vlastní vsi na sousedních mapách po směrech – tam se neodchází ani neobchoduje. */
+  /** Vlastní vsi na sousedních mapách po směrech – tam se neodchází. */
   ownMaps?: Partial<Record<Direction8, string>>;
   /** Proč z téhle mapy na novou mapu odejít nejde (mapa bez polohy v mřížce), nebo null. */
   mapsBlocked?: string | null;
@@ -584,7 +584,7 @@ export function buildVillageView(
     },
     livestock: summary.livestock,
     woodLogs: wholeLogs(summary.woodLogs),
-    crafts: craftsView(state, summary, landscape),
+    crafts: craftsView(state, summary),
     storesMonths: summary.storesMonths,
     ...(summary.foodLastsDays !== null ? { foodLastsDays: summary.foodLastsDays } : {}),
     satiation: summary.satiation,
@@ -686,7 +686,7 @@ export function buildVillageView(
     ...threshingOf(state, day),
     ...threshingFloorsOf(state, summary.constructions, day),
     ...churchesOf(state),
-    roads: roadViews(state, landscape, day, summary),
+    roads: roadViews(state, landscape, day, summary, context.ownMaps ?? {}),
     ...fortificationsOf(state, landscape, day, obstacles),
     scene: {
       ...sceneWithCartWorld(
@@ -706,7 +706,7 @@ export function buildVillageView(
     chronicle: chronicle(state, name),
     purchases: purchaseViews(state),
     lastMarriageDay: lastMarriageDay(state),
-    manor: manorView(state, landscape, day, context.ownMaps ?? {}, context.huntRunning ?? false),
+    manor: manorView(state, day, context.huntRunning ?? false),
     ...wildlifeField(state, day),
     ...weatherField(state, day),
     ...dugSitesField(state, day),

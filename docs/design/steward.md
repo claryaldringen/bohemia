@@ -41,9 +41,10 @@ postavit, vylepšit nebo může vesnici úplně vystěhovat a založit jinde.**�
 - **Ne-cíl (teď):** nástupnictví náhodou bez pozvaného hráče – až s pozvánkami (Martin 30. 10. 2026), seniorát a rodové panství (fáze 4), NPC vojvodové cizích rodů a sousedé se
   simulací.
 - **Ne-cíl (první verze, návrh Clauda):** přestěhování domácnosti hráčem vybrané, odchod
-  vybraných obydlí bez syna – nejsou stavby; viz Otevřené otázky. Výpravy za obchodem
-  (`startExpedition`) a lov (`declareNpcHunt`) správce dělá **jen v nouzi** (Martin 8. 11. 2026:
-  „A“) – obchod ani lov mimo nouzi ne; viz Obilí a lov v nouzi.
+  vybraných obydlí bez syna – nejsou stavby; viz Otevřené otázky. Lov (`declareNpcHunt`) správce
+  dělá **jen v nouzi** (Martin 8. 11. 2026: „A“) – mimo nouzi ne. Za obchodem nevyráží: nákup
+  obilí v nouzi skončil 23. 11. 2026 s obchodem se smyšlenými sousedy (markets.md – Pravidla 1,
+  Martin 22. 11. 2026); viz Lov v nouzi.
 - **Anti-cíl:** správce, který **ví budoucnost** – seed počasí, rozpis pohrom, náhodu dne. Zná jen
   to, co by věděl zkušený hráč: krajinu, kroniku, počasí, které už je vidět (`revealedWeather`),
   a četnosti z pravidel (návrh Clauda).
@@ -381,9 +382,9 @@ svého druhu (pole a čtverce po blocích) a všechny čerpají ze stejného roz
    a je syn, který smí vést; nebo ves
    v pasti osiva hladoví (viz Odchod syna – upřesnění, Past osiva). Jen **31. 8.** – po žních,
    před plánem osevu 1. 9., takže mateřská ves plánuje osev už pro menší počet lidí.
-   2a. **Nouze – obilí a lov** (Martin 8. 11. 2026: „A“) – výprava za obilím, když zásoby do žní
-   nestačí, a lov, když zvěř škodí na polích (viz Obilí a lov v nouzi). Každý den správce,
-   před stavbami. Nestaví – rozpočet práce nebere.
+   2a. **Nouze – lov** (Martin 8. 11. 2026: „A“) – lov, když zvěř škodí na polích (viz Lov
+   v nouzi); výprava za obilím skončila 23. 11. 2026 s obchodem se smyšlenými sousedy. Každý den
+   správce, před stavbami. Nestaví – rozpočet práce nebere.
 3. **Pole** – pole v oběhu pod cílem polí; další blok čtverců z plánu. Louka a křoviny 1. 9. až 28. 2. a 15. 6. až 31. 7. (mimo setí a žně – práce je volná), les 1. 10. až 31. 1.
 4. **Obydlí nebo dílna** – `waitingHouseholds > 0`: jedna stavba na čekající rodinu; dílna místo
    obydlí, když má vyšší hodnotu (níž). Celý rok.
@@ -518,38 +519,17 @@ Kroky 3 a 4 (`domain/village/steward/steward.ts` – `stewardDay`):
   tesař zatím 0 (až s voly a vozy). Bez nástrojů ušetří plné pokrytí ≈ 39 % polní práce, takže
   uhlíř vyjde kladně od 6 obydlí, kovář s uhlířem od 3; hrnčíř (ztráty 10 % → 5 %) až od 21 obydlí.
 
-### Obilí a lov v nouzi (Martin 8. 11. 2026; pravidla návrh Clauda – `STEWARD` v `rules-steward.ts`, `steward-needs.ts`)
+### Lov v nouzi (Martin 8. 11. 2026; pravidla návrh Clauda – `STEWARD` v `rules-steward.ts`, `steward-needs.ts`)
 
 Martin 8. 11. 2026 k otázce 3 (Výpravy za obchodem a velký lov rodu): „A“ – **obojí, ale jen
-v nouzi: obilí kupuje, jen když hrozí hlad, a na lov vyrazí, jen když zvěř škodí na polích.**
-Správce jedná **stejnými akcemi jako hráč** – výprava za obchodem (`tradeQuote` +
-`startExpedition`, [obchod](trade.md)) a lov (`huntDenied` + `declareNpcHunt`,
+v nouzi: obilí kupuje, jen když hrozí hlad, a na lov vyrazí, jen když zvěř škodí na polích.** Nákup obilí zanikl 23. 11. 2026 s obchodem se smyšlenými sousedy (markets.md – Pravidla 1, Martin 22. 11. 2026) – zůstává lov.
+Správce jedná **stejnými akcemi jako hráč** – lov (`huntDenied` + `declareNpcHunt`,
 [hunting.md](hunting.md) – Pravidla 8: Martin 22. 11. 2026: „Správce je vlastně NPC hráč, takže by měl mít možnost
 dělat téměř vše, co skutečný hráč“) – se stejnými kontrolami; lov se mu dopočte bez scény (`npcHuntDay`). Krok 2a,
 každý den správce, před stavbami; rozhoduje jen ze stavu vsi a dne, bez náhody.
 
-- **Kdy hrozí hlad:** z výhledu zásob do žní, ze kterého správce počítá režim a pojistku
-  (`fieldStoresOutlook` – osivo, které ves z hromady okna nebo zimního osiva ještě zaseje, se nejí;
-  [pole](fields.md) – Výhled zásob k sklizni): potřeba z pole do příští sklizně
-  i se ztrátami skladováním bez zásob, které ves smí sníst (obilí, snopy, luštěniny), chybí aspoň
-  o `STEWARD.grainMinKg` (25 kg – náklad jednoho nosiče, `TRADE.porterKg`).
-- **Komu:** sousedovi, který obilí nabízí (obilnáři), s hotovou zemskou stezkou a bez výpravy na
-  cestě; z nich tomu, kdo přinese nejvíc obilí (při shodě méně práce, pak pořadí směrů).
-- **Kolik:** jen co chybí, nejvýš co soused letos ještě má; za přeplatek posledního kusu platby
-  vezme obilí navíc (jako nákup osiva – [pole](fields.md), Osivo pro ves bez zásob). Výprava nese
-  nejvýš `STEWARD.grainPorterShare` (polovinu) dospělých vsi jako nosiče – jinak správce nákup
-  úměrně zmenší; ostatní drží práci vsi. Ves, která neunese ani kládu (2 dospělí → 1 nosič, kláda
-  potřebuje 2), nic nekoupí.
-- **Čím platí:** `STEWARD.grainPayment` v pořadí hřivny → keramika → uhlí → klády – zboží, které
-  ves nejí a bez kterého hospodaří (jako nákup osiva: jídlem ani dobytkem neplatí), napřed
-  s nejvyšší hodnotou na kg nákladu, ať je výprava nejmenší; jen co soused shání a co letos ještě
-  vezme. Obilnáři shánějí vždy klády, takže ves s kládami platí skoro vždy. Nemá-li čím, nekoupí.
-  **Klády staveb neprodá** (návrh Clauda, 8. 11. 2026 – „správce v nouzi“, princip schválil
-  Martin): z hromady platí jen klády nad rezervu rozestavěných staveb vsi = dřevo, které stavby
-  ještě vezmou (stromy, které pro ně ještě nikdo neskácel; klády z hromady si stavba bere už při
-  zahájení).
-- **Nejvýš jedna výprava naráz** – správce nevyšle výpravu, dokud je jakákoli výprava za obchodem
-  na cestě (i hráčova; zásilky dávek pánovi se nepočítají).
+- **Obilí v nouzi správce nekupuje** – výprava za obilím k sousedovi zanikla s obchodem se smyšlenými sousedy; nákup obilí na trhu přijde s plánem 3. Dřívější text je v [historii](history/steward-history.md).
+
 - **Kdy zvěř škodí:** v měsících škod (červen–srpen, `FIELD_DAMAGE.windowMonths`) je škoda zvěře
   a vran na polích letos nebo loni aspoň `STEWARD.huntDamageShare` (10 %) roční potřeby obilí
   z pole – stejný práh jako noční hlídka dílu (`FIELD_GUARD.night.threat`); lov je další stupeň
@@ -1019,8 +999,8 @@ domů a ta se po založení nemění.
   uvolněné domy).
 - **Kam – vždy na novou mapu** (Martin 1. 11. 2026: „Jedna ves, jedna mapa“; dřívější „Tady“ –
   nová ves na téže mapě, když tam bylo místo pro 2× díl – je zrušené):
-  - **na novou mapu** (`map`): směr bez vlastní vsi (vlastní ves v sousední mapě nahradí
-    souseda – tím směrem se neodchází, migration.md), napřed směr s hotovou zemskou stezkou (cesta
+  - **na novou mapu** (`map`): směr bez vlastní vsi (směr, kde je vlastní ves na sousední mapě, se vynechá –
+    tím směrem se neodchází, migration.md), napřed směr s hotovou zemskou stezkou (cesta
     1 den), pak nejkratší cesta ke kraji mapy (`edgeDistanceM`), při shodě pevné pořadí směrů.
     Novou krajinu vytvoří až `settleStewardDepartures` (seed sídla z `SeedSource` jednou); po
     příjezdu správce nové vsi umístí první zemnici sám (viz Kde správce běží).
@@ -1083,8 +1063,7 @@ domů a ta se po založení nemění.
     mateřské vsi (nová ves na sousední mapě stejnou, s odpočatou půdou) ÷ úroda na člověka jako
     „Pole uživí“ (potřeba z pole podle stravy mateřské vsi a pojistka). **Půda se nepočítá:**
     přelidněné vsi bez místa na pole je odchod lékem (ubude lidí, pole zůstanou) a nová ves si pole
-    teprve založí. Osivo nové vsi hlídá náklad výpravy (výš) a chybějící koupí u sousedů
-    ([pole](fields.md) – Osivo pro ves bez zásob). Mateřská ves bez polí sama nic neoseje – syn
+    teprve založí. Osivo nové vsi hlídá náklad výpravy (výš) a chybějící osivo se nekupuje (zaniklo 23. 11. 2026 – [pole](fields.md), Osivo pro ves bez zásob). Mateřská ves bez polí sama nic neoseje – syn
     neodejde. Jinak správce počká. Je to pravidlo správce – hráč odchod spouští sám.
   - **Kdo:** ze synů, kteří smějí vést a mají životaschopný díl, ten s nejvíc dospělými, pak
     nejvíc lidmi, ženatý před svobodným, starší, nižší id (deterministicky). Nikdo – správce
@@ -1345,7 +1324,7 @@ kód, který se pak zahřeje, stojí ≈ 3× víc než zahřátý).
 3. ~~**Výpravy za obchodem a velký lov rodu**~~ – v první verzi je správce nedělá (nejsou stavby).
    Chce je Martin v další verzi (nákup obilí v hladovém roce, lov prasat na polích)?
    **Rozhodnuto** – Martin 8. 11. 2026: „A“ (obojí, ale jen v nouzi – obilí kupuje, jen když
-   hrozí hlad, a na lov vyrazí, jen když zvěř škodí na polích); pravidla v Obilí a lov v nouzi.
+   hrozí hlad, a na lov vyrazí, jen když zvěř škodí na polích); pravidla v Lov v nouzi (nákup obilí skončil 23. 11. 2026).
 4. ~~**Tady, nebo na nové mapě**~~ – uzavřeno: vždy nová mapa (Martin 1. 11. 2026: „Jedna ves,
    jedna mapa“).
 5. ~~**Vsi na téže mapě**~~ – odpadá (jedna ves, jedna mapa – Martin 1. 11. 2026); výsledek

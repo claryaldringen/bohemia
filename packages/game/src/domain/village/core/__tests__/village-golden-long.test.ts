@@ -106,8 +106,17 @@ import { goldenWorld, stateFingerprint, YEAR } from './village-golden-fixture';
 // 22. 11. 2026 – nový lov (hunting.md), úloha 8: správce loví sám – jediný lov je v přípravě
 // 30. 7. 521 (bachyně utekla, jako rok 1 v village-golden.test.ts), v letech 524–526 správce lov
 // nevyhlásil; dřív 95311388581112d0 a 73877a12a6acf84e
-const EXPECTED_YEAR_2 = '93549b751d2d64b2';
-const EXPECTED_YEAR_3 = 'f2217a39e0c66fe2';
+// 23. 11. 2026 – konec smyšlených sousedů (markets.md – Pravidla 1), úloha 1: sňatky jen ve vsi,
+// žádné další manželky mužů rodu (jako rok 1 v village-golden.test.ts); dřív 93549b751d2d64b2
+// a f2217a39e0c66fe2
+// 23. 11. 2026 – konec smyšlených sousedů (markets.md – Pravidla 1), úloha 2: kovář jen vlastní,
+// bez cizího kováře ke koním a kování vozů u souseda (jako rok 1 v village-golden.test.ts); dřív
+// e3052b1b782137a1 a 452002572548e183
+// 23. 11. 2026 – konec smyšlených sousedů (markets.md – Pravidla 1), úloha 3: bez nákupu nástrojů,
+// keramiky, dřevěného nářadí a osiva u sousedů (jako rok 1 v village-golden.test.ts); dřív
+// cb76e472098a0444 a 7caad49566be1db2
+const EXPECTED_YEAR_2 = 'cd3408ee81095e60';
+const EXPECTED_YEAR_3 = '5742015609c28dc5';
 // 18. 11. 2026 – D93 cesta přes plochu staveb; dřív 168010dd35f7c1c7 a a499594da5514b49 (viz
 // village-golden.test.ts)
 // 18. 11. 2026 – D95 výmlat (výmlat podle kg snopů, rod v zimě dorovná tempo okna – viz

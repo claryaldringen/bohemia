@@ -1,24 +1,23 @@
 import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../../calendar';
 import { foundVillage } from '../../core/actions';
-import { NO_DYNASTY, isLineMan, mainWifeOf, wivesOf } from '../dynasty';
-import { ensureMainWives, extraWivesDay } from '../dynasty-wives';
+import { NO_DYNASTY, isLineMan, mainWifeOf } from '../dynasty';
+import { ensureMainWives } from '../dynasty-wives';
 import { expectedYearlyFoodNeed } from '../../fields/food-outlook';
 import { removePeople } from '../kinship';
 import { isSingle } from '../marriage';
 import { emigrantGroups, emigrantList } from '../../trade/people-trade';
 import { populationDay } from '../population';
-import { BIRTH_SPACING, FEMALE_NAMES } from '../../rules';
+import { BIRTH_SPACING } from '../../rules';
 import { LORD } from '../../rules/rules-lord';
 import { advanceVillage } from '../../core/simulate';
-import type { ChronicleEvent, Person, VillageState } from '../../types';
+import type { Person, VillageState } from '../../types';
 import { withBuiltFirstDwelling } from '../../__tests__/village-fixtures';
 import {
   DAY,
   LINE_LORD_ID,
   YEAR,
   couple,
-  dwelling,
   trackedVillage,
   type KinSpec,
 } from '../../__tests__/kin-fixtures';
@@ -30,108 +29,6 @@ const LORD_ID = LINE_LORD_ID;
 const tracked = trackedVillage;
 const byId = (s: VillageState, id: number): Person | undefined => s.people.find((p) => p.id === id);
 const ids = (people: readonly Person[]): number[] => people.map((p) => p.id);
-
-/** `extraWivesDay` den po dni `years` let od DAY + 1 (mutuje stav); vrátí události. */
-function wivesOver(s: VillageState, years: number, from = DAY + 1): ChronicleEvent[] {
-  const events: ChronicleEvent[] = [];
-  for (let d = from; d < from + Math.round(years * YEAR); d++) events.push(...extraWivesDay(s, d));
-  return events;
-}
-
-describe('extraWivesDay – další manželky z okolí (lord.md – Manželky)', () => {
-  it('nejvýš 4 žijící, další z okolí 16–22 let; hlavní manželka zůstává', () => {
-    const s = tracked(couple({ id: LORD_ID, age: 30 }, { id: 11, age: 28 }));
-    const events = wivesOver(s, 25);
-    const lord = byId(s, LORD_ID)!;
-    const wives = wivesOf(s, lord);
-    expect(wives).toHaveLength(LORD.maxWives);
-    expect(events.filter((e) => e.kind === 'extra-wife')).toHaveLength(LORD.maxWives - 1);
-    expect(lord.spouseId).toBe(11);
-    expect(mainWifeOf(s, lord)?.id).toBe(11);
-    for (const w of wives.slice(1)) {
-      expect(w.origin).toBeDefined();
-      expect(w.motherId).toBeUndefined();
-      expect(w.dwellingId).toBe(1);
-      // těhotenství nejdřív po svatební pauze, věk při příchodu 16–22 let
-      const came = w.nextBirthFrom! - BIRTH_SPACING.afterWeddingDays;
-      const age = (came - w.bornDay) / YEAR;
-      expect(age).toBeGreaterThanOrEqual(LORD.extraWifeAge.from);
-      expect(age).toBeLessThanOrEqual(LORD.extraWifeAge.to + 0.01);
-      // jméno při příchodu (population.md – Jména)
-      expect(FEMALE_NAMES).toContain(w.name);
-    }
-    // zápis nese postavení muže a jméno ženy („Vojvoda Lutobor si vzal Dobravu.“)
-    const first = events.find((e) => e.kind === 'extra-wife');
-    expect(first).toEqual({
-      day: first?.day,
-      kind: 'extra-wife',
-      estate: { title: 'voivode', kin: 'head' },
-      wife: wives[1]?.name,
-    });
-  });
-
-  it('v hladu nepřijde', () => {
-    const s = tracked(couple({ id: LORD_ID, age: 30 }, { id: 11, age: 28 }), undefined, {
-      hungry: true,
-    });
-    expect(wivesOver(s, 25)).toEqual([]);
-    expect(s.people).toHaveLength(2);
-  });
-
-  const fullManor: KinSpec[] = [
-    ...couple({ id: LORD_ID, age: 30 }, { id: 11, age: 28 }),
-    ...[2, 4, 6, 8].map((age, i): KinSpec => ({
-      id: 20 + i,
-      age,
-      sex: 'female',
-      mother: 11,
-      father: LORD_ID,
-    })),
-  ];
-
-  it('přijde vždy do domu muže, i do plného – prázdné obydlí jinde nebere (Martin 24. 10. 2026)', () => {
-    const s = tracked(fullManor, [dwelling(1), dwelling(2)]);
-    wivesOver(s, 25);
-    const wives = wivesOf(s, byId(s, LORD_ID)!);
-    expect(wives).toHaveLength(LORD.maxWives);
-    for (const w of wives) expect(w.dwellingId).toBe(1);
-  });
-
-  it('po smrti manželky si vezme další', () => {
-    const s = tracked([
-      ...couple({ id: LORD_ID, age: 30 }, { id: 11, age: 28 }),
-      ...[12, 13, 14].map((id): KinSpec => ({ id, age: 20, sex: 'female', spouse: LORD_ID })),
-    ]);
-    expect(wivesOver(s, 10)).toEqual([]);
-    removePeople(s, new Set([13]));
-    const events = wivesOver(s, 15, DAY + 4000);
-    expect(events).toHaveLength(1);
-    expect(wivesOf(s, byId(s, LORD_ID)!)).toHaveLength(4);
-  });
-
-  it('muži mimo rod a muži rodu do 18 let nikdy', () => {
-    const s = tracked([
-      { id: LORD_ID, age: 60, sex: 'male' },
-      ...couple({ id: 40, age: 30, home: 2 }, { id: 41, age: 25, home: 2 }),
-      ...couple({ id: 42, age: 16, father: LORD_ID, home: 3 }, { id: 43, age: 16, home: 3 }),
-    ]);
-    const events: ChronicleEvent[] = [];
-    // rok – syn 42 je stále mladší 18 let
-    for (let d = DAY + 1; d < DAY + 365; d++) events.push(...extraWivesDay(s, d));
-    expect(events).toEqual([]);
-    expect(wivesOver(s, 25, DAY + 365).length).toBeGreaterThan(0);
-    expect(wivesOf(s, byId(s, 40)!)).toHaveLength(1);
-  });
-
-  it('ves bez rodu – nic, ani se zděděnými příznaky rodu', () => {
-    const s = tracked(couple({ id: LORD_ID, age: 30 }, { id: 11, age: 28 }), undefined, {
-      dynasty: NO_DYNASTY,
-    });
-    const before = structuredClone(s);
-    expect(wivesOver(s, 25)).toEqual([]);
-    expect(s).toEqual(before);
-  });
-});
 
 describe('ensureMainWives – nová hlavní manželka (lord.md – Nová hlavní manželka)', () => {
   /**
@@ -404,6 +301,19 @@ describe('sledovaná ves se dvěma manželkami – vcelku = po kouscích, příb
     expect(whole.people.find((p) => p.id === 8)?.spouseId).toBe(2);
   });
 
+  it('další manželky z okolí zanikly – rok dopočtu, žádný extra-wife, muž rodu má jednu manželku (markets.md – Pravidla 1)', () => {
+    const v = wivesVillage();
+    v.people = [
+      person(2, 25, 'male', { spouseId: 3, line: true }),
+      person(3, 23, 'female', { spouseId: 2 }),
+    ];
+    v.dynasty = { lordId: 2, lords: [{ id: 2, fromDay: START }] };
+    const after = advanceVillage(v, START + 365, null);
+    expect(after.chronicle.filter((e) => e.kind === 'extra-wife')).toEqual([]);
+    expect(isLineMan(after.people.find((p) => p.id === 2)!)).toBe(true);
+    expect(after.people.filter((p) => p.sex === 'female' && p.spouseId === 2)).toHaveLength(1);
+  });
+
   it('vícežeňství nerozbije manžele ostatních', () => {
     const s = advanceVillage(wivesVillage(), START + 12 * 365, null);
     const people = new Map(s.people.map((p) => [p.id, p]));
@@ -414,7 +324,9 @@ describe('sledovaná ves se dvěma manželkami – vcelku = po kouscích, příb
       if (p.sex === 'male') expect(spouse?.spouseId).toBe(p.id);
       const husband = p.sex === 'male' ? p : spouse!;
       const wives = s.people.filter((w) => w.spouseId === husband.id);
-      expect(wives.length).toBeLessThanOrEqual(isLineMan(husband) ? LORD.maxWives : 1);
+      expect(wives.length).toBeLessThanOrEqual(
+        isLineMan(husband) ? LORD.founders.wifeAges.length : 1,
+      );
       // každý ženatý muž má hlavní manželku (konec dne – `ensureMainWives`)
       expect(husband.spouseId).toBeDefined();
     }

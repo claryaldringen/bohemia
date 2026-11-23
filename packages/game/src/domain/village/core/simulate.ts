@@ -5,7 +5,7 @@ import type { Landscape, ObstacleLayer } from '../../landscape';
 import { abandonmentCheck, abandonmentDay } from '../buildings/abandonment';
 import { retireCarts } from '../crafts/carts';
 import { updateOrePits } from '../crafts/smith-supply';
-import { finishPurchases, startPurchases } from '../crafts/craft-buying';
+import { finishPurchases } from '../crafts/craft-buying';
 import { cartIronDay } from '../crafts/cart-iron';
 import { cloneState } from './clone';
 import { updateKilnRemnants } from '../crafts/charcoal';
@@ -28,7 +28,7 @@ import { villageSacredOaks } from '../people/sacred';
 import { moveGrainFromCoveredPits } from '../fields/grain-pit-site';
 import { spoilSheaves } from '../fields/threshing';
 import { settleSowingSeed } from '../fields/seed';
-import { seedBuyingDay } from '../fields/seed-buying';
+import { seedReserveDay } from '../fields/seed-reserve';
 import { sacredOakEvents } from '../people/sacred-life';
 import { orchardSeasonDay } from '../buildings/orchard';
 import { fruitEatenUntilRotKg } from '../buildings/fruit-target';
@@ -54,7 +54,7 @@ import { refugeFoodDay } from '../fortification/state/refugees';
 import { stewardDay } from '../steward/steward';
 import { stewardArrival, stewardSonDay } from '../steward/steward-son';
 import { npcMasonryDay } from '../steward/npc-masonry';
-import { ensureMainWives, extraWivesDay } from '../people/dynasty-wives';
+import { ensureMainWives } from '../people/dynasty-wives';
 import { updateRuins } from '../buildings/ruins';
 import {
   CHRONICLE_MAX_EVENTS,
@@ -363,7 +363,10 @@ function seasonPlanDay(
   return waiting;
 }
 
-/** Práce dne: pomoc rodiny, škody zvěře, místní pohromy, nákupy, osivo a `work()`; osivo za nestihnuté setí zpět. */
+/**
+ * Práce dne: pomoc rodiny, škody zvěře, místní pohromy, rezerva osiva a `work()`; osivo za
+ * nestihnuté setí zpět.
+ */
 function workDayStep(
   state: VillageState,
   day: number,
@@ -380,15 +383,14 @@ function workDayStep(
   // zvěř: 1. 6. ohrožené díly polí podle vzdálenosti od lesa (wildlife.md – Škody)
   damageWindowStart(state, day, landscape);
   // místní pohromy (disasters.md – Místní pohromy – jedna ves): smršť, kroupy, povodeň, požár –
-  // po plánu dne, před nákupy a prací; při požáru dnes dospělí hasí (`villagersToday`, `work()`)
+  // po plánu dne, před rezervou osiva a prací; při požáru dnes dospělí hasí (`villagersToday`,
+  // `work()`)
   const disasterEvents = localDisastersDay(state, day, landscape, obstacles);
   state.chronicle.push(...disasterEvents);
-  // nákup výrobků řemeslníků u sousedů – jednou za rok po sklizni, ves se rozhodne sama
-  // (crafts.md – Nákup u sousedů); skupina vyrazí hned
-  startPurchases(state, day, coverage, landscape);
-  // osivo pro ves bez zásob – 1. 9. a 1. 3. ho ves koupí u sousedů, 1. 6. je nezaseté obyčejné
-  // zrno (fields.md – Osivo pro ves bez zásob); po plánu dne, před prací
-  state.chronicle.push(...seedBuyingDay(state, day));
+  // rezerva osiva – 1. 6. je nezaseté osivo obyčejné zrno, 1. 9. a 1. 3. kronika, kolik osiva
+  // chybí (fields.md – Osivo pro ves bez zásob; nákup u sousedů zrušen – markets.md, Pravidla 1);
+  // po plánu dne, před prací
+  state.chronicle.push(...seedReserveDay(state, day));
   const { toil, lordField } = work(
     state,
     day,
@@ -422,9 +424,9 @@ function afterWorkDay(
   roadSwathDay(state, day, obstacles, landscape, swathRoadsInWork(state));
   state.chronicle.push(...finishExpeditions(state, day));
   state.chronicle.push(...finishPurchases(state, day));
-  // kování vozů (wagons.md – Kování vozů): vůz s hotovou dřevěnou prací ze zásoby nástrojů, ves bez
-  // kováře pošle tesaře nebo jeho syna do nejbližší vsi s kovářem; kdo se vrátil, vůz dokončí
-  state.chronicle.push(...cartIronDay(state, day, landscape));
+  // kování vozů (wagons.md – Kování vozů): vůz s hotovou dřevěnou prací vezme kování z hřiven vsi;
+  // kdo se vrátil z cesty uložené ve starší vsi, vůz dokončí
+  state.chronicle.push(...cartIronDay(state, day));
   finishConstructions(state, day, landscape ?? undefined);
   // dvorec vojvody – po zániku dvorce nejstarší obydlí, starší ves dvorec dostane (trade.md)
   keepManor(state);
@@ -471,7 +473,7 @@ function remnantsDay(
   // `startKiln`, místo nové jámy), dokončení staveb (`finishConstructions`) a přestavby
   // (`decideRebuilds` – i na novém pozemku). Stavby hráče a zemní práce vozové cesty kontroluje akce
   // (`withoutBuiltOverGrainPits` v updateVillage). Co bere id až po kontrole (porody, sňatky,
-  // nevěsty z okolí, další manželky), nic nestaví. Nový krok, který staví bez nového id nebo po
+  // hlavní manželky), nic nestaví. Nový krok, který staví bez nového id nebo po
   // kontrole, musí kontrolu spustit sám.
   if (state.nextId !== idsBefore) moveGrainFromCoveredPits(state, day, landscape);
 }
@@ -484,17 +486,16 @@ function marriagesAndMealDay(
 ): ReturnType<typeof eat> {
   // sňatky mezi domy – svobodní ve dvou domech se vezmou (population.md – Sňatky mezi domy); muž
   // bez hlavní manželky, který nějakou manželku má (osadníci výpravy), se před nimi nežení
-  // (lord.md – Nová hlavní manželka); pak další manželky mužů rodu z okolí (lord.md – Manželky)
-  // svatby čekají, dokud výhled zásob k příští sklizni nemá pojistku (kinship.md – Sňatky čekají
-  // na zásoby; Martin 27. 10. 2026) – naplnění se spočítá jednou za den, jen když je svatba na řadě;
-  // v hájení ne (hladem v něm nikdo nezemře, ves má růst – population.md, Hájení)
+  // (lord.md – Nová hlavní manželka); svatby čekají, dokud výhled zásob k příští sklizni nemá
+  // pojistku (kinship.md – Sňatky čekají na zásoby; Martin 27. 10. 2026) – naplnění se spočítá
+  // jednou za den, jen když je svatba na řadě; v hájení ne (hladem v něm nikdo nezemře, ves má
+  // růst – population.md, Hájení)
   let fill: number | undefined;
   const lucky = inLuckyYears(state.foundedDay, day);
   const storesFill = (): number =>
     (fill ??= lucky ? 1 : bufferFill(fieldStoresOutlook(state, day, coverage)));
   state.chronicle.push(...ensureMainWives(state, day));
   state.chronicle.push(...arrangeMarriages(state, day, storesFill));
-  state.chronicle.push(...extraWivesDay(state, day, storesFill));
   // uprchlíci jedí napřed své – v lese z ukrytého, v hradišti ze zásob pobytu (war.md – Varování,
   // poslové a útěk do hradiště); bez útěku a hostů uprchlíků nic
   if (state.refuge?.hidden !== undefined || state.refugeStays !== undefined) {

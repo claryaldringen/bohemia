@@ -1,24 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../../calendar';
 import { foundVillage } from '../../core/actions';
-import {
-  CRAFT_PRODUCTS,
-  neighbourCrafts,
-  ownCraftsmanWorks,
-  planPurchases,
-  productPrice,
-  type PurchasePlan,
-  purchaseRoute,
-  purchaseTravelers,
-} from '../craft-buying';
+import { craftSources, ownCraftsmanWorks, purchaseRoute, purchaseTravelers } from '../craft-buying';
+import { cartsAway, villageCarts } from '../carts';
 import { craftCoverage, newWorkshop } from '../crafts';
-import { neighbourKind } from '../../trade/neighbours';
-import { CRAFT_BUYING, NEIGHBOR_DIRECTIONS } from '../../rules';
+import { oxenHome } from '../../livestock/oxen';
 import { advanceVillage } from '../../core/simulate';
-import type { FieldPart, Person, VillageState } from '../../types';
+import type { Craft, CraftPurchase, FieldPart, Pen, Person, VillageState } from '../../types';
 
-// Nákup u sousedů (crafts.md – Nákup u sousedů; Martin 19. 10. 2026: „Nástroje ať vesničané
-// obchodují individuálně… Sami si spočítají, jestli se jim to vyplatí.“).
+// Výrobky řemeslníků jen od vlastních řemeslníků – nákup u sousedů zrušen (markets.md – Pravidla 1;
+// Martin 22. 11. 2026: „Ves by měla být schopná přežít a rozvíjet se dle současných pravidel i bez
+// obchodu“). Nákup uložený na cestě ve starší vsi doběhne (markets.md bod 10).
 
 const at = (year: number, month: number, day: number): number => dayIndexOf({ year, month, day });
 const YEAR = 365.25;
@@ -78,27 +70,79 @@ function village(households = 3, storesKg = 8000, day = NOV15 - 1): VillageState
   return s;
 }
 
-describe('řemeslníci sousedů', () => {
-  it('řemeslníci mají kováře, hrnčíře i tesaře, ostatní někdy – deterministicky', () => {
-    const seed = 5;
-    for (const direction of NEIGHBOR_DIRECTIONS) {
-      const crafts = neighbourCrafts(seed, direction);
-      expect(neighbourCrafts(seed, direction)).toEqual(crafts);
-      if (neighbourKind(seed, direction) === 'crafters') {
-        expect(crafts).toEqual(['smith', 'potter', 'carpenter']);
-      }
-    }
-    // kolem každé vsi jsou dva sousedé řemeslníci – každé řemeslo jde koupit
-    const all = NEIGHBOR_DIRECTIONS.flatMap((d) => neighbourCrafts(seed, d));
-    for (const craft of ['smith', 'potter', 'carpenter'] as const) {
-      expect(all.filter((c) => c === craft).length).toBeGreaterThanOrEqual(2);
-    }
+/** Pracující dílna `craft` v obydlí 2 s řemeslníkem. */
+function withWorkshop(s: VillageState, craft: Craft): VillageState {
+  s.dwellings.push({
+    id: 2,
+    type: 'polozemnice',
+    builtDay: s.lastDay - 400,
+    condition: 1,
+    position: { x: 30, z: 0, rotation: 0 },
+    workshop: { ...newWorkshop(craft), activity: 'producing' },
+  });
+  s.people.push({ id: 90, bornDay: s.lastDay - 9000, dwellingId: 2, sex: 'male' } as Person);
+  return s;
+}
+
+/** Hotová ohrada volů se dvěma vycvičenými voly. */
+function withOxen(s: VillageState): VillageState {
+  const pen: Pen = {
+    id: 900,
+    species: 'team',
+    cell: { x: 3, y: 4 },
+    x: 50,
+    z: 60,
+    builtDay: s.lastDay - 800,
+    oxen: [{ trainedDay: s.lastDay - 10 }, { trainedDay: s.lastDay - 10 }],
+  };
+  s.pens = [pen];
+  return s;
+}
+
+/** Nákup uložený ve starší vsi na cestě – ke kraji mapy na sever, `days` dní, `done` za sebou. */
+function purchase(over: Partial<CraftPurchase> = {}): CraftPurchase {
+  return {
+    direction: 'N',
+    startedDay: NOV15,
+    group: 3,
+    days: 8,
+    tripDays: 8,
+    done: 0,
+    trailId: null,
+    edge: { x: 0, z: 960 },
+    get: { toolsKg: 9, potteryKg: 40 },
+    pay: { grainKg: 520 },
+    ...over,
+  };
+}
+
+describe('bez nákupu u sousedů', () => {
+  it('ves bez hrnčíře a kováře s přebytkem obilí a hotovou stezkou nic nekoupí', () => {
+    const s = village(3, 8000, at(600, 11, 1));
+    s.trails = [{ id: 7, direction: 'N', pieces: [], lengthM: 960, startedDay: 0, builtDay: 1 }];
+    const next = advanceVillage(s, at(600, 12, 1), null);
+    expect(next.purchases ?? []).toEqual([]);
+    expect(next.chronicle.some((e) => e.kind === 'crafts-bought')).toBe(false);
   });
 
-  it('cena – nabízené zboží za 0,96 hodnoty; po stezce kratší cesta než krajinou', () => {
-    expect(productPrice('toolsKg')).toBeCloseTo(60 * 0.96, 9);
-    expect(productPrice('potteryKg')).toBeCloseTo(3 * 0.96, 9);
-    expect(productPrice('woodToolsKg')).toBeCloseTo(CRAFT_BUYING.woodToolsValueKg * 0.96, 9);
+  it('kde ves výrobky bere – jen vlastní pracující řemeslník', () => {
+    const s = withWorkshop(village(), 'potter');
+    expect(craftSources(s)).toEqual([
+      { product: 'toolsKg', own: false },
+      { product: 'potteryKg', own: true },
+      { product: 'woodToolsKg', own: false },
+    ]);
+    expect(craftSources(village()).every((source) => !source.own)).toBe(true);
+  });
+
+  it('vlastní řemeslník bez vstupů se nepočítá', () => {
+    const s = withWorkshop(village(), 'smith');
+    expect(ownCraftsmanWorks(s, 'smith')).toBe(true);
+    s.dwellings[1]!.workshop!.activity = 'no-charcoal';
+    expect(ownCraftsmanWorks(s, 'smith')).toBe(false);
+  });
+
+  it('cesta ke kraji mapy (karavany zásilek) – po stezce kratší než krajinou', () => {
     const s = village();
     const off = purchaseRoute(s, 'N', null);
     expect(off.trailId).toBeNull();
@@ -111,105 +155,74 @@ describe('řemeslníci sousedů', () => {
   });
 });
 
-describe('rozhodnutí vesničanů', () => {
-  it('bez řemeslníků ve vsi se vyplatí koupit nástroje, keramiku i dřevěné nářadí', () => {
+describe('nákup na cestě doběhne (markets.md bod 10)', () => {
+  it('lidé jsou s nákupem pryč, jdou ke kraji mapy a s návratem přinesou výrobky', () => {
     const s = village();
-    const plans = planPurchases(s, NOV15, craftCoverage(s, NOV15), null);
-    expect(plans.map((p) => p.product).sort()).toEqual([...CRAFT_PRODUCTS].sort());
-    // napřed to, co ušetří nejvíc práce na práci, kterou stojí (rozhodnutí Clauda)
-    const ratios = plans.map((p) => p.savedManDays / p.costManDays);
-    expect(ratios).toEqual([...ratios].sort((a, b) => b - a));
-    for (const plan of plans) {
-      expect(plan.worthIt).toBe(true);
-      expect(plan.savedManDays).toBeGreaterThan(plan.costManDays);
-      expect(neighbourCrafts(s.seed, plan.route.direction).length).toBeGreaterThan(0);
-    }
-  });
-
-  it('z malého přebytku koupí napřed nejvýhodnější výrobek, ne první v pořadí', () => {
-    const rich = planPurchases(village(), NOV15, craftCoverage(village(), NOV15), null);
-    const best = rich.reduce((a, b) =>
-      a.savedManDays / a.costManDays >= b.savedManDays / b.costManDays ? a : b,
-    );
-    // přebytek jen na kus nákupu – dostane ho výrobek s nejlepším poměrem
-    const worth = (storesKg: number): PurchasePlan[] => {
-      const s = village(3, storesKg);
-      return planPurchases(s, NOV15, craftCoverage(s, NOV15), null).filter((p) => p.worthIt);
-    };
-    let storesKg = 8000;
-    while (worth(storesKg).length > 1) storesKg -= 250;
-    storesKg += 250;
-    while (worth(storesKg).length > 1) storesKg -= 10;
-    const bought = worth(storesKg);
-    expect(bought).toHaveLength(1);
-    expect(bought[0]!.product).toBe(best.product);
-    expect(best.product).not.toBe(CRAFT_PRODUCTS[0]);
-  });
-
-  it('bez přebytku nad pojistkou zásob nekupuje', () => {
-    const s = village(3, 200);
-    expect(planPurchases(s, NOV15, craftCoverage(s, NOV15), null)).toEqual([]);
-  });
-
-  it('vlastní kovář má přednost – nástroje nekupuje; kovář bez uhlí ano', () => {
-    const s = village();
-    s.dwellings.push({
-      id: 2,
-      type: 'polozemnice',
-      builtDay: NOV15 - 400,
-      condition: 1,
-      position: { x: 30, z: 0, rotation: 0 },
-      workshop: { ...newWorkshop('smith'), activity: 'producing' },
-    });
-    s.people.push({ id: 90, bornDay: NOV15 - 9000, dwellingId: 2, sex: 'male' } as Person);
-    expect(ownCraftsmanWorks(s, 'smith')).toBe(true);
-    const own = planPurchases(s, NOV15, craftCoverage(s, NOV15), null);
-    expect(own.some((p) => p.product === 'toolsKg')).toBe(false);
-    s.dwellings[1]!.workshop!.activity = 'no-charcoal';
-    const blocked = planPurchases(s, NOV15, craftCoverage(s, NOV15), null);
-    expect(blocked.some((p) => p.product === 'toolsKg')).toBe(true);
-  });
-
-  it('kupuje jen do zásoby – se zásobou na cíli nic', () => {
-    const s = village();
-    s.crafts = { charcoalKg: 0, potteryKg: 1000, woodToolsKg: 1000 };
-    s.toolEquipmentKg = 1000;
-    expect(planPurchases(s, NOV15, craftCoverage(s, NOV15), null)).toEqual([]);
-  });
-});
-
-describe('výprava za nákupem', () => {
-  it('15. 11. skupina vyrazí, platí obilím, je pryč a s návratem přinese výrobky', () => {
-    const s = village();
+    s.purchases = [purchase()];
     const day1 = advanceVillage(s, NOV15, null);
-    expect(day1.purchases?.length).toBeGreaterThan(0);
-    expect(day1.storesKg).toBeLessThan(s.storesKg - 100);
-    const travelers = purchaseTravelers(day1);
-    expect(travelers).toBeGreaterThan(0);
+    expect(purchaseTravelers(day1)).toBe(3);
     expect(day1.labor!.shares.some((x) => x.activity === 'trade' && x.target.kind === 'edge')).toBe(
       true,
     );
-    const back = advanceVillage(day1, NOV15 + 70, null);
+    const back = advanceVillage(day1, NOV15 + 10, null);
     expect(back.purchases).toBeUndefined();
-    const bought = back.chronicle.filter((e) => e.kind === 'crafts-bought');
-    expect(bought.length).toBe(day1.purchases!.length);
+    expect(back.chronicle.filter((e) => e.kind === 'crafts-bought')).toEqual([
+      {
+        day: NOV15 + 7,
+        kind: 'crafts-bought',
+        direction: 'N',
+        get: purchase().get,
+        pay: purchase().pay,
+      },
+    ]);
     // nástroje jdou do vybavení domácností (production-chains.md)
     expect(back.toolEquipmentKg).toBeGreaterThan(0);
     expect(back.crafts!.potteryKg).toBeGreaterThan(0);
-    expect(craftCoverage(back, NOV15 + 70).tools).toBeGreaterThan(0);
+    expect(craftCoverage(back, NOV15 + 10).tools).toBeGreaterThan(0);
   });
 
-  it('jindy než 15. 11. ves nekupuje', () => {
-    const s = village(3, 8000, at(600, 10, 1));
-    const next = advanceVillage(s, at(600, 11, 10), null);
+  it('uložený nákup keramiky a vozu den před návratem – po dni keramika v zásobě a vůz přibude', () => {
+    const s = withOxen(village());
+    s.purchases = [purchase({ done: 7, get: { potteryKg: 40 }, cart: 'two-wheel' })];
+    const cartsBefore = villageCarts(s).length;
+    // vůl táhne koupený vůz – do návratu je se skupinou pryč
+    expect(oxenHome(s, s.lastDay)).toBe(1);
+    const next = advanceVillage(s, NOV15, null);
     expect(next.purchases).toBeUndefined();
+    expect(next.crafts!.potteryKg).toBeGreaterThan(39);
+    expect(villageCarts(next)).toHaveLength(cartsBefore + 1);
+    expect(villageCarts(next)[0]!.kind).toBe('two-wheel');
+    expect(oxenHome(next, NOV15)).toBe(2);
+    expect(next.chronicle.filter((e) => e.kind === 'crafts-bought')).toEqual([
+      {
+        day: NOV15,
+        kind: 'crafts-bought',
+        direction: 'N',
+        get: { potteryKg: 40 },
+        pay: { grainKg: 520 },
+        cart: 'two-wheel',
+      },
+    ]);
+  });
+
+  it('vůz vsi jede s nákupem – do návratu je pryč', () => {
+    const s = withOxen(village());
+    s.carts = [{ id: 1, kind: 'four-wheel', builtDay: s.lastDay - 100 }];
+    s.purchases = [purchase({ carts: [1] })];
+    const day1 = advanceVillage(s, NOV15, null);
+    expect(cartsAway(day1).has(1)).toBe(true);
+    expect(oxenHome(day1, NOV15)).toBe(0);
+    const back = advanceVillage(day1, NOV15 + 10, null);
+    expect(cartsAway(back).size).toBe(0);
+    expect(oxenHome(back, back.lastDay)).toBe(2);
   });
 
   it('na kouscích dopočtu nezávisí', () => {
     const s = village();
+    s.purchases = [purchase()];
     const whole = advanceVillage(s, NOV15 + 40, null);
     let pieces = s;
-    for (const to of [NOV15 - 1 + 1, NOV15 + 3, NOV15 + 17, NOV15 + 40]) {
+    for (const to of [NOV15, NOV15 + 3, NOV15 + 17, NOV15 + 40]) {
       pieces = advanceVillage(pieces, to, null);
     }
     expect(pieces).toEqual(whole);

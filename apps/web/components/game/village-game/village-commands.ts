@@ -22,7 +22,6 @@ import {
   plantRoadApples,
   renameVillage,
   restoreStructure,
-  sendExpedition,
   setDefenseStance,
   setSteward,
   upgradeFortification,
@@ -75,7 +74,6 @@ export type SelectionCommands = Required<
     | 'onDeclareHunt'
     | 'onDecidePrisoner'
     | 'onSetStance'
-    | 'onSendExpedition'
   >
 >;
 
@@ -297,22 +295,6 @@ export function villageCommands({
       const villageId = viewRef.current?.id;
       return villageId
         ? runAction(() => setDefenseStance({ villageId, stance })).then(reported)
-        : Promise.resolve(null);
-    },
-    onSendExpedition: (direction, give, get, people) => {
-      const villageId = viewRef.current?.id;
-      // chyba zůstane v panelu obchodu (vrácený důvod) i jako krátký řádek nahoře
-      return villageId
-        ? runAction(() =>
-            sendExpedition({
-              villageId,
-              direction,
-              give,
-              get,
-              givePeople: people.give,
-              getPeople: people.get,
-            }),
-          ).then(reported)
         : Promise.resolve(null);
     },
   };

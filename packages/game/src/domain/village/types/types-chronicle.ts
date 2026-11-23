@@ -588,9 +588,10 @@ export type ChronicleEvent = { day: number } & (
   /** Kůň pod jezdcem došel plného výcviku (horses.md – Výcvik koně a jezdec). */
   | { kind: 'horse-trained'; penId: number; horseId: number }
   /**
-   * Jezdecké koně podkovali (horses.md – Kování; `own` – vlastní kovář, jinak z jiné vsi). Cizí
-   * kovář přišel od souseda ve směru `direction` (`nearestCraftsman` – kronika ho píše jménem vsi);
-   * chybí u vlastního kováře a u zápisů starších než 14. 11. 2026.
+   * Jezdecké koně podkovali (horses.md – Kování; `own` – vlastní kovář, jinak z jiné vsi – jen
+   * starší zápisy, cizí kovář zrušen – markets.md, Pravidla 1). Cizí kovář přišel od souseda ve
+   * směru `direction` (kronika ho píše jménem vsi); chybí u vlastního kováře a u zápisů starších
+   * než 14. 11. 2026.
    */
   | { kind: 'horses-shod'; horses: number; own: boolean; direction?: Direction8 }
   /**
@@ -699,8 +700,9 @@ export type ChronicleEvent = { day: number } & (
    */
   | { kind: 'trade-returned'; direction: Direction8; get: TradeGoods; people?: TradePeople }
   /**
-   * Vesničané koupili výrobky řemeslníků u souseda (crafts.md – Nákup u sousedů) – kg nástrojů,
-   * keramiky a dřevěného nářadí, čím platili (kg obilí a luštěnin).
+   * Vesničané koupili výrobky řemeslníků u souseda (crafts.md – Nákup u sousedů; nový nákup
+   * zrušen – markets.md, Pravidla 1, zápis přibude jen s návratem nákupu uloženého na cestě) – kg
+   * nástrojů, keramiky a dřevěného nářadí, čím platili (kg obilí a luštěnin).
    */
   | {
       kind: 'crafts-bought';
@@ -711,9 +713,10 @@ export type ChronicleEvent = { day: number } & (
       cart?: CartKind;
     }
   /**
-   * Ves koupila u sousedů osivo na setí nutných dílů (fields.md – Osivo pro ves bez zásob): kg
-   * obilí na osivo, obilí do zásob za přeplatek posledního kusu dobytka (`changeKg`; chybí = nic)
-   * a čím platila – hřivny (kg) a krávy (kusy).
+   * Ves koupila u sousedů osivo na setí nutných dílů (fields.md – Osivo pro ves bez zásob; jen
+   * starší zápisy – nákup osiva zrušen, markets.md – Pravidla 1): kg obilí na osivo, obilí do zásob
+   * za přeplatek posledního kusu dobytka (`changeKg`; chybí = nic) a čím platila – hřivny (kg)
+   * a krávy (kusy).
    */
   | {
       kind: 'seed-bought';
@@ -722,10 +725,12 @@ export type ChronicleEvent = { day: number } & (
       pay: { ironBarsKg?: number; cows?: number };
     }
   /**
-   * Ves nemá osivo na setí nutných dílů a koupit ho nemohla (fields.md – Osivo pro ves bez zásob):
-   * kolik osiva chybí (kg) – nemá čím zaplatit (`pay`), nebo sousedé obilí nemají (`supply`).
+   * Ves nemá osivo na setí nutných dílů (fields.md – Osivo pro ves bez zásob): kolik osiva chybí
+   * (kg). Bez `reason` = bez nákupu (nákup osiva u sousedů zrušen – markets.md, Pravidla 1);
+   * starší zápisy nesou, proč ho ves nekoupila – nemá čím zaplatit (`pay`), nebo sousedé obilí
+   * nemají (`supply`).
    */
-  | { kind: 'seed-short'; shortKg: number; reason: 'pay' | 'supply' }
+  | { kind: 'seed-short'; shortKg: number; reason?: 'pay' | 'supply' }
   /** Tesař vyrobil vůz (wagons.md – Tesař). */
   | { kind: 'cart-made'; cart: CartKind }
   /**

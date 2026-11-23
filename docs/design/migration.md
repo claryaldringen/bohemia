@@ -78,7 +78,7 @@ když ves přeroste, co ji mapa uživí (Martin) – a stará ves zůstane.
   **20 kg na nosiče navíc** k jídlu; osivo na voze nad to jen z místa, které zbude po jídle na
   **180 dní** (jídlo má přednost – návrh Clauda). Poměrný díl je ze zásob bez rezervy osiva
   mateřské vsi. Nová ves ho nesní (ani na
-  cestě) a zaseje ho do 1. 6.; co chybí, koupí u sousedů.
+  cestě) a zaseje ho do 1. 6.; co chybí, ves nekoupí (od 23. 11. 2026 nejsou smyšlení sousedé – markets.md, plán 1).
 - **Vůz při odchodu** (Martin 20. 10. 2026 k návrhu nových nákladů vozů – [vozy](wagons.md), Co se
   vozí a na čem: „**Ano, udělej to jak říkáš**“; podrobnosti rozhodnutí Clauda): odcházející si
   vezmou **volný vůz s voly** – vůz doma (ne na výpravě) a vycvičené voly pro něj (čtyřkolák pár,
@@ -269,9 +269,7 @@ když ves přeroste, co ji mapa uživí (Martin) – a stará ves zůstane.
   nestárnou ani nejí – pár dní); v přepínači je s poznámkou „na cestě“, po přepnutí se načte nová
   mapa s řádkem „Lidé jsou na cestě…“. Po příjezdu nabídka staveb ukáže jen zemnici a její
   umístění ves založí (`settleJourney`).
-- **Sousedé pro obchod:** vlastní ves na sousední mapě nahradí souseda bez simulace v tom směru
-  pro obě vsi – soused tím směrem zmizí z obchodu a výpravu tam server odmítne (obchod mezi
-  vlastními vsemi zatím není – ne-cíl). Růžice odchodu tím směrem je zašedlá se jménem vlastní
+- **Sousedé pro obchod:** smyšlení sousedé zanikli (23. 11. 2026, markets.md – plán 1); vlastní ves na sousední mapě je skutečný soused, obchod s ní přijde s plánem 2. Růžice odchodu tím směrem je zašedlá se jménem vlastní
   vsi.
 - **Dvorec na pozemku dvou políček** – prohlížeč při kontrole umístění dvůr dvorce teď zná taky
   (dřív ho vynechal a stavbu ve dvoře odmítl až server).

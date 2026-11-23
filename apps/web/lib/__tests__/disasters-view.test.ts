@@ -1,13 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { dayIndexOf, type VillageState } from '@bohemia/game';
 import {
-  dearthLabel,
   disasterNotices,
   partLossesView,
   partLossRows,
   partProtectionView,
   protectionLabel,
-  tradeDearth,
   weatherNotices,
   weatherView,
 } from '../disasters-view';
@@ -83,20 +81,6 @@ describe('ochrana a ztráty dílu', () => {
       ['drought', '−44 %', true],
       ['hail', '−60 %', true],
     ]);
-  });
-});
-
-describe('sousedé po zlém roce', () => {
-  it('rok obchodu od 1. 11. – v březnu platí loňské kruté sucho', () => {
-    const state: WeatherState = {
-      disasters: { override: { weather: { 502: { summer: 'drought' } } } },
-    };
-    expect(tradeDearth(state, dayIndexOf({ year: 503, month: 3, day: 1 }))).toBe('cruel');
-    expect(tradeDearth(state, dayIndexOf({ year: 503, month: 11, day: 2 }))).toBeUndefined();
-    expect(tradeDearth({}, MAY_2)).toBeUndefined();
-    expect(dearthLabel('bad')).toBe(
-      'Kraj po zlém roce – obilí zdražilo: zboží za obilí −33 %, obilí sousedů −50 %',
-    );
   });
 });
 

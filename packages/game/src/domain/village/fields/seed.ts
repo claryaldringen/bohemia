@@ -30,7 +30,7 @@ import {
 import { daylightFactor } from '../core/daylight';
 import { PLOUGH_HA_PER_DAY } from '../livestock/plough';
 import { fieldWorkPerHa } from '../core/productivity';
-import { CROP_WINDOWS, PEAK_CAPACITY_SHARE, SEED_BUYING, THRESHING } from '../rules';
+import { CROP_WINDOWS, PEAK_CAPACITY_SHARE, SEED_RESERVE, THRESHING } from '../rules';
 import { windowDaysLeft } from './sowing';
 import { nextSowing, onTurn } from './rotation';
 import { sheavesOutlook } from './threshing';
@@ -123,7 +123,7 @@ function storeKg(state: Pick<VillageState, 'storesKg' | 'legumesKg'>, store: See
 
 /**
  * Osivo ve zásobách obilí, které ves má jen na setí (kg – `VillageState.reservedSeedKg`, nejvýš
- * zásoby obilí): přinesené osadníky a koupené u sousedů (fields.md – Osivo pro ves bez zásob).
+ * zásoby obilí): přinesené osadníky a zakladateli (fields.md – Osivo pro ves bez zásob).
  */
 export function reservedSeedKg(state: Pick<VillageState, 'storesKg' | 'reservedSeedKg'>): number {
   return Math.min(Math.max(0, state.reservedSeedKg ?? 0), Math.max(0, state.storesKg));
@@ -174,7 +174,7 @@ export function foodUntilHarvestKg(state: VillageState, day: number): number {
  * 6. 11. 2026: „Musí zasít“, výpočet ze stravy návrh Clauda): nejmenší zrno, při kterém celé
  * nasycení do žní nedovede nahromaděný hlad zbytku vsi k prahu úmrtí nejcitlivější skupiny ve vsi
  * (STARVATION.threshold – děti a starší 12, dospělí 20) bez SEED_STORES.marginDays; s osivem jen
- * na setí (`reservedSeedKg`) ani k prahu, od kterého ho ves sní (SEED_BUYING.eatFromStarvationDays)
+ * na setí (`reservedSeedKg`) ani k prahu, od kterého ho ves sní (SEED_RESERVE.eatFromStarvationDays)
  * – ostatní zrno je osivo. Příděl energie do žní je příděl k přežití (`survivalRation` – táž
  * definice jako životní minimum přídělu `rationMinimum`, jen s mezí osiva): pod STARVATION.fedFrom
  * přibude za den (fedFrom − příděl) / fedFrom dne hladu, ves tedy unese `slack` dní hladu, příděl
@@ -199,7 +199,7 @@ export function seedKeepKg(state: VillageState, day: number, input?: DietInput):
   const meal = input ?? baseMealInput(state, day, craftCoverage(state, day).pottery, 1);
   // s osivem jen na setí ani k prahu, od kterého ho ves sní – mez jen přežívací zásoby, ne přídělu
   const seedLimit =
-    reservedSeedKg(state) > EPSILON ? Math.min(limit, SEED_BUYING.eatFromStarvationDays) : limit;
+    reservedSeedKg(state) > EPSILON ? Math.min(limit, SEED_RESERVE.eatFromStarvationDays) : limit;
   const ration = survivalRation(seedLimit, hunger, meal.daysToHarvest);
   if (ration <= EPSILON) return 0;
   // příděl vsi, se kterým zbytek vsi dostane `ration` a vyšší vrstvy (nad 75 %) jedí dosyta –

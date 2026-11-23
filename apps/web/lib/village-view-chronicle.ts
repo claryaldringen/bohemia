@@ -6,7 +6,7 @@ import { LEVY_UNITS } from './levy-labels';
 import {
   CRAFT_PRODUCTS,
   ORCHARD,
-  neighbourOf,
+  legacyNeighbourName,
   type CraftProduct,
   type FloodLevel,
   type SummerWeather,
@@ -45,7 +45,7 @@ import { formatGameDate } from './game-date';
 import { noticeChronicleText } from './notice-chronicle';
 
 import { DIRECTION_NAMES, NEWCOMER_TEXTS, goodsText, peopleText } from './trade-names';
-import { fromVillage, toVillage, villagersOf, withVillagersOf } from './village-name-cases';
+import { fromVillage, villagersOf, withVillagersOf } from './village-name-cases';
 
 import { formatAnimals, formatCells, formatHa, formatInteger, plural } from './village-format';
 
@@ -500,11 +500,8 @@ function penFinishedText(species: PenSpecies | undefined, extended: boolean): st
 }
 
 /** Jabloně podél cesty (Martin 14. 11. 2026): „Podél cesty mezi dvorcem a kovárnou byly vysazeny jabloně.“ */
-function roadApplesText(
-  ends: readonly [ChronicleRoadEnd, ChronicleRoadEnd] | undefined,
-  seed: number | undefined,
-): string {
-  const between = ends ? roadBetween(ends, seed) : null;
+function roadApplesText(ends: readonly [ChronicleRoadEnd, ChronicleRoadEnd] | undefined): string {
+  const between = ends ? roadBetween(ends) : null;
   return between === null
     ? 'Podél cesty byly vysazeny jabloně.'
     : `Podél cesty ${between} byly vysazeny jabloně.`;
@@ -513,7 +510,6 @@ function roadApplesText(
 /** Vylepšená cesta (Martin 15. 11. 2026): „Vojvoda Lutobor nechal vylepšit cestu mezi dvorcem a potokem.“ */
 function roadUpgradeText(
   event: Extract<ChronicleEvent, { kind: 'construction-finished' }>,
-  seed: number | undefined,
 ): string {
   const who = event.bySteward
     ? 'Správce'
@@ -521,14 +517,11 @@ function roadUpgradeText(
       ? `Vojvoda ${event.lord}`
       : undefined;
   if (who === undefined && !event.roadEnds) return 'Cesta byla vylepšena.';
-  const between = event.roadEnds ? roadBetween(event.roadEnds, seed) : null;
+  const between = event.roadEnds ? roadBetween(event.roadEnds) : null;
   return `${who ?? 'Vojvoda'} nechal vylepšit cestu${between === null ? '' : ` ${between}`}.`;
 }
 
-function finishedText(
-  event: Extract<ChronicleEvent, { kind: 'construction-finished' }>,
-  seed: number | undefined,
-): string {
+function finishedText(event: Extract<ChronicleEvent, { kind: 'construction-finished' }>): string {
   const { constructionKind: kind, craft, wagon } = event;
   if (wagon) return 'Vozová cesta je hotová – vůz po ní jede rychleji.';
   if (craft && (kind === 'dwelling' || kind === 'rebuild')) {
@@ -542,8 +535,8 @@ function finishedText(
   if (kind === 'orchard') return 'Sad je vysazený.';
   if (kind === 'pen') return penFinishedText(event.penSpecies, event.penExtended === true);
   if (kind === 'ard') return 'Vesničané vyrobili rádlo.';
-  if (kind === 'road') return roadUpgradeText(event, seed);
-  if (kind === 'road-apples') return roadApplesText(event.roadEnds, seed);
+  if (kind === 'road') return roadUpgradeText(event);
+  if (kind === 'road-apples') return roadApplesText(event.roadEnds);
   if (kind === 'threshing-floor') return 'Humno je dostavěné – dá se na něm mlátit.';
   if (kind === 'fortification') return 'Opevnění je dostavěné.';
   if (kind === 'quarry') return 'Lom je otevřený – dá se v něm lámat kámen.';
@@ -774,11 +767,10 @@ const DIRECTION_ADVERBS: Record<Direction8, string> = {
 /**
  * Kde leží křižovatka (D66; Martin 15. 11. 2026: „Třeba poblíž kterého významného místa se
  * nacházejí?“): „u kovárny“ (2. pád – z `RoadEndForms.from` bez „od“), „pod dvorcem“, „nad
- * potokem“ (7. pád), u kraje mapy soused „u hranice s Lhotskými“ (bez seedu vsi „u severního kraje
- * mapy“), bez místa blízko „uprostřed vsi“, „na severní straně vsi“, „severně od vsi“. Neznámé
- * místo null.
+ * potokem“ (7. pád), u kraje mapy „u severního kraje mapy“, bez místa blízko „uprostřed vsi“,
+ * „na severní straně vsi“, „severně od vsi“. Neznámé místo null.
  */
-export function landmarkPhrase(near: ChronicleLandmark, seed?: number): string | null {
+export function landmarkPhrase(near: ChronicleLandmark): string | null {
   switch (near.kind) {
     case 'dwelling':
     case 'place': {
@@ -794,9 +786,7 @@ export function landmarkPhrase(near: ChronicleLandmark, seed?: number): string |
       return `u ${forms.from.replace(/^od /, '')}`;
     }
     case 'edge':
-      return seed === undefined
-        ? `u ${DIRECTION_ADJECTIVES[near.direction]}ho kraje mapy`
-        : `u hranice ${withVillagersOf(neighbourOf(seed, near.direction).name)}`;
+      return `u ${DIRECTION_ADJECTIVES[near.direction]}ho kraje mapy`;
     case 'village':
       if (near.direction === undefined) return 'uprostřed vsi';
       return near.outside
@@ -805,7 +795,7 @@ export function landmarkPhrase(near: ChronicleLandmark, seed?: number): string |
   }
 }
 
-function roadEndForms(end: ChronicleRoadEnd, seed: number | undefined): RoadEndForms | null {
+function roadEndForms(end: ChronicleRoadEnd): RoadEndForms | null {
   switch (end.kind) {
     case 'dwelling':
       return end.craft ? WORKSHOP_INSTRUMENTAL[end.craft] : DWELLING_INSTRUMENTAL[end.type];
@@ -813,7 +803,7 @@ function roadEndForms(end: ChronicleRoadEnd, seed: number | undefined): RoadEndF
       return PLACE_INSTRUMENTAL[end.place] ?? null;
     case 'junction': {
       // „mezi rozcestím u kovárny a polem“, „z křižovatky pod dvorcem do Lhoty“ (D66)
-      const near = end.near ? landmarkPhrase(end.near, seed) : null;
+      const near = end.near ? landmarkPhrase(end.near) : null;
       const where = near === null ? '' : ` ${near}`;
       return end.shape === 'y'
         ? { word: `rozcestím${where}`, from: `z rozcestí${where}` }
@@ -830,35 +820,13 @@ function roadEndForms(end: ChronicleRoadEnd, seed: number | undefined): RoadEndF
 }
 
 /**
- * Kam vede cesta přes kraj mapy (Martin 15. 11. 2026: „ta cesta přece někam vede“): soused v tom
- * směru (`neighbourOf`); bez seedu vsi null.
+ * Kudy cesta vede: „mezi dvorcem a kovárnou“, „mezi polem a dalším polem“, kraj mapy jako místo
+ * („mezi dvorcem a severním krajem mapy“) – smyšlený soused už není (markets.md – Pravidla 1).
+ * Neznámé místo null.
  */
-function edgeVillage(end: ChronicleRoadEnd, seed: number | undefined): string | null {
-  return end.kind === 'edge' && seed !== undefined ? neighbourOf(seed, end.direction).name : null;
-}
-
-/**
- * Kudy cesta vede: s krajem mapy na konci „z rozcestí do Lhoty“ (Martin 15. 11. 2026), přes celou
- * mapu „z Lhoty do Kněžic“, jinak „mezi dvorcem a kovárnou“, „mezi polem a dalším polem“. Neznámé
- * místo: k sousedovi jen „do Lhoty“, jinak null. `seed` – seed vsi pro jména sousedů; bez něj kraj
- * mapy jako místo („mezi dvorcem a severním krajem mapy“).
- */
-export function roadBetween(
-  ends: readonly [ChronicleRoadEnd, ChronicleRoadEnd],
-  seed?: number,
-): string | null {
-  const toFirst = edgeVillage(ends[0], seed);
-  const toSecond = edgeVillage(ends[1], seed);
-  if (toFirst !== null && toSecond !== null) {
-    return `${fromVillage(toFirst)} ${toVillage(toSecond)}`;
-  }
-  if (toFirst !== null || toSecond !== null) {
-    const [other, to] = toSecond !== null ? [ends[0], toSecond] : [ends[1], toFirst!];
-    const from = roadEndForms(other, seed)?.from;
-    return from === undefined ? toVillage(to) : `${from} ${toVillage(to)}`;
-  }
-  const a = roadEndForms(ends[0], seed);
-  const b = roadEndForms(ends[1], seed);
+export function roadBetween(ends: readonly [ChronicleRoadEnd, ChronicleRoadEnd]): string | null {
+  const a = roadEndForms(ends[0]);
+  const b = roadEndForms(ends[1]);
   if (!a || !b) return null;
   const again = a.word === b.word;
   return `mezi ${a.word} a ${again ? `${b.feminine ? 'další' : 'dalším'} ` : ''}${b.word}`;
@@ -869,11 +837,8 @@ export function roadBetween(
  * o tom, která to byla cesta.“): „Nepoužívaná cesta mezi kovárnou a potokem zarostla.“, zarostla-li
  * jen část (`part`) „Část nepoužívané cesty mezi … zarostla.“; starší zápis bez konců postaru.
  */
-function roadOvergrownText(
-  event: Extract<ChronicleEvent, { kind: 'road-overgrown' }>,
-  seed: number | undefined,
-): string {
-  const between = event.ends ? roadBetween(event.ends, seed) : null;
+function roadOvergrownText(event: Extract<ChronicleEvent, { kind: 'road-overgrown' }>): string {
+  const between = event.ends ? roadBetween(event.ends) : null;
   if (between === null) return 'Nepoužívaná cesta zarostla.';
   return event.part
     ? `Část nepoužívané cesty ${between} zarostla.`
@@ -884,11 +849,8 @@ function roadOvergrownText(
  * Vyšlapaná cesta (Martin 14. 11. 2026): „Po 12 letech chůze lidé vyšlapali cestu mezi dvorcem
  * a studnou.“ Pod půl roku chůze bez doby, starší zápisy bez údajů „Lidé vyšlapali pevnou cestu.“
  */
-function roadFormedText(
-  event: Extract<ChronicleEvent, { kind: 'road-formed' }>,
-  seed: number | undefined,
-): string {
-  const between = event.ends ? roadBetween(event.ends, seed) : null;
+function roadFormedText(event: Extract<ChronicleEvent, { kind: 'road-formed' }>): string {
+  const between = event.ends ? roadBetween(event.ends) : null;
   const years = event.years ?? 0;
   if (between === null && years < 1) return 'Lidé vyšlapali pevnou cestu.';
   const head =
@@ -1157,7 +1119,7 @@ function craftsBoughtText(
   const partner =
     seed === undefined
       ? 's obyvateli sousední vsi'
-      : withVillagersOf(neighbourOf(seed, event.direction).name);
+      : withVillagersOf(legacyNeighbourName(seed, event.direction));
   return `${capitalized(villagersOf(villageName))} směnili ${pay} za ${get} ${partner}.`;
 }
 
@@ -1172,12 +1134,12 @@ function horsesShodText(
 ): string {
   if (event.own) return 'Kovář okul koně.';
   if (event.direction === undefined || seed === undefined) return 'Kovář z jiné vsi okul koně.';
-  return `Kovář ${fromVillage(neighbourOf(seed, event.direction).name)} okul koně.`;
+  return `Kovář ${fromVillage(legacyNeighbourName(seed, event.direction))} okul koně.`;
 }
 
 /**
- * Text události kroniky česky. `seed` – seed vsi pro jména sousedů (`neighbourOf` – kovář a směna
- * se sousedem jménem vsi); bez něj se soused jménem nepíše.
+ * Text události kroniky česky. `seed` – seed vsi pro jména sousedů (`legacyNeighbourName` – kovář
+ * a směna se sousedem jménem vsi); bez něj se soused jménem nepíše.
  */
 export function chronicleText(event: ChronicleEvent, villageName: string, seed?: number): string {
   switch (event.kind) {
@@ -1383,7 +1345,7 @@ export function chronicleText(event: ChronicleEvent, villageName: string, seed?:
     case 'married-away':
       return 'Dcera se vdala do sousední vsi.';
     case 'construction-finished':
-      return finishedText(event, seed);
+      return finishedText(event);
     case 'cart-made':
       return `Tesař vyrobil ${CART_NAMES[event.cart].toLowerCase()}.`;
     case 'iron-trip':
@@ -1562,11 +1524,11 @@ export function chronicleText(event: ChronicleEvent, villageName: string, seed?:
     case 'cemetery-ploughed':
       return 'Zaorali starý hřbitov.';
     case 'road-formed':
-      return roadFormedText(event, seed);
+      return roadFormedText(event);
     case 'road-overgrown':
-      return roadOvergrownText(event, seed);
+      return roadOvergrownText(event);
     case 'trail-built':
-      return `Zemská stezka na ${DIRECTION_NAMES[event.direction].name} je dostavěná – dá se obchodovat se sousedy.`;
+      return `Zemská stezka na ${DIRECTION_NAMES[event.direction].name} je dostavěná.`;
     case 'trade-departed':
       return tradeTripText(
         `Nosiči vyrazili po stezce na ${DIRECTION_NAMES[event.direction].name}`,
@@ -1590,9 +1552,12 @@ export function chronicleText(event: ChronicleEvent, villageName: string, seed?:
       return `Vesničané koupili u sousedů ${formatInteger(event.seedKg)} kg obilí na osivo – zaplatili ${pay}.${change}`;
     }
     case 'seed-short':
+      // bez důvodu – ves osivo nekupuje (markets.md – Pravidla 1); starší zápisy s důvodem
       return event.reason === 'supply'
         ? `Na setí chybí ${formatInteger(event.shortKg)} kg osiva a sousedé letos víc obilí nemají – díly bez osiva vesničané nezasejí.`
-        : `Na setí chybí ${formatInteger(event.shortKg)} kg osiva a vesničané nemají čím ho u sousedů zaplatit – díly bez osiva nezasejí.`;
+        : event.reason === 'pay'
+          ? `Na setí chybí ${formatInteger(event.shortKg)} kg osiva a vesničané nemají čím ho u sousedů zaplatit – díly bez osiva nezasejí.`
+          : `Na setí chybí ${formatInteger(event.shortKg)} kg osiva – díly bez osiva vesničané nezasejí.`;
     case 'crafts-bought':
       return craftsBoughtText(event, villageName, seed);
     case 'trade-returned':
