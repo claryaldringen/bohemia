@@ -483,8 +483,7 @@ nanosit voda do zásoby. Navíc v průběhu žní se nenosí voda domů, ale sp�
 ### Sňatky
 
 Pravidla sňatků jsou v [kinship.md](kinship.md) (Martin, 18. 10. 2026; detaily návrh Clauda):
-berou se svobodný muž od 16 let a svobodná žena 16–44, kteří nejsou blízcí příbuzní (do
-bratranců), s věkovým rozdílem nejvýš ≈ 15 let; **žena se stěhuje k muži**. Kdo ve vsi nemá
+berou se svobodný muž od 16 let a svobodná žena 16–44 (příbuzenství se nehlídá – Martin 23. 11. 2026), s věkovým rozdílem nejvýš ≈ 15 let; **žena se stěhuje k muži**. Kdo ve vsi nemá
 s kým se vzít, toho bere nebo dává okolí – svobodný muž od 18 let si s ≈ 30 % ročně přivede
 nevěstu z okolí.
 
