@@ -52,6 +52,10 @@ obchodníkům se do hry dostanou mince - obchodníci jimi budou platit za zbož�
   (bez cenových mezí): „ok“.
 - **Města na stezkách:** na doporučení, aby na mapách podél kupecké stezky smějí vznikat i vsi synů a dalších hráčů
   (prémiovou výhodou zůstane brod nebo průsmyk): „ok“.
+- **Spodní cena:** na otázku Clauda „Má mít prodávající spodní cenu, pod kterou neprodá?“ (bez dna cena při přebytku klesá
+  o 10 % každý tržní den – po zhruba 140 dnech by si výprava odvezla 20 klád za 5 g sýra) Martin zvolil „Ano, výchozí
+  hodnotu“ s popisem: „Nikdo neprodá pod tím, co má zboží ve hře cenu dnes (hodnota v obilí přepočtená na mince). Co se
+  za tu cenu neprodá, zůstane hostiteli nebo si to výprava odveze domů. Nahoru roste cena volně.“ (Martin 23. 11. 2026)
 - **Otrok:** na otázku, zda jde zajatého pohana prodat jen hned po odvedení, nebo kdykoli, dokud je pohan: „Kdykoliv. Od
   zajetí bude prostě vedený jako otrok“.
 - Z návrhu [sousedních vsí](neighbours.md) (22. 11. 2026): sousedé jsou skutečné vsi – vsi rodu vzniklé odchodem syna
@@ -85,7 +89,7 @@ obchodníkům se do hry dostanou mince - obchodníci jimi budou platit za zbož�
    výsledek obchodu (zboží, tržba) zapíše výpravě schránkou vsi a do vlastní vsi přijde s jejím návratem (návrh Clauda).
    Ves, kterou server zrovna dopočítává zpětně (nikdo ji nehraje), jede na trh až od chvíle, kdy je zase aktuální.
 4. **Cena v mincích:** každé zboží má na každém trhu cenu v mincích, která se po každém tržním dni posune podle toho, kolik
-   se ho žádalo a nabízelo (víc poptávky – dráž, víc nabídky – levněji); trh si pamatuje poslední cenu. Mince jsou zboží:
+   se ho žádalo a nabízelo (víc poptávky – dráž, víc nabídky – levněji); trh si pamatuje poslední cenu; cena nikdy neklesne pod výchozí (dno – Martin 23. 11. 2026, viz Martinova rozhodnutí – Spodní cena), nahoru roste volně. Mince jsou zboží:
    kde a když je jich v oběhu hodně proti zboží, ceny v mincích rostou (inflace), kde málo, klesají (deflace). Výchozí
    ceny pro první kupce z dnešních hodnot zboží v kg obilí (trade.md – Obchod) pevným kurzem (návrh Clauda, číslo
    v `rules`).

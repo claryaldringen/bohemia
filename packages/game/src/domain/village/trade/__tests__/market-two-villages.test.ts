@@ -37,8 +37,8 @@ describe('výprava na trh mezi dvěma vsemi (markets.md – Co se ověří, bod 
     expect(held.bought.grain).toBeCloseTo(result.sold.grain!, 6);
     expect(back).toMatchObject({ sold: result.sold, bought: { cows: 1 }, unsold: result.unsold });
     expect(h1.trade!.expeditions.filter((e) => e.kind === 'market')).toEqual([]);
-    // cena krávy klesla – nabídka hostitele převýšila poptávku
-    expect(m1.market!.prices.cows!).toBeLessThan(40);
+    // cena krávy zůstala na dně – nabídka převýšila poptávku, ale pod výchozí cenu nejde
+    expect(m1.market!.prices.cows!).toBe(40);
     expect(h1.news![0]).toMatchObject({ villageId: 'm', prices: m1.market!.prices });
   });
 

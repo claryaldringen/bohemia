@@ -98,7 +98,7 @@ describe('trh ve vsi hostitele – tržní den (markets.md – Pravidla 3 a 5)',
     marketDay(direct, D);
     expect(direct.storesKg - m.storesKg).toBeCloseTo(600, 6);
     expect(direct.livestock!.herds.cow - m.livestock!.herds.cow).toBe(-1);
-    expect(after.market!.prices.cows!).toBeLessThan(40); // nabídka 5 > poptávka 1
+    expect(after.market!.prices.cows!).toBe(40); // nabídka 5 > poptávka 1, ale dno je výchozí cena
     expect(after.market!.prices.grain!).toBeGreaterThan(1 / 15);
     expect(after.news).toEqual([{ villageId: 'h', name: 'Vlkov', report }]);
     expect(after.chronicle.map((e) => e.kind)).toEqual(
@@ -198,7 +198,7 @@ describe('trh ve vsi hostitele – tržní den (markets.md – Pravidla 3 a 5)',
     expect(result.report!.day).toBe(D + 2);
   });
 
-  it('nikdo nic nechce: zboží se vrátí, hostitel jako bez trhu, nabízené zboží zlevní', () => {
+  it('nikdo nic nechce: zboží se vrátí, hostitel jako bez trhu, nabízené zboží zůstane na výchozí ceně', () => {
     const m = marketVillage();
     const lonely = arrival({ goods: { honey: 50 }, wants: { pottery: 10 } });
     const after = advanceVillage(m, D, null, null, [arriveEvent(lonely)]);
@@ -209,7 +209,7 @@ describe('trh ve vsi hostitele – tržní den (markets.md – Pravidla 3 a 5)',
     expect(result.bought).toEqual({});
     expect(withoutMarket(after)).toEqual(withoutMarket(control));
     expect(after.chronicle.some((e) => e.kind === 'market-held')).toBe(false);
-    expect(after.market!.prices.honey!).toBeLessThan(initialPrice('honey'));
+    expect(after.market!.prices.honey!).toBe(initialPrice('honey'));
     expect(after.market!.prices.pottery!).toBeGreaterThan(initialPrice('pottery'));
   });
 

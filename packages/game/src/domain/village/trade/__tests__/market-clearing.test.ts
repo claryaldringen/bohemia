@@ -3,7 +3,7 @@ import { createRandom, deriveSeed, type Random } from '../../../landscape/random
 import type { MarketParty, MarketPrices, TradeGood, TradeGoods } from '../../types';
 import { TRADE_GOODS, isPieceGood } from '../goods';
 import { clearMarket, partyTotals } from '../market-clearing';
-import { initialPrice, priceOf } from '../market-prices';
+import { initialPrice, nextPrices, priceOf } from '../market-prices';
 
 const party = (key: string, offer: TradeGoods, wants: TradeGoods): MarketParty => ({
   key,
@@ -75,6 +75,21 @@ describe('zápočet tržního dne (markets.md – Pravidla 5, Rozhodnutí plánu
     const market = clearMarket([host, trader], {});
     expect(partyTotals(market, 'H')).toEqual({ sold: { logs: 15 }, bought: { cows: 1 } });
     expect(partyTotals(market, 'E')).toEqual({ sold: { cows: 1 }, bought: { logs: 15 } });
+  });
+
+  it('po dlouhém přebytku klád výprava zaplatí aspoň výchozí hodnotu a neprodané zůstane (Martin 23. 11.)', () => {
+    let prices: MarketPrices = {};
+    for (let i = 0; i < 200; i++) prices = nextPrices(prices, { logs: 20 }, {});
+    expect(prices.logs).toBe(initialPrice('logs'));
+    // hostitel nabízí 20 klád, výprava veze 5 g sýra (jen 5 g – za 20 klád by nestačilo)
+    const host = party('H', { logs: 20 }, { cheese: 5 });
+    const trader = party('E', { cheese: 5 }, { logs: 20 });
+    const market = clearMarket([host, trader], prices);
+    const t = partyTotals(market, 'E');
+    const paid = (t.sold.cheese ?? 0) * priceOf(prices, 'cheese');
+    const got = t.bought.logs ?? 0;
+    expect(paid).toBeGreaterThanOrEqual(got * initialPrice('logs') - 1e-9);
+    expect(got).toBeLessThan(20); // zbytek klád hostiteli zůstane
   });
 
   it('ceny dne rozhodují: dražší kráva se vymění za víc obilí', () => {

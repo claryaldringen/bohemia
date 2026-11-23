@@ -28,11 +28,15 @@ export function nextPrices(
 ): MarketPrices {
   const next: MarketPrices = { ...prices };
   for (const good of TRADE_GOODS) {
+    const floor = initialPrice(good);
+    if (next[good] !== undefined && next[good] < floor) next[good] = floor;
     const demand = Math.max(0, wanted[good] ?? 0);
     const supply = Math.max(0, offered[good] ?? 0);
     if (!(demand + supply > 0)) continue;
-    next[good] =
-      priceOf(prices, good) * (1 + (MARKET.priceStep * (demand - supply)) / (demand + supply));
+    next[good] = Math.max(
+      floor,
+      priceOf(next, good) * (1 + (MARKET.priceStep * (demand - supply)) / (demand + supply)),
+    );
   }
   return next;
 }
