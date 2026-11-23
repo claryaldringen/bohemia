@@ -6,7 +6,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `kinship.ts`): `Person.sex`, `motherId`, `fatherId`, `spouseId`, u nevěsty z okolí a lidí od
   souseda (výměna lidí – trade.md) `origin` (směr sousední vsi – válka); zemřelí a odešlí rodiče
   žijících v `VillageState.ancestors` (id a rodiče, jen dokud jsou rodičem někoho žijícího –
-  `removePeople`), dcery vdané pryč a lidé daní sousedovi v `emigrants` (se směrem). `areCloseKin` (do bratranců), `hasCloseKinIn` (příbuzní ve vsi ve
+  `removePeople`), dcery vdané pryč a lidé daní sousedovi v `emigrants` (se směrem). `hasCloseKinIn` (příbuzní ve vsi ve
   směru – war.md), `familyCounts` (muži, ženy, děti, starší, páry – panel obydlí a pohlaví postav).
   Staré vsi převede `withKinship` (seznam převodů – village-core.md, bez příznaku –
   ves, kde mají všichni pohlaví, se nemění; `availableSettlers` počítá na převedené).
@@ -262,7 +262,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   měla snažit co nejdříve vdát, ideálně ve vesnici.“): svobodný = muž od 16 / žena 16–44 bez
   manžela, i vdova s malými dětmi (`isSingle`); vdova / vdovec = svobodný s dítětem
   (`isWidowed`, `parentIds` – bez příznaku, pozná se i ve starých vsích). V kroku 6 po osídlení
-  obydlí se berou nepříbuzní muž a žena – **vdovy a vdovci první**, pak od nejstaršího, nejbližší
+  obydlí se berou muž a žena – **vdovy a vdovci první**, pak od nejstaršího, nejbližší
   věkem (`bestMatch`), rozdíl do `MARRIAGE.maxAgeGapYears` (s vdovou či vdovcem
   `maxAgeGapWidowedYears` 20). Kam (`weddingHome`): **žena k muži**, i do přeplněného domu; drží-li
   dům ona a on ne (`holdsHome` – po jeho odchodu s dětmi do 16 by doma nezůstal nikdo 16–44), **on

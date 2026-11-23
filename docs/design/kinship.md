@@ -1,6 +1,9 @@
 # Příbuzenství a pohlaví – rodiny ve vsi
 
-Stav: schváleno 18. 10. 2026 (Martin: „Pojďme na příbuzenství a pohlaví“, sňatky s okolím
+Stav: **23. 11. 2026 Martin zrušil hlídání příbuzenství u sňatků.** Na otázku, odkud ves bez spojení s okolím
+vezme nevěsty a ženichy (sonda: zákaz do bratranců zakázal ve Vlkově od roku 923 každý možný pár): „Vynechme
+příbuznost. Je to mechanika navíc“; na otázku, zda zakázat aspoň sňatky sourozenců a rodičů s dětmi: „Nehlídat nic“.
+Původní znění je v [historii](history/kinship-history.md). Schváleno 18. 10. 2026 (Martin: „Pojďme na příbuzenství a pohlaví“, sňatky s okolím
 varianta „c“, návrh celkem „Ano“). Implementováno týž den (`kinship.ts`, `marriage.ts`,
 `households.ts`, `population.ts`) – detaily, které návrh neřešil, jsou v sekci Implementace
 (návrh Clauda). 19. 10. 2026 Martin: „Vdova by se měla snažit co nejdříve vdát, ideálně ve
@@ -20,13 +23,12 @@ dědictví, sňatky a nástupnictví potřebují vědět, kdo je čí. Postavy v
 
 - **Cíl:** každý člověk má pohlaví, matku, otce a manžela / manželku; děti rodí jen žena, která
   má muže (Martin – směr).
-- **Cíl:** berou se jen muž a žena, kteří nejsou blízcí příbuzní; žena se stěhuje k muži.
-- **Cíl:** malá ves nevymře jen proto, že jsou si všichni příbuzní – nevěsty a ženichové se
+- **Cíl:** berou se jen muž a žena (příbuzenství se nehlídá – Martin 23. 11. 2026); žena se stěhuje k muži.
+- **Cíl:** malá ves nevymře – nevěsty a ženichové se
   berou z okolí: **teď abstraktně, až budou okolní vsi, přes ně** (Martin – varianta c).
 - **Ne-cíl (teď):** jména lidí v rozhraní, rod hráče a nástupnictví pána, věno a výkupné,
   mnohoženství, rozvody, levobočci.
-- **Anti-cíl:** ves, kde se lidé stěhují tam a zpět (dnešní zacyklení), nebo kde se rodí děti
-  příbuzným.
+- **Anti-cíl:** ves, kde se lidé stěhují tam a zpět (dnešní zacyklení).
 
 ## Pohlaví
 
@@ -50,15 +52,15 @@ dědictví, sňatky a nástupnictví potřebují vědět, kdo je čí. Postavy v
 
 - Člověk zná **matku a otce** (při narození) a **manžela / manželku**. Sourozenci, bratranci
   a sestřenice se odvodí přes rodiče. Lidé z okolí a zakladatelé mají rodiče neznámé.
-- **Blízcí příbuzní** (nesmí se vzít): rodiče a děti, prarodiče a vnoučata, sourozenci (i
-  nevlastní), strýc / teta a synovec / neteř, bratranci a sestřenice (společný prarodič) –
-  návrh Clauda. Zemřelí se v rodokmenu pamatují (jen id rodičů, ne celý stav).
+- **Sňatky příbuzenství nehlídají** (Martin 23. 11. 2026: „Nehlídat nic“; původní zákaz do bratranců je v
+  [historii](history/kinship-history.md)). Rodokmen slouží rodu, dědictví, schránce odchodů a příbuzným v okolí.
+  Zemřelí se v rodokmenu pamatují (jen id rodičů, ne celý stav).
 
 ## Sňatky
 
 - **Svobodný** = muž od 16 let nebo žena 16–44 bez manžela (i vdovec a vdova, **i vdova s malými
   dětmi** – Martin, 19. 10. 2026; dřív se vdova s dětmi do 14 let nevdávala).
-- **Ve vsi:** svobodný muž a svobodná žena, kteří nejsou blízcí příbuzní, se vezmou (věkový
+- **Ve vsi:** svobodný muž a svobodná žena se vezmou (věkový
   rozdíl nejvýš ≈ 15 let, **je-li jeden z nich vdovec nebo vdova, 20 let** – návrh Clauda);
   párování deterministicky – **nejdřív vdovy a vdovci** (Martin: vdova se má vdát co nejdřív,
   nejlépe ve vsi), pak ostatní od nejstarších svobodných, každý s nejbližším věkem. **Žena se
@@ -335,25 +337,25 @@ odchodu svobodného syna z plného domu):
 
 ## Rozhodnutí
 
-| Rozhodnutí                                                                                | Kdo                                       |
-| ----------------------------------------------------------------------------------------- | ----------------------------------------- |
-| Pohlaví, matka, otec, manžel; děti jen manželské páry                                     | Martin                                    |
-| Sňatky z okolí: teď abstraktně, až budou okolní vsi, přes ně (varianta c)                 | Martin                                    |
-| 105 chlapců na 100 dívek; žena plodná 16–44, muž od 16 bez meze; zakladatelé dva páry     | návrh Clauda                              |
-| Blízcí příbuzní do bratranců; žena se stěhuje k muži; věkový rozdíl do ≈ 15 let           | návrh Clauda                              |
-| ~~Z okolí ≈ 30 % ročně pro svobodného muže / ženu od 18 bez možného partnera ve vsi~~     | návrh Clauda                              |
-| Domácnosti: ženatý syn zakládá, nejstarší syn dědí, svobodný nejstarší syn smí odejít sám | návrh Clauda                              |
-| ~~Nová domácnost a lidé k osídlení jen z plné nebo přeplněné domácnosti~~                 | návrh Clauda (podle Martinových pravidel) |
-| Ženatý pár, který dům nedrží, smí odejít do nového nebo prázdného domu kdykoli            | Martin (19. 10. 2026), návrh Clauda       |
-| Svobodný syn smí odejít sám dál jen z plného domu                                         | návrh Clauda (19. 10. 2026)               |
-| Starší vsi: pohlaví a manželé se doplní jednou deterministicky, rodiče neznámí            | návrh Clauda                              |
-| Sňatky čekají na pojistku zásob – odklad průměrně 3 roky × (1 − naplnění), nikdy zákaz    | Martin (27. 10. 2026), návrh Clauda       |
-| Nevěsta z okolí si pamatuje směr vsi, vdaná pryč zůstane v rodokmenu se směrem (válka)    | návrh Clauda                              |
-| Domácnost drží člověk 16–44; rozpad k příbuzným; ~~vdova s dětmi do 14 se nevdává~~       | návrh Clauda                              |
-| ~~Svatba nepřeplní dům víc než o jednoho~~; v hladu nevěsta z okolí nepřijde              | návrh Clauda                              |
-| Vdova se vdává co nejdřív, nejlépe ve vsi; s dětmi; žena jde k muži i do přeplnění        | Martin (19. 10. 2026)                     |
-| Drží-li dům žena a muž ne, přižení se muž k ní (i z okolí)                                | Martin (19. 10. 2026)                     |
-| Vdovy a vdovci mají přednost; rozdíl věku u nich 20 let; děti do 16 jdou s rodičem        | návrh Clauda (19. 10. 2026)               |
-| Drží-li dům oba, stěhuje se, u koho bude méně těsno; přeplnění ani rozpad svatbě nebrání  | návrh Clauda (19. 10. 2026)               |
-| Ženich z okolí 10 % ročně (vdově, dědičce, ženě z domu bez mužů 50 %), pryč 20 % ročně    | návrh Clauda (19. 10. 2026)               |
-| Nevěsta z okolí 30 % ročně; v hladu a do přeplněného domu z okolí nikdo nepřijde          | návrh Clauda                              |
+| Rozhodnutí                                                                                 | Kdo                                       |
+| ------------------------------------------------------------------------------------------ | ----------------------------------------- |
+| Pohlaví, matka, otec, manžel; děti jen manželské páry                                      | Martin                                    |
+| Sňatky z okolí: teď abstraktně, až budou okolní vsi, přes ně (varianta c)                  | Martin                                    |
+| 105 chlapců na 100 dívek; žena plodná 16–44, muž od 16 bez meze; zakladatelé dva páry      | návrh Clauda                              |
+| Sňatky nehlídají příbuzenství („Nehlídat nic“); žena se stěhuje k muži; rozdíl do ≈ 15 let | Martin 23. 11. 2026 / návrh Clauda        |
+| ~~Z okolí ≈ 30 % ročně pro svobodného muže / ženu od 18 bez možného partnera ve vsi~~      | návrh Clauda                              |
+| Domácnosti: ženatý syn zakládá, nejstarší syn dědí, svobodný nejstarší syn smí odejít sám  | návrh Clauda                              |
+| ~~Nová domácnost a lidé k osídlení jen z plné nebo přeplněné domácnosti~~                  | návrh Clauda (podle Martinových pravidel) |
+| Ženatý pár, který dům nedrží, smí odejít do nového nebo prázdného domu kdykoli             | Martin (19. 10. 2026), návrh Clauda       |
+| Svobodný syn smí odejít sám dál jen z plného domu                                          | návrh Clauda (19. 10. 2026)               |
+| Starší vsi: pohlaví a manželé se doplní jednou deterministicky, rodiče neznámí             | návrh Clauda                              |
+| Sňatky čekají na pojistku zásob – odklad průměrně 3 roky × (1 − naplnění), nikdy zákaz     | Martin (27. 10. 2026), návrh Clauda       |
+| Nevěsta z okolí si pamatuje směr vsi, vdaná pryč zůstane v rodokmenu se směrem (válka)     | návrh Clauda                              |
+| Domácnost drží člověk 16–44; rozpad k příbuzným; ~~vdova s dětmi do 14 se nevdává~~        | návrh Clauda                              |
+| ~~Svatba nepřeplní dům víc než o jednoho~~; v hladu nevěsta z okolí nepřijde               | návrh Clauda                              |
+| Vdova se vdává co nejdřív, nejlépe ve vsi; s dětmi; žena jde k muži i do přeplnění         | Martin (19. 10. 2026)                     |
+| Drží-li dům žena a muž ne, přižení se muž k ní (i z okolí)                                 | Martin (19. 10. 2026)                     |
+| Vdovy a vdovci mají přednost; rozdíl věku u nich 20 let; děti do 16 jdou s rodičem         | návrh Clauda (19. 10. 2026)               |
+| Drží-li dům oba, stěhuje se, u koho bude méně těsno; přeplnění ani rozpad svatbě nebrání   | návrh Clauda (19. 10. 2026)               |
+| Ženich z okolí 10 % ročně (vdově, dědičce, ženě z domu bez mužů 50 %), pryč 20 % ročně     | návrh Clauda (19. 10. 2026)               |
+| Nevěsta z okolí 30 % ročně; v hladu a do přeplněného domu z okolí nikdo nepřijde           | návrh Clauda                              |

@@ -7,7 +7,7 @@
 // dcera se vdá pryč). Krok simulace `arrangeMarriages` stav mění, ostatní funkce jen čtou.
 import { createRandom, deriveSeed } from '../../landscape/random';
 import { holdsManor } from './dynasty';
-import { ageGapYears, areCloseKin, parentIndex, removePeople, type ParentIndex } from './kinship';
+import { ageGapYears, removePeople } from './kinship';
 import { ageYears, holdsHousehold, householdBreaksUp, isFertile, occupants } from './people';
 import {
   AGE,
@@ -181,15 +181,14 @@ function maxAgeGap(widowed: boolean): number {
 }
 
 /**
- * Nejbližší věkem svobodný opačného pohlaví mezi `candidates`, se kterým se `a` smí vzít: nejsou
- * blízcí příbuzní (`areCloseKin`), věkový rozdíl nejvýš MARRIAGE.maxAgeGapYears (je-li jeden
+ * Nejbližší věkem svobodný opačného pohlaví mezi `candidates`, se kterým se `a` smí vzít: příbuzenství
+ * se nehlídá (Martin 23. 11. 2026, kinship.md), věkový rozdíl nejvýš MARRIAGE.maxAgeGapYears (je-li jeden
  * z nich vdovec nebo vdova – `parents` –, maxAgeGapWidowedYears) a mají kde bydlet (`canWed`).
  * Při shodě rozdílu nižší id; nikdo – undefined.
  */
 export function bestMatch(
   state: VillageState,
   day: number,
-  index: ParentIndex,
   a: Person,
   candidates: readonly Person[],
   parents: ReadonlySet<number> = parentIds(state),
@@ -201,7 +200,6 @@ export function bestMatch(
     const gap = ageGapYears(a, b);
     if (gap > maxAgeGap(parents.has(a.id) || parents.has(b.id)) || gap > bestGap) continue;
     if (gap === bestGap && best !== undefined && b.id > best.id) continue;
-    if (areCloseKin(index, a.id, b.id)) continue;
     const { groom, bride } = couple(a, b);
     if (!canWed(state, day, groom, bride)) continue;
     best = b;
@@ -269,7 +267,6 @@ export function arrangeMarriages(
   day: number,
   storesFill: () => number = FULL_STORES,
 ): ChronicleEvent[] {
-  const index = parentIndex(state);
   const parents = parentIds(state);
   const events: ChronicleEvent[] = [];
   const married = new Set<number>();
@@ -282,7 +279,6 @@ export function arrangeMarriages(
     const b = bestMatch(
       state,
       day,
-      index,
       a,
       list.filter((c) => !married.has(c.id)),
       parents,
@@ -300,7 +296,7 @@ export function arrangeMarriages(
     married.add(a.id);
     married.add(b.id);
   }
-  events.push(...outsideMarriages(state, day, index, parents, married, storesFill));
+  events.push(...outsideMarriages(state, day, parents, married, storesFill));
   return events;
 }
 
@@ -341,7 +337,6 @@ function crowded(state: VillageState, p: Person): boolean {
 function outsideMarriages(
   state: VillageState,
   day: number,
-  index: ParentIndex,
   parents: ReadonlySet<number>,
   married: ReadonlySet<number>,
   storesFill: () => number,
@@ -354,7 +349,7 @@ function outsideMarriages(
   const leaving = new Map<number, NeighborDirection>();
   for (const p of candidates) {
     const village = singles(state, day).filter((c) => !leaving.has(c.id));
-    if (bestMatch(state, day, index, p, village, parents)) continue;
+    if (bestMatch(state, day, p, village, parents)) continue;
     const roll = random.next();
     const age = (day - p.bornDay) / DAYS_PER_YEAR;
     const widowed = parents.has(p.id);

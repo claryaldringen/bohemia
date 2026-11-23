@@ -20,38 +20,6 @@ export function parentIndex(state: Pick<VillageState, 'people' | 'ancestors'>): 
   return index;
 }
 
-/** Známí rodiče (id) člověka `id`. */
-function parentsOf(index: ParentIndex, id: number): number[] {
-  const entry = index.get(id);
-  if (!entry) return [];
-  const parents: number[] = [];
-  if (entry.motherId !== undefined) parents.push(entry.motherId);
-  if (entry.fatherId !== undefined) parents.push(entry.fatherId);
-  return parents;
-}
-
-function shares(a: readonly number[], b: readonly number[]): boolean {
-  return a.some((x) => b.includes(x));
-}
-
-/**
- * Blízcí příbuzní, kteří se nesmí vzít (kinship.md – Příbuzenství): rodiče a děti, prarodiče
- * a vnoučata, sourozenci (i nevlastní – stačí společný rodič), strýc / teta a synovec / neteř,
- * bratranci a sestřenice (společný prarodič). Neznámí rodiče nejsou příbuzní nikomu.
- */
-export function areCloseKin(index: ParentIndex, a: number, b: number): boolean {
-  if (a === b) return true;
-  const pa = parentsOf(index, a);
-  const pb = parentsOf(index, b);
-  if (pa.includes(b) || pb.includes(a)) return true; // rodič a dítě
-  if (shares(pa, pb)) return true; // sourozenci
-  const ga = pa.flatMap((p) => parentsOf(index, p));
-  const gb = pb.flatMap((p) => parentsOf(index, p));
-  if (ga.includes(b) || gb.includes(a)) return true; // prarodič a vnouče
-  if (shares(pa, gb) || shares(pb, ga)) return true; // strýc / teta a synovec / neteř
-  return shares(ga, gb); // bratranci a sestřenice
-}
-
 /** Žijící manžel / manželka člověka `p`, nebo undefined. */
 export function spouseOf(state: VillageState, p: Person): Person | undefined {
   if (p.spouseId === undefined) return undefined;
