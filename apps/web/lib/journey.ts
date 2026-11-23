@@ -22,6 +22,7 @@ import { currentWorld, LruCache } from '@bohemia/server';
 import { campaignCells } from './campaign';
 import { gameDeps } from './game';
 import { foreignMapOf, type ForeignMap, type ForeignMapTrails } from './foreign-map';
+import { partyNearCell } from './journey-view';
 import { encodeLandscape } from './landscape-transfer';
 import { journeyActionForPlayer } from './village';
 
@@ -108,13 +109,7 @@ export async function journeyMapForPlayer(
   trailsOnly = false,
 ): Promise<ForeignMap | ForeignMapTrails | null> {
   const views = await expeditionViewsForPlayer(playerId);
-  const near = views.some(
-    (v) =>
-      !v.localGrid &&
-      v.parties.some((p) =>
-        p.groups.some((g) => Math.abs(g.cell.x - cell.x) <= 1 && Math.abs(g.cell.y - cell.y) <= 1),
-      ),
-  );
+  const near = partyNearCell(views, cell);
   if (!near) return null;
   return foreignMapOf(playerId, cell, seenOnCell(views, cell), trailsOnly);
 }

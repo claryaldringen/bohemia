@@ -39,6 +39,20 @@ export function homeCellOf(settlement: {
 }
 
 /**
+ * Stojí některý hlouček výpravy světa na políčku `cell` nebo vedle něj (8 směrů)? Výprava místní
+ * mřížky rodu (`localGrid`) se nepočítá – její políčka nejsou políčky světa.
+ */
+export function partyNearCell(views: readonly ExpeditionView[], cell: GridCell): boolean {
+  return views.some(
+    (v) =>
+      !v.localGrid &&
+      v.parties.some((p) =>
+        p.groups.some((g) => Math.abs(g.cell.x - cell.x) <= 1 && Math.abs(g.cell.y - cell.y) <= 1),
+      ),
+  );
+}
+
+/**
  * Jak často přibývá nový stav výpravy ze serveru – kolo workeru, které ukládá jedoucí skupinu
  * (journey.md – Worker); podle toho se mezi dvěma stavy interpoluje.
  */
