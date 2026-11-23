@@ -359,12 +359,17 @@ describe('souboj se zvěří – honba a uštvání jelena (plán 2026-11-22-hun
     expect(JSON.stringify(b)).toBe(JSON.stringify(a));
   });
 
-  it('uzavřená kapsa kolem zvířete: lovec stojí a zvíře po idleS uteče (bez hráče lov skončí)', () => {
-    const grid = stripGrid(0, -1, (p) => {
+  /** Uzavřená kapsa: prstenec nepřístupných buněk 10–20 m kolem místa, kam zvíře vyběhne. */
+  function pocketGrid(): MarchGrid {
+    return stripGrid(0, -1, (p) => {
       const dx = Math.abs(p.x - OUT.x);
       const dz = Math.abs(p.z);
       return Math.max(dx, dz) >= 10 && Math.max(dx, dz) <= 20;
     });
+  }
+
+  it('uzavřená kapsa kolem zvířete: lovec stojí a zvíře po idleS uteče (bez hráče lov skončí)', () => {
+    const grid = pocketGrid();
     const field: HuntField = { grid, hoursPerTick: MEADOW.hoursPerTick };
     expect(grid.pace[marchCellAt(grid, OUT)]!).toBeGreaterThan(0);
     for (const kind of ['stag', 'boar'] as const) {
@@ -372,6 +377,28 @@ describe('souboj se zvěří – honba a uštvání jelena (plán 2026-11-22-hun
       Object.assign(f.quarry, { pos: { ...OUT }, goal: null, state: 'stand' });
       runHunt(f, 4000, field, 5);
       expect(f.outcome).toBe('escaped');
+    }
+  });
+
+  it('kapsa kolem kance a bachyně, lovec s lukem 50 uvízne v pásmu luku: šíp prase srazí na zdraví 1, pak míření není činnost → po idleS uteče jako bez luku', () => {
+    // šíp prase nezabije, jen zraní – lovec, který k němu nedojde, by mířením lov držel navždy
+    // (Martin 22. 11. 2026: „Když se dlouho nebude nic dít … zvíře uteče zpět do lesa“)
+    const field: HuntField = { grid: pocketGrid(), hoursPerTick: MEADOW.hoursPerTick };
+    for (const kind of ['boar', 'sow'] as const) {
+      const f = hunt([veteran(1, { skills: { bow: 50, combat: 70, riding: 0 } })], kind);
+      Object.assign(f.quarry, { pos: { ...OUT }, goal: null, state: 'stand' });
+      let down = 0;
+      let escape = 0;
+      runHunt(f, 8000, field, 5, () => {
+        if (down === 0 && f.quarry.health <= 1) down = f.tick;
+        if (escape === 0 && f.quarry.state === 'escape') escape = f.tick;
+      });
+      // lovec stál v pásmu luku a šípy prase srazily na 1 – dál už ho posunout nemohou
+      expect(down).toBeGreaterThan(0);
+      expect(f.quarry.health).toBe(1);
+      expect(hunter(f, 1).hours.bow).toBeGreaterThan(0);
+      expect(f.outcome).toBe('escaped');
+      expect(escape - down).toBeLessThanOrEqual(IDLE_TICKS);
     }
   });
 

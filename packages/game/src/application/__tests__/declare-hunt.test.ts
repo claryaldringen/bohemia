@@ -51,16 +51,30 @@ interface World {
   houseId: string;
 }
 
-async function setup(state: VillageState = lhota(), map: CampaignMap = FOREST): Promise<World> {
+/** Odříznutý nováček: rod bez místa na mapě světa (`unplaced`), sídlo v místní mřížce (`local`). */
+interface Isolation {
+  unplaced?: boolean;
+  local?: boolean;
+}
+
+async function setup(
+  state: VillageState = lhota(),
+  map: CampaignMap = FOREST,
+  isolation: Isolation = {},
+): Promise<World> {
   const settlements = new InMemorySettlements();
   const villages = new InMemoryVillages();
   const houses = new InMemoryHouses();
-  const house = await houses.create({ playerId: 'pa', kind: 'player', createdAt: NOW });
-  const seat = await settlements.seatAtOrigin({
-    ownerId: 'pa',
-    landscapeSeed: 1,
-    layerVersions: CURRENT_LAYER_VERSIONS,
+  const house = await houses.create({
+    playerId: 'pa',
+    kind: 'player',
+    createdAt: NOW,
+    ...(isolation.unplaced ? { placedAt: null } : {}),
   });
+  const place = { ownerId: 'pa', landscapeSeed: 1, layerVersions: CURRENT_LAYER_VERSIONS };
+  const seat = isolation.local
+    ? (await settlements.createSeat({ ...place, localCell: { x: 0, y: 0 } }))!
+    : await settlements.seatAtOrigin(place);
   const home = await villages.add(seat.id, 'Lhota', state);
   const journeys = new InMemoryJourneys();
   let n = 0;
@@ -177,6 +191,29 @@ describe('declareHuntInVillage – vyhlášení lovu (plán 2026-11-22-hunting, 
     const w = await setup();
     expect((await declare(w)).ok).toBe(true);
     await deniedWith(w, 'already');
+  });
+
+  it('already – lidé venku a záměr prvního lovu ještě čeká: ves zaplatí honce jen jednou', async () => {
+    const w = await setup();
+    await running(w);
+    // práce vsi stačí na honce dvou lovů – odmítne je jen čekající záměr
+    w.villages.edit(w.homeId, (s) => {
+      s.commonLaborHistory = [40];
+    });
+    expect(await declare(w)).toEqual({ ok: true, journeyId: 'jny-0' });
+    // worker záměr ještě neuplatnil – bod výpravy lov nemá
+    expect((await journeyOf(w, 'jny-0')).hunt).toBeUndefined();
+    await deniedWith(w, 'already');
+    expect(w.journeys.intents).toHaveLength(1);
+    const hunt = (await villageOf(w)).wildlife?.hunt;
+    expect(hunt?.beaters).toEqual({ day: SUMMER + 1, men: 6 });
+    expect(hunt?.declared).toBe(1);
+  });
+
+  it('odříznutý nováček (rod bez místa na mapě světa, sídlo bez políčka světa) – unreachable jako výprava, nic se neuloží', async () => {
+    await deniedWith(await setup(lhota(), FOREST, { unplaced: true, local: true }), 'unreachable');
+    await deniedWith(await setup(lhota(), FOREST, { unplaced: true }), 'unreachable');
+    await deniedWith(await setup(lhota(), FOREST, { local: true }), 'unreachable');
   });
 
   it('víc lovů za den: hráč i správce na zítřek, honci obou se sečtou', async () => {

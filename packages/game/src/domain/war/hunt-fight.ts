@@ -292,7 +292,8 @@ function cappedHours(t: HuntSkills): HuntSkills | null {
 /**
  * Jeden takt souboje (mění `f` na místě, `f.tick + 1`); po konci (`outcome` ≠ ongoing) nic.
  * Skryté zvíře čeká – takt jen přičte. Činnost (posune `activeTick`): útočník na nohou s povelem
- * se ke zvířeti přiblížil (nebo šel po objížďce), má je na dosah rány či střely, nebo zvíře před
+ * se ke zvířeti přiblížil (nebo šel po objížďce), má je na dosah rány či střely (střely ne na kance
+ * a bachyni se zdravím ≤ 1 – šíp je už nesrazí), nebo zvíře před
  * lovci utíká (honba); kdo jen klouže podél překážky či přešlapuje, činný není (návrh Clauda –
  * lov bez postupu skončí, i když hráč nic nezadá). Po `idleS × TICKS_PER_SECOND` taktech bez něj zvíře běží k `door`
  * (`escape`) a u dveří zmizí (`gone`, `escaped`).
@@ -494,6 +495,9 @@ function huntersStep(
 ): Blow[] {
   const q = f.quarry;
   const walk = WAR.pace.metersPerSecond / TICKS_PER_SECOND;
+  // šíp kance a bachyni srazí nejvýš na zdraví 1 (`applyBlows`) – míření na takové prase lov
+  // neposune, a tak činností není; lukostřelec uvízlý v pásmu luku by jinak lov držel navždy
+  const arrowCounts = !(GATED.has(q.kind) && q.health <= 1);
   for (const h of hunters) {
     if (h.cooldown > 0) h.cooldown--;
     let moved = false;
@@ -509,7 +513,7 @@ function huntersStep(
     const reach = d2 <= MELEE_M2;
     const aiming = !reach && bowReady(h, d2);
     h.state = reach ? 'fight' : 'chase';
-    if (progress || reach || aiming) f.activeTick = f.tick;
+    if (progress || reach || (aiming && arrowCounts)) f.activeTick = f.tick;
     if (reach) train(h, 'combat', field.hoursPerTick);
     else if (aiming && h.cooldown === 0) train(h, 'bow', field.hoursPerTick);
     if (!reach && moved && h.mounted) train(h, 'riding', field.hoursPerTick);

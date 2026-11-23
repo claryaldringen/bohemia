@@ -11,7 +11,7 @@ import {
   type NewHunter,
 } from '../../domain/war';
 import { LAUNCH, world } from '../../domain/war/__tests__/campaign-fixtures';
-import { expeditionViewsFor, huntRunning } from '../expedition-view';
+import { expeditionViewsFor, huntRunning, huntRunningIn } from '../expedition-view';
 import { InMemoryJourneys } from './in-memory-journeys';
 import { InMemoryKnowledge } from './in-memory-knowledge';
 
@@ -244,5 +244,26 @@ describe('pohled na lov (plán 2026-11-22-hunting, Úloha 9)', () => {
     const state = hunting();
     expect(huntRunning(state)).toBe(true);
     expect(huntRunning({ ...state, phase: 'done' })).toBe(false);
+  });
+
+  it('huntRunningIn – lov v bodu výpravy, nebo čekající záměr „hunt“ za bodem; jinak ne', async () => {
+    const journeys = new InMemoryJourneys();
+    const running = (playerId: string, villageId: string): Promise<boolean> =>
+      huntRunningIn({ journeys }, playerId, villageId);
+    expect(await running('pa', 'brod')).toBe(false);
+    // lidé venku, lov vyhlášený záměrem, který worker ještě neuplatnil
+    const out = expedition('j0', 'brod', [person(3)]);
+    await journeys.create(out);
+    expect(await running('pa', 'brod')).toBe(false);
+    const body = { kind: 'hunt', start: START } as const;
+    await journeys.addIntent('j0', { tick: out.tick + 2, byPlayer: 'pa', body });
+    expect(await running('pa', 'brod')).toBe(true);
+    expect(await running('pb', 'brod')).toBe(false);
+    // lov v kontrolním bodu
+    await journeys.create(hunting());
+    expect(await running('pa', 'lhota')).toBe(true);
+    // skončená výprava – záměr už neplatí
+    await journeys.end('j0');
+    expect(await running('pa', 'brod')).toBe(false);
   });
 });

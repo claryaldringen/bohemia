@@ -19,18 +19,17 @@ import {
   marchGrid,
   newJourney,
   tickOfMs,
-  upgradeJourney,
   type CampaignVillage,
   type HuntStart,
   type JourneyState,
 } from '../domain/war';
 import type { CampaignCells } from './campaigns';
 import { journeyHome } from './expedition';
-import { huntRunning } from './expedition-view';
+import { villageJourneyHunt } from './expedition-view';
 import type { HouseRepository } from './houses';
 import type { JourneyRepository } from './journeys';
 import { editVillage, findPlayerVillage, type PlayerVillagesDeps } from './player-villages';
-import type { SeedSource } from './settlements';
+import type { SeedSource, WorldCell } from './settlements';
 import { VILLAGE_ABANDONED, VILLAGE_EXTINCT, VILLAGE_TRAVELLING } from './update-village';
 import type { VillageRepository } from './villages';
 
@@ -43,7 +42,10 @@ import type { VillageRepository } from './villages';
 
 export interface DeclareHuntDeps extends PlayerVillagesDeps {
   villages: VillageRepository;
-  journeys: Pick<JourneyRepository, 'activeIn' | 'checkpoint' | 'create' | 'addIntent'>;
+  journeys: Pick<
+    JourneyRepository,
+    'activeIn' | 'checkpoint' | 'intentsAfter' | 'create' | 'addIntent'
+  >;
   houses: Pick<HouseRepository, 'activeOf'>;
   /** Mapy políček – mřížka pochodu domovské mapy (dveře lesa) a dvorec nové výpravy. */
   cells: CampaignCells;
@@ -54,14 +56,15 @@ export interface DeclareHuntDeps extends PlayerVillagesDeps {
 }
 
 /**
- * Lov běží ve výpravě `journeyId`, nebo proč nejde: důvod vsi (`HuntDenied`), cizí ves nebo rod
- * bez místa na mapě světa (`no-village`), ves nežije (vymřelá, opuštěná, lidé na cestě – stejné
- * texty jako u ostatních akcí vsi, `updateLivingVillage`), zápis vsi se při souběhu nepovedl ani po
- * opakování (`busy`).
+ * Lov běží ve výpravě `journeyId`, nebo proč nejde: důvod vsi (`HuntDenied`), cizí ves
+ * (`no-village`), rod bez místa na mapě světa nebo sídlo bez políčka světa – odříznutý nováček
+ * (`unreachable`, jako výprava – `musterExpedition`), ves nežije (vymřelá, opuštěná, lidé na
+ * cestě – stejné texty jako u ostatních akcí vsi, `updateLivingVillage`), zápis vsi se při souběhu
+ * nepovedl ani po opakování (`busy`).
  */
 export type DeclareHuntResult =
   | { ok: true; journeyId: string }
-  | { ok: false; reason: HuntDenied | DeadVillage | 'no-village' | 'busy' };
+  | { ok: false; reason: HuntDenied | DeadVillage | 'no-village' | 'unreachable' | 'busy' };
 
 /** Ves nežije – texty jako u `updateLivingVillage`. */
 type DeadVillage = typeof VILLAGE_EXTINCT | typeof VILLAGE_ABANDONED | typeof VILLAGE_TRAVELLING;
@@ -70,10 +73,13 @@ const NO_VILLAGE = { ok: false, reason: 'no-village' } as const;
 
 /**
  * Hráč vyhlásí lov ve vsi `villageId` (volající drží zámek hráče – web `guardedAction`):
- * 1. ves hráče (`no-village`), běžící výprava vsi (`activeIn`) a lov v ní (`huntRunning`);
+ * 1. ves hráče (`no-village`), běžící výprava vsi a lov v ní – v kontrolním bodu, nebo čekající
+ *    záměr `hunt` (`villageJourneyHunt`);
  * 2. ves žije (nevymřelá, neopuštěná, ne na cestě) a důvody na den honců – zítřek dne vsi
  *    (`huntDenied(stav, lastDay + 1, běží)`; víc lovů za den smí, každý zaplatí své honce) – napřed na
  *    uloženém stavu (bez mapy), znovu na čerstvém při zápisu; důvod se vrátí a nic se neuloží;
+ *    domov výpravy – běžící, jinak rod hráče s místem na mapě světa a sídlo s políčkem světa
+ *    (odříznutý nováček `unreachable`, jako `musterExpedition`);
  * 3. zvíře losem `pickQuarry` (seed vsi, den vsi a pořadí vyhlášení po `countDeclaredHunt`)
  *    a začátek lovu `huntStartOf` z mřížky pochodu domovské mapy – dveře hustého lesa nejbližší
  *    ke dvorci výpravy (běžící, jinak `journeyHome`); mapa bez hustého lesa `no-game`. Jinak ves
@@ -88,17 +94,17 @@ export async function declareHuntInVillage(
   const own = await findPlayerVillage(deps, input);
   if (!own) return NO_VILLAGE;
   const villageId = own.village.id;
-  const id = await deps.journeys.activeIn(input.playerId, villageId);
-  const point = id === null ? null : await deps.journeys.checkpoint(id);
-  const journey = point ? upgradeJourney(point.state) : null;
-  const running = huntRunning(journey);
+  const { id, journey, running } = await villageJourneyHunt(deps, input.playerId, villageId);
   const denied = deniedOn(own.village.state, running);
   if (denied !== null) return { ok: false, reason: denied };
 
   // domov výpravy: běžící, jinak nové – rod hráče s místem na mapě světa (jako `musterExpedition`)
-  const cell = journey?.home.cell ?? own.settlement.worldCell;
-  const houseId = journey?.houseId ?? (await placedHouse(deps, input.playerId));
-  if (!cell || houseId === null) return NO_VILLAGE;
+  const from = journey
+    ? { cell: journey.home.cell, houseId: journey.houseId }
+    : await newHome(deps, input.playerId, own.settlement.worldCell);
+  if (from === 'no-village') return NO_VILLAGE;
+  if (from === 'unreachable') return { ok: false, reason: 'unreachable' };
+  const { cell, houseId } = from;
   const map = await deps.cells.mapOf(cell);
   const chosen: { start?: HuntStart; home?: CampaignVillage; day?: number } = {};
   const failed = await editVillage<HuntDenied | DeadVillage | 'busy'>(
@@ -206,8 +212,18 @@ function deniedOn(state: VillageState, running: boolean): HuntDenied | DeadVilla
   return huntDenied(state, state.lastDay + 1, running);
 }
 
-/** Rod hráče s místem na mapě světa (id), jinak null – výprava nemá odkud vyjet. */
-async function placedHouse(deps: DeclareHuntDeps, playerId: string): Promise<string | null> {
+/**
+ * Domov nové výpravy s lovem (jako `musterExpedition` – `homeOf`): políčko světa sídla a rod hráče
+ * (bez rodu `no-village`); rod bez místa na mapě světa nebo sídlo bez políčka světa (odříznutý
+ * nováček) – výprava nemá odkud vyjet (`unreachable`).
+ */
+async function newHome(
+  deps: DeclareHuntDeps,
+  playerId: string,
+  worldCell: WorldCell | null,
+): Promise<{ cell: WorldCell; houseId: string } | 'no-village' | 'unreachable'> {
   const house = await deps.houses.activeOf(playerId);
-  return house && house.placedAt !== null ? house.id : null;
+  if (!house) return 'no-village';
+  if (house.placedAt === null || !worldCell) return 'unreachable';
+  return { cell: worldCell, houseId: house.id };
 }

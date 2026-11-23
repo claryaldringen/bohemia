@@ -3,6 +3,7 @@ import { sameCell } from '../domain/village/people/world-grid';
 import { ageGroupOf } from '../domain/village/people/people';
 import type { QuarryKind } from '../domain/village/types';
 import {
+  commandOf,
   groupSetOut,
   mergeKnowledge,
   partyLeader,
@@ -22,6 +23,7 @@ import {
 } from '../domain/war';
 import { cellKey } from '../domain/war/campaign-tick';
 import { controllable, membersOf, waitDaysLeft, type JourneyReadDeps } from './journey-view';
+import type { JourneyRepository } from './journeys';
 
 // Pohled hráče na jeho výpravy (expeditions.md – Výběr a skupina, Ve scéně; plán 2026-11-14 –
 // Úloha 6). Web nic nepočítá: čte kontrolní bod každé běžící výpravy hráče (jedna za domovskou
@@ -111,6 +113,53 @@ export interface HuntView {
  */
 export function huntRunning(state: JourneyState | null): boolean {
   return state !== null && state.phase !== 'done' && state.hunt !== undefined;
+}
+
+/** Porty pro `huntRunningIn` – běžící výprava vsi, její kontrolní bod a záměry za ním. */
+export interface HuntRunningDeps {
+  journeys: Pick<JourneyRepository, 'activeIn' | 'checkpoint' | 'intentsAfter'>;
+}
+
+/** Běžící výprava vsi (`id`, stav bodu převedený `upgradeJourney`) a zda v ní běží lov vsi. */
+export interface VillageJourneyHunt {
+  id: string | null;
+  journey: JourneyState | null;
+  running: boolean;
+}
+
+/**
+ * Běžící výprava hráče ze vsi `villageId` a zda v ní běží lov vsi: lov v kontrolním bodu
+ * (`huntRunning`), nebo nevyřízený záměr `hunt` za bodem – s lidmi venku jde vyhlášení záměrem
+ * na takt teď + `INTENT_LEAD_TICKS` a do bodu se dostane až s workerem (záměry za bodem čte
+ * i `recallJourneysAtWar`). Jinak by druhé vyhlášení před uplatněním záměru prošlo, ves by
+ * zaplatila honce dvakrát a výprava by druhý lov zahodila (`startHunt`).
+ */
+export async function villageJourneyHunt(
+  deps: HuntRunningDeps,
+  playerId: string,
+  villageId: string,
+): Promise<VillageJourneyHunt> {
+  const id = await deps.journeys.activeIn(playerId, villageId);
+  const point = id === null ? null : await deps.journeys.checkpoint(id);
+  const journey = point ? upgradeJourney(point.state) : null;
+  if (id === null || journey === null || journey.phase === 'done') {
+    return { id, journey, running: false };
+  }
+  if (huntRunning(journey)) return { id, journey, running: true };
+  const intents = await deps.journeys.intentsAfter(id, journey.tick);
+  return { id, journey, running: intents.some((i) => commandOf(i.body).kind === 'hunt') };
+}
+
+/**
+ * Běží lov vsi `villageId` hráče (`villageJourneyHunt` – v bodu výpravy, nebo čeká jeho záměr)?
+ * Tlačítko lovu pak zašedne s `already` a vyhlášení se odmítne (`declareHuntInVillage`).
+ */
+export async function huntRunningIn(
+  deps: HuntRunningDeps,
+  playerId: string,
+  villageId: string,
+): Promise<boolean> {
+  return (await villageJourneyHunt(deps, playerId, villageId)).running;
 }
 
 /**

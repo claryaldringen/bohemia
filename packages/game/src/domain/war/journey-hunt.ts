@@ -40,6 +40,9 @@ export interface HuntTickOut {
  * zvíře čeká skryté u dveří lesa (`newHuntFight`); id lovu je z `nextId` výpravy.
  */
 export function startHunt(s: JourneyState, start: HuntStart, tick: number): void {
+  // jen pojistka: vyhlášení pod zámkem hráče druhý lov odmítne, dokud první běží v bodu výpravy
+  // i dokud čeká jeho záměr (`already` – `villageJourneyHunt`), takže druhý záměr `hunt` běžně
+  // nevznikne; kdyby přece, ves by jeho honce zaplatila zbytečně
   if (s.hunt !== undefined) return;
   s.hunt = {
     id: s.nextId++,
