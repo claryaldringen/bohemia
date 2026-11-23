@@ -82,6 +82,7 @@ export * from './renounce';
 export * from './house-spare';
 export * from './shipments';
 export * from './village-mail';
+export * from './market';
 export * from './domain-food';
 export * from './dialogs';
 export * from './annual-levies';

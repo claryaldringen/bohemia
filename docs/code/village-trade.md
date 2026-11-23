@@ -372,3 +372,16 @@ ves>:<id výpravy>`, `stayDays`, `travelDays`, zboží `goods` – koně i tady 
   karavany). Ikony `resources/family.png`, `man.png`, `woman.png` zůstaly.
 
 Počasí kraje mění hodnotu zboží od 1. 11. – [village-disasters.md](village-disasters.md#kraj-kolem-vsi-hodnota-zboží-a-zvěř-p4).
+
+- **Přehled vsí a odeslání výpravy** (markets.md – Pravidla 2, 3 a 8; Rozhodnutí plánu 2, bod 7;
+  `application/market.ts`, `MarketDeps`). `marketOverview(deps, { playerId, villageId })` vrací
+  `MarketVillage[]` (`null` – ves není hráče): vlastní vsi, vsi na 8 sousedních mapách
+  (`holderAt` → `listActive` → ves sídla), vsi z map ze znalosti rodu (`knownCellsOf`, jen ves,
+  jejíž stavbu rod viděl; `seen` = domy a řemesla z `knowledge.of`) a vsi ze zpráv na pivo (`news`
+  domovské vsi). Bez domovské vsi a archivovaných sídel; odříznutý rod vidí jen své vsi
+  (`crossesIsolation`). Zaniklá ves (`sleeps`) je v přehledu s `blocked: MARKET_GONE`, ves na cestě
+  s `VILLAGE_TRAVELLING`; válka obchod nezakazuje. Řazeno podle `cells`, pak jména.
+  `sendMarketExpedition` vezme cíl jen z přehledu a bez `blocked` (jinak `MARKET_UNKNOWN` nebo
+  důvod blokace), ves pozadu napřed dopočte do `today` (`updateLivingVillage`), zavolá `departMarket`
+  a doručí odchozí schránku (`deliverVillageMailSafely`). Právo `trade` a zámek hráče přidá akce
+  ve webu (Úloha 7).
