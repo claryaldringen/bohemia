@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { areCloseKin, hasCloseKinIn, parentIndex, removePeople, withKinship } from '../kinship';
+import { hasCloseKinIn, parentIndex, removePeople, withKinship } from '../kinship';
 import type { Person } from '../../types';
 import { DAY, YEAR, couple, dwelling, kin, village } from '../../__tests__/kin-fixtures';
 
@@ -22,48 +22,14 @@ function family(): Person[] {
   ].map((spec) => kin(spec));
 }
 
-describe('blízcí příbuzní', () => {
-  const index = parentIndex(village(family()));
-
-  it('rodiče a děti, prarodiče a vnoučata, sourozenci', () => {
-    expect(areCloseKin(index, 3, 6)).toBe(true);
-    expect(areCloseKin(index, 1, 6)).toBe(true);
-    expect(areCloseKin(index, 6, 7)).toBe(true);
-    expect(areCloseKin(index, 3, 4)).toBe(true);
-  });
-
-  it('teta a synovec, bratranec a sestřenice', () => {
-    expect(areCloseKin(index, 4, 6)).toBe(true);
-    expect(areCloseKin(index, 6, 9)).toBe(true);
-  });
-
-  it('nepříbuzní a lidé z okolí s neznámými rodiči příbuzní nejsou', () => {
-    expect(areCloseKin(index, 6, 10)).toBe(false);
-    expect(areCloseKin(index, 9, 11)).toBe(false);
-    // manželka strýce není pokrevně příbuzná synovce
-    expect(areCloseKin(index, 8, 7)).toBe(false);
-  });
-
-  it('nevlastní sourozenci (jeden společný rodič) jsou příbuzní', () => {
-    const half = parentIndex(
-      village([
-        kin({ id: 1, age: 40, sex: 'male' }),
-        kin({ id: 2, age: 18, sex: 'male', father: 1, mother: 30 }),
-        kin({ id: 3, age: 17, sex: 'female', father: 1, mother: 31 }),
-      ]),
-    );
-    expect(areCloseKin(half, 2, 3)).toBe(true);
-  });
-});
-
 describe('rodokmen zemřelých', () => {
-  it('zemřelí prarodiče zůstanou jen jako id a rodiče – bratranci se poznají i po jejich smrti', () => {
+  it('zemřelí prarodiče zůstanou jen jako id a rodiče – rodokmen zůstane i po jejich smrti', () => {
     const s = village(family());
     removePeople(s, new Set([1, 2, 3, 4]));
     // zemřel otec 3 a teta 4 – jsou rodiči žijících, zůstanou v rodokmenu i s rodiči 1 a 2
     expect(s.ancestors?.map((a) => a.id)).toEqual([3, 4]);
     expect(s.ancestors?.find((a) => a.id === 3)).toEqual({ id: 3, fatherId: 1, motherId: 2 });
-    expect(areCloseKin(parentIndex(s), 6, 9)).toBe(true);
+    expect(parentIndex(s).get(6)).toMatchObject({ fatherId: 3, motherId: 5 });
     // vdovy: manželé zemřelých manžela nemají
     expect(s.people.find((p) => p.id === 5)?.spouseId).toBeUndefined();
     expect(s.people.find((p) => p.id === 8)?.spouseId).toBeUndefined();

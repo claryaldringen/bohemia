@@ -13,8 +13,8 @@ import type { ChronicleEvent, VillageState } from '../../types';
 import { DAY, couple, dwelling, kin, village } from '../../__tests__/kin-fixtures';
 
 // Sňatky (kinship.md – Sňatky; Martin, 18. 10. 2026: sňatky s okolím varianta „c“, detaily návrh
-// Clauda; 19. 10. 2026: vdova se vdá co nejdřív, populace co nejvíc roste): muž a žena, kteří
-// nejsou blízcí příbuzní, žena se stěhuje k muži (když drží dům ona a on ne, přižení se on);
+// Clauda; 19. 10. 2026: vdova se vdá co nejdřív, populace co nejvíc roste): muž a žena
+// (příbuzenství se nehlídá – Martin 23. 11. 2026), žena se stěhuje k muži (když drží dům ona a on ne, přižení se on);
 // z okolí nevěsta ≈ 30 % ročně, ženich 10 % (k vdově a dědičce 50 %), pryč 20 %.
 
 const person = (s: VillageState, id: number): VillageState['people'][number] =>
@@ -49,7 +49,7 @@ describe('svobodní', () => {
 });
 
 describe('svatba ve vsi', () => {
-  it('nepříbuzní muž a žena se vezmou – žena se přestěhuje k muži, kronika', () => {
+  it('muž a žena se vezmou – žena se přestěhuje k muži, kronika', () => {
     const s = village(
       [
         ...couple({ id: 1, age: 50, home: 1 }, { id: 2, age: 46, home: 1 }).map((k) => kin(k)),
@@ -77,18 +77,27 @@ describe('svatba ve vsi', () => {
     expect(arrangeMarriages(s, DAY).filter((e) => e.kind === 'marriage')).toEqual([]);
   });
 
-  it('sourozenci ani bratranci se nevezmou, věkový rozdíl přes 15 let také ne', () => {
+  it('sourozenci se smí vzít (příbuzenství se nehlídá; Martin 23. 11. 2026)', () => {
     const s = village([
       kin({ id: 1, age: 20, sex: 'male', father: 90, mother: 91 }),
       kin({ id: 2, age: 18, sex: 'female', father: 90, mother: 91 }), // sestra
-      kin({ id: 3, age: 19, sex: 'female', father: 92, mother: 93 }), // sestřenice (níž rodiče)
+    ]);
+    const weddings = arrangeMarriages(s, DAY).filter((e) => e.kind === 'marriage');
+    expect(weddings).toMatchObject([{ groomId: 1, brideId: 2 }]);
+  });
+
+  it('bratranec a sestřenice se smí vzít, věkový rozdíl přes 15 let ne', () => {
+    const s = village([
+      kin({ id: 1, age: 20, sex: 'male', father: 90, mother: 91 }),
+      kin({ id: 3, age: 19, sex: 'female', father: 92, mother: 93 }), // sestřenice
       kin({ id: 4, age: 40, sex: 'female' }), // o 20 let starší
     ]);
     s.ancestors = [
       { id: 90, fatherId: 80, motherId: 81 },
       { id: 92, fatherId: 80, motherId: 81 },
     ];
-    expect(arrangeMarriages(s, DAY).filter((e) => e.kind === 'marriage')).toEqual([]);
+    const weddings = arrangeMarriages(s, DAY).filter((e) => e.kind === 'marriage');
+    expect(weddings).toMatchObject([{ groomId: 1, brideId: 3 }]);
   });
 
   it('od nejstaršího svobodného, každý s nejbližším věkem', () => {
