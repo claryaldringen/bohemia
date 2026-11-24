@@ -828,7 +828,12 @@ Podrobně [vozy a tesař](wagons.md) (Tesař, Jak je postavené – fáze 1); ta
 
 ## Nákup u sousedů
 
-Smyšlení sousedé skončili (markets.md – Rozhodnutí plánu 1); do plánu 2 nic. Dřívější text je v [historii](history/crafts-history.md).
+Smyšlení sousedé skončili (markets.md – Rozhodnutí plánu 1); **plán 3 (24. 11. 2026) nákup vrátil na trh se skutečnými sousedy** (markets.md – Rozhodnutí plánu 3, body 4–7):
+
+- **Nákup na trhu:** 15. 11. vesničané posoudí nástroje, keramiku, dřevěné nářadí a vůz bez vlastního pracujícího řemeslníka a jedou do nejbližší vsi okolí, o jejímž řemeslníkovi ví ze zprávy na pivo; koupí jen to, co ušetří víc práce, než stojí (dřívější rozhodování nákupu u sousedů). Cena je cena trhu × kurz obilí.
+- **Obilí za výrobky vždy** (Martin 24. 11. 2026 – na otázku „Má řemeslník (kovář, hrnčíř, tesař) za své výrobky brát obilí vždy, i když ho jeho ves zrovna neshání?“ zvolil možnost „Ano, řemeslník bere obilí vždy“): řemeslník za výrobky vezme obilí a luštěniny nejvýš za hodnotu výrobků, které ten den prodá. Návrh Clauda: tržní den má dvě fáze – napřed řemeslníci jen za obilí a luštěniny, pak dnešní zápočet.
+- **Zakázky** (Martin 22. 11. 2026: „Řemeslníkovi je jedno, kdo mu platí za výrobky“): řemeslník vyrábí do vlastní potřeby plus otevřené zakázky; hotovou zakázku nic nedrží, kdo dřív zaplatí, ten hotový kus má; zakázka vyprší po roce (technická mez). Zápis a platba viz [neighbours.md](neighbours.md) – Pravidla 6.
+- Dřívější text je v [historii](history/crafts-history.md).
 
 ## Doba (neřeší se)
 
