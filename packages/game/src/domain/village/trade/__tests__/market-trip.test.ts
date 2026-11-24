@@ -107,6 +107,33 @@ describe('výprava na trh – kontroly (Rozhodnutí plánu 2, bod 2)', () => {
     const late = { ...base, day: TOTAL_GAME_DAYS - 2 };
     expect(checkMarketTrip(order({}), late)).toEqual({ ok: false, reason: MARKET_WORLD_END });
   });
+
+  it('kovář jde sám (`alone`, Rozhodnutí plánu 3, bod 9): bez nosičů, vozů a kontroly dospělých', () => {
+    const smith = order({ ironBars: 1 });
+    const input: MarketTripCheck = {
+      ...base,
+      stock: { ironBars: 10 },
+      homeCarts: ['four-wheel'],
+      oxenHome: 2,
+      adults: 0,
+    };
+    expect(checkMarketTrip(smith, input)).toEqual({ ok: false, reason: MARKET_NO_PEOPLE });
+    expect(checkMarketTrip(smith, { ...input, alone: true })).toEqual({
+      ok: true,
+      porters: 0,
+      carts: 0,
+      oxen: 0,
+      travelDays: 0,
+      departDay: D + 1,
+      arriveDay: D + 1,
+      returnDay: D + 2,
+    });
+    // ostatní kontroly platí i pro kováře
+    expect(checkMarketTrip(order({ ironBars: 11 }), { ...input, alone: true })).toEqual({
+      ok: false,
+      reason: MARKET_OVER_STOCK,
+    });
+  });
 });
 
 describe('výprava na trh – odchod a návrat (Rozhodnutí plánu 2, body 2 a 6)', () => {
@@ -188,6 +215,34 @@ describe('výprava na trh – odchod a návrat (Rozhodnutí plánu 2, body 2 a 6
     const orphan = structuredClone(h);
     applyMarketResult(orphan, D + 2, res);
     expect(orphan.livestock!.herds.cow - h.livestock!.herds.cow).toBe(1);
+  });
+
+  it('výprava kováře (`alone`): bez nosičů a vozů, práce výpravy 0, příjezd nese `service`', () => {
+    const smith = structuredClone(h);
+    smith.crafts = { charcoalKg: 0, potteryKg: 0, ironBarsKg: 5 };
+    const sentAlone = departMarketInPlace(
+      smith,
+      D,
+      { give: { ironBars: 1 }, wants: {}, stayDays: 1 },
+      target,
+      { by: 'smith', alone: true, service: { kind: 'shoeing', horses: 2 } },
+    );
+    if (!sentAlone.ok) throw new Error(sentAlone.reason);
+    const trip = smith.trade!.expeditions.at(-1)!;
+    expect(trip).toMatchObject({ by: 'smith', porters: 0, cost: 0, give: { ironBars: 1 } });
+    expect(trip.carts).toBeUndefined();
+    expect(smith.crafts.ironBarsKg).toBeCloseTo(4, 9);
+    expect([D + 1, D + 2].map((d) => expeditionLaborNeed(smith, d))).toEqual([0, 0]);
+    expect(smith.outbox!.at(-1)!.body).toMatchObject({
+      kind: 'market-arrive',
+      arrival: { goods: { ironBars: 1 }, service: { kind: 'shoeing', horses: 2 } },
+    });
+    // bez `alone` jede s vozem a nosiči a `service` nenese
+    const plain = structuredClone(h);
+    plain.crafts = { charcoalKg: 0, potteryKg: 0, ironBarsKg: 5 };
+    departMarketInPlace(plain, D, { give: { ironBars: 1 }, wants: {}, stayDays: 1 }, target);
+    expect(plain.trade!.expeditions.at(-1)!.porters).toBe(1);
+    expect(plain.outbox!.at(-1)!.body).not.toHaveProperty('arrival.service');
   });
 });
 

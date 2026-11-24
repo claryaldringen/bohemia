@@ -220,10 +220,15 @@ ves>:<id výpravy>`, `stayDays`, `travelDays`, zboží `goods` – koně i tady 
     vyhrává, při stejném dni pozdější zpráva) a kroniku `market-arrived` s vsí výpravy
     (`villageId` – Rozhodnutí plánu 3, bod 15); směr od domovské vsi `MarketArrival.firstStep`
     si návštěvník nese (`MarketVisitor.firstStep`, chybí u starších příjezdů). Týž klíč podruhé
-    (výprava na trhu nebo její výsledek v odchozí schránce) nic neudělá.
+    (výprava na trhu nebo její výsledek v odchozí schránce) nic neudělá. Kovář souseda
+    (`MarketArrival.service` → `MarketVisitor.service`, Rozhodnutí plánu 3, bod 9) kuje hned po
+    příjezdu (`serveShoeing` – village-livestock.md, Kovář souseda; kronika `horses-shod` za
+    `market-arrived`).
   - **Tržní den:** `marketDay(state, day)` – krok dne hned po událostech schránky
     (village-core.md – Pořadí práce dne). Bez návštěvníků nic (stav beze změny, klíč `market`
-    nevznikne). Jinak dva zápočty (`clearMarket` za ceny `market.prices`), oba se stranami
+    nevznikne). Výprava se `service` (kovář souseda) do zápočtu nevstupuje – jen v poslední den
+    odjede; je-li na trhu jen ona, tržní den není (ceny stojí). Jinak dva zápočty (`clearMarket`
+    za ceny `market.prices`), oba se stranami
     hostitel (`'host'`) a návštěvníci podle `order`: napřed zápočet řemeslníků – výrobky dílen jen
     za obilí a luštěniny (`craftStance`, `craftParties` – Obilí za výrobky níž; bez nich se
     přeskočí), pak dnešní zápočet se zbytkem zboží – hostitel `marketStance` bez toho, co prodal
@@ -282,13 +287,15 @@ ves>:<id výpravy>`, `stayDays`, `travelDays`, zboží `goods` – koně i tady 
     (`oxenForCarts(wants)` = Σ `cartOxen(druh)` × kusy – `MARKET_NO_OXEN`; Rozhodnutí plánu 3,
     bod 4), návrat před koncem světa (`MARKET_WORLD_END`). Výsledek nese `oxen` – hráč voly
     nezadává, spočítá je server i náhled touž funkcí. Prázdné `give` i `wants` jsou dovolené
-    (výprava na pivo). `planMarketTrip` vstup složí ze stavu a přidá `cartIds` (jen ze zbylých
+    (výprava na pivo). Kovář souseda jde sám (`MarketTripCheck.alone` – Rozhodnutí plánu 3, bod 9):
+    `porters` 0, `carts` 0, volní dospělí se nekontrolují. `planMarketTrip(…, { alone? })` vstup
+    složí ze stavu a přidá `cartIds` (jen ze zbylých
     vozů); `marketFreeAdults(state, day)` = dospělí mimo lidi pryč (`awayFromWork`)
     − `expeditionLaborNeed(day + 1)` − `purchaseTravelers` − `ironTripHelpers` (jeden pomocník
     pro server i náhled).
   - **Odchod:** `departMarket(state, day, order, target)` = kopie stavu + `departMarketInPlace(state,
-day, order, target, { by?, seedKg? })` (mutuje – i krok dne bez klonu celé vsi; den jde parametrem,
-    `lastDay` se nemění; odmítnutí `planMarketTrip` stav nezmění): zboží `give` odejde
+day, order, target, { by?, seedKg?, alone?, service? })` (mutuje – i krok dne bez klonu celé vsi; den
+    jde parametrem, `lastDay` se nemění; odmítnutí `planMarketTrip` stav nezmění): zboží `give` odejde
     (`addGood` záporně – prodané vozy `removeIdleCart`, koně po kusech `takeHorses`), výprava s
     `porters`, `carts`, `days` = 2 × cesta + pobyt a `cost` = nosiči × dny, voli pro koupené vozy
     `market.oxen`, kdo ji poslal `TradeExpedition.by` (`TripBy` – `villagers`, `steward`, `smith`,
@@ -296,6 +303,11 @@ day, order, target, { by?, seedKg? })` (mutuje – i krok dne bez klonu celé vs
     (`market-arrive`, `marketArrivalRef`) k hostiteli na `arriveDay` se zprávou na pivo o domovské
     vsi (`villageReport` – před odchodem zboží) a směrem `firstStep` a kronika `market-departed`
     s hostitelem `villageId` a `by` (Úloha 11 podle `villageId` maskuje jména pro cizího správce).
+    **Výprava kováře** (Rozhodnutí plánu 3, bod 9; `answerSmithAsk` – village-livestock.md, Kovář
+    souseda): `by: 'smith'`, `alone` – kovář jde sám, `porters` 0, bez vozů, `cost` 0 (pryč je jako
+    `Person.away` `'craft'`); `give` = hřivny na koně, `wants` prázdné, příjezd nese `service`
+    { `kind: 'shoeing'`, `horses` }. U hostitele do zápočtu nevstupuje (Trh ve vsi výš); výsledek
+    s poplatkem v `bought` a nespotřebovanými hřivnami v `unsold` jde domů jako u každé výpravy.
     `marketCarryKg(adults, carts)` – obráceně k `marketCrew`: kolik kg nošeného zboží unese jedna
     cesta s nejvýš `adults` lidmi a vozy `carts` (vesničané podle toho nakoupí jen to, co unesou).
   - **Pryč v pevné dny** (Rozhodnutí 2 – termín trhu je pevný): `expeditionLaborNeed` /

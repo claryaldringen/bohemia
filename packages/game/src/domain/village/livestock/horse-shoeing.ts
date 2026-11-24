@@ -15,11 +15,11 @@ export { isUnshod, nextShoeingDay };
 
 // Kování jezdeckých koní (horses.md – Kování; Martin 26. 10. 2026: „Jezdeckého koně je potřeba
 // každé dva měsíce kovat. To obstará ideálně kovář ve vsi“). Celá ves se kuje najednou, termín je
-// pevný: 60 dní od posledního kování (`VillageState.shoeing`). Kuje jen vlastní kovář (pracující
-// kovárna se zásobou hřiven) z práce vsi a ze zásoby kovárny; kovář z jiné vsi zrušen
-// (markets.md – Pravidla 1, vrátí se se skutečnými sousedy). Co se nepodaří, ves zkusí znovu každý
-// den; kůň po termínu je nepodkutý (`isUnshod`) – nejezdí a nevycvičuje se. Kroky mutují stav
-// (volat na klonu), čisté funkce stavu a dne; výsledek na kouscích dopočtu nezávisí.
+// pevný: 60 dní od posledního kování (`VillageState.shoeing`). Vlastní kovář (pracující kovárna se
+// zásobou hřiven) kuje z práce vsi a ze zásoby kovárny; bez něj se ves s okolím zeptá kováře
+// skutečného souseda (smith-visit.ts – markets.md, Rozhodnutí plánu 3, bod 9). Co se nepodaří, ves
+// zkusí znovu každý den; kůň po termínu je nepodkutý (`isUnshod`) – nejezdí a nevycvičuje se. Kroky
+// mutují stav (volat na klonu), čisté funkce stavu a dne; výsledek na kouscích dopočtu nezávisí.
 
 /** Tolerance proti chybám desetinných čísel. */
 const EPSILON = 1e-9;
@@ -43,9 +43,9 @@ function ensureTerm(state: VillageState, day: number): void {
 }
 
 /**
- * Plán kování dne (horses.md – Kování; mutuje jen termín): jen v den termínu a po něm. Kuje jen
- * vlastní kovář – pracující kovárna s dost hřivnami; jinak null a ves to zkusí zítra (kůň po
- * termínu je nepodkutý – `isUnshod`; kovář z jiné vsi zrušen, markets.md – Pravidla 1).
+ * Plán kování dne (horses.md – Kování; mutuje jen termín): jen v den termínu a po něm. Plán je jen
+ * pro vlastního kováře – pracující kovárna s dost hřivnami; jinak null a ves to zkusí zítra (kůň po
+ * termínu je nepodkutý – `isUnshod`; kováře souseda volá `askSmithDay`, smith-visit.ts).
  */
 export function planShoeing(state: VillageState, day: number): ShoeingPlan | null {
   ensureTerm(state, day);
@@ -63,8 +63,9 @@ export function planShoeing(state: VillageState, day: number): ShoeingPlan | nul
 
 /**
  * Dokončí kování dne (mutuje stav; po rozdělení práce): vlastní kovář jen když dostal celou práci
- * (`laborGiven`), odečte hřivny ze zásoby. Termín se posune na dnešek, kronika `horses-shod`.
- * Bez plánu nebo bez práce nic – ves zkusí zítra.
+ * (`laborGiven`), odečte hřivny ze zásoby. Termín se posune na dnešek a čekající dotaz na kováře
+ * souseda (`shoeing.asked`) zmizí, kronika `horses-shod`. Bez plánu nebo bez práce nic – ves zkusí
+ * zítra.
  */
 export function finishShoeing(
   state: VillageState,
@@ -75,7 +76,7 @@ export function finishShoeing(
   if (!plan || !state.shoeing) return [];
   if (laborGiven + EPSILON < plan.manDays) return [];
   addGood(state, 'ironBars', -plan.horses * HORSE_SHOEING.ironBarsKg, day);
-  state.shoeing.lastDay = day;
+  state.shoeing = { lastDay: day };
   return [{ day, kind: 'horses-shod', horses: plan.horses, own: true }];
 }
 

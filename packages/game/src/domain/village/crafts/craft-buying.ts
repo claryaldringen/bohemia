@@ -32,6 +32,7 @@ import type {
   CraftPurchaseGoods,
   CraftPurchasePay,
   Direction8,
+  Dwelling,
   LaborTarget,
   TradeGoods,
   VillageState,
@@ -43,7 +44,7 @@ import type {
 // Pravidla 1); nákup uložený na cestě ve starší vsi doběhne (markets.md bod 10): skupina dojde,
 // přinese výrobky a koupený vůz (`walkPurchases`, `finishPurchases`). Zůstává i cesta ke kraji mapy
 // ve směru (`purchaseRoute` – karavany zásilek, cizí kovář ze starší kroniky), přebytek k platbě
-// (`paymentPool` – ohrada koní, vesničané na trhu) a rozhodnutí „vyplatí se“ dřívějšího nákupu
+// (`paymentPool` – ohrada koní, vesničané na trhu, kovář souseda) a rozhodnutí „vyplatí se“ dřívějšího nákupu
 // u sousedů @ b4f8dadc (`BuyingContext`, `yearlySaving`, `withToolCoverage`, `pay` – vzorce beze
 // změny). Kroky simulace mutují stav – volat na klonu; čisté funkce stavu, deterministicky, na
 // kouscích dopočtu nezávisí.
@@ -130,11 +131,11 @@ export function craftSources(state: VillageState): CraftSource[] {
 }
 
 /**
- * Pracuje ve vsi vlastní řemeslník, který výrobek dělá (obývaná dílna, která má vstupy – ne bez uhlí,
- * dřeva, rudy ani hlíny)?
+ * Pracující dílny řemesla v pořadí id: obývané dílny, které mají vstupy – ne bez uhlí, dřeva, rudy
+ * ani hlíny (kovárny, odkud může jít kovář ke koním souseda – smith-visit.ts).
  */
-export function ownCraftsmanWorks(state: VillageState, craft: Craft): boolean {
-  return occupiedWorkshops(state, craft).some((d) => {
+export function workingWorkshops(state: VillageState, craft: Craft): Dwelling[] {
+  return occupiedWorkshops(state, craft).filter((d) => {
     const activity = d.workshop!.activity;
     return (
       activity !== 'no-charcoal' &&
@@ -146,9 +147,20 @@ export function ownCraftsmanWorks(state: VillageState, craft: Craft): boolean {
   });
 }
 
-/** Čím ves může platit – přebytek obilí a luštěnin nad pojistkou zásob (kg; ohrada koní). */
+/**
+ * Pracuje ve vsi vlastní řemeslník, který výrobek dělá (obývaná dílna, která má vstupy – ne bez uhlí,
+ * dřeva, rudy ani hlíny – `workingWorkshops`)?
+ */
+export function ownCraftsmanWorks(state: VillageState, craft: Craft): boolean {
+  return workingWorkshops(state, craft).length > 0;
+}
+
+/**
+ * Čím ves může platit – přebytek obilí a luštěnin nad pojistkou zásob (kg; ohrada koní, vesničané
+ * na trhu), u kováře souseda i z pojistky (`intoBuffer`).
+ */
 export interface PaymentPool {
-  /** Přebytek energie nad pojistkou k příští sklizni (kg obilí). */
+  /** Přebytek energie nad pojistkou k příští sklizni (kg obilí); s `intoBuffer` i pojistka. */
   energyKg: number;
   grainKg: number;
   legumesKg: number;
@@ -159,12 +171,15 @@ export interface PaymentPool {
  * Vymlácené zrno k platbě je bez zrna na dnešní jídlo (`foodGrainReserveKg` – jako výmlat na dnešní
  * jídlo), hromady osiva (okno i zimní osivo) a osiva jen na setí
  * (oprava, návrh Clauda 9. 11. 2026: Vlkov 1. 8. 873 zaplatil kování 41 kg vymláceného zrna
- * a příděl dne spadl na 0,55 – pojistka počítá i snopy, které se teprve vymlátí).
+ * a příděl dne spadl na 0,55 – pojistka počítá i snopy, které se teprve vymlátí). `intoBuffer` –
+ * platí se i z pojistky (kovář souseda, dřívější návrh Clauda „cizí kovář platí i z pojistky“ –
+ * markets.md, Rozhodnutí plánu 3, bod 9; port z b4f8dadc).
  */
 export function paymentPool(
   state: VillageState,
   day: number,
   coverage: CraftCoverage,
+  intoBuffer = false,
 ): PaymentPool {
   // osivo, které ves ještě zaseje, a osivo jen na setí ves nezaplatí (jako `fieldStoresOutlook`)
   const outlook = storesOutlook(
@@ -174,7 +189,7 @@ export function paymentPool(
     seedOutsideFoodKg(state, day, coverage.tools),
   );
   return {
-    energyKg: Math.max(0, outlook.leftKg - outlook.bufferKg),
+    energyKg: Math.max(0, outlook.leftKg - (intoBuffer ? 0 : outlook.bufferKg)),
     grainKg: Math.max(
       0,
       state.storesKg - uneatenSeedKg(state) - foodGrainReserveKg(villageFoodNeed(state, day)),

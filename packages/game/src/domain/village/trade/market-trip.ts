@@ -23,6 +23,7 @@ import type {
   MarketHorse,
   MarketOrder,
   MarketResult,
+  MarketService,
   MarketTarget,
   MarketTrip,
   TradeGoods,
@@ -197,6 +198,12 @@ export interface MarketTripCheck {
   cells: number;
   /** Dnešek – den odeslání (dnešek vsi je už spočtený). */
   day: number;
+  /**
+   * Kovář jde sám (markets.md – Rozhodnutí plánu 3, bod 9): bez nosičů a vozů (porters 0, carts 0),
+   * bez kontroly volných dospělých – je pryč jako `Person.away` (`'craft'`), práce výpravy 0.
+   * Chybí = výprava s posádkou (`marketCrew`).
+   */
+  alone?: true;
 }
 
 export type MarketCheck =
@@ -221,9 +228,10 @@ export type MarketCheck =
  * nestačí-li voli po prodeji, `MARKET_NO_OXEN`; Rozhodnutí plánu 3, bod 4) a dopravní vozy jedou jen
  * s ostatními voly (`cartsWithOxen`); nosiči nejvýš volní dospělí; tvar objednávky (konečná
  * nezáporná čísla, kusy celé) napřed; návrat před koncem světa. Prázdné `give` i `wants` jsou
- * dovolené (výprava „na pivo“). Data: výprava vyrazí ráno dne po odeslání (`departDay`), na trh
- * přijde po dnech cesty (`arriveDay`), tržní dny `arriveDay` … `arriveDay` + pobyt − 1,
- * `returnDay` je první den doma.
+ * dovolené (výprava „na pivo“). Kovář, který jde sám (`alone`), nebere nosiče ani vozy a volné
+ * dospělé se nekontroluje (Rozhodnutí plánu 3, bod 9). Data: výprava vyrazí ráno dne po odeslání
+ * (`departDay`), na trh přijde po dnech cesty (`arriveDay`), tržní dny `arriveDay` … `arriveDay`
+ * + pobyt − 1, `returnDay` je první den doma.
  */
 export function checkMarketTrip(order: MarketOrder, input: MarketTripCheck): MarketCheck {
   if (!goodsShapeOk(order.give) || !goodsShapeOk(order.wants)) {
@@ -243,15 +251,21 @@ export function checkMarketTrip(order: MarketOrder, input: MarketTripCheck): Mar
   const oxen = input.oxenHome - (order.give.trainedOxen ?? 0);
   const reserved = oxenForCarts(order.wants);
   if (reserved > oxen) return { ok: false, reason: MARKET_NO_OXEN };
-  const carts = cartsWithOxen(
-    withoutSoldCarts(
-      input.homeCarts.map((kind) => ({ kind })),
-      order.give,
-    ),
-    oxen - reserved,
-  ).map((cart) => cart.kind);
-  const crew = marketCrew(order.give, order.wants, carts);
-  if (crew.porters > input.adults) return { ok: false, reason: MARKET_NO_PEOPLE };
+  // kovář jde sám – bez nosičů a vozů, volní dospělí se nekontrolují
+  const crew = input.alone
+    ? { porters: 0, carts: 0 }
+    : marketCrew(
+        order.give,
+        order.wants,
+        cartsWithOxen(
+          withoutSoldCarts(
+            input.homeCarts.map((kind) => ({ kind })),
+            order.give,
+          ),
+          oxen - reserved,
+        ).map((cart) => cart.kind),
+      );
+  if (!input.alone && crew.porters > input.adults) return { ok: false, reason: MARKET_NO_PEOPLE };
   const travelDays = marketTravelDays(input.cells);
   const departDay = input.day + 1;
   const arriveDay = departDay + travelDays;
@@ -286,14 +300,16 @@ export function marketFreeAdults(state: VillageState, day: number): number {
 
 /**
  * checkMarketTrip nad stavem: stock = villageGoodStock(state, g, day) zboží z give, homeCarts =
- * druhy z tradeHomeCarts, oxenHome = oxenHome(state, day), adults = marketFreeAdults; cartIds =
- * prvních `carts` vozů bez prodaných (`withoutSoldCarts`), které po prodeji voli utáhnou.
+ * druhy z tradeHomeCarts, oxenHome = oxenHome(state, day), adults = marketFreeAdults (kovář, který
+ * jde sám – `alone` –, dospělé nepočítá: 0); cartIds = prvních `carts` vozů bez prodaných
+ * (`withoutSoldCarts`), které po prodeji voli utáhnou.
  */
 export function planMarketTrip(
   state: VillageState,
   day: number,
   order: MarketOrder,
   target: MarketTarget,
+  { alone }: { alone?: true } = {},
 ): MarketPlan {
   const homeCarts = tradeHomeCarts(state);
   const oxen = oxenHome(state, day);
@@ -305,9 +321,10 @@ export function planMarketTrip(
     stock,
     homeCarts: homeCarts.map((c) => c.kind),
     oxenHome: oxen,
-    adults: marketFreeAdults(state, day),
+    adults: alone ? 0 : marketFreeAdults(state, day),
     cells: target.cells,
     day,
+    ...(alone ? { alone } : {}),
   });
   if (!check.ok) return check;
   // rezervace volů pro koupené vozy je z kontroly (`check.oxen`) – plán a kontrola se nerozejdou
@@ -363,17 +380,27 @@ export function departMarket(
  * k hostiteli na den příjezdu (se zprávou na pivo o domovské vsi a směrem `firstStep`) a do kroniky
  * `market-departed` s hostitelem (`villageId`) a `by`. Den jde parametrem – `lastDay` se nemění.
  * `seedKg` – kolik obilí ze seznamu je osivo (výprava vesničanů za osivem, `MarketTrip.seedKg`).
+ * Kovář souseda (Rozhodnutí plánu 3, bod 9): `alone` – jde sám bez nosičů a vozů
+ * (`planMarketTrip`), `service` – příjezd nese službu, kvůli které jde (`MarketArrival.service`).
  */
 export function departMarketInPlace(
   state: VillageState,
   day: number,
   order: MarketOrder,
   target: MarketTarget,
-  options: { by?: TripBy; seedKg?: number } = {},
+  options: DepartOptions = {},
 ): { ok: true; trip: MarketTrip } | { ok: false; reason: string } {
-  const plan = planMarketTrip(state, day, order, target);
+  const plan = planMarketTrip(state, day, order, target, options);
   if (!plan.ok) return plan;
   return departPlanned(state, day, order, target, plan, options);
+}
+
+/** Kdo výpravu poslal, osivo v seznamu a kovář souseda – viz `departMarketInPlace`. */
+interface DepartOptions {
+  by?: TripBy;
+  seedKg?: number;
+  alone?: true;
+  service?: MarketService;
 }
 
 /** Odchod výpravy, kterou `planMarketTrip` schválil (mutuje stav) – viz `departMarketInPlace`. */
@@ -383,7 +410,7 @@ function departPlanned(
   order: MarketOrder,
   target: MarketTarget,
   plan: Extract<MarketPlan, { ok: true }>,
-  { by, seedKg = 0 }: { by?: TripBy; seedKg?: number } = {},
+  { by, seedKg = 0, service }: DepartOptions = {},
 ): { ok: true; trip: MarketTrip } {
   // zpráva na pivo o vsi před odchodem zboží (jako dřív ze stavu vstupu)
   const report = villageReport(next, day);
@@ -461,6 +488,7 @@ function departPlanned(
         wants: { ...wants },
         report,
         firstStep: target.firstStep,
+        ...(service ? { service: { ...service } } : {}),
       },
     },
   });

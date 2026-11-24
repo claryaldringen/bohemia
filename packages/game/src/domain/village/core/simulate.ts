@@ -17,6 +17,7 @@ import { priestDay } from '../people/church-life';
 import { lodgeArrivalsDay } from '../people/lodge';
 import { lodgeLifeDay } from '../people/lodge-life';
 import { husbandryDay } from '../livestock/husbandry';
+import { askSmithDay } from '../livestock/smith-visit';
 import { arrangeMarriages } from '../people/marriage';
 import { bufferFill } from '../fields/field-food';
 import { overgrowthDay } from '../fields/overgrowth';
@@ -423,6 +424,9 @@ function workDayStep(
   );
   // osivo za nestihnutou část dne zpět do jídla (fields.md – Osivo bez cíle osevu)
   settleSowingSeed(state, day);
+  // kovář souseda (markets.md – Rozhodnutí plánu 3, bod 9) – po kování dne (`finishShoeing` ve
+  // `work()`): koně po termínu bez vlastního kováře → dotaz `smith-ask`; jen ves s okolím
+  askSmithDay(state, day);
   return { toil, lordField, disasterEvents };
 }
 

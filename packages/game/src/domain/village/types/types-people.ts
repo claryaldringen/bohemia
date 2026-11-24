@@ -147,10 +147,20 @@ export interface Person {
  * Proč je člověk pryč jen na čas (rozhodnutí 11). `refuge` – uprchlík (war.md – Varování, poslové
  * a útěk do hradiště): s `hostVillageId` v hradišti, bez něj ukrytý v lese; `messenger` – posel
  * běží do hradiště a zpět; `journey` – vojvoda a družina na výjezdu (lord-control.md): jedí dál
- * doma, návrat ukončí událost výjezdu `away-ends`.
+ * doma, návrat ukončí událost výjezdu `away-ends`; `craft` – kovář šel kovat koně do jiné vsi
+ * (markets.md – Rozhodnutí plánu 3, bod 9): jí doma jako nosiči výpravy na trh, jeho kovárna ty dny
+ * nekuje, doma je v `untilDay` (návrat výpravy).
  */
 export type AwayKind =
-  'labor' | 'service' | 'campaign' | 'captive' | 'protection' | 'refuge' | 'messenger' | 'journey';
+  | 'labor'
+  | 'service'
+  | 'campaign'
+  | 'captive'
+  | 'protection'
+  | 'refuge'
+  | 'messenger'
+  | 'journey'
+  | 'craft';
 
 /** Nepřítomnost na čas: druh, den návratu domů, hostitelská ves a odkaz na důvod (dialog…). */
 export interface PersonAway {

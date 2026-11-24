@@ -590,12 +590,19 @@ export type ChronicleEvent = { day: number } & (
   /** Kůň pod jezdcem došel plného výcviku (horses.md – Výcvik koně a jezdec). */
   | { kind: 'horse-trained'; penId: number; horseId: number }
   /**
-   * Jezdecké koně podkovali (horses.md – Kování; `own` – vlastní kovář, jinak z jiné vsi – jen
-   * starší zápisy, cizí kovář zrušen – markets.md, Pravidla 1). Cizí kovář přišel od souseda ve
-   * směru `direction` (kronika ho píše jménem vsi); chybí u vlastního kováře a u zápisů starších
-   * než 14. 11. 2026.
+   * Jezdecké koně podkovali (horses.md – Kování; `own` – vlastní kovář, jinak kovář souseda –
+   * markets.md, Rozhodnutí plánu 3, bod 9). Cizí kovář přišel od souseda ve směru `direction`;
+   * chybí u vlastního kováře a u zápisů starších než 14. 11. 2026. Kovář souseda nese i ves, odkud
+   * přišel (`villageName`, `villageId` – Rozhodnutí plánu 3, bod 15); starší zápisy je nemají.
    */
-  | { kind: 'horses-shod'; horses: number; own: boolean; direction?: Direction8 }
+  | {
+      kind: 'horses-shod';
+      horses: number;
+      own: boolean;
+      direction?: Direction8;
+      villageName?: string;
+      villageId?: string;
+    }
   /**
    * Koně šli 1. 11. na maso (horses.md – Chov): dosloužili ve 20 letech (`age`), nebo jich ves má
    * víc, než chce (`surplus` – nejdřív nejstarší).

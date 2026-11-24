@@ -97,7 +97,9 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   kroniky za příjezdem; village-trade.md – Trh ve vsi) a úmrtí na rány (`woundDeathsDay`). Po práci
   dne napřed hotové zakázky (`fillOrders` – před opotřebením `wearCraftStocks`; village-trade.md –
   Zakázky). Hned za rezervou osiva (`seedReserveDay`), před `work()`, vesničané na trhu
-  (`villagerTripsDay` – jen ves s okolím; village-trade.md – Vesničané na trhu). Před prací dne
+  (`villagerTripsDay` – jen ves s okolím; village-trade.md – Vesničané na trhu). Hned za `work()`
+  (a `settleSowingSeed`), tedy za kováním dne `finishShoeing`, dotaz na kováře souseda
+  (`askSmithDay` – jen ves s okolím; village-livestock.md – Kovář souseda). Před prací dne
   (`simulate.ts`): 1. 9. `startSeason`, každý den `seasonDay` (konce oken
   setí, díly na řadě a čelo práce – fields.md, Osevní postup po dílech) a `lordHelpDay`
   (podíly dne rodiny ve žních `lordHelp` a s přípravou půdy a setím `lordSowing` – D102) a 1. 5. `wildlifeYearDay` (roční přepočet zvěře; hned za ním `weatherDay` – kronika počasí kraje v den odhalení, `village-disasters.md` –, `dogsYear` smečka dvorce, W4), 1. 6. `damageWindowStart` (ohrožené díly polí pro zvěř – wildlife.md, Škody); po `lordHelpDay` `settlePatrol` (jezdecká hlídka polí, W6), po práci dne `wildlifeDamageDay` (škoda zvěře a vran na nesklizených dílech, před jídlem) dále v závěru dne `patrolHuntDay` (úlovek z hlídky), a po sklizni jaře `wildlifeSeasonEnd` (kronika, vynulování ztrát dílů – podrobnosti `village-wildlife.md`); potřebné sezónní úlohy jsou práce nutných dílů – plodiny
@@ -489,6 +491,10 @@ afterDay, toDay)` – události `afterDay < day ≤ toDay` podle dne a `seq`. Sc
     `vassalage/__tests__/guests.test.ts`).
   - **Příchod hostů:** tělo schránky `guests-arrive` (`fromVillageId`, `fromName`, `guests`) –
     `hostGuests` přidá ty, kdo ještě neodešli a ve vsi nejsou; kronika `guests-came`.
+  - **Kovář u koní souseda** (`away` druhu `craft`; village-livestock.md – Kovář souseda):
+    `untilDay` = návrat výpravy kováře, nepracuje, **jí doma** (`foodNeedPerDay` – jako nosiči
+    výpravy na trh), jeho dílna ty dny nekuje (`craftHands`); návrat bez kroniky `people-back`
+    (`craft` není v `AWAY_KINDS`).
   - **Uprchlíci a posel** (war.md – Varování, poslové a útěk do hradiště; plán 2026-11-09 – Ú7,
     kód `domain/village/fortification/state/refugees.ts`, podrobně docs/code/war.md – Ves na útěku): `away` druhu
     `refuge` (s `hostVillageId` v hradišti, bez něj ukrytý v lese) a `messenger` nemá `untilDay` –

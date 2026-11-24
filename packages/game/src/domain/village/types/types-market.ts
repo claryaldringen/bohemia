@@ -77,6 +77,16 @@ export interface MarketCart {
 }
 
 /**
+ * Služba, se kterou výprava přijela (markets.md – Rozhodnutí plánu 3, bod 9): kovář jde okovat
+ * `horses` jezdeckých koní vsi, která se ptala (`smith-ask`). Výprava se službou do zápočtu
+ * nevstupuje – hřivny kováře se na trhu neprodají.
+ */
+export interface MarketService {
+  kind: 'shoeing';
+  horses: number;
+}
+
+/**
  * Výprava přijela na trh vsi – tělo události schránky `market-arrive` (markets.md – Pravidla 2
  * a 3, Rozhodnutí plánu 2, body 2 a 6).
  */
@@ -104,6 +114,8 @@ export interface MarketArrival {
    * Chybí = příjezd z doby před ním.
    */
   firstStep?: Direction8;
+  /** Kovář jde kovat koně (Rozhodnutí plánu 3, bod 9); chybí = obyčejná výprava na trh. */
+  service?: MarketService;
 }
 
 /**
@@ -142,6 +154,11 @@ export interface MarketVisitor {
    * při odjezdu znovu nezapíše (`recordOrders`). Chybí = žádné.
    */
   pickedUp?: OrderGood[];
+  /**
+   * Kovář, který přišel kovat koně (`MarketArrival.service`; Rozhodnutí plánu 3, bod 9) – do zápočtu
+   * nevstupuje, poplatek má v `bought`, spotřebované hřivny v `sold`. Chybí = obyčejná výprava.
+   */
+  service?: MarketService;
 }
 
 /**
@@ -238,13 +255,31 @@ export interface MarketResult {
 }
 
 /**
+ * Dotaz na kováře – tělo zprávy `smith-ask` (markets.md – Rozhodnutí plánu 3, bod 9): ves s koňmi
+ * po termínu bez vlastního kováře se ptá vsi okolí s kovářem. Klíč `smith:<ves>:<den>`, ves, která
+ * se ptá, jak daleko je (`cells`) a první krok cesty od ní ke kováři (`firstStep`), kolik koní
+ * a zpráva na pivo o ní (posel „zašel na pivo“ – Rozhodnutí plánu 3, bod 2).
+ */
+export interface SmithAsk {
+  key: string;
+  fromVillageId: string;
+  fromName: string;
+  cells: number;
+  firstStep: Direction8;
+  horses: number;
+  report: VillageReport;
+}
+
+/**
  * Zpráva trhu pro jinou ves (markets.md – Rozhodnutí plánu 2, bod 6; Rozhodnutí plánu 3, bod 6 –
- * ohlášení hotové zakázky `order-ready`, zpráva bez nákladu).
+ * ohlášení hotové zakázky `order-ready`, bod 9 – dotaz na kováře `smith-ask`; obojí zprávy bez
+ * nákladu).
  */
 export type MarketMailBody =
   | { kind: 'market-arrive'; arrival: MarketArrival }
   | { kind: 'market-result'; result: MarketResult }
-  | { kind: 'order-ready'; ready: OrderReady };
+  | { kind: 'order-ready'; ready: OrderReady }
+  | { kind: 'smith-ask'; ask: SmithAsk };
 
 /**
  * Zpráva v odchozí schránce vsi (`VillageState.outbox`) – do schránky vsi `villageId` na den `day`

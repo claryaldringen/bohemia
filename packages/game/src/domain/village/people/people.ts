@@ -81,11 +81,15 @@ export function hidesInForest(person: Pick<Person, 'away'>): boolean {
 
 /**
  * Potřeba jídla na den v kg podle věkové skupiny; kdo je pryč na čas, jí jinde (0) – kromě
- * uprchlíků ukrytých v lese (`hidesInForest`) a mužů na výjezdu (lord-control.md – Výjezd neveze
- * zásoby), ti jedí ze zásob vsi.
+ * uprchlíků ukrytých v lese (`hidesInForest`), mužů na výjezdu (lord-control.md – Výjezd neveze
+ * zásoby) a kováře u koní jiné vsi (`craft` – jako nosiči výpravy na trh, návrh Clauda; markets.md –
+ * Rozhodnutí plánu 3, bod 9), ti jedí ze zásob vsi.
  */
 export function foodNeedPerDay(person: Person, day: number): number {
-  if (isAway(person, day) && !hidesInForest(person) && person.away?.kind !== 'journey') return 0;
+  const kind = person.away?.kind;
+  if (isAway(person, day) && !hidesInForest(person) && kind !== 'journey' && kind !== 'craft') {
+    return 0;
+  }
   return FOOD_NEED_KG_PER_YEAR[ageGroup(person, day)] / FOOD_DAYS_PER_YEAR;
 }
 
