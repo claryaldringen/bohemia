@@ -27,9 +27,12 @@ import {
   newcomerFoundingReason,
   declareHuntInVillage,
   marketOverview,
+  marketTripPeople,
   sendMarketExpedition,
   type MarketOrder,
+  type MarketTripPeople,
   type MarketVillage,
+  type TradePeople,
   huntRunningIn,
   type DeclareHuntResult,
   setDefenseStanceInVillage,
@@ -973,6 +976,28 @@ export function marketOverviewForPlayer(
       villageId: ctx.villageId,
     });
     return all ?? { error: NOT_PLAYER_VILLAGE };
+  });
+}
+
+/**
+ * Lidé na prodej pro náhled výpravy (markets.md – Rozhodnutí plánu 3, bod 10; plán 3, Úloha 11):
+ * kolik skupin z vybraných počtů rodin, mužů a žen odejde a kolik volných dospělých zbude na nosiče
+ * – `marketTripPeople` jádra nad vsí dopočítanou do dneška, stejně jako kontrola výpravy při
+ * odeslání. Pohled bez práva jako přehled trhu; právo `trade` ověří až odeslání.
+ */
+export function marketPeopleForPlayer(
+  playerId: string,
+  villageId: string,
+  people: TradePeople,
+): Promise<MarketTripPeople | { error: string }> {
+  return withVillageCache(async () => {
+    const ctx = await context(playerId, villageId);
+    if (!ctx.ok) return { error: ctx.error };
+    const status = await dynastyOfPlayer(ctx.playerId, ctx.day, ctx.villageId);
+    const full = (status.villages as readonly DynastyVillage[]).filter(isFullVillage);
+    const current = full.find((v) => v.id === ctx.villageId);
+    if (!current) return { error: NO_VILLAGE };
+    return marketTripPeople(current.state, ctx.day, people);
   });
 }
 

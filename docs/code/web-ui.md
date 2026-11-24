@@ -1328,11 +1328,18 @@ plní `manorView` (`stanceOf`), volba jde přes server action `setDefenseStance`
   „… – hotová zakázka v Lhotě“ (`selection/crafts.tsx`).
 - **Panel Trh**: nové zboží (nástroje, dřevěné nářadí, vozy, rodiny, muži, ženy) bere z
   `TRADE_GOOD_NAMES` (ikony `tools`, `wood-tools`, `cart`, `family`, `man`, `woman`), nejvýš
-  `villageGoodStock` (celá kg). Lidé berou z týchž lidí – `VillageManor.market.people`
-  (`marketPeopleModel` jádra: dospělí po skupinách pro každý sekvenční výběr rodin, mužů a žen)
-  volá `marketPreview` přes `marketPreviewPeople`, takže lidé na prodej i volní nosiči vycházejí
-  stejně jako na serveru (`planMarketTrip`); prodávaní lidé nejsou nosiči. Voly pro koupený vůz kontroluje jádro (`MARKET_NO_OXEN` jako
-  důvod náhledu). Kovář souseda ve zprávě (`traders[].smith`) je ikona kováře, ne zboží; výprava do
+  `villageGoodStock` (celá kg; lidé – nejvýš kolik skupin druhu ves dá samotných). Lidé berou
+  z týchž lidí a výběr je postupný (pořadí mužů a žen se s odchodem rodin mění), takže pohled
+  dvorce model výběru nenese – kolik skupin s celým výběrem odejde a kolik dospělých zbude na
+  nosiče, spočítá jen server pro vybrané počty: panel (`useMarketPeople`, `hud/use-market-people.ts`)
+  se `MARKET_PEOPLE_DELAY_MS` po poslední změně zeptá akcí `getMarketPeople`
+  (`marketPeopleForPlayer` v `lib/village.ts` → `marketTripPeople` jádra nad vsí dopočítanou do
+  dneška, stejně jako `planMarketTrip` při odeslání; `askPeople` v `use-panels.ts`) a odpověď
+  předá `marketPreview`. Do odpovědi pro tytéž počty a týž pohled (nový pohled – zeptá se znovu)
+  náhled chybí a odeslat nejde; chyba dotazu je důvod u odeslání. Prodávaní lidé nejsou nosiči.
+  Dřívější model všech kombinací (`(F+1)·(M+2)` výběrů při každém pohledu) stál u vsi s 250 lidmi
+  vteřiny (plán 3, Úloha 11, opravné kolo 2). Voly pro koupený vůz kontroluje jádro
+  (`MARKET_NO_OXEN` jako důvod náhledu). Kovář souseda ve zprávě (`traders[].smith`) je ikona kováře, ne zboží; výprava do
   vsi bez jména je „Sousední ves“; obchodník ve zprávě nese `villageId` domova a cizímu správci
   `marketOverview` vypustí jméno, pokud jeho ves správce nezná (starší záznamy bez `villageId` též).
 - **Cizí správce**: `maskVillageNames(state, allowed)` (`lib/mask-village-names.ts`, volá
@@ -1342,8 +1349,9 @@ plní `manorView` (`stanceOf`), volba jde přes server action `setDefenseStance`
   `collect` (`application/market.ts`) správci vynechá i zprávy (`news`) o ostatních vsích držitele.
 - **Testy**: `village-view-chronicle-markets3.test.ts`, `village-notices.test.ts`, `horse-view.test.ts`,
   `product-order.test.ts`, `mask-village-names.test.ts`, `market-view.test.ts`, `village-name-cases.test.ts`,
-  `MarketPanel.test.tsx`, `SelectionPanel.test.tsx`; e2e `e2e/market.spec.ts` (nástroje a muž v „Dáš“,
-  odeslání, kronika ve stavu).
+  `MarketPanel.test.tsx`, `SelectionPanel.test.tsx`, `use-panels.behavior.test.tsx`,
+  `market-trip-people.test.ts` (jádro – rovnost s dřívějším modelem na vsích s rodinami); e2e
+  `e2e/market.spec.ts` (nástroje a muž v „Dáš“, odeslání, kronika ve stavu).
 
 ## Rozkaz „Probít se“ (fortifications.md – Obrana bez násobku 3, `hud/BreakoutButton.tsx`)
 

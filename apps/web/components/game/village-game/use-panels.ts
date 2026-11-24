@@ -1,13 +1,15 @@
 'use client';
 
 import { useCallback, useRef, useState, type RefObject } from 'react';
-import type { LevyDialogView, MarketVillage } from '@bohemia/game';
+import type { LevyDialogView, MarketVillage, TradePeople } from '@bohemia/game';
 import {
   getMarketOverview,
+  getMarketPeople,
   levyDialogs,
   passagesToAnswer,
   protectionView,
 } from '@/app/game/actions';
+import type { MarketPeopleAnswer } from '@/components/game/hud/use-market-people';
 import type { ProtectionView } from '@/lib/protection';
 import type { PassageView, SummonsDialogView } from '@/lib/summons';
 import type { VillageView } from '@/lib/village-view';
@@ -45,8 +47,16 @@ export interface Panels {
   };
   openLevy: () => Promise<void>;
   closeLevy: () => void;
-  /** Panel Trh (markets.md – Pravidla 9) – přehled vsí se načte až při otevření. */
-  market: { open: boolean; villages: MarketVillage[] | null; error: string | null };
+  /**
+   * Panel Trh (markets.md – Pravidla 9) – přehled vsí se načte až při otevření; `askPeople` se
+   * zeptá serveru na lidi na prodej pro vybrané počty (náhled výpravy, plán 3, Úloha 11).
+   */
+  market: {
+    open: boolean;
+    villages: MarketVillage[] | null;
+    error: string | null;
+    askPeople: (people: TradePeople) => Promise<MarketPeopleAnswer>;
+  };
   openMarket: () => Promise<void>;
   closeMarket: () => void;
 }
@@ -174,6 +184,19 @@ export function usePanels({
     marketRequest.current += 1;
     setMarketOpen(false);
   }, []);
+  // lidé na prodej zobrazené vsi pro náhled výpravy – chyba spojení jako odpověď, ne výjimka
+  const askMarketPeople = useCallback(
+    async (people: TradePeople): Promise<MarketPeopleAnswer> => {
+      const villageId = viewRef.current?.id;
+      if (!villageId) return { error: CONNECTION_FAILED };
+      try {
+        return await getMarketPeople({ villageId, ...people });
+      } catch {
+        return { error: CONNECTION_FAILED };
+      }
+    },
+    [viewRef],
+  );
   const showMenu = useCallback((): void => {
     setHouseOpen(false);
     setWarOpen(false);
@@ -205,7 +228,12 @@ export function usePanels({
     levy: { open: levyOpen, dialogs: levy, summons, error: levyError },
     openLevy,
     closeLevy,
-    market: { open: marketOpen, villages: marketVillages, error: marketError },
+    market: {
+      open: marketOpen,
+      villages: marketVillages,
+      error: marketError,
+      askPeople: askMarketPeople,
+    },
     openMarket,
     closeMarket,
   };

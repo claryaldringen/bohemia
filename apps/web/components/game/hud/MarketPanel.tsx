@@ -11,6 +11,7 @@ import {
   type MarketVillage,
   type TradeGood,
   type TradeGoods,
+  type TradePeople,
 } from '@bohemia/game';
 import { formatGameDate } from '@/lib/game-date';
 import type { VillageManor } from '@/lib/manor-view';
@@ -20,11 +21,13 @@ import { formatDecimal, formatInteger, plural } from '@/lib/village-format';
 import { Dialog } from './Dialog';
 import { useRightDenied } from './rights';
 import { Tooltip } from './Tooltip';
+import { useMarketPeople, type MarketPeopleAnswer } from './use-market-people';
 
 // Panel Trh ve dvorci (markets.md – Pravidla 8 a 9, Rozhodnutí plánu 2, bod 9): přehled vsí, kam
 // smí výprava, zpráva na pivo vybrané vsi, sloupce „Dáš“ / „Dostaneš“ (jediné popisky – jako
 // „Prodat“ a „Koupit“ v 0 A.D.), dny na trhu, náhled a odeslání a výpravy na cestě. Panel jen
-// ukazuje a posílá záměr – důvody odmítnutí bere z náhledu jádra (`marketPreview`).
+// ukazuje a posílá záměr – důvody odmítnutí bere z náhledu jádra (`marketPreview`). Kolik lidí
+// z vybraných rodin, mužů a žen odejde a kolik zbude nosičů, se doptá serveru (`useMarketPeople`).
 
 type Side = 'give' | 'want';
 
@@ -342,13 +345,15 @@ function without(goods: TradeGoods, good: TradeGood, value: number): TradeGoods 
 
 /**
  * Panel Trh: `villages` je přehled ze serveru (`null` – načítá se), `market` vstup náhledu a výpravy
- * na cestě z pohledu dvorce, `onSend` pošle výpravu a vrátí důvod odmítnutí serveru (nebo null).
+ * na cestě z pohledu dvorce, `onSend` pošle výpravu a vrátí důvod odmítnutí serveru (nebo null),
+ * `onPeople` se zeptá serveru na lidi na prodej pro vybrané počty (`marketTripPeople`).
  */
 export function MarketPanel({
   villages,
   error,
   market,
   onSend,
+  onPeople,
   onClose,
 }: {
   villages: MarketVillage[] | null;
@@ -356,6 +361,7 @@ export function MarketPanel({
   error: string | null;
   market: VillageManor['market'];
   onSend: (targetVillageId: string, order: MarketOrder) => Promise<string | null>;
+  onPeople: (people: TradePeople) => Promise<MarketPeopleAnswer>;
   onClose: () => void;
 }): ReactElement {
   const denied = useRightDenied('trade');
@@ -367,7 +373,13 @@ export function MarketPanel({
   const [busy, setBusy] = useState(false);
   const target = villages?.find((v) => v.villageId === targetId) ?? null;
   const order = useMemo<MarketOrder>(() => ({ give, wants, stayDays }), [give, wants, stayDays]);
-  const preview = target ? marketPreview(order, market, target.cells) : null;
+  // lidé ve výběru: náhled až s odpovědí serveru pro tytéž počty (náhled = server)
+  const people = useMarketPeople(give, market, onPeople);
+  const peopleReady = people.status === 'none' || people.status === 'ready';
+  const preview =
+    target && peopleReady
+      ? marketPreview(order, market, target.cells, people.status === 'ready' ? people.people : null)
+      : null;
   const showPreview = preview !== null && (hasGoods(give) || hasGoods(wants));
   const stocked = TRADE_GOODS.filter((g) => (market.stock[g] ?? 0) > 0);
 
@@ -389,8 +401,13 @@ export function MarketPanel({
       })
       .finally(() => setBusy(false));
   };
-  const sendReason = !target ? 'Vyber ves.' : (preview?.reason ?? null);
-  const sendDisabled = denied !== null || busy || sendReason !== null;
+  const sendReason = !target
+    ? 'Vyber ves.'
+    : people.status === 'error'
+      ? people.error
+      : (preview?.reason ?? null);
+  const sendDisabled =
+    denied !== null || busy || people.status === 'pending' || sendReason !== null;
 
   return (
     <Dialog

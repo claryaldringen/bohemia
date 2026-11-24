@@ -53,13 +53,12 @@ import { addHorses, takeHorses } from './horse-trade';
 import { marketArrivalRef, rememberNews } from './market';
 import {
   leavingGroups,
-  peopleOf,
   restorePeople,
   settlePeople,
   takePeople,
   withoutGroups,
 } from './market-people';
-import { emigrantGroups, emigrantList, type EmigrantGroup } from './people-trade';
+import { emigrantList } from './people-trade';
 import { addGood, addMarketCarts, expeditionLaborNeed, takeCarts, villageGoodStock } from './trade';
 import { villageReport } from './village-report';
 
@@ -314,70 +313,35 @@ export function marketFreeAdults(state: VillageState, day: number): number {
   return Math.max(0, adults - busy);
 }
 
-/**
- * Výběr lidí na prodej pro náhled výpravy ve webu (markets.md – Rozhodnutí plánu 3, bod 10; návrh
- * Clauda). Web stav vsi nemá, a výběr je sekvenční (`emigrantGroups`: napřed rodiny, pak muži
- * a ženy z vsi bez předchozích), proto server pošle dospělé po skupinách pro každý možný výběr:
- * `men[f]` po odchodu `f` rodin, `women[f][m]` po odchodu `f` rodin a `m` mužů. `adults` jsou
- * dospělí vsi bez lidí pryč a `busy` ti, které zaměstnávají výpravy, nákupy a kování
- * (`marketFreeAdults`).
- */
-export interface MarketPeopleModel {
-  families: number[];
-  men: number[][];
-  women: number[][][];
+/** Lidé na prodej výpravy a volní nosiči bez nich (`marketTripPeople`). */
+export interface MarketTripPeople {
+  /** Kolik skupin každého druhu s celým `give` doopravdy odejde. */
+  stock: TradePeople;
+  /** Volní dospělí bez odcházejících (`marketFreeAdults`). */
   adults: number;
-  busy: number;
-}
-
-/** Model výběru lidí pro náhled (`marketPreviewPeople`); stav nemění. */
-export function marketPeopleModel(state: VillageState, day: number): MarketPeopleModel {
-  const adultsOf = (groups: readonly EmigrantGroup[]): number[] =>
-    groups.map((g) => g.people.filter((p) => isAdult(p, day) && !awayFromWork(p, day)).length);
-  const everyone = { families: Infinity, men: Infinity, women: Infinity };
-  const groups = emigrantGroups(state, day, everyone).families;
-  const families = groups.length;
-  const model: MarketPeopleModel = {
-    families: adultsOf(groups),
-    men: [],
-    women: [],
-    adults: state.people.filter((p) => isAdult(p, day) && !awayFromWork(p, day)).length,
-    busy: expeditionLaborNeed(state, day + 1) + purchaseTravelers(state) + ironTripHelpers(state),
-  };
-  for (let f = 0; f <= families; f++) {
-    const men = emigrantGroups(state, day, { families: f, men: Infinity, women: 0 }).men;
-    model.men.push(adultsOf(men));
-    const row: number[][] = [];
-    for (let m = 0; m <= men.length; m++) {
-      const women = emigrantGroups(state, day, { families: f, men: m, women: Infinity }).women;
-      row.push(adultsOf(women));
-    }
-    model.women.push(row);
-  }
-  return model;
 }
 
 /**
- * Lidé na prodej a volní nosiči pro náhled výpravy se zbožím `give` – stejně jako kontrola
- * výpravy na serveru (`planMarketTrip`): `stock` je kolik skupin druhu s celým `give` doopravdy
- * odejde (`leavingGroups`), `adults` volní dospělí bez nich (`marketFreeAdults`). Čistá funkce.
+ * Lidé na prodej výpravy se zbožím `give` (markets.md – Rozhodnutí plánu 3, bod 10): kolik skupin
+ * druhu odejde (`leavingGroups` – rodiny, muži a ženy berou z týchž lidí) a volní dospělí nad
+ * mělkou kopií vsi bez nich – nosičem není nikdo z prodávaných. Bere to kontrola výpravy
+ * (`planMarketTrip`) a náhled ve webu se na to ptá serveru pro vybrané počty (návrh Clauda, plán 3,
+ * Úloha 11): výběr je postupný a pořadí mužů a žen se s odchodem rodin a mužů mění (přeplnění
+ * domů), takže model všech kombinací by stál (F+1)·(M+2) výběrů. Stav nemění.
  */
-export function marketPreviewPeople(
-  model: MarketPeopleModel,
+export function marketTripPeople(
+  state: VillageState,
+  day: number,
   give: TradeGoods,
-): { stock: TradePeople; adults: number } {
-  const want = peopleOf(give);
-  const f = Math.min(want.families, model.families.length);
-  const men = model.men[f] ?? [];
-  const m = Math.min(want.men, men.length);
-  const women = model.women[f]?.[m] ?? [];
-  const w = Math.min(want.women, women.length);
-  const sum = (list: readonly number[], n: number): number =>
-    list.slice(0, n).reduce((a, b) => a + b, 0);
-  const leaving = sum(model.families, f) + sum(men, m) + sum(women, w);
+): MarketTripPeople {
+  const leaving = leavingGroups(state, day, give);
   return {
-    stock: { families: f, men: m, women: w },
-    adults: Math.max(0, model.adults - leaving - model.busy),
+    stock: {
+      families: leaving.families.length,
+      men: leaving.men.length,
+      women: leaving.women.length,
+    },
+    adults: marketFreeAdults(withoutGroups(state, emigrantList(leaving)), day),
   };
 }
 
@@ -386,9 +350,7 @@ export function marketPreviewPeople(
  * druhy z tradeHomeCarts, oxenHome = oxenHome(state, day), adults = marketFreeAdults (kovář, který
  * jde sám – `alone` –, dospělé nepočítá: 0); cartIds = prvních `carts` vozů bez prodaných
  * (`withoutSoldCarts`), které po prodeji voli utáhnou. Lidé na prodej (markets.md – Rozhodnutí
- * plánu 3, bod 10): stock = kolik skupin druhu odejde s celým `give` (`leavingGroups` – druhy berou
- * z týchž lidí) a volní dospělí se počítají nad mělkou kopií vsi bez nich – nosičem není nikdo
- * z prodávaných.
+ * plánu 3, bod 10) a volní dospělí bez nich z `marketTripPeople` – na totéž se ptá náhled ve webu.
  */
 export function planMarketTrip(
   state: VillageState,
@@ -399,17 +361,17 @@ export function planMarketTrip(
 ): MarketPlan {
   const homeCarts = tradeHomeCarts(state);
   const oxen = oxenHome(state, day);
-  const leaving = leavingGroups(state, day, order.give);
+  const people = marketTripPeople(state, day, order.give);
   const stock: TradeGoods = {};
   for (const good of TRADE_GOODS) {
     if (!((order.give[good] ?? 0) > 0)) continue;
-    stock[good] = isPeopleGood(good) ? leaving[good].length : villageGoodStock(state, good, day);
+    stock[good] = isPeopleGood(good) ? people.stock[good] : villageGoodStock(state, good, day);
   }
   const check = checkMarketTrip(order, {
     stock,
     homeCarts: homeCarts.map((c) => c.kind),
     oxenHome: oxen,
-    adults: alone ? 0 : marketFreeAdults(withoutGroups(state, emigrantList(leaving)), day),
+    adults: alone ? 0 : people.adults,
     cells: target.cells,
     day,
     ...(alone ? { alone } : {}),

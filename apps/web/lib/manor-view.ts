@@ -6,8 +6,6 @@ import {
   HUNT_DENIED_TEXT,
   lordFamily,
   marketFreeAdults,
-  marketPeopleModel,
-  type MarketPeopleModel,
   oxenHome,
   tradeHomeCarts,
   TRADE_GOODS,
@@ -79,27 +77,18 @@ export interface VillageManor {
   family?: ManorMember[];
   /**
    * Trh (markets.md – Rozhodnutí plánu 2, bod 9): vstup kontroly výpravy bez vzdálenosti
-   * (`MarketTripCheck` – náhled ve webu volá `checkMarketTrip` jádra) a výpravy na cestě.
+   * (`MarketTripCheck` – náhled ve webu volá `checkMarketTrip` jádra) a výpravy na cestě. Lidé
+   * (rodiny, muži, ženy) mají ve `stock` nejvýš, kolik skupin druhu ves dá samotných; kolik jich
+   * s celým výběrem odejde a kolik dospělých zbude na nosiče, spočítá server až pro vybrané počty
+   * (`marketTripPeople` – Rozhodnutí plánu 3, bod 10; panel Trh).
    */
-  market: Omit<MarketTripCheck, 'cells'> & {
-    trips: MarketTripView[];
-    /**
-     * Výběr lidí na prodej a volní nosiči pro náhled (`marketPreviewPeople` jádra) – kdo odejde,
-     * nosičem není (Rozhodnutí plánu 3, bod 10); chybí = neznámo (starší pohledy, testy).
-     */
-    people?: MarketPeopleModel;
-  };
+  market: Omit<MarketTripCheck, 'cells'> & { trips: MarketTripView[] };
 }
 
 /** Vstup kontroly výpravy na trh ze stavu vsi (zásoby všech druhů zboží, vozy, voli, volní dospělí). */
 function marketField(state: VillageState, day: number): VillageManor['market'] {
   const stock: TradeGoods = {};
   for (const good of TRADE_GOODS) stock[good] = villageGoodStock(state, good, day);
-  // lidé berou z týchž lidí – nejvíc, co jde dát, když se druhy nepřebírají (`marketPreviewPeople`)
-  const people = marketPeopleModel(state, day);
-  stock.families = people.families.length;
-  stock.men = people.men[0]?.length ?? 0;
-  stock.women = people.women[0]?.[0]?.length ?? 0;
   return {
     stock,
     homeCarts: tradeHomeCarts(state).map((c) => c.kind),
@@ -107,7 +96,6 @@ function marketField(state: VillageState, day: number): VillageManor['market'] {
     adults: marketFreeAdults(state, day),
     day,
     trips: marketTripViews(state, day),
-    people,
   };
 }
 

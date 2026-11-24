@@ -1,10 +1,11 @@
 // @vitest-environment jsdom
 import { createRoot, type Root } from 'react-dom/client';
 import { act } from 'react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { MarketOrder, MarketVillage } from '@bohemia/game';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { MarketOrder, MarketVillage, TradePeople } from '@bohemia/game';
 import type { VillageManor } from '@/lib/manor-view';
 import { MarketPanel } from '../MarketPanel';
+import { MARKET_PEOPLE_DELAY_MS, type MarketPeopleAnswer } from '../use-market-people';
 
 // Panel Trh (markets.md – Pravidla 8 a 9): přehled vsí, zpráva na pivo, sestavení výpravy
 // a výpravy na cestě. Panel jen ukazuje a posílá záměr – důvody bere z náhledu jádra.
@@ -36,27 +37,38 @@ const market = (over: Partial<VillageManor['market']> = {}): VillageManor['marke
 
 let mounted: { root: Root; host: HTMLElement } | null = null;
 
-async function mount(props: {
+interface MountProps {
   villages?: MarketVillage[] | null;
   error?: string | null;
   market?: VillageManor['market'];
   onSend?: (id: string, order: MarketOrder) => Promise<string | null>;
-}): Promise<HTMLElement> {
-  const host = document.createElement('div');
-  document.body.append(host);
-  const root = createRoot(host);
-  mounted = { root, host };
+  onPeople?: (people: TradePeople) => Promise<MarketPeopleAnswer>;
+}
+
+/** Server odpoví, že odejdou všichni vybraní a volných dospělých je dost. */
+const allLeave = (people: TradePeople): Promise<MarketPeopleAnswer> =>
+  Promise.resolve({ stock: people, adults: 99 });
+
+async function render(props: MountProps): Promise<void> {
   await act(async () => {
-    root.render(
+    mounted!.root.render(
       <MarketPanel
         villages={props.villages ?? [village()]}
         error={props.error ?? null}
         market={props.market ?? market()}
         onSend={props.onSend ?? (() => Promise.resolve(null))}
+        onPeople={props.onPeople ?? allLeave}
         onClose={() => undefined}
       />,
     );
   });
+}
+
+async function mount(props: MountProps): Promise<HTMLElement> {
+  const host = document.createElement('div');
+  document.body.append(host);
+  mounted = { root: createRoot(host), host };
+  await render(props);
   return host;
 }
 
@@ -230,23 +242,6 @@ describe('nové zboží a lidé (plán 3, Úloha 11)', () => {
     expect(give('men').textContent).toContain('2');
   });
 
-  it('prodávaní lidé nejsou nosiči: náhled ubere dospělé a řekne důvod jako server', async () => {
-    const host = await mount({
-      market: market({
-        stock: { grain: 1000, men: 2 },
-        adults: 6,
-        people: { families: [], men: [[3, 3]], women: [[[], [], []]], adults: 6, busy: 0 },
-      }),
-    });
-    await click(host.querySelector('[data-testid="market-village"] button'));
-    await click(byId(host, 'market-give-grain-plus'));
-    expect(byId(host, 'market-preview')).not.toBeNull();
-    await click(byId(host, 'market-give-men-plus'));
-    await click(byId(host, 'market-give-men-plus'));
-    expect(byId(host, 'market-preview')).toBeNull();
-    expect((byId(host, 'market-send') as HTMLButtonElement).disabled).toBe(true);
-  });
-
   it('zpráva ukáže kováře jako kováře, ne obchodníka s hřivnami', async () => {
     const host = await mount({
       villages: [
@@ -279,6 +274,105 @@ describe('nové zboží a lidé (plán 3, Úloha 11)', () => {
       }),
     });
     expect(byId(host, 'market-trip')!.textContent).toContain('Sousední ves');
+  });
+});
+
+describe('lidé na prodej – náhled se doptá serveru (plán 3, Úloha 11, opravné kolo 2)', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  /** Uplyne `ms` (prodleva dotazu) a odpověď serveru dorazí. */
+  const wait = async (ms = MARKET_PEOPLE_DELAY_MS): Promise<void> => {
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(ms);
+    });
+  };
+  const sendButton = (host: HTMLElement): HTMLButtonElement =>
+    byId(host, 'market-send') as HTMLButtonElement;
+  const stocked = market({ stock: { grain: 1000, families: 1, men: 3, women: 2 }, adults: 20 });
+
+  it('server dostane vybrané počty jednou po poslední změně; do odpovědi náhled chybí a odeslat nejde', async () => {
+    const onPeople = vi.fn(allLeave);
+    const host = await mount({ market: stocked, onPeople });
+    await click(host.querySelector('[data-testid="market-village"] button'));
+    await click(byId(host, 'market-give-grain-plus'));
+    expect(byId(host, 'market-preview')).not.toBeNull();
+    // bez lidí ve výběru se server neptá – náhled je hned
+    await wait();
+    expect(onPeople).not.toHaveBeenCalled();
+    await click(byId(host, 'market-give-men-plus'));
+    await wait(MARKET_PEOPLE_DELAY_MS / 2);
+    await click(byId(host, 'market-give-men-plus'));
+    expect(byId(host, 'market-preview')).toBeNull();
+    expect(sendButton(host).disabled).toBe(true);
+    await wait();
+    expect(onPeople).toHaveBeenCalledTimes(1);
+    expect(onPeople).toHaveBeenCalledWith({ families: 0, men: 2, women: 0 });
+    expect(byId(host, 'market-preview')).not.toBeNull();
+    expect(sendButton(host).disabled).toBe(false);
+  });
+
+  it('prodávaní lidé nejsou nosiči: bez volných dospělých podle serveru řekne důvod', async () => {
+    const onPeople = vi.fn((people: TradePeople) => Promise.resolve({ stock: people, adults: 0 }));
+    const host = await mount({ market: stocked, onPeople });
+    await click(host.querySelector('[data-testid="market-village"] button'));
+    await click(byId(host, 'market-give-grain-plus'));
+    await click(byId(host, 'market-give-families-plus'));
+    await wait();
+    expect(onPeople).toHaveBeenCalledWith({ families: 1, men: 0, women: 0 });
+    expect(byId(host, 'market-preview')).toBeNull();
+    expect(sendButton(host).disabled).toBe(true);
+    expect(host.textContent).toContain('Na výpravu ves nemá dost dospělých.');
+  });
+
+  it('méně skupin, než je vybráno (druhy berou z týchž lidí): důvod jako server', async () => {
+    const onPeople = vi.fn((people: TradePeople) =>
+      Promise.resolve({ stock: { ...people, women: Math.min(people.women, 1) }, adults: 20 }),
+    );
+    const host = await mount({ market: stocked, onPeople });
+    await click(host.querySelector('[data-testid="market-village"] button'));
+    await click(byId(host, 'market-give-women-plus'));
+    await click(byId(host, 'market-give-women-plus'));
+    await wait();
+    expect(sendButton(host).disabled).toBe(true);
+    expect(byId(host, 'market-preview')).toBeNull();
+  });
+
+  it('chyba dotazu je důvod u odeslání; další změna výběru se zeptá znovu', async () => {
+    const onPeople = vi
+      .fn<(people: TradePeople) => Promise<MarketPeopleAnswer>>()
+      .mockResolvedValueOnce({ error: 'Spojení se serverem selhalo.' })
+      .mockImplementation(allLeave);
+    const host = await mount({ market: stocked, onPeople });
+    await click(host.querySelector('[data-testid="market-village"] button'));
+    await click(byId(host, 'market-give-men-plus'));
+    await wait();
+    expect(sendButton(host).disabled).toBe(true);
+    expect(host.textContent).toContain('Spojení se serverem selhalo.');
+    await click(byId(host, 'market-give-men-plus'));
+    await wait();
+    expect(onPeople).toHaveBeenCalledTimes(2);
+    expect(byId(host, 'market-preview')).not.toBeNull();
+    expect(sendButton(host).disabled).toBe(false);
+  });
+
+  it('nový pohled na ves (další den, po odeslání) – server se zeptá znovu na tytéž počty', async () => {
+    const onPeople = vi.fn(allLeave);
+    const host = await mount({ market: stocked, onPeople });
+    await click(host.querySelector('[data-testid="market-village"] button'));
+    await click(byId(host, 'market-give-men-plus'));
+    await wait();
+    expect(byId(host, 'market-preview')).not.toBeNull();
+    await render({ market: { ...stocked, day: stocked.day + 1 }, onPeople });
+    expect(byId(host, 'market-preview')).toBeNull();
+    await wait();
+    expect(onPeople).toHaveBeenCalledTimes(2);
+    expect(onPeople).toHaveBeenLastCalledWith({ families: 0, men: 1, women: 0 });
+    expect(byId(host, 'market-preview')).not.toBeNull();
   });
 });
 

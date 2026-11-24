@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { MarketVillage } from '@bohemia/game';
 import type { VillageView } from '@/lib/village-view';
 import { usePanels, type Panels } from '../use-panels';
+import { CONNECTION_FAILED } from '../village-data';
 
 // Panel Trh (markets.md – Pravidla 8): zavření všech panelů zavře i trh a zpožděná odpověď
 // staršího otevření nepřepíše novější stav ani zavřený panel.
@@ -12,8 +13,10 @@ import { usePanels, type Panels } from '../use-panels';
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 const getMarketOverview = vi.fn();
+const getMarketPeople = vi.fn();
 vi.mock('@/app/game/actions', () => ({
   getMarketOverview: (input: unknown): Promise<unknown> => getMarketOverview(input),
+  getMarketPeople: (input: unknown): Promise<unknown> => getMarketPeople(input),
   levyDialogs: vi.fn(),
   passagesToAnswer: vi.fn(),
   protectionView: vi.fn(),
@@ -54,6 +57,7 @@ function deferred(): { promise: Promise<unknown>; resolve: (value: unknown) => v
 
 beforeEach(() => {
   getMarketOverview.mockReset();
+  getMarketPeople.mockReset();
   root = createRoot(document.createElement('div'));
   act(() => root.render(<Host />));
 });
@@ -105,5 +109,22 @@ describe('usePanels – panel Trh', () => {
       await opening;
     });
     expect(panels!.market.villages).toBeNull();
+  });
+});
+
+describe('usePanels – lidé na prodej pro náhled výpravy (plán 3, Úloha 11)', () => {
+  it('askPeople se zeptá serveru na vybrané počty zobrazené vsi', async () => {
+    const answer = { stock: { families: 0, men: 1, women: 0 }, adults: 5 };
+    getMarketPeople.mockResolvedValueOnce(answer);
+    const people = { families: 0, men: 1, women: 0 };
+    await expect(panels!.market.askPeople(people)).resolves.toEqual(answer);
+    expect(getMarketPeople).toHaveBeenCalledWith({ villageId: 'v1', ...people });
+  });
+
+  it('nedostupný server je chyba spojení, ne výjimka', async () => {
+    getMarketPeople.mockRejectedValueOnce(new Error('offline'));
+    await expect(panels!.market.askPeople({ families: 1, men: 0, women: 0 })).resolves.toEqual({
+      error: CONNECTION_FAILED,
+    });
   });
 });

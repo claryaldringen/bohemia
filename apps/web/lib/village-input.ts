@@ -15,6 +15,7 @@ import {
   type MasonryCircle,
   type MarketOrder,
   type TradeGoods,
+  type TradePeople,
   TRADE_GOODS,
   HOUSE_TYPES_BEST_FIRST,
   MASON_CRAFTS,
@@ -612,6 +613,17 @@ export function parseMarketExpeditionInput(
   if (targetVillageId === null || give === null || wants === null) return null;
   if (!Number.isInteger(stayDays) || (stayDays as number) < 0) return null;
   return { targetVillageId, order: { give, wants, stayDays: stayDays as number } };
+}
+
+/**
+ * Vstup lidí na prodej pro náhled výpravy `{ families, men, women }` (markets.md – Rozhodnutí
+ * plánu 3, bod 10): celá nezáporná čísla, jinak null. Kolik jich odejde, spočítá jádro.
+ */
+export function parseMarketPeopleInput(value: unknown): TradePeople | null {
+  if (!isRecord(value)) return null;
+  const count = (n: unknown): n is number => Number.isInteger(n) && (n as number) >= 0;
+  const { families, men, women } = value;
+  return count(families) && count(men) && count(women) ? { families, men, women } : null;
 }
 
 /** Vstup nastavení postoje vsi `{ stance }` (war.md – Obránci), jinak null. */
