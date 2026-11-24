@@ -159,10 +159,14 @@ export function createVillageRepository(db: Database): VillageRepository {
     // bariéra ves × tažení (village-holds.ts) – dopočet vsi nepředběhne tažení u ní
     holds: createVillageHolds(db),
     // okolí vsi v pevné dny (nearby.ts) – dopočet zapíše snímek sousedních vsí před dnem obnovy;
-    // sousedé z otisků vsí a sídel, bez načtení stavů – každé úložiště v DB ho má, ať den snímku
-    // nezávisí na tom, kdo ves přes den obnovy dopočítá
+    // sousedé z otisků vsí, jejich souhrnů (svobodní) a sídel, bez načtení stavů – každé úložiště
+    // v DB ho má, ať den snímku nezávisí na tom, kdo ves přes den obnovy dopočítá
     nearby: nearbyRefresh({
-      villages: { inbox, stampsOf: (ids) => repository.stampsOf(ids) },
+      villages: {
+        inbox,
+        stampsOf: (ids) => repository.stampsOf(ids),
+        digestsOf: (ids) => repository.digestsOf(ids),
+      },
       settlements: createSettlementRepository(db),
     }),
 

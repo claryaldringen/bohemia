@@ -249,9 +249,17 @@ export type ChronicleEvent = { day: number } & (
   /**
    * Muž rodu `name` si vzal další manželku z okolí (lord.md – Manželky); bez jména chybí. `estate` –
    * postavení muže v den zápisu, `wife` – jméno ženy (Martin 15. 11. 2026: „Vojvoda Lutobor si vzal
-   * Dobravu.“); starší zápisy bez nich.
+   * Dobravu.“); starší zápisy bez nich. `villageName` / `villageId` – sousední ves, odkud přišla
+   * (markets.md – Rozhodnutí plánu 3, body 12 a 15); zápisy smyšleného okolí je nemají.
    */
-  | { kind: 'extra-wife'; name?: string; estate?: ChronicleEstate; wife?: string }
+  | {
+      kind: 'extra-wife';
+      name?: string;
+      estate?: ChronicleEstate;
+      wife?: string;
+      villageName?: string;
+      villageId?: string;
+    }
   /**
    * Muž rodu `name` má po smrti hlavní manželky novou hlavní (lord.md – Nová hlavní manželka);
    * `estate` a `wife` jako u `extra-wife` („Dobrava se stala hlavní manželkou vojvody Lutobora.“).
@@ -421,15 +429,40 @@ export type ChronicleEvent = { day: number } & (
       groomFromDwellingId?: number;
       brideFromDwellingId?: number;
     } & WeddingCouple)
-  /** Muž z domu `dwellingId` si přivedl nevěstu z okolí (kinship.md – Sňatky z okolí). */
-  | ({ kind: 'bride-from-outside'; dwellingId: number } & WeddingCouple)
+  /**
+   * Muž z domu `dwellingId` si přivedl nevěstu z okolí (kinship.md – Sňatky z okolí);
+   * `villageName` / `villageId` – sousední ves, odkud přišla (markets.md – Rozhodnutí plánu 3, body
+   * 11 a 15); zápisy smyšleného okolí je nemají.
+   */
+  | ({
+      kind: 'bride-from-outside';
+      dwellingId: number;
+      villageName?: string;
+      villageId?: string;
+    } & WeddingCouple)
   /**
    * K ženě z domu `dwellingId` se přiženil muž z okolí (kinship.md – Sňatky z okolí); `widow` –
-   * k vdově.
+   * k vdově; `villageName` / `villageId` jako u nevěsty.
    */
-  | ({ kind: 'groom-from-outside'; dwellingId: number; widow?: true } & WeddingCouple)
-  /** Dcera z domu `dwellingId` se vdala pryč – odešla ze vsi (kinship.md – Sňatky z okolí). */
-  | { kind: 'married-away'; dwellingId: number }
+  | ({
+      kind: 'groom-from-outside';
+      dwellingId: number;
+      widow?: true;
+      villageName?: string;
+      villageId?: string;
+    } & WeddingCouple)
+  /**
+   * Dcera z domu `dwellingId` se vdala pryč – odešla ze vsi (kinship.md – Sňatky z okolí); `groom` –
+   * syn se přiženil pryč; `villageName` / `villageId` – ves, kam odešel (markets.md – Rozhodnutí
+   * plánu 3, body 11 a 15).
+   */
+  | {
+      kind: 'married-away';
+      dwellingId: number;
+      groom?: true;
+      villageName?: string;
+      villageId?: string;
+    }
   | {
       kind: 'construction-finished';
       constructionKind: ConstructionKind;

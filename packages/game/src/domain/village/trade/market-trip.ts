@@ -23,6 +23,7 @@ import type {
   ChronicleEvent,
   MarketCart,
   MarketHorse,
+  MarketKin,
   MarketOrder,
   MarketPerson,
   MarketResult,
@@ -402,6 +403,9 @@ export function departMarket(
  * `seedKg` – kolik obilí ze seznamu je osivo (výprava vesničanů za osivem, `MarketTrip.seedKg`).
  * Kovář souseda (Rozhodnutí plánu 3, bod 9): `alone` – jde sám bez nosičů a vozů
  * (`planMarketTrip`), `service` – příjezd nese službu, kvůli které jde (`MarketArrival.service`).
+ * Partner za hledajícím (Rozhodnutí plánu 3, bod 11): `kin` – za kým jde (`MarketArrival.kin`),
+ * `people` – lidé, kteří už odešli ze vsi (`removePeople` volajícího) a jdou s výpravou mimo zboží
+ * (v příjezdu `people` za lidmi z `give`, ve zboží ani v `give` výpravy nejsou).
  */
 export function departMarketInPlace(
   state: VillageState,
@@ -415,12 +419,14 @@ export function departMarketInPlace(
   return departPlanned(state, day, order, target, plan, options);
 }
 
-/** Kdo výpravu poslal, osivo v seznamu a kovář souseda – viz `departMarketInPlace`. */
+/** Kdo výpravu poslal, osivo v seznamu, kovář souseda a partner – viz `departMarketInPlace`. */
 interface DepartOptions {
   by?: TripBy;
   seedKg?: number;
   alone?: true;
   service?: MarketService;
+  kin?: MarketKin;
+  people?: readonly MarketPerson[];
 }
 
 /** Odchod výpravy, kterou `planMarketTrip` schválil (mutuje stav) – viz `departMarketInPlace`. */
@@ -430,7 +436,7 @@ function departPlanned(
   order: MarketOrder,
   target: MarketTarget,
   plan: Extract<MarketPlan, { ok: true }>,
-  { by, seedKg = 0, service }: DepartOptions = {},
+  { by, seedKg = 0, service, kin, people: partners = [] }: DepartOptions = {},
 ): { ok: true; trip: MarketTrip } {
   // zpráva na pivo o vsi před odchodem zboží (jako dřív ze stavu vstupu)
   const report = villageReport(next, day);
@@ -466,6 +472,8 @@ function departPlanned(
     if (n > 0) give[good] = n;
     else delete give[good];
   }
+  // partner za hledajícím (Rozhodnutí plánu 3, bod 11) jde s výpravou, zbožím není
+  const travelling = [...people, ...structuredClone(partners)];
   const trade = (next.trade ??= { expeditions: [], nextId: 1 });
   const id = trade.nextId++;
   const key = `market:${target.homeVillageId}:${id}`;
@@ -515,11 +523,12 @@ function departPlanned(
         goods: { ...give },
         horses,
         ...(carts.length > 0 ? { carts } : {}),
-        ...(people.length > 0 ? { people } : {}),
+        ...(travelling.length > 0 ? { people: travelling } : {}),
         wants: { ...wants },
         report,
         firstStep: target.firstStep,
         ...(service ? { service: { ...service } } : {}),
+        ...(kin ? { kin: { ...kin } } : {}),
       },
     },
   });

@@ -1,6 +1,7 @@
 import { domainFoodReadyYear, villageFoodBalance } from '../../vassalage/domain-food';
 import { isVillageTravelling } from '../people/departure';
 import { lineMen } from '../people/dynasty';
+import { kinSingles } from '../people/kin-match';
 import { lineFacts, type LineFacts } from './extinction';
 import { isStewardOn } from '../steward/steward-state';
 import { hungerLevel, type HungerLevel } from './summary';
@@ -8,6 +9,7 @@ import { threshingStatus } from '../fields/threshing';
 import { trailExitsOf, type TrailExit } from '../trade/trail-exits';
 import type { ChronicleEvent } from '../types/types-chronicle';
 import type { DisasterState, FloodRecord } from '../types/types-disasters';
+import type { NearbySingle } from '../types/types-market';
 import type { VillageState } from '../types/types-state';
 
 // Souhrn vsi (plán workeru – Mimo plán: souhrn vsi pro přepínač): co pohled a akce potřebují
@@ -98,6 +100,12 @@ export interface VillageDigest extends LineFacts {
    * souhrn uložený dřív (16. 11. 2026) – sousední mapa ves načte celou; verze tvaru se nemění.
    */
   trailExits?: TrailExit[];
+  /**
+   * Svobodní, kteří by šli za partnerem odjinud (`kinSingles` ve dni vsi – markets.md, Rozhodnutí
+   * plánu 3, body 1 a 11): okolí sousedních vsí je čte bez načtení stavu (`nearbyVillages`).
+   * Chybí = nikdo, nebo souhrn uložený dřív (24. 11. 2026); verze tvaru se nemění.
+   */
+  singles?: NearbySingle[];
 }
 
 /** Poslední místní pohroma v kronice; žádná – undefined. */
@@ -155,7 +163,14 @@ export function villageDigest(state: VillageState): VillageDigest {
     ...(disasters ? { disasters } : {}),
     ...(last ? { lastLocalDisaster: last } : {}),
     trailExits: trailExitsOf(state),
+    ...singlesOf(state),
   };
+}
+
+/** Svobodní pro okolí ze stavu ve dni vsi; nikdo – nic. */
+function singlesOf(state: VillageState): { singles: NearbySingle[] } | null {
+  const singles = kinSingles(state, state.lastDay);
+  return singles.length > 0 ? { singles } : null;
 }
 
 /** Souhrn je použitelný – nese současnou verzi tvaru. */

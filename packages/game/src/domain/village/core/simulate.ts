@@ -19,6 +19,7 @@ import { lodgeLifeDay } from '../people/lodge-life';
 import { husbandryDay } from '../livestock/husbandry';
 import { askSmithDay } from '../livestock/smith-visit';
 import { arrangeMarriages } from '../people/marriage';
+import { askKinDay } from '../people/kin-match';
 import { bufferFill } from '../fields/field-food';
 import { overgrowthDay } from '../fields/overgrowth';
 import { roadsDay, roadsMonthSteps } from '../paths/roads';
@@ -525,6 +526,9 @@ function marriagesAndMealDay(
     (fill ??= lucky ? 1 : bufferFill(fieldStoresOutlook(state, day, coverage)));
   state.chronicle.push(...ensureMainWives(state, day));
   state.chronicle.push(...arrangeMarriages(state, day, storesFill));
+  // sňatky se skutečnými sousedy (markets.md – Rozhodnutí plánu 3, body 11 a 12) – jen ves
+  // s okolím: kdo ve vsi nemá s kým (ani dnes), se zeptá sousední vsi (`kin-ask`, proud 'kin:')
+  askKinDay(state, day, storesFill);
   // uprchlíci jedí napřed své – v lese z ukrytého, v hradišti ze zásob pobytu (war.md – Varování,
   // poslové a útěk do hradiště); bez útěku a hostů uprchlíků nic
   if (state.refuge?.hidden !== undefined || state.refugeStays !== undefined) {

@@ -11,6 +11,7 @@ import { dismissGuests, endAway, hostGuests } from '../../vassalage/guests';
 import { receiveShipment } from '../../vassalage/shipment';
 import { applyJourneyHorse } from '../livestock/horses-out';
 import { answerSmithAsk } from '../livestock/smith-visit';
+import { answerKinAsk } from '../people/kin-match';
 import { applyJourneyCasualty } from '../wildlife/beast-casualty';
 import { applyHuntResult, endHuntAway } from '../wildlife/hunt';
 import { pruneThreats } from '../fortification/threat';
@@ -307,8 +308,9 @@ export type VillageEventBody =
    * Trh (markets.md – Rozhodnutí plánu 2, bod 6) – zprávy z odchozí schránky jiné vsi
    * (`VillageMail`): výprava přijela na trh vsi (`market-arrive` – `joinMarket`), výsledek trhu
    * pro výpravu, která se vrací domů (`market-result` – `applyMarketResult`), hotová zakázka
-   * (`order-ready` – `markOrderReady`, Rozhodnutí plánu 3, bod 6) a dotaz na kováře (`smith-ask`
-   * – `answerSmithAsk`, Rozhodnutí plánu 3, bod 9).
+   * (`order-ready` – `markOrderReady`, Rozhodnutí plánu 3, bod 6), dotaz na kováře (`smith-ask`
+   * – `answerSmithAsk`, Rozhodnutí plánu 3, bod 9) a dotaz na partnera (`kin-ask` – `answerKinAsk`,
+   * Rozhodnutí plánu 3, bod 11).
    */
   | MarketMailBody;
 
@@ -426,6 +428,8 @@ function applyEvent(state: VillageState, day: number, body: VillageEventBody): C
       return markOrderReady(state, day, body.ready);
     case 'smith-ask':
       return answerSmithAsk(state, day, body.ask);
+    case 'kin-ask':
+      return answerKinAsk(state, day, body.ask);
     case 'nearby':
       return applyNearby(state, day, body.nearby);
     default:

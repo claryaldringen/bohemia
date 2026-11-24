@@ -11,6 +11,7 @@
 // bod 10). Trh počítá jen ze stavu hostitele a událostí schránky toho dne, takže výsledek nezávisí
 // na kouscích dopočtu. Mutuje stav jako kroky dne.
 import { serveShoeing } from '../livestock/smith-visit';
+import { receiveKin } from '../people/kin-match';
 import { OPPOSITE } from '../people/world-grid';
 import { MARKET } from '../rules';
 import type {
@@ -118,7 +119,8 @@ function takeFrom(goods: TradeGoods, good: TradeGood, amount: number): void {
  * zboží jsou počty kusů v `horses` po druzích – kůň, který nepřišel, se neprodá; stejně lidé
  * (`people` po skupinách – Rozhodnutí plánu 3, bod 10). Kovář souseda (`service` – Rozhodnutí
  * plánu 3, bod 9) si službu nese a kuje hned po příjezdu (`serveShoeing`, kronika `horses-shod` za
- * příjezdem).
+ * příjezdem). Partner za hledajícím (`kin` – Rozhodnutí plánu 3, bod 11) zbožím není: usadí se hned
+ * po příjezdu (`receiveKin` – svatba nebo nováček, kronika za příjezdem) a doprovod jen čeká.
  */
 export function joinMarket(
   state: VillageState,
@@ -135,7 +137,10 @@ export function joinMarket(
     pieceCounts[good] = arrival.horses.filter((h) => h.good === good).length;
   }
   for (const good of PEOPLE_GOODS) {
-    pieceCounts[good] = (arrival.people ?? []).filter((g) => g.good === good).length;
+    // partner za hledajícím (`kin`) se neprodává – zbožím není
+    pieceCounts[good] = arrival.kin
+      ? 0
+      : (arrival.people ?? []).filter((g) => g.good === good).length;
   }
   const goods = positiveGoods({ ...arrival.goods, ...pieceCounts });
   const visitor: MarketVisitor = {
@@ -156,6 +161,7 @@ export function joinMarket(
     bought: {},
     boughtHorses: [],
     ...(arrival.service ? { service: { ...arrival.service } } : {}),
+    ...(arrival.kin ? { kin: { ...arrival.kin } } : {}),
   };
   market.visitors.push(visitor);
   market.arrivals.push({
@@ -179,6 +185,7 @@ export function joinMarket(
       villageId: arrival.fromVillageId,
     },
     ...serveShoeing(state, day, visitor),
+    ...receiveKin(state, day, visitor),
   ];
 }
 
@@ -445,13 +452,15 @@ function departVisitors(
  * a seznamů dne (`nextPrices` – i s obilím za výrobky, jako by šlo o jeden zápočet) a výpravy, kterým
  * pobyt končí, odjedou s výsledkem a zakázkami. Vrací zápis kroniky, prodala-li nebo koupila-li ves
  * něco (oba zápočty dohromady). Bez výprav na trhu nic – stav se nezmění. Kovář souseda (výprava se
- * `service` – Rozhodnutí plánu 3, bod 9) do zápočtu nevstupuje, jen v poslední den odjede; je-li na
- * trhu jen on, tržní den není (ceny stojí).
+ * `service` – Rozhodnutí plánu 3, bod 9) a doprovod partnera (`kin` – bod 11) do zápočtu nevstupují,
+ * jen v poslední den odjedou; jsou-li na trhu jen oni, tržní den není (ceny stojí).
  */
 export function marketDay(state: VillageState, day: number): ChronicleEvent[] {
   const market = state.market;
   if (!market || market.visitors.length === 0) return [];
-  const visitors = market.visitors.filter((v) => !v.service).sort((a, b) => a.order - b.order);
+  const visitors = market.visitors
+    .filter((v) => !v.service && !v.kin)
+    .sort((a, b) => a.order - b.order);
   if (visitors.length === 0) {
     departVisitors(state, market, day, {});
     return [];

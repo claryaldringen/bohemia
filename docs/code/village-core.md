@@ -99,7 +99,10 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   Zakázky). Hned za rezervou osiva (`seedReserveDay`), před `work()`, vesničané na trhu
   (`villagerTripsDay` – jen ves s okolím; village-trade.md – Vesničané na trhu). Hned za `work()`
   (a `settleSowingSeed`), tedy za kováním dne `finishShoeing`, dotaz na kováře souseda
-  (`askSmithDay` – jen ves s okolím; village-livestock.md – Kovář souseda). Před prací dne
+  (`askSmithDay` – jen ves s okolím; village-livestock.md – Kovář souseda). Hned za sňatky ve vsi
+  (`arrangeMarriages`) dotaz na partnera v sousední vsi (`askKinDay` – jen ves s okolím, proud
+  `'kin:' + den`; odpověď `kin-ask` → `answerKinAsk` je větev schránky; village-people.md – Sňatky
+  – se sousedy). Před prací dne
   (`simulate.ts`): 1. 9. `startSeason`, každý den `seasonDay` (konce oken
   setí, díly na řadě a čelo práce – fields.md, Osevní postup po dílech) a `lordHelpDay`
   (podíly dne rodiny ve žních `lordHelp` a s přípravou půdy a setím `lordSowing` – D102) a 1. 5. `wildlifeYearDay` (roční přepočet zvěře; hned za ním `weatherDay` – kronika počasí kraje v den odhalení, `village-disasters.md` –, `dogsYear` smečka dvorce, W4), 1. 6. `damageWindowStart` (ohrožené díly polí pro zvěř – wildlife.md, Škody); po `lordHelpDay` `settlePatrol` (jezdecká hlídka polí, W6), po práci dne `wildlifeDamageDay` (škoda zvěře a vran na nesklizených dílech, před jídlem) dále v závěru dne `patrolHuntDay` (úlovek z hlídky), a po sklizni jaře `wildlifeSeasonEnd` (kronika, vynulování ztrát dílů – podrobnosti `village-wildlife.md`); potřebné sezónní úlohy jsou práce nutných dílů – plodiny

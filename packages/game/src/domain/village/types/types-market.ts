@@ -4,7 +4,7 @@
 
 import type { Craft } from './types-crafts';
 import type { TradedHorse } from './types-livestock';
-import type { Person } from './types-people';
+import type { Person, Sex } from './types-people';
 import type { Direction8 } from './types-state';
 import type { CartGood, HorseGood, PeopleGood, TradeGood, TradeGoods } from './types-trade';
 
@@ -133,6 +133,20 @@ export interface MarketArrival {
   firstStep?: Direction8;
   /** Kovář jde kovat koně (Rozhodnutí plánu 3, bod 9); chybí = obyčejná výprava na trh. */
   service?: MarketService;
+  /**
+   * Partner jde za hledajícím (Rozhodnutí plánu 3, bod 11) – je v `people`, ale zbožím není (do
+   * `goods` se nepočítá); chybí = obyčejná výprava na trh.
+   */
+  kin?: MarketKin;
+}
+
+/**
+ * Za kým jde partner výpravy `kin` (markets.md – Rozhodnutí plánu 3, body 11 a 12): id hledajícího
+ * ve vsi hostitele; `extraWife` – další manželka muže rodu.
+ */
+export interface MarketKin {
+  seekerId: number;
+  extraWife?: true;
 }
 
 /**
@@ -181,10 +195,11 @@ export interface MarketVisitor {
    */
   service?: MarketService;
   /**
-   * Partner, který jde za hledajícím (nevěsta, ženich, další manželka – Rozhodnutí plánu 3, bod 11;
-   * plní Úloha 9): id hledajícího ve vsi hostitele. Chybí = obyčejná výprava.
+   * Partner, který šel za hledajícím (nevěsta, ženich, další manželka – Rozhodnutí plánu 3, body 11
+   * a 12; `MarketArrival.kin`): po příjezdu se usadí (`receiveKin`), doprovod do zápočtu nevstupuje
+   * a večer posledního dne odjede s prázdným výsledkem. Chybí = obyčejná výprava.
    */
-  kin?: { seekerId: number; extraWife?: true };
+  kin?: MarketKin;
 }
 
 /**
@@ -307,15 +322,45 @@ export interface SmithAsk {
 }
 
 /**
+ * Kdo hledá partnera v jiné vsi (markets.md – Rozhodnutí plánu 3, body 11 a 12): id ve vsi, která se
+ * ptá, pohlaví, den narození, vdova či vdovec (`isWidowed` – větší věkový rozdíl) a `extraWife` –
+ * muž rodu hledá další manželku.
+ */
+export interface KinSeeker {
+  personId: number;
+  sex: Sex;
+  bornDay: number;
+  widowed: boolean;
+  extraWife?: true;
+}
+
+/**
+ * Dotaz na nevěstu, ženicha nebo další manželku – tělo zprávy `kin-ask` (markets.md – Rozhodnutí
+ * plánu 3, bod 11): klíč `kin:<ves>:<den>:<id hledajícího>`, ves, která se ptá, jak daleko je
+ * (`cells`) a první krok cesty od ní k vsi partnera (`firstStep`), kdo hledá a zpráva na pivo o ní
+ * (posel „zašel na pivo“ – Rozhodnutí plánu 3, bod 2).
+ */
+export interface KinAsk {
+  key: string;
+  fromVillageId: string;
+  fromName: string;
+  cells: number;
+  firstStep: Direction8;
+  seeker: KinSeeker;
+  report: VillageReport;
+}
+
+/**
  * Zpráva trhu pro jinou ves (markets.md – Rozhodnutí plánu 2, bod 6; Rozhodnutí plánu 3, bod 6 –
- * ohlášení hotové zakázky `order-ready`, bod 9 – dotaz na kováře `smith-ask`; obojí zprávy bez
- * nákladu).
+ * ohlášení hotové zakázky `order-ready`, bod 9 – dotaz na kováře `smith-ask`, bod 11 – dotaz na
+ * partnera `kin-ask`; všechny tři zprávy bez nákladu).
  */
 export type MarketMailBody =
   | { kind: 'market-arrive'; arrival: MarketArrival }
   | { kind: 'market-result'; result: MarketResult }
   | { kind: 'order-ready'; ready: OrderReady }
-  | { kind: 'smith-ask'; ask: SmithAsk };
+  | { kind: 'smith-ask'; ask: SmithAsk }
+  | { kind: 'kin-ask'; ask: KinAsk };
 
 /**
  * Zpráva v odchozí schránce vsi (`VillageState.outbox`) – do schránky vsi `villageId` na den `day`
@@ -394,14 +439,26 @@ export interface MarketTrip {
 }
 
 /**
+ * Svobodný ve vsi okolí, který by šel za partnerem odjinud (`kinCandidates`; markets.md – Rozhodnutí
+ * plánu 3, body 1 a 11) – jen pohlaví a věk po 5 letech (`ageFrom` = 5 × floor(věk ÷ 5)), veřejná
+ * zpráva jako na pivu.
+ */
+export interface NearbySingle {
+  sex: Sex;
+  ageFrom: number;
+}
+
+/**
  * Ves okolí (markets.md – Rozhodnutí plánu 3, bod 1): ves na jedné z 8 sousedních map, kolik
- * políček mapy světa je daleko a první krok cesty k ní (jako `MarketTarget`).
+ * políček mapy světa je daleko a první krok cesty k ní (jako `MarketTarget`); `singles` – její
+ * svobodní ze souhrnu vsi (`VillageDigest.singles`, bod 11), chybí = nikdo (i okolí zapsané dřív).
  */
 export interface NearbyVillage {
   villageId: string;
   name: string;
   cells: number;
   firstStep: Direction8;
+  singles?: NearbySingle[];
 }
 
 /**

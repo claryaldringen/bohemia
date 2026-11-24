@@ -2,6 +2,8 @@ import { describe, expect, it, vi } from 'vitest';
 import { TOTAL_GAME_DAYS } from '../../domain/calendar';
 import { CURRENT_LAYER_VERSIONS } from '../../domain/landscape';
 import type { NearbyVillage } from '../../domain/village';
+import { dwelling, kin } from '../../domain/village/__tests__/kin-fixtures';
+import { kinSingles } from '../../domain/village/people/kin-match';
 import { D, homeVillage } from '../../domain/village/trade/__tests__/market-fixtures';
 import { NEARBY_REFRESH_DAYS, nearbyDays, nearbyVillages } from '../nearby';
 import { updateVillage } from '../update-village';
@@ -100,6 +102,25 @@ describe('nearbyVillages – vsi na 8 sousedních mapách bez načtení stavů',
       { villageId: own, name: 'Dolní', cells: 1, firstStep: 'N' },
       { villageId: other, name: 'Hora', cells: 1, firstStep: 'SW' },
     ]);
+  });
+
+  it('svobodní souseda ze souhrnu (kinSingles stavu M v jeho lastDay) – bez načtení stavu', async () => {
+    const w = await nearbyWorld();
+    // svobodní M (26–30 let) se berou mezi sebou; samotář 60 nevěstu ve vsi nemá (rozdíl nad 15
+    // let) – šel by za ženou odjinud
+    w.villages.edit(w.m, (s) => {
+      s.dwellings.push({ ...dwelling(960), position: { x: 90, z: 90, rotation: 0 } });
+      s.people.push(kin({ id: 960, age: 60, sex: 'male', home: 960 }, s.lastDay));
+      s.nextId = Math.max(s.nextId, 961);
+    });
+    const m = w.state(w.m);
+    const singles = kinSingles(m, m.lastDay);
+    expect(singles).toEqual([{ sex: 'male', ageFrom: 60 }]);
+    const finds = w.villages.finds;
+    await w.load(w.h, K);
+    expect(w.state(w.h).nearby!.villages).toEqual([{ ...LHOTA, singles }]);
+    // M se nenačetla celá – jen H (načtení, zápis snímku, nové načtení)
+    expect(w.villages.finds - finds).toBe(2);
   });
 
   it('vymřelá, archivovaná a odříznutá ves v okolí není', async () => {

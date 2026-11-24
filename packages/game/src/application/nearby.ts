@@ -31,9 +31,12 @@ export function nearbyDays(afterDay: number, toDay: number): number[] {
   return days;
 }
 
-/** Co potřebuje sken okolí: otisky vsí (jméno, spí-li ves) a sídla (poloha, držitelé políček). */
+/**
+ * Co potřebuje sken okolí: otisky vsí (jméno, spí-li ves), souhrny vsí (svobodní) a sídla (poloha,
+ * držitelé políček).
+ */
 export interface NearbyDeps {
-  villages: Pick<VillageRepository, 'stampsOf'>;
+  villages: Pick<VillageRepository, 'stampsOf' | 'digestsOf'>;
   settlements: Pick<SettlementRepository, 'find' | 'holderAt' | 'listActive'>;
 }
 
@@ -45,9 +48,11 @@ function compareIds(a: string, b: string): number {
 /**
  * Vsi na 8 sousedních mapách vsi `home` (i vsi téhož hráče), jak jsou v okamžiku dotazu – bez
  * načtení stavů: sídla na prstenci 1 (`holderAt`, `listActive` – archivované sídlo ani sídlo
- * s čekajícím převodem mezi nimi není) a jejich otisky (`stampsOf` – jméno; spící ves chybí).
- * `cells` a `firstStep` jako přehled trhu a výprava; řazeno podle `cells`, pak `villageId`.
- * Odříznutý rod (newcomers.md – místní mřížka není mapa světa) a archivované sídlo – prázdné.
+ * s čekajícím převodem mezi nimi není), jejich otisky (`stampsOf` – jméno; spící ves chybí)
+ * a souhrny (`digestsOf` – svobodní `singles`, markets.md – Rozhodnutí plánu 3, bod 11; souhrn bez
+ * nich nebo ves bez souhrnu současné verze = nikdo). `cells` a `firstStep` jako přehled trhu
+ * a výprava; řazeno podle `cells`, pak `villageId`. Odříznutý rod (newcomers.md – místní mřížka
+ * není mapa světa) a archivované sídlo – prázdné.
  */
 export async function nearbyVillages(
   deps: NearbyDeps,
@@ -73,15 +78,26 @@ export async function nearbyVillages(
     }
   }
   if (cellOf.size === 0) return [];
+  const stamps = (await deps.villages.stampsOf([...cellOf.keys()])).filter(
+    (stamp) => cellOf.has(stamp.settlementId) && !stamp.asleep,
+  );
+  if (stamps.length === 0) return [];
+  const singlesOf = new Map(
+    (await deps.villages.digestsOf(stamps.map((stamp) => stamp.id))).map((d) => [
+      d.id,
+      d.digest.singles,
+    ]),
+  );
   const villages: NearbyVillage[] = [];
-  for (const stamp of await deps.villages.stampsOf([...cellOf.keys()])) {
-    const cell = cellOf.get(stamp.settlementId);
-    if (!cell || stamp.asleep) continue;
+  for (const stamp of stamps) {
+    const cell = cellOf.get(stamp.settlementId)!;
+    const singles = singlesOf.get(stamp.id);
     villages.push({
       villageId: stamp.id,
       name: stamp.name,
       cells: cellDistance(center, cell),
       firstStep: stepToward(center, cell),
+      ...(singles && singles.length > 0 ? { singles: structuredClone(singles) } : {}),
     });
   }
   return villages.sort((a, b) => a.cells - b.cells || compareIds(a.villageId, b.villageId));
@@ -110,7 +126,7 @@ export interface NearbyRefresh {
 
 /** Podport `villages.nearby` nad úložištěm vsí (schránka, otisky) a sídel. */
 export function nearbyRefresh(
-  deps: NearbyDeps & { villages: Pick<VillageRepository, 'inbox' | 'stampsOf'> },
+  deps: NearbyDeps & { villages: Pick<VillageRepository, 'inbox' | 'stampsOf' | 'digestsOf'> },
 ): NearbyRefresh {
   return {
     async post(home, afterDay, toDay, pending): Promise<boolean> {

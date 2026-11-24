@@ -226,11 +226,14 @@ ves>:<id výpravy>`, `stayDays`, `travelDays`, zboží `goods` – koně i tady 
     (výprava na trhu nebo její výsledek v odchozí schránce) nic neudělá. Kovář souseda
     (`MarketArrival.service` → `MarketVisitor.service`, Rozhodnutí plánu 3, bod 9) kuje hned po
     příjezdu (`serveShoeing` – village-livestock.md, Kovář souseda; kronika `horses-shod` za
-    `market-arrived`).
+    `market-arrived`). Partner za hledajícím (`MarketArrival.kin` → `MarketVisitor.kin`,
+    Rozhodnutí plánu 3, bod 11) zbožím není (lidé příjezdu se do `goods` nepočítají) – usadí se hned
+    po příjezdu (`receiveKin` – village-people.md, Sňatky – se sousedy; kronika svatby nebo
+    `newcomer` za `market-arrived`).
   - **Tržní den:** `marketDay(state, day)` – krok dne hned po událostech schránky
     (village-core.md – Pořadí práce dne). Bez návštěvníků nic (stav beze změny, klíč `market`
-    nevznikne). Výprava se `service` (kovář souseda) do zápočtu nevstupuje – jen v poslední den
-    odjede; je-li na trhu jen ona, tržní den není (ceny stojí). Jinak dva zápočty (`clearMarket`
+    nevznikne). Výprava se `service` (kovář souseda) ani doprovod partnera (`kin`) do zápočtu
+    nevstupují – jen v poslední den odjedou; jsou-li na trhu jen ony, tržní den není (ceny stojí). Jinak dva zápočty (`clearMarket`
     za ceny `market.prices`), oba se stranami
     hostitel (`'host'`) a návštěvníci podle `order`: napřed zápočet řemeslníků – výrobky dílen jen
     za obilí a luštěniny (`craftStance`, `craftParties` – Obilí za výrobky níž; bez nich se
@@ -303,7 +306,7 @@ ves>:<id výpravy>`, `stayDays`, `travelDays`, zboží `goods` – koně i tady 
     − `expeditionLaborNeed(day + 1)` − `purchaseTravelers` − `ironTripHelpers` (jeden pomocník
     pro server i náhled).
   - **Odchod:** `departMarket(state, day, order, target)` = kopie stavu + `departMarketInPlace(state,
-day, order, target, { by?, seedKg?, alone?, service? })` (mutuje – i krok dne bez klonu celé vsi; den
+day, order, target, { by?, seedKg?, alone?, service?, kin?, people? })` (mutuje – i krok dne bez klonu celé vsi; den
     jde parametrem, `lastDay` se nemění; odmítnutí `planMarketTrip` stav nezmění): zboží `give` odejde
     (`addGood` záporně – prodané vozy `removeIdleCart`, koně po kusech `takeHorses`), výprava s
     `porters`, `carts`, `days` = 2 × cesta + pobyt a `cost` = nosiči × dny, voli pro koupené vozy
@@ -317,6 +320,10 @@ day, order, target, { by?, seedKg?, alone?, service? })` (mutuje – i krok dne 
     `Person.away` `'craft'`); `give` = hřivny na koně, `wants` prázdné, příjezd nese `service`
     { `kind: 'shoeing'`, `horses` }. U hostitele do zápočtu nevstupuje (Trh ve vsi výš); výsledek
     s poplatkem v `bought` a nespotřebovanými hřivnami v `unsold` jde domů jako u každé výpravy.
+    **Výprava partnera** (Rozhodnutí plánu 3, bod 11; `answerKinAsk` – village-people.md, Sňatky –
+    se sousedy): `by: 'kin'`, `kin` (`MarketKin` – id hledajícího, `extraWife`) a `people` – partner,
+    který už odešel ze vsi (`sendPeople`); v příjezdu je v `people` za lidmi z `give`, ve zboží ani
+    v `give` výpravy není. `give` / `wants` prázdné, doprovod aspoň 1 nosič.
     `marketCarryKg(adults, carts)` – obráceně k `marketCrew`: kolik kg nošeného zboží unese jedna
     cesta s nejvýš `adults` lidmi a vozy `carts` (vesničané podle toho nakoupí jen to, co unesou).
   - **Pryč v pevné dny** (Rozhodnutí 2 – termín trhu je pevný): `expeditionLaborNeed` /
@@ -611,12 +618,15 @@ Počasí kraje mění hodnotu zboží od 1. 11. – [village-disasters.md](villa
   rozhodovat uvnitř dne – proto ves dostává snímek okolí do stavu: `VillageState.nearby`
   (`VillageNearby` – `day`, `self` { `villageId`, `name` }, `villages`: `NearbyVillage` {
   `villageId`, `name`, `cells`, `firstStep` }), řazený podle `cells`, pak `villageId`. Chybí = ves
-  okolí nezná; převod ani kodek se nemění.
+  okolí nezná; převod ani kodek se nemění. `NearbyVillage.singles` (`NearbySingle` – pohlaví a věk po
+  5 letech) – svobodní, kteří by šli za partnerem odjinud (Rozhodnutí plánu 3, bod 11; village-people.md
+  – Sňatky – se sousedy); chybí = nikdo.
   - **Obsah** (`nearbyVillages(deps, home)` – `NearbyDeps`: otisky vsí a sídla; záznam domovské
     vsi přichází parametrem): sídla na 8 sousedních políčkách (`holderAt`, `listActive` – i vsi
     téhož hráče, ne vsi téže mapy ani dál; archivované sídlo ani sídlo s čekajícím převodem mezi
-    nimi není) a jejich otisky (`stampsOf` – jméno, spící ves vynechá) – **žádný stav se
-    nenačte**. `cells` (`cellDistance`) a `firstStep` (`stepToward`) jako přehled trhu a výprava,
+    nimi není), jejich otisky (`stampsOf` – jméno, spící ves vynechá) a souhrny (`digestsOf` –
+    svobodní `VillageDigest.singles` = `kinSingles` ve dni souseda; souhrn bez nich nebo ves bez
+    souhrnu současné verze = nikdo) – **žádný stav se nenačte**. `cells` (`cellDistance`) a `firstStep` (`stepToward`) jako přehled trhu a výprava,
     `self` = id a jméno záznamu vsi. Sídla na prstenci mají políčko mapy světa, odříznutý nováček
     mezi nimi není (proto bez `crossesIsolation`); odříznutá nebo archivovaná ves sama (newcomers.md
     – místní mřížka není mapa světa) má okolí prázdné. Válka nevadí. Snímek je stav ostatních vsí
@@ -649,7 +659,8 @@ Počasí kraje mění hodnotu zboží od 1. 11. – [village-disasters.md](villa
     jezdí) – stav vsi se klientovi neposílá a web je cizímu správci nesmí ukázat jménem
     (Rozhodnutí plánu 3, bod 14 – Úloha 11).
   - **Testy:** `trade/__tests__/nearby.test.ts` (zápis a náhrada snímku, nejbližší ves, cíl),
-    `application/__tests__/nearby.test.ts` (`nearbyDays`, obsah bez načtení stavů, odříznutí,
+    `application/__tests__/nearby.test.ts` (`nearbyDays`, obsah bez načtení stavů, svobodní souseda
+    ze souhrnu, odříznutí,
     vymřelý a archivovaný soused, čekající událost bez nového skenu, cena dopočtu přes den obnovy,
     víc dnů obnovy, spící ves, úložiště bez podportu) a `advance-world.test.ts` – Okolí vsi v pevné
     dny (ves sama na mapě po 1, 3 a 10 dnech i se zbytkem ve webu = jeden `loadVillage`; dvě vsi na

@@ -23,6 +23,12 @@ import { craftCoverage } from '../../crafts/crafts';
 import { reservedSeedKg } from '../../fields/seed';
 import { seedShortKg } from '../../fields/seed-reserve';
 import {
+  DAUGHTER,
+  SON,
+  brideVillage,
+  seekerVillage,
+} from '../../people/__tests__/kin-match-fixtures';
+import {
   D,
   FAMILY_IDS,
   NOV15,
@@ -549,6 +555,85 @@ describe('lidé na trhu mezi dvěma vsemi (Rozhodnutí plánu 3, bod 10)', () =>
     expect(h1.chronicle).toContainEqual(
       expect.objectContaining({ kind: 'market-returned', returned: true, unsold: { families: 1 } }),
     );
+  });
+});
+
+describe('nevěsta ze sousední vsi (Rozhodnutí plánu 3, bod 11)', () => {
+  /** Lidé v nákladu odchozí schránky (příjezdy, výsledky) a na trhu vsi. */
+  function travelling(s: VillageState): number {
+    let n = 0;
+    const count = (groups: readonly MarketPerson[] | undefined): void => {
+      for (const g of groups ?? []) n += g.people.length;
+    };
+    for (const mail of s.outbox ?? []) {
+      if (mail.body.kind === 'market-arrive') count(mail.body.arrival.people);
+      if (mail.body.kind === 'market-result') {
+        count(mail.body.result.people);
+        count(mail.body.result.newcomers);
+      }
+    }
+    for (const v of s.market?.visitors ?? []) count(v.people);
+    return n;
+  }
+
+  /** Porody a úmrtí v kronice vsi po dni `after` – v okně kola nemají být. */
+  function bornOrDied(s: VillageState, after: number): number {
+    return s.chronicle.filter((e) => e.day > after && (e.kind === 'birth' || e.kind === 'death'))
+      .length;
+  }
+
+  it('dotaz → výprava → příjezd → výsledek: v A vdaná, v B v emigrants, nikdo nevznikl ani nezmizel', () => {
+    // A (Lhota) – syn bez nevěsty; B (Bukovec) – dcera bez ženicha; obě vsi se znají z okolí
+    const a0 = seekerVillage();
+    const b0 = brideVillage();
+    // první rok, ve kterém A pošle dotaz – pak znovu přesně do dne dotazu (dopočet je deterministický)
+    let from = a0;
+    let probe = a0;
+    for (let year = 1; year <= 20; year++) {
+      probe = advanceVillage(from, a0.lastDay + Math.round(year * 365.25), null);
+      if (probe.outbox?.some((m) => m.body.kind === 'kin-ask')) break;
+      from = probe;
+    }
+    const ask = probe.outbox!.find((m) => m.body.kind === 'kin-ask')!;
+    const d = ask.day - 1;
+    const a1 = advanceVillage(from, d, null);
+    expect(a1.outbox).toEqual([ask]);
+    const bD = advanceVillage(b0, d, null);
+    const total = a1.people.length + bD.people.length;
+    // B dostane dotaz a pošle dceru s doprovodem
+    const b1 = advanceVillage(bD, d + 1, null, null, asEvents(a1.outbox!));
+    expect(b1.people.map((p) => p.id)).not.toContain(DAUGHTER);
+    expect(b1.emigrants).toContainEqual(expect.objectContaining({ id: DAUGHTER, direction: 'W' }));
+    const trip = b1.trade!.expeditions.find((e) => e.by === 'kin')!;
+    expect(trip.market).toMatchObject({ villageId: 'a', arriveDay: d + 2, returnDay: d + 3 });
+    expect(a1.people.length + b1.people.length + travelling(b1)).toBe(total);
+    // A: příjezd – svatba hned, doprovod večer odjede s prázdným výsledkem
+    const a2 = advanceVillage(withoutOutbox(a1), d + 2, null, null, asEvents(b1.outbox!));
+    const son = a2.people.find((p) => p.id === SON)!;
+    const bride = a2.people.find((p) => p.id === son.spouseId)!;
+    expect(bride).toMatchObject({ sex: 'female', spouseId: SON, origin: 'E' });
+    expect(a2.chronicle).toContainEqual(
+      expect.objectContaining({
+        kind: 'bride-from-outside',
+        villageName: 'Bukovec',
+        villageId: 'b',
+      }),
+    );
+    expect(a2.people.length + b1.people.length + travelling(a2)).toBe(total);
+    const result = resultMail(a2, trip.market!.key);
+    expect(result).toMatchObject({ sold: {}, bought: {}, unsold: {} });
+    expect(result.people).toBeUndefined();
+    // B: doprovod je doma v returnDay, výprava zmizí s výsledkem
+    expect([d + 2, d + 3].map((day) => expeditionLaborNeed(b1, day))).toEqual([1, 0]);
+    const b2 = advanceVillage(withoutOutbox(b1), d + 3, null, null, [
+      resultEvent(a2, trip.market!.key),
+    ]);
+    expect(b2.trade!.expeditions.filter((e) => e.kind === 'market')).toEqual([]);
+    expect(a2.people.length + b2.people.length).toBe(total);
+    expect(b2.chronicle).toContainEqual(
+      expect.objectContaining({ kind: 'married-away', villageName: 'Lhota', villageId: 'a' }),
+    );
+    expect(bornOrDied(a2, d) + bornOrDied(b2, d)).toBe(0);
   });
 });
 

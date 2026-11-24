@@ -54,6 +54,11 @@ export const LORD = {
   /** lord.md – Výcvik a zkušenost: úbytek se zastaví na tomto podílu nejvyšší dosažené. */
   floorShare: 0.5,
   /**
+   * lord.md – Rod vojvody, Manželky: muž rodu má nejvýš tolik žijících manželek (Martin; obnovené
+   * z b4f8dadc – další manželky ze sousedních vsí, markets.md – Rozhodnutí plánu 3, bod 12).
+   */
+  maxWives: 4,
+  /**
    * lord.md – Zakladatelé (Martin 24. 10. 2026 a 15. 11. 2026: „aby měl vojvoda minimálně 4 dospělé
    * (alespoň 16 let) syny“; věky návrh Clauda): ves zakládá vojvoda s hlavní a třemi vedlejšími
    * manželkami a se čtyřmi syny – věk vojvody, manželek od hlavní (první je hlavní) a synů od
