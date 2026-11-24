@@ -36,6 +36,7 @@ import { extraSteps } from './steward-extras';
 import { HOUSE_TYPES_BEST_FIRST, dwellingYearReason, type HouseType } from '../buildings/log-house';
 import { logHouseCovered, logHouseStep } from './steward-log-house';
 import { needSteps } from './steward-needs';
+import { stewardMarketStep } from './steward-market';
 import {
   cellRuns,
   dwellingTiles,
@@ -110,8 +111,13 @@ export function stewardDay(
   landscape: Landscape | null,
   obstacles: ObstacleLayer | null,
 ): void {
-  if (!landscape || !obstacles || !isStewardOn(state) || day % STEWARD.everyDays !== 0) return;
+  if (!landscape || !obstacles || !isStewardOn(state)) return;
   if (state.people.length === 0) return;
+  // roční výprava na trh (steward-market.ts) jede každý rok, i když 15. 11. není den správce
+  if (day % STEWARD.everyDays !== 0) {
+    stewardMarketStep(state, { day, coverage: craftCoverage(state, day) });
+    return;
+  }
   const clock = STEWARD_TIMING.clock;
   const start = clock?.() ?? 0;
   decideDay(state, day, landscape, obstacles);

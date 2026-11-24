@@ -9,8 +9,8 @@ import { departMarketInPlace, marketCrew, marketFreeAdults } from '../trade/mark
 import { nearbyTarget } from '../trade/nearby';
 import { villageGoodStock } from '../trade/trade';
 import { priceKg } from '../trade/villager-trips';
-import { isPieceGood } from '../trade/goods';
-import type { NearbyVillage, TradeGoods, VillageState } from '../types';
+import { TRADE_GOODS, isPieceGood } from '../trade/goods';
+import type { CartKind, NearbyVillage, TradeGoods, VillageState } from '../types';
 import type { NeedContext } from './steward-needs';
 import { isStewardOn } from './steward-state';
 
@@ -136,13 +136,15 @@ export function stewardMarketStep(state: VillageState, ctx: NeedContext): boolea
   if (date.month !== CRAFT_BUYING.day.month || date.day !== CRAFT_BUYING.day.day) return false;
   const stance = marketStance(state, day);
   if (Object.keys(stance.wants).length === 0) return false;
+  const carts = cartsWithOxen(tradeHomeCarts(state), oxenHome(state, day)).map((c) => c.kind);
+  const give = fitToCrew(stance.offer, stance.wants, carts, marketFreeAdults(state, day));
   const village = villages[date.year % villages.length]!;
   const target = nearbyTarget(state, village.villageId);
   if (!target) return false;
   const sent = departMarketInPlace(
     state,
     day,
-    { give: stance.offer, wants: stance.wants, stayDays: MARKET.minStayDays },
+    { give, wants: stance.wants, stayDays: MARKET.minStayDays },
     target,
     { by: 'steward' },
   );
@@ -160,4 +162,40 @@ export function constructionLogsLeft(state: Pick<VillageState, 'constructions'>)
     if (c.wood) logs += Math.max(0, c.wood.fell.length - c.wood.felled);
   }
   return logs;
+}
+
+/**
+ * Z nabídky vsi `offer` to, co unesou volní lidé a dopravní vozy na jednu cestu (`marketCrew` –
+ * stejná mez jako u vesničanů, `marketCarryKg`): zboží v pořadí nabídky, každý druh nejvýš tolik,
+ * aby výprava s `wants` nepotřebovala víc než `adults` lidí; kusové zboží celé. Celá hromada klád
+ * a kamene tak výpravu nepoloží kontrolou. Pořadí je pevné, výsledek deterministický.
+ */
+function fitToCrew(
+  offer: TradeGoods,
+  wants: TradeGoods,
+  carts: readonly CartKind[],
+  adults: number,
+): TradeGoods {
+  const fits = (give: TradeGoods): boolean => marketCrew(give, wants, carts).porters <= adults;
+  const give: TradeGoods = {};
+  for (const good of TRADE_GOODS) {
+    const amount = offer[good] ?? 0;
+    if (!(amount > 0)) continue;
+    const piece = isPieceGood(good);
+    const whole = piece ? Math.floor(amount + EPSILON) : amount;
+    let low = 0;
+    let high = whole;
+    if (fits({ ...give, [good]: high })) low = high;
+    // půlení: technická mez 40 kroků (výsledek je pevný – bez náhody)
+    else {
+      for (let i = 0; i < 40; i++) {
+        const mid = piece ? Math.floor((low + high) / 2) : (low + high) / 2;
+        if (mid === low || mid === high) break;
+        if (fits({ ...give, [good]: mid })) low = mid;
+        else high = mid;
+      }
+    }
+    if (low > EPSILON) give[good] = low;
+  }
+  return give;
 }

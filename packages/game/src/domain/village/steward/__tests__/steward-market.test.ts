@@ -1,4 +1,8 @@
 import { describe, expect, it } from 'vitest';
+import { dateOfDayIndex } from '../../../calendar';
+import { CURRENT_LAYER_VERSIONS, generateLandscape, obstaclesOf } from '../../../landscape';
+import { marketCrew } from '../../trade/market-trip';
+import { stewardDay } from '../steward';
 import { craftCoverage } from '../../crafts/crafts';
 import { MARKET, TRADE } from '../../rules';
 import { STEWARD } from '../../rules/rules-steward';
@@ -262,5 +266,42 @@ describe('správce – roční výprava s potřebou vsi (návrh Clauda)', () => 
     const s = seeking(NOV15_603);
     needSteps(s, ctxOf(s, NOV15_603));
     expect(stewardTrips(s)).toHaveLength(1);
+  });
+
+  it('každý rok: i když 15. 11. není den správce (den % 10), stewardDay výpravu pošle', () => {
+    const landscape = generateLandscape(1, CURRENT_LAYER_VERSIONS);
+    const obstacles = obstaclesOf(landscape);
+    const years = [601, 602, 603, 604, 605, 606].filter(
+      (y) => at(y, 11, 15) % STEWARD.everyDays !== 0,
+    );
+    expect(years.length).toBeGreaterThanOrEqual(3);
+    for (const year of years.slice(0, 3)) {
+      const day = at(year, 11, 15);
+      const s = seeking(day);
+      stewardDay(s, day, landscape, obstacles);
+      expect(stewardTrips(s), `rok ${year}`).toHaveLength(1);
+      expect(stewardTrips(s)[0]!.market!.villageId).toBe(year % 2 === 0 ? 'a' : 'b');
+    }
+    // jiný den roku, který není den správce, nic
+    const other = at(603, 11, 16);
+    const s = seeking(other);
+    stewardDay(s, other, landscape, obstacles);
+    expect(stewardTrips(s)).toEqual([]);
+    expect(dateOfDayIndex(at(603, 11, 15)).month).toBe(11);
+  });
+
+  it('velká hromada klád a kamene: náklad ročni výpravy v mezi nosnosti volných lidí a vozů', () => {
+    const s = seeking(NOV15_603);
+    s.woodLogs = 5_000;
+    const free = marketFreeAdults(s, NOV15_603);
+    expect(stewardMarketStep(s, ctxOf(s, NOV15_603))).toBe(true);
+    const trip = stewardTrips(s)[0]!;
+    expect(trip.give.logs).toBeGreaterThan(0);
+    expect(trip.give.logs).toBeLessThan(5_000);
+    expect(trip.porters).toBeLessThanOrEqual(free);
+    const carts = trip.carts ? ['four-wheel' as const] : [];
+    expect(marketCrew(trip.give, trip.market!.wants, carts).porters).toBeLessThanOrEqual(free);
+    // co ves neposlala, zůstává doma
+    expect(s.woodLogs).toBe(5_000 - trip.give.logs!);
   });
 });
