@@ -289,6 +289,35 @@ describe('kdo přijde – answerKinAsk', () => {
     expect(b.news).toEqual([expect.objectContaining({ villageId: 'a', name: 'Lhota' })]);
   });
 
+  // výluka `favouredBride` v `kinCandidates` sama o sobě – bez dětí do 16 let a bez rozpadu domácnosti
+  // (vdova a dcera z domu bez mužů se ptají samy, pryč se nevdávají – Martin 19. 10. a 23. 11. 2026)
+  it('vdova 40 se ženatým synem se pryč nevdává', () => {
+    const s = withNearby(
+      folk([
+        { id: 1, age: 40, sex: 'female' },
+        ...couple({ id: 2, age: 22, mother: 1 }, { id: 3, age: 21 }),
+      ]),
+      { villageId: 'b', name: 'Bukovec' },
+      [],
+    );
+    expect(kinCandidates(s, s.lastDay)).toEqual([]);
+    expect(answerKinAsk(s, s.lastDay + 1, groomAsk())).toEqual([]);
+    expect(s.people.map((p) => p.id)).toContain(1);
+  });
+
+  it('dcery z domu bez mužů se pryč nevdávají', () => {
+    const s = withNearby(
+      folk([
+        { id: 1, age: 44, sex: 'female' },
+        { id: 2, age: 20, sex: 'female', mother: 1 },
+        { id: 3, age: 18, sex: 'female', mother: 1 },
+      ]),
+      { villageId: 'b', name: 'Bukovec' },
+      [],
+    );
+    expect(kinCandidates(s, s.lastDay)).toEqual([]);
+  });
+
   it('vdova neodejde ani jako jediná žena, ani žena, které by se domácnost rozpadla', () => {
     const widow = withNearby(
       folk([
