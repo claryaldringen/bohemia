@@ -13,6 +13,8 @@ import {
   applyMarketResult,
   checkMarketTrip,
   departMarket,
+  departMarketInPlace,
+  marketCarryKg,
   marketCrew,
   marketFreeAdults,
   marketTravelDays,
@@ -489,5 +491,69 @@ describe('vozy na trhu – voli pro koupený vůz, prodaný vůz (Rozhodnutí pl
     // ve stavu: tytéž vozy – dopravní je vůz 1
     const plan = planMarketTrip(twoCarts(2), D, order({ twoWheelCarts: 1, grain: 400 }), target);
     expect(plan).toMatchObject({ ok: true, carts: 1, cartIds: [1] });
+  });
+});
+
+describe('odchod bez klonu a kdo výpravu poslal (Rozhodnutí plánu 3, bod 7)', () => {
+  const order = { give: { grain: 600 }, wants: { cows: 1 }, stayDays: 1 };
+
+  it('departMarketInPlace = departMarket bez kopie; kronika s hostitelem a `by`', () => {
+    const h = homeVillage();
+    const copied = departMarket(h, D, order, target);
+    if (!copied.ok) throw new Error(copied.reason);
+    const inPlace = structuredClone(h);
+    const sent = departMarketInPlace(inPlace, D, order, target);
+    if (!sent.ok) throw new Error(sent.reason);
+    expect(inPlace).toEqual(copied.state);
+    expect(sent.trip).toEqual(copied.trip);
+    expect(inPlace.lastDay).toBe(h.lastDay);
+    expect(inPlace.chronicle.at(-1)).toMatchObject({ kind: 'market-departed', villageId: 'm' });
+    expect(inPlace.chronicle.at(-1)).not.toHaveProperty('by');
+    expect(inPlace.outbox![0]!.body).toMatchObject({ arrival: { firstStep: 'E' } });
+
+    const villagers = structuredClone(h);
+    departMarketInPlace(villagers, D, order, target, { by: 'villagers' });
+    const e = villagers.trade!.expeditions.at(-1)!;
+    expect(e.by).toBe('villagers');
+    expect(villagers.chronicle.at(-1)).toMatchObject({ by: 'villagers', villageId: 'm' });
+    // návrat nese hostitele i to, kdo výpravu poslal
+    const back = applyMarketResult(villagers, D + 2, {
+      key: e.market!.key,
+      sold: { grain: 600 },
+      bought: { cows: 1 },
+      unsold: {},
+      horses: [],
+    });
+    expect(back).toEqual([
+      expect.objectContaining({ kind: 'market-returned', villageId: 'm', by: 'villagers' }),
+    ]);
+  });
+
+  it('odmítnutá výprava stav nezmění', () => {
+    const h = homeVillage();
+    const before = structuredClone(h);
+    expect(departMarketInPlace(h, D, { ...order, give: { grain: 1e9 } }, target)).toEqual({
+      ok: false,
+      reason: MARKET_OVER_STOCK,
+    });
+    expect(h).toEqual(before);
+  });
+
+  it('marketCarryKg – kolik unese jedna cesta: nosiči po 25 kg, vozy s dvěma lidmi', () => {
+    expect(marketCarryKg(0, ['four-wheel'])).toBe(0);
+    expect(marketCarryKg(4, [])).toBe(100);
+    // čtyřkolák 800 kg + 2 nosiči
+    expect(marketCarryKg(4, ['four-wheel'])).toBe(850);
+    // jen jeden vůz s posádkou se vejde
+    expect(marketCarryKg(3, ['two-wheel', 'two-wheel'])).toBe(425);
+    // obráceně k marketCrew: přesně tolik ještě projde, o kilogram víc už ne
+    for (const [adults, carts] of [
+      [4, ['four-wheel']],
+      [7, ['two-wheel', 'two-wheel']],
+    ] as const) {
+      const kg = marketCarryKg(adults, carts);
+      expect(marketCrew({ grain: kg }, {}, carts).porters).toBe(adults);
+      expect(marketCrew({ grain: kg + 1 }, {}, carts).porters).toBe(adults + 1);
+    }
   });
 });

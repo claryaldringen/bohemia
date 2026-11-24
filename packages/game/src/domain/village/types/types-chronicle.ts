@@ -19,6 +19,7 @@ import type {
   NewcomerGroup,
   TradeGoods,
   TradePeople,
+  TripBy,
 } from './types-trade';
 
 /**
@@ -704,7 +705,13 @@ export type ChronicleEvent = { day: number } & (
    * Na trh vsi přišla výprava z jiné vsi (markets.md – Pravidla 3) – odkud a co veze (koně jako
    * počty po druzích; výprava jen na pivo bez zboží).
    */
-  | { kind: 'market-arrived'; villageName: string; goods: TradeGoods }
+  | {
+      kind: 'market-arrived';
+      villageName: string;
+      goods: TradeGoods;
+      /** Ves výpravy (Rozhodnutí plánu 3, bod 15); chybí = zápis z doby před ním. */
+      villageId?: string;
+    }
   /** Tržní den – co ves na svém trhu prodala a koupila (markets.md – Pravidla 3 a 5). */
   | { kind: 'market-held'; sold: TradeGoods; bought: TradeGoods }
   /**
@@ -717,6 +724,10 @@ export type ChronicleEvent = { day: number } & (
       give: TradeGoods;
       wants: TradeGoods;
       returnDay: number;
+      /** Kdo výpravu poslal (`TripBy`, Rozhodnutí plánu 3, bod 14); chybí = hráč. */
+      by?: TripBy;
+      /** Hostitel (Rozhodnutí plánu 3, bod 15); chybí = zápis z doby před ním. */
+      villageId?: string;
     }
   /**
    * Výprava se vrátila z trhu vsi `villageName` (markets.md – Pravidla 3) – co prodala, koupila
@@ -730,6 +741,10 @@ export type ChronicleEvent = { day: number } & (
       bought: TradeGoods;
       unsold: TradeGoods;
       returned?: true;
+      /** Kdo výpravu poslal (`TripBy`); chybí = hráč. */
+      by?: TripBy;
+      /** Hostitel (Rozhodnutí plánu 3, bod 15); chybí = zápis z doby před ním nebo bez výpravy. */
+      villageId?: string;
     }
   /**
    * Zakázka ve vsi `villageName` (`villageId`) je hotová – hostitel ji ohlásil zprávou

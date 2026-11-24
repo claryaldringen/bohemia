@@ -355,3 +355,24 @@ export function placedOrder(state: VillageState, day: number, good: OrderGood): 
     null
   );
 }
+
+/** Živé hotové zakázky kupujícího (`ready`) v pořadí zápisu – vesničané pro ně jedou týž den. */
+export function readyOrders(state: VillageState, day: number): PlacedOrder[] {
+  return (state.orders ?? []).filter((o) => o.status === 'ready' && isLive(o.day, day));
+}
+
+/**
+ * Nevzala ves `villageId` zakázku na `good` (živé `refused`)? Vesničané tam to zboží rok nehledají
+ * (Rozhodnutí plánu 3, bod 6).
+ */
+export function orderRefused(
+  state: VillageState,
+  day: number,
+  villageId: string,
+  good: OrderGood,
+): boolean {
+  return (state.orders ?? []).some(
+    (o) =>
+      o.villageId === villageId && o.good === good && o.status === 'refused' && isLive(o.day, day),
+  );
+}

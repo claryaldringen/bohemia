@@ -44,6 +44,7 @@ import { fillOrders } from '../trade/craft-orders';
 import { marketDay } from '../trade/market';
 import { marketTripsDay } from '../trade/market-trip';
 import { finishExpeditions } from '../trade/trade';
+import { villagerTripsDay } from '../trade/villager-trips';
 import { swathRoadsInWork, trailsDay } from '../trade/trail';
 import { roadSwathDay } from '../roads/road-swath';
 import { wagonRoadsDay } from '../roads/wagon-road';
@@ -407,9 +408,11 @@ function workDayStep(
   const disasterEvents = localDisastersDay(state, day, landscape, obstacles);
   state.chronicle.push(...disasterEvents);
   // rezerva osiva – 1. 6. je nezaseté osivo obyčejné zrno, 1. 9. a 1. 3. kronika, kolik osiva
-  // chybí (fields.md – Osivo pro ves bez zásob; nákup u sousedů zrušen – markets.md, Pravidla 1);
-  // po plánu dne, před prací
+  // chybí (fields.md – Osivo pro ves bez zásob); po plánu dne, před prací
   state.chronicle.push(...seedReserveDay(state, day));
+  // vesničané na trhu (markets.md – Pravidla 9, Rozhodnutí plánu 3, bod 7) – jen ves s okolím:
+  // hotové zakázky, 15. 11. výrobky a vůz, 1. 9. a 1. 3. osivo, kdykoli hřivny na kování vozu
+  villagerTripsDay(state, day, coverage);
   const { toil, lordField } = work(
     state,
     day,

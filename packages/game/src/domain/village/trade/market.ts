@@ -101,7 +101,8 @@ function takeFrom(goods: TradeGoods, good: TradeGood, amount: number): void {
  * Výprava přijela na trh (mutuje stav – událost schránky `market-arrive`): trh vznikne, chybí-li,
  * výprava stojí na trhu v pořadí příjezdu do `lastDay` = den + `stayDays` − 1, poznámka
  * o obchodníkovi (posledních `MARKET.report.traders` – technický strop paměti vsi, ne pravidlo
- * hry) a zpráva o její vsi (`rememberNews`). Vrací zápis kroniky. Týž klíč podruhé (výprava na
+ * hry) a zpráva o její vsi (`rememberNews`). Vrací zápis kroniky `market-arrived` s vsí výpravy
+ * (`villageId`); výprava si nese směr `firstStep`, má-li ho příjezd. Týž klíč podruhé (výprava na
  * trhu nebo její výsledek v odchozí schránce) nic neudělá. Příjezd se ukládá kopií. Počty koní ve
  * zboží jsou počty kusů v `horses` po druzích – kůň, který nepřišel, se neprodá.
  */
@@ -124,6 +125,7 @@ export function joinMarket(
     key: arrival.key,
     fromVillageId: arrival.fromVillageId,
     fromName: arrival.fromName,
+    ...(arrival.firstStep ? { firstStep: arrival.firstStep } : {}),
     order: market.nextOrder++,
     arrivedDay: day,
     lastDay: day + arrival.stayDays - 1,
@@ -148,7 +150,15 @@ export function joinMarket(
     name: arrival.fromName,
     report: arrival.report,
   });
-  return [{ day, kind: 'market-arrived', villageName: arrival.fromName, goods: { ...goods } }];
+  return [
+    {
+      day,
+      kind: 'market-arrived',
+      villageName: arrival.fromName,
+      goods: { ...goods },
+      villageId: arrival.fromVillageId,
+    },
+  ];
 }
 
 /**

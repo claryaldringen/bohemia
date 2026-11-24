@@ -187,11 +187,22 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   v `ore-site-layout.ts`), náklad `wagon{2,4}-clay`, ikona `resources/clay.png`;
   `/dev/panels?panel=hrncir`.
 
-- **Nákup u sousedů – zrušen, nákupy na cestě doběhnou** ([crafts.md](../design/crafts.md) –
-  Nákup u sousedů; [markets.md](../design/markets.md) – Pravidla 1, bod 10; Martin 22. 11. 2026:
-  „Ves by měla být schopná přežít a rozvíjet se dle současných pravidel i bez obchodu“):
-  `craft-buying.ts`. Ves výrobky řemeslníků (nástroje, keramika, dřevěné nářadí) ani vůz
-  u sousedů nekupuje – má je jen od vlastních pracujících řemeslníků (`ownCraftsmanWorks` – dílna
+- **Nákup u sousedů → na trhu** ([crafts.md](../design/crafts.md) – Nákup u sousedů;
+  [markets.md](../design/markets.md) – Pravidla 1, 9, bod 10; Rozhodnutí plánu 3, bod 7):
+  nákup u smyšlených sousedů zrušen (Martin 22. 11. 2026: „Ves by měla být schopná přežít
+  a rozvíjet se dle současných pravidel i bez obchodu“); s okolím vesničané výrobky řemeslníků
+  (nástroje, keramika, dřevěné nářadí) a vůz kupují 15. 11. na trhu nejbližší vsi okolí
+  s řemeslníkem (`planVillagerPurchases` v `trade/villager-trips.ts` – village-trade.md,
+  Vesničané na trhu). Rozhodnutí „vyplatí se“ je port dřívějšího `planPurchases` @ b4f8dadc se
+  vzorci beze změny v `craft-buying.ts`: `buyingContext` (`BuyingContext` – úroda dílů v osevu,
+  seno letošní seče `seasonHayYieldKg`, zásoby, domácnosti, práce vsi za rok bez cvičící rodiny,
+  cena jídla v práci), `yearlySaving` (nástroje – polní práce a seč, keramika – ztráty zásob
+  a denní minimum, dřevěné nářadí – práce vsi), `withToolCoverage` (obilí na platbu za nástroje
+  při pokrytí po nákupu), `pay` (obilí, nebo luštěniny – nejlevnější v práci i s nošením první;
+  hodnoty kg jsou ceny cíle `PayValues`), `productStock`, `productCoverage`,
+  `PRODUCT_WEAR_PER_YEAR` (výrobek slouží 1 ÷ opotřebení let); vůz ušetří `cartYearSaving`
+  (draft.ts, obnoveno) × `CARTS.lifespanYears`. Bez okolí ves výrobky ani vůz nekupuje – má je
+  jen od vlastních pracujících řemeslníků (`ownCraftsmanWorks` – dílna
   bez vstupů se nepočítá; `craftSources` → `VillageCrafts.sources`, panel dvorce `BuyingRow`:
   vlastní ✓, jinak zašedlá ikona „… – ve vsi není řemeslník“; stojí-li vlastní dílna bez vstupu,
   popisek řekne důvod textem upozornění – `buyingDetails` v `selection-details.ts`,

@@ -26,6 +26,7 @@ import type {
   MarketTarget,
   MarketTrip,
   TradeGoods,
+  TripBy,
   VillageState,
 } from '../types';
 import {
@@ -317,14 +318,26 @@ export function planMarketTrip(
 }
 
 /**
- * Výprava vyrazí na trh (markets.md – Pravidla 2 a 3; stav vstupu nemění – kopie). Odmítnutí
- * `planMarketTrip` vrátí jeho důvod. Jinak zboží `give` odejde ze vsi (`addGood` záporně – prodané
- * vozy jsou nejmladší volné, `removeIdleCart`; koně po kusech `takeHorses` – kupující dostane
- * tytéž), do `trade.expeditions` přibude výprava `'market'` bez stezky (`trailId` −1; nosiči,
- * dopravní vozy `cartIds`, dny 2 × cesta + pobyt, práce nosiči × dny, kam a kdy domů – `market`,
- * s voly pro koupené vozy `oxen`), klíč `market:<domovská ves>:<id>`. Do odchozí schránky jde
- * příjezd k hostiteli na den příjezdu (se zprávou na pivo o domovské vsi) a do kroniky
- * `market-departed`.
+ * Kolik kg zboží nošeného po kg unese jedna cesta výpravy s nejvýš `adults` lidmi a vozy `carts`
+ * (v pořadí jako `marketCrew`) – obráceně k `marketCrew`: s n prvními vozy jejich náklad
+ * (`CARTS.loadKg`) a ostatní lidé po `TRADE.porterKg` (s každým vozem `CARTS.tradeCrew` lidí),
+ * nejvíc přes n. Bez lidí 0. Vesničané podle toho nakoupí jen to, co unesou (Rozhodnutí plánu 3,
+ * bod 7 – dřívější `carryKg` nákupu).
+ */
+export function marketCarryKg(adults: number, carts: readonly CartKind[]): number {
+  if (adults < 1) return 0;
+  let best = adults * TRADE.porterKg;
+  let room = 0;
+  for (let n = 1; n <= carts.length && n * CARTS.tradeCrew <= adults; n++) {
+    room += CARTS.loadKg[carts[n - 1]!];
+    best = Math.max(best, room + (adults - n * CARTS.tradeCrew) * TRADE.porterKg);
+  }
+  return best;
+}
+
+/**
+ * Výprava vyrazí na trh (markets.md – Pravidla 2 a 3; stav vstupu nemění – kopie
+ * a `departMarketInPlace`).
  */
 export function departMarket(
   state: VillageState,
@@ -335,6 +348,43 @@ export function departMarket(
   const plan = planMarketTrip(state, day, order, target);
   if (!plan.ok) return plan;
   const next = cloneState(state);
+  return { ...departPlanned(next, day, order, target, plan), state: next };
+}
+
+/**
+ * Výprava vyrazí na trh (mutuje stav – i krok dne, bez klonu celé vsi; markets.md – Pravidla 2
+ * a 3, Rozhodnutí plánu 3, bod 7). Odmítnutí `planMarketTrip` vrátí jeho důvod a stav nezmění.
+ * Jinak zboží `give` odejde ze vsi (`addGood` záporně – prodané vozy jsou nejmladší volné,
+ * `removeIdleCart`; koně po kusech `takeHorses` – kupující dostane tytéž), do `trade.expeditions`
+ * přibude výprava `'market'` bez stezky (`trailId` −1; nosiči, dopravní vozy `cartIds`, dny
+ * 2 × cesta + pobyt, práce nosiči × dny, kam a kdy domů – `market`, s voly pro koupené vozy `oxen`,
+ * kdo ji poslal – `by`), klíč `market:<domovská ves>:<id>`. Do odchozí schránky jde příjezd
+ * k hostiteli na den příjezdu (se zprávou na pivo o domovské vsi a směrem `firstStep`) a do kroniky
+ * `market-departed` s hostitelem (`villageId`) a `by`. Den jde parametrem – `lastDay` se nemění.
+ */
+export function departMarketInPlace(
+  state: VillageState,
+  day: number,
+  order: MarketOrder,
+  target: MarketTarget,
+  options: { by?: TripBy } = {},
+): { ok: true; trip: MarketTrip } | { ok: false; reason: string } {
+  const plan = planMarketTrip(state, day, order, target);
+  if (!plan.ok) return plan;
+  return departPlanned(state, day, order, target, plan, options.by);
+}
+
+/** Odchod výpravy, kterou `planMarketTrip` schválil (mutuje stav) – viz `departMarketInPlace`. */
+function departPlanned(
+  next: VillageState,
+  day: number,
+  order: MarketOrder,
+  target: MarketTarget,
+  plan: Extract<MarketPlan, { ok: true }>,
+  by?: TripBy,
+): { ok: true; trip: MarketTrip } {
+  // zpráva na pivo o vsi před odchodem zboží (jako dřív ze stavu vstupu)
+  const report = villageReport(next, day);
   const give = positiveGoods(order.give);
   const wants = positiveGoods(order.wants);
   const horses: MarketHorse[] = [];
@@ -375,6 +425,7 @@ export function departMarket(
   const days = 2 * plan.travelDays + order.stayDays;
   trade.expeditions.push({
     id,
+    ...(by ? { by } : {}),
     kind: 'market',
     direction: target.firstStep,
     trailId: -1,
@@ -405,7 +456,8 @@ export function departMarket(
         horses,
         ...(carts.length > 0 ? { carts } : {}),
         wants: { ...wants },
-        report: villageReport(state, day),
+        report,
+        firstStep: target.firstStep,
       },
     },
   });
@@ -416,8 +468,10 @@ export function departMarket(
     give: { ...give },
     wants: { ...wants },
     returnDay: plan.returnDay,
+    ...(by ? { by } : {}),
+    villageId: target.villageId,
   });
-  return { ok: true, state: next, trip: { ...trip, wants: { ...wants } } };
+  return { ok: true, trip: { ...trip, wants: { ...wants } } };
 }
 
 /**
@@ -442,7 +496,8 @@ export function marketTripsDay(state: VillageState, day: number): void {
  * výsledku se smaže; je-li výprava a zpráva na pivo, ves si ji zapamatuje i s cenami trhu
  * (`rememberNews`), a s výpravou i své zakázky u hostitele (`rememberOrders` – Rozhodnutí plánu 3,
  * bod 6).
- * Vrací zápis kroniky `market-returned` (bez záznamu výpravy s prázdným jménem vsi).
+ * Vrací zápis kroniky `market-returned` s hostitelem (`villageId`) a tím, kdo výpravu poslal (`by`);
+ * bez záznamu výpravy s prázdným jménem vsi a bez obojího.
  */
 export function applyMarketResult(
   state: VillageState,
@@ -450,9 +505,10 @@ export function applyMarketResult(
   result: MarketResult,
 ): ChronicleEvent[] {
   const trade = state.trade;
-  const trip = trade?.expeditions.find(
+  const expedition = trade?.expeditions.find(
     (e) => e.kind === 'market' && e.market?.key === result.key,
-  )?.market;
+  );
+  const trip = expedition?.market;
   for (const goods of [result.bought, result.unsold]) {
     for (const good of TRADE_GOODS) {
       const amount = goods[good] ?? 0;
@@ -491,6 +547,8 @@ export function applyMarketResult(
       bought: positiveGoods(result.bought),
       unsold: positiveGoods(result.unsold),
       ...(result.returned ? { returned: true as const } : {}),
+      ...(expedition?.by ? { by: expedition.by } : {}),
+      ...(trip ? { villageId: trip.villageId } : {}),
     },
   ];
 }

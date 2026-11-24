@@ -11,12 +11,16 @@ import { marketResultRef } from '../market';
 import { marketStance } from '../market-stance';
 import { departMarket } from '../market-trip';
 import { expeditionLaborNeed } from '../trade';
+import { planVillagerPurchases } from '../villager-trips';
+import { craftCoverage } from '../../crafts/crafts';
 import {
   D,
+  NOV15,
   asEvents,
   homeVillage,
   marketVillage,
   target,
+  villagersHome,
   withWorkshop,
   withoutOutbox,
 } from './market-fixtures';
@@ -314,6 +318,67 @@ describe('výprava na trh mezi dvěma vsemi (markets.md – Co se ověří, bod 
     );
     // koupené zakázku uzavře
     expect(h3.orders ?? []).toEqual([]);
+  });
+});
+
+// Vesničané na trhu (markets.md – Pravidla 9, Rozhodnutí plánu 3, bod 7; Martin 24. 11. 2026 –
+// řemeslník bere obilí vždy): H bez kováře 15. 11. sama pošle výpravu pro nástroje do M s kovářem,
+// která obilí neshání (nad pojistkou). Bilance proti týmž vsím bez trhu (vsi mezi kroky žijí).
+describe('vesničané na trhu mezi dvěma vsemi (Rozhodnutí plánu 3, bod 7)', () => {
+  it('H o plánované nástroje víc, M o ně méně a o zaplacené obilí víc; kronika s vesmi', () => {
+    const NOV16 = NOV15 + 1;
+    const h = villagersHome();
+    const plan = planVillagerPurchases(h, NOV15, craftCoverage(h, NOV15))[0]!;
+    expect(plan).toMatchObject({ good: 'tools', villageId: 'm', worthIt: true });
+    const m = marketVillage();
+    m.lastDay = NOV15;
+    withWorkshop(m, 'smith', 700, { oreKg: 500 });
+    m.crafts = { charcoalKg: 5_000, potteryKg: 0 };
+    m.toolEquipmentKg = toolNeedKg(m, NOV16) + 30;
+    // M obilí neshání: bez zásob by shánělo celou pojistku, má o 1 000 kg víc
+    m.storesKg = 0;
+    m.storesKg = marketStance(m, NOV16).wants.grain! + 1_000;
+    expect(marketStance(m, NOV16).wants.grain).toBeUndefined();
+    expect(marketStance(m, NOV16).offer.tools).toBe(30);
+
+    // H 15. 11. – výprava vesničanů do M (příjezd 16. 11.)
+    const h1 = advanceVillage(h, NOV15, null, null);
+    const sent = h1.trade!.expeditions.find((e) => e.by === 'villagers')!;
+    expect(sent.market!.wants).toEqual({ tools: plan.amount });
+    const paid = sent.give.grain!;
+    expect(paid).toBeCloseTo(plan.amount * 60, 6);
+    const m1 = advanceVillage(m, NOV16, null, null, asEvents(h1.outbox!));
+    const mAlone = advanceVillage(m, NOV16, null, null);
+    const result = resultMail(m1, sent.market!.key);
+    expect(result.bought.tools).toBeCloseTo(plan.amount, 9);
+    expect(result.sold.grain).toBeCloseTo(paid, 6);
+    expect(m1.chronicle.find((e) => e.kind === 'market-arrived')).toMatchObject({
+      villageName: 'Vlkov',
+      villageId: 'h',
+    });
+    // M: o nástroje méně, o zaplacené obilí víc (bez ztrát skladováním zbytku dne)
+    expect(toolEquipmentKg(mAlone) - toolEquipmentKg(m1)).toBeCloseTo(plan.amount, 9);
+    expect(m1.storesKg - mAlone.storesKg).toBeCloseTo(paid, 0);
+    // H: výsledek 17. 11. přidá nástroje do vybavení – ten den se opotřebí jen v užívání (do
+    // potřeby), takže přibude plánované množství bez nejvýš dne opotřebení
+    const home = withoutOutbox(h1);
+    const back = resultEvent(m1, sent.market!.key);
+    expect(back.day).toBe(NOV16 + 1);
+    const h2 = advanceVillage(home, back.day, null, null, [back]);
+    const hAlone = advanceVillage(home, back.day, null, null);
+    const gained = toolEquipmentKg(h2) - toolEquipmentKg(hAlone);
+    expect(gained).toBeLessThanOrEqual(plan.amount);
+    expect(gained).toBeGreaterThan(plan.amount * (1 - CRAFT_NEEDS.toolWearPerYear / 365));
+    expect(h2.chronicle.filter((e) => e.kind === 'market-returned')).toEqual([
+      expect.objectContaining({
+        day: back.day,
+        villageName: 'Lhota',
+        villageId: 'm',
+        by: 'villagers',
+        bought: { tools: result.bought.tools },
+      }),
+    ]);
+    expect(h2.trade!.expeditions.filter((e) => e.kind === 'market')).toEqual([]);
   });
 });
 

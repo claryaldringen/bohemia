@@ -295,7 +295,9 @@ describe('trh ve vsi hostitele – koně', () => {
       D,
       arrival({ goods: { mares: 1 }, horses: [], wants: { grain: 2_000 } }),
     );
-    expect(events).toEqual([{ day: D, kind: 'market-arrived', villageName: 'Vlkov', goods: {} }]);
+    expect(events).toEqual([
+      { day: D, kind: 'market-arrived', villageName: 'Vlkov', goods: {}, villageId: 'h' },
+    ]);
     expect(s.market!.visitors[0]!.goods).toEqual({});
     marketDay(s, D);
     const result = resultOf(s, 'market:h:1');
@@ -341,10 +343,17 @@ describe('trh ve vsi hostitele – příjezd, výsledek a zprávy', () => {
       good: 'mares',
       horse: { bornDay: D - 5 * 365, sex: 'female', training: 0 },
     };
-    const a = arrival({ goods: { grain: 600, mares: 1 }, horses: [mare] });
+    const a = arrival({ goods: { grain: 600, mares: 1 }, horses: [mare], firstStep: 'E' });
     const chronicle = joinMarket(s, D, a);
+    // kronika nese ves výpravy (Rozhodnutí plánu 3, bod 15), výprava směr od své vsi
     expect(chronicle).toEqual([
-      { day: D, kind: 'market-arrived', villageName: 'Vlkov', goods: { grain: 600, mares: 1 } },
+      {
+        day: D,
+        kind: 'market-arrived',
+        villageName: 'Vlkov',
+        goods: { grain: 600, mares: 1 },
+        villageId: 'h',
+      },
     ]);
     expect(s.market!.prices).toEqual({});
     expect(s.market!.nextOrder).toBe(2);
@@ -353,6 +362,7 @@ describe('trh ve vsi hostitele – příjezd, výsledek a zprávy', () => {
         key: 'market:h:1',
         fromVillageId: 'h',
         fromName: 'Vlkov',
+        firstStep: 'E',
         order: 1,
         arrivedDay: D,
         lastDay: D,

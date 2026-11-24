@@ -99,6 +99,11 @@ export interface MarketArrival {
   wants: TradeGoods;
   /** Zpráva na pivo o domovské vsi – „obchodník, který přijel k nám“ (Pravidla 8). */
   report: VillageReport;
+  /**
+   * Směr od domovské vsi k hostiteli (`MarketTarget.firstStep`; Rozhodnutí plánu 3, bod 7).
+   * Chybí = příjezd z doby před ním.
+   */
+  firstStep?: Direction8;
 }
 
 /**
@@ -109,6 +114,8 @@ export interface MarketVisitor {
   key: string;
   fromVillageId: string;
   fromName: string;
+  /** Směr od domovské vsi výpravy k hostiteli (`MarketArrival.firstStep`); chybí = neznámý. */
+  firstStep?: Direction8;
   /** Pořadí příjezdu – mezi přespolními prodává a kupuje dřív, kdo přijel dřív (Martin). */
   order: number;
   arrivedDay: number;

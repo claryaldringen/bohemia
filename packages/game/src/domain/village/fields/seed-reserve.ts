@@ -12,11 +12,13 @@ import type { ChronicleEvent, VillageState } from '../types';
 // Rezerva osiva (fields.md – Osivo ze zásob, Osivo pro ves bez zásob; Martin 27. 10. 2026: „ok, jak
 // navrhuješ“; pravidla návrh Clauda): osivo jen na setí (`VillageState.reservedSeedKg` – osadníků
 // dceřiné vsi a zakladatelů) ves nesní; co do 1. 6. nezaseje, je obyčejné zrno, osivo zakladatelů
-// slouží do své lhůty, ve skutečném hladu ho ves sní. Nákup osiva u sousedů zrušen (markets.md –
-// Pravidla 1; Martin 22. 11. 2026: „Ves by měla být schopná přežít a rozvíjet se dle současných
-// pravidel i bez obchodu“): ves, které na setí dílů na řadě chybí osivo, to v den SEED_RESERVE.days
-// (1. 9. před setím ozimu, 1. 3. před setím jaře) jen zapíše do kroniky – díly bez osiva nezaseje.
-// Kroky mutují stav – volat na klonu; deterministicky, na kouscích dopočtu nezávisí.
+// slouží do své lhůty, ve skutečném hladu ho ves sní. Nákup osiva u smyšlených sousedů zrušen
+// (markets.md – Pravidla 1; Martin 22. 11. 2026: „Ves by měla být schopná přežít a rozvíjet se dle
+// současných pravidel i bez obchodu“): ves, které na setí dílů na řadě chybí osivo, to v den
+// SEED_RESERVE.days (1. 9. před setím ozimu, 1. 3. před setím jaře) zapíše do kroniky – díly bez
+// osiva nezaseje; s okolím pro ně týž den vesničané jedou na trh (`villagerTripsDay` –
+// trade/villager-trips.ts, markets.md – Pravidla 9). Kroky mutují stav – volat na klonu;
+// deterministicky, na kouscích dopočtu nezávisí.
 
 /** Tolerance proti chybám desetinných čísel. */
 const EPSILON = 1e-9;

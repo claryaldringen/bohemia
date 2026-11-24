@@ -1,9 +1,11 @@
 import type { VillageEvent } from '../../core/inbox';
 import { newWorkshop } from '../../crafts/crafts';
+import { toolNeedKg } from '../../crafts/iron';
 import { CRAFT_BASE } from '../../rules';
 import type {
   Craft,
   Dwelling,
+  FieldPart,
   MarketTarget,
   VillageMail,
   VillageReport,
@@ -108,6 +110,60 @@ export const report: VillageReport = {
   crafts: ['potter'],
   traders: [],
 };
+
+/** Den před rozhodnutím vesničanů o výrobcích (CRAFT_BUYING.day) a ten den. */
+export const NOV14 = at(601, 11, 14);
+export const NOV15 = at(601, 11, 15);
+
+/** Osetý díl ozimu (0,25 ha) – úroda za rok, kterou nástroje zlevní. */
+export function sownPart(id: number): FieldPart {
+  return {
+    id,
+    fieldId: 1,
+    areaM2: 2_500,
+    distanceM: 80,
+    naturalFertility: 70,
+    fertilityShare: 1,
+    bonusUntilDay: null,
+    state: 'sown',
+    sownYears: 1,
+    crop: 'winter',
+    fallowSinceDay: null,
+    foundingCost: 0,
+    foundingDone: 0,
+    surface: 'meadow',
+    cell: { x: id % 20, y: Math.floor(id / 20) },
+  };
+}
+
+/** Okolí H (Vlkov) s Lhotou (M) na sousední mapě na východě (markets.md – Rozhodnutí plánu 3, bod 1). */
+export function withNearby(s: VillageState, day: number): VillageState {
+  s.nearby = {
+    day: day - 5,
+    self: { villageId: 'h', name: 'Vlkov' },
+    villages: [{ villageId: 'm', name: 'Lhota', cells: 1, firstStep: 'E' }],
+  };
+  return s;
+}
+
+/** Zpráva na pivo o Lhotě s řemesly `crafts` (bez cen trhu). */
+export function withNews(s: VillageState, crafts: Craft[]): VillageState {
+  s.news = [{ villageId: 'm', name: 'Lhota', report: { ...report, crafts } }];
+  return s;
+}
+
+/**
+ * Vlkov (H) bez kováře dopočítaný do 14. 11. – 40 osetých dílů ozimu (10 ha), nástrojů o 10 kg míň,
+ * než potřebuje; s okolím a zprávou o řemeslech Lhoty (`crafts`, výchozí kovář).
+ */
+export function villagersHome(crafts: Craft[] = ['smith']): VillageState {
+  const s = homeVillage();
+  s.lastDay = NOV14;
+  s.fields = [{ id: 1 }];
+  s.parts = Array.from({ length: 40 }, (_, i) => sownPart(100 + i));
+  s.toolEquipmentKg = toolNeedKg(s, NOV15) - 10;
+  return withNews(withNearby(s, NOV15), crafts);
+}
 
 /** Zprávy odchozí schránky jako události schránky cílové vsi (doručení – village-core.md). */
 export function asEvents(mails: readonly VillageMail[]): VillageEvent[] {

@@ -87,14 +87,19 @@ export const SEED_STORES = { marginDays: 1 } as const;
 // setí ozimu). Při hladovění (`eatFromStarvationDays` = 5 dnů bez jídla, dřív než začnou umírat –
 // STARVATION.threshold) ves rezervu sní – osivo se šetří, ne za cenu smrti. Ves, které na setí
 // dílů na řadě chybí osivo, to v den `days` – 1. 9. před setím ozimu, 1. 3. před setím jaře –
-// zapíše do kroniky, chybí-li aspoň `minKg`; koupit ho nemá kde (nákup osiva u sousedů zrušen –
-// markets.md, Pravidla 1).
+// zapíše do kroniky, chybí-li aspoň `minKg`, a s okolím pro něj vesničané jedou na trh nejbližší
+// vsi (markets.md – Pravidla 9, Rozhodnutí plánu 3, bod 7; nákup u smyšlených sousedů zrušen –
+// Pravidla 1). Obnovené `maxCows` dřívějšího `SEED_BUYING` @ b4f8dadc: za jeden nákup nejvýš
+// `maxCows` kráva (návrh Clauda: ves přijde nejvýš o jednu dojnici nad krávy, které drží na mléko
+// a voly – `surplusCows`; od 2. 11. 2026, dřív nad dvě – `TRADE.keepCows`, který dál platí pro
+// obchod hráče).
 export const SEED_RESERVE = {
   days: [
     { month: 9, day: 1 },
     { month: 3, day: 1 },
   ],
   minKg: 5,
+  maxCows: 1,
   releaseDay: { month: 6, day: 1 },
   winterReleaseDay: { month: 12, day: 1 },
   eatFromStarvationDays: 5,

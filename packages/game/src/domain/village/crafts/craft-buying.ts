@@ -1,15 +1,26 @@
 import type { Landscape } from '../../landscape';
 import { CELL_SIZE_M, LANDSCAPE_SIZE } from '../../landscape/types';
-import { occupiedWorkshops } from './crafts';
+import { craftNeeds, craftStocks, occupiedWorkshops } from './crafts';
 import { addCart } from './carts';
 import { toolEquipmentKg } from './iron';
 import { storesOutlook } from '../fields/field-food';
+import { expectedNetKg } from '../fields/fields';
 import { villageLegumesKg } from '../fields/legumes';
 import { seedOutsideFoodKg, uneatenSeedKg } from '../fields/seed';
 import { foodGrainReserveKg } from '../fields/threshing';
 import { villageFoodNeed } from '../core/diet';
+import {
+  dailyMinPerHousehold,
+  storageLossPerYear,
+  woodToolsLaborFactor,
+} from '../core/productivity';
+import { seasonHayYieldKg } from '../livestock/hay';
+import { villageFoodCosts } from '../livestock/husbandry';
+import { villageLaborFactor } from '../people/happiness';
+import { lordApartIds } from '../people/lord';
 import { villageManor } from '../people/manor';
-import { CRAFT_BUYING } from '../rules';
+import { laborPerDay } from '../people/people';
+import { CRAFT_BUYING, CRAFT_NEEDS, LEGUMES, TRADE, WOOD_TOOLS } from '../rules';
 import { sellPrice } from '../trade/trade';
 import { ORDER_CRAFT } from '../trade/goods';
 import { DIRECTION_VECTORS, builtTrail, trailTripDays } from '../trade/trail';
@@ -22,20 +33,24 @@ import type {
   CraftPurchasePay,
   Direction8,
   LaborTarget,
+  TradeGoods,
   VillageState,
 } from '../types';
 
-// Výrobky řemeslníků – nástroje, keramika a dřevěné nářadí – má ves jen od vlastních pracujících
-// řemeslníků (`craftSources`). Nákup u sousedů zrušen (markets.md – Pravidla 1; Martin 22. 11. 2026:
-// „Ves by měla být schopná přežít a rozvíjet se dle současných pravidel i bez obchodu“; vrátí se
-// s trhem skutečných vsí – markets.md bod 9). Nákup uložený na cestě ve starší vsi doběhne
-// (markets.md bod 10): skupina dojde, přinese výrobky a koupený vůz (`walkPurchases`,
-// `finishPurchases`). Zůstává i cesta ke kraji mapy ve směru (`purchaseRoute` – karavany zásilek,
-// cizí kovář ze starší kroniky) a přebytek k platbě (`paymentPool` – ohrada koní). Kroky simulace
-// mutují stav – volat na klonu; čisté funkce stavu, deterministicky, na kouscích dopočtu nezávisí.
+// Výrobky řemeslníků – nástroje, keramika a dřevěné nářadí – má ves od vlastních pracujících
+// řemeslníků (`craftSources`), nebo je vesničané koupí na trhu sousední vsi (markets.md – Pravidla 9,
+// Rozhodnutí plánu 3, bod 7; trade/villager-trips.ts). Smyšlení sousedé zrušeni (markets.md –
+// Pravidla 1); nákup uložený na cestě ve starší vsi doběhne (markets.md bod 10): skupina dojde,
+// přinese výrobky a koupený vůz (`walkPurchases`, `finishPurchases`). Zůstává i cesta ke kraji mapy
+// ve směru (`purchaseRoute` – karavany zásilek, cizí kovář ze starší kroniky), přebytek k platbě
+// (`paymentPool` – ohrada koní, vesničané na trhu) a rozhodnutí „vyplatí se“ dřívějšího nákupu
+// u sousedů @ b4f8dadc (`BuyingContext`, `yearlySaving`, `withToolCoverage`, `pay` – vzorce beze
+// změny). Kroky simulace mutují stav – volat na klonu; čisté funkce stavu, deterministicky, na
+// kouscích dopočtu nezávisí.
 
 /** Tolerance proti chybám desetinných čísel. */
 const EPSILON = 1e-9;
+const DAYS_PER_YEAR = 365;
 
 /** Výrobek řemeslníků (kg v zásobách řemesel; nákup na cestě ho nese v `CraftPurchase.get`). */
 export type CraftProduct = keyof CraftPurchaseGoods;
@@ -166,6 +181,173 @@ export function paymentPool(
     ),
     legumesKg: villageLegumesKg(state),
   };
+}
+
+// --- vyplatí se? (port dřívějšího nákupu u sousedů @ b4f8dadc, vzorce beze změny) --------------
+
+/** Opotřebení výrobku za rok (podíl) – výrobek slouží 1 ÷ opotřebení let. */
+export const PRODUCT_WEAR_PER_YEAR: Readonly<Record<CraftProduct, number>> = {
+  toolsKg: CRAFT_NEEDS.toolWearPerYear,
+  potteryKg: CRAFT_NEEDS.potteryBreakagePerYear,
+  woodToolsKg: WOOD_TOOLS.wearPerYear,
+};
+
+/**
+ * Kolik výrobku ves má (kg): nástroje ve vybavení domácností (production-chains.md – Nástroje jako
+ * vybavení domácností), keramika a dřevěné nářadí v zásobě.
+ */
+export function productStock(state: VillageState, product: CraftProduct): number {
+  if (product === 'toolsKg') return toolEquipmentKg(state);
+  return craftStocks(state)[product] ?? 0;
+}
+
+/** Pokrytí potřeby zásobou 0–1 (jako `craftCoverage`). */
+export function productCoverage(stock: number, need: number): number {
+  if (need <= 0) return stock > EPSILON ? 1 : 0;
+  return Math.min(1, Math.max(0, stock / need));
+}
+
+/** Co ves o sobě ví pro rozhodnutí o nákupu (jednou za rozhodnutí). */
+export interface BuyingContext {
+  day: number;
+  coverage: CraftCoverage;
+  needs: ReturnType<typeof craftNeeds>;
+  /** Čistá úroda dílů v osevu za rok (kg) a seno letošní seče (kg). */
+  grainKg: number;
+  hayKg: number;
+  /** Zásoby obilí a luštěnin (kg) – ztráty skladováním. */
+  storedKg: number;
+  households: number;
+  /** Práce vsi za rok (čd, se štěstím). */
+  yearlyLabor: number;
+  /** Cena jídla v práci (čd na kg) při dnešním pokrytí nástroji. */
+  grainPerKg: number;
+}
+
+/**
+ * Co ves o sobě ví pro rozhodnutí o nákupu (jako dřívější `planPurchases` @ b4f8dadc): úroda dílů
+ * v osevu, seno letošní seče, zásoby, domácnosti, práce vsi za rok bez cvičící rodiny vojvody
+ * (lord.md – Den rodiny) a cena jídla v práci při dnešním pokrytí nástroji.
+ */
+export function buyingContext(
+  state: VillageState,
+  day: number,
+  coverage: CraftCoverage,
+): BuyingContext {
+  const costs = villageFoodCosts(state, day, coverage.tools);
+  const sown = state.parts.filter((p) => p.state === 'sown' || p.state === 'ready');
+  // cvičící vojvodova rodina práci vsi nedává (lord.md – Den rodiny)
+  const apart = lordApartIds(state, day);
+  return {
+    day,
+    coverage,
+    needs: craftNeeds(state, day),
+    grainKg: sown.reduce((sum, p) => sum + Math.max(0, expectedNetKg(p, day)), 0),
+    hayKg: seasonHayYieldKg(state.hay?.mowing),
+    storedKg: Math.max(0, state.storesKg) + villageLegumesKg(state),
+    households: new Set(state.people.map((p) => p.dwellingId)).size,
+    yearlyLabor:
+      state.people.reduce((sum, p) => sum + (apart.has(p.id) ? 0 : laborPerDay(p, day)), 0) *
+      DAYS_PER_YEAR *
+      villageLaborFactor(state),
+    grainPerKg: costs.grainPerKg,
+  };
+}
+
+/**
+ * Kolik práce za rok ušetří pokrytí `to` místo `from` (crafts.md – Účinek, meze produktivity):
+ * nástroje – polní práce dílů v osevu a seč (cena jídla v práci při obou pokrytích), keramika –
+ * ztráty zásob a denní minimum domácností, dřevěné nářadí – práce celé vsi.
+ */
+export function yearlySaving(
+  state: VillageState,
+  ctx: BuyingContext,
+  product: CraftProduct,
+  from: number,
+  to: number,
+): number {
+  if (to <= from + EPSILON) return 0;
+  if (product === 'toolsKg') {
+    const before = villageFoodCosts(state, ctx.day, from);
+    const after = villageFoodCosts(state, ctx.day, to);
+    return (
+      ctx.grainKg * (before.grainPerKg - after.grainPerKg) +
+      ctx.hayKg * (before.hayPerKg - after.hayPerKg)
+    );
+  }
+  if (product === 'potteryKg') {
+    const stores = ctx.storedKg * (storageLossPerYear(from) - storageLossPerYear(to));
+    const minimum =
+      ctx.households * DAYS_PER_YEAR * (dailyMinPerHousehold(from) - dailyMinPerHousehold(to));
+    return stores * ctx.grainPerKg + minimum;
+  }
+  return ctx.yearlyLabor * (woodToolsLaborFactor(to) - woodToolsLaborFactor(from));
+}
+
+/** Cena jídla v práci při jiném pokrytí nástroji (obilí na platbu za nástroje). */
+export function withToolCoverage(
+  state: VillageState,
+  ctx: BuyingContext,
+  tools: number,
+): BuyingContext {
+  const costs = villageFoodCosts(state, ctx.day, tools);
+  return { ...ctx, grainPerKg: costs.grainPerKg };
+}
+
+/** Hodnota kg obilí a luštěnin u cíle (kg obilí – cena trhu cíle × `MARKET.grainKgPerCoin`). */
+export interface PayValues {
+  grain: number;
+  legumes: number;
+}
+
+/**
+ * Zaplatí hodnotu `valueKg` (kg obilí u cíle) z přebytku (mutuje `pool`): nejlevnější v práci
+ * i s nošením první (obilí, nebo luštěniny – cena jídla v práci a den cesty na každých 25 kg).
+ * Vrátí platbu (zboží trhu) a práci za ni (čd) – nebo méně, když přebytek nestačí. Hodnoty kg
+ * obilí a luštěnin jsou ceny cíle (`values`; dřív `sellPrice` × `goodWorth`).
+ */
+export function pay(
+  ctx: BuyingContext,
+  pool: PaymentPool,
+  valueKg: number,
+  days: number,
+  values: PayValues,
+): { pay: TradeGoods; paidKg: number; labor: number; weightKg: number } {
+  const carry = days / TRADE.porterKg;
+  const options = [
+    {
+      key: 'grainKg' as const,
+      good: 'grain' as const,
+      value: values.grain,
+      labor: ctx.grainPerKg + carry,
+      energy: 1,
+    },
+    {
+      key: 'legumesKg' as const,
+      good: 'legumes' as const,
+      value: values.legumes,
+      // luštěniny ves na poli nepěstuje (fields.md – Luštěniny, zrušeno) – kilogram stojí obilí,
+      // které ves místo nich sní (návrh Clauda 9. 11. 2026)
+      labor: ctx.grainPerKg * LEGUMES.energy + carry,
+      energy: LEGUMES.energy,
+    },
+  ].sort((a, b) => a.labor / a.value - b.labor / b.value);
+  const out: TradeGoods = {};
+  let left = valueKg;
+  let labor = 0;
+  let weightKg = 0;
+  for (const option of options) {
+    if (left <= EPSILON) break;
+    const kg = Math.min(left / option.value, pool[option.key], pool.energyKg / option.energy);
+    if (kg <= EPSILON) continue;
+    out[option.good] = (out[option.good] ?? 0) + kg;
+    pool[option.key] -= kg;
+    pool.energyKg -= kg * option.energy;
+    left -= kg * option.value;
+    labor += kg * (option.labor - carry);
+    weightKg += kg;
+  }
+  return { pay: out, paidKg: valueKg - Math.max(0, left), labor, weightKg };
 }
 
 /** Lidé, kteří jsou dnes s nákupem pryč (práce vsi bez nich – crafts.md, Nákup u sousedů). */

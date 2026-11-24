@@ -88,12 +88,20 @@ export interface ComingPeople {
 export type NewcomerGroup = 'family' | 'man' | 'woman';
 
 /**
+ * Kdo výpravu na trh poslal (markets.md – Rozhodnutí plánu 3, body 7–11): vesničané, správce,
+ * kovář ke koním, ves partnera (nevěsta, ženich). Chybí = hráč.
+ */
+export type TripBy = 'villagers' | 'steward' | 'smith' | 'kin';
+
+/**
  * Výprava nosičů k sousedovi (trade.md – Obchod): zboží, které nesou tam (už odebrané ze zásob
  * vsi), a co přinesou zpět; nosiči a práce (lidé × dny ze společné práce vsi). Zboží dorazí, až se
  * nosiči vrátí (odvedená práce = celá cena).
  */
 export interface TradeExpedition {
   id: number;
+  /** Výprava na trh: kdo ji poslal (`TripBy`); chybí = hráč. */
+  by?: TripBy;
   /**
    * Druh výpravy: `'shipment'` = zásilka do vsi jiného hráče (vassalage.md – Doprava a cílová
    * ves; `dispatchShipment`) – nosiči a honáci se vrátí bez zboží, zboží a lidé dojdou schránkou
