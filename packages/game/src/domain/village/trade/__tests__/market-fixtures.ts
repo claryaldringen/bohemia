@@ -1,6 +1,8 @@
 import type { VillageEvent } from '../../core/inbox';
 import { newWorkshop } from '../../crafts/crafts';
 import { toolNeedKg } from '../../crafts/iron';
+import { windowSeedNeedKg } from '../../fields/seed';
+import { breedingCows, oxenCalvesWanted } from '../../livestock/husbandry';
 import { CRAFT_BASE } from '../../rules';
 import type {
   Craft,
@@ -163,6 +165,34 @@ export function villagersHome(crafts: Craft[] = ['smith']): VillageState {
   s.parts = Array.from({ length: 40 }, (_, i) => sownPart(100 + i));
   s.toolEquipmentKg = toolNeedKg(s, NOV15) - 10;
   return withNews(withNearby(s, NOV15), crafts);
+}
+
+/** Den nákupu osiva ozimu (`SEED_RESERVE.days`). */
+export const SEP1 = at(601, 9, 1);
+
+/**
+ * Vlkov (H) dopočítaný do 31. 8. s 12 díly na řadě a osivem kratším o `shortKg` (celé zásoby jsou
+ * rezerva osiva), 2 kg hřiven a 3 krávami nad chovné jádro a voly; s okolím (Lhota).
+ */
+export function seedHome(shortKg: number): VillageState {
+  const s = homeVillage();
+  s.lastDay = SEP1 - 1;
+  s.fields = [{ id: 1 }];
+  s.parts = Array.from({ length: 12 }, (_, i) => ({
+    ...sownPart(100 + i),
+    state: 'ready' as const,
+    sownYears: 0,
+    crop: undefined,
+  }));
+  s.season = null;
+  const need = windowSeedNeedKg(s, 'winter');
+  if (need <= shortKg)
+    throw new Error(`osivo na díly ${need} kg nestačí na chybějících ${shortKg}`);
+  s.storesKg = need - shortKg;
+  s.reservedSeedKg = need - shortKg;
+  s.crafts = { charcoalKg: 0, potteryKg: 0, ironBarsKg: 2 };
+  s.livestock!.herds.cow = Math.ceil(breedingCows(s) + oxenCalvesWanted(s, SEP1)) + 3;
+  return withNearby(s, SEP1);
 }
 
 /** Zprávy odchozí schránky jako události schránky cílové vsi (doručení – village-core.md). */

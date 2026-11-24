@@ -39,6 +39,7 @@ import {
   isHorseGood,
   isPieceGood,
 } from './goods';
+import { reservedSeedKg } from '../fields/seed';
 import { rememberOrders } from './craft-orders';
 import { addHorses, takeHorses } from './horse-trade';
 import { marketArrivalRef, rememberNews } from './market';
@@ -361,17 +362,18 @@ export function departMarket(
  * kdo ji poslal – `by`), klíč `market:<domovská ves>:<id>`. Do odchozí schránky jde příjezd
  * k hostiteli na den příjezdu (se zprávou na pivo o domovské vsi a směrem `firstStep`) a do kroniky
  * `market-departed` s hostitelem (`villageId`) a `by`. Den jde parametrem – `lastDay` se nemění.
+ * `seedKg` – kolik obilí ze seznamu je osivo (výprava vesničanů za osivem, `MarketTrip.seedKg`).
  */
 export function departMarketInPlace(
   state: VillageState,
   day: number,
   order: MarketOrder,
   target: MarketTarget,
-  options: { by?: TripBy } = {},
+  options: { by?: TripBy; seedKg?: number } = {},
 ): { ok: true; trip: MarketTrip } | { ok: false; reason: string } {
   const plan = planMarketTrip(state, day, order, target);
   if (!plan.ok) return plan;
-  return departPlanned(state, day, order, target, plan, options.by);
+  return departPlanned(state, day, order, target, plan, options);
 }
 
 /** Odchod výpravy, kterou `planMarketTrip` schválil (mutuje stav) – viz `departMarketInPlace`. */
@@ -381,7 +383,7 @@ function departPlanned(
   order: MarketOrder,
   target: MarketTarget,
   plan: Extract<MarketPlan, { ok: true }>,
-  by?: TripBy,
+  { by, seedKg = 0 }: { by?: TripBy; seedKg?: number } = {},
 ): { ok: true; trip: MarketTrip } {
   // zpráva na pivo o vsi před odchodem zboží (jako dřív ze stavu vstupu)
   const report = villageReport(next, day);
@@ -421,6 +423,7 @@ function departPlanned(
     returnDay: plan.returnDay,
     // voli pro koupené vozy jdou s výpravou (pryč do `returnDay` – `oxenAway`)
     ...(plan.oxen > 0 ? { oxen: plan.oxen } : {}),
+    ...(seedKg > 0 && (wants.grain ?? 0) > 0 ? { seedKg: Math.min(seedKg, wants.grain!) } : {}),
   };
   const days = 2 * plan.travelDays + order.stayDays;
   trade.expeditions.push({
@@ -509,12 +512,17 @@ export function applyMarketResult(
     (e) => e.kind === 'market' && e.market?.key === result.key,
   );
   const trip = expedition?.market;
+  // koupené osivo ves nesní (fields.md – Osivo pro ves bez zásob; jako dřívější `buySeed`): rezerva
+  // osiva vzroste o koupené obilí, nejvýš o osivo, pro které výprava jela – zbytek je v zásobách
+  const seedKg = Math.min(result.bought.grain ?? 0, trip?.seedKg ?? 0);
+  const reservedBefore = reservedSeedKg(state);
   for (const goods of [result.bought, result.unsold]) {
     for (const good of TRADE_GOODS) {
       const amount = goods[good] ?? 0;
       if (amount > 0 && !isHorseGood(good) && !isCartGood(good)) addGood(state, good, amount, day);
     }
   }
+  if (seedKg > 0) state.reservedSeedKg = reservedBefore + seedKg;
   // vozy se stářím; kus bez záznamu stáří (výsledek uložený dřív) přijde nový
   const carts = result.carts ?? [];
   addMarketCarts(state, carts);

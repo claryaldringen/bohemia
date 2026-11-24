@@ -287,7 +287,7 @@ ves>:<id výpravy>`, `stayDays`, `travelDays`, zboží `goods` – koně i tady 
     − `expeditionLaborNeed(day + 1)` − `purchaseTravelers` − `ironTripHelpers` (jeden pomocník
     pro server i náhled).
   - **Odchod:** `departMarket(state, day, order, target)` = kopie stavu + `departMarketInPlace(state,
-    day, order, target, { by? })` (mutuje – i krok dne bez klonu celé vsi; den jde parametrem,
+day, order, target, { by?, seedKg? })` (mutuje – i krok dne bez klonu celé vsi; den jde parametrem,
     `lastDay` se nemění; odmítnutí `planMarketTrip` stav nezmění): zboží `give` odejde
     (`addGood` záporně – prodané vozy `removeIdleCart`, koně po kusech `takeHorses`), výprava s
     `porters`, `carts`, `days` = 2 × cesta + pobyt a `cost` = nosiči × dny, voli pro koupené vozy
@@ -309,7 +309,8 @@ ves>:<id výpravy>`, `stayDays`, `travelDays`, zboží `goods` – koně i tady 
   - **Návrat:** událost schránky `market-result` → `applyMarketResult`: koupené a neprodané zboží
     do vsi (`addGood`, koně po kusech `addHorses`, vozy po kusech se stářím `addMarketCarts` – neprodaný
     vůz se vrátí stejně starý) – i bez záznamu
-    výpravy, nic nezmizí –, výprava
+    výpravy, nic nezmizí –, koupené obilí do `MarketTrip.seedKg` jde do rezervy osiva
+    (`reservedSeedKg` – ves ho nesní, village-fields.md – Osivo – nákup na trhu), výprava
     s klíčem výsledku se smaže, zpráva na pivo s cenami trhu do `news` (`rememberNews`, jen se
     záznamem výpravy), zakázky vsi (`rememberOrders`, jen se záznamem výpravy – Zakázky níž)
     a kronika `market-returned` s hostitelem `villageId` a `by` výpravy (`returned` – hostitel
@@ -457,7 +458,9 @@ visitors)` – strany: hostitel a výpravy podle příjezdu, každá nabízí je
     `pay`, `savedManDays`, `costManDays`, `worthIt` }): nástroje, keramika, dřevěné nářadí (bez
     vlastního pracujícího řemeslníka `ORDER_CRAFT[g]`, bez živé zakázky `placedOrder`, chybí do
     `craftTargets` aspoň `CRAFT_BUYING.minKg`) a vůz (`missingCart`, bez tesaře, s volnými
-    vycvičenými voly `cartOxen`, žádná výprava ho už neveze), cíl `nearestWith` bez `orderRefused`.
+    vycvičenými voly `cartOxen`, žádná výprava ho už neveze), cíl nejbližší ves s řemeslníkem
+    kromě té, která zakázku nevzala (`nearestWith(state, craft, skip)` se `skip` =
+    `orderRefused` – rok ji vynechá a jede k další, Rozhodnutí plánu 3, bod 6).
     Cena v kg obilí = cena trhu cíle ze zprávy × `MARKET.grainKgPerCoin`, bez ní
     `TRADE_GOOD_VALUES`; platba obilím a luštěninami z `paymentPool` (`pay` – ceny cíle);
     náklad = práce platby + nosiči `marketCrew` × dny výpravy (2 × cesta + pobyt). Koupí se
@@ -465,15 +468,32 @@ visitors)` – strany: hostitel a výpravy podle příjezdu, každá nabízí je
     `carryKg`, víc ves koupí příště), a jen co ušetří víc práce, než stojí; z jednoho přebytku
     napřed nejlepší poměr ušetřené práce k ceně.
   - **1. 9. a 1. 3.** (`SEED_RESERVE.days`): osivo `seedShortKg` od `SEED_RESERVE.minKg` u
-    nejbližší vsi okolí za hřivny a krávy (village-fields.md – Osivo – nákup na trhu).
+    nejbližší vsi okolí za hřivny a krávy; seznam je obilí v hodnotě platby, osivem je z něj
+    chybějící osivo (`MarketTrip.seedKg` – výsledek ho zapíše do rezervy osiva;
+    village-fields.md – Osivo – nákup na trhu).
   - **Kdykoli:** vozy čekají na kování (`ironOrderBarsKg` nad hřivnami vsi), ves nemá pracujícího
     kováře, žádná výprava vesničanů hřivny neveze a nečeká se na zakázku → `wants.ironBars` =
-    rozdíl u nejbližší vsi s kovářem (bez `orderRefused`), platba z přebytku; hřivny doma vůz
-    dokončí (`cartIronDay`).
+    rozdíl u nejbližší vsi s kovářem (kromě té, která zakázku nevzala), platba z přebytku;
+    hřivny doma vůz dokončí (`cartIronDay`).
+  - **Lidé a vozy dne se dělí:** výprava dne (`Haul`) vznikne až s prvním nákupem a pamatuje si
+    nosiče a dopravní vozy (`shareCrews` – v pořadí výprav každá vezme `marketCrew` ze zbytku
+    vozů). Kolik další nákup unese, počítá `spaceFor` z volných dospělých a dopravních vozů bez
+    nosičů a vozů ostatních výprav dne (`marketCarryKg` − co výprava už nese).
   - **Odjezd:** co jde do jedné vsi, jede jednou výpravou (`departMarketInPlace`, pobyt
-    `MARKET.minStayDays`, `by: 'villagers'`), vsi v pořadí okolí; odmítne-li ji `planMarketTrip`
-    (lidé, voli, konec světa), ten den nejede. Vsi stejného dne sdílejí volné lidi a vozy – další
-    výprava, na kterou nezbudou, neprojde kontrolou.
+    `MARKET.minStayDays`, `by: 'villagers'`, osivo `seedKg`), výpravy v pořadí přijetí nákupů
+    (zakázky, výrobky od nejlepšího, osivo, hřivny) – každá další počítá s lidmi a vozy, které
+    zbyly. Odmítne-li výpravu `planMarketTrip` (lidé, voli, konec světa), ten den nejede.
+  - **Nezbudou-li lidé ani vozy:** nákup s pevným dnem (výrobek a vůz 15. 11., osivo), na který
+    nezbylo na nejmenší nákup, protože lidi a vozy mají jiné výpravy dne nebo výpravy na cestě
+    (`Space.held`), nebo jehož výprava neprošla kontrolou, vesničané zkusí druhý den
+    (`VillageTrade.villagersRetry` { `day`, `goods`: `VillagerRetry`[] } – `tools`, `pottery`,
+    `woodTools`, `cart`, `seed`; `takeRetry` ho ráno smaže) – nepropadne na rok. Zakázka (zůstane
+    `ready`) a hřivny se zkoušejí každý den samy.
+  - **Vozy a voli** výpravy vesničanů, odeslané v kroku dne před prací, ten den ještě pracují doma
+    a pryč jsou ode dne odjezdu (`startedDay`) – jako u výpravy hráče: `cartsAway` / `oxenAway`
+    s dnem práce (`workDay`) počítají jen výpravy, které už vyrazily (`departedBy`), práce dne
+    bere `cartFleetToday` a `ploughPairsHome` (`oxenAtWork`); bez dne (plán další výpravy,
+    `tradeHomeCarts`, `oxenHome`) jsou pryč všechny.
 
 - **Dobytek ve třech druzích** (trade.md – Dobytek ve třech druzích; Martin 20. 10. 2026: „s
   dobytkem by také mělo jít obchodovat. Představuju si tři kategorie - krávy, mladé voly (musí se
@@ -574,9 +594,10 @@ Počasí kraje mění hodnotu zboží od 1. 11. – [village-disasters.md](villa
     a jedno načtení vsi navíc (nový pokus); dopočet bez dne obnovy nic navíc.
   - **Jádro** (`trade/nearby.ts`): `applyNearby` (větev schránky – village-core.md, Schránka vsi),
     `nearbyTarget(state, villageId)` – `MarketTarget` do vsi okolí s domovskou vsí ze `self` (mimo
-    okolí null), `nearestNearby(state)` – první ves okolí, `nearestWith(state, craft)` – první ves
-    okolí, o jejímž řemeslníkovi ves ví ze zprávy na pivo (`news`, `report.crafts`; Rozhodnutí
-    plánu 3, bod 2).
+    okolí null), `nearestNearby(state)` – první ves okolí, `nearestWith(state, craft, skip?)` –
+    první ves okolí, o jejímž řemeslníkovi ves ví ze zprávy na pivo (`news`, `report.crafts`;
+    Rozhodnutí plánu 3, bod 2), kromě vsí, které `skip` vynechá (vesničané – ves, která zakázku
+    nevzala).
   - **Správce cizí vsi:** okolí nese i ostatní vsi držitele na sousedních mapách (vesničané k nim
     jezdí) – stav vsi se klientovi neposílá a web je cizímu správci nesmí ukázat jménem
     (Rozhodnutí plánu 3, bod 14 – Úloha 11).

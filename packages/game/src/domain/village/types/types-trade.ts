@@ -220,7 +220,16 @@ export interface VillageTrade {
   expeditions: TradeExpedition[];
   /** Další id výpravy. */
   nextId: number;
+  /**
+   * Vesničané na trhu (markets.md – Rozhodnutí plánu 3, bod 7): nákupy s pevným dnem (výrobky a vůz
+   * 15. 11., osivo 1. 9. a 1. 3.), na které ten den nezbyli lidé ani vozy – vesničané je zkusí znovu
+   * v den `day` (druhý den), takže nepropadnou na rok. Chybí = žádné.
+   */
+  villagersRetry?: { day: number; goods: VillagerRetry[] };
 }
+
+/** Nákup vesničanů s pevným dnem: výrobek řemeslníků, vůz od tesaře nebo osivo. */
+export type VillagerRetry = 'tools' | 'pottery' | 'woodTools' | 'cart' | 'seed';
 
 // --- pevné cesty (roads.md) ------------------------------------------------------------------
 

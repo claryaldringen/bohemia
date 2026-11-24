@@ -1,7 +1,9 @@
 import { obstacleIndex, type Landscape, type ObstacleLayer } from '../../landscape';
 import {
   ableTeams,
+  departedBy,
   isTrained,
+  oxenAtWork,
   oxenHome,
   oxenToEdit,
   oxPens,
@@ -79,16 +81,20 @@ export function addCart(state: VillageState, kind: CartKind, day: number): Cart 
 /**
  * Vozy, které jsou s výpravou na cestě (id) – i vůz, který veze platbu za kování k vozu (wagons.md
  * – Kování vozů; `ironTrip.cartId` u dílny tesaře – bez obydlí ve vstupu jen výpravy) a vozy
- * s nákupem u sousedů (crafts.md – Nákup u sousedů, Vozy).
+ * s nákupem u sousedů (crafts.md – Nákup u sousedů, Vozy). S `workDay` jen výpravy, které už
+ * vyrazily (`departedBy` – vozy práce dne); bez něj všechny (plán výpravy).
  */
 export function cartsAway(
   state: Pick<VillageState, 'trade'> & {
     dwellings?: VillageState['dwellings'];
     purchases?: VillageState['purchases'];
   },
+  workDay?: number,
 ): Set<number> {
   const away = new Set<number>();
-  for (const e of state.trade?.expeditions ?? []) for (const id of e.carts ?? []) away.add(id);
+  for (const e of state.trade?.expeditions ?? []) {
+    if (departedBy(e, workDay)) for (const id of e.carts ?? []) away.add(id);
+  }
   for (const p of state.purchases ?? []) for (const id of p.carts ?? []) away.add(id);
   for (const d of state.dwellings ?? []) {
     const id = d.workshop?.ironTrip?.cartId;
@@ -174,12 +180,13 @@ export function cartFleetToday(
   day: number,
   ploughing: boolean,
 ): CartFleet {
-  const away = cartsAway(state);
+  // vozy a voli výpravy, která vyrazí až zítra, dnes ještě pracují (`departedBy`)
+  const away = cartsAway(state, day);
   const fleet: CartFleet = { 'two-wheel': 0, 'four-wheel': 0, oxen: 0 };
   for (const cart of villageCarts(state)) if (!away.has(cart.id)) fleet[cart.kind]++;
   if (fleet['two-wheel'] + fleet['four-wheel'] === 0) return fleet;
   const ploughOxen = ploughing ? DRAFT_OXEN.ard * ploughPairsHome(state, day) : 0;
-  fleet.oxen = Math.max(0, oxenHome(state, day) - ploughOxen);
+  fleet.oxen = Math.max(0, oxenAtWork(state, day) - ploughOxen);
   return fleet;
 }
 

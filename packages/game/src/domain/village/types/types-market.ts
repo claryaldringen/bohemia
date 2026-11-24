@@ -314,6 +314,12 @@ export interface MarketTrip {
    * (`oxenAway`), v `returnDay` je `marketTripsDay` smaže. Chybí = žádní.
    */
   oxen?: number;
+  /**
+   * Kolik kg obilí ze seznamu je osivo (výprava vesničanů za osivem – markets.md, Rozhodnutí plánu 3,
+   * bod 7; fields.md – Osivo pro ves bez zásob): koupené obilí do této míry ves nesní, výsledek ho
+   * přidá do rezervy osiva (`reservedSeedKg`), zbytek jde do zásob. Chybí = žádné.
+   */
+  seedKg?: number;
 }
 
 /**

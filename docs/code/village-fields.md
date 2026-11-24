@@ -381,11 +381,17 @@ tools)` = s hromadou `pileSowsKg` (osivo, které ves ještě zaseje: `sowingHaPe
   - **Osivo – nákup na trhu** (markets.md – Pravidla 9, Rozhodnutí plánu 3, bod 7; port `buySeed`
     @ b4f8dadc): ves s okolím pro chybějící osivo týž den (hned za `seedReserveDay`) pošle
     výpravu vesničanů na trh nejbližší vsi okolí (`seedTrip` v `trade/villager-trips.ts` –
-    village-trade.md, Vesničané na trhu): seznam `wants.grain` = `seedShortKg` (od
-    `SEED_RESERVE.minKg`, nejvýš kolik výprava unese), platba hřivnami, pak krávami nad ty, které
-    ves drží (`surplusCows`, nejvýš `SEED_RESERVE.maxCows` = 1 – obnovené `SEED_BUYING.maxCows`),
-    do hodnoty osiva cenou cíle. Koupené obilí přijde s výsledkem trhu do `storesKg` (rezervou
-    osiva není).
+    village-trade.md, Vesničané na trhu): chybí-li `seedShortKg` od `SEED_RESERVE.minKg`, platí
+    chybějící osivo (nejvýš kolik výprava unese) hřivnami – ne těmi, které čekají na kování vozu
+    (`ironOrderBarsKg`) –, pak krávami nad ty, které ves drží (`surplusCows`, nejvýš
+    `SEED_RESERVE.maxCows` = 1 – obnovené `SEED_BUYING.maxCows`), do hodnoty osiva cenou cíle;
+    kráva jede, jen když obilí za ni výprava unese (kus se na trhu prodá jen celý). Seznam
+    `wants.grain` je obilí v hodnotě platby, nejvýš nosnost (přeplatek za kus v obilí jako dřív
+    v `buySeed`); osivem je z něj `min(obilí, chybějící osivo)` – `MarketTrip.seedKg`. **Koupené
+    osivo ves nesní:** `applyMarketResult` zapíše `reservedSeedKg` = rezerva před výsledkem +
+    `min(koupené obilí, seedKg)` (jako `buySeed`), zbytek obilí jde do zásob. Uvolnění 1. 12.
+    a 1. 6. a snědení v hladu (`seedReserveDay`) beze změny. Nezbudou-li na osivo lidé ani vozy
+    (jiné výpravy dne nebo lidé na cestě), vesničané ho zkusí druhý den (`villagersRetry`).
 - **Příprava jaře jen na díly s osivem** (fields.md – Osivo ze zásob; oprava, návrh Clauda 2. 11. 2026): `seedPrepShares` (seed.ts) v březnu–dubnu – nutné plány jaře, luštěnin a lnu
   v otevřeném okně setí (ne ozim, ne `surplus`) → podíl plánu, na který stačí `seedKg` + osivo
   z poolu (`sowableSeedKg` + `sheaves.grainKg` / `legumesKg`, dělí se v pořadí `seasonCrops`).

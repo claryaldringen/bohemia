@@ -28,6 +28,7 @@ import type {
   PenSquare,
   SquareGrid,
   TileCell,
+  TradeExpedition,
   VillageState,
 } from '../types';
 import type { Walk } from '../paths/walking';
@@ -147,17 +148,20 @@ export function villageArds(state: Pick<VillageState, 'pens' | 'ards'>): number 
  * Voli, kteří táhnou vozy výprav na cestě (wagons.md – Obchod): čtyřkolák dva, dvoukolák jeden
  * (DRAFT_OXEN) – i vozy nákupu u sousedů a voli, kteří jdou se skupinou nákupu pro koupený vůz
  * (crafts.md – Nákup u sousedů, Vozy), a voli bez vozu, kteří jdou s výpravou na trh a potáhnou
- * koupené vozy domů (`MarketTrip.oxen` – markets.md, Rozhodnutí plánu 3, bod 4).
+ * koupené vozy domů (`MarketTrip.oxen` – markets.md, Rozhodnutí plánu 3, bod 4). S `workDay` jen
+ * výpravy, které už vyrazily (`departedBy`) – voli práce dne; bez něj všechny (plán výpravy).
  */
 export function oxenAway(
   state: Pick<VillageState, 'carts' | 'trade'> & {
     dwellings?: VillageState['dwellings'];
     purchases?: VillageState['purchases'];
   },
+  workDay?: number,
 ): number {
   const kinds = new Map((state.carts ?? []).map((c) => [c.id, c.kind]));
   let n = 0;
   for (const e of state.trade?.expeditions ?? []) {
+    if (!departedBy(e, workDay)) continue;
     for (const id of e.carts ?? []) {
       const kind = kinds.get(id);
       if (kind) n += DRAFT_OXEN[kind];
@@ -191,6 +195,27 @@ export function oxenHome(
 }
 
 /**
+ * Je výprava v den práce `workDay` už pryč? Výprava na trh je s vozy a voly pryč ode dne odjezdu
+ * (`startedDay` – markets.md, Rozhodnutí plánu 2, bod 2): vesničané ji odešlou v kroku dne před
+ * prací (Rozhodnutí plánu 3, bod 7) a vozy a voli ten den ještě pracují doma – jako u výpravy, kterou
+ * hráč pošle po spočteném dni. Bez `workDay` (plán další výpravy) je pryč každá.
+ */
+export function departedBy(
+  e: Pick<TradeExpedition, 'kind' | 'startedDay'>,
+  workDay?: number,
+): boolean {
+  return workDay === undefined || e.kind !== 'market' || e.startedDay <= workDay;
+}
+
+/** Vycvičení voli doma pro práci dne `day` – bez volů výprav, které už vyrazily (`departedBy`). */
+export function oxenAtWork(
+  state: Pick<VillageState, 'pens' | 'carts' | 'trade'>,
+  day: number,
+): number {
+  return Math.max(0, trainedOxen(state, day) - oxenAway(state, day));
+}
+
+/**
  * Kolik párů volů s rádlem ves má (oxen.md – Voli po kusech): pár vycvičených volů orá, jen když
  * má rádlo. Výpravy nepočítá (`ploughPairsHome`).
  */
@@ -198,12 +223,15 @@ export function ableTeams(state: Pick<VillageState, 'pens' | 'ards'>, day: numbe
   return Math.min(villageArds(state), Math.floor(trainedOxen(state, day) / DRAFT_OXEN.ard));
 }
 
-/** Páry volů s rádlem doma v den `day` – voli u vozů výprav neorají (wagons.md – Obchod). */
+/**
+ * Páry volů s rádlem doma v den `day` – voli u vozů výprav, které už vyrazily, neorají (wagons.md –
+ * Obchod; `oxenAtWork`).
+ */
 export function ploughPairsHome(
   state: Pick<VillageState, 'pens' | 'ards' | 'carts' | 'trade'>,
   day: number,
 ): number {
-  return Math.min(villageArds(state), Math.floor(oxenHome(state, day) / DRAFT_OXEN.ard));
+  return Math.min(villageArds(state), Math.floor(oxenAtWork(state, day) / DRAFT_OXEN.ard));
 }
 
 /** Orba jednoho páru za den (člověkodny): ≈ 0,3 ha za sazbu orby podle pokrytí nástroji. */

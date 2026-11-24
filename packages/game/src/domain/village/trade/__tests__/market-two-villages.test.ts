@@ -13,12 +13,16 @@ import { departMarket } from '../market-trip';
 import { expeditionLaborNeed } from '../trade';
 import { planVillagerPurchases } from '../villager-trips';
 import { craftCoverage } from '../../crafts/crafts';
+import { reservedSeedKg } from '../../fields/seed';
+import { seedShortKg } from '../../fields/seed-reserve';
 import {
   D,
   NOV15,
+  SEP1,
   asEvents,
   homeVillage,
   marketVillage,
+  seedHome,
   target,
   villagersHome,
   withWorkshop,
@@ -379,6 +383,35 @@ describe('vesničané na trhu mezi dvěma vsemi (Rozhodnutí plánu 3, bod 7)', 
       }),
     ]);
     expect(h2.trade!.expeditions.filter((e) => e.kind === 'market')).toEqual([]);
+  });
+
+  it('osivo za krávu: M krávy shání a obilí nabízí – H má po návratu osivo v rezervě', () => {
+    const h = advanceVillage(seedHome(200), SEP1, null, null);
+    const sent = h.trade!.expeditions.find((e) => e.by === 'villagers')!;
+    expect(sent.give).toEqual({ cows: 1, ironBars: 2 });
+    const arrive = sent.market!.arriveDay;
+    const m = marketVillage();
+    m.lastDay = arrive - 1;
+    m.livestock!.herds.cow = 1;
+    m.storesKg = 0;
+    m.storesKg = marketStance(m, arrive).wants.grain! + 3_000;
+    expect(marketStance(m, arrive).wants.cows).toBeGreaterThan(0);
+    expect(marketStance(m, arrive).offer.grain).toBeGreaterThan(1_000);
+    const m1 = advanceVillage(m, arrive, null, null, asEvents(h.outbox!));
+    const result = resultMail(m1, sent.market!.key);
+    // kráva se prodá celá za 600 kg obilí, hřivny M neshání
+    expect(result.sold).toEqual({ cows: 1 });
+    expect(result.bought).toEqual({ grain: 600 });
+    expect(result.unsold).toEqual({ ironBars: 2 });
+    const home = withoutOutbox(h);
+    const back = resultEvent(m1, sent.market!.key);
+    const h2 = advanceVillage(home, back.day, null, null, [back]);
+    const hAlone = advanceVillage(home, back.day, null, null);
+    expect(seedShortKg(hAlone, back.day)).toBeGreaterThan(100);
+    expect(seedShortKg(h2, back.day)).toBeCloseTo(0, 6);
+    // osivem je jen chybějících 200 kg, zbytek (400 kg) je jídlo v zásobách
+    expect(reservedSeedKg(h2) - reservedSeedKg(hAlone)).toBeCloseTo(200, 6);
+    expect(h2.crafts!.ironBarsKg).toBe(2);
   });
 });
 

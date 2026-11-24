@@ -8,11 +8,17 @@
 // - 15. 11. (`CRAFT_BUYING.day`) nástroje, keramika, dřevěné nářadí a vůz – port dřívějšího
 //   `planPurchases` @ b4f8dadc (`planVillagerPurchases`): koupí se jen to, co ušetří víc práce, než
 //   stojí platba a nosiči,
-// - 1. 9. a 1. 3. (`SEED_RESERVE.days`) osivo u nejbližší vsi okolí za hřivny a krávy,
+// - 1. 9. a 1. 3. (`SEED_RESERVE.days`) osivo u nejbližší vsi okolí za hřivny a krávy – seznam je
+//   obilí v hodnotě platby, osivem z něj je chybějící osivo (`MarketTrip.seedKg` – ves ho nesní),
 // - kdykoli hřivny na kování vozu u nejbližšího kováře (Martin 20. 10. 2026).
-// Cena je cena trhu cíle ze zprávy na pivo (jinak výchozí) v kg obilí; obilím a luštěninami
-// z přebytku (`paymentPool`) se platí řemeslníkovi, který je bere vždy. Rozhoduje jen ze stavu vsi
-// a dne, takže výsledek nezávisí na kouscích dopočtu.
+// Volní lidé a dopravní vozy dne se mezi výpravy dělí v pořadí přijetí nákupů (zakázky, výrobky od
+// nejlepšího, osivo, hřivny) a v tom pořadí výpravy odjíždějí. Nákup s pevným dnem (výrobky a vůz,
+// osivo), na který nezbyli lidé ani vozy, vesničané zkusí druhý den (`VillageTrade.villagersRetry`),
+// zakázka a hřivny se zkoušejí každý den samy. Ves, která zakázku nevzala, vesničané rok vynechají
+// a jedou k další vsi s řemeslníkem (Rozhodnutí plánu 3, bod 6). Cena je cena trhu cíle ze zprávy na
+// pivo (jinak výchozí) v kg obilí; obilím a luštěninami z přebytku (`paymentPool`) se platí
+// řemeslníkovi, který je bere vždy. Rozhoduje jen ze stavu vsi a dne, takže výsledek nezávisí na
+// kouscích dopočtu.
 import { dateOfDayIndex } from '../../calendar';
 import {
   CRAFT_PRODUCTS,
@@ -40,6 +46,7 @@ import { CARTS, CRAFT_BUYING, MARKET, SEED_RESERVE, TRADE_GOOD_VALUES } from '..
 import type {
   CartGood,
   CartKind,
+  Craft,
   CraftCoverage,
   NearbyVillage,
   OrderGood,
@@ -47,6 +54,7 @@ import type {
   TradeGood,
   TradeGoods,
   VillageState,
+  VillagerRetry,
 } from '../types';
 import { orderRefused, placedOrder, readyOrders } from './craft-orders';
 import { CART_GOODS, ORDER_CRAFT, cartGoodKind } from './goods';
@@ -57,9 +65,10 @@ import {
   marketCrew,
   marketFreeAdults,
   marketTravelDays,
+  oxenForCarts,
 } from './market-trip';
 import { nearbyTarget, nearestNearby, nearestWith } from './nearby';
-import { villageGoodStock } from './trade';
+import { expeditionLaborNeed, villageGoodStock } from './trade';
 
 /** Tolerance proti chybám desetinných čísel. */
 const EPSILON = 1e-9;
@@ -82,12 +91,25 @@ export interface VillagerPurchase {
   worthIt: boolean;
 }
 
+/** Nákup 15. 11.: výrobek řemeslníků (zboží trhu), nebo vůz od tesaře. */
+type BuyItem = Exclude<VillagerRetry, 'seed'>;
+
 /** Zboží trhu výrobku řemeslníků. */
 const PRODUCT_GOOD: Readonly<Record<CraftProduct, 'tools' | 'pottery' | 'woodTools'>> = {
   toolsKg: 'tools',
   potteryKg: 'pottery',
   woodToolsKg: 'woodTools',
 };
+
+/** Výrobek řemeslníků zboží trhu. */
+const GOOD_PRODUCT: Readonly<Record<Exclude<BuyItem, 'cart'>, CraftProduct>> = {
+  tools: 'toolsKg',
+  pottery: 'potteryKg',
+  woodTools: 'woodToolsKg',
+};
+
+/** Nákupy 15. 11. v pořadí výrobků (`CRAFT_PRODUCTS`), pak vůz. */
+const BUY_ITEMS: readonly BuyItem[] = [...CRAFT_PRODUCTS.map((p) => PRODUCT_GOOD[p]), 'cart'];
 
 /** Zboží trhu vozu druhu `kind`. */
 function cartGoodOf(kind: CartKind): CartGood {
@@ -133,6 +155,13 @@ interface Haul {
   loadKg: number;
   /** Hotové zakázky, pro které jede – po odjezdu `open`. */
   orders: PlacedOrder[];
+  /** Kolik kg obilí seznamu je osivo (`MarketTrip.seedKg`). */
+  seedKg: number;
+  /** Nákupy s pevným dnem ve výpravě – neprojde-li odjezd, zkusí se druhý den. */
+  dated: VillagerRetry[];
+  /** Nosiči a dopravní vozy výpravy (`marketCrew` – `shareCrews` po každém nákupu). */
+  porters: number;
+  carts: CartKind[];
 }
 
 /** Den vesničanů: co ves ví o sobě a čím platí (líně – počítá se, jen když je potřeba). */
@@ -143,12 +172,14 @@ interface TripDay {
   pool?: PaymentPool;
   ctx?: BuyingContext;
   adults?: number;
-  /** Výpravy dne po cílech. */
+  /** Výpravy dne po cílech v pořadí přijetí prvního nákupu. */
   hauls: Map<string, Haul>;
+  /** Nákupy s pevným dnem, na které dnes nezbyli lidé ani vozy – zkusí se druhý den. */
+  retry: Set<VillagerRetry>;
 }
 
 function newTripDay(state: VillageState, day: number, coverage: CraftCoverage): TripDay {
-  return { state, day, coverage, hauls: new Map() };
+  return { state, day, coverage, hauls: new Map(), retry: new Set() };
 }
 
 /**
@@ -169,40 +200,102 @@ function ctxOf(t: TripDay): BuyingContext {
   return (t.ctx ??= buyingContext(t.state, t.day, t.coverage));
 }
 
-/** Výprava dne do vsi `village` – založí se prázdná. */
-function haulOf(t: TripDay, village: NearbyVillage): Haul {
-  let haul = t.hauls.get(village.villageId);
-  if (!haul) {
-    haul = { village, give: {}, wants: {}, loadKg: 0, orders: [] };
-    t.hauls.set(village.villageId, haul);
-  }
-  return haul;
-}
-
-/** Voli, kteří půjdou s výpravami dne pro koupené vozy (`cartOxen`). */
+/** Voli, kteří půjdou s výpravami dne pro koupené vozy (`oxenForCarts`). */
 function reservedOxen(t: TripDay): number {
   let oxen = 0;
-  for (const haul of t.hauls.values()) {
-    for (const good of CART_GOODS) oxen += cartOxen(cartGoodKind(good)) * (haul.wants[good] ?? 0);
-  }
+  for (const haul of t.hauls.values()) oxen += oxenForCarts(haul.wants);
   return oxen;
 }
 
-/** Dopravní vozy výpravy – doma, s voly, kteří zbudou po volech pro koupené vozy (`extraOxen`). */
+/** Dopravní vozy dne – doma, s voly, kteří zbudou po volech pro koupené vozy (i `extraOxen`). */
 function transportCarts(t: TripDay, extraOxen = 0): CartKind[] {
   const oxen = oxenHome(t.state, t.day) - reservedOxen(t) - extraOxen;
   return cartsWithOxen(tradeHomeCarts(t.state), oxen).map((cart) => cart.kind);
 }
 
 /**
- * Kolik kg nošeného zboží výprava do vsi ještě unese – volní dospělí a dopravní vozy jedné cesty
- * (`marketCarryKg`) bez toho, co už nese (dřívější `carryKg` nákupu, Rozhodnutí plánu 3, bod 7:
- * víc ves koupí příště). Vsi stejného dne sdílejí lidi i vozy – další výprava, na kterou nezbudou,
- * neprojde kontrolou a ten den nejede.
+ * Nosiči a vozy výprav dne (mutuje výpravy): v pořadí výprav každá vezme nosiče a vozy `marketCrew`
+ * ze zbytku dopravních vozů – jako při odjezdu jedna po druhé.
  */
-function roomKg(t: TripDay, haul: Haul, carts: readonly CartKind[]): number {
-  t.adults ??= marketFreeAdults(t.state, t.day);
-  return Math.max(0, marketCarryKg(t.adults, carts) - haul.loadKg);
+function shareCrews(t: TripDay): void {
+  let left = transportCarts(t);
+  for (const haul of t.hauls.values()) {
+    const crew = marketCrew(haul.give, haul.wants, left);
+    haul.porters = crew.porters;
+    haul.carts = left.slice(0, crew.carts);
+    left = left.slice(crew.carts);
+  }
+}
+
+/** Lidé a vozy, které zbyly pro výpravu do jedné vsi, a kolik ještě unese. */
+interface Space {
+  carts: CartKind[];
+  roomKg: number;
+  /** Část lidí nebo vozů mají jiné výpravy (dnešní nebo na cestě) – až se vrátí, unese víc. */
+  held: boolean;
+}
+
+/**
+ * Kolik kg nošeného zboží výprava do `village` ještě unese – volní dospělí a dopravní vozy jedné
+ * cesty (`marketCarryKg`) bez nosičů a vozů ostatních výprav dne a bez toho, co už nese (dřívější
+ * `carryKg` nákupu, Rozhodnutí plánu 3, bod 7: víc ves koupí příště). `extraOxen` – voli pro vůz,
+ * který se zvažuje.
+ */
+function spaceFor(t: TripDay, village: NearbyVillage, extraOxen = 0): Space {
+  const own = t.hauls.get(village.villageId);
+  let adults = (t.adults ??= marketFreeAdults(t.state, t.day));
+  const carts = transportCarts(t, extraOxen);
+  let others = false;
+  for (const haul of t.hauls.values()) {
+    if (haul === own) continue;
+    others = true;
+    adults -= haul.porters;
+    for (const kind of haul.carts) {
+      const i = carts.indexOf(kind);
+      if (i >= 0) carts.splice(i, 1);
+    }
+  }
+  return {
+    carts,
+    roomKg: Math.max(0, marketCarryKg(Math.max(0, adults), carts) - (own?.loadKg ?? 0)),
+    held: others || expeditionLaborNeed(t.state, t.day + 1) > 0,
+  };
+}
+
+/** Nákup do výpravy dne (`add` – co přidá; výprava se založí až s prvním nákupem). */
+interface HaulAdd {
+  give: TradeGoods;
+  wants: TradeGoods;
+  loadKg: number;
+  seedKg?: number;
+  dated?: VillagerRetry;
+  order?: PlacedOrder;
+}
+
+/** Přidá nákup do výpravy dne do `village` (mutuje) a znovu rozdělí lidi a vozy dne. */
+function addToHaul(t: TripDay, village: NearbyVillage, add: HaulAdd): void {
+  let haul = t.hauls.get(village.villageId);
+  if (!haul) {
+    haul = {
+      village,
+      give: {},
+      wants: {},
+      loadKg: 0,
+      orders: [],
+      seedKg: 0,
+      dated: [],
+      porters: 0,
+      carts: [],
+    };
+    t.hauls.set(village.villageId, haul);
+  }
+  addTo(haul.give, add.give);
+  addTo(haul.wants, add.wants);
+  haul.loadKg += add.loadKg;
+  haul.seedKg += add.seedKg ?? 0;
+  if (add.dated) haul.dated.push(add.dated);
+  if (add.order) haul.orders.push(add.order);
+  shareCrews(t);
 }
 
 /** Přičte zboží (mutuje). */
@@ -214,12 +307,15 @@ function addTo(goods: TradeGoods, more: TradeGoods): void {
 
 /** Zvažovaný nákup a přebytek po jeho platbě (`trial`). */
 interface Option {
-  item: CraftProduct | 'cart';
+  item: BuyItem;
   plan: VillagerPurchase;
   trial: PaymentPool;
   village: NearbyVillage;
   loadKg: number;
 }
+
+/** Zvažovaný nákup; `'blocked'` – na nákup nezbyli lidé ani vozy, zkusí se druhý den. */
+type Considered = Option | 'blocked' | null;
 
 /** Kolik práce nákup ušetří na čd, které stojí (platba a nosiči). */
 function ratio(plan: VillagerPurchase): number {
@@ -227,14 +323,22 @@ function ratio(plan: VillagerPurchase): number {
 }
 
 /**
+ * Nejbližší ves okolí s řemeslníkem `craft` ze zprávy, kromě té, která zakázku na `good` nevzala
+ * (`orderRefused` – rok ji vynechá a jede k další; Rozhodnutí plánu 3, bod 6).
+ */
+function craftsmanFor(t: TripDay, craft: Craft, good: OrderGood): NearbyVillage | null {
+  return nearestWith(t.state, craft, (v) => orderRefused(t.state, t.day, v.villageId, good));
+}
+
+/**
  * Výrobek řemeslníků z přebytku `from` (port `consider` @ b4f8dadc): bez vlastního pracujícího
  * řemeslníka, bez živé zakázky (jede se pro ni, až bude hotová), chybí do zásoby (`craftTargets`)
  * aspoň `CRAFT_BUYING.minKg`; cíl je nejbližší ves okolí, o jejímž řemeslníkovi ves ví ze zprávy
- * (`nearestWith`), ne ta, která zakázku nevzala (`orderRefused`). Ves zaplatí, kolik z přebytku
- * zaplatí a výprava unese, a porovná práci, kterou to za dobu služby výrobku ušetří, s prací za
- * platbu a nosiče (nosiči × dny výpravy).
+ * (`nearestWith`), kromě té, která zakázku nevzala (`orderRefused` – jede se k další). Ves zaplatí,
+ * kolik z přebytku zaplatí a výprava unese, a porovná práci, kterou to za dobu služby výrobku
+ * ušetří, s prací za platbu a nosiče (nosiči × dny výpravy).
  */
-function considerProduct(t: TripDay, product: CraftProduct, from: PaymentPool): Option | null {
+function considerProduct(t: TripDay, product: CraftProduct, from: PaymentPool): Considered {
   const { state, day } = t;
   const good = PRODUCT_GOOD[product];
   const craft = ORDER_CRAFT[good];
@@ -242,10 +346,12 @@ function considerProduct(t: TripDay, product: CraftProduct, from: PaymentPool): 
   const stock = productStock(state, product);
   const wanted = craftTargets(state, day)[product] - stock;
   if (wanted < CRAFT_BUYING.minKg) return null;
-  const village = nearestWith(state, craft);
-  if (!village || orderRefused(state, day, village.villageId, good)) return null;
-  const ctx = ctxOf(t);
+  const village = craftsmanFor(t, craft, good);
+  if (!village) return null;
   const price = priceKg(state, village.villageId, good);
+  const space = spaceFor(t, village);
+  if (space.roomKg < CRAFT_BUYING.minKg * price) return space.held ? 'blocked' : null;
+  const ctx = ctxOf(t);
   const need = ctx.needs[product];
   // obilí na platbu ves vypěstuje znovu – u nástrojů už s nimi (cena jídla v práci při pokrytí
   // po nákupu), u ostatních výrobků při dnešním pokrytí nástroji
@@ -253,20 +359,18 @@ function considerProduct(t: TripDay, product: CraftProduct, from: PaymentPool): 
     product === 'toolsKg'
       ? withToolCoverage(state, ctx, productCoverage(stock + wanted, need))
       : ctx;
-  const haul = haulOf(t, village);
-  const carts = transportCarts(t);
   const days = tripDays(village);
   const trial = { ...from };
   const paid = pay(
     payCtx,
     trial,
-    Math.min(wanted * price, roomKg(t, haul, carts)),
+    Math.min(wanted * price, space.roomKg),
     days,
     payValues(state, village.villageId),
   );
   const kg = paid.paidKg / price;
   if (kg < CRAFT_BUYING.minKg) return null;
-  const crew = marketCrew(paid.pay, { [good]: kg }, carts);
+  const crew = marketCrew(paid.pay, { [good]: kg }, space.carts);
   const years = 1 / PRODUCT_WEAR_PER_YEAR[product];
   const saved =
     yearlySaving(
@@ -278,7 +382,7 @@ function considerProduct(t: TripDay, product: CraftProduct, from: PaymentPool): 
     ) * years;
   const cost = paid.labor + crew.porters * days;
   return {
-    item: product,
+    item: good,
     plan: {
       good,
       villageId: village.villageId,
@@ -298,28 +402,40 @@ function considerProduct(t: TripDay, product: CraftProduct, from: PaymentPool): 
  * Vůz od tesaře (port `considerCart` @ b4f8dadc; crafts.md – Nákup u sousedů, Vozy): ves bez
  * pracujícího tesaře, která vůz chce a nemá (`missingCart`), bez živé zakázky a bez výpravy, která
  * ho už veze, s volnými vycvičenými voly, kteří ho dovedou domů (`cartOxen`), u nejbližší vsi okolí
- * s tesařem ze zprávy; celý vůz z přebytku, nebo nic. Ušetří, co další vůz podle loňského roku vozů
- * (`cartYearSaving`) za `CARTS.lifespanYears` let.
+ * s tesařem ze zprávy (kromě té, která zakázku nevzala); celý vůz z přebytku, nebo nic. Ušetří, co
+ * další vůz podle loňského roku vozů (`cartYearSaving`) za `CARTS.lifespanYears` let.
  */
-function considerCart(t: TripDay, from: PaymentPool): Option | null {
+function considerCart(t: TripDay, from: PaymentPool): Considered {
   const { state, day } = t;
   if (ownCraftsmanWorks(state, 'carpenter')) return null;
   const kind = missingCart(state);
   if (!kind) return null;
   const good = cartGoodOf(kind);
   if (placedOrder(state, day, good) || onTheWay(state, good)) return null;
-  if (oxenHome(state, day) - reservedOxen(t) < cartOxen(kind)) return null;
-  const village = nearestWith(state, 'carpenter');
-  if (!village || orderRefused(state, day, village.villageId, good)) return null;
-  const haul = haulOf(t, village);
-  const carts = transportCarts(t, cartOxen(kind));
+  const village = craftsmanFor(t, 'carpenter', good);
+  if (!village) return null;
+  const space = spaceFor(t, village, cartOxen(kind));
+  // volní voli – bez volů pro jiné koupené vozy a volů u vozů ostatních výprav dne
+  let othersOxen = 0;
+  for (const haul of t.hauls.values()) {
+    if (haul.village.villageId === village.villageId) continue;
+    othersOxen += haul.carts.reduce((n, kind) => n + cartOxen(kind), 0);
+  }
+  if (oxenHome(state, day) - reservedOxen(t) - othersOxen < cartOxen(kind)) {
+    return space.held ? 'blocked' : null;
+  }
   const days = tripDays(village);
   const price = priceKg(state, village.villageId, good);
+  const values = payValues(state, village.villageId);
+  // nejlehčí platba – obilí či luštěniny kg za kg; tolik výprava neunese, než se lidé vrátí
+  if (space.roomKg < price / Math.max(values.grain, values.legumes) - EPSILON) {
+    return space.held ? 'blocked' : null;
+  }
   const trial = { ...from };
-  const paid = pay(ctxOf(t), trial, price, days, payValues(state, village.villageId));
+  const paid = pay(ctxOf(t), trial, price, days, values);
   if (paid.paidKg < price - EPSILON) return null;
-  if (paid.weightKg > roomKg(t, haul, carts) + EPSILON) return null;
-  const crew = marketCrew(paid.pay, { [good]: 1 }, carts);
+  if (paid.weightKg > space.roomKg + EPSILON) return null;
+  const crew = marketCrew(paid.pay, { [good]: 1 }, space.carts);
   const saved = cartYearSaving(state, kind) * CARTS.lifespanYears;
   const cost = paid.labor + crew.porters * days;
   return {
@@ -348,18 +464,27 @@ function onTheWay(state: VillageState, good: TradeGood, by?: 'villagers'): boole
 }
 
 /**
- * Nákupy z přebytku `pool` (mutuje `pool` i výpravy dne – port smyčky `planPurchases`
+ * Nákupy `items` z přebytku `pool` (mutuje `pool` i výpravy dne – port smyčky `planPurchases`
  * @ b4f8dadc; crafts.md – Nákup u sousedů, rozhodnutí Clauda): z jednoho přebytku napřed nákup,
- * který ušetří nejvíc práce na práci, kterou stojí; po každém ostatní znovu podle zbylého přebytku.
- * Nevýhodné jsou v seznamu s `worthIt` false (přebytek ani výpravy jim nic nedají).
+ * který ušetří nejvíc práce na práci, kterou stojí; po každém ostatní znovu podle zbylého přebytku
+ * a lidí a vozů, které zbyly. Nevýhodné jsou v seznamu s `worthIt` false (přebytek ani výpravy jim
+ * nic nedají); nákup, na který nezbyli lidé ani vozy, jde do `t.retry`.
  */
-function choosePurchases(t: TripDay, pool: PaymentPool): VillagerPurchase[] {
+function choosePurchases(
+  t: TripDay,
+  pool: PaymentPool,
+  items: readonly BuyItem[],
+): VillagerPurchase[] {
   const plans: VillagerPurchase[] = [];
-  let left: (CraftProduct | 'cart')[] = [...CRAFT_PRODUCTS, 'cart'];
+  let left = [...items];
   while (left.length > 0) {
-    const options = left
-      .map((item) => (item === 'cart' ? considerCart(t, pool) : considerProduct(t, item, pool)))
-      .filter((o): o is Option => o !== null);
+    const options: Option[] = [];
+    for (const item of left) {
+      const o =
+        item === 'cart' ? considerCart(t, pool) : considerProduct(t, GOOD_PRODUCT[item], pool);
+      if (o === 'blocked') t.retry.add(item);
+      else if (o) options.push(o);
+    }
     const best = options
       .filter((o) => o.plan.worthIt)
       .reduce<Option | null>(
@@ -373,10 +498,12 @@ function choosePurchases(t: TripDay, pool: PaymentPool): VillagerPurchase[] {
     Object.assign(pool, best.trial);
     plans.push(best.plan);
     // nákupy jednoho cíle jedou jednou výpravou – nesou spolu, voli pro koupený vůz jdou s ní
-    const haul = haulOf(t, best.village);
-    addTo(haul.give, best.plan.pay);
-    addTo(haul.wants, { [best.plan.good]: best.plan.amount });
-    haul.loadKg += best.loadKg;
+    addToHaul(t, best.village, {
+      give: best.plan.pay,
+      wants: { [best.plan.good]: best.plan.amount },
+      loadKg: best.loadKg,
+      dated: best.item,
+    });
     left = options.filter((o) => o !== best).map((o) => o.item);
   }
   return plans;
@@ -395,7 +522,7 @@ export function planVillagerPurchases(
 ): VillagerPurchase[] {
   if (!state.nearby || state.people.length === 0) return [];
   const t = newTripDay(state, day, coverage);
-  return choosePurchases(t, { ...poolOf(t) });
+  return choosePurchases(t, { ...poolOf(t) }, BUY_ITEMS);
 }
 
 /** Hotové zakázky: výprava pro ně týž den, platba z přebytku cenou cíle. */
@@ -403,81 +530,102 @@ function readyTrips(t: TripDay): void {
   for (const order of readyOrders(t.state, t.day)) {
     const village = t.state.nearby?.villages.find((v) => v.villageId === order.villageId);
     if (!village) continue;
-    const haul = haulOf(t, village);
-    if (!buyWith(t, haul, order.good, order.amount)) continue;
-    haul.orders.push(order);
+    const bought = buyWith(t, village, order.good, order.amount);
+    if (bought) addToHaul(t, village, { ...bought, order });
   }
 }
 
 /**
- * Do výpravy `haul` přidá zboží `good` (`amount`) s platbou z přebytku cenou cíle, nejvýš kolik
- * výprava unese. Bez platby nic (vrací false) – za nic se na trhu nic nekoupí.
+ * Zboží `good` (`amount`) s platbou z přebytku cenou cíle, nejvýš kolik výprava do `village` unese
+ * (mutuje přebytek). Bez platby null – za nic se na trhu nic nekoupí.
  */
-function buyWith(t: TripDay, haul: Haul, good: OrderGood, amount: number): boolean {
+function buyWith(
+  t: TripDay,
+  village: NearbyVillage,
+  good: OrderGood,
+  amount: number,
+): HaulAdd | null {
   const pool = poolOf(t);
   // bez přebytku nic nezaplatí – a cenu jídla v práci (`buyingContext`) netřeba počítat; krok
   // hřiven na kování se tak v chudé vsi neopakuje draze den co den
-  if (pool.energyKg <= EPSILON || pool.grainKg + pool.legumesKg <= EPSILON) return false;
-  const villageId = haul.village.villageId;
-  const price = priceKg(t.state, villageId, good);
-  const room = roomKg(t, haul, transportCarts(t));
-  if (room <= EPSILON) return false;
+  if (pool.energyKg <= EPSILON || pool.grainKg + pool.legumesKg <= EPSILON) return null;
+  const price = priceKg(t.state, village.villageId, good);
+  const room = spaceFor(t, village).roomKg;
+  if (room <= EPSILON) return null;
   const paid = pay(
     ctxOf(t),
     pool,
     Math.min(amount * price, room),
-    tripDays(haul.village),
-    payValues(t.state, villageId),
+    tripDays(village),
+    payValues(t.state, village.villageId),
   );
-  if (paid.paidKg <= EPSILON) return false;
-  addTo(haul.give, paid.pay);
-  addTo(haul.wants, { [good]: amount });
-  haul.loadKg += Math.max(paid.weightKg, amount * TRADE_GOOD_VALUES[good].carryKg);
-  return true;
+  if (paid.paidKg <= EPSILON) return null;
+  return {
+    give: paid.pay,
+    wants: { [good]: amount },
+    loadKg: Math.max(paid.weightKg, amount * TRADE_GOOD_VALUES[good].carryKg),
+  };
 }
 
 /**
  * Osivo 1. 9. a 1. 3. (port `buySeed` @ b4f8dadc; fields.md – Osivo pro ves bez zásob): chybí-li
- * aspoň `SEED_RESERVE.minKg`, seznam je chybějící osivo (nejvýš, kolik výprava unese) u nejbližší
- * vsi okolí, platí se hřivnami, pak krávami nad ty, které ves drží (`surplusCows`), nejvýš
- * `SEED_RESERVE.maxCows`, do hodnoty osiva cenou cíle. Za méně než `minKg` osiva se nejede.
+ * aspoň `SEED_RESERVE.minKg`, ves zaplatí chybějící osivo (nejvýš, kolik výprava unese) u nejbližší
+ * vsi okolí hřivnami (ne těmi, které čekají na kování vozu – `ironOrderBarsKg`), pak krávami nad
+ * ty, které ves drží (`surplusCows`), nejvýš `SEED_RESERVE.maxCows` – kráva jede, jen když obilí za
+ * ni výprava unese (kus se na trhu prodá jen celý). Seznam je obilí v hodnotě platby, nejvýš kolik
+ * výprava unese (přeplatek za kus je v obilí jako dřív); osivem je z něj chybějící osivo
+ * (`seedKg` – ves ho nesní), zbytek jde do zásob. Za méně než `minKg` osiva se nejede.
  */
-function seedTrip(t: TripDay): void {
+function seedTrip(t: TripDay, again: boolean): void {
   const { state, day } = t;
-  if (!SEED_RESERVE.days.some((d) => isOn(day, d))) return;
+  if (!again && !SEED_RESERVE.days.some((d) => isOn(day, d))) return;
   const shortKg = seedShortKg(state, day);
   if (shortKg < SEED_RESERVE.minKg) return;
   const village = nearestNearby(state);
   if (!village) return;
-  const haul = haulOf(t, village);
-  const wantKg = Math.min(shortKg, roomKg(t, haul, transportCarts(t)));
+  const space = spaceFor(t, village);
+  if (space.roomKg < SEED_RESERVE.minKg) {
+    if (space.held) t.retry.add('seed');
+    return;
+  }
+  const haul = t.hauls.get(village.villageId);
   const grainPrice = priceKg(state, village.villageId, 'grain');
-  const dueKg = wantKg * grainPrice;
+  const dueKg = Math.min(shortKg, space.roomKg) * grainPrice;
   const barValue = priceKg(state, village.villageId, 'ironBars');
-  const ironBars = Math.min(
-    villageGoodStock(state, 'ironBars', day) - (haul.give.ironBars ?? 0),
-    Math.max(0, Math.ceil(dueKg / barValue - EPSILON)),
-  );
-  let valueKg = Math.max(0, ironBars) * barValue;
+  const barsLeft =
+    Math.floor((state.crafts?.ironBarsKg ?? 0) - ironOrderBarsKg(state) + EPSILON) -
+    (haul?.give.ironBars ?? 0);
+  const ironBars = Math.max(0, Math.min(barsLeft, Math.ceil(dueKg / barValue - EPSILON)));
+  let valueKg = ironBars * barValue;
   const cowValue = priceKg(state, village.villageId, 'cows');
-  const cows = Math.min(
-    surplusCows(state, day),
-    villageGoodStock(state, 'cows', day) - (haul.give.cows ?? 0),
-    SEED_RESERVE.maxCows,
-    Math.max(0, Math.ceil((dueKg - valueKg) / cowValue - EPSILON)),
+  const cows = Math.max(
+    0,
+    Math.min(
+      surplusCows(state, day),
+      villageGoodStock(state, 'cows', day) - (haul?.give.cows ?? 0),
+      SEED_RESERVE.maxCows,
+      Math.ceil((dueKg - valueKg) / cowValue - EPSILON),
+      Math.floor((space.roomKg * grainPrice - valueKg) / cowValue + EPSILON),
+    ),
   );
-  valueKg += Math.max(0, cows) * cowValue;
-  if (Math.min(valueKg / grainPrice, wantKg) < SEED_RESERVE.minKg) return;
-  addTo(haul.give, { ironBars, cows });
-  addTo(haul.wants, { grain: wantKg });
-  haul.loadKg += Math.max(wantKg, ironBars);
+  valueKg += cows * cowValue;
+  const getKg = Math.min(valueKg / grainPrice, space.roomKg);
+  const seedKg = Math.min(getKg, shortKg);
+  if (seedKg < SEED_RESERVE.minKg) return;
+  addToHaul(t, village, {
+    give: { ironBars, cows },
+    wants: { grain: getKg },
+    loadKg: Math.max(getKg, ironBars),
+    seedKg,
+    dated: 'seed',
+  });
 }
 
 /**
  * Hřivny na kování vozu (kdykoli; wagons.md – Kování vozů, Martin 20. 10. 2026): vozy čekají na
  * kování (`ironOrderBarsKg` nad hřivnami vsi), ves nemá pracujícího kováře, pro hřivny nejde jiná
  * výprava vesničanů a nečeká se na zakázku → seznam je chybějící hřivny u nejbližší vsi okolí
- * s kovářem ze zprávy (ne té, která zakázku nevzala), platba z přebytku. Hřivny doma vůz dokončí
+ * s kovářem ze zprávy (kromě té, která zakázku nevzala), platba z přebytku. Hřivny doma vůz dokončí
  * (`cartIronDay`).
  */
 function ironBarsTrip(t: TripDay): void {
@@ -485,42 +633,63 @@ function ironBarsTrip(t: TripDay): void {
   const missing = ironOrderBarsKg(state) - (state.crafts?.ironBarsKg ?? 0);
   if (missing <= EPSILON || ownCraftsmanWorks(state, 'smith')) return;
   if (onTheWay(state, 'ironBars', 'villagers') || placedOrder(state, day, 'ironBars')) return;
-  const village = nearestWith(state, 'smith');
-  if (!village || orderRefused(state, day, village.villageId, 'ironBars')) return;
-  buyWith(t, haulOf(t, village), 'ironBars', missing);
+  const village = craftsmanFor(t, 'smith', 'ironBars');
+  if (!village) return;
+  const bought = buyWith(t, village, 'ironBars', missing);
+  if (bought) addToHaul(t, village, bought);
+}
+
+/** Nákupy s pevným dnem, které vesničané dnes zkusí znovu (mutuje – paměť se smaže). */
+function takeRetry(state: VillageState, day: number): VillagerRetry[] {
+  const retry = state.trade?.villagersRetry;
+  if (!retry || retry.day > day) return [];
+  delete state.trade!.villagersRetry;
+  return retry.goods;
 }
 
 /**
  * Vesničané na trhu – krok dne (mutuje stav; markets.md – Pravidla 9, Rozhodnutí plánu 3, bod 7),
  * hned za rezervou osiva: bez okolí nic. Napřed hotové zakázky, 15. 11. výrobky a vůz
- * (`planVillagerPurchases` – co se vyplatí), 1. 9. a 1. 3. osivo, kdykoli hřivny na kování vozu.
- * Co jde do jedné vsi, jede jednou výpravou (pobyt `MARKET.minStayDays`, `by: 'villagers'`), vsi
- * v pořadí okolí; odmítne-li ji `planMarketTrip`, dnes nejede. Zakázka, pro kterou výprava vyrazila,
- * je zase `open` do výsledku.
+ * (`planVillagerPurchases` – co se vyplatí), 1. 9. a 1. 3. osivo, kdykoli hřivny na kování vozu;
+ * nákupy s pevným dnem, na které včera nezbyli lidé ani vozy, znovu. Co jde do jedné vsi, jede
+ * jednou výpravou (pobyt `MARKET.minStayDays`, `by: 'villagers'`); výpravy odjíždějí v pořadí
+ * přijetí nákupů a každá počítá s lidmi a vozy, které zbyly. Odmítne-li výpravu `planMarketTrip`,
+ * dnes nejede – zakázka a hřivny se zkusí druhý den samy, nákupy s pevným dnem přes
+ * `villagersRetry`. Zakázka, pro kterou výprava vyrazila, je zase `open` do výsledku.
  */
 export function villagerTripsDay(state: VillageState, day: number, coverage: CraftCoverage): void {
   const nearby = state.nearby;
   if (!nearby || nearby.villages.length === 0 || state.people.length === 0) return;
   const t = newTripDay(state, day, coverage);
+  const again = takeRetry(state, day);
   readyTrips(t);
-  if (isOn(day, CRAFT_BUYING.day)) choosePurchases(t, poolOf(t));
-  seedTrip(t);
+  const items = isOn(day, CRAFT_BUYING.day)
+    ? BUY_ITEMS
+    : BUY_ITEMS.filter((item) => again.includes(item));
+  if (items.length > 0) choosePurchases(t, poolOf(t), items);
+  seedTrip(t, again.includes('seed'));
   ironBarsTrip(t);
-  for (const village of nearby.villages) {
-    const haul = t.hauls.get(village.villageId);
-    if (!haul || (Object.keys(haul.give).length === 0 && Object.keys(haul.wants).length === 0)) {
+  for (const haul of t.hauls.values()) {
+    const target = nearbyTarget(state, haul.village.villageId);
+    const sent = target
+      ? departMarketInPlace(
+          state,
+          day,
+          { give: haul.give, wants: haul.wants, stayDays: MARKET.minStayDays },
+          target,
+          { by: 'villagers', seedKg: haul.seedKg },
+        )
+      : null;
+    if (!sent?.ok) {
+      for (const item of haul.dated) t.retry.add(item);
       continue;
     }
-    const target = nearbyTarget(state, village.villageId);
-    if (!target) continue;
-    const sent = departMarketInPlace(
-      state,
-      day,
-      { give: haul.give, wants: haul.wants, stayDays: MARKET.minStayDays },
-      target,
-      { by: 'villagers' },
-    );
-    if (!sent.ok) continue;
     for (const order of haul.orders) order.status = 'open';
+  }
+  if (t.retry.size > 0) {
+    (state.trade ??= { expeditions: [], nextId: 1 }).villagersRetry = {
+      day: day + 1,
+      goods: [...t.retry],
+    };
   }
 }

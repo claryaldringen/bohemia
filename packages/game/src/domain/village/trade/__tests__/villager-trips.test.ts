@@ -1,21 +1,25 @@
 import { describe, expect, it } from 'vitest';
 import type { VillageEvent } from '../../core/inbox';
 import { advanceVillage } from '../../core/simulate';
+import { cartFleetToday } from '../../crafts/carts';
 import { cartIronBarsKg, craftCoverage, craftTargets } from '../../crafts/crafts';
 import { CARPENTRY, CRAFT_BUYING, MARKET, SEED_RESERVE } from '../../rules';
 import { toolEquipmentKg, toolNeedKg } from '../../crafts/iron';
-import { windowSeedNeedKg } from '../../fields/seed';
+import { reservedSeedKg } from '../../fields/seed';
 import { seedShortKg } from '../../fields/seed-reserve';
-import { breedingCows, oxenCalvesWanted, surplusCows } from '../../livestock/husbandry';
-import type { ChronicleEvent, PlacedOrder, VillageState } from '../../types';
+import { surplusCows } from '../../livestock/husbandry';
+import { oxenHome } from '../../livestock/oxen';
+import type { ChronicleEvent, MarketResult, PlacedOrder, VillageState } from '../../types';
 import { at } from '../../__tests__/horse-fixtures';
 import { dwelling, trackedVillage, type KinSpec } from '../../__tests__/kin-fixtures';
+import { applyMarketResult, marketCarryKg, marketFreeAdults } from '../market-trip';
 import { planVillagerPurchases, villagerTripsDay } from '../villager-trips';
 import {
   NOV14,
   NOV15,
-  homeVillage,
-  sownPart,
+  SEP1,
+  report,
+  seedHome,
   villagersHome,
   withNearby,
   withNews,
@@ -26,7 +30,6 @@ import {
 // z okolí, výprava `by: 'villagers'` přes `departMarketInPlace`.
 
 const NOV20 = at(601, 11, 20);
-const SEP1 = at(601, 9, 1);
 const villagers = villagersHome;
 
 type Departed = Extract<ChronicleEvent, { kind: 'market-departed' }>;
@@ -93,6 +96,86 @@ describe('vesničané na trhu – výrobky 15. 11. (Rozhodnutí plánu 3, bod 7)
     expect(arrival).toMatchObject({ kind: 'market-arrive', arrival: { firstStep: 'E' } });
   });
 
+  it('nevyplatí se (3 ha) – nástroje jen v plánu s worthIt false, výprava žádná', () => {
+    const s = villagers();
+    s.parts = s.parts!.slice(0, 12);
+    const plans = planVillagerPurchases(s, NOV15, craftCoverage(s, NOV15));
+    expect(plans).toEqual([expect.objectContaining({ good: 'tools', worthIt: false })]);
+    expect(plans[0]!.savedManDays).toBeLessThan(plans[0]!.costManDays);
+    expect(marketTrips(stepped(s, NOV15))).toEqual([]);
+  });
+
+  it('bez vozu koupí jen tolik, kolik volní dospělí unesou (nosnost)', () => {
+    const s = villagers();
+    s.carts = [];
+    const adults = marketFreeAdults(s, NOV15);
+    const plan = planVillagerPurchases(s, NOV15, craftCoverage(s, NOV15))[0]!;
+    expect(plan).toMatchObject({ good: 'tools', worthIt: true });
+    // nástrojů chybí 10 kg (600 kg obilí) – unesou jen nosiči po 25 kg
+    expect(plan.pay.grain).toBeCloseTo(marketCarryKg(adults, []), 6);
+    expect(plan.amount).toBeCloseTo(marketCarryKg(adults, []) / 60, 6);
+    const trip = marketTrips(stepped(s, NOV15))[0]!;
+    expect(trip.porters).toBe(adults);
+    expect(trip.carts).toBeUndefined();
+  });
+
+  it('vůz od tesaře: koupený dvoukolák a dřevěné nářadí jedou jednou výpravou s volem navíc', () => {
+    const s = villagers(['carpenter']);
+    s.toolEquipmentKg = toolNeedKg(s, NOV15) * 2;
+    // druhé spřežení: čtyřkolák veze platbu, vůl navíc dovede koupený dvoukolák domů
+    s.pens!.push({ ...s.pens!.at(-1)!, id: 901, cell: { x: 5, y: 4 }, x: 70 });
+    s.draft = {
+      lastYear: { from: NOV15 - 365, 'two-wheel': [300], 'four-wheel': [], plough: [], oxCost: 12 },
+    };
+    const plans = planVillagerPurchases(s, NOV15, craftCoverage(s, NOV15));
+    expect(plans.map((p) => [p.good, p.worthIt])).toEqual([
+      ['twoWheelCarts', true],
+      ['woodTools', true],
+    ]);
+    expect(plans[0]).toMatchObject({ villageId: 'm', amount: 1, pay: { grain: 320 } });
+    const trips = marketTrips(stepped(s, NOV15));
+    expect(trips).toHaveLength(1);
+    expect(trips[0]!.market).toMatchObject({
+      villageId: 'm',
+      wants: { twoWheelCarts: 1, woodTools: plans[1]!.amount },
+      oxen: 1,
+    });
+    expect(trips[0]!.give.grain).toBeCloseTo(320 + plans[1]!.pay.grain!, 6);
+    expect(trips[0]!.carts).toEqual([1]);
+  });
+
+  it('nejbližší ves zakázku odmítla – výprava jede k další vsi s kovářem', () => {
+    const s = villagers();
+    s.nearby!.villages.push({ villageId: 'k', name: 'Kounice', cells: 1, firstStep: 'N' });
+    s.news!.push({ villageId: 'k', name: 'Kounice', report: { ...report, crafts: ['smith'] } });
+    s.orders = [
+      {
+        villageId: 'm',
+        name: 'Lhota',
+        good: 'tools',
+        amount: 10,
+        day: NOV14 - 30,
+        status: 'refused',
+      },
+    ];
+    const plans = planVillagerPurchases(s, NOV15, craftCoverage(s, NOV15));
+    expect(plans).toEqual([
+      expect.objectContaining({ good: 'tools', villageId: 'k', worthIt: true }),
+    ]);
+    expect(marketTrips(stepped(s, NOV15)).map((e) => e.market!.villageId)).toEqual(['k']);
+  });
+
+  it('vůz a voli výpravy pracují doma ještě v den odeslání, pryč jsou ode dne odjezdu', () => {
+    const s = villagers();
+    const after = stepped(s, NOV15);
+    expect(marketTrips(after)[0]!.carts).toEqual([1]);
+    expect(cartFleetToday(after, NOV15, false)).toEqual(cartFleetToday(s, NOV15, false));
+    expect(cartFleetToday(after, NOV15, false)).toMatchObject({ 'four-wheel': 1, oxen: 2 });
+    expect(cartFleetToday(after, NOV15 + 1, false)).toMatchObject({ 'four-wheel': 0, oxen: 0 });
+    // výpravy počítají s odjezdem: vůz ani voli na další výpravu už nejsou
+    expect(oxenHome(after, NOV15)).toBe(0);
+  });
+
   it('zpráva bez kováře – pro nástroje nikam; vlastní pracující kovář – nikam', () => {
     const potter = villagers(['potter']);
     expect(
@@ -107,6 +190,45 @@ describe('vesničané na trhu – výrobky 15. 11. (Rozhodnutí plánu 3, bod 7)
     expect(planVillagerPurchases(smith, NOV15, craftCoverage(smith, NOV15))).toEqual([]);
     expect(marketTrips(stepped(smith, NOV15))).toEqual([]);
   });
+});
+
+describe('vesničané na trhu – víc cílů v jeden den (lidé a vozy se dělí)', () => {
+  /** H s kovářem v Lhotě (M, první v okolí) a hrnčířem v Hrnčířích (P); bez keramiky. */
+  function twoCrafts(carts: boolean): VillageState {
+    const s = villagers();
+    if (!carts) s.carts = [];
+    s.crafts = { ...s.crafts, charcoalKg: 0, potteryKg: 0 };
+    s.nearby!.villages.push({ villageId: 'p', name: 'Hrnčíře', cells: 1, firstStep: 'W' });
+    s.news!.push({ villageId: 'p', name: 'Hrnčíře', report: { ...report, crafts: ['potter'] } });
+    return s;
+  }
+
+  // napřed nejlepší nákup (keramika); s vozem jedou nástroje týž den se zbytkem lidí, bez vozu
+  // odnese keramiku všech 8 volných dospělých – nástroje vesničané zkusí druhý den a vyrazí ráno,
+  // kdy jsou nosiči keramiky zpět
+  for (const [carts, toolsDay] of [
+    [true, NOV15 + 1],
+    [false, NOV15 + 2],
+  ] as const) {
+    it(`keramika a nástroje k různým vsím – obě odjedou (${carts ? 's vozem' : 'bez vozu'})`, () => {
+      const s = twoCrafts(carts);
+      const plans = planVillagerPurchases(s, NOV15, craftCoverage(s, NOV15));
+      expect(plans[0]).toMatchObject({ good: 'pottery', villageId: 'p', worthIt: true });
+      const after = advanceVillage(s, NOV15 + 4, null, null);
+      const trips = marketTrips(after)
+        .filter((e) => e.by === 'villagers')
+        .map((e) => ({
+          to: e.market!.villageId,
+          wants: Object.keys(e.market!.wants),
+          started: e.startedDay,
+        }));
+      expect(trips).toEqual([
+        { to: 'p', wants: ['pottery'], started: NOV15 + 1 },
+        { to: 'm', wants: ['tools'], started: toolsDay },
+      ]);
+      expect(after.trade!.villagersRetry).toBeUndefined();
+    });
+  }
 });
 
 describe('vesničané na trhu – zakázky (Rozhodnutí plánu 3, bod 6)', () => {
@@ -162,28 +284,9 @@ describe('vesničané na trhu – zakázky (Rozhodnutí plánu 3, bod 6)', () =>
 });
 
 describe('vesničané na trhu – osivo 1. 9. a 1. 3.', () => {
-  /** H 31. 8. s díly na řadě, osivem kratším o `shortKg` (rezerva osiva), 2 kg hřiven a 3 krávami nad potřebou. */
-  function seedVillage(shortKg: number): VillageState {
-    const s = homeVillage();
-    s.lastDay = SEP1 - 1;
-    s.fields = [{ id: 1 }];
-    s.parts = Array.from({ length: 12 }, (_, i) => ({
-      ...sownPart(100 + i),
-      state: 'ready' as const,
-      sownYears: 0,
-      crop: undefined,
-    }));
-    s.season = null;
-    const need = windowSeedNeedKg(s, 'winter');
-    expect(need).toBeGreaterThan(shortKg);
-    s.storesKg = need - shortKg;
-    s.reservedSeedKg = need - shortKg;
-    s.crafts = { charcoalKg: 0, potteryKg: 0, ironBarsKg: 2 };
-    s.livestock!.herds.cow = Math.ceil(breedingCows(s) + oxenCalvesWanted(s, SEP1)) + 3;
-    return withNearby(s, SEP1);
-  }
+  const seedVillage = seedHome;
 
-  it('chybí 200 kg – seznam 200 kg obilí, platba 2 kg hřiven a kráva (90 < 200)', () => {
+  it('chybí 200 kg – platba 2 kg hřiven a kráva (90 < 200), seznam obilí v hodnotě platby', () => {
     const s = seedVillage(200);
     expect(seedShortKg(s, SEP1)).toBeCloseTo(200, 6);
     expect(surplusCows(s, SEP1)).toBe(3);
@@ -191,9 +294,47 @@ describe('vesničané na trhu – osivo 1. 9. a 1. 3.', () => {
     const trips = marketTrips(after);
     expect(trips).toHaveLength(1);
     expect(trips[0]!.market!.villageId).toBe('m');
-    expect(trips[0]!.market!.wants.grain).toBeCloseTo(200, 6);
+    // kus se na trhu prodá jen celý – seznam je obilí za celou platbu (2 × 45 + 600 kg, výchozí
+    // ceny), osivem je z něj jen chybějících 200 kg (dřívější `buySeed`)
+    expect(trips[0]!.market!.wants.grain).toBeCloseTo(2 * 45 + 600, 6);
+    expect(trips[0]!.market!.seedKg).toBeCloseTo(200, 6);
     expect(trips[0]!.give).toEqual({ cows: SEED_RESERVE.maxCows, ironBars: 2 });
     expect(after.crafts!.ironBarsKg).toBe(0);
+  });
+
+  it('koupené osivo je rezerva osiva: po výsledku s 200 kg obilí osivo nechybí', () => {
+    const s = seedVillage(200);
+    const after = stepped(s, SEP1);
+    const trip = marketTrips(after)[0]!;
+    const back = trip.market!.returnDay;
+    const reserved = reservedSeedKg(after);
+    const result = (grain: number): MarketResult => ({
+      key: trip.market!.key,
+      sold: { ...trip.give },
+      bought: { grain },
+      unsold: {},
+      horses: [],
+    });
+    const got200 = structuredClone(after);
+    applyMarketResult(got200, back, result(200));
+    expect(seedShortKg(got200, back)).toBeCloseTo(0, 6);
+    expect(reservedSeedKg(got200)).toBeCloseTo(reserved + 200, 6);
+    // víc obilí (přeplatek za krávu) – rezerva jen o chybějící osivo, zbytek je jídlo
+    const got690 = structuredClone(after);
+    applyMarketResult(got690, back, result(690));
+    expect(reservedSeedKg(got690)).toBeCloseTo(reserved + 200, 6);
+    expect(got690.storesKg - after.storesKg).toBeCloseTo(690, 6);
+  });
+
+  it('hřivny, které čekají na kování vozu, osivem neplatí', () => {
+    const s = seedVillage(200);
+    withWorkshop(s, 'carpenter', 710, {
+      cart: { kind: 'two-wheel', done: CARPENTRY.cartManDays['two-wheel'] },
+    });
+    s.crafts = { charcoalKg: 0, potteryKg: 0, ironBarsKg: cartIronBarsKg('two-wheel') + 1 };
+    const trips = marketTrips(stepped(s, SEP1));
+    expect(trips).toHaveLength(1);
+    expect(trips[0]!.give).toEqual({ cows: 1, ironBars: 1 });
   });
 
   it('chybí 3 kg osiva – nic', () => {
@@ -248,5 +389,33 @@ describe('vesničané na trhu po kouscích dopočtu (determinismus)', () => {
     expect(parts).toEqual(whole);
     expect(marketTrips(whole).filter((e) => e.by === 'villagers')).toHaveLength(1);
     expect(whole.outbox).toEqual([expect.objectContaining({ villageId: 'm', day: start + 16 })]);
+  });
+
+  it('nákup, na který nezbyli lidé, zkusí druhý den – vcelku = po kouscích přes 15. 11.', () => {
+    const start = at(600, 10, 31);
+    const s: VillageState = {
+      ...trackedVillage(FAMILY, [dwelling(1), dwelling(2)], { storesKg: 4_000 }),
+      lastDay: start,
+    };
+    withNews(withNearby(s, start), ['smith', 'carpenter']);
+    s.nearby!.villages.push({ villageId: 'p', name: 'Hrnčíře', cells: 1, firstStep: 'W' });
+    s.news!.push({ villageId: 'p', name: 'Hrnčíře', report: { ...report, crafts: ['potter'] } });
+    const nov15 = start + 15;
+    // 15. 11. odnesou 4 volní dospělí dřevěné nářadí (Lhota) a keramiku (Hrnčíře) – na nástroje
+    // nezbude nikdo, zkusí se 16. 11. (paměť je ve stavu mezi kousky dopočtu)
+    const first = advanceVillage(s, nov15, null, null);
+    expect(first.trade!.villagersRetry).toEqual({ day: nov15 + 1, goods: ['tools'] });
+    expect(
+      marketTrips(first)
+        .filter((e) => e.by === 'villagers')
+        .map((e) => [e.market!.villageId, Object.keys(e.market!.wants)]),
+    ).toEqual([
+      ['m', ['woodTools']],
+      ['p', ['pottery']],
+    ]);
+    const end = start + 30;
+    const whole = advanceVillage(s, end, null, null);
+    expect(advanceVillage(first, end, null, null)).toEqual(whole);
+    expect(whole.trade!.villagersRetry).toBeUndefined();
   });
 });

@@ -47,11 +47,17 @@ export function nearestNearby(state: VillageState): NearbyVillage | null {
 
 /**
  * Nejbližší ves okolí, o jejímž řemeslníkovi `craft` ves ví ze zprávy na pivo (`news`,
- * `report.crafts`); bez okolí nebo bez takové zprávy null.
+ * `report.crafts`), kromě vsí, které `skip` vynechá (vesničané – ves, která zakázku nevzala, a jde se
+ * k další; Rozhodnutí plánu 3, bod 6); bez okolí nebo bez takové zprávy null.
  */
-export function nearestWith(state: VillageState, craft: Craft): NearbyVillage | null {
+export function nearestWith(
+  state: VillageState,
+  craft: Craft,
+  skip?: (village: NearbyVillage) => boolean,
+): NearbyVillage | null {
   const news = state.news ?? [];
   const known = (village: NearbyVillage): boolean =>
+    !skip?.(village) &&
     news.some((n) => n.villageId === village.villageId && n.report.crafts.includes(craft));
   return state.nearby?.villages.find(known) ?? null;
 }
