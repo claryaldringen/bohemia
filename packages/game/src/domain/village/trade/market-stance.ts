@@ -9,7 +9,7 @@ import {
   grainOnHandKg,
   grainReserveKg,
   grainSpareKg,
-  peopleSpare,
+  peopleOffer,
 } from '../../vassalage/spare';
 import { idleCartsOf } from '../crafts/carts';
 import { ownCraftsmanWorks } from '../crafts/craft-buying';
@@ -143,7 +143,7 @@ export function marketStance(state: VillageState, day: number): MarketStance {
 
   // lidé: bez koho ves pole udrží, nabízí – po druzích, které jde vybrat celé najednou (rodiny, muži
   // a ženy berou z týchž lidí; `emigrantGroups` přes všechny druhy); půdy víc než práce – shání
-  const spare = emigrantGroups(state, day, peopleSpare(state, day, outlook));
+  const spare = emigrantGroups(state, day, peopleOffer(state, day, outlook));
   const wantedPeople = peopleWanted(state, day, outlook);
   for (const good of PEOPLE_GOODS) {
     if (spare[good].length > 0) offer[good] = spare[good].length;
