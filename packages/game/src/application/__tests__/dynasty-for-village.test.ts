@@ -55,14 +55,6 @@ const tracked = (specs: KinSpec[], lastDay: number): VillageState => ({
   ...trackedVillage(specs, houses, { storesKg: 2000 }),
   lastDay,
 });
-/**
- * Ves s čerstvým okolím (nearby.ts – mladším než `NEARBY_REFRESH_DAYS`): pohled ho neobnoví, nic
- * nezapíše do schránky ani nenačte sousedy.
- */
-const freshNearby = (state: VillageState): VillageState => ({
-  ...state,
-  nearby: { day: state.lastDay, self: { villageId: 'ves', name: 'Ves' }, villages: [] },
-});
 
 type Deps = {
   settlements: InMemorySettlements;
@@ -133,7 +125,7 @@ const input = (villageId: string): { playerId: string; villageId: string; today:
 describe('dynastyForVillage – web dopočítá jen zobrazenou ves', () => {
   it('zobrazená ves se dopočte do dneška, jiná ves pod mezí zůstane uložená', async () => {
     const { deps, shownId, otherId } = await world(
-      freshNearby(tracked(FAMILY, TODAY - 5)),
+      tracked(FAMILY, TODAY - 5),
       tracked(FAMILY, TODAY - 1),
     );
     const before = structuredClone(deps.villages.records.get(otherId)!);
@@ -177,10 +169,7 @@ describe('dynastyForVillage – web dopočítá jen zobrazenou ves', () => {
   });
 
   it('všechny vsi na dnešku – stejný výsledek jako advanceDynasty a nic se neuloží', async () => {
-    const { deps, shownId } = await world(
-      freshNearby(tracked(FAMILY, TODAY - 1)),
-      freshNearby(tracked(FAMILY, TODAY - 1)),
-    );
+    const { deps, shownId } = await world(tracked(FAMILY, TODAY - 1), tracked(FAMILY, TODAY - 1));
     const full = await advanceDynasty(deps, { playerId: PLAYER, today: TODAY });
     const saves = deps.villages.saves;
     const status = await dynastyForVillage(deps, input(shownId));
@@ -194,8 +183,8 @@ describe('dynastyForVillage – web dopočítá jen zobrazenou ves', () => {
 
   it('ves bez souhrnu (uložená před ním) se načte celá', async () => {
     const { deps, shownId, otherId } = await world(
-      freshNearby(tracked(FAMILY, TODAY - 1)),
-      freshNearby(tracked(FAMILY, TODAY - 1)),
+      tracked(FAMILY, TODAY - 1),
+      tracked(FAMILY, TODAY - 1),
     );
     deps.villages.withoutDigest.add(otherId);
     const status = await dynastyForVillage(deps, input(shownId));

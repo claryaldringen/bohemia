@@ -6,7 +6,7 @@
 
 **Architecture:**
 
-- **Okolí vsi** (`VillageState.nearby`): vsi na 8 sousedních mapách a ves sama (id a jméno pro klíč výpravy), u každé svobodní, kteří by šli za partnerem odjinud (Úloha 9). Zapíše ho událost schránky `nearby`, kterou posílá worker (`refreshNearby`). **Bez okolí se nic z plánu 3 nespustí** – Vlkov i zlaté otisky simulují beze změny.
+- **Okolí vsi** (`VillageState.nearby`): vsi na 8 sousedních mapách a ves sama (id a jméno pro klíč výpravy), u každé svobodní, kteří by šli za partnerem odjinud (Úloha 9). Zapíše ho událost schránky `nearby` v pevné dny kalendáře – před dopočtem přes ně ji do schránky dá sám dopočet vsi (`updateVillage` přes `villages.nearby`). **Bez okolí se nic z plánu 3 nespustí** – Vlkov i zlaté otisky simulují beze změny.
 - **Každé zboží a každý člověk jde mezi vsemi výpravou na trh z plánu 2** (`departMarket`, `market-arrive`, `market-result`, odchozí schránka, `deliverVillageMail`, zaniklý hostitel, výprava po termínu). Nový je jen náklad výpravy (lidé `MarketPerson`, nevěsta či ženich `MarketArrival.kin`, kování `MarketArrival.service`), tři zprávy bez nákladu – dotaz na partnera `kin-ask`, dotaz na kováře `smith-ask`, hotová zakázka `order-ready` – a zpráva `people-back`, která vrátí lidi z výsledku pro zaniklou domovskou ves hostiteli (Úloha 10).
 - Rozhodnutí vesničanů, správce, sňatků a kování jsou **kroky dne simulace** – jen ze stavu vsi a událostí schránky dne, náhoda z vlastních proudů (`'kin:' + den`). Dopočet po kouscích dá týž výsledek.
 - **Zakázky** drží hostitel (`market.orders`), kupující si pamatuje své (`VillageState.orders`). Řemeslník vyrábí do vlastní potřeby a otevřených zakázek, za výrobky bere obilí a luštěniny vždy (Martin 24. 11. 2026); hotovou zakázku ohlásí zprávou a kupující si pro ni dojede.
@@ -70,7 +70,9 @@
 1. **Okolí vsi.** Simulace vsi nezná ostatní vsi ani své id, a vesničané se přitom musí rozhodovat uvnitř dne (jinak by výsledek závisel na kouscích dopočtu). Proto:
    - `VillageState.nearby` = `{ day, self: { villageId, name }, villages: NearbyVillage[] }`, `NearbyVillage` = `{ villageId, name, cells, firstStep, singles? }`.
    - Obsah: jen vsi na **8 sousedních mapách** (neighbours.md – Pravidla 1: soused je ves na sousední mapě, i jiného hráče – Martin), žijící, se sídlem, ne přes odříznutí nováčka (`crossesIsolation`). Válka nevadí (plán 2, Rozhodnutí 1). Vzdálenější vsi z přehledu hráče (vsi rodu, znalost mapy, zprávy) do okolí nepatří – vesničané jezdí k sousedům, hráč smí dál. U každé vsi svobodní, kteří by šli za partnerem odjinud, po pohlaví a 5 letech věku (`singles`, Úloha 9) – stejný druh veřejné zprávy jako „na pivu“.
-   - Zapisuje ho událost schránky `nearby` (`applyNearby`). Pošle ji `refreshNearby` – worker po dopočtu vsi tam, kde doručuje poštu, když okolí chybí nebo je starší než `NEARBY_REFRESH_DAYS = 30` dní. **Technická mez, ne pravidlo:** okolí je jeden snímek, který se celý nahradí – stav vsi neroste a worker nečte sousedy každý den; mez určuje jen, jak rychle se ves dozví o nové vsi za kopcem. Den události = `lastDay + 1`, `ref` = `nearby:<ves>:<den>` – druhý zápis téhož dne se zahodí.
+   - Zapisuje ho událost schránky `nearby` (`applyNearby`) **v pevné dny kalendáře** `K ≡ 0 (mod NEARBY_REFRESH_DAYS)`, `NEARBY_REFRESH_DAYS = 30`. **Technická mez, ne pravidlo:** okolí je jeden snímek, který se celý nahradí – stav vsi neroste a sousedé se nečtou každý den; mez určuje jen, jak rychle se ves dozví o nové vsi za kopcem.
+   - **Zápis před dopočtem přes K** (návrh Clauda 24. 11. 2026 po kontrole Úlohy 1 – původně „den `lastDay + 1` po dávce“, takže den snímku určovaly hranice dávek a stav vsi závisel na kouscích dopočtu): `updateVillage` po načtení událostí schránky dopočítávaných dnů zavolá volitelný podport úložiště `villages.nearby` (`NearbyRefresh`, jako bariéra `holds`; úložiště v DB ho má vždy, testy ho zapnou `withNearby`, kalibrace a zlaté otisky bez něj). Ten na každé K v `(lastDay, den dopočtu]`, na které událost `nearby` ve schránce ještě není, zapíše snímek s `ref` = `nearby:<ves>:<K>`; když se něco zapsalo, pokus se zopakuje nad čerstvou schránkou. Čekající událost je čerstvé okolí. Den snímku tak nezávisí na dávkách workeru, chvíli pohledu ani na tom, kdo ves přes K dopočítá; obsah je stav ostatních vsí v okamžiku zápisu – mezivesnická výjimka jako pošta (worker.md – Výjimky a omezení).
+   - **Sken bez načtení stavů** (`nearbyVillages(deps, home)` – záznam domovské vsi parametrem): sídla na prstenci 1 (`holderAt`, `listActive`) a otisky vsí (`stampsOf` – jméno, spí-li). Odříznutá nebo archivovaná ves sama dostane prázdný snímek (a dál se nezkouší), spící nic. Co snímek potřebuje navíc (`singles`, Úloha 9), vezme jen ze stávajícího jsonb souhrnu vsi – bez DB migrace. `nearbyStale`, `refreshNearby` a `refreshNearbySafely` nejsou – kde je zmiňují Úlohy 9–10, myslí se zápis v pevné dny (v testech `villages.withNearby`).
    - Srovnání: cesta přes `news` by vesničanům nedala žádný cíl, dokud hráč nepošle výpravu; rozhodnutí mimo simulaci (use-case po dopočtu) by porušilo determinismus.
 2. **Co ves ví o řemeslech sousedů:** jen ze zpráv na pivo (`news`, plán 2 – Rozhodnutí 7), stejně jako hráč. Zprávu přinese každá výprava – i výprava vesničanů, správce, nevěsty či kováře. Dotazy `kin-ask` a `smith-ask` nesou zprávu o vsi, která se ptá (posel „zašel na pivo“). Ves bez zprávy o řemeslníkovi k němu nejede – osivo, obilí a sňatky zprávu nepotřebují, takže se vsi časem poznají samy.
 3. **Všechno jede výpravou na trh** (plán 2, Rozhodnutí 1 – karavana a schránka vsi). Výsledek každé výpravy se vrátí domovské vsi, takže zaniklý hostitel a výprava po termínu mají hotové řešení z plánu 2, i pro lidi:
@@ -238,6 +240,8 @@ Mapa kódu (`docs/code/*.md`) a testy, které úloha mění, jsou v jejích File
 ---
 
 ### Task 1: Okolí vsi (Opus)
+
+> **Opravné kolo 1 (24. 11. 2026):** okolí v pevné dny – platí Rozhodnutí 1. Z rozhraní níž zůstaly typy, jádro (`trade/nearby.ts`) a `NEARBY_REFRESH_DAYS`; místo obnovy po dávce je `nearbyDays`, `nearbyVillages(deps, home)` (sken z otisků a sídel), port `NearbyRefresh` (`nearbyRefresh`, `villages.nearby`) a zápis v `updateVillage`. `nearbyStale`, `refreshNearby`, `refreshNearbySafely` ani napojení v `advancePlayer`, `advanceDynasty` a `dynastyForVillage` nejsou.
 
 **Files:**
 
@@ -842,7 +846,7 @@ Pravidla (Rozhodnutí 11 a 12):
   - `receiveKin`: hledající svobodný → `spouseId` obou, `nextBirthFrom ≥ den + BIRTH_SPACING.afterWeddingDays`, kronika `bride-from-outside` `villageName: 'B…'`; hledající mezitím ženatý → nevěsta svobodná v domě `newcomerHome`, kronika `newcomer`; `nextId` vzroste přesně o počet příchozích.
   - Další manželka: muž rodu s 1 manželkou → druhá má `spouseId` = muž, muž ukazuje dál na hlavní; s 4 žijícími se neptá; pokřtěný rod se neptá.
   - Determinismus: A dopočtená přes 2 roky vcelku a po kouscích (rok + rok) dá shodný `outbox` i stav.
-  - `application/__tests__/nearby.test.ts`: `refreshNearby(H)` zapíše u M `singles` = `kinSingles(stav M, lastDay M)`.
+  - `application/__tests__/nearby.test.ts`: snímek okolí H (`nearbyVillages`) má u M `singles` = `kinSingles(stav M, lastDay M)` (ze souhrnu vsi M – Rozhodnutí 1).
 - [ ] **Step 2: Test dvou vsí** („nevěsta ze sousední vsi“): A (muž bez ženy) a B (žena bez muže), oba s okolím. Kolo dotaz → výprava → příjezd → výsledek:
   - žena je v A vdaná, v B je v `emigrants`,
   - lidé A + B + na cestě jsou po každém kroku stejně (bez porodů a úmrtí v okně – kontrola kronikou),
@@ -889,10 +893,10 @@ export function peopleBack(
     - H prodá rodinu M, M vymře před dnem příjezdu (příjezd je už ve schránce M) → `deliverVillageMail(H)` po termínu vrátí rodinu s původními id (H `people` obsahuje původní id, `emigrants` je nemají),
     - H koupí rodinu od M a H před návratem výsledku vymře (spí) / chybí → `deliverVillageMail(M)` zapíše M `people-back`, rodina je po dopočtu M zpět v M s původními id, nikdo nezmizel,
     - nevěsta z B na cestě do A, A smazaná (Začít znovu archivuje sídlo) → nevěsta zpět v B.
-  - `advance-world.test.ts` (svět `marketWorld()` + `refreshNearby`):
+  - `advance-world.test.ts` (svět `marketWorld()` s okolím – `villages.withNearby`):
     - kola `advancePlayer` obou hráčů po zápisu `kin-ask` do schránky M dovedou nevěstu do H,
     - po každém kole je součet lidí H + M + v nákladu výprav (`outbox`, `market.visitors`, `inbox.pending`) stejný, kromě porodů a úmrtí z kroniky,
-    - worker okolí obnoví jen u zastaralého (`NEARBY_REFRESH_DAYS`).
+    - okolí se zapíše jen v pevné dny obnovy (`nearbyDays`), po kouscích i vcelku stejně.
 - [ ] **Step 2: Spustit** `npx vitest run packages/game/src/application packages/game/src/domain/village/trade` – FAIL.
 - [ ] **Step 3: Implementovat** krok 1, `origin`, `people-back` (`peopleBack`, větev `applyEvent`) a pomocníky testů.
 - [ ] **Step 4: Spustit** – PASS; `npm run test:db`.

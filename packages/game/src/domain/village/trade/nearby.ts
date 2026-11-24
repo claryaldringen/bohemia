@@ -1,6 +1,6 @@
 // Okolí vsi (markets.md – Rozhodnutí plánu 3, bod 1): snímek vsí na 8 sousedních mapách přijde
-// událostí schránky `nearby` (posílá ho server – `application/nearby.ts`) a další snímek ho celý
-// nahradí. Simulace nezná ostatní vsi ani své id – cíle výprav vesničanů a správce bere jen
+// událostí schránky `nearby` v pevné dny (zapíše ho dopočet – `application/nearby.ts`), další
+// ho celý nahradí. Simulace nezná ostatní vsi ani své id – cíle výprav vesničanů a správce bere jen
 // odsud, takže rozhodnutí zůstane uvnitř dne a nezávisí na kouscích dopočtu. O řemeslech sousedů
 // ví ves jen ze zpráv na pivo (`news` – Rozhodnutí plánu 3, bod 2).
 import type {

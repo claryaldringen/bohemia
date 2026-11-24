@@ -1,27 +1,40 @@
-import type { NearbyVillage, VillageNearby, VillageState } from '../domain/village';
+import {
+  isVillageAsleep,
+  type NearbyVillage,
+  type VillageEvent,
+  type VillageNearby,
+} from '../domain/village';
+import { sameCell, type GridCell } from '../domain/village/people/world-grid';
 import { cellDistance, ringCells } from '../domain/world/placement';
-import { villagesAt, type MarketDeps } from './market';
-import { crossesIsolation, placeOf, sleeps, stepToward } from './shipments';
+import { isIsolated, type Settlement, type SettlementRepository } from './settlements';
+import { settlementCell, stepToward } from './shipments';
+import type { VillageRecord, VillageRepository } from './villages';
 
-// Okolí vsi (markets.md – Rozhodnutí plánu 3, bod 1): server po dopočtu vsi – tam, kde doručuje
-// poštu mezi vsemi (`advancePlayer`, `advanceDynasty`, `dynastyForVillage`) – pošle vsi snímek
-// vsí na 8 sousedních mapách událostí schránky `nearby`, když okolí chybí nebo je staré
-// `NEARBY_REFRESH_DAYS` dní. Ves ho použije na začátku dne události (`applyNearby`), takže
-// rozhodnutí podle okolí zůstanou uvnitř dne a výsledek nezávisí na kouscích dopočtu.
+// Okolí vsi (markets.md – Rozhodnutí plánu 3, bod 1): ves dostane v pevné dny kalendáře snímek vsí
+// na 8 sousedních mapách událostí schránky `nearby`. Zapíše ji dopočet vsi (`updateVillage`) před
+// dopočtem přes den obnovy – přes podport úložiště vsí `villages.nearby` (jako bariéra `holds`) –,
+// takže den snímku nezávisí na tom, po jakých kouscích se ves dopočítá. Ves ho použije na začátku
+// dne události (`applyNearby`) a rozhodnutí podle okolí zůstanou uvnitř dne.
 
 /**
  * Technická mez, ne pravidlo – okolí je snímek, který se celý nahradí (Rozhodnutí 1): stav vsi
- * neroste a worker nečte sousedy každý den; mez určuje jen, jak rychle se ves dozví o nové vsi
- * za kopcem (proto ne v `rules*.ts`).
+ * neroste a sousedé se nečtou každý den; mez určuje jen, jak rychle se ves dozví o nové vsi
+ * za kopcem (proto ne v `rules*.ts`). Dny obnovy jsou dny kalendáře dělitelné touto mezí.
  */
 export const NEARBY_REFRESH_DAYS = 30;
 
-/** Co okolí potřebuje: vsi (záznamy a schránku) a sídla (držitelé políček, poloha). */
-export type NearbyDeps = Pick<MarketDeps, 'villages' | 'settlements'>;
+/** Dny obnovy okolí v `(afterDay, toDay]` – pevné dny kalendáře dělitelné `NEARBY_REFRESH_DAYS`. */
+export function nearbyDays(afterDay: number, toDay: number): number[] {
+  const days: number[] = [];
+  const first = (Math.floor(afterDay / NEARBY_REFRESH_DAYS) + 1) * NEARBY_REFRESH_DAYS;
+  for (let day = first; day <= toDay; day += NEARBY_REFRESH_DAYS) days.push(day);
+  return days;
+}
 
-/** Okolí chybí, nebo je staré aspoň `NEARBY_REFRESH_DAYS` dní (`lastDay − nearby.day`). */
-export function nearbyStale(state: VillageState): boolean {
-  return state.nearby === undefined || state.lastDay - state.nearby.day >= NEARBY_REFRESH_DAYS;
+/** Co potřebuje sken okolí: otisky vsí (jméno, spí-li ves) a sídla (poloha, držitelé políček). */
+export interface NearbyDeps {
+  villages: Pick<VillageRepository, 'stampsOf'>;
+  settlements: Pick<SettlementRepository, 'find' | 'holderAt' | 'listActive'>;
 }
 
 /** Pořadí id vsí podle kódů znaků – nezávisí na jazyku prostředí (na rozdíl od `localeCompare`). */
@@ -30,68 +43,99 @@ function compareIds(a: string, b: string): number {
 }
 
 /**
- * Snímek okolí vsi `villageId` na den `lastDay + 1`: vsi sídel na 8 sousedních mapách
- * (`villagesAt` – i vsi téhož hráče) bez spících (`sleeps`), archivovaných (`placeOf` null)
- * a přes odříznutí (`crossesIsolation`); `cells` a `firstStep` jako přehled trhu a výprava.
- * Řazeno podle `cells`, pak `villageId`. Spící, odříznutá nebo archivovaná ves sama – null.
+ * Vsi na 8 sousedních mapách vsi `home` (i vsi téhož hráče), jak jsou v okamžiku dotazu – bez
+ * načtení stavů: sídla na prstenci 1 (`holderAt`, `listActive` – archivované sídlo ani sídlo
+ * s čekajícím převodem mezi nimi není) a jejich otisky (`stampsOf` – jméno; spící ves chybí).
+ * `cells` a `firstStep` jako přehled trhu a výprava; řazeno podle `cells`, pak `villageId`.
+ * Odříznutý rod (newcomers.md – místní mřížka není mapa světa) a archivované sídlo – prázdné.
  */
 export async function nearbyVillages(
   deps: NearbyDeps,
-  villageId: string,
-): Promise<VillageNearby | null> {
-  const home = await deps.villages.find(villageId);
-  if (!home || sleeps(home)) return null;
-  const homePlace = await placeOf(deps, home);
-  // odříznutý rod sousední mapy nemá – místní mřížka není mapa světa (newcomers.md)
-  if (!homePlace || homePlace.isolated) return null;
+  home: VillageRecord,
+): Promise<NearbyVillage[]> {
+  const settlement = await deps.settlements.find(home.settlementId);
+  if (!settlement || isIsolated(settlement)) return [];
+  const center = settlementCell(settlement);
+  // sídla na prstenci mají políčko mapy světa – odříznuté sídlo (jen místní mřížka) mezi nimi
+  // nebývá, kontrola přes odříznutí (`crossesIsolation`) tu proto není potřeba
+  const cellOf = new Map<string, GridCell>();
+  const activeOf = new Map<string, Settlement[]>();
+  for (const cell of ringCells(center, 1)) {
+    const holder = await deps.settlements.holderAt(cell);
+    if (holder === null) continue;
+    let active = activeOf.get(holder);
+    if (!active) {
+      active = await deps.settlements.listActive(holder);
+      activeOf.set(holder, active);
+    }
+    for (const s of active) {
+      if (s.worldCell && sameCell(s.worldCell, cell)) cellOf.set(s.id, cell);
+    }
+  }
+  if (cellOf.size === 0) return [];
   const villages: NearbyVillage[] = [];
-  for (const id of await villagesAt(deps, ringCells(homePlace.cell, 1), null)) {
-    const record = await deps.villages.find(id);
-    if (!record || sleeps(record)) continue;
-    const place = await placeOf(deps, record);
-    if (!place || crossesIsolation(homePlace, place)) continue;
+  for (const stamp of await deps.villages.stampsOf([...cellOf.keys()])) {
+    const cell = cellOf.get(stamp.settlementId);
+    if (!cell || stamp.asleep) continue;
     villages.push({
-      villageId: id,
-      name: record.name,
-      cells: cellDistance(homePlace.cell, place.cell),
-      firstStep: stepToward(homePlace.cell, place.cell),
+      villageId: stamp.id,
+      name: stamp.name,
+      cells: cellDistance(center, cell),
+      firstStep: stepToward(center, cell),
     });
   }
-  villages.sort((a, b) => a.cells - b.cells || compareIds(a.villageId, b.villageId));
-  return {
-    day: home.state.lastDay + 1,
-    self: { villageId: home.id, name: home.name },
-    villages,
-  };
+  return villages.sort((a, b) => a.cells - b.cells || compareIds(a.villageId, b.villageId));
 }
 
 /**
- * Pošle vsi `villageId` okolí (`nearbyVillages`) do schránky na den `lastDay + 1` s `ref`
- * `nearby:<ves>:<den>` – druhý zápis téhož dne se zahodí. Prázdné okolí se zapíše také (snímek
- * nahradí starý). true = zapsáno; spící nebo odříznutá ves, nebo duplicita – false.
+ * Port: okolí vsi v pevné dny – volitelný podport úložiště vsí (`VillageRepository.nearby`), jako
+ * bariéra `holds`. Úložiště v DB ho má vždy (`nearbyRefresh`); chybí (testy jádra, kalibrace) –
+ * dopočet okolí nezapisuje a ves simuluje jako dřív (zlaté otisky).
  */
-export async function refreshNearby(deps: NearbyDeps, villageId: string): Promise<boolean> {
-  const nearby = await nearbyVillages(deps, villageId);
-  if (!nearby) return false;
-  const posted = await deps.villages.inbox.post({
-    villageId,
-    day: nearby.day,
-    ref: `nearby:${villageId}:${nearby.day}`,
-    body: { kind: 'nearby', nearby },
-  });
-  return posted !== null;
+export interface NearbyRefresh {
+  /**
+   * Před dopočtem vsi `home` přes dny `(afterDay, toDay]`: na každý den obnovy (`nearbyDays`), na
+   * který ve schránce (`pending` – události těchto dnů) ještě událost `nearby` není, zapíše snímek
+   * okolí (`nearbyVillages` – v okamžiku zápisu) s `ref` `nearby:<ves>:<den>`. Čekající událost je
+   * čerstvé okolí – sken se neopakuje. Spící ves nic. true = něco se zapsalo (zápis zvedl verzi
+   * vsi).
+   */
+  post(
+    home: VillageRecord,
+    afterDay: number,
+    toDay: number,
+    pending: readonly VillageEvent[],
+  ): Promise<boolean>;
 }
 
-/** Jako `refreshNearby`, chybu zapíše do logu a vrátí false – dopočet vsi nezastaví. */
-export async function refreshNearbySafely(
-  deps: NearbyDeps,
-  villageId: string,
-  log: (message: string, error: unknown) => void = console.error,
-): Promise<boolean> {
-  try {
-    return await refreshNearby(deps, villageId);
-  } catch (error) {
-    log(`Ves ${villageId}: obnova okolí selhala.`, error);
-    return false;
-  }
+/** Podport `villages.nearby` nad úložištěm vsí (schránka, otisky) a sídel. */
+export function nearbyRefresh(
+  deps: NearbyDeps & { villages: Pick<VillageRepository, 'inbox' | 'stampsOf'> },
+): NearbyRefresh {
+  return {
+    async post(home, afterDay, toDay, pending): Promise<boolean> {
+      if (isVillageAsleep(home.state)) return false;
+      const due = nearbyDays(afterDay, toDay).filter(
+        (day) => !pending.some((e) => e.day === day && e.body.kind === 'nearby'),
+      );
+      if (due.length === 0) return false;
+      const villages = await nearbyVillages(deps, home);
+      let posted = false;
+      for (const day of due) {
+        const nearby: VillageNearby = {
+          day,
+          self: { villageId: home.id, name: home.name },
+          villages,
+        };
+        const event = await deps.villages.inbox.post({
+          villageId: home.id,
+          day,
+          ref: `nearby:${home.id}:${day}`,
+          body: { kind: 'nearby', nearby },
+        });
+        if (event !== null) posted = true;
+      }
+      return posted;
+    },
+  };
 }

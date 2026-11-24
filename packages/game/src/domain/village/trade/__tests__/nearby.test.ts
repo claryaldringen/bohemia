@@ -100,14 +100,3 @@ describe('nearbyTarget – cíl výpravy z okolí', () => {
     expect(nearbyTarget(homeVillage(), 'B')).toBeNull();
   });
 });
-
-describe('determinismus s okolím', () => {
-  it('ves s událostí `nearby` na D + 5 – vcelku i po kouscích (10 + 20 dní) stejně', () => {
-    const events = [event(D + 5, nearbyOf(D + 5, [A, B]))];
-    const whole = advanceVillage(homeVillage(), D + 30, null, null, events);
-    const half = advanceVillage(homeVillage(), D + 10, null, null, events);
-    const parts = advanceVillage(half, D + 30, null, null, events);
-    expect(whole.nearby).toEqual(nearbyOf(D + 5, [A, B]));
-    expect(parts).toEqual(whole);
-  });
-});

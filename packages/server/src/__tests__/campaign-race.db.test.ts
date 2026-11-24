@@ -295,11 +295,7 @@ async function snapshot(ids: Map<Label, string>): Promise<{
   for (const [label, id] of ids) {
     const state = (await villages.find(id))!.state;
     states[label] = state;
-    // okolí (nearby.ts) zapisuje worker po dávce na `lastDay + 1` – den snímku závisí na dávkách
-    // (technická mez, markets.md – Rozhodnutí plánu 3, bod 1), zbytek stavu ne
-    const compared = structuredClone(state);
-    delete compared.nearby;
-    out[label] = canonical(compared);
+    out[label] = canonical(state);
   }
   const checkpoint = await createCampaignRepository(setup).checkpoint(CAMPAIGN_ID);
   const rows = await setup.execute<{ village_id: string; day: number; kind: string }>(
@@ -313,7 +309,6 @@ async function snapshot(ids: Map<Label, string>): Promise<{
     campaign: canonical({ ...checkpoint?.state, warId: 'war' }),
     // id vsí jsou náhodná uuid – pořadí podle jmenovky, uvnitř vsi podle dne a pořadí doručení
     inbox: rows.rows
-      .filter((r) => r.kind !== 'nearby') // okolí – den podle dávek (viz výš)
       .map((r) => ({ label: labelOf.get(r.village_id)!, day: r.day, kind: r.kind }))
       .sort(
         (x, y) =>

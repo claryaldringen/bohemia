@@ -1,6 +1,7 @@
 import { and, asc, eq, inArray, sql, type SQL } from 'drizzle-orm';
 import {
   isCurrentDigest,
+  nearbyRefresh,
   type VillageDigestRecord,
   type VillageRecord,
   type VillageRepository,
@@ -9,6 +10,7 @@ import {
 } from '@bohemia/game';
 import type { Database } from '../client';
 import { createInboxRepository } from './inbox-repository';
+import { createSettlementRepository } from './settlement-repository';
 import { createVillageHolds } from './village-holds';
 import { encodeVillageState, type EncodedVillageState } from './village-state-codec';
 import { storedVillageState, villageDerivedColumns } from './village-state-row';
@@ -150,11 +152,19 @@ export function createVillageRepository(db: Database): VillageRepository {
       .limit(1);
     return row ? toRecord(row) : null;
   };
-  return {
-    // schránka vsí nad tabulkou `village_inbox` (docs/code/world.md – Schránka vsi)
-    inbox: createInboxRepository(db),
+  // schránka vsí nad tabulkou `village_inbox` (docs/code/world.md – Schránka vsi)
+  const inbox = createInboxRepository(db);
+  const repository: VillageRepository = {
+    inbox,
     // bariéra ves × tažení (village-holds.ts) – dopočet vsi nepředběhne tažení u ní
     holds: createVillageHolds(db),
+    // okolí vsi v pevné dny (nearby.ts) – dopočet zapíše snímek sousedních vsí před dnem obnovy;
+    // sousedé z otisků vsí a sídel, bez načtení stavů – každé úložiště v DB ho má, ať den snímku
+    // nezávisí na tom, kdo ves přes den obnovy dopočítá
+    nearby: nearbyRefresh({
+      villages: { inbox, stampsOf: (ids) => repository.stampsOf(ids) },
+      settlements: createSettlementRepository(db),
+    }),
 
     async find(villageId): Promise<VillageRecord | null> {
       // id vsi přichází i zvenku (cookie, vstup akce) – jiný řetězec než UUID by dotaz shodil
@@ -358,6 +368,7 @@ export function createVillageRepository(db: Database): VillageRepository {
       return rows.map((r) => r.id);
     },
   };
+  return repository;
 }
 
 /** Porušení unikátního indexu (PostgreSQL 23505) – Drizzle chybu někdy obalí (`cause`). */

@@ -391,23 +391,33 @@ Počasí kraje mění hodnotu zboží od 1. 11. – [village-disasters.md](villa
   (`VillageNearby` – `day`, `self` { `villageId`, `name` }, `villages`: `NearbyVillage` {
   `villageId`, `name`, `cells`, `firstStep` }), řazený podle `cells`, pak `villageId`. Chybí = ves
   okolí nezná; převod ani kodek se nemění.
-  - **Obsah** (`nearbyVillages(deps, villageId)`, `NearbyDeps` = `villages` a `settlements`
-    z `MarketDeps`): sídla na 8 sousedních políčkách (`villagesAt` z `market.ts` – i vsi téhož
-    hráče, ne vsi téže mapy ani dál), záznam každé vsi z `villages.find`, bez spících (`sleeps`),
-    archivovaných (`placeOf` null) a přes odříznutí (`crossesIsolation`); `cells`
-    (`cellDistance`) a `firstStep` (`stepToward`) jako přehled trhu a výprava, `self.name` je
-    jméno záznamu vsi. Den snímku `lastDay + 1`. Spící, archivovaná nebo odříznutá ves sama
-    (newcomers.md – místní mřížka není mapa světa) – null. Válka nevadí.
-  - **Zápis:** `refreshNearby(deps, villageId)` pošle událost schránky `nearby` na `lastDay + 1`
-    s `ref` `nearby:<ves>:<den>` – druhý zápis téhož dne se zahodí (false); prázdné okolí se
-    zapíše také, ať snímek nahradí starý a ves bez sousedů se neptá každou dávku.
-    `refreshNearbySafely` chybu zapíše do logu a vrátí false. **Kdy:** po dopočtu vsi tam, kde se
-    doručuje pošta (`advancePlayer` i u vsi dopočtené webem – worker.md, Pošta mezi vsemi;
-    `advanceDynasty` a `dynastyForVillage` u celých nespících vsí), když `nearbyStale(state)` –
-    okolí chybí, nebo `lastDay − nearby.day ≥ NEARBY_REFRESH_DAYS` (30 dní; technická mez, ne
-    pravidlo – snímek se celý nahradí, stav vsi neroste a worker nečte sousedy každý den, mez určí
-    jen, jak rychle se ves dozví o nové vsi za kopcem). Den snímku tak závisí na dávkách (jako
-    pošta); simulace s ním je po kouscích stejná jako vcelku – událost leží ve schránce.
+  - **Obsah** (`nearbyVillages(deps, home)` – `NearbyDeps`: otisky vsí a sídla; záznam domovské
+    vsi přichází parametrem): sídla na 8 sousedních políčkách (`holderAt`, `listActive` – i vsi
+    téhož hráče, ne vsi téže mapy ani dál; archivované sídlo ani sídlo s čekajícím převodem mezi
+    nimi není) a jejich otisky (`stampsOf` – jméno, spící ves vynechá) – **žádný stav se
+    nenačte**. `cells` (`cellDistance`) a `firstStep` (`stepToward`) jako přehled trhu a výprava,
+    `self` = id a jméno záznamu vsi. Sídla na prstenci mají políčko mapy světa, odříznutý nováček
+    mezi nimi není (proto bez `crossesIsolation`); odříznutá nebo archivovaná ves sama (newcomers.md
+    – místní mřížka není mapa světa) má okolí prázdné. Válka nevadí. Snímek je stav ostatních vsí
+    **v okamžiku zápisu** – mezivesnická výjimka jako pošta (worker.md – Výjimky a omezení); den je
+    pevný.
+  - **Kdy – pevné dny** (`nearbyDays(afterDay, toDay)`): dny kalendáře dělitelné
+    `NEARBY_REFRESH_DAYS` (30 dní; technická mez, ne pravidlo – snímek se celý nahradí, stav vsi
+    neroste a sousedé se nečtou každý den, mez určí jen, jak rychle se ves dozví o nové vsi za
+    kopcem). Den nezávisí na vsi, dávkách workeru ani chvíli pohledu – ves dopočtená vcelku i po
+    kouscích dostane snímek týchž dnů.
+  - **Zápis** – podport úložiště vsí `villages.nearby` (`NearbyRefresh`, jako bariéra `holds`;
+    `nearbyRefresh(deps)` – úložiště v DB ho má vždy, `createVillageRepository`; testy ho zapnou
+    `InMemoryVillages.withNearby`, bez něj se okolí nezapisuje – kalibrace a zlaté otisky beze
+    změny). `updateVillage` po načtení událostí schránky dopočítávaných dnů zavolá jeho `post` se
+    záznamem vsi, dny dopočtu a čekajícími událostmi: na každý den obnovy v `(lastDay, day]`, na
+    který událost `nearby` ve schránce ještě není, zapíše snímek s `ref` `nearby:<ves>:<K>` (jeden
+    sken na všechny dny obnovy dopočtu), a když se něco zapsalo, pokus zopakuje (zápis zvedl verzi
+    vsi – nové načtení, pak dopočet se snímkem). Čekající událost (odmítnutá akce) je čerstvé okolí
+    – sken se neopakuje. Prázdné okolí se zapíše také (ves bez sousedů i odříznutá ves se dál neptají).
+    Spící ves nic. Chyba skenu nebo zápisu dopočet zastaví jako chyba načtení – bez snímku se přes
+    den obnovy nepočítá. Cena jednou za 30 dní na ves: dotazy na sídla prstence, jeden na otisky
+    a jedno načtení vsi navíc (nový pokus); dopočet bez dne obnovy nic navíc.
   - **Jádro** (`trade/nearby.ts`): `applyNearby` (větev schránky – village-core.md, Schránka vsi),
     `nearbyTarget(state, villageId)` – `MarketTarget` do vsi okolí s domovskou vsí ze `self` (mimo
     okolí null), `nearestNearby(state)` – první ves okolí, `nearestWith(state, craft)` – první ves
@@ -416,7 +426,10 @@ Počasí kraje mění hodnotu zboží od 1. 11. – [village-disasters.md](villa
   - **Správce cizí vsi:** okolí nese i ostatní vsi držitele na sousedních mapách (vesničané k nim
     jezdí) – stav vsi se klientovi neposílá a web je cizímu správci nesmí ukázat jménem
     (Rozhodnutí plánu 3, bod 14 – Úloha 11).
-  - **Testy:** `trade/__tests__/nearby.test.ts` (zápis a náhrada snímku, nejbližší ves, cíl,
-    determinismus po kouscích), `application/__tests__/nearby.test.ts` (obsah, odříznutí, vymřelý
-    a archivovaný soused, zápis jednou za den, `nearbyStale`, web) a `advance-world.test.ts` –
-    Okolí vsi ve workeru.
+  - **Testy:** `trade/__tests__/nearby.test.ts` (zápis a náhrada snímku, nejbližší ves, cíl),
+    `application/__tests__/nearby.test.ts` (`nearbyDays`, obsah bez načtení stavů, odříznutí,
+    vymřelý a archivovaný soused, čekající událost bez nového skenu, cena dopočtu přes den obnovy,
+    víc dnů obnovy, spící ves, úložiště bez podportu) a `advance-world.test.ts` – Okolí vsi v pevné
+    dny (ves sama na mapě po 1, 3 a 10 dnech i se zbytkem ve webu = jeden `loadVillage`; dvě vsi na
+    sousedních mapách totéž; dávka končí den před dnem obnovy, na něm a den po něm; ves dopočtená
+    webem – worker nic nečte navíc).

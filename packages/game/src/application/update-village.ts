@@ -159,7 +159,8 @@ async function withPauses(
  * zvedá verzi vsi, takže událost zapsaná během dopočtu se projeví konfliktem verze při uložení
  * a další pokus ji načte znovu s čerstvým stavem – použije se právě jednou. Ves, u které stojí
  * tažení, se dopočítá nejvýš do meze bariéry (`villages.holds` – village-holds.ts; ves dál už
- * spočítaná počká) a akce `change` dostane ves k tomu dni.
+ * spočítaná počká) a akce `change` dostane ves k tomu dni. Před dopočtem přes den obnovy okolí
+ * zapíše do schránky snímek sousedních vsí (`villages.nearby` – nearby.ts) a pokus zopakuje.
  */
 export async function updateVillage(
   villages: VillageRepository,
@@ -197,6 +198,16 @@ export async function updateVillage(
     // načtení vsi – zápis mezi načtením a uložením zvedne verzi a pokus se zopakuje
     const inbox =
       migrated.lastDay < day ? await villages.inbox.pending(villageId, migrated.lastDay, day) : [];
+    // okolí vsi v pevné dny (nearby.ts – markets.md, Rozhodnutí plánu 3, bod 1): chybí-li ve
+    // schránce snímek dne obnovy, přes který se bude počítat, zapíše se před dopočtem – zápis zvedl
+    // verzi vsi, pokus se zopakuje nad čerstvou schránkou (den snímku nezávisí na kouscích dopočtu)
+    if (
+      villages.nearby &&
+      migrated.lastDay < day &&
+      (await villages.nearby.post(record, migrated.lastDay, day, inbox))
+    ) {
+      continue;
+    }
     const logged = await advancedWithYearLog(migrated, day, obstacles, landscape, pause, inbox);
     const advanced = logged.state;
     // ves uložená před trasami (nebo s trasami jiného rozložení) si je spočítá – i když se jen

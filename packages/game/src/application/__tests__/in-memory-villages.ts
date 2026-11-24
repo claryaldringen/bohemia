@@ -7,6 +7,7 @@ import type {
 } from '../villages';
 import { InMemoryVillageInbox } from './in-memory-inbox';
 import type { VillageHolds } from '../village-holds';
+import { nearbyRefresh, type NearbyDeps, type NearbyRefresh } from '../nearby';
 
 /**
  * Repozitář vsí v paměti – create a save se chovají atomicky jako databáze. Vsi dostávají id
@@ -64,6 +65,17 @@ export class InMemoryVillages implements VillageRepository {
         return limits;
       },
     };
+    return this;
+  }
+
+  /**
+   * Okolí vsi v pevné dny (nearby.ts) – zapne ho `withNearby(sídla)` jako úložiště v DB. Bez něj
+   * `nearby` chybí jako v kalibraci: dopočet okolí nezapisuje (testy jádra simulují jako dřív).
+   */
+  nearby?: NearbyRefresh;
+
+  withNearby(settlements: NearbyDeps['settlements']): this {
+    this.nearby = nearbyRefresh({ villages: this, settlements });
     return this;
   }
   private nextId = 1;

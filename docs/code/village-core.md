@@ -435,8 +435,9 @@ villageId)` je zapíše do schránek cílových vsí (`inbox.post`, druhý zápi
     village-trade.md – Pošta mezi vsemi.
   - **Okolí** (markets.md – Rozhodnutí plánu 3, bod 1; village-trade.md – Okolí vsi): tělo
     `{ kind: 'nearby'; nearby }` – snímek vsí na 8 sousedních mapách (`VillageNearby`) –
-    `applyNearby` zapíše do `VillageState.nearby` s dnem události (schránka mohla zápis posunout),
-    kronika nic. Posílá ho server po dopočtu vsi (`refreshNearby`, `ref` `nearby:<ves>:<den>`).
+    `applyNearby` zapíše do `VillageState.nearby` s dnem události, kronika nic. Zapíše ho sám
+    dopočet (`updateVillage` přes podport `villages.nearby`) v pevné dny obnovy před dopočtem přes
+    ně (`ref` `nearby:<ves>:<den>`) – den snímku nezávisí na kouscích dopočtu.
   - **Kde se použijí:** `advanceVillageSteps(state, toDay, obstacles, landscape, inbox = [])` na
     začátku dne `d`, před `simulateDaySteps(d)`, použije události dne `d` v pořadí `seq`
     (`applyInboxDay` – mutuje klon stavu jako kroky dne, zápisy kroniky vrací). Události mimo

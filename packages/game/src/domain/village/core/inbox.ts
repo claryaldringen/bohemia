@@ -297,7 +297,8 @@ export type VillageEventBody =
   | ({ kind: 'rod-baptized' } & RodBaptism)
   /**
    * Okolí vsi (markets.md – Rozhodnutí plánu 3, bod 1): snímek vsí na 8 sousedních mapách
-   * (`refreshNearby` po dopočtu vsi) – `applyNearby` ho zapíše do `VillageState.nearby`.
+   * v pevné dny obnovy (`application/nearby.ts`) – `applyNearby` ho zapíše do
+   * `VillageState.nearby`.
    */
   | { kind: 'nearby'; nearby: VillageNearby }
   /**
