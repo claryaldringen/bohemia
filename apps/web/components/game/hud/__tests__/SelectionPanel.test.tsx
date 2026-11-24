@@ -1196,6 +1196,24 @@ describe('SelectionPanel – kovárna (crafts.md – Uhlí a ruda kováře)', ()
 });
 
 describe('SelectionPanel – výrobky řemeslníků na dvorci (crafts.md; markets.md – Pravidla 1)', () => {
+  it('zakázka u řemeslníka jiné vsi: zakázka, hotová zakázka, sousední ves bez jména (plán 3)', () => {
+    const html = render(
+      dwelling({
+        buying: {
+          sources: [
+            { product: 'toolsKg', own: false, order: { name: 'Lhota', ready: false } },
+            { product: 'potteryKg', own: false, order: { name: 'Lhota', ready: true } },
+            { product: 'woodToolsKg', own: false, order: { name: '', ready: false } },
+          ],
+          purchases: [],
+        },
+      }),
+    );
+    expect(html).toContain(`${PRODUCT_TITLES.toolsKg} – zakázka v Lhotě`);
+    expect(html).toContain(`${PRODUCT_TITLES.potteryKg} – hotová zakázka v Lhotě`);
+    expect(html).toContain(`${PRODUCT_TITLES.woodToolsKg} – zakázka v sousední vsi`);
+  });
+
   it('dvorec ukáže vlastní dílnu ✓, jinak zašedlou ikonu, a nákup na cestě – jen ikony', () => {
     const html = render(
       dwelling({

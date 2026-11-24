@@ -23,11 +23,28 @@ export type CattleGood = 'cows' | 'youngOxen' | 'trainedOxen';
 export type HorseGood = 'foals' | 'mares' | 'ridingHorses';
 
 /**
+ * Vozy na trhu (markets.md – Rozhodnutí plánu 3, bod 4): dvoukoláky a čtyřkoláky – kusy, volné vozy
+ * vsi; prodá se nejmladší volný vůz druhu, kupující dostane vůz nový (`cartGoodKind`).
+ */
+export type CartGood = 'twoWheelCarts' | 'fourWheelCarts';
+
+/**
+ * Lidé na trhu (markets.md – Rozhodnutí plánu 3, bod 10; Martin 19. 10. 2026: „celé rodiny i jen
+ * dospělí“, „muži a ženy zvlášť“): rodiny, svobodní muži a svobodné ženy – kusy (skupiny), klíče
+ * jako `TradePeople`. Na trhu jdou konkrétní lidé (`MarketPerson`), ne počty.
+ */
+export type PeopleGood = 'families' | 'men' | 'women';
+
+/**
  * Zboží obchodu (trade.md – Sousedé): jen to, co ves sama má – obilí, maso, sýr, luštěniny (kg),
  * dobytek (kusy – krávy, mladí a vycvičení voli – `CattleGood`), klády (kusy), keramika, železné
- * hřivny, uhlí (kg). Nástroje od 20. 10. 2026 nejsou zboží obchodu – jsou vybavení domácností, na
- * obchod jdou hřivny (production-chains.md – Kovář; starší vsi `withIronBarsTrade`). Zboží zvenku (sůl, železo, med, kožešiny) obchod od 19. 10. 2026 nezná (Martin: „Nech
- * jen společné suroviny, nezaváděj nové.“) – starší vsi o něj přijdou (`withoutForeignGoods`).
+ * hřivny, uhlí (kg). Nástroje (`tools`) jsou od 20. 10. 2026 vybavení domácností – od plánu 3
+ * trhu se zase prodávají a kupují rovnou z vybavení a do něj, dřevěné nářadí (`woodTools`) ze
+ * zásoby tesaře a vozy (`CartGood`, kusy) z volných vozů vsi (markets.md – Rozhodnutí plánu 3,
+ * bod 4); nástroje ve starších výpravách k sousedovi po stezce převede na hřivny
+ * `withIronBarsTrade` (production-chains.md – Kovář). Zboží zvenku (sůl, železo, med, kožešiny)
+ * obchod od 19. 10. 2026 nezná (Martin: „Nech jen společné suroviny, nezaváděj nové.“) – starší
+ * vsi o něj přijdou (`withoutForeignGoods`). Od plánu 3 jsou zbožím trhu i lidé (`PeopleGood`).
  */
 export type TradeGood =
   | 'grain'
@@ -38,13 +55,17 @@ export type TradeGood =
   | HorseGood
   | 'logs'
   | 'pottery'
+  | 'tools'
+  | 'woodTools'
+  | CartGood
   | 'ironBars'
   | 'charcoal'
   | 'stone'
   | 'honey'
   | 'hides'
   | 'furs'
-  | 'wax';
+  | 'wax'
+  | PeopleGood;
 
 /** Množství zboží (jen uvedené druhy, kg nebo kusy podle druhu). */
 export type TradeGoods = Partial<Record<TradeGood, number>>;
@@ -75,12 +96,20 @@ export interface ComingPeople {
 export type NewcomerGroup = 'family' | 'man' | 'woman';
 
 /**
+ * Kdo výpravu na trh poslal (markets.md – Rozhodnutí plánu 3, body 7–11): vesničané, správce,
+ * kovář ke koním, ves partnera (nevěsta, ženich). Chybí = hráč.
+ */
+export type TripBy = 'villagers' | 'steward' | 'smith' | 'kin';
+
+/**
  * Výprava nosičů k sousedovi (trade.md – Obchod): zboží, které nesou tam (už odebrané ze zásob
  * vsi), a co přinesou zpět; nosiči a práce (lidé × dny ze společné práce vsi). Zboží dorazí, až se
  * nosiči vrátí (odvedená práce = celá cena).
  */
 export interface TradeExpedition {
   id: number;
+  /** Výprava na trh: kdo ji poslal (`TripBy`); chybí = hráč. */
+  by?: TripBy;
   /**
    * Druh výpravy: `'shipment'` = zásilka do vsi jiného hráče (vassalage.md – Doprava a cílová
    * ves; `dispatchShipment`) – nosiči a honáci se vrátí bez zboží, zboží a lidé dojdou schránkou
@@ -199,7 +228,22 @@ export interface VillageTrade {
   expeditions: TradeExpedition[];
   /** Další id výpravy. */
   nextId: number;
+  /**
+   * Vesničané na trhu (markets.md – Rozhodnutí plánu 3, bod 7): nákupy s pevným dnem (výrobky a vůz
+   * 15. 11., osivo 1. 9. a 1. 3.), na které ten den nezbyli lidé ani vozy – vesničané je zkusí znovu
+   * v den `day` (druhý den), takže nepropadnou na rok. Chybí = žádné.
+   */
+  villagersRetry?: { day: number; goods: VillagerRetry[] };
+  /**
+   * Správce na trhu (markets.md – Rozhodnutí plánu 3, bod 8, rotace cílů): vsi, odkud se jeho
+   * výprava za obilím vrátila bez obilí – příště jede k další. Platí jen se stejným `nearby.day`
+   * (nové okolí = seznam od začátku). Chybí = žádná.
+   */
+  grainMisses?: { nearbyDay: number; villageIds: string[] };
 }
+
+/** Nákup vesničanů s pevným dnem: výrobek řemeslníků, vůz od tesaře nebo osivo. */
+export type VillagerRetry = 'tools' | 'pottery' | 'woodTools' | 'cart' | 'seed';
 
 // --- pevné cesty (roads.md) ------------------------------------------------------------------
 

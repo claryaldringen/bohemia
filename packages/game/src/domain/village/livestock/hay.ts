@@ -250,6 +250,14 @@ export function mowingWorkShare(mowing: Pick<HayMowing, 'cut'>): number {
   return mowingCut(mowing) === 2 ? HAY_CUTS.aftermathWorkShare : 1;
 }
 
+/**
+ * Seno letošních sečí (kg) – plán dnešní seče a u otavy i co dala 1. seč (obnoveno z b4f8dadc –
+ * vesničané na trhu, `BuyingContext`).
+ */
+export function seasonHayYieldKg(mowing: HayMowing | null | undefined): number {
+  return mowing ? mowing.yieldKg + (mowing.firstCut?.yieldKg ?? 0) : 0;
+}
+
 /** Zima s krmením senem: listopad–březen (měsíce včetně). */
 export const HAY_WINTER_MONTHS: readonly number[] = [11, 12, 1, 2, 3];
 

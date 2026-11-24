@@ -405,6 +405,7 @@ export {
 // výprava na trh – domovská ves (markets.md – Rozhodnutí plánu 2, body 1, 2 a 6): kontroly
 // a odchod, lidé a vozy pryč v pevné dny, výsledek trhu domů (kroky dne volá simulate.ts a schránka)
 export {
+  MARKET_NO_OXEN,
   MARKET_NO_PEOPLE,
   MARKET_OVER_STOCK,
   MARKET_STAY,
@@ -416,12 +417,32 @@ export {
   marketCrew,
   marketTravelDays,
   marketTripsDay,
+  oxenForCarts,
   planMarketTrip,
   marketFreeAdults,
+  marketTripPeople,
+  type MarketTripPeople,
   type MarketCheck,
   type MarketPlan,
   type MarketTripCheck,
 } from './trade/market-trip';
+// okolí vsi (markets.md – Rozhodnutí plánu 3, bod 1) – snímek vsí na sousedních mapách ze schránky
+export { applyNearby, nearbyTarget, nearestNearby, nearestWith } from './trade/nearby';
+// zakázky u řemeslníka a obilí za výrobky (markets.md – Rozhodnutí plánu 3, body 5 a 6) – kroky
+// volá trh (zápočet řemeslníků), simulate.ts (fillOrders) a schránka (markOrderReady)
+export {
+  craftParties,
+  craftStance,
+  fillOrders,
+  liveOrders,
+  markOrderReady,
+  orderTargets,
+  placedOrder,
+  placedOrders,
+  recordOrders,
+  reduceOrder,
+  rememberOrders,
+} from './trade/craft-orders';
 export { legacyNeighbourName } from './trade/legacy-neighbours';
 export * from './trade/trade';
 // dobytek v obchodu – příchod a odchod dobytka (`addCattle`, `removeCattle`) jsou kroky obchodu

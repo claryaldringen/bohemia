@@ -157,6 +157,8 @@ async function collect(
     const place = await placeOf(deps, record); // archivované sídlo – bez polohy, v přehledu není
     if (!place || crossesIsolation(homePlace, place)) continue;
     const own = place.ownerId === input.playerId;
+    // správce: ani zpráva nesmí prozradit druhou ves držitele
+    if (steward && own) continue;
     if (!names.has(place.ownerId)) {
       names.set(place.ownerId, own ? null : await houseNameOf(deps, place.ownerId));
     }
@@ -176,10 +178,30 @@ async function collect(
       },
     });
   }
+  if (steward) hideTraderNames(out, home.id);
   return out.sort(
     (a, b) =>
       a.village.cells - b.village.cells || a.village.name.localeCompare(b.village.name, 'cs'),
   );
+}
+
+/**
+ * Zpráva na pivo pro cizího správce: obchodník, jehož domovskou ves správce nezná (jiná ves
+ * držitele, nebo starší záznam bez `villageId`), je bez jména – panel říká „Sousední ves“.
+ * Mění kopie zpráv v `candidates`, ne stav vsi.
+ */
+function hideTraderNames(candidates: Candidate[], homeId: string): void {
+  const known = new Set([homeId, ...candidates.map((c) => c.village.villageId)]);
+  for (const { village } of candidates) {
+    const news = village.news;
+    if (!news) continue;
+    const traders = news.report.traders.map((t) =>
+      t.name !== '' && (t.villageId === undefined || !known.has(t.villageId))
+        ? { ...t, name: '' }
+        : t,
+    );
+    village.news = { ...news, report: { ...news.report, traders } };
+  }
 }
 
 /** Proč na trh do vsi nejede nikdo: zanikla (vymřela, opuštěná), je na cestě, nebo je na stejném políčku. */

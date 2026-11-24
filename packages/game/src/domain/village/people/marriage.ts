@@ -3,9 +3,10 @@
 // vdát, ideálně ve vesnici. Obecně by měla být pravidla nastavena tak, aby se populace co nejvíce
 // rozrůstala.“). Berou se jen svobodný muž a svobodná žena; žena se
 // stěhuje k muži i s vlastními dětmi, jen když drží dům a muž ne, přižení se muž k ní. Kdo ve vsi
-// nemá s kým se vzít, zůstane svobodný – okolí nevěsty ani ženichy nedává a nikdo se nevdává pryč
-// (markets.md – Pravidla 1; Martin 22. 11. 2026: „dokud bude vesnice bez spojení s okolím, ať se
-// lidé berou mezi sebou“). Krok simulace `arrangeMarriages` stav mění, ostatní funkce jen čtou.
+// nemá s kým se vzít, zůstane ve vsi bez okolí svobodný (markets.md – Pravidla 1; Martin 22. 11.
+// 2026: „dokud bude vesnice bez spojení s okolím, ať se lidé berou mezi sebou“); ves s okolím se
+// ptá skutečných sousedních vsí (`kin-match.ts` – markets.md, Rozhodnutí plánu 3, bod 11). Krok
+// simulace `arrangeMarriages` stav mění, ostatní funkce jen čtou.
 import { createRandom, deriveSeed } from '../../landscape/random';
 import { holdsManor } from './dynasty';
 import { ageGapYears } from './kinship';
@@ -23,6 +24,11 @@ export function weddingChancePerDay(fill: number): number {
   const meanYears = MARRIAGE_STORES.waitYears * (1 - Math.max(0, fill));
   if (meanYears <= 0) return 1;
   return 1 - Math.exp(-1 / (meanYears * 365));
+}
+
+/** Denní pravděpodobnost události, která nastane `perYear` ročně. */
+export function perDay(perYear: number): number {
+  return 1 - (1 - perYear) ** (1 / 365);
 }
 
 /** Naplnění pojistky zásob, když ji nikdo neřeší – svatby beze změny. */
@@ -160,7 +166,7 @@ function couple(a: Person, b: Person): { groom: Person; bride: Person } {
 }
 
 /** Největší věkový rozdíl snoubenců – s vdovou nebo vdovcem větší (MARRIAGE). */
-function maxAgeGap(widowed: boolean): number {
+export function maxAgeGap(widowed: boolean): number {
   return widowed ? MARRIAGE.maxAgeGapWidowedYears : MARRIAGE.maxAgeGapYears;
 }
 
@@ -193,7 +199,7 @@ export function bestMatch(
 }
 
 /** Těhotenství po svatbě – žena porodí nejdřív za BIRTH_SPACING.afterWeddingDays (mutuje). */
-function startMarriage(bride: Person, day: number): void {
+export function startMarriage(bride: Person, day: number): void {
   bride.nextBirthFrom = Math.max(bride.nextBirthFrom ?? day, day + BIRTH_SPACING.afterWeddingDays);
 }
 
@@ -281,4 +287,27 @@ export function arrangeMarriages(
     married.add(b.id);
   }
   return events;
+}
+
+/**
+ * Patří svobodná žena mezi ty, ke kterým se muž z okolí přižení raději, než aby se vdala pryč
+ * (Martin, 19. 10. 2026 – „hlavně k vdově nebo dceři z domu bez mužů“)? Vdova (má děti), žena,
+ * která drží dům (`holdsHome` – dědička), nebo žena z domu, kde není jiný muž od 16 let.
+ */
+export function favouredBride(
+  state: VillageState,
+  woman: Person,
+  day: number,
+  parents: ReadonlySet<number>,
+): boolean {
+  if (parents.has(woman.id) || holdsHome(state, woman, day)) return true;
+  return !occupants(state, woman.dwellingId).some(
+    (m) => m.sex === 'male' && ageYears(m.bornDay, day) >= AGE.fertile,
+  );
+}
+
+/** Je dům člověka `p` přeplněný (víc lidí než míst)? Neexistující dům ano. */
+export function crowded(state: VillageState, p: Person): boolean {
+  const home = state.dwellings.find((d) => d.id === p.dwellingId);
+  return !home || occupants(state, home.id).length > DWELLINGS[home.type].capacity;
 }

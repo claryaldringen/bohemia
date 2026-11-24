@@ -61,6 +61,7 @@ import type {
   WorkshopFelling,
 } from '../types';
 import { harvestHandsDay } from '../fields/harvest-hands';
+import { orderTargets } from '../trade/craft-orders';
 import {
   basketManDaysPerKg,
   craftHands,
@@ -381,15 +382,18 @@ export function smithBarsTargetKg(state: VillageState, day: number): number {
 
 /**
  * Co kovárnám vsi chybí (production-chains.md – Kovář): nástroje do potřeby vybavení domácností,
- * hřivny do zásoby a na ty nástroje, houba na hřivny – přebytky se netaví.
+ * hřivny do zásoby a na ty nástroje, houba na hřivny – přebytky se netaví. Kovář vyrábí do vlastní
+ * potřeby plus otevřené zakázky nástrojů a hřiven (`orderTargets` – markets.md, Rozhodnutí plánu 3,
+ * bod 6); `smithBarsTargetKg` a výhledy počítají jen vlastní potřebu.
  */
 export function smithIronDeficit(state: VillageState, day: number): IronDeficit {
+  const orders = orderTargets(state, day);
   return ironDeficit({
     equipmentKg: toolEquipmentKg(state),
-    needKg: toolNeedKg(state, day),
+    needKg: toolNeedKg(state, day) + orders.tools,
     barsKg: ironBarsKg(state),
     bloomKg: bloomKg(state),
-    barsTargetKg: smithBarsTargetKg(state, day),
+    barsTargetKg: smithBarsTargetKg(state, day) + orders.ironBars,
   });
 }
 
@@ -486,7 +490,8 @@ export function smithsForgeCharcoalKg(
  *   i houba stačí (`smithRests` – production-chains.md, Kovář), nebo nemá uhlí (ani dnes nikdo
  *   nevytahá uhlí z vypáleného milíře), nebo musí tavit a nemá rudu ani kde ji kopat (`no-ore` –
  *   crafts.md, Uhlí a ruda kováře),
- * - hrnčíř, když zásoba keramiky dosáhla `craftTargets`, nebo nemá palivo ani z čeho kácet,
+ * - hrnčíř, když zásoba keramiky dosáhla `craftTargets` a zakázek keramiky (`orderTargets` –
+ *   markets.md, Rozhodnutí plánu 3, bod 6), nebo nemá palivo ani z čeho kácet,
  * - uhlíř (crafts.md – Rovnováha uhlíř – kovář), když nemá rozdělaný milíř, další ještě nezačíná
  *   (uhlí ve vsi stačí na dobu cyklu a rezervu), dnes nevytahá uhlí pro kováře (`burnerPlans`)
  *   a není kdy a kam sázet; uhlíř bez milíře nový začne – odpočívá, jen když nejsou buky.
@@ -508,6 +513,7 @@ export function restingCrafters(
   if (!state.dwellings.some((d) => d.workshop)) return resting;
   const stocks = craftStocks(state);
   const targets = craftTargets(state, day);
+  const orders = orderTargets(state, day);
   // uhlíři napřed – kolik uhlí dnes kovářům vytahají z vypálených milířů
   const loose = restingBurners(state, day, obstacles, plans, resting);
   const smiths = occupiedWorkshops(state, 'smith');
@@ -534,7 +540,7 @@ export function restingCrafters(
       workshop.felling === null &&
       obstacles !== null &&
       availableTrees(obstacles, state, day) <= 0;
-    if (stocks.potteryKg >= targets.potteryKg) resting.set(d.id, 'resting');
+    if (stocks.potteryKg >= targets.potteryKg + orders.pottery) resting.set(d.id, 'resting');
     else if (noWood) resting.set(d.id, 'no-wood');
     // bez hlíny a bez místa, kde ji kopat (crafts.md – Hlína hrnčíře)
     else if (workshop.claySite === null && (workshop.clayKg ?? 1) <= 0) {

@@ -1,10 +1,12 @@
 // Trh pro web (markets.md – Rozhodnutí plánu 2, body 2 a 9): výpravy na cestě pro panel a náhled
 // výpravy. Náhled nemá vlastní pravidla – jen převede `checkMarketTrip` jádra se vstupem, který
-// server složil z vsi do pohledu dvorce (`VillageManor.market`). Čistý modul.
+// server složil z vsi do pohledu dvorce (`VillageManor.market`), a s lidmi na prodej z odpovědi
+// serveru pro vybrané počty (`marketTripPeople`). Čistý modul.
 import {
   checkMarketTrip,
   type MarketOrder,
   type MarketTripCheck,
+  type MarketTripPeople,
   type VillageState,
 } from '@bohemia/game';
 import type { VillageManor } from './manor-view';
@@ -54,19 +56,22 @@ export interface MarketPreview {
 }
 
 /**
- * Jen převede `checkMarketTrip(order, { ...market, cells })` – žádná vlastní kontrola. `awayDays` je
- * počet dní pryč (`returnDay` − `departDay`); u odmítnuté výpravy 0.
+ * Jen převede `checkMarketTrip(order, { ...market, cells })` – žádná vlastní kontrola. `people` je
+ * odpověď serveru pro lidi z `order.give` (`marketTripPeople` jádra – kolik skupin odejde a volní
+ * dospělí bez nich, stejně jako kontrola výpravy při odeslání); bez lidí ve výběru null. `awayDays`
+ * je počet dní pryč (`returnDay` − `departDay`); u odmítnuté výpravy 0.
  */
 export function marketPreview(
   order: MarketOrder,
   market: VillageManor['market'],
   cells: number,
+  people: MarketTripPeople | null,
 ): MarketPreview {
   const input: MarketTripCheck = {
-    stock: market.stock,
+    stock: people ? { ...market.stock, ...people.stock } : market.stock,
     homeCarts: market.homeCarts,
     oxenHome: market.oxenHome,
-    adults: market.adults,
+    adults: people ? people.adults : market.adults,
     day: market.day,
     cells,
   };

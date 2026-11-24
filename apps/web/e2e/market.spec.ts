@@ -32,7 +32,12 @@ test('trh – výprava z dvorce do vlastní vsi na sousední mapě', async ({ pa
   // dvě domácnosti (dost dospělých) a obilí; ves na mapě vedle přebírá kopii stavu. Bez `own` zůstává
   // hráčovým mužem vojvoda domovské vsi (jen v ní hráč smí obchodovat), Lhota je ves jeho rodu.
   await twoHouseholds(s, spots.dwelling);
-  await changeVillageState(s.settlementId, (st) => ({ ...st, storesKg: 3000 }));
+  // nástroje ve vybavení nad potřebou a volný muž na prodej (plán 3 – nová nabídka trhu)
+  await changeVillageState(s.settlementId, (st) => ({
+    ...st,
+    storesKg: 3000,
+    toolEquipmentKg: 150,
+  }));
   const lhota = await villageOnNextMap(s.settlementId, 'Lhota');
   await page.reload();
   await expect(readyScene(page)).toBeVisible({ timeout: 90_000 });
@@ -67,6 +72,15 @@ test('trh – výprava z dvorce do vlastní vsi na sousední mapě', async ({ pa
   // Dáš obilí 100, Dostaneš klády 1, pobyt 1 den
   await row.getByRole('button', { name: 'Lhota' }).click();
   await expect(market.getByTestId('market-report')).toBeVisible();
+  // nové zboží v „Dáš“: nástroje po celých kg a muž s ikonou
+  await expect(market.getByTestId('market-give-tools')).toBeVisible();
+  await expect(market.getByTestId('market-give-men')).toBeVisible();
+  await expect(market.getByTestId('market-give-men').locator('img')).toHaveAttribute(
+    'src',
+    '/icons/resources/man.png',
+  );
+  await market.getByTestId('market-give-men-plus').click();
+  await expect(market.getByTestId('market-give-men')).toContainText('1');
   await market.getByTestId('market-give-grain-plus').click();
   await market.getByTestId('market-want-logs-plus').click();
   await expect(market.getByTestId('market-preview')).toBeVisible();
@@ -80,6 +94,9 @@ test('trh – výprava z dvorce do vlastní vsi na sousední mapě', async ({ pa
   const home = await villageState(s.settlementId);
   const trip = home.trade?.expeditions.find((e) => e.kind === 'market');
   expect(trip?.market?.stayDays).toBe(1);
+  // kronika: výprava hráče s muži na prodej, text beze změny („Výprava vyrazila na trh do vsi …“)
+  const departed = home.chronicle.find((e) => e.kind === 'market-departed');
+  expect(departed).toMatchObject({ villageName: 'Lhota', give: { men: 1, grain: 100 } });
   const mail = await query<{ ref: string }>(
     `SELECT ref FROM village_inbox
       WHERE village_id = $1 AND body->>'kind' = 'market-arrive' AND ref LIKE 'market:%:in'`,

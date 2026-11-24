@@ -1,7 +1,7 @@
-// Manželky mužů rodu (lord.md – Rod vojvody, Manželky): nová hlavní manželka po smrti hlavní
-// (další manželky z okolí zanikly – markets.md – Pravidla 1). U ženy je `spouseId` její muž (i u
-// vedlejší), u muže hlavní manželka – symetrie platí jen pro hlavní (docs/code/village-people.md –
-// Příbuzenství). Kroky dne mutují stav.
+// Manželky mužů rodu (lord.md – Rod vojvody, Manželky): nová hlavní manželka po smrti hlavní;
+// další manželky přicházejí ze skutečných sousedních vsí (`kin-match.ts` – markets.md, Rozhodnutí
+// plánu 3, bod 12). U ženy je `spouseId` její muž (i u vedlejší), u muže hlavní manželka – symetrie
+// platí jen pro hlavní (docs/code/village-people.md – Příbuzenství). Kroky dne mutují stav.
 import { wivesOf } from './dynasty';
 import { chronicleEstate } from './estate';
 import type { ChronicleEstate, ChronicleEvent, Person, VillageState } from '../types';
@@ -11,7 +11,7 @@ import type { ChronicleEstate, ChronicleEvent, Person, VillageState } from '../t
  * „Dobrava se stala hlavní manželkou vojvody Lutobora.“): jméno a postavení muže v den zápisu
  * a jméno ženy.
  */
-function wivesWho(
+export function wivesWho(
   state: VillageState,
   man: Person,
   wife: Person,
@@ -22,6 +22,27 @@ function wivesWho(
     estate: chronicleEstate(state, man, day),
     ...(wife.name === undefined ? {} : { wife: wife.name }),
   };
+}
+
+/** Kolik žijících manželek má který muž (podle `spouseId` žen). */
+export function wifeCounts(state: VillageState): Map<number, number> {
+  const counts = new Map<number, number>();
+  for (const w of state.people) {
+    if (w.sex === 'female' && w.spouseId !== undefined) {
+      counts.set(w.spouseId, (counts.get(w.spouseId) ?? 0) + 1);
+    }
+  }
+  return counts;
+}
+
+/**
+ * Kde bude další manželka bydlet (lord.md – Manželky – Bydlení; Martin 24. 10. 2026: „Vedlejší
+ * manželky odcházejí do vlastních obydlí až teprve, je-li dvorec přeplněný.“): vždy v domě muže,
+ * i když ho přeplní – z přeplněného domu pak při osídlení odchází vedlejší manželka s nejstarším
+ * synem (`secondaryWifeFamilies`). Muž bez obydlí – nikde (nepřijde).
+ */
+export function extraWifeHome(state: VillageState, man: Person): number | undefined {
+  return state.dwellings.some((d) => d.id === man.dwellingId) ? man.dwellingId : undefined;
 }
 
 /** Od nejstaršího; při shodě data narození nižší id. */

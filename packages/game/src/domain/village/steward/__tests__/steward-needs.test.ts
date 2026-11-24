@@ -21,9 +21,10 @@ import type { Direction8, VillageState } from '../../types';
 import { LANDSCAPE } from '../../__tests__/paths-fixtures';
 import { withBuiltFirstDwelling } from '../../__tests__/village-fixtures';
 
-// Krok 2a dne správce – nouze (steward.md – Lov v nouzi; Martin 8. 11. 2026: „A“): obilí od sousedů
-// už nekupuje (markets.md – Pravidla 1), ani když hrozí hlad. Lov správce (hunting.md – Pravidla 8)
-// testuje `wildlife/__tests__/npc-hunt.test.ts`.
+// Krok 2a dne správce – nouze (steward.md – Obilí a lov v nouzi; Martin 8. 11. 2026: „A“): ves bez
+// okolí obilí nekupuje, ani když hrozí hlad (smyšlení sousedé skončili – markets.md, Pravidla 1);
+// s okolím jede na trh (`steward-market.test.ts`). Lov správce (hunting.md – Pravidla 8) testuje
+// `wildlife/__tests__/npc-hunt.test.ts`.
 
 const DAY = dayIndexOf({ year: 600, month: 12, day: 1 });
 const SEED = 11;
@@ -89,8 +90,8 @@ function shortOf(state: VillageState, day = DAY): number {
   return fieldStoresOutlook(state, day, craftCoverage(state, day)).shortKg;
 }
 
-describe('správce v nouzi nekupuje obilí (markets.md – Pravidla 1)', () => {
-  it('hrozí hlad, stezka i hřivny jsou, a přesto žádná výprava za obilím', () => {
+describe('správce bez okolí nekupuje obilí (markets.md – Pravidla 1)', () => {
+  it('hrozí hlad, stezka i klády jsou, ale bez okolí žádná výprava za obilím', () => {
     const s = hungry();
     expect(shortOf(s)).toBeGreaterThan(TRADE.porterKg);
     needSteps(s, ctxOf(s));
@@ -171,4 +172,28 @@ describe('krok 2a v dopočtu vsi (determinismus)', () => {
     expect(JSON.stringify(chunked)).toBe(JSON.stringify(whole));
     expect(whole.chronicle.some((e) => e.kind === 'trade-departed')).toBe(false);
   });
+
+  it(
+    's okolím jede na trh pro obilí – po kouscích stejně jako vcelku',
+    { timeout: 120_000 },
+    () => {
+      const start = stewarded();
+      start.nearby = {
+        day: START - 1,
+        self: { villageId: 'h', name: 'Vlkov' },
+        villages: [{ villageId: 'm', name: 'Lhota', cells: 1, firstStep: 'E' }],
+      };
+      const to = START + 60;
+      const whole = advanceVillage(start, to, obstacles, landscape);
+      let chunked = start;
+      while (chunked.lastDay < to) {
+        chunked = advanceVillage(chunked, Math.min(to, chunked.lastDay + 7), obstacles, landscape);
+      }
+      expect(JSON.stringify(chunked)).toBe(JSON.stringify(whole));
+      const trips = (whole.trade?.expeditions ?? []).filter((e) => e.by === 'steward');
+      expect(trips.length).toBeGreaterThan(0);
+      expect(trips[0]!.market).toMatchObject({ villageId: 'm' });
+      expect(trips[0]!.market!.wants.grain).toBeGreaterThan(0);
+    },
+  );
 });

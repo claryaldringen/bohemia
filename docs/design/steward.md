@@ -528,7 +528,7 @@ Správce jedná **stejnými akcemi jako hráč** – lov (`huntDenied` + `declar
 dělat téměř vše, co skutečný hráč“) – se stejnými kontrolami; lov se mu dopočte bez scény (`npcHuntDay`). Krok 2a,
 každý den správce, před stavbami; rozhoduje jen ze stavu vsi a dne, bez náhody.
 
-- **Obilí v nouzi správce nekupuje** – výprava za obilím k sousedovi zanikla s obchodem se smyšlenými sousedy; nákup obilí na trhu přijde s plánem 3. Dřívější text je v [historii](history/steward-history.md).
+- **Správce na trhu** (plán 3 obchodu, 24. 11. 2026 – markets.md, Rozhodnutí plánu 3, bod 8; Martin 22. 11. 2026: „Správce je vlastně NPC hráč, takže by měl mít možnost dělat téměř vše, co skutečný hráč“): správce stejnou akcí jako hráč (`departMarketInPlace`) pošle výpravu pro obilí v nouzi (platí hřivnami, keramikou, uhlím, klády nad rezervu staveb) a **rotuje cíle** – jede do nejbližší vsi okolí, odkud se jeho výprava za obilím nevrátila s prázdnou; zbývají-li jen takové vsi, nejede do nového okolí. **Roční výprava 15. 11.** (návrh Clauda, Martinovi oznámeno) s tím, co ves nabízí a shání; cíl se střídá po letech, ať správce okolí pozná. Dřívější text je v [historii](history/steward-history.md).
 
 - **Kdy zvěř škodí:** v měsících škod (červen–srpen, `FIELD_DAMAGE.windowMonths`) je škoda zvěře
   a vran na polích letos nebo loni aspoň `STEWARD.huntDamageShare` (10 %) roční potřeby obilí

@@ -26,8 +26,15 @@ describe('práva akcí nad vsí', () => {
 
   it('žádná akce `…ForPlayer` nevolá use-case mimo actOn / guardedAction / unlockedAction', () => {
     const functions = source.split(/\nexport (?:async )?function /).slice(1);
-    // pohledy, zakládání vsi a přeskok času ves nemění akcí hráče
-    const reads = ['villageView', 'foundVillage', 'skipTime', 'panelOptions', 'marketOverview'];
+    // pohledy, zakládání vsi a přeskok času ves nemění akcí hráče (lidé na prodej – náhled výpravy)
+    const reads = [
+      'villageView',
+      'foundVillage',
+      'skipTime',
+      'panelOptions',
+      'marketOverview',
+      'marketPeople',
+    ];
     const unguarded = functions.filter(
       (f) =>
         /^\w+ForPlayer\(/.test(f) &&

@@ -11,7 +11,7 @@ import {
 import { distanceFactor } from '../fields/fields';
 import { obstacleChangesAt, obstacleStatus, type ObstacleStatus } from '../core/obstacles';
 import { PolygonIndex, villageLandSquares } from '../placement/squares';
-import { ageGroup, ageYears, laborPerDay } from '../people/people';
+import { ageGroup, ageYears, isAway, laborPerDay } from '../people/people';
 import { PATH_FOREST, PATH_WATER_SPOT, PATH_WETLAND } from '../paths/terrain';
 import { groundSpots, villageRoadWalk, walkGroundOf } from '../paths/walking';
 import { kilnPoint, workshopKilns } from './charcoal';
@@ -144,11 +144,19 @@ export function smithHead(members: readonly Person[], day: number): SmithMember 
  * dělá jen řemeslník a jeho synové“): muži a lidé bez uvedeného pohlaví (jen stav, který neprošel převodem `withKinship`
  * v `updateVillage` – testy, přímé `advanceVillage`; načtená ves pohlaví má); ženy se
  * starají o domácnost a dělají lehčí polní práce se vsí. Když v domácnosti není nikdo, kdo by
- * mohl pracovat (vdova s dětmi), řemeslo drží celá domácnost, ať dílna nestojí.
+ * mohl pracovat (vdova s dětmi), řemeslo drží celá domácnost, ať dílna nestojí. Řemeslník, který
+ * šel s řemeslem do jiné vsi (kovář ke koním souseda – `away` druhu `'craft'`; markets.md –
+ * Rozhodnutí plánu 3, bod 9), dílnu drží dál: ženy ho nezastoupí a bez synů dílna ty dny nekuje.
  */
 export function craftHands(members: readonly Person[], day: number): Person[] {
   const men = members.filter((p) => p.sex !== 'female');
-  return men.some((p) => laborPerDay(p, day) > 0) ? men : [...members];
+  const atCraft = (p: Person): boolean => laborPerDay(p, day) > 0 || craftTripAway(p, day);
+  return men.some(atCraft) ? men : [...members];
+}
+
+/** Je člověk dnes pryč s řemeslem v jiné vsi (`away` druhu `'craft'`)? */
+function craftTripAway(person: Person, day: number): boolean {
+  return person.away?.kind === 'craft' && isAway(person, day);
 }
 
 /**

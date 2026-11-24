@@ -1,6 +1,6 @@
 # Vojvodova rodina – výcvik místo pole
 
-> **Od 23. 11. 2026 nepřibývají další manželky z okolí** ani nevěsty z okolí (konec smyšlených sousedů – markets.md – Pravidla 1, Martin 22. 11. 2026; že další manželky nenahradí ženy ze vsi, je návrh Clauda – markets.md – Rozhodnutí plánu 1, bod 6); zmínky níž jsou dřívější stav.
+> **Od 24. 11. 2026 se další manželky mužů rodu vracejí ze skutečných sousedních vsí** (plán 3 obchodu, návrh Clauda – markets.md – Rozhodnutí plánu 3, bod 12; Martinovi oznámeno); níže uvedené „nepřibývají“ platí jen pro vsi bez sousedů. Dřív: **Od 23. 11. 2026 nepřibývají další manželky z okolí** ani nevěsty z okolí (konec smyšlených sousedů – markets.md – Pravidla 1, Martin 22. 11. 2026; že další manželky nenahradí ženy ze vsi, je návrh Clauda – markets.md – Rozhodnutí plánu 1, bod 6); zmínky níž jsou dřívější stav.
 
 Stav: **schváleno** (Martin 23. 10. 2026: „Schvaluji, implementuj“) (23. 10. 2026, issue #8). **Implementováno** (sloučeno ≈ 24.–31. 10. 2026, kód viz [village-people.md](../code/village-people.md)). Koně, na kterých
 vojvoda a synové jezdí, popisuje [koně](horses.md) (issue #5). Čísla zdůvodňuje
@@ -513,7 +513,7 @@ Clauda.
   její smrti viz Nová hlavní manželka.
 - **První manželka** jako dosud – sňatek ve vsi nebo nevěsta z okolí ([příbuzenství](kinship.md) –
   Sňatky).
-- **Další manželky (2.–4.)** nepřibývají: dřív je muž rodu bral z okolí, a to už není. Náhradu ze vsi hra nezavádí (návrh Clauda, markets.md – Rozhodnutí plánu 1, bod 6; Martinovi oznámeno). Dřívější pravidlo je v [historii](history/lord-history.md).
+- **Další manželky ze sousedních vsí** (2.–4.; návrh Clauda, 24. 11. 2026 – markets.md, Rozhodnutí plánu 3, bod 12; Martinovi oznámeno, plán 1 je nevracel): muž rodu od 18 let s 1–3 žijícími manželkami se s šancí ≈ 30 % ročně ptá ve skutečné sousední vsi po ženě 16–22 let bez protějšku; jen ves se sledovaným rodem, ne pokřtěný rod (jediná manželka – christianity.md) a jen muž s domem. Partnerka přijde vždy do domu muže, i do přeplněného, nejvýš 4 žijící. Ves bez sousedů další manželky nepřidá. Dřívější pravidlo („z okolí“) je v [historii](history/lord-history.md).
 - **Bydlení** (Martin): vedlejší manželky bydlí s mužem, **dokud jeho dům není přeplněný** –
   vojvoda tak může žít v dvorci se dvěma manželkami a jejich dětmi. Je-li přeplněný, odchází
   **vedlejší manželka s nejstarším synem, který by se mohl starat už o dům**, se svými svobodnými

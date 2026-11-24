@@ -77,7 +77,10 @@ export interface VillageManor {
   family?: ManorMember[];
   /**
    * Trh (markets.md – Rozhodnutí plánu 2, bod 9): vstup kontroly výpravy bez vzdálenosti
-   * (`MarketTripCheck` – náhled ve webu volá `checkMarketTrip` jádra) a výpravy na cestě.
+   * (`MarketTripCheck` – náhled ve webu volá `checkMarketTrip` jádra) a výpravy na cestě. Lidé
+   * (rodiny, muži, ženy) mají ve `stock` nejvýš, kolik skupin druhu ves dá samotných; kolik jich
+   * s celým výběrem odejde a kolik dospělých zbude na nosiče, spočítá server až pro vybrané počty
+   * (`marketTripPeople` – Rozhodnutí plánu 3, bod 10; panel Trh).
    */
   market: Omit<MarketTripCheck, 'cells'> & { trips: MarketTripView[] };
 }

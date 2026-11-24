@@ -56,7 +56,7 @@ interface ClearingRound {
 }
 
 /** Součty zboží (jen kladná množství, v pořadí `TRADE_GOODS`). */
-function totalGoods(list: readonly TradeGoods[]): TradeGoods {
+export function totalGoods(list: readonly TradeGoods[]): TradeGoods {
   const total: TradeGoods = {};
   for (const good of TRADE_GOODS) {
     let sum = 0;

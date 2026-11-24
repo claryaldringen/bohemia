@@ -2,11 +2,16 @@
 
 import {
   marketOverviewForPlayer,
+  marketPeopleForPlayer,
   sendMarketExpeditionForPlayer,
   type VillageActionResult,
 } from '@/lib/village';
-import { parseMarketExpeditionInput, villageIdOf } from '@/lib/village-input';
-import type { MarketVillage } from '@bohemia/game';
+import {
+  parseMarketExpeditionInput,
+  parseMarketPeopleInput,
+  villageIdOf,
+} from '@/lib/village-input';
+import type { MarketTripPeople, MarketVillage } from '@bohemia/game';
 import { INVALID_INPUT, NOT_SIGNED_IN, playerId, villageAction } from './_shared';
 
 /** Přehled vsí, kam smí výprava na trh (markets.md – Pravidla 8): `{ villageId }`. */
@@ -18,6 +23,21 @@ export async function getMarketOverview(input: {
   const villageId = villageIdOf(input);
   if (villageId === null) return { error: INVALID_INPUT };
   return marketOverviewForPlayer(id, villageId);
+}
+
+/**
+ * Lidé na prodej pro náhled výpravy (markets.md – Rozhodnutí plánu 3, bod 10): `{ villageId,
+ * families, men, women }` – kolik skupin odejde a volní dospělí bez nich (`marketTripPeople`).
+ */
+export async function getMarketPeople(
+  input: unknown,
+): Promise<MarketTripPeople | { error: string }> {
+  const id = await playerId();
+  if (id === null) return { error: NOT_SIGNED_IN };
+  const villageId = villageIdOf(input);
+  const people = parseMarketPeopleInput(input);
+  if (villageId === null || people === null) return { error: INVALID_INPUT };
+  return marketPeopleForPlayer(id, villageId, people);
 }
 
 /**

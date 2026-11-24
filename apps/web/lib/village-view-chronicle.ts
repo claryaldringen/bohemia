@@ -45,7 +45,13 @@ import { formatGameDate } from './game-date';
 import { noticeChronicleText } from './notice-chronicle';
 
 import { DIRECTION_NAMES, NEWCOMER_TEXTS, goodsText, peopleText } from './trade-names';
-import { fromVillage, villagersOf, withVillagersOf } from './village-name-cases';
+import {
+  fromVillage,
+  inVillage,
+  toVillage,
+  villagersOf,
+  withVillagersOf,
+} from './village-name-cases';
 
 import { formatAnimals, formatCells, formatHa, formatInteger, plural } from './village-format';
 
@@ -208,11 +214,13 @@ function extraWifeText(event: Extract<ChronicleEvent, { kind: 'extra-wife' }>): 
     return `${event.name ?? 'Muž rodu'} si vzal další ženu.`;
   }
   const man = capitalized(estateText(event.estate, false, event.name));
-  if (event.wife === undefined) return `${man} si vzal další ženu.`;
+  // manželka ze skutečného souseda (plán 3): „… si vzal Dobravu z Lhoty.“
+  const from = event.villageName === undefined ? '' : ` ${fromVillage(event.villageName)}`;
+  if (event.wife === undefined) return `${man} si vzal další ženu${from}.`;
   const wife = feminineAccusative(event.wife);
   return wife === null
-    ? `${man} si vzal další ženu jménem ${event.wife}.`
-    : `${man} si vzal ${wife}.`;
+    ? `${man} si vzal další ženu jménem ${event.wife}${from}.`
+    : `${man} si vzal ${wife}${from}.`;
 }
 
 /** Podmět zápisu o křtu: „Vojvoda Lutobor“; starší zápis bez postavení „Vojvoda“. */
@@ -918,12 +926,17 @@ function hasAnyGoods(goods: TradeGoods): boolean {
  * – prázdná část se vynechá – a kdy bude doma.
  */
 function marketDepartedText(event: Extract<ChronicleEvent, { kind: 'market-departed' }>): string {
+  // kdo výpravu poslal (plán 3, bod 14): vesničané, správce a kovář bez podrobností; partner za
+  // hledajícím bez řádku (řekne to `married-away`) – `shownInChronicle`
+  if (event.by === 'villagers') return `Vesničané jeli na trh ${toVillage(event.villageName)}.`;
+  if (event.by === 'steward') return `Správce poslal výpravu ${toVillage(event.villageName)}.`;
+  if (event.by === 'smith') return `Kovář šel kovat koně ${toVillage(event.villageName)}.`;
   const parts = [
     ...(hasAnyGoods(event.give) ? [`veze ${goodsText(event.give)}`] : []),
     ...(hasAnyGoods(event.wants) ? [`shání ${goodsText(event.wants)}`] : []),
   ];
   const what = parts.length > 0 ? ` – ${parts.join(', ')}` : '';
-  return `Výprava vyrazila na trh do vsi ${event.villageName}${what}; doma bude ${formatGameDate(dateOfDayIndex(event.returnDay))}.`;
+  return `Výprava vyrazila na trh ${event.villageName === '' ? 'do sousední vsi' : `do vsi ${event.villageName}`}${what}; doma bude ${formatGameDate(dateOfDayIndex(event.returnDay))}.`;
 }
 
 /**
@@ -962,6 +975,7 @@ const AWAY_TEXTS: Record<AwayKind, string> = {
   refuge: 'do útočiště',
   messenger: 's poselstvím',
   journey: 'na cestu',
+  craft: 'kovat koně do jiné vsi',
 };
 
 /** Odkud se lidé vrátili. */
@@ -974,6 +988,7 @@ const AWAY_BACK_TEXTS: Record<AwayKind, string> = {
   refuge: 'z útočiště',
   messenger: 'z cesty s poselstvím',
   journey: 'z cesty',
+  craft: 'z kování koní v jiné vsi',
 };
 
 /** „1 člověk“, „3 lidé“, „5 lidí“. */
@@ -1011,9 +1026,21 @@ const MASON_CRAFT_TEXT: Record<MasonCraft, string> = {
   plasterer: 'štukatér',
 };
 
-function newcomerText(direction: Direction8, group: NewcomerGroup, people: number): string {
+function newcomerText(
+  direction: Direction8,
+  group: NewcomerGroup,
+  people: number,
+  returned: boolean,
+  villageName?: string,
+): string {
+  const texts0 = NEWCOMER_TEXTS[group];
+  // lidé ze skutečného souseda (plán 3, bod 14): „Do vsi přišla rodina z Lhoty.“
+  if (villageName !== undefined) {
+    return `Do vsi ${returned ? texts0.back : texts0.chronicle} ${fromVillage(villageName)}.`;
+  }
   const from = DIRECTION_NAMES[direction].from;
-  const lead = `${from.charAt(0).toUpperCase()}${from.slice(1)} ${NEWCOMER_TEXTS[group].chronicle}`;
+  const texts = NEWCOMER_TEXTS[group];
+  const lead = `${from.charAt(0).toUpperCase()}${from.slice(1)} ${returned ? texts.back : texts.chronicle}`;
   if (group !== 'family') return `${lead}.`;
   return `${lead} – ${formatInteger(people)} ${plural(people, 'člověk', 'lidé', 'lidí')}.`;
 }
@@ -1177,6 +1204,7 @@ function horsesShodText(
   seed: number | undefined,
 ): string {
   if (event.own) return 'Kovář okul koně.';
+  if (event.villageName !== undefined) return `Kovář ${fromVillage(event.villageName)} okul koně.`;
   if (event.direction === undefined || seed === undefined) return 'Kovář z jiné vsi okul koně.';
   return `Kovář ${fromVillage(legacyNeighbourName(seed, event.direction))} okul koně.`;
 }
@@ -1380,14 +1408,18 @@ export function chronicleText(event: ChronicleEvent, villageName: string, seed?:
       return 'Zbytek domácnosti se přestěhoval k příbuzným nebo sousedům.';
     case 'marriage':
       return marriageText(event);
+    // skutečný soused (plán 3, bod 14): „Nevěsta z Lhoty.“; starší zápisy beze jména vsi beze změny
     case 'bride-from-outside':
-      return 'Muž si přivedl nevěstu ze sousední vsi.';
+      return event.villageName === undefined
+        ? 'Muž si přivedl nevěstu ze sousední vsi.'
+        : `Nevěsta ${fromVillage(event.villageName)}.`;
     case 'groom-from-outside':
+      if (event.villageName !== undefined) return `Ženich ${fromVillage(event.villageName)}.`;
       return event.widow
         ? 'K vdově se přiženil muž ze sousední vsi.'
         : 'K ženě se přiženil muž ze sousední vsi.';
     case 'married-away':
-      return 'Dcera se vdala do sousední vsi.';
+      return `${event.groom ? 'Syn se přiženil' : 'Dcera se vdala'} ${toVillage(event.villageName ?? '')}.`;
     case 'construction-finished':
       return finishedText(event);
     case 'cart-made':
@@ -1612,19 +1644,31 @@ export function chronicleText(event: ChronicleEvent, villageName: string, seed?:
         'přišli s nimi',
         event.people,
       );
-    case 'market-arrived':
-      // trh ve vsi (markets.md – Pravidla 3); výprava jen na pivo bez zboží
+    case 'market-arrived': {
+      // trh ve vsi (markets.md – Pravidla 3); výprava jen na pivo bez zboží, kovář kovat koně
+      if (event.smith) return `Na trh přišel kovář ${fromVillage(event.villageName)}.`;
+      const from = event.villageName === '' ? 'ze sousední vsi' : `ze vsi ${event.villageName}`;
       return Object.values(event.goods).some((n) => (n ?? 0) > 0)
-        ? `Na trh přišla výprava ze vsi ${event.villageName} – ${goodsText(event.goods)}.`
-        : `Na trh přišla výprava ze vsi ${event.villageName}.`;
+        ? `Na trh přišla výprava ${from} – ${goodsText(event.goods)}.`
+        : `Na trh přišla výprava ${from}.`;
+    }
     case 'market-held':
       return `Na trhu ves prodala ${goodsText(event.sold)} a koupila ${goodsText(event.bought)}.`;
     case 'market-departed':
       return marketDepartedText(event);
     case 'market-returned':
       return marketReturnedText(event);
+    case 'order-ready':
+      // hotová zakázka u řemeslníka jiné vsi (markets.md – Rozhodnutí plánu 3, bod 6)
+      return `Zakázka ${inVillage(event.villageName)} je hotová.`;
     case 'newcomer':
-      return newcomerText(event.direction, event.group, event.people);
+      return newcomerText(
+        event.direction,
+        event.group,
+        event.people,
+        event.returned === true,
+        event.villageName,
+      );
     case 'structure-fell':
       return STRUCTURE_FELL_TEXTS[event.structure];
     case 'structure-overgrown':

@@ -1,5 +1,20 @@
 import type { VillageEvent } from '../../core/inbox';
-import type { MarketTarget, VillageMail, VillageReport, VillageState } from '../../types';
+import { newWorkshop } from '../../crafts/crafts';
+import { toolNeedKg } from '../../crafts/iron';
+import { windowSeedNeedKg } from '../../fields/seed';
+import { breedingCows, oxenCalvesWanted } from '../../livestock/husbandry';
+import { CRAFT_BASE } from '../../rules';
+import type {
+  Craft,
+  Dwelling,
+  FieldPart,
+  MarketTarget,
+  Person,
+  VillageMail,
+  VillageReport,
+  VillageState,
+  Workshop,
+} from '../../types';
 import { at, horseVillage } from '../../__tests__/horse-fixtures';
 import { dwelling } from '../../__tests__/kin-fixtures';
 import { marketStance } from '../market-stance';
@@ -57,6 +72,65 @@ export function homeVillage(): VillageState {
   return s;
 }
 
+/**
+ * Pracující dílna řemesla `craft` (`ownCraftsmanWorks`) v novém obydlí `id`: přestěhuje se do ní
+ * první člověk mimo dvorec a mimo dílny – lidí ve vsi nepřibude ani neubude. `workshop` doplní
+ * stav dílny (ruda, rozdělaný vůz…).
+ */
+export function withWorkshop(
+  s: VillageState,
+  craft: Craft,
+  id: number,
+  workshop: Partial<Workshop> = {},
+): Dwelling {
+  const inWorkshop = new Set(s.dwellings.filter((d) => d.workshop).map((d) => d.id));
+  const worker = s.people.find((p) => p.dwellingId !== s.manorId && !inWorkshop.has(p.dwellingId))!;
+  const d: Dwelling = {
+    ...dwelling(id, CRAFT_BASE[craft]),
+    position: { x: 30 + 12 * inWorkshop.size, z: 40, rotation: 0 },
+    workshop: { ...newWorkshop(craft), activity: 'producing', ...workshop },
+  };
+  s.dwellings.push(d);
+  worker.dwellingId = id;
+  return d;
+}
+
+/** Dům rodiny na prodej a dům jejího ženatého syna (`familyHome`). */
+export const FAMILY_HOUSE = 500;
+export const SON_HOUSE = 501;
+/** Rodina na prodej (`familyHome`): otec, matka, syn 10 a dcera 8 let. */
+export const FAMILY_IDS = [62, 63, 64, 65];
+
+/**
+ * Vlkov (H) s rodinou na prodej (markets.md – Rozhodnutí plánu 3, bod 10): v domě 500 drží dům
+ * starší pár (60 a 61, 42 a 40 let), rodina 62 ∞ 63 (36 a 34) s dětmi 64 a 65 z něj smí odejít
+ * (`familiesOf`). Jejich ženatý syn 66 (18) se ženou 67 bydlí v domě 501 – příbuzný, se kterým
+ * rodina zůstane v `emigrants`. Matka otce (id 7) ve vsi není – vazba ven. Dospělých je 10.
+ */
+export function familyHome(): VillageState {
+  const s = homeVillage();
+  s.dwellings.push({ ...dwelling(SON_HOUSE), position: { x: 60, z: 0, rotation: 0 } });
+  const person = (
+    id: number,
+    age: number,
+    dwellingId: number,
+    sex: Person['sex'],
+    extra: Partial<Person> = {},
+  ): Person => ({ id, bornDay: D - Math.ceil((age + 0.5) * 365.25), dwellingId, sex, ...extra });
+  s.people = [
+    ...s.people.filter((p) => p.dwellingId !== FAMILY_HOUSE),
+    person(60, 42, FAMILY_HOUSE, 'male', { spouseId: 61 }),
+    person(61, 40, FAMILY_HOUSE, 'female', { spouseId: 60 }),
+    person(62, 36, FAMILY_HOUSE, 'male', { spouseId: 63, motherId: 7 }),
+    person(63, 34, FAMILY_HOUSE, 'female', { spouseId: 62 }),
+    person(64, 10, FAMILY_HOUSE, 'male', { motherId: 63, fatherId: 62 }),
+    person(65, 8, FAMILY_HOUSE, 'female', { motherId: 63, fatherId: 62 }),
+    person(66, 18, SON_HOUSE, 'male', { spouseId: 67, motherId: 63, fatherId: 62 }),
+    person(67, 17, SON_HOUSE, 'female', { spouseId: 66 }),
+  ];
+  return s;
+}
+
 /** Cíl výpravy z H: Lhota (M) na sousední mapě na východě. */
 export const target: MarketTarget = {
   villageId: 'm',
@@ -75,6 +149,88 @@ export const report: VillageReport = {
   crafts: ['potter'],
   traders: [],
 };
+
+/** Den před rozhodnutím vesničanů o výrobcích (CRAFT_BUYING.day) a ten den. */
+export const NOV14 = at(601, 11, 14);
+export const NOV15 = at(601, 11, 15);
+
+/** Osetý díl ozimu (0,25 ha) – úroda za rok, kterou nástroje zlevní. */
+export function sownPart(id: number): FieldPart {
+  return {
+    id,
+    fieldId: 1,
+    areaM2: 2_500,
+    distanceM: 80,
+    naturalFertility: 70,
+    fertilityShare: 1,
+    bonusUntilDay: null,
+    state: 'sown',
+    sownYears: 1,
+    crop: 'winter',
+    fallowSinceDay: null,
+    foundingCost: 0,
+    foundingDone: 0,
+    surface: 'meadow',
+    cell: { x: id % 20, y: Math.floor(id / 20) },
+  };
+}
+
+/** Okolí H (Vlkov) s Lhotou (M) na sousední mapě na východě (markets.md – Rozhodnutí plánu 3, bod 1). */
+export function withNearby(s: VillageState, day: number): VillageState {
+  s.nearby = {
+    day: day - 5,
+    self: { villageId: 'h', name: 'Vlkov' },
+    villages: [{ villageId: 'm', name: 'Lhota', cells: 1, firstStep: 'E' }],
+  };
+  return s;
+}
+
+/** Zpráva na pivo o Lhotě s řemesly `crafts` (bez cen trhu). */
+export function withNews(s: VillageState, crafts: Craft[]): VillageState {
+  s.news = [{ villageId: 'm', name: 'Lhota', report: { ...report, crafts } }];
+  return s;
+}
+
+/**
+ * Vlkov (H) bez kováře dopočítaný do 14. 11. – 40 osetých dílů ozimu (10 ha), nástrojů o 10 kg míň,
+ * než potřebuje; s okolím a zprávou o řemeslech Lhoty (`crafts`, výchozí kovář).
+ */
+export function villagersHome(crafts: Craft[] = ['smith']): VillageState {
+  const s = homeVillage();
+  s.lastDay = NOV14;
+  s.fields = [{ id: 1 }];
+  s.parts = Array.from({ length: 40 }, (_, i) => sownPart(100 + i));
+  s.toolEquipmentKg = toolNeedKg(s, NOV15) - 10;
+  return withNews(withNearby(s, NOV15), crafts);
+}
+
+/** Den nákupu osiva ozimu (`SEED_RESERVE.days`). */
+export const SEP1 = at(601, 9, 1);
+
+/**
+ * Vlkov (H) dopočítaný do 31. 8. s 12 díly na řadě a osivem kratším o `shortKg` (celé zásoby jsou
+ * rezerva osiva), 2 kg hřiven a 3 krávami nad chovné jádro a voly; s okolím (Lhota).
+ */
+export function seedHome(shortKg: number): VillageState {
+  const s = homeVillage();
+  s.lastDay = SEP1 - 1;
+  s.fields = [{ id: 1 }];
+  s.parts = Array.from({ length: 12 }, (_, i) => ({
+    ...sownPart(100 + i),
+    state: 'ready' as const,
+    sownYears: 0,
+    crop: undefined,
+  }));
+  s.season = null;
+  const need = windowSeedNeedKg(s, 'winter');
+  if (need <= shortKg)
+    throw new Error(`osivo na díly ${need} kg nestačí na chybějících ${shortKg}`);
+  s.storesKg = need - shortKg;
+  s.reservedSeedKg = need - shortKg;
+  s.crafts = { charcoalKg: 0, potteryKg: 0, ironBarsKg: 2 };
+  s.livestock!.herds.cow = Math.ceil(breedingCows(s) + oxenCalvesWanted(s, SEP1)) + 3;
+  return withNearby(s, SEP1);
+}
 
 /** Zprávy odchozí schránky jako události schránky cílové vsi (doručení – village-core.md). */
 export function asEvents(mails: readonly VillageMail[]): VillageEvent[] {

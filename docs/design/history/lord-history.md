@@ -48,3 +48,7 @@ Neplatí od 23. 11. 2026 (Martin 22. 11. 2026 – [neighbours.md](../neighbours.
   Synům dá ženy okolí (nevěsta z okolí ≈ 30 % ročně), dcerám muže okolí – k dceři v domě vedlejší
   manželky (dům bez mužů) se přižení ženich s ≈ 50 % ročně, dcera z dvorce se vdá pryč nebo se
   k ní přižení zeť ([příbuzenství](kinship.md) – Sňatky).
+
+## Poznámka (24. 11. 2026): pravidlo se vrátilo se skutečnými vsemi
+
+Další manželky mužů rodu, které plán 1 obchodu 23. 11. 2026 zrušil spolu se smyšlenými sousedy, se **vracejí s plánem 3** – tentokrát ze skutečných sousedních vsí (návrh Clauda – [markets.md](../markets.md), Rozhodnutí plánu 3, bod 12; [lord.md](../lord.md) – Manželky). Znění „z okolí“ výše je dřívější podoba bez skutečných vsí.

@@ -62,7 +62,13 @@ import type {
 } from './types-people';
 import type { CartDrive, RoadGrade, VillageRoads } from './types-roads';
 import type { VillageRoutes } from './types-routes';
-import type { VillageMail, VillageMarket, VillageNews } from './types-market';
+import type {
+  PlacedOrder,
+  VillageMail,
+  VillageMarket,
+  VillageNearby,
+  VillageNews,
+} from './types-market';
 import type { CraftPurchase, VillageTrade } from './types-trade';
 import type { WildlifeState } from './types-wildlife';
 import type { DisasterState } from './types-disasters';
@@ -692,8 +698,22 @@ export interface VillageState {
    * Kování jezdeckých koní (horses.md – Kování): den posledního kování celé vsi; další termín
    * `lastDay + HORSE_SHOEING.everyDays`. Vznikne první den, kdy ves má jezdecké koně (termín se
    * počítá od něj – i u starších vsí), a zanikne, když je ves nemá. Chybí = ves bez jezdeckých koní.
+   * `asked` – dotaz na kováře souseda, který čeká (markets.md – Rozhodnutí plánu 3, bod 9): klíč
+   * dotazu, ves a do kdy čeká (`untilDay` – den, kdy by kovář dorazil, + pobyt na trhu), den okolí
+   * dotazu (`nearbyDay`) a vsi, které se ve stejném okolí ptaly dřív a kováře neposlaly (`tried`);
+   * kování ho smaže. Chybí = žádný dotaz.
    */
-  shoeing?: { lastDay: number };
+  shoeing?: {
+    lastDay: number;
+    asked?: {
+      key: string;
+      villageId: string;
+      name: string;
+      untilDay: number;
+      nearbyDay?: number;
+      tried?: string[];
+    };
+  };
   /** Zemské stezky k sousedům (trade.md – Zemská stezka); chybí = žádné. */
   trails?: Trail[];
   /** Obchod se sousedy – zásoby a poptávka sousedů a výpravy (trade.md – Obchod); chybí = nic. */
@@ -715,8 +735,23 @@ export interface VillageState {
    * obchodníků, kteří přijeli k nám, a od vlastních výprav s cenami trhu. Chybí = žádné.
    */
   news?: VillageNews[];
+  /**
+   * Okolí vsi (markets.md – Rozhodnutí plánu 3, bod 1): snímek vsí na 8 sousedních mapách z události
+   * schránky `nearby` – další snímek ho celý nahradí. Chybí = ves okolí nezná.
+   */
+  nearby?: VillageNearby;
+  /**
+   * Zakázky vsi u řemeslníků jiných vsí (markets.md – Rozhodnutí plánu 3, bod 6) – jedna na ves
+   * hostitele a zboží, z výsledků výprav a ohlášení `order-ready`. Chybí = žádné.
+   */
+  orders?: PlacedOrder[];
   /** Vozy vsi (wagons.md – Vůz) – vyrábí je tesař; chybí = žádné. */
   carts?: Cart[];
+  /**
+   * Nejnižší id, které smí dostat příští vůz (markets.md – Rozhodnutí plánu 3, bod 4): vůz prodaný
+   * na trhu své id nepustí zpět. Vzniká prodejem vozu; chybí = největší id + 1.
+   */
+  nextCartId?: number;
   /**
    * Nákupy výrobků řemeslníků u sousedů na cestě (crafts.md – Nákup u sousedů); chybí = žádný.
    */

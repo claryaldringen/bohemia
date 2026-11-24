@@ -8,6 +8,7 @@ import {
   type SelectionWorkshop,
 } from '@/lib/selection-details';
 import { DIRECTION_NAMES } from '@/lib/trade-names';
+import { inVillage } from '@/lib/village-name-cases';
 import { formatDecimal, formatInteger, formatPercent, plural } from '@/lib/village-format';
 import {
   CRAFT_LOOKS,
@@ -554,7 +555,11 @@ export function BuyingRow({ buying }: { buying: SelectionBuying }): ReactElement
           icon={PRODUCT_ICONS[source.product]}
           dim={!source.own}
           name={`${PRODUCT_TITLES[source.product]} – ${
-            source.own ? 'vlastní řemeslník' : (source.stopped ?? 've vsi není řemeslník')
+            source.own
+              ? 'vlastní řemeslník'
+              : source.order
+                ? `${source.order.ready ? 'hotová zakázka' : 'zakázka'} ${inVillage(source.order.name)}`
+                : (source.stopped ?? 've vsi není řemeslník')
           }`}
           testId={`selection-buying-${source.product}`}
         >

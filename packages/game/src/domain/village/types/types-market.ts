@@ -4,8 +4,9 @@
 
 import type { Craft } from './types-crafts';
 import type { TradedHorse } from './types-livestock';
+import type { Person, Sex } from './types-people';
 import type { Direction8 } from './types-state';
-import type { HorseGood, TradeGood, TradeGoods } from './types-trade';
+import type { CartGood, HorseGood, PeopleGood, TradeGood, TradeGoods } from './types-trade';
 
 /**
  * Ceny trhu v mincích za kg, kus nebo m³ (markets.md – Rozhodnutí plánu 2, bod 3): trh si pamatuje
@@ -53,8 +54,12 @@ export interface MarketStance {
 /** Příjezd obchodníka na trh vsi: odkud, v který den a s jakým zbožím (markets.md – Pravidla 8). */
 export interface MarketArrivalNote {
   name: string;
+  /** Domovská ves obchodníka (kvůli maskování jmen cizímu správci); starší záznamy bez ní. */
+  villageId?: string;
   day: number;
   goods: TradeGood[];
+  /** Přišel kovář kovat koně (`MarketArrival.service`) – ne obchodník s hřivnami; jinak chybí. */
+  smith?: true;
 }
 
 /**
@@ -64,6 +69,43 @@ export interface MarketArrivalNote {
 export interface MarketHorse {
   good: HorseGood;
   horse: TradedHorse;
+}
+
+/**
+ * Vůz na trhu (markets.md – Rozhodnutí plánu 3, bod 4): druh, pod kterým se prodává, a stáří
+ * (`builtDay` z vozu prodejce) – kupující dostane vůz s tímtéž stářím, neprodaný se vrátí domů
+ * stejně starý.
+ */
+export interface MarketCart {
+  good: CartGood;
+  builtDay: number;
+}
+
+/**
+ * Kus lidí na trhu (markets.md – Rozhodnutí plánu 3, bod 10): rodina, nebo jeden svobodný muž či
+ * žena – druh, pod kterým se prodává (počty po druzích jdou zápočtem), a celé záznamy osob s id
+ * vsi, odkud jsou. Lidé jsou vždy právě na jednom místě: odejdou ze vsi (`takePeople`), prodaní se
+ * usadí u kupce s novými id (`settlePeople`), neprodaní se vrátí domů s původními (`restorePeople`).
+ */
+export interface MarketPerson {
+  good: PeopleGood;
+  people: Person[];
+  /**
+   * Skupinu prodal sám hostitel trhu (`settleTrades` – ne jiná výprava), lidé nesou jeho id
+   * (Rozhodnutí plánu 3, bod 13): zanikne-li domovská ves kupce, vrátí se hostiteli s původními id
+   * (`stranded-people` – `own`). Chybí = vlastní lidé výpravy nebo koupení od jiné výpravy.
+   */
+  fromHost?: true;
+}
+
+/**
+ * Služba, se kterou výprava přijela (markets.md – Rozhodnutí plánu 3, bod 9): kovář jde okovat
+ * `horses` jezdeckých koní vsi, která se ptala (`smith-ask`). Výprava se službou do zápočtu
+ * nevstupuje – hřivny kováře se na trhu neprodají.
+ */
+export interface MarketService {
+  kind: 'shoeing';
+  horses: number;
 }
 
 /**
@@ -83,10 +125,38 @@ export interface MarketArrival {
   goods: TradeGoods;
   /** Koně výpravy po kusech. */
   horses: MarketHorse[];
+  /** Vozy výpravy po kusech se stářím (chybí = výprava z doby před stářím vozů). */
+  carts?: MarketCart[];
+  /**
+   * Lidé na prodej po skupinách (Rozhodnutí plánu 3, bod 10) – už odešli ze vsi (`takePeople`);
+   * počty po druzích jsou i v `goods`. Chybí = žádní.
+   */
+  people?: MarketPerson[];
   /** Co výprava shání (seznam bez cenových mezí – Martin 22. 11. 2026). */
   wants: TradeGoods;
   /** Zpráva na pivo o domovské vsi – „obchodník, který přijel k nám“ (Pravidla 8). */
   report: VillageReport;
+  /**
+   * Směr od domovské vsi k hostiteli (`MarketTarget.firstStep`; Rozhodnutí plánu 3, bod 7).
+   * Chybí = příjezd z doby před ním.
+   */
+  firstStep?: Direction8;
+  /** Kovář jde kovat koně (Rozhodnutí plánu 3, bod 9); chybí = obyčejná výprava na trh. */
+  service?: MarketService;
+  /**
+   * Partner jde za hledajícím (Rozhodnutí plánu 3, bod 11) – je v `people`, ale zbožím není (do
+   * `goods` se nepočítá); chybí = obyčejná výprava na trh.
+   */
+  kin?: MarketKin;
+}
+
+/**
+ * Za kým jde partner výpravy `kin` (markets.md – Rozhodnutí plánu 3, body 11 a 12): id hledajícího
+ * ve vsi hostitele; `extraWife` – další manželka muže rodu.
+ */
+export interface MarketKin {
+  seekerId: number;
+  extraWife?: true;
 }
 
 /**
@@ -97,6 +167,8 @@ export interface MarketVisitor {
   key: string;
   fromVillageId: string;
   fromName: string;
+  /** Směr od domovské vsi výpravy k hostiteli (`MarketArrival.firstStep`); chybí = neznámý. */
+  firstStep?: Direction8;
   /** Pořadí příjezdu – mezi přespolními prodává a kupuje dřív, kdo přijel dřív (Martin). */
   order: number;
   arrivedDay: number;
@@ -107,6 +179,10 @@ export interface MarketVisitor {
   goods: TradeGoods;
   /** Neprodaní koně výpravy po kusech. */
   horses: MarketHorse[];
+  /** Neprodané vozy výpravy po kusech se stářím. */
+  carts?: MarketCart[];
+  /** Neprodaní lidé výpravy po skupinách (Rozhodnutí plánu 3, bod 10); chybí = žádní. */
+  people?: MarketPerson[];
   /** Co zbývá koupit. */
   wants: TradeGoods;
   /** Co výprava na trhu prodala a koupila (součty za všechny tržní dny). */
@@ -114,6 +190,72 @@ export interface MarketVisitor {
   bought: TradeGoods;
   /** Koupení koně po kusech. */
   boughtHorses: MarketHorse[];
+  /** Koupené vozy po kusech se stářím. */
+  boughtCarts?: MarketCart[];
+  /** Koupení lidé po skupinách – s výpravou půjdou do její vsi; chybí = žádní. */
+  boughtPeople?: MarketPerson[];
+  /**
+   * Výrobky, jejichž hotovou zakázku výprava vyzvedla (Rozhodnutí plánu 3, bod 6) – hostitel jí je
+   * při odjezdu znovu nezapíše (`recordOrders`). Chybí = žádné.
+   */
+  pickedUp?: OrderGood[];
+  /**
+   * Kovář, který přišel kovat koně (`MarketArrival.service`; Rozhodnutí plánu 3, bod 9) – do zápočtu
+   * nevstupuje, poplatek má v `bought`, spotřebované hřivny v `sold`. Chybí = obyčejná výprava.
+   */
+  service?: MarketService;
+  /**
+   * Partner, který šel za hledajícím (nevěsta, ženich, další manželka – Rozhodnutí plánu 3, body 11
+   * a 12; `MarketArrival.kin`): po příjezdu se usadí (`receiveKin`), doprovod do zápočtu nevstupuje
+   * a večer posledního dne odjede s prázdným výsledkem. Chybí = obyčejná výprava.
+   */
+  kin?: MarketKin;
+}
+
+/**
+ * Výrobek dílny, na který jde zakázka (markets.md – Rozhodnutí plánu 3, bod 6): nástroje, keramika,
+ * dřevěné nářadí, hřivny a vozy.
+ */
+export type OrderGood =
+  'tools' | 'pottery' | 'woodTools' | 'ironBars' | 'twoWheelCarts' | 'fourWheelCarts';
+
+/**
+ * Zakázka u hostitele (`VillageMarket.orders`; markets.md – Rozhodnutí plánu 3, bod 6): ves
+ * kupujícího, zboží, množství a den zápisu (odjezd výpravy). `readyDay` – den, kdy ji zásoba nad
+ * vlastní potřebou pokryla a hostitel ji ohlásil (`order-ready`); chybí = ještě ne.
+ */
+export interface CraftOrder {
+  villageId: string;
+  name: string;
+  good: OrderGood;
+  amount: number;
+  day: number;
+  readyDay?: number;
+}
+
+/**
+ * Zakázka kupujícího (`VillageState.orders`; markets.md – Rozhodnutí plánu 3, bod 6): ves
+ * hostitele, zboží, množství, den výsledku výpravy a stav – `open` (hostitel ji vzal), `ready`
+ * (hostitel ji ohlásil jako hotovou), `refused` (výprava zboží nekoupila ani neobjednala).
+ */
+export interface PlacedOrder {
+  villageId: string;
+  name: string;
+  good: OrderGood;
+  amount: number;
+  day: number;
+  status: 'open' | 'ready' | 'refused';
+}
+
+/**
+ * Ohlášení hotové zakázky – tělo zprávy `order-ready` pro kupujícího (markets.md – Rozhodnutí
+ * plánu 3, bod 6): `villageId` a `name` jsou hostitel.
+ */
+export interface OrderReady {
+  villageId: string;
+  name: string;
+  good: OrderGood;
+  amount: number;
 }
 
 /**
@@ -129,6 +271,11 @@ export interface VillageMarket {
   nextOrder: number;
   /** Posledních `MARKET.report.traders` příjezdů, pořadí zápisu. */
   arrivals: MarketArrivalNote[];
+  /**
+   * Zakázky u řemeslníků vsi (markets.md – Rozhodnutí plánu 3, bod 6) – jedna na ves a zboží,
+   * v pořadí zápisu; chybí = žádné.
+   */
+  orders?: CraftOrder[];
 }
 
 /**
@@ -143,18 +290,106 @@ export interface MarketResult {
   unsold: TradeGoods;
   /** Koně domů po kusech – neprodaní i koupení. */
   horses: MarketHorse[];
+  /** Vozy domů po kusech se stářím – neprodané i koupené (počty jsou i v `unsold` a `bought`). */
+  carts?: MarketCart[];
+  /**
+   * Neprodaní vlastní lidé – doma dostanou zpět svá id (`restorePeople`; Rozhodnutí plánu 3, bod 10);
+   * počty jsou i v `unsold`. Chybí = žádní.
+   */
+  people?: MarketPerson[];
+  /**
+   * Koupení lidé – doma se usadí s novými id (`settlePeople`); počty jsou i v `bought`. Chybí =
+   * žádní.
+   */
+  newcomers?: MarketPerson[];
   /** Zpráva na pivo o hostiteli v den odjezdu. */
   report?: VillageReport;
   /** Ceny trhu v den odjezdu. */
   prices?: MarketPrices;
   /** Hostitel zanikl – výprava se vrátila se vším, co drží. */
   returned?: true;
+  /**
+   * Zakázky, které hostitel při odjezdu výpravy zapsal (markets.md – Rozhodnutí plánu 3, bod 6);
+   * chybí = žádné.
+   */
+  ordered?: TradeGoods;
+  /**
+   * Výprava, jak ji viděl hostitel – domovská ves, její jméno a směr od hostitele k ní
+   * (`OPPOSITE[visitor.firstStep]`; markets.md – Rozhodnutí plánu 3, bod 13). Jen u výsledku
+   * s lidmi: zanikne-li domovská ves, jdou lidé zpět k hostiteli (`stranded-people`) a kdo se u něj
+   * usadí, přišel odtud. Chybí = výsledek bez lidí, nebo výprava bez směru cesty.
+   */
+  origin?: { villageId: string; villageName: string; direction: Direction8 };
 }
 
-/** Zpráva trhu pro jinou ves (markets.md – Rozhodnutí plánu 2, bod 6). */
+/**
+ * Dotaz na kováře – tělo zprávy `smith-ask` (markets.md – Rozhodnutí plánu 3, bod 9): ves s koňmi
+ * po termínu bez vlastního kováře se ptá vsi okolí s kovářem. Klíč `smith:<ves>:<den>`, ves, která
+ * se ptá, jak daleko je (`cells`) a první krok cesty od ní ke kováři (`firstStep`), kolik koní
+ * a zpráva na pivo o ní (posel „zašel na pivo“ – Rozhodnutí plánu 3, bod 2).
+ */
+export interface SmithAsk {
+  key: string;
+  fromVillageId: string;
+  fromName: string;
+  cells: number;
+  firstStep: Direction8;
+  horses: number;
+  report: VillageReport;
+}
+
+/**
+ * Kdo hledá partnera v jiné vsi (markets.md – Rozhodnutí plánu 3, body 11 a 12): id ve vsi, která se
+ * ptá, pohlaví, den narození, vdova či vdovec (`isWidowed` – větší věkový rozdíl) a `extraWife` –
+ * muž rodu hledá další manželku.
+ */
+export interface KinSeeker {
+  personId: number;
+  sex: Sex;
+  bornDay: number;
+  widowed: boolean;
+  extraWife?: true;
+}
+
+/**
+ * Dotaz na nevěstu, ženicha nebo další manželku – tělo zprávy `kin-ask` (markets.md – Rozhodnutí
+ * plánu 3, bod 11): klíč `kin:<ves>:<den>:<id hledajícího>`, ves, která se ptá, jak daleko je
+ * (`cells`) a první krok cesty od ní k vsi partnera (`firstStep`), kdo hledá a zpráva na pivo o ní
+ * (posel „zašel na pivo“ – Rozhodnutí plánu 3, bod 2).
+ */
+export interface KinAsk {
+  key: string;
+  fromVillageId: string;
+  fromName: string;
+  cells: number;
+  firstStep: Direction8;
+  seeker: KinSeeker;
+  report: VillageReport;
+}
+
+/**
+ * Zpráva trhu pro jinou ves (markets.md – Rozhodnutí plánu 2, bod 6; Rozhodnutí plánu 3, bod 6 –
+ * ohlášení hotové zakázky `order-ready`, bod 9 – dotaz na kováře `smith-ask`, bod 11 – dotaz na
+ * partnera `kin-ask`; všechny tři zprávy bez nákladu). `stranded-people` (bod 13) – lidé
+ * z výsledku pro zaniklou domovskou ves jdou zpět k hostiteli: `key` výsledku, `own` = skupiny,
+ * které prodal sám hostitel (`MarketPerson.fromHost` – vrátí se s původními id), `people` = ostatní
+ * (vlastní lidé výpravy, koupení od jiné výpravy – usadí se s novými id), `from` =
+ * `MarketResult.origin`. Zapíše ji pošta rovnou do schránky hostitele (`deliverVillageMail`,
+ * `returnStrandedPeople`), v odchozí schránce nebývá.
+ */
 export type MarketMailBody =
   | { kind: 'market-arrive'; arrival: MarketArrival }
-  | { kind: 'market-result'; result: MarketResult };
+  | { kind: 'market-result'; result: MarketResult }
+  | { kind: 'order-ready'; ready: OrderReady }
+  | { kind: 'smith-ask'; ask: SmithAsk }
+  | { kind: 'kin-ask'; ask: KinAsk }
+  | {
+      kind: 'stranded-people';
+      key: string;
+      people: MarketPerson[];
+      own?: MarketPerson[];
+      from: MarketResult['origin'];
+    };
 
 /**
  * Zpráva v odchozí schránce vsi (`VillageState.outbox`) – do schránky vsi `villageId` na den `day`
@@ -218,6 +453,54 @@ export interface MarketTrip {
   travelDays: number;
   arriveDay: number;
   returnDay: number;
+  /**
+   * Vycvičení voli bez vozu, kteří jdou s výpravou a potáhnou koupené vozy domů (markets.md –
+   * Rozhodnutí plánu 3, bod 4; `oxenForCarts` ze seznamu) – pryč jako voli vozů výpravy
+   * (`oxenAway`), v `returnDay` je `marketTripsDay` smaže. Chybí = žádní.
+   */
+  oxen?: number;
+  /**
+   * Kolik kg obilí ze seznamu je osivo (výprava vesničanů za osivem – markets.md, Rozhodnutí plánu 3,
+   * bod 7; fields.md – Osivo pro ves bez zásob): koupené obilí do této míry ves nesní, výsledek ho
+   * přidá do rezervy osiva (`reservedSeedKg`), zbytek jde do zásob. Chybí = žádné.
+   */
+  seedKg?: number;
+}
+
+/**
+ * Svobodný ve vsi okolí, který by šel za partnerem odjinud (`kinCandidates`; markets.md – Rozhodnutí
+ * plánu 3, body 1 a 11) – jen pohlaví a věk po 5 letech (`ageFrom` = 5 × floor(věk ÷ 5)), veřejná
+ * zpráva jako na pivu.
+ */
+export interface NearbySingle {
+  sex: Sex;
+  ageFrom: number;
+}
+
+/**
+ * Ves okolí (markets.md – Rozhodnutí plánu 3, bod 1): ves na jedné z 8 sousedních map, kolik
+ * políček mapy světa je daleko a první krok cesty k ní (jako `MarketTarget`); `singles` – její
+ * svobodní ze souhrnu vsi (`VillageDigest.singles`, bod 11), chybí = nikdo (i okolí zapsané dřív).
+ */
+export interface NearbyVillage {
+  villageId: string;
+  name: string;
+  cells: number;
+  firstStep: Direction8;
+  singles?: NearbySingle[];
+}
+
+/**
+ * Okolí vsi (markets.md – Rozhodnutí plánu 3, bod 1): snímek žijících vsí na 8 sousedních mapách –
+ * i vsí téhož hráče –, který ves dostane událostí schránky `nearby` a další snímek ho celý nahradí.
+ * Simulace nezná ostatní vsi ani své id; vesničané se podle okolí rozhodují uvnitř dne.
+ */
+export interface VillageNearby {
+  /** Den, kdy ves okolí dostala (událost `nearby`). */
+  day: number;
+  self: { villageId: string; name: string };
+  /** Vsi na 8 sousedních mapách, řazené podle `cells`, pak `villageId`. */
+  villages: NearbyVillage[];
 }
 
 /** Zpráva na pivo o vsi (markets.md – Pravidla 8). */

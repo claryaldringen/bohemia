@@ -143,5 +143,7 @@ export function cachedVillages(inner: VillageRepository): VillageRepository {
     // schránka se nepamatuje – zápis zvedá verzi vsi, takže zapamatovaný záznam neprojde otiskem
     inbox: inner.inbox,
     ...(inner.holds ? { holds: inner.holds } : {}),
+    // okolí vsi (nearby.ts) zapisuje do schránky – jde přímo do úložiště jako ona
+    ...(inner.nearby ? { nearby: inner.nearby } : {}),
   };
 }

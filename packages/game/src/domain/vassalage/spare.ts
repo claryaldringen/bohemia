@@ -12,7 +12,7 @@ import { HORSE_GOODS } from '../village/trade/goods';
 import { isTrained, oxPens } from '../village/livestock/oxen';
 import { oxenOf } from '../village/livestock/pens';
 import { ageGroup } from '../village/people/people';
-import { NO_PEOPLE, emigrantGroups } from '../village/trade/people-trade';
+import { NO_PEOPLE, emigrantGroups, emigrantList } from '../village/trade/people-trade';
 import { SEED_KG_PER_HA } from '../village/rules/rules-fields';
 import { stewardOutlook, type StewardOutlook } from '../village/steward/steward-outlook';
 import type {
@@ -111,12 +111,25 @@ function adultsOf(people: readonly Person[], day: number): number {
  * (`stewardOutlook` – osev podle práce nad osevem podle půdy), smí dát takový díl dospělých, o kolik
  * práce přebývá. Kdo odejde, vybere výměna lidí (`emigrantGroups` – z nejvíc přeplněného domu, muži
  * rodu a jejich ženy ne); rodiny, dokud jejich dospělí nepřesáhnou díl. Ves bez pole nedá nikoho.
+ * Totéž nabízí ves na trhu (`marketStance` – markets.md, Rozhodnutí plánu 3, bod 10).
  */
-function peopleSpare(state: VillageState, day: number, outlook: StewardOutlook): TradePeople {
+export function peopleSpare(
+  state: VillageState,
+  day: number,
+  outlook: StewardOutlook,
+): TradePeople {
   const { landHa, laborHa } = outlook;
   const share = landHa > 0 && laborHa > landHa ? 1 - landHa / laborHa : 0;
   const budget = Math.floor(adultsOf(state.people, day) * share + EPSILON);
   if (budget <= 0) return { ...NO_PEOPLE };
+  const families = familiesWithin(state, day, budget);
+  const men = emigrantGroups(state, day, { ...NO_PEOPLE, men: budget }).men.length;
+  const women = emigrantGroups(state, day, { ...NO_PEOPLE, women: budget }).women.length;
+  return { families, men, women };
+}
+
+/** Kolik rodin ve výběru `emigrantGroups` se vejde, než jejich dospělí přesáhnou `budget`. */
+function familiesWithin(state: VillageState, day: number, budget: number): number {
   let families = 0;
   let adults = 0;
   for (const family of emigrantGroups(state, day, { ...NO_PEOPLE, families: budget }).families) {
@@ -124,9 +137,53 @@ function peopleSpare(state: VillageState, day: number, outlook: StewardOutlook):
     if (adults > budget) break;
     families++;
   }
-  const men = emigrantGroups(state, day, { ...NO_PEOPLE, men: budget }).men.length;
-  const women = emigrantGroups(state, day, { ...NO_PEOPLE, women: budget }).women.length;
-  return { families, men, women };
+  return families;
+}
+
+/**
+ * Co ves nabídne na trhu z dílu `peopleSpare` (markets.md – Rozhodnutí plánu 3, bod 10; návrh
+ * Clauda): na trhu se rodiny, muži a ženy sčítají (kupec je může chtít všechny), takže dospělí
+ * všech druhů dohromady nepřesáhnou rozpočet. Napřed rodiny, ze zbytku svobodní muži a pak ženy
+ * v pořadí `emigrantGroups` (každý další druh z lidí bez předchozích). Kdo odejde, vybere
+ * `emigrantGroups` se stejnými počty – nabídka, kontrola výpravy i odchod souhlasí.
+ */
+export function peopleOffer(
+  state: VillageState,
+  day: number,
+  outlook: StewardOutlook,
+): TradePeople {
+  const { landHa, laborHa } = outlook;
+  const share = landHa > 0 && laborHa > landHa ? 1 - landHa / laborHa : 0;
+  const budget = Math.floor(adultsOf(state.people, day) * share + EPSILON);
+  if (budget <= 0) return { ...NO_PEOPLE };
+  const families = familiesWithin(state, day, budget);
+  const taken = emigrantGroups(state, day, { ...NO_PEOPLE, families }).families;
+  let rest = budget - taken.reduce((n, f) => n + adultsOf(f.people, day), 0);
+  const men = emigrantGroups(state, day, { families, men: rest, women: 0 }).men.length;
+  rest -= men;
+  const women = emigrantGroups(state, day, { families, men, women: rest }).women.length;
+  return keepLabor(state, day, { families, men, women });
+}
+
+/**
+ * Práce ubývá rychleji než počet lidí (odcházejí nejvíc přeplnění dospělí), takže po odchodu by ves
+ * mohla mít půdy víc než práce a hned druhý den by lidi shánět zpět. Z nabídky se proto ubírá
+ * (napřed ženy, pak muži, nakonec rodiny), dokud ves bez odcházejících práci na půdu stačí.
+ */
+function keepLabor(state: VillageState, day: number, offer: TradePeople): TradePeople {
+  const left = { ...offer };
+  for (;;) {
+    const gone = new Set(
+      emigrantList(emigrantGroups(state, day, left)).flatMap((g) => g.people.map((p) => p.id)),
+    );
+    if (gone.size === 0) return left;
+    const rest = { ...state, people: state.people.filter((p) => !gone.has(p.id)) };
+    const after = stewardOutlook(rest, day, craftCoverage(rest, day));
+    if (!(after.landHa > after.laborHa)) return left;
+    if (left.women > 0) left.women--;
+    else if (left.men > 0) left.men--;
+    else left.families--;
+  }
 }
 
 /**

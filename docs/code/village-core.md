@@ -94,7 +94,16 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   (`advanceVillageSteps`): návraty domů (`returnHome`), vozy výprav na trh od prvního dne doma
   (`marketTripsDay` – village-trade.md, Výprava na trh), události schránky (`applyInboxDay`), hned
   po nich **trh ve vsi** (`marketDay` – výprava, která dnes přijela, obchoduje už dnes; zápisy
-  kroniky za příjezdem; village-trade.md – Trh ve vsi) a úmrtí na rány (`woundDeathsDay`). Před prací dne (`simulate.ts`): 1. 9. `startSeason`, každý den `seasonDay` (konce oken
+  kroniky za příjezdem; village-trade.md – Trh ve vsi) a úmrtí na rány (`woundDeathsDay`). Po práci
+  dne napřed hotové zakázky (`fillOrders` – před opotřebením `wearCraftStocks`; village-trade.md –
+  Zakázky). Hned za rezervou osiva (`seedReserveDay`), před `work()`, vesničané na trhu
+  (`villagerTripsDay` – jen ves s okolím; village-trade.md – Vesničané na trhu). Hned za `work()`
+  (a `settleSowingSeed`), tedy za kováním dne `finishShoeing`, dotaz na kováře souseda
+  (`askSmithDay` – jen ves s okolím; village-livestock.md – Kovář souseda). Hned za sňatky ve vsi
+  (`arrangeMarriages`) dotaz na partnera v sousední vsi (`askKinDay` – jen ves s okolím, proud
+  `'kin:' + den`; odpověď `kin-ask` → `answerKinAsk` je větev schránky; village-people.md – Sňatky
+  – se sousedy). Před prací dne
+  (`simulate.ts`): 1. 9. `startSeason`, každý den `seasonDay` (konce oken
   setí, díly na řadě a čelo práce – fields.md, Osevní postup po dílech) a `lordHelpDay`
   (podíly dne rodiny ve žních `lordHelp` a s přípravou půdy a setím `lordSowing` – D102) a 1. 5. `wildlifeYearDay` (roční přepočet zvěře; hned za ním `weatherDay` – kronika počasí kraje v den odhalení, `village-disasters.md` –, `dogsYear` smečka dvorce, W4), 1. 6. `damageWindowStart` (ohrožené díly polí pro zvěř – wildlife.md, Škody); po `lordHelpDay` `settlePatrol` (jezdecká hlídka polí, W6), po práci dne `wildlifeDamageDay` (škoda zvěře a vran na nesklizených dílech, před jídlem) dále v závěru dne `patrolHuntDay` (úlovek z hlídky), a po sklizni jaře `wildlifeSeasonEnd` (kronika, vynulování ztrát dílů – podrobnosti `village-wildlife.md`); potřebné sezónní úlohy jsou práce nutných dílů – plodiny
   hospodářského roku (`fieldTasks` – všechny díly jedna fronta, díly nad potřebu zrušené 9. 11. 2026). `allocateDay`: denní minimum → péče o koně (`horseCare` – `horseCareLabor`, horses.md – Péče; pokrytí v `state.horsesCaredToday`) → výpravy (`away`) → potřebné sezónní úlohy v pořadí `dayTaskOrder` – **pevné pořadí skupin** `DAY_WORK_ORDER` (rules-fields.ts; `dayWorkGroup` v simulate-work.ts; fields.md – Pořadí důležitosti polních prací a výmlat do zimy, Martin 9. 11. 2026): výmlat na dnešní jídlo → žeň a odnos obilí (i luštěnin) → trhání lnu (ženy a děti napřed před všemi úlohami – `womenFirst`, Martin 10. 11. 2026) → nutná 1. seč (`mow`) → nutná otava (`mow` s `DayTask.aftermath` – skupina `'aftermath'` podle `mowingCut` plánu seče; Martin 10. 11. 2026: před orbou a setím ozimu, dřív ~~až po nich~~) → porážka a uzení (`slaughter` – od 18. 11. 2026 za žní a sečí, porážka celý rok; maso je k jídlu hned, práce jen spotřebuje ruce; v zimě se nežne ani neseče, tam hned za výmlatem na jídlo; dřív ~~hned za výmlatem na jídlo~~) → sklizeň jablek → pletí → výmlat na osivo (`ThreshTask.seed`, `seedThreshKg` v seed.ts) → příprava půdy a setí (vrácení přílohu, kopání, orba, setí – **orba rádlem první** uvnitř skupiny, oxen.md – Orba má přednost; **setí zorané a zkopané půdy před vracením přílohu téže plodiny**, rank −0,5 ve `fieldTasks`; zorané je jen vyklučené – orba, kopání a setí po `tillableRemaining`, village-fields.md – Orba a setí až po vyklučení; **výsadba jabloní u cest a sadu** v oknech výsadby po orbě, kopání a setí, před vracením přílohu – `DayAllocationInput.planting` s pořadím úloh `plantingOrder` (simulate-work.ts) a prací `fruitPlantingNeed` (simulate-build.ts), Martin 22. 11. 2026; práce `DayAllocation.planting` jde v `commonWorkDay` do `plantFruit` – `build` po druzích, napřed jabloně, pak sad –, zbytek do společné práce; v rozdělení práce pro postavy je mezi stavbami) → péče o sad → noční hlídka polí (`'watch'`, wildlife.md – Noční hlídka vesničanů) → výmlat → obilné jámy → dospělý pasák; uvnitř skupiny nejbližší konec okna, `tie` a `rank` (žeň a výmlat napřed ze žňových rukou – `harvestHands`, `lordHelp`, fields.md – Žně všemi rukama) → `common` (volná práce
@@ -426,13 +435,21 @@ villageId)` je zapíše do schránek cílových vsí (`inbox.post`, druhý zápi
     technická mez, ne pravidlo; prázdný `outbox` ze stavu zmizí). Existenci cílových vsí ověří
     jeden levný dotaz `stampsOfVillages`: příjezd do zmizelé vsi se změní ve výsledek `returned`
     se vším do vlastní schránky na den plánovaného návratu (den příjezdu + pobyt + cesta – lidé
-    jsou doma v plánovaný den, návrh Clauda), výsledek pro zmizelou domovskou ves se zahodí.
+    jsou doma v plánovaný den, návrh Clauda), výsledek pro zmizelou domovskou ves se zahodí – jen
+    s lidmi jdou lidé zpět k hostiteli (`stranded-people` – `receiveStranded`; domov zaniklý až
+    s výsledkem ve schránce – úloha světa `returnStrandedPeople`), dotazy plánu 3 do zaniklé
+    vsi se zahodí (village-trade.md – Pošta mezi vsemi, Zaniklé vsi a zprávy plánu 3).
     `hasVillageMail(state)` – neprázdný `outbox` nebo výprava na trh po termínu bez výsledku; jen
     s ní se doručuje po dopočtu (`advancePlayer`, `dynastyForVillage`, `advanceDynasty` – za
     odchody správce), takže ves bez pošty nestojí ani dotaz navíc. `deliverVillageMailSafely`
     chybu zapíše do logu a vrátí 0 – dopočet nezastaví, zprávy zůstanou v `outbox` a doručí je
     příští volání (idempotentně podle `ref`). Výprava po termínu a zaniklý hostitel:
     village-trade.md – Pošta mezi vsemi.
+  - **Okolí** (markets.md – Rozhodnutí plánu 3, bod 1; village-trade.md – Okolí vsi): tělo
+    `{ kind: 'nearby'; nearby }` – snímek vsí na 8 sousedních mapách (`VillageNearby`) –
+    `applyNearby` zapíše do `VillageState.nearby` s dnem události, kronika nic. Zapíše ho sám
+    dopočet (`updateVillage` přes podport `villages.nearby`) v pevné dny obnovy před dopočtem přes
+    ně (`ref` `nearby:<ves>:<den>`) – den snímku nezávisí na kouscích dopočtu.
   - **Kde se použijí:** `advanceVillageSteps(state, toDay, obstacles, landscape, inbox = [])` na
     začátku dne `d`, před `simulateDaySteps(d)`, použije události dne `d` v pořadí `seq`
     (`applyInboxDay` – mutuje klon stavu jako kroky dne, zápisy kroniky vrací). Události mimo
@@ -441,9 +458,14 @@ villageId)` je zapíše do schránek cílových vsí (`inbox.post`, druhý zápi
     kouscích“ 1 / 3 / 10 dní a přerušený generátor v `__tests__/inbox.test.ts`). `advanceVillage`
     bez `inbox` (testy, měření) dává totéž co dřív.
   - **Port** `VillageInbox` (`application/inbox.ts`): `post(event)` – den zápisu
-    `max(day, lastDay + 1)`, zápis zvedne verzi vsi, `null` = `ref` už zapsaný; `pending(villageId,
-afterDay, toDay)` – události `afterDay < day ≤ toDay` podle dne a `seq`. Schránka je člen
-    úložiště vsí (`VillageRepository.inbox`), takže ji má každý dopočet přes `updateVillage`
+    `max(day, lastDay + 1)`, zápis zvedne verzi vsi, `null` = `ref` už zapsaný;
+    `pending(villageId, afterDay, toDay)` – události `afterDay < day ≤ toDay` podle dne a `seq`;
+    `pruneUsed(villageId, upToDay)` – smaže použité události druhů `PRUNED_INBOX_KINDS` (snímky
+    okolí `nearby` a zprávy bez nákladu `kin-ask`, `smith-ask`, `order-ready`) do dne včetně, verzi
+    nemění (úklid schránky – ostatní řádky živých vsí drží `ref` proti dvojímu zápisu;
+    village-trade.md – Okolí vsi); `strandedResults()` – výsledky trhu s lidmi ve schránkách
+    zaniklých vsí (spí, sídlo v archivu), `dropStranded(eventIds)` – smaže vyřízené z nich, verzi
+    nemění (úloha světa `returnStrandedPeople`, village-trade.md – Pošta mezi vsemi). Schránka je člen úložiště vsí (`VillageRepository.inbox`), takže ji má každý dopočet přes `updateVillage`
     (`loadVillage`, `advancePlayer`, `dynastyStatus`, všechny akce hráče) bez zvláštní
     závislosti. `EMPTY_INBOX` – prázdná (kalibrace). Adaptér Postgresu `createInboxRepository` (tabulka
     `village_inbox`, transakce `post`) je popsaný ve `world.md` – Schránka vsi.
@@ -480,6 +502,10 @@ afterDay, toDay)` – události `afterDay < day ≤ toDay` podle dne a `seq`. Sc
     `vassalage/__tests__/guests.test.ts`).
   - **Příchod hostů:** tělo schránky `guests-arrive` (`fromVillageId`, `fromName`, `guests`) –
     `hostGuests` přidá ty, kdo ještě neodešli a ve vsi nejsou; kronika `guests-came`.
+  - **Kovář u koní souseda** (`away` druhu `craft`; village-livestock.md – Kovář souseda):
+    `untilDay` = návrat výpravy kováře, nepracuje, **jí doma** (`foodNeedPerDay` – jako nosiči
+    výpravy na trh), jeho dílna ty dny nekuje (`craftHands`); návrat bez kroniky `people-back`
+    (`craft` není v `AWAY_KINDS`).
   - **Uprchlíci a posel** (war.md – Varování, poslové a útěk do hradiště; plán 2026-11-09 – Ú7,
     kód `domain/village/fortification/state/refugees.ts`, podrobně docs/code/war.md – Ves na útěku): `away` druhu
     `refuge` (s `hostVillageId` v hradišti, bez něj ukrytý v lese) a `messenger` nemá `untilDay` –

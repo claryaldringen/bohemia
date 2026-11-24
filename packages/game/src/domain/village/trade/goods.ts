@@ -2,7 +2,17 @@
 // nové.“): jen to, co ves sama má – seznamy v pořadí panelu a druhy dobytka a koní. Smyšlení
 // sousedé za krajem mapy skončili (markets.md – Pravidla 1); seznamy dál nesou výpravy na cestě,
 // zásilky vazalů a platby (ohrada koní).
-import type { CattleGood, HorseGood, TradeGood } from '../types';
+import type {
+  CartGood,
+  CartKind,
+  CattleGood,
+  Craft,
+  HorseGood,
+  NewcomerGroup,
+  OrderGood,
+  PeopleGood,
+  TradeGood,
+} from '../types';
 
 /** Druhy dobytka v obchodu v pořadí panelu (trade.md – Dobytek ve třech druzích). */
 export const CATTLE_GOODS: readonly CattleGood[] = ['cows', 'youngOxen', 'trainedOxen'];
@@ -20,12 +30,50 @@ export function isHorseGood(good: string): good is HorseGood {
   return (HORSE_GOODS as readonly string[]).includes(good);
 }
 
+/** Je zboží vůz (dvoukolák, čtyřkolák)? */
+export function isCartGood(good: string): good is CartGood {
+  return (CART_GOODS as readonly string[]).includes(good);
+}
+
 /** Jde zboží po svých s honákem (dobytek a koně) – nese ho nikdo? */
 export function isLivestockGood(good: string): good is CattleGood | HorseGood {
   return isCattleGood(good) || isHorseGood(good);
 }
 
-/** Zboží obchodu v pořadí panelu (obilí a jídlo, dobytek, koně a dřevo, výrobky řemesel). */
+/**
+ * Vozy na trhu v pořadí panelu – dvoukoláky, pak čtyřkoláky (jako `CART_KINDS`; markets.md –
+ * Rozhodnutí plánu 3, bod 4).
+ */
+export const CART_GOODS: readonly CartGood[] = ['twoWheelCarts', 'fourWheelCarts'];
+
+/** Druh vozu zboží `good` (dvoukoláky – dvoukolák, čtyřkoláky – čtyřkolák). */
+export function cartGoodKind(good: CartGood): CartKind {
+  return good === 'twoWheelCarts' ? 'two-wheel' : 'four-wheel';
+}
+
+/**
+ * Lidé na trhu v pořadí panelu a výběru (`emigrantGroups` – rodiny, svobodní muži, svobodné ženy;
+ * markets.md – Rozhodnutí plánu 3, bod 10).
+ */
+export const PEOPLE_GOODS: readonly PeopleGood[] = ['families', 'men', 'women'];
+
+/** Jsou zboží lidé (rodiny, svobodní muži nebo ženy)? */
+export function isPeopleGood(good: string): good is PeopleGood {
+  return (PEOPLE_GOODS as readonly string[]).includes(good);
+}
+
+/** Skupina lidí (kronika `newcomer`, `EmigrantGroup.kind`) ke zboží lidí. */
+export const PEOPLE_GROUP: Readonly<Record<PeopleGood, NewcomerGroup>> = {
+  families: 'family',
+  men: 'man',
+  women: 'woman',
+};
+
+/**
+ * Zboží obchodu v pořadí panelu a zápočtu (obilí a jídlo, dobytek, koně a dřevo, výrobky řemesel –
+ * nástroje, dřevěné nářadí a vozy za keramikou, markets.md – Rozhodnutí plánu 3, bod 4; lidé na
+ * konci – bod 10).
+ */
 export const TRADE_GOODS: readonly TradeGood[] = [
   'grain',
   'legumes',
@@ -35,6 +83,9 @@ export const TRADE_GOODS: readonly TradeGood[] = [
   ...HORSE_GOODS,
   'logs',
   'pottery',
+  'tools',
+  'woodTools',
+  ...CART_GOODS,
   'ironBars',
   'charcoal',
   'stone',
@@ -42,23 +93,57 @@ export const TRADE_GOODS: readonly TradeGood[] = [
   'hides',
   'furs',
   'wax',
+  ...PEOPLE_GOODS,
 ];
 
 /**
- * Kusové zboží v pořadí panelu – dobytek, koně, klády, kámen (m³), kůže a kožešiny (jednotky jako
- * `TRADE_GOOD_NAMES` ve webu: kusy a m³); ostatní zboží je v kg. Na trhu se prodává jen po celých
- * kusech, kg se dělí libovolně (markets.md – Rozhodnutí plánu 2, bod 4).
+ * Kusové zboží v pořadí panelu – dobytek, koně, klády, vozy, kámen (m³), kůže, kožešiny a lidé
+ * (jednotky jako `TRADE_GOOD_NAMES` ve webu: kusy a m³); ostatní zboží je v kg. Na trhu se prodává
+ * jen po celých kusech, kg se dělí libovolně (markets.md – Rozhodnutí plánu 2, bod 4).
  */
 export const PIECE_GOODS: readonly TradeGood[] = [
   ...CATTLE_GOODS,
   ...HORSE_GOODS,
   'logs',
+  ...CART_GOODS,
   'stone',
   'hides',
   'furs',
+  ...PEOPLE_GOODS,
 ];
 
 /** Je zboží kusové (kusy nebo m³, ne kg)? */
 export function isPieceGood(good: TradeGood): boolean {
   return PIECE_GOODS.includes(good);
+}
+
+/**
+ * Výrobky dílen, na které jde zakázka, v pořadí `TRADE_GOODS` (markets.md – Rozhodnutí plánu 3,
+ * bod 6): keramika, nástroje, dřevěné nářadí, vozy a hřivny.
+ */
+export const ORDER_GOODS: readonly OrderGood[] = [
+  'pottery',
+  'tools',
+  'woodTools',
+  ...CART_GOODS,
+  'ironBars',
+];
+
+/**
+ * Jediná mapa řemesel výrobků (markets.md – Rozhodnutí plánu 3, body 5–7): nástroje a hřivny
+ * kovář, keramika hrnčíř, dřevěné nářadí a vozy tesař. `PRODUCT_CRAFT` (crafts/craft-buying.ts)
+ * je z ní – tady je, protože tento soubor nic jiného nedováží (bez cyklu modulů).
+ */
+export const ORDER_CRAFT: Readonly<Record<OrderGood, Craft>> = {
+  tools: 'smith',
+  pottery: 'potter',
+  woodTools: 'carpenter',
+  ironBars: 'smith',
+  twoWheelCarts: 'carpenter',
+  fourWheelCarts: 'carpenter',
+};
+
+/** Je zboží výrobek dílny, na který jde zakázka (`ORDER_GOODS`)? */
+export function isOrderGood(good: string): good is OrderGood {
+  return (ORDER_GOODS as readonly string[]).includes(good);
 }

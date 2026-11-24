@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { VILLAGE_NAMES } from '@bohemia/game';
-import { fromVillage, villagersOf, withVillagersOf } from '../village-name-cases';
+import {
+  fromVillage,
+  inVillage,
+  toVillage,
+  villagersOf,
+  withVillagersOf,
+} from '../village-name-cases';
 
 // Jména vsí v pádech pro kroniku (Martin 14. 11. 2026: „Kovář z Lhoty okul koně.“, „Vlkovští
 // směnili … s Lhotskými.“).
@@ -91,5 +97,29 @@ describe('jména vsí v pádech (kronika)', () => {
         `s obyvateli vsi ${name}`,
       ]);
     }
+  });
+});
+
+describe('kde a kam – 6. a 2. pád s předložkou, prázdné jméno = sousední ves', () => {
+  it('6. pád: v Lhotě, ve Vlkově, v Kojeticích, v Dobřanech, ve Zlíně, v Chlumci', () => {
+    expect(inVillage('Lhota')).toBe('v Lhotě');
+    expect(inVillage('Vlkov')).toBe('ve Vlkově');
+    expect(inVillage('Kojetice')).toBe('v Kojeticích');
+    expect(inVillage('Libice')).toBe('v Libici');
+    expect(inVillage('Dobřany')).toBe('v Dobřanech');
+    expect(inVillage('Radotín')).toBe('v Radotíně');
+    expect(inVillage('Chlumec')).toBe('v Chlumci');
+    expect(inVillage('Mokrá')).toBe('v Mokré');
+    expect(inVillage('Březí')).toBe('v Březí');
+    expect(inVillage('Brod')).toBe('v Brodě');
+    expect(inVillage('Praha')).toBe('v Praze');
+    // jméno, které vzor nezná
+    expect(inVillage('Nové Město')).toBe('ve vsi Nové Město');
+  });
+
+  it('jen vsi, které hráč vidět nesmí (prázdné jméno): sousední ves', () => {
+    expect(inVillage('')).toBe('v sousední vsi');
+    expect(fromVillage('')).toBe('ze sousední vsi');
+    expect(toVillage('')).toBe('do sousední vsi');
   });
 });

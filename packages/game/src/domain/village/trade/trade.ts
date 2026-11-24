@@ -7,22 +7,33 @@
 // Doprava a cílová ves). Převody starších vsí: hřivny místo nástrojů a jen společné suroviny
 // (Martin 19. 10. 2026: „Nech jen společné suroviny, nezaváděj nové.“). Čisté funkce bez I/O.
 import { takeVillageMeatKg } from '../core/meat-stocks';
+import { addCart, idleCartsOf, removeIdleCart } from '../crafts/carts';
 import { charcoalStockKg, takeCharcoal } from '../crafts/charcoal';
+import { toolEquipmentKg } from '../crafts/iron';
 import { ageGroup } from '../people/people';
 import { addCattle, cattleForSale, removeCattle } from './cattle-trade';
-import { newcomerProfiles, settleNewcomers } from './people-trade';
+import { NO_PEOPLE, emigrantGroups, newcomerProfiles, settleNewcomers } from './people-trade';
 import { addHorses, horsesForSale, removeHorses } from './horse-trade';
 import { logArrivalPoint } from '../forest/log-piles';
 import { addStone, stoneOnHand, takeStone } from '../fortification/state/stone';
 import { addLogs, takeLogs, woodLogs } from '../forest/wood';
-import { TRADE_GOODS, isCattleGood, isHorseGood, isLivestockGood } from './goods';
+import {
+  TRADE_GOODS,
+  cartGoodKind,
+  isCattleGood,
+  isHorseGood,
+  isLivestockGood,
+  isPeopleGood,
+} from './goods';
 import { CARTS, HIDES, IRON, TRADE, TRADE_GOOD_VALUES } from '../rules';
 import { ensureWares } from '../wares/wares';
 import { tradeSeason, tradeWeather } from './trade-weather';
 import type {
+  CartGood,
   CartKind,
   ChronicleEvent,
   ComingPeople,
+  MarketCart,
   Person,
   TradeExpedition,
   TradeGood,
@@ -72,13 +83,19 @@ export function hidesOnHand(state: VillageState): number {
 /**
  * Kolik zboží ves má k obchodu v den `day` (celé kusy a kg): obilí, maso, sýr a luštěniny ze
  * zásob, dobytek (`cattleForSale` – krávy bez chovného páru, mladí voli ve výcviku, vycvičení voli
- * doma mimo posledních let služby), celé klády z hromady a výrobky řemesel.
+ * doma mimo posledních let služby), celé klády z hromady a výrobky řemesel – nástroje celé
+ * vybavení domácností (`toolEquipmentKg`), vozy volné vozy druhu (`idleCartsOf`). Lidé: kolik
+ * skupin druhu ves smí dát (`emigrantGroups` jen s tím druhem – markets.md, Rozhodnutí plánu 3,
+ * bod 10); rodiny, muži a ženy berou z týchž lidí, takže se nesčítají.
  */
 export function villageGoodStock(
   state: VillageState,
   good: TradeGood,
   day: number = state.lastDay,
 ): number {
+  if (isPeopleGood(good)) {
+    return emigrantGroups(state, day, { ...NO_PEOPLE, [good]: Infinity })[good].length;
+  }
   if (isCattleGood(good)) return cattleForSale(state, good, day);
   // koně bez jezdce (horse-trade.ts – horses.md, Nákup a prodej)
   if (isHorseGood(good)) return horsesForSale(state, good, day);
@@ -98,8 +115,19 @@ export function villageGoodStock(
       return Math.floor(stoneOnHand(state) + EPSILON);
     case 'pottery':
       return Math.floor(state.crafts?.potteryKg ?? 0);
+    case 'tools':
+      // nástroje ve vybavení domácností (markets.md – Rozhodnutí plánu 3, bod 4)
+      return Math.floor(toolEquipmentKg(state) + EPSILON);
+    case 'woodTools':
+      // dřevěné nářadí od tesaře (wagons.md – Tesař)
+      return Math.floor((state.crafts?.woodToolsKg ?? 0) + EPSILON);
+    case 'twoWheelCarts':
+    case 'fourWheelCarts':
+      // volné vozy druhu – ne s výpravou ani na cestě pro kování (markets.md – Rozhodnutí plánu 3,
+      // bod 4)
+      return idleCartsOf(state, cartGoodKind(good)).length;
     case 'ironBars':
-      // hřivny z kovárny (production-chains.md – Kovář) – nástroje jsou vybavení, ne zboží
+      // hřivny z kovárny (production-chains.md – Kovář)
       return Math.floor(state.crafts?.ironBarsKg ?? 0);
     case 'charcoal':
       // uhlí u kováře i ve vypálených milířích (crafts.md – Milíř stojí vždy)
@@ -118,10 +146,36 @@ export function villageGoodStock(
 }
 
 /**
+ * Prodá `n` nejmladších volných vozů druhu `good` (mutuje stav) a vrátí je po kusech se stářím –
+ * kupující dostane vůz s tímtéž `builtDay` (markets.md – Rozhodnutí plánu 3, bod 4). Volných
+ * vozů je nejvýš kolik je, víc se neprodá.
+ */
+export function takeCarts(state: VillageState, good: CartGood, n: number): MarketCart[] {
+  const out: MarketCart[] = [];
+  for (let k = 0; k < n; k++) {
+    const cart = removeIdleCart(state, cartGoodKind(good));
+    if (!cart) break;
+    out.push({ good, builtDay: cart.builtDay });
+  }
+  return out;
+}
+
+/** Vozy z trhu přijdou do vsi se stářím prodejce (mutuje stav; nové id, `addCart`). */
+export function addMarketCarts(state: VillageState, carts: readonly MarketCart[]): void {
+  for (const cart of carts) addCart(state, cartGoodKind(cart.good), cart.builtDay);
+}
+
+/**
  * Přičte (záporně ubere) zboží ve vsi v den `day` (mutuje stav). Koupené koně přidává výprava
- * po kusech (`addHorses`), tady se koně jen prodávají.
+ * po kusech (`addHorses`), tady se koně jen prodávají. Lidé nejsou počty – odcházejí a přicházejí
+ * jako skuteční lidé (`takePeople`, `settlePeople`, `restorePeople` v market-people.ts), proto je
+ * `addGood` nebere: smyčka přes zboží, která na lidi zapomene, spadne hned (markets.md –
+ * Rozhodnutí plánu 3, bod 10; nikdo nevznikne ani nezmizí).
  */
 export function addGood(state: VillageState, good: TradeGood, amount: number, day: number): void {
+  if (isPeopleGood(good)) {
+    throw new Error(`Lidé (${good}) se nepřičítají – odcházejí a přicházejí jako skuteční lidé.`);
+  }
   if (isCattleGood(good)) {
     // dobytek do stáda a ohrad volů, prodaný z nich (cattle-trade.ts)
     if (amount > 0) addCattle(state, good, amount, day);
@@ -159,6 +213,28 @@ export function addGood(state: VillageState, good: TradeGood, amount: number, da
     case 'pottery': {
       const crafts = (state.crafts ??= { charcoalKg: 0, potteryKg: 0 });
       crafts.potteryKg = Math.max(0, crafts.potteryKg + amount);
+      return;
+    }
+    case 'tools':
+      // koupené nástroje jdou rovnou do vybavení domácností, prodané z něj (markets.md –
+      // Rozhodnutí plánu 3, bod 4)
+      state.toolEquipmentKg = Math.max(0, toolEquipmentKg(state) + amount);
+      return;
+    case 'woodTools': {
+      const crafts = (state.crafts ??= { charcoalKg: 0, potteryKg: 0 });
+      crafts.woodToolsKg = Math.max(0, (crafts.woodToolsKg ?? 0) + amount);
+      return;
+    }
+    case 'twoWheelCarts':
+    case 'fourWheelCarts': {
+      // jen celé vozy: koupený je nový (`addCart`; vůz z trhu se stářím přidává `addMarketCarts`),
+      // prodá se nejmladší volný vůz druhu (`removeIdleCart`) – markets.md, Rozhodnutí plánu 3, bod 4
+      const kind = cartGoodKind(good);
+      const n = Math.floor(Math.abs(amount) + EPSILON);
+      for (let k = 0; k < n; k++) {
+        if (amount > 0) addCart(state, kind, day);
+        else removeIdleCart(state, kind);
+      }
       return;
     }
     case 'ironBars': {
@@ -365,36 +441,34 @@ function comingCounts(coming: ComingPeople, seed?: number, key?: string): TradeP
   return { families: coming.families.length, men: coming.men ?? 0, women: coming.women ?? 0 };
 }
 
-/** Nástroje v obchodu z doby před hřivnami (production-chains.md – Kovář). */
-type ToolGoods = TradeGoods & { tools?: number };
-
 /**
  * Zboží s nástroji `tools` (uložené před hřivnami) převedenými na hřivny – kg ÷ IRON.barsPerToolKg
  * na celé kg (jako zásoba nástrojů ve vsi – `withToolEquipment`). Bez nástrojů týž objekt.
  */
 function renamedTools(goods: TradeGoods): TradeGoods {
-  const legacy = goods as ToolGoods;
-  if (legacy.tools === undefined) return goods;
-  const out: ToolGoods = { ...legacy };
+  const tools = goods.tools;
+  if (tools === undefined) return goods;
+  const out: TradeGoods = { ...goods };
   delete out.tools;
   const bars =
-    (out.ironBars ?? 0) +
-    Math.max(legacy.tools > 0 ? 1 : 0, Math.round(legacy.tools / IRON.barsPerToolKg));
+    (out.ironBars ?? 0) + Math.max(tools > 0 ? 1 : 0, Math.round(tools / IRON.barsPerToolKg));
   if (bars > 0) out.ironBars = bars;
   return out;
 }
 
 /**
  * Hřivny místo nástrojů v obchodu vsi uložené dřív (production-chains.md – Kovář; Martin 20. 10.
- * 2026: „V liště jenom hřivny“): nástroje `tools` ve výpravách na cestě a v kronice výprav se
- * převedou na hřivny (kg ÷ 1,2 – `renamedTools`) – výprava přinese hřivny. Zbytky roku sousedů
- * nechá – smaže je převod `withoutFictionalNeighbours`. Běží před `withoutForeignGoods` (ten by
- * nástroje jako neznámé zboží zahodil). Bez čeho převádět, vrátí tentýž objekt; idempotentní
- * (jako `withCattleKinds`).
+ * 2026: „V liště jenom hřivny“): nástroje `tools` ve výpravách k sousedovi po stezce a v kronice
+ * výprav se převedou na hřivny (kg ÷ 1,2 – `renamedTools`) – výprava přinese hřivny. Výprava na
+ * trh a zásilka (`kind`) nesou skutečné nástroje – zboží od plánu 3 trhu (markets.md – Rozhodnutí
+ * plánu 3, bod 4) – a zůstanou. Zbytky roku sousedů nechá – smaže je převod
+ * `withoutFictionalNeighbours`. Běží před `withoutForeignGoods`. Bez čeho převádět, vrátí tentýž
+ * objekt; idempotentní (jako `withCattleKinds`).
  */
 export function withIronBarsTrade(state: VillageState): VillageState {
   const trade = state.trade;
   const expeditions = trade?.expeditions.map((e) => {
+    if (e.kind !== undefined) return e;
     const give = renamedTools(e.give);
     const get = renamedTools(e.get);
     return give === e.give && get === e.get ? e : { ...e, give, get };

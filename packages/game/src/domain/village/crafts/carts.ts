@@ -1,7 +1,9 @@
 import { obstacleIndex, type Landscape, type ObstacleLayer } from '../../landscape';
 import {
   ableTeams,
+  departedBy,
   isTrained,
+  oxenAtWork,
   oxenHome,
   oxenToEdit,
   oxPens,
@@ -63,10 +65,14 @@ export function cartCondition(cart: Pick<Cart, 'builtDay'>, day: number): number
   return Math.min(1, Math.max(0, 1 - age));
 }
 
-/** Přidá hotový vůz (mutuje stav); id = největší + 1. */
+/**
+ * Přidá hotový vůz (mutuje stav); `day` je den dostavění (`builtDay`) – vůz z trhu nese stáří
+ * prodejce. Id = největší + 1, nikdy ne id prodaného vozu (`nextCartId`).
+ */
 export function addCart(state: VillageState, kind: CartKind, day: number): Cart {
   const carts = (state.carts ??= []);
-  const id = carts.reduce((max, c) => Math.max(max, c.id), 0) + 1;
+  const id = Math.max(carts.reduce((max, c) => Math.max(max, c.id), 0) + 1, state.nextCartId ?? 0);
+  if (state.nextCartId !== undefined) state.nextCartId = id + 1;
   const cart = { id, kind, builtDay: day };
   carts.push(cart);
   return cart;
@@ -75,22 +81,52 @@ export function addCart(state: VillageState, kind: CartKind, day: number): Cart 
 /**
  * Vozy, které jsou s výpravou na cestě (id) – i vůz, který veze platbu za kování k vozu (wagons.md
  * – Kování vozů; `ironTrip.cartId` u dílny tesaře – bez obydlí ve vstupu jen výpravy) a vozy
- * s nákupem u sousedů (crafts.md – Nákup u sousedů, Vozy).
+ * s nákupem u sousedů (crafts.md – Nákup u sousedů, Vozy). S `workDay` jen výpravy, které už
+ * vyrazily (`departedBy` – vozy práce dne); bez něj všechny (plán výpravy).
  */
 export function cartsAway(
   state: Pick<VillageState, 'trade'> & {
     dwellings?: VillageState['dwellings'];
     purchases?: VillageState['purchases'];
   },
+  workDay?: number,
 ): Set<number> {
   const away = new Set<number>();
-  for (const e of state.trade?.expeditions ?? []) for (const id of e.carts ?? []) away.add(id);
+  for (const e of state.trade?.expeditions ?? []) {
+    if (departedBy(e, workDay)) for (const id of e.carts ?? []) away.add(id);
+  }
   for (const p of state.purchases ?? []) for (const id of p.carts ?? []) away.add(id);
   for (const d of state.dwellings ?? []) {
     const id = d.workshop?.ironTrip?.cartId;
     if (id !== undefined) away.add(id);
   }
   return away;
+}
+
+/**
+ * Volné vozy druhu `kind` (markets.md – Rozhodnutí plánu 3, bod 4 – vozy na trhu): mimo
+ * `cartsAway` – ne s výpravou, u nákupu ani na cestě pro kování (`ironTrip`); v pořadí id.
+ */
+export function idleCartsOf(state: VillageState, kind: CartKind): Cart[] {
+  const away = cartsAway(state);
+  return villageCarts(state)
+    .filter((c) => c.kind === kind && !away.has(c.id))
+    .sort((a, b) => a.id - b.id);
+}
+
+/**
+ * Prodá (odebere) nejmladší volný vůz druhu `kind` – nejvyšší id (mutuje stav; markets.md –
+ * Rozhodnutí plánu 3, bod 4); bez volného vozu nic. Poslední vůz vsi smaže `carts` (bez vozů
+ * prázdné, jako `takeLeavingCart`). Id prodaného vozu se znovu nepoužije (`nextCartId`). Vrací
+ * prodaný vůz (stáří jde s ním ke kupci).
+ */
+export function removeIdleCart(state: VillageState, kind: CartKind): Cart | undefined {
+  const cart = idleCartsOf(state, kind).at(-1);
+  if (!cart) return undefined;
+  state.carts = villageCarts(state).filter((c) => c.id !== cart.id);
+  if (state.carts.length === 0) delete state.carts;
+  state.nextCartId = Math.max(state.nextCartId ?? 0, cart.id + 1);
+  return cart;
 }
 
 /**
@@ -144,12 +180,13 @@ export function cartFleetToday(
   day: number,
   ploughing: boolean,
 ): CartFleet {
-  const away = cartsAway(state);
+  // vozy a voli výpravy, která vyrazí až zítra, dnes ještě pracují (`departedBy`)
+  const away = cartsAway(state, day);
   const fleet: CartFleet = { 'two-wheel': 0, 'four-wheel': 0, oxen: 0 };
   for (const cart of villageCarts(state)) if (!away.has(cart.id)) fleet[cart.kind]++;
   if (fleet['two-wheel'] + fleet['four-wheel'] === 0) return fleet;
   const ploughOxen = ploughing ? DRAFT_OXEN.ard * ploughPairsHome(state, day) : 0;
-  fleet.oxen = Math.max(0, oxenHome(state, day) - ploughOxen);
+  fleet.oxen = Math.max(0, oxenAtWork(state, day) - ploughOxen);
   return fleet;
 }
 

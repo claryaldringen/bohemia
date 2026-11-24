@@ -326,7 +326,7 @@ Podrobnosti jsou návrh Clauda (čísla `CART_IRON` v `rules.ts`, modul `cart-ir
   zakázku** – kove nad zásobu do potřeby vsi, dokud vůz čeká (`smithToolsTarget` = zásoba do
   potřeby + kování čekajících vozů; i uhlíř podle toho nosí uhlí). „Ves s kovářem“ = obývaná
   kovárna, která má kde kopat rudu a odkud brát uhlí (bez uhlí jen s uhlířem ve vsi).
-- **Ves bez kováře:** vůz bez hřiven čeká na kování, dokud ves kováře nemá; cesta tesaře do jiné vsi zanikla s obchodem se smyšlenými sousedy (cíl, doprava ani platba obilím už nejsou) a vrátí se se zakázkami u skutečných kovářů (markets.md – plán 3). Dřívější text včetně sondy na Vlkově je v [historii](history/wagons-history.md).
+- **Ves bez kováře:** vůz bez hřiven čeká na kování, dokud ves kováře nemá; cesta tesaře do jiné vsi zanikla s obchodem se smyšlenými sousedy a **vrátila se 24. 11. 2026 jako výprava vesničanů na trh** (markets.md – Rozhodnutí plánu 3, bod 7; Martin 20. 10. 2026: „Pokud vesnice nemá kováře, musí tesař (nebo jeho syn, pokud ho má) dojít do nejbližší vesnice, kde kovář je“): tesař jde do nejbližší vsi okolí s kovářem pro hřivny, kovář za ně bere obilí (řemeslník bere obilí vždy – Martin 24. 11. 2026) a vůz se kuje doma (`cartIronDay`). Koupený vůz táhnou domů voli, kteří s výpravou jdou; prodá se nejmladší volný vůz druhu a prodaný vůz nese stáří prodejce, neprodaný se vrátí stejně starý (návrh Clauda). Dřívější text včetně sondy na Vlkově je v [historii](history/wagons-history.md).
 
 ### Rozhodnutí – kování vozů
 

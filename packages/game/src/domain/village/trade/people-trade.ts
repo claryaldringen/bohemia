@@ -76,7 +76,7 @@ function without(state: VillageState, people: readonly Person[]): VillageState {
  * Koho ves sousedovi nedá – muže rodu ani manželku muže rodu (lord.md – Rod vojvody, Manželky;
  * návrh Clauda: rod se nesmí dát sousedovi). Ves bez rodu dá kohokoli.
  */
-function keptByLine(state: VillageState): (p: Person) => boolean {
+export function keptByLine(state: VillageState): (p: Person) => boolean {
   if (!isDynastyTracked(state)) return () => false;
   const line = new Set(lineMen(state).map((p) => p.id));
   return (p) => line.has(p.id) || (p.spouseId !== undefined && line.has(p.spouseId));

@@ -1,5 +1,7 @@
 import type { ObstacleLayer } from '../../landscape';
-import { missingCart } from '../livestock/draft';
+import { cartsHad, cartsWanted, missingCart } from '../livestock/draft';
+import { orderTargets } from '../trade/craft-orders';
+import { CART_GOODS, cartGoodKind } from '../trade/goods';
 import {
   NO_STOCKS,
   cartAwaitingIron,
@@ -14,6 +16,7 @@ import { fellTrees } from '../core/obstacles';
 import { carpenterWorkFactor, woodworkLabor } from '../core/productivity';
 import { CARPENTRY } from '../rules';
 import type {
+  CartKind,
   Construction,
   ConstructionKind,
   CraftCoverage,
@@ -69,16 +72,43 @@ export function woodworkPending(state: Pick<VillageState, 'constructions'>): boo
 }
 
 /**
- * Co tesař vyrobí dál: rozdělaný vůz, chybějící vůz, nebo dřevěné nářadí do zásoby; jinak null.
- * Vůz, který čeká na kování, se nepočítá – tesař mezitím dělá nářadí (wagons.md – Kování vozů).
+ * Vůz, který má tesař začít: chybějící vůz vsi (`missingCart`), jinak vůz na zakázku
+ * (markets.md – Rozhodnutí plánu 3, bod 6) – první druh se zakázkou, jehož vozů vsi (i na cestě)
+ * a v dílnách tesařů je méně než vozů, které ves chce (`cartsWanted`), a zakázek; jinak null.
+ * Vozy na cestě a v dílnách se počítají, aby tesař nezačal vůz navíc za vůz, který se vrátí nebo
+ * se už dělá (návrh Clauda).
+ */
+function cartToMake(state: VillageState, day: number): CartKind | null {
+  const missing = missingCart(state);
+  if (missing) return missing;
+  const orders = orderTargets(state, day);
+  const good = CART_GOODS.find((g) => {
+    const kind = cartGoodKind(g);
+    return orders[g] > 0 && cartsHad(state)[kind] < cartsWanted(state, kind) + orders[g];
+  });
+  return good ? cartGoodKind(good) : null;
+}
+
+/**
+ * Dřevěné nářadí, do kterého tesař vyrábí (kg): zásoba vsi (`craftTargets`) a zakázky
+ * (`orderTargets` – markets.md, Rozhodnutí plánu 3, bod 6).
+ */
+function woodToolsTargetKg(state: VillageState, day: number): number {
+  return craftTargets(state, day).woodToolsKg + orderTargets(state, day).woodTools;
+}
+
+/**
+ * Co tesař vyrobí dál: rozdělaný vůz, chybějící vůz nebo vůz na zakázku (`cartToMake`), nebo
+ * dřevěné nářadí do zásoby a zakázek; jinak null. Vůz, který čeká na kování, se nepočítá – tesař
+ * mezitím dělá nářadí (wagons.md – Kování vozů).
  */
 function nextProduct(
   state: VillageState,
   day: number,
   workshop: Workshop,
 ): 'cart' | 'tools' | null {
-  if (workshop.cart ? !cartAwaitingIron(workshop) : missingCart(state)) return 'cart';
-  const target = craftTargets(state, day).woodToolsKg;
+  if (workshop.cart ? !cartAwaitingIron(workshop) : cartToMake(state, day)) return 'cart';
+  const target = woodToolsTargetKg(state, day);
   return (craftStocks(state).woodToolsKg ?? 0) + EPSILON < target ? 'tools' : null;
 }
 
@@ -183,9 +213,10 @@ export function carpentryHelp(
 
 /**
  * Den tesařů (mutuje stav – krok práce po stavbách): každá obývaná dílna tesaře, která neodpočívá,
- * dá po pomoci stavbám (`help`) zbytek práce výrobě – nejdřív rozdělaný nebo chybějící vůz, pak
- * dřevěné nářadí do zásoby. Dřevo: klády v dílně, pak celé klády z hromady, jinak skácí nejbližší
- * strom (vyhrazený dílnou, pařez). Vrací, kam práce šla (rozdělení práce dne).
+ * dá po pomoci stavbám (`help`) zbytek práce výrobě – nejdřív rozdělaný, chybějící nebo vůz na
+ * zakázku, pak dřevěné nářadí do zásoby a zakázek. Dřevo: klády v dílně, pak celé klády
+ * z hromady, jinak skácí nejbližší strom (vyhrazený dílnou, pařez). Vrací, kam práce šla
+ * (rozdělení práce dne).
  */
 export function workCarpenters(
   state: VillageState,
@@ -311,7 +342,7 @@ function workCarpenter(
 
   for (let step = 0; step < MAX_STEPS && left > EPSILON; step++) {
     if (!workshop.cart) {
-      const kind = missingCart(state);
+      const kind = cartToMake(state, day);
       if (kind) {
         const logs = CARPENTRY.cartLogs[kind];
         if ((workshop.timber ?? 0) + EPSILON < logs) {
@@ -332,7 +363,7 @@ function workCarpenter(
       // hotová dřevěná práce – vůz čeká na kování (cartIronDay), tesař pokračuje nářadím
       continue;
     }
-    const short = craftTargets(state, day).woodToolsKg - (stocks.woodToolsKg ?? 0);
+    const short = woodToolsTargetKg(state, day) - (stocks.woodToolsKg ?? 0);
     if (short <= EPSILON) break;
     if ((workshop.timber ?? 0) <= EPSILON) {
       if (!getLog() && (noWood || left <= EPSILON)) break;

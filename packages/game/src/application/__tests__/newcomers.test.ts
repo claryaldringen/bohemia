@@ -137,7 +137,13 @@ async function setup(
         id: villageId,
         state: { people: [{ id: 1, name: villageId.slice(-1).toUpperCase() }] },
       } as unknown as VillageRecord),
-    inbox: { post: () => Promise.resolve(null), pending: () => Promise.resolve([]) },
+    inbox: {
+      post: () => Promise.resolve(null),
+      pending: () => Promise.resolve([]),
+      pruneUsed: () => Promise.resolve(0),
+      strandedResults: () => Promise.resolve([]),
+      dropStranded: () => Promise.resolve(0),
+    },
   };
   return {
     deps: {

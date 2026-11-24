@@ -1,6 +1,7 @@
 import type { VillageHolds } from './village-holds';
 import type { VillageDigest, VillageState, VillageYearRow } from '../domain/village';
 import type { VillageInbox } from './inbox';
+import type { NearbyRefresh } from './nearby';
 
 /** Uložená ves – stav simulace s verzí pro optimistické zamykání. */
 export interface VillageRecord {
@@ -122,6 +123,12 @@ export interface VillageRepository {
    * ves počítat, když u ní stojí tažení. Chybí (testy, kalibrace) – žádná tažení, žádná mez.
    */
   readonly holds?: VillageHolds;
+  /**
+   * Okolí vsi v pevné dny (nearby.ts) – dopočet (`updateVillage`) před dopočtem přes den obnovy
+   * zapíše do schránky snímek vsí na sousedních mapách. Chybí (testy jádra, kalibrace) – okolí se
+   * nezapisuje.
+   */
+  readonly nearby?: NearbyRefresh;
 }
 
 /**

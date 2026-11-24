@@ -295,7 +295,9 @@ describe('trh ve vsi hostitele – koně', () => {
       D,
       arrival({ goods: { mares: 1 }, horses: [], wants: { grain: 2_000 } }),
     );
-    expect(events).toEqual([{ day: D, kind: 'market-arrived', villageName: 'Vlkov', goods: {} }]);
+    expect(events).toEqual([
+      { day: D, kind: 'market-arrived', villageName: 'Vlkov', goods: {}, villageId: 'h' },
+    ]);
     expect(s.market!.visitors[0]!.goods).toEqual({});
     marketDay(s, D);
     const result = resultOf(s, 'market:h:1');
@@ -341,10 +343,17 @@ describe('trh ve vsi hostitele – příjezd, výsledek a zprávy', () => {
       good: 'mares',
       horse: { bornDay: D - 5 * 365, sex: 'female', training: 0 },
     };
-    const a = arrival({ goods: { grain: 600, mares: 1 }, horses: [mare] });
+    const a = arrival({ goods: { grain: 600, mares: 1 }, horses: [mare], firstStep: 'E' });
     const chronicle = joinMarket(s, D, a);
+    // kronika nese ves výpravy (Rozhodnutí plánu 3, bod 15), výprava směr od své vsi
     expect(chronicle).toEqual([
-      { day: D, kind: 'market-arrived', villageName: 'Vlkov', goods: { grain: 600, mares: 1 } },
+      {
+        day: D,
+        kind: 'market-arrived',
+        villageName: 'Vlkov',
+        goods: { grain: 600, mares: 1 },
+        villageId: 'h',
+      },
     ]);
     expect(s.market!.prices).toEqual({});
     expect(s.market!.nextOrder).toBe(2);
@@ -353,6 +362,7 @@ describe('trh ve vsi hostitele – příjezd, výsledek a zprávy', () => {
         key: 'market:h:1',
         fromVillageId: 'h',
         fromName: 'Vlkov',
+        firstStep: 'E',
         order: 1,
         arrivedDay: D,
         lastDay: D,
@@ -365,7 +375,10 @@ describe('trh ve vsi hostitele – příjezd, výsledek a zprávy', () => {
         boughtHorses: [],
       },
     ]);
-    expect(s.market!.arrivals).toEqual([{ name: 'Vlkov', day: D, goods: ['grain', 'mares'] }]);
+    expect(s.market!.arrivals).toMatchObject([
+      { name: 'Vlkov', day: D, goods: ['grain', 'mares'] },
+    ]);
+    expect(s.market!.arrivals[0]!.villageId).toBe('h');
     expect(s.news).toEqual([{ villageId: 'h', name: 'Vlkov', report }]);
 
     // týž klíč podruhé nic neudělá
@@ -457,5 +470,24 @@ describe('trh ve vsi hostitele – příjezd, výsledek a zprávy', () => {
     });
     expect(marketArrivalRef('market:h:1')).toBe('market:h:1:in');
     expect(marketResultRef('market:h:1')).toBe('market:h:1:out');
+  });
+});
+
+describe('kovář souseda na trhu hostitele (plán 3, Úloha 11)', () => {
+  it('příjezd se službou nese `smith` v kronice i v paměti příjezdů – zobrazí se jako kovář', () => {
+    const m = marketVillage();
+    const events = joinMarket(
+      m,
+      D,
+      arrival({ goods: { ironBars: 1 }, service: { kind: 'shoeing', horses: 0 } }),
+    );
+    expect(events.find((e) => e.kind === 'market-arrived')).toMatchObject({ smith: true });
+    expect(m.market!.arrivals).toMatchObject([
+      { name: 'Vlkov', day: D, goods: ['ironBars'], smith: true },
+    ]);
+    // obchodník bez služby `smith` nenese
+    const other = marketVillage();
+    joinMarket(other, D, arrival());
+    expect(other.market!.arrivals[0]).not.toHaveProperty('smith');
   });
 });

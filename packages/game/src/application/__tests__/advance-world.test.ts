@@ -25,6 +25,7 @@ import { awakeSince } from '../activity';
 import { dynastyForVillage } from '../dynasty-for-village';
 import { isFullVillage } from '../villages';
 import { loadVillage } from '../load-village';
+import { NEARBY_REFRESH_DAYS, nearbyDays } from '../nearby';
 import type { LandscapeSource } from '../settlements';
 import { deliverVillageMail } from '../village-mail';
 import type { PlayerLock } from '../locks';
@@ -33,7 +34,18 @@ import { InMemorySettlements } from './in-memory-settlements';
 import { InMemoryTimeOffsets } from './in-memory-time-offsets';
 import { InMemoryVillages } from './in-memory-villages';
 import { InMemoryWorldQueue } from './in-memory-world-queue';
-import { H_PLAYER, M_PLAYER, marketWorld, returnedOf, type MarketWorld } from './market-world';
+import {
+  H_PLAYER,
+  M_PLAYER,
+  askBride,
+  bornMinusDied,
+  kinWorld,
+  marketWorld,
+  peopleOfWorld,
+  returnedOf,
+  type MarketWorld,
+} from './market-world';
+import { DAUGHTER, SON } from '../../domain/village/people/__tests__/kin-match-fixtures';
 
 const TODAY = DAY + 30;
 const landscape = makeLandscape({ size: 48 });
@@ -600,5 +612,207 @@ describe('pošta mezi vsemi ve workeru (village-mail.ts; markets.md – Rozhodnu
     }
     expect(JSON.stringify(worker.state(worker.h))).toBe(JSON.stringify(manual.state(manual.h)));
     expect(JSON.stringify(worker.state(worker.m))).toBe(JSON.stringify(manual.state(manual.m)));
+  });
+});
+
+describe('okolí vsi v pevné dny (nearby.ts; markets.md – Rozhodnutí plánu 3, bod 1)', () => {
+  /** Den obnovy okolí mezi dopočítávanými dny (TODAY − 23, TODAY] – den kalendáře dělitelný mezí. */
+  const REFRESH = TODAY - 15;
+
+  /** Svět s okolím (`villages.nearby` jako úložiště v DB) a vsí samotnou na mapě v den TODAY − 23. */
+  const lone = async (): Promise<{ world: World; id: string }> => {
+    const world = new World();
+    world.villages.withNearby(world.settlements);
+    const [id] = await world.player('hrac-a', [tracked(FAMILY, TODAY - 23)]);
+    // převody starší vsi počítají od dne prvního načtení (jako „po N dnech“ výš)
+    await loadVillage(world.deps, { villageId: id!, today: TODAY - 23, landscape });
+    return { world, id: id! };
+  };
+
+  /** Svět s okolím a dvěma vsemi hráče na sousedních mapách (0,0) a (1,0) v den TODAY − 23. */
+  const pair = async (): Promise<{ world: World; ids: string[] }> => {
+    const world = new World();
+    world.villages.withNearby(world.settlements);
+    const ids = await world.player('hrac-a', [
+      tracked(FAMILY, TODAY - 23),
+      tracked(FAMILY, TODAY - 23),
+    ]);
+    for (const id of ids)
+      await loadVillage(world.deps, { villageId: id, today: TODAY - 23, landscape });
+    return { world, ids };
+  };
+
+  /** Okolí první vsi z `pair` – druhá ves na východ, snímek ze dne obnovy. */
+  const firstNearby = (ids: string[]): VillageState['nearby'] => ({
+    day: REFRESH,
+    self: { villageId: ids[0]!, name: 'Ves 0' },
+    villages: [{ villageId: ids[1]!, name: 'Ves 1', cells: 1, firstStep: 'E' }],
+  });
+
+  /** Dny událostí `nearby` ve schránce vsi. */
+  const nearbyDays = async (world: World, id: string): Promise<number[]> =>
+    (await world.villages.inbox.pending(id, -1, TOTAL_GAME_DAYS))
+      .filter((e) => e.body.kind === 'nearby')
+      .map((e) => e.day);
+
+  it('dávka končí den před dnem obnovy, na něm i den po něm – týž stav, snímek ze dne obnovy', async () => {
+    const load = (world: World, id: string, today: number): Promise<unknown> =>
+      loadVillage(world.deps, { villageId: id, today, landscape });
+    // den před: přes den obnovy se ještě nepočítá – nic se nezapíše
+    const before = await pair();
+    const b = before.ids[0]!;
+    await load(before.world, b, REFRESH - 1);
+    expect(before.world.state(b).nearby).toBeUndefined();
+    expect(await nearbyDays(before.world, b)).toEqual([]);
+    await load(before.world, b, REFRESH + 1);
+    expect(before.world.state(b).nearby).toEqual(firstNearby(before.ids));
+    expect(await nearbyDays(before.world, b)).toEqual([REFRESH]);
+
+    // na dni obnovy: snímek je ve stavu hned, další dávka už nic nezapíše
+    const at = await pair();
+    const a = at.ids[0]!;
+    await load(at.world, a, REFRESH);
+    expect(at.world.state(a).nearby).toEqual(firstNearby(at.ids));
+    await load(at.world, a, REFRESH + 1);
+    expect(await nearbyDays(at.world, a)).toEqual([REFRESH]);
+
+    // den po: vcelku
+    const after = await pair();
+    const c = after.ids[0]!;
+    await load(after.world, c, REFRESH + 1);
+    expect(await nearbyDays(after.world, c)).toEqual([REFRESH]);
+
+    const expected = JSON.stringify(after.world.state(c));
+    expect(JSON.stringify(before.world.state(b))).toBe(expected);
+    expect(JSON.stringify(at.world.state(a))).toBe(expected);
+  });
+
+  it.each([1, 3, 10])(
+    'dvě vsi na sousedních mapách po %i dnech = jeden loadVillage, i se snímky okolí',
+    async (stepDays) => {
+      const whole = await pair();
+      for (const id of whole.ids) {
+        await loadVillage(whole.world.deps, { villageId: id, today: TODAY, landscape });
+      }
+      const [first, second] = whole.ids;
+      expect(whole.world.state(first!).nearby).toEqual(firstNearby(whole.ids));
+      expect(whole.world.state(second!).nearby).toEqual({
+        day: REFRESH,
+        self: { villageId: second!, name: 'Ves 1' },
+        villages: [{ villageId: first!, name: 'Ves 0', cells: 1, firstStep: 'W' }],
+      });
+
+      const worker = await pair();
+      expect(await worker.world.untilIdle(stepDays)).toBe(Math.ceil(23 / stepDays));
+      for (const id of worker.ids) {
+        expect(JSON.stringify(worker.world.state(id))).toBe(JSON.stringify(whole.world.state(id)));
+        expect(await nearbyDays(worker.world, id)).toEqual([REFRESH]);
+      }
+    },
+  );
+
+  it.each([1, 3, 10])(
+    'ves sama na mapě po %i dnech = jeden loadVillage přes stejné dny, i s okolím',
+    async (stepDays) => {
+      expect(REFRESH % NEARBY_REFRESH_DAYS).toBe(0);
+      const whole = await lone();
+      const once = await loadVillage(whole.world.deps, {
+        villageId: whole.id,
+        today: TODAY,
+        landscape,
+      });
+      // snímek ze dne obnovy – ves bez sousedů dostane prázdný
+      expect(once!.state.nearby).toEqual({
+        day: REFRESH,
+        self: { villageId: whole.id, name: 'Ves 0' },
+        villages: [],
+      });
+      expect(await nearbyDays(whole.world, whole.id)).toEqual([REFRESH]);
+      const expected = JSON.stringify(once!.state);
+
+      const worker = await lone();
+      expect(await worker.world.untilIdle(stepDays)).toBe(Math.ceil(23 / stepDays));
+      expect(JSON.stringify(worker.world.state(worker.id))).toBe(expected);
+      expect(await nearbyDays(worker.world, worker.id)).toEqual([REFRESH]);
+
+      // worker jedno kolo, zbytek dopočte web při pohledu
+      const mixed = await lone();
+      await mixed.world.step(stepDays);
+      const view = await dynastyForVillage(mixed.world.deps, {
+        playerId: 'hrac-a',
+        villageId: mixed.id,
+        today: TODAY,
+      });
+      const shown = view.villages[0]!;
+      expect(isFullVillage(shown) ? JSON.stringify(shown.state) : null).toBe(expected);
+      expect(await nearbyDays(mixed.world, mixed.id)).toEqual([REFRESH]);
+    },
+  );
+
+  it('ves dopočtená webem: worker kvůli okolí nic nenačte ani nezapíše', async () => {
+    const { world, id } = await lone();
+    await loadVillage(world.deps, { villageId: id, today: TODAY, landscape });
+    const finds = world.villages.finds;
+    const version = world.villages.records.get(id)!.version;
+    const step = await advancePlayer(world.deps, {
+      playerId: 'hrac-a',
+      today: TODAY,
+      stepDays: WORLD_STEP_DAYS,
+    });
+    expect(step).toMatchObject({ outcome: 'done', villages: 0, days: 0 });
+    // jen pošta (`deliverVillageMailSafely` – jedno načtení), okolí ze dne obnovy už ve stavu je
+    expect(world.villages.finds - finds).toBe(1);
+    expect(world.villages.records.get(id)!.version).toBe(version);
+    expect(await nearbyDays(world, id)).toEqual([REFRESH]);
+  });
+});
+
+describe('pošta plánu 3 a svět (village-mail.ts; markets.md – Rozhodnutí plánu 3, bod 13)', () => {
+  it('kola advancePlayer obou hráčů po dotazu kin-ask dovedou nevěstu do H, nikdo nevznikne ani nezmizí', async () => {
+    const w = await kinWorld({ nearby: true });
+    const total = await peopleOfWorld(w);
+    await askBride(w, DAY + 1);
+    for (let day = DAY + 1; day <= DAY + 5; day++) {
+      for (const playerId of [M_PLAYER, H_PLAYER]) {
+        await advancePlayer(w.deps, { playerId, today: day, stepDays: WORLD_STEP_DAYS });
+        // po každém kole: lidé ve vsích a v nákladu výprav, kromě porodů a úmrtí
+        expect((await peopleOfWorld(w)) - bornMinusDied(w, DAY)).toBe(total);
+      }
+    }
+    const h = w.state(w.h);
+    const son = h.people.find((p) => p.id === SON)!;
+    const bride = h.people.find((p) => p.id === son.spouseId)!;
+    expect(bride).toMatchObject({ sex: 'female', spouseId: SON, origin: 'E' });
+    expect(h.chronicle).toContainEqual(
+      expect.objectContaining({ kind: 'bride-from-outside', villageName: 'Lhota', villageId: w.m }),
+    );
+    const m = w.state(w.m);
+    expect(m.people.map((p) => p.id)).not.toContain(DAUGHTER);
+    expect(m.emigrants).toContainEqual(expect.objectContaining({ id: DAUGHTER, direction: 'W' }));
+    // doprovod je doma, výprava zmizela s prázdným výsledkem
+    expect(m.trade?.expeditions.filter((e) => e.kind === 'market') ?? []).toEqual([]);
+    expect([h.outbox, m.outbox]).toEqual([undefined, undefined]);
+  });
+
+  it('worker okolí obnoví jen v den obnovy (NEARBY_REFRESH_DAYS) – kola mezi nimi ho nepíšou', async () => {
+    const w = await kinWorld({ nearby: true });
+    const end = DAY + 70;
+    const due = nearbyDays(DAY, end);
+    expect(due).toHaveLength(2);
+    const versions: number[] = [];
+    for (let round = 0; ; round++) {
+      expect(round).toBeLessThan(20);
+      const step = await advanceWorldStep(w.deps, { worldDay: end, stepDays: 10, limit: 10 });
+      if (step.idle) break;
+      versions.push(w.version(w.h));
+    }
+    expect(versions.length).toBeGreaterThan(due.length);
+    for (const id of [w.h, w.m]) {
+      const events = await w.villages.inbox.pending(id, -1, TOTAL_GAME_DAYS);
+      expect(events.filter((e) => e.body.kind === 'nearby').map((e) => e.day)).toEqual(due);
+      expect(w.state(id).nearby).toMatchObject({ day: due.at(-1), self: { villageId: id } });
+    }
+    expect(w.state(w.h).nearby!.villages.map((v) => v.villageId)).toEqual([w.m]);
+    expect(w.state(w.m).nearby!.villages.map((v) => v.villageId)).toEqual([w.h]);
   });
 });

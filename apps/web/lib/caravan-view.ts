@@ -9,6 +9,7 @@ import {
   ageYears,
   isCattleGood,
   isLivestockGood,
+  isPeopleGood,
   ironTripLine,
   legacyNeighbourName,
   purchaseRoute,
@@ -38,9 +39,14 @@ function leavingOf(e: TradeExpedition, day: number): SceneExpedition['leaving'] 
   }));
 }
 
-/** Nesou nosiči něco – zboží mimo dobytek a koně (ti jdou po svých s honákem). */
+/**
+ * Nesou nosiči něco – zboží mimo dobytek a koně (ti jdou po svých s honákem) a lidi (jdou po svých –
+ * markets.md, Rozhodnutí plánu 3, bod 10).
+ */
 function carries(goods: TradeGoods): boolean {
-  return Object.entries(goods).some(([g, n]) => !isLivestockGood(g) && (n ?? 0) > 0);
+  return Object.entries(goods).some(
+    ([g, n]) => !isLivestockGood(g) && !isPeopleGood(g) && (n ?? 0) > 0,
+  );
 }
 
 /** Dobytek ve zboží – krávy a voli (mladí i vycvičení) – trade.md, Dobytek ve třech druzích. */

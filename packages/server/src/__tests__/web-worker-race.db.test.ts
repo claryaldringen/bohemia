@@ -28,6 +28,7 @@ import {
   type LandscapeSource,
   type PlayerLock,
   type TileCell,
+  type VillageEventBody,
   type VillageRepository,
   type VillageState,
   type WorldStepDeps,
@@ -263,12 +264,16 @@ interface RaceResult {
   final: Map<string, { name: string; state: VillageState }>;
 }
 
-/** Řádek schránky vsi (den použití přidělila schránka). */
+/**
+ * Řádek schránky vsi (den použití přidělila schránka): cizí události třetího procesu (`name` =
+ * `race-<n>`) i okolí, které zapsal worker a web (`nearby` – `name` prázdné).
+ */
 interface InboxRow {
   villageId: string;
   day: number;
   seq: number;
   name: string;
+  body: VillageEventBody;
 }
 
 /** Jméno z události kroniky zapsané třetím procesem (`race-<n>`). */
@@ -400,6 +405,7 @@ async function race(webLock: boolean, withEvents = false): Promise<RaceResult> {
     seq: row.seq,
     name:
       row.body.kind === 'chronicle' && 'name' in row.body.event ? String(row.body.event.name) : '',
+    body: row.body,
   }));
   await Promise.all([worker.close(), web.close(), sender?.$client.end()]);
   return { seeded, log, posted, duplicates, inbox, actions, views, busy, failed, final };
@@ -415,17 +421,15 @@ async function reference(
   for (const [i, s] of result.seeded.entries()) {
     ids.set(s.villageId, (await villages.add(`mapa-${i}`, NAMES[i]!, s.state)).id);
   }
-  // události schránky ve dnech, které přidělila schránka (jeden proces je použije stejně)
+  // události schránky ve dnech, které přidělila schránka (jeden proces je použije stejně) – i okolí
+  // (nearby.ts), které zapsal worker a web
   for (const row of result.inbox) {
     villages.inbox.events.push({
       id: `row-${row.seq}`,
       villageId: ids.get(row.villageId)!,
       day: row.day,
       seq: row.seq,
-      body: {
-        kind: 'chronicle',
-        event: { day: row.day, kind: 'line-named', name: row.name },
-      },
+      body: structuredClone(row.body),
     });
   }
   const names = new Map<string, string>();
@@ -509,16 +513,25 @@ describe('souběh web × worker nad bohemia_test', () => {
       expect(village.name).toBe(want.name);
       expect(canonical(village.state)).toBe(canonical(want.state));
     }
+    // okolí (nearby.ts) prošlo schránkou v DB: dvě vsi hráče b na sousedních mapách se znají
+    const [b1, b2] = result.seeded.filter((s) => s.playerId === 'hrac-b').map((s) => s.villageId);
+    expect(result.final.get(b1!)!.state.nearby?.villages.map((v) => v.villageId)).toEqual([b2]);
+    expect(result.final.get(b2!)!.state.nearby?.villages.map((v) => v.villageId)).toEqual([b1]);
   });
 
   it('se schránkou vsi: cizí události nikdy nezmizí ani se nepoužijí dvakrát, výsledek = jeden proces', async () => {
     const result = await race(true, true);
     expect(result.failed).toEqual([]);
     expect(result.posted).toBeGreaterThan(20);
-    // opakovaný `ref` schránka zahodila – řádků je přesně tolik, kolik zápisů uspělo
+    // opakovaný `ref` schránka zahodila – řádků je přesně tolik, kolik zápisů uspělo (okolí,
+    // které zapsal worker a web, je ve schránce navíc)
+    const foreign = result.inbox.filter((row) => row.name.startsWith(EVENT_PREFIX));
     expect(result.duplicates).toBeGreaterThan(0);
-    expect(result.inbox).toHaveLength(result.posted);
-    expect(new Set(result.inbox.map((row) => row.name)).size).toBe(result.posted);
+    expect(foreign).toHaveLength(result.posted);
+    expect(new Set(foreign.map((row) => row.name)).size).toBe(result.posted);
+    expect(result.inbox.length - foreign.length).toBe(
+      result.inbox.filter((row) => row.body.kind === 'nearby').length,
+    );
     // zápis do schránky zvedá verzi – rozběhnutý dopočet smí narazit na konflikt a zopakovat se
     const computed = checkSegments(result);
     for (const days of computed.values()) expect(days).toBeGreaterThanOrEqual(DAYS);
@@ -531,14 +544,14 @@ describe('souběh web × worker nad bohemia_test', () => {
         .filter((e) => e.kind === 'line-named' && e.name.startsWith(EVENT_PREFIX))
         .map((e) => (e.kind === 'line-named' ? e.name : ''))
         .sort();
-      const due = result.inbox
+      const due = foreign
         .filter((row) => row.villageId === villageId && row.day <= village.state.lastDay)
         .map((row) => row.name)
         .sort();
       expect(applied).toEqual(due);
     }
     // vždy aspoň nějaká událost doběhla do kroniky (test by jinak nic neověřoval)
-    expect(result.inbox.some((row) => row.day <= END)).toBe(true);
+    expect(foreign.some((row) => row.day <= END)).toBe(true);
   });
 
   it('bez zámku webu chrání ves verze: konflikty smí být, nic se neztratí ani nerozbije', async () => {

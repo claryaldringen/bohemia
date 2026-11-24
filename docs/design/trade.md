@@ -86,7 +86,7 @@ Smyšlení sousedé skončili (markets.md – Rozhodnutí plánu 1); do plánu 2
 
 ## Výměna lidí
 
-Smyšlení sousedé skončili (markets.md – Rozhodnutí plánu 1); do plánu 2 nic. Dřívější text je v [historii](history/trade-history.md).
+Smyšlení sousedé skončili (markets.md – Rozhodnutí plánu 1). **Od 24. 11. 2026 je výměna lidí zboží na trhu** (markets.md – Rozhodnutí plánu 3, bod 10): hráč a správce posílají rodiny, svobodné muže a ženy výpravou na trh, hostitel je kupuje, když má půdy víc než práce (`peopleWanted`), a nabízí podle výhledu přebytku lidí. Vesničané lidi neprodávají ani nekupují. Cena rodiny je jedna bez ohledu na počet dětí (dva dospělí, děti v ceně). Prodaní se usadí u kupce, neprodaní se vrátí s původními id. Dřívější text je v [historii](history/trade-history.md).
 
 ## Hřivny místo nástrojů (20. 10. 2026)
 

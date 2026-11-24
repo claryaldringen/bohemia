@@ -169,7 +169,22 @@ export function chronicle(state: VillageState, name: string): VillageView['chron
       ...(event.kind === 'structure-fell' || event.kind === 'structure-repaired'
         ? { structure: event.structure }
         : {}),
-      ...(event.kind === 'newcomer' ? { group: event.group, direction: event.direction } : {}),
+      ...(event.kind === 'newcomer'
+        ? {
+            group: event.group,
+            direction: event.direction,
+            ...(event.villageName !== undefined ? { villageName: event.villageName } : {}),
+            ...(event.returned ? { returned: true as const } : {}),
+          }
+        : {}),
+      // sňatky se skutečným sousedem (plán 3): jméno vsi pro upozornění
+      ...((event.kind === 'bride-from-outside' ||
+        event.kind === 'groom-from-outside' ||
+        event.kind === 'married-away') &&
+      event.villageName !== undefined
+        ? { villageName: event.villageName }
+        : {}),
+      ...(event.kind === 'married-away' && event.groom ? { groom: true as const } : {}),
       ...(event.kind === 'emergency-slaughter' ? { animals: event.animals } : {}),
       ...((event.kind === 'team-ready' ||
         event.kind === 'team-retired' ||

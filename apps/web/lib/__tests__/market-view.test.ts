@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import {
   dayIndexOf,
   foundVillage,
+  marketTripPeople,
   planMarketTrip,
+  villageGoodStock,
   type MarketOrder,
   type MarketTarget,
   type Person,
@@ -122,6 +124,18 @@ describe('výpravy na trh na cestě', () => {
   });
 });
 
+describe('pohled dvorce bez modelu lidí na prodej (plán 3, Úloha 11, opravné kolo 2)', () => {
+  it('trh v pohledu nese jen nejvýš kolik skupin každého druhu ves dá, ne model výběru', () => {
+    const s = village();
+    const market = manorView(s, DAY)!.market;
+    expect(market).not.toHaveProperty('people');
+    for (const good of ['families', 'men', 'women'] as const) {
+      expect(market.stock[good]).toBe(villageGoodStock(s, good, DAY));
+    }
+    expect(market.stock.men).toBeGreaterThan(0);
+  });
+});
+
 describe('náhled výpravy = kontrola jádra', () => {
   const target: MarketTarget = {
     villageId: 'v-2',
@@ -138,6 +152,13 @@ describe('náhled výpravy = kontrola jádra', () => {
     'kámen bez vozu': { give: { stone: 1 }, wants: {}, stayDays: 1 },
     'málo dospělých': { give: { grain: 3_000 }, wants: {}, stayDays: 1 },
     'špatný tvar': { give: { grain: -5 }, wants: {}, stayDays: 1 },
+    // lidé na prodej nejsou nosiči (plán 3, Úloha 11): obilí 3 000 kg jde jen s tím, kdo zůstane
+    'obilí a prodaní muži': { give: { grain: 1_500, men: 2 }, wants: {}, stayDays: 1 },
+    'muži i ženy společně': { give: { grain: 1_500, men: 2, women: 2 }, wants: {}, stayDays: 1 },
+    // server bere ženy z vsi bez odcházejících mužů – náhled jen, když muži nejsou ve výběru
+    'ženy bez mužů': { give: { women: 2 }, wants: {}, stayDays: 1 },
+    'ženy bez mužů a obilí': { give: { grain: 2_900, women: 2 }, wants: {}, stayDays: 1 },
+    'víc mužů, než je': { give: { men: 9 }, wants: {}, stayDays: 1 },
   };
 
   for (const [name, order] of Object.entries(orders)) {
@@ -145,7 +166,10 @@ describe('náhled výpravy = kontrola jádra', () => {
       const s = village();
       const view = manorView(s, DAY)!;
       const plan = planMarketTrip(s, DAY, order, target);
-      const preview = marketPreview(order, view.market, target.cells);
+      // lidi z výběru spočítá server pro vybrané počty (`marketTripPeople`), bez lidí nic
+      const { families = 0, men = 0, women = 0 } = order.give;
+      const people = families + men + women > 0 ? marketTripPeople(s, DAY, order.give) : null;
+      const preview = marketPreview(order, view.market, target.cells, people);
       expect(preview.reason).toBe(plan.ok ? null : plan.reason);
       if (plan.ok) {
         expect(preview.porters).toBe(plan.porters);

@@ -5,6 +5,8 @@ import { fieldFoodShare } from '../../fields/field-food';
 import { foundVillage } from '../../core/actions';
 import { NO_CRAFTS } from '../../core/productivity';
 import { sowingCapacity } from '../../core/simulate-plan';
+import { createCropWork } from '../../core/year-plan';
+import { ableTeams } from '../../livestock/oxen';
 import type { SowingCapacity } from '../../fields/sowing';
 import { SOWERS } from '../../rules';
 import { STEWARD } from '../../rules/rules-steward';
@@ -252,5 +254,48 @@ describe('cíl polí i s prací rodu vojvody (D103 – Martin 19. 11. 2026: „A
       people: s.people.filter((p) => p.dwellingId === OUTSIDE),
     };
     expect(windows(works, false).autumn).toBeGreaterThan(windows(without, false).autumn);
+  });
+});
+
+describe('výhled vsi s nástroji (24. 11. 2026 – plán 3, závěrečná kontrola I3)', () => {
+  /** Ves se spřežením a plánem orby ozimu 20 ha, spočteným při pokrytí nástroji `planTools`. */
+  function ploughing(planTools: number): VillageState {
+    const s = village(20, 50_000);
+    s.parts = s.parts.map((p) => ({
+      ...p,
+      state: 'ready' as const,
+      sownYears: 1,
+      surface: 'meadow' as const,
+    }));
+    s.pens = [
+      {
+        id: 900,
+        species: 'team',
+        cell: { x: 3, y: 4 },
+        x: 50,
+        z: 60,
+        builtDay: SEPT - 800,
+        team: { readyDay: SEPT - 10 },
+        training: null,
+      },
+    ];
+    s.season = {
+      startDay: SEPT,
+      crops: [
+        { crop: 'winter', ...createCropWork(s.parts, SEPT, planTools, true, undefined, 'winter') },
+      ],
+    };
+    return s;
+  }
+
+  it('lepší pokrytí nástroji kapacitu polí nesníží – páry orají stejně, plán ze dne plánu', () => {
+    for (const planTools of [0, 1]) {
+      const s = ploughing(planTools);
+      expect(ableTeams(s, SEPT)).toBeGreaterThan(0);
+      const worn = stewardOutlook(s, SEPT, { ...NO_CRAFTS, tools: 0 });
+      const better = stewardOutlook(s, SEPT, { ...NO_CRAFTS, tools: 1 });
+      expect(better.laborHa).toBeGreaterThanOrEqual(worn.laborHa - 1e-9);
+      expect(better.workableHa).toBeGreaterThanOrEqual(worn.workableHa - 1e-9);
+    }
   });
 });

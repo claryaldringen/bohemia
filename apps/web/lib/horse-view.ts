@@ -19,6 +19,7 @@ import {
   type ShoeingView,
   type VillageState,
 } from '@bohemia/game';
+import { fromVillage } from './village-name-cases';
 
 /** Kůň v seznamu panelu ohrady. */
 export interface VillageHorse {
@@ -59,7 +60,7 @@ export interface VillageHorses {
   /** Seno koní na celou zimu (kg). */
   hayWinterKg: number;
   /** Kování jezdeckých koní (horses.md – Kování); ves bez jezdeckých koní null. */
-  shoeing?: ShoeingView | null;
+  shoeing?: (ShoeingView & { smithFrom: string | null }) | null;
   /** Koně po kusech od nejstaršího. */
   horses: VillageHorse[];
 }
@@ -83,6 +84,7 @@ export function horsesView(state: VillageState, day: number): VillageHorses | nu
     }))
     .sort((a, b) => b.ageYears - a.ageYears || a.id - b.id);
   const wanted = horsesWanted(state, day);
+  const shoeing = shoeingView(state, day);
   return {
     count: all.length,
     kinds: {
@@ -97,7 +99,29 @@ export function horsesView(state: VillageState, day: number): VillageHorses | nu
     grainKgPerDay: horseGrainToday(all, day),
     ungrained: horsesUngrained(state, day),
     hayWinterKg: Math.round(horseHayDailyKg(all, day, fed) * HAY_WINTER_DAYS),
-    shoeing: shoeingView(state, day),
+    shoeing: shoeing === null ? null : { ...shoeing, smithFrom: smithFrom(state) },
     horses,
   };
+}
+
+/**
+ * Ves kováře souseda (markets.md – Rozhodnutí plánu 3, bod 9): ta, od které čeká odpověď
+ * (`shoeing.asked`), jinak ta, odkud kovář koně naposled kul (`horses-shod` s `own: false`);
+ * prázdné jméno je ves, kterou cizí správce vidět nesmí; žádná – null.
+ */
+function smithFrom(state: VillageState): string | null {
+  const asked = state.shoeing?.asked;
+  if (asked) return asked.name;
+  for (let i = state.chronicle.length - 1; i >= 0; i--) {
+    const event = state.chronicle[i]!;
+    // starší záznam bez jména: „kovář ze sousední vsi“, ne „Kovář není“
+    if (event.kind === 'horses-shod' && !event.own) return event.villageName ?? '';
+  }
+  return null;
+}
+
+/** Kdo kuje koně, do popisku panelu ohrady: vlastní kovář, kovář z vsi, nebo nikdo. */
+export function shoeingSmithText(shoeing: NonNullable<VillageHorses['shoeing']>): string {
+  if (shoeing.source === 'own') return 'Kuje vlastní kovář';
+  return shoeing.smithFrom === null ? 'Kovář není' : `Kovář ${fromVillage(shoeing.smithFrom)}`;
 }

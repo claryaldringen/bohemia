@@ -172,16 +172,27 @@ export const BOY_SHARE = 105 / 205;
 // kinship.md – Sňatky (návrh Clauda): věkový rozdíl snoubenců nejvýš 15 let, když je jeden z nich
 // vdovec nebo vdova (už má děti), nejvýš 20 let (Martin, 19. 10. 2026: „Vdova by se měla snažit co
 // nejdříve vdát, ideálně ve vesnici.“ – vdovec si bral mladší ženu, mladý muž se přiženil
-// k vdově). Z okolí (Martin – varianta c, čísla návrh Clauda): svobodný muž od 18 let bez možné
-// nevěsty ve vsi si přivede ženu (16–22 let, starší muž nejvýš o povolený rozdíl mladší, ale do
-// 44 let) s pravděpodobností 30 % ročně. Ke svobodné ženě od 18 let bez možného ženicha ve vsi se
-// přižení muž z okolí (o 2 roky mladší až o 8 let starší, od 18 let) s 10 % ročně, nebo se s 20 %
-// ročně vdá pryč; k vdově, dědičce, která drží dům, nebo k ženě z domu bez mužů se přižení
-// s 50 % ročně a pryč se nevdává (Martin, 19. 10. 2026: „aby se populace co nejvíce rozrůstala“ –
-// dřív 30 % ročně jen pryč).
+// k vdově).
+// Se skutečnými sousedy (markets.md – Rozhodnutí plánu 3, body 11–12; Martin 22. 11. 2026: „se
+// sousedy je na náhodě, ze které dostupně vsi ženich nebo nevěsta bude“; 23. 11. 2026: „Jen se vdá
+// pryč“) – čísla dřívějších sňatků z okolí a dalších manželek (b4f8dadc `MARRIAGE.outside*`,
+// `LORD.extraWife*`; lord-history.md; Martin – varianta c, čísla návrh Clauda): svobodný muž od
+// `fromAge` 18 let bez možné nevěsty ve vsi se ptá sousední vsi s pravděpodobností `bridePerYear`
+// 30 % ročně; vdova, dědička, která drží dům, nebo žena z domu bez mužů se ptá na ženicha
+// s `favouredGroomPerYear` 50 % ročně (Martin, 19. 10. 2026: „aby se populace co nejvíce
+// rozrůstala“) – jiná svobodná žena se neptá, vdá se pryč jen na dotaz muže odjinud. Muž rodu
+// s 1–3 manželkami se ptá na další s `extraWifePerYear` 30 % ročně (lord.md – Manželky, „≈ 30 %“);
+// další manželka je žena `brideAge` 16–22 let.
 export const MARRIAGE = {
   maxAgeGapYears: 15,
   maxAgeGapWidowedYears: 20,
+  neighbours: {
+    fromAge: 18,
+    brideAge: { from: 16, to: 22 },
+    bridePerYear: 0.3,
+    favouredGroomPerYear: 0.5,
+    extraWifePerYear: 0.3,
+  },
 } as const;
 // kinship.md – Sňatky čekají na zásoby (Martin 27. 10. 2026: „Ano“ – návrh Clauda): dokud výhled
 // zásob z pole k příští sklizni nedosáhne pojistky (0,5 roční potřeby, v paměti hladu 0,75), čeká

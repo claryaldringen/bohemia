@@ -2,9 +2,11 @@
 // v návrhu.
 import { FOOD_NEED_KG_PER_YEAR } from './rules-fields';
 import { LORD } from './rules-lord';
+import { TRADE } from './rules-trade';
 import { FIELD_GUARD } from './rules-wildlife';
 
 import type { StewardMode } from '../steward/steward';
+import type { TradeGood } from '../types';
 
 /**
  * Rozmístění – mapa hodnot krajiny, plán sídla a výpočetní rozpočet (steward.md – Rozmístění
@@ -307,6 +309,20 @@ export const STEWARD = {
   departureFeedShare: 1.2,
   /** Odchozí schránka: kolikrát se nevybavitelný záznam zkusí vybavit, pak se nechá být. */
   departureAttempts: 5,
+  /**
+   * Krok 2a – Obilí v nouzi (markets.md – Rozhodnutí plánu 3, bod 8; steward.md – Obilí a lov
+   * v nouzi; Martin 8. 11. 2026: „A“, čísla návrh Clauda): výprava za obilím jen pro aspoň náklad
+   * jednoho nosiče (`TRADE.porterKg`).
+   */
+  grainMinKg: TRADE.porterKg,
+  /** Krok 2a – s výpravou za obilím jde nejvýš tolik dospělých vsi; ostatní drží práci vsi. */
+  grainPorterShare: 0.5,
+  /**
+   * Krok 2a – čím správce za obilí platí, v tomto pořadí: zboží, které ves nejí a bez kterého
+   * hospodaří (jako nákup osiva – jídlem ani dobytkem neplatí), napřed s nejvyšší hodnotou na kg
+   * nákladu, ať je výprava nejmenší (hřivny 45, keramika 3, uhlí 0,5, klády 0,4 kg obilí na kg).
+   */
+  grainPayment: ['ironBars', 'pottery', 'charcoal', 'logs'] as readonly TradeGood[],
   /**
    * Krok 2a – Lov v nouzi: zvěř škodí, když škoda na polích letos nebo loni dosáhne tohoto podílu
    * roční potřeby obilí z pole – stejný práh jako noční hlídka dílu (`FIELD_GUARD.night.threat`).

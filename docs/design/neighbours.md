@@ -1,6 +1,6 @@
 # Sousední vsi – vsi rodu místo smyšlených sousedů
 
-**Plán 1 obchodu hotový 23. 11. 2026:** body 13 (než syn odejde – žádný obchod, nákup, výměna lidí, koně od souseda, cizí kovář ani sňatky zvenku) a 14 (starší vsi – smyšlení sousedé zmizeli ze stavu, na cestě doběhne) jsou hotové ([markets.md](markets.md) – Rozhodnutí plánu 1); ostatní body čekají na plány 2 a 3.
+**Plán 1 obchodu hotový 23. 11. 2026:** body 13 (než syn odejde – žádný obchod, nákup, výměna lidí, koně od souseda, cizí kovář ani sňatky zvenku) a 14 (starší vsi – smyšlení sousedé zmizeli ze stavu, na cestě doběhne) jsou hotové ([markets.md](markets.md) – Rozhodnutí plánu 1); body 6 (řemeslníci souseda na zakázku), 7 (výměna lidí) a 8 (sňatky) jsou **hotové 24. 11. 2026** (plán 3 – [markets.md](markets.md), Rozhodnutí plánu 3); odchylky jsou uvedené v Pravidlech 1 a 6. Ostatní body nahradil plán 2.
 
 Stav: **rozpracovaný návrh – zbytek patří do nové kapitoly obchodu** (22. 11. 2026). Obchod se smyšlenými sousedy
 ([obchod](trade.md)) a sňatky z okolí ([příbuzenství](kinship.md)) skončily s plánem 1 obchodu 23. 11. 2026 (bod 13); body 2–5 (výpis souseda, nabídka, platba, přesun zboží) nahradil trh ve vsi ([obchod](markets.md), plán 2).
@@ -62,7 +62,7 @@ obyvatel a zakládat vsi v okolí - to jsou ty vsi, se kterými pak Vlkov může
 ## Pravidla (návrh Clauda)
 
 1. **Kdo je soused:** ves na sousední mapě (políčko mřížky světa v jednom z 8 směrů) – vlastního rodu i jiného hráče
-   (Martin), ať ji spravuje hráč, nebo správce; ne opuštěná ani vymřelá a ne rodu, se kterým je rod ve válce. Zemská stezka a cesta krajinou jako dnes (dny cesty podle délky
+   (Martin), ať ji spravuje hráč, nebo správce; ne opuštěná ani vymřelá. **Válka soused nevylučuje** – podmínku „ne rodu, se kterým je rod ve válce“ Martin neschválil a plán 2 ji odvolal (markets.md – Rozhodnutí plánu 2, bod 1; sjednoceno 24. 11. 2026, návrh Clauda). Zemská stezka a cesta krajinou jako dnes (dny cesty podle délky
    stezky, bez ní krajinou ke kraji mapy). Ruší se pravidlo, že vlastní ves na sousední mapě souseda nahradí a obchod
    s ní není ([stěhování](migration.md) – Sousedé pro obchod).
 2. **Výpis souseda:** co soused nabízí a shání, mu ves souseda pošle schránkou vsi **jednou za rok 1. 11.** (jako dnešní
@@ -81,6 +81,10 @@ obyvatel a zakládat vsi v okolí - to jsou ty vsi, se kterými pak Vlkov může
 6. **Řemeslníci souseda – i na zakázku** (Martin: „Řemeslníkovi je jedno, kdo mu platí za výrobky“): zakázka jiné vsi
    (výrobky, vůz, kování) přijde schránkou a řemeslník souseda ji vyrobí svou prací a ze surovin své vsi, v pořadí, jak
    zakázky a potřeba vlastní vsi přijdou; kupující ves platí obilím jako dnes a výrobek přijde, až je hotový a donesený.
+   **Odchylka (návrh Clauda, 24. 11. 2026 – plán 3, Rozhodnutí 6):** zakázka se zapíše **při odjezdu výpravy** a platí se
+   **při vyzvednutí**, ne „schránkou“ předem. Důvod: zápočet bez mincí nezná dluh ani platbu předem, takže ji nejde
+   zaplatit dřív, než je výrobek hotový; kdo dřív přijede a zaplatí, ten hotový kus má (zakázka ho nedrží). Řemeslník
+   bere za výrobky obilí a luštěniny vždy (Martin 24. 11. 2026, [markets.md](markets.md)).
    Kovář souseda, který chodí kovat koně do jiné vsi, chybí té dny práce ve své vsi a jeho ves dostane platbu.
 7. **Výměna lidí:** soused nabízí lidi podle výhledu přebytku lidí (práce na víc pole, než ves má) a shání je obráceně;
    skuteční lidé přecházejí i s příbuzenstvím jako při odchodu syna.

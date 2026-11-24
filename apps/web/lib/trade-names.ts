@@ -58,6 +58,17 @@ export const TRADE_GOOD_NAMES: Record<
   },
   logs: { name: 'Klády', genitive: 'klád', unit: 'ks', icon: 'wood' },
   pottery: { name: 'Keramika', genitive: 'keramiky', unit: 'kg', icon: 'pottery' },
+  // výrobky dílen na trhu (markets.md – Rozhodnutí plánu 3, bod 4) – ikony jako v panelu dílny
+  tools: { name: 'Nástroje', genitive: 'nástrojů', unit: 'kg', icon: 'tools' },
+  woodTools: {
+    name: 'Dřevěné nářadí',
+    genitive: 'dřevěného nářadí',
+    unit: 'kg',
+    icon: 'wood-tools',
+  },
+  // vozy na trhu po kusech (markets.md – Rozhodnutí plánu 3, bod 4) – ikona vozu jako ve dvorci
+  twoWheelCarts: { name: 'Dvoukoláky', genitive: 'dvoukoláků', unit: 'ks', icon: 'cart' },
+  fourWheelCarts: { name: 'Čtyřkoláky', genitive: 'čtyřkoláků', unit: 'ks', icon: 'cart' },
   ironBars: { name: 'Hřivny', genitive: 'hřiven', unit: 'kg', icon: 'iron-bars' },
   charcoal: { name: 'Uhlí', genitive: 'uhlí', unit: 'kg', icon: 'charcoal' },
   // kámen v celých m³ (trade.md – Kámen)
@@ -67,6 +78,15 @@ export const TRADE_GOOD_NAMES: Record<
   hides: { name: 'Kůže', genitive: 'kůží', unit: 'ks', icon: 'hide' },
   furs: { name: 'Kožešiny', genitive: 'kožešin', unit: 'ks', icon: 'fur' },
   wax: { name: 'Vosk', genitive: 'vosku', unit: 'kg', icon: 'wax' },
+  // lidé na trhu po skupinách (markets.md – Rozhodnutí plánu 3, bod 10) – ikony jako výměna lidí
+  families: {
+    name: 'Rodiny – muž, žena a jejich děti',
+    genitive: 'rodin',
+    unit: 'ks',
+    icon: 'family',
+  },
+  men: { name: 'Svobodní muži 16–44 let', genitive: 'svobodných mužů', unit: 'ks', icon: 'man' },
+  women: { name: 'Svobodné ženy 16–44 let', genitive: 'svobodných žen', unit: 'ks', icon: 'woman' },
 };
 
 /**
@@ -135,17 +155,41 @@ export function peopleText(
   return `${parts.slice(0, -1).join(', ')} a ${parts[parts.length - 1]}`;
 }
 
-/** Krátký řádek a věta kroniky, kdo přišel od souseda (trade.md – Výměna lidí). */
-export const NEWCOMER_TEXTS: Record<NewcomerGroup, { notice: string; chronicle: string }> = {
-  family: { notice: 'Přišla rodina', chronicle: 'přišla rodina' },
-  man: { notice: 'Přišel muž', chronicle: 'přišel svobodný muž' },
-  woman: { notice: 'Přišla žena', chronicle: 'přišla svobodná žena' },
+/**
+ * Krátký řádek a věta kroniky, kdo přišel od souseda (trade.md – Výměna lidí); `back` – vrátili se
+ * lidé, které ves prodala, protože ves kupce zanikla (markets.md – Rozhodnutí plánu 3, bod 13).
+ */
+export const NEWCOMER_TEXTS: Record<
+  NewcomerGroup,
+  { notice: string; chronicle: string; back: string; backNotice: string }
+> = {
+  family: {
+    notice: 'Přišla rodina',
+    chronicle: 'přišla rodina',
+    back: 'se vrátila prodaná rodina',
+    backNotice: 'Vrátila se prodaná rodina',
+  },
+  man: {
+    notice: 'Přišel muž',
+    chronicle: 'přišel svobodný muž',
+    back: 'se vrátil prodaný muž',
+    backNotice: 'Vrátil se prodaný muž',
+  },
+  woman: {
+    notice: 'Přišla žena',
+    chronicle: 'přišla svobodná žena',
+    back: 'se vrátila prodaná žena',
+    backNotice: 'Vrátila se prodaná žena',
+  },
 };
 
-/** Množství zboží s jednotkou („120 kg obilí“, „2 ks krav“) – pro kroniku. */
+/**
+ * Množství zboží s jednotkou v celých číslech („120 kg obilí“, „2 ks krav“) – pro kroniku; co se
+ * zaokrouhlí na nulu (zbytek gramů), se nepíše.
+ */
 export function goodsText(goods: TradeGoods): string {
   const items = (Object.entries(goods) as [TradeGood, number][])
-    .filter(([, amount]) => amount > 0)
+    .filter(([, amount]) => Math.round(amount) > 0)
     .map(([good, amount]) => {
       const { unit, genitive } = TRADE_GOOD_NAMES[good];
       return `${formatInteger(amount)} ${unit} ${genitive}`;

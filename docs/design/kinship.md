@@ -1,6 +1,6 @@
 # Příbuzenství a pohlaví – rodiny ve vsi
 
-> **Od 23. 11. 2026 se nevěsty ani ženichové z okolí nepřivádějí** (Martin 22. 11. 2026 – [sousední vsi](neighbours.md), Martinova rozhodnutí, Sňatky; markets.md – Pravidla 1); zmínky níž o „okolí“ jsou dřívější stav, sňatky se skutečnými sousedy přijdou s plánem 3.
+> **Od 23. 11. 2026 se nevěsty ani ženichové z okolí nepřivádějí** (Martin 22. 11. 2026 – [sousední vsi](neighbours.md), Martinova rozhodnutí, Sňatky; markets.md – Pravidla 1); zmínky níž o „okolí“ jsou dřívější stav. **Od 24. 11. 2026 se partner zase přivádí, ale ze skutečné sousední vsi** (plán 3 – Sňatky, Se skutečnými sousedy níž).
 
 Stav: **23. 11. 2026 Martin zrušil hlídání příbuzenství u sňatků.** Na otázku, odkud ves bez spojení s okolím
 vezme nevěsty a ženichy (sonda: zákaz do bratranců zakázal ve Vlkově od roku 923 každý možný pár): „Vynechme
@@ -71,7 +71,16 @@ dědictví, sňatky a nástupnictví potřebují vědět, kdo je čí. Postavy v
   dům ona a on ne, přižení se on k ní** (Martin: „Když drží vlastní dům (vdova s dětmi), muž se
   k ní přiženit smí – přestěhuje se on, když není dědicem svého domu.“). Kdo se stěhuje, vezme
   s sebou **vlastní děti mladší 16 let**. Kronika „Svatba“ jako dnes.
-- **Z okolí:** ves se sňatky z okolí nepočítá – lidé se berou mezi sebou (Martin 22. 11. 2026: „…dokud bude vesnice bez spojení s okolím, ať se lidé berou mezi sebou…“ – [sousední vsi](neighbours.md), Martinova rozhodnutí, Sňatky; markets.md – Pravidla 1); sňatky se skutečnými sousedy přijdou s plánem 3. Dřívější pravidla jsou v [historii](history/kinship-history.md).
+- **Se skutečnými sousedy** (plán 3 obchodu, 24. 11. 2026; [markets.md](markets.md) – Rozhodnutí plánu 3, bod 11).
+  Martin 22. 11. 2026: „se sousedy je na náhodě, ze které dostupně vsi ženich nebo nevěsta bude“; 23. 11. 2026 na
+  otázku „Má si i svobodná žena, která nedrží dům, hledat ženicha v sousední vsi sama, nebo se jen vdá pryč, když se
+  na ni zeptá muž odjinud?“ zvolil možnost **„Jen se vdá pryč“** (popis možnosti od Clauda: „Ženicha hledá muž, nevěsta
+  jde k němu jako při svatbě ve vsi. Sama se ptá jen vdova a dcera z domu bez mužů, jak jsi rozhodl 19. 10. 2026.“).
+  Podrobnosti jsou návrh Clauda: ves s okolím se ptá po svobodném od 18 let, který ve vsi nemá s kým (muž ≈ 30 % ročně,
+  vdova nebo dědička ≈ 50 % ročně, svobodná žena bez domu nikdy); kam, rozhodne los jen mezi sousedy, kteří mají vhodného
+  svobodného (údaj `singles` v okolí – sňatek se nehledá naslepo); partner přijde sám (bez dětí), žena k muži, ženich k vdově,
+  a ve své vsi „se vdala pryč“ / „přiženil se pryč“. Vdova, dědička a žena z domu bez mužů se pryč nevdává, rod nepřichází o muže.
+- **Z okolí (dřívější stav):** ves se sňatky z okolí nepočítala – lidé se berou mezi sebou (Martin 22. 11. 2026: „…dokud bude vesnice bez spojení s okolím, ať se lidé berou mezi sebou…“ – [sousední vsi](neighbours.md), Martinova rozhodnutí, Sňatky; markets.md – Pravidla 1); sňatky se skutečnými sousedy přijdou s plánem 3. Dřívější pravidla jsou v [historii](history/kinship-history.md).
 - **Muži rodu vojvody** (návrh issue #9, Martin 24. 10. 2026) smějí mít víc manželek; první je
   hlavní a podle pravidel výš. Další (vedlejší) dřív přicházely jen z okolí, takže od 23. 11. 2026
   nepřibývají a vedlejší manželky mají jen zakladatelé ([vojvodova rodina](lord.md) – Manželky,

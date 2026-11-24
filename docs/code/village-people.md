@@ -226,9 +226,16 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   - **Manželky** (`dynasty-wives.ts`, lord.md – Manželky): `spouseId` je **asymetrický** – žena
     ukazuje na muže (i vedlejší), muž jen na hlavní; manželky muže = ženy s jeho id. Vedlejší
     manželka se za živého muže nevdává (`isSingle`), smrt muže ovdoví všechny (`removePeople`),
-    smrt hlavní smaže `spouseId` muže. Další manželky z okolí zanikly (markets.md – Pravidla 1,
-    konec smyšlených sousedů; kronika `extra-wife` zůstává jen ve starých záznamech) – víc manželek
-    mají jen zakladatelé a osadníci výpravy. `ensureMainWives` (v `dynastyDay` i před `arrangeMarriages` – osadníci výpravy, kde muž
+    smrt hlavní smaže `spouseId` muže. **Další manželky ze sousedních vsí** (markets.md –
+    Rozhodnutí plánu 3, bod 12, návrh Clauda; `kin-match.ts`, viz Sňatky – se sousedy): muž rodu od
+    `MARRIAGE.neighbours.fromAge` s 1–3 žijícími manželkami (`wifeCounts`, méně než
+    `LORD.maxWives` = 4) ve vsi se sledovaným rodem (`isDynastyTracked`), ne pokřtěném
+    (`rodBaptized` – christianity.md, Jediná manželka), s domem (`extraWifeHome`), se ptá s denní
+    šancí z `extraWifePerYear` 0,3 ročně (`KinSeeker.extraWife`); partnerka je žena `brideAge` 16–22
+    let bez protějšku ve své vsi. Přijde vždy do domu muže, i do přeplněného; ukazuje na muže, muž
+    dál na hlavní (muž bez žijící manželky se žení jako s nevěstou). Kronika `extra-wife` s vsí
+    (`villageName`, `villageId`; `wivesWho`). V hladu se neptá. Ves bez okolí – víc manželek mají
+    jen zakladatelé a osadníci výpravy. `ensureMainWives` (v `dynastyDay` i před `arrangeMarriages` – osadníci výpravy, kde muž
     přišel jen s vedlejší): muž bez `spouseId` se žijícími manželkami dostane hlavní – matku
     nejstaršího žijícího syna, jehož matka žije, jinak nejnižší id; jejím synům `mainWifeSon`,
     nebydlí-li s ním, přestěhuje se k němu se svobodnými dětmi i do přeplněného (kronika
@@ -264,10 +271,10 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `maxAgeGapWidowedYears` 20). Kam (`weddingHome`): **žena k muži**, i do přeplněného domu; drží-li
   dům ona a on ne (`holdsHome` – po jeho odchodu s dětmi do 16 by doma nezůstal nikdo 16–44), **on
   k ní**; drží-li oba, kde bude méně těsno, při shodě žena. Stěhuje se i s vlastními dětmi do 16
-  (`dependants`); nevěsta dostane `nextBirthFrom` (9 měsíců). Kdo ve vsi nemá s kým, zůstane
-  svobodný: nevěsta ani ženich z okolí nepřijdou a nikdo se nevdá pryč (Martin 22. 11. 2026:
-  „dokud bude vesnice bez spojení s okolím, ať se lidé berou mezi sebou“; markets.md – Pravidla 1);
-  sňatky se skutečnými sousedy vrátí plán 3.
+  (`dependants`); nevěsta dostane `nextBirthFrom` (9 měsíců – `startMarriage`). Kdo ve vsi bez
+  okolí nemá s kým, zůstane svobodný: nikdo nepřijde ani se nevdá pryč (Martin 22. 11. 2026: „dokud
+  bude vesnice bez spojení s okolím, ať se lidé berou mezi sebou“; markets.md – Pravidla 1); ves
+  s okolím se ptá sousedních vsí (Sňatky se sousedy níž).
   **Čekání na zásoby** (kinship.md – Sňatky čekají na zásoby; Martin 27. 10. 2026):
   `arrangeMarriages(state, day, storesFill)` – `simulate.ts`
   předá líně počítané naplnění pojistky `bufferFill(fieldStoresOutlook(…))` (`field-food.ts`,
@@ -277,7 +284,8 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `MARRIAGE_STORES.waitYears` × (1 − fill), vlastní los `'wedding-wait:' + den`; čekající snoubenci
   jsou ten den zabraní); nad pojistkou (`fill` ≥ 1) hned.
   Kronika `marriage` (`groomMoved`, `widow`); `bride-from-outside`, `groom-from-outside`
-  (`widow`) a `married-away` zůstávají jen ve starých záznamech; upozornění „Svatba“
+  (`widow`) a `married-away` píšou sňatky se sousedy (s vsí), staré záznamy smyšleného okolí ji
+  nemají; upozornění „Svatba“
   (`VillageView.lastMarriageDay`), staré „Nevěsta z okolí“, „Ženich z okolí“, „Dcera se vdala pryč“.
   **Svatba ve scéně** (kinship.md – Svatba ve scéně; Martin, GitHub issue #2: „Jako máme pohřeb,
   udělej i svatbu. Svatebčané půjdou na některé z posvátných míst v okolí, kde budou oddáni.“ –
@@ -294,6 +302,50 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   podle modelu `OAK_TRUNK_M`). Ukázka **Svatba** na `/dev/landscape` (dub, svatyně, nevěsta
   z okolí, náves).
 
+- **Sňatky se sousedy** (`kin-match.ts`; markets.md – Rozhodnutí plánu 3, bod 11; Martin 22. 11.
+  2026: „se sousedy je na náhodě, ze které dostupně vsi ženich nebo nevěsta bude“, a „Jen se vdá
+  pryč“ z 23. 11. 2026) – jen ves s okolím (`VillageState.nearby`):
+  - **Kdo se ptá** (`askKinDay(state, day, storesFill)` – krok dne hned za `arrangeMarriages`, ne
+    v hladu): v pořadí id má každý svobodný od `MARRIAGE.neighbours.fromAge` 18 a každý muž rodu
+    s manželkou tři losy z vlastního proudu `'kin:' + den` vždy (šance, čekání na zásoby, cílová
+    ves – losy ostatních ani jiné proudy se neposunou). Muž bez nevěsty ve vsi (`bestMatch` nic),
+    ne z přeplněného domu (`crowded`), s denní šancí `perDay(bridePerYear)` (0,3 ročně); žena jen
+    `favouredBride` (vdova, dědička – `holdsHome`, dům bez muže od 16) bez ženicha ve vsi
+    s `favouredGroomPerYear` 0,5 – **jiná svobodná žena se neptá nikdy**, vdá se pryč jen na dotaz
+    muže odjinud; muž rodu na další manželku (Manželky výš). Pod pojistkou zásob druhý los pod
+    `weddingChancePerDay(fill)`. Kdo se dnes vzal, už není svobodný, a snoubenci čekající na zásoby
+    mají protějšek – neptají se. Cíl: los `floor(los × počet)` jen mezi vsemi okolí, jejichž
+    `singles` mají protějšek (`suits` – opačné pohlaví, pásmo [ageFrom, ageFrom + 4] v rozdílu
+    `maxAgeGap(widowed)` kolem věku hledajícího, u další manželky v 16–22); žádná – dnes se neptá.
+    Do odchozí schránky `kin-ask` (`KinAsk` – klíč `kin:<ves>:<den>:<id>`, `KinSeeker` – id,
+    pohlaví, den narození, `widowed`, `extraWife`; zpráva na pivo) na den dnes + 1 + dny cesty, `ref`
+    `…:ask`. Hledající odpověď neeviduje.
+  - **Kdo přijde** (`kinCandidates(state, day)` – v pořadí id): svobodný doma (`isAway` ne – kdo je
+    pryč, z vsi neodejde), muž od 18, bez protějšku ve vsi, ne muž rodu ani jeho žena
+    (`keptByLine`), žena ne `favouredBride` (vdova, dědička ani žena z domu bez mužů se pryč
+    nevdává), bez dětí do 16 (`dependants` – jde sám), domácnost se jeho odchodem nerozpadne
+    (`householdBreaksUp`). `answerKinAsk` (větev schránky `kin-ask`, ráno před vlastními sňatky):
+    ves bez `nearby.self` nic; zpráva o hledající vsi do `news`; partner (`kinPartner` – opačné
+    pohlaví, rozdíl do `maxAgeGap`, u další manželky žena 16–22, ženich ne muž rodu; nejbližší
+    věkem, při shodě nižší id, bez losu). Pořadí, aby nikdo nezmizel: kontrola výpravy nad mělkou
+    kopií vsi bez partnera (`planMarketTrip` – nosičem není on; odmítnutí → nic se nezmění), pak
+    `sendPeople` (`removePeople` do `emigrants` ve směru hledajícího) a `departMarketInPlace` s `by:
+'kin'`, `kin` a partnerem v `people` (prázdné `give` / `wants`, pobyt `MARKET.minStayDays`,
+    doprovod `marketCrew` aspoň 1) – stejná kontrola znovu, jinak chyba programu. Kronika
+    `married-away` (`groom` u muže, `villageName`, `villageId`).
+  - **Po příjezdu** (`receiveKin` z `joinMarket`): partner se usadí s novým id a `origin`
+    (`settlePeople`); hledající žije a je svobodný (u další manželky méně než 4 žijící) → svatba
+    v jeho domě (ženich k ženě), manželé navzájem, nevěsta `startMarriage`, kronika
+    `bride-from-outside` / `groom-from-outside` (`widow`) s vsí; jinak svobodný nováček
+    (`newcomerHome`, kronika `newcomer`). Doprovod do zápočtu nevstupuje (`marketDay`), večer
+    posledního dne odjede s prázdným výsledkem (`visitor.people` se vyprázdní).
+  - **Svobodní pro okolí** (`kinSingles` – `{ sex, ageFrom: 5 × floor(věk ÷ 5) }` každého
+    z `kinCandidates`): ukládá je souhrn vsi (`VillageDigest.singles` ve dni vsi) a sken okolí
+    (`nearbyVillages`) je přepíše do `NearbyVillage.singles` (village-trade.md – Okolí vsi).
+  - **Testy:** `people/__tests__/kin-match.test.ts` (kdo se ptá, hlad, los jen mezi vhodnými, „Jen
+    se vdá pryč“, čekání na zásoby, `kinSingles`, odpověď, odmítnutá výprava, příjezd, další
+    manželky, vcelku = po kouscích a bez posunu proudů), `trade/__tests__/market-two-villages.test.ts`
+    – nevěsta ze sousední vsi (dotaz → výprava → příjezd → výsledek, součet lidí).
 - **Přestěhování domácnosti** ([migration.md](../design/migration.md), fáze 1): akce
   `startReplacement` (`actions.ts`; dnes jen správce – náhrada domu,
   village-steward.md) = nová stavba obydlí (`kind: 'dwelling'`) s

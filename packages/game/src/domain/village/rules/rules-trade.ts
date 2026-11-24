@@ -38,6 +38,22 @@ export const TRADE_GOOD_VALUES = {
   meat: { valueKg: 3, carryKg: 1 },
   cheese: { valueKg: 4, carryKg: 1 },
   pottery: { valueKg: 3, carryKg: 1 },
+  // nástroje a dřevěné nářadí (markets.md – Rozhodnutí plánu 3, bod 4): obnovená čísla dřívějšího
+  // nákupu u sousedů `CRAFT_BUYING.toolsValueKg` a `woodToolsValueKg` @ b4f8dadc (crafts.md –
+  // Nákup u sousedů, Martin 19. 10. 2026, čísla návrh Clauda) – nástroje 60 za kg (rešerše
+  // research/2026-10-18-trade-values.md – železo × 2 za kování), dřevěné nářadí 2 za kg (≈ 0,5 čd
+  // na kg – rešerše vozů); nesou se kg za kg
+  tools: { valueKg: 60, carryKg: 1 },
+  woodTools: { valueKg: 2, carryKg: 1 },
+  // vozy za kus (markets.md – Rozhodnutí plánu 3, bod 4): obnovená cena dřívějšího nákupu vozu
+  // u tesaře souseda `cartValueKg` @ b4f8dadc (crafts.md – Nákup u sousedů, Vozy; návrh Clauda –
+  // jen z čísel, která už jsou): práce tesaře (CARPENTRY.cartManDays) × den tesaře v obilí jako
+  // dřevěné nářadí (woodTools 2 kg ÷ CARPENTRY.woodToolsManDaysPerKg 0,5 čd = 4 kg za den), klády
+  // (CARPENTRY.cartLogs) po 40 a kování (CART_IRON.kg) za hodnotu nástrojů 60 – dvoukolák
+  // 25 × 4 + 1 × 40 + 3 × 60 = 320, čtyřkolák 50 × 4 + 2 × 40 + 6 × 60 = 640; nikdo ho nenese,
+  // táhnou ho voli, kteří jdou s výpravou (`MarketTrip.oxen`)
+  twoWheelCarts: { valueKg: 320, carryKg: 0 },
+  fourWheelCarts: { valueKg: 640, carryKg: 0 },
   charcoal: { valueKg: 0.5, carryKg: 1 },
   ironBars: { valueKg: 45, carryKg: 1 },
   cows: { valueKg: 600, carryKg: 0 },
@@ -60,6 +76,13 @@ export const TRADE_GOOD_VALUES = {
   wax: { valueKg: 30, carryKg: 1 },
   hides: { valueKg: 20, carryKg: 5 },
   furs: { valueKg: 8, carryKg: 1 },
+  // lidé na trhu za kus (markets.md – Rozhodnutí plánu 3, bod 4): svobodný muž nebo žena 360 –
+  // obnovené číslo dřívější výměny lidí („dospělý 360 kg obilí“, trade.md – Výměna lidí, Martin
+  // 19. 10. 2026); rodina 720 – dva dospělí, děti v ceně (návrh Clauda – trh zná jednu cenu za kus,
+  // rodina stojí stejně se 3 i s 8 lidmi). Nikdo je nenese – jdou po svých
+  families: { valueKg: 720, carryKg: 0 },
+  men: { valueKg: 360, carryKg: 0 },
+  women: { valueKg: 360, carryKg: 0 },
 } as const satisfies Record<TradeGood, { valueKg: number; carryKg: number }>;
 /**
  * horses.md – Nákup a prodej (Martin 23. 10. 2026: koně jako ostatní zvířata; čísla návrh Clauda):

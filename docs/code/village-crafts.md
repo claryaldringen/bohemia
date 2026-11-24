@@ -14,7 +14,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   syny pak jde na žeň a výmlat, `WorkshopLabor.harvest` místo `craft`, `craftHarvestLabor` →
   `allocateDay` – `harvestHands`; fields.md – Žně všemi rukama, village-fields.md), jen dokud je co dělat: **podle potřeby** (Martin 18. 10. 2026 –
   volný čas na poli) kovář a hrnčíř vyrábějí do zásoby `craftTargets` (potřeba + opotřebení za
-  rok), uhlíř má vždy milíř a z vypáleného nosí uhlí podle kování (Uhlíř níž); s plnou zásobou
+  rok) a zakázek (Výroba na zakázku níž), uhlíř má vždy milíř a z vypáleného nosí uhlí podle kování (Uhlíř níž); s plnou zásobou
   nebo bez vstupu je dílna v `restingCrafters`
   (na začátku kroku práce, hodnota `resting` / `no-charcoal` / `no-wood`) a její domácnost
   pracuje v `allocateDay` se vsí (`craftHouseholds(state, resting)`); uhlíř a hrnčíř kácejí strom po stromu (`Workshop.felling` je
@@ -187,11 +187,22 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   v `ore-site-layout.ts`), náklad `wagon{2,4}-clay`, ikona `resources/clay.png`;
   `/dev/panels?panel=hrncir`.
 
-- **Nákup u sousedů – zrušen, nákupy na cestě doběhnou** ([crafts.md](../design/crafts.md) –
-  Nákup u sousedů; [markets.md](../design/markets.md) – Pravidla 1, bod 10; Martin 22. 11. 2026:
-  „Ves by měla být schopná přežít a rozvíjet se dle současných pravidel i bez obchodu“):
-  `craft-buying.ts`. Ves výrobky řemeslníků (nástroje, keramika, dřevěné nářadí) ani vůz
-  u sousedů nekupuje – má je jen od vlastních pracujících řemeslníků (`ownCraftsmanWorks` – dílna
+- **Nákup u sousedů → na trhu** ([crafts.md](../design/crafts.md) – Nákup u sousedů;
+  [markets.md](../design/markets.md) – Pravidla 1, 9, bod 10; Rozhodnutí plánu 3, bod 7):
+  nákup u smyšlených sousedů zrušen (Martin 22. 11. 2026: „Ves by měla být schopná přežít
+  a rozvíjet se dle současných pravidel i bez obchodu“); s okolím vesničané výrobky řemeslníků
+  (nástroje, keramika, dřevěné nářadí) a vůz kupují 15. 11. na trhu nejbližší vsi okolí
+  s řemeslníkem (`planVillagerPurchases` v `trade/villager-trips.ts` – village-trade.md,
+  Vesničané na trhu). Rozhodnutí „vyplatí se“ je port dřívějšího `planPurchases` @ b4f8dadc se
+  vzorci beze změny v `craft-buying.ts`: `buyingContext` (`BuyingContext` – úroda dílů v osevu,
+  seno letošní seče `seasonHayYieldKg`, zásoby, domácnosti, práce vsi za rok bez cvičící rodiny,
+  cena jídla v práci), `yearlySaving` (nástroje – polní práce a seč, keramika – ztráty zásob
+  a denní minimum, dřevěné nářadí – práce vsi), `withToolCoverage` (obilí na platbu za nástroje
+  při pokrytí po nákupu), `pay` (obilí, nebo luštěniny – nejlevnější v práci i s nošením první;
+  hodnoty kg jsou ceny cíle `PayValues`), `productStock`, `productCoverage`,
+  `PRODUCT_WEAR_PER_YEAR` (výrobek slouží 1 ÷ opotřebení let); vůz ušetří `cartYearSaving`
+  (draft.ts, obnoveno) × `CARTS.lifespanYears`. Bez okolí ves výrobky ani vůz nekupuje – má je
+  jen od vlastních pracujících řemeslníků (`ownCraftsmanWorks` – dílna
   bez vstupů se nepočítá; `craftSources` → `VillageCrafts.sources`, panel dvorce `BuyingRow`:
   vlastní ✓, jinak zašedlá ikona „… – ve vsi není řemeslník“; stojí-li vlastní dílna bez vstupu,
   popisek řekne důvod textem upozornění – `buyingDetails` v `selection-details.ts`,
@@ -240,14 +251,19 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `carpentryHelp` před stavbami (čd tesaře vede `crew` čd dřevěné práce dne – `woodworkToday`
   rozdělí práci rovným dílem jako `build`; jeho práce jde do staveb a `build` s pokrytím násobí
   práci stavby `constructionLaborFactor` – podíl dřevěné práce `constructionWoodShare` od 1
-  k 0,6), pak `workCarpenters` (vůz – `missingCart`, `addCart`,
-  kronika `cart-made` –, pak dřevěné nářadí `CraftStocks.woodToolsKg`; klády `Workshop.timber`
+  k 0,6), pak `workCarpenters` (vůz – `missingCart` nebo na zakázku, `addCart`,
+  kronika `cart-made` –, pak dřevěné nářadí `CraftStocks.woodToolsKg` do zásoby a zakázek; klády `Workshop.timber`
   z hromady, jinak kácí – `nextTree`; práce × `carpenterWorkFactor` podle nástrojů). `workCrafts`
   tesaře přeskakuje. Dřevěné nářadí: `craftNeeds` / `craftTargets` / `craftCoverage.woodTools?`
   (jen když nějaké je) a `woodToolsLaborFactor` násobí práci vsi s `villageLaborFactor`
   (`villageProductivity` v `simulate-plan.ts` – i plán osevu). **Vozy** (`carts.ts`):
   `VillageState.carts` (`Cart` – druh, `builtDay`), `cartTargets` (vozy, které se vyplatí –
-  `draft.ts`, Ohrada volů níž), `retireCarts` (10 let, `cart-worn-out`); svoz – `haulCartsToday`
+  `draft.ts`, Ohrada volů níž; `cartsWanted` – po druzích), `retireCarts` (10 let,
+  `cart-worn-out`). **Vůz z trhu** (markets.md – Rozhodnutí plánu 3, bod 4): volné vozy
+  (`idleCartsOf`) jsou zboží trhu – ves nabízí volné nad `cartsWanted`, bez tesaře shání vůz
+  `missingCart`; prodá se nejmladší volný (`removeIdleCart`), koupený přibude jako nový
+  (`addCart`) a domů ho dovedou voli, kteří jdou s výpravou (`MarketTrip.oxen`) – village-trade.md,
+  Vozy na trhu a Výprava na trh. Svoz – `haulCartsToday`
   (dvoukoláky doma s volem, který neorá – ve dny orby jdou páry napřed), `planTaskHauls` v `simulate-hauls.ts` (sklizeň –
   `harvestCarryShare`, seč – `haulShare.hay`; `haulPlan` / `haulProgress` / `haulAvailable` –
   nejvýš podíl celé úlohy, převzaté v `CropWork.hauled`, `HayMowing.hauled`), `haulLogs` (klády
@@ -320,6 +336,19 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   vítězného plánu z `LaborShare.fourWheel` a jeho uložená jízda `storedWaterCartDrive`) – pěšky pro
   ni chodí méně lidí (Postavy – Provoz na cestách).
 
+- **Výroba na zakázku** (markets.md – Rozhodnutí plánu 3, bod 6; village-trade.md – Zakázky):
+  řemeslník vyrábí do vlastní potřeby plus živé zakázky (`orderTargets`). Kovář – `smithIronDeficit`
+  bere `toolNeedKg + zakázky nástrojů` a `smithBarsTargetKg + zakázky hřiven` (tím i `workSmith`,
+  `restingCrafters`, `smithsForgeCharcoalKg`, `smithsCharcoalPerYear`, `smithBellowsToday`);
+  kovárna dál jde do práce až od celého dne práce (`smithRests`), takže zakázka menší než den
+  práce ji nespustí, dokud vybavení opotřebením neklesne. Hrnčíř odpočívá od `craftTargets` +
+  zakázek keramiky (`restingCrafters`). Tesař (`carpentry.ts`): dřevěné nářadí do
+  `woodToolsTargetKg` (`craftTargets` + zakázky), vůz `cartToMake` – chybějící (`missingCart`),
+  jinak druh se zakázkou, jehož vozů vsi i na cestě a v dílnách (`cartsHad` v `draft.ts`) je méně
+  než `cartsWanted` + zakázky (vůz na cestě se vrátí, vůz v dílně se už dělá). `craftTargets`,
+  `smithBarsTargetKg` a `missingCart` se nemění – správce a výhledy počítají jen vlastní potřebu.
+  Ves bez zakázek vyrábí stejně jako dřív (zlaté otisky).
+
 - **Kování vozů** ([wagons.md](../design/wagons.md) – Kování vozů; Martin 20. 10. 2026: „…vozy
   mají železnou složku“; čísla `CART_IRON`): `cart-iron.ts`. Dvoukolák 3 kg, čtyřkolák 6 kg kování
   z hřiven (1,2 kg hřiven na kg). Vůz s hotovou dřevěnou prací čeká (`cartAwaitingIron` v crafts.ts –
@@ -337,7 +366,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   kování“, u cesty ze starší vsi dny), scéna skupina nosičů nebo vůz (`ironCaravan` v
   `caravan-view.ts` – `ironTripLine`).
 
-- **Kovář – houba, hřivny a vybavení** ([production-chains.md](../design/production-chains.md) – Kovář): řetěz ruda + uhlí → houba (tavba s měchařem – dospělý z domácnosti nebo syn od 10, sám kovář polovičním tempem) → hřivny → nástroje jako vybavení domácností (kuje se jen z hřiven nad rezervou na příští kování koní – `shoeingBarsKg`, kování má přednost); v liště jen hřivny, v obchodu `ironBars`.
+- **Kovář – houba, hřivny a vybavení** ([production-chains.md](../design/production-chains.md) – Kovář): řetěz ruda + uhlí → houba (tavba s měchařem – dospělý z domácnosti nebo syn od 10, sám kovář polovičním tempem) → hřivny → nástroje jako vybavení domácností (kuje se jen z hřiven nad rezervou na příští kování koní – `shoeingBarsKg`, kování má přednost); v liště jen hřivny, v obchodu `ironBars`, na trhu i nástroje rovnou z vybavení a do něj (`tools` – village-trade.md, Nástroje a dřevěné nářadí).
   - **Soubory:** `packages/game/src/domain/village/crafts/iron.ts` (řetěz, měchař, převod vybavení),
     `iron-rates.ts` (ceny kroků `SMELT`, `REFINE`, `FORGE`, `ORE_KG_PER_TOOL_KG`, `smeltOreKg`),
     `crafts.ts` (`workSmith`, `smithIronDeficit`, `smithBarsTargetKg`, `ironOrderBarsKg`,

@@ -25,6 +25,7 @@ import {
   parseLeaveVillageInput,
   parseSettleJourneyInput,
   parseMarketExpeditionInput,
+  parseMarketPeopleInput,
 } from '../village-input';
 
 describe('ověření vstupu server actions vsi', () => {
@@ -435,5 +436,22 @@ describe('vstup výpravy na trh', () => {
     expect(parseMarketExpeditionInput({ ...ok, targetVillageId: '' })).toBeNull();
     expect(parseMarketExpeditionInput({ ...ok, give: [] })).toBeNull();
     expect(parseMarketExpeditionInput(null)).toBeNull();
+  });
+});
+
+describe('vstup lidí na prodej pro náhled výpravy (plán 3, Úloha 11)', () => {
+  const ok = { villageId: '11111111-1111-4111-8111-111111111111', families: 1, men: 0, women: 3 };
+
+  it('převede počty rodin, mužů a žen', () => {
+    expect(parseMarketPeopleInput(ok)).toEqual({ families: 1, men: 0, women: 3 });
+  });
+
+  it('odmítne chybějící, záporné a necelé počty i špatný tvar', () => {
+    expect(parseMarketPeopleInput({ ...ok, men: undefined })).toBeNull();
+    expect(parseMarketPeopleInput({ ...ok, families: -1 })).toBeNull();
+    expect(parseMarketPeopleInput({ ...ok, women: 1.5 })).toBeNull();
+    expect(parseMarketPeopleInput({ ...ok, men: '2' })).toBeNull();
+    expect(parseMarketPeopleInput({ ...ok, families: Infinity })).toBeNull();
+    expect(parseMarketPeopleInput(null)).toBeNull();
   });
 });

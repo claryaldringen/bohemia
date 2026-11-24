@@ -34,7 +34,13 @@ const deps: NegotiateDeps = {
   worldDirectory: createWorldDirectory(db),
   villages: {
     find: () => Promise.resolve(null),
-    inbox: { post: () => Promise.resolve(null), pending: () => Promise.resolve([]) },
+    inbox: {
+      post: () => Promise.resolve(null),
+      pending: () => Promise.resolve([]),
+      pruneUsed: () => Promise.resolve(0),
+      strandedResults: () => Promise.resolve([]),
+      dropStranded: () => Promise.resolve(0),
+    },
   },
 };
 

@@ -134,4 +134,165 @@ describe('VillageInbox (Drizzle)', () => {
     );
     expect(await db.select().from(schema.villageInbox)).toHaveLength(0);
   });
+
+  it('pruneUsed smaže jen snímky okolí a zprávy bez nákladu vsi do dne včetně, verzi nezvedá, ref jde zapsat znovu', async () => {
+    const nearby = (day: number): NewVillageEvent => ({
+      villageId,
+      day,
+      ref: `nearby:${villageId}:${day}`,
+      body: { kind: 'nearby', nearby: { day, self: { villageId, name: 'Lhota' }, villages: [] } },
+    });
+    const from = { fromVillageId: 'b', fromName: 'Lhota', cells: 1, firstStep: 'E' as const };
+    const report = { day: DAY, people: 1, houses: 1, crafts: [], traders: [] };
+    // zprávy bez nákladu plánu 3 (dotaz na kováře a na partnera, ohlášení zakázky) a výsledek trhu
+    const messages: NewVillageEvent[] = [
+      {
+        villageId,
+        day: DAY + 10,
+        ref: `smith:b:${DAY}:ask`,
+        body: { kind: 'smith-ask', ask: { key: `smith:b:${DAY}`, ...from, horses: 1, report } },
+      },
+      {
+        villageId,
+        day: DAY + 20,
+        ref: `kin:b:${DAY}:7:ask`,
+        body: {
+          kind: 'kin-ask',
+          ask: {
+            key: `kin:b:${DAY}:7`,
+            ...from,
+            seeker: { personId: 7, sex: 'male', bornDay: DAY - 9_000, widowed: false },
+            report,
+          },
+        },
+      },
+      {
+        villageId,
+        day: DAY + 70,
+        ref: `order:b:${villageId}:tools:${DAY}`,
+        body: {
+          kind: 'order-ready',
+          ready: { villageId: 'b', name: 'Lhota', good: 'tools', amount: 5 },
+        },
+      },
+      {
+        villageId,
+        day: DAY + 20,
+        ref: `market:b:1:out`,
+        body: {
+          kind: 'market-result',
+          result: { key: 'market:b:1', sold: {}, bought: {}, unsold: {}, horses: [] },
+        },
+      },
+    ];
+    for (const day of [DAY + 30, DAY + 60, DAY + 90]) await inbox.post(nearby(day));
+    for (const message of messages) await inbox.post(message);
+    await inbox.post(event('jina', DAY + 30));
+    const version = (await villages.find(villageId))!.version;
+    expect(await inbox.pruneUsed(villageId, DAY + 60)).toBe(4);
+    const left = await inbox.pending(villageId, -1, DAY + 365);
+    expect(left.map((e) => [e.body.kind, e.day])).toEqual([
+      ['market-result', DAY + 20],
+      ['chronicle', DAY + 30],
+      ['order-ready', DAY + 70],
+      ['nearby', DAY + 90],
+    ]);
+    expect((await villages.find(villageId))!.version).toBe(version);
+    // smazaný řádek už `ref` neblokuje (úklid jde jen na dny, které se znovu nezapisují)
+    expect(await inbox.post(nearby(DAY + 30))).not.toBeNull();
+    expect(await inbox.post(messages[0]!)).not.toBeNull();
+    expect(await inbox.pruneUsed(UNKNOWN, DAY + 365)).toBe(0);
+  });
+});
+
+describe('výsledky trhu s lidmi ve schránkách zaniklých vsí (markets.md – Rozhodnutí plánu 3, bod 13)', () => {
+  /** Výsledek trhu `key` pro ves `target` – s koupenou rodinou (`fromHost`), nebo bez lidí. */
+  const result = (
+    key: string,
+    day: number,
+    people: boolean,
+    target = villageId,
+  ): NewVillageEvent => ({
+    villageId: target,
+    day,
+    ref: `${key}:out`,
+    body: {
+      kind: 'market-result',
+      result: {
+        key,
+        sold: {},
+        bought: {},
+        unsold: {},
+        horses: [],
+        ...(people
+          ? {
+              newcomers: [
+                {
+                  good: 'families' as const,
+                  people: [{ id: 5, bornDay: DAY - 9_000, dwellingId: 1, sex: 'male' as const }],
+                  fromHost: true as const,
+                },
+              ],
+            }
+          : {}),
+      },
+    },
+  });
+
+  /** Sídelní sídlo hráče `ownerId` s vsí `name` na políčku (x, 0). */
+  async function villageOf(ownerId: string, name: string, x: number): Promise<string> {
+    await db.insert(schema.user).values({ id: ownerId, name: '', email: `${ownerId}@example.com` });
+    const settlement = await createSettlementRepository(db).createSeat({
+      ownerId,
+      landscapeSeed: 1 + x,
+      layerVersions: CURRENT_LAYER_VERSIONS,
+      worldCell: { x, y: 0 },
+    });
+    return (await villages.create(settlement!.id, name, state()))!.id;
+  }
+
+  it('strandedResults: jen s lidmi ve spící vsi a ve vsi se sídlem v archivu; dropStranded je smaže bez verze', async () => {
+    const archivedId = await villageOf('hrac-2', 'Vlkov', 1);
+    const liveId = await villageOf('hrac-3', 'Hradec', 2);
+    await inbox.post(result('market:a:1', DAY + 3, true));
+    await inbox.post(result('market:a:2', DAY + 4, false));
+    await inbox.post(event('jina', DAY + 3));
+    await inbox.post(result('market:b:1', DAY + 5, true, archivedId));
+    await inbox.post(result('market:c:1', DAY + 2, true, liveId));
+    // nic nezaniklo
+    expect(await inbox.strandedResults()).toEqual([]);
+    // Lhota vymřela (sloupec `asleep` ze stavu), sídlo Vlkova je v archivu
+    const lhota = (await villages.find(villageId))!;
+    const dead = { ...lhota.state, extinctDay: lhota.state.lastDay };
+    expect(await villages.save(villageId, dead, lhota.version)).not.toBeNull();
+    const vlkov = (await villages.find(archivedId))!;
+    expect(await createSettlementRepository(db).archive(vlkov.settlementId)).toBe(true);
+    const stranded = await inbox.strandedResults();
+    expect(
+      stranded.map((e) => [
+        e.villageId,
+        e.day,
+        e.body.kind === 'market-result' && e.body.result.key,
+      ]),
+    ).toEqual([
+      [villageId, DAY + 3, 'market:a:1'],
+      [archivedId, DAY + 5, 'market:b:1'],
+    ]);
+    expect(stranded[0]!.body).toMatchObject({ result: { newcomers: [{ fromHost: true }] } });
+    const version = (await villages.find(villageId))!.version;
+    const live = (await inbox.pending(liveId, -1, DAY + 365))[0]!;
+    // výsledek živé vsi ani id mimo UUID nesmaže
+    const ids = [...stranded.map((e) => e.id), live.id, UNKNOWN, 'event-1'];
+    expect(await inbox.dropStranded(ids)).toBe(2);
+    expect(await inbox.strandedResults()).toEqual([]);
+    expect(await inbox.pending(liveId, -1, DAY + 365)).toHaveLength(1);
+    expect((await inbox.pending(villageId, -1, DAY + 365)).map((e) => e.body.kind)).toEqual([
+      'chronicle',
+      'market-result',
+    ]);
+    expect((await villages.find(villageId))!.version).toBe(version);
+    // smazaný výsledek už `ref` neblokuje
+    expect(await inbox.post(result('market:a:1', DAY + 3, true))).not.toBeNull();
+    expect(await inbox.dropStranded([])).toBe(0);
+  });
 });

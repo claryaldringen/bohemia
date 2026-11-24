@@ -377,13 +377,22 @@ export const CARPENTER_TOOLS_WORK: Bounds = { worst: 1.5, best: 1 };
 export const WOOD_TOOLS = { kgPerWorker: 4, wearPerYear: 0.3, reserveYears: 1 } as const;
 export const WOOD_TOOLS_LABOR: Bounds = { worst: 1, best: 0.95 };
 // crafts.md – Nákup u sousedů (čísla návrh Clauda podle rešerše research/2026-10-19-craft-buying.md;
-// nákup u sousedů zrušen – markets.md, Pravidla 1): cesta ke kraji mapy ve směru (`purchaseRoute` –
-// karavana zásilky, cizí kovář ze starší kroniky) jde po hotové zemské stezce `trailTripDays`, bez
-// stezky lidé jdou krajinou ke kraji mapy – delší cesta (× `offTrailFactor`) a den navíc
-// (`offTrailExtraDays`).
+// nákup u smyšlených sousedů zrušen – markets.md, Pravidla 1): cesta ke kraji mapy ve směru
+// (`purchaseRoute` – karavana zásilky, cizí kovář ze starší kroniky) jde po hotové zemské stezce
+// `trailTripDays`, bez stezky lidé jdou krajinou ke kraji mapy – delší cesta (× `offTrailFactor`)
+// a den navíc (`offTrailExtraDays`).
+// Vesničané na trhu (markets.md – Pravidla 9, Rozhodnutí plánu 3, bod 7) – obnovená čísla dřívějšího
+// nákupu u sousedů @ b4f8dadc (crafts.md – Nákup u sousedů; Martin 19. 10. 2026: „Nástroje ať
+// vesničané obchodují individuálně… Sami si spočítají, jestli se jim to vyplatí.“; čísla návrh
+// Clauda podle rešerše research/2026-10-19-craft-buying.md):
+// - `day` – ves se rozhoduje jednou za rok po sklizni, kdy je volno a přebytek (15. 11. – po ozimu,
+//   sklizni jablek a porážce),
+// - `minKg` – menší nákup nemá smysl.
 export const CRAFT_BUYING = {
   offTrailFactor: 1.5,
   offTrailExtraDays: 1,
+  day: { month: 11, day: 15 },
+  minKg: 0.5,
 } as const;
 /**
  * wagons.md – Kování vozů (Martin 20. 10. 2026: „Ano. A taky přidej tedy pravidlo, že vozy mají

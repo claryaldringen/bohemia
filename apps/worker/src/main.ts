@@ -194,6 +194,8 @@ async function main(): Promise<void> {
             offsets,
           },
           shipments: { ...worldShipments, offsets },
+          // lidé z výsledků trhu pro zaniklé vsi zpět k hostiteli (markets.md – Rozhodnutí plánu 3)
+          villageMail: { villages: gameDeps.villages, settlements: gameDeps.settlements },
           // návrat uprchlíků za správce a NPC rody, obnova návratu po pádu (war.md – Varování)
           refugees: {
             refugees: gameDeps.refugees,

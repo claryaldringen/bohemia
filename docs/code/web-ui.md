@@ -1305,6 +1305,54 @@ plní `manorView` (`stanceOf`), volba jde přes server action `setDefenseStance`
 - **Testy**: `hud/__tests__/MarketPanel.test.tsx`, `ManorPanel.test.tsx`; e2e `e2e/market.spec.ts`
   (výprava z dvorce do vlastní vsi na sousední mapě, výprava ve stavu a příjezd ve schránce).
 
+## Trh plánu 3 – kronika, upozornění, panely a cizí správce (markets.md – Rozhodnutí plánu 3, body 13–15; Úloha 11)
+
+- **Kronika** (`lib/village-view-chronicle.ts`): `market-departed` podle `by` („Vesničané jeli na trh
+  do …“, „Správce poslal výpravu do …“, „Kovář šel kovat koně do …“; výprava hráče beze změny, `kin`
+  bez řádku – `shownInChronicle` v `lib/chronicle-view.ts`), `bride-from-outside` / `groom-from-outside`
+  („Nevěsta z …“, „Ženich z …“), `married-away` („Dcera se vdala do …“, `groom` „Syn se přiženil do …“),
+  `extra-wife` (+ „z <ves>“), `newcomer` s `villageName` („Do vsi přišla rodina z …“, vrácení lidé „se
+  vrátila prodaná rodina“), `horses-shod` („Kovář z … okul koně“), `order-ready` („Zakázka v … je
+  hotová“), `market-arrived` s `smith` („Na trh přišel kovář z …“). Starší záznamy bez `villageName`
+  se čtou jako dřív. Pády jmen vsí: `lib/village-name-cases.ts` (`fromVillage`, `toVillage`,
+  `inVillage` – prázdné jméno dává „ze / do / v sousední vsi“).
+- **Upozornění** (`lib/village-notices.ts`): „Nevěsta z Lhoty“, „Ženich z Lhoty“, „Dcera se vdala do
+  Lhoty“ / „Syn se přiženil do Lhoty“ (bez jména vsi dřívější „z okolí“ a „pryč“), „Přišla rodina z
+  Lhoty“; vrácení lidé mají vlastní druhy `newcomer-back-*` („Vrátila se prodaná rodina“). Kování koní
+  upozornění nemá. `VillageView.chronicle` nese `villageName`, `groom` a `returned`.
+- **Ohrada koní** (`lib/horse-view.ts`): `VillageHorses.shoeing.smithFrom` (čekající dotaz
+  `shoeing.asked`, jinak poslední `horses-shod` s `own: false`), `shoeingSmithText` – „Kuje vlastní
+  kovář“ / „Kovář z Lhoty“ / „Kovář není“ (Tooltip, `selection/fields.tsx`).
+- **Dvorec**: `VillageCraftSource.order` (`productOrder` v `lib/village-view-crafts.ts` z
+  `VillageState.orders`, nejnovější neodmítnutá) – Tooltip řádku výrobků „Nástroje – zakázka v Lhotě“,
+  „… – hotová zakázka v Lhotě“ (`selection/crafts.tsx`).
+- **Panel Trh**: nové zboží (nástroje, dřevěné nářadí, vozy, rodiny, muži, ženy) bere z
+  `TRADE_GOOD_NAMES` (ikony `tools`, `wood-tools`, `cart`, `family`, `man`, `woman`), nejvýš
+  `villageGoodStock` (celá kg; lidé – nejvýš kolik skupin druhu ves dá samotných). Lidé berou
+  z týchž lidí a výběr je postupný (pořadí mužů a žen se s odchodem rodin mění), takže pohled
+  dvorce model výběru nenese – kolik skupin s celým výběrem odejde a kolik dospělých zbude na
+  nosiče, spočítá jen server pro vybrané počty: panel (`useMarketPeople`, `hud/use-market-people.ts`)
+  se `MARKET_PEOPLE_DELAY_MS` po poslední změně zeptá akcí `getMarketPeople`
+  (`marketPeopleForPlayer` v `lib/village.ts` → `marketTripPeople` jádra nad vsí dopočítanou do
+  dneška, stejně jako `planMarketTrip` při odeslání; `askPeople` v `use-panels.ts`) a odpověď
+  předá `marketPreview`. Do odpovědi pro tytéž počty a týž pohled (nový pohled – zeptá se znovu)
+  náhled chybí a odeslat nejde; chyba dotazu je důvod u odeslání. Prodávaní lidé nejsou nosiči.
+  Dřívější model všech kombinací (`(F+1)·(M+2)` výběrů při každém pohledu) stál u vsi s 250 lidmi
+  vteřiny (plán 3, Úloha 11, opravné kolo 2). Voly pro koupený vůz kontroluje jádro
+  (`MARKET_NO_OXEN` jako důvod náhledu). Kovář souseda ve zprávě (`traders[].smith`) je ikona kováře, ne zboží; výprava do
+  vsi bez jména je „Sousední ves“; obchodník ve zprávě nese `villageId` domova a cizímu správci
+  `marketOverview` vypustí jméno, pokud jeho ves správce nezná (starší záznamy bez `villageId` též).
+- **Cizí správce**: `maskVillageNames(state, allowed)` (`lib/mask-village-names.ts`, volá
+  `shownToActor` v `lib/village.ts` při skládání pohledu i stránky kroniky) nahradí prázdným jménem
+  jména vsí, které `marketOverview` s `actorId` správci neukáže – záznamy kroniky plánu 3 (i starší bez
+  `villageId`), zakázky, `shoeing.asked` a cíle výprav na trh. Klient jména nedostane. Use-case
+  `collect` (`application/market.ts`) správci vynechá i zprávy (`news`) o ostatních vsích držitele.
+- **Testy**: `village-view-chronicle-markets3.test.ts`, `village-notices.test.ts`, `horse-view.test.ts`,
+  `product-order.test.ts`, `mask-village-names.test.ts`, `market-view.test.ts`, `village-name-cases.test.ts`,
+  `MarketPanel.test.tsx`, `SelectionPanel.test.tsx`, `use-panels.behavior.test.tsx`,
+  `market-trip-people.test.ts` (jádro – rovnost s dřívějším modelem na vsích s rodinami); e2e
+  `e2e/market.spec.ts` (nástroje a muž v „Dáš“, odeslání, kronika ve stavu).
+
 ## Rozkaz „Probít se“ (fortifications.md – Obrana bez násobku 3, `hud/BreakoutButton.tsx`)
 
 Obránce sleduje boj u své vsi ve scéně (`useWarScene`); `breakoutOf(warScene)`

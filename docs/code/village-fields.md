@@ -376,8 +376,23 @@ tools)` = s hromadou `pileSowsKg` (osivo, které ves ještě zaseje: `sowingHaPe
      = osivo na díly na řadě v okně (`windowSeedNeedKg`) − `sowableSeedKg` − snopy; od `minKg`
      kronika `seed-short` bez `reason` („Na setí chybí N kg osiva – díly bez osiva vesničané
      nezasejí.“, upozornění „Chybí osivo na setí“) – díly bez osiva se nezasejí. Nákup osiva
-     u sousedů (hřivny a krávy za obilí sousedů) zrušen 23. 11. 2026 (markets.md – Pravidla 1);
-     starší kronika `seed-bought` a `seed-short` s `reason` (`pay` / `supply`) se čte dál.
+     u smyšlených sousedů zrušen 23. 11. 2026 (markets.md – Pravidla 1); starší kronika
+     `seed-bought` a `seed-short` s `reason` (`pay` / `supply`) se čte dál.
+  - **Osivo – nákup na trhu** (markets.md – Pravidla 9, Rozhodnutí plánu 3, bod 7; port `buySeed`
+    @ b4f8dadc): ves s okolím pro chybějící osivo týž den (hned za `seedReserveDay`) pošle
+    výpravu vesničanů na trh nejbližší vsi okolí (`seedTrip` v `trade/villager-trips.ts` –
+    village-trade.md, Vesničané na trhu): chybí-li `seedShortKg` od `SEED_RESERVE.minKg`, platí
+    chybějící osivo (nejvýš kolik výprava unese) hřivnami – ne těmi, které čekají na kování vozu
+    (`ironOrderBarsKg`) –, pak krávami nad ty, které ves drží (`surplusCows`, nejvýš
+    `SEED_RESERVE.maxCows` = 1 – obnovené `SEED_BUYING.maxCows`), do hodnoty osiva cenou cíle;
+    kráva jede, jen když obilí za ni výprava unese (kus se na trhu prodá jen celý). Seznam
+    `wants.grain` je obilí v hodnotě platby, nejvýš nosnost (přeplatek za kus v obilí jako dřív
+    v `buySeed`); osivem je z něj `min(obilí, chybějící osivo)` – `MarketTrip.seedKg`. **Koupené
+    osivo ves nesní:** `applyMarketResult` zapíše `reservedSeedKg` = rezerva před výsledkem +
+    `min(koupené obilí, seedKg)` (jako `buySeed`), zbytek obilí jde do zásob. Uvolnění 1. 12.
+    a 1. 6. a snědení v hladu (`seedReserveDay`) beze změny. Nezbudou-li na osivo lidé ani vozy
+    (jiné výpravy dne, i výprava pro zakázku do téže vsi, nebo lidé na cestě), nebo koupí-li kvůli
+    nim jen část, vesničané zkusí zbytek, až se lidé vrátí (`villagersRetry`, `retryDay`).
 - **Příprava jaře jen na díly s osivem** (fields.md – Osivo ze zásob; oprava, návrh Clauda 2. 11. 2026): `seedPrepShares` (seed.ts) v březnu–dubnu – nutné plány jaře, luštěnin a lnu
   v otevřeném okně setí (ne ozim, ne `surplus`) → podíl plánu, na který stačí `seedKg` + osivo
   z poolu (`sowableSeedKg` + `sheaves.grainKg` / `legumesKg`, dělí se v pořadí `seasonCrops`).

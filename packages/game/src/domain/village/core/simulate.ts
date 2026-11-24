@@ -17,7 +17,9 @@ import { priestDay } from '../people/church-life';
 import { lodgeArrivalsDay } from '../people/lodge';
 import { lodgeLifeDay } from '../people/lodge-life';
 import { husbandryDay } from '../livestock/husbandry';
+import { askSmithDay } from '../livestock/smith-visit';
 import { arrangeMarriages } from '../people/marriage';
+import { askKinDay } from '../people/kin-match';
 import { bufferFill } from '../fields/field-food';
 import { overgrowthDay } from '../fields/overgrowth';
 import { roadsDay, roadsMonthSteps } from '../paths/roads';
@@ -40,9 +42,11 @@ import {
 } from '../people/population';
 import { advanceGroupStarvation } from '../people/hunger-groups';
 import { keepManor } from '../people/manor';
+import { fillOrders } from '../trade/craft-orders';
 import { marketDay } from '../trade/market';
 import { marketTripsDay } from '../trade/market-trip';
 import { finishExpeditions } from '../trade/trade';
+import { villagerTripsDay } from '../trade/villager-trips';
 import { swathRoadsInWork, trailsDay } from '../trade/trail';
 import { roadSwathDay } from '../roads/road-swath';
 import { wagonRoadsDay } from '../roads/wagon-road';
@@ -406,9 +410,11 @@ function workDayStep(
   const disasterEvents = localDisastersDay(state, day, landscape, obstacles);
   state.chronicle.push(...disasterEvents);
   // rezerva osiva – 1. 6. je nezaseté osivo obyčejné zrno, 1. 9. a 1. 3. kronika, kolik osiva
-  // chybí (fields.md – Osivo pro ves bez zásob; nákup u sousedů zrušen – markets.md, Pravidla 1);
-  // po plánu dne, před prací
+  // chybí (fields.md – Osivo pro ves bez zásob); po plánu dne, před prací
   state.chronicle.push(...seedReserveDay(state, day));
+  // vesničané na trhu (markets.md – Pravidla 9, Rozhodnutí plánu 3, bod 7) – jen ves s okolím:
+  // hotové zakázky, 15. 11. výrobky a vůz, 1. 9. a 1. 3. osivo, kdykoli hřivny na kování vozu
+  villagerTripsDay(state, day, coverage);
   const { toil, lordField } = work(
     state,
     day,
@@ -419,16 +425,22 @@ function workDayStep(
   );
   // osivo za nestihnutou část dne zpět do jídla (fields.md – Osivo bez cíle osevu)
   settleSowingSeed(state, day);
+  // kovář souseda (markets.md – Rozhodnutí plánu 3, bod 9) – po kování dne (`finishShoeing` ve
+  // `work()`): koně po termínu bez vlastního kováře → dotaz `smith-ask`; jen ves s okolím
+  askSmithDay(state, day);
   return { toil, lordField, disasterEvents };
 }
 
-/** Po práci: opotřebení, škody zvěře, stezky a cesty, výpravy a nákupy, kování vozů, dokončené stavby, přestavby a den správce. */
+/** Po práci: hotové zakázky, opotřebení, škody zvěře, stezky a cesty, výpravy a nákupy, kování vozů, dokončené stavby, přestavby a den správce. */
 function afterWorkDay(
   state: VillageState,
   day: number,
   landscape: Landscape | null,
   obstacles: ObstacleLayer | null,
 ): void {
+  // hotové zakázky z dnešní výroby – před opotřebením, které zásobu nad potřebou ubírá (markets.md
+  // – Rozhodnutí plánu 3, bod 6); ves bez zakázek nic
+  fillOrders(state, day);
   // nástroje a nádoby v užívání se opotřebí (crafts.md – Účinek)
   wearCraftStocks(state, day);
   // škody zvěře na polích po práci dne – nesklizené díly (wildlife.md – Škody)
@@ -514,6 +526,9 @@ function marriagesAndMealDay(
     (fill ??= lucky ? 1 : bufferFill(fieldStoresOutlook(state, day, coverage)));
   state.chronicle.push(...ensureMainWives(state, day));
   state.chronicle.push(...arrangeMarriages(state, day, storesFill));
+  // sňatky se skutečnými sousedy (markets.md – Rozhodnutí plánu 3, body 11 a 12) – jen ves
+  // s okolím: kdo ve vsi nemá s kým (ani dnes), se zeptá sousední vsi (`kin-ask`, proud 'kin:')
+  askKinDay(state, day, storesFill);
   // uprchlíci jedí napřed své – v lese z ukrytého, v hradišti ze zásob pobytu (war.md – Varování,
   // poslové a útěk do hradiště); bez útěku a hostů uprchlíků nic
   if (state.refuge?.hidden !== undefined || state.refugeStays !== undefined) {

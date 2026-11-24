@@ -330,8 +330,21 @@ version + 1, digest_version = digest_version + 1`. Duplicitní `ref` = `null` a 
   `digest_version` jde s `version`, protože zápis do schránky stav vsi nemění – souhrn zůstává
   platný (`NULL + 1` zůstane `NULL`). Zámek hráče-příjemce se nebere (jen řádek vsi).
 - **`pending(villageId, afterDay, toDay)`:** `afterDay < day ≤ toDay`, `ORDER BY day, seq`.
+- **`pruneUsed(villageId, upToDay)`:** `DELETE … WHERE village_id = … AND day ≤ upToDay AND
+body ->> 'kind' IN (PRUNED_INBOX_KINDS)` (po indexu vsi a dne) – jen použité snímky okolí a zprávy
+  bez nákladu (`kin-ask`, `smith-ask`, `order-ready`), verze vsi se nemění;
+  smazaný `ref` jde zapsat znovu, proto jen druh, jehož dny se po použití nezapisují (village-trade.md
+  – Okolí vsi, úklid schránky).
+- **`strandedResults()` / `dropStranded(eventIds)`:** výsledky trhu s lidmi
+  (`body ->> 'kind' = 'market-result'`, neprázdné `result.people` nebo `result.newcomers`; levný
+  filtr `ref LIKE '%:out'`) ve schránkách zaniklých vsí – `EXISTS` ves s `asleep`, nebo sídlo
+  s `archived_at` –, `ORDER BY day, seq`; `strandedResults` napřed načte id zaniklých vsí (malá
+  tabulka vsí) – bez nich schránky nečte vůbec, jinak jen jejich řádky po indexu vsi a dne (úloha
+  běží každou minutu, sken všech schránek by rostl se světem); mazání jen takových řádků (id mimo UUID se
+  přeskočí), verze vsi se nemění. Úloha světa `returnStrandedPeople` (village-trade.md – Pošta
+  mezi vsemi).
 - **Testy:** `adapters/__tests__/inbox-repository.db.test.ts` (konflikt rozběhnutého `save`,
-  idempotence `ref`, posun dne, pořadí) a třetí „proces“ posílající události do vsí v
+  idempotence `ref`, posun dne, pořadí, úklid okolí, výsledky zaniklých vsí) a třetí „proces“ posílající události do vsí v
   `packages/server/src/__tests__/web-worker-race.db.test.ts` (každá událost ze dnů ≤ `lastDay`
   v kronice právě jednou, výsledek = dopočet jedním procesem se stejnými událostmi).
 

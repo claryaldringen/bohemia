@@ -212,6 +212,17 @@ export function cartTargets(
 }
 
 /**
+ * Kolik vozů druhu `kind` ves chce – `cartTargets(state)[kind]` (wagons.md – Kolik vozů ves chce);
+ * volné vozy nad ně ves nabízí na trhu (markets.md – Rozhodnutí plánu 3, bod 5).
+ */
+export function cartsWanted(
+  state: Pick<VillageState, 'pens' | 'draft' | 'carts'>,
+  kind: CartKind,
+): number {
+  return cartTargets(state)[kind];
+}
+
+/**
  * Vůz, který ves chce a nemá (ani se nevyrábí v žádné dílně tesaře) – dvoukolák napřed; jinak
  * null.
  */
@@ -223,14 +234,72 @@ export function missingCart(
   return CART_KINDS.find((kind) => have[kind] < targets[kind]) ?? null;
 }
 
-/** Vozy, které ves má, i ty, které se dělají v dílně tesaře, po druzích. */
-function cartsHad(state: Pick<VillageState, 'carts' | 'dwellings'>): Record<CartKind, number> {
+/** Vozy, které ves má (i na cestě), a ty, které se dělají v dílně tesaře, po druzích. */
+export function cartsHad(
+  state: Pick<VillageState, 'carts' | 'dwellings'>,
+): Record<CartKind, number> {
   const have = ownedCarts(state);
   for (const d of state.dwellings) {
     const making = d.workshop?.cart;
     if (making) have[making.kind]++;
   }
   return have;
+}
+
+/**
+ * Úspora vozů `carts` za rok bez ceny vozů (`chooseCarts`): loňská úspora (`base`, ve dny orby
+ * `plough` podle volů, kteří neorají) mínus voli navíc nad páry k rádlům – při nejlepším počtu
+ * volů, kteří se vejdou do `places` míst; vozy, na jejichž voly místa nejsou, null. Obnoveno
+ * z b4f8dadc (vesničané na trhu – markets.md, Rozhodnutí plánu 3, bod 7).
+ */
+function cartsYearNet(
+  year: CartYear | (CartDemand & { oxCost: number }),
+  carts: Readonly<Record<CartKind, number>>,
+  ploughOxen: number,
+  places: number,
+): number | null {
+  const two = carts['two-wheel'];
+  const four = carts['four-wheel'];
+  if (two === 0 && four === 0) return 0;
+  const table = yearTable(year);
+  const oxenOfCarts = cartsOxen(carts);
+  const saved = table.base[two]?.[four] ?? 0;
+  const row = table.plough[two]?.[four] ?? [];
+  let best: number | null = null;
+  for (
+    let oxen = Math.max(ploughOxen, oxenOfCarts);
+    oxen <= Math.min(places, ploughOxen + oxenOfCarts);
+    oxen++
+  ) {
+    const free = Math.min(oxen - ploughOxen, row.length - 1);
+    const ploughDay = free >= 0 ? (row[free] ?? 0) : 0;
+    const net = saved + ploughDay - (oxen - ploughOxen) * year.oxCost;
+    if (best === null || net > best + EPSILON) best = net;
+  }
+  return best;
+}
+
+/**
+ * Kolik práce za rok ušetří další vůz druhu `kind` (čd – wagons.md, Kolik vozů ves chce; crafts.md
+ * – Nákup u sousedů, Vozy): stejný výpočet jako `chooseCarts` – loňská úspora vozů, které ves má
+ * (i ve výrobě), s tímto vozem navíc a bez něj, mínus voli navíc nad páry k rádlům –, jen bez
+ * ceny vozu (koupený vůz stojí platbu a cestu). Bez uzavřeného roku vozů nebo míst pro voly 0.
+ * Obnoveno z b4f8dadc (vesničané na trhu – markets.md, Rozhodnutí plánu 3, bod 7).
+ */
+export function cartYearSaving(
+  state: Pick<VillageState, 'pens' | 'draft' | 'carts' | 'dwellings'>,
+  kind: CartKind,
+): number {
+  const year = state.draft?.lastYear;
+  const wanted = wantedPloughPairs(state);
+  if (!year || wanted === 0) return 0;
+  const places = oxPlaces(state);
+  const ploughOxen = Math.min(wanted, Math.floor(places / DRAFT_OXEN.ard)) * DRAFT_OXEN.ard;
+  const have = cartsHad(state);
+  const before = cartsYearNet(year, have, ploughOxen, places);
+  const after = cartsYearNet(year, { ...have, [kind]: have[kind] + 1 }, ploughOxen, places);
+  if (before === null || after === null) return 0;
+  return Math.max(0, after - before);
 }
 
 /**

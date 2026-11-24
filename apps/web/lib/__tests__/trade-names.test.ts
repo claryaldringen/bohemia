@@ -8,6 +8,11 @@ describe('jednotky zboží obchodu', () => {
     expect(goodsText({ stone: 3 })).toBe('3 m³ kamene');
   });
 
+  it('kronika píše celá kg a zbytek gramů vynechá – žádné „0 kg keramiky“', () => {
+    expect(goodsText({ pottery: 2.2e-8, grain: 875.0000000167 })).toBe('875 kg obilí');
+    expect(goodsText({ pottery: 0.4 })).toBe('nic');
+  });
+
   it('kg a kusy zůstávají', () => {
     expect(tradeAmountText(1500, 'kg')).toMatch(/^1\s500 kg$/);
     expect(tradeAmountText(4, 'ks')).toBe('4 kusy');

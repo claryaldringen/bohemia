@@ -414,6 +414,11 @@ export interface VillageCrafts {
 export interface VillageCraftSource {
   product: CraftProduct;
   own: boolean;
+  /**
+   * Zakázka výrobku u řemeslníka jiné vsi (markets.md – Rozhodnutí plánu 3, bod 6): jméno vsi
+   * (prázdné – ves, kterou cizí správce vidět nesmí) a je-li už hotová; bez zakázky chybí.
+   */
+  order?: { name: string; ready: boolean };
 }
 
 /** Práva hráče ve vsi pro rozhraní (`VillageRights` z jádra bez množiny – jde přes JSON). */
@@ -716,6 +721,15 @@ export interface VillageView {
     /** Kdo přišel od souseda a odkud (`newcomer` – trade.md, Výměna lidí). */
     group?: NewcomerGroup;
     direction?: Direction8;
+    /**
+     * Ves souseda u sňatků, lidí a kováře (plán 3, bod 15); prázdné jméno – ves, kterou cizí správce
+     * vidět nesmí; chybí u starších záznamů a smyšleného okolí.
+     */
+    villageName?: string;
+    /** Dcera se vdala (`married-away`): syn se přiženil pryč. */
+    groom?: true;
+    /** Lidé z `newcomer` jsou vrácení – ves je prodala a zpět se vrátili. */
+    returned?: true;
     /** Co ves koupila u souseda (`crafts-bought` – crafts.md, Nákup u sousedů). */
     products?: CraftProduct[];
     /** Vůz, který ves koupila u souseda (`crafts-bought` – crafts.md, Nákup u sousedů, Vozy). */

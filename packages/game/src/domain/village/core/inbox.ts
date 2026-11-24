@@ -10,6 +10,8 @@ import { settleNoble } from '../../vassalage/ennoble';
 import { dismissGuests, endAway, hostGuests } from '../../vassalage/guests';
 import { receiveShipment } from '../../vassalage/shipment';
 import { applyJourneyHorse } from '../livestock/horses-out';
+import { answerSmithAsk } from '../livestock/smith-visit';
+import { answerKinAsk } from '../people/kin-match';
 import { applyJourneyCasualty } from '../wildlife/beast-casualty';
 import { applyHuntResult, endHuntAway } from '../wildlife/hunt';
 import { pruneThreats } from '../fortification/threat';
@@ -34,8 +36,11 @@ import {
   applyRefugeDepart,
   applyRefugeHidden,
 } from '../fortification/state/refugees';
+import { markOrderReady } from '../trade/craft-orders';
 import { joinMarket } from '../trade/market';
+import { receiveStranded } from '../trade/market-people';
 import { applyMarketResult } from '../trade/market-trip';
+import { applyNearby } from '../trade/nearby';
 import type {
   AwayKind,
   ChronicleEvent,
@@ -48,6 +53,7 @@ import type {
   RefugeePerson,
   ShipmentBody,
   ThreatSignal,
+  VillageNearby,
   VillageState,
 } from '../types';
 
@@ -294,9 +300,19 @@ export type VillageEventBody =
    */
   | ({ kind: 'rod-baptized' } & RodBaptism)
   /**
+   * Okolí vsi (markets.md – Rozhodnutí plánu 3, bod 1): snímek vsí na 8 sousedních mapách
+   * v pevné dny obnovy (`application/nearby.ts`) – `applyNearby` ho zapíše do
+   * `VillageState.nearby`.
+   */
+  | { kind: 'nearby'; nearby: VillageNearby }
+  /**
    * Trh (markets.md – Rozhodnutí plánu 2, bod 6) – zprávy z odchozí schránky jiné vsi
-   * (`VillageMail`): výprava přijela na trh vsi (`market-arrive` – `joinMarket`) a výsledek trhu
-   * pro výpravu, která se vrací domů (`market-result` – `applyMarketResult`).
+   * (`VillageMail`): výprava přijela na trh vsi (`market-arrive` – `joinMarket`), výsledek trhu
+   * pro výpravu, která se vrací domů (`market-result` – `applyMarketResult`), hotová zakázka
+   * (`order-ready` – `markOrderReady`, Rozhodnutí plánu 3, bod 6), dotaz na kováře (`smith-ask`
+   * – `answerSmithAsk`, Rozhodnutí plánu 3, bod 9), dotaz na partnera (`kin-ask` – `answerKinAsk`,
+   * Rozhodnutí plánu 3, bod 11) a lidé z výsledku pro zaniklou domovskou ves zpět u hostitele
+   * (`stranded-people` – `receiveStranded`, Rozhodnutí plánu 3, bod 13).
    */
   | MarketMailBody;
 
@@ -410,6 +426,16 @@ function applyEvent(state: VillageState, day: number, body: VillageEventBody): C
       return joinMarket(state, day, body.arrival);
     case 'market-result':
       return applyMarketResult(state, day, body.result);
+    case 'order-ready':
+      return markOrderReady(state, day, body.ready);
+    case 'smith-ask':
+      return answerSmithAsk(state, day, body.ask);
+    case 'kin-ask':
+      return answerKinAsk(state, day, body.ask);
+    case 'stranded-people':
+      return receiveStranded(state, day, body);
+    case 'nearby':
+      return applyNearby(state, day, body.nearby);
     default:
       return unknownBody(body);
   }

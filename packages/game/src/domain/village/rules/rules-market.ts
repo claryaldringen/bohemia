@@ -22,6 +22,13 @@ export const MARKET = {
    */
   report: { round: 5, traders: 10 },
   /**
+   * Zakázka u řemeslníka vyprší po `orderDays` dnech od zápisu (markets.md – Rozhodnutí plánu 3,
+   * bod 6). Technická mez, ne pravidlo: zakázka, kterou nikdo nevyzvedne (kupující zanikl, přestal
+   * ji chtít), nesmí ve stavu hostitele zůstat navždy – stav vsi nesmí růst donekonečna; rok,
+   * protože vesničané jezdí jednou ročně.
+   */
+  orderDays: 365,
+  /**
    * Doba cesty výpravy na trh (markets.md – Rozhodnutí plánu 2, bod 2, návrh Clauda; Martin 22. 11.
    * 2026: „ráno se vyrazí a večer vrátí“): cesta tam trvá max(0, políčka − `dayTripCells`) ×
    * `daysPerCell` dní – ves na sousední mapě (i úhlopříčně, ≈ 2–4 km) je ráno tam a večer zpět,
@@ -30,4 +37,10 @@ export const MARKET = {
   dayTripCells: 1,
   daysPerCell: 1,
   minStayDays: 1,
+  /**
+   * Kolik dospělých je jedna rodina, kterou ves shání (markets.md – Rozhodnutí plánu 3, bod 10:
+   * chybějící dospělí „jako rodiny (dva dospělí na rodinu, nahoru)“ – muž a žena; rodina stojí jako
+   * dva dospělí, bod 4).
+   */
+  familyAdults: 2,
 } as const;

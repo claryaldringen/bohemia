@@ -258,6 +258,7 @@ export function VillagePanels({
           error={panels.market.error}
           market={view.manor.market}
           onSend={onSendMarket}
+          onPeople={panels.market.askPeople}
           onClose={panels.closeMarket}
         />
       )}

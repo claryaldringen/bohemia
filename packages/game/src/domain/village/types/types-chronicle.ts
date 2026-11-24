@@ -10,6 +10,7 @@ import type { AwayKind, DwellingType } from './types-people';
 import type { HuntKills, QuarryKind } from './types-wildlife';
 import type { FloodLevel, SummerWeather, TornadoStrength, WinterWeather } from './types-disasters';
 import type { CartJob, CartKind, JunctionShape } from './types-roads';
+import type { OrderGood } from './types-market';
 import type { Direction8 } from './types-state';
 import type {
   CraftPurchaseGoods,
@@ -18,6 +19,7 @@ import type {
   NewcomerGroup,
   TradeGoods,
   TradePeople,
+  TripBy,
 } from './types-trade';
 
 /**
@@ -247,9 +249,17 @@ export type ChronicleEvent = { day: number } & (
   /**
    * Muž rodu `name` si vzal další manželku z okolí (lord.md – Manželky); bez jména chybí. `estate` –
    * postavení muže v den zápisu, `wife` – jméno ženy (Martin 15. 11. 2026: „Vojvoda Lutobor si vzal
-   * Dobravu.“); starší zápisy bez nich.
+   * Dobravu.“); starší zápisy bez nich. `villageName` / `villageId` – sousední ves, odkud přišla
+   * (markets.md – Rozhodnutí plánu 3, body 12 a 15); zápisy smyšleného okolí je nemají.
    */
-  | { kind: 'extra-wife'; name?: string; estate?: ChronicleEstate; wife?: string }
+  | {
+      kind: 'extra-wife';
+      name?: string;
+      estate?: ChronicleEstate;
+      wife?: string;
+      villageName?: string;
+      villageId?: string;
+    }
   /**
    * Muž rodu `name` má po smrti hlavní manželky novou hlavní (lord.md – Nová hlavní manželka);
    * `estate` a `wife` jako u `extra-wife` („Dobrava se stala hlavní manželkou vojvody Lutobora.“).
@@ -419,15 +429,40 @@ export type ChronicleEvent = { day: number } & (
       groomFromDwellingId?: number;
       brideFromDwellingId?: number;
     } & WeddingCouple)
-  /** Muž z domu `dwellingId` si přivedl nevěstu z okolí (kinship.md – Sňatky z okolí). */
-  | ({ kind: 'bride-from-outside'; dwellingId: number } & WeddingCouple)
+  /**
+   * Muž z domu `dwellingId` si přivedl nevěstu z okolí (kinship.md – Sňatky z okolí);
+   * `villageName` / `villageId` – sousední ves, odkud přišla (markets.md – Rozhodnutí plánu 3, body
+   * 11 a 15); zápisy smyšleného okolí je nemají.
+   */
+  | ({
+      kind: 'bride-from-outside';
+      dwellingId: number;
+      villageName?: string;
+      villageId?: string;
+    } & WeddingCouple)
   /**
    * K ženě z domu `dwellingId` se přiženil muž z okolí (kinship.md – Sňatky z okolí); `widow` –
-   * k vdově.
+   * k vdově; `villageName` / `villageId` jako u nevěsty.
    */
-  | ({ kind: 'groom-from-outside'; dwellingId: number; widow?: true } & WeddingCouple)
-  /** Dcera z domu `dwellingId` se vdala pryč – odešla ze vsi (kinship.md – Sňatky z okolí). */
-  | { kind: 'married-away'; dwellingId: number }
+  | ({
+      kind: 'groom-from-outside';
+      dwellingId: number;
+      widow?: true;
+      villageName?: string;
+      villageId?: string;
+    } & WeddingCouple)
+  /**
+   * Dcera z domu `dwellingId` se vdala pryč – odešla ze vsi (kinship.md – Sňatky z okolí); `groom` –
+   * syn se přiženil pryč; `villageName` / `villageId` – ves, kam odešel (markets.md – Rozhodnutí
+   * plánu 3, body 11 a 15).
+   */
+  | {
+      kind: 'married-away';
+      dwellingId: number;
+      groom?: true;
+      villageName?: string;
+      villageId?: string;
+    }
   | {
       kind: 'construction-finished';
       constructionKind: ConstructionKind;
@@ -588,12 +623,19 @@ export type ChronicleEvent = { day: number } & (
   /** Kůň pod jezdcem došel plného výcviku (horses.md – Výcvik koně a jezdec). */
   | { kind: 'horse-trained'; penId: number; horseId: number }
   /**
-   * Jezdecké koně podkovali (horses.md – Kování; `own` – vlastní kovář, jinak z jiné vsi – jen
-   * starší zápisy, cizí kovář zrušen – markets.md, Pravidla 1). Cizí kovář přišel od souseda ve
-   * směru `direction` (kronika ho píše jménem vsi); chybí u vlastního kováře a u zápisů starších
-   * než 14. 11. 2026.
+   * Jezdecké koně podkovali (horses.md – Kování; `own` – vlastní kovář, jinak kovář souseda –
+   * markets.md, Rozhodnutí plánu 3, bod 9). Cizí kovář přišel od souseda ve směru `direction`;
+   * chybí u vlastního kováře a u zápisů starších než 14. 11. 2026. Kovář souseda nese i ves, odkud
+   * přišel (`villageName`, `villageId` – Rozhodnutí plánu 3, bod 15); starší zápisy je nemají.
    */
-  | { kind: 'horses-shod'; horses: number; own: boolean; direction?: Direction8 }
+  | {
+      kind: 'horses-shod';
+      horses: number;
+      own: boolean;
+      direction?: Direction8;
+      villageName?: string;
+      villageId?: string;
+    }
   /**
    * Koně šli 1. 11. na maso (horses.md – Chov): dosloužili ve 20 letech (`age`), nebo jich ves má
    * víc, než chce (`surplus` – nejdřív nejstarší).
@@ -703,7 +745,15 @@ export type ChronicleEvent = { day: number } & (
    * Na trh vsi přišla výprava z jiné vsi (markets.md – Pravidla 3) – odkud a co veze (koně jako
    * počty po druzích; výprava jen na pivo bez zboží).
    */
-  | { kind: 'market-arrived'; villageName: string; goods: TradeGoods }
+  | {
+      kind: 'market-arrived';
+      villageName: string;
+      goods: TradeGoods;
+      /** Ves výpravy (Rozhodnutí plánu 3, bod 15); chybí = zápis z doby před ním. */
+      villageId?: string;
+      /** Přišel kovář kovat koně (`MarketArrival.service`), ne obchodník; jinak chybí. */
+      smith?: true;
+    }
   /** Tržní den – co ves na svém trhu prodala a koupila (markets.md – Pravidla 3 a 5). */
   | { kind: 'market-held'; sold: TradeGoods; bought: TradeGoods }
   /**
@@ -716,6 +766,10 @@ export type ChronicleEvent = { day: number } & (
       give: TradeGoods;
       wants: TradeGoods;
       returnDay: number;
+      /** Kdo výpravu poslal (`TripBy`, Rozhodnutí plánu 3, bod 14); chybí = hráč. */
+      by?: TripBy;
+      /** Hostitel (Rozhodnutí plánu 3, bod 15); chybí = zápis z doby před ním. */
+      villageId?: string;
     }
   /**
    * Výprava se vrátila z trhu vsi `villageName` (markets.md – Pravidla 3) – co prodala, koupila
@@ -729,7 +783,16 @@ export type ChronicleEvent = { day: number } & (
       bought: TradeGoods;
       unsold: TradeGoods;
       returned?: true;
+      /** Kdo výpravu poslal (`TripBy`); chybí = hráč. */
+      by?: TripBy;
+      /** Hostitel (Rozhodnutí plánu 3, bod 15); chybí = zápis z doby před ním nebo bez výpravy. */
+      villageId?: string;
     }
+  /**
+   * Zakázka ve vsi `villageName` (`villageId`) je hotová – hostitel ji ohlásil zprávou
+   * `order-ready` (markets.md – Rozhodnutí plánu 3, bod 6).
+   */
+  | { kind: 'order-ready'; villageName: string; villageId: string; good: OrderGood }
   /**
    * Vesničané koupili výrobky řemeslníků u souseda (crafts.md – Nákup u sousedů; nový nákup
    * zrušen – markets.md, Pravidla 1, zápis přibude jen s návratem nákupu uloženého na cestě) – kg
@@ -784,7 +847,10 @@ export type ChronicleEvent = { day: number } & (
   | { kind: 'cart-worn-out'; cart: CartKind }
   /**
    * S výpravou přišli lidé od souseda (trade.md – Výměna lidí): rodina, svobodný muž nebo žena,
-   * kolik jich je a do kterého obydlí šli.
+   * kolik jich je a do kterého obydlí šli. Lidé z trhu (markets.md – Rozhodnutí plánu 3, bod 10)
+   * nesou ves, odkud přišli (`villageName`, `villageId`); starší záznamy je nemají. `returned` –
+   * vrátili se lidé, které ves sama prodala: ves kupce zanikla dřív, než je dovedla domů
+   * (`stranded-people`, Rozhodnutí plánu 3, bod 13); chybí – noví lidé.
    */
   | {
       kind: 'newcomer';
@@ -792,6 +858,9 @@ export type ChronicleEvent = { day: number } & (
       group: NewcomerGroup;
       people: number;
       dwellingId: number;
+      villageName?: string;
+      villageId?: string;
+      returned?: true;
     }
   /**
    * Opuštěná stavba, ke které léta nikdo nechodil, se rozpadla (abandonment.md): modla padla,
