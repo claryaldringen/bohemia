@@ -126,7 +126,7 @@ function isOn(day: number, date: { month: number; day: number }): boolean {
  * Cena zboží u vsi `villageId` v kg obilí (Rozhodnutí plánu 3, bod 7): cena trhu ze zprávy na pivo
  * × `MARKET.grainKgPerCoin`, bez zprávy výchozí (`TRADE_GOOD_VALUES`).
  */
-function priceKg(state: VillageState, villageId: string, good: TradeGood): number {
+export function priceKg(state: VillageState, villageId: string, good: TradeGood): number {
   const prices = state.news?.find((n) => n.villageId === villageId)?.prices;
   return prices?.[good] === undefined
     ? TRADE_GOOD_VALUES[good].valueKg

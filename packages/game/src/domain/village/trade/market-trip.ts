@@ -537,6 +537,11 @@ export function applyMarketResult(
     day,
   );
   if (trip) rememberOrders(state, day, trip, result);
+  // správcova výprava za obilím bez obilí: ves se zapíše, příště jede jinam (Rozhodnutí plánu 3,
+  // bod 8 – rotace cílů; platí jen se stejným `nearby.day`)
+  if (trip && expedition?.by === 'steward' && (trip.wants.grain ?? 0) > 0) {
+    if ((result.bought.grain ?? 0) <= 0) rememberGrainMiss(state, trip.villageId);
+  }
   if (trade && trip) trade.expeditions = trade.expeditions.filter((e) => e.market !== trip);
   if (trip && result.report) {
     rememberNews(state, {
@@ -559,4 +564,14 @@ export function applyMarketResult(
       ...(trip ? { villageId: trip.villageId } : {}),
     },
   ];
+}
+
+/** Ves, odkud se správcova výprava za obilím vrátila bez obilí (`VillageTrade.grainMisses`). */
+function rememberGrainMiss(state: VillageState, villageId: string): void {
+  const nearbyDay = state.nearby?.day;
+  if (nearbyDay === undefined) return;
+  const trade = (state.trade ??= { expeditions: [], nextId: 1 });
+  const misses = trade.grainMisses;
+  if (misses?.nearbyDay !== nearbyDay) trade.grainMisses = { nearbyDay, villageIds: [villageId] };
+  else if (!misses.villageIds.includes(villageId)) misses.villageIds.push(villageId);
 }

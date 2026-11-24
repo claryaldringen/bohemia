@@ -226,6 +226,12 @@ export interface VillageTrade {
    * v den `day` (druhý den), takže nepropadnou na rok. Chybí = žádné.
    */
   villagersRetry?: { day: number; goods: VillagerRetry[] };
+  /**
+   * Správce na trhu (markets.md – Rozhodnutí plánu 3, bod 8, rotace cílů): vsi, odkud se jeho
+   * výprava za obilím vrátila bez obilí – příště jede k další. Platí jen se stejným `nearby.day`
+   * (nové okolí = seznam od začátku). Chybí = žádná.
+   */
+  grainMisses?: { nearbyDay: number; villageIds: string[] };
 }
 
 /** Nákup vesničanů s pevným dnem: výrobek řemeslníků, vůz od tesaře nebo osivo. */

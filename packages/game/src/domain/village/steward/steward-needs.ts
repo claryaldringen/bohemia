@@ -4,16 +4,17 @@ import { declareNpcHunt } from '../wildlife/npc-hunt';
 import { STEWARD } from '../rules/rules-steward';
 import { FIELD_DAMAGE } from '../rules/rules-wildlife';
 import { fieldStoresOutlook } from '../core/simulate-plan';
+import { stewardGrainStep, stewardMarketStep } from './steward-market';
 import type { StewardContext } from './steward';
 import type { VillageState } from '../types';
 
-// Krok 2a dne správce – nouze (steward.md – Lov v nouzi; Martin 8. 11. 2026: „A“): lov vyhlásí,
-// jen když zvěř škodí na polích. Správce jedná stejnou akcí jako hráč – lov na zítřek
-// (`huntDenied` + `declareNpcHunt`; hunting.md – Pravidla 8: „Správce je NPC hráč, takže na lov
-// chodí on.“) – se stejnými kontrolami (hájení, honci). Obilí od sousedů už nekupuje (Martin
-// 22. 11. 2026: „Ves by měla být schopná přežít a rozvíjet se dle současných pravidel i bez
-// obchodu“; markets.md – Pravidla 1). Rozhoduje jen ze stavu vsi a dne, bez náhody – výsledek
-// nezávisí na kouscích dopočtu.
+// Krok 2a dne správce – nouze (steward.md – Obilí a lov v nouzi; Martin 8. 11. 2026: „A“ – obojí,
+// ale jen v nouzi): obilí kupuje na trhu u vsi okolí, jen když hrozí hlad (`stewardGrainStep`,
+// steward-market.ts; markets.md – Rozhodnutí plánu 3, bod 8), a lov vyhlásí, jen když zvěř škodí na
+// polích. Správce jedná stejnými akcemi jako hráč – výprava na trh (`departMarketInPlace`) a lov na
+// zítřek (`huntDenied` + `declareNpcHunt`; hunting.md – Pravidla 8: „Správce je NPC hráč, takže na
+// lov chodí on.“) – se stejnými kontrolami (lidé a vozy, hájení, honci). Rozhoduje jen ze stavu
+// vsi a dne, bez náhody – výsledek nezávisí na kouscích dopočtu.
 
 const EPSILON = 1e-9;
 
@@ -21,16 +22,19 @@ const EPSILON = 1e-9;
 export type NeedContext = Pick<StewardContext, 'day' | 'coverage'>;
 
 /**
- * Krok 2a (mutuje stav): lov na zítřek, když zvěř škodí (`huntWanted` → `declareNpcHunt`, lov se
- * zapíše do letošního léta), podle roční potřeby obilí z výhledu zásob (`fieldStoresOutlook` –
- * tentýž, ze kterého počítá režim a pojistku).
+ * Krok 2a (mutuje stav), podle výhledu zásob (`fieldStoresOutlook` – tentýž, ze kterého počítá režim
+ * a pojistku): napřed obilí v nouzi (`stewardGrainStep` – výprava na trh pro chybějící obilí), pak
+ * lov na zítřek, když zvěř škodí (`huntWanted` → `declareNpcHunt`, lov se zapíše do letošního
+ * léta), nakonec roční výprava s potřebou vsi (`stewardMarketStep`).
  */
 export function needSteps(state: VillageState, ctx: NeedContext): void {
   const targets = fieldStoresOutlook(state, ctx.day, ctx.coverage);
+  stewardGrainStep(state, ctx, targets.shortKg);
   if (huntWanted(state, ctx.day, targets.needKg)) {
     declareNpcHunt(state, ctx.day);
     countSummerHunt(state, ctx.day);
   }
+  stewardMarketStep(state, ctx);
 }
 
 /**
