@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { foundVillage, type PlacedOrder } from '@bohemia/game';
+import { MARKET, foundVillage, type PlacedOrder } from '@bohemia/game';
 import { productOrder } from '../village-view-crafts';
 
 // Zakázka výrobku u řemeslníka jiné vsi ve dvorci (markets.md – Rozhodnutí plánu 3, bod 6).
@@ -23,9 +23,9 @@ describe('productOrder', () => {
       order({ day: 90 }),
       order({ good: 'pottery', name: 'Hrušov', status: 'ready' }),
     ];
-    expect(productOrder(state, 'toolsKg')).toEqual({ name: 'Lhota', ready: false });
-    expect(productOrder(state, 'potteryKg')).toEqual({ name: 'Hrušov', ready: true });
-    expect(productOrder(state, 'woodToolsKg')).toBeUndefined();
+    expect(productOrder(state, 'toolsKg', 120)).toEqual({ name: 'Lhota', ready: false });
+    expect(productOrder(state, 'potteryKg', 120)).toEqual({ name: 'Hrušov', ready: true });
+    expect(productOrder(state, 'woodToolsKg', 120)).toBeUndefined();
   });
 
   it('nejnovější zakázka vyhrává', () => {
@@ -33,6 +33,15 @@ describe('productOrder', () => {
       order({ day: 90, status: 'ready' }),
       order({ day: 110, name: 'Dolany', villageId: 'v-3' }),
     ];
-    expect(productOrder(state, 'toolsKg')).toEqual({ name: 'Dolany', ready: false });
+    expect(productOrder(state, 'toolsKg', 120)).toEqual({ name: 'Dolany', ready: false });
+  });
+
+  it('vypršelá zakázka (MARKET.orderDays) se neukazuje', () => {
+    state.orders = [order({ day: 100, status: 'ready' })];
+    expect(productOrder(state, 'toolsKg', 100 + MARKET.orderDays)).toEqual({
+      name: 'Lhota',
+      ready: true,
+    });
+    expect(productOrder(state, 'toolsKg', 101 + MARKET.orderDays)).toBeUndefined();
   });
 });

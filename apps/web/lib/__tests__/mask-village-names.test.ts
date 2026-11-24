@@ -60,8 +60,11 @@ describe('maskVillageNames – cizí správce', () => {
         .map((e) => e.text)
         .slice(3),
     ]);
-    expect(productOrder(masked, 'toolsKg')).toEqual({ name: '', ready: false });
-    expect(productOrder(masked, 'potteryKg')).toEqual({ name: 'Lhota', ready: true });
+    expect(productOrder(masked, 'toolsKg', masked.lastDay)).toEqual({ name: '', ready: false });
+    expect(productOrder(masked, 'potteryKg', masked.lastDay)).toEqual({
+      name: 'Lhota',
+      ready: true,
+    });
     expect(masked.shoeing!.asked!.name).toBe('');
     // vstup se nezměnil
     expect(state.orders![0]!.name).toBe('Dolní');

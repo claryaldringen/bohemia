@@ -57,6 +57,7 @@ import {
   type WorkshopActivity,
   type CraftProduct,
   type OrderGood,
+  placedOrders,
 } from '@bohemia/game';
 import { nearestToCentroid, type CartGoal } from './cart-routes';
 import { stoneDestination } from './scene/stone-destination';
@@ -312,15 +313,17 @@ const PRODUCT_ORDER_GOOD = {
 } as const satisfies Record<CraftProduct, OrderGood>;
 
 /**
- * Zakázka výrobku u řemeslníka jiné vsi (`VillageState.orders`): nejnovější, která výrobek ještě
- * čeká (otevřená) nebo je hotová; odmítnuté se neukazují. Bez ní undefined.
+ * Zakázka výrobku u řemeslníka jiné vsi (`VillageState.orders`): nejnovější živá v den `day`
+ * (`placedOrders` – vypršelá se neukazuje), která výrobek ještě čeká (otevřená) nebo je hotová;
+ * odmítnuté se neukazují. Bez ní undefined.
  */
 export function productOrder(
   state: VillageState,
   product: CraftProduct,
+  day: number,
 ): VillageCraftSource['order'] {
   const good = PRODUCT_ORDER_GOOD[product];
-  const orders = (state.orders ?? []).filter((o) => o.good === good && o.status !== 'refused');
+  const orders = placedOrders(state, day).filter((o) => o.good === good && o.status !== 'refused');
   const latest = orders.reduce<(typeof orders)[number] | undefined>(
     (best, o) => (best === undefined || o.day >= best.day ? o : best),
     undefined,
@@ -405,7 +408,7 @@ export function craftsView(state: VillageState, summary: VillageSummary): Villag
     carts: carts.map((c) => ({ ...c, condition: Math.round(c.condition * 100) / 100 })),
     cartTargets,
     sources: craftSources(state).map((source) => {
-      const order = productOrder(state, source.product);
+      const order = productOrder(state, source.product, state.lastDay);
       return { product: source.product, own: source.own, ...(order ? { order } : {}) };
     }),
   };

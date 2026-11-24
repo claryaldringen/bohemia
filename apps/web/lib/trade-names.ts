@@ -183,10 +183,13 @@ export const NEWCOMER_TEXTS: Record<
   },
 };
 
-/** Množství zboží s jednotkou („120 kg obilí“, „2 ks krav“) – pro kroniku. */
+/**
+ * Množství zboží s jednotkou v celých číslech („120 kg obilí“, „2 ks krav“) – pro kroniku; co se
+ * zaokrouhlí na nulu (zbytek gramů), se nepíše.
+ */
 export function goodsText(goods: TradeGoods): string {
   const items = (Object.entries(goods) as [TradeGood, number][])
-    .filter(([, amount]) => amount > 0)
+    .filter(([, amount]) => Math.round(amount) > 0)
     .map(([good, amount]) => {
       const { unit, genitive } = TRADE_GOOD_NAMES[good];
       return `${formatInteger(amount)} ${unit} ${genitive}`;
