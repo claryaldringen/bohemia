@@ -9,6 +9,8 @@
 interface NameForms {
   genitive: string | null;
   adjective: string | null;
+  /** 6. pád jednotného (nebo množného) čísla bez předložky („Lhotě“); null = neznámý. */
+  locative: string | null;
 }
 
 /**
@@ -17,33 +19,38 @@ interface NameForms {
  * vzoru – obyvatele (přídavné jméno nejisté) kronika opíše (návrh Clauda).
  */
 const NAME_FORMS: ReadonlyMap<string, NameForms> = new Map([
-  ['Libice', { genitive: 'Libice', adjective: 'Libický' }],
-  ['Olešnice', { genitive: 'Olešnice', adjective: 'Olešnický' }],
-  ['Kamenice', { genitive: 'Kamenice', adjective: 'Kamenický' }],
-  ['Bystřice', { genitive: 'Bystřice', adjective: 'Bystřický' }],
-  ['Doubravice', { genitive: 'Doubravice', adjective: 'Doubravický' }],
-  ['Lomnice', { genitive: 'Lomnice', adjective: 'Lomnický' }],
-  ['Bělá', { genitive: 'Bělé', adjective: 'Bělský' }],
-  ['Dubá', { genitive: 'Dubé', adjective: 'Dubský' }],
-  ['Brod', { genitive: 'Brodu', adjective: 'Brodský' }],
+  ['Libice', { genitive: 'Libice', adjective: 'Libický', locative: 'Libici' }],
+  ['Olešnice', { genitive: 'Olešnice', adjective: 'Olešnický', locative: 'Olešnici' }],
+  ['Kamenice', { genitive: 'Kamenice', adjective: 'Kamenický', locative: 'Kamenici' }],
+  ['Bystřice', { genitive: 'Bystřice', adjective: 'Bystřický', locative: 'Bystřici' }],
+  ['Doubravice', { genitive: 'Doubravice', adjective: 'Doubravický', locative: 'Doubravici' }],
+  ['Lomnice', { genitive: 'Lomnice', adjective: 'Lomnický', locative: 'Lomnici' }],
+  ['Bělá', { genitive: 'Bělé', adjective: 'Bělský', locative: 'Bělé' }],
+  ['Dubá', { genitive: 'Dubé', adjective: 'Dubský', locative: 'Dubé' }],
+  ['Brod', { genitive: 'Brodu', adjective: 'Brodský', locative: 'Brodě' }],
 ]);
 
 /** Vzory podle konce jména: konec → konec 2. pádu a přídavného jména (null – vzor ho nezná). */
-const ENDINGS: readonly { ending: string; genitive: string; adjective: string | null }[] = [
+const ENDINGS: readonly {
+  ending: string;
+  genitive: string;
+  adjective: string | null;
+  locative: string;
+}[] = [
   // Kojetice → z Kojetic, Kojetičtí (množné číslo jako Kněžice)
-  { ending: 'ice', genitive: 'ic', adjective: 'ický' },
+  { ending: 'ice', genitive: 'ic', adjective: 'ický', locative: 'icích' },
   // Dobřany → z Dobřan, Dobřanští
-  { ending: 'any', genitive: 'an', adjective: 'anský' },
+  { ending: 'any', genitive: 'an', adjective: 'anský', locative: 'anech' },
   // Vlkov → z Vlkova, Vlkovští
-  { ending: 'ov', genitive: 'ova', adjective: 'ovský' },
+  { ending: 'ov', genitive: 'ova', adjective: 'ovský', locative: 'ově' },
   // Radotín → z Radotína, Radotínští
-  { ending: 'ín', genitive: 'ína', adjective: 'ínský' },
+  { ending: 'ín', genitive: 'ína', adjective: 'ínský', locative: 'íně' },
   // Chlumec → z Chlumce, Chlumečtí
-  { ending: 'ec', genitive: 'ce', adjective: 'ecký' },
+  { ending: 'ec', genitive: 'ce', adjective: 'ecký', locative: 'ci' },
   // Mokrá → z Mokré (skloňuje se jako přídavné jméno)
-  { ending: 'á', genitive: 'é', adjective: null },
+  { ending: 'á', genitive: 'é', adjective: null, locative: 'é' },
   // Březí → z Březí
-  { ending: 'í', genitive: 'í', adjective: null },
+  { ending: 'í', genitive: 'í', adjective: null, locative: 'í' },
 ];
 
 /** Jedno slovo s velkým písmenem – víceslovná a jiná jména vzory neznají. */
@@ -58,23 +65,42 @@ const HARD_BEFORE_A = /[bdfghklmnprstvz]a$/;
  */
 const PLAIN_ADJECTIVE_A = /[aeěiouy][bdlmnprtv]a$/;
 
+/**
+ * 6. pád ženského -a po tvrdé souhlásce (Lhota → Lhotě, Praha → Praze, Skála → Skále): konec kmene
+ * se mění (h → z, k → c, r → ř, g → z), po s, z a l je -e, jinak -ě.
+ */
+function locativeStem(stem: string): string {
+  const last = stem.slice(-1);
+  const head = stem.slice(0, -1);
+  if (last === 'h' || last === 'g') return `${head}ze`;
+  if (last === 'k') return `${head}ce`;
+  if (last === 'r') return `${head}ře`;
+  if (last === 's' || last === 'z' || last === 'l') return `${stem}e`;
+  return `${stem}ě`;
+}
+
 function nameForms(name: string): NameForms {
   const listed = NAME_FORMS.get(name);
   if (listed) return listed;
-  if (!SINGLE_WORD.test(name)) return { genitive: null, adjective: null };
-  for (const { ending, genitive, adjective } of ENDINGS) {
+  if (!SINGLE_WORD.test(name)) return { genitive: null, adjective: null, locative: null };
+  for (const { ending, genitive, adjective, locative } of ENDINGS) {
     if (!name.endsWith(ending)) continue;
     const stem = name.slice(0, -ending.length);
-    return { genitive: stem + genitive, adjective: adjective === null ? null : stem + adjective };
+    return {
+      genitive: stem + genitive,
+      adjective: adjective === null ? null : stem + adjective,
+      locative: stem + locative,
+    };
   }
   if (HARD_BEFORE_A.test(name)) {
     const stem = name.slice(0, -1);
     return {
       genitive: `${stem}y`,
       adjective: PLAIN_ADJECTIVE_A.test(name) ? `${stem}ský` : null,
+      locative: `${locativeStem(stem)}`,
     };
   }
-  return { genitive: null, adjective: null };
+  return { genitive: null, adjective: null, locative: null };
 }
 
 /** Sykavka – před ní (i jako druhou hláskou za souhláskou) se předložka „z“ / „s“ mění na „ze“ / „se“. */
@@ -87,10 +113,14 @@ function vowel(letter: string): boolean {
 }
 
 /** Předložka před slovem: „z Lhoty“, „ze Sedlce“, „ze Vsetína“; „s Lhotskými“, „se Slavětínskými“. */
-function withPreposition(preposition: 'z' | 's', word: string): string {
+function withPreposition(preposition: 'z' | 's' | 'v', word: string): string {
   const first = word.charAt(0).toLowerCase();
   const second = word.charAt(1).toLowerCase();
-  const vocalized = sibilant(first) || (!vowel(first) && sibilant(second));
+  // „ve Vlkově“, „ve Zlíně“, „ve Vsetíně“: před v, f a sykavkou (i jako druhou hláskou) -e
+  const vocalized =
+    sibilant(first) ||
+    (!vowel(first) && sibilant(second)) ||
+    (preposition === 'v' && (first === 'v' || first === 'f'));
   return `${vocalized ? `${preposition}e` : preposition} ${word}`;
 }
 
@@ -102,12 +132,14 @@ function nominativePlural(adjective: string): string {
 
 /** Odkud – 2. pád s předložkou: „z Lhoty“, „ze Sedlce“; jméno, které vzor nezná, „ze vsi X“. */
 export function fromVillage(name: string): string {
+  if (name === '') return 'ze sousední vsi';
   const { genitive } = nameForms(name);
   return genitive === null ? `ze vsi ${name}` : withPreposition('z', genitive);
 }
 
 /** Kam – 2. pád s předložkou „do“: „do Lhoty“, „do Sedlce“; jméno, které vzor nezná, „do vsi X“. */
 export function toVillage(name: string): string {
+  if (name === '') return 'do sousední vsi';
   const { genitive } = nameForms(name);
   return `do ${genitive ?? `vsi ${name}`}`;
 }
@@ -124,4 +156,14 @@ export function withVillagersOf(name: string): string {
   return adjective === null
     ? `s obyvateli vsi ${name}`
     : withPreposition('s', `${adjective.slice(0, -1)}ými`);
+}
+
+/**
+ * Kde – 6. pád s předložkou „v“: „v Lhotě“, „ve Vlkově“; jméno, které vzor nezná, „ve vsi X“.
+ * Prázdné jméno (ves, kterou hráč vidět nesmí – cizí správce) je „v sousední vsi“.
+ */
+export function inVillage(name: string): string {
+  if (name === '') return 'v sousední vsi';
+  const { locative } = nameForms(name);
+  return locative === null ? `ve vsi ${name}` : withPreposition('v', locative);
 }

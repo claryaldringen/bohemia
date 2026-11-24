@@ -62,11 +62,17 @@ export function marketPreview(
   market: VillageManor['market'],
   cells: number,
 ): MarketPreview {
+  // prodávaní lidé nejsou nosiči – prvních n skupin výběru je vždy stejných
+  let leaving = 0;
+  for (const kind of ['families', 'men', 'women'] as const) {
+    const n = Math.max(0, Math.floor(order.give[kind] ?? 0));
+    for (const adults of (market.peopleAdults?.[kind] ?? []).slice(0, n)) leaving += adults;
+  }
   const input: MarketTripCheck = {
     stock: market.stock,
     homeCarts: market.homeCarts,
     oxenHome: market.oxenHome,
-    adults: market.adults,
+    adults: Math.max(0, market.adults - leaving),
     day: market.day,
     cells,
   };

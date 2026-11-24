@@ -56,6 +56,8 @@ export interface MarketArrivalNote {
   name: string;
   day: number;
   goods: TradeGood[];
+  /** Přišel kovář kovat koně (`MarketArrival.service`) – ne obchodník s hřivnami; jinak chybí. */
+  smith?: true;
 }
 
 /**

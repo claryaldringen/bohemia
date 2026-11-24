@@ -11,7 +11,7 @@ import {
   SceneVillage,
   type SceneCraftYard,
 } from './village-view-scene-types';
-import { VillageCrafts } from './village-view-types';
+import type { VillageCraftSource, VillageCrafts } from './village-view-types';
 import {
   craftSources,
   CARPENTRY,
@@ -55,6 +55,8 @@ import {
   ironBarsKg,
   smithBellows,
   type WorkshopActivity,
+  type CraftProduct,
+  type OrderGood,
 } from '@bohemia/game';
 import { nearestToCentroid, type CartGoal } from './cart-routes';
 import { stoneDestination } from './scene/stone-destination';
@@ -302,6 +304,30 @@ function workshopOutputKg(craft: Craft, labor: number, coverage: CraftCoverage):
   return labor / CRAFT_PRODUCTION.potteryManDaysPerKg;
 }
 
+/** Zboží zakázky k výrobku řemeslníků (`ORDER_GOODS` v jádru) – nástroje, keramika, nářadí. */
+const PRODUCT_ORDER_GOOD = {
+  toolsKg: 'tools',
+  potteryKg: 'pottery',
+  woodToolsKg: 'woodTools',
+} as const satisfies Record<CraftProduct, OrderGood>;
+
+/**
+ * Zakázka výrobku u řemeslníka jiné vsi (`VillageState.orders`): nejnovější, která výrobek ještě
+ * čeká (otevřená) nebo je hotová; odmítnuté se neukazují. Bez ní undefined.
+ */
+export function productOrder(
+  state: VillageState,
+  product: CraftProduct,
+): VillageCraftSource['order'] {
+  const good = PRODUCT_ORDER_GOOD[product];
+  const orders = (state.orders ?? []).filter((o) => o.good === good && o.status !== 'refused');
+  const latest = orders.reduce<(typeof orders)[number] | undefined>(
+    (best, o) => (best === undefined || o.day >= best.day ? o : best),
+    undefined,
+  );
+  return latest ? { name: latest.name, ready: latest.status === 'ready' } : undefined;
+}
+
 /** Řemesla pro lištu a panel výběru. */
 export function craftsView(state: VillageState, summary: VillageSummary): VillageCrafts {
   const { stocks, needs, coverage, workshops, carts, cartTargets } = summary.crafts;
@@ -378,7 +404,10 @@ export function craftsView(state: VillageState, summary: VillageSummary): Villag
     })),
     carts: carts.map((c) => ({ ...c, condition: Math.round(c.condition * 100) / 100 })),
     cartTargets,
-    sources: craftSources(state).map((source) => ({ product: source.product, own: source.own })),
+    sources: craftSources(state).map((source) => {
+      const order = productOrder(state, source.product);
+      return { product: source.product, own: source.own, ...(order ? { order } : {}) };
+    }),
   };
 }
 

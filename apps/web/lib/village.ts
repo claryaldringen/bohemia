@@ -92,6 +92,7 @@ import {
   mapTrailContinuations,
   SEAT_CELL,
   type VillageRecord,
+  type VillageState,
   type VillageRepository,
   type VillageResult,
   type PenSpecies,
@@ -128,6 +129,7 @@ import type { LeaveVillageInput } from './village-input';
 import { lineEndView } from './line-end-view';
 import { panelOptionsOf, type PanelAsk, type PanelOptions } from './panel-options';
 import { chroniclePage, type ChronicleAsk, type ChroniclePage } from './chronicle-view';
+import { maskVillageNames } from './mask-village-names';
 import { villageListItem, type VillageListItem } from './village-list';
 import { buildVillageView, type VillageView } from './village-view';
 
@@ -242,6 +244,26 @@ async function guardedAction<T>(
 }
 
 /**
+ * Ves pro cizího správce (jednající hráč ≠ držitel): jména vsí, které správce vidět nesmí
+ * (`marketOverview` s `actorId` – jen sousedé a vsi, o kterých má ves zprávu, ne ostatní vsi
+ * držitele), jsou prázdná – pohled, kronika, upozornění i tooltipy říkají „sousední ves“ a klient
+ * jména nikdy nedostane (markets.md – Rozhodnutí plánu 3, bod 14). Držitel vidí vše.
+ */
+async function shownToActor<T extends { id: string; state: VillageState }>(
+  ctx: Extract<Context, { ok: true }>,
+  record: T,
+): Promise<T> {
+  if (ctx.actorId === ctx.playerId) return record;
+  const overview = await marketOverview(gameDeps(), {
+    playerId: ctx.playerId,
+    actorId: ctx.actorId,
+    villageId: ctx.villageId,
+  });
+  const allowed = new Set([record.id, ...(overview ?? []).map((v) => v.villageId)]);
+  return { ...record, state: maskVillageNames(record.state, allowed) };
+}
+
+/**
  * Pohled na ves z kontextu: ves kontextu se dopočte do dneška, ostatní vsi hráče (přepínač vsí) jsou,
  * jak je drží worker – web je dopočte, jen když jsou víc než `WORKER_LAG_DAYS` pozadu (`dynastyForVillage`; konec hry až po vymření všech). `record` – ves
  * právě uložená akcí (kdyby ji stav rodu nenašel).
@@ -276,7 +298,7 @@ async function viewOf(
   // lov vsi už běží ve výpravě vsi, nebo čeká jeho záměr (tlačítko lovu zašedne s „Lov už běží“)
   const huntOn = await huntRunningIn(gameDeps(), ctx.playerId, current.id);
   // správce vidí jen zobrazenou ves: konec rodu, mapy a ostatní vsi držitele mu nepatří
-  const view = buildVillageView(current, ctx.landscape, ctx.day, {
+  const view = buildVillageView(await shownToActor(ctx, current), ctx.landscape, ctx.day, {
     huntRunning: huntOn,
     gameOver: stewarding ? false : status.gameOver,
     lineEnded: !stewarding && status.gameOver ? lineEndView(status.villages) : null,
@@ -406,7 +428,8 @@ export function chronicleForPlayer(
     const full = (status.villages as readonly DynastyVillage[]).filter(isFullVillage);
     const current = full.find((v) => v.id === ctx.villageId);
     if (!current) return { error: NO_VILLAGE };
-    return chroniclePage(current.state.chronicle, current.name, ask, current.state.seed);
+    const shown = await shownToActor(ctx, current);
+    return chroniclePage(shown.state.chronicle, shown.name, ask, shown.state.seed);
   });
 }
 

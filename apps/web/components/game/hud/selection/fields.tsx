@@ -2,7 +2,7 @@
 import { type ReactElement, type ReactNode } from 'react';
 import { CART_NAMES, MAX_PEN_SQUARES, dateOfDayIndex, type ClearingStage } from '@bohemia/game';
 import { formatGameDate } from '@/lib/game-date';
-import type { VillageHorse, VillageHorses } from '@/lib/horse-view';
+import { shoeingSmithText, type VillageHorse, type VillageHorses } from '@/lib/horse-view';
 import { PART_COLORS, SURFACE_COLORS } from '@/lib/minimap';
 import { VillageTarget } from '@/lib/scene/village-picking';
 import {
@@ -706,8 +706,7 @@ function shoeingName(s: NonNullable<VillageHorses['shoeing']>): string {
   const when = s.unshod
     ? 'Jezdecký kůň není podkutý – nejezdí a nevycvičuje se'
     : `Dny do kování jezdeckých koní: ${formatInteger(Math.max(0, s.daysLeft))}`;
-  if (s.source === 'own') return `${when}; kuje vlastní kovář`;
-  return `${when}; kovář chybí`;
+  return `${when}. ${shoeingSmithText(s)}`;
 }
 
 /**

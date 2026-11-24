@@ -31,6 +31,7 @@ import type {
   MarketTarget,
   MarketTrip,
   TradeGoods,
+  TradePeople,
   TripBy,
   VillageState,
 } from '../types';
@@ -57,6 +58,7 @@ import {
   takePeople,
   withoutGroups,
 } from './market-people';
+import { emigrantGroups, type EmigrantGroup } from './people-trade';
 import { addGood, addMarketCarts, expeditionLaborNeed, takeCarts, villageGoodStock } from './trade';
 import { emigrantList } from './people-trade';
 import { villageReport } from './village-report';
@@ -310,6 +312,34 @@ export function marketFreeAdults(state: VillageState, day: number): number {
   const busy =
     expeditionLaborNeed(state, day + 1) + purchaseTravelers(state) + ironTripHelpers(state);
   return Math.max(0, adults - busy);
+}
+
+/**
+ * Lidé na prodej pro náhled výpravy ve webu (markets.md – Rozhodnutí plánu 3, bod 10; návrh
+ * Clauda): rodiny, muži a ženy berou z týchž lidí, takže `stock` je kolik jich odejde, když výběr
+ * `emigrantGroups` vezme všechny druhy po sobě (muži z vsi bez rodin, ženy bez rodin a mužů –
+ * nikdy víc, než server doopravdy vybere), a `adults` dospělí po skupinách v pořadí výběru
+ * (prvních n skupin je vždy stejných) – kdo odejde, nosičem není.
+ */
+export function marketPeopleOffer(
+  state: VillageState,
+  day: number,
+): { stock: TradePeople; adults: Record<keyof TradePeople, number[]> } {
+  const all = emigrantGroups(state, day, { families: Infinity, men: Infinity, women: Infinity });
+  const adultsOf = (groups: readonly EmigrantGroup[]): number[] =>
+    groups.map((g) => g.people.filter((p) => isAdult(p, day) && !awayFromWork(p, day)).length);
+  return {
+    stock: {
+      families: all.families.length,
+      men: all.men.length,
+      women: all.women.length,
+    },
+    adults: {
+      families: adultsOf(all.families),
+      men: adultsOf(all.men),
+      women: adultsOf(all.women),
+    },
+  };
 }
 
 /**

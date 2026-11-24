@@ -93,6 +93,8 @@ export function shownInChronicle(event: ChronicleEvent): boolean {
   ) {
     return false;
   }
+  // partner za hledajícím jede s výpravou bez vlastního řádku – řekne to `married-away` (plán 3, bod 14)
+  if (event.kind === 'market-departed' && event.by === 'kin') return false;
   return !(event.kind === 'people-back' && event.away === 'journey');
 }
 

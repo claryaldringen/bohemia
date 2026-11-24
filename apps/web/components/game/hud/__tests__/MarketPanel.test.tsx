@@ -205,6 +205,83 @@ describe('sestavení výpravy', () => {
   });
 });
 
+describe('nové zboží a lidé (plán 3, Úloha 11)', () => {
+  it('Dáš nabízí nástroje, nářadí, vozy a lidi s ikonami, nejvýš kolik ves má', async () => {
+    const host = await mount({
+      market: market({
+        stock: { tools: 40, woodTools: 12, twoWheelCarts: 1, families: 1, men: 2, women: 1 },
+        adults: 20,
+      }),
+    });
+    for (const good of ['tools', 'woodTools', 'twoWheelCarts', 'families', 'men', 'women']) {
+      expect(byId(host, `market-give-${good}`)).not.toBeNull();
+    }
+    const give = (good: string): HTMLElement => byId(host, `market-give-${good}`)!;
+    expect(give('families').querySelector('img[src="/icons/resources/family.png"]')).not.toBeNull();
+    expect(give('men').querySelector('img[src="/icons/resources/man.png"]')).not.toBeNull();
+    expect(give('women').querySelector('img[src="/icons/resources/woman.png"]')).not.toBeNull();
+    expect(give('tools').querySelector('img[src="/icons/resources/tools.png"]')).not.toBeNull();
+    // celé kg, ne zlomky; víc než ves má nejde (nástroje 40 kg < krok 100 kg)
+    await click(byId(host, 'market-give-tools-plus'));
+    expect(give('tools').textContent).toContain('40');
+    await click(byId(host, 'market-give-men-plus'));
+    await click(byId(host, 'market-give-men-plus'));
+    await click(byId(host, 'market-give-men-plus'));
+    expect(give('men').textContent).toContain('2');
+  });
+
+  it('prodávaní lidé nejsou nosiči: náhled ubere dospělé a řekne důvod jako server', async () => {
+    const host = await mount({
+      market: market({
+        stock: { grain: 1000, men: 2 },
+        adults: 6,
+        peopleAdults: { families: [], men: [3, 3], women: [] },
+      }),
+    });
+    await click(host.querySelector('[data-testid="market-village"] button'));
+    await click(byId(host, 'market-give-grain-plus'));
+    expect(byId(host, 'market-preview')).not.toBeNull();
+    await click(byId(host, 'market-give-men-plus'));
+    await click(byId(host, 'market-give-men-plus'));
+    expect(byId(host, 'market-preview')).toBeNull();
+    expect((byId(host, 'market-send') as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('zpráva ukáže kováře jako kováře, ne obchodníka s hřivnami', async () => {
+    const host = await mount({
+      villages: [
+        village({
+          news: {
+            villageId: 'v-lhota',
+            name: 'Lhota',
+            report: {
+              day: 5,
+              people: 40,
+              houses: 10,
+              crafts: [],
+              traders: [{ name: 'Dolany', day: 4, goods: ['ironBars'], smith: true }],
+            },
+          },
+        }),
+      ],
+    });
+    await click(host.querySelector('[data-testid="market-village"] button'));
+    const report = byId(host, 'market-report')!;
+    expect(report.textContent).toContain('Dolany');
+    expect(report.querySelector('img[src="/icons/build/kovar.png"]')).not.toBeNull();
+    expect(report.querySelector('img[src="/icons/resources/iron-bars.png"]')).toBeNull();
+  });
+
+  it('výprava do vsi, jejíž jméno cizí správce nesmí znát, je „Sousední ves“', async () => {
+    const host = await mount({
+      market: market({
+        trips: [{ key: 'market:a:1', villageName: '', phase: 'out', daysLeft: 2 }],
+      }),
+    });
+    expect(byId(host, 'market-trip')!.textContent).toContain('Sousední ves');
+  });
+});
+
 describe('výpravy na cestě', () => {
   it('každá výprava má jméno vsi, dny do návratu a fázi v popisku', async () => {
     const host = await mount({

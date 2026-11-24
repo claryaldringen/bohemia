@@ -157,6 +157,8 @@ async function collect(
     const place = await placeOf(deps, record); // archivované sídlo – bez polohy, v přehledu není
     if (!place || crossesIsolation(homePlace, place)) continue;
     const own = place.ownerId === input.playerId;
+    // správce: ani zpráva nesmí prozradit druhou ves držitele
+    if (steward && own) continue;
     if (!names.has(place.ownerId)) {
       names.set(place.ownerId, own ? null : await houseNameOf(deps, place.ownerId));
     }

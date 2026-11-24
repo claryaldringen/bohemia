@@ -6,6 +6,7 @@ import {
   HUNT_DENIED_TEXT,
   lordFamily,
   marketFreeAdults,
+  marketPeopleOffer,
   oxenHome,
   tradeHomeCarts,
   TRADE_GOODS,
@@ -79,13 +80,25 @@ export interface VillageManor {
    * Trh (markets.md – Rozhodnutí plánu 2, bod 9): vstup kontroly výpravy bez vzdálenosti
    * (`MarketTripCheck` – náhled ve webu volá `checkMarketTrip` jádra) a výpravy na cestě.
    */
-  market: Omit<MarketTripCheck, 'cells'> & { trips: MarketTripView[] };
+  market: Omit<MarketTripCheck, 'cells'> & {
+    trips: MarketTripView[];
+    /**
+     * Dospělí po skupinách lidí na prodej v pořadí výběru jádra (`marketPeopleOffer`) – kdo odejde,
+     * nosičem není (Rozhodnutí plánu 3, bod 10); chybí = neznámo (starší pohledy, testy).
+     */
+    peopleAdults?: Record<'families' | 'men' | 'women', number[]>;
+  };
 }
 
 /** Vstup kontroly výpravy na trh ze stavu vsi (zásoby všech druhů zboží, vozy, voli, volní dospělí). */
 function marketField(state: VillageState, day: number): VillageManor['market'] {
   const stock: TradeGoods = {};
   for (const good of TRADE_GOODS) stock[good] = villageGoodStock(state, good, day);
+  // lidé berou z týchž lidí – nabídka je výběr po sobě, ne po druzích zvlášť (jako kontrola serveru)
+  const people = marketPeopleOffer(state, day);
+  stock.families = people.stock.families;
+  stock.men = people.stock.men;
+  stock.women = people.stock.women;
   return {
     stock,
     homeCarts: tradeHomeCarts(state).map((c) => c.kind),
@@ -93,6 +106,7 @@ function marketField(state: VillageState, day: number): VillageManor['market'] {
     adults: marketFreeAdults(state, day),
     day,
     trips: marketTripViews(state, day),
+    peopleAdults: people.adults,
   };
 }
 

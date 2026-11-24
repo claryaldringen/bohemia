@@ -210,6 +210,19 @@ describe('marketOverview', () => {
     expect(overview.map((v) => v.name)).toEqual(['Lhota', 'Daleká']);
   });
 
+  it('zpráva o druhé vsi držitele: držitel ji v přehledu vidí, správce ne', async () => {
+    const w = await world();
+    await setState(w, w.ids.h, (s) => ({
+      ...s,
+      news: [{ villageId: w.ids.own, name: 'Dolní', report }],
+    }));
+    const input = { playerId: 'pa', villageId: w.ids.h };
+    const holder = (await marketOverview(w.deps, input))!;
+    expect(holder.find((v) => v.name === 'Dolní')?.news).toMatchObject({ report });
+    const steward = (await marketOverview(w.deps, { ...input, actorId: 'ps' }))!;
+    expect(steward.map((v) => v.name)).toEqual(['Lhota']);
+  });
+
   it('ves, která není hráče, vrátí null', async () => {
     const w = await world();
     expect(await marketOverview(w.deps, { playerId: 'pb', villageId: w.ids.h })).toBeNull();

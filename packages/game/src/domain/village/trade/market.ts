@@ -168,6 +168,7 @@ export function joinMarket(
     name: arrival.fromName,
     day,
     goods: TRADE_GOODS.filter((good) => (goods[good] ?? 0) > 0),
+    ...(arrival.service ? { smith: true as const } : {}),
   });
   const excess = market.arrivals.length - MARKET.report.traders;
   if (excess > 0) market.arrivals.splice(0, excess);
@@ -183,6 +184,7 @@ export function joinMarket(
       villageName: arrival.fromName,
       goods: { ...goods },
       villageId: arrival.fromVillageId,
+      ...(arrival.service ? { smith: true as const } : {}),
     },
     ...serveShoeing(state, day, visitor),
     ...receiveKin(state, day, visitor),

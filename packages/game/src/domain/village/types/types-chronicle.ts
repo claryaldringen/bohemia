@@ -751,6 +751,8 @@ export type ChronicleEvent = { day: number } & (
       goods: TradeGoods;
       /** Ves výpravy (Rozhodnutí plánu 3, bod 15); chybí = zápis z doby před ním. */
       villageId?: string;
+      /** Přišel kovář kovat koně (`MarketArrival.service`), ne obchodník; jinak chybí. */
+      smith?: true;
     }
   /** Tržní den – co ves na svém trhu prodala a koupila (markets.md – Pravidla 3 a 5). */
   | { kind: 'market-held'; sold: TradeGoods; bought: TradeGoods }

@@ -7,6 +7,7 @@ import type {
   WorkshopActivity,
 } from '@bohemia/game';
 import { DIRECTION_NAMES, NEWCOMER_TEXTS } from './trade-names';
+import { fromVillage, toVillage } from './village-name-cases';
 import { formatAnimals, formatInteger } from './village-format';
 import { ironTripWho, productList, type VillageView } from './village-view';
 import { disasterNotices, weatherNotices, type DisasterNoticeKind } from './disasters-view';
@@ -113,6 +114,10 @@ export type NoticeKind =
   | 'newcomer-family'
   | 'newcomer-man'
   | 'newcomer-woman'
+  /** Vrátili se lidé, které ves prodala (markets.md – Rozhodnutí plánu 3, bod 13). */
+  | 'newcomer-back-family'
+  | 'newcomer-back-man'
+  | 'newcomer-back-woman'
   /** Opuštěná stavba spadla (abandonment.md). */
   | 'idol-fell'
   | 'shrine-fell'
@@ -493,17 +498,31 @@ const CHRONICLE_NOTICES: Partial<
     tone: 'info',
     text: oxenText(entry.oxen, 'Spřežení je vycvičené', 'Vůl je vycvičený', 'Voli jsou vycvičení'),
   }),
-  'bride-from-outside': () => ({
+  // sňatky se sousedy (kinship.md – Sňatky z okolí; plán 3): se jménem vsi, starší záznamy „z okolí“
+  'bride-from-outside': (entry) => ({
     kind: 'bride-from-outside',
     tone: 'info',
-    text: 'Nevěsta z okolí',
+    text:
+      entry.villageName === undefined
+        ? 'Nevěsta z okolí'
+        : `Nevěsta ${fromVillage(entry.villageName)}`,
   }),
-  'groom-from-outside': () => ({
+  'groom-from-outside': (entry) => ({
     kind: 'groom-from-outside',
     tone: 'info',
-    text: 'Ženich z okolí',
+    text:
+      entry.villageName === undefined
+        ? 'Ženich z okolí'
+        : `Ženich ${fromVillage(entry.villageName)}`,
   }),
-  'married-away': () => ({ kind: 'married-away', tone: 'info', text: 'Dcera se vdala pryč' }),
+  'married-away': (entry) => ({
+    kind: 'married-away',
+    tone: 'info',
+    text:
+      entry.villageName === undefined
+        ? 'Dcera se vdala pryč'
+        : `${entry.groom ? 'Syn se přiženil' : 'Dcera se vdala'} ${toVillage(entry.villageName)}`,
+  }),
   'team-retired': (entry) => ({
     kind: 'team-retired',
     tone: 'info',
@@ -614,7 +633,16 @@ const CHRONICLE_NOTICES: Partial<
 
 /** Krátký řádek „Přišla rodina ze severu“ (trade.md – Výměna lidí). */
 function newcomerNotice(group: NewcomerGroup, entry: ChronicleEntry): VillageNotice {
-  const from = entry.direction ? ` ${DIRECTION_NAMES[entry.direction].from}` : '';
+  // vrácení lidé mají vlastní upozornění, ne „Přišla rodina“ (plán 3, bod 13)
+  if (entry.returned) {
+    return { kind: `newcomer-back-${group}`, tone: 'info', text: NEWCOMER_TEXTS[group].backNotice };
+  }
+  const from =
+    entry.villageName !== undefined
+      ? ` ${fromVillage(entry.villageName)}`
+      : entry.direction
+        ? ` ${DIRECTION_NAMES[entry.direction].from}`
+        : '';
   return {
     kind: `newcomer-${group}`,
     tone: 'info',

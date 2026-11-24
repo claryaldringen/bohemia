@@ -11,7 +11,15 @@ import {
   takePeople,
 } from '../market-people';
 import { marketStance } from '../market-stance';
-import { MARKET_NO_PEOPLE, applyMarketResult, departMarket, planMarketTrip } from '../market-trip';
+import {
+  MARKET_NO_PEOPLE,
+  applyMarketResult,
+  departMarket,
+  marketFreeAdults,
+  marketPeopleOffer,
+  planMarketTrip,
+} from '../market-trip';
+import { emigrantGroups } from '../people-trade';
 import { addGood } from '../trade';
 import {
   D,
@@ -320,3 +328,29 @@ describe('lidé na trhu (markets.md – Rozhodnutí plánu 3, bod 10)', () => {
     expect(planMarketTrip(s, D, order, target)).toMatchObject({ ok: true, porters: 1, carts: 0 });
   });
 });
+
+describe('marketPeopleOffer – nabídka lidí pro náhled výpravy (plán 3, Úloha 11)', () => {
+  it('rodiny, muži a ženy se berou z týchž lidí a nosiči ubývají o prodávané dospělé', () => {
+    const s = familyHome();
+    const offer = marketPeopleOffer(s, D);
+    const all = emigrantGroups(s, D, { families: Infinity, men: Infinity, women: Infinity });
+    expect(offer.stock).toEqual({
+      families: all.families.length,
+      men: all.men.length,
+      women: all.women.length,
+    });
+    expect(offer.stock.families).toBe(1);
+    // rodina 62 + 63 má dva dospělé, děti se do nosičů nepočítají
+    expect(offer.adults.families).toEqual([2]);
+    expect(offer.adults.men).toEqual(all.men.map(() => 1));
+    // server: volní dospělí vsi bez odcházející rodiny
+    const plan = planMarketTrip(s, D, { give: { families: 1 }, wants: {}, stayDays: 1 }, target);
+    expect(plan.ok).toBe(true);
+    expect(marketFreeAdults(s, D) - 2).toBe(marketFreeAdults(takeWithout(s), D));
+  });
+});
+
+/** Ves bez rodiny 62–65 (mělká kopie jako `withoutGroups`). */
+function takeWithout(s: ReturnType<typeof familyHome>): ReturnType<typeof familyHome> {
+  return { ...s, people: s.people.filter((p) => !FAMILY_IDS.includes(p.id)) };
+}

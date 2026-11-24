@@ -143,9 +143,13 @@ function Report({ village }: { village: MarketVillage }): ReactElement {
             <div key={i} className="flex items-center gap-2 text-xs">
               <span className="font-semibold">{t.name}</span>
               <span className="text-[#bfa77a]">{dateText(t.day)}</span>
-              {t.goods.map((g) => (
-                <GoodIcon key={g} good={g} size={16} />
-              ))}
+              {t.smith ? (
+                <Figure icon="kovar" folder="build" name="Kovář – přišel kovat koně">
+                  {''}
+                </Figure>
+              ) : (
+                t.goods.map((g) => <GoodIcon key={g} good={g} size={16} />)
+              )}
             </div>
           ))}
           {news?.prices && <PricesLine prices={news.prices} />}
@@ -513,7 +517,7 @@ export function MarketPanel({
                 className="hud-inset flex w-full items-center gap-3 rounded px-2 py-1"
                 tabIndex={0}
               >
-                <span className="font-semibold">{trip.villageName}</span>
+                <span className="font-semibold">{trip.villageName || 'Sousední ves'}</span>
                 <img
                   src={`/icons/resources/${PHASES[trip.phase].icon}.png`}
                   alt=""

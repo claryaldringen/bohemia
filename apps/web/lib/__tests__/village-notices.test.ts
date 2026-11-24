@@ -609,6 +609,44 @@ describe('newNotices – porážka a spřežení (diet.md, oxen.md)', () => {
     ]);
   });
 
+  it('nevěsta, ženich a vdaná dcera se jménem vsi, vrácená rodina vlastním upozorněním (plán 3)', () => {
+    const e = (
+      day: number,
+      kind: VillageView['chronicle'][number]['kind'],
+      fields: Partial<VillageView['chronicle'][number]> = {},
+    ): VillageView['chronicle'][number] => ({ day, kind, dateLabel: '', text: '', ...fields });
+    const after = view({
+      dayIndex: 1010,
+      chronicle: [
+        e(1005, 'newcomer', {
+          group: 'family',
+          direction: 'N',
+          villageName: 'Lhota',
+          returned: true,
+        }),
+        e(1004, 'newcomer', { group: 'man', direction: 'N', villageName: 'Lhota' }),
+        e(1003, 'married-away', { villageName: 'Lhota', groom: true }),
+        e(1002, 'groom-from-outside', { villageName: 'Lhota' }),
+        e(1001, 'bride-from-outside', { villageName: 'Lhota' }),
+      ],
+    });
+    expect(newNotices(view({ dayIndex: 1000 }), after)).toEqual([
+      { kind: 'bride-from-outside', tone: 'info', text: 'Nevěsta z Lhoty' },
+      { kind: 'groom-from-outside', tone: 'info', text: 'Ženich z Lhoty' },
+      { kind: 'married-away', tone: 'info', text: 'Syn se přiženil do Lhoty' },
+      { kind: 'newcomer-man', tone: 'info', text: 'Přišel muž z Lhoty' },
+      { kind: 'newcomer-back-family', tone: 'info', text: 'Vrátila se prodaná rodina' },
+    ]);
+    // cizí správce: jméno vsi je prázdné
+    const masked = view({
+      dayIndex: 1010,
+      chronicle: [e(1001, 'bride-from-outside', { villageName: '' })],
+    });
+    expect(newNotices(view({ dayIndex: 1000 }), masked)).toEqual([
+      { kind: 'bride-from-outside', tone: 'info', text: 'Nevěsta ze sousední vsi' },
+    ]);
+  });
+
   it('lidé od souseda – fakt, odkud přišli (trade.md – Výměna lidí)', () => {
     const newcomer = (
       day: number,

@@ -161,18 +161,25 @@ export function peopleText(
  */
 export const NEWCOMER_TEXTS: Record<
   NewcomerGroup,
-  { notice: string; chronicle: string; back: string }
+  { notice: string; chronicle: string; back: string; backNotice: string }
 > = {
   family: {
     notice: 'Přišla rodina',
     chronicle: 'přišla rodina',
     back: 'se vrátila prodaná rodina',
+    backNotice: 'Vrátila se prodaná rodina',
   },
-  man: { notice: 'Přišel muž', chronicle: 'přišel svobodný muž', back: 'se vrátil prodaný muž' },
+  man: {
+    notice: 'Přišel muž',
+    chronicle: 'přišel svobodný muž',
+    back: 'se vrátil prodaný muž',
+    backNotice: 'Vrátil se prodaný muž',
+  },
   woman: {
     notice: 'Přišla žena',
     chronicle: 'přišla svobodná žena',
     back: 'se vrátila prodaná žena',
+    backNotice: 'Vrátila se prodaná žena',
   },
 };
 

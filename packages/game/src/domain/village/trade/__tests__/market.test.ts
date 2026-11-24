@@ -469,3 +469,22 @@ describe('trh ve vsi hostitele – příjezd, výsledek a zprávy', () => {
     expect(marketResultRef('market:h:1')).toBe('market:h:1:out');
   });
 });
+
+describe('kovář souseda na trhu hostitele (plán 3, Úloha 11)', () => {
+  it('příjezd se službou nese `smith` v kronice i v paměti příjezdů – zobrazí se jako kovář', () => {
+    const m = marketVillage();
+    const events = joinMarket(
+      m,
+      D,
+      arrival({ goods: { ironBars: 1 }, service: { kind: 'shoeing', horses: 0 } }),
+    );
+    expect(events.find((e) => e.kind === 'market-arrived')).toMatchObject({ smith: true });
+    expect(m.market!.arrivals).toEqual([
+      { name: 'Vlkov', day: D, goods: ['ironBars'], smith: true },
+    ]);
+    // obchodník bez služby `smith` nenese
+    const other = marketVillage();
+    joinMarket(other, D, arrival());
+    expect(other.market!.arrivals[0]).not.toHaveProperty('smith');
+  });
+});

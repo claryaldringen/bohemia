@@ -420,6 +420,7 @@ export {
   oxenForCarts,
   planMarketTrip,
   marketFreeAdults,
+  marketPeopleOffer,
   type MarketCheck,
   type MarketPlan,
   type MarketTripCheck,
