@@ -460,7 +460,8 @@ villageId)` je zapíše do schránek cílových vsí (`inbox.post`, druhý zápi
   - **Port** `VillageInbox` (`application/inbox.ts`): `post(event)` – den zápisu
     `max(day, lastDay + 1)`, zápis zvedne verzi vsi, `null` = `ref` už zapsaný;
     `pending(villageId, afterDay, toDay)` – události `afterDay < day ≤ toDay` podle dne a `seq`;
-    `pruneNearby(villageId, upToDay)` – smaže použité snímky okolí (`nearby`) do dne včetně, verzi
+    `pruneUsed(villageId, upToDay)` – smaže použité události druhů `PRUNED_INBOX_KINDS` (snímky
+    okolí `nearby` a zprávy bez nákladu `kin-ask`, `smith-ask`, `order-ready`) do dne včetně, verzi
     nemění (úklid schránky – ostatní řádky živých vsí drží `ref` proti dvojímu zápisu;
     village-trade.md – Okolí vsi); `strandedResults()` – výsledky trhu s lidmi ve schránkách
     zaniklých vsí (spí, sídlo v archivu), `dropStranded(eventIds)` – smaže vyřízené z nich, verzi

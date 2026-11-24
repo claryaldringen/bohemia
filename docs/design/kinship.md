@@ -72,7 +72,7 @@ dědictví, sňatky a nástupnictví potřebují vědět, kdo je čí. Postavy v
   k ní přiženit smí – přestěhuje se on, když není dědicem svého domu.“). Kdo se stěhuje, vezme
   s sebou **vlastní děti mladší 16 let**. Kronika „Svatba“ jako dnes.
 - **Se skutečnými sousedy** (plán 3 obchodu, 24. 11. 2026; [markets.md](markets.md) – Rozhodnutí plánu 3, bod 11).
-  Martin 23. 11. 2026: „se sousedy je na náhodě, ze které dostupně vsi ženich nebo nevěsta bude“ (22. 11. 2026) a na
+  Martin 22. 11. 2026: „se sousedy je na náhodě, ze které dostupně vsi ženich nebo nevěsta bude“; 23. 11. 2026 na
   otázku „Má si i svobodná žena, která nedrží dům, hledat ženicha v sousední vsi sama, nebo se jen vdá pryč, když se
   na ni zeptá muž odjinud?“ zvolil možnost **„Jen se vdá pryč“** (popis možnosti od Clauda: „Ženicha hledá muž, nevěsta
   jde k němu jako při svatbě ve vsi. Sama se ptá jen vdova a dcera z domu bez mužů, jak jsi rozhodl 19. 10. 2026.“).

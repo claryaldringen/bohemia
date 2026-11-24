@@ -567,12 +567,21 @@ visitors)` – strany: hostitel a výpravy podle příjezdu, každá nabízí je
     `MARKET.minStayDays`, `by: 'villagers'`, osivo `seedKg`), výpravy v pořadí přijetí nákupů
     (zakázky, výrobky od nejlepšího, osivo, hřivny) – každá další počítá s lidmi a vozy, které
     zbyly. Odmítne-li výpravu `planMarketTrip` (lidé, voli, konec světa), ten den nejede.
-  - **Nezbudou-li lidé ani vozy:** nákup s pevným dnem (výrobek a vůz 15. 11., osivo), na který
-    nezbylo na nejmenší nákup, protože lidi a vozy mají jiné výpravy dne nebo výpravy na cestě
-    (`Space.held`), nebo jehož výprava neprošla kontrolou, vesničané zkusí druhý den
-    (`VillageTrade.villagersRetry` { `day`, `goods`: `VillagerRetry`[] } – `tools`, `pottery`,
-    `woodTools`, `cart`, `seed`; `takeRetry` ho ráno smaže) – nepropadne na rok. Zakázka (zůstane
-    `ready`) a hřivny se zkoušejí každý den samy.
+  - **Nezbudou-li lidé, vozy ani místo:** nákup s pevným dnem (výrobek a vůz 15. 11., osivo), na
+    který nezbylo na nejmenší nákup, protože lidi a vozy mají jiné výpravy dne, výpravy na cestě
+    nebo místo zabral dřívější nákup téže výpravy (`Space.held` – i `taken`), nebo jehož výprava
+    neprošla kontrolou, a výrobek, který výprava koupí jen zčásti, protože víc neunese (`limited`),
+    vesničané zkusí znovu (`VillageTrade.villagersRetry` { `day`, `goods`: `VillagerRetry`[] } –
+    `tools`, `pottery`, `woodTools`, `cart`, `seed`; `takeRetry` ho ráno smaže, nesplněná paměť se
+    sloučí) – nepropadne na rok, víc ves koupí příští cestou. Den pokusu (`retryDay`): den před
+    návratem první výpravy na trh, jejíž lidé jsou zítra pryč (výprava vyrazí v den jejich návratu),
+    jinak zítra – opakování neodvede zbylé jednoho dva dospělé. Výrobek a osivo, které veze výprava
+    vesničanů na cestě, čekají na její výsledek (`'blocked'`, `seedOnTheWay`) – znovu se nekupují.
+    Zbytek osiva jede další cestou, jen když místo vzaly dnešní nákupy (`taken`) – výprava, kterou
+    omezila jen nosnost vsi, se neopakuje (hostitel ji mohl odmítnout). Zakázka (zůstane `ready`)
+    a hřivny se zkoušejí každý den samy. Rozhodují jen zakázky u vsí okolí (`nearbyOrder`) – zakázka
+    u vsi mimo okolí (zaniklý hostitel, výprava hráče či správce do vzdálené vsi) nákup neblokuje
+    (plán 3, závěrečná kontrola I1 a Minor 1).
   - **Vozy a voli** výpravy vesničanů, odeslané v kroku dne před prací, ten den ještě pracují doma
     a pryč jsou ode dne odjezdu (`startedDay`) – jako u výpravy hráče: `cartsAway` / `oxenAway`
     s dnem práce (`workDay`) počítají jen výpravy, které už vyrazily (`departedBy`), práce dne
@@ -717,8 +726,10 @@ Počasí kraje mění hodnotu zboží od 1. 11. – [village-disasters.md](villa
     den obnovy nepočítá. Cena jednou za 30 dní na ves: dotazy na sídla prstence, jeden na otisky
     a jedno načtení vsi navíc (nový pokus); dopočet bez dne obnovy nic navíc.
   - **Úklid schránky** (Úloha 10 plánu 3): když `post` snímek zapsal, smaže použité snímky vsi se
-    dnem ≤ `afterDay − NEARBY_KEEP_DAYS` (`inbox.pruneNearby` – jen druh `nearby`, verzi vsi
-    nemění). `NEARBY_KEEP_DAYS` = 365 – technická mez, ne pravidlo: použitý snímek už nic nečte, ale
+    dnem ≤ `afterDay − NEARBY_KEEP_DAYS` a se snímky i použité zprávy bez nákladu (`inbox.pruneUsed`
+    – jen druhy `PRUNED_INBOX_KINDS`: `nearby`, `kin-ask`, `smith-ask`, `order-ready`; jejich `ref`
+    je ze dne a po dni použití se znovu nezapisuje; verzi vsi nemění – plán 3, závěrečná kontrola
+    I2). `NEARBY_KEEP_DAYS` = 365 – technická mez, ne pravidlo: použitý snímek už nic nečte, ale
     řádek drží `ref` proti dalšímu zápisu téhož dne (dopočet se starším stavem vsi při souběhu webu
     a workeru by ho po smazání zapsal znovu na nejbližší nespočtený den); rok je daleko za každou
     dávkou. Schránka tak drží nejvýš ~12 snímků na ves místo ~12 za každý herní rok. Ostatní

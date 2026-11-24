@@ -175,7 +175,8 @@ trhu) nechá v odchozí schránce `outbox`; `advancePlayer` ji doručí pod zám
   `villages.nearby`) před dopočtem přes den obnovy – ve workeru, webu i akci stejně. Ves dopočtená
   webem se kvůli okolí nečte; dávka, která den obnovy přejde, načte ves jednou navíc (nový pokus
   po zápisu). Po zápisu snímku smaže dopočet použité snímky starší než `NEARBY_KEEP_DAYS` (rok –
-  `inbox.pruneNearby`), jinak by schránka rostla o ~12 řádků za herní rok na ves; chyba úklidu jde
+  `inbox.pruneUsed` – i použité zprávy bez nákladu `kin-ask`, `smith-ask`, `order-ready`), jinak by
+  schránka rostla o ~12 řádků za herní rok na ves; chyba úklidu jde
   jen do logu, dopočet nezastaví (úklid je údržba). Test: kola
   workeru přes dva dny obnovy zapíšou snímek jen v nich (`advance-world.test.ts`).
 
