@@ -812,7 +812,8 @@ export type ChronicleEvent = { day: number } & (
   | { kind: 'cart-worn-out'; cart: CartKind }
   /**
    * S výpravou přišli lidé od souseda (trade.md – Výměna lidí): rodina, svobodný muž nebo žena,
-   * kolik jich je a do kterého obydlí šli.
+   * kolik jich je a do kterého obydlí šli. Lidé z trhu (markets.md – Rozhodnutí plánu 3, bod 10)
+   * nesou ves, odkud přišli (`villageName`, `villageId`); starší záznamy je nemají.
    */
   | {
       kind: 'newcomer';
@@ -820,6 +821,8 @@ export type ChronicleEvent = { day: number } & (
       group: NewcomerGroup;
       people: number;
       dwellingId: number;
+      villageName?: string;
+      villageId?: string;
     }
   /**
    * Opuštěná stavba, ke které léta nikdo nechodil, se rozpadla (abandonment.md): modla padla,

@@ -111,8 +111,13 @@ function adultsOf(people: readonly Person[], day: number): number {
  * (`stewardOutlook` – osev podle práce nad osevem podle půdy), smí dát takový díl dospělých, o kolik
  * práce přebývá. Kdo odejde, vybere výměna lidí (`emigrantGroups` – z nejvíc přeplněného domu, muži
  * rodu a jejich ženy ne); rodiny, dokud jejich dospělí nepřesáhnou díl. Ves bez pole nedá nikoho.
+ * Totéž nabízí ves na trhu (`marketStance` – markets.md, Rozhodnutí plánu 3, bod 10).
  */
-function peopleSpare(state: VillageState, day: number, outlook: StewardOutlook): TradePeople {
+export function peopleSpare(
+  state: VillageState,
+  day: number,
+  outlook: StewardOutlook,
+): TradePeople {
   const { landHa, laborHa } = outlook;
   const share = landHa > 0 && laborHa > landHa ? 1 - landHa / laborHa : 0;
   const budget = Math.floor(adultsOf(state.people, day) * share + EPSILON);

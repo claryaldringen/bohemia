@@ -5,7 +5,9 @@ import { ageGroup } from '../people/people';
 import { CRAFT_BUYING, MARKET } from '../rules';
 import { STEWARD } from '../rules/rules-steward';
 import { marketStance } from '../trade/market-stance';
+import { leavingGroups, withoutGroups } from '../trade/market-people';
 import { departMarketInPlace, marketCrew, marketFreeAdults } from '../trade/market-trip';
+import { emigrantList } from '../trade/people-trade';
 import { nearbyTarget } from '../trade/nearby';
 import { villageGoodStock } from '../trade/trade';
 import { priceKg } from '../trade/villager-trips';
@@ -137,7 +139,10 @@ export function stewardMarketStep(state: VillageState, ctx: NeedContext): boolea
   const stance = marketStance(state, day);
   if (Object.keys(stance.wants).length === 0) return false;
   const carts = cartsWithOxen(tradeHomeCarts(state), oxenHome(state, day)).map((c) => c.kind);
-  const give = fitToCrew(stance.offer, stance.wants, carts, marketFreeAdults(state, day));
+  // nosiči jen z lidí, kteří zůstávají – lidé z nabídky odejdou jako zboží (Rozhodnutí plánu 3,
+  // bod 10; stejně počítá `planMarketTrip`)
+  const staying = withoutGroups(state, emigrantList(leavingGroups(state, day, stance.offer)));
+  const give = fitToCrew(stance.offer, stance.wants, carts, marketFreeAdults(staying, day));
   const village = villages[date.year % villages.length]!;
   const target = nearbyTarget(state, village.villageId);
   if (!target) return false;

@@ -4,8 +4,9 @@
 
 import type { Craft } from './types-crafts';
 import type { TradedHorse } from './types-livestock';
+import type { Person } from './types-people';
 import type { Direction8 } from './types-state';
-import type { CartGood, HorseGood, TradeGood, TradeGoods } from './types-trade';
+import type { CartGood, HorseGood, PeopleGood, TradeGood, TradeGoods } from './types-trade';
 
 /**
  * Ceny trhu v mincích za kg, kus nebo m³ (markets.md – Rozhodnutí plánu 2, bod 3): trh si pamatuje
@@ -77,6 +78,17 @@ export interface MarketCart {
 }
 
 /**
+ * Kus lidí na trhu (markets.md – Rozhodnutí plánu 3, bod 10): rodina, nebo jeden svobodný muž či
+ * žena – druh, pod kterým se prodává (počty po druzích jdou zápočtem), a celé záznamy osob s id
+ * vsi, odkud jsou. Lidé jsou vždy právě na jednom místě: odejdou ze vsi (`takePeople`), prodaní se
+ * usadí u kupce s novými id (`settlePeople`), neprodaní se vrátí domů s původními (`restorePeople`).
+ */
+export interface MarketPerson {
+  good: PeopleGood;
+  people: Person[];
+}
+
+/**
  * Služba, se kterou výprava přijela (markets.md – Rozhodnutí plánu 3, bod 9): kovář jde okovat
  * `horses` jezdeckých koní vsi, která se ptala (`smith-ask`). Výprava se službou do zápočtu
  * nevstupuje – hřivny kováře se na trhu neprodají.
@@ -105,6 +117,11 @@ export interface MarketArrival {
   horses: MarketHorse[];
   /** Vozy výpravy po kusech se stářím (chybí = výprava z doby před stářím vozů). */
   carts?: MarketCart[];
+  /**
+   * Lidé na prodej po skupinách (Rozhodnutí plánu 3, bod 10) – už odešli ze vsi (`takePeople`);
+   * počty po druzích jsou i v `goods`. Chybí = žádní.
+   */
+  people?: MarketPerson[];
   /** Co výprava shání (seznam bez cenových mezí – Martin 22. 11. 2026). */
   wants: TradeGoods;
   /** Zpráva na pivo o domovské vsi – „obchodník, který přijel k nám“ (Pravidla 8). */
@@ -140,6 +157,8 @@ export interface MarketVisitor {
   horses: MarketHorse[];
   /** Neprodané vozy výpravy po kusech se stářím. */
   carts?: MarketCart[];
+  /** Neprodaní lidé výpravy po skupinách (Rozhodnutí plánu 3, bod 10); chybí = žádní. */
+  people?: MarketPerson[];
   /** Co zbývá koupit. */
   wants: TradeGoods;
   /** Co výprava na trhu prodala a koupila (součty za všechny tržní dny). */
@@ -149,6 +168,8 @@ export interface MarketVisitor {
   boughtHorses: MarketHorse[];
   /** Koupené vozy po kusech se stářím. */
   boughtCarts?: MarketCart[];
+  /** Koupení lidé po skupinách – s výpravou půjdou do její vsi; chybí = žádní. */
+  boughtPeople?: MarketPerson[];
   /**
    * Výrobky, jejichž hotovou zakázku výprava vyzvedla (Rozhodnutí plánu 3, bod 6) – hostitel jí je
    * při odjezdu znovu nezapíše (`recordOrders`). Chybí = žádné.
@@ -159,6 +180,11 @@ export interface MarketVisitor {
    * nevstupuje, poplatek má v `bought`, spotřebované hřivny v `sold`. Chybí = obyčejná výprava.
    */
   service?: MarketService;
+  /**
+   * Partner, který jde za hledajícím (nevěsta, ženich, další manželka – Rozhodnutí plánu 3, bod 11;
+   * plní Úloha 9): id hledajícího ve vsi hostitele. Chybí = obyčejná výprava.
+   */
+  kin?: { seekerId: number; extraWife?: true };
 }
 
 /**
@@ -241,6 +267,16 @@ export interface MarketResult {
   horses: MarketHorse[];
   /** Vozy domů po kusech se stářím – neprodané i koupené (počty jsou i v `unsold` a `bought`). */
   carts?: MarketCart[];
+  /**
+   * Neprodaní vlastní lidé – doma dostanou zpět svá id (`restorePeople`; Rozhodnutí plánu 3, bod 10);
+   * počty jsou i v `unsold`. Chybí = žádní.
+   */
+  people?: MarketPerson[];
+  /**
+   * Koupení lidé – doma se usadí s novými id (`settlePeople`); počty jsou i v `bought`. Chybí =
+   * žádní.
+   */
+  newcomers?: MarketPerson[];
   /** Zpráva na pivo o hostiteli v den odjezdu. */
   report?: VillageReport;
   /** Ceny trhu v den odjezdu. */

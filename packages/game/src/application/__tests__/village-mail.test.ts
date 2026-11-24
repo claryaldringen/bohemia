@@ -198,6 +198,36 @@ describe('deliverVillageMail – pošta mezi vsemi', () => {
     expect(w.state(w.h).outbox).toBeUndefined();
   });
 
+  it('výsledek s lidmi pro zmizelou domovskou ves se nezahodí – lidé nezmizí', async () => {
+    const w = await marketWorld();
+    // rodina, kterou výprava zmizelé vsi neprodala (markets.md – Rozhodnutí plánu 3, bod 10)
+    const family = {
+      good: 'families' as const,
+      people: [{ id: 5, bornDay: D - 10_000, dwellingId: 1, sex: 'male' as const }],
+    };
+    const mail = {
+      villageId: 'zmizela',
+      day: D + 3,
+      ref: 'market:zmizela:2:out',
+      body: {
+        kind: 'market-result' as const,
+        result: {
+          key: 'market:zmizela:2',
+          sold: {},
+          bought: {},
+          unsold: { families: 1 },
+          horses: [],
+          people: [family],
+        },
+      },
+    };
+    w.villages.edit(w.h, (s) => {
+      s.outbox = [mail];
+    });
+    expect(await deliverVillageMail(w.deps, w.h)).toBe(0);
+    expect(w.state(w.h).outbox).toEqual([mail]);
+  });
+
   it('chyba doručení dopočet nezastaví – Safely ji zapíše a vrátí 0', async () => {
     const w = await marketWorld();
     await w.depart(ORDER);

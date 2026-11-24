@@ -78,6 +78,15 @@ export const TRADE_GOOD_NAMES: Record<
   hides: { name: 'Kůže', genitive: 'kůží', unit: 'ks', icon: 'hide' },
   furs: { name: 'Kožešiny', genitive: 'kožešin', unit: 'ks', icon: 'fur' },
   wax: { name: 'Vosk', genitive: 'vosku', unit: 'kg', icon: 'wax' },
+  // lidé na trhu po skupinách (markets.md – Rozhodnutí plánu 3, bod 10) – ikony jako výměna lidí
+  families: {
+    name: 'Rodiny – muž, žena a jejich děti',
+    genitive: 'rodin',
+    unit: 'ks',
+    icon: 'family',
+  },
+  men: { name: 'Svobodní muži 16–44 let', genitive: 'svobodných mužů', unit: 'ks', icon: 'man' },
+  women: { name: 'Svobodné ženy 16–44 let', genitive: 'svobodných žen', unit: 'ks', icon: 'woman' },
 };
 
 /**

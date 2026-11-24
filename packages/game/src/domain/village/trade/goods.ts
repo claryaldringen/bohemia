@@ -8,7 +8,9 @@ import type {
   CattleGood,
   Craft,
   HorseGood,
+  NewcomerGroup,
   OrderGood,
+  PeopleGood,
   TradeGood,
 } from '../types';
 
@@ -50,8 +52,27 @@ export function cartGoodKind(good: CartGood): CartKind {
 }
 
 /**
+ * Lidé na trhu v pořadí panelu a výběru (`emigrantGroups` – rodiny, svobodní muži, svobodné ženy;
+ * markets.md – Rozhodnutí plánu 3, bod 10).
+ */
+export const PEOPLE_GOODS: readonly PeopleGood[] = ['families', 'men', 'women'];
+
+/** Jsou zboží lidé (rodiny, svobodní muži nebo ženy)? */
+export function isPeopleGood(good: string): good is PeopleGood {
+  return (PEOPLE_GOODS as readonly string[]).includes(good);
+}
+
+/** Skupina lidí (kronika `newcomer`, `EmigrantGroup.kind`) ke zboží lidí. */
+export const PEOPLE_GROUP: Readonly<Record<PeopleGood, NewcomerGroup>> = {
+  families: 'family',
+  men: 'man',
+  women: 'woman',
+};
+
+/**
  * Zboží obchodu v pořadí panelu a zápočtu (obilí a jídlo, dobytek, koně a dřevo, výrobky řemesel –
- * nástroje, dřevěné nářadí a vozy za keramikou, markets.md – Rozhodnutí plánu 3, bod 4).
+ * nástroje, dřevěné nářadí a vozy za keramikou, markets.md – Rozhodnutí plánu 3, bod 4; lidé na
+ * konci – bod 10).
  */
 export const TRADE_GOODS: readonly TradeGood[] = [
   'grain',
@@ -72,12 +93,13 @@ export const TRADE_GOODS: readonly TradeGood[] = [
   'hides',
   'furs',
   'wax',
+  ...PEOPLE_GOODS,
 ];
 
 /**
- * Kusové zboží v pořadí panelu – dobytek, koně, klády, vozy, kámen (m³), kůže a kožešiny (jednotky
- * jako `TRADE_GOOD_NAMES` ve webu: kusy a m³); ostatní zboží je v kg. Na trhu se prodává jen po
- * celých kusech, kg se dělí libovolně (markets.md – Rozhodnutí plánu 2, bod 4).
+ * Kusové zboží v pořadí panelu – dobytek, koně, klády, vozy, kámen (m³), kůže, kožešiny a lidé
+ * (jednotky jako `TRADE_GOOD_NAMES` ve webu: kusy a m³); ostatní zboží je v kg. Na trhu se prodává
+ * jen po celých kusech, kg se dělí libovolně (markets.md – Rozhodnutí plánu 2, bod 4).
  */
 export const PIECE_GOODS: readonly TradeGood[] = [
   ...CATTLE_GOODS,
@@ -87,6 +109,7 @@ export const PIECE_GOODS: readonly TradeGood[] = [
   'stone',
   'hides',
   'furs',
+  ...PEOPLE_GOODS,
 ];
 
 /** Je zboží kusové (kusy nebo m³, ne kg)? */

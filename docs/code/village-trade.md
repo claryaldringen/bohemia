@@ -166,7 +166,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `clearMarket(parties, prices)`: strany `MarketParty` (`key`, nabídka `offer`, seznam `wants`)
   v pořadí hostitel, pak výpravy podle příjezdu; každá prodá přesně za tolik, za kolik koupí, kus
   jen celý (`PIECE_GOODS` / `isPieceGood` v `goods.ts` – dobytek, koně, klády, vozy, kámen, kůže,
-  kožešiny), kg libovolně. Kola se stropem V = min(hodnota nabídky, hodnota seznamu): strana prodá
+  kožešiny, lidé), kg libovolně. Kola se stropem V = min(hodnota nabídky, hodnota seznamu): strana prodá
   nejvýš za V a koupí nejvýš za V, kupci v pořadí stran a zboží seznamu v pořadí `TRADE_GOODS`, od
   prodávajících v pořadí stran; kupující koupí jen od strany svého kruhu (`tradeCircles` – silně
   souvislé komponenty grafu „kupuje od“, jinak by se prodávajícímu hodnota nevrátila). Nevyrovnaná
@@ -196,7 +196,10 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   (`idleCartsOf`) nad vozy, které ves chce (`cartsWanted` = `cartTargets[druh]`, `draft.ts`), bez
   vlastního pracujícího tesaře shání jeden vůz druhu `missingCart`. Nabídku výrobků dílen a vozů
   počítá `craftOffer(state, day)` – bez výhledu správce, levně; volá ji i `fillOrders`. Jídlo (maso, sýr, luštěniny), med, vosk,
-  kůže, kožešiny a uhlí hostitel nenabízí ani neshání. Nabídka je nejvýš `villageGoodStock`,
+  kůže, kožešiny a uhlí hostitel nenabízí ani neshání. Lidi nabízí, bez kterých ves pole udrží
+  (`peopleSpare` z `vassalage/spare.ts` – po druzích, které jde vybrat celé najednou:
+  `emigrantGroups` přes všechny druhy), a shání rodiny, když je půdy víc než práce (`peopleWanted`
+  – Lidé na trhu níž). Nabídka je nejvýš `villageGoodStock`,
   nulové položky se nezapisují, stav se nemění. `horsesOf(state, druh, day)`
   (`trade/horse-trade.ts`) počítá koně druhu v ohradách i pod jezdcem (prodat jde jen
   `horsesForSale`). `villageReport(state, day)`
@@ -236,7 +239,10 @@ ves>:<id výpravy>`, `stayDays`, `travelDays`, zboží `goods` – koně i tady 
     hostitel prodané ubere (`addGood` záporně, koně `takeHorses` v pořadí prodeje) a koupené přidá
     (`addGood`, koně `addHorses`); návštěvníkovi ubude z `goods` a `wants` a přibude do `sold`
     a `bought`, koupení koně po kusech do `boughtHorses` – od hostitele z `takeHorses`, od výpravy
-    její první kusy druhu; zbytky do šumu plovoucí čárky se smažou; prodej zakázkového zboží vsi se
+    její první kusy druhu; lidé po skupinách – hostitel vybere prodané najednou (`leavingGroups`),
+    odejdou ve směru kupující výpravy do jejích `boughtPeople` (`sendPeople`), od výpravy první
+    skupiny druhu (`takeVisitorPeople`) – k jiné výpravě do `boughtPeople`, hostitel je hned usadí
+    (`settlePeople`, kronika `newcomer` za `market-held`); zbytky do šumu plovoucí čárky se smažou; prodej zakázkového zboží vsi se
     zakázkou ji zmenší, hotovou uzavře (`reduceOrder` – Zakázky níž). Pak
     `market.prices = nextPrices(…)` z původních nabídek a seznamů dne (`totalGoods` – i s obilím za
     výrobky, jako v jednom zápočtu) a kronika `market-held` (co ves prodala a koupila v obou
@@ -247,8 +253,9 @@ ves>:<id výpravy>`, `stayDays`, `travelDays`, zboží `goods` – koně i tady 
     `…:out`; příjezd má `marketArrivalRef` = `…:in`) se zprávou o hostiteli (`villageReport`), cenami
     trhu a zakázkami, které hostitel zapsal (`recordOrders` – Zakázky níž). `marketResult` je jediné
     místo, kde vzniká `MarketResult` (`sold`, `bought`, `unsold` – co zbylo, koně domů `horses` –
-    neprodaní i koupení, `report?`, `prices?`, `returned?`, `ordered?`);
-    nepoužitý příjezd nic neprodal ani nekoupil a domů jde vše, co vezl. Výsledek použije domovská
+    neprodaní i koupení, lidé – neprodaní vlastní `people?` a koupení `newcomers?`, `report?`,
+    `prices?`, `returned?`, `ordered?`);
+    nepoužitý příjezd nic neprodal ani nekoupil a domů jde vše, co vezl, i lidé. Výsledek použije domovská
     ves (`applyMarketResult` – Výprava na trh níž); odchozí schránku doručí `deliverVillageMail`
     (Pošta mezi vsemi níž).
   - **Koně:** `takeHorses(state, druh, n, day)` (`horse-trade.ts`) – koně z `horsesToSell`
@@ -283,7 +290,9 @@ ves>:<id výpravy>`, `stayDays`, `travelDays`, zboží `goods` – koně i tady 
     `tradeHomeCarts` nejmladší volné, tytéž, které prodá `removeIdleCart`; odjede bez spřežení jako
     prodaní voli), vozy jen s voly, které po prodeji zbudou (`cartsWithOxen` nad zbylými vozy
     s `oxenHome − give.trainedOxen` – sdílí ho `tradeCarts`), nosiči nejvýš volní dospělí
-    (`MARKET_NO_PEOPLE`), koupené vozy jen s voly, kteří zbudou po prodeji i dopravních vozech
+    (`MARKET_NO_PEOPLE`; lidé na prodej nosiči nejsou – `planMarketTrip` počítá volné dospělé nad
+    mělkou kopií vsi bez nich, `withoutGroups`, a jejich zásobu jako počet skupin, které s celým
+    `give` odejdou – `leavingGroups`; stejně počítá roční výprava správce), koupené vozy jen s voly, kteří zbudou po prodeji i dopravních vozech
     (`oxenForCarts(wants)` = Σ `cartOxen(druh)` × kusy – `MARKET_NO_OXEN`; Rozhodnutí plánu 3,
     bod 4), návrat před koncem světa (`MARKET_WORLD_END`). Výsledek nese `oxen` – hráč voly
     nezadává, spočítá je server i náhled touž funkcí. Prázdné `give` i `wants` jsou dovolené
@@ -320,8 +329,9 @@ day, order, target, { by?, seedKg?, alone?, service? })` (mutuje – i krok dne 
     výprava po stezce).
   - **Návrat:** událost schránky `market-result` → `applyMarketResult`: koupené a neprodané zboží
     do vsi (`addGood`, koně po kusech `addHorses`, vozy po kusech se stářím `addMarketCarts` – neprodaný
-    vůz se vrátí stejně starý) – i bez záznamu
-    výpravy, nic nezmizí –, koupené obilí do `MarketTrip.seedKg` jde do rezervy osiva
+    vůz se vrátí stejně starý; neprodaní vlastní lidé `restorePeople`, koupení `settlePeople` ze
+    směru výpravy, kronika `newcomer` za `market-returned`) – i bez záznamu
+    výpravy, nic nezmizí (lidé se pak usadí bez směru a kroniky) –, koupené obilí do `MarketTrip.seedKg` jde do rezervy osiva
     (`reservedSeedKg` – ves ho nesní, village-fields.md – Osivo – nákup na trhu), výprava
     s klíčem výsledku se smaže, zpráva na pivo s cenami trhu do `news` (`rememberNews`, jen se
     záznamem výpravy), zakázky vsi (`rememberOrders`, jen se záznamem výpravy – Zakázky níž)
@@ -543,8 +553,9 @@ visitors)` – strany: hostitel a výpravy podle příjezdu, každá nabízí je
   kolik chybí (`seedReserveDay` v `seed-reserve.ts`), a s okolím pro ně vesničané jedou na trh
   (Vesničané na trhu výš); podrobnosti village-fields.md – Osivo pro ves bez zásob.
 - **Lidé – koho ves dá a kdo přijde** (trade.md – Výměna lidí; Martin 19. 10. 2026;
-  `people-trade.ts`): výměna lidí se sousedy skončila s obchodní výpravou (markets.md – Pravidla 1).
-  Koho ves smí dát (zásilky vazalů – vassalage.md), vybere `emigrantGroups` (`Emigrants` – rodiny
+  `people-trade.ts`): výměna lidí se smyšlenými sousedy skončila s obchodní výpravou (markets.md –
+  Pravidla 1); lidé jdou na trh (Lidé na trhu níž). Koho ves smí dát (trh, zásilky vazalů –
+  vassalage.md), vybere `emigrantGroups` (`Emigrants` – rodiny
   podle `familiesOf`, pak svobodní muži, pak ženy 16–44 – `nextSingle`, z nejvíc přeplněného domu,
   ne dvorec, ne dědic – `unmarriedHeir` v `households.ts` –, ne rozpad domácnosti, ve vsi s rodem
   ne muž rodu ani manželka muže rodu – `keptByLine`, lord.md – Manželky; postupně, prefix stálý).
@@ -556,6 +567,30 @@ visitors)` – strany: hostitel a výpravy podle příjezdu, každá nabízí je
   mimo dvorec, svobodný do obydleného domu s nejvíc místy; kronika `newcomer`). Kdo s výpravou
   odešel, nese `TradeExpedition.givePeople` i s `members` (pohlaví a den narození pro postavy
   karavany). Ikony `resources/family.png`, `man.png`, `woman.png` zůstaly.
+- **Lidé na trhu** (markets.md – Rozhodnutí plánu 3, bod 10; `trade/market-people.ts`): lidé jsou
+  kusové zboží s cenou jako ostatní – `TradeGood` += `families`, `men`, `women` (`PeopleGood`,
+  `PEOPLE_GOODS` na konci `TRADE_GOODS`, kusové `PIECE_GOODS`, `isPeopleGood`, skupina kroniky
+  `PEOPLE_GROUP`), hodnoty `TRADE_GOOD_VALUES` rodina 720, muž a žena 360 kg obilí za kus, nese se
+  0 – jdou po svých (`marketCrew` je nepočítá, posádka aspoň 1). Cestují ale jako skuteční lidé
+  (`MarketPerson` { `good`, `people` – celé záznamy osob s id vsi }) a **nikdo nevznikne ani
+  nezmizí**: člověk je vždy ve vsi, v nákladu výpravy (`MarketArrival.people` – odchozí schránka,
+  schránka cíle; `MarketVisitor.people` a `boughtPeople` na trhu) nebo ve výsledku na cestě domů
+  (`MarketResult.people` – neprodaní vlastní, `newcomers` – koupení). Zásoba `villageGoodStock`
+  = počet skupin druhu z `emigrantGroups` jen s tím druhem (druhy berou z týchž lidí, nesčítají se);
+  `addGood` lidi nebere a vyhodí chybu – smyčky přes `TRADE_GOODS` (`departMarketInPlace`,
+  `settleTrades`, `applyMarketResult`) je přeskočí jako koně. Odchod `takePeople(state, day, good,
+n, direction)` – n skupin podle `emigrantGroups`, `sendPeople` → `removePeople` se směrem
+  (`emigrants`, dokud ve vsi žije rodič, sourozenec nebo dítě; bez směru se nezapíšou). Příchod do
+  jiné vsi `settlePeople(state, day, groups, from)` – `rehomePeople` (nová místní id, vazby uvnitř
+  skupiny přepsané, ven přerušené), dům `newcomerHome`, `origin` = směr, kronika `newcomer`
+  s `villageName` a `villageId`. Návrat domů `restorePeople(state, groups)` – původní id a vazby,
+  dům `newcomerHome`, z `emigrants` i `ancestors` pryč, `nextId` beze změny, kdo už ve vsi je, se
+  nezdvojí. Hostitel shání `peopleWanted(state, day, outlook)`: půdy víc než práce (`landHa >
+laborHa`) → chybí ceil(dospělí × (landHa ÷ laborHa − 1)) dospělých, rodiny po
+  `MARKET.familyAdults` (2) nahoru; nabízí `peopleSpare` (export z `vassalage/spare.ts`).
+  `peopleOf(goods)` – lidé ze zboží (celé kladné počty). Vesničané lidi nevozí – jen hráč a správce
+  (roční výprava správce bere lidi z nabídky vsi). Výsledek s lidmi pro zmizelou domovskou ves
+  `deliverVillageMail` nezahodí – zůstane v odchozí schránce hostitele (`carriesPeople`).
 
 Počasí kraje mění hodnotu zboží od 1. 11. – [village-disasters.md](village-disasters.md#kraj-kolem-vsi-hodnota-zboží-a-zvěř-p4).
 

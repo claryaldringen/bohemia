@@ -29,6 +29,13 @@ export type HorseGood = 'foals' | 'mares' | 'ridingHorses';
 export type CartGood = 'twoWheelCarts' | 'fourWheelCarts';
 
 /**
+ * Lidé na trhu (markets.md – Rozhodnutí plánu 3, bod 10; Martin 19. 10. 2026: „celé rodiny i jen
+ * dospělí“, „muži a ženy zvlášť“): rodiny, svobodní muži a svobodné ženy – kusy (skupiny), klíče
+ * jako `TradePeople`. Na trhu jdou konkrétní lidé (`MarketPerson`), ne počty.
+ */
+export type PeopleGood = 'families' | 'men' | 'women';
+
+/**
  * Zboží obchodu (trade.md – Sousedé): jen to, co ves sama má – obilí, maso, sýr, luštěniny (kg),
  * dobytek (kusy – krávy, mladí a vycvičení voli – `CattleGood`), klády (kusy), keramika, železné
  * hřivny, uhlí (kg). Nástroje (`tools`) jsou od 20. 10. 2026 vybavení domácností – od plánu 3
@@ -37,7 +44,7 @@ export type CartGood = 'twoWheelCarts' | 'fourWheelCarts';
  * bod 4); nástroje ve starších výpravách k sousedovi po stezce převede na hřivny
  * `withIronBarsTrade` (production-chains.md – Kovář). Zboží zvenku (sůl, železo, med, kožešiny)
  * obchod od 19. 10. 2026 nezná (Martin: „Nech jen společné suroviny, nezaváděj nové.“) – starší
- * vsi o něj přijdou (`withoutForeignGoods`).
+ * vsi o něj přijdou (`withoutForeignGoods`). Od plánu 3 jsou zbožím trhu i lidé (`PeopleGood`).
  */
 export type TradeGood =
   | 'grain'
@@ -57,7 +64,8 @@ export type TradeGood =
   | 'honey'
   | 'hides'
   | 'furs'
-  | 'wax';
+  | 'wax'
+  | PeopleGood;
 
 /** Množství zboží (jen uvedené druhy, kg nebo kusy podle druhu). */
 export type TradeGoods = Partial<Record<TradeGood, number>>;

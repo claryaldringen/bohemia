@@ -9,6 +9,7 @@ import type {
   Dwelling,
   FieldPart,
   MarketTarget,
+  Person,
   VillageMail,
   VillageReport,
   VillageState,
@@ -92,6 +93,42 @@ export function withWorkshop(
   s.dwellings.push(d);
   worker.dwellingId = id;
   return d;
+}
+
+/** Dům rodiny na prodej a dům jejího ženatého syna (`familyHome`). */
+export const FAMILY_HOUSE = 500;
+export const SON_HOUSE = 501;
+/** Rodina na prodej (`familyHome`): otec, matka, syn 10 a dcera 8 let. */
+export const FAMILY_IDS = [62, 63, 64, 65];
+
+/**
+ * Vlkov (H) s rodinou na prodej (markets.md – Rozhodnutí plánu 3, bod 10): v domě 500 drží dům
+ * starší pár (60 a 61, 42 a 40 let), rodina 62 ∞ 63 (36 a 34) s dětmi 64 a 65 z něj smí odejít
+ * (`familiesOf`). Jejich ženatý syn 66 (18) se ženou 67 bydlí v domě 501 – příbuzný, se kterým
+ * rodina zůstane v `emigrants`. Matka otce (id 7) ve vsi není – vazba ven. Dospělých je 10.
+ */
+export function familyHome(): VillageState {
+  const s = homeVillage();
+  s.dwellings.push({ ...dwelling(SON_HOUSE), position: { x: 60, z: 0, rotation: 0 } });
+  const person = (
+    id: number,
+    age: number,
+    dwellingId: number,
+    sex: Person['sex'],
+    extra: Partial<Person> = {},
+  ): Person => ({ id, bornDay: D - Math.ceil((age + 0.5) * 365.25), dwellingId, sex, ...extra });
+  s.people = [
+    ...s.people.filter((p) => p.dwellingId !== FAMILY_HOUSE),
+    person(60, 42, FAMILY_HOUSE, 'male', { spouseId: 61 }),
+    person(61, 40, FAMILY_HOUSE, 'female', { spouseId: 60 }),
+    person(62, 36, FAMILY_HOUSE, 'male', { spouseId: 63, motherId: 7 }),
+    person(63, 34, FAMILY_HOUSE, 'female', { spouseId: 62 }),
+    person(64, 10, FAMILY_HOUSE, 'male', { motherId: 63, fatherId: 62 }),
+    person(65, 8, FAMILY_HOUSE, 'female', { motherId: 63, fatherId: 62 }),
+    person(66, 18, SON_HOUSE, 'male', { spouseId: 67, motherId: 63, fatherId: 62 }),
+    person(67, 17, SON_HOUSE, 'female', { spouseId: 66 }),
+  ];
+  return s;
 }
 
 /** Cíl výpravy z H: Lhota (M) na sousední mapě na východě. */

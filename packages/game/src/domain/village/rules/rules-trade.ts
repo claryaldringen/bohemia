@@ -76,6 +76,13 @@ export const TRADE_GOOD_VALUES = {
   wax: { valueKg: 30, carryKg: 1 },
   hides: { valueKg: 20, carryKg: 5 },
   furs: { valueKg: 8, carryKg: 1 },
+  // lidé na trhu za kus (markets.md – Rozhodnutí plánu 3, bod 4): svobodný muž nebo žena 360 –
+  // obnovené číslo dřívější výměny lidí („dospělý 360 kg obilí“, trade.md – Výměna lidí, Martin
+  // 19. 10. 2026); rodina 720 – dva dospělí, děti v ceně (návrh Clauda – trh zná jednu cenu za kus,
+  // rodina stojí stejně se 3 i s 8 lidmi). Nikdo je nenese – jdou po svých
+  families: { valueKg: 720, carryKg: 0 },
+  men: { valueKg: 360, carryKg: 0 },
+  women: { valueKg: 360, carryKg: 0 },
 } as const satisfies Record<TradeGood, { valueKg: number; carryKg: number }>;
 /**
  * horses.md – Nákup a prodej (Martin 23. 10. 2026: koně jako ostatní zvířata; čísla návrh Clauda):

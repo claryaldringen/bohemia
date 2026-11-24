@@ -6,8 +6,15 @@ import { FORGE } from '../../crafts/iron-rates';
 import { toolEquipmentKg, toolNeedKg } from '../../crafts/iron';
 import { oxenHome } from '../../livestock/oxen';
 import { CRAFT_NEEDS } from '../../rules';
-import type { ChronicleEvent, MarketResult, VillageState } from '../../types';
-import { marketResultRef } from '../market';
+import type {
+  ChronicleEvent,
+  MarketPerson,
+  MarketResult,
+  Person,
+  VillageMail,
+  VillageState,
+} from '../../types';
+import { marketResult, marketResultRef } from '../market';
 import { marketStance } from '../market-stance';
 import { departMarket } from '../market-trip';
 import { expeditionLaborNeed } from '../trade';
@@ -17,12 +24,15 @@ import { reservedSeedKg } from '../../fields/seed';
 import { seedShortKg } from '../../fields/seed-reserve';
 import {
   D,
+  FAMILY_IDS,
   NOV15,
   SEP1,
   asEvents,
+  familyHome,
   homeVillage,
   marketVillage,
   seedHome,
+  sownPart,
   target,
   villagersHome,
   withWorkshop,
@@ -414,6 +424,143 @@ describe('vesničané na trhu mezi dvěma vsemi (Rozhodnutí plánu 3, bod 7)', 
     expect(h2.crafts!.ironBarsKg).toBe(2);
   });
 });
+
+// Lidé na trhu (markets.md – Rozhodnutí plánu 3, bod 10): lidé cestují jako skuteční lidé – každý je
+// vždy právě na jednom místě (ve vsi, v nákladu pošty, na trhu), nikdo nevznikne ani nezmizí.
+describe('lidé na trhu mezi dvěma vsemi (Rozhodnutí plánu 3, bod 10)', () => {
+  /** Lhota (M) s půdou nad práci (200 osetých dílů) a 2 000 kg obilí nad pojistkou, den před D. */
+  function peopleHost(): VillageState {
+    const m = marketVillage();
+    m.fields = [{ id: 1 }];
+    m.parts = Array.from({ length: 200 }, (_, i) => sownPart(100 + i));
+    m.storesKg = 0;
+    m.storesKg = marketStance(m, D).wants.grain! + 2_000;
+    return m;
+  }
+
+  /** Lidé na cestě: v nákladu odchozí schránky (příjezdy, výsledky) a na trhu vsi. */
+  function onTheWay(s: VillageState): number {
+    let n = 0;
+    const count = (groups: readonly MarketPerson[] | undefined): void => {
+      for (const g of groups ?? []) n += g.people.length;
+    };
+    for (const mail of s.outbox ?? []) {
+      if (mail.body.kind === 'market-arrive') count(mail.body.arrival.people);
+      if (mail.body.kind === 'market-result') {
+        count(mail.body.result.people);
+        count(mail.body.result.newcomers);
+      }
+    }
+    for (const v of s.market?.visitors ?? []) {
+      count(v.people);
+      count(v.boughtPeople);
+    }
+    return n;
+  }
+
+  /** Porody minus úmrtí v kronice vsi po dni `after` (lidé, kteří ve vsi přibyli sami). */
+  function bornMinusDied(s: VillageState, after: number): number {
+    const kinds = s.chronicle.filter((e) => e.day > after).map((e) => e.kind);
+    return kinds.filter((k) => k === 'birth').length - kinds.filter((k) => k === 'death').length;
+  }
+
+  it('rodina na trhu: M o 4 lidi víc (nová id), H o 4 méně a o 720 kg obilí víc', () => {
+    const h = familyHome();
+    const m = peopleHost();
+    expect(marketStance(m, D).wants.families).toBeGreaterThan(0);
+    expect(marketStance(m, D).offer.grain).toBeGreaterThan(720);
+    const total = h.people.length + m.people.length;
+    const sent = departMarket(
+      h,
+      D,
+      { give: { families: 1 }, wants: { grain: 720 }, stayDays: 1 },
+      target,
+    );
+    if (!sent.ok) throw new Error(sent.reason);
+    // odchod: rodina je v nákladu příjezdu
+    expect(onTheWay(sent.state)).toBe(4);
+    expect(sent.state.people.length + onTheWay(sent.state) + m.people.length).toBe(total);
+    const m1 = advanceVillage(m, D + 1, null, null, asEvents(sent.state.outbox!));
+    const result = resultMail(m1, sent.trip.key);
+    expect(result.sold).toEqual({ families: 1 });
+    expect(result.bought.grain).toBeCloseTo(720, 6);
+    // M rodinu usadila s novými id od svého nextId, ze západu (H je na západě)
+    const came = m1.people.filter((p) => p.id >= m.nextId && p.origin === 'W');
+    expect(came).toHaveLength(4);
+    expect(m1.chronicle).toContainEqual(
+      expect.objectContaining({ kind: 'newcomer', group: 'family', villageName: 'Vlkov' }),
+    );
+    // po trhu: na cestě jen výsledek bez lidí
+    expect(onTheWay(m1)).toBe(0);
+    const bornM = bornMinusDied(m1, m.lastDay);
+    expect(m1.people.length + sent.state.people.length - bornM).toBe(total);
+    const home = withoutOutbox(sent.state);
+    const h1 = advanceVillage(home, D + 2, null, null, asEvents(m1.outbox!));
+    const hAlone = advanceVillage(home, D + 2, null, null);
+    // návrat: H o 720 kg obilí víc než bez trhu (bez ztrát skladování dne návratu),
+    // o rodinu méně, nikdo nezmizel
+    expect(h1.storesKg - hAlone.storesKg).toBeCloseTo(720, 0);
+    expect(h1.storesKg - hAlone.storesKg).toBeLessThanOrEqual(720);
+    const bornH = bornMinusDied(h1, D);
+    expect(h.people.length - h1.people.length + bornH).toBe(4);
+    expect(family(h1.people)).toEqual([]);
+    expect(h1.emigrants!.filter((e) => FAMILY_IDS.includes(e.id)).map((e) => e.direction)).toEqual([
+      'E',
+      'E',
+      'E',
+      'E',
+    ]);
+    expect(h1.people.length + m1.people.length - bornH - bornM).toBe(total);
+  });
+
+  it('zaniklý hostitel: výsledek returned vrátí H rodinu s původními id', () => {
+    const sent = departMarket(
+      familyHome(),
+      D,
+      { give: { families: 1 }, wants: { grain: 720 }, stayDays: 1 },
+      target,
+    );
+    if (!sent.ok) throw new Error(sent.reason);
+    const mail = sent.state.outbox![0]!;
+    if (mail.body.kind !== 'market-arrive') throw new Error('příjezd chybí');
+    // M zanikla (`extinctDay`) před příjezdem: pošta vrátí nepoužitý příjezd jako výsledek
+    // `returned` se vším, co výprava vezla, v den plánovaného návratu (application/village-mail.ts)
+    const back: VillageMail = {
+      villageId: 'h',
+      day: sent.trip.returnDay,
+      ref: marketResultRef(sent.trip.key),
+      body: { kind: 'market-result', result: marketResult(mail.body.arrival, { returned: true }) },
+    };
+    const home = withoutOutbox(sent.state);
+    const h1 = advanceVillage(home, sent.trip.returnDay, null, null, asEvents([back]));
+    // po kouscích dopočtu stejně jako vcelku
+    let parts = home;
+    for (let day = D + 1; day <= sent.trip.returnDay; day++) {
+      parts = advanceVillage(parts, day, null, null, asEvents([back]));
+    }
+    expect(parts).toEqual(h1);
+    expect(ids(family(h1.people))).toEqual(FAMILY_IDS);
+    expect(h1.people.find((p) => p.id === 64)).toMatchObject({ motherId: 63, fatherId: 62 });
+    expect((h1.emigrants ?? []).filter((e) => FAMILY_IDS.includes(e.id))).toEqual([]);
+    // nikdo nový – nová id mají jen narození, lidí je o rodinu víc
+    const born = h1.chronicle.filter((e) => e.day > D && e.kind === 'birth').length;
+    expect(h1.people.filter((p) => p.id >= home.nextId)).toHaveLength(born);
+    expect(h1.people.length - home.people.length - bornMinusDied(h1, D)).toBe(4);
+    expect(h1.chronicle).toContainEqual(
+      expect.objectContaining({ kind: 'market-returned', returned: true, unsold: { families: 1 } }),
+    );
+  });
+});
+
+/** Id lidí vzestupně. */
+function ids(people: readonly Person[]): number[] {
+  return people.map((p) => p.id).sort((a, b) => a - b);
+}
+
+/** Lidé rodiny na prodej (`FAMILY_IDS`) ve vsi. */
+function family(people: readonly Person[]): Person[] {
+  return people.filter((p) => FAMILY_IDS.includes(p.id));
+}
 
 /** Výsledek trhu výpravy `key` z odchozí schránky hostitele. */
 function resultMail(s: VillageState, key: string): MarketResult {

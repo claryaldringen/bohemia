@@ -2,9 +2,15 @@
 // přebytek nad vlastní potřebou podle výpočtu potřeby jako u dávek. Ten výpočet (výhled vsi,
 // `vassalage/spare.ts`) existuje pro makrokomodity – obilí, dobytek, koně, klády a kámen – a pro
 // výrobky dílen jejich potřeba a zásoba řemeslníků (nástroje, keramika, dřevěné nářadí, hřivny,
-// vozy – Rozhodnutí plánu 3, bod 5); ostatní zboží (jídlo, med, kůže…) se vyměňuje jen mezi
-// výpravami. Čisté funkce, stav nemění.
-import { cattleSpare, grainOnHandKg, grainReserveKg, grainSpareKg } from '../../vassalage/spare';
+// vozy – Rozhodnutí plánu 3, bod 5) a pro lidi výhled přebytku lidí a jeho obrácení (bod 10);
+// ostatní zboží (jídlo, med, kůže…) se vyměňuje jen mezi výpravami. Čisté funkce, stav nemění.
+import {
+  cattleSpare,
+  grainOnHandKg,
+  grainReserveKg,
+  grainSpareKg,
+  peopleSpare,
+} from '../../vassalage/spare';
 import { idleCartsOf } from '../crafts/carts';
 import { ownCraftsmanWorks } from '../crafts/craft-buying';
 import {
@@ -21,8 +27,10 @@ import { breedingCows, oxenCalvesWanted } from '../livestock/husbandry';
 import { oxenComing, villageOxen } from '../livestock/oxen';
 import { stewardOutlook } from '../steward/steward-outlook';
 import type { HorseGood, MarketStance, TradeGood, TradeGoods, VillageState } from '../types';
-import { CART_GOODS, HORSE_GOODS, cartGoodKind } from './goods';
+import { CART_GOODS, HORSE_GOODS, PEOPLE_GOODS, cartGoodKind } from './goods';
 import { horsesForSale, horsesOf } from './horse-trade';
+import { peopleWanted } from './market-people';
+import { emigrantGroups } from './people-trade';
 import { villageGoodStock } from './trade';
 
 /** Tolerance proti chybám desetinných čísel. */
@@ -75,8 +83,10 @@ export function craftOffer(state: VillageState, day: number): TradeGoods {
  * bod 5). Nabídka je nejvýš `villageGoodStock`, klády a kámen jen nabízí (celá hromada, pojistka na
  * ně není). Výrobky dílen nad vlastní potřebu nabízí (`craftOffer`), do potřeby je shání jen bez
  * vlastního pracujícího řemeslníka (`ownCraftsmanWorks`) – hřivny jen na vozy čekající na kování
- * (`ironOrderBarsKg`), vůz jeden druhu `missingCart`. Výhled (`stewardOutlook`) se počítá jednou
- * a `villageSpare` celý se nevolá. Prázdné položky se nezapisují.
+ * (`ironOrderBarsKg`), vůz jeden druhu `missingCart`. Lidi nabízí, bez kterých ves pole udrží
+ * (`peopleSpare`), a shání obráceně, když je půdy víc než práce (`peopleWanted` – Rozhodnutí plánu 3,
+ * bod 10). Výhled (`stewardOutlook`) se počítá jednou a `villageSpare` celý se nevolá. Prázdné
+ * položky se nezapisují.
  */
 export function marketStance(state: VillageState, day: number): MarketStance {
   const offer: TradeGoods = {};
@@ -130,5 +140,14 @@ export function marketStance(state: VillageState, day: number): MarketStance {
   // klády a kámen: celá hromada, nikdy ve wants
   give('logs', villageGoodStock(state, 'logs', day));
   give('stone', villageGoodStock(state, 'stone', day));
+
+  // lidé: bez koho ves pole udrží, nabízí – po druzích, které jde vybrat celé najednou (rodiny, muži
+  // a ženy berou z týchž lidí; `emigrantGroups` přes všechny druhy); půdy víc než práce – shání
+  const spare = emigrantGroups(state, day, peopleSpare(state, day, outlook));
+  const wantedPeople = peopleWanted(state, day, outlook);
+  for (const good of PEOPLE_GOODS) {
+    if (spare[good].length > 0) offer[good] = spare[good].length;
+    want(good, wantedPeople[good]);
+  }
   return { offer, wants };
 }

@@ -12,12 +12,19 @@ import { charcoalStockKg, takeCharcoal } from '../crafts/charcoal';
 import { toolEquipmentKg } from '../crafts/iron';
 import { ageGroup } from '../people/people';
 import { addCattle, cattleForSale, removeCattle } from './cattle-trade';
-import { newcomerProfiles, settleNewcomers } from './people-trade';
+import { NO_PEOPLE, emigrantGroups, newcomerProfiles, settleNewcomers } from './people-trade';
 import { addHorses, horsesForSale, removeHorses } from './horse-trade';
 import { logArrivalPoint } from '../forest/log-piles';
 import { addStone, stoneOnHand, takeStone } from '../fortification/state/stone';
 import { addLogs, takeLogs, woodLogs } from '../forest/wood';
-import { TRADE_GOODS, cartGoodKind, isCattleGood, isHorseGood, isLivestockGood } from './goods';
+import {
+  TRADE_GOODS,
+  cartGoodKind,
+  isCattleGood,
+  isHorseGood,
+  isLivestockGood,
+  isPeopleGood,
+} from './goods';
 import { CARTS, HIDES, IRON, TRADE, TRADE_GOOD_VALUES } from '../rules';
 import { ensureWares } from '../wares/wares';
 import { tradeSeason, tradeWeather } from './trade-weather';
@@ -77,13 +84,18 @@ export function hidesOnHand(state: VillageState): number {
  * Kolik zboží ves má k obchodu v den `day` (celé kusy a kg): obilí, maso, sýr a luštěniny ze
  * zásob, dobytek (`cattleForSale` – krávy bez chovného páru, mladí voli ve výcviku, vycvičení voli
  * doma mimo posledních let služby), celé klády z hromady a výrobky řemesel – nástroje celé
- * vybavení domácností (`toolEquipmentKg`), vozy volné vozy druhu (`idleCartsOf`).
+ * vybavení domácností (`toolEquipmentKg`), vozy volné vozy druhu (`idleCartsOf`). Lidé: kolik
+ * skupin druhu ves smí dát (`emigrantGroups` jen s tím druhem – markets.md, Rozhodnutí plánu 3,
+ * bod 10); rodiny, muži a ženy berou z týchž lidí, takže se nesčítají.
  */
 export function villageGoodStock(
   state: VillageState,
   good: TradeGood,
   day: number = state.lastDay,
 ): number {
+  if (isPeopleGood(good)) {
+    return emigrantGroups(state, day, { ...NO_PEOPLE, [good]: Infinity })[good].length;
+  }
   if (isCattleGood(good)) return cattleForSale(state, good, day);
   // koně bez jezdce (horse-trade.ts – horses.md, Nákup a prodej)
   if (isHorseGood(good)) return horsesForSale(state, good, day);
@@ -155,9 +167,15 @@ export function addMarketCarts(state: VillageState, carts: readonly MarketCart[]
 
 /**
  * Přičte (záporně ubere) zboží ve vsi v den `day` (mutuje stav). Koupené koně přidává výprava
- * po kusech (`addHorses`), tady se koně jen prodávají.
+ * po kusech (`addHorses`), tady se koně jen prodávají. Lidé nejsou počty – odcházejí a přicházejí
+ * jako skuteční lidé (`takePeople`, `settlePeople`, `restorePeople` v market-people.ts), proto je
+ * `addGood` nebere: smyčka přes zboží, která na lidi zapomene, spadne hned (markets.md –
+ * Rozhodnutí plánu 3, bod 10; nikdo nevznikne ani nezmizí).
  */
 export function addGood(state: VillageState, good: TradeGood, amount: number, day: number): void {
+  if (isPeopleGood(good)) {
+    throw new Error(`Lidé (${good}) se nepřičítají – odcházejí a přicházejí jako skuteční lidé.`);
+  }
   if (isCattleGood(good)) {
     // dobytek do stáda a ohrad volů, prodaný z nich (cattle-trade.ts)
     if (amount > 0) addCattle(state, good, amount, day);

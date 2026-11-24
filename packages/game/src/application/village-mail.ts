@@ -52,6 +52,16 @@ export function hasVillageMail(state: VillageState): boolean {
   return (state.outbox?.length ?? 0) > 0 || overdueTrips(state).length > 0;
 }
 
+/**
+ * Nese zpráva lidi – výsledek trhu s neprodanými nebo koupenými lidmi (markets.md – Rozhodnutí
+ * plánu 3, bod 10)?
+ */
+function carriesPeople(mail: VillageMail): boolean {
+  if (mail.body.kind !== 'market-result') return false;
+  const { people = [], newcomers = [] } = mail.body.result;
+  return people.length + newcomers.length > 0;
+}
+
 /** Zpráva výsledku trhu pro domovskou ves `villageId` na den `day` (`ref` = `marketResultRef`). */
 function resultMail(villageId: string, day: number, result: MarketResult): VillageMail {
   return {
@@ -74,7 +84,9 @@ async function post(deps: VillageMailDeps, mail: VillageMail): Promise<boolean> 
  * 1. Každou zprávu `outbox` zapíše do schránky cílové vsi. Cílová ves neexistuje (`post` by na
  *    neznámé vsi spadl): příjezd se změní ve výsledek `returned` se vším, co výprava vezla, do
  *    schránky vsi v den plánovaného návratu (lidé jsou doma v plánovaný den); výsledek pro
- *    zmizelou domovskou ves se zahodí.
+ *    zmizelou domovskou ves se zahodí – jen výsledek s lidmi (`people`, `newcomers`) zůstane
+ *    v `outbox`: lidé nesmí zmizet (markets.md – Rozhodnutí plánu 3, bod 13; k hostiteli je vrátí
+ *    zpráva `people-back`).
  * 2. Zapsané a zahozené smaže z `outbox` (verzovaný zápis, při souběhu znovu, nejvýš
  *    `MAIL_ATTEMPTS`); prázdný `outbox` se ze stavu smaže celý.
  * 3. Výpravy po termínu (`overdueTrips`): výsledek v odchozí schránce hostitele zapíše; hostitel
@@ -106,9 +118,10 @@ export async function deliverVillageMail(
         const result = marketResult(arrival, { returned: true });
         if (await post(deps, resultMail(villageId, returnDay, result))) written++;
       }
-      // výsledek pro zmizelou domovskou ves se zahodí
+      // výsledek pro zmizelou domovskou ves se zahodí – s lidmi zůstane (níž)
     }
-    const saved = await dropDelivered(deps, villageId, outbox);
+    const delivered = outbox.filter((m) => known.has(m.villageId) || !carriesPeople(m));
+    const saved = await dropDelivered(deps, villageId, delivered);
     if (!saved) return written; // ves mezitím zmizela
     village = saved;
   }

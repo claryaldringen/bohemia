@@ -37,4 +37,10 @@ export const MARKET = {
   dayTripCells: 1,
   daysPerCell: 1,
   minStayDays: 1,
+  /**
+   * Kolik dospělých je jedna rodina, kterou ves shání (markets.md – Rozhodnutí plánu 3, bod 10:
+   * chybějící dospělí „jako rodiny (dva dospělí na rodinu, nahoru)“ – muž a žena; rodina stojí jako
+   * dva dospělí, bod 4).
+   */
+  familyAdults: 2,
 } as const;
