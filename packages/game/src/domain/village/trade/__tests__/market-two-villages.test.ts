@@ -189,8 +189,8 @@ describe('výprava na trh mezi dvěma vsemi (markets.md – Co se ověří, bod 
     const home = withoutOutbox(sent.state);
     const h1 = advanceVillage(home, D + 2, null, null, asEvents(m1.outbox!));
     expect(villageCarts(h1)).toHaveLength(villageCarts(h).length + 1);
-    // koupený vůz je nový
-    expect(villageCarts(h1).at(-1)).toEqual({ id: 2, kind: 'two-wheel', builtDay: D + 2 });
+    // koupený vůz má stáří vozu prodejce (nejmladší volný vůz M, id 2)
+    expect(villageCarts(h1).at(-1)).toEqual({ id: 2, kind: 'two-wheel', builtDay: D - 300 });
     expect(oxenHome(h1, D + 2)).toBe(4);
     expect(h1.trade!.expeditions.filter((e) => e.kind === 'market')).toEqual([]);
     // voli jsou doma v returnDay i bez výsledku trhu (výprava čeká na zboží)

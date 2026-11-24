@@ -723,6 +723,11 @@ export interface VillageState {
   /** Vozy vsi (wagons.md – Vůz) – vyrábí je tesař; chybí = žádné. */
   carts?: Cart[];
   /**
+   * Nejnižší id, které smí dostat příští vůz (markets.md – Rozhodnutí plánu 3, bod 4): vůz prodaný
+   * na trhu své id nepustí zpět. Vzniká prodejem vozu; chybí = největší id + 1.
+   */
+  nextCartId?: number;
+  /**
    * Nákupy výrobků řemeslníků u sousedů na cestě (crafts.md – Nákup u sousedů); chybí = žádný.
    */
   purchases?: CraftPurchase[];

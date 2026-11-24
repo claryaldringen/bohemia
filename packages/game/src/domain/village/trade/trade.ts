@@ -22,9 +22,11 @@ import { CARTS, HIDES, IRON, TRADE, TRADE_GOOD_VALUES } from '../rules';
 import { ensureWares } from '../wares/wares';
 import { tradeSeason, tradeWeather } from './trade-weather';
 import type {
+  CartGood,
   CartKind,
   ChronicleEvent,
   ComingPeople,
+  MarketCart,
   Person,
   TradeExpedition,
   TradeGood,
@@ -132,6 +134,26 @@ export function villageGoodStock(
 }
 
 /**
+ * Prodá `n` nejmladších volných vozů druhu `good` (mutuje stav) a vrátí je po kusech se stářím –
+ * kupující dostane vůz s tímtéž `builtDay` (markets.md – Rozhodnutí plánu 3, bod 4). Volných
+ * vozů je nejvýš kolik je, víc se neprodá.
+ */
+export function takeCarts(state: VillageState, good: CartGood, n: number): MarketCart[] {
+  const out: MarketCart[] = [];
+  for (let k = 0; k < n; k++) {
+    const cart = removeIdleCart(state, cartGoodKind(good));
+    if (!cart) break;
+    out.push({ good, builtDay: cart.builtDay });
+  }
+  return out;
+}
+
+/** Vozy z trhu přijdou do vsi se stářím prodejce (mutuje stav; nové id, `addCart`). */
+export function addMarketCarts(state: VillageState, carts: readonly MarketCart[]): void {
+  for (const cart of carts) addCart(state, cartGoodKind(cart.good), cart.builtDay);
+}
+
+/**
  * Přičte (záporně ubere) zboží ve vsi v den `day` (mutuje stav). Koupené koně přidává výprava
  * po kusech (`addHorses`), tady se koně jen prodávají.
  */
@@ -187,8 +209,8 @@ export function addGood(state: VillageState, good: TradeGood, amount: number, da
     }
     case 'twoWheelCarts':
     case 'fourWheelCarts': {
-      // jen celé vozy: koupený je nový (`addCart`, stáří na trhu nenese), prodá se nejmladší volný
-      // vůz druhu (`removeIdleCart`) – markets.md, Rozhodnutí plánu 3, bod 4
+      // jen celé vozy: koupený je nový (`addCart`; vůz z trhu se stářím přidává `addMarketCarts`),
+      // prodá se nejmladší volný vůz druhu (`removeIdleCart`) – markets.md, Rozhodnutí plánu 3, bod 4
       const kind = cartGoodKind(good);
       const n = Math.floor(Math.abs(amount) + EPSILON);
       for (let k = 0; k < n; k++) {

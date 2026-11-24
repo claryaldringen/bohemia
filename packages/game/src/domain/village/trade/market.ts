@@ -8,8 +8,10 @@
 import { MARKET } from '../rules';
 import type {
   ChronicleEvent,
+  CartGood,
   HorseGood,
   MarketArrival,
+  MarketCart,
   MarketClearing,
   MarketHorse,
   MarketResult,
@@ -21,12 +23,12 @@ import type {
   VillageNews,
   VillageState,
 } from '../types';
-import { HORSE_GOODS, TRADE_GOODS, isHorseGood } from './goods';
+import { CART_GOODS, HORSE_GOODS, TRADE_GOODS, isCartGood, isHorseGood } from './goods';
 import { addHorses, takeHorses } from './horse-trade';
 import { clearMarket, partyTotals } from './market-clearing';
 import { nextPrices } from './market-prices';
 import { marketStance } from './market-stance';
-import { addGood } from './trade';
+import { addGood, addMarketCarts, takeCarts } from './trade';
 import { villageReport } from './village-report';
 
 /** Strana hostitelské vsi v zápočtu (výpravy mají klíč `market:…`). */
@@ -118,6 +120,7 @@ export function joinMarket(
     travelDays: arrival.travelDays,
     goods,
     horses: structuredClone(arrival.horses),
+    ...(arrival.carts?.length ? { carts: structuredClone(arrival.carts) } : {}),
     wants: positiveGoods(arrival.wants),
     sold: {},
     bought: {},
@@ -148,12 +151,16 @@ export function marketResult(
   extra: Pick<MarketResult, 'report' | 'prices' | 'returned'> = {},
 ): MarketResult {
   const visitor = 'order' in from ? from : null;
+  const carts = visitor
+    ? [...(visitor.carts ?? []), ...(visitor.boughtCarts ?? [])]
+    : (from.carts ?? []);
   return structuredClone({
     key: from.key,
     sold: visitor?.sold ?? {},
     bought: visitor?.bought ?? {},
     unsold: from.goods,
     horses: visitor ? [...visitor.horses, ...visitor.boughtHorses] : from.horses,
+    ...(carts.length > 0 ? { carts } : {}),
     ...extra,
   });
 }
@@ -169,12 +176,24 @@ function takeVisitorHorses(visitor: MarketVisitor, good: HorseGood, n: number): 
   return out;
 }
 
+/** První `n` vozů druhu `good` výpravy (mutuje – z jejích vozů odejdou). */
+function takeVisitorCarts(visitor: MarketVisitor, good: CartGood, n: number): MarketCart[] {
+  const out: MarketCart[] = [];
+  visitor.carts = (visitor.carts ?? []).filter((c) => {
+    if (c.good !== good || out.length >= n) return true;
+    out.push(c);
+    return false;
+  });
+  return out;
+}
+
 /**
  * Vyrovná obchody tržního dne (mutuje stav). Hostitel prodané zboží ubere (`addGood` se zápornou
  * hodnotou, koně `takeHorses` v pořadí prodeje) a koupené přidá (`addGood`, koně `addHorses`).
  * Výpravě ubude prodané z `goods` a koupené ze seznamu `wants` a přibude do `sold` a `bought`. Koně
  * jdou zápočtem jako počty po druzích a kupující dostane tytéž kusy: od hostitele podle
- * `takeHorses`, od výpravy první kusy druhu z jejích koní. Vrací, co hostitel prodal a koupil.
+ * `takeHorses`, od výpravy první kusy druhu z jejích koní. Vozy jdou stejně po kusech se stářím
+ * prodejce (`takeCarts`, `addMarketCarts`). Vrací, co hostitel prodal a koupil.
  */
 function settleTrades(
   state: VillageState,
@@ -186,7 +205,7 @@ function settleTrades(
   const totals = new Map(visitors.map((v) => [v.key, partyTotals(clearing, v.key)]));
   // koně prodávajících po kusech – podle druhu, v pořadí, ve kterém je dostanou kupující
   const herds = new Map<string, MarketHorse[]>();
-  const herdKey = (seller: string, good: HorseGood): string => `${seller}|${good}`;
+  const herdKey = (seller: string, good: HorseGood | CartGood): string => `${seller}|${good}`;
   for (const good of HORSE_GOODS) {
     const fromHost = takeHorses(state, good, host.sold[good] ?? 0, day);
     herds.set(
@@ -206,16 +225,38 @@ function settleTrades(
     if (trade.buyer === HOST) hostHorses.push(...moved.map((h) => h.horse));
     else byKey.get(trade.buyer)?.boughtHorses.push(...moved);
   }
+  // vozy po kusech se stářím prodejce, stejně jako koně
+  const cartHerds = new Map<string, MarketCart[]>();
+  for (const good of CART_GOODS) {
+    cartHerds.set(herdKey(HOST, good), takeCarts(state, good, host.sold[good] ?? 0));
+    for (const visitor of visitors) {
+      const n = totals.get(visitor.key)?.sold[good] ?? 0;
+      if (n > 0) cartHerds.set(herdKey(visitor.key, good), takeVisitorCarts(visitor, good, n));
+    }
+  }
+  const hostCarts: MarketCart[] = [];
+  for (const trade of clearing.trades) {
+    if (!isCartGood(trade.good)) continue;
+    const moved = cartHerds.get(herdKey(trade.seller, trade.good))?.splice(0, trade.amount) ?? [];
+    if (trade.buyer === HOST) hostCarts.push(...moved);
+    else (byKey.get(trade.buyer)!.boughtCarts ??= []).push(...moved);
+  }
   // hostitel: napřed prodané pryč, pak koupené dovnitř
   for (const good of TRADE_GOODS) {
     const sold = host.sold[good] ?? 0;
-    if (sold > 0 && !isHorseGood(good)) addGood(state, good, -sold, day);
+    if (sold > 0 && !isHorseGood(good) && !isCartGood(good)) addGood(state, good, -sold, day);
   }
   for (const good of TRADE_GOODS) {
     const bought = host.bought[good] ?? 0;
-    if (bought > 0 && !isHorseGood(good)) addGood(state, good, bought, day);
+    if (bought > 0 && !isHorseGood(good) && !isCartGood(good)) addGood(state, good, bought, day);
   }
   addHorses(state, hostHorses, day);
+  addMarketCarts(state, hostCarts);
+  // vůz bez záznamu stáří (výprava uložená dřív) přijde nový
+  for (const good of CART_GOODS) {
+    const missing = (host.bought[good] ?? 0) - hostCarts.filter((c) => c.good === good).length;
+    if (missing > 0) addGood(state, good, missing, day);
+  }
   // výpravy: co zbývá prodat a koupit, co prodaly a koupily
   for (const visitor of visitors) {
     const { sold, bought } = totals.get(visitor.key) ?? { sold: {}, bought: {} };

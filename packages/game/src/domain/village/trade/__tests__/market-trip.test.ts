@@ -22,6 +22,7 @@ import {
   type MarketTripCheck,
 } from '../market-trip';
 import { expeditionLaborNeed, finishExpeditions, workExpeditions } from '../trade';
+import { marketResult } from '../market';
 import { D, homeVillage, report, target } from './market-fixtures';
 
 // Výprava na trh – domovská ves (markets.md – Pravidla 2 a 3; Rozhodnutí plánu 2, body 1, 2 a 6):
@@ -341,17 +342,39 @@ describe('vozy na trhu – voli pro koupený vůz, prodaný vůz (Rozhodnutí pl
     expect(checkMarketTrip(order({}, { cows: 1 }), base)).toMatchObject({ ok: true, oxen: 0 });
   });
 
-  it('koupený vůz netáhnou voli dopravních vozů ani prodaní voli', () => {
-    // čtyřkolák veze 400 kg obilí se 2 voly – na koupený dvoukolák žádný nezbude
+  it('koupený vůz táhnou voli napřed – dopravní vůz jede jen s ostatními, jinak nosiči', () => {
+    // čtyřkolák a 2 voli, koupený dvoukolák: vůl pro něj je rezervovaný, čtyřkolák bez páru stojí
     const withCart: MarketTripCheck = { ...base, homeCarts: ['four-wheel'], oxenHome: 2 };
     const buy = order({ grain: 400 }, { twoWheelCarts: 1 });
-    expect(checkMarketTrip(buy, withCart)).toEqual({ ok: false, reason: MARKET_NO_OXEN });
+    expect(checkMarketTrip(buy, withCart)).toMatchObject({
+      ok: true,
+      carts: 0,
+      oxen: 1,
+      porters: 16,
+    });
+    // s 3 voly jede čtyřkolák s párem a vůl táhne koupený vůz
     expect(checkMarketTrip(buy, { ...withCart, oxenHome: 3 })).toMatchObject({
       ok: true,
       carts: 1,
       porters: 2,
       oxen: 1,
     });
+    // MARKET_NO_OXEN jen když voli nestačí ani na koupené vozy (i bez dopravních vozů)
+    expect(checkMarketTrip(buy, { ...withCart, oxenHome: 0 })).toEqual({
+      ok: false,
+      reason: MARKET_NO_OXEN,
+    });
+    expect(checkMarketTrip(order({}, { fourWheelCarts: 1 }), { ...withCart, oxenHome: 1 })).toEqual(
+      { ok: false, reason: MARKET_NO_OXEN },
+    );
+    // nedostatek volů se hlásí před nedostatkem lidí
+    expect(
+      checkMarketTrip(order({ grain: 400 }, { fourWheelCarts: 1 }), {
+        ...withCart,
+        oxenHome: 1,
+        adults: 0,
+      }),
+    ).toEqual({ ok: false, reason: MARKET_NO_OXEN });
     // vůl, který se prodá, koupený vůz netáhne
     const sell = order({ trainedOxen: 1 }, { twoWheelCarts: 1 });
     expect(checkMarketTrip(sell, { ...base, oxenHome: 1 })).toEqual({
@@ -359,6 +382,41 @@ describe('vozy na trhu – voli pro koupený vůz, prodaný vůz (Rozhodnutí pl
       reason: MARKET_NO_OXEN,
     });
     expect(checkMarketTrip(sell, { ...base, oxenHome: 2 })).toMatchObject({ ok: true, oxen: 1 });
+  });
+
+  it('ves s jedním čtyřkolákem a 2 voly koupí čtyřkolák za obilí: obilí nesou nosiči, voli táhnou vůz', () => {
+    const h = homeVillage();
+    h.carts = [{ id: 1, kind: 'four-wheel', builtDay: D - 30 }];
+    h.pens!.find((p) => p.id === 900)!.oxen = [{ trainedDay: D - 10 }, { trainedDay: D - 10 }];
+    const buy = order({ grain: 100 }, { fourWheelCarts: 1 });
+    const plan = planMarketTrip(h, D, buy, target);
+    expect(plan).toEqual(expect.objectContaining({ ok: true }));
+    expect(plan).toMatchObject({ carts: 0, cartIds: [], oxen: 2 });
+    const sent = departMarket(h, D, buy, target);
+    if (!sent.ok) throw new Error(sent.reason);
+    expect(cartsAway(sent.state).has(1)).toBe(false);
+    expect(sent.trip.oxen).toBe(2);
+  });
+
+  it('neprodaný vůz se vrátí se stejným stářím, id prodaného vozu se nepoužije znovu', () => {
+    const s = twoCarts(1);
+    const sell = order({ twoWheelCarts: 1 });
+    const sent = departMarket(s, D, sell, target);
+    if (!sent.ok) throw new Error(sent.reason);
+    // prodává se nejmladší volný vůz (id 2, D − 20) a nese své stáří
+    const mail = sent.state.outbox!.find((m) => m.body.kind === 'market-arrive')!;
+    const arrival = (mail.body as { arrival: Parameters<typeof marketResult>[0] }).arrival;
+    expect((arrival as { carts?: unknown }).carts).toEqual([
+      { good: 'twoWheelCarts', builtDay: D - 20 },
+    ]);
+    // hostitel vůz nechce – domů se vrátí neprodaný se stejným builtDay
+    const result = marketResult(arrival);
+    const home = structuredClone(sent.state);
+    applyMarketResult(home, D + 2, result);
+    expect(villageCarts(home).find((c) => c.builtDay === D - 20)).toBeDefined();
+    expect(villageCarts(home).map((c) => c.builtDay)).toEqual([D - 30, D - 20]);
+    // nové id nekoliduje s žádným vozem (id 2 prodáno, nový vůz dostane 3)
+    expect(villageCarts(home).map((c) => c.id)).toEqual([1, 3]);
   });
 
   it('voli pro koupený vůz jsou pryč do returnDay − 1, v returnDay doma (market.oxen smazané)', () => {

@@ -63,10 +63,14 @@ export function cartCondition(cart: Pick<Cart, 'builtDay'>, day: number): number
   return Math.min(1, Math.max(0, 1 - age));
 }
 
-/** Přidá hotový vůz (mutuje stav); id = největší + 1. */
+/**
+ * Přidá hotový vůz (mutuje stav); `day` je den dostavění (`builtDay`) – vůz z trhu nese stáří
+ * prodejce. Id = největší + 1, nikdy ne id prodaného vozu (`nextCartId`).
+ */
 export function addCart(state: VillageState, kind: CartKind, day: number): Cart {
   const carts = (state.carts ??= []);
-  const id = carts.reduce((max, c) => Math.max(max, c.id), 0) + 1;
+  const id = Math.max(carts.reduce((max, c) => Math.max(max, c.id), 0) + 1, state.nextCartId ?? 0);
+  if (state.nextCartId !== undefined) state.nextCartId = id + 1;
   const cart = { id, kind, builtDay: day };
   carts.push(cart);
   return cart;
@@ -107,13 +111,16 @@ export function idleCartsOf(state: VillageState, kind: CartKind): Cart[] {
 /**
  * Prodá (odebere) nejmladší volný vůz druhu `kind` – nejvyšší id (mutuje stav; markets.md –
  * Rozhodnutí plánu 3, bod 4); bez volného vozu nic. Poslední vůz vsi smaže `carts` (bez vozů
- * prázdné, jako `takeLeavingCart`).
+ * prázdné, jako `takeLeavingCart`). Id prodaného vozu se znovu nepoužije (`nextCartId`). Vrací
+ * prodaný vůz (stáří jde s ním ke kupci).
  */
-export function removeIdleCart(state: VillageState, kind: CartKind): void {
+export function removeIdleCart(state: VillageState, kind: CartKind): Cart | undefined {
   const cart = idleCartsOf(state, kind).at(-1);
-  if (!cart) return;
+  if (!cart) return undefined;
   state.carts = villageCarts(state).filter((c) => c.id !== cart.id);
   if (state.carts.length === 0) delete state.carts;
+  state.nextCartId = Math.max(state.nextCartId ?? 0, cart.id + 1);
+  return cart;
 }
 
 /**

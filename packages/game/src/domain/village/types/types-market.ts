@@ -5,7 +5,7 @@
 import type { Craft } from './types-crafts';
 import type { TradedHorse } from './types-livestock';
 import type { Direction8 } from './types-state';
-import type { HorseGood, TradeGood, TradeGoods } from './types-trade';
+import type { CartGood, HorseGood, TradeGood, TradeGoods } from './types-trade';
 
 /**
  * Ceny trhu v mincích za kg, kus nebo m³ (markets.md – Rozhodnutí plánu 2, bod 3): trh si pamatuje
@@ -67,6 +67,16 @@ export interface MarketHorse {
 }
 
 /**
+ * Vůz na trhu (markets.md – Rozhodnutí plánu 3, bod 4): druh, pod kterým se prodává, a stáří
+ * (`builtDay` z vozu prodejce) – kupující dostane vůz s tímtéž stářím, neprodaný se vrátí domů
+ * stejně starý.
+ */
+export interface MarketCart {
+  good: CartGood;
+  builtDay: number;
+}
+
+/**
  * Výprava přijela na trh vsi – tělo události schránky `market-arrive` (markets.md – Pravidla 2
  * a 3, Rozhodnutí plánu 2, body 2 a 6).
  */
@@ -83,6 +93,8 @@ export interface MarketArrival {
   goods: TradeGoods;
   /** Koně výpravy po kusech. */
   horses: MarketHorse[];
+  /** Vozy výpravy po kusech se stářím (chybí = výprava z doby před stářím vozů). */
+  carts?: MarketCart[];
   /** Co výprava shání (seznam bez cenových mezí – Martin 22. 11. 2026). */
   wants: TradeGoods;
   /** Zpráva na pivo o domovské vsi – „obchodník, který přijel k nám“ (Pravidla 8). */
@@ -107,6 +119,8 @@ export interface MarketVisitor {
   goods: TradeGoods;
   /** Neprodaní koně výpravy po kusech. */
   horses: MarketHorse[];
+  /** Neprodané vozy výpravy po kusech se stářím. */
+  carts?: MarketCart[];
   /** Co zbývá koupit. */
   wants: TradeGoods;
   /** Co výprava na trhu prodala a koupila (součty za všechny tržní dny). */
@@ -114,6 +128,8 @@ export interface MarketVisitor {
   bought: TradeGoods;
   /** Koupení koně po kusech. */
   boughtHorses: MarketHorse[];
+  /** Koupené vozy po kusech se stářím. */
+  boughtCarts?: MarketCart[];
 }
 
 /**
@@ -143,6 +159,8 @@ export interface MarketResult {
   unsold: TradeGoods;
   /** Koně domů po kusech – neprodaní i koupení. */
   horses: MarketHorse[];
+  /** Vozy domů po kusech se stářím – neprodané i koupené (počty jsou i v `unsold` a `bought`). */
+  carts?: MarketCart[];
   /** Zpráva na pivo o hostiteli v den odjezdu. */
   report?: VillageReport;
   /** Ceny trhu v den odjezdu. */

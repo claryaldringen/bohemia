@@ -20,6 +20,11 @@ export function isHorseGood(good: string): good is HorseGood {
   return (HORSE_GOODS as readonly string[]).includes(good);
 }
 
+/** Je zboží vůz (dvoukolák, čtyřkolák)? */
+export function isCartGood(good: string): good is CartGood {
+  return (CART_GOODS as readonly string[]).includes(good);
+}
+
 /** Jde zboží po svých s honákem (dobytek a koně) – nese ho nikdo? */
 export function isLivestockGood(good: string): good is CattleGood | HorseGood {
   return isCattleGood(good) || isHorseGood(good);

@@ -291,7 +291,8 @@ ves>:<id výpravy>`, `stayDays`, `travelDays`, zboží `goods` – koně i tady 
     `finishExpeditions` výpravu na trh nechá a jezdec vojvody ji nedoprovází (`lordRides` – jen
     výprava po stezce).
   - **Návrat:** událost schránky `market-result` → `applyMarketResult`: koupené a neprodané zboží
-    do vsi (`addGood` – vozy jako nové `addCart`, koně po kusech `addHorses`) – i bez záznamu
+    do vsi (`addGood`, koně po kusech `addHorses`, vozy po kusech se stářím `addMarketCarts` – neprodaný
+    vůz se vrátí stejně starý) – i bez záznamu
     výpravy, nic nezmizí –, výprava
     s klíčem výsledku se smaže, zpráva na pivo s cenami trhu do `news` (`rememberNews`, jen se
     záznamem výpravy) a kronika `market-returned` (`returned` – hostitel zanikl; bez záznamu
@@ -357,8 +358,11 @@ ves>:<id výpravy>`, `stayDays`, `travelDays`, zboží `goods` – koně i tady 
   kus (obnovená cena vozu u tesaře souseda `cartValueKg` @ b4f8dadc – práce tesaře, klády
   a kování), nese se 0 – vůz táhnou voli. Zásoba `villageGoodStock` = volné vozy druhu
   (`idleCartsOf` – mimo `cartsAway`: výpravy, nákupy i vůz na cestě pro kování, v pořadí id);
-  `addGood` po celých vozech – koupený je nový (`addCart`, stáří na trhu nenese), prodá se
-  nejmladší volný vůz druhu (`removeIdleCart` – nejvyšší id; poslední vůz vsi smaže `carts`). Co
+  `addGood` po celých vozech (bez záznamu stáří nový `addCart`); na trhu jdou vozy po kusech
+  `MarketCart` se `builtDay` (`takeCarts` → `MarketArrival.carts` → `MarketVisitor.carts`,
+  `boughtCarts` → `MarketResult.carts` → `addMarketCarts`): kupující dostane stáří prodejce, neprodaný
+  vůz se vrátí stejně starý. Prodá se nejmladší volný vůz druhu (`removeIdleCart` – nejvyšší id;
+  poslední vůz vsi smaže `carts`) a jeho id se znovu nepoužije (`VillageState.nextCartId`). Co
   ves nabízí a shání: Trh – co ves nabízí a shání výš; voli pro koupený vůz a prodaný vůz ve
   výpravě: Výprava na trh výš. Názvy Dvoukoláky / Čtyřkoláky s ikonou `cart`
   (`TRADE_GOOD_NAMES`).
