@@ -345,14 +345,25 @@ export function markOrderReady(
   ];
 }
 
+/** Živé zakázky kupujícího (nevypršelé – `MARKET.orderDays`) v pořadí zápisu, i odmítnutí. */
+export function placedOrders(state: VillageState, day: number): PlacedOrder[] {
+  return (state.orders ?? []).filter((o) => isLive(o.day, day));
+}
+
 /**
- * Živá zakázka kupujícího na zboží `good` – otevřená nebo hotová (odmítnutí zakázka není); první
- * v pořadí zápisu, jinak null.
+ * Živá zakázka kupujícího na zboží `good` – otevřená nebo hotová (odmítnutí zakázka není) u vsi,
+ * kterou `at` vezme (bez `at` u kterékoli); první v pořadí zápisu, jinak null.
  */
-export function placedOrder(state: VillageState, day: number, good: OrderGood): PlacedOrder | null {
+export function placedOrder(
+  state: VillageState,
+  day: number,
+  good: OrderGood,
+  at: (villageId: string) => boolean = () => true,
+): PlacedOrder | null {
   return (
-    state.orders?.find((o) => o.good === good && o.status !== 'refused' && isLive(o.day, day)) ??
-    null
+    state.orders?.find(
+      (o) => o.good === good && o.status !== 'refused' && isLive(o.day, day) && at(o.villageId),
+    ) ?? null
   );
 }
 

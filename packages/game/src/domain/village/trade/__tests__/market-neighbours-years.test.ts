@@ -141,11 +141,10 @@ describe('dvě vsi na sousedních mapách po tři roky (markets.md – Co se ov�
     s0.news = [{ villageId: 'r', name: 'Rovná', report: report(r0, [...crafts]) }];
     // S má o 15 kg nástrojů míň, než potřebuje (jako villagersHome) – kupuje, jen když se vyplatí
     s0.toolEquipmentKg = Math.max(0, toolNeedKg(s0, start) - 15);
-    // obilí nad pojistkou, ať má za co nástroje platit (60 kg obilí za kg)
+    // obilí nad pojistkou, ať má za co nástroje platit (60 kg obilí za kg); keramiku a dřevěné
+    // nářadí S nemá – jedna cesta unese ~125 kg a keramika ji zabere, nástroje jedou další cestou
+    // po návratu (`villagersRetry` – plán 3, závěrečná kontrola I1)
     s0.storesKg += 20_000;
-    // keramiky a dřevěného nářadí má S dost na tři roky – jedna cesta unese 125 kg a keramika by ji
-    // každý rok zabrala celou (nástroje se koupí, jen když zbude místo – „víc ves koupí příště“)
-    s0.crafts = { ...s0.crafts!, potteryKg: 2_000, woodToolsKg: 2_000 };
     const control = structuredClone(s0);
     delete control.nearby;
     delete control.news;
@@ -157,6 +156,7 @@ describe('dvě vsi na sousedních mapách po tři roky (markets.md – Co se ov�
     const equipStart = s0.toolEquipmentKg ?? 0;
     let seq = 0;
     let toolsBought = 0;
+    let potteryBought = 0;
     const started = new Map<string, number>();
     const resulted = new Set<string>();
 
@@ -216,7 +216,10 @@ describe('dvě vsi na sousedních mapách po tři roky (markets.md – Co se ov�
           if (!target) continue;
           if (mail.body.kind === 'market-result') {
             resulted.add(mail.body.result.key);
-            if (target === s) toolsBought += mail.body.result.bought.tools ?? 0;
+            if (target === s) {
+              toolsBought += mail.body.result.bought.tools ?? 0;
+              potteryBought += mail.body.result.bought.pottery ?? 0;
+            }
           }
           target.pending.push({
             id: mail.ref,
@@ -254,6 +257,7 @@ describe('dvě vsi na sousedních mapách po tři roky (markets.md – Co se ov�
       equipEnd,
       equipControl,
       toolsBought,
+      potteryBought,
       laborS: labor(s.state),
       laborControl: labor(controlEnd),
       weddings: r.tally.weddings + s.tally.weddings,
@@ -273,8 +277,12 @@ describe('dvě vsi na sousedních mapách po tři roky (markets.md – Co se ov�
 
     expect(equipEnd).toBeGreaterThan(equipControl);
     expect(toolsBought).toBeGreaterThan(0);
-    // `laborHa` obou běhů jen do zprávy (bez prahu): S v běhu s okolím měla o ~1,2 ha míň než kontrola,
-    // lidé i díly stejné – viz zpráva úlohy 12
+    expect(potteryBought).toBeGreaterThan(0);
+    // pole se vracejí: lepší pokrytí nástroji kapacitu polí nesníží (výhled správce počítá orbu
+    // plánu i kapacitu spřežení při dnešním pokrytí – plán 3, závěrečná kontrola I3); S s okolím
+    // a kontrola se liší jen zásobami a pěšinami – rozdíl výhledu je šum ~1e-6, proto mez 1e-4
+    // (před opravou S −13,6 %)
+    expect(labor(s.state)).toBeGreaterThanOrEqual(labor(controlEnd) * (1 - 1e-4));
     expect(r.tally.hungerDeaths + s.tally.hungerDeaths).toBe(0);
     expect(hasNaN(r.state)).toBeNull();
     expect(hasNaN(s.state)).toBeNull();

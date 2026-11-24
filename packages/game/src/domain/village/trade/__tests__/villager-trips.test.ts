@@ -226,7 +226,9 @@ describe('vesničané na trhu – víc cílů v jeden den (lidé a vozy se děl�
         { to: 'p', wants: ['pottery'], started: NOV15 + 1 },
         { to: 'm', wants: ['tools'], started: toolsDay },
       ]);
-      expect(after.trade!.villagersRetry).toBeUndefined();
+      // nástroje výprava unesla jen zčásti – zbytek čeká na její výsledek (v testu bez hostitele
+      // nepřijde), pak pojede další cestou
+      expect(after.trade!.villagersRetry?.goods).toEqual(['tools']);
     });
   }
 });
@@ -402,9 +404,10 @@ describe('vesničané na trhu po kouscích dopočtu (determinismus)', () => {
     s.news!.push({ villageId: 'p', name: 'Hrnčíře', report: { ...report, crafts: ['potter'] } });
     const nov15 = start + 15;
     // 15. 11. odnesou 4 volní dospělí dřevěné nářadí (Lhota) a keramiku (Hrnčíře) – na nástroje
-    // nezbude nikdo, zkusí se 16. 11. (paměť je ve stavu mezi kousky dopočtu)
+    // nezbude nikdo a keramiky unesou jen část, zkusí se 16. 11. (paměť je ve stavu mezi kousky
+    // dopočtu)
     const first = advanceVillage(s, nov15, null, null);
-    expect(first.trade!.villagersRetry).toEqual({ day: nov15 + 1, goods: ['tools'] });
+    expect(first.trade!.villagersRetry).toEqual({ day: nov15 + 1, goods: ['pottery', 'tools'] });
     expect(
       marketTrips(first)
         .filter((e) => e.by === 'villagers')
@@ -416,6 +419,66 @@ describe('vesničané na trhu po kouscích dopočtu (determinismus)', () => {
     const end = start + 30;
     const whole = advanceVillage(s, end, null, null);
     expect(advanceVillage(first, end, null, null)).toEqual(whole);
-    expect(whole.trade!.villagersRetry).toBeUndefined();
+    // keramika čeká na výsledek výpravy (v testu bez hostitele nepřijde)
+    expect(whole.trade!.villagersRetry?.goods).toEqual(['pottery']);
+  });
+});
+
+describe('vesničané na trhu – místo na výpravě (plán 3, závěrečná kontrola I1)', () => {
+  /** H bez vozu a bez keramiky, Lhota s kovářem i hrnčířem – keramika zabere místo výpravy. */
+  function oneTarget(): VillageState {
+    const s = villagers(['smith', 'potter']);
+    s.carts = [];
+    s.crafts = { ...s.crafts, charcoalKg: 0, potteryKg: 0 };
+    return s;
+  }
+
+  it('15. 11. zabere keramika místo do téže vsi – nástroje jedou další cestou, až se lidé vrátí', () => {
+    const first = stepped(oneTarget(), NOV15);
+    const trips = marketTrips(first);
+    expect(trips.map((e) => [e.market!.villageId, Object.keys(e.market!.wants)])).toEqual([
+      ['m', ['pottery']],
+    ]);
+    const back = trips[0]!.market!.returnDay;
+    expect(back).toBeGreaterThan(NOV15 + 1);
+    // den před návratem nosičů (výprava vyrazí v den jejich návratu), ne druhý den se zbylými
+    expect(first.trade!.villagersRetry).toEqual({ day: back - 1, goods: ['tools'] });
+    expect(marketTrips(stepped(first, back - 2))).toHaveLength(1);
+    const second = stepped(first, back - 1);
+    const tools = marketTrips(second).filter((e) => (e.market!.wants.tools ?? 0) > 0);
+    expect(tools).toHaveLength(1);
+    expect(tools[0]!.startedDay).toBe(back);
+  });
+
+  it('nástroje, které výprava neunesla, jedou po výsledku trhu další cestou; zakázka u vsi mimo okolí nákup neblokuje', () => {
+    const s = villagers();
+    s.carts = [];
+    s.orders = [
+      { villageId: 'far', name: 'Daleká', good: 'tools', amount: 5, day: NOV14, status: 'open' },
+    ];
+    const first = stepped(s, NOV15);
+    const trip = marketTrips(first)[0]!;
+    const wanted = trip.market!.wants.tools!;
+    expect(wanted).toBeGreaterThan(0);
+    const back = trip.market!.returnDay;
+    expect(first.trade!.villagersRetry).toEqual({
+      day: Math.max(NOV15 + 1, back - 1),
+      goods: ['tools'],
+    });
+    // nástroje veze výprava na cestě – před výsledkem trhu se znovu nekupují
+    const waiting = stepped(first, back - 1);
+    expect(marketTrips(waiting)).toHaveLength(1);
+    expect(waiting.trade!.villagersRetry).toEqual({ day: back, goods: ['tools'] });
+    const result: MarketResult = {
+      key: trip.market!.key,
+      sold: trip.give,
+      bought: { tools: wanted },
+      unsold: {},
+      horses: [],
+    };
+    applyMarketResult(waiting, back, result);
+    const again = stepped(waiting, back);
+    const next = marketTrips(again).filter((e) => (e.market!.wants.tools ?? 0) > 0);
+    expect(next.map((e) => e.startedDay)).toEqual([back + 1]);
   });
 });

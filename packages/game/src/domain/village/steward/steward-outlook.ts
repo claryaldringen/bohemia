@@ -9,12 +9,13 @@ import { distanceFactor, fallowStage, partWalkDistance, reclaimCostPerHa } from 
 import { builtThreshingFloorCount } from '../fields/threshing';
 import { windowDaylightWithout } from '../fields/sowing';
 import { ableTeams } from '../livestock/oxen';
-import { ploughWorkPerHa } from '../livestock/plough';
+import { PLOUGH_SOD_FACTOR, ploughWorkPerHa } from '../livestock/plough';
 import { fieldWorkPerHa } from '../core/productivity';
+import { partWeight } from '../core/year-plan';
 import { SEED_KG_PER_HA, THRESHING, WINDOWS, WINTER_THRESH_WINDOW } from '../rules/rules-fields';
 import { grainSeedTakenKg, reservedSeedKg, seedKeepKg, sowableSeedKg } from '../fields/seed';
 import { SOW_AFTER_DIG_DAYS, sowingCapacity } from '../core/simulate-plan';
-import type { CraftCoverage, FieldPart, VillageState } from '../types';
+import type { CraftCoverage, FieldPart, PloughWork, VillageState } from '../types';
 
 // Výhled vsi – „ideální stav“ (steward.md – Model kapacity vsi; Martin 1. 11. 2026: „Měl by přece
 // umět spočítat ideální umístění všeho a nejlepší postupy.“): kolik ves za hospodářský rok oseje
@@ -122,8 +123,30 @@ function grainWorkPerSownHa(
 }
 
 /**
+ * Orba plánu plodiny při pokrytí nástroji `tools` (člověkodny): váha oraných dílů
+ * (`PloughWork.weight` – ha × příplatek za vzdálenost), díly s drnem `PLOUGH_SOD_FACTOR`× (jako
+ * `partWork`), × `ploughWorkPerHa(tools)`. Kapacita spřežení (`sowingCapacity` –
+ * `ploughCapacityPerDay`) je v člověkodnech při dnešním pokrytí, proto i orba na hektar: s orbou
+ * plánu (pokrytí ze dne plánu) by kapacita polí po nákupu nástrojů klesla, ač páry orají stejně
+ * (24. 11. 2026 – plán 3, závěrečná kontrola I3).
+ */
+function ploughWorkAt(
+  plough: PloughWork,
+  byId: ReadonlyMap<number, FieldPart>,
+  tools: number,
+): number {
+  let weight = plough.weight;
+  for (const id of plough.sodIds ?? []) {
+    const part = byId.get(id);
+    if (part) weight += partWeight(part) * (PLOUGH_SOD_FACTOR - 1);
+  }
+  return weight * ploughWorkPerHa(tools);
+}
+
+/**
  * Práce lidí a spřežení na osetý hektar: z letošního plánu (`season` – skutečná práce dílů, které
- * ves vzala, i se vzdáleností a stadiem přílohu), bez plánu podle sazeb – kopání (orba) a setí
+ * ves vzala, i se vzdáleností a stadiem přílohu; orba oraných dílů plánu při dnešním pokrytí
+ * nástroji – `ploughWorkAt`), bez plánu podle sazeb – kopání (orba) a setí
  * a vracení přílohu jednou za `ROTATION.sown` let osevu, × průměrný příplatek za vzdálenost; žeň
  * a výmlat `grainWorkPerSownHa`. Orba stojí lidi stejně jako spřežení (oráč a honáček – plough.ts;
  * simulace ji do práce lidí počítá – `cropLoadOf`; `people` ji nemá – cíl polí ji přičte, D99 kolo 1).
@@ -149,7 +172,7 @@ function workPerSownHa(
   for (const crop of state.season?.crops ?? []) {
     ha += crop.partIds.reduce((sum, id) => sum + (byId.get(id)?.areaM2 ?? 0), 0) / M2_PER_HA;
     people += crop.required.reclaim + crop.required.dig + crop.required.sow;
-    ploughWork += crop.plough?.required ?? 0;
+    if (crop.plough) ploughWork += ploughWorkAt(crop.plough, byId, tools);
   }
   if (ha > 0 && people > 0) return { people: people / ha, plough: ploughWork / ha, ...grain };
   const fallow = parts.filter((p) => p.state === 'fallow');

@@ -43,7 +43,13 @@ const WANTED_KEY: Record<HorseGood, 'foals' | 'mares' | 'riding'> = {
   ridingHorses: 'riding',
 };
 
-/** Zapíše do nabídky `offer` zboží `good` – `amount`, nejvýš `villageGoodStock` (nekladné ne). */
+/**
+ * Šum plovoucí čárky v kg: zbytek nad potřebou menší než miligram není nabídka (zásoba rovná cíli
+ * dává rozdíl ~1e-8 kg – výprava by ho vezla a kronika psala „0 kg“). Technická mez, ne pravidlo.
+ */
+const NOISE_KG = 1e-6;
+
+/** Zapíše do nabídky `offer` zboží `good` – `amount`, nejvýš `villageGoodStock` (šum ne). */
 function giveTo(
   state: VillageState,
   day: number,
@@ -52,7 +58,7 @@ function giveTo(
   amount: number,
 ): void {
   const n = Math.min(amount, villageGoodStock(state, good, day));
-  if (n > 0) offer[good] = n;
+  if (n > NOISE_KG) offer[good] = n;
 }
 
 /**

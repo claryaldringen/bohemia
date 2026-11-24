@@ -699,12 +699,20 @@ export interface VillageState {
    * `lastDay + HORSE_SHOEING.everyDays`. Vznikne první den, kdy ves má jezdecké koně (termín se
    * počítá od něj – i u starších vsí), a zanikne, když je ves nemá. Chybí = ves bez jezdeckých koní.
    * `asked` – dotaz na kováře souseda, který čeká (markets.md – Rozhodnutí plánu 3, bod 9): klíč
-   * dotazu, ves a do kdy čeká (`untilDay` – den, kdy by kovář dorazil, + pobyt na trhu); kování ho
-   * smaže. Chybí = žádný dotaz.
+   * dotazu, ves a do kdy čeká (`untilDay` – den, kdy by kovář dorazil, + pobyt na trhu), den okolí
+   * dotazu (`nearbyDay`) a vsi, které se ve stejném okolí ptaly dřív a kováře neposlaly (`tried`);
+   * kování ho smaže. Chybí = žádný dotaz.
    */
   shoeing?: {
     lastDay: number;
-    asked?: { key: string; villageId: string; name: string; untilDay: number };
+    asked?: {
+      key: string;
+      villageId: string;
+      name: string;
+      untilDay: number;
+      nearbyDay?: number;
+      tried?: string[];
+    };
   };
   /** Zemské stezky k sousedům (trade.md – Zemská stezka); chybí = žádné. */
   trails?: Trail[];

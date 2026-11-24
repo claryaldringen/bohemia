@@ -1,5 +1,5 @@
-import { and, asc, eq, gt, inArray, lte, sql } from 'drizzle-orm';
-import type { VillageEvent, VillageInbox } from '@bohemia/game';
+import { and, asc, eq, gt, inArray, isNotNull, lte, or, sql } from 'drizzle-orm';
+import { PRUNED_INBOX_KINDS, type VillageEvent, type VillageInbox } from '@bohemia/game';
 import type { Database } from '../client';
 import { settlement, village, villageInbox } from '../schema';
 
@@ -36,8 +36,9 @@ function dayBound(day: number): number {
  * Drizzle adaptér portu VillageInbox. `post` je jedna transakce: zamkne řádek vsi (`FOR UPDATE`),
  * vloží událost ve dni `max(day, last_day + 1)` a zvedne `version` i `digest_version` – rozběhnutý
  * dopočet té vsi narazí při uložení na konflikt verze a zopakuje se i s událostí. Stav vsi se
- * zápisem nemění, souhrn proto zůstává platný (`digest_version` jde s `version`). `pruneNearby`
- * smaže použité snímky okolí (`body ->> 'kind' = 'nearby'`) po indexu vsi a dne, verzi nezvedá.
+ * zápisem nemění, souhrn proto zůstává platný (`digest_version` jde s `version`). `pruneUsed`
+ * smaže použité snímky okolí a zprávy bez nákladu (`body ->> 'kind'` v `PRUNED_INBOX_KINDS`) po
+ * indexu vsi a dne, verzi nezvedá.
  * `strandedResults` / `dropStranded` čtou a mažou výsledky trhu s lidmi ve schránkách zaniklých
  * vsí (`asleep` nebo sídlo v archivu) – verzi také nezvedají.
  */
@@ -88,27 +89,40 @@ export function createInboxRepository(db: Database): VillageInbox {
         .orderBy(asc(villageInbox.day), asc(villageInbox.seq));
       return rows.map(toEvent);
     },
-    async pruneNearby(villageId, upToDay): Promise<number> {
-      // jen snímky okolí – verze vsi se nemění (stav vsi se nemění, souhrn zůstává platný)
+    async pruneUsed(villageId, upToDay): Promise<number> {
+      // jen snímky okolí a zprávy bez nákladu – verze vsi se nemění (stav vsi se nemění, souhrn
+      // zůstává platný)
       const deleted = await db
         .delete(villageInbox)
         .where(
           and(
             eq(villageInbox.villageId, villageId),
             lte(villageInbox.day, dayBound(upToDay)),
-            sql`${villageInbox.body}->>'kind' = 'nearby'`,
+            inArray(sql`${villageInbox.body}->>'kind'`, [...PRUNED_INBOX_KINDS]),
           ),
         )
         .returning({ id: villageInbox.id });
       return deleted.length;
     },
     async strandedResults(): Promise<VillageEvent[]> {
-      // napřed levný filtr na `ref` výsledku (`…:out`) – tělo se rozbalí jen u výsledků
+      // napřed zaniklé vsi (malá tabulka vsí) – bez nich se schránky nečtou vůbec, jinak jen jejich
+      // řádky po indexu vsi a dne (úloha běží každou minutu, sken všech schránek by rostl se světem)
+      const dead = await db
+        .select({ id: village.id })
+        .from(village)
+        .innerJoin(settlement, eq(settlement.id, village.settlementId))
+        .where(or(eq(village.asleep, true), isNotNull(settlement.archivedAt)));
+      if (dead.length === 0) return [];
+      // levný filtr na `ref` výsledku (`…:out`) – tělo se rozbalí jen u výsledků
       const rows = await db
         .select()
         .from(villageInbox)
         .where(
           and(
+            inArray(
+              villageInbox.villageId,
+              dead.map((v) => v.id),
+            ),
             sql`${villageInbox.ref} LIKE '%:out'`,
             sql`${villageInbox.body}->>'kind' = 'market-result'`,
             sql`(jsonb_array_length(coalesce(${villageInbox.body}->'result'->'people', '[]'::jsonb)) > 0

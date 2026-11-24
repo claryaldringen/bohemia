@@ -124,17 +124,40 @@ describe('dotaz vsi s koňmi (askSmithDay)', () => {
     ]);
     expect(a.shoeing).toEqual({
       lastDay: D - HORSE_SHOEING.everyDays,
-      asked: { key: `smith:a:${D}`, villageId: 'k', name: 'Kovářovice', untilDay: D + 3 },
+      asked: {
+        key: `smith:a:${D}`,
+        villageId: 'k',
+        name: 'Kovářovice',
+        untilDay: D + 3,
+        nearbyDay: a.nearby!.day,
+      },
     });
     for (let day = D + 1; day <= D + 3; day++) askSmithDay(a, day);
     expect(a.outbox).toHaveLength(1);
-    // dotaz bez kování uplynul – jediná ves s kovářem dostane další
-    askSmithDay(a, D + 4);
+    // dotaz bez kování uplynul – jediná ves s kovářem kováře neposlala: další dotaz až s novým
+    // okolím (jako rotace cílů správce)
+    for (let day = D + 4; day <= D + 30; day++) askSmithDay(a, day);
+    expect(a.outbox).toHaveLength(1);
+    a.nearby = { ...a.nearby!, day: D + 31 };
+    askSmithDay(a, D + 31);
     expect(a.outbox!.map((m) => [m.villageId, m.day, m.ref])).toEqual([
       ['k', D + 1, `smith:a:${D}:ask`],
-      ['k', D + 5, `smith:a:${D + 4}:ask`],
+      ['k', D + 32, `smith:a:${D + 31}:ask`],
     ]);
-    expect(a.shoeing!.asked).toMatchObject({ key: `smith:a:${D + 4}`, untilDay: D + 7 });
+    expect(a.shoeing!.asked).toMatchObject({ key: `smith:a:${D + 31}`, untilDay: D + 34 });
+    expect(a.shoeing!.asked!.tried).toBeUndefined();
+  });
+
+  it('bez odpovědi nejvýš jeden dotaz na ves s kovářem za okolí – za herní rok v mezích', () => {
+    const a = horseHome();
+    for (let day = D; day < D + 365; day++) {
+      // okolí se obnovuje v pevné dny po 30 dnech (NEARBY_REFRESH_DAYS)
+      if (day % 30 === 0) a.nearby = { ...a.nearby!, day };
+      askSmithDay(a, day);
+    }
+    // dřív ~84 dotazů za rok (každé ~4 dny); teď nejvýš jeden na snímek okolí
+    expect(a.outbox!.length).toBeGreaterThan(0);
+    expect(a.outbox!.length).toBeLessThanOrEqual(Math.ceil(365 / 30) + 1);
   });
 
   it('vlastní kovář okuje – čekající dotaz zmizí a nový se nepošle', () => {
@@ -168,7 +191,7 @@ describe('dotaz vsi s koňmi (askSmithDay)', () => {
     }
   });
 
-  it('rotace: K1 neodpoví → dotaz K2, pak zase K1; ves bez zprávy o kováři se přeskočí', () => {
+  it('rotace: K1 neodpoví → dotaz K2, pak až s novým okolím zase K1; ves bez zprávy o kováři se přeskočí', () => {
     const a = horseHome();
     a.nearby!.villages = [
       { villageId: 'k1', name: 'Kovářovice', cells: 1, firstStep: 'E' },
@@ -181,14 +204,16 @@ describe('dotaz vsi s koňmi (askSmithDay)', () => {
       { villageId: 'k2', name: 'Kladruby', report: { ...report, crafts: ['smith'] } },
     ];
     for (let day = D; day <= D + 20; day++) askSmithDay(a, day);
-    // K1 sousední mapa: dotaz D + 1, čeká do D + 3; K2 o mapu dál: dotaz den + 2, čeká do den + 5
+    // K1 sousední mapa: dotaz D + 1, čeká do D + 3; K2 o mapu dál: dotaz den + 2, čeká do den + 5;
+    // obě kováře neposlaly – další dotaz až s novým okolím, zase od nejbližší
     expect(a.outbox!.map((m) => [m.villageId, m.day])).toEqual([
       ['k1', D + 1],
       ['k2', D + 6],
-      ['k1', D + 11],
-      ['k2', D + 16],
-      ['k1', D + 21],
     ]);
+    expect(a.shoeing!.asked!.tried).toEqual(['k1']);
+    a.nearby = { ...a.nearby!, day: D + 21 };
+    askSmithDay(a, D + 21);
+    expect(a.outbox!.map((m) => [m.villageId, m.day]).at(-1)).toEqual(['k1', D + 22]);
   });
 });
 
@@ -452,14 +477,8 @@ describe('kovář souseda po kouscích dopočtu (determinismus)', () => {
     for (const cut of [start + 3, start + 5, start + 6]) {
       expect(advanceVillage(advanceVillage(s, cut, null, null), end, null, null)).toEqual(whole);
     }
-    // bez odpovědi se ptá znovu po každém uplynulém dotazu
-    expect(whole.outbox!.map((m) => [m.villageId, m.day])).toEqual([
-      ['k', start + 4],
-      ['k', start + 8],
-      ['k', start + 12],
-      ['k', start + 16],
-      ['k', start + 20],
-    ]);
+    // bez odpovědi jediná ves s kovářem další dotaz nedostane, dokud nepřijde nové okolí
+    expect(whole.outbox!.map((m) => [m.villageId, m.day])).toEqual([['k', start + 4]]);
   });
 
   it('ves kováře: odpověď na dotaz vcelku = po kouscích, kovář doma v den návratu', () => {

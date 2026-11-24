@@ -1,5 +1,5 @@
 import { isVillageAsleep, type NewVillageEvent, type VillageEvent } from '../../domain/village';
-import type { VillageInbox } from '../inbox';
+import { PRUNED_INBOX_KINDS, type VillageInbox } from '../inbox';
 import type { InMemoryVillages } from './in-memory-villages';
 
 /**
@@ -10,7 +10,7 @@ import type { InMemoryVillages } from './in-memory-villages';
 export class InMemoryVillageInbox implements VillageInbox {
   readonly events: VillageEvent[] = [];
   private readonly refs = new Set<string>();
-  /** `ref` zapsané události podle jejího id (úklid `pruneNearby`). */
+  /** `ref` zapsané události podle jejího id (úklid `pruneUsed`). */
   private readonly refOf = new Map<string, string>();
   private nextSeq = 1;
 
@@ -28,11 +28,11 @@ export class InMemoryVillageInbox implements VillageInbox {
     return Promise.resolve(structuredClone(due));
   }
 
-  pruneNearby(villageId: string, upToDay: number): Promise<number> {
+  pruneUsed(villageId: string, upToDay: number): Promise<number> {
     let pruned = 0;
     for (let i = this.events.length - 1; i >= 0; i--) {
       const e = this.events[i]!;
-      if (e.villageId !== villageId || e.day > upToDay || e.body.kind !== 'nearby') continue;
+      if (e.villageId !== villageId || e.day > upToDay || !prunable(e.body.kind)) continue;
       this.events.splice(i, 1);
       // jako smazaný řádek v DB – `ref` přestane blokovat zápis
       const ref = this.refOf.get(e.id);
@@ -96,4 +96,9 @@ export class InMemoryVillageInbox implements VillageInbox {
     record.version++;
     return structuredClone(stored);
   }
+}
+
+/** Maže úklid schránky událost druhu `kind` (`PRUNED_INBOX_KINDS`)? */
+function prunable(kind: string): boolean {
+  return (PRUNED_INBOX_KINDS as readonly string[]).includes(kind);
 }

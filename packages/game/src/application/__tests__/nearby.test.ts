@@ -216,7 +216,7 @@ describe('okolí v pevné dny – zápis před dopočtem (updateVillage, village
   });
 });
 
-describe('úklid použitých snímků okolí (NEARBY_KEEP_DAYS)', () => {
+describe('úklid použitých snímků okolí a zpráv bez nákladu (NEARBY_KEEP_DAYS)', () => {
   it('nový snímek smaže použité snímky starší než mez – novější snímky a jiné události zůstanou', async () => {
     const w = await nearbyWorld();
     const h = w.h;
@@ -240,6 +240,18 @@ describe('úklid použitých snímků okolí (NEARBY_KEEP_DAYS)', () => {
       ref: 'jina',
       body: { kind: 'raid-day', campaignId: 'c' },
     });
+    // použité ohlášení hotové zakázky (zpráva bez nákladu) se maže se snímky, novější zůstane
+    for (const day of [K + 5, K + 50]) {
+      await w.villages.inbox.post({
+        villageId: h,
+        day,
+        ref: `order:m:${h}:tools:${day}`,
+        body: {
+          kind: 'order-ready',
+          ready: { villageId: 'm', name: 'Lhota', good: 'tools', amount: 5 },
+        },
+      });
+    }
     w.villages.edit(h, (s) => {
       s.lastDay = K + 400;
     });
@@ -252,6 +264,7 @@ describe('úklid použitých snímků okolí (NEARBY_KEEP_DAYS)', () => {
     expect(await eventDays(w, h)).toEqual([...old.filter((d) => d > K + 35), K + 420]);
     const all = await w.villages.inbox.pending(h, -1, TOTAL_GAME_DAYS);
     expect(all.filter((e) => e.body.kind === 'raid-day').map((e) => e.day)).toEqual([K]);
+    expect(all.filter((e) => e.body.kind === 'order-ready').map((e) => e.day)).toEqual([K + 50]);
     // zápis nového snímku zvedl verzi jednou, úklid ji nemění
     expect(w.villages.records.get(h)!.version).toBe(version + 1);
   });
@@ -262,7 +275,7 @@ describe('úklid použitých snímků okolí (NEARBY_KEEP_DAYS)', () => {
     w.villages.edit(h, (s) => {
       s.lastDay = K + 400;
     });
-    w.villages.inbox.pruneNearby = (): Promise<number> => Promise.reject(new Error('DB spadla'));
+    w.villages.inbox.pruneUsed = (): Promise<number> => Promise.reject(new Error('DB spadla'));
     const log = vi.spyOn(console, 'error').mockImplementation(() => undefined);
     try {
       const home = w.villages.records.get(h)!;

@@ -62,7 +62,7 @@ export async function setup(): Promise<{
         return Promise.resolve(null);
       },
       pending: () => Promise.resolve([]),
-      pruneNearby: () => Promise.resolve(0),
+      pruneUsed: () => Promise.resolve(0),
       strandedResults: () => Promise.resolve([]),
       dropStranded: () => Promise.resolve(0),
     },

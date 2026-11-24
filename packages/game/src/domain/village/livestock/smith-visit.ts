@@ -11,7 +11,6 @@ import { villageReport } from '../trade/village-report';
 import type {
   ChronicleEvent,
   MarketVisitor,
-  NearbyVillage,
   Person,
   SmithAsk,
   TradeGood,
@@ -60,34 +59,13 @@ function smithAskRef(key: string): string {
   return `${key}:ask`;
 }
 
-/** Ví ves ze zprávy na pivo o kováři ve vsi okolí `village`? (jako `nearestWith`) */
-function knowsSmith(state: VillageState, village: NearbyVillage): boolean {
-  return (state.news ?? []).some(
-    (n) => n.villageId === village.villageId && n.report.crafts.includes('smith'),
-  );
-}
-
-/**
- * Další ves okolí s kovářem (podle zprávy) za vsí `after` v pořadí okolí, dokola – jediná taková
- * ves je zase ona; `after` mimo okolí → první od začátku. Žádná null.
- */
-function nextSmithVillage(state: VillageState, after: string): NearbyVillage | null {
-  const villages = state.nearby?.villages ?? [];
-  const n = villages.length;
-  const from = villages.findIndex((v) => v.villageId === after);
-  for (let i = 1; i <= n; i++) {
-    const village = villages[(from + i + n) % n]!;
-    if (knowsSmith(state, village)) return village;
-  }
-  return null;
-}
-
 /**
  * Ves s koňmi se ptá kováře souseda (mutuje; krok dne za `finishShoeing` – Rozhodnutí plánu 3,
  * bod 9): jen ves s okolím, po termínu kování (`shoeingDue`), když vlastní kovář nemůže
  * (`planShoeing` null) a dotaz nečeká (`shoeing.asked` – po `untilDay` uplynul bez kování). Cíl:
- * bez dotazu nejbližší ves okolí s kovářem podle zprávy (`nearestWith`), po neúspěchu další taková
- * ves za tou minulou v pořadí okolí (dokola). Do odchozí schránky jde `smith-ask` (klíč
+ * nejbližší ves okolí s kovářem podle zprávy (`nearestWith`) mimo vsi, které na dotaz kováře
+ * neposlaly (`asked.tried` – platí jen se stejným `nearby.day`, jako rotace cílů správce, bod 8);
+ * vyzkoušené všechny → další dotaz až s novým okolím. Do odchozí schránky jde `smith-ask` (klíč
  * `smith:<ves>:<den>`, `ref` `…:ask`) na den dotazu = dnes + 1 + dny cesty, `asked` čeká do dne,
  * kdy by kovář dorazil, kdyby vyrazil hned (den dotazu + 1 + dny cesty), + `MARKET.minStayDays`.
  */
@@ -98,7 +76,9 @@ export function askSmithDay(state: VillageState, day: number): void {
   const asked = state.shoeing.asked;
   if (asked && day <= asked.untilDay) return;
   if (planShoeing(state, day)) return;
-  const target = asked ? nextSmithVillage(state, asked.villageId) : nearestWith(state, 'smith');
+  const tried =
+    asked && asked.nearbyDay === nearby.day ? [...(asked.tried ?? []), asked.villageId] : [];
+  const target = nearestWith(state, 'smith', (v) => tried.includes(v.villageId));
   if (!target) return;
   const key = `smith:${nearby.self.villageId}:${day}`;
   const travelDays = marketTravelDays(target.cells);
@@ -123,6 +103,8 @@ export function askSmithDay(state: VillageState, day: number): void {
     villageId: target.villageId,
     name: target.name,
     untilDay: askDay + 1 + travelDays + MARKET.minStayDays,
+    nearbyDay: nearby.day,
+    ...(tried.length > 0 ? { tried } : {}),
   };
 }
 

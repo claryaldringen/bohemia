@@ -438,6 +438,7 @@ export {
   markOrderReady,
   orderTargets,
   placedOrder,
+  placedOrders,
   recordOrders,
   reduceOrder,
   rememberOrders,
