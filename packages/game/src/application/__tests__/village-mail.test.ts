@@ -20,7 +20,13 @@ import {
 } from '../../domain/village/trade/__tests__/market-fixtures';
 import { advanceDynasty } from '../advance-dynasty';
 import { dynastyForVillage } from '../dynasty-for-village';
-import { deliverVillageMail, deliverVillageMailSafely, hasVillageMail } from '../village-mail';
+import { runWorldTasks } from '../succession-credits';
+import {
+  deliverVillageMail,
+  deliverVillageMailSafely,
+  hasVillageMail,
+  returnStrandedPeople,
+} from '../village-mail';
 import {
   FOAL_ID,
   H_PLAYER,
@@ -31,6 +37,11 @@ import {
   returnedOf,
   type MarketWorld,
 } from './market-world';
+import { InMemoryActivity } from './in-memory-activity';
+import { InMemoryCredits } from './in-memory-credits';
+import { InMemoryHouses } from './in-memory-houses';
+import { InMemoryInvites } from './in-memory-invites';
+import { InMemoryNotices } from './in-memory-notices';
 
 // Pošta mezi vsemi (markets.md – Rozhodnutí plánu 2, bod 6): odchozí schránka vsi se doručí do
 // schránek cílových vsí právě jednou a výprava po termínu se podívá na hostitele – výsledek
@@ -257,7 +268,7 @@ describe('deliverVillageMail – pošta mezi vsemi', () => {
     expect(back).toEqual([
       expect.objectContaining({
         day: D + 3,
-        body: { kind: 'people-back', key: 'market:zmizela:2', people: [family] },
+        body: { kind: 'stranded-people', key: 'market:zmizela:2', people: [family] },
       }),
     ]);
     await w.load(w.h, D + 3);
@@ -422,34 +433,65 @@ describe('pošta plánu 3 – zaniklé vsi (markets.md – Rozhodnutí plánu 3,
     ]);
   });
 
+  /**
+   * H jede pro rodinu do M (výprava v `trade.expeditions` H) a M ji výpravě prodala: výsledek
+   * s rodinou M (`fromHost` – prodala ji sama M) v odchozí schránce M, den návratu D + 1.
+   */
+  async function familyBought(w: MarketWorld): Promise<string> {
+    const trip = await w.depart({ give: { grain: 600 }, wants: { families: 1 }, stayDays: 1 });
+    w.villages.edit(w.h, (s) => {
+      delete s.outbox;
+    });
+    w.villages.edit(w.m, (s) => {
+      const newcomers = takePeople(s, D - 1, 'families', 1, 'W').map((g) => ({
+        ...g,
+        fromHost: true as const,
+      }));
+      const result: MarketResult = {
+        key: trip.key,
+        sold: { grain: 600 },
+        bought: { families: 1 },
+        unsold: {},
+        horses: [],
+        newcomers,
+        origin: { villageId: w.h, villageName: 'Vlkov', direction: 'W' },
+      };
+      s.outbox = [
+        {
+          villageId: w.h,
+          day: D + 1,
+          ref: marketResultRef(trip.key),
+          body: { kind: 'market-result', result },
+        },
+      ];
+    });
+    return trip.key;
+  }
+
+  /** Rodina je zpět v M s původními id a vazbami, nikdo nevznikl ani nezmizel (nová id jen narození). */
+  function familyHomeAgain(w: MarketWorld, nextId: number, total: number): void {
+    const m = w.state(w.m);
+    expect(ids(family(m.people))).toEqual(FAMILY_IDS);
+    expect(m.people.find((p) => p.id === 64)).toMatchObject({ motherId: 63, fatherId: 62 });
+    expect((m.emigrants ?? []).filter((e) => FAMILY_IDS.includes(e.id))).toEqual([]);
+    const born = m.chronicle.filter((e) => e.day >= D && e.kind === 'birth').length;
+    const died = m.chronicle.filter((e) => e.day >= D && e.kind === 'death').length;
+    expect(m.people.filter((p) => p.id >= nextId)).toHaveLength(born);
+    expect(m.people.length - born + died).toBe(total);
+    expect(new Set(m.people.map((p) => p.id)).size).toBe(m.people.length);
+    // vrácená rodina má zápis v kronice (`returned`), nováček není nikdo
+    expect(m.chronicle.filter((e) => e.kind === 'newcomer')).toEqual([
+      expect.objectContaining({ group: 'family', people: 4, returned: true, villageName: 'Vlkov' }),
+    ]);
+  }
+
   it.each(['spí', 'chybí'] as const)(
-    'H koupí rodinu od M a %s před návratem výsledku: M zapíše people-back, rodina zpět v M',
+    'H koupí rodinu od M a %s před návratem výsledku: M zapíše stranded-people, rodina zpět v M',
     async (how) => {
       const w = await marketWorld({ host: { ...familyHome(), lastDay: D - 1 } });
-      const key = `market:${w.h}:1`;
       const nextId = w.state(w.m).nextId;
       const total = w.state(w.m).people.length;
-      // M prodala rodinu výpravě H (odjezd výpravy – výsledek s koupenými lidmi a `origin`)
-      w.villages.edit(w.m, (s) => {
-        const newcomers = takePeople(s, D - 1, 'families', 1, 'W');
-        const result: MarketResult = {
-          key,
-          sold: { grain: 720 },
-          bought: { families: 1 },
-          unsold: {},
-          horses: [],
-          newcomers,
-          origin: { villageId: w.h, villageName: 'Vlkov', direction: 'W' },
-        };
-        s.outbox = [
-          {
-            villageId: w.h,
-            day: D + 1,
-            ref: marketResultRef(key),
-            body: { kind: 'market-result', result },
-          },
-        ];
-      });
+      const key = await familyBought(w);
       expect(family(w.state(w.m).people)).toEqual([]);
       if (how === 'spí') {
         w.villages.edit(w.h, (s) => {
@@ -464,24 +506,128 @@ describe('pošta plánu 3 – zaniklé vsi (markets.md – Rozhodnutí plánu 3,
       expect(back).toEqual([
         expect.objectContaining({
           day: D + 1,
-          body: expect.objectContaining({ kind: 'people-back', key }),
+          body: expect.objectContaining({
+            kind: 'stranded-people',
+            key,
+            people: [],
+            own: [expect.objectContaining({ good: 'families', fromHost: true })],
+          }),
         }),
       ]);
       if (how === 'spí') expect(await resultsOf(w, w.h)).toEqual([]);
       expect(await deliverVillageMail(w.deps, w.m)).toBe(0);
       await w.load(w.m, D + 1);
-      const m = w.state(w.m);
-      expect(ids(family(m.people))).toEqual(FAMILY_IDS);
-      expect(m.people.find((p) => p.id === 64)).toMatchObject({ motherId: 63, fatherId: 62 });
-      expect((m.emigrants ?? []).filter((e) => FAMILY_IDS.includes(e.id))).toEqual([]);
-      // nikdo nevznikl ani nezmizel: nová id jen narození, lidí jako před prodejem
-      const born = m.chronicle.filter((e) => e.day >= D && e.kind === 'birth').length;
-      const died = m.chronicle.filter((e) => e.day >= D && e.kind === 'death').length;
-      expect(m.people.filter((p) => p.id >= nextId)).toHaveLength(born);
-      expect(m.people.length - born + died).toBe(total);
-      expect(m.chronicle.filter((e) => e.kind === 'newcomer')).toEqual([]);
+      familyHomeAgain(w, nextId, total);
     },
   );
+
+  it('výsledek, který zaniklá ves už použila (výprava není ve stavu), se hostiteli nevrátí', async () => {
+    // pád mezi zápisem výsledku a smazáním z odchozí schránky M: H výsledek použila a pak vymřela –
+    // opakované doručení nesmí rodinu vrátit podruhé
+    const w = await marketWorld({ host: { ...familyHome(), lastDay: D - 1 } });
+    await familyBought(w);
+    w.villages.edit(w.h, (s) => {
+      s.trade = { ...s.trade!, expeditions: [] };
+      s.extinctDay = s.lastDay;
+    });
+    expect(await deliverVillageMail(w.deps, w.m)).toBe(0);
+    expect(w.state(w.m).outbox).toBeUndefined();
+    expect(await w.villages.inbox.pending(w.m, -1, TOTAL_GAME_DAYS)).toEqual([]);
+  });
+
+  describe('úloha světa returnStrandedPeople – domov zanikl, když už výsledek ležel v jeho schránce', () => {
+    it.each(['vymře', 'Začít znovu (archiv)'] as const)(
+      'H %s: výsledek s lidmi jde M jako stranded-people, rodina zpět v M, podruhé nic',
+      async (how) => {
+        const w = await marketWorld({ host: { ...familyHome(), lastDay: D - 1 } });
+        const nextId = w.state(w.m).nextId;
+        const total = w.state(w.m).people.length;
+        const key = await familyBought(w);
+        // H žije – výsledek je v její schránce na den D + 1
+        expect(await deliverVillageMail(w.deps, w.m)).toBe(1);
+        expect(await resultsOf(w, w.h)).toHaveLength(1);
+        if (how === 'vymře') {
+          w.villages.edit(w.h, (s) => {
+            s.extinctDay = s.lastDay;
+          });
+        } else {
+          await w.settlements.archive(w.villages.records.get(w.h)!.settlementId);
+        }
+        expect(await returnStrandedPeople(w.deps)).toBe(1);
+        expect(await resultsOf(w, w.h)).toEqual([]);
+        expect(await w.villages.inbox.pending(w.m, -1, TOTAL_GAME_DAYS)).toEqual([
+          expect.objectContaining({
+            day: D + 1,
+            body: expect.objectContaining({ kind: 'stranded-people', key }),
+          }),
+        ]);
+        // podruhé nic – výsledek je vyřízený, zpráva se nezdvojí
+        expect(await returnStrandedPeople(w.deps)).toBe(0);
+        await w.load(w.m, D + 1);
+        familyHomeAgain(w, nextId, total);
+      },
+    );
+
+    it('spí-li i hostitel, výsledek se zahodí – jediná přijatá ztráta (oba konce mrtvé)', async () => {
+      const w = await marketWorld({ host: { ...familyHome(), lastDay: D - 1 } });
+      await familyBought(w);
+      expect(await deliverVillageMail(w.deps, w.m)).toBe(1);
+      for (const id of [w.h, w.m]) {
+        w.villages.edit(id, (s) => {
+          s.extinctDay = s.lastDay;
+        });
+      }
+      expect(await returnStrandedPeople(w.deps)).toBe(0);
+      expect(await resultsOf(w, w.h)).toEqual([]);
+      expect(await w.villages.inbox.pending(w.m, -1, TOTAL_GAME_DAYS)).toEqual([]);
+    });
+
+    it('výsledek, který H použila před zánikem, se jen uklidí – rodina zůstane v H', async () => {
+      const w = await marketWorld({ host: { ...familyHome(), lastDay: D - 1 } });
+      await familyBought(w);
+      expect(await deliverVillageMail(w.deps, w.m)).toBe(1);
+      await w.load(w.h, D + 1);
+      const settled = w.state(w.h).people.length;
+      w.villages.edit(w.h, (s) => {
+        s.abandonedDay = s.lastDay;
+      });
+      expect(await returnStrandedPeople(w.deps)).toBe(0);
+      expect(await resultsOf(w, w.h)).toEqual([]);
+      expect(await w.villages.inbox.pending(w.m, -1, TOTAL_GAME_DAYS)).toEqual([]);
+      expect(w.state(w.h).people).toHaveLength(settled);
+    });
+
+    it('úlohy světa (`runWorldTasks` s `villageMail`) ji pustí', async () => {
+      const w = await marketWorld({ host: { ...familyHome(), lastDay: D - 1 } });
+      await familyBought(w);
+      expect(await deliverVillageMail(w.deps, w.m)).toBe(1);
+      w.villages.edit(w.h, (s) => {
+        s.extinctDay = s.lastDay;
+      });
+      await runWorldTasks(
+        {
+          invites: new InMemoryInvites(),
+          activity: new InMemoryActivity(),
+          credits: new InMemoryCredits(),
+          notices: new InMemoryNotices(),
+          houses: new InMemoryHouses(),
+          villageMail: w.deps,
+        },
+        { now: new Date('2027-06-01T00:00:00Z'), today: D + 1 },
+      );
+      expect(await resultsOf(w, w.h)).toEqual([]);
+      const back = await w.villages.inbox.pending(w.m, -1, TOTAL_GAME_DAYS);
+      expect(back.map((e) => e.body.kind)).toEqual(['stranded-people']);
+    });
+
+    it('živá ves si výsledek nechá – úloha světa ho nebere', async () => {
+      const w = await marketWorld({ host: { ...familyHome(), lastDay: D - 1 } });
+      await familyBought(w);
+      expect(await deliverVillageMail(w.deps, w.m)).toBe(1);
+      expect(await returnStrandedPeople(w.deps)).toBe(0);
+      expect(await resultsOf(w, w.h)).toHaveLength(1);
+    });
+  });
 
   it('spí-li i hostitel, výsledek s lidmi se zahodí – obě vsi jsou pryč', async () => {
     const w = await marketWorld({ host: { ...familyHome(), lastDay: D - 1 } });

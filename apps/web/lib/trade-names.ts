@@ -155,11 +155,25 @@ export function peopleText(
   return `${parts.slice(0, -1).join(', ')} a ${parts[parts.length - 1]}`;
 }
 
-/** Krátký řádek a věta kroniky, kdo přišel od souseda (trade.md – Výměna lidí). */
-export const NEWCOMER_TEXTS: Record<NewcomerGroup, { notice: string; chronicle: string }> = {
-  family: { notice: 'Přišla rodina', chronicle: 'přišla rodina' },
-  man: { notice: 'Přišel muž', chronicle: 'přišel svobodný muž' },
-  woman: { notice: 'Přišla žena', chronicle: 'přišla svobodná žena' },
+/**
+ * Krátký řádek a věta kroniky, kdo přišel od souseda (trade.md – Výměna lidí); `back` – vrátili se
+ * lidé, které ves prodala, protože ves kupce zanikla (markets.md – Rozhodnutí plánu 3, bod 13).
+ */
+export const NEWCOMER_TEXTS: Record<
+  NewcomerGroup,
+  { notice: string; chronicle: string; back: string }
+> = {
+  family: {
+    notice: 'Přišla rodina',
+    chronicle: 'přišla rodina',
+    back: 'se vrátila prodaná rodina',
+  },
+  man: { notice: 'Přišel muž', chronicle: 'přišel svobodný muž', back: 'se vrátil prodaný muž' },
+  woman: {
+    notice: 'Přišla žena',
+    chronicle: 'přišla svobodná žena',
+    back: 'se vrátila prodaná žena',
+  },
 };
 
 /** Množství zboží s jednotkou („120 kg obilí“, „2 ks krav“) – pro kroniku. */

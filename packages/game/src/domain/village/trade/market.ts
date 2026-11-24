@@ -277,9 +277,9 @@ function takeVisitorCarts(visitor: MarketVisitor, good: CartGood, n: number): Ma
  * `takeHorses`, od výpravy první kusy druhu z jejích koní. Vozy jdou stejně po kusech se stářím
  * prodejce (`takeCarts`, `addMarketCarts`). Lidé po skupinách (Rozhodnutí plánu 3, bod 10):
  * hostitel vybere prodané najednou (`leavingGroups` – rodiny, muži a ženy berou z týchž lidí)
- * a odejdou ve směru kupující výpravy do jejích `boughtPeople` (`sendPeople`); od výpravy jdou první
- * skupiny druhu – k jiné výpravě do `boughtPeople`, hostitel je hned usadí s novými id
- * (`settlePeople`, odkud a z jakého směru přišli). Prodej zakázkového zboží výpravě vsi, která ho má
+ * a odejdou ve směru kupující výpravy do jejích `boughtPeople` (`sendPeople`, označené `fromHost`);
+ * od výpravy jdou první skupiny druhu – k jiné výpravě do `boughtPeople`, hostitel je hned usadí
+ * s novými id (`settlePeople`, odkud a z jakého směru přišli). Prodej zakázkového zboží výpravě vsi, která ho má
  * u hostitele v zakázce, zakázku zmenší, hotovou uzavře (`reduceOrder`). Vrací, co hostitel prodal
  * a koupil, a kroniku usazených lidí.
  */
@@ -344,9 +344,13 @@ function settleTrades(
     if (!isPeopleGood(trade.good)) continue;
     const buyer = trade.buyer === HOST ? undefined : byKey.get(trade.buyer);
     if (trade.seller === HOST) {
-      // od hostitele odejdou k výpravě – ve směru její domovské vsi
+      // od hostitele odejdou k výpravě – ve směru její domovské vsi; `fromHost` – zanikne-li ves
+      // kupce, vrátí se hostiteli s původními id (Rozhodnutí plánu 3, bod 13)
       const groups = hostPeople[trade.good].splice(0, trade.amount);
-      if (buyer) (buyer.boughtPeople ??= []).push(...sendPeople(state, groups, homeward(buyer)));
+      if (buyer) {
+        const sold = sendPeople(state, groups, homeward(buyer));
+        (buyer.boughtPeople ??= []).push(...sold.map((g) => ({ ...g, fromHost: true as const })));
+      }
       continue;
     }
     const moved = crowds.get(herdKey(trade.seller, trade.good))?.splice(0, trade.amount) ?? [];
@@ -411,7 +415,7 @@ function settleTrades(
  * po dnešním zápočtu ještě shání je `hostWants`), jde do odchozí schránky k domovské vsi na den
  * návratu – den po posledním tržním dni + dny cesty. Výsledek s lidmi nese i výpravu, jak ji
  * hostitel viděl (`origin` – Rozhodnutí plánu 3, bod 13): zanikne-li domovská ves, pošta s ním
- * vrátí lidi hostiteli (`people-back`).
+ * vrátí lidi hostiteli (`stranded-people`).
  */
 function departVisitors(
   state: VillageState,

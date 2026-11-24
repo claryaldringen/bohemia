@@ -69,22 +69,39 @@ function isQuery(mail: VillageMail): boolean {
 }
 
 /**
- * Lidé z výsledku `result` (zpráva `mail`) pro zaniklou domovskou ves zpět k hostiteli `hostId`
- * (Rozhodnutí plánu 3, bod 13): zpráva `people-back` v den výsledku s `ref` `<ref výsledku>:back`
- * – lidé z `people` i `newcomers`, `from` = `origin` výsledku; zboží výsledku se zahodí.
+ * Lidé z výsledku `result` (`ref` výsledku `ref`, den `day`) pro zaniklou domovskou ves zpět
+ * k hostiteli `hostId` (Rozhodnutí plánu 3, bod 13): zpráva `stranded-people` s `ref`
+ * `<ref výsledku>:back` – skupiny, které hostitel prodal sám (`fromHost`), v `own` (vrátí se
+ * s původními id), ostatní (`people`, koupení od jiné výpravy) v `people` (usadí se s novými id);
+ * `from` = `origin` výsledku. Zboží výsledku se zahodí. Krok 1 pošty i úloha světa
+ * `returnStrandedPeople` skládají tutéž zprávu – druhý zápis téhož `ref` se zahodí.
  */
-function peopleBackMail(hostId: string, mail: VillageMail, result: MarketResult): VillageMail {
+function strandedMail(hostId: string, ref: string, day: number, result: MarketResult): VillageMail {
+  const newcomers = result.newcomers ?? [];
+  const own = newcomers.filter((g) => g.fromHost === true);
   return {
     villageId: hostId,
-    day: mail.day,
-    ref: `${mail.ref}:back`,
+    day,
+    ref: `${ref}:back`,
     body: {
-      kind: 'people-back',
+      kind: 'stranded-people',
       key: result.key,
-      people: [...(result.people ?? []), ...(result.newcomers ?? [])],
+      people: [...(result.people ?? []), ...newcomers.filter((g) => g.fromHost !== true)],
+      ...(own.length > 0 ? { own } : {}),
       from: result.origin,
     },
   };
+}
+
+/**
+ * Výprava `key` domovské vsi, na jejíž výsledek ves ještě čeká (`trade.expeditions`) – použitý
+ * výsledek ji odebere (`applyMarketResult`); null = výsledek ves už použila.
+ */
+function awaitedTrip(state: VillageState, key: string): MarketTrip | null {
+  const expedition = (state.trade?.expeditions ?? []).find(
+    (e) => e.kind === 'market' && e.market?.key === key,
+  );
+  return expedition?.market ?? null;
 }
 
 /**
@@ -133,8 +150,11 @@ async function post(deps: VillageMailDeps, mail: VillageMail): Promise<boolean> 
  *      `returned` se vším, co výprava vezla, do schránky vsi v den plánovaného návratu (lidé jsou
  *      doma v plánovaný den); výsledek bez lidí a ostatní zprávy se zahodí;
  *    - výsledek s lidmi (`people`, `newcomers`) pro domovskou ves, která chybí, spí nebo má sídlo
- *      v archivu (`goneTargets`): lidé jdou zpět do schránky této vsi – hostitele (`people-back`),
- *      zboží se zahodí; spí-li i hostitel, zahodí se celý – obě vsi jsou pryč;
+ *      v archivu (`goneTargets`): lidé jdou zpět do schránky této vsi – hostitele
+ *      (`stranded-people`, `strandedMail`), zboží se zahodí; spí-li i hostitel, zahodí se celý –
+ *      obě vsi jsou pryč (hostitele v archivu krok nezkoumá: zpráva padne do schránky, kterou nikdo
+ *      nepoužije – ztráta je táž); výsledek, který domovská ves už použila (výprava není v jejím
+ *      stavu – opakované doručení po pádu), se zahodí;
  *    - dotaz a ohlášení bez nákladu (`kin-ask`, `smith-ask`, `order-ready`) do zaniklé vsi se
  *      zahodí – nikdo nikam nejde.
  *    Příjezd do spící vsi nebo do vsi se sídlem v archivu se zapíše jako dřív – vrátí ho krok 3.
@@ -162,9 +182,13 @@ export async function deliverVillageMail(
     const gone = await goneTargets(deps, outbox, stamps);
     for (const mail of outbox) {
       if (mail.body.kind === 'market-result' && carriesPeople(mail) && gone.has(mail.villageId)) {
-        // lidé nesmí zmizet – zpět k hostiteli; spí-li i on, jsou obě vsi pryč
-        const back = peopleBackMail(villageId, mail, mail.body.result);
-        if (!sleeps(village) && (await post(deps, back))) written++;
+        // lidé nesmí zmizet – zpět k hostiteli; spí-li i on, jsou obě vsi pryč; výsledek, který
+        // domov už použil (opakované doručení po pádu), se nevrací
+        const { result } = mail.body;
+        const home = known.has(mail.villageId) ? await deps.villages.find(mail.villageId) : null;
+        const used = home !== null && awaitedTrip(home.state, result.key) === null;
+        const back = strandedMail(villageId, mail.ref, mail.day, result);
+        if (!used && !sleeps(village) && (await post(deps, back))) written++;
       } else if (!known.has(mail.villageId)) {
         if (mail.body.kind === 'market-arrive') {
           const { arrival } = mail.body;
@@ -268,6 +292,37 @@ async function pendingArrival(
     }
   }
   return null;
+}
+
+/**
+ * Úloha světa (worker 1× za minutu – `runWorldTasks`; markets.md – Rozhodnutí plánu 3, bod 13):
+ * výsledek s lidmi došel do schránky domovské vsi a ta pak zanikla (vymřela, je opuštěná, sídlo
+ * v archivu) dřív, než ho použila – lidé jdou zpět k hostiteli jako `stranded-people`
+ * (`strandedMail` – tentýž `ref` jako v kroku 1 pošty, druhý zápis se zahodí). Nepoužitý výsledek
+ * = výprava je ještě ve stavu vsi (`awaitedTrip`), hostitel je její cíl; den zprávy = den výsledku.
+ * Zanikl-li i hostitel (spí, chybí, sídlo v archivu), lidé se ztratí – jediná přijatá ztráta, oba
+ * konce jsou mrtvé. Zboží výsledku se zahodí jako v kroku 1. Vyřízené výsledky (vrácené, použité
+ * i ztracené) se ze schránky zaniklé vsi smažou (`dropStranded`) až po zápisu zpráv – pád mezi
+ * tím znamená příště týž `ref`. Vrací počet zapsaných zpráv.
+ */
+export async function returnStrandedPeople(deps: VillageMailDeps): Promise<number> {
+  let written = 0;
+  const done: string[] = [];
+  for (const event of await deps.villages.inbox.strandedResults()) {
+    if (event.body.kind !== 'market-result') continue;
+    const { result } = event.body;
+    const home = await deps.villages.find(event.villageId);
+    const trip = home && awaitedTrip(home.state, result.key);
+    if (trip) {
+      const host = await deps.villages.find(trip.villageId);
+      const alive = !sleeps(host) && (await placeOf(deps, host!)) !== null;
+      const back = strandedMail(trip.villageId, marketResultRef(result.key), event.day, result);
+      if (alive && (await post(deps, back))) written++;
+    }
+    done.push(event.id);
+  }
+  if (done.length > 0) await deps.villages.inbox.dropStranded(done);
+  return written;
 }
 
 /** Jako `deliverVillageMail`, chybu zapíše do logu a vrátí 0 – dopočet vsi nezastaví. */

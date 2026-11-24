@@ -22,6 +22,17 @@ export interface VillageInbox {
    * smazaných.
    */
   pruneNearby(villageId: string, upToDay: number): Promise<number>;
+  /**
+   * Výsledky trhu s lidmi (`market-result` s `people` nebo `newcomers`) ve schránkách zaniklých vsí
+   * – ves spí (vymřela, opuštěná), nebo má sídlo v archivu (Začít znovu) –, použité i nepoužité
+   * (rozliší je stav vsi), seřazené podle dne a `seq`. Pro úlohu světa `returnStrandedPeople`.
+   */
+  strandedResults(): Promise<VillageEvent[]>;
+  /**
+   * Smaže vyřízené výsledky `eventIds` ze schránek zaniklých vsí (ty je už nepoužijí) – událost
+   * živé vsi ani jiný druh nesmaže. Verzi vsi nemění (stav vsi se nemění). Vrací počet smazaných.
+   */
+  dropStranded(eventIds: readonly string[]): Promise<number>;
 }
 
 /**
@@ -32,4 +43,6 @@ export const EMPTY_INBOX: VillageInbox = {
   post: () => Promise.resolve(null),
   pending: () => Promise.resolve([]),
   pruneNearby: () => Promise.resolve(0),
+  strandedResults: () => Promise.resolve([]),
+  dropStranded: () => Promise.resolve(0),
 };

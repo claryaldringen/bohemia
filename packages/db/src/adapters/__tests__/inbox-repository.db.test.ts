@@ -157,3 +157,95 @@ describe('VillageInbox (Drizzle)', () => {
     expect(await inbox.pruneNearby(UNKNOWN, DAY + 365)).toBe(0);
   });
 });
+
+describe('výsledky trhu s lidmi ve schránkách zaniklých vsí (markets.md – Rozhodnutí plánu 3, bod 13)', () => {
+  /** Výsledek trhu `key` pro ves `target` – s koupenou rodinou (`fromHost`), nebo bez lidí. */
+  const result = (
+    key: string,
+    day: number,
+    people: boolean,
+    target = villageId,
+  ): NewVillageEvent => ({
+    villageId: target,
+    day,
+    ref: `${key}:out`,
+    body: {
+      kind: 'market-result',
+      result: {
+        key,
+        sold: {},
+        bought: {},
+        unsold: {},
+        horses: [],
+        ...(people
+          ? {
+              newcomers: [
+                {
+                  good: 'families' as const,
+                  people: [{ id: 5, bornDay: DAY - 9_000, dwellingId: 1, sex: 'male' as const }],
+                  fromHost: true as const,
+                },
+              ],
+            }
+          : {}),
+      },
+    },
+  });
+
+  /** Sídelní sídlo hráče `ownerId` s vsí `name` na políčku (x, 0). */
+  async function villageOf(ownerId: string, name: string, x: number): Promise<string> {
+    await db.insert(schema.user).values({ id: ownerId, name: '', email: `${ownerId}@example.com` });
+    const settlement = await createSettlementRepository(db).createSeat({
+      ownerId,
+      landscapeSeed: 1 + x,
+      layerVersions: CURRENT_LAYER_VERSIONS,
+      worldCell: { x, y: 0 },
+    });
+    return (await villages.create(settlement!.id, name, state()))!.id;
+  }
+
+  it('strandedResults: jen s lidmi ve spící vsi a ve vsi se sídlem v archivu; dropStranded je smaže bez verze', async () => {
+    const archivedId = await villageOf('hrac-2', 'Vlkov', 1);
+    const liveId = await villageOf('hrac-3', 'Hradec', 2);
+    await inbox.post(result('market:a:1', DAY + 3, true));
+    await inbox.post(result('market:a:2', DAY + 4, false));
+    await inbox.post(event('jina', DAY + 3));
+    await inbox.post(result('market:b:1', DAY + 5, true, archivedId));
+    await inbox.post(result('market:c:1', DAY + 2, true, liveId));
+    // nic nezaniklo
+    expect(await inbox.strandedResults()).toEqual([]);
+    // Lhota vymřela (sloupec `asleep` ze stavu), sídlo Vlkova je v archivu
+    const lhota = (await villages.find(villageId))!;
+    const dead = { ...lhota.state, extinctDay: lhota.state.lastDay };
+    expect(await villages.save(villageId, dead, lhota.version)).not.toBeNull();
+    const vlkov = (await villages.find(archivedId))!;
+    expect(await createSettlementRepository(db).archive(vlkov.settlementId)).toBe(true);
+    const stranded = await inbox.strandedResults();
+    expect(
+      stranded.map((e) => [
+        e.villageId,
+        e.day,
+        e.body.kind === 'market-result' && e.body.result.key,
+      ]),
+    ).toEqual([
+      [villageId, DAY + 3, 'market:a:1'],
+      [archivedId, DAY + 5, 'market:b:1'],
+    ]);
+    expect(stranded[0]!.body).toMatchObject({ result: { newcomers: [{ fromHost: true }] } });
+    const version = (await villages.find(villageId))!.version;
+    const live = (await inbox.pending(liveId, -1, DAY + 365))[0]!;
+    // výsledek živé vsi ani id mimo UUID nesmaže
+    const ids = [...stranded.map((e) => e.id), live.id, UNKNOWN, 'event-1'];
+    expect(await inbox.dropStranded(ids)).toBe(2);
+    expect(await inbox.strandedResults()).toEqual([]);
+    expect(await inbox.pending(liveId, -1, DAY + 365)).toHaveLength(1);
+    expect((await inbox.pending(villageId, -1, DAY + 365)).map((e) => e.body.kind)).toEqual([
+      'chronicle',
+      'market-result',
+    ]);
+    expect((await villages.find(villageId))!.version).toBe(version);
+    // smazaný výsledek už `ref` neblokuje
+    expect(await inbox.post(result('market:a:1', DAY + 3, true))).not.toBeNull();
+    expect(await inbox.dropStranded([])).toBe(0);
+  });
+});

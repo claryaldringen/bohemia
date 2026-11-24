@@ -106,6 +106,20 @@ describe('lidé na trhu – sdílený rozpočet dospělých', () => {
     });
   }
 
+  it('skupiny, které prodal sám hostitel, nese výsledek v `newcomers` s `fromHost` (Rozhodnutí plánu 3, bod 13)', () => {
+    const host = sellerHost(6);
+    joinMarket(host, D, arrival());
+    marketDay(host, D);
+    const newcomers = resultOf(host).newcomers ?? [];
+    expect(newcomers.length).toBeGreaterThan(0);
+    expect(newcomers.map((g) => g.fromHost)).toEqual(newcomers.map(() => true));
+    // id jsou id hostitele – v jeho `emigrants` se stejným dnem narození
+    const emigrated = new Set((host.emigrants ?? []).map((e) => `${e.id}:${e.bornDay}`));
+    expect(newcomers.some((g) => g.people.some((p) => emigrated.has(`${p.id}:${p.bornDay}`)))).toBe(
+      true,
+    );
+  });
+
   it('hostitel druhý den neshání lidi zpět kvůli prodeji', () => {
     const host = sellerHost(6);
     joinMarket(host, D, arrival());

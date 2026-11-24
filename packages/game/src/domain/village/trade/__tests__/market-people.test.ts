@@ -4,8 +4,8 @@ import { stewardOutlook } from '../../steward/steward-outlook';
 import { peopleSpare } from '../../../vassalage/spare';
 import type { MarketArrival, MarketPerson, MarketResult, Person } from '../../types';
 import {
-  peopleBack,
   peopleWanted,
+  receiveStranded,
   restorePeople,
   settlePeople,
   takePeople,
@@ -102,10 +102,10 @@ describe('lidé na trhu (markets.md – Rozhodnutí plánu 3, bod 10)', () => {
     expect(family(s.people)).toHaveLength(4);
   });
 
-  it('peopleBack: hostitel dostane zpět rodinu, kterou prodal, neprodaný muž z H se usadí jako nováček', () => {
+  it('receiveStranded: skupinu, kterou hostitel sám prodal (`own`), vrátí s původními id, muž z H se usadí', () => {
     // Lhota (M = familyHome) prodala rodinu výpravě z Vlkova (H na západě), Vlkov pak zanikl:
-    // výsledek s neprodaným mužem H (`people`) a koupenou rodinou (`newcomers`) jde zpět k M
-    // (markets.md – Rozhodnutí plánu 3, bod 13)
+    // výsledek s neprodaným mužem H (`people`) a rodinou, kterou prodala sama M (`own` – `fromHost`),
+    // jde zpět k M (markets.md – Rozhodnutí plánu 3, bod 13)
     const m = familyHome();
     const sold = takePeople(m, D, 'families', 1, 'W');
     const before = structuredClone(sold[0]!.people);
@@ -116,7 +116,8 @@ describe('lidé na trhu (markets.md – Rozhodnutí plánu 3, bod 10)', () => {
       people: [{ id: 62, bornDay: D - 9_000, dwellingId: 3, sex: 'male', motherId: 4 }],
     };
     const from = { villageId: 'h', villageName: 'Vlkov', direction: 'W' as const };
-    const events = peopleBack(m, D + 2, { key: 'market:h:1', people: [man, ...sold], from });
+    const own = sold.map((g) => ({ ...g, fromHost: true as const }));
+    const events = receiveStranded(m, D + 2, { key: 'market:h:1', people: [man], own, from });
     // rodina zpět s původními id a vazbami, z `emigrants` pryč
     expect(ids(family(m.people))).toEqual(FAMILY_IDS);
     expect(family(m.people).map((p) => ({ ...p, dwellingId: 0 }))).toEqual(
@@ -129,8 +130,19 @@ describe('lidé na trhu (markets.md – Rozhodnutí plánu 3, bod 10)', () => {
     const newcomer = m.people.find((p) => p.id === nextId)!;
     expect(newcomer).toMatchObject({ sex: 'male', bornDay: D - 9_000, origin: 'W' });
     expect(newcomer.motherId).toBeUndefined();
-    // kronika jen pro usazeného
+    // kronika: vrácená rodina (`returned`) i usazený muž
     expect(events).toEqual([
+      {
+        day: D + 2,
+        kind: 'newcomer',
+        direction: 'W',
+        group: 'family',
+        people: 4,
+        dwellingId: family(m.people)[0]!.dwellingId,
+        villageName: 'Vlkov',
+        villageId: 'h',
+        returned: true,
+      },
       {
         day: D + 2,
         kind: 'newcomer',
@@ -144,14 +156,61 @@ describe('lidé na trhu (markets.md – Rozhodnutí plánu 3, bod 10)', () => {
     ]);
   });
 
-  it('peopleBack: bez `from` (výsledek bez směru) se cizí usadí bez směru a kroniky, nikdo nezmizí', () => {
+  it('receiveStranded: cizí skupina se shodou emigranta a kolizním id se usadí – nikdo nezmizí, id se nezdvojí', () => {
+    // sonda kontroly úlohy 10: M prodala rodinu 62–65 jinam; výprava z H (osadníci z M) veze otce 62
+    // (týž člověk jako v `emigrants` M – id i den narození) a batole narozené v H s id 64, které
+    // v M patří skutečnému dítěti rodiny. Skupinu neprodala M – usadí se jako noví lidé.
+    const m = familyHome();
+    const sold = takePeople(m, D, 'families', 1, 'W');
+    const emigrants = structuredClone(m.emigrants);
+    const ancestors = structuredClone(m.ancestors);
+    const nextId = m.nextId;
+    const father = sold[0]!.people.find((p) => p.id === 62)!;
+    const group: MarketPerson = {
+      good: 'families',
+      people: [
+        structuredClone(father),
+        { id: 64, bornDay: D - 400, dwellingId: 1, sex: 'female', motherId: 99, fatherId: 62 },
+      ],
+    };
+    const from = { villageId: 'h', villageName: 'Vlkov', direction: 'W' as const };
+    receiveStranded(m, D + 2, { key: 'market:h:1', people: [group], from });
+    // oba dostali nová id, emigranti a rodokmen M beze změny
+    expect(m.nextId).toBe(nextId + 2);
+    expect(ids(m.people.filter((p) => p.id >= nextId))).toEqual([nextId, nextId + 1]);
+    expect(m.emigrants).toEqual(emigrants);
+    expect(m.ancestors).toEqual(ancestors);
+    // skutečná rodina se pak vrátí neprodaná – celá, s původními id
+    const count = m.people.length;
+    restorePeople(m, sold);
+    expect(m.people).toHaveLength(count + 4);
+    expect(ids(family(m.people))).toEqual(FAMILY_IDS);
+    expect(new Set(m.people.map((p) => p.id)).size).toBe(m.people.length);
+  });
+
+  it('receiveStranded: vlastní skupina, jejíž id je obsazené (nemá nastat), se usadí s novými id', () => {
+    const m = familyHome();
+    const sold = takePeople(m, D, 'families', 1, 'W');
+    restorePeople(m, sold);
+    const count = m.people.length;
+    const nextId = m.nextId;
+    const from = { villageId: 'h', villageName: 'Vlkov', direction: 'W' as const };
+    receiveStranded(m, D + 2, { key: 'market:h:1', people: [], own: sold, from });
+    expect(m.people).toHaveLength(count + 4);
+    expect(m.nextId).toBe(nextId + 4);
+    expect(new Set(m.people.map((p) => p.id)).size).toBe(m.people.length);
+  });
+
+  it('receiveStranded: bez `from` (výsledek bez směru) se cizí usadí bez směru a kroniky, nikdo nezmizí', () => {
     const m = familyHome();
     const count = m.people.length;
     const man: MarketPerson = {
       good: 'men',
       people: [{ id: 5, bornDay: D - 9_000, dwellingId: 3, sex: 'male' }],
     };
-    expect(peopleBack(m, D + 2, { key: 'market:h:1', people: [man], from: undefined })).toEqual([]);
+    expect(
+      receiveStranded(m, D + 2, { key: 'market:h:1', people: [man], from: undefined }),
+    ).toEqual([]);
     expect(m.people).toHaveLength(count + 1);
     expect(m.people.at(-1)!.origin).toBeUndefined();
   });

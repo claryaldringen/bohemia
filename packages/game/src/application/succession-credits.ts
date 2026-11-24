@@ -24,6 +24,7 @@ import { sendDomainFood, type DomainFoodDeps } from './domain-food';
 import { returnStewardRefugees, type StewardRefugeDeps } from './refuge-return';
 import { reconcileShipments, type ShipmentDeps } from './shipments';
 import { answerAbsentSummons, lapseSummons, type SummonsDeps } from './summons';
+import { returnStrandedPeople, type VillageMailDeps } from './village-mail';
 
 /** Port kreditů nástupnictví bez losu (vassalage.md – Pozvaný jako vazal). */
 export interface SuccessionCreditRepository {
@@ -91,6 +92,11 @@ export type WorldTaskDeps = SuccessionCreditDeps & {
   /** Jídlo domény po žních (hillfort.md – Jídlo domény): vsi držitele si rozdělí přebytek. */
   domainFood?: DomainFoodDeps;
   /**
+   * Lidé z výsledku trhu pro domovskou ves, která zanikla, když už výsledek ležel v její schránce,
+   * jdou zpět k hostiteli (markets.md – Rozhodnutí plánu 3, bod 13 – `returnStrandedPeople`).
+   */
+  villageMail?: VillageMailDeps;
+  /**
    * Za nepřítomného hráče jedná po lhůtě formální správce (absence.md – Povinnosti vazala, když
    * hráč nehraje): odvede roční Odvody a pošle muže na Svolání.
    */
@@ -111,8 +117,9 @@ export type WorldTaskDeps = SuccessionCreditDeps & {
  * zásilek po pádu (`reconcileShipments`), návrat uprchlíků za správce (`returnStewardRefugees`), jídlo domény po žních (`sendDomainFood` – po obnově
  * zásilek, ať vidí, co je na cestě), správce za nepřítomné (Odvody před otevřením nového roku,
  * ať loňský dialog nenaroste; Svolání před propadnutím s koncem války), vypršení jednání, konec
- * týdne čekání nováčků (`expireNewcomerWaits`), roční los křesťanství (`advanceChristianity`)
- * a nakonec účinky přijatých jednání po pádu webu (`deliverPendingAcceptances`). Schránky mají
+ * týdne čekání nováčků (`expireNewcomerWaits`), roční los křesťanství (`advanceChristianity`),
+ * lidé z výsledků trhu pro zaniklé vsi zpět k hostiteli (`returnStrandedPeople`) a nakonec účinky
+ * přijatých jednání po pádu webu (`deliverPendingAcceptances`). Schránky mají
  * vlastní ochranu: selhání dřívější úlohy jejich doručení nezastaví a naopak – první chyba se
  * vyhodí až na konci (jako chyba jedné schránky nebo vsi v kole). Dřívější úlohy dál jdou za sebou
  * a chyba zastaví ty po ní – na pořadí závisí (jídlo domény po obnově zásilek, Odvody správce před
@@ -158,4 +165,5 @@ async function runOrderedTasks(
   if (deps.negotiationExpiry) await expireNegotiations(deps.negotiationExpiry, input);
   if (deps.newcomers) await expireNewcomerWaits(deps.newcomers, input);
   if (deps.christianity) await advanceChristianity(deps.christianity, input.today);
+  if (deps.villageMail) await returnStrandedPeople(deps.villageMail);
 }

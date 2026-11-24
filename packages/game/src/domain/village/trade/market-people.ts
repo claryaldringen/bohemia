@@ -177,51 +177,58 @@ export function restorePeople(state: VillageState, groups: readonly MarketPerson
 }
 
 /**
- * Prodal skupinu hostitel (`peopleBack`)? Někdo z ní je v `emigrants` vsi (týž id a `bornDay`)
- * a žádné její id ve vsi nikdo nemá ani ho ves ještě nerozdala (`< nextId`). Skupina se vrací celá:
- * děti, které ve vsi příbuzné nemají, v `emigrants` nejsou (`removePeople`), ale odešly s rodinou
- * (návrh Clauda). Volná id chrání před shodou s cizí skupinou – `restorePeople` by obsazené id
- * přeskočil a člověk by zmizel.
- */
-function soldHere(
-  state: VillageState,
-  emigrated: ReadonlySet<string>,
-  used: ReadonlySet<number>,
-  group: MarketPerson,
-): boolean {
-  return (
-    group.people.some((p) => emigrated.has(`${p.id}:${p.bornDay}`)) &&
-    group.people.every((p) => p.id < state.nextId && !used.has(p.id))
-  );
-}
-
-/**
  * Lidé z výsledku pro zaniklou domovskou ves se vrátili k hostiteli (mutuje stav; markets.md –
- * Rozhodnutí plánu 3, bod 13 – událost schránky `people-back`): skupina, kterou hostitel prodal
- * (`soldHere` – její lidé jsou v jeho `emigrants`), se vrátí s původními id (`restorePeople`),
- * ostatní se usadí jako příchozí z domovské vsi výpravy (`settlePeople` s `from` – kronika
- * `newcomer`). Bez `from` (výsledek bez směru cesty – nemá nastat) se usadí bez směru a kroniky.
- * Nikdo nevznikne ani nezmizí; vstupní skupiny nemění.
+ * Rozhodnutí plánu 3, bod 13 – událost schránky `stranded-people`):
+ * - `own` – skupiny, které prodal sám hostitel (`MarketPerson.fromHost`), se vrátí s původními id
+ *   (`restorePeople`) a kronikou `newcomer` s `returned`; id prodaných nikdo jiný nedostane
+ *   (`nextId` jen roste), kdyby přesto bylo obsazené, skupina se usadí jako ostatní – nikdo nezmizí;
+ * - `people` – ostatní (vlastní lidé výpravy, koupení od jiné výpravy – id jiné vsi) se usadí jako
+ *   příchozí z domovské vsi výpravy (`settlePeople` s `from` – kronika `newcomer`).
+ * Bez `from` (výsledek bez směru cesty – nemá nastat) bez směru a kroniky. Nikdo nevznikne ani
+ * nezmizí; vstupní skupiny nemění.
  */
-export function peopleBack(
+export function receiveStranded(
   state: VillageState,
   day: number,
-  back: { key: string; people: readonly MarketPerson[]; from: MarketResult['origin'] },
+  back: {
+    key: string;
+    people: readonly MarketPerson[];
+    own?: readonly MarketPerson[];
+    from: MarketResult['origin'];
+  },
 ): ChronicleEvent[] {
-  const emigrated = new Set((state.emigrants ?? []).map((e) => `${e.id}:${e.bornDay}`));
-  const used = new Set(state.people.map((p) => p.id));
-  const home: MarketPerson[] = [];
-  const others: MarketPerson[] = [];
-  for (const group of back.people) {
-    if (!soldHere(state, emigrated, used, group)) {
-      others.push(group);
+  const taken = new Set(state.people.map((p) => p.id));
+  const own: MarketPerson[] = [];
+  const settle: MarketPerson[] = [...back.people];
+  for (const group of back.own ?? []) {
+    if (group.people.length === 0) continue;
+    if (!group.people.every((p) => p.id < state.nextId && !taken.has(p.id))) {
+      settle.push(group);
       continue;
     }
-    home.push(group);
-    for (const p of group.people) used.add(p.id);
+    own.push(group);
+    for (const p of group.people) taken.add(p.id);
   }
-  restorePeople(state, home);
-  return settlePeople(state, day, others, back.from ?? { villageId: '', villageName: '' });
+  const events: ChronicleEvent[] = [];
+  for (const group of own) {
+    restorePeople(state, [group]);
+    const first = group.people[0]!.id;
+    const dwellingId = state.people.find((p) => p.id === first)?.dwellingId ?? ARRIVAL_HOME;
+    if (back.from === undefined) continue;
+    events.push({
+      day,
+      kind: 'newcomer',
+      direction: back.from.direction,
+      group: PEOPLE_GROUP[group.good],
+      people: group.people.length,
+      dwellingId,
+      villageName: back.from.villageName,
+      villageId: back.from.villageId,
+      returned: true,
+    });
+  }
+  events.push(...settlePeople(state, day, settle, back.from ?? { villageId: '', villageName: '' }));
+  return events;
 }
 
 /**

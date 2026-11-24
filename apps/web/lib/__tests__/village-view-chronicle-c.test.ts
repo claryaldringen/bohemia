@@ -309,6 +309,14 @@ describe('kronika – sad a cesty k sousedům', () => {
         SEED,
       ),
     ).toBe('Ze severu přišel svobodný muž.');
+    // vrátili se prodaní lidé – ves kupce zanikla (markets.md – Rozhodnutí plánu 3, bod 13)
+    const back = { day: DAY, kind: 'newcomer', direction: 'W', people: 4, dwellingId: 1 } as const;
+    expect(chronicleText({ ...back, group: 'family', returned: true } as const, 'X', SEED)).toBe(
+      'Ze západu se vrátila prodaná rodina – 4 lidé.',
+    );
+    expect(
+      chronicleText({ ...back, group: 'woman', people: 1, returned: true } as const, 'X', SEED),
+    ).toBe('Ze západu se vrátila prodaná žena.');
     expect(
       chronicleText({ day: DAY, kind: 'trail-built', trailId: 1, direction: 'N' }, 'X', SEED),
     ).toBe('Zemská stezka na sever je dostavěná.');

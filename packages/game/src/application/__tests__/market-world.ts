@@ -221,8 +221,8 @@ function cargoOf(body: VillageEventBody): { key: string; people: number } | null
       const { key, people, newcomers } = body.result;
       return { key: `out:${key}`, people: headcount(people) + headcount(newcomers) };
     }
-    case 'people-back':
-      return { key: `back:${body.key}`, people: headcount(body.people) };
+    case 'stranded-people':
+      return { key: `back:${body.key}`, people: headcount(body.people) + headcount(body.own) };
     default:
       return null;
   }

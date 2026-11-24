@@ -38,7 +38,7 @@ import {
 } from '../fortification/state/refugees';
 import { markOrderReady } from '../trade/craft-orders';
 import { joinMarket } from '../trade/market';
-import { peopleBack } from '../trade/market-people';
+import { receiveStranded } from '../trade/market-people';
 import { applyMarketResult } from '../trade/market-trip';
 import { applyNearby } from '../trade/nearby';
 import type {
@@ -312,7 +312,7 @@ export type VillageEventBody =
    * (`order-ready` – `markOrderReady`, Rozhodnutí plánu 3, bod 6), dotaz na kováře (`smith-ask`
    * – `answerSmithAsk`, Rozhodnutí plánu 3, bod 9), dotaz na partnera (`kin-ask` – `answerKinAsk`,
    * Rozhodnutí plánu 3, bod 11) a lidé z výsledku pro zaniklou domovskou ves zpět u hostitele
-   * (`people-back` – `peopleBack`, Rozhodnutí plánu 3, bod 13).
+   * (`stranded-people` – `receiveStranded`, Rozhodnutí plánu 3, bod 13).
    */
   | MarketMailBody;
 
@@ -432,8 +432,8 @@ function applyEvent(state: VillageState, day: number, body: VillageEventBody): C
       return answerSmithAsk(state, day, body.ask);
     case 'kin-ask':
       return answerKinAsk(state, day, body.ask);
-    case 'people-back':
-      return peopleBack(state, day, body);
+    case 'stranded-people':
+      return receiveStranded(state, day, body);
     case 'nearby':
       return applyNearby(state, day, body.nearby);
     default:

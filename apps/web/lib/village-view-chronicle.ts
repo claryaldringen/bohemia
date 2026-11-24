@@ -1013,9 +1013,15 @@ const MASON_CRAFT_TEXT: Record<MasonCraft, string> = {
   plasterer: 'štukatér',
 };
 
-function newcomerText(direction: Direction8, group: NewcomerGroup, people: number): string {
+function newcomerText(
+  direction: Direction8,
+  group: NewcomerGroup,
+  people: number,
+  returned: boolean,
+): string {
   const from = DIRECTION_NAMES[direction].from;
-  const lead = `${from.charAt(0).toUpperCase()}${from.slice(1)} ${NEWCOMER_TEXTS[group].chronicle}`;
+  const texts = NEWCOMER_TEXTS[group];
+  const lead = `${from.charAt(0).toUpperCase()}${from.slice(1)} ${returned ? texts.back : texts.chronicle}`;
   if (group !== 'family') return `${lead}.`;
   return `${lead} – ${formatInteger(people)} ${plural(people, 'člověk', 'lidé', 'lidí')}.`;
 }
@@ -1629,7 +1635,7 @@ export function chronicleText(event: ChronicleEvent, villageName: string, seed?:
       // hotová zakázka u řemeslníka jiné vsi (markets.md – Rozhodnutí plánu 3, bod 6)
       return `Zakázka ve vsi ${event.villageName} je hotová.`;
     case 'newcomer':
-      return newcomerText(event.direction, event.group, event.people);
+      return newcomerText(event.direction, event.group, event.people, event.returned === true);
     case 'structure-fell':
       return STRUCTURE_FELL_TEXTS[event.structure];
     case 'structure-overgrown':

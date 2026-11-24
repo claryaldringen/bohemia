@@ -436,7 +436,8 @@ villageId)` je zapíše do schránek cílových vsí (`inbox.post`, druhý zápi
     jeden levný dotaz `stampsOfVillages`: příjezd do zmizelé vsi se změní ve výsledek `returned`
     se vším do vlastní schránky na den plánovaného návratu (den příjezdu + pobyt + cesta – lidé
     jsou doma v plánovaný den, návrh Clauda), výsledek pro zmizelou domovskou ves se zahodí – jen
-    s lidmi jdou lidé zpět k hostiteli (`people-back` – `peopleBack`), dotazy plánu 3 do zaniklé
+    s lidmi jdou lidé zpět k hostiteli (`stranded-people` – `receiveStranded`; domov zaniklý až
+    s výsledkem ve schránce – úloha světa `returnStrandedPeople`), dotazy plánu 3 do zaniklé
     vsi se zahodí (village-trade.md – Pošta mezi vsemi, Zaniklé vsi a zprávy plánu 3).
     `hasVillageMail(state)` – neprázdný `outbox` nebo výprava na trh po termínu bez výsledku; jen
     s ní se doručuje po dopočtu (`advancePlayer`, `dynastyForVillage`, `advanceDynasty` – za
@@ -460,8 +461,10 @@ villageId)` je zapíše do schránek cílových vsí (`inbox.post`, druhý zápi
     `max(day, lastDay + 1)`, zápis zvedne verzi vsi, `null` = `ref` už zapsaný;
     `pending(villageId, afterDay, toDay)` – události `afterDay < day ≤ toDay` podle dne a `seq`;
     `pruneNearby(villageId, upToDay)` – smaže použité snímky okolí (`nearby`) do dne včetně, verzi
-    nemění (jediný úklid schránky – ostatní řádky drží `ref` proti dvojímu zápisu; village-trade.md
-    – Okolí vsi). Schránka je člen úložiště vsí (`VillageRepository.inbox`), takže ji má každý dopočet přes `updateVillage`
+    nemění (úklid schránky – ostatní řádky živých vsí drží `ref` proti dvojímu zápisu;
+    village-trade.md – Okolí vsi); `strandedResults()` – výsledky trhu s lidmi ve schránkách
+    zaniklých vsí (spí, sídlo v archivu), `dropStranded(eventIds)` – smaže vyřízené z nich, verzi
+    nemění (úloha světa `returnStrandedPeople`, village-trade.md – Pošta mezi vsemi). Schránka je člen úložiště vsí (`VillageRepository.inbox`), takže ji má každý dopočet přes `updateVillage`
     (`loadVillage`, `advancePlayer`, `dynastyStatus`, všechny akce hráče) bez zvláštní
     závislosti. `EMPTY_INBOX` – prázdná (kalibrace). Adaptér Postgresu `createInboxRepository` (tabulka
     `village_inbox`, transakce `post`) je popsaný ve `world.md` – Schránka vsi.

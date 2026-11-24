@@ -86,6 +86,12 @@ export interface MarketCart {
 export interface MarketPerson {
   good: PeopleGood;
   people: Person[];
+  /**
+   * Skupinu prodal sám hostitel trhu (`settleTrades` – ne jiná výprava), lidé nesou jeho id
+   * (Rozhodnutí plánu 3, bod 13): zanikne-li domovská ves kupce, vrátí se hostiteli s původními id
+   * (`stranded-people` – `own`). Chybí = vlastní lidé výpravy nebo koupení od jiné výpravy.
+   */
+  fromHost?: true;
 }
 
 /**
@@ -306,7 +312,7 @@ export interface MarketResult {
   /**
    * Výprava, jak ji viděl hostitel – domovská ves, její jméno a směr od hostitele k ní
    * (`OPPOSITE[visitor.firstStep]`; markets.md – Rozhodnutí plánu 3, bod 13). Jen u výsledku
-   * s lidmi: zanikne-li domovská ves, jdou lidé zpět k hostiteli (`people-back`) a kdo se u něj
+   * s lidmi: zanikne-li domovská ves, jdou lidé zpět k hostiteli (`stranded-people`) a kdo se u něj
    * usadí, přišel odtud. Chybí = výsledek bez lidí, nebo výprava bez směru cesty.
    */
   origin?: { villageId: string; villageName: string; direction: Direction8 };
@@ -360,10 +366,12 @@ export interface KinAsk {
 /**
  * Zpráva trhu pro jinou ves (markets.md – Rozhodnutí plánu 2, bod 6; Rozhodnutí plánu 3, bod 6 –
  * ohlášení hotové zakázky `order-ready`, bod 9 – dotaz na kováře `smith-ask`, bod 11 – dotaz na
- * partnera `kin-ask`; všechny tři zprávy bez nákladu). `people-back` (bod 13) – lidé z výsledku
- * pro zaniklou domovskou ves jdou zpět k hostiteli: `key` výsledku, lidé z jeho `people`
- * i `newcomers`, `from` = `MarketResult.origin`; zapíše ji pošta rovnou do schránky hostitele
- * (`deliverVillageMail`), v odchozí schránce nebývá.
+ * partnera `kin-ask`; všechny tři zprávy bez nákladu). `stranded-people` (bod 13) – lidé
+ * z výsledku pro zaniklou domovskou ves jdou zpět k hostiteli: `key` výsledku, `own` = skupiny,
+ * které prodal sám hostitel (`MarketPerson.fromHost` – vrátí se s původními id), `people` = ostatní
+ * (vlastní lidé výpravy, koupení od jiné výpravy – usadí se s novými id), `from` =
+ * `MarketResult.origin`. Zapíše ji pošta rovnou do schránky hostitele (`deliverVillageMail`,
+ * `returnStrandedPeople`), v odchozí schránce nebývá.
  */
 export type MarketMailBody =
   | { kind: 'market-arrive'; arrival: MarketArrival }
@@ -371,7 +379,13 @@ export type MarketMailBody =
   | { kind: 'order-ready'; ready: OrderReady }
   | { kind: 'smith-ask'; ask: SmithAsk }
   | { kind: 'kin-ask'; ask: KinAsk }
-  | { kind: 'people-back'; key: string; people: MarketPerson[]; from: MarketResult['origin'] };
+  | {
+      kind: 'stranded-people';
+      key: string;
+      people: MarketPerson[];
+      own?: MarketPerson[];
+      from: MarketResult['origin'];
+    };
 
 /**
  * Zpráva v odchozí schránce vsi (`VillageState.outbox`) – do schránky vsi `villageId` na den `day`

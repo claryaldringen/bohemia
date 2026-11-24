@@ -1,4 +1,4 @@
-import type { NewVillageEvent, VillageEvent } from '../../domain/village';
+import { isVillageAsleep, type NewVillageEvent, type VillageEvent } from '../../domain/village';
 import type { VillageInbox } from '../inbox';
 import type { InMemoryVillages } from './in-memory-villages';
 
@@ -40,6 +40,41 @@ export class InMemoryVillageInbox implements VillageInbox {
       pruned++;
     }
     return Promise.resolve(pruned);
+  }
+
+  strandedResults(): Promise<VillageEvent[]> {
+    const stranded = this.events
+      .filter((e) => {
+        if (e.body.kind !== 'market-result' || !this.gone(e.villageId)) return false;
+        const { people = [], newcomers = [] } = e.body.result;
+        return people.length + newcomers.length > 0;
+      })
+      .sort((a, b) => a.day - b.day || a.seq - b.seq);
+    return Promise.resolve(structuredClone(stranded));
+  }
+
+  dropStranded(eventIds: readonly string[]): Promise<number> {
+    const ids = new Set(eventIds);
+    let dropped = 0;
+    for (let i = this.events.length - 1; i >= 0; i--) {
+      const e = this.events[i]!;
+      if (!ids.has(e.id) || e.body.kind !== 'market-result' || !this.gone(e.villageId)) continue;
+      this.events.splice(i, 1);
+      // jako smazaný řádek v DB – `ref` přestane blokovat zápis
+      const ref = this.refOf.get(e.id);
+      if (ref !== undefined) this.refs.delete(ref);
+      dropped++;
+    }
+    return Promise.resolve(dropped);
+  }
+
+  /** Zaniklá ves jako v DB: spí (sloupec `asleep`), nebo má sídlo v archivu. */
+  private gone(villageId: string): boolean {
+    const record = this.villages.records.get(villageId);
+    if (!record) return false;
+    return (
+      isVillageAsleep(record.state) || this.villages.archivedSettlements.has(record.settlementId)
+    );
   }
 
   private write(event: NewVillageEvent): VillageEvent | null {

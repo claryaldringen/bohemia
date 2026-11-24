@@ -123,8 +123,8 @@ export interface NearbyRefresh {
    * který ve schránce (`pending` – události těchto dnů) ještě událost `nearby` není, zapíše snímek
    * okolí (`nearbyVillages` – v okamžiku zápisu) s `ref` `nearby:<ves>:<den>`. Čekající událost je
    * čerstvé okolí – sken se neopakuje. Spící ves nic. Po zápisu smaže použité snímky starší než
-   * `NEARBY_KEEP_DAYS` (`inbox.pruneNearby` – dny ≤ `afterDay − NEARBY_KEEP_DAYS`). true = něco
-   * se zapsalo (zápis zvedl verzi vsi).
+   * `NEARBY_KEEP_DAYS` (`inbox.pruneNearby` – dny ≤ `afterDay − NEARBY_KEEP_DAYS`; chyba úklidu
+   * jde jen do logu). true = něco se zapsalo (zápis zvedl verzi vsi).
    */
   post(
     home: VillageRecord,
@@ -161,8 +161,15 @@ export function nearbyRefresh(
         });
         if (event !== null) posted = true;
       }
-      // úklid: ~1× za dobu obnovy – jen když přibyl snímek
-      if (posted) await deps.villages.inbox.pruneNearby(home.id, afterDay - NEARBY_KEEP_DAYS);
+      // úklid: ~1× za dobu obnovy – jen když přibyl snímek; je to jen údržba – chyba se zapíše do
+      // logu a dopočet vsi nezastaví (příští snímek uklidí i tyto)
+      if (posted) {
+        try {
+          await deps.villages.inbox.pruneNearby(home.id, afterDay - NEARBY_KEEP_DAYS);
+        } catch (error) {
+          console.error(`Ves ${home.id}: úklid snímků okolí selhal.`, error);
+        }
+      }
       return posted;
     },
   };

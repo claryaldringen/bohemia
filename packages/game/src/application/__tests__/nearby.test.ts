@@ -256,6 +256,24 @@ describe('úklid použitých snímků okolí (NEARBY_KEEP_DAYS)', () => {
     expect(w.villages.records.get(h)!.version).toBe(version + 1);
   });
 
+  it('chyba úklidu dopočet nezastaví – zapíše se do logu, nový snímek zůstane', async () => {
+    const w = await nearbyWorld();
+    const h = w.h;
+    w.villages.edit(h, (s) => {
+      s.lastDay = K + 400;
+    });
+    w.villages.inbox.pruneNearby = (): Promise<number> => Promise.reject(new Error('DB spadla'));
+    const log = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    try {
+      const home = w.villages.records.get(h)!;
+      expect(await w.villages.nearby!.post(home, K + 400, K + 430, [])).toBe(true);
+      expect(await eventDays(w, h)).toEqual([K + 420]);
+      expect(log).toHaveBeenCalledWith(expect.stringContaining('úklid'), expect.any(Error));
+    } finally {
+      log.mockRestore();
+    }
+  });
+
   it('bez nového snímku se nic nemaže', async () => {
     const w = await nearbyWorld();
     const h = w.h;

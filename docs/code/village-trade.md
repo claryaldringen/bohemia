@@ -362,18 +362,41 @@ day, order, target, { by?, seedKg?, alone?, service?, kin?, people? })` (mutuje 
       vsi se zahodí a zmizí z `outbox` – nikdo nikam nejde (hledající se zeptá znovu, ves s koňmi
       jiné vsi s kovářem, zakázka u hostitele vyprší).
     - Výsledek s lidmi (`people`, `newcomers`) pro zaniklou domovskou ves: lidé jdou zprávou
-      `people-back` (`peopleBackMail` – `ref` `<ref výsledku>:back`, den výsledku, lidé z `people`
-      i `newcomers`, `from` = `MarketResult.origin`) rovnou do schránky vsi, jejíž `outbox` se
-      doručuje (hostitel); zboží výsledku se zahodí jako v plánu 2. Spí-li i hostitel (`sleeps`),
-      zahodí se celý – obě vsi jsou pryč. Výsledek bez lidí beze změny (zmizelé vsi se zahodí,
-      spící zapíše).
+      `stranded-people` (`strandedMail` – `ref` `<ref výsledku>:back`, den výsledku; `own` =
+      skupiny, které prodal sám hostitel – `MarketPerson.fromHost` z `settleTrades`, `people` =
+      ostatní – vlastní lidé výpravy a koupení od jiné výpravy; `from` = `MarketResult.origin`)
+      rovnou do schránky vsi, jejíž `outbox` se doručuje (hostitel); zboží výsledku se zahodí jako
+      v plánu 2. Spí-li i hostitel (`sleeps`), zahodí se celý – obě vsi jsou pryč; hostitele
+      v archivu krok nezkoumá (`sleeps` ho nepozná): zpráva padne do jeho schránky, kterou nikdo
+      nepoužije – ztráta je táž. Výsledek, který domovská ves už použila (výprava není v jejím
+      stavu – `awaitedTrip`; opakované doručení po pádu mezi zápisem a smazáním z `outbox`), se
+      zahodí – lidé by se zdvojili. Výsledek bez lidí beze změny (zmizelé vsi se zahodí, spící
+      zapíše).
+    - **Domov zanikl, když už výsledek ležel v jeho schránce** (hostitel doručuje hned po dávce, takže
+      výsledek je ve schránce domova většinou dávno před svým dnem): úloha světa
+      `returnStrandedPeople` (worker, `runWorldTasks` 1× za minutu; návrh Clauda: nikdo nesmí
+      zmizet) vezme výsledky s lidmi ve schránkách zaniklých vsí (`inbox.strandedResults` –
+      ves spí nebo má sídlo v archivu) a nepoužité (výprava je ještě ve stavu vsi – `awaitedTrip`,
+      hostitel je její cíl) pošle hostiteli jako `stranded-people` – tentýž `strandedMail` i `ref`
+      jako krok 1, takže se zpráva nezdvojí ani při souběhu webu a workeru. Zanikl-li i hostitel
+      (spí, chybí, sídlo v archivu), lidé se ztratí – **jediná přijatá ztráta**, oba konce jsou
+      mrtvé. Vyřízené výsledky (vrácené, použité před zánikem, ztracené) úloha smaže ze schránky
+      zaniklé vsi (`inbox.dropStranded`, až po zápisu zpráv – pád mezi tím znamená příště týž
+      `ref`), takže je příště nečte znovu. Nepoužitý výsledek pozná podle stavu vsi, ne podle dne:
+      vymřelá ves posune `lastDay` přes den vymření až na konec dávky, dny po vymření ale
+      nesimuluje.
+    - **Zboží výsledku pro zaniklý domov se zahodí** (návrh Clauda, Opravné kolo 1 úlohy 10): jako
+      v plánu 2 a v kroku 1 – zboží s vsí zanikne (zásoby vymřelé vsi také zůstanou ležet), lidé ne.
+      Vrátit ho hostiteli by mu dalo zaplacené zboží podruhé (platbu ze zápočtu už má).
+    - `stranded-people` ve schránce hostitele, který zanikne dřív, než ji použije: domov je už pryč
+      (zpráva vzniká jen po zániku domova) – oba konce mrtvé, táž přijatá ztráta.
     - Příjezd (`market-arrive`) jako v plánu 2 – do zmizelé vsi se vrátí jako `returned`, do spící
       nebo archivované se zapíše a vrátí ho výprava po termínu. Lidé na cestě (rodina na prodej,
       nevěsta či ženich výpravy `kin`) se tak po zániku cílové vsi vrátí domů s původními id
       (`applyMarketResult` → `restorePeople`).
-    - Den `people-back` u hostitele závisí na tom, kdy se jeho odchozí schránka doručí (po dávce
-      dopočtu – nejbližší nespočtený den) – mezivesnická výjimka jako všechna pošta (worker.md –
-      Výjimky a omezení).
+    - Den `stranded-people` u hostitele závisí na tom, kdy se jeho odchozí schránka doručí (po
+      dávce dopočtu – nejbližší nespočtený den) – mezivesnická výjimka jako všechna pošta
+      (worker.md – Výjimky a omezení).
   - **Výprava po termínu** (`lastDay ≥ returnDay`, výsledek nepřišel – `hasVillageMail`): domovská
     ves načte hostitele. Výsledek v jeho odchozí schránce zapíše sama (hostitel ho pak zapíše
     znovu – zahodí se). Jinak, je-li hostitel pryč (`sleeps` – vymřel, opuštěn, ves chybí;
@@ -393,14 +416,19 @@ day, order, target, { by?, seedKg?, alone?, service?, kin?, people? })` (mutuje 
     `stepToward`, `crossesIsolation`.
   - **Testy:** `application/__tests__/village-mail.test.ts` (kolo tam a zpět, hostitel pozadu,
     vymřelý a archivovaný hostitel, zmizelá ves, chyba a souběh, web po dopočtu; plán 3 – dotazy
-    do spící, zmizelé a archivované vsi, rodina zpět domů po zániku hostitele, `people-back` po
-    zániku kupce, nevěsta zpět po archivu vsi ženicha) a `advance-world.test.ts` – Pošta mezi vsemi
+    do spící, zmizelé a archivované vsi, rodina zpět domů po zániku hostitele, `stranded-people`
+    po zániku kupce, použitý výsledek se nevrací, úloha světa `returnStrandedPeople` – domov
+    vymřel nebo je v archivu s výsledkem ve schránce, zaniklý i hostitel, použitý výsledek, živá
+    ves; nevěsta zpět po archivu vsi ženicha) a `advance-world.test.ts` – Pošta mezi vsemi
     ve workeru (ves dopočtená webem, zámek, kola workeru = ruční postup) a Pošta plánu 3 a svět
     (nevěsta přes kola obou hráčů, lidí je po každém kole stejně – `peopleOfWorld`,
     `bornMinusDied`); dva hráči na sousedních mapách v `__tests__/market-world.ts` (`marketWorld`
     s jinou domovskou či hostitelskou vsí, `kinWorld` – syn a dcera z přípravků sňatků,
-    `neighbours` – okolí obou vsí, `askBride` – dotaz do schránky M). `peopleBack` v jádru:
-    `trade/__tests__/market-people.test.ts`; `origin` výsledku: `market-two-villages.test.ts`.
+    `neighbours` – okolí obou vsí, `askBride` – dotaz do schránky M). `receiveStranded` v jádru:
+    `trade/__tests__/market-people.test.ts` (i sonda kontroly – cizí skupina se shodou emigranta
+    a kolizním id); `fromHost`: `market-people-budget.test.ts`; `origin` výsledku:
+    `market-two-villages.test.ts`; adaptér `strandedResults` / `dropStranded`:
+    `inbox-repository.db.test.ts`.
 - **Jen společné suroviny** (trade.md – Jen společné suroviny; Martin 19. 10. 2026: „Nech jen
   společné suroviny, nezaváděj nové.“): obchod zná jen zboží, které má i ves (`TradeGood`,
   `TRADE_GOODS`). Zboží zvenku (sůl, železo, med, kožešiny – dřívější soubor zboží) ve hře není.
@@ -624,14 +652,19 @@ laborHa`) → chybí ceil(dospělí × (landHa ÷ laborHa − 1)) dospělých, r
   `MARKET.familyAdults` (2) nahoru; nabízí `peopleSpare` (export z `vassalage/spare.ts`).
   `peopleOf(goods)` – lidé ze zboží (celé kladné počty). Vesničané lidi nevozí – jen hráč a správce
   (roční výprava správce bere lidi z nabídky vsi). Výsledek s lidmi pro zaniklou domovskou ves
-  `deliverVillageMail` nezahodí – lidé jdou zpět k hostiteli (`people-back`, Pošta mezi vsemi výš).
-  `peopleBack(state, day, back)` (větev schránky `people-back`): skupina, kterou hostitel prodal
-  (někdo z ní je v jeho `emigrants` – týž id a `bornDay` – a žádné její id ve vsi nikdo nemá ani
-  není `≥ nextId`), se vrátí celá s původními id (`restorePeople` – i děti, které v `emigrants`
-  nejsou, protože ve vsi nemají příbuzné; návrh Clauda), ostatní se usadí s novými id
-  (`settlePeople` s `from` = `MarketResult.origin`, kronika `newcomer`); bez `from` bez směru
-  a kroniky. Výsledek s lidmi nese `origin` (domovská ves, jméno a směr od hostitele k ní –
-  `departVisitors`), bez lidí ho nemá.
+  `deliverVillageMail` ani úloha světa nezahodí – lidé jdou zpět k hostiteli (`stranded-people`,
+  Pošta mezi vsemi výš). Skupiny, které prodal sám hostitel, nesou `fromHost` (`settleTrades`,
+  větev `seller === HOST`) – jen u nich je jisté, že jde o jeho lidi s jeho id.
+  `receiveStranded(state, day, back)` (větev schránky `stranded-people`): skupiny `own` se vrátí
+  celé s původními id (`restorePeople` – i děti, které v `emigrants` nejsou, protože ve vsi nemají příbuzné) a kronikou
+  `newcomer` s `returned` („Ze západu se vrátila prodaná rodina“); obsazené id (nemá nastat –
+  `nextId` jen roste) skupinu usadí jako ostatní. `people` (vlastní lidé výpravy, koupení od jiné
+  výpravy – id jiné vsi) se usadí s novými id (`settlePeople` s `from` = `MarketResult.origin`,
+  kronika `newcomer`). Dřívější párování podle `emigrants` (týž id a `bornDay`) je pryč: osadníci
+  si nesou id mateřské vsi a nová ves čísluje hned za nimi, takže cizí skupina mohla převzít id
+  emigranta nebo předka hostitele a v řetězu člověk zmizel (kontrola úlohy 10, Important 1). Bez
+  `from` bez směru a kroniky. Výsledek s lidmi nese `origin` (domovská ves, jméno a směr od
+  hostitele k ní – `departVisitors`), bez lidí ho nemá.
 
 Počasí kraje mění hodnotu zboží od 1. 11. – [village-disasters.md](village-disasters.md#kraj-kolem-vsi-hodnota-zboží-a-zvěř-p4).
 

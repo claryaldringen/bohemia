@@ -63,6 +63,8 @@ export async function setup(): Promise<{
       },
       pending: () => Promise.resolve([]),
       pruneNearby: () => Promise.resolve(0),
+      strandedResults: () => Promise.resolve([]),
+      dropStranded: () => Promise.resolve(0),
     },
   };
   // adresář rodů: rod `x` vlastní ves `village-x` (cílová ves z podmínek musí patřit pánovi)
