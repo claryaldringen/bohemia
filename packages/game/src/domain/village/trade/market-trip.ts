@@ -6,10 +6,11 @@
 // v trade.ts), vozy doma od `returnDay` (`marketTripsDay`). Příjezd jde do odchozí schránky vsi
 // k hostiteli (market.ts – `joinMarket`), výsledek trhu přijde schránkou domů a výpravu uzavře
 // (`applyMarketResult`). Kontroly výpravy jsou na jednom místě (`checkMarketTrip`) – volá je server
-// i náhled ve webu.
+// i náhled ve webu. Vozy na trhu (Rozhodnutí plánu 3, bod 4): prodaný vůz nejede jako dopravní,
+// koupený táhnou domů voli, kteří jdou s výpravou (`MarketTrip.oxen`).
 import { TOTAL_GAME_DAYS } from '../../calendar';
 import { cloneState } from '../core/clone';
-import { cartsWithOxen, tradeHomeCarts } from '../crafts/carts';
+import { cartOxen, cartsWithOxen, tradeHomeCarts } from '../crafts/carts';
 import { ironTripHelpers } from '../crafts/cart-iron';
 import { purchaseTravelers } from '../crafts/craft-buying';
 import { oxenHome } from '../livestock/oxen';
@@ -26,7 +27,15 @@ import type {
   TradeGoods,
   VillageState,
 } from '../types';
-import { HORSE_GOODS, TRADE_GOODS, isCattleGood, isHorseGood, isPieceGood } from './goods';
+import {
+  CART_GOODS,
+  HORSE_GOODS,
+  TRADE_GOODS,
+  cartGoodKind,
+  isCattleGood,
+  isHorseGood,
+  isPieceGood,
+} from './goods';
 import { addHorses, takeHorses } from './horse-trade';
 import { marketArrivalRef, rememberNews } from './market';
 import { addGood, expeditionLaborNeed, villageGoodStock } from './trade';
@@ -38,6 +47,7 @@ export const MARKET_STAY = 'Na trhu se zůstává aspoň den.';
 export const MARKET_OVER_STOCK = 'Tolik ves nemá.';
 export const MARKET_BAD_ORDER = 'Objednávka nemá správný tvar.';
 export const MARKET_NO_PEOPLE = 'Na výpravu ves nemá dost dospělých.';
+export const MARKET_NO_OXEN = 'Koupený vůz by domů neměl kdo táhnout.';
 export const MARKET_WORLD_END = 'Výprava by se do konce světa nevrátila.';
 
 /**
@@ -118,6 +128,45 @@ export function marketCrew(
   return best;
 }
 
+/**
+ * Voli na koupené vozy ze seznamu `wants` (markets.md – Rozhodnutí plánu 3, bod 4): Σ
+ * `cartOxen(druh)` × kusy – dvoukolák táhne jeden, čtyřkolák dva (oxen.md – Potah). Jdou
+ * s výpravou bez vozu a koupené vozy dovedou domů; hráč je nezadává, spočítá je server i náhled.
+ */
+export function oxenForCarts(wants: TradeGoods): number {
+  return CART_GOODS.reduce(
+    (sum, good) => sum + cartOxen(cartGoodKind(good)) * (wants[good] ?? 0),
+    0,
+  );
+}
+
+/**
+ * Vozy doma bez vozů, které výprava prodá (`give`): z každého druhu posledních `give[g]` – v pořadí
+ * `tradeHomeCarts` (druh, pak id) nejmladší volné, tytéž, které při odjezdu prodá `addGood` →
+ * `removeIdleCart`. Prodaný vůz odjede bez spřežení jako prodaní voli a dopravní není.
+ */
+function withoutSoldCarts<T extends { kind: CartKind }>(
+  homeCarts: readonly T[],
+  give: TradeGoods,
+): T[] {
+  const out = [...homeCarts];
+  for (const good of CART_GOODS) {
+    const kind = cartGoodKind(good);
+    let sold = give[good] ?? 0;
+    for (let i = out.length - 1; i >= 0 && sold > 0; i--) {
+      if (out[i]!.kind !== kind) continue;
+      out.splice(i, 1);
+      sold--;
+    }
+  }
+  return out;
+}
+
+/** Kolik volů táhne vozy `carts` (dvoukolák jeden, čtyřkolák dva). */
+function oxenOfCarts(carts: readonly CartKind[]): number {
+  return carts.reduce((sum, kind) => sum + cartOxen(kind), 0);
+}
+
 /** Zboží má správný tvar: čísla konečná a nezáporná, kusové zboží celé (server je autorita). */
 function goodsShapeOk(goods: TradeGoods): boolean {
   for (const [good, amount] of Object.entries(goods)) {
@@ -132,9 +181,15 @@ function goodsShapeOk(goods: TradeGoods): boolean {
 export interface MarketTripCheck {
   /** Kolik ves má každého zboží z `give` (`villageGoodStock`). */
   stock: TradeGoods;
-  /** Druhy vozů doma v pořadí `tradeHomeCarts`, bez ohledu na voly (jede jen, co voli utáhnou). */
+  /**
+   * Druhy vozů doma v pořadí `tradeHomeCarts`, bez ohledu na voly (jede jen, co voli utáhnou;
+   * prodané vozy z `give` – poslední svého druhu – nejedou).
+   */
   homeCarts: readonly CartKind[];
-  /** Vycvičení voli doma (`oxenHome`) – prodaní voli z `give` vůz netáhnou. */
+  /**
+   * Vycvičení voli doma (`oxenHome`) – prodaní voli z `give` vůz netáhnou; koupené vozy táhnou
+   * voli, kteří zbudou po dopravních vozech.
+   */
   oxenHome: number;
   /** Volní dospělí v den odjezdu (`marketFreeAdults`) – nosiči jsou lidé vsi. */
   adults: number;
@@ -149,6 +204,8 @@ export type MarketCheck =
       ok: true;
       porters: number;
       carts: number;
+      /** Voli bez vozu, kteří jdou s výpravou pro koupené vozy (`oxenForCarts(wants)`). */
+      oxen: number;
       travelDays: number;
       departDay: number;
       arriveDay: number;
@@ -159,11 +216,13 @@ export type MarketCheck =
 /**
  * Jediné místo kontrol výpravy (markets.md – Rozhodnutí plánu 2, bod 2) – volá ho planMarketTrip
  * i náhled ve webu. V pořadí: pobyt celé dny, nejméně `MARKET.minStayDays`; zboží `give` nejvýš,
- * co ves má (`stock` – chovné krávy ani koně pod jezdci se tak prodat nedají); vozy jen s voly,
- * které zbudou po prodeji (`cartsWithOxen`); nosiči nejvýš volní dospělí; tvar objednávky
- * (konečná nezáporná čísla, kusy celé) napřed; návrat před koncem světa. Prázdné `give` i `wants`
- * jsou dovolené (výprava „na pivo“). Data: výprava vyrazí ráno dne po odeslání (`departDay`),
- * na trh přijde po dnech cesty (`arriveDay`), tržní dny `arriveDay` … `arriveDay` + pobyt − 1,
+ * co ves má (`stock` – chovné krávy ani koně pod jezdci se tak prodat nedají); prodané vozy nejedou
+ * jako dopravní (`withoutSoldCarts`) a vozy jen s voly, které zbudou po prodeji (`cartsWithOxen`);
+ * nosiči nejvýš volní dospělí; koupené vozy jen s voly, které zbudou po prodeji a dopravních vozech
+ * (`oxenForCarts` – `MARKET_NO_OXEN`; Rozhodnutí plánu 3, bod 4); tvar objednávky (konečná
+ * nezáporná čísla, kusy celé) napřed; návrat před koncem světa. Prázdné `give` i `wants` jsou
+ * dovolené (výprava „na pivo“). Data: výprava vyrazí ráno dne po odeslání (`departDay`), na trh
+ * přijde po dnech cesty (`arriveDay`), tržní dny `arriveDay` … `arriveDay` + pobyt − 1,
  * `returnDay` je první den doma.
  */
 export function checkMarketTrip(order: MarketOrder, input: MarketTripCheck): MarketCheck {
@@ -179,19 +238,36 @@ export function checkMarketTrip(order: MarketOrder, input: MarketTripCheck): Mar
       return { ok: false, reason: MARKET_OVER_STOCK };
     }
   }
-  // vůz jede jen se svými voly – prodaní voli ho netáhnou
+  // prodaný vůz nejede jako dopravní; vůz jede jen se svými voly – prodaní voli ho netáhnou
+  const oxen = input.oxenHome - (order.give.trainedOxen ?? 0);
   const carts = cartsWithOxen(
-    input.homeCarts.map((kind) => ({ kind })),
-    input.oxenHome - (order.give.trainedOxen ?? 0),
+    withoutSoldCarts(
+      input.homeCarts.map((kind) => ({ kind })),
+      order.give,
+    ),
+    oxen,
   ).map((cart) => cart.kind);
   const crew = marketCrew(order.give, order.wants, carts);
   if (crew.porters > input.adults) return { ok: false, reason: MARKET_NO_PEOPLE };
+  // koupené vozy táhnou domů voli, kteří zbudou po dopravních vozech
+  const cartOxenNeeded = oxenForCarts(order.wants);
+  if (cartOxenNeeded > 0 && cartOxenNeeded > oxen - oxenOfCarts(carts.slice(0, crew.carts))) {
+    return { ok: false, reason: MARKET_NO_OXEN };
+  }
   const travelDays = marketTravelDays(input.cells);
   const departDay = input.day + 1;
   const arriveDay = departDay + travelDays;
   const returnDay = arriveDay + order.stayDays + travelDays;
   if (returnDay >= TOTAL_GAME_DAYS) return { ok: false, reason: MARKET_WORLD_END };
-  return { ok: true, ...crew, travelDays, departDay, arriveDay, returnDay };
+  return {
+    ok: true,
+    ...crew,
+    oxen: cartOxenNeeded,
+    travelDays,
+    departDay,
+    arriveDay,
+    returnDay,
+  };
 }
 
 export type MarketPlan =
@@ -213,7 +289,7 @@ export function marketFreeAdults(state: VillageState, day: number): number {
 /**
  * checkMarketTrip nad stavem: stock = villageGoodStock(state, g, day) zboží z give, homeCarts =
  * druhy z tradeHomeCarts, oxenHome = oxenHome(state, day), adults = marketFreeAdults; cartIds =
- * prvních `carts` vozů, které po prodeji voli utáhnou.
+ * prvních `carts` vozů bez prodaných (`withoutSoldCarts`), které po prodeji voli utáhnou.
  */
 export function planMarketTrip(
   state: VillageState,
@@ -236,17 +312,22 @@ export function planMarketTrip(
     day,
   });
   if (!check.ok) return check;
-  const going = cartsWithOxen(homeCarts, oxen - (order.give.trainedOxen ?? 0));
+  const going = cartsWithOxen(
+    withoutSoldCarts(homeCarts, order.give),
+    oxen - (order.give.trainedOxen ?? 0),
+  );
   return { ...check, cartIds: going.slice(0, check.carts).map((c) => c.id) };
 }
 
 /**
  * Výprava vyrazí na trh (markets.md – Pravidla 2 a 3; stav vstupu nemění – kopie). Odmítnutí
- * `planMarketTrip` vrátí jeho důvod. Jinak zboží `give` odejde ze vsi (`addGood` záporně, koně po
- * kusech `takeHorses` – kupující dostane tytéž), do `trade.expeditions` přibude výprava `'market'`
- * bez stezky (`trailId` −1; nosiči, vozy, dny 2 × cesta + pobyt, práce nosiči × dny, kam a kdy
- * domů – `market`), klíč `market:<domovská ves>:<id>`. Do odchozí schránky jde příjezd
- * k hostiteli na den příjezdu (se zprávou na pivo o domovské vsi) a do kroniky `market-departed`.
+ * `planMarketTrip` vrátí jeho důvod. Jinak zboží `give` odejde ze vsi (`addGood` záporně – prodané
+ * vozy jsou nejmladší volné, `removeIdleCart`; koně po kusech `takeHorses` – kupující dostane
+ * tytéž), do `trade.expeditions` přibude výprava `'market'` bez stezky (`trailId` −1; nosiči,
+ * dopravní vozy `cartIds`, dny 2 × cesta + pobyt, práce nosiči × dny, kam a kdy domů – `market`,
+ * s voly pro koupené vozy `oxen`), klíč `market:<domovská ves>:<id>`. Do odchozí schránky jde
+ * příjezd k hostiteli na den příjezdu (se zprávou na pivo o domovské vsi) a do kroniky
+ * `market-departed`.
  */
 export function departMarket(
   state: VillageState,
@@ -287,6 +368,8 @@ export function departMarket(
     travelDays: plan.travelDays,
     arriveDay: plan.arriveDay,
     returnDay: plan.returnDay,
+    // voli pro koupené vozy jdou s výpravou (pryč do `returnDay` – `oxenAway`)
+    ...(plan.oxen > 0 ? { oxen: plan.oxen } : {}),
   };
   const days = 2 * plan.travelDays + order.stayDays;
   trade.expeditions.push({
@@ -337,20 +420,23 @@ export function departMarket(
 
 /**
  * Výprava na trh je doma (mutuje stav – krok dne hned za návraty domů): od `returnDay` jsou vozy
- * se spřežením zase ve vsi (výpravě zmizí `carts`), i když výsledek trhu ještě nepřišel – lidé
- * jsou doma týž den (práce nosičů jen v okně dní – `expeditionLaborNeed`), zboží přijde se
- * zprávou z trhu.
+ * se spřežením i voli pro koupené vozy zase ve vsi (výpravě zmizí `carts` a `market.oxen`), i když
+ * výsledek trhu ještě nepřišel – lidé jsou doma týž den (práce nosičů jen v okně dní –
+ * `expeditionLaborNeed`), zboží a koupené vozy přijdou se zprávou z trhu.
  */
 export function marketTripsDay(state: VillageState, day: number): void {
   for (const e of state.trade?.expeditions ?? []) {
-    if (e.kind === 'market' && e.carts && e.market && day >= e.market.returnDay) delete e.carts;
+    if (e.kind !== 'market' || !e.market || day < e.market.returnDay) continue;
+    if (e.carts) delete e.carts;
+    if (e.market.oxen !== undefined) delete e.market.oxen;
   }
 }
 
 /**
  * Výsledek trhu přišel domů (mutuje stav – událost schránky `market-result`; markets.md – Pravidla
- * 3, Rozhodnutí plánu 2, bod 6): koupené i neprodané zboží do vsi (`addGood`, koně po kusech
- * `addHorses`) – i když záznam výpravy chybí, nic nesmí zmizet. Výprava s klíčem výsledku se
+ * 3, Rozhodnutí plánu 2, bod 6): koupené i neprodané zboží do vsi (`addGood` – vozy jako nové
+ * `addCart`, koně po kusech `addHorses`) – i když záznam výpravy chybí, nic nesmí zmizet. Výprava
+ * s klíčem výsledku se
  * smaže; je-li výprava a zpráva na pivo, ves si ji zapamatuje i s cenami trhu (`rememberNews`).
  * Vrací zápis kroniky `market-returned` (bez záznamu výpravy s prázdným jménem vsi).
  */

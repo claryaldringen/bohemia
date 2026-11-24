@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { TOTAL_GAME_DAYS } from '../../../calendar';
-import { cartsAway } from '../../crafts/carts';
-import type { MarketOrder, MarketResult, TradeGoods } from '../../types';
+import { cartsAway, villageCarts } from '../../crafts/carts';
+import { oxenHome } from '../../livestock/oxen';
+import type { MarketOrder, MarketResult, TradeGoods, VillageState } from '../../types';
 import {
+  MARKET_NO_OXEN,
   MARKET_NO_PEOPLE,
   MARKET_OVER_STOCK,
   MARKET_STAY,
@@ -15,6 +17,7 @@ import {
   marketFreeAdults,
   marketTravelDays,
   marketTripsDay,
+  oxenForCarts,
   planMarketTrip,
   type MarketTripCheck,
 } from '../market-trip';
@@ -284,5 +287,149 @@ describe('výprava na trh – opravné kolo (tažní voli, volní lidé, tvar ob
       ok: false,
       reason: MARKET_NO_PEOPLE,
     });
+  });
+});
+
+// Vozy na trhu (markets.md – Rozhodnutí plánu 3, bod 4): koupený vůz táhnou domů voli, kteří jdou
+// s výpravou (dvoukolák jeden, čtyřkolák dva – oxen.md, Potah); prodaný vůz nejede jako dopravní.
+describe('vozy na trhu – voli pro koupený vůz, prodaný vůz (Rozhodnutí plánu 3, bod 4)', () => {
+  const base: MarketTripCheck = {
+    stock: { grain: 10_000, trainedOxen: 2 },
+    homeCarts: [],
+    oxenHome: 0,
+    adults: 40,
+    cells: 1,
+    day: D,
+  };
+  const order = (give: TradeGoods, wants: TradeGoods = {}): MarketOrder => ({
+    give,
+    wants,
+    stayDays: 1,
+  });
+
+  /** Ves H se dvěma volnými dvoukoláky (id 1 a 2) a `oxen` vycvičenými voly v ohradě. */
+  function twoCarts(oxen: number): VillageState {
+    const s = homeVillage();
+    s.carts = [
+      { id: 1, kind: 'two-wheel', builtDay: D - 30 },
+      { id: 2, kind: 'two-wheel', builtDay: D - 20 },
+    ];
+    s.pens!.find((p) => p.id === 900)!.oxen = Array.from({ length: oxen }, () => ({
+      trainedDay: D - 10,
+    }));
+    return s;
+  }
+
+  it('voli na koupené vozy: dvoukolák 1, čtyřkolák 2 – bez nich výprava vůz nekoupí', () => {
+    expect(oxenForCarts({ twoWheelCarts: 1 })).toBe(1);
+    expect(oxenForCarts({ twoWheelCarts: 2, fourWheelCarts: 1, grain: 100 })).toBe(4);
+    expect(checkMarketTrip(order({}, { twoWheelCarts: 1 }), base)).toEqual({
+      ok: false,
+      reason: MARKET_NO_OXEN,
+    });
+    expect(
+      checkMarketTrip(order({}, { twoWheelCarts: 1 }), { ...base, oxenHome: 2 }),
+    ).toMatchObject({ ok: true, carts: 0, oxen: 1 });
+    expect(checkMarketTrip(order({}, { fourWheelCarts: 1 }), { ...base, oxenHome: 1 })).toEqual({
+      ok: false,
+      reason: MARKET_NO_OXEN,
+    });
+    expect(
+      checkMarketTrip(order({}, { fourWheelCarts: 1 }), { ...base, oxenHome: 2 }),
+    ).toMatchObject({ ok: true, oxen: 2 });
+    // bez vozů v seznamu voli nejdou
+    expect(checkMarketTrip(order({}, { cows: 1 }), base)).toMatchObject({ ok: true, oxen: 0 });
+  });
+
+  it('koupený vůz netáhnou voli dopravních vozů ani prodaní voli', () => {
+    // čtyřkolák veze 400 kg obilí se 2 voly – na koupený dvoukolák žádný nezbude
+    const withCart: MarketTripCheck = { ...base, homeCarts: ['four-wheel'], oxenHome: 2 };
+    const buy = order({ grain: 400 }, { twoWheelCarts: 1 });
+    expect(checkMarketTrip(buy, withCart)).toEqual({ ok: false, reason: MARKET_NO_OXEN });
+    expect(checkMarketTrip(buy, { ...withCart, oxenHome: 3 })).toMatchObject({
+      ok: true,
+      carts: 1,
+      porters: 2,
+      oxen: 1,
+    });
+    // vůl, který se prodá, koupený vůz netáhne
+    const sell = order({ trainedOxen: 1 }, { twoWheelCarts: 1 });
+    expect(checkMarketTrip(sell, { ...base, oxenHome: 1 })).toEqual({
+      ok: false,
+      reason: MARKET_NO_OXEN,
+    });
+    expect(checkMarketTrip(sell, { ...base, oxenHome: 2 })).toMatchObject({ ok: true, oxen: 1 });
+  });
+
+  it('voli pro koupený vůz jsou pryč do returnDay − 1, v returnDay doma (market.oxen smazané)', () => {
+    // H: čtyřkolák a 2 vycvičení voli; výprava bez nákladu vůz doma nechá a voly vezme
+    const h = homeVillage();
+    const buy = order({}, { fourWheelCarts: 1 });
+    const far = { ...target, cells: 2 };
+    expect(planMarketTrip(h, D, buy, far)).toMatchObject({
+      ok: true,
+      carts: 0,
+      cartIds: [],
+      oxen: 2,
+      returnDay: D + 4,
+    });
+    const sent = departMarket(h, D, buy, far);
+    if (!sent.ok) throw new Error(sent.reason);
+    expect(sent.trip.oxen).toBe(2);
+    expect(oxenHome(h, D + 1)).toBe(2);
+    const state = structuredClone(sent.state);
+    for (const day of [D + 1, D + 2, D + 3]) {
+      marketTripsDay(state, day);
+      expect(oxenHome(state, day)).toBe(0);
+    }
+    marketTripsDay(state, D + 4);
+    expect(oxenHome(state, D + 4)).toBe(2);
+    const e = state.trade!.expeditions.at(-1)!;
+    expect(e.market!.oxen).toBeUndefined();
+    // výprava čeká na výsledek trhu
+    expect(e.market!.key).toBe(sent.trip.key);
+  });
+
+  it('prodej vozu: prodá se nejmladší volný vůz druhu, dopravní je ten zbylý', () => {
+    // 2 volné dvoukoláky (id 1 a 2) a 1 vycvičený vůl; 400 kg obilí jede na voze
+    const s = twoCarts(1);
+    const sell = order({ twoWheelCarts: 1, grain: 400 });
+    const plan = planMarketTrip(s, D, sell, target);
+    expect(plan).toMatchObject({ ok: true, carts: 1, porters: 2, cartIds: [1], oxen: 0 });
+    const sent = departMarket(s, D, sell, target);
+    if (!sent.ok) throw new Error(sent.reason);
+    expect(villageCarts(sent.state)).toEqual([{ id: 1, kind: 'two-wheel', builtDay: D - 30 }]);
+    expect(cartsAway(sent.state).has(1)).toBe(true);
+    expect(sent.state.trade!.expeditions.at(-1)).toMatchObject({
+      carts: [1],
+      give: { grain: 400, twoWheelCarts: 1 },
+    });
+  });
+
+  it('prodaný vůz nejede jako dopravní – voli zbydou na ostatní vozy, náhled počítá stejně', () => {
+    const input: MarketTripCheck = {
+      ...base,
+      stock: { grain: 10_000, twoWheelCarts: 2 },
+      homeCarts: ['two-wheel', 'two-wheel'],
+      oxenHome: 2,
+    };
+    // bez prodeje vezou 800 kg oba vozy, s prodejem jeden (400 kg na voze, zbytek 16 nosičů)
+    expect(checkMarketTrip(order({ grain: 800 }), input)).toMatchObject({ carts: 2, porters: 4 });
+    expect(checkMarketTrip(order({ twoWheelCarts: 1, grain: 800 }), input)).toMatchObject({
+      ok: true,
+      carts: 1,
+      porters: 18,
+    });
+    expect(checkMarketTrip(order({ twoWheelCarts: 2 }), input)).toMatchObject({
+      ok: true,
+      carts: 0,
+    });
+    expect(checkMarketTrip(order({ twoWheelCarts: 3 }), input)).toEqual({
+      ok: false,
+      reason: MARKET_OVER_STOCK,
+    });
+    // ve stavu: tytéž vozy – dopravní je vůz 1
+    const plan = planMarketTrip(twoCarts(2), D, order({ twoWheelCarts: 1, grain: 400 }), target);
+    expect(plan).toMatchObject({ ok: true, carts: 1, cartIds: [1] });
   });
 });

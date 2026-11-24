@@ -7,6 +7,7 @@
 // Doprava a cílová ves). Převody starších vsí: hřivny místo nástrojů a jen společné suroviny
 // (Martin 19. 10. 2026: „Nech jen společné suroviny, nezaváděj nové.“). Čisté funkce bez I/O.
 import { takeVillageMeatKg } from '../core/meat-stocks';
+import { addCart, idleCartsOf, removeIdleCart } from '../crafts/carts';
 import { charcoalStockKg, takeCharcoal } from '../crafts/charcoal';
 import { toolEquipmentKg } from '../crafts/iron';
 import { ageGroup } from '../people/people';
@@ -16,7 +17,7 @@ import { addHorses, horsesForSale, removeHorses } from './horse-trade';
 import { logArrivalPoint } from '../forest/log-piles';
 import { addStone, stoneOnHand, takeStone } from '../fortification/state/stone';
 import { addLogs, takeLogs, woodLogs } from '../forest/wood';
-import { TRADE_GOODS, isCattleGood, isHorseGood, isLivestockGood } from './goods';
+import { TRADE_GOODS, cartGoodKind, isCattleGood, isHorseGood, isLivestockGood } from './goods';
 import { CARTS, HIDES, IRON, TRADE, TRADE_GOOD_VALUES } from '../rules';
 import { ensureWares } from '../wares/wares';
 import { tradeSeason, tradeWeather } from './trade-weather';
@@ -74,7 +75,7 @@ export function hidesOnHand(state: VillageState): number {
  * Kolik zboží ves má k obchodu v den `day` (celé kusy a kg): obilí, maso, sýr a luštěniny ze
  * zásob, dobytek (`cattleForSale` – krávy bez chovného páru, mladí voli ve výcviku, vycvičení voli
  * doma mimo posledních let služby), celé klády z hromady a výrobky řemesel – nástroje celé
- * vybavení domácností (`toolEquipmentKg`).
+ * vybavení domácností (`toolEquipmentKg`), vozy volné vozy druhu (`idleCartsOf`).
  */
 export function villageGoodStock(
   state: VillageState,
@@ -106,6 +107,11 @@ export function villageGoodStock(
     case 'woodTools':
       // dřevěné nářadí od tesaře (wagons.md – Tesař)
       return Math.floor((state.crafts?.woodToolsKg ?? 0) + EPSILON);
+    case 'twoWheelCarts':
+    case 'fourWheelCarts':
+      // volné vozy druhu – ne s výpravou ani na cestě pro kování (markets.md – Rozhodnutí plánu 3,
+      // bod 4)
+      return idleCartsOf(state, cartGoodKind(good)).length;
     case 'ironBars':
       // hřivny z kovárny (production-chains.md – Kovář)
       return Math.floor(state.crafts?.ironBarsKg ?? 0);
@@ -177,6 +183,18 @@ export function addGood(state: VillageState, good: TradeGood, amount: number, da
     case 'woodTools': {
       const crafts = (state.crafts ??= { charcoalKg: 0, potteryKg: 0 });
       crafts.woodToolsKg = Math.max(0, (crafts.woodToolsKg ?? 0) + amount);
+      return;
+    }
+    case 'twoWheelCarts':
+    case 'fourWheelCarts': {
+      // jen celé vozy: koupený je nový (`addCart`, stáří na trhu nenese), prodá se nejmladší volný
+      // vůz druhu (`removeIdleCart`) – markets.md, Rozhodnutí plánu 3, bod 4
+      const kind = cartGoodKind(good);
+      const n = Math.floor(Math.abs(amount) + EPSILON);
+      for (let k = 0; k < n; k++) {
+        if (amount > 0) addCart(state, kind, day);
+        else removeIdleCart(state, kind);
+      }
       return;
     }
     case 'ironBars': {

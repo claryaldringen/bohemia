@@ -165,7 +165,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   den nejvýš ±10 %, **dno = `initialPrice`** (Martin 23. 11. 2026 – nikdo neprodá pod výchozí hodnotou, nahoru volně; uložená cena pod dnem se při dalším tržním dni zvedne na dno; výchozí cena nezávisí na počasí kraje, takže žádné zdražení; zápočet se nemění), zboží bez nabídky i poptávky beze změny (nový objekt). **Zápočet**
   `clearMarket(parties, prices)`: strany `MarketParty` (`key`, nabídka `offer`, seznam `wants`)
   v pořadí hostitel, pak výpravy podle příjezdu; každá prodá přesně za tolik, za kolik koupí, kus
-  jen celý (`PIECE_GOODS` / `isPieceGood` v `goods.ts` – dobytek, koně, klády, kámen, kůže,
+  jen celý (`PIECE_GOODS` / `isPieceGood` v `goods.ts` – dobytek, koně, klády, vozy, kámen, kůže,
   kožešiny), kg libovolně. Kola se stropem V = min(hodnota nabídky, hodnota seznamu): strana prodá
   nejvýš za V a koupí nejvýš za V, kupci v pořadí stran a zboží seznamu v pořadí `TRADE_GOODS`, od
   prodávajících v pořadí stran; kupující koupí jen od strany svého kruhu (`tradeCircles` – silně
@@ -192,7 +192,9 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `craftTargets`, hřivny `ironBarsKg − smithBarsTargetKg`; shání jen bez vlastního pracujícího
   řemeslníka (`ownCraftsmanWorks` – kovář, hrnčíř, tesař) do potřeby – nástroje
   `toolNeedKg − toolEquipmentKg`, keramika a dřevěné nářadí `craftTargets − zásoba`, hřivny jen na
-  vozy čekající na kování `ironOrderBarsKg − ironBarsKg`. Jídlo (maso, sýr, luštěniny), med, vosk,
+  vozy čekající na kování `ironOrderBarsKg − ironBarsKg`. Vozy po druzích: nabídka volné vozy
+  (`idleCartsOf`) nad vozy, které ves chce (`cartsWanted` = `cartTargets[druh]`, `draft.ts`), bez
+  vlastního pracujícího tesaře shání jeden vůz druhu `missingCart`. Jídlo (maso, sýr, luštěniny), med, vosk,
   kůže, kožešiny a uhlí hostitel nenabízí ani neshání. Nabídka je nejvýš `villageGoodStock`,
   nulové položky se nezapisují, stav se nemění. `horsesOf(state, druh, day)`
   (`trade/horse-trade.ts`) počítá koně druhu v ohradách i pod jezdcem (prodat jde jen
@@ -244,7 +246,8 @@ ves>:<id výpravy>`, `stayDays`, `travelDays`, zboží `goods` – koně i tady 
   `trade/market-trip.ts`, typy `MarketOrder`, `MarketTarget`, `MarketTrip` v `types-market.ts`,
   čísla `MARKET.dayTripCells`, `daysPerCell`, `minStayDays`). Výprava domovské vsi je druh karavany
   (`TradeExpedition.kind = 'market'`, `trailId` −1, `destination` { `cells`, `firstStep` },
-  `market` – `MarketTrip`: klíč, hostitel, seznam, pobyt, dny cesty, `arriveDay`, `returnDay`).
+  `market` – `MarketTrip`: klíč, hostitel, seznam, pobyt, dny cesty, `arriveDay`, `returnDay`
+  a `oxen?` – voli pro koupené vozy).
   - **Dny:** `marketTravelDays(cells)` = max(0, políčka − `dayTripCells`) × `daysPerCell` – ves
     na sousední mapě ráno tam a večer zpět (Martin 22. 11. 2026), každá další mapa den tam a den
     zpět. Výprava vyrazí ráno dne po odeslání (`departDay` = dnešek + 1 – dnešek vsi je spočtený),
@@ -260,26 +263,36 @@ ves>:<id výpravy>`, `stayDays`, `travelDays`, zboží `goods` – koně i tady 
     `MarketTripCheck` bez stavu – `stock`, `homeCarts` (`tradeHomeCarts`, bez ohledu na voly),
     `oxenHome`, `adults`, `cells`, `day`): tvar objednávky (konečná nezáporná čísla, kusové zboží
     celé – `MARKET_BAD_ORDER`), pobyt celé dny ≥ `minStayDays` (`MARKET_STAY`), zboží nejvýš
-    `villageGoodStock` (`MARKET_OVER_STOCK`), vozy jen s voly, které po prodeji zbudou
-    (`cartsWithOxen(homeCarts, oxenHome − give.trainedOxen)` – sdílí ho `tradeCarts`), nosiči
-    nejvýš volní dospělí (`MARKET_NO_PEOPLE`), návrat před koncem světa (`MARKET_WORLD_END`).
-    Prázdné `give` i `wants` jsou dovolené (výprava na pivo). `planMarketTrip` vstup složí ze
-    stavu a přidá `cartIds`; `marketFreeAdults(state, day)` = dospělí mimo lidi pryč (`awayFromWork`)
+    `villageGoodStock` (`MARKET_OVER_STOCK`), prodaný vůz nejede jako dopravní
+    (`withoutSoldCarts` – z `homeCarts` odejde posledních `give[g]` vozů druhu, v pořadí
+    `tradeHomeCarts` nejmladší volné, tytéž, které prodá `removeIdleCart`; odjede bez spřežení jako
+    prodaní voli), vozy jen s voly, které po prodeji zbudou (`cartsWithOxen` nad zbylými vozy
+    s `oxenHome − give.trainedOxen` – sdílí ho `tradeCarts`), nosiči nejvýš volní dospělí
+    (`MARKET_NO_PEOPLE`), koupené vozy jen s voly, kteří zbudou po prodeji i dopravních vozech
+    (`oxenForCarts(wants)` = Σ `cartOxen(druh)` × kusy – `MARKET_NO_OXEN`; Rozhodnutí plánu 3,
+    bod 4), návrat před koncem světa (`MARKET_WORLD_END`). Výsledek nese `oxen` – hráč voly
+    nezadává, spočítá je server i náhled touž funkcí. Prázdné `give` i `wants` jsou dovolené
+    (výprava na pivo). `planMarketTrip` vstup složí ze stavu a přidá `cartIds` (jen ze zbylých
+    vozů); `marketFreeAdults(state, day)` = dospělí mimo lidi pryč (`awayFromWork`)
     − `expeditionLaborNeed(day + 1)` − `purchaseTravelers` − `ironTripHelpers` (jeden pomocník
     pro server i náhled).
   - **Odchod:** `departMarket(state, day, order, target)` (kopie stavu): zboží `give` odejde
-    (`addGood` záporně, koně po kusech `takeHorses`), výprava s `porters`, `carts`, `days` =
-    2 × cesta + pobyt a `cost` = nosiči × dny, klíč `market:<domovská ves>:<id>`; do odchozí
-    schránky příjezd (`market-arrive`, `marketArrivalRef`) k hostiteli na `arriveDay` se zprávou
-    na pivo o domovské vsi (`villageReport`) a kronika `market-departed`.
+    (`addGood` záporně – prodané vozy `removeIdleCart`, koně po kusech `takeHorses`), výprava s
+    `porters`, `carts`, `days` = 2 × cesta + pobyt a `cost` = nosiči × dny, voli pro koupené vozy
+    `market.oxen`, klíč `market:<domovská ves>:<id>`; do odchozí schránky příjezd
+    (`market-arrive`, `marketArrivalRef`) k hostiteli na `arriveDay` se zprávou na pivo o domovské
+    vsi (`villageReport`) a kronika `market-departed`.
   - **Pryč v pevné dny** (Rozhodnutí 2 – termín trhu je pevný): `expeditionLaborNeed` /
     `workExpeditions` berou nosiče výpravy na trh jen ve dnech `startedDay` … `returnDay` − 1,
-    mimo ně nic, i když vsi chyběli dospělí; výprava nemá podíl po stezce. `marketTripsDay` (krok
-    dne hned za `returnHome`) od `returnDay` vrátí vozy se spřežením (výpravě zmizí `carts`).
+    mimo ně nic, i když vsi chyběli dospělí; výprava nemá podíl po stezce. Voli pro koupené vozy
+    jsou pryč jako voli vozů výpravy (`oxenAway` přičte `market.oxen`, takže je `oxenHome` nevidí).
+    `marketTripsDay` (krok dne hned za `returnHome`) od `returnDay` vrátí vozy se spřežením i voly
+    pro koupené vozy (výpravě zmizí `carts` a `market.oxen`, i bez výsledku trhu).
     `finishExpeditions` výpravu na trh nechá a jezdec vojvody ji nedoprovází (`lordRides` – jen
     výprava po stezce).
   - **Návrat:** událost schránky `market-result` → `applyMarketResult`: koupené a neprodané zboží
-    do vsi (`addGood`, koně po kusech `addHorses`) – i bez záznamu výpravy, nic nezmizí –, výprava
+    do vsi (`addGood` – vozy jako nové `addCart`, koně po kusech `addHorses`) – i bez záznamu
+    výpravy, nic nezmizí –, výprava
     s klíčem výsledku se smaže, zpráva na pivo s cenami trhu do `news` (`rememberNews`, jen se
     záznamem výpravy) a kronika `market-returned` (`returned` – hostitel zanikl; bez záznamu
     výpravy s prázdným jménem vsi). Výsledek přijde nejdřív v `returnDay`.
@@ -337,6 +350,18 @@ ves>:<id výpravy>`, `stayDays`, `travelDays`, zboží `goods` – koně i tady 
   (`toolEquipmentKg`) a zásoby tesaře (`crafts.woodToolsKg`); `addGood` koupené nástroje přidá
   rovnou do vybavení a prodané z něj ubere, dřevěné nářadí do `crafts.woodToolsKg` – obojí nikdy
   pod 0. Názvy a ikony `tools` a `wood-tools` jako v panelu dílny (`TRADE_GOOD_NAMES`).
+
+- **Vozy na trhu** (markets.md – Rozhodnutí plánu 3, bod 4): `TradeGood` += `twoWheelCarts` /
+  `fourWheelCarts` (`CartGood`, `CART_GOODS` za dřevěným nářadím – i pořadí zápočtu, kusové
+  `PIECE_GOODS`; `cartGoodKind` – druh vozu), hodnoty v `TRADE_GOOD_VALUES` 320 a 640 kg obilí za
+  kus (obnovená cena vozu u tesaře souseda `cartValueKg` @ b4f8dadc – práce tesaře, klády
+  a kování), nese se 0 – vůz táhnou voli. Zásoba `villageGoodStock` = volné vozy druhu
+  (`idleCartsOf` – mimo `cartsAway`: výpravy, nákupy i vůz na cestě pro kování, v pořadí id);
+  `addGood` po celých vozech – koupený je nový (`addCart`, stáří na trhu nenese), prodá se
+  nejmladší volný vůz druhu (`removeIdleCart` – nejvyšší id; poslední vůz vsi smaže `carts`). Co
+  ves nabízí a shání: Trh – co ves nabízí a shání výš; voli pro koupený vůz a prodaný vůz ve
+  výpravě: Výprava na trh výš. Názvy Dvoukoláky / Čtyřkoláky s ikonou `cart`
+  (`TRADE_GOOD_NAMES`).
 
 - **Dobytek ve třech druzích** (trade.md – Dobytek ve třech druzích; Martin 20. 10. 2026: „s
   dobytkem by také mělo jít obchodovat. Představuju si tři kategorie - krávy, mladé voly (musí se

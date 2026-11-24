@@ -66,6 +66,9 @@ export const TRADE_GOOD_NAMES: Record<
     unit: 'kg',
     icon: 'wood-tools',
   },
+  // vozy na trhu po kusech (markets.md – Rozhodnutí plánu 3, bod 4) – ikona vozu jako ve dvorci
+  twoWheelCarts: { name: 'Dvoukoláky', genitive: 'dvoukoláků', unit: 'ks', icon: 'cart' },
+  fourWheelCarts: { name: 'Čtyřkoláky', genitive: 'čtyřkoláků', unit: 'ks', icon: 'cart' },
   ironBars: { name: 'Hřivny', genitive: 'hřiven', unit: 'kg', icon: 'iron-bars' },
   charcoal: { name: 'Uhlí', genitive: 'uhlí', unit: 'kg', icon: 'charcoal' },
   // kámen v celých m³ (trade.md – Kámen)

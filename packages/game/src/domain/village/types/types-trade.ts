@@ -23,14 +23,21 @@ export type CattleGood = 'cows' | 'youngOxen' | 'trainedOxen';
 export type HorseGood = 'foals' | 'mares' | 'ridingHorses';
 
 /**
+ * Vozy na trhu (markets.md – Rozhodnutí plánu 3, bod 4): dvoukoláky a čtyřkoláky – kusy, volné vozy
+ * vsi; prodá se nejmladší volný vůz druhu, kupující dostane vůz nový (`cartGoodKind`).
+ */
+export type CartGood = 'twoWheelCarts' | 'fourWheelCarts';
+
+/**
  * Zboží obchodu (trade.md – Sousedé): jen to, co ves sama má – obilí, maso, sýr, luštěniny (kg),
  * dobytek (kusy – krávy, mladí a vycvičení voli – `CattleGood`), klády (kusy), keramika, železné
  * hřivny, uhlí (kg). Nástroje (`tools`) jsou od 20. 10. 2026 vybavení domácností – od plánu 3
  * trhu se zase prodávají a kupují rovnou z vybavení a do něj, dřevěné nářadí (`woodTools`) ze
- * zásoby tesaře (markets.md – Rozhodnutí plánu 3, bod 4); nástroje ve starších výpravách
- * k sousedovi po stezce převede na hřivny `withIronBarsTrade` (production-chains.md – Kovář).
- * Zboží zvenku (sůl, železo, med, kožešiny) obchod od 19. 10. 2026 nezná (Martin: „Nech jen
- * společné suroviny, nezaváděj nové.“) – starší vsi o něj přijdou (`withoutForeignGoods`).
+ * zásoby tesaře a vozy (`CartGood`, kusy) z volných vozů vsi (markets.md – Rozhodnutí plánu 3,
+ * bod 4); nástroje ve starších výpravách k sousedovi po stezce převede na hřivny
+ * `withIronBarsTrade` (production-chains.md – Kovář). Zboží zvenku (sůl, železo, med, kožešiny)
+ * obchod od 19. 10. 2026 nezná (Martin: „Nech jen společné suroviny, nezaváděj nové.“) – starší
+ * vsi o něj přijdou (`withoutForeignGoods`).
  */
 export type TradeGood =
   | 'grain'
@@ -43,6 +50,7 @@ export type TradeGood =
   | 'pottery'
   | 'tools'
   | 'woodTools'
+  | CartGood
   | 'ironBars'
   | 'charcoal'
   | 'stone'

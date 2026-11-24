@@ -212,6 +212,17 @@ export function cartTargets(
 }
 
 /**
+ * Kolik vozů druhu `kind` ves chce – `cartTargets(state)[kind]` (wagons.md – Kolik vozů ves chce);
+ * volné vozy nad ně ves nabízí na trhu (markets.md – Rozhodnutí plánu 3, bod 5).
+ */
+export function cartsWanted(
+  state: Pick<VillageState, 'pens' | 'draft' | 'carts'>,
+  kind: CartKind,
+): number {
+  return cartTargets(state)[kind];
+}
+
+/**
  * Vůz, který ves chce a nemá (ani se nevyrábí v žádné dílně tesaře) – dvoukolák napřed; jinak
  * null.
  */

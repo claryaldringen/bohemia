@@ -94,6 +94,29 @@ export function cartsAway(
 }
 
 /**
+ * Volné vozy druhu `kind` (markets.md – Rozhodnutí plánu 3, bod 4 – vozy na trhu): mimo
+ * `cartsAway` – ne s výpravou, u nákupu ani na cestě pro kování (`ironTrip`); v pořadí id.
+ */
+export function idleCartsOf(state: VillageState, kind: CartKind): Cart[] {
+  const away = cartsAway(state);
+  return villageCarts(state)
+    .filter((c) => c.kind === kind && !away.has(c.id))
+    .sort((a, b) => a.id - b.id);
+}
+
+/**
+ * Prodá (odebere) nejmladší volný vůz druhu `kind` – nejvyšší id (mutuje stav; markets.md –
+ * Rozhodnutí plánu 3, bod 4); bez volného vozu nic. Poslední vůz vsi smaže `carts` (bez vozů
+ * prázdné, jako `takeLeavingCart`).
+ */
+export function removeIdleCart(state: VillageState, kind: CartKind): void {
+  const cart = idleCartsOf(state, kind).at(-1);
+  if (!cart) return;
+  state.carts = villageCarts(state).filter((c) => c.id !== cart.id);
+  if (state.carts.length === 0) delete state.carts;
+}
+
+/**
  * Vozy, které dosloužily (mutuje stav – krok dne): vůz starší než CARTS.lifespanYears zmizí,
  * kronika `cart-worn-out`. Vůz na výpravě doslouží až po návratu.
  */

@@ -2,7 +2,7 @@
 // nové.“): jen to, co ves sama má – seznamy v pořadí panelu a druhy dobytka a koní. Smyšlení
 // sousedé za krajem mapy skončili (markets.md – Pravidla 1); seznamy dál nesou výpravy na cestě,
 // zásilky vazalů a platby (ohrada koní).
-import type { CattleGood, HorseGood, TradeGood } from '../types';
+import type { CartGood, CartKind, CattleGood, HorseGood, TradeGood } from '../types';
 
 /** Druhy dobytka v obchodu v pořadí panelu (trade.md – Dobytek ve třech druzích). */
 export const CATTLE_GOODS: readonly CattleGood[] = ['cows', 'youngOxen', 'trainedOxen'];
@@ -26,8 +26,19 @@ export function isLivestockGood(good: string): good is CattleGood | HorseGood {
 }
 
 /**
+ * Vozy na trhu v pořadí panelu – dvoukoláky, pak čtyřkoláky (jako `CART_KINDS`; markets.md –
+ * Rozhodnutí plánu 3, bod 4).
+ */
+export const CART_GOODS: readonly CartGood[] = ['twoWheelCarts', 'fourWheelCarts'];
+
+/** Druh vozu zboží `good` (dvoukoláky – dvoukolák, čtyřkoláky – čtyřkolák). */
+export function cartGoodKind(good: CartGood): CartKind {
+  return good === 'twoWheelCarts' ? 'two-wheel' : 'four-wheel';
+}
+
+/**
  * Zboží obchodu v pořadí panelu a zápočtu (obilí a jídlo, dobytek, koně a dřevo, výrobky řemesel –
- * nástroje a dřevěné nářadí za keramikou, markets.md – Rozhodnutí plánu 3, bod 4).
+ * nástroje, dřevěné nářadí a vozy za keramikou, markets.md – Rozhodnutí plánu 3, bod 4).
  */
 export const TRADE_GOODS: readonly TradeGood[] = [
   'grain',
@@ -40,6 +51,7 @@ export const TRADE_GOODS: readonly TradeGood[] = [
   'pottery',
   'tools',
   'woodTools',
+  ...CART_GOODS,
   'ironBars',
   'charcoal',
   'stone',
@@ -50,14 +62,15 @@ export const TRADE_GOODS: readonly TradeGood[] = [
 ];
 
 /**
- * Kusové zboží v pořadí panelu – dobytek, koně, klády, kámen (m³), kůže a kožešiny (jednotky jako
- * `TRADE_GOOD_NAMES` ve webu: kusy a m³); ostatní zboží je v kg. Na trhu se prodává jen po celých
- * kusech, kg se dělí libovolně (markets.md – Rozhodnutí plánu 2, bod 4).
+ * Kusové zboží v pořadí panelu – dobytek, koně, klády, vozy, kámen (m³), kůže a kožešiny (jednotky
+ * jako `TRADE_GOOD_NAMES` ve webu: kusy a m³); ostatní zboží je v kg. Na trhu se prodává jen po
+ * celých kusech, kg se dělí libovolně (markets.md – Rozhodnutí plánu 2, bod 4).
  */
 export const PIECE_GOODS: readonly TradeGood[] = [
   ...CATTLE_GOODS,
   ...HORSE_GOODS,
   'logs',
+  ...CART_GOODS,
   'stone',
   'hides',
   'furs',

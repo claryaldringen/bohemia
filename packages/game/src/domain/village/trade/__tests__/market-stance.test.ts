@@ -4,6 +4,7 @@ import { grainOnHandKg, grainReserveKg } from '../../../vassalage/spare';
 import { cartIronBarsKg, craftCoverage, craftTargets } from '../../crafts/crafts';
 import { FORGE } from '../../crafts/iron-rates';
 import { toolNeedKg } from '../../crafts/iron';
+import { cartsWanted, missingCart } from '../../livestock/draft';
 import { horsesWanted } from '../../livestock/horse-breeding';
 import { breedingCows, oxenCalvesWanted } from '../../livestock/husbandry';
 import { LIVESTOCK } from '../../livestock/livestock';
@@ -153,5 +154,67 @@ describe('výrobky dílen na trhu (Rozhodnutí plánu 3, bod 5)', () => {
     expect(marketStance(s, day).offer.ironBars ?? 0).toBe(0);
     withWorkshop(s, 'smith', 701);
     expect(marketStance(s, day).wants.ironBars ?? 0).toBe(0);
+  });
+});
+
+// Vozy (markets.md – Rozhodnutí plánu 3, bod 5): volné vozy nad vozy, které ves chce, nabízí; bez
+// vlastního pracujícího tesaře shání vůz, který chybí (`missingCart`).
+describe('vozy na trhu (Rozhodnutí plánu 3, bod 5)', () => {
+  /** Ves s ohradou volů (vycvičený pár), které se loni vyplatil právě jeden dvoukolák. */
+  function cartVillage(): VillageState {
+    const s = village(50_000);
+    s.pens = [
+      ...(s.pens ?? []),
+      {
+        id: 900,
+        cell: { x: 3, y: 4 },
+        x: 50,
+        z: 60,
+        builtDay: day - 800,
+        team: { readyDay: day - 10 },
+        training: null,
+      },
+    ];
+    s.draft = {
+      lastYear: { from: day - 365, 'two-wheel': [100], 'four-wheel': [], plough: [], oxCost: 12 },
+    };
+    return s;
+  }
+
+  it('bez tesaře a bez vozu shání dvoukolák (missingCart), s tesařem ne', () => {
+    const s = cartVillage();
+    expect(missingCart(s)).toBe('two-wheel');
+    expect(marketStance(s, day).wants.twoWheelCarts).toBe(1);
+    expect(marketStance(s, day).wants.fourWheelCarts ?? 0).toBe(0);
+    expect(marketStance(s, day).offer.twoWheelCarts ?? 0).toBe(0);
+    withWorkshop(s, 'carpenter', 700);
+    expect(marketStance(s, day).wants.twoWheelCarts ?? 0).toBe(0);
+  });
+
+  it('s tesařem a 2 volnými dvoukoláky při cartsWanted 1 nabízí jeden', () => {
+    const s = cartVillage();
+    withWorkshop(s, 'carpenter', 700);
+    s.carts = [
+      { id: 1, kind: 'two-wheel', builtDay: day - 30 },
+      { id: 2, kind: 'two-wheel', builtDay: day - 20 },
+    ];
+    expect(cartsWanted(s, 'two-wheel')).toBe(1);
+    expect(cartsWanted(s, 'four-wheel')).toBe(0);
+    expect(marketStance(s, day).offer.twoWheelCarts).toBe(1);
+    expect(marketStance(s, day).offer.fourWheelCarts ?? 0).toBe(0);
+    expect(marketStance(s, day).wants.twoWheelCarts ?? 0).toBe(0);
+    // vůz na cestě pro kování není volný – nad vozy, které ves chce, už nic nezbývá
+    s.dwellings.find((d) => d.id === 700)!.workshop!.ironTrip = {
+      personId: 1,
+      son: false,
+      startedDay: day,
+      days: 4,
+      done: 0,
+      kg: 3,
+      grainKg: 0,
+      to: { kind: 'neighbour', name: 'Lhota', direction: 'E', trailId: null, edge: { x: 0, z: 0 } },
+      cartId: 2,
+    };
+    expect(marketStance(s, day).offer.twoWheelCarts ?? 0).toBe(0);
   });
 });

@@ -405,6 +405,7 @@ export {
 // výprava na trh – domovská ves (markets.md – Rozhodnutí plánu 2, body 1, 2 a 6): kontroly
 // a odchod, lidé a vozy pryč v pevné dny, výsledek trhu domů (kroky dne volá simulate.ts a schránka)
 export {
+  MARKET_NO_OXEN,
   MARKET_NO_PEOPLE,
   MARKET_OVER_STOCK,
   MARKET_STAY,
@@ -416,6 +417,7 @@ export {
   marketCrew,
   marketTravelDays,
   marketTripsDay,
+  oxenForCarts,
   planMarketTrip,
   marketFreeAdults,
   type MarketCheck,

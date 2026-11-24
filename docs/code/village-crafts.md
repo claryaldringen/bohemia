@@ -247,7 +247,12 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   (jen když nějaké je) a `woodToolsLaborFactor` násobí práci vsi s `villageLaborFactor`
   (`villageProductivity` v `simulate-plan.ts` – i plán osevu). **Vozy** (`carts.ts`):
   `VillageState.carts` (`Cart` – druh, `builtDay`), `cartTargets` (vozy, které se vyplatí –
-  `draft.ts`, Ohrada volů níž), `retireCarts` (10 let, `cart-worn-out`); svoz – `haulCartsToday`
+  `draft.ts`, Ohrada volů níž; `cartsWanted` – po druzích), `retireCarts` (10 let,
+  `cart-worn-out`). **Vůz z trhu** (markets.md – Rozhodnutí plánu 3, bod 4): volné vozy
+  (`idleCartsOf`) jsou zboží trhu – ves nabízí volné nad `cartsWanted`, bez tesaře shání vůz
+  `missingCart`; prodá se nejmladší volný (`removeIdleCart`), koupený přibude jako nový
+  (`addCart`) a domů ho dovedou voli, kteří jdou s výpravou (`MarketTrip.oxen`) – village-trade.md,
+  Vozy na trhu a Výprava na trh. Svoz – `haulCartsToday`
   (dvoukoláky doma s volem, který neorá – ve dny orby jdou páry napřed), `planTaskHauls` v `simulate-hauls.ts` (sklizeň –
   `harvestCarryShare`, seč – `haulShare.hay`; `haulPlan` / `haulProgress` / `haulAvailable` –
   nejvýš podíl celé úlohy, převzaté v `CropWork.hauled`, `HayMowing.hauled`), `haulLogs` (klády

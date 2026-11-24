@@ -45,6 +45,15 @@ export const TRADE_GOOD_VALUES = {
   // na kg – rešerše vozů); nesou se kg za kg
   tools: { valueKg: 60, carryKg: 1 },
   woodTools: { valueKg: 2, carryKg: 1 },
+  // vozy za kus (markets.md – Rozhodnutí plánu 3, bod 4): obnovená cena dřívějšího nákupu vozu
+  // u tesaře souseda `cartValueKg` @ b4f8dadc (crafts.md – Nákup u sousedů, Vozy; návrh Clauda –
+  // jen z čísel, která už jsou): práce tesaře (CARPENTRY.cartManDays) × den tesaře v obilí jako
+  // dřevěné nářadí (woodTools 2 kg ÷ CARPENTRY.woodToolsManDaysPerKg 0,5 čd = 4 kg za den), klády
+  // (CARPENTRY.cartLogs) po 40 a kování (CART_IRON.kg) za hodnotu nástrojů 60 – dvoukolák
+  // 25 × 4 + 1 × 40 + 3 × 60 = 320, čtyřkolák 50 × 4 + 2 × 40 + 6 × 60 = 640; nikdo ho nenese,
+  // táhnou ho voli, kteří jdou s výpravou (`MarketTrip.oxen`)
+  twoWheelCarts: { valueKg: 320, carryKg: 0 },
+  fourWheelCarts: { valueKg: 640, carryKg: 0 },
   charcoal: { valueKg: 0.5, carryKg: 1 },
   ironBars: { valueKg: 45, carryKg: 1 },
   cows: { valueKg: 600, carryKg: 0 },

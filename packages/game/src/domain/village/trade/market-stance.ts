@@ -1,10 +1,11 @@
 // Co hostitelská ves na trhu nabízí a shání (markets.md – Pravidla 3, Rozhodnutí plánu 2, bod 5):
 // přebytek nad vlastní potřebou podle výpočtu potřeby jako u dávek. Ten výpočet (výhled vsi,
 // `vassalage/spare.ts`) existuje pro makrokomodity – obilí, dobytek, koně, klády a kámen – a pro
-// výrobky dílen jejich potřeba a zásoba řemeslníků (nástroje, keramika, dřevěné nářadí, hřivny –
-// Rozhodnutí plánu 3, bod 5); ostatní zboží (jídlo, med, kůže…) se vyměňuje jen mezi výpravami.
-// Čisté funkce, stav nemění.
+// výrobky dílen jejich potřeba a zásoba řemeslníků (nástroje, keramika, dřevěné nářadí, hřivny,
+// vozy – Rozhodnutí plánu 3, bod 5); ostatní zboží (jídlo, med, kůže…) se vyměňuje jen mezi
+// výpravami. Čisté funkce, stav nemění.
 import { cattleSpare, grainOnHandKg, grainReserveKg, grainSpareKg } from '../../vassalage/spare';
+import { idleCartsOf } from '../crafts/carts';
 import { ownCraftsmanWorks } from '../crafts/craft-buying';
 import {
   craftCoverage,
@@ -14,13 +15,13 @@ import {
   smithBarsTargetKg,
 } from '../crafts/crafts';
 import { ironBarsKg, toolEquipmentKg, toolNeedKg } from '../crafts/iron';
-import { oxenTrainingTarget } from '../livestock/draft';
+import { cartsWanted, missingCart, oxenTrainingTarget } from '../livestock/draft';
 import { horsesWanted } from '../livestock/horse-breeding';
 import { breedingCows, oxenCalvesWanted } from '../livestock/husbandry';
 import { oxenComing, villageOxen } from '../livestock/oxen';
 import { stewardOutlook } from '../steward/steward-outlook';
 import type { HorseGood, MarketStance, TradeGood, TradeGoods, VillageState } from '../types';
-import { HORSE_GOODS } from './goods';
+import { CART_GOODS, HORSE_GOODS, cartGoodKind } from './goods';
 import { horsesForSale, horsesOf } from './horse-trade';
 import { villageGoodStock } from './trade';
 
@@ -38,10 +39,11 @@ const WANTED_KEY: Record<HorseGood, 'foals' | 'mares' | 'riding'> = {
  * Co ves v den `day` na trhu nabízí a shání (Rozhodnutí plánu 2, bod 5; Rozhodnutí plánu 3,
  * bod 5). Nabídka je nejvýš `villageGoodStock`, klády a kámen jen nabízí (celá hromada, pojistka na
  * ně není). Výrobky dílen nad vlastní potřebu nabízí (nástroje nad `toolNeedKg`, keramika a dřevěné
- * nářadí nad `craftTargets`, hřivny nad `smithBarsTargetKg`), do potřeby je shání jen bez vlastního
- * pracujícího řemeslníka (`ownCraftsmanWorks`) – hřivny jen na vozy čekající na kování
- * (`ironOrderBarsKg`). Výhled (`stewardOutlook`) se počítá jednou a `villageSpare` celý se nevolá.
- * Prázdné položky se nezapisují.
+ * nářadí nad `craftTargets`, hřivny nad `smithBarsTargetKg`, volné vozy nad `cartsWanted`), do
+ * potřeby je shání jen bez vlastního pracujícího řemeslníka (`ownCraftsmanWorks`) – hřivny jen na
+ * vozy čekající na kování (`ironOrderBarsKg`), vůz jeden druhu `missingCart`. Výhled
+ * (`stewardOutlook`) se počítá jednou a `villageSpare` celý se nevolá. Prázdné položky se
+ * nezapisují.
  */
 export function marketStance(state: VillageState, day: number): MarketStance {
   const offer: TradeGoods = {};
@@ -94,6 +96,16 @@ export function marketStance(state: VillageState, day: number): MarketStance {
   }
   if (!ownCraftsmanWorks(state, 'potter')) want('pottery', targets.potteryKg - stocks.potteryKg);
   if (!ownCraftsmanWorks(state, 'carpenter')) want('woodTools', targets.woodToolsKg - woodTools);
+
+  // vozy: volné nad vozy, které ves chce, nabízí; bez vlastního pracujícího tesaře shání jeden vůz
+  // druhu, který chybí (`missingCart`)
+  for (const good of CART_GOODS) {
+    const kind = cartGoodKind(good);
+    give(good, idleCartsOf(state, kind).length - cartsWanted(state, kind));
+  }
+  const missing = ownCraftsmanWorks(state, 'carpenter') ? null : missingCart(state);
+  const missingGood = CART_GOODS.find((good) => cartGoodKind(good) === missing);
+  if (missingGood) want(missingGood, 1);
 
   // klády a kámen: celá hromada, nikdy ve wants
   give('logs', villageGoodStock(state, 'logs', day));

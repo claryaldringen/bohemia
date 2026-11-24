@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../../calendar';
 import { foundVillage } from '../../core/actions';
-import { TRADE, TRADE_GOOD_VALUES } from '../../rules';
+import { CARPENTRY, CART_IRON, TRADE, TRADE_GOOD_VALUES } from '../../rules';
 import { advanceVillage } from '../../core/simulate';
-import { tradeCarts } from '../../crafts/carts';
-import { TRADE_GOODS, isPieceGood } from '../goods';
+import { idleCartsOf, removeIdleCart, tradeCarts } from '../../crafts/carts';
+import { CART_GOODS, TRADE_GOODS, cartGoodKind, isPieceGood } from '../goods';
 import { initialPrice } from '../market-prices';
 import {
   addGood,
@@ -132,7 +132,8 @@ describe('nástroje a dřevěné nářadí (markets.md – Rozhodnutí plánu 3,
     // 60 ÷ 15 = 4 mince za kg nástrojů
     expect(initialPrice('tools')).toBe(4);
     const i = TRADE_GOODS.indexOf('pottery');
-    expect(TRADE_GOODS.slice(i, i + 4)).toEqual(['pottery', 'tools', 'woodTools', 'ironBars']);
+    // za dřevěným nářadím vozy (Rozhodnutí plánu 3, bod 4 – vozy na trhu níž), pak hřivny
+    expect(TRADE_GOODS.slice(i, i + 3)).toEqual(['pottery', 'tools', 'woodTools']);
     expect(isPieceGood('tools')).toBe(false);
     expect(isPieceGood('woodTools')).toBe(false);
   });
@@ -169,6 +170,81 @@ describe('nástroje a dřevěné nářadí (markets.md – Rozhodnutí plánu 3,
     delete bare.crafts;
     addGood(bare, 'woodTools', 4, DAY);
     expect(bare.crafts).toMatchObject({ woodToolsKg: 4 });
+  });
+});
+
+// Vozy na trhu (markets.md – Rozhodnutí plánu 3, bod 4): kusové zboží za dřevěným nářadím, zásoba
+// jsou volné vozy druhu, prodá se nejmladší volný, koupený je nový.
+describe('vozy na trhu (markets.md – Rozhodnutí plánu 3, bod 4)', () => {
+  it('hodnota 320 a 640 kg obilí za kus jako dřívější cena vozu, nese se 0 – táhnou voli', () => {
+    expect(TRADE_GOOD_VALUES.twoWheelCarts).toEqual({ valueKg: 320, carryKg: 0 });
+    expect(TRADE_GOOD_VALUES.fourWheelCarts).toEqual({ valueKg: 640, carryKg: 0 });
+    // dřívější cartValueKg: práce tesaře × den tesaře v obilí (2 kg za 0,5 čd dřevěného nářadí)
+    // + klády + kování za hodnotu nástrojů – 100 + 40 + 180 a 200 + 80 + 360
+    const dayKg = TRADE_GOOD_VALUES.woodTools.valueKg / CARPENTRY.woodToolsManDaysPerKg;
+    for (const good of CART_GOODS) {
+      const kind = cartGoodKind(good);
+      expect(
+        CARPENTRY.cartManDays[kind] * dayKg +
+          CARPENTRY.cartLogs[kind] * TRADE_GOOD_VALUES.logs.valueKg +
+          CART_IRON.kg[kind] * TRADE_GOOD_VALUES.tools.valueKg,
+      ).toBe(TRADE_GOOD_VALUES[good].valueKg);
+    }
+    expect(CART_GOODS.map(cartGoodKind)).toEqual(['two-wheel', 'four-wheel']);
+    const i = TRADE_GOODS.indexOf('woodTools');
+    expect(TRADE_GOODS.slice(i, i + 4)).toEqual([
+      'woodTools',
+      'twoWheelCarts',
+      'fourWheelCarts',
+      'ironBars',
+    ]);
+    expect(isPieceGood('twoWheelCarts')).toBe(true);
+    expect(isPieceGood('fourWheelCarts')).toBe(true);
+  });
+
+  it('zásoba: volné vozy druhu – vůz s výpravou na cestě se nepočítá', () => {
+    const s = trading();
+    s.carts = [
+      { id: 1, kind: 'two-wheel', builtDay: DAY - 300 },
+      { id: 2, kind: 'four-wheel', builtDay: DAY - 200 },
+      { id: 3, kind: 'two-wheel', builtDay: DAY - 100 },
+    ];
+    expect(villageGoodStock(s, 'twoWheelCarts', DAY)).toBe(2);
+    expect(villageGoodStock(s, 'fourWheelCarts', DAY)).toBe(1);
+    const away = onTheWay(s, { carts: [3] });
+    expect(idleCartsOf(away, 'two-wheel').map((c) => c.id)).toEqual([1]);
+    expect(villageGoodStock(away, 'twoWheelCarts', DAY)).toBe(1);
+    delete s.carts;
+    expect(villageGoodStock(s, 'twoWheelCarts', DAY)).toBe(0);
+  });
+
+  it('prodá se nejmladší volný vůz druhu, koupený je nový (addCart); bez volného nic', () => {
+    const s = onTheWay(trading(), { carts: [3] });
+    s.carts = [
+      { id: 1, kind: 'two-wheel', builtDay: DAY - 300 },
+      { id: 2, kind: 'two-wheel', builtDay: DAY - 200 },
+      { id: 3, kind: 'two-wheel', builtDay: DAY - 100 },
+      { id: 4, kind: 'four-wheel', builtDay: DAY - 50 },
+    ];
+    // vůz 3 je s výpravou – prodá se 2, pak 1; čtyřkolák zůstane
+    addGood(s, 'twoWheelCarts', -1, DAY);
+    expect(s.carts.map((c) => c.id)).toEqual([1, 3, 4]);
+    addGood(s, 'twoWheelCarts', -2, DAY);
+    expect(s.carts.map((c) => c.id)).toEqual([3, 4]);
+    addGood(s, 'fourWheelCarts', 2, DAY + 1);
+    expect(s.carts).toEqual([
+      { id: 3, kind: 'two-wheel', builtDay: DAY - 100 },
+      { id: 4, kind: 'four-wheel', builtDay: DAY - 50 },
+      { id: 5, kind: 'four-wheel', builtDay: DAY + 1 },
+      { id: 6, kind: 'four-wheel', builtDay: DAY + 1 },
+    ]);
+    // poslední vůz pryč – vozy vsi zmizí (bez vozů prázdné)
+    const one = trading();
+    one.carts = [{ id: 7, kind: 'four-wheel', builtDay: DAY }];
+    removeIdleCart(one, 'four-wheel');
+    expect(one.carts).toBeUndefined();
+    removeIdleCart(one, 'four-wheel');
+    expect(one.carts).toBeUndefined();
   });
 });
 

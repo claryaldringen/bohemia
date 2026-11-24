@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { advanceVillage } from '../../core/simulate';
+import { villageCarts } from '../../crafts/carts';
 import { toolEquipmentKg, toolNeedKg } from '../../crafts/iron';
+import { oxenHome } from '../../livestock/oxen';
 import { CRAFT_NEEDS } from '../../rules';
 import type { ChronicleEvent, MarketResult } from '../../types';
 import { marketResultRef } from '../market';
@@ -151,5 +153,49 @@ describe('výprava na trh mezi dvěma vsemi (markets.md – Co se ověří, bod 
       10 * (1 - CRAFT_NEEDS.toolWearPerYear / 365),
       9,
     );
+  });
+
+  // Vozy (markets.md – Rozhodnutí plánu 3, body 4 a 5): H bez tesaře koupí dvoukolák od M s tesařem
+  // za obilí; koupený vůz táhne domů vůl, který jde s výpravou.
+  it('vůz za obilí: H o vůz víc, M o ten s vyšším id méně, voli H doma v returnDay', () => {
+    const h = homeVillage();
+    // čtyřkolák s párem volů poveze obilí, další 2 vycvičení voli jsou volní
+    h.pens!.find((p) => p.id === 900)!.oxen = Array.from({ length: 4 }, () => ({
+      trainedDay: D - 10,
+    }));
+    const m = marketVillage();
+    withWorkshop(m, 'carpenter', 700);
+    m.carts = [
+      { id: 1, kind: 'two-wheel', builtDay: D - 400 },
+      { id: 2, kind: 'two-wheel', builtDay: D - 300 },
+    ];
+    // M bez ohrady volů žádný vůz nechce – nabízí oba, shání obilí
+    expect(marketStance(m, D).offer.twoWheelCarts).toBe(2);
+    expect(marketStance(m, D).wants.grain).toBeGreaterThan(400);
+    const order = { give: { grain: 400 }, wants: { twoWheelCarts: 1 }, stayDays: 1 };
+    const sent = departMarket(h, D, order, target);
+    if (!sent.ok) throw new Error(sent.reason);
+    expect(sent.trip).toMatchObject({ oxen: 1, returnDay: D + 2 });
+    // na cestě čtyřkolák se 2 voly a vůl pro koupený vůz
+    expect(oxenHome(sent.state, D + 1)).toBe(1);
+    const m1 = advanceVillage(m, D + 1, null, null, asEvents(sent.state.outbox!));
+    const out = m1.outbox!.find((x) => x.ref === marketResultRef(sent.trip.key))!;
+    const result = (out.body as { result: MarketResult }).result;
+    // dvoukolák 320 kg obilí (21⅓ mince); zbylých 80 kg se vrátí
+    expect(result.bought).toEqual({ twoWheelCarts: 1 });
+    expect(result.sold.grain).toBeCloseTo(320, 6);
+    expect(result.unsold.grain).toBeCloseTo(80, 6);
+    expect(villageCarts(m1).map((c) => c.id)).toEqual([1]);
+    const home = withoutOutbox(sent.state);
+    const h1 = advanceVillage(home, D + 2, null, null, asEvents(m1.outbox!));
+    expect(villageCarts(h1)).toHaveLength(villageCarts(h).length + 1);
+    // koupený vůz je nový
+    expect(villageCarts(h1).at(-1)).toEqual({ id: 2, kind: 'two-wheel', builtDay: D + 2 });
+    expect(oxenHome(h1, D + 2)).toBe(4);
+    expect(h1.trade!.expeditions.filter((e) => e.kind === 'market')).toEqual([]);
+    // voli jsou doma v returnDay i bez výsledku trhu (výprava čeká na zboží)
+    const late = advanceVillage(home, D + 2, null, null);
+    expect(oxenHome(late, D + 2)).toBe(4);
+    expect(late.trade!.expeditions.find((e) => e.kind === 'market')!.market!.oxen).toBeUndefined();
   });
 });

@@ -218,6 +218,12 @@ export interface MarketTrip {
   travelDays: number;
   arriveDay: number;
   returnDay: number;
+  /**
+   * Vycvičení voli bez vozu, kteří jdou s výpravou a potáhnou koupené vozy domů (markets.md –
+   * Rozhodnutí plánu 3, bod 4; `oxenForCarts` ze seznamu) – pryč jako voli vozů výpravy
+   * (`oxenAway`), v `returnDay` je `marketTripsDay` smaže. Chybí = žádní.
+   */
+  oxen?: number;
 }
 
 /**
