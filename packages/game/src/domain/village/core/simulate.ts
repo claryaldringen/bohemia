@@ -40,6 +40,7 @@ import {
 } from '../people/population';
 import { advanceGroupStarvation } from '../people/hunger-groups';
 import { keepManor } from '../people/manor';
+import { fillOrders } from '../trade/craft-orders';
 import { marketDay } from '../trade/market';
 import { marketTripsDay } from '../trade/market-trip';
 import { finishExpeditions } from '../trade/trade';
@@ -422,13 +423,16 @@ function workDayStep(
   return { toil, lordField, disasterEvents };
 }
 
-/** Po práci: opotřebení, škody zvěře, stezky a cesty, výpravy a nákupy, kování vozů, dokončené stavby, přestavby a den správce. */
+/** Po práci: hotové zakázky, opotřebení, škody zvěře, stezky a cesty, výpravy a nákupy, kování vozů, dokončené stavby, přestavby a den správce. */
 function afterWorkDay(
   state: VillageState,
   day: number,
   landscape: Landscape | null,
   obstacles: ObstacleLayer | null,
 ): void {
+  // hotové zakázky z dnešní výroby – před opotřebením, které zásobu nad potřebou ubírá (markets.md
+  // – Rozhodnutí plánu 3, bod 6); ves bez zakázek nic
+  fillOrders(state, day);
   // nástroje a nádoby v užívání se opotřebí (crafts.md – Účinek)
   wearCraftStocks(state, day);
   // škody zvěře na polích po práci dne – nesklizené díly (wildlife.md – Škody)

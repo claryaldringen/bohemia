@@ -10,6 +10,7 @@ import type { AwayKind, DwellingType } from './types-people';
 import type { HuntKills, QuarryKind } from './types-wildlife';
 import type { FloodLevel, SummerWeather, TornadoStrength, WinterWeather } from './types-disasters';
 import type { CartJob, CartKind, JunctionShape } from './types-roads';
+import type { OrderGood } from './types-market';
 import type { Direction8 } from './types-state';
 import type {
   CraftPurchaseGoods,
@@ -730,6 +731,11 @@ export type ChronicleEvent = { day: number } & (
       unsold: TradeGoods;
       returned?: true;
     }
+  /**
+   * Zakázka ve vsi `villageName` (`villageId`) je hotová – hostitel ji ohlásil zprávou
+   * `order-ready` (markets.md – Rozhodnutí plánu 3, bod 6).
+   */
+  | { kind: 'order-ready'; villageName: string; villageId: string; good: OrderGood }
   /**
    * Vesničané koupili výrobky řemeslníků u souseda (crafts.md – Nákup u sousedů; nový nákup
    * zrušen – markets.md, Pravidla 1, zápis přibude jen s návratem nákupu uloženého na cestě) – kg

@@ -11,6 +11,7 @@ import { villageFoodNeed } from '../core/diet';
 import { villageManor } from '../people/manor';
 import { CRAFT_BUYING } from '../rules';
 import { sellPrice } from '../trade/trade';
+import { ORDER_CRAFT } from '../trade/goods';
 import { DIRECTION_VECTORS, builtTrail, trailTripDays } from '../trade/trail';
 import type {
   ChronicleEvent,
@@ -42,11 +43,11 @@ export type CraftProduct = keyof CraftPurchaseGoods;
 /** Výrobky řemeslníků v pořadí panelu a kroniky. */
 export const CRAFT_PRODUCTS: readonly CraftProduct[] = ['toolsKg', 'potteryKg', 'woodToolsKg'];
 
-/** Kdo výrobek dělá. */
+/** Kdo výrobek dělá – z jediné mapy řemesel výrobků `ORDER_CRAFT` (trade/goods.ts). */
 export const PRODUCT_CRAFT: Readonly<Record<CraftProduct, Craft>> = {
-  toolsKg: 'smith',
-  potteryKg: 'potter',
-  woodToolsKg: 'carpenter',
+  toolsKg: ORDER_CRAFT.tools,
+  potteryKg: ORDER_CRAFT.pottery,
+  woodToolsKg: ORDER_CRAFT.woodTools,
 };
 
 /** Cesta ke kraji mapy ve směru – po hotové zemské stezce, nebo krajinou. */

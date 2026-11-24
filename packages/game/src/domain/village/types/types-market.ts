@@ -133,6 +133,52 @@ export interface MarketVisitor {
 }
 
 /**
+ * Výrobek dílny, na který jde zakázka (markets.md – Rozhodnutí plánu 3, bod 6): nástroje, keramika,
+ * dřevěné nářadí, hřivny a vozy.
+ */
+export type OrderGood =
+  'tools' | 'pottery' | 'woodTools' | 'ironBars' | 'twoWheelCarts' | 'fourWheelCarts';
+
+/**
+ * Zakázka u hostitele (`VillageMarket.orders`; markets.md – Rozhodnutí plánu 3, bod 6): ves
+ * kupujícího, zboží, množství a den zápisu (odjezd výpravy). `readyDay` – den, kdy ji zásoba nad
+ * vlastní potřebou pokryla a hostitel ji ohlásil (`order-ready`); chybí = ještě ne.
+ */
+export interface CraftOrder {
+  villageId: string;
+  name: string;
+  good: OrderGood;
+  amount: number;
+  day: number;
+  readyDay?: number;
+}
+
+/**
+ * Zakázka kupujícího (`VillageState.orders`; markets.md – Rozhodnutí plánu 3, bod 6): ves
+ * hostitele, zboží, množství, den výsledku výpravy a stav – `open` (hostitel ji vzal), `ready`
+ * (hostitel ji ohlásil jako hotovou), `refused` (výprava zboží nekoupila ani neobjednala).
+ */
+export interface PlacedOrder {
+  villageId: string;
+  name: string;
+  good: OrderGood;
+  amount: number;
+  day: number;
+  status: 'open' | 'ready' | 'refused';
+}
+
+/**
+ * Ohlášení hotové zakázky – tělo zprávy `order-ready` pro kupujícího (markets.md – Rozhodnutí
+ * plánu 3, bod 6): `villageId` a `name` jsou hostitel.
+ */
+export interface OrderReady {
+  villageId: string;
+  name: string;
+  good: OrderGood;
+  amount: number;
+}
+
+/**
  * Trh vsi (markets.md – Pravidla 3 a 4, Rozhodnutí plánu 2): ceny, výpravy na trhu a paměť
  * příjezdů obchodníků. Chybí = na trhu ještě nikdo nebyl.
  */
@@ -145,6 +191,11 @@ export interface VillageMarket {
   nextOrder: number;
   /** Posledních `MARKET.report.traders` příjezdů, pořadí zápisu. */
   arrivals: MarketArrivalNote[];
+  /**
+   * Zakázky u řemeslníků vsi (markets.md – Rozhodnutí plánu 3, bod 6) – jedna na ves a zboží,
+   * v pořadí zápisu; chybí = žádné.
+   */
+  orders?: CraftOrder[];
 }
 
 /**
@@ -167,12 +218,21 @@ export interface MarketResult {
   prices?: MarketPrices;
   /** Hostitel zanikl – výprava se vrátila se vším, co drží. */
   returned?: true;
+  /**
+   * Zakázky, které hostitel při odjezdu výpravy zapsal (markets.md – Rozhodnutí plánu 3, bod 6);
+   * chybí = žádné.
+   */
+  ordered?: TradeGoods;
 }
 
-/** Zpráva trhu pro jinou ves (markets.md – Rozhodnutí plánu 2, bod 6). */
+/**
+ * Zpráva trhu pro jinou ves (markets.md – Rozhodnutí plánu 2, bod 6; Rozhodnutí plánu 3, bod 6 –
+ * ohlášení hotové zakázky `order-ready`, zpráva bez nákladu).
+ */
 export type MarketMailBody =
   | { kind: 'market-arrive'; arrival: MarketArrival }
-  | { kind: 'market-result'; result: MarketResult };
+  | { kind: 'market-result'; result: MarketResult }
+  | { kind: 'order-ready'; ready: OrderReady };
 
 /**
  * Zpráva v odchozí schránce vsi (`VillageState.outbox`) – do schránky vsi `villageId` na den `day`

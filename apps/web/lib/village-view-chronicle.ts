@@ -1623,6 +1623,9 @@ export function chronicleText(event: ChronicleEvent, villageName: string, seed?:
       return marketDepartedText(event);
     case 'market-returned':
       return marketReturnedText(event);
+    case 'order-ready':
+      // hotová zakázka u řemeslníka jiné vsi (markets.md – Rozhodnutí plánu 3, bod 6)
+      return `Zakázka ve vsi ${event.villageName} je hotová.`;
     case 'newcomer':
       return newcomerText(event.direction, event.group, event.people);
     case 'structure-fell':

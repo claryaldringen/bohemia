@@ -234,8 +234,10 @@ export function missingCart(
   return CART_KINDS.find((kind) => have[kind] < targets[kind]) ?? null;
 }
 
-/** Vozy, které ves má, i ty, které se dělají v dílně tesaře, po druzích. */
-function cartsHad(state: Pick<VillageState, 'carts' | 'dwellings'>): Record<CartKind, number> {
+/** Vozy, které ves má (i na cestě), a ty, které se dělají v dílně tesaře, po druzích. */
+export function cartsHad(
+  state: Pick<VillageState, 'carts' | 'dwellings'>,
+): Record<CartKind, number> {
   const have = ownedCarts(state);
   for (const d of state.dwellings) {
     const making = d.workshop?.cart;

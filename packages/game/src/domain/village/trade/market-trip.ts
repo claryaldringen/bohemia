@@ -38,6 +38,7 @@ import {
   isHorseGood,
   isPieceGood,
 } from './goods';
+import { rememberOrders } from './craft-orders';
 import { addHorses, takeHorses } from './horse-trade';
 import { marketArrivalRef, rememberNews } from './market';
 import { addGood, addMarketCarts, expeditionLaborNeed, takeCarts, villageGoodStock } from './trade';
@@ -439,7 +440,8 @@ export function marketTripsDay(state: VillageState, day: number): void {
  * `addHorses`, vozy po kusech se stářím `addMarketCarts` – neprodaný vůz se vrátí stejně starý,
  * koupený má stáří prodejce) – i když záznam výpravy chybí, nic nesmí zmizet. Výprava s klíčem
  * výsledku se smaže; je-li výprava a zpráva na pivo, ves si ji zapamatuje i s cenami trhu
- * (`rememberNews`).
+ * (`rememberNews`), a s výpravou i své zakázky u hostitele (`rememberOrders` – Rozhodnutí plánu 3,
+ * bod 6).
  * Vrací zápis kroniky `market-returned` (bez záznamu výpravy s prázdným jménem vsi).
  */
 export function applyMarketResult(
@@ -470,6 +472,7 @@ export function applyMarketResult(
     result.horses.map((h) => h.horse),
     day,
   );
+  if (trip) rememberOrders(state, day, trip, result);
   if (trade && trip) trade.expeditions = trade.expeditions.filter((e) => e.market !== trip);
   if (trip && result.report) {
     rememberNews(state, {

@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { advanceVillage } from '../../core/simulate';
 import { villageCarts } from '../../crafts/carts';
+import { smithBarsTargetKg } from '../../crafts/crafts';
+import { FORGE } from '../../crafts/iron-rates';
 import { toolEquipmentKg, toolNeedKg } from '../../crafts/iron';
 import { oxenHome } from '../../livestock/oxen';
 import { CRAFT_NEEDS } from '../../rules';
-import type { ChronicleEvent, MarketResult } from '../../types';
+import type { ChronicleEvent, MarketResult, VillageState } from '../../types';
 import { marketResultRef } from '../market';
 import { marketStance } from '../market-stance';
 import { departMarket } from '../market-trip';
@@ -198,4 +200,127 @@ describe('výprava na trh mezi dvěma vsemi (markets.md – Co se ověří, bod 
     expect(oxenHome(late, D + 2)).toBe(4);
     expect(late.trade!.expeditions.find((e) => e.kind === 'market')!.market!.oxen).toBeUndefined();
   });
+
+  // Zakázka (markets.md – Rozhodnutí plánu 3, bod 6; Martin 24. 11. 2026 – řemeslník bere obilí
+  // vždy): M s kovářem nemá nástroje na prodej a obilí neshání, přesto zakázku H vezme, vykove ji,
+  // ohlásí a druhé výpravě H nástroje prodá za obilí.
+  it('zakázka: M nástroje vykove, ohlásí a prodá druhé výpravě H za obilí', () => {
+    const h = homeVillage();
+    h.toolEquipmentKg = toolNeedKg(h, D) - 10;
+    const m = marketVillage(-1_000);
+    withWorkshop(m, 'smith', 700, { oreKg: 500 });
+    // hřivny na zakázku má kovář na skladě – z rudy by 10 kg nástrojů trvalo skoro rok
+    m.crafts = { charcoalKg: 5_000, potteryKg: 0 };
+    m.crafts.ironBarsKg = smithBarsTargetKg(m, D) + 10 * FORGE.barsKgPerKg;
+    m.toolEquipmentKg = toolNeedKg(m, D);
+    m.nearby = {
+      day: D - 1,
+      self: { villageId: 'm', name: 'Lhota' },
+      villages: [{ villageId: 'h', name: 'Vlkov', cells: 1, firstStep: 'W' }],
+    };
+    // M nástroje nenabízí (vybavení na potřebě) a obilí neshání (nad pojistkou)
+    expect(marketStance(m, D).offer.tools).toBeUndefined();
+    expect(marketStance(m, D).wants.grain).toBeUndefined();
+    const list = { give: { grain: 900 }, wants: { tools: 10 }, stayDays: 1 };
+    const first = departMarket(h, D, list, target);
+    if (!first.ok) throw new Error(first.reason);
+    const m1 = advanceVillage(m, D + 1, null, null, asEvents(first.state.outbox!));
+    // M nic neprodala – zakázka zapsaná při odjezdu, výsledek ji nese
+    expect(m1.market!.orders).toEqual([
+      { villageId: 'h', name: 'Vlkov', good: 'tools', amount: 10, day: D + 1 },
+    ]);
+    const firstResult = resultMail(m1, first.trip.key);
+    expect(firstResult.ordered).toEqual({ tools: 10 });
+    expect(firstResult.bought).toEqual({});
+    const h1 = advanceVillage(withoutOutbox(first.state), D + 2, null, null, [
+      resultEvent(m1, first.trip.key),
+    ]);
+    expect(h1.orders).toEqual([
+      { villageId: 'm', name: 'Lhota', good: 'tools', amount: 10, day: D + 2, status: 'open' },
+    ]);
+
+    // M kuje na zakázku a ohlásí ji (nejvýš 60 dní)
+    let mk = withoutOutbox(m1);
+    // M bez výpravy H – bez zakázky
+    let mAlone = advanceVillage(m, D + 1, null, null);
+    while (!mk.outbox?.some((x) => x.body.kind === 'order-ready') && mk.lastDay < D + 61) {
+      mk = advanceVillage(mk, mk.lastDay + 1, null, null);
+      mAlone = advanceVillage(mAlone, mAlone.lastDay + 1, null, null);
+    }
+    const ready = mk.outbox!.find((x) => x.body.kind === 'order-ready')!;
+    expect(ready).toEqual({
+      villageId: 'h',
+      day: mk.lastDay + 1,
+      ref: `order:m:h:tools:${D + 1}`,
+      body: {
+        kind: 'order-ready',
+        ready: { villageId: 'm', name: 'Lhota', good: 'tools', amount: 10 },
+      },
+    });
+    expect(mk.market!.orders).toEqual([
+      {
+        villageId: 'h',
+        name: 'Vlkov',
+        good: 'tools',
+        amount: 10,
+        day: D + 1,
+        readyDay: mk.lastDay,
+      },
+    ]);
+    // zásoba nad potřebou po opotřebení dne ohlášení
+    expect(toolEquipmentKg(mk) - toolNeedKg(mk, mk.lastDay)).toBeCloseTo(10, 1);
+
+    // H se dozví ráno dne zprávy a pošle druhou výpravu
+    const h2 = advanceVillage(h1, ready.day, null, null, asEvents([ready]));
+    expect(h2.chronicle.filter((e) => e.kind === 'order-ready')).toEqual([
+      { day: ready.day, kind: 'order-ready', villageName: 'Lhota', villageId: 'm', good: 'tools' },
+    ]);
+    expect(h2.orders![0]!.status).toBe('ready');
+    const second = departMarket(h2, ready.day, list, target);
+    if (!second.ok) throw new Error(second.reason);
+    const arrive = asEvents(second.state.outbox!);
+    const m2 = advanceVillage(withoutOutbox(mk), arrive[0]!.day, null, null, arrive);
+    const mAlone2 = advanceVillage(mAlone, arrive[0]!.day, null, null);
+    const result = resultMail(m2, second.trip.key);
+    type Held = Extract<ChronicleEvent, { kind: 'market-held' }>;
+    const held = m2.chronicle.filter((e): e is Held => e.kind === 'market-held').at(-1)!;
+    // H koupí nástroje zakázky – bez opotřebení vybavení M od ohlášení po trh (nejvýš 2 dny)
+    const bought = result.bought.tools!;
+    const wearPerDay = (toolNeedKg(mk, mk.lastDay) * CRAFT_NEEDS.toolWearPerYear) / 365;
+    expect(bought).toBeLessThanOrEqual(10);
+    expect(bought).toBeGreaterThan(10 - 2 * wearPerDay - 1e-9);
+    // obilí jen mezi H a M: co H prodala, M koupila; co M prodala, H koupila
+    expect(held.sold).toEqual({ tools: bought });
+    expect(held.bought).toEqual(result.sold);
+    expect(result.sold.grain).toBeGreaterThan(0);
+    expect(Object.keys(result.sold)).toEqual(['grain']);
+    // nástroje, které M vykovala navíc, odešly k H: M je po prodeji zase na potřebě (bez zbytku
+    // zakázky a dne opotřebení), M bez zakázky navíc nekovala
+    expect(Math.abs(toolEquipmentKg(m2) - toolNeedKg(m2, m2.lastDay))).toBeLessThan(2 * wearPerDay);
+    expect(toolEquipmentKg(mAlone2)).toBeLessThan(toolNeedKg(mAlone2, mAlone2.lastDay) + 1);
+    const back = resultEvent(m2, second.trip.key);
+    const h3 = advanceVillage(withoutOutbox(second.state), back.day, null, null, [back]);
+    const hAlone3 = advanceVillage(withoutOutbox(second.state), back.day, null, null);
+    expect(h3.chronicle.filter((e) => e.kind === 'market-returned').at(-1)).toMatchObject({
+      bought: { tools: bought },
+    });
+    // H přibyly koupené nástroje (ten den se v užívání opotřebí jako ostatní)
+    expect(toolEquipmentKg(h3) - toolEquipmentKg(hAlone3)).toBeCloseTo(
+      bought * (1 - CRAFT_NEEDS.toolWearPerYear / 365),
+      9,
+    );
+    // koupené zakázku uzavře
+    expect(h3.orders ?? []).toEqual([]);
+  });
 });
+
+/** Výsledek trhu výpravy `key` z odchozí schránky hostitele. */
+function resultMail(s: VillageState, key: string): MarketResult {
+  const out = s.outbox!.find((x) => x.ref === marketResultRef(key))!;
+  return (out.body as { result: MarketResult }).result;
+}
+
+/** Výsledek trhu výpravy `key` jako událost schránky domovské vsi. */
+function resultEvent(s: VillageState, key: string): ReturnType<typeof asEvents>[number] {
+  return asEvents(s.outbox!.filter((x) => x.ref === marketResultRef(key)))[0]!;
+}

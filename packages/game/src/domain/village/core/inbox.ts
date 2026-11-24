@@ -34,6 +34,7 @@ import {
   applyRefugeDepart,
   applyRefugeHidden,
 } from '../fortification/state/refugees';
+import { markOrderReady } from '../trade/craft-orders';
 import { joinMarket } from '../trade/market';
 import { applyMarketResult } from '../trade/market-trip';
 import { applyNearby } from '../trade/nearby';
@@ -303,8 +304,9 @@ export type VillageEventBody =
   | { kind: 'nearby'; nearby: VillageNearby }
   /**
    * Trh (markets.md – Rozhodnutí plánu 2, bod 6) – zprávy z odchozí schránky jiné vsi
-   * (`VillageMail`): výprava přijela na trh vsi (`market-arrive` – `joinMarket`) a výsledek trhu
-   * pro výpravu, která se vrací domů (`market-result` – `applyMarketResult`).
+   * (`VillageMail`): výprava přijela na trh vsi (`market-arrive` – `joinMarket`), výsledek trhu
+   * pro výpravu, která se vrací domů (`market-result` – `applyMarketResult`), a hotová zakázka
+   * (`order-ready` – `markOrderReady`, Rozhodnutí plánu 3, bod 6).
    */
   | MarketMailBody;
 
@@ -418,6 +420,8 @@ function applyEvent(state: VillageState, day: number, body: VillageEventBody): C
       return joinMarket(state, day, body.arrival);
     case 'market-result':
       return applyMarketResult(state, day, body.result);
+    case 'order-ready':
+      return markOrderReady(state, day, body.ready);
     case 'nearby':
       return applyNearby(state, day, body.nearby);
     default:

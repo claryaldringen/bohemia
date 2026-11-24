@@ -2,9 +2,10 @@
 // přijde událostí schránky (`joinMarket`) a každý tržní den (`marketDay` – v pořadí dne hned po
 // událostech schránky) se hostitelská ves a výpravy vyrovnají zápočtem (`clearMarket`) za ceny
 // trhu. Výprava po posledním dni pobytu odjede: výsledek (`marketResult`) jde do odchozí schránky
-// vsi (`VillageState.outbox`) k domovské vsi a padne na den jejího návratu. Trh počítá jen ze stavu
-// hostitele a událostí schránky toho dne, takže výsledek nezávisí na kouscích dopočtu. Mutuje stav
-// jako kroky dne.
+// vsi (`VillageState.outbox`) k domovské vsi a padne na den jejího návratu. Řemeslník bere za své
+// výrobky obilí a luštěniny vždy a nekoupený výrobek zapíše jako zakázku (craft-orders.ts –
+// Rozhodnutí plánu 3, body 5 a 6). Trh počítá jen ze stavu hostitele a událostí schránky toho dne,
+// takže výsledek nezávisí na kouscích dopočtu. Mutuje stav jako kroky dne.
 import { MARKET } from '../rules';
 import type {
   ChronicleEvent,
@@ -23,7 +24,15 @@ import type {
   VillageNews,
   VillageState,
 } from '../types';
-import { CART_GOODS, HORSE_GOODS, TRADE_GOODS, isCartGood, isHorseGood } from './goods';
+import { craftPayWants, recordOrders, reduceOrder } from './craft-orders';
+import {
+  CART_GOODS,
+  HORSE_GOODS,
+  TRADE_GOODS,
+  isCartGood,
+  isHorseGood,
+  isOrderGood,
+} from './goods';
 import { addHorses, takeHorses } from './horse-trade';
 import { clearMarket, partyTotals } from './market-clearing';
 import { nextPrices } from './market-prices';
@@ -148,7 +157,7 @@ export function joinMarket(
  */
 export function marketResult(
   from: MarketVisitor | MarketArrival,
-  extra: Pick<MarketResult, 'report' | 'prices' | 'returned'> = {},
+  extra: Pick<MarketResult, 'report' | 'prices' | 'returned' | 'ordered'> = {},
 ): MarketResult {
   const visitor = 'order' in from ? from : null;
   const carts = visitor
@@ -163,6 +172,16 @@ export function marketResult(
     ...(carts.length > 0 ? { carts } : {}),
     ...extra,
   });
+}
+
+/** Co hostitel ze seznamu `wants` po dnešních nákupech `bought` ještě shání (kopie, kladné položky). */
+function wantsLeft(wants: TradeGoods, bought: TradeGoods): TradeGoods {
+  const left = positiveGoods(wants);
+  for (const good of TRADE_GOODS) {
+    const into = bought[good] ?? 0;
+    if (into > 0 && left[good] !== undefined) takeFrom(left, good, into);
+  }
+  return left;
 }
 
 /** Prvních `n` koní druhu `good` výpravy (mutuje – z jejích koní odejdou). */
@@ -193,7 +212,8 @@ function takeVisitorCarts(visitor: MarketVisitor, good: CartGood, n: number): Ma
  * Výpravě ubude prodané z `goods` a koupené ze seznamu `wants` a přibude do `sold` a `bought`. Koně
  * jdou zápočtem jako počty po druzích a kupující dostane tytéž kusy: od hostitele podle
  * `takeHorses`, od výpravy první kusy druhu z jejích koní. Vozy jdou stejně po kusech se stářím
- * prodejce (`takeCarts`, `addMarketCarts`). Vrací, co hostitel prodal a koupil.
+ * prodejce (`takeCarts`, `addMarketCarts`). Prodej zakázkového zboží výpravě vsi, která ho má
+ * u hostitele v zakázce, zakázku zmenší (`reduceOrder`). Vrací, co hostitel prodal a koupil.
  */
 function settleTrades(
   state: VillageState,
@@ -241,6 +261,13 @@ function settleTrades(
     if (trade.buyer === HOST) hostCarts.push(...moved);
     else (byKey.get(trade.buyer)!.boughtCarts ??= []).push(...moved);
   }
+  // zakázky kupujících (Rozhodnutí plánu 3, bod 6): prodej vsi zakázku zmenší
+  for (const trade of clearing.trades) {
+    const buyer = trade.seller === HOST ? byKey.get(trade.buyer) : undefined;
+    if (buyer && isOrderGood(trade.good)) {
+      reduceOrder(state, buyer.fromVillageId, trade.good, trade.amount);
+    }
+  }
   // hostitel: napřed prodané pryč, pak koupené dovnitř
   for (const good of TRADE_GOODS) {
     const sold = host.sold[good] ?? 0;
@@ -278,22 +305,33 @@ function settleTrades(
 
 /**
  * Výpravy s posledním tržním dnem `day` (nebo dřívějším) odjedou (mutuje stav): výsledek se
- * zprávou o hostiteli a cenami trhu jde do odchozí schránky k domovské vsi na den návratu – den po
- * posledním tržním dni + dny cesty.
+ * zprávou o hostiteli, cenami trhu a zakázkami, které hostitel zapsal (`recordOrders` – co hostitel
+ * po dnešních obchodech ještě shání je `hostWants`), jde do odchozí schránky k domovské vsi na den
+ * návratu – den po posledním tržním dni + dny cesty.
  */
-function departVisitors(state: VillageState, market: VillageMarket, day: number): void {
+function departVisitors(
+  state: VillageState,
+  market: VillageMarket,
+  day: number,
+  hostWants: TradeGoods,
+): void {
   const leaving = market.visitors.filter((v) => v.lastDay <= day);
   if (leaving.length === 0) return;
   const report = villageReport(state, day);
   const outbox = (state.outbox ??= []);
   for (const visitor of leaving) {
+    const ordered = recordOrders(state, day, visitor, hostWants);
     outbox.push({
       villageId: visitor.fromVillageId,
       day: day + 1 + visitor.travelDays,
       ref: marketResultRef(visitor.key),
       body: {
         kind: 'market-result',
-        result: marketResult(visitor, { report, prices: market.prices }),
+        result: marketResult(visitor, {
+          report,
+          prices: market.prices,
+          ...(hasGoods(ordered) ? { ordered } : {}),
+        }),
       },
     });
   }
@@ -302,16 +340,18 @@ function departVisitors(state: VillageState, market: VillageMarket, day: number)
 
 /**
  * Tržní den vsi `day` (mutuje stav; markets.md – Pravidla 3 a 5): strany zápočtu jsou hostitel
- * (`marketStance` – přebytek nad vlastní potřebou) a výpravy v pořadí příjezdu, za ceny trhu.
+ * (`marketStance` – přebytek nad vlastní potřebou; řemeslník navíc shání obilí a luštěniny za své
+ * výrobky – `craftPayWants`, Martin 24. 11. 2026) a výpravy v pořadí příjezdu, za ceny trhu.
  * Obchody se vyrovnají (`settleTrades`), ceny se posunou podle nabídky a poptávky dne
- * (`nextPrices`) a výpravy, kterým pobyt končí, odjedou s výsledkem. Vrací zápis kroniky, prodala-li
- * nebo koupila-li ves něco. Bez výprav na trhu nic – stav se nezmění.
+ * (`nextPrices`) a výpravy, kterým pobyt končí, odjedou s výsledkem a zakázkami. Vrací zápis
+ * kroniky, prodala-li nebo koupila-li ves něco. Bez výprav na trhu nic – stav se nezmění.
  */
 export function marketDay(state: VillageState, day: number): ChronicleEvent[] {
   const market = state.market;
   if (!market || market.visitors.length === 0) return [];
   const visitors = [...market.visitors].sort((a, b) => a.order - b.order);
   const stance = marketStance(state, day);
+  craftPayWants(state, day, stance, visitors, market.prices);
   const clearing = clearMarket(
     [
       { key: HOST, offer: stance.offer, wants: stance.wants },
@@ -325,6 +365,6 @@ export function marketDay(state: VillageState, day: number): ChronicleEvent[] {
     hasGoods(host.sold) || hasGoods(host.bought)
       ? [{ day, kind: 'market-held', sold: host.sold, bought: host.bought }]
       : [];
-  departVisitors(state, market, day);
+  departVisitors(state, market, day, wantsLeft(stance.wants, host.bought));
   return chronicle;
 }
