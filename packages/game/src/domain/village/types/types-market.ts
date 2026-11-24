@@ -220,6 +220,30 @@ export interface MarketTrip {
   returnDay: number;
 }
 
+/**
+ * Ves okolí (markets.md – Rozhodnutí plánu 3, bod 1): ves na jedné z 8 sousedních map, kolik
+ * políček mapy světa je daleko a první krok cesty k ní (jako `MarketTarget`).
+ */
+export interface NearbyVillage {
+  villageId: string;
+  name: string;
+  cells: number;
+  firstStep: Direction8;
+}
+
+/**
+ * Okolí vsi (markets.md – Rozhodnutí plánu 3, bod 1): snímek žijících vsí na 8 sousedních mapách –
+ * i vsí téhož hráče –, který ves dostane událostí schránky `nearby` a další snímek ho celý nahradí.
+ * Simulace nezná ostatní vsi ani své id; vesničané se podle okolí rozhodují uvnitř dne.
+ */
+export interface VillageNearby {
+  /** Den, kdy ves okolí dostala (událost `nearby`). */
+  day: number;
+  self: { villageId: string; name: string };
+  /** Vsi na 8 sousedních mapách, řazené podle `cells`, pak `villageId`. */
+  villages: NearbyVillage[];
+}
+
 /** Zpráva na pivo o vsi (markets.md – Pravidla 8). */
 export interface VillageReport {
   day: number;

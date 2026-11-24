@@ -36,6 +36,7 @@ import {
 } from '../fortification/state/refugees';
 import { joinMarket } from '../trade/market';
 import { applyMarketResult } from '../trade/market-trip';
+import { applyNearby } from '../trade/nearby';
 import type {
   AwayKind,
   ChronicleEvent,
@@ -48,6 +49,7 @@ import type {
   RefugeePerson,
   ShipmentBody,
   ThreatSignal,
+  VillageNearby,
   VillageState,
 } from '../types';
 
@@ -294,6 +296,11 @@ export type VillageEventBody =
    */
   | ({ kind: 'rod-baptized' } & RodBaptism)
   /**
+   * Okolí vsi (markets.md – Rozhodnutí plánu 3, bod 1): snímek vsí na 8 sousedních mapách
+   * (`refreshNearby` po dopočtu vsi) – `applyNearby` ho zapíše do `VillageState.nearby`.
+   */
+  | { kind: 'nearby'; nearby: VillageNearby }
+  /**
    * Trh (markets.md – Rozhodnutí plánu 2, bod 6) – zprávy z odchozí schránky jiné vsi
    * (`VillageMail`): výprava přijela na trh vsi (`market-arrive` – `joinMarket`) a výsledek trhu
    * pro výpravu, která se vrací domů (`market-result` – `applyMarketResult`).
@@ -410,6 +417,8 @@ function applyEvent(state: VillageState, day: number, body: VillageEventBody): C
       return joinMarket(state, day, body.arrival);
     case 'market-result':
       return applyMarketResult(state, day, body.result);
+    case 'nearby':
+      return applyNearby(state, day, body.nearby);
     default:
       return unknownBody(body);
   }

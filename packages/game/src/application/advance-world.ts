@@ -3,6 +3,7 @@ import { settlementLandscape } from './enter-game';
 import { acceptHolderTransfers } from './escheat';
 import { loadVillage } from './load-village';
 import type { PlayerLock } from './locks';
+import { nearbyStale, refreshNearbySafely } from './nearby';
 import { settleSuccessionOf } from './player-departure';
 import { closeDynastyDay, type DynastyDeps } from './restart-game';
 import { settleStewardDeparturesSafely } from './settle-steward-departures';
@@ -77,10 +78,11 @@ export interface PlayerStep {
  * (`tryRun`) dopočte do `T` (`loadVillage` – s přestávkami `pause`; ves s tažením u ní nejvýš do
  * meze bariéry `VillageHolds` – ves na mezi se do nejstaršího dne nepočítá) a vybaví se její odchozí
  * schránky správce (`settleStewardDeparturesSafely` – nová ves syna vznikne v den odchodu a je
- * pozadu, vezme ji další kolo) a doručí se její odchozí schránka (`deliverVillageMailSafely`, má-li
- * poštu – `hasVillageMail`). Ves, kterou už dopočítal web (`lastDay` ≥ cíl), se nedopočítává – pod
- * zámkem se jen doručí její odchozí schránka (pád webu mezi uložením vsi a doručením; bez pošty nic
- * neuloží) a do `villages` ani `days` se nepočítá. Ves na cestě se posouvá jako každá jiná – se
+ * pozadu, vezme ji další kolo), doručí se její odchozí schránka (`deliverVillageMailSafely`, má-li
+ * poštu – `hasVillageMail`) a obnoví okolí (`refreshNearbySafely`, chybí-li nebo je staré –
+ * `nearbyStale`). Ves, kterou už dopočítal web (`lastDay` ≥ cíl), se nedopočítává – pod zámkem se
+ * jen doručí její odchozí schránka (pád webu mezi uložením vsi a doručením; bez pošty nic neuloží)
+ * a obnoví okolí, a do `villages` ani `days` se nepočítá. Ves na cestě se posouvá jako každá jiná – se
  * správcem ji založí simulace v den příjezdu, bez něj čeká na hráče. Když se něco posunulo, jedno
  * závěrečné držení zjistí konec rodu (`closeDynastyDay` v den `T`) – jen když jsou všechny nespící
  * vsi právě na `T`; ze smíšených dnů (web mezitím posunul ves, nová ves ze schránky) by mohl vyjít
@@ -134,10 +136,13 @@ export async function advancePlayer(
       try {
         if (stamp.lastDay >= to) {
           // ves dopočítal web – worker ji nedopočítává, jen doručí její odchozí schránku (pád webu
-          // mezi uložením vsi a doručením – village-mail.ts); do vsí ani dní dávky se nepočítá
-          const delivered = await deps.locks.tryRun(input.playerId, () =>
-            deliverVillageMailSafely(deps, stamp.id),
-          );
+          // mezi uložením vsi a doručením – village-mail.ts) a obnoví okolí (nearby.ts – stav se
+          // načte jen kvůli němu, otisk ho neprozradí); do vsí ani dní dávky se nepočítá
+          const delivered = await deps.locks.tryRun(input.playerId, async () => {
+            await deliverVillageMailSafely(deps, stamp.id);
+            const village = await deps.villages.find(stamp.id);
+            if (village && nearbyStale(village.state)) await refreshNearbySafely(deps, stamp.id);
+          });
           if (!delivered.ran) {
             step.outcome = 'busy';
             return finish();
@@ -163,6 +168,8 @@ export async function advancePlayer(
                 });
           // odchozí schránka vsi (village-mail.ts) – i bez odchodů správce; bez pošty ani dotaz
           if (hasVillageMail(village.state)) await deliverVillageMailSafely(deps, stamp.id);
+          // okolí vsi (nearby.ts) – chybí nebo je staré `NEARBY_REFRESH_DAYS` dní
+          if (nearbyStale(village.state)) await refreshNearbySafely(deps, stamp.id);
           return { village, founded: founded.length };
         });
         if (!held.ran) {

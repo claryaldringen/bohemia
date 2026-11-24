@@ -151,6 +151,10 @@ describe('currentVillageViewStamp – ostatní vsi drží worker', () => {
   it(`jiná ves nejvýš ${WORKER_LAG_DAYS} dny pozadu otisk nezdrží – sedí s pohledem`, async () => {
     const { deps, villageId, otherId } = await twoVillages(TODAY - WORKER_LAG_DAYS);
     const input = { playerId: PLAYER, villageId, today: TODAY };
+    // čerstvé okolí (nearby.ts) – pohled ho neobnoví, verze zobrazené vsi se po něm nezmění
+    deps.villages.edit(villageId, (s) => {
+      s.nearby = { day: s.lastDay, self: { villageId, name: 'Libice' }, villages: [] };
+    });
     // zobrazená ves není na dnešku – pohled by ji dopočítal
     expect(await currentVillageViewStamp(deps, input)).toBeNull();
     const status = await dynastyForVillage(deps, input);

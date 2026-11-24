@@ -62,9 +62,12 @@ function newsOf(home: VillageRecord, villageId: string): VillageNews | null {
   return home.state.news?.find((n) => n.villageId === villageId) ?? null;
 }
 
-/** Vsi sídel na políčkách `cells` (jejich držitelé na sousedních mapách), bez vsí hráče `except`. */
-async function villagesAt(
-  deps: MarketDeps,
+/**
+ * Vsi sídel na políčkách `cells` (jejich držitelé na sousedních mapách), bez vsí hráče `except`.
+ * Sdílí ho okolí vsi (`nearby.ts`).
+ */
+export async function villagesAt(
+  deps: Pick<MarketDeps, 'villages' | 'settlements'>,
   cells: readonly GridCell[],
   except: string | null,
 ): Promise<string[]> {

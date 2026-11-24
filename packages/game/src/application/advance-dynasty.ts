@@ -1,6 +1,7 @@
-import { pendingStewardDepartures } from '../domain/village';
+import { isVillageAsleep, pendingStewardDepartures } from '../domain/village';
 import { announceSenior } from './announce-senior';
 import { acceptHolderTransfers } from './escheat';
+import { nearbyStale, refreshNearbySafely } from './nearby';
 import { settleSuccessionOf } from './player-departure';
 import { settleStewardDeparturesSafely } from './settle-steward-departures';
 import { deliverVillageMailSafely, hasVillageMail } from './village-mail';
@@ -18,8 +19,9 @@ export const DEPARTURE_ROUNDS = 4;
  * Plný dopočet rodu: vsi hráče dopočítané do dneška (`dynastyStatus`); za dopočtem se vybaví
  * odchozí schránky správce (steward.md – Kde správce běží) – nové vsi synů vzniknou a dopočítají
  * se v dalším kole; po kolech se doručí odchozí schránky vsí s poštou (`deliverVillageMailSafely`,
- * village-mail.ts). Volající drží zámek hráče (`PlayerLock`), tady se nevnořuje. Volá ho web
- * i worker, ať kola schránek existují jednou.
+ * village-mail.ts) a nespícím vsím se obnoví okolí (`refreshNearbySafely`, nearby.ts). Volající drží
+ * zámek hráče (`PlayerLock`), tady se nevnořuje. Volá ho web i worker, ať kola schránek existují
+ * jednou.
  */
 export async function advanceDynasty(
   deps: DynastyDeps & { worldSeed: number },
@@ -41,9 +43,13 @@ export async function advanceDynasty(
     if (settled === 0) break;
     status = await dynastyStatus(deps, input);
   }
-  // odchozí schránky vsí (village-mail.ts) – po kolech odchodů správce, i nové vsi
+  // odchozí schránky vsí (village-mail.ts) a okolí (nearby.ts) – po kolech odchodů správce, i nové
+  // vsi
   for (const village of status.villages) {
     if (hasVillageMail(village.state)) await deliverVillageMailSafely(deps, village.id);
+    if (!isVillageAsleep(village.state) && nearbyStale(village.state)) {
+      await refreshNearbySafely(deps, village.id);
+    }
   }
   // senior rodu se mohl změnit (smrt, narození, příchod) – kronika ho hlásí všem vsím rodu
   if (deps.houses && !status.gameOver) {

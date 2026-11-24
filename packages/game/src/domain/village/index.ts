@@ -422,6 +422,8 @@ export {
   type MarketPlan,
   type MarketTripCheck,
 } from './trade/market-trip';
+// okolí vsi (markets.md – Rozhodnutí plánu 3, bod 1) – snímek vsí na sousedních mapách ze schránky
+export { applyNearby, nearbyTarget, nearestNearby, nearestWith } from './trade/nearby';
 export { legacyNeighbourName } from './trade/legacy-neighbours';
 export * from './trade/trade';
 // dobytek v obchodu – příchod a odchod dobytka (`addCattle`, `removeCattle`) jsou kroky obchodu

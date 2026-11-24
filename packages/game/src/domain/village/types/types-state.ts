@@ -62,7 +62,7 @@ import type {
 } from './types-people';
 import type { CartDrive, RoadGrade, VillageRoads } from './types-roads';
 import type { VillageRoutes } from './types-routes';
-import type { VillageMail, VillageMarket, VillageNews } from './types-market';
+import type { VillageMail, VillageMarket, VillageNearby, VillageNews } from './types-market';
 import type { CraftPurchase, VillageTrade } from './types-trade';
 import type { WildlifeState } from './types-wildlife';
 import type { DisasterState } from './types-disasters';
@@ -715,6 +715,11 @@ export interface VillageState {
    * obchodníků, kteří přijeli k nám, a od vlastních výprav s cenami trhu. Chybí = žádné.
    */
   news?: VillageNews[];
+  /**
+   * Okolí vsi (markets.md – Rozhodnutí plánu 3, bod 1): snímek vsí na 8 sousedních mapách z události
+   * schránky `nearby` – další snímek ho celý nahradí. Chybí = ves okolí nezná.
+   */
+  nearby?: VillageNearby;
   /** Vozy vsi (wagons.md – Vůz) – vyrábí je tesař; chybí = žádné. */
   carts?: Cart[];
   /**

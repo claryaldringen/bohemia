@@ -385,3 +385,38 @@ Počasí kraje mění hodnotu zboží od 1. 11. – [village-disasters.md](villa
   důvod blokace), ves pozadu napřed dopočte do `today` (`updateLivingVillage`), zavolá `departMarket`
   a doručí odchozí schránku (`deliverVillageMailSafely`). Právo `trade` a zámek hráče přidá akce
   ve webu (Úloha 7).
+- **Okolí vsi** (markets.md – Rozhodnutí plánu 3, bod 1; jádro `trade/nearby.ts`, server
+  `application/nearby.ts`). Simulace nezná ostatní vsi ani své id, a vesničané se přitom musí
+  rozhodovat uvnitř dne – proto ves dostává snímek okolí do stavu: `VillageState.nearby`
+  (`VillageNearby` – `day`, `self` { `villageId`, `name` }, `villages`: `NearbyVillage` {
+  `villageId`, `name`, `cells`, `firstStep` }), řazený podle `cells`, pak `villageId`. Chybí = ves
+  okolí nezná; převod ani kodek se nemění.
+  - **Obsah** (`nearbyVillages(deps, villageId)`, `NearbyDeps` = `villages` a `settlements`
+    z `MarketDeps`): sídla na 8 sousedních políčkách (`villagesAt` z `market.ts` – i vsi téhož
+    hráče, ne vsi téže mapy ani dál), záznam každé vsi z `villages.find`, bez spících (`sleeps`),
+    archivovaných (`placeOf` null) a přes odříznutí (`crossesIsolation`); `cells`
+    (`cellDistance`) a `firstStep` (`stepToward`) jako přehled trhu a výprava, `self.name` je
+    jméno záznamu vsi. Den snímku `lastDay + 1`. Spící, archivovaná nebo odříznutá ves sama
+    (newcomers.md – místní mřížka není mapa světa) – null. Válka nevadí.
+  - **Zápis:** `refreshNearby(deps, villageId)` pošle událost schránky `nearby` na `lastDay + 1`
+    s `ref` `nearby:<ves>:<den>` – druhý zápis téhož dne se zahodí (false); prázdné okolí se
+    zapíše také, ať snímek nahradí starý a ves bez sousedů se neptá každou dávku.
+    `refreshNearbySafely` chybu zapíše do logu a vrátí false. **Kdy:** po dopočtu vsi tam, kde se
+    doručuje pošta (`advancePlayer` i u vsi dopočtené webem – worker.md, Pošta mezi vsemi;
+    `advanceDynasty` a `dynastyForVillage` u celých nespících vsí), když `nearbyStale(state)` –
+    okolí chybí, nebo `lastDay − nearby.day ≥ NEARBY_REFRESH_DAYS` (30 dní; technická mez, ne
+    pravidlo – snímek se celý nahradí, stav vsi neroste a worker nečte sousedy každý den, mez určí
+    jen, jak rychle se ves dozví o nové vsi za kopcem). Den snímku tak závisí na dávkách (jako
+    pošta); simulace s ním je po kouscích stejná jako vcelku – událost leží ve schránce.
+  - **Jádro** (`trade/nearby.ts`): `applyNearby` (větev schránky – village-core.md, Schránka vsi),
+    `nearbyTarget(state, villageId)` – `MarketTarget` do vsi okolí s domovskou vsí ze `self` (mimo
+    okolí null), `nearestNearby(state)` – první ves okolí, `nearestWith(state, craft)` – první ves
+    okolí, o jejímž řemeslníkovi ves ví ze zprávy na pivo (`news`, `report.crafts`; Rozhodnutí
+    plánu 3, bod 2).
+  - **Správce cizí vsi:** okolí nese i ostatní vsi držitele na sousedních mapách (vesničané k nim
+    jezdí) – stav vsi se klientovi neposílá a web je cizímu správci nesmí ukázat jménem
+    (Rozhodnutí plánu 3, bod 14 – Úloha 11).
+  - **Testy:** `trade/__tests__/nearby.test.ts` (zápis a náhrada snímku, nejbližší ves, cíl,
+    determinismus po kouscích), `application/__tests__/nearby.test.ts` (obsah, odříznutí, vymřelý
+    a archivovaný soused, zápis jednou za den, `nearbyStale`, web) a `advance-world.test.ts` –
+    Okolí vsi ve workeru.

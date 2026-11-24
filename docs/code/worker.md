@@ -149,12 +149,23 @@ trhu) nechá v odchozí schránce `outbox`; `advancePlayer` ji doručí pod zám
   (`hasVillageMail` – stav už je v paměti, ves bez pošty nestojí ani dotaz) – i bez odchodů správce.
 - **Ves, kterou už dopočítal web** (`stamp.lastDay ≥ cíl` – přeskočí se): `deliverVillageMailSafely`
   ve vlastním `tryRun` – načte ves sama (jeden `find`; otisk poštu neprozradí), bez pošty nic
-  neuloží (verze přeskočené vsi beze změny). Pád webu mezi uložením vsi a doručením tak dožene
-  příští dávka hráče. Do `PlayerStep.villages` ani `days` se nepočítá; zámek drží web → `busy`.
+  neuloží (verze přeskočené vsi beze změny, je-li okolí čerstvé – níž). Pád webu mezi uložením vsi
+  a doručením tak dožene příští dávka hráče. Do `PlayerStep.villages` ani `days` se nepočítá;
+  zámek drží web → `busy`.
 - **Kdy:** hráče bere fronta, jen když má ves pozadu – ves na dnešku bez jiné vsi pozadu se
   doručí nejpozději s dalším herním dnem (≈ 86 s). Výprava po termínu u hostitele pozadu čeká
   (`hasVillageMail` platí, dokud výsledek nepřijde – každá dávka hráče se na hostitele podívá).
 - Chyba doručení (`deliverVillageMailSafely` – log) dávku nezastaví; zprávy zůstanou v `outbox`.
+- **Obnova okolí** (markets.md – Rozhodnutí plánu 3, bod 1; `application/nearby.ts`,
+  village-trade.md – Okolí vsi): ve stejném `tryRun` hned po poště `refreshNearbySafely`, když
+  okolí chybí nebo je staré `NEARBY_REFRESH_DAYS` = 30 dní (`nearbyStale`; technická mez, ne
+  pravidlo). Dopočtená ves bere stav z `loadVillage`; ves dopočtená webem se kvůli tomu načte
+  (`villages.find` – otisk okolí neprozradí). Událost `nearby` jde do schránky vsi na
+  `lastDay + 1` (zápis zvedne verzi vsi; týž den podruhé se zahodí). Worker tak čte sousedy
+  jednou za 30 dní na ves, i u vsi bez sousedů (prázdný snímek). Den snímku závisí na dávkách –
+  testy „po kouscích“ v `advance-world.test.ts` porovnávají stav bez okolí (`withoutNearby`)
+  a okolí ověří zvlášť. Chyba (log) dávku nezastaví. Totéž dělá web v `advanceDynasty`
+  a `dynastyForVillage` u celých nespících vsí.
 
 ## Výjimky a omezení
 
