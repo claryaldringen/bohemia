@@ -197,7 +197,7 @@ export function joinMarket(
  */
 export function marketResult(
   from: MarketVisitor | MarketArrival,
-  extra: Pick<MarketResult, 'report' | 'prices' | 'returned' | 'ordered'> = {},
+  extra: Pick<MarketResult, 'report' | 'prices' | 'returned' | 'ordered' | 'origin'> = {},
 ): MarketResult {
   const visitor = 'order' in from ? from : null;
   const carts = visitor
@@ -409,7 +409,9 @@ function settleTrades(
  * Výpravy s posledním tržním dnem `day` (nebo dřívějším) odjedou (mutuje stav): výsledek se
  * zprávou o hostiteli, cenami trhu a zakázkami, které hostitel zapsal (`recordOrders` – co hostitel
  * po dnešním zápočtu ještě shání je `hostWants`), jde do odchozí schránky k domovské vsi na den
- * návratu – den po posledním tržním dni + dny cesty.
+ * návratu – den po posledním tržním dni + dny cesty. Výsledek s lidmi nese i výpravu, jak ji
+ * hostitel viděl (`origin` – Rozhodnutí plánu 3, bod 13): zanikne-li domovská ves, pošta s ním
+ * vrátí lidi hostiteli (`people-back`).
  */
 function departVisitors(
   state: VillageState,
@@ -423,6 +425,8 @@ function departVisitors(
   const outbox = (state.outbox ??= []);
   for (const visitor of leaving) {
     const ordered = recordOrders(state, day, visitor, hostWants);
+    const direction = homeward(visitor);
+    const people = (visitor.people?.length ?? 0) + (visitor.boughtPeople?.length ?? 0);
     outbox.push({
       villageId: visitor.fromVillageId,
       day: day + 1 + visitor.travelDays,
@@ -433,6 +437,15 @@ function departVisitors(
           report,
           prices: market.prices,
           ...(hasGoods(ordered) ? { ordered } : {}),
+          ...(people > 0 && direction !== undefined
+            ? {
+                origin: {
+                  villageId: visitor.fromVillageId,
+                  villageName: visitor.fromName,
+                  direction,
+                },
+              }
+            : {}),
         }),
       },
     });

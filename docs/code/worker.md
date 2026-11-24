@@ -155,12 +155,23 @@ trhu) nechá v odchozí schránce `outbox`; `advancePlayer` ji doručí pod zám
   doručí nejpozději s dalším herním dnem (≈ 86 s). Výprava po termínu u hostitele pozadu čeká
   (`hasVillageMail` platí, dokud výsledek nepřijde – každá dávka hráče se na hostitele podívá).
 - Chyba doručení (`deliverVillageMailSafely` – log) dávku nezastaví; zprávy zůstanou v `outbox`.
+- **Zprávy plánu 3** (markets.md – Rozhodnutí plánu 3, bod 13; village-trade.md – Pošta mezi
+  vsemi, Zaniklé vsi a zprávy plánu 3) jdou toutéž cestou: dotazy `kin-ask`, `smith-ask`
+  a ohlášení `order-ready` do zaniklé vsi (chybí, spí, sídlo v archivu) se zahodí; výsledek s lidmi
+  pro zaniklou domovskou ves pošle doručení hostitele jeho vlastní schránce jako `people-back`
+  (prodaní hostitelem se vrátí s původními id, ostatní se usadí). Worker tak nic zvlášť nedělá –
+  stačí, že doručuje i ves dopočtenou webem. Test světa (`advance-world.test.ts` – Pošta plánu 3
+  a svět): kola `advancePlayer` obou hráčů dovedou nevěstu z M do H a po každém kole je lidí ve
+  vsích a v nákladu výprav (odchozí schránky, `market.visitors`, schránky po `lastDay`) stejně,
+  kromě porodů a úmrtí.
 - **Okolí vsi** (markets.md – Rozhodnutí plánu 3, bod 1; `application/nearby.ts`, village-trade.md
   – Okolí vsi) worker zvlášť neobnovuje: snímek sousedů v pevné dny obnovy (`nearbyDays` – dny
   dělitelné `NEARBY_REFRESH_DAYS`) zapíše do schránky sám dopočet (`updateVillage` přes
   `villages.nearby`) před dopočtem přes den obnovy – ve workeru, webu i akci stejně. Ves dopočtená
   webem se kvůli okolí nečte; dávka, která den obnovy přejde, načte ves jednou navíc (nový pokus
-  po zápisu).
+  po zápisu). Po zápisu snímku smaže dopočet použité snímky starší než `NEARBY_KEEP_DAYS` (rok –
+  `inbox.pruneNearby`), jinak by schránka rostla o ~12 řádků za herní rok na ves. Test: kola
+  workeru přes dva dny obnovy zapíšou snímek jen v nich (`advance-world.test.ts`).
 
 ## Výjimky a omezení
 

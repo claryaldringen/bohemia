@@ -3,7 +3,13 @@ import { craftCoverage } from '../../crafts/crafts';
 import { stewardOutlook } from '../../steward/steward-outlook';
 import { peopleSpare } from '../../../vassalage/spare';
 import type { MarketArrival, MarketPerson, MarketResult, Person } from '../../types';
-import { peopleWanted, restorePeople, settlePeople, takePeople } from '../market-people';
+import {
+  peopleBack,
+  peopleWanted,
+  restorePeople,
+  settlePeople,
+  takePeople,
+} from '../market-people';
 import { marketStance } from '../market-stance';
 import { MARKET_NO_PEOPLE, applyMarketResult, departMarket, planMarketTrip } from '../market-trip';
 import { addGood } from '../trade';
@@ -94,6 +100,60 @@ describe('lidé na trhu (markets.md – Rozhodnutí plánu 3, bod 10)', () => {
     // podruhé nic – kdo je doma, se nezdvojí
     restorePeople(s, groups);
     expect(family(s.people)).toHaveLength(4);
+  });
+
+  it('peopleBack: hostitel dostane zpět rodinu, kterou prodal, neprodaný muž z H se usadí jako nováček', () => {
+    // Lhota (M = familyHome) prodala rodinu výpravě z Vlkova (H na západě), Vlkov pak zanikl:
+    // výsledek s neprodaným mužem H (`people`) a koupenou rodinou (`newcomers`) jde zpět k M
+    // (markets.md – Rozhodnutí plánu 3, bod 13)
+    const m = familyHome();
+    const sold = takePeople(m, D, 'families', 1, 'W');
+    const before = structuredClone(sold[0]!.people);
+    const nextId = m.nextId;
+    // muž z H má id 62 jako otec rodiny, ale jiný den narození – není to ten, koho M prodala
+    const man: MarketPerson = {
+      good: 'men',
+      people: [{ id: 62, bornDay: D - 9_000, dwellingId: 3, sex: 'male', motherId: 4 }],
+    };
+    const from = { villageId: 'h', villageName: 'Vlkov', direction: 'W' as const };
+    const events = peopleBack(m, D + 2, { key: 'market:h:1', people: [man, ...sold], from });
+    // rodina zpět s původními id a vazbami, z `emigrants` pryč
+    expect(ids(family(m.people))).toEqual(FAMILY_IDS);
+    expect(family(m.people).map((p) => ({ ...p, dwellingId: 0 }))).toEqual(
+      before.map((p) => ({ ...p, dwellingId: 0 })),
+    );
+    expect((m.emigrants ?? []).filter((e) => FAMILY_IDS.includes(e.id))).toEqual([]);
+    // muž z H dostal nové id (jediné – rodina má svá), přišel ze západu
+    expect(m.nextId).toBe(nextId + 1);
+    expect(m.people.filter((p) => p.id === 62)).toHaveLength(1);
+    const newcomer = m.people.find((p) => p.id === nextId)!;
+    expect(newcomer).toMatchObject({ sex: 'male', bornDay: D - 9_000, origin: 'W' });
+    expect(newcomer.motherId).toBeUndefined();
+    // kronika jen pro usazeného
+    expect(events).toEqual([
+      {
+        day: D + 2,
+        kind: 'newcomer',
+        direction: 'W',
+        group: 'man',
+        people: 1,
+        dwellingId: newcomer.dwellingId,
+        villageName: 'Vlkov',
+        villageId: 'h',
+      },
+    ]);
+  });
+
+  it('peopleBack: bez `from` (výsledek bez směru) se cizí usadí bez směru a kroniky, nikdo nezmizí', () => {
+    const m = familyHome();
+    const count = m.people.length;
+    const man: MarketPerson = {
+      good: 'men',
+      people: [{ id: 5, bornDay: D - 9_000, dwellingId: 3, sex: 'male' }],
+    };
+    expect(peopleBack(m, D + 2, { key: 'market:h:1', people: [man], from: undefined })).toEqual([]);
+    expect(m.people).toHaveLength(count + 1);
+    expect(m.people.at(-1)!.origin).toBeUndefined();
   });
 
   it('peopleWanted: půdy 12 ha, práce 8 ha, 10 dospělých → chybí 5 dospělých → 3 rodiny', () => {

@@ -15,6 +15,13 @@ export interface VillageInbox {
   post(event: NewVillageEvent): Promise<VillageEvent | null>;
   /** Události vsi s `afterDay < day ≤ toDay`, seřazené podle dne a `seq`. */
   pending(villageId: string, afterDay: number, toDay: number): Promise<VillageEvent[]>;
+  /**
+   * Smaže snímky okolí (`nearby`) vsi se dnem ≤ `upToDay` – jen tento druh: jeho `ref` se po dni
+   * použití znovu nezapisuje (`nearby.ts` – `NEARBY_KEEP_DAYS`); ostatní události drží `ref`
+   * proti dvojímu zápisu, proto zůstávají. Verzi vsi nemění (stav vsi se nemění). Vrací počet
+   * smazaných.
+   */
+  pruneNearby(villageId: string, upToDay: number): Promise<number>;
 }
 
 /**
@@ -24,4 +31,5 @@ export interface VillageInbox {
 export const EMPTY_INBOX: VillageInbox = {
   post: () => Promise.resolve(null),
   pending: () => Promise.resolve([]),
+  pruneNearby: () => Promise.resolve(0),
 };

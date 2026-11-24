@@ -330,6 +330,10 @@ version + 1, digest_version = digest_version + 1`. Duplicitní `ref` = `null` a 
   `digest_version` jde s `version`, protože zápis do schránky stav vsi nemění – souhrn zůstává
   platný (`NULL + 1` zůstane `NULL`). Zámek hráče-příjemce se nebere (jen řádek vsi).
 - **`pending(villageId, afterDay, toDay)`:** `afterDay < day ≤ toDay`, `ORDER BY day, seq`.
+- **`pruneNearby(villageId, upToDay)`:** `DELETE … WHERE village_id = … AND day ≤ upToDay AND
+body ->> 'kind' = 'nearby'` (po indexu vsi a dne) – jen použité snímky okolí, verze vsi se nemění;
+  smazaný `ref` jde zapsat znovu, proto jen druh, jehož dny se po použití nezapisují (village-trade.md
+  – Okolí vsi, úklid schránky).
 - **Testy:** `adapters/__tests__/inbox-repository.db.test.ts` (konflikt rozběhnutého `save`,
   idempotence `ref`, posun dne, pořadí) a třetí „proces“ posílající události do vsí v
   `packages/server/src/__tests__/web-worker-race.db.test.ts` (každá událost ze dnů ≤ `lastDay`

@@ -23,6 +23,15 @@ import type { VillageRecord, VillageRepository } from './villages';
  */
 export const NEARBY_REFRESH_DAYS = 30;
 
+/**
+ * Jak dlouho schránka drží použité snímky okolí, než je úklid smaže (`inbox.pruneNearby`) –
+ * technická mez, ne pravidlo (proto ne v `rules*.ts`). Použitý snímek už nic nečte, ale jeho řádek
+ * drží `ref` `nearby:<ves>:<den>` proti dalšímu zápisu téhož dne: dopočet se starším stavem vsi
+ * (souběh webu a workeru) by ho po smazání zapsal znovu na nejbližší nespočtený den. Rok je daleko
+ * za každou dávkou dopočtu; schránka tak drží nejvýš ~12 snímků na ves místo ~12 za každý herní rok.
+ */
+export const NEARBY_KEEP_DAYS = 365;
+
 /** Dny obnovy okolí v `(afterDay, toDay]` – pevné dny kalendáře dělitelné `NEARBY_REFRESH_DAYS`. */
 export function nearbyDays(afterDay: number, toDay: number): number[] {
   const days: number[] = [];
@@ -113,8 +122,9 @@ export interface NearbyRefresh {
    * Před dopočtem vsi `home` přes dny `(afterDay, toDay]`: na každý den obnovy (`nearbyDays`), na
    * který ve schránce (`pending` – události těchto dnů) ještě událost `nearby` není, zapíše snímek
    * okolí (`nearbyVillages` – v okamžiku zápisu) s `ref` `nearby:<ves>:<den>`. Čekající událost je
-   * čerstvé okolí – sken se neopakuje. Spící ves nic. true = něco se zapsalo (zápis zvedl verzi
-   * vsi).
+   * čerstvé okolí – sken se neopakuje. Spící ves nic. Po zápisu smaže použité snímky starší než
+   * `NEARBY_KEEP_DAYS` (`inbox.pruneNearby` – dny ≤ `afterDay − NEARBY_KEEP_DAYS`). true = něco
+   * se zapsalo (zápis zvedl verzi vsi).
    */
   post(
     home: VillageRecord,
@@ -151,6 +161,8 @@ export function nearbyRefresh(
         });
         if (event !== null) posted = true;
       }
+      // úklid: ~1× za dobu obnovy – jen když přibyl snímek
+      if (posted) await deps.villages.inbox.pruneNearby(home.id, afterDay - NEARBY_KEEP_DAYS);
       return posted;
     },
   };

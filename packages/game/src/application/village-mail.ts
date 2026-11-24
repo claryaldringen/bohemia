@@ -11,7 +11,7 @@ import {
 } from '../domain/village';
 import type { SettlementRepository } from './settlements';
 import { placeOf, sleeps } from './shipments';
-import type { VillageRecord, VillageRepository } from './villages';
+import type { VillageRecord, VillageRepository, VillageStamp } from './villages';
 
 // Pošta mezi vsemi (markets.md – Rozhodnutí plánu 2, bod 6; village-core.md – Schránka vsi):
 // ves sbírá zprávy pro jiné vsi do odchozí schránky (`VillageState.outbox` – příjezd výpravy na
@@ -62,6 +62,52 @@ function carriesPeople(mail: VillageMail): boolean {
   return people.length + newcomers.length > 0;
 }
 
+/** Zpráva bez nákladu (markets.md – Rozhodnutí plánu 3, bod 13) – do zaniklé vsi se zahodí. */
+function isQuery(mail: VillageMail): boolean {
+  const kind = mail.body.kind;
+  return kind === 'kin-ask' || kind === 'smith-ask' || kind === 'order-ready';
+}
+
+/**
+ * Lidé z výsledku `result` (zpráva `mail`) pro zaniklou domovskou ves zpět k hostiteli `hostId`
+ * (Rozhodnutí plánu 3, bod 13): zpráva `people-back` v den výsledku s `ref` `<ref výsledku>:back`
+ * – lidé z `people` i `newcomers`, `from` = `origin` výsledku; zboží výsledku se zahodí.
+ */
+function peopleBackMail(hostId: string, mail: VillageMail, result: MarketResult): VillageMail {
+  return {
+    villageId: hostId,
+    day: mail.day,
+    ref: `${mail.ref}:back`,
+    body: {
+      kind: 'people-back',
+      key: result.key,
+      people: [...(result.people ?? []), ...(result.newcomers ?? [])],
+      from: result.origin,
+    },
+  };
+}
+
+/**
+ * Zaniklé cílové vsi zpráv `outbox`, na kterých záleží (dotazy a výsledky s lidmi): ves chybí, spí
+ * (`asleep` v otisku – vymřela, opuštěná), nebo má sídlo v archivu (Začít znovu – `archivedOf`;
+ * archivovanou ves nikdo nedopočítá, jako zaniklého hostitele v kroku 3).
+ */
+async function goneTargets(
+  deps: VillageMailDeps,
+  outbox: readonly VillageMail[],
+  stamps: readonly VillageStamp[],
+): Promise<Set<string>> {
+  const wanted = new Set(
+    outbox.filter((m) => isQuery(m) || carriesPeople(m)).map((m) => m.villageId),
+  );
+  if (wanted.size === 0) return new Set();
+  const stampOf = new Map(stamps.map((s) => [s.id, s]));
+  const gone = new Set([...wanted].filter((id) => stampOf.get(id)?.asleep ?? true));
+  const alive = [...wanted].filter((id) => !gone.has(id));
+  if (alive.length > 0) for (const id of await deps.villages.archivedOf(alive)) gone.add(id);
+  return gone;
+}
+
 /** Zpráva výsledku trhu pro domovskou ves `villageId` na den `day` (`ref` = `marketResultRef`). */
 function resultMail(villageId: string, day: number, result: MarketResult): VillageMail {
   return {
@@ -81,12 +127,17 @@ async function post(deps: VillageMailDeps, mail: VillageMail): Promise<boolean> 
  * Doručí odchozí schránku vsi a vyřeší její výpravy na trh po termínu (Rozhodnutí 6). Vrací počet
  * zapsaných zpráv.
  *
- * 1. Každou zprávu `outbox` zapíše do schránky cílové vsi. Cílová ves neexistuje (`post` by na
- *    neznámé vsi spadl): příjezd se změní ve výsledek `returned` se vším, co výprava vezla, do
- *    schránky vsi v den plánovaného návratu (lidé jsou doma v plánovaný den); výsledek pro
- *    zmizelou domovskou ves se zahodí – jen výsledek s lidmi (`people`, `newcomers`) zůstane
- *    v `outbox`: lidé nesmí zmizet (markets.md – Rozhodnutí plánu 3, bod 13; k hostiteli je vrátí
- *    zpráva `people-back`).
+ * 1. Každou zprávu `outbox` zapíše do schránky cílové vsi, kromě (markets.md – Rozhodnutí plánu 3,
+ *    bod 13):
+ *    - cílová ves neexistuje (`post` by na neznámé vsi spadl): příjezd se změní ve výsledek
+ *      `returned` se vším, co výprava vezla, do schránky vsi v den plánovaného návratu (lidé jsou
+ *      doma v plánovaný den); výsledek bez lidí a ostatní zprávy se zahodí;
+ *    - výsledek s lidmi (`people`, `newcomers`) pro domovskou ves, která chybí, spí nebo má sídlo
+ *      v archivu (`goneTargets`): lidé jdou zpět do schránky této vsi – hostitele (`people-back`),
+ *      zboží se zahodí; spí-li i hostitel, zahodí se celý – obě vsi jsou pryč;
+ *    - dotaz a ohlášení bez nákladu (`kin-ask`, `smith-ask`, `order-ready`) do zaniklé vsi se
+ *      zahodí – nikdo nikam nejde.
+ *    Příjezd do spící vsi nebo do vsi se sídlem v archivu se zapíše jako dřív – vrátí ho krok 3.
  * 2. Zapsané a zahozené smaže z `outbox` (verzovaný zápis, při souběhu znovu, nejvýš
  *    `MAIL_ATTEMPTS`); prázdný `outbox` se ze stavu smaže celý.
  * 3. Výpravy po termínu (`overdueTrips`): výsledek v odchozí schránce hostitele zapíše; hostitel
@@ -108,20 +159,26 @@ export async function deliverVillageMail(
       ...new Set(outbox.map((m) => m.villageId)),
     ]);
     const known = new Set(stamps.map((s) => s.id));
+    const gone = await goneTargets(deps, outbox, stamps);
     for (const mail of outbox) {
-      if (known.has(mail.villageId)) {
+      if (mail.body.kind === 'market-result' && carriesPeople(mail) && gone.has(mail.villageId)) {
+        // lidé nesmí zmizet – zpět k hostiteli; spí-li i on, jsou obě vsi pryč
+        const back = peopleBackMail(villageId, mail, mail.body.result);
+        if (!sleeps(village) && (await post(deps, back))) written++;
+      } else if (!known.has(mail.villageId)) {
+        if (mail.body.kind === 'market-arrive') {
+          const { arrival } = mail.body;
+          // hostitel zmizel – výprava se vrátí se vším v den plánovaného návratu
+          const returnDay = mail.day + arrival.stayDays + arrival.travelDays;
+          const result = marketResult(arrival, { returned: true });
+          if (await post(deps, resultMail(villageId, returnDay, result))) written++;
+        }
+        // výsledek bez lidí a ostatní zprávy do zmizelé vsi se zahodí
+      } else if (!(isQuery(mail) && gone.has(mail.villageId))) {
         if (await post(deps, mail)) written++;
-      } else if (mail.body.kind === 'market-arrive') {
-        const { arrival } = mail.body;
-        // hostitel zmizel – výprava se vrátí se vším v den plánovaného návratu
-        const returnDay = mail.day + arrival.stayDays + arrival.travelDays;
-        const result = marketResult(arrival, { returned: true });
-        if (await post(deps, resultMail(villageId, returnDay, result))) written++;
       }
-      // výsledek pro zmizelou domovskou ves se zahodí – s lidmi zůstane (níž)
     }
-    const delivered = outbox.filter((m) => known.has(m.villageId) || !carriesPeople(m));
-    const saved = await dropDelivered(deps, villageId, delivered);
+    const saved = await dropDelivered(deps, villageId, outbox);
     if (!saved) return written; // ves mezitím zmizela
     village = saved;
   }

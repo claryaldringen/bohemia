@@ -15,6 +15,7 @@ import type {
   ChronicleEvent,
   Direction8,
   MarketPerson,
+  MarketResult,
   NewcomerGroup,
   PeopleGood,
   TradeGoods,
@@ -173,6 +174,54 @@ export function restorePeople(state: VillageState, groups: readonly MarketPerson
   if (back.size === 0) return;
   if (state.emigrants) state.emigrants = state.emigrants.filter((e) => !back.has(e.id));
   if (state.ancestors) state.ancestors = state.ancestors.filter((a) => !back.has(a.id));
+}
+
+/**
+ * Prodal skupinu hostitel (`peopleBack`)? Někdo z ní je v `emigrants` vsi (týž id a `bornDay`)
+ * a žádné její id ve vsi nikdo nemá ani ho ves ještě nerozdala (`< nextId`). Skupina se vrací celá:
+ * děti, které ve vsi příbuzné nemají, v `emigrants` nejsou (`removePeople`), ale odešly s rodinou
+ * (návrh Clauda). Volná id chrání před shodou s cizí skupinou – `restorePeople` by obsazené id
+ * přeskočil a člověk by zmizel.
+ */
+function soldHere(
+  state: VillageState,
+  emigrated: ReadonlySet<string>,
+  used: ReadonlySet<number>,
+  group: MarketPerson,
+): boolean {
+  return (
+    group.people.some((p) => emigrated.has(`${p.id}:${p.bornDay}`)) &&
+    group.people.every((p) => p.id < state.nextId && !used.has(p.id))
+  );
+}
+
+/**
+ * Lidé z výsledku pro zaniklou domovskou ves se vrátili k hostiteli (mutuje stav; markets.md –
+ * Rozhodnutí plánu 3, bod 13 – událost schránky `people-back`): skupina, kterou hostitel prodal
+ * (`soldHere` – její lidé jsou v jeho `emigrants`), se vrátí s původními id (`restorePeople`),
+ * ostatní se usadí jako příchozí z domovské vsi výpravy (`settlePeople` s `from` – kronika
+ * `newcomer`). Bez `from` (výsledek bez směru cesty – nemá nastat) se usadí bez směru a kroniky.
+ * Nikdo nevznikne ani nezmizí; vstupní skupiny nemění.
+ */
+export function peopleBack(
+  state: VillageState,
+  day: number,
+  back: { key: string; people: readonly MarketPerson[]; from: MarketResult['origin'] },
+): ChronicleEvent[] {
+  const emigrated = new Set((state.emigrants ?? []).map((e) => `${e.id}:${e.bornDay}`));
+  const used = new Set(state.people.map((p) => p.id));
+  const home: MarketPerson[] = [];
+  const others: MarketPerson[] = [];
+  for (const group of back.people) {
+    if (!soldHere(state, emigrated, used, group)) {
+      others.push(group);
+      continue;
+    }
+    home.push(group);
+    for (const p of group.people) used.add(p.id);
+  }
+  restorePeople(state, home);
+  return settlePeople(state, day, others, back.from ?? { villageId: '', villageName: '' });
 }
 
 /**

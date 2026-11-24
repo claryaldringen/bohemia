@@ -435,7 +435,9 @@ villageId)` je zapíše do schránek cílových vsí (`inbox.post`, druhý zápi
     technická mez, ne pravidlo; prázdný `outbox` ze stavu zmizí). Existenci cílových vsí ověří
     jeden levný dotaz `stampsOfVillages`: příjezd do zmizelé vsi se změní ve výsledek `returned`
     se vším do vlastní schránky na den plánovaného návratu (den příjezdu + pobyt + cesta – lidé
-    jsou doma v plánovaný den, návrh Clauda), výsledek pro zmizelou domovskou ves se zahodí.
+    jsou doma v plánovaný den, návrh Clauda), výsledek pro zmizelou domovskou ves se zahodí – jen
+    s lidmi jdou lidé zpět k hostiteli (`people-back` – `peopleBack`), dotazy plánu 3 do zaniklé
+    vsi se zahodí (village-trade.md – Pošta mezi vsemi, Zaniklé vsi a zprávy plánu 3).
     `hasVillageMail(state)` – neprázdný `outbox` nebo výprava na trh po termínu bez výsledku; jen
     s ní se doručuje po dopočtu (`advancePlayer`, `dynastyForVillage`, `advanceDynasty` – za
     odchody správce), takže ves bez pošty nestojí ani dotaz navíc. `deliverVillageMailSafely`
@@ -455,9 +457,11 @@ villageId)` je zapíše do schránek cílových vsí (`inbox.post`, druhý zápi
     kouscích“ 1 / 3 / 10 dní a přerušený generátor v `__tests__/inbox.test.ts`). `advanceVillage`
     bez `inbox` (testy, měření) dává totéž co dřív.
   - **Port** `VillageInbox` (`application/inbox.ts`): `post(event)` – den zápisu
-    `max(day, lastDay + 1)`, zápis zvedne verzi vsi, `null` = `ref` už zapsaný; `pending(villageId,
-afterDay, toDay)` – události `afterDay < day ≤ toDay` podle dne a `seq`. Schránka je člen
-    úložiště vsí (`VillageRepository.inbox`), takže ji má každý dopočet přes `updateVillage`
+    `max(day, lastDay + 1)`, zápis zvedne verzi vsi, `null` = `ref` už zapsaný;
+    `pending(villageId, afterDay, toDay)` – události `afterDay < day ≤ toDay` podle dne a `seq`;
+    `pruneNearby(villageId, upToDay)` – smaže použité snímky okolí (`nearby`) do dne včetně, verzi
+    nemění (jediný úklid schránky – ostatní řádky drží `ref` proti dvojímu zápisu; village-trade.md
+    – Okolí vsi). Schránka je člen úložiště vsí (`VillageRepository.inbox`), takže ji má každý dopočet přes `updateVillage`
     (`loadVillage`, `advancePlayer`, `dynastyStatus`, všechny akce hráče) bez zvláštní
     závislosti. `EMPTY_INBOX` – prázdná (kalibrace). Adaptér Postgresu `createInboxRepository` (tabulka
     `village_inbox`, transakce `post`) je popsaný ve `world.md` – Schránka vsi.

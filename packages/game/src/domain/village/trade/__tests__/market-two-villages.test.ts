@@ -496,8 +496,9 @@ describe('lidé na trhu mezi dvěma vsemi (Rozhodnutí plánu 3, bod 10)', () =>
     expect(m1.chronicle).toContainEqual(
       expect.objectContaining({ kind: 'newcomer', group: 'family', villageName: 'Vlkov' }),
     );
-    // po trhu: na cestě jen výsledek bez lidí
+    // po trhu: na cestě jen výsledek bez lidí – bez `origin` (Rozhodnutí plánu 3, bod 13)
     expect(onTheWay(m1)).toBe(0);
+    expect(result.origin).toBeUndefined();
     const bornM = bornMinusDied(m1, m.lastDay);
     expect(m1.people.length + sent.state.people.length - bornM).toBe(total);
     const home = withoutOutbox(sent.state);
@@ -517,6 +518,23 @@ describe('lidé na trhu mezi dvěma vsemi (Rozhodnutí plánu 3, bod 10)', () =>
       'E',
     ]);
     expect(h1.people.length + m1.people.length - bornH - bornM).toBe(total);
+  });
+
+  it('neprodaná rodina: výsledek ji nese s výpravou, jak ji viděl hostitel (`origin`)', () => {
+    // M lidi neshání (bez polí) – rodina se neprodá a jde s výsledkem domů; zanikne-li H, pošta ji
+    // podle `origin` vrátí k M (Rozhodnutí plánu 3, bod 13)
+    const sent = departMarket(
+      familyHome(),
+      D,
+      { give: { families: 1 }, wants: { grain: 720 }, stayDays: 1 },
+      target,
+    );
+    if (!sent.ok) throw new Error(sent.reason);
+    const m1 = advanceVillage(marketVillage(), D + 1, null, null, asEvents(sent.state.outbox!));
+    const result = resultMail(m1, sent.trip.key);
+    expect(result.unsold).toEqual({ families: 1 });
+    expect(result.people!.flatMap((g) => g.people.map((p) => p.id))).toEqual(FAMILY_IDS);
+    expect(result.origin).toEqual({ villageId: 'h', villageName: 'Vlkov', direction: 'W' });
   });
 
   it('zaniklý hostitel: výsledek returned vrátí H rodinu s původními id', () => {

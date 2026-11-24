@@ -134,4 +134,26 @@ describe('VillageInbox (Drizzle)', () => {
     );
     expect(await db.select().from(schema.villageInbox)).toHaveLength(0);
   });
+
+  it('pruneNearby smaže jen snímky okolí vsi do dne včetně, verzi nezvedá, ref jde zapsat znovu', async () => {
+    const nearby = (day: number): NewVillageEvent => ({
+      villageId,
+      day,
+      ref: `nearby:${villageId}:${day}`,
+      body: { kind: 'nearby', nearby: { day, self: { villageId, name: 'Lhota' }, villages: [] } },
+    });
+    for (const day of [DAY + 30, DAY + 60, DAY + 90]) await inbox.post(nearby(day));
+    await inbox.post(event('jina', DAY + 30));
+    const version = (await villages.find(villageId))!.version;
+    expect(await inbox.pruneNearby(villageId, DAY + 60)).toBe(2);
+    const left = await inbox.pending(villageId, -1, DAY + 365);
+    expect(left.map((e) => [e.body.kind, e.day])).toEqual([
+      ['chronicle', DAY + 30],
+      ['nearby', DAY + 90],
+    ]);
+    expect((await villages.find(villageId))!.version).toBe(version);
+    // smazaný řádek už `ref` neblokuje (úklid jde jen na dny, které se znovu nezapisují)
+    expect(await inbox.post(nearby(DAY + 30))).not.toBeNull();
+    expect(await inbox.pruneNearby(UNKNOWN, DAY + 365)).toBe(0);
+  });
 });

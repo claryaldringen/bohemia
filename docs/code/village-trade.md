@@ -353,6 +353,27 @@ day, order, target, { by?, seedKg?, alone?, service?, kin?, people? })` (mutuje 
   (`stamp.lastDay ≥ cíl` – worker.md, Pošta mezi vsemi), takže pád webu mezi uložením vsi
   a doručením dožene příští kolo. Každá zpráva výpravy má pevný `ref` (`…:in`, `…:out`) – domů
   přijde nejvýš jeden výsledek, i když ho zapíše hostitel i domovská ves.
+  - **Zaniklé vsi a zprávy plánu 3** (markets.md – Rozhodnutí plánu 3, bod 13; krok 1
+    `deliverVillageMail`): ves je zaniklá, když chybí, spí (`asleep` v otisku – vymřela, opuštěná)
+    nebo má sídlo v archivu (Začít znovu – `archivedOf`; jako zaniklý hostitel výpravy po termínu,
+    návrh Clauda – archivovanou ves nikdo nedopočítá). Zjistí to `goneTargets` jen pro zprávy, na
+    kterých záleží (dotazy a výsledky s lidmi), jedním dotazem `archivedOf`.
+    - Dotaz a ohlášení bez nákladu (`kin-ask`, `smith-ask`, `order-ready` – `isQuery`) do zaniklé
+      vsi se zahodí a zmizí z `outbox` – nikdo nikam nejde (hledající se zeptá znovu, ves s koňmi
+      jiné vsi s kovářem, zakázka u hostitele vyprší).
+    - Výsledek s lidmi (`people`, `newcomers`) pro zaniklou domovskou ves: lidé jdou zprávou
+      `people-back` (`peopleBackMail` – `ref` `<ref výsledku>:back`, den výsledku, lidé z `people`
+      i `newcomers`, `from` = `MarketResult.origin`) rovnou do schránky vsi, jejíž `outbox` se
+      doručuje (hostitel); zboží výsledku se zahodí jako v plánu 2. Spí-li i hostitel (`sleeps`),
+      zahodí se celý – obě vsi jsou pryč. Výsledek bez lidí beze změny (zmizelé vsi se zahodí,
+      spící zapíše).
+    - Příjezd (`market-arrive`) jako v plánu 2 – do zmizelé vsi se vrátí jako `returned`, do spící
+      nebo archivované se zapíše a vrátí ho výprava po termínu. Lidé na cestě (rodina na prodej,
+      nevěsta či ženich výpravy `kin`) se tak po zániku cílové vsi vrátí domů s původními id
+      (`applyMarketResult` → `restorePeople`).
+    - Den `people-back` u hostitele závisí na tom, kdy se jeho odchozí schránka doručí (po dávce
+      dopočtu – nejbližší nespočtený den) – mezivesnická výjimka jako všechna pošta (worker.md –
+      Výjimky a omezení).
   - **Výprava po termínu** (`lastDay ≥ returnDay`, výsledek nepřišel – `hasVillageMail`): domovská
     ves načte hostitele. Výsledek v jeho odchozí schránce zapíše sama (hostitel ho pak zapíše
     znovu – zahodí se). Jinak, je-li hostitel pryč (`sleeps` – vymřel, opuštěn, ves chybí;
@@ -371,9 +392,15 @@ day, order, target, { by?, seedKg?, alone?, service?, kin?, people? })` (mutuje 
     a výpravu na trh): `sleeps`, `placeOf` (`ShipmentPlace` – políčko, držitel, odříznutí),
     `stepToward`, `crossesIsolation`.
   - **Testy:** `application/__tests__/village-mail.test.ts` (kolo tam a zpět, hostitel pozadu,
-    vymřelý a archivovaný hostitel, zmizelá ves, chyba a souběh, web po dopočtu) a
-    `advance-world.test.ts` – Pošta mezi vsemi ve workeru (ves dopočtená webem, zámek, kola workeru
-    = ruční postup); dva hráči na sousedních mapách v `__tests__/market-world.ts`.
+    vymřelý a archivovaný hostitel, zmizelá ves, chyba a souběh, web po dopočtu; plán 3 – dotazy
+    do spící, zmizelé a archivované vsi, rodina zpět domů po zániku hostitele, `people-back` po
+    zániku kupce, nevěsta zpět po archivu vsi ženicha) a `advance-world.test.ts` – Pošta mezi vsemi
+    ve workeru (ves dopočtená webem, zámek, kola workeru = ruční postup) a Pošta plánu 3 a svět
+    (nevěsta přes kola obou hráčů, lidí je po každém kole stejně – `peopleOfWorld`,
+    `bornMinusDied`); dva hráči na sousedních mapách v `__tests__/market-world.ts` (`marketWorld`
+    s jinou domovskou či hostitelskou vsí, `kinWorld` – syn a dcera z přípravků sňatků,
+    `neighbours` – okolí obou vsí, `askBride` – dotaz do schránky M). `peopleBack` v jádru:
+    `trade/__tests__/market-people.test.ts`; `origin` výsledku: `market-two-villages.test.ts`.
 - **Jen společné suroviny** (trade.md – Jen společné suroviny; Martin 19. 10. 2026: „Nech jen
   společné suroviny, nezaváděj nové.“): obchod zná jen zboží, které má i ves (`TradeGood`,
   `TRADE_GOODS`). Zboží zvenku (sůl, železo, med, kožešiny – dřívější soubor zboží) ve hře není.
@@ -596,8 +623,15 @@ n, direction)` – n skupin podle `emigrantGroups`, `sendPeople` → `removePeop
 laborHa`) → chybí ceil(dospělí × (landHa ÷ laborHa − 1)) dospělých, rodiny po
   `MARKET.familyAdults` (2) nahoru; nabízí `peopleSpare` (export z `vassalage/spare.ts`).
   `peopleOf(goods)` – lidé ze zboží (celé kladné počty). Vesničané lidi nevozí – jen hráč a správce
-  (roční výprava správce bere lidi z nabídky vsi). Výsledek s lidmi pro zmizelou domovskou ves
-  `deliverVillageMail` nezahodí – zůstane v odchozí schránce hostitele (`carriesPeople`).
+  (roční výprava správce bere lidi z nabídky vsi). Výsledek s lidmi pro zaniklou domovskou ves
+  `deliverVillageMail` nezahodí – lidé jdou zpět k hostiteli (`people-back`, Pošta mezi vsemi výš).
+  `peopleBack(state, day, back)` (větev schránky `people-back`): skupina, kterou hostitel prodal
+  (někdo z ní je v jeho `emigrants` – týž id a `bornDay` – a žádné její id ve vsi nikdo nemá ani
+  není `≥ nextId`), se vrátí celá s původními id (`restorePeople` – i děti, které v `emigrants`
+  nejsou, protože ve vsi nemají příbuzné; návrh Clauda), ostatní se usadí s novými id
+  (`settlePeople` s `from` = `MarketResult.origin`, kronika `newcomer`); bez `from` bez směru
+  a kroniky. Výsledek s lidmi nese `origin` (domovská ves, jméno a směr od hostitele k ní –
+  `departVisitors`), bez lidí ho nemá.
 
 Počasí kraje mění hodnotu zboží od 1. 11. – [village-disasters.md](village-disasters.md#kraj-kolem-vsi-hodnota-zboží-a-zvěř-p4).
 
@@ -649,6 +683,14 @@ Počasí kraje mění hodnotu zboží od 1. 11. – [village-disasters.md](villa
     Spící ves nic. Chyba skenu nebo zápisu dopočet zastaví jako chyba načtení – bez snímku se přes
     den obnovy nepočítá. Cena jednou za 30 dní na ves: dotazy na sídla prstence, jeden na otisky
     a jedno načtení vsi navíc (nový pokus); dopočet bez dne obnovy nic navíc.
+  - **Úklid schránky** (Úloha 10 plánu 3): když `post` snímek zapsal, smaže použité snímky vsi se
+    dnem ≤ `afterDay − NEARBY_KEEP_DAYS` (`inbox.pruneNearby` – jen druh `nearby`, verzi vsi
+    nemění). `NEARBY_KEEP_DAYS` = 365 – technická mez, ne pravidlo: použitý snímek už nic nečte, ale
+    řádek drží `ref` proti dalšímu zápisu téhož dne (dopočet se starším stavem vsi při souběhu webu
+    a workeru by ho po smazání zapsal znovu na nejbližší nespočtený den); rok je daleko za každou
+    dávkou. Schránka tak drží nejvýš ~12 snímků na ves místo ~12 za každý herní rok. Ostatní
+    události schránky se nemažou – jejich `ref` brání dvojímu zápisu (výsledek trhu dvakrát = zboží
+    dvakrát).
   - **Jádro** (`trade/nearby.ts`): `applyNearby` (větev schránky – village-core.md, Schránka vsi),
     `nearbyTarget(state, villageId)` – `MarketTarget` do vsi okolí s domovskou vsí ze `self` (mimo
     okolí null), `nearestNearby(state)` – první ves okolí, `nearestWith(state, craft, skip?)` –
@@ -665,4 +707,6 @@ Počasí kraje mění hodnotu zboží od 1. 11. – [village-disasters.md](villa
     víc dnů obnovy, spící ves, úložiště bez podportu) a `advance-world.test.ts` – Okolí vsi v pevné
     dny (ves sama na mapě po 1, 3 a 10 dnech i se zbytkem ve webu = jeden `loadVillage`; dvě vsi na
     sousedních mapách totéž; dávka končí den před dnem obnovy, na něm a den po něm; ves dopočtená
-    webem – worker nic nečte navíc).
+    webem – worker nic nečte navíc; kola workeru přes dva dny obnovy – snímek jen v nich) a úklid
+    (`nearby.test.ts` – nový snímek smaže použité starší než mez, bez nového nic; adaptér DB
+    `inbox-repository.db.test.ts`).

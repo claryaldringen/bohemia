@@ -22,7 +22,8 @@ function dayBound(day: number): number {
  * Drizzle adaptér portu VillageInbox. `post` je jedna transakce: zamkne řádek vsi (`FOR UPDATE`),
  * vloží událost ve dni `max(day, last_day + 1)` a zvedne `version` i `digest_version` – rozběhnutý
  * dopočet té vsi narazí při uložení na konflikt verze a zopakuje se i s událostí. Stav vsi se
- * zápisem nemění, souhrn proto zůstává platný (`digest_version` jde s `version`).
+ * zápisem nemění, souhrn proto zůstává platný (`digest_version` jde s `version`). `pruneNearby`
+ * smaže použité snímky okolí (`body ->> 'kind' = 'nearby'`) po indexu vsi a dne, verzi nezvedá.
  */
 export function createInboxRepository(db: Database): VillageInbox {
   return {
@@ -70,6 +71,20 @@ export function createInboxRepository(db: Database): VillageInbox {
         )
         .orderBy(asc(villageInbox.day), asc(villageInbox.seq));
       return rows.map(toEvent);
+    },
+    async pruneNearby(villageId, upToDay): Promise<number> {
+      // jen snímky okolí – verze vsi se nemění (stav vsi se nemění, souhrn zůstává platný)
+      const deleted = await db
+        .delete(villageInbox)
+        .where(
+          and(
+            eq(villageInbox.villageId, villageId),
+            lte(villageInbox.day, dayBound(upToDay)),
+            sql`${villageInbox.body}->>'kind' = 'nearby'`,
+          ),
+        )
+        .returning({ id: villageInbox.id });
+      return deleted.length;
     },
   };
 }

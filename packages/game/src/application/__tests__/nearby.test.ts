@@ -5,7 +5,7 @@ import type { NearbyVillage } from '../../domain/village';
 import { dwelling, kin } from '../../domain/village/__tests__/kin-fixtures';
 import { kinSingles } from '../../domain/village/people/kin-match';
 import { D, homeVillage } from '../../domain/village/trade/__tests__/market-fixtures';
-import { NEARBY_REFRESH_DAYS, nearbyDays, nearbyVillages } from '../nearby';
+import { NEARBY_KEEP_DAYS, NEARBY_REFRESH_DAYS, nearbyDays, nearbyVillages } from '../nearby';
 import { updateVillage } from '../update-village';
 import { H_PLAYER, landscape, marketWorld, type MarketWorld } from './market-world';
 
@@ -213,5 +213,66 @@ describe('okolí v pevné dny – zápis před dopočtem (updateVillage, village
     await w.load(w.h, K + 1);
     expect(w.state(w.h).nearby).toBeUndefined();
     expect(await eventDays(w, w.h)).toEqual([]);
+  });
+});
+
+describe('úklid použitých snímků okolí (NEARBY_KEEP_DAYS)', () => {
+  it('nový snímek smaže použité snímky starší než mez – novější snímky a jiné události zůstanou', async () => {
+    const w = await nearbyWorld();
+    const h = w.h;
+    // snímky ve dnech obnovy K … K + 390 a jiná událost v den K (ves je dopočítá)
+    const old: number[] = [];
+    for (let day = K; day <= K + 390; day += NEARBY_REFRESH_DAYS) {
+      old.push(day);
+      await w.villages.inbox.post({
+        villageId: h,
+        day,
+        ref: `nearby:${h}:${day}`,
+        body: {
+          kind: 'nearby',
+          nearby: { day, self: { villageId: h, name: 'Vlkov' }, villages: [] },
+        },
+      });
+    }
+    await w.villages.inbox.post({
+      villageId: h,
+      day: K,
+      ref: 'jina',
+      body: { kind: 'raid-day', campaignId: 'c' },
+    });
+    w.villages.edit(h, (s) => {
+      s.lastDay = K + 400;
+    });
+    const home = w.villages.records.get(h)!;
+    const version = home.version;
+    const pending = await w.villages.inbox.pending(h, K + 400, K + 430);
+    expect(await w.villages.nearby!.post(home, K + 400, K + 430, pending)).toBe(true);
+    // pryč jsou snímky se dnem ≤ K + 400 − NEARBY_KEEP_DAYS (K a K + 30)
+    expect(NEARBY_KEEP_DAYS).toBe(365);
+    expect(await eventDays(w, h)).toEqual([...old.filter((d) => d > K + 35), K + 420]);
+    const all = await w.villages.inbox.pending(h, -1, TOTAL_GAME_DAYS);
+    expect(all.filter((e) => e.body.kind === 'raid-day').map((e) => e.day)).toEqual([K]);
+    // zápis nového snímku zvedl verzi jednou, úklid ji nemění
+    expect(w.villages.records.get(h)!.version).toBe(version + 1);
+  });
+
+  it('bez nového snímku se nic nemaže', async () => {
+    const w = await nearbyWorld();
+    const h = w.h;
+    await w.villages.inbox.post({
+      villageId: h,
+      day: K,
+      ref: `nearby:${h}:${K}`,
+      body: {
+        kind: 'nearby',
+        nearby: { day: K, self: { villageId: h, name: 'Vlkov' }, villages: [] },
+      },
+    });
+    w.villages.edit(h, (s) => {
+      s.lastDay = K + 400;
+    });
+    const home = w.villages.records.get(h)!;
+    expect(await w.villages.nearby!.post(home, K + 400, K + 410, [])).toBe(false);
+    expect(await eventDays(w, h)).toEqual([K]);
   });
 });

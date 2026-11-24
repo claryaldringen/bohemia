@@ -25,7 +25,7 @@ import { awakeSince } from '../activity';
 import { dynastyForVillage } from '../dynasty-for-village';
 import { isFullVillage } from '../villages';
 import { loadVillage } from '../load-village';
-import { NEARBY_REFRESH_DAYS } from '../nearby';
+import { NEARBY_REFRESH_DAYS, nearbyDays } from '../nearby';
 import type { LandscapeSource } from '../settlements';
 import { deliverVillageMail } from '../village-mail';
 import type { PlayerLock } from '../locks';
@@ -34,7 +34,18 @@ import { InMemorySettlements } from './in-memory-settlements';
 import { InMemoryTimeOffsets } from './in-memory-time-offsets';
 import { InMemoryVillages } from './in-memory-villages';
 import { InMemoryWorldQueue } from './in-memory-world-queue';
-import { H_PLAYER, M_PLAYER, marketWorld, returnedOf, type MarketWorld } from './market-world';
+import {
+  H_PLAYER,
+  M_PLAYER,
+  askBride,
+  bornMinusDied,
+  kinWorld,
+  marketWorld,
+  peopleOfWorld,
+  returnedOf,
+  type MarketWorld,
+} from './market-world';
+import { DAUGHTER, SON } from '../../domain/village/people/__tests__/kin-match-fixtures';
 
 const TODAY = DAY + 30;
 const landscape = makeLandscape({ size: 48 });
@@ -753,5 +764,55 @@ describe('okolí vsi v pevné dny (nearby.ts; markets.md – Rozhodnutí plánu 
     expect(world.villages.finds - finds).toBe(1);
     expect(world.villages.records.get(id)!.version).toBe(version);
     expect(await nearbyDays(world, id)).toEqual([REFRESH]);
+  });
+});
+
+describe('pošta plánu 3 a svět (village-mail.ts; markets.md – Rozhodnutí plánu 3, bod 13)', () => {
+  it('kola advancePlayer obou hráčů po dotazu kin-ask dovedou nevěstu do H, nikdo nevznikne ani nezmizí', async () => {
+    const w = await kinWorld({ nearby: true });
+    const total = await peopleOfWorld(w);
+    await askBride(w, DAY + 1);
+    for (let day = DAY + 1; day <= DAY + 5; day++) {
+      for (const playerId of [M_PLAYER, H_PLAYER]) {
+        await advancePlayer(w.deps, { playerId, today: day, stepDays: WORLD_STEP_DAYS });
+        // po každém kole: lidé ve vsích a v nákladu výprav, kromě porodů a úmrtí
+        expect((await peopleOfWorld(w)) - bornMinusDied(w, DAY)).toBe(total);
+      }
+    }
+    const h = w.state(w.h);
+    const son = h.people.find((p) => p.id === SON)!;
+    const bride = h.people.find((p) => p.id === son.spouseId)!;
+    expect(bride).toMatchObject({ sex: 'female', spouseId: SON, origin: 'E' });
+    expect(h.chronicle).toContainEqual(
+      expect.objectContaining({ kind: 'bride-from-outside', villageName: 'Lhota', villageId: w.m }),
+    );
+    const m = w.state(w.m);
+    expect(m.people.map((p) => p.id)).not.toContain(DAUGHTER);
+    expect(m.emigrants).toContainEqual(expect.objectContaining({ id: DAUGHTER, direction: 'W' }));
+    // doprovod je doma, výprava zmizela s prázdným výsledkem
+    expect(m.trade?.expeditions.filter((e) => e.kind === 'market') ?? []).toEqual([]);
+    expect([h.outbox, m.outbox]).toEqual([undefined, undefined]);
+  });
+
+  it('worker okolí obnoví jen v den obnovy (NEARBY_REFRESH_DAYS) – kola mezi nimi ho nepíšou', async () => {
+    const w = await kinWorld({ nearby: true });
+    const end = DAY + 70;
+    const due = nearbyDays(DAY, end);
+    expect(due).toHaveLength(2);
+    const versions: number[] = [];
+    for (let round = 0; ; round++) {
+      expect(round).toBeLessThan(20);
+      const step = await advanceWorldStep(w.deps, { worldDay: end, stepDays: 10, limit: 10 });
+      if (step.idle) break;
+      versions.push(w.version(w.h));
+    }
+    expect(versions.length).toBeGreaterThan(due.length);
+    for (const id of [w.h, w.m]) {
+      const events = await w.villages.inbox.pending(id, -1, TOTAL_GAME_DAYS);
+      expect(events.filter((e) => e.body.kind === 'nearby').map((e) => e.day)).toEqual(due);
+      expect(w.state(id).nearby).toMatchObject({ day: due.at(-1), self: { villageId: id } });
+    }
+    expect(w.state(w.h).nearby!.villages.map((v) => v.villageId)).toEqual([w.m]);
+    expect(w.state(w.m).nearby!.villages.map((v) => v.villageId)).toEqual([w.h]);
   });
 });

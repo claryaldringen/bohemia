@@ -10,6 +10,8 @@ import type { InMemoryVillages } from './in-memory-villages';
 export class InMemoryVillageInbox implements VillageInbox {
   readonly events: VillageEvent[] = [];
   private readonly refs = new Set<string>();
+  /** `ref` zapsané události podle jejího id (úklid `pruneNearby`). */
+  private readonly refOf = new Map<string, string>();
   private nextSeq = 1;
 
   constructor(private readonly villages: InMemoryVillages) {}
@@ -26,6 +28,20 @@ export class InMemoryVillageInbox implements VillageInbox {
     return Promise.resolve(structuredClone(due));
   }
 
+  pruneNearby(villageId: string, upToDay: number): Promise<number> {
+    let pruned = 0;
+    for (let i = this.events.length - 1; i >= 0; i--) {
+      const e = this.events[i]!;
+      if (e.villageId !== villageId || e.day > upToDay || e.body.kind !== 'nearby') continue;
+      this.events.splice(i, 1);
+      // jako smazaný řádek v DB – `ref` přestane blokovat zápis
+      const ref = this.refOf.get(e.id);
+      if (ref !== undefined) this.refs.delete(ref);
+      pruned++;
+    }
+    return Promise.resolve(pruned);
+  }
+
   private write(event: NewVillageEvent): VillageEvent | null {
     const record = this.villages.records.get(event.villageId);
     if (!record) throw new Error(`Ves ${event.villageId} neexistuje.`);
@@ -40,6 +56,7 @@ export class InMemoryVillageInbox implements VillageInbox {
       body: structuredClone(event.body),
     };
     this.events.push(stored);
+    this.refOf.set(stored.id, event.ref);
     // jako zápis v téže transakci s `village.version` – uložení rozběhnutého dopočtu selže
     record.version++;
     return structuredClone(stored);
