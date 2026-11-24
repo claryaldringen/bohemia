@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../../calendar';
 import { foundVillage } from '../../core/actions';
-import { TRADE } from '../../rules';
+import { TRADE, TRADE_GOOD_VALUES } from '../../rules';
 import { advanceVillage } from '../../core/simulate';
 import { tradeCarts } from '../../crafts/carts';
+import { TRADE_GOODS, isPieceGood } from '../goods';
+import { initialPrice } from '../market-prices';
 import {
   addGood,
   expeditionLaborNeed,
@@ -120,6 +122,53 @@ describe('kůže, kožešiny, med a vosk (hides-honey.md – Obchod)', () => {
     const s = trading();
     addGood(s, 'honey', 10, DAY);
     expect(s.wares?.honeyKg).toBe(10);
+  });
+});
+
+describe('nástroje a dřevěné nářadí (markets.md – Rozhodnutí plánu 3, bod 4)', () => {
+  it('hodnota 60 a 2 kg obilí za kg, nese se kg za kg; v kg hned za keramikou', () => {
+    expect(TRADE_GOOD_VALUES.tools).toEqual({ valueKg: 60, carryKg: 1 });
+    expect(TRADE_GOOD_VALUES.woodTools).toEqual({ valueKg: 2, carryKg: 1 });
+    // 60 ÷ 15 = 4 mince za kg nástrojů
+    expect(initialPrice('tools')).toBe(4);
+    const i = TRADE_GOODS.indexOf('pottery');
+    expect(TRADE_GOODS.slice(i, i + 4)).toEqual(['pottery', 'tools', 'woodTools', 'ironBars']);
+    expect(isPieceGood('tools')).toBe(false);
+    expect(isPieceGood('woodTools')).toBe(false);
+  });
+
+  it('zásoba: celé kg vybavení nástroji a dřevěného nářadí', () => {
+    const s = trading();
+    s.toolEquipmentKg = 37.6;
+    s.crafts = { charcoalKg: 0, potteryKg: 0, woodToolsKg: 12.4 };
+    expect(villageGoodStock(s, 'tools', DAY)).toBe(37);
+    expect(villageGoodStock(s, 'woodTools', DAY)).toBe(12);
+    const bare = trading();
+    delete bare.toolEquipmentKg;
+    delete bare.crafts;
+    expect(villageGoodStock(bare, 'tools', DAY)).toBe(0);
+    expect(villageGoodStock(bare, 'woodTools', DAY)).toBe(0);
+  });
+
+  it('koupené nástroje jdou rovnou do vybavení, prodané z něj; nikdy pod 0', () => {
+    const s = trading();
+    s.toolEquipmentKg = 20;
+    addGood(s, 'tools', 5, DAY);
+    expect(s.toolEquipmentKg).toBe(25);
+    addGood(s, 'tools', -8, DAY);
+    expect(s.toolEquipmentKg).toBe(17);
+    addGood(s, 'tools', -100, DAY);
+    expect(s.toolEquipmentKg).toBe(0);
+    s.crafts = { charcoalKg: 0, potteryKg: 0, woodToolsKg: 3 };
+    addGood(s, 'woodTools', 7, DAY);
+    expect(s.crafts.woodToolsKg).toBe(10);
+    addGood(s, 'woodTools', -100, DAY);
+    expect(s.crafts.woodToolsKg).toBe(0);
+    // ves bez zásob řemesel dostane dřevěné nářadí do nových zásob
+    const bare = trading();
+    delete bare.crafts;
+    addGood(bare, 'woodTools', 4, DAY);
+    expect(bare.crafts).toMatchObject({ woodToolsKg: 4 });
   });
 });
 

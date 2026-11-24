@@ -58,6 +58,14 @@ export const TRADE_GOOD_NAMES: Record<
   },
   logs: { name: 'Klády', genitive: 'klád', unit: 'ks', icon: 'wood' },
   pottery: { name: 'Keramika', genitive: 'keramiky', unit: 'kg', icon: 'pottery' },
+  // výrobky dílen na trhu (markets.md – Rozhodnutí plánu 3, bod 4) – ikony jako v panelu dílny
+  tools: { name: 'Nástroje', genitive: 'nástrojů', unit: 'kg', icon: 'tools' },
+  woodTools: {
+    name: 'Dřevěné nářadí',
+    genitive: 'dřevěného nářadí',
+    unit: 'kg',
+    icon: 'wood-tools',
+  },
   ironBars: { name: 'Hřivny', genitive: 'hřiven', unit: 'kg', icon: 'iron-bars' },
   charcoal: { name: 'Uhlí', genitive: 'uhlí', unit: 'kg', icon: 'charcoal' },
   // kámen v celých m³ (trade.md – Kámen)

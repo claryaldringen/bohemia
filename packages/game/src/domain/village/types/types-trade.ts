@@ -25,9 +25,12 @@ export type HorseGood = 'foals' | 'mares' | 'ridingHorses';
 /**
  * Zboží obchodu (trade.md – Sousedé): jen to, co ves sama má – obilí, maso, sýr, luštěniny (kg),
  * dobytek (kusy – krávy, mladí a vycvičení voli – `CattleGood`), klády (kusy), keramika, železné
- * hřivny, uhlí (kg). Nástroje od 20. 10. 2026 nejsou zboží obchodu – jsou vybavení domácností, na
- * obchod jdou hřivny (production-chains.md – Kovář; starší vsi `withIronBarsTrade`). Zboží zvenku (sůl, železo, med, kožešiny) obchod od 19. 10. 2026 nezná (Martin: „Nech
- * jen společné suroviny, nezaváděj nové.“) – starší vsi o něj přijdou (`withoutForeignGoods`).
+ * hřivny, uhlí (kg). Nástroje (`tools`) jsou od 20. 10. 2026 vybavení domácností – od plánu 3
+ * trhu se zase prodávají a kupují rovnou z vybavení a do něj, dřevěné nářadí (`woodTools`) ze
+ * zásoby tesaře (markets.md – Rozhodnutí plánu 3, bod 4); nástroje ve starších výpravách
+ * k sousedovi po stezce převede na hřivny `withIronBarsTrade` (production-chains.md – Kovář).
+ * Zboží zvenku (sůl, železo, med, kožešiny) obchod od 19. 10. 2026 nezná (Martin: „Nech jen
+ * společné suroviny, nezaváděj nové.“) – starší vsi o něj přijdou (`withoutForeignGoods`).
  */
 export type TradeGood =
   | 'grain'
@@ -38,6 +41,8 @@ export type TradeGood =
   | HorseGood
   | 'logs'
   | 'pottery'
+  | 'tools'
+  | 'woodTools'
   | 'ironBars'
   | 'charcoal'
   | 'stone'

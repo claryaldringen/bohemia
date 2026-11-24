@@ -375,14 +375,18 @@ describe('kování vozu z hřiven (wagons.md – Kování vozů)', () => {
 });
 
 describe('obchod s hřivnami (production-chains.md – Kovář, trade.md)', () => {
-  it('hřivny jsou zboží obchodu místo nástrojů – za 45 kg obilí na kg', () => {
+  it('hřivny jsou zboží obchodu – za 45 kg obilí na kg; nástroje z vybavení (plán 3 trhu)', () => {
     expect(TRADE_GOODS).toContain('ironBars');
-    expect(TRADE_GOODS as readonly string[]).not.toContain('tools');
     expect(TRADE_GOOD_VALUES.ironBars.valueKg).toBe(45);
     expect(sellPrice('ironBars')).toBeCloseTo(45, 9);
     const s = village();
     s.crafts!.ironBarsKg = 12.7;
     expect(villageGoodStock(s, 'ironBars')).toBe(12);
+    // nástroje nejsou zásoba kovárny, na trh jdou z vybavení domácností (markets.md – Rozhodnutí
+    // plánu 3, bod 4)
+    expect(TRADE_GOODS).toContain('tools');
+    s.toolEquipmentKg = 9.5;
+    expect(villageGoodStock(s, 'tools')).toBe(9);
   });
 });
 
@@ -443,6 +447,29 @@ describe('převod starší vsi (production-chains.md – Kovář, Starší vsi)'
     // jednou
     const again = withIronBarsTrade(next);
     expect(again).toBe(next);
+  });
+
+  it('nástroje výpravy na trh a zásilky jsou zboží – převod je nechá (markets.md – plán 3, bod 4)', () => {
+    const s = village();
+    const expedition = {
+      direction: 'E' as const,
+      trailId: -1,
+      startedDay: s.lastDay,
+      get: {},
+      porters: 1,
+      days: 3,
+      cost: 3,
+      done: 0,
+    };
+    s.trade = {
+      expeditions: [
+        { ...expedition, id: 1, kind: 'market', give: { tools: 5, grain: 100 } },
+        { ...expedition, id: 2, kind: 'shipment', give: { woodTools: 4, tools: 2 } },
+      ],
+      nextId: 3,
+    };
+    expect(withIronBarsTrade(s)).toBe(s);
+    expect(withoutForeignGoods(s)).toBe(s);
   });
 
   it('v simulaci starší kovárna s nástroji v zásobě pracuje dál', () => {

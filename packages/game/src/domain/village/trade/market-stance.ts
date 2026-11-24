@@ -1,10 +1,19 @@
 // Co hostitelská ves na trhu nabízí a shání (markets.md – Pravidla 3, Rozhodnutí plánu 2, bod 5):
 // přebytek nad vlastní potřebou podle výpočtu potřeby jako u dávek. Ten výpočet (výhled vsi,
-// `vassalage/spare.ts`) existuje jen pro makrokomodity, proto hostitel obchoduje jen s nimi –
-// obilím, dobytkem, koňmi, klády a kamenem; ostatní zboží se v plánu 2 vyměňuje jen mezi výpravami.
+// `vassalage/spare.ts`) existuje pro makrokomodity – obilí, dobytek, koně, klády a kámen – a pro
+// výrobky dílen jejich potřeba a zásoba řemeslníků (nástroje, keramika, dřevěné nářadí, hřivny –
+// Rozhodnutí plánu 3, bod 5); ostatní zboží (jídlo, med, kůže…) se vyměňuje jen mezi výpravami.
 // Čisté funkce, stav nemění.
 import { cattleSpare, grainOnHandKg, grainReserveKg, grainSpareKg } from '../../vassalage/spare';
-import { craftCoverage } from '../crafts/crafts';
+import { ownCraftsmanWorks } from '../crafts/craft-buying';
+import {
+  craftCoverage,
+  craftStocks,
+  craftTargets,
+  ironOrderBarsKg,
+  smithBarsTargetKg,
+} from '../crafts/crafts';
+import { ironBarsKg, toolEquipmentKg, toolNeedKg } from '../crafts/iron';
 import { oxenTrainingTarget } from '../livestock/draft';
 import { horsesWanted } from '../livestock/horse-breeding';
 import { breedingCows, oxenCalvesWanted } from '../livestock/husbandry';
@@ -26,9 +35,13 @@ const WANTED_KEY: Record<HorseGood, 'foals' | 'mares' | 'riding'> = {
 };
 
 /**
- * Co ves v den `day` na trhu nabízí a shání (Rozhodnutí plánu 2, bod 5). Nabídka je nejvýš
- * `villageGoodStock`, klády a kámen jen nabízí (celá hromada, pojistka na ně není). Výhled
- * (`stewardOutlook`) se počítá jednou a `villageSpare` celý se nevolá. Prázdné položky se nezapisují.
+ * Co ves v den `day` na trhu nabízí a shání (Rozhodnutí plánu 2, bod 5; Rozhodnutí plánu 3,
+ * bod 5). Nabídka je nejvýš `villageGoodStock`, klády a kámen jen nabízí (celá hromada, pojistka na
+ * ně není). Výrobky dílen nad vlastní potřebu nabízí (nástroje nad `toolNeedKg`, keramika a dřevěné
+ * nářadí nad `craftTargets`, hřivny nad `smithBarsTargetKg`), do potřeby je shání jen bez vlastního
+ * pracujícího řemeslníka (`ownCraftsmanWorks`) – hřivny jen na vozy čekající na kování
+ * (`ironOrderBarsKg`). Výhled (`stewardOutlook`) se počítá jednou a `villageSpare` celý se nevolá.
+ * Prázdné položky se nezapisují.
  */
 export function marketStance(state: VillageState, day: number): MarketStance {
   const offer: TradeGoods = {};
@@ -63,6 +76,24 @@ export function marketStance(state: VillageState, day: number): MarketStance {
     give(good, Math.min(horsesForSale(state, good, day), have - wanted));
     want(good, wanted - have);
   }
+
+  // jen dílny – bez vlastního pracujícího řemeslníka ves shání do potřeby, nad potřebu nabízí
+  const targets = craftTargets(state, day);
+  const stocks = craftStocks(state);
+  const tools = toolEquipmentKg(state);
+  const toolNeed = toolNeedKg(state, day);
+  const woodTools = stocks.woodToolsKg ?? 0;
+  const bars = ironBarsKg(state);
+  give('tools', tools - toolNeed);
+  give('pottery', stocks.potteryKg - targets.potteryKg);
+  give('woodTools', woodTools - targets.woodToolsKg);
+  give('ironBars', bars - smithBarsTargetKg(state, day));
+  if (!ownCraftsmanWorks(state, 'smith')) {
+    want('tools', toolNeed - tools);
+    want('ironBars', ironOrderBarsKg(state) - bars);
+  }
+  if (!ownCraftsmanWorks(state, 'potter')) want('pottery', targets.potteryKg - stocks.potteryKg);
+  if (!ownCraftsmanWorks(state, 'carpenter')) want('woodTools', targets.woodToolsKg - woodTools);
 
   // klády a kámen: celá hromada, nikdy ve wants
   give('logs', villageGoodStock(state, 'logs', day));

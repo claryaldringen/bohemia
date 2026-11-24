@@ -180,16 +180,23 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   z nevyrovnaných poslední v pořadí stran.
 
 - **Trh – co ves nabízí a shání, zpráva na pivo** (markets.md – Pravidla 3 a 8, Rozhodnutí plánu 2,
-  body 5 a 7). `marketStance(state, day)` (`trade/market-stance.ts`) vrátí `MarketStance`
-  (`offer`, `wants`) hostitelské vsi – jen makrokomodity výhledu dávek, `stewardOutlook` se počítá
-  jednou a `villageSpare` celý se nevolá. Obilí: nabídka `grainSpareKg`, shání
-  `grainReserveKg − grainOnHandKg` (`vassalage/spare.ts`); krávy a voli: nabídka `cattleSpare`,
-  shání krav `breedingCows + oxenCalvesWanted − krávy` (celé nahoru) a vycvičených volů
-  `oxenTrainingTarget − villageOxen − oxenComing`; koně po druzích: nabídka
+  body 5 a 7; Rozhodnutí plánu 3, bod 5). `marketStance(state, day)` (`trade/market-stance.ts`)
+  vrátí `MarketStance` (`offer`, `wants`) hostitelské vsi – makrokomodity výhledu dávek a výrobky
+  dílen, `stewardOutlook` se počítá jednou a `villageSpare` celý se nevolá. Obilí: nabídka
+  `grainSpareKg`, shání `grainReserveKg − grainOnHandKg` (`vassalage/spare.ts`); krávy a voli:
+  nabídka `cattleSpare`, shání krav `breedingCows + oxenCalvesWanted − krávy` (celé nahoru)
+  a vycvičených volů `oxenTrainingTarget − villageOxen − oxenComing`; koně po druzích: nabídka
   `min(horsesForSale, horsesOf − chce)`, shání `chce − horsesOf` (`chce` = `horsesWanted`);
-  klády a kámen jen nabízí celou hromadu. Nabídka je nejvýš `villageGoodStock`, nulové položky se
-  nezapisují, stav se nemění. `horsesOf(state, druh, day)` (`trade/horse-trade.ts`) počítá koně
-  druhu v ohradách i pod jezdcem (prodat jde jen `horsesForSale`). `villageReport(state, day)`
+  klády a kámen jen nabízí celou hromadu. Výrobky dílen (plán 3): nabídka nad vlastní potřebu –
+  nástroje `toolEquipmentKg − toolNeedKg`, keramika a dřevěné nářadí zásoba (`craftStocks`) nad
+  `craftTargets`, hřivny `ironBarsKg − smithBarsTargetKg`; shání jen bez vlastního pracujícího
+  řemeslníka (`ownCraftsmanWorks` – kovář, hrnčíř, tesař) do potřeby – nástroje
+  `toolNeedKg − toolEquipmentKg`, keramika a dřevěné nářadí `craftTargets − zásoba`, hřivny jen na
+  vozy čekající na kování `ironOrderBarsKg − ironBarsKg`. Jídlo (maso, sýr, luštěniny), med, vosk,
+  kůže, kožešiny a uhlí hostitel nenabízí ani neshání. Nabídka je nejvýš `villageGoodStock`,
+  nulové položky se nezapisují, stav se nemění. `horsesOf(state, druh, day)`
+  (`trade/horse-trade.ts`) počítá koně druhu v ohradách i pod jezdcem (prodat jde jen
+  `horsesForSale`). `villageReport(state, day)`
   (`trade/village-report.ts`) složí `VillageReport`: lidé a hotová obydlí `roughCount` (násobek
   `MARKET.report.round`, nejméně 5), řemesla s pracujícím řemeslníkem (`ownCraftsmanWorks`) v pořadí
   potter, smith, burner, carpenter a obchodníci z `state.market.arrivals` (`VillageMarket`) od
@@ -311,7 +318,9 @@ ves>:<id výpravy>`, `stayDays`, `travelDays`, zboží `goods` – koně i tady 
   Starší vsi převede `withoutForeignGoods` (`trade.ts`; v `updateVillage` i na začátku
   `advanceVillage`, bez příznaku, idempotentně): zahodí `goods` a podíl medu v jídle a výpravu na
   cestě pro zboží zvenku zruší – nosiči přinesou zpět, co nesli (`get` = `give`); z kroniky výprav
-  zboží zvenku zmizí. Hřivny místo nástrojů ve výpravách a kronice převede `withIronBarsTrade`.
+  zboží zvenku zmizí. Hřivny místo nástrojů ve výpravách k sousedovi po stezce (bez `kind`)
+  a v kronice převede `withIronBarsTrade` – výprava na trh a zásilka nesou skutečné nástroje
+  (plán 3) a zůstanou.
 
 - **Kůže, kožešiny, med a vosk** (hides-honey.md – Obchod): `TradeGood` += `honey` / `hides` /
   `furs` / `wax` (`TRADE_GOODS` za kamenem), hodnoty v `TRADE_GOOD_VALUES`. Zásoba ve vsi
@@ -320,6 +329,14 @@ ves>:<id výpravy>`, `stayDays`, `travelDays`, zboží `goods` – koně i tady 
   ubírá napřed velké kůže a kožešiny z lovu, přidané kůže jdou do `hides`, kožešiny do `wildFurs`
   (`ensureWares`). Názvy a ikony: `TRADE_GOOD_NAMES` (`trade-names.ts`); kronika je bere
   z `goodsText`.
+
+- **Nástroje a dřevěné nářadí** (markets.md – Rozhodnutí plánu 3, bod 4): `TradeGood` += `tools` /
+  `woodTools` (`TRADE_GOODS` za keramikou – i pořadí zápočtu), hodnoty v `TRADE_GOOD_VALUES` 60
+  a 2 kg obilí za kg, nesou se kg za kg (obnovená `CRAFT_BUYING.toolsValueKg` a
+  `woodToolsValueKg`). Zásoba `villageGoodStock`: celé kg vybavení domácností
+  (`toolEquipmentKg`) a zásoby tesaře (`crafts.woodToolsKg`); `addGood` koupené nástroje přidá
+  rovnou do vybavení a prodané z něj ubere, dřevěné nářadí do `crafts.woodToolsKg` – obojí nikdy
+  pod 0. Názvy a ikony `tools` a `wood-tools` jako v panelu dílny (`TRADE_GOOD_NAMES`).
 
 - **Dobytek ve třech druzích** (trade.md – Dobytek ve třech druzích; Martin 20. 10. 2026: „s
   dobytkem by také mělo jít obchodovat. Představuju si tři kategorie - krávy, mladé voly (musí se

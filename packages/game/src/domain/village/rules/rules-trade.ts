@@ -38,6 +38,13 @@ export const TRADE_GOOD_VALUES = {
   meat: { valueKg: 3, carryKg: 1 },
   cheese: { valueKg: 4, carryKg: 1 },
   pottery: { valueKg: 3, carryKg: 1 },
+  // nástroje a dřevěné nářadí (markets.md – Rozhodnutí plánu 3, bod 4): obnovená čísla dřívějšího
+  // nákupu u sousedů `CRAFT_BUYING.toolsValueKg` a `woodToolsValueKg` @ b4f8dadc (crafts.md –
+  // Nákup u sousedů, Martin 19. 10. 2026, čísla návrh Clauda) – nástroje 60 za kg (rešerše
+  // research/2026-10-18-trade-values.md – železo × 2 za kování), dřevěné nářadí 2 za kg (≈ 0,5 čd
+  // na kg – rešerše vozů); nesou se kg za kg
+  tools: { valueKg: 60, carryKg: 1 },
+  woodTools: { valueKg: 2, carryKg: 1 },
   charcoal: { valueKg: 0.5, carryKg: 1 },
   ironBars: { valueKg: 45, carryKg: 1 },
   cows: { valueKg: 600, carryKg: 0 },

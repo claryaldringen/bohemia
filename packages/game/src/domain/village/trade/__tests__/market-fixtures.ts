@@ -1,5 +1,15 @@
 import type { VillageEvent } from '../../core/inbox';
-import type { MarketTarget, VillageMail, VillageReport, VillageState } from '../../types';
+import { newWorkshop } from '../../crafts/crafts';
+import { CRAFT_BASE } from '../../rules';
+import type {
+  Craft,
+  Dwelling,
+  MarketTarget,
+  VillageMail,
+  VillageReport,
+  VillageState,
+  Workshop,
+} from '../../types';
 import { at, horseVillage } from '../../__tests__/horse-fixtures';
 import { dwelling } from '../../__tests__/kin-fixtures';
 import { marketStance } from '../market-stance';
@@ -55,6 +65,29 @@ export function homeVillage(): VillageState {
     },
   ];
   return s;
+}
+
+/**
+ * Pracující dílna řemesla `craft` (`ownCraftsmanWorks`) v novém obydlí `id`: přestěhuje se do ní
+ * první člověk mimo dvorec a mimo dílny – lidí ve vsi nepřibude ani neubude. `workshop` doplní
+ * stav dílny (ruda, rozdělaný vůz…).
+ */
+export function withWorkshop(
+  s: VillageState,
+  craft: Craft,
+  id: number,
+  workshop: Partial<Workshop> = {},
+): Dwelling {
+  const inWorkshop = new Set(s.dwellings.filter((d) => d.workshop).map((d) => d.id));
+  const worker = s.people.find((p) => p.dwellingId !== s.manorId && !inWorkshop.has(p.dwellingId))!;
+  const d: Dwelling = {
+    ...dwelling(id, CRAFT_BASE[craft]),
+    position: { x: 30 + 12 * inWorkshop.size, z: 40, rotation: 0 },
+    workshop: { ...newWorkshop(craft), activity: 'producing', ...workshop },
+  };
+  s.dwellings.push(d);
+  worker.dwellingId = id;
+  return d;
 }
 
 /** Cíl výpravy z H: Lhota (M) na sousední mapě na východě. */

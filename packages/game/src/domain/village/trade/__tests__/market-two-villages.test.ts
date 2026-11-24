@@ -1,10 +1,21 @@
 import { describe, expect, it } from 'vitest';
 import { advanceVillage } from '../../core/simulate';
+import { toolEquipmentKg, toolNeedKg } from '../../crafts/iron';
+import { CRAFT_NEEDS } from '../../rules';
 import type { ChronicleEvent, MarketResult } from '../../types';
 import { marketResultRef } from '../market';
+import { marketStance } from '../market-stance';
 import { departMarket } from '../market-trip';
 import { expeditionLaborNeed } from '../trade';
-import { D, asEvents, homeVillage, marketVillage, target, withoutOutbox } from './market-fixtures';
+import {
+  D,
+  asEvents,
+  homeVillage,
+  marketVillage,
+  target,
+  withWorkshop,
+  withoutOutbox,
+} from './market-fixtures';
 
 // Dvě vsi a trh mezi nimi (markets.md – Co se ověří, bod 2 bez kupců): výprava z H prodá obilí na
 // trhu M a koupí krávu. Vsi mezi kroky žijí (jídlo, práce, stáda), proto se bilance počítá jen ze
@@ -87,5 +98,58 @@ describe('výprava na trh mezi dvěma vsemi (markets.md – Co se ověří, bod 
     }
     expect(parts).toEqual(whole);
     expect(whole.chronicle.filter((e) => e.kind === 'market-returned')).toHaveLength(1);
+  });
+
+  // Výrobky dílen (markets.md – Rozhodnutí plánu 3, body 4 a 5): ves bez kováře koupí nástroje
+  // u kováře souseda za obilí. Bilance proti téže vsi bez trhu (vsi mezi kroky žijí).
+  it('nástroje za obilí: H bez kováře koupí 10 kg od M s kovářem, 4 mince za kg proti 1 ÷ 15', () => {
+    const h = homeVillage();
+    h.toolEquipmentKg = toolNeedKg(h, D) - 10;
+    const m = marketVillage();
+    withWorkshop(m, 'smith', 700, { oreKg: 500 });
+    m.crafts = { charcoalKg: 5_000, potteryKg: 0 };
+    m.toolEquipmentKg = toolNeedKg(m, D) + 30;
+    // M nabízí vybavení nad potřebu a shání obilí; H shání přesně 10 kg
+    expect(marketStance(m, D).offer.tools).toBe(30);
+    expect(marketStance(m, D).wants.grain).toBeGreaterThan(600);
+    expect(marketStance(h, D).wants.tools).toBe(10);
+    const sent = departMarket(
+      h,
+      D,
+      { give: { grain: 900 }, wants: { tools: 10 }, stayDays: 1 },
+      target,
+    );
+    if (!sent.ok) throw new Error(sent.reason);
+    const m1 = advanceVillage(m, D + 1, null, null, asEvents(sent.state.outbox!));
+    const mAlone = advanceVillage(m, D + 1, null, null);
+    const out = m1.outbox!.find((x) => x.ref === marketResultRef(sent.trip.key))!;
+    const result = (out.body as { result: MarketResult }).result;
+    // 10 kg × 4 mince = 40 mincí = 600 kg obilí × 1 ÷ 15; zbylých 300 kg se vrátí
+    expect(result.bought).toEqual({ tools: 10 });
+    expect(result.sold.grain).toBeCloseTo(600, 6);
+    expect(result.unsold.grain).toBeCloseTo(300, 6);
+    expect(m1.market!.prices.tools).toBe(4);
+    // M prodal nástroje a koupil přesně obilí, které H prodala
+    type Held = Extract<ChronicleEvent, { kind: 'market-held' }>;
+    const held = m1.chronicle.find((e): e is Held => e.kind === 'market-held')!;
+    expect(held.sold).toEqual({ tools: 10 });
+    expect(held.bought.grain).toBeCloseTo(result.sold.grain!, 6);
+    // M: o 10 kg vybavení méně (nad potřebou se opotřebí stejně); zásoby obilí o prodané víc, bez
+    // ztrát skladováním zbytku dne (0,17 kg z 600)
+    expect(toolEquipmentKg(mAlone) - toolEquipmentKg(m1)).toBeCloseTo(10, 9);
+    expect(m1.storesKg - mAlone.storesKg).toBeCloseTo(600, 0);
+    expect(m1.storesKg - mAlone.storesKg).toBeLessThan(600);
+    // H: výsledek ráno D + 2 přidá 10 kg do vybavení; ten den se v užívání opotřebí jako ostatní
+    // (CRAFT_NEEDS.toolWearPerYear ÷ 365 – wearCraftStocks)
+    const home = withoutOutbox(sent.state);
+    const h1 = advanceVillage(home, D + 2, null, null, asEvents(m1.outbox!));
+    const hAlone = advanceVillage(home, D + 2, null, null);
+    expect(h1.chronicle.find((e) => e.kind === 'market-returned')).toMatchObject({
+      bought: { tools: 10 },
+    });
+    expect(toolEquipmentKg(h1) - toolEquipmentKg(hAlone)).toBeCloseTo(
+      10 * (1 - CRAFT_NEEDS.toolWearPerYear / 365),
+      9,
+    );
   });
 });

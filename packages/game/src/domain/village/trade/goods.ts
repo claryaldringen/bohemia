@@ -25,7 +25,10 @@ export function isLivestockGood(good: string): good is CattleGood | HorseGood {
   return isCattleGood(good) || isHorseGood(good);
 }
 
-/** Zboží obchodu v pořadí panelu (obilí a jídlo, dobytek, koně a dřevo, výrobky řemesel). */
+/**
+ * Zboží obchodu v pořadí panelu a zápočtu (obilí a jídlo, dobytek, koně a dřevo, výrobky řemesel –
+ * nástroje a dřevěné nářadí za keramikou, markets.md – Rozhodnutí plánu 3, bod 4).
+ */
 export const TRADE_GOODS: readonly TradeGood[] = [
   'grain',
   'legumes',
@@ -35,6 +38,8 @@ export const TRADE_GOODS: readonly TradeGood[] = [
   ...HORSE_GOODS,
   'logs',
   'pottery',
+  'tools',
+  'woodTools',
   'ironBars',
   'charcoal',
   'stone',
