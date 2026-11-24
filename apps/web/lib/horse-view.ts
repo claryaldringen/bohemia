@@ -114,7 +114,8 @@ function smithFrom(state: VillageState): string | null {
   if (asked) return asked.name;
   for (let i = state.chronicle.length - 1; i >= 0; i--) {
     const event = state.chronicle[i]!;
-    if (event.kind === 'horses-shod' && !event.own) return event.villageName ?? null;
+    // starší záznam bez jména: „kovář ze sousední vsi“, ne „Kovář není“
+    if (event.kind === 'horses-shod' && !event.own) return event.villageName ?? '';
   }
   return null;
 }

@@ -375,7 +375,10 @@ describe('trh ve vsi hostitele – příjezd, výsledek a zprávy', () => {
         boughtHorses: [],
       },
     ]);
-    expect(s.market!.arrivals).toEqual([{ name: 'Vlkov', day: D, goods: ['grain', 'mares'] }]);
+    expect(s.market!.arrivals).toMatchObject([
+      { name: 'Vlkov', day: D, goods: ['grain', 'mares'] },
+    ]);
+    expect(s.market!.arrivals[0]!.villageId).toBe('h');
     expect(s.news).toEqual([{ villageId: 'h', name: 'Vlkov', report }]);
 
     // týž klíč podruhé nic neudělá
@@ -479,7 +482,7 @@ describe('kovář souseda na trhu hostitele (plán 3, Úloha 11)', () => {
       arrival({ goods: { ironBars: 1 }, service: { kind: 'shoeing', horses: 0 } }),
     );
     expect(events.find((e) => e.kind === 'market-arrived')).toMatchObject({ smith: true });
-    expect(m.market!.arrivals).toEqual([
+    expect(m.market!.arrivals).toMatchObject([
       { name: 'Vlkov', day: D, goods: ['ironBars'], smith: true },
     ]);
     // obchodník bez služby `smith` nenese

@@ -7,8 +7,10 @@ import {
   peopleWanted,
   receiveStranded,
   restorePeople,
+  leavingGroups,
   settlePeople,
   takePeople,
+  withoutGroups,
 } from '../market-people';
 import { marketStance } from '../market-stance';
 import {
@@ -16,10 +18,11 @@ import {
   applyMarketResult,
   departMarket,
   marketFreeAdults,
-  marketPeopleOffer,
+  marketPeopleModel,
+  marketPreviewPeople,
   planMarketTrip,
 } from '../market-trip';
-import { emigrantGroups } from '../people-trade';
+import { emigrantGroups, emigrantList } from '../people-trade';
 import { addGood } from '../trade';
 import {
   D,
@@ -329,24 +332,48 @@ describe('lidé na trhu (markets.md – Rozhodnutí plánu 3, bod 10)', () => {
   });
 });
 
-describe('marketPeopleOffer – nabídka lidí pro náhled výpravy (plán 3, Úloha 11)', () => {
-  it('rodiny, muži a ženy se berou z týchž lidí a nosiči ubývají o prodávané dospělé', () => {
+describe('marketPreviewPeople – lidé a nosiči v náhledu = server (plán 3, Úloha 11)', () => {
+  it('pro každý výběr dává tytéž skupiny a volné nosiče jako server', () => {
     const s = familyHome();
-    const offer = marketPeopleOffer(s, D);
+    const model = marketPeopleModel(s, D);
+    expect(model.families).toEqual([2]);
+    for (const families of [0, 1, 2]) {
+      for (const men of [0, 1, 2, 9]) {
+        for (const women of [0, 1, 2, 9]) {
+          const give = { families, men, women };
+          const leaving = leavingGroups(s, D, give);
+          const preview = marketPreviewPeople(model, give);
+          expect(preview.stock, JSON.stringify(give)).toEqual({
+            families: leaving.families.length,
+            men: leaving.men.length,
+            women: leaving.women.length,
+          });
+          expect(preview.adults, JSON.stringify(give)).toBe(
+            marketFreeAdults(withoutGroups(s, emigrantList(leaving)), D),
+          );
+        }
+      }
+    }
+  });
+
+  it('muži bez odchodu rodin jsou ve výběru, i když po všech rodinách už nezbyli', () => {
+    const s = familyHome();
+    const model = marketPeopleModel(s, D);
     const all = emigrantGroups(s, D, { families: Infinity, men: Infinity, women: Infinity });
-    expect(offer.stock).toEqual({
-      families: all.families.length,
-      men: all.men.length,
-      women: all.women.length,
-    });
-    expect(offer.stock.families).toBe(1);
-    // rodina 62 + 63 má dva dospělé, děti se do nosičů nepočítají
-    expect(offer.adults.families).toEqual([2]);
-    expect(offer.adults.men).toEqual(all.men.map(() => 1));
-    // server: volní dospělí vsi bez odcházející rodiny
+    const none = marketPreviewPeople(model, { men: 99 });
+    expect(none.stock.men).toBeGreaterThanOrEqual(all.men.length);
+    expect(none.stock.men).toBe(leavingGroups(s, D, { men: 99 }).men.length);
+  });
+
+  it('rodina odejde i s dospělými: nosičů ubude', () => {
+    const s = familyHome();
+    const model = marketPeopleModel(s, D);
     const plan = planMarketTrip(s, D, { give: { families: 1 }, wants: {}, stayDays: 1 }, target);
     expect(plan.ok).toBe(true);
     expect(marketFreeAdults(s, D) - 2).toBe(marketFreeAdults(takeWithout(s), D));
+    expect(marketPreviewPeople(model, { families: 1 }).adults).toBe(
+      marketFreeAdults(takeWithout(s), D),
+    );
   });
 });
 

@@ -166,6 +166,7 @@ export function joinMarket(
   market.visitors.push(visitor);
   market.arrivals.push({
     name: arrival.fromName,
+    villageId: arrival.fromVillageId,
     day,
     goods: TRADE_GOODS.filter((good) => (goods[good] ?? 0) > 0),
     ...(arrival.service ? { smith: true as const } : {}),

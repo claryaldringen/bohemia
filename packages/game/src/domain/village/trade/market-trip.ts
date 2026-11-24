@@ -53,14 +53,14 @@ import { addHorses, takeHorses } from './horse-trade';
 import { marketArrivalRef, rememberNews } from './market';
 import {
   leavingGroups,
+  peopleOf,
   restorePeople,
   settlePeople,
   takePeople,
   withoutGroups,
 } from './market-people';
-import { emigrantGroups, type EmigrantGroup } from './people-trade';
+import { emigrantGroups, emigrantList, type EmigrantGroup } from './people-trade';
 import { addGood, addMarketCarts, expeditionLaborNeed, takeCarts, villageGoodStock } from './trade';
-import { emigrantList } from './people-trade';
 import { villageReport } from './village-report';
 
 const EPSILON = 1e-9;
@@ -315,30 +315,69 @@ export function marketFreeAdults(state: VillageState, day: number): number {
 }
 
 /**
- * Lidé na prodej pro náhled výpravy ve webu (markets.md – Rozhodnutí plánu 3, bod 10; návrh
- * Clauda): rodiny, muži a ženy berou z týchž lidí, takže `stock` je kolik jich odejde, když výběr
- * `emigrantGroups` vezme všechny druhy po sobě (muži z vsi bez rodin, ženy bez rodin a mužů –
- * nikdy víc, než server doopravdy vybere), a `adults` dospělí po skupinách v pořadí výběru
- * (prvních n skupin je vždy stejných) – kdo odejde, nosičem není.
+ * Výběr lidí na prodej pro náhled výpravy ve webu (markets.md – Rozhodnutí plánu 3, bod 10; návrh
+ * Clauda). Web stav vsi nemá, a výběr je sekvenční (`emigrantGroups`: napřed rodiny, pak muži
+ * a ženy z vsi bez předchozích), proto server pošle dospělé po skupinách pro každý možný výběr:
+ * `men[f]` po odchodu `f` rodin, `women[f][m]` po odchodu `f` rodin a `m` mužů. `adults` jsou
+ * dospělí vsi bez lidí pryč a `busy` ti, které zaměstnávají výpravy, nákupy a kování
+ * (`marketFreeAdults`).
  */
-export function marketPeopleOffer(
-  state: VillageState,
-  day: number,
-): { stock: TradePeople; adults: Record<keyof TradePeople, number[]> } {
-  const all = emigrantGroups(state, day, { families: Infinity, men: Infinity, women: Infinity });
+export interface MarketPeopleModel {
+  families: number[];
+  men: number[][];
+  women: number[][][];
+  adults: number;
+  busy: number;
+}
+
+/** Model výběru lidí pro náhled (`marketPreviewPeople`); stav nemění. */
+export function marketPeopleModel(state: VillageState, day: number): MarketPeopleModel {
   const adultsOf = (groups: readonly EmigrantGroup[]): number[] =>
     groups.map((g) => g.people.filter((p) => isAdult(p, day) && !awayFromWork(p, day)).length);
+  const everyone = { families: Infinity, men: Infinity, women: Infinity };
+  const groups = emigrantGroups(state, day, everyone).families;
+  const families = groups.length;
+  const model: MarketPeopleModel = {
+    families: adultsOf(groups),
+    men: [],
+    women: [],
+    adults: state.people.filter((p) => isAdult(p, day) && !awayFromWork(p, day)).length,
+    busy: expeditionLaborNeed(state, day + 1) + purchaseTravelers(state) + ironTripHelpers(state),
+  };
+  for (let f = 0; f <= families; f++) {
+    const men = emigrantGroups(state, day, { families: f, men: Infinity, women: 0 }).men;
+    model.men.push(adultsOf(men));
+    const row: number[][] = [];
+    for (let m = 0; m <= men.length; m++) {
+      const women = emigrantGroups(state, day, { families: f, men: m, women: Infinity }).women;
+      row.push(adultsOf(women));
+    }
+    model.women.push(row);
+  }
+  return model;
+}
+
+/**
+ * Lidé na prodej a volní nosiči pro náhled výpravy se zbožím `give` – stejně jako kontrola
+ * výpravy na serveru (`planMarketTrip`): `stock` je kolik skupin druhu s celým `give` doopravdy
+ * odejde (`leavingGroups`), `adults` volní dospělí bez nich (`marketFreeAdults`). Čistá funkce.
+ */
+export function marketPreviewPeople(
+  model: MarketPeopleModel,
+  give: TradeGoods,
+): { stock: TradePeople; adults: number } {
+  const want = peopleOf(give);
+  const f = Math.min(want.families, model.families.length);
+  const men = model.men[f] ?? [];
+  const m = Math.min(want.men, men.length);
+  const women = model.women[f]?.[m] ?? [];
+  const w = Math.min(want.women, women.length);
+  const sum = (list: readonly number[], n: number): number =>
+    list.slice(0, n).reduce((a, b) => a + b, 0);
+  const leaving = sum(model.families, f) + sum(men, m) + sum(women, w);
   return {
-    stock: {
-      families: all.families.length,
-      men: all.men.length,
-      women: all.women.length,
-    },
-    adults: {
-      families: adultsOf(all.families),
-      men: adultsOf(all.men),
-      women: adultsOf(all.women),
-    },
+    stock: { families: f, men: m, women: w },
+    adults: Math.max(0, model.adults - leaving - model.busy),
   };
 }
 

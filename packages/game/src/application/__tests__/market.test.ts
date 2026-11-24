@@ -223,6 +223,31 @@ describe('marketOverview', () => {
     expect(steward.map((v) => v.name)).toEqual(['Lhota']);
   });
 
+  it('zpráva o sousední vsi: obchodníci z jiných vsí držitele jsou správci bez jména, držiteli se jménem', async () => {
+    const w = await world();
+    const traders = [
+      { name: 'Dolní', villageId: w.ids.own, day: D - 1, goods: [] },
+      { name: 'Cizí', villageId: w.ids.far, day: D - 2, goods: [] },
+      { name: 'Starý', day: D - 3, goods: [] },
+      { name: 'Domů', villageId: w.ids.h, day: D - 4, goods: [] },
+    ];
+    await setState(w, w.ids.h, (s) => ({
+      ...s,
+      news: [{ villageId: w.ids.m, name: 'Lhota', report: { ...report, traders } }],
+    }));
+    const input = { playerId: 'pa', villageId: w.ids.h };
+    const names = (list: Awaited<ReturnType<typeof marketOverview>>): string[] =>
+      list!.find((v) => v.name === 'Lhota')!.news!.report.traders.map((t) => t.name);
+    expect(names(await marketOverview(w.deps, input))).toEqual(['Dolní', 'Cizí', 'Starý', 'Domů']);
+    // správce: jen ves, kterou zná (domovská ves správcovské vsi), jinak bez jména
+    expect(names(await marketOverview(w.deps, { ...input, actorId: 'ps' }))).toEqual([
+      '',
+      '',
+      '',
+      'Domů',
+    ]);
+  });
+
   it('ves, která není hráče, vrátí null', async () => {
     const w = await world();
     expect(await marketOverview(w.deps, { playerId: 'pb', villageId: w.ids.h })).toBeNull();

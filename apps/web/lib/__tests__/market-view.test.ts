@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import {
   dayIndexOf,
   foundVillage,
-  marketPeopleOffer,
   planMarketTrip,
   type MarketOrder,
   type MarketTarget,
@@ -142,6 +141,9 @@ describe('náhled výpravy = kontrola jádra', () => {
     // lidé na prodej nejsou nosiči (plán 3, Úloha 11): obilí 3 000 kg jde jen s tím, kdo zůstane
     'obilí a prodaní muži': { give: { grain: 1_500, men: 2 }, wants: {}, stayDays: 1 },
     'muži i ženy společně': { give: { grain: 1_500, men: 2, women: 2 }, wants: {}, stayDays: 1 },
+    // server bere ženy z vsi bez odcházejících mužů – náhled jen, když muži nejsou ve výběru
+    'ženy bez mužů': { give: { women: 2 }, wants: {}, stayDays: 1 },
+    'ženy bez mužů a obilí': { give: { grain: 2_900, women: 2 }, wants: {}, stayDays: 1 },
     'víc mužů, než je': { give: { men: 9 }, wants: {}, stayDays: 1 },
   };
 
@@ -160,17 +162,4 @@ describe('náhled výpravy = kontrola jádra', () => {
       }
     });
   }
-});
-
-describe('lidé na prodej v náhledu (sdílený výběr jádra)', () => {
-  it('nabídka lidí je výběr `emigrantGroups` po sobě, ne po druzích zvlášť', () => {
-    const s = village();
-    const offer = marketPeopleOffer(s, DAY);
-    const view = manorView(s, DAY)!;
-    expect(view.market.stock).toMatchObject(offer.stock);
-    expect(view.market.peopleAdults).toEqual(offer.adults);
-    expect(offer.stock.men).toBe(2);
-    // po mužích zbyde jedna žena, kterou jde vybrat (`emigrantGroups` bere z týchž lidí)
-    expect(offer.stock.women).toBe(1);
-  });
 });

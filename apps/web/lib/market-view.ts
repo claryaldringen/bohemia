@@ -3,6 +3,7 @@
 // server složil z vsi do pohledu dvorce (`VillageManor.market`). Čistý modul.
 import {
   checkMarketTrip,
+  marketPreviewPeople,
   type MarketOrder,
   type MarketTripCheck,
   type VillageState,
@@ -62,17 +63,13 @@ export function marketPreview(
   market: VillageManor['market'],
   cells: number,
 ): MarketPreview {
-  // prodávaní lidé nejsou nosiči – prvních n skupin výběru je vždy stejných
-  let leaving = 0;
-  for (const kind of ['families', 'men', 'women'] as const) {
-    const n = Math.max(0, Math.floor(order.give[kind] ?? 0));
-    for (const adults of (market.peopleAdults?.[kind] ?? []).slice(0, n)) leaving += adults;
-  }
+  // lidé na prodej a volní nosiči stejně jako server (`planMarketTrip`) – výpočet je v jádru
+  const people = market.people ? marketPreviewPeople(market.people, order.give) : null;
   const input: MarketTripCheck = {
-    stock: market.stock,
+    stock: people ? { ...market.stock, ...people.stock } : market.stock,
     homeCarts: market.homeCarts,
     oxenHome: market.oxenHome,
-    adults: Math.max(0, market.adults - leaving),
+    adults: people ? people.adults : market.adults,
     day: market.day,
     cells,
   };

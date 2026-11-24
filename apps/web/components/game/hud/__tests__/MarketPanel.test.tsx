@@ -235,7 +235,7 @@ describe('nové zboží a lidé (plán 3, Úloha 11)', () => {
       market: market({
         stock: { grain: 1000, men: 2 },
         adults: 6,
-        peopleAdults: { families: [], men: [3, 3], women: [] },
+        people: { families: [], men: [[3, 3]], women: [[[], [], []]], adults: 6, busy: 0 },
       }),
     });
     await click(host.querySelector('[data-testid="market-village"] button'));

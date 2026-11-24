@@ -249,7 +249,7 @@ async function guardedAction<T>(
  * držitele), jsou prázdná – pohled, kronika, upozornění i tooltipy říkají „sousední ves“ a klient
  * jména nikdy nedostane (markets.md – Rozhodnutí plánu 3, bod 14). Držitel vidí vše.
  */
-async function shownToActor<T extends { id: string; state: VillageState }>(
+export async function shownToActor<T extends { id: string; state: VillageState }>(
   ctx: Extract<Context, { ok: true }>,
   record: T,
 ): Promise<T> {

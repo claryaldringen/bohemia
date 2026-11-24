@@ -1328,11 +1328,13 @@ plní `manorView` (`stanceOf`), volba jde přes server action `setDefenseStance`
   „… – hotová zakázka v Lhotě“ (`selection/crafts.tsx`).
 - **Panel Trh**: nové zboží (nástroje, dřevěné nářadí, vozy, rodiny, muži, ženy) bere z
   `TRADE_GOOD_NAMES` (ikony `tools`, `wood-tools`, `cart`, `family`, `man`, `woman`), nejvýš
-  `villageGoodStock` (celá kg). Lidé berou z týchž lidí – `VillageManor.market.stock` jejich nabídku
-  bere z `marketPeopleOffer` jádra a `peopleAdults` (dospělí po skupinách) slouží náhledu: prodávaní
-  lidé nejsou nosiči (`marketPreview`). Voly pro koupený vůz kontroluje jádro (`MARKET_NO_OXEN` jako
+  `villageGoodStock` (celá kg). Lidé berou z týchž lidí – `VillageManor.market.people`
+  (`marketPeopleModel` jádra: dospělí po skupinách pro každý sekvenční výběr rodin, mužů a žen)
+  volá `marketPreview` přes `marketPreviewPeople`, takže lidé na prodej i volní nosiči vycházejí
+  stejně jako na serveru (`planMarketTrip`); prodávaní lidé nejsou nosiči. Voly pro koupený vůz kontroluje jádro (`MARKET_NO_OXEN` jako
   důvod náhledu). Kovář souseda ve zprávě (`traders[].smith`) je ikona kováře, ne zboží; výprava do
-  vsi bez jména je „Sousední ves“.
+  vsi bez jména je „Sousední ves“; obchodník ve zprávě nese `villageId` domova a cizímu správci
+  `marketOverview` vypustí jméno, pokud jeho ves správce nezná (starší záznamy bez `villageId` též).
 - **Cizí správce**: `maskVillageNames(state, allowed)` (`lib/mask-village-names.ts`, volá
   `shownToActor` v `lib/village.ts` při skládání pohledu i stránky kroniky) nahradí prázdným jménem
   jména vsí, které `marketOverview` s `actorId` správci neukáže – záznamy kroniky plánu 3 (i starší bez

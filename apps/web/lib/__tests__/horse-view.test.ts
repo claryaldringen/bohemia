@@ -84,6 +84,13 @@ describe('kdo kuje koně (plán 3, Úloha 11)', () => {
     expect(shoeingSmithText(last)).toBe('Kovář z Hrušova');
   });
 
+  it('starší kování bez jména vsi: kovář ze sousední vsi, ne „Kovář není“', () => {
+    const old = view((s) => {
+      s.chronicle.push({ day: START - 3, kind: 'horses-shod', horses: 2, own: false });
+    });
+    expect(shoeingSmithText(old)).toBe('Kovář ze sousední vsi');
+  });
+
   it('cizí správce: prázdné jméno – kovář ze sousední vsi', () => {
     const masked = view((s) => {
       s.shoeing = {

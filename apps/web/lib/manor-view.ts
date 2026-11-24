@@ -6,7 +6,8 @@ import {
   HUNT_DENIED_TEXT,
   lordFamily,
   marketFreeAdults,
-  marketPeopleOffer,
+  marketPeopleModel,
+  type MarketPeopleModel,
   oxenHome,
   tradeHomeCarts,
   TRADE_GOODS,
@@ -83,10 +84,10 @@ export interface VillageManor {
   market: Omit<MarketTripCheck, 'cells'> & {
     trips: MarketTripView[];
     /**
-     * Dospělí po skupinách lidí na prodej v pořadí výběru jádra (`marketPeopleOffer`) – kdo odejde,
+     * Výběr lidí na prodej a volní nosiči pro náhled (`marketPreviewPeople` jádra) – kdo odejde,
      * nosičem není (Rozhodnutí plánu 3, bod 10); chybí = neznámo (starší pohledy, testy).
      */
-    peopleAdults?: Record<'families' | 'men' | 'women', number[]>;
+    people?: MarketPeopleModel;
   };
 }
 
@@ -94,11 +95,11 @@ export interface VillageManor {
 function marketField(state: VillageState, day: number): VillageManor['market'] {
   const stock: TradeGoods = {};
   for (const good of TRADE_GOODS) stock[good] = villageGoodStock(state, good, day);
-  // lidé berou z týchž lidí – nabídka je výběr po sobě, ne po druzích zvlášť (jako kontrola serveru)
-  const people = marketPeopleOffer(state, day);
-  stock.families = people.stock.families;
-  stock.men = people.stock.men;
-  stock.women = people.stock.women;
+  // lidé berou z týchž lidí – nejvíc, co jde dát, když se druhy nepřebírají (`marketPreviewPeople`)
+  const people = marketPeopleModel(state, day);
+  stock.families = people.families.length;
+  stock.men = people.men[0]?.length ?? 0;
+  stock.women = people.women[0]?.[0]?.length ?? 0;
   return {
     stock,
     homeCarts: tradeHomeCarts(state).map((c) => c.kind),
@@ -106,7 +107,7 @@ function marketField(state: VillageState, day: number): VillageManor['market'] {
     adults: marketFreeAdults(state, day),
     day,
     trips: marketTripViews(state, day),
-    peopleAdults: people.adults,
+    people,
   };
 }
 

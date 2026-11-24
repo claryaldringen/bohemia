@@ -54,6 +54,8 @@ export interface MarketStance {
 /** Příjezd obchodníka na trh vsi: odkud, v který den a s jakým zbožím (markets.md – Pravidla 8). */
 export interface MarketArrivalNote {
   name: string;
+  /** Domovská ves obchodníka (kvůli maskování jmen cizímu správci); starší záznamy bez ní. */
+  villageId?: string;
   day: number;
   goods: TradeGood[];
   /** Přišel kovář kovat koně (`MarketArrival.service`) – ne obchodník s hřivnami; jinak chybí. */

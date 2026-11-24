@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import { foundVillage, type VillageState } from '@bohemia/game';
 import { maskVillageNames } from '../mask-village-names';
 import { chronicle } from '../village-view';
-import { horsesView } from '../horse-view';
 import { productOrder } from '../village-view-crafts';
 import { marketTripViews } from '../market-view';
 
@@ -116,6 +115,8 @@ describe('maskVillageNames – cizí správce', () => {
     const masked = maskVillageNames(state, allowed);
     expect(chronicle(masked, 'Vlkov')[0]!.text).toContain('do sousední vsi');
     expect(marketTripViews(masked, DAY)[0]!.villageName).toBe('');
-    expect(horsesView(masked, DAY)).toBeNull();
+    expect(masked.trade!.expeditions[0]!.market!.name).toBe('');
+    // vstupní stav se nemění
+    expect(state.trade!.expeditions[0]!.market!.name).toBe('Dolní');
   });
 });

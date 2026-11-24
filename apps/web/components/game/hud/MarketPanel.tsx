@@ -141,7 +141,7 @@ function Report({ village }: { village: MarketVillage }): ReactElement {
           </div>
           {news?.report.traders.map((t, i) => (
             <div key={i} className="flex items-center gap-2 text-xs">
-              <span className="font-semibold">{t.name}</span>
+              <span className="font-semibold">{t.name || 'Sousední ves'}</span>
               <span className="text-[#bfa77a]">{dateText(t.day)}</span>
               {t.smith ? (
                 <Figure icon="kovar" folder="build" name="Kovář – přišel kovat koně">
