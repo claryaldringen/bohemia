@@ -427,9 +427,10 @@ export {
 // okolí vsi (markets.md – Rozhodnutí plánu 3, bod 1) – snímek vsí na sousedních mapách ze schránky
 export { applyNearby, nearbyTarget, nearestNearby, nearestWith } from './trade/nearby';
 // zakázky u řemeslníka a obilí za výrobky (markets.md – Rozhodnutí plánu 3, body 5 a 6) – kroky
-// volá trh, simulate.ts (fillOrders) a schránka (markOrderReady)
+// volá trh (zápočet řemeslníků), simulate.ts (fillOrders) a schránka (markOrderReady)
 export {
-  craftPayWants,
+  craftParties,
+  craftStance,
   fillOrders,
   liveOrders,
   markOrderReady,

@@ -35,23 +35,53 @@ const WANTED_KEY: Record<HorseGood, 'foals' | 'mares' | 'riding'> = {
   ridingHorses: 'riding',
 };
 
+/** Zapíše do nabídky `offer` zboží `good` – `amount`, nejvýš `villageGoodStock` (nekladné ne). */
+function giveTo(
+  state: VillageState,
+  day: number,
+  offer: TradeGoods,
+  good: TradeGood,
+  amount: number,
+): void {
+  const n = Math.min(amount, villageGoodStock(state, good, day));
+  if (n > 0) offer[good] = n;
+}
+
+/**
+ * Výrobky dílen, které ves v den `day` nabízí (Rozhodnutí plánu 3, bod 5) – nad vlastní potřebu:
+ * nástroje nad `toolNeedKg`, keramika a dřevěné nářadí nad `craftTargets`, hřivny nad
+ * `smithBarsTargetKg`, volné vozy nad `cartsWanted`; nejvýš `villageGoodStock`. Táž čísla jako
+ * v `marketStance`, jen bez výhledu správce (`stewardOutlook`), takže je levná – hotové zakázky ji
+ * počítají každý den (`fillOrders`). Prázdné položky se nezapisují.
+ */
+export function craftOffer(state: VillageState, day: number): TradeGoods {
+  const offer: TradeGoods = {};
+  const give = (good: TradeGood, amount: number): void => giveTo(state, day, offer, good, amount);
+  const targets = craftTargets(state, day);
+  const stocks = craftStocks(state);
+  give('tools', toolEquipmentKg(state) - toolNeedKg(state, day));
+  give('pottery', stocks.potteryKg - targets.potteryKg);
+  give('woodTools', (stocks.woodToolsKg ?? 0) - targets.woodToolsKg);
+  give('ironBars', ironBarsKg(state) - smithBarsTargetKg(state, day));
+  for (const good of CART_GOODS) {
+    const kind = cartGoodKind(good);
+    give(good, idleCartsOf(state, kind).length - cartsWanted(state, kind));
+  }
+  return offer;
+}
+
 /**
  * Co ves v den `day` na trhu nabízí a shání (Rozhodnutí plánu 2, bod 5; Rozhodnutí plánu 3,
  * bod 5). Nabídka je nejvýš `villageGoodStock`, klády a kámen jen nabízí (celá hromada, pojistka na
- * ně není). Výrobky dílen nad vlastní potřebu nabízí (nástroje nad `toolNeedKg`, keramika a dřevěné
- * nářadí nad `craftTargets`, hřivny nad `smithBarsTargetKg`, volné vozy nad `cartsWanted`), do
- * potřeby je shání jen bez vlastního pracujícího řemeslníka (`ownCraftsmanWorks`) – hřivny jen na
- * vozy čekající na kování (`ironOrderBarsKg`), vůz jeden druhu `missingCart`. Výhled
- * (`stewardOutlook`) se počítá jednou a `villageSpare` celý se nevolá. Prázdné položky se
- * nezapisují.
+ * ně není). Výrobky dílen nad vlastní potřebu nabízí (`craftOffer`), do potřeby je shání jen bez
+ * vlastního pracujícího řemeslníka (`ownCraftsmanWorks`) – hřivny jen na vozy čekající na kování
+ * (`ironOrderBarsKg`), vůz jeden druhu `missingCart`. Výhled (`stewardOutlook`) se počítá jednou
+ * a `villageSpare` celý se nevolá. Prázdné položky se nezapisují.
  */
 export function marketStance(state: VillageState, day: number): MarketStance {
   const offer: TradeGoods = {};
   const wants: TradeGoods = {};
-  const give = (good: TradeGood, amount: number): void => {
-    const n = Math.min(amount, villageGoodStock(state, good, day));
-    if (n > 0) offer[good] = n;
-  };
+  const give = (good: TradeGood, amount: number): void => giveTo(state, day, offer, good, amount);
   const want = (good: TradeGood, amount: number): void => {
     if (amount > EPSILON) wants[good] = amount;
   };
@@ -79,30 +109,20 @@ export function marketStance(state: VillageState, day: number): MarketStance {
     want(good, wanted - have);
   }
 
-  // jen dílny – bez vlastního pracujícího řemeslníka ves shání do potřeby, nad potřebu nabízí
+  // jen dílny a vozy – nad potřebu nabízí (`craftOffer`), bez vlastního pracujícího řemeslníka
+  // shání do potřeby
+  Object.assign(offer, craftOffer(state, day));
   const targets = craftTargets(state, day);
   const stocks = craftStocks(state);
-  const tools = toolEquipmentKg(state);
-  const toolNeed = toolNeedKg(state, day);
   const woodTools = stocks.woodToolsKg ?? 0;
-  const bars = ironBarsKg(state);
-  give('tools', tools - toolNeed);
-  give('pottery', stocks.potteryKg - targets.potteryKg);
-  give('woodTools', woodTools - targets.woodToolsKg);
-  give('ironBars', bars - smithBarsTargetKg(state, day));
   if (!ownCraftsmanWorks(state, 'smith')) {
-    want('tools', toolNeed - tools);
-    want('ironBars', ironOrderBarsKg(state) - bars);
+    want('tools', toolNeedKg(state, day) - toolEquipmentKg(state));
+    want('ironBars', ironOrderBarsKg(state) - ironBarsKg(state));
   }
   if (!ownCraftsmanWorks(state, 'potter')) want('pottery', targets.potteryKg - stocks.potteryKg);
   if (!ownCraftsmanWorks(state, 'carpenter')) want('woodTools', targets.woodToolsKg - woodTools);
 
-  // vozy: volné nad vozy, které ves chce, nabízí; bez vlastního pracujícího tesaře shání jeden vůz
-  // druhu, který chybí (`missingCart`)
-  for (const good of CART_GOODS) {
-    const kind = cartGoodKind(good);
-    give(good, idleCartsOf(state, kind).length - cartsWanted(state, kind));
-  }
+  // vozy: bez vlastního pracujícího tesaře shání jeden vůz druhu, který chybí (`missingCart`)
   const missing = ownCraftsmanWorks(state, 'carpenter') ? null : missingCart(state);
   const missingGood = CART_GOODS.find((good) => cartGoodKind(good) === missing);
   if (missingGood) want(missingGood, 1);

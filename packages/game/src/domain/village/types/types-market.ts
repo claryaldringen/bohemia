@@ -130,6 +130,11 @@ export interface MarketVisitor {
   boughtHorses: MarketHorse[];
   /** Koupené vozy po kusech se stářím. */
   boughtCarts?: MarketCart[];
+  /**
+   * Výrobky, jejichž hotovou zakázku výprava vyzvedla (Rozhodnutí plánu 3, bod 6) – hostitel jí je
+   * při odjezdu znovu nezapíše (`recordOrders`). Chybí = žádné.
+   */
+  pickedUp?: OrderGood[];
 }
 
 /**

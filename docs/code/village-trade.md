@@ -194,7 +194,8 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `toolNeedKg − toolEquipmentKg`, keramika a dřevěné nářadí `craftTargets − zásoba`, hřivny jen na
   vozy čekající na kování `ironOrderBarsKg − ironBarsKg`. Vozy po druzích: nabídka volné vozy
   (`idleCartsOf`) nad vozy, které ves chce (`cartsWanted` = `cartTargets[druh]`, `draft.ts`), bez
-  vlastního pracujícího tesaře shání jeden vůz druhu `missingCart`. Jídlo (maso, sýr, luštěniny), med, vosk,
+  vlastního pracujícího tesaře shání jeden vůz druhu `missingCart`. Nabídku výrobků dílen a vozů
+  počítá `craftOffer(state, day)` – bez výhledu správce, levně; volá ji i `fillOrders`. Jídlo (maso, sýr, luštěniny), med, vosk,
   kůže, kožešiny a uhlí hostitel nenabízí ani neshání. Nabídka je nejvýš `villageGoodStock`,
   nulové položky se nezapisují, stav se nemění. `horsesOf(state, druh, day)`
   (`trade/horse-trade.ts`) počítá koně druhu v ohradách i pod jezdcem (prodat jde jen
@@ -220,15 +221,19 @@ ves>:<id výpravy>`, `stayDays`, `travelDays`, zboží `goods` – koně i tady 
     na trhu nebo její výsledek v odchozí schránce) nic neudělá.
   - **Tržní den:** `marketDay(state, day)` – krok dne hned po událostech schránky
     (village-core.md – Pořadí práce dne). Bez návštěvníků nic (stav beze změny, klíč `market`
-    nevznikne). Jinak strany zápočtu hostitel (`'host'`, `marketStance` a navíc obilí a luštěniny
-    za výrobky řemeslníka – `craftPayWants`, Obilí za výrobky níž) a návštěvníci podle
-    `order`, `clearMarket` za ceny `market.prices`. Vyrovnání (`settleTrades`): hostitel prodané
-    ubere (`addGood` záporně, koně `takeHorses` v pořadí prodeje) a koupené přidá (`addGood`, koně
-    `addHorses`); návštěvníkovi ubude z `goods` a `wants` a přibude do `sold` a `bought`, koupení
-    koně po kusech do `boughtHorses` – od hostitele z `takeHorses`, od výpravy její první kusy
-    druhu; zbytky do šumu plovoucí čárky se smažou; prodej zakázkového zboží vsi se zakázkou ji
-    zmenší (`reduceOrder` – Zakázky níž). Pak `market.prices = nextPrices(…)` z nabídek
-    a seznamů dne a kronika `market-held` (co ves prodala a koupila – jen když něco).
+    nevznikne). Jinak dva zápočty (`clearMarket` za ceny `market.prices`), oba se stranami
+    hostitel (`'host'`) a návštěvníci podle `order`: napřed zápočet řemeslníků – výrobky dílen jen
+    za obilí a luštěniny (`craftStance`, `craftParties` – Obilí za výrobky níž; bez nich se
+    přeskočí), pak dnešní zápočet se zbytkem zboží – hostitel `marketStance` bez toho, co prodal
+    v prvním (`goodsLeft`), návštěvníci, co jim zbylo. Vyrovnání po každém (`settleTrades`):
+    hostitel prodané ubere (`addGood` záporně, koně `takeHorses` v pořadí prodeje) a koupené přidá
+    (`addGood`, koně `addHorses`); návštěvníkovi ubude z `goods` a `wants` a přibude do `sold`
+    a `bought`, koupení koně po kusech do `boughtHorses` – od hostitele z `takeHorses`, od výpravy
+    její první kusy druhu; zbytky do šumu plovoucí čárky se smažou; prodej zakázkového zboží vsi se
+    zakázkou ji zmenší, hotovou uzavře (`reduceOrder` – Zakázky níž). Pak
+    `market.prices = nextPrices(…)` z původních nabídek a seznamů dne (`totalGoods` – i s obilím za
+    výrobky, jako v jednom zápočtu) a kronika `market-held` (co ves prodala a koupila v obou
+    zápočtech – jen když něco).
   - **Odjezd:** návštěvník s `lastDay ≤ day` odjede – do odchozí schránky `VillageState.outbox`
     (`VillageMail` { `villageId`, `day`, `ref`, `body` } – tvar nové události schránky) jde
     `market-result` k domovské vsi na den `day + 1 + travelDays` (`ref` `marketResultRef` =
@@ -372,15 +377,21 @@ ves>:<id výpravy>`, `stayDays`, `travelDays`, zboží `goods` – koně i tady 
   (`TRADE_GOOD_NAMES`).
 
 - **Obilí za výrobky** (markets.md – Rozhodnutí plánu 3, bod 5; Martin 24. 11. 2026: „Ano,
-  řemeslník bere obilí vždy“; `trade/craft-orders.ts`): `craftPayWants(state, day, stance,
-  visitors, prices)` volá `marketDay` před zápočtem a mutuje `stance.wants`. Hodnota V = Σ přes
-  výrobky dílen `ORDER_GOODS` (`goods.ts` – keramika, nástroje, dřevěné nářadí, vozy, hřivny),
+  řemeslník bere obilí vždy“; `trade/craft-orders.ts`): zápočet řemeslníků – první ze dvou
+  zápočtů `marketDay`, ve kterém řemeslníci hostitele prodávají výrobky jen za obilí a luštěniny.
+  `craftStance(state, stance, visitors, prices)` – co v něm hostitel nabízí: výrobky dílen
+  `ORDER_GOODS` (`goods.ts` – keramika, nástroje, dřevěné nářadí, vozy, hřivny) ze `stance.offer`,
   jejichž řemeslník ve vsi pracuje (`ownCraftsmanWorks(state, ORDER_CRAFT[g])` – `ORDER_CRAFT`
-  je jediná mapa řemesel výrobků, `PRODUCT_CRAFT` je z ní), min(nabídka hostitele, Σ co výpravy
-  shánějí) × cena trhu (`priceOf`). Hostitel shání navíc obilí za min(V, obilí výprav), pak
-  luštěniny za zbytek V nejvýš do luštěnin výprav (kg přes cenu trhu, přičtené k vlastnímu
-  seznamu). Bez takových výrobků nic. Zápočet je vyrovnaný – obilí nekoupí víc, než za výrobky
-  utrží; zbytek zápočtu (tolerance, dno ceny) beze změny.
+  je jediná mapa řemesel výrobků, `PRODUCT_CRAFT` je z ní); a co shání: hodnota V = Σ min(nabídka,
+  Σ co výpravy shánějí) × cena trhu (`priceOf`), obilí za min(V, obilí výprav), pak luštěniny za
+  zbytek V nejvýš do luštěnin výprav (kg přes cenu trhu). Null – řemeslníci nemají co prodat nebo
+  výpravy čím zaplatit – a zápočet se přeskočí. `stance` se nemění. `craftParties(hostKey, craft,
+visitors)` – strany: hostitel a výpravy podle příjezdu, každá nabízí jen obilí a luštěniny, které
+  veze, a shání jen výrobky z nabídky řemeslníků. Zápočet je vyrovnaný, takže hostitel obilí koupí
+  nejvýš za hodnotu výrobků, které ten den prodá, a nic jiného za ně neprodá (dobytek, koně,
+  klády); dnešní zápočet potom beze změny se zbytkem zboží – obilí v něm hostitel shání jen podle
+  výpočtu potřeby, výrobky, které mu zbyly, smí prodat i za to, co sám shání. Výprava, která chce
+  krávu, ji tak za obilí nekoupí, i když jiná výprava kupuje nástroje.
 
 - **Zakázky** (markets.md – Rozhodnutí plánu 3, bod 6; Martin 22. 11. 2026: „Řemeslníkovi je
   jedno, kdo mu platí za výrobky“; `trade/craft-orders.ts`, typy `CraftOrder`, `PlacedOrder`,
@@ -388,28 +399,35 @@ ves>:<id výpravy>`, `stayDays`, `travelDays`, zboží `goods` – koně i tady 
   až při vyzvednutí – zápočet bez mincí nezná dluh ani platbu předem (odchylka od neighbours.md –
   Pravidla 6). Žádný převod stavu – chybějící seznamy jsou prázdné.
   - **Hostitel** (`VillageMarket.orders?`): `recordOrders(state, day, visitor, hostWants)`
-    v `departVisitors` – výrobek `ORDER_GOODS`, který má výprava ještě na seznamu, s pracujícím
-    řemeslníkem; když výprava pořád veze obilí nebo luštěniny nebo něco, co hostitel po dnešních
-    obchodech shání (`wantsLeft`), zapíše `CraftOrder` { `villageId` kupujícího, `name`, `good`,
-    `amount`, `day` } – novější zakázka téže vsi a zboží starou nahradí; zapsané jdou do
-    `MarketResult.ordered`. `reduceOrder` v `settleTrades` zakázku o prodané zmenší, na nule smaže.
-    `liveOrders` – bez vypršelých (`day − order.day > MARKET.orderDays`, 365 – technická mez, ne
+    v `departVisitors` – seznam výpravy nahradí zakázky její vsi (novější zakázka téže vsi a zboží
+    starou nahradí): výrobek `ORDER_GOODS`, který má výprava ještě na seznamu, s pracujícím
+    řemeslníkem, když výprava pořád veze obilí nebo luštěniny nebo něco, co hostitel po dnešním
+    zápočtu shání (`goodsLeft`), zapíše `CraftOrder` { `villageId` kupujícího, `name`, `good`,
+    `amount`, `day` } a zapsané jdou do `MarketResult.ordered`; výrobek ze seznamu, který se
+    nezapíše (koupený, bez řemeslníka, bez platby, vyzvednutý), starou zakázku smaže – zakázku tak
+    obě vsi vedou stejně (návrh Clauda; Kupující níž). `reduceOrder(state, visitor, good, amount)`
+    v `settleTrades` zakázku o prodané zmenší, na nule smaže; vyzvednutí hotové zakázky
+    (`readyDay`) ji uzavře celou – i se zbytkem z opotřebení od ohlášení – a zboží jde do
+    `MarketVisitor.pickedUp`, takže ho `recordOrders` té výpravě znovu nezapíše (ani při pobytu přes
+    víc dní) a zakázka na gramy nevznikne. `liveOrders` – bez vypršelých (`day − order.day > MARKET.orderDays`, 365 – technická mez, ne
     pravidlo: stav hostitele nesmí růst donekonečna), `orderTargets` – součty živých zakázek po
     zboží (i ohlášených, dokud je kupující nevyzvedne), podle nich řemeslníci vyrábějí navíc
     (village-crafts.md – Výroba na zakázku).
   - **Ohlášení:** `fillOrders(state, day)` – krok dne po práci, před opotřebením
     (`wearCraftStocks` zásobu nad potřebou ubírá; village-core.md – Pořadí práce dne); ves bez
-    zakázek nic. Vypršelé zakázky smaže; nabídka `marketStance` (vlastní potřeba bez zakázek) se
-    rozdělí postupně podle `day`, pak `villageId` – ohlášená zakázka si svůj díl drží. Pokrytá
+    zakázek nic. Vypršelé zakázky smaže; nabídka výrobků dílen `craftOffer` (vlastní potřeba bez
+    zakázek, táž jako v `marketStance`, jen bez výhledu správce) se rozdělí postupně podle `day`,
+    pak `villageId` – ohlášená zakázka si svůj díl drží. Pokrytá
     zakázka dostane `readyDay` a do `outbox` jde zpráva bez nákladu `order-ready` (`OrderReady` –
     hostitel, zboží, množství) na den `day + 1 + marketTravelDays(cells)` (posel; `cells`
     z okolí, kupující mimo okolí 1), `ref` `order:<hostitel>:<kupec>:<zboží>:<den zakázky>`. Bez
     okolí (`nearby.self`) se neohlašuje. Hotové kusy jsou na prodej komukoli.
   - **Kupující** (`VillageState.orders?`, `PlacedOrder` se `status`): `rememberOrders` v
-    `applyMarketResult` – objednané (`ordered`) → `open`, ze seznamu výpravy nekoupené
-    a neobjednané → `refused`, koupené zakázku u té vsi smaže – i když hostitel zapsal zbytek
-    (návrh Clauda: zbytek po opotřebení od ohlášení by jinak posílal výpravy pro gramy); výsledek
-    zaniklého hostitele (`returned`) nic neodmítne, vypršelé zmizí. `markOrderReady` – událost
+    `applyMarketResult` – objednané (`ordered`) → `open` s množstvím hostitele, i když výprava část
+    koupila (má přednost); koupené bez `ordered` zakázku u té vsi smaže (koupila, co chtěla, nebo
+    vyzvedla hotovou zakázku – hostitel ji uzavřel taky); ze seznamu výpravy nekoupené
+    a neobjednané → `refused`. Výsledek zaniklého hostitele (`returned`) nic neodmítne a zakázky
+    u něj smaže (zanikly s ním – nežijí rok); vypršelé zmizí. `markOrderReady` – událost
     schránky `order-ready`: otevřená zakázka → `ready` a kronika `order-ready` { `villageName`,
     `villageId`, `good` } (web zatím „Zakázka ve vsi … je hotová.“); bez otevřené zakázky nic.
     `placedOrder(state, day, good)` – živá otevřená nebo hotová zakázka na zboží, jinak null.

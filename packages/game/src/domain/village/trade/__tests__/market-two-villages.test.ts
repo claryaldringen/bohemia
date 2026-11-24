@@ -289,6 +289,9 @@ describe('výprava na trh mezi dvěma vsemi (markets.md – Co se ověří, bod 
     const wearPerDay = (toolNeedKg(mk, mk.lastDay) * CRAFT_NEEDS.toolWearPerYear) / 365;
     expect(bought).toBeLessThanOrEqual(10);
     expect(bought).toBeGreaterThan(10 - 2 * wearPerDay - 1e-9);
+    // vyzvednutí hotovou zakázku uzavře – hostiteli nezůstane zakázka na gramy opotřebení
+    expect(result.ordered).toBeUndefined();
+    expect(m2.market?.orders).toBeUndefined();
     // obilí jen mezi H a M: co H prodala, M koupila; co M prodala, H koupila
     expect(held.sold).toEqual({ tools: bought });
     expect(held.bought).toEqual(result.sold);

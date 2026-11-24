@@ -1,18 +1,20 @@
 // Zakázky u řemeslníka a obilí za výrobky (markets.md – Rozhodnutí plánu 3, body 5 a 6; Martin
 // 22. 11. 2026: „Řemeslníkovi je jedno, kdo mu platí za výrobky“; Martin 24. 11. 2026: „Ano,
-// řemeslník bere obilí vždy“). Hostitel s pracujícím řemeslníkem shání za jeho výrobky obilí
-// a luštěniny (`craftPayWants`), výrobek, který výprava nekoupila, zapíše při jejím odjezdu jako
-// zakázku (`recordOrders` – odchylka od neighbours.md, Pravidla 6: zápočet bez mincí nezná dluh
-// ani platbu předem, platí se až při vyzvednutí), řemeslník vyrábí do vlastní potřeby a zakázek
-// (`orderTargets`) a hotovou zakázku ohlásí zprávou `order-ready` (`fillOrders`). Hotové kusy jsou
-// na prodej komukoli – kdo dřív zaplatí, ten má. Kupující si své zakázky pamatuje
-// (`rememberOrders`, `markOrderReady`, `placedOrder`). Mutuje stav jako kroky dne a rozhoduje jen
-// ze stavu vsi, takže výsledek nezávisí na kouscích dopočtu.
+// řemeslník bere obilí vždy“). Řemeslníci hostitele prodávají výrobky za obilí a luštěniny ve
+// vlastním zápočtu napřed (`craftStance`, `craftParties`), výrobek, který výprava nekoupila, zapíše
+// hostitel při jejím odjezdu jako zakázku (`recordOrders` – odchylka od neighbours.md, Pravidla 6:
+// zápočet bez mincí nezná dluh ani platbu předem, platí se až při vyzvednutí), řemeslník vyrábí do
+// vlastní potřeby a zakázek (`orderTargets`) a hotovou zakázku ohlásí zprávou `order-ready`
+// (`fillOrders`). Hotové kusy jsou na prodej komukoli – kdo dřív zaplatí, ten má. Kupující si své
+// zakázky pamatuje (`rememberOrders`, `markOrderReady`, `placedOrder`) – obě vsi vedou zakázku
+// stejně. Mutuje stav jako kroky dne a rozhoduje jen ze stavu vsi, takže výsledek nezávisí na
+// kouscích dopočtu.
 import { ownCraftsmanWorks } from '../crafts/craft-buying';
 import { MARKET } from '../rules';
 import type {
   ChronicleEvent,
   CraftOrder,
+  MarketParty,
   MarketPrices,
   MarketResult,
   MarketStance,
@@ -27,7 +29,7 @@ import type {
 } from '../types';
 import { ORDER_CRAFT, ORDER_GOODS, TRADE_GOODS } from './goods';
 import { priceOf } from './market-prices';
-import { marketStance } from './market-stance';
+import { craftOffer } from './market-stance';
 import { marketTravelDays } from './market-trip';
 
 /** Tolerance proti chybám desetinných čísel (kg, kusy). */
@@ -51,41 +53,74 @@ function visitorsTotal(
   return visitors.reduce((sum, v) => sum + (pick(v)[good] ?? 0), 0);
 }
 
+/** Kopie jen zboží `keep` s kladným množstvím. */
+function onlyGoods(goods: TradeGoods, keep: readonly TradeGood[]): TradeGoods {
+  const out: TradeGoods = {};
+  for (const good of keep) {
+    const amount = goods[good] ?? 0;
+    if (amount > 0) out[good] = amount;
+  }
+  return out;
+}
+
 /**
- * Řemeslník bere obilí vždy (Martin 24. 11. 2026; mutuje `stance.wants`, volá marketDay před
- * zápočtem): hostitel shání navíc obilí, pak luštěniny nejvýš za hodnotu výrobků svých pracujících
- * dílen, které ten den nabízí a výpravy shánějí.
- *
- * Hodnota V = Σ přes výrobky `ORDER_GOODS`, jejichž řemeslník ve vsi pracuje (`ownCraftsmanWorks`),
- * min(nabídka hostitele, co výpravy shánějí) × cena trhu. Obilí za min(V, obilí výprav), luštěniny
- * za zbytek V nejvýš do luštěnin výprav – v kg za ceny trhu, přičtené k tomu, co hostitel shání
- * sám. Bez takových výrobků nic. Zápočet je vyrovnaný, takže hostitel obilí nekoupí víc, než kolik
- * za výrobky utrží.
+ * Zápočet řemeslníků – první zápočet tržního dne (Martin 24. 11. 2026: „Ano, řemeslník bere obilí
+ * vždy“; Rozhodnutí plánu 3, bod 5): co v něm hostitel nabízí a shání. Nabízí výrobky dílen
+ * `ORDER_GOODS` ze své nabídky (`stance.offer` – nad vlastní potřebu), jejichž řemeslník ve vsi
+ * pracuje (`ownCraftsmanWorks`), a shání za ně obilí, pak luštěniny. Hodnota V = Σ min(nabídka, co
+ * výpravy shánějí) × cena trhu; obilí za min(V, obilí výprav), luštěniny za zbytek V nejvýš do
+ * luštěnin výprav – v kg za ceny trhu. Zápočet je vyrovnaný, takže hostitel obilí a luštěniny koupí
+ * nejvýš za hodnotu výrobků, které ten den prodá, a za ně nic jiného. Null, když řemeslníci nemají
+ * co prodat nebo výpravy nemají čím zaplatit. `stance` se nemění – v dnešním zápočtu hostitel shání
+ * obilí jen podle výpočtu potřeby.
  */
-export function craftPayWants(
+export function craftStance(
   state: VillageState,
-  day: number,
   stance: MarketStance,
   visitors: readonly MarketVisitor[],
   prices: MarketPrices,
-): void {
+): MarketStance | null {
+  const offer: TradeGoods = {};
   let value = 0;
   for (const good of ORDER_GOODS) {
-    const offer = stance.offer[good] ?? 0;
-    if (!(offer > 0) || !ownCraftsmanWorks(state, ORDER_CRAFT[good])) continue;
+    const amount = stance.offer[good] ?? 0;
+    if (!(amount > 0) || !ownCraftsmanWorks(state, ORDER_CRAFT[good])) continue;
+    offer[good] = amount;
     const wanted = visitorsTotal(visitors, (v) => v.wants, good);
-    value += Math.min(offer, wanted) * priceOf(prices, good);
+    value += Math.min(amount, wanted) * priceOf(prices, good);
   }
+  const wants: TradeGoods = {};
   for (const good of CRAFT_PAY) {
-    if (!(value > 0)) return;
+    if (!(value > 0)) break;
     const price = priceOf(prices, good);
     const carried = visitorsTotal(visitors, (v) => v.goods, good);
     if (!(carried > 0)) continue;
     const affordable = value / price;
-    const kg = Math.min(affordable, carried);
-    stance.wants[good] = (stance.wants[good] ?? 0) + kg;
+    wants[good] = Math.min(affordable, carried);
     value = carried >= affordable ? 0 : value - carried * price;
   }
+  return CRAFT_PAY.some((good) => (wants[good] ?? 0) > 0) ? { offer, wants } : null;
+}
+
+/**
+ * Strany zápočtu řemeslníků: hostitel pod klíčem `hostKey` s tím, co nabízí a shání (`craftStance`),
+ * a výpravy v pořadí `visitors` (příjezdu) – každá nabízí jen obilí a luštěniny, které veze,
+ * a shání jen výrobky z nabídky řemeslníků. Výprava si tak za obilí koupí jen výrobky dílen.
+ */
+export function craftParties(
+  hostKey: string,
+  craft: MarketStance,
+  visitors: readonly MarketVisitor[],
+): MarketParty[] {
+  const products = ORDER_GOODS.filter((good) => (craft.offer[good] ?? 0) > 0);
+  return [
+    { key: hostKey, offer: craft.offer, wants: craft.wants },
+    ...visitors.map((v) => ({
+      key: v.key,
+      offer: onlyGoods(v.goods, CRAFT_PAY),
+      wants: onlyGoods(v.wants, products),
+    })),
+  ];
 }
 
 /** Živé zakázky hostitele v den `day` (bez vypršelých – `MARKET.orderDays`), v pořadí zápisu. */
@@ -114,11 +149,14 @@ export function orderTargets(state: VillageState, day: number): Record<OrderGood
 }
 
 /**
- * Zakázky výpravy, která odjíždí (mutuje stav – v `departVisitors` před výsledkem): výrobek dílny
- * (`ORDER_GOODS`), který má výprava ještě na seznamu a jehož řemeslník ve vsi pracuje, hostitel
- * zapíše jako zakázku – když výprava pořád veze obilí nebo luštěniny (řemeslník je bere vždy) nebo
- * něco, co hostitel shání (`hostWants`). Novější zakázka téže vsi na totéž zboží tu starou
- * nahradí. Vrací, co se zapsalo (`MarketResult.ordered`).
+ * Zakázky výpravy, která odjíždí (mutuje stav – v `departVisitors` před výsledkem). Seznam výpravy
+ * nahradí zakázky její vsi u hostitele – novější zakázka téže vsi na totéž zboží tu starou nahradí:
+ * výrobek dílny (`ORDER_GOODS`), který má výprava ještě na seznamu a jehož řemeslník ve vsi
+ * pracuje, hostitel zapíše jako zakázku, když výprava pořád veze obilí nebo luštěniny (řemeslník je
+ * bere vždy) nebo něco, co hostitel shání (`hostWants`). Výrobek ze seznamu, který se nezapíše
+ * (koupený, bez pracujícího řemeslníka, bez platby, vyzvednutá hotová zakázka – `pickedUp`), starou
+ * zakázku té vsi smaže – kupující vede zakázku podle `ordered` (`rememberOrders`), takže ji obě vsi
+ * vedou stejně. Vrací, co se zapsalo (`MarketResult.ordered`).
  */
 export function recordOrders(
   state: VillageState,
@@ -128,40 +166,57 @@ export function recordOrders(
 ): TradeGoods {
   const ordered: TradeGoods = {};
   const market = state.market;
+  if (!market) return ordered;
   const carries = (good: TradeGood): boolean => (visitor.goods[good] ?? 0) > 0;
   const pays =
     CRAFT_PAY.some(carries) || TRADE_GOODS.some((g) => carries(g) && (hostWants[g] ?? 0) > 0);
-  if (!market || !pays) return ordered;
   for (const good of ORDER_GOODS) {
     const amount = visitor.wants[good] ?? 0;
-    if (!(amount > 0) || !ownCraftsmanWorks(state, ORDER_CRAFT[good])) continue;
-    const others = (market.orders ?? []).filter(
+    // jen zboží ze seznamu výpravy – co ještě shání, nebo už koupila
+    if (!(amount > 0) && !((visitor.bought[good] ?? 0) > 0)) continue;
+    const orders = (market.orders ?? []).filter(
       (o) => o.villageId !== visitor.fromVillageId || o.good !== good,
     );
-    others.push({ villageId: visitor.fromVillageId, name: visitor.fromName, good, amount, day });
-    market.orders = others;
-    ordered[good] = amount;
+    const takes =
+      amount > 0 &&
+      pays &&
+      ownCraftsmanWorks(state, ORDER_CRAFT[good]) &&
+      !(visitor.pickedUp ?? []).includes(good);
+    if (takes) {
+      orders.push({ villageId: visitor.fromVillageId, name: visitor.fromName, good, amount, day });
+      ordered[good] = amount;
+    }
+    if (orders.length > 0) market.orders = orders;
+    else delete market.orders;
   }
   return ordered;
 }
 
 /**
- * Hostitel prodal zakázkové zboží výpravě vsi `villageId` (mutuje stav – v `settleTrades`):
- * zakázka té vsi se o prodané zmenší, na nule se smaže (prázdný seznam zmizí celý).
+ * Hostitel prodal zakázkové zboží výpravě `visitor` (mutuje stav i výpravu – v `settleTrades`):
+ * zakázka její vsi se o prodané zmenší, na nule se smaže (prázdný seznam zmizí celý). Vyzvednutí
+ * hotové zakázky (`readyDay`) ji uzavře celou – i se zbytkem, který od ohlášení ubralo opotřebení –
+ * a výprava zboží zapíše do `pickedUp`, takže ho při odjezdu znovu neobjedná (`recordOrders`; platí
+ * i při pobytu přes víc dní). Kupující ji uzavře také – koupené bez `ordered` (`rememberOrders`).
  */
 export function reduceOrder(
   state: VillageState,
-  villageId: string,
+  visitor: MarketVisitor,
   good: OrderGood,
   amount: number,
 ): void {
   const market = state.market;
-  const order = market?.orders?.find((o) => o.villageId === villageId && o.good === good);
+  const order = market?.orders?.find(
+    (o) => o.villageId === visitor.fromVillageId && o.good === good,
+  );
   if (!market || !order) return;
   const rest = order.amount - amount;
-  if (rest > order.amount * NOISE) {
+  if (order.readyDay === undefined && rest > order.amount * NOISE) {
     order.amount = rest;
     return;
+  }
+  if (order.readyDay !== undefined && !(visitor.pickedUp ?? []).includes(good)) {
+    (visitor.pickedUp ??= []).push(good);
   }
   const others = market.orders!.filter((o) => o !== order);
   if (others.length > 0) market.orders = others;
@@ -181,11 +236,11 @@ function byDayAndVillage(a: CraftOrder, b: CraftOrder): number {
 
 /**
  * Hotové zakázky (mutuje stav – po práci dne, před opotřebením): vypršelé zakázky zmizí ze stavu.
- * Zásoba nad vlastní potřebou (nabídka `marketStance` – bez zakázek) se rozdělí postupně podle dne
- * zápisu, pak id vsi kupujícího; ohlášená zakázka si svůj díl drží, dokud si ji kupující
- * nevyzvedne. Pokrytá zakázka dostane `readyDay` a do odchozí schránky jde `order-ready` na den
- * `day + 1 + marketTravelDays(cells)` – posel, `cells` z okolí (kupující mimo okolí 1). Bez okolí
- * (`nearby.self`) ves neví, kdo je, a neohlašuje.
+ * Zásoba nad vlastní potřebou (nabídka výrobků dílen `craftOffer` – bez zakázek, táž jako v nabídce
+ * trhu) se rozdělí postupně podle dne zápisu, pak id vsi kupujícího; ohlášená zakázka si svůj díl
+ * drží, dokud si ji kupující nevyzvedne. Pokrytá zakázka dostane `readyDay` a do odchozí schránky
+ * jde `order-ready` na den `day + 1 + marketTravelDays(cells)` – posel, `cells` z okolí (kupující
+ * mimo okolí 1). Bez okolí (`nearby.self`) ves neví, kdo je, a neohlašuje.
  */
 export function fillOrders(state: VillageState, day: number): void {
   const market = state.market;
@@ -198,7 +253,7 @@ export function fillOrders(state: VillageState, day: number): void {
   if (live.length < market.orders.length) market.orders = live;
   const nearby = state.nearby;
   if (!nearby || live.every((o) => o.readyDay !== undefined)) return;
-  const left: TradeGoods = { ...marketStance(state, day).offer };
+  const left = craftOffer(state, day);
   for (const order of [...live].sort(byDayAndVillage)) {
     const have = left[order.good] ?? 0;
     left[order.good] = Math.max(0, have - order.amount);
@@ -223,11 +278,13 @@ export function fillOrders(state: VillageState, day: number): void {
 }
 
 /**
- * Zakázky kupujícího z výsledku výpravy (mutuje stav – v `applyMarketResult`): zboží, které
- * hostitel zapsal (`result.ordered`), je `open`; zboží ze seznamu výpravy, které nekoupila ani
- * neobjednala, `refused`; koupené zakázku u té vsi uzavře (smaže) – i když hostitel zapsal zbytek
- * (návrh Clauda: zbytek po opotřebení zásoby od ohlášení by jinak posílal výpravy pro gramy).
- * Výprava, kterou zaniklý hostitel vrátil (`returned`), nic neodmítla. Vypršelé zakázky zmizí.
+ * Zakázky kupujícího z výsledku výpravy (mutuje stav – v `applyMarketResult`), vedené stejně jako
+ * u hostitele (`recordOrders`): zboží, které hostitel zapsal (`result.ordered`), je `open` s jeho
+ * množstvím – i když výprava část koupila; koupené bez `ordered` zakázku u té vsi uzavře (smaže –
+ * výprava koupila, co chtěla, nebo vyzvedla hotovou zakázku, jejíž zbytek hostitel znovu
+ * nezapisuje); zboží ze seznamu, které nekoupila ani neobjednala, je `refused`. Výprava, kterou
+ * zaniklý hostitel vrátil (`returned`), nic neodmítla – zakázky u něj zanikly s ním a smažou se.
+ * Vypršelé zakázky zmizí.
  */
 export function rememberOrders(
   state: VillageState,
@@ -235,15 +292,15 @@ export function rememberOrders(
   trip: MarketTrip,
   result: MarketResult,
 ): void {
-  if (result.returned) return;
   const ordered = result.ordered ?? {};
   let orders = (state.orders ?? []).filter((o) => isLive(o.day, day));
-  for (const good of ORDER_GOODS) {
+  if (result.returned) orders = orders.filter((o) => o.villageId !== trip.villageId);
+  for (const good of result.returned ? [] : ORDER_GOODS) {
     const wanted = trip.wants[good] ?? 0;
     if (!(wanted > 0)) continue;
     orders = orders.filter((o) => o.villageId !== trip.villageId || o.good !== good);
-    if ((result.bought[good] ?? 0) > 0) continue;
     const amount = ordered[good] ?? 0;
+    if (!(amount > 0) && (result.bought[good] ?? 0) > 0) continue;
     orders.push({
       villageId: trip.villageId,
       name: trip.name,

@@ -13,6 +13,7 @@ import {
   ironWorkManDays,
   smeltRate,
   smithBellows,
+  toolEquipmentKg,
   toolNeedKg,
 } from '../../crafts/iron';
 import { FORGE } from '../../crafts/iron-rates';
@@ -25,11 +26,12 @@ import type {
   MarketResult,
   MarketTrip,
   MarketVisitor,
+  TradeGood,
   TradeGoods,
   VillageState,
 } from '../../types';
 import {
-  craftPayWants,
+  craftStance,
   fillOrders,
   liveOrders,
   markOrderReady,
@@ -38,6 +40,7 @@ import {
   rememberOrders,
 } from '../craft-orders';
 import { joinMarket, marketDay, marketResultRef } from '../market';
+import { initialPrice } from '../market-prices';
 import { marketStance } from '../market-stance';
 import { DAY, dwelling, trackedVillage, type KinSpec } from '../../__tests__/kin-fixtures';
 import { D, marketVillage, report, withWorkshop } from './market-fixtures';
@@ -110,9 +113,8 @@ function order(villageId: string, amount: number, day: number): CraftOrder {
   return { villageId, name: villageId === 'h' ? 'Vlkov' : 'Kounice', good: 'tools', amount, day };
 }
 
-/** M se zakázkami a okolím: Vlkov (H) na sousední mapě, Kounice (K) o mapu dál. */
-function withOrders(m: VillageState, orders: CraftOrder[]): VillageState {
-  m.market = { prices: {}, visitors: [], nextOrder: 1, arrivals: [], orders };
+/** M (Lhota) s okolím: Vlkov (H) na sousední mapě, Kounice (K) o mapu dál. */
+function withNearby(m: VillageState): VillageState {
   m.nearby = {
     day: D - 1,
     self: { villageId: 'm', name: 'Lhota' },
@@ -124,25 +126,69 @@ function withOrders(m: VillageState, orders: CraftOrder[]): VillageState {
   return m;
 }
 
+/** M se zakázkami a okolím. */
+function withOrders(m: VillageState, orders: CraftOrder[]): VillageState {
+  m.market = { prices: {}, visitors: [], nextOrder: 1, arrivals: [], orders };
+  return withNearby(m);
+}
+
+/** Výprava z Kounic (K) na den: veze 900 kg obilí, shání 10 kg nástrojů. */
+function kounice(fields: Partial<MarketArrival> = {}): MarketArrival {
+  return arrival({ key: 'market:k:1', fromVillageId: 'k', fromName: 'Kounice', ...fields });
+}
+
+/** Výprava kupujícího do Lhoty (M) se seznamem `wants`. */
+function tripToLhota(key: string, wants: TradeGoods): MarketTrip {
+  return {
+    key,
+    villageId: 'm',
+    name: 'Lhota',
+    wants,
+    stayDays: 1,
+    travelDays: 0,
+    arriveDay: D,
+    returnDay: D + 1,
+  };
+}
+
+/** Co ves drží ze zboží, které se v testech obchoduje. */
+function holdings(s: VillageState): TradeGoods {
+  return {
+    grain: s.storesKg,
+    tools: toolEquipmentKg(s),
+    pottery: s.crafts?.potteryKg ?? 0,
+    cows: s.livestock?.herds.cow ?? 0,
+  };
+}
+
 describe('řemeslník bere obilí vždy (Rozhodnutí plánu 3, bod 5; Martin 24. 11. 2026)', () => {
-  it('kovář nad pojistkou shání obilí za hodnotu nástrojů, které výpravy chtějí', () => {
+  it('zápočet řemeslníků: kovář nad pojistkou prodá nástroje a shání za ně obilí', () => {
     const m = smithVillage(12);
     const stance = marketStance(m, D);
     // obilí neshání, nástroje nabízí 12 kg
     expect(stance.wants.grain).toBeUndefined();
     expect(stance.offer.tools).toBe(12);
-    craftPayWants(m, D, stance, [visitor('h', { grain: 900 }, { tools: 10 })], {});
-    // 10 kg × 4 mince = 40 mincí = 600 kg obilí (60 : 1), luštěniny ne
-    expect(stance.wants.grain).toBeCloseTo(600, 9);
-    expect(stance.wants.legumes).toBeUndefined();
+    const before = structuredClone(stance);
+    const craft = craftStance(m, stance, [visitor('h', { grain: 900 }, { tools: 10 })], {});
+    // jen výrobky dílen; 10 kg × 4 mince = 40 mincí = 600 kg obilí (60 : 1), luštěniny ne
+    expect(craft!.offer).toEqual({ tools: 12 });
+    expect(Object.keys(craft!.wants)).toEqual(['grain']);
+    expect(craft!.wants.grain).toBeCloseTo(600, 9);
+    // seznam hostitele pro dnešní zápočet se nemění – obilí shání jen podle výpočtu potřeby
+    expect(stance).toEqual(before);
   });
 
   it('obilí nestačí – zbytek hodnoty v luštěninách, nejvýš co výpravy vezou', () => {
     const m = smithVillage(12);
     const stance = marketStance(m, D);
-    craftPayWants(m, D, stance, [visitor('h', { grain: 300, legumes: 500 }, { tools: 10 })], {});
-    expect(stance.wants.grain).toBeCloseTo(300, 9);
-    expect(stance.wants.legumes).toBeCloseTo(300, 9);
+    const craft = craftStance(
+      m,
+      stance,
+      [visitor('h', { grain: 300, legumes: 500 }, { tools: 10 })],
+      {},
+    );
+    expect(craft!.wants.grain).toBeCloseTo(300, 9);
+    expect(craft!.wants.legumes).toBeCloseTo(300, 9);
   });
 
   it('dvě výpravy chtějí 20 kg – hodnota jen 12 kg nabídky', () => {
@@ -152,17 +198,18 @@ describe('řemeslník bere obilí vždy (Rozhodnutí plánu 3, bod 5; Martin 24.
       visitor('h', { grain: 900 }, { tools: 10 }),
       visitor('k', { grain: 900 }, { tools: 10 }),
     ];
-    craftPayWants(m, D, stance, visitors, {});
-    expect(stance.wants.grain).toBeCloseTo(720, 9);
+    expect(craftStance(m, stance, visitors, {})!.wants.grain).toBeCloseTo(720, 9);
   });
 
-  it('bez pracujícího kováře se seznam nezmění', () => {
+  it('bez pracujícího kováře, bez platby nebo bez zájmu výprav zápočet řemeslníků není', () => {
     const m = smithVillage(12);
-    m.dwellings.find((d) => d.id === SMITH)!.workshop!.activity = 'no-charcoal';
     const stance = marketStance(m, D);
-    const before = structuredClone(stance.wants);
-    craftPayWants(m, D, stance, [visitor('h', { grain: 900 }, { tools: 10 })], {});
-    expect(stance.wants).toEqual(before);
+    expect(craftStance(m, stance, [visitor('h', { honey: 5 }, { tools: 10 })], {})).toBeNull();
+    expect(craftStance(m, stance, [visitor('h', { grain: 900 }, { cows: 1 })], {})).toBeNull();
+    m.dwellings.find((d) => d.id === SMITH)!.workshop!.activity = 'no-charcoal';
+    expect(
+      craftStance(m, marketStance(m, D), [visitor('h', { grain: 900 }, { tools: 10 })], {}),
+    ).toBeNull();
   });
 
   it('na trhu: kovář nad pojistkou prodá výpravě nástroje za obilí', () => {
@@ -174,6 +221,138 @@ describe('řemeslník bere obilí vždy (Rozhodnutí plánu 3, bod 5; Martin 24.
     expect(result.sold.grain).toBeCloseTo(600, 6);
     expect(result.ordered).toBeUndefined();
     expect(m.market!.orders).toBeUndefined();
+  });
+
+  it('obilí jen za výrobky: výprava, která chce krávu, ji za obilí nekoupí, výprava pro nástroje je koupí', () => {
+    const m = smithVillage(12);
+    const cows = m.livestock!.herds.cow;
+    // krávu hostitel nabízí, obilí neshání
+    expect(marketStance(m, D).offer.cows).toBeGreaterThan(0);
+    // A přijela první a chce krávu, B chce nástroje – obě vezou obilí
+    joinMarket(m, D, arrival({ key: 'market:a:1', fromVillageId: 'a', wants: { cows: 1 } }));
+    joinMarket(m, D, arrival({ key: 'market:b:1', fromVillageId: 'b' }));
+    marketDay(m, D);
+    const a = resultOf(m, 'market:a:1');
+    const b = resultOf(m, 'market:b:1');
+    expect(a.bought).toEqual({});
+    expect(a.sold).toEqual({});
+    expect(a.unsold).toEqual({ grain: 900 });
+    expect(b.bought).toEqual({ tools: 10 });
+    expect(b.sold.grain).toBeCloseTo(600, 9);
+    expect(m.livestock!.herds.cow).toBe(cows);
+    expect(b.ordered).toBeUndefined();
+    expect(m.market!.orders).toBeUndefined();
+  });
+
+  it('výprava, která chce krávu i nástroje, koupí za obilí jen nástroje – bez zakázky', () => {
+    const m = smithVillage(12);
+    joinMarket(m, D, arrival({ wants: { cows: 1, tools: 10 } }));
+    marketDay(m, D);
+    const result = resultOf(m, 'market:h:1');
+    expect(result.bought).toEqual({ tools: 10 });
+    expect(result.sold.grain).toBeCloseTo(600, 9);
+    expect(result.ordered).toBeUndefined();
+    expect(m.market!.orders).toBeUndefined();
+  });
+
+  it('tržní den ve dvou zápočtech je vyrovnaný – nic nevznikne ani nezmizí', () => {
+    const m = smithVillage(12);
+    const before = holdings(m);
+    // A chce krávu za obilí (nedostane ji), P prodá keramiku, kterou hostitel shání, za obilí
+    // hostitele, C koupí nástroje za obilí v zápočtu řemeslníků
+    const sent = {
+      a: { goods: { grain: 900 }, wants: { cows: 1 } },
+      p: { goods: { pottery: 70 }, wants: { grain: 210 } },
+      c: { goods: { grain: 900 }, wants: { tools: 10 } },
+    };
+    for (const [id, { goods, wants }] of Object.entries(sent)) {
+      joinMarket(m, D, arrival({ key: `market:${id}:1`, fromVillageId: id, goods, wants }));
+    }
+    const held = marketDay(m, D)[0];
+    const results = Object.keys(sent).map((id) => resultOf(m, `market:${id}:1`));
+    const [a, p, c] = results;
+    expect(a!.bought).toEqual({});
+    expect(p!.bought.grain).toBeCloseTo(210, 9);
+    expect(p!.sold).toEqual({ pottery: 70 });
+    expect(c!.bought).toEqual({ tools: 10 });
+    expect(c!.sold.grain).toBeCloseTo(600, 9);
+    // co výprava prodala nebo jí zbylo, přivezla
+    for (const [i, { goods }] of Object.values(sent).entries()) {
+      const r = results[i]!;
+      for (const [good, kg] of Object.entries(goods)) {
+        const g = good as keyof TradeGoods;
+        expect((r.sold[g] ?? 0) + (r.unsold[g] ?? 0)).toBeCloseTo(kg, 9);
+      }
+    }
+    // co hostitel získal nebo ztratil, výpravy ztratily nebo získaly
+    const after = holdings(m);
+    for (const good of ['grain', 'tools', 'pottery', 'cows'] as const) {
+      const visitors = results.reduce(
+        (sum, r) => sum + (r.sold[good] ?? 0) - (r.bought[good] ?? 0),
+        0,
+      );
+      expect(after[good]! - before[good]!).toBeCloseTo(visitors, 9);
+    }
+    // kronika hostitele: oba zápočty dohromady – hodnota prodaného = hodnota koupeného za ceny dne
+    // (výchozí – trh je nový)
+    if (held?.kind !== 'market-held') throw new Error('Trh se nekonal.');
+    expect(held.sold.tools).toBe(10);
+    expect(held.sold.grain).toBeCloseTo(210, 9);
+    expect(held.bought.grain).toBeCloseTo(600, 9);
+    expect(held.bought.pottery).toBe(70);
+    const worth = (goods: TradeGoods): number =>
+      Object.entries(goods).reduce(
+        (sum, [g, n]) => sum + (n ?? 0) * initialPrice(g as TradeGood),
+        0,
+      );
+    expect(worth(held.sold)).toBeCloseTo(worth(held.bought), 9);
+  });
+
+  it('dvě výpravy po 10 kg při zásobě 12 kg: první 10 kg, druhá 2 kg a zakázku na zbytek', () => {
+    const m = withNearby(smithVillage(12));
+    joinMarket(m, D, arrival());
+    joinMarket(m, D, kounice());
+    marketDay(m, D);
+    const h = resultOf(m, 'market:h:1');
+    const k = resultOf(m, 'market:k:1');
+    expect(h.bought.tools).toBeCloseTo(10, 9);
+    expect(h.ordered).toBeUndefined();
+    expect(k.bought.tools).toBeCloseTo(2, 9);
+    expect(k.ordered!.tools).toBeCloseTo(8, 9);
+    expect(m.market!.orders).toEqual([
+      { villageId: 'k', name: 'Kounice', good: 'tools', amount: k.ordered!.tools, day: D },
+    ]);
+    // kupující K vede tutéž zakázku – i když něco koupil, má přednost `ordered` hostitele
+    const kv = marketVillage();
+    rememberOrders(kv, D + 1, tripToLhota('market:k:1', { tools: 10 }), k);
+    expect(kv.orders).toEqual([
+      {
+        villageId: 'm',
+        name: 'Lhota',
+        good: 'tools',
+        amount: k.ordered!.tools,
+        day: D + 1,
+        status: 'open',
+      },
+    ]);
+    // M zbytek vykove a ohlásí – ohlášení nezapadne
+    m.toolEquipmentKg = toolNeedKg(m, D) + k.ordered!.tools!;
+    fillOrders(m, D + 1);
+    const mail = m.outbox!.find((x) => x.body.kind === 'order-ready');
+    if (mail?.body.kind !== 'order-ready') throw new Error('Zakázka se neohlásila.');
+    expect(mail.villageId).toBe('k');
+    expect(markOrderReady(kv, mail.day, mail.body.ready)).toHaveLength(1);
+    expect(placedOrder(kv, mail.day, 'tools')).toMatchObject({ status: 'ready' });
+    // vyzvednutí – opotřebení od ohlášení ubralo 0,03 kg; po něm nezbude nic na žádné straně
+    m.toolEquipmentKg -= 0.03;
+    joinMarket(m, mail.day, kounice({ key: 'market:k:2', wants: { tools: 8 } }));
+    marketDay(m, mail.day);
+    const pickup = resultOf(m, 'market:k:2');
+    expect(pickup.bought.tools).toBeCloseTo(7.97, 9);
+    expect(pickup.ordered).toBeUndefined();
+    expect(m.market!.orders).toBeUndefined();
+    rememberOrders(kv, mail.day + 1, tripToLhota('market:k:2', { tools: 8 }), pickup);
+    expect(kv.orders).toBeUndefined();
   });
 });
 
@@ -216,16 +395,35 @@ describe('zakázka při odjezdu výpravy (Rozhodnutí plánu 3, bod 6)', () => {
     ]);
   });
 
-  it('prodej kupujícímu zakázku zmenší, prodej všeho ji smaže', () => {
+  it('prodej kupujícímu zakázku za pobytu zmenší, při odjezdu ji nahradí zbytek seznamu', () => {
+    // zakázka H na 10 kg, M má 6 kg nad potřebou; výprava H stojí na trhu dva dny
     const m = withOrders(smithVillage(6), [order('h', 10, D - 5)]);
-    joinMarket(m, D, arrival({ goods: { grain: 900 }, wants: { tools: 6 } }));
+    joinMarket(m, D, arrival({ stayDays: 2 }));
     marketDay(m, D);
-    expect(resultOf(m, 'market:h:1').bought).toEqual({ tools: 6 });
     expect(m.market!.orders).toEqual([order('h', 4, D - 5)]);
-    const all = withOrders(smithVillage(12), [order('h', 10, D - 5)]);
-    joinMarket(all, D, arrival());
-    marketDay(all, D);
-    expect(all.market!.orders).toBeUndefined();
+    marketDay(m, D + 1);
+    const result = resultOf(m, 'market:h:1');
+    expect(result.bought).toEqual({ tools: 6 });
+    expect(result.ordered).toEqual({ tools: 4 });
+    expect(m.market!.orders).toEqual([order('h', 4, D + 1)]);
+  });
+
+  it('vyzvednutí hotové zakázky ji uzavře celou; kdo koupil, co chtěl, starou zakázku nemá', () => {
+    // hotová zakázka H na 10 kg, od ohlášení se opotřebilo 0,03 kg – zbytek se znovu nezapíše
+    const ready = withOrders(smithVillage(9.97), [{ ...order('h', 10, D - 5), readyDay: D - 1 }]);
+    joinMarket(ready, D, arrival());
+    marketDay(ready, D);
+    expect(resultOf(ready, 'market:h:1').bought.tools).toBeCloseTo(9.97, 9);
+    expect(resultOf(ready, 'market:h:1').ordered).toBeUndefined();
+    expect(ready.market!.orders).toBeUndefined();
+    // neohlášená zakázka 10 kg, nová výprava H chce jen 6 a koupí je – kupující zakázku smaže
+    // (koupil bez `ordered`), hostitel taky
+    const less = withOrders(smithVillage(6), [order('h', 10, D - 5)]);
+    joinMarket(less, D, arrival({ wants: { tools: 6 } }));
+    marketDay(less, D);
+    expect(resultOf(less, 'market:h:1').bought).toEqual({ tools: 6 });
+    expect(resultOf(less, 'market:h:1').ordered).toBeUndefined();
+    expect(less.market!.orders).toBeUndefined();
   });
 
   it(`zakázka vyprší po MARKET.orderDays (${MARKET.orderDays}) dnech`, () => {
@@ -417,19 +615,24 @@ describe('zakázky kupujícího (Rozhodnutí plánu 3, bod 6)', () => {
     expect(placedOrder(h, D + 1 + MARKET.orderDays + 1, 'tools')).toBeNull();
   });
 
-  it('koupené zakázku uzavře, i když hostitel zapsal zbytek', () => {
+  it('po částečném nákupu má přednost `ordered` hostitele; koupené bez `ordered` zakázku uzavře', () => {
     const h = marketVillage();
-    rememberOrders(h, D + 1, trip, result);
-    markOrderReady(h, D + 5, { villageId: 'm', name: 'Lhota', good: 'tools', amount: 10 });
+    const partial: MarketResult = { ...result, bought: { tools: 3 }, ordered: { tools: 7 } };
+    rememberOrders(h, D + 1, { ...trip, wants: { tools: 10 } }, partial);
+    expect(h.orders).toEqual([
+      { villageId: 'm', name: 'Lhota', good: 'tools', amount: 7, day: D + 1, status: 'open' },
+    ]);
+    markOrderReady(h, D + 5, { villageId: 'm', name: 'Lhota', good: 'tools', amount: 7 });
+    // vyzvednutí: hostitel hotovou zakázku uzavřel a zbytek znovu nezapsal
     const pickup: MarketResult = {
       ...result,
       key: 'market:h:2',
-      bought: { tools: 9.95 },
-      ordered: { tools: 0.05 },
+      bought: { tools: 6.97 },
+      ordered: undefined,
     };
-    rememberOrders(h, D + 7, { ...trip, key: 'market:h:2', wants: { tools: 10 } }, pickup);
+    rememberOrders(h, D + 7, { ...trip, key: 'market:h:2', wants: { tools: 7 } }, pickup);
     expect(placedOrder(h, D + 7, 'tools')).toBeNull();
-    expect(h.orders).toEqual([expect.objectContaining({ good: 'pottery', status: 'refused' })]);
+    expect(h.orders).toBeUndefined();
   });
 
   it('ohlášení bez otevřené zakázky nic nezmění; výprava vrácená zaniklým hostitelem nic neodmítne', () => {
@@ -440,5 +643,27 @@ describe('zakázky kupujícího (Rozhodnutí plánu 3, bod 6)', () => {
     expect(h.orders).toBeUndefined();
     rememberOrders(h, D + 1, trip, { ...result, ordered: undefined, returned: true });
     expect(h.orders).toBeUndefined();
+  });
+
+  it('zakázky u zaniklého hostitele zmizí s výpravou, kterou vrátil (ne až za rok)', () => {
+    const h = marketVillage();
+    rememberOrders(h, D + 1, trip, result);
+    markOrderReady(h, D + 5, { villageId: 'm', name: 'Lhota', good: 'tools', amount: 10 });
+    // zakázka u jiné vsi zůstane
+    const elsewhere = { ...trip, key: 'market:x:1', villageId: 'x', name: 'Kounice' };
+    rememberOrders(h, D + 6, elsewhere, { ...result, key: 'market:x:1' });
+    rememberOrders(
+      h,
+      D + 9,
+      { ...trip, key: 'market:h:2' },
+      {
+        ...result,
+        key: 'market:h:2',
+        ordered: undefined,
+        returned: true,
+      },
+    );
+    expect(placedOrder(h, D + 9, 'tools')).toMatchObject({ villageId: 'x', status: 'open' });
+    expect(h.orders!.every((o) => o.villageId === 'x')).toBe(true);
   });
 });
