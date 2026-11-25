@@ -167,6 +167,97 @@ describe('leaveVillage – jedna ves, jedna mapa', () => {
   });
 });
 
+describe('leaveVillage – celá ves bere úplně vše (migration.md – Co si vezmou)', () => {
+  it('přes cestu i založení nové vsi: nic nezmizí, snědlo se jen jídlo dne založení', async () => {
+    const { deps, villageId, sonHome } = await player();
+    deps.villages.edit(villageId, (state: VillageState) => {
+      // zakladatelé mají rezervu osiva 3 240 kg (FOUNDERS_STORES)
+      state.storesKg = 5000;
+      state.crafts = { charcoalKg: 80, potteryKg: 0, ironBarsKg: 25, bloomKg: 4 };
+      state.wares = { hides: 3, sheepFurs: 5, wildFurs: 2, honeyKg: 8, waxKg: 1 };
+      state.ards = 1;
+      state.carts = [
+        { id: 800, kind: 'two-wheel', builtDay: TODAY - 100 },
+        { id: 801, kind: 'four-wheel', builtDay: TODAY - 50 },
+      ];
+      state.looseOxen = [{ trainedDay: TODAY - 300 }, { trainedDay: TODAY + 200 }];
+      state.hay = { kg: 640, mowing: null };
+      state.cheeseKg = 30;
+      state.woodLogs = 9;
+      state.logStacks = [{ id: 802, fieldId: 0, x: -190, z: -190, logs: 9 }];
+    });
+    const today = TODAY + 1;
+    const before = (await loadVillage(deps, { villageId, today, landscape }))!.state;
+    const left = await leaveVillage(deps, {
+      playerId: PLAYER,
+      villageId,
+      today,
+      dwellingIds: [1, sonHome],
+      destination: { kind: 'map', direction: 'E' },
+    });
+    if (!left.ok) throw new Error(left.reason);
+    const old = left.from.state;
+    const onTheWay = left.to.state;
+    // ve staré vsi nezbylo nic než stavby a hromada klád
+    expect(old).toMatchObject({ abandonedDay: today, storesKg: 0, cheeseKg: 0 });
+    expect(old.woodLogs).toBe(before.woodLogs);
+    expect(old.logStacks).toEqual(before.logStacks);
+    expect(old.crafts).toBeUndefined();
+    expect(old.wares).toBeUndefined();
+    expect(old.carts).toBeUndefined();
+    expect(old.hay).toMatchObject({ kg: 0 });
+    expect(old.livestock!.herds).toEqual({ sheep: 0, goat: 0, pig: 0, cow: 0 });
+    expect(old.dwellings).toHaveLength(2);
+    // ves na cestě má všechno
+    for (const key of [
+      'storesKg',
+      'meatKg',
+      'slaughterMeatKg',
+      'cheeseKg',
+      'crafts',
+      'wares',
+      'ards',
+      'hay',
+      'looseOxen',
+      'carts',
+    ] as const) {
+      expect([key, onTheWay[key]]).toEqual([key, before[key]]);
+    }
+    expect(before.reservedSeedKg).toBeGreaterThan(3000);
+    expect(onTheWay.reservedSeedKg).toBe(before.reservedSeedKg);
+    expect(onTheWay.reservedSeedUntilDay).toBe(before.reservedSeedUntilDay);
+    expect(onTheWay.livestock!.herds).toEqual(before.livestock!.herds);
+    const arrival = onTheWay.journey!.arrivalDay;
+    const travelled = (await loadVillage(deps, {
+      villageId: left.to.id,
+      today: arrival,
+      landscape,
+    }))!.state;
+    // cestou se nic nesnědlo (ves na cestě se nesimuluje)
+    expect(travelled.storesKg).toBe(before.storesKg);
+    const settled = await settleJourney(deps, {
+      playerId: PLAYER,
+      villageId: left.to.id,
+      today: arrival,
+      dwelling: at(0, 0),
+    });
+    if (!settled.ok) throw new Error(settled.reason);
+    const fresh = settled.village.state;
+    expect(fresh.people).toHaveLength(before.people.length);
+    expect(fresh.crafts).toEqual(before.crafts);
+    expect(fresh.wares).toMatchObject({ hides: 3, sheepFurs: 5, wildFurs: 2 });
+    expect(fresh.ards).toBe(1);
+    expect(fresh.carts!.map((c) => c.kind)).toEqual(['two-wheel', 'four-wheel']);
+    expect(fresh.looseOxen).toEqual(before.looseOxen);
+    expect(fresh.reservedSeedKg).toBe(before.reservedSeedKg);
+    expect(fresh.reservedSeedUntilDay).toBe(before.reservedSeedUntilDay);
+    // jídlo: den založení se snědl (nejvýš denní potřeba všech)
+    const eaten = before.storesKg - fresh.storesKg;
+    expect(eaten).toBeGreaterThan(0);
+    expect(eaten).toBeLessThan(before.people.length * 1.5);
+  });
+});
+
 describe('leaveVillage – na novou mapu', () => {
   it('sídelní sídlo dostane (0, 0), nové sídlo vedle, lidé dorazí za 1–3 dny', async () => {
     const { deps, settlementId, villageId, sonHome } = await player();

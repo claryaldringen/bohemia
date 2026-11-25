@@ -222,9 +222,10 @@ export const STRUCTURE_REPAIR = {
   share: { idol: 0.25, shrine: 0.25, 'cemetery-fence': 0.3, pen: 0.5 },
 } as const;
 
-// migration.md – Odchod do nové vsi (návrh Clauda): s sebou jídlo, které unesou – 25 kg na
-// člověka od 7 let, nejvýš poměrný díl zásob vsi podle počtu lidí; cesta na novou mapu 1–3 dny
-// podle vzdálenosti ke kraji mapy (každých `perDayM` metrů den), po hotové zemské stezce 1 den.
+// migration.md – Odchod do nové vsi (návrh Clauda): odejde-li jen část vsi, s sebou jídlo, které
+// unesou – 25 kg na člověka od 7 let, nejvýš poměrný díl zásob vsi podle počtu lidí (odejdou-li
+// všichni, berou si úplně vše bez meze – Martin 25. 11. 2026); cesta na novou mapu 1–3 dny podle
+// vzdálenosti ke kraji mapy (každých `perDayM` metrů den), po hotové zemské stezce 1 den.
 // Osivo (fields.md – Osivo pro ves bez zásob; Martin 27. 10. 2026: „ok, jak navrhuješ“; čísla návrh
 // Clauda): k jídlu nesou osivo na první osev – půl roční potřeby odcházejících (START_SEED_YEARS,
 // jako nová ves) – nejvýš `seedKgPerCarrier` na nosiče navíc (s jídlem 45 kg) a volné místo vozu,

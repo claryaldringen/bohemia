@@ -339,12 +339,12 @@ describe('vůz s voly při odchodu (migration.md – Vůz při odchodu)', () => 
     expect(state.storesKg).toBeGreaterThanOrEqual(700);
   });
 
-  it('bez volných volů vůz zůstane; odchází-li celá ves, vezme si čtyřkolák i s páry', () => {
+  it('bez volných volů vůz zůstane; odchází-li celá ves, vezme si všechny vozy i s páry', () => {
     const tight = withDraft(twoHouseholds(), 2, ['four-wheel']);
     expect(departVillage(tight, DAY, [sonHome(tight)]).settlers.cart).toBeUndefined();
     const s = withDraft(twoHouseholds(), 2, ['four-wheel']);
     const all = departVillage(s, DAY, [1, sonHome(s)]);
-    expect(all.settlers.cart).toMatchObject({ kind: 'four-wheel' });
+    expect(all.settlers.whole!.carts).toMatchObject([{ kind: 'four-wheel' }]);
     expect(all.settlers.oxen).toHaveLength(2);
     expect(all.state.carts).toBeUndefined();
   });

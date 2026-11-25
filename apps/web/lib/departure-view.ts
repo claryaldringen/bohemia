@@ -9,11 +9,13 @@ import {
   sonDeparturePreview,
   travelDays,
   villageCentre,
+  wholeVillagePreview,
   type CartKind,
   type Direction8,
   type Landscape,
   type PendingDeparture,
   type VillageState,
+  type WholeVillagePreview,
 } from '@bohemia/game';
 
 // Odchod do nové vsi v pohledu na ves (migration.md – fáze 3 a 4): cesta na novou mapu po
@@ -29,14 +31,14 @@ export interface LeaveDirection {
 }
 
 /**
- * Odchod z vsi – kam to jde (na téže mapě vždy, na novou mapu po směrech) a jaký vůz s voly si
- * odcházející vezmou (migration.md – Vůz při odchodu): když odejde jen část vsi (`cart`), nebo
- * celá ves (`allCart`); bez vozu null.
+ * Odchod z vsi – kam to jde (na novou mapu po směrech) a co si odcházející vezmou: odejde-li jen část
+ * vsi, vůz s voly (`cart` – migration.md, Vůz při odchodu; bez vozu null), celá ves úplně vše (`all`
+ * – migration.md, Co si vezmou).
  */
 export interface VillageLeave {
   directions: LeaveDirection[];
   cart: CartKind | null;
-  allCart: CartKind | null;
+  all: WholeVillagePreview;
 }
 
 /**
@@ -161,8 +163,8 @@ export function leaveOptions(
 ): VillageLeave {
   const centre = villageCentre(state);
   return {
-    cart: leavingCart(state, state.lastDay, false)?.cart.kind ?? null,
-    allCart: leavingCart(state, state.lastDay, true)?.cart.kind ?? null,
+    cart: leavingCart(state, state.lastDay)?.cart.kind ?? null,
+    all: wholeVillagePreview(state, state.lastDay),
     directions: DIRECTIONS.map((direction) => {
       const own = ownMaps[direction];
       return {

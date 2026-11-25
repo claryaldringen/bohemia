@@ -1,6 +1,7 @@
-import { leavingCart } from '../crafts/carts';
+import { leavingCart, villageCarts } from '../crafts/carts';
 import {
   departLeavers,
+  everyoneLeaves,
   leavingFood,
   leavingSeedKg,
   isVillageDormant,
@@ -232,7 +233,7 @@ export interface SonDeparturePreview {
   foodKg: number;
   /** Osivo, které odnesou (kg obilí). */
   seedKg: number;
-  /** Vůz, který odveze (celá ves = i s voly orby). */
+  /** Vůz, který odveze (odejdou-li s ním všichni, první z vozů vsi). */
   cart: CartKind | null;
   /** Syn si bere jezdeckého koně. */
   horse: boolean;
@@ -255,7 +256,11 @@ export function sonDeparturePreview(
   if (!share) return null;
   const leaving = new Set(share.personIds);
   const leavers = state.people.filter((p) => leaving.has(p.id));
-  const cart = leavingCart(state, day, leavers.length === state.people.length)?.cart.kind ?? null;
+  const cart =
+    (everyoneLeaves(leavers.length, state.people.length)
+      ? villageCarts(state)[0]
+      : leavingCart(state, day)?.cart
+    )?.kind ?? null;
   const food = leavingFood(state, leavers, day, cart);
   const manorId = villageManorId(state);
   const outline = new Set(share.dwellingIds);

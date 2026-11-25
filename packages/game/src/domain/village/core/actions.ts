@@ -40,7 +40,14 @@ import { orchardPlantingCost, villageOrchards } from '../buildings/orchard';
 import { copyPlot } from '../buildings/plots';
 import type { Walk } from '../paths/walking';
 import { ageGroup } from '../people/people';
-import { faithOfSettlers, settlersMaxId, type Settlers } from '../people/departure';
+import { addCarriedStocks } from '../people/belongings';
+import {
+  faithOfSettlers,
+  settlersCarts,
+  settlersHorses,
+  settlersMaxId,
+  type Settlers,
+} from '../people/departure';
 import { isLineMan } from '../people/dynasty';
 import { checkPersonName, generatedLineName, normalizePersonName } from '../people/dynasty-names';
 import { nameUnnamed } from '../people/people-names';
@@ -691,14 +698,19 @@ function foundingStores(
 ): Pick<VillageState, 'storesKg' | 'reservedSeedKg' | 'reservedSeedUntilDay'> {
   const { day, settlers } = input;
   const food = settlers?.food;
+  const seedUntilDay = settlers?.whole?.seedUntilDay;
   return {
     storesKg: food
       ? food.grainKg + (settlers?.seedKg ?? 0)
       : founders
         ? annualNeed * FOUNDERS_STORES.foodYears + foundersSeedKg
         : (annualNeed * START_STORES_MONTHS) / MONTHS_PER_YEAR + annualNeed * START_SEED_YEARS,
-    // osivo, které osadníci přinesli, ves nesní (fields.md – Osivo pro ves bez zásob)
+    // osivo, které osadníci přinesli, ves nesní (fields.md – Osivo pro ves bez zásob); rezerva celé
+    // vsi i s lhůtou osiva zakladatelů
     ...(settlers?.seedKg ? { reservedSeedKg: settlers.seedKg } : {}),
+    ...(settlers?.seedKg && seedUntilDay !== undefined && day < seedUntilDay
+      ? { reservedSeedUntilDay: seedUntilDay }
+      : {}),
     // osivo zakladatelů na víc osevů – neuvolní se do FOUNDERS_STORES.seedKeepYears let
     ...(foundersSeedKg > 0
       ? {
@@ -718,9 +730,10 @@ function settlersCarry(
   'meatKg' | 'slaughterMeatKg' | 'cheeseKg' | 'legumesKg' | 'applesKg' | 'ancestors' | 'emigrants'
 > {
   return {
-    // maso osadníků je ostatní uzené – jí se hned; nová ves je po převodu dvou zásob uzeného
+    // maso osadníků je ostatní uzené – jí se hned (celá ves nese i svou zásobu z porážky 1. 11.);
+    // nová ves je po převodu dvou zásob uzeného
     meatKg: food ? food.meatKg : 0,
-    slaughterMeatKg: 0,
+    slaughterMeatKg: settlers?.whole?.slaughterMeatKg ?? 0,
     ...(food && food.cheeseKg > 0 ? { cheeseKg: food.cheeseKg } : {}),
     ...(food && food.legumesKg > 0 ? { legumesKg: food.legumesKg } : {}),
     ...(food && food.applesKg > 0 ? { applesKg: food.applesKg } : {}),
@@ -733,22 +746,31 @@ function settlersCarry(
   };
 }
 
-/** Vůz, voli a kůň osadníků čekají bez ohrady; kronika nové vsi vedené synem vojvody. */
+/**
+ * Vozy, voli a koně osadníků (bez ohrady), celé vsi i zásoby a vybavení; kronika nové vsi vedené
+ * synem vojvody.
+ */
 function settlersBelongings(
   state: VillageState,
   settlers: VillageFounding['settlers'],
   people: readonly Person[],
   day: number,
 ): void {
-  // vůz a voli osadníků (migration.md – Vůz při odchodu): vůz je vsi, voli čekají bez ohrady
-  if (settlers?.cart) state.carts = [{ ...settlers.cart, id: state.nextId++ }];
-  if (settlers?.oxen && settlers.oxen.length > 0) {
+  if (!settlers) return;
+  // vozy a voli osadníků (migration.md – Vůz při odchodu): vozy jsou vsi, voli čekají bez ohrady
+  const carts = settlersCarts(settlers);
+  if (carts.length > 0) state.carts = carts.map((c) => ({ ...c, id: state.nextId++ }));
+  if (settlers.oxen && settlers.oxen.length > 0) {
     state.looseOxen = settlers.oxen.map((ox) => ({ ...ox }));
   }
-  // kůň vůdce čeká bez ohrady (lord.md – Dělení vsi, Kůň syna) – nové id ve vsi
-  if (settlers?.horse) state.looseHorses = [{ ...settlers.horse, id: state.nextId++ }];
+  // kůň vůdce (celé vsi všichni koně) čeká bez ohrady (lord.md – Dělení vsi, Kůň syna) – nové id
+  // ve vsi
+  const horses = settlersHorses(settlers);
+  if (horses.length > 0) state.looseHorses = horses.map((h) => ({ ...h, id: state.nextId++ }));
+  // celá ves přinesla úplně vše (migration.md – Co si vezmou)
+  if (settlers.whole) addCarriedStocks(state, settlers.whole.stocks);
   // kronika nové vsi vedené synem vojvody: „Vojvodou je Bořivoj“ (lord.md – Dělení vsi, Nová ves)
-  if (settlers?.lordId !== undefined && state.dynasty?.lordId === settlers.lordId) {
+  if (settlers.lordId !== undefined && state.dynasty?.lordId === settlers.lordId) {
     const lord = people.find((p) => p.id === settlers.lordId);
     state.chronicle.push({
       day,

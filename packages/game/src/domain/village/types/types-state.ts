@@ -909,6 +909,11 @@ export interface VillageJourney {
   lordId?: number;
   /** Ves založí syn (`Settlers.stewarded`) – správce od založení; chybí = vypnutý. */
   stewarded?: true;
+  /**
+   * Odešla celá ves (`Settlers.whole` – migration.md, Co si vezmou): nese s sebou úplně vše – zásoby
+   * a vybavení, všechny vozy a koně. Chybí = jen část lidí (i vsi na cestě z doby před 25. 11. 2026).
+   */
+  whole?: true;
 }
 
 // --- dvorec, zemská stezka a obchod (trade.md) ----------------------------------------------

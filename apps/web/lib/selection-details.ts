@@ -8,6 +8,7 @@ import {
   DRAFT_OXEN,
   LEAVING,
   ORCHARD,
+  everyoneLeaves,
   sacredBuildingHappiness,
   type CartKind,
   type PremiumSiteKind,
@@ -1606,11 +1607,17 @@ export interface SelectionLeave {
   households: readonly number[];
   people: number;
   /**
-   * Jídlo s sebou (kg) – kolik unesou lidé od 7 let a vůz (`cart`), nejvýš poměrný díl zásob.
+   * Jídlo s sebou (kg) – kolik unesou lidé od 7 let a vůz (`cart`), nejvýš poměrný díl zásob; celá
+   * ves všechno (`all`).
    */
   foodKg: number;
-  /** Vůz s voly, který si vezmou (migration.md – Vůz při odchodu); bez vozu null. */
+  /** Vůz s voly, který si vezmou (migration.md – Vůz při odchodu); bez vozu a u celé vsi null. */
   cart: CartKind | null;
+  /**
+   * Odchází celá ves – bere si úplně vše (migration.md – Co si vezmou): všechna zvířata (kusy)
+   * a vozy. Chybí = odejde jen část.
+   */
+  all?: { animals: number; carts: number };
   /** Na novou mapu po směrech – dny cesty, nebo proč tím směrem nejde. */
   directions: readonly LeaveDirection[];
   /** Odchází syn vojvody a bere si jezdeckého koně (lord.md – Dělení vsi). */
@@ -1678,15 +1685,21 @@ function leaveDetails(view: VillageView, ids: readonly number[]): SelectionLeave
   const total = view.people.children + view.people.adults + view.people.elders;
   const food = view.storesKg + view.meatKg + view.cheeseKg + view.legumesKg + view.applesKg;
   const share = total > 0 ? people / total : 0;
-  // odchází-li celá ves, vezme si vůz i s voly, které by jinak orali (migration.md)
-  const cart = people >= total ? view.leave.allCart : view.leave.cart;
+  const households = leaving.map((h) => h.dwellingId);
+  const { directions } = view.leave;
+  // odcházejí-li všichni, berou si úplně vše (migration.md – Co si vezmou)
+  if (everyoneLeaves(people, total)) {
+    const { foodKg, animals, carts } = view.leave.all;
+    return { households, people, foodKg, cart: null, all: { animals, carts }, directions };
+  }
+  const { cart } = view.leave;
   const budget = carriers * LEAVING.carryKgPerPerson + (cart ? CARTS.loadKg[cart] : 0);
   return {
-    households: leaving.map((h) => h.dwellingId),
+    households,
     people,
     foodKg: Math.min(budget, Math.max(0, food) * share),
     cart,
-    directions: view.leave.directions,
+    directions,
   };
 }
 
