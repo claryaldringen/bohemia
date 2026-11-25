@@ -32,6 +32,9 @@ const market = (over: Partial<VillageManor['market']> = {}): VillageManor['marke
   adults: 8,
   day: 10,
   trips: [],
+  merchantsDay: null,
+  arms: [],
+  merchantsArrived: null,
   ...over,
 });
 

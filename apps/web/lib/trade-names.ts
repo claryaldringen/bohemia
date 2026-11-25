@@ -193,6 +193,21 @@ export const NEWCOMER_TEXTS: Record<
 };
 
 /**
+ * Mince s počtem („1 mince“, „4 mince“, „20 mincí“; 4. pád „1 minci“, „4 mince“, „16 mincí“) –
+ * mince nejsou „ks mincí“ (markets.md – Rozhodnutí plánu 4, bod 9). `accusative` je výchozí
+ * (po slovesech „zaplatila“, „dostala“, „veze“).
+ */
+export function coinsText(
+  n: number,
+  grammaticalCase: 'nominative' | 'accusative' = 'accusative',
+): string {
+  const count = formatInteger(n);
+  return grammaticalCase === 'accusative'
+    ? `${count} ${plural(n, 'minci', 'mince', 'mincí')}`
+    : `${count} ${plural(n, 'mince', 'mince', 'mincí')}`;
+}
+
+/**
  * Množství zboží s jednotkou v celých číslech („120 kg obilí“, „2 ks krav“) – pro kroniku; co se
  * zaokrouhlí na nulu (zbytek gramů), se nepíše.
  */
@@ -200,6 +215,7 @@ export function goodsText(goods: TradeGoods): string {
   const items = (Object.entries(goods) as [TradeGood, number][])
     .filter(([, amount]) => Math.round(amount) > 0)
     .map(([good, amount]) => {
+      if (good === 'coins') return coinsText(Math.round(amount));
       const { unit, genitive } = TRADE_GOOD_NAMES[good];
       return `${formatInteger(amount)} ${unit} ${genitive}`;
     });

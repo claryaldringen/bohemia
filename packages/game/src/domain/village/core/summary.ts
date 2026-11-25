@@ -39,6 +39,7 @@ import {
 } from '../crafts/smith-supply';
 import { craftSkillSummary, type CraftSkillSummary } from '../crafts/craft-skill';
 import { hidesOnHand } from '../trade/trade';
+import { ARMS_GOODS } from '../trade/goods';
 import { isFull, isOvercrowded } from '../buildings/dwellings';
 import { waitingHouseholds } from '../people/households';
 import { familyCounts, type FamilyCounts } from '../people/kinship';
@@ -115,6 +116,7 @@ import {
 import { sacredOakNow, type SacredOakNow } from '../people/sacred-life';
 import type {
   AbandonedStructure,
+  ArmsGood,
   CharcoalKiln,
   KilnStage,
   Construction,
@@ -460,6 +462,10 @@ export interface WaresView {
   waxKg: number;
   /** Počet malých kůží (kozí, prasečí) v zásobě; chybí = žádné. */
   smallHides?: number;
+  /** Mince vsi (celé kusy, jen kladné; markets.md – Rozhodnutí plánu 4, bod 12); chybí = žádné. */
+  coins?: number;
+  /** Zbroj vsi po kusech, jen druhy s kladným počtem; chybí = žádná. */
+  arms?: Partial<Record<ArmsGood, number>>;
 }
 
 export interface VillageSummary {
@@ -866,15 +872,24 @@ export function constructionsStalled(
 
 function waresView(state: VillageState): WaresView | null {
   const w = state.wares;
-  if (!w) return null;
-  const small = Math.floor(w.smallHides ?? 0);
+  const coins = Math.floor(state.coins ?? 0);
+  const arms: Partial<Record<ArmsGood, number>> = {};
+  for (const good of ARMS_GOODS) {
+    const n = Math.floor(state.arms?.[good] ?? 0);
+    if (n > 0) arms[good] = n;
+  }
+  const hasArms = Object.keys(arms).length > 0;
+  if (!w && coins <= 0 && !hasArms) return null;
+  const small = Math.floor(w?.smallHides ?? 0);
   return {
-    hides: Math.floor(hidesOnHand(state)),
-    furs: Math.floor(w.wildFurs + w.sheepFurs),
-    sheepFurs: Math.floor(w.sheepFurs),
-    honeyKg: Math.floor(w.honeyKg),
-    waxKg: Math.floor(w.waxKg),
+    hides: w ? Math.floor(hidesOnHand(state)) : 0,
+    furs: w ? Math.floor(w.wildFurs + w.sheepFurs) : 0,
+    sheepFurs: w ? Math.floor(w.sheepFurs) : 0,
+    honeyKg: w ? Math.floor(w.honeyKg) : 0,
+    waxKg: w ? Math.floor(w.waxKg) : 0,
     ...(small > 0 ? { smallHides: small } : {}),
+    ...(coins > 0 ? { coins } : {}),
+    ...(hasArms ? { arms } : {}),
   };
 }
 

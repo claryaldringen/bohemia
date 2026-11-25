@@ -229,4 +229,29 @@ describe('summarizeVillage', () => {
     expect(wares?.hides).toBe(2); // 1 + 6 * 0,8 / 3 = 2,6
     expect(wares?.smallHides).toBe(6);
   });
+
+  it('mince a zbroj (plán 4): souhrn i bez zboží, jen kladné; bez nich null', () => {
+    const s = found();
+    s.coins = 12;
+    expect(summarizeVillage(s, DAY).wares).toEqual({
+      hides: 0,
+      furs: 0,
+      sheepFurs: 0,
+      honeyKg: 0,
+      waxKg: 0,
+      coins: 12,
+    });
+    delete s.coins;
+    s.arms = { swords: 2, helmets: 0 };
+    expect(summarizeVillage(s, DAY).wares).toEqual({
+      hides: 0,
+      furs: 0,
+      sheepFurs: 0,
+      honeyKg: 0,
+      waxKg: 0,
+      arms: { swords: 2 },
+    });
+    s.arms = { swords: 0 };
+    expect(summarizeVillage(s, DAY).wares).toBeNull();
+  });
 });

@@ -87,7 +87,17 @@ describe('vylepšení vsi ve dvorci', () => {
       <ManorUpgrades
         manor={{
           dwellingId: 1,
-          market: { stock: {}, homeCarts: [], oxenHome: 0, adults: 0, day: 0, trips: [] },
+          market: {
+            stock: {},
+            homeCarts: [],
+            oxenHome: 0,
+            adults: 0,
+            day: 0,
+            trips: [],
+            merchantsDay: null,
+            arms: [],
+            merchantsArrived: null,
+          },
           stance: 'flee',
           huntDenied: null,
         }}
@@ -102,7 +112,17 @@ describe('vylepšení vsi ve dvorci', () => {
   it('tlačítko Obchod otevře panel Trh; bez obsluhy je zašedlé', () => {
     const manor = {
       dwellingId: 1,
-      market: { stock: {}, homeCarts: [], oxenHome: 0, adults: 0, day: 0, trips: [] },
+      market: {
+        stock: {},
+        homeCarts: [],
+        oxenHome: 0,
+        adults: 0,
+        day: 0,
+        trips: [],
+        merchantsDay: null,
+        arms: [],
+        merchantsArrived: null,
+      },
       stance: 'flee' as const,
       huntDenied: null,
     };
@@ -125,7 +145,17 @@ describe('tlačítko lovu ve dvorci', () => {
           dwellingId: 1,
           stance: 'flee',
           huntDenied,
-          market: { stock: {}, homeCarts: [], oxenHome: 0, adults: 0, day: 0, trips: [] },
+          market: {
+            stock: {},
+            homeCarts: [],
+            oxenHome: 0,
+            adults: 0,
+            day: 0,
+            trips: [],
+            merchantsDay: null,
+            arms: [],
+            merchantsArrived: null,
+          },
         }}
         onDeclareHunt={async () => null}
       />,

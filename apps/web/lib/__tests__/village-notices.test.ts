@@ -1070,6 +1070,31 @@ describe('výprava na trh (markets.md – Pravidla 3)', () => {
   });
 });
 
+describe('kupci přijeli (markets.md – Rozhodnutí plánu 4, bod 5)', () => {
+  const withArrival = (day: number | null, dayIndex: number): VillageView =>
+    view({
+      dayIndex,
+      manor: { market: { merchantsArrived: day } } as unknown as VillageView['manor'],
+    });
+  const merchants = {
+    kind: 'merchants-arrived',
+    tone: 'info',
+    text: 'Kupci přijeli',
+    icon: '/icons/resources/merchants.png',
+  };
+
+  it('za každý příjezd – nový den posledního příjezdu, i druhý v témže roce', () => {
+    expect(newNotices(withArrival(null, 1000), withArrival(1001, 1002))).toEqual([merchants]);
+    expect(newNotices(withArrival(1001, 1002), withArrival(1090, 1091))).toEqual([merchants]);
+  });
+
+  it('beze změny dne příjezdu ani bez kupců nic; ves bez dvorce také nic', () => {
+    expect(newNotices(withArrival(1001, 1002), withArrival(1001, 1003))).toEqual([]);
+    expect(newNotices(withArrival(null, 1000), withArrival(null, 1001))).toEqual([]);
+    expect(newNotices(view({ dayIndex: 1000 }), view({ dayIndex: 1001 }))).toEqual([]);
+  });
+});
+
 describe('nákup u sousedů (crafts.md)', () => {
   it('vesničané koupili výrobky u souseda – krátký fakt z kroniky', () => {
     const after = view({

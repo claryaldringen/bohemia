@@ -34,6 +34,7 @@ import {
   type MasonCraft,
   type NewcomerGroup,
   type ShipmentManifest,
+  type TradeGood,
   type TradeGoods,
   type TradePeople,
   type DwellingType,
@@ -44,7 +45,14 @@ import {
 import { formatGameDate } from './game-date';
 import { noticeChronicleText } from './notice-chronicle';
 
-import { DIRECTION_NAMES, NEWCOMER_TEXTS, goodsText, peopleText } from './trade-names';
+import {
+  DIRECTION_NAMES,
+  NEWCOMER_TEXTS,
+  TRADE_GOOD_NAMES,
+  coinsText,
+  goodsText,
+  peopleText,
+} from './trade-names';
 import {
   fromVillage,
   inVillage,
@@ -939,16 +947,64 @@ function marketDepartedText(event: Extract<ChronicleEvent, { kind: 'market-depar
   return `Výprava vyrazila na trh ${event.villageName === '' ? 'do sousední vsi' : `do vsi ${event.villageName}`}${what}; doma bude ${formatGameDate(dateOfDayIndex(event.returnDay))}.`;
 }
 
+/** Zboží bez mincí (mince se v kronice píšou zvlášť – `exchangeParts`) a mince samotné. */
+function splitCoins(goods: TradeGoods): { rest: TradeGoods; coins: number } {
+  const { coins, ...rest } = goods;
+  return { rest, coins: Math.round(coins ?? 0) };
+}
+
+/**
+ * Části věty o směně: „prodala …“, „koupila …“ a mince zvlášť – „zaplatila 4 mince“ (`sold.coins`),
+ * „dostala 16 mincí“ (`bought.coins`; markets.md – Rozhodnutí plánu 4, bod 9). Prázdné části se
+ * vynechají.
+ */
+function exchangeParts(sold: TradeGoods, bought: TradeGoods): string[] {
+  const out = splitCoins(sold);
+  const inn = splitCoins(bought);
+  return [
+    ...(hasAnyGoods(out.rest) ? [`prodala ${goodsText(out.rest)}`] : []),
+    ...(hasAnyGoods(inn.rest) ? [`koupila ${goodsText(inn.rest)}`] : []),
+    ...(out.coins > 0 ? [`zaplatila ${coinsText(out.coins)}`] : []),
+    ...(inn.coins > 0 ? [`dostala ${coinsText(inn.coins)}`] : []),
+  ];
+}
+
+/** Věta kroniky o tržním dni vsi; bez mincí „prodala … a koupila …“, s mincemi výčet po čárkách. */
+function marketHeldText(event: Extract<ChronicleEvent, { kind: 'market-held' }>): string {
+  if ((event.sold.coins ?? 0) <= 0 && (event.bought.coins ?? 0) <= 0) {
+    return `Na trhu ves prodala ${goodsText(event.sold)} a koupila ${goodsText(event.bought)}.`;
+  }
+  const parts = exchangeParts(event.sold, event.bought);
+  return `Na trhu ves ${parts.join(', ')}.`;
+}
+
+/** Věta o příjezdu cizích kupců – co prodávají a co kupují, jména zboží malými písmeny. */
+function merchantsArrivedText(
+  event: Extract<ChronicleEvent, { kind: 'merchants-arrived' }>,
+): string {
+  const names = (goods: TradeGoods): string => {
+    const list = (Object.keys(goods) as TradeGood[])
+      .filter((good) => (goods[good] ?? 0) > 0)
+      .map((good) => TRADE_GOOD_NAMES[good].name.toLowerCase());
+    return list.length <= 1
+      ? (list[0] ?? '')
+      : `${list.slice(0, -1).join(', ')} a ${list[list.length - 1]}`;
+  };
+  const sells = names(event.sells);
+  const buys = names(event.buys);
+  const parts = [...(sells ? [`prodávají ${sells}`] : []), ...(buys ? [`kupují ${buys}`] : [])];
+  return parts.length > 0
+    ? `Přijeli kupci z daleka – ${parts.join(', ')}.`
+    : 'Přijeli kupci z daleka.';
+}
+
 /**
  * Věta kroniky o výpravě, která se vrátila z trhu (markets.md – Pravidla 3): co prodala a koupila,
  * nic nevyměnila, nebo přivezla vše zpět ze vsi, která už nestojí (Rozhodnutí plánu 2, bod 6).
  * Bez jména vsi (záznam výpravy chyběl) jen „z trhu“.
  */
 function marketReturnedText(event: Extract<ChronicleEvent, { kind: 'market-returned' }>): string {
-  const exchange = [
-    ...(hasAnyGoods(event.sold) ? [`prodala ${goodsText(event.sold)}`] : []),
-    ...(hasAnyGoods(event.bought) ? [`koupila ${goodsText(event.bought)}`] : []),
-  ];
+  const exchange = exchangeParts(event.sold, event.bought);
   if (event.returned) {
     // výprava už na trhu obchodovala, než ves zanikla – vezla zpět jen to, co jí zbylo
     if (exchange.length > 0) {
@@ -1654,9 +1710,9 @@ export function chronicleText(event: ChronicleEvent, villageName: string, seed?:
     }
     case 'merchants-arrived':
       // cizí kupci na stezce (markets.md – Rozhodnutí plánu 4, bod 5)
-      return 'Přijeli kupci z daleka.';
+      return merchantsArrivedText(event);
     case 'market-held':
-      return `Na trhu ves prodala ${goodsText(event.sold)} a koupila ${goodsText(event.bought)}.`;
+      return marketHeldText(event);
     case 'market-departed':
       return marketDepartedText(event);
     case 'market-returned':
