@@ -6,7 +6,7 @@ import type { Craft } from './types-crafts';
 import type { TradedHorse } from './types-livestock';
 import type { Person, Sex } from './types-people';
 import type { Direction8 } from './types-state';
-import type { CartGood, HorseGood, PeopleGood, TradeGood, TradeGoods } from './types-trade';
+import type { CartGood, HorseGood, PeopleGood, TradeGood, TradeGoods, TripBy } from './types-trade';
 
 /**
  * Ceny trhu v mincích za kg, kus nebo m³ (markets.md – Rozhodnutí plánu 2, bod 3): trh si pamatuje
@@ -149,6 +149,12 @@ export interface MarketArrival {
    * `goods` se nepočítá); chybí = obyčejná výprava na trh.
    */
   kin?: MarketKin;
+  /**
+   * Kdo výpravu poslal (`TripBy`; Rozhodnutí plánu 4 – opravné kolo): výprava vesničanů v mincovní
+   * fázi jen prodává, mince neutrácí (Martin 25. 11. 2026: „Mince utrácí jen vojvoda/správce“).
+   * Chybí = hráč (nebo příjezd z doby před příznakem).
+   */
+  by?: TripBy;
 }
 
 /**
@@ -216,6 +222,8 @@ export interface MarketVisitor {
    * fázi kupuje první. Chybí = výprava.
    */
   merchant?: true;
+  /** Kdo výpravu poslal (`MarketArrival.by`); chybí = hráč nebo správce jako dosud. */
+  by?: TripBy;
 }
 
 /**

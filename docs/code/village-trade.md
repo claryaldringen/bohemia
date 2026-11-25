@@ -282,7 +282,10 @@ ves>:<id výpravy>`, `stayDays`, `travelDays`, zboží `goods` – koně i tady 
     `reduceOrder`), mince přesune `payCoins` – u návštěvníka jen `goods.coins` (ne `sold` / `bought`,
     domů jdou v `unsold`), u hostitele `VillageState.coins`; v kronice `market-held` jsou mince
     hostitele v `bought.coins` (získané) a `sold.coins` (zaplacené). Hladinu `market.level` posune
-    `nextLevel`, hladina 1 ze stavu zmizí.
+    `nextLevel`, hladina 1 ze stavu zmizí. Výprava vesničanů (`MarketArrival.by` = `villagers`,
+    přes `departMarketInPlace` až do `MarketVisitor.by`) v mincovní fázi jen prodává – má
+    `wants: {}`, mince jdou domů (Martin 25. 11. 2026: „Mince utrácí jen vojvoda/správce“); výprava
+    bez `by` je hráčova či správcova jako dosud.
   - **Odjezd:** návštěvník s `lastDay ≤ day` odjede – do odchozí schránky `VillageState.outbox`
     (`VillageMail` { `villageId`, `day`, `ref`, `body` } – tvar nové události schránky) jde
     `market-result` k domovské vsi na den `day + 1 + travelDays` (`ref` `marketResultRef` =

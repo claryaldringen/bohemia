@@ -167,6 +167,7 @@ export function joinMarket(
     boughtHorses: [],
     ...(arrival.service ? { service: { ...arrival.service } } : {}),
     ...(arrival.kin ? { kin: { ...arrival.kin } } : {}),
+    ...(arrival.by ? { by: arrival.by } : {}),
   };
   market.visitors.push(visitor);
   market.arrivals.push({
@@ -427,6 +428,9 @@ function settleTrades(
 /** Přičte mince k nákladu výpravy (mutuje; záporně ubere) – celé kusy, nula z nákladu zmizí. */
 function addCoins(goods: TradeGoods, coins: number): void {
   const rest = (goods[COIN_GOOD] ?? 0) + coins;
+  if (rest < 0) {
+    throw new RangeError(`Výprava by měla ${rest} mincí – platba ${coins} převyšuje její měšec.`);
+  }
   if (rest > 0) goods[COIN_GOOD] = rest;
   else delete goods[COIN_GOOD];
 }
@@ -477,8 +481,11 @@ function coinPhase(
   visitors: readonly MarketVisitor[],
   hostOffer: TradeGoods,
 ): PhaseTrades | null {
+  // výprava vesničanů mince jen vydělá, nekoupí nic (Martin 25. 11. 2026) – nemá seznam
+  const wantsOf = (v: MarketVisitor): TradeGoods =>
+    v.by === 'villagers' ? {} : withoutCoins(v.wants);
   const spends = (v: MarketVisitor): boolean =>
-    (v.goods[COIN_GOOD] ?? 0) > 0 && hasGoods(withoutCoins(v.wants));
+    (v.goods[COIN_GOOD] ?? 0) > 0 && hasGoods(wantsOf(v));
   if (!visitors.some(spends)) return null;
   const leaving = leavingGroups(state, day, hostOffer);
   const people: TradeGoods = {};
@@ -491,7 +498,7 @@ function coinPhase(
         key: v.key,
         coins: v.goods[COIN_GOOD] ?? 0,
         stock: withoutCoins(v.goods),
-        wants: withoutCoins(v.wants),
+        wants: wantsOf(v),
         ...(v.merchant ? { merchant: true as const } : {}),
       })),
     ],

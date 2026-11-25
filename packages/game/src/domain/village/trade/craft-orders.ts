@@ -223,7 +223,7 @@ export function reduceOrder(
   else delete market.orders;
 }
 
-/** `ref` ohlášení hotové zakázky: `order:<hostitel>:<kupec>:<zboží>:<den zakázky>`. */
+/** `ref` ohlášení hotové zakázky: `order:<hostitel>:<kupující>:<zboží>:<den zakázky>`. */
 function orderReadyRef(host: string, order: CraftOrder): string {
   return `order:${host}:${order.villageId}:${order.good}:${order.day}`;
 }

@@ -560,6 +560,7 @@ function departPlanned(
         firstStep: target.firstStep,
         ...(service ? { service: { ...service } } : {}),
         ...(kin ? { kin: { ...kin } } : {}),
+        ...(by ? { by } : {}),
       },
     },
   });

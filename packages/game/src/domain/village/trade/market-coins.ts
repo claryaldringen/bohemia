@@ -129,7 +129,9 @@ export function coinClearing(
   prices: MarketPrices,
   level: number,
 ): CoinClearing {
-  const price = (good: TradeGood): number => coinPriceOf(prices, level, good);
+  // ceny dne se počítají jednou
+  const table = new Map(SOLD_FOR_COINS.map((good) => [good, coinPriceOf(prices, level, good)]));
+  const price = (good: TradeGood): number => table.get(good) ?? coinPriceOf(prices, level, good);
   const ledgers = parties.map((party): Ledger => ({
     key: party.key,
     merchant: party.merchant === true,
@@ -141,6 +143,7 @@ export function coinClearing(
   const payments: CoinPayment[] = [];
   const buyers = [...ledgers.filter((l) => l.merchant), ...ledgers.filter((l) => !l.merchant)];
   for (const buyer of buyers) {
+    if (buyer.purse < 1 - NOISE) continue; // měšec pod minci nic nekoupí
     for (const seller of ledgers) {
       if (seller === buyer) continue;
       const { goods, bill } = basketOf(buyer, seller, price);
