@@ -779,7 +779,8 @@ double)` je dvojklikem rozšíří na celé pole / sad (`wholeTarget`; první kl
   `fieldStoresKg(state, day)`) a dobré zásoby
   štěstí počítají snopy jako zrno; jí se jen vymlácené. Hlad a příděl (`eat` – `state.ration`)
   jdou podle menšího z výhledu a snědené energie. Odchod do nové vsi dělí snopy jako zásoby
-  (`leavingFood`, `takeSheaves`). Plán osevu výmlat
+  (`leavingFood`, `takeSheaves`); celá ves je nese nevymlácené (`CARRIED_STOCKS` – village-people.md,
+  Odchod do nové vsi). Plán osevu výmlat
   z podzimní kapacity (`sowingCapacity`) neodečítá a do zátěže srpna (`CropLoad.august` ve
   `sowing.ts`) nepřičítá – výmlat počká za polními pracemi do zimy. Rozdělení práce: výmlat na hotová humna rovným dílem (cíl `threshing-floor`),
   nouzový u vsi (`DayWork.threshing`); ve scéně mlátí podíl s cílem `threshing-floor` na humně (`threshingOnFloor` ve `villager-plan-fields.ts` – páry mlatců s holemi, prohazovači, nosič slámy), podíl s cílem ves nouzově u vsi (`threshing` – dva páry mlatců a dva prohazovači na místo; issue #3 – dřív mlátili všichni u vsi), pěší nosiči snopů jdou z pole na humno (`sheafFloor`, scene-village.md – Humno ve scéně); síť pěšin vede k humnu vstupem na předku

@@ -227,6 +227,7 @@ Beze změny (milíř u buků – crafts.md); nošení uhlí ke kováři je dnes 
   a deštivé léto (+20 %) zůstávají.
 - **Odchod do nové vsi** (migration.md): snopy, které ves smí vymlátit, se dělí jako zásoby –
   odcházející si vezmou svůj díl (vymlácený), ve vsi zůstane poměrný díl snopů i práce výmlatu.
+  Odejdou-li všichni, nesou všechny snopy nevymlácené i s prací výmlatu (návrh Clauda 25. 11. 2026).
 - **Nošení** (návrh Clauda): práce výmlatu má v rozdělení práce dne cíl humno – k němu vede
   pěšina (vstup na předku mlatu) a vozy, které sváží snopy, jezdí i k humnu (vyjede
   se cesta); humno je pro pěšiny, vozy, vozové cesty i zemskou stezku stavba, kterou obejdou

@@ -269,7 +269,7 @@ Návrh Clauda, Martin schválil („Ano, udělej to jak říkáš“) včetně v
 | Výpravy po stezce, nákup u sousedů | ano       | ano, napřed                              | ve hře (nákup u sousedů vozem od 22. 11. 2026 – crafts.md, Vozy)          |
 | **Hlína pro hrnčíře** od potoka    | ano       | –                                        | ve hře (crafts.md – Hlína hrnčíře): hliniště, hrnčíř kope, sedlák s vozem |
 | **Jablka ze sadu** do vsi          | ano       | ano, kam dojede                          | ve hře (orchard.md – Jablka vozem): čtvrtina sklizně jako odnos snopů     |
-| **Stěhování do nové vsi**          | ano       | ano                                      | ve hře (migration.md – Vůz při odchodu): volný vůz s voly, víc jídla      |
+| **Stěhování do nové vsi**          | ano       | ano                                      | ve hře (migration.md): volný vůz s voly, víc jídla; celá ves všechny vozy |
 
 - **Čtyřkolák po strništi a louce kamkoli** (Martin, 20. 10. 2026, na otázku, jestli má
   čtyřkolák smět mimo pevné cesty: „Po strništích a loukách může libovolně“ – mění dřívější

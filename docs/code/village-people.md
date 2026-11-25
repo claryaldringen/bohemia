@@ -419,10 +419,25 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   je díl bez osiva, mateřské vsi ubude `seedStoresKg` navíc k podílu `fraction`) – `Settlers.seedKg`
   → v nové vsi (`foundVillage`, `travellingVillage`, zpět `settlersOf`) zásoby + `reservedSeedKg`
   a poměrným dílem stád; **vůz s voly** (migration.md – Vůz při odchodu: `leavingCart` – vůz doma
-  a voli nad páry k rádlům, celá ves bere i ty, napřed čtyřkolák; `takeLeavingCart`,
-  `Settlers.cart` / `oxen`; v nové vsi `VillageState.looseOxen` – s první ohradou volů do ní
-  `looseOxenDay`; náhled `VillageLeave.cart` / `allCart`, popisek odchodu); domy
-  zůstanou prázdné, kronika `households-left`. Odejdou-li všichni, `abandonedDay` + kronika
+  a voli nad páry k rádlům, napřed čtyřkolák; `takeLeavingCart`,
+  `Settlers.cart` / `oxen`; v nové vsi `VillageState.looseOxen` – do míst hotových ohrad volů
+  `looseOxenDay`; náhled `VillageLeave.cart`, popisek odchodu); domy
+  zůstanou prázdné, kronika `households-left`. Díl části lidí bere `takeShare`.
+  **Odejdou-li všichni** (`everyoneLeaves(odchází, lidí)` – jediné místo, kde se to rozhoduje, i pro
+  web), berou si úplně vše (migration.md – Co si vezmou): `takeEverything` – všechno jídlo a osivo
+  bez meze nosnosti (`wholeStores`: rezerva osiva a k ní osivo na první osev, i `refuge.hidden`),
+  stáda, voli (`takeAllOxen` – i bez ohrady a telata) a `Settlers.whole` (`WholeVillageLoad`): zásoby
+  a vybavení, vozy (`takeAllCarts`), koně (`takeAllHorses`, kůň vůdce první), zásoba uzeného z porážky
+  a lhůta osiva zakladatelů. **Seznam zásob a vybavení je jediný – `CARRIED_STOCKS` v `belongings.ts`**
+  (nástroje, rádla, zboží řemesel `crafts`, `wares`, seno a sláma, snopy): `takeCarriedStocks` je
+  vezme, `carriedStocksOf` přečte z vsi na cestě, `addCarriedStocks` dá do nové vsi; nové zboží vsi
+  (nová část `VillageState`) stačí přidat do seznamu, co z části nejde odnést, do `SPLITS` (brtě,
+  výnosy seče). Ve staré vsi nezbude zásoba: jámy vyprázdní `drawGrainPits`, ohrady zůstanou prázdné
+  (`horses: []` – bez koní zdarma z `withHorsePenStock`), hromady klád a kamene a surovina u dílen
+  zůstanou. Ves na cestě nese vše ve svém stavu s příznakem `journey.whole` (bez něj – i ves
+  z doby před 25. 11. 2026 – `settlersOf` nic nepřidá); náhled `wholeVillagePreview`
+  (`VillageLeave.all`), vozy a koně osadníků `settlersCarts` / `settlersHorses`. Stará ves dostane
+  `abandonedDay` + kronika
   `village-abandoned` – ves se nesimuluje (`isVillageDormant` v `advanceVillageSteps`: vymřelá,
   opuštěná, na cestě), akce odmítne `updateLivingVillage` (`VILLAGE_ABANDONED`,
   `VILLAGE_TRAVELLING`), pohled ji ukáže přes `abandonedVillageAt` (domy chátrají podle dne

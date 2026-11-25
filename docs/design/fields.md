@@ -1815,7 +1815,10 @@ na vlnu – oděv, [diet.md](diet.md) – Oděv). Pravidla **návrh Clauda** pod
       voze** (oprava recenze, návrh Clauda): osivo nad to smí na vůz jen z místa, které zbude po
       jídle na **180 dní** (LEAVING.cartSeedFoodDays; 5 dospělých a vůz 400 kg: jídlo ≈ 260 kg
       místo 125, osivo zbytek). Pěšky tak nesou málo (rodina se dvěma nosiči 40 kg ≈ 0,23 ha).
-      Poměrný díl se počítá ze zásob **bez rezervy osiva** mateřské vsi (ta zůstane jí).
+      Poměrný díl se počítá ze zásob **bez rezervy osiva** mateřské vsi (ta zůstane jí). Odejdou-li
+      všichni, berou si úplně vše (Martin 25. 11. 2026 – migrace, Co si vezmou): osivem nové vsi je
+      celá rezerva i s lhůtou osiva zakladatelů; nestačí-li na půl roční potřeby, doplní se do ní
+      osivo na první osev (návrh Clauda; jídlo na 180 dní má přednost jako na voze).
     - **Nákup osiva u sousedů zanikl:** ves bez osiva na nutné díly ho nekupuje; chybějící osivo dílům nezasadí a kronika zapíše upozornění „Chybí osivo na setí“ (osivo na trhu přijde s plánem 3). Dřívější text je v [historii](history/fields-history.md).
     - **Osivo osadníků a koupené ves nesní** – je jen na setí, do země smí i pod přežívací zásobou;
       koně a obilné jámy ho nesahají. Nutné díly sejí **napřed z běžného zrna nad přežívací zásobu**

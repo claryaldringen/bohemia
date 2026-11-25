@@ -67,10 +67,33 @@ když ves přeroste, co ji mapa uživí (Martin) – a stará ves zůstane.
     staré vsi vznikne nová mapa (nové sídlo s novou krajinou, poloha v mřížce světa vedle staré –
     první kus mřížky map, na kterou naváže válka). Cesta trvá **1–3 herní dny** podle terénu
     (návrh Clauda – jako ve válce), pak hráč na nové krajině umístí první zemnici.
-- **Co si vezmou** (návrh Clauda): jídlo, které unesou – **≈ 25 kg na člověka od 7 let** (obilí,
-  maso, sýr, luštěniny, ovoce podle zásob, nejvýš poměrný díl zásob vsi podle počtu lidí), a **poměrný díl stád**
-  (ovce, kozy, prasata, krávy; voli a ohrady zůstávají ve staré vsi – kromě vozu s voly, viz
-  níž Vůz při odchodu). Klády, nástroje a keramika zůstanou.
+- **Co si vezmou, odejdou-li všichni: úplně vše** (Martin 25. 11. 2026 na otázku, jestli mají mince
+  a zbroj opuštěné vsi odejít s lidmi, nebo zůstat jako ostatní zásoby: „**Pokud se lidéí někam
+  stěhují, berou si úplně vše. Jaký by to jinak dávalo smysl?**“). Dřív (návrh Clauda) platilo i pro
+  celou ves, co níž pro část lidí, a většina zásob zůstala v opuštěné vsi. Podrobnosti návrh Clauda:
+  - **Bez meze nosnosti a bez 25 kg na člověka:** všechno jídlo a osivo – i rezerva osiva s lhůtou
+    osiva zakladatelů a co ves na útěku ukryla v lese –, snopy (nesou se nevymlácené i s prací
+    výmlatu, ves je vymlátí na novém místě), seno a sláma, nástroje domácností, dřevěné nářadí
+    a rádla, keramika, hřivny, železná houba a uhlí u kováře, kůže, kožešiny, med a vosk (i várky
+    v práci). Nové zboží (mince, zbroj) jde s nimi stejně.
+  - **Všechna zvířata a vozy:** stáda i s mláďaty, voli i telata ve výcviku, koně i hříbata, vozy
+    i bez volů a i ty, které jsou právě s výpravou.
+  - **Zůstane jen to, co nejde odnést:** stavby (i rozestavěné), pole, sad, hřbitov, hromady klád
+    a kamene a jiné hromady materiálu u těžby a u dílen – ruda, hlína, klády tesaře a uhlí
+    v milířích –, med v nevybraných brtích (je v krajině) a nesklizená úroda. Dílna v nové vsi
+    začíná se svou dávkou suroviny jako každá nová dílna.
+  - **Osivem**, které nová ves nesní, je celá rezerva osiva vsi; nestačí-li na půl roční potřeby,
+    doplní se do ní ze zrna osivo na první osev jako níž (jídlo na 180 dní má přednost). Zásobu
+    uzeného z porážky 1. 11. má nová ves dál zvlášť a jí ji rovným dílem.
+  - **Nová ves** má všechno od založení, ves na cestě vše nese s sebou (cestou nejí, jako dosud).
+    Zvířata, pro která ještě nestojí ohrada, čekají **bez ohrady** jako voli z vozu – voli přejdou
+    do hotových ohrad volů, kolik se do nich vejde, koně do ohrad koní; horní lišta je počítá.
+  - **Stará ves:** nezbude v ní žádná zásoba, obilné jámy a ohrady jsou prázdné.
+- **Co si vezmou, odejde-li jen část** (i se synem vojvody; návrh Clauda): jídlo, které unesou –
+  **≈ 25 kg na člověka od 7 let** (obilí, maso, sýr, luštěniny, ovoce podle zásob, nejvýš poměrný
+  díl zásob vsi podle počtu lidí), a **poměrný díl stád** (ovce, kozy, prasata, krávy; voli a ohrady
+  zůstávají ve staré vsi – kromě vozu s voly, viz níž Vůz při odchodu). Klády, nástroje a keramika
+  zůstanou – žije se v ní dál.
 - **Osivo na první osev** (Martin 27. 10. 2026: „ok, jak navrhuješ“; pravidla a čísla návrh
   Clauda – [pole](fields.md), Osivo pro ves bez zásob): k jídlu si vezmou osivo – **půl roční
   potřeby** odcházejících (jako nová ves), jen ze svého dílu zásob obilí (mateřská ves nepřijde
@@ -82,19 +105,21 @@ když ves přeroste, co ji mapa uživí (Martin) – a stará ves zůstane.
 - **Vůz při odchodu** (Martin 20. 10. 2026 k návrhu nových nákladů vozů – [vozy](wagons.md), Co se
   vozí a na čem: „**Ano, udělej to jak říkáš**“; podrobnosti rozhodnutí Clauda): odcházející si
   vezmou **volný vůz s voly** – vůz doma (ne na výpravě) a vycvičené voly pro něj (čtyřkolák pár,
-  dvoukolák jeden), bez kterých ves udrží páry k rádlům, které má; odchází-li celá ves, vezmou si
-  vůz i s voly, kteří by orali. Napřed čtyřkolák (uveze víc), pak dvoukolák, nejmladší vůz; voli
-  s nejdelší zbývající službou (`leavingCart` v `carts.ts`). S vozem **unesou víc jídla** – navíc
-  náklad vozu (dvoukolák 400 kg, čtyřkolák 800 kg), pořád nejvýš poměrný díl zásob vsi. V nové
+  dvoukolák jeden), bez kterých ves udrží páry k rádlům, které má (odchází-li celá ves, vezme si
+  všechny vozy i voly – Co si vezmou, odejdou-li všichni). Napřed čtyřkolák (uveze víc), pak
+  dvoukolák, nejmladší vůz; voli s nejdelší zbývající službou (`leavingCart` v `carts.ts`). S vozem
+  **unesou víc jídla** – navíc náklad vozu (dvoukolák 400 kg, čtyřkolák 800 kg), pořád nejvýš
+  poměrný díl zásob vsi. V nové
   vsi je vůz její; voli čekají **bez ohrady** (`VillageState.looseOxen` – žerou seno jako voli
-  v ohradě) a s **první hotovou ohradou volů** do ní přejdou (do míst; kdo mezitím doslouží, jde na
-  maso). Vůz bez ohrady volů nejezdí (nemá odkud). Ves na cestě vůz a voly nese s sebou. Popisek
-  tlačítek odchodu ukáže vůz (ikona vozu a druh).
+  v ohradě) a s **hotovou ohradou volů** do ní přejdou (do míst všech ohrad volů; kdo mezitím
+  doslouží, jde na maso). Vůz bez ohrady volů nejezdí (nemá odkud). Ves na cestě vůz a voly nese
+  s sebou. Popisek tlačítek odchodu ukáže vůz (ikona vozu a druh); u celé vsi počet zvířat a vozů
+  a řádek „Celá ves – berou si úplně vše“.
 - Nová ves začíná jako při založení: lidé bydlí na staveništi první zemnice, dokud ji nepostaví;
   další domy staví hráč jako vždy. Jméno navrhne hra (`suggestVillageName`), jde přejmenovat.
 - **Stará ves zůstane** (Martin), i když v ní zbude jen málo lidí; když odejdou všichni, stará
   ves je opuštěná (nevymřelá – kronika „ves opuštěna“), dál se nesimuluje a její domy se
-  rozpadají.
+  rozpadají; žádná zásoba v ní nezbude (Co si vezmou, odejdou-li všichni).
 
 ## Víc vsí jednoho hráče
 
@@ -127,7 +152,9 @@ když ves přeroste, co ji mapa uživí (Martin) – a stará ves zůstane.
 | Při odchodu části lidí stará ves zůstane – hráč má víc vsí                                                | Martin                                            |
 | Přestěhování bez lidí k osídlení, bydlí ve starém do dostavění; Ctrl/Shift + klik, Ctrl + A               | návrh Clauda                                      |
 | ~~Nová ves ≥ 300 m od staré na téže mapě~~ (zrušeno 1. 11.); nová mapa vedle staré, cesta 1–3 dny         | návrh Clauda                                      |
-| S sebou 25 kg jídla na člověka od 7 let a poměrný díl stád; klády a výrobky zůstanou                      | návrh Clauda                                      |
+| Odejdou-li všichni, berou si úplně vše: jídlo, osivo, výrobky, všechna zvířata a vozy                     | Martin (25. 11. 2026), podrobnosti návrh Clauda   |
+| Po odchodu všech zůstane jen, co nejde odnést: stavby, pole, hromady klád, kamene a suroviny              | návrh Clauda                                      |
+| Odejde-li jen část: 25 kg jídla na člověka od 7 let a poměrný díl stád; klády a výrobky zůstanou          | návrh Clauda                                      |
 | Přepínač vsí jménem v horní liště; upozornění z jiných vsí se jménem                                      | návrh Clauda                                      |
 | Ves má vlastní id, nová mapa = sídlo s polohou v mřížce (víc vsí na sídle zrušeno 1. 11.)                 | návrh Clauda                                      |
 | Vybraná ves v cookie; ves na jiné mapě se přepne novým načtením                                           | návrh Clauda                                      |
@@ -137,7 +164,7 @@ když ves přeroste, co ji mapa uživí (Martin) – a stará ves zůstane.
 | Mřížka map každého hráče zvlášť, sídelní sídlo v (0, 0); cesta 1–3 dny podle vzdálenosti ke kraji         | návrh Clauda                                      |
 | Vlastní ves v sousední mapě nahradí souseda bez simulace – tím směrem se neodchází ani neobchoduje        | návrh Clauda                                      |
 | Odcházející si vezmou volný vůz s voly a víc jídla                                                        | návrh Clauda, Martin („Ano, udělej to jak říkáš“) |
-| Volný vůz = voli nad páry k rádlům (celá ves bere i ty); napřed čtyřkolák; voli v nové vsi bez ohrady     | rozhodnutí Clauda                                 |
+| Volný vůz = voli nad páry k rádlům (celá ves bere všechny); napřed čtyřkolák; voli v nové vsi bez ohrady  | rozhodnutí Clauda                                 |
 | Osivo na první osev: půl roční potřeby, ze svého dílu zásob, 20 kg na nosiče, na voze po jídle na 180 dní | Martin (27. 10. 2026), čísla návrh Clauda         |
 
 ## Na stavitelích
@@ -230,17 +257,19 @@ když ves přeroste, co ji mapa uživí (Martin) – a stará ves zůstane.
   mapu i jako odešlí ve směru (`emigrants` – war.md, příbuzní ve vsi tím směrem). Manžel, který
   zůstal v jiném domě, ovdoví. Domácnost, která si staví nový dům, odejít nemůže (nejdřív zrušit
   stěhování); přestavovaný dům odejít smí – přestavba prázdného domu se sama opustí.
-- **Co si vezmou:** 25 kg na člověka od 7 let, nejvýš poměrný díl zásob podle počtu lidí; když
-  neunesou celý díl, berou ze všech zásob (obilí, maso, sýr, luštěniny, ovoce) stejný podíl.
-  Napřed osivo na první osev (viz výš) – obilí na jídlo je díl bez něj.
+- **Co si vezmou** (odejde-li jen část – celá ves bere od 25. 11. 2026 úplně vše, Odchod do nové
+  vsi): 25 kg na člověka od 7 let, nejvýš poměrný díl zásob podle počtu lidí; když neunesou celý
+  díl, berou ze všech zásob (obilí, maso, sýr, luštěniny, ovoce) stejný podíl. Napřed osivo na první osev (viz výš) – obilí na jídlo je díl bez něj.
   Stáda: poměrný díl ovcí, koz, prasat a krav i letošních mláďat (počty smí být neceločíselné
   jako všude ve stádech); voli, ohrady, klády, nástroje a keramika zůstanou.
 - **Nová ves** začíná jako při založení – všichni osadníci jsou jedna domácnost na staveništi
   první zemnice (dvorec vojvody), rodiny se rozejdou do dalších domů podle běžných pravidel
   osídlení, až je hráč postaví. Id lidí zůstanou ze staré vsi (nová ves čísluje za nimi).
-- **Opuštěná ves** (odešli všichni): kronika „ves opuštěna“, dál se nesimuluje (jako vymřelá),
-  akce v ní nejdou. Rozpad bez simulace – pohled spočítá domy ke dni (`abandonedVillageAt`):
-  každé obydlí ztrácí stav podílem prázdného obydlí (`emptyLifespanYears`) ode dne odchodu, na
+- **Opuštěná ves** (odešli všichni a vzali si úplně vše – Martin 25. 11. 2026, Odchod do nové vsi):
+  bez zásob, zvířat a vozů; zůstanou stavby, pole a hromady klád, kamene a suroviny u dílen (návrh
+  Clauda). Kronika „ves opuštěna“, dál se nesimuluje (jako vymřelá), akce v ní nejdou. Ves opuštěná
+  a ves na cestě z doby před 25. 11. 2026 zůstanou, jak jsou – nic se zpětně nepřidá. Rozpad bez
+  simulace – pohled spočítá domy ke dni (`abandonedVillageAt`): každé obydlí ztrácí stav podílem prázdného obydlí (`emptyLifespanYears`) ode dne odchodu, na
   nule se zřítí a zbude jáma, která `RUIN_YEARS` zarůstá; pole leží ladem. Konec hry počítá
   opuštěnou ves jako mrtvou (hra končí, když žádná ves nežije – ves na cestě žije).
 - ~~**Vsi na téže mapě o sobě vědí**~~ (zrušeno 1. 11. 2026 – jedna ves, jedna mapa) přes přehled (`NeighbourSnapshot`), který se sestaví při
@@ -290,6 +319,8 @@ když ves přeroste, co ji mapa uživí (Martin) – a stará ves zůstane.
 
 ### Otevřené po fázích 3 a 4
 
+- Zboží výpravy na trh, která je při odchodu celé vsi na cestě: výsledek trhu přijde do opuštěné
+  vsi a propadne (jako dosud) – podle „berou si úplně vše“ by měl dojít za lidmi.
 - Přesun zásob a lidí mezi vlastními vsemi a obchod s nimi (dnes ne-cíl).
 - Sdílený svět všech hráčů v jedné mřížce (rozmístění nových hráčů, NPC vojvodové na volných
   políčkách).
