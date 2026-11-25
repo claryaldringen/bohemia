@@ -169,6 +169,7 @@ export function createVillageRepository(db: Database, worldSeed: number): Villag
       villages: {
         inbox,
         stampsOf: (ids) => repository.stampsOf(ids),
+        stampsOfVillages: (ids) => repository.stampsOfVillages(ids),
         digestsOf: (ids) => repository.digestsOf(ids),
       },
       settlements: createSettlementRepository(db),

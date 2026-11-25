@@ -10,6 +10,7 @@ import {
   type VillageMail,
   type VillageState,
 } from '../domain/village';
+import type { SettledMail } from './inbox';
 import type { SettlementRepository } from './settlements';
 import { placeOf, sleeps } from './shipments';
 import type { VillageRecord, VillageRepository, VillageStamp } from './villages';
@@ -24,13 +25,26 @@ import type { VillageRecord, VillageRepository, VillageStamp } from './villages'
 // nepřišel) se podívá na hostitele: výsledek z jeho odchozí schránky doručí sama, zaniklý hostitel
 // ji vrátí. Každá zpráva výpravy má pevný `ref`, takže domů přijde nejvýš jeden výsledek. Lidé
 // a mince výsledku se zaniklou domovskou vsí nezmizí – jdou zpět k hostiteli (Rozhodnutí plánu 3,
-// bod 13, a plánu 4, bod 9).
+// bod 13, a plánu 4, bod 9). Vyřízené příjezdy a výsledky ze schránek maže `pruneSettledMail`
+// (Rozhodnutí plánu 4, bod 10) – jen ty, které odesílatel už nemůže poslat znovu.
 
 /**
  * Kolikrát se zkusí smazat doručené z odchozí schránky při souběžné změně vsi – technická mez, ne
  * pravidlo (proto ne v `rules*.ts`).
  */
 export const MAIL_ATTEMPTS = 5;
+
+/**
+ * Jak dlouho schránka drží použité příjezdy a výsledky výprav (`pruneSettledMail`). Technická mez, ne
+ * pravidlo: řádek drží `ref` proti druhému zápisu téže zprávy, dokud ji odesílatel nemohl znovu poslat.
+ */
+export const MAIL_KEEP_DAYS = 365;
+
+/**
+ * Kolik řádků nejvýš smaže jeden úklid pošty (`pruneSettledMail`) – technická mez, ne pravidlo: první
+ * úklid dlouho plněné schránky nezdrží dopočet vsi, zbytek dobere další (po příštím snímku okolí).
+ */
+export const MAIL_PRUNE_ROWS = 500;
 
 /** Co doručení potřebuje: vsi (i schránku) a sídla – zaniklý hostitel (sídlo v archivu). */
 export interface VillageMailDeps {
@@ -147,14 +161,27 @@ async function goneTargets(
   return gone;
 }
 
-/** Zpráva výsledku trhu pro domovskou ves `villageId` na den `day` (`ref` = `marketResultRef`). */
-function resultMail(villageId: string, day: number, result: MarketResult): VillageMail {
+/**
+ * Výsledek výpravy, kterou domovská ves `villageId` vrací sama sobě na den `day` (`ref` =
+ * `marketResultRef`) – vydala ho ona (`from`).
+ */
+function returnedMail(villageId: string, day: number, result: MarketResult): VillageMail {
   return {
     villageId,
     day,
     ref: marketResultRef(result.key),
-    body: { kind: 'market-result', result },
+    body: { kind: 'market-result', result, from: villageId },
   };
+}
+
+/**
+ * Zpráva z odchozí schránky vsi `sender` – příjezd a výsledek výpravy ponesou, kdo je vydal (`from`;
+ * úklid `pruneSettledMail` podle něj pozná, kdo by je mohl poslat znovu), ostatní jsou beze změny.
+ */
+function withSender(mail: VillageMail, sender: string): VillageMail {
+  const { body } = mail;
+  if (body.kind !== 'market-arrive' && body.kind !== 'market-result') return mail;
+  return { ...mail, body: { ...body, from: sender } };
 }
 
 /** Zapíše zprávu do schránky cílové vsi; true = zapsaná (ne duplicita téhož `ref`). */
@@ -181,6 +208,8 @@ async function post(deps: VillageMailDeps, mail: VillageMail): Promise<boolean> 
  *    - dotaz a ohlášení bez nákladu (`kin-ask`, `smith-ask`, `order-ready`) do zaniklé vsi se
  *      zahodí – nikdo nikam nejde.
  *    Příjezd do spící vsi nebo do vsi se sídlem v archivu se zapíše jako dřív – vrátí ho krok 3.
+ *    Příjezd a výsledek dostanou při zápisu (i v kroku 3) pole `from` – ves, která je vydala: ta, jejíž
+ *    `outbox` zprávu nese, u vrácené výpravy domovská ves.
  * 2. Zapsané a zahozené smaže z `outbox` (verzovaný zápis, při souběhu znovu, nejvýš
  *    `MAIL_ATTEMPTS`); prázdný `outbox` se ze stavu smaže celý.
  * 3. Výpravy po termínu (`overdueTrips`): výsledek v odchozí schránce hostitele zapíše; hostitel
@@ -219,11 +248,11 @@ export async function deliverVillageMail(
           // hostitel zmizel – výprava se vrátí se vším v den plánovaného návratu
           const returnDay = mail.day + arrival.stayDays + arrival.travelDays;
           const result = marketResult(arrival, { returned: true });
-          if (await post(deps, resultMail(villageId, returnDay, result))) written++;
+          if (await post(deps, returnedMail(villageId, returnDay, result))) written++;
         }
         // výsledek bez lidí a mincí a ostatní zprávy do zmizelé vsi se zahodí
       } else if (!(isQuery(mail) && gone.has(mail.villageId))) {
-        if (await post(deps, mail)) written++;
+        if (await post(deps, withSender(mail, villageId))) written++;
       }
     }
     const saved = await dropDelivered(deps, villageId, outbox);
@@ -277,7 +306,8 @@ async function overdueResult(
   const host = await deps.villages.find(trip.villageId);
   const ref = marketResultRef(trip.key);
   const ready = host?.state.outbox?.find((m) => m.ref === ref);
-  if (ready) return ready;
+  // vydal ho hostitel – zapíše ho i on, dokud ho ve své odchozí schránce nesmaže
+  if (ready) return withSender(ready, trip.villageId);
   const gone = sleeps(host) || (await placeOf(deps, host!)) === null;
   if (!gone) return null;
   // nepoužitý příjezd: hostitel existuje – jen jeho schránka (příjezd z odchozí schránky vsi do ní
@@ -294,7 +324,7 @@ async function overdueResult(
       : outboxArrival(outbox, trip.key);
   const from = visitor ?? unused;
   if (!from) return null;
-  return resultMail(home.id, home.state.lastDay + 1, marketResult(from, { returned: true }));
+  return returnedMail(home.id, home.state.lastDay + 1, marketResult(from, { returned: true }));
 }
 
 /** Příjezd výpravy `key` v odchozí schránce vsi. */
@@ -354,6 +384,58 @@ export async function returnStrandedPeople(deps: VillageMailDeps): Promise<numbe
   }
   if (done.length > 0) await deps.villages.inbox.dropStranded(done);
   return written;
+}
+
+/** Řádek se známým odesílatelem. */
+type SentMail = SettledMail & { sender: string };
+
+/** Odesílatelé řádků bez opakování. */
+function sendersOf(rows: readonly SentMail[]): string[] {
+  return [...new Set(rows.map((m) => m.sender))];
+}
+
+/**
+ * Smaže vyřízené příjezdy a výsledky výprav vsi (markets.md – Rozhodnutí plánu 4, bod 10), nejvýš
+ * `MAIL_PRUNE_ROWS` nejstarších **bezpečných** řádků na jedno volání; vrací počet smazaných. `afterDay` =
+ * den, do kterého je ves dopočtená – řádky do něj použila. Bezpečný řádek je aspoň `MAIL_KEEP_DAYS`
+ * starý a jeho odesílatel ho už nemůže poslat znovu:
+ *
+ * - je známý (`SettledMail.sender`), jeho ves existuje a nespí – po zaniklém odesílateli řádky zůstanou,
+ * - je dopočtený aspoň `MAIL_KEEP_DAYS` za den řádku – jeho odchozí schránka se od té doby doručila
+ *   a vyčistila,
+ * - a výpravu už neřeší (`openTrips` jeho souhrnu): zprávu nenese v odchozí schránce – po pádu mezi
+ *   zápisem a smazáním smí rok přeskočit v jednom dopočtu (dlouhá nepřítomnost) a poslat ji znovu až
+ *   po něm – a nečeká na výsledek, takže se po příjezdu nebude ptát výprava po termínu (krok 3; i po
+ *   příjezdu, který ves na cestě nepoužila). Ves bez souhrnu (uložená před ním) – neví se, řádek zůstane.
+ *
+ * Mez počtu se bere až z bezpečných řádků: nevyřiditelné na začátku (zaniklí odesílatelé, starší výsledky
+ * bez `from`) úklid nezastaví. Volá ji `nearbyRefresh` po zápisu snímku okolí – schránku spící vsi tedy
+ * neuklízí (výsledky z ní čte `returnStrandedPeople`).
+ */
+export async function pruneSettledMail(
+  deps: { villages: Pick<VillageRepository, 'stampsOfVillages' | 'digestsOf' | 'inbox'> },
+  villageId: string,
+  afterDay: number,
+): Promise<number> {
+  const { villages } = deps;
+  const settled = await villages.inbox.settledMail(villageId, afterDay - MAIL_KEEP_DAYS);
+  const sent = settled.filter((m): m is SentMail => m.sender !== null);
+  if (sent.length === 0) return 0;
+  const awake = (await villages.stampsOfVillages(sendersOf(sent))).filter((s) => !s.asleep);
+  const lastDayOf = new Map(awake.map((s) => [s.id, s.lastDay]));
+  const old = sent.filter((m) => (lastDayOf.get(m.sender) ?? -Infinity) >= m.day + MAIL_KEEP_DAYS);
+  if (old.length === 0) return 0;
+  // čte se až po otiscích: souhrn je z poslední uložené verze – co v něm není, odesílatel nepošle
+  const openOf = new Map(
+    (await villages.digestsOf(sendersOf(old))).map(({ id, digest }) => [
+      id,
+      digest.openTrips?.flatMap((key) => [marketArrivalRef(key), marketResultRef(key)]),
+    ]),
+  );
+  const safe = old.filter((m) => openOf.get(m.sender)?.includes(m.ref) === false);
+  if (safe.length === 0) return 0;
+  const ids = safe.slice(0, MAIL_PRUNE_ROWS).map((m) => m.id);
+  return villages.inbox.dropSettledMail(villageId, ids);
 }
 
 /** Jako `deliverVillageMail`, chybu zapíše do logu a vrátí 0 – dopočet vsi nezastaví. */

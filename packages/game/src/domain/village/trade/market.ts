@@ -82,6 +82,24 @@ export function marketResultRef(key: string): string {
 }
 
 /**
+ * Klíče výprav, které ves ještě řeší (souhrn vsi – `VillageDigest.openTrips`; markets.md – Rozhodnutí
+ * plánu 4, bod 10): vlastní výprava bez výsledku (`trade.expeditions`) a výprava, jejíž zpráva leží
+ * v odchozí schránce – příjezd vlastní výpravy, výsledek cizí, i doručené a jen nesmazané. Jen takovou
+ * zprávu by ves mohla poslat znovu nebo se po jejím příjezdu ptát (výprava po termínu).
+ */
+export function openTripKeys(state: Pick<VillageState, 'trade' | 'outbox'>): string[] {
+  const keys = new Set<string>();
+  for (const { kind, market } of state.trade?.expeditions ?? []) {
+    if (kind === 'market' && market) keys.add(market.key);
+  }
+  for (const { body } of state.outbox ?? []) {
+    if (body.kind === 'market-arrive') keys.add(body.arrival.key);
+    if (body.kind === 'market-result') keys.add(body.result.key);
+  }
+  return [...keys];
+}
+
+/**
  * Zapamatuje si zprávu na pivo o jiné vsi (mutuje stav; markets.md – Pravidla 8): jedna na ves,
  * novější `report.day` vyhrává – při stejném dni pozdější zpráva. Uloží kopii.
  */

@@ -1,5 +1,12 @@
 import { and, asc, eq, gt, inArray, isNotNull, lte, or, sql, type SQL } from 'drizzle-orm';
-import { PRUNED_INBOX_KINDS, type VillageEvent, type VillageInbox } from '@bohemia/game';
+import {
+  PRUNED_INBOX_KINDS,
+  SETTLED_MAIL_KINDS,
+  senderOfMail,
+  type SettledMail,
+  type VillageEvent,
+  type VillageInbox,
+} from '@bohemia/game';
 import type { Database } from '../client';
 import { settlement, village, villageInbox } from '../schema';
 
@@ -54,7 +61,8 @@ function dayBound(day: number): number {
  * dopočet té vsi narazí při uložení na konflikt verze a zopakuje se i s událostí. Stav vsi se
  * zápisem nemění, souhrn proto zůstává platný (`digest_version` jde s `version`). `pruneUsed`
  * smaže použité snímky okolí a zprávy bez nákladu (`body ->> 'kind'` v `PRUNED_INBOX_KINDS`) po
- * indexu vsi a dne, verzi nezvedá.
+ * indexu vsi a dne, verzi nezvedá. `settledMail` / `dropSettledMail` čtou a mažou vyřízené příjezdy
+ * a výsledky výprav (`SETTLED_MAIL_KINDS`; čtení po indexu vsi a dne, mazání po id) – verzi také nezvedají.
  * `strandedResults` / `dropStranded` čtou a mažou výsledky trhu s lidmi nebo mincemi ve schránkách
  * zaniklých vsí (`asleep` nebo sídlo v archivu) – verzi také nezvedají.
  */
@@ -115,6 +123,52 @@ export function createInboxRepository(db: Database): VillageInbox {
             eq(villageInbox.villageId, villageId),
             lte(villageInbox.day, dayBound(upToDay)),
             inArray(sql`${villageInbox.body}->>'kind'`, [...PRUNED_INBOX_KINDS]),
+          ),
+        )
+        .returning({ id: villageInbox.id });
+      return deleted.length;
+    },
+    async settledMail(villageId, upToDay): Promise<SettledMail[]> {
+      // levný filtr na `ref` zpráv výprav (`market:…`) – tělo se rozbalí jen u nich
+      const rows = await db
+        .select({
+          id: villageInbox.id,
+          ref: villageInbox.ref,
+          day: villageInbox.day,
+          kind: sql<SettledMail['kind']>`${villageInbox.body}->>'kind'`,
+          from: sql<string | null>`${villageInbox.body}->>'from'`,
+        })
+        .from(villageInbox)
+        .where(
+          and(
+            eq(villageInbox.villageId, villageId),
+            lte(villageInbox.day, dayBound(upToDay)),
+            sql`${villageInbox.ref} LIKE 'market:%'`,
+            inArray(sql`${villageInbox.body}->>'kind'`, [...SETTLED_MAIL_KINDS]),
+          ),
+        )
+        .orderBy(asc(villageInbox.day), asc(villageInbox.seq));
+      // odesílatel se bere až z načteného textu – poškozený `ref` nebo `from` dotaz neshodí (null)
+      return rows.map(({ from, ...row }) => {
+        const sender = senderOfMail(
+          row.kind,
+          row.ref,
+          from !== null && UUID.test(from) ? from : null,
+        );
+        return { ...row, sender: sender !== null && UUID.test(sender) ? sender : null };
+      });
+    },
+    async dropSettledMail(villageId, eventIds): Promise<number> {
+      const ids = eventIds.filter((id) => UUID.test(id));
+      if (ids.length === 0) return 0;
+      // jen příjezdy a výsledky výprav – verze vsi se nemění (stav vsi se nemění)
+      const deleted = await db
+        .delete(villageInbox)
+        .where(
+          and(
+            eq(villageInbox.villageId, villageId),
+            inArray(villageInbox.id, ids),
+            inArray(sql`${villageInbox.body}->>'kind'`, [...SETTLED_MAIL_KINDS]),
           ),
         )
         .returning({ id: villageInbox.id });

@@ -1,5 +1,11 @@
 import { isVillageAsleep, type NewVillageEvent, type VillageEvent } from '../../domain/village';
-import { PRUNED_INBOX_KINDS, type VillageInbox } from '../inbox';
+import {
+  PRUNED_INBOX_KINDS,
+  SETTLED_MAIL_KINDS,
+  senderOfMail,
+  type SettledMail,
+  type VillageInbox,
+} from '../inbox';
 import type { InMemoryVillages } from './in-memory-villages';
 
 /**
@@ -29,17 +35,28 @@ export class InMemoryVillageInbox implements VillageInbox {
   }
 
   pruneUsed(villageId: string, upToDay: number): Promise<number> {
-    let pruned = 0;
-    for (let i = this.events.length - 1; i >= 0; i--) {
-      const e = this.events[i]!;
-      if (e.villageId !== villageId || e.day > upToDay || !prunable(e.body.kind)) continue;
-      this.events.splice(i, 1);
-      // jako smazaný řádek v DB – `ref` přestane blokovat zápis
-      const ref = this.refOf.get(e.id);
-      if (ref !== undefined) this.refs.delete(ref);
-      pruned++;
-    }
-    return Promise.resolve(pruned);
+    return Promise.resolve(
+      this.drop((e) => e.villageId === villageId && e.day <= upToDay && prunable(e.body.kind)),
+    );
+  }
+
+  settledMail(villageId: string, upToDay: number): Promise<SettledMail[]> {
+    const settled = this.events
+      .filter((e) => e.villageId === villageId && e.day <= upToDay)
+      .sort((a, b) => a.day - b.day || a.seq - b.seq)
+      .flatMap(({ id, day, body }): SettledMail[] => {
+        if (body.kind !== 'market-arrive' && body.kind !== 'market-result') return [];
+        const ref = this.refOf.get(id)!;
+        return [{ id, ref, day, kind: body.kind, sender: senderOfMail(body.kind, ref, body.from) }];
+      });
+    return Promise.resolve(settled);
+  }
+
+  dropSettledMail(villageId: string, eventIds: readonly string[]): Promise<number> {
+    const ids = new Set(eventIds);
+    return Promise.resolve(
+      this.drop((e) => e.villageId === villageId && ids.has(e.id) && settleable(e.body.kind)),
+    );
   }
 
   strandedResults(): Promise<VillageEvent[]> {
@@ -55,17 +72,23 @@ export class InMemoryVillageInbox implements VillageInbox {
 
   dropStranded(eventIds: readonly string[]): Promise<number> {
     const ids = new Set(eventIds);
+    return Promise.resolve(
+      this.drop((e) => ids.has(e.id) && e.body.kind === 'market-result' && this.gone(e.villageId)),
+    );
+  }
+
+  /** Smaže události, pro které platí `which` – jako řádky v DB: jejich `ref` přestane blokovat zápis. */
+  private drop(which: (event: VillageEvent) => boolean): number {
     let dropped = 0;
     for (let i = this.events.length - 1; i >= 0; i--) {
       const e = this.events[i]!;
-      if (!ids.has(e.id) || e.body.kind !== 'market-result' || !this.gone(e.villageId)) continue;
+      if (!which(e)) continue;
       this.events.splice(i, 1);
-      // jako smazaný řádek v DB – `ref` přestane blokovat zápis
       const ref = this.refOf.get(e.id);
       if (ref !== undefined) this.refs.delete(ref);
       dropped++;
     }
-    return Promise.resolve(dropped);
+    return dropped;
   }
 
   /** Zaniklá ves jako v DB: spí (sloupec `asleep`), nebo má sídlo v archivu. */
@@ -96,6 +119,11 @@ export class InMemoryVillageInbox implements VillageInbox {
     record.version++;
     return structuredClone(stored);
   }
+}
+
+/** Smí úklid vyřízené pošty výprav smazat událost druhu `kind` (`SETTLED_MAIL_KINDS`)? */
+function settleable(kind: string): boolean {
+  return (SETTLED_MAIL_KINDS as readonly string[]).includes(kind);
 }
 
 /** Maže úklid schránky událost druhu `kind` (`PRUNED_INBOX_KINDS`)? */

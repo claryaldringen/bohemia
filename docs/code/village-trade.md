@@ -495,6 +495,39 @@ day, order, target, { by?, seedKg?, alone?, service?, kin?, people? })` (mutuje 
     doručení právě zapsalo do jeho schránky a zpráva, kterou minule nešlo smazat, nedokazuje, že ji
     hostitel nepoužil – vrácení se vším by zdvojilo zboží (test „příjezd, který minule nešlo
     smazat“).
+  - **Úklid vyřízené pošty** (Rozhodnutí plánu 4, bod 10; dluh plánu 3 – 2 řádky na výpravu):
+    `pruneSettledMail(deps, villageId, afterDay)` smaže ze schránky vsi použité příjezdy a výsledky
+    výprav (`market-arrive`, `market-result`), které odesílatel už nemůže poslat znovu. Volá ho jen
+    `nearbyRefresh.post` po zápisu snímku okolí (1× za `NEARBY_REFRESH_DAYS`, ve stejném `try` za
+    `pruneUsed` – chyba jde jen do logu) s `afterDay` = den, do kterého je ves dopočtená: řádky do něj
+    použila (kromě dnů, kdy byla na cestě – podmínka 3 níž). Spící ves snímek nedostane, její schránka se proto neuklízí – výsledky s lidmi a mincemi
+    z ní čte `returnStrandedPeople`.
+    - **Odesílatel:** `deliverVillageMail` doplní příjezdu a výsledku při zápisu do schránky `from` – ves,
+      která zprávu vydala: v kroku 1 ves, jejíž `outbox` se doručuje (`withSender`), u výsledku
+      z `outbox` hostitele, který v kroku 3 zapíše domov, hostitel (zapíše ho i on, dokud ho nesmaže),
+      u vrácené výpravy domovská ves, která si ji vrací (`returnedMail`). Starší řádky: příjezd má
+      odesílatele v `ref` (`market:<domov>:…`), výsledek ho nezná a zůstane.
+    - **Bezpečný řádek** má aspoň `MAIL_KEEP_DAYS` = 365 dní (technická mez, ne pravidlo – rok jako
+      úklid snímků okolí) a jeho odesílatel (1) je známý, existuje a nespí (`stampsOfVillages`), (2) je
+      dopočtený aspoň `MAIL_KEEP_DAYS` za den řádku – jeho odchozí schránka se od té doby doručila
+      a vyčistila – a (3) výpravu už neřeší: její klíč není v `openTrips` jeho souhrnu
+      (`VillageDigest.openTrips` = `openTripKeys` – výpravy bez výsledku v `trade.expeditions`
+      a výpravy, jejichž zpráva leží v `outbox`; čte se `digestsOf`, stav se nenačítá; ves bez souhrnu
+      nebo se souhrnem uloženým dřív – neví se, řádek zůstane). Podmínka 3 je návrh Clauda nad rámec
+      plánu: samotný den nestačí – ves po pádu mezi zápisem a smazáním z `outbox` může rok přeskočit
+      v jednom dopočtu (dlouhá nepřítomnost) a zprávu poslat znovu až po něm, a výprava, která ještě
+      nedostala výsledek (pobyt přes rok, hostitel pomalejší než domov, příjezd do vsi na cestě,
+      který nikdo nepoužil), smí ještě potřebovat nepoužitý příjezd (výprava po termínu). Řádek příjezdu
+      tak zmizí, až když je výprava vyřízená, a krok 3 ji po něm nehledá.
+    - **Kolik:** nejvýš `MAIL_PRUNE_ROWS` = 500 nejstarších bezpečných řádků na jedno volání (technická
+      mez, ne pravidlo); mez se bere až po filtru, takže nevyřiditelné řádky na začátku úklid nezastaví.
+    - **Vědomý zbytek:** řádky od zaniklého odesílatele (vymřel, opuštěný, ves chybí) zůstanou – nejvýš
+      jeden svazek na zaniklou ves (poslední rok její pošty), stejně starší výsledky bez `from`
+      a schránka zaniklé vsi; řádky nečinného hráče (spí jeho vsi) počkají, než se dopočtou.
+      `stranded-people` (`ref` `…:back`) se nemaže nikdy – je to jediná ochrana proti druhému vrácení.
+    - **Souběh:** mažou se jen řádky dnů, které uložený stav vsi už použil – dopočet se starším stavem,
+      který je mezitím četl, narazí při uložení na verzi; dva úklidy smažou řádek jednou; verze vsi se
+      nemění.
   - **Pomocníci zásilek** (`application/shipments.ts`, exportované beze změny chování pro poštu
     a výpravu na trh): `sleeps`, `placeOf` (`ShipmentPlace` – políčko, držitel, odříznutí),
     `stepToward`, `crossesIsolation`.
@@ -504,7 +537,9 @@ day, order, target, { by?, seedKg?, alone?, service?, kin?, people? })` (mutuje 
     po zániku kupce, použitý výsledek se nevrací; oběh mincí – součet světa `coinsOfWorld` po každém
     kole, mince zpět hostiteli, zánik obou vsí, souběh; úloha světa `returnStrandedPeople` – domov
     vymřel nebo je v archivu s výsledkem ve schránce, zaniklý i hostitel, použitý výsledek, živá
-    ves; nevěsta zpět po archivu vsi ženicha) a `advance-world.test.ts` – Pošta mezi vsemi
+    ves; nevěsta zpět po archivu vsi ženicha; úklid vyřízené pošty – bezpečné řádky, mez až po filtru,
+    pád mezi zápisem a vyčištěním, rok přeskočený v jednom dopočtu, výprava po termínu po úklidu
+    příjezdu, souběh; napojení v `nearby.test.ts`) a `advance-world.test.ts` – Pošta mezi vsemi
     ve workeru (ves dopočtená webem, zámek, kola workeru = ruční postup) a Pošta plánu 3 a svět
     (nevěsta přes kola obou hráčů, lidí je po každém kole stejně – `peopleOfWorld`,
     `bornMinusDied`); dva hráči na sousedních mapách v `__tests__/market-world.ts` (`marketWorld`
@@ -516,8 +551,8 @@ day, order, target, { by?, seedKg?, alone?, service?, kin?, people? })` (mutuje 
     části lidí a syna: `leave-village.test.ts`. `receiveStranded` v jádru:
     `trade/__tests__/market-people.test.ts` (i sonda kontroly – cizí skupina se shodou emigranta
     a kolizním id); `fromHost`: `market-people-budget.test.ts`; `origin` výsledku:
-    `market-two-villages.test.ts`; adaptér `strandedResults` / `dropStranded`:
-    `inbox-repository.db.test.ts`.
+    `market-two-villages.test.ts`; `openTripKeys`: `digest.test.ts`; adaptér `strandedResults` /
+    `dropStranded` a `settledMail` / `dropSettledMail`: `inbox-repository.db.test.ts`.
 - **Jen společné suroviny** (trade.md – Jen společné suroviny; Martin 19. 10. 2026: „Nech jen
   společné suroviny, nezaváděj nové.“): obchod zná jen zboží, které má i ves (`TradeGood`,
   `TRADE_GOODS`). Zboží zvenku (sůl, železo, med, kožešiny – dřívější soubor zboží) ve hře není.
@@ -925,9 +960,9 @@ Počasí kraje mění hodnotu zboží od 1. 11. – [village-disasters.md](villa
     I2). `NEARBY_KEEP_DAYS` = 365 – technická mez, ne pravidlo: použitý snímek už nic nečte, ale
     řádek drží `ref` proti dalšímu zápisu téhož dne (dopočet se starším stavem vsi při souběhu webu
     a workeru by ho po smazání zapsal znovu na nejbližší nespočtený den); rok je daleko za každou
-    dávkou. Schránka tak drží nejvýš ~12 snímků na ves místo ~12 za každý herní rok. Ostatní
-    události schránky se nemažou – jejich `ref` brání dvojímu zápisu (výsledek trhu dvakrát = zboží
-    dvakrát).
+    dávkou. Schránka tak drží nejvýš ~12 snímků na ves místo ~12 za každý herní rok. Hned po něm
+    uklidí `pruneSettledMail` vyřízené příjezdy a výsledky výprav (Úloha 11 plánu 4; Pošta mezi vsemi
+    – Úklid vyřízené pošty). Ostatní události schránky se nemažou – jejich `ref` brání dvojímu zápisu.
   - **Jádro** (`trade/nearby.ts`): `applyNearby` (větev schránky – village-core.md, Schránka vsi),
     `nearbyTarget(state, villageId)` – `MarketTarget` do vsi okolí s domovskou vsí ze `self` (mimo
     okolí null), `nearestNearby(state)` – první ves okolí, `nearestWith(state, craft, skip?)` –

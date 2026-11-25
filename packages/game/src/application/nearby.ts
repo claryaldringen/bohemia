@@ -8,6 +8,7 @@ import { sameCell, type GridCell } from '../domain/village/people/world-grid';
 import { cellDistance, ringCells } from '../domain/world/placement';
 import { isIsolated, type Settlement, type SettlementRepository } from './settlements';
 import { settlementCell, stepToward } from './shipments';
+import { pruneSettledMail } from './village-mail';
 import type { VillageRecord, VillageRepository } from './villages';
 
 // Okolí vsi (markets.md – Rozhodnutí plánu 3, bod 1): ves dostane v pevné dny kalendáře snímek vsí
@@ -42,11 +43,11 @@ export function nearbyDays(afterDay: number, toDay: number): number[] {
 }
 
 /**
- * Co potřebuje sken okolí: otisky vsí (jméno, spí-li ves), souhrny vsí (svobodní) a sídla (poloha,
- * držitelé políček).
+ * Co potřebuje sken okolí a úklid schránky po něm: otisky vsí (jméno, spí-li ves; odesílatelé vyřízené
+ * pošty), souhrny vsí (svobodní; výpravy, které odesílatel ještě řeší) a sídla (poloha, držitelé políček).
  */
 export interface NearbyDeps {
-  villages: Pick<VillageRepository, 'stampsOf' | 'digestsOf'>;
+  villages: Pick<VillageRepository, 'stampsOf' | 'stampsOfVillages' | 'digestsOf'>;
   settlements: Pick<SettlementRepository, 'find' | 'holderAt' | 'listActive'>;
 }
 
@@ -123,9 +124,10 @@ export interface NearbyRefresh {
    * Před dopočtem vsi `home` přes dny `(afterDay, toDay]`: na každý den obnovy (`nearbyDays`), na
    * který ve schránce (`pending` – události těchto dnů) ještě událost `nearby` není, zapíše snímek
    * okolí (`nearbyVillages` – v okamžiku zápisu) s `ref` `nearby:<ves>:<den>`. Čekající událost je
-   * čerstvé okolí – sken se neopakuje. Spící ves nic. Po zápisu smaže použité snímky starší než
-   * `NEARBY_KEEP_DAYS` (`inbox.pruneUsed` – dny ≤ `afterDay − NEARBY_KEEP_DAYS`; chyba úklidu
-   * jde jen do logu). true = něco se zapsalo (zápis zvedl verzi vsi).
+   * čerstvé okolí – sken se neopakuje. Spící ves nic. Po zápisu uklidí schránku: použité snímky starší
+   * než `NEARBY_KEEP_DAYS` (`inbox.pruneUsed` – dny ≤ `afterDay − NEARBY_KEEP_DAYS`) a vyřízenou poštu
+   * výprav (`pruneSettledMail` s dnem `afterDay`); chyba úklidu jde jen do logu. true = něco se zapsalo
+   * (zápis zvedl verzi vsi).
    */
   post(
     home: VillageRecord,
@@ -135,9 +137,9 @@ export interface NearbyRefresh {
   ): Promise<boolean>;
 }
 
-/** Podport `villages.nearby` nad úložištěm vsí (schránka, otisky) a sídel. */
+/** Podport `villages.nearby` nad úložištěm vsí (schránka, otisky, souhrny) a sídel. */
 export function nearbyRefresh(
-  deps: NearbyDeps & { villages: Pick<VillageRepository, 'inbox' | 'stampsOf' | 'digestsOf'> },
+  deps: NearbyDeps & { villages: Pick<VillageRepository, 'inbox'> },
 ): NearbyRefresh {
   return {
     async post(home, afterDay, toDay, pending): Promise<boolean> {
@@ -167,8 +169,9 @@ export function nearbyRefresh(
       if (posted) {
         try {
           await deps.villages.inbox.pruneUsed(home.id, afterDay - NEARBY_KEEP_DAYS);
+          await pruneSettledMail(deps, home.id, afterDay);
         } catch (error) {
-          console.error(`Ves ${home.id}: úklid snímků okolí selhal.`, error);
+          console.error(`Ves ${home.id}: úklid schránky selhal.`, error);
         }
       }
       return posted;

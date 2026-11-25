@@ -177,8 +177,9 @@ trhu) nechá v odchozí schránce `outbox`; `advancePlayer` ji doručí pod zám
   webem se kvůli okolí nečte; dávka, která den obnovy přejde, načte ves jednou navíc (nový pokus
   po zápisu). Po zápisu snímku smaže dopočet použité snímky starší než `NEARBY_KEEP_DAYS` (rok –
   `inbox.pruneUsed` – i použité zprávy bez nákladu `kin-ask`, `smith-ask`, `order-ready`), jinak by
-  schránka rostla o ~12 řádků za herní rok na ves; chyba úklidu jde
-  jen do logu, dopočet nezastaví (úklid je údržba). Test: kola
+  schránka rostla o ~12 řádků za herní rok na ves, a vyřízené příjezdy a výsledky výprav
+  (`pruneSettledMail` – village-trade.md, Pošta mezi vsemi), jinak o 2 řádky na výpravu; chyba úklidu
+  jde jen do logu, dopočet nezastaví (úklid je údržba). Test: kola
   workeru přes dva dny obnovy zapíšou snímek jen v nich (`advance-world.test.ts`).
 
 ## Výjimky a omezení
@@ -285,6 +286,9 @@ akce do 0,5 s**“ splní malý souhrn vsi ve sloupci `village.digest` (migrace
   o pár dní po dni vsi. Od verze 4 (8. 11. 2026, hradiště) i `domainReadyYear` (rok, kdy je ves po výmlatu a smí dát jídlo domény –
   `domainFoodReadyYear`, jinak null) a `food` (`{ growsKg, needsKg }` z `villageFoodBalance`, bez lidí nebo
   pole null); souhrn verze 3 se nepoužije a ves ho dostane při dalším uložení – migrace netřeba.
+  Bez změny verze (nepovinné) přibyly výstupy stezek `trailExits`, svobodní `singles` a `openTrips` –
+  klíče výprav na trh, které ves ještě řeší (`openTripKeys`; úklid vyřízené pošty `pruneSettledMail` –
+  village-trade.md, Pošta mezi vsemi).
   `VILLAGE_DIGEST_VERSION` = tvar; jiný tvar se nepoužije.
 - **Kdo ho píše:** adaptér (`createVillageRepository` – `create`, `add`, `addOnce`, `save`) ze
   stavu přes `villageDigest` (0,01 ms), s `digest_version` = nová `version`. Generovaný sloupec

@@ -426,11 +426,14 @@ export interface KinAsk {
  * s původními id), `people` = ostatní (vlastní lidé výpravy, koupení od jiné výpravy – usadí se
  * s novými id), `coins` = celé mince, které hostitel dostane (`unsold.coins`; chybí = žádné),
  * `from` = `MarketResult.origin`. Zapíše ji pošta rovnou do schránky hostitele
- * (`deliverVillageMail`, `returnStrandedPeople`), v odchozí schránce nebývá.
+ * (`deliverVillageMail`, `returnStrandedPeople`), v odchozí schránce nebývá. U příjezdu a výsledku je
+ * `from` id vsi, která zprávu vydala (Rozhodnutí plánu 4, bod 10) – doplní ho pošta při zápisu do
+ * schránky, v odchozí schránce a u starších řádků chybí; úklid schránky podle něj pozná, kdo by zprávu
+ * mohl poslat znovu (`pruneSettledMail`).
  */
 export type MarketMailBody =
-  | { kind: 'market-arrive'; arrival: MarketArrival }
-  | { kind: 'market-result'; result: MarketResult }
+  | { kind: 'market-arrive'; arrival: MarketArrival; from?: string }
+  | { kind: 'market-result'; result: MarketResult; from?: string }
   | { kind: 'order-ready'; ready: OrderReady }
   | { kind: 'smith-ask'; ask: SmithAsk }
   | { kind: 'kin-ask'; ask: KinAsk }

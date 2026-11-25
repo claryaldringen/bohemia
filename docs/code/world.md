@@ -349,6 +349,14 @@ body ->> 'kind' IN (PRUNED_INBOX_KINDS)` (po indexu vsi a dne) – jen použité
   bez nákladu (`kin-ask`, `smith-ask`, `order-ready`), verze vsi se nemění;
   smazaný `ref` jde zapsat znovu, proto jen druh, jehož dny se po použití nezapisují (village-trade.md
   – Okolí vsi, úklid schránky).
+- **`settledMail(villageId, upToDay)` / `dropSettledMail(villageId, eventIds)`** (úklid vyřízené pošty
+  `pruneSettledMail` – village-trade.md, Pošta mezi vsemi): `SELECT id, ref, day, body ->> 'kind',
+body ->> 'from' … WHERE village_id = … AND day ≤ upToDay AND ref LIKE 'market:%' AND body ->> 'kind' IN
+(SETTLED_MAIL_KINDS) ORDER BY day, seq` – po indexu `(village_id, day)` bez migrace (4 000 starých řádků
+  vsi ≈ 3 ms, 100 ≈ 0,1 ms – změřeno 25. 11. 2026), tělo se rozbalí jen u zpráv výprav. Odesílatele určí
+  až `senderOfMail` z načteného textu a jen platné UUID (jinak null) – poškozený `ref` nebo `from` dotaz
+  neshodí. Mazání po id jen příjezdů a výsledků té vsi (id mimo UUID se přeskočí), verze vsi se nemění;
+  smazaný `ref` jde zapsat znovu, proto jen řádky, které odesílatel znovu poslat nemůže.
 - **`strandedResults()` / `dropStranded(eventIds)`:** výsledky trhu s lidmi nebo mincemi
   (`body ->> 'kind' = 'market-result'`, neprázdné `result.people` nebo `result.newcomers`, nebo
   `result.unsold.coins` > 0; levný filtr `ref LIKE '%:out'`; hodnota jiného typu se nepočítá –
@@ -359,7 +367,7 @@ body ->> 'kind' IN (PRUNED_INBOX_KINDS)` (po indexu vsi a dne) – jen použité
   přeskočí), verze vsi se nemění. Úloha světa `returnStrandedPeople` (village-trade.md – Pošta
   mezi vsemi).
 - **Testy:** `adapters/__tests__/inbox-repository.db.test.ts` (konflikt rozběhnutého `save`,
-  idempotence `ref`, posun dne, pořadí, úklid okolí, výsledky zaniklých vsí) a třetí „proces“ posílající události do vsí v
+  idempotence `ref`, posun dne, pořadí, úklid okolí, vyřízená pošta, výsledky zaniklých vsí) a třetí „proces“ posílající události do vsí v
   `packages/server/src/__tests__/web-worker-race.db.test.ts` (každá událost ze dnů ≤ `lastDay`
   v kronice právě jednou, výsledek = dopočet jedním procesem se stejnými událostmi).
 

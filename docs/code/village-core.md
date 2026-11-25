@@ -432,7 +432,9 @@ seq, body }`, `NewVillageEvent` (bez `id` a `seq`, s jedinečným `ref` – idem
     `joinMarket`) a `{ kind: 'market-result'; result }` (výsledek trhu pro domovskou ves výpravy –
     `applyMarketResult`). Posílá je odchozí schránka vsi (`VillageState.outbox`,
     `VillageMail` – stejný tvar jako `NewVillageEvent`), `ref` příjezdu `marketArrivalRef`,
-    výsledku `marketResultRef`.
+    výsledku `marketResultRef`. Příjezd i výsledek mají ve schránce `from` – ves, která zprávu vydala
+    (doplní ho pošta při zápisu, v `outbox` není; starší řádky ho nemají) – pro úklid vyřízené pošty
+    (`pruneSettledMail`, village-trade.md – Pošta mezi vsemi).
   - **Odchozí schránka** (`application/village-mail.ts`; markets.md – Rozhodnutí plánu 2, bod 6):
     ves sama do cizí vsi nepíše – zprávy pro jiné vsi nechá v `outbox` a `deliverVillageMail(deps,
 villageId)` je zapíše do schránek cílových vsí (`inbox.post`, druhý zápis téhož `ref` se
@@ -467,8 +469,13 @@ villageId)` je zapíše do schránek cílových vsí (`inbox.post`, druhý zápi
     `pending(villageId, afterDay, toDay)` – události `afterDay < day ≤ toDay` podle dne a `seq`;
     `pruneUsed(villageId, upToDay)` – smaže použité události druhů `PRUNED_INBOX_KINDS` (snímky
     okolí `nearby` a zprávy bez nákladu `kin-ask`, `smith-ask`, `order-ready`) do dne včetně, verzi
-    nemění (úklid schránky – ostatní řádky živých vsí drží `ref` proti dvojímu zápisu;
-    village-trade.md – Okolí vsi); `strandedResults()` – výsledky trhu s lidmi nebo mincemi ve
+    nemění (úklid schránky; village-trade.md – Okolí vsi); `settledMail(villageId, upToDay)` – použité
+    příjezdy a výsledky výprav (`SETTLED_MAIL_KINDS`) do dne včetně jako lehké řádky bez těl
+    (`SettledMail` – `id`, `ref`, den, druh a odesílatel `senderOfMail`: `from`, u staršího příjezdu
+    domovská ves z `ref`, jinak null) a `dropSettledMail(villageId, eventIds)` – smaže z nich jen
+    příjezdy a výsledky té vsi, verzi nemění (úklid vyřízené pošty `pruneSettledMail`); ostatní řádky
+    živých vsí drží `ref` proti dvojímu zápisu a nemažou se, `stranded-people` nikdy;
+    `strandedResults()` – výsledky trhu s lidmi nebo mincemi ve
     schránkách zaniklých vsí (spí, sídlo v archivu), `dropStranded(eventIds)` – smaže vyřízené z nich,
     verzi nemění (úloha světa `returnStrandedPeople`, village-trade.md – Pošta mezi vsemi). Schránka je člen úložiště vsí (`VillageRepository.inbox`), takže ji má každý dopočet přes `updateVillage`
     (`loadVillage`, `advancePlayer`, `dynastyStatus`, všechny akce hráče) bez zvláštní

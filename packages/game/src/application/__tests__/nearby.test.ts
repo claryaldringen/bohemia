@@ -7,6 +7,7 @@ import { kinSingles } from '../../domain/village/people/kin-match';
 import { D, homeVillage } from '../../domain/village/trade/__tests__/market-fixtures';
 import { NEARBY_KEEP_DAYS, NEARBY_REFRESH_DAYS, nearbyDays, nearbyVillages } from '../nearby';
 import { updateVillage } from '../update-village';
+import { MAIL_KEEP_DAYS, returnStrandedPeople } from '../village-mail';
 import { H_PLAYER, landscape, marketWorld, type MarketWorld } from './market-world';
 
 // Okolí vsi (markets.md – Rozhodnutí plánu 3, bod 1): vsi na 8 sousedních mapách – i vsi vlastního
@@ -305,5 +306,178 @@ describe('úklid použitých snímků okolí a zpráv bez nákladu (NEARBY_KEEP_
     const home = w.villages.records.get(h)!;
     expect(await w.villages.nearby!.post(home, K + 400, K + 410, [])).toBe(false);
     expect(await eventDays(w, h)).toEqual([K]);
+  });
+});
+
+describe('úklid vyřízené pošty výprav po zápisu snímku (markets.md – Rozhodnutí plánu 4, bod 10)', () => {
+  /** Den, kdy je H přesně rok za řádky ze dne K. */
+  const YEAR = K + MAIL_KEEP_DAYS;
+
+  /** Výsledky dvou výprav H (vydala je M) ve schránce H na dny K a K + 1. */
+  async function postResults(w: MarketWorld, coins = 0): Promise<void> {
+    for (const day of [K, K + 1]) {
+      const key = `market:${w.h}:${day}`;
+      await w.villages.inbox.post({
+        villageId: w.h,
+        day,
+        ref: `${key}:out`,
+        body: {
+          kind: 'market-result',
+          result: {
+            key,
+            sold: {},
+            bought: {},
+            unsold: coins > 0 ? { coins } : {},
+            horses: [],
+          },
+          from: w.m,
+        },
+      });
+    }
+  }
+
+  /** Dny výsledků výprav ve schránce H. */
+  async function resultDays(w: MarketWorld): Promise<number[]> {
+    const all = await w.villages.inbox.pending(w.h, -1, TOTAL_GAME_DAYS);
+    return all.filter((e) => e.body.kind === 'market-result').map((e) => e.day);
+  }
+
+  /** H a M v den `day` bez simulace. */
+  function jump(w: MarketWorld, day: number): void {
+    for (const id of [w.h, w.m]) {
+      w.villages.edit(id, (s) => {
+        s.lastDay = day;
+      });
+    }
+  }
+
+  it('dopočet přes den obnovy uklidí podle dne vsi před dopočtem (`afterDay` = `lastDay`)', async () => {
+    const w = await nearbyWorld();
+    const settledMail = vi.spyOn(w.villages.inbox, 'settledMail');
+    await w.load(w.h, K);
+    expect(settledMail.mock.calls).toEqual([[w.h, D - MAIL_KEEP_DAYS]]);
+    // bez dne obnovy se neuklízí
+    await w.load(w.h, K + 1);
+    expect(settledMail).toHaveBeenCalledTimes(1);
+  });
+
+  it('smaže výsledek, který má právě rok, o den mladší zůstane – verzi zvedne jen snímek', async () => {
+    const w = await nearbyWorld();
+    await postResults(w);
+    jump(w, YEAR);
+    const home = w.villages.records.get(w.h)!;
+    const version = home.version;
+    expect(await w.villages.nearby!.post(home, YEAR, YEAR + 30, [])).toBe(true);
+    expect(await resultDays(w)).toEqual([K + 1]);
+    expect(w.villages.records.get(w.h)!.version).toBe(version + 1);
+    // bez nového snímku nic – den obnovy má událost ve schránce, nebo ji mezitím zapsal jiný proces
+    jump(w, YEAR + 10);
+    const pending = await w.villages.inbox.pending(w.h, YEAR + 10, YEAR + 40);
+    for (const known of [pending, []]) {
+      expect(await w.villages.nearby!.post(home, YEAR + 10, YEAR + 30, known)).toBe(false);
+      expect(await resultDays(w)).toEqual([K + 1]);
+    }
+  });
+
+  it('chyba úklidu pošty se jen zapíše do logu – snímek i dopočet proběhnou', async () => {
+    const w = await nearbyWorld();
+    w.villages.inbox.settledMail = (): Promise<never> => Promise.reject(new Error('DB spadla'));
+    const log = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    try {
+      await w.load(w.h, K);
+      expect(log).toHaveBeenCalledTimes(1);
+      expect(log).toHaveBeenCalledWith(expect.stringContaining('úklid'), expect.any(Error));
+    } finally {
+      log.mockRestore();
+    }
+    expect(w.state(w.h).lastDay).toBe(K);
+    expect(w.state(w.h).nearby?.day).toBe(K);
+  });
+
+  it('schránku zaniklé vsi neuklidí – výsledky s mincemi z ní vrátí úloha světa', async () => {
+    const w = await nearbyWorld();
+    await postResults(w, 5);
+    jump(w, YEAR + 100);
+    w.villages.edit(w.h, (s) => {
+      s.extinctDay = K - 1;
+    });
+    const home = w.villages.records.get(w.h)!;
+    expect(await w.villages.nearby!.post(home, YEAR + 100, YEAR + 130, [])).toBe(false);
+    expect(await resultDays(w)).toEqual([K, K + 1]);
+    expect(await w.villages.inbox.strandedResults()).toHaveLength(2);
+  });
+
+  it('ves, která zanikne během dopočtu: nepoužitý výsledek úklid nesmaže a mince se vrátí', async () => {
+    const w = await nearbyWorld();
+    w.villages.edit(w.h, (s) => {
+      s.coins = 30;
+    });
+    jump(w, YEAR);
+    // výprava H z doby, kdy ještě žila; výsledek s 17 mincemi leží ve schránce H na příští den
+    const home = structuredClone(w.villages.records.get(w.h)!);
+    const key = `market:${w.h}:1`;
+    w.villages.edit(w.h, (s) => {
+      s.trade = {
+        nextId: 2,
+        expeditions: [
+          {
+            id: 1,
+            kind: 'market',
+            direction: 'E',
+            trailId: -1,
+            startedDay: YEAR - 2,
+            give: { coins: 30 },
+            get: {},
+            porters: 1,
+            days: 3,
+            cost: 3,
+            done: 0,
+            market: {
+              key,
+              villageId: w.m,
+              name: 'Lhota',
+              wants: {},
+              stayDays: 1,
+              travelDays: 0,
+              arriveDay: YEAR - 1,
+              returnDay: YEAR + 1,
+            },
+          },
+        ],
+      };
+      delete s.coins;
+      s.extinctDay = YEAR;
+    });
+    await w.villages.inbox.post({
+      villageId: w.h,
+      day: YEAR + 1,
+      ref: `${key}:out`,
+      body: {
+        kind: 'market-result',
+        result: { key, sold: {}, bought: {}, unsold: { coins: 17 }, horses: [] },
+        from: w.m,
+      },
+    });
+    // druhý proces načetl H ještě živou a zapisuje snímek s úklidem
+    expect(await w.villages.nearby!.post(home, YEAR, YEAR + 30, [])).toBe(true);
+    expect(await resultDays(w)).toEqual([YEAR + 1]);
+    expect(await returnStrandedPeople(w.deps)).toBe(1);
+    await w.load(w.m, YEAR + 1);
+    expect(w.state(w.m).coins).toBe(17);
+  });
+
+  it('souběh webu a workeru přes den obnovy: řádek zmizí jednou, nic nespadne, stav je týž', async () => {
+    const one = await nearbyWorld();
+    const two = await nearbyWorld();
+    for (const w of [one, two]) {
+      await postResults(w);
+      jump(w, YEAR);
+    }
+    // dvě načtení po sobě (převody cest běží i po dopočtu) a táž dvě naráz
+    for (let i = 0; i < 2; i++) await one.load(one.h, YEAR + 30);
+    await Promise.all([two.load(two.h, YEAR + 30), two.load(two.h, YEAR + 30)]);
+    expect(await resultDays(two)).toEqual([K + 1]);
+    expect(await eventDays(two, two.h)).toEqual(await eventDays(one, one.h));
+    expect(two.state(two.h)).toEqual(one.state(one.h));
   });
 });

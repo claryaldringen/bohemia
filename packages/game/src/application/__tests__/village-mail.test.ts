@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { TOTAL_GAME_DAYS } from '../../domain/calendar';
 import {
+  marketArrivalRef,
   marketResultRef,
   villageHorses,
   type ChronicleEvent,
+  type MarketArrival,
   type MarketOrder,
   type MarketResult,
   type Person,
@@ -26,9 +28,12 @@ import { advancePlayer } from '../advance-world';
 import { dynastyForVillage } from '../dynasty-for-village';
 import { runWorldTasks } from '../succession-credits';
 import {
+  MAIL_KEEP_DAYS,
+  MAIL_PRUNE_ROWS,
   deliverVillageMail,
   deliverVillageMailSafely,
   hasVillageMail,
+  pruneSettledMail,
   returnStrandedPeople,
 } from '../village-mail';
 import {
@@ -1203,5 +1208,554 @@ describe('oběh mincí (markets.md – Rozhodnutí plánu 4, bod 9)', () => {
       await end(dead, dead.m, how);
       expect(await coinsOfWorld(dead)).toBe(30);
     }
+  });
+
+  describe('úklid vyřízené pošty výprav (Rozhodnutí plánu 4, bod 10)', () => {
+    /** Den řádků ve schránce M a den, od kterého je smí úklid smazat – o `MAIL_KEEP_DAYS` později. */
+    const OLD = D + 10;
+    const NOW = OLD + MAIL_KEEP_DAYS;
+
+    /** Zpráva výpravy `key` pro M na den `day`; `from` = kdo ji vydal (bez něj starší řádek). */
+    function tripMail(
+      w: MarketWorld,
+      kind: 'market-arrive' | 'market-result',
+      key: string,
+      from?: string,
+      day = OLD,
+    ): VillageMail {
+      const sender = from === undefined ? {} : { from };
+      if (kind === 'market-result') {
+        const result: MarketResult = { key, sold: {}, bought: {}, unsold: {}, horses: [] };
+        return {
+          villageId: w.m,
+          day,
+          ref: marketResultRef(key),
+          body: { kind, result, ...sender },
+        };
+      }
+      const arrival: MarketArrival = {
+        key,
+        fromVillageId: w.h,
+        fromName: 'Vlkov',
+        stayDays: 1,
+        travelDays: 0,
+        goods: {},
+        horses: [],
+        wants: {},
+        report,
+      };
+      return {
+        villageId: w.m,
+        day,
+        ref: marketArrivalRef(key),
+        body: { kind, arrival, ...sender },
+      };
+    }
+
+    /** Vsi v den `day` bez simulace – události do něj jsou použité. */
+    function jump(w: MarketWorld, day: number, ...villageIds: string[]): void {
+      for (const id of villageIds) {
+        w.villages.edit(id, (s) => {
+          s.lastDay = day;
+        });
+      }
+    }
+
+    /** Příjezd výpravy H a výsledek výpravy M u hostitele H ve schránce M na den `OLD`. */
+    async function postBoth(w: MarketWorld): Promise<void> {
+      await w.villages.inbox.post(tripMail(w, 'market-arrive', `market:${w.h}:71`, w.h));
+      await w.villages.inbox.post(tripMail(w, 'market-result', `market:${w.m}:72`, w.h));
+    }
+
+    it('příjezd i výsledek od vsi, která je o rok dál, smaže – verzi vsi nezvedne', async () => {
+      expect([MAIL_KEEP_DAYS, MAIL_PRUNE_ROWS]).toEqual([365, 500]);
+      const w = await marketWorld();
+      await postBoth(w);
+      jump(w, NOW, w.h, w.m);
+      const version = w.version(w.m);
+      expect(await pruneSettledMail(w.deps, w.m, NOW)).toBe(2);
+      expect(await inboxOf(w, w.m)).toEqual([]);
+      expect(w.version(w.m)).toBe(version);
+      expect(await pruneSettledMail(w.deps, w.m, NOW)).toBe(0);
+    });
+
+    it.each(['o den pozadu', 'vymřela', 'opuštěná', 'chybí'] as const)(
+      'odesílatel H %s: řádky zůstanou',
+      async (how) => {
+        const w = await marketWorld();
+        await postBoth(w);
+        jump(w, NOW, w.m);
+        jump(w, how === 'o den pozadu' ? NOW - 1 : NOW + 100, w.h);
+        if (how !== 'o den pozadu') await end(w, w.h, how);
+        expect(await pruneSettledMail(w.deps, w.m, NOW)).toBe(0);
+        expect(await inboxOf(w, w.m)).toHaveLength(2);
+      },
+    );
+
+    it('starší řádky bez `from`: příjezd má odesílatele v `ref`, výsledek ne a zůstane', async () => {
+      const w = await marketWorld();
+      await w.villages.inbox.post(tripMail(w, 'market-arrive', `market:${w.h}:71`));
+      await w.villages.inbox.post(tripMail(w, 'market-result', `market:${w.m}:72`));
+      jump(w, NOW, w.h, w.m);
+      expect(await pruneSettledMail(w.deps, w.m, NOW)).toBe(1);
+      expect((await inboxOf(w, w.m)).map((e) => e.body.kind)).toEqual(['market-result']);
+      // odesílatel z `ref` platí i pro příjezd – H pozadu ho nechá
+      await w.villages.inbox.post(
+        tripMail(w, 'market-arrive', `market:${w.h}:73`, undefined, NOW + 1),
+      );
+      jump(w, NOW + 1 + MAIL_KEEP_DAYS, w.m);
+      jump(w, NOW + MAIL_KEEP_DAYS, w.h);
+      expect(await pruneSettledMail(w.deps, w.m, NOW + 1 + MAIL_KEEP_DAYS)).toBe(0);
+    });
+
+    it('řádek, který nemá rok (den > afterDay − 365), zůstane i s H daleko napřed', async () => {
+      const w = await marketWorld();
+      await postBoth(w);
+      jump(w, NOW + 5_000, w.h);
+      jump(w, NOW - 1, w.m);
+      expect(await pruneSettledMail(w.deps, w.m, NOW - 1)).toBe(0);
+      jump(w, NOW, w.m);
+      expect(await pruneSettledMail(w.deps, w.m, NOW)).toBe(2);
+    });
+
+    it('jiných druhů se nedotkne – ani lidí a mincí zpět (`stranded-people`)', async () => {
+      const w = await marketWorld();
+      const key = `market:${w.h}:74`;
+      const asked = { fromVillageId: w.h, fromName: 'Vlkov', cells: 1, firstStep: 'E' as const };
+      const others: VillageMail[] = [
+        {
+          villageId: w.m,
+          day: OLD,
+          ref: `kin:${w.h}:${OLD}:20:ask`,
+          body: {
+            kind: 'kin-ask',
+            ask: {
+              key: `kin:${w.h}:${OLD}:20`,
+              ...asked,
+              seeker: { personId: 20, sex: 'male', bornDay: OLD - 9_500, widowed: false },
+              report,
+            },
+          },
+        },
+        {
+          villageId: w.m,
+          day: OLD,
+          ref: `smith:${w.h}:${OLD}:ask`,
+          body: {
+            kind: 'smith-ask',
+            ask: { key: `smith:${w.h}:${OLD}`, ...asked, horses: 1, report },
+          },
+        },
+        {
+          villageId: w.m,
+          day: OLD,
+          ref: `${marketResultRef(key)}:back`,
+          body: { kind: 'stranded-people', key, people: [], coins: 17, from: undefined },
+        },
+        {
+          villageId: w.m,
+          day: OLD,
+          ref: `order:${w.h}:${w.m}:tools:${OLD}`,
+          body: {
+            kind: 'order-ready',
+            ready: { villageId: w.h, name: 'Vlkov', good: 'tools', amount: 5 },
+          },
+        },
+      ];
+      for (const mail of others) await w.villages.inbox.post(mail);
+      await postBoth(w);
+      jump(w, NOW, w.h, w.m);
+      expect(await pruneSettledMail(w.deps, w.m, NOW)).toBe(2);
+      expect((await inboxOf(w, w.m)).map((e) => e.body.kind)).toEqual([
+        'kin-ask',
+        'smith-ask',
+        'stranded-people',
+        'order-ready',
+      ]);
+      // úklid snímků okolí a zpráv bez nákladu (`pruneUsed`) maže dál jen svoje druhy
+      expect(await w.villages.inbox.pruneUsed(w.m, OLD)).toBe(3);
+      expect((await inboxOf(w, w.m)).map((e) => e.body.kind)).toEqual(['stranded-people']);
+    });
+
+    it('mez až po filtru: 600 starších od zaniklé vsi úklid 20 bezpečných nezdrží', async () => {
+      const w = await marketWorld();
+      const dead = await thirdVillage(w, marketVillage());
+      for (let i = 0; i < 600; i++) {
+        await w.villages.inbox.post(
+          tripMail(w, 'market-arrive', `market:${dead}:${i}`, dead, OLD - 5),
+        );
+      }
+      for (let i = 0; i < 20; i++) {
+        await w.villages.inbox.post(tripMail(w, 'market-arrive', `market:${w.h}:${i}`, w.h));
+      }
+      await end(w, dead, 'vymřela');
+      jump(w, NOW, w.h, w.m, dead);
+      expect(await pruneSettledMail(w.deps, w.m, NOW)).toBe(20);
+      const left = await inboxOf(w, w.m);
+      expect(left).toHaveLength(600);
+      expect(new Set(left.map((e) => e.day))).toEqual(new Set([OLD - 5]));
+    });
+
+    it('nejvýš MAIL_PRUNE_ROWS nejstarších na jedno volání: 620 bezpečných → 500, pak 120', async () => {
+      const w = await marketWorld();
+      for (let i = 0; i < 620; i++) {
+        // po 155 na den, novější napřed – o pořadí rozhoduje den, ne zápis
+        await w.villages.inbox.post(
+          tripMail(w, 'market-arrive', `market:${w.h}:${i}`, w.h, OLD - (i % 4)),
+        );
+      }
+      jump(w, NOW, w.h, w.m);
+      expect(await pruneSettledMail(w.deps, w.m, NOW)).toBe(500);
+      const left = await inboxOf(w, w.m);
+      expect(left).toHaveLength(120);
+      expect(new Set(left.map((e) => e.day))).toEqual(new Set([OLD]));
+      expect(await pruneSettledMail(w.deps, w.m, NOW)).toBe(120);
+      expect(await pruneSettledMail(w.deps, w.m, NOW)).toBe(0);
+    });
+
+    describe('kdo zprávu vydal (`from`)', () => {
+      it('příjezd domovská ves, výsledek hostitel – v odchozí schránce ještě není', async () => {
+        const w = await coinWorld();
+        await bought(w);
+        expect((await inboxOf(w, w.m)).map((e) => e.body)).toEqual([
+          expect.objectContaining({ kind: 'market-arrive', from: w.h }),
+        ]);
+        expect(w.state(w.m).outbox![0]!.body).not.toHaveProperty('from');
+        expect(await deliverVillageMail(w.deps, w.m)).toBe(1);
+        expect((await inboxOf(w, w.h)).map((e) => e.body)).toEqual([
+          expect.objectContaining({ kind: 'market-result', from: w.m }),
+        ]);
+      });
+
+      it('výsledek z odchozí schránky hostitele, který zapíše domov (krok 3): hostitel', async () => {
+        const w = await coinWorld();
+        await bought(w);
+        await w.load(w.h, D + 5);
+        expect(await deliverVillageMail(w.deps, w.h)).toBe(1);
+        expect((await inboxOf(w, w.h)).map((e) => e.body)).toEqual([
+          expect.objectContaining({ kind: 'market-result', from: w.m }),
+        ]);
+      });
+
+      it.each(['chybí', 'vymřela'] as const)('M %s: vrácenou výpravu vydal domov', async (how) => {
+        const w = await coinWorld();
+        const trip = await w.depart(POTTERY);
+        if (how === 'vymřela') expect(await deliverVillageMail(w.deps, w.h)).toBe(1);
+        await end(w, w.m, how);
+        await w.load(w.h, trip.returnDay);
+        expect(await deliverVillageMail(w.deps, w.h)).toBe(1);
+        expect((await inboxOf(w, w.h)).map((e) => e.body)).toEqual([
+          expect.objectContaining({
+            kind: 'market-result',
+            from: w.h,
+            result: expect.objectContaining({ returned: true }),
+          }),
+        ]);
+        // po roce ji smí H smazat ze své schránky – výpravu už nečeká a nic znovu nepošle
+        await w.load(w.h, trip.returnDay + 2);
+        expect(w.state(w.h).coins).toBe(30);
+        const later = trip.returnDay + 2 + MAIL_KEEP_DAYS;
+        jump(w, later, w.h);
+        expect(await pruneSettledMail(w.deps, w.h, later)).toBe(1);
+        expect(await deliverVillageMail(w.deps, w.h)).toBe(0);
+        expect(await coinsOfWorld(w)).toBe(30);
+      });
+
+      it('zprávy bez nákladu a lidé zpět hostiteli odesílatele nedostanou', async () => {
+        const w = await coinWorld();
+        const key = await bought(w);
+        await end(w, w.h, 'vymřela');
+        w.villages.edit(w.m, (s) => {
+          s.outbox!.push({
+            villageId: w.m,
+            day: D + 5,
+            ref: `order:${w.m}:${w.m}:tools:${D}`,
+            body: {
+              kind: 'order-ready',
+              ready: { villageId: w.m, name: 'Lhota', good: 'tools', amount: 5 },
+            },
+          });
+        });
+        expect(await deliverVillageMail(w.deps, w.m)).toBe(2);
+        const bodies = (await inboxOf(w, w.m)).map((e) => e.body);
+        expect(bodies.find((b) => b.kind === 'stranded-people')).toEqual({
+          kind: 'stranded-people',
+          key,
+          people: [],
+          coins: 17,
+          from: undefined,
+        });
+        expect(bodies.find((b) => b.kind === 'order-ready')).not.toHaveProperty('from');
+      });
+    });
+
+    describe('odesílatel, který zprávu může poslat znovu', () => {
+      it('pád mezi zápisem a vyčištěním, H pozadu: příjezd zůstane, po dopočtu H se smaže', async () => {
+        const w = await coinWorld();
+        await w.depart(POTTERY);
+        const mail = structuredClone(w.state(w.h).outbox!);
+        expect(await deliverVillageMail(w.deps, w.h)).toBe(1);
+        w.villages.edit(w.h, (s) => {
+          s.outbox = structuredClone(mail);
+        });
+        // M výpravu vyřídila a je o rok dál, H stojí
+        await w.load(w.m, D + 1);
+        expect(await deliverVillageMail(w.deps, w.m)).toBe(1);
+        const later = D + 1 + MAIL_KEEP_DAYS;
+        await w.load(w.m, later);
+        expect(await pruneSettledMail(w.deps, w.m, later)).toBe(0);
+        expect(await w.villages.inbox.post(mail[0]!)).toBeNull();
+        // H se dopočetla: výsledek použila, odchozí schránku vyčistila a je o rok dál
+        await w.load(w.h, D + 5);
+        expect(await deliverVillageMail(w.deps, w.h)).toBe(0);
+        expect(w.state(w.h).outbox).toBeUndefined();
+        await w.load(w.h, later);
+        expect(hasVillageMail(w.state(w.h))).toBe(false);
+        expect(await pruneSettledMail(w.deps, w.m, later)).toBe(1);
+        expect(await inboxOf(w, w.m)).toEqual([]);
+        // nic se znovu nepošle a nezdvojí
+        expect([hasVillageMail(w.state(w.h)), hasVillageMail(w.state(w.m))]).toEqual([
+          false,
+          false,
+        ]);
+        for (const id of [w.h, w.m]) expect(await deliverVillageMail(w.deps, id)).toBe(0);
+        await w.load(w.m, later + 5);
+        await w.load(w.h, later + 5);
+        expect([w.state(w.h).coins, w.state(w.m).coins]).toEqual([17, 13]);
+        expect(await coinsOfWorld(w)).toBe(30);
+      }, 20_000);
+
+      it('H přeskočí rok v jednom dopočtu dřív, než se její odchozí schránka vyčistí: příjezd zůstane', async () => {
+        const w = await coinWorld();
+        await w.depart(POTTERY);
+        const mail = structuredClone(w.state(w.h).outbox!);
+        expect(await deliverVillageMail(w.deps, w.h)).toBe(1);
+        w.villages.edit(w.h, (s) => {
+          s.outbox = structuredClone(mail);
+        });
+        await w.load(w.m, D + 1);
+        expect(await deliverVillageMail(w.deps, w.m)).toBe(1);
+        // dlouhá nepřítomnost: H se dopočte o víc než rok naráz, výsledek použije a příjezd v odchozí
+        // schránce ještě nese (doručí se až po dopočtu všech vsí hráče)
+        const later = D + 5 + MAIL_KEEP_DAYS;
+        await w.load(w.m, later);
+        await w.load(w.h, later);
+        expect(w.state(w.h).outbox).toEqual(mail);
+        expect(await pruneSettledMail(w.deps, w.m, later)).toBe(0);
+        // druhé doručení se zahodí – mince nepřijedou podruhé; pak řádek smí pryč
+        expect(await deliverVillageMail(w.deps, w.h)).toBe(0);
+        expect(await pruneSettledMail(w.deps, w.m, later)).toBe(1);
+        for (const id of [w.m, w.h]) await w.load(id, later + 5);
+        expect([w.state(w.h).coins, w.state(w.m).coins]).toEqual([17, 13]);
+        expect(w.state(w.m).market!.visitors).toEqual([]);
+        expect(await coinsOfWorld(w)).toBe(30);
+      }, 20_000);
+
+      it('M přeskočí rok s výsledkem, který už zapsala, v odchozí schránce: výsledek v H zůstane', async () => {
+        const w = await coinWorld();
+        await bought(w);
+        const mail = structuredClone(w.state(w.m).outbox!);
+        expect(await deliverVillageMail(w.deps, w.m)).toBe(1);
+        w.villages.edit(w.m, (s) => {
+          s.outbox = structuredClone(mail);
+        });
+        const later = D + 5 + MAIL_KEEP_DAYS;
+        await w.load(w.h, later);
+        await w.load(w.m, later);
+        expect(w.state(w.m).outbox).toEqual(mail);
+        expect(await pruneSettledMail(w.deps, w.h, later)).toBe(0);
+        expect(await deliverVillageMail(w.deps, w.m)).toBe(0);
+        expect(await pruneSettledMail(w.deps, w.h, later)).toBe(1);
+        for (const id of [w.h, w.m]) await w.load(id, later + 5);
+        expect([w.state(w.h).coins, w.state(w.m).coins]).toEqual([17, 13]);
+        expect(returnedOf(w.state(w.h))).toHaveLength(1);
+        expect(await coinsOfWorld(w)).toBe(30);
+      }, 20_000);
+
+      it('ves bez souhrnu (uložená před ním) se bere, jako by zprávu ještě mohla poslat', async () => {
+        const w = await marketWorld();
+        await postBoth(w);
+        jump(w, NOW, w.h, w.m);
+        w.villages.withoutDigest.add(w.h);
+        expect(await pruneSettledMail(w.deps, w.m, NOW)).toBe(0);
+        w.villages.withoutDigest.clear();
+        expect(await pruneSettledMail(w.deps, w.m, NOW)).toBe(2);
+      });
+
+      it('souběh: dva úklidy, dvě doručení a úloha světa najednou smažou řádek jednou', async () => {
+        const w = await coinWorld();
+        await bought(w);
+        expect(await deliverVillageMail(w.deps, w.m)).toBe(1);
+        const later = D + 5 + MAIL_KEEP_DAYS;
+        for (const id of [w.h, w.m]) await w.load(id, later);
+        const [a, b, ...mail] = await Promise.all([
+          pruneSettledMail(w.deps, w.m, later),
+          pruneSettledMail(w.deps, w.m, later),
+          deliverVillageMail(w.deps, w.h),
+          deliverVillageMail(w.deps, w.m),
+          returnStrandedPeople(w.deps),
+        ]);
+        expect(a + b).toBe(1);
+        expect(mail).toEqual([0, 0, 0]);
+        expect(await inboxOf(w, w.m)).toEqual([]);
+        for (const id of [w.h, w.m]) await w.load(id, later + 5);
+        expect([w.state(w.h).coins, w.state(w.m).coins]).toEqual([17, 13]);
+        expect(await coinsOfWorld(w)).toBe(30);
+      }, 20_000);
+    });
+
+    describe('výprava po termínu (krok 3) po úklidu příjezdu', () => {
+      /** Id řádku příjezdu ve schránce M. */
+      async function arrivalId(w: MarketWorld): Promise<string> {
+        const row = (await inboxOf(w, w.m)).find((e) => e.body.kind === 'market-arrive');
+        if (!row) throw new Error('Příjezd ve schránce M není.');
+        return row.id;
+      }
+
+      it.each(['vymřela', 'opuštěná', 'sídlo v archivu'] as const)(
+        'pobyt 400 dní: příjezd zůstane, dokud výprava stojí na trhu; M %s – vrátí se jednou s tím, co drží',
+        async (how) => {
+          const w = await coinWorld();
+          const trip = await w.depart({ ...POTTERY, stayDays: 400 });
+          await deliverVillageMail(w.deps, w.h);
+          // rok a půl měsíce na trhu – příjezd (D + 1) už rok má, výsledek ještě nepřišel
+          const later = D + 380;
+          await w.load(w.m, later);
+          await w.load(w.h, later);
+          expect(w.state(w.m).market!.visitors).toHaveLength(1);
+          expect(await pruneSettledMail(w.deps, w.m, later)).toBe(0);
+          await end(w, w.m, how);
+          await w.load(w.h, trip.returnDay);
+          expect(await deliverVillageMail(w.deps, w.h)).toBe(1);
+          expect(await deliverVillageMail(w.deps, w.h)).toBe(0);
+          await w.load(w.h, trip.returnDay + 1);
+          expect([w.state(w.h).coins, w.state(w.m).coins]).toEqual([17, 13]);
+          // výprava je vyřízená, o dalšího půl druhého roku později se nevrátí podruhé
+          const end2 = trip.returnDay + 1 + MAIL_KEEP_DAYS;
+          jump(w, end2, w.h);
+          expect(await pruneSettledMail(w.deps, w.h, end2)).toBe(1);
+          expect(hasVillageMail(w.state(w.h))).toBe(false);
+          expect(await deliverVillageMail(w.deps, w.h)).toBe(0);
+          expect(returnedOf(w.state(w.h))).toHaveLength(1);
+          expect(await coinsOfWorld(w)).toBe(30);
+        },
+        20_000,
+      );
+
+      it('hostitel pomalejší než domov: příjezd zůstane, dokud domov výsledek nepoužije', async () => {
+        const w = await coinWorld();
+        await w.depart(POTTERY);
+        await deliverVillageMail(w.deps, w.h);
+        await w.load(w.h, D + 800);
+        // M je o víc než rok za příjezdem, ale 400 dní za H; výsledek ještě leží v její schránce
+        const later = D + 400;
+        await w.load(w.m, later);
+        expect(await pruneSettledMail(w.deps, w.m, later)).toBe(0);
+        expect(await deliverVillageMail(w.deps, w.m)).toBe(1);
+        // výsledek leží ve schránce H na den D + 801, výprava je pořád po termínu
+        expect(hasVillageMail(w.state(w.h))).toBe(true);
+        expect(await pruneSettledMail(w.deps, w.m, later)).toBe(0);
+        expect(await deliverVillageMail(w.deps, w.h)).toBe(0);
+        await w.load(w.h, D + 801);
+        expect(w.state(w.h).coins).toBe(17);
+        expect(await pruneSettledMail(w.deps, w.m, later)).toBe(1);
+        // M zanikne: živá ani mrtvá H výpravu podruhé nevrátí
+        await end(w, w.m, 'vymřela');
+        await w.load(w.h, D + 810);
+        expect(await deliverVillageMail(w.deps, w.h)).toBe(0);
+        await end(w, w.h, 'vymřela');
+        expect(await deliverVillageMail(w.deps, w.h)).toBe(0);
+        expect(await returnStrandedPeople(w.deps)).toBe(0);
+        expect(await inboxOf(w, w.m)).toEqual([]);
+        expect(returnedOf(w.state(w.h))).toHaveLength(1);
+        expect(await coinsOfWorld(w)).toBe(30);
+      }, 20_000);
+
+      it('příjezd, který hostitel na cestě přeskočil, zůstane – po jeho zániku se výprava vrátí', async () => {
+        const w = await coinWorld();
+        await w.depart(POTTERY);
+        await deliverVillageMail(w.deps, w.h);
+        // v den příjezdu je M na cestě – události těch dnů dopočet nepoužije
+        w.villages.edit(w.m, (s) => {
+          s.journey = { direction: 'E', departedDay: D - 5, arrivalDay: D + 5 };
+        });
+        await w.load(w.m, D + 5);
+        w.villages.edit(w.m, (s) => {
+          delete s.journey;
+        });
+        const later = D + 10 + MAIL_KEEP_DAYS;
+        jump(w, later, w.h, w.m);
+        expect(await deliverVillageMail(w.deps, w.h)).toBe(0);
+        expect(await pruneSettledMail(w.deps, w.m, later)).toBe(0);
+        await end(w, w.m, 'vymřela');
+        expect(await deliverVillageMail(w.deps, w.h)).toBe(1);
+        await w.load(w.h, later + 1);
+        expect(w.state(w.h).coins).toBe(30);
+        expect(await deliverVillageMail(w.deps, w.h)).toBe(0);
+        expect(await coinsOfWorld(w)).toBe(30);
+      });
+
+      // příjezd zmizel dřív, než byla výprava vyřízená (úklid to nedělá) – krok 3 ani tak nic nezdvojí
+      it.each([
+        ['stojí na trhu', 'žije'],
+        ['stojí na trhu', 'vymřela'],
+        ['má výsledek v odchozí schránce M', 'žije'],
+        ['má výsledek v odchozí schránce M', 'vymřela'],
+        ['má výsledek ve schránce H', 'žije'],
+        ['má výsledek ve schránce H', 'vymřela'],
+      ] as const)(
+        'smazaný příjezd, výprava %s, M vymře, H %s: nejvýš jeden návrat',
+        async (where, home) => {
+          const w = await coinWorld();
+          const stayDays = where === 'stojí na trhu' ? 10 : 1;
+          const trip = await w.depart({ ...POTTERY, stayDays });
+          await deliverVillageMail(w.deps, w.h);
+          await w.load(w.m, D + 3);
+          await w.load(w.h, trip.returnDay + 3);
+          if (where === 'má výsledek ve schránce H') {
+            expect(await deliverVillageMail(w.deps, w.m)).toBe(1);
+          }
+          expect(await w.villages.inbox.dropSettledMail(w.m, [await arrivalId(w)])).toBe(1);
+          await end(w, w.m, 'vymřela');
+          if (home === 'vymřela') await end(w, w.h, home);
+          const waiting = home === 'žije' && where !== 'má výsledek ve schránce H';
+          expect(await deliverVillageMail(w.deps, w.h)).toBe(waiting ? 1 : 0);
+          expect(await deliverVillageMail(w.deps, w.h)).toBe(0);
+          await w.load(w.h, trip.returnDay + 4);
+          expect(await deliverVillageMail(w.deps, w.h)).toBe(0);
+          expect(returnedOf(w.state(w.h))).toHaveLength(home === 'žije' ? 1 : 0);
+          expect([w.state(w.h).coins, w.state(w.m).coins]).toEqual([
+            home === 'žije' ? 17 : undefined,
+            13,
+          ]);
+          // mrtvé oběma konci mince nikdo nepřipíše, ale ani nezdvojí
+          expect(await coinsOfWorld(w)).toBe(30);
+        },
+      );
+
+      it('zprávu `stranded-people` úklid nesmaže – druhé vrácení mincí se zahodí', async () => {
+        const w = await coinWorld();
+        await bought(w);
+        const mail = structuredClone(w.state(w.m).outbox!);
+        await end(w, w.h, 'vymřela');
+        expect(await deliverVillageMail(w.deps, w.m)).toBe(1);
+        // pád před smazáním z odchozí schránky, M o víc než rok dál (mince zpět už má)
+        w.villages.edit(w.m, (s) => {
+          s.outbox = structuredClone(mail);
+        });
+        const later = D + 10 + MAIL_KEEP_DAYS;
+        await w.load(w.m, later);
+        expect(w.state(w.m).coins).toBe(30);
+        expect(await pruneSettledMail(w.deps, w.m, later)).toBe(0);
+        expect((await inboxOf(w, w.m)).map((e) => e.body.kind)).toEqual([
+          'market-arrive',
+          'stranded-people',
+        ]);
+        expect(await deliverVillageMail(w.deps, w.m)).toBe(0);
+        await w.load(w.m, later + 5);
+        expect(w.state(w.m).coins).toBe(30);
+        expect(await coinsOfWorld(w)).toBe(30);
+      }, 20_000);
+    });
   });
 });

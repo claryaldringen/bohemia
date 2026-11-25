@@ -38,6 +38,8 @@ const deps: NegotiateDeps = {
       post: () => Promise.resolve(null),
       pending: () => Promise.resolve([]),
       pruneUsed: () => Promise.resolve(0),
+      settledMail: () => Promise.resolve([]),
+      dropSettledMail: () => Promise.resolve(0),
       strandedResults: () => Promise.resolve([]),
       dropStranded: () => Promise.resolve(0),
     },
