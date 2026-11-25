@@ -57,6 +57,7 @@ function sumInto(into: SeasonCrop, from: SeasonCrop): void {
   if (from.seedHauled !== undefined) into.seedHauled = (into.seedHauled ?? 0) + from.seedHauled;
   if (into.plough && from.plough) {
     into.plough.partIds = [...from.plough.partIds, ...into.plough.partIds];
+    // Invariant: obě plodiny jsou převedené na pokrytí téhož rána, `required`/`done` se sčítají bez ohledu na `perHa`.
     into.plough.required += from.plough.required;
     into.plough.done += from.plough.done;
     into.plough.weight += from.plough.weight;

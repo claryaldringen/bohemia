@@ -579,7 +579,7 @@ z 62) a 873 (52,5 z 58) – stádo ovcí se obnovuje. Práce 1. seče 871 416 č
   (≈ 3 lidé za spřežením). Motykou taky ≈ 3,3 čd/ha (návrh Clauda – [fields.md](fields.md), Práce).
 - **Nástroje během sezóny** (návrh Clauda, 25. 11. 2026; podle principu pro celou hru výš – co
   vesničanům ulehčí práci a mají to k dispozici, začnou používat sami): nástroje získané nebo
-  ztracené uprostřed orby platí od příštího dne. **Orba letošního plánu se každé ráno přepočte na
+  ztracené uprostřed orby platí od nejbližšího rána (z trhu a schránky ještě týž den, ty běží před `craftCoverage`). **Orba letošního plánu se každé ráno přepočte na
   dnešní pokrytí nástroji** (potřebná i hotová práce poměrem sazeb), ať je kapacita spřežení
   i orba při témže pokrytí – pár zorá 0,3 ha za den s jakýmikoli nástroji, lepší nástroje ubírají
   práci oráči a honáčkovi hned a zoraná plocha se přepočtem nezmění. Dřív byla kapacita při dnešním

@@ -221,14 +221,14 @@ export function createCropWork(
   const reclaimIds: number[] = [];
   const sodIds: number[] = [];
   let ploughRequired = 0;
-  let ploughWeight = 0;
+  let ploughWeightSum = 0;
   for (const part of ordered) {
     const work = partWork(part, day, toolCoverage, plough, crop);
     for (const task of TASK_ORDER) required[task] += work[task];
     if (work.reclaim > 0) reclaimIds.push(part.id);
     if (!plough) continue;
     ploughRequired += work.plough;
-    ploughWeight += partWeight(part);
+    ploughWeightSum += partWeight(part);
     if (hasSod(part, day)) sodIds.push(part.id);
   }
   const partIds = ordered.map((p) => p.id);
@@ -245,7 +245,7 @@ export function createCropWork(
             partIds: [...partIds],
             required: ploughRequired,
             done: 0,
-            weight: ploughWeight,
+            weight: ploughWeightSum,
             perHa: ploughWorkPerHa(toolCoverage),
             ...(sodIds.length > 0 ? { sodIds } : {}),
             bands: layout!.bands,

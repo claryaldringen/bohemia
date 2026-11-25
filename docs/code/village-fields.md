@@ -372,7 +372,7 @@ tools)` = s hromadou `pileSowsKg` (osivo, které ves ještě zaseje: `sowingHaPe
   všech plodin na sazbu dneška (`ploughAtTools` – `required` i `done` poměrem sazeb; kam orba došla,
   `taskPosition`, se nezmění) – před čelem práce, výběrem dílů a prací dne. Orba plánu tak stojí
   proti kapacitě spřežení při témže pokrytí všude, kde se porovnávají (`workFront`, `fieldTasks`,
-  `ploughWindowsToday`, `sowingHelpWork`, `seasonShortfalls`): pár zorá 0,3 ha za den s jakýmikoli
+  `ploughWindowsToday`, `sowingHelpWork`, `seasonShortfalls`; výjimka: výhled, který pro rozhraní počítá web večerním pokrytím proti ranním jednotkám – jen zobrazení, rozdíl nejvýš jeden herní den): pár zorá 0,3 ha za den s jakýmikoli
   nástroji a nástroje ubírají práci lidem hned. `addToCropWork` napřed převede dosavadní orbu na
   pokrytí přidávaných dílů. Váhu orby (drn `PLOUGH_SOD_FACTOR`×) dává `ploughWeight` – i výhled
   správce (`ploughWorkAt`, steward-outlook.ts). Plán uložený bez sazby: převod `plough-rate`

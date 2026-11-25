@@ -168,11 +168,13 @@ describe('nástroje získané nebo ztracené uprostřed orby', () => {
 
   it('výsledek nezávisí na kouscích dopočtu', () => {
     const before = advanceVillage(village(1, 14, 0), CHANGE - 1, null);
-    const start: VillageState = { ...before, toolEquipmentKg: 200 };
+    // 20 kg: pokrytí ≈ 0,55 a denně klesá opotřebením, přepočet orby tak běží každé ráno
+    const start: VillageState = { ...before, toolEquipmentKg: 20 };
     const whole = advanceVillage(start, END, null);
     let pieces = start;
     while (pieces.lastDay < END) {
-      pieces = advanceVillage(pieces, Math.min(END, pieces.lastDay + 5), null);
+      const next = advanceVillage(pieces, Math.min(END, pieces.lastDay + 5), null);
+      pieces = JSON.parse(JSON.stringify(next)) as VillageState;
     }
     expect(pieces).toEqual(whole);
   }, 60_000);
