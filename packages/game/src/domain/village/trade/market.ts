@@ -6,13 +6,14 @@
 // výrobky za obilí a luštěniny vždy, ve vlastním zápočtu před dnešním, a nekoupený výrobek
 // hostitel zapíše jako zakázku (craft-orders.ts – Rozhodnutí plánu 3, body 5 a 6). Co zápočty
 // nechaly, koupí za mince výprava nebo cizí kupec, který je veze (mincovní fáze `coinPhase`,
-// market-coins.ts – Rozhodnutí plánu 4, body 2 a 3); hostitel v ní jen prodává. Cizí kupci
-// (merchants.ts – bod 5) jsou návštěvníci bez domovské vsi a odjíždějí bez pošty. Kovář souseda
-// (výprava se službou kování) kuje hned po příjezdu a do zápočtu nevstupuje (livestock/smith-visit.ts
-// – Rozhodnutí plánu 3, bod 9). Lidé jdou zápočtem jako kusy, ale po skupinách jako skuteční lidé:
-// prodaní hostitelem odejdou k výpravě, koupení hostitelem se u něj hned usadí (market-people.ts –
-// bod 10). Trh počítá jen ze stavu hostitele a událostí schránky toho dne, takže výsledek nezávisí
-// na kouscích dopočtu. Mutuje stav jako kroky dne.
+// market-coins.ts – Rozhodnutí plánu 4, body 2 a 3); hostitel v ní jen prodává a koupí jedině zbroj,
+// kterou si u kupců objednal hráč (arms-order.ts – bod 15). Cizí kupci (merchants.ts – bod 5) jsou
+// návštěvníci bez domovské vsi a odjíždějí bez pošty. Kovář souseda (výprava se službou kování) kuje
+// hned po příjezdu a do zápočtu nevstupuje (livestock/smith-visit.ts – Rozhodnutí plánu 3, bod 9).
+// Lidé jdou zápočtem jako kusy, ale po skupinách jako skuteční lidé: prodaní hostitelem odejdou
+// k výpravě, koupení hostitelem se u něj hned usadí (market-people.ts – bod 10). Trh počítá jen ze
+// stavu hostitele a událostí schránky toho dne, takže výsledek nezávisí na kouscích dopočtu. Mutuje
+// stav jako kroky dne.
 import { serveShoeing } from '../livestock/smith-visit';
 import { receiveKin } from '../people/kin-match';
 import { OPPOSITE } from '../people/world-grid';
@@ -39,6 +40,7 @@ import type {
   VillageNews,
   VillageState,
 } from '../types';
+import { armsBuyer, reduceArmsOrder } from './arms-order';
 import { craftParties, craftStance, recordOrders, reduceOrder } from './craft-orders';
 import {
   CART_GOODS,
@@ -442,9 +444,9 @@ function addCoins(goods: TradeGoods, coins: number): void {
 
 /**
  * Platby mincovní fáze v pořadí nákupů (mutuje stav i výpravy): celé mince z nákladu kupující
- * výpravy (`goods.coins`) do nákladu prodávající, hostiteli do zásoby vsi (`addGood`). Do `sold`
- * a `bought` výpravy se nepíšou – domů jdou s nákladem (`unsold`) a podruhé vzniknout nesmějí.
- * Vrací, kolik mincí hostitel zaplatil a získal.
+ * výpravy (`goods.coins`) do nákladu prodávající, hostitel je platí ze zásoby vsi a bere do ní
+ * (`addGood`). Do `sold` a `bought` výpravy se nepíšou – domů jdou s nákladem (`unsold`) a podruhé
+ * vzniknout nesmějí. Vrací, kolik mincí hostitel zaplatil a získal.
  */
 function payCoins(
   state: VillageState,
@@ -469,15 +471,17 @@ function payCoins(
 }
 
 /**
- * Mincovní fáze tržního dne (mutuje stav; markets.md – Rozhodnutí plánu 4, body 2–4): co výpravám
- * po zápočtech na seznamu zbylo, koupí za mince, které vezou (`coinClearing` za ceny dne a hladinu
- * trhu), obchody se vyrovnají jako zápočet (`settleTrades`) a mince přejdou (`payCoins`). Hostitel
- * jen prodává, co mu z nabídky zbylo (`hostOffer`) – za mince nic nekoupí (Martin 25. 11. 2026:
- * „Mince utrácí jen vojvoda/správce“). Lidí nabídne nejvýš tolik skupin, kolik jich po zápočtech
- * doopravdy odejde (`leavingGroups` – výběr je postupný), aby kupující nezaplatil lidi, které
- * nedostane. Hladinu posune `nextLevel`; hladina 1 ve stavu není. Bez výpravy, která má mince
- * a něco shání, se fáze nespustí (null, stav se nezmění) – mince v zásobě vsi ji samy nespustí.
- * Co hostitel prodal a koupil, je i s mincemi.
+ * Mincovní fáze tržního dne (mutuje stav; markets.md – Rozhodnutí plánu 4, body 2–4 a 15): co
+ * výpravám po zápočtech na seznamu zbylo, koupí za mince, které vezou (`coinClearing` za ceny dne
+ * a hladinu trhu), obchody se vyrovnají jako zápočet (`settleTrades`) a mince přejdou (`payCoins`).
+ * Hostitel prodává, co mu z nabídky zbylo (`hostOffer`), a za mince koupí jedině zbroj, kterou si
+ * u kupců objednal hráč (`armsBuyer`; o koupenou se objednávka zmenší – `reduceArmsOrder`), nic
+ * podle výpočtu potřeby (Martin 25. 11. 2026: „Mince utrácí jen vojvoda/správce“). Lidí nabídne
+ * nejvýš tolik skupin, kolik jich po zápočtech doopravdy odejde (`leavingGroups` – výběr je
+ * postupný), aby kupující nezaplatil lidi, které nedostane. Hladinu posune `nextLevel`; hladina 1 ve
+ * stavu není. Bez kupujícího s mincemi – výpravy nebo kupce, který něco shání, nebo vsi s objednanou
+ * zbrojí v den kupců – se fáze nespustí (null, stav se nezmění); mince v zásobě vsi ji samy
+ * nespustí. Co hostitel prodal a koupil, je i s mincemi.
  */
 function coinPhase(
   state: VillageState,
@@ -491,14 +495,19 @@ function coinPhase(
     v.by === 'villagers' ? {} : withoutCoins(v.wants);
   const spends = (v: MarketVisitor): boolean =>
     (v.goods[COIN_GOOD] ?? 0) > 0 && hasGoods(wantsOf(v));
-  if (!visitors.some(spends)) return null;
+  const buyer = armsBuyer(state, day, visitors);
+  if (!(buyer && buyer.coins > 0) && !visitors.some(spends)) return null;
   const leaving = leavingGroups(state, day, hostOffer);
   const people: TradeGoods = {};
   for (const good of PEOPLE_GOODS) people[good] = leaving[good].length;
   const level = market.level ?? 1;
   const { trades, payments, available, sought } = coinClearing(
     [
-      { key: HOST, coins: 0, stock: withoutCoins({ ...hostOffer, ...people }), wants: {} },
+      {
+        key: HOST,
+        stock: withoutCoins({ ...hostOffer, ...people }),
+        ...(buyer ?? { coins: 0, wants: {} }),
+      },
       ...visitors.map((v) => ({
         key: v.key,
         coins: v.goods[COIN_GOOD] ?? 0,
@@ -516,6 +525,7 @@ function coinPhase(
     wanted: {},
   });
   const { paid, earned } = payCoins(state, day, visitors, payments);
+  reduceArmsOrder(state, bought);
   const next = nextLevel(level, available, sought);
   if (next === 1) delete market.level;
   else market.level = next;
@@ -617,9 +627,9 @@ function priceTotals(
  *    ten den prodají (`craftStance`, `craftParties`); bez nich se přeskočí;
  * 2. dnešní zápočet se zbytkem zboží – hostitel nabízí a shání podle výpočtu potřeby
  *    (`marketStance`, bez prodaného v 1.), výpravy, co jim zbylo;
- * 3. mincovní fáze (`coinPhase` – Rozhodnutí plánu 4, bod 2) – výprava nebo cizí kupec, který veze
- *    mince, za ně koupí, co mu na seznamu zbylo; hostitel jen prodává. Bez mincí k útratě se
- *    přeskočí.
+ * 3. mincovní fáze (`coinPhase` – Rozhodnutí plánu 4, body 2 a 15) – výprava nebo cizí kupec, který
+ *    veze mince, za ně koupí, co mu na seznamu zbylo; hostitel jen prodává a koupí jedině zbroj
+ *    objednanou u kupců. Bez mincí k útratě se přeskočí.
  * Zápočty mince nevidí (`withoutCoins` – Rozhodnutí plánu 4, bod 1). Obchody se po každé fázi
  * vyrovnají (`settleTrades`), ceny se posunou podle původních nabídek a seznamů dne (`priceTotals`,
  * `nextPrices` – v den jen s kupci jen ceny jejich zboží), kupci na rušném trhu zůstanou další

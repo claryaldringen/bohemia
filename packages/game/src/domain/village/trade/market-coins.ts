@@ -25,13 +25,15 @@ const NOISE_KG = 1e-6;
 /** Strana mincovní fáze (Rozhodnutí plánu 4, bod 2). */
 export interface CoinParty {
   key: string;
-  /** Mince k útratě – celé; hostitel 0, jen prodává (objednanou zbroj přidá Úloha 6). */
+  /** Mince k útratě – celé; hostitel je má jen s objednanou zbrojí (bod 15), jinak 0 – jen prodává. */
   coins: number;
   /** Co strana prodává (bez mincí) a co po zápočtu shání (bez mincí). */
   stock: TradeGoods;
   wants: TradeGoods;
   /** Cizí kupec – kupuje první (Rozhodnutí plánu 4, bod 2). */
   merchant?: true;
+  /** Seznam strany se kupuje jen od cizích kupců (objednaná zbroj hostitele – bod 15). */
+  fromMerchants?: true;
 }
 
 /** Celé mince od kupujícího k prodávajícímu za dvojici a den. */
@@ -60,6 +62,7 @@ const SOLD_FOR_COINS: readonly TradeGood[] = TRADE_GOODS.filter((good) => good !
 interface Ledger {
   key: string;
   merchant: boolean;
+  fromMerchants: boolean;
   purse: number;
   stock: TradeGoods;
   wants: TradeGoods;
@@ -120,9 +123,10 @@ function coinsAgainstGoods(
 /**
  * Nákupy za mince jednoho tržního dne za ceny dne `prices` a hladinu `level` (Rozhodnutí plánu 4,
  * body 2 a 3). Pořadí prodávajících je pořadí stran (hostitel, výpravy a kupci podle příjezdu);
- * kupují napřed kupci (`merchant`) v tomto pořadí, pak ostatní v tomto pořadí. Utržené mince smí
- * prodávající týž den utratit, je-li v pořadí kupujících za kupujícím. Obchody i platby jsou
- * v pořadí nákupů, takže žádný měšec neklesne pod 0 ani cestou.
+ * kupují napřed kupci (`merchant`) v tomto pořadí, pak ostatní v tomto pořadí – hostitel s objednanou
+ * zbrojí (`fromMerchants`, bod 15) jen od kupců. Utržené mince smí prodávající týž den utratit, je-li
+ * v pořadí kupujících za kupujícím. Obchody i platby jsou v pořadí nákupů, takže žádný měšec neklesne
+ * pod 0 ani cestou.
  */
 export function coinClearing(
   parties: readonly CoinParty[],
@@ -135,6 +139,7 @@ export function coinClearing(
   const ledgers = parties.map((party): Ledger => ({
     key: party.key,
     merchant: party.merchant === true,
+    fromMerchants: party.fromMerchants === true,
     purse: party.coins,
     stock: { ...party.stock },
     wants: { ...party.wants },
@@ -145,7 +150,7 @@ export function coinClearing(
   for (const buyer of buyers) {
     if (buyer.purse < 1 - NOISE) continue; // měšec pod minci nic nekoupí
     for (const seller of ledgers) {
-      if (seller === buyer) continue;
+      if (seller === buyer || (buyer.fromMerchants && !seller.merchant)) continue;
       const { goods, bill } = basketOf(buyer, seller, price);
       if (bill < 1 - NOISE) continue;
       // měšec je celý a účet se do něj vejde – min jen proti šumu, aby neklesl pod 0

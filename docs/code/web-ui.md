@@ -8,7 +8,8 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `chooseLanguageAction`; ořez pohledu o to, co klient zná), `village.ts` (stavby, pole, cesty,
   osoby, odchody, `foundVillage`, `restartGame`, …), `fortification.ts` (hradby), `army.ts`
   (panel vojska, tažení, pokyny, `orderBreakout`), `alarm.ts`, `house.ts` (rod, pozvánky, jednání,
-  stížnosti, správce, nováček), `market.ts` (`getMarketOverview`, `sendMarketExpedition` – trh),
+  stížnosti, správce, nováček), `market.ts` (`getMarketOverview`, `sendMarketExpedition`,
+  `orderArms` – trh),
   `vassalage.ts` (odvody, svolání, průchody, odúmrť, ochrana),
   `dev.ts` (jen `devMode`: `forceDevDisaster`, `skipTime`). Sdílené pomocníky (`playerId`,
   `villageAction`, `NOT_SIGNED_IN`, kontroly tvaru `isId`/`isRecord`/`isText`) drží

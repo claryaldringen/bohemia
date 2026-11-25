@@ -186,7 +186,8 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
     (`nextPrices` je přeskočí) a v zápočtu nejsou (`withoutCoins`).
   - **Mincovní fáze** `coinClearing(parties, prices, level)` (`trade/market-coins.ts`, čistá funkce;
     Rozhodnutí plánu 4, body 2 a 3): strany `CoinParty` (`key`, celé mince `coins`, prodej `stock`
-    a seznam `wants` bez mincí, `merchant` – cizí kupec) v pořadí hostitel, pak přespolní podle
+    a seznam `wants` bez mincí, `merchant` – cizí kupec, `fromMerchants` – seznam se kupuje jen od
+    kupců: zbroj, kterou si hostitel objednal) v pořadí hostitel, pak přespolní podle
     příjezdu – v něm prodávají. Kupují napřed kupci, pak ostatní, v témže pořadí; u dvojice po zboží
     v pořadí `TRADE_GOODS` min(chce, má, zbývající měšec ÷ cena), kus jen celý, zlomek v kg do 1 mg
     (`NOISE_KG`) se přeskočí. Součet hodnot dvojice pod 1 minci se zruší celý, jinak platba
@@ -273,10 +274,12 @@ ves>:<id výpravy>`, `stayDays`, `travelDays`, zboží `goods` – koně i tady 
     `totalGoods` původních nabídek a seznamů bez mincí, i s obilím za výrobky, jako v jednom
     zápočtu; cizí kupci: Cizí kupci ve vsi níž – Ceny dne) a kronika `market-held` (co ves prodala
     a koupila ve všech fázích, i mince – jen když něco).
-  - **Mincovní fáze** `coinPhase` (Rozhodnutí plánu 4, body 2–4; mutuje): spustí se, jen když nějaký
-    návštěvník veze mince (`goods.coins`) a něco mu na seznamu zbylo – mince v zásobě vsi ji samy
-    nespustí a trh bez mincí je bit po bitu jako dřív. Strany `coinClearing`: hostitel (0 mincí,
-    prázdný seznam – za mince nic nekoupí, jen prodává; `stock` = nabídka bez prodaného v obou
+  - **Mincovní fáze** `coinPhase` (Rozhodnutí plánu 4, body 2–4 a 15; mutuje): spustí se, jen když
+    nějaký návštěvník veze mince (`goods.coins`) a něco mu na seznamu zbylo, nebo má ves mince
+    a objednanou zbroj v den kupců (`armsBuyer` – Cizí kupci ve vsi níž, Objednávka zbroje) – mince
+    v zásobě vsi ji samy nespustí a trh bez mincí je bit po bitu jako dřív. Strany `coinClearing`:
+    hostitel (bez objednávky 0 mincí a prázdný seznam – jen prodává, s objednávkou mince vsi
+    a objednaná zbroj, nic jiného za mince nekoupí; `stock` = nabídka bez prodaného v obou
     zápočtech, lidí nejvýš tolik skupin, kolik jich po zápočtech doopravdy odejde –
     `leavingGroups`) a návštěvníci (`goods` a `wants` bez mincí, `merchant` – cizí kupec, kupuje
     první). Obchody vyrovná `settleTrades` (koně, vozy a lidé po kusech jako v zápočtu, zakázky
@@ -548,6 +551,23 @@ day, order, target, { by?, seedKg?, alone?, service?, kin?, people? })` (mutuje 
     hýbou jen ceny zboží, které kupci vezou nebo shánějí: poptávka hostitele nic nezdraží (nástroje by
     jinak za 10 let čtyř průjezdů do roka zdražily 45×) a jeho nabídka, o kterou kupci nestojí, nic
     nezlevní. S aspoň jednou výpravou se hýbou všechny ceny (Martin 23. 11. 2026: „Nechat bez stropu“).
+  - **Objednávka zbroje** (Rozhodnutí plánu 4, bod 15; Martin 25. 11. 2026: „Hráč zadá počet“;
+    `trade/arms-order.ts`): `VillageState.armsOrder` – kolik mečů, kroužkových košil a helem má ves
+    ještě koupit od kupců (celé kusy, chybí = nic). `setArmsOrder(state, good, amount)` ji zapíše (0
+    položku smaže, prázdná ze stavu zmizí) – jen ve vsi se zastávkou (`merchantStops` neprázdné, jinak
+    `ARMS_NO_MERCHANTS`) a jen celý nezáporný počet (`ARMS_BAD_ORDER`). V mincovní fázi dne kupců je
+    hostitel kupující `armsBuyer(state, day, visitors)`: mince vsi (i nula – mince, které týž den od
+    kupců utržil, utratit smí, kupci kupují před ním) a objednaná zbroj s `fromMerchants` – od výprav
+    ji nekoupí; bez objednávky nebo bez kupce na trhu null. Kupuje za cenu dne × hladinu, od kupců
+    v pořadí příjezdu, u každého v pořadí `ARMS_GOODS` po kusech, dokud na ně má a kupec je veze;
+    koupené přibude do `VillageState.arms`, platba do měšce kupce a odjede s ním, v kronice
+    `market-held` je `bought.swords` a `sold.coins`. Po fázi `reduceArmsOrder(state, bought)`
+    objednávku o koupené zmenší, zbytek čeká na další kupce. Přání zbroje nepatří do zápočtů,
+    `marketStance`, `nextPrices`, zakázek ani výhledů správce – jen do C a W hladiny jako seznam
+    každého kupujícího. Akce hráče: use-case `orderArms` (`application/arms-order.ts`,
+    `updateLivingVillage` – neživá ves dostane dosavadní důvod), právo `trade` (`ACTION_RIGHTS`, má ho
+    i správce cizí vsi), web `orderArmsForPlayer` (`lib/village.ts`) a server action `orderArms`
+    (`actions/market.ts`, vstup `{ villageId, good, amount }` ověří `parseArmsOrderInput`).
   - **Pobyt:** `extendMerchants(market, day)` v `marketDay` před odjezdy – kupec, kterému pobyt dnes
     končí, zůstane další den, když je na trhu aspoň `MERCHANTS.busyVisitors` výprav (bez kupců, kováře
     souseda a doprovodu partnera), nejvýš `MERCHANTS.maxStayDays` dní.

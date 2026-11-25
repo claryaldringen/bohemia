@@ -121,6 +121,8 @@ export const ACTION_RIGHTS = {
   forceDevDisaster: 'steward',
   // výprava na trh (markets.md – Pravidla 2) – obchod vsi: právo `trade` (správce ho má)
   sendMarketExpedition: 'trade',
+  // objednávka zbroje u cizích kupců (markets.md – Rozhodnutí plánu 4, bod 15) – obchod vsi
+  orderArms: 'trade',
   // vojsko a tažení (war.md) – jen držitel vlastní vsi; správce cizí vsi válčit nesmí
   planCampaign: 'war',
   launchCampaign: 'war',

@@ -735,6 +735,8 @@ export interface VillageState {
    * stezky, klientovi se nikdy neposílá.
    */
   merchantStops?: MerchantStop[];
+  /** Kolik zbroje má ves ještě koupit od cizích kupců (Rozhodnutí plánu 4, bod 15) – celé kusy; chybí = nic. */
+  armsOrder?: Partial<Record<ArmsGood, number>>;
   /**
    * Odchozí schránka vsi (markets.md – Pravidla 3, Rozhodnutí plánu 2, bod 6): zprávy pro jiné
    * vsi – příjezd výpravy na cizí trh a výsledek trhu pro výpravu, která odjela. Vsi se dopočítávají
