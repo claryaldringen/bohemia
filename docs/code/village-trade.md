@@ -497,6 +497,21 @@ day, order, target, { by?, seedKg?, alone?, service?, kin?, people? })` (mutuje 
   zásoby (`CARRIED_STOCKS` v `belongings.ts`). Zbroj je zatím jen zboží, účinek v boji bude až
   vlastní mechanikou (war.md – Výzbroj).
 
+- **Cizí kupci – plán** (markets.md – Rozhodnutí plánu 4, bod 5; `trade/merchant-plan.ts`, čísla
+  `MERCHANTS` v `rules-merchants.ts`): kupec je tržní den ve vsi u stezky, ne karavana posouvaná
+  světem – příjezdy jsou čistá funkce zastávek vsi (`MerchantStop` – seed světa a spojení, místo na
+  cestě; `trailStops`, world.md – Zastávky stezky) a roku, nic se neukládá a výsledek nezávisí na
+  kouscích dopočtu. `merchantVisits(stops, fromDay, toDay)` vrátí příjezdy dnů včetně
+  (`MerchantVisit`: `key` `merchants:<zastávka>:<rok>:<průjezd>`, `day` – první tržní den kupců)
+  seřazené podle dne, pak `key`. Spojení má `passesPerYear` = 4 průjezdy za rok; průjezd 0–3 začíná
+  1. 1. + průjezd × `passSpacingDays` (91) + los 0–59 (`passWindowDays` 60) a jede od prvního uzlu,
+  nebo zpátky (oba losy `createRandom(deriveSeed(seed, 'pass:<rok>:<průjezd>'))`), den ve vsi =
+  začátek + políčka od začátku jízdy × `daysPerCell`. Prochází jen roky, odkud průjezd mohl dojet (od
+  `fromDay` − délka cesty – poslední průjezd roku smí dojet až po Novém roce), v mezích světa (dny 0 …
+  `TOTAL_GAME_DAYS` − 1, roky 500–1499). `nextMerchantVisit(stops, fromDay)` – nejbližší příjezd, bez
+  zastávek a u konce světa null. Po ostrém spuštění se plán nemění (zlatý otisk
+  v `merchant-plan.test.ts`). Dotaz na den stojí ≈ 2 µs na zastávku.
+
 - **Nástroje a dřevěné nářadí** (markets.md – Rozhodnutí plánu 3, bod 4): `TradeGood` += `tools` /
   `woodTools` (`TRADE_GOODS` za keramikou – i pořadí zápočtu), hodnoty v `TRADE_GOOD_VALUES` 60
   a 2 kg obilí za kg, nesou se kg za kg (obnovená `CRAFT_BUYING.toolsValueKg` a

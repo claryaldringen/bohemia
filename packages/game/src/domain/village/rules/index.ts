@@ -17,6 +17,7 @@ export * from './rules-buildings';
 export * from './rules-crafts';
 export * from './rules-trade';
 export * from './rules-market';
+export * from './rules-merchants';
 export * from './rules-lord';
 export * from './rules-names';
 export * from './rules-premium';

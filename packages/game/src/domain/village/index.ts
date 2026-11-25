@@ -427,6 +427,8 @@ export {
   type MarketPlan,
   type MarketTripCheck,
 } from './trade/market-trip';
+// cizí kupci na stezkách (markets.md – Rozhodnutí plánu 4, bod 5) – plán příjezdů na zastávky vsi
+export { merchantVisits, nextMerchantVisit, type MerchantVisit } from './trade/merchant-plan';
 // okolí vsi (markets.md – Rozhodnutí plánu 3, bod 1) – snímek vsí na sousedních mapách ze schránky
 export { applyNearby, nearbyTarget, nearestNearby, nearestWith } from './trade/nearby';
 // zakázky u řemeslníka a obilí za výrobky (markets.md – Rozhodnutí plánu 3, body 5 a 6) – kroky

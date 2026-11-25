@@ -88,6 +88,14 @@ i prohlížeč). Řeky (Úloha 1), stezky a místa kostry (Úloha 2).
 a, b, riverAt)` (`ports.ts`) – hash hrany jako u řeky (soli `trailPortNS/EW`); na hraně s řekou
   los vybírá jen z políček ≥ `trailGap` od bodu řeky. `skeletonSlice` plní `trails` z `trailSides`
   a bodu řeky na téže straně.
+- **Zastávky stezky** (`trail-stops.ts`; markets.md – Rozhodnutí plánu 4, bod 5):
+  `trailPath(worldSeed, connection)` – políčka spojení (`TrailConnection` – uzel bloku a směr `E` nebo
+  `N`) od uzlu bloku k druhému uzlu v pořadí cesty, každé jednou (12–39 políček, tvar jako úseky
+  v `trails.ts`), null = spojení není. `trailStops(worldSeed, cell)` – zastávky políčka `MerchantStop`
+  (`types-market.ts`: `key` `<blok x>,<blok y>,<E|N>`, `seed` = `deriveSeed(worldSeed, 'merchants:' + key)`,
+  pořadí `index` na cestě od prvního uzlu a její délka `length`) ze spojení 3 × 3 bloků kolem, seřazené
+  podle `key`: mimo uzel jedna, uzel za každé spojení, které v něm končí, bez stezky `[]`. Jen čte graf
+  kostry – žádná nová sůl ani verze. Plán kupců ze zastávek: village-trade.md – Cizí kupci – plán.
 - **Místa** (`sites.ts`): `riverCrossings(slice)` – obvod 0–511 (S od západu, E od jihu, N od
   východu, W od severu), body řek ho dělí na oblouky, přechody = oblouky s bodem stezky − 1;
   `seatSlot(slice)` = `'dry'` (null), `'river'`, `'trail'`, `'ford'` (1 přechod), jinak null

@@ -535,3 +535,15 @@ export interface VillageReport {
   crafts: Craft[];
   traders: MarketArrivalNote[];
 }
+
+/** Zastávka dálkové stezky ve vsi – spojení, kterým vede (markets.md – Rozhodnutí plánu 4, bod 5). */
+export interface MerchantStop {
+  /** `<blok x>,<blok y>,<E|N>` – spojení uzlů kostry. */
+  key: string;
+  /** `deriveSeed(worldSeed, 'merchants:' + key)`. */
+  seed: number;
+  /** Pořadí políčka vsi na cestě od prvního uzlu (0 … `length` − 1). */
+  index: number;
+  /** Políček cesty spojení (i oba uzly). */
+  length: number;
+}
