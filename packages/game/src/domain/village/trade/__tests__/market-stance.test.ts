@@ -12,6 +12,8 @@ import { CARPENTRY, CART_IRON } from '../../rules';
 import { stewardOutlook } from '../../steward/steward-outlook';
 import type { VillageState } from '../../types';
 import { START, horse, horseVillage } from '../../__tests__/horse-fixtures';
+import { yearlyNeed } from '../../wares/hides';
+import { HONEY } from '../../rules';
 import { marketStance } from '../market-stance';
 import { villageGoodStock } from '../trade';
 import { withWorkshop } from './market-fixtures';
@@ -74,13 +76,13 @@ describe('co ves na trhu nabízí a shání (marketStance)', () => {
     expect(marketStance(s, day).wants.stone ?? 0).toBe(0);
   });
 
-  it('jídlo a zboží vsi (maso, sýr, luštěniny, med, kůže) hostitel nenabízí ani neshání', () => {
+  it('jídlo a zboží vsi (maso, sýr, luštěniny, kůže) hostitel nenabízí ani neshání', () => {
     const stocked = village(50_000);
     stocked.meatKg = 400;
     stocked.cheeseKg = 300;
     stocked.legumesKg = 200;
     stocked.wares = { honeyKg: 20, hides: 5 } as VillageState['wares'];
-    for (const g of ['meat', 'cheese', 'honey', 'legumes', 'hides'] as const) {
+    for (const g of ['meat', 'cheese', 'legumes', 'hides'] as const) {
       expect(villageGoodStock(stocked, g, day), g).toBeGreaterThan(0);
       expect(marketStance(stocked, day).offer[g] ?? 0, g).toBe(0);
       expect(marketStance(stocked, day).wants[g] ?? 0, g).toBe(0);
@@ -216,5 +218,62 @@ describe('vozy na trhu (Rozhodnutí plánu 3, bod 5)', () => {
       cartId: 2,
     };
     expect(marketStance(s, day).offer.twoWheelCarts ?? 0).toBe(0);
+  });
+});
+
+describe('med, vosk a kožešiny na trhu (marketStance – Rozhodnutí plánu 4, bod 6)', () => {
+  /** Ves s obilím nad pojistkou a zásobami zboží; kožešin `extraFurs` nad roční potřebou. */
+  function withWares(
+    extraFurs: number,
+    honeyKg = 100,
+    waxKg = 12.7,
+    storesKg = 50_000,
+  ): VillageState {
+    const s = village(storesKg);
+    const need = yearlyNeed(s, day).furs;
+    s.wares = { honeyKg, waxKg, sheepFurs: need + extraFurs - 10, wildFurs: 10, hides: 0 };
+    return s;
+  }
+
+  it('med nad roční příděl, celý vosk a kožešiny nad potřebu – celé dolů', () => {
+    const s = withWares(30);
+    expect(villageSpare(s, day).grainKg).toBeGreaterThan(0);
+    const { offer, wants } = marketStance(s, day);
+    expect(offer.honey).toBe(Math.floor(100 - HONEY.kgPerPersonYear * s.people.length));
+    expect(offer.wax).toBe(12);
+    expect(offer.furs).toBe(30);
+    expect(wants).not.toHaveProperty('honey');
+    expect(wants).not.toHaveProperty('wax');
+    expect(wants).not.toHaveProperty('furs');
+  });
+
+  it('kožešiny pod potřebou nejsou v nabídce, bez zásob zboží nic z toho', () => {
+    expect(marketStance(withWares(-5), day).offer).not.toHaveProperty('furs');
+    expect(marketStance(withWares(0), day).offer).not.toHaveProperty('furs');
+    const bare = village(50_000);
+    const { offer } = marketStance(bare, day);
+    expect(offer).not.toHaveProperty('honey');
+    expect(offer).not.toHaveProperty('wax');
+    expect(offer).not.toHaveProperty('furs');
+  });
+
+  it('med jen s obilím nad pojistkou: ves pod ní ho neprodá, vosk a kožešiny ano', () => {
+    const rich = withWares(30);
+    const reserve = grainReserveKg(rich, day, stewardOutlook(rich, day, craftCoverage(rich, day)));
+    // pod pojistkou dvou ročních potřeb, ale ne v hladu
+    const s = withWares(30, 100, 12.7, reserve * 0.95);
+    expect(villageSpare(s, day).grainKg).toBe(0);
+    const { offer } = marketStance(s, day);
+    expect(offer).not.toHaveProperty('honey');
+    expect(offer.wax).toBe(12);
+    expect(offer.furs).toBe(30);
+  });
+
+  it('nabídka nikdy nad villageGoodStock', () => {
+    const s = withWares(30);
+    const { offer } = marketStance(s, day);
+    for (const good of ['honey', 'wax', 'furs'] as const) {
+      expect(offer[good]!).toBeLessThanOrEqual(villageGoodStock(s, good, day));
+    }
   });
 });

@@ -801,14 +801,20 @@ describe('objednávka v dopočtu vsi (advanceVillage)', () => {
     const days = merchantVisits([STOP], DAY, end).map((visit) => visit.day);
     expect(days).toHaveLength(5);
     // meč za 120, po prvním nákupu hladina nad 1 (C = 240 – třetí meč kupci nevezli – + měšec kupce,
-    // W = 240) a třetí meč za 122
+    // W = 240) a třetí meč za 122; ves kupcům prodává i přebytek medu a vosku (plán 4, bod 6)
     expect(heldEvents(whole)).toEqual([
       { day: days[0], kind: 'market-held', sold: { coins: 240 }, bought: { swords: 2 } },
-      { day: days[1], kind: 'market-held', sold: { coins: 122 }, bought: { swords: 1 } },
+      {
+        day: days[1],
+        kind: 'market-held',
+        sold: { coins: 122, honey: 7 },
+        bought: { coins: 3, swords: 1 },
+      },
+      { day: days[4], kind: 'market-held', sold: { wax: 1 }, bought: { coins: 3 } },
     ]);
     expect(whole.arms).toStrictEqual({ swords: 3 });
     expect(whole).not.toHaveProperty('armsOrder');
-    expect(whole.coins).toBe(38);
+    expect(whole.coins).toBe(44);
   });
 
   it('400 dní vcelku a po kouscích dá týž stav i kroniku', () => {

@@ -216,8 +216,13 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   vozy čekající na kování `ironOrderBarsKg − ironBarsKg`. Vozy po druzích: nabídka volné vozy
   (`idleCartsOf`) nad vozy, které ves chce (`cartsWanted` = `cartTargets[druh]`, `draft.ts`), bez
   vlastního pracujícího tesaře shání jeden vůz druhu `missingCart`. Nabídku výrobků dílen a vozů
-  počítá `craftOffer(state, day)` – bez výhledu správce, levně; volá ji i `fillOrders`. Jídlo (maso, sýr, luštěniny), med, vosk,
-  kůže, kožešiny a uhlí hostitel nenabízí ani neshání. Lidi nabízí, bez kterých ves pole udrží
+  počítá `craftOffer(state, day)` – bez výhledu správce, levně; volá ji i `fillOrders`. Med, vosk a kožešiny (plán 4, Rozhodnutí 6 –
+  jen `state.wares`, nikdy ve wants, vždy celé dolů): vosk celá zásoba `waxKg`, kožešiny
+  `sheepFurs + wildFurs − yearlyNeed(…).furs` (`wares/hides.ts`), med `honeyKg − HONEY.kgPerPersonYear ×
+lidé` a jen s obilím nad pojistkou (`grainSpareKg > 0`; výhled `outlook` už ve `marketStance` je).
+  Nabídku berou i cizí kupci (`trade/merchants.ts`); roční výprava správce ji čte, ale nenaloží ji,
+  dokud ji `fitToCrew` plní obilím první (pořadí mění Úloha 9). Jídlo (maso, sýr, luštěniny), kůže
+  a uhlí hostitel nenabízí ani neshání. Lidi nabízí, bez kterých ves pole udrží
   (`peopleSpare` z `vassalage/spare.ts` – po druzích, které jde vybrat celé najednou:
   `emigrantGroups` přes všechny druhy), a shání rodiny, když je půdy víc než práce (`peopleWanted`
   – Lidé na trhu níž). Nabídka je nejvýš `villageGoodStock`,
@@ -228,7 +233,10 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `MARKET.report.round`, nejméně 5), řemesla s pracujícím řemeslníkem (`ownCraftsmanWorks`) v pořadí
   potter, smith, burner, carpenter a obchodníci z `state.market.arrivals` (`VillageMarket`) od
   nejnovějšího, nejvýš `MARKET.report.traders` – technický strop paměti vsi, ne pravidlo hry (návrh
-  Clauda).
+  Clauda; příjezd kupců je v nich bez jména a vsi se značkou `merchants`). Ves se zastávkami stezky
+  (`state.merchantStops`) ví den příštích kupců – `VillageReport.merchants` =
+  `nextMerchantVisit(stops, day).day` (≥ den zprávy; chybí bez zastávek nebo bez příjezdu do konce
+  světa).
 - **Trh ve vsi** (markets.md – Pravidla 2, 3, 5 a 8, Rozhodnutí plánu 2, body 4–7; `trade/market.ts`,
   typy `types-market.ts`). Trh drží stav hostitelské vsi (`VillageState.market` – `VillageMarket`:
   ceny `prices`, hladina `level?`, výpravy a cizí kupci na trhu `visitors` (Cizí kupci ve vsi níž),

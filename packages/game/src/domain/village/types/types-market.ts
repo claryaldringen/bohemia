@@ -540,6 +540,11 @@ export interface VillageReport {
   houses: number;
   crafts: Craft[];
   traders: MarketArrivalNote[];
+  /**
+   * Den příštího příjezdu cizích kupců (≥ den zprávy; Rozhodnutí plánu 4, bod 8); chybí = ves nemá
+   * zastávky stezky nebo žádný příjezd do konce světa.
+   */
+  merchants?: number;
 }
 
 /** Zastávka dálkové stezky ve vsi – spojení, kterým vede (markets.md – Rozhodnutí plánu 4, bod 5). */

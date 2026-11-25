@@ -3,7 +3,8 @@
 // `vassalage/spare.ts`) existuje pro makrokomodity – obilí, dobytek, koně, klády a kámen – a pro
 // výrobky dílen jejich potřeba a zásoba řemeslníků (nástroje, keramika, dřevěné nářadí, hřivny,
 // vozy – Rozhodnutí plánu 3, bod 5) a pro lidi výhled přebytku lidí a jeho obrácení (bod 10);
-// ostatní zboží (jídlo, med, kůže…) se vyměňuje jen mezi výpravami. Čisté funkce, stav nemění.
+// med, vosk a kožešiny nad potřebu domácností jdou i kupcům (Rozhodnutí plánu 4, bod 6), ostatní
+// zboží (jídlo, kůže…) se vyměňuje jen mezi výpravami. Čisté funkce, stav nemění.
 import {
   cattleSpare,
   grainOnHandKg,
@@ -26,6 +27,8 @@ import { horsesWanted } from '../livestock/horse-breeding';
 import { breedingCows, oxenCalvesWanted } from '../livestock/husbandry';
 import { oxenComing, villageOxen } from '../livestock/oxen';
 import { stewardOutlook } from '../steward/steward-outlook';
+import { HONEY } from '../rules';
+import { yearlyNeed } from '../wares/hides';
 import type { HorseGood, MarketStance, TradeGood, TradeGoods, VillageState } from '../types';
 import { CART_GOODS, HORSE_GOODS, PEOPLE_GOODS, cartGoodKind } from './goods';
 import { horsesForSale, horsesOf } from './horse-trade';
@@ -106,6 +109,23 @@ export function marketStance(state: VillageState, day: number): MarketStance {
   // obilí: nad pojistku nabízí, pod pojistkou shání
   give('grain', grainSpareKg(state, day, outlook));
   want('grain', grainReserveKg(state, day, outlook) - grainOnHandKg(state));
+
+  // vosk celý, kožešiny nad roční potřebu domácností a med nad roční příděl – ten jen s obilím nad
+  // pojistkou (jinak je celá zásoba jídlo); nic z toho ve wants (Rozhodnutí plánu 4, bod 6)
+  const wares = state.wares;
+  if (wares) {
+    give('wax', Math.floor(wares.waxKg + EPSILON));
+    give(
+      'furs',
+      Math.floor(wares.sheepFurs + wares.wildFurs - yearlyNeed(state, day).furs + EPSILON),
+    );
+    if (grainSpareKg(state, day, outlook) > 0) {
+      give(
+        'honey',
+        Math.floor(wares.honeyKg - HONEY.kgPerPersonYear * state.people.length + EPSILON),
+      );
+    }
+  }
 
   // dobytek: krávy a voli nad chovné jádro, chybějící krávy a vycvičení voli
   const cattle = cattleSpare(state, day);

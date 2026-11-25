@@ -3,7 +3,7 @@ import { createRandom } from '../../../landscape/random';
 import type { VillageEvent } from '../../core/inbox';
 import { advanceVillage } from '../../core/simulate';
 import { isVillageDormant } from '../../people/departure';
-import { MARKET, MERCHANTS } from '../../rules';
+import { HONEY, MARKET, MERCHANTS } from '../../rules';
 import type {
   ChronicleEvent,
   MarketArrival,
@@ -19,6 +19,7 @@ import { ARMS_GOODS, TRADE_GOODS } from '../goods';
 import { joinMarket, marketDay, marketResultRef } from '../market';
 import { totalGoods } from '../market-clearing';
 import { coinPriceOf, initialPrice } from '../market-prices';
+import { yearlyNeed } from '../../wares/hides';
 import { marketStance } from '../market-stance';
 import { merchantVisits, nextMerchantVisit } from '../merchant-plan';
 import { affordableWants, extendMerchants, merchantsArrive } from '../merchants';
@@ -410,6 +411,38 @@ describe('tržní den s kupci (marketDay)', () => {
     expect(allCoins(s)).toBe(PURSE - 44);
   });
 
+  it('hostitel prodá kupci med, vosk a kožešiny nad potřebu – mince přibudou jen z měšce', () => {
+    const s = host(1_000);
+    const people = s.people.length;
+    const need = yearlyNeed(s, DAY).furs;
+    s.wares = {
+      honeyKg: 20 + HONEY.kgPerPersonYear * people,
+      waxKg: 2.5,
+      sheepFurs: need + 20,
+      wildFurs: 0,
+      hides: 0,
+    };
+    merchantsArrive(s, DAY);
+    const merchant = merchantOf(s);
+    expect(allCoins(s)).toBe(PURSE);
+    // 20 kg medu za 8, 2 kg vosku za 4, 20 kožešin za 10,67 nahoru = 11
+    expect(marketDay(s, DAY)).toEqual([
+      {
+        day: DAY,
+        kind: 'market-held',
+        sold: { honey: 20, wax: 2, furs: 20 },
+        bought: { coins: 23 },
+      },
+    ]);
+    expect(s.coins).toBe(23);
+    expect(merchant.goods.coins).toBe(PURSE - 23);
+    // měšec kupce při odjezdu zmizí – ve světě zůstalo jen 23 mincí hostitele
+    expect(allCoins(s)).toBe(23);
+    expect(s.wares!.honeyKg).toBeCloseTo(HONEY.kgPerPersonYear * people, 9);
+    expect(s.wares!.waxKg).toBeCloseTo(0.5, 9);
+    expect(s.wares!.sheepFurs + s.wares!.wildFurs).toBeCloseTo(need, 9);
+  });
+
   it('kupec a hostitel sami: nic nevzniká – ves nemá co prodat a zbroj nekupuje', () => {
     const s = host(1_000);
     s.coins = 500;
@@ -784,10 +817,18 @@ describe('ceny v den kupců (marketDay)', () => {
     for (const [good, price] of Object.entries(after.market!.prices)) {
       expect(Number.isFinite(price), good).toBe(true);
     }
-    // jen zbroj na dně – ceny, které by poptávka hostitele zvedla, se ani nezapsaly
-    expect(after.market!.prices).toEqual(ARMS_PRICES);
-    expect(after.market).not.toHaveProperty('level');
-    expect(after).not.toHaveProperty('coins');
+    // zbroj na dně; ves prodává kupcům, co jí doma přebývá (med, vosk, kožešiny – plán 4, bod 6),
+    // ostatní ceny, které by poptávka hostitele zvedla, se ani nezapsaly
+    expect(after.market!.prices).toMatchObject(ARMS_PRICES);
+    expect(Object.keys(after.market!.prices).sort()).toEqual([
+      'furs',
+      'helmets',
+      'honey',
+      'mailShirts',
+      'swords',
+      'wax',
+    ]);
+    expect(after.coins).toBeGreaterThan(0);
   });
 
   /** Průjezd: cena medu (obilí) v mincích před ním, kolik kg kupec koupil a za kolik mincí. */
@@ -1043,7 +1084,8 @@ describe('kupci v dopočtu vsi (advanceVillage)', () => {
     expect(planned).toHaveLength(5);
     expect(arrivedEvents(whole).map((e) => e.day)).toEqual(planned);
     expect(whole.market!.visitors).toEqual([]);
-    expect(whole).not.toHaveProperty('coins');
+    // co ves doma vyrobí nad potřebu, prodá kupcům za mince (plán 4, bod 6)
+    expect(whole.coins).toBeGreaterThan(0);
     expect(whole).not.toHaveProperty('outbox');
   });
 
