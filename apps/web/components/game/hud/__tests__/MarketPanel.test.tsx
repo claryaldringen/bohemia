@@ -242,6 +242,18 @@ describe('nové zboží a lidé (plán 3, Úloha 11)', () => {
     expect(give('men').textContent).toContain('2');
   });
 
+  it('mince a zbroj: Dáš je ukáže, má-li je ves, Dostaneš mince nenabízí (plán 4, Úloha 1)', async () => {
+    const host = await mount({
+      market: market({ stock: { grain: 1000, coins: 12, swords: 2 } }),
+    });
+    expect(byId(host, 'market-give-coins')).not.toBeNull();
+    expect(byId(host, 'market-give-swords')).not.toBeNull();
+    expect(byId(host, 'market-want-coins')).toBeNull();
+    for (const good of ['swords', 'mailShirts', 'helmets']) {
+      expect(byId(host, `market-want-${good}`)).not.toBeNull();
+    }
+  });
+
   it('zpráva ukáže kováře jako kováře, ne obchodníka s hřivnami', async () => {
     const host = await mount({
       villages: [

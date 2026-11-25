@@ -447,6 +447,17 @@ day, order, target, { by?, seedKg?, alone?, service?, kin?, people? })` (mutuje 
   (`ensureWares`). Názvy a ikony: `TRADE_GOOD_NAMES` (`trade-names.ts`); kronika je bere
   z `goodsText`.
 
+- **Mince a zbroj** (markets.md – Rozhodnutí plánu 4, body 1 a 7): `TradeGood` += `ArmsGood`
+  (`swords`, `mailShirts`, `helmets`; `ARMS_GOODS`, `isArmsGood`) a `coins` (`COIN_GOOD`), obojí
+  v `TRADE_GOODS` a `PIECE_GOODS` za voskem před lidmi – celé kusy. Stav vsi: `VillageState.coins`
+  a `arms` (chybí = nic). `villageGoodStock` je čte po celých kusech, `addGood` je nikdy nedá pod 0
+  a nulu ze stavu smaže (i prázdné `arms`). Hodnoty v `TRADE_GOOD_VALUES`: mince
+  `MARKET.grainKgPerCoin` a `carryKg` 0 (nosiče nepřidají), meč 1 800, kroužková košile 7 200,
+  helma 3 600 kg obilí (nosnost 1,5, 12 a 1,5 kg). `withoutCoins` vrátí zboží bez mincí;
+  `MarketPanel` je do „Dostaneš“ nenabízí. Mince a zbroj bere odchod celé vsi jako ostatní
+  zásoby (`CARRIED_STOCKS` v `belongings.ts`). Zbroj je zatím jen zboží, účinek v boji bude až
+  vlastní mechanikou (war.md – Výzbroj).
+
 - **Nástroje a dřevěné nářadí** (markets.md – Rozhodnutí plánu 3, bod 4): `TradeGood` += `tools` /
   `woodTools` (`TRADE_GOODS` za keramikou – i pořadí zápočtu), hodnoty v `TRADE_GOOD_VALUES` 60
   a 2 kg obilí za kg, nesou se kg za kg (obnovená `CRAFT_BUYING.toolsValueKg` a

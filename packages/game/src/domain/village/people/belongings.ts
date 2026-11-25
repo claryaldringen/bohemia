@@ -14,13 +14,15 @@ import type { Cart, HayState, Horse, Ox, VillageState, WaresState } from '../typ
 /**
  * Zásoby a vybavení vsi, které si celá ves odnese – části stavu mimo jídlo a osivo (`Settlers.food`,
  * `seedKg`), zvířata a vozy: nástroje domácností, rádla, zboží řemesel, kůže, kožešiny, med a vosk,
- * seno a sláma, snopy (nesou se nevymlácené, i s prací výmlatu). Jediný seznam – nové zboží sem.
+ * mince a zbroj, seno a sláma, snopy (nesou se nevymlácené, i s prací výmlatu). Jediný seznam – nové zboží sem.
  */
 export const CARRIED_STOCKS = [
   'toolEquipmentKg',
   'ards',
   'crafts',
   'wares',
+  'coins',
+  'arms',
   'hay',
   'sheaves',
 ] as const satisfies readonly (keyof VillageState)[];

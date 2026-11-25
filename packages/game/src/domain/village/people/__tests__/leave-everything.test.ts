@@ -127,6 +127,9 @@ function richVillage(): VillageState {
     need: { hides: 1, furs: 2 },
     curing: [{ doneDay: DAY + 20, hides: 1, furs: 2 }],
   };
+  // mince a zbroj (markets.md – Rozhodnutí plánu 4, bod 1 a 7)
+  s.coins = 37;
+  s.arms = { swords: 3, helmets: 2 };
   s.hay = { kg: 900, mowing: null, mowCapacityKg: 5000, straw: { kg: 150, yearKg: 400 } };
   s.livestock = {
     ...s.livestock,
@@ -196,6 +199,8 @@ function inventory(v: VillageState): Record<string, unknown> {
     furs: [wares?.sheepFurs ?? 0, wares?.wildFurs ?? 0],
     honeyKg: wares?.honeyKg ?? 0,
     waxKg: wares?.waxKg ?? 0,
+    coins: v.coins ?? 0,
+    arms: v.arms ?? {},
     curing: wares?.curing ?? [],
     waresNeed: wares?.need ?? null,
     hayKg: v.hay?.kg ?? 0,
@@ -232,6 +237,8 @@ const NOTHING: Record<string, unknown> = {
   furs: [0, 0],
   honeyKg: 0,
   waxKg: 0,
+  coins: 0,
+  arms: {},
   curing: [],
   waresNeed: null,
   hayKg: 0,

@@ -5,6 +5,7 @@
 import type {
   CartGood,
   CartKind,
+  ArmsGood,
   CattleGood,
   Craft,
   HorseGood,
@@ -12,7 +13,19 @@ import type {
   OrderGood,
   PeopleGood,
   TradeGood,
+  TradeGoods,
 } from '../types';
+
+/** Zbroj v obchodu v pořadí panelu (markets.md – Rozhodnutí plánu 4, bod 7). */
+export const ARMS_GOODS: readonly ArmsGood[] = ['swords', 'mailShirts', 'helmets'];
+
+/** Je zboží zbroj (meče, kroužkové košile, helmy)? */
+export function isArmsGood(good: TradeGood): good is ArmsGood {
+  return (ARMS_GOODS as readonly string[]).includes(good);
+}
+
+/** Mince jako zboží (markets.md – Rozhodnutí plánu 4, bod 1): kusy, celé. */
+export const COIN_GOOD = 'coins' as const;
 
 /** Druhy dobytka v obchodu v pořadí panelu (trade.md – Dobytek ve třech druzích). */
 export const CATTLE_GOODS: readonly CattleGood[] = ['cows', 'youngOxen', 'trainedOxen'];
@@ -93,11 +106,14 @@ export const TRADE_GOODS: readonly TradeGood[] = [
   'hides',
   'furs',
   'wax',
+  ...ARMS_GOODS,
+  COIN_GOOD,
   ...PEOPLE_GOODS,
 ];
 
 /**
- * Kusové zboží v pořadí panelu – dobytek, koně, klády, vozy, kámen (m³), kůže, kožešiny a lidé
+ * Kusové zboží v pořadí panelu – dobytek, koně, klády, vozy, kámen (m³), kůže, kožešiny, zbroj,
+ * mince a lidé
  * (jednotky jako `TRADE_GOOD_NAMES` ve webu: kusy a m³); ostatní zboží je v kg. Na trhu se prodává
  * jen po celých kusech, kg se dělí libovolně (markets.md – Rozhodnutí plánu 2, bod 4).
  */
@@ -109,8 +125,20 @@ export const PIECE_GOODS: readonly TradeGood[] = [
   'stone',
   'hides',
   'furs',
+  ...ARMS_GOODS,
+  COIN_GOOD,
   ...PEOPLE_GOODS,
 ];
+
+/** Kopie zboží bez mincí, jen kladné položky v pořadí `TRADE_GOODS`. */
+export function withoutCoins(goods: TradeGoods): TradeGoods {
+  const out: TradeGoods = {};
+  for (const good of TRADE_GOODS) {
+    const amount = goods[good] ?? 0;
+    if (good !== COIN_GOOD && amount > 0) out[good] = amount;
+  }
+  return out;
+}
 
 /** Je zboží kusové (kusy nebo m³, ne kg)? */
 export function isPieceGood(good: TradeGood): boolean {

@@ -69,7 +69,7 @@ import type {
   VillageNearby,
   VillageNews,
 } from './types-market';
-import type { CraftPurchase, VillageTrade } from './types-trade';
+import type { ArmsGood, CraftPurchase, VillageTrade } from './types-trade';
 import type { WildlifeState } from './types-wildlife';
 import type { DisasterState } from './types-disasters';
 
@@ -458,6 +458,10 @@ export interface VillageState {
   wildlife?: WildlifeState;
   /** zboží vsi – kůže, kožešiny, med a vosk (hides-honey.md); vzniká líně, chybí = 0 */
   wares?: WaresState;
+  /** Mince vsi – celé kusy (markets.md – Rozhodnutí plánu 4, bod 1); chybí = žádné. */
+  coins?: number;
+  /** Zbroj vsi po kusech (bod 7, jen zboží – účinek v boji až vlastní mechanikou, war.md – Výzbroj); chybí = žádná. */
+  arms?: Partial<Record<ArmsGood, number>>;
   /**
    * Kopie seedu počasí kraje – mapy (disasters.md – Kraj a ochrana nové vsi): všechny vsi mapy
    * počítají z něj totéž počasí samy (`yearWeather`). Dá ho server při načtení (`withWeatherSeed`);

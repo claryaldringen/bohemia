@@ -35,6 +35,9 @@ export type CartGood = 'twoWheelCarts' | 'fourWheelCarts';
  */
 export type PeopleGood = 'families' | 'men' | 'women';
 
+/** Zbroj na trhu po kusech (markets.md – Rozhodnutí plánu 4, bod 7): meče, kroužkové košile, helmy. */
+export type ArmsGood = 'swords' | 'mailShirts' | 'helmets';
+
 /**
  * Zboží obchodu (trade.md – Sousedé): jen to, co ves sama má – obilí, maso, sýr, luštěniny (kg),
  * dobytek (kusy – krávy, mladí a vycvičení voli – `CattleGood`), klády (kusy), keramika, železné
@@ -65,6 +68,8 @@ export type TradeGood =
   | 'hides'
   | 'furs'
   | 'wax'
+  | ArmsGood
+  | 'coins'
   | PeopleGood;
 
 /** Množství zboží (jen uvedené druhy, kg nebo kusy podle druhu). */

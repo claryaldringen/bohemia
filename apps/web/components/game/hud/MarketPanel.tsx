@@ -3,6 +3,7 @@
 import { useMemo, useState, type ReactElement, type ReactNode } from 'react';
 import {
   dateOfDayIndex,
+  COIN_GOOD,
   MARKET,
   TRADE_GOODS,
   type Craft,
@@ -448,7 +449,8 @@ export function MarketPanel({
             ))}
           </Column>
           <Column side="want">
-            {TRADE_GOODS.map((g) => (
+            {/* mince se na seznam nedávají (markets.md – Rozhodnutí plánu 4, bod 1) */}
+            {TRADE_GOODS.filter((g) => g !== COIN_GOOD).map((g) => (
               <GoodRow
                 key={g}
                 side="want"

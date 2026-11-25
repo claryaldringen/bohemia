@@ -142,6 +142,12 @@ export function villageGoodStock(
     case 'furs':
       // kožešiny z lovu a ovčí dohromady
       return Math.floor((state.wares?.sheepFurs ?? 0) + (state.wares?.wildFurs ?? 0) + EPSILON);
+    case 'coins':
+      return Math.floor((state.coins ?? 0) + EPSILON);
+    case 'swords':
+    case 'mailShirts':
+    case 'helmets':
+      return Math.floor(state.arms?.[good] ?? 0);
   }
 }
 
@@ -282,6 +288,24 @@ export function addGood(state: VillageState, good: TradeGood, amount: number, da
       const fromWild = Math.min(wares.wildFurs, -amount);
       wares.wildFurs -= fromWild;
       wares.sheepFurs = Math.max(0, wares.sheepFurs - (-amount - fromWild));
+      return;
+    }
+    case 'coins': {
+      // celé kusy, nikdy pod 0; nula ze stavu zmizí (markets.md – Rozhodnutí plánu 4, bod 1)
+      const next = Math.max(0, (state.coins ?? 0) + amount);
+      if (next > 0) state.coins = next;
+      else delete state.coins;
+      return;
+    }
+    case 'swords':
+    case 'mailShirts':
+    case 'helmets': {
+      const next = Math.max(0, (state.arms?.[good] ?? 0) + amount);
+      if (next > 0) (state.arms ??= {})[good] = next;
+      else if (state.arms) {
+        delete state.arms[good];
+        if (Object.keys(state.arms).length === 0) delete state.arms;
+      }
     }
   }
 }
