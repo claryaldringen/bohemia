@@ -15,6 +15,13 @@ export function formatDecimal(value: number, decimals: number): string {
   return value.toFixed(decimals).replace('.', ',');
 }
 
+/** Cena v mincích – „0,53“, „1,1“, „120“: pod minci na dvě desetinná místa, celá bez desetin. */
+export function formatCoinPrice(price: number): string {
+  if (price < 1) return formatDecimal(price, 2);
+  const text = formatDecimal(price, 1);
+  return text.endsWith(',0') ? formatInteger(price) : text;
+}
+
 /** Tvar podstatného jména podle celého čísla: 1 / 2–4 / 0 a 5+. */
 export function plural(count: number, one: string, few: string, many: string): string {
   const n = Math.abs(Math.round(count));

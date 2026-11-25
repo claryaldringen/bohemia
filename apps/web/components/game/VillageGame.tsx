@@ -544,6 +544,7 @@ export function VillageGame({
                 noticeHistory={noticeHistory}
                 onSelectVillage={switchVillage}
                 onSendMarket={commands.sendMarket}
+                onOrderArms={commands.orderArms}
               />
               {view?.journey && <JourneyBanner journey={view.journey} />}
               {view?.pendingDeparture && !view.journey && (

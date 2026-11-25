@@ -2,9 +2,17 @@
 import { createRoot, type Root } from 'react-dom/client';
 import { act } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { MarketOrder, MarketVillage, TradePeople } from '@bohemia/game';
+import {
+  dayIndexOf,
+  type ArmsGood,
+  type MarketOrder,
+  type MarketVillage,
+  type TradePeople,
+} from '@bohemia/game';
 import type { VillageManor } from '@/lib/manor-view';
+import type { VillageRightsView } from '@/lib/village-view-types';
 import { MarketPanel } from '../MarketPanel';
+import { RightsProvider } from '../rights';
 import { MARKET_PEOPLE_DELAY_MS, type MarketPeopleAnswer } from '../use-market-people';
 
 // Panel Trh (markets.md – Pravidla 8 a 9): přehled vsí, zpráva na pivo, sestavení výpravy
@@ -46,6 +54,8 @@ interface MountProps {
   market?: VillageManor['market'];
   onSend?: (id: string, order: MarketOrder) => Promise<string | null>;
   onPeople?: (people: TradePeople) => Promise<MarketPeopleAnswer>;
+  onOrderArms?: (good: ArmsGood, amount: number) => Promise<string | null>;
+  rights?: VillageRightsView | null;
 }
 
 /** Server odpoví, že odejdou všichni vybraní a volných dospělých je dost. */
@@ -55,14 +65,17 @@ const allLeave = (people: TradePeople): Promise<MarketPeopleAnswer> =>
 async function render(props: MountProps): Promise<void> {
   await act(async () => {
     mounted!.root.render(
-      <MarketPanel
-        villages={props.villages ?? [village()]}
-        error={props.error ?? null}
-        market={props.market ?? market()}
-        onSend={props.onSend ?? (() => Promise.resolve(null))}
-        onPeople={props.onPeople ?? allLeave}
-        onClose={() => undefined}
-      />,
+      <RightsProvider value={props.rights ?? null}>
+        <MarketPanel
+          villages={props.villages ?? [village()]}
+          error={props.error ?? null}
+          market={props.market ?? market()}
+          onSend={props.onSend ?? (() => Promise.resolve(null))}
+          onPeople={props.onPeople ?? allLeave}
+          onOrderArms={props.onOrderArms ?? (() => Promise.resolve(null))}
+          onClose={() => undefined}
+        />
+      </RightsProvider>,
     );
   });
 }
@@ -255,6 +268,13 @@ describe('nové zboží a lidé (plán 3, Úloha 11)', () => {
     for (const good of ['swords', 'mailShirts', 'helmets']) {
       expect(byId(host, `market-want-${good}`)).not.toBeNull();
     }
+    // mince po jedné, nejvýš kolik ves má; popisek je jen „Mince“ (kusů se u mincí neříká)
+    const coins = byId(host, 'market-give-coins')!;
+    expect(coins.querySelector('[role="tooltip"]')!.textContent).toBe('Mince');
+    expect(coins.querySelector('img[src="/icons/resources/coin.png"]')).not.toBeNull();
+    await click(byId(host, 'market-give-coins-plus'));
+    expect(byId(host, 'market-give-coins')!.textContent).toContain('1');
+    expect(byId(host, 'market-give-swords')!.textContent).toContain('Meče (ks)');
   });
 
   it('zpráva ukáže kováře jako kováře, ne obchodníka s hřivnami', async () => {
@@ -388,6 +408,262 @@ describe('lidé na prodej – náhled se doptá serveru (plán 3, Úloha 11, opr
     expect(onPeople).toHaveBeenCalledTimes(2);
     expect(onPeople).toHaveBeenLastCalledWith({ families: 0, men: 1, women: 0 });
     expect(byId(host, 'market-preview')).not.toBeNull();
+  });
+});
+
+describe('ceny s hladinou a kupci ve zprávě (plán 4)', () => {
+  const lhota = (news: Partial<NonNullable<MarketVillage['news']>>): MarketVillage =>
+    village({
+      news: {
+        villageId: 'v-lhota',
+        name: 'Lhota',
+        report: { day: 5, people: 40, houses: 10, crafts: [], traders: [] },
+        ...news,
+      },
+    });
+  const report = async (
+    news: Partial<NonNullable<MarketVillage['news']>>,
+    today = 10,
+  ): Promise<HTMLElement> => {
+    const host = await mount({ villages: [lhota(news)], market: market({ day: today }) });
+    await click(host.querySelector('[data-testid="market-village"] button'));
+    return byId(host, 'market-report')!;
+  };
+  /** Cena u ikony zboží v řádku cen. */
+  const price = (el: HTMLElement, icon: string): string | undefined =>
+    [...el.querySelectorAll('[data-testid="market-prices"] > span')]
+      .find((s) => s.querySelector(`img[src="/icons/resources/${icon}.png"]`))
+      ?.lastChild?.textContent?.trim();
+  const traders = [
+    { name: 'Dolany', day: 4, goods: ['grain' as const] },
+    { name: '', day: 5, goods: ['swords' as const, 'helmets' as const], merchants: true as const },
+    { name: '', day: 3, goods: ['logs' as const] },
+  ];
+
+  it('cena v mincích je cena trhu × hladina ze zprávy; chybí-li, hladina 1', async () => {
+    const doubled = await report({ prices: { furs: 8 / 15, swords: 120 }, level: 2 });
+    expect(price(doubled, 'fur')).toBe('1,1');
+    expect(price(doubled, 'sword')).toBe('240');
+  });
+
+  it('bez hladiny jsou ceny jako dřív', async () => {
+    const plain = await report({ prices: { furs: 8 / 15, swords: 120 } });
+    expect(price(plain, 'fur')).toBe('0,53');
+    expect(price(plain, 'sword')).toBe('120');
+  });
+
+  it('obchodník s příznakem kupců je „Kupci“ s ikonou, bez jména „Sousední ves“', async () => {
+    const el = await report({ report: { day: 5, people: 40, houses: 10, crafts: [], traders } });
+    const rows = [...el.querySelectorAll('[data-testid="market-trader"]')];
+    expect(rows).toHaveLength(3);
+    expect(rows[0]?.textContent).toContain('Dolany');
+    expect(rows[0]?.querySelector('img[src="/icons/resources/merchants.png"]')).toBeNull();
+    expect(rows[1]?.textContent).toContain('Kupci');
+    expect(rows[1]?.textContent).not.toContain('Sousední ves');
+    expect(rows[1]?.querySelector('img[src="/icons/resources/merchants.png"]')).not.toBeNull();
+    expect(rows[1]?.querySelector('img[src="/icons/resources/sword.png"]')).not.toBeNull();
+    // obchodník bez jména (cizí správce jméno vsi nesmí znát) zůstává sousední ves
+    expect(rows[2]?.textContent).toContain('Sousední ves');
+  });
+
+  it('den příštích kupců stojí nad obchodníky; bez něj nic', async () => {
+    const merchants = dayIndexOf({ year: 500, month: 8, day: 12 });
+    const el = await report({
+      report: { day: 5, people: 40, houses: 10, crafts: [], traders, merchants },
+    });
+    const next = byId(el, 'market-report-merchants')!;
+    expect(next.textContent).toContain('Kupci přijedou 12. 8.');
+    expect(next.querySelector('img[src="/icons/resources/merchants.png"]')).not.toBeNull();
+    const first = el.querySelector('[data-testid="market-trader"]')!;
+    expect(next.compareDocumentPosition(first) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
+  });
+
+  it('bez dne příštích kupců ve zprávě řádek chybí', async () => {
+    const el = await report({ report: { day: 5, people: 40, houses: 10, crafts: [], traders } });
+    expect(byId(el, 'market-report-merchants')).toBeNull();
+    expect(el.textContent).not.toContain('přijedou');
+  });
+
+  it('den ze staré zprávy, který už minul, se neukáže', async () => {
+    const merchants = dayIndexOf({ year: 500, month: 8, day: 12 });
+    const news = { report: { day: 5, people: 40, houses: 10, crafts: [], traders: [], merchants } };
+    expect(byId(await report(news, merchants + 1), 'market-report-merchants')).toBeNull();
+  });
+});
+
+describe('zbroj od kupců ve vlastní vsi (plán 4 – Rozhodnutí 15)', () => {
+  const arms = (
+    ordered: Partial<Record<ArmsGood, number>> = {},
+  ): VillageManor['market']['arms'] => [
+    { good: 'swords', price: 120, ordered: ordered.swords ?? 0 },
+    { good: 'mailShirts', price: 480, ordered: ordered.mailShirts ?? 0 },
+    { good: 'helmets', price: 252.5, ordered: ordered.helmets ?? 0 },
+  ];
+  const merchantsDay = dayIndexOf({ year: 500, month: 8, day: 12 });
+  const atTrail = (
+    ordered: Partial<Record<ArmsGood, number>> = {},
+    over: Partial<VillageManor['market']> = {},
+  ): VillageManor['market'] => market({ merchantsDay, arms: arms(ordered), ...over });
+  const item = (host: HTMLElement, good: ArmsGood): HTMLElement =>
+    byId(host, `market-arms-${good}`)!;
+  const count = (host: HTMLElement, good: ArmsGood): string =>
+    byId(host, `market-arms-${good}-count`)!.textContent;
+  const plus = (host: HTMLElement, good: ArmsGood): HTMLButtonElement =>
+    byId(host, `market-arms-${good}-plus`) as HTMLButtonElement;
+  const minus = (host: HTMLElement, good: ArmsGood): HTMLButtonElement =>
+    byId(host, `market-arms-${good}-minus`) as HTMLButtonElement;
+
+  /** Odpovědi serveru, které test splní sám. */
+  function answers(): {
+    onOrderArms: ReturnType<typeof vi.fn<(good: ArmsGood, n: number) => Promise<string | null>>>;
+    resolve: (index: number, reason: string | null) => Promise<void>;
+  } {
+    const pending: ((reason: string | null) => void)[] = [];
+    return {
+      onOrderArms: vi.fn<(good: ArmsGood, n: number) => Promise<string | null>>(
+        () => new Promise((r) => pending.push(r)),
+      ),
+      resolve: async (index, reason) => {
+        await act(async () => pending[index]!(reason));
+      },
+    };
+  }
+
+  it('sekce je jen s neprázdnou nabídkou zbroje (ves u stezky)', async () => {
+    const host = await mount({ market: market() });
+    expect(byId(host, 'market-arms')).toBeNull();
+    expect(host.textContent).not.toContain('Kupci');
+    await render({ market: atTrail() });
+    expect(byId(host, 'market-arms')).not.toBeNull();
+  });
+
+  it('ikona zboží, cena v mincích, objednaný počet a den kupců; slova jen v popisku', async () => {
+    const host = await mount({ market: atTrail({ swords: 2 }) });
+    const swords = item(host, 'swords');
+    expect(swords.querySelector('img[src="/icons/resources/sword.png"]')).not.toBeNull();
+    expect(swords.querySelector('img[src="/icons/resources/coin.png"]')).not.toBeNull();
+    expect(swords.textContent).toContain('120');
+    expect(count(host, 'swords')).toBe('2');
+    const tooltip = (good: ArmsGood): string | null | undefined =>
+      item(host, good).querySelector('[role="tooltip"]')?.textContent;
+    expect(tooltip('swords')).toBe('Meče – ves je koupí od kupců za své mince');
+    expect(tooltip('mailShirts')).toBe('Kroužkové košile – ves je koupí od kupců za své mince');
+    expect(tooltip('helmets')).toBe('Helmy – ves je koupí od kupců za své mince');
+    expect(item(host, 'helmets').textContent).toContain('252,5');
+    expect(count(host, 'mailShirts')).toBe('0');
+    expect(minus(host, 'mailShirts').disabled).toBe(true);
+    const date = byId(host, 'market-arms-date')!;
+    expect(date.querySelector('img[src="/icons/resources/date.png"]')).not.toBeNull();
+    expect(date.textContent).toContain('12. 8.');
+    expect(date.querySelector('[role="tooltip"]')!.textContent).toBe('Kupci přijedou 12. 8.');
+  });
+
+  it('přijíždějí-li dnes, popisek říká, že jsou ve vsi; bez příjezdu do konce světa datum chybí', async () => {
+    const host = await mount({ market: atTrail({}, { day: merchantsDay }) });
+    expect(byId(host, 'market-arms-date')!.textContent).toContain('Kupci jsou dnes ve vsi');
+    await render({ market: atTrail({}, { merchantsDay: null }) });
+    expect(byId(host, 'market-arms-date')).toBeNull();
+    expect(byId(host, 'market-arms')).not.toBeNull();
+  });
+
+  it('změna počtu pošle objednávku; nula ji zruší', async () => {
+    const onOrderArms = vi.fn(() => Promise.resolve(null));
+    const host = await mount({ market: atTrail({ helmets: 1 }), onOrderArms });
+    await click(plus(host, 'swords'));
+    expect(onOrderArms).toHaveBeenLastCalledWith('swords', 1);
+    await click(minus(host, 'helmets'));
+    expect(onOrderArms).toHaveBeenLastCalledWith('helmets', 0);
+    expect(onOrderArms).toHaveBeenCalledTimes(2);
+  });
+
+  it('rychlé klikání: změny jdou v pořadí a ukazuje se poslední naklikaný počet, pak ten ze serveru', async () => {
+    const { onOrderArms, resolve } = answers();
+    const props = { market: atTrail(), onOrderArms };
+    const host = await mount(props);
+    for (let i = 0; i < 3; i++) await click(plus(host, 'swords'));
+    await click(minus(host, 'swords'));
+    expect(onOrderArms.mock.calls).toEqual([
+      ['swords', 1],
+      ['swords', 2],
+      ['swords', 3],
+      ['swords', 2],
+    ]);
+    expect(count(host, 'swords')).toBe('2');
+    // odpovědi starších změn (a jejich pohled na ves) poslední počet nepřepíšou
+    await resolve(0, null);
+    await render({ ...props, market: atTrail({ swords: 1 }) });
+    expect(count(host, 'swords')).toBe('2');
+    await resolve(1, null);
+    await resolve(2, null);
+    await render({ ...props, market: atTrail({ swords: 3 }) });
+    expect(count(host, 'swords')).toBe('2');
+    await render({ ...props, market: atTrail({ swords: 2 }) });
+    await resolve(3, null);
+    expect(count(host, 'swords')).toBe('2');
+    // po poslední odpovědi platí server – třeba když kupci mezitím kus prodali
+    await render({ ...props, market: atTrail({ swords: 1 }) });
+    expect(count(host, 'swords')).toBe('1');
+  });
+
+  it('druhy zbroje se neovlivňují', async () => {
+    const { onOrderArms, resolve } = answers();
+    const host = await mount({ market: atTrail(), onOrderArms });
+    await click(plus(host, 'swords'));
+    await click(plus(host, 'helmets'));
+    await resolve(0, null);
+    expect(count(host, 'helmets')).toBe('1');
+    expect(count(host, 'swords')).toBe('0');
+  });
+
+  it('odmítnutí ukáže důvod u sekce a vrátí počet ze serveru; další změna důvod smaže', async () => {
+    const { onOrderArms, resolve } = answers();
+    const host = await mount({ market: atTrail({ swords: 1 }), onOrderArms });
+    await click(plus(host, 'swords'));
+    expect(count(host, 'swords')).toBe('2');
+    await resolve(0, 'Do téhle vsi cizí kupci nejezdí.');
+    expect(byId(host, 'market-arms-error')!.textContent).toBe('Do téhle vsi cizí kupci nejezdí.');
+    expect(byId(host, 'market-error')).toBeNull();
+    expect(count(host, 'swords')).toBe('1');
+    await click(plus(host, 'helmets'));
+    expect(byId(host, 'market-arms-error')).toBeNull();
+  });
+
+  it('odmítnutá starší změna nic neohlásí, rozhoduje poslední', async () => {
+    const { onOrderArms, resolve } = answers();
+    const host = await mount({ market: atTrail(), onOrderArms });
+    await click(plus(host, 'swords'));
+    await click(plus(host, 'swords'));
+    await resolve(0, 'Spojení se serverem selhalo.');
+    expect(byId(host, 'market-arms-error')).toBeNull();
+    expect(count(host, 'swords')).toBe('2');
+    await resolve(1, null);
+    expect(byId(host, 'market-arms-error')).toBeNull();
+  });
+
+  it('bez práva obchodu je sekce zašedlá s důvodem', async () => {
+    const onOrderArms = vi.fn(() => Promise.resolve(null));
+    const host = await mount({
+      market: atTrail({ swords: 1 }),
+      onOrderArms,
+      rights: { allowed: [], reason: 'Rozhoduje Bořivoj.' },
+    });
+    for (const good of ['swords', 'mailShirts', 'helmets'] as const) {
+      expect(plus(host, good).disabled).toBe(true);
+      expect(minus(host, good).disabled).toBe(true);
+      expect(item(host, good).querySelector('[data-testid="rights-reason"]')!.textContent).toBe(
+        'Rozhoduje Bořivoj.',
+      );
+    }
+    await click(plus(host, 'swords'));
+    expect(onOrderArms).not.toHaveBeenCalled();
+    // s právem je volná
+    await render({
+      market: atTrail({ swords: 1 }),
+      onOrderArms,
+      rights: { allowed: ['trade'], reason: null },
+    });
+    expect(plus(host, 'swords').disabled).toBe(false);
+    expect(minus(host, 'swords').disabled).toBe(false);
   });
 });
 

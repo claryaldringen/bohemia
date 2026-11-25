@@ -55,6 +55,7 @@ const residentsOf = (ages: number[]): DwellingResident[] =>
 
 const manor: VillageManor = {
   dwellingId: 3,
+  // ves u stezky – za 12 dní přijedou kupci
   market: {
     stock: {},
     homeCarts: [],
@@ -62,8 +63,8 @@ const manor: VillageManor = {
     adults: 0,
     day: 0,
     trips: [],
-    merchantsDay: null,
-    arms: [],
+    merchantsDay: 12,
+    arms: [{ good: 'swords', price: 120, ordered: 1 }],
     merchantsArrived: null,
   },
   stance: 'flee',
@@ -241,6 +242,16 @@ export const DEV_PANELS: readonly {
       residents: residentsOf([63, 41, 38, 35, 33, 29, 26, 14, 11, 8, 5, 1]),
       rebuild: { progress: 0.3, type: 'dvorec', treesToFell: 7 },
       manor,
+      // zboží, mince a zbroj vsi (hides-honey.md; markets.md – Rozhodnutí plánu 4, bod 12)
+      wares: {
+        hides: 12,
+        furs: 34,
+        sheepFurs: 9,
+        honeyKg: 21,
+        waxKg: 3,
+        coins: 1240,
+        arms: { swords: 2, mailShirts: 1, helmets: 2 },
+      },
       // výrobky řemeslníků (crafts.md; markets.md – Pravidla 1): nástroje a keramiku ves nemá od
       // koho (zašedlé), dřevěné nářadí od vlastního tesaře; nákup ze starší vsi ještě na cestě
       buying: {

@@ -332,7 +332,8 @@ villageId)`. Z levných otisků (`stampsOf` – `last_day`, `asleep`) se dopočt
   háj zůstane stát; když umístění nejde, místo ceny krátký červený důvod). Kromě důvodu a varování u kurzoru žádná slova ani souhrny – **výjimka:** v panelu obchodu dvě
   hlavičky sloupců „Dáš“ a „Dostaneš“ (se šipkou ze vsi ven / do vsi, jako „Prodat“ a „Koupit“
   v 0 A.D. – Martin 19. 10. 2026, trade.md – Rozhraní). Popisky = `hud/Tooltip.tsx`, jeden krátký
-  název (u staveb i cena). Vzhled panelů: třídy `hud-*` v `app/globals.css` (tlačítko se slovy
+  název (u staveb i cena); popisek ukáže jen jeho vlastní obal, takže popisky uvnitř jiného se neukážou
+  naráz. Vzhled panelů: třídy `hud-*` v `app/globals.css` (tlačítko se slovy
   `hud-button`). Komponenty se testují statickým renderem (`react-dom/server`, JSX převádí
   `vitest.config.ts`) – panel bez stavu zvlášť (`GameMenuPanel`). Ikony
   `public/icons/build/` a `public/icons/resources/`. Panely, nad kterými se krajina neposouvá
@@ -1302,7 +1303,8 @@ plní `manorView` (`stanceOf`), volba jde přes server action `setDefenseStance`
   zpráva `market-report` vybrané vsi (lidé a domy „≈ N“, řemesla, obchodníci, ceny; Tooltip „Zpráva z
   {datum}“; bez zprávy „?“, jen z výjezdů domy a řemesla), sloupce „Dáš“ (`market-give-<good>`, jen
   zboží ve skladu, nejvýš tolik, kolik ves má) a „Dostaneš“ (`market-want-<good>`) s `-minus` /
-  `-plus` (kg po 100, kusy a m³ po 1), `market-stay` (dny na trhu, nejméně 1), `market-preview`
+  `-plus` a číslem `-count` (`Stepper`, `hud/Stepper.tsx`; kg po 100, kusy a m³ po 1), `market-stay`
+  (dny na trhu, nejméně 1), `market-preview`
   (nosiči, vozy, dny pryč z `marketPreview`), `market-send` (Tooltip „Vyslat výpravu“ nebo důvod
   z náhledu, bez vsi „Vyber ves.“), `market-error` (důvod od serveru do změny výběru) a
   `market-trip` (výprava na cestě – jméno vsi, ikona fáze, dny do návratu).
@@ -1356,6 +1358,44 @@ plní `manorView` (`stanceOf`), volba jde přes server action `setDefenseStance`
   `MarketPanel.test.tsx`, `SelectionPanel.test.tsx`, `use-panels.behavior.test.tsx`,
   `market-trip-people.test.ts` (jádro – rovnost s dřívějším modelem na vsích s rodinami); e2e
   `e2e/market.spec.ts` (nástroje a muž v „Dáš“, odeslání, kronika ve stavu).
+
+## Mince, kupci a zbroj v rozhraní (markets.md – Rozhodnutí plánu 4, body 3, 8, 12 a 15; Úloha 14)
+
+- **Pohledy** (web nic nepočítá, seed zastávky klientovi nejde – jen dny): `WaresView.coins` a `arms`
+  (`summary.ts`, `waresView` – jen kladné, i ve vsi bez `wares`), `VillageManor.market` (`merchantsField`
+  v `lib/manor-view.ts`): `merchantsDay` – den příštího příjezdu kupců (dnešek jen v den příjezdu; null =
+  ves bez stezky), `arms` – zbroj s cenou dne v mincích (`coinPriceOf` s hladinou trhu) a objednaným počtem
+  (jen u vsi se zastávkou kupců, jinak prázdné), `merchantsArrived` – den posledního příjezdu.
+- **Zásoby dvorce** – `WaresStock` (`selection/wares.tsx`): mince a každý druh zbroje ikonou s celým
+  číslem (`wares-coins`, `wares-<zbroj>`; popisek jméno zboží), při nule nic; ves jen s mincemi ukáže jen
+  je. Horní lišta beze změny.
+- **Kupci ve dvorci** – `MerchantsStat` v `ManorUpgrades` (`hud/ManorPanel.tsx`): ikona `merchants` a počet
+  dní do příjezdu (`manor-merchants`), popisek „Kupci přijedou za 12 dní – kupují med, vosk a kožešiny,
+  prodávají meče, kroužkové košile a helmy“ (zboží z `MERCHANTS` přes `goodsNames` v
+  `lib/trade-names.ts`), v den příjezdu „Kupci jsou dnes ve vsi – …“; ves bez stezky nic.
+- **Panel Trh** (`hud/MarketPanel.tsx`): ceny ve zprávě jsou v mincích i s hladinou (`PricesLine` –
+  `coinPriceOf(prices, level, good)` jádra, `VillageNews.level`, chybí = 1; `formatCoinPrice`), mince jsou
+  v „Dáš“ (popisek „Mince“), v „Dostaneš“ ne. Obchodník s příznakem `merchants` je „Kupci“ s ikonou (příznak
+  se testuje před prázdným jménem – „Sousední ves“) a nad obchodníky je den příštích kupců
+  (`market-report-merchants`, „Kupci přijedou 12. 8.“, `formatDayMonth`) z `VillageReport.merchants`; den,
+  který od zprávy už minul, se neukáže.
+- **Objednávka zbroje** – `ArmsOrder` (`hud/ArmsOrder.tsx`) nahoře v panelu Trh vlastní vsi u stezky, jen
+  s neprázdným `arms`: den kupců (`market-arms-date`), u každé zbroje ikona, cena v mincích a objednaný
+  počet (`market-arms-<zbroj>`, `Stepper` od nuly; popisek „Meče – ves je koupí od kupců za své mince“).
+  Bez práva `trade` zašedlé s důvodem. Každý klik jde hned a v pořadí na server
+  (`VillageCommands.orderArms` → fronta `runAction` → akce `orderArms`), takže se poslední počet neztratí ani
+  po zavření panelu; do odpovědi na poslední změnu zboží se ukazuje naklikaný počet (odpověď na starší
+  změnu nic nepřepíše), pak zase počet ze serveru. Důvod odmítnutí je v `market-arms-error` (a řádkem
+  nahoře jako u výpravy), zmizí s další změnou.
+- **Upozornění** „Kupci přijeli“ s ikonou kupců (`VillageNotice.icon`, `lib/village-notices.ts`): za každý
+  příjezd – `merchantsArrived` je novější než v minulém pohledu.
+- **Kronika** (`lib/village-view-chronicle.ts`): `merchants-arrived` „Přijeli kupci z daleka – prodávají …,
+  kupují …“ (`goodsNames`); v `market-held` a `market-returned` jsou mince zvlášť („zaplatila 4 mince“,
+  „dostala 16 mincí“ – `coinsText`, `exchangeParts`).
+- **Testy**: `WaresStock.test.tsx`, `MarketPanel.test.tsx`, `ManorPanel.test.tsx`, `manor-view.test.ts`,
+  `trade-names.test.ts`, `village-notices.test.ts`, `village-view-chronicle-markets4.test.ts`; e2e
+  `e2e/market.spec.ts` (mince v zásobách a výprava s nimi, příjezd kupců, objednávka meče přes obnovení
+  stránky).
 
 ## Rozkaz „Probít se“ (fortifications.md – Obrana bez násobku 3, `hud/BreakoutButton.tsx`)
 
@@ -1882,6 +1922,6 @@ war/alarm-messenger,war/alarm-forest,war/alarm-people,war/alarm-all,war/alarm-re
 
 ## Kůže, kožešiny, med a vosk v rozhraní (hides-honey.md; plán 2026-11-14 – úloha 8, `hud/selection/wares.tsx`)
 
-- `WaresView` a `VillageSummary.wares` (`summary.ts`, `waresView`): celé kusy a kg (`floor`), `null`, když ves nemá `wares`. Kůže jsou jedno zboží v kusech kůže skotu – malé kůže se přepočtou plochou (`hidesOnHand`, `smallHideRatio` ≈ 0,27); jejich počet nese volitelné `smallHides` pro popisek. Kožešiny jsou ovčí i lovné dohromady, `sheepFurs` z nich ovčí.
+- `WaresView` a `VillageSummary.wares` (`summary.ts`, `waresView`): celé kusy a kg (`floor`), `null`, když ves nemá `wares` ani mince a zbroj. Kůže jsou jedno zboží v kusech kůže skotu – malé kůže se přepočtou plochou (`hidesOnHand`, `smallHideRatio` ≈ 0,27); jejich počet nese volitelné `smallHides` pro popisek. Kožešiny jsou ovčí i lovné dohromady, `sheepFurs` z nich ovčí.
 - `VillageView.wares` (`village-view.ts`) → `SelectionDetails` dvorce `wares` (`selection-details.ts`).
-- `WaresStock` (`dwelling.tsx` pod řádkem lovu, jen u dvorce): čtyři `Stat` ikony `hide`, `fur`, `honey`, `wax` s čísly, popisky „Kůže“ (u malých kůží s rozpisem), „Kožešiny – ovčí N“, „Med“, „Vosk“. `null` i samé nuly = nic. Test `hud/__tests__/WaresStock.test.tsx`.
+- `WaresStock` (`dwelling.tsx` pod řádkem lovu, jen u dvorce): čtyři `Stat` ikony `hide`, `fur`, `honey`, `wax` s čísly, popisky „Kůže“ (u malých kůží s rozpisem), „Kožešiny – ovčí N“, „Med“, „Vosk“. `null` i samé nuly = nic. Mince a zbroj vedle nich: Mince, kupci a zbroj v rozhraní výš. Test `hud/__tests__/WaresStock.test.tsx`.

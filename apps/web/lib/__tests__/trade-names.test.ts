@@ -1,8 +1,14 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { TRADE_GOODS, isPieceGood } from '@bohemia/game';
-import { TRADE_GOOD_NAMES, coinsText, goodsText, tradeAmountText } from '../trade-names';
+import { MERCHANTS, TRADE_GOODS, isPieceGood } from '@bohemia/game';
+import {
+  TRADE_GOOD_NAMES,
+  coinsText,
+  goodsNames,
+  goodsText,
+  tradeAmountText,
+} from '../trade-names';
 
 describe('jednotky zboží obchodu', () => {
   it('kámen je v m³, ne v kusech (trade.md – Kámen)', () => {
@@ -23,6 +29,13 @@ describe('jednotky zboží obchodu', () => {
     expect(coinsText(20, 'nominative')).toBe('20 mincí');
     expect(goodsText({ coins: 20 })).toBe('20 mincí');
     expect(goodsText({ honey: 2, coins: 1 })).toBe('2 kg medu, 1 minci');
+  });
+
+  it('jména zboží ve výčtu malými písmeny, bez počtů a bez nul (kupci, plán 4)', () => {
+    expect(goodsNames(MERCHANTS.wants)).toBe('med, vosk a kožešiny');
+    expect(goodsNames(MERCHANTS.goods)).toBe('meče, kroužkové košile a helmy');
+    expect(goodsNames({ honey: 2, wax: 0 })).toBe('med');
+    expect(goodsNames({})).toBe('');
   });
 
   it('kg a kusy zůstávají', () => {

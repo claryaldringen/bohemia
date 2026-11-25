@@ -52,8 +52,9 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   konce úseku v pásu kraje mapy ve směru nejblíž paprsku (±`TRAIL.wideConeDeg`), stupeň z cesty,
   práce 0. Bez spojení zmizelá id jen vypadnou (`dropGoneTrailPieces`). Vlkov: stezka na sever
   412 → 619 → 370 → 372 → 631 → 547; jih a východ spojení nemají (mezera u kraje, opuštěný kus).
-- **Stezka kostry – každá mapa lidského hráče** (premium-landscapes.md – Kostra světa; brod,
-  průsmyk, Úloha 14 plánu kostry): `withSkeletonRoute` (`premium-route.ts`, volá ho `foundedState`) – osa prvku `route` od místa
+- **Stezka kostry – každá mapa se stezkou: sídlo hráče, jeho nová ves i ves syna** (premium-landscapes.md
+  – Kostra světa; brod, průsmyk, Úloha 14 plánu kostry; vsi synů a nové vsi hráče markets.md –
+  Rozhodnutí plánu 4, bod 11): `withSkeletonRoute` (`premium-route.ts`, volá ho `foundedState`) – osa prvku `route` od místa
   nejblíž vsi k oběma krajům mapy jako pevné cesty (`addTrailRoads`), stupeň hotové stezky
   (`upgradePieces` – upravená, hať a lávka, i přes brod), průsek lesem bez klád (`cutRoadSwath`)
   a hotová stezka (`Trail.builtDay` = den založení) ve směru každého konce (`DIRECTION_VECTORS`
@@ -61,8 +62,8 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   vyšlapané (vyšlapaná bez provozu zaroste a „hotová zemská stezka“ je upravená).
   Zdroj větví: prvek `route` prémiové krajiny (brod, průsmyk), jinak úseky `skeletonFeaturesOf(l).route`
   mapy se stezkou kostry (od okraje k bodu obejití vsi, obrácené od vsi ven; směr = strana mapy,
-  kde úsek končí: průchod 2 směry, křižovatka 3, konec stezky 1). Suchá mapa a ves syna (NPC mapa
-  bez kostry, Martin 8. 11. 2026) stezku nemají – stav je bit po bitu dnešní.
+  kde úsek končí: průchod 2 směry, křižovatka 3–4, konec stezky 1). Stezku nemá jen ves na
+  mapě, kterou žádná nevede (suchá mapa) – její stav je bit po bitu jako bez kostry.
 - **Pokračování na sousední mapě** (trade.md – Zemská stezka; Martin 16. 11. 2026: „ano“; plán
   2026-11-16-dense-forest – Rozhodnutí 13, podrobnosti návrh Clauda): hotová stezka nekončí na
   kraji mapy. Nic se neukládá – stav vsi ani DB se nemění.
@@ -632,7 +633,8 @@ day, order, target, { by?, seedKg?, alone?, service?, kin?, people? })` (mutuje 
     `coins`) – jen první příjezd v herním roce (návrh Clauda: na křižovatce by 16 příjezdů do roka
     kroniku zaplnilo). Rok posledního zápisu drží `VillageMarket.merchantsYear` (chybí = žádný);
     kroniku simulace nečte, takže zápis nezávisí na kouscích dopočtu ani na jejím zkrácení. Upozornění
-    ve webu na `merchants-arrived` dnes žádné není.
+    „Kupci přijeli“ chodí ve webu za každý příjezd – z `market.arrivals`, ne z kroniky (web-ui.md –
+    Mince, kupci a zbroj v rozhraní).
   - **Obchod:** kupec je strana zápočtu (zbroj za med, vosk a kožešiny) i mincovní fáze – v ní kupuje
     první, podle celého seznamu a za svůj měšec.
   - **Ceny dne** (`priceTotals` v `market.ts` – S a D pro `nextPrices`; návrh Clauda): poptávka kupce
@@ -663,7 +665,10 @@ day, order, target, { by?, seedKg?, alone?, service?, kin?, people? })` (mutuje 
     víc než objednat 2 (`coinsAgainstGoods`). Akce hráče: use-case `orderArms` (`application/arms-order.ts`,
     `updateLivingVillage` – neživá ves dostane dosavadní důvod), právo `trade` (`ACTION_RIGHTS`, má ho
     i správce cizí vsi), web `orderArmsForPlayer` (`lib/village.ts`) a server action `orderArms`
-    (`actions/market.ts`, vstup `{ villageId, good, amount }` ověří `parseArmsOrderInput`).
+    (`actions/market.ts`, vstup `{ villageId, good, amount }` ověří `parseArmsOrderInput`). Zadává se
+    v panelu Trh vlastní vsi u stezky (`ArmsOrder` – cena dne v mincích, objednaný počet a den příštích
+    kupců), koupená zbroj a mince jsou mezi zásobami dvorce (`WaresStock`) – web-ui.md – Mince, kupci
+    a zbroj v rozhraní.
   - **Pobyt:** `extendMerchants(market, day)` v `marketDay` před odjezdy – kupec, kterému pobyt dnes
     končí, zůstane další den, když je na trhu aspoň `MERCHANTS.busyVisitors` výprav (bez kupců, kováře
     souseda a doprovodu partnera), nejvýš `MERCHANTS.maxStayDays` dní.

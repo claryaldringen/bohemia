@@ -208,6 +208,20 @@ export function coinsText(
 }
 
 /**
+ * Jména zboží s kladným množstvím ve výčtu malými písmeny, bez počtů („med, vosk a kožešiny“) – co
+ * cizí kupci kupují a prodávají (markets.md – Rozhodnutí plánu 4, bod 5); u jejich zboží je 1. a 4. pád
+ * stejný.
+ */
+export function goodsNames(goods: TradeGoods): string {
+  const names = (Object.entries(goods) as [TradeGood, number][])
+    .filter(([, amount]) => amount > 0)
+    .map(([good]) => TRADE_GOOD_NAMES[good].name.toLowerCase());
+  return names.length <= 1
+    ? (names[0] ?? '')
+    : `${names.slice(0, -1).join(', ')} a ${names[names.length - 1]}`;
+}
+
+/**
  * Množství zboží s jednotkou v celých číslech („120 kg obilí“, „2 ks krav“) – pro kroniku; co se
  * zaokrouhlí na nulu (zbytek gramů), se nepíše.
  */

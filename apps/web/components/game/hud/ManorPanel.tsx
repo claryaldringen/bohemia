@@ -1,14 +1,15 @@
 import { useRef, useState, type ReactElement, type ReactNode } from 'react';
-import type { DefenseStance, Direction8, TrailOption } from '@bohemia/game';
+import { MERCHANTS, type DefenseStance, type Direction8, type TrailOption } from '@bohemia/game';
 import { usePanelOptions } from '@/hooks/use-panel-options';
 import { useDismiss } from '@/hooks/use-dismiss';
 import type { VillageManor } from '@/lib/manor-view';
-import { DIRECTION_NAMES } from '@/lib/trade-names';
-import { formatDecimal, formatInteger } from '@/lib/village-format';
+import { DIRECTION_NAMES, goodsNames } from '@/lib/trade-names';
+import { formatDecimal, formatInteger, plural } from '@/lib/village-format';
 import { useRightDenied, useVillageId } from './rights';
 import { ArmyPanel } from './ArmyPanel';
 import { Tooltip } from './Tooltip';
 import { PrisonersPanel, type PrisonerAction } from './PrisonersPanel';
+import { Stat } from './selection/parts';
 
 // Dvorec vojvody v panelu výběru (trade.md – Dvorec vojvody): vylepšení celé vsi – zemská stezka
 // do jednoho z 8 směrů (růžice šipek) a obchod se sousedy po hotových stezkách. Jako v 0 A.D.:
@@ -171,6 +172,27 @@ export function TrailCompass({
   );
 }
 
+/** Co cizí kupci kupují a prodávají – do popisku. */
+const MERCHANTS_TRADE = `kupují ${goodsNames(MERCHANTS.wants)}, prodávají ${goodsNames(MERCHANTS.goods)}`;
+
+/**
+ * Cizí kupci (markets.md – Rozhodnutí plánu 4, bod 12): ikona a za kolik dní přijedou; ves bez stezky
+ * (`merchantsDay` null) nic. Den příjezdu je dnešek jen tehdy, když kupci dnes přijeli.
+ */
+function MerchantsStat({ market }: { market: VillageManor['market'] }): ReactElement | null {
+  if (market.merchantsDay === null) return null;
+  const days = market.merchantsDay - market.day;
+  const when =
+    days === 0
+      ? 'Kupci jsou dnes ve vsi'
+      : `Kupci přijedou za ${formatInteger(days)} ${plural(days, 'den', 'dny', 'dní')}`;
+  return (
+    <Stat icon="merchants" name={`${when} – ${MERCHANTS_TRADE}`} testId="manor-merchants">
+      {formatInteger(days)}
+    </Stat>
+  );
+}
+
 /**
  * Vylepšení vsi ve dvorci: tlačítko zemské stezky (otevře růžici směrů), lov a vojsko. Růžice se
  * otevře nad panelem výběru (`hud-popup` – panel se nezvětší) a zavře ji stisk myši mimo ni.
@@ -282,6 +304,7 @@ export function ManorUpgrades({
           />
         </button>
       </Tooltip>
+      <MerchantsStat market={manor.market} />
       <Tooltip placement="above" denied={warDenied} content="Vojsko">
         <button
           type="button"

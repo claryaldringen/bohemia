@@ -34,7 +34,6 @@ import {
   type MasonCraft,
   type NewcomerGroup,
   type ShipmentManifest,
-  type TradeGood,
   type TradeGoods,
   type TradePeople,
   type DwellingType,
@@ -48,8 +47,8 @@ import { noticeChronicleText } from './notice-chronicle';
 import {
   DIRECTION_NAMES,
   NEWCOMER_TEXTS,
-  TRADE_GOOD_NAMES,
   coinsText,
+  goodsNames,
   goodsText,
   peopleText,
 } from './trade-names';
@@ -982,16 +981,8 @@ function marketHeldText(event: Extract<ChronicleEvent, { kind: 'market-held' }>)
 function merchantsArrivedText(
   event: Extract<ChronicleEvent, { kind: 'merchants-arrived' }>,
 ): string {
-  const names = (goods: TradeGoods): string => {
-    const list = (Object.keys(goods) as TradeGood[])
-      .filter((good) => (goods[good] ?? 0) > 0)
-      .map((good) => TRADE_GOOD_NAMES[good].name.toLowerCase());
-    return list.length <= 1
-      ? (list[0] ?? '')
-      : `${list.slice(0, -1).join(', ')} a ${list[list.length - 1]}`;
-  };
-  const sells = names(event.sells);
-  const buys = names(event.buys);
+  const sells = goodsNames(event.sells);
+  const buys = goodsNames(event.buys);
   const parts = [...(sells ? [`prodávají ${sells}`] : []), ...(buys ? [`kupují ${buys}`] : [])];
   return parts.length > 0
     ? `Přijeli kupci z daleka – ${parts.join(', ')}.`
