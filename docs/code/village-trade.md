@@ -178,6 +178,26 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   Clauda): strop omezuje, za kolik strana prodá, ne které zboží (nabídka oříznutá předem v pořadí
   `TRADE_GOODS` – obilí hostitele by vytlačilo jeho klády a dobytek), kruhy, a krok 5 vyřadí
   z nevyrovnaných poslední v pořadí stran.
+  - **Cena v mincích a hladina** (Rozhodnutí plánu 4, bod 3): za mince se platí `coinPriceOf` =
+    `priceOf` × hladina trhu `VillageMarket.level` (kolik mincí proti zboží na trhu je; chybí = 1,
+    nikdy pod 1). Po mincovní fázi ji posune `nextLevel(level, C, W)` = level ×
+    (1 + `MARKET.priceStep` × (C − W) / (C + W)), nejméně 1; W = 0 (na trhu není nic z toho, co
+    kupující shánějí) ji nemění. Zápočet a `nextPrices` na hladině nezávisí; mince cenu nemají
+    (`nextPrices` je přeskočí) a v zápočtu nejsou (`withoutCoins`).
+  - **Mincovní fáze** `coinClearing(parties, prices, level)` (`trade/market-coins.ts`, čistá funkce;
+    Rozhodnutí plánu 4, body 2 a 3): strany `CoinParty` (`key`, celé mince `coins`, prodej `stock`
+    a seznam `wants` bez mincí, `merchant` – cizí kupec) v pořadí hostitel, pak přespolní podle
+    příjezdu – v něm prodávají. Kupují napřed kupci, pak ostatní, v témže pořadí; u dvojice po zboží
+    v pořadí `TRADE_GOODS` min(chce, má, zbývající měšec ÷ cena), kus jen celý, zlomek v kg do 1 mg
+    (`NOISE_KG`) se přeskočí. Součet hodnot dvojice pod 1 minci se zruší celý, jinak platba
+    `CoinPayment` { `buyer`, `seller`, `coins` } = součet nahoru na celé mince (prodávající neprodá
+    pod cenou, kupující přeplatí nejvýš minci); utržené mince smí prodávající týž den utratit, je-li
+    mezi kupujícími za ním. Měšec nikdy neklesne pod 0 a součet plateb je nula. Výsledek
+    `CoinClearing`: `trades` (`MarketTrade`), `payments`, `available` (C = Σ min(mince, hodnota
+    seznamu) kupujících, kteří mají mince i seznam) a `sought` (W = Σ přes zboží min(součet seznamů
+    kupujících, součet nabídek všech stran) × cena) – obojí ze začátku fáze. Prahy zaokrouhlení jsou
+    technické meze, ne pravidla. V mincovní fázi je „kupec“ jen cizí kupec, kdo nakupuje, je
+    „kupující“.
 
 - **Trh – co ves nabízí a shání, zpráva na pivo** (markets.md – Pravidla 3 a 8, Rozhodnutí plánu 2,
   body 5 a 7; Rozhodnutí plánu 3, bod 5). `marketStance(state, day)` (`trade/market-stance.ts`)
@@ -210,8 +230,9 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   Clauda).
 - **Trh ve vsi** (markets.md – Pravidla 2, 3, 5 a 8, Rozhodnutí plánu 2, body 4–7; `trade/market.ts`,
   typy `types-market.ts`). Trh drží stav hostitelské vsi (`VillageState.market` – `VillageMarket`:
-  ceny `prices`, výpravy na trhu `visitors`, `nextOrder`, paměť příjezdů `arrivals`) a počítá jen
-  ze stavu hostitele a událostí schránky dne, takže výsledek nezávisí na kouscích dopočtu.
+  ceny `prices`, hladina `level?`, výpravy na trhu `visitors`, `nextOrder`, paměť příjezdů
+  `arrivals`) a počítá jen ze stavu hostitele a událostí schránky dne, takže výsledek nezávisí na
+  kouscích dopočtu.
   - **Příjezd:** událost schránky `market-arrive` s `MarketArrival` (klíč `market:<domovská
 ves>:<id výpravy>`, `stayDays`, `travelDays`, zboží `goods` – koně i tady jako počty po
     druzích, koně po kusech `MarketHorse` { `good`, `horse` }, seznam `wants`, zpráva na pivo
@@ -232,13 +253,14 @@ ves>:<id výpravy>`, `stayDays`, `travelDays`, zboží `goods` – koně i tady 
     `newcomer` za `market-arrived`).
   - **Tržní den:** `marketDay(state, day)` – krok dne hned po událostech schránky
     (village-core.md – Pořadí práce dne). Bez návštěvníků nic (stav beze změny, klíč `market`
-    nevznikne). Výprava se `service` (kovář souseda) ani doprovod partnera (`kin`) do zápočtu
-    nevstupují – jen v poslední den odjedou; jsou-li na trhu jen ony, tržní den není (ceny stojí). Jinak dva zápočty (`clearMarket`
-    za ceny `market.prices`), oba se stranami
-    hostitel (`'host'`) a návštěvníci podle `order`: napřed zápočet řemeslníků – výrobky dílen jen
-    za obilí a luštěniny (`craftStance`, `craftParties` – Obilí za výrobky níž; bez nich se
-    přeskočí), pak dnešní zápočet se zbytkem zboží – hostitel `marketStance` bez toho, co prodal
-    v prvním (`goodsLeft`), návštěvníci, co jim zbylo. Vyrovnání po každém (`settleTrades`):
+    nevznikne). Výprava se `service` (kovář souseda) ani doprovod partnera (`kin`) neobchodují –
+    jen v poslední den odjedou; jsou-li na trhu jen ony, tržní den není (ceny stojí). Jinak dva
+    zápočty (`clearMarket` za ceny `market.prices`, nabídky a seznamy `withoutCoins`) a mincovní
+    fáze, vše se stranami hostitel (`'host'`) a návštěvníci podle `order`: napřed zápočet
+    řemeslníků – výrobky dílen jen za obilí a luštěniny (`craftStance`, `craftParties` – Obilí za
+    výrobky níž; bez nich se přeskočí), pak dnešní zápočet se zbytkem zboží – hostitel
+    `marketStance` bez toho, co prodal v prvním (`goodsLeft`), návštěvníci, co jim zbylo, a nakonec
+    mincovní fáze (níž). Vyrovnání po každé fázi (`settleTrades`):
     hostitel prodané ubere (`addGood` záporně, koně `takeHorses` v pořadí prodeje) a koupené přidá
     (`addGood`, koně `addHorses`); návštěvníkovi ubude z `goods` a `wants` a přibude do `sold`
     a `bought`, koupení koně po kusech do `boughtHorses` – od hostitele z `takeHorses`, od výpravy
@@ -247,17 +269,29 @@ ves>:<id výpravy>`, `stayDays`, `travelDays`, zboží `goods` – koně i tady 
     skupiny druhu (`takeVisitorPeople`) – k jiné výpravě do `boughtPeople`, hostitel je hned usadí
     (`settlePeople`, kronika `newcomer` za `market-held`); zbytky do šumu plovoucí čárky se smažou; prodej zakázkového zboží vsi se
     zakázkou ji zmenší, hotovou uzavře (`reduceOrder` – Zakázky níž). Pak
-    `market.prices = nextPrices(…)` z původních nabídek a seznamů dne (`totalGoods` – i s obilím za
-    výrobky, jako v jednom zápočtu) a kronika `market-held` (co ves prodala a koupila v obou
-    zápočtech – jen když něco).
+    `market.prices = nextPrices(…)` z původních nabídek a seznamů dne bez mincí (`totalGoods` –
+    i s obilím za výrobky, jako v jednom zápočtu) a kronika `market-held` (co ves prodala a koupila
+    ve všech fázích, i mince – jen když něco).
+  - **Mincovní fáze** `coinPhase` (Rozhodnutí plánu 4, body 2–4; mutuje): spustí se, jen když nějaký
+    návštěvník veze mince (`goods.coins`) a něco mu na seznamu zbylo – mince v zásobě vsi ji samy
+    nespustí a trh bez mincí je bit po bitu jako dřív. Strany `coinClearing`: hostitel (0 mincí,
+    prázdný seznam – za mince nic nekoupí, jen prodává; `stock` = nabídka bez prodaného v obou
+    zápočtech, lidí nejvýš tolik skupin, kolik jich po zápočtech doopravdy odejde –
+    `leavingGroups`) a návštěvníci (`goods` a `wants` bez mincí, `merchant` – cizí kupec, kupuje
+    první). Obchody vyrovná `settleTrades` (koně, vozy a lidé po kusech jako v zápočtu, zakázky
+    `reduceOrder`), mince přesune `payCoins` – u návštěvníka jen `goods.coins` (ne `sold` / `bought`,
+    domů jdou v `unsold`), u hostitele `VillageState.coins`; v kronice `market-held` jsou mince
+    hostitele v `bought.coins` (získané) a `sold.coins` (zaplacené). Hladinu `market.level` posune
+    `nextLevel`, hladina 1 ze stavu zmizí.
   - **Odjezd:** návštěvník s `lastDay ≤ day` odjede – do odchozí schránky `VillageState.outbox`
     (`VillageMail` { `villageId`, `day`, `ref`, `body` } – tvar nové události schránky) jde
     `market-result` k domovské vsi na den `day + 1 + travelDays` (`ref` `marketResultRef` =
     `…:out`; příjezd má `marketArrivalRef` = `…:in`) se zprávou o hostiteli (`villageReport`), cenami
-    trhu a zakázkami, které hostitel zapsal (`recordOrders` – Zakázky níž). `marketResult` je jediné
-    místo, kde vzniká `MarketResult` (`sold`, `bought`, `unsold` – co zbylo, koně domů `horses` –
-    neprodaní i koupení, lidé – neprodaní vlastní `people?` a koupení `newcomers?`, `report?`,
-    `prices?`, `returned?`, `ordered?`);
+    trhu, hladinou (`level`, jen ≠ 1) a zakázkami, které hostitel zapsal (`recordOrders` – Zakázky
+    níž). `marketResult` je jediné
+    místo, kde vzniká `MarketResult` (`sold`, `bought`, `unsold` – co zbylo, i mince, koně domů
+    `horses` – neprodaní i koupení, lidé – neprodaní vlastní `people?` a koupení `newcomers?`,
+    `report?`, `prices?`, `level?`, `returned?`, `ordered?`);
     nepoužitý příjezd nic neprodal ani nekoupil a domů jde vše, co vezl, i lidé. Výsledek použije domovská
     ves (`applyMarketResult` – Výprava na trh níž); odchozí schránku doručí `deliverVillageMail`
     (Pošta mezi vsemi níž).
@@ -340,7 +374,8 @@ day, order, target, { by?, seedKg?, alone?, service?, kin?, people? })` (mutuje 
     směru výpravy, kronika `newcomer` za `market-returned`) – i bez záznamu
     výpravy, nic nezmizí (lidé se pak usadí bez směru a kroniky) –, koupené obilí do `MarketTrip.seedKg` jde do rezervy osiva
     (`reservedSeedKg` – ves ho nesní, village-fields.md – Osivo – nákup na trhu), výprava
-    s klíčem výsledku se smaže, zpráva na pivo s cenami trhu do `news` (`rememberNews`, jen se
+    s klíčem výsledku se smaže, zpráva na pivo s cenami a hladinou trhu (`VillageNews.prices`,
+    `level` – chybí = 1) do `news` (`rememberNews`, jen se
     záznamem výpravy), zakázky vsi (`rememberOrders`, jen se záznamem výpravy – Zakázky níž)
     a kronika `market-returned` s hostitelem `villageId` a `by` výpravy (`returned` – hostitel
     zanikl; bez záznamu výpravy s prázdným jménem vsi, bez `villageId` a `by`). Výsledek přijde
@@ -453,7 +488,8 @@ day, order, target, { by?, seedKg?, alone?, service?, kin?, people? })` (mutuje 
   a `arms` (chybí = nic). `villageGoodStock` je čte po celých kusech, `addGood` je nikdy nedá pod 0
   a nulu ze stavu smaže (i prázdné `arms`). Hodnoty v `TRADE_GOOD_VALUES`: mince
   `MARKET.grainKgPerCoin` a `carryKg` 0 (nosiče nepřidají), meč 1 800, kroužková košile 7 200,
-  helma 3 600 kg obilí (nosnost 1,5, 12 a 1,5 kg). `withoutCoins` vrátí zboží bez mincí;
+  helma 3 600 kg obilí (nosnost 1,5, 12 a 1,5 kg). `withoutCoins` vrátí zboží bez mincí – v zápočtu
+  nejsou, platí se jimi v mincovní fázi (Trh – ceny a zápočet, Trh ve vsi výš);
   `MarketPanel` je do „Dostaneš“ nenabízí. Mince a zbroj bere odchod celé vsi jako ostatní
   zásoby (`CARRIED_STOCKS` v `belongings.ts`). Zbroj je zatím jen zboží, účinek v boji bude až
   vlastní mechanikou (war.md – Výzbroj).

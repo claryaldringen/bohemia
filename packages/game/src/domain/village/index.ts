@@ -387,8 +387,9 @@ export * from './trade/trail';
 export { TRAIL_END_BAND_M, trailExitsOf, type TrailExit } from './trade/trail-exits';
 export { landscapeTrailLines } from './trade/premium-route';
 export * from './trade/goods';
-// trh – ceny v mincovní míře a zápočet tržního dne (markets.md – Rozhodnutí plánu 2, body 3 a 4)
-export { initialPrice, nextPrices, priceOf } from './trade/market-prices';
+// trh – ceny v mincovní míře a zápočet tržního dne (markets.md – Rozhodnutí plánu 2, body 3 a 4),
+// cena v mincích s hladinou trhu (Rozhodnutí plánu 4, bod 3)
+export { coinPriceOf, initialPrice, nextPrices, priceOf } from './trade/market-prices';
 export { clearMarket, partyTotals } from './trade/market-clearing';
 export { marketStance } from './trade/market-stance';
 export { roughCount, villageReport } from './trade/village-report';

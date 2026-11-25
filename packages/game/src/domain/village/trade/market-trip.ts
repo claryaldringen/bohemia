@@ -597,9 +597,9 @@ export function marketTripsDay(state: VillageState, day: number): void {
  * koupený má stáří prodejce; neprodaní vlastní lidé s původními id `restorePeople`, koupení
  * s novými `settlePeople` – přišli od hostitele ve směru cesty výpravy, Rozhodnutí plánu 3, bod 10)
  * – i když záznam výpravy chybí, nic nesmí zmizet (lidé se pak usadí bez směru). Výprava s klíčem
- * výsledku se smaže; je-li výprava a zpráva na pivo, ves si ji zapamatuje i s cenami trhu
- * (`rememberNews`), a s výpravou i své zakázky u hostitele (`rememberOrders` – Rozhodnutí plánu 3,
- * bod 6).
+ * výsledku se smaže; je-li výprava a zpráva na pivo, ves si ji zapamatuje i s cenami a hladinou trhu
+ * (`rememberNews`; Rozhodnutí plánu 4, bod 3), a s výpravou i své zakázky u hostitele
+ * (`rememberOrders` – Rozhodnutí plánu 3, bod 6).
  * Vrací zápis kroniky `market-returned` s hostitelem (`villageId`) a tím, kdo výpravu poslal (`by`);
  * bez záznamu výpravy s prázdným jménem vsi a bez obojího; za ním `newcomer` koupených lidí.
  */
@@ -661,6 +661,7 @@ export function applyMarketResult(
       name: trip.name,
       report: result.report,
       ...(result.prices ? { prices: result.prices } : {}),
+      ...(result.level !== undefined ? { level: result.level } : {}),
     });
   }
   return [

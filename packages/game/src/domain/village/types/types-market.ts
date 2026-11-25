@@ -85,15 +85,16 @@ export interface MarketCart {
  * Kus lidí na trhu (markets.md – Rozhodnutí plánu 3, bod 10): rodina, nebo jeden svobodný muž či
  * žena – druh, pod kterým se prodává (počty po druzích jdou zápočtem), a celé záznamy osob s id
  * vsi, odkud jsou. Lidé jsou vždy právě na jednom místě: odejdou ze vsi (`takePeople`), prodaní se
- * usadí u kupce s novými id (`settlePeople`), neprodaní se vrátí domů s původními (`restorePeople`).
+ * usadí u kupujícího s novými id (`settlePeople`), neprodaní se vrátí domů s původními
+ * (`restorePeople`).
  */
 export interface MarketPerson {
   good: PeopleGood;
   people: Person[];
   /**
    * Skupinu prodal sám hostitel trhu (`settleTrades` – ne jiná výprava), lidé nesou jeho id
-   * (Rozhodnutí plánu 3, bod 13): zanikne-li domovská ves kupce, vrátí se hostiteli s původními id
-   * (`stranded-people` – `own`). Chybí = vlastní lidé výpravy nebo koupení od jiné výpravy.
+   * (Rozhodnutí plánu 3, bod 13): zanikne-li domovská ves kupujícího, vrátí se hostiteli s původními
+   * id (`stranded-people` – `own`). Chybí = vlastní lidé výpravy nebo koupení od jiné výpravy.
    */
   fromHost?: true;
 }
@@ -210,6 +211,11 @@ export interface MarketVisitor {
    * a večer posledního dne odjede s prázdným výsledkem. Chybí = obyčejná výprava.
    */
   kin?: MarketKin;
+  /**
+   * Cizí kupec, ne výprava z jiné vsi (markets.md – Rozhodnutí plánu 4, body 2 a 5) – v mincovní
+   * fázi kupuje první. Chybí = výprava.
+   */
+  merchant?: true;
 }
 
 /**
@@ -265,6 +271,12 @@ export interface OrderReady {
 export interface VillageMarket {
   /** Ceny trhu po posledním tržním dni; chybí = výchozí cena. */
   prices: MarketPrices;
+  /**
+   * Hladina trhu (markets.md – Rozhodnutí plánu 4, bod 3): kolik mincí proti zboží na trhu je – cena
+   * v mincích = cena × hladina (`coinPriceOf`), posune ji jen mincovní fáze (`nextLevel`). Nejméně 1;
+   * chybí = 1.
+   */
+  level?: number;
   /** Výpravy, které na trhu stojí, v pořadí příjezdu. */
   visitors: MarketVisitor[];
   /** Pořadí příští výpravy, která přijede. */
@@ -306,6 +318,8 @@ export interface MarketResult {
   report?: VillageReport;
   /** Ceny trhu v den odjezdu. */
   prices?: MarketPrices;
+  /** Hladina trhu v den odjezdu (`VillageMarket.level`); chybí = 1. */
+  level?: number;
   /** Hostitel zanikl – výprava se vrátila se vším, co drží. */
   returned?: true;
   /**
@@ -404,13 +418,15 @@ export interface VillageMail {
 
 /**
  * Zpráva na pivo o jiné vsi (markets.md – Pravidla 8): od obchodníka, který přijel k nám, nebo
- * od vlastní výpravy, která se vrátila – ta přinese i ceny trhu.
+ * od vlastní výpravy, která se vrátila – ta přinese i ceny a hladinu trhu.
  */
 export interface VillageNews {
   villageId: string;
   name: string;
   report: VillageReport;
   prices?: MarketPrices;
+  /** Hladina trhu (`MarketResult.level`; Rozhodnutí plánu 4, bod 3); chybí = 1. */
+  level?: number;
 }
 
 /**
