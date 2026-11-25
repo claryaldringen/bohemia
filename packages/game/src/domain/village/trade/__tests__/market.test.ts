@@ -8,6 +8,7 @@ import { MARKET } from '../../rules';
 import type {
   MarketArrival,
   MarketHorse,
+  MarketOrder,
   MarketResult,
   MarketVisitor,
   VillageState,
@@ -29,6 +30,7 @@ import {
   D,
   FAMILY_HOUSE,
   SON_HOUSE,
+  asEvents,
   familyHome,
   homeVillage,
   marketVillage,
@@ -36,6 +38,7 @@ import {
   sownPart,
   target,
   withWorkshop,
+  withoutOutbox,
 } from './market-fixtures';
 
 // Trh ve vsi hostitele (markets.md – Pravidla 3, 5 a 8; Rozhodnutí plánu 2, body 4–7): výprava
@@ -1027,5 +1030,134 @@ describe('hladina trhu ve výsledku a ve zprávě (markets.md – Rozhodnutí pl
     applyMarketResult(other, D + 2, plain);
     expect(other.news![0]).not.toHaveProperty('level');
     expect(other.news![0]!.prices).toEqual(m.market!.prices);
+  });
+});
+
+// Výprava hráče s mincemi tam a zpět (markets.md – Rozhodnutí plánu 4, bod 4; Martin 25. 11. 2026:
+// „Mince utrácí jen vojvoda/správce“): mince ubydou vsi při odjezdu, za nákup se platí jen z nákladu
+// výpravy a co neutratí, vrátí se domů.
+describe('výprava hráče s mincemi – cesta tam a zpět (Rozhodnutí plánu 4, bod 4)', () => {
+  /** Vlkov s `coins` mincemi pošle výpravu do Lhoty na sousední mapě – odešle ji D, trh je D + 1. */
+  function sendTrip(
+    coins: number,
+    order: MarketOrder,
+  ): { sent: VillageState; arriving: MarketArrival } {
+    const h = homeVillage();
+    h.coins = coins;
+    const trip = departMarket(h, D, order, target);
+    if (!trip.ok) throw new Error(trip.reason);
+    const body = trip.state.outbox![0]!.body;
+    if (body.kind !== 'market-arrive') throw new Error('Příjezd chybí.');
+    return { sent: trip.state, arriving: body.arrival };
+  }
+
+  /** Tržní den Lhoty `m` s výpravou (mutuje ji) a návrat: výsledek trhu a Vlkov D + 2. */
+  function tradeAndReturn(
+    sent: VillageState,
+    arriving: MarketArrival,
+    m: VillageState,
+  ): { result: MarketResult; home: VillageState } {
+    joinMarket(m, D + 1, arriving);
+    marketDay(m, D + 1);
+    const result = resultOf(m, arriving.key);
+    const home = structuredClone(sent);
+    const events = applyMarketResult(home, D + 2, result);
+    expect(events.map((e) => e.kind)).toEqual(['market-returned']);
+    expect(home.trade!.expeditions.filter((e) => e.kind === 'market')).toEqual([]);
+    return { result, home };
+  }
+
+  it('400 mincí, seznam 200 kg obilí: koupí právě 200 kg za 14 mincí, 386 přijde domů', () => {
+    const order: MarketOrder = { give: { coins: 400 }, wants: { grain: 200 }, stayDays: 1 };
+    const { sent, arriving } = sendTrip(400, order);
+    // při odjezdu mince ubyly vsi a jsou jen v nákladu
+    expect(sent).not.toHaveProperty('coins');
+    expect(arriving.goods).toEqual({ coins: 400 });
+    expect(arriving.wants).toEqual({ grain: 200 });
+
+    const m = grainVillage(1_000);
+    expect(marketStance(m, D + 1).offer.grain).toBe(1_000);
+    const hostStores = m.storesKg;
+    const { result, home } = tradeAndReturn(sent, arriving, m);
+    // přebytku je 1 000 kg a mincí na 6 000 kg – koupí se jen seznam; 200 ÷ 15 = 13,33 → 14 mincí
+    expect(hostStores - m.storesKg).toBeCloseTo(200, 9);
+    expect(m.coins).toBe(14);
+    expect(result).toMatchObject({ sold: {}, bought: { grain: 200 }, unsold: { coins: 386 } });
+    expect(home.coins).toBe(386);
+    expect(home.storesKg - sent.storesKg).toBeCloseTo(200, 9);
+  });
+
+  it('za výpravu se neplatí podruhé ze zásoby vsi: 5 mincí koupí 75 kg, doma zůstane 495', () => {
+    const order: MarketOrder = { give: { coins: 5 }, wants: { grain: 200 }, stayDays: 1 };
+    const { sent, arriving } = sendTrip(500, order);
+    expect(sent.coins).toBe(495);
+    const m = grainVillage(1_000);
+    const { result, home } = tradeAndReturn(sent, arriving, m);
+    expect(m.coins).toBe(5);
+    expect(result.bought.grain).toBeCloseTo(75, 9);
+    expect(result.unsold).toEqual({});
+    expect(home.coins).toBe(495);
+    expect(home.storesKg - sent.storesKg).toBeCloseTo(75, 9);
+  });
+
+  it('zboží i mince v nákladu: zápočet napřed, co nekoupil, koupí mince a zbytek jde domů', () => {
+    // 300 kg obilí je za půl krávy – kráva je celá, takže ji koupí až mince (40) a obilí se vrátí
+    const order: MarketOrder = { give: { grain: 300, coins: 60 }, wants: { cows: 1 }, stayDays: 1 };
+    const { sent, arriving } = sendTrip(60, order);
+    expect(sent).not.toHaveProperty('coins');
+    const m = marketVillage();
+    const herd = m.livestock!.herds.cow;
+    const { result, home } = tradeAndReturn(sent, arriving, m);
+    expect(m.livestock!.herds.cow - herd).toBe(-1);
+    expect(m.coins).toBe(40);
+    expect(result).toMatchObject({ sold: {}, bought: { cows: 1 } });
+    expect(result.unsold).toEqual({ grain: 300, coins: 20 });
+    expect(home.coins).toBe(20);
+    expect(home.storesKg - sent.storesKg).toBeCloseTo(300, 9);
+    expect((home.livestock?.herds.cow ?? 0) - (sent.livestock?.herds.cow ?? 0)).toBe(1);
+  });
+
+  it('hostitel nemá nic ze seznamu: domů se vrátí všechny mince', () => {
+    const order: MarketOrder = {
+      give: { coins: 400 },
+      wants: { swords: 1, honey: 50 },
+      stayDays: 1,
+    };
+    const { sent, arriving } = sendTrip(400, order);
+    const m = grainVillage(1_000);
+    const { result, home } = tradeAndReturn(sent, arriving, m);
+    expect(m).not.toHaveProperty('coins');
+    expect(result).toMatchObject({ sold: {}, bought: {}, unsold: { coins: 400 } });
+    expect(home.coins).toBe(400);
+    expect(home.storesKg).toBe(sent.storesKg);
+  });
+
+  it('kousky dopočtu: obě vsi po dnech = vcelku a mincí je v součtu pořád 400', () => {
+    const order: MarketOrder = { give: { coins: 400 }, wants: { grain: 200 }, stayDays: 2 };
+    const { sent } = sendTrip(400, order);
+    // uložení do DB a načtení mezi kousky
+    const stored = (s: VillageState): VillageState => JSON.parse(JSON.stringify(s)) as VillageState;
+    const byDays = (start: VillageState, to: number, events: VillageEvent[]): VillageState => {
+      let s = start;
+      for (let day = start.lastDay + 1; day <= to; day++) {
+        s = stored(advanceVillage(s, day, null, null, events));
+      }
+      return s;
+    };
+    const there = asEvents(sent.outbox!);
+    const m = grainVillage(1_000);
+    const host = advanceVillage(m, D + 4, null, null, there);
+    expect(byDays(m, D + 4, there)).toEqual(stored(host));
+    expect(host.coins).toBe(14);
+
+    const back = asEvents(host.outbox!);
+    expect(back.map((e) => e.day)).toEqual([D + 3]);
+    const start = withoutOutbox(sent);
+    const home = advanceVillage(start, D + 4, null, null, back);
+    expect(byDays(start, D + 4, back)).toEqual(stored(home));
+    expect(home.coins).toBe(386);
+    expect(home.chronicle.find((e) => e.kind === 'market-returned')).toMatchObject({
+      bought: { grain: 200 },
+    });
   });
 });

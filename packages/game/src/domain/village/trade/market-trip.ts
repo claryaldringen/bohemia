@@ -9,7 +9,9 @@
 // i náhled ve webu. Vozy na trhu (Rozhodnutí plánu 3, bod 4): prodaný vůz nejede jako dopravní,
 // koupený táhnou domů voli, kteří jdou s výpravou (`MarketTrip.oxen`). Lidé na trhu (bod 10) odejdou
 // ze vsi jako tytéž osoby (`takePeople`), nosiči nejsou a s výsledkem se vrátí neprodaní
-// (`restorePeople`) a přijdou koupení (`settlePeople`).
+// (`restorePeople`) a přijdou koupení (`settlePeople`). Mince výpravy (Rozhodnutí plánu 4, bod 4) jsou
+// jen ty v nákladu: při odjezdu ubydou vsi, na trhu se platí z nich a co neutratí, vrátí se domů
+// v `unsold` – ze zásoby vsi se za výpravu podruhé neplatí.
 import { TOTAL_GAME_DAYS } from '../../calendar';
 import { cloneState } from '../core/clone';
 import { cartOxen, cartsWithOxen, tradeHomeCarts } from '../crafts/carts';
@@ -37,6 +39,7 @@ import type {
 } from '../types';
 import {
   CART_GOODS,
+  COIN_GOOD,
   HORSE_GOODS,
   PEOPLE_GOODS,
   TRADE_GOODS,
@@ -193,6 +196,15 @@ function goodsShapeOk(goods: TradeGoods): boolean {
   return true;
 }
 
+/**
+ * Objednávka má správný tvar: zboží obou seznamů (`goodsShapeOk`) a mince jen v „Dáš“ – na seznam
+ * „Dostaneš“ se nedávají, prodávající je bere za cokoli, co nabízí (markets.md – Rozhodnutí plánu 4,
+ * bod 1).
+ */
+function orderShapeOk({ give, wants }: MarketOrder): boolean {
+  return goodsShapeOk(give) && goodsShapeOk(wants) && !((wants[COIN_GOOD] ?? 0) > 0);
+}
+
 /** Vstup kontroly bez stavu vsi – server ho skládá ze stavu, web z pohledu dvorce (Úloha 7). */
 export interface MarketTripCheck {
   /** Kolik ves má každého zboží z `give` (`villageGoodStock`). */
@@ -242,16 +254,16 @@ export type MarketCheck =
  * jako dopravní (`withoutSoldCarts`); napřed se rezervují voli pro koupené vozy (`oxenForCarts`,
  * nestačí-li voli po prodeji, `MARKET_NO_OXEN`; Rozhodnutí plánu 3, bod 4) a dopravní vozy jedou jen
  * s ostatními voly (`cartsWithOxen`); nosiči nejvýš volní dospělí; tvar objednávky (konečná
- * nezáporná čísla, kusy celé) napřed; návrat před koncem světa. Prázdné `give` i `wants` jsou
- * dovolené (výprava „na pivo“). Kovář, který jde sám (`alone`), nebere nosiče ani vozy a volné
- * dospělé se nekontroluje (Rozhodnutí plánu 3, bod 9). Data: výprava vyrazí ráno dne po odeslání
- * (`departDay`), na trh přijde po dnech cesty (`arriveDay`), tržní dny `arriveDay` … `arriveDay`
- * + pobyt − 1, `returnDay` je první den doma.
+ * nezáporná čísla, kusy celé, mince ne v seznamu – `orderShapeOk`) napřed; návrat před koncem světa.
+ * Prázdné `give` i `wants` jsou dovolené (výprava „na pivo“). Mince v `give` (Rozhodnutí plánu 4,
+ * bod 4) jdou týmiž kontrolami – celé kusy, nejvýš zásoba – a nic neváží; nákup za ně drží nosnost
+ * cesty domů, protože nosiče určuje celý seznam `wants` (`marketCrew`) a koupit jde nejvýš on. Kovář,
+ * který jde sám (`alone`), nebere nosiče ani vozy a volné dospělé se nekontroluje (Rozhodnutí
+ * plánu 3, bod 9). Data: výprava vyrazí ráno dne po odeslání (`departDay`), na trh přijde po dnech
+ * cesty (`arriveDay`), tržní dny `arriveDay` … `arriveDay` + pobyt − 1, `returnDay` je první den doma.
  */
 export function checkMarketTrip(order: MarketOrder, input: MarketTripCheck): MarketCheck {
-  if (!goodsShapeOk(order.give) || !goodsShapeOk(order.wants)) {
-    return { ok: false, reason: MARKET_BAD_ORDER };
-  }
+  if (!orderShapeOk(order)) return { ok: false, reason: MARKET_BAD_ORDER };
   if (!Number.isInteger(order.stayDays) || order.stayDays < MARKET.minStayDays) {
     return { ok: false, reason: MARKET_STAY };
   }

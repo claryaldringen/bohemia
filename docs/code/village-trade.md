@@ -336,9 +336,10 @@ ves>:<id výpravy>`, `stayDays`, `travelDays`, zboží `goods` – koně i tady 
     aspoň 1; zvolí počet vozů s nejméně lidmi (při shodě méně vozů).
   - **Kontroly:** `checkMarketTrip(order, input)` – jediné místo (server i náhled ve webu, vstup
     `MarketTripCheck` bez stavu – `stock`, `homeCarts` (`tradeHomeCarts`, bez ohledu na voly),
-    `oxenHome`, `adults`, `cells`, `day`): tvar objednávky (konečná nezáporná čísla, kusové zboží
-    celé – `MARKET_BAD_ORDER`), pobyt celé dny ≥ `minStayDays` (`MARKET_STAY`), zboží nejvýš
-    `villageGoodStock` (`MARKET_OVER_STOCK`), prodaný vůz nejede jako dopravní
+    `oxenHome`, `adults`, `cells`, `day`): tvar objednávky (`orderShapeOk` – konečná nezáporná čísla,
+    kusové zboží celé, mince ne v seznamu `wants`; jinak `MARKET_BAD_ORDER`), pobyt celé dny ≥
+    `minStayDays` (`MARKET_STAY`), zboží nejvýš `villageGoodStock` (`MARKET_OVER_STOCK`), prodaný vůz
+    nejede jako dopravní
     (`withoutSoldCarts` – z `homeCarts` odejde posledních `give[g]` vozů druhu, v pořadí
     `tradeHomeCarts` nejmladší volné, tytéž, které prodá `removeIdleCart`; odjede bez spřežení jako
     prodaní voli), vozy jen s voly, které po prodeji zbudou (`cartsWithOxen` nad zbylými vozy
@@ -376,6 +377,17 @@ day, order, target, { by?, seedKg?, alone?, service?, kin?, people? })` (mutuje 
     v `give` výpravy není. `give` / `wants` prázdné, doprovod aspoň 1 nosič.
     `marketCarryKg(adults, carts)` – obráceně k `marketCrew`: kolik kg nošeného zboží unese jedna
     cesta s nejvýš `adults` lidmi a vozy `carts` (vesničané podle toho nakoupí jen to, co unesou).
+  - **Mince** (Rozhodnutí plánu 4, body 1 a 4; Martin 25. 11. 2026: „Mince utrácí jen
+    vojvoda/správce“): hráč je dává do „Dáš“ (`give.coins` – celé kusy, nejvýš zásoba; kontroly jako
+    u ostatního zboží), na seznam „Dostaneš“ se nedávají (`MARKET_BAD_ORDER` – prodávající je bere za
+    cokoli, co nabízí) a nic jiného se nevolí. Mince výpravy jsou jen ty v nákladu (`goods.coins`): při
+    odjezdu ubydou vsi (`addGood` záporně), v mincovní fázi (`coinPhase` – Trh ve vsi výš) za ně výprava
+    koupí, co jí po zápočtech na seznamu zbylo, a co neutratí, přijde domů v `unsold` – ze zásoby vsi se
+    za výpravu podruhé neplatí. **Cesta domů:** nosiče počítá `marketCrew` z celého seznamu `wants`
+    a mince nic neváží (`carryKg` 0), takže nákup za mince drží nosnost cesty domů stejně jako zápočet –
+    koupí se nejvýš seznam a ten, který volní lidé neunesou, odmítne kontrola (`MARKET_NO_PEOPLE`)
+    i náhled; plná posádka s mincemi vyjede. Neprodané zboží se do cesty zpět nepočítá jako dosud
+    (Rozhodnutí plánu 2, bod 2).
   - **Pryč v pevné dny** (Rozhodnutí 2 – termín trhu je pevný): `expeditionLaborNeed` /
     `workExpeditions` berou nosiče výpravy na trh jen ve dnech `startedDay` … `returnDay` − 1,
     mimo ně nic, i když vsi chyběli dospělí; výprava nemá podíl po stezce. Voli pro koupené vozy
@@ -505,10 +517,10 @@ day, order, target, { by?, seedKg?, alone?, service?, kin?, people? })` (mutuje 
   a nulu ze stavu smaže (i prázdné `arms`). Hodnoty v `TRADE_GOOD_VALUES`: mince
   `MARKET.grainKgPerCoin` a `carryKg` 0 (nosiče nepřidají), meč 1 800, kroužková košile 7 200,
   helma 3 600 kg obilí (nosnost 1,5, 12 a 1,5 kg). `withoutCoins` vrátí zboží bez mincí – v zápočtu
-  nejsou, platí se jimi v mincovní fázi (Trh – ceny a zápočet, Trh ve vsi výš);
-  `MarketPanel` je do „Dostaneš“ nenabízí. Mince a zbroj bere odchod celé vsi jako ostatní
-  zásoby (`CARRIED_STOCKS` v `belongings.ts`). Zbroj je zatím jen zboží, účinek v boji bude až
-  vlastní mechanikou (war.md – Výzbroj).
+  nejsou, platí se jimi v mincovní fázi (Trh – ceny a zápočet, Trh ve vsi výš); `MarketPanel` je do
+  „Dostaneš“ nenabízí a kontrola výpravy je tam odmítne (Výprava na trh výš – Mince). Mince a zbroj
+  bere odchod celé vsi jako ostatní zásoby (`CARRIED_STOCKS` v `belongings.ts`). Zbroj je zatím jen
+  zboží, účinek v boji bude až vlastní mechanikou (war.md – Výzbroj).
 
 - **Cizí kupci – plán** (markets.md – Rozhodnutí plánu 4, bod 5; `trade/merchant-plan.ts`, čísla
   `MERCHANTS` v `rules-merchants.ts`): kupec je tržní den ve vsi u stezky, ne karavana posouvaná

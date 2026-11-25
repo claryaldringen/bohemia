@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { TOTAL_GAME_DAYS } from '../../domain/calendar';
 import { CURRENT_LAYER_VERSIONS } from '../../domain/landscape';
-import { foundVillage, type MarketOrder, type VillageState } from '../../domain/village';
+import {
+  MARKET_BAD_ORDER,
+  MARKET_NO_PEOPLE,
+  MARKET_OVER_STOCK,
+  foundVillage,
+  type MarketOrder,
+  type VillageState,
+} from '../../domain/village';
 import { makeLandscape } from '../../domain/village/__tests__/placement-fixtures';
 import {
   D,
@@ -10,6 +17,7 @@ import {
   report,
 } from '../../domain/village/trade/__tests__/market-fixtures';
 import type { SeenCell, SeenPart } from '../../domain/war';
+import { loadVillage } from '../load-village';
 import {
   MARKET_GONE,
   MARKET_UNKNOWN,
@@ -19,6 +27,7 @@ import {
 } from '../market';
 import type { LandscapeSource } from '../settlements';
 import { VILLAGE_TRAVELLING } from '../update-village';
+import { deliverVillageMail } from '../village-mail';
 import { InMemoryHouses } from './in-memory-houses';
 import { InMemoryKnowledge } from './in-memory-knowledge';
 import { InMemorySettlements } from './in-memory-settlements';
@@ -375,5 +384,93 @@ describe('sendMarketExpedition', () => {
     expect(trip?.startedDay).toBe(D + 1);
     const pending = await w.villages.inbox.pending(w.ids.m, D - 6, TOTAL_GAME_DAYS);
     expect(pending.map((e) => e.day)).toEqual([D + 1]);
+  });
+
+  // Výprava hráče s mincemi (markets.md – Rozhodnutí plánu 4, body 1 a 4; Martin 25. 11. 2026: „Mince
+  // utrácí jen vojvoda/správce“)
+  const coinsHome = (): VillageState => ({ ...homeVillage(), coins: 400 });
+  const send = (
+    w: World,
+    order: MarketOrder,
+    fields: { actorId?: string; targetVillageId?: string } = {},
+  ): ReturnType<typeof sendMarketExpedition> =>
+    sendMarketExpedition(w.deps, { ...input(w), order, ...fields });
+  const coinOrder: MarketOrder = { give: { coins: 400 }, wants: { grain: 200 }, stayDays: 1 };
+
+  it('mince na seznamu i víc mincí, než ves má, se odmítnou a nic se neuloží', async () => {
+    const w = await world({ home: coinsHome() });
+    const version = (await w.villages.find(w.ids.h))!.version;
+    expect(await send(w, { ...coinOrder, wants: { grain: 200, coins: 1 } })).toEqual({
+      ok: false,
+      reason: MARKET_BAD_ORDER,
+    });
+    expect(await send(w, { ...coinOrder, give: { coins: 401 } })).toEqual({
+      ok: false,
+      reason: MARKET_OVER_STOCK,
+    });
+    // co lidé domů neunesou, se za mince koupit nedá (8 dospělých a čtyřkolák)
+    expect(await send(w, { ...coinOrder, wants: { pottery: 2_000 } })).toEqual({
+      ok: false,
+      reason: MARKET_NO_PEOPLE,
+    });
+    const home = (await w.villages.find(w.ids.h))!;
+    expect(home.version).toBe(version);
+    expect(home.state.coins).toBe(400);
+    expect(await w.villages.inbox.pending(w.ids.m, D - 6, TOTAL_GAME_DAYS)).toEqual([]);
+  });
+
+  it('výprava se 400 mincemi: 200 kg obilí za 14 mincí, 386 se vrátí domů', async () => {
+    const w = await world({ home: coinsHome() });
+    await setState(w, w.ids.m, () => {
+      const host = marketVillage(0);
+      return { ...host, storesKg: host.storesKg + 1_000 };
+    });
+    expect(await send(w, coinOrder)).toEqual({ ok: true, arriveDay: D + 1, returnDay: D + 2 });
+    const left = (await w.villages.find(w.ids.h))!.state;
+    expect(left).not.toHaveProperty('coins');
+    const [arrive] = await w.villages.inbox.pending(w.ids.m, D - 6, TOTAL_GAME_DAYS);
+    expect(arrive!.body).toMatchObject({
+      kind: 'market-arrive',
+      arrival: { goods: { coins: 400 }, wants: { grain: 200 } },
+    });
+
+    // trh u hostitele a pošta domů – stejné use-casy volá web i worker
+    const load = async (villageId: string, today: number): Promise<VillageState> => {
+      await loadVillage(w.deps, { villageId, today, landscape });
+      await deliverVillageMail(w.deps, villageId);
+      return (await w.villages.find(villageId))!.state;
+    };
+    const host = await load(w.ids.m, D + 1);
+    expect(host.coins).toBe(14);
+    expect(host.chronicle.find((e) => e.kind === 'market-held')).toMatchObject({
+      sold: { grain: 200 },
+      bought: { coins: 14 },
+    });
+    const back = await load(w.ids.h, D + 2);
+    expect(back.coins).toBe(386);
+    expect(back.chronicle.find((e) => e.kind === 'market-returned')).toMatchObject({
+      bought: { grain: 200 },
+      sold: {},
+    });
+    expect(back.trade!.expeditions.filter((e) => e.kind === 'market')).toEqual([]);
+    // přibylo 200 kg proti téže vsi, které výprava nic nepřivezla (sýpka z nich den ztratila zlomek)
+    const other = await world({ home: structuredClone(left) });
+    await loadVillage(other.deps, { villageId: other.ids.h, today: D + 2, landscape });
+    const without = (await other.villages.find(other.ids.h))!.state;
+    expect(back.storesKg - without.storesKg).toBeCloseTo(200, 0);
+  });
+
+  it('správce cizí vsi utratí její mince u souseda, do vsí držitele je nepošle', async () => {
+    const w = await world({ home: coinsHome() });
+    await seeFar(w);
+    for (const target of [w.ids.own, w.ids.far]) {
+      expect(await send(w, coinOrder, { actorId: 'ps', targetVillageId: target })).toEqual({
+        ok: false,
+        reason: MARKET_UNKNOWN,
+      });
+    }
+    expect((await w.villages.find(w.ids.h))!.state.coins).toBe(400);
+    expect(await send(w, coinOrder, { actorId: 'ps' })).toMatchObject({ ok: true });
+    expect((await w.villages.find(w.ids.h))!.state).not.toHaveProperty('coins');
   });
 });

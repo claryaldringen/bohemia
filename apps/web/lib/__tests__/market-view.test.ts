@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
+  MARKET_BAD_ORDER,
+  MARKET_NO_PEOPLE,
+  MARKET_OVER_STOCK,
   dayIndexOf,
   foundVillage,
   marketTripPeople,
@@ -9,6 +12,7 @@ import {
   type MarketTarget,
   type Person,
   type TradeExpedition,
+  type TradeGoods,
   type VillageState,
 } from '@bohemia/game';
 import { manorView } from '../manor-view';
@@ -159,11 +163,23 @@ describe('náhled výpravy = kontrola jádra', () => {
     'ženy bez mužů': { give: { women: 2 }, wants: {}, stayDays: 1 },
     'ženy bez mužů a obilí': { give: { grain: 2_900, women: 2 }, wants: {}, stayDays: 1 },
     'víc mužů, než je': { give: { men: 9 }, wants: {}, stayDays: 1 },
+    // mince (plán 4, Úloha 8): v „Dáš“ nic neváží, na seznam se nedávají, domů se nese celý nákup
+    'mince za keramiku': { give: { coins: 400 }, wants: { pottery: 50 }, stayDays: 1 },
+    'obilí a mince': { give: { grain: 50, coins: 400 }, wants: {}, stayDays: 1 },
+    'mince na seznamu': { give: { grain: 50 }, wants: { coins: 1 }, stayDays: 1 },
+    'víc mincí, než ves má': { give: { coins: 401 }, wants: {}, stayDays: 1 },
+    'půlka mince': { give: { coins: 0.5 }, wants: {}, stayDays: 1 },
+    'nákup za mince lidé neunesou': {
+      give: { coins: 400 },
+      wants: { pottery: 2_000 },
+      stayDays: 1,
+    },
   };
 
   for (const [name, order] of Object.entries(orders)) {
     it(`${name}: stejný důvod i čísla jako server`, () => {
       const s = village();
+      s.coins = 400;
       const view = manorView(s, DAY)!;
       const plan = planMarketTrip(s, DAY, order, target);
       // lidi z výběru spočítá server pro vybrané počty (`marketTripPeople`), bez lidí nic
@@ -179,4 +195,29 @@ describe('náhled výpravy = kontrola jádra', () => {
       }
     });
   }
+
+  it('mince: na seznam se nedávají, v „Dáš“ nosiče nepřidají (Rozhodnutí plánu 4, bod 4)', () => {
+    const s = village();
+    s.coins = 400;
+    const { market } = manorView(s, DAY)!;
+    expect(market.stock.coins).toBe(400);
+    const preview = (give: TradeGoods, wants: TradeGoods = {}): ReturnType<typeof marketPreview> =>
+      marketPreview({ give, wants, stayDays: 1 }, market, target.cells, null);
+    const refused = (reason: string): ReturnType<typeof marketPreview> => ({
+      porters: 0,
+      carts: 0,
+      awayDays: 0,
+      reason,
+    });
+    expect(preview({}, { coins: 1 })).toEqual(refused(MARKET_BAD_ORDER));
+    expect(preview({ coins: 400 }, { coins: 1 })).toEqual(refused(MARKET_BAD_ORDER));
+    // 50 kg obilí nesou dva, 400 mincí nikdo navíc
+    expect(preview({ grain: 50 })).toEqual({ porters: 2, carts: 0, awayDays: 3, reason: null });
+    expect(preview({ grain: 50, coins: 400 })).toEqual(preview({ grain: 50 }));
+    expect(preview({ coins: 400 })).toEqual(preview({}));
+    // nákup za mince drží cesta domů – 50 kg keramiky zpět nesou dva, 2 000 kg by neslo 80 lidí
+    expect(preview({ coins: 400 }, { pottery: 50 })).toMatchObject({ porters: 2, reason: null });
+    expect(preview({ coins: 400 }, { pottery: 2_000 })).toEqual(refused(MARKET_NO_PEOPLE));
+    expect(preview({ coins: 401 })).toEqual(refused(MARKET_OVER_STOCK));
+  });
 });
