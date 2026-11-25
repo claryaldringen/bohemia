@@ -61,7 +61,9 @@ páry) a family (muž, žena a dítě – výměna lidí se sousedem, trade.md) 
 (disasters.md – Co hráč vidí) – drought (prasklá zem), rain (dešťový mrak), frost (sněhová vločka),
 good-summer (klasy se sluncem), flood (rozvodněná voda), hail (kroupy na stéblech), tornado (trychtýř
 smrště pod mrakem), protection (větvička s listy – ochrana dílu) a dearth (hromada zrna se šipkou
-vzhůru – zdražení u sousedů).
+vzhůru – zdražení u sousedů) a zboží a kupci obchodu (trade.md, markets.md) – coin (tři stříbrné
+denáry s křížem a perlovcem), sword (meč ležící šikmo), mail-shirt (kroužková košile), helmet
+(kónická helma spangenhelm) a merchants (muž vede koně s pytli).
 (128 × 128 PNG) – `premium/` portréty 19 typů prémiové krajiny (premium-landscapes.md – Co hráč
 vidí; klíč = typ, např. `iron-ore`): kruh krajiny s výškovým polem, na něm prvek typu – zlatá žíla
 ve skalnatém hřbetu, náplav se zlatem, řeka s molem a člunem, černozem s mandelemi, brod pod
@@ -5889,6 +5891,196 @@ LODGE_PANELS = {
     "house/mason-plasterer": icon_mason_plasterer,
     "house/priest": icon_priest,
 }
+
+
+# ------------------------------------------------- obchod: mince, zbroj a kupci ----
+# trade.md – zboží obchodu (denár, meč, kroužková košile, helma) a kupci (markets.md).
+
+
+def silver_metal(name="silver"):
+    return metal(name, (0.6, 0.61, 0.66), 0.34, 0.9)
+
+
+def denar(bm, bm_relief, centre, r, rot, rng, relief=True):
+    """Denár: tenký nepravidelně ražený kotouček; na vrchním prostý rovnoramenný kříž s tečkami
+    v kvadrantech a perlovec po obvodu (obecná ražba)."""
+    centre = Vector(centre)
+    m = Euler(rot).to_matrix()
+    n, th = 30, 0.16 * r
+    ring_lo, ring_hi = [], []
+    for i in range(n):
+        a = 2 * math.pi * i / n
+        k = r * (1.0 + rng.uniform(-0.045, 0.045))
+        p = Vector((math.cos(a) * k, math.sin(a) * k, 0))
+        ring_lo.append(bm.verts.new(centre + m @ (p + Vector((0, 0, -th / 2)))))
+        ring_hi.append(bm.verts.new(centre + m @ (p + Vector((0, 0, th / 2)))))
+    bm.faces.new(ring_lo[::-1])
+    bm.faces.new(ring_hi)
+    for i in range(n):
+        j = (i + 1) % n
+        bm.faces.new((ring_lo[i], ring_lo[j], ring_hi[j], ring_hi[i]))
+    if not relief:
+        return
+    z = th / 2
+
+    def at(x, y, h):
+        return centre + m @ Vector((x, y, z + h))
+
+    # perlovec po obvodu
+    for i in range(14):
+        a = 2 * math.pi * (i + 0.5) / 14
+        blob(bm_relief, (at(math.cos(a) * r * 0.8, math.sin(a) * r * 0.8, 0.0), rot), (0.1 * r, 0.1 * r, 0.08 * r), 6, 4)
+    # kříž
+    for (sx, sy) in ((0.62, 0.15), (0.15, 0.62)):
+        box(bm_relief, at(0, 0, 0.05 * r), (sx * 2 * r * 0.9, sy * 2 * r * 0.4 if sx > sy else sy * 2 * r * 0.9, 0.16 * r), rot)
+    # tečky v kvadrantech
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            blob(bm_relief, (at(sx * r * 0.36, sy * r * 0.36, 0.0), rot), (0.095 * r, 0.095 * r, 0.07 * r), 8, 5)
+
+
+def icon_coin():
+    """Mince: tři stříbrné denáry na sobě a vedle sebe, na vrchním kříž s tečkami a perlovcem."""
+    rng = random.Random(8)
+    base, relief = bmesh.new(), bmesh.new()
+    denar(base, relief, (0.28, 0.12, 0.08), 0.78, (0, 0, 0.5), rng, relief=False)
+    denar(base, relief, (-0.34, 0.3, 0.2), 0.78, (math.radians(4), math.radians(-5), 1.2), rng, relief=False)
+    denar(base, relief, (0.0, -0.32, 0.4), 0.82, (math.radians(-9), math.radians(6), 0.15), rng)
+    objs = [to_obj(base, "coins", silver_metal(), smooth=False),
+            to_obj(relief, "relief", silver_metal("relief"), smooth=True)]
+    hud_light(az=-55, el=24, strength=4.2)
+    camera(world_points(objs), az=0, el=52, margin=1.04)
+    return True
+
+
+def icon_sword_trade():
+    """Meč jako zboží: jeden meč ležící šikmo, pohled shora (jiný postoj než `house/sword`)."""
+    objs = sword_objs()
+    move(objs, rot=(math.radians(90), 0, 0))
+    move(objs, rot=(0, 0, math.radians(-115)))
+    hud_light(az=-30, el=50, strength=4.6)
+    camera(world_points(objs), az=0, el=52, margin=1.04)
+    return True
+
+
+def mail_shirt_mat():
+    """Kroužková košile: drobné kroužky (voronoi vzdálenost → světlý kroužek, tmavý otvor) jako barva i výška."""
+    m = bpy.data.materials.new("mail")
+    m.use_nodes = True
+    nt = m.node_tree
+    b = next(n for n in nt.nodes if n.type == "BSDF_PRINCIPLED")
+    b.inputs["Metallic"].default_value = 0.75
+    b.inputs["Roughness"].default_value = 0.34
+    tc = nt.nodes.new("ShaderNodeTexCoord")
+    sep = nt.nodes.new("ShaderNodeSeparateXYZ")
+    com = nt.nodes.new("ShaderNodeCombineXYZ")
+    nt.links.new(tc.outputs["Object"], sep.inputs["Vector"])
+    nt.links.new(sep.outputs["X"], com.inputs["X"])
+    nt.links.new(sep.outputs["Z"], com.inputs["Y"])
+    vor = nt.nodes.new("ShaderNodeTexVoronoi")
+    vor.voronoi_dimensions = "2D"
+    vor.feature = "F1"
+    vor.inputs["Scale"].default_value = 13.0
+    nt.links.new(com.outputs["Vector"], vor.inputs["Vector"])
+    ramp = nt.nodes.new("ShaderNodeValToRGB")
+    cr = ramp.color_ramp
+    cr.elements[0].position, cr.elements[0].color = 0.2, (0.03, 0.03, 0.035, 1)
+    cr.elements[1].position, cr.elements[1].color = 0.34, (0.8, 0.8, 0.84, 1)
+    e = cr.elements.new(0.5)
+    e.color = (0.8, 0.8, 0.84, 1)
+    e = cr.elements.new(0.66)
+    e.color = (0.03, 0.03, 0.035, 1)
+    nt.links.new(vor.outputs["Distance"], ramp.inputs["Fac"])
+    nt.links.new(ramp.outputs["Color"], b.inputs["Base Color"])
+    bn = nt.nodes.new("ShaderNodeBump")
+    bn.inputs["Strength"].default_value = 0.9
+    bn.inputs["Distance"].default_value = 0.05
+    nt.links.new(ramp.outputs["Color"], bn.inputs["Height"])
+    nt.links.new(bn.outputs["Normal"], b.inputs["Normal"])
+    return m
+
+
+def mail_shirt_objs():
+    """Košile s krátkými rukávy (obrys v rovině XZ, tloušťka ve směru Y), nahoře výstřih, dole zubatý lem."""
+    half = [(-0.2, 1.0), (-0.6, 0.94), (-1.12, 0.72), (-1.22, 0.4), (-0.84, 0.3), (-0.62, 0.38), (-0.62, -0.2),
+            (-0.64, -0.62), (-0.48, -0.55), (-0.33, -0.66), (-0.17, -0.57), (-0.0, -0.66)]
+    top = [(-0.12, 0.88), (0.0, 0.84), (0.12, 0.88)]
+    pts = half + [(-x, z) for x, z in reversed(half[:-1])][:-1] + [(0.2, 1.0)] + top[::-1]
+    # obrys: levý okraj odshora dolů, spodek, pravý okraj odspodu nahoru, výstřih zprava doleva
+    right = [(-x, z) for x, z in reversed(half[:-1])]
+    pts = half + right + [(0.2, 1.0)] + [(0.12, 0.88), (0.0, 0.84), (-0.12, 0.88)]
+    body = bmesh.new()
+    flat_plate(body, pts, 0.0, 0.14)
+    bmesh.ops.recalc_face_normals(body, faces=body.faces)
+    return [to_obj(body, "mail", mail_shirt_mat(), smooth=False)]
+
+
+def icon_mail_shirt():
+    objs = mail_shirt_objs()
+    hud_light(az=-35, el=40, strength=4.8)
+    camera(world_points(objs), az=0, el=6, margin=1.04)
+    return True
+
+
+def icon_helmet():
+    """Helma: kónický spangenhelm – železný kužel, bronzová obruba a svislé pásy, nánosník a hrot."""
+    iron, bronze, nose = bmesh.new(), bmesh.new(), bmesh.new()
+    prof = [(0.0, 0.64), (0.22, 0.62), (0.48, 0.54), (0.76, 0.4), (1.0, 0.22), (1.18, 0.06), (1.22, 0.0)]
+    revolve(iron, prof, 40, cap_top=True)
+    revolve(bronze, [(-0.06, 0.675), (0.14, 0.675), (0.14, 0.64), (-0.06, 0.64)], 40)
+    for k in range(4):
+        a = math.radians(45 + 90 * k)
+        pts = []
+        for z, r in prof[1:-1]:
+            pts.append(Vector((math.cos(a) * (r + 0.015), math.sin(a) * (r + 0.015), z)))
+        for p0, p1 in zip(pts, pts[1:]):
+            cyl(bronze, p0, p1, 0.05, 0.045, 6)
+    blob(bronze, ((0, 0, 1.24), (0, 0, 0)), (0.07, 0.07, 0.09), 10, 6)
+    # nánosník: úzký pás před čelem od obruby dolů (kamera se dívá od -Y)
+    flat_plate(nose, [(-0.075, 0.12), (0.075, 0.12), (0.085, -0.1), (0.05, -0.46), (-0.05, -0.46), (-0.085, -0.1)],
+               -0.685, 0.05)
+    for x in (-0.5, -0.3, 0.3, 0.5):
+        pass
+    objs = [to_obj(iron, "helm", metal("helm", (0.5, 0.51, 0.55), 0.38, 0.8), smooth=True),
+            to_obj(bronze, "bands", gold_metal("bands"), smooth=True),
+            to_obj(nose, "nose", gold_metal("nose"), smooth=False)]
+    hud_light(az=-40, el=44, strength=4.8)
+    camera(world_points(objs), az=-22, el=12, margin=1.04)
+    return True
+
+
+def icon_merchants():
+    """Kupci: muž vede koně s nákladem – po obou bocích pytle a balík, přes hřbet přehozená houně."""
+    horse = stand_animal("horse")
+    pts = world_points(horse)
+    lo = Vector((min(p.x for p in pts), min(p.y for p in pts), 0))
+    hi = Vector((max(p.x for p in pts), max(p.y for p in pts), max(p.z for p in pts)))
+    c = (lo + hi) / 2
+    rng = random.Random(14)
+    load = bmesh.new()
+    cloth = bmesh.new()
+    zb = hi.z * 0.68
+    wid = (hi.y - lo.y) * 0.5
+    for side in (-1, 1):
+        sack(load, Vector((c.x - 0.05, c.y + side * wid * 0.62, zb - 0.1)), 0.9, rng.uniform(0, 3), rng)
+        sack(load, Vector((c.x + 0.42, c.y + side * wid * 0.6, zb - 0.16)), 0.74, rng.uniform(0, 3), rng)
+    box(cloth, (c.x + 0.1, c.y, zb + 0.14), (1.0, wid * 1.5, 0.12))
+    objs = [to_obj(load, "packs", mat("linen", (0.62, 0.5, 0.33), 0.92, noise=30, bump=0.3)),
+            to_obj(cloth, "blanket", mat("wool", (0.5, 0.12, 0.1), 0.9, noise=30, bump=0.2))]
+    man = place_person("man", loc=(hi.x + 0.1, c.y - 0.55, 0), turn=-115, frame=12, clip="idle", scale=1.25)
+    sun(az=-50, el=48, strength=4.0)
+    camera(world_points(horse + man + objs), az=0, el=16, margin=1.04)
+    return True
+
+
+# obchod: mince, zbroj a kupci (trade.md, markets.md) – `resources/<klíč>.png`
+RESOURCES.update({
+    "coin": icon_coin,
+    "sword": icon_sword_trade,
+    "mail-shirt": icon_mail_shirt,
+    "helmet": icon_helmet,
+    "merchants": icon_merchants,
+})
 
 
 # Výstup do podsložek (`house/aid.png`…) – klíč = cesta bez přípony. Obilí, klády a přesýpací hodiny

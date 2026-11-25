@@ -1,3 +1,5 @@
+import { existsSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { TRADE_GOODS, isPieceGood } from '@bohemia/game';
 import { TRADE_GOOD_NAMES, goodsText, tradeAmountText } from '../trade-names';
@@ -21,6 +23,25 @@ describe('jednotky zboží obchodu', () => {
   it('kusové zboží jádra (`isPieceGood`) je právě to, co web nemá v kg', () => {
     for (const good of TRADE_GOODS) {
       expect(isPieceGood(good), good).toBe(TRADE_GOOD_NAMES[good].unit !== 'kg');
+    }
+  });
+});
+
+describe('ikony zboží obchodu', () => {
+  const iconsDir = join(__dirname, '..', '..', 'public', 'icons');
+  const licenses = readFileSync(join(iconsDir, 'LICENSES.md'), 'utf8');
+
+  it('ke každému zboží existuje ikona 64 × 64 a ikona kupců', () => {
+    for (const good of TRADE_GOODS) {
+      const icon = TRADE_GOOD_NAMES[good].icon;
+      expect(existsSync(join(iconsDir, 'resources', `${icon}.png`)), good).toBe(true);
+    }
+    expect(existsSync(join(iconsDir, 'resources', 'merchants.png'))).toBe(true);
+  });
+
+  it('nové ikony mají v LICENSES.md řádek', () => {
+    for (const icon of ['coin', 'sword', 'mail-shirt', 'helmet', 'merchants']) {
+      expect(licenses, icon).toContain(`\`resources/${icon}.png\``);
     }
   });
 });
