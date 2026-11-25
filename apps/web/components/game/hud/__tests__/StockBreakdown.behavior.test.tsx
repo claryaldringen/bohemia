@@ -94,6 +94,10 @@ it('součet dobytka a rozpis podle druhů; druh, který ves nemá, v rozpisu chy
   const noHorses = { livestock: stock.livestock };
   expect(livestockRows(noHorses as never).map((r) => r.key)).not.toContain('horse');
   expect(livestockTotal(noHorses as never)).toBe(31);
+  // koně bez ohrady (po odchodu celé vsi – migration.md, Co si vezmou) v liště nechybí
+  const loose = { livestock: { ...stock.livestock, looseHorses: 4 } };
+  expect(livestockRows(loose as never).find((r) => r.key === 'horse')?.amount).toBe(4);
+  expect(livestockTotal(loose as never)).toBe(35);
 });
 
 const render = (): void =>

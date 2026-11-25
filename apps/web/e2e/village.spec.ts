@@ -1181,9 +1181,13 @@ test('lidé odejdou na novou mapu – po cestě umístí první zemnici', async 
   const before = await twoHouseholds(s, spots.dwelling);
   await pollVillage(page);
 
-  // Všechna obydlí → Odejít → na východ: nová mapa vedle, lidé jsou na cestě.
+  // Všechna obydlí → Odejít → na východ: nová mapa vedle, lidé jsou na cestě. Odcházejí všichni –
+  // popisek řekne, že si vezmou úplně vše (migration.md – Co si vezmou).
   const panel = await selectAllDwellings(page);
   await panel.getByTestId('leave-village').click();
+  await expect(panel.getByTestId('leave-all').first()).toHaveText('Celá ves – berou si úplně vše');
+  await panel.getByTestId('leave-E').hover();
+  await page.screenshot({ path: test.info().outputPath('leave-all.png'), scale: 'css' });
   await panel.getByTestId('leave-E').click();
   const maps = (): Promise<
     {
@@ -1220,6 +1224,10 @@ test('lidé odejdou na novou mapu – po cestě umístí první zemnici', async 
   const travelling = await villageOf(east!.id);
   expect(travelling.state.journey?.direction).toBe('E');
   expect(travelling.state.people).toHaveLength(before.people.length);
+  // celá ves nese úplně vše (1 500 kg obilí, ne 25 kg na člověka), ve staré vsi nic nezbylo
+  expect(travelling.state.journey?.whole).toBe(true);
+  expect(travelling.state.storesKg).toBeGreaterThan(1000);
+  expect((await villageState(s.settlementId)).storesKg).toBe(0);
   await expect(
     page.locator('[data-testid="village-notice"][data-kind="households-left"]'),
   ).toBeVisible();
