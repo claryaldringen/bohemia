@@ -63,6 +63,31 @@ describe('ceny trhu v mincovní míře (markets.md – Rozhodnutí plánu 2, bod
     expect(nextPrices({ cows: 10 }, { cows: 3 }, {}).cows).toBe(40);
     expect(nextPrices({ cows: 10 }, {}, { cows: 1 }).cows).toBeCloseTo(44, 9);
   });
+
+  it('technická mez: cena nejvýš 1e9 × výchozí – dál neroste, klesat smí', () => {
+    // poptávka bez nabídky po 218 tržních dnech: 1,1^218 ≈ 1,06e9
+    let p: MarketPrices = {};
+    for (let i = 0; i < 217; i++) p = nextPrices(p, {}, { cows: 1, grain: 1 });
+    expect(p.cows).toBeCloseTo(40 * 1.1 ** 217, -3);
+    expect(p.cows!).toBeLessThan(40e9);
+    for (let i = 0; i < 100; i++) p = nextPrices(p, {}, { cows: 1, grain: 1 });
+    // násobek výchozí ceny, každé zboží podle své
+    expect(p).toEqual({ cows: 40e9, grain: 1e9 * initialPrice('grain') });
+    expect(nextPrices({ cows: 40e9 }, {}, { cows: 1 }).cows).toBe(40e9);
+    expect(nextPrices({ cows: 40e9 }, { cows: 1 }, { cows: 1 }).cows).toBe(40e9);
+    expect(nextPrices({ cows: 40e9 }, { cows: 1 }, {}).cows).toBeCloseTo(36e9, 0);
+    // těsně pod mezí roste jen k ní
+    expect(nextPrices({ cows: 39e9 }, {}, { cows: 1 }).cows).toBe(40e9);
+    expect(nextPrices({ cows: 30e9 }, {}, { cows: 1 }).cows).toBeCloseTo(33e9, 0);
+  });
+
+  it('technická mez: cena se nikdy nestane nekonečnem, které by JSON uložil jako null', () => {
+    const huge: MarketPrices = { cows: Number.MAX_VALUE, honey: Number.MAX_VALUE };
+    expect(Number.MAX_VALUE * (1 + MARKET.priceStep)).toBe(Infinity);
+    const next = nextPrices(huge, {}, { cows: 1 });
+    expect(next).toEqual({ cows: 40e9, honey: 1e9 * initialPrice('honey') });
+    expect(JSON.parse(JSON.stringify(next))).toEqual(next);
+  });
 });
 
 describe('cena v mincích a hladina trhu (markets.md – Rozhodnutí plánu 4, bod 3)', () => {

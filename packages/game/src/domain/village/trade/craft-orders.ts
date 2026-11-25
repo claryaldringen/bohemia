@@ -27,7 +27,7 @@ import type {
   TradeGoods,
   VillageState,
 } from '../types';
-import { ORDER_CRAFT, ORDER_GOODS, TRADE_GOODS } from './goods';
+import { ORDER_CRAFT, ORDER_GOODS, TRADE_GOODS, onlyGoods } from './goods';
 import { priceOf } from './market-prices';
 import { craftOffer } from './market-stance';
 import { marketTravelDays } from './market-trip';
@@ -51,16 +51,6 @@ function visitorsTotal(
   good: TradeGood,
 ): number {
   return visitors.reduce((sum, v) => sum + (pick(v)[good] ?? 0), 0);
-}
-
-/** Kopie jen zboží `keep` s kladným množstvím. */
-function onlyGoods(goods: TradeGoods, keep: readonly TradeGood[]): TradeGoods {
-  const out: TradeGoods = {};
-  for (const good of keep) {
-    const amount = goods[good] ?? 0;
-    if (amount > 0) out[good] = amount;
-  }
-  return out;
 }
 
 /**

@@ -86,8 +86,8 @@ export function extendMerchants(market: VillageMarket, day: number): void {
 /**
  * Co by kupec za svůj měšec koupil (Rozhodnutí plánu 4, bod 3) – jeho poptávka pro cenu dne: u každého
  * zboží seznamu zvlášť nejvýš tolik celých jednotek, kolik jich za cenu v mincích (`coinPriceOf`)
- * pořídí za celý měšec; nic = chybí. Cena zboží, které na trhu nikdo nenabízí, tak přestane růst,
- * jakmile by kupec za měšec nekoupil ani jednu jednotku.
+ * pořídí za celý měšec; nic = chybí. Cena tak přestane růst, kde by kupec za měšec koupil právě to, co
+ * je na trhu. Zboží, které na trhu nikdo nenabízí, vynechá `priceTotals` (market.ts).
  */
 export function affordableWants(
   visitor: MarketVisitor,

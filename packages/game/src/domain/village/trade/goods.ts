@@ -140,6 +140,16 @@ export function withoutCoins(goods: TradeGoods): TradeGoods {
   return out;
 }
 
+/** Kopie jen zboží `keep` s kladným množstvím, v pořadí `keep`. */
+export function onlyGoods(goods: TradeGoods, keep: readonly TradeGood[]): TradeGoods {
+  const out: TradeGoods = {};
+  for (const good of keep) {
+    const amount = goods[good] ?? 0;
+    if (amount > 0) out[good] = amount;
+  }
+  return out;
+}
+
 /** Je zboží kusové (kusy nebo m³, ne kg)? */
 export function isPieceGood(good: TradeGood): boolean {
   return PIECE_GOODS.includes(good);

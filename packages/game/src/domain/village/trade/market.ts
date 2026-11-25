@@ -27,7 +27,9 @@ import type {
   MarketClearing,
   MarketHorse,
   MarketPerson,
+  MarketPrices,
   MarketResult,
+  MarketStance,
   MarketVisitor,
   PeopleGood,
   TradeGood,
@@ -48,6 +50,7 @@ import {
   isHorseGood,
   isOrderGood,
   isPeopleGood,
+  onlyGoods,
   withoutCoins,
 } from './goods';
 import { addHorses, takeHorses } from './horse-trade';
@@ -577,6 +580,36 @@ function departVisitors(
 }
 
 /**
+ * Nabídka S a poptávka D tržního dne, podle kterých se posunou ceny (`nextPrices`): co ráno nabízejí
+ * a shánějí hostitel (`stance`), jeho řemeslníci (`craftWants` – obilí za výrobky, jako by šlo
+ * o jeden zápočet) a návštěvníci `visitors` (bez kováře souseda a doprovodu partnera), bez mincí.
+ * O cizích kupcích platí (Rozhodnutí plánu 4, bod 3 – návrh Clauda):
+ * - kupec shání jen to, co je na trhu ke koupi (S > 0), nejvýš kolik koupí za měšec
+ *   (`affordableWants`) – bez nabídky cenou nehne, jako W = 0 hladinou;
+ * - není-li na trhu žádná výprava, počítá se jen zboží, které kupci vezou nebo shánějí, a ostatní
+ *   ceny stojí – průjezd kupců nezdraží, co hostitel shání, ani nezlevní, co nabízí a kupci nechtějí.
+ * S aspoň jednou výpravou se hýbou všechny ceny (Martin 23. 11. 2026: „Nechat bez stropu“).
+ */
+function priceTotals(
+  stance: MarketStance,
+  craftWants: TradeGoods,
+  visitors: readonly MarketVisitor[],
+  prices: MarketPrices,
+  level: number,
+): { offered: TradeGoods; wanted: TradeGoods } {
+  const offered = totalGoods([stance.offer, ...visitors.map((v) => withoutCoins(v.goods))]);
+  const forSale = TRADE_GOODS.filter((good) => (offered[good] ?? 0) > 0);
+  const demandOf = (v: MarketVisitor): TradeGoods =>
+    v.merchant ? onlyGoods(affordableWants(v, prices, level), forSale) : withoutCoins(v.wants);
+  const wanted = totalGoods([stance.wants, craftWants, ...visitors.map(demandOf)]);
+  if (visitors.some((v) => !v.merchant)) return { offered, wanted };
+  const traded = TRADE_GOODS.filter((good) =>
+    visitors.some((v) => (v.goods[good] ?? 0) > 0 || (v.wants[good] ?? 0) > 0),
+  );
+  return { offered: onlyGoods(offered, traded), wanted: onlyGoods(wanted, traded) };
+}
+
+/**
  * Tržní den vsi `day` (mutuje stav; markets.md – Pravidla 3 a 5) ve dvou zápočtech a mincovní fázi za
  * ceny trhu, vše se stranami hostitel a výpravy v pořadí příjezdu:
  * 1. zápočet řemeslníků (Martin 24. 11. 2026: „Ano, řemeslník bere obilí vždy“) – řemeslníci
@@ -588,9 +621,8 @@ function departVisitors(
  *    mince, za ně koupí, co mu na seznamu zbylo; hostitel jen prodává. Bez mincí k útratě se
  *    přeskočí.
  * Zápočty mince nevidí (`withoutCoins` – Rozhodnutí plánu 4, bod 1). Obchody se po každé fázi
- * vyrovnají (`settleTrades`), ceny se posunou podle původních nabídek a seznamů dne bez mincí
- * (`nextPrices` – i s obilím za výrobky, jako by šlo o jeden zápočet; cizí kupec jen s tím, na co má
- * ráno v měšci – `affordableWants`, Rozhodnutí plánu 4, bod 3), kupci na rušném trhu zůstanou další
+ * vyrovnají (`settleTrades`), ceny se posunou podle původních nabídek a seznamů dne (`priceTotals`,
+ * `nextPrices` – v den jen s kupci jen ceny jejich zboží), kupci na rušném trhu zůstanou další
  * den (`extendMerchants` – bod 5) a výpravy, kterým pobyt končí, odjedou s výsledkem a zakázkami,
  * kupci bez nich. Vrací zápis kroniky, prodala-li nebo koupila-li ves něco (všechny fáze dohromady,
  * i mince). Bez výprav a kupců na trhu nic – stav se nezmění. Kovář souseda (výprava se `service` –
@@ -612,14 +644,7 @@ export function marketDay(state: VillageState, day: number): ChronicleEvent[] {
   const stance = marketStance(state, day);
   const craft = craftStance(state, stance, visitors, prices);
   // nabídky, seznamy a měšce kupců dne napřed – zápočty a mincovní fáze je mění
-  const offered = totalGoods([stance.offer, ...visitors.map((v) => withoutCoins(v.goods))]);
-  const wanted = totalGoods([
-    stance.wants,
-    craft?.wants ?? {},
-    ...visitors.map((v) =>
-      v.merchant ? affordableWants(v, prices, level) : withoutCoins(v.wants),
-    ),
-  ]);
+  const { offered, wanted } = priceTotals(stance, craft?.wants ?? {}, visitors, prices, level);
   const first = craft
     ? settleTrades(state, day, visitors, clearMarket(craftParties(HOST, craft, visitors), prices))
     : null;

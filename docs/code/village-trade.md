@@ -162,7 +162,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   výchozí): `initialPrice` = hodnota v kg obilí (`TRADE_GOOD_VALUES`) ÷ `MARKET.grainKgPerCoin`
   (15 kg obilí za minci – kráva 40 mincí), `priceOf` zapamatovaná nebo výchozí; `nextPrices` ze
   součtů nabídek S a seznamů D tržního dne P × (1 + `MARKET.priceStep` × (D − S) / (D + S)) – za
-  den nejvýš ±10 %, **dno = `initialPrice`** (Martin 23. 11. 2026 – nikdo neprodá pod výchozí hodnotou, nahoru volně; uložená cena pod dnem se při dalším tržním dni zvedne na dno; výchozí cena nezávisí na počasí kraje, takže žádné zdražení; zápočet se nemění), zboží bez nabídky i poptávky beze změny (nový objekt). **Zápočet**
+  den nejvýš ±10 %, **dno = `initialPrice`** (Martin 23. 11. 2026 – nikdo neprodá pod výchozí hodnotou, nahoru volně; uložená cena pod dnem se při dalším tržním dni zvedne na dno; výchozí cena nezávisí na počasí kraje, takže žádné zdražení; zápočet se nemění), nahoře jen technická mez 1e9 × výchozí (`MAX_PRICE_RATIO` – bez ní by cena po tisících tržních dnů přerostla do `Infinity`, v JSON `null`, a dopočet po kouscích by se rozešel), zboží bez nabídky i poptávky beze změny (nový objekt). **Zápočet**
   `clearMarket(parties, prices)`: strany `MarketParty` (`key`, nabídka `offer`, seznam `wants`)
   v pořadí hostitel, pak výpravy podle příjezdu; každá prodá přesně za tolik, za kolik koupí, kus
   jen celý (`PIECE_GOODS` / `isPieceGood` v `goods.ts` – dobytek, koně, klády, vozy, kámen, kůže,
@@ -269,9 +269,10 @@ ves>:<id výpravy>`, `stayDays`, `travelDays`, zboží `goods` – koně i tady 
     skupiny druhu (`takeVisitorPeople`) – k jiné výpravě do `boughtPeople`, hostitel je hned usadí
     (`settlePeople`, kronika `newcomer` za `market-held`); zbytky do šumu plovoucí čárky se smažou; prodej zakázkového zboží vsi se
     zakázkou ji zmenší, hotovou uzavře (`reduceOrder` – Zakázky níž). Pak
-    `market.prices = nextPrices(…)` z původních nabídek a seznamů dne bez mincí (`totalGoods` –
-    i s obilím za výrobky, jako v jednom zápočtu; u cizího kupce místo seznamu `affordableWants`)
-    a kronika `market-held` (co ves prodala a koupila ve všech fázích, i mince – jen když něco).
+    `market.prices = nextPrices(…)` z nabídky S a poptávky D dne (`priceTotals` – součty
+    `totalGoods` původních nabídek a seznamů bez mincí, i s obilím za výrobky, jako v jednom
+    zápočtu; cizí kupci: Cizí kupci ve vsi níž – Ceny dne) a kronika `market-held` (co ves prodala
+    a koupila ve všech fázích, i mince – jen když něco).
   - **Mincovní fáze** `coinPhase` (Rozhodnutí plánu 4, body 2–4; mutuje): spustí se, jen když nějaký
     návštěvník veze mince (`goods.coins`) a něco mu na seznamu zbylo – mince v zásobě vsi ji samy
     nespustí a trh bez mincí je bit po bitu jako dřív. Strany `coinClearing`: hostitel (0 mincí,
@@ -527,10 +528,17 @@ day, order, target, { by?, seedKg?, alone?, service?, kin?, people? })` (mutuje 
     (posledních `MARKET.report.traders` jako u výprav) a kronika `merchants-arrived` (`sells`, `buys`,
     `coins`).
   - **Obchod:** kupec je strana zápočtu (zbroj za med, vosk a kožešiny) i mincovní fáze – v ní kupuje
-    první, podle celého seznamu a za svůj měšec. Do ceny dne (`nextPrices`) jde jeho poptávka jen do
-    výše měšce ráno: `affordableWants(visitor, prices, level)` – u každého zboží seznamu nejvýš
-    ⌊měšec ÷ `coinPriceOf`⌋ celých jednotek, nic chybí. Cena věci, kterou na trhu nikdo nenabízí, tak
-    přestane růst nad měšcem (kožešina po 50 průjezdech na 62,6 mince).
+    první, podle celého seznamu a za svůj měšec.
+  - **Ceny dne** (`priceTotals` v `market.ts` – S a D pro `nextPrices`; návrh Clauda): poptávka kupce
+    se počítá jen u zboží, které je ten den na trhu ke koupi (S > 0, každý den, i s výpravami) – bez
+    nabídky cenou nehne, jako W = 0 hladinou –, a jen do výše měšce ráno:
+    `affordableWants(visitor, prices, level)`, u každého zboží seznamu nejvýš ⌊měšec ÷ `coinPriceOf`⌋
+    celých jednotek, nic chybí. Cena tak s nabídkou roste (D > S), dokud kupec za měšec nekoupí právě
+    to, co je na trhu (20 kg medu na průjezd → 3 mince za kg i s hladinou). **V den, kdy na trhu kromě
+    hostitele není žádná výprava** (jen kupci; kovář souseda a doprovod partnera výprava nejsou), se
+    hýbou jen ceny zboží, které kupci vezou nebo shánějí: poptávka hostitele nic nezdraží (nástroje by
+    jinak za 10 let čtyř průjezdů do roka zdražily 45×) a jeho nabídka, o kterou kupci nestojí, nic
+    nezlevní. S aspoň jednou výpravou se hýbou všechny ceny (Martin 23. 11. 2026: „Nechat bez stropu“).
   - **Pobyt:** `extendMerchants(market, day)` v `marketDay` před odjezdy – kupec, kterému pobyt dnes
     končí, zůstane další den, když je na trhu aspoň `MERCHANTS.busyVisitors` výprav (bez kupců, kováře
     souseda a doprovodu partnera), nejvýš `MERCHANTS.maxStayDays` dní.

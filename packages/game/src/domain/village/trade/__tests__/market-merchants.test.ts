@@ -12,17 +12,18 @@ import type {
   MarketVisitor,
   MerchantStop,
   TradeGoods,
+  VillageMarket,
   VillageState,
 } from '../../types';
 import { ARMS_GOODS, TRADE_GOODS } from '../goods';
 import { joinMarket, marketDay, marketResultRef } from '../market';
 import { totalGoods } from '../market-clearing';
-import { initialPrice } from '../market-prices';
+import { coinPriceOf, initialPrice } from '../market-prices';
 import { marketStance } from '../market-stance';
 import { merchantVisits, nextMerchantVisit } from '../merchant-plan';
 import { affordableWants, extendMerchants, merchantsArrive } from '../merchants';
 import { villageReport } from '../village-report';
-import { D, marketVillage, report } from './market-fixtures';
+import { D, marketVillage, report, withWorkshop } from './market-fixtures';
 
 // Cizí kupci ve vsi u stezky (markets.md – Rozhodnutí plánu 4, body 3 a 5): v den plánu přijedou na
 // trh s měšcem a zbrojí, obchodují jako strana zápočtů i mincovní fáze, na rušném trhu zůstanou déle
@@ -31,11 +32,27 @@ import { D, marketVillage, report } from './market-fixtures';
 const STOP: MerchantStop = { key: '0,0,E', seed: 7, index: 0, length: 1 };
 /** Druhé spojení křižovatky – průjezdy týchž dnů jako `STOP`. */
 const CROSSING: MerchantStop = { ...STOP, key: '0,0,N' };
+/** Křižovatka čtyř spojení – nejvíc, kolik jich uzel stezky má; každé má svoje průjezdy. */
+const CROSSROADS: MerchantStop[] = ['0,0,E', '0,0,N', '-1,0,E', '0,-1,N'].map((key, index) => ({
+  key,
+  seed: 7 + index,
+  index,
+  length: 4,
+}));
 /** První příjezd kupců po D. */
 const VISIT = nextMerchantVisit([STOP], D)!;
 const DAY = VISIT.day;
 const KEY = VISIT.key;
 const PURSE = 60;
+/** Ceny zbroje, kterou kupec veze – bez poptávky stojí na dně. */
+const ARMS_PRICES: MarketPrices = { swords: 120, mailShirts: 480, helmets: 240 };
+
+/** Dny prvních `n` průjezdů kupců od `DAY`. */
+function visitDays(n: number): number[] {
+  const days = merchantVisits([STOP], DAY, DAY + 26 * 366).map((visit) => visit.day);
+  if (days.length < n) throw new Error(`Průjezdů je jen ${days.length}.`);
+  return days.slice(0, n);
+}
 
 /**
  * Lhota (M) u stezky, dopočítaná do dne před příjezdem kupců: chovné jádro krav a obilí `spareKg` kg
@@ -413,6 +430,9 @@ describe('tržní den s kupci (marketDay)', () => {
       grain: s.storesKg,
       pottery: s.crafts?.potteryKg ?? 0,
       cows: s.livestock!.herds.cow,
+      honey: s.wares?.honeyKg ?? 0,
+      wax: s.wares?.waxKg ?? 0,
+      furs: (s.wares?.sheepFurs ?? 0) + (s.wares?.wildFurs ?? 0),
       ...s.arms,
       coins: s.coins ?? 0,
     });
@@ -423,6 +443,7 @@ describe('tržní den s kupci (marketDay)', () => {
         goods.filter(() => random.next() < share).map((good) => [good, some(max) + 1]),
       );
     let sold = 0;
+    let bought = 0;
     for (let i = 0; i < 60; i++) {
       const s = host(some(3_000), [STOP, CROSSING]);
       s.livestock!.herds.cow = 3 + some(5);
@@ -436,17 +457,24 @@ describe('tržní den s kupci (marketDay)', () => {
       const visitors = [...s.market!.visitors]; // odkazy platí i po odjezdu
       const sums = (): TradeGoods[] => [held(s), ...visitors.flatMap((v) => [v.goods, v.bought])];
       const before = totalGoods(sums());
-      marketDay(s, DAY);
-      const after = totalGoods(sums());
-      for (const good of goods) expect(after[good] ?? 0).toBeCloseTo(before[good] ?? 0, 6);
-      expect(after.coins).toBe(before.coins);
+      // rušný trh kupce zdrží do druhého dne – nejpozději pak odjedou všichni
+      for (const day of [DAY, DAY + 1]) {
+        marketDay(s, day);
+        const after = totalGoods(sums());
+        for (const good of goods) expect(after[good] ?? 0).toBeCloseTo(before[good] ?? 0, 6);
+        expect(after.coins).toBe(before.coins);
+      }
+      expect(s.market!.visitors).toEqual([]);
       for (const v of visitors) {
         expect(Number.isInteger(v.goods.coins ?? 0)).toBe(true);
         for (const good of TRADE_GOODS) expect(v.goods[good] ?? 0).toBeGreaterThanOrEqual(0);
-        if (v.merchant) sold += (v.sold.swords ?? 0) + (v.sold.helmets ?? 0);
+        if (!v.merchant) continue;
+        sold += (v.sold.swords ?? 0) + (v.sold.helmets ?? 0);
+        bought += (v.bought.honey ?? 0) + (v.bought.wax ?? 0) + (v.bought.furs ?? 0);
       }
     }
     expect(sold).toBeGreaterThan(0);
+    expect(bought).toBeGreaterThan(0);
   });
 });
 
@@ -489,32 +517,157 @@ describe('poptávka kupců v ceně dne (affordableWants)', () => {
       honey: 100,
     });
   });
+});
 
-  /** Cena dne vsi, kde kupec stojí sám, při uložených cenách `prices` a hladině `level`. */
-  function pricesAfter(prices: MarketPrices, level?: number): MarketPrices {
-    const s = host();
+describe('ceny v den kupců (marketDay)', () => {
+  /** Den kupce: hladina, výpravy na trhu, hostitel a úprava trhu před obchodem. */
+  interface MerchantDay {
+    level?: number;
+    trips?: MarketArrival[];
+    s?: VillageState;
+    change?: (s: VillageState) => void;
+  }
+
+  /** Ceny po tržním dni vsi, kde stojí kupec, při uložených cenách `prices`. */
+  function pricesAfter(prices: MarketPrices, setup: MerchantDay = {}): MarketPrices {
+    const { level, trips = [], s = host(), change } = setup;
     s.market = {
-      prices,
+      prices: { ...prices },
       visitors: [],
       nextOrder: 1,
       arrivals: [],
       ...(level === undefined ? {} : { level }),
     };
+    for (const arrival of trips) joinMarket(s, DAY, arrival);
     merchantsArrive(s, DAY);
+    change?.(s);
     marketDay(s, DAY);
     return s.market.prices;
   }
 
-  it('trh, kde kožešiny nikdo nenabízí: cena dne × 1,1; nad měšec kupce se nezmění', () => {
-    expect(pricesAfter({}).furs).toBeCloseTo((8 / 15) * 1.1, 12);
-    expect(pricesAfter({}).honey).toBeCloseTo(0.4 * 1.1, 12);
-    expect(pricesAfter({}).wax).toBeCloseTo(2 * 1.1, 12);
-    // poslední celá kožešina za celý měšec
-    expect(pricesAfter({ furs: 60 }).furs).toBeCloseTo(66, 12);
-    expect(pricesAfter({ furs: 61 }).furs).toBe(61);
+  it('co na trhu nikdo nenabízí, kupci nezdraží – sami ani v den s výpravou', () => {
+    expect(pricesAfter({})).toEqual(ARMS_PRICES);
+    const stored: MarketPrices = { honey: 5, wax: 10, furs: 20 };
+    expect(pricesAfter(stored)).toEqual({ ...stored, ...ARMS_PRICES });
+    // výprava veze jen med (12 ku 50) – vosk a kožešiny stojí, i když je kupec shání
+    const after = pricesAfter(stored, { trips: [trip('market:a:1', { honey: 50 }, {})] });
+    expect(after.honey).toBeCloseTo(5 * (1 + (0.1 * (12 - 50)) / 62), 12);
+    expect(after).toMatchObject({ wax: 10, furs: 20 });
+  });
+
+  it('co je na trhu ke koupi, zdraží nejvýš do měšce – víc než měšec zlevní', () => {
+    /** Cena kožešiny po dni, kdy výprava přivezla jednu. */
+    const oneFur = (prices: MarketPrices, level?: number): number =>
+      pricesAfter(prices, {
+        trips: [trip('market:a:1', { furs: 1 }, {})],
+        ...(level === undefined ? {} : { level }),
+      }).furs!;
+    // 60 kožešin ku jedné, za 10 mincí šest ku jedné
+    expect(oneFur({})).toBeCloseTo((8 / 15) * (1 + (0.1 * 59) / 61), 12);
+    expect(oneFur({ furs: 10 })).toBeCloseTo(10 * (1 + (0.1 * 5) / 7), 12);
+    // poslední celá kožešina za celý měšec: jedna ku jedné
+    expect(oneFur({ furs: 60 })).toBe(60);
+    expect(oneFur({ furs: 61 })).toBeCloseTo(54.9, 12);
     // cena v mincích je i s hladinou: 31 × 2 = 62
-    expect(pricesAfter({ furs: 31 }, 2).furs).toBe(31);
-    expect(pricesAfter({ furs: 31 }).furs).toBeCloseTo(34.1, 12);
+    expect(oneFur({ furs: 31 })).toBe(31);
+    expect(oneFur({ furs: 31 }, 2)).toBeCloseTo(27.9, 12);
+  });
+
+  it('den jen s kupci: ceny zboží, které kupci nevezou ani neshánějí, stojí', () => {
+    const s = host(1_000);
+    expect(marketStance(s, DAY)).toEqual({
+      offer: { grain: 1_000 },
+      wants: { tools: 27, pottery: 70, woodTools: expect.closeTo(46.8, 9) },
+    });
+    // nabídka hostitele obilí nezlevní, jeho poptávka nic nezdraží
+    const stored: MarketPrices = { grain: 0.2, tools: 12, pottery: 5, cows: 90, honey: 5 };
+    expect(pricesAfter(stored, { s })).toEqual({ ...stored, ...ARMS_PRICES });
+    expect(pricesAfter({}, { s: host(1_000) })).toEqual(ARMS_PRICES);
+    // dva kupci na křižovatce totéž
+    const crossing = host(1_000, [STOP, CROSSING]);
+    expect(pricesAfter(stored, { s: crossing })).toEqual({ ...stored, ...ARMS_PRICES });
+    expect(crossing.market!.arrivals).toHaveLength(2);
+  });
+
+  it('kovář souseda ani doprovod partnera výprava nejsou, výprava na pivo a vesničanů ano', () => {
+    const stored: MarketPrices = { grain: 0.2, tools: 12 };
+    const after = (fields: Partial<MarketVisitor>): MarketPrices =>
+      pricesAfter(stored, {
+        s: host(1_000),
+        trips: beerTrips(1, 1),
+        change: (s) => Object.assign(visitorOf(s, 'market:p0:1'), fields),
+      });
+    expect(after({ service: { kind: 'shoeing', horses: 1 } })).toMatchObject(stored);
+    expect(after({ kin: { seekerId: 1 } })).toMatchObject(stored);
+    for (const prices of [after({}), after({ by: 'villagers' })]) {
+      expect(prices.grain).toBeCloseTo(0.18, 12);
+      expect(prices.tools).toBeCloseTo(13.2, 12);
+    }
+  });
+
+  it('den jen s kupci: zboží kupců se hýbe podle celé nabídky i poptávky trhu', () => {
+    /** Cena obilí po dni, kdy ho kupec shání 3 t a hostitel ho nabízí `spareKg`. */
+    const grain = (spareKg: number, prices: MarketPrices = {}): number =>
+      pricesAfter(prices, {
+        s: host(spareKg),
+        change: (s) => (merchantOf(s).wants = { grain: 3_000 }),
+      }).grain!;
+    // za 60 mincí 900 kg ku 100: zdraží; 300 kg ku 1 000: zlevní
+    expect(grain(100)).toBeCloseTo((1 / 15) * (1 + (0.1 * 800) / 1_000), 9);
+    expect(grain(1_000, { grain: 0.2 })).toBeCloseTo(0.2 * (1 - (0.1 * 700) / 1_300), 9);
+    // za měšec by nekoupil ani kilo – pořád ho ale shání, cena klesá
+    expect(grain(1_000, { grain: 61 })).toBeCloseTo(54.9, 9);
+    // zbroj, kterou veze: nabídka bez poptávky
+    expect(pricesAfter({ swords: 200 }).swords).toBeCloseTo(180, 12);
+    // stačí, že ho shání jeden z kupců
+    const crossing = pricesAfter(
+      {},
+      {
+        s: host(100, [STOP, CROSSING]),
+        change: (s) => {
+          const [first, second] = merchantsOf(s) as [MarketVisitor, MarketVisitor];
+          first.wants = {};
+          second.wants = { grain: 3_000 };
+        },
+      },
+    );
+    expect(crossing.grain).toBeCloseTo((1 / 15) * (1 + (0.1 * 800) / 1_000), 9);
+  });
+
+  it('den s výpravou: hýbou se všechny ceny, jen kupci nezdraží, co na trhu není', () => {
+    const stored: MarketPrices = {
+      grain: 0.2,
+      tools: 12,
+      pottery: 5,
+      cows: 90,
+      logs: 4,
+      honey: 5,
+      wax: 10,
+      furs: 20,
+      swords: 200,
+    };
+    const after = pricesAfter(stored, {
+      s: host(1_000),
+      trips: [trip('market:a:1', { honey: 50, cows: 1 }, { logs: 3, furs: 2 })],
+    });
+    const expected: MarketPrices = {
+      grain: 0.2 * 0.9, // nabízí hostitel, nikdo ho neshání
+      tools: 12 * 1.1, // shání hostitel, nikdo je nenabízí
+      pottery: 5 * 1.1,
+      woodTools: initialPrice('woodTools') * 1.1,
+      cows: 90 * 0.9, // veze výprava
+      logs: 4 * 1.1, // shání výprava
+      honey: 5 * (1 + (0.1 * (12 - 50)) / 62), // kupec za měšec 12 kg, výprava veze 50
+      wax: 10, // shání jen kupec a na trhu není
+      furs: 20 * 1.1, // shání je i výprava – ta cenou hýbe i bez nabídky
+      ...ARMS_PRICES,
+      swords: 200 * 0.9,
+    };
+    expect(Object.keys(after).sort()).toEqual(Object.keys(expected).sort());
+    for (const good of TRADE_GOODS) {
+      if (expected[good] === undefined) continue;
+      expect(after[good], good).toBeCloseTo(expected[good], 9);
+    }
   });
 
   it('zbroj kupec nabízí – bez poptávky drží cenu na dně, poptávka výpravy ji zvedne', () => {
@@ -576,38 +729,142 @@ describe('poptávka kupců v ceně dne (affordableWants)', () => {
     expect(alone.market).not.toHaveProperty('level');
   });
 
-  it('100 průjezdů bez nabídky: ceny se zastaví nad měšcem kupce a hladina se nehne', () => {
+  it('den s výpravou: do poptávky patří i obilí, za které řemeslníci prodávají výrobky', () => {
     const s = host();
-    const days = merchantVisits([STOP], DAY, DAY + 26 * 366)
-      .slice(0, 100)
-      .map((visit) => visit.day);
-    expect(days).toHaveLength(100);
-    const history = days.map((day) => {
+    withWorkshop(s, 'potter', 701);
+    s.crafts = { charcoalKg: 0, potteryKg: 500 };
+    s.storesKg = 0;
+    s.storesKg = marketStance(s, DAY).wants.grain!;
+    const { offer, wants } = marketStance(s, DAY);
+    expect([offer.grain, wants.grain]).toEqual([undefined, undefined]);
+    expect(offer.pottery).toBeGreaterThanOrEqual(50);
+    const after = pricesAfter(
+      { grain: 0.2 },
+      { s, trips: [trip('market:a:1', { grain: 300 }, { pottery: 50 })] },
+    );
+    // 50 kg keramiky za 10 mincí = 50 kg obilí, které hrnčíř shání, ku 300 kg výpravy
+    expect(after.grain).toBeCloseTo(0.2 * (1 - (0.1 * 250) / 350), 9);
+  });
+
+  it('100 průjezdů do vsi bez nabídky: ceny medu, vosku, kožešin, nástrojů a krav zůstanou', () => {
+    const s = host();
+    s.livestock!.herds.cow = 1;
+    s.storesKg = 0;
+    const stored: MarketPrices = { honey: 5, wax: 10, furs: 20, tools: 12, cows: 90, grain: 0.2 };
+    s.market = { prices: { ...stored }, visitors: [], nextOrder: 1, arrivals: [] };
+    for (const day of visitDays(100)) {
+      // hostitel nástroje, krávy i obilí pořád shání, nikdo je nenabízí
+      const { offer, wants } = marketStance(s, day);
+      expect(offer).toEqual({});
+      expect(wants.cows).toBe(2);
+      expect(wants.tools).toBeGreaterThanOrEqual(27);
+      expect(wants.grain).toBeGreaterThan(0);
       expect(merchantsArrive(s, day)).toHaveLength(1);
       marketDay(s, day);
-      expect(s.market!.visitors).toEqual([]);
+      expect(s.market.visitors).toEqual([]);
+      expect(s.market.prices).toEqual({ ...stored, ...ARMS_PRICES });
       expect(s.market).not.toHaveProperty('level');
-      for (const price of Object.values(s.market!.prices)) {
-        expect(Number.isFinite(price)).toBe(true);
-      }
-      return { ...s.market!.prices };
-    });
-    /** Cena po `n` průjezdech. */
-    const after = (n: number): MarketPrices => history[n - 1]!;
-    expect(after(50).furs).toBeCloseTo(62.61, 2);
-    expect(after(49).furs!).toBeLessThan(60);
-    expect(after(53).honey).toBeCloseTo(62.5, 2);
-    expect(after(52).honey!).toBeLessThan(60);
-    expect(after(36).wax).toBeCloseTo(61.83, 2);
-    expect(after(35).wax!).toBeLessThan(60);
-    expect(after(100).furs).toBe(after(50).furs);
-    expect(after(100).honey).toBe(after(53).honey);
-    expect(after(100).wax).toBe(after(36).wax);
-    expect(initialPrice('furs')).toBeCloseTo(8 / 15, 12);
+    }
     // zásoby vsi ani mince se za tu dobu nehnuly
     expect(s).not.toHaveProperty('coins');
     expect(s).not.toHaveProperty('outbox');
-    expect(s.market!.arrivals).toHaveLength(MARKET.report.traders);
+    expect(s.market.arrivals).toHaveLength(MARKET.report.traders);
+  });
+
+  it('10 let na křižovatce (4 spojení) jen s kupci: ceny v mezích, žádné Infinity ani NaN', () => {
+    const start = host(1_000, CROSSROADS);
+    expect(marketStance(start, DAY)).toMatchObject({
+      offer: { grain: 1_000 },
+      wants: { tools: 27 },
+    });
+    const end = DAY - 1 + 3_652;
+    expect(merchantVisits(CROSSROADS, DAY, end).length).toBeGreaterThan(150);
+    const after = advanceVillage(start, end, null);
+    expect(isVillageDormant(after)).toBe(false);
+    for (const [good, price] of Object.entries(after.market!.prices)) {
+      expect(Number.isFinite(price), good).toBe(true);
+    }
+    // jen zbroj na dně – ceny, které by poptávka hostitele zvedla, se ani nezapsaly
+    expect(after.market!.prices).toEqual(ARMS_PRICES);
+    expect(after.market).not.toHaveProperty('level');
+    expect(after).not.toHaveProperty('coins');
+  });
+
+  /** Průjezd: cena medu (obilí) v mincích před ním, kolik kg kupec koupil a za kolik mincí. */
+  interface Passage {
+    price: number;
+    kg: number | undefined;
+    coins: number;
+  }
+
+  /** 20 kg na průjezd: cena roste k 60 mincím ÷ 20 kg – celý měšec za celý náklad –, výš nejde. */
+  function expectSettled(passages: Passage[]): void {
+    passages.forEach(({ price, kg }, i) => {
+      expect(kg).toBeCloseTo(20, 9);
+      if (i > 0) expect(price).toBeGreaterThan(passages[i - 1]!.price);
+    });
+    const last = passages.at(-1)!;
+    expect(last.price).toBeLessThan(3);
+    expect(last.price).toBeCloseTo(3, 1);
+    expect(last.coins).toBe(PURSE);
+  }
+
+  it('s nabídkou medu cena roste (D > S) a ustálí se tam, kde kupec za měšec koupí, co je na trhu', () => {
+    const s = host();
+    const relative: number[] = [];
+    const passages = visitDays(100).map((day, i): Passage => {
+      joinMarket(s, day, trip(`market:a:${i}`, { honey: 20 }, {}));
+      merchantsArrive(s, day);
+      const merchant = merchantOf(s);
+      const price = coinPriceOf(s.market!.prices, s.market!.level ?? 1, 'honey');
+      marketDay(s, day);
+      relative.push(s.market!.prices.honey!);
+      return { price, kg: merchant.bought.honey, coins: PURSE - (merchant.goods.coins ?? 0) };
+    });
+    // první den: 100 kg ku 20 → × (1 + 0,1 × 80 ÷ 120); 20 kg za 8 mincí
+    expect(passages[0]).toEqual({ price: 0.4, kg: 20, coins: 8 });
+    expect(relative[0]).toBeCloseTo(0.4 * (1 + (0.1 * 80) / 120), 12);
+    expectSettled(passages);
+    // D = S: cena stojí, k rovnováze dojde už jen hladina
+    expect(relative.at(-1)).toBe(relative.at(-30));
+  });
+
+  it('totéž v den jen s kupci z nabídky hostitele', () => {
+    let market: Pick<VillageMarket, 'prices' | 'level'> = { prices: {} };
+    const passages = Array.from({ length: 120 }, (): Passage => {
+      const s = host(20);
+      s.market = { ...market, visitors: [], nextOrder: 1, arrivals: [] };
+      merchantsArrive(s, DAY);
+      const merchant = merchantOf(s);
+      merchant.wants = { grain: 3_000 };
+      const price = coinPriceOf(s.market.prices, s.market.level ?? 1, 'grain');
+      marketDay(s, DAY);
+      const { prices, level } = s.market;
+      market = { prices, ...(level === undefined ? {} : { level }) };
+      return { price, kg: merchant.bought.grain, coins: PURSE - (merchant.goods.coins ?? 0) };
+    });
+    expect(passages[0]).toMatchObject({ price: 1 / 15, coins: 2 });
+    expectSettled(passages);
+  });
+
+  it('technická mez ceny: dál neroste a dopočet po kouscích dá týž stav', () => {
+    const top = 1e9 * initialPrice('tools');
+    // výprava na pivo 20 dní: hostitel každý den shání nástroje, nikdo je nenabízí
+    const inbox = [arriveEvent(trip('market:a:1', {}, {}, { stayDays: 20 }), DAY)];
+    const end = DAY + 19;
+    // i cena u konce rozsahu čísla: bez meze Infinity, v JSON null a po načtení zase výchozí
+    for (const price of [top, Number.MAX_VALUE]) {
+      const start = host();
+      start.market = { prices: { tools: price }, visitors: [], nextOrder: 1, arrivals: [] };
+      const whole = advanceVillage(start, end, null, null, inbox);
+      expect(whole.market!.prices.tools).toBe(top);
+      let parts: VillageState = start;
+      for (const to of [DAY, DAY + 7, end]) {
+        parts = advanceVillage(parts, to, null, null, inbox);
+        parts = JSON.parse(JSON.stringify(parts)) as VillageState;
+      }
+      expect(parts).toEqual(JSON.parse(JSON.stringify(whole)));
+    }
   });
 });
 
@@ -674,6 +931,7 @@ describe('pobyt kupců na rušném trhu (extendMerchants)', () => {
 
   it('druhý den kupuje za to, co mu v měšci zbylo – mince nepřibudou', () => {
     const s = host();
+    s.market = { prices: { honey: 0.5 }, visitors: [], nextOrder: 1, arrivals: [] };
     for (const arrival of beerTrips(2, 1)) joinMarket(s, DAY, arrival);
     joinMarket(s, DAY, trip('market:a:1', { furs: 30 }, {}));
     merchantsArrive(s, DAY);
@@ -683,7 +941,8 @@ describe('pobyt kupců na rušném trhu (extendMerchants)', () => {
     expect(allCoins(s)).toBe(PURSE);
     joinMarket(s, DAY + 1, trip('market:b:1', { honey: 200 }, {}));
     expect(merchantsArrive(s, DAY + 1)).toEqual([]);
-    const price = s.market!.prices.honey! * s.market!.level!;
+    // med první den na trhu nebyl – cena stojí, jen hladina stoupla
+    const price = 0.5 * s.market.level!;
     const kg = 44 / price;
     expect(kg).toBeLessThan(100);
     marketDay(s, DAY + 1);
@@ -696,6 +955,44 @@ describe('pobyt kupců na rušném trhu (extendMerchants)', () => {
     // odjeli všichni: 16 a 44 mincí jede domů s výpravami, kupec s prázdným měšcem
     expect(s.market!.visitors).toEqual([]);
     expect(allCoins(s)).toBe(PURSE);
+  });
+
+  it('druhý den shání jen to, co mu na seznamu zbylo – koupené kožešiny znovu ne', () => {
+    const s = host();
+    for (const arrival of beerTrips(2, 1)) joinMarket(s, DAY, arrival);
+    joinMarket(s, DAY, trip('market:a:1', { furs: 60 }, {}));
+    merchantsArrive(s, DAY);
+    const merchant = merchantOf(s);
+    marketDay(s, DAY);
+    expect(merchant.bought).toEqual({ furs: 60 });
+    expect(merchant.goods.coins).toBe(28);
+    expect(merchant.lastDay).toBe(DAY + 1);
+    joinMarket(s, DAY + 1, trip('market:b:1', { furs: 10, wax: 2 }, {}));
+    marketDay(s, DAY + 1);
+    expect(merchant.bought).toEqual({ furs: 60, wax: 2 });
+    expect(merchant.wants).toEqual({ honey: 100, wax: 22 });
+    const { sold, unsold } = resultOf(s, 'market:b:1');
+    expect(sold).toEqual({ wax: 2 });
+    expect(unsold).toMatchObject({ furs: 10 });
+  });
+
+  it('druhý den utratí i mince za prodaný meč – měšec 180 a podle něj i poptávka v ceně dne', () => {
+    const s = host();
+    for (const arrival of beerTrips(2, 1)) joinMarket(s, DAY, arrival);
+    joinMarket(s, DAY, trip('market:a:1', { coins: 120 }, { swords: 1 }));
+    merchantsArrive(s, DAY);
+    const merchant = merchantOf(s);
+    marketDay(s, DAY);
+    expect(merchant.goods).toEqual({ swords: 1, mailShirts: 1, helmets: 2, coins: 180 });
+    expect(affordableWants(merchant, { honey: 2 }, 1)).toEqual({ honey: 90, wax: 24, furs: 60 });
+    s.market!.prices = { honey: 2 };
+    delete s.market!.level;
+    joinMarket(s, DAY + 1, trip('market:b:1', { honey: 10 }, {}));
+    marketDay(s, DAY + 1);
+    // za 180 mincí 90 kg ku 10 → × (1 + 0,1 × 80 ÷ 100)
+    expect(s.market!.prices.honey).toBeCloseTo(2 * 1.08, 12);
+    expect(merchant.bought).toEqual({ honey: 10 });
+    expect(merchant.goods.coins).toBe(160);
   });
 });
 
