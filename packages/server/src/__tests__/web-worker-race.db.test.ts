@@ -147,7 +147,7 @@ function processDeps(
   const locks = createPlayerLocks(URL, options.lockPool);
   const deps: WorldStepDeps = {
     settlements: createSettlementRepository(db),
-    villages: cachedVillages(log.wrap(createVillageRepository(db), process)),
+    villages: cachedVillages(log.wrap(createVillageRepository(db, worldSeed()), process)),
     landscapes,
     worldSeed: worldSeed(),
     locks: options.lock ? locks.locks : NO_LOCK,
@@ -211,7 +211,7 @@ interface Seeded {
 
 async function seedPlayers(log: SaveLog): Promise<Seeded[]> {
   const settlements = createSettlementRepository(setup);
-  const villages = createVillageRepository(setup);
+  const villages = createVillageRepository(setup, worldSeed());
   const seeded: Seeded[] = [];
   for (const [index, [playerId, count]] of PLAYERS.entries()) {
     for (let i = 0; i < count; i++) {
@@ -352,7 +352,7 @@ async function race(webLock: boolean, withEvents = false): Promise<RaceResult> {
   const sender = withEvents ? createDatabase(URL) : null;
   const eventLoop = async (seed: number): Promise<void> => {
     if (!sender) return;
-    const inbox = createVillageRepository(sender).inbox;
+    const inbox = createVillageRepository(sender, worldSeed()).inbox;
     const rnd = random(seed);
     let n = 0;
     while (running) {
@@ -416,6 +416,9 @@ async function reference(
   result: RaceResult,
 ): Promise<Map<string, { name: string; state: VillageState }>> {
   const villages = new InMemoryVillages();
+  // sídla scénáře nemají výřez kostry – mapa bez stezky jako z DB (markets.md – Rozhodnutí plánu 4,
+  // bod 5)
+  villages.merchantStopsOf = () => Promise.resolve([]);
   const deps = { villages };
   const ids = new Map<string, string>();
   for (const [i, s] of result.seeded.entries()) {

@@ -56,7 +56,7 @@ beforeEach(async () => {
       })),
     },
   });
-  const record = await createVillageRepository(db).create(settlement!.id, 'Lhota', state);
+  const record = await createVillageRepository(db, 1).create(settlement!.id, 'Lhota', state);
   villageId = record!.id;
 });
 

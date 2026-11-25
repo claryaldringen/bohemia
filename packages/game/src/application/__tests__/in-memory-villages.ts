@@ -1,4 +1,9 @@
-import { villageDigest, type VillageState, type VillageYearRow } from '../../domain/village';
+import {
+  villageDigest,
+  type MerchantStop,
+  type VillageState,
+  type VillageYearRow,
+} from '../../domain/village';
 import type {
   VillageDigestRecord,
   VillageRecord,
@@ -78,6 +83,12 @@ export class InMemoryVillages implements VillageRepository {
     this.nearby = nearbyRefresh({ villages: this, settlements });
     return this;
   }
+
+  /**
+   * Zastávky stezek mapy (`VillageRepository.merchantStopsOf`) – test je dá jako úložiště v DB. Bez
+   * nich port chybí jako v kalibraci: dopočet je nezjišťuje (testy jádra simulují jako dřív).
+   */
+  merchantStopsOf?: (settlementId: string) => Promise<readonly MerchantStop[] | null>;
   private nextId = 1;
 
   async weatherSeedOf(settlementId: string): Promise<number | null> {

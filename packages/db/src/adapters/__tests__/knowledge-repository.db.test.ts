@@ -63,7 +63,7 @@ function cell(
 describe('KnowledgeRepository', () => {
   it('knownCellsOf jedním dotazem: id vsi a počet staveb ze znalosti, sídlo bez archivu, vsi a rod', async () => {
     const settlements = createSettlementRepository(db);
-    const villages = createVillageRepository(db);
+    const villages = createVillageRepository(db, 1);
     const place = { landscapeSeed: 1, layerVersions: CURRENT_LAYER_VERSIONS };
     const state = foundVillage({ seed: 1, day: 0, dwellingPosition: { x: 0, z: 0, rotation: 0 } });
     const held = await settlements.createSeat({

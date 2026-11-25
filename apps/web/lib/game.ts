@@ -106,7 +106,7 @@ export function chooseLanguageForPlayer(
       accounts: createAccountLanguages(db),
       houses: createHouseRepository(db),
       settlements: createSettlementRepository(db),
-      villages: createVillageRepository(db),
+      villages: createVillageRepository(db, worldSeed()),
     },
     { playerId, language },
   );
@@ -209,7 +209,7 @@ function playerVillagesDeps(): Parameters<typeof findPlayerVillage>[0] {
   const db = getDatabase();
   return {
     settlements: createSettlementRepository(db),
-    villages: cachedVillages(createVillageRepository(db)),
+    villages: cachedVillages(createVillageRepository(db, worldSeed())),
   };
 }
 

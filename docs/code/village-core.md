@@ -1042,8 +1042,9 @@ seřazeným seznamem** `VILLAGE_MIGRATIONS` (`domain/village/core/migrations.ts`
 loadOnly?, run(state, ctx) }`), který prochází `migrateVillage(state, ctx)`:
 
 - **Načtení vsi** (`updateVillage`) volá seznam jednou před dopočtem s `ctx.load` (den, do kterého se
-  ves dopočítá – `heldDay`, seed počasí mapy z úložiště, krajina a vrstva překážek sídla) – projde
-  všechny převody. Selhání převodu (`sowingRotationFailed`, `wildlifeFailed`, `horsePenStockFailed`,
+  ves dopočítá – `heldDay`, seed počasí a zastávky stezek mapy z úložiště – na zastávky se ptá jen ves,
+  která je ještě nemá, jednou za volání –, krajina a vrstva překážek sídla) – projde všechny převody.
+  Selhání převodu (`sowingRotationFailed`, `wildlifeFailed`, `horsePenStockFailed`,
   `forestClearingFailed`) zapíše do logu (seznam `failures` v `updateVillage`).
 - **Dopočet** (`advanceVillageSteps`, tedy i `advanceVillage`, `foundedVillageState`, spící ves
   v `asleepStay`) volá seznam jednou po `arrive` (ves na cestě se v den příjezdu založí) a před
@@ -1057,13 +1058,13 @@ loadOnly?, run(state, ctx) }`), který prochází `migrateVillage(state, ctx)`:
   `wildlife` před `armsCapped`, nová ves obráceně – nová ves proto má `armsCapped` od založení
   (`foundVillage` volá `withArmsCaps`; dovednosti osadníků nad strop se srazí jako dřív při prvním
   dopočtu) a ze seznamu dostane jen zvěř.
-- **`loadOnly`** – převod potřebuje kontext načtení (`weather-seed` seed počasí z úložiště,
-  `pen-grace` den načtení – dopočet sám den nemění), nebo by jednal na stavech, které načtením nikdy
-  neprošly: zlatý svět (`foundVillage` bez pozemků, variant domů, vzdálenosti k lesu a pastvy)
-  a cesty vzniklé během dopočtu (bez `swathChecked` a `liningPlanned`) by `plots`,
-  `dwelling-shapes`, `forest-distances`, `livestock-land`, `road-swaths` a `planned-lining` změnily
-  – zlaté otisky i unit testy by se pohnuly. Ostatní převody z řetězu načtení zůstaly `loadOnly`
-  jako dřív.
+- **`loadOnly`** – převod potřebuje kontext načtení (`weather-seed` seed počasí a `merchant-stops`
+  zastávky stezek z úložiště, `pen-grace` den načtení – dopočet sám den nemění), nebo by jednal na
+  stavech, které načtením nikdy neprošly: zlatý svět (`foundVillage` bez pozemků, variant domů,
+  vzdálenosti k lesu a pastvy) a cesty vzniklé během dopočtu (bez `swathChecked` a `liningPlanned`)
+  by `plots`, `dwelling-shapes`, `forest-distances`, `livestock-land`, `road-swaths`
+  a `planned-lining` změnily – zlaté otisky i unit testy by se pohnuly. Ostatní převody z řetězu
+  načtení zůstaly `loadOnly` jako dřív.
 - **Převody po dopočtu** jsou mimo seznam, v `updateVillage` za dopočtem: `withRoutes` (trasy
   z dopočítaného stavu – i opakovaně, když se změní rozložení), `withRoadsV2`, `withRoadsRebuiltSteps`
   a `withRoadsRepairedSteps` (s přestávkami `pause`; kotvy jsou z tras po dopočtu – před dopočtem by
@@ -1077,8 +1078,11 @@ loadOnly?, run(state, ctx) }`), který prochází `migrateVillage(state, ctx)`:
 - **Nová ves** dostane části, které dřív zakládaly převody, už při založení – `foundVillage`
   (`dynasty`, `steward`, `sowingRotation`, `sheaves`, `grainPits`, `manorId`, `armsCapped`)
   a `foundedState` (`withWeatherSeed`, `withPlots`, `withDwellingShapes`, `withLivestockLand`) –
-  převody pak mění jen starší vsi. Výjimka: zvěř (`wildlife`) zakládá seznam – `foundVillage` nemá
-  krajinu (zlatý svět, osadníci přes `stewardArrival`).
+  převody pak mění jen starší vsi. Výjimky: zvěř (`wildlife`) zakládá seznam – `foundVillage` nemá
+  krajinu (zlatý svět, osadníci přes `stewardArrival`) – a zastávky kupců (`merchant-stops`) dostane
+  i nová ves až prvním načtením; ves na cestě si je přenese do založené vsi (`stewardArrival`,
+  `settleJourney`), jinak by je příjezd uvnitř dopočtu zahodil a další dny téhož dopočtu by kupci
+  nechodili.
 
 **Nový převod** (pravidlo od 11. 11. 2026): přidej položku **na konec** `VILLAGE_MIGRATIONS` –
 `id` (jedinečné), `since` (den zavedení `RRRR-MM-DD`), `run` jednorázový a idempotentní (ves, které
@@ -1146,6 +1150,7 @@ založení (`foundVillage` / `foundedState`), převod ji doplní jen starším v
 | `smoked-meat-stocks` – `smokedMeatStocks`             | uzené 1. 11.–31. 8. do zásoby z porážky 1. 11. (D98)         | ano (vždy číslo)   | –                        | ne (`foundVillage` – 0)      | oba     |
 | `fictional-neighbours` – `withoutFictionalNeighbours` | smaže zbytky roku smyšlených sousedů, výpravy na cestě nechá | ano (při každém)   | –                        | ne                           | oba     |
 | `plough-rate` – `setPloughRate`                       | sazba orby letošního plánu (25. 11. 2026, oxen.md)           | ano (`perHa`)      | –                        | ne (`createCropWork`)        | oba     |
+| `merchant-stops` – `withMerchantStops`                | zastávky dálkových stezek mapy, i prázdné (markets.md)       | ano                | zastávky z úložiště      | **ano**                      | načtení |
 
 „Zakládá novou ves“ = jedná na právě založené vsi; v závorce, kde tu část nová ves dostane při
 založení. „Při každém“ = bez příznaku, hlídá podmínku při každém průchodu (levné).

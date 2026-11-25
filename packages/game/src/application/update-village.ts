@@ -15,6 +15,7 @@ import {
   withRoutes,
   nextYearEnd,
   villageYearRow,
+  type MerchantStop,
   type VillageEvent,
   type VillageState,
   type VillageYearRow,
@@ -145,8 +146,9 @@ async function withPauses(
  * Načte ves, dopočítá ji do dneška, provede změnu a uloží s kontrolou verze. Při souběhu
  * (verze nesouhlasí) to zkusí znovu nad čerstvým stavem. Nezměněný stav se neukládá.
  * Starší ves před dopočtem projde převody (`migrateVillage` – seznam `VILLAGE_MIGRATIONS`,
- * village-core.md – Převody starších vsí) i s převody jen pro načtení (den načtení, seed počasí
- * mapy – úložiště bez počasí (null) ji nechá bez něj), aby se s nimi už počítalo; pak se uloží.
+ * village-core.md – Převody starších vsí) i s převody jen pro načtení (den načtení; seed počasí
+ * mapy – úložiště bez počasí (null) ji nechá bez něj; zastávky stezek mapy, jen když je ještě
+ * nemá), aby se s nimi už počítalo; pak se uloží.
  * Ves se dopočítává s vrstvou překážek a krajinou sídla (přestavby kácí stromy, polozemnice bez
  * pozemku se přestaví na volném políčku). Zbytky jam po zaniklých obydlích pod novou stavbou po
  * změně zmizí (`withoutBuiltOverRuins`), obilné jámy taky – zrno se přendá
@@ -172,6 +174,7 @@ export async function updateVillage(
 ): Promise<VillageResult> {
   const obstacles = obstaclesOf(landscape);
   let weatherSeed: number | null | undefined;
+  let merchantStops: readonly MerchantStop[] | null | undefined;
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
     const record = await villages.find(villageId);
     if (record === null) return { ok: false, reason: NO_VILLAGE };
@@ -181,12 +184,21 @@ export async function updateVillage(
     const day = heldDay(today, record.state.lastDay, limits?.get(villageId));
     // seed počasí mapy se nemění – stačí se zeptat jednou
     weatherSeed ??= await villages.weatherSeedOf(record.settlementId);
+    // zastávky stezek mapy (markets.md – Rozhodnutí plánu 4, bod 5) se nemění a ves si je uloží –
+    // ptá se jen ves, která je nemá, a jednou (i neznámé sídlo při dalším pokusu)
+    if (
+      villages.merchantStopsOf &&
+      merchantStops === undefined &&
+      record.state.merchantStops === undefined
+    ) {
+      merchantStops = await villages.merchantStopsOf(record.settlementId);
+    }
     // převody starších vsí (village-core.md – Převody starších vsí) – před dopočtem, ať se s nimi
     // už počítá; dopočet je projde znovu bez převodů jen pro načtení (už nic nezmění)
     const migrated = migrateVillage(record.state, {
       obstacles,
       landscape,
-      load: { today: day, weatherSeed, landscape, obstacles },
+      load: { today: day, weatherSeed, merchantStops, landscape, obstacles },
     });
     // převod selhal při tomto načtení – ves jde dál, chyba se zapíše do logu
     for (const [key, what] of MIGRATION_FAILURES) {

@@ -517,6 +517,15 @@ day, order, target, { by?, seedKg?, alone?, service?, kin?, people? })` (mutuje 
 - **Cizí kupci ve vsi** (markets.md – Rozhodnutí plánu 4, body 3 a 5; `trade/merchants.ts`). Zastávky
   vsi nese `VillageState.merchantStops` (chybí = ještě nezjištěno, `[]` = mapa bez stezky; nese seed,
   klientovi se neposílá) – ves bez nich žije bit po bitu jako bez kupců.
+  - **Načtení zastávek:** `updateVillage` se úložiště zeptá (`villages.merchantStopsOf` – jen z výřezu
+    sídla, world.md – Zastávky stezky), jen když je ves ještě nemá, jednou za volání (i při konfliktu
+    verze), a zapíše je převod načtení `merchant-stops` (`withMerchantStops`, village-core.md –
+    Převody starších vsí) před dopočtem, takže kupci chodí už v něm. Zapíše i `[]` (mapa bez stezky)
+    – ves se pak znovu neptá; po nasazení se tak každá ves jednou uloží, i spící. Neznámé sídlo (null)
+    ani úložiště bez portu (testy jádra, kalibrace) ves nemění. Ves na cestě dostane zastávky nové
+    mapy už cestou a do založené vsi je přenese příjezd se správcem (`stewardArrival`) i založení
+    hráčem (`settleJourney`) – dopočet přes příjezd po kouscích dá totéž co vcelku. Paměť vsí
+    (`cachedVillages`) port předá z úložiště.
   - **Příjezd:** `merchantsArrive(state, day)` – krok dne po událostech schránky a před `marketDay`
     (village-core.md – Pořadí práce dne), takže kupec obchoduje už v den příjezdu. Za každý příjezd
     `merchantVisits(merchantStops, day, day)` založí návštěvníka trhu (trh vznikne, chybí-li):

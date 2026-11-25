@@ -458,7 +458,9 @@ export function stewardDepartureOrigin(villageId: string, id: number): string {
  * Ves na cestě se správcem dorazila do dne `toDay` (steward.md – Kde správce běží): správce sám
  * umístí první zemnici – nejbližší volné místo k místu vsi nové krajiny (`freeVillageSite`) – a ves
  * se založí z osadníků (`settlersOf` → `foundedState`) v den příjezdu; kronika cesty zůstane před
- * založením. Zdrojem pravdy je přepínač vsi na cestě (`steward.on`) – hráč ho může cestou zapnout i vypnout. Jinak (správce vypnutý, nedorazila, bez místa) null – ves
+ * založením, zastávky kupců nové mapy (markets.md – Rozhodnutí plánu 4, bod 5) přejdou – ať kupci
+ * přijedou i v dalších dnech téhož dopočtu. Zdrojem pravdy je přepínač vsi na cestě (`steward.on`) –
+ * hráč ho může cestou zapnout i vypnout. Jinak (správce vypnutý, nedorazila, bez místa) null – ves
  * čeká na hráče.
  */
 export function stewardArrival(
@@ -484,5 +486,6 @@ export function stewardArrival(
     ...founded.state,
     chronicle: [...state.chronicle, ...founded.state.chronicle],
     ...(state.origin === undefined ? {} : { origin: state.origin }),
+    ...(state.merchantStops === undefined ? {} : { merchantStops: state.merchantStops }),
   };
 }

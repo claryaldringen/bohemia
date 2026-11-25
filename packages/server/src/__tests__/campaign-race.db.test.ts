@@ -102,7 +102,7 @@ async function seedWorld(): Promise<Map<Label, string>> {
     how: 'declared',
   });
   const settlements = createSettlementRepository(setup);
-  const villages = createVillageRepository(setup);
+  const villages = createVillageRepository(setup, worldSeed());
   const ids = new Map<Label, string>();
   let seed = 4242;
   for (const place of PLACES) {
@@ -193,8 +193,8 @@ function processDeps(): {
   const locks = createPlayerLocks(URL, 2);
   const lockPool = createLockPool(URL, 2);
   const settlements = createSettlementRepository(db);
-  const villages = cachedVillages(createVillageRepository(db));
-  const plain = createVillageRepository(db);
+  const villages = cachedVillages(createVillageRepository(db, worldSeed()));
+  const plain = createVillageRepository(db, worldSeed());
   const deps: WorldStepDeps = {
     settlements,
     villages,
@@ -270,7 +270,7 @@ async function snapshot(ids: Map<Label, string>): Promise<{
   campaign: string;
   inbox: { label: Label; day: number; kind: string }[];
 }> {
-  const villages = createVillageRepository(setup);
+  const villages = createVillageRepository(setup, worldSeed());
   const relabel = (text: string): string => {
     let out = text;
     for (const [label, id] of ids) out = out.split(id).join(label);
@@ -412,7 +412,7 @@ describe('souběh vsí a výjezdu – domovská ves v bariéře', () => {
     const ids = await seedWorld();
     await setup.execute(sql`DELETE FROM campaign`);
     const home = ids.get('daleko')!;
-    const village = (await createVillageRepository(setup).find(home))!.state;
+    const village = (await createVillageRepository(setup, worldSeed()).find(home))!.state;
     const lord = village.people.find((p) => p.sex === 'male')!;
     const journey = newJourney(
       {
@@ -445,7 +445,7 @@ describe('souběh vsí a výjezdu – domovská ves v bariéře', () => {
     try {
       await advanceWorldStep(p.world, { worldDay: D0 + 2, stepDays: 10, limit: 10 });
       const lastDay = async (id: string): Promise<number> =>
-        (await createVillageRepository(setup).find(id))!.state.lastDay;
+        (await createVillageRepository(setup, worldSeed()).find(id))!.state.lastDay;
       expect(await lastDay(home)).toBe(D0 - 1);
       expect(away.throughDay ?? away.day - 1).toBe(D0 - 1);
       expect(await lastDay(ids.get('brod')!)).toBeGreaterThan(D0);

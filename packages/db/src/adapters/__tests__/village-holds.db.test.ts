@@ -66,7 +66,7 @@ beforeEach(async () => {
     })
   ).war.id;
   const settlements = createSettlementRepository(db);
-  const villages = createVillageRepository(db);
+  const villages = createVillageRepository(db, 1);
   const state = FOUNDED;
   const at = async (x: number, seat: boolean): Promise<string> => {
     const place = { ownerId: 'd', landscapeSeed: 11, layerVersions: CURRENT_LAYER_VERSIONS };

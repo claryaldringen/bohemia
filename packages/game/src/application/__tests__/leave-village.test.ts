@@ -5,6 +5,7 @@ import { isolatedLandscapeSeed } from '../../domain/world';
 import {
   SUCCESSOR_STAYS,
   isVillageTravelling,
+  type MerchantStop,
   type Person,
   type Position,
   type VillageState,
@@ -323,6 +324,69 @@ describe('leaveVillage – na novou mapu', () => {
       landscape,
     });
     expect(later!.state.lastDay).toBe(journey.arrivalDay + 30);
+  });
+
+  it.each<[string, MerchantStop[] | undefined]>([
+    ['zastávky nové mapy', [{ key: '0,0,E', seed: 7, index: 3, length: 20 }]],
+    ['mapa bez stezky', []],
+    ['nezjištěné', undefined],
+  ])(
+    'zastávky kupců ves na cestě přenese do založené vsi (markets.md, Rozhodnutí plánu 4, bod 5) – %s',
+    async (_name, stops) => {
+      const { deps, villageId, sonHome } = await player();
+      const left = await leaveVillage(deps, {
+        playerId: PLAYER,
+        villageId,
+        today: TODAY + 1,
+        dwellingIds: [sonHome],
+        destination: { kind: 'map', direction: 'N' },
+      });
+      if (!left.ok) throw new Error(left.reason);
+      deps.villages.edit(left.to.id, (state) => {
+        if (stops) state.merchantStops = structuredClone(stops);
+      });
+      const settled = await settleJourney(deps, {
+        playerId: PLAYER,
+        villageId: left.to.id,
+        today: left.to.state.journey!.arrivalDay,
+        dwelling: at(0, 0),
+      });
+      if (!settled.ok) throw new Error(settled.reason);
+      expect(settled.village.state.journey).toBeUndefined();
+      if (stops) expect(settled.village.state.merchantStops).toEqual(stops);
+      else expect(settled.village.state).not.toHaveProperty('merchantStops');
+    },
+  );
+
+  it('zastávky, které ves na cestě dostane až při založení, se neztratí', async () => {
+    const { deps, villageId, sonHome } = await player();
+    const left = await leaveVillage(deps, {
+      playerId: PLAYER,
+      villageId,
+      today: TODAY + 1,
+      dwellingIds: [sonHome],
+      destination: { kind: 'map', direction: 'N' },
+    });
+    if (!left.ok) throw new Error(left.reason);
+    const stop: MerchantStop = { key: '0,0,E', seed: 7, index: 3, length: 20 };
+    const asked: string[] = [];
+    deps.villages.merchantStopsOf = async (settlementId) => {
+      await Promise.resolve();
+      asked.push(settlementId);
+      return [stop];
+    };
+    const arrival = left.to.state.journey!.arrivalDay;
+    const settled = await settleJourney(deps, {
+      playerId: PLAYER,
+      villageId: left.to.id,
+      today: arrival,
+      dwelling: at(0, 0),
+    });
+    if (!settled.ok) throw new Error(settled.reason);
+    expect(settled.village.state.merchantStops).toEqual([stop]);
+    // ptala se na sídlo nové mapy a jen jednou – i po dalším načtení
+    await loadVillage(deps, { villageId: left.to.id, today: arrival + 2, landscape });
+    expect(asked).toEqual([left.settlement.id]);
   });
 
   it('odříznutý rod: odchod na východ založí odříznuté sídlo (1, 0) v místní mřížce s vlastní krajinou', async () => {

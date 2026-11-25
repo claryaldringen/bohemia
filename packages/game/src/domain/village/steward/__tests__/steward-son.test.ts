@@ -8,6 +8,7 @@ import { villageTerritory } from '../steward-land';
 import { markNewborn } from '../../people/dynasty';
 import { suggestVillageName } from '../../people/names';
 import { STEWARD } from '../../rules/rules-steward';
+import { migrateVillage, type VillageMigrationContext } from '../../core/migrations';
 import { advanceVillage } from '../../core/simulate';
 import { departWithSon } from '../../people/son-departure';
 import {
@@ -27,7 +28,8 @@ import { bufferFill } from '../../fields/field-food';
 import { fieldStoresOutlook } from '../../core/simulate-plan';
 import { craftCoverage } from '../../crafts/crafts';
 import type { VillageEvent } from '../../core/inbox';
-import type { Person, VillageState } from '../../types';
+import { merchantVisits } from '../../trade/merchant-plan';
+import type { MerchantStop, Person, VillageState } from '../../types';
 import { kin } from '../../__tests__/kin-fixtures';
 import {
   AUG31,
@@ -417,6 +419,57 @@ describe('ves na cestě se správcem (příjezd)', () => {
       }
     }
   });
+
+  it('zastávky kupců nové mapy přejdou příjezdem do založené vsi (markets.md, Rozhodnutí plánu 4, bod 5)', () => {
+    const stops: MerchantStop[] = [{ key: '0,0,E', seed: 7, index: 0, length: 1 }];
+    const t = travelling();
+    const without = stewardArrival(t, AUG31 + 2, fertile, fertileObstacles)!;
+    expect(without).not.toHaveProperty('merchantStops');
+    expect(
+      stewardArrival({ ...t, merchantStops: stops }, AUG31 + 2, fertile, fertileObstacles),
+    ).toStrictEqual({ ...without, merchantStops: stops });
+    // mapa bez stezky zůstane zjištěná (`[]`)
+    expect(
+      stewardArrival({ ...t, merchantStops: [] }, AUG31 + 2, fertile, fertileObstacles),
+    ).toStrictEqual({ ...without, merchantStops: [] });
+  });
+
+  it('kupci po příjezdu uvnitř dopočtu: 200 dní vcelku = po kouscích s načtením mezi nimi', () => {
+    const stops: MerchantStop[] = [{ key: '0,0,E', seed: 7, index: 0, length: 1 }];
+    const end = AUG31 + 200;
+    const load: VillageMigrationContext = {
+      obstacles: fertileObstacles,
+      landscape: fertile,
+      load: {
+        today: end,
+        weatherSeed: 99,
+        merchantStops: stops,
+        landscape: fertile,
+        obstacles: fertileObstacles,
+      },
+    };
+    const start = migrateVillage({ ...travelling(), merchantStops: stops }, load);
+    const whole = advanceVillage(start, end, fertileObstacles, fertile);
+    expect(whole.foundedDay).toBe(AUG31 + 2);
+    expect(whole.people.length).toBeGreaterThan(0);
+    expect(whole.merchantStops).toEqual(stops);
+    // kupci přijeli po příjezdu vsi v obou polovinách
+    const planned = merchantVisits(stops, AUG31 + 2, end).map((visit) => visit.day);
+    const [first] = planned;
+    expect(first).toBeLessThan(AUG31 + 100);
+    expect(planned.at(-1)).toBeGreaterThan(AUG31 + 100);
+    const arrivals = (s: VillageState): number[] =>
+      s.chronicle.filter((e) => e.kind === 'merchants-arrived').map((e) => e.day);
+    expect(arrivals(whole)).toEqual(planned);
+    // značky cest postavených v dopočtu (`road-swaths`, `planned-lining`) dává až další načtení
+    const reloaded = (s: VillageState): VillageState => json2(migrateVillage(s, load));
+    // hranice kousků před příjezdem vsi, v jeho den, v den kupců a po 100 dnech
+    for (const cut of [AUG31 + 1, AUG31 + 2, first!, AUG31 + 100]) {
+      const part = reloaded(advanceVillage(start, cut, fertileObstacles, fertile));
+      const parts = advanceVillage(part, end, fertileObstacles, fertile);
+      expect(reloaded(parts)).toEqual(reloaded(whole));
+    }
+  }, 60_000);
 
   it('ves na cestě, kde hráč správce vypnul, čeká na hráče a po založení zůstane vypnutá', () => {
     const t = travelling();

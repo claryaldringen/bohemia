@@ -105,7 +105,7 @@ import {
 } from '@bohemia/game';
 import { getDatabase, getPlayerLock } from './db';
 import { exclusivePlayer } from './exclusive';
-import { cachedVillages, currentWorld, withVillageCache } from '@bohemia/server';
+import { cachedVillages, currentWorld, withVillageCache, worldSeed } from '@bohemia/server';
 import {
   currentStewardViewStampOfPlayer,
   currentViewStampOfPlayer,
@@ -164,7 +164,7 @@ type Context =
   | Failure;
 
 function villages(): VillageRepository {
-  return cachedVillages(createVillageRepository(getDatabase()));
+  return cachedVillages(createVillageRepository(getDatabase(), worldSeed()));
 }
 
 /** Ves `villageId` hráče s krajinou jejího sídla a jeho dnešní den – společný začátek akcí. */

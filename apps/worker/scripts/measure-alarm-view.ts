@@ -158,7 +158,7 @@ async function main(): Promise<void> {
   const db = createDatabase(MEASURE_URL);
   const houses = createHouseRepository(db);
   const settlements = createSettlementRepository(db);
-  const villages = createVillageRepository(db);
+  const villages = createVillageRepository(db, 1);
   const campaigns = createCampaignRepository(db);
   const now = new Date();
   const [hp, ha] = [

@@ -46,7 +46,7 @@ import { withSteward } from '../steward/steward-state';
 import { convertSheafWorkByKg, needsSheafWorkByKg, withThreshingGrace } from '../fields/threshing';
 import { withIronBarsTrade, withoutForeignGoods } from '../trade/trade';
 import { withoutFictionalNeighbours } from '../trade/legacy-neighbours';
-import type { VillageState } from '../types';
+import type { MerchantStop, VillageState } from '../types';
 import { withWeatherSeed } from '../disasters/weather';
 import { withWildlife } from '../wildlife/wildlife';
 import { partsByIdOf } from './parts-by-id';
@@ -58,10 +58,15 @@ import { withPeopleNames } from '../people/people-names';
 // stejném pořadí. Převod je jednorázový a idempotentní (ves, které nic nechybí, vrací týž objekt)
 // a vstupní stav nemění. Nový převod patří na konec seznamu (pravidlo v village-core.md).
 
-/** Načtení vsi (`updateVillage`): den, do kterého se ves dopočítá, seed počasí mapy a krajina. */
+/**
+ * Načtení vsi (`updateVillage`): den, do kterého se ves dopočítá, seed počasí a zastávky stezek mapy
+ * a krajina.
+ */
 export interface VillageLoadContext {
   readonly today: number;
   readonly weatherSeed: number | null;
+  /** Zastávky dálkových stezek mapy (`VillageRepository.merchantStopsOf`); chybí nebo null = neznámé. */
+  readonly merchantStops?: readonly MerchantStop[] | null;
   readonly landscape: Landscape;
   readonly obstacles: ObstacleLayer;
 }
@@ -255,6 +260,13 @@ export const VILLAGE_MIGRATIONS: readonly VillageMigration[] = [
   { id: 'fictional-neighbours', since: '2026-11-23', run: withoutFictionalNeighbours },
   // sazba orby letošního plánu (oxen.md – Účinek na práci, Nástroje během sezóny)
   { id: 'plough-rate', since: '2026-11-25', run: ploughRate },
+  // zastávky dálkových stezek mapy (markets.md – Rozhodnutí plánu 4, bod 5) – zná je úložiště
+  {
+    id: 'merchant-stops',
+    since: '2026-11-25',
+    loadOnly: true,
+    run: (s, ctx) => withMerchantStops(s, ctx.merchantStops ?? null),
+  },
 ];
 
 /** Pole stavu lovu, která nesl kalendářní lov rodu a lov navíc (hunting.md – Pravidla 1). */
@@ -341,6 +353,19 @@ function ploughRate(state: VillageState): VillageState {
   const next = cloneState(state);
   setPloughRate(next.season, partsByIdOf(next.parts));
   return next;
+}
+
+/**
+ * Zastávky dálkových stezek mapy (markets.md – Rozhodnutí plánu 4, bod 5): zapíše je, jen když je ves
+ * ještě nemá a jsou známé (`null` = neznámé, nic); i prázdné (mapa bez stezky) – ves se pak podruhé
+ * neptá.
+ */
+export function withMerchantStops(
+  state: VillageState,
+  stops: readonly MerchantStop[] | null,
+): VillageState {
+  if (stops === null || state.merchantStops !== undefined) return state;
+  return { ...state, merchantStops: stops.map((stop) => ({ ...stop })) };
 }
 
 /**

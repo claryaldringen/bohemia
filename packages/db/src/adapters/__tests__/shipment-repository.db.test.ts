@@ -18,7 +18,7 @@ import { createVillageRepository } from '../village-repository';
 
 const db = createDatabase(testDatabaseUrl());
 const shipments = createShipmentRepository(db);
-const villages = createVillageRepository(db);
+const villages = createVillageRepository(db, 1);
 const DAY = dayIndexOf({ year: 503, month: 4, day: 12 });
 let fromId = '';
 let toId = '';

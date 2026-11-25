@@ -249,7 +249,7 @@ async function main(): Promise<void> {
 
   // tažení: vlastní zámek (dva workery – tažení počítá jen jeden) a vsi bez paměti dávky
   const campaignLockPool = createLockPool(config.databaseUrl, CAMPAIGN_LOCK_POOL_SIZE);
-  const campaignVillages = createVillageRepository(db);
+  const campaignVillages = createVillageRepository(db, gameDeps.worldSeed);
   const campaignDeps = {
     campaigns: createCampaignRepository(db),
     campaignLock: createCampaignLock(campaignLockPool),

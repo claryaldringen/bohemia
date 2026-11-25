@@ -14,7 +14,7 @@ import { createVillageRepository } from '../village-repository';
 
 const db = createDatabase(testDatabaseUrl());
 const refugees = createRefugeRepository(db);
-const villages = createVillageRepository(db);
+const villages = createVillageRepository(db, 1);
 const DAY = dayIndexOf({ year: 503, month: 10, day: 2 });
 
 const base = (): VillageState =>

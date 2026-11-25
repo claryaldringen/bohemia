@@ -16,7 +16,7 @@ import { createSettlementRepository } from '../settlement-repository';
 import { createVillageRepository } from '../village-repository';
 
 const db = createDatabase(testDatabaseUrl());
-const villages = createVillageRepository(db);
+const villages = createVillageRepository(db, 1);
 const inbox = villages.inbox;
 const DAY = dayIndexOf({ year: 503, month: 4, day: 12 });
 const UNKNOWN = '00000000-0000-0000-0000-000000000000';

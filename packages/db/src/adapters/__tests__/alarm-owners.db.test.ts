@@ -62,7 +62,7 @@ beforeEach(async () => {
   await swear(house.q!, house.r!);
   const npcOath = await swear(house.q!, npc.id);
   const settlements = createSettlementRepository(db);
-  const villages = createVillageRepository(db);
+  const villages = createVillageRepository(db, 1);
   v = {};
   const seats = new Set<string>();
   const at = async (name: string, owner: string, x: number, y: number): Promise<string> => {

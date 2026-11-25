@@ -96,6 +96,12 @@ a, b, riverAt)` (`ports.ts`) – hash hrany jako u řeky (soli `trailPortNS/EW`)
   pořadí `index` na cestě od prvního uzlu a její délka `length`) ze spojení 3 × 3 bloků kolem, seřazené
   podle `key`: mimo uzel jedna, uzel za každé spojení, které v něm končí, bez stezky `[]`. Jen čte graf
   kostry – žádná nová sůl ani verze. Plán kupců ze zastávek: village-trade.md – Cizí kupci – plán.
+  **Ves je dostane jen z výřezu svého sídla** (`VillageRepository.merchantStopsOf`, adaptér
+  `village-repository.ts`): krajina se generuje z uloženého výřezu, ne z políčka (world-skeleton.md –
+  Uložení), takže sídlo bez výřezu (`settlement.skeleton` null) nebo bez stezek v něm
+  (`skeleton.trails` prázdné) má `[]`, i když jeho políčkem stezka kostry vede; `[]` má i odříznuté
+  sídlo bez políčka světa. Jinak `trailStops(worldSeed, políčko)`; neznámé sídlo null. Seed světa je
+  proto povinný parametr `createVillageRepository(db, worldSeed)` všude, kde se úložiště zakládá.
 - **Místa** (`sites.ts`): `riverCrossings(slice)` – obvod 0–511 (S od západu, E od jihu, N od
   východu, W od severu), body řek ho dělí na oblouky, přechody = oblouky s bodem stezky − 1;
   `seatSlot(slice)` = `'dry'` (null), `'river'`, `'trail'`, `'ford'` (1 přechod), jinak null
