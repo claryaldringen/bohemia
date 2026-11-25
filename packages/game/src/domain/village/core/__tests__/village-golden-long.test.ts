@@ -115,8 +115,11 @@ import { goldenWorld, stateFingerprint, YEAR } from './village-golden-fixture';
 // 23. 11. 2026 – konec smyšlených sousedů (markets.md – Pravidla 1), úloha 3: bez nákupu nástrojů,
 // keramiky, dřevěného nářadí a osiva u sousedů (jako rok 1 v village-golden.test.ts); dřív
 // cb76e472098a0444 a 7caad49566be1db2
-const EXPECTED_YEAR_2 = 'cd3408ee81095e60';
-const EXPECTED_YEAR_3 = '5742015609c28dc5';
+// 25. 11. 2026 – orba s nástroji získanými během sezóny (kapacita i práce při stejném pokrytí): jen
+// klíč `PloughWork.perHa`, chování beze změny (jako rok 1 v village-golden.test.ts); dřív
+// cd3408ee81095e60 a 5742015609c28dc5
+const EXPECTED_YEAR_2 = '6a3f7bfc59e82c13';
+const EXPECTED_YEAR_3 = '5dee9ebb1711deda';
 // 18. 11. 2026 – D93 cesta přes plochu staveb; dřív 168010dd35f7c1c7 a a499594da5514b49 (viz
 // village-golden.test.ts)
 // 18. 11. 2026 – D95 výmlat (výmlat podle kg snopů, rod v zimě dorovná tempo okna – viz

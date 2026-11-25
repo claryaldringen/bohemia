@@ -5,10 +5,19 @@ import { foundVillage } from '../actions';
 import { migrateVillage, VILLAGE_MIGRATIONS, type VillageMigrationContext } from '../migrations';
 import { withoutForeignGoods } from '../../trade/trade';
 import { advanceVillage } from '../simulate';
+import { createCropWork } from '../year-plan';
+import { ploughWorkPerHa } from '../../livestock/plough';
 import { villageHorses } from '../../livestock/horses';
 import { horsePen } from '../../__tests__/horse-fixtures';
 import { withBuiltFirstDwelling } from '../../__tests__/village-fixtures';
-import type { CraftPurchase, IronTrip, TradeExpedition, VillageState } from '../../types';
+import type {
+  CraftPurchase,
+  FieldPart,
+  IronTrip,
+  PloughWork,
+  TradeExpedition,
+  VillageState,
+} from '../../types';
 
 // Převody starších vsí (village-core.md – Převody starších vsí): jeden seznam pro načtení vsi
 // i dopočet – každý převod jednou, převody `loadOnly` jen při načtení.
@@ -146,6 +155,76 @@ describe('lov bez kalendáře a lovu navíc (hunting.md – Pravidla 1)', () => 
       year: { boar: 0, deer: 0, wolves: 0, bear: 0, meatKg: 0, days: 0 },
       beaters: { day: DAY + 1, men: 6 },
     };
+    expect(migrateVillage(s, advance)).toBe(s);
+  });
+});
+
+describe('sazba orby letošního plánu (oxen.md – Účinek na práci, Nástroje během sezóny)', () => {
+  const part = (id: number, over: Partial<FieldPart> = {}): FieldPart => ({
+    id,
+    fieldId: 1,
+    areaM2: 5_000,
+    distanceM: 300 + id,
+    naturalFertility: 70,
+    fertilityShare: 1,
+    bonusUntilDay: null,
+    state: 'ready',
+    sownYears: 0,
+    fallowSinceDay: null,
+    foundingCost: 0,
+    foundingDone: 0,
+    surface: 'meadow',
+    ...over,
+  });
+  /** Ves, která orá ozim při pokrytí nástroji `tools` (díl 3 s drnem) – plán uložený bez sazby. */
+  function ploughing(tools: number): VillageState {
+    const s = migrateVillage(founded(), load);
+    s.parts = [part(1), part(2), part(3, { state: 'ready', sod: true })];
+    const work = createCropWork(s.parts, DAY, tools, true, undefined, 'winter');
+    work.plough!.done = work.plough!.required / 3;
+    delete work.plough!.perHa;
+    s.season = {
+      startDay: DAY,
+      ard: true,
+      crops: [
+        { crop: 'winter', ...work },
+        // jař bez dílů – prázdná orba sazbu nepotřebuje
+        { crop: 'spring', ...createCropWork([], DAY, tools, true) },
+      ],
+    };
+    delete s.season.crops[1]!.plough!.perHa;
+    return s;
+  }
+  const ploughOf = (s: VillageState): PloughWork => s.season!.crops[0]!.plough!;
+
+  it('plán uložený bez sazby ji dostane podle váhy oraných dílů; orba i vstup beze změny', () => {
+    for (const tools of [0, 0.4, 1]) {
+      const old = ploughing(tools);
+      const before = JSON.stringify(old);
+      const once = migrateVillage(old, advance);
+      expect(ploughOf(once).perHa).toBeCloseTo(ploughWorkPerHa(tools), 9);
+      expect({ ...ploughOf(once), perHa: undefined }).toEqual({
+        ...ploughOf(old),
+        perHa: undefined,
+      });
+      expect(migrateVillage(once, advance)).toBe(once);
+      expect(JSON.stringify(old)).toBe(before);
+    }
+  });
+
+  it('díly z různých dnů dají průměrnou sazbu, nejvýš v mezích sazby', () => {
+    const mixed = ploughing(0);
+    ploughOf(mixed).required *= 0.8;
+    expect(ploughOf(migrateVillage(mixed, advance)).perHa).toBeCloseTo(8, 9);
+    // váhy dílů se od plánu změnily (kratší cesta k poli)
+    const drifted = ploughing(0);
+    ploughOf(drifted).required *= 1.2;
+    expect(ploughOf(migrateVillage(drifted, advance)).perHa).toBe(ploughWorkPerHa(0));
+  });
+
+  it('plán se sazbou se nemění', () => {
+    const s = ploughing(1);
+    ploughOf(s).perHa = 7;
     expect(migrateVillage(s, advance)).toBe(s);
   });
 });

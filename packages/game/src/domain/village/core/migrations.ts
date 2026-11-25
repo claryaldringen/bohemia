@@ -49,7 +49,8 @@ import { withoutFictionalNeighbours } from '../trade/legacy-neighbours';
 import type { VillageState } from '../types';
 import { withWeatherSeed } from '../disasters/weather';
 import { withWildlife } from '../wildlife/wildlife';
-import { withSeason } from './year-plan';
+import { partsByIdOf } from './parts-by-id';
+import { needsPloughRate, setPloughRate, withSeason } from './year-plan';
 import { withPeopleNames } from '../people/people-names';
 
 // Převody starších vsí (village-core.md – Převody starších vsí): jeden seřazený seznam, který
@@ -252,6 +253,8 @@ export const VILLAGE_MIGRATIONS: readonly VillageMigration[] = [
   // konec smyšlených sousedů (markets.md – Pravidla 10) – zbytky roku sousedů zmizí, výpravy na
   // cestě doběhnou
   { id: 'fictional-neighbours', since: '2026-11-23', run: withoutFictionalNeighbours },
+  // sazba orby letošního plánu (oxen.md – Účinek na práci, Nástroje během sezóny)
+  { id: 'plough-rate', since: '2026-11-25', run: ploughRate },
 ];
 
 /** Pole stavu lovu, která nesl kalendářní lov rodu a lov navíc (hunting.md – Pravidla 1). */
@@ -329,6 +332,14 @@ function sheafWorkByKg(state: VillageState): VillageState {
   if (!needsSheafWorkByKg(state)) return state;
   const next = cloneState(state);
   convertSheafWorkByKg(next, craftCoverage(next, next.lastDay).tools);
+  return next;
+}
+
+/** Orba letošního plánu uloženého bez sazby ji dostane (`setPloughRate`) – na kopii, jen jednou. */
+function ploughRate(state: VillageState): VillageState {
+  if (!needsPloughRate(state.season)) return state;
+  const next = cloneState(state);
+  setPloughRate(next.season, partsByIdOf(next.parts));
   return next;
 }
 

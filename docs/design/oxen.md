@@ -577,6 +577,16 @@ z 62) a 873 (52,5 z 58) – stádo ovcí se obnovuje. Práce 1. seče 871 416 č
   spřežením“): za každým orajícím spřežením jde týž den 1 rozsévač – setí stojí 1 člověkoden na
   den spřežení (≈ 3,3 čd/ha, na drnu 8,3; nástroje zlevní orbu, ne tempo volů), dřív 10 čd/ha
   (≈ 3 lidé za spřežením). Motykou taky ≈ 3,3 čd/ha (návrh Clauda – [fields.md](fields.md), Práce).
+- **Nástroje během sezóny** (návrh Clauda, 25. 11. 2026; podle principu pro celou hru výš – co
+  vesničanům ulehčí práci a mají to k dispozici, začnou používat sami): nástroje získané nebo
+  ztracené uprostřed orby platí od příštího dne. **Orba letošního plánu se každé ráno přepočte na
+  dnešní pokrytí nástroji** (potřebná i hotová práce poměrem sazeb), ať je kapacita spřežení
+  i orba při témže pokrytí – pár zorá 0,3 ha za den s jakýmikoli nástroji, lepší nástroje ubírají
+  práci oráči a honáčkovi hned a zoraná plocha se přepočtem nezmění. Dřív byla kapacita při dnešním
+  pokrytí a orba při pokrytí dne, kdy díl do plánu přibyl – po nákupu nástrojů páry oraly až o 40 %
+  pomaleji, s opotřebenými rychleji, a s každou dávkou dílů při jiném pokrytí se zoraná část plodiny
+  posunula (orba přibyla zadarmo, nebo se zoraný díl oral znovu). Ostatní polní práce zůstává při
+  pokrytí dne, kdy díl do plánu přibyl ([řemesla](crafts.md) – Implementace).
 - ~~**Drn rádlo nezvládne** (rešerše – rádla selhávala na panenském drnu): zakládání pole na louce,
   v křovinách a v lese a vracení úhoru ve fázi louky (3+ roky) dál stojí jako dnes (motyka, mýcení).~~
   Od 19. 10. 2026 rádlo bere i drn – viz Jen rádlo.
@@ -987,6 +997,7 @@ rádlem přednost dál** (návrh Clauda – spřežení potřebuje jen oráče, 
 | Ohrada 1 čtverec, 40 čd + 6 stromů; 1 spřežení na ohradu; spřežení slouží ≈ 10 let                                                                                                                                                                                                                                                             | návrh Clauda                                                                                                 |
 | Seno 1,5 t na vola za zimu, louka 1,5 t/ha, sečení 6 čd/ha; bez sena slabší orba / úhyn                                                                                                                                                                                                                                                        | návrh Clauda                                                                                                 |
 | Orba 10 → 6 čd/ha místo kopání 100 → 50; drn rádlo nezvládne; spřežení ≈ 0,3 ha/den                                                                                                                                                                                                                                                            | návrh Clauda (rešerše)                                                                                       |
+| Nástroje během sezóny: orba plánu se ráno přepočte na dnešní pokrytí nástroji – kapacita i práce při stejném pokrytí                                                                                                                                                                                                                           | návrh Clauda (25. 11. 2026)                                                                                  |
 | Výcvik z aspoň 3 krav; rádlo jako stavba; seč 1. 6. pro krávy a 2 voly na ohradu                                                                                                                                                                                                                                                               | rozhodnutí kontroléru                                                                                        |
 | Náhrada spřežení jen v posledních 2 letech služby; dvě spřežení = druhá ohrada                                                                                                                                                                                                                                                                 | Martin (18. 10. 2026)                                                                                        |
 | Zbývající služba a dny výcviku s ikonou přesýpacích hodin (místo slunce)                                                                                                                                                                                                                                                                       | Martin (18. 10. 2026)                                                                                        |

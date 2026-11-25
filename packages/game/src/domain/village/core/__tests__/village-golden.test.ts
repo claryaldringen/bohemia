@@ -136,7 +136,10 @@ import { advanceChunked, goldenWorld, stateFingerprint, YEAR } from './village-g
 // 15. 11. nekupuje nástroje, keramiku ani dřevěné nářadí u sousedů a osivo nekupuje (1. 3. 505
 // kronika jen zapíše, že chybí 147 kg osiva) – za 20 let bez nástrojů menší cíl polí (≈ 24,4 ha
 // místo ≈ 33,6 ha); dřív 2eb026657107226c
-const EXPECTED_YEAR_1 = 'ae20588895d2a041';
+// 25. 11. 2026 – orba s nástroji získanými během sezóny (kapacita i práce při stejném pokrytí):
+// chování zlaté vsi bez nástrojů (pokrytí 0) beze změny, orba plánu jen nese svou sazbu
+// (`PloughWork.perHa`) – bez tohoto klíče dá stav týž otisk jako dřív; dřív ae20588895d2a041
+const EXPECTED_YEAR_1 = '8ae45851a193c3ee';
 // 18. 11. 2026 – D93 cesta přes plochu staveb; dřív 82b12dd84c08dd63 (vyšlapaná cesta přes plochu
 // staveb nevznikne a napojení ji obejde – jiné cesty a id; roky chůze nejvýš doba vyšlapání)
 // 18. 11. 2026 – D95 výmlat (Martin: „A, C, E“ – výmlat podle kg snopů, rod v zimě dorovná tempo

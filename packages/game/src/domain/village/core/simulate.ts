@@ -86,6 +86,7 @@ import {
   startSeason,
 } from './simulate-plan';
 import { work } from './simulate-work';
+import { seasonPloughAtTools } from './year-plan';
 import { patrolHuntDay, settlePatrol } from '../wildlife/field-patrol';
 import { npcHuntDay } from '../wildlife/npc-hunt';
 import { dogsYear } from '../wildlife/manor-dogs';
@@ -248,6 +249,10 @@ function* simulateDaySteps(
   yield* routesDaySteps(state, day, date, landscape, obstacles);
   // pokrytí výrobky řemeslníků ze včerejších zásob – meze produktivity celého dne (crafts.md)
   const coverage = craftCoverage(state, day);
+  // orba letošního plánu při témže pokrytí jako dnešní kapacita spřežení – nástroje získané během
+  // sezóny vesničané použijí hned (oxen.md – Účinek na práci, Nástroje během sezóny); před díly na
+  // řadě a prací dne
+  seasonPloughAtTools(state.season, coverage.tools);
   storesAndHerdsDay(state, day, coverage, landscape, obstacles);
   yield;
   const waiting = seasonPlanDay(state, day, date, coverage, landscape, obstacles);

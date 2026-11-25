@@ -381,6 +381,12 @@ export interface PloughWork {
   /** Váha oraných dílů (ha × příplatek za vzdálenost). */
   weight: number;
   /**
+   * Sazba orby (`ploughWorkPerHa`, člověkodny na ha bez drnu), ve které jsou `required` a `done` –
+   * pokrytí nástroji dne, na které je orba přepočtená (`ploughAtTools`; oxen.md – Účinek na práci,
+   * Nástroje během sezóny). Plán uložený dřív ji dostane převodem `plough-rate`.
+   */
+  perHa?: number;
+  /**
    * Díly s drnem (`hasSod` při plánu – louka založená rádlem, příloh ve fázi louky): orba na nich
    * stojí `PLOUGH_SOD_FACTOR`× víc práce a před orbou jsou pastvinou. Chybí = žádné.
    */
