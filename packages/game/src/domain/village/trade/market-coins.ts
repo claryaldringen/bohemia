@@ -97,7 +97,8 @@ function basketOf(buyer: Ledger, seller: Ledger, price: (good: TradeGood) => num
 
 /**
  * Mince proti zboží na začátku fáze (Rozhodnutí plánu 4, bod 3). Kupující = strana s mincemi
- * a hodnotou seznamu nad 0: C = Σ min(mince, hodnota seznamu), W = Σ přes zboží min(součet seznamů
+ * a hodnotou seznamu nad 0: C = Σ min(mince, hodnota seznamu) – seznam strany `fromMerchants` jen
+ * do zboží, které kupci na trhu dnes mají (objednat 50 mečů při 2 u kupců = objednat 2) –, W = Σ přes zboží min(součet seznamů
  * kupujících, součet nabídek všech stran) × cena.
  */
 function coinsAgainstGoods(
@@ -106,8 +107,14 @@ function coinsAgainstGoods(
 ): { available: number; sought: number } {
   const sumOf = (list: readonly TradeGoods[], good: TradeGood): number =>
     list.reduce((sum, goods) => sum + Math.max(0, goods[good] ?? 0), 0);
+  const merchantStocks = parties.filter((p) => p.merchant).map((p) => p.stock);
+  // seznam strany `fromMerchants` (objednávka zbroje) se počítá nejvýš do zboží, které kupci mají
   const listWorth = (p: CoinParty): number =>
-    SOLD_FOR_COINS.reduce((sum, good) => sum + sumOf([p.wants], good) * price(good), 0);
+    SOLD_FOR_COINS.reduce((sum, good) => {
+      const wanted = sumOf([p.wants], good);
+      const count = p.fromMerchants ? Math.min(wanted, sumOf(merchantStocks, good)) : wanted;
+      return sum + count * price(good);
+    }, 0);
   const buyers = parties.filter((p) => p.coins > 0 && listWorth(p) > 0);
   const wants = buyers.map((p) => p.wants);
   const stocks = parties.map((p) => p.stock);

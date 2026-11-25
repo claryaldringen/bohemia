@@ -232,8 +232,8 @@ describe('objednaná zbroj v den kupců (marketDay)', () => {
     expect(first.goods).toStrictEqual({ coins: 180 });
     expect(first.sold).toStrictEqual({ swords: 1 });
     expect(first.bought).toStrictEqual({});
-    // C = 130 mincí, W = jeden meč za 120
-    expect(s.market!.level).toBeCloseTo(1.004, 12);
+    // seznam se počítá jen do jednoho meče, který kupec veze: C = 120, W = 120 → hladina 1
+    expect(s.market!.level).toBeUndefined();
     // platba odjela s kupcem, v odchozí schránce nic není
     expect(s.market!.visitors).toEqual([]);
     expect(s).not.toHaveProperty('outbox');
@@ -241,13 +241,13 @@ describe('objednaná zbroj v den kupců (marketDay)', () => {
     s.coins = 130;
     const second = merchant(s, { swords: 1, coins: 60 }, NEXT_DAY);
     expect(marketDay(s, NEXT_DAY)).toEqual([
-      { day: NEXT_DAY, kind: 'market-held', sold: { coins: 121 }, bought: { swords: 1 } },
+      { day: NEXT_DAY, kind: 'market-held', sold: { coins: 120 }, bought: { swords: 1 } },
     ]);
     expect(s.arms).toStrictEqual({ swords: 2 });
     expect(s).not.toHaveProperty('armsOrder');
-    expect(s.coins).toBe(9); // meč za 120,48 – celé mince nahoru
-    expect(second.goods).toStrictEqual({ coins: 181 });
-    expect(s.market!.level).toBeCloseTo(1.004, 12); // C = W
+    expect(s.coins).toBe(10); // meč za 120 (hladina 1)
+    expect(second.goods).toStrictEqual({ coins: 180 });
+    expect(s.market!.level).toBeUndefined(); // C = W
   });
 
   it('po splnění objednávky ves dalšímu kupci nic nekoupí, i když na to má', () => {
@@ -707,6 +707,29 @@ describe('kupující jen od kupců (coinClearing, fromMerchants)', () => {
     expect(c).toEqual({ trades: [], payments: [], available: 0, sought: 0 });
   });
 
+  it('hladina počítá z objednávky jen zbroj, kterou kupci mají', () => {
+    const level = (ordered: number, onMarket: number | null): number => {
+      const c = coinClearing(
+        [
+          party('host', { coins: 1_000, wants: { swords: ordered }, fromMerchants: true }),
+          party('kupec', {
+            coins: 60,
+            stock: onMarket === null ? {} : { swords: onMarket },
+            merchant: true,
+          }),
+        ],
+        {},
+        1,
+      );
+      return c.available;
+    };
+    // 2 meče po 120: host min(1 000, 240) + kupec min(60, 0) – 50 mečů nezvedne nic navíc
+    expect(level(2, 2)).toBeCloseTo(240, 9);
+    expect(level(50, 2)).toBeCloseTo(level(2, 2), 9);
+    expect(level(1, 2)).toBeCloseTo(120, 9);
+    expect(level(50, null)).toBe(0);
+  });
+
   it('60 náhodných trhů: hostitel kupuje jen zbroj a jen od kupců, měšec celý a ≥ 0', () => {
     const rnd = createRandom(5);
     const int = (from: number, to: number): number =>
@@ -777,14 +800,15 @@ describe('objednávka v dopočtu vsi (advanceVillage)', () => {
     expect(isVillageDormant(whole)).toBe(false);
     const days = merchantVisits([STOP], DAY, end).map((visit) => visit.day);
     expect(days).toHaveLength(5);
-    // meč za 120, po prvním nákupu hladina 1,0273 (C = 360 + měšec 60, W = 240) a meč za 123,27
+    // meč za 120, po prvním nákupu hladina nad 1 (C = 240 – třetí meč kupci nevezli – + měšec kupce,
+    // W = 240) a třetí meč za 122
     expect(heldEvents(whole)).toEqual([
       { day: days[0], kind: 'market-held', sold: { coins: 240 }, bought: { swords: 2 } },
-      { day: days[1], kind: 'market-held', sold: { coins: 124 }, bought: { swords: 1 } },
+      { day: days[1], kind: 'market-held', sold: { coins: 122 }, bought: { swords: 1 } },
     ]);
     expect(whole.arms).toStrictEqual({ swords: 3 });
     expect(whole).not.toHaveProperty('armsOrder');
-    expect(whole.coins).toBe(36);
+    expect(whole.coins).toBe(38);
   });
 
   it('400 dní vcelku a po kouscích dá týž stav i kroniku', () => {

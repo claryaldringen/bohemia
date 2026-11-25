@@ -563,8 +563,10 @@ day, order, target, { by?, seedKg?, alone?, service?, kin?, people? })` (mutuje 
     koupené přibude do `VillageState.arms`, platba do měšce kupce a odjede s ním, v kronice
     `market-held` je `bought.swords` a `sold.coins`. Po fázi `reduceArmsOrder(state, bought)`
     objednávku o koupené zmenší, zbytek čeká na další kupce. Přání zbroje nepatří do zápočtů,
-    `marketStance`, `nextPrices`, zakázek ani výhledů správce – jen do C a W hladiny jako seznam
-    každého kupujícího. Akce hráče: use-case `orderArms` (`application/arms-order.ts`,
+    `marketStance`, `nextPrices`, zakázek ani výhledů správce – jen do C a W hladiny; v C se
+    seznam kupujícího s `fromMerchants` počítá nejvýš do zboží, které kupci na trhu dnes mají (po
+    druzích min(objednáno, u kupců) × cena), takže objednat 50 mečů při 2 u kupců hladinu nezvedne
+    víc než objednat 2 (`coinsAgainstGoods`). Akce hráče: use-case `orderArms` (`application/arms-order.ts`,
     `updateLivingVillage` – neživá ves dostane dosavadní důvod), právo `trade` (`ACTION_RIGHTS`, má ho
     i správce cizí vsi), web `orderArmsForPlayer` (`lib/village.ts`) a server action `orderArms`
     (`actions/market.ts`, vstup `{ villageId, good, amount }` ověří `parseArmsOrderInput`).
