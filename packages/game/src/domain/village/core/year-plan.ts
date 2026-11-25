@@ -32,6 +32,7 @@ import type {
   FallowStage,
   FieldPart,
   FieldTask,
+  PloughWork,
   TaskName,
   VillageState,
   FarmSeason,
@@ -220,14 +221,14 @@ export function createCropWork(
   const reclaimIds: number[] = [];
   const sodIds: number[] = [];
   let ploughRequired = 0;
-  let ploughWeight = 0;
+  let ploughWeightSum = 0;
   for (const part of ordered) {
     const work = partWork(part, day, toolCoverage, plough, crop);
     for (const task of TASK_ORDER) required[task] += work[task];
     if (work.reclaim > 0) reclaimIds.push(part.id);
     if (!plough) continue;
     ploughRequired += work.plough;
-    ploughWeight += partWeight(part);
+    ploughWeightSum += partWeight(part);
     if (hasSod(part, day)) sodIds.push(part.id);
   }
   const partIds = ordered.map((p) => p.id);
@@ -244,7 +245,8 @@ export function createCropWork(
             partIds: [...partIds],
             required: ploughRequired,
             done: 0,
-            weight: ploughWeight,
+            weight: ploughWeightSum,
+            perHa: ploughWorkPerHa(toolCoverage),
             ...(sodIds.length > 0 ? { sodIds } : {}),
             bands: layout!.bands,
           },
@@ -329,6 +331,9 @@ export function addToCropWork(
   work.partIds.push(...extra.partIds);
   if (extra.reclaimIds) work.reclaimIds = [...(work.reclaimIds ?? []), ...extra.reclaimIds];
   if (!plough || !extra.plough) return;
+  // přidané díly jsou při pokrytí `toolCoverage` – dosavadní orba taky, jinak by se zoraná část
+  // plodiny posunula (orba by přibyla zadarmo, nebo by se zoraný díl oral znovu)
+  ploughAtTools(plough, toolCoverage);
   plough.partIds.push(...extra.plough.partIds);
   plough.required += extra.plough.required;
   plough.weight += extra.plough.weight;
@@ -337,6 +342,68 @@ export function addToCropWork(
   if (plough.bands && extra.plough.bands) {
     const next = plough.bands.reduce((max, b) => Math.max(max, b.block + 1), 0);
     plough.bands.push(...extra.plough.bands.map((b) => ({ ...b, block: b.block + next })));
+  }
+}
+
+/**
+ * Přepočte orbu plodiny na pokrytí nástroji `toolCoverage` (mutuje `plough`; oxen.md – Účinek na
+ * práci, Nástroje během sezóny): potřebná i hotová práce poměrem sazeb – kam orba došla
+ * (`taskPosition`), se nezmění. Kapacita spřežení (`ploughCapacityPerDay`) je v člověkodnech při
+ * témže pokrytí, takže pár zorá ≈ 0,3 ha za den s jakýmikoli nástroji a lepší nástroje ubírají
+ * práci lidem. Orba bez sazby (`perHa`) se bere, jako by při tomto pokrytí spočtená byla.
+ */
+export function ploughAtTools(plough: PloughWork, toolCoverage: number): void {
+  const perHa = ploughWorkPerHa(toolCoverage);
+  if (plough.perHa !== undefined && plough.perHa !== perHa) {
+    const rate = perHa / plough.perHa;
+    plough.required *= rate;
+    plough.done *= rate;
+  }
+  plough.perHa = perHa;
+}
+
+/** Orba všech plodin letošní práce při pokrytí nástroji `toolCoverage` (`ploughAtTools`). */
+export function seasonPloughAtTools(season: FarmSeason | null, toolCoverage: number): void {
+  for (const work of season?.crops ?? []) {
+    if (work.plough) ploughAtTools(work.plough, toolCoverage);
+  }
+}
+
+/**
+ * Váha orby plodiny (ha × příplatek za vzdálenost; díly s drnem `PLOUGH_SOD_FACTOR`× jako
+ * `partWork`) – orba plodiny je váha × sazba (`ploughWorkPerHa`).
+ */
+export function ploughWeight(plough: PloughWork, byId: ReadonlyMap<number, FieldPart>): number {
+  let weight = plough.weight;
+  for (const id of plough.sodIds ?? []) {
+    const part = byId.get(id);
+    if (part) weight += partWeight(part) * (PLOUGH_SOD_FACTOR - 1);
+  }
+  return weight;
+}
+
+/** Má letošní plán orbu bez sazby (`PloughWork.perHa`) – plán uložený dřív, převod `plough-rate`? */
+export function needsPloughRate(season: FarmSeason | null): boolean {
+  return (season?.crops ?? []).some((work) => lacksPloughRate(work.plough));
+}
+
+/** Orba s prací, ale bez sazby – prázdná orba (plodina bez dílů) sazbu nepotřebuje. */
+function lacksPloughRate(plough: PloughWork | undefined): plough is PloughWork {
+  return plough !== undefined && plough.perHa === undefined && plough.required > 0;
+}
+
+/**
+ * Sazba orby plánu uloženého bez ní (mutuje plán): orba ÷ váha oraných dílů (`ploughWeight`) –
+ * průměr pokrytí dnů, kdy díly přibyly – v mezích sazby (váhy dílů se od plánu mohly změnit).
+ */
+export function setPloughRate(
+  season: FarmSeason | null,
+  byId: ReadonlyMap<number, FieldPart>,
+): void {
+  for (const { plough } of season?.crops ?? []) {
+    if (!lacksPloughRate(plough)) continue;
+    const rate = plough.required / ploughWeight(plough, byId);
+    plough.perHa = Math.min(ploughWorkPerHa(0), Math.max(ploughWorkPerHa(1), rate));
   }
 }
 

@@ -369,7 +369,8 @@ kroniky`sacred-oak-died`/`sacred-snag-fell`(upozornění přes`CHRONICLE_NOTICES
 - **Determinismus:** simulace jde den po dni v pevném pořadí kroků (`simulate.ts`), náhoda dne
   je ze seedu vsi a indexu dne – výsledek nezávisí na tom, po jakých kouscích se ves dopočítá.
   Den (`simulateDaySteps`, 11. 11. 2026 rozložený beze změny výsledku) skládá pojmenované kroky:
-  `morningDay` → `routesDaySteps` (zastávky) → `craftCoverage` → `storesAndHerdsDay` →
+  `morningDay` → `routesDaySteps` (zastávky) → `craftCoverage` → `seasonPloughAtTools` (orba plánu
+  při dnešním pokrytí nástroji – village-fields.md) → `storesAndHerdsDay` →
   `seasonPlanDay` → `workDayStep` (`work()`) → `afterWorkDay` → `remnantsDay` (obilné jámy pod
   novými stavbami podle `idsBefore`) → `marriagesAndMealDay` (`eat`) → `lordEveningDay` (lov
   správce `npcHuntDay`, úlovek z hlídky, výcvik dne – village-wildlife.md, Lov správce) →
@@ -1142,6 +1143,7 @@ založení (`foundVillage` / `foundedState`), převod ji doplní jen starším v
 | `sheaf-work-by-kg` – `convertSheafWorkByKg`           | práce uložených snopů podle kg (D95)                         | ano (`byKg`)       | –                        | ne (sklizeň `byKg`)          | oba     |
 | `smoked-meat-stocks` – `smokedMeatStocks`             | uzené 1. 11.–31. 8. do zásoby z porážky 1. 11. (D98)         | ano (vždy číslo)   | –                        | ne (`foundVillage` – 0)      | oba     |
 | `fictional-neighbours` – `withoutFictionalNeighbours` | smaže zbytky roku smyšlených sousedů, výpravy na cestě nechá | ano (při každém)   | –                        | ne                           | oba     |
+| `plough-rate` – `setPloughRate`                       | sazba orby letošního plánu (25. 11. 2026, oxen.md)           | ano (`perHa`)      | –                        | ne (`createCropWork`)        | oba     |
 
 „Zakládá novou ves“ = jedná na právě založené vsi; v závorce, kde tu část nová ves dostane při
 založení. „Při každém“ = bez příznaku, hlídá podmínku při každém průchodu (levné).

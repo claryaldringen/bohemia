@@ -176,8 +176,8 @@ export function startSeason(
   for (const part of state.parts) if (!late.has(part.id)) rotateAfterSeason(part, day);
   // ves s párem volů a rádlem orá všechno, motyka nekope (oxen.md – Jen rádlo)
   const plough = ableTeams(state, day) > 0;
-  // práce (i orba – železná špička rádla od kováře) platí podle pokrytí nástroji dne, kdy díl
-  // přibude
+  // práce platí podle pokrytí nástroji dne, kdy díl přibude; orba (železná špička rádla od kováře)
+  // podle dnešního – ráno ji přepočte `seasonPloughAtTools`
   state.season = createSeason({ winter: [], spring: [] }, day, coverage.tools, plough);
   // len do potřeby na oděv k 1. 9. – podle ní ves vybírá díly lnu a při trhání zapíše, na kolik
   // oděvu len je (fields.md – Len)

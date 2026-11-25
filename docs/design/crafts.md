@@ -889,8 +889,10 @@ Rozhodnutí kontroléru při implementaci (18. 10. 2026) – kde návrh necháva
   (40 pracujících ≈ 36 kg nástrojů); přebytek v zásobě leží.
 - **Pokrytí se počítá na začátku dne ze včerejších zásob** a platí pro všechny meze dne. Práce
   plánu osevu (polní práce, vracení přílohu) se počítá podle pokrytí v den plánu (1. 9.) a u dílů
-  přidaných do plánu v den přidání – na celý hospodářský rok. Založení pole podle pokrytí v den
-  zahájení stavby (i cena v nabídce a u kurzoru).
+  přidaných do plánu v den přidání – na celý hospodářský rok. Výjimka: **orba spřežením se každé
+  ráno přepočte na dnešní pokrytí**, ať sedí s kapacitou spřežení ([voli a spřežení](oxen.md) –
+  Účinek na práci, Nástroje během sezóny; návrh Clauda, 25. 11. 2026). Založení pole podle pokrytí
+  v den zahájení stavby (i cena v nabídce a u kurzoru).
 - **Jablka v nádobách poměrně**: den zkažení = 1. 3. + pokrytí nádobami × 61 dní (zaokrouhleno),
   s plným pokrytím 1. 5.; pokrytí se bere den po dni, jablka shnijí, jakmile den zkažení podle
   dnešního pokrytí nastal.

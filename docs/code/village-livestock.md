@@ -317,7 +317,9 @@ oxen)` – jen ve vsi bez výrostků (`youngsterCount` 0), potřeba nejvýš `HE
   (`partFoundingCost(…, ard)`, díl dostane `sod`, bez překážek hotový hned – `foundPart` v `build`;
   u kurzoru `PlacementVillage.ploughTeam`). Co nezorají, se nezaseje (setí za `tilledShare`);
   nutné díly přibývají, jen když se vejdou do čela práce i spřežení (`workFront`). Úloha `plough`
-  v oknech kopání, nejvýš `ploughCapacityPerDay` (slabí voli po zimě `team.weak` od 1. 3.; `teamDays`). Ztráta posledního spřežení:
+  v oknech kopání, nejvýš `ploughCapacityPerDay` (slabí voli po zimě `team.weak` od 1. 3.; `teamDays`)
+  – orba plánu se ráno převede na totéž pokrytí nástroji (`seasonPloughAtTools` – village-fields.md,
+  Orba při dnešním pokrytí nástroji). Ztráta posledního spřežení:
   `finishSeasonByHoe` → `ploughToHoe` – letošní práci všech plodin dokončí motyka
   (kopání s hotovým podílem, kam došla orba). Starší
   plán s částí kopanou motykou doběhne (`digWeight`). **Co nejdelší brázda** (oxen.md; Martin 19. 10. 2026): `plough-blocks.ts` – `ploughLayout` rozloží díly plodiny na bloky (sousední díly

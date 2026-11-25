@@ -520,6 +520,7 @@ export function moveParts(
   if (!to.plough || !fresh.plough) return;
   const own = carried.get('plough');
   to.plough.partIds = [...fresh.plough.partIds, ...to.plough.partIds];
+  // Invariant: obě plodiny jsou převedené na pokrytí téhož rána, `required`/`done` se proto sčítají bez ohledu na `perHa`.
   to.plough.required += own ? own.required : fresh.plough.required;
   to.plough.done += own?.done ?? 0;
   to.plough.weight += fresh.plough.weight;

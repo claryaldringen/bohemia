@@ -365,6 +365,18 @@ tools)` = s hromadou `pileSowsKg` (osivo, které ves ještě zaseje: `sowingHaPe
   jídlo (`threshForFoodToday`) počítá jen zrno, které ves jí (bez `uneatenSeedKg`), a v rozdělení
   práce jde i před orbou (`dayTaskOrder`) – orba nese setí za sebou a jinak by jídlu dne vzala
   práci (Vlkov 1. 10. 871: hromada držela celé zásoby, 4,9 t ve snopech, příděl 0,115).
+- **Orba při dnešním pokrytí nástroji** (oxen.md – Účinek na práci, Nástroje během sezóny; návrh
+  Clauda 25. 11. 2026): `PloughWork.required` a `done` jsou člověkodny při sazbě
+  `PloughWork.perHa` (`ploughWorkPerHa` – zapíše ji `createCropWork`). Ráno hned za
+  `craftCoverage` převede `seasonPloughAtTools` (`year-plan.ts`, volá `simulateDaySteps`) orbu
+  všech plodin na sazbu dneška (`ploughAtTools` – `required` i `done` poměrem sazeb; kam orba došla,
+  `taskPosition`, se nezmění) – před čelem práce, výběrem dílů a prací dne. Orba plánu tak stojí
+  proti kapacitě spřežení při témže pokrytí všude, kde se porovnávají (`workFront`, `fieldTasks`,
+  `ploughWindowsToday`, `sowingHelpWork`, `seasonShortfalls`; výjimka: výhled, který pro rozhraní počítá web večerním pokrytím proti ranním jednotkám – jen zobrazení, rozdíl nejvýš jeden herní den): pár zorá 0,3 ha za den s jakýmikoli
+  nástroji a nástroje ubírají práci lidem hned. `addToCropWork` napřed převede dosavadní orbu na
+  pokrytí přidávaných dílů. Váhu orby (drn `PLOUGH_SOD_FACTOR`×) dává `ploughWeight` – i výhled
+  správce (`ploughWorkAt`, steward-outlook.ts). Plán uložený bez sazby: převod `plough-rate`
+  (`setPloughRate`, village-core.md). Testy `plough-tools.test.ts`, `migrations.test.ts`.
 - **Osivo pro ves bez zásob** (fields.md – Osivo ze zásob, Osivo pro ves bez zásob; Martin 27. 10. 2026): `VillageState.reservedSeedKg` = osivo ve `storesKg` jen na setí (osadníků –
   `Settlers.seedKg`, village-people.md; zakladatelů). `reservedSeedKg()` ho omezí zásobami;
   `sowableSeedKg` ho přičte vždy a přežívací zásobu počítá ze zbytku zásob (obilí nad potřebu ho
