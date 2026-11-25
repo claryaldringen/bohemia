@@ -1,5 +1,6 @@
 import { TOTAL_GAME_DAYS } from '../domain/calendar';
 import {
+  isVillageAsleep,
   marketArrivalRef,
   marketResult,
   marketResultRef,
@@ -37,8 +38,13 @@ export interface VillageMailDeps {
   settlements: Pick<SettlementRepository, 'find'>;
 }
 
-/** Výprava na trh po termínu: je doma (`lastDay ≥ returnDay`) a výsledek trhu nepřišel. */
+/**
+ * Výpravy na trh po termínu: jsou doma (`lastDay ≥ returnDay`) a výsledek trhu nepřišel. Spící ves
+ * žádnou – výsledek by nepoužila (vrátí ho živý hostitel v kroku 1) a z příjezdu, který zaniklý
+ * hostitel dávno použil, by se jí mince složily podruhé.
+ */
 function overdueTrips(state: VillageState): MarketTrip[] {
+  if (isVillageAsleep(state)) return [];
   return (state.trade?.expeditions ?? []).flatMap((e) =>
     e.kind === 'market' && e.market !== undefined && state.lastDay >= e.market.returnDay
       ? [e.market]
@@ -47,8 +53,8 @@ function overdueTrips(state: VillageState): MarketTrip[] {
 }
 
 /**
- * Má ves co doručit: neprázdný `outbox`, nebo výprava 'market' s `lastDay ≥ market.returnDay`
- * (výsledek nepřišel).
+ * Má ves co doručit: neprázdný `outbox` (i spící ves), nebo výprava 'market' živé vsi
+ * s `lastDay ≥ market.returnDay` (výsledek nepřišel – `overdueTrips`).
  */
 export function hasVillageMail(state: VillageState): boolean {
   return (state.outbox?.length ?? 0) > 0 || overdueTrips(state).length > 0;
@@ -181,7 +187,7 @@ async function post(deps: VillageMailDeps, mail: VillageMail): Promise<boolean> 
  *    pryč (vymřel, opuštěn, sídlo v archivu, ves chybí) – nepoužitý příjezd (ve schránce
  *    hostitele; chybí-li hostitel, v odchozí schránce vsi) se vrátí se vším, výprava na trhu
  *    hostitele s tím, co drží (`returned`, den `lastDay + 1`); živý hostitel pozadu znamená čekat.
- *    Spící domovská ves krok přeskočí – nic by nepoužila.
+ *    Spící domovská ves výpravy po termínu nemá – nic by nepoužila.
  */
 export async function deliverVillageMail(
   deps: VillageMailDeps,
@@ -224,9 +230,6 @@ export async function deliverVillageMail(
     if (!saved) return written; // ves mezitím zmizela
     village = saved;
   }
-  // spící ves už nic nepoužije (výsledek vrátí živý hostitel v kroku 1) – z příjezdu, který zaniklý
-  // hostitel dávno použil, by se jí mince složily podruhé
-  if (sleeps(village)) return written;
   for (const trip of overdueTrips(village.state)) {
     const mail = await overdueResult(deps, village, trip, outbox);
     if (mail && (await post(deps, mail))) written++;
@@ -324,16 +327,22 @@ async function pendingArrival(
  * den zprávy = den výsledku. Zanikl-li i hostitel (spí, chybí, sídlo v archivu), lidé a mince se
  * ztratí – jediná přijatá ztráta, oba konce jsou mrtvé. Zboží výsledku se zahodí jako v kroku 1.
  * Vyřízené výsledky (vrácené, použité i ztracené) se ze schránky zaniklé vsi smažou
- * (`dropStranded`) až po zápisu zpráv – pád mezi tím znamená příště týž `ref`. Vrací počet zapsaných
- * zpráv.
+ * (`dropStranded`) až po zápisu zpráv – pád mezi tím znamená příště týž `ref`. Zaniklou ves načte
+ * jednou (na všechny její výsledky), hostitele u každého výsledku. Vrací počet zapsaných zpráv.
  */
 export async function returnStrandedPeople(deps: VillageMailDeps): Promise<number> {
   let written = 0;
   const done: string[] = [];
+  // domov je zaniklý a nemění se – načte se jednou, i když má výsledků víc
+  const homes = new Map<string, VillageRecord | null>();
   for (const event of await deps.villages.inbox.strandedResults()) {
     if (event.body.kind !== 'market-result') continue;
     const { result } = event.body;
-    const home = await deps.villages.find(event.villageId);
+    let home = homes.get(event.villageId);
+    if (home === undefined) {
+      home = await deps.villages.find(event.villageId);
+      homes.set(event.villageId, home);
+    }
     const trip = home && awaitedTrip(home.state, result.key);
     if (trip) {
       const host = await deps.villages.find(trip.villageId);

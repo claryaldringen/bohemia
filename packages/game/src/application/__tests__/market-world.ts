@@ -2,7 +2,6 @@ import { TOTAL_GAME_DAYS } from '../../domain/calendar';
 import { CURRENT_LAYER_VERSIONS } from '../../domain/landscape';
 import {
   departMarket,
-  isVillageAsleep,
   type ChronicleEvent,
   type Direction8,
   type Horse,
@@ -295,8 +294,9 @@ function coinCargoOf(body: VillageEventBody): { key: string; stage: number; coin
 /**
  * Mince světa (markets.md – Rozhodnutí plánu 4, bod 9 – nikde nevzniknou ani nezmizí): v zásobách
  * všech vsí (i vsí na cestě), u osadníků ve schránkách odchodů správce, v nákladu výprav (odchozí
- * schránky, trhy hostitelů, nepoužité události schránek) a v měšcích cizích kupců na trzích živých
- * vsí. Každá výprava se počítá jednou tam, kam její mince došly nejdál: zpráva v odchozí schránce
+ * schránky, trhy hostitelů, nepoužité události schránek) a v měšcích cizích kupců na trzích všech
+ * vsí mimo archiv – ze vsi, která zanikla, musí kupec odjet (`endVillage`), archivovanou ves (Začít
+ * znovu) nikdo nedopočítá a kupec v ní zůstane jen jako záznam. Každá výprava se počítá jednou tam, kam její mince došly nejdál: zpráva v odchozí schránce
  * i ve schránce cíle (doručená, ještě nesmazaná) ani záznam na trhu zaniklého hostitele, odkud už
  * výprava vrátila výsledek, součet nezdvojí. `trade.expeditions[].give` není místo mincí – je to
  * jen záznam výpravy, který ve stavu zůstává až do výsledku (výprava bez něj je vyřízená).
@@ -314,7 +314,6 @@ export async function coinsOfWorld(world: Pick<MarketWorld, 'villages'>): Promis
     if (cargo) put(cargo.key, cargo.stage + Number(used), used ? 0 : cargo.coins);
   };
   for (const [id, { state }] of records) {
-    const dead = isVillageAsleep(state) || archived.has(id);
     n += state.coins ?? 0;
     for (const departure of state.steward?.departures ?? []) {
       if (departure.villageId === undefined) n += departure.settlers?.whole?.stocks.coins ?? 0;
@@ -323,7 +322,7 @@ export async function coinsOfWorld(world: Pick<MarketWorld, 'villages'>): Promis
     for (const visitor of state.market?.visitors ?? []) {
       const coins = visitor.goods.coins ?? 0;
       if (!visitor.merchant) put(visitor.key, 2, coins);
-      else if (!dead) n += coins;
+      else if (!archived.has(id)) n += coins;
     }
   }
   for (const event of inbox.events) {

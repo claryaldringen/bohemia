@@ -233,7 +233,7 @@ export interface MarketVisitor {
   /**
    * Mince, které na tomto trhu zaplatila a dostala (součty za všechny tržní dny, `payCoins`;
    * markets.md – Rozhodnutí plánu 4, bod 9) – jen do kroniky návratu, měšec je `goods.coins`.
-   * Chybí = 0.
+   * Cizí kupec je nemá (domů nic neposílá). Chybí = 0.
    */
   coinsPaid?: number;
   coinsGot?: number;

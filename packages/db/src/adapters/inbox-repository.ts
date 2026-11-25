@@ -1,4 +1,4 @@
-import { and, asc, eq, gt, inArray, isNotNull, lte, or, sql } from 'drizzle-orm';
+import { and, asc, eq, gt, inArray, isNotNull, lte, or, sql, type SQL } from 'drizzle-orm';
 import { PRUNED_INBOX_KINDS, type VillageEvent, type VillageInbox } from '@bohemia/game';
 import type { Database } from '../client';
 import { settlement, village, villageInbox } from '../schema';
@@ -26,6 +26,22 @@ const deadVillage = sql`EXISTS (
   WHERE ${village.id} = ${villageInbox.villageId}
     AND (${village.asleep} OR ${settlement.archivedAt} IS NOT NULL)
 )`;
+
+/** Výsledek trhu v těle události. */
+const resultJson = sql`${villageInbox.body}->'result'`;
+
+/**
+ * Má pole JSON aspoň jeden prvek? Chybějící nebo poškozená hodnota (není pole) = ne – bez `CASE` by
+ * jediný takový řádek shodil celý dotaz (SQL nezaručuje pořadí podmínek `AND`).
+ */
+function nonEmpty(array: SQL): SQL {
+  return sql`CASE jsonb_typeof(${array}) WHEN 'array' THEN jsonb_array_length(${array}) > 0 ELSE false END`;
+}
+
+/** Je hodnota JSON kladné číslo (i zlomkové a mimo rozsah integer)? Jiná hodnota = ne – jako `nonEmpty`. */
+function positive(value: SQL): SQL {
+  return sql`CASE jsonb_typeof(${value}) WHEN 'number' THEN (${value})::numeric > 0 ELSE false END`;
+}
 
 /** Mez dne v dotazu oříznutá do rozsahu sloupce (volající smí poslat „od počátku“ / „navždy“). */
 function dayBound(day: number): number {
@@ -125,9 +141,12 @@ export function createInboxRepository(db: Database): VillageInbox {
             ),
             sql`${villageInbox.ref} LIKE '%:out'`,
             sql`${villageInbox.body}->>'kind' = 'market-result'`,
-            sql`(jsonb_array_length(coalesce(${villageInbox.body}->'result'->'people', '[]'::jsonb)) > 0
-              OR jsonb_array_length(coalesce(${villageInbox.body}->'result'->'newcomers', '[]'::jsonb)) > 0
-              OR coalesce(${villageInbox.body}->'result'->'unsold'->>'coins', '0')::int > 0)`,
+            // poškozený řádek (hodnota jiného typu) nesmí zastavit vracení lidí a mincí celého světa
+            or(
+              nonEmpty(sql`${resultJson}->'people'`),
+              nonEmpty(sql`${resultJson}->'newcomers'`),
+              positive(sql`${resultJson}->'unsold'->'coins'`),
+            ),
             deadVillage,
           ),
         )

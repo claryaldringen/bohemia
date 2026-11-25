@@ -450,7 +450,7 @@ function addCoins(goods: TradeGoods, coins: number): void {
  * výpravy (`goods.coins`) do nákladu prodávající, hostitel je platí ze zásoby vsi a bere do ní
  * (`addGood`). Do `sold` a `bought` výpravy se nepíšou – domů jdou s nákladem (`unsold`) a podruhé
  * vzniknout nesmějí; součty pro kroniku návratu má výprava v `coinsPaid` a `coinsGot` (Rozhodnutí
- * plánu 4, bod 9). Vrací, kolik mincí hostitel zaplatil a získal.
+ * plánu 4, bod 9) – cizí kupec ne, domů nic neposílá. Vrací, kolik mincí hostitel zaplatil a získal.
  */
 function payCoins(
   state: VillageState,
@@ -469,9 +469,9 @@ function payCoins(
     give(buyer, -coins);
     give(seller, coins);
     const from = byKey.get(buyer);
-    if (from) from.coinsPaid = (from.coinsPaid ?? 0) + coins;
+    if (from && !from.merchant) from.coinsPaid = (from.coinsPaid ?? 0) + coins;
     const to = byKey.get(seller);
-    if (to) to.coinsGot = (to.coinsGot ?? 0) + coins;
+    if (to && !to.merchant) to.coinsGot = (to.coinsGot ?? 0) + coins;
     if (buyer === HOST) host.paid += coins;
     if (seller === HOST) host.earned += coins;
   }

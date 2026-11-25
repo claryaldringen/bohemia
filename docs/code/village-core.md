@@ -444,8 +444,8 @@ villageId)` je zapíše do schránek cílových vsí (`inbox.post`, druhý zápi
     lidé a mince z něj jdou zpět k hostiteli (`stranded-people` – `receiveStranded`; domov zaniklý až
     s výsledkem ve schránce – úloha světa `returnStrandedPeople`), dotazy plánu 3 do zaniklé
     vsi se zahodí (village-trade.md – Pošta mezi vsemi, Zaniklé vsi a zprávy plánu 3).
-    `hasVillageMail(state)` – neprázdný `outbox` nebo výprava na trh po termínu bez výsledku; jen
-    s ní se doručuje po dopočtu (`advancePlayer`, `dynastyForVillage`, `advanceDynasty` – za
+    `hasVillageMail(state)` – neprázdný `outbox` (i spící vsi) nebo výprava živé vsi na trh po termínu
+    bez výsledku; jen s ní se doručuje po dopočtu (`advancePlayer`, `dynastyForVillage`, `advanceDynasty` – za
     odchody správce), takže ves bez pošty nestojí ani dotaz navíc. `deliverVillageMailSafely`
     chybu zapíše do logu a vrátí 0 – dopočet nezastaví, zprávy zůstanou v `outbox` a doručí je
     příští volání (idempotentně podle `ref`). Výprava po termínu a zaniklý hostitel:

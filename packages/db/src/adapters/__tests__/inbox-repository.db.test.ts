@@ -367,4 +367,37 @@ describe('výsledky trhu s lidmi nebo mincemi ve schránkách zaniklých vsí (m
     // živé vsi výsledek zůstal
     expect(await inbox.pending(liveId, -1, DAY + 365)).toHaveLength(1);
   });
+
+  it('strandedResults: poškozené hodnoty dotaz neshodí – ostatní výsledky se vrátí', async () => {
+    const damaged = (key: string, day: number, fields: Record<string, unknown>): NewVillageEvent =>
+      ({
+        villageId,
+        day,
+        ref: `${key}:out`,
+        body: {
+          kind: 'market-result',
+          result: { key, sold: {}, bought: {}, unsold: {}, horses: [], ...fields },
+        },
+      }) as unknown as NewVillageEvent;
+    const coins = (value: unknown): Record<string, unknown> => ({ unsold: { coins: value } });
+    await inbox.post(damaged('market:a:1', DAY + 1, coins(true)));
+    await inbox.post(damaged('market:a:2', DAY + 2, coins(17.5)));
+    await inbox.post(damaged('market:a:3', DAY + 3, coins(17)));
+    await inbox.post(damaged('market:a:4', DAY + 4, coins(1e20)));
+    await inbox.post(damaged('market:a:5', DAY + 5, coins('17')));
+    await inbox.post(damaged('market:a:6', DAY + 6, coins(null)));
+    await inbox.post(damaged('market:a:7', DAY + 7, coins(-3)));
+    await inbox.post(damaged('market:a:8', DAY + 8, { unsold: 17 }));
+    await inbox.post(damaged('market:a:9', DAY + 9, { people: null, newcomers: {} }));
+    await inbox.post(damaged('market:a:10', DAY + 10, { people: true, ...coins(2) }));
+    await inbox.post(result('market:a:11', DAY + 11, true));
+    await inbox.post(damaged('market:a:12', DAY + 12, { people: [], newcomers: [] }));
+    const lhota = (await villages.find(villageId))!;
+    const dead = { ...lhota.state, extinctDay: lhota.state.lastDay };
+    expect(await villages.save(villageId, dead, lhota.version)).not.toBeNull();
+    const keys = (await inbox.strandedResults()).map((e) =>
+      e.body.kind === 'market-result' ? e.body.result.key : '',
+    );
+    expect(keys).toEqual(['market:a:2', 'market:a:3', 'market:a:4', 'market:a:10', 'market:a:11']);
+  });
 });

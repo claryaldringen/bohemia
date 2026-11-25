@@ -428,6 +428,23 @@ describe('tržní den s kupci (marketDay)', () => {
     expect(merchant.sold).toEqual({ swords: 1 });
   });
 
+  it('součty zaplacených a přijatých mincí má jen výprava – kupec domů nic neposílá', () => {
+    const s = host();
+    for (const arrival of beerTrips(2, 1)) joinMarket(s, DAY, arrival);
+    joinMarket(s, DAY, trip('market:a:1', { coins: 120 }, { swords: 1 }));
+    joinMarket(s, DAY, trip('market:b:1', { furs: 30 }, {}));
+    merchantsArrive(s, DAY);
+    const merchant = merchantOf(s);
+    marketDay(s, DAY);
+    // meč prodal za 120 mincí, kožešiny koupil za 16
+    expect(merchant.goods).toEqual({ swords: 1, mailShirts: 1, helmets: 2, coins: PURSE + 104 });
+    expect(merchant.bought).toEqual({ furs: 30 });
+    expect(merchant).not.toHaveProperty('coinsPaid');
+    expect(merchant).not.toHaveProperty('coinsGot');
+    expect(resultOf(s, 'market:a:1')).toMatchObject({ coinsPaid: 120, unsold: {} });
+    expect(resultOf(s, 'market:b:1')).toMatchObject({ coinsGot: 16, unsold: { coins: 16 } });
+  });
+
   it('součet světa: mince jdou od kupce přes výpravu k hostiteli, s odjezdem zmizí jen zbytek měšce', () => {
     const s = host();
     s.crafts = { charcoalKg: 0, potteryKg: 500 };

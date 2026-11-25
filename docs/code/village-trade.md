@@ -293,7 +293,7 @@ ves>:<id výpravy>`, `stayDays`, `travelDays`, zboží `goods` – koně i tady 
     první). Obchody vyrovná `settleTrades` (koně, vozy a lidé po kusech jako v zápočtu, zakázky
     `reduceOrder`), mince přesune `payCoins` – u návštěvníka jen `goods.coins` (ne `sold` / `bought`,
     domů jdou v `unsold`; součty zaplacených a přijatých `MarketVisitor.coinsPaid` a `coinsGot` jsou
-    jen do kroniky návratu – Rozhodnutí plánu 4, bod 9), u hostitele `VillageState.coins`; v kronice
+    jen do kroniky návratu – Rozhodnutí plánu 4, bod 9, cizí kupec je nemá), u hostitele `VillageState.coins`; v kronice
     `market-held` jsou mince hostitele v `bought.coins` (získané) a `sold.coins` (zaplacené). Hladinu
     `market.level` posune
     `nextLevel`, hladina 1 ze stavu zmizí. Výprava vesničanů (`MarketArrival.by` = `villagers`,
@@ -462,7 +462,7 @@ day, order, target, { by?, seedKg?, alone?, service?, kin?, people? })` (mutuje 
       (spí, chybí, sídlo v archivu), lidé a mince se ztratí – **jediná přijatá ztráta**, oba konce
       jsou mrtvé. Vyřízené výsledky (vrácené, použité před zánikem, ztracené) úloha smaže ze schránky
       zaniklé vsi (`inbox.dropStranded`, až po zápisu zpráv – pád mezi tím znamená příště týž
-      `ref`), takže je příště nečte znovu. Nepoužitý výsledek pozná podle stavu vsi, ne podle dne:
+      `ref`), takže je příště nečte znovu; zaniklou ves načte jednou na všechny její výsledky. Nepoužitý výsledek pozná podle stavu vsi, ne podle dne:
       vymřelá ves posune `lastDay` přes den vymření až na konec dávky, dny po vymření ale
       nesimuluje.
     - **Zboží výsledku pro zaniklý domov se zahodí** (návrh Clauda, Opravné kolo 1 úlohy 10): jako
@@ -487,8 +487,9 @@ day, order, target, { by?, seedKg?, alone?, service?, kin?, people? })` (mutuje 
     se vším, co výprava vezla; výprava, která už na trhu stojí (`market.visitors`), s tím, co drží
     (`unsold`, `bought`, koně). Výsledek jde do vlastní schránky s `ref` `marketResultRef` na den
     `lastDay + 1`. Archivované vsi nikdo nedopočítává – snímek, ze kterého se výsledek vezme, je konečný. Živý hostitel pozadu znamená čekat – lidé jsou doma v plánovaný den, zboží
-    přijde se zprávou v nejbližší nespočtený den. Spící domovská ves se na hostitele nedívá (nic by
-    nepoužila; z příjezdu, který zaniklý hostitel dávno použil, by se jí výprava složila znovu) –
+    přijde se zprávou v nejbližší nespočtený den. Spící domovská ves výpravy po termínu nemá
+    (`overdueTrips`, tedy ani `hasVillageMail` – na hostitele se nedívá a kvůli nim se nenačítá): nic by
+    nepoužila a z příjezdu, který zaniklý hostitel dávno použil, by se jí výprava složila znovu –
     výsledek od živého hostitele vrátí krok 1. Příjezd v odchozí schránce vsi se za nepoužitý
     bere jen u hostitele, jehož ves chybí (návrh Clauda, upřesnění zadání): u existujícího ho
     doručení právě zapsalo do jeho schránky a zpráva, kterou minule nešlo smazat, nedokazuje, že ji
@@ -510,8 +511,8 @@ day, order, target, { by?, seedKg?, alone?, service?, kin?, people? })` (mutuje 
     s jinou domovskou či hostitelskou vsí, `kinWorld` – syn a dcera z přípravků sňatků,
     `neighbours` – okolí obou vsí, `askBride` – dotaz do schránky M, `thirdVillage` – třetí ves na
     východ od M, `coinsOfWorld` – mince světa: zásoby vsí, náklad každé výpravy tam, kam došel
-    nejdál, osadníci ve schránkách odchodů správce a kupci na trzích živých vsí;
-    `trade.expeditions[].give` ne – je to jen záznam výpravy). Mince a zbroj při odchodu celé vsi,
+    nejdál, osadníci ve schránkách odchodů správce a kupci na trzích vsí mimo archiv (ze vsi, která
+    zanikla, kupec odjede – `endVillage`); `trade.expeditions[].give` ne – je to jen záznam výpravy). Mince a zbroj při odchodu celé vsi,
     části lidí a syna: `leave-village.test.ts`. `receiveStranded` v jádru:
     `trade/__tests__/market-people.test.ts` (i sonda kontroly – cizí skupina se shodou emigranta
     a kolizním id); `fromHost`: `market-people-budget.test.ts`; `origin` výsledku:

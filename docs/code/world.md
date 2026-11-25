@@ -351,7 +351,8 @@ body ->> 'kind' IN (PRUNED_INBOX_KINDS)` (po indexu vsi a dne) – jen použité
   – Okolí vsi, úklid schránky).
 - **`strandedResults()` / `dropStranded(eventIds)`:** výsledky trhu s lidmi nebo mincemi
   (`body ->> 'kind' = 'market-result'`, neprázdné `result.people` nebo `result.newcomers`, nebo
-  `result.unsold.coins` > 0; levný filtr `ref LIKE '%:out'`) ve schránkách zaniklých vsí – `EXISTS`
+  `result.unsold.coins` > 0; levný filtr `ref LIKE '%:out'`; hodnota jiného typu se nepočítá –
+  `jsonb_typeof` v `CASE`, poškozený řádek tak dotaz neshodí) ve schránkách zaniklých vsí – `EXISTS`
   ves s `asleep`, nebo sídlo s `archived_at` –, `ORDER BY day, seq`; `strandedResults` napřed načte
   id zaniklých vsí (malá tabulka vsí) – bez nich schránky nečte vůbec, jinak jen jejich řádky po
   indexu vsi a dne (úloha běží každou minutu, sken všech schránek by rostl se světem); mazání jen takových řádků (id mimo UUID se
