@@ -95,6 +95,7 @@ import {
   villageApplesKg,
   villageOrchards,
 } from '../buildings/orchard';
+import { ownedOxen } from '../people/belongings';
 import { ageGroup, ageYears, foodNeedPerDay, occupants } from '../people/people';
 import {
   CARPENTRY,
@@ -379,8 +380,10 @@ export interface LivestockSummary {
   /** Kusy po druzích (zaokrouhleně). */
   herds: Record<HerdSpecies, number>;
   chickens: number;
-  /** Voli – spřežení i telata ve výcviku. */
+  /** Voli – spřežení i telata ve výcviku, i voli bez ohrady (po odchodu celé vsi). */
   oxen: number;
+  /** Koně bez ohrady (lord.md – Kůň syna; po odchodu celé vsi); chybí = žádní. */
+  looseHorses?: number;
   /** Pastva vsi a kolik jí stáda spásají (ha). */
   pastureHa: number;
   grazingHa: number;
@@ -733,6 +736,7 @@ function oxenSummary(state: VillageState, day: number): OxenSummary | null {
 function livestockSummary(state: VillageState, day: number): LivestockSummary {
   const herds = villageHerds(state);
   const oxen = villageOxen(state);
+  const looseHorses = state.looseHorses?.length ?? 0;
   return {
     herds: {
       sheep: Math.round(herds.sheep),
@@ -741,7 +745,8 @@ function livestockSummary(state: VillageState, day: number): LivestockSummary {
       cow: Math.round(herds.cow),
     },
     chickens: villageChickens(state),
-    oxen,
+    oxen: ownedOxen(state),
+    ...(looseHorses > 0 ? { looseHorses } : {}),
     pastureHa: pastureHa(state, day),
     grazingHa: grazingDemandHa(herds, oxen, horsesInPlaces(villageHorses(state), day)),
     pigForestHa: pigForestHa(state),

@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import type { SelectionDetails, SelectionWorkshop } from '@/lib/selection-details';
 import type { VillageHorses } from '@/lib/horse-view';
 import { WORKSHOP_STOP_NOTICES, workshopStopNotice } from '@/lib/village-notices';
-import { JourneyBanner, LeaveCompass } from '../RelocationControls';
+import { JourneyBanner, LeaveCompass, LeaveControls } from '../RelocationControls';
 import { SelectionPanel } from '../SelectionPanel';
 
 // Panel ohrady (oxen.md – Co hráč vidí): zvířata, seno, stáda, spřežení a výcvik. Posvátný dub
@@ -815,6 +815,30 @@ describe('SelectionPanel – odchod do nové vsi', () => {
       <LeaveCompass leave={{ ...leave, cart: 'four-wheel' }} onLeave={() => undefined} />,
     );
     expect(withCart).toMatch(/data-testid="leave-cart"[^>]*>.*Čtyřkolák/);
+    expect(withCart).not.toContain('data-testid="leave-all"');
+  });
+
+  it('celá ves: popisky řeknou, že si vezmou vše, s počtem zvířat a vozů', () => {
+    const all = { ...leave, foodKg: 4120, all: { animals: 35, carts: 3 } };
+    const html = renderToStaticMarkup(<LeaveCompass leave={all} onLeave={() => undefined} />);
+    expect(html).toMatch(
+      /Odejít na sever – nová mapa.*>4<.*120 kg.*data-testid="leave-animals"[^>]*>.*35.*data-testid="leave-carts"[^>]*>.*3.*2 dny/,
+    );
+    expect(html).toMatch(/data-testid="leave-all"[^>]*>Celá ves – berou si úplně vše</);
+    // i tlačítko Odejít; část vsi ne
+    const button = renderToStaticMarkup(<LeaveControls leave={all} />);
+    expect(button).toMatch(/data-testid="leave-all"[^>]*>Celá ves – berou si úplně vše</);
+    expect(renderToStaticMarkup(<LeaveControls leave={leave} />)).not.toContain('leave-all');
+    // ves bez zvířat a vozů čísla neukazuje
+    const bare = renderToStaticMarkup(
+      <LeaveCompass
+        leave={{ ...leave, all: { animals: 0, carts: 0 } }}
+        onLeave={() => undefined}
+      />,
+    );
+    expect(bare).toContain('data-testid="leave-all"');
+    expect(bare).not.toContain('data-testid="leave-animals"');
+    expect(bare).not.toContain('data-testid="leave-carts"');
   });
 
   it('řádek lidí na cestě – kam a kdy dorazí, po příjezdu výzva k zemnici', () => {

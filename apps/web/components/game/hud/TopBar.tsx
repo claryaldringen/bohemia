@@ -140,7 +140,12 @@ export function livestockRows(view: Pick<VillageView, 'livestock' | 'horses'>): 
     { key: 'sheep', icon: 'sheep', name: 'Ovce', amount: view.livestock.herds.sheep },
     { key: 'goat', icon: 'goat', name: 'Kozy', amount: view.livestock.herds.goat },
     { key: 'pig', icon: 'pig', name: 'Prasata', amount: view.livestock.herds.pig },
-    { key: 'horse', icon: 'horse', name: 'Koně', amount: view.horses?.count ?? 0 },
+    {
+      key: 'horse',
+      icon: 'horse',
+      name: 'Koně',
+      amount: (view.horses?.count ?? 0) + (view.livestock.looseHorses ?? 0),
+    },
   ];
   return all.filter((row) => row.amount > 0);
 }

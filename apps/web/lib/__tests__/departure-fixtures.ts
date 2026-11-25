@@ -24,3 +24,21 @@ export function makeLandscapeForTests(): Landscape {
 export function foundVillage(): VillageState {
   return foundVillageState({ seed: 3, day: 1000, dwellingPosition: { x: 0, z: 0, rotation: 0 } });
 }
+
+/** Ves se stojící první zemnicí – domácnost zakladatelů bydlí v obydlí. */
+export function withBuiltFirstDwelling(state: VillageState): VillageState {
+  const site = state.constructions.find((c) => c.dwellingId !== null)!;
+  return {
+    ...state,
+    constructions: [],
+    dwellings: [
+      {
+        id: site.dwellingId!,
+        type: 'zemnice',
+        builtDay: state.foundedDay,
+        condition: 1,
+        position: { ...site.position! },
+      },
+    ],
+  };
+}

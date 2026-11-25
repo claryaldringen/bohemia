@@ -35,7 +35,19 @@ const LEAVE_COMPASS: readonly (Direction8 | null)[] = [
   'SE',
 ];
 
-/** Popisek tlačítka odchodu: kam, kolik lidí, jídla a dní cesty; proč tam nejde červeně. */
+/** Řádek popisku odchodu celé vsi (migration.md – Co si vezmou). */
+function LeaveAllLine(): ReactElement {
+  return (
+    <span data-testid="leave-all" className="mt-0.5 block font-semibold text-[#e8c9a0]">
+      Celá ves – berou si úplně vše
+    </span>
+  );
+}
+
+/**
+ * Popisek tlačítka odchodu: kam, kolik lidí, jídla a dní cesty (celá ves i zvířata a vozy – bere si
+ * úplně vše); proč tam nejde červeně.
+ */
 function LeaveTooltip({
   leave,
   target,
@@ -56,6 +68,18 @@ function LeaveTooltip({
           <img src="/icons/resources/food.png" alt="Jídlo s sebou (kg)" width={16} height={16} />
           {formatInteger(leave.foodKg)} kg
         </span>
+        {leave.all && leave.all.animals > 0 && (
+          <span className="flex items-center gap-1" data-testid="leave-animals">
+            <img src="/icons/resources/cow.png" alt="Zvířata s sebou" width={16} height={16} />
+            {formatInteger(leave.all.animals)}
+          </span>
+        )}
+        {leave.all && leave.all.carts > 0 && (
+          <span className="flex items-center gap-1" data-testid="leave-carts">
+            <img src="/icons/resources/cart.png" alt="Vozy s sebou" width={16} height={16} />
+            {formatInteger(leave.all.carts)}
+          </span>
+        )}
         {leave.cart && (
           <span className="flex items-center gap-1" data-testid="leave-cart">
             <img
@@ -81,6 +105,7 @@ function LeaveTooltip({
           {target.days} {plural(target.days, 'den', 'dny', 'dní')}
         </span>
       </span>
+      {leave.all && <LeaveAllLine />}
       {target.blocked && (
         <span data-testid="leave-blocked" className="mt-0.5 block font-semibold text-red-400">
           {target.blocked}
@@ -164,6 +189,7 @@ export function LeaveControls({
             <span className="font-serif text-sm font-semibold text-[#f3dfb0]">
               Odejít do nové vsi
             </span>
+            {leave?.all && <LeaveAllLine />}
             {leave === null && (
               <span className="mt-0.5 block font-semibold text-red-400">
                 Odtud teď nikdo odejít nemůže

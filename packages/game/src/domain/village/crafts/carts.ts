@@ -433,14 +433,14 @@ export function networkCartAccess(
  * Vůz s voly, který si vezmou odcházející (migration.md – Vůz při odchodu; Martin 20. 10. 2026:
  * „Ano, udělej to jak říkáš“ – návrh nových nákladů vozů, wagons.md): vůz doma (ne na výpravě)
  * a vycvičení voli pro něj (DRAFT_OXEN), bez kterých ves udrží páry k rádlům, které má
- * (`ableTeams`); odchází-li celá ves (`all`), páry nedrží. Napřed čtyřkolák (uveze víc jídla), pak
- * dvoukolák, nejmladší vůz; voli s nejdelší zbývající službou (nejpozději vycvičení). Bez vozu nebo
- * volů null. Nemění stav – vůz a voly odebere `takeLeavingCart`.
+ * (`ableTeams`). Napřed čtyřkolák (uveze víc jídla), pak dvoukolák, nejmladší vůz; voli s nejdelší
+ * zbývající službou (nejpozději vycvičení). Bez vozu nebo volů null. Nemění stav – vůz a voly
+ * odebere `takeLeavingCart`. Jen část lidí – celá ves si bere všechny vozy a voly
+ * (`people/belongings.ts`).
  */
 export function leavingCart(
   state: Pick<VillageState, 'pens' | 'ards' | 'carts' | 'trade'>,
   day: number,
-  all: boolean,
 ): { cart: Cart; oxen: Ox[] } | null {
   const away = cartsAway(state);
   const home = villageCarts(state).filter((c) => !away.has(c.id));
@@ -448,7 +448,7 @@ export function leavingCart(
   const trained = oxPens(state)
     .flatMap((pen) => oxenOf(pen).filter((ox) => isTrained(ox, day)))
     .sort((a, b) => b.trainedDay - a.trainedDay);
-  const spare = trained.length - (all ? 0 : DRAFT_OXEN.ard * ableTeams(state, day));
+  const spare = trained.length - DRAFT_OXEN.ard * ableTeams(state, day);
   for (const kind of ['four-wheel', 'two-wheel'] as const) {
     if (spare < DRAFT_OXEN[kind]) continue;
     const cart = home

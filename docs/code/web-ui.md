@@ -275,7 +275,8 @@ villageId)`. Z levných otisků (`stampsOf` – `last_day`, `asleep`) se dopočt
   (`grainStockTotal`; diet.md – Co hráč vidí, D95 – osivo `view.sowingSeed` má v rozpisu řádek
   `seed` s popiskem `seedName` z panelu pole) a ikona
   dobytka (`village-livestock`) součet kusů skotu, volů, ovcí, koz, prasat a koní
-  (`livestockTotal` z `view.livestock` a `view.horses`); klik na ně otevře u ikony panel
+  (`livestockTotal` z `view.livestock` a `view.horses`, i voli a koně bez ohrady –
+  `LivestockSummary.oxen`, `looseHorses`); klik na ně otevře u ikony panel
   s rozpisem (`StockBreakdown`, `<testId>-toggle` / `<testId>-panel`, řádky `grainStockRows` /
   `livestockRows` – sloupec řádků ikona + název + číslo zarovnané vpravo, panel `w-max` podle nejdelšího řádku, bez zalamování; dobytek jen druhy, které ves má; pod rozpisem plodin řádek
   `footer` – `FoodLastsRow`, `village-stores-last`: přesýpací hodiny a na jak dlouho vystačí jídlo
@@ -306,7 +307,9 @@ villageId)`. Z levných otisků (`stampsOf` – `last_day`, `asleep`) se dopočt
   i seznam vsí a nabídka hry); u obydlí a víc vybraných obydlí – počet domácností a lidí –
   tlačítko Odejít – růžice odchodu `LeaveCompass`: 8 směrů nové
   mapy, uprostřed nic (jedna ves, jedna mapa – „sem“ zrušené 1. 11. 2026) (dny cesty, lidé a jídlo v popisku, směr s vlastní
-  vsí zašedlý) – `hud/RelocationControls.tsx` (Přestěhovat zaniklo 8. 11. 2026 – demolition.md; rozestavěný
+  vsí zašedlý; odchází-li celá ves – `SelectionLeave.all` z `everyoneLeaves` a `VillageLeave.all` –,
+  popisky tlačítka Odejít i směrů řeknou „Celá ves – berou si úplně vše“, směry i s počtem zvířat
+  a vozů) – `hud/RelocationControls.tsx` (Přestěhovat zaniklo 8. 11. 2026 – demolition.md; rozestavěný
   nový dům je běžné staveniště se Zrušit); **odchod syna
   vojvody** (lord.md – Dělení vsi): pohled `dynasty.sons` (`lib/dynasty-view.ts`, z `leadingSons` /
   `sonDeparturePreview` – náhled ze všech odcházejících stejnými funkcemi jako `departWithSon`,

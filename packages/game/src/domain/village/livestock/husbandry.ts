@@ -457,7 +457,7 @@ export function husbandryDay(
   if (horsesCoverage < 1) events.push(...horsesWinterEnd(state, day, horsesCoverage));
   // chov koní – hříbata 1. 5., koně na maso 1. 11. před porážkou stád (horses.md – Chov)
   events.push(...horsesDay(state, day));
-  // voli osadníků bez ohrady přejdou do první ohrady volů (migration.md – Vůz při odchodu)
+  // voli osadníků bez ohrady přejdou do ohrad volů s místem, kdo doslouží, jde na maso (migration.md)
   events.push(...looseOxenDay(state, day));
   // kůň syna vojvody bez ohrady přejde do ohrady koní (lord.md – Dělení vsi, Kůň syna)
   events.push(...looseHorsesDay(state, day));

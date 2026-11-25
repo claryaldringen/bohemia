@@ -358,14 +358,15 @@ export interface VillageState {
   /** Zásoby jablek (kg) – jí se před obilím, 1. 3. shnijí. Chybí = žádná. */
   applesKg?: number;
   /**
-   * Voli bez ohrady (migration.md – Vůz při odchodu): přišli s vozem osadníků do vsi, která ještě
-   * nemá ohradu volů – s první hotovou ohradou volů do ní přejdou (`looseOxenDay`), do té doby jen
-   * žerou seno. Chybí = žádní.
+   * Voli bez ohrady (migration.md – Vůz při odchodu, Co si vezmou): přišli s osadníky do vsi, která
+   * ještě nemá ohradu volů – hotové ohrady volů s místem je přijmou (`looseOxenDay`: do všech podle
+   * id, kolik se vejde; kdo doslouží, jde na maso). Seno žádné nežerou (`feedHay` je nepočítá),
+   * dokud nejsou v ohradě. Chybí = žádní.
    */
   looseOxen?: Ox[];
   /**
    * Koně bez ohrady (lord.md – Dělení vsi, Kůň syna): jezdecký kůň syna vojvody, který odvedl
-   * díl vsi – čeká bez ohrady jako voli z vozu, žere seno (bez obilí), nejezdí se na něm a výcvik
+   * díl vsi – čeká bez ohrady jako voli z vozu, ale seno žere (bez obilí), nejezdí se na něm a výcvik
    * stojí; s první hotovou ohradou koní s volným místem do ní přejde (`looseHorsesDay`). Chybí =
    * žádní.
    */
@@ -909,6 +910,11 @@ export interface VillageJourney {
   lordId?: number;
   /** Ves založí syn (`Settlers.stewarded`) – správce od založení; chybí = vypnutý. */
   stewarded?: true;
+  /**
+   * Odešla celá ves (`Settlers.whole` – migration.md, Co si vezmou): nese s sebou úplně vše – zásoby
+   * a vybavení, všechny vozy a koně. Chybí = jen část lidí (i vsi na cestě z doby před 25. 11. 2026).
+   */
+  whole?: true;
 }
 
 // --- dvorec, zemská stezka a obchod (trade.md) ----------------------------------------------

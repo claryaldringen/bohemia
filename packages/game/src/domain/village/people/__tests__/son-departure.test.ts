@@ -361,19 +361,22 @@ describe('nová ves syna', () => {
     expect(familyTrains(withOutsiders(4), DAY)).toBe(true);
   });
 
-  it('kůň vojvody jde s ním při odchodu celé vsi s dvorcem', () => {
+  it('při odchodu celé vsi s dvorcem jdou všichni koně, kůň vojvody první', () => {
     const s = lordVillage();
     s.pens = [
       horsePen(90, [
-        { ...horse(500, 6, 'male', 70, DAY), riderId: 10 },
         horse(501, 8, 'female', 0, DAY),
+        { ...horse(500, 6, 'male', 70, DAY), riderId: 10 },
       ]),
     ];
     const all = s.dwellings.map((d) => d.id);
     const { settlers, state } = departVillage(s, DAY, all);
     expect(settlers.lordId).toBe(10);
-    expect(settlers.horse).toMatchObject({ id: 500, riderId: 10, training: 70 });
-    expect(villageHorses(state).map((h) => h.id)).not.toContain(500);
+    expect(settlers.whole!.horses).toMatchObject([
+      { id: 500, riderId: 10, training: 70 },
+      { id: 501, sex: 'female' },
+    ]);
+    expect(villageHorses(state)).toEqual([]);
   });
 
   it('výsledek nezávisí na kouscích dopočtu', () => {

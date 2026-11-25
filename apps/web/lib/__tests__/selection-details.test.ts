@@ -62,7 +62,11 @@ const view = {
   cheeseKg: 0,
   legumesKg: 0,
   applesKg: 0,
-  leave: { directions: LEAVE_DIRECTIONS, cart: null, allCart: null },
+  leave: {
+    directions: LEAVE_DIRECTIONS,
+    cart: null,
+    all: { foodKg: 1240, animals: 23, carts: 2 },
+  },
   extinct: null,
   abandoned: null,
   journey: null,
@@ -323,12 +327,28 @@ describe('selectionDetails', () => {
     const withCart = {
       ...view,
       storesKg: 10_000,
-      leave: { directions: LEAVE_DIRECTIONS, cart: 'two-wheel' as const, allCart: null },
+      leave: { ...view.leave, cart: 'two-wheel' as const },
     };
     // 3 nosiči po 25 kg + dvoukolák 400 kg; díl zásob 4/6 je víc
     expect(selectionDetails(withCart, scene, { kind: 'dwelling', id: 1 })).toMatchObject({
       leave: { cart: 'two-wheel', foodKg: 475 },
     });
+  });
+
+  it('odchází-li celá ves, berou si úplně vše (migration.md – Co si vezmou)', () => {
+    const whole = {
+      ...view,
+      people: { children: 1, adults: 3, elders: 0 },
+      leave: { ...view.leave, cart: 'two-wheel' as const },
+    };
+    // jídlo bez meze nosnosti, zvířata a vozy celé vsi; jeden vůz s voly se neukazuje zvlášť
+    expect(selectionDetails(whole, scene, { kind: 'dwelling', id: 1 })).toMatchObject({
+      leave: { people: 4, foodKg: 1240, cart: null, all: { animals: 23, carts: 2 } },
+    });
+    // odejde jen část – beze změny
+    const part = selectionDetails(view, scene, { kind: 'dwelling', id: 1 });
+    expect(part).toMatchObject({ leave: { people: 4, foodKg: 75 } });
+    expect((part as { leave: object }).leave).not.toHaveProperty('all');
   });
 
   it('obydlí, jehož domácnost se stěhuje: panel bez stěhování a bez Odejít (demolition.md)', () => {

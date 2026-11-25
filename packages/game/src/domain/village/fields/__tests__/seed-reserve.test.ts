@@ -82,6 +82,16 @@ describe('osivo pro ves bez zásob (fields.md – Osivo pro ves bez zásob)', ()
       foundVillage({ seed: 7, day, dwellingPosition: { x: 100, z: 100, rotation: 0 } }),
     );
     mother.storesKg = 3000;
+    // druhá domácnost zůstane – celá ves by si vzala úplně vše (migration.md – Co si vezmou)
+    const first = mother.dwellings[0]!;
+    mother.dwellings.push({ ...first, id: 500, position: { x: 150, z: 100, rotation: 0 } });
+    mother.people.push(
+      ...mother.people.map((p) => {
+        const neighbour = { ...p, id: p.id + 1000, dwellingId: 500 };
+        delete neighbour.spouseId;
+        return neighbour;
+      }),
+    );
     const { settlers, state: left } = departVillage(mother, day, [mother.dwellings[0]!.id]);
     const seed = settlers.seedKg ?? 0;
     expect(seed).toBeGreaterThan(2 * LEAVING.seedKgPerCarrier - 1e-9);
