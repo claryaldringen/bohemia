@@ -2,16 +2,18 @@ import { CURRENT_LAYER_VERSIONS, generateAcceptedLandscape } from '../domain/lan
 import {
   cellLandscapeSeed,
   createSkeletonCache,
-  dryCellNear,
-  isDry,
   isolatedLandscapeSeed,
+  isTrailOnly,
   skeletonSlice,
+  sonCellNear,
   type OccupiedCell,
+  type SkeletonCache,
 } from '../domain/world';
+import { cellSkeletonVersions, emptyCellLandscape } from './cell-landscape';
 import type { HouseRepository } from './houses';
 import { SEAT_CELL, neighbourCell, sameCell, type Direction8 } from '../domain/village';
 import type { GridCell } from '../domain/village/people/world-grid';
-import type { Settlement, SettlementRepository, WorldCell } from './settlements';
+import type { NewSettlement, Settlement, SettlementRepository, WorldCell } from './settlements';
 import type { VillageRepository } from './villages';
 
 // Sídlo nové mapy pro odchod do nové vsi (migration.md – fáze 4) – sdílí ho odchod hráče
@@ -23,8 +25,8 @@ export const OWN_MAP_THERE = 'Tím směrem už leží tvoje ves – stěhování
 export const FOREIGN_MAP_THERE = 'Tam leží ves jiného rodu.';
 /** Sídlo, ze kterého se odchází, nemá polohu v mřížce (jen sídelní ji dostane). */
 export const NO_WORLD_CELL = 'Tahle mapa nemá místo ve světě – na novou mapu odtud nejde odejít.';
-/** Tím směrem vede řeka nebo stezka kostry a v dosahu není volná suchá mapa (ves syna jen na suché). */
-export const NO_DRY_MAP_THERE = 'Tím směrem není volná krajina bez řeky a stezky.';
+/** Tím směrem vede řeka kostry a v dosahu není volná mapa bez ní (suchá, nebo se stezkou). */
+export const NO_DRY_MAP_THERE = 'Tím směrem není volná krajina bez řeky.';
 
 /** Sídlo nové mapy, nebo důvod, proč tam odejít nejde. */
 type TargetResult = { ok: true; settlement: Settlement } | { ok: false; reason: string };
@@ -32,9 +34,10 @@ type TargetResult = { ok: true; settlement: Settlement } | { ok: false; reason: 
 /**
  * Sídlo nové mapy ve směru `direction` od sídla `from`: sídelní sídlo bez polohy dostane
  * (0, 0); na sousedním políčku mřížky vznikne nové sídlo s novou krajinou, nebo se použije
- * vlastní sídlo bez vsí, které tam už je. Vlastní ves tím směrem → OWN_MAP_THERE. Ves syna je jen
- * na suché mapě (world-skeleton.md – Otevřené otázky 3): volným políčkem s řekou nebo stezkou
- * kostry se nejde – ves vznikne na nejbližším suchém (`sonCell`), sídlo bez výřezu kostry.
+ * vlastní sídlo bez vsí, které tam už je (tak, jak je uložené). Vlastní ves tím směrem →
+ * OWN_MAP_THERE. Ves syna je jen na suché mapě, nebo na stezce bez řeky (world-skeleton.md –
+ * Otevřené otázky 3; markets.md – Rozhodnutí plánu 4, bod 11): na volné políčko s řekou kostry se
+ * nejde – ves vznikne na nejbližším bez ní (`sonCell`); krajina a výřez nového sídla `newMap`.
  * Odříznutý rod (newcomers.md) zakládá v místní mřížce – `isolatedTarget`.
  */
 export async function targetSettlement(
@@ -60,13 +63,8 @@ export async function targetSettlement(
     if (cell === null) return { ok: false, reason: NO_WORLD_CELL };
   }
   const occupied = await deps.settlements.occupiedCells();
-  const targetCell = sonCell(
-    deps.worldSeed,
-    cell,
-    neighbourCell(cell, direction),
-    occupied,
-    playerId,
-  );
+  const skeleton = createSkeletonCache(deps.worldSeed);
+  const targetCell = sonCell(skeleton, cell, neighbourCell(cell, direction), occupied, playerId);
   if (targetCell === null) return { ok: false, reason: NO_DRY_MAP_THERE };
   const active = await deps.settlements.listActive(playerId);
   const existing = active.find((s) => s.worldCell !== null && sameCell(s.worldCell, targetCell));
@@ -78,11 +76,9 @@ export async function targetSettlement(
   }
   const foreign = occupied.some((o) => o.ownerId !== playerId && sameCell(o.cell, targetCell));
   if (foreign) return { ok: false, reason: FOREIGN_MAP_THERE };
-  const accepted = generateAcceptedLandscape(cellLandscapeSeed(deps.worldSeed, targetCell));
   const created = await deps.settlements.create({
     ownerId: playerId,
-    landscapeSeed: accepted.seed,
-    layerVersions: CURRENT_LAYER_VERSIONS,
+    ...newMap(skeleton, targetCell),
     worldCell: targetCell,
   });
   if (created) return { ok: true, settlement: created };
@@ -96,24 +92,44 @@ export async function targetSettlement(
 }
 
 /**
- * Políčko vsi syna ve směru `target`: obsazené políčko (vlastní sídlo k použití, nebo cizí mapa)
- * a suché políčko zůstanou; volné políčko s kostrou nahradí nejbližší suché bez cizí mapy
- * (`dryCellNear`) – vlastní sídlo na něm se použije jako na sousedním políčku. Null – v dosahu
- * žádné suché.
+ * Políčko vsi syna ve směru `target`: obsazené políčko (vlastní sídlo k použití, nebo cizí mapa),
+ * suché políčko a políčko se stezkou bez řeky zůstanou; volné políčko s řekou nahradí nejbližší bez
+ * řeky a bez cizí mapy (`sonCellNear`) – vlastní sídlo na něm se použije jako na sousedním políčku.
+ * Null – v dosahu žádné.
  */
 function sonCell(
-  worldSeed: number,
+  skeleton: SkeletonCache,
   from: GridCell,
   target: GridCell,
   occupied: readonly OccupiedCell[],
   playerId: string,
 ): GridCell | null {
   if (occupied.some((o) => sameCell(o.cell, target))) return target;
-  const cache = createSkeletonCache(worldSeed);
-  if (isDry(skeletonSlice(worldSeed, target, cache))) return target;
   const foreign = (c: GridCell): boolean =>
     occupied.some((o) => o.ownerId !== playerId && sameCell(o.cell, c));
-  return dryCellNear(worldSeed, from, target, (c) => !foreign(c), cache);
+  return sonCellNear(skeleton.worldSeed, from, target, (c) => !foreign(c), skeleton);
+}
+
+/**
+ * Krajina nové mapy na políčku světa `cell`: se stezkou kostry výřez políčka a krajina z něj – tatáž,
+ * jakou mělo prázdné políčko (`emptyCellLandscape` – pochod vojska); suchá mapa jako dřív, bez výřezu.
+ */
+function newMap(
+  skeleton: SkeletonCache,
+  cell: GridCell,
+): Pick<NewSettlement, 'landscapeSeed' | 'layerVersions' | 'skeleton'> {
+  const { worldSeed } = skeleton;
+  const slice = skeletonSlice(worldSeed, cell, skeleton);
+  if (!isTrailOnly(slice)) {
+    const accepted = generateAcceptedLandscape(cellLandscapeSeed(worldSeed, cell));
+    return { landscapeSeed: accepted.seed, layerVersions: CURRENT_LAYER_VERSIONS };
+  }
+  const empty = emptyCellLandscape(worldSeed, cell, CURRENT_LAYER_VERSIONS, skeleton);
+  return {
+    landscapeSeed: empty.seed,
+    layerVersions: cellSkeletonVersions(slice),
+    skeleton: slice,
+  };
 }
 
 /**

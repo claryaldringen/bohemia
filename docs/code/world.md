@@ -106,18 +106,27 @@ a, b, riverAt)` (`ports.ts`) – hash hrany jako u řeky (soli `trailPortNS/EW`)
   východu, W od severu), body řek ho dělí na oblouky, přechody = oblouky s bodem stezky − 1;
   `seatSlot(slice)` = `'dry'` (null), `'river'`, `'trail'`, `'ford'` (1 přechod), jinak null
   (pramen, soutok řek, křižovatka, konec stezky, víc brodů, řeka i stezka bez přechodu);
-  `isDry(slice)`.
-- **Ves syna jen na suché mapě** (Otevřené otázky 3 – Martin 8. 11. 2026: „NPC budou mít
-  normální mapy. Prémiové jen lidští hráči.“; `dry-cell.ts`, `new-village.ts`): `targetSettlement`
-  (odchod hráče i schránka odchodů správce) – obsazené políčko ve směru (vlastní sídlo k použití,
-  cizí mapa) a suché políčko jako dřív; volné políčko s řekou či stezkou nahradí
-  `dryCellNear(worldSeed, from, target, allowed, cache?)` = nejbližší suché bez cizí mapy
-  (`nearestCellAround` – `target`, pak prstence kolem něj do `WORLD.sonDryRings` = 2; v prstenci
-  napřed sousedé výchozí mapy, pak blíž `target`, pak pořadí `ringCells`; výchozí mapa nikdy –
-  návrh Clauda). Vlastní sídlo na náhradním políčku se použije jako na sousedním (opakovaný
-  i souběžný odchod týmž směrem najde totéž). Žádné v dosahu → `NO_DRY_MAP_THERE` (odchod syna
-  po pohřbu i schránka správce zkusí další směr). Sídlo syna je bez výřezu a bez verze
-  `skeleton` (krajina z `cellLandscapeSeed` jako dřív). Odříznutý rod je suchý vždy.
+  `isDry(slice)` – bez řeky i stezky; `isTrailOnly(slice)` – stezka bez řeky, i křižovatka a konec
+  stezky (pramen, soutok, brod a řeka ne).
+- **Ves syna na suché mapě nebo na stezce** (Otevřené otázky 3 – Martin 8. 11. 2026: „NPC budou mít
+  normální mapy. Prémiové jen lidští hráči.“; na stezce markets.md – Rozhodnutí plánu 4, bod 11 –
+  Martin 22. 11. 2026: „ok“; `dry-cell.ts`, `new-village.ts`): `targetSettlement` (odchod hráče
+  i schránka odchodů správce) – obsazené políčko ve směru (vlastní sídlo k použití, cizí mapa), suché
+  políčko a políčko se stezkou bez řeky (`isTrailOnly`) zůstanou; volné políčko s řekou (i brod,
+  pramen a soutok, i když jimi vede stezka) nahradí nejbližší bez řeky a bez cizí mapy –
+  `sonCellNear(worldSeed, from, target, allowed, cache?)` nad `nearestCellAround`: `target`, pak
+  prstence kolem něj do `WORLD.sonDryRings` = 2; v prstenci napřed sousedé výchozí mapy, pak blíž
+  `target`, pak pořadí `ringCells`; výchozí mapa nikdy (návrh Clauda). Vlastní sídlo na náhradním
+  políčku se použije jako na sousedním (opakovaný i souběžný odchod týmž směrem najde totéž)
+  a vlastní sídlo bez vsí tak, jak je uložené – výřez a seed se mu nemění, ani když je bez výřezu
+  a kostra tudy stezku vede. Žádné v dosahu → `NO_DRY_MAP_THERE` (odchod syna po pohřbu i schránka
+  správce zkusí další směr). **Nové sídlo** (`newMap` v `new-village.ts`, jedna mezipaměť kostry na
+  odchod): suché je bez výřezu a bez verze `skeleton` (krajina z `cellLandscapeSeed` jako dřív), na
+  stezce nese výřez políčka (`skeletonSlice`), verze `cellSkeletonVersions` a seed
+  `emptyCellLandscape` – tatáž krajina i překážky, jako měla prázdná mapa, kudy šla vojska a výpravy.
+  Ves na stezce má od založení hotovou zemskou stezku do všech jejích směrů (`withSkeletonRoute`)
+  a zastávky kupců z uloženého výřezu (Zastávky stezky). Odříznutý rod je suchý vždy; sídla hráčů
+  (`placeSeat`, `seatSlot`) beze změny.
 - **Zlatý otisk celé kostry** (`golden.test.ts`, okno 32 × 32, seed 20270101): klíč výřezu
   - `seatSlot`, hodnota 2488818595; vedle otisku samotných řek (4193049158). Po ostrém spuštění
     se nesmí změnit.

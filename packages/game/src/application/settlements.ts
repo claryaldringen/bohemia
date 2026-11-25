@@ -38,7 +38,8 @@ export interface Settlement {
   /**
    * Výřez kostry světa, ze kterého mapa vznikla (world-skeleton.md – Uložení): krajina se generuje
    * z uloženého výřezu, ne z políčka – nezmění ji přesun odříznutého shluku ani úprava kostry.
-   * Chybí nebo null – suchá mapa (vsi synů, odříznutá sídla, sídla z doby před kostrou).
+   * Chybí nebo null – suchá mapa (i odříznutá sídla a sídla z doby před kostrou). Ves syna ho má jen
+   * se stezkou, bez řeky (world.md – Ves syna na suché mapě nebo na stezce).
    */
   skeleton?: SkeletonSlice | null;
   createdAt: Date;

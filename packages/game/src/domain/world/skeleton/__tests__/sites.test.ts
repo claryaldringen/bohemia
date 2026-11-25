@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { SkeletonSlice } from '../../../landscape/skeleton/types';
-import { isDry, riverCrossings, seatSlot } from '..';
+import { isDry, isTrailOnly, riverCrossings, seatSlot } from '..';
 
 type R = SkeletonSlice['rivers'][number];
 type T = SkeletonSlice['trails'][number];
@@ -51,5 +51,31 @@ describe('místa kostry', () => {
     // konec stezky, křižovatka
     expect(seatSlot(slice([], [trail('W', 60)]))).toBeNull();
     expect(seatSlot(slice([], [trail('W', 60), trail('E', 60), trail('N', 60)]))).toBeNull();
+  });
+
+  it('isTrailOnly: stezka bez řeky, i křižovatka a konec stezky', () => {
+    expect(isTrailOnly(slice([], [trail('W', 60), trail('E', 60)]))).toBe(true);
+    expect(isTrailOnly(slice([], [trail('N', 60), trail('E', 60)]))).toBe(true);
+    // konec stezky, křižovatka tří a čtyř směrů
+    expect(isTrailOnly(slice([], [trail('W', 60)]))).toBe(true);
+    const three = [trail('W', 60), trail('E', 60), trail('N', 60)];
+    expect(isTrailOnly(slice([], three))).toBe(true);
+    expect(isTrailOnly(slice([], [...three, trail('S', 60)]))).toBe(true);
+  });
+
+  it('isTrailOnly: suchá mapa, řeka, brod, pramen a soutok ne – ani když jimi vede stezka', () => {
+    const across = [trail('W', 60), trail('E', 60)];
+    expect(isTrailOnly(null)).toBe(false);
+    expect(isTrailOnly(slice([], []))).toBe(false);
+    expect(isTrailOnly(slice(northSouth, []))).toBe(false);
+    // brod, řeka i stezka bez přechodu
+    expect(isTrailOnly(slice(northSouth, across))).toBe(false);
+    expect(isTrailOnly(slice(northSouth, [trail('W', 60), trail('N', 20)]))).toBe(false);
+    const spring = [river('S', 60, 'out')];
+    const confluence = [river('N', 40, 'in'), river('E', 60, 'in'), river('S', 60, 'out')];
+    for (const rivers of [spring, confluence]) {
+      expect(isTrailOnly(slice(rivers, []))).toBe(false);
+      expect(isTrailOnly(slice(rivers, across))).toBe(false);
+    }
   });
 });

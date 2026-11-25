@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../domain/calendar';
-import { CURRENT_LAYER_VERSIONS, generateAcceptedLandscape } from '../../domain/landscape';
-import { isolatedLandscapeSeed } from '../../domain/world';
+import {
+  CURRENT_LAYER_VERSIONS,
+  generateAcceptedLandscape,
+  generateLandscapeAttempt,
+  obstaclesOf,
+} from '../../domain/landscape';
+import { freeVillageSite } from '../../domain/village/people/village-site';
+import { isolatedLandscapeSeed, skeletonSlice, trailStops } from '../../domain/world';
 import {
   SUCCESSOR_STAYS,
   isVillageTravelling,
@@ -12,6 +18,7 @@ import {
 } from '../../domain/village';
 import { makeLandscape } from '../../domain/village/__tests__/placement-fixtures';
 import { withBuiltFirstDwelling } from '../../domain/village/__tests__/village-fixtures';
+import { settlementLandscape } from '../enter-game';
 import { foundVillageForSettlement } from '../found-village';
 import {
   LEAVE_ONLY_TO_NEW_MAP,
@@ -26,11 +33,12 @@ import { loadVillage } from '../load-village';
 import { setSteward } from '../set-steward';
 import { placeDwelling } from '../place-dwelling';
 import { dynastyStatus } from '../restart-game';
-import type { LandscapeSource, SeedSource } from '../settlements';
+import type { LandscapeSource, SeedSource, WorldCell } from '../settlements';
 import { VILLAGE_ABANDONED, VILLAGE_TRAVELLING } from '../update-village';
 import { InMemorySettlements } from './in-memory-settlements';
 import { InMemoryVillages } from './in-memory-villages';
 import { coinsOfWorld } from './market-world';
+import { merchantStopsFromSkeleton } from './merchant-stops';
 
 // Odchod do nové vsi (migration.md – fáze 3 a 4) nad repozitáři v paměti.
 
@@ -48,9 +56,13 @@ const seeds = (): SeedSource => {
 
 /**
  * Ves zakladatelů rodu – vojvoda s manželkami a čtyřmi syny, dostavěná zemnice (lord.md –
- * Zakladatelé) – a rodina dalšího syna v druhé zemnici – 11 lidí.
+ * Zakladatelé) – a rodina dalšího syna v druhé zemnici – 11 lidí. Sídlo leží na políčku `home`,
+ * odříznuté v místní mřížce.
  */
-async function player(isolated = false): Promise<{
+async function player(
+  isolated = false,
+  home: WorldCell = { x: 0, y: 0 },
+): Promise<{
   deps: {
     settlements: InMemorySettlements;
     villages: InMemoryVillages;
@@ -71,9 +83,10 @@ async function player(isolated = false): Promise<{
     layerVersions: CURRENT_LAYER_VERSIONS,
     premiumType: 'fertile' as const,
   };
-  const seat = isolated
-    ? (await settlements.createSeat({ ...seatInput, localCell: { x: 0, y: 0 } }))!
-    : await settlements.seatAtOrigin(seatInput);
+  const seat = (await settlements.createSeat({
+    ...seatInput,
+    ...(isolated ? { localCell: { x: 0, y: 0 } } : { worldCell: home }),
+  }))!;
   const founded = await foundVillageForSettlement(
     { villages, seeds: seeds() },
     { settlementId: seat.id, landscape, today: TODAY, name: 'Libice', dwelling: at(-200, -200) },
@@ -389,6 +402,53 @@ describe('leaveVillage – na novou mapu', () => {
     await loadVillage(deps, { villageId: left.to.id, today: arrival + 2, landscape });
     expect(asked).toEqual([left.settlement.id]);
   });
+
+  it('nová ves hráče na stezce (markets.md, Rozhodnutí plánu 4, bod 11): po založení hotová stezka a zastávky kupců', async () => {
+    // seed světa 1: políčkem (7, −1) vede stezka bez řeky z jihu na sever (world.md – Kostra světa)
+    const worldSeed = 1;
+    const cell = { x: 7, y: -1 };
+    const { deps: base, villageId, sonHome } = await player(false, { x: 8, y: -1 });
+    // domovské sídlo (seed 11) na krajině testů, nová mapa na své
+    const deps = {
+      ...base,
+      worldSeed,
+      landscapes: {
+        landscapeOf: (...args: Parameters<LandscapeSource['landscapeOf']>) =>
+          args[0] === 11 ? landscape : generateLandscapeAttempt(...args),
+      },
+    };
+    deps.villages.merchantStopsOf = merchantStopsFromSkeleton(deps.settlements, worldSeed);
+    const left = await leaveVillage(deps, {
+      playerId: PLAYER,
+      villageId,
+      today: TODAY + 1,
+      dwellingIds: [sonHome],
+      destination: { kind: 'map', direction: 'W' },
+    });
+    if (!left.ok) throw new Error(left.reason);
+    expect(left.settlement).toMatchObject({
+      worldCell: cell,
+      skeleton: skeletonSlice(worldSeed, cell),
+      layerVersions: { ...CURRENT_LAYER_VERSIONS, skeleton: 1 },
+    });
+    const land = settlementLandscape(left.settlement, deps.landscapes);
+    const arrival = left.to.state.journey!.arrivalDay;
+    const settled = await settleJourney(deps, {
+      playerId: PLAYER,
+      villageId: left.to.id,
+      today: arrival,
+      dwelling: freeVillageSite(land, obstaclesOf(land))!,
+    });
+    if (!settled.ok) throw new Error(settled.reason);
+    const { state } = settled.village;
+    expect(state.trails?.map((t) => [t.direction, t.builtDay])).toEqual([
+      ['N', arrival],
+      ['S', arrival],
+    ]);
+    expect(state.merchantStops).toEqual(trailStops(worldSeed, cell));
+    expect(state.merchantStops).toHaveLength(1);
+    // čas: krajina s překážkami a založení (CPU) – pod zátěží stroje přes výchozí mez
+  }, 60_000);
 
   it('odříznutý rod: odchod na východ založí odříznuté sídlo (1, 0) v místní mřížce s vlastní krajinou', async () => {
     const { deps, villageId, sonHome } = await player(true);

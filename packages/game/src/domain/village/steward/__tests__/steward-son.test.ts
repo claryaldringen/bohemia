@@ -1,7 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { dateOfDayIndex, dayIndexOf } from '../../../calendar';
-import { obstaclesOf, tileCenterWorld } from '../../../landscape';
+import {
+  CURRENT_LAYER_VERSIONS,
+  generateAcceptedLandscape,
+  obstaclesOf,
+  tileCenterWorld,
+  type Landscape,
+  type ObstacleLayer,
+} from '../../../landscape';
 import { deriveSeed } from '../../../landscape/random';
+import { cellLandscapeSeed, skeletonSlice, trailStops } from '../../../world';
 import { isVillageTravelling, settlersOf, travellingVillage } from '../../people/departure';
 import { foundedState } from '../founding';
 import { villageTerritory } from '../steward-land';
@@ -29,7 +37,10 @@ import { fieldStoresOutlook } from '../../core/simulate-plan';
 import { craftCoverage } from '../../crafts/crafts';
 import type { VillageEvent } from '../../core/inbox';
 import { merchantVisits } from '../../trade/merchant-plan';
-import type { MerchantStop, Person, VillageState } from '../../types';
+import { builtTrail, villageTrails } from '../../trade/trail';
+import type { SkeletonSlice } from '../../../landscape/skeleton/types';
+import type { GridCell } from '../../people/world-grid';
+import type { Direction8, MerchantStop, Person, VillageState } from '../../types';
 import { kin } from '../../__tests__/kin-fixtures';
 import {
   AUG31,
@@ -357,6 +368,26 @@ describe('odchod syna (krok 2)', () => {
   });
 });
 
+/** Mapa políčka se stezkou světa se seedem 1 – výřez a krajina z něj, jakou má sídlo vsi syna. */
+function trailMap(cell: GridCell): {
+  slice: SkeletonSlice;
+  landscape: Landscape;
+  obstacles: ObstacleLayer;
+} {
+  const slice = skeletonSlice(1, cell)!;
+  const versions = { ...CURRENT_LAYER_VERSIONS, skeleton: 1 as const };
+  const seed = cellLandscapeSeed(1, cell);
+  const { landscape } = generateAcceptedLandscape(seed, versions, undefined, slice);
+  return { slice, landscape, obstacles: obstaclesOf(landscape) };
+}
+
+/** Cesty k číslům stavu, která nejsou konečná (NaN, ±∞). */
+function nonFinite(value: unknown, path = 'stav'): string[] {
+  if (typeof value === 'number') return Number.isFinite(value) ? [] : [path];
+  if (value === null || typeof value !== 'object') return [];
+  return Object.entries(value).flatMap(([key, v]) => nonFinite(v, `${path}.${key}`));
+}
+
 describe('ves na cestě se správcem (příjezd)', () => {
   /** Syn odejde ze vsi na novou mapu (krajina `fertile`) – ves na cestě 2 dny. */
   function travelling(): VillageState {
@@ -474,6 +505,55 @@ describe('ves na cestě se správcem (příjezd)', () => {
       const parts = advanceVillage(part, end, fertileObstacles, fertile);
       expect(reloaded(parts)).toEqual(reloaded(whole));
     }
+  }, 60_000);
+
+  // seed světa 1 (world.md – Kostra světa): stezka bez řeky – průchod, křižovatka, konec stezky
+  it.each<[string, GridCell, Direction8[]]>([
+    ['průchod', { x: 7, y: -1 }, ['N', 'S']],
+    ['křižovatka', { x: -12, y: 6 }, ['E', 'S', 'W']],
+    ['konec stezky', { x: -10, y: 26 }, ['E']],
+  ])(
+    'mapa se stezkou (%s; markets.md, Rozhodnutí plánu 4, bod 11): hotová stezka od založení',
+    (_name, cell, directions) => {
+      const { slice, landscape, obstacles } = trailMap(cell);
+      expect(slice.trails.map((port) => port.side)).toEqual(directions);
+      const founded = stewardArrival(travelling(), AUG31 + 2, landscape, obstacles)!;
+      const trails = villageTrails(founded);
+      expect(trails.map((t) => t.direction)).toEqual(directions);
+      for (const trail of trails) {
+        expect(trail.builtDay).toBe(AUG31 + 2);
+        expect(builtTrail(founded, trail.direction)).toBe(trail);
+        expect(trail.pieces.length).toBeGreaterThan(0);
+        // od vsi ke kraji mapy
+        expect(trail.lengthM).toBeGreaterThan(500);
+      }
+      expect(nonFinite(founded)).toEqual([]);
+    },
+    30_000,
+  );
+
+  it('mapa se stezkou: 100 dní po založení bez chyby a NaN, s kupci; vcelku = po kouscích', () => {
+    const cell = { x: 7, y: -1 };
+    const { landscape, obstacles } = trailMap(cell);
+    const stops = trailStops(1, cell);
+    const start = { ...travelling(), merchantStops: stops };
+    const end = AUG31 + 102;
+    const whole = advanceVillage(start, end, obstacles, landscape);
+    expect([whole.foundedDay, whole.lastDay]).toEqual([AUG31 + 2, end]);
+    expect(whole.people.length).toBeGreaterThanOrEqual(start.people.length);
+    expect(nonFinite(whole)).toEqual([]);
+    expect(villageTrails(whole).map((t) => [t.direction, t.builtDay])).toEqual([
+      ['N', AUG31 + 2],
+      ['S', AUG31 + 2],
+    ]);
+    // kupci přijeli po stezce ve dnech plánu
+    const planned = merchantVisits(stops, AUG31 + 2, end).map((visit) => visit.day);
+    expect(planned.length).toBeGreaterThan(0);
+    const notes = (whole.market?.arrivals ?? []).filter((a) => a.merchants).map((a) => a.day);
+    expect(notes).toEqual(planned);
+    // hranice kousku v den příjezdu vsi
+    const part = json2(advanceVillage(start, AUG31 + 2, obstacles, landscape));
+    expect(json(advanceVillage(part, end, obstacles, landscape))).toBe(json(whole));
   }, 60_000);
 
   it('ves na cestě, kde hráč správce vypnul, čeká na hráče a po založení zůstane vypnutá', () => {

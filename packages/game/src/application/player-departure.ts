@@ -135,7 +135,7 @@ export async function autoPlayerDeparture(
       await deps.houses.clearPendingDeparture(house.id, pending.sonId);
       return result;
     }
-    // vlastní ves či cizí mapa tím směrem, nebo kostra bez suché mapy v dosahu – zkusit další;
+    // vlastní ves či cizí mapa tím směrem, nebo řeka kostry a v dosahu nic bez ní – zkusit další;
     // jiný důvod platí pro všechny směry
     const tryNext = [OWN_MAP_THERE, FOREIGN_MAP_THERE, NO_DRY_MAP_THERE];
     if (!tryNext.includes(result.reason)) break;

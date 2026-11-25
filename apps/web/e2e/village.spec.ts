@@ -13,6 +13,7 @@ import {
   orchardPartsFromCells,
   penSquaresFromCells,
   placementVillageOf,
+  skeletonSlice,
   suggestVillageName,
   surfaceAt,
   tileCenterWorld,
@@ -22,11 +23,13 @@ import {
   type PlacementVillage,
   type Position,
   type Road,
+  type SkeletonSlice,
   type TileCell,
   startDemolition,
   type VillageState,
   WORLD,
 } from '@bohemia/game';
+import { worldSeed } from '@bohemia/server';
 import { huntOfSettlement } from './journey-helpers';
 import { openDevTime, openGameMenu, useUniqueClientIp } from './helpers';
 import {
@@ -1196,21 +1199,21 @@ test('lidé odejdou na novou mapu – po cestě umístí první zemnici', async 
       grid_y: number | null;
       landscape_seed: number;
       layer_versions: LayerVersions;
-      has_skeleton: boolean;
+      skeleton: SkeletonSlice | null;
     }[]
   > =>
     query(
-      `SELECT s.id, s.grid_x, s.grid_y, s.landscape_seed, s.layer_versions,
-              s.skeleton IS NOT NULL AS has_skeleton
+      `SELECT s.id, s.grid_x, s.grid_y, s.landscape_seed, s.layer_versions, s.skeleton
          FROM settlement s JOIN "user" u ON u.id = s.owner_id
         WHERE u.email = $1 AND s.archived_at IS NULL ORDER BY s.created_at`,
       [email],
     );
   await expect.poll(async () => (await maps()).length, { timeout: 30_000 }).toBe(2);
   const [home, east] = await maps();
-  // mřížka je společná všem hráčům – poloha domova závisí na pořadí hráčů. Nová ves je jen na
-  // suché mapě (world-skeleton.md – NPC a vsi synů): políčko o sloupec východně, vede-li jím řeka
-  // či stezka kostry, nejbližší suché nejvýš `WORLD.sonDryRings` prstenců od něj – bez výřezu kostry.
+  // mřížka je společná všem hráčům – poloha domova závisí na pořadí hráčů. Nová ves je na suché mapě,
+  // nebo na stezce bez řeky (markets.md – Rozhodnutí plánu 4, bod 11): políčko o sloupec východně,
+  // vede-li jím řeka kostry, nejbližší bez ní nejvýš `WORLD.sonDryRings` prstenců od něj. Se stezkou
+  // má výřez kostry políčka, suchá mapa je bez výřezu.
   expect(home).toMatchObject({ id: s.settlementId });
   expect(home!.grid_x).not.toBeNull();
   expect(east!.grid_x).not.toBeNull();
@@ -1219,8 +1222,10 @@ test('lidé odejdou na novou mapu – po cestě umístí první zemnici', async 
   expect(
     Math.max(Math.abs(east!.grid_x! - eastward.x), Math.abs(east!.grid_y! - eastward.y)),
   ).toBeLessThanOrEqual(WORLD.sonDryRings);
-  expect(east!.has_skeleton).toBe(false);
-  expect(east!.layer_versions).not.toHaveProperty('skeleton');
+  const slice = skeletonSlice(worldSeed(), { x: east!.grid_x!, y: east!.grid_y! });
+  expect(slice?.rivers ?? []).toEqual([]);
+  expect(east!.skeleton).toEqual(slice);
+  expect(east!.layer_versions.skeleton).toBe(slice === null ? undefined : 1);
   const travelling = await villageOf(east!.id);
   expect(travelling.state.journey?.direction).toBe('E');
   expect(travelling.state.people).toHaveLength(before.people.length);
@@ -1259,7 +1264,12 @@ test('lidé odejdou na novou mapu – po cestě umístí první zemnici', async 
   await expect(page.getByTestId('journey-banner')).toHaveAttribute('data-arrived', 'true');
   const grid = page.getByTestId('build-grid');
   await expect(grid.getByRole('button')).toHaveCount(1);
-  const land = generateLandscapeAttempt(east!.landscape_seed, east!.layer_versions);
+  const land = generateLandscapeAttempt(
+    east!.landscape_seed,
+    east!.layer_versions,
+    undefined,
+    east!.skeleton,
+  );
   const first = villageSpots(land).dwelling;
   await grid.getByRole('button', { name: 'Zemnice' }).click();
   await confirmPlacement(page, { kind: 'dwelling', type: 'zemnice', position: first });

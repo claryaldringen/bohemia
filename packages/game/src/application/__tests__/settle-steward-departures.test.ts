@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../domain/calendar';
 import { CURRENT_LAYER_VERSIONS } from '../../domain/landscape';
+import { skeletonSlice, trailStops } from '../../domain/world';
 import {
   departWithSon,
   isVillageTravelling,
@@ -15,14 +16,16 @@ import {
 } from '../../domain/village';
 import { trackedVillage } from '../../domain/village/__tests__/kin-fixtures';
 import { makeLandscape } from '../../domain/village/__tests__/placement-fixtures';
+import { settlementLandscape } from '../enter-game';
 import { loadVillage } from '../load-village';
 import {
   settleStewardDepartures,
   settleStewardDeparturesSafely,
 } from '../settle-steward-departures';
-import type { LandscapeSource, SeedSource } from '../settlements';
+import type { LandscapeSource, SeedSource, WorldCell } from '../settlements';
 import { InMemoryHouses } from './in-memory-houses';
 import { InMemorySettlements } from './in-memory-settlements';
+import { merchantStopsFromSkeleton } from './merchant-stops';
 import { InMemoryVillages } from './in-memory-villages';
 
 const PLAYER = 'hrac-1';
@@ -43,10 +46,13 @@ const house = (id: number, x: number, z: number): Dwelling => ({
 });
 
 /**
- * Mateřská ves se správcem, ze které 31. 8. odešel syn Bořivoj (30) – záznam schránky s cílem
- * `dwelling` (tady), jinak nová mapa na sever.
+ * Mateřská ves se správcem na políčku `home`, ze které 31. 8. odešel syn Bořivoj (30) – záznam
+ * schránky s cílem `dwelling` (tady), jinak nová mapa na sever.
  */
-async function world(dwelling?: Position): Promise<{
+async function world(
+  dwelling?: Position,
+  home: WorldCell = { x: 0, y: 0 },
+): Promise<{
   deps: {
     settlements: InMemorySettlements;
     villages: InMemoryVillages;
@@ -59,11 +65,12 @@ async function world(dwelling?: Position): Promise<{
 }> {
   const settlements = new InMemorySettlements();
   const villages = new InMemoryVillages();
-  const seat = await settlements.seatAtOrigin({
+  const seat = (await settlements.createSeat({
     ownerId: PLAYER,
     landscapeSeed: 11,
     layerVersions: CURRENT_LAYER_VERSIONS,
-  });
+    worldCell: home,
+  }))!;
   const s = trackedVillage(
     [
       { id: 10, age: 60, sex: 'male', spouse: 11 },
@@ -245,6 +252,41 @@ describe('settleStewardDepartures – vybavení schránky', () => {
     expect(loaded!.state.steward?.on).toBe(true);
     expect(loaded!.state.foundedDay).toBe(DAY + 2);
   });
+
+  it('nová mapa na stezce (markets.md, Rozhodnutí plánu 4, bod 11): po příjezdu hotová stezka a zastávky kupců', async () => {
+    // seed světa 1: políčkem (7, −1) vede stezka bez řeky z jihu na sever (world.md – Kostra světa)
+    const worldSeed = 1;
+    const cell = { x: 7, y: -1 };
+    const { deps, villageId } = await world(undefined, { x: 8, y: -1 });
+    deps.villages.edit(villageId, (state) => {
+      state.steward!.departures![0]!.directions = [{ direction: 'W', travelDays: 2 }];
+    });
+    deps.villages.merchantStopsOf = merchantStopsFromSkeleton(deps.settlements, worldSeed);
+    const [village] = await settleStewardDepartures(
+      { ...deps, worldSeed },
+      { playerId: PLAYER, villageId },
+    );
+    const settlement = (await deps.settlements.listActive(PLAYER)).find(
+      (s) => s.id === village!.settlementId,
+    )!;
+    expect(settlement.worldCell).toEqual(cell);
+    expect(settlement.skeleton).toEqual(skeletonSlice(worldSeed, cell));
+    const loaded = await loadVillage(deps, {
+      villageId: village!.id,
+      today: DAY + 4,
+      landscape: settlementLandscape(settlement),
+    });
+    const { state } = loaded!;
+    expect(isVillageTravelling(state)).toBe(false);
+    expect(state.foundedDay).toBe(DAY + 2);
+    expect(state.trails?.map((t) => [t.direction, t.builtDay])).toEqual([
+      ['N', DAY + 2],
+      ['S', DAY + 2],
+    ]);
+    expect(state.merchantStops).toEqual(trailStops(worldSeed, cell));
+    expect(state.merchantStops).toMatchObject([{ key: '0,-1,N', index: 13, length: 30 }]);
+    // čas: krajina s překážkami a založení (CPU) – pod zátěží stroje přes výchozí mez
+  }, 60_000);
 
   it('chyba při vybavení se zaloguje a nezastaví načtení hry (Safely)', async () => {
     const { deps, villageId } = await world();

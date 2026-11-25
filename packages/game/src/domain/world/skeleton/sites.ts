@@ -40,6 +40,14 @@ export function isDry(slice: SkeletonSlice | null): boolean {
   return slice === null || (slice.rivers.length === 0 && slice.trails.length === 0);
 }
 
+/**
+ * Mapou vede stezka a žádná řeka – průchod, křižovatka i konec stezky. Ves syna sem smí jako na
+ * suchou mapu (markets.md – Rozhodnutí plánu 4, bod 11; Martin 22. 11. 2026: „ok“).
+ */
+export function isTrailOnly(slice: SkeletonSlice | null): boolean {
+  return slice !== null && slice.trails.length > 0 && slice.rivers.length === 0;
+}
+
 /** Místo sídla; null = ostatní místa (pramen, soutok řek, křižovatka, konec stezky, víc brodů…). */
 export function seatSlot(slice: SkeletonSlice | null): SeatSlot | null {
   if (slice === null || isDry(slice)) return 'dry';

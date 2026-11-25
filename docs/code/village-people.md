@@ -445,7 +445,8 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `foundVillage({ settlers })` – jedna domácnost na staveništi první zemnice, id lidí ze staré
   vsi. Use-case `leaveVillage` (`leave-village.ts`): jen na novou mapu – jiný cíl než `map`
   (dřívější `here`) odmítne `LEAVE_ONLY_TO_NEW_MAP` (`map` – sídlo vedle ve směru `neighbourCell` z `world-grid.ts`;
-  vede-li tím políčkem řeka či stezka kostry, nejbližší suché – `dryCellNear`, world.md – Ves syna jen na suché mapě; `generateAcceptedLandscape`,
+  vede-li tím políčkem řeka kostry, nejbližší bez ní – suché, nebo se stezkou: `sonCellNear`, world.md – Ves syna na suché mapě
+  nebo na stezce; krajina `generateAcceptedLandscape`, na stezce výřez políčka a `emptyCellLandscape`,
   prázdné vlastní sídlo na políčku se použije znovu, vlastní ves tam → `OWN_MAP_THERE`; ves na
   cestě `travellingVillage` s `VillageState.journey` – `create` na novém sídle, dny `travelDays`
   – 1–3 podle `edgeDistanceM` od dvorce, po hotové stezce 1). `settleJourney` po příjezdu založí

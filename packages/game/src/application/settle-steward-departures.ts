@@ -125,7 +125,7 @@ async function createVillage(
         if (again) return again;
         continue;
       }
-      // cizí mapa tím směrem, nebo kostra bez suché mapy v dosahu – zkusit další směr ze záznamu
+      // cizí mapa tím směrem, nebo řeka kostry a v dosahu nic bez ní – zkusit další směr ze záznamu
       if (target.reason === FOREIGN_MAP_THERE || target.reason === NO_DRY_MAP_THERE) continue;
       break;
     }

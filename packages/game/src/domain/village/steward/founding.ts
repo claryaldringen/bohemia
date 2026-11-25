@@ -89,7 +89,8 @@ export function foundedState(
   // nová ves nemá polozemnice bez pozemku – rovnou převedená (`withPlots` ji už nebude měnit),
   // první zemnice má svou variantu rozměrů od umístění (`withDwellingShapes` jen zapíše příznak);
   // louka a les do 600 m od první zemnice – pastva a žaludy výchozího stáda (diet.md)
-  // stezka kostry (brod, průsmyk, mapa lidského hráče) – hotová od založení (premium-landscapes.md)
+  // stezka kostry (brod, průsmyk, mapa se stezkou – hráč i ves syna) – hotová od založení
+  // (premium-landscapes.md; markets.md – Rozhodnutí plánu 4, bod 11)
   const state = withSkeletonRoute(
     withLivestockLand(
       withDwellingShapes(

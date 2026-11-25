@@ -2,12 +2,13 @@ import type { GridCell } from '../village/people/world-grid';
 import { cellDistance, ringCells } from './placement';
 import { WORLD } from './rules-world';
 import { skeletonContext, type SkeletonCache } from './skeleton/drainage';
-import { isDry } from './skeleton/sites';
+import { isDry, isTrailOnly } from './skeleton/sites';
 import { skeletonSlice } from './skeleton/slice';
 
 // Ves syna (NPC vojvody) jen na suché mapě (world-skeleton.md – Otevřené otázky 3, Martin 8. 11.
-// 2026: „NPC budou mít normální mapy. Prémiové jen lidští hráči.“): když políčkem ve směru odchodu
-// vede řeka nebo stezka kostry, ves vznikne na nejbližším suchém políčku.
+// 2026: „NPC budou mít normální mapy. Prémiové jen lidští hráči.“), nebo na stezce bez řeky
+// (markets.md – Rozhodnutí plánu 4, bod 11; Martin 22. 11. 2026: „ok“): když políčkem ve směru
+// odchodu vede řeka kostry (i brod, pramen a soutok), ves vznikne na nejbližším políčku bez ní.
 
 /** Druhá mocnina vzdálenosti políček – pořadí uvnitř prstence (bližší ke směru odchodu první). */
 function squaredDistance(a: GridCell, b: GridCell): number {
@@ -43,10 +44,11 @@ export function nearestCellAround(
 }
 
 /**
- * Nejbližší suché políčko kostry k `target` (`nearestCellAround`); políčka, která `allowed`
- * odmítne (cizí mapy), se nevyberou. Null – v dosahu žádné (ves tím směrem nevznikne).
+ * Nejbližší políčko k `target`, kam smí ves syna – suché, nebo se stezkou bez řeky
+ * (`nearestCellAround`); políčka, která `allowed` odmítne (cizí mapy), se nevyberou. Null –
+ * v dosahu žádné (ves tím směrem nevznikne).
  */
-export function dryCellNear(
+export function sonCellNear(
   worldSeed: number,
   from: GridCell,
   target: GridCell,
@@ -54,9 +56,9 @@ export function dryCellNear(
   cache?: SkeletonCache,
 ): GridCell | null {
   const ctx = skeletonContext(worldSeed, cache);
-  return nearestCellAround(
-    from,
-    target,
-    (cell) => allowed(cell) && isDry(skeletonSlice(worldSeed, cell, ctx)),
-  );
+  return nearestCellAround(from, target, (cell) => {
+    if (!allowed(cell)) return false;
+    const slice = skeletonSlice(worldSeed, cell, ctx);
+    return isDry(slice) || isTrailOnly(slice);
+  });
 }

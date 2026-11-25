@@ -15,8 +15,8 @@ import { builtTrail, villageTrails } from '../trail';
 import type { VillageState } from '../../types';
 import { freeVillageSite } from '../../people/village-site';
 
-// Stezka kostry světa ve vsi lidského hráče (world-skeleton.md – Mapa z kostry): hotová dálková
-// cesta od založení, směr každé větve dává strana mapy.
+// Stezka kostry světa ve vsi (lidský hráč i ves syna – world-skeleton.md – Mapa z kostry): hotová
+// dálková cesta od založení, směr každé větve dává strana mapy.
 const WINTER = dayIndexOf({ year: 500, month: 1, day: 5 });
 const SKELETON: LayerVersions = { ...CURRENT_LAYER_VERSIONS, skeleton: 1 };
 const trail = (side: SkeletonTrailPort['side'], at: number): SkeletonTrailPort => ({ side, at });
