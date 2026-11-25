@@ -3,8 +3,9 @@
 // (`merchantVisits` ze zastávek vsi) přijede na trh jako návštěvník bez domovské vsi, obchoduje
 // v zápočtech i v mincovní fázi, na rušném trhu zůstane déle a odjede bez pošty (`departVisitors`
 // v market.ts). Měšec a zbroj vzniknou jen jeho příjezdem; co mu zbude a co koupil, zanikne jen jeho
-// odjezdem. Příjezd i pobyt (mutují stav jako kroky dne) počítá jen ze stavu vsi a dne, takže
-// výsledek nezávisí na kouscích dopočtu.
+// odjezdem – i z trhu vsi, která zanikla (`merchantsLeave`). Příjezd i pobyt (mutují stav jako
+// kroky dne) počítá jen ze stavu vsi a dne, takže výsledek nezávisí na kouscích dopočtu.
+import { dateOfDayIndex } from '../../calendar';
 import { MARKET, MERCHANTS } from '../rules';
 import type {
   ChronicleEvent,
@@ -29,8 +30,9 @@ const NOISE = 1e-9;
  * za každý příjezd plánu `merchantVisits` jeden kupec s vlastním měšcem, zbrojí a seznamem. Trh
  * vznikne, chybí-li; kupec na něm stojí v pořadí příjezdu a má pobyt na den (`extendMerchants`),
  * poznámka jde do paměti příjezdů (posledních `MARKET.report.traders` – technický strop paměti vsi,
- * ne pravidlo hry). Vrací zápis kroniky `merchants-arrived` za každého kupce. Klíč, který na trhu už
- * stojí, se znovu nezaloží; ves bez zastávek stezky se nezmění.
+ * ne pravidlo hry). Vrací zápis kroniky `merchants-arrived` – jen za první příjezd v herním roce
+ * (`VillageMarket.merchantsYear`; návrh Clauda: na křižovatce by kupci kroniku zaplnili). Klíč,
+ * který na trhu už stojí, se znovu nezaloží; ves bez zastávek stezky se nezmění.
  */
 export function merchantsArrive(state: VillageState, day: number): ChronicleEvent[] {
   const events: ChronicleEvent[] = [];
@@ -63,9 +65,24 @@ export function merchantsArrive(state: VillageState, day: number): ChronicleEven
     });
     const excess = market.arrivals.length - MARKET.report.traders;
     if (excess > 0) market.arrivals.splice(0, excess);
+    const { year } = dateOfDayIndex(day);
+    if (market.merchantsYear === year) continue;
+    market.merchantsYear = year;
     events.push({ day, kind: 'merchants-arrived', sells, buys, coins: MERCHANTS.coins });
   }
   return events;
+}
+
+/**
+ * Cizí kupci odjedou z trhu vsi, která zanikla (mění jen horní úroveň stavu – `endVillage`): měšec,
+ * neprodaná zbroj i koupené zboží zaniknou s nimi jako při obvyklém odjezdu (markets.md –
+ * Rozhodnutí plánu 4, bod 9; návrh Clauda). Výpravy na trhu zůstanou – vrátí je jejich domovské vsi
+ * (pošta mezi vsemi). Trh bez kupců se nezmění.
+ */
+export function merchantsLeave(state: VillageState): void {
+  const { market } = state;
+  if (!market?.visitors.some((v) => v.merchant)) return;
+  state.market = { ...market, visitors: market.visitors.filter((v) => !v.merchant) };
 }
 
 /**

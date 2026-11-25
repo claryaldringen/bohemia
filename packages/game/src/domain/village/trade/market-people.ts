@@ -22,7 +22,7 @@ import type {
   TradePeople,
   VillageState,
 } from '../types';
-import { PEOPLE_GROUP } from './goods';
+import { COIN_GOOD, PEOPLE_GROUP } from './goods';
 import {
   NO_PEOPLE,
   emigrantGroups,
@@ -30,6 +30,7 @@ import {
   type EmigrantGroup,
   type Emigrants,
 } from './people-trade';
+import { addGood } from './trade';
 
 const EPSILON = 1e-9;
 
@@ -177,15 +178,16 @@ export function restorePeople(state: VillageState, groups: readonly MarketPerson
 }
 
 /**
- * Lidé z výsledku pro zaniklou domovskou ves se vrátili k hostiteli (mutuje stav; markets.md –
- * Rozhodnutí plánu 3, bod 13 – událost schránky `stranded-people`):
+ * Lidé a mince z výsledku pro zaniklou domovskou ves se vrátili k hostiteli (mutuje stav;
+ * markets.md – Rozhodnutí plánu 3, bod 13, a plánu 4, bod 9 – událost schránky `stranded-people`):
  * - `own` – skupiny, které prodal sám hostitel (`MarketPerson.fromHost`), se vrátí s původními id
  *   (`restorePeople`) a kronikou `newcomer` s `returned`; id prodaných nikdo jiný nedostane
  *   (`nextId` jen roste), kdyby přesto bylo obsazené, skupina se usadí jako ostatní – nikdo nezmizí;
  * - `people` – ostatní (vlastní lidé výpravy, koupení od jiné výpravy – id jiné vsi) se usadí jako
- *   příchozí z domovské vsi výpravy (`settlePeople` s `from` – kronika `newcomer`).
- * Bez `from` (výsledek bez směru cesty – nemá nastat) bez směru a kroniky. Nikdo nevznikne ani
- * nezmizí; vstupní skupiny nemění.
+ *   příchozí z domovské vsi výpravy (`settlePeople` s `from` – kronika `newcomer`);
+ * - `coins` – měšec výpravy přibude do zásoby vsi (bez kroniky); chybí = žádné.
+ * Bez `from` (výsledek bez lidí, nebo bez směru cesty – nemá nastat) bez směru a kroniky. Nikdo
+ * nevznikne ani nezmizí; vstupní skupiny nemění.
  */
 export function receiveStranded(
   state: VillageState,
@@ -194,9 +196,11 @@ export function receiveStranded(
     key: string;
     people: readonly MarketPerson[];
     own?: readonly MarketPerson[];
+    coins?: number;
     from: MarketResult['origin'];
   },
 ): ChronicleEvent[] {
+  if (back.coins) addGood(state, COIN_GOOD, back.coins, day);
   const taken = new Set(state.people.map((p) => p.id));
   const own: MarketPerson[] = [];
   const settle: MarketPerson[] = [...back.people];

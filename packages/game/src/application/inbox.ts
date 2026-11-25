@@ -32,9 +32,10 @@ export interface VillageInbox {
    */
   pruneUsed(villageId: string, upToDay: number): Promise<number>;
   /**
-   * Výsledky trhu s lidmi (`market-result` s `people` nebo `newcomers`) ve schránkách zaniklých vsí
-   * – ves spí (vymřela, opuštěná), nebo má sídlo v archivu (Začít znovu) –, použité i nepoužité
-   * (rozliší je stav vsi), seřazené podle dne a `seq`. Pro úlohu světa `returnStrandedPeople`.
+   * Výsledky trhu s lidmi (`market-result` s `people` nebo `newcomers`) nebo mincemi
+   * (`unsold.coins` > 0) ve schránkách zaniklých vsí – ves spí (vymřela, opuštěná), nebo má sídlo
+   * v archivu (Začít znovu) –, použité i nepoužité (rozliší je stav vsi), seřazené podle dne
+   * a `seq`. Pro úlohu světa `returnStrandedPeople`.
    */
   strandedResults(): Promise<VillageEvent[]>;
   /**

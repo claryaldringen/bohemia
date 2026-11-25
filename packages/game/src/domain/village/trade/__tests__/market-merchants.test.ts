@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
+import { dateOfDayIndex } from '../../../calendar';
 import { createRandom } from '../../../landscape/random';
 import type { VillageEvent } from '../../core/inbox';
 import { advanceVillage } from '../../core/simulate';
-import { isVillageDormant } from '../../people/departure';
+import { abandonForLineEnd, departVillage, isVillageDormant } from '../../people/departure';
 import { HONEY, MARKET, MERCHANTS } from '../../rules';
 import type {
   ChronicleEvent,
@@ -155,6 +156,12 @@ function arrivedEvents(s: VillageState): ChronicleEvent[] {
   return s.chronicle.filter((e) => e.kind === 'merchants-arrived');
 }
 
+/** Z dnů vzestupně první v každém herním roce – dny, kdy se příjezd kupců zapíše do kroniky. */
+function firstsOfYears(days: readonly number[]): number[] {
+  const year = (day: number): number => dateOfDayIndex(day).year;
+  return days.filter((day, i) => i === 0 || year(day) !== year(days[i - 1]!));
+}
+
 describe('příjezd cizích kupců (merchantsArrive)', () => {
   it('v den plánu stojí na trhu kupec s měšcem, zbrojí a seznamem; poznámka a kronika', () => {
     const s = host();
@@ -192,6 +199,7 @@ describe('příjezd cizích kupců (merchantsArrive)', () => {
       arrivals: [
         { name: '', day: DAY, goods: ['swords', 'mailShirts', 'helmets'], merchants: true },
       ],
+      merchantsYear: 601,
     });
     // mince vznikly jen v měšci
     expect(s).not.toHaveProperty('coins');
@@ -249,7 +257,8 @@ describe('příjezd cizích kupců (merchantsArrive)', () => {
   it('křižovatka: dva průjezdy téhož dne jsou dva kupci, každý se svým měšcem', () => {
     const s = host(0, [CROSSING, STOP]);
     const events = merchantsArrive(s, DAY);
-    expect(events.map((e) => e.kind)).toEqual(['merchants-arrived', 'merchants-arrived']);
+    // do kroniky jen první z nich (první příjezd roku)
+    expect(events.map((e) => e.kind)).toEqual(['merchants-arrived']);
     expect(merchantsOf(s).map((v) => [v.key, v.order, v.goods.coins])).toEqual([
       ['merchants:0,0,E:601:2', 1, 60],
       ['merchants:0,0,N:601:2', 2, 60],
@@ -263,6 +272,43 @@ describe('příjezd cizích kupců (merchantsArrive)', () => {
     expect([first.bought, first.goods.coins]).toEqual([{ furs: 60 }, 28]);
     expect([second.bought, second.goods.coins]).toEqual([{ furs: 60 }, 28]);
     expect(resultOf(s, 'market:a:1').unsold).toEqual({ coins: 64 });
+  });
+
+  it('kronika zapíše jen první příjezd v herním roce – další týž rok ne, v dalším roce znovu', () => {
+    const s = host();
+    const visits = merchantVisits([STOP], DAY, DAY + 3 * 366).map((visit) => visit.day);
+    const written: number[] = [];
+    for (const day of visits) {
+      const events = merchantsArrive(s, day);
+      written.push(...events.map((e) => e.day));
+      // přijedou pokaždé – s měšcem, zbrojí a poznámkou pro zprávu na pivo
+      expect(merchantOf(s).goods).toEqual({ ...MERCHANTS.goods, coins: PURSE });
+      expect(s.market!.arrivals.at(-1)).toMatchObject({ day, merchants: true });
+      marketDay(s, day);
+    }
+    const years = visits.map((day) => dateOfDayIndex(day).year);
+    expect(years.filter((year) => year === 601).length).toBeGreaterThanOrEqual(2);
+    expect(new Set(years).size).toBeGreaterThanOrEqual(3);
+    expect(written).toEqual(firstsOfYears(visits));
+    expect(s.market!.merchantsYear).toBe(years.at(-1));
+  });
+
+  it('dva příjezdy v jednom roce → jeden zápis, v dalším roce druhý; klíč na trhu rok nezapíše', () => {
+    const s = host();
+    const visits = merchantVisits([STOP], DAY, DAY + 2 * 366).map((visit) => visit.day);
+    const [first, second] = visits as [number, number];
+    const next = visits.find((day) => dateOfDayIndex(day).year === 602)!;
+    expect([first, second].map((day) => dateOfDayIndex(day).year)).toEqual([601, 601]);
+    expect(merchantsArrive(s, first)).toHaveLength(1);
+    expect(merchantsArrive(s, first)).toEqual([]); // týž klíč podruhé
+    marketDay(s, first);
+    expect(merchantsArrive(s, second)).toEqual([]);
+    expect(merchantsOf(s)).toHaveLength(1);
+    marketDay(s, second);
+    expect(merchantsArrive(s, next)).toEqual([
+      expect.objectContaining({ day: next, kind: 'merchants-arrived', coins: PURSE }),
+    ]);
+    expect(s.market!.merchantsYear).toBe(602);
   });
 
   it('obchod kupce nezmění čísla pravidel ani zápis kroniky', () => {
@@ -792,7 +838,8 @@ describe('ceny v den kupců (marketDay)', () => {
       expect(wants.cows).toBe(2);
       expect(wants.tools).toBeGreaterThanOrEqual(27);
       expect(wants.grain).toBeGreaterThan(0);
-      expect(merchantsArrive(s, day)).toHaveLength(1);
+      merchantsArrive(s, day);
+      expect(merchantsOf(s)).toHaveLength(1);
       marketDay(s, day);
       expect(s.market.visitors).toEqual([]);
       expect(s.market.prices).toEqual({ ...stored, ...ARMS_PRICES });
@@ -1082,7 +1129,12 @@ describe('kupci v dopočtu vsi (advanceVillage)', () => {
     expect(isVillageDormant(whole)).toBe(false);
     const planned = merchantVisits([STOP], DAY, DAY + 400).map((visit) => visit.day);
     expect(planned).toHaveLength(5);
-    expect(arrivedEvents(whole).map((e) => e.day)).toEqual(planned);
+    expect(whole.market!.arrivals.map((a) => [a.day, a.merchants])).toEqual(
+      planned.map((day) => [day, true]),
+    );
+    // do kroniky jen první v každém herním roce
+    expect(firstsOfYears(planned)).toHaveLength(2);
+    expect(arrivedEvents(whole).map((e) => e.day)).toEqual(firstsOfYears(planned));
     expect(whole.market!.visitors).toEqual([]);
     // co ves doma vyrobí nad potřebu, prodá kupcům za mince (plán 4, bod 6)
     expect(whole.coins).toBeGreaterThan(0);
@@ -1101,7 +1153,9 @@ describe('kupci v dopočtu vsi (advanceVillage)', () => {
     expect(isVillageDormant(whole)).toBe(false);
     const planned = merchantVisits(start.merchantStops!, DAY, end).map((visit) => visit.day);
     expect(planned.length).toBeGreaterThanOrEqual(8);
-    expect(arrivedEvents(whole).map((e) => e.day)).toEqual(planned);
+    // čtyři výpravy a všichni kupci plánu; v kronice jen první příjezd kupců v každém roce
+    expect(whole.market!.nextOrder).toBe(1 + 4 + planned.length);
+    expect(arrivedEvents(whole).map((e) => e.day)).toEqual(firstsOfYears(planned));
     for (const splits of [[DAY - 1 + 100], [DAY], [DAY, DAY + 1], [DAY + 133, DAY + 239]]) {
       let parts = start;
       for (const to of [...splits, end]) {
@@ -1156,16 +1210,93 @@ describe('kupci v dopočtu vsi (advanceVillage)', () => {
     expect(after).not.toHaveProperty('market');
     expect(arrivedEvents(after)).toEqual([]);
   });
+});
 
-  it('zánik vsi s kupcem na trhu mince nezdvojí ani nikomu nedá', () => {
-    const s = host();
-    const inbox = beerTrips(3, 1).map((arrival, i) => arriveEvent(arrival, DAY, i + 1));
-    const busy = advanceVillage(s, DAY, null, null, inbox);
-    expect(merchantOf(busy).lastDay).toBe(DAY + 1);
-    const outbox = structuredClone(busy.outbox);
-    const gone = advanceVillage({ ...busy, abandonedDay: DAY }, DAY + 100, null);
-    expect(gone).not.toHaveProperty('coins');
-    expect(gone.outbox).toEqual(outbox);
-    expect(allCoins(gone)).toBe(PURSE); // jen v měšci kupce
+describe('kupec na trhu zaniklé vsi (Rozhodnutí plánu 4, bod 9 – návrh Clauda)', () => {
+  /** Rušný trh v den kupců: tři výpravy na pivo a výprava se 7 mincemi, která zůstává tři dny. */
+  const BUSY = [
+    ...beerTrips(3, 1).map((arrival, i) => arriveEvent(arrival, DAY, i + 1)),
+    arriveEvent(trip('market:a:1', { coins: 7 }, {}, { stayDays: 3 }), DAY, 4),
+  ];
+
+  /** Lhota večer v den kupců – kupec s měšcem a výprava `market:a:1` zůstávají do dalšího dne. */
+  function busy(): VillageState {
+    const s = advanceVillage(host(), DAY, null, null, BUSY);
+    expect(merchantOf(s)).toMatchObject({ lastDay: DAY + 1, goods: { coins: PURSE } });
+    expect(s.market!.visitors.map((v) => v.key)).toEqual(['market:a:1', KEY]);
+    expect(allCoins(s)).toBe(PURSE + 7);
+    return s;
+  }
+
+  /** Kupec odjel se vším, výprava na trhu zůstala (vrátí ji domovská ves) a nic jiného se nezměnilo. */
+  function merchantLeft(gone: VillageState, before: VillageState): void {
+    expect(gone.market).toEqual({
+      ...before.market!,
+      visitors: before.market!.visitors.filter((v) => !v.merchant),
+    });
+    expect(gone.market!.visitors.map((v) => v.key)).toEqual(['market:a:1']);
+    expect(gone.outbox).toEqual(before.outbox);
+    expect(gone).not.toHaveProperty('arms');
+    // měšec kupce zanikl s ním, mince výpravy zůstaly
+    expect(allCoins(gone)).toBe(7);
+    // spící ves se nesimuluje – kupci do ní dál nejezdí
+    const later = advanceVillage(gone, DAY + 400, null, null, BUSY);
+    expect([later.market, later.outbox]).toEqual([gone.market, gone.outbox]);
+    expect(allCoins(later)).toBe(7);
+  }
+
+  it('rod vymřel a ves zanikla: kupec odjede se vším, vstup se nezmění', () => {
+    const before = busy();
+    const input = structuredClone(before);
+    const gone = abandonForLineEnd(before, DAY);
+    expect(gone.abandonedDay).toBe(DAY);
+    merchantLeft(gone, before);
+    expect(before).toStrictEqual(input);
+  });
+
+  it('odešli všichni: kupec odjede se vším – osadníci si z něj nic nevezmou, vstup se nezmění', () => {
+    const before = busy();
+    const input = structuredClone(before);
+    const homes = [...new Set(before.people.map((p) => p.dwellingId))];
+    const { state: gone, settlers } = departVillage(before, DAY, homes, 'N');
+    expect(gone.abandonedDay).toBe(DAY);
+    merchantLeft(gone, before);
+    expect(settlers.whole!.stocks).not.toHaveProperty('coins');
+    expect(settlers.whole!.stocks).not.toHaveProperty('arms');
+    expect(before).toStrictEqual(input);
+  });
+
+  it('odešla část lidí: ves žije dál a kupec stojí na trhu', () => {
+    const before = busy();
+    const home = before.people.find((p) => p.dwellingId !== before.manorId)!.dwellingId;
+    const { state } = departVillage(before, DAY, [home], 'N');
+    expect(state).not.toHaveProperty('abandonedDay');
+    expect(state.market).toEqual(before.market);
+  });
+
+  it('ves vymřela v dopočtu dne kupců: kupec odjede se vším, vcelku i po kouscích', () => {
+    const empty = host();
+    empty.people = [];
+    const whole = advanceVillage(empty, DAY + 100, null, null, BUSY);
+    expect(whole.extinctDay).toBe(DAY);
+    expect(whole.market!.arrivals.map((a) => a.merchants)).toContain(true);
+    expect(whole.market!.visitors.map((v) => v.key)).toEqual(['market:a:1']);
+    expect(allCoins(whole)).toBe(7);
+    for (const splits of [[DAY], [DAY, DAY + 1], [DAY + 50]]) {
+      let parts = empty;
+      for (const to of [...splits, DAY + 100]) {
+        parts = advanceVillage(parts, to, null, null, BUSY);
+        parts = JSON.parse(JSON.stringify(parts)) as VillageState;
+      }
+      expect(parts).toEqual(JSON.parse(JSON.stringify(whole)));
+    }
+  });
+
+  it('ves bez trhu a trh bez kupce zánik nezmění', () => {
+    const bare = host();
+    expect(abandonForLineEnd(bare, DAY)).not.toHaveProperty('market');
+    const trips = host();
+    joinMarket(trips, DAY, trip('market:a:1', { coins: 7 }, {}, { stayDays: 3 }));
+    expect(abandonForLineEnd(trips, DAY).market).toBe(trips.market);
   });
 });

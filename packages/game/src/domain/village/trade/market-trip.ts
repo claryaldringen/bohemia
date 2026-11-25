@@ -49,6 +49,7 @@ import {
   isHorseGood,
   isPeopleGood,
   isPieceGood,
+  withoutCoins,
 } from './goods';
 import { reservedSeedKg } from '../fields/seed';
 import { rememberOrders } from './craft-orders';
@@ -629,7 +630,9 @@ export function marketTripsDay(state: VillageState, day: number): void {
  * (`rememberNews`; Rozhodnutí plánu 4, bod 3), a s výpravou i své zakázky u hostitele
  * (`rememberOrders` – Rozhodnutí plánu 3, bod 6).
  * Vrací zápis kroniky `market-returned` s hostitelem (`villageId`) a tím, kdo výpravu poslal (`by`);
- * bez záznamu výpravy s prázdným jménem vsi a bez obojího; za ním `newcomer` koupených lidí.
+ * bez záznamu výpravy s prázdným jménem vsi a bez obojího; za ním `newcomer` koupených lidí. Mince
+ * (Rozhodnutí plánu 4, bod 9): ves dostane měšec výpravy (`unsold.coins`), v kronice jsou zaplacené
+ * v `sold.coins` a přijaté v `bought.coins`, vrácené mezi neprodaným zbožím nejsou.
  */
 export function applyMarketResult(
   state: VillageState,
@@ -697,9 +700,9 @@ export function applyMarketResult(
       day,
       kind: 'market-returned',
       villageName: trip?.name ?? '',
-      sold: positiveGoods(result.sold),
-      bought: positiveGoods(result.bought),
-      unsold: positiveGoods(result.unsold),
+      sold: positiveGoods({ ...result.sold, [COIN_GOOD]: result.coinsPaid }),
+      bought: positiveGoods({ ...result.bought, [COIN_GOOD]: result.coinsGot }),
+      unsold: withoutCoins(result.unsold),
       ...(result.returned ? { returned: true as const } : {}),
       ...(expedition?.by ? { by: expedition.by } : {}),
       ...(trip ? { villageId: trip.villageId } : {}),

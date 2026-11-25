@@ -46,8 +46,8 @@ export class InMemoryVillageInbox implements VillageInbox {
     const stranded = this.events
       .filter((e) => {
         if (e.body.kind !== 'market-result' || !this.gone(e.villageId)) return false;
-        const { people = [], newcomers = [] } = e.body.result;
-        return people.length + newcomers.length > 0;
+        const { people = [], newcomers = [], unsold } = e.body.result;
+        return people.length + newcomers.length > 0 || (unsold.coins ?? 0) > 0;
       })
       .sort((a, b) => a.day - b.day || a.seq - b.seq);
     return Promise.resolve(structuredClone(stranded));

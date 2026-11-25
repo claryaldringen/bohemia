@@ -207,9 +207,10 @@ export function joinMarket(
 
 /**
  * Výsledek trhu pro domovskou ves výpravy – jediné místo, kde vzniká (odjezd v `marketDay`, zaniklý
- * hostitel). Návštěvník: co prodal a koupil, `unsold` = co mu zbylo, koně domů = neprodaní
- * a koupení, lidé – neprodaní vlastní (`people`) a koupení (`newcomers`). Nepoužitý příjezd: nic
- * neprodal ani nekoupil, domů jde vše, co vezl, i lidé. Kopie.
+ * hostitel). Návštěvník: co prodal a koupil, `unsold` = co mu zbylo (i mince v měšci), koně domů =
+ * neprodaní a koupení, lidé – neprodaní vlastní (`people`) a koupení (`newcomers`), zaplacené
+ * a přijaté mince (`coinsPaid`, `coinsGot` – Rozhodnutí plánu 4, bod 9; jen kladné). Nepoužitý
+ * příjezd: nic neprodal ani nekoupil, domů jde vše, co vezl, i lidé. Kopie.
  */
 export function marketResult(
   from: MarketVisitor | MarketArrival,
@@ -230,6 +231,8 @@ export function marketResult(
     ...(carts.length > 0 ? { carts } : {}),
     ...(people.length > 0 ? { people } : {}),
     ...(newcomers.length > 0 ? { newcomers } : {}),
+    ...(visitor?.coinsPaid ? { coinsPaid: visitor.coinsPaid } : {}),
+    ...(visitor?.coinsGot ? { coinsGot: visitor.coinsGot } : {}),
     ...extra,
   });
 }
@@ -446,7 +449,8 @@ function addCoins(goods: TradeGoods, coins: number): void {
  * Platby mincovní fáze v pořadí nákupů (mutuje stav i výpravy): celé mince z nákladu kupující
  * výpravy (`goods.coins`) do nákladu prodávající, hostitel je platí ze zásoby vsi a bere do ní
  * (`addGood`). Do `sold` a `bought` výpravy se nepíšou – domů jdou s nákladem (`unsold`) a podruhé
- * vzniknout nesmějí. Vrací, kolik mincí hostitel zaplatil a získal.
+ * vzniknout nesmějí; součty pro kroniku návratu má výprava v `coinsPaid` a `coinsGot` (Rozhodnutí
+ * plánu 4, bod 9). Vrací, kolik mincí hostitel zaplatil a získal.
  */
 function payCoins(
   state: VillageState,
@@ -464,6 +468,10 @@ function payCoins(
   for (const { buyer, seller, coins } of payments) {
     give(buyer, -coins);
     give(seller, coins);
+    const from = byKey.get(buyer);
+    if (from) from.coinsPaid = (from.coinsPaid ?? 0) + coins;
+    const to = byKey.get(seller);
+    if (to) to.coinsGot = (to.coinsGot ?? 0) + coins;
     if (buyer === HOST) host.paid += coins;
     if (seller === HOST) host.earned += coins;
   }

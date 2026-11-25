@@ -6,10 +6,10 @@ import type {
   MarketVisitor,
   VillageState,
 } from '../../types';
-import { joinMarket, marketDay, marketResultRef } from '../market';
+import { joinMarket, marketDay, marketResult, marketResultRef } from '../market';
 import { coinClearing, type CoinParty } from '../market-coins';
 import { marketStance } from '../market-stance';
-import { departMarketInPlace } from '../market-trip';
+import { applyMarketResult, departMarketInPlace } from '../market-trip';
 import { addGood } from '../trade';
 import { D, homeVillage, marketVillage, report, sownPart, target } from './market-fixtures';
 
@@ -150,6 +150,99 @@ describe('mincovní fáze – invarianty na trhu hostitele', () => {
     marketDay(s, D);
     expect(s.coins).toBe(54);
     expect(resultOf(s, 'market:a:1')).toMatchObject({ sold: {}, unsold: { cows: 1 } });
+  });
+});
+
+describe('součty mincí výpravy – coinsPaid a coinsGot (Rozhodnutí plánu 4, bod 9)', () => {
+  it('za všechny tržní dny, u výpravy i ve výsledku; měšec je jen v nákladu', () => {
+    const s = potteryVillage();
+    joinMarket(s, D, trip('market:a:1', { furs: 30 }, { pottery: 50 }, { stayDays: 3 }));
+    joinMarket(s, D, trip('market:b:1', { coins: 28 }, { furs: 30, pottery: 10 }, { stayDays: 2 }));
+    const a = visitorOf(s, 'market:a:1');
+    const b = visitorOf(s, 'market:b:1');
+    marketDay(s, D);
+    // b koupí 10 kg keramiky od hostitele za 2 a 30 kožešin od a za 16; a přišla na řadu bez mincí
+    expect([a.coinsPaid, a.coinsGot, a.goods]).toEqual([undefined, 16, { coins: 16 }]);
+    expect([b.coinsPaid, b.coinsGot, b.goods]).toEqual([18, undefined, { coins: 10 }]);
+    expect(a).not.toHaveProperty('coinsPaid');
+    expect(b).not.toHaveProperty('coinsGot');
+    // druhý den koupí a keramiku za 10 ze 16 mincí, třetí den už nic neshání
+    marketDay(s, D + 1);
+    expect([a.coinsPaid, a.coinsGot, a.goods]).toEqual([10, 16, { coins: 6 }]);
+    const bResult = resultOf(s, 'market:b:1');
+    expect(bResult).toMatchObject({ coinsPaid: 18, unsold: { coins: 10 } });
+    expect(bResult).not.toHaveProperty('coinsGot');
+    marketDay(s, D + 2);
+    const aResult = resultOf(s, 'market:a:1');
+    expect(aResult).toMatchObject({ coinsPaid: 10, coinsGot: 16, unsold: { coins: 6 } });
+    // do prodaného a koupeného mince nepatří – připsaly by se podruhé
+    expect([aResult.sold, aResult.bought]).toEqual([{ furs: 30 }, { pottery: 50 }]);
+    expect([bResult.sold, bResult.bought]).toEqual([{}, { furs: 30, pottery: 10 }]);
+    expect(s.coins).toBe(12);
+  });
+
+  it('další platby téhož dne se sčítají – dva prodávající, dva kupující', () => {
+    const s = potteryVillage();
+    joinMarket(s, D, trip('market:a:1', { furs: 30 }, {}));
+    joinMarket(s, D, trip('market:b:1', { coins: 10 }, { furs: 15 }));
+    joinMarket(s, D, trip('market:c:1', { coins: 10 }, { furs: 15, pottery: 5 }));
+    marketDay(s, D);
+    // 15 kožešin po 8/15 mince = 8 mincí od každé; c ještě 5 kg keramiky za minci
+    expect(resultOf(s, 'market:a:1')).toMatchObject({ coinsGot: 16, unsold: { coins: 16 } });
+    expect(resultOf(s, 'market:b:1')).toMatchObject({ coinsPaid: 8, unsold: { coins: 2 } });
+    expect(resultOf(s, 'market:c:1')).toMatchObject({ coinsPaid: 9, unsold: { coins: 1 } });
+    expect(s.coins).toBe(1);
+  });
+
+  it('výprava bez mincovního obchodu a nepoužitý příjezd součty nemají', () => {
+    const s = potteryVillage();
+    const arrival = trip('market:a:1', { coins: 5 }, {});
+    joinMarket(s, D, arrival);
+    marketDay(s, D);
+    for (const result of [resultOf(s, 'market:a:1'), marketResult(arrival, { returned: true })]) {
+      expect(result).not.toHaveProperty('coinsPaid');
+      expect(result).not.toHaveProperty('coinsGot');
+      expect(result.unsold).toEqual({ coins: 5 });
+    }
+  });
+
+  it('kronika návratu: mince zaplacené v „prodala“, přijaté v „koupila“, zpět bez mincí', () => {
+    const home = homeVillage();
+    home.coins = 3;
+    const key = 'market:h:1';
+    const result = {
+      key,
+      sold: { furs: 30 },
+      bought: { pottery: 50 },
+      unsold: { furs: 2, coins: 6 },
+      horses: [],
+      coinsPaid: 10,
+      coinsGot: 16,
+    };
+    const given = structuredClone(result);
+    const furs = home.wares?.sheepFurs ?? 0;
+    const [back] = applyMarketResult(home, D + 2, result);
+    expect(back).toMatchObject({ kind: 'market-returned' });
+    expect(back).toHaveProperty('sold', { furs: 30, coins: 10 });
+    expect(back).toHaveProperty('bought', { pottery: 50, coins: 16 });
+    expect(back).toHaveProperty('unsold', { furs: 2 });
+    // zásoba dostane jen měšec – zaplacené ani přijaté mince se nepřipíšou podruhé
+    expect(home.coins).toBe(9);
+    expect(home.wares!.sheepFurs + home.wares!.wildFurs).toBe(furs + 2);
+    expect(result).toEqual(given);
+
+    // výsledek z doby před součty: mince přijdou, v kronice nejsou
+    const older = homeVillage();
+    const [event] = applyMarketResult(older, D + 2, {
+      key,
+      sold: {},
+      bought: {},
+      unsold: { coins: 6 },
+      horses: [],
+    });
+    expect(older.coins).toBe(6);
+    expect(event).toMatchObject({ kind: 'market-returned' });
+    for (const part of ['sold', 'bought', 'unsold']) expect(event).toHaveProperty(part, {});
   });
 });
 

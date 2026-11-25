@@ -185,7 +185,9 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   Hájení chrání dospělé i před hladem a drží hlad den pod prahem skupiny (`luckyStarvationCap`,
   uložený hlad nejvýš `LUCKY_STARVATION_CAP` = 19); ochrana posledních dvou dospělých už není. Poslední úmrtí → `extinctDay`
   a `village-extinct`; `advanceVillage` vymřelou ves dál nesimuluje (posune jen `lastDay`),
-  doménové akce ji odmítnou. **Konec hry** (`extinction.ts`: `isGameOver` – hráč má vsi a žádná
+  doménové akce ji odmítnou. Den konce vsi (`extinctDay`, `abandonedDay`) zapisuje jen `endVillage`
+  (`extinction.ts`) – cizí kupci z jejího trhu přitom odjedou (village-trade.md – Cizí kupci ve vsi).
+  **Konec hry** (`extinction.ts`: `isGameOver` – hráč má vsi a žádná
   nežije, obecně pro víc vsí): use-case `dynastyStatus` (vsi aktivních sídel dopočítané do
   dneška) a `restartGame` (archivuje aktivní sídla přes `SettlementRepository.archive`, pak
   `enterGame` založí nové sídelní sídlo s novým seedem; se živou vsí `DYNASTY_ALIVE`,
@@ -439,7 +441,7 @@ villageId)` je zapíše do schránek cílových vsí (`inbox.post`, druhý zápi
     jeden levný dotaz `stampsOfVillages`: příjezd do zmizelé vsi se změní ve výsledek `returned`
     se vším do vlastní schránky na den plánovaného návratu (den příjezdu + pobyt + cesta – lidé
     jsou doma v plánovaný den, návrh Clauda), výsledek pro zmizelou domovskou ves se zahodí – jen
-    s lidmi jdou lidé zpět k hostiteli (`stranded-people` – `receiveStranded`; domov zaniklý až
+    lidé a mince z něj jdou zpět k hostiteli (`stranded-people` – `receiveStranded`; domov zaniklý až
     s výsledkem ve schránce – úloha světa `returnStrandedPeople`), dotazy plánu 3 do zaniklé
     vsi se zahodí (village-trade.md – Pošta mezi vsemi, Zaniklé vsi a zprávy plánu 3).
     `hasVillageMail(state)` – neprázdný `outbox` nebo výprava na trh po termínu bez výsledku; jen
@@ -466,9 +468,9 @@ villageId)` je zapíše do schránek cílových vsí (`inbox.post`, druhý zápi
     `pruneUsed(villageId, upToDay)` – smaže použité události druhů `PRUNED_INBOX_KINDS` (snímky
     okolí `nearby` a zprávy bez nákladu `kin-ask`, `smith-ask`, `order-ready`) do dne včetně, verzi
     nemění (úklid schránky – ostatní řádky živých vsí drží `ref` proti dvojímu zápisu;
-    village-trade.md – Okolí vsi); `strandedResults()` – výsledky trhu s lidmi ve schránkách
-    zaniklých vsí (spí, sídlo v archivu), `dropStranded(eventIds)` – smaže vyřízené z nich, verzi
-    nemění (úloha světa `returnStrandedPeople`, village-trade.md – Pošta mezi vsemi). Schránka je člen úložiště vsí (`VillageRepository.inbox`), takže ji má každý dopočet přes `updateVillage`
+    village-trade.md – Okolí vsi); `strandedResults()` – výsledky trhu s lidmi nebo mincemi ve
+    schránkách zaniklých vsí (spí, sídlo v archivu), `dropStranded(eventIds)` – smaže vyřízené z nich,
+    verzi nemění (úloha světa `returnStrandedPeople`, village-trade.md – Pošta mezi vsemi). Schránka je člen úložiště vsí (`VillageRepository.inbox`), takže ji má každý dopočet přes `updateVillage`
     (`loadVillage`, `advancePlayer`, `dynastyStatus`, všechny akce hráče) bez zvláštní
     závislosti. `EMPTY_INBOX` – prázdná (kalibrace). Adaptér Postgresu `createInboxRepository` (tabulka
     `village_inbox`, transakce `post`) je popsaný ve `world.md` – Schránka vsi.

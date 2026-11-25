@@ -21,7 +21,9 @@ import type { VillageRecord, VillageRepository, VillageStamp } from './villages'
 // a po odeslání výpravy; worker doručí i ves, kterou už dopočítal web – pád mezi uložením vsi
 // a doručením tak dožene příští kolo. Výprava po termínu (`lastDay ≥ returnDay`, výsledek
 // nepřišel) se podívá na hostitele: výsledek z jeho odchozí schránky doručí sama, zaniklý hostitel
-// ji vrátí. Každá zpráva výpravy má pevný `ref`, takže domů přijde nejvýš jeden výsledek.
+// ji vrátí. Každá zpráva výpravy má pevný `ref`, takže domů přijde nejvýš jeden výsledek. Lidé
+// a mince výsledku se zaniklou domovskou vsí nezmizí – jdou zpět k hostiteli (Rozhodnutí plánu 3,
+// bod 13, a plánu 4, bod 9).
 
 /**
  * Kolikrát se zkusí smazat doručené z odchozí schránky při souběžné změně vsi – technická mez, ne
@@ -62,6 +64,19 @@ function carriesPeople(mail: VillageMail): boolean {
   return people.length + newcomers.length > 0;
 }
 
+/**
+ * Nese zpráva mince domů – výsledek trhu s měšcem výpravy `unsold.coins` (markets.md – Rozhodnutí
+ * plánu 4, bod 9)?
+ */
+function carriesCoins(mail: VillageMail): boolean {
+  return mail.body.kind === 'market-result' && (mail.body.result.unsold.coins ?? 0) > 0;
+}
+
+/** Výsledek, který se se zaniklou domovskou vsí nesmí zahodit celý – nese lidi nebo mince. */
+function mustReturn(mail: VillageMail): boolean {
+  return carriesPeople(mail) || carriesCoins(mail);
+}
+
 /** Zpráva bez nákladu (markets.md – Rozhodnutí plánu 3, bod 13) – do zaniklé vsi se zahodí. */
 function isQuery(mail: VillageMail): boolean {
   const kind = mail.body.kind;
@@ -69,16 +84,18 @@ function isQuery(mail: VillageMail): boolean {
 }
 
 /**
- * Lidé z výsledku `result` (`ref` výsledku `ref`, den `day`) pro zaniklou domovskou ves zpět
- * k hostiteli `hostId` (Rozhodnutí plánu 3, bod 13): zpráva `stranded-people` s `ref`
- * `<ref výsledku>:back` – skupiny, které hostitel prodal sám (`fromHost`), v `own` (vrátí se
- * s původními id), ostatní (`people`, koupení od jiné výpravy) v `people` (usadí se s novými id);
- * `from` = `origin` výsledku. Zboží výsledku se zahodí. Krok 1 pošty i úloha světa
- * `returnStrandedPeople` skládají tutéž zprávu – druhý zápis téhož `ref` se zahodí.
+ * Lidé a mince z výsledku `result` (`ref` výsledku `ref`, den `day`) pro zaniklou domovskou ves
+ * zpět k hostiteli `hostId` (Rozhodnutí plánu 3, bod 13, a plánu 4, bod 9): zpráva
+ * `stranded-people` s `ref` `<ref výsledku>:back` – skupiny, které hostitel prodal sám (`fromHost`),
+ * v `own` (vrátí se s původními id), ostatní (`people`, koupení od jiné výpravy) v `people` (usadí
+ * se s novými id), `coins` = měšec výpravy při odjezdu (`unsold.coins`), `from` = `origin` výsledku.
+ * Zboží výsledku se zahodí. Krok 1 pošty i úloha světa `returnStrandedPeople` skládají tutéž zprávu
+ * – druhý zápis téhož `ref` se zahodí.
  */
 function strandedMail(hostId: string, ref: string, day: number, result: MarketResult): VillageMail {
   const newcomers = result.newcomers ?? [];
   const own = newcomers.filter((g) => g.fromHost === true);
+  const coins = result.unsold.coins ?? 0;
   return {
     villageId: hostId,
     day,
@@ -88,6 +105,7 @@ function strandedMail(hostId: string, ref: string, day: number, result: MarketRe
       key: result.key,
       people: [...(result.people ?? []), ...newcomers.filter((g) => g.fromHost !== true)],
       ...(own.length > 0 ? { own } : {}),
+      ...(coins > 0 ? { coins } : {}),
       from: result.origin,
     },
   };
@@ -105,18 +123,16 @@ function awaitedTrip(state: VillageState, key: string): MarketTrip | null {
 }
 
 /**
- * Zaniklé cílové vsi zpráv `outbox`, na kterých záleží (dotazy a výsledky s lidmi): ves chybí, spí
- * (`asleep` v otisku – vymřela, opuštěná), nebo má sídlo v archivu (Začít znovu – `archivedOf`;
- * archivovanou ves nikdo nedopočítá, jako zaniklého hostitele v kroku 3).
+ * Zaniklé cílové vsi zpráv `outbox`, na kterých záleží (dotazy a výsledky s lidmi nebo mincemi):
+ * ves chybí, spí (`asleep` v otisku – vymřela, opuštěná), nebo má sídlo v archivu (Začít znovu –
+ * `archivedOf`; archivovanou ves nikdo nedopočítá, jako zaniklého hostitele v kroku 3).
  */
 async function goneTargets(
   deps: VillageMailDeps,
   outbox: readonly VillageMail[],
   stamps: readonly VillageStamp[],
 ): Promise<Set<string>> {
-  const wanted = new Set(
-    outbox.filter((m) => isQuery(m) || carriesPeople(m)).map((m) => m.villageId),
-  );
+  const wanted = new Set(outbox.filter((m) => isQuery(m) || mustReturn(m)).map((m) => m.villageId));
   if (wanted.size === 0) return new Set();
   const stampOf = new Map(stamps.map((s) => [s.id, s]));
   const gone = new Set([...wanted].filter((id) => stampOf.get(id)?.asleep ?? true));
@@ -148,13 +164,14 @@ async function post(deps: VillageMailDeps, mail: VillageMail): Promise<boolean> 
  *    bod 13):
  *    - cílová ves neexistuje (`post` by na neznámé vsi spadl): příjezd se změní ve výsledek
  *      `returned` se vším, co výprava vezla, do schránky vsi v den plánovaného návratu (lidé jsou
- *      doma v plánovaný den); výsledek bez lidí a ostatní zprávy se zahodí;
- *    - výsledek s lidmi (`people`, `newcomers`) pro domovskou ves, která chybí, spí nebo má sídlo
- *      v archivu (`goneTargets`): lidé jdou zpět do schránky této vsi – hostitele
- *      (`stranded-people`, `strandedMail`), zboží se zahodí; spí-li i hostitel, zahodí se celý –
- *      obě vsi jsou pryč (hostitele v archivu krok nezkoumá: zpráva padne do schránky, kterou nikdo
- *      nepoužije – ztráta je táž); výsledek, který domovská ves už použila (výprava není v jejím
- *      stavu – opakované doručení po pádu), se zahodí;
+ *      doma v plánovaný den); výsledek bez lidí a mincí a ostatní zprávy se zahodí;
+ *    - výsledek s lidmi (`people`, `newcomers`) nebo mincemi (`unsold.coins` – Rozhodnutí plánu 4,
+ *      bod 9) pro domovskou ves, která chybí, spí nebo má sídlo v archivu (`goneTargets`): lidé
+ *      a mince jdou zpět do schránky této vsi – hostitele (`stranded-people`, `strandedMail`),
+ *      zboží se zahodí; spí-li i hostitel, zahodí se celý – obě vsi jsou pryč (hostitele v archivu
+ *      krok nezkoumá: zpráva padne do schránky, kterou nikdo nepoužije – ztráta je táž); výsledek,
+ *      který domovská ves už použila (výprava není v jejím stavu – opakované doručení po pádu), se
+ *      zahodí;
  *    - dotaz a ohlášení bez nákladu (`kin-ask`, `smith-ask`, `order-ready`) do zaniklé vsi se
  *      zahodí – nikdo nikam nejde.
  *    Příjezd do spící vsi nebo do vsi se sídlem v archivu se zapíše jako dřív – vrátí ho krok 3.
@@ -164,6 +181,7 @@ async function post(deps: VillageMailDeps, mail: VillageMail): Promise<boolean> 
  *    pryč (vymřel, opuštěn, sídlo v archivu, ves chybí) – nepoužitý příjezd (ve schránce
  *    hostitele; chybí-li hostitel, v odchozí schránce vsi) se vrátí se vším, výprava na trhu
  *    hostitele s tím, co drží (`returned`, den `lastDay + 1`); živý hostitel pozadu znamená čekat.
+ *    Spící domovská ves krok přeskočí – nic by nepoužila.
  */
 export async function deliverVillageMail(
   deps: VillageMailDeps,
@@ -181,9 +199,9 @@ export async function deliverVillageMail(
     const known = new Set(stamps.map((s) => s.id));
     const gone = await goneTargets(deps, outbox, stamps);
     for (const mail of outbox) {
-      if (mail.body.kind === 'market-result' && carriesPeople(mail) && gone.has(mail.villageId)) {
-        // lidé nesmí zmizet – zpět k hostiteli; spí-li i on, jsou obě vsi pryč; výsledek, který
-        // domov už použil (opakované doručení po pádu), se nevrací
+      if (mail.body.kind === 'market-result' && mustReturn(mail) && gone.has(mail.villageId)) {
+        // lidé a mince nesmí zmizet – zpět k hostiteli; spí-li i on, jsou obě vsi pryč; výsledek,
+        // který domov už použil (opakované doručení po pádu), se nevrací
         const { result } = mail.body;
         const home = known.has(mail.villageId) ? await deps.villages.find(mail.villageId) : null;
         const used = home !== null && awaitedTrip(home.state, result.key) === null;
@@ -197,7 +215,7 @@ export async function deliverVillageMail(
           const result = marketResult(arrival, { returned: true });
           if (await post(deps, resultMail(villageId, returnDay, result))) written++;
         }
-        // výsledek bez lidí a ostatní zprávy do zmizelé vsi se zahodí
+        // výsledek bez lidí a mincí a ostatní zprávy do zmizelé vsi se zahodí
       } else if (!(isQuery(mail) && gone.has(mail.villageId))) {
         if (await post(deps, mail)) written++;
       }
@@ -206,6 +224,9 @@ export async function deliverVillageMail(
     if (!saved) return written; // ves mezitím zmizela
     village = saved;
   }
+  // spící ves už nic nepoužije (výsledek vrátí živý hostitel v kroku 1) – z příjezdu, který zaniklý
+  // hostitel dávno použil, by se jí mince složily podruhé
+  if (sleeps(village)) return written;
   for (const trip of overdueTrips(village.state)) {
     const mail = await overdueResult(deps, village, trip, outbox);
     if (mail && (await post(deps, mail))) written++;
@@ -295,15 +316,16 @@ async function pendingArrival(
 }
 
 /**
- * Úloha světa (worker 1× za minutu – `runWorldTasks`; markets.md – Rozhodnutí plánu 3, bod 13):
- * výsledek s lidmi došel do schránky domovské vsi a ta pak zanikla (vymřela, je opuštěná, sídlo
- * v archivu) dřív, než ho použila – lidé jdou zpět k hostiteli jako `stranded-people`
- * (`strandedMail` – tentýž `ref` jako v kroku 1 pošty, druhý zápis se zahodí). Nepoužitý výsledek
- * = výprava je ještě ve stavu vsi (`awaitedTrip`), hostitel je její cíl; den zprávy = den výsledku.
- * Zanikl-li i hostitel (spí, chybí, sídlo v archivu), lidé se ztratí – jediná přijatá ztráta, oba
- * konce jsou mrtvé. Zboží výsledku se zahodí jako v kroku 1. Vyřízené výsledky (vrácené, použité
- * i ztracené) se ze schránky zaniklé vsi smažou (`dropStranded`) až po zápisu zpráv – pád mezi
- * tím znamená příště týž `ref`. Vrací počet zapsaných zpráv.
+ * Úloha světa (worker 1× za minutu – `runWorldTasks`; markets.md – Rozhodnutí plánu 3, bod 13,
+ * a plánu 4, bod 9): výsledek s lidmi nebo mincemi došel do schránky domovské vsi a ta pak zanikla
+ * (vymřela, je opuštěná, sídlo v archivu) dřív, než ho použila – lidé a mince jdou zpět k hostiteli
+ * jako `stranded-people` (`strandedMail` – tentýž `ref` jako v kroku 1 pošty, druhý zápis se
+ * zahodí). Nepoužitý výsledek = výprava je ještě ve stavu vsi (`awaitedTrip`), hostitel je její cíl;
+ * den zprávy = den výsledku. Zanikl-li i hostitel (spí, chybí, sídlo v archivu), lidé a mince se
+ * ztratí – jediná přijatá ztráta, oba konce jsou mrtvé. Zboží výsledku se zahodí jako v kroku 1.
+ * Vyřízené výsledky (vrácené, použité i ztracené) se ze schránky zaniklé vsi smažou
+ * (`dropStranded`) až po zápisu zpráv – pád mezi tím znamená příště týž `ref`. Vrací počet zapsaných
+ * zpráv.
  */
 export async function returnStrandedPeople(deps: VillageMailDeps): Promise<number> {
   let written = 0;

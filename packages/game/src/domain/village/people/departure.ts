@@ -5,7 +5,7 @@ import { cloneState } from '../core/clone';
 import { takeVillageMeatKg, villageSlaughterMeatKg } from '../core/meat-stocks';
 import { currentLord } from './dynasty';
 import { villageHorses } from '../livestock/horses';
-import { isVillageExtinct } from '../core/extinction';
+import { endVillage, isVillageExtinct } from '../core/extinction';
 import {
   addCarriedStocks,
   carriedStocksOf,
@@ -181,11 +181,12 @@ export function isVillageDormant(
 export function abandonForLineEnd(state: VillageState, day: number): VillageState {
   if (isVillageDormant(state)) return state;
   const event: ChronicleEvent = { day, kind: 'village-abandoned', reason: 'line-ended' };
-  return {
+  const next: VillageState = {
     ...state,
-    abandonedDay: day,
     chronicle: [...state.chronicle, event].slice(-CHRONICLE_MAX_EVENTS),
   };
+  endVillage(next, 'abandonedDay', day);
+  return next;
 }
 
 /** Došli už lidé na cestě do dne `day` na místo nové vsi? */
@@ -649,7 +650,7 @@ export function departLeavers(
   removePeople(next, leaving, emigrated);
   next.chronicle.push(options.event);
   if (all) {
-    next.abandonedDay = day;
+    endVillage(next, 'abandonedDay', day);
     next.chronicle.push({ day, kind: 'village-abandoned' });
   }
   const people = leavers.map((p) => {

@@ -30,6 +30,7 @@ import type { LandscapeSource, SeedSource } from '../settlements';
 import { VILLAGE_ABANDONED, VILLAGE_TRAVELLING } from '../update-village';
 import { InMemorySettlements } from './in-memory-settlements';
 import { InMemoryVillages } from './in-memory-villages';
+import { coinsOfWorld } from './market-world';
 
 // Odchod do nové vsi (migration.md – fáze 3 a 4) nad repozitáři v paměti.
 
@@ -596,5 +597,115 @@ describe('leaveVillage – syn vojvody s poměrnou částí vsi', () => {
     expect(settled.village.state.chronicle).toContainEqual(
       expect.objectContaining({ kind: 'lord', name: 'Bořivoj' }),
     );
+  });
+});
+
+describe('leaveVillage – mince a zbroj (markets.md – Rozhodnutí plánu 4, bod 9)', () => {
+  /** 40 mincí a meč do zásob vsi. */
+  function enrich(deps: { villages: InMemoryVillages }, villageId: string): void {
+    deps.villages.edit(villageId, (state) => {
+      state.coins = 40;
+      state.arms = { swords: 1 };
+    });
+  }
+
+  it.each(['hráč (settleJourney)', 'správce (stewardArrival)'] as const)(
+    'odejdou všichni a ves založí %s: mince a meč jdou s nimi, ve staré vsi nezbylo nic',
+    async (founder) => {
+      const { deps, villageId, sonHome } = await player();
+      enrich(deps, villageId);
+      const coins = async (): Promise<void> => expect(await coinsOfWorld(deps)).toBe(40);
+      await coins();
+      const left = await leaveVillage(deps, {
+        playerId: PLAYER,
+        villageId,
+        today: TODAY + 1,
+        dwellingIds: [1, sonHome],
+        destination: { kind: 'map', direction: 'E' },
+      });
+      if (!left.ok) throw new Error(left.reason);
+      const old = left.from.state;
+      expect(old.abandonedDay).toBe(TODAY + 1);
+      expect(old).not.toHaveProperty('coins');
+      expect(old).not.toHaveProperty('arms');
+      expect(left.to.state).toMatchObject({ coins: 40, arms: { swords: 1 } });
+      await coins();
+      const arrival = left.to.state.journey!.arrivalDay;
+      const base = { playerId: PLAYER, villageId: left.to.id };
+      if (founder.startsWith('správce')) {
+        const on = await setSteward(deps, { ...base, today: TODAY + 1, landscape, on: true });
+        expect(on.ok).toBe(true);
+        await loadVillage(deps, { villageId: left.to.id, today: arrival, landscape });
+      } else {
+        await loadVillage(deps, { villageId: left.to.id, today: arrival, landscape });
+        await coins();
+        const settled = await settleJourney(deps, { ...base, today: arrival, dwelling: at(0, 0) });
+        if (!settled.ok) throw new Error(settled.reason);
+      }
+      const fresh = (await deps.villages.find(left.to.id))!.state;
+      expect(isVillageTravelling(fresh)).toBe(false);
+      expect(fresh.foundedDay).toBe(arrival);
+      expect(fresh.coins).toBe(40);
+      expect(fresh.arms).toStrictEqual({ swords: 1 });
+      await coins();
+      const stored = (await deps.villages.find(villageId))!.state;
+      expect(stored).not.toHaveProperty('coins');
+      expect(stored).not.toHaveProperty('arms');
+    },
+  );
+
+  it('odejde část domácností: mince a zbroj zůstanou celé ve staré vsi, v nové nejsou', async () => {
+    const { deps, villageId, sonHome } = await player();
+    enrich(deps, villageId);
+    const left = await leaveVillage(deps, {
+      playerId: PLAYER,
+      villageId,
+      today: TODAY + 1,
+      dwellingIds: [sonHome],
+      destination: { kind: 'map', direction: 'N' },
+    });
+    if (!left.ok) throw new Error(left.reason);
+    expect(left.from.state).toMatchObject({ coins: 40, arms: { swords: 1 } });
+    expect(left.from.state).not.toHaveProperty('abandonedDay');
+    expect(await coinsOfWorld(deps)).toBe(40);
+    const settled = await settleJourney(deps, {
+      playerId: PLAYER,
+      villageId: left.to.id,
+      today: left.to.state.journey!.arrivalDay,
+      dwelling: at(0, 0),
+    });
+    if (!settled.ok) throw new Error(settled.reason);
+    for (const state of [left.to.state, settled.village.state]) {
+      expect(state).not.toHaveProperty('coins');
+      expect(state).not.toHaveProperty('arms');
+    }
+    expect(await coinsOfWorld(deps)).toBe(40);
+  });
+
+  it('odejde syn (departWithSon): mince a zbroj zůstanou celé ve staré vsi, v nové nejsou', async () => {
+    const { deps, villageId, sonId } = await lordPlayer();
+    enrich(deps, villageId);
+    const left = await leaveVillage(deps, {
+      playerId: PLAYER,
+      villageId,
+      today: TODAY + 1,
+      sonId,
+      destination: { kind: 'map', direction: 'N' },
+    });
+    if (!left.ok) throw new Error(left.reason);
+    expect(left.from.state).toMatchObject({ coins: 40, arms: { swords: 1 } });
+    expect(await coinsOfWorld(deps)).toBe(40);
+    const settled = await settleJourney(deps, {
+      playerId: PLAYER,
+      villageId: left.to.id,
+      today: left.to.state.journey!.arrivalDay,
+      dwelling: at(0, 0),
+    });
+    if (!settled.ok) throw new Error(settled.reason);
+    for (const state of [left.to.state, settled.village.state]) {
+      expect(state).not.toHaveProperty('coins');
+      expect(state).not.toHaveProperty('arms');
+    }
+    expect(await coinsOfWorld(deps)).toBe(40);
   });
 });

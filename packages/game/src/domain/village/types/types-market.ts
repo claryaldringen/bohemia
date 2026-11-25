@@ -230,6 +230,13 @@ export interface MarketVisitor {
   merchant?: true;
   /** Kdo výpravu poslal (`MarketArrival.by`); chybí = hráč nebo správce jako dosud. */
   by?: TripBy;
+  /**
+   * Mince, které na tomto trhu zaplatila a dostala (součty za všechny tržní dny, `payCoins`;
+   * markets.md – Rozhodnutí plánu 4, bod 9) – jen do kroniky návratu, měšec je `goods.coins`.
+   * Chybí = 0.
+   */
+  coinsPaid?: number;
+  coinsGot?: number;
 }
 
 /**
@@ -302,6 +309,11 @@ export interface VillageMarket {
    * v pořadí zápisu; chybí = žádné.
    */
   orders?: CraftOrder[];
+  /**
+   * Herní rok posledního zápisu kroniky o příjezdu kupců (`merchants-arrived` – jen první příjezd
+   * v roce, návrh Clauda); chybí = ještě žádný.
+   */
+  merchantsYear?: number;
 }
 
 /**
@@ -312,7 +324,10 @@ export interface MarketResult {
   key: string;
   sold: TradeGoods;
   bought: TradeGoods;
-  /** Co se neprodalo a jde domů (koně jako počty po druzích). */
+  /**
+   * Co se neprodalo a jde domů (koně jako počty po druzích) – i mince, které výprava při odjezdu má
+   * (měšec `unsold.coins`; markets.md – Rozhodnutí plánu 4, bod 9).
+   */
   unsold: TradeGoods;
   /** Koně domů po kusech – neprodaní i koupení. */
   horses: MarketHorse[];
@@ -348,6 +363,13 @@ export interface MarketResult {
    * usadí, přišel odtud. Chybí = výsledek bez lidí, nebo výprava bez směru cesty.
    */
   origin?: { villageId: string; villageName: string; direction: Direction8 };
+  /**
+   * Mince, které výprava na trhu zaplatila a dostala (`MarketVisitor.coinsPaid`, `coinsGot`; jen
+   * kladné) – do kroniky `market-returned`. V `sold` a `bought` nejsou: domů přijdou jen s měšcem
+   * (`unsold.coins`) a podruhé by se připsaly. Chybí = žádné (i výsledek z doby před nimi).
+   */
+  coinsPaid?: number;
+  coinsGot?: number;
 }
 
 /**
@@ -398,12 +420,13 @@ export interface KinAsk {
 /**
  * Zpráva trhu pro jinou ves (markets.md – Rozhodnutí plánu 2, bod 6; Rozhodnutí plánu 3, bod 6 –
  * ohlášení hotové zakázky `order-ready`, bod 9 – dotaz na kováře `smith-ask`, bod 11 – dotaz na
- * partnera `kin-ask`; všechny tři zprávy bez nákladu). `stranded-people` (bod 13) – lidé
- * z výsledku pro zaniklou domovskou ves jdou zpět k hostiteli: `key` výsledku, `own` = skupiny,
- * které prodal sám hostitel (`MarketPerson.fromHost` – vrátí se s původními id), `people` = ostatní
- * (vlastní lidé výpravy, koupení od jiné výpravy – usadí se s novými id), `from` =
- * `MarketResult.origin`. Zapíše ji pošta rovnou do schránky hostitele (`deliverVillageMail`,
- * `returnStrandedPeople`), v odchozí schránce nebývá.
+ * partnera `kin-ask`; všechny tři zprávy bez nákladu). `stranded-people` (bod 13) – lidé a mince
+ * (Rozhodnutí plánu 4, bod 9) z výsledku pro zaniklou domovskou ves jdou zpět k hostiteli: `key`
+ * výsledku, `own` = skupiny, které prodal sám hostitel (`MarketPerson.fromHost` – vrátí se
+ * s původními id), `people` = ostatní (vlastní lidé výpravy, koupení od jiné výpravy – usadí se
+ * s novými id), `coins` = celé mince, které hostitel dostane (`unsold.coins`; chybí = žádné),
+ * `from` = `MarketResult.origin`. Zapíše ji pošta rovnou do schránky hostitele
+ * (`deliverVillageMail`, `returnStrandedPeople`), v odchozí schránce nebývá.
  */
 export type MarketMailBody =
   | { kind: 'market-arrive'; arrival: MarketArrival }
@@ -416,6 +439,7 @@ export type MarketMailBody =
       key: string;
       people: MarketPerson[];
       own?: MarketPerson[];
+      coins?: number;
       from: MarketResult['origin'];
     };
 

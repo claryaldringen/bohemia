@@ -54,6 +54,7 @@ import { wagonRoadsDay } from '../roads/wagon-road';
 import { decideFortRebuilds } from '../fortification/decay';
 import { gateRoadCrossings } from '../fortification/state/fortifications';
 import { isVillageDormant, isVillageTravelling } from '../people/departure';
+import { endVillage } from './extinction';
 import { applyInboxDay, inboxByDay, withJourneyInbox, type VillageEvent } from './inbox';
 import { woundDeathsDay } from '../../war/raid-apply';
 import { returnHome } from '../../vassalage/guests';
@@ -624,7 +625,7 @@ function peopleDay(
   });
   if (state.people.length === 0) {
     // zemřel poslední člověk – ves vymřela, dál se nesimuluje (ani sklizeň dne)
-    state.extinctDay = day;
+    endVillage(state, 'extinctDay', day);
     state.chronicle.push({ day, kind: 'village-extinct' });
     return false;
   }

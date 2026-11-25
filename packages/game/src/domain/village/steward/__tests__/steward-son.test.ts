@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { dayIndexOf } from '../../../calendar';
+import { dateOfDayIndex, dayIndexOf } from '../../../calendar';
 import { obstaclesOf, tileCenterWorld } from '../../../landscape';
 import { deriveSeed } from '../../../landscape/random';
 import { isVillageTravelling, settlersOf, travellingVillage } from '../../people/departure';
@@ -460,7 +460,12 @@ describe('ves na cestě se správcem (příjezd)', () => {
     expect(planned.at(-1)).toBeGreaterThan(AUG31 + 100);
     const arrivals = (s: VillageState): number[] =>
       s.chronicle.filter((e) => e.kind === 'merchants-arrived').map((e) => e.day);
-    expect(arrivals(whole)).toEqual(planned);
+    const notes = (whole.market?.arrivals ?? []).filter((a) => a.merchants).map((a) => a.day);
+    expect(notes).toEqual(planned);
+    // v kronice jen první příjezd v každém herním roce
+    const years = planned.map((day) => dateOfDayIndex(day).year);
+    expect(new Set(years).size).toBe(2);
+    expect(arrivals(whole)).toEqual(planned.filter((_, i) => years.indexOf(years[i]!) === i));
     // značky cest postavených v dopočtu (`road-swaths`, `planned-lining`) dává až další načtení
     const reloaded = (s: VillageState): VillageState => json2(migrateVillage(s, load));
     // hranice kousků před příjezdem vsi, v jeho den, v den kupců a po 100 dnech

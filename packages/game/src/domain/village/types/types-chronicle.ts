@@ -756,7 +756,8 @@ export type ChronicleEvent = { day: number } & (
     }
   /**
    * Na trh vsi u stezky přijeli cizí kupci (markets.md – Rozhodnutí plánu 4, bod 5) – co prodávají,
-   * co shánějí a kolik mincí mají v měšci; odkud jsou, hra neví.
+   * co shánějí a kolik mincí mají v měšci; odkud jsou, hra neví. Jen první příjezd v herním roce
+   * (`VillageMarket.merchantsYear`).
    */
   | { kind: 'merchants-arrived'; sells: TradeGoods; buys: TradeGoods; coins: number }
   /** Tržní den – co ves na svém trhu prodala a koupila (markets.md – Pravidla 3 a 5). */
@@ -779,7 +780,9 @@ export type ChronicleEvent = { day: number } & (
   /**
    * Výprava se vrátila z trhu vsi `villageName` (markets.md – Pravidla 3) – co prodala, koupila
    * a co se neprodalo; `returned` – hostitelská ves zanikla a výprava přivezla, co drží
-   * (Rozhodnutí plánu 2, bod 6). Prázdné `villageName` – záznam výpravy chyběl.
+   * (Rozhodnutí plánu 2, bod 6). Prázdné `villageName` – záznam výpravy chyběl. Mince (Rozhodnutí
+   * plánu 4, bod 9) jsou jako v `market-held`: zaplacené v `sold.coins`, přijaté v `bought.coins`;
+   * mince, které se vrátily, neprodané zboží nejsou (`unsold` je bez nich).
    */
   | {
       kind: 'market-returned';

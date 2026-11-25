@@ -39,8 +39,8 @@ function dayBound(day: number): number {
  * zápisem nemění, souhrn proto zůstává platný (`digest_version` jde s `version`). `pruneUsed`
  * smaže použité snímky okolí a zprávy bez nákladu (`body ->> 'kind'` v `PRUNED_INBOX_KINDS`) po
  * indexu vsi a dne, verzi nezvedá.
- * `strandedResults` / `dropStranded` čtou a mažou výsledky trhu s lidmi ve schránkách zaniklých
- * vsí (`asleep` nebo sídlo v archivu) – verzi také nezvedají.
+ * `strandedResults` / `dropStranded` čtou a mažou výsledky trhu s lidmi nebo mincemi ve schránkách
+ * zaniklých vsí (`asleep` nebo sídlo v archivu) – verzi také nezvedají.
  */
 export function createInboxRepository(db: Database): VillageInbox {
   return {
@@ -126,7 +126,8 @@ export function createInboxRepository(db: Database): VillageInbox {
             sql`${villageInbox.ref} LIKE '%:out'`,
             sql`${villageInbox.body}->>'kind' = 'market-result'`,
             sql`(jsonb_array_length(coalesce(${villageInbox.body}->'result'->'people', '[]'::jsonb)) > 0
-              OR jsonb_array_length(coalesce(${villageInbox.body}->'result'->'newcomers', '[]'::jsonb)) > 0)`,
+              OR jsonb_array_length(coalesce(${villageInbox.body}->'result'->'newcomers', '[]'::jsonb)) > 0
+              OR coalesce(${villageInbox.body}->'result'->'unsold'->>'coins', '0')::int > 0)`,
             deadVillage,
           ),
         )
