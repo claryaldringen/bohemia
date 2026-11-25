@@ -107,7 +107,8 @@ export function marketStance(state: VillageState, day: number): MarketStance {
 
   const outlook = stewardOutlook(state, day, craftCoverage(state, day));
   // obilí: nad pojistku nabízí, pod pojistkou shání
-  give('grain', grainSpareKg(state, day, outlook));
+  const grainSpare = grainSpareKg(state, day, outlook);
+  give('grain', grainSpare);
   want('grain', grainReserveKg(state, day, outlook) - grainOnHandKg(state));
 
   // vosk celý, kožešiny nad roční potřebu domácností a med nad roční příděl – ten jen s obilím nad
@@ -119,7 +120,7 @@ export function marketStance(state: VillageState, day: number): MarketStance {
       'furs',
       Math.floor(wares.sheepFurs + wares.wildFurs - yearlyNeed(state, day).furs + EPSILON),
     );
-    if (grainSpareKg(state, day, outlook) > 0) {
+    if (grainSpare > 0) {
       give(
         'honey',
         Math.floor(wares.honeyKg - HONEY.kgPerPersonYear * state.people.length + EPSILON),

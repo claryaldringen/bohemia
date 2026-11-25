@@ -801,7 +801,9 @@ describe('objednávka v dopočtu vsi (advanceVillage)', () => {
     const days = merchantVisits([STOP], DAY, end).map((visit) => visit.day);
     expect(days).toHaveLength(5);
     // meč za 120, po prvním nákupu hladina nad 1 (C = 240 – třetí meč kupci nevezli – + měšec kupce,
-    // W = 240) a třetí meč za 122; ves kupcům prodává i přebytek medu a vosku (plán 4, bod 6)
+    // W = 240) a třetí meč za 122; ves kupcům prodává i přebytek medu a vosku (plán 4, bod 6): 7 kg medu
+    // po 0,40 mince je 2,83 a 1 kg vosku za 2 mince × hladina 1,03 je 2,06 – platba dvojice a dne jde
+    // nahoru na celé mince, tedy 3 a 3
     expect(heldEvents(whole)).toEqual([
       { day: days[0], kind: 'market-held', sold: { coins: 240 }, bought: { swords: 2 } },
       {
