@@ -1,12 +1,23 @@
 import { describe, expect, it } from 'vitest';
 import { dateOfDayIndex } from '../../../calendar';
-import { CURRENT_LAYER_VERSIONS, generateLandscape, obstaclesOf } from '../../../landscape';
+import {
+  CURRENT_LAYER_VERSIONS,
+  generateLandscape,
+  obstaclesOf,
+  tileCenterWorld,
+} from '../../../landscape';
 import { marketCrew } from '../../trade/market-trip';
 import { stewardDay } from '../steward';
-import { craftCoverage } from '../../crafts/crafts';
-import { MARKET, TRADE } from '../../rules';
+import { foundVillage } from '../../core/actions';
+import { advanceVillage } from '../../core/simulate';
+import { craftCoverage, craftTargets, smithBarsTargetKg } from '../../crafts/crafts';
+import { toolNeedKg } from '../../crafts/iron';
+import { breedingCows, oxenCalvesWanted } from '../../livestock/husbandry';
+import { HONEY, MARKET, TRADE } from '../../rules';
 import { STEWARD } from '../../rules/rules-steward';
 import { at } from '../../__tests__/horse-fixtures';
+import { withBuiltFirstDwelling } from '../../__tests__/village-fixtures';
+import { joinMarket, marketDay } from '../../trade/market';
 import { marketStance } from '../../trade/market-stance';
 import { applyMarketResult, marketFreeAdults } from '../../trade/market-trip';
 import { villagerTripsDay } from '../../trade/villager-trips';
@@ -14,10 +25,22 @@ import {
   D,
   NOV15,
   homeVillage,
+  marketVillage,
+  report,
+  sownPart,
   villagersHome,
   withNearby,
+  withWorkshop,
 } from '../../trade/__tests__/market-fixtures';
-import type { MarketResult, NearbyVillage, VillageState } from '../../types';
+import { yearlyNeed } from '../../wares/hides';
+import type {
+  MarketResult,
+  NearbyVillage,
+  Person,
+  TradeGood,
+  TradeGoods,
+  VillageState,
+} from '../../types';
 import { needSteps, type NeedContext } from '../steward-needs';
 import { stewardGrainStep, stewardGrainTarget, stewardMarketStep } from '../steward-market';
 import { newSteward } from '../steward-state';
@@ -303,5 +326,451 @@ describe('správce – roční výprava s potřebou vsi (návrh Clauda)', () => 
     expect(marketCrew(trip.give, trip.market!.wants, carts).porters).toBeLessThanOrEqual(free);
     // co ves neposlala, zůstává doma
     expect(s.woodLogs).toBe(5_000 - trip.give.logs!);
+  });
+});
+
+// Mince a drahé zboží napřed (markets.md – Rozhodnutí plánu 4, bod 4; Martin 25. 11. 2026: „Mince
+// utrácí jen vojvoda/správce“; pořadí nákladu návrh Clauda).
+
+/** Mince ve vsi a v nákladu výprav správce dohromady. */
+function coinsOf(s: VillageState): number {
+  return (s.coins ?? 0) + stewardTrips(s).reduce((sum, e) => sum + (e.give.coins ?? 0), 0);
+}
+
+describe('správce – obilí v nouzi za mince (Rozhodnutí plánu 4, bod 4)', () => {
+  it('30 mincí, chybí 400 kg: 27 mincí (⌈400 ÷ 15⌉) a nic jiného, vsi ubydou hned při odjezdu', () => {
+    const s = stewarded();
+    s.coins = 30;
+    expect(stewardGrainStep(s, ctxOf(s, D), 400)).toBe(true);
+    const trip = stewardTrips(s)[0]!;
+    expect(trip.give).toEqual({ coins: 27 });
+    expect(trip.market!.wants).toEqual({ grain: 400 });
+    expect(s.coins).toBe(3);
+    expect(s.crafts).toEqual({ charcoalKg: 0, potteryKg: 100, ironBarsKg: 5 });
+    expect(s.outbox!.at(-1)!.body).toMatchObject({
+      kind: 'market-arrive',
+      arrival: { goods: { coins: 27 }, wants: { grain: 400 }, by: 'steward' },
+    });
+  });
+
+  it('10 mincí nestačí: zbytek v pořadí hřivny, keramika, uhlí, klády', () => {
+    const s = stewarded();
+    s.coins = 10;
+    expect(stewardGrainStep(s, ctxOf(s, D), 400)).toBe(true);
+    // 10 × 15 + 5 × 45 = 375 kg obilí, zbylých 25 kg keramikou po 3 kg obilí za kg
+    expect(stewardTrips(s)[0]!.give).toEqual({
+      coins: 10,
+      ironBars: 5,
+      pottery: expect.closeTo(25 / 3, 6),
+    });
+    expect(s.coins).toBeUndefined();
+
+    const all = stewarded();
+    all.coins = 10;
+    all.crafts = { charcoalKg: 200, potteryKg: 10, ironBarsKg: 1 };
+    all.woodLogs = 1_000;
+    expect(stewardGrainStep(all, ctxOf(all, D), 400)).toBe(true);
+    // 150 + 45 + 30 + 100 = 325 kg obilí, zbylých 75 kg jsou 2 klády po 40 kg obilí
+    expect(stewardTrips(all)[0]!.give).toEqual({
+      coins: 10,
+      ironBars: 1,
+      pottery: 10,
+      charcoal: 200,
+      logs: 2,
+    });
+  });
+
+  it('hladina 2 ve zprávě cíle: mince platí polovinu – na totéž 54 mincí', () => {
+    const s = stewarded();
+    s.coins = 60;
+    s.news = [{ villageId: 'm', name: 'Lhota', report, level: 2 }];
+    expect(stewardGrainStep(s, ctxOf(s, D), 400)).toBe(true);
+    expect(stewardTrips(s)[0]!.give).toEqual({ coins: 54 });
+    expect(s.coins).toBe(6);
+  });
+
+  it('nákup za mince drží nosnost cesty domů: bez vozu 4 nosiči, 100 kg obilí za 7 mincí', () => {
+    const s = stewarded();
+    s.carts = [];
+    s.coins = 30;
+    expect(stewardGrainStep(s, ctxOf(s, D), 400)).toBe(true);
+    const trip = stewardTrips(s)[0]!;
+    expect(trip.market!.wants).toEqual({ grain: 100 });
+    expect(trip.porters).toBe(4);
+    expect(trip.give).toEqual({ coins: 7 });
+    expect(s.coins).toBe(23);
+  });
+
+  for (const [host, spareKg, boughtKg, spent] of [
+    ['s obilím nad pojistkou prodá 400 kg za 27 mincí', 1_000, 400, 27],
+    ['bez obilí neprodá nic a mince přijdou domů', -3_000, 0, 0],
+  ] as const) {
+    it(`na trhu: hostitel ${host}; mince ani obilí nevzniknou ani nezmizí`, () => {
+      const h = stewarded();
+      h.coins = 30;
+      const m = marketVillage(-spareKg);
+      const grain = h.storesKg + m.storesKg;
+      expect(stewardGrainStep(h, ctxOf(h, D), 400)).toBe(true);
+      const sent = h.outbox!.at(-1)!;
+      if (sent.body.kind !== 'market-arrive') throw new Error('Příjezd k hostiteli chybí.');
+      joinMarket(m, sent.day, sent.body.arrival);
+      marketDay(m, sent.day);
+      const back = m.outbox!.at(-1)!;
+      if (back.body.kind !== 'market-result') throw new Error('Výsledek trhu chybí.');
+      applyMarketResult(h, back.day, back.body.result);
+      expect(back.body.result.bought.grain ?? 0).toBeCloseTo(boughtKg, 6);
+      expect(h.coins).toBe(30 - spent);
+      expect(m.coins ?? 0).toBe(spent);
+      expect(h.storesKg + m.storesKg).toBeCloseTo(grain, 6);
+      expect(stewardTrips(h)).toEqual([]);
+    });
+  }
+});
+
+describe('správce – roční výprava s mincemi, drahé zboží napřed (Rozhodnutí plánu 4, bod 4)', () => {
+  const DAY = at(603, 11, 15);
+
+  /**
+   * Ves bez vozu s `adults` volnými dospělými (nosič unese 25 kg), které nic nechybí ani nepřebývá –
+   * co nabídne a co shání, doplní test.
+   */
+  function settled(adults: number): VillageState {
+    const s = stewarded([A, B], DAY);
+    s.carts = [];
+    // ve dvorci jsou 4 dospělí a chlapec (poslední), ostatní jinde
+    const manor = s.people.filter((p) => p.dwellingId === s.manorId);
+    const dwellingId = s.people.find((p) => p.dwellingId !== s.manorId)!.dwellingId;
+    s.people = [
+      ...manor.slice(0, adults),
+      ...Array.from({ length: Math.max(0, adults - 4) }, (_, i): Person => ({
+        id: 20 + i,
+        bornDay: DAY - Math.ceil((26 + i) * 365.25),
+        dwellingId,
+        sex: i % 2 === 0 ? 'male' : 'female',
+      })),
+    ];
+    s.livestock!.herds.cow = Math.ceil(breedingCows(s) + oxenCalvesWanted(s, DAY));
+    const { potteryKg, woodToolsKg } = craftTargets(s, DAY);
+    s.crafts = { charcoalKg: 0, potteryKg, ironBarsKg: 0, woodToolsKg };
+    s.toolEquipmentKg = toolNeedKg(s, DAY);
+    s.storesKg = 0;
+    s.storesKg = marketStance(s, DAY).wants.grain!;
+    expect(marketFreeAdults(s, DAY)).toBe(adults);
+    expect(marketStance(s, DAY)).toEqual({ offer: {}, wants: {} });
+    return s;
+  }
+
+  /** Ves nad svou potřebu nabídne `waxKg` vosku, `furs` kožešin a (s obilím) `honeyKg` medu. */
+  function withWares(s: VillageState, waxKg: number, furs: number, honeyKg: number): VillageState {
+    s.wares = {
+      hides: 0,
+      sheepFurs: 0,
+      wildFurs: furs + yearlyNeed(s, DAY).furs,
+      honeyKg: honeyKg + HONEY.kgPerPersonYear * s.people.length,
+      waxKg,
+    };
+    return s;
+  }
+
+  /** Zásoby vsi, které testy vozí (bez zaokrouhlení). */
+  const stocks = (s: VillageState): TradeGoods => ({
+    grain: s.storesKg,
+    honey: s.wares?.honeyKg ?? 0,
+    wax: s.wares?.waxKg ?? 0,
+    furs: (s.wares?.sheepFurs ?? 0) + (s.wares?.wildFurs ?? 0),
+    tools: s.toolEquipmentKg ?? 0,
+    coins: s.coins ?? 0,
+  });
+
+  /** Roční výprava vyrazí – výprava a kontrola, že z vsi ubyl jen její náklad. */
+  function yearlyTrip(s: VillageState) {
+    const before = stocks(s);
+    expect(stewardMarketStep(s, ctxOf(s, DAY))).toBe(true);
+    const trips = stewardTrips(s);
+    expect(trips).toHaveLength(1);
+    const trip = trips[0]!;
+    const after = stocks(s);
+    for (const good of Object.keys(before) as TradeGood[]) {
+      expect(after[good], good).toBeCloseTo(before[good]! - (trip.give[good] ?? 0), 6);
+    }
+    return { ...trip, wants: trip.market!.wants };
+  }
+
+  /** Náklad nebo seznam: právě tyto druhy, množství na 6 míst. */
+  function expectGoods(goods: TradeGoods, load: TradeGoods): void {
+    expect(Object.keys(goods).sort()).toEqual(Object.keys(load).sort());
+    for (const good of Object.keys(load) as TradeGood[]) {
+      expect(goods[good], good).toBeCloseTo(load[good]!, 6);
+    }
+  }
+
+  it('mince nejvýš v hodnotě seznamu navíc ke zboží: 300 kg obilí = 20 ze 40 mincí', () => {
+    const s = withWares(settled(12), 16, 123, 0);
+    s.storesKg -= 300;
+    s.coins = 40;
+    expect(marketStance(s, DAY)).toEqual({ offer: { wax: 16, furs: 123 }, wants: { grain: 300 } });
+    const trip = yearlyTrip(s);
+    expect(trip.wants).toEqual({ grain: 300 });
+    expect(trip.give).toEqual({ wax: 16, furs: 123, coins: 20 });
+    expect(trip.porters).toBe(12);
+    expect(s.coins).toBe(20);
+  });
+
+  it('mincí je míň než hodnota seznamu – všechny; hladina cíle 2 – dvakrát tolik; bez mincí nic', () => {
+    const short = (coins: number): VillageState => {
+      const s = settled(12);
+      s.storesKg -= 300;
+      if (coins > 0) s.coins = coins;
+      return s;
+    };
+    const few = short(7);
+    expect(yearlyTrip(few).give).toEqual({ coins: 7 });
+    expect(few.coins).toBeUndefined();
+    const inflated = short(50);
+    // cíl roku 603 je B
+    inflated.news = [
+      { villageId: 'a', name: 'Alfov', report, level: 5 },
+      { villageId: 'b', name: 'Bořov', report, level: 2 },
+    ];
+    expect(yearlyTrip(inflated).give).toEqual({ coins: 40 });
+    // cena obilí ze zprávy cíle: 0,1 mince za kg místo 1/15 – 30 mincí
+    const dear = short(50);
+    dear.news = [{ villageId: 'b', name: 'Bořov', report, prices: { grain: 0.1 } }];
+    expect(yearlyTrip(dear).give).toEqual({ coins: 30 });
+    expect(yearlyTrip(short(0)).give).toEqual({});
+  });
+
+  it('posádka plná obilím s mincemi vyjede – mince nosiče nepřidají', () => {
+    const s = settled(8);
+    s.storesKg += 14_500;
+    s.toolEquipmentKg! -= 10;
+    s.coins = 20;
+    const free = marketFreeAdults(s, DAY);
+    const trip = yearlyTrip(s);
+    // 10 kg nástrojů × 60 kg obilí = 40 mincí, ves jich má 20
+    expect(trip.wants).toEqual({ tools: 10 });
+    expectGoods(trip.give, { grain: 200, coins: 20 });
+    expect(trip.porters).toBe(free);
+  });
+
+  for (const [adults, load] of [
+    [8, { wax: 16, furs: 123, honey: 61 }],
+    [12, { wax: 16, furs: 123, honey: 142, grain: 19 }],
+    [5, { wax: 16, furs: 109 }],
+  ] as [number, TradeGoods][]) {
+    it(`med a kožešiny před obilím: ${adults} dospělých naloží ${JSON.stringify(load)}, šum ne`, () => {
+      const s = withWares(settled(adults), 16, 123, 142);
+      s.storesKg += 14_500;
+      s.toolEquipmentKg! -= 2;
+      expect(marketStance(s, DAY)).toEqual({
+        offer: { grain: 14_500, wax: 16, furs: 123, honey: 142 },
+        wants: { tools: 2 },
+      });
+      const trip = yearlyTrip(s);
+      expect(trip.wants).toEqual({ tools: 2 });
+      expectGoods(trip.give, load);
+      expect(trip.porters).toBe(adults);
+    });
+  }
+
+  // nástroje 60, hřivny 45, vosk 30, kožešiny 8, med 6, keramika 3, dřevěné nářadí 2, obilí 1
+  // a klády 0,4 kg obilí na kg; 18 dospělých nese po obilí ještě kládu (dva lidé)
+  for (const [adults, load] of [
+    [5, { tools: 40, ironBars: 40, wax: 45 }],
+    [8, { tools: 40, ironBars: 40, wax: 50, furs: 60, honey: 10 }],
+    [12, { tools: 40, ironBars: 40, wax: 50, furs: 60, honey: 60, pottery: 50 }],
+    [14, { tools: 40, ironBars: 40, wax: 50, furs: 60, honey: 60, pottery: 60, woodTools: 40 }],
+    [
+      18,
+      {
+        tools: 40,
+        ironBars: 40,
+        wax: 50,
+        furs: 60,
+        honey: 60,
+        pottery: 60,
+        woodTools: 60,
+        grain: 30,
+        logs: 1,
+      },
+    ],
+  ] as [number, TradeGoods][]) {
+    it(`drahé napřed – pořadí hodnoty na kg: ${adults} dospělých`, () => {
+      const s = withWares(settled(adults), 50, 60, 60);
+      s.storesKg += 30;
+      s.toolEquipmentKg! += 40;
+      s.crafts!.ironBarsKg = smithBarsTargetKg(s, DAY) + 40;
+      s.crafts!.potteryKg += 60;
+      s.crafts!.woodToolsKg! += 60;
+      s.woodLogs = 5;
+      s.livestock!.herds.cow -= 1;
+      expect(marketStance(s, DAY).wants).toEqual({ cows: 1 });
+      const trip = yearlyTrip(s);
+      expect(trip.wants).toEqual({ cows: 1 });
+      expectGoods(trip.give, load);
+      expect(trip.porters).toBe(adults);
+    });
+  }
+
+  it('cesta domů: z tisíců kg obilí seznam jen 200 kg, které 8 lidí unese, a 14 mincí', () => {
+    const s = settled(8);
+    s.storesKg = 0;
+    s.coins = 400;
+    expect(marketStance(s, DAY).wants.grain).toBeGreaterThan(3_000);
+    const trip = yearlyTrip(s);
+    expectGoods(trip.wants, { grain: 200 });
+    expect(trip.porters).toBe(8);
+    expect(trip.give).toEqual({ coins: 14 });
+    expect(s.coins).toBe(386);
+  });
+
+  it('seznam na cestu domů v témže pořadí: krávy s honákem, nástroje, obilí do zbytku nosičů', () => {
+    const s = settled(8);
+    s.storesKg = 0;
+    s.toolEquipmentKg! -= 10;
+    s.livestock!.herds.cow -= 2;
+    s.coins = 400;
+    const trip = yearlyTrip(s);
+    // honák a 7 nosičů se 175 kg; 2 × 600 + 10 × 60 + 165 = 1 965 kg obilí = 131 mincí (ne 132)
+    expectGoods(trip.wants, { cows: 2, tools: 10, grain: 165 });
+    expect(trip.porters).toBe(8);
+    expect(trip.give).toEqual({ coins: 131 });
+  });
+
+  it('s vozem unese seznam víc: celý seznam beze změny', () => {
+    const s = settled(8);
+    s.carts = [{ id: 1, kind: 'four-wheel', builtDay: DAY - 10 }];
+    s.storesKg -= 400;
+    s.coins = 400;
+    const { wants } = marketStance(s, DAY);
+    expect(wants.grain).toBeCloseTo(400, 6);
+    const trip = yearlyTrip(s);
+    expect(trip.wants).toEqual(wants);
+    expect(trip.carts).toEqual([1]);
+    expect(trip.give).toEqual({ coins: 27 });
+  });
+
+  it('tam i domů jede táž posádka: s krávou a nástroji domů dva lidé vůz nevezou, tam nesou 50 kg', () => {
+    const s = settled(2);
+    s.carts = [{ id: 1, kind: 'four-wheel', builtDay: DAY - 10 }];
+    s.storesKg += 14_500;
+    s.toolEquipmentKg! -= 10;
+    s.livestock!.herds.cow -= 1;
+    const trip = yearlyTrip(s);
+    // domů honák a nosič; s vozem (dva lidé) by kráva potřebovala třetího
+    expect(trip.wants).toEqual({ cows: 1, tools: 10 });
+    expectGoods(trip.give, { grain: 50 });
+    expect(trip.porters).toBe(2);
+    expect(trip.carts).toBeUndefined();
+  });
+
+  it('lidé z nabídky jdou jako zboží a nosiči nejsou: seznam unese jen těch pět, kteří zůstanou', () => {
+    const s = settled(8);
+    s.fields = [{ id: 1 }];
+    s.parts = [sownPart(100)];
+    s.pens = (s.pens ?? []).filter((p) => p.team === undefined || p.team === null);
+    s.storesKg = 0;
+    s.coins = 400;
+    expect(marketStance(s, DAY).offer).toMatchObject({ men: 2, women: 1 });
+    const people = s.people.length;
+    const trip = yearlyTrip(s);
+    expect(trip.give).toMatchObject({ men: 2, women: 1, coins: 9 });
+    expect(s.people).toHaveLength(people - 3);
+    expectGoods(trip.wants, { grain: 125 });
+    expect(trip.porters).toBe(5);
+  });
+
+  it('seznam jen do miligramu je šum: ves nic neshání a výprava nejede', () => {
+    const s = settled(8);
+    s.toolEquipmentKg! -= 5e-7;
+    expect(marketStance(s, DAY).wants.tools).toBeGreaterThan(0);
+    expect(stewardMarketStep(s, ctxOf(s, DAY))).toBe(false);
+    expect(stewardTrips(s)).toEqual([]);
+  });
+
+  it('obilí v nouzi a roční výprava téhož dne: každá mince jen jednou', () => {
+    const s = settled(8);
+    s.storesKg = 0;
+    s.toolEquipmentKg! -= 10;
+    s.coins = 30;
+    needSteps(s, ctxOf(s, DAY));
+    const trips = stewardTrips(s);
+    expect(trips.map((e) => Object.keys(e.market!.wants))).toEqual([['grain'], ['grain', 'tools']]);
+    // nouze: 4 nosiči, 100 kg obilí za 7 mincí; zbylí 4 lidé 10 kg nástrojů a 90 kg obilí – chtějí
+    // 46 mincí, ve vsi jich po prvním odjezdu zbylo 23
+    expect(trips.map((e) => e.give.coins)).toEqual([7, 23]);
+    expect(s.coins).toBeUndefined();
+    expect(coinsOf(s)).toBe(30);
+    // neutracené mince přijdou domů
+    for (const trip of trips) {
+      const key = trip.market!.key;
+      const unsold = { coins: trip.give.coins! };
+      applyMarketResult(s, DAY + 2, { key, sold: {}, bought: {}, unsold, horses: [] });
+    }
+    expect(s.coins).toBe(30);
+    expect(coinsOf(s)).toBe(30);
+  });
+
+  it('u kováře: co má, koupí výprava za mince, na zbytek nechá zakázku; mince i nástroje sedí', () => {
+    const s = settled(8);
+    s.toolEquipmentKg! -= 10;
+    s.coins = 100;
+    // hostitel nad pojistkou s pracujícím kovářem a 4 kg nástrojů nad potřebu
+    const m = marketVillage(-1_000);
+    withWorkshop(m, 'smith', 700, { oreKg: 500 });
+    m.crafts = { charcoalKg: 5_000, potteryKg: 0, ironBarsKg: smithBarsTargetKg(m, DAY + 1) };
+    m.toolEquipmentKg = toolNeedKg(m, DAY + 1) + 4;
+    const tools = s.toolEquipmentKg! + m.toolEquipmentKg;
+    expect(yearlyTrip(s).give).toEqual({ coins: 40 });
+    const sent = s.outbox!.at(-1)!;
+    if (sent.body.kind !== 'market-arrive') throw new Error('Příjezd k hostiteli chybí.');
+    joinMarket(m, sent.day, sent.body.arrival);
+    marketDay(m, sent.day);
+    const back = m.outbox!.at(-1)!;
+    if (back.body.kind !== 'market-result') throw new Error('Výsledek trhu chybí.');
+    const { result } = back.body;
+    expect(result).toMatchObject({ unsold: { coins: 24 }, ordered: { tools: 6 } });
+    expect(result.bought).toEqual({ tools: 4 });
+    applyMarketResult(s, back.day, result);
+    expect([s.coins, m.coins]).toEqual([84, 16]);
+    expect(s.toolEquipmentKg! + m.toolEquipmentKg!).toBeCloseTo(tools, 9);
+    expect(m.market!.orders).toMatchObject([{ villageId: 'h', good: 'tools', amount: 6 }]);
+    expect(s.orders).toMatchObject([{ villageId: 'b', good: 'tools', amount: 6, status: 'open' }]);
+  });
+
+  it('po kouscích stejně jako vcelku přes 15. 11. – mince i schránka', { timeout: 120_000 }, () => {
+    const landscape = generateLandscape(1, CURRENT_LAYER_VERSIONS);
+    const obstacles = obstaclesOf(landscape);
+    const start = at(603, 11, 5);
+    const site = tileCenterWorld(landscape, landscape.villageSite.x, landscape.villageSite.y);
+    const s = withBuiltFirstDwelling({
+      ...foundVillage({
+        seed: 11,
+        day: start,
+        dwellingPosition: { x: site.x, z: site.z, rotation: 0 },
+      }),
+      steward: newSteward(start, true),
+    });
+    const dwellingId = s.people[0]!.dwellingId;
+    for (let id = 900; marketFreeAdults(s, start) < 8; id++) {
+      s.people.push({ id, bornDay: start - 25 * 365, dwellingId, sex: id % 2 ? 'male' : 'female' });
+    }
+    s.nextId = 1_000;
+    withNearby(s, start);
+    s.nearby!.villages = [{ ...A }, { ...B }];
+    s.storesKg = 300;
+    s.coins = 30;
+    withWares(s, 16, 123, 0);
+    const end = start + 20;
+    const whole = advanceVillage(s, end, obstacles, landscape);
+    let parts = s;
+    for (const day of [start + 4, DAY - 1, DAY, DAY + 1, end]) {
+      parts = advanceVillage(parts, day, obstacles, landscape);
+    }
+    expect(JSON.stringify(parts)).toBe(JSON.stringify(whole));
+    const yearly = stewardTrips(whole).find((e) => e.startedDay === DAY + 1)!;
+    expect(yearly.give.wax).toBe(16);
+    expect(yearly.give.coins).toBeGreaterThan(0);
+    expect(coinsOf(whole)).toBe(30);
   });
 });

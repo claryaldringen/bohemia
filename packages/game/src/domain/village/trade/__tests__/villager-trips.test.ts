@@ -13,7 +13,7 @@ import type { ChronicleEvent, MarketResult, PlacedOrder, VillageState } from '..
 import { at } from '../../__tests__/horse-fixtures';
 import { dwelling, trackedVillage, type KinSpec } from '../../__tests__/kin-fixtures';
 import { applyMarketResult, marketCarryKg, marketFreeAdults } from '../market-trip';
-import { planVillagerPurchases, villagerTripsDay } from '../villager-trips';
+import { planVillagerPurchases, priceKg, villagerTripsDay } from '../villager-trips';
 import {
   NOV14,
   NOV15,
@@ -343,6 +343,86 @@ describe('vesničané na trhu – osivo 1. 9. a 1. 3.', () => {
     const s = seedVillage(3);
     expect(seedShortKg(s, SEP1)).toBeCloseTo(3, 6);
     expect(marketTrips(stepped(s, SEP1))).toEqual([]);
+  });
+});
+
+describe('vesničané na trhu – mince neutrácejí (Rozhodnutí plánu 4, bod 4; Martin 25. 11. 2026)', () => {
+  /** Stav po kroku dne s 30 mincemi – bez nich týž jako `plain` po témže kroku. */
+  function expectSameWithCoins(plain: VillageState, day: number): VillageState {
+    const rich = structuredClone(plain);
+    rich.coins = 30;
+    expect(planVillagerPurchases(rich, day, craftCoverage(rich, day))).toEqual(
+      planVillagerPurchases(plain, day, craftCoverage(plain, day)),
+    );
+    const after = stepped(plain, day);
+    const richAfter = stepped(rich, day);
+    for (const trip of marketTrips(richAfter)) expect(trip.give).not.toHaveProperty('coins');
+    expect(richAfter.coins).toBe(30);
+    delete richAfter.coins;
+    expect(JSON.stringify(richAfter)).toBe(JSON.stringify(after));
+    return after;
+  }
+
+  it('nástroje za obilí: s 30 mincemi nákupy, výprava i nosiči bit po bitu jako bez mincí', () => {
+    const after = expectSameWithCoins(villagers(), NOV15);
+    expect(marketTrips(after)).toHaveLength(1);
+    // bez vozu koupí, co lidé unesou – ani pak mince nic nepřidají
+    const walking = villagers();
+    walking.carts = [];
+    expectSameWithCoins(walking, NOV15);
+    // hladina trhu cíle platí jen pro mince
+    const inflated = villagers();
+    inflated.news![0]!.level = 3;
+    expect(stepped(inflated, NOV15).trade).toEqual(stepped(villagers(), NOV15).trade);
+  });
+
+  it('bez přebytku obilí vesničané nic nekoupí, i když má ves mince', () => {
+    const poor = villagers();
+    poor.storesKg = 100;
+    expect(marketTrips(expectSameWithCoins(poor, NOV15))).toEqual([]);
+  });
+
+  it('hotová zakázka, vůz a hřivny na kování: s 30 mincemi totéž', () => {
+    const ordered = villagers();
+    ordered.orders = [
+      { villageId: 'm', name: 'Lhota', good: 'tools', amount: 10, day: NOV14, status: 'ready' },
+    ];
+    expect(marketTrips(expectSameWithCoins(ordered, NOV14))).toHaveLength(1);
+    const cart = villagers(['carpenter']);
+    cart.toolEquipmentKg = toolNeedKg(cart, NOV15) * 2;
+    cart.pens!.push({ ...cart.pens!.at(-1)!, id: 901, cell: { x: 5, y: 4 }, x: 70 });
+    cart.draft = {
+      lastYear: { from: NOV15 - 365, 'two-wheel': [300], 'four-wheel': [], plough: [], oxCost: 12 },
+    };
+    expect(marketTrips(expectSameWithCoins(cart, NOV15))[0]!.market!.wants.twoWheelCarts).toBe(1);
+    const iron = villagers(['smith']);
+    iron.toolEquipmentKg = toolNeedKg(iron, NOV15) * 2;
+    withWorkshop(iron, 'carpenter', 710, {
+      cart: { kind: 'two-wheel', done: CARPENTRY.cartManDays['two-wheel'] },
+    });
+    expect(marketTrips(expectSameWithCoins(iron, NOV14 - 20))).toHaveLength(1);
+  });
+
+  it('osivo platí hřivnami a krávami jako dosud, i když má ves 10 mincí', () => {
+    const s = seedHome(200);
+    s.coins = 10;
+    const after = stepped(s, SEP1);
+    expect(marketTrips(after)[0]!.give).toEqual({ cows: SEED_RESERVE.maxCows, ironBars: 2 });
+    expect(after.coins).toBe(10);
+    expectSameWithCoins(seedHome(200), SEP1);
+  });
+
+  it('cena mince u cíle je kurz ÷ hladina jeho trhu ze zprávy; bez zprávy a bez hladiny 15 kg', () => {
+    const s = villagers();
+    expect(priceKg(s, 'm', 'coins')).toBe(MARKET.grainKgPerCoin);
+    expect(priceKg(s, 'neznámá', 'coins')).toBe(MARKET.grainKgPerCoin);
+    s.news![0] = { ...s.news![0]!, level: 2.5, prices: { grain: 0.2, tools: 5 } };
+    expect(priceKg(s, 'm', 'coins')).toBe(6);
+    expect(priceKg(s, 'neznámá', 'coins')).toBe(MARKET.grainKgPerCoin);
+    // ceny zboží na hladině nezávisí
+    expect(priceKg(s, 'm', 'grain')).toBe(0.2 * MARKET.grainKgPerCoin);
+    expect(priceKg(s, 'm', 'tools')).toBe(5 * MARKET.grainKgPerCoin);
+    expect(priceKg(s, 'm', 'pottery')).toBe(3);
   });
 });
 

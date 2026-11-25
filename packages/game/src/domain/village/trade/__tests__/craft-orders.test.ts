@@ -384,6 +384,56 @@ describe('zakázka při odjezdu výpravy (Rozhodnutí plánu 3, bod 6)', () => {
     expect(resultOf(m, 'market:h:1').ordered).toBeUndefined();
   });
 
+  it('bez obilí s mincemi → zakázka jako u obilí; bez mincí a bez obilí nic (Rozhodnutí plánu 4, bod 4)', () => {
+    const m = smithVillage();
+    expect(marketStance(m, D).offer.tools).toBeUndefined();
+    joinMarket(m, D, arrival({ goods: { coins: 12 } }));
+    marketDay(m, D);
+    expect(m.market!.orders).toEqual([order('h', 10, D)]);
+    const result = resultOf(m, 'market:h:1');
+    expect(result.ordered).toEqual({ tools: 10 });
+    expect(result.unsold).toEqual({ coins: 12 });
+    expect(m.coins).toBeUndefined();
+    const none = smithVillage();
+    joinMarket(none, D, arrival({ goods: {} }));
+    marketDay(none, D);
+    expect(none.market!.orders).toBeUndefined();
+    expect(resultOf(none, 'market:h:1').ordered).toBeUndefined();
+    // bez pracujícího kováře ani s mincemi
+    const plain = marketVillage(-1_000);
+    joinMarket(plain, D, arrival({ goods: { coins: 12 } }));
+    marketDay(plain, D);
+    expect(plain.market!.orders).toBeUndefined();
+  });
+
+  it('co kovář má, koupí výprava za mince, zakázku na zbytek zapíše, dokud jí mince zbývají', () => {
+    // 2 kg nástrojů nad potřebu po 4 mincích, na zbylých 8 kg má výprava ještě 12 mincí
+    const m = smithVillage(2);
+    joinMarket(m, D, arrival({ goods: { coins: 20 } }));
+    marketDay(m, D);
+    const result = resultOf(m, 'market:h:1');
+    expect(result.bought).toEqual({ tools: 2 });
+    expect(result.ordered).toEqual({ tools: 8 });
+    expect(m.market!.orders).toEqual([order('h', 8, D)]);
+    expect(result.unsold).toEqual({ coins: 12 });
+    expect(m.coins).toBe(8);
+    // mince utracené – na zbytek už nemá čím zaplatit
+    const spent = smithVillage(2);
+    joinMarket(spent, D, arrival({ goods: { coins: 8 } }));
+    marketDay(spent, D);
+    expect(resultOf(spent, 'market:h:1').bought).toEqual({ tools: 2 });
+    expect(resultOf(spent, 'market:h:1').ordered).toBeUndefined();
+    expect(spent.market!.orders).toBeUndefined();
+    expect(spent.coins).toBe(8);
+    // koupila celý seznam – mince navíc zakázku nezaloží
+    const full = smithVillage(12);
+    joinMarket(full, D, arrival({ goods: { coins: 60 } }));
+    marketDay(full, D);
+    expect(resultOf(full, 'market:h:1').bought).toEqual({ tools: 10 });
+    expect(resultOf(full, 'market:h:1').unsold).toEqual({ coins: 20 });
+    expect(full.market!.orders).toBeUndefined();
+  });
+
   it('další výprava téže vsi zakázku nahradí (4 kg, ne 14)', () => {
     const m = smithVillage();
     joinMarket(m, D, arrival());

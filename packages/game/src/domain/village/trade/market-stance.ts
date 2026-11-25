@@ -50,7 +50,7 @@ const WANTED_KEY: Record<HorseGood, 'foals' | 'mares' | 'riding'> = {
  * Šum plovoucí čárky v kg: zbytek nad potřebou menší než miligram není nabídka (zásoba rovná cíli
  * dává rozdíl ~1e-8 kg – výprava by ho vezla a kronika psala „0 kg“). Technická mez, ne pravidlo.
  */
-const NOISE_KG = 1e-6;
+export const NOISE_KG = 1e-6;
 
 /** Zapíše do nabídky `offer` zboží `good` – `amount`, nejvýš `villageGoodStock` (šum ne). */
 function giveTo(

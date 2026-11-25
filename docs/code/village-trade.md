@@ -220,8 +220,8 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   jen `state.wares`, nikdy ve wants, vždy celé dolů): vosk celá zásoba `waxKg`, kožešiny
   `sheepFurs + wildFurs − yearlyNeed(…).furs` (`wares/hides.ts`), med `honeyKg − HONEY.kgPerPersonYear ×
 lidé` a jen s obilím nad pojistkou (`grainSpareKg > 0`; výhled `outlook` už ve `marketStance` je).
-  Nabídku berou i cizí kupci (`trade/merchants.ts`); roční výprava správce ji čte, ale nenaloží ji,
-  dokud ji `fitToCrew` plní obilím první (pořadí mění Úloha 9). Jídlo (maso, sýr, luštěniny), kůže
+  Nabídku berou i cizí kupci (`trade/merchants.ts`) a vozí ji roční výprava správce, drahé napřed
+  (`fitToCrew` – village-steward.md, Správce na trhu). Jídlo (maso, sýr, luštěniny), kůže
   a uhlí hostitel nenabízí ani neshání. Lidi nabízí, bez kterých ves pole udrží
   (`peopleSpare` z `vassalage/spare.ts` – po druzích, které jde vybrat celé najednou:
   `emigrantGroups` přes všechny druhy), a shání rodiny, když je půdy víc než práce (`peopleWanted`
@@ -379,15 +379,16 @@ day, order, target, { by?, seedKg?, alone?, service?, kin?, people? })` (mutuje 
     cesta s nejvýš `adults` lidmi a vozy `carts` (vesničané podle toho nakoupí jen to, co unesou).
   - **Mince** (Rozhodnutí plánu 4, body 1 a 4; Martin 25. 11. 2026: „Mince utrácí jen
     vojvoda/správce“): hráč je dává do „Dáš“ (`give.coins` – celé kusy, nejvýš zásoba; kontroly jako
-    u ostatního zboží), na seznam „Dostaneš“ se nedávají (`MARKET_BAD_ORDER` – prodávající je bere za
-    cokoli, co nabízí) a nic jiného se nevolí. Mince výpravy jsou jen ty v nákladu (`goods.coins`): při
-    odjezdu ubydou vsi (`addGood` záporně), v mincovní fázi (`coinPhase` – Trh ve vsi výš) za ně výprava
-    koupí, co jí po zápočtech na seznamu zbylo, a co neutratí, přijde domů v `unsold` – ze zásoby vsi se
-    za výpravu podruhé neplatí. **Cesta domů:** nosiče počítá `marketCrew` z celého seznamu `wants`
-    a mince nic neváží (`carryKg` 0), takže nákup za mince drží nosnost cesty domů stejně jako zápočet –
-    koupí se nejvýš seznam a ten, který volní lidé neunesou, odmítne kontrola (`MARKET_NO_PEOPLE`)
-    i náhled; plná posádka s mincemi vyjede. Neprodané zboží se do cesty zpět nepočítá jako dosud
-    (Rozhodnutí plánu 2, bod 2).
+    u ostatního zboží; správce svým výpravám – village-steward.md, Správce na trhu), na seznam
+    „Dostaneš“ se nedávají (`MARKET_BAD_ORDER` – prodávající je bere za cokoli, co nabízí) a nic jiného
+    se nevolí. Mince výpravy jsou jen ty v nákladu (`goods.coins`): při odjezdu ubydou vsi (`addGood`
+    záporně), v mincovní fázi (`coinPhase` – Trh ve vsi výš) za ně výprava koupí, co jí po zápočtech na
+    seznamu zbylo, a co neutratí, přijde domů v `unsold` – ze zásoby vsi se za výpravu podruhé neplatí.
+    **Cesta domů:** nosiče počítá `marketCrew` z celého seznamu `wants` a mince nic neváží
+    (`carryKg` 0), takže nákup za mince drží nosnost cesty domů stejně jako zápočet – koupí se nejvýš
+    seznam a ten, který volní lidé neunesou, odmítne kontrola (`MARKET_NO_PEOPLE`) i náhled; plná
+    posádka s mincemi vyjede. Neprodané zboží se do cesty zpět nepočítá jako dosud (Rozhodnutí
+    plánu 2, bod 2).
   - **Pryč v pevné dny** (Rozhodnutí 2 – termín trhu je pevný): `expeditionLaborNeed` /
     `workExpeditions` berou nosiče výpravy na trh jen ve dnech `startedDay` … `returnDay` − 1,
     mimo ně nic, i když vsi chyběli dospělí; výprava nemá podíl po stezce. Voli pro koupené vozy
@@ -646,7 +647,8 @@ visitors)` – strany: hostitel a výpravy podle příjezdu, každá nabízí je
   - **Hostitel** (`VillageMarket.orders?`): `recordOrders(state, day, visitor, hostWants)`
     v `departVisitors` – seznam výpravy nahradí zakázky její vsi (novější zakázka téže vsi a zboží
     starou nahradí): výrobek `ORDER_GOODS`, který má výprava ještě na seznamu, s pracujícím
-    řemeslníkem, když výprava pořád veze obilí nebo luštěniny nebo něco, co hostitel po dnešním
+    řemeslníkem, když výprava pořád veze obilí nebo luštěniny, mince (Rozhodnutí plánu 4, bod 4 –
+    řemeslník je bere v mincovní fázi, až po zápočtech) nebo něco, co hostitel po dnešním
     zápočtu shání (`goodsLeft`), zapíše `CraftOrder` { `villageId` kupujícího, `name`, `good`,
     `amount`, `day` } a zapsané jdou do `MarketResult.ordered`; výrobek ze seznamu, který se
     nezapíše (koupený, bez řemeslníka, bez platby, vyzvednutý), starou zakázku smaže – zakázku tak
@@ -710,6 +712,11 @@ visitors)` – strany: hostitel a výpravy podle příjezdu, každá nabízí je
     kováře, žádná výprava vesničanů hřivny neveze a nečeká se na zakázku → `wants.ironBars` =
     rozdíl u nejbližší vsi s kovářem (kromě té, která zakázku nevzala), platba z přebytku;
     hřivny doma vůz dokončí (`cartIronDay`).
+  - **Mince neutrácejí** (Rozhodnutí plánu 4, bod 4; Martin 25. 11. 2026: „Mince utrácí jen
+    vojvoda/správce“): `PaymentPool`, `payValues`, `pay`, `buyWith` ani `seedTrip` mince neznají –
+    platí se obilím a luštěninami, osivo hřivnami a krávami, i když má ves mincí dost.
+    `priceKg(state, villageId, 'coins')` (`MARKET.grainKgPerCoin` ÷ hladina cíle `VillageNews.level`,
+    chybí = 1) čte jen správce (village-steward.md – Správce na trhu).
   - **Lidé a vozy dne se dělí:** výprava dne (`Haul`) vznikne až s prvním nákupem a pamatuje si
     nosiče a dopravní vozy (`shareCrews` – v pořadí výprav každá vezme `marketCrew` ze zbytku
     vozů). Kolik další nákup unese, počítá `spaceFor` z volných dospělých a dopravních vozů bez

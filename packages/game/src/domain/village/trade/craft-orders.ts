@@ -27,7 +27,7 @@ import type {
   TradeGoods,
   VillageState,
 } from '../types';
-import { ORDER_CRAFT, ORDER_GOODS, TRADE_GOODS, onlyGoods } from './goods';
+import { COIN_GOOD, ORDER_CRAFT, ORDER_GOODS, TRADE_GOODS, onlyGoods } from './goods';
 import { priceOf } from './market-prices';
 import { craftOffer } from './market-stance';
 import { marketTravelDays } from './market-trip';
@@ -143,10 +143,10 @@ export function orderTargets(state: VillageState, day: number): Record<OrderGood
  * nahradí zakázky její vsi u hostitele – novější zakázka téže vsi na totéž zboží tu starou nahradí:
  * výrobek dílny (`ORDER_GOODS`), který má výprava ještě na seznamu a jehož řemeslník ve vsi
  * pracuje, hostitel zapíše jako zakázku, když výprava pořád veze obilí nebo luštěniny (řemeslník je
- * bere vždy) nebo něco, co hostitel shání (`hostWants`). Výrobek ze seznamu, který se nezapíše
- * (koupený, bez pracujícího řemeslníka, bez platby, vyzvednutá hotová zakázka – `pickedUp`), starou
- * zakázku té vsi smaže – kupující vede zakázku podle `ordered` (`rememberOrders`), takže ji obě vsi
- * vedou stejně. Vrací, co se zapsalo (`MarketResult.ordered`).
+ * bere vždy), mince (Rozhodnutí plánu 4, bod 4) nebo něco, co hostitel shání (`hostWants`). Výrobek
+ * ze seznamu, který se nezapíše (koupený, bez pracujícího řemeslníka, bez platby, vyzvednutá hotová
+ * zakázka – `pickedUp`), starou zakázku té vsi smaže – kupující vede zakázku podle `ordered`
+ * (`rememberOrders`), takže ji obě vsi vedou stejně. Vrací, co se zapsalo (`MarketResult.ordered`).
  */
 export function recordOrders(
   state: VillageState,
@@ -159,7 +159,9 @@ export function recordOrders(
   if (!market) return ordered;
   const carries = (good: TradeGood): boolean => (visitor.goods[good] ?? 0) > 0;
   const pays =
-    CRAFT_PAY.some(carries) || TRADE_GOODS.some((g) => carries(g) && (hostWants[g] ?? 0) > 0);
+    CRAFT_PAY.some(carries) ||
+    carries(COIN_GOOD) ||
+    TRADE_GOODS.some((g) => carries(g) && (hostWants[g] ?? 0) > 0);
   for (const good of ORDER_GOODS) {
     const amount = visitor.wants[good] ?? 0;
     // jen zboží ze seznamu výpravy – co ještě shání, nebo už koupila

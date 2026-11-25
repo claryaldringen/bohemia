@@ -58,7 +58,7 @@ import type {
   VillagerRetry,
 } from '../types';
 import { orderRefused, placedOrder, readyOrders } from './craft-orders';
-import { CART_GOODS, ORDER_CRAFT, cartGoodKind } from './goods';
+import { CART_GOODS, COIN_GOOD, ORDER_CRAFT, cartGoodKind } from './goods';
 import { priceOf } from './market-prices';
 import {
   departMarketInPlace,
@@ -125,10 +125,14 @@ function isOn(day: number, date: { month: number; day: number }): boolean {
 
 /**
  * Cena zboží u vsi `villageId` v kg obilí (Rozhodnutí plánu 3, bod 7): cena trhu ze zprávy na pivo
- * × `MARKET.grainKgPerCoin`, bez zprávy výchozí (`TRADE_GOOD_VALUES`).
+ * × `MARKET.grainKgPerCoin`, bez zprávy výchozí (`TRADE_GOOD_VALUES`). Mince má cenu kurzu ÷ hladina
+ * trhu cíle (`VillageNews.level`, chybí = 1; Rozhodnutí plánu 4, bod 3) – platí jí jen správce,
+ * vesničané mince neutrácejí (bod 4).
  */
 export function priceKg(state: VillageState, villageId: string, good: TradeGood): number {
-  const prices = state.news?.find((n) => n.villageId === villageId)?.prices;
+  const news = state.news?.find((n) => n.villageId === villageId);
+  if (good === COIN_GOOD) return MARKET.grainKgPerCoin / (news?.level ?? 1);
+  const prices = news?.prices;
   return prices?.[good] === undefined
     ? TRADE_GOOD_VALUES[good].valueKg
     : priceOf(prices, good) * MARKET.grainKgPerCoin;
