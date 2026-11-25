@@ -15,7 +15,10 @@ import { withBuiltFirstDwelling } from '../../__tests__/village-fixtures';
 import { CARRIED_STOCKS, takeCarriedStocks } from '../belongings';
 import {
   departVillage,
+  departureBlock,
   everyoneLeaves,
+  MARKET_AWAY,
+  wholeVillageBlock,
   leavingFood,
   leavingSeedKg,
   settlersOf,
@@ -549,5 +552,137 @@ describe('zásoby k odnesení – jeden seznam (CARRIED_STOCKS)', () => {
     expect(everyoneLeaves(7, 7)).toBe(true);
     expect(everyoneLeaves(6, 7)).toBe(false);
     expect(everyoneLeaves(0, 0)).toBe(false);
+  });
+});
+
+/** Výprava na trh ve vsi – lidé a vozy jsou pryč do `market.returnDay`. */
+function withMarketTrip(s: VillageState): VillageState {
+  s.trade = {
+    nextId: 2,
+    expeditions: [
+      {
+        id: 1,
+        kind: 'market',
+        direction: 'S',
+        trailId: -1,
+        startedDay: DAY - 1,
+        give: {},
+        get: {},
+        porters: 2,
+        days: 4,
+        cost: 8,
+        done: 1,
+      },
+    ],
+  };
+  return s;
+}
+
+describe('výprava na trhu při odchodu celé vsi', () => {
+  it('odchází-li všichni a výprava je na trhu, odejít nejde; po návratu ano', () => {
+    const s = withMarketTrip(richVillage());
+    expect(MARKET_AWAY).toBe('Výprava se ještě nevrátila z trhu.');
+    expect(departureBlock(s, households(s), DAY)).toBe(MARKET_AWAY);
+    expect(wholeVillageBlock(s)).toBe(MARKET_AWAY);
+    expect(() => departVillage(s, DAY, households(s))).toThrow(MARKET_AWAY);
+    s.trade!.expeditions = [];
+    expect(departureBlock(s, households(s), DAY)).toBeNull();
+    expect(wholeVillageBlock(s)).toBeNull();
+  });
+
+  it('odchod části lidí a obchod se sousedem a zásilka beze změny', () => {
+    const s = withMarketTrip(richVillage());
+    expect(departureBlock(s, [households(s)[1]!], DAY)).toBeNull();
+    s.trade!.expeditions[0] = { ...s.trade!.expeditions[0]!, kind: 'shipment' };
+    delete s.trade!.expeditions[0]!.market;
+    expect(departureBlock(s, households(s), DAY)).toBeNull();
+    expect(wholeVillageBlock(s)).toBeNull();
+  });
+});
+
+describe('ves na útěku odejde celá', () => {
+  it('lidé ukrytí v lese jdou s ostatními a nová ves staví bez NaN', () => {
+    const landscape = land(60);
+    const obstacles = obstaclesOf(landscape);
+    const s = richVillage();
+    s.refuge = {
+      refId: 'r1',
+      campaignId: 'c1',
+      mode: 'all',
+      departedDay: DAY - 2,
+      hidden: { foodKg: 70, herd: { sheep: 2, goat: 0, pig: 1, cow: 0 } },
+    };
+    for (const p of s.people) p.away = { kind: 'refuge', refId: 'r1' };
+    const { settlers } = departVillage(s, DAY, households(s), 'E');
+    expect(settlers.people).toHaveLength(s.people.length);
+    expect(settlers.people.every((p) => p.away === undefined)).toBe(true);
+    const start: VillageState = {
+      ...travellingVillage(settlers, 42, DAY, ON_THE_WAY),
+      steward: newSteward(DAY, true),
+    };
+    const later = advanceVillage(start, DAY + 100, obstacles, landscape);
+    expect(later.journey).toBeUndefined();
+    expect(later.people.length).toBeGreaterThanOrEqual(s.people.length);
+    expect(later.people.filter((p) => p.away !== undefined)).toEqual([]);
+    expect(later.dwellings.length + later.constructions.length).toBeGreaterThan(0);
+    expect(JSON.stringify(later)).not.toContain('null,null');
+    expect(Number.isFinite(later.storesKg)).toBe(true);
+    expect(JSON.stringify(later)).not.toMatch(/NaN/);
+  });
+});
+
+describe('pojistka zásob – nic ve vsi nezůstane bez rozhodnutí', () => {
+  it('každá část stavu bohaté vsi je odnesená, řešená jinde, nebo výslovně zůstává', () => {
+    // ve vsi zůstává, protože to nejde odnést (návrh Clauda – belongings.ts)
+    const stays = [
+      'dwellings',
+      'constructions',
+      'fields',
+      'woodLogs',
+      'logStacks',
+      'stoneM3',
+      'stoneStacks',
+      'grainPits',
+      'grainPitWork',
+      'chronicle',
+      'lastDay',
+      'seed',
+      'nextId',
+      'foundedDay',
+      'steward',
+      'parts',
+      'season',
+      'threshingSeason',
+      'sowingRotation',
+      'hungry',
+      'commonLaborHistory',
+      'clearedObstacles',
+      'felledTrees',
+      'manorId',
+      'armsCapped',
+    ];
+    // řeší departure.ts jinde – lidé, jídlo, osivo, stáda, zvířata, vozy
+    const handled = [
+      'people',
+      'dynasty',
+      'storesKg',
+      'reservedSeedKg',
+      'reservedSeedUntilDay',
+      'sowingSeed',
+      'meatKg',
+      'slaughterMeatKg',
+      'cheeseKg',
+      'legumesKg',
+      'applesKg',
+      'livestock',
+      'pens',
+      'looseOxen',
+      'looseHorses',
+      'carts',
+    ];
+    const known = new Set<string>([...CARRIED_STOCKS, ...stays, ...handled]);
+    const unknown = Object.keys(richVillage()).filter((key) => !known.has(key));
+    // nová část stavu: buď ji odnést (CARRIED_STOCKS), nebo ji sem výslovně zařadit
+    expect(unknown).toEqual([]);
   });
 });

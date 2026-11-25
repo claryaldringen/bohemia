@@ -1,7 +1,6 @@
-import { leavingCart, villageCarts } from '../crafts/carts';
+import { leavingCart } from '../crafts/carts';
 import {
   departLeavers,
-  everyoneLeaves,
   leavingFood,
   leavingSeedKg,
   isVillageDormant,
@@ -256,11 +255,7 @@ export function sonDeparturePreview(
   if (!share) return null;
   const leaving = new Set(share.personIds);
   const leavers = state.people.filter((p) => leaving.has(p.id));
-  const cart =
-    (everyoneLeaves(leavers.length, state.people.length)
-      ? villageCarts(state)[0]
-      : leavingCart(state, day)?.cart
-    )?.kind ?? null;
+  const cart = leavingCart(state, day)?.cart.kind ?? null;
   const food = leavingFood(state, leavers, day, cart);
   const manorId = villageManorId(state);
   const outline = new Set(share.dwellingIds);

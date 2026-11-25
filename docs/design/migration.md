@@ -110,8 +110,8 @@ když ves přeroste, co ji mapa uživí (Martin) – a stará ves zůstane.
   dvoukolák, nejmladší vůz; voli s nejdelší zbývající službou (`leavingCart` v `carts.ts`). S vozem
   **unesou víc jídla** – navíc náklad vozu (dvoukolák 400 kg, čtyřkolák 800 kg), pořád nejvýš
   poměrný díl zásob vsi. V nové
-  vsi je vůz její; voli čekají **bez ohrady** (`VillageState.looseOxen` – žerou seno jako voli
-  v ohradě) a s **hotovou ohradou volů** do ní přejdou (do míst všech ohrad volů; kdo mezitím
+  vsi je vůz její; voli čekají **bez ohrady** (`VillageState.looseOxen` – seno nežerou, `feedHay` je nepočítá; viz
+  Otevřené) a s **hotovou ohradou volů** do ní přejdou (do míst všech ohrad volů; kdo mezitím
   doslouží, jde na maso). Vůz bez ohrady volů nejezdí (nemá odkud). Ves na cestě vůz a voly nese
   s sebou. Popisek tlačítek odchodu ukáže vůz (ikona vozu a druh); u celé vsi počet zvířat a vozů
   a řádek „Celá ves – berou si úplně vše“.
@@ -164,7 +164,7 @@ když ves přeroste, co ji mapa uživí (Martin) – a stará ves zůstane.
 | Mřížka map každého hráče zvlášť, sídelní sídlo v (0, 0); cesta 1–3 dny podle vzdálenosti ke kraji         | návrh Clauda                                      |
 | Vlastní ves v sousední mapě nahradí souseda bez simulace – tím směrem se neodchází ani neobchoduje        | návrh Clauda                                      |
 | Odcházející si vezmou volný vůz s voly a víc jídla                                                        | návrh Clauda, Martin („Ano, udělej to jak říkáš“) |
-| Volný vůz = voli nad páry k rádlům (celá ves bere všechny); napřed čtyřkolák; voli v nové vsi bez ohrady  | rozhodnutí Clauda                                 |
+| Volný vůz = voli nad páry k rádlům (celá ves bere všechny); napřed čtyřkolák; voli v nové vsi bez ohrady  | návrh Clauda                                      |
 | Osivo na první osev: půl roční potřeby, ze svého dílu zásob, 20 kg na nosiče, na voze po jídle na 180 dní | Martin (27. 10. 2026), čísla návrh Clauda         |
 
 ## Na stavitelích
@@ -319,8 +319,11 @@ když ves přeroste, co ji mapa uživí (Martin) – a stará ves zůstane.
 
 ### Otevřené po fázích 3 a 4
 
-- Zboží výpravy na trh, která je při odchodu celé vsi na cestě: výsledek trhu přijde do opuštěné
-  vsi a propadne (jako dosud) – podle „berou si úplně vše“ by měl dojít za lidmi.
+- **Chyba, ne pravidlo:** voli bez ohrady (`looseOxen`) seno nežerou – `feedHay` je nepočítá –, takže
+  nová ves je krmí zadarmo, dokud nemá ohradu volů. Dřívější věta „žerou seno jako voli v ohradě“
+  nebyla pravda; správně mají seno žrát (koně bez ohrady ho žerou).
+- Celá ves při odchodu nevyráží, dokud je výprava na trhu (návrh Clauda; precedens expeditions.md –
+  „Kdo je na výpravě, ze vsi neodejde“) – zboží trhu by jinak propadlo staré vsi.
 - Přesun zásob a lidí mezi vlastními vsemi a obchod s nimi (dnes ne-cíl).
 - Sdílený svět všech hráčů v jedné mřížce (rozmístění nových hráčů, NPC vojvodové na volných
   políčkách).

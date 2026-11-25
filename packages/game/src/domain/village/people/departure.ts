@@ -20,7 +20,7 @@ import {
 import { removePeople } from './kinship';
 import { villageManor } from './manor';
 import { dwellingGatePoint } from '../paths/network-grid';
-import { ageGroup, ageYears, onExpedition } from './people';
+import { ageGroup, ageYears, hidesInForest, onExpedition } from './people';
 import { relocationBlock } from './relocation';
 import { leavingCart, takeLeavingCart } from '../crafts/carts';
 import {
@@ -193,6 +193,17 @@ export function journeyArrived(state: Pick<VillageState, 'journey'>, day: number
   return state.journey !== undefined && day >= state.journey.arrivalDay;
 }
 
+/** Celá ves neodejde, dokud je výprava na trhu (expeditions.md – Kdo je na výpravě, ze vsi neodejde). */
+export const MARKET_AWAY = 'Výprava se ještě nevrátila z trhu.';
+
+/**
+ * Proč celá ves odejít nemůže, nebo null: výprava na trh je pryč s lidmi a zbožím, které by
+ * v nové vsi chybělo (návrh Clauda; Martin 25. 11. 2026: „berou si úplně vše“).
+ */
+export function wholeVillageBlock(state: Pick<VillageState, 'trade'>): string | null {
+  return state.trade?.expeditions.some((e) => e.kind === 'market') ? MARKET_AWAY : null;
+}
+
 /**
  * Proč domácnosti obydlí `dwellingIds` v den `day` odejít nemůžou – česky pro hráče, nebo null. Kdo
  * je na výpravě (`onExpedition`), odejít nemůže – ani jeho domácnost (expeditions.md – Odchod ze vsi).
@@ -214,6 +225,8 @@ export function departureBlock(
   if (state.people.some((p) => households.has(p.dwellingId) && onExpedition(p, day))) {
     return 'Někdo z domácnosti je na výpravě.';
   }
+  const leaving = state.people.filter((p) => households.has(p.dwellingId)).length;
+  if (everyoneLeaves(leaving, state.people.length)) return wholeVillageBlock(state);
   return null;
 }
 
@@ -643,6 +656,8 @@ export function departLeavers(
     const copy = { ...p };
     // manžel zůstal ve staré vsi (vdaná do jiného domu) – v nové vsi je ovdovělý
     if (copy.spouseId !== undefined && !leaving.has(copy.spouseId)) delete copy.spouseId;
+    // ukrytí v lese jdou s ostatními – návrat `refuge-back` by chodil do staré vsi (návrh Clauda)
+    if (all && hidesInForest(copy)) delete copy.away;
     return copy;
   });
   return {

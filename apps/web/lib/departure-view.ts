@@ -9,6 +9,7 @@ import {
   sonDeparturePreview,
   travelDays,
   villageCentre,
+  wholeVillageBlock,
   wholeVillagePreview,
   type CartKind,
   type Direction8,
@@ -39,6 +40,8 @@ export interface VillageLeave {
   directions: LeaveDirection[];
   cart: CartKind | null;
   all: WholeVillagePreview;
+  /** Proč celá ves odejít nemůže (výprava je na trhu), nebo null – platí jen pro odchod všech. */
+  allBlocked: string | null;
 }
 
 /**
@@ -165,6 +168,7 @@ export function leaveOptions(
   return {
     cart: leavingCart(state, state.lastDay)?.cart.kind ?? null,
     all: wholeVillagePreview(state, state.lastDay),
+    allBlocked: wholeVillageBlock(state),
     directions: DIRECTIONS.map((direction) => {
       const own = ownMaps[direction];
       return {

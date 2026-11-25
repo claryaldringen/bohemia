@@ -1690,7 +1690,17 @@ function leaveDetails(view: VillageView, ids: readonly number[]): SelectionLeave
   // odcházejí-li všichni, berou si úplně vše (migration.md – Co si vezmou)
   if (everyoneLeaves(people, total)) {
     const { foodKg, animals, carts } = view.leave.all;
-    return { households, people, foodKg, cart: null, all: { animals, carts }, directions };
+    const { allBlocked } = view.leave;
+    return {
+      households,
+      people,
+      foodKg,
+      cart: null,
+      all: { animals, carts },
+      directions: allBlocked
+        ? directions.map((d) => ({ ...d, blocked: d.blocked ?? allBlocked }))
+        : directions,
+    };
   }
   const { cart } = view.leave;
   const budget = carriers * LEAVING.carryKgPerPerson + (cart ? CARTS.loadKg[cart] : 0);
