@@ -754,6 +754,11 @@ export type ChronicleEvent = { day: number } & (
       /** Přišel kovář kovat koně (`MarketArrival.service`), ne obchodník; jinak chybí. */
       smith?: true;
     }
+  /**
+   * Na trh vsi u stezky přijeli cizí kupci (markets.md – Rozhodnutí plánu 4, bod 5) – co prodávají,
+   * co shánějí a kolik mincí mají v měšci; odkud jsou, hra neví.
+   */
+  | { kind: 'merchants-arrived'; sells: TradeGoods; buys: TradeGoods; coins: number }
   /** Tržní den – co ves na svém trhu prodala a koupila (markets.md – Pravidla 3 a 5). */
   | { kind: 'market-held'; sold: TradeGoods; bought: TradeGoods }
   /**

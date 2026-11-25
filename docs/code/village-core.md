@@ -93,7 +93,9 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   práce (domácnost, koně, dílny, výpravy a vozy pro kováře beze změny). Ráno každého dne
   (`advanceVillageSteps`): návraty domů (`returnHome`), vozy výprav na trh od prvního dne doma
   (`marketTripsDay` – village-trade.md, Výprava na trh), události schránky (`applyInboxDay`), hned
-  po nich **trh ve vsi** (`marketDay` – výprava, která dnes přijela, obchoduje už dnes; zápisy
+  po nich příjezd **cizích kupců** (`merchantsArrive` – jen ves se zastávkou dálkové stezky
+  a v den plánu; village-trade.md – Cizí kupci ve vsi), **trh ve vsi** (`marketDay` – výprava
+  i kupci, kteří dnes přijeli, obchodují už dnes; zápisy
   kroniky za příjezdem; village-trade.md – Trh ve vsi) a úmrtí na rány (`woundDeathsDay`). Po práci
   dne napřed hotové zakázky (`fillOrders` – před opotřebením `wearCraftStocks`; village-trade.md –
   Zakázky). Hned za rezervou osiva (`seedReserveDay`), před `work()`, vesničané na trhu

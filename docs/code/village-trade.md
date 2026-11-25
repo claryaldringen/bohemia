@@ -230,9 +230,9 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   Clauda).
 - **Trh ve vsi** (markets.md – Pravidla 2, 3, 5 a 8, Rozhodnutí plánu 2, body 4–7; `trade/market.ts`,
   typy `types-market.ts`). Trh drží stav hostitelské vsi (`VillageState.market` – `VillageMarket`:
-  ceny `prices`, hladina `level?`, výpravy na trhu `visitors`, `nextOrder`, paměť příjezdů
-  `arrivals`) a počítá jen ze stavu hostitele a událostí schránky dne, takže výsledek nezávisí na
-  kouscích dopočtu.
+  ceny `prices`, hladina `level?`, výpravy a cizí kupci na trhu `visitors` (Cizí kupci ve vsi níž),
+  `nextOrder`, paměť příjezdů `arrivals`) a počítá jen ze stavu hostitele a událostí schránky dne,
+  takže výsledek nezávisí na kouscích dopočtu.
   - **Příjezd:** událost schránky `market-arrive` s `MarketArrival` (klíč `market:<domovská
 ves>:<id výpravy>`, `stayDays`, `travelDays`, zboží `goods` – koně i tady jako počty po
     druzích, koně po kusech `MarketHorse` { `good`, `horse` }, seznam `wants`, zpráva na pivo
@@ -251,7 +251,7 @@ ves>:<id výpravy>`, `stayDays`, `travelDays`, zboží `goods` – koně i tady 
     Rozhodnutí plánu 3, bod 11) zbožím není (lidé příjezdu se do `goods` nepočítají) – usadí se hned
     po příjezdu (`receiveKin` – village-people.md, Sňatky – se sousedy; kronika svatby nebo
     `newcomer` za `market-arrived`).
-  - **Tržní den:** `marketDay(state, day)` – krok dne hned po událostech schránky
+  - **Tržní den:** `marketDay(state, day)` – krok dne hned po událostech schránky a příjezdu kupců
     (village-core.md – Pořadí práce dne). Bez návštěvníků nic (stav beze změny, klíč `market`
     nevznikne). Výprava se `service` (kovář souseda) ani doprovod partnera (`kin`) neobchodují –
     jen v poslední den odjedou; jsou-li na trhu jen ony, tržní den není (ceny stojí). Jinak dva
@@ -270,8 +270,8 @@ ves>:<id výpravy>`, `stayDays`, `travelDays`, zboží `goods` – koně i tady 
     (`settlePeople`, kronika `newcomer` za `market-held`); zbytky do šumu plovoucí čárky se smažou; prodej zakázkového zboží vsi se
     zakázkou ji zmenší, hotovou uzavře (`reduceOrder` – Zakázky níž). Pak
     `market.prices = nextPrices(…)` z původních nabídek a seznamů dne bez mincí (`totalGoods` –
-    i s obilím za výrobky, jako v jednom zápočtu) a kronika `market-held` (co ves prodala a koupila
-    ve všech fázích, i mince – jen když něco).
+    i s obilím za výrobky, jako v jednom zápočtu; u cizího kupce místo seznamu `affordableWants`)
+    a kronika `market-held` (co ves prodala a koupila ve všech fázích, i mince – jen když něco).
   - **Mincovní fáze** `coinPhase` (Rozhodnutí plánu 4, body 2–4; mutuje): spustí se, jen když nějaký
     návštěvník veze mince (`goods.coins`) a něco mu na seznamu zbylo – mince v zásobě vsi ji samy
     nespustí a trh bez mincí je bit po bitu jako dřív. Strany `coinClearing`: hostitel (0 mincí,
@@ -286,8 +286,9 @@ ves>:<id výpravy>`, `stayDays`, `travelDays`, zboží `goods` – koně i tady 
     přes `departMarketInPlace` až do `MarketVisitor.by`) v mincovní fázi jen prodává – má
     `wants: {}`, mince jdou domů (Martin 25. 11. 2026: „Mince utrácí jen vojvoda/správce“); výprava
     bez `by` je hráčova či správcova jako dosud.
-  - **Odjezd:** návštěvník s `lastDay ≤ day` odjede – do odchozí schránky `VillageState.outbox`
-    (`VillageMail` { `villageId`, `day`, `ref`, `body` } – tvar nové události schránky) jde
+  - **Odjezd:** návštěvník s `lastDay ≤ day` odjede (`departVisitors`) – do odchozí schránky
+    `VillageState.outbox` (`VillageMail` { `villageId`, `day`, `ref`, `body` } – tvar nové události
+    schránky; cizí kupec domov nemá a nic neposílá – Cizí kupci ve vsi níž) jde
     `market-result` k domovské vsi na den `day + 1 + travelDays` (`ref` `marketResultRef` =
     `…:out`; příjezd má `marketArrivalRef` = `…:in`) se zprávou o hostiteli (`villageReport`), cenami
     trhu, hladinou (`level`, jen ≠ 1) a zakázkami, které hostitel zapsal (`recordOrders` – Zakázky
@@ -503,14 +504,40 @@ day, order, target, { by?, seedKg?, alone?, service?, kin?, people? })` (mutuje 
   cestě; `trailStops`, world.md – Zastávky stezky) a roku, nic se neukládá a výsledek nezávisí na
   kouscích dopočtu. `merchantVisits(stops, fromDay, toDay)` vrátí příjezdy dnů včetně
   (`MerchantVisit`: `key` `merchants:<zastávka>:<rok>:<průjezd>`, `day` – první tržní den kupců)
-  seřazené podle dne, pak `key`. Spojení má `passesPerYear` = 4 průjezdy za rok; průjezd 0–3 začíná
-  1. 1. + průjezd × `passSpacingDays` (91) + los 0–59 (`passWindowDays` 60) a jede od prvního uzlu,
-  nebo zpátky (oba losy `createRandom(deriveSeed(seed, 'pass:<rok>:<průjezd>'))`), den ve vsi =
-  začátek + políčka od začátku jízdy × `daysPerCell`. Prochází jen roky, odkud průjezd mohl dojet (od
-  `fromDay` − délka cesty – poslední průjezd roku smí dojet až po Novém roce), v mezích světa (dny 0 …
-  `TOTAL_GAME_DAYS` − 1, roky 500–1499). `nextMerchantVisit(stops, fromDay)` – nejbližší příjezd, bez
-  zastávek a u konce světa null. Po ostrém spuštění se plán nemění (zlatý otisk
-  v `merchant-plan.test.ts`). Dotaz na den stojí ≈ 2 µs na zastávku.
+  seřazené podle dne, pak `key`. Spojení má `passesPerYear` = 4 průjezdy za rok; průjezd 0–3
+  začíná v den 1. 1. + průjezd × `passSpacingDays` (91) + los 0–59 (`passWindowDays` 60) a jede od
+  prvního uzlu, nebo zpátky (oba losy `createRandom(deriveSeed(seed, 'pass:<rok>:<průjezd>'))`), den
+  ve vsi = začátek + políčka od začátku jízdy × `daysPerCell`. Prochází jen roky, odkud průjezd mohl
+  dojet (od `fromDay` − délka cesty – poslední průjezd roku smí dojet až po Novém roce), v mezích
+  světa (dny 0 … `TOTAL_GAME_DAYS` − 1, roky 500–1499). `nextMerchantVisit(stops, fromDay)` –
+  nejbližší příjezd, bez zastávek a u konce světa null. Po ostrém spuštění se plán nemění (zlatý
+  otisk v `merchant-plan.test.ts`). Dotaz na den stojí ≈ 2 µs na zastávku.
+
+- **Cizí kupci ve vsi** (markets.md – Rozhodnutí plánu 4, body 3 a 5; `trade/merchants.ts`). Zastávky
+  vsi nese `VillageState.merchantStops` (chybí = ještě nezjištěno, `[]` = mapa bez stezky; nese seed,
+  klientovi se neposílá) – ves bez nich žije bit po bitu jako bez kupců.
+  - **Příjezd:** `merchantsArrive(state, day)` – krok dne po událostech schránky a před `marketDay`
+    (village-core.md – Pořadí práce dne), takže kupec obchoduje už v den příjezdu. Za každý příjezd
+    `merchantVisits(merchantStops, day, day)` založí návštěvníka trhu (trh vznikne, chybí-li):
+    `MarketVisitor` s `merchant: true`, klíčem průjezdu, pořadím příjezdu za výpravami dne, pobytem na
+    den, bez domovské vsi (`fromVillageId` a `fromName` prázdné), nákladem `MERCHANTS.goods` a měšcem
+    `MERCHANTS.coins` v `goods.coins`, seznamem `MERCHANTS.wants` (kopie). Dva průjezdy téhož dne
+    (křižovatka) jsou dva kupci, každý se svým měšcem; klíč, který na trhu už stojí, se znovu
+    nezaloží. Poznámka v `market.arrivals` bez jména a vsi se značkou `merchants` a druhy zbroje
+    (posledních `MARKET.report.traders` jako u výprav) a kronika `merchants-arrived` (`sells`, `buys`,
+    `coins`).
+  - **Obchod:** kupec je strana zápočtu (zbroj za med, vosk a kožešiny) i mincovní fáze – v ní kupuje
+    první, podle celého seznamu a za svůj měšec. Do ceny dne (`nextPrices`) jde jeho poptávka jen do
+    výše měšce ráno: `affordableWants(visitor, prices, level)` – u každého zboží seznamu nejvýš
+    ⌊měšec ÷ `coinPriceOf`⌋ celých jednotek, nic chybí. Cena věci, kterou na trhu nikdo nenabízí, tak
+    přestane růst nad měšcem (kožešina po 50 průjezdech na 62,6 mince).
+  - **Pobyt:** `extendMerchants(market, day)` v `marketDay` před odjezdy – kupec, kterému pobyt dnes
+    končí, zůstane další den, když je na trhu aspoň `MERCHANTS.busyVisitors` výprav (bez kupců, kováře
+    souseda a doprovodu partnera), nejvýš `MERCHANTS.maxStayDays` dní.
+  - **Odjezd:** `departVisitors` kupce odebere bez zakázek (`recordOrders`) a bez zprávy do odchozí
+    schránky – měšec, neprodaná zbroj a koupené zboží odejdou ze světa. Jen příjezdem kupců mince
+    a zbroj vznikají a jen jejich odjezdem zanikají. Do spící vsi (`isVillageDormant`) nepřijedou;
+    kupec, který na trhu zaniklé vsi stál, v jejím stavu zůstane i s měšcem.
 
 - **Nástroje a dřevěné nářadí** (markets.md – Rozhodnutí plánu 3, bod 4): `TradeGood` += `tools` /
   `woodTools` (`TRADE_GOODS` za keramikou – i pořadí zápočtu), hodnoty v `TRADE_GOOD_VALUES` 60

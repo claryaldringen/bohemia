@@ -60,6 +60,11 @@ export interface MarketArrivalNote {
   goods: TradeGood[];
   /** Přišel kovář kovat koně (`MarketArrival.service`) – ne obchodník s hřivnami; jinak chybí. */
   smith?: true;
+  /**
+   * Přijeli cizí kupci (Rozhodnutí plánu 4, body 5 a 8) – jméno je prázdné a ves chybí, kupec žádnou
+   * nemá; jinak chybí.
+   */
+  merchants?: true;
 }
 
 /**
@@ -167,8 +172,8 @@ export interface MarketKin {
 }
 
 /**
- * Výprava na trhu vsi hostitele (markets.md – Pravidla 3): v pořadí příjezdu (`order`) prodává
- * a kupuje každý tržní den až do `lastDay` včetně, pak odjede.
+ * Výprava nebo cizí kupec (`merchant`) na trhu vsi hostitele (markets.md – Pravidla 3): v pořadí
+ * příjezdu (`order`) prodává a kupuje každý tržní den až do `lastDay` včetně, pak odjede.
  */
 export interface MarketVisitor {
   key: string;
@@ -218,8 +223,9 @@ export interface MarketVisitor {
    */
   kin?: MarketKin;
   /**
-   * Cizí kupec, ne výprava z jiné vsi (markets.md – Rozhodnutí plánu 4, body 2 a 5) – v mincovní
-   * fázi kupuje první. Chybí = výprava.
+   * Cizí kupec, ne výprava z jiné vsi (markets.md – Rozhodnutí plánu 4, body 2 a 5) – nemá domovskou
+   * ves (`fromVillageId` a `fromName` prázdné), v mincovní fázi kupuje první, na rušném trhu zůstane
+   * déle (`extendMerchants`) a odjede bez pošty (`departVisitors`). Chybí = výprava.
    */
   merchant?: true;
   /** Kdo výpravu poslal (`MarketArrival.by`); chybí = hráč nebo správce jako dosud. */
@@ -285,9 +291,9 @@ export interface VillageMarket {
    * chybí = 1.
    */
   level?: number;
-  /** Výpravy, které na trhu stojí, v pořadí příjezdu. */
+  /** Výpravy a cizí kupci, kteří na trhu stojí, v pořadí příjezdu. */
   visitors: MarketVisitor[];
-  /** Pořadí příští výpravy, která přijede. */
+  /** Pořadí příští výpravy nebo kupce, který přijede. */
   nextOrder: number;
   /** Posledních `MARKET.report.traders` příjezdů, pořadí zápisu. */
   arrivals: MarketArrivalNote[];

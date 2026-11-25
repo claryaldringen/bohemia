@@ -63,6 +63,7 @@ import type {
 import type { CartDrive, RoadGrade, VillageRoads } from './types-roads';
 import type { VillageRoutes } from './types-routes';
 import type {
+  MerchantStop,
   PlacedOrder,
   VillageMail,
   VillageMarket,
@@ -725,9 +726,15 @@ export interface VillageState {
   trade?: VillageTrade;
   /**
    * Trh vsi (markets.md – Pravidla 3, Rozhodnutí plánu 2) – ceny, výpravy na trhu a paměť příjezdů
-   * obchodníků. Vznikne s první výpravou, která přijede; chybí = nic.
+   * obchodníků. Vznikne s první výpravou nebo s prvními kupci, kteří přijedou; chybí = nic.
    */
   market?: VillageMarket;
+  /**
+   * Zastávky dálkových stezek ve vsi (markets.md – Rozhodnutí plánu 4, bod 5) – z nich se počítá, kdy
+   * přijedou cizí kupci (`merchantVisits`). Chybí = ještě nezjištěno, [] = mapa bez stezky. Nese seed
+   * stezky, klientovi se nikdy neposílá.
+   */
+  merchantStops?: MerchantStop[];
   /**
    * Odchozí schránka vsi (markets.md – Pravidla 3, Rozhodnutí plánu 2, bod 6): zprávy pro jiné
    * vsi – příjezd výpravy na cizí trh a výsledek trhu pro výpravu, která odjela. Vsi se dopočítávají

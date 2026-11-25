@@ -1652,6 +1652,9 @@ export function chronicleText(event: ChronicleEvent, villageName: string, seed?:
         ? `Na trh přišla výprava ${from} – ${goodsText(event.goods)}.`
         : `Na trh přišla výprava ${from}.`;
     }
+    case 'merchants-arrived':
+      // cizí kupci na stezce (markets.md – Rozhodnutí plánu 4, bod 5)
+      return 'Přijeli kupci z daleka.';
     case 'market-held':
       return `Na trhu ves prodala ${goodsText(event.sold)} a koupila ${goodsText(event.bought)}.`;
     case 'market-departed':

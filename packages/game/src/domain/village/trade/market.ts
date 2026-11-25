@@ -6,7 +6,8 @@
 // výrobky za obilí a luštěniny vždy, ve vlastním zápočtu před dnešním, a nekoupený výrobek
 // hostitel zapíše jako zakázku (craft-orders.ts – Rozhodnutí plánu 3, body 5 a 6). Co zápočty
 // nechaly, koupí za mince výprava nebo cizí kupec, který je veze (mincovní fáze `coinPhase`,
-// market-coins.ts – Rozhodnutí plánu 4, body 2 a 3); hostitel v ní jen prodává. Kovář souseda
+// market-coins.ts – Rozhodnutí plánu 4, body 2 a 3); hostitel v ní jen prodává. Cizí kupci
+// (merchants.ts – bod 5) jsou návštěvníci bez domovské vsi a odjíždějí bez pošty. Kovář souseda
 // (výprava se službou kování) kuje hned po příjezdu a do zápočtu nevstupuje (livestock/smith-visit.ts
 // – Rozhodnutí plánu 3, bod 9). Lidé jdou zápočtem jako kusy, ale po skupinách jako skuteční lidé:
 // prodaní hostitelem odejdou k výpravě, koupení hostitelem se u něj hned usadí (market-people.ts –
@@ -55,6 +56,7 @@ import { coinClearing, type CoinPayment } from './market-coins';
 import { leavingGroups, sendPeople, settlePeople } from './market-people';
 import { nextLevel, nextPrices } from './market-prices';
 import { marketStance } from './market-stance';
+import { affordableWants, extendMerchants } from './merchants';
 import { addGood, addMarketCarts, takeCarts } from './trade';
 import { villageReport } from './village-report';
 
@@ -527,7 +529,9 @@ function coinPhase(
  * hostitel zapsal (`recordOrders` – co hostitel po dnešním zápočtu ještě shání je `hostWants`), jde
  * do odchozí schránky k domovské vsi na den návratu – den po posledním tržním dni + dny cesty.
  * Výsledek s lidmi nese i výpravu, jak ji hostitel viděl (`origin` – Rozhodnutí plánu 3, bod 13):
- * zanikne-li domovská ves, pošta s ním vrátí lidi hostiteli (`stranded-people`).
+ * zanikne-li domovská ves, pošta s ním vrátí lidi hostiteli (`stranded-people`). Cizí kupec domov
+ * nemá (Rozhodnutí plánu 4, bod 5) – odjede bez zakázek a bez pošty a jeho měšec, neprodaná zbroj
+ * i koupené zboží odejdou ze světa.
  */
 function departVisitors(
   state: VillageState,
@@ -537,9 +541,12 @@ function departVisitors(
 ): void {
   const leaving = market.visitors.filter((v) => v.lastDay <= day);
   if (leaving.length === 0) return;
+  market.visitors = market.visitors.filter((v) => v.lastDay > day);
+  const trips = leaving.filter((v) => !v.merchant);
+  if (trips.length === 0) return;
   const report = villageReport(state, day);
   const outbox = (state.outbox ??= []);
-  for (const visitor of leaving) {
+  for (const visitor of trips) {
     const ordered = recordOrders(state, day, visitor, hostWants);
     const direction = homeward(visitor);
     const people = (visitor.people?.length ?? 0) + (visitor.boughtPeople?.length ?? 0);
@@ -567,7 +574,6 @@ function departVisitors(
       },
     });
   }
-  market.visitors = market.visitors.filter((v) => v.lastDay > day);
 }
 
 /**
@@ -578,15 +584,18 @@ function departVisitors(
  *    ten den prodají (`craftStance`, `craftParties`); bez nich se přeskočí;
  * 2. dnešní zápočet se zbytkem zboží – hostitel nabízí a shání podle výpočtu potřeby
  *    (`marketStance`, bez prodaného v 1.), výpravy, co jim zbylo;
- * 3. mincovní fáze (`coinPhase` – Rozhodnutí plánu 4, bod 2) – výprava, která veze mince, za ně
- *    koupí, co jí na seznamu zbylo; hostitel jen prodává. Bez mincí k útratě se přeskočí.
+ * 3. mincovní fáze (`coinPhase` – Rozhodnutí plánu 4, bod 2) – výprava nebo cizí kupec, který veze
+ *    mince, za ně koupí, co mu na seznamu zbylo; hostitel jen prodává. Bez mincí k útratě se
+ *    přeskočí.
  * Zápočty mince nevidí (`withoutCoins` – Rozhodnutí plánu 4, bod 1). Obchody se po každé fázi
  * vyrovnají (`settleTrades`), ceny se posunou podle původních nabídek a seznamů dne bez mincí
- * (`nextPrices` – i s obilím za výrobky, jako by šlo o jeden zápočet) a výpravy, kterým pobyt končí,
- * odjedou s výsledkem a zakázkami. Vrací zápis kroniky, prodala-li nebo koupila-li ves něco (všechny
- * fáze dohromady, i mince). Bez výprav na trhu nic – stav se nezmění. Kovář souseda (výprava se
- * `service` – Rozhodnutí plánu 3, bod 9) a doprovod partnera (`kin` – bod 11) neobchodují, jen
- * v poslední den odjedou; jsou-li na trhu jen oni, tržní den není (ceny stojí).
+ * (`nextPrices` – i s obilím za výrobky, jako by šlo o jeden zápočet; cizí kupec jen s tím, na co má
+ * ráno v měšci – `affordableWants`, Rozhodnutí plánu 4, bod 3), kupci na rušném trhu zůstanou další
+ * den (`extendMerchants` – bod 5) a výpravy, kterým pobyt končí, odjedou s výsledkem a zakázkami,
+ * kupci bez nich. Vrací zápis kroniky, prodala-li nebo koupila-li ves něco (všechny fáze dohromady,
+ * i mince). Bez výprav a kupců na trhu nic – stav se nezmění. Kovář souseda (výprava se `service` –
+ * Rozhodnutí plánu 3, bod 9) a doprovod partnera (`kin` – bod 11) neobchodují, jen v poslední den
+ * odjedou; jsou-li na trhu jen oni, tržní den není (ceny stojí).
  */
 export function marketDay(state: VillageState, day: number): ChronicleEvent[] {
   const market = state.market;
@@ -599,14 +608,17 @@ export function marketDay(state: VillageState, day: number): ChronicleEvent[] {
     return [];
   }
   const prices = market.prices;
+  const level = market.level ?? 1;
   const stance = marketStance(state, day);
   const craft = craftStance(state, stance, visitors, prices);
-  // nabídky a seznamy dne napřed – zápočty je mění
+  // nabídky, seznamy a měšce kupců dne napřed – zápočty a mincovní fáze je mění
   const offered = totalGoods([stance.offer, ...visitors.map((v) => withoutCoins(v.goods))]);
   const wanted = totalGoods([
     stance.wants,
     craft?.wants ?? {},
-    ...visitors.map((v) => withoutCoins(v.wants)),
+    ...visitors.map((v) =>
+      v.merchant ? affordableWants(v, prices, level) : withoutCoins(v.wants),
+    ),
   ]);
   const first = craft
     ? settleTrades(state, day, visitors, clearMarket(craftParties(HOST, craft, visitors), prices))
@@ -648,6 +660,7 @@ export function marketDay(state: VillageState, day: number): ChronicleEvent[] {
       : [];
   // lidé, které hostitel koupil, se usadili (kronika `newcomer` za obchodem)
   chronicle.push(...(first?.events ?? []), ...second.events, ...(third?.events ?? []));
+  extendMerchants(market, day);
   departVisitors(state, market, day, goodsLeft(stance.wants, second.bought));
   return chronicle;
 }
