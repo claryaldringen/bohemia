@@ -1,12 +1,12 @@
 import { dateOfDayIndex } from '../../calendar';
-import { cartsWithOxen, tradeHomeCarts } from '../crafts/carts';
+import { tradeHomeCarts } from '../crafts/carts';
 import { oxenHome } from '../livestock/oxen';
 import { ageGroup } from '../people/people';
 import { CRAFT_BUYING, MARKET, TRADE_GOOD_VALUES } from '../rules';
 import { STEWARD } from '../rules/rules-steward';
 import { NOISE_KG, marketStance } from '../trade/market-stance';
 import { leavingGroups, withoutGroups } from '../trade/market-people';
-import { departMarketInPlace, marketCrew, marketFreeAdults } from '../trade/market-trip';
+import { departMarketInPlace, marketCrew, marketFreeAdults, tripCarts } from '../trade/market-trip';
 import { emigrantList } from '../trade/people-trade';
 import { nearbyTarget } from '../trade/nearby';
 import { villageGoodStock } from '../trade/trade';
@@ -120,7 +120,8 @@ export function stewardGrainStep(state: VillageState, ctx: NeedContext, shortKg:
     marketFreeAdults(state, day),
   );
   if (maxPorters < 1) return false;
-  const carts = cartsWithOxen(tradeHomeCarts(state), oxenHome(state, day)).map((c) => c.kind);
+  const homeCarts = tradeHomeCarts(state).map((c) => c.kind);
+  const oxen = oxenHome(state, day);
   const grainPrice = priceKg(state, village.villageId, 'grain');
   let want = Math.ceil(shortKg - EPSILON);
   for (let i = 0; i < FIT_TRIES; i++) {
@@ -129,7 +130,7 @@ export function stewardGrainStep(state: VillageState, ctx: NeedContext, shortKg:
     const grainKg = Math.min(want, Math.floor(pay.creditKg / grainPrice + EPSILON));
     if (grainKg < STEWARD.grainMinKg) return false;
     const wants: TradeGoods = { grain: grainKg };
-    const crew = marketCrew(pay.give, wants, carts);
+    const crew = marketCrew(pay.give, wants, tripCarts(homeCarts, oxen, pay.give, wants));
     if (crew.porters <= maxPorters) {
       const sent = departMarketInPlace(
         state,
@@ -162,7 +163,7 @@ export function stewardMarketStep(state: VillageState, ctx: NeedContext): boolea
   if (date.month !== CRAFT_BUYING.day.month || date.day !== CRAFT_BUYING.day.day) return false;
   const stance = marketStance(state, day);
   if (Object.keys(stance.wants).length === 0) return false;
-  const carts = cartsWithOxen(tradeHomeCarts(state), oxenHome(state, day)).map((c) => c.kind);
+  const carts = { homeCarts: tradeHomeCarts(state).map((c) => c.kind), oxen: oxenHome(state, day) };
   // nosiči jen z lidí, kteří zůstávají – lidé z nabídky odejdou jako zboží (Rozhodnutí plánu 3,
   // bod 10; stejně počítá `planMarketTrip`)
   const staying = withoutGroups(state, emigrantList(leavingGroups(state, day, stance.offer)));
@@ -223,10 +224,11 @@ export function constructionLogsLeft(state: Pick<VillageState, 'constructions'>)
 function fitToCrew(
   goods: TradeGoods,
   wants: TradeGoods,
-  carts: readonly CartKind[],
+  carts: { homeCarts: readonly CartKind[]; oxen: number },
   adults: number,
 ): TradeGoods {
-  const fits = (give: TradeGoods): boolean => marketCrew(give, wants, carts).porters <= adults;
+  const fits = (give: TradeGoods): boolean =>
+    marketCrew(give, wants, tripCarts(carts.homeCarts, carts.oxen, give, wants)).porters <= adults;
   const give: TradeGoods = {};
   for (const good of LOAD_ORDER) {
     const amount = goods[good] ?? 0;

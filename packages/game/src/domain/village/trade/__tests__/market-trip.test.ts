@@ -21,6 +21,7 @@ import {
   marketTripsDay,
   oxenForCarts,
   planMarketTrip,
+  tripCarts,
   type MarketTripCheck,
 } from '../market-trip';
 import { expeditionLaborNeed, finishExpeditions, workExpeditions } from '../trade';
@@ -710,5 +711,45 @@ describe('odchod bez klonu a kdo výpravu poslal (Rozhodnutí plánu 3, bod 7)',
       expect(marketCrew({ grain: kg }, {}, carts).porters).toBe(adults);
       expect(marketCrew({ grain: kg + 1 }, {}, carts).porters).toBe(adults + 1);
     }
+  });
+});
+
+describe('vozy výpravy – jeden zdroj pravdy pro kontrolu i správce', () => {
+  const base: MarketTripCheck = {
+    stock: { trainedOxen: 4, grain: 10_000, fourWheelCarts: 1 },
+    homeCarts: ['four-wheel', 'four-wheel'],
+    oxenHome: 4,
+    adults: 5,
+    cells: 1,
+    day: D,
+  };
+
+  it('dvě spřežení a prodaný vůz: jede ten, který zbyl, s nákladem, který unese', () => {
+    const give = { fourWheelCarts: 1, grain: 800 };
+    expect(tripCarts(base.homeCarts, 4, give, {})).toEqual(['four-wheel']);
+    expect(checkMarketTrip({ give, wants: {}, stayDays: 1 }, base)).toMatchObject({
+      ok: true,
+      carts: 1,
+    });
+  });
+
+  it('jedno spřežení a koupený vůz: voli na vůz se rezervují, dopravní vůz nejede, nosiči stačí', () => {
+    const wants = { fourWheelCarts: 1 };
+    expect(tripCarts(['four-wheel'], 2, {}, wants)).toEqual([]);
+    expect(
+      checkMarketTrip(
+        { give: { grain: 100 }, wants, stayDays: 1 },
+        {
+          ...base,
+          homeCarts: ['four-wheel'],
+          oxenHome: 2,
+        },
+      ),
+    ).toMatchObject({ ok: true, carts: 0, oxen: 2 });
+  });
+
+  it('nabídka bez vozů a volů beze změny: jedou všechny vozy se spřežením', () => {
+    expect(tripCarts(base.homeCarts, 4, { grain: 100 }, {})).toEqual(['four-wheel', 'four-wheel']);
+    expect(tripCarts(base.homeCarts, 2, { trainedOxen: 2 }, {})).toEqual([]);
   });
 });

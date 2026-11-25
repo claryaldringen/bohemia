@@ -160,7 +160,8 @@ export function recordOrders(
   const carries = (good: TradeGood): boolean => (visitor.goods[good] ?? 0) > 0;
   const pays =
     CRAFT_PAY.some(carries) ||
-    carries(COIN_GOOD) ||
+    // mince utrácí jen vojvoda a správce (Martin 25. 11. 2026) – výprava vesničanů jimi neplatí
+    (visitor.by !== 'villagers' && carries(COIN_GOOD)) ||
     TRADE_GOODS.some((g) => carries(g) && (hostWants[g] ?? 0) > 0);
   for (const good of ORDER_GOODS) {
     const amount = visitor.wants[good] ?? 0;

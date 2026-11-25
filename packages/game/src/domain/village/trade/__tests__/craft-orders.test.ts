@@ -37,6 +37,7 @@ import {
   markOrderReady,
   orderTargets,
   placedOrder,
+  recordOrders,
   rememberOrders,
 } from '../craft-orders';
 import { joinMarket, marketDay, marketResultRef } from '../market';
@@ -715,5 +716,24 @@ describe('zakázky kupujícího (Rozhodnutí plánu 3, bod 6)', () => {
     );
     expect(placedOrder(h, D + 9, 'tools')).toMatchObject({ villageId: 'x', status: 'open' });
     expect(h.orders!.every((o) => o.villageId === 'x')).toBe(true);
+  });
+});
+
+describe('zakázka na mince (Rozhodnutí plánu 4, bod 4; Martin 25. 11. 2026)', () => {
+  /** Hostitel s kovářem, výprava jen s mincemi a bez obilí; `by` říká, kdo ji poslal. */
+  function recorded(by?: MarketVisitor['by']): TradeGoods {
+    const m = withNearby(smithVillage(0));
+    m.market = { prices: {}, visitors: [], nextOrder: 1, arrivals: [], orders: [] };
+    const v = { ...visitor('k', { coins: 50 }, { tools: 10 }), ...(by ? { by } : {}) };
+    return recordOrders(m, D, v, {});
+  }
+
+  it('výprava vesničanů mince neutratí: zakázka jen na mince se nezapíše', () => {
+    expect(recorded('villagers')).toEqual({});
+  });
+
+  it('výprava hráče (bez `by`) i správce zaplatí mincemi', () => {
+    expect(recorded('steward')).toEqual({ tools: 10 });
+    expect(recorded()).toEqual({ tools: 10 });
   });
 });

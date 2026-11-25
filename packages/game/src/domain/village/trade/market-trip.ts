@@ -165,6 +165,27 @@ export function oxenForCarts(wants: TradeGoods): number {
 }
 
 /**
+ * Vozy, které jedou s výpravou (jeden zdroj pravdy pro kontrolu výpravy i náhled správce): vozy
+ * doma bez prodaných (`withoutSoldCarts`), ke spřežení jen voli, kteří zbydou po prodaných volech
+ * a po volech pro koupené vozy (`oxenForCarts`). Stav nemění.
+ */
+export function tripCarts(
+  homeCarts: readonly CartKind[],
+  oxenHome: number,
+  give: TradeGoods,
+  wants: TradeGoods,
+): CartKind[] {
+  const oxen = oxenHome - (give.trainedOxen ?? 0) - oxenForCarts(wants);
+  return cartsWithOxen(
+    withoutSoldCarts(
+      homeCarts.map((kind) => ({ kind })),
+      give,
+    ),
+    oxen,
+  ).map((cart) => cart.kind);
+}
+
+/**
  * Vozy doma bez vozů, které výprava prodá (`give`): z každého druhu posledních `give[g]` – v pořadí
  * `tradeHomeCarts` (druh, pak id) nejmladší volné, tytéž, které při odjezdu prodá `addGood` →
  * `removeIdleCart`. Prodaný vůz odjede bez spřežení jako prodaní voli a dopravní není.
@@ -284,13 +305,7 @@ export function checkMarketTrip(order: MarketOrder, input: MarketTripCheck): Mar
     : marketCrew(
         order.give,
         order.wants,
-        cartsWithOxen(
-          withoutSoldCarts(
-            input.homeCarts.map((kind) => ({ kind })),
-            order.give,
-          ),
-          oxen - reserved,
-        ).map((cart) => cart.kind),
+        tripCarts(input.homeCarts, input.oxenHome, order.give, order.wants),
       );
   if (!input.alone && crew.porters > input.adults) return { ok: false, reason: MARKET_NO_PEOPLE };
   const travelDays = marketTravelDays(input.cells);
