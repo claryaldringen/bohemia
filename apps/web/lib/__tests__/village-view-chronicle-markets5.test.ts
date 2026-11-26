@@ -60,3 +60,34 @@ describe('kronika – otrokyně od souseda', () => {
     );
   });
 });
+
+describe('kronika – trh s otroky a příchod otroka', () => {
+  it('market-held a market-returned s otroky', () => {
+    expect(text({ kind: 'market-held', sold: { slaves: 2 }, bought: { coins: 48 } })).toBe(
+      'Na trhu ves prodala 2 ks otroků, dostala 48 mincí.',
+    );
+    expect(
+      text({
+        kind: 'market-returned',
+        sold: { slaves: 1 },
+        bought: { coins: 24 },
+      }),
+    ).toContain('prodala 1 ks otroků, dostala 24 mincí');
+  });
+
+  it('příchod otroka: vlastní ves, cizí správce, vrácený', () => {
+    const slave = (extra: Record<string, unknown>): string =>
+      text({
+        kind: 'newcomer',
+        group: 'slave',
+        direction: 'N',
+        people: 1,
+        dwellingId: 1,
+        villageName: 'Lhota',
+        ...extra,
+      });
+    expect(slave({})).toBe('Do vsi přišel otrok z Lhoty.');
+    expect(slave({ villageName: '' })).toBe('Do vsi přišel otrok ze sousední vsi.');
+    expect(slave({ returned: true })).toBe('Do vsi se vrátil prodaný otrok z Lhoty.');
+  });
+});

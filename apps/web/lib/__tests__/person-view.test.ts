@@ -137,3 +137,23 @@ describe('scenePersons – výprava (expeditions.md – Kdo smí jít)', () => {
     expect(scenePersons(s, START).every((p) => p.expedition === undefined)).toBe(true);
   });
 });
+
+describe('scenePersons – otroci (markets.md – Pravidla 7)', () => {
+  it('otrok-pohan má slave bez christian, pokřtěný otrok obojí, svobodný nic', () => {
+    const people: Person[] = [
+      { id: 1, bornDay: born(30), dwellingId: 10, sex: 'male', slave: true },
+      { id: 2, bornDay: born(30), dwellingId: 10, sex: 'male', slave: true, faith: 'christian' },
+      { id: 3, bornDay: born(30), dwellingId: 10, sex: 'male' },
+    ];
+    const list = scenePersons(
+      { people, dwellings: [dwelling(10)], manorId: 10, constructions: [] },
+      DAY,
+    );
+    const of = (id: number): (typeof list)[number] => list.find((p) => p.id === id)!;
+    expect(of(1).slave).toBe(true);
+    expect(of(1).christian).toBeUndefined();
+    expect(of(2).slave).toBe(true);
+    expect(of(2).christian).toBe(true);
+    expect(of(3).slave).toBeUndefined();
+  });
+});

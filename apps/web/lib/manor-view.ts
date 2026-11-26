@@ -5,6 +5,8 @@ import {
   ARMS_GOODS,
   coinPriceOf,
   huntDenied,
+  isChristian,
+  isSlave,
   HUNT_DENIED_TEXT,
   lordFamily,
   marketFreeAdults,
@@ -77,6 +79,8 @@ export interface VillageManor {
    * nových – cena, délka, důvod) pošle server až na vyžádání panelu (`panelOptionsOf`).
    */
   dwellingId: number;
+  /** Otroci vsi a z nich pokřtění (markets.md – Pravidla 7); bez otroků chybí. */
+  slaves?: { all: number; baptized: number };
   /** Obyvatelé dvorce od nejstaršího (lord.md – Co hráč vidí). */
   family?: ManorMember[];
   /**
@@ -178,6 +182,18 @@ function huntField(state: VillageState, day: number): { hunt?: HuntView } {
   return hunt ? { hunt } : {};
 }
 
+/** Otroci vsi jedním průchodem lidmi; bez otroků chybí. */
+function slavesField(state: VillageState): { slaves?: { all: number; baptized: number } } {
+  let all = 0;
+  let baptized = 0;
+  for (const p of state.people) {
+    if (!isSlave(p)) continue;
+    all++;
+    if (isChristian(p)) baptized++;
+  }
+  return all > 0 ? { slaves: { all, baptized } } : {};
+}
+
 /** Dvorec vsi pro pohled na ves; dokud stojí jen staveniště první zemnice, null. */
 export function manorView(
   state: VillageState,
@@ -202,6 +218,7 @@ export function manorView(
     stance: stanceOf(state),
     huntDenied: huntDeniedText(state, day, huntRunning),
     ...huntField(state, day),
+    ...slavesField(state),
     family: manorFamily(state, day),
     market: marketField(state, day),
   };

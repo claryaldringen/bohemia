@@ -675,6 +675,10 @@ describe('newNotices – porážka a spřežení (diet.md, oxen.md)', () => {
       'Přišla otrokyně z Lhoty',
       'Vrátila se prodaná otrokyně',
     ]);
+    const named = view({ dayIndex: 1003, chronicle: [slave({ villageName: 'Lhota' })] });
+    expect(newNotices(view({ dayIndex: 1000 }), named).map((n) => n.text)).toEqual([
+      'Přišel otrok z Lhoty',
+    ]);
     const male = view({ dayIndex: 1003, chronicle: [slave({})] });
     expect(newNotices(view({ dayIndex: 1000 }), male).map((n) => n.text)).toEqual([
       'Přišel otrok ze severu',

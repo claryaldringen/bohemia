@@ -12,6 +12,7 @@ import {
   ennobleBlock,
   isAway,
   isChristian,
+  isSlave,
   isInjured,
   MASON_CRAFTS,
   villageManorId,
@@ -118,6 +119,8 @@ export interface ScenePerson {
   ennobleable?: true;
   /** Pokřtěný (christianity.md – Víra vesničanů); pohan bez údaje. */
   christian?: true;
+  /** Otrok (markets.md – Pravidla 7); pokřtěný otrok má i `christian` a prodat ho nejde. */
+  slave?: true;
   /**
    * Vojvoda, který se smí nechat pokřtít (christianity.md – Křest rodu): rod křesťanství zná, ještě
    * není pokřtěný a vojvoda rodu žije v téhle vsi (`VillageAccess.baptizable`).
@@ -182,6 +185,7 @@ export function scenePersons(
   const names = new Map(
     state.people.flatMap((p) => (p.name !== undefined ? [[p.id, p.name] as const] : [])),
   );
+  const slaves = new Set(state.people.flatMap((p) => (isSlave(p) ? [p.id] : [])));
   const christians = new Set(state.people.flatMap((p) => (isChristian(p) ? [p.id] : [])));
   // křtí se vojvoda vsi (`baptizeVillage` – `currentLord`), tlačítko jen u něj
   const baptizableId = baptizable ? (currentLord(state)?.id ?? null) : null;
@@ -207,6 +211,7 @@ export function scenePersons(
       ...(riders.has(p.id) ? { horse: true as const } : {}),
       ...(ennobleable.has(p.id) ? { ennobleable: true as const } : {}),
       ...(christians.has(p.id) ? { christian: true as const } : {}),
+      ...(slaves.has(p.id) ? { slave: true as const } : {}),
       ...(p.id === baptizableId ? { baptizable: true as const } : {}),
       ...(masons.has(p.id) ? { mason: masons.get(p.id)! } : {}),
       ...(state.lodge && (masons.has(p.id) || priests.has(p.id))

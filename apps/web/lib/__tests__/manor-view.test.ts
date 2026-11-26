@@ -347,3 +347,16 @@ describe('kupci a zbroj v pohledu na dvorec (markets.md – Rozhodnutí plánu 4
     expect(JSON.stringify(view)).not.toMatch(/987654321|merchantStops/);
   });
 });
+
+describe('otroci ve dvorci (markets.md – Pravidla 7)', () => {
+  it('ves se 3 otroky (1 pokřtěný) nese počty, bez otroků pole chybí', () => {
+    const s = village();
+    expect(manorView(s, DAY)!.slaves).toBeUndefined();
+    s.people.push(
+      person(600, 30, 'male', { slave: true }),
+      person(601, 30, 'female', { slave: true }),
+      person(602, 30, 'male', { slave: true, faith: 'christian' }),
+    );
+    expect(manorView(s, DAY)!.slaves).toEqual({ all: 3, baptized: 1 });
+  });
+});

@@ -193,6 +193,20 @@ function MerchantsStat({ market }: { market: VillageManor['market'] }): ReactEle
   );
 }
 
+/** Otroci vsi – ikona s počtem, v popisku pokřtění (prodat je nejde; markets.md – Pravidla 7). */
+function SlavesStat({ slaves }: { slaves: { all: number; baptized: number } }): ReactElement {
+  const { all, baptized } = slaves;
+  const name =
+    baptized > 0
+      ? `Otroci – ${all}, z toho ${baptized} ${plural(baptized, 'pokřtěný', 'pokřtění', 'pokřtěných')} – prodat je nejde`
+      : `Otroci – ${all}`;
+  return (
+    <Stat icon="slave" name={name} testId="manor-slaves">
+      {formatInteger(all)}
+    </Stat>
+  );
+}
+
 /**
  * Vylepšení vsi ve dvorci: tlačítko zemské stezky (otevře růžici směrů), lov a vojsko. Růžice se
  * otevře nad panelem výběru (`hud-popup` – panel se nezvětší) a zavře ji stisk myši mimo ni.
@@ -305,6 +319,7 @@ export function ManorUpgrades({
         </button>
       </Tooltip>
       <MerchantsStat market={manor.market} />
+      {manor.slaves && <SlavesStat slaves={manor.slaves} />}
       <Tooltip placement="above" denied={warDenied} content="Vojsko">
         <button
           type="button"
