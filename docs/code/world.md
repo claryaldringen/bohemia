@@ -130,7 +130,7 @@ a, b, riverAt)` (`ports.ts`) – hash hrany jako u řeky (soli `trailPortNS/EW`)
   a zastávky kupců z uloženého výřezu (Zastávky stezky). Odříznutý rod je suchý vždy; sídla hráčů
   (`placeSeat`, `seatSlot`) beze změny.
 - **Zlatý otisk celé kostry** (`golden.test.ts`, okno 32 × 32, seed 20270101): klíč výřezu
-  - `seatSlot`, hodnota 2488818595; vedle otisku samotných řek (4193049158). Po ostrém spuštění
+  - `seatSlot`, hodnota 4065472257; vedle otisku samotných řek (2978999827). Po ostrém spuštění
     se nesmí změnit.
 - **Hustota** (8. 11. 2026, okno 200 × 200, seedy 1, 2, 3, 20270101): stezka 7,5–8,4 % map, řeka
   10,8–12,3 %, řeka i stezka 0,8–1,0 %, suchá 80,3–82,5 %; sídlo `river` 9,9–11,2 %, `trail`
