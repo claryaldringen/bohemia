@@ -48,6 +48,19 @@ describe('lidé na trhu (markets.md – Rozhodnutí plánu 3, bod 10)', () => {
     expect(s.people.find((p) => p.id === 66)).toMatchObject({ spouseId: 67, motherId: 63 });
   });
 
+  it('settlePeople: `female` jen u otrokyně – žena ze skupiny `women` ho nemá', () => {
+    const woman = familyHome().people.find((p) => p.sex === 'female')!;
+    const groups: MarketPerson[] = [{ good: 'women', people: [woman] }];
+    const events = settlePeople(marketVillage(), D, groups, {
+      villageId: 'h',
+      villageName: 'Vlkov',
+      direction: 'W',
+    });
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({ kind: 'newcomer', group: 'woman' });
+    expect(events[0]).not.toHaveProperty('female');
+  });
+
   it('settlePeople: nová id od nextId, vazby rodiny přepsané, ven přerušené, origin, kronika', () => {
     const groups = takePeople(familyHome(), D, 'families', 1, 'E');
     const m = marketVillage();

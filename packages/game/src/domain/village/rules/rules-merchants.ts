@@ -7,8 +7,10 @@
  * Martin 22. 11. 2026: „Ano. Postupně to povede ke vzniku trhových vsí a měst na kupeckých stezkách“).
  * - Měšec 60 mincí (= 900 kg obilí) koupí přebytek několika vsí – klát dá ročně ≈ 6 kg medu
  *   a 0,4 kg vosku (`HIVES`), kožešin je v malé vsi ≈ 20 ročně.
- * - Seznam je trochu větší než přebytek jedné vsi, kupci ho tedy zdražují; při výchozích cenách má
- *   hodnotu 120 mincí (med 40, vosk 48, kožešiny 32) – právě cenu meče.
+ * - Seznam je trochu větší než přebytek jedné vsi, kupci ho tedy zdražují; při výchozích cenách mají
+ *   med, vosk a kožešiny hodnotu 120 mincí (med 40, vosk 48, kožešiny 32) – právě cenu meče.
+ * - Otroci (markets.md – Rozhodnutí plánu 5, bod 7; návrh Clauda): 10 za průjezd po 24 mincích –
+ *   z měšce koupí kupec dva, s mincemi za prodanou zbroj víc, nebo je vezme zápočtem za zbroj.
  */
 export const MERCHANTS = {
   /** Průjezdů spojení stezky za rok – jednou za roční období. */
@@ -23,8 +25,11 @@ export const MERCHANTS = {
   coins: 60,
   /** Co kupec prodává (kusy). */
   goods: { swords: 2, mailShirts: 1, helmets: 2 },
-  /** Co kupec shání (med a vosk kg, kožešiny kusy). */
-  wants: { honey: 100, wax: 24, furs: 60 },
+  /**
+   * Co kupec shání (med a vosk kg, kožešiny a otroci kusy); otroci markets.md – Rozhodnutí plánu 5,
+   * bod 7.
+   */
+  wants: { honey: 100, wax: 24, furs: 60, slaves: 10 },
   /** Od kolika výprav na trhu kupci zůstanou další den. */
   busyVisitors: 3,
   /** Nejvýš dní na jednom trhu – pravidlo hry (návrh Clauda – Oznámit, bod 5), ne technická mez. */

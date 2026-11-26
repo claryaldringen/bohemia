@@ -450,6 +450,8 @@ nanosit voda do zásoby. Navíc v průběhu žní se nenosí voda domů, ale sp�
   je dospělý dál od 14. Porody tlumí až zastaví jen opravdový hlad – **energie** (podíl kalorií proti potřebě) pod 95 %,
   při 50 % a méně se nerodí; jednotvárná strava je nebrzdí (Martin, 25. 10. 2026: „Ok, ať porody
   brzdí jen opravdový hlad.“ – návrh Clauda, schválený). Přeplněnost je výrazně sníží (beze změny).
+- **Dítě otroka je svobodné** – dítě narozené ve vsi příznak otroka nedědí, i když jsou otroky oba rodiče ([obchod](markets.md) –
+  Pravidla 7, Rozhodnutí plánu 5, bod 3; návrh Clauda).
 - **Úmrtí:** zhruba 40 % dětí se nedožije 14 let (v polozemnici méně než v zemnici; Lahovice:
   41 % do 20 let – Zazvonilová a kol. 2020); dospělí umírají asi **2 % ročně** (oprava podle
   rešerše, dřív 1,5 % – v Lahovicích umírali muži v průměru ve 43–47 a ženy ve 39–43 letech),

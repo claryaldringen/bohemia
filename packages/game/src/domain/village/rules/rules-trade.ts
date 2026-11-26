@@ -92,6 +92,9 @@ export const TRADE_GOOD_VALUES = {
   families: { valueKg: 720, carryKg: 0 },
   men: { valueKg: 360, carryKg: 0 },
   women: { valueKg: 360, carryKg: 0 },
+  // otrok za kus jako svobodný dospělý (Rozhodnutí plánu 3, bod 4); markets.md – Rozhodnutí
+  // plánu 5, bod 6 – jde po svých
+  slaves: { valueKg: 360, carryKg: 0 },
 } as const satisfies Record<TradeGood, { valueKg: number; carryKg: number }>;
 /**
  * horses.md – Nákup a prodej (Martin 23. 10. 2026: koně jako ostatní zvířata; čísla návrh Clauda):

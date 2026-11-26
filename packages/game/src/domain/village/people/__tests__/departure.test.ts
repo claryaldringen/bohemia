@@ -272,6 +272,30 @@ describe('nová ves z osadníků', () => {
     expect(back.food.grainKg).toBeCloseTo(settlers.food.grainKg, 6);
     expect(back.herds).toEqual(settlers.herds);
   });
+
+  it('odchod celé vsi: otrokyně mezi osadníky je v nové vsi dál otrokyní a vdanou', () => {
+    // celá ves si bere úplně vše (Martin 25. 11. 2026) – otroci jdou s ní jako lidé (markets.md –
+    // Rozhodnutí plánu 5, bod 4)
+    const s = twoHouseholds();
+    const wife = s.people.find((p) => p.dwellingId === sonHome(s) && p.sex === 'female')!;
+    wife.slave = true;
+    const { state, settlers } = departVillage(s, DAY, [1, sonHome(s)], 'E');
+    expect(state.people).toEqual([]);
+    const travelling = travellingVillage(settlers, 42, DAY, {
+      direction: 'E',
+      departedDay: DAY,
+      arrivalDay: DAY + 2,
+    });
+    const arrived = foundVillage({
+      seed: 9,
+      day: DAY + 2,
+      dwellingPosition: { x: -200, z: -200, rotation: 0 },
+      settlers: settlersOf(advanceVillage(travelling, DAY + 2, null)),
+    });
+    const there = arrived.people.find((p) => p.id === wife.id)!;
+    expect(there).toMatchObject({ slave: true, spouseId: wife.spouseId });
+    expect(arrived.people.filter((p) => p.slave === true).map((p) => p.id)).toEqual([wife.id]);
+  });
 });
 
 describe('vůz s voly při odchodu (migration.md – Vůz při odchodu)', () => {

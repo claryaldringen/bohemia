@@ -131,6 +131,95 @@ export function familyHome(): VillageState {
   return s;
 }
 
+/** Domy otroků (`slaveHome`). */
+export const SLAVE_HOUSE = 500;
+export const SLAVE_HOUSE_2 = 501;
+
+/**
+ * Vlkov (H) s otroky (markets.md – Rozhodnutí plánu 5, bod 6): ve dvorci vojvoda 1 (muž rodu, 45)
+ * se ženou 13 – otrokyní-pohankou (22) – a povýšený otrok-pohan 17 (19, muž rodu a šlechtic –
+ * `settleNoble`). V domě 500 manželé 2 a 3 (35 a 33), otrokyně-pohanka 10
+ * (25, neprovdaná) a její dítě 16 (2 roky, narozené ve vsi – svobodné). V domě 501 pokřtěný otrok
+ * 11 (30), otrok-pohan 12 (28) na práci mimo ves do D + 5, otrok-pohan 14 (3 roky) a svobodný pohan
+ * 15 (20). Prodat jde 10 a 14; otroci jsou neženatí (manželství – Úloha 4).
+ */
+export function slaveHome(): VillageState {
+  const s = homeVillage();
+  s.dwellings.push({ ...dwelling(SLAVE_HOUSE_2), position: { x: 60, z: 0, rotation: 0 } });
+  const manor = s.manorId!;
+  const person = (
+    id: number,
+    age: number,
+    dwellingId: number,
+    sex: Person['sex'],
+    extra: Partial<Person> = {},
+  ): Person => ({ id, bornDay: D - Math.ceil((age + 0.5) * 365.25), dwellingId, sex, ...extra });
+  s.people = [
+    person(1, 45, manor, 'male', { line: true, spouseId: 13 }),
+    person(2, 35, SLAVE_HOUSE, 'male', { spouseId: 3 }),
+    person(3, 33, SLAVE_HOUSE, 'female', { spouseId: 2 }),
+    person(10, 25, SLAVE_HOUSE, 'female', { slave: true }),
+    person(11, 30, SLAVE_HOUSE_2, 'male', { slave: true, faith: 'christian' }),
+    person(12, 28, SLAVE_HOUSE_2, 'male', {
+      slave: true,
+      away: { kind: 'labor', untilDay: D + 5 },
+    }),
+    person(13, 22, manor, 'female', { slave: true, spouseId: 1 }),
+    person(14, 3, SLAVE_HOUSE_2, 'male', { slave: true }),
+    person(15, 20, SLAVE_HOUSE_2, 'male'),
+    person(16, 2, SLAVE_HOUSE, 'female', { motherId: 10 }),
+    person(17, 19, manor, 'male', { slave: true, line: true, noble: { houseId: 'h' } }),
+  ];
+  s.dynasty = { lordId: 1, lords: [{ id: 1, fromDay: D - 3_000 }] };
+  return s;
+}
+
+/** Dům dvou otroků (`slaveFamilyHome`). */
+export const SLAVES_HOUSE = 502;
+
+/**
+ * `familyHome` se dvěma svobodnými dospělými otroky-pohany v domě 502 – muž 90 (25) a žena 91 (24)
+ * – a `parts` osetými díly bez spřežení (orba lidmi; markets.md – Rozhodnutí plánu 5, bod 8): čím
+ * víc dílů, tím menší rozpočet lidí na trhu (`peopleOffer`). Dospělých je 12.
+ */
+export function slaveFamilyHome(parts: number): VillageState {
+  const s = familyHome();
+  s.dwellings.push({ ...dwelling(SLAVES_HOUSE), position: { x: 80, z: 0, rotation: 0 } });
+  const bornDay = (age: number): number => D - Math.ceil((age + 0.5) * 365.25);
+  s.people.push(
+    { id: 90, bornDay: bornDay(25), dwellingId: SLAVES_HOUSE, sex: 'male', slave: true },
+    { id: 91, bornDay: bornDay(24), dwellingId: SLAVES_HOUSE, sex: 'female', slave: true },
+  );
+  s.fields = [{ id: 1 }];
+  s.parts = Array.from({ length: parts }, (_, i) => sownPart(100 + i));
+  s.pens = (s.pens ?? []).filter((p) => p.team === undefined || p.team === null);
+  return s;
+}
+
+/**
+ * Denní invariant manželství (markets.md – Rozhodnutí plánu 5, bod 6; Úlohy 4 a 9): id lidí vsi,
+ * jejichž `spouseId` nemíří na člověka ve vsi nebo není vzájemné. Výjimkou je jen vedlejší manželka muže
+ * rodu: muž `line`, jehož `spouseId` míří na jinou (hlavní) manželku (lord.md – Manželky). Prázdné = vše
+ * v pořádku.
+ */
+export function oneSidedSpouses(state: Pick<VillageState, 'people'>): number[] {
+  const byId = new Map(state.people.map((p) => [p.id, p]));
+  return state.people
+    .filter((p) => {
+      if (p.spouseId === undefined) return false;
+      const spouse = byId.get(p.spouseId);
+      if (spouse === undefined) return true;
+      if (spouse.spouseId === p.id) return false;
+      const secondary =
+        p.sex === 'female' &&
+        spouse.sex === 'male' &&
+        spouse.line === true &&
+        spouse.spouseId !== undefined;
+      return !secondary;
+    })
+    .map((p) => p.id);
+}
+
 /** Cíl výpravy z H: Lhota (M) na sousední mapě na východě. */
 export const target: MarketTarget = {
   villageId: 'm',

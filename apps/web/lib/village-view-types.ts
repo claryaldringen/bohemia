@@ -714,6 +714,9 @@ export interface VillageView {
     day: number;
     kind: ChronicleEvent['kind'];
     kg?: number;
+    /** Odvedení z tažení (`led-settled` – markets.md, Rozhodnutí plánu 5): otroci a svobodní. */
+    slaves?: number;
+    free?: number;
     /** U pádu a opravy stavby (`structure-fell`, `structure-repaired`) která stavba. */
     structure?: AbandonedStructure;
     /** Kolik kusů kterého druhu se porazilo navíc (`emergency-slaughter` – diet.md). */
@@ -730,6 +733,8 @@ export interface VillageView {
     groom?: true;
     /** Lidé z `newcomer` jsou vrácení – ves je prodala a zpět se vrátili. */
     returned?: true;
+    /** Otrokyně z `newcomer` – věty v ženském rodě. */
+    female?: true;
     /** Co ves koupila u souseda (`crafts-bought` – crafts.md, Nákup u sousedů). */
     products?: CraftProduct[];
     /** Vůz, který ves koupila u souseda (`crafts-bought` – crafts.md, Nákup u sousedů, Vozy). */

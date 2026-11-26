@@ -85,6 +85,7 @@ export * from './people/population';
 export * from './people/kinship';
 export * from './people/dynasty';
 export * from './people/faith';
+export * from './people/slaves';
 export * from './people/desecration';
 export * from './people/baptism';
 export * from './people/dynasty-names';
@@ -500,6 +501,14 @@ export {
   type NewcomerMember,
   type NewcomerProfile,
 } from './trade/people-trade';
+// otroci, které ves smí prodat (markets.md – Rozhodnutí plánu 5, bod 6), a nabídka otroků na trhu
+// vlastní vsi (bod 8)
+export {
+  SLAVES_BAD_COUNT,
+  offeredSlaveIds,
+  sellableSlaves,
+  setSlavesForSale,
+} from './trade/slaves';
 // jabloně u cest – kroky simulace (práce a dokončení výsadby) zůstávají uvnitř
 export {
   chainAppleSpots,

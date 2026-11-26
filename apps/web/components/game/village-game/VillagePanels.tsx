@@ -65,6 +65,7 @@ export function VillagePanels({
   onSelectVillage,
   onSendMarket,
   onOrderArms,
+  onOfferSlaves,
 }: {
   view: VillageView | null;
   viewRef: RefObject<VillageView | null>;
@@ -89,6 +90,7 @@ export function VillagePanels({
   onSendMarket: (targetVillageId: string, order: MarketOrder) => Promise<string | null>;
   /** Objedná zbroj u cizích kupců (počet kusů, 0 = nic); vrátí důvod odmítnutí, nebo null. */
   onOrderArms: (good: ArmsGood, amount: number) => Promise<string | null>;
+  onOfferSlaves: (count: number) => Promise<string | null>;
 }): ReactElement {
   const { negotiate, refresh: refreshHouse, refreshEscheats } = house;
   const { warAction } = panels;
@@ -264,6 +266,7 @@ export function VillagePanels({
           onSend={onSendMarket}
           onPeople={panels.market.askPeople}
           onOrderArms={onOrderArms}
+          onOfferSlaves={onOfferSlaves}
           onClose={panels.closeMarket}
         />
       )}

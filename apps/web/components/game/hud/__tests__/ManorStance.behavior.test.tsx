@@ -22,6 +22,7 @@ const manor = (stance: DefenseStance): VillageManor => ({
     merchantsDay: null,
     arms: [],
     merchantsArrived: null,
+    slaveSale: null,
   },
   stance,
   huntDenied: null,

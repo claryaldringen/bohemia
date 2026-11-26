@@ -652,6 +652,39 @@ describe('newNotices – porážka a spřežení (diet.md, oxen.md)', () => {
     ]);
   });
 
+  it('otrokyně – upozornění v ženském rodě', () => {
+    const slave = (
+      fields: Partial<VillageView['chronicle'][number]>,
+    ): VillageView['chronicle'][number] => ({
+      day: 1002,
+      kind: 'newcomer',
+      group: 'slave',
+      direction: 'N',
+      dateLabel: '',
+      text: '',
+      ...fields,
+    });
+    const after = view({
+      dayIndex: 1003,
+      chronicle: [
+        slave({ day: 1003, female: true, returned: true }),
+        slave({ female: true, villageName: 'Lhota' }),
+      ],
+    });
+    expect(newNotices(view({ dayIndex: 1000 }), after).map((n) => n.text)).toEqual([
+      'Přišla otrokyně z Lhoty',
+      'Vrátila se prodaná otrokyně',
+    ]);
+    const named = view({ dayIndex: 1003, chronicle: [slave({ villageName: 'Lhota' })] });
+    expect(newNotices(view({ dayIndex: 1000 }), named).map((n) => n.text)).toEqual([
+      'Přišel otrok z Lhoty',
+    ]);
+    const male = view({ dayIndex: 1003, chronicle: [slave({})] });
+    expect(newNotices(view({ dayIndex: 1000 }), male).map((n) => n.text)).toEqual([
+      'Přišel otrok ze severu',
+    ]);
+  });
+
   it('lidé od souseda – fakt, odkud přišli (trade.md – Výměna lidí)', () => {
     const newcomer = (
       day: number,
@@ -1092,6 +1125,40 @@ describe('kupci přijeli (markets.md – Rozhodnutí plánu 4, bod 5)', () => {
     expect(newNotices(withArrival(1001, 1002), withArrival(1001, 1003))).toEqual([]);
     expect(newNotices(withArrival(null, 1000), withArrival(null, 1001))).toEqual([]);
     expect(newNotices(view({ dayIndex: 1000 }), view({ dayIndex: 1001 }))).toEqual([]);
+  });
+});
+
+describe('odvedení z tažení (markets.md – Rozhodnutí plánu 5, bod 1)', () => {
+  const after = (slaves: number, free: number): VillageView =>
+    view({
+      dayIndex: 1003,
+      chronicle: [{ day: 1002, kind: 'led-settled', slaves, free, dateLabel: '', text: '' }],
+    });
+
+  it('otroci s ikonou otroka (i s křesťany celá věta), jen křesťané bez ikony', () => {
+    expect(newNotices(view({ dayIndex: 1000 }), after(2, 0))).toEqual([
+      {
+        kind: 'led-settled',
+        tone: 'info',
+        text: 'Z tažení přivedli otroky',
+        icon: '/icons/resources/slave.png',
+      },
+    ]);
+    expect(newNotices(view({ dayIndex: 1000 }), after(2, 1))).toEqual([
+      {
+        kind: 'led-settled',
+        tone: 'info',
+        text: 'Z tažení přivedli otroky a křesťany',
+        icon: '/icons/resources/slave.png',
+      },
+    ]);
+    expect(newNotices(view({ dayIndex: 1000 }), after(0, 2))).toEqual([
+      {
+        kind: 'led-settled',
+        tone: 'info',
+        text: 'Z tažení přivedli křesťany',
+      },
+    ]);
   });
 });
 

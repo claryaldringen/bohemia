@@ -4,7 +4,7 @@ import { applyInboxDay, type VillageEvent } from '../../village/core/inbox';
 import { isInjured, laborPerDay } from '../../village/people/people';
 import { advanceVillage } from '../../village/core/simulate';
 import { dynastyDay } from '../../village/people/succession';
-import type { Cemetery, GrainPit, Person, VillageState } from '../../village/types';
+import type { Cemetery, ChronicleEvent, GrainPit, Person, VillageState } from '../../village/types';
 import { DAY, dwelling, kin, trackedVillage, village } from '../../village/__tests__/kin-fixtures';
 import { withBuiltFirstDwelling } from '../../village/__tests__/village-fixtures';
 import { defenderRoster } from '../defenders';
@@ -330,6 +330,58 @@ describe('návrat tažení (applyCampaignReturn)', () => {
     expect(byId.get(1002)!.dwellingId).toBe(2);
     expect(byId.get(1003)!.dwellingId).not.toBe(-1);
     expect(v.nextId).toBe(1004);
+  });
+});
+
+describe('odvedení pohané jsou otroci (markets.md – Rozhodnutí plánu 5, bod 1)', () => {
+  const back = (people: Person[], v = home()): { v: VillageState; events: ChronicleEvent[] } => {
+    v.nextId = 1000;
+    const events = applyCampaignReturn(v, DAY + 10, {
+      campaignId: 'c1',
+      back: [],
+      wounded: [],
+      fallen: [],
+      people,
+    });
+    return { v, events };
+  };
+
+  it('pohané dostanou příznak, křesťanka ne; vazby zůstanou, kronika počítá', () => {
+    const { v, events } = back([
+      kin({ id: 5, age: 30, sex: 'male', spouse: 6, home: 7 }),
+      kin({ id: 6, age: 28, sex: 'female', spouse: 5, home: 7 }),
+      kin({ id: 7, age: 4, sex: 'female', mother: 6, father: 5, home: 7 }),
+      { ...kin({ id: 8, age: 20, sex: 'female', home: 8 }), faith: 'christian' },
+    ]);
+    const arrivals = v.people.filter((p) => p.id >= 1000).sort((a, b) => a.id - b.id);
+    expect(arrivals).toHaveLength(4);
+    expect(arrivals.map((p) => [p.id, p.slave])).toEqual([
+      [1000, true],
+      [1001, true],
+      [1002, true],
+      [1003, undefined],
+    ]);
+    const byId = new Map(arrivals.map((p) => [p.id, p]));
+    expect(byId.get(1000)!.spouseId).toBe(1001);
+    expect(byId.get(1002)).toMatchObject({ motherId: 1001, fatherId: 1000 });
+    expect(events).toEqual([{ day: DAY + 10, kind: 'led-settled', slaves: 3, free: 1 }]);
+  });
+
+  it('snímek pokřtěného otroka si příznak nese a počítá se mezi otroky', () => {
+    const { v, events } = back([
+      { ...kin({ id: 5, age: 30, sex: 'male', home: 7 }), faith: 'christian', slave: true },
+    ]);
+    expect(v.people.find((p) => p.id === 1000)).toMatchObject({ faith: 'christian', slave: true });
+    expect(events).toEqual([{ day: DAY + 10, kind: 'led-settled', slaves: 1, free: 0 }]);
+  });
+
+  it('ves bez obydlí – nikdo nepřijde, zápis není', () => {
+    const v = home();
+    v.dwellings = [];
+    v.people = [];
+    const { events } = back([kin({ id: 5, age: 30, sex: 'male', home: 7 })], v);
+    expect(v.people).toEqual([]);
+    expect(events).toEqual([]);
   });
 });
 

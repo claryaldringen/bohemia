@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { MERCHANTS, TRADE_GOODS, isPieceGood } from '@bohemia/game';
 import {
+  NEWCOMER_TEXTS,
   TRADE_GOOD_NAMES,
   coinsText,
   goodsNames,
@@ -32,15 +33,43 @@ describe('jednotky zboží obchodu', () => {
   });
 
   it('jména zboží ve výčtu malými písmeny, bez počtů a bez nul (kupci, plán 4)', () => {
-    expect(goodsNames(MERCHANTS.wants)).toBe('med, vosk a kožešiny');
+    expect(goodsNames(MERCHANTS.wants)).toBe('med, vosk, kožešiny a otroky');
     expect(goodsNames(MERCHANTS.goods)).toBe('meče, kroužkové košile a helmy');
     expect(goodsNames({ honey: 2, wax: 0 })).toBe('med');
     expect(goodsNames({})).toBe('');
+    // otroci ve 4. pádě (plán 5, bod 6)
+    expect(goodsNames({ honey: 100, wax: 24, furs: 60, slaves: 10 })).toBe(
+      'med, vosk, kožešiny a otroky',
+    );
+    expect(goodsText({ slaves: 2 })).toBe('2 ks otroků');
   });
 
   it('kg a kusy zůstávají', () => {
     expect(tradeAmountText(1500, 'kg')).toMatch(/^1\s500 kg$/);
     expect(tradeAmountText(4, 'ks')).toBe('4 kusy');
+  });
+
+  it('otroci: zboží po kusech s ikonou otroka a věta příchodu (plán 5)', () => {
+    expect(TRADE_GOODS).toContain('slaves');
+    expect(TRADE_GOOD_NAMES.slaves).toEqual({
+      name: 'Otroci',
+      genitive: 'otroků',
+      accusative: 'otroky',
+      unit: 'ks',
+      icon: 'slave',
+    });
+    expect(NEWCOMER_TEXTS.slave).toEqual({
+      notice: 'Přišel otrok',
+      chronicle: 'přišel otrok',
+      back: 'se vrátil prodaný otrok',
+      backNotice: 'Vrátil se prodaný otrok',
+      female: {
+        notice: 'Přišla otrokyně',
+        chronicle: 'přišla otrokyně',
+        back: 'se vrátila prodaná otrokyně',
+        backNotice: 'Vrátila se prodaná otrokyně',
+      },
+    });
   });
 
   it('kusové zboží jádra (`isPieceGood`) je právě to, co web nemá v kg', () => {
@@ -66,5 +95,11 @@ describe('ikony zboží obchodu', () => {
     for (const icon of ['coin', 'sword', 'mail-shirt', 'helmet', 'merchants']) {
       expect(licenses, icon).toContain(`\`resources/${icon}.png\``);
     }
+  });
+
+  it('ikona otroka 64 × 64 a v LICENSES.md jako render modelu 0 A.D. pod CC BY-SA 3.0 (plán 5)', () => {
+    const png = readFileSync(join(iconsDir, 'resources', 'slave.png'));
+    expect([png.readUInt32BE(16), png.readUInt32BE(20)]).toEqual([64, 64]);
+    expect(licenses).toMatch(/`resources\/slave\.png`[^\n]*CC BY-SA 3\.0/);
   });
 });

@@ -34,6 +34,7 @@ import { CART_GOODS, HORSE_GOODS, PEOPLE_GOODS, cartGoodKind } from './goods';
 import { horsesForSale, horsesOf } from './horse-trade';
 import { peopleWanted } from './market-people';
 import { emigrantGroups } from './people-trade';
+import { offeredSlaveIds } from './slaves';
 import { villageGoodStock } from './trade';
 
 /** Tolerance proti chybám desetinných čísel. */
@@ -94,10 +95,16 @@ export function craftOffer(state: VillageState, day: number): TradeGoods {
  * vlastního pracujícího řemeslníka (`ownCraftsmanWorks`) – hřivny jen na vozy čekající na kování
  * (`ironOrderBarsKg`), vůz jeden druhu `missingCart`. Lidi nabízí, bez kterých ves pole udrží
  * (`peopleSpare`), a shání obráceně, když je půdy víc než práce (`peopleWanted` – Rozhodnutí plánu 3,
- * bod 10). Výhled (`stewardOutlook`) se počítá jednou a `villageSpare` celý se nevolá. Prázdné
- * položky se nezapisují.
+ * bod 10). Výhled (`stewardOutlook`) se počítá jednou a `villageSpare` celý se nevolá. Otroky
+ * nabízí podle nabídky hráče (`slavesForSale`, Rozhodnutí plánu 5, bod 8): `reserved` – otroci
+ * z nabídky (`offeredSlaveIds` z celé vsi; tržní den a správce ji předají, aby celý den platila táž
+ * množina). Prázdné položky se nezapisují.
  */
-export function marketStance(state: VillageState, day: number): MarketStance {
+export function marketStance(
+  state: VillageState,
+  day: number,
+  reserved: ReadonlySet<number> = offeredSlaveIds(state, day),
+): MarketStance {
   const offer: TradeGoods = {};
   const wants: TradeGoods = {};
   const give = (good: TradeGood, amount: number): void => giveTo(state, day, offer, good, amount);
@@ -169,12 +176,21 @@ export function marketStance(state: VillageState, day: number): MarketStance {
   give('stone', villageGoodStock(state, 'stone', day));
 
   // lidé: bez koho ves pole udrží, nabízí – po druzích, které jde vybrat celé najednou (rodiny, muži
-  // a ženy berou z týchž lidí; `emigrantGroups` přes všechny druhy); půdy víc než práce – shání
-  const spare = emigrantGroups(state, day, peopleOffer(state, day, outlook));
+  // a ženy berou z týchž lidí; `emigrantGroups` přes všechny druhy); půdy víc než práce – shání.
+  // Otroky nabízí jen podle nabídky hráče – otroci napřed, rezervovaní (`reserved`) se jako rodina,
+  // muž ani žena nevyberou a jejich dospělí ubydou z rozpočtu volných lidí; nikdy je neshání
+  // (markets.md – Rozhodnutí plánu 5, body 7 a 8)
+  const free = peopleOffer(state, day, outlook, reserved);
+  const spare = emigrantGroups(
+    state,
+    day,
+    reserved.size > 0 ? { ...free, slaves: reserved.size } : free,
+    reserved,
+  );
   const wantedPeople = peopleWanted(state, day, outlook);
   for (const good of PEOPLE_GOODS) {
     if (spare[good].length > 0) offer[good] = spare[good].length;
-    want(good, wantedPeople[good]);
+    want(good, wantedPeople[good] ?? 0);
   }
   return { offer, wants };
 }

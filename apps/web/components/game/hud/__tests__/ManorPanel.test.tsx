@@ -97,6 +97,7 @@ describe('vylepšení vsi ve dvorci', () => {
             merchantsDay: null,
             arms: [],
             merchantsArrived: null,
+            slaveSale: null,
           },
           stance: 'flee',
           huntDenied: null,
@@ -122,6 +123,7 @@ describe('vylepšení vsi ve dvorci', () => {
         merchantsDay: null,
         arms: [],
         merchantsArrived: null,
+        slaveSale: null,
       },
       stance: 'flee' as const,
       huntDenied: null,
@@ -156,13 +158,14 @@ describe('cizí kupci ve dvorci (markets.md – Rozhodnutí plánu 4, bod 12)', 
             merchantsDay,
             arms: [],
             merchantsArrived: null,
+            slaveSale: null,
           },
         }}
       />,
     );
   const days = (html: string): string | undefined =>
     /data-testid="manor-merchants"[^>]*>([^<]*)</.exec(html)?.[1];
-  const trade = 'kupují med, vosk a kožešiny, prodávají meče, kroužkové košile a helmy';
+  const trade = 'kupují med, vosk, kožešiny a otroky, prodávají meče, kroužkové košile a helmy';
 
   it('ikona kupců s počtem dní do příjezdu, slova jen v popisku', () => {
     const html = render(22);
@@ -210,6 +213,7 @@ describe('tlačítko lovu ve dvorci', () => {
             merchantsDay: null,
             arms: [],
             merchantsArrived: null,
+            slaveSale: null,
           },
         }}
         onDeclareHunt={async () => null}
@@ -268,5 +272,50 @@ describe('rodina ve dvorci (lord.md – Co hráč vidí)', () => {
     expect(html).toContain('data-testid="resident-2"');
     expect(html).not.toContain('manor-arms-');
     expect(html).not.toContain('Lukostřelba');
+  });
+});
+
+describe('otroci ve dvorci (markets.md – Pravidla 7)', () => {
+  const render = (slaves?: { all: number; baptized: number }): string =>
+    renderToStaticMarkup(
+      <ManorUpgrades
+        manor={{
+          dwellingId: 1,
+          stance: 'flee',
+          huntDenied: null,
+          ...(slaves ? { slaves } : {}),
+          market: {
+            stock: {},
+            homeCarts: [],
+            oxenHome: 0,
+            adults: 0,
+            day: 10,
+            trips: [],
+            merchantsDay: null,
+            arms: [],
+            merchantsArrived: null,
+            slaveSale: null,
+          },
+        }}
+      />,
+    );
+  const count = (html: string): string | undefined =>
+    /data-testid="manor-slaves"[^>]*>([^<]*)</.exec(html)?.[1];
+
+  it('ikona s počtem a popiskem, český plurál pokřtěných („ho“ jen u jednoho)', () => {
+    const html = render({ all: 3, baptized: 1 });
+    expect(html).toContain('/icons/resources/slave.png');
+    expect(count(html)).toBe('3');
+    expect(html).toContain('>Otroci – 3, z toho 1 pokřtěný – prodat ho nejde<');
+    expect(render({ all: 5, baptized: 2 })).toContain(
+      'Otroci – 5, z toho 2 pokřtění – prodat je nejde',
+    );
+    expect(render({ all: 5, baptized: 4 })).toContain('z toho 4 pokřtění – prodat je nejde');
+    expect(render({ all: 9, baptized: 5 })).toContain('z toho 5 pokřtěných – prodat je nejde');
+    expect(render({ all: 4, baptized: 0 })).toContain('>Otroci – 4<');
+  });
+
+  it('bez otroků nic', () => {
+    expect(render()).not.toContain('manor-slaves');
   });
 });

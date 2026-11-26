@@ -63,8 +63,9 @@ good-summer (klasy se sluncem), flood (rozvodněná voda), hail (kroupy na stéb
 smrště pod mrakem), protection (větvička s listy – ochrana dílu) a dearth (hromada zrna se šipkou
 vzhůru – zdražení u sousedů) a zboží a kupci obchodu (trade.md, markets.md) – coin (velký stříbrný
 denár s křížem a perlovcem, za ním menší), sword (meč úhlopříčně a vedle něj pochva), mail-shirt
-(kroužková košile), helmet (kónická helma spangenhelm) a merchants (muž vede na provaze koně
-s barevnými balíky).
+(kroužková košile), helmet (kónická helma spangenhelm), merchants (muž vede na provaze koně
+s barevnými balíky) a slave (otrok – vesničan se železným obojkem, z jehož oka mu po hrudi visí řetěz;
+ruce volně, na rozdíl od zajatce `war/captive` – markets.md, plán 5).
 (128 × 128 PNG) – `premium/` portréty 19 typů prémiové krajiny (premium-landscapes.md – Co hráč
 vidí; klíč = typ, např. `iron-ore`): kruh krajiny s výškovým polem, na něm prvek typu – zlatá žíla
 ve skalnatém hřbetu, náplav se zlatem, řeka s molem a člunem, černozem s mandelemi, brod pod
@@ -6273,13 +6274,89 @@ def icon_merchants():
     return True
 
 
-# obchod: mince, zbroj a kupci (trade.md, markets.md) – `resources/<klíč>.png`
+SLAVE_TURN = 0.0  # otrok stojí skoro čelem ke kameře – řetěz pak visí uprostřed hrudi
+
+
+def icon_slave():
+    """Otrok (markets.md, plán 5): portrét vesničana jako `man` s těžkým železným obojkem na krku, z oka
+    vpředu mu po hrudi visí řetěz. Ruce volně – na první pohled jiný než zajatec `war/captive`
+    se spoutanýma rukama nad hlavou."""
+    meshes = place_person("man", turn=SLAVE_TURN)
+    rig = next(o for o in bpy.data.objects if o.type == "ARMATURE")
+    neck = rig.pose.bones["neck"]
+    base, tip = rig.matrix_world @ neck.head, rig.matrix_world @ neck.tail
+    axis = (tip - base).normalized()
+    dg = bpy.context.evaluated_depsgraph_get()
+    pts = [e.matrix_world @ v.co for e in (o.evaluated_get(dg) for o in meshes) for v in e.data.vertices]
+    # poloměr krku kousek nad ramenem – podle vrcholů v řezu kolmém ke krku (vous, vlasy a ramena dál
+    # od osy ho nezvětší, proto horní čtvrtina vzdáleností nerozhoduje)
+    mid = base + axis * 0.03
+    near = sorted(d for d in (((p - mid) - axis * (p - mid).dot(axis)).length for p in pts
+                              if abs((p - mid).dot(axis)) < 0.03) if d < 0.12)
+    tube, wire, r_eye = 0.03, 0.016, 0.045
+    big = (near[len(near) * 3 // 4] if near else 0.07) + tube * 0.6
+    t = math.radians(SLAVE_TURN)
+    fwd = Vector((math.sin(t), -math.cos(t), 0.0))
+    across, up = Vector((math.cos(t), math.sin(t), 0.0)), Vector((0.0, 0.0, 1.0))
+    # obojek leží na ramenou u kořene krku – nakloněný jen napůl jako krk, vzadu tak nesahá k ústům
+    centre, tilt = base + axis * 0.01, (axis + up).normalized()
+    front = (fwd - tilt * fwd.dot(tilt)).normalized()
+    side = tilt.cross(front)
+    iron = bmesh.new()
+
+    def ring(c, u, v, r, thick, seg, n):
+        """Kruh poloměru `r` kolem `c` v rovině vektorů `u`, `v` – obojek a oko."""
+        sweep(iron, [c + (u * math.cos(q) + v * math.sin(q)) * r for q in (2 * math.pi * i / n for i in range(n))],
+              thick, seg, closed=True)
+
+    ring(centre, front, side, big, tube, 10, 36)
+    top = centre + front * big
+
+    def clear(z):
+        """Jak daleko před přední bod obojku musí řetěz ve výšce z, aby nebyl v těle."""
+        return max([0.0] + [(p - top).dot(fwd) + 0.045 for p in pts
+                            if abs(p.z - z) < 0.015 and abs((p - top).dot(across)) < 0.05])
+
+    # oko na předku obojku lícem ke kameře; řetěz z něj visí svisle dolů a kde hruď vystupuje,
+    # odsune ho dopředu (zpátky k břichu už ne)
+    out = max(clear(top.z - r_eye * f) for f in (0.0, 0.5, 1.0))
+    ring(top + fwd * out, across, up, r_eye, wire, 8, 20)
+    path = []
+    for k in range(70):
+        z = top.z - r_eye - k * 0.01
+        out = max(out, clear(z))
+        path.append(Vector((top.x, top.y, z)) + fwd * out)
+    dist = [0.0]
+    for p0, p1 in zip(path, path[1:]):
+        dist.append(dist[-1] + (p1 - p0).length)
+    # články střídavě bokem a lícem ke kameře, každý zaklesnutý do předchozího
+    a, b = 0.032, 0.056
+    s, i, n = b - 2 * wire, 0, 0
+    while s < dist[-1]:
+        while dist[i + 1] < s:
+            i += 1
+        c = path[i].lerp(path[i + 1], (s - dist[i]) / (dist[i + 1] - dist[i]))
+        along = (path[i + 1] - path[i]).normalized()
+        flat_dir = fwd if n % 2 == 0 else across
+        flat_dir = (flat_dir - along * flat_dir.dot(along)).normalized()
+        sweep(iron, [c + along * math.cos(q) * b + flat_dir * math.sin(q) * a
+                     for q in (2 * math.pi * j / 20 for j in range(20))], wire, 8, closed=True)
+        s += 2 * (b - wire)
+        n += 1
+    to_obj(iron, "collar", metal("collar", (0.34, 0.33, 0.33), 0.45, 0.7))
+    sun(az=-40, el=40, strength=4.4)
+    camera(box_points(meshes, 0.56, 1.0), az=12, el=6, margin=1.0)
+    return True
+
+
+# obchod: mince, zbroj, kupci a otroci (trade.md, markets.md) – `resources/<klíč>.png`
 RESOURCES.update({
     "coin": icon_coin,
     "sword": icon_sword_trade,
     "mail-shirt": icon_mail_shirt,
     "helmet": icon_helmet,
     "merchants": icon_merchants,
+    "slave": icon_slave,
 })
 
 

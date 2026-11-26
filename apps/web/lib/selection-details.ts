@@ -597,6 +597,8 @@ type SelectionKinds =
       ennobleable?: boolean;
       /** Pokřtěný (christianity.md – Víra vesničanů) – malý kříž v panelu; pohan nic. */
       christian?: boolean;
+      /** Otrok (markets.md – Pravidla 7) – odznak; s `christian` prodat ho nejde. */
+      slave?: boolean;
       /** Vojvoda se smí nechat pokřtít (christianity.md – Křest rodu) – tlačítko „Nechat se pokřtít“. */
       baptizable?: boolean;
       /** Mistr stavební huti – ikona oboru v panelu (stone-masonry.md); jinak chybí. */
@@ -1396,6 +1398,7 @@ function personDetails(
     arms: person.arms ?? null,
     ennobleable: person.ennobleable === true,
     christian: person.christian === true,
+    slave: person.slave === true,
     baptizable: person.baptizable === true,
     mason: person.mason ?? null,
     lodgeCircle: person.lodgeCircle ?? null,

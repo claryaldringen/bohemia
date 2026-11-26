@@ -49,6 +49,11 @@ export interface Person {
   sex?: Sex;
   /** Víra člověka (christianity.md); chybí = pohan. */
   faith?: Faith;
+  /**
+   * Otrok (markets.md – Pravidla 7; Martin 22. 11. 2026: „Od zajetí bude prostě vedený jako otrok“):
+   * odvedený pohan od usazení ve vsi vítěze. Trvalé – pokřtěním nezmizí, děti ho nedědí. Chybí – svobodný.
+   */
+  slave?: true;
   /** Matka a otec (id) – chybí, když jsou neznámí (zakladatelé, lidé z okolí, starší vsi). */
   motherId?: number;
   fatherId?: number;

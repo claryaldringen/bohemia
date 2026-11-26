@@ -635,7 +635,8 @@ day, order, target, { by?, seedKg?, alone?, service?, kin?, people? })` (mutuje 
     `merchantVisits(merchantStops, day, day)` založí návštěvníka trhu (trh vznikne, chybí-li):
     `MarketVisitor` s `merchant: true`, klíčem průjezdu, pořadím příjezdu za výpravami dne, pobytem na
     den, bez domovské vsi (`fromVillageId` a `fromName` prázdné), nákladem `MERCHANTS.goods` a měšcem
-    `MERCHANTS.coins` v `goods.coins`, seznamem `MERCHANTS.wants` (kopie). Dva průjezdy téhož dne
+    `MERCHANTS.coins` v `goods.coins`, seznamem `MERCHANTS.wants` (kopie – med, vosk, kožešiny
+    a otroci). Dva průjezdy téhož dne
     (křižovatka) jsou dva kupci, každý se svým měšcem; klíč, který na trhu už stojí, se znovu
     nezaloží. Poznámka v `market.arrivals` bez jména a vsi se značkou `merchants` a druhy zbroje
     (posledních `MARKET.report.traders` jako u výprav) a kronika `merchants-arrived` (`sells`, `buys`,
@@ -644,8 +645,20 @@ day, order, target, { by?, seedKg?, alone?, service?, kin?, people? })` (mutuje 
     kroniku simulace nečte, takže zápis nezávisí na kouscích dopočtu ani na jejím zkrácení. Upozornění
     „Kupci přijeli“ chodí ve webu za každý příjezd – z `market.arrivals`, ne z kroniky (web-ui.md –
     Mince, kupci a zbroj v rozhraní).
-  - **Obchod:** kupec je strana zápočtu (zbroj za med, vosk a kožešiny) i mincovní fáze – v ní kupuje
-    první, podle celého seznamu a za svůj měšec.
+  - **Obchod:** kupec je strana zápočtu (zbroj za med, vosk, kožešiny a otroky) i mincovní fáze – v ní
+    kupuje první, podle celého seznamu a za svůj měšec.
+  - **Otroci** (markets.md – Rozhodnutí plánu 5, bod 7; `MERCHANTS.wants.slaves` = 10 za průjezd):
+    kupec kupuje otroky za mince i zápočtem (zbroj za otroky; z měšce 60 mincí dva po 24). Pořadí
+    nákupu se nemění: v mincovní fázi jde kupec od prodávajících v pořadí stran (hostitel, pak výpravy
+    podle příjezdu) a u každého v pořadí `TRADE_GOODS` (med, vosk a kožešiny před otroky) – otroky
+    dřívější výpravy tedy koupí dřív než med pozdější. Koupení otroci jdou do `boughtPeople` kupce
+    a odjedou s ním ze světa (`departVisitors`, i z trhu zaniklé vsi – `merchantsLeave`) – jediný
+    odchod lidí ze světa kromě smrti; neprodaný otrok se vrátí s výpravou domů (poštou jako lidé
+    plánu 3). **V den, kdy na trhu nikdo otroky nenabízí** (`slavesOnMarket` v `marketDay` – hostitel
+    podle `stance.offer.slaves`, výpravy z nákladu), seznam kupce otroky nemá (`merchantWants`)
+    v ceně dne (`priceTotals` – `affordableWants` i zboží dne jen s kupci), ve stropu V zápočtu
+    (`clearMarket`) ani v mincovní fázi (`coinPhase` – seznamy stran, C a W hladiny), takže trh je bit
+    po bitu jako po plánu 4 (srovnání dvou klonů v `market-merchants-slaves.test.ts`).
   - **Ceny dne** (`priceTotals` v `market.ts` – S a D pro `nextPrices`; návrh Clauda): poptávka kupce
     se počítá jen u zboží, které je ten den na trhu ke koupi (S > 0, každý den, i s výpravami) – bez
     nabídky cenou nehne, jako W = 0 hladinou –, a jen do výše měšce ráno:
@@ -932,6 +945,80 @@ laborHa`) → chybí ceil(dospělí × (landHa ÷ laborHa − 1)) dospělých, r
   prodaná rodina z Lhoty a 17 mincí.“), bez lidí zápis `stranded-coins` („Do vsi přišlo 17 mincí
   z Lhoty.“; cizímu správci bez jména – `maskVillageNames`). Starší zpráva bez `from` mince přičte
   bez kroniky.
+- **Otroci na trhu** (markets.md – Rozhodnutí plánu 5, bod 6; Martin 26. 11. 2026: „Moc to
+  řešíš. Otroci nejsou rodina, ale zboží“; `trade/slaves.ts`): `PeopleGood` += `slaves` – kus je
+  jeden otrok, manžel ani děti s ním neodcházejí a i malé dítě-otrok jde samo za cenu dospělého
+  (`TRADE_GOOD_VALUES.slaves` 360 kg obilí = 24 mincí, nese 0). `PEOPLE_GOODS` = otroci, rodiny,
+  muži, ženy (otroci napřed, tedy i v `TRADE_GOODS` a `PIECE_GOODS`); skupina `NewcomerGroup`
+  `slave` (`PEOPLE_GROUP.slaves`, `GROUP_GOOD.slave`). Prodat jde `sellableSlaves(state, day)` –
+  jeden průchod lidmi bez simulace: `canBeSold` (otrok-pohan, ne `line` ani `noble`), doma (ne
+  `isAway`), ne `keptByLine`, od nejnižšího id. Odvedený pohan z cizího rodu nebo šlechtic je po
+  usazení obyčejný otrok na prodej (nenastává – muže rodu a šlechtice válka zajímá, `Prisoner`) – `settleLed` mu `line` i `noble` smaže (village-people.md),
+  takže ho `canBeSold` ani `keptByLine` nedrží; jeho žena také ne (manžel už není muž rodu).
+  `emigrantGroups` bere napřed `want.slaves` otroků jedním řezem (každý jako skupina `slave` sám,
+  i z dvorce a i když se domácnost rozpadne – rozpad řeší `dissolveHouseholds` jako po smrti), pak rodiny, muže
+  a ženy z vsi bez nich; `Emigrants.slaves`, `emigrantList` v pořadí otroci, rodiny, muži, ženy.
+  Bez `want.slaves` se prodejní otroci nehledají a kopie vsi nevzniká – výběr je bit po bitu jako
+  před plánem 5. Volitelné `TradePeople.slaves` (chybí = 0): `tradePeopleCount` ho sčítá,
+  `peopleOf` i `MarketTripPeople.stock` (`marketTripPeople`) ho píší jen při kladném počtu (bez něj
+  by kontrola výpravy dala otrokům zásobu 0). Bez otroků zůstávají `NO_PEOPLE`, lidé zásilek
+  (`ShipmentManifest.people`) a `comingCounts`; hostitel otroky nabízí jen podle nabídky hráče
+  (Prodej ve vlastní vsi níž) a nikdy je neshání (`marketStance`). Zásoba, odchod, prodej a návrat jdou přes `PEOPLE_GOODS` a `emigrantGroups`
+  samy (`villageGoodStock`, `takePeople`, `settleTrades`, `departMarketInPlace`,
+  `applyMarketResult`, `checkMarketTrip`). Příchod a návrat otrokyně nese v zápisu `newcomer`
+  `female` (`settlePeople`, `receiveStranded`). Web: `TRADE_GOOD_NAMES.slaves` (ikona
+  `resources/slave.png`), `NEWCOMER_TEXTS.slave`, upozornění `newcomer-slave` a
+  `newcomer-back-slave`; náhled výpravy s otroky ve webu zatím ne.
+  - **Manželství, pošta a zaniklé vsi** (Rozhodnutí plánu 5, body 6 a 9): prodej rozvede
+    manželství jako smrt – `sendPeople` u skupin `slave` smaže v kopii záznamu `spouseId`, jehož
+    manžel ve skupině není (vzor `departLeavers`), a manžel ve vsi ovdoví týmž `removePeople`;
+    rodiny a svobodní beze změny (trh bez otroků bit po bitu). Neprodaný se vrátí bez manžela
+    (`restorePeople` v `applyMarketResult`, otrok hostitele ze zaniklé vsi kupujícího
+    `receiveStranded` → `restorePeople`), prodaný se usadí bez manžela (`rehomePeople`). Obnovit
+    sňatek po návratu se nebere – oba se smějí oženit a vdát znovu (vzájemně, krokem sňatků).
+    Jednostranné `spouseId` by `populationDay` (`fatherOf`) vzalo jako vedlejší manželku – rodila
+    by s bývalým mužem i v jiném domě – a `isSingle` by ji ke sňatku nepustilo. Jinak nic nového:
+    otroci jdou cestami lidí plánu 3 celí – výprava, nákup výpravou za mince od jiné výpravy, pošta,
+    návrat a `stranded-people` (koupený od výpravy se u hostitele usadí s novým id, vlastní
+    s `fromHost` s původním) – a s osadníky odchodu celé vsi i vsi syna (`departLeavers`, manžel
+    mezi osadníky zůstane). Testy: `market-slaves.test.ts` (vsi A, B a C, pošta po každém dni,
+    denní invariant `oneSidedSpouses` v `market-fixtures.ts` – vedlejší manželky mužů rodu
+    vynechá), `departure.test.ts`, `son-departure.test.ts` a kodek `village-state-codec.test.ts`.
+  - **Prodej ve vlastní vsi – nabídka a rezervace** (Rozhodnutí plánu 5, bod 8 – návrh Clauda podle
+    Martinova „Hráč zadá počet“ u zbroje, 25. 11. 2026; `trade/slaves.ts`, vzor Objednávka zbroje):
+    `VillageState.slavesForSale` (celé, chybí = žádní) zapíše `setSlavesForSale` (0 pole smaže,
+    necelé nebo záporné odmítne – `SLAVES_BAD_COUNT`; na počet otroků se neomezuje). Ves nabízí
+    min(nabídka, `sellableSlaves`) – pokřtěný mezi zadáním a trhem se nepočítá,
+    nabídka vyšší než zásoba čeká. **Rezervace** `offeredSlaveIds` = id prvních `slavesForSale`
+    ze `sellableSlaves` (bez nabídky prázdná `NO_RESERVED`, prodejní otroci se nehledají) se počítá
+    **jednou z celé vsi** a předává dál beze změny: `emigrantGroups(…, reserved)` bere otroky dál
+    napřed ze `sellableSlaves` (rezervovaní jsou mezi nimi první), rodiny, muže a ženy z vsi bez
+    otroků výběru i bez rezervovaných – manžel rezervovaného otroka přitom svobodný není
+    (`nextSingle` – ženatý bez manžela neodchází), ani když se otrok týmž výběrem prodává; manžel
+    jiného otroka prodaného výběrem svobodný je (postupné `takePeople` z něj napřed udělá vdovce).
+    Vdané dítě rezervovaného otroka s rodinou neodejde (`familiesOf` s `reserved` – zůstane doma
+    jako každé vdané dítě, rodina odejde bez něj); totéž `leavingGroups`, `takePeople`, `marketTripPeople`
+    a `planMarketTrip` s volitelným `reserved` (chybí = výběr beze změny). Přepočet ze vsi zmenšené
+    o odešlé (postupné `takePeople`, `settleTrades` mincovní fáze po zápočtu) by rezervoval jiné lidi.
+    Nabídka hostitele (`marketStance(state, day, reserved = offeredSlaveIds(…))`): volní lidé
+    `peopleOffer(…, reserved)` – rozpočet se zmenší o dospělé rezervované (jako v rozpočtu, nejvýš
+    na 0; i zraněné – práci nemají, ale v rozpočtu jsou), rodiny, muži a ženy se vybírají bez nich
+    a `keepLabor` kontroluje práci vsi bez odcházejících i bez rezervovaných (ubírá jen volné lidi –
+    kolik otroků prodat, rozhodl hráč); `offer.slaves` = počet rezervovaných, jen > 0, ve `wants`
+    nikdy. Tržní den (`marketDay`) spočte rezervaci jednou na začátku a dá ji `marketStance`,
+    všem `settleTrades` (zápočet řemeslníků, zápočet, mincovní fáze) i `coinPhase`; s nabídkou
+    otroků je `slavesOnMarket` pravda, takže kupci otroky shánějí (`merchantWants`). Po všech fázích
+    `reduceSlavesForSale(state, host.sold.slaves)` – o prodané menší, nula ze stavu zmizí, zbytek
+    čeká na další trh. Ves bez nabídky je bit po bitu jako dřív. Výprava hráče (`departMarket`),
+    `villageGoodStock` a zásilky rezervaci neberou – hráč smí otroka z nabídky poslat i výpravou
+    (vybere se od nejnižšího id jako ostatní otroci) a nabídka se pak spočte ze zbylých. Výprava
+    správce otroky nebere (village-steward.md – Správce na trhu). Nabídka se odchodem celé vsi
+    nepřenáší (jako `armsOrder`). Testy: `slaves-sale.test.ts` (kupci, rezervace v zápočtu,
+    mincovní fázi a celý den), `market-stance.test.ts`, `vassalage/__tests__/spare.test.ts`
+    (`peopleOffer`, `keepLabor`), `steward-market.test.ts`. Akce hráče: use-case `offerSlaves`
+    (`application/slaves.ts`, `updateLivingVillage`, bez podmínky na správce – nabídku správce nemění),
+    právo `trade` (`ACTION_RIGHTS.offerSlaves`), web `offerSlavesForPlayer` (`lib/village.ts`) a server
+    action `offerSlaves` (`actions/market.ts`, vstup `{ villageId, count }` ověří `parseSlaveOfferInput`).
 
 Počasí kraje mění hodnotu zboží od 1. 11. – [village-disasters.md](village-disasters.md#kraj-kolem-vsi-hodnota-zboží-a-zvěř-p4).
 

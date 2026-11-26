@@ -4,6 +4,7 @@ import { foundVillage } from '../../core/actions';
 import { churchCoverage } from '../church-life';
 import { christianShare, conversionDay } from '../conversion';
 import { isChristian } from '../faith';
+import { canBeSold } from '../slaves';
 import { advanceVillage } from '../../core/simulate';
 import type { Person, VillageState } from '../../types';
 import { withBuiltFirstDwelling } from '../../__tests__/village-fixtures';
@@ -46,6 +47,17 @@ describe('obrácení vesničanů', () => {
     expect(n).toBeGreaterThanOrEqual(1);
     expect(n).toBeLessThanOrEqual(10);
     expect(events).toEqual([{ day: NEW_YEAR, kind: 'converted', count: n }]);
+  });
+
+  it('pokřtěný otrok zůstává otrokem, ale prodat ho nejde (markets.md – Rozhodnutí plánu 5)', () => {
+    const people = crowd(1000).map((p) => ({ ...p, slave: true as const }));
+    const s = villageOf(people, true);
+    expect(s.people.every(canBeSold)).toBe(true);
+    conversionDay(s, NEW_YEAR);
+    const converted = s.people.filter(isChristian);
+    expect(converted.length).toBeGreaterThan(0);
+    expect(converted.every((p) => p.slave === true && !canBeSold(p))).toBe(true);
+    expect(s.people.filter((p) => !isChristian(p)).every(canBeSold)).toBe(true);
   });
 
   it('jen 1. 1.; jiný den nic', () => {

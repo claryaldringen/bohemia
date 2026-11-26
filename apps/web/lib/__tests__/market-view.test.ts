@@ -221,3 +221,73 @@ describe('náhled výpravy = kontrola jádra', () => {
     expect(preview({ coins: 401 })).toEqual(refused(MARKET_OVER_STOCK));
   });
 });
+
+describe('náhled výpravy s otroky = kontrola jádra (plán 5, Úloha 8a)', () => {
+  const target: MarketTarget = {
+    villageId: 'v-2',
+    name: 'Lhota',
+    cells: 2,
+    firstStep: 'E',
+    homeVillageId: 'h',
+    homeName: 'Vlkov',
+  };
+  /** Ves se dvěma otroky navíc (dospělí, doma – zvětšují počet volných dospělých). */
+  function slaveVillage(): VillageState {
+    const s = village();
+    s.coins = 400;
+    s.people.push(
+      { ...person(600, 25, 'male'), slave: true },
+      { ...person(601, 23, 'female'), slave: true },
+    );
+    return s;
+  }
+  const orders: Record<string, MarketOrder> = {
+    '2 otroci a 1 muž': { give: { slaves: 2, men: 1 }, wants: {}, stayDays: 1 },
+    'otroci sami': { give: { slaves: 2 }, wants: {}, stayDays: 1 },
+    'otrok a obilí': { give: { slaves: 1, grain: 100 }, wants: {}, stayDays: 1 },
+    'otroci a obilí navíc': { give: { slaves: 2, grain: 200 }, wants: {}, stayDays: 1 },
+    'víc otroků, než je': { give: { slaves: 5 }, wants: {}, stayDays: 1 },
+    'obilí bez otroků v dotazu': { give: { grain: 200 }, wants: {}, stayDays: 1 },
+  };
+
+  for (const [name, order] of Object.entries(orders)) {
+    it(`${name}: tytéž nosiče a týž důvod jako server`, () => {
+      const s = slaveVillage();
+      const view = manorView(s, DAY)!;
+      const plan = planMarketTrip(s, DAY, order, target);
+      const { families = 0, men = 0, women = 0, slaves = 0 } = order.give;
+      const people =
+        families + men + women + slaves > 0 ? marketTripPeople(s, DAY, order.give) : null;
+      const preview = marketPreview(order, view.market, target.cells, people);
+      expect(preview.reason).toBe(plan.ok ? null : plan.reason);
+      if (plan.ok) {
+        expect(preview.porters).toBe(plan.porters);
+        expect(preview.carts).toBe(plan.cartIds.length);
+      }
+    });
+  }
+
+  it('odcházející otroci nenesou: bez nich by obilí vyšlo, s nimi ne', () => {
+    const s = slaveVillage();
+    const view = manorView(s, DAY)!;
+    const order: MarketOrder = { give: { slaves: 2, grain: 200 }, wants: {}, stayDays: 1 };
+    const withPeople = marketPreview(
+      order,
+      view.market,
+      target.cells,
+      marketTripPeople(s, DAY, order.give),
+    );
+    const naive = marketPreview(order, view.market, target.cells, null);
+    expect(withPeople.reason).toBe(MARKET_NO_PEOPLE);
+    expect(naive.reason).toBeNull();
+    expect(planMarketTrip(s, DAY, order, target)).toMatchObject({ ok: false });
+  });
+
+  it('odpověď bez otroků zásobu otroků nepřepíše', () => {
+    const s = slaveVillage();
+    const view = manorView(s, DAY)!;
+    const order: MarketOrder = { give: { slaves: 2 }, wants: {}, stayDays: 1 };
+    const people = { stock: { families: 0, men: 0, women: 0 }, adults: view.market.adults };
+    expect(marketPreview(order, view.market, target.cells, people).reason).toBeNull();
+  });
+});

@@ -23,7 +23,9 @@ import {
   marketVillage,
   report,
   SEP1,
+  oneSidedSpouses,
   seedHome,
+  slaveFamilyHome,
 } from '../../domain/village/trade/__tests__/market-fixtures';
 import { advanceDynasty } from '../advance-dynasty';
 import { advancePlayer } from '../advance-world';
@@ -535,6 +537,59 @@ describe('pošta plánu 3 – zaniklé vsi (markets.md – Rozhodnutí plánu 3,
       familyHomeAgain(w, nextId, total);
     },
   );
+
+  it('ženatý otrok prodaný na trh zaniklé domovské vsi se vrátí domů bez manžela, nikde jednostranné manželství', async () => {
+    // M (Lhota) má dva manžele-otroky 90 ∞ 91 (plán 5, bod 6): prodej 90 rozvede manželství jako smrt
+    const host = { ...slaveFamilyHome(1), lastDay: D - 1 };
+    for (const p of host.people) {
+      if (p.id === 90) p.spouseId = 91;
+      if (p.id === 91) p.spouseId = 90;
+    }
+    const w = await marketWorld({ host });
+    const total = w.state(w.m).people.length;
+    const trip = await w.depart({ give: { grain: 600 }, wants: { families: 1 }, stayDays: 1 });
+    w.villages.edit(w.h, (s) => {
+      delete s.outbox;
+    });
+    w.villages.edit(w.m, (s) => {
+      const newcomers = takePeople(s, D - 1, 'slaves', 1, 'W').map((g) => ({
+        ...g,
+        fromHost: true as const,
+      }));
+      expect(newcomers.flatMap((g) => g.people.map((p) => p.id))).toEqual([90]);
+      const result: MarketResult = {
+        key: trip.key,
+        sold: { grain: 600 },
+        bought: { slaves: 1 },
+        unsold: {},
+        horses: [],
+        newcomers,
+        origin: { villageId: w.h, villageName: 'Vlkov', direction: 'W' },
+      };
+      s.outbox = [
+        {
+          villageId: w.h,
+          day: D + 1,
+          ref: marketResultRef(trip.key),
+          body: { kind: 'market-result', result },
+        },
+      ];
+    });
+    // po prodeji je žena 91 vdova, nikdo nemá jednostranné manželství
+    expect(w.state(w.m).people.find((p) => p.id === 91)).not.toHaveProperty('spouseId');
+    expect(oneSidedSpouses(w.state(w.m))).toEqual([]);
+    // domovská ves zanikla dřív, než výsledek vyzvedla
+    w.villages.edit(w.h, (s) => {
+      s.extinctDay = s.lastDay;
+    });
+    expect(await deliverVillageMail(w.deps, w.m)).toBe(1);
+    await w.load(w.m, D + 1);
+    const m = w.state(w.m);
+    expect(m.people).toHaveLength(total);
+    expect(m.people.find((p) => p.id === 90)).toMatchObject({ slave: true });
+    // vrátil se bez manžela (smí se znovu oženit, jen vzájemně) – nikde jednostranné manželství
+    expect(oneSidedSpouses(m)).toEqual([]);
+  });
 
   it('výsledek, který zaniklá ves už použila (výprava není ve stavu), se hostiteli nevrátí', async () => {
     // pád mezi zápisem výsledku a smazáním z odchozí schránky M: H výsledek použila a pak vymřela –

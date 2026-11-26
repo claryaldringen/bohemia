@@ -2,17 +2,19 @@
 // Výměna lidí se smyšlenými sousedy skončila s obchodní výpravou (markets.md – Pravidla 1); kód
 // zůstává pro to, co je na cestě a co nesou zásilky vazalů (vassalage.md – Doprava a cílová ves):
 // koho ves smí dát (`emigrantGroups` – nikdy dědice domu, vojvodovu domácnost ani nikoho, bez koho
-// by se domácnost rozpadla) a kam přijdou lidé, které přivede výprava na cestě (`settleNewcomers`,
+// by se domácnost rozpadla; otroci jsou zboží a jdou každý sám – `sellableSlaves`, markets.md –
+// Rozhodnutí plánu 5, bod 6) a kam přijdou lidé, které přivede výprava na cestě (`settleNewcomers`,
 // markets.md – Pravidla 10). Čisté funkce bez I/O, náhoda ze seedu vsi.
 import { isDisused } from '../buildings/disused';
 import { isHouseType } from '../buildings/log-house';
 import { createRandom, deriveSeed, type Random } from '../../landscape/random';
-import { isDynastyTracked, lineMen } from '../people/dynasty';
+import { keptByLine } from '../people/dynasty';
 import { familiesOf, unmarriedHeir } from '../people/households';
 import { villageManorId } from '../people/manor';
 import { isSingle } from '../people/marriage';
 import { householdBreaksUp, isAway, isFertile, occupants } from '../people/people';
 import { DWELLINGS, PEOPLE_TRADE } from '../rules';
+import { NO_RESERVED, sellableSlaves } from './slaves';
 import type {
   ChronicleEvent,
   ComingPeople,
@@ -30,9 +32,9 @@ const DAYS_PER_YEAR = 365.25;
 /** Žádní lidé. */
 export const NO_PEOPLE: TradePeople = { families: 0, men: 0, women: 0 };
 
-/** Kolik lidí ve výměně (rodiny, muži a ženy) – součet skupin. */
+/** Kolik lidí ve výměně (otroci, rodiny, muži a ženy) – součet skupin; chybějící otroci = 0. */
 export function tradePeopleCount(people: TradePeople): number {
-  return people.families + people.men + people.women;
+  return (people.slaves ?? 0) + people.families + people.men + people.women;
 }
 
 /** Celé číslo v rozmezí od–do včetně. */
@@ -40,7 +42,7 @@ function between(rnd: Random, from: number, to: number): number {
   return from + Math.floor(rnd.next() * (to - from + 1));
 }
 
-/** Skupina lidí, kterou ves může dát (zásilka vazalů) – rodina, nebo svobodný muž či žena. */
+/** Skupina lidí, kterou ves může dát (zásilka vazalů) – otrok sám, rodina, nebo svobodný muž či žena. */
 export interface EmigrantGroup {
   kind: NewcomerGroup;
   /** Domácnost, ze které odchází. */
@@ -73,23 +75,17 @@ function without(state: VillageState, people: readonly Person[]): VillageState {
 }
 
 /**
- * Koho ves sousedovi nedá – muže rodu ani manželku muže rodu (lord.md – Rod vojvody, Manželky;
- * návrh Clauda: rod se nesmí dát sousedovi). Ves bez rodu dá kohokoli.
- */
-export function keptByLine(state: VillageState): (p: Person) => boolean {
-  if (!isDynastyTracked(state)) return () => false;
-  const line = new Set(lineMen(state).map((p) => p.id));
-  return (p) => line.has(p.id) || (p.spouseId !== undefined && line.has(p.spouseId));
-}
-
-/**
  * První rodina, kterou ves smí dát (`familiesOf` – dědic a jeho rodiče zůstávají) – bez mužů rodu
- * a jejich žen (`keptByLine`).
+ * a jejich žen (`keptByLine`). Vdané dítě otroka z nabídky (`reserved`) s rodinou neodejde.
  */
-function nextFamily(state: VillageState, day: number): EmigrantGroup | undefined {
+function nextFamily(
+  state: VillageState,
+  day: number,
+  reserved: ReadonlySet<number>,
+): EmigrantGroup | undefined {
   const kept = keptByLine(state);
   for (const dwelling of givingDwellings(state)) {
-    const family = familiesOf(state, dwelling, day).find(
+    const family = familiesOf(state, dwelling, day, reserved).find(
       (f) => !f.people.some((p) => kept(p) || isAway(p, day)),
     );
     if (family) return group('family', dwelling.id, family.people);
@@ -100,9 +96,16 @@ function nextFamily(state: VillageState, day: number): EmigrantGroup | undefined
 /**
  * První svobodný muž (`sex` male) nebo žena 16–44 let, které ves smí dát: ne dědic domu
  * (`unmarriedHeir`), ne vdova s malými dětmi (`isSingle`), a jen když v domě zůstane někdo, kdo
- * domácnost udrží. Muž rodu ne (`keptByLine`). V domě od nejstaršího.
+ * domácnost udrží. Muž rodu ne (`keptByLine`). V domě od nejstaršího. Manžel otroka z nabídky
+ * (`reserved`) není svobodný – ve `state` výběru otrok chybí, ale manželství trvá (ženatý bez
+ * manžela neodchází – markets.md – Rozhodnutí plánu 3, bod 10, a plánu 5, bod 8).
  */
-function nextSingle(state: VillageState, day: number, sex: Sex): EmigrantGroup | undefined {
+function nextSingle(
+  state: VillageState,
+  day: number,
+  sex: Sex,
+  reserved: ReadonlySet<number>,
+): EmigrantGroup | undefined {
   const kept = keptByLine(state);
   for (const dwelling of givingDwellings(state)) {
     const members = occupants(state, dwelling.id);
@@ -115,6 +118,7 @@ function nextSingle(state: VillageState, day: number, sex: Sex): EmigrantGroup |
           !kept(p) &&
           !isAway(p, day) &&
           isFertile(p, day) &&
+          !(p.spouseId !== undefined && reserved.has(p.spouseId)) &&
           isSingle(state, p, day),
       )
       .sort(byAge);
@@ -131,23 +135,49 @@ function group(kind: EmigrantGroup['kind'], dwellingId: number, people: Person[]
   return { kind, dwellingId, people };
 }
 
-/** Koho ves dá – rodiny, svobodní muži a svobodné ženy (v pořadí výběru). */
+/** Koho ves dá – otroci, rodiny, svobodní muži a svobodné ženy (v pořadí výběru). */
 export interface Emigrants {
+  slaves: EmigrantGroup[];
   families: EmigrantGroup[];
   men: EmigrantGroup[];
   women: EmigrantGroup[];
 }
 
 /**
- * Koho ves dá sousedovi (trade.md – Výměna lidí, návrh Clauda): nejvýš `want.families` rodin, pak
- * `want.men` svobodných mužů a `want.women` svobodných žen, postupně – každá další skupina z vsi
- * bez těch předchozích, vždy z nejvíc přeplněného domu (dvorec vojvody ne). Rodina podle
- * `familiesOf` (muž, žena a jejich svobodné děti; dědic domu a jeho rodiče zůstávají, zbytek
- * domácnosti se nesmí rozpadnout), muž a žena podle `nextSingle`. Výběr je postupný, takže prvních
- * n skupin je vždy stejných (náhled v panelu). Když tolik lidí není, vrátí méně.
+ * Koho ves dá sousedovi (trade.md – Výměna lidí, návrh Clauda): napřed nejvýš `want.slaves` otroků
+ * (`sellableSlaves` – každý sám, markets.md – Rozhodnutí plánu 5, bod 6), pak z vsi bez nich
+ * nejvýš `want.families` rodin, `want.men` svobodných mužů a `want.women` svobodných žen, postupně –
+ * každá další skupina z vsi bez těch předchozích, vždy z nejvíc přeplněného domu (dvorec vojvody
+ * ne). Rodina podle `familiesOf` (muž, žena a jejich svobodné děti; dědic domu a jeho rodiče
+ * zůstávají, zbytek domácnosti se nesmí rozpadnout), muž a žena podle `nextSingle`. Výběr je
+ * postupný, takže prvních n skupin je vždy stejných (náhled v panelu). Když tolik lidí není, vrátí
+ * méně. Bez otroků ve `want` se prodejní otroci nehledají a výběr je týž jako před plánem 5.
+ * `reserved` – otroci z nabídky vsi (`offeredSlaveIds`, markets.md – Rozhodnutí plánu 5, bod 8):
+ * otroci se berou dál napřed ze `sellableSlaves` (rezervovaní jsou mezi nimi první), rodiny, muži
+ * a ženy z vsi bez otroků výběru i bez rezervovaných; manžel rezervovaného otroka svobodný není
+ * (`nextSingle`), ani když se otrok týmž výběrem prodává (nabídka hostitele a jeho prodej se
+ * vybírají jedním voláním). Manžel jiného otroka prodaného výběrem svobodný je – postupné
+ * `takePeople` z něj napřed udělá vdovce, takže výběr i odchod souhlasí. Chybí = prázdná, výběr
+ * beze změny.
  */
-export function emigrantGroups(state: VillageState, day: number, want: TradePeople): Emigrants {
-  let rest = state;
+export function emigrantGroups(
+  state: VillageState,
+  day: number,
+  want: TradePeople,
+  reserved: ReadonlySet<number> = NO_RESERVED,
+): Emigrants {
+  // otroci jedním řezem – každý jako skupina sám, ze vsi se odeberou najednou
+  const slaves =
+    (want.slaves ?? 0) > 0
+      ? sellableSlaves(state, day)
+          .slice(0, want.slaves)
+          .map((p) => group('slave', p.dwellingId, [p]))
+      : [];
+  const sold = slaves.flatMap((g) => g.people);
+  // rezervovaní otroci z nabídky zůstávají stranou – jako rodina, muž ani žena se nevyberou
+  const kept = reserved.size > 0 ? state.people.filter((p) => reserved.has(p.id)) : [];
+  const aside = [...sold, ...kept];
+  let rest = aside.length > 0 ? without(state, aside) : state;
   const take = (count: number, next: () => EmigrantGroup | undefined): EmigrantGroup[] => {
     const out: EmigrantGroup[] = [];
     while (out.length < count) {
@@ -158,15 +188,15 @@ export function emigrantGroups(state: VillageState, day: number, want: TradePeop
     }
     return out;
   };
-  const families = take(want.families, () => nextFamily(rest, day));
-  const men = take(want.men, () => nextSingle(rest, day, 'male'));
-  const women = take(want.women, () => nextSingle(rest, day, 'female'));
-  return { families, men, women };
+  const families = take(want.families, () => nextFamily(rest, day, reserved));
+  const men = take(want.men, () => nextSingle(rest, day, 'male', reserved));
+  const women = take(want.women, () => nextSingle(rest, day, 'female', reserved));
+  return { slaves, families, men, women };
 }
 
-/** Všechny skupiny výběru v pořadí rodiny, muži, ženy. */
+/** Všechny skupiny výběru v pořadí otroci, rodiny, muži, ženy. */
 export function emigrantList(emigrants: Emigrants): EmigrantGroup[] {
-  return [...emigrants.families, ...emigrants.men, ...emigrants.women];
+  return [...emigrants.slaves, ...emigrants.families, ...emigrants.men, ...emigrants.women];
 }
 
 /** Člověk od souseda: pohlaví, věk v letech a dny navíc (narozeniny – los) a role ve skupině. */

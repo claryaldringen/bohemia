@@ -34,6 +34,7 @@ import {
 } from '../../trade/__tests__/market-fixtures';
 import { yearlyNeed } from '../../wares/hides';
 import type {
+  MarketArrival,
   MarketResult,
   NearbyVillage,
   Person,
@@ -69,6 +70,15 @@ function stewarded(villages?: NearbyVillage[], day = D): VillageState {
 
 function stewardTrips(s: VillageState) {
   return (s.trade?.expeditions ?? []).filter((e) => e.by === 'steward');
+}
+
+/** Jediný příjezd výpravy k hostiteli v odchozí schránce vsi. */
+function arrivalOf(s: VillageState): MarketArrival {
+  const arrivals = (s.outbox ?? []).flatMap((m) =>
+    m.body.kind === 'market-arrive' ? [m.body.arrival] : [],
+  );
+  if (arrivals.length !== 1) throw new Error(`Příjezdů ve schránce je ${arrivals.length}.`);
+  return arrivals[0]!;
 }
 
 /** Výsledek trhu výpravy správce (bez obilí, nebo s ním). */
@@ -678,6 +688,38 @@ describe('správce – roční výprava s mincemi, drahé zboží napřed (Rozho
     expect(s.people).toHaveLength(people - 3);
     expectGoods(trip.wants, { grain: 125 });
     expect(trip.porters).toBe(5);
+  });
+
+  it('otroky z nabídky hráče roční výprava nebere – ani jako muže a ženy, zůstanou doma (podle id)', () => {
+    // Rozhodnutí plánu 5, bod 8 (návrh Clauda): správce otroky zatím neprodává ani nekupuje
+    const s = settled(8);
+    s.fields = [{ id: 1 }];
+    s.parts = [sownPart(100)];
+    s.pens = (s.pens ?? []).filter((p) => p.team === undefined || p.team === null);
+    s.storesKg = 0;
+    s.coins = 400;
+    // bez nabídky otroků jdou jako muži 22 a 20 a jako žena 23
+    const before = structuredClone(s);
+    expect(stewardMarketStep(before, ctxOf(before, DAY))).toBe(true);
+    const freeArrival = arrivalOf(before);
+    expect(freeArrival.people!.map((g) => [g.good, g.people.map((p) => p.id)])).toEqual([
+      ['men', [22]],
+      ['men', [20]],
+      ['women', [23]],
+    ]);
+    for (const id of [22, 23]) s.people.find((p) => p.id === id)!.slave = true;
+    s.slavesForSale = 2;
+    expect(marketStance(s, DAY).offer).toMatchObject({ slaves: 2, men: 1 });
+    const trip = yearlyTrip(s);
+    expect(trip.give).not.toHaveProperty('slaves');
+    expect(trip.give).toMatchObject({ men: 1 });
+    const arrival = arrivalOf(s);
+    expect(arrival.goods).not.toHaveProperty('slaves');
+    expect(arrival.people!.map((g) => [g.good, g.people.map((p) => p.id)])).toEqual([
+      ['men', [20]],
+    ]);
+    expect(s.people.filter((p) => p.id === 22 || p.id === 23).map((p) => p.id)).toEqual([22, 23]);
+    expect(s.slavesForSale).toBe(2);
   });
 
   it('seznam jen do miligramu je šum: ves nic neshání a výprava nejede', () => {

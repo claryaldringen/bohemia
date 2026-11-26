@@ -17,9 +17,18 @@ export type MarketPeopleState =
   | { status: 'ready'; people: MarketTripPeople }
   | { status: 'error'; error: string };
 
-/** Počty rodin, mužů a žen ve výběru „Dáš“ (celé kusy – krokuje je panel). */
+/**
+ * Počty rodin, mužů, žen a otroků ve výběru „Dáš“ (celé kusy – krokuje je panel); `slaves` jen
+ * s otroky, ať se dotaz bez nich nemění.
+ */
 function peopleIn(give: TradeGoods): TradePeople {
-  return { families: give.families ?? 0, men: give.men ?? 0, women: give.women ?? 0 };
+  const people: TradePeople = {
+    families: give.families ?? 0,
+    men: give.men ?? 0,
+    women: give.women ?? 0,
+  };
+  const slaves = give.slaves ?? 0;
+  return slaves > 0 ? { ...people, slaves } : people;
 }
 
 /**
@@ -35,9 +44,9 @@ export function useMarketPeople(
   view: object,
   ask: (people: TradePeople) => Promise<MarketPeopleAnswer>,
 ): MarketPeopleState {
-  const { families, men, women } = peopleIn(give);
-  const none = families + men + women === 0;
-  const key = `${families}/${men}/${women}`;
+  const { families, men, women, slaves = 0 } = peopleIn(give);
+  const none = families + men + women + slaves === 0;
+  const key = `${families}/${men}/${women}/${slaves}`;
   const askRef = useRef(ask);
   useEffect(() => {
     askRef.current = ask;
@@ -55,7 +64,7 @@ export function useMarketPeople(
       if (live) setAnswer({ key, view, state });
     };
     const timer = setTimeout(() => {
-      askRef.current({ families, men, women }).then(
+      askRef.current(slaves > 0 ? { families, men, women, slaves } : { families, men, women }).then(
         (result) =>
           done(
             'error' in result
@@ -69,7 +78,7 @@ export function useMarketPeople(
       live = false;
       clearTimeout(timer);
     };
-  }, [none, key, view, families, men, women]);
+  }, [none, key, view, families, men, women, slaves]);
 
   if (none) return { status: 'none' };
   return answer !== null && answer.key === key && answer.view === view

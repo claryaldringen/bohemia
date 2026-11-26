@@ -27,6 +27,7 @@ import {
   parseArmsOrderInput,
   parseMarketExpeditionInput,
   parseMarketPeopleInput,
+  parseSlaveOfferInput,
 } from '../village-input';
 
 describe('ověření vstupu server actions vsi', () => {
@@ -447,6 +448,19 @@ describe('vstup lidí na prodej pro náhled výpravy (plán 3, Úloha 11)', () =
     expect(parseMarketPeopleInput(ok)).toEqual({ families: 1, men: 0, women: 3 });
   });
 
+  it('otroci jsou volitelné celé nezáporné číslo (plán 5)', () => {
+    expect(parseMarketPeopleInput({ ...ok, slaves: 2 })).toEqual({
+      families: 1,
+      men: 0,
+      women: 3,
+      slaves: 2,
+    });
+    expect(parseMarketPeopleInput(ok)).not.toHaveProperty('slaves');
+    expect(parseMarketPeopleInput({ ...ok, slaves: 1.5 })).toBeNull();
+    expect(parseMarketPeopleInput({ ...ok, slaves: -1 })).toBeNull();
+    expect(parseMarketPeopleInput({ ...ok, slaves: '2' })).toBeNull();
+  });
+
   it('odmítne chybějící, záporné a necelé počty i špatný tvar', () => {
     expect(parseMarketPeopleInput({ ...ok, men: undefined })).toBeNull();
     expect(parseMarketPeopleInput({ ...ok, families: -1 })).toBeNull();
@@ -496,5 +510,16 @@ describe('vstup objednávky zbroje u cizích kupců (plán 4, Úloha 6)', () => 
     expect(parseArmsOrderInput(null)).toBeNull();
     expect(parseArmsOrderInput([ok])).toBeNull();
     expect(parseArmsOrderInput('swords')).toBeNull();
+  });
+});
+
+describe('vstup nabídky otroků (plán 5, Úloha 6b)', () => {
+  it('převede celý nezáporný počet, jinak null', () => {
+    expect(parseSlaveOfferInput({ villageId: 'v', count: 2 })).toEqual({ count: 2 });
+    expect(parseSlaveOfferInput({ count: 0 })).toEqual({ count: 0 });
+    for (const count of ['2', -1, 1.5, NaN, null, undefined]) {
+      expect(parseSlaveOfferInput({ villageId: 'v', count })).toBeNull();
+    }
+    expect(parseSlaveOfferInput(null)).toBeNull();
   });
 });

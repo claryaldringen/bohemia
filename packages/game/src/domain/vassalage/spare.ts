@@ -13,6 +13,7 @@ import { isTrained, oxPens } from '../village/livestock/oxen';
 import { oxenOf } from '../village/livestock/pens';
 import { ageGroup } from '../village/people/people';
 import { NO_PEOPLE, emigrantGroups, emigrantList } from '../village/trade/people-trade';
+import { NO_RESERVED } from '../village/trade/slaves';
 import { SEED_KG_PER_HA } from '../village/rules/rules-fields';
 import { stewardOutlook, type StewardOutlook } from '../village/steward/steward-outlook';
 import type {
@@ -128,11 +129,20 @@ export function peopleSpare(
   return { families, men, women };
 }
 
-/** Kolik rodin ve výběru `emigrantGroups` se vejde, než jejich dospělí přesáhnou `budget`. */
-function familiesWithin(state: VillageState, day: number, budget: number): number {
+/**
+ * Kolik rodin ve výběru `emigrantGroups` se vejde, než jejich dospělí přesáhnou `budget` (bez
+ * rezervovaných otroků `reserved`).
+ */
+function familiesWithin(
+  state: VillageState,
+  day: number,
+  budget: number,
+  reserved: ReadonlySet<number> = NO_RESERVED,
+): number {
   let families = 0;
   let adults = 0;
-  for (const family of emigrantGroups(state, day, { ...NO_PEOPLE, families: budget }).families) {
+  const want = { ...NO_PEOPLE, families: budget };
+  for (const family of emigrantGroups(state, day, want, reserved).families) {
     adults += adultsOf(family.people, day);
     if (adults > budget) break;
     families++;
@@ -146,37 +156,51 @@ function familiesWithin(state: VillageState, day: number, budget: number): numbe
  * všech druhů dohromady nepřesáhnou rozpočet. Napřed rodiny, ze zbytku svobodní muži a pak ženy
  * v pořadí `emigrantGroups` (každý další druh z lidí bez předchozích). Kdo odejde, vybere
  * `emigrantGroups` se stejnými počty – nabídka, kontrola výpravy i odchod souhlasí.
+ * `reserved` – otroci z nabídky vsi (`offeredSlaveIds`, markets.md – Rozhodnutí plánu 5, bod 8):
+ * odejdou jako zboží, takže se jejich dospělí (jako v rozpočtu) od rozpočtu odečtou (nejvýš na 0),
+ * rodiny, muži a ženy se vybírají bez nich a práci vsi `keepLabor` kontroluje i bez nich. Chybí =
+ * prázdná, výsledek beze změny.
  */
 export function peopleOffer(
   state: VillageState,
   day: number,
   outlook: StewardOutlook,
+  reserved: ReadonlySet<number> = NO_RESERVED,
 ): TradePeople {
   const { landHa, laborHa } = outlook;
   const share = landHa > 0 && laborHa > landHa ? 1 - landHa / laborHa : 0;
-  const budget = Math.floor(adultsOf(state.people, day) * share + EPSILON);
+  const offered = reserved.size > 0 ? state.people.filter((p) => reserved.has(p.id)) : [];
+  const budget = Math.floor(adultsOf(state.people, day) * share + EPSILON) - adultsOf(offered, day);
   if (budget <= 0) return { ...NO_PEOPLE };
-  const families = familiesWithin(state, day, budget);
-  const taken = emigrantGroups(state, day, { ...NO_PEOPLE, families }).families;
+  const families = familiesWithin(state, day, budget, reserved);
+  const taken = emigrantGroups(state, day, { ...NO_PEOPLE, families }, reserved).families;
   let rest = budget - taken.reduce((n, f) => n + adultsOf(f.people, day), 0);
-  const men = emigrantGroups(state, day, { families, men: rest, women: 0 }).men.length;
+  const men = emigrantGroups(state, day, { families, men: rest, women: 0 }, reserved).men.length;
   rest -= men;
-  const women = emigrantGroups(state, day, { families, men, women: rest }).women.length;
-  return keepLabor(state, day, { families, men, women });
+  const women = emigrantGroups(state, day, { families, men, women: rest }, reserved).women.length;
+  return keepLabor(state, day, { families, men, women }, reserved);
 }
 
 /**
  * Práce ubývá rychleji než počet lidí (odcházejí nejvíc přeplnění dospělí), takže po odchodu by ves
  * mohla mít půdy víc než práce a hned druhý den by lidi shánět zpět. Z nabídky se proto ubírá
- * (napřed ženy, pak muži, nakonec rodiny), dokud ves bez odcházejících práci na půdu stačí.
+ * (napřed ženy, pak muži, nakonec rodiny), dokud ves bez odcházejících – i bez rezervovaných otroků
+ * `reserved`, kteří odejdou jako zboží – práci na půdu stačí. Kdo z nabídky otroků odejde, rozhodl
+ * hráč; ubírá se jen z volných lidí.
  */
-function keepLabor(state: VillageState, day: number, offer: TradePeople): TradePeople {
+function keepLabor(
+  state: VillageState,
+  day: number,
+  offer: TradePeople,
+  reserved: ReadonlySet<number>,
+): TradePeople {
   const left = { ...offer };
   for (;;) {
-    const gone = new Set(
-      emigrantList(emigrantGroups(state, day, left)).flatMap((g) => g.people.map((p) => p.id)),
+    const leaving = emigrantList(emigrantGroups(state, day, left, reserved)).flatMap((g) =>
+      g.people.map((p) => p.id),
     );
-    if (gone.size === 0) return left;
+    if (leaving.length === 0) return left;
+    const gone = new Set([...leaving, ...reserved]);
     const rest = { ...state, people: state.people.filter((p) => !gone.has(p.id)) };
     const after = stewardOutlook(rest, day, craftCoverage(rest, day));
     if (!(after.landHa > after.laborHa)) return left;

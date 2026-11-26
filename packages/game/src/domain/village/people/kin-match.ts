@@ -10,7 +10,7 @@
 // se jen ze stavu vsi a událostí schránky dne, náhoda z vlastního proudu `'kin:' + den` – výsledek
 // nezávisí na kouscích dopočtu a jiné proudy se neposunou. Kroky mutují stav jako kroky dne.
 import { createRandom, deriveSeed } from '../../landscape/random';
-import { isDynastyTracked, isLineMan } from './dynasty';
+import { isDynastyTracked, isLineMan, keptByLine } from './dynasty';
 import { extraWifeHome, wifeCounts, wivesWho } from './dynasty-wives';
 import { rodBaptized } from './faith';
 import {
@@ -32,7 +32,6 @@ import { LORD, MARKET, MARRIAGE } from '../rules';
 import { rememberNews } from '../trade/market';
 import { sendPeople, settlePeople } from '../trade/market-people';
 import { departMarketInPlace, marketTravelDays, planMarketTrip } from '../trade/market-trip';
-import { keptByLine } from '../trade/people-trade';
 import { villageReport } from '../trade/village-report';
 import type {
   ChronicleEvent,

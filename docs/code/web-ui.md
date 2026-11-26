@@ -9,7 +9,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   osoby, odchody, `foundVillage`, `restartGame`, …), `fortification.ts` (hradby), `army.ts`
   (panel vojska, tažení, pokyny, `orderBreakout`), `alarm.ts`, `house.ts` (rod, pozvánky, jednání,
   stížnosti, správce, nováček), `market.ts` (`getMarketOverview`, `sendMarketExpedition`,
-  `orderArms` – trh),
+  `orderArms`, `offerSlaves` – trh),
   `vassalage.ts` (odvody, svolání, průchody, odúmrť, ochrana),
   `dev.ts` (jen `devMode`: `forceDevDisaster`, `skipTime`). Sdílené pomocníky (`playerId`,
   `villageAction`, `NOT_SIGNED_IN`, kontroly tvaru `isId`/`isRecord`/`isText`) drží
@@ -1394,6 +1394,20 @@ plní `manorView` (`stanceOf`), volba jde přes server action `setDefenseStance`
   změnu nic nepřepíše), pak zase počet ze serveru. Důvod odmítnutí ukáže sekce v `market-arms-error`
   (zmizí s další změnou); `VillageCommands.orderArms` ho navíc ohlásí řádkem nahoře (`reported`) jako
   ostatní akce nad vsí.
+- **Prodej otroků** (markets.md – Rozhodnutí plánu 5, bod 8) – `SlaveSale` (`hud/SlaveSale.tsx`) v panelu Trh
+  vlastní vsi pod zbrojí, jen s ne-null `VillageManor.market.slaveSale` (`{ stock, forSale, price }`:
+  `stock` = `market.stock.slaves` z téhož průchodu `marketField`, `forSale` = `slavesForSale`, `price` =
+  `coinPriceOf(…, 'slaves')`; null, když není zásoba ani nabídka). Ikona otroka s počtem, cena v mincích a
+  `Stepper` od 0 do max(`stock`, `forSale`) s hodnotou `forSale` (`market-slaves`; nabídka nad zásobou po
+  pokřtění otroka zůstane vidět a jde snížit); popisek „Otroci na prodej – ves je prodá kupcům a výpravám na
+  svém trhu za cenu dne“. Chování jako `ArmsOrder` (pořadí odpovědí, důvod v `market-slaves-error`, bez
+  práva `trade` zašedlé); `VillageCommands.offerSlaves` → akce `offerSlaves`. Cenu a kdo jde prodat počítá
+  server, web jen zobrazuje.
+- **Otroci v náhledu výpravy** – `peopleIn` a klíč dotazu v `useMarketPeople` berou i `give.slaves`
+  (jen s otroky se do dotazu přidá `slaves`); `parseMarketPeopleInput` přijme volitelné celé nezáporné
+  `slaves` (jinak null). `marketPreview` bere zásobu otroků a volné dospělé z odpovědi `marketTripPeople`
+  (odcházející otroci nenesou; odpověď bez otroků zásobu otroků nepřepíše), takže náhled neodmítne platnou
+  výpravu ani nepustí tu, kterou server odmítne (`MARKET_NO_PEOPLE`).
 - **Upozornění** „Kupci přijeli“ s ikonou kupců (`VillageNotice.icon`, `lib/village-notices.ts`): za každý
   příjezd – `merchantsArrived` je novější než v minulém pohledu.
 - **Kronika** (`lib/village-view-chronicle.ts`): `merchants-arrived` „Přijeli kupci z daleka – prodávají …,
@@ -1402,7 +1416,8 @@ plní `manorView` (`stanceOf`), volba jde přes server action `setDefenseStance`
 - **Testy**: `WaresStock.test.tsx`, `MarketPanel.test.tsx`, `ManorPanel.test.tsx`, `manor-view.test.ts`,
   `trade-names.test.ts`, `village-notices.test.ts`, `village-view-chronicle-markets4.test.ts`; e2e
   `e2e/market.spec.ts` (mince v zásobách a výprava s nimi, příjezd kupců, objednávka meče přes obnovení
-  stránky).
+  stránky; otroci – `manor-slaves` s popiskem, sekce prodeje `market-slaves`, řádek otroků v „Dáš“ a „Dostaneš“,
+  nabídka po obnovení stránky a nulou vynulovaná).
 
 ## Rozkaz „Probít se“ (fortifications.md – Obrana bez násobku 3, `hud/BreakoutButton.tsx`)
 
@@ -1597,6 +1612,11 @@ jsou v `lib/premium-view.ts` (`PREMIUM_TEXTS`, `premiumIntroNotice`); portréty 
   v panelu osoby a v popisku štěstí.
 - **Víra v panelu osoby:** pokřtěný (`isChristian` → `ScenePerson.christian`) má malý kříž víry
   s popiskem „Křesťan“ (`selection-person-christian`), pohan nic.
+- **Otroci (markets.md – Pravidla 7, plán 5):** `scenePersons` dá otrokovi (`isSlave`) `ScenePerson.slave`
+  (pokřtěný má i `christian`), panel osoby ukáže odznak `selection-person-slave` s ikonou `slave` a popiskem
+  „Otrok“ / „Otrok – pokřtěný, prodat ho nejde“. Dvorec: `VillageManor.slaves { all, baptized }` (`slavesField`
+  v `manor-view.ts`, jeden průchod lidmi, bez otroků chybí) a `SlavesStat` v `ManorUpgrades` (`manor-slaves`,
+  popisek „Otroci – 5, z toho 2 pokřtění – prodat je nejde“, u jednoho „prodat ho nejde“). Kronika a upozornění jdou `goodsText` a `NEWCOMER_TEXTS`.
 - **Štěstí:** popisek v liště `HappinessTooltip` (`hud/TopBar.tsx`) – pod „Štěstí“ řádek „Křesťané
   N %“ (kříž víry, `happiness-christians`) a „Pohané – zničená posvátná místa −N“ (ikona háje,
   `happiness-desecration`), každý jen nad nulou (`VillageHappiness.christianShare` / `desecration`

@@ -309,6 +309,25 @@ describe('nová ves syna', () => {
     expect(arrived.dynasty?.lordId).toBe(30);
   });
 
+  it('otrok v dílu syna jde s ním a v nové vsi je dál otrokem (markets.md – plán 5, bod 4)', () => {
+    const s = lordVillage();
+    s.people.find((p) => p.id === 62)!.slave = true;
+    const { state, settlers } = departWithSon(s, DAY, 30, { direction: 'N' });
+    expect(state.people.some((p) => p.id === 62)).toBe(false);
+    const travelling = travellingVillage(settlers, 9, DAY, {
+      direction: 'N',
+      departedDay: DAY,
+      arrivalDay: DAY + 2,
+    });
+    const arrived = foundVillage({
+      seed: 9,
+      day: DAY + 2,
+      dwellingPosition: { x: 0, z: 0, rotation: 0 },
+      settlers: settlersOf(advanceVillage(travelling, DAY + 2, null)),
+    });
+    expect(arrived.people.filter((p) => p.slave === true).map((p) => p.id)).toEqual([62]);
+  });
+
   it('kůň syna jde s ním, v nové vsi čeká bez ohrady a s první ohradou koní do ní přejde', () => {
     const s = lordVillage();
     const mount = { ...horse(500, 6, 'male', 50, DAY), riderId: 30 };

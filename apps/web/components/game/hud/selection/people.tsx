@@ -192,6 +192,16 @@ export function PersonBody({
             </span>
           </Tooltip>
         )}
+        {details.slave && (
+          <Tooltip
+            content={details.christian ? 'Otrok – pokřtěný, prodat ho nejde' : 'Otrok'}
+            placement="above"
+          >
+            <span data-testid="selection-person-slave" tabIndex={0} className="h-5 w-5">
+              <img src="/icons/resources/slave.png" alt="" width={20} height={20} />
+            </span>
+          </Tooltip>
+        )}
         {details.mason && <MasonBadge craft={details.mason} circle={details.lodgeCircle ?? null} />}
         {details.priest && <PriestBadge />}
         {details.arms && <PersonArms arms={details.arms} horse={details.horse === true} />}

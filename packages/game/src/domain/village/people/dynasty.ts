@@ -34,6 +34,16 @@ export function lineMen(state: Pick<VillageState, 'people'>): Person[] {
   return state.people.filter(isLineMan);
 }
 
+/**
+ * Koho ves sousedovi nedá – muže rodu ani manželku muže rodu (lord.md – Rod vojvody, Manželky;
+ * návrh Clauda: rod se nesmí dát sousedovi). Ves bez rodu dá kohokoli.
+ */
+export function keptByLine(state: VillageState): (p: Person) => boolean {
+  if (!isDynastyTracked(state)) return () => false;
+  const line = new Set(lineMen(state).map((p) => p.id));
+  return (p) => line.has(p.id) || (p.spouseId !== undefined && line.has(p.spouseId));
+}
+
 /** Dnešní vojvoda – žijící člověk `dynasty.lordId`; jinak undefined. */
 export function currentLord(state: Pick<VillageState, 'people' | 'dynasty'>): Person | undefined {
   const id = state.dynasty?.lordId;

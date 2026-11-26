@@ -175,6 +175,7 @@ export function chronicle(state: VillageState, name: string): VillageView['chron
             direction: event.direction,
             ...(event.villageName !== undefined ? { villageName: event.villageName } : {}),
             ...(event.returned ? { returned: true as const } : {}),
+            ...(event.female ? { female: true as const } : {}),
           }
         : {}),
       // sňatky se skutečným sousedem (plán 3): jméno vsi pro upozornění
@@ -186,6 +187,7 @@ export function chronicle(state: VillageState, name: string): VillageView['chron
         : {}),
       ...(event.kind === 'married-away' && event.groom ? { groom: true as const } : {}),
       ...(event.kind === 'emergency-slaughter' ? { animals: event.animals } : {}),
+      ...(event.kind === 'led-settled' ? { slaves: event.slaves, free: event.free } : {}),
       ...((event.kind === 'team-ready' ||
         event.kind === 'team-retired' ||
         event.kind === 'ox-died') &&

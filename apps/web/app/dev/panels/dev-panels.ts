@@ -66,6 +66,7 @@ const manor: VillageManor = {
     merchantsDay: 12,
     arms: [{ good: 'swords', price: 120, ordered: 1 }],
     merchantsArrived: null,
+    slaveSale: null,
   },
   stance: 'flee',
   huntDenied: null,

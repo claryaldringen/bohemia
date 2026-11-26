@@ -111,16 +111,21 @@ export type NoticeKind =
   | 'trade-returned'
   /** Výprava na trh se vrátila (markets.md – Pravidla 3). */
   | 'market-returned'
+  /** Z tažení přivedli otroky, křesťany, nebo obojí (markets.md – Rozhodnutí plánu 5, bod 1). */
+  | 'led-settled'
   /** Na trh vlastní vsi přijeli cizí kupci – za každý příjezd (markets.md – Rozhodnutí plánu 4, bod 5). */
   | 'merchants-arrived'
   /** S výpravou přišli lidé od souseda (trade.md – Výměna lidí). */
   | 'newcomer-family'
   | 'newcomer-man'
   | 'newcomer-woman'
+  /** Z trhu přišel otrok (markets.md – Rozhodnutí plánu 5, bod 6). */
+  | 'newcomer-slave'
   /** Vrátili se lidé, které ves prodala (markets.md – Rozhodnutí plánu 3, bod 13). */
   | 'newcomer-back-family'
   | 'newcomer-back-man'
   | 'newcomer-back-woman'
+  | 'newcomer-back-slave'
   /** Opuštěná stavba spadla (abandonment.md). */
   | 'idol-fell'
   | 'shrine-fell'
@@ -601,6 +606,17 @@ const CHRONICLE_NOTICES: Partial<
     tone: 'info',
     text: 'Výprava se vrátila z trhu',
   }),
+  // odvedení z tažení – otroci (s ikonou otroka), svobodní křesťané, nebo obojí (markets.md – plán 5,
+  // bod 1)
+  'led-settled': (entry) =>
+    (entry.slaves ?? 0) > 0
+      ? {
+          kind: 'led-settled',
+          tone: 'info',
+          text: `Z tažení přivedli otroky${(entry.free ?? 0) > 0 ? ' a křesťany' : ''}`,
+          icon: '/icons/resources/slave.png',
+        }
+      : { kind: 'led-settled', tone: 'info', text: 'Z tažení přivedli křesťany' },
   // vozy od tesaře (wagons.md – Vůz)
   'cart-made': () => ({ kind: 'cart-made', tone: 'info', text: 'Tesař vyrobil vůz' }),
   'cart-worn-out': () => ({ kind: 'cart-worn-out', tone: 'warn', text: 'Vůz dosloužil' }),
@@ -654,9 +670,10 @@ const CHRONICLE_NOTICES: Partial<
 
 /** Krátký řádek „Přišla rodina ze severu“ (trade.md – Výměna lidí). */
 function newcomerNotice(group: NewcomerGroup, entry: ChronicleEntry): VillageNotice {
+  const texts = (entry.female && NEWCOMER_TEXTS[group].female) || NEWCOMER_TEXTS[group];
   // vrácení lidé mají vlastní upozornění, ne „Přišla rodina“ (plán 3, bod 13)
   if (entry.returned) {
-    return { kind: `newcomer-back-${group}`, tone: 'info', text: NEWCOMER_TEXTS[group].backNotice };
+    return { kind: `newcomer-back-${group}`, tone: 'info', text: texts.backNotice };
   }
   const from =
     entry.villageName !== undefined
@@ -667,7 +684,7 @@ function newcomerNotice(group: NewcomerGroup, entry: ChronicleEntry): VillageNot
   return {
     kind: `newcomer-${group}`,
     tone: 'info',
-    text: `${NEWCOMER_TEXTS[group].notice}${from}`,
+    text: `${texts.notice}${from}`,
   };
 }
 

@@ -545,6 +545,7 @@ export function VillageGame({
                 onSelectVillage={switchVillage}
                 onSendMarket={commands.sendMarket}
                 onOrderArms={commands.orderArms}
+                onOfferSlaves={commands.offerSlaves}
               />
               {view?.journey && <JourneyBanner journey={view.journey} />}
               {view?.pendingDeparture && !view.journey && (

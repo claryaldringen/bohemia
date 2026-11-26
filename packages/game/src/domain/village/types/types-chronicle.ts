@@ -568,6 +568,11 @@ export type ChronicleEvent = { day: number } & (
    * oděv (fields.md – Len, diet.md – Oděv).
    */
   | { kind: 'linen-short'; kg: number; neededKg: number }
+  /**
+   * Odvedení z tažení se usadili ve vsi (markets.md – Rozhodnutí plánu 5, bod 1): `slaves` pohanů
+   * se stalo otroky, `free` křesťanů zůstalo svobodných; počítají se jen ti, kdo dostali dům.
+   */
+  | { kind: 'led-settled'; slaves: number; free: number }
   /** Podzimní porážka (diet.md – 1. 11.): kolik kg masa a kolik kusů kterého druhu. */
   | {
       kind: 'slaughter';
@@ -872,6 +877,8 @@ export type ChronicleEvent = { day: number } & (
       villageId?: string;
       returned?: true;
       coins?: number;
+      /** Otrokyně (skupina `slave` se ženou) – věta v ženském rodě (vzor `birth`); jinak chybí. */
+      female?: true;
     }
   /**
    * Měšec výpravy z vsi `villageName` (`villageId`), jejíž domovská ves zanikla, přišel do vsi bez

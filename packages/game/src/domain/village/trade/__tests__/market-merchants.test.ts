@@ -171,7 +171,7 @@ describe('příjezd cizích kupců (merchantsArrive)', () => {
         day: DAY,
         kind: 'merchants-arrived',
         sells: { swords: 2, mailShirts: 1, helmets: 2 },
-        buys: { honey: 100, wax: 24, furs: 60 },
+        buys: { honey: 100, wax: 24, furs: 60, slaves: 10 },
         coins: 60,
       },
     ]);
@@ -188,7 +188,7 @@ describe('příjezd cizích kupců (merchantsArrive)', () => {
           travelDays: 0,
           goods: { swords: 2, mailShirts: 1, helmets: 2, coins: 60 },
           horses: [],
-          wants: { honey: 100, wax: 24, furs: 60 },
+          wants: { honey: 100, wax: 24, furs: 60, slaves: 10 },
           sold: {},
           bought: {},
           boughtHorses: [],
@@ -353,7 +353,7 @@ describe('tržní den s kupci (marketDay)', () => {
     expect(merchant.bought).toEqual({ furs: 30, wax: 4 });
     expect(merchant.sold).toEqual({});
     expect(merchant.goods).toEqual({ ...MERCHANTS.goods, coins: 36 });
-    expect(merchant.wants).toEqual({ honey: 100, wax: 20, furs: 30 });
+    expect(merchant.wants).toEqual({ honey: 100, wax: 20, furs: 30, slaves: 10 });
     expect(s).not.toHaveProperty('coins');
   });
 
@@ -396,7 +396,7 @@ describe('tržní den s kupci (marketDay)', () => {
     expect(merchant.goods).toEqual({ swords: 1, mailShirts: 1, helmets: 2, coins: 60 });
     expect(merchant.sold).toEqual({ swords: 1 });
     expect(merchant.bought).toEqual({ honey: 100, wax: 24, furs: 60 });
-    expect(merchant.wants).toEqual({});
+    expect(merchant.wants).toEqual({ slaves: 10 }); // otroky nikdo nenabízel
   });
 
   it('náklad za 112 mincí meč zápočtem nekoupí: kupec ho vykoupí za celý měšec 60 mincí', () => {
@@ -1075,7 +1075,7 @@ describe('pobyt kupců na rušném trhu (extendMerchants)', () => {
     joinMarket(s, DAY + 1, trip('market:b:1', { furs: 10, wax: 2 }, {}));
     marketDay(s, DAY + 1);
     expect(merchant.bought).toEqual({ furs: 60, wax: 2 });
-    expect(merchant.wants).toEqual({ honey: 100, wax: 22 });
+    expect(merchant.wants).toEqual({ honey: 100, wax: 22, slaves: 10 });
     const { sold, unsold } = resultOf(s, 'market:b:1');
     expect(sold).toEqual({ wax: 2 });
     expect(unsold).toMatchObject({ furs: 10 });
@@ -1089,7 +1089,12 @@ describe('pobyt kupců na rušném trhu (extendMerchants)', () => {
     const merchant = merchantOf(s);
     marketDay(s, DAY);
     expect(merchant.goods).toEqual({ swords: 1, mailShirts: 1, helmets: 2, coins: 180 });
-    expect(affordableWants(merchant, { honey: 2 }, 1)).toEqual({ honey: 90, wax: 24, furs: 60 });
+    expect(affordableWants(merchant, { honey: 2 }, 1)).toEqual({
+      honey: 90,
+      wax: 24,
+      furs: 60,
+      slaves: 7,
+    });
     s.market!.prices = { honey: 2 };
     delete s.market!.level;
     joinMarket(s, DAY + 1, trip('market:b:1', { honey: 10 }, {}));

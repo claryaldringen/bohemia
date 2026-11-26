@@ -2,7 +2,8 @@
 // 19. 10. 2026: „celé rodiny i jen dospělí“, „muži a ženy zvlášť“). Lidé jsou kusové zboží s cenou
 // jako ostatní, ale cestují jako skuteční lidé – každý je vždy právě na jednom místě: ve vsi,
 // v nákladu výpravy, na trhu, nebo ve výsledku na cestě domů. Kdo smí odejít, vybírá
-// `emigrantGroups` (beze změny – ne dvorec, dědic, rozpad domácnosti, muži rodu a jejich ženy).
+// `emigrantGroups` (ne dvorec, dědic, rozpad domácnosti, muži rodu a jejich ženy; otroci napřed,
+// každý sám – `sellableSlaves`, markets.md – Rozhodnutí plánu 5, bod 6).
 // Odchod zapíše `removePeople` (do `emigrants` se směrem), příchod do jiné vsi `rehomePeople`
 // (nová místní id – `nextId` vsi vzroste o počet příchozích) a návrat domů vrátí původní id.
 // Nikdo nevznikne ani nezmizí. Funkce, které mění stav, ho mutují jako kroky dne.
@@ -36,31 +37,51 @@ const EPSILON = 1e-9;
 
 /** Zboží lidí ke skupině výběru (`EmigrantGroup.kind`). */
 const GROUP_GOOD: Readonly<Record<NewcomerGroup, PeopleGood>> = {
+  slave: 'slaves',
   family: 'families',
   man: 'men',
   woman: 'women',
 };
 
+/** Otrokyně – zápis `newcomer` v ženském rodě (`female`, vzor `birth`); jinak nic. */
+function femaleSlave(group: MarketPerson): { female?: true } {
+  return group.good === 'slaves' && group.people[0]?.sex === 'female' ? { female: true } : {};
+}
+
 /**
  * Lidé ve zboží `goods` po druzích – jen celé kladné počty (zboží špatného tvaru odmítne kontrola
- * výpravy, `checkMarketTrip`); ostatní zboží se nepočítá.
+ * výpravy, `checkMarketTrip`); ostatní zboží se nepočítá. Otroci (`slaves`) jen při kladném počtu –
+ * bez nich je tvar týž jako před plánem 5.
  */
 export function peopleOf(goods: TradeGoods): TradePeople {
   const whole = (good: PeopleGood): number => {
     const n = goods[good] ?? 0;
     return Number.isInteger(n) && n > 0 ? n : 0;
   };
-  return { families: whole('families'), men: whole('men'), women: whole('women') };
+  const slaves = whole('slaves');
+  return {
+    families: whole('families'),
+    men: whole('men'),
+    women: whole('women'),
+    ...(slaves > 0 ? { slaves } : {}),
+  };
 }
 
 /**
  * Koho výprava se zbožím `give` odvede (stav nemění): `emigrantGroups` se všemi druhy najednou –
- * rodiny, pak muži, pak ženy, každá další skupina z vsi bez těch předchozích. Rodiny, muži a ženy
- * berou z týchž lidí, takže jen tak je vidět, kolik jich odejít může doopravdy; výběr je týž jako
- * postupné `takePeople` při odchodu (v pořadí `PEOPLE_GOODS`).
+ * otroci, rodiny, pak muži, pak ženy, každá další skupina z vsi bez těch předchozích. Otroci,
+ * rodiny, muži a ženy berou z týchž lidí, takže jen tak je vidět, kolik jich odejít může doopravdy; výběr je týž jako
+ * postupné `takePeople` při odchodu (v pořadí `PEOPLE_GOODS`). `reserved` – otroci z nabídky vsi
+ * (`offeredSlaveIds`, spočtená jednou z celé vsi), kteří jako rodina, muž ani žena neodejdou;
+ * chybí = prázdná (výprava hráče, zásilky).
  */
-export function leavingGroups(state: VillageState, day: number, give: TradeGoods): Emigrants {
-  return emigrantGroups(state, day, peopleOf(give));
+export function leavingGroups(
+  state: VillageState,
+  day: number,
+  give: TradeGoods,
+  reserved?: ReadonlySet<number>,
+): Emigrants {
+  return emigrantGroups(state, day, peopleOf(give), reserved);
 }
 
 /** Mělká kopie vsi bez lidí skupin `groups` – jen pro výběr a kontroly (volní dospělí). */
@@ -74,7 +95,11 @@ export function withoutGroups(state: VillageState, groups: readonly EmigrantGrou
  * Vybrané skupiny `groups` odejdou ze vsi (mutuje stav): `removePeople` – v rodokmenu zůstanou
  * jako odešlí ve směru `direction` (`emigrants`, dokud ve vsi žije jejich rodič, sourozenec nebo
  * dítě; neznámý směr – výprava uložená před směrem cesty – je nezapíše). Vrací kopie záznamů osob
- * s id vsi a vazbami, po skupinách jako zboží.
+ * s id vsi a vazbami, po skupinách jako zboží. Prodej otroka rozvede manželství jako smrt
+ * (markets.md – Rozhodnutí plánu 5, bod 6; vzor `departLeavers`): kopie ve skupině `slave` je bez
+ * `spouseId`, jehož manžel ve skupině není, a manžel ve vsi ovdoví (`removePeople`) – neprodaný se
+ * vrátí (`restorePeople`, i ze zaniklé vsi – `receiveStranded`) a prodaný usadí bez manžela. Rodiny
+ * a svobodní beze změny.
  */
 export function sendPeople(
   state: VillageState,
@@ -83,6 +108,13 @@ export function sendPeople(
 ): MarketPerson[] {
   if (groups.length === 0) return [];
   const out = groups.map((g) => ({ good: GROUP_GOOD[g.kind], people: structuredClone(g.people) }));
+  for (const group of out) {
+    if (group.good !== 'slaves') continue;
+    const inGroup = new Set(group.people.map((p) => p.id));
+    for (const p of group.people) {
+      if (p.spouseId !== undefined && !inGroup.has(p.spouseId)) delete p.spouseId;
+    }
+  }
   const ids = out.flatMap((g) => g.people.map((p) => p.id));
   const emigrated = new Map<number, Direction8>();
   if (direction !== undefined) for (const id of ids) emigrated.set(id, direction);
@@ -92,7 +124,8 @@ export function sendPeople(
 
 /**
  * Odejdou ze vsi (mutuje stav): `n` skupin druhu `good` podle `emigrantGroups` (méně, když tolik
- * lidí ves dát nemůže) – `removePeople` se směrem `direction` (`sendPeople`).
+ * lidí ves dát nemůže) – `removePeople` se směrem `direction` (`sendPeople`). `reserved` jako
+ * u `leavingGroups` – táž množina pro všechny druhy, ne přepočet ze vsi zmenšené o odešlé.
  */
 export function takePeople(
   state: VillageState,
@@ -100,8 +133,9 @@ export function takePeople(
   good: PeopleGood,
   n: number,
   direction: Direction8,
+  reserved?: ReadonlySet<number>,
 ): MarketPerson[] {
-  const groups = emigrantGroups(state, day, { ...NO_PEOPLE, [good]: n })[good];
+  const groups = emigrantGroups(state, day, { ...NO_PEOPLE, [good]: n }, reserved)[good];
   return sendPeople(state, groups, direction);
 }
 
@@ -147,6 +181,7 @@ export function settlePeople(
       dwellingId: home,
       villageName: from.villageName,
       villageId: from.villageId,
+      ...femaleSlave(group),
     });
   }
   return events;
@@ -230,6 +265,7 @@ export function receiveStranded(
       villageName: back.from.villageName,
       villageId: back.from.villageId,
       returned: true,
+      ...femaleSlave(group),
     });
   }
   events.push(...settlePeople(state, day, settle, back.from ?? { villageId: '', villageName: '' }));

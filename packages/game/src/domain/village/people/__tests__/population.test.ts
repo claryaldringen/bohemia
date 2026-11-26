@@ -247,6 +247,27 @@ describe('starvationDeathChance', () => {
   });
 });
 
+describe('populationDay – otroci', () => {
+  it('dítě dvou otroků se narodí svobodné (markets.md – Rozhodnutí plánu 5, bod 1)', () => {
+    const slave = { slave: true as const };
+    const state = village(
+      3,
+      [
+        { ...ofAge(1, 24, 1, AFTER_LUCK), sex: 'male', spouseId: 2, ...slave },
+        { ...ofAge(2, 22, 1, AFTER_LUCK), sex: 'female', spouseId: 1, ...slave },
+      ],
+      [dwelling(1)],
+    );
+    for (let day = AFTER_LUCK; day < AFTER_LUCK + 6 * 365 && state.people.length === 2; day++) {
+      populationDay(state, day, 1);
+    }
+    const children = state.people.filter((p) => p.motherId === 2);
+    expect(children.length).toBeGreaterThan(0);
+    expect(children.every((c) => c.slave === undefined)).toBe(true);
+    expect(state.people.find((p) => p.id === 1)!.slave).toBe(true);
+  });
+});
+
 describe('populationDay', () => {
   // Smyčky přes stovky seedů × roky trvají pod paralelní zátěží déle než výchozích 5 s – limit 30 s.
   it('v hájení při nasycení 1 nezemře žádný dospělý (200 seedů × 30 let)', () => {

@@ -894,6 +894,7 @@ describe('SelectionPanel – rozvržení', () => {
             merchantsDay: null,
             arms: [],
             merchantsArrived: null,
+            slaveSale: null,
           },
           stance: 'flee',
           huntDenied: null,
@@ -929,6 +930,7 @@ describe('SelectionPanel – rozvržení', () => {
             merchantsDay: null,
             arms: [],
             merchantsArrived: null,
+            slaveSale: null,
           },
           stance: 'flee',
           huntDenied: null,
@@ -1953,6 +1955,17 @@ describe('SelectionPanel – víra a křest', () => {
     expect(html).toContain('data-testid="selection-person-christian"');
     expect(html).toContain('Křesťan');
     expect(render(lord())).not.toContain('selection-person-christian');
+  });
+
+  it('otrok: odznak s ikonou a popiskem, pokřtěný s poznámkou, svobodný nic', () => {
+    const pagan = render(lord({ slave: true }));
+    expect(pagan).toContain('data-testid="selection-person-slave"');
+    expect(pagan).toContain('src="/icons/resources/slave.png"');
+    expect(pagan).toContain('Otrok');
+    expect(pagan).not.toContain('pokřtěný');
+    const baptized = render(lord({ slave: true, christian: true }));
+    expect(baptized).toContain('Otrok – pokřtěný, prodat ho nejde');
+    expect(render(lord())).not.toContain('selection-person-slave');
   });
 
   const cemetery = (

@@ -15,4 +15,6 @@ export const SLOW_TESTS: readonly string[] = [
   'src/domain/village/trade/__tests__/market-neighbours-years.test.ts',
   // ves na stezce s kupci a soused s výpravami po tři roky (mince, zboží, objednaný meč, po kouscích)
   'src/domain/village/trade/__tests__/market-merchants-years.test.ts',
+  // trh s otroky a kupci po tři roky (otroci jen s kupci ze světa, mince, nabídka, po kouscích)
+  'src/domain/village/trade/__tests__/market-slaves-years.test.ts',
 ];

@@ -84,6 +84,7 @@ export * from './shipments';
 export * from './village-mail';
 export * from './market';
 export * from './arms-order';
+export * from './slaves';
 export * from './nearby';
 export * from './domain-food';
 export * from './dialogs';

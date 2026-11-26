@@ -11,6 +11,7 @@ import { newcomerHome } from '../village/trade/people-trade';
 import { segmentBuilt } from '../village/fortification';
 import { setStewardOn } from '../village/steward/steward-state';
 import { rehomePeople } from '../village/people/transfer-people';
+import { enslaveLed } from '../village/people/slaves';
 import type {
   ChronicleEvent,
   ChroniclePerson,
@@ -534,7 +535,11 @@ export function applyCampaignReturn(
   }
   removePeople(state, dead);
   if (body.loot) addLoot(state, body.loot);
-  if (body.people && body.people.length > 0) settleLed(state, body.people);
+  if (body.people && body.people.length > 0) {
+    // odvedení pohané jsou otroci (markets.md – Rozhodnutí plánu 5, bod 1)
+    const { slaves, free } = settleLed(state, body.people);
+    if (slaves + free > 0) events.push({ day, kind: 'led-settled', slaves, free });
+  }
   for (const pr of body.prisoners ?? []) holdPrisoner(state, day, pr);
   return events;
 }
@@ -569,7 +574,10 @@ function addLoot(state: VillageState, loot: RaidLoot): void {
  * odvedenými, jde do domu jako příchozí od souseda (`newcomerHome` – s manželem nebo dětmi jako
  * rodina), manžel a děti za ním. Bez obydlí ve vsi nepřijdou.
  */
-function settleLed(state: VillageState, people: readonly Person[]): void {
+function settleLed(
+  state: VillageState,
+  people: readonly Person[],
+): { slaves: number; free: number } {
   // vesničané bez příznaků rodu a nepřítomnosti z napadené vsi
   const clean = people.map((p): Person => {
     const copy = structuredClone(p);
@@ -582,6 +590,7 @@ function settleLed(state: VillageState, people: readonly Person[]): void {
   const { arrivals } = rehomePeople(state, clean);
   const ids = new Set(arrivals.map((p) => p.id));
   const homeOf = new Map<number, number>();
+  const counts = { slaves: 0, free: 0 };
   const inBatch = (id: number | undefined): id is number => id !== undefined && ids.has(id);
   const heads = arrivals.filter((p) => !inBatch(p.motherId) && !inBatch(p.fatherId));
   const rest = arrivals.filter((p) => inBatch(p.motherId) || inBatch(p.fatherId));
@@ -589,6 +598,9 @@ function settleLed(state: VillageState, people: readonly Person[]): void {
     if (home === undefined) return;
     p.dwellingId = home;
     homeOf.set(p.id, home);
+    enslaveLed(p);
+    if (p.slave) counts.slaves++;
+    else counts.free++;
     state.people.push(p);
   };
   for (const p of heads) {
@@ -604,4 +616,5 @@ function settleLed(state: VillageState, people: readonly Person[]): void {
       (p.fatherId === undefined ? undefined : homeOf.get(p.fatherId));
     place(p, parent ?? newcomerHome(state, false));
   }
+  return counts;
 }

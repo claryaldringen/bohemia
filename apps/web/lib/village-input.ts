@@ -624,8 +624,11 @@ export function parseMarketExpeditionInput(
 export function parseMarketPeopleInput(value: unknown): TradePeople | null {
   if (!isRecord(value)) return null;
   const count = (n: unknown): n is number => Number.isInteger(n) && (n as number) >= 0;
-  const { families, men, women } = value;
-  return count(families) && count(men) && count(women) ? { families, men, women } : null;
+  const { families, men, women, slaves } = value;
+  if (!count(families) || !count(men) || !count(women)) return null;
+  // otroci (plán 5) jsou volitelní – chybí = bez pole; jinak celé nezáporné číslo
+  if (slaves === undefined) return { families, men, women };
+  return count(slaves) ? { families, men, women, slaves } : null;
 }
 
 /**
@@ -638,6 +641,17 @@ export function parseArmsOrderInput(value: unknown): { good: ArmsGood; amount: n
   const { amount } = value;
   if (good === undefined || !Number.isInteger(amount) || (amount as number) < 0) return null;
   return { good, amount: amount as number };
+}
+
+/**
+ * Vstup nabídky otroků `{ count }` (markets.md – Rozhodnutí plánu 5, bod 8): celý nezáporný počet
+ * (0 = nic), jinak null. Kdo jde prodat, určuje jádro.
+ */
+export function parseSlaveOfferInput(value: unknown): { count: number } | null {
+  if (!isRecord(value)) return null;
+  const { count } = value;
+  if (!Number.isInteger(count) || (count as number) < 0) return null;
+  return { count: count as number };
 }
 
 /** Vstup nastavení postoje vsi `{ stance }` (war.md – Obránci), jinak null. */

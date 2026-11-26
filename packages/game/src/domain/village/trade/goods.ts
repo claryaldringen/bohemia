@@ -60,18 +60,19 @@ export function cartGoodKind(good: CartGood): CartKind {
 }
 
 /**
- * Lidé na trhu v pořadí panelu a výběru (`emigrantGroups` – rodiny, svobodní muži, svobodné ženy;
- * markets.md – Rozhodnutí plánu 3, bod 10).
+ * Lidé na trhu v pořadí panelu a výběru (`emigrantGroups` – otroci napřed, pak rodiny, svobodní
+ * muži a svobodné ženy; markets.md – Rozhodnutí plánu 3, bod 10, a plánu 5, bod 6).
  */
-export const PEOPLE_GOODS: readonly PeopleGood[] = ['families', 'men', 'women'];
+export const PEOPLE_GOODS: readonly PeopleGood[] = ['slaves', 'families', 'men', 'women'];
 
-/** Jsou zboží lidé (rodiny, svobodní muži nebo ženy)? */
+/** Jsou zboží lidé (otroci, rodiny, svobodní muži nebo ženy)? */
 export function isPeopleGood(good: string): good is PeopleGood {
   return (PEOPLE_GOODS as readonly string[]).includes(good);
 }
 
 /** Skupina lidí (kronika `newcomer`, `EmigrantGroup.kind`) ke zboží lidí. */
 export const PEOPLE_GROUP: Readonly<Record<PeopleGood, NewcomerGroup>> = {
+  slaves: 'slave',
   families: 'family',
   men: 'man',
   women: 'woman',

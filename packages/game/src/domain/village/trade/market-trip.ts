@@ -355,19 +355,23 @@ export interface MarketTripPeople {
  * mělkou kopií vsi bez nich – nosičem není nikdo z prodávaných. Bere to kontrola výpravy
  * (`planMarketTrip`) a náhled ve webu se na to ptá serveru pro vybrané počty (návrh Clauda, plán 3,
  * Úloha 11): výběr je postupný a pořadí mužů a žen se s odchodem rodin a mužů mění (přeplnění
- * domů), takže model všech kombinací by stál (F+1)·(M+2) výběrů. Stav nemění.
+ * domů), takže model všech kombinací by stál (F+1)·(M+2) výběrů. Stav nemění. `reserved` – otroci
+ * z nabídky vsi (výprava správce – `DepartOptions.reserved`); výprava hráče ji nebere.
  */
 export function marketTripPeople(
   state: VillageState,
   day: number,
   give: TradeGoods,
+  reserved?: ReadonlySet<number>,
 ): MarketTripPeople {
-  const leaving = leavingGroups(state, day, give);
+  const leaving = leavingGroups(state, day, give, reserved);
   return {
     stock: {
       families: leaving.families.length,
       men: leaving.men.length,
       women: leaving.women.length,
+      // otroci jen > 0 (jako `peopleOf`) – bez nich by kontrola dala zásobu 0 (`MARKET_OVER_STOCK`)
+      ...(leaving.slaves.length > 0 ? { slaves: leaving.slaves.length } : {}),
     },
     adults: marketFreeAdults(withoutGroups(state, emigrantList(leaving)), day),
   };
@@ -379,17 +383,18 @@ export function marketTripPeople(
  * jde sám – `alone` –, dospělé nepočítá: 0); cartIds = prvních `carts` vozů bez prodaných
  * (`withoutSoldCarts`), které po prodeji voli utáhnou. Lidé na prodej (markets.md – Rozhodnutí
  * plánu 3, bod 10) a volní dospělí bez nich z `marketTripPeople` – na totéž se ptá náhled ve webu.
+ * `reserved` – otroci z nabídky vsi, kteří jako rodina, muž ani žena neodejdou (výprava správce).
  */
 export function planMarketTrip(
   state: VillageState,
   day: number,
   order: MarketOrder,
   target: MarketTarget,
-  { alone }: { alone?: true } = {},
+  { alone, reserved }: { alone?: true; reserved?: ReadonlySet<number> } = {},
 ): MarketPlan {
   const homeCarts = tradeHomeCarts(state);
   const oxen = oxenHome(state, day);
-  const people = marketTripPeople(state, day, order.give);
+  const people = marketTripPeople(state, day, order.give, reserved);
   const stock: TradeGoods = {};
   for (const good of TRADE_GOODS) {
     if (!((order.give[good] ?? 0) > 0)) continue;
@@ -478,7 +483,12 @@ export function departMarketInPlace(
   return departPlanned(state, day, order, target, plan, options);
 }
 
-/** Kdo výpravu poslal, osivo v seznamu, kovář souseda a partner – viz `departMarketInPlace`. */
+/**
+ * Kdo výpravu poslal, osivo v seznamu, kovář souseda a partner – viz `departMarketInPlace`.
+ * `reserved` – otroci z nabídky vsi spočtení před výpravou (`offeredSlaveIds`, markets.md –
+ * Rozhodnutí plánu 5, bod 8): kontrola (`planMarketTrip`) i postupné `takePeople` je jako rodinu,
+ * muže ani ženu nevyberou – táž množina pro všechny druhy. Výprava hráče ji nebere.
+ */
 interface DepartOptions {
   by?: TripBy;
   seedKg?: number;
@@ -486,6 +496,7 @@ interface DepartOptions {
   service?: MarketService;
   kin?: MarketKin;
   people?: readonly MarketPerson[];
+  reserved?: ReadonlySet<number>;
 }
 
 /** Odchod výpravy, kterou `planMarketTrip` schválil (mutuje stav) – viz `departMarketInPlace`. */
@@ -495,7 +506,7 @@ function departPlanned(
   order: MarketOrder,
   target: MarketTarget,
   plan: Extract<MarketPlan, { ok: true }>,
-  { by, seedKg = 0, service, kin, people: partners = [] }: DepartOptions = {},
+  { by, seedKg = 0, service, kin, people: partners = [], reserved }: DepartOptions = {},
 ): { ok: true; trip: MarketTrip } {
   // zpráva na pivo o vsi před odchodem zboží (jako dřív ze stavu vstupu)
   const report = villageReport(next, day);
@@ -513,9 +524,9 @@ function departPlanned(
       // vozy jdou po kusech se stářím – neprodaný se vrátí stejně starý
       carts.push(...takeCarts(next, good, amount));
     } else if (isPeopleGood(good)) {
-      // lidé odejdou ze vsi ve směru cesty jako tytéž osoby (Rozhodnutí plánu 3, bod 10) – rodiny,
-      // pak muži, pak ženy, stejně jako je vybral `planMarketTrip`
-      people.push(...takePeople(next, day, good, amount, target.firstStep));
+      // lidé odejdou ze vsi ve směru cesty jako tytéž osoby (Rozhodnutí plánu 3, bod 10) – otroci,
+      // rodiny, pak muži, pak ženy, stejně jako je vybral `planMarketTrip`
+      people.push(...takePeople(next, day, good, amount, target.firstStep, reserved));
     } else {
       addGood(next, good, -amount, day);
     }

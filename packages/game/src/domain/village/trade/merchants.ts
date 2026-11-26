@@ -3,8 +3,10 @@
 // (`merchantVisits` ze zastávek vsi) přijede na trh jako návštěvník bez domovské vsi, obchoduje
 // v zápočtech i v mincovní fázi, na rušném trhu zůstane déle a odjede bez pošty (`departVisitors`
 // v market.ts). Měšec a zbroj vzniknou jen jeho příjezdem; co mu zbude a co koupil, zanikne jen jeho
-// odjezdem – i z trhu vsi, která zanikla (`merchantsLeave`). Příjezd i pobyt (mutují stav jako
-// kroky dne) počítá jen ze stavu vsi a dne, takže výsledek nezávisí na kouscích dopočtu.
+// odjezdem – i z trhu vsi, která zanikla (`merchantsLeave`). Koupení otroci (`boughtPeople`) odjedou
+// s ním ze světa – jediný odchod lidí ze světa kromě smrti (markets.md – Rozhodnutí plánu 5, bod 7).
+// Příjezd i pobyt (mutují stav jako kroky dne) počítá jen ze stavu vsi a dne, takže výsledek
+// nezávisí na kouscích dopočtu.
 import { dateOfDayIndex } from '../../calendar';
 import { MARKET, MERCHANTS } from '../rules';
 import type {
@@ -75,8 +77,9 @@ export function merchantsArrive(state: VillageState, day: number): ChronicleEven
 
 /**
  * Cizí kupci odjedou z trhu vsi, která zanikla (mění jen horní úroveň stavu – `endVillage`): měšec,
- * neprodaná zbroj i koupené zboží zaniknou s nimi jako při obvyklém odjezdu (markets.md –
- * Rozhodnutí plánu 4, bod 9; návrh Clauda). Výpravy na trhu zůstanou – vrátí je jejich domovské vsi
+ * neprodaná zbroj, koupené zboží i koupení otroci zaniknou s nimi jako při obvyklém odjezdu
+ * (markets.md – Rozhodnutí plánu 4, bod 9, návrh Clauda; otroci Rozhodnutí plánu 5, bod 9).
+ * Výpravy na trhu zůstanou i s neprodanými otroky – vrátí je jejich domovské vsi
  * (pošta mezi vsemi). Trh bez kupců se nezmění.
  */
 export function merchantsLeave(state: VillageState): void {

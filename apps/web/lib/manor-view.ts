@@ -5,6 +5,8 @@ import {
   ARMS_GOODS,
   coinPriceOf,
   huntDenied,
+  isChristian,
+  isSlave,
   HUNT_DENIED_TEXT,
   lordFamily,
   marketFreeAdults,
@@ -77,6 +79,8 @@ export interface VillageManor {
    * nových – cena, délka, důvod) pošle server až na vyžádání panelu (`panelOptionsOf`).
    */
   dwellingId: number;
+  /** Otroci vsi a z nich pokřtění (markets.md – Pravidla 7); bez otroků chybí. */
+  slaves?: { all: number; baptized: number };
   /** Obyvatelé dvorce od nejstaršího (lord.md – Co hráč vidí). */
   family?: ManorMember[];
   /**
@@ -100,6 +104,12 @@ export interface VillageManor {
     arms: { good: ArmsGood; price: number; ordered: number }[];
     /** Den posledního příjezdu kupců (z `market.arrivals`); null = zatím žádný. */
     merchantsArrived: number | null;
+    /**
+     * Prodej otroků vlastní vsi (markets.md – Rozhodnutí plánu 5, bod 8): `stock` = prodejní otroci
+     * (`stock.slaves`), `forSale` = nabízený počet (může být nad zásobou), `price` = cena dne v
+     * mincích; null, když není zásoba ani nabídka.
+     */
+    slaveSale: { stock: number; forSale: number; price: number } | null;
   };
 }
 
@@ -130,8 +140,18 @@ function merchantsField(
 function marketField(state: VillageState, day: number): VillageManor['market'] {
   const stock: TradeGoods = {};
   for (const good of TRADE_GOODS) stock[good] = villageGoodStock(state, good, day);
+  const slaves = stock.slaves ?? 0;
+  const forSale = state.slavesForSale ?? 0;
   return {
     stock,
+    slaveSale:
+      slaves === 0 && forSale === 0
+        ? null
+        : {
+            stock: slaves,
+            forSale,
+            price: coinPriceOf(state.market?.prices, state.market?.level ?? 1, 'slaves'),
+          },
     homeCarts: tradeHomeCarts(state).map((c) => c.kind),
     oxenHome: oxenHome(state, day),
     adults: marketFreeAdults(state, day),
@@ -178,6 +198,18 @@ function huntField(state: VillageState, day: number): { hunt?: HuntView } {
   return hunt ? { hunt } : {};
 }
 
+/** Otroci vsi jedním průchodem lidmi; bez otroků chybí. */
+function slavesField(state: VillageState): { slaves?: { all: number; baptized: number } } {
+  let all = 0;
+  let baptized = 0;
+  for (const p of state.people) {
+    if (!isSlave(p)) continue;
+    all++;
+    if (isChristian(p)) baptized++;
+  }
+  return all > 0 ? { slaves: { all, baptized } } : {};
+}
+
 /** Dvorec vsi pro pohled na ves; dokud stojí jen staveniště první zemnice, null. */
 export function manorView(
   state: VillageState,
@@ -202,6 +234,7 @@ export function manorView(
     stance: stanceOf(state),
     huntDenied: huntDeniedText(state, day, huntRunning),
     ...huntField(state, day),
+    ...slavesField(state),
     family: manorFamily(state, day),
     market: marketField(state, day),
   };

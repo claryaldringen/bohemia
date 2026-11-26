@@ -168,7 +168,7 @@ test('kupci u stezky – den příjezdu, upozornění a objednávka zbroje', asy
   await expect(merchants).toHaveText(/^1[12]$/, { timeout: 30_000 });
   const inDays = Number((await merchants.textContent()) ?? '');
   // popisek je skrytý, dokud na ikonu hráč nenajede (`getByRole` by ho nenašel)
-  const trade = 'kupují med, vosk a kožešiny, prodávají meče, kroužkové košile a helmy';
+  const trade = 'kupují med, vosk, kožešiny a otroky, prodávají meče, kroužkové košile a helmy';
   const tooltip = panel.locator('[role="tooltip"]');
   await expect(tooltip.filter({ hasText: 'Kupci' })).toHaveText(
     new RegExp(`^Kupci přijedou za (${inDays}|${inDays - 1}) (dní|den) – ${trade}$`),
@@ -220,4 +220,78 @@ test('kupci u stezky – den příjezdu, upozornění a objednávka zbroje', asy
   await expect
     .poll(async () => (await villageState(s.settlementId)).armsOrder ?? null, { timeout: 30_000 })
     .toBeNull();
+});
+
+test('otroci – počet ve dvorci, prodej v panelu Trh a nastavení po obnovení', async ({ page }) => {
+  const { seat: s } = await newPlayer(page, 'otroci');
+  const spots = villageSpots(s.landscape);
+  await found(page, spots.dwelling);
+  await twoHouseholds(s, spots.dwelling);
+  // dva otroci v druhé domácnosti, jeden pokřtěný (ten se prodat nedá); ves bez stezky
+  await changeVillageState(s.settlementId, (st) => {
+    const home = st.dwellings[st.dwellings.length - 1]!.id;
+    const born = st.lastDay - Math.ceil(20 * 365.25);
+    return {
+      ...st,
+      merchantStops: [],
+      people: [
+        ...st.people,
+        { id: st.nextId, bornDay: born, dwellingId: home, sex: 'male', slave: true },
+        {
+          id: st.nextId + 1,
+          bornDay: born,
+          dwellingId: home,
+          sex: 'male',
+          slave: true,
+          faith: 'christian',
+        },
+      ],
+      nextId: st.nextId + 2,
+    };
+  });
+  await villageOnNextMap(s.settlementId, 'Lhota');
+  await page.reload();
+  await expect(readyScene(page)).toBeVisible({ timeout: 90_000 });
+  await pollVillage(page);
+
+  const panel = await openManor(page, spots.dwelling);
+  await expect(panel.getByTestId('manor-slaves')).toHaveText('2', { timeout: 30_000 });
+  await expect(panel.locator('[role="tooltip"]').filter({ hasText: 'Otroci' })).toHaveText(
+    'Otroci – 2, z toho 1 pokřtěný – prodat ho nejde',
+  );
+
+  await panel.getByTestId('manor-market').click();
+  const market = page.getByTestId('market-panel');
+  await expect(market).toBeVisible();
+  // sekce prodeje: zásoba jen nepokřtěný otrok
+  await expect(market.getByTestId('market-slaves-stock')).toHaveText('1', { timeout: 30_000 });
+  await expect(market.getByTestId('market-slaves-count')).toHaveText('0');
+  await market.getByTestId('market-slaves-plus').click();
+  await expect(market.getByTestId('market-slaves-count')).toHaveText('1');
+  await expect(market.getByTestId('market-slaves-error')).toHaveCount(0);
+  await expect
+    .poll(async () => (await villageState(s.settlementId)).slavesForSale, { timeout: 30_000 })
+    .toBe(1);
+
+  // vybraná ves: otroci jsou v „Dáš“ (1 prodejný) i v „Dostaneš“
+  await market
+    .getByTestId('market-village')
+    .filter({ hasText: 'Lhota' })
+    .getByRole('button', { name: 'Lhota' })
+    .click();
+  await expect(market.getByTestId('market-give-slaves')).toBeVisible();
+  await expect(market.getByTestId('market-want-slaves')).toBeVisible();
+
+  // nabídka přežije obnovení stránky, nula ji vynuluje
+  await page.reload();
+  await expect(readyScene(page)).toBeVisible({ timeout: 90_000 });
+  await (await openManor(page, spots.dwelling)).getByTestId('manor-market').click();
+  await expect(market.getByTestId('market-slaves-count')).toHaveText('1', { timeout: 30_000 });
+  await market.getByTestId('market-slaves-minus').click();
+  await expect(market.getByTestId('market-slaves-count')).toHaveText('0');
+  await expect
+    .poll(async () => (await villageState(s.settlementId)).slavesForSale ?? 0, {
+      timeout: 30_000,
+    })
+    .toBe(0);
 });

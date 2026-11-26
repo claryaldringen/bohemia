@@ -30,6 +30,7 @@ import {
   marketTripPeople,
   sendMarketExpedition,
   orderArms,
+  offerSlaves,
   type ArmsGood,
   type MarketOrder,
   type MarketTripPeople,
@@ -1039,6 +1040,22 @@ export function orderArmsForPlayer(
     orderArms(
       { villages: villages() },
       { villageId: ctx.villageId, ...order, today: ctx.day, landscape: ctx.landscape },
+    ),
+  );
+}
+
+/**
+ * Hráč nabídne otroky na trhu své vsi (markets.md – Rozhodnutí plánu 5, bod 8); právo `trade`.
+ */
+export function offerSlavesForPlayer(
+  playerId: string,
+  villageId: string,
+  offer: { count: number },
+): Promise<VillageActionResult> {
+  return actOn(playerId, villageId, 'offerSlaves', (ctx) =>
+    offerSlaves(
+      { villages: villages() },
+      { villageId: ctx.villageId, ...offer, today: ctx.day, landscape: ctx.landscape },
     ),
   );
 }
