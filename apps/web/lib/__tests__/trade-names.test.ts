@@ -67,4 +67,10 @@ describe('ikony zboží obchodu', () => {
       expect(licenses, icon).toContain(`\`resources/${icon}.png\``);
     }
   });
+
+  it('ikona otroka 64 × 64 a v LICENSES.md jako render modelu 0 A.D. pod CC BY-SA 3.0 (plán 5)', () => {
+    const png = readFileSync(join(iconsDir, 'resources', 'slave.png'));
+    expect([png.readUInt32BE(16), png.readUInt32BE(20)]).toEqual([64, 64]);
+    expect(licenses).toMatch(/`resources\/slave\.png`[^\n]*CC BY-SA 3\.0/);
+  });
 });
