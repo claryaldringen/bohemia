@@ -1,6 +1,7 @@
 // Kronika plánu 4 (markets.md – Rozhodnutí plánu 4, body 5 a 9): cizí kupci a mince v tržních větách.
 import { describe, expect, it } from 'vitest';
-import type { ChronicleEvent } from '@bohemia/game';
+import { foundVillage, type ChronicleEvent } from '@bohemia/game';
+import { maskVillageNames } from '../mask-village-names';
 import { chronicleText } from '../village-view-chronicle';
 
 const text = (event: Record<string, unknown>): string =>
@@ -79,5 +80,43 @@ describe('kronika – kupci a mince', () => {
     expect(text({ kind: 'market-arrived', villageName: 'Lhota', goods: { coins: 3 } })).toBe(
       'Na trh přišla výprava ze vsi Lhota – 3 mince.',
     );
+  });
+
+  it('mince zaniklé vsi: s lidmi „… a 17 mincí“, bez lidí samy, cizí správce bez jména (M14)', () => {
+    const family = {
+      kind: 'newcomer',
+      direction: 'W',
+      group: 'family',
+      people: 4,
+      dwellingId: 3,
+      villageName: 'Lhota',
+      villageId: 'h',
+      returned: true,
+    };
+    expect(text({ ...family, coins: 17 })).toBe(
+      'Do vsi se vrátila prodaná rodina z Lhoty a 17 mincí.',
+    );
+    expect(text({ ...family, returned: undefined, group: 'man', coins: 1 })).toBe(
+      'Do vsi přišel svobodný muž z Lhoty a 1 mince.',
+    );
+    expect(text({ kind: 'stranded-coins', coins: 17, villageName: 'Lhota', villageId: 'h' })).toBe(
+      'Do vsi přišlo 17 mincí z Lhoty.',
+    );
+    expect(text({ kind: 'stranded-coins', coins: 3, villageName: 'Lhota', villageId: 'h' })).toBe(
+      'Do vsi přišly 3 mince z Lhoty.',
+    );
+    // cizí správce (maskVillageNames) – jméno vsi prázdné
+    const masked = maskVillageNames(
+      {
+        ...foundVillage({ seed: 4, day: 0, dwellingPosition: { x: 0, z: 0, rotation: 0 } }),
+        chronicle: [
+          { day: 100, kind: 'stranded-coins', coins: 17, villageName: 'Lhota', villageId: 'h' },
+        ],
+      },
+      new Set(),
+    );
+    expect(masked.chronicle.map((e) => chronicleText(e, 'Vlkov'))).toEqual([
+      'Do vsi přišlo 17 mincí ze sousední vsi.',
+    ]);
   });
 });

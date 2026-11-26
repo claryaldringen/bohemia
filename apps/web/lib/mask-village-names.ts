@@ -18,6 +18,7 @@ type Named = Extract<
       | 'groom-from-outside'
       | 'married-away'
       | 'newcomer'
+      | 'stranded-coins'
       | 'horses-shod';
   }
 >;
@@ -32,6 +33,7 @@ const NAMED_KINDS: ReadonlySet<ChronicleEvent['kind']> = new Set<Named['kind']>(
   'groom-from-outside',
   'married-away',
   'newcomer',
+  'stranded-coins',
   'horses-shod',
 ]);
 

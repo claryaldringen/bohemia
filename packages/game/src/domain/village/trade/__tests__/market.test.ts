@@ -627,6 +627,16 @@ describe('trh ve vsi hostitele – mincovní fáze (markets.md – Rozhodnutí p
     expect(s.coins).toBe(20);
   });
 
+  it('výsledek s měšcem bez lidí nese výpravu (`origin`) – mince zaniklé vsi se zapíší i se jménem', () => {
+    const s = grainVillage(1_000);
+    joinMarket(s, D, coinTrip(50, { grain: 300 }, { stayDays: 1, firstStep: 'W' }));
+    marketDay(s, D);
+    expect(resultOf(s, 'market:h:1')).toMatchObject({
+      unsold: { coins: 30 },
+      origin: { villageId: 'h', villageName: 'Vlkov', direction: 'E' },
+    });
+  });
+
   it('druhý den pobytu utratí výprava zbytek – za cenu i hladinu po prvním dni', () => {
     const s = grainVillage(300);
     joinMarket(s, D, coinTrip(50, { grain: 900 }, { stayDays: 2 }));

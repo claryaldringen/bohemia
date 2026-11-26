@@ -590,8 +590,9 @@ function coinPhase(
  * zprávou o hostiteli, cenami trhu, hladinou (jen ≠ 1; Rozhodnutí plánu 4, bod 3) a zakázkami, které
  * hostitel zapsal (`recordOrders` – co hostitel po dnešním zápočtu ještě shání je `hostWants`), jde
  * do odchozí schránky k domovské vsi na den návratu – den po posledním tržním dni + dny cesty.
- * Výsledek s lidmi nese i výpravu, jak ji hostitel viděl (`origin` – Rozhodnutí plánu 3, bod 13):
- * zanikne-li domovská ves, pošta s ním vrátí lidi hostiteli (`stranded-people`). Cizí kupec domov
+ * Výsledek s lidmi nebo s mincemi v měšci nese i výpravu, jak ji hostitel viděl (`origin` –
+ * Rozhodnutí plánu 3, bod 13): zanikne-li domovská ves, pošta s ním vrátí lidi a mince hostiteli
+ * (`stranded-people`) a kronika hostitele ví, odkud přišly (preflight plánu 4, M14). Cizí kupec domov
  * nemá (Rozhodnutí plánu 4, bod 5) – odjede bez zakázek a bez pošty a jeho měšec, neprodaná zbroj
  * i koupené zboží odejdou ze světa.
  */
@@ -623,7 +624,7 @@ function departVisitors(
           prices: market.prices,
           ...(market.level !== undefined && market.level !== 1 ? { level: market.level } : {}),
           ...(hasGoods(ordered) ? { ordered } : {}),
-          ...(people > 0 && direction !== undefined
+          ...((people > 0 || (visitor.goods.coins ?? 0) > 0) && direction !== undefined
             ? {
                 origin: {
                   villageId: visitor.fromVillageId,

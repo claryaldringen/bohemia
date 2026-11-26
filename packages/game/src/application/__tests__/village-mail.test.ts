@@ -906,10 +906,12 @@ describe('oběh mincí (markets.md – Rozhodnutí plánu 4, bod 9)', () => {
       expect(await deliverVillageMail(w.deps, w.m)).toBe(1);
       expect(w.state(w.m).outbox).toBeUndefined();
       const back = await inboxOf(w, w.m);
+      // výsledek s měšcem nese výpravu (`origin`) – kronika M ví, odkud mince přišly (M14)
+      const from = { villageId: w.h, villageName: 'Vlkov', direction: 'W' };
       expect(back.filter((e) => e.body.kind === 'stranded-people')).toEqual([
         expect.objectContaining({
           day: D + 2,
-          body: { kind: 'stranded-people', key, people: [], coins: 17, from: undefined },
+          body: { kind: 'stranded-people', key, people: [], coins: 17, from },
         }),
       ]);
       if (how !== 'chybí') expect(await resultsOf(w, w.h)).toEqual([]);
@@ -1529,7 +1531,7 @@ describe('oběh mincí (markets.md – Rozhodnutí plánu 4, bod 9)', () => {
           key,
           people: [],
           coins: 17,
-          from: undefined,
+          from: { villageId: w.h, villageName: 'Vlkov', direction: 'W' },
         });
         expect(bodies.find((b) => b.kind === 'order-ready')).not.toHaveProperty('from');
       });

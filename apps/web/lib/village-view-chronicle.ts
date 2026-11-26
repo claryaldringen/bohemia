@@ -1079,11 +1079,14 @@ function newcomerText(
   people: number,
   returned: boolean,
   villageName?: string,
+  coins?: number,
 ): string {
   const texts0 = NEWCOMER_TEXTS[group];
-  // lidé ze skutečného souseda (plán 3, bod 14): „Do vsi přišla rodina z Lhoty.“
+  // lidé ze skutečného souseda (plán 3, bod 14): „Do vsi přišla rodina z Lhoty.“; s měšcem výpravy
+  // zaniklé vsi „… a 17 mincí.“ (preflight plánu 4, M14)
   if (villageName !== undefined) {
-    return `Do vsi ${returned ? texts0.back : texts0.chronicle} ${fromVillage(villageName)}.`;
+    const purse = coins ? ` a ${coinsText(coins, 'nominative')}` : '';
+    return `Do vsi ${returned ? texts0.back : texts0.chronicle} ${fromVillage(villageName)}${purse}.`;
   }
   const from = DIRECTION_NAMES[direction].from;
   const texts = NEWCOMER_TEXTS[group];
@@ -1721,7 +1724,11 @@ export function chronicleText(event: ChronicleEvent, villageName: string, seed?:
         event.people,
         event.returned === true,
         event.villageName,
+        event.coins,
       );
+    case 'stranded-coins':
+      // měšec výpravy zaniklé vsi bez lidí (preflight plánu 4, M14)
+      return `Do vsi ${plural(event.coins, 'přišla', 'přišly', 'přišlo')} ${coinsText(event.coins, 'nominative')} ${fromVillage(event.villageName)}.`;
     case 'structure-fell':
       return STRUCTURE_FELL_TEXTS[event.structure];
     case 'structure-overgrown':

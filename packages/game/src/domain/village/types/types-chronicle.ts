@@ -858,7 +858,9 @@ export type ChronicleEvent = { day: number } & (
    * kolik jich je a do kterého obydlí šli. Lidé z trhu (markets.md – Rozhodnutí plánu 3, bod 10)
    * nesou ves, odkud přišli (`villageName`, `villageId`); starší záznamy je nemají. `returned` –
    * vrátili se lidé, které ves sama prodala: ves kupce zanikla dřív, než je dovedla domů
-   * (`stranded-people`, Rozhodnutí plánu 3, bod 13); chybí – noví lidé.
+   * (`stranded-people`, Rozhodnutí plánu 3, bod 13); chybí – noví lidé. `coins` – měšec výpravy
+   * zaniklé vsi, který přišel s lidmi (první zápis zprávy; Rozhodnutí plánu 4, bod 9 – preflight
+   * M14); chybí – žádné mince.
    */
   | {
       kind: 'newcomer';
@@ -869,7 +871,13 @@ export type ChronicleEvent = { day: number } & (
       villageName?: string;
       villageId?: string;
       returned?: true;
+      coins?: number;
     }
+  /**
+   * Měšec výpravy z vsi `villageName` (`villageId`), jejíž domovská ves zanikla, přišel do vsi bez
+   * lidí – `coins` mincí (`stranded-people`; Rozhodnutí plánu 4, bod 9 – preflight M14).
+   */
+  | { kind: 'stranded-coins'; coins: number; villageName: string; villageId: string }
   /**
    * Opuštěná stavba, ke které léta nikdo nechodil, se rozpadla (abandonment.md): modla padla,
    * svatyně se rozpadla, plot hřbitova se rozpadl, ohrada se rozpadla – id stavby.

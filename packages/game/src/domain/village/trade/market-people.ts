@@ -185,9 +185,10 @@ export function restorePeople(state: VillageState, groups: readonly MarketPerson
  *   (`nextId` jen roste), kdyby přesto bylo obsazené, skupina se usadí jako ostatní – nikdo nezmizí;
  * - `people` – ostatní (vlastní lidé výpravy, koupení od jiné výpravy – id jiné vsi) se usadí jako
  *   příchozí z domovské vsi výpravy (`settlePeople` s `from` – kronika `newcomer`);
- * - `coins` – měšec výpravy přibude do zásoby vsi (bez kroniky); chybí = žádné.
- * Bez `from` (výsledek bez lidí, nebo bez směru cesty – nemá nastat) bez směru a kroniky. Nikdo
- * nevznikne ani nezmizí; vstupní skupiny nemění.
+ * - `coins` – měšec výpravy přibude do zásoby vsi; chybí = žádné. S `from` jsou mince v prvním
+ *   zápisu `newcomer` (`coins`), bez lidí zápis `stranded-coins` (preflight plánu 4, M14).
+ * Bez `from` (starší výsledek bez mincí v `origin`, nebo bez směru cesty – nemá nastat) bez směru
+ * a kroniky. Nikdo nevznikne ani nezmizí; vstupní skupiny nemění.
  */
 export function receiveStranded(
   state: VillageState,
@@ -232,6 +233,21 @@ export function receiveStranded(
     });
   }
   events.push(...settlePeople(state, day, settle, back.from ?? { villageId: '', villageName: '' }));
+  if (back.coins && back.from !== undefined) {
+    const first = events.findIndex((e) => e.kind === 'newcomer');
+    const event = events[first];
+    if (event?.kind === 'newcomer') {
+      events[first] = { ...event, coins: back.coins };
+    } else {
+      events.push({
+        day,
+        kind: 'stranded-coins',
+        coins: back.coins,
+        villageName: back.from.villageName,
+        villageId: back.from.villageId,
+      });
+    }
+  }
   return events;
 }
 

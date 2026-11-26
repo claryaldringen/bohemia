@@ -457,7 +457,8 @@ day, order, target, { by?, seedKg?, alone?, service?, kin?, people? })` (mutuje 
     - **Mince** (Rozhodnutí plánu 4, bod 9): výsledek s `unsold.coins` > 0 (`carriesCoins`) jde pro
       zaniklou domovskou ves zpět hostiteli stejně jako lidé a s nimi v jedné zprávě –
       `stranded-people` s `coins` (celé mince, měšec výpravy při odjezdu; chybí = žádné), i bez lidí
-      (pak bez `from`). Hostitel je dostane do zásoby (`receiveStranded` → `addGood`, bez kroniky).
+      (`from` = `origin` výsledku – nese ho i výsledek jen s mincemi). Hostitel je dostane do zásoby
+      (`receiveStranded` → `addGood`) se zápisem kroniky (`newcomer.coins`, bez lidí `stranded-coins`).
       Zboží výsledku, i koupená zbroj, se zahodí. Použitý výsledek, zaniklý hostitel, domov zaniklý
       s výsledkem ve schránce a souběh řeší totéž pravidlo jako u lidí – mince nevzniknou ani se
       neztratí, kromě jediné přijaté ztráty (oba konce mrtvé).
@@ -924,9 +925,13 @@ laborHa`) → chybí ceil(dospělí × (landHa ÷ laborHa − 1)) dospělých, r
   kronika `newcomer`). Dřívější párování podle `emigrants` (týž id a `bornDay`) je pryč: osadníci
   si nesou id mateřské vsi a nová ves čísluje hned za nimi, takže cizí skupina mohla převzít id
   emigranta nebo předka hostitele a v řetězu člověk zmizel (kontrola úlohy 10, Important 1). Bez
-  `from` bez směru a kroniky. Výsledek s lidmi nese `origin` (domovská ves, jméno a směr od
-  hostitele k ní – `departVisitors`), bez lidí ho nemá. Mince zprávy (`coins` – Rozhodnutí plánu 4,
-  bod 9) `receiveStranded` přičte do zásoby vsi (`addGood`).
+  `from` bez směru a kroniky. Výsledek s lidmi nebo s mincemi v měšci nese `origin` (domovská ves,
+  jméno a směr od hostitele k ní – `departVisitors`), bez obojího ho nemá. Mince zprávy (`coins` –
+  Rozhodnutí plánu 4, bod 9) `receiveStranded` přičte do zásoby vsi (`addGood`) a s `from` je
+  zapíše (preflight plánu 4, M14): do prvního zápisu `newcomer` (`coins` – „Do vsi se vrátila
+  prodaná rodina z Lhoty a 17 mincí.“), bez lidí zápis `stranded-coins` („Do vsi přišlo 17 mincí
+  z Lhoty.“; cizímu správci bez jména – `maskVillageNames`). Starší zpráva bez `from` mince přičte
+  bez kroniky.
 
 Počasí kraje mění hodnotu zboží od 1. 11. – [village-disasters.md](village-disasters.md#kraj-kolem-vsi-hodnota-zboží-a-zvěř-p4).
 
