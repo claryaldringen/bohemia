@@ -1416,7 +1416,8 @@ plní `manorView` (`stanceOf`), volba jde přes server action `setDefenseStance`
 - **Testy**: `WaresStock.test.tsx`, `MarketPanel.test.tsx`, `ManorPanel.test.tsx`, `manor-view.test.ts`,
   `trade-names.test.ts`, `village-notices.test.ts`, `village-view-chronicle-markets4.test.ts`; e2e
   `e2e/market.spec.ts` (mince v zásobách a výprava s nimi, příjezd kupců, objednávka meče přes obnovení
-  stránky).
+  stránky; otroci – `manor-slaves` s popiskem, sekce prodeje `market-slaves`, řádek otroků v „Dáš“ a „Dostaneš“,
+  nabídka po obnovení stránky a nulou vynulovaná).
 
 ## Rozkaz „Probít se“ (fortifications.md – Obrana bez násobku 3, `hud/BreakoutButton.tsx`)
 
