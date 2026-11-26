@@ -4,6 +4,7 @@ import { advanceVillage } from '../../core/simulate';
 import { isSingle } from '../../people/marriage';
 import { populationDay } from '../../people/population';
 import type {
+  ChronicleEvent,
   MarketPerson,
   MarketResult,
   MarketTarget,
@@ -13,6 +14,7 @@ import type {
 } from '../../types';
 import { marketResultRef } from '../market';
 import { receiveStranded, sendPeople } from '../market-people';
+import { marketStance } from '../market-stance';
 import { applyMarketResult, departMarket } from '../market-trip';
 import { NO_PEOPLE, emigrantGroups } from '../people-trade';
 import {
@@ -24,6 +26,7 @@ import {
   marketVillage,
   oneSidedSpouses,
   slaveHome,
+  sownPart,
   target,
 } from './market-fixtures';
 
@@ -108,11 +111,79 @@ function worldOf(states: { id: string; state: VillageState }[]): World {
   return world;
 }
 
+/** Lidé na cestě: v nedoručených zprávách a na trzích (náklad výprav i koupení). */
+function onTheWay(world: World): number {
+  let n = 0;
+  const count = (groups: readonly MarketPerson[] | undefined): void => {
+    for (const g of groups ?? []) n += g.people.length;
+  };
+  for (const side of world.sides) {
+    for (const { body } of side.inbox) {
+      if (body.kind === 'market-arrive') count(body.arrival.people);
+      if (body.kind === 'market-result') {
+        count(body.result.people);
+        count(body.result.newcomers);
+      }
+      if (body.kind === 'stranded-people') {
+        count(body.people);
+        count(body.own);
+      }
+    }
+    for (const v of side.state.market?.visitors ?? []) {
+      count(v.people);
+      count(v.boughtPeople);
+    }
+  }
+  return n;
+}
+
+/** Lidé světa (ve vsích a na cestě) bez porodů a úmrtí – nikdo nevznikne ani nezmizí. */
+function headcount(world: World): number {
+  let n = onTheWay(world);
+  for (const { state, since } of world.sides) {
+    n += state.people.length;
+    for (const e of state.chronicle) {
+      if (e.day <= since) continue;
+      if (e.kind === 'birth') n -= 1;
+      if (e.kind === 'death') n += 1;
+    }
+  }
+  return n;
+}
+
 /** Výsledek trhu výpravy `key`, jak ho pošta doručila. */
 function resultOf(world: World, key: string): MarketResult {
   const mail = world.posted.find((m) => m.ref === marketResultRef(key));
   if (mail?.body.kind !== 'market-result') throw new Error(`výsledek ${key} chybí`);
   return mail.body.result;
+}
+
+/**
+ * Zaniklá domovská ves `home`: výsledek s lidmi nebo mincemi jde zpět k hostiteli jako
+ * `stranded-people` – týž tvar jako `strandedMail` v application/village-mail.ts (`own` = skupiny,
+ * které prodal sám hostitel, `people` = ostatní, `coins` = měšec, `from` = `origin`).
+ */
+function goneHome(home: string, hostId: string): Reroute {
+  return (mail) => {
+    if (mail.villageId !== home || mail.body.kind !== 'market-result') return mail;
+    const { result } = mail.body;
+    const newcomers = result.newcomers ?? [];
+    const own = newcomers.filter((g) => g.fromHost === true);
+    const coins = result.unsold.coins ?? 0;
+    return {
+      villageId: hostId,
+      day: mail.day,
+      ref: `${mail.ref}:back`,
+      body: {
+        kind: 'stranded-people',
+        key: result.key,
+        people: [...(result.people ?? []), ...newcomers.filter((g) => g.fromHost !== true)],
+        ...(own.length > 0 ? { own } : {}),
+        ...(coins > 0 ? { coins } : {}),
+        from: result.origin,
+      },
+    };
+  };
 }
 
 /** Člověk `id` ve vsi. */
@@ -139,6 +210,16 @@ function marriedSlaveHome(): VillageState {
     spouseId: 12,
   });
   return s;
+}
+
+/** Lhota (B), která lidi shání: půdy víc než práce (200 osetých dílů), obilí nad pojistkou. */
+function peopleHost(): VillageState {
+  const m = marketVillage();
+  m.fields = [{ id: 1 }];
+  m.parts = Array.from({ length: 200 }, (_, i) => sownPart(100 + i));
+  m.storesKg = 0;
+  m.storesKg = marketStance(m, D).wants.grain! + 2_000;
+  return m;
 }
 
 /**
@@ -173,6 +254,128 @@ function slaveMarket(
   }
   return { world: worldOf(states), keyA: sentA.trip.key, keyC };
 }
+
+describe('otroci mezi vsemi – trh, pošta a zaniklé vsi (markets.md – Rozhodnutí plánu 5, bod 9)', () => {
+  it('C koupí od výpravy A otrokyni za 24 mincí; druhý otrok se vrátí do A; nikdo nezmizí', () => {
+    const a = slaveHome();
+    const people = a.people.length + marketVillage().people.length + homeVillage().people.length;
+    const { world, keyA, keyC } = slaveMarket(a, marketVillage(), { give: { slaves: 2 } });
+    const [h, m, c] = world.sides as [Side, Side, Side];
+    expect(headcount(world)).toBe(people);
+    const cNext = c.state.nextId;
+    for (let day = D + 1; day <= D + 3; day++) {
+      worldDay(world, day);
+      expect(headcount(world), `den D + ${day - D}`).toBe(people);
+      for (const side of world.sides) expect(oneSidedSpouses(side.state)).toEqual([]);
+    }
+    // na trhu: C koupila první skupinu otroků výpravy A (otrokyni 10) za mince
+    const fromA = resultOf(world, keyA);
+    expect(fromA).toMatchObject({
+      sold: { slaves: 1 },
+      bought: {},
+      unsold: { slaves: 1, coins: 24 },
+      coinsGot: 24,
+    });
+    expect(fromA.people!.map((g) => [g.good, g.people.map((p) => p.id)])).toEqual([
+      ['slaves', [14]],
+    ]);
+    const fromC = resultOf(world, keyC);
+    expect(fromC).toMatchObject({ bought: { slaves: 1 }, unsold: { coins: 6 }, coinsPaid: 24 });
+    expect(fromC.newcomers).toEqual([
+      { good: 'slaves', people: [expect.objectContaining({ id: 10, slave: true })] },
+    ]);
+    // C: otrokyně s novým id (za `nextId` C před trhem), kronika s Lhotou; z 30 mincí zbylo 6
+    const bought = c.state.people.filter((p) => p.id >= cNext && p.slave === true);
+    expect(bought).toEqual([
+      expect.objectContaining({ sex: 'female', bornDay: person(a, 10)!.bornDay, origin: 'W' }),
+    ]);
+    expect(c.state.coins).toBe(6);
+    expect(c.state.chronicle).toContainEqual(
+      expect.objectContaining({
+        kind: 'newcomer',
+        group: 'slave',
+        people: 1,
+        villageName: 'Lhota',
+        villageId: 'm',
+        direction: 'W',
+        female: true,
+      }),
+    );
+    // A: neprodaný otrok zpět s původním id, prodaná pryč, 24 mincí
+    expect(person(h.state, 14)).toMatchObject({ slave: true, bornDay: person(a, 14)!.bornDay });
+    expect(person(h.state, 10)).toBeUndefined();
+    expect(h.state.coins).toBe(24);
+    type Returned = Extract<ChronicleEvent, { kind: 'market-returned' }>;
+    const back = h.state.chronicle.find((e): e is Returned => e.kind === 'market-returned')!;
+    expect(back).toMatchObject({
+      sold: { slaves: 1 },
+      bought: { coins: 24 },
+      unsold: { slaves: 1 },
+    });
+    // B: otroci jen prošli – nikdo nový
+    expect(m.state.people.some((p) => p.slave === true)).toBe(false);
+  });
+
+  it('hostitel, který lidi shání, otroky nekoupí – oba se vrátí s původními id', () => {
+    const b = peopleHost();
+    expect(marketStance(b, D).wants.families).toBeGreaterThan(0);
+    expect(marketStance(b, D).wants.slaves).toBeUndefined();
+    const a = slaveHome();
+    const { world, keyA } = slaveMarket(
+      a,
+      b,
+      { give: { slaves: 2 }, wants: { grain: 720 } },
+      false,
+    );
+    const [h, m] = world.sides as [Side, Side];
+    const people = headcount(world);
+    for (let day = D + 1; day <= D + 2; day++) {
+      worldDay(world, day);
+      expect(headcount(world)).toBe(people);
+    }
+    const result = resultOf(world, keyA);
+    expect(result.sold).toEqual({});
+    expect(result.unsold).toEqual({ slaves: 2 });
+    for (const id of [10, 14]) {
+      expect(person(h.state, id)).toMatchObject({ slave: true, bornDay: person(a, id)!.bornDay });
+    }
+    expect(m.state.people.some((p) => p.slave === true)).toBe(false);
+  });
+
+  it('zanikne C s otrokyní na cestě: stranded-people – usadí se u B jako otrokyně s novým id', () => {
+    const a = slaveHome();
+    const { world, keyC } = slaveMarket(a, marketVillage(), { give: { slaves: 2 } });
+    const [, m] = world.sides as [Side, Side];
+    const people = headcount(world);
+    const mNext = m.state.nextId;
+    const gone = goneHome('c', 'm');
+    for (let day = D + 1; day <= D + 3; day++) {
+      worldDay(world, day, gone);
+      expect(headcount(world)).toBe(people);
+    }
+    const back = world.posted.find((mail) => mail.ref === `${marketResultRef(keyC)}:back`);
+    expect(back?.body).toMatchObject({
+      kind: 'stranded-people',
+      people: [{ good: 'slaves', people: [expect.objectContaining({ id: 10 })] }],
+      coins: 6,
+    });
+    expect(back?.body).not.toHaveProperty('own');
+    // otrokyně z výpravy A je u B cizí – nové id, ne návrat (`fromHost` nemá)
+    const settled = m.state.people.filter((p) => p.id >= mNext && p.slave === true);
+    expect(settled).toEqual([
+      expect.objectContaining({ sex: 'female', bornDay: person(a, 10)!.bornDay }),
+    ]);
+    const newcomer = m.state.chronicle.find((e) => e.kind === 'newcomer');
+    expect(newcomer).toMatchObject({
+      group: 'slave',
+      villageName: 'Dubí',
+      villageId: 'c',
+      female: true,
+      coins: 6,
+    });
+    expect(newcomer).not.toHaveProperty('returned');
+  });
+});
 
 describe('prodej otroka rozvede manželství jako smrt (markets.md – Rozhodnutí plánu 5, bod 6)', () => {
   /**

@@ -92,6 +92,17 @@ describe('kodek stavu vsi', () => {
     expect(roundTrip(asState({ roads: null, lastDay: 1 }))).toEqual({ roads: null, lastDay: 1 });
   });
 
+  it('otrok (`slave: true` – markets.md, plán 5) projde kodekem beze změny jako jiná část stavu', () => {
+    const state = village();
+    const [first, second] = state.people;
+    first!.slave = true;
+    second!.slave = true;
+    second!.faith = 'christian';
+    const back = roundTrip(state);
+    expect(JSON.stringify(back)).toBe(JSON.stringify(state));
+    expect(back.people.filter((p) => p.slave === true)).toHaveLength(2);
+  });
+
   it('otisk země se nezmění, když se změní jen den, a změní se se zemí', () => {
     const state = village();
     const next = advanceVillage(state, DAY + 3, null);
