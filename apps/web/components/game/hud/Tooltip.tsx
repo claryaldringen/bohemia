@@ -13,7 +13,9 @@ const PLACEMENT = {
  * Popisek při najetí myší nebo fokusu (jako v 0 A.D.) – krátký název, u staveb i cena.
  * Obsah je jen vizuální doplněk: tlačítka nesou název v `aria-label`. Delší věta (důvod, proč
  * stavba nejde) se zalomí i v panelu, který zalamování vypíná (`whitespace-normal`). Ukáže ho jen
- * vlastní obal (rodič), takže popisky uvnitř jiného (zpráva o vsi v panelu Trh) se neukážou naráz.
+ * vlastní obal (`tooltip-host`) a jen když je to nejvnitřnější obal pod myší (`:hover`) nebo
+ * s fokusem (`:focus-within`) – bez dalšího takového obalu uvnitř (`:has()`, pravidla v
+ * `globals.css`), takže ikona uvnitř obalu zprávy o vsi v panelu Trh ukáže jen svůj popisek.
  */
 export function Tooltip({
   content,
@@ -34,12 +36,12 @@ export function Tooltip({
   children: ReactNode;
 }): ReactElement {
   return (
-    <span className={`group/tooltip relative ${block ? 'flex' : 'inline-flex'}`}>
+    <span className={`tooltip-host relative ${block ? 'flex' : 'inline-flex'}`}>
       {children}
       {!off && (
         <span
           role="tooltip"
-          className={`hud-tooltip pointer-events-none absolute z-40 hidden w-max max-w-64 px-2 whitespace-normal py-1 text-xs leading-snug [:focus-within>&]:block [@media(hover:hover)]:[:hover>&]:block ${PLACEMENT[placement]}`}
+          className={`hud-tooltip pointer-events-none absolute z-40 hidden w-max max-w-64 px-2 whitespace-normal py-1 text-xs leading-snug ${PLACEMENT[placement]}`}
         >
           {denied === null ? (
             content

@@ -257,6 +257,7 @@ export function VillagePanels({
       )}
       {panels.market.open && !menuShown && view?.manor && (
         <MarketPanel
+          key={view.id}
           villages={panels.market.villages}
           error={panels.market.error}
           market={view.manor.market}

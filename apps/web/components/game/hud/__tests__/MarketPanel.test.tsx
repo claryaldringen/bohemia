@@ -268,12 +268,20 @@ describe('nové zboží a lidé (plán 3, Úloha 11)', () => {
     for (const good of ['swords', 'mailShirts', 'helmets']) {
       expect(byId(host, `market-want-${good}`)).not.toBeNull();
     }
-    // mince po jedné, nejvýš kolik ves má; popisek je jen „Mince“ (kusů se u mincí neříká)
+    // mince po deseti, nejvýš kolik ves má; popisek je jen „Mince“ (kusů se u mincí neříká)
     const coins = byId(host, 'market-give-coins')!;
     expect(coins.querySelector('[role="tooltip"]')!.textContent).toBe('Mince');
     expect(coins.querySelector('img[src="/icons/resources/coin.png"]')).not.toBeNull();
+    const countOf = (): string => byId(host, 'market-give-coins-count')!.textContent;
     await click(byId(host, 'market-give-coins-plus'));
-    expect(byId(host, 'market-give-coins')!.textContent).toContain('1');
+    expect(countOf()).toBe('10');
+    // poslední krok nahoru doplní do zásoby (12), dolů jde k nule
+    await click(byId(host, 'market-give-coins-plus'));
+    expect(countOf()).toBe('12');
+    await click(byId(host, 'market-give-coins-minus'));
+    expect(countOf()).toBe('2');
+    await click(byId(host, 'market-give-coins-minus'));
+    expect(countOf()).toBe('0');
     expect(byId(host, 'market-give-swords')!.textContent).toContain('Meče (ks)');
   });
 
@@ -466,6 +474,21 @@ describe('ceny s hladinou a kupci ve zprávě (plán 4)', () => {
     expect(rows[2]?.textContent).toContain('Sousední ves');
   });
 
+  it('obchodník { name: "", merchants: true } je „Kupci“, ne „Sousední ves“', async () => {
+    const el = await report({
+      report: {
+        day: 5,
+        people: 40,
+        houses: 10,
+        crafts: [],
+        traders: [{ name: '', day: 5, goods: ['swords' as const], merchants: true as const }],
+      },
+    });
+    const row = el.querySelector('[data-testid="market-trader"]')!;
+    expect(row.textContent).toContain('Kupci');
+    expect(row.textContent).not.toContain('Sousední ves');
+  });
+
   it('den příštích kupců stojí nad obchodníky; bez něj nic', async () => {
     const merchants = dayIndexOf({ year: 500, month: 8, day: 12 });
     const el = await report({
@@ -549,7 +572,7 @@ describe('zbroj od kupců ve vlastní vsi (plán 4 – Rozhodnutí 15)', () => {
     expect(tooltip('swords')).toBe('Meče – ves je koupí od kupců za své mince');
     expect(tooltip('mailShirts')).toBe('Kroužkové košile – ves je koupí od kupců za své mince');
     expect(tooltip('helmets')).toBe('Helmy – ves je koupí od kupců za své mince');
-    expect(item(host, 'helmets').textContent).toContain('252,5');
+    expect(item(host, 'helmets').textContent).toContain('253');
     expect(count(host, 'mailShirts')).toBe('0');
     expect(minus(host, 'mailShirts').disabled).toBe(true);
     const date = byId(host, 'market-arms-date')!;

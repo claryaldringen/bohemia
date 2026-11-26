@@ -311,6 +311,14 @@ describe('kupci a zbroj v pohledu na dvorec (markets.md – Rozhodnutí plánu 4
     expect(leveled.merchantsArrived).toBe(DAY - 5);
   });
 
+  it('kupci přijedou dnes: den příjezdu je dnešek, ne zítřek', () => {
+    const s = village();
+    s.merchantStops = [STOP];
+    const visit = nextMerchantVisit([STOP], DAY)!;
+    // den příjezdu zastávky je pevný; ve vsi s tímto dnem jako „dnes“ ho pohled nesmí posunout
+    expect(manorView(s, visit.day)!.market.merchantsDay).toBe(visit.day);
+  });
+
   it('ves bez stezky: žádná zbroj ani den', () => {
     const s = village();
     s.armsOrder = { swords: 2 };

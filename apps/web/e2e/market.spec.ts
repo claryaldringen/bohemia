@@ -106,9 +106,9 @@ test('trh – výprava z dvorce do vlastní vsi na sousední mapě', async ({ pa
   await market.getByTestId('market-give-men-plus').click();
   await expect(market.getByTestId('market-give-men')).toContainText('1');
   // mince jsou v „Dáš“ s počtem, v „Dostaneš“ ne; bez stezky ani sekce zbroje
+  // mince po deseti
   await market.getByTestId('market-give-coins-plus').click();
-  await market.getByTestId('market-give-coins-plus').click();
-  await expect(market.getByTestId('market-give-coins-count')).toHaveText('2');
+  await expect(market.getByTestId('market-give-coins-count')).toHaveText('10');
   await expect(market.getByTestId('market-want-coins')).toHaveCount(0);
   await expect(market.getByTestId('market-arms')).toHaveCount(0);
   await market.getByTestId('market-give-grain-plus').click();
@@ -126,9 +126,9 @@ test('trh – výprava z dvorce do vlastní vsi na sousední mapě', async ({ pa
   expect(trip?.market?.stayDays).toBe(1);
   // kronika: výprava hráče s muži na prodej, text beze změny („Výprava vyrazila na trh do vsi …“)
   const departed = home.chronicle.find((e) => e.kind === 'market-departed');
-  expect(departed).toMatchObject({ villageName: 'Lhota', give: { men: 1, grain: 100, coins: 2 } });
+  expect(departed).toMatchObject({ villageName: 'Lhota', give: { men: 1, grain: 100, coins: 10 } });
   // mince ubyly vsi při odjezdu a jedou s výpravou
-  expect(home.coins).toBe(48);
+  expect(home.coins).toBe(40);
   const mail = await query<{ ref: string }>(
     `SELECT ref FROM village_inbox
       WHERE village_id = $1 AND body->>'kind' = 'market-arrive' AND ref LIKE 'market:%:in'`,
@@ -144,7 +144,7 @@ test('trh – výprava z dvorce do vlastní vsi na sousední mapě', async ({ pa
     .getByTestId('chronicle-panel')
     .locator('[data-testid="chronicle-entry"][data-kind="market-departed"]');
   await expect(entry).toContainText('Výprava vyrazila na trh do vsi Lhota', { timeout: 30_000 });
-  await expect(entry).toContainText('2 mince');
+  await expect(entry).toContainText('10 mincí');
 });
 
 test('kupci u stezky – den příjezdu, upozornění a objednávka zbroje', async ({ page }) => {
@@ -163,12 +163,15 @@ test('kupci u stezky – den příjezdu, upozornění a objednávka zbroje', asy
 
   const panel = await openManor(page, spots.dwelling);
   const merchants = panel.getByTestId('manor-merchants');
-  await expect(merchants).toHaveText('12', { timeout: 30_000 });
+  // den příjezdu je pevný, počet dní do něj se s hranicí herního dne (≈ 86 s) o jedničku zkrátí –
+  // dny čteme z pohledu (po načtení), ne z pevného čísla
+  await expect(merchants).toHaveText(/^1[12]$/, { timeout: 30_000 });
+  const inDays = Number((await merchants.textContent()) ?? '');
   // popisek je skrytý, dokud na ikonu hráč nenajede (`getByRole` by ho nenašel)
   const trade = 'kupují med, vosk a kožešiny, prodávají meče, kroužkové košile a helmy';
   const tooltip = panel.locator('[role="tooltip"]');
   await expect(tooltip.filter({ hasText: 'Kupci' })).toHaveText(
-    `Kupci přijedou za 12 dní – ${trade}`,
+    new RegExp(`^Kupci přijedou za (${inDays}|${inDays - 1}) (dní|den) – ${trade}$`),
   );
   await expect(panel.getByTestId('wares-coins')).toHaveText('50');
   await expect(panel.getByTestId('wares-swords')).toHaveText('2');

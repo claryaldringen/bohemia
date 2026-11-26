@@ -431,8 +431,9 @@ function ownNotices(previous: VillageView, next: VillageView): VillageNotice[] {
     notices.push({ kind: 'marriage', tone: 'info', text: 'Svatba' });
   }
   notices.push(...chronicleNotices(previous, next));
-  // kupci přijeli – za každý příjezd, ne jen první v roce jako kronika (markets.md – Rozhodnutí
-  // plánu 4, bod 5): den posledního příjezdu v pohledu je novější než v minulém pohledu
+  // kupci přijeli – za každý den příjezdu, ne jen první v roce jako kronika (markets.md – Rozhodnutí
+  // plánu 4, bod 5): den posledního příjezdu v pohledu je novější než v minulém pohledu. Dva příjezdy
+  // téhož dne dají jedno upozornění (stejný den, nic novějšího).
   const arrived = next.manor?.market.merchantsArrived ?? null;
   if (
     !next.extinct &&

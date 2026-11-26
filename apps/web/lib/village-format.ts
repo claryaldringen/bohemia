@@ -15,11 +15,14 @@ export function formatDecimal(value: number, decimals: number): string {
   return value.toFixed(decimals).replace('.', ',');
 }
 
-/** Cena v mincích – „0,53“, „1,1“, „120“: pod minci na dvě desetinná místa, celá bez desetin. */
+/**
+ * Cena v mincích – pod 10 dvě platné číslice („0,13“, „0,88“, „1,0“, „4,2“; i 0,999 a 1,04 jsou
+ * „1,0“), od 10 celé číslo („120“, „1 200“).
+ */
 export function formatCoinPrice(price: number): string {
-  if (price < 1) return formatDecimal(price, 2);
-  const text = formatDecimal(price, 1);
-  return text.endsWith(',0') ? formatInteger(price) : text;
+  const text = price.toPrecision(2);
+  if (price >= 10 || text.includes('e')) return formatInteger(price);
+  return text.replace('.', ',');
 }
 
 /** Tvar podstatného jména podle celého čísla: 1 / 2–4 / 0 a 5+. */

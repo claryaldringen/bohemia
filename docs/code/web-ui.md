@@ -303,7 +303,9 @@ villageId)`. Z levných otisků (`stampsOf` – `last_day`, `asleep`) se dopočt
   Odejít, vylepšení cesty) vpravo za čarou – `Commands`, `hud-split` / `hud-commands`, na okně
   55–72rem pod údaji; rozbalené nabídky (růžice stezek a odchodu, obchod) nad panelem u pravého
   okraje – `hud-popup`, zavře je stisk myši mimo ně (`hooks/use-dismiss.ts`); popisky (`Tooltip`)
-  se zalomit smí – `whitespace-normal`; náhled bez hry s nejbohatšími daty:
+  se zalomit smí – `whitespace-normal`; ukáže se jen popisek nejvnitřnějšího obalu `tooltip-host` pod myší
+  (`:hover` bez dalšího `:hover` obalu uvnitř přes `:has()`, totéž pro `:focus-within`; pravidla v
+  `globals.css`, jen při `(hover: hover)`); náhled bez hry s nejbohatšími daty:
   http://localhost:3010/dev/panels (`?panel=dvorec`, `ohrada`, `pole`, `pole-dil`, `rudiste`… – `app/dev/panels/dev-panels.ts`,
   i seznam vsí a nabídka hry); u obydlí a víc vybraných obydlí – počet domácností a lidí –
   tlačítko Odejít – růžice odchodu `LeaveCompass`: 8 směrů nové
@@ -1385,8 +1387,9 @@ plní `manorView` (`stanceOf`), volba jde přes server action `setDefenseStance`
   Bez práva `trade` zašedlé s důvodem. Každý klik jde hned a v pořadí na server
   (`VillageCommands.orderArms` → fronta `runAction` → akce `orderArms`), takže se poslední počet neztratí ani
   po zavření panelu; do odpovědi na poslední změnu zboží se ukazuje naklikaný počet (odpověď na starší
-  změnu nic nepřepíše), pak zase počet ze serveru. Důvod odmítnutí je v `market-arms-error` (a řádkem
-  nahoře jako u výpravy), zmizí s další změnou.
+  změnu nic nepřepíše), pak zase počet ze serveru. Důvod odmítnutí ukáže sekce v `market-arms-error`
+  (zmizí s další změnou); `VillageCommands.orderArms` ho navíc ohlásí řádkem nahoře (`reported`) jako
+  ostatní akce nad vsí.
 - **Upozornění** „Kupci přijeli“ s ikonou kupců (`VillageNotice.icon`, `lib/village-notices.ts`): za každý
   příjezd – `merchantsArrived` je novější než v minulém pohledu.
 - **Kronika** (`lib/village-view-chronicle.ts`): `merchants-arrived` „Přijeli kupci z daleka – prodávají …,

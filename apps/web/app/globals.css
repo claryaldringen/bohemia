@@ -226,3 +226,17 @@
     }
   }
 }
+
+/*
+ * Popisek `Tooltip` ukáže jen nejvnitřnější obal pod myší (a při fokusu jen nejvnitřnější
+ * fokusovaný): obal s `:hover` / `:focus-within`, který uvnitř nemá další takový obal. Mimo vrstvy,
+ * aby přebil `hidden` z utilit; `(hover: hover)` drží dotykové displeje bez popisků při tapnutí.
+ */
+.tooltip-host:focus-within:not(:has(.tooltip-host:focus-within)) > .hud-tooltip {
+  display: block;
+}
+@media (hover: hover) {
+  .tooltip-host:hover:not(:has(.tooltip-host:hover)) > .hud-tooltip {
+    display: block;
+  }
+}

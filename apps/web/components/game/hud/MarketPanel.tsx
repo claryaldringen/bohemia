@@ -53,8 +53,12 @@ const PHASES: Record<MarketTripPhase, { label: string; icon: string }> = {
   waiting: { label: 'Čeká na zboží', icon: 'hourglass' },
 };
 
-/** Krok výběru: po 100 kg, kusy a m³ po jedné. */
-const stepOf = (good: TradeGood): number => (TRADE_GOOD_NAMES[good].unit === 'kg' ? 100 : 1);
+/**
+ * Krok výběru: po 100 kg, mince po deseti (meč stojí 120 – po jedné by to bylo 120 kliknutí), kusy
+ * a m³ po jedné. Poslední krok nahoru doplní do zásoby (`Stepper` má `max`), dolů jde k nule.
+ */
+const stepOf = (good: TradeGood): number =>
+  good === COIN_GOOD ? 10 : TRADE_GOOD_NAMES[good].unit === 'kg' ? 100 : 1;
 
 /** Ikona zboží s popiskem názvu. */
 function GoodIcon({ good, size = 20 }: { good: TradeGood; size?: number }): ReactElement {

@@ -1821,7 +1821,7 @@ test('hráč zboří obydlí – lidé bydlí dočasně jinde – a opustí a vr
   await demolish.hover({ force: true });
   await expect(
     panel
-      .locator('span.group\\/tooltip', { has: page.getByTestId('structure-demolish') })
+      .locator('span.tooltip-host', { has: page.getByTestId('structure-demolish') })
       .getByTestId('rights-reason'),
   ).toHaveText(/Obyvatelé nemají kam jít/);
 
