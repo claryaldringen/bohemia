@@ -182,8 +182,10 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `updateHappiness`, `summarizeVillage(…, landscape)`, `sacredLaborGainPerYear`), pramen
   a slanisko jako voda pro pole, sad a hřbitov (`premiumSpringShapes` v `squareFlags`), stezka
   kostry brodu a průsmyku (`withSkeletonRoute` ve `foundedState` – osa `route` jako upravené pevné
-  cesty s průsekem lesem bez klád a hotová zemská stezka v obou směrech, kam vede; trade.md).
-  Úrodná krajina, doubravy a nivní louky působí samy přes krajinu.
+  cesty s průsekem lesem bez klád a hotová zemská stezka v obou směrech, kam vede; trade.md),
+  zlatonosný potok (`goldPlacers` – náplavy v pořadí `goldPlacerSites`; rýžovník na nich rýžuje
+  zlato, než se vyčerpají – `workPanner`, `choosePlacer`, jen konečná chůze; village-crafts.md –
+  Dílny zlata). Úrodná krajina, doubravy a nivní louky působí samy přes krajinu.
 - **Osa vod víc řek** (Úloha 7 plánu kostry; world-skeleton.md – Kde všude kostra působí): mapa
   z kostry má víc řek (`Landscape.rivers` – soutok), všechny řeky mapy dá `riversOf`.
   `riverCenterlines(l)` (`stream-geometry.ts`) – osa každé řeky zvlášť v pořadí `riversOf`

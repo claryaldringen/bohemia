@@ -749,6 +749,8 @@ export interface VillageView {
     byCart?: true;
     /** Kolik volů se vycvičilo, dosloužilo nebo uhynulo (oxen.md – Voli po kusech). */
     oxen?: number;
+    /** Kolik náplavů se zlatem zbývá, když rýžovník vyrýžoval náplav (`placer-exhausted`). */
+    left?: number;
     /** Kolik koní se narodilo, dosloužilo nebo uhynulo (horses.md – Chov, Krmení). */
     horses?: number;
     /** Proč kůň šel na maso (horses.md – Chov, Krmení). */

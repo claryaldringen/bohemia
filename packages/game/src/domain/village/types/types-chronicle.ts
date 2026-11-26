@@ -978,6 +978,11 @@ export type ChronicleEvent = { day: number } & (
       meadowShare?: number;
       lostHayKg?: number;
     }
+  /**
+   * Rýžovník vyrýžoval náplav (gold.md – Pravidla 1; plán 6): `left` – kolik náplavů krajiny
+   * ještě má zlato (0 – poslední).
+   */
+  | { kind: 'placer-exhausted'; left: number }
   | {
       kind: 'cemetery-full';
       cemeteryId: number;

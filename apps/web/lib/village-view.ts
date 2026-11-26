@@ -219,6 +219,8 @@ export function chronicle(state: VillageState, name: string): VillageView['chron
           }
         : {}),
       ...(event.kind === 'iron-brought' ? { son: event.son } : {}),
+      // vyrýžovaný náplav – kolik jich zbývá (upozornění; gold.md – Pravidla 1)
+      ...(event.kind === 'placer-exhausted' ? { left: event.left } : {}),
       // kdo koně okul (horses.md – Kování) – kronika; upozornění se nedává (Martin 27. 10. 2026)
       ...(event.kind === 'horses-shod' ? { horses: event.horses, own: event.own } : {}),
       // pohromy – stupeň vody, síla smrště, díly a domy pro upozornění (disasters.md)

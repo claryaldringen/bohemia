@@ -331,6 +331,12 @@ export interface Workshop {
    */
   ironTrip?: IronTrip | null;
   /**
+   * Rýžovník (gold.md – Pravidla 1 a 2): náplav, kde rýžuje (index v `goldPlacers`), a chůze
+   * z dílny (m, na cm, vždy konečná – `Infinity` by JSON uložil jako `null`); null = žádný
+   * dosažitelný náplav se zlatem (znovu se hledá 1. 4.); chybí = ještě nevybraný.
+   */
+  placer?: { index: number; walkM: number } | null;
+  /**
    * Dílna zná učení řemesla (crafts.md – Učení řemesla): výkon dílny jde podle praxe jejích lidí
    * (`workshopSkill`). Dílna z doby před učením ho nemá – do převodu (`withCraftSkill`) pracuje
    * jako vyučená.

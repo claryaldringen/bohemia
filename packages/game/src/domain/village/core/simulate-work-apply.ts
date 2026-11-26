@@ -630,6 +630,12 @@ export function craftsDay(
     ...workCrafts(state, day, obstacles, coverage, productivity, resting, landscape, supply),
     ...workCarpenters(state, day, obstacles, coverage, productivity, resting, help),
   ];
+  // rýžovník dnes vyrýžoval náplav (gold.md – Pravidla 1) – kolik náplavů se zlatem zbývá
+  for (const w of workshops) {
+    if (w.placerExhausted !== undefined) {
+      state.chronicle.push({ day, kind: 'placer-exhausted', left: w.placerExhausted });
+    }
+  }
   if (access) {
     demand.jobs.push(...oreDemand(state, workshops, drivesOf));
     addCartDemand(state, day, demand, ploughing);

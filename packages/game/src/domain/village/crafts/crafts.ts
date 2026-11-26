@@ -100,7 +100,8 @@ import {
   type KilnWork,
 } from './charcoal';
 import { findCampSite, findKilnSite } from './kiln-site';
-import { GOLD_CRAFTS } from './gold-crafts';
+import { goldPlacers } from '../core/premium-effects';
+import { inPanningSeason, pannerPlacer, pannerWalk, workPanner } from './gold-crafts';
 import type { CampSiteFinder } from './burner-camp';
 import { villageRoadWalk } from '../paths/walking';
 import {
@@ -498,7 +499,11 @@ export function smithsForgeCharcoalKg(
  *   markets.md, Rozhodnutí plánu 3, bod 6), nebo nemá palivo ani z čeho kácet,
  * - uhlíř (crafts.md – Rovnováha uhlíř – kovář), když nemá rozdělaný milíř, další ještě nezačíná
  *   (uhlí ve vsi stačí na dobu cyklu a rezervu), dnes nevytahá uhlí pro kováře (`burnerPlans`)
- *   a není kdy a kam sázet; uhlíř bez milíře nový začne – odpočívá, jen když nejsou buky.
+ *   a není kdy a kam sázet; uhlíř bez milíře nový začne – odpočívá, jen když nejsou buky,
+ * - rýžovník (gold.md – Pravidla 1 a 2) mimo sezónu rýžování (`resting`) a bez dosažitelného
+ *   náplavu se zlatem (`no-placer`) – náplav na den vybere `pannerPlacer` (náplavy `goldPlacers`
+ *   krajiny `landscape`, chůze po pevných cestách; mutuje jen `Workshop.placer`, jako
+ *   `migrateBurners` před ním).
  * Rozhoduje se na začátku dne ze včerejších zásob; hodnota = co dílna dnes ukáže (`resting` –
  * plná zásoba, `no-charcoal` / `no-wood` – chybí vstup, upozornění pro hráče). `obstacles` =
  * vrstva překážek (dřevo hrnčíře a buky uhlíře); bez ní (null – jen testy) dřeva neomezeně.
@@ -511,6 +516,7 @@ export function restingCrafters(
   productivity = 1,
   obstacles: ObstacleLayer | null = null,
   plans: ReadonlyMap<number, BurnerPlan> = burnerPlans(state, day, coverage, productivity),
+  landscape: Landscape | null = null,
 ): Map<number, WorkshopActivity> {
   const resting = new Map<number, WorkshopActivity>();
   // běžná ves bez dílen – bez procházení lidí (volá se každý den)
@@ -537,8 +543,19 @@ export function restingCrafters(
       resting.set(d.id, 'no-ore');
     }
   }
-  // dílny zlata (plán 6): zatím bez práce v dílně – domácnost pracuje se vsí (Úlohy 4 a 5)
-  for (const craft of GOLD_CRAFTS) {
+  // rýžovník (gold.md – Pravidla 1 a 2): mimo sezónu odpočívá, bez náplavu se zlatem pracuje se vsí
+  const panners = occupiedWorkshops(state, 'panner');
+  if (panners.length > 0) {
+    const season = inPanningSeason(day);
+    const placers = season ? goldPlacers(landscape) : [];
+    const walk = pannerWalk(state, landscape);
+    for (const d of panners) {
+      if (!season) resting.set(d.id, 'resting');
+      else if (pannerPlacer(state, d, day, placers, walk) === null) resting.set(d.id, 'no-placer');
+    }
+  }
+  // šperkař a mincíř (plán 6): zatím bez práce v dílně – domácnost pracuje se vsí (Úloha 5)
+  for (const craft of ['jeweller', 'minter'] as const) {
     for (const d of occupiedWorkshops(state, craft)) resting.set(d.id, 'resting');
   }
   for (const d of occupiedWorkshops(state, 'potter')) {
@@ -874,6 +891,13 @@ export interface WorkshopDay {
   smelt?: { manDays: number; bloomKg: number; bellows: BellowsHelper | null };
   /** Kovář: překování houby na hřivny – práce (čd, v `making`) a hřivny (kg); jinak chybí. */
   refine?: { manDays: number; barsKg: number };
+  /** Rýžovník (gold.md – Pravidla 2): náplav, kde dnes rýžoval (m) – scéna; jinak chybí. */
+  pan?: { x: number; z: number };
+  /**
+   * Rýžovník dnes vyrýžoval náplav (gold.md – Pravidla 1) – kolik náplavů se zlatem zbývá;
+   * krok práce z toho zapíše kroniku `placer-exhausted`. Jinak chybí.
+   */
+  placerExhausted?: number;
 }
 
 /**
@@ -1355,8 +1379,9 @@ function workshopOrder(a: Dwelling, b: Dwelling): number {
  * dílna nic nevyrábí, řemeslník bez práce v dílně (`resting` – spočítá ho volající před
  * rozdělením práce vsi) pracuje se vsí. Uhlí od milíře nese uhlíř na tyči (s kovářem z práce
  * kovárny, když nemá syna) a kovář kope rudu podle plánu kováren dne (`supply` – crafts.md, Uhlí
- * a ruda kováře; workshops.md, Uhlíř – odnos uhlí na tyči). Vrací, kam práce šla (rozdělení práce
- * dne pro scénu).
+ * a ruda kováře; workshops.md, Uhlíř – odnos uhlí na tyči). Rýžovník rýžuje na náplavu
+ * (`workPanner` – gold.md, Pravidla 1 a 2). Vrací, kam práce šla (rozdělení práce dne pro scénu).
+ * Bez `resting` ho spočítá `restingCrafters` i s krajinou `landscape` (náplavy rýžovníka).
  */
 export function workCrafts(
   state: VillageState,
@@ -1364,16 +1389,14 @@ export function workCrafts(
   obstacles: ObstacleLayer | null,
   coverage: CraftCoverage,
   productivity = 1,
-  resting: ReadonlyMap<number, WorkshopActivity> = restingCrafters(
-    state,
-    day,
-    coverage,
-    productivity,
-    obstacles,
-  ),
+  restingToday?: ReadonlyMap<number, WorkshopActivity>,
   landscape: Landscape | null = null,
   supply: SmithSupply = NO_SMITH_SUPPLY,
 ): WorkshopDay[] {
+  // napřed, jako dřív výchozí hodnota parametru – i s krajinou, kde jsou náplavy rýžovníka
+  const resting =
+    restingToday ??
+    restingCrafters(state, day, coverage, productivity, obstacles, undefined, landscape);
   // tesaře (wagons.md) řídí krok práce zvlášť – pomoc stavbám jde před stavbami dne
   // (carpentry.ts – `workCarpenter`)
   const workshops = state.dwellings
@@ -1412,9 +1435,9 @@ export function workCrafts(
       const labor = workshopLabor(state, day, dwelling.id, coverage.pottery, productivity);
       burnt += smithForgeCharcoalKg([{ labor: forgeLabor(labor) }]);
     }
-    // dílny zlata (plán 6): zatím bez práce v dílně, domácnost pracuje se vsí – nikdy větev hrnčíře
-    // (práci rýžovníka, šperkaře a mincíře přidají Úlohy 4 a 5)
-    if (GOLD_CRAFTS.includes(workshop.craft)) {
+    // šperkař a mincíř (plán 6): zatím bez práce v dílně, domácnost pracuje se vsí – nikdy větev
+    // hrnčíře (práci přidá Úloha 5)
+    if (workshop.craft === 'jeweller' || workshop.craft === 'minter') {
       workshop.activity = 'resting';
       continue;
     }
@@ -1425,6 +1448,30 @@ export function workCrafts(
       continue;
     }
     const labor = workshopLabor(state, day, dwelling.id, coverage.pottery, productivity);
+    if (workshop.craft === 'panner') {
+      // rýžovník na náplavu (gold.md – Pravidla 1 a 2) – nikdy větev hrnčíře
+      const pan = workPanner(
+        state,
+        dwelling,
+        labor,
+        day,
+        goldPlacers(landscape),
+        pannerWalk(state, landscape),
+      );
+      workshop.activity = pan.activity;
+      days.push({
+        dwellingId: dwelling.id,
+        craft: workshop.craft,
+        domestic: labor.dailyMin,
+        felling: 0,
+        fellingTrees: [],
+        making: pan.activity === 'producing' ? labor.craft : 0,
+        producedKg: 0,
+        ...(pan.site ? { pan: pan.site } : {}),
+        ...(pan.exhaustedLeft !== undefined ? { placerExhausted: pan.exhaustedLeft } : {}),
+      });
+      continue;
+    }
     if (workshop.craft === 'burner') {
       // odnos uhlí na tyči (workshops.md – Uhlíř – odnos uhlí na tyči): díl dílny uhlíře; nošení
       // praxe nezpomaluje – v práci dílny po praxi je ho méně

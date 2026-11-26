@@ -1493,6 +1493,11 @@ export function chronicleText(event: ChronicleEvent, villageName: string, seed?:
       return finishedText(event);
     case 'cart-made':
       return `Tesař vyrobil ${CART_NAMES[event.cart].toLowerCase()}.`;
+    // rýžovník vyrýžoval náplav (gold.md – Pravidla 1) – bez „0“, poslední náplav vlastní větou
+    case 'placer-exhausted':
+      return event.left > 0
+        ? `Rýžovník vyrýžoval náplav. Zlato zbývá na ${formatInteger(event.left)} ${plural(event.left, 'náplavu', 'náplavech', 'náplavech')}.`
+        : 'Rýžovník vyrýžoval poslední náplav.';
     case 'iron-trip':
       return `Ves nemá kováře – ${ironTripWho(event.son, event.porters ?? 0, event.byCart === true)} pro kování k vozu ${event.to === '' ? 'do sousední vsi' : `do vsi ${event.to}`}.`;
     case 'iron-brought':

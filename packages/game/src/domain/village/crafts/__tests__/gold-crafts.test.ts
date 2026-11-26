@@ -66,13 +66,14 @@ describe('dílny zlata – past else (workCrafts)', () => {
     expect(after.crafts?.potteryKg ?? 0).toBeLessThanOrEqual(100);
     expect(workshop.felling).toBeNull();
     expect(workshop.activity).not.toBe('producing');
-    expect(workshop.activity).toBe('resting');
+    // rýžovník bez krajiny nemá náplav (úloha 4), šperkař a mincíř zatím odpočívají (úloha 5)
+    expect(workshop.activity).toBe(craft === 'panner' ? 'no-placer' : 'resting');
   });
 
-  it.each(GOLD_CRAFTS)('%s: domácnost pracuje se vsí (resting)', (craft) => {
+  it.each(GOLD_CRAFTS)('%s: domácnost pracuje se vsí (resting, rýžovník no-placer)', (craft) => {
     const s = villageWith(craft);
     const resting = restingCrafters(s, DAY, NO_CRAFTS);
-    expect(resting.get(WORKSHOP_ID)).toBe('resting');
+    expect(resting.get(WORKSHOP_ID)).toBe(craft === 'panner' ? 'no-placer' : 'resting');
   });
 });
 

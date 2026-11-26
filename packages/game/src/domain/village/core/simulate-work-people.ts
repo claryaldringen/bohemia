@@ -85,7 +85,16 @@ export function dayPeople(ctx: WorkDay): DayPeople {
   // – vytahání uhlí sedí s nošením, vozem i prací dílny
   migrateBurners(state);
   const burners = burnerPlans(state, day, coverage, productivity);
-  const resting = restingCrafters(state, day, coverage, productivity, obstacles, burners);
+  // rýžovník vybírá náplav krajiny (gold.md – Pravidla 1) – bez dosažitelného pracuje se vsí
+  const resting = restingCrafters(
+    state,
+    day,
+    coverage,
+    productivity,
+    obstacles,
+    burners,
+    landscape,
+  );
   for (const [id, activity] of restingCarpenters(state, day, obstacles)) resting.set(id, activity);
   // v den požáru hasí i řemeslníci – dílny dnes stojí (disasters.md – Hašení)
   // uhlíř hasí taky: milíř ten den stojí bez dozoru (pálení se o den odloží, nic se nezkazí),
