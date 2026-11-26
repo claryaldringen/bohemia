@@ -515,8 +515,8 @@ function departPlanned(
       // vozy jdou po kusech se stářím – neprodaný se vrátí stejně starý
       carts.push(...takeCarts(next, good, amount));
     } else if (isPeopleGood(good)) {
-      // lidé odejdou ze vsi ve směru cesty jako tytéž osoby (Rozhodnutí plánu 3, bod 10) – rodiny,
-      // pak muži, pak ženy, stejně jako je vybral `planMarketTrip`
+      // lidé odejdou ze vsi ve směru cesty jako tytéž osoby (Rozhodnutí plánu 3, bod 10) – otroci,
+      // rodiny, pak muži, pak ženy, stejně jako je vybral `planMarketTrip`
       people.push(...takePeople(next, day, good, amount, target.firstStep));
     } else {
       addGood(next, good, -amount, day);

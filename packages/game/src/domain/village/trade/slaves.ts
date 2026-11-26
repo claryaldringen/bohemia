@@ -2,10 +2,10 @@
 // Otroci nejsou rodina, ale zboží“): kus je jeden otrok – manžel ani děti s ním neodcházejí a i malé
 // dítě-otrok jde prodat samo. Kdo smí odejít, vybírá `emigrantGroups` (otroci napřed); tady je jen
 // výběr prodejních otroků – jeden průchod lidmi bez simulace (pohled dvorce ho volá často).
+import { keptByLine } from '../people/dynasty';
 import { isAway } from '../people/people';
 import { canBeSold } from '../people/slaves';
 import type { Person, VillageState } from '../types';
-import { keptByLine } from './people-trade';
 
 /**
  * Otroci, které ves smí prodat (bod 6): `canBeSold` (pohan, ne muž rodu ani šlechtic), doma (ne

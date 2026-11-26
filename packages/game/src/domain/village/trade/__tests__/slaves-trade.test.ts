@@ -10,6 +10,7 @@ import {
   takePeople,
 } from '../market-people';
 import { initialPrice } from '../market-prices';
+import { marketStance } from '../market-stance';
 import {
   MARKET_BAD_ORDER,
   MARKET_OVER_STOCK,
@@ -21,14 +22,24 @@ import {
   planMarketTrip,
   type MarketTripCheck,
 } from '../market-trip';
-import { emigrantGroups, emigrantList, type EmigrantGroup } from '../people-trade';
+import {
+  emigrantGroups,
+  NO_PEOPLE,
+  emigrantList,
+  newcomerHome,
+  tradePeopleCount,
+  type EmigrantGroup,
+} from '../people-trade';
 import { sellableSlaves } from '../slaves';
 import { villageGoodStock } from '../trade';
+import { dwelling } from '../../__tests__/kin-fixtures';
 import { D, SLAVE_HOUSE, marketVillage, slaveHome, target } from './market-fixtures';
 
 // Otroci jako zboží (markets.md – Rozhodnutí plánu 5, bod 6; Martin 26. 11. 2026: „Otroci nejsou
 // rodina, ale zboží“): kus = jeden otrok-pohan, který je doma a není manželkou muže rodu; výběr od
 // nejnižšího id napřed, rodiny, muži a ženy ze zbytku.
+
+const EMPTY_HOUSE = 900;
 
 /** Id lidí skupin po skupinách. */
 const ids = (groups: readonly EmigrantGroup[]): number[][] =>
@@ -47,6 +58,13 @@ describe('otroci jako zboží (markets.md – Rozhodnutí plánu 5, bod 6)', () 
     s.people.reverse();
     expect(sellableSlaves(s, D).map((p) => p.id)).toEqual([10, 14]);
     expect(sellableSlaves(s, D + 5).map((p) => p.id)).toEqual([10, 12, 14]);
+  });
+
+  it('hostitel otroky sám nenabízí ani neshání (Rozhodnutí 7) a tradePeopleCount je počítá', () => {
+    const stance = marketStance(slaveHome(), D);
+    expect(stance.offer.slaves).toBeUndefined();
+    expect(stance.wants.slaves).toBeUndefined();
+    expect(tradePeopleCount({ ...NO_PEOPLE, slaves: 2 })).toBe(2);
   });
 
   it('emigrantGroups: otroci napřed, muži a ženy ze vsi bez nich – 10 jen jako otrokyně', () => {
@@ -162,10 +180,15 @@ describe('otroci jako zboží (markets.md – Rozhodnutí plánu 5, bod 6)', () 
 
   it('settlePeople: otrokyně přijde v ženském rodě (`female`), otrok bez něj; oba dál otroci', () => {
     const m = marketVillage();
+    // prázdný dům: rodina by šla do něj, otrok ne
+    m.dwellings.push({ ...dwelling(EMPTY_HOUSE), position: { x: 90, z: 0, rotation: 0 } });
+    expect(newcomerHome(m, true)).toBe(EMPTY_HOUSE);
     const next = m.nextId;
     const h = slaveHome();
     const [woman, boy] = [10, 14].map((id) => h.people.find((p) => p.id === id)!);
     const from = { villageId: 'h', villageName: 'Vlkov', direction: 'W' as const };
+    // otrok se usadí jako svobodný (ne jako rodina) – do obydlí podle `newcomerHome(…, false)`
+    const home = newcomerHome(m, false);
     const events = settlePeople(
       m,
       D,
@@ -181,11 +204,16 @@ describe('otroci jako zboží (markets.md – Rozhodnutí plánu 5, bod 6)', () 
       direction: 'W',
       group: 'slave',
       people: 1,
-      dwellingId: expect.any(Number),
+      dwellingId: home,
       villageName: 'Vlkov',
       villageId: 'h',
     };
-    expect(events).toStrictEqual([{ ...newcomer, female: true }, newcomer]);
+    expect(events).toStrictEqual([
+      { ...newcomer, female: true },
+      { ...newcomer, dwellingId: m.people.find((p) => p.id === next + 1)!.dwellingId },
+    ]);
+    expect(home).not.toBe(EMPTY_HOUSE);
+    expect(m.people.find((p) => p.id === next)!.dwellingId).toBe(home);
     expect(m.people.filter((p) => p.id >= next).map((p) => [p.id, p.slave])).toEqual([
       [next, true],
       [next + 1, true],

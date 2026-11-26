@@ -940,7 +940,7 @@ laborHa`) → chybí ceil(dospělí × (landHa ÷ laborHa − 1)) dospělých, r
   `slave` (`PEOPLE_GROUP.slaves`, `GROUP_GOOD.slave`). Prodat jde `sellableSlaves(state, day)` –
   jeden průchod lidmi bez simulace: `canBeSold` (otrok-pohan, ne `line` ani `noble`), doma (ne
   `isAway`), ne `keptByLine`, od nejnižšího id. Odvedený pohan z cizího rodu nebo šlechtic je po
-  usazení obyčejný otrok na prodej – `settleLed` mu `line` i `noble` smaže (village-people.md),
+  usazení obyčejný otrok na prodej (nenastává – muže rodu a šlechtice válka zajímá, `Prisoner`) – `settleLed` mu `line` i `noble` smaže (village-people.md),
   takže ho `canBeSold` ani `keptByLine` nedrží; jeho žena také ne (manžel už není muž rodu).
   `emigrantGroups` bere napřed `want.slaves` otroků jedním řezem (každý jako skupina `slave` sám,
   i z dvorce a i když se domácnost rozpadne – rozpad řeší `dissolveHouseholds` jako po smrti), pak rodiny, muže

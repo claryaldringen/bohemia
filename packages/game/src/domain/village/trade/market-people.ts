@@ -69,8 +69,8 @@ export function peopleOf(goods: TradeGoods): TradePeople {
 
 /**
  * Koho výprava se zbožím `give` odvede (stav nemění): `emigrantGroups` se všemi druhy najednou –
- * rodiny, pak muži, pak ženy, každá další skupina z vsi bez těch předchozích. Rodiny, muži a ženy
- * berou z týchž lidí, takže jen tak je vidět, kolik jich odejít může doopravdy; výběr je týž jako
+ * otroci, rodiny, pak muži, pak ženy, každá další skupina z vsi bez těch předchozích. Otroci,
+ * rodiny, muži a ženy berou z týchž lidí, takže jen tak je vidět, kolik jich odejít může doopravdy; výběr je týž jako
  * postupné `takePeople` při odchodu (v pořadí `PEOPLE_GOODS`).
  */
 export function leavingGroups(state: VillageState, day: number, give: TradeGoods): Emigrants {

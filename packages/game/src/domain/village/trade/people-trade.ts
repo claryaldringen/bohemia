@@ -8,7 +8,7 @@
 import { isDisused } from '../buildings/disused';
 import { isHouseType } from '../buildings/log-house';
 import { createRandom, deriveSeed, type Random } from '../../landscape/random';
-import { isDynastyTracked, lineMen } from '../people/dynasty';
+import { keptByLine } from '../people/dynasty';
 import { familiesOf, unmarriedHeir } from '../people/households';
 import { villageManorId } from '../people/manor';
 import { isSingle } from '../people/marriage';
@@ -42,7 +42,7 @@ function between(rnd: Random, from: number, to: number): number {
   return from + Math.floor(rnd.next() * (to - from + 1));
 }
 
-/** Skupina lidí, kterou ves může dát (zásilka vazalů) – rodina, nebo svobodný muž či žena. */
+/** Skupina lidí, kterou ves může dát (zásilka vazalů) – otrok sám, rodina, nebo svobodný muž či žena. */
 export interface EmigrantGroup {
   kind: NewcomerGroup;
   /** Domácnost, ze které odchází. */
@@ -72,16 +72,6 @@ function byAge(a: Person, b: Person): number {
 function without(state: VillageState, people: readonly Person[]): VillageState {
   const ids = new Set(people.map((p) => p.id));
   return { ...state, people: state.people.filter((p) => !ids.has(p.id)) };
-}
-
-/**
- * Koho ves sousedovi nedá – muže rodu ani manželku muže rodu (lord.md – Rod vojvody, Manželky;
- * návrh Clauda: rod se nesmí dát sousedovi). Ves bez rodu dá kohokoli.
- */
-export function keptByLine(state: VillageState): (p: Person) => boolean {
-  if (!isDynastyTracked(state)) return () => false;
-  const line = new Set(lineMen(state).map((p) => p.id));
-  return (p) => line.has(p.id) || (p.spouseId !== undefined && line.has(p.spouseId));
 }
 
 /**

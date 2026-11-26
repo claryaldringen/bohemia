@@ -525,6 +525,8 @@ describe('lidé na trhu mezi dvěma vsemi (Rozhodnutí plánu 3, bod 10)', () =>
     const h = familyHome();
     const m = peopleHost();
     expect(marketStance(m, D).wants.families).toBeGreaterThan(0);
+    // ves, která shání rodiny, neshání otroky (Rozhodnutí plánu 5, bod 7)
+    expect(marketStance(m, D).wants.slaves).toBeUndefined();
     expect(marketStance(m, D).offer.grain).toBeGreaterThan(720);
     const total = h.people.length + m.people.length;
     const sent = departMarket(
