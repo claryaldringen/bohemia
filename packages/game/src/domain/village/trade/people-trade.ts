@@ -14,7 +14,7 @@ import { villageManorId } from '../people/manor';
 import { isSingle } from '../people/marriage';
 import { householdBreaksUp, isAway, isFertile, occupants } from '../people/people';
 import { DWELLINGS, PEOPLE_TRADE } from '../rules';
-import { sellableSlaves } from './slaves';
+import { NO_RESERVED, sellableSlaves } from './slaves';
 import type {
   ChronicleEvent,
   ComingPeople,
@@ -140,8 +140,16 @@ export interface Emigrants {
  * zůstávají, zbytek domácnosti se nesmí rozpadnout), muž a žena podle `nextSingle`. Výběr je
  * postupný, takže prvních n skupin je vždy stejných (náhled v panelu). Když tolik lidí není, vrátí
  * méně. Bez otroků ve `want` se prodejní otroci nehledají a výběr je týž jako před plánem 5.
+ * `reserved` – otroci z nabídky vsi (`offeredSlaveIds`, markets.md – Rozhodnutí plánu 5, bod 8):
+ * otroci se berou dál napřed ze `sellableSlaves` (rezervovaní jsou mezi nimi první), rodiny, muži
+ * a ženy z vsi bez otroků výběru i bez rezervovaných. Chybí = prázdná, výběr beze změny.
  */
-export function emigrantGroups(state: VillageState, day: number, want: TradePeople): Emigrants {
+export function emigrantGroups(
+  state: VillageState,
+  day: number,
+  want: TradePeople,
+  reserved: ReadonlySet<number> = NO_RESERVED,
+): Emigrants {
   // otroci jedním řezem – každý jako skupina sám, ze vsi se odeberou najednou
   const slaves =
     (want.slaves ?? 0) > 0
@@ -150,7 +158,10 @@ export function emigrantGroups(state: VillageState, day: number, want: TradePeop
           .map((p) => group('slave', p.dwellingId, [p]))
       : [];
   const sold = slaves.flatMap((g) => g.people);
-  let rest = sold.length > 0 ? without(state, sold) : state;
+  // rezervovaní otroci z nabídky zůstávají stranou – jako rodina, muž ani žena se nevyberou
+  const kept = reserved.size > 0 ? state.people.filter((p) => reserved.has(p.id)) : [];
+  const aside = [...sold, ...kept];
+  let rest = aside.length > 0 ? without(state, aside) : state;
   const take = (count: number, next: () => EmigrantGroup | undefined): EmigrantGroup[] => {
     const out: EmigrantGroup[] = [];
     while (out.length < count) {

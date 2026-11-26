@@ -8,6 +8,7 @@ import { NOISE_KG, marketStance } from '../trade/market-stance';
 import { leavingGroups, withoutGroups } from '../trade/market-people';
 import { departMarketInPlace, marketCrew, marketFreeAdults, tripCarts } from '../trade/market-trip';
 import { emigrantList } from '../trade/people-trade';
+import { offeredSlaveIds } from '../trade/slaves';
 import { nearbyTarget } from '../trade/nearby';
 import { villageGoodStock } from '../trade/trade';
 import { priceKg } from '../trade/villager-trips';
@@ -154,6 +155,10 @@ export function stewardGrainStep(state: VillageState, ctx: NeedContext, shortKg:
  * hráč“; pravidlo 9 – správce sestavuje výpravy jako hráč). Seznam zkrátí na to, co lidé a vozy
  * unesou domů, náklad na to, co unesou tam (`fitToCrew`), a přidá mince na seznam (`coinsFor` –
  * Rozhodnutí plánu 4, bod 4; nic neváží, nosiče nepřidají). Bez paměti navíc. Vrací, jestli vyrazil.
+ * Otroky správce zatím neprodává ani nekupuje (markets.md – Rozhodnutí plánu 5, bod 8 – návrh
+ * Clauda): z nabídky vsi je vyřadí a otroci z nabídky hráče (`offeredSlaveIds`, spočtená jednou
+ * před výpravou) zůstanou doma – jako rodina, muž ani žena neodejdou (`leavingGroups`
+ * i `departMarketInPlace` s `reserved`). Nabídku `slavesForSale` nezadává ani nemění.
  */
 export function stewardMarketStep(state: VillageState, ctx: NeedContext): boolean {
   const villages = state.nearby?.villages;
@@ -161,17 +166,21 @@ export function stewardMarketStep(state: VillageState, ctx: NeedContext): boolea
   const { day } = ctx;
   const date = dateOfDayIndex(day);
   if (date.month !== CRAFT_BUYING.day.month || date.day !== CRAFT_BUYING.day.day) return false;
-  const stance = marketStance(state, day);
+  const reserved = offeredSlaveIds(state, day);
+  const stance = marketStance(state, day, reserved);
   if (Object.keys(stance.wants).length === 0) return false;
+  // otroky správce neprodává – z nabídky dřív, než se počítají nosiči a náklad
+  const offer = { ...stance.offer };
+  delete offer.slaves;
   const carts = { homeCarts: tradeHomeCarts(state).map((c) => c.kind), oxen: oxenHome(state, day) };
   // nosiči jen z lidí, kteří zůstávají – lidé z nabídky odejdou jako zboží (Rozhodnutí plánu 3,
   // bod 10; stejně počítá `planMarketTrip`)
-  const staying = withoutGroups(state, emigrantList(leavingGroups(state, day, stance.offer)));
+  const staying = withoutGroups(state, emigrantList(leavingGroups(state, day, offer, reserved)));
   const adults = marketFreeAdults(staying, day);
   const wants = fitToCrew(stance.wants, {}, carts, adults);
   // seznam jen ze šumu, nebo ho nemá kdo nést
   if (Object.keys(wants).length === 0) return false;
-  const give = fitToCrew(stance.offer, wants, carts, adults);
+  const give = fitToCrew(offer, wants, carts, adults);
   const village = villages[date.year % villages.length]!;
   const target = nearbyTarget(state, village.villageId);
   if (!target) return false;
@@ -182,7 +191,7 @@ export function stewardMarketStep(state: VillageState, ctx: NeedContext): boolea
     day,
     { give, wants, stayDays: MARKET.minStayDays },
     target,
-    { by: 'steward' },
+    { by: 'steward', reserved },
   );
   return sent.ok;
 }

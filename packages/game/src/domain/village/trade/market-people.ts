@@ -71,10 +71,17 @@ export function peopleOf(goods: TradeGoods): TradePeople {
  * Koho výprava se zbožím `give` odvede (stav nemění): `emigrantGroups` se všemi druhy najednou –
  * otroci, rodiny, pak muži, pak ženy, každá další skupina z vsi bez těch předchozích. Otroci,
  * rodiny, muži a ženy berou z týchž lidí, takže jen tak je vidět, kolik jich odejít může doopravdy; výběr je týž jako
- * postupné `takePeople` při odchodu (v pořadí `PEOPLE_GOODS`).
+ * postupné `takePeople` při odchodu (v pořadí `PEOPLE_GOODS`). `reserved` – otroci z nabídky vsi
+ * (`offeredSlaveIds`, spočtená jednou z celé vsi), kteří jako rodina, muž ani žena neodejdou;
+ * chybí = prázdná (výprava hráče, zásilky).
  */
-export function leavingGroups(state: VillageState, day: number, give: TradeGoods): Emigrants {
-  return emigrantGroups(state, day, peopleOf(give));
+export function leavingGroups(
+  state: VillageState,
+  day: number,
+  give: TradeGoods,
+  reserved?: ReadonlySet<number>,
+): Emigrants {
+  return emigrantGroups(state, day, peopleOf(give), reserved);
 }
 
 /** Mělká kopie vsi bez lidí skupin `groups` – jen pro výběr a kontroly (volní dospělí). */
@@ -117,7 +124,8 @@ export function sendPeople(
 
 /**
  * Odejdou ze vsi (mutuje stav): `n` skupin druhu `good` podle `emigrantGroups` (méně, když tolik
- * lidí ves dát nemůže) – `removePeople` se směrem `direction` (`sendPeople`).
+ * lidí ves dát nemůže) – `removePeople` se směrem `direction` (`sendPeople`). `reserved` jako
+ * u `leavingGroups` – táž množina pro všechny druhy, ne přepočet ze vsi zmenšené o odešlé.
  */
 export function takePeople(
   state: VillageState,
@@ -125,8 +133,9 @@ export function takePeople(
   good: PeopleGood,
   n: number,
   direction: Direction8,
+  reserved?: ReadonlySet<number>,
 ): MarketPerson[] {
-  const groups = emigrantGroups(state, day, { ...NO_PEOPLE, [good]: n })[good];
+  const groups = emigrantGroups(state, day, { ...NO_PEOPLE, [good]: n }, reserved)[good];
   return sendPeople(state, groups, direction);
 }
 

@@ -174,6 +174,28 @@ export function slaveHome(): VillageState {
   return s;
 }
 
+/** Dům dvou otroků (`slaveFamilyHome`). */
+export const SLAVES_HOUSE = 502;
+
+/**
+ * `familyHome` se dvěma svobodnými dospělými otroky-pohany v domě 502 – muž 90 (25) a žena 91 (24)
+ * – a `parts` osetými díly bez spřežení (orba lidmi; markets.md – Rozhodnutí plánu 5, bod 8): čím
+ * víc dílů, tím menší rozpočet lidí na trhu (`peopleOffer`). Dospělých je 12.
+ */
+export function slaveFamilyHome(parts: number): VillageState {
+  const s = familyHome();
+  s.dwellings.push({ ...dwelling(SLAVES_HOUSE), position: { x: 80, z: 0, rotation: 0 } });
+  const bornDay = (age: number): number => D - Math.ceil((age + 0.5) * 365.25);
+  s.people.push(
+    { id: 90, bornDay: bornDay(25), dwellingId: SLAVES_HOUSE, sex: 'male', slave: true },
+    { id: 91, bornDay: bornDay(24), dwellingId: SLAVES_HOUSE, sex: 'female', slave: true },
+  );
+  s.fields = [{ id: 1 }];
+  s.parts = Array.from({ length: parts }, (_, i) => sownPart(100 + i));
+  s.pens = (s.pens ?? []).filter((p) => p.team === undefined || p.team === null);
+  return s;
+}
+
 /**
  * Denní invariant manželství (markets.md – Rozhodnutí plánu 5, bod 6; Úlohy 4 a 9): id lidí vsi,
  * jejichž `spouseId` nemíří na člověka ve vsi nebo není vzájemné. Výjimkou je vedlejší manželka muže

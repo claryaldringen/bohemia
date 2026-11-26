@@ -962,8 +962,8 @@ laborHa`) → chybí ceil(dospělí × (landHa ÷ laborHa − 1)) dospělých, r
   před plánem 5. Volitelné `TradePeople.slaves` (chybí = 0): `tradePeopleCount` ho sčítá,
   `peopleOf` i `MarketTripPeople.stock` (`marketTripPeople`) ho píší jen při kladném počtu (bez něj
   by kontrola výpravy dala otrokům zásobu 0). Bez otroků zůstávají `NO_PEOPLE`, lidé zásilek
-  (`ShipmentManifest.people`) a `comingCounts`; hostitel otroky sám nenabízí ani neshání
-  (`marketStance`). Zásoba, odchod, prodej a návrat jdou přes `PEOPLE_GOODS` a `emigrantGroups`
+  (`ShipmentManifest.people`) a `comingCounts`; hostitel otroky nabízí jen podle nabídky hráče
+  (Prodej ve vlastní vsi níž) a nikdy je neshání (`marketStance`). Zásoba, odchod, prodej a návrat jdou přes `PEOPLE_GOODS` a `emigrantGroups`
   samy (`villageGoodStock`, `takePeople`, `settleTrades`, `departMarketInPlace`,
   `applyMarketResult`, `checkMarketTrip`). Příchod a návrat otrokyně nese v zápisu `newcomer`
   `female` (`settlePeople`, `receiveStranded`). Web: `TRADE_GOOD_NAMES.slaves` (ikona
@@ -984,6 +984,34 @@ laborHa`) → chybí ceil(dospělí × (landHa ÷ laborHa − 1)) dospělých, r
     mezi osadníky zůstane). Testy: `market-slaves.test.ts` (vsi A, B a C, pošta po každém dni,
     denní invariant `oneSidedSpouses` v `market-fixtures.ts` – vedlejší manželky mužů rodu
     vynechá), `departure.test.ts`, `son-departure.test.ts` a kodek `village-state-codec.test.ts`.
+  - **Prodej ve vlastní vsi – nabídka a rezervace** (Rozhodnutí plánu 5, bod 8 – návrh Clauda podle
+    Martinova „Hráč zadá počet“ u zbroje, 25. 11. 2026; `trade/slaves.ts`, vzor Objednávka zbroje):
+    `VillageState.slavesForSale` (celé, chybí = žádní) zapíše `setSlavesForSale` (0 pole smaže,
+    necelé nebo záporné odmítne – `SLAVES_BAD_COUNT`; na počet otroků se neomezuje). Ves nabízí
+    `slavesOffered` = min(nabídka, `sellableSlaves`) – pokřtěný mezi zadáním a trhem se nepočítá,
+    nabídka vyšší než zásoba čeká. **Rezervace** `offeredSlaveIds` = id prvních `slavesForSale`
+    ze `sellableSlaves` (bez nabídky prázdná `NO_RESERVED`, prodejní otroci se nehledají) se počítá
+    **jednou z celé vsi** a předává dál beze změny: `emigrantGroups(…, reserved)` bere otroky dál
+    napřed ze `sellableSlaves` (rezervovaní jsou mezi nimi první), rodiny, muže a ženy z vsi bez
+    otroků výběru i bez rezervovaných; totéž `leavingGroups`, `takePeople`, `marketTripPeople`
+    a `planMarketTrip` s volitelným `reserved` (chybí = výběr beze změny). Přepočet ze vsi zmenšené
+    o odešlé (postupné `takePeople`, `settleTrades` mincovní fáze po zápočtu) by rezervoval jiné lidi.
+    Nabídka hostitele (`marketStance(state, day, reserved = offeredSlaveIds(…))`): volní lidé
+    `peopleOffer(…, reserved)` – rozpočet se zmenší o dospělé rezervované (jako v rozpočtu, nejvýš
+    na 0; i zraněné – práci nemají, ale v rozpočtu jsou), rodiny, muži a ženy se vybírají bez nich
+    a `keepLabor` kontroluje práci vsi bez odcházejících i bez rezervovaných (ubírá jen volné lidi –
+    kolik otroků prodat, rozhodl hráč); `offer.slaves` = počet rezervovaných, jen > 0, ve `wants`
+    nikdy. Tržní den (`marketDay`) spočte rezervaci jednou na začátku a dá ji `marketStance`,
+    všem `settleTrades` (zápočet řemeslníků, zápočet, mincovní fáze) i `coinPhase`; s nabídkou
+    otroků je `slavesOnMarket` pravda, takže kupci otroky shánějí (`merchantWants`). Po všech fázích
+    `reduceSlavesForSale(state, host.sold.slaves)` – o prodané menší, nula ze stavu zmizí, zbytek
+    čeká na další trh. Ves bez nabídky je bit po bitu jako dřív. Výprava hráče (`departMarket`),
+    `villageGoodStock` a zásilky rezervaci neberou – hráč smí otroka z nabídky poslat i výpravou
+    (vybere se od nejnižšího id jako ostatní otroci) a nabídka se pak spočte ze zbylých. Výprava
+    správce otroky nebere (village-steward.md – Správce na trhu). Nabídka se odchodem celé vsi
+    nepřenáší (jako `armsOrder`). Testy: `slaves-sale.test.ts` (kupci, rezervace v zápočtu,
+    mincovní fázi a celý den), `market-stance.test.ts`, `vassalage/__tests__/spare.test.ts`
+    (`peopleOffer`, `keepLabor`), `steward-market.test.ts`.
 
 Počasí kraje mění hodnotu zboží od 1. 11. – [village-disasters.md](village-disasters.md#kraj-kolem-vsi-hodnota-zboží-a-zvěř-p4).
 

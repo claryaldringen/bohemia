@@ -14,9 +14,11 @@ import type { VillageState } from '../../types';
 import { START, horse, horseVillage } from '../../__tests__/horse-fixtures';
 import { yearlyNeed } from '../../wares/hides';
 import { HONEY } from '../../rules';
+import { ageGroup } from '../../people/people';
 import { marketStance } from '../market-stance';
+import { sellableSlaves } from '../slaves';
 import { villageGoodStock } from '../trade';
-import { withWorkshop } from './market-fixtures';
+import { D, slaveFamilyHome, slaveHome, sownPart, withWorkshop } from './market-fixtures';
 
 // Co ves na trhu nabízí a shání (markets.md – Rozhodnutí plánu 2, bod 5; Rozhodnutí plánu 3,
 // bod 5): makrokomodity výhledu dávek a výrobky dílen, nabídka nejvýš zásoba, stav se nemění.
@@ -275,5 +277,54 @@ describe('med, vosk a kožešiny na trhu (marketStance – Rozhodnutí plánu 4,
     for (const good of ['honey', 'wax', 'furs'] as const) {
       expect(offer[good]!).toBeLessThanOrEqual(villageGoodStock(s, good, day));
     }
+  });
+});
+
+describe('otroci na prodej ve vlastní vsi (marketStance – Rozhodnutí plánu 5, bod 8)', () => {
+  /** Vlkov s otroky (`slaveHome`) – otrok 12 doma: prodejní otroci 10, 12 a 14. */
+  function slaves(): VillageState {
+    const s = slaveHome();
+    delete s.people.find((p) => p.id === 12)!.away;
+    return s;
+  }
+
+  /** Rozpočet lidí na trhu (`peopleOffer`): dospělí × díl práce nad půdu, dolů. */
+  function budgetOf(s: VillageState): number {
+    const o = stewardOutlook(s, D, craftCoverage(s, D));
+    const share = o.landHa > 0 && o.laborHa > o.landHa ? 1 - o.landHa / o.laborHa : 0;
+    const adults = s.people.filter((p) => ageGroup(p, D) === 'adult').length;
+    return Math.floor(adults * share + 1e-9);
+  }
+
+  it('nabízí min(nabídka, prodejní otroci), pokřtěný se nepočítá; otroky nikdy neshání', () => {
+    const s = slaves();
+    expect(sellableSlaves(s, D).map((p) => p.id)).toEqual([10, 12, 14]);
+    expect(marketStance(s, D).offer).toEqual({});
+    s.slavesForSale = 2;
+    expect(marketStance(s, D).offer).toEqual({ slaves: 2 });
+    s.slavesForSale = 5;
+    expect(marketStance(s, D).offer).toEqual({ slaves: 3 });
+    s.people.find((p) => p.id === 12)!.faith = 'christian';
+    expect(marketStance(s, D).offer).toEqual({ slaves: 2 });
+    expect(marketStance(s, D).wants).not.toHaveProperty('slaves');
+  });
+
+  it('ves bez nabídky nabízí lidi jako dnes; s nabídkou jsou otroci z nabídky mimo volné lidi', () => {
+    const s = slaves();
+    s.fields = [{ id: 1 }];
+    s.parts = [sownPart(100)];
+    s.pens = (s.pens ?? []).filter((p) => p.team === undefined || p.team === null);
+    expect(marketStance(s, D).offer).toEqual({ fourWheelCarts: 1, families: 1, men: 2 });
+    s.slavesForSale = 2;
+    // otrokyně 10 z nabídky drží dítě 16 v domě rodiny 2 ∞ 3 – rodina by ho nechala samotné
+    expect(marketStance(s, D).offer).toEqual({ fourWheelCarts: 1, slaves: 2, men: 1 });
+  });
+
+  it('rozpočet lidí na 1 rodinu (2 dospělí): s nabídkou 2 dospělých otroků rodinu nenabídne', () => {
+    const s = slaveFamilyHome(165);
+    expect(budgetOf(s)).toBe(2);
+    expect(marketStance(s, D).offer).toEqual({ fourWheelCarts: 1, families: 1 });
+    s.slavesForSale = 2;
+    expect(marketStance(s, D).offer).toEqual({ fourWheelCarts: 1, slaves: 2 });
   });
 });
