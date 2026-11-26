@@ -253,7 +253,9 @@ ves>:<id výpravy>`, `stayDays`, `travelDays`, zboží `goods` – koně i tady 
     položky; počty koní ve zboží jsou počty kusů v `horses` po druzích – kůň, který nepřišel, se
     neprodá), poznámku do `arrivals` (posledních `MARKET.report.traders`), zprávu o domovské vsi
     (`rememberNews` → `VillageState.news`, `VillageNews` – jedna na ves, novější `report.day`
-    vyhrává, při stejném dni pozdější zpráva) a kroniku `market-arrived` s vsí výpravy
+    vyhrává, při stejném dni pozdější zpráva; zpráva bez cen – hosté, kovář, sňatek – známé
+    `prices` a `level` nepřepíše a starší zpráva s cenami je doplní, jen když ves žádné nezná –
+    preflight plánu 4, M15) a kroniku `market-arrived` s vsí výpravy
     (`villageId` – Rozhodnutí plánu 3, bod 15); směr od domovské vsi `MarketArrival.firstStep`
     si návštěvník nese (`MarketVisitor.firstStep`, chybí u starších příjezdů). Týž klíč podruhé
     (výprava na trhu nebo její výsledek v odchozí schránce) nic neudělá. Kovář souseda

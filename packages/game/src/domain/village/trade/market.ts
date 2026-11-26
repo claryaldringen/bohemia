@@ -107,14 +107,28 @@ export function openTripKeys(state: Pick<VillageState, 'trade' | 'outbox'>): str
 
 /**
  * Zapamatuje si zprávu na pivo o jiné vsi (mutuje stav; markets.md – Pravidla 8): jedna na ves,
- * novější `report.day` vyhrává – při stejném dni pozdější zpráva. Uloží kopii.
+ * novější `report.day` vyhrává – při stejném dni pozdější zpráva. Uloží kopii. Ceny a hladinu trhu
+ * (`prices`, `level`) nesou jen výsledky výprav (Rozhodnutí plánu 4, bod 3): novější zpráva bez cen
+ * (hosté na trhu, kovář, sňatek) známé ceny a hladinu nepřepíše, starší zpráva s cenami je doplní,
+ * jen když ves žádné nezná (preflight plánu 4, M15).
  */
 export function rememberNews(state: VillageState, news: VillageNews): void {
   const list = (state.news ??= []);
   const i = list.findIndex((n) => n.villageId === news.villageId);
   const old = list[i];
-  if (old === undefined) list.push(structuredClone(news));
-  else if (news.report.day >= old.report.day) list[i] = structuredClone(news);
+  if (old === undefined) {
+    list.push(structuredClone(news));
+  } else if (news.report.day >= old.report.day) {
+    const next = structuredClone(news);
+    if (next.prices === undefined && old.prices !== undefined) {
+      next.prices = old.prices;
+      if (old.level !== undefined) next.level = old.level;
+    }
+    list[i] = next;
+  } else if (old.prices === undefined && news.prices !== undefined) {
+    old.prices = structuredClone(news.prices);
+    if (news.level !== undefined) old.level = news.level;
+  }
 }
 
 /** Kopie zboží jen s kladnými položkami v pořadí `TRADE_GOODS`. */

@@ -446,6 +446,48 @@ describe('trh ve vsi hostitele – příjezd, výsledek a zprávy', () => {
     });
   });
 
+  it('zpráva bez cen nepřepíše známé ceny a hladinu (preflight plánu 4, M15)', () => {
+    const s = marketVillage();
+    const known = { prices: { grain: 0.1 }, level: 3 };
+    rememberNews(s, { villageId: 'h', name: 'Vlkov', report: { ...report, day: 10 }, ...known });
+    // hosté z Vlkova přijeli na trh vsi – zpráva o Vlkově bez cen
+    joinMarket(s, D, arrival({ report: { ...report, day: 12 } }));
+    expect(s.news![0]).toEqual({
+      villageId: 'h',
+      name: 'Vlkov',
+      report: { ...report, day: 12 },
+      ...known,
+    });
+    // novější zpráva s cenami a bez `level` (hladina 1) přepíše obojí
+    rememberNews(s, {
+      villageId: 'h',
+      name: 'Vlkov',
+      report: { ...report, day: 14 },
+      prices: { grain: 0.2 },
+    });
+    expect(s.news![0]).toEqual({
+      villageId: 'h',
+      name: 'Vlkov',
+      report: { ...report, day: 14 },
+      prices: { grain: 0.2 },
+    });
+    // starší zpráva s cenami: novější zpráva zůstane, ceny a hladinu vezme, jen když žádné nezná
+    rememberNews(s, { villageId: 'x', name: 'Bor', report: { ...report, day: 9 } });
+    rememberNews(s, { villageId: 'x', name: 'Bor', report: { ...report, day: 8 }, ...known });
+    rememberNews(s, {
+      villageId: 'x',
+      name: 'Bor',
+      report: { ...report, day: 7 },
+      prices: { grain: 0.5 },
+    });
+    expect(s.news![1]).toEqual({
+      villageId: 'x',
+      name: 'Bor',
+      report: { ...report, day: 9 },
+      ...known,
+    });
+  });
+
   it('výsledek: nepoužitý příjezd vrátí vše, návštěvník neprodané i koupené koně', () => {
     expect(marketResult(arrival(), { returned: true })).toEqual({
       key: 'market:h:1',
