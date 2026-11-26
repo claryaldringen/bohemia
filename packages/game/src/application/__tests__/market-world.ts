@@ -3,6 +3,7 @@ import { CURRENT_LAYER_VERSIONS } from '../../domain/landscape';
 import {
   departMarket,
   type ChronicleEvent,
+  type Direction8,
   type Horse,
   type MarketOrder,
   type MarketPerson,
@@ -90,38 +91,55 @@ export class MarketWorld {
   }
 
   /**
-   * Výprava z H na trh M v den D uložená jako po akci webu – odchozí schránka se nedoručí (pád
-   * webu po uložení).
+   * Výprava z H (nebo z vsi `fromId`, od které je M ve směru `firstStep`) na trh M v den D uložená
+   * jako po akci webu – odchozí schránka se nedoručí (pád webu po uložení).
    */
-  async depart(order: MarketOrder): Promise<MarketTrip> {
-    const home = (await this.villages.find(this.h))!;
+  async depart(
+    order: MarketOrder,
+    fromId: string = this.h,
+    firstStep: Direction8 = 'E',
+  ): Promise<MarketTrip> {
+    const home = (await this.villages.find(fromId))!;
     const sent = departMarket(home.state, D, order, {
       villageId: this.m,
       name: 'Lhota',
       cells: 1,
-      firstStep: 'E',
-      homeVillageId: this.h,
-      homeName: 'Vlkov',
+      firstStep,
+      homeVillageId: fromId,
+      homeName: home.name,
     });
     if (!sent.ok) throw new Error(sent.reason);
-    if (!(await this.villages.save(this.h, sent.state, home.version))) {
-      throw new Error('Ves H se neuložila.');
+    if (!(await this.villages.save(fromId, sent.state, home.version))) {
+      throw new Error(`Ves ${home.name} se neuložila.`);
     }
     return sent.trip;
   }
 }
 
+/** Sídelní mapa hráče `ownerId` na políčku (x, 0). */
+const seat = (ownerId: string, x: number): Parameters<InMemorySettlements['createSeat']>[0] => ({
+  ownerId,
+  landscapeSeed: 11 + x,
+  layerVersions: CURRENT_LAYER_VERSIONS,
+  worldCell: { x, y: 0 },
+});
+
 /** Sídelní mapy obou hráčů: H na políčku (0, 0), M na (1, 0) – M je na východě. */
 async function seats(world: MarketWorld): Promise<{ h: string; m: string }> {
-  const place = (ownerId: string, x: number): Parameters<InMemorySettlements['createSeat']>[0] => ({
-    ownerId,
-    landscapeSeed: 11 + x,
-    layerVersions: CURRENT_LAYER_VERSIONS,
-    worldCell: { x, y: 0 },
-  });
-  const h = (await world.settlements.createSeat(place(H_PLAYER, 0)))!;
-  const m = (await world.settlements.createSeat(place(M_PLAYER, 1)))!;
+  const h = (await world.settlements.createSeat(seat(H_PLAYER, 0)))!;
+  const m = (await world.settlements.createSeat(seat(M_PLAYER, 1)))!;
   return { h: h.id, m: m.id };
+}
+
+/**
+ * Třetí ves světa, Hradec (X, hráč `hrac-x`, políčko 2,0 – M je na západ od ní), se stavem `state`
+ * dopočítaným do D. Vrací id.
+ */
+export async function thirdVillage(world: MarketWorld, state: VillageState): Promise<string> {
+  const map = (await world.settlements.createSeat(seat('hrac-x', 2)))!;
+  const { id } = await world.villages.add(map.id, 'Hradec', state);
+  await world.load(id, D);
+  return id;
 }
 
 /**
@@ -253,6 +271,71 @@ export async function peopleOfWorld(world: MarketWorld): Promise<number> {
     }
   }
   for (const people of cargo.values()) n += people;
+  return n;
+}
+
+/**
+ * Mince zprávy výpravy a stupeň její cesty: příjezd 0, výsledek 3, mince zpět hostiteli 5 (na trhu
+ * hostitele stojí výprava se stupněm 2); použitá zpráva je o stupeň dál a mince už nenese.
+ */
+function coinCargoOf(body: VillageEventBody): { key: string; stage: number; coins: number } | null {
+  switch (body.kind) {
+    case 'market-arrive':
+      return { key: body.arrival.key, stage: 0, coins: body.arrival.goods.coins ?? 0 };
+    case 'market-result':
+      return { key: body.result.key, stage: 3, coins: body.result.unsold.coins ?? 0 };
+    case 'stranded-people':
+      return { key: body.key, stage: 5, coins: body.coins ?? 0 };
+    default:
+      return null;
+  }
+}
+
+/**
+ * Mince světa (markets.md – Rozhodnutí plánu 4, bod 9 – nikde nevzniknou ani nezmizí): v zásobách
+ * všech vsí (i vsí na cestě), u osadníků ve schránkách odchodů správce, v nákladu výprav (odchozí
+ * schránky, trhy hostitelů, nepoužité události schránek) a v měšcích cizích kupců na trzích všech
+ * vsí mimo archiv – ze vsi, která zanikla, musí kupec odjet (`endVillage`), archivovanou ves (Začít
+ * znovu) nikdo nedopočítá a kupec v ní zůstane jen jako záznam. Každá výprava se počítá jednou tam, kam její mince došly nejdál: zpráva v odchozí schránce
+ * i ve schránce cíle (doručená, ještě nesmazaná) ani záznam na trhu zaniklého hostitele, odkud už
+ * výprava vrátila výsledek, součet nezdvojí. `trade.expeditions[].give` není místo mincí – je to
+ * jen záznam výpravy, který ve stavu zůstává až do výsledku (výprava bez něj je vyřízená).
+ */
+export async function coinsOfWorld(world: Pick<MarketWorld, 'villages'>): Promise<number> {
+  const { records, inbox } = world.villages;
+  const archived = new Set(await world.villages.archivedOf([...records.keys()]));
+  let n = 0;
+  const trips = new Map<string, { stage: number; coins: number }>();
+  const put = (key: string, stage: number, coins: number): void => {
+    if ((trips.get(key)?.stage ?? -1) < stage) trips.set(key, { stage, coins });
+  };
+  const add = (body: VillageEventBody, used: boolean): void => {
+    const cargo = coinCargoOf(body);
+    if (cargo) put(cargo.key, cargo.stage + Number(used), used ? 0 : cargo.coins);
+  };
+  for (const [id, { state }] of records) {
+    n += state.coins ?? 0;
+    for (const departure of state.steward?.departures ?? []) {
+      if (departure.villageId === undefined) n += departure.settlers?.whole?.stocks.coins ?? 0;
+    }
+    for (const mail of state.outbox ?? []) add(mail.body, false);
+    for (const visitor of state.market?.visitors ?? []) {
+      const coins = visitor.goods.coins ?? 0;
+      if (!visitor.merchant) put(visitor.key, 2, coins);
+      else if (!archived.has(id)) n += coins;
+    }
+  }
+  for (const event of inbox.events) {
+    const state = records.get(event.villageId)?.state;
+    // vymřelá ves použila události jen do dne vymření – dny po něm nesimuluje
+    if (state) add(event.body, event.day <= (state.extinctDay ?? state.lastDay));
+  }
+  for (const [key, { stage, coins }] of trips) {
+    // výpravu, kterou domov už nečeká, vyřídil výsledek – starší záznamy o ní mince nenesou
+    const home = records.get(key.split(':')[1]!)?.state;
+    const awaited = !home || home.trade?.expeditions.some((e) => e.market?.key === key);
+    if (stage >= 5 || awaited) n += coins;
+  }
   return n;
 }
 

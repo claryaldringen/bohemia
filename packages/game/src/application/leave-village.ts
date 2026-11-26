@@ -302,13 +302,15 @@ export async function settleJourney(
       state.weatherSeed ?? null,
     );
     if (!founded.ok) return founded;
-    // kronika cesty zůstane před založením
+    // kronika cesty zůstane před založením, zastávky kupců nové mapy přejdou jako při příjezdu se
+    // správcem (markets.md – Rozhodnutí plánu 4, bod 5)
     return {
       ok: true,
       state: {
         ...founded.state,
         chronicle: [...state.chronicle, ...founded.state.chronicle],
         ...(state.origin === undefined ? {} : { origin: state.origin }),
+        ...(state.merchantStops === undefined ? {} : { merchantStops: state.merchantStops }),
       },
     };
   });

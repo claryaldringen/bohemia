@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { MARKET, TRADE_GOOD_VALUES } from '../../rules';
 import type { MarketPrices } from '../../types';
 import { TRADE_GOODS } from '../goods';
-import { initialPrice, nextPrices, priceOf } from '../market-prices';
+import { coinPriceOf, initialPrice, nextLevel, nextPrices, priceOf } from '../market-prices';
 
 describe('ceny trhu v mincovní míře (markets.md – Rozhodnutí plánu 2, bod 3)', () => {
   it('výchozí cena je hodnota zboží v kg obilí ÷ 15 kg obilí za minci', () => {
@@ -62,5 +62,63 @@ describe('ceny trhu v mincovní míře (markets.md – Rozhodnutí plánu 2, bod
     expect(nextPrices({ cows: 10 }, {}, {}).cows).toBe(40);
     expect(nextPrices({ cows: 10 }, { cows: 3 }, {}).cows).toBe(40);
     expect(nextPrices({ cows: 10 }, {}, { cows: 1 }).cows).toBeCloseTo(44, 9);
+  });
+
+  it('technická mez: cena nejvýš 1e9 × výchozí – dál neroste, klesat smí', () => {
+    // poptávka bez nabídky po 218 tržních dnech: 1,1^218 ≈ 1,06e9
+    let p: MarketPrices = {};
+    for (let i = 0; i < 217; i++) p = nextPrices(p, {}, { cows: 1, grain: 1 });
+    expect(p.cows).toBeCloseTo(40 * 1.1 ** 217, -3);
+    expect(p.cows!).toBeLessThan(40e9);
+    for (let i = 0; i < 100; i++) p = nextPrices(p, {}, { cows: 1, grain: 1 });
+    // násobek výchozí ceny, každé zboží podle své
+    expect(p).toEqual({ cows: 40e9, grain: 1e9 * initialPrice('grain') });
+    expect(nextPrices({ cows: 40e9 }, {}, { cows: 1 }).cows).toBe(40e9);
+    expect(nextPrices({ cows: 40e9 }, { cows: 1 }, { cows: 1 }).cows).toBe(40e9);
+    expect(nextPrices({ cows: 40e9 }, { cows: 1 }, {}).cows).toBeCloseTo(36e9, 0);
+    // těsně pod mezí roste jen k ní
+    expect(nextPrices({ cows: 39e9 }, {}, { cows: 1 }).cows).toBe(40e9);
+    expect(nextPrices({ cows: 30e9 }, {}, { cows: 1 }).cows).toBeCloseTo(33e9, 0);
+  });
+
+  it('technická mez: cena se nikdy nestane nekonečnem, které by JSON uložil jako null', () => {
+    const huge: MarketPrices = { cows: Number.MAX_VALUE, honey: Number.MAX_VALUE };
+    expect(Number.MAX_VALUE * (1 + MARKET.priceStep)).toBe(Infinity);
+    const next = nextPrices(huge, {}, { cows: 1 });
+    expect(next).toEqual({ cows: 40e9, honey: 1e9 * initialPrice('honey') });
+    expect(JSON.parse(JSON.stringify(next))).toEqual(next);
+  });
+});
+
+describe('cena v mincích a hladina trhu (markets.md – Rozhodnutí plánu 4, bod 3)', () => {
+  it('cena v mincích je cena zboží × hladina', () => {
+    expect(coinPriceOf({}, 2, 'furs')).toBeCloseTo(16 / 15, 12);
+    expect(coinPriceOf(undefined, 1, 'cows')).toBe(40);
+    expect(coinPriceOf({ cows: 50 }, 1.5, 'cows')).toBe(75);
+    expect(coinPriceOf({ cows: 50 }, 1.5, 'grain')).toBeCloseTo(0.1, 12);
+  });
+
+  it('hladina po mincovní fázi: × (1 + 10 % × (C − W) / (C + W)), nejméně 1', () => {
+    expect(nextLevel(1, 32, 10 + 2 / 3)).toBeCloseTo(1.05, 12);
+    expect(nextLevel(1.5, 5, 100)).toBeCloseTo(1.3643, 4);
+    expect(nextLevel(1, 5, 100)).toBe(1);
+    // mince a zboží v rovnováze – hladina stojí, samé mince ji zvednou nejvýš o 10 %
+    expect(nextLevel(1.5, 20, 20)).toBe(1.5);
+    expect(nextLevel(2, 1e9, 1)).toBeCloseTo(2.2, 6);
+    expect(nextLevel(2, 0, 100)).toBeCloseTo(1.8, 12);
+  });
+
+  it('W = 0 (na trhu není nic z toho, co kupující shánějí) hladinu nemění', () => {
+    expect(nextLevel(1, 60, 0)).toBe(1);
+    expect(nextLevel(1.5, 60, 0)).toBe(1.5);
+    expect(nextLevel(2, 0, 0)).toBe(2);
+  });
+
+  it('cena mincí se nezapíše, i když jsou v nabídce nebo na seznamu', () => {
+    expect(nextPrices({}, { coins: 50, grain: 600 }, { coins: 10, grain: 600 })).toEqual({
+      grain: initialPrice('grain'),
+    });
+    expect(nextPrices({}, { coins: 50 }, {})).toEqual({});
+    expect(nextPrices({}, {}, { coins: 10 })).toEqual({});
   });
 });

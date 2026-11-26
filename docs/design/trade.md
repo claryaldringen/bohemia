@@ -25,6 +25,7 @@ a smysl přebytkům (obilí, sýr, maso, klády po mýcení) – jen se surovina
 - **Cíl:** po stezce ves **obchoduje se sousední vsí** v tom směru (Martin).
 - **Cíl:** soused je zatím **bez simulace** (stálá povaha, nabídka a poptávka); až budou skutečné
   vsi NPC vojvodů ([válka](war.md)), obchod převezmou ony (Martin – varianta a).
+- **Mince a kupci** (plán 4 obchodu, 26. 11. 2026): ceny v mincích, mince jako zboží a cizí kupci na stezkách kostry jsou hotové – [obchod](markets.md), Rozhodnutí plánu 4; ves mince hromadí a utrácí je hráč a správce, vesničané platí dál obilím.
 - **Ne-cíl (teď):** peníze a ceny na trhu, vozy, cla a mýto, obchodníci z daleka, válka o stezku,
   další vylepšení vsi (hradiště, družina, trh – přijdou později do stejného panelu).
 - **Ne-cíl (teď):** přistěhovalci – noví lidé do vsi z okolí (rodiny, které se přistěhují).

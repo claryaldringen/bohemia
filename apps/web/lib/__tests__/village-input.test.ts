@@ -24,6 +24,7 @@ import {
   parseUpgradeRoadInput,
   parseLeaveVillageInput,
   parseSettleJourneyInput,
+  parseArmsOrderInput,
   parseMarketExpeditionInput,
   parseMarketPeopleInput,
 } from '../village-input';
@@ -453,5 +454,47 @@ describe('vstup lidí na prodej pro náhled výpravy (plán 3, Úloha 11)', () =
     expect(parseMarketPeopleInput({ ...ok, men: '2' })).toBeNull();
     expect(parseMarketPeopleInput({ ...ok, families: Infinity })).toBeNull();
     expect(parseMarketPeopleInput(null)).toBeNull();
+  });
+});
+
+describe('vstup objednávky zbroje u cizích kupců (plán 4, Úloha 6)', () => {
+  const ok = { villageId: '11111111-1111-4111-8111-111111111111', good: 'swords', amount: 2 };
+
+  it('převede zbroj a počet kusů – i nulu', () => {
+    expect(parseArmsOrderInput({ good: 'swords', amount: 2 })).toEqual({
+      good: 'swords',
+      amount: 2,
+    });
+    expect(parseArmsOrderInput(ok)).toEqual({ good: 'swords', amount: 2 });
+    expect(parseArmsOrderInput({ ...ok, good: 'mailShirts', amount: 0 })).toEqual({
+      good: 'mailShirts',
+      amount: 0,
+    });
+    expect(parseArmsOrderInput({ ...ok, good: 'helmets' })).toEqual({ good: 'helmets', amount: 2 });
+  });
+
+  it('odmítne jiné zboží než zbroj', () => {
+    for (const good of [
+      'coins',
+      'grain',
+      'gold',
+      '',
+      'toString',
+      '__proto__',
+      1,
+      null,
+      undefined,
+    ]) {
+      expect(parseArmsOrderInput({ ...ok, good })).toBeNull();
+    }
+  });
+
+  it('odmítne záporný, necelý a nečíselný počet i špatný tvar', () => {
+    for (const amount of [-1, 1.5, NaN, Infinity, '2', null, undefined, [2]]) {
+      expect(parseArmsOrderInput({ ...ok, amount })).toBeNull();
+    }
+    expect(parseArmsOrderInput(null)).toBeNull();
+    expect(parseArmsOrderInput([ok])).toBeNull();
+    expect(parseArmsOrderInput('swords')).toBeNull();
   });
 });

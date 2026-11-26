@@ -297,7 +297,7 @@ async function main(): Promise<void> {
   const db = createDatabase(MEASURE_URL);
   const clients = new Set<PoolClient>();
   db.$client.on('connect', (client) => clients.add(client));
-  const villageRepo = createVillageRepository(db);
+  const villageRepo = createVillageRepository(db, 1);
   const settlements = createSettlementRepository(db);
   const rows = new Map<string, Row>();
   for (const [k, v] of villages.entries()) {

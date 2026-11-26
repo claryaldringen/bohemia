@@ -311,8 +311,9 @@ export type VillageEventBody =
    * pro výpravu, která se vrací domů (`market-result` – `applyMarketResult`), hotová zakázka
    * (`order-ready` – `markOrderReady`, Rozhodnutí plánu 3, bod 6), dotaz na kováře (`smith-ask`
    * – `answerSmithAsk`, Rozhodnutí plánu 3, bod 9), dotaz na partnera (`kin-ask` – `answerKinAsk`,
-   * Rozhodnutí plánu 3, bod 11) a lidé z výsledku pro zaniklou domovskou ves zpět u hostitele
-   * (`stranded-people` – `receiveStranded`, Rozhodnutí plánu 3, bod 13).
+   * Rozhodnutí plánu 3, bod 11) a lidé a mince z výsledku pro zaniklou domovskou ves zpět
+   * u hostitele (`stranded-people` – `receiveStranded`, Rozhodnutí plánu 3, bod 13, a plánu 4,
+   * bod 9).
    */
   | MarketMailBody;
 

@@ -13,8 +13,12 @@ import {
   newSteward,
   settleStewardDepartures,
   settlersOf,
+  skeletonSlice,
   stewardDepartureOrigin,
+  trailStops,
   villageDigest,
+  type GridCell,
+  type SkeletonSlice,
   type VillageRecord,
   type VillageState,
   type VillageYearRow,
@@ -27,7 +31,9 @@ import { createVillageRepository, newVillageRow } from '../village-repository';
 import { encodeVillageState } from '../village-state-codec';
 
 const db = createDatabase(testDatabaseUrl());
-const villages = createVillageRepository(db);
+/** Seed světa – z jeho kostry jsou zastávky stezek. */
+const WORLD_SEED = 7;
+const villages = createVillageRepository(db, WORLD_SEED);
 const DAY = dayIndexOf({ year: 503, month: 4, day: 12 });
 const UNKNOWN = '00000000-0000-0000-0000-000000000000';
 let settlementId = '';
@@ -316,6 +322,81 @@ describe('createVillageRepository', () => {
     expect(await villages.weatherSeedOf(other.id)).not.toBe(seed);
     expect(await villages.weatherSeedOf(UNKNOWN)).toBeNull();
     expect(await villages.weatherSeedOf('neni-uuid')).toBeNull();
+  });
+
+  describe('merchantStopsOf – zastávky kupců (markets.md – Rozhodnutí plánu 4, bod 5)', () => {
+    /** První políčko okna 60 × 60 kolem (0, 0), které vyhovuje. */
+    function cellWhere(wanted: (cell: GridCell) => boolean): GridCell {
+      for (let x = -30; x < 30; x++) {
+        for (let y = -30; y < 30; y++) if (wanted({ x, y })) return { x, y };
+      }
+      throw new Error('V okně takové políčko není.');
+    }
+    const stopsAt = (cell: GridCell): number => trailStops(WORLD_SEED, cell).length;
+    const trailCell = cellWhere((cell) => stopsAt(cell) === 1);
+    const crossroads = cellWhere((cell) => stopsAt(cell) > 1);
+    const riverOnly = cellWhere((cell) => {
+      const slice = skeletonSlice(WORLD_SEED, cell);
+      return slice !== null && slice.rivers.length > 0 && slice.trails.length === 0;
+    });
+
+    /** Sídlo hráče na políčku světa s uloženým výřezem (null = suchá mapa). */
+    async function settleAt(worldCell: GridCell, skeleton: SkeletonSlice | null): Promise<string> {
+      const created = await createSettlementRepository(db).create({
+        ownerId: 'hrac-1',
+        landscapeSeed: 5,
+        layerVersions: CURRENT_LAYER_VERSIONS,
+        worldCell,
+        skeleton,
+      });
+      return created!.id;
+    }
+    const storeSlice = async (id: string, skeleton: SkeletonSlice | null): Promise<void> => {
+      await db.update(schema.settlement).set({ skeleton }).where(eq(schema.settlement.id, id));
+    };
+
+    it.each([
+      ['mimo uzel', trailCell, 1],
+      ['na křižovatce', crossroads, stopsAt(crossroads)],
+    ])('sídlo s výřezem stezky (%s) má zastávky svého políčka', async (_name, cell, count) => {
+      const slice = skeletonSlice(WORLD_SEED, cell)!;
+      expect(slice.trails.length).toBeGreaterThan(0);
+      const id = await settleAt(cell, slice);
+      const stops = await villages.merchantStopsOf!(id);
+      expect(stops).toHaveLength(count);
+      expect(stops).toEqual(trailStops(WORLD_SEED, cell));
+      // zastávky jdou ze seedu světa úložiště
+      const otherWorld = createVillageRepository(db, WORLD_SEED + 1);
+      expect(await otherWorld.merchantStopsOf!(id)).toEqual(trailStops(WORLD_SEED + 1, cell));
+      expect(trailStops(WORLD_SEED + 1, cell)).not.toEqual(stops);
+    });
+
+    it('týmž políčkem stezka vede, ale mapa ji nemá (bez výřezu, výřez jen s řekou) – prázdné', async () => {
+      const id = await settleAt(trailCell, null);
+      expect(await villages.merchantStopsOf!(id)).toEqual([]);
+      await storeSlice(id, skeletonSlice(WORLD_SEED, riverOnly));
+      expect(await villages.merchantStopsOf!(id)).toEqual([]);
+      await storeSlice(id, skeletonSlice(WORLD_SEED, trailCell));
+      expect(await villages.merchantStopsOf!(id)).toEqual(trailStops(WORLD_SEED, trailCell));
+    });
+
+    it('odříznuté sídlo bez políčka světa – prázdné, i s výřezem stezky', async () => {
+      await db.insert(schema.user).values({ id: 'hrac-2', name: '', email: 'hrac-2@example.com' });
+      const seat = await createSettlementRepository(db).createSeat({
+        ownerId: 'hrac-2',
+        landscapeSeed: 6,
+        layerVersions: CURRENT_LAYER_VERSIONS,
+        localCell: trailCell,
+      });
+      expect(await villages.merchantStopsOf!(seat!.id)).toEqual([]);
+      await storeSlice(seat!.id, skeletonSlice(WORLD_SEED, trailCell));
+      expect(await villages.merchantStopsOf!(seat!.id)).toEqual([]);
+    });
+
+    it('neznámé sídlo i řetězec, který není UUID, vrátí null', async () => {
+      expect(await villages.merchantStopsOf!(UNKNOWN)).toBeNull();
+      expect(await villages.merchantStopsOf!('neni-uuid')).toBeNull();
+    });
   });
 
   it('find neznámé vsi i řetězce, který není UUID, vrátí null', async () => {

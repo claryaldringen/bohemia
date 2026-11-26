@@ -2,6 +2,7 @@
 // rozcestník je rules.ts).
 
 import type { TradeGood } from '../types';
+import { MARKET } from './rules-market';
 
 // trade.md – Obchod (návrh Clauda, schváleno 18. 10. 2026): hodnoty v kg obilí – ves za zboží
 // dostane hodnotu ÷ přirážka 1,2 × příplatek 1,2 = 1 × hodnota (`sellValue` – platba koní nové
@@ -76,6 +77,14 @@ export const TRADE_GOOD_VALUES = {
   wax: { valueKg: 30, carryKg: 1 },
   hides: { valueKg: 20, carryKg: 5 },
   furs: { valueKg: 8, carryKg: 1 },
+  // zbroj a mince (markets.md – Rozhodnutí plánu 4, body 1 a 7; cena zbroje podle Couplandu a Lex
+  // Ribuaria 40, 11, v kg obilí; návrh Clauda): meč 1 800 (120 mincí), kroužková košile 7 200
+  // (480), helma 3 600 (240); mince stojí `MARKET.grainKgPerCoin` a stejně jako dobytek, vozy
+  // a lidé nepřidají nosiče
+  swords: { valueKg: 1800, carryKg: 1.5 },
+  mailShirts: { valueKg: 7200, carryKg: 12 },
+  helmets: { valueKg: 3600, carryKg: 1.5 },
+  coins: { valueKg: MARKET.grainKgPerCoin, carryKg: 0 },
   // lidé na trhu za kus (markets.md – Rozhodnutí plánu 3, bod 4): svobodný muž nebo žena 360 –
   // obnovené číslo dřívější výměny lidí („dospělý 360 kg obilí“, trade.md – Výměna lidí, Martin
   // 19. 10. 2026); rodina 720 – dva dospělí, děti v ceně (návrh Clauda – trh zná jednu cenu za kus,

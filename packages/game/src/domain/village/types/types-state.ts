@@ -63,13 +63,14 @@ import type {
 import type { CartDrive, RoadGrade, VillageRoads } from './types-roads';
 import type { VillageRoutes } from './types-routes';
 import type {
+  MerchantStop,
   PlacedOrder,
   VillageMail,
   VillageMarket,
   VillageNearby,
   VillageNews,
 } from './types-market';
-import type { CraftPurchase, VillageTrade } from './types-trade';
+import type { ArmsGood, CraftPurchase, VillageTrade } from './types-trade';
 import type { WildlifeState } from './types-wildlife';
 import type { DisasterState } from './types-disasters';
 
@@ -458,6 +459,10 @@ export interface VillageState {
   wildlife?: WildlifeState;
   /** zboží vsi – kůže, kožešiny, med a vosk (hides-honey.md); vzniká líně, chybí = 0 */
   wares?: WaresState;
+  /** Mince vsi – celé kusy (markets.md – Rozhodnutí plánu 4, bod 1); chybí = žádné. */
+  coins?: number;
+  /** Zbroj vsi po kusech (bod 7, jen zboží – účinek v boji až vlastní mechanikou, war.md – Výzbroj); chybí = žádná. */
+  arms?: Partial<Record<ArmsGood, number>>;
   /**
    * Kopie seedu počasí kraje – mapy (disasters.md – Kraj a ochrana nové vsi): všechny vsi mapy
    * počítají z něj totéž počasí samy (`yearWeather`). Dá ho server při načtení (`withWeatherSeed`);
@@ -721,9 +726,17 @@ export interface VillageState {
   trade?: VillageTrade;
   /**
    * Trh vsi (markets.md – Pravidla 3, Rozhodnutí plánu 2) – ceny, výpravy na trhu a paměť příjezdů
-   * obchodníků. Vznikne s první výpravou, která přijede; chybí = nic.
+   * obchodníků. Vznikne s první výpravou nebo s prvními kupci, kteří přijedou; chybí = nic.
    */
   market?: VillageMarket;
+  /**
+   * Zastávky dálkových stezek ve vsi (markets.md – Rozhodnutí plánu 4, bod 5) – z nich se počítá, kdy
+   * přijedou cizí kupci (`merchantVisits`). Chybí = ještě nezjištěno, [] = mapa bez stezky. Nese seed
+   * stezky, klientovi se nikdy neposílá.
+   */
+  merchantStops?: MerchantStop[];
+  /** Kolik zbroje má ves ještě koupit od cizích kupců (Rozhodnutí plánu 4, bod 15) – celé kusy; chybí = nic. */
+  armsOrder?: Partial<Record<ArmsGood, number>>;
   /**
    * Odchozí schránka vsi (markets.md – Pravidla 3, Rozhodnutí plánu 2, bod 6): zprávy pro jiné
    * vsi – příjezd výpravy na cizí trh a výsledek trhu pro výpravu, která odjela. Vsi se dopočítávají

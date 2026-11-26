@@ -1,5 +1,5 @@
 import type { VillageHolds } from './village-holds';
-import type { VillageDigest, VillageState, VillageYearRow } from '../domain/village';
+import type { MerchantStop, VillageDigest, VillageState, VillageYearRow } from '../domain/village';
 import type { VillageInbox } from './inbox';
 import type { NearbyRefresh } from './nearby';
 
@@ -113,6 +113,13 @@ export interface VillageRepository {
    * neznámé sídlo nebo úložiště bez počasí (testy, kalibrace) → null. Klientovi se nikdy neposílá.
    */
   weatherSeedOf(settlementId: string): Promise<number | null>;
+  /**
+   * Zastávky dálkových stezek mapy (sídla), na které ves stojí (markets.md – Rozhodnutí plánu 4,
+   * bod 5): `settlementMerchantStops` z uloženého výřezu sídla, mapa bez stezky → []; neznámé sídlo →
+   * null. Ptá se jen ves, která je ještě nemá (`updateVillage`). Chybí (testy jádra, kalibrace) –
+   * zastávky se nezjišťují. Nesou seed stezky, klientovi se nikdy neposílají.
+   */
+  readonly merchantStopsOf?: (settlementId: string) => Promise<readonly MerchantStop[] | null>;
   /**
    * Schránka vsí (inbox.ts) – patří k úložišti vsí, protože zápis do ní zvedá verzi vsi a dopočet
    * (`updateVillage`) z ní musí číst vždy; každý dopočet přes úložiště ji tak má.

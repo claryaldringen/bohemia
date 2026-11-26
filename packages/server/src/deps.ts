@@ -204,8 +204,9 @@ export function createGameDeps(
   const escheats = createEscheatRepository(db);
   const wars = createWarRepository(db);
   const now = (): Date => new Date();
+  const seed = worldSeed();
   const settlements = createSettlementRepository(db);
-  const villages = cachedVillages(createVillageRepository(db));
+  const villages = cachedVillages(createVillageRepository(db, seed));
   const cedeDeps = { houses, settlements, villages, locks: options.locks };
   return {
     settlements,
@@ -254,7 +255,7 @@ export function createGameDeps(
     landscapes: options.landscapes,
     pause: options.pause,
     seeds: seeds(),
-    worldSeed: worldSeed(),
+    worldSeed: seed,
     locks: options.locks,
     queue: createWorldQueue(db),
   };

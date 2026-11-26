@@ -28,7 +28,7 @@ import { createWarRepository } from '../war-repository';
 // značka – NOTIFY jedné relace se doručují v pořadí.
 
 const db = createDatabase(testDatabaseUrl());
-const villages = createVillageRepository(db);
+const villages = createVillageRepository(db, 1);
 const campaigns = createCampaignRepository(db);
 const journeys = createJourneyRepository(db);
 const NOW = new Date('2026-11-15T12:00:00Z');

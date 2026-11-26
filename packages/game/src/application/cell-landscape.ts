@@ -52,8 +52,9 @@ const EMPTY_CELL_SEED_WINDOWS = 4;
 
 /**
  * Krajina prázdného políčka `cell` světa se seedem `worldSeed`: výřez z kostry světa, první pokus
- * v pásmu (suchá mapa jako dřív – tutéž krajinu by dostala ves syna, kdyby tam vznikla). Mapa
- * z kostry, která pásmem neprojde ani v dalších oknech seedů, má první pokus bez pásma.
+ * v pásmu (suchá mapa jako dřív – tutéž krajinu by dostala ves syna, kdyby tam vznikla; na stezce
+ * bez řeky si odtud `targetSettlement` bere seed). Mapa z kostry, která pásmem neprojde ani v dalších
+ * oknech seedů, má první pokus bez pásma.
  */
 export function emptyCellLandscape(
   worldSeed: number,

@@ -78,6 +78,15 @@ export const TRADE_GOOD_NAMES: Record<
   hides: { name: 'Kůže', genitive: 'kůží', unit: 'ks', icon: 'hide' },
   furs: { name: 'Kožešiny', genitive: 'kožešin', unit: 'ks', icon: 'fur' },
   wax: { name: 'Vosk', genitive: 'vosku', unit: 'kg', icon: 'wax' },
+  swords: { name: 'Meče', genitive: 'mečů', unit: 'ks', icon: 'sword' },
+  mailShirts: {
+    name: 'Kroužkové košile',
+    genitive: 'kroužkových košil',
+    unit: 'ks',
+    icon: 'mail-shirt',
+  },
+  helmets: { name: 'Helmy', genitive: 'helem', unit: 'ks', icon: 'helmet' },
+  coins: { name: 'Mince', genitive: 'mincí', unit: 'ks', icon: 'coin' },
   // lidé na trhu po skupinách (markets.md – Rozhodnutí plánu 3, bod 10) – ikony jako výměna lidí
   families: {
     name: 'Rodiny – muž, žena a jejich děti',
@@ -184,6 +193,35 @@ export const NEWCOMER_TEXTS: Record<
 };
 
 /**
+ * Mince s počtem („1 mince“, „4 mince“, „20 mincí“; 4. pád „1 minci“, „4 mince“, „16 mincí“) –
+ * mince nejsou „ks mincí“ (markets.md – Rozhodnutí plánu 4, bod 9). `accusative` je výchozí
+ * (po slovesech „zaplatila“, „dostala“, „veze“).
+ */
+export function coinsText(
+  n: number,
+  grammaticalCase: 'nominative' | 'accusative' = 'accusative',
+): string {
+  const count = formatInteger(n);
+  return grammaticalCase === 'accusative'
+    ? `${count} ${plural(n, 'minci', 'mince', 'mincí')}`
+    : `${count} ${plural(n, 'mince', 'mince', 'mincí')}`;
+}
+
+/**
+ * Jména zboží s kladným množstvím ve výčtu malými písmeny, bez počtů („med, vosk a kožešiny“) – co
+ * cizí kupci kupují a prodávají (markets.md – Rozhodnutí plánu 4, bod 5); u jejich zboží je 1. a 4. pád
+ * stejný.
+ */
+export function goodsNames(goods: TradeGoods): string {
+  const names = (Object.entries(goods) as [TradeGood, number][])
+    .filter(([, amount]) => amount > 0)
+    .map(([good]) => TRADE_GOOD_NAMES[good].name.toLowerCase());
+  return names.length <= 1
+    ? (names[0] ?? '')
+    : `${names.slice(0, -1).join(', ')} a ${names[names.length - 1]}`;
+}
+
+/**
  * Množství zboží s jednotkou v celých číslech („120 kg obilí“, „2 ks krav“) – pro kroniku; co se
  * zaokrouhlí na nulu (zbytek gramů), se nepíše.
  */
@@ -191,6 +229,7 @@ export function goodsText(goods: TradeGoods): string {
   const items = (Object.entries(goods) as [TradeGood, number][])
     .filter(([, amount]) => Math.round(amount) > 0)
     .map(([good, amount]) => {
+      if (good === 'coins') return coinsText(Math.round(amount));
       const { unit, genitive } = TRADE_GOOD_NAMES[good];
       return `${formatInteger(amount)} ${unit} ${genitive}`;
     });

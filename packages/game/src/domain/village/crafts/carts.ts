@@ -118,7 +118,7 @@ export function idleCartsOf(state: VillageState, kind: CartKind): Cart[] {
  * Prodá (odebere) nejmladší volný vůz druhu `kind` – nejvyšší id (mutuje stav; markets.md –
  * Rozhodnutí plánu 3, bod 4); bez volného vozu nic. Poslední vůz vsi smaže `carts` (bez vozů
  * prázdné, jako `takeLeavingCart`). Id prodaného vozu se znovu nepoužije (`nextCartId`). Vrací
- * prodaný vůz (stáří jde s ním ke kupci).
+ * prodaný vůz (stáří jde s ním ke kupujícímu).
  */
 export function removeIdleCart(state: VillageState, kind: CartKind): Cart | undefined {
   const cart = idleCartsOf(state, kind).at(-1);

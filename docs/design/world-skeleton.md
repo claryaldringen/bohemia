@@ -206,7 +206,7 @@ kdekoli“ → jen na suchých mapách):
   budou mít normální mapy. Prémiové jen lidští hráči.“): ves syna vznikne jen na mapě bez kostry.
   Když políčkem ve směru odchodu vede řeka nebo stezka, ves vznikne na nejbližším suchém políčku
   bez cizí mapy – nejvýš 2 prstence od něj, napřed vedle výchozí mapy (návrh Clauda); v dosahu
-  žádné → tím směrem odejít nejde.
+  žádné → tím směrem odejít nejde. **Od plánu 4 obchodu (26. 11. 2026) smí ves syna i nová ves hráče při odchodu vzniknout i na políčku, kterým vede stezka bez řeky** – s výřezem kostry, krajinou z prázdného políčka a hotovou zemskou stezkou, takže u ní stojí kupci ([obchod](markets.md), Rozhodnutí plánu 4, bod 11); řeka, brod a suché políčko jako dřív, sídla hráčů se nemění.
 
 ## Mapa z kostry – generátor krajiny
 
@@ -361,8 +361,8 @@ kostra světa tam vede 2 řeky a 2 stezky (vzniklo před kostrou). Podle návrhu
   políčka mají krajinu i s kostrou.
 - **Ryby, voda a překážky:** loviště vsi u řeky, vzhled a zvuk vody, stromy podél břehů – přes osu
   všech vod, nově s víc řekami na jedné mapě (soutok řek).
-- **Obchod se sousedy:** stezka kostry otevírá směry (výše); sousedé dál bez simulace
-  ([obchod](trade.md)).
+- **Obchod se sousedy:** stezka kostry otevírá směry (výše); sousedé jsou skutečné vsi ([obchod](markets.md)).
+- **Cizí kupci** (plán 4 obchodu, 26. 11. 2026): ve vsi u stezky stojí kupci tržní den čtyřikrát do roka a spojení; plán je čistá funkce seedu světa, spojení stezky a roku, graf kostry se jen čte a nemění ([obchod](markets.md), Rozhodnutí plánu 4, bod 5). Ves dostane zastávky jen z uloženého výřezu sídla – sídlo bez výřezu nebo bez stezky v něm kupce nevidí.
 
 ## Později
 
@@ -382,7 +382,7 @@ mimo ni (zásilky, tažení), mosty a mýto (mechaniky prémií), plavba po řec
    se zmenší výběr suchých míst. **Doporučení:** takto a doladit do spuštění.
 3. ~~**Kostra i na mapách synů a NPC.**~~ Rozhodnuto 8. 11. 2026 – Martin: „NPC budou mít
    normální mapy. Prémiové jen lidští hráči“; ves syna (NPC vojvody) se umístí jen na mapu bez
-   kostry (nejbližší suchou), jako odříznutý nováček (Martin: „ok“). Původní text otázky: Ves syna nebo NPC na stezce kostry dostane hotovou zemskou
+   kostry (nejbližší suchou), jako odříznutý nováček (Martin: „ok“; od 26. 11. 2026 smí i na mapu se stezkou bez řeky – markets.md, Rozhodnutí plánu 4, bod 11). Původní text otázky: Ves syna nebo NPC na stezce kostry dostane hotovou zemskou
    stezku (obchod hned), na řece řeku – bez prvků prémie. Hráč to získá volbou směru odchodu syna,
    ne náhodou. Druhá možnost: na průměrných mapách jen vyšlapaná cesta, kterou si ves sama
    dostaví. **Doporučení:** stejně pro všechny mapy (vlastnost světa).

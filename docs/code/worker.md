@@ -158,12 +158,13 @@ trhu) nechá v odchozí schránce `outbox`; `advancePlayer` ji doručí pod zám
 - **Zprávy plánu 3** (markets.md – Rozhodnutí plánu 3, bod 13; village-trade.md – Pošta mezi
   vsemi, Zaniklé vsi a zprávy plánu 3) jdou toutéž cestou: dotazy `kin-ask`, `smith-ask`
   a ohlášení `order-ready` do zaniklé vsi (chybí, spí, sídlo v archivu) se zahodí; výsledek s lidmi
-  pro zaniklou domovskou ves pošle doručení hostitele jeho vlastní schránce jako
-  `stranded-people` (skupiny, které prodal sám hostitel – `fromHost`, se vrátí s původními id,
-  ostatní se usadí). Domov, který zanikne, až když výsledek leží v jeho schránce, řeší úloha světa
+  nebo mincemi (`unsold.coins` – markets.md, Rozhodnutí plánu 4, bod 9) pro zaniklou domovskou ves
+  pošle doručení hostitele jeho vlastní schránce jako `stranded-people` (skupiny, které prodal sám
+  hostitel – `fromHost`, se vrátí s původními id, ostatní se usadí; mince `coins` přibudou do zásoby
+  hostitele). Domov, který zanikne, až když výsledek leží v jeho schránce, řeší úloha světa
   `returnStrandedPeople` (`runWorldTasks` 1× za minutu, poslední z úloh před schránkami účinků):
-  výsledky s lidmi ve schránkách zaniklých vsí (`inbox.strandedResults`) pošle hostiteli jako
-  `stranded-people` (tentýž `ref` jako doručení – nezdvojí se), vyřízené smaže (`dropStranded`);
+  výsledky s lidmi nebo mincemi ve schránkách zaniklých vsí (`inbox.strandedResults`) pošle hostiteli
+  jako `stranded-people` (tentýž `ref` jako doručení – nezdvojí se), vyřízené smaže (`dropStranded`);
   zaniklý i hostitel = jediná přijatá ztráta. Jinak worker nic zvlášť nedělá – stačí, že doručuje
   i ves dopočtenou webem. Test světa (`advance-world.test.ts` – Pošta plánu 3
   a svět): kola `advancePlayer` obou hráčů dovedou nevěstu z M do H a po každém kole je lidí ve
@@ -176,8 +177,9 @@ trhu) nechá v odchozí schránce `outbox`; `advancePlayer` ji doručí pod zám
   webem se kvůli okolí nečte; dávka, která den obnovy přejde, načte ves jednou navíc (nový pokus
   po zápisu). Po zápisu snímku smaže dopočet použité snímky starší než `NEARBY_KEEP_DAYS` (rok –
   `inbox.pruneUsed` – i použité zprávy bez nákladu `kin-ask`, `smith-ask`, `order-ready`), jinak by
-  schránka rostla o ~12 řádků za herní rok na ves; chyba úklidu jde
-  jen do logu, dopočet nezastaví (úklid je údržba). Test: kola
+  schránka rostla o ~12 řádků za herní rok na ves, a vyřízené příjezdy a výsledky výprav
+  (`pruneSettledMail` – village-trade.md, Pošta mezi vsemi), jinak o 2 řádky na výpravu; chyba úklidu
+  jde jen do logu, dopočet nezastaví (úklid je údržba). Test: kola
   workeru přes dva dny obnovy zapíšou snímek jen v nich (`advance-world.test.ts`).
 
 ## Výjimky a omezení
@@ -284,6 +286,9 @@ akce do 0,5 s**“ splní malý souhrn vsi ve sloupci `village.digest` (migrace
   o pár dní po dni vsi. Od verze 4 (8. 11. 2026, hradiště) i `domainReadyYear` (rok, kdy je ves po výmlatu a smí dát jídlo domény –
   `domainFoodReadyYear`, jinak null) a `food` (`{ growsKg, needsKg }` z `villageFoodBalance`, bez lidí nebo
   pole null); souhrn verze 3 se nepoužije a ves ho dostane při dalším uložení – migrace netřeba.
+  Bez změny verze (nepovinné) přibyly výstupy stezek `trailExits`, svobodní `singles` a `openTrips` –
+  klíče výprav na trh, které ves ještě řeší (`openTripKeys`; úklid vyřízené pošty `pruneSettledMail` –
+  village-trade.md, Pošta mezi vsemi).
   `VILLAGE_DIGEST_VERSION` = tvar; jiný tvar se nepoužije.
 - **Kdo ho píše:** adaptér (`createVillageRepository` – `create`, `add`, `addOnce`, `save`) ze
   stavu přes `villageDigest` (0,01 ms), s `digest_version` = nová `version`. Generovaný sloupec

@@ -318,11 +318,13 @@ export const STEWARD = {
   /** Krok 2a – s výpravou za obilím jde nejvýš tolik dospělých vsi; ostatní drží práci vsi. */
   grainPorterShare: 0.5,
   /**
-   * Krok 2a – čím správce za obilí platí, v tomto pořadí: zboží, které ves nejí a bez kterého
-   * hospodaří (jako nákup osiva – jídlem ani dobytkem neplatí), napřed s nejvyšší hodnotou na kg
-   * nákladu, ať je výprava nejmenší (hřivny 45, keramika 3, uhlí 0,5, klády 0,4 kg obilí na kg).
+   * Krok 2a – čím správce za obilí platí, v tomto pořadí: napřed mince (markets.md – Rozhodnutí
+   * plánu 4, bod 4; Martin 25. 11. 2026: „Mince utrácí jen vojvoda/správce“), pak zboží, které ves
+   * nejí a bez kterého hospodaří (jako nákup osiva – jídlem ani dobytkem neplatí), napřed s nejvyšší
+   * hodnotou na kg nákladu, ať je výprava nejmenší (mince nic neváží, hřivny 45, keramika 3, uhlí
+   * 0,5, klády 0,4 kg obilí na kg).
    */
-  grainPayment: ['ironBars', 'pottery', 'charcoal', 'logs'] as readonly TradeGood[],
+  grainPayment: ['coins', 'ironBars', 'pottery', 'charcoal', 'logs'] as readonly TradeGood[],
   /**
    * Krok 2a – Lov v nouzi: zvěř škodí, když škoda na polích letos nebo loni dosáhne tohoto podílu
    * roční potřeby obilí z pole – stejný práh jako noční hlídka dílu (`FIELD_GUARD.night.threat`).

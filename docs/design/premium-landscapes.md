@@ -105,7 +105,7 @@ rámec.
 - **Obchodní stezka kostry** je jiná věc než zemská stezka vsi (trade.md – postaví si ji ves
   k sousedovi). Stezka kostry je **hotová dálková cesta od počátku** (návrh Clauda): vede mapou
   přes brod nebo průsmyk a po ní vyjedou obchodní výpravy a kupci v obou směrech hned, jako po hotové zemské
-  stezce – bez stavby (obchod až s trhem – markets.md, plány 2 a 4; Martin 22. 11. 2026 „Po obchodní stezce budou jezdit karavany …“; obchod se smyšlenými sousedy zanikl 23. 11. 2026).
+  stezce – bez stavby (obchod až s trhem – markets.md, plány 2 a 4, **kupci jezdí po stezce od plánu 4 – 26. 11. 2026**; Martin 22. 11. 2026 „Po obchodní stezce budou jezdit karavany …“; obchod se smyšlenými sousedy zanikl 23. 11. 2026).
 
 ## Typy krajin
 

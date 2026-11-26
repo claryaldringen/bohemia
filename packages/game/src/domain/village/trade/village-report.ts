@@ -3,6 +3,7 @@
 // Čistá funkce, stav nemění.
 import { ownCraftsmanWorks } from '../crafts/craft-buying';
 import { MARKET } from '../rules';
+import { nextMerchantVisit } from './merchant-plan';
 import type { Craft, VillageReport, VillageState } from '../types';
 
 /** Řemesla ve zprávě v pevném pořadí. */
@@ -23,11 +24,14 @@ export function roughCount(n: number): number {
 export function villageReport(state: VillageState, day: number): VillageReport {
   const arrivals = [...(state.market?.arrivals ?? [])].reverse();
   const traders = arrivals.sort((a, b) => b.day - a.day).slice(0, MARKET.report.traders);
+  // den příštích kupců – ves bez zastávek stezky nebo bez příjezdu do konce světa ho nezná
+  const merchants = state.merchantStops ? nextMerchantVisit(state.merchantStops, day) : null;
   return {
     day,
     people: roughCount(state.people.length),
     houses: roughCount(state.dwellings.filter((d) => d.builtDay <= day).length),
     crafts: REPORT_CRAFTS.filter((craft) => ownCraftsmanWorks(state, craft)),
     traders,
+    ...(merchants ? { merchants: merchants.day } : {}),
   };
 }

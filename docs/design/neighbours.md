@@ -95,7 +95,7 @@ obyvatel a zakládat vsi v okolí - to jsou ty vsi, se kterými pak Vlkov může
 10. **Soused zmizí během cesty** (zanikne, je opuštěn, postoupen, dobyt): výprava se vrátí s platbou.
 11. **Koně se stavbou první ohrady koní** zůstávají, jak jsou – nejsou od souseda.
 12. **Prémiová obchodní stezka** zůstává hotovou cestou: syn odejde napřed po ní a se vsí, kterou založí, se obchoduje hned
-    bez stavby zemské stezky. Karavany po ní později (Martin).
+    bez stavby zemské stezky. **Karavany po ní jsou hotové** (plán 4 obchodu, 26. 11. 2026): cizí kupci stojí tržní den ve vsi u stezky (markets.md – Rozhodnutí plánu 4, bod 5); vsi synů a nové vsi hráče při odchodu smějí vznikat i na mapě se stezkou bez řeky, s hotovou zemskou stezkou (bod 11).
 13. **Než syn odejde** (Martin): žádný obchod, nákup osiva ani výrobků, výměna lidí, koně od souseda, cizí kovář ani sňatky
     zvenku; rozhraní obchodu ukáže, že tím směrem soused není.
 14. **Starší vsi** (převod jednou): smyšlení sousedé zmizí ze stavu; výpravy a nákupy, které k nim jsou na cestě (zboží je

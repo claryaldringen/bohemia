@@ -21,7 +21,7 @@ import { createCampaignCells } from '../campaign-cells';
 
 const db = createDatabase(testDatabaseUrl());
 const settlements = createSettlementRepository(db);
-const villages = createVillageRepository(db);
+const villages = createVillageRepository(db, 4242);
 const NOW = new Date('2026-11-23T12:00:00Z');
 
 /** Krajina podle seedu sídla – jeden objekt na seed (shoda = táž krajina). */

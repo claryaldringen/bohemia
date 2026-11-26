@@ -27,7 +27,7 @@ import type {
   TradeGoods,
   VillageState,
 } from '../types';
-import { ORDER_CRAFT, ORDER_GOODS, TRADE_GOODS } from './goods';
+import { COIN_GOOD, ORDER_CRAFT, ORDER_GOODS, TRADE_GOODS, onlyGoods, withoutCoins } from './goods';
 import { priceOf } from './market-prices';
 import { craftOffer } from './market-stance';
 import { marketTravelDays } from './market-trip';
@@ -38,6 +38,10 @@ const EPSILON = 1e-9;
 const NOISE = 1e-9;
 /** Čím řemeslník bere platbu vždy, v tomto pořadí (Martin 24. 11. 2026). */
 const CRAFT_PAY = ['grain', 'legumes'] as const;
+/** Zboží kromě platby řemeslníkovi (`CRAFT_PAY`), v pořadí `TRADE_GOODS`. */
+const BESIDES_CRAFT_PAY: readonly TradeGood[] = TRADE_GOODS.filter(
+  (good) => !(CRAFT_PAY as readonly TradeGood[]).includes(good),
+);
 
 /** Je zakázka zapsaná v den `orderDay` v den `day` živá – nevypršela (`MARKET.orderDays`)? */
 function isLive(orderDay: number, day: number): boolean {
@@ -51,16 +55,6 @@ function visitorsTotal(
   good: TradeGood,
 ): number {
   return visitors.reduce((sum, v) => sum + (pick(v)[good] ?? 0), 0);
-}
-
-/** Kopie jen zboží `keep` s kladným množstvím. */
-function onlyGoods(goods: TradeGoods, keep: readonly TradeGood[]): TradeGoods {
-  const out: TradeGoods = {};
-  for (const good of keep) {
-    const amount = goods[good] ?? 0;
-    if (amount > 0) out[good] = amount;
-  }
-  return out;
 }
 
 /**
@@ -149,14 +143,39 @@ export function orderTargets(state: VillageState, day: number): Record<OrderGood
 }
 
 /**
+ * Vezme hostitel od výpravy `visitor` zakázku na výrobek `good` – pracuje jeho řemeslník a výprava
+ * ho tu nevyzvedla hotový (`pickedUp`)? Platbu ověří až `recordOrders`.
+ */
+function takesOrder(state: VillageState, visitor: MarketVisitor, good: OrderGood): boolean {
+  return ownCraftsmanWorks(state, ORDER_CRAFT[good]) && !(visitor.pickedUp ?? []).includes(good);
+}
+
+/**
+ * Co výprava `visitor` prodává v mincovní fázi (markets.md – Rozhodnutí plánu 4, bod 4): náklad bez
+ * mincí. Výprava vesničanů, která má na seznamu ještě výrobek dílny, na který hostitel zakázku vezme
+ * (`takesOrder`), si obilí a luštěniny (`CRAFT_PAY`) nechá – zakázka má přednost před prodejem za
+ * mince (návrh Clauda): mincemi vesničané platit nesmějí (Martin 25. 11. 2026: „Mince utrácí jen
+ * vojvoda/správce“), takže by při odjezdu neměli čím zakázku zaplatit (`recordOrders`). Ostatní
+ * zbytky (krávy, hřivny…) prodají za mince jako dosud; výprava hráče a správce prodá vše.
+ */
+export function coinPhaseStock(state: VillageState, visitor: MarketVisitor): TradeGoods {
+  const stock = withoutCoins(visitor.goods);
+  if (visitor.by !== 'villagers') return stock;
+  const ordering = ORDER_GOODS.some(
+    (good) => (visitor.wants[good] ?? 0) > 0 && takesOrder(state, visitor, good),
+  );
+  return ordering ? onlyGoods(stock, BESIDES_CRAFT_PAY) : stock;
+}
+
+/**
  * Zakázky výpravy, která odjíždí (mutuje stav – v `departVisitors` před výsledkem). Seznam výpravy
  * nahradí zakázky její vsi u hostitele – novější zakázka téže vsi na totéž zboží tu starou nahradí:
  * výrobek dílny (`ORDER_GOODS`), který má výprava ještě na seznamu a jehož řemeslník ve vsi
  * pracuje, hostitel zapíše jako zakázku, když výprava pořád veze obilí nebo luštěniny (řemeslník je
- * bere vždy) nebo něco, co hostitel shání (`hostWants`). Výrobek ze seznamu, který se nezapíše
- * (koupený, bez pracujícího řemeslníka, bez platby, vyzvednutá hotová zakázka – `pickedUp`), starou
- * zakázku té vsi smaže – kupující vede zakázku podle `ordered` (`rememberOrders`), takže ji obě vsi
- * vedou stejně. Vrací, co se zapsalo (`MarketResult.ordered`).
+ * bere vždy), mince (Rozhodnutí plánu 4, bod 4) nebo něco, co hostitel shání (`hostWants`). Výrobek
+ * ze seznamu, který se nezapíše (koupený, bez pracujícího řemeslníka, bez platby, vyzvednutá hotová
+ * zakázka – `pickedUp`), starou zakázku té vsi smaže – kupující vede zakázku podle `ordered`
+ * (`rememberOrders`), takže ji obě vsi vedou stejně. Vrací, co se zapsalo (`MarketResult.ordered`).
  */
 export function recordOrders(
   state: VillageState,
@@ -169,7 +188,10 @@ export function recordOrders(
   if (!market) return ordered;
   const carries = (good: TradeGood): boolean => (visitor.goods[good] ?? 0) > 0;
   const pays =
-    CRAFT_PAY.some(carries) || TRADE_GOODS.some((g) => carries(g) && (hostWants[g] ?? 0) > 0);
+    CRAFT_PAY.some(carries) ||
+    // mince utrácí jen vojvoda a správce (Martin 25. 11. 2026) – výprava vesničanů jimi neplatí
+    (visitor.by !== 'villagers' && carries(COIN_GOOD)) ||
+    TRADE_GOODS.some((g) => carries(g) && (hostWants[g] ?? 0) > 0);
   for (const good of ORDER_GOODS) {
     const amount = visitor.wants[good] ?? 0;
     // jen zboží ze seznamu výpravy – co ještě shání, nebo už koupila
@@ -177,12 +199,7 @@ export function recordOrders(
     const orders = (market.orders ?? []).filter(
       (o) => o.villageId !== visitor.fromVillageId || o.good !== good,
     );
-    const takes =
-      amount > 0 &&
-      pays &&
-      ownCraftsmanWorks(state, ORDER_CRAFT[good]) &&
-      !(visitor.pickedUp ?? []).includes(good);
-    if (takes) {
+    if (amount > 0 && pays && takesOrder(state, visitor, good)) {
       orders.push({ villageId: visitor.fromVillageId, name: visitor.fromName, good, amount, day });
       ordered[good] = amount;
     }
@@ -223,7 +240,7 @@ export function reduceOrder(
   else delete market.orders;
 }
 
-/** `ref` ohlášení hotové zakázky: `order:<hostitel>:<kupec>:<zboží>:<den zakázky>`. */
+/** `ref` ohlášení hotové zakázky: `order:<hostitel>:<kupující>:<zboží>:<den zakázky>`. */
 function orderReadyRef(host: string, order: CraftOrder): string {
   return `order:${host}:${order.villageId}:${order.good}:${order.day}`;
 }

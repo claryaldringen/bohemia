@@ -2,7 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { generateLandscape, obstaclesOf, tileCenterWorld } from '../../../landscape';
 import { dayIndexOf } from '../../../calendar';
 import { foundVillage } from '../actions';
-import { migrateVillage, VILLAGE_MIGRATIONS, type VillageMigrationContext } from '../migrations';
+import {
+  migrateVillage,
+  VILLAGE_MIGRATIONS,
+  withMerchantStops,
+  type VillageMigrationContext,
+} from '../migrations';
 import { withoutForeignGoods } from '../../trade/trade';
 import { advanceVillage } from '../simulate';
 import { createCropWork } from '../year-plan';
@@ -14,6 +19,7 @@ import type {
   CraftPurchase,
   FieldPart,
   IronTrip,
+  MerchantStop,
   PloughWork,
   TradeExpedition,
   VillageState,
@@ -366,5 +372,60 @@ describe('konec smyšlených sousedů (`fictional-neighbours` – markets.md, Pr
     expect(next.people.filter((p) => p.origin === 'S')).toHaveLength(4);
     expect(next.chronicle.filter((e) => e.kind === 'newcomer')).toHaveLength(2);
     expect(next.purchases).toBeUndefined();
+  });
+});
+
+describe('zastávky kupců (`merchant-stops` – markets.md, Rozhodnutí plánu 4, bod 5)', () => {
+  const STOPS: readonly MerchantStop[] = [
+    { key: '0,0,E', seed: 7, index: 0, length: 1 },
+    { key: '0,0,N', seed: 11, index: 2, length: 5 },
+  ];
+  const other: MerchantStop = { key: '4,-2,E', seed: 3, index: 1, length: 14 };
+  /** Načtení vsi se zastávkami mapy `merchantStops`. */
+  const loadWith = (merchantStops?: readonly MerchantStop[] | null): VillageMigrationContext => ({
+    ...load,
+    load: { ...load.load!, ...(merchantStops === undefined ? {} : { merchantStops }) },
+  });
+  /** Ves po všech ostatních převodech, bez zastávek. */
+  const loaded = (): VillageState => migrateVillage(founded(), load);
+
+  it('je poslední v seznamu a běží jen při načtení', () => {
+    const last = VILLAGE_MIGRATIONS.at(-1)!;
+    expect(last).toMatchObject({ id: 'merchant-stops', since: '2026-11-25', loadOnly: true });
+    const s = loaded();
+    expect(migrateVillage(s, advance)).toBe(s);
+    expect(migrateVillage(s, loadWith(STOPS))).toStrictEqual({ ...s, merchantStops: STOPS });
+  });
+
+  it.each([
+    ['zastávky', STOPS],
+    ['prázdné (mapa bez stezky)', []],
+  ])('zapíše je jednou – %s, podruhé týž objekt', (_name, stops) => {
+    const s = loaded();
+    const before = JSON.stringify(s);
+    const once = migrateVillage(s, loadWith(stops));
+    expect(once.merchantStops).toEqual(stops);
+    expect(migrateVillage(once, loadWith(stops))).toBe(once);
+    expect(migrateVillage(once, advance)).toBe(once);
+    // uložené zastávky se nepřepíší ani jinými, ani neznámými
+    expect(migrateVillage(once, loadWith([other]))).toBe(once);
+    expect(migrateVillage(once, loadWith(null))).toBe(once);
+    expect(migrateVillage(once, loadWith())).toBe(once);
+    // vstupní stav se nezměnil
+    expect(JSON.stringify(s)).toBe(before);
+  });
+
+  it('neznámé zastávky (null) ani načtení bez nich ves nezmění', () => {
+    const s = loaded();
+    expect(migrateVillage(s, loadWith(null))).toBe(s);
+    expect(migrateVillage(s, loadWith())).toBe(s);
+    expect(withMerchantStops(s, null)).toBe(s);
+  });
+
+  it('zapsané zastávky jsou vlastní kopie', () => {
+    const next = withMerchantStops(loaded(), STOPS);
+    expect(next.merchantStops).toEqual(STOPS);
+    expect(next.merchantStops).not.toBe(STOPS);
+    next.merchantStops!.forEach((stop, i) => expect(stop).not.toBe(STOPS[i]));
   });
 });

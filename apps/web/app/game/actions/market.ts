@@ -3,10 +3,12 @@
 import {
   marketOverviewForPlayer,
   marketPeopleForPlayer,
+  orderArmsForPlayer,
   sendMarketExpeditionForPlayer,
   type VillageActionResult,
 } from '@/lib/village';
 import {
+  parseArmsOrderInput,
   parseMarketExpeditionInput,
   parseMarketPeopleInput,
   villageIdOf,
@@ -49,4 +51,12 @@ export async function sendMarketExpedition(input: unknown): Promise<VillageActio
     const result = await sendMarketExpeditionForPlayer(id, villageId, parsed);
     return 'refused' in result ? { error: result.refused } : result;
   });
+}
+
+/**
+ * Objednávka zbroje u cizích kupců ve vsi (markets.md – Rozhodnutí plánu 4, bod 15): `{ villageId,
+ * good, amount }` – kolik kusů má ves od kupců koupit, 0 = nic.
+ */
+export async function orderArms(input: unknown): Promise<VillageActionResult> {
+  return villageAction(input, parseArmsOrderInput, orderArmsForPlayer);
 }

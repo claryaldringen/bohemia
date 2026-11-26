@@ -21,7 +21,7 @@ import { createWorldQueue } from '../world-queue';
 
 const db = createDatabase(testDatabaseUrl());
 const settlements = createSettlementRepository(db);
-const villages = createVillageRepository(db);
+const villages = createVillageRepository(db, 1);
 const offsets = createTimeOffsetRepository(db);
 const queue = createWorldQueue(db);
 const TODAY = dayIndexOf({ year: 503, month: 4, day: 12 });

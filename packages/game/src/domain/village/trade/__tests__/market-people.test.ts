@@ -215,6 +215,40 @@ describe('lidé na trhu (markets.md – Rozhodnutí plánu 3, bod 10)', () => {
     expect(m.people.at(-1)!.origin).toBeUndefined();
   });
 
+  it('receiveStranded: mince výsledku přibudou do zásoby vsi vedle lidí; bez nich beze změny (plán 4, bod 9)', () => {
+    const m = familyHome();
+    m.coins = 3;
+    const count = m.people.length;
+    const man: MarketPerson = {
+      good: 'men',
+      people: [{ id: 5, bornDay: D - 9_000, dwellingId: 3, sex: 'male' }],
+    };
+    const from = { villageId: 'h', villageName: 'Vlkov', direction: 'W' as const };
+    const back = { key: 'market:h:1', people: [man], coins: 17, from };
+    const events = receiveStranded(m, D + 2, back);
+    expect(m.coins).toBe(20);
+    // lidé jako dosud – usadil se jeden muž ze západu a mince kroniku nepřidaly
+    expect(m.people).toHaveLength(count + 1);
+    expect(events).toEqual([
+      expect.objectContaining({ kind: 'newcomer', group: 'man', people: 1 }),
+    ]);
+    expect(back).toEqual({ key: 'market:h:1', people: [man], coins: 17, from });
+
+    // jen mince (výsledek bez lidí nemá směr) – ves bez mincí je dostane
+    const only = familyHome();
+    expect(
+      receiveStranded(only, D + 2, { key: 'market:h:1', people: [], coins: 17, from: undefined }),
+    ).toEqual([]);
+    expect(only).toStrictEqual({ ...familyHome(), coins: 17 });
+
+    // bez mincí (i zpráva z doby před nimi) beze změny
+    const none = familyHome();
+    expect(
+      receiveStranded(none, D + 2, { key: 'market:h:1', people: [], from: undefined }),
+    ).toEqual([]);
+    expect(none).toStrictEqual(familyHome());
+  });
+
   it('peopleWanted: půdy 12 ha, práce 8 ha, 10 dospělých → chybí 5 dospělých → 3 rodiny', () => {
     const s = familyHome();
     const outlook = { ...stewardOutlook(s, D, craftCoverage(s, D)), landHa: 12, laborHa: 8 };

@@ -2,9 +2,12 @@
 
 import { useMemo, useState, type ReactElement, type ReactNode } from 'react';
 import {
+  coinPriceOf,
   dateOfDayIndex,
+  COIN_GOOD,
   MARKET,
   TRADE_GOODS,
+  type ArmsGood,
   type Craft,
   type MarketOrder,
   type MarketPrices,
@@ -13,21 +16,24 @@ import {
   type TradeGoods,
   type TradePeople,
 } from '@bohemia/game';
-import { formatGameDate } from '@/lib/game-date';
+import { formatDayMonth, formatGameDate } from '@/lib/game-date';
 import type { VillageManor } from '@/lib/manor-view';
 import { marketPreview, type MarketTripPhase } from '@/lib/market-view';
 import { TRADE_GOOD_NAMES } from '@/lib/trade-names';
-import { formatDecimal, formatInteger, plural } from '@/lib/village-format';
+import { formatCoinPrice, formatInteger, plural } from '@/lib/village-format';
+import { ArmsOrder } from './ArmsOrder';
 import { Dialog } from './Dialog';
 import { useRightDenied } from './rights';
+import { Stepper } from './Stepper';
 import { Tooltip } from './Tooltip';
 import { useMarketPeople, type MarketPeopleAnswer } from './use-market-people';
 
 // Panel Trh ve dvorci (markets.md – Pravidla 8 a 9, Rozhodnutí plánu 2, bod 9): přehled vsí, kam
 // smí výprava, zpráva na pivo vybrané vsi, sloupce „Dáš“ / „Dostaneš“ (jediné popisky – jako
-// „Prodat“ a „Koupit“ v 0 A.D.), dny na trhu, náhled a odeslání a výpravy na cestě. Panel jen
-// ukazuje a posílá záměr – důvody odmítnutí bere z náhledu jádra (`marketPreview`). Kolik lidí
-// z vybraných rodin, mužů a žen odejde a kolik zbude nosičů, se doptá serveru (`useMarketPeople`).
+// „Prodat“ a „Koupit“ v 0 A.D.), dny na trhu, náhled a odeslání a výpravy na cestě; u vsi na stezce
+// i zbroj od cizích kupců (`ArmsOrder`). Panel jen ukazuje a posílá záměr – důvody odmítnutí bere
+// z náhledu jádra (`marketPreview`). Kolik lidí z vybraných rodin, mužů a žen odejde a kolik zbude
+// nosičů, se doptá serveru (`useMarketPeople`).
 
 type Side = 'give' | 'want';
 
@@ -47,8 +53,12 @@ const PHASES: Record<MarketTripPhase, { label: string; icon: string }> = {
   waiting: { label: 'Čeká na zboží', icon: 'hourglass' },
 };
 
-/** Krok výběru: po 100 kg, kusy a m³ po jedné. */
-const stepOf = (good: TradeGood): number => (TRADE_GOOD_NAMES[good].unit === 'kg' ? 100 : 1);
+/**
+ * Krok výběru: po 100 kg, mince po deseti (meč stojí 120 – po jedné by to bylo 120 kliknutí), kusy
+ * a m³ po jedné. Poslední krok nahoru doplní do zásoby (`Stepper` má `max`), dolů jde k nule.
+ */
+const stepOf = (good: TradeGood): number =>
+  good === COIN_GOOD ? 10 : TRADE_GOOD_NAMES[good].unit === 'kg' ? 100 : 1;
 
 /** Ikona zboží s popiskem názvu. */
 function GoodIcon({ good, size = 20 }: { good: TradeGood; size?: number }): ReactElement {
@@ -72,14 +82,16 @@ function Figure({
   name,
   children,
   folder = 'resources',
+  placement = 'above',
 }: {
   icon: string;
   name: ReactNode;
   children: ReactNode;
   folder?: 'resources' | 'build';
+  placement?: 'above' | 'below-right';
 }): ReactElement {
   return (
-    <Tooltip content={name} placement="above">
+    <Tooltip content={name} placement={placement}>
       <span className="flex items-center gap-1 whitespace-nowrap tabular-nums" tabIndex={0}>
         <img src={`/icons/${folder}/${icon}.png`} alt="" width={18} height={18} />
         {children}
@@ -90,30 +102,51 @@ function Figure({
 
 const dateText = (day: number): string => formatGameDate(dateOfDayIndex(day));
 
-/** Ceny trhu ve zprávě: ikona vah a řada zboží s cenou v mincích za jednotku. */
-function PricesLine({ prices }: { prices: MarketPrices }): ReactElement | null {
+/**
+ * Ceny trhu ve zprávě: ikona vah a řada zboží s cenou v mincích za jednotku – cena trhu × hladina
+ * (markets.md – Rozhodnutí plánu 4, bod 3), spočítá ji jádro.
+ */
+function PricesLine({
+  prices,
+  level,
+}: {
+  prices: MarketPrices;
+  level: number;
+}): ReactElement | null {
   const items = TRADE_GOODS.filter((g) => (prices[g] ?? 0) > 0);
   if (items.length === 0) return null;
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <Tooltip content="Ceny na trhu" placement="above">
+    <div data-testid="market-prices" className="flex flex-wrap items-center gap-2">
+      <Tooltip content="Ceny na trhu" placement="below-right">
         <img src="/icons/resources/balance.png" alt="" width={18} height={18} />
       </Tooltip>
-      {items.map((g) => {
-        const price = prices[g] ?? 0;
-        return (
-          <span key={g} className="flex items-center gap-1 text-xs tabular-nums">
-            <GoodIcon good={g} size={16} />
-            {formatDecimal(price, price < 1 ? 2 : 1)}
-          </span>
-        );
-      })}
+      {items.map((g) => (
+        <span key={g} className="flex items-center gap-1 text-xs tabular-nums">
+          <GoodIcon good={g} size={16} />
+          {formatCoinPrice(coinPriceOf(prices, level, g))}
+        </span>
+      ))}
     </div>
   );
 }
 
-/** Zpráva na pivo o vsi (Pravidla 8): lidé a domy zaokrouhleně, řemesla, obchodníci a ceny; bez zprávy „?“. */
-function Report({ village }: { village: MarketVillage }): ReactElement {
+/** Den příštích kupců ve vsi zprávy (Rozhodnutí plánu 4, bod 8). */
+function NextMerchants({ day }: { day: number }): ReactElement {
+  const date = formatDayMonth(dateOfDayIndex(day));
+  return (
+    <div data-testid="market-report-merchants" className="flex items-center text-xs">
+      <Figure icon="merchants" name={`Kupci přijedou ${date}`} placement="below-right">
+        {date}
+      </Figure>
+    </div>
+  );
+}
+
+/**
+ * Zpráva na pivo o vsi (Pravidla 8): lidé a domy zaokrouhleně, řemesla, den příštích kupců (dokud
+ * neminul), obchodníci a ceny; bez zprávy „?“.
+ */
+function Report({ village, today }: { village: MarketVillage; today: number }): ReactElement {
   const { news, seen } = village;
   if (!news && !seen) {
     return (
@@ -125,6 +158,7 @@ function Report({ village }: { village: MarketVillage }): ReactElement {
   const day = news?.report.day ?? seen?.day ?? 0;
   const crafts = news?.report.crafts ?? seen?.crafts ?? [];
   const houses = news?.report.houses ?? seen?.houses ?? null;
+  const merchants = news?.report.merchants ?? null;
   return (
     <div data-testid="market-report">
       <Tooltip block content={`Zpráva z ${dateText(day)}`} placement="above">
@@ -142,9 +176,15 @@ function Report({ village }: { village: MarketVillage }): ReactElement {
               </Figure>
             ))}
           </div>
+          {merchants !== null && merchants >= today && <NextMerchants day={merchants} />}
           {news?.report.traders.map((t, i) => (
-            <div key={i} className="flex items-center gap-2 text-xs">
-              <span className="font-semibold">{t.name || 'Sousední ves'}</span>
+            <div key={i} data-testid="market-trader" className="flex items-center gap-2 text-xs">
+              {t.merchants && (
+                <img src="/icons/resources/merchants.png" alt="" width={18} height={18} />
+              )}
+              <span className="font-semibold">
+                {t.merchants ? 'Kupci' : t.name || 'Sousední ves'}
+              </span>
               <span className="text-[#bfa77a]">{dateText(t.day)}</span>
               {t.smith ? (
                 <Figure icon="kovar" folder="build" name="Kovář – přišel kovat koně">
@@ -155,7 +195,7 @@ function Report({ village }: { village: MarketVillage }): ReactElement {
               )}
             </div>
           ))}
-          {news?.prices && <PricesLine prices={news.prices} />}
+          {news?.prices && <PricesLine prices={news.prices} level={news.level ?? 1} />}
         </div>
       </Tooltip>
     </div>
@@ -231,53 +271,6 @@ function VillageRow({
   );
 }
 
-/** Tlačítka − a + s číslem uprostřed. */
-function Stepper({
-  testId,
-  value,
-  max,
-  min = 0,
-  step,
-  label,
-  onChange,
-}: {
-  testId: string;
-  value: number;
-  max: number;
-  min?: number;
-  step: number;
-  label: string;
-  onChange: (value: number) => void;
-}): ReactElement {
-  const btn =
-    'hud-inset h-6 w-6 rounded text-sm font-bold disabled:cursor-not-allowed disabled:opacity-40';
-  return (
-    <span className="flex items-center gap-1">
-      <button
-        type="button"
-        data-testid={`${testId}-minus`}
-        aria-label={`${label} −`}
-        disabled={value <= min}
-        onClick={() => onChange(Math.max(min, value - step))}
-        className={btn}
-      >
-        −
-      </button>
-      <span className="min-w-12 text-center text-sm tabular-nums">{formatInteger(value)}</span>
-      <button
-        type="button"
-        data-testid={`${testId}-plus`}
-        aria-label={`${label} +`}
-        disabled={value >= max}
-        onClick={() => onChange(Math.min(max, value + step))}
-        className={btn}
-      >
-        +
-      </button>
-    </span>
-  );
-}
-
 /** Řádek zboží sloupce: ikona (název v popisku), číslo, +/−. */
 function GoodRow({
   side,
@@ -295,7 +288,7 @@ function GoodRow({
   const { name, unit, icon } = TRADE_GOOD_NAMES[good];
   return (
     <div data-testid={`market-${side}-${good}`} className="flex items-center gap-1.5">
-      <Tooltip content={`${name} (${unit})`} placement="above">
+      <Tooltip content={good === COIN_GOOD ? name : `${name} (${unit})`} placement="above">
         <img
           src={`/icons/resources/${icon}.png`}
           alt=""
@@ -346,7 +339,8 @@ function without(goods: TradeGoods, good: TradeGood, value: number): TradeGoods 
 /**
  * Panel Trh: `villages` je přehled ze serveru (`null` – načítá se), `market` vstup náhledu a výpravy
  * na cestě z pohledu dvorce, `onSend` pošle výpravu a vrátí důvod odmítnutí serveru (nebo null),
- * `onPeople` se zeptá serveru na lidi na prodej pro vybrané počty (`marketTripPeople`).
+ * `onPeople` se zeptá serveru na lidi na prodej pro vybrané počty (`marketTripPeople`), `onOrderArms`
+ * objedná zbroj u cizích kupců (počet kusů, 0 = nic) a vrátí důvod odmítnutí.
  */
 export function MarketPanel({
   villages,
@@ -354,6 +348,7 @@ export function MarketPanel({
   market,
   onSend,
   onPeople,
+  onOrderArms,
   onClose,
 }: {
   villages: MarketVillage[] | null;
@@ -362,6 +357,7 @@ export function MarketPanel({
   market: VillageManor['market'];
   onSend: (targetVillageId: string, order: MarketOrder) => Promise<string | null>;
   onPeople: (people: TradePeople) => Promise<MarketPeopleAnswer>;
+  onOrderArms: (good: ArmsGood, amount: number) => Promise<string | null>;
   onClose: () => void;
 }): ReactElement {
   const denied = useRightDenied('trade');
@@ -418,6 +414,7 @@ export function MarketPanel({
       testId="market-panel"
     >
       <div className="flex flex-col gap-2 text-[#ecdfc4]">
+        <ArmsOrder market={market} onOrder={onOrderArms} />
         {error && (
           <p data-testid="market-overview-error" className="font-semibold text-red-400">
             {error}
@@ -433,7 +430,7 @@ export function MarketPanel({
             />
           ))}
         </div>
-        {target && <Report village={target} />}
+        {target && <Report village={target} today={market.day} />}
         <div className="flex gap-2">
           <Column side="give">
             {stocked.map((g) => (
@@ -448,7 +445,8 @@ export function MarketPanel({
             ))}
           </Column>
           <Column side="want">
-            {TRADE_GOODS.map((g) => (
+            {/* mince se na seznam nedávají (markets.md – Rozhodnutí plánu 4, bod 1) */}
+            {TRADE_GOODS.filter((g) => g !== COIN_GOOD).map((g) => (
               <GoodRow
                 key={g}
                 side="want"
@@ -468,8 +466,6 @@ export function MarketPanel({
                 testId="market-stay"
                 value={stayDays}
                 min={MARKET.minStayDays}
-                max={Number.MAX_SAFE_INTEGER}
-                step={1}
                 label="Dny na trhu"
                 onChange={(v) => edit(() => setStayDays(v))}
               />

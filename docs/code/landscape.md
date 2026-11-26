@@ -293,8 +293,11 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `skeleton: 1`, suchá mapa bez ní – tytéž verze beze změny); mapa z kostry, která pásmem
   neprojde ani ve 4 oknech po `MAX_ATTEMPTS` seedech, má první pokus bez pásma (pochod krajinu
   potřebuje vždy). `createCampaignCells` drží mezipaměť kostry pro seed světa.
-  `settledCellLandscape(seed, verze, typ?, výřez?)`. Vsi synů vznikají jen na suché mapě (bez
-  výřezu) – world.md – Kostra světa.
+  `settledCellLandscape(seed, verze, typ?, výřez?)`. **Ves syna** (a nová ves hráče při odchodu) je na
+  suché mapě bez výřezu, nebo na stezce bez řeky (`isTrailOnly`): sídlo dostane výřez políčka, verze
+  `cellSkeletonVersions` a seed `emptyCellLandscape`, takže jeho krajina i překážky jsou bit po bitu
+  tytéž jako na prázdném políčku (test `new-village.test.ts`) – world.md – Ves syna na suché mapě
+  nebo na stezce.
 - **Prémie na kostře** (`premium: 2`, Úloha 10 plánu kostry; world-skeleton.md – Mapa z kostry):
   průchod 2 bere řeku a stezku z výřezu, vlastní nepřidává. `SKELETON_PREMIUM_SLOTS`
   (`premium/types.ts`) – splavná řeka a soutok na místě `river`, vyvýšenina nad brodem na `ford`,

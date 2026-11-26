@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { newWorkshop } from '../../crafts/crafts';
 import { MARKET } from '../../rules';
-import type { Craft, MarketArrivalNote, Person, VillageState } from '../../types';
+import { nextMerchantVisit } from '../merchant-plan';
+import type { Craft, MarketArrivalNote, MerchantStop, Person, VillageState } from '../../types';
 import { START, horseVillage } from '../../__tests__/horse-fixtures';
 import { roughCount, villageReport } from '../village-report';
 
@@ -68,5 +69,32 @@ describe('zpráva na pivo (villageReport)', () => {
     const before = structuredClone(s);
     villageReport(s, day);
     expect(s).toEqual(before);
+  });
+
+  it('ves se zastávkami ví den příštích kupců, bez zastávek pole chybí', () => {
+    const s = horseVillage([]);
+    expect(villageReport(s, day)).not.toHaveProperty('merchants');
+    s.merchantStops = [];
+    expect(villageReport(s, day)).not.toHaveProperty('merchants');
+    const stops: MerchantStop[] = [{ key: '0,0,E', seed: 7, index: 0, length: 1 }];
+    s.merchantStops = stops;
+    const next = nextMerchantVisit(stops, day)!.day;
+    expect(villageReport(s, day).merchants).toBe(next);
+    expect(next).toBeGreaterThanOrEqual(day);
+    const after = nextMerchantVisit(stops, next + 1)!.day;
+    expect(villageReport(s, next + 1).merchants).toBe(after);
+  });
+
+  it('kupci ve zprávě jsou bez vsi a se značkou', () => {
+    const s = horseVillage([]);
+    s.market = {
+      prices: {},
+      visitors: [],
+      nextOrder: 1,
+      arrivals: [{ name: '', day, goods: ['swords'], merchants: true }],
+    };
+    expect(villageReport(s, day).traders).toStrictEqual([
+      { name: '', day, goods: ['swords'], merchants: true },
+    ]);
   });
 });

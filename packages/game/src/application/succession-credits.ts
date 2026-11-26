@@ -92,8 +92,9 @@ export type WorldTaskDeps = SuccessionCreditDeps & {
   /** Jídlo domény po žních (hillfort.md – Jídlo domény): vsi držitele si rozdělí přebytek. */
   domainFood?: DomainFoodDeps;
   /**
-   * Lidé z výsledku trhu pro domovskou ves, která zanikla, když už výsledek ležel v její schránce,
-   * jdou zpět k hostiteli (markets.md – Rozhodnutí plánu 3, bod 13 – `returnStrandedPeople`).
+   * Lidé a mince z výsledku trhu pro domovskou ves, která zanikla, když už výsledek ležel v její
+   * schránce, jdou zpět k hostiteli (markets.md – Rozhodnutí plánu 3, bod 13, a plánu 4, bod 9 –
+   * `returnStrandedPeople`).
    */
   villageMail?: VillageMailDeps;
   /**
@@ -118,8 +119,8 @@ export type WorldTaskDeps = SuccessionCreditDeps & {
  * zásilek, ať vidí, co je na cestě), správce za nepřítomné (Odvody před otevřením nového roku,
  * ať loňský dialog nenaroste; Svolání před propadnutím s koncem války), vypršení jednání, konec
  * týdne čekání nováčků (`expireNewcomerWaits`), roční los křesťanství (`advanceChristianity`),
- * lidé z výsledků trhu pro zaniklé vsi zpět k hostiteli (`returnStrandedPeople`) a nakonec účinky
- * přijatých jednání po pádu webu (`deliverPendingAcceptances`). Schránky mají
+ * lidé a mince z výsledků trhu pro zaniklé vsi zpět k hostiteli (`returnStrandedPeople`) a nakonec
+ * účinky přijatých jednání po pádu webu (`deliverPendingAcceptances`). Schránky mají
  * vlastní ochranu: selhání dřívější úlohy jejich doručení nezastaví a naopak – první chyba se
  * vyhodí až na konci (jako chyba jedné schránky nebo vsi v kole). Dřívější úlohy dál jdou za sebou
  * a chyba zastaví ty po ní – na pořadí závisí (jídlo domény po obnově zásilek, Odvody správce před

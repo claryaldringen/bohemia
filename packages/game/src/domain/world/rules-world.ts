@@ -14,8 +14,9 @@ export const WORLD = {
    */
   searchRings: 64,
   /**
-   * Ves syna jen na suché mapě (world-skeleton.md – Otevřené otázky 3): když políčkem ve směru
-   * odchodu vede kostra, ves vznikne na nejbližším suchém políčku nejvýš tolik prstenců od něj.
+   * Ves syna jen na suché mapě, nebo na stezce bez řeky (world-skeleton.md – Otevřené otázky 3;
+   * markets.md – Rozhodnutí plánu 4, bod 11): když políčkem ve směru odchodu vede řeka kostry, ves
+   * vznikne na nejbližším políčku bez ní nejvýš tolik prstenců od něj.
    */
   sonDryRings: 2,
 } as const;

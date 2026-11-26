@@ -1,18 +1,18 @@
 import { dateOfDayIndex } from '../../calendar';
-import { cartsWithOxen, tradeHomeCarts } from '../crafts/carts';
+import { tradeHomeCarts } from '../crafts/carts';
 import { oxenHome } from '../livestock/oxen';
 import { ageGroup } from '../people/people';
-import { CRAFT_BUYING, MARKET } from '../rules';
+import { CRAFT_BUYING, MARKET, TRADE_GOOD_VALUES } from '../rules';
 import { STEWARD } from '../rules/rules-steward';
-import { marketStance } from '../trade/market-stance';
+import { NOISE_KG, marketStance } from '../trade/market-stance';
 import { leavingGroups, withoutGroups } from '../trade/market-people';
-import { departMarketInPlace, marketCrew, marketFreeAdults } from '../trade/market-trip';
+import { departMarketInPlace, marketCrew, marketFreeAdults, tripCarts } from '../trade/market-trip';
 import { emigrantList } from '../trade/people-trade';
 import { nearbyTarget } from '../trade/nearby';
 import { villageGoodStock } from '../trade/trade';
 import { priceKg } from '../trade/villager-trips';
-import { TRADE_GOODS, isPieceGood } from '../trade/goods';
-import type { CartKind, NearbyVillage, TradeGoods, VillageState } from '../types';
+import { COIN_GOOD, TRADE_GOODS, isPieceGood } from '../trade/goods';
+import type { CartKind, NearbyVillage, TradeGood, TradeGoods, VillageState } from '../types';
 import type { NeedContext } from './steward-needs';
 import { isStewardOn } from './steward-state';
 
@@ -21,10 +21,33 @@ import { isStewardOn } from './steward-state';
 // a lov v nouzi, Martin 8. 11. 2026: „A“): správce jedná stejnou akcí jako hráč
 // (`departMarketInPlace`, `by: 'steward'`), jen s okolím vsi (`VillageState.nearby`). Volní lidé
 // a vozy se dělí s výpravami vesničanů téhož dne přes stav – vesničané jedou v kroku dne dřív
-// (`villagerTripsDay`), správce bere, co zbylo (`marketFreeAdults`, `tradeHomeCarts`). Rozhoduje
-// jen ze stavu vsi a dne, bez náhody – výsledek nezávisí na kouscích dopočtu.
+// (`villagerTripsDay`), správce bere, co zbylo (`marketFreeAdults`, `tradeHomeCarts`). Platí
+// i mincemi (Rozhodnutí plánu 4, bod 4; Martin 25. 11. 2026: „Mince utrácí jen vojvoda/správce“):
+// obilí v nouzi napřed jimi, roční výprava jich veze nejvýš v hodnotě svého seznamu. Bere je vždy jen
+// ze zásoby vsi v okamžiku odjezdu (`departMarketInPlace` je hned odečte), takže dvě výpravy téhož
+// dne tytéž mince neutratí; co výprava neutratí, přijde domů (`unsold`). Rozhoduje jen ze stavu vsi
+// a dne, bez náhody – výsledek nezávisí na kouscích dopočtu.
 
 const EPSILON = 1e-9;
+
+/** Kolik kg obilí stojí kg zboží, které se nese (`TRADE_GOOD_VALUES`; jen zboží s váhou). */
+function valuePerCarriedKg(good: TradeGood): number {
+  const { valueKg, carryKg } = TRADE_GOOD_VALUES[good];
+  return valueKg / carryKg;
+}
+
+/**
+ * Pořadí, ve kterém správce nakládá (Rozhodnutí plánu 4, bod 4 – návrh Clauda: drahé napřed): zboží
+ * bez váhy (dobytek, koně, vozy, lidé), pak podle hodnoty na kg sestupně, při shodě pořadí
+ * `TRADE_GOODS` (řazení je stabilní). Jinak by obilí vždycky zaplnilo posádku a vosk, kožešiny
+ * a med by ves kupcům nikdy nepřivezla.
+ */
+const LOAD_ORDER: readonly TradeGood[] = [
+  ...TRADE_GOODS.filter((good) => TRADE_GOOD_VALUES[good].carryKg === 0),
+  ...TRADE_GOODS.filter((good) => TRADE_GOOD_VALUES[good].carryKg > 0).sort(
+    (a, b) => valuePerCarriedKg(b) - valuePerCarriedKg(a),
+  ),
+];
 
 /**
  * Kolikrát správce zmenší nákup obilí, než se výprava vejde do nosičů (`grainPorterShare`).
@@ -49,8 +72,8 @@ export function stewardGrainTarget(state: VillageState): NearbyVillage | null {
 /**
  * Čím ves zaplatí `dueKg` obilí u vsi `villageId`: zboží `STEWARD.grainPayment` v jeho pořadí, každý
  * druh do pokrytí ceny cílem (cena ze zprávy na pivo, jinak výchozí – `priceKg`), nejvýš co ves má
- * (`villageGoodStock`). Klády jen nad rezervu staveb (`constructionLogsLeft`), kusové zboží celé.
- * Vrací, čím platí a kolik kg obilí to kryje.
+ * (`villageGoodStock`). Napřed mince (Rozhodnutí plánu 4, bod 4), klády jen nad rezervu staveb
+ * (`constructionLogsLeft`), kusové zboží celé. Vrací, čím platí a kolik kg obilí to kryje.
  */
 function grainPayment(
   state: VillageState,
@@ -97,7 +120,8 @@ export function stewardGrainStep(state: VillageState, ctx: NeedContext, shortKg:
     marketFreeAdults(state, day),
   );
   if (maxPorters < 1) return false;
-  const carts = cartsWithOxen(tradeHomeCarts(state), oxenHome(state, day)).map((c) => c.kind);
+  const homeCarts = tradeHomeCarts(state).map((c) => c.kind);
+  const oxen = oxenHome(state, day);
   const grainPrice = priceKg(state, village.villageId, 'grain');
   let want = Math.ceil(shortKg - EPSILON);
   for (let i = 0; i < FIT_TRIES; i++) {
@@ -106,7 +130,7 @@ export function stewardGrainStep(state: VillageState, ctx: NeedContext, shortKg:
     const grainKg = Math.min(want, Math.floor(pay.creditKg / grainPrice + EPSILON));
     if (grainKg < STEWARD.grainMinKg) return false;
     const wants: TradeGoods = { grain: grainKg };
-    const crew = marketCrew(pay.give, wants, carts);
+    const crew = marketCrew(pay.give, wants, tripCarts(homeCarts, oxen, pay.give, wants));
     if (crew.porters <= maxPorters) {
       const sent = departMarketInPlace(
         state,
@@ -127,8 +151,9 @@ export function stewardGrainStep(state: VillageState, ctx: NeedContext, shortKg:
  * a sháňkou vsi (`marketStance`) do vsi okolí `nearby.villages[rok % počet]` (okolí řazené podle
  * `cells`, pak `villageId`), ať správce okolí pozná; jen shání-li ves něco. Návrh Clauda (Martin
  * 22. 11. 2026: „Správce je vlastně NPC hráč, takže by měl mít možnost dělat téměř vše, co skutečný
- * hráč“; pravidlo 9 – správce sestavuje výpravy jako hráč). Bez paměti navíc. Vrací, jestli
- * vyrazil.
+ * hráč“; pravidlo 9 – správce sestavuje výpravy jako hráč). Seznam zkrátí na to, co lidé a vozy
+ * unesou domů, náklad na to, co unesou tam (`fitToCrew`), a přidá mince na seznam (`coinsFor` –
+ * Rozhodnutí plánu 4, bod 4; nic neváží, nosiče nepřidají). Bez paměti navíc. Vrací, jestli vyrazil.
  */
 export function stewardMarketStep(state: VillageState, ctx: NeedContext): boolean {
   const villages = state.nearby?.villages;
@@ -138,22 +163,42 @@ export function stewardMarketStep(state: VillageState, ctx: NeedContext): boolea
   if (date.month !== CRAFT_BUYING.day.month || date.day !== CRAFT_BUYING.day.day) return false;
   const stance = marketStance(state, day);
   if (Object.keys(stance.wants).length === 0) return false;
-  const carts = cartsWithOxen(tradeHomeCarts(state), oxenHome(state, day)).map((c) => c.kind);
+  const carts = { homeCarts: tradeHomeCarts(state).map((c) => c.kind), oxen: oxenHome(state, day) };
   // nosiči jen z lidí, kteří zůstávají – lidé z nabídky odejdou jako zboží (Rozhodnutí plánu 3,
   // bod 10; stejně počítá `planMarketTrip`)
   const staying = withoutGroups(state, emigrantList(leavingGroups(state, day, stance.offer)));
-  const give = fitToCrew(stance.offer, stance.wants, carts, marketFreeAdults(staying, day));
+  const adults = marketFreeAdults(staying, day);
+  const wants = fitToCrew(stance.wants, {}, carts, adults);
+  // seznam jen ze šumu, nebo ho nemá kdo nést
+  if (Object.keys(wants).length === 0) return false;
+  const give = fitToCrew(stance.offer, wants, carts, adults);
   const village = villages[date.year % villages.length]!;
   const target = nearbyTarget(state, village.villageId);
   if (!target) return false;
+  const coins = coinsFor(state, day, village.villageId, wants);
+  if (coins > 0) give[COIN_GOOD] = coins;
   const sent = departMarketInPlace(
     state,
     day,
-    { give, wants: stance.wants, stayDays: MARKET.minStayDays },
+    { give, wants, stayDays: MARKET.minStayDays },
     target,
     { by: 'steward' },
   );
   return sent.ok;
+}
+
+/**
+ * Kolik mincí roční výprava veze na seznam `wants` ve vsi `villageId` (Rozhodnutí plánu 4, bod 4):
+ * hodnota seznamu za ceny cíle (`priceKg`) v celých mincích nahoru – šum z půlení (`fitToCrew`) minci
+ * nepřidá –, nejvýš co ves dnes má.
+ */
+function coinsFor(state: VillageState, day: number, villageId: string, wants: TradeGoods): number {
+  const dueKg = TRADE_GOODS.reduce(
+    (sum, good) => sum + (wants[good] ?? 0) * priceKg(state, villageId, good),
+    0,
+  );
+  const coins = Math.ceil(dueKg / priceKg(state, villageId, COIN_GOOD) - NOISE_KG);
+  return Math.min(villageGoodStock(state, COIN_GOOD, day), coins);
 }
 
 /**
@@ -170,21 +215,23 @@ export function constructionLogsLeft(state: Pick<VillageState, 'constructions'>)
 }
 
 /**
- * Z nabídky vsi `offer` to, co unesou volní lidé a dopravní vozy na jednu cestu (`marketCrew` –
- * stejná mez jako u vesničanů, `marketCarryKg`): zboží v pořadí nabídky, každý druh nejvýš tolik,
- * aby výprava s `wants` nepotřebovala víc než `adults` lidí; kusové zboží celé. Celá hromada klád
- * a kamene tak výpravu nepoloží kontrolou. Pořadí je pevné, výsledek deterministický.
+ * Ze zboží `goods` (nabídka vsi, nebo její seznam) to, co unesou volní lidé a dopravní vozy na jednu
+ * cestu (`marketCrew` – stejná mez jako u vesničanů, `marketCarryKg`): drahé napřed (`LOAD_ORDER`),
+ * každý druh nejvýš tolik, aby výprava s `wants` nepotřebovala víc než `adults` lidí; kusové zboží
+ * celé, zlomek do `NOISE_KG` se nenakládá. Celá hromada klád a kamene tak výpravu nepoloží kontrolou;
+ * co se nevejde, zůstane doma. Pořadí je pevné, výsledek deterministický.
  */
 function fitToCrew(
-  offer: TradeGoods,
+  goods: TradeGoods,
   wants: TradeGoods,
-  carts: readonly CartKind[],
+  carts: { homeCarts: readonly CartKind[]; oxen: number },
   adults: number,
 ): TradeGoods {
-  const fits = (give: TradeGoods): boolean => marketCrew(give, wants, carts).porters <= adults;
+  const fits = (give: TradeGoods): boolean =>
+    marketCrew(give, wants, tripCarts(carts.homeCarts, carts.oxen, give, wants)).porters <= adults;
   const give: TradeGoods = {};
-  for (const good of TRADE_GOODS) {
-    const amount = offer[good] ?? 0;
+  for (const good of LOAD_ORDER) {
+    const amount = goods[good] ?? 0;
     if (!(amount > 0)) continue;
     const piece = isPieceGood(good);
     const whole = piece ? Math.floor(amount + EPSILON) : amount;
@@ -200,7 +247,7 @@ function fitToCrew(
         else high = mid;
       }
     }
-    if (low > EPSILON) give[good] = low;
+    if (low > NOISE_KG) give[good] = low;
   }
   return give;
 }

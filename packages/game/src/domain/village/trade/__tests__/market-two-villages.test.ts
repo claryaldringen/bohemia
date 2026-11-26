@@ -8,6 +8,7 @@ import { oxenHome } from '../../livestock/oxen';
 import { CRAFT_NEEDS } from '../../rules';
 import type {
   ChronicleEvent,
+  MarketArrival,
   MarketPerson,
   MarketResult,
   Person,
@@ -83,6 +84,56 @@ describe('výprava na trh mezi dvěma vsemi (markets.md – Co se ověří, bod 
     // cena krávy zůstala na dně – nabídka převýšila poptávku, ale pod výchozí cenu nejde
     expect(m1.market!.prices.cows!).toBe(40);
     expect(h1.news![0]).toMatchObject({ villageId: 'm', prices: m1.market!.prices });
+  });
+
+  it('totéž s 20 mincemi: mince prodané hostiteli = mince koupené, součet týž, v kronice obou stran', () => {
+    const h = homeVillage();
+    h.coins = 20;
+    const m = marketVillage();
+    m.crafts = { charcoalKg: 0, potteryKg: 500 };
+    // kráva za 600 kg obilí zápočtem, 75 kg keramiky za 15 mincí (0,2 mince za kg)
+    const sent = departMarket(
+      h,
+      D,
+      { give: { grain: 600, coins: 20 }, wants: { cows: 1, pottery: 75 }, stayDays: 1 },
+      target,
+    );
+    if (!sent.ok) throw new Error(sent.reason);
+    const arrival = (sent.state.outbox![0]!.body as { arrival: MarketArrival }).arrival;
+    // mince odešly s výpravou celé, ve vsi nezůstala žádná
+    expect(sent.state).not.toHaveProperty('coins');
+    expect(arrival.goods).toEqual({ grain: 600, coins: 20 });
+    const m1 = advanceVillage(m, D + 1, null, null, asEvents(sent.state.outbox!));
+    const out = m1.outbox!.find((x) => x.ref === marketResultRef(sent.trip.key))!;
+    const result = (out.body as { result: MarketResult }).result;
+    type Held = Extract<ChronicleEvent, { kind: 'market-held' }>;
+    const held = m1.chronicle.find((e): e is Held => e.kind === 'market-held')!;
+    // zaplacené mince má hostitel, zbytek měšce jde domů – do `sold` a `bought` se nepřičítají
+    expect(result).toMatchObject({ coinsPaid: 15, unsold: { coins: 5 } });
+    expect(result).not.toHaveProperty('coinsGot');
+    expect(result.bought).toEqual({ cows: 1, pottery: 75 });
+    expect(Object.keys(result.sold)).toEqual(['grain']);
+    expect(m1.coins).toBe(15);
+    expect(m1.coins! + result.unsold.coins!).toBe(20);
+    expect(held.sold).toEqual(result.bought);
+    expect(held.bought.coins).toBe(result.coinsPaid);
+    expect(held.bought.grain).toBeCloseTo(result.sold.grain!, 6);
+    const h1 = advanceVillage(withoutOutbox(sent.state), D + 2, null, null, asEvents(m1.outbox!));
+    type Returned = Extract<ChronicleEvent, { kind: 'market-returned' }>;
+    const back = h1.chronicle.find((e): e is Returned => e.kind === 'market-returned')!;
+    expect(h1.coins).toBe(5);
+    expect(back.sold).toStrictEqual({ grain: result.sold.grain!, coins: 15 });
+    expect(back.bought).toStrictEqual({ cows: 1, pottery: 75 });
+    expect(back.unsold).not.toHaveProperty('coins');
+    // dopočet obou vsí po kouscích dá týž stav
+    const mParts = advanceVillage(
+      JSON.parse(JSON.stringify(advanceVillage(m, D, null, null))) as VillageState,
+      D + 1,
+      null,
+      null,
+      asEvents(sent.state.outbox!),
+    );
+    expect(JSON.parse(JSON.stringify(mParts))).toEqual(JSON.parse(JSON.stringify(m1)));
   });
 
   it('o mapu dál: příjezd D + 2, výsledek D + 4, lidé pryč D + 1 až D + 3', () => {

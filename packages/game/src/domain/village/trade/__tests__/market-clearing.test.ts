@@ -196,7 +196,7 @@ describe('zápočet tržního dne (markets.md – Pravidla 5, Rozhodnutí plánu
     expect(parties).toEqual(before);
   });
 
-  it('kusové zboží: dobytek, koně, klády, vozy, kámen, kůže, kožešiny a lidé', () => {
+  it('kusové zboží: dobytek, koně, klády, vozy, kámen, kůže, kožešiny, zbroj, mince a lidé', () => {
     expect(TRADE_GOODS.filter(isPieceGood)).toEqual([
       'cows',
       'youngOxen',
@@ -211,6 +211,11 @@ describe('zápočet tržního dne (markets.md – Pravidla 5, Rozhodnutí plánu
       'stone',
       'hides',
       'furs',
+      // zbroj a mince (markets.md – Rozhodnutí plánu 4, body 1 a 7)
+      'swords',
+      'mailShirts',
+      'helmets',
+      'coins',
       // lidé po skupinách (markets.md – Rozhodnutí plánu 3, bod 10)
       'families',
       'men',

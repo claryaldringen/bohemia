@@ -45,6 +45,7 @@ import { keepManor } from '../people/manor';
 import { fillOrders } from '../trade/craft-orders';
 import { marketDay } from '../trade/market';
 import { marketTripsDay } from '../trade/market-trip';
+import { merchantsArrive } from '../trade/merchants';
 import { finishExpeditions } from '../trade/trade';
 import { villagerTripsDay } from '../trade/villager-trips';
 import { swathRoadsInWork, trailsDay } from '../trade/trail';
@@ -53,6 +54,7 @@ import { wagonRoadsDay } from '../roads/wagon-road';
 import { decideFortRebuilds } from '../fortification/decay';
 import { gateRoadCrossings } from '../fortification/state/fortifications';
 import { isVillageDormant, isVillageTravelling } from '../people/departure';
+import { endVillage } from './extinction';
 import { applyInboxDay, inboxByDay, withJourneyInbox, type VillageEvent } from './inbox';
 import { woundDeathsDay } from '../../war/raid-apply';
 import { returnHome } from '../../vassalage/guests';
@@ -170,6 +172,9 @@ export function* advanceVillageSteps(
     // události schránky dne – na začátku dne, před jeho simulací (village-core.md – Schránka vsi)
     const events = eventsByDay.get(day);
     const morning: ChronicleEvent[] = events ? applyInboxDay(next, day, events) : [];
+    // cizí kupci na dálkové stezce (markets.md – Rozhodnutí plánu 4, bod 5) – za výpravami, které
+    // dnes přijely, a před tržním dnem, ať obchodují už dnes
+    morning.push(...merchantsArrive(next, day));
     // trh ve vsi (markets.md – Pravidla 3) hned po událostech schránky – výprava, která dnes
     // přijela, obchoduje už dnes; v kronice po zápisu o příjezdu
     morning.push(...marketDay(next, day));
@@ -620,7 +625,7 @@ function peopleDay(
   });
   if (state.people.length === 0) {
     // zemřel poslední člověk – ves vymřela, dál se nesimuluje (ani sklizeň dne)
-    state.extinctDay = day;
+    endVillage(state, 'extinctDay', day);
     state.chronicle.push({ day, kind: 'village-extinct' });
     return false;
   }

@@ -13,4 +13,6 @@ export const SLOW_TESTS: readonly string[] = [
   'src/domain/village/livestock/__tests__/summer-slaughter-golden.test.ts',
   // dvě vsi na sousedních mapách po tři roky (trh, vesničané, lidé, sňatky)
   'src/domain/village/trade/__tests__/market-neighbours-years.test.ts',
+  // ves na stezce s kupci a soused s výpravami po tři roky (mince, zboží, objednaný meč, po kouscích)
+  'src/domain/village/trade/__tests__/market-merchants-years.test.ts',
 ];

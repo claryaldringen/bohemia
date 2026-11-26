@@ -827,7 +827,7 @@ test('panel úseku palisády – ochoz jen v úseku, Doplnit val u druhého úse
   await select(gateSpot, 'fortification-gate');
   const pincer = panel.getByTestId('fort-gate-pincer');
   const pincerTip = panel
-    .locator('span.group\\/tooltip', { has: page.getByTestId('fort-gate-pincer') })
+    .locator('span.tooltip-host', { has: page.getByTestId('fort-gate-pincer') })
     .getByRole('tooltip')
     .first();
   await expect(pincer).toBeDisabled();

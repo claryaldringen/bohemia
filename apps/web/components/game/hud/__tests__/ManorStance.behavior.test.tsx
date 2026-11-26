@@ -12,7 +12,17 @@ import { ManorUpgrades } from '../ManorPanel';
 
 const manor = (stance: DefenseStance): VillageManor => ({
   dwellingId: 1,
-  market: { stock: {}, homeCarts: [], oxenHome: 0, adults: 0, day: 0, trips: [] },
+  market: {
+    stock: {},
+    homeCarts: [],
+    oxenHome: 0,
+    adults: 0,
+    day: 0,
+    trips: [],
+    merchantsDay: null,
+    arms: [],
+    merchantsArrived: null,
+  },
   stance,
   huntDenied: null,
 });

@@ -2,14 +2,18 @@
 // dvorcem a vylepšení vsi, která odtud jdou – zemské stezky do 8 směrů. S okolím ves neobchoduje
 // (markets.md – Pravidla 1). Čistý modul – data ze stavu vsi.
 import {
+  ARMS_GOODS,
+  coinPriceOf,
   huntDenied,
   HUNT_DENIED_TEXT,
   lordFamily,
   marketFreeAdults,
+  nextMerchantVisit,
   oxenHome,
   tradeHomeCarts,
   TRADE_GOODS,
   villageGoodStock,
+  type ArmsGood,
   type MarketTripCheck,
   type TradeGoods,
   stanceOf,
@@ -82,7 +86,44 @@ export interface VillageManor {
    * s celým výběrem odejde a kolik dospělých zbude na nosiče, spočítá server až pro vybrané počty
    * (`marketTripPeople` – Rozhodnutí plánu 3, bod 10; panel Trh).
    */
-  market: Omit<MarketTripCheck, 'cells'> & { trips: MarketTripView[] };
+  market: Omit<MarketTripCheck, 'cells'> & {
+    trips: MarketTripView[];
+    /**
+     * Den příštího příjezdu cizích kupců (≥ dnešek; markets.md – Rozhodnutí plánu 4, bod 8); null =
+     * ves nemá zastávku stezky. Seed zastávky klientovi nejde – jen den.
+     */
+    merchantsDay: number | null;
+    /**
+     * Zbroj k objednání u kupců (Rozhodnutí plánu 4, bod 15) – cena dne v mincích a objednaný počet,
+     * v pořadí `ARMS_GOODS`; jen u vsi se zastávkou kupců, jinak prázdné.
+     */
+    arms: { good: ArmsGood; price: number; ordered: number }[];
+    /** Den posledního příjezdu kupců (z `market.arrivals`); null = zatím žádný. */
+    merchantsArrived: number | null;
+  };
+}
+
+/** Kupci ve vsi u stezky: den příštího příjezdu, objednávka zbroje a den posledního příjezdu. */
+function merchantsField(
+  state: VillageState,
+  day: number,
+): Pick<VillageManor['market'], 'merchantsDay' | 'arms' | 'merchantsArrived'> {
+  const stops = state.merchantStops ?? [];
+  const visit = stops.length > 0 ? nextMerchantVisit(stops, day) : null;
+  const level = state.market?.level ?? 1;
+  const arrivals = (state.market?.arrivals ?? []).filter((a) => a.merchants === true);
+  return {
+    merchantsDay: visit ? visit.day : null,
+    arms:
+      stops.length > 0
+        ? ARMS_GOODS.map((good) => ({
+            good,
+            price: coinPriceOf(state.market?.prices, level, good),
+            ordered: state.armsOrder?.[good] ?? 0,
+          }))
+        : [],
+    merchantsArrived: arrivals.length > 0 ? Math.max(...arrivals.map((a) => a.day)) : null,
+  };
 }
 
 /** Vstup kontroly výpravy na trh ze stavu vsi (zásoby všech druhů zboží, vozy, voli, volní dospělí). */
@@ -96,6 +137,7 @@ function marketField(state: VillageState, day: number): VillageManor['market'] {
     adults: marketFreeAdults(state, day),
     day,
     trips: marketTripViews(state, day),
+    ...merchantsField(state, day),
   };
 }
 

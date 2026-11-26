@@ -33,7 +33,7 @@ beforeEach(async () => {
   await db.execute(sql`TRUNCATE "user" CASCADE`);
   await db.insert(schema.user).values({ id: 'hrac-1', name: '', email: 'hrac-1@example.com' });
   const settlements = createSettlementRepository(db);
-  const villages = createVillageRepository(db);
+  const villages = createVillageRepository(db, 1);
   const state = foundVillage({ seed: 11, day: DAY, dwellingPosition: { x: 0, z: 0, rotation: 0 } });
   const seat = await settlements.createSeat({
     ownerId: 'hrac-1',

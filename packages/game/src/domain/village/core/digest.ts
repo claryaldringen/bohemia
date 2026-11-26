@@ -6,6 +6,7 @@ import { lineFacts, type LineFacts } from './extinction';
 import { isStewardOn } from '../steward/steward-state';
 import { hungerLevel, type HungerLevel } from './summary';
 import { threshingStatus } from '../fields/threshing';
+import { openTripKeys } from '../trade/market';
 import { trailExitsOf, type TrailExit } from '../trade/trail-exits';
 import type { ChronicleEvent } from '../types/types-chronicle';
 import type { DisasterState, FloodRecord } from '../types/types-disasters';
@@ -106,6 +107,12 @@ export interface VillageDigest extends LineFacts {
    * Chybí = nikdo, nebo souhrn uložený dřív (24. 11. 2026); verze tvaru se nemění.
    */
   singles?: NearbySingle[];
+  /**
+   * Klíče výprav na trh, které ves ještě řeší (`openTripKeys` – markets.md, Rozhodnutí plánu 4, bod
+   * 10): úklid schránky jiné vsi (`pruneSettledMail`) jejich řádky nesmaže a nemusí kvůli tomu načíst
+   * stav. Chybí = souhrn uložený dřív (25. 11. 2026) – neví se, řádky zůstanou; verze tvaru se nemění.
+   */
+  openTrips?: string[];
 }
 
 /** Poslední místní pohroma v kronice; žádná – undefined. */
@@ -164,6 +171,7 @@ export function villageDigest(state: VillageState): VillageDigest {
     ...(last ? { lastLocalDisaster: last } : {}),
     trailExits: trailExitsOf(state),
     ...singlesOf(state),
+    openTrips: openTripKeys(state),
   };
 }
 

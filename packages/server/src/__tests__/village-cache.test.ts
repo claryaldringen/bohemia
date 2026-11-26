@@ -147,6 +147,40 @@ describe('paměť vsí na jeden požadavek (village-cache.ts)', () => {
     expect(store.finds).toBe(4);
   });
 
+  it('zastávky kupců jdou přímo z úložiště; úložiště bez nich je nemá ani s pamětí', async () => {
+    const { store } = await world();
+    expect(cachedVillages(store).merchantStopsOf).toBeUndefined();
+    const stops = [{ key: '0,0,E', seed: 7, index: 0, length: 1 }];
+    const asked: string[] = [];
+    store.merchantStopsOf = async (settlementId) => {
+      await Promise.resolve();
+      asked.push(settlementId);
+      return stops;
+    };
+    const villages = cachedVillages(store);
+    await withVillageCache(async () => {
+      expect(await villages.merchantStopsOf!('mapa')).toEqual(stops);
+    });
+    expect(asked).toEqual(['mapa']);
+  });
+
+  it('s pamětí dostane ves zastávky kupců při načtení jen jednou', async () => {
+    const { store, settlements, villageId } = await world();
+    const asked: string[] = [];
+    store.merchantStopsOf = async (settlementId) => {
+      await Promise.resolve();
+      asked.push(settlementId);
+      return [];
+    };
+    const villages = cachedVillages(store);
+    await withVillageCache(() => action(settlements, villages, villageId));
+    await withVillageCache(() => action(settlements, villages, villageId));
+    for (const record of store.records.values()) expect(record.state.merchantStops).toEqual([]);
+    // každá ves hráče se ptala jen při svém prvním načtení
+    expect(new Set(asked).size).toBe(asked.length);
+    expect(asked).toHaveLength(store.records.size);
+  });
+
   it('mimo rozsah se nic nepamatuje', async () => {
     const { store, villageId } = await world();
     const villages = cachedVillages(store);

@@ -8,6 +8,7 @@ import { sameCell, type GridCell } from '../domain/village/people/world-grid';
 import { cellDistance, ringCells } from '../domain/world/placement';
 import { isIsolated, type Settlement, type SettlementRepository } from './settlements';
 import { settlementCell, stepToward } from './shipments';
+import { pruneSettledMail } from './village-mail';
 import type { VillageRecord, VillageRepository } from './villages';
 
 // Okolí vsi (markets.md – Rozhodnutí plánu 3, bod 1): ves dostane v pevné dny kalendáře snímek vsí
@@ -42,11 +43,12 @@ export function nearbyDays(afterDay: number, toDay: number): number[] {
 }
 
 /**
- * Co potřebuje sken okolí: otisky vsí (jméno, spí-li ves), souhrny vsí (svobodní) a sídla (poloha,
+ * Co potřebuje sken okolí a úklid schránky po něm: otisky vsí (jméno, spí-li ves; odesílatelé vyřízené
+ * pošty), souhrny vsí (svobodní, ves na cestě; výpravy, které odesílatel ještě řeší) a sídla (poloha,
  * držitelé políček).
  */
 export interface NearbyDeps {
-  villages: Pick<VillageRepository, 'stampsOf' | 'digestsOf'>;
+  villages: Pick<VillageRepository, 'stampsOf' | 'stampsOfVillages' | 'digestsOf'>;
   settlements: Pick<SettlementRepository, 'find' | 'holderAt' | 'listActive'>;
 }
 
@@ -60,7 +62,9 @@ function compareIds(a: string, b: string): number {
  * načtení stavů: sídla na prstenci 1 (`holderAt`, `listActive` – archivované sídlo ani sídlo
  * s čekajícím převodem mezi nimi není), jejich otisky (`stampsOf` – jméno; spící ves chybí)
  * a souhrny (`digestsOf` – svobodní `singles`, markets.md – Rozhodnutí plánu 3, bod 11; souhrn bez
- * nich nebo ves bez souhrnu současné verze = nikdo). `cells` a `firstStep` jako přehled trhu
+ * nich nebo ves bez souhrnu současné verze = nikdo). Ves na cestě (`travelling` v souhrnu – lidé jdou
+ * na novou mapu a ves dny cesty nesimuluje) chybí; ves bez souhrnu současné verze se bere, jako by na
+ * cestě nebyla (uvázlou výpravu vrátí krok 3 pošty). `cells` a `firstStep` jako přehled trhu
  * a výprava; řazeno podle `cells`, pak `villageId`. Odříznutý rod (newcomers.md – místní mřížka
  * není mapa světa) a archivované sídlo – prázdné.
  */
@@ -92,16 +96,17 @@ export async function nearbyVillages(
     (stamp) => cellOf.has(stamp.settlementId) && !stamp.asleep,
   );
   if (stamps.length === 0) return [];
-  const singlesOf = new Map(
-    (await deps.villages.digestsOf(stamps.map((stamp) => stamp.id))).map((d) => [
-      d.id,
-      d.digest.singles,
-    ]),
+  const digestOf = new Map(
+    (await deps.villages.digestsOf(stamps.map((stamp) => stamp.id))).map((d) => [d.id, d.digest]),
   );
   const villages: NearbyVillage[] = [];
   for (const stamp of stamps) {
+    const digest = digestOf.get(stamp.id);
+    // lidé vsi jsou na cestě na novou mapu – ves dny cesty nesimuluje, výprava ani nevěsta by u ní
+    // uvázly (vesničané, správce, kovář a sňatky berou vsi jen z okolí)
+    if (digest?.travelling === true) continue;
     const cell = cellOf.get(stamp.settlementId)!;
-    const singles = singlesOf.get(stamp.id);
+    const singles = digest?.singles;
     villages.push({
       villageId: stamp.id,
       name: stamp.name,
@@ -123,9 +128,10 @@ export interface NearbyRefresh {
    * Před dopočtem vsi `home` přes dny `(afterDay, toDay]`: na každý den obnovy (`nearbyDays`), na
    * který ve schránce (`pending` – události těchto dnů) ještě událost `nearby` není, zapíše snímek
    * okolí (`nearbyVillages` – v okamžiku zápisu) s `ref` `nearby:<ves>:<den>`. Čekající událost je
-   * čerstvé okolí – sken se neopakuje. Spící ves nic. Po zápisu smaže použité snímky starší než
-   * `NEARBY_KEEP_DAYS` (`inbox.pruneUsed` – dny ≤ `afterDay − NEARBY_KEEP_DAYS`; chyba úklidu
-   * jde jen do logu). true = něco se zapsalo (zápis zvedl verzi vsi).
+   * čerstvé okolí – sken se neopakuje. Spící ves nic. Po zápisu uklidí schránku: použité snímky starší
+   * než `NEARBY_KEEP_DAYS` (`inbox.pruneUsed` – dny ≤ `afterDay − NEARBY_KEEP_DAYS`) a vyřízenou poštu
+   * výprav (`pruneSettledMail` s dnem `afterDay`); chyba úklidu jde jen do logu. true = něco se zapsalo
+   * (zápis zvedl verzi vsi).
    */
   post(
     home: VillageRecord,
@@ -135,9 +141,9 @@ export interface NearbyRefresh {
   ): Promise<boolean>;
 }
 
-/** Podport `villages.nearby` nad úložištěm vsí (schránka, otisky) a sídel. */
+/** Podport `villages.nearby` nad úložištěm vsí (schránka, otisky, souhrny) a sídel. */
 export function nearbyRefresh(
-  deps: NearbyDeps & { villages: Pick<VillageRepository, 'inbox' | 'stampsOf' | 'digestsOf'> },
+  deps: NearbyDeps & { villages: Pick<VillageRepository, 'inbox'> },
 ): NearbyRefresh {
   return {
     async post(home, afterDay, toDay, pending): Promise<boolean> {
@@ -167,8 +173,9 @@ export function nearbyRefresh(
       if (posted) {
         try {
           await deps.villages.inbox.pruneUsed(home.id, afterDay - NEARBY_KEEP_DAYS);
+          await pruneSettledMail(deps, home.id, afterDay);
         } catch (error) {
-          console.error(`Ves ${home.id}: úklid snímků okolí selhal.`, error);
+          console.error(`Ves ${home.id}: úklid schránky selhal.`, error);
         }
       }
       return posted;

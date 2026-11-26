@@ -88,22 +88,47 @@ i prohlížeč). Řeky (Úloha 1), stezky a místa kostry (Úloha 2).
 a, b, riverAt)` (`ports.ts`) – hash hrany jako u řeky (soli `trailPortNS/EW`); na hraně s řekou
   los vybírá jen z políček ≥ `trailGap` od bodu řeky. `skeletonSlice` plní `trails` z `trailSides`
   a bodu řeky na téže straně.
+- **Zastávky stezky** (`trail-stops.ts`; markets.md – Rozhodnutí plánu 4, bod 5):
+  `trailPath(worldSeed, connection)` – políčka spojení (`TrailConnection` – uzel bloku a směr `E` nebo
+  `N`) od uzlu bloku k druhému uzlu v pořadí cesty, každé jednou (12–39 políček, tvar jako úseky
+  v `trails.ts`), null = spojení není. `trailStops(worldSeed, cell)` – zastávky políčka `MerchantStop`
+  (`types-market.ts`: `key` `<blok x>,<blok y>,<E|N>`, `seed` = `deriveSeed(worldSeed, 'merchants:' + key)`,
+  pořadí `index` na cestě od prvního uzlu a její délka `length`) ze spojení 3 × 3 bloků kolem, seřazené
+  podle `key`: mimo uzel jedna, uzel za každé spojení, které v něm končí, bez stezky `[]`. Jen čte graf
+  kostry – žádná nová sůl ani verze. Plán kupců ze zastávek: village-trade.md – Cizí kupci – plán.
+  **Ves je dostane jen z výřezu svého sídla** (`VillageRepository.merchantStopsOf`, adaptér
+  `village-repository.ts` jen načte řádek sídla a zavolá čistou funkci
+  `settlementMerchantStops(worldSeed, cell, skeleton)` vedle `trailStops`): krajina se generuje
+  z uloženého výřezu, ne z políčka (world-skeleton.md – Uložení), takže sídlo bez výřezu
+  (`settlement.skeleton` null) nebo bez stezek v něm (`skeleton.trails` prázdné) má `[]`, i když jeho
+  políčkem stezka kostry vede; `[]` má i odříznuté sídlo bez políčka světa (`cell` null). Jinak
+  `trailStops(worldSeed, políčko)`; neznámé sídlo null (adaptér). Seed světa je
+  proto povinný parametr `createVillageRepository(db, worldSeed)` všude, kde se úložiště zakládá.
 - **Místa** (`sites.ts`): `riverCrossings(slice)` – obvod 0–511 (S od západu, E od jihu, N od
   východu, W od severu), body řek ho dělí na oblouky, přechody = oblouky s bodem stezky − 1;
   `seatSlot(slice)` = `'dry'` (null), `'river'`, `'trail'`, `'ford'` (1 přechod), jinak null
   (pramen, soutok řek, křižovatka, konec stezky, víc brodů, řeka i stezka bez přechodu);
-  `isDry(slice)`.
-- **Ves syna jen na suché mapě** (Otevřené otázky 3 – Martin 8. 11. 2026: „NPC budou mít
-  normální mapy. Prémiové jen lidští hráči.“; `dry-cell.ts`, `new-village.ts`): `targetSettlement`
-  (odchod hráče i schránka odchodů správce) – obsazené políčko ve směru (vlastní sídlo k použití,
-  cizí mapa) a suché políčko jako dřív; volné políčko s řekou či stezkou nahradí
-  `dryCellNear(worldSeed, from, target, allowed, cache?)` = nejbližší suché bez cizí mapy
-  (`nearestCellAround` – `target`, pak prstence kolem něj do `WORLD.sonDryRings` = 2; v prstenci
-  napřed sousedé výchozí mapy, pak blíž `target`, pak pořadí `ringCells`; výchozí mapa nikdy –
-  návrh Clauda). Vlastní sídlo na náhradním políčku se použije jako na sousedním (opakovaný
-  i souběžný odchod týmž směrem najde totéž). Žádné v dosahu → `NO_DRY_MAP_THERE` (odchod syna
-  po pohřbu i schránka správce zkusí další směr). Sídlo syna je bez výřezu a bez verze
-  `skeleton` (krajina z `cellLandscapeSeed` jako dřív). Odříznutý rod je suchý vždy.
+  `isDry(slice)` – bez řeky i stezky; `isTrailOnly(slice)` – stezka bez řeky, i křižovatka a konec
+  stezky (pramen, soutok, brod a řeka ne).
+- **Ves syna na suché mapě nebo na stezce** (Otevřené otázky 3 – Martin 8. 11. 2026: „NPC budou mít
+  normální mapy. Prémiové jen lidští hráči.“; na stezce markets.md – Rozhodnutí plánu 4, bod 11 –
+  Martin 22. 11. 2026: „ok“; `dry-cell.ts`, `new-village.ts`): `targetSettlement` (odchod hráče
+  i schránka odchodů správce) – obsazené políčko ve směru (vlastní sídlo k použití, cizí mapa), suché
+  políčko a políčko se stezkou bez řeky (`isTrailOnly`) zůstanou; volné políčko s řekou (i brod,
+  pramen a soutok, i když jimi vede stezka) nahradí nejbližší bez řeky a bez cizí mapy –
+  `sonCellNear(worldSeed, from, target, allowed, cache?)` nad `nearestCellAround`: `target`, pak
+  prstence kolem něj do `WORLD.sonDryRings` = 2; v prstenci napřed sousedé výchozí mapy, pak blíž
+  `target`, pak pořadí `ringCells`; výchozí mapa nikdy (návrh Clauda). Vlastní sídlo na náhradním
+  políčku se použije jako na sousedním (opakovaný i souběžný odchod týmž směrem najde totéž)
+  a vlastní sídlo bez vsí tak, jak je uložené – výřez a seed se mu nemění, ani když je bez výřezu
+  a kostra tudy stezku vede. Žádné v dosahu → `NO_DRY_MAP_THERE` (odchod syna po pohřbu i schránka
+  správce zkusí další směr). **Nové sídlo** (`newMap` v `new-village.ts`, jedna mezipaměť kostry na
+  odchod): suché je bez výřezu a bez verze `skeleton` (krajina z `cellLandscapeSeed` jako dřív), na
+  stezce nese výřez políčka (`skeletonSlice`), verze `cellSkeletonVersions` a seed
+  `emptyCellLandscape` – tatáž krajina i překážky, jako měla prázdná mapa, kudy šla vojska a výpravy.
+  Ves na stezce má od založení hotovou zemskou stezku do všech jejích směrů (`withSkeletonRoute`)
+  a zastávky kupců z uloženého výřezu (Zastávky stezky). Odříznutý rod je suchý vždy; sídla hráčů
+  (`placeSeat`, `seatSlot`) beze změny.
 - **Zlatý otisk celé kostry** (`golden.test.ts`, okno 32 × 32, seed 20270101): klíč výřezu
   - `seatSlot`, hodnota 2488818595; vedle otisku samotných řek (4193049158). Po ostrém spuštění
     se nesmí změnit.
@@ -335,16 +360,25 @@ body ->> 'kind' IN (PRUNED_INBOX_KINDS)` (po indexu vsi a dne) – jen použité
   bez nákladu (`kin-ask`, `smith-ask`, `order-ready`), verze vsi se nemění;
   smazaný `ref` jde zapsat znovu, proto jen druh, jehož dny se po použití nezapisují (village-trade.md
   – Okolí vsi, úklid schránky).
-- **`strandedResults()` / `dropStranded(eventIds)`:** výsledky trhu s lidmi
-  (`body ->> 'kind' = 'market-result'`, neprázdné `result.people` nebo `result.newcomers`; levný
-  filtr `ref LIKE '%:out'`) ve schránkách zaniklých vsí – `EXISTS` ves s `asleep`, nebo sídlo
-  s `archived_at` –, `ORDER BY day, seq`; `strandedResults` napřed načte id zaniklých vsí (malá
-  tabulka vsí) – bez nich schránky nečte vůbec, jinak jen jejich řádky po indexu vsi a dne (úloha
-  běží každou minutu, sken všech schránek by rostl se světem); mazání jen takových řádků (id mimo UUID se
+- **`settledMail(villageId, upToDay)` / `dropSettledMail(villageId, eventIds)`** (úklid vyřízené pošty
+  `pruneSettledMail` – village-trade.md, Pošta mezi vsemi): `SELECT id, ref, day, body ->> 'kind',
+body ->> 'from' … WHERE village_id = … AND day ≤ upToDay AND ref LIKE 'market:%' AND body ->> 'kind' IN
+(SETTLED_MAIL_KINDS) ORDER BY day, seq` – po indexu `(village_id, day)` bez migrace (4 000 starých řádků
+  vsi ≈ 3 ms, 100 ≈ 0,1 ms – změřeno 25. 11. 2026), tělo se rozbalí jen u zpráv výprav. Odesílatele určí
+  až `senderOfMail` z načteného textu a jen platné UUID (jinak null) – poškozený `ref` nebo `from` dotaz
+  neshodí. Mazání po id jen příjezdů a výsledků té vsi (id mimo UUID se přeskočí), verze vsi se nemění;
+  smazaný `ref` jde zapsat znovu, proto jen řádky, které odesílatel znovu poslat nemůže.
+- **`strandedResults()` / `dropStranded(eventIds)`:** výsledky trhu s lidmi nebo mincemi
+  (`body ->> 'kind' = 'market-result'`, neprázdné `result.people` nebo `result.newcomers`, nebo
+  `result.unsold.coins` > 0; levný filtr `ref LIKE '%:out'`; hodnota jiného typu se nepočítá –
+  `jsonb_typeof` v `CASE`, poškozený řádek tak dotaz neshodí) ve schránkách zaniklých vsí – `EXISTS`
+  ves s `asleep`, nebo sídlo s `archived_at` –, `ORDER BY day, seq`; `strandedResults` napřed načte
+  id zaniklých vsí (malá tabulka vsí) – bez nich schránky nečte vůbec, jinak jen jejich řádky po
+  indexu vsi a dne (úloha běží každou minutu, sken všech schránek by rostl se světem); mazání jen takových řádků (id mimo UUID se
   přeskočí), verze vsi se nemění. Úloha světa `returnStrandedPeople` (village-trade.md – Pošta
   mezi vsemi).
 - **Testy:** `adapters/__tests__/inbox-repository.db.test.ts` (konflikt rozběhnutého `save`,
-  idempotence `ref`, posun dne, pořadí, úklid okolí, výsledky zaniklých vsí) a třetí „proces“ posílající události do vsí v
+  idempotence `ref`, posun dne, pořadí, úklid okolí, vyřízená pošta, výsledky zaniklých vsí) a třetí „proces“ posílající události do vsí v
   `packages/server/src/__tests__/web-worker-race.db.test.ts` (každá událost ze dnů ≤ `lastDay`
   v kronice právě jednou, výsledek = dopočet jedním procesem se stejnými událostmi).
 

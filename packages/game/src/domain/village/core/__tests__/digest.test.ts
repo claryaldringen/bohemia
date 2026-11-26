@@ -3,7 +3,10 @@ import { dayIndexOf } from '../../../calendar';
 import { domainFoodReadyYear, villageFoodBalance } from '../../../vassalage/domain-food';
 import { foundVillage } from '../actions';
 import { VILLAGE_DIGEST_VERSION, isCurrentDigest, villageDigest } from '../digest';
+import { joinMarket, marketDay, marketResultRef } from '../../trade/market';
+import { departMarket } from '../../trade/market-trip';
 import { trailExitsOf } from '../../trade/trail-exits';
+import { D, homeVillage, marketVillage, report } from '../../trade/__tests__/market-fixtures';
 import type { FarmSeason, VillageState } from '../../types';
 import { withBuiltFirstDwelling } from '../../__tests__/village-fixtures';
 
@@ -96,5 +99,69 @@ describe('villageDigest – výstupy zemských stezek (plán 2026-11-16-dense-fo
     const exits = villageDigest(s).trailExits;
     expect(exits).toHaveLength(1);
     expect(exits).toEqual(trailExitsOf(s));
+  });
+});
+
+describe('villageDigest – výpravy, které ves ještě řeší (markets.md – Rozhodnutí plánu 4, bod 10)', () => {
+  it('vlastní výprava od odeslání do výsledku – i s příjezdem, který v odchozí schránce jen zůstal', () => {
+    const home = homeVillage();
+    expect(villageDigest(home).openTrips).toEqual([]);
+    const sent = departMarket(
+      home,
+      D,
+      { give: { grain: 600 }, wants: { cows: 1 }, stayDays: 1 },
+      {
+        villageId: 'm',
+        name: 'Lhota',
+        cells: 1,
+        firstStep: 'E',
+        homeVillageId: 'h',
+        homeName: 'Vlkov',
+      },
+    );
+    if (!sent.ok) throw new Error(sent.reason);
+    const { state, trip } = sent;
+    expect(trip.key).toBe('market:h:1');
+    // příjezd v odchozí schránce i výprava bez výsledku – jednou
+    expect(villageDigest(state).openTrips).toEqual([trip.key]);
+    const waiting = { ...state };
+    delete waiting.outbox;
+    expect(villageDigest(waiting).openTrips).toEqual([trip.key]);
+    // výsledek přišel, příjezd v odchozí schránce zůstal (pád mezi zápisem a smazáním)
+    const back: VillageState = { ...state, trade: { ...state.trade!, expeditions: [] } };
+    expect(villageDigest(back).openTrips).toEqual([trip.key]);
+    delete back.outbox;
+    expect(villageDigest(back).openTrips).toEqual([]);
+  });
+
+  it('cizí výprava až s výsledkem v odchozí schránce; zprávy bez nákladu a výprava pro zboží ne', () => {
+    const host = marketVillage(0);
+    joinMarket(host, D, {
+      key: 'market:h:7',
+      fromVillageId: 'h',
+      fromName: 'Vlkov',
+      stayDays: 1,
+      travelDays: 0,
+      goods: {},
+      horses: [],
+      wants: {},
+      report,
+    });
+    expect(villageDigest(host).openTrips).toEqual([]);
+    marketDay(host, D);
+    expect(host.outbox!.map((mail) => mail.ref)).toEqual([marketResultRef('market:h:7')]);
+    expect(villageDigest(host).openTrips).toEqual(['market:h:7']);
+    host.outbox = [
+      {
+        villageId: 'h',
+        day: D + 1,
+        ref: 'order:m:h:tools:1',
+        body: {
+          kind: 'order-ready',
+          ready: { villageId: 'm', name: 'Lhota', good: 'tools', amount: 5 },
+        },
+      },
+    ];
+    expect(villageDigest(host).openTrips).toEqual([]);
   });
 });

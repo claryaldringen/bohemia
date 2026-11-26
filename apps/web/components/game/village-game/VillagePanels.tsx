@@ -1,7 +1,7 @@
 'use client';
 
 import type { ReactElement, RefObject } from 'react';
-import { dateOfDayIndex, type MarketOrder } from '@bohemia/game';
+import { dateOfDayIndex, type ArmsGood, type MarketOrder } from '@bohemia/game';
 import {
   announceWarPassage,
   answerComplaintAction,
@@ -64,6 +64,7 @@ export function VillagePanels({
   noticeHistory,
   onSelectVillage,
   onSendMarket,
+  onOrderArms,
 }: {
   view: VillageView | null;
   viewRef: RefObject<VillageView | null>;
@@ -86,6 +87,8 @@ export function VillagePanels({
   onSelectVillage: (village: VillageListItem) => void;
   /** Pošle výpravu na trh; vrátí důvod odmítnutí, nebo null. */
   onSendMarket: (targetVillageId: string, order: MarketOrder) => Promise<string | null>;
+  /** Objedná zbroj u cizích kupců (počet kusů, 0 = nic); vrátí důvod odmítnutí, nebo null. */
+  onOrderArms: (good: ArmsGood, amount: number) => Promise<string | null>;
 }): ReactElement {
   const { negotiate, refresh: refreshHouse, refreshEscheats } = house;
   const { warAction } = panels;
@@ -254,11 +257,13 @@ export function VillagePanels({
       )}
       {panels.market.open && !menuShown && view?.manor && (
         <MarketPanel
+          key={view.id}
           villages={panels.market.villages}
           error={panels.market.error}
           market={view.manor.market}
           onSend={onSendMarket}
           onPeople={panels.market.askPeople}
+          onOrderArms={onOrderArms}
           onClose={panels.closeMarket}
         />
       )}

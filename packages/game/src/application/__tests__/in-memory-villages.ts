@@ -1,4 +1,9 @@
-import { villageDigest, type VillageState, type VillageYearRow } from '../../domain/village';
+import {
+  villageDigest,
+  type MerchantStop,
+  type VillageState,
+  type VillageYearRow,
+} from '../../domain/village';
 import type {
   VillageDigestRecord,
   VillageRecord,
@@ -24,6 +29,8 @@ export class InMemoryVillages implements VillageRepository {
   digestQueries = 0;
   /** Vsi bez souhrnu (uložené před ním) – `digestsOf` je vynechá. */
   readonly withoutDigest = new Set<string>();
+  /** Vsi se souhrnem uloženým před `openTrips` (25. 11. 2026) – `digestsOf` je vydá bez něj. */
+  readonly withoutOpenTrips = new Set<string>();
   /** Zavolá se před porovnáním verze – test jím simuluje souběžný zápis jiného požadavku. */
   beforeSave: ((villageId: string) => void) | null = null;
   /** Seed počasí kraje po sídlech – sídlo bez záznamu je bez počasí (null). */
@@ -78,6 +85,12 @@ export class InMemoryVillages implements VillageRepository {
     this.nearby = nearbyRefresh({ villages: this, settlements });
     return this;
   }
+
+  /**
+   * Zastávky stezek mapy (`VillageRepository.merchantStopsOf`) – test je dá jako úložiště v DB. Bez
+   * nich port chybí jako v kalibraci: dopočet je nezjišťuje (testy jádra simulují jako dřív).
+   */
+  merchantStopsOf?: (settlementId: string) => Promise<readonly MerchantStop[] | null>;
   private nextId = 1;
 
   async weatherSeedOf(settlementId: string): Promise<number | null> {
@@ -196,7 +209,9 @@ export class InMemoryVillages implements VillageRepository {
       if (!r || this.withoutDigest.has(id)) return [];
       // souhrn se v úložišti odvozuje ze stavu uložené verze – tady z téhož stavu
       const { settlementId, name, version, state } = r;
-      return [{ id, settlementId, name, version, digest: villageDigest(structuredClone(state)) }];
+      const digest = villageDigest(structuredClone(state));
+      if (this.withoutOpenTrips.has(id)) delete digest.openTrips;
+      return [{ id, settlementId, name, version, digest }];
     });
   }
 

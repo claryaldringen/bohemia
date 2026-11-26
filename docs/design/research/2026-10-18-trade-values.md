@@ -62,12 +62,13 @@ výpočet**: 25 kg, 20 km denně, cesta 15 dní tam a zpět), tedy kolem 5–10 
 
 ## 5. Železo, nástroje, keramika, uhlí, klády, kožešiny
 
-| Údaj                | Pramen                                                                                                                                              | Zdroj                                    |
-| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------- |
-| Práce na železe     | Malá pravěká pec: ≈ 25 člověkodní a ≈ 100 kg uhlí na 1 kg tyčového železa (už v crafts.md).                                                         | Crew 1991 (viz rešerše 17. 10. 2026)     |
-| Zbraně jako měřítko | Ripuárské právo: meč s pochvou 7 solidů, bez pochvy 3 (podle edice MGH – neověřeno online, viz výš).                                                | Lex Ribuaria 40, 11 (nedohledáno online) |
-| Hřivny              | Na Moravě a v Čechách 9.–10. století kolují železné „hřivny“ (sekerovité a mečovité pruty) jako platidlo (obecně známé z archeologie Velké Moravy). | –                                        |
-| Kožešiny            | Kožešiny vyváželi kupci z Čech (Ibráhím: z Prahy odvážejí mouku, cín a kožešiny – výtah z Jewish Encyclopedia).                                     | Jewish Encyclopedia – Ibrahim ibn Ya'kub |
+| Údaj                | Pramen                                                                                                                                                   | Zdroj                                                                        |
+| ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| Práce na železe     | Malá pravěká pec: ≈ 25 člověkodní a ≈ 100 kg uhlí na 1 kg tyčového železa (už v crafts.md).                                                              | Crew 1991 (viz rešerše 17. 10. 2026)                                         |
+| Zbraně jako měřítko | Ripuárské právo: meč s pochvou 7 solidů, bez pochvy 3 (podle edice MGH – neověřeno online, viz výš).                                                     | Lex Ribuaria 40, 11 (nedohledáno online)                                     |
+| Zbroj jako měřítko  | Ripuárské právo: meč bez pochvy 3 solidy, helma 6, byrnie (kroužková košile) 12; vůl 2 solidy (plán 4 obchodu, 26. 11. 2026 – ceny zbroje v markets.md). | Lex Ribuaria 40, 11; Coupland, Carolingian Arms and Armor (neověřeno online) |
+| Hřivny              | Na Moravě a v Čechách 9.–10. století kolují železné „hřivny“ (sekerovité a mečovité pruty) jako platidlo (obecně známé z archeologie Velké Moravy).      | –                                                                            |
+| Kožešiny            | Kožešiny vyváželi kupci z Čech (Ibráhím: z Prahy odvážejí mouku, cín a kožešiny – výtah z Jewish Encyclopedia).                                          | Jewish Encyclopedia – Ibrahim ibn Ya'kub                                     |
 
 - **Železo 30 kg obilí za kg** – _sedí_ řádově: 25 člověkodní práce a 100 kg uhlí na kg by při
   ceně práce ≈ 1–2 kg obilí za člověkoden (výživa) dalo 30–60 kg; obchodník z dálky má výrobu

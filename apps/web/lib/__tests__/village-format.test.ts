@@ -4,6 +4,7 @@ import {
   formatAnimals,
   formatCells,
   formatHa,
+  formatCoinPrice,
   formatInteger,
   formatLaborPerDay,
   formatManDays,
@@ -56,6 +57,25 @@ describe('čísla vsi česky', () => {
     ).toBe('19 čtverců · 0,43 ha · úrodnost 63 · 17 člověkodnů');
     expect(formatCells(1)).toBe('1 čtverec');
     expect(formatCells(3)).toBe('3 čtverce');
+  });
+});
+
+describe('cena v mincích', () => {
+  it('pod 10 dvě platné číslice, od 10 celé číslo', () => {
+    expect(formatCoinPrice(8 / 15)).toBe('0,53');
+    expect(formatCoinPrice(16 / 15)).toBe('1,1');
+    expect(formatCoinPrice(0.13)).toBe('0,13');
+    expect(formatCoinPrice(0.88)).toBe('0,88');
+    expect(formatCoinPrice(0.999)).toBe('1,0');
+    expect(formatCoinPrice(1.04)).toBe('1,0');
+    expect(formatCoinPrice(4.2)).toBe('4,2');
+    expect(formatCoinPrice(9.96)).toBe('10');
+    expect(formatCoinPrice(10.4)).toBe('10');
+    expect(formatCoinPrice(1)).toBe('1,0');
+    expect(formatCoinPrice(120)).toBe('120');
+    expect(formatCoinPrice(252.5)).toBe('253');
+    expect(formatCoinPrice(120.04)).toBe('120');
+    expect(formatCoinPrice(1200)).toBe(formatInteger(1200));
   });
 });
 

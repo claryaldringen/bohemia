@@ -1,5 +1,12 @@
-import { and, asc, eq, gt, inArray, isNotNull, lte, or, sql } from 'drizzle-orm';
-import { PRUNED_INBOX_KINDS, type VillageEvent, type VillageInbox } from '@bohemia/game';
+import { and, asc, eq, gt, inArray, isNotNull, lte, or, sql, type SQL } from 'drizzle-orm';
+import {
+  PRUNED_INBOX_KINDS,
+  SETTLED_MAIL_KINDS,
+  senderOfMail,
+  type SettledMail,
+  type VillageEvent,
+  type VillageInbox,
+} from '@bohemia/game';
 import type { Database } from '../client';
 import { settlement, village, villageInbox } from '../schema';
 
@@ -27,6 +34,22 @@ const deadVillage = sql`EXISTS (
     AND (${village.asleep} OR ${settlement.archivedAt} IS NOT NULL)
 )`;
 
+/** Výsledek trhu v těle události. */
+const resultJson = sql`${villageInbox.body}->'result'`;
+
+/**
+ * Má pole JSON aspoň jeden prvek? Chybějící nebo poškozená hodnota (není pole) = ne – bez `CASE` by
+ * jediný takový řádek shodil celý dotaz (SQL nezaručuje pořadí podmínek `AND`).
+ */
+function nonEmpty(array: SQL): SQL {
+  return sql`CASE jsonb_typeof(${array}) WHEN 'array' THEN jsonb_array_length(${array}) > 0 ELSE false END`;
+}
+
+/** Je hodnota JSON kladné číslo (i zlomkové a mimo rozsah integer)? Jiná hodnota = ne – jako `nonEmpty`. */
+function positive(value: SQL): SQL {
+  return sql`CASE jsonb_typeof(${value}) WHEN 'number' THEN (${value})::numeric > 0 ELSE false END`;
+}
+
 /** Mez dne v dotazu oříznutá do rozsahu sloupce (volající smí poslat „od počátku“ / „navždy“). */
 function dayBound(day: number): number {
   return Math.min(INT_MAX, Math.max(INT_MIN, Math.trunc(day)));
@@ -38,9 +61,10 @@ function dayBound(day: number): number {
  * dopočet té vsi narazí při uložení na konflikt verze a zopakuje se i s událostí. Stav vsi se
  * zápisem nemění, souhrn proto zůstává platný (`digest_version` jde s `version`). `pruneUsed`
  * smaže použité snímky okolí a zprávy bez nákladu (`body ->> 'kind'` v `PRUNED_INBOX_KINDS`) po
- * indexu vsi a dne, verzi nezvedá.
- * `strandedResults` / `dropStranded` čtou a mažou výsledky trhu s lidmi ve schránkách zaniklých
- * vsí (`asleep` nebo sídlo v archivu) – verzi také nezvedají.
+ * indexu vsi a dne, verzi nezvedá. `settledMail` / `dropSettledMail` čtou a mažou vyřízené příjezdy
+ * a výsledky výprav (`SETTLED_MAIL_KINDS`; čtení po indexu vsi a dne, mazání po id) – verzi také nezvedají.
+ * `strandedResults` / `dropStranded` čtou a mažou výsledky trhu s lidmi nebo mincemi ve schránkách
+ * zaniklých vsí (`asleep` nebo sídlo v archivu) – verzi také nezvedají.
  */
 export function createInboxRepository(db: Database): VillageInbox {
   return {
@@ -104,6 +128,52 @@ export function createInboxRepository(db: Database): VillageInbox {
         .returning({ id: villageInbox.id });
       return deleted.length;
     },
+    async settledMail(villageId, upToDay): Promise<SettledMail[]> {
+      // levný filtr na `ref` zpráv výprav (`market:…`) – tělo se rozbalí jen u nich
+      const rows = await db
+        .select({
+          id: villageInbox.id,
+          ref: villageInbox.ref,
+          day: villageInbox.day,
+          kind: sql<SettledMail['kind']>`${villageInbox.body}->>'kind'`,
+          from: sql<string | null>`${villageInbox.body}->>'from'`,
+        })
+        .from(villageInbox)
+        .where(
+          and(
+            eq(villageInbox.villageId, villageId),
+            lte(villageInbox.day, dayBound(upToDay)),
+            sql`${villageInbox.ref} LIKE 'market:%'`,
+            inArray(sql`${villageInbox.body}->>'kind'`, [...SETTLED_MAIL_KINDS]),
+          ),
+        )
+        .orderBy(asc(villageInbox.day), asc(villageInbox.seq));
+      // odesílatel se bere až z načteného textu – poškozený `ref` nebo `from` dotaz neshodí (null)
+      return rows.map(({ from, ...row }) => {
+        const sender = senderOfMail(
+          row.kind,
+          row.ref,
+          from !== null && UUID.test(from) ? from : null,
+        );
+        return { ...row, sender: sender !== null && UUID.test(sender) ? sender : null };
+      });
+    },
+    async dropSettledMail(villageId, eventIds): Promise<number> {
+      const ids = eventIds.filter((id) => UUID.test(id));
+      if (ids.length === 0) return 0;
+      // jen příjezdy a výsledky výprav – verze vsi se nemění (stav vsi se nemění)
+      const deleted = await db
+        .delete(villageInbox)
+        .where(
+          and(
+            eq(villageInbox.villageId, villageId),
+            inArray(villageInbox.id, ids),
+            inArray(sql`${villageInbox.body}->>'kind'`, [...SETTLED_MAIL_KINDS]),
+          ),
+        )
+        .returning({ id: villageInbox.id });
+      return deleted.length;
+    },
     async strandedResults(): Promise<VillageEvent[]> {
       // napřed zaniklé vsi (malá tabulka vsí) – bez nich se schránky nečtou vůbec, jinak jen jejich
       // řádky po indexu vsi a dne (úloha běží každou minutu, sken všech schránek by rostl se světem)
@@ -125,8 +195,12 @@ export function createInboxRepository(db: Database): VillageInbox {
             ),
             sql`${villageInbox.ref} LIKE '%:out'`,
             sql`${villageInbox.body}->>'kind' = 'market-result'`,
-            sql`(jsonb_array_length(coalesce(${villageInbox.body}->'result'->'people', '[]'::jsonb)) > 0
-              OR jsonb_array_length(coalesce(${villageInbox.body}->'result'->'newcomers', '[]'::jsonb)) > 0)`,
+            // poškozený řádek (hodnota jiného typu) nesmí zastavit vracení lidí a mincí celého světa
+            or(
+              nonEmpty(sql`${resultJson}->'people'`),
+              nonEmpty(sql`${resultJson}->'newcomers'`),
+              positive(sql`${resultJson}->'unsold'->'coins'`),
+            ),
             deadVillage,
           ),
         )

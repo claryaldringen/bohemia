@@ -93,7 +93,9 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   práce (domácnost, koně, dílny, výpravy a vozy pro kováře beze změny). Ráno každého dne
   (`advanceVillageSteps`): návraty domů (`returnHome`), vozy výprav na trh od prvního dne doma
   (`marketTripsDay` – village-trade.md, Výprava na trh), události schránky (`applyInboxDay`), hned
-  po nich **trh ve vsi** (`marketDay` – výprava, která dnes přijela, obchoduje už dnes; zápisy
+  po nich příjezd **cizích kupců** (`merchantsArrive` – jen ves se zastávkou dálkové stezky
+  a v den plánu; village-trade.md – Cizí kupci ve vsi), **trh ve vsi** (`marketDay` – výprava
+  i kupci, kteří dnes přijeli, obchodují už dnes; zápisy
   kroniky za příjezdem; village-trade.md – Trh ve vsi) a úmrtí na rány (`woundDeathsDay`). Po práci
   dne napřed hotové zakázky (`fillOrders` – před opotřebením `wearCraftStocks`; village-trade.md –
   Zakázky). Hned za rezervou osiva (`seedReserveDay`), před `work()`, vesničané na trhu
@@ -183,7 +185,9 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   Hájení chrání dospělé i před hladem a drží hlad den pod prahem skupiny (`luckyStarvationCap`,
   uložený hlad nejvýš `LUCKY_STARVATION_CAP` = 19); ochrana posledních dvou dospělých už není. Poslední úmrtí → `extinctDay`
   a `village-extinct`; `advanceVillage` vymřelou ves dál nesimuluje (posune jen `lastDay`),
-  doménové akce ji odmítnou. **Konec hry** (`extinction.ts`: `isGameOver` – hráč má vsi a žádná
+  doménové akce ji odmítnou. Den konce vsi (`extinctDay`, `abandonedDay`) zapisuje jen `endVillage`
+  (`extinction.ts`) – cizí kupci z jejího trhu přitom odjedou (village-trade.md – Cizí kupci ve vsi).
+  **Konec hry** (`extinction.ts`: `isGameOver` – hráč má vsi a žádná
   nežije, obecně pro víc vsí): use-case `dynastyStatus` (vsi aktivních sídel dopočítané do
   dneška) a `restartGame` (archivuje aktivní sídla přes `SettlementRepository.archive`, pak
   `enterGame` založí nové sídelní sídlo s novým seedem; se živou vsí `DYNASTY_ALIVE`,
@@ -428,7 +432,9 @@ seq, body }`, `NewVillageEvent` (bez `id` a `seq`, s jedinečným `ref` – idem
     `joinMarket`) a `{ kind: 'market-result'; result }` (výsledek trhu pro domovskou ves výpravy –
     `applyMarketResult`). Posílá je odchozí schránka vsi (`VillageState.outbox`,
     `VillageMail` – stejný tvar jako `NewVillageEvent`), `ref` příjezdu `marketArrivalRef`,
-    výsledku `marketResultRef`.
+    výsledku `marketResultRef`. Příjezd i výsledek mají ve schránce `from` – ves, která zprávu vydala
+    (doplní ho pošta při zápisu, v `outbox` není; starší řádky ho nemají) – pro úklid vyřízené pošty
+    (`pruneSettledMail`, village-trade.md – Pošta mezi vsemi).
   - **Odchozí schránka** (`application/village-mail.ts`; markets.md – Rozhodnutí plánu 2, bod 6):
     ves sama do cizí vsi nepíše – zprávy pro jiné vsi nechá v `outbox` a `deliverVillageMail(deps,
 villageId)` je zapíše do schránek cílových vsí (`inbox.post`, druhý zápis téhož `ref` se
@@ -437,11 +443,11 @@ villageId)` je zapíše do schránek cílových vsí (`inbox.post`, druhý zápi
     jeden levný dotaz `stampsOfVillages`: příjezd do zmizelé vsi se změní ve výsledek `returned`
     se vším do vlastní schránky na den plánovaného návratu (den příjezdu + pobyt + cesta – lidé
     jsou doma v plánovaný den, návrh Clauda), výsledek pro zmizelou domovskou ves se zahodí – jen
-    s lidmi jdou lidé zpět k hostiteli (`stranded-people` – `receiveStranded`; domov zaniklý až
+    lidé a mince z něj jdou zpět k hostiteli (`stranded-people` – `receiveStranded`; domov zaniklý až
     s výsledkem ve schránce – úloha světa `returnStrandedPeople`), dotazy plánu 3 do zaniklé
     vsi se zahodí (village-trade.md – Pošta mezi vsemi, Zaniklé vsi a zprávy plánu 3).
-    `hasVillageMail(state)` – neprázdný `outbox` nebo výprava na trh po termínu bez výsledku; jen
-    s ní se doručuje po dopočtu (`advancePlayer`, `dynastyForVillage`, `advanceDynasty` – za
+    `hasVillageMail(state)` – neprázdný `outbox` (i spící vsi) nebo výprava živé vsi na trh po termínu
+    bez výsledku; jen s ní se doručuje po dopočtu (`advancePlayer`, `dynastyForVillage`, `advanceDynasty` – za
     odchody správce), takže ves bez pošty nestojí ani dotaz navíc. `deliverVillageMailSafely`
     chybu zapíše do logu a vrátí 0 – dopočet nezastaví, zprávy zůstanou v `outbox` a doručí je
     příští volání (idempotentně podle `ref`). Výprava po termínu a zaniklý hostitel:
@@ -463,10 +469,15 @@ villageId)` je zapíše do schránek cílových vsí (`inbox.post`, druhý zápi
     `pending(villageId, afterDay, toDay)` – události `afterDay < day ≤ toDay` podle dne a `seq`;
     `pruneUsed(villageId, upToDay)` – smaže použité události druhů `PRUNED_INBOX_KINDS` (snímky
     okolí `nearby` a zprávy bez nákladu `kin-ask`, `smith-ask`, `order-ready`) do dne včetně, verzi
-    nemění (úklid schránky – ostatní řádky živých vsí drží `ref` proti dvojímu zápisu;
-    village-trade.md – Okolí vsi); `strandedResults()` – výsledky trhu s lidmi ve schránkách
-    zaniklých vsí (spí, sídlo v archivu), `dropStranded(eventIds)` – smaže vyřízené z nich, verzi
-    nemění (úloha světa `returnStrandedPeople`, village-trade.md – Pošta mezi vsemi). Schránka je člen úložiště vsí (`VillageRepository.inbox`), takže ji má každý dopočet přes `updateVillage`
+    nemění (úklid schránky; village-trade.md – Okolí vsi); `settledMail(villageId, upToDay)` – použité
+    příjezdy a výsledky výprav (`SETTLED_MAIL_KINDS`) do dne včetně jako lehké řádky bez těl
+    (`SettledMail` – `id`, `ref`, den, druh a odesílatel `senderOfMail`: `from`, u staršího příjezdu
+    domovská ves z `ref`, jinak null) a `dropSettledMail(villageId, eventIds)` – smaže z nich jen
+    příjezdy a výsledky té vsi, verzi nemění (úklid vyřízené pošty `pruneSettledMail`); ostatní řádky
+    živých vsí drží `ref` proti dvojímu zápisu a nemažou se, `stranded-people` nikdy;
+    `strandedResults()` – výsledky trhu s lidmi nebo mincemi ve
+    schránkách zaniklých vsí (spí, sídlo v archivu), `dropStranded(eventIds)` – smaže vyřízené z nich,
+    verzi nemění (úloha světa `returnStrandedPeople`, village-trade.md – Pošta mezi vsemi). Schránka je člen úložiště vsí (`VillageRepository.inbox`), takže ji má každý dopočet přes `updateVillage`
     (`loadVillage`, `advancePlayer`, `dynastyStatus`, všechny akce hráče) bez zvláštní
     závislosti. `EMPTY_INBOX` – prázdná (kalibrace). Adaptér Postgresu `createInboxRepository` (tabulka
     `village_inbox`, transakce `post`) je popsaný ve `world.md` – Schránka vsi.
@@ -1040,8 +1051,9 @@ seřazeným seznamem** `VILLAGE_MIGRATIONS` (`domain/village/core/migrations.ts`
 loadOnly?, run(state, ctx) }`), který prochází `migrateVillage(state, ctx)`:
 
 - **Načtení vsi** (`updateVillage`) volá seznam jednou před dopočtem s `ctx.load` (den, do kterého se
-  ves dopočítá – `heldDay`, seed počasí mapy z úložiště, krajina a vrstva překážek sídla) – projde
-  všechny převody. Selhání převodu (`sowingRotationFailed`, `wildlifeFailed`, `horsePenStockFailed`,
+  ves dopočítá – `heldDay`, seed počasí a zastávky stezek mapy z úložiště – na zastávky se ptá jen ves,
+  která je ještě nemá, jednou za volání –, krajina a vrstva překážek sídla) – projde všechny převody.
+  Selhání převodu (`sowingRotationFailed`, `wildlifeFailed`, `horsePenStockFailed`,
   `forestClearingFailed`) zapíše do logu (seznam `failures` v `updateVillage`).
 - **Dopočet** (`advanceVillageSteps`, tedy i `advanceVillage`, `foundedVillageState`, spící ves
   v `asleepStay`) volá seznam jednou po `arrive` (ves na cestě se v den příjezdu založí) a před
@@ -1055,13 +1067,13 @@ loadOnly?, run(state, ctx) }`), který prochází `migrateVillage(state, ctx)`:
   `wildlife` před `armsCapped`, nová ves obráceně – nová ves proto má `armsCapped` od založení
   (`foundVillage` volá `withArmsCaps`; dovednosti osadníků nad strop se srazí jako dřív při prvním
   dopočtu) a ze seznamu dostane jen zvěř.
-- **`loadOnly`** – převod potřebuje kontext načtení (`weather-seed` seed počasí z úložiště,
-  `pen-grace` den načtení – dopočet sám den nemění), nebo by jednal na stavech, které načtením nikdy
-  neprošly: zlatý svět (`foundVillage` bez pozemků, variant domů, vzdálenosti k lesu a pastvy)
-  a cesty vzniklé během dopočtu (bez `swathChecked` a `liningPlanned`) by `plots`,
-  `dwelling-shapes`, `forest-distances`, `livestock-land`, `road-swaths` a `planned-lining` změnily
-  – zlaté otisky i unit testy by se pohnuly. Ostatní převody z řetězu načtení zůstaly `loadOnly`
-  jako dřív.
+- **`loadOnly`** – převod potřebuje kontext načtení (`weather-seed` seed počasí a `merchant-stops`
+  zastávky stezek z úložiště, `pen-grace` den načtení – dopočet sám den nemění), nebo by jednal na
+  stavech, které načtením nikdy neprošly: zlatý svět (`foundVillage` bez pozemků, variant domů,
+  vzdálenosti k lesu a pastvy) a cesty vzniklé během dopočtu (bez `swathChecked` a `liningPlanned`)
+  by `plots`, `dwelling-shapes`, `forest-distances`, `livestock-land`, `road-swaths`
+  a `planned-lining` změnily – zlaté otisky i unit testy by se pohnuly. Ostatní převody z řetězu
+  načtení zůstaly `loadOnly` jako dřív.
 - **Převody po dopočtu** jsou mimo seznam, v `updateVillage` za dopočtem: `withRoutes` (trasy
   z dopočítaného stavu – i opakovaně, když se změní rozložení), `withRoadsV2`, `withRoadsRebuiltSteps`
   a `withRoadsRepairedSteps` (s přestávkami `pause`; kotvy jsou z tras po dopočtu – před dopočtem by
@@ -1075,8 +1087,11 @@ loadOnly?, run(state, ctx) }`), který prochází `migrateVillage(state, ctx)`:
 - **Nová ves** dostane části, které dřív zakládaly převody, už při založení – `foundVillage`
   (`dynasty`, `steward`, `sowingRotation`, `sheaves`, `grainPits`, `manorId`, `armsCapped`)
   a `foundedState` (`withWeatherSeed`, `withPlots`, `withDwellingShapes`, `withLivestockLand`) –
-  převody pak mění jen starší vsi. Výjimka: zvěř (`wildlife`) zakládá seznam – `foundVillage` nemá
-  krajinu (zlatý svět, osadníci přes `stewardArrival`).
+  převody pak mění jen starší vsi. Výjimky: zvěř (`wildlife`) zakládá seznam – `foundVillage` nemá
+  krajinu (zlatý svět, osadníci přes `stewardArrival`) – a zastávky kupců (`merchant-stops`) dostane
+  i nová ves až prvním načtením; ves na cestě si je přenese do založené vsi (`stewardArrival`,
+  `settleJourney`), jinak by je příjezd uvnitř dopočtu zahodil a další dny téhož dopočtu by kupci
+  nechodili.
 
 **Nový převod** (pravidlo od 11. 11. 2026): přidej položku **na konec** `VILLAGE_MIGRATIONS` –
 `id` (jedinečné), `since` (den zavedení `RRRR-MM-DD`), `run` jednorázový a idempotentní (ves, které
@@ -1144,6 +1159,7 @@ založení (`foundVillage` / `foundedState`), převod ji doplní jen starším v
 | `smoked-meat-stocks` – `smokedMeatStocks`             | uzené 1. 11.–31. 8. do zásoby z porážky 1. 11. (D98)         | ano (vždy číslo)   | –                        | ne (`foundVillage` – 0)      | oba     |
 | `fictional-neighbours` – `withoutFictionalNeighbours` | smaže zbytky roku smyšlených sousedů, výpravy na cestě nechá | ano (při každém)   | –                        | ne                           | oba     |
 | `plough-rate` – `setPloughRate`                       | sazba orby letošního plánu (25. 11. 2026, oxen.md)           | ano (`perHa`)      | –                        | ne (`createCropWork`)        | oba     |
+| `merchant-stops` – `withMerchantStops`                | zastávky dálkových stezek mapy, i prázdné (markets.md)       | ano                | zastávky z úložiště      | **ano**                      | načtení |
 
 „Zakládá novou ves“ = jedná na právě založené vsi; v závorce, kde tu část nová ves dostane při
 založení. „Při každém“ = bez příznaku, hlídá podmínku při každém průchodu (levné).

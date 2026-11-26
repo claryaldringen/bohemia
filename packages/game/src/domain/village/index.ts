@@ -387,8 +387,9 @@ export * from './trade/trail';
 export { TRAIL_END_BAND_M, trailExitsOf, type TrailExit } from './trade/trail-exits';
 export { landscapeTrailLines } from './trade/premium-route';
 export * from './trade/goods';
-// trh – ceny v mincovní míře a zápočet tržního dne (markets.md – Rozhodnutí plánu 2, body 3 a 4)
-export { initialPrice, nextPrices, priceOf } from './trade/market-prices';
+// trh – ceny v mincovní míře a zápočet tržního dne (markets.md – Rozhodnutí plánu 2, body 3 a 4),
+// cena v mincích s hladinou trhu (Rozhodnutí plánu 4, bod 3)
+export { coinPriceOf, initialPrice, nextPrices, priceOf } from './trade/market-prices';
 export { clearMarket, partyTotals } from './trade/market-clearing';
 export { marketStance } from './trade/market-stance';
 export { roughCount, villageReport } from './trade/village-report';
@@ -426,6 +427,11 @@ export {
   type MarketPlan,
   type MarketTripCheck,
 } from './trade/market-trip';
+// cizí kupci na stezkách (markets.md – Rozhodnutí plánu 4, bod 5) – plán příjezdů na zastávky vsi
+export { merchantVisits, nextMerchantVisit, type MerchantVisit } from './trade/merchant-plan';
+// objednávka zbroje u kupců ve vlastní vsi (markets.md – Rozhodnutí plánu 4, bod 15) – zadá ji hráč,
+// koupí ji trh v den kupců
+export { ARMS_BAD_ORDER, ARMS_NO_MERCHANTS, setArmsOrder } from './trade/arms-order';
 // okolí vsi (markets.md – Rozhodnutí plánu 3, bod 1) – snímek vsí na sousedních mapách ze schránky
 export { applyNearby, nearbyTarget, nearestNearby, nearestWith } from './trade/nearby';
 // zakázky u řemeslníka a obilí za výrobky (markets.md – Rozhodnutí plánu 3, body 5 a 6) – kroky

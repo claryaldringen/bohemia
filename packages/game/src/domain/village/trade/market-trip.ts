@@ -9,7 +9,9 @@
 // i náhled ve webu. Vozy na trhu (Rozhodnutí plánu 3, bod 4): prodaný vůz nejede jako dopravní,
 // koupený táhnou domů voli, kteří jdou s výpravou (`MarketTrip.oxen`). Lidé na trhu (bod 10) odejdou
 // ze vsi jako tytéž osoby (`takePeople`), nosiči nejsou a s výsledkem se vrátí neprodaní
-// (`restorePeople`) a přijdou koupení (`settlePeople`).
+// (`restorePeople`) a přijdou koupení (`settlePeople`). Mince výpravy (Rozhodnutí plánu 4, bod 4) jsou
+// jen ty v nákladu: při odjezdu ubydou vsi, na trhu se platí z nich a co neutratí, vrátí se domů
+// v `unsold` – ze zásoby vsi se za výpravu podruhé neplatí.
 import { TOTAL_GAME_DAYS } from '../../calendar';
 import { cloneState } from '../core/clone';
 import { cartOxen, cartsWithOxen, tradeHomeCarts } from '../crafts/carts';
@@ -37,6 +39,7 @@ import type {
 } from '../types';
 import {
   CART_GOODS,
+  COIN_GOOD,
   HORSE_GOODS,
   PEOPLE_GOODS,
   TRADE_GOODS,
@@ -46,6 +49,7 @@ import {
   isHorseGood,
   isPeopleGood,
   isPieceGood,
+  withoutCoins,
 } from './goods';
 import { reservedSeedKg } from '../fields/seed';
 import { rememberOrders } from './craft-orders';
@@ -162,6 +166,27 @@ export function oxenForCarts(wants: TradeGoods): number {
 }
 
 /**
+ * Vozy, které jedou s výpravou (jeden zdroj pravdy pro kontrolu výpravy i náhled správce): vozy
+ * doma bez prodaných (`withoutSoldCarts`), ke spřežení jen voli, kteří zbydou po prodaných volech
+ * a po volech pro koupené vozy (`oxenForCarts`). Stav nemění.
+ */
+export function tripCarts(
+  homeCarts: readonly CartKind[],
+  oxenHome: number,
+  give: TradeGoods,
+  wants: TradeGoods,
+): CartKind[] {
+  const oxen = oxenHome - (give.trainedOxen ?? 0) - oxenForCarts(wants);
+  return cartsWithOxen(
+    withoutSoldCarts(
+      homeCarts.map((kind) => ({ kind })),
+      give,
+    ),
+    oxen,
+  ).map((cart) => cart.kind);
+}
+
+/**
  * Vozy doma bez vozů, které výprava prodá (`give`): z každého druhu posledních `give[g]` – v pořadí
  * `tradeHomeCarts` (druh, pak id) nejmladší volné, tytéž, které při odjezdu prodá `addGood` →
  * `removeIdleCart`. Prodaný vůz odjede bez spřežení jako prodaní voli a dopravní není.
@@ -191,6 +216,15 @@ function goodsShapeOk(goods: TradeGoods): boolean {
     if (isPieceGood(good as keyof TradeGoods) && !Number.isInteger(amount)) return false;
   }
   return true;
+}
+
+/**
+ * Objednávka má správný tvar: zboží obou seznamů (`goodsShapeOk`) a mince jen v „Dáš“ – na seznam
+ * „Dostaneš“ se nedávají, prodávající je bere za cokoli, co nabízí (markets.md – Rozhodnutí plánu 4,
+ * bod 1).
+ */
+function orderShapeOk({ give, wants }: MarketOrder): boolean {
+  return goodsShapeOk(give) && goodsShapeOk(wants) && !((wants[COIN_GOOD] ?? 0) > 0);
 }
 
 /** Vstup kontroly bez stavu vsi – server ho skládá ze stavu, web z pohledu dvorce (Úloha 7). */
@@ -242,16 +276,16 @@ export type MarketCheck =
  * jako dopravní (`withoutSoldCarts`); napřed se rezervují voli pro koupené vozy (`oxenForCarts`,
  * nestačí-li voli po prodeji, `MARKET_NO_OXEN`; Rozhodnutí plánu 3, bod 4) a dopravní vozy jedou jen
  * s ostatními voly (`cartsWithOxen`); nosiči nejvýš volní dospělí; tvar objednávky (konečná
- * nezáporná čísla, kusy celé) napřed; návrat před koncem světa. Prázdné `give` i `wants` jsou
- * dovolené (výprava „na pivo“). Kovář, který jde sám (`alone`), nebere nosiče ani vozy a volné
- * dospělé se nekontroluje (Rozhodnutí plánu 3, bod 9). Data: výprava vyrazí ráno dne po odeslání
- * (`departDay`), na trh přijde po dnech cesty (`arriveDay`), tržní dny `arriveDay` … `arriveDay`
- * + pobyt − 1, `returnDay` je první den doma.
+ * nezáporná čísla, kusy celé, mince ne v seznamu – `orderShapeOk`) napřed; návrat před koncem světa.
+ * Prázdné `give` i `wants` jsou dovolené (výprava „na pivo“). Mince v `give` (Rozhodnutí plánu 4,
+ * bod 4) jdou týmiž kontrolami – celé kusy, nejvýš zásoba – a nic neváží; nákup za ně drží nosnost
+ * cesty domů, protože nosiče určuje celý seznam `wants` (`marketCrew`) a koupit jde nejvýš on. Kovář,
+ * který jde sám (`alone`), nebere nosiče ani vozy a volné dospělé se nekontroluje (Rozhodnutí
+ * plánu 3, bod 9). Data: výprava vyrazí ráno dne po odeslání (`departDay`), na trh přijde po dnech
+ * cesty (`arriveDay`), tržní dny `arriveDay` … `arriveDay` + pobyt − 1, `returnDay` je první den doma.
  */
 export function checkMarketTrip(order: MarketOrder, input: MarketTripCheck): MarketCheck {
-  if (!goodsShapeOk(order.give) || !goodsShapeOk(order.wants)) {
-    return { ok: false, reason: MARKET_BAD_ORDER };
-  }
+  if (!orderShapeOk(order)) return { ok: false, reason: MARKET_BAD_ORDER };
   if (!Number.isInteger(order.stayDays) || order.stayDays < MARKET.minStayDays) {
     return { ok: false, reason: MARKET_STAY };
   }
@@ -272,13 +306,7 @@ export function checkMarketTrip(order: MarketOrder, input: MarketTripCheck): Mar
     : marketCrew(
         order.give,
         order.wants,
-        cartsWithOxen(
-          withoutSoldCarts(
-            input.homeCarts.map((kind) => ({ kind })),
-            order.give,
-          ),
-          oxen - reserved,
-        ).map((cart) => cart.kind),
+        tripCarts(input.homeCarts, input.oxenHome, order.give, order.wants),
       );
   if (!input.alone && crew.porters > input.adults) return { ok: false, reason: MARKET_NO_PEOPLE };
   const travelDays = marketTravelDays(input.cells);
@@ -560,6 +588,7 @@ function departPlanned(
         firstStep: target.firstStep,
         ...(service ? { service: { ...service } } : {}),
         ...(kin ? { kin: { ...kin } } : {}),
+        ...(by ? { by } : {}),
       },
     },
   });
@@ -597,11 +626,13 @@ export function marketTripsDay(state: VillageState, day: number): void {
  * koupený má stáří prodejce; neprodaní vlastní lidé s původními id `restorePeople`, koupení
  * s novými `settlePeople` – přišli od hostitele ve směru cesty výpravy, Rozhodnutí plánu 3, bod 10)
  * – i když záznam výpravy chybí, nic nesmí zmizet (lidé se pak usadí bez směru). Výprava s klíčem
- * výsledku se smaže; je-li výprava a zpráva na pivo, ves si ji zapamatuje i s cenami trhu
- * (`rememberNews`), a s výpravou i své zakázky u hostitele (`rememberOrders` – Rozhodnutí plánu 3,
- * bod 6).
+ * výsledku se smaže; je-li výprava a zpráva na pivo, ves si ji zapamatuje i s cenami a hladinou trhu
+ * (`rememberNews`; Rozhodnutí plánu 4, bod 3), a s výpravou i své zakázky u hostitele
+ * (`rememberOrders` – Rozhodnutí plánu 3, bod 6).
  * Vrací zápis kroniky `market-returned` s hostitelem (`villageId`) a tím, kdo výpravu poslal (`by`);
- * bez záznamu výpravy s prázdným jménem vsi a bez obojího; za ním `newcomer` koupených lidí.
+ * bez záznamu výpravy s prázdným jménem vsi a bez obojího; za ním `newcomer` koupených lidí. Mince
+ * (Rozhodnutí plánu 4, bod 9): ves dostane měšec výpravy (`unsold.coins`), v kronice jsou zaplacené
+ * v `sold.coins` a přijaté v `bought.coins`, vrácené mezi neprodaným zbožím nejsou.
  */
 export function applyMarketResult(
   state: VillageState,
@@ -661,6 +692,7 @@ export function applyMarketResult(
       name: trip.name,
       report: result.report,
       ...(result.prices ? { prices: result.prices } : {}),
+      ...(result.level !== undefined ? { level: result.level } : {}),
     });
   }
   return [
@@ -668,9 +700,9 @@ export function applyMarketResult(
       day,
       kind: 'market-returned',
       villageName: trip?.name ?? '',
-      sold: positiveGoods(result.sold),
-      bought: positiveGoods(result.bought),
-      unsold: positiveGoods(result.unsold),
+      sold: positiveGoods({ ...result.sold, [COIN_GOOD]: result.coinsPaid }),
+      bought: positiveGoods({ ...result.bought, [COIN_GOOD]: result.coinsGot }),
+      unsold: withoutCoins(result.unsold),
       ...(result.returned ? { returned: true as const } : {}),
       ...(expedition?.by ? { by: expedition.by } : {}),
       ...(trip ? { villageId: trip.villageId } : {}),

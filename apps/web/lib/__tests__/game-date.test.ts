@@ -12,6 +12,7 @@ import {
   clockHandAngle,
   dayPartLabel,
   dateRefreshDelay,
+  formatDayMonth,
   formatGameDuration,
   formatWorldState,
   nextDateChangeMs,
@@ -24,6 +25,13 @@ const date = (overrides: Partial<GameDate>): GameDate => ({
   dayOfYear: 290,
   season: 'autumn',
   ...overrides,
+});
+
+describe('formatDayMonth', () => {
+  it('den a měsíc číslem, bez roku', () => {
+    expect(formatDayMonth({ day: 12, month: 8 })).toBe('12. 8.');
+    expect(formatDayMonth(date({}))).toBe('16. 10.');
+  });
 });
 
 describe('formatWorldState', () => {

@@ -2,6 +2,8 @@ import { and, asc, eq, inArray, sql, type SQL } from 'drizzle-orm';
 import {
   isCurrentDigest,
   nearbyRefresh,
+  settlementMerchantStops,
+  type MerchantStop,
   type VillageDigestRecord,
   type VillageRecord,
   type VillageRepository,
@@ -139,9 +141,11 @@ function toStamp(row: Omit<VillageStamp, 'lastDay'> & { lastDay: number | null }
 
 /**
  * Drizzle adaptér portu VillageRepository – optimistické zamykání přes sloupec version. Sídlo
- * může mít víc vsí; první ves sídla zakládá `create` atomicky (zámek řádku sídla).
+ * může mít víc vsí; první ves sídla zakládá `create` atomicky (zámek řádku sídla). Ze seedu světa
+ * `worldSeed` jsou zastávky stezek (`merchantStopsOf`) – povinný na všech místech, kde se úložiště
+ * zakládá.
  */
-export function createVillageRepository(db: Database): VillageRepository {
+export function createVillageRepository(db: Database, worldSeed: number): VillageRepository {
   // Hledání podle klíče založení jde přes unikátní index `village_origin_uq` (sloupec `origin`).
   const byOrigin = async (origin: string): Promise<VillageRecord | null> => {
     const [row] = await db
@@ -165,6 +169,7 @@ export function createVillageRepository(db: Database): VillageRepository {
       villages: {
         inbox,
         stampsOf: (ids) => repository.stampsOf(ids),
+        stampsOfVillages: (ids) => repository.stampsOfVillages(ids),
         digestsOf: (ids) => repository.digestsOf(ids),
       },
       settlements: createSettlementRepository(db),
@@ -185,6 +190,18 @@ export function createVillageRepository(db: Database): VillageRepository {
         .where(eq(settlement.id, settlementId))
         .limit(1);
       return row?.weatherSeed ?? null;
+    },
+
+    async merchantStopsOf(settlementId): Promise<readonly MerchantStop[] | null> {
+      if (!UUID.test(settlementId)) return null;
+      const [row] = await db
+        .select({ x: settlement.gridX, y: settlement.gridY, skeleton: settlement.skeleton })
+        .from(settlement)
+        .where(eq(settlement.id, settlementId))
+        .limit(1);
+      if (!row) return null;
+      const cell = row.x === null || row.y === null ? null : { x: row.x, y: row.y };
+      return settlementMerchantStops(worldSeed, cell, row.skeleton);
     },
 
     async listBySettlement(settlementId): Promise<VillageRecord[]> {

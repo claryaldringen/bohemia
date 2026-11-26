@@ -6,7 +6,7 @@
 //
 // Algoritmus (návrh Clauda – testy ho neurčují):
 // 1. strop V každé strany = min(hodnota celé nabídky, hodnota celého seznamu) v cenách dne;
-// 2. kolo: strana smí prodat nejvýš za V a nakoupit nejvýš za V (rozpočet); kupci v pořadí stran,
+// 2. kolo: strana smí prodat nejvýš za V a nakoupit nejvýš za V (rozpočet); kupující v pořadí stran,
 //    u každého zboží svého seznamu v pořadí `TRADE_GOODS` koupí min(zbývá na seznamu, co ostatní
 //    strany téhož kruhu ještě smějí prodat, zbývá rozpočtu ÷ cena) – od prodávajících v pořadí
 //    stran (napřed hostitel, pak výpravy podle příjezdu – Martin);
@@ -18,7 +18,7 @@
 // Proti zadání plánu tři změny (změřeno na náhodných trzích – víc trhů obchoduje, víc zboží se
 // vymění, méně kol): strop omezuje, za kolik strana prodá, ne které zboží – nabídka oříznutá na V
 // předem v pořadí `TRADE_GOODS` by nechala obilí hostitele vytlačit z trhu jeho klády a dobytek,
-// o které kupci stojí; a kupující koupí jen od strany ze svého kruhu (`tradeCircles`) – prodej, za
+// o které kupující stojí; a kupující koupí jen od strany ze svého kruhu (`tradeCircles`) – prodej, za
 // který se hodnota nemůže vrátit, by prodávajícího nechal nevyrovnaného a stropy by klesaly kolo
 // po kole o kousek; a krok 5 vyřadí z nevyrovnaných poslední v pořadí stran.
 import type { MarketClearing, MarketParty, MarketPrices, MarketTrade, TradeGoods } from '../types';

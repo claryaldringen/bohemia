@@ -8,6 +8,7 @@ import {
   TRADE,
   ageYears,
   isCattleGood,
+  COIN_GOOD,
   isLivestockGood,
   isPeopleGood,
   ironTripLine,
@@ -40,12 +41,12 @@ function leavingOf(e: TradeExpedition, day: number): SceneExpedition['leaving'] 
 }
 
 /**
- * Nesou nosiči něco – zboží mimo dobytek a koně (ti jdou po svých s honákem) a lidi (jdou po svých –
- * markets.md, Rozhodnutí plánu 3, bod 10).
+ * Nesou nosiči něco – zboží mimo dobytek a koně (ti jdou po svých s honákem), lidi (jdou po svých –
+ * markets.md, Rozhodnutí plánu 3, bod 10) a mince (nic neváží – Rozhodnutí plánu 4, bod 1).
  */
 function carries(goods: TradeGoods): boolean {
   return Object.entries(goods).some(
-    ([g, n]) => !isLivestockGood(g) && !isPeopleGood(g) && (n ?? 0) > 0,
+    ([g, n]) => !isLivestockGood(g) && !isPeopleGood(g) && g !== COIN_GOOD && (n ?? 0) > 0,
   );
 }
 

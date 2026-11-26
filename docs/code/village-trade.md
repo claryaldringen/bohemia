@@ -52,8 +52,9 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   konce úseku v pásu kraje mapy ve směru nejblíž paprsku (±`TRAIL.wideConeDeg`), stupeň z cesty,
   práce 0. Bez spojení zmizelá id jen vypadnou (`dropGoneTrailPieces`). Vlkov: stezka na sever
   412 → 619 → 370 → 372 → 631 → 547; jih a východ spojení nemají (mezera u kraje, opuštěný kus).
-- **Stezka kostry – každá mapa lidského hráče** (premium-landscapes.md – Kostra světa; brod,
-  průsmyk, Úloha 14 plánu kostry): `withSkeletonRoute` (`premium-route.ts`, volá ho `foundedState`) – osa prvku `route` od místa
+- **Stezka kostry – každá mapa se stezkou: sídlo hráče, jeho nová ves i ves syna** (premium-landscapes.md
+  – Kostra světa; brod, průsmyk, Úloha 14 plánu kostry; vsi synů a nové vsi hráče markets.md –
+  Rozhodnutí plánu 4, bod 11): `withSkeletonRoute` (`premium-route.ts`, volá ho `foundedState`) – osa prvku `route` od místa
   nejblíž vsi k oběma krajům mapy jako pevné cesty (`addTrailRoads`), stupeň hotové stezky
   (`upgradePieces` – upravená, hať a lávka, i přes brod), průsek lesem bez klád (`cutRoadSwath`)
   a hotová stezka (`Trail.builtDay` = den založení) ve směru každého konce (`DIRECTION_VECTORS`
@@ -61,8 +62,8 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   vyšlapané (vyšlapaná bez provozu zaroste a „hotová zemská stezka“ je upravená).
   Zdroj větví: prvek `route` prémiové krajiny (brod, průsmyk), jinak úseky `skeletonFeaturesOf(l).route`
   mapy se stezkou kostry (od okraje k bodu obejití vsi, obrácené od vsi ven; směr = strana mapy,
-  kde úsek končí: průchod 2 směry, křižovatka 3, konec stezky 1). Suchá mapa a ves syna (NPC mapa
-  bez kostry, Martin 8. 11. 2026) stezku nemají – stav je bit po bitu dnešní.
+  kde úsek končí: průchod 2 směry, křižovatka 3–4, konec stezky 1). Stezku nemá jen ves na
+  mapě, kterou žádná nevede (suchá mapa) – její stav je bit po bitu jako bez kostry.
 - **Pokračování na sousední mapě** (trade.md – Zemská stezka; Martin 16. 11. 2026: „ano“; plán
   2026-11-16-dense-forest – Rozhodnutí 13, podrobnosti návrh Clauda): hotová stezka nekončí na
   kraji mapy. Nic se neukládá – stav vsi ani DB se nemění.
@@ -162,7 +163,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   výchozí): `initialPrice` = hodnota v kg obilí (`TRADE_GOOD_VALUES`) ÷ `MARKET.grainKgPerCoin`
   (15 kg obilí za minci – kráva 40 mincí), `priceOf` zapamatovaná nebo výchozí; `nextPrices` ze
   součtů nabídek S a seznamů D tržního dne P × (1 + `MARKET.priceStep` × (D − S) / (D + S)) – za
-  den nejvýš ±10 %, **dno = `initialPrice`** (Martin 23. 11. 2026 – nikdo neprodá pod výchozí hodnotou, nahoru volně; uložená cena pod dnem se při dalším tržním dni zvedne na dno; výchozí cena nezávisí na počasí kraje, takže žádné zdražení; zápočet se nemění), zboží bez nabídky i poptávky beze změny (nový objekt). **Zápočet**
+  den nejvýš ±10 %, **dno = `initialPrice`** (Martin 23. 11. 2026 – nikdo neprodá pod výchozí hodnotou, nahoru volně; uložená cena pod dnem se při dalším tržním dni zvedne na dno; výchozí cena nezávisí na počasí kraje, takže žádné zdražení; zápočet se nemění), nahoře jen technická mez 1e9 × výchozí (`MAX_PRICE_RATIO` – bez ní by cena po tisících tržních dnů přerostla do `Infinity`, v JSON `null`, a dopočet po kouscích by se rozešel), zboží bez nabídky i poptávky beze změny (nový objekt). **Zápočet**
   `clearMarket(parties, prices)`: strany `MarketParty` (`key`, nabídka `offer`, seznam `wants`)
   v pořadí hostitel, pak výpravy podle příjezdu; každá prodá přesně za tolik, za kolik koupí, kus
   jen celý (`PIECE_GOODS` / `isPieceGood` v `goods.ts` – dobytek, koně, klády, vozy, kámen, kůže,
@@ -178,6 +179,29 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   Clauda): strop omezuje, za kolik strana prodá, ne které zboží (nabídka oříznutá předem v pořadí
   `TRADE_GOODS` – obilí hostitele by vytlačilo jeho klády a dobytek), kruhy, a krok 5 vyřadí
   z nevyrovnaných poslední v pořadí stran.
+  - **Cena v mincích a hladina** (Rozhodnutí plánu 4, bod 3): za mince se platí `coinPriceOf` =
+    `priceOf` × hladina trhu `VillageMarket.level` (kolik mincí proti zboží na trhu je; chybí = 1,
+    nikdy pod 1). Po mincovní fázi ji posune `nextLevel(level, C, W)` = level ×
+    (1 + `MARKET.priceStep` × (C − W) / (C + W)), nejméně 1; W = 0 (na trhu není nic z toho, co
+    kupující shánějí) ji nemění. Zápočet a `nextPrices` na hladině nezávisí; mince cenu nemají
+    (`nextPrices` je přeskočí) a v zápočtu nejsou (`withoutCoins`).
+  - **Mincovní fáze** `coinClearing(parties, prices, level)` (`trade/market-coins.ts`, čistá funkce;
+    Rozhodnutí plánu 4, body 2 a 3): strany `CoinParty` (`key`, celé mince `coins`, prodej `stock`
+    a seznam `wants` bez mincí, `merchant` – cizí kupec, `fromMerchants` – seznam se kupuje jen od
+    kupců: zbroj, kterou si hostitel objednal) v pořadí hostitel, pak přespolní podle
+    příjezdu – v něm prodávají. Kupují napřed kupci, pak ostatní, v témže pořadí; u dvojice po zboží
+    v pořadí `TRADE_GOODS` min(chce, má, zbývající měšec ÷ cena), kus jen celý, zlomek v kg do 1 mg
+    (`NOISE_KG`) se přeskočí. Součet hodnot dvojice pod 1 minci se zruší celý, jinak platba
+    `CoinPayment` { `buyer`, `seller`, `coins` } = součet nahoru na celé mince (prodávající neprodá
+    pod cenou, kupující přeplatí nejvýš minci); utržené mince smí prodávající týž den utratit, je-li
+    mezi kupujícími za ním. Měšec nikdy neklesne pod 0 a součet plateb je nula. Výsledek
+    `CoinClearing`: `trades` (`MarketTrade`), `payments`, `available` (C = Σ min(mince, hodnota
+    seznamu) kupujících, kteří mají mince i seznam) a `sought` (W = Σ přes zboží (O + min(součet
+    ostatních seznamů kupujících, součet nabídek všech stran − O)) × cena, O = min(seznamy
+    `fromMerchants`, nabídky kupců) – objednávka zbroje jen proti zbroji kupců) – obojí ze začátku
+    fáze. Prahy zaokrouhlení jsou
+    technické meze, ne pravidla. V mincovní fázi je „kupec“ jen cizí kupec, kdo nakupuje, je
+    „kupující“.
 
 - **Trh – co ves nabízí a shání, zpráva na pivo** (markets.md – Pravidla 3 a 8, Rozhodnutí plánu 2,
   body 5 a 7; Rozhodnutí plánu 3, bod 5). `marketStance(state, day)` (`trade/market-stance.ts`)
@@ -195,8 +219,13 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   vozy čekající na kování `ironOrderBarsKg − ironBarsKg`. Vozy po druzích: nabídka volné vozy
   (`idleCartsOf`) nad vozy, které ves chce (`cartsWanted` = `cartTargets[druh]`, `draft.ts`), bez
   vlastního pracujícího tesaře shání jeden vůz druhu `missingCart`. Nabídku výrobků dílen a vozů
-  počítá `craftOffer(state, day)` – bez výhledu správce, levně; volá ji i `fillOrders`. Jídlo (maso, sýr, luštěniny), med, vosk,
-  kůže, kožešiny a uhlí hostitel nenabízí ani neshání. Lidi nabízí, bez kterých ves pole udrží
+  počítá `craftOffer(state, day)` – bez výhledu správce, levně; volá ji i `fillOrders`. Med, vosk a kožešiny (plán 4, Rozhodnutí 6 –
+  jen `state.wares`, nikdy ve wants, vždy celé dolů): vosk celá zásoba `waxKg`, kožešiny
+  `sheepFurs + wildFurs − yearlyNeed(…).furs` (`wares/hides.ts`), med `honeyKg − HONEY.kgPerPersonYear ×
+lidé` a jen s obilím nad pojistkou (`grainSpareKg > 0`; výhled `outlook` už ve `marketStance` je).
+  Nabídku berou i cizí kupci (`trade/merchants.ts`) a vozí ji roční výprava správce, drahé napřed
+  (`fitToCrew` – village-steward.md, Správce na trhu). Jídlo (maso, sýr, luštěniny), kůže
+  a uhlí hostitel nenabízí ani neshání. Lidi nabízí, bez kterých ves pole udrží
   (`peopleSpare` z `vassalage/spare.ts` – po druzích, které jde vybrat celé najednou:
   `emigrantGroups` přes všechny druhy), a shání rodiny, když je půdy víc než práce (`peopleWanted`
   – Lidé na trhu níž). Nabídka je nejvýš `villageGoodStock`,
@@ -207,11 +236,15 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `MARKET.report.round`, nejméně 5), řemesla s pracujícím řemeslníkem (`ownCraftsmanWorks`) v pořadí
   potter, smith, burner, carpenter a obchodníci z `state.market.arrivals` (`VillageMarket`) od
   nejnovějšího, nejvýš `MARKET.report.traders` – technický strop paměti vsi, ne pravidlo hry (návrh
-  Clauda).
+  Clauda; příjezd kupců je v nich bez jména a vsi se značkou `merchants`). Ves se zastávkami stezky
+  (`state.merchantStops`) ví den příštích kupců – `VillageReport.merchants` =
+  `nextMerchantVisit(stops, day).day` (≥ den zprávy; chybí bez zastávek nebo bez příjezdu do konce
+  světa).
 - **Trh ve vsi** (markets.md – Pravidla 2, 3, 5 a 8, Rozhodnutí plánu 2, body 4–7; `trade/market.ts`,
   typy `types-market.ts`). Trh drží stav hostitelské vsi (`VillageState.market` – `VillageMarket`:
-  ceny `prices`, výpravy na trhu `visitors`, `nextOrder`, paměť příjezdů `arrivals`) a počítá jen
-  ze stavu hostitele a událostí schránky dne, takže výsledek nezávisí na kouscích dopočtu.
+  ceny `prices`, hladina `level?`, výpravy a cizí kupci na trhu `visitors` (Cizí kupci ve vsi níž),
+  `nextOrder`, paměť příjezdů `arrivals`) a počítá jen ze stavu hostitele a událostí schránky dne,
+  takže výsledek nezávisí na kouscích dopočtu.
   - **Příjezd:** událost schránky `market-arrive` s `MarketArrival` (klíč `market:<domovská
 ves>:<id výpravy>`, `stayDays`, `travelDays`, zboží `goods` – koně i tady jako počty po
     druzích, koně po kusech `MarketHorse` { `good`, `horse` }, seznam `wants`, zpráva na pivo
@@ -230,15 +263,16 @@ ves>:<id výpravy>`, `stayDays`, `travelDays`, zboží `goods` – koně i tady 
     Rozhodnutí plánu 3, bod 11) zbožím není (lidé příjezdu se do `goods` nepočítají) – usadí se hned
     po příjezdu (`receiveKin` – village-people.md, Sňatky – se sousedy; kronika svatby nebo
     `newcomer` za `market-arrived`).
-  - **Tržní den:** `marketDay(state, day)` – krok dne hned po událostech schránky
+  - **Tržní den:** `marketDay(state, day)` – krok dne hned po událostech schránky a příjezdu kupců
     (village-core.md – Pořadí práce dne). Bez návštěvníků nic (stav beze změny, klíč `market`
-    nevznikne). Výprava se `service` (kovář souseda) ani doprovod partnera (`kin`) do zápočtu
-    nevstupují – jen v poslední den odjedou; jsou-li na trhu jen ony, tržní den není (ceny stojí). Jinak dva zápočty (`clearMarket`
-    za ceny `market.prices`), oba se stranami
-    hostitel (`'host'`) a návštěvníci podle `order`: napřed zápočet řemeslníků – výrobky dílen jen
-    za obilí a luštěniny (`craftStance`, `craftParties` – Obilí za výrobky níž; bez nich se
-    přeskočí), pak dnešní zápočet se zbytkem zboží – hostitel `marketStance` bez toho, co prodal
-    v prvním (`goodsLeft`), návštěvníci, co jim zbylo. Vyrovnání po každém (`settleTrades`):
+    nevznikne). Výprava se `service` (kovář souseda) ani doprovod partnera (`kin`) neobchodují –
+    jen v poslední den odjedou; jsou-li na trhu jen ony, tržní den není (ceny stojí). Jinak dva
+    zápočty (`clearMarket` za ceny `market.prices`, nabídky a seznamy `withoutCoins`) a mincovní
+    fáze, vše se stranami hostitel (`'host'`) a návštěvníci podle `order`: napřed zápočet
+    řemeslníků – výrobky dílen jen za obilí a luštěniny (`craftStance`, `craftParties` – Obilí za
+    výrobky níž; bez nich se přeskočí), pak dnešní zápočet se zbytkem zboží – hostitel
+    `marketStance` bez toho, co prodal v prvním (`goodsLeft`), návštěvníci, co jim zbylo, a nakonec
+    mincovní fáze (níž). Vyrovnání po každé fázi (`settleTrades`):
     hostitel prodané ubere (`addGood` záporně, koně `takeHorses` v pořadí prodeje) a koupené přidá
     (`addGood`, koně `addHorses`); návštěvníkovi ubude z `goods` a `wants` a přibude do `sold`
     a `bought`, koupení koně po kusech do `boughtHorses` – od hostitele z `takeHorses`, od výpravy
@@ -247,17 +281,43 @@ ves>:<id výpravy>`, `stayDays`, `travelDays`, zboží `goods` – koně i tady 
     skupiny druhu (`takeVisitorPeople`) – k jiné výpravě do `boughtPeople`, hostitel je hned usadí
     (`settlePeople`, kronika `newcomer` za `market-held`); zbytky do šumu plovoucí čárky se smažou; prodej zakázkového zboží vsi se
     zakázkou ji zmenší, hotovou uzavře (`reduceOrder` – Zakázky níž). Pak
-    `market.prices = nextPrices(…)` z původních nabídek a seznamů dne (`totalGoods` – i s obilím za
-    výrobky, jako v jednom zápočtu) a kronika `market-held` (co ves prodala a koupila v obou
-    zápočtech – jen když něco).
-  - **Odjezd:** návštěvník s `lastDay ≤ day` odjede – do odchozí schránky `VillageState.outbox`
-    (`VillageMail` { `villageId`, `day`, `ref`, `body` } – tvar nové události schránky) jde
+    `market.prices = nextPrices(…)` z nabídky S a poptávky D dne (`priceTotals` – součty
+    `totalGoods` původních nabídek a seznamů bez mincí, i s obilím za výrobky, jako v jednom
+    zápočtu; cizí kupci: Cizí kupci ve vsi níž – Ceny dne) a kronika `market-held` (co ves prodala
+    a koupila ve všech fázích, i mince – jen když něco).
+  - **Mincovní fáze** `coinPhase` (Rozhodnutí plánu 4, body 2–4 a 15; mutuje): spustí se, jen když
+    nějaký návštěvník veze mince (`goods.coins`) a něco mu na seznamu zbylo, nebo má ves mince
+    a objednanou zbroj v den kupců (`armsBuyer` – Cizí kupci ve vsi níž, Objednávka zbroje) – mince
+    v zásobě vsi ji samy nespustí a trh bez mincí je bit po bitu jako dřív. Strany `coinClearing`:
+    hostitel (bez objednávky 0 mincí a prázdný seznam – jen prodává, s objednávkou mince vsi
+    a objednaná zbroj, nic jiného za mince nekoupí; `stock` = nabídka bez prodaného v obou
+    zápočtech, lidí nejvýš tolik skupin, kolik jich po zápočtech doopravdy odejde –
+    `leavingGroups`) a návštěvníci (`goods` a `wants` bez mincí, `merchant` – cizí kupec, kupuje
+    první). Obchody vyrovná `settleTrades` (koně, vozy a lidé po kusech jako v zápočtu, zakázky
+    `reduceOrder`), mince přesune `payCoins` – u návštěvníka jen `goods.coins` (ne `sold` / `bought`,
+    domů jdou v `unsold`; součty zaplacených a přijatých `MarketVisitor.coinsPaid` a `coinsGot` jsou
+    jen do kroniky návratu – Rozhodnutí plánu 4, bod 9, cizí kupec je nemá), u hostitele `VillageState.coins`; v kronice
+    `market-held` jsou mince hostitele v `bought.coins` (získané) a `sold.coins` (zaplacené). Hladinu
+    `market.level` posune
+    `nextLevel`, hladina 1 ze stavu zmizí. Výprava vesničanů (`MarketArrival.by` = `villagers`,
+    přes `departMarketInPlace` až do `MarketVisitor.by`) v mincovní fázi jen prodává – má
+    `wants: {}`, mince jdou domů (Martin 25. 11. 2026: „Mince utrácí jen vojvoda/správce“). Dokud
+    má na seznamu výrobek dílny, na který hostitel zakázku vezme (pracuje řemeslník, výprava ho tu
+    nevyzvedla hotový), obilí a luštěniny za mince neprodá (`coinPhaseStock`, návrh Clauda) – nechá si
+    je na zakázku, kterou při odjezdu zapíše `recordOrders` (mincemi vesničané platit nesmějí);
+    ostatní zbytky (krávy, hřivny…) za mince prodá. Výprava hráče `by` nemá, správcova nese
+    `steward` – obě kupují i prodávají za mince jako dosud.
+  - **Odjezd:** návštěvník s `lastDay ≤ day` odjede (`departVisitors`) – do odchozí schránky
+    `VillageState.outbox` (`VillageMail` { `villageId`, `day`, `ref`, `body` } – tvar nové události
+    schránky; cizí kupec domov nemá a nic neposílá – Cizí kupci ve vsi níž) jde
     `market-result` k domovské vsi na den `day + 1 + travelDays` (`ref` `marketResultRef` =
     `…:out`; příjezd má `marketArrivalRef` = `…:in`) se zprávou o hostiteli (`villageReport`), cenami
-    trhu a zakázkami, které hostitel zapsal (`recordOrders` – Zakázky níž). `marketResult` je jediné
-    místo, kde vzniká `MarketResult` (`sold`, `bought`, `unsold` – co zbylo, koně domů `horses` –
-    neprodaní i koupení, lidé – neprodaní vlastní `people?` a koupení `newcomers?`, `report?`,
-    `prices?`, `returned?`, `ordered?`);
+    trhu, hladinou (`level`, jen ≠ 1) a zakázkami, které hostitel zapsal (`recordOrders` – Zakázky
+    níž). `marketResult` je jediné
+    místo, kde vzniká `MarketResult` (`sold`, `bought`, `unsold` – co zbylo, i mince, koně domů
+    `horses` – neprodaní i koupení, lidé – neprodaní vlastní `people?` a koupení `newcomers?`,
+    zaplacené a přijaté mince `coinsPaid?` a `coinsGot?` (jen kladné; v `sold` a `bought` mince
+    nejsou, připsaly by se podruhé), `report?`, `prices?`, `level?`, `returned?`, `ordered?`);
     nepoužitý příjezd nic neprodal ani nekoupil a domů jde vše, co vezl, i lidé. Výsledek použije domovská
     ves (`applyMarketResult` – Výprava na trh níž); odchozí schránku doručí `deliverVillageMail`
     (Pošta mezi vsemi níž).
@@ -286,9 +346,10 @@ ves>:<id výpravy>`, `stayDays`, `travelDays`, zboží `goods` – koně i tady 
     aspoň 1; zvolí počet vozů s nejméně lidmi (při shodě méně vozů).
   - **Kontroly:** `checkMarketTrip(order, input)` – jediné místo (server i náhled ve webu, vstup
     `MarketTripCheck` bez stavu – `stock`, `homeCarts` (`tradeHomeCarts`, bez ohledu na voly),
-    `oxenHome`, `adults`, `cells`, `day`): tvar objednávky (konečná nezáporná čísla, kusové zboží
-    celé – `MARKET_BAD_ORDER`), pobyt celé dny ≥ `minStayDays` (`MARKET_STAY`), zboží nejvýš
-    `villageGoodStock` (`MARKET_OVER_STOCK`), prodaný vůz nejede jako dopravní
+    `oxenHome`, `adults`, `cells`, `day`): tvar objednávky (`orderShapeOk` – konečná nezáporná čísla,
+    kusové zboží celé, mince ne v seznamu `wants`; jinak `MARKET_BAD_ORDER`), pobyt celé dny ≥
+    `minStayDays` (`MARKET_STAY`), zboží nejvýš `villageGoodStock` (`MARKET_OVER_STOCK`), prodaný vůz
+    nejede jako dopravní
     (`withoutSoldCarts` – z `homeCarts` odejde posledních `give[g]` vozů druhu, v pořadí
     `tradeHomeCarts` nejmladší volné, tytéž, které prodá `removeIdleCart`; odjede bez spřežení jako
     prodaní voli), vozy jen s voly, které po prodeji zbudou (`cartsWithOxen` nad zbylými vozy
@@ -326,6 +387,21 @@ day, order, target, { by?, seedKg?, alone?, service?, kin?, people? })` (mutuje 
     v `give` výpravy není. `give` / `wants` prázdné, doprovod aspoň 1 nosič.
     `marketCarryKg(adults, carts)` – obráceně k `marketCrew`: kolik kg nošeného zboží unese jedna
     cesta s nejvýš `adults` lidmi a vozy `carts` (vesničané podle toho nakoupí jen to, co unesou).
+  - **Mince** (Rozhodnutí plánu 4, body 1 a 4; Martin 25. 11. 2026: „Mince utrácí jen
+    vojvoda/správce“): hráč je dává do „Dáš“ (`give.coins` – celé kusy, nejvýš zásoba; kontroly jako
+    u ostatního zboží; správce svým výpravám – village-steward.md, Správce na trhu), na seznam
+    „Dostaneš“ se nedávají (`MARKET_BAD_ORDER` – prodávající je bere za cokoli, co nabízí) a nic jiného
+    se nevolí. Mince výpravy jsou jen ty v nákladu (`goods.coins`): při odjezdu ubydou vsi (`addGood`
+    záporně), v mincovní fázi (`coinPhase` – Trh ve vsi výš) za ně výprava koupí, co jí po zápočtech na
+    seznamu zbylo, a co neutratí, přijde domů v `unsold` – ze zásoby vsi se za výpravu podruhé neplatí.
+    **Měšec má jediný zdroj pravdy** (Rozhodnutí plánu 4, bod 9): `goods.coins` výpravy – příjmy
+    mincovní fáze ho zvýší, výdaje sníží a jeho stav při odjezdu je `unsold.coins` výsledku. Kudy jdou
+    mince, když domov nebo hostitel zanikne: Pošta mezi vsemi níž.
+    **Cesta domů:** nosiče počítá `marketCrew` z celého seznamu `wants` a mince nic neváží
+    (`carryKg` 0), takže nákup za mince drží nosnost cesty domů stejně jako zápočet – koupí se nejvýš
+    seznam a ten, který volní lidé neunesou, odmítne kontrola (`MARKET_NO_PEOPLE`) i náhled; plná
+    posádka s mincemi vyjede. Neprodané zboží se do cesty zpět nepočítá jako dosud (Rozhodnutí
+    plánu 2, bod 2).
   - **Pryč v pevné dny** (Rozhodnutí 2 – termín trhu je pevný): `expeditionLaborNeed` /
     `workExpeditions` berou nosiče výpravy na trh jen ve dnech `startedDay` … `returnDay` − 1,
     mimo ně nic, i když vsi chyběli dospělí; výprava nemá podíl po stezce. Voli pro koupené vozy
@@ -340,11 +416,14 @@ day, order, target, { by?, seedKg?, alone?, service?, kin?, people? })` (mutuje 
     směru výpravy, kronika `newcomer` za `market-returned`) – i bez záznamu
     výpravy, nic nezmizí (lidé se pak usadí bez směru a kroniky) –, koupené obilí do `MarketTrip.seedKg` jde do rezervy osiva
     (`reservedSeedKg` – ves ho nesní, village-fields.md – Osivo – nákup na trhu), výprava
-    s klíčem výsledku se smaže, zpráva na pivo s cenami trhu do `news` (`rememberNews`, jen se
+    s klíčem výsledku se smaže, zpráva na pivo s cenami a hladinou trhu (`VillageNews.prices`,
+    `level` – chybí = 1) do `news` (`rememberNews`, jen se
     záznamem výpravy), zakázky vsi (`rememberOrders`, jen se záznamem výpravy – Zakázky níž)
     a kronika `market-returned` s hostitelem `villageId` a `by` výpravy (`returned` – hostitel
-    zanikl; bez záznamu výpravy s prázdným jménem vsi, bez `villageId` a `by`). Výsledek přijde
-    nejdřív v `returnDay`.
+    zanikl; bez záznamu výpravy s prázdným jménem vsi, bez `villageId` a `by`). Mince v kronice jsou
+    jako v `market-held`: zaplacené (`coinsPaid`) v `sold.coins`, přijaté (`coinsGot`)
+    v `bought.coins`, vrácené mezi neprodaným zbožím (`unsold`) nejsou (`withoutCoins`) – zásoba vsi
+    dostane celé `unsold` i s nimi. Výsledek přijde nejdřív v `returnDay`.
 - **Pošta mezi vsemi** (markets.md – Rozhodnutí plánu 2, bod 6; `application/village-mail.ts`,
   odchozí schránka obecně: village-core.md – Schránka vsi). Příjezd i výsledek jdou odchozí
   schránkou (`outbox`) a `deliverVillageMail` je zapíše do schránek cílových vsí – po odeslání
@@ -357,7 +436,8 @@ day, order, target, { by?, seedKg?, alone?, service?, kin?, people? })` (mutuje 
     `deliverVillageMail`): ves je zaniklá, když chybí, spí (`asleep` v otisku – vymřela, opuštěná)
     nebo má sídlo v archivu (Začít znovu – `archivedOf`; jako zaniklý hostitel výpravy po termínu,
     návrh Clauda – archivovanou ves nikdo nedopočítá). Zjistí to `goneTargets` jen pro zprávy, na
-    kterých záleží (dotazy a výsledky s lidmi), jedním dotazem `archivedOf`.
+    kterých záleží (dotazy a výsledky s lidmi nebo mincemi – `mustReturn`), jedním dotazem
+    `archivedOf`.
     - Dotaz a ohlášení bez nákladu (`kin-ask`, `smith-ask`, `order-ready` – `isQuery`) do zaniklé
       vsi se zahodí a zmizí z `outbox` – nikdo nikam nejde (hledající se zeptá znovu, ves s koňmi
       jiné vsi s kovářem, zakázka u hostitele vyprší).
@@ -370,23 +450,31 @@ day, order, target, { by?, seedKg?, alone?, service?, kin?, people? })` (mutuje 
       v archivu krok nezkoumá (`sleeps` ho nepozná): zpráva padne do jeho schránky, kterou nikdo
       nepoužije – ztráta je táž. Výsledek, který domovská ves už použila (výprava není v jejím
       stavu – `awaitedTrip`; opakované doručení po pádu mezi zápisem a smazáním z `outbox`), se
-      zahodí – lidé by se zdvojili. Výsledek bez lidí beze změny (zmizelé vsi se zahodí, spící
-      zapíše).
+      zahodí – lidé by se zdvojili. Výsledek bez lidí a mincí beze změny (zmizelé vsi se zahodí,
+      spící zapíše).
+    - **Mince** (Rozhodnutí plánu 4, bod 9): výsledek s `unsold.coins` > 0 (`carriesCoins`) jde pro
+      zaniklou domovskou ves zpět hostiteli stejně jako lidé a s nimi v jedné zprávě –
+      `stranded-people` s `coins` (celé mince, měšec výpravy při odjezdu; chybí = žádné), i bez lidí
+      (pak bez `from`). Hostitel je dostane do zásoby (`receiveStranded` → `addGood`, bez kroniky).
+      Zboží výsledku, i koupená zbroj, se zahodí. Použitý výsledek, zaniklý hostitel, domov zaniklý
+      s výsledkem ve schránce a souběh řeší totéž pravidlo jako u lidí – mince nevzniknou ani se
+      neztratí, kromě jediné přijaté ztráty (oba konce mrtvé).
     - **Domov zanikl, když už výsledek ležel v jeho schránce** (hostitel doručuje hned po dávce, takže
       výsledek je ve schránce domova většinou dávno před svým dnem): úloha světa
       `returnStrandedPeople` (worker, `runWorldTasks` 1× za minutu; návrh Clauda: nikdo nesmí
-      zmizet) vezme výsledky s lidmi ve schránkách zaniklých vsí (`inbox.strandedResults` –
-      ves spí nebo má sídlo v archivu) a nepoužité (výprava je ještě ve stavu vsi – `awaitedTrip`,
+      zmizet) vezme výsledky s lidmi nebo mincemi ve schránkách zaniklých vsí (`inbox.strandedResults`
+      – ves spí nebo má sídlo v archivu) a nepoužité (výprava je ještě ve stavu vsi – `awaitedTrip`,
       hostitel je její cíl) pošle hostiteli jako `stranded-people` – tentýž `strandedMail` i `ref`
       jako krok 1, takže se zpráva nezdvojí ani při souběhu webu a workeru. Zanikl-li i hostitel
-      (spí, chybí, sídlo v archivu), lidé se ztratí – **jediná přijatá ztráta**, oba konce jsou
-      mrtvé. Vyřízené výsledky (vrácené, použité před zánikem, ztracené) úloha smaže ze schránky
+      (spí, chybí, sídlo v archivu), lidé a mince se ztratí – **jediná přijatá ztráta**, oba konce
+      jsou mrtvé. Vyřízené výsledky (vrácené, použité před zánikem, ztracené) úloha smaže ze schránky
       zaniklé vsi (`inbox.dropStranded`, až po zápisu zpráv – pád mezi tím znamená příště týž
-      `ref`), takže je příště nečte znovu. Nepoužitý výsledek pozná podle stavu vsi, ne podle dne:
+      `ref`), takže je příště nečte znovu; zaniklou ves načte jednou na všechny její výsledky. Nepoužitý výsledek pozná podle stavu vsi, ne podle dne:
       vymřelá ves posune `lastDay` přes den vymření až na konec dávky, dny po vymření ale
       nesimuluje.
     - **Zboží výsledku pro zaniklý domov se zahodí** (návrh Clauda, Opravné kolo 1 úlohy 10): jako
-      v plánu 2 a v kroku 1 – zboží s vsí zanikne (zásoby vymřelé vsi také zůstanou ležet), lidé ne.
+      v plánu 2 a v kroku 1 – zboží s vsí zanikne (zásoby vymřelé vsi také zůstanou ležet), lidé
+      a mince ne.
       Vrátit ho hostiteli by mu dalo zaplacené zboží podruhé (platbu ze zápočtu už má).
     - `stranded-people` ve schránce hostitele, který zanikne dřív, než ji použije: domov je už pryč
       (zpráva vzniká jen po zániku domova) – oba konce mrtvé, táž přijatá ztráta.
@@ -405,30 +493,83 @@ day, order, target, { by?, seedKg?, alone?, service?, kin?, people? })` (mutuje 
     posune dál; napřed se hledá návštěvník) se vrátí jako `marketResult(příjezd, { returned: true })`
     se vším, co výprava vezla; výprava, která už na trhu stojí (`market.visitors`), s tím, co drží
     (`unsold`, `bought`, koně). Výsledek jde do vlastní schránky s `ref` `marketResultRef` na den
-    `lastDay + 1`. Archivované vsi nikdo nedopočítává – snímek, ze kterého se výsledek vezme, je konečný. Živý hostitel pozadu znamená čekat – lidé jsou doma v plánovaný den, zboží
-    přijde se zprávou v nejbližší nespočtený den. Příjezd v odchozí schránce vsi se za nepoužitý
+    `lastDay + 1`. Archivované vsi nikdo nedopočítává – snímek, ze kterého se výsledek vezme, je konečný.
+    **Živý hostitel** (Opravné kolo 1 úlohy 11 plánu 4, návrh Clauda): výprava na jeho trhu čeká; příjezd
+    ve schránce hostitele na den, který hostitel už spočítal (`inbox.pending` od `arriveDay − 1` jen do
+    jeho `lastDay`), bez návštěvníka na trhu a bez výsledku v jeho `outbox` je **přeskočený příjezd** –
+    ves na cestě dny cesty nesimuluje (`simulate.ts`, `isVillageDormant`) – a výprava se vrátí se vším
+    (`returned`) jako od zaniklého hostitele; dřív by čekala navždy (`hasVillageMail` navždy true,
+    `seedOnTheWay` by zablokovalo další osivo a `wholeVillageBlock` odchod celé vsi). Příjezd na
+    pozdější den (hostitel pozadu) znamená čekat – lidé jsou doma v plánovaný den, zboží přijde se
+    zprávou v nejbližší nespočtený den. Použitý příjezd se nevrátí: jeho výsledek leží v `outbox`
+    hostitele (má přednost) nebo už ve schránce domova – návrat má týž `ref` (`marketResultRef`), druhý
+    zápis se zahodí (test „hostitel pomalejší než domov“). Spící domovská ves výpravy po termínu nemá
+    (`overdueTrips`, tedy ani `hasVillageMail` – na hostitele se nedívá a kvůli nim se nenačítá): nic by
+    nepoužila a z příjezdu, který zaniklý hostitel dávno použil, by se jí výprava složila znovu –
+    výsledek od živého hostitele vrátí krok 1. Příjezd v odchozí schránce vsi se za nepoužitý
     bere jen u hostitele, jehož ves chybí (návrh Clauda, upřesnění zadání): u existujícího ho
     doručení právě zapsalo do jeho schránky a zpráva, kterou minule nešlo smazat, nedokazuje, že ji
     hostitel nepoužil – vrácení se vším by zdvojilo zboží (test „příjezd, který minule nešlo
     smazat“).
+  - **Úklid vyřízené pošty** (Rozhodnutí plánu 4, bod 10; dluh plánu 3 – 2 řádky na výpravu):
+    `pruneSettledMail(deps, villageId, afterDay)` smaže ze schránky vsi použité příjezdy a výsledky
+    výprav (`market-arrive`, `market-result`), které odesílatel už nemůže poslat znovu. Volá ho jen
+    `nearbyRefresh.post` po zápisu snímku okolí (1× za `NEARBY_REFRESH_DAYS`, ve stejném `try` za
+    `pruneUsed` – chyba jde jen do logu) s `afterDay` = den, do kterého je ves dopočtená: řádky do něj
+    použila (kromě dnů, kdy byla na cestě – podmínka 3 níž). Spící ves snímek nedostane, její schránka se proto neuklízí – výsledky s lidmi a mincemi
+    z ní čte `returnStrandedPeople`.
+    - **Odesílatel:** `deliverVillageMail` doplní příjezdu a výsledku při zápisu do schránky `from` – ves,
+      která zprávu vydala: v kroku 1 ves, jejíž `outbox` se doručuje (`withSender`), u výsledku
+      z `outbox` hostitele, který v kroku 3 zapíše domov, hostitel (zapíše ho i on, dokud ho nesmaže),
+      u vrácené výpravy domovská ves, která si ji vrací (`returnedMail`). Starší řádky: příjezd má
+      odesílatele v `ref` (`market:<domov>:…`), výsledek ho nezná a zůstane.
+    - **Bezpečný řádek** má aspoň `MAIL_KEEP_DAYS` = 365 dní (technická mez, ne pravidlo – rok jako
+      úklid snímků okolí) a jeho odesílatel (1) je známý, existuje a nespí (`stampsOfVillages`), (2) je
+      dopočtený aspoň `MAIL_KEEP_DAYS` za den řádku – jeho odchozí schránka se od té doby doručila
+      a vyčistila – a (3) výpravu už neřeší: její klíč není v `openTrips` jeho souhrnu
+      (`VillageDigest.openTrips` = `openTripKeys` – výpravy bez výsledku v `trade.expeditions`
+      a výpravy, jejichž zpráva leží v `outbox`; čte se `digestsOf`, stav se nenačítá; ves bez souhrnu
+      nebo se souhrnem uloženým dřív – neví se, řádek zůstane). Podmínka 3 je návrh Clauda nad rámec
+      plánu: samotný den nestačí – ves po pádu mezi zápisem a smazáním z `outbox` může rok přeskočit
+      v jednom dopočtu (dlouhá nepřítomnost) a zprávu poslat znovu až po něm, a výprava, která ještě
+      nedostala výsledek (pobyt přes rok, hostitel pomalejší než domov, příjezd do vsi na cestě,
+      který nikdo nepoužil), smí ještě potřebovat nepoužitý příjezd (výprava po termínu). Řádek příjezdu
+      tak zmizí, až když je výprava vyřízená, a krok 3 ji po něm nehledá.
+    - **Kolik:** nejvýš `MAIL_PRUNE_ROWS` = 500 nejstarších bezpečných řádků na jedno volání (technická
+      mez, ne pravidlo); mez se bere až po filtru, takže nevyřiditelné řádky na začátku úklid nezastaví.
+    - **Vědomý zbytek:** řádky od zaniklého odesílatele (vymřel, opuštěný, ves chybí) zůstanou – nejvýš
+      jeden svazek na zaniklou ves (poslední rok její pošty), stejně starší výsledky bez `from`
+      a schránka zaniklé vsi; řádky nečinného hráče (worker jeho vsi neposouvá) počkají, než se dopočtou.
+      `stranded-people` (`ref` `…:back`) se nemaže nikdy – je to jediná ochrana proti druhému vrácení.
+    - **Souběh:** mažou se jen řádky dnů, které uložený stav vsi už použil – dopočet se starším stavem,
+      který je mezitím četl, narazí při uložení na verzi; dva úklidy smažou řádek jednou; verze vsi se
+      nemění.
   - **Pomocníci zásilek** (`application/shipments.ts`, exportované beze změny chování pro poštu
     a výpravu na trh): `sleeps`, `placeOf` (`ShipmentPlace` – políčko, držitel, odříznutí),
     `stepToward`, `crossesIsolation`.
   - **Testy:** `application/__tests__/village-mail.test.ts` (kolo tam a zpět, hostitel pozadu,
     vymřelý a archivovaný hostitel, zmizelá ves, chyba a souběh, web po dopočtu; plán 3 – dotazy
     do spící, zmizelé a archivované vsi, rodina zpět domů po zániku hostitele, `stranded-people`
-    po zániku kupce, použitý výsledek se nevrací, úloha světa `returnStrandedPeople` – domov
+    po zániku kupce, použitý výsledek se nevrací; oběh mincí – součet světa `coinsOfWorld` po každém
+    kole, mince zpět hostiteli, zánik obou vsí, souběh; úloha světa `returnStrandedPeople` – domov
     vymřel nebo je v archivu s výsledkem ve schránce, zaniklý i hostitel, použitý výsledek, živá
-    ves; nevěsta zpět po archivu vsi ženicha) a `advance-world.test.ts` – Pošta mezi vsemi
+    ves; nevěsta zpět po archivu vsi ženicha; úklid vyřízené pošty – bezpečné řádky, mez až po filtru,
+    pád mezi zápisem a vyčištěním, rok přeskočený v jednom dopočtu, výprava po termínu po úklidu
+    příjezdu, souhrn bez `openTrips`, souběh; přeskočený příjezd živého hostitele na cestě, výprava pro
+    osivo do vsi na cestě; napojení v `nearby.test.ts`, kde je i ves na cestě mimo okolí) a `advance-world.test.ts` – Pošta mezi vsemi
     ve workeru (ves dopočtená webem, zámek, kola workeru = ruční postup) a Pošta plánu 3 a svět
     (nevěsta přes kola obou hráčů, lidí je po každém kole stejně – `peopleOfWorld`,
     `bornMinusDied`); dva hráči na sousedních mapách v `__tests__/market-world.ts` (`marketWorld`
     s jinou domovskou či hostitelskou vsí, `kinWorld` – syn a dcera z přípravků sňatků,
-    `neighbours` – okolí obou vsí, `askBride` – dotaz do schránky M). `receiveStranded` v jádru:
+    `neighbours` – okolí obou vsí, `askBride` – dotaz do schránky M, `thirdVillage` – třetí ves na
+    východ od M, `coinsOfWorld` – mince světa: zásoby vsí, náklad každé výpravy tam, kam došel
+    nejdál, osadníci ve schránkách odchodů správce a kupci na trzích vsí mimo archiv (ze vsi, která
+    zanikla, kupec odjede – `endVillage`); `trade.expeditions[].give` ne – je to jen záznam výpravy). Mince a zbroj při odchodu celé vsi,
+    části lidí a syna: `leave-village.test.ts`. `receiveStranded` v jádru:
     `trade/__tests__/market-people.test.ts` (i sonda kontroly – cizí skupina se shodou emigranta
     a kolizním id); `fromHost`: `market-people-budget.test.ts`; `origin` výsledku:
-    `market-two-villages.test.ts`; adaptér `strandedResults` / `dropStranded`:
-    `inbox-repository.db.test.ts`.
+    `market-two-villages.test.ts`; `openTripKeys`: `digest.test.ts`; adaptér `strandedResults` /
+    `dropStranded` a `settledMail` / `dropSettledMail`: `inbox-repository.db.test.ts`.
 - **Jen společné suroviny** (trade.md – Jen společné suroviny; Martin 19. 10. 2026: „Nech jen
   společné suroviny, nezaváděj nové.“): obchod zná jen zboží, které má i ves (`TradeGood`,
   `TRADE_GOODS`). Zboží zvenku (sůl, železo, med, kožešiny – dřívější soubor zboží) ve hře není.
@@ -446,6 +587,109 @@ day, order, target, { by?, seedKg?, alone?, service?, kin?, people? })` (mutuje 
   ubírá napřed velké kůže a kožešiny z lovu, přidané kůže jdou do `hides`, kožešiny do `wildFurs`
   (`ensureWares`). Názvy a ikony: `TRADE_GOOD_NAMES` (`trade-names.ts`); kronika je bere
   z `goodsText`.
+
+- **Mince a zbroj** (markets.md – Rozhodnutí plánu 4, body 1 a 7): `TradeGood` += `ArmsGood`
+  (`swords`, `mailShirts`, `helmets`; `ARMS_GOODS`) a `coins` (`COIN_GOOD`), obojí
+  v `TRADE_GOODS` a `PIECE_GOODS` za voskem před lidmi – celé kusy. Stav vsi: `VillageState.coins`
+  a `arms` (chybí = nic). `villageGoodStock` je čte po celých kusech, `addGood` je nikdy nedá pod 0
+  a nulu ze stavu smaže (i prázdné `arms`). Hodnoty v `TRADE_GOOD_VALUES`: mince
+  `MARKET.grainKgPerCoin` a `carryKg` 0 (nosiče nepřidají), meč 1 800, kroužková košile 7 200,
+  helma 3 600 kg obilí (nosnost 1,5, 12 a 1,5 kg). `withoutCoins` vrátí zboží bez mincí – v zápočtu
+  nejsou, platí se jimi v mincovní fázi (Trh – ceny a zápočet, Trh ve vsi výš); `MarketPanel` je do
+  „Dostaneš“ nenabízí a kontrola výpravy je tam odmítne (Výprava na trh výš – Mince). Mince a zbroj
+  bere odchod celé vsi jako ostatní zásoby (`CARRIED_STOCKS` v `belongings.ts`). Zbroj je zatím jen
+  zboží, účinek v boji bude až vlastní mechanikou (war.md – Výzbroj).
+
+- **Cizí kupci – plán** (markets.md – Rozhodnutí plánu 4, bod 5; `trade/merchant-plan.ts`, čísla
+  `MERCHANTS` v `rules-merchants.ts`): kupec je tržní den ve vsi u stezky, ne karavana posouvaná
+  světem – příjezdy jsou čistá funkce zastávek vsi (`MerchantStop` – seed světa a spojení, místo na
+  cestě; `trailStops`, world.md – Zastávky stezky) a roku, nic se neukládá a výsledek nezávisí na
+  kouscích dopočtu. `merchantVisits(stops, fromDay, toDay)` vrátí příjezdy dnů včetně
+  (`MerchantVisit`: `key` `merchants:<zastávka>:<rok>:<průjezd>`, `day` – první tržní den kupců)
+  seřazené podle dne, pak `key`. Spojení má `passesPerYear` = 4 průjezdy za rok; průjezd 0–3
+  začíná v den 1. 1. + průjezd × `passSpacingDays` (91) + los 0–59 (`passWindowDays` 60) a jede od
+  prvního uzlu, nebo zpátky (oba losy `createRandom(deriveSeed(seed, 'pass:<rok>:<průjezd>'))`), den
+  ve vsi = začátek + políčka od začátku jízdy × `daysPerCell`. Prochází jen roky, odkud průjezd mohl
+  dojet (od `fromDay` − délka cesty – poslední průjezd roku smí dojet až po Novém roce), v mezích
+  světa (dny 0 … `TOTAL_GAME_DAYS` − 1, roky 500–1499). `nextMerchantVisit(stops, fromDay)` –
+  nejbližší příjezd, bez zastávek a u konce světa null. Po ostrém spuštění se plán nemění (zlatý
+  otisk v `merchant-plan.test.ts`). Dotaz na den stojí ≈ 2 µs na zastávku.
+
+- **Cizí kupci ve vsi** (markets.md – Rozhodnutí plánu 4, body 3 a 5; `trade/merchants.ts`). Zastávky
+  vsi nese `VillageState.merchantStops` (chybí = ještě nezjištěno, `[]` = mapa bez stezky; nese seed,
+  klientovi se neposílá) – ves bez nich žije bit po bitu jako bez kupců.
+  - **Načtení zastávek:** `updateVillage` se úložiště zeptá (`villages.merchantStopsOf` – jen z výřezu
+    sídla, world.md – Zastávky stezky), jen když je ves ještě nemá, jednou za volání (i při konfliktu
+    verze), a zapíše je převod načtení `merchant-stops` (`withMerchantStops`, village-core.md –
+    Převody starších vsí) před dopočtem, takže kupci chodí už v něm. Zapíše i `[]` (mapa bez stezky)
+    – ves se pak znovu neptá; po nasazení se tak každá ves jednou uloží, i spící. Neznámé sídlo (null)
+    ani úložiště bez portu (testy jádra, kalibrace) ves nemění. Ves na cestě dostane zastávky nové
+    mapy už cestou a do založené vsi je přenese příjezd se správcem (`stewardArrival`) i založení
+    hráčem (`settleJourney`) – dopočet přes příjezd po kouscích dá totéž co vcelku. Paměť vsí
+    (`cachedVillages`) port předá z úložiště.
+  - **Příjezd:** `merchantsArrive(state, day)` – krok dne po událostech schránky a před `marketDay`
+    (village-core.md – Pořadí práce dne), takže kupec obchoduje už v den příjezdu. Za každý příjezd
+    `merchantVisits(merchantStops, day, day)` založí návštěvníka trhu (trh vznikne, chybí-li):
+    `MarketVisitor` s `merchant: true`, klíčem průjezdu, pořadím příjezdu za výpravami dne, pobytem na
+    den, bez domovské vsi (`fromVillageId` a `fromName` prázdné), nákladem `MERCHANTS.goods` a měšcem
+    `MERCHANTS.coins` v `goods.coins`, seznamem `MERCHANTS.wants` (kopie). Dva průjezdy téhož dne
+    (křižovatka) jsou dva kupci, každý se svým měšcem; klíč, který na trhu už stojí, se znovu
+    nezaloží. Poznámka v `market.arrivals` bez jména a vsi se značkou `merchants` a druhy zbroje
+    (posledních `MARKET.report.traders` jako u výprav) a kronika `merchants-arrived` (`sells`, `buys`,
+    `coins`) – jen první příjezd v herním roce (návrh Clauda: na křižovatce by 16 příjezdů do roka
+    kroniku zaplnilo). Rok posledního zápisu drží `VillageMarket.merchantsYear` (chybí = žádný);
+    kroniku simulace nečte, takže zápis nezávisí na kouscích dopočtu ani na jejím zkrácení. Upozornění
+    „Kupci přijeli“ chodí ve webu za každý příjezd – z `market.arrivals`, ne z kroniky (web-ui.md –
+    Mince, kupci a zbroj v rozhraní).
+  - **Obchod:** kupec je strana zápočtu (zbroj za med, vosk a kožešiny) i mincovní fáze – v ní kupuje
+    první, podle celého seznamu a za svůj měšec.
+  - **Ceny dne** (`priceTotals` v `market.ts` – S a D pro `nextPrices`; návrh Clauda): poptávka kupce
+    se počítá jen u zboží, které je ten den na trhu ke koupi (S > 0, každý den, i s výpravami) – bez
+    nabídky cenou nehne, jako W = 0 hladinou –, a jen do výše měšce ráno:
+    `affordableWants(visitor, prices, level)`, u každého zboží seznamu nejvýš ⌊měšec ÷ `coinPriceOf`⌋
+    celých jednotek, nic chybí. Cena tak s nabídkou roste (D > S), dokud kupec za měšec nekoupí právě
+    to, co je na trhu (20 kg medu na průjezd → 3 mince za kg i s hladinou). **V den, kdy na trhu kromě
+    hostitele není žádná výprava** (jen kupci; kovář souseda a doprovod partnera výprava nejsou), se
+    hýbou jen ceny zboží, které kupci vezou nebo shánějí: poptávka hostitele nic nezdraží (nástroje by
+    jinak za 10 let čtyř průjezdů do roka zdražily 45×) a jeho nabídka, o kterou kupci nestojí, nic
+    nezlevní. S aspoň jednou výpravou se hýbou všechny ceny (Martin 23. 11. 2026: „Nechat bez stropu“).
+  - **Objednávka zbroje** (Rozhodnutí plánu 4, bod 15; Martin 25. 11. 2026: „Hráč zadá počet“;
+    `trade/arms-order.ts`): `VillageState.armsOrder` – kolik mečů, kroužkových košil a helem má ves
+    ještě koupit od kupců (celé kusy, chybí = nic). `setArmsOrder(state, good, amount)` ji zapíše (0
+    položku smaže, prázdná ze stavu zmizí) – jen ve vsi se zastávkou (`merchantStops` neprázdné, jinak
+    `ARMS_NO_MERCHANTS`) a jen celý nezáporný počet (`ARMS_BAD_ORDER`). V mincovní fázi dne kupců je
+    hostitel kupující `armsBuyer(state, day, visitors)`: mince vsi (i nula – mince, které týž den od
+    kupců utržil, utratit smí, kupci kupují před ním) a objednaná zbroj s `fromMerchants` – od výprav
+    ji nekoupí; bez objednávky nebo bez kupce na trhu null. Kupuje za cenu dne × hladinu, od kupců
+    v pořadí příjezdu, u každého v pořadí `ARMS_GOODS` po kusech, dokud na ně má a kupec je veze;
+    koupené přibude do `VillageState.arms`, platba do měšce kupce a odjede s ním, v kronice
+    `market-held` je `bought.swords` a `sold.coins`. Po fázi `reduceArmsOrder(state, bought)`
+    objednávku o koupené zmenší, zbytek čeká na další kupce. Přání zbroje nepatří do zápočtů,
+    `marketStance`, `nextPrices`, zakázek ani výhledů správce – jen do C a W hladiny; v C se
+    seznam kupujícího s `fromMerchants` počítá nejvýš do zboží, které kupci na trhu dnes mají (po
+    druzích min(objednáno, u kupců) × cena), takže objednat 50 mečů při 2 u kupců hladinu nezvedne
+    víc než objednat 2, a ve W jen proti zbroji kupců – meče, které na trhu prodává výprava (hostitel
+    je od ní koupit nesmí), hladinu kvůli objednávce nesníží; ostatní seznamy se počítají proti tomu,
+    co z nabídek zbude, takže kus kupce se nepočítá dvakrát (`coinsAgainstGoods`). Akce hráče: use-case `orderArms` (`application/arms-order.ts`,
+    `updateLivingVillage` – neživá ves dostane dosavadní důvod), právo `trade` (`ACTION_RIGHTS`, má ho
+    i správce cizí vsi), web `orderArmsForPlayer` (`lib/village.ts`) a server action `orderArms`
+    (`actions/market.ts`, vstup `{ villageId, good, amount }` ověří `parseArmsOrderInput`). Zadává se
+    v panelu Trh vlastní vsi u stezky (`ArmsOrder` – cena dne v mincích, objednaný počet a den příštích
+    kupců), koupená zbroj a mince jsou mezi zásobami dvorce (`WaresStock`) – web-ui.md – Mince, kupci
+    a zbroj v rozhraní.
+  - **Pobyt:** `extendMerchants(market, day)` v `marketDay` před odjezdy – kupec, kterému pobyt dnes
+    končí, zůstane další den, když je na trhu aspoň `MERCHANTS.busyVisitors` výprav (bez kupců, kováře
+    souseda a doprovodu partnera), nejvýš `MERCHANTS.maxStayDays` dní.
+  - **Odjezd:** `departVisitors` kupce odebere bez zakázek (`recordOrders`) a bez zprávy do odchozí
+    schránky – měšec, neprodaná zbroj a koupené zboží odejdou ze světa. Jen příjezdem kupců mince
+    a zbroj vznikají a jen jejich odjezdem zanikají. Do spící vsi (`isVillageDormant`) nepřijedou.
+  - **Zaniklá ves** (Rozhodnutí plánu 4, bod 9; návrh Clauda): vymře-li, odejdou-li z ní všichni, nebo
+    vymře-li rod, když na trhu stojí kupci, odjedou se vším jako při obvyklém odjezdu
+    (`merchantsLeave`) – ve `visitors` nezůstanou a osadníci si z nich nic nevezmou. Dělá to
+    `endVillage(state, 'extinctDay' | 'abandonedDay', day)` (`core/extinction.ts`), jediné místo, kde
+    ves končí (`simulate.ts` – poslední úmrtí, `departLeavers` – odešli všichni, `abandonForLineEnd`).
+    Výpravy na trhu zůstanou – vrátí je jejich domovské vsi (Pošta mezi vsemi výš). Vsi se sídlem
+    v archivu (Začít znovu) se stav nemění a nikdo ji nenačte; `coinsOfWorld` její kupce nepočítá.
 
 - **Nástroje a dřevěné nářadí** (markets.md – Rozhodnutí plánu 3, bod 4): `TradeGood` += `tools` /
   `woodTools` (`TRADE_GOODS` za keramikou – i pořadí zápočtu), hodnoty v `TRADE_GOOD_VALUES` 60
@@ -495,7 +739,8 @@ visitors)` – strany: hostitel a výpravy podle příjezdu, každá nabízí je
   - **Hostitel** (`VillageMarket.orders?`): `recordOrders(state, day, visitor, hostWants)`
     v `departVisitors` – seznam výpravy nahradí zakázky její vsi (novější zakázka téže vsi a zboží
     starou nahradí): výrobek `ORDER_GOODS`, který má výprava ještě na seznamu, s pracujícím
-    řemeslníkem, když výprava pořád veze obilí nebo luštěniny nebo něco, co hostitel po dnešním
+    řemeslníkem, když výprava pořád veze obilí nebo luštěniny, mince (Rozhodnutí plánu 4, bod 4 –
+    řemeslník je bere v mincovní fázi, až po zápočtech) nebo něco, co hostitel po dnešním
     zápočtu shání (`goodsLeft`), zapíše `CraftOrder` { `villageId` kupujícího, `name`, `good`,
     `amount`, `day` } a zapsané jdou do `MarketResult.ordered`; výrobek ze seznamu, který se
     nezapíše (koupený, bez řemeslníka, bez platby, vyzvednutý), starou zakázku smaže – zakázku tak
@@ -559,6 +804,11 @@ visitors)` – strany: hostitel a výpravy podle příjezdu, každá nabízí je
     kováře, žádná výprava vesničanů hřivny neveze a nečeká se na zakázku → `wants.ironBars` =
     rozdíl u nejbližší vsi s kovářem (kromě té, která zakázku nevzala), platba z přebytku;
     hřivny doma vůz dokončí (`cartIronDay`).
+  - **Mince neutrácejí** (Rozhodnutí plánu 4, bod 4; Martin 25. 11. 2026: „Mince utrácí jen
+    vojvoda/správce“): `PaymentPool`, `payValues`, `pay`, `buyWith` ani `seedTrip` mince neznají –
+    platí se obilím a luštěninami, osivo hřivnami a krávami, i když má ves mincí dost.
+    `priceKg(state, villageId, 'coins')` (`MARKET.grainKgPerCoin` ÷ hladina cíle `VillageNews.level`,
+    chybí = 1) čte jen správce (village-steward.md – Správce na trhu).
   - **Lidé a vozy dne se dělí:** výprava dne (`Haul`) vznikne až s prvním nákupem a pamatuje si
     nosiče a dopravní vozy (`shareCrews` – v pořadí výprav každá vezme `marketCrew` ze zbytku
     vozů). Kolik další nákup unese, počítá `spaceFor` z volných dospělých a dopravních vozů bez
@@ -673,7 +923,8 @@ laborHa`) → chybí ceil(dospělí × (landHa ÷ laborHa − 1)) dospělých, r
   si nesou id mateřské vsi a nová ves čísluje hned za nimi, takže cizí skupina mohla převzít id
   emigranta nebo předka hostitele a v řetězu člověk zmizel (kontrola úlohy 10, Important 1). Bez
   `from` bez směru a kroniky. Výsledek s lidmi nese `origin` (domovská ves, jméno a směr od
-  hostitele k ní – `departVisitors`), bez lidí ho nemá.
+  hostitele k ní – `departVisitors`), bez lidí ho nemá. Mince zprávy (`coins` – Rozhodnutí plánu 4,
+  bod 9) `receiveStranded` přičte do zásoby vsi (`addGood`).
 
 Počasí kraje mění hodnotu zboží od 1. 11. – [village-disasters.md](village-disasters.md#kraj-kolem-vsi-hodnota-zboží-a-zvěř-p4).
 
@@ -702,7 +953,12 @@ Počasí kraje mění hodnotu zboží od 1. 11. – [village-disasters.md](villa
     téhož hráče, ne vsi téže mapy ani dál; archivované sídlo ani sídlo s čekajícím převodem mezi
     nimi není), jejich otisky (`stampsOf` – jméno, spící ves vynechá) a souhrny (`digestsOf` –
     svobodní `VillageDigest.singles` = `kinSingles` ve dni souseda; souhrn bez nich nebo ves bez
-    souhrnu současné verze = nikdo) – **žádný stav se nenačte**. `cells` (`cellDistance`) a `firstStep` (`stepToward`) jako přehled trhu a výprava,
+    souhrnu současné verze = nikdo) – **žádný stav se nenačte**. **Ves na cestě** (`VillageDigest.travelling`
+    – lidé jdou na novou mapu a ves dny cesty nesimuluje, `isVillageDormant`) v okolí není (návrh
+    Clauda, Opravné kolo 1 úlohy 11 plánu 4): vesničané, správce, kovář i sňatky berou cíle jen
+    z okolí a výprava k ní by uvázla – příjezd na den cesty nikdo nepoužije; po příjezdu (`journey`
+    zmizí) ji má další snímek. Ves bez souhrnu současné verze se bere, jako by na cestě nebyla – výpravu
+    ze staršího snímku vrátí krok 3 pošty (přeskočený příjezd). `cells` (`cellDistance`) a `firstStep` (`stepToward`) jako přehled trhu a výprava,
     `self` = id a jméno záznamu vsi. Sídla na prstenci mají políčko mapy světa, odříznutý nováček
     mezi nimi není (proto bez `crossesIsolation`); odříznutá nebo archivovaná ves sama (newcomers.md
     – místní mřížka není mapa světa) má okolí prázdné. Válka nevadí. Snímek je stav ostatních vsí
@@ -732,9 +988,9 @@ Počasí kraje mění hodnotu zboží od 1. 11. – [village-disasters.md](villa
     I2). `NEARBY_KEEP_DAYS` = 365 – technická mez, ne pravidlo: použitý snímek už nic nečte, ale
     řádek drží `ref` proti dalšímu zápisu téhož dne (dopočet se starším stavem vsi při souběhu webu
     a workeru by ho po smazání zapsal znovu na nejbližší nespočtený den); rok je daleko za každou
-    dávkou. Schránka tak drží nejvýš ~12 snímků na ves místo ~12 za každý herní rok. Ostatní
-    události schránky se nemažou – jejich `ref` brání dvojímu zápisu (výsledek trhu dvakrát = zboží
-    dvakrát).
+    dávkou. Schránka tak drží nejvýš ~12 snímků na ves místo ~12 za každý herní rok. Hned po něm
+    uklidí `pruneSettledMail` vyřízené příjezdy a výsledky výprav (Úloha 11 plánu 4; Pošta mezi vsemi
+    – Úklid vyřízené pošty). Ostatní události schránky se nemažou – jejich `ref` brání dvojímu zápisu.
   - **Jádro** (`trade/nearby.ts`): `applyNearby` (větev schránky – village-core.md, Schránka vsi),
     `nearbyTarget(state, villageId)` – `MarketTarget` do vsi okolí s domovskou vsí ze `self` (mimo
     okolí null), `nearestNearby(state)` – první ves okolí, `nearestWith(state, craft, skip?)` –

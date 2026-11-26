@@ -17,6 +17,8 @@ import {
   type TradeGoods,
   type TradePeople,
   TRADE_GOODS,
+  ARMS_GOODS,
+  type ArmsGood,
   HOUSE_TYPES_BEST_FIRST,
   MASON_CRAFTS,
   type Direction8,
@@ -624,6 +626,18 @@ export function parseMarketPeopleInput(value: unknown): TradePeople | null {
   const count = (n: unknown): n is number => Number.isInteger(n) && (n as number) >= 0;
   const { families, men, women } = value;
   return count(families) && count(men) && count(women) ? { families, men, women } : null;
+}
+
+/**
+ * Vstup objednávky zbroje u cizích kupců `{ good, amount }` (markets.md – Rozhodnutí plánu 4, bod
+ * 15): zbroj a celý nezáporný počet kusů (0 = nic), jinak null. Kam kupci jezdí, hlídá jádro.
+ */
+export function parseArmsOrderInput(value: unknown): { good: ArmsGood; amount: number } | null {
+  if (!isRecord(value)) return null;
+  const good = ARMS_GOODS.find((g) => g === value.good);
+  const { amount } = value;
+  if (good === undefined || !Number.isInteger(amount) || (amount as number) < 0) return null;
+  return { good, amount: amount as number };
 }
 
 /** Vstup nastavení postoje vsi `{ stance }` (war.md – Obránci), jinak null. */

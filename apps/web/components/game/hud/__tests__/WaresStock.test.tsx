@@ -3,7 +3,8 @@ import { describe, expect, it } from 'vitest';
 import type { WaresView } from '@bohemia/game';
 import { WaresStock } from '../selection/wares';
 
-// Zásoby zboží na dvorci (hides-honey.md): ikony s čísly, slova jen v popiscích.
+// Zásoby zboží na dvorci (hides-honey.md), mince a zbroj (markets.md – Rozhodnutí plánu 4, bod 12):
+// ikony s čísly, slova jen v popiscích.
 
 const wares: WaresView = { hides: 2, furs: 5, sheepFurs: 1, honeyKg: 7, waxKg: 3 };
 const render = (w: WaresView | null): string => renderToStaticMarkup(<WaresStock wares={w} />);
@@ -33,5 +34,48 @@ describe('WaresStock', () => {
   it('null i samé nuly nevykreslí nic', () => {
     expect(render(null)).toBe('');
     expect(render({ hides: 0, furs: 0, sheepFurs: 0, honeyKg: 0, waxKg: 0 })).toBe('');
+  });
+});
+
+describe('WaresStock – mince a zbroj (plán 4)', () => {
+  const none: WaresView = { hides: 0, furs: 0, sheepFurs: 0, honeyKg: 0, waxKg: 0 };
+
+  it('mince a každý druh zbroje ikonou s celým číslem, popisek jméno zboží', () => {
+    const html = render({ ...wares, coins: 12, arms: { swords: 2, mailShirts: 1, helmets: 3 } });
+    for (const icon of ['hide', 'fur', 'honey', 'wax', 'coin', 'sword', 'mail-shirt', 'helmet'])
+      expect(html).toContain(`/icons/resources/${icon}.png`);
+    expect(text(html, 'wares-coins')).toBe('12');
+    expect(text(html, 'wares-swords')).toBe('2');
+    expect(text(html, 'wares-mailShirts')).toBe('1');
+    expect(text(html, 'wares-helmets')).toBe('3');
+    for (const name of ['Mince', 'Meče', 'Kroužkové košile', 'Helmy'])
+      expect(html).toContain(`>${name}<`);
+    // dosavadní zboží beze změny
+    expect(text(html, 'wares-hides')).toBe('2');
+  });
+
+  it('velký počet mincí má oddělené tisíce', () => {
+    expect(text(render({ ...none, coins: 1200 }), 'wares-coins')).toMatch(/^1\s200$/);
+  });
+
+  it('bez mincí a zbroje je řádek jako dřív', () => {
+    const html = render(wares);
+    expect(html).not.toContain('wares-coins');
+    for (const icon of ['coin', 'sword', 'mail-shirt', 'helmet'])
+      expect(html).not.toContain(`/icons/resources/${icon}.png`);
+    expect(render({ ...wares, coins: 0, arms: { swords: 0 } })).toBe(html);
+  });
+
+  it('ves jen s mincemi ukáže jen je, jen se zbrojí jen ji', () => {
+    const coins = render({ ...none, coins: 50 });
+    expect(text(coins, 'wares-coins')).toBe('50');
+    expect(coins.match(/<img/g)).toHaveLength(1);
+    const arms = render({ ...none, arms: { helmets: 1 } });
+    expect(text(arms, 'wares-helmets')).toBe('1');
+    expect(arms.match(/<img/g)).toHaveLength(1);
+  });
+
+  it('nula mincí i zbroje nevykreslí nic', () => {
+    expect(render({ ...none, coins: 0, arms: { swords: 0 } })).toBe('');
   });
 });

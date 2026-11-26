@@ -29,6 +29,8 @@ import {
   marketOverview,
   marketTripPeople,
   sendMarketExpedition,
+  orderArms,
+  type ArmsGood,
   type MarketOrder,
   type MarketTripPeople,
   type MarketVillage,
@@ -105,7 +107,7 @@ import {
 } from '@bohemia/game';
 import { getDatabase, getPlayerLock } from './db';
 import { exclusivePlayer } from './exclusive';
-import { cachedVillages, currentWorld, withVillageCache } from '@bohemia/server';
+import { cachedVillages, currentWorld, withVillageCache, worldSeed } from '@bohemia/server';
 import {
   currentStewardViewStampOfPlayer,
   currentViewStampOfPlayer,
@@ -164,7 +166,7 @@ type Context =
   | Failure;
 
 function villages(): VillageRepository {
-  return cachedVillages(createVillageRepository(getDatabase()));
+  return cachedVillages(createVillageRepository(getDatabase(), worldSeed()));
 }
 
 /** Ves `villageId` hráče s krajinou jejího sídla a jeho dnešní den – společný začátek akcí. */
@@ -1022,6 +1024,23 @@ export async function sendMarketExpeditionForPlayer(
   );
   if (!done.ok) return done.result;
   return done.value.ok ? viewOf(done.ctx) : { refused: done.value.reason };
+}
+
+/**
+ * Hráč objedná zbroj u cizích kupců ve své vsi (markets.md – Rozhodnutí plánu 4, bod 15); právo
+ * `trade`.
+ */
+export function orderArmsForPlayer(
+  playerId: string,
+  villageId: string,
+  order: { good: ArmsGood; amount: number },
+): Promise<VillageActionResult> {
+  return actOn(playerId, villageId, 'orderArms', (ctx) =>
+    orderArms(
+      { villages: villages() },
+      { villageId: ctx.villageId, ...order, today: ctx.day, landscape: ctx.landscape },
+    ),
+  );
 }
 
 /** Hráč nastaví postoj vsi před cizím vojskem (war.md – Obránci); právo `war`. */

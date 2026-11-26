@@ -1,5 +1,6 @@
 import { dateOfDayIndex } from '../../calendar';
 import { isDynastyTracked, isLineMan } from '../people/dynasty';
+import { merchantsLeave } from '../trade/merchants';
 import type { VillageState } from '../types';
 
 // Vymření vsi a konec hry (population.md – Hlad a vymření): ves bez lidí vymře natrvalo; hráč,
@@ -17,6 +18,20 @@ const DAYS_PER_YEAR = 365.25;
 /** Ves vymřela – zemřel poslední člověk a simulace se zastavila. */
 export function isVillageExtinct(state: Pick<VillageState, 'extinctDay'>): boolean {
   return state.extinctDay !== undefined;
+}
+
+/**
+ * Ves zanikla dnem `day` – vymřela (`extinctDay`), nebo je opuštěná (`abandonedDay` – odešli
+ * všichni, vymřel rod). Jediné místo, kde ves končí (mění jen horní úroveň stavu): cizí kupci,
+ * kteří na jejím trhu stojí, odjedou se vším (`merchantsLeave`).
+ */
+export function endVillage(
+  state: VillageState,
+  how: 'extinctDay' | 'abandonedDay',
+  day: number,
+): void {
+  state[how] = day;
+  merchantsLeave(state);
 }
 
 /**

@@ -2,12 +2,16 @@ import { describe, expect, it } from 'vitest';
 import {
   dayIndexOf,
   foundVillage,
+  generateLandscape,
+  nextMerchantVisit,
+  type MerchantStop,
   legacyNeighbourName,
   type Person,
   type VillageState,
 } from '@bohemia/game';
 import { sceneExpeditions } from '../caravan-view';
-import { manorFamily } from '../manor-view';
+import { manorFamily, manorView } from '../manor-view';
+import { buildVillageView } from '../village-view';
 
 // Dvorec vojvody a karavany ve scéně (trade.md) – panel obchodu se sousedy zmizel (markets.md).
 
@@ -197,6 +201,14 @@ describe('výprava na trh ve scéně (markets.md – Rozhodnutí plánu 2, bod 2
     expect(e!.trip).toEqual({ kind: 'trade', to: 'Lhota' });
   });
 
+  it('výprava jen s mincemi nenese nic – mince nic neváží (plán 4)', () => {
+    const s = withMarketTrip(DAY);
+    s.trade!.expeditions[0]!.give = { coins: 20 };
+    expect(sceneExpeditions(s)[0]).toMatchObject({ carriesOut: false, carriesBack: false });
+    s.trade!.expeditions[0]!.give = { coins: 20, grain: 5 };
+    expect(sceneExpeditions(s)[0]!.carriesOut).toBe(true);
+  });
+
   it('ve dnech pobytu stojí – tempo 0 a stejný postup; jinak jde podle kalendáře', () => {
     const at = (day: number) => sceneExpeditions(withMarketTrip(day))[0]!;
     // cesta tam DAY, pobyt DAY + 1 … DAY + 3, cesta zpět DAY + 4, doma DAY + 5
@@ -262,5 +274,76 @@ describe('rodina ve dvorci (lord.md – Co hráč vidí)', () => {
     expect(by(502)?.horse).toBe(false);
     const ages = family.map((m) => m.age);
     expect(ages).toEqual([...ages].sort((a, b) => b - a));
+  });
+});
+
+describe('kupci a zbroj v pohledu na dvorec (markets.md – Rozhodnutí plánu 4, body 8 a 15)', () => {
+  const STOP: MerchantStop = { key: '0,0,E', seed: 987654321, index: 0, length: 1 };
+
+  it('ves se zastávkou: den příštího příjezdu, zbroj s cenou dne a objednávkou, den posledního příjezdu', () => {
+    const s = village();
+    s.merchantStops = [STOP];
+    s.armsOrder = { swords: 2 };
+    const manor = manorView(s, DAY)!;
+    const next = nextMerchantVisit([STOP], DAY)!;
+    expect(manor.market.merchantsDay).toBe(next.day);
+    expect(manor.market.merchantsDay).toBeGreaterThanOrEqual(DAY);
+    expect(manor.market.arms).toEqual([
+      { good: 'swords', price: 120, ordered: 2 },
+      { good: 'mailShirts', price: 480, ordered: 0 },
+      { good: 'helmets', price: 240, ordered: 0 },
+    ]);
+    expect(manor.market.merchantsArrived).toBeNull();
+    // hladina trhu a poslední příjezd kupců
+    s.market = {
+      prices: {},
+      visitors: [],
+      nextOrder: 1,
+      arrivals: [
+        { name: '', day: DAY - 9, goods: [], merchants: true },
+        { name: 'Lhota', day: DAY - 2, goods: [] },
+        { name: '', day: DAY - 5, goods: [], merchants: true },
+      ],
+      level: 1.5,
+    };
+    const leveled = manorView(s, DAY)!.market;
+    expect(leveled.arms[0]!.price).toBe(180);
+    expect(leveled.merchantsArrived).toBe(DAY - 5);
+  });
+
+  it('kupci přijedou dnes: den příjezdu je dnešek, ne zítřek', () => {
+    const s = village();
+    s.merchantStops = [STOP];
+    const visit = nextMerchantVisit([STOP], DAY)!;
+    // den příjezdu zastávky je pevný; ve vsi s tímto dnem jako „dnes“ ho pohled nesmí posunout
+    expect(manorView(s, visit.day)!.market.merchantsDay).toBe(visit.day);
+  });
+
+  it('ves bez stezky: žádná zbroj ani den', () => {
+    const s = village();
+    s.armsOrder = { swords: 2 };
+    const { market } = manorView(s, DAY)!;
+    expect(market.arms).toEqual([]);
+    expect(market.merchantsDay).toBeNull();
+    expect(market.merchantsArrived).toBeNull();
+  });
+
+  it('seed zastávky ani zastávky klientovi nejdou – ani v pohledu dvorce, ani v celém pohledu na ves', () => {
+    const s = village();
+    s.merchantStops = [STOP];
+    expect(JSON.stringify(manorView(s, DAY))).not.toMatch(/987654321|merchantStops/);
+    const real = generateLandscape(5);
+    const found = foundVillage({
+      seed: 3,
+      day: DAY,
+      dwellingPosition: { x: 0, z: 0, rotation: 0 },
+    });
+    found.merchantStops = [STOP];
+    const view = buildVillageView(
+      { id: 'v', settlementId: 's', name: 'Libice', state: found, version: 1 },
+      real,
+      DAY,
+    );
+    expect(JSON.stringify(view)).not.toMatch(/987654321|merchantStops/);
   });
 });

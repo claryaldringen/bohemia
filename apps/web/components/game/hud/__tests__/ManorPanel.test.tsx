@@ -87,7 +87,17 @@ describe('vylepšení vsi ve dvorci', () => {
       <ManorUpgrades
         manor={{
           dwellingId: 1,
-          market: { stock: {}, homeCarts: [], oxenHome: 0, adults: 0, day: 0, trips: [] },
+          market: {
+            stock: {},
+            homeCarts: [],
+            oxenHome: 0,
+            adults: 0,
+            day: 0,
+            trips: [],
+            merchantsDay: null,
+            arms: [],
+            merchantsArrived: null,
+          },
           stance: 'flee',
           huntDenied: null,
         }}
@@ -102,7 +112,17 @@ describe('vylepšení vsi ve dvorci', () => {
   it('tlačítko Obchod otevře panel Trh; bez obsluhy je zašedlé', () => {
     const manor = {
       dwellingId: 1,
-      market: { stock: {}, homeCarts: [], oxenHome: 0, adults: 0, day: 0, trips: [] },
+      market: {
+        stock: {},
+        homeCarts: [],
+        oxenHome: 0,
+        adults: 0,
+        day: 0,
+        trips: [],
+        merchantsDay: null,
+        arms: [],
+        merchantsArrived: null,
+      },
       stance: 'flee' as const,
       huntDenied: null,
     };
@@ -117,6 +137,61 @@ describe('vylepšení vsi ve dvorci', () => {
   });
 });
 
+describe('cizí kupci ve dvorci (markets.md – Rozhodnutí plánu 4, bod 12)', () => {
+  /** Vylepšení dvorce vsi v den 10, kam kupci přijedou v den `merchantsDay`. */
+  const render = (merchantsDay: number | null): string =>
+    renderToStaticMarkup(
+      <ManorUpgrades
+        manor={{
+          dwellingId: 1,
+          stance: 'flee',
+          huntDenied: null,
+          market: {
+            stock: {},
+            homeCarts: [],
+            oxenHome: 0,
+            adults: 0,
+            day: 10,
+            trips: [],
+            merchantsDay,
+            arms: [],
+            merchantsArrived: null,
+          },
+        }}
+      />,
+    );
+  const days = (html: string): string | undefined =>
+    /data-testid="manor-merchants"[^>]*>([^<]*)</.exec(html)?.[1];
+  const trade = 'kupují med, vosk a kožešiny, prodávají meče, kroužkové košile a helmy';
+
+  it('ikona kupců s počtem dní do příjezdu, slova jen v popisku', () => {
+    const html = render(22);
+    expect(html).toContain('/icons/resources/merchants.png');
+    expect(days(html)).toBe('12');
+    expect(html).toContain(`>Kupci přijedou za 12 dní – ${trade}<`);
+  });
+
+  it('český plurál – 1 den, 2–4 dny, jinak dní', () => {
+    expect(render(11)).toContain(`>Kupci přijedou za 1 den – ${trade}<`);
+    expect(render(12)).toContain(`>Kupci přijedou za 2 dny – ${trade}<`);
+    expect(render(14)).toContain(`>Kupci přijedou za 4 dny – ${trade}<`);
+    expect(render(15)).toContain(`>Kupci přijedou za 5 dní – ${trade}<`);
+  });
+
+  it('přijíždějí-li dnes, jsou dnes ve vsi', () => {
+    const html = render(10);
+    expect(days(html)).toBe('0');
+    expect(html).toContain(`>Kupci jsou dnes ve vsi – ${trade}<`);
+    expect(html).not.toContain('přijedou');
+  });
+
+  it('ves bez stezky nic', () => {
+    const html = render(null);
+    expect(html).not.toContain('manor-merchants');
+    expect(html).not.toContain('merchants.png');
+  });
+});
+
 describe('tlačítko lovu ve dvorci', () => {
   const huntButton = (huntDenied: string | null): string =>
     renderToStaticMarkup(
@@ -125,7 +200,17 @@ describe('tlačítko lovu ve dvorci', () => {
           dwellingId: 1,
           stance: 'flee',
           huntDenied,
-          market: { stock: {}, homeCarts: [], oxenHome: 0, adults: 0, day: 0, trips: [] },
+          market: {
+            stock: {},
+            homeCarts: [],
+            oxenHome: 0,
+            adults: 0,
+            day: 0,
+            trips: [],
+            merchantsDay: null,
+            arms: [],
+            merchantsArrived: null,
+          },
         }}
         onDeclareHunt={async () => null}
       />,

@@ -56,7 +56,7 @@ function premiumRouteLine(l: Landscape): RoadPoint[] | null {
  * `route` jednu osu prvku, mapa se stezkou kostry úseky `skeletonFeaturesOf(l).route.legs` v jejich
  * pořadí (každý od okraje mapy k místu vsi) – tytéž zdroje jako stezka kostry nové vsi
  * (`withSkeletonRoute`), jen bez dělení u vsi. Závisí jen na krajině, proto je průsekem mřížky
- * pochodu i na mapě bez vsi. Krajina bez stezky (suchá mapa, NPC) [].
+ * pochodu i na mapě bez vsi. Krajina bez stezky (suchá mapa) [].
  */
 export function landscapeTrailLines(l: Landscape): RoadPoint[][] {
   const premium = premiumRouteLine(l);
@@ -67,9 +67,9 @@ export function landscapeTrailLines(l: Landscape): RoadPoint[][] {
 
 /**
  * Větve stezky kostry krajiny od vsi ven se směrem každé (osy `landscapeTrailLines`): prémiová
- * krajina s prvkem `route` jde po ose prvku rozdělené u vsi, mapa se stezkou kostry (lidský hráč)
- * po úsecích – směr dává strana mapy, kde úsek končí (křižovatka = 3 směry, konec stezky = 1).
- * Krajina bez stezky (suchá mapa, NPC) nemá nic.
+ * krajina s prvkem `route` jde po ose prvku rozdělené u vsi, mapa se stezkou kostry (lidský hráč
+ * i ves syna) po úsecích – směr dává strana mapy, kde úsek končí (křižovatka = 3–4 směry, konec
+ * stezky = 1). Krajina bez stezky (suchá mapa) nemá nic.
  */
 function routeBranches(
   landscape: Landscape,
@@ -97,7 +97,7 @@ function routeBranches(
  * Stezka kostry pro novou ves (premium-landscapes.md – Kostra světa: „Stezka kostry je hotová
  * dálková cesta od počátku … obchod se sousedy v obou jejích směrech jde hned, jako po hotové
  * zemské stezce – bez stavby“): osa stezky (prvek `route` prémiové krajiny nebo trasa kostry
- * světa na mapě lidského hráče) se uloží jako pevné cesty (`addTrailRoads`), úseky dostanou
+ * světa na mapě lidského hráče i vsi syna) se uloží jako pevné cesty (`addTrailRoads`), úseky dostanou
  * stupeň hotové zemské stezky (upravená cesta, hať a lávka přes mokřinu a brod) a průsek lesem
  * bez klád (`cutRoadSwath` – stezka nevede pod korunami) a ves má hotovou zemskou stezku v každém
  * směru, kam osa vede (`Trail.builtDay` = den založení). Vrátí kopii; krajina bez stezky nebo ves,

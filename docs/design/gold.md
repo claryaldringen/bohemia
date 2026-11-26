@@ -43,7 +43,7 @@ s hornictvím (premium-landscapes.md).
    výroba šperku je náročná a dlouho trvá): výhoda platí jen pro tolik zlata, kolik šperkař za dobu práce zpracuje –
    šperkařovo zpracované zlato přibývá jeho prací (rešerše: kolik gramů za den), platba nebo prodej s výhodou ho ubírá;
    nad to se platí zlatem 1:1.
-5. **Kupci** vykupují zlato (s šperkařem dráž) a platí mincemi (markets.md).
+5. **Kupci** vykupují zlato (s šperkařem dráž) a platí mincemi (markets.md). **Stav po plánu 4 obchodu (26. 11. 2026):** mince už obíhají – přicházejí s cizími kupci na stezkách a ves je hromadí a utrácí hráč a správce (markets.md – Rozhodnutí plánu 4); kupci zatím kupují jen med, vosk a kožešiny, **za zlato je neplatí** – zlato, šperkař a mincovna jsou plán 6.
 
 ## Co se ověří
 

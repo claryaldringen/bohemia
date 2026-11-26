@@ -21,6 +21,7 @@ import {
   marketTripsDay,
   oxenForCarts,
   planMarketTrip,
+  tripCarts,
   type MarketTripCheck,
 } from '../market-trip';
 import { expeditionLaborNeed, finishExpeditions, workExpeditions } from '../trade';
@@ -549,6 +550,106 @@ describe('vozy na trhu – voli pro koupený vůz, prodaný vůz (Rozhodnutí pl
   });
 });
 
+// Výprava hráče s mincemi (markets.md – Rozhodnutí plánu 4, body 1 a 4; Martin 25. 11. 2026: „Mince
+// utrácí jen vojvoda/správce“): mince jdou v „Dáš“, na seznam se nedávají a nic neváží – nákup za ně
+// drží nosnost cesty domů stejně jako zápočet.
+describe('výprava hráče s mincemi (Rozhodnutí plánu 4, body 1 a 4)', () => {
+  /** 8 volných dospělých, bez vozu. */
+  const base: MarketTripCheck = {
+    stock: { grain: 10_000, coins: 1_000 },
+    homeCarts: [],
+    oxenHome: 0,
+    adults: 8,
+    cells: 1,
+    day: D,
+  };
+  const order = (give: TradeGoods, wants: TradeGoods = {}): MarketOrder => ({
+    give,
+    wants,
+    stayDays: 1,
+  });
+
+  it('mince se na seznam nedávají – ani vedle zboží, ani s mincemi v „Dáš“, ani u kováře', () => {
+    const bad = { ok: false, reason: MARKET_BAD_ORDER };
+    expect(checkMarketTrip(order({}, { coins: 1 }), base)).toEqual(bad);
+    expect(checkMarketTrip(order({ grain: 100 }, { cows: 1, coins: 5 }), base)).toEqual(bad);
+    expect(checkMarketTrip(order({ coins: 400 }, { coins: 400 }), base)).toEqual(bad);
+    expect(checkMarketTrip(order({}, { coins: 1 }), { ...base, alone: true })).toEqual(bad);
+    // je to tvar objednávky – hlásí se před pobytem, zásobou i lidmi
+    const worse = { ...order({ grain: 1e9 }, { coins: 1, pottery: 2_000 }), stayDays: 0 };
+    expect(checkMarketTrip(worse, { ...base, adults: 0 })).toEqual(bad);
+    // nula na seznamu není nic
+    expect(checkMarketTrip(order({ coins: 400 }, { coins: 0 }), base)).toMatchObject({ ok: true });
+  });
+
+  it('nákup za mince drží cesta domů: nosiči jsou z celého seznamu', () => {
+    const buy = (kg: number): MarketOrder => order({ coins: 400 }, { pottery: kg });
+    // 200 kg keramiky domů = 8 nosičů po 25 kg, 400 mincí nic neváží
+    expect(checkMarketTrip(buy(200), base)).toMatchObject({ ok: true, porters: 8, carts: 0 });
+    expect(checkMarketTrip(buy(201), base)).toEqual({ ok: false, reason: MARKET_NO_PEOPLE });
+    // na 2 000 kg by mince stačily, domů je ale nese 80 lidí
+    expect(marketCrew({ coins: 400 }, { pottery: 2_000 }, [])).toEqual({ porters: 80, carts: 0 });
+    expect(checkMarketTrip(buy(2_000), base)).toEqual({ ok: false, reason: MARKET_NO_PEOPLE });
+    expect(checkMarketTrip(buy(2_000), { ...base, adults: 80 })).toMatchObject({ porters: 80 });
+    // koupený vůz potřebuje voly domů i za mince
+    expect(checkMarketTrip(order({ coins: 400 }, { twoWheelCarts: 1 }), base)).toEqual({
+      ok: false,
+      reason: MARKET_NO_OXEN,
+    });
+  });
+
+  it('plná posádka s mincemi vyjede – mince nosiče nepřidají', () => {
+    for (const give of [{ grain: 200 }, { grain: 200, coins: 1_000 }]) {
+      expect(checkMarketTrip(order(give), base)).toMatchObject({ ok: true, porters: 8, carts: 0 });
+    }
+    expect(checkMarketTrip(order({ coins: 1_000 }), base)).toMatchObject({ ok: true, porters: 1 });
+  });
+
+  it('mince v „Dáš“ hlídají dosavadní kontroly: celé kusy a nejvýš zásoba', () => {
+    expect(checkMarketTrip(order({ coins: 1_001 }), base)).toEqual({
+      ok: false,
+      reason: MARKET_OVER_STOCK,
+    });
+    for (const coins of [0.5, -1, Number.NaN, Number.POSITIVE_INFINITY]) {
+      expect(checkMarketTrip(order({ coins }), base)).toEqual({
+        ok: false,
+        reason: MARKET_BAD_ORDER,
+      });
+    }
+  });
+
+  it('ves s 400 mincemi a 8 dospělými: totéž ze stavu, odmítnutá výprava nic nevezme', () => {
+    const h = homeVillage();
+    h.carts = [];
+    h.coins = 400;
+    expect(marketFreeAdults(h, D)).toBe(8);
+    const refused: [MarketOrder, string][] = [
+      [order({ coins: 400 }, { pottery: 200, coins: 1 }), MARKET_BAD_ORDER],
+      [order({ coins: 400 }, { pottery: 2_000 }), MARKET_NO_PEOPLE],
+      [order({ coins: 401 }, { pottery: 200 }), MARKET_OVER_STOCK],
+    ];
+    const before = structuredClone(h);
+    for (const [bad, reason] of refused) {
+      expect(departMarketInPlace(h, D, bad, target)).toEqual({ ok: false, reason });
+      expect(h).toEqual(before);
+    }
+    const buy = order({ coins: 400 }, { pottery: 200 });
+    const sent = departMarket(h, D, buy, target);
+    if (!sent.ok) throw new Error(sent.reason);
+    expect(sent.state).not.toHaveProperty('coins');
+    expect(sent.state.trade!.expeditions.at(-1)).toMatchObject({
+      give: { coins: 400 },
+      porters: 8,
+      market: { wants: { pottery: 200 } },
+    });
+    // mince jsou pryč s výpravou – druhá je už nemá z čeho dát
+    expect(departMarket(sent.state, D, order({ coins: 1 }), target)).toEqual({
+      ok: false,
+      reason: MARKET_OVER_STOCK,
+    });
+  });
+});
+
 describe('odchod bez klonu a kdo výpravu poslal (Rozhodnutí plánu 3, bod 7)', () => {
   const order = { give: { grain: 600 }, wants: { cows: 1 }, stayDays: 1 };
 
@@ -610,5 +711,45 @@ describe('odchod bez klonu a kdo výpravu poslal (Rozhodnutí plánu 3, bod 7)',
       expect(marketCrew({ grain: kg }, {}, carts).porters).toBe(adults);
       expect(marketCrew({ grain: kg + 1 }, {}, carts).porters).toBe(adults + 1);
     }
+  });
+});
+
+describe('vozy výpravy – jeden zdroj pravdy pro kontrolu i správce', () => {
+  const base: MarketTripCheck = {
+    stock: { trainedOxen: 4, grain: 10_000, fourWheelCarts: 1 },
+    homeCarts: ['four-wheel', 'four-wheel'],
+    oxenHome: 4,
+    adults: 5,
+    cells: 1,
+    day: D,
+  };
+
+  it('dvě spřežení a prodaný vůz: jede ten, který zbyl, s nákladem, který unese', () => {
+    const give = { fourWheelCarts: 1, grain: 800 };
+    expect(tripCarts(base.homeCarts, 4, give, {})).toEqual(['four-wheel']);
+    expect(checkMarketTrip({ give, wants: {}, stayDays: 1 }, base)).toMatchObject({
+      ok: true,
+      carts: 1,
+    });
+  });
+
+  it('jedno spřežení a koupený vůz: voli na vůz se rezervují, dopravní vůz nejede, nosiči stačí', () => {
+    const wants = { fourWheelCarts: 1 };
+    expect(tripCarts(['four-wheel'], 2, {}, wants)).toEqual([]);
+    expect(
+      checkMarketTrip(
+        { give: { grain: 100 }, wants, stayDays: 1 },
+        {
+          ...base,
+          homeCarts: ['four-wheel'],
+          oxenHome: 2,
+        },
+      ),
+    ).toMatchObject({ ok: true, carts: 0, oxen: 2 });
+  });
+
+  it('nabídka bez vozů a volů beze změny: jedou všechny vozy se spřežením', () => {
+    expect(tripCarts(base.homeCarts, 4, { grain: 100 }, {})).toEqual(['four-wheel', 'four-wheel']);
+    expect(tripCarts(base.homeCarts, 2, { trainedOxen: 2 }, {})).toEqual([]);
   });
 });

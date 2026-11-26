@@ -56,6 +56,11 @@ export function formatGameDate({ day, month, year }: CalendarDate): string {
   return `${day}. ${MONTHS_GENITIVE[month - 1]} ${year}`;
 }
 
+/** Den a měsíc herního data číslem – „12. 4.“ (blízký den, u něhož rok nic neřekne). */
+export function formatDayMonth({ day, month }: Pick<CalendarDate, 'day' | 'month'>): string {
+  return `${day}. ${month}.`;
+}
+
 const MONTHS_PER_YEAR = 12;
 
 /**

@@ -24,7 +24,8 @@ import { disasterNotices, weatherNotices, type DisasterNoticeKind } from './disa
 // lidí), opuštěná modla padla, svatyně, plot hřbitova či ohrada
 // se rozpadly a vesničané je opravili (abandonment.md – Oprava) – nové události kroniky; před žněmi
 // ves bez humna, snopy čekají na humno, nouzový výmlat a humno nestačí (production-chains.md –
-// Humno). Vymřelá ves žádná nemá. Odvozují se z pohledu na ves a ukážou se jednou, když nově
+// Humno), kupci přijeli – za každý příjezd, s ikonou kupců (markets.md – Rozhodnutí plánu 4,
+// bod 5). Vymřelá ves žádná nemá. Odvozují se z pohledu na ves a ukážou se jednou, když nově
 // vzniknou – jako krátký mizející řádek nahoře uprostřed (jako oznámení v 0 A.D.). Jen fakt, žádná
 // rada – kromě humna („Před žněmi postav humno“): bez něj ves nemlátí a nesmí zahynout hladem jen
 // proto, že hráč o humnu nevěděl (production-chains.md – anti-cíl). Trvalé stavy (hlad, stavby
@@ -110,6 +111,8 @@ export type NoticeKind =
   | 'trade-returned'
   /** Výprava na trh se vrátila (markets.md – Pravidla 3). */
   | 'market-returned'
+  /** Na trh vlastní vsi přijeli cizí kupci – za každý příjezd (markets.md – Rozhodnutí plánu 4, bod 5). */
+  | 'merchants-arrived'
   /** S výpravou přišli lidé od souseda (trade.md – Výměna lidí). */
   | 'newcomer-family'
   | 'newcomer-man'
@@ -177,6 +180,8 @@ export interface VillageNotice {
   /** info = zpráva, warn = problém. */
   tone: 'info' | 'warn';
   text: string;
+  /** Ikona před textem řádku (jen kupci); jinak žádná. */
+  icon?: string;
 }
 
 /**
@@ -426,6 +431,22 @@ function ownNotices(previous: VillageView, next: VillageView): VillageNotice[] {
     notices.push({ kind: 'marriage', tone: 'info', text: 'Svatba' });
   }
   notices.push(...chronicleNotices(previous, next));
+  // kupci přijeli – za každý den příjezdu, ne jen první v roce jako kronika (markets.md – Rozhodnutí
+  // plánu 4, bod 5): den posledního příjezdu v pohledu je novější než v minulém pohledu. Dva příjezdy
+  // téhož dne dají jedno upozornění (stejný den, nic novějšího).
+  const arrived = next.manor?.market.merchantsArrived ?? null;
+  if (
+    !next.extinct &&
+    arrived !== null &&
+    arrived > (previous.manor?.market.merchantsArrived ?? -Infinity)
+  ) {
+    notices.push({
+      kind: 'merchants-arrived',
+      tone: 'info',
+      text: 'Kupci přijeli',
+      icon: '/icons/resources/merchants.png',
+    });
+  }
   // pohromy z kroniky – kroupy, povodeň, požár (hoří / vyhořel dům), smršť (disasters.md)
   if (!next.extinct)
     notices.push(...disasterNotices(next.chronicle, previous.dayIndex, next.dayIndex));
