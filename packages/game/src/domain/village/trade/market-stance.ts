@@ -169,12 +169,13 @@ export function marketStance(state: VillageState, day: number): MarketStance {
   give('stone', villageGoodStock(state, 'stone', day));
 
   // lidé: bez koho ves pole udrží, nabízí – po druzích, které jde vybrat celé najednou (rodiny, muži
-  // a ženy berou z týchž lidí; `emigrantGroups` přes všechny druhy); půdy víc než práce – shání
+  // a ženy berou z týchž lidí; `emigrantGroups` přes všechny druhy); půdy víc než práce – shání.
+  // Otroky ves sama nenabízí ani neshání (markets.md – Rozhodnutí plánu 5, body 7 a 8)
   const spare = emigrantGroups(state, day, peopleOffer(state, day, outlook));
   const wantedPeople = peopleWanted(state, day, outlook);
   for (const good of PEOPLE_GOODS) {
     if (spare[good].length > 0) offer[good] = spare[good].length;
-    want(good, wantedPeople[good]);
+    want(good, wantedPeople[good] ?? 0);
   }
   return { offer, wants };
 }

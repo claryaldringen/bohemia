@@ -2,7 +2,8 @@
 // Výměna lidí se smyšlenými sousedy skončila s obchodní výpravou (markets.md – Pravidla 1); kód
 // zůstává pro to, co je na cestě a co nesou zásilky vazalů (vassalage.md – Doprava a cílová ves):
 // koho ves smí dát (`emigrantGroups` – nikdy dědice domu, vojvodovu domácnost ani nikoho, bez koho
-// by se domácnost rozpadla) a kam přijdou lidé, které přivede výprava na cestě (`settleNewcomers`,
+// by se domácnost rozpadla; otroci jsou zboží a jdou každý sám – `sellableSlaves`, markets.md –
+// Rozhodnutí plánu 5, bod 6) a kam přijdou lidé, které přivede výprava na cestě (`settleNewcomers`,
 // markets.md – Pravidla 10). Čisté funkce bez I/O, náhoda ze seedu vsi.
 import { isDisused } from '../buildings/disused';
 import { isHouseType } from '../buildings/log-house';
@@ -13,6 +14,7 @@ import { villageManorId } from '../people/manor';
 import { isSingle } from '../people/marriage';
 import { householdBreaksUp, isAway, isFertile, occupants } from '../people/people';
 import { DWELLINGS, PEOPLE_TRADE } from '../rules';
+import { sellableSlaves } from './slaves';
 import type {
   ChronicleEvent,
   ComingPeople,
@@ -30,9 +32,9 @@ const DAYS_PER_YEAR = 365.25;
 /** Žádní lidé. */
 export const NO_PEOPLE: TradePeople = { families: 0, men: 0, women: 0 };
 
-/** Kolik lidí ve výměně (rodiny, muži a ženy) – součet skupin. */
+/** Kolik lidí ve výměně (otroci, rodiny, muži a ženy) – součet skupin; chybějící otroci = 0. */
 export function tradePeopleCount(people: TradePeople): number {
-  return people.families + people.men + people.women;
+  return (people.slaves ?? 0) + people.families + people.men + people.women;
 }
 
 /** Celé číslo v rozmezí od–do včetně. */
@@ -131,23 +133,34 @@ function group(kind: EmigrantGroup['kind'], dwellingId: number, people: Person[]
   return { kind, dwellingId, people };
 }
 
-/** Koho ves dá – rodiny, svobodní muži a svobodné ženy (v pořadí výběru). */
+/** Koho ves dá – otroci, rodiny, svobodní muži a svobodné ženy (v pořadí výběru). */
 export interface Emigrants {
+  slaves: EmigrantGroup[];
   families: EmigrantGroup[];
   men: EmigrantGroup[];
   women: EmigrantGroup[];
 }
 
 /**
- * Koho ves dá sousedovi (trade.md – Výměna lidí, návrh Clauda): nejvýš `want.families` rodin, pak
- * `want.men` svobodných mužů a `want.women` svobodných žen, postupně – každá další skupina z vsi
- * bez těch předchozích, vždy z nejvíc přeplněného domu (dvorec vojvody ne). Rodina podle
- * `familiesOf` (muž, žena a jejich svobodné děti; dědic domu a jeho rodiče zůstávají, zbytek
- * domácnosti se nesmí rozpadnout), muž a žena podle `nextSingle`. Výběr je postupný, takže prvních
- * n skupin je vždy stejných (náhled v panelu). Když tolik lidí není, vrátí méně.
+ * Koho ves dá sousedovi (trade.md – Výměna lidí, návrh Clauda): napřed nejvýš `want.slaves` otroků
+ * (`sellableSlaves` – každý sám, markets.md – Rozhodnutí plánu 5, bod 6), pak z vsi bez nich
+ * nejvýš `want.families` rodin, `want.men` svobodných mužů a `want.women` svobodných žen, postupně –
+ * každá další skupina z vsi bez těch předchozích, vždy z nejvíc přeplněného domu (dvorec vojvody
+ * ne). Rodina podle `familiesOf` (muž, žena a jejich svobodné děti; dědic domu a jeho rodiče
+ * zůstávají, zbytek domácnosti se nesmí rozpadnout), muž a žena podle `nextSingle`. Výběr je
+ * postupný, takže prvních n skupin je vždy stejných (náhled v panelu). Když tolik lidí není, vrátí
+ * méně. Bez otroků ve `want` se prodejní otroci nehledají a výběr je týž jako před plánem 5.
  */
 export function emigrantGroups(state: VillageState, day: number, want: TradePeople): Emigrants {
-  let rest = state;
+  // otroci jedním řezem – každý jako skupina sám, ze vsi se odeberou najednou
+  const slaves =
+    (want.slaves ?? 0) > 0
+      ? sellableSlaves(state, day)
+          .slice(0, want.slaves)
+          .map((p) => group('slave', p.dwellingId, [p]))
+      : [];
+  const sold = slaves.flatMap((g) => g.people);
+  let rest = sold.length > 0 ? without(state, sold) : state;
   const take = (count: number, next: () => EmigrantGroup | undefined): EmigrantGroup[] => {
     const out: EmigrantGroup[] = [];
     while (out.length < count) {
@@ -161,12 +174,12 @@ export function emigrantGroups(state: VillageState, day: number, want: TradePeop
   const families = take(want.families, () => nextFamily(rest, day));
   const men = take(want.men, () => nextSingle(rest, day, 'male'));
   const women = take(want.women, () => nextSingle(rest, day, 'female'));
-  return { families, men, women };
+  return { slaves, families, men, women };
 }
 
-/** Všechny skupiny výběru v pořadí rodiny, muži, ženy. */
+/** Všechny skupiny výběru v pořadí otroci, rodiny, muži, ženy. */
 export function emigrantList(emigrants: Emigrants): EmigrantGroup[] {
-  return [...emigrants.families, ...emigrants.men, ...emigrants.women];
+  return [...emigrants.slaves, ...emigrants.families, ...emigrants.men, ...emigrants.women];
 }
 
 /** Člověk od souseda: pohlaví, věk v letech a dny navíc (narozeniny – los) a role ve skupině. */

@@ -368,6 +368,8 @@ export function marketTripPeople(
       families: leaving.families.length,
       men: leaving.men.length,
       women: leaving.women.length,
+      // otroci jen > 0 (jako `peopleOf`) – bez nich by kontrola dala zásobu 0 (`MARKET_OVER_STOCK`)
+      ...(leaving.slaves.length > 0 ? { slaves: leaving.slaves.length } : {}),
     },
     adults: marketFreeAdults(withoutGroups(state, emigrantList(leaving)), day),
   };

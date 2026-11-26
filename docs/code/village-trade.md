@@ -932,6 +932,30 @@ laborHa`) → chybí ceil(dospělí × (landHa ÷ laborHa − 1)) dospělých, r
   prodaná rodina z Lhoty a 17 mincí.“), bez lidí zápis `stranded-coins` („Do vsi přišlo 17 mincí
   z Lhoty.“; cizímu správci bez jména – `maskVillageNames`). Starší zpráva bez `from` mince přičte
   bez kroniky.
+- **Otroci na trhu** (markets.md – Rozhodnutí plánu 5, bod 6; Martin 26. 11. 2026: „Moc to
+  řešíš. Otroci nejsou rodina, ale zboží“; `trade/slaves.ts`): `PeopleGood` += `slaves` – kus je
+  jeden otrok, manžel ani děti s ním neodcházejí a i malé dítě-otrok jde samo za cenu dospělého
+  (`TRADE_GOOD_VALUES.slaves` 360 kg obilí = 24 mincí, nese 0). `PEOPLE_GOODS` = otroci, rodiny,
+  muži, ženy (otroci napřed, tedy i v `TRADE_GOODS` a `PIECE_GOODS`); skupina `NewcomerGroup`
+  `slave` (`PEOPLE_GROUP.slaves`, `GROUP_GOOD.slave`). Prodat jde `sellableSlaves(state, day)` –
+  jeden průchod lidmi bez simulace: `canBeSold` (otrok-pohan, ne `line` ani `noble`), doma (ne
+  `isAway`), ne `keptByLine`, od nejnižšího id. Odvedený pohan z cizího rodu nebo šlechtic je po
+  usazení obyčejný otrok na prodej – `settleLed` mu `line` i `noble` smaže (village-people.md),
+  takže ho `canBeSold` ani `keptByLine` nedrží; jeho žena také ne (manžel už není muž rodu).
+  `emigrantGroups` bere napřed `want.slaves` otroků jedním řezem (každý jako skupina `slave` sám,
+  i z dvorce a i když se domácnost rozpadne – rozpad řeší `dissolveHouseholds` jako po smrti), pak rodiny, muže
+  a ženy z vsi bez nich; `Emigrants.slaves`, `emigrantList` v pořadí otroci, rodiny, muži, ženy.
+  Bez `want.slaves` se prodejní otroci nehledají a kopie vsi nevzniká – výběr je bit po bitu jako
+  před plánem 5. Volitelné `TradePeople.slaves` (chybí = 0): `tradePeopleCount` ho sčítá,
+  `peopleOf` i `MarketTripPeople.stock` (`marketTripPeople`) ho píší jen při kladném počtu (bez něj
+  by kontrola výpravy dala otrokům zásobu 0). Bez otroků zůstávají `NO_PEOPLE`, lidé zásilek
+  (`ShipmentManifest.people`) a `comingCounts`; hostitel otroky sám nenabízí ani neshání
+  (`marketStance`). Zásoba, odchod, prodej a návrat jdou přes `PEOPLE_GOODS` a `emigrantGroups`
+  samy (`villageGoodStock`, `takePeople`, `settleTrades`, `departMarketInPlace`,
+  `applyMarketResult`, `checkMarketTrip`). Příchod a návrat otrokyně nese v zápisu `newcomer`
+  `female` (`settlePeople`, `receiveStranded`). Web: `TRADE_GOOD_NAMES.slaves` (ikona
+  `resources/slave.png`), `NEWCOMER_TEXTS.slave`, upozornění `newcomer-slave` a
+  `newcomer-back-slave`; náhled výpravy s otroky ve webu a manželství otroka při prodeji zatím ne.
 
 Počasí kraje mění hodnotu zboží od 1. 11. – [village-disasters.md](village-disasters.md#kraj-kolem-vsi-hodnota-zboží-a-zvěř-p4).
 

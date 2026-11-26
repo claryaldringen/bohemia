@@ -877,6 +877,8 @@ export type ChronicleEvent = { day: number } & (
       villageId?: string;
       returned?: true;
       coins?: number;
+      /** Otrokyně (skupina `slave` se ženou) – věta v ženském rodě (vzor `birth`); jinak chybí. */
+      female?: true;
     }
   /**
    * Měšec výpravy z vsi `villageName` (`villageId`), jejíž domovská ves zanikla, přišel do vsi bez

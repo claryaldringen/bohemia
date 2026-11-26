@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { MERCHANTS, TRADE_GOODS, isPieceGood } from '@bohemia/game';
 import {
+  NEWCOMER_TEXTS,
   TRADE_GOOD_NAMES,
   coinsText,
   goodsNames,
@@ -41,6 +42,22 @@ describe('jednotky zboží obchodu', () => {
   it('kg a kusy zůstávají', () => {
     expect(tradeAmountText(1500, 'kg')).toMatch(/^1\s500 kg$/);
     expect(tradeAmountText(4, 'ks')).toBe('4 kusy');
+  });
+
+  it('otroci: zboží po kusech s ikonou otroka a věta příchodu (plán 5)', () => {
+    expect(TRADE_GOODS).toContain('slaves');
+    expect(TRADE_GOOD_NAMES.slaves).toEqual({
+      name: 'Otroci',
+      genitive: 'otroků',
+      unit: 'ks',
+      icon: 'slave',
+    });
+    expect(NEWCOMER_TEXTS.slave).toEqual({
+      notice: 'Přišel otrok',
+      chronicle: 'přišel otrok',
+      back: 'se vrátil prodaný otrok',
+      backNotice: 'Vrátil se prodaný otrok',
+    });
   });
 
   it('kusové zboží jádra (`isPieceGood`) je právě to, co web nemá v kg', () => {

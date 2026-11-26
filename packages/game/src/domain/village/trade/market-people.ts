@@ -2,7 +2,8 @@
 // 19. 10. 2026: „celé rodiny i jen dospělí“, „muži a ženy zvlášť“). Lidé jsou kusové zboží s cenou
 // jako ostatní, ale cestují jako skuteční lidé – každý je vždy právě na jednom místě: ve vsi,
 // v nákladu výpravy, na trhu, nebo ve výsledku na cestě domů. Kdo smí odejít, vybírá
-// `emigrantGroups` (beze změny – ne dvorec, dědic, rozpad domácnosti, muži rodu a jejich ženy).
+// `emigrantGroups` (ne dvorec, dědic, rozpad domácnosti, muži rodu a jejich ženy; otroci napřed,
+// každý sám – `sellableSlaves`, markets.md – Rozhodnutí plánu 5, bod 6).
 // Odchod zapíše `removePeople` (do `emigrants` se směrem), příchod do jiné vsi `rehomePeople`
 // (nová místní id – `nextId` vsi vzroste o počet příchozích) a návrat domů vrátí původní id.
 // Nikdo nevznikne ani nezmizí. Funkce, které mění stav, ho mutují jako kroky dne.
@@ -36,21 +37,34 @@ const EPSILON = 1e-9;
 
 /** Zboží lidí ke skupině výběru (`EmigrantGroup.kind`). */
 const GROUP_GOOD: Readonly<Record<NewcomerGroup, PeopleGood>> = {
+  slave: 'slaves',
   family: 'families',
   man: 'men',
   woman: 'women',
 };
 
+/** Otrokyně – zápis `newcomer` v ženském rodě (`female`, vzor `birth`); jinak nic. */
+function femaleSlave(group: MarketPerson): { female?: true } {
+  return group.good === 'slaves' && group.people[0]?.sex === 'female' ? { female: true } : {};
+}
+
 /**
  * Lidé ve zboží `goods` po druzích – jen celé kladné počty (zboží špatného tvaru odmítne kontrola
- * výpravy, `checkMarketTrip`); ostatní zboží se nepočítá.
+ * výpravy, `checkMarketTrip`); ostatní zboží se nepočítá. Otroci (`slaves`) jen při kladném počtu –
+ * bez nich je tvar týž jako před plánem 5.
  */
 export function peopleOf(goods: TradeGoods): TradePeople {
   const whole = (good: PeopleGood): number => {
     const n = goods[good] ?? 0;
     return Number.isInteger(n) && n > 0 ? n : 0;
   };
-  return { families: whole('families'), men: whole('men'), women: whole('women') };
+  const slaves = whole('slaves');
+  return {
+    families: whole('families'),
+    men: whole('men'),
+    women: whole('women'),
+    ...(slaves > 0 ? { slaves } : {}),
+  };
 }
 
 /**
@@ -147,6 +161,7 @@ export function settlePeople(
       dwellingId: home,
       villageName: from.villageName,
       villageId: from.villageId,
+      ...femaleSlave(group),
     });
   }
   return events;
@@ -230,6 +245,7 @@ export function receiveStranded(
       villageName: back.from.villageName,
       villageId: back.from.villageId,
       returned: true,
+      ...femaleSlave(group),
     });
   }
   events.push(...settlePeople(state, day, settle, back.from ?? { villageId: '', villageName: '' }));

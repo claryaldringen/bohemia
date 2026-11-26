@@ -87,6 +87,8 @@ export const TRADE_GOOD_NAMES: Record<
   },
   helmets: { name: 'Helmy', genitive: 'helem', unit: 'ks', icon: 'helmet' },
   coins: { name: 'Mince', genitive: 'mincí', unit: 'ks', icon: 'coin' },
+  // otroci po jednom (markets.md – Rozhodnutí plánu 5, bod 6)
+  slaves: { name: 'Otroci', genitive: 'otroků', unit: 'ks', icon: 'slave' },
   // lidé na trhu po skupinách (markets.md – Rozhodnutí plánu 3, bod 10) – ikony jako výměna lidí
   families: {
     name: 'Rodiny – muž, žena a jejich děti',
@@ -189,6 +191,13 @@ export const NEWCOMER_TEXTS: Record<
     chronicle: 'přišla svobodná žena',
     back: 'se vrátila prodaná žena',
     backNotice: 'Vrátila se prodaná žena',
+  },
+  // otrok z trhu (markets.md – Rozhodnutí plánu 5, bod 6)
+  slave: {
+    notice: 'Přišel otrok',
+    chronicle: 'přišel otrok',
+    back: 'se vrátil prodaný otrok',
+    backNotice: 'Vrátil se prodaný otrok',
   },
 };
 

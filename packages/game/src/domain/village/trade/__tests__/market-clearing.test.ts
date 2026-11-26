@@ -216,7 +216,9 @@ describe('zápočet tržního dne (markets.md – Pravidla 5, Rozhodnutí plánu
       'mailShirts',
       'helmets',
       'coins',
-      // lidé po skupinách (markets.md – Rozhodnutí plánu 3, bod 10)
+      // lidé po skupinách (markets.md – Rozhodnutí plánu 3, bod 10) – otroci po jednom napřed
+      // (Rozhodnutí plánu 5, bod 6)
+      'slaves',
       'families',
       'men',
       'women',

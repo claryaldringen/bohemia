@@ -119,10 +119,13 @@ export type NoticeKind =
   | 'newcomer-family'
   | 'newcomer-man'
   | 'newcomer-woman'
+  /** Z trhu přišel otrok (markets.md – Rozhodnutí plánu 5, bod 6). */
+  | 'newcomer-slave'
   /** Vrátili se lidé, které ves prodala (markets.md – Rozhodnutí plánu 3, bod 13). */
   | 'newcomer-back-family'
   | 'newcomer-back-man'
   | 'newcomer-back-woman'
+  | 'newcomer-back-slave'
   /** Opuštěná stavba spadla (abandonment.md). */
   | 'idol-fell'
   | 'shrine-fell'

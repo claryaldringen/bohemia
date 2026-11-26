@@ -31,9 +31,10 @@ export type CartGood = 'twoWheelCarts' | 'fourWheelCarts';
 /**
  * Lidé na trhu (markets.md – Rozhodnutí plánu 3, bod 10; Martin 19. 10. 2026: „celé rodiny i jen
  * dospělí“, „muži a ženy zvlášť“): rodiny, svobodní muži a svobodné ženy – kusy (skupiny), klíče
- * jako `TradePeople`. Na trhu jdou konkrétní lidé (`MarketPerson`), ne počty.
+ * jako `TradePeople`. Na trhu jdou konkrétní lidé (`MarketPerson`), ne počty. Otroci (`slaves`)
+ * po jednom – kus je jeden člověk (markets.md – Rozhodnutí plánu 5, bod 6).
  */
-export type PeopleGood = 'families' | 'men' | 'women';
+export type PeopleGood = 'slaves' | 'families' | 'men' | 'women';
 
 /** Zbroj na trhu po kusech (markets.md – Rozhodnutí plánu 4, bod 7): meče, kroužkové košile, helmy. */
 export type ArmsGood = 'swords' | 'mailShirts' | 'helmets';
@@ -83,6 +84,8 @@ export interface TradePeople {
   families: number;
   men: number;
   women: number;
+  /** Otroci po jednom (markets.md – Rozhodnutí plánu 5, bod 6); chybí = 0. */
+  slaves?: number;
 }
 
 /**
@@ -97,8 +100,11 @@ export interface ComingPeople {
   adults?: number;
 }
 
-/** Kdo přišel od souseda (trade.md – Výměna lidí): rodina, svobodný muž, svobodná žena. */
-export type NewcomerGroup = 'family' | 'man' | 'woman';
+/**
+ * Kdo přišel od souseda (trade.md – Výměna lidí): rodina, svobodný muž, svobodná žena; z trhu
+ * i otrok (markets.md – Rozhodnutí plánu 5, bod 6).
+ */
+export type NewcomerGroup = 'family' | 'man' | 'woman' | 'slave';
 
 /**
  * Kdo výpravu na trh poslal (markets.md – Rozhodnutí plánu 3, body 7–11): vesničané, správce,
