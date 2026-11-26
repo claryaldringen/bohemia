@@ -486,8 +486,17 @@ day, order, target, { by?, seedKg?, alone?, service?, kin?, people? })` (mutuje 
     posune dál; napřed se hledá návštěvník) se vrátí jako `marketResult(příjezd, { returned: true })`
     se vším, co výprava vezla; výprava, která už na trhu stojí (`market.visitors`), s tím, co drží
     (`unsold`, `bought`, koně). Výsledek jde do vlastní schránky s `ref` `marketResultRef` na den
-    `lastDay + 1`. Archivované vsi nikdo nedopočítává – snímek, ze kterého se výsledek vezme, je konečný. Živý hostitel pozadu znamená čekat – lidé jsou doma v plánovaný den, zboží
-    přijde se zprávou v nejbližší nespočtený den. Spící domovská ves výpravy po termínu nemá
+    `lastDay + 1`. Archivované vsi nikdo nedopočítává – snímek, ze kterého se výsledek vezme, je konečný.
+    **Živý hostitel** (Opravné kolo 1 úlohy 11 plánu 4, návrh Clauda): výprava na jeho trhu čeká; příjezd
+    ve schránce hostitele na den, který hostitel už spočítal (`inbox.pending` od `arriveDay − 1` jen do
+    jeho `lastDay`), bez návštěvníka na trhu a bez výsledku v jeho `outbox` je **přeskočený příjezd** –
+    ves na cestě dny cesty nesimuluje (`simulate.ts`, `isVillageDormant`) – a výprava se vrátí se vším
+    (`returned`) jako od zaniklého hostitele; dřív by čekala navždy (`hasVillageMail` navždy true,
+    `seedOnTheWay` by zablokovalo další osivo a `wholeVillageBlock` odchod celé vsi). Příjezd na
+    pozdější den (hostitel pozadu) znamená čekat – lidé jsou doma v plánovaný den, zboží přijde se
+    zprávou v nejbližší nespočtený den. Použitý příjezd se nevrátí: jeho výsledek leží v `outbox`
+    hostitele (má přednost) nebo už ve schránce domova – návrat má týž `ref` (`marketResultRef`), druhý
+    zápis se zahodí (test „hostitel pomalejší než domov“). Spící domovská ves výpravy po termínu nemá
     (`overdueTrips`, tedy ani `hasVillageMail` – na hostitele se nedívá a kvůli nim se nenačítá): nic by
     nepoužila a z příjezdu, který zaniklý hostitel dávno použil, by se jí výprava složila znovu –
     výsledek od živého hostitele vrátí krok 1. Příjezd v odchozí schránce vsi se za nepoužitý
@@ -523,7 +532,7 @@ day, order, target, { by?, seedKg?, alone?, service?, kin?, people? })` (mutuje 
       mez, ne pravidlo); mez se bere až po filtru, takže nevyřiditelné řádky na začátku úklid nezastaví.
     - **Vědomý zbytek:** řádky od zaniklého odesílatele (vymřel, opuštěný, ves chybí) zůstanou – nejvýš
       jeden svazek na zaniklou ves (poslední rok její pošty), stejně starší výsledky bez `from`
-      a schránka zaniklé vsi; řádky nečinného hráče (spí jeho vsi) počkají, než se dopočtou.
+      a schránka zaniklé vsi; řádky nečinného hráče (worker jeho vsi neposouvá) počkají, než se dopočtou.
       `stranded-people` (`ref` `…:back`) se nemaže nikdy – je to jediná ochrana proti druhému vrácení.
     - **Souběh:** mažou se jen řádky dnů, které uložený stav vsi už použil – dopočet se starším stavem,
       který je mezitím četl, narazí při uložení na verzi; dva úklidy smažou řádek jednou; verze vsi se
@@ -539,7 +548,8 @@ day, order, target, { by?, seedKg?, alone?, service?, kin?, people? })` (mutuje 
     vymřel nebo je v archivu s výsledkem ve schránce, zaniklý i hostitel, použitý výsledek, živá
     ves; nevěsta zpět po archivu vsi ženicha; úklid vyřízené pošty – bezpečné řádky, mez až po filtru,
     pád mezi zápisem a vyčištěním, rok přeskočený v jednom dopočtu, výprava po termínu po úklidu
-    příjezdu, souběh; napojení v `nearby.test.ts`) a `advance-world.test.ts` – Pošta mezi vsemi
+    příjezdu, souhrn bez `openTrips`, souběh; přeskočený příjezd živého hostitele na cestě, výprava pro
+    osivo do vsi na cestě; napojení v `nearby.test.ts`, kde je i ves na cestě mimo okolí) a `advance-world.test.ts` – Pošta mezi vsemi
     ve workeru (ves dopočtená webem, zámek, kola workeru = ruční postup) a Pošta plánu 3 a svět
     (nevěsta přes kola obou hráčů, lidí je po každém kole stejně – `peopleOfWorld`,
     `bornMinusDied`); dva hráči na sousedních mapách v `__tests__/market-world.ts` (`marketWorld`
@@ -930,7 +940,12 @@ Počasí kraje mění hodnotu zboží od 1. 11. – [village-disasters.md](villa
     téhož hráče, ne vsi téže mapy ani dál; archivované sídlo ani sídlo s čekajícím převodem mezi
     nimi není), jejich otisky (`stampsOf` – jméno, spící ves vynechá) a souhrny (`digestsOf` –
     svobodní `VillageDigest.singles` = `kinSingles` ve dni souseda; souhrn bez nich nebo ves bez
-    souhrnu současné verze = nikdo) – **žádný stav se nenačte**. `cells` (`cellDistance`) a `firstStep` (`stepToward`) jako přehled trhu a výprava,
+    souhrnu současné verze = nikdo) – **žádný stav se nenačte**. **Ves na cestě** (`VillageDigest.travelling`
+    – lidé jdou na novou mapu a ves dny cesty nesimuluje, `isVillageDormant`) v okolí není (návrh
+    Clauda, Opravné kolo 1 úlohy 11 plánu 4): vesničané, správce, kovář i sňatky berou cíle jen
+    z okolí a výprava k ní by uvázla – příjezd na den cesty nikdo nepoužije; po příjezdu (`journey`
+    zmizí) ji má další snímek. Ves bez souhrnu současné verze se bere, jako by na cestě nebyla – výpravu
+    ze staršího snímku vrátí krok 3 pošty (přeskočený příjezd). `cells` (`cellDistance`) a `firstStep` (`stepToward`) jako přehled trhu a výprava,
     `self` = id a jméno záznamu vsi. Sídla na prstenci mají políčko mapy světa, odříznutý nováček
     mezi nimi není (proto bez `crossesIsolation`); odříznutá nebo archivovaná ves sama (newcomers.md
     – místní mřížka není mapa světa) má okolí prázdné. Válka nevadí. Snímek je stav ostatních vsí

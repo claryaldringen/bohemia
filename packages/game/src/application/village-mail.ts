@@ -115,7 +115,8 @@ function isQuery(mail: VillageMail): boolean {
 function strandedMail(hostId: string, ref: string, day: number, result: MarketResult): VillageMail {
   const newcomers = result.newcomers ?? [];
   const own = newcomers.filter((g) => g.fromHost === true);
-  const coins = result.unsold.coins ?? 0;
+  // poškozený řádek bez `unsold` (schránka je JSON) nesmí shazovat úlohu světa každou minutu
+  const coins = (result.unsold as MarketResult['unsold'] | undefined)?.coins ?? 0;
   return {
     villageId: hostId,
     day,
@@ -215,7 +216,11 @@ async function post(deps: VillageMailDeps, mail: VillageMail): Promise<boolean> 
  * 3. Výpravy po termínu (`overdueTrips`): výsledek v odchozí schránce hostitele zapíše; hostitel
  *    pryč (vymřel, opuštěn, sídlo v archivu, ves chybí) – nepoužitý příjezd (ve schránce
  *    hostitele; chybí-li hostitel, v odchozí schránce vsi) se vrátí se vším, výprava na trhu
- *    hostitele s tím, co drží (`returned`, den `lastDay + 1`); živý hostitel pozadu znamená čekat.
+ *    hostitele s tím, co drží (`returned`, den `lastDay + 1`). Živý hostitel: výprava na jeho trhu
+ *    čeká; příjezd na den, který hostitel už spočítal (do jeho `lastDay`), bez návštěvníka i výsledku
+ *    přeskočil (ves na cestě dny cesty nesimuluje) a vrátí se se vším; příjezd na pozdější den
+ *    (hostitel pozadu) znamená čekat. Použitý příjezd se tak nevrátí: výsledek je v odchozí schránce
+ *    hostitele (má přednost), nebo už ve schránce domova (návrat má týž `ref` – zahodí se).
  *    Spící domovská ves výpravy po termínu nemá – nic by nepoužila.
  */
 export async function deliverVillageMail(
@@ -294,8 +299,9 @@ async function dropDelivered(
 }
 
 /**
- * Výsledek výpravy po termínu (krok 3): ze schránky hostitele, nebo `returned` od zaniklého
- * hostitele; null – čekat (živý hostitel pozadu), nebo výsledek už je na cestě domů.
+ * Výsledek výpravy po termínu (krok 3): ze schránky hostitele, nebo `returned` – od zaniklého
+ * hostitele, nebo od živého, který příjezd přeskočil; null – čekat (výprava stojí na trhu živého
+ * hostitele, nebo je hostitel s příjezdem pozadu), nebo výsledek už je na cestě domů.
  */
 async function overdueResult(
   deps: VillageMailDeps,
@@ -309,20 +315,23 @@ async function overdueResult(
   // vydal ho hostitel – zapíše ho i on, dokud ho ve své odchozí schránce nesmaže
   if (ready) return withSender(ready, trip.villageId);
   const gone = sleeps(host) || (await placeOf(deps, host!)) === null;
-  if (!gone) return null;
-  // nepoužitý příjezd: hostitel existuje – jen jeho schránka (příjezd z odchozí schránky vsi do ní
-  // zapsal už krok 1; zpráva, kterou minule nešlo smazat, nedokazuje, že ji hostitel nepoužil);
-  // hostitel chybí – příjezd v odchozí schránce vsi (krok 1 ho už vrátil – zápis se zahodí)
-  // zaniklý hostitel se mohl dopočítat přes den příjezdu (spící ves dál posouvá `lastDay`), proto
-  // se příjezd hledá od `arriveDay − 1`, ne od `lastDay`; napřed návštěvník – použitý příjezd je
-  // vidět jinde (návštěvník na trhu, výsledek v `outbox` hostitele, nebo už ve schránce domova)
+  // výprava na trhu: u živého hostitele čeká, od zaniklého se vrátí s tím, co drží
   const visitor = host?.state.market?.visitors.find((v) => v.key === trip.key);
-  const unused = visitor
-    ? null
-    : host
-      ? await pendingArrival(deps, host, trip)
-      : outboxArrival(outbox, trip.key);
-  const from = visitor ?? unused;
+  if (visitor && !gone) return null;
+  // nepoužitý příjezd – použitý je vidět jinde (návštěvník na trhu, výsledek v `outbox` hostitele,
+  // nebo už ve schránce domova – návrat má týž `ref`, druhý zápis se zahodí):
+  // - hostitel chybí – příjezd v odchozí schránce vsi (krok 1 ho už vrátil – zápis se zahodí),
+  // - hostitel existuje – jen jeho schránka (příjezd z odchozí schránky vsi do ní zapsal už krok 1;
+  //   zpráva, kterou minule nešlo smazat, nedokazuje, že ji hostitel nepoužil): zaniklý hostitel se
+  //   mohl dopočítat přes den příjezdu (spící ves dál posouvá `lastDay`), proto se příjezd hledá od
+  //   `arriveDay − 1`, ne od `lastDay`; u živého jen do jeho `lastDay` – příjezd na den, který už
+  //   spočítal, a přesto bez návštěvníka i výsledku, přeskočil (ves na cestě dny cesty nesimuluje),
+  //   příjezd na pozdější den teprve použije
+  const from =
+    visitor ??
+    (host
+      ? await pendingArrival(deps, host, trip, gone ? TOTAL_GAME_DAYS : host.state.lastDay)
+      : outboxArrival(outbox, trip.key));
   if (!from) return null;
   return returnedMail(home.id, home.state.lastDay + 1, marketResult(from, { returned: true }));
 }
@@ -333,13 +342,17 @@ function outboxArrival(outbox: readonly VillageMail[], key: string): MarketArriv
   return mail?.body.kind === 'market-arrive' ? mail.body.arrival : null;
 }
 
-/** Příjezd výpravy `key`, který hostitel ještě nepoužil (čeká v jeho schránce). */
+/**
+ * Příjezd výpravy `key` ve schránce hostitele se dnem od `arriveDay` do `toDay` – hostitel ho nepoužil
+ * (bez návštěvníka i výsledku: zaniklý hostitel nebo přeskočený den živého).
+ */
 async function pendingArrival(
   deps: VillageMailDeps,
   host: VillageRecord,
   trip: MarketTrip,
+  toDay: number,
 ): Promise<MarketArrival | null> {
-  const pending = await deps.villages.inbox.pending(host.id, trip.arriveDay - 1, TOTAL_GAME_DAYS);
+  const pending = await deps.villages.inbox.pending(host.id, trip.arriveDay - 1, toDay);
   for (const event of pending) {
     if (event.body.kind === 'market-arrive' && event.body.arrival.key === trip.key) {
       return event.body.arrival;

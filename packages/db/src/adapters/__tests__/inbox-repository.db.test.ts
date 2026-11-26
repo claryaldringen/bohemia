@@ -371,6 +371,32 @@ describe('výsledky trhu s lidmi nebo mincemi ve schránkách zaniklých vsí (m
     expect(await inbox.pending(liveId, -1, DAY + 365)).toHaveLength(1);
   });
 
+  it('strandedResults: i výsledek s vlastními neprodanými lidmi (`people`, ne `newcomers`)', async () => {
+    const own = (key: string, day: number, people: unknown[]): NewVillageEvent =>
+      ({
+        villageId,
+        day,
+        ref: `${key}:out`,
+        body: {
+          kind: 'market-result',
+          result: { key, sold: {}, bought: {}, unsold: {}, horses: [], people },
+        },
+      }) as NewVillageEvent;
+    const family = {
+      good: 'families',
+      people: [{ id: 5, bornDay: DAY - 9_000, dwellingId: 1, sex: 'male' }],
+    };
+    await inbox.post(own('market:a:1', DAY + 3, [family]));
+    await inbox.post(own('market:a:2', DAY + 4, []));
+    const lhota = (await villages.find(villageId))!;
+    const dead = { ...lhota.state, extinctDay: lhota.state.lastDay };
+    expect(await villages.save(villageId, dead, lhota.version)).not.toBeNull();
+    const keys = (await inbox.strandedResults()).map((e) =>
+      e.body.kind === 'market-result' ? e.body.result.key : '',
+    );
+    expect(keys).toEqual(['market:a:1']);
+  });
+
   it('strandedResults: poškozené hodnoty dotaz neshodí – ostatní výsledky se vrátí', async () => {
     const damaged = (key: string, day: number, fields: Record<string, unknown>): NewVillageEvent =>
       ({
@@ -598,6 +624,15 @@ describe('vyřízená pošta výprav (markets.md – Rozhodnutí plánu 4, bod 1
       s.outbox = [waiting as VillageMail];
     });
     expect(await left()).toEqual(all);
+    // souhrn uložený před `openTrips` (25. 11. 2026) – neví se, co Vlkov ještě řeší: nic se nesmaže
+    await db.execute(
+      sql`UPDATE ${schema.village} SET digest = digest - 'openTrips' WHERE id = ${vlkov}`,
+    );
+    expect((await villages.digestsOf([vlkov]))[0]!.digest.openTrips).toBeUndefined();
+    expect(await pruneSettledMail({ villages }, villageId, now)).toBe(0);
+    expect(await left()).toEqual(all);
+    // další uložení Vlkova souhrn obnoví
+    await save(vlkov, () => undefined);
     const version = (await villages.find(villageId))!.version;
     expect(await pruneSettledMail({ villages }, villageId, now)).toBe(1);
     expect(await left()).toEqual(all.filter((ref) => ref !== `${lhota}:2:out`));

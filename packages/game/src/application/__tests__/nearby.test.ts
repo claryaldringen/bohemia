@@ -138,6 +138,22 @@ describe('nearbyVillages – vsi na 8 sousedních mapách bez načtení stavů',
     expect(await around(isolated, isolated.h)).toEqual([]);
   });
 
+  it('ves na cestě (lidé jdou na novou mapu) v okolí není – po příjezdu je v dalším snímku', async () => {
+    const w = await nearbyWorld();
+    w.villages.edit(w.m, (s) => {
+      s.journey = { direction: 'E', departedDay: D - 5, arrivalDay: K + 40 };
+    });
+    expect(await around(w, w.h)).toEqual([]);
+    await w.load(w.h, K);
+    expect(w.state(w.h).nearby).toMatchObject({ day: K, villages: [] });
+    // příjezd: `journey` zmizí – další snímek ves zase má
+    w.villages.edit(w.m, (s) => {
+      delete s.journey;
+    });
+    await w.load(w.h, K + NEARBY_REFRESH_DAYS);
+    expect(w.state(w.h).nearby).toMatchObject({ day: K + NEARBY_REFRESH_DAYS, villages: [LHOTA] });
+  });
+
   it('odříznutá nebo archivovaná ves sama – prázdné okolí', async () => {
     const isolated = await marketWorld();
     isolate(isolated, isolated.h);
