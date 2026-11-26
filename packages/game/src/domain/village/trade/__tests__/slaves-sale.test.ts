@@ -339,4 +339,66 @@ describe('manžel otroka z nabídky není svobodný (Rozhodnutí plánu 5, bod 8
       coupleHome(h);
     }
   });
+
+  /**
+   * `slaveFamilyHome(2)` s nabídkou 1 otroka – rezervace {90}: otrok 90 (25) je ženatý s dcerou 93
+   * (17) rodiny 62 ∞ 63 a oba bydlí v domě jejích rodičů 500. Rodina 62 ∞ 63 s dětmi 64 a 65 smí
+   * odejít (`familiesOf`); vdaná 93 s ní neodejde – zůstane doma jako každé vdané dítě.
+   */
+  function marriedDaughter(): VillageState {
+    const s = slaveFamilyHome(2);
+    Object.assign(
+      s.people.find((p) => p.id === 90)!,
+      { spouseId: 93, dwellingId: FAMILY_HOUSE },
+    );
+    s.people.push({
+      id: 93,
+      bornDay: D - Math.ceil(17.5 * 365.25),
+      dwellingId: FAMILY_HOUSE,
+      sex: 'female',
+      motherId: 63,
+      fatherId: 62,
+      spouseId: 90,
+    });
+    expect(setSlavesForSale(s, 1)).toEqual({ ok: true });
+    expect([...offeredSlaveIds(s, D)]).toEqual([90]);
+    return s;
+  }
+
+  /** Dcera 93 je doma u muže 90 z nabídky, nikdo bez manžela. */
+  function daughterHome(s: VillageState): void {
+    expect(oneSidedSpouses(s)).toEqual([]);
+    expect(s.people.find((p) => p.id === 93)).toMatchObject({ spouseId: 90 });
+    expect(s.people.find((p) => p.id === 90)).toMatchObject({ spouseId: 93 });
+  }
+
+  it('trh vsi: výprava koupí rodinu 62 ∞ 63 s dětmi 64 a 65 – vdaná dcera 93 zůstane', () => {
+    for (const goods of [{ grain: 3_000 }, { coins: 200 }]) {
+      const h = marriedDaughter();
+      joinMarket(h, D, trip(goods, { families: 1 }));
+      marketDay(h, D);
+      expect(boughtIds(visitorOf(h)), JSON.stringify(goods)).toEqual([
+        ['families', [62, 63, 64, 65]],
+      ]);
+      daughterHome(h);
+    }
+  });
+
+  it('výprava správce s 1 rodinou – dcera 93 zůstane, po návratu žádné jednostranné manželství', () => {
+    const s = marriedDaughter();
+    const sent = departMarketInPlace(
+      s,
+      D,
+      { give: { families: 1 }, wants: { grain: 100 }, stayDays: 1 },
+      target,
+      { by: 'steward', reserved: offeredSlaveIds(s, D) },
+    );
+    if (!sent.ok) throw new Error(sent.reason);
+    const body = s.outbox![0]!.body as { kind: 'market-arrive'; arrival: MarketArrival };
+    const people = body.arrival.people ?? [];
+    expect(people.map((g) => [g.good, flat([g])])).toEqual([['families', [62, 63, 64, 65]]]);
+    daughterHome(s);
+    restorePeople(s, people);
+    daughterHome(s);
+  });
 });

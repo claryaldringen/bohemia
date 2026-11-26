@@ -60,8 +60,16 @@ export interface Family {
  * odchází se všemi ženami z domu. Rodina, ve které je vojvoda (nezletilý vojvoda u matky, ke které
  * se přiženil muž – lord.md – Nástupnictví), neodchází. Dvorec bez vojvody (nástupce ještě
  * nebydlí v dvorci, nebo rod skončil) nedrží nikdo – ženatí muži odcházejí všichni (návrh Clauda).
+ * `reserved` – otroci z nabídky vsi, kteří ve `state` výběru chybí (`emigrantGroups`, markets.md –
+ * Rozhodnutí plánu 5, bod 8): dítě s manželem z nich není svobodné – s rodinou neodejde a zůstane
+ * doma jako každé vdané dítě (návrh Clauda). Chybí = žádní.
  */
-export function familiesOf(state: VillageState, dwelling: Dwelling, day: number): Family[] {
+export function familiesOf(
+  state: VillageState,
+  dwelling: Dwelling,
+  day: number,
+  reserved?: ReadonlySet<number>,
+): Family[] {
   const members = occupants(state, dwelling.id);
   const husbands = members.filter((m) => wivesHere(m, members).length > 0).sort(byAge);
   const sons = husbands.filter((h) => parentHere(h, members));
@@ -96,7 +104,8 @@ export function familiesOf(state: VillageState, dwelling: Dwelling, day: number)
       (c) =>
         ((c.motherId !== undefined && wifeIds.has(c.motherId)) || c.fatherId === husband.id) &&
         !wifeIds.has(c.id) &&
-        unmarriedHere(c, members),
+        unmarriedHere(c, members) &&
+        !(c.spouseId !== undefined && reserved?.has(c.spouseId) === true),
     );
     const people = [husband, ...wives, ...children];
     // s vojvodou nikdo neodchází – nezletilý vojvoda zůstává s matkou v dvorci, její muž s nimi

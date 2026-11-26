@@ -76,12 +76,16 @@ function without(state: VillageState, people: readonly Person[]): VillageState {
 
 /**
  * První rodina, kterou ves smí dát (`familiesOf` – dědic a jeho rodiče zůstávají) – bez mužů rodu
- * a jejich žen (`keptByLine`).
+ * a jejich žen (`keptByLine`). Vdané dítě otroka z nabídky (`reserved`) s rodinou neodejde.
  */
-function nextFamily(state: VillageState, day: number): EmigrantGroup | undefined {
+function nextFamily(
+  state: VillageState,
+  day: number,
+  reserved: ReadonlySet<number>,
+): EmigrantGroup | undefined {
   const kept = keptByLine(state);
   for (const dwelling of givingDwellings(state)) {
-    const family = familiesOf(state, dwelling, day).find(
+    const family = familiesOf(state, dwelling, day, reserved).find(
       (f) => !f.people.some((p) => kept(p) || isAway(p, day)),
     );
     if (family) return group('family', dwelling.id, family.people);
@@ -184,7 +188,7 @@ export function emigrantGroups(
     }
     return out;
   };
-  const families = take(want.families, () => nextFamily(rest, day));
+  const families = take(want.families, () => nextFamily(rest, day, reserved));
   const men = take(want.men, () => nextSingle(rest, day, 'male', reserved));
   const women = take(want.women, () => nextSingle(rest, day, 'female', reserved));
   return { slaves, families, men, women };

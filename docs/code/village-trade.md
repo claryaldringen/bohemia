@@ -995,8 +995,9 @@ laborHa`) → chybí ceil(dospělí × (landHa ÷ laborHa − 1)) dospělých, r
     napřed ze `sellableSlaves` (rezervovaní jsou mezi nimi první), rodiny, muže a ženy z vsi bez
     otroků výběru i bez rezervovaných – manžel rezervovaného otroka přitom svobodný není
     (`nextSingle` – ženatý bez manžela neodchází), ani když se otrok týmž výběrem prodává; manžel
-    jiného otroka prodaného výběrem svobodný je (postupné `takePeople` z něj napřed udělá vdovce);
-    totéž `leavingGroups`, `takePeople`, `marketTripPeople`
+    jiného otroka prodaného výběrem svobodný je (postupné `takePeople` z něj napřed udělá vdovce).
+    Vdané dítě rezervovaného otroka s rodinou neodejde (`familiesOf` s `reserved` – zůstane doma
+    jako každé vdané dítě, rodina odejde bez něj); totéž `leavingGroups`, `takePeople`, `marketTripPeople`
     a `planMarketTrip` s volitelným `reserved` (chybí = výběr beze změny). Přepočet ze vsi zmenšené
     o odešlé (postupné `takePeople`, `settleTrades` mincovní fáze po zápočtu) by rezervoval jiné lidi.
     Nabídka hostitele (`marketStance(state, day, reserved = offeredSlaveIds(…))`): volní lidé
