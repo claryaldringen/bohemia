@@ -100,3 +100,18 @@ export function markSunnyOrchards(state: VillageState, landscape: Landscape): vo
     }
   }
 }
+
+/**
+ * Náplavy zlatonosného potoka (m, na cm) v pevném pořadí `goldPlacerSites` (gold.md – Pravidla 1);
+ * krajina bez typu `gold-stream` nebo bez krajiny [] bez výpočtu, jinak přes mezipaměť
+ * `premiumFeaturesOf`.
+ */
+export function goldPlacers(
+  landscape: Landscape | null | undefined,
+): readonly { x: number; z: number }[] {
+  if (!landscape || landscape.premium !== 'gold-stream') return [];
+  return premiumSites(landscape, 'gold-placer').map((s) => ({
+    x: Math.round(s.x * 100) / 100,
+    z: Math.round(s.z * 100) / 100,
+  }));
+}

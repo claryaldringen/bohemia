@@ -1,6 +1,8 @@
 import { withArmsCaps } from '../people/arms-caps';
 import { cloneState } from './clone';
-import { TOTAL_GAME_DAYS } from '../../calendar';
+import { TOTAL_GAME_DAYS, dateOfDayIndex } from '../../calendar';
+import { MINT_YEAR } from '../crafts/gold-crafts';
+import { MINT } from '../rules/rules-gold';
 import { newSteward } from '../steward/steward-state';
 import type { ObstacleLayer } from '../../landscape';
 import { cemeteryFoundingCost, touchingCemeteries, villageCemeteries } from '../buildings/cemetery';
@@ -1008,6 +1010,9 @@ export function startWorkshop(
 ): VillageState {
   validateActionDay(state, day);
   if (!CRAFTS.includes(craft)) throw new RangeError('Neznámé řemeslo.');
+  // mincovna až od roku 950 (gold.md – Pravidla 5) – i bez krajiny
+  if (craft === 'minter' && dateOfDayIndex(day).year < MINT.fromYear)
+    throw new RangeError(MINT_YEAR);
   if (houseType !== undefined && !isHouseType(houseType)) {
     throw new RangeError('Nadzemní dílna je vypletená nebo roubená.');
   }

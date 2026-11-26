@@ -49,6 +49,11 @@ describe('zkratky staveb', () => {
     expect(buildItemForKey(key('KeyB'))?.kind).toBe('orchard');
     expect(buildItemForKey(key('KeyN'))?.kind).toBe('idol');
     expect(buildItemForKey(key('KeyM'))?.kind).toBe('shrine');
+    // dílny zlata (plán 6) – číslice, písmena jsou obsazená
+    expect(buildItemForKey(key('Digit3'))?.kind).toBe('panner');
+    expect(buildItemForKey(key('Digit4'))?.kind).toBe('jeweller');
+    expect(buildItemForKey(key('Digit5'))?.kind).toBe('minter');
+    expect(buildItem('panner')?.hotkeyLabel).toBe('3');
     expect(buildItemForKey(key('KeyK'))?.kind).toBe('threshing-floor');
     // rozcestníky (obydlí, posvátná místa) zkratku nemají – sdílí zástupnou 'None'
     const keyed = BUILD_ITEMS.filter((item) => item.hotkey !== 'None');

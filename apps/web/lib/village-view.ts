@@ -53,6 +53,7 @@ import {
   relocationBlock,
   raidHiding,
   dwellingYearReason,
+  workshopBlocked,
   CRAFTS,
   workshopBuildCost,
   type Craft,
@@ -288,12 +289,13 @@ function workshopVariants(
   craft: Craft,
   stock: Record<StockResource, number>,
   day: number,
+  locked: string | null,
 ): NonNullable<BuildOption['variants']> {
   const variants: NonNullable<BuildOption['variants']> = {};
   for (const type of ['vypleteny', 'srub'] as const) {
     const cost = workshopBuildCost(craft, type);
     const { affordable, missing } = affordability(stock, cost.upfront);
-    const blocked = dwellingYearReason(type, day);
+    const blocked = locked ?? dwellingYearReason(type, day);
     variants[type] = {
       laborManDays: cost.laborManDays,
       upfront: STOCK_RESOURCES.flatMap((resource) => {
@@ -435,7 +437,9 @@ function buildOptions(
           ? QUARRY_NO_ROCKS
           : kind === 'srub' || kind === 'vypleteny'
             ? dwellingYearReason(kind, day)
-            : null;
+            : isCraft(kind)
+              ? workshopBlocked(state, day, landscape, kind)
+              : null;
     const option: BuildOption = {
       laborManDays: cost.laborManDays,
       perHa: cost.perHa,
@@ -453,7 +457,13 @@ function buildOptions(
       }
     }
     if (kind === 'pen') option.variants = { horse: horsePenOption(state, base, stock, coverage) };
-    if (isCraft(kind)) option.variants = workshopVariants(kind, stock, day);
+    if (isCraft(kind))
+      option.variants = workshopVariants(
+        kind,
+        stock,
+        day,
+        workshopBlocked(state, day, landscape, kind),
+      );
     return [kind, option];
   });
   return Object.fromEntries(entries) as Record<BuildKind, BuildOption>;

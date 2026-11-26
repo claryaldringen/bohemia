@@ -12,6 +12,7 @@ import {
 } from '../core/actions';
 import { PAGAN_PLACES_FORBIDDEN } from '../people/faith';
 import { BUILD_COSTS, buildAffordability, workshopCosts } from './costs';
+import { workshopBlocked } from '../crafts/gold-crafts';
 import { dwellingYearReason, isHouseType, type HouseType } from './log-house';
 import {
   startFortification,
@@ -609,6 +610,9 @@ function buildWorkshop(
   place: () => PlacementVillage,
 ): BuildResult {
   if (!CRAFTS.includes(intent.craft)) return { ok: false, reason: UNKNOWN_CRAFT };
+  // zámek dílny zlata (gold.md – Pravidla 1, 3, 5): bez náplavu, vyrýžováno, mincovna před rokem 950
+  const locked = workshopBlocked(state, day, landscape, intent.craft);
+  if (locked !== null) return { ok: false, reason: locked };
   // nadzemní dílna až od roku své varianty (workshops.md) – i když hráč obejde zašedlé tlačítko
   if (intent.type !== undefined) {
     if (!isHouseType(intent.type)) return { ok: false, reason: UNKNOWN_HOUSE_TYPE };
