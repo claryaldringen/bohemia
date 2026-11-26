@@ -1,9 +1,13 @@
 import { describe, expect, it } from 'vitest';
+import type { SceneCart } from '../../village-view-scene-types';
+import { withStoneCartHeaps } from '../../village-view-crafts';
+import { stoneDestination } from '../stone-destination';
 import {
   MAX_PILES_PER_STACK,
   QUARRY_ROCK_PILE,
   quarryRockPileAt,
   stackPieces,
+  stackRadius,
   stoneLayout,
 } from '../stone-pile-layout';
 
@@ -44,5 +48,39 @@ describe('rozložení hromad kamení', () => {
     const layout = stoneLayout({ stoneStacks: [{ id: 1, x: 0, z: 0, m3: 9 }] });
     expect(layout.b.map((p) => p.x)).toEqual([-2.6, 0, 2.6]);
     expect(layout.b.every((p) => p.z === 0)).toBe(true);
+  });
+});
+
+describe('hromady kamení na volném místě (site z dat scény – stoneStackSite)', () => {
+  const stack = { id: 1, x: 0, z: 0, m3: 4 };
+
+  it('díly leží kolem místa ze scény; hromada bez místa se nekreslí, bez údaje u kotvy', () => {
+    const at = stoneLayout({ stoneStacks: [{ ...stack, site: { x: 10, z: 5, rotation: 0 } }] });
+    const spots = [...at.a, ...at.b];
+    expect(spots).toHaveLength(2);
+    const cx = spots.reduce((sum, p) => sum + p.x, 0) / spots.length;
+    const cz = spots.reduce((sum, p) => sum + p.z, 0) / spots.length;
+    expect([cx, cz]).toEqual([10, 5]);
+    expect(stoneLayout({ stoneStacks: [{ ...stack, site: null }] })).toEqual({ a: [], b: [] });
+    expect([...stoneLayout({ stoneStacks: [stack] }).b][0]!.x).toBeCloseTo(-1.3, 9);
+  });
+
+  it('nosiči i vůz s kamenem míří k nakreslené hromadě; nekreslí-li se, ke kotvě jako dřív', () => {
+    const home = { x: 2, z: 0 };
+    const drawn = { stoneStacks: [{ ...stack, site: { x: 10, z: 5, rotation: 0 } }], home };
+    expect(stoneDestination(drawn, home, undefined, { x: 50, z: 50 })).toEqual({
+      at: { x: 10, z: 5 },
+      r: stackRadius(4),
+    });
+    const hidden = { stoneStacks: [{ ...stack, site: null }], home };
+    expect(stoneDestination(hidden, home, undefined, { x: 50, z: 50 })!.at).toEqual({ x: 0, z: 0 });
+    const cart = {
+      id: 7,
+      kind: 'two-wheel',
+      job: { load: 'stone', construction: 99 },
+      goal: { from: { x: 50, z: 50 }, to: { x: 30, z: 30 } },
+    } as unknown as SceneCart;
+    const [moved] = withStoneCartHeaps([cart], drawn);
+    expect(moved!.goal).toMatchObject({ to: { x: 10, z: 5 }, anyOf: [{ x: 30, z: 30 }] });
   });
 });

@@ -9,6 +9,10 @@ import { endVillage, isVillageExtinct } from '../core/extinction';
 import {
   addCarriedStocks,
   carriedStocksOf,
+  carryHeaps,
+  heapsOf,
+  takeHeaps,
+  type CarriedHeaps,
   ownedHorses,
   ownedOxen,
   takeAllCarts,
@@ -80,6 +84,8 @@ export interface LeavingFood {
 export interface WholeVillageLoad {
   /** Zásoby a vybavení (`CARRIED_STOCKS` v belongings.ts). */
   stocks: CarriedStocks;
+  /** Volné klády a kámen bez hromad (`takeHeaps` v belongings.ts); chybí = žádné. */
+  heaps?: CarriedHeaps;
   /** Všechny vozy vsi. */
   carts: Cart[];
   /** Všichni koně vsi (první kůň vůdce) – v nové vsi čekají bez ohrady. */
@@ -570,9 +576,10 @@ function takeShare(
 
 /**
  * Odcházejí všichni – berou si úplně vše (mutuje stav; migration.md – Co si vezmou, Martin
- * 25. 11. 2026): všechno jídlo a osivo (`wholeStores`), stáda, voly, koně, vozy, zásoby a vybavení
- * (belongings.ts). Ve staré vsi nezbude žádná zásoba – obilné jámy jsou prázdné –, jen co nejde
- * odnést: stavby, pole, hromady klád a kamene, surovina u dílen a v milířích (návrh Clauda).
+ * 25. 11. 2026): všechno jídlo a osivo (`wholeStores`), stáda, voly, koně, vozy, zásoby a vybavení,
+ * klády a kámen (belongings.ts; Martin 26. 11. 2026). Ve staré vsi nezbude žádná zásoba – obilné
+ * jámy jsou prázdné –, jen co nejde odnést: stavby i s materiálem, který už mají, pole, surovina
+ * u dílen a v milířích (návrh Clauda).
  */
 function takeEverything(
   state: VillageState,
@@ -590,8 +597,10 @@ function takeEverything(
     delete state.refuge.hidden;
   }
   const oxen = takeAllOxen(state, day);
+  const heaps = takeHeaps(state);
   const whole: WholeVillageLoad = {
     stocks: takeCarriedStocks(state),
+    ...(isCarried(heaps) ? { heaps } : {}),
     carts: takeAllCarts(state),
     horses: takeAllHorses(state, day, leaderHorseId),
     slaughterMeatKg,
@@ -800,14 +809,22 @@ export function travellingVillage(
     },
   };
   if (whole) addCarriedStocks(state, whole.stocks);
+  if (whole?.heaps) carryHeaps(state, whole.heaps);
   return state;
+}
+
+/** Nesou se nějaké klády nebo kámen? */
+function isCarried(heaps: CarriedHeaps): boolean {
+  return (heaps.logs ?? 0) > 0 || (heaps.stoneM3 ?? 0) > 0;
 }
 
 /** Co celá ves na cestě nese navíc (`journey.whole`) – kopie. */
 function wholeLoadOf(state: VillageState): WholeVillageLoad {
   const seedUntilDay = state.reservedSeedUntilDay;
+  const heaps = heapsOf(state);
   return {
     stocks: carriedStocksOf(state),
+    ...(isCarried(heaps) ? { heaps } : {}),
     carts: (state.carts ?? []).map((c) => ({ ...c })),
     horses: (state.looseHorses ?? []).map((h) => ({ ...h })),
     slaughterMeatKg: villageSlaughterMeatKg(state),

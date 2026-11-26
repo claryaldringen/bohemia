@@ -23,6 +23,7 @@ import {
 } from '@bohemia/game';
 import type { SceneVillage } from '../village-view';
 import { isRotatedSquare, squareContains, type CellSquare } from './field-cells';
+import { stackRadius } from './stone-pile-layout';
 import { distanceToPolyline } from './village-picking';
 import { dwellingArea, footprintRect, localToWorld } from './village-layout';
 
@@ -68,6 +69,29 @@ export interface LogPileSite {
   rotation: number;
   /** Kolik hranic se na místo vejde (1–MAX_STACKS); bez údaje MAX_STACKS. */
   stacks?: number;
+  /** Půdorys jiné hromady než klád (m – hromada kamene, `stoneStackSite`); chybí = hranice klád. */
+  size?: { width: number; depth: number };
+}
+
+/** Co ze vsi hledání volného místa hromady potřebuje (obydlí a staveniště, pole, hřbitovy, cesty). */
+export type FreeVillage = Pick<SceneVillage, 'dwellings' | 'fields' | 'cemeteries' | 'roads'>;
+
+/**
+ * Půdorysy hromad kamene na jejich volném místě (`SceneVillage.stoneStacks[].site`) – hromady klád
+ * na ně nesmí (`LogPile`).
+ */
+export function stoneFootprints(village: Pick<SceneVillage, 'stoneStacks'>): Point[][] {
+  return (village.stoneStacks ?? []).flatMap((stack) => {
+    const r = stackRadius(stack.m3);
+    return stack.site && r > 0
+      ? [pileCorners({ ...stack.site, size: { width: 2 * r, depth: 2 * r } })]
+      : [];
+  });
+}
+
+/** Půdorys hromady na místě (m): hromada kamene svůj `size`, klády `stacks` hranic. */
+function siteSize(site: LogPileSite): { width: number; depth: number } {
+  return site.size ?? { width: pileWidth(site.stacks ?? MAX_STACKS), depth: PILE_DEPTH_M };
 }
 
 /** Kláda hromady v místních souřadnicích (x napříč, y nahoru od země, z podél klád). */
@@ -156,13 +180,8 @@ function plotReach(
 
 /** Půdorys hromady na místě `site` (rohy ve světě). */
 export function pileCorners(site: LogPileSite): Point[] {
-  return rectangleCorners(
-    site.x,
-    site.z,
-    pileWidth(site.stacks ?? MAX_STACKS),
-    PILE_DEPTH_M,
-    site.rotation,
-  );
+  const { width, depth } = siteSize(site);
+  return rectangleCorners(site.x, site.z, width, depth, site.rotation);
 }
 
 /** Místní (lx, lz) hromady na místě `site` → svět. */
@@ -252,12 +271,61 @@ export function logPileSite(
  */
 export function logStackSite(
   landscape: Landscape,
-  village: SceneVillage,
+  village: FreeVillage,
   layer: ObstacleLayer,
   changes: ObstacleChanges,
   anchor: { x: number; z: number; road?: { x: number; z: number } | undefined },
   previous: LogPileSite | null = null,
   occupied: readonly (readonly Point[])[] = [],
+  height?: (x: number, z: number) => number,
+): LogPileSite | null {
+  const shapes = Array.from({ length: MAX_STACKS }, (_, k) => ({ stacks: MAX_STACKS - k }));
+  return stackSite(landscape, village, layer, changes, anchor, shapes, previous, occupied, height);
+}
+
+/**
+ * Volné místo hromady kamene (`StoneStack`; návrh Clauda – jako klády, `logStackSite`): čtverec
+ * kolem kruhu dílů hromady o poloměru `radius` (`stackRadius`) u kotvy – mimo staveniště, obydlí,
+ * díly polí, cesty, vodu, stojící stromy a balvany a mimo půdorysy `occupied`. Bez místa null.
+ */
+export function stoneStackSite(
+  landscape: Landscape,
+  village: FreeVillage,
+  layer: ObstacleLayer,
+  changes: ObstacleChanges,
+  anchor: { x: number; z: number; road?: { x: number; z: number } | undefined },
+  radius: number,
+  previous: LogPileSite | null = null,
+  occupied: readonly (readonly Point[])[] = [],
+  height?: (x: number, z: number) => number,
+): LogPileSite | null {
+  const size = { width: 2 * radius, depth: 2 * radius };
+  return stackSite(
+    landscape,
+    village,
+    layer,
+    changes,
+    anchor,
+    [{ size }],
+    previous,
+    occupied,
+    height,
+  );
+}
+
+/**
+ * Hledání místa hromady u kotvy (`logStackSite`, `stoneStackSite`): kotva u cesty, pak kruhy
+ * do STACK_REACH_M; tvary `shapes` od největšího – menší se zkouší, jen když větší nemá místo.
+ */
+function stackSite(
+  landscape: Landscape,
+  village: FreeVillage,
+  layer: ObstacleLayer,
+  changes: ObstacleChanges,
+  anchor: { x: number; z: number; road?: { x: number; z: number } | undefined },
+  shapes: readonly Pick<LogPileSite, 'stacks' | 'size'>[],
+  previous: LogPileSite | null,
+  occupied: readonly (readonly Point[])[],
   height?: (x: number, z: number) => number,
 ): LogPileSite | null {
   const options = {
@@ -283,11 +351,11 @@ export function logStackSite(
     }
     return relief <= FLAT_RELIEF_M;
   };
-  for (let stacks = MAX_STACKS; stacks >= 1; stacks--) {
+  for (const shape of shapes) {
     if (anchor.road) {
       // klády míří čely k cestě – místní osa z od cesty ke kotvě
       const rotation = Math.atan2(anchor.x - anchor.road.x, anchor.z - anchor.road.z);
-      if (consider({ x: anchor.x, z: anchor.z, rotation, stacks })) return best.site;
+      if (consider({ x: anchor.x, z: anchor.z, rotation, ...shape })) return best.site;
     }
     for (let r = 2.5; r <= STACK_REACH_M; r += 2.5) {
       const steps = Math.max(8, Math.round((2 * Math.PI * r) / 2.5));
@@ -297,7 +365,7 @@ export function logStackSite(
         const z = anchor.z + r * Math.sin(a);
         // klády míří ke kotvě (od paseky), nebo napříč
         for (const turn of [0, Math.PI / 2]) {
-          if (consider({ x, z, rotation: Math.PI / 2 - a + turn, stacks })) return best.site;
+          if (consider({ x, z, rotation: Math.PI / 2 - a + turn, ...shape })) return best.site;
         }
       }
     }
@@ -333,7 +401,7 @@ interface FreeContext {
   dwellings: { id: number; plot: boolean; area: Point[] }[];
 }
 
-function freeContext(village: SceneVillage): FreeContext {
+function freeContext(village: FreeVillage): FreeContext {
   const taken = new Set<string>();
   // natočené díly (fields.md – Natočené stavby) nejsou políčka – test bodu v jejich osách
   const squares = [
@@ -352,7 +420,7 @@ function freeContext(village: SceneVillage): FreeContext {
 
 function isFree(
   landscape: Landscape,
-  village: SceneVillage,
+  village: FreeVillage,
   context: FreeContext,
   layer: ObstacleLayer,
   changes: ObstacleChanges,
@@ -369,8 +437,8 @@ function isFree(
     occupied?: readonly (readonly Point[])[];
   },
 ): boolean {
-  const width = pileWidth(site.stacks ?? MAX_STACKS);
-  const corners = rectangleCorners(site.x, site.z, width, PILE_DEPTH_M, site.rotation);
+  const { width, depth } = siteSize(site);
+  const corners = rectangleCorners(site.x, site.z, width, depth, site.rotation);
   const points: Point[] = [...corners, [site.x, site.z]];
   for (const other of options.occupied ?? []) {
     if (polygonsOverlap(corners, other)) return false;
@@ -403,7 +471,7 @@ function isFree(
     site.x,
     site.z,
     width + 2 * options.margin,
-    PILE_DEPTH_M + 2 * options.margin,
+    depth + 2 * options.margin,
     site.rotation,
   );
   const xs = margin.map((p) => p[0]);

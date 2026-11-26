@@ -78,8 +78,14 @@ když ves přeroste, co ji mapa uživí (Martin) – a stará ves zůstane.
     v práci). Nové zboží (mince, zbroj) jde s nimi stejně.
   - **Všechna zvířata a vozy:** stáda i s mláďaty, voli i telata ve výcviku, koně i hříbata, vozy
     i bez volů a i ty, které jsou právě s výpravou.
-  - **Zůstane jen to, co nejde odnést:** stavby (i rozestavěné), pole, sad, hřbitov, hromady klád
-    a kamene a jiné hromady materiálu u těžby a u dílen – ruda, hlína, klády tesaře a uhlí
+  - **Klády a kámen** (Martin 26. 11. 2026 – „ok“ na otázku, jestli 30 klád a hromadu kamene
+    u staveniště vzít s sebou): všechny volné klády a všechen kámen z hromad; co už má rozestavěná
+    stavba, zůstane jí. Na cestě klády nehnijí (ves na cestě se nesimuluje – jako ostatní zásoby).
+    V nové vsi leží na hromadě klád a hromadě kamene tam, kam se skládá dovezené zboží – u cesty
+    nejblíž dvorci, bez cesty u staveniště první zemnice; první zemnice bere nejdřív celé klády
+    z hromady jako každá stavba (umístění návrh Clauda).
+  - **Zůstane jen to, co nejde odnést:** stavby (i rozestavěné, i s materiálem, který už mají),
+    pole, sad, hřbitov a jiné hromady materiálu u těžby a u dílen – ruda, hlína, klády tesaře a uhlí
     v milířích –, med v nevybraných brtích (je v krajině) a nesklizená úroda. Dílna v nové vsi
     začíná se svou dávkou suroviny jako každá nová dílna.
   - **Osivem**, které nová ves nesní, je celá rezerva osiva vsi; nestačí-li na půl roční potřeby,
@@ -153,7 +159,8 @@ když ves přeroste, co ji mapa uživí (Martin) – a stará ves zůstane.
 | Přestěhování bez lidí k osídlení, bydlí ve starém do dostavění; Ctrl/Shift + klik, Ctrl + A               | návrh Clauda                                      |
 | ~~Nová ves ≥ 300 m od staré na téže mapě~~ (zrušeno 1. 11.); nová mapa vedle staré, cesta 1–3 dny         | návrh Clauda                                      |
 | Odejdou-li všichni, berou si úplně vše: jídlo, osivo, výrobky, všechna zvířata a vozy                     | Martin (25. 11. 2026), podrobnosti návrh Clauda   |
-| Po odchodu všech zůstane jen, co nejde odnést: stavby, pole, hromady klád, kamene a suroviny              | návrh Clauda                                      |
+| Odejdou-li všichni, berou i klády a kámen; v nové vsi na hromadě u cesty nebo u první zemnice             | Martin (26. 11. 2026), umístění návrh Clauda      |
+| Po odchodu všech zůstane jen, co nejde odnést: stavby, pole a suroviny u dílen                            | návrh Clauda                                      |
 | Odejde-li jen část: 25 kg jídla na člověka od 7 let a poměrný díl stád; klády a výrobky zůstanou          | návrh Clauda                                      |
 | Přepínač vsí jménem v horní liště; upozornění z jiných vsí se jménem                                      | návrh Clauda                                      |
 | Ves má vlastní id, nová mapa = sídlo s polohou v mřížce (víc vsí na sídle zrušeno 1. 11.)                 | návrh Clauda                                      |
@@ -266,7 +273,7 @@ když ves přeroste, co ji mapa uživí (Martin) – a stará ves zůstane.
   první zemnice (dvorec vojvody), rodiny se rozejdou do dalších domů podle běžných pravidel
   osídlení, až je hráč postaví. Id lidí zůstanou ze staré vsi (nová ves čísluje za nimi).
 - **Opuštěná ves** (odešli všichni a vzali si úplně vše – Martin 25. 11. 2026, Odchod do nové vsi):
-  bez zásob, zvířat a vozů; zůstanou stavby, pole a hromady klád, kamene a suroviny u dílen (návrh
+  bez zásob, zvířat, vozů, klád a kamene; zůstanou stavby, pole a suroviny u dílen (návrh
   Clauda). Kronika „ves opuštěna“, dál se nesimuluje (jako vymřelá), akce v ní nejdou. Ves opuštěná
   a ves na cestě z doby před 25. 11. 2026 zůstanou, jak jsou – nic se zpětně nepřidá. Rozpad bez
   simulace – pohled spočítá domy ke dni (`abandonedVillageAt`): každé obydlí ztrácí stav podílem prázdného obydlí (`emptyLifespanYears`) ode dne odchodu, na
@@ -320,7 +327,7 @@ když ves přeroste, co ji mapa uživí (Martin) – a stará ves zůstane.
 ### Otevřené po fázích 3 a 4
 
 - **Voli bez ohrady a seno (opraveno 26. 11. 2026):** voli bez ohrady (`looseOxen`) dřív seno nežrali – `feedHay` je nepočítal –, takže je nová ves krmila zadarmo. Teď žerou stejnou denní dávku jako voli v ohradě (`hayFedOxen`), počítají se do rezervy sena při porážce stád a 1. 3. při nedostatku sena uhynou (nejmladší napřed) nebo zeslábnou jako voli v ohradě.
-- **Hromady klád a kamene při odchodu celé vsi:** zda je osadníci berou s sebou, Martin ještě nerozhodl – dnes zůstávají ve staré vsi (hromady se nedají odnést, viz Co si vezmou). Plán 4 obchodu (26. 11. 2026) k tomu mince a zbroj přidal mezi zásoby, které odchod celé vsi bere.
+- ~~**Hromady klád a kamene při odchodu celé vsi**~~ – rozhodnuto 26. 11. 2026 (Martin: „ok“): berou je s sebou (Co si vezmou, odejdou-li všichni). Plán 4 obchodu (26. 11. 2026) k tomu mince a zbroj přidal mezi zásoby, které odchod celé vsi bere.
 - **Nová ves na stezce** (plán 4 obchodu, 26. 11. 2026): syn i hráč smějí založit ves na mapě se stezkou bez řeky, kam jezdí cizí kupci ([obchod](markets.md), Rozhodnutí plánu 4, bod 11).
 - Celá ves při odchodu nevyráží, dokud je výprava na trhu (návrh Clauda; precedens expeditions.md –
   „Kdo je na výpravě, ze vsi neodejde“) – zboží trhu by jinak propadlo staré vsi.

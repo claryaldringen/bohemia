@@ -120,7 +120,11 @@ export function stackRadius(m3: number): number {
 /** Hromady kamení u cest a lomy vsi jako díly modelu. */
 export function stoneLayout(village: Pick<SceneVillage, 'stoneStacks' | 'quarries'>): StoneLayout {
   const out: StoneLayout = { a: [], b: [] };
-  for (const stack of village.stoneStacks ?? []) {
+  for (const anchor of village.stoneStacks ?? []) {
+    // volné místo z dat scény (`stoneStackSite`); null = bez místa, nekreslí se; chybí = u kotvy
+    const at = anchor.site === undefined ? anchor : anchor.site;
+    if (!at) continue;
+    const stack = { ...anchor, x: at.x, z: at.z };
     const pieces = stackPieces(stack.m3);
     const cols = Math.min(3, pieces.length);
     const rows = Math.ceil(pieces.length / 3);

@@ -16,6 +16,7 @@ import {
   pileCorners,
   pileToWorld,
   pileWidth,
+  stoneFootprints,
   type LogPileSite,
 } from './log-pile-layout';
 import { applySeasonSnow } from './season-materials';
@@ -87,9 +88,12 @@ export class LogPile {
     if (this.site && count > 0) piles.push({ site: this.site, count });
     // půdorysy už umístěných hromad – další hromada na ně nesmí (klády bez hromady jen, když leží)
     const occupied: Point[][] = this.site && count > 0 ? [pileCorners(this.site)] : [];
+    // hromady kamene leží dřív (místo z dat scény – `stoneStackSite`), klády na ně nesmí
+    const stones = stoneFootprints(village);
+    occupied.push(...stones);
     // hromady – místo se hledá znovu jen při změně vsi, předchozí volné místo zůstane; bývalá
     // hromada u vsi (u svého obydlí) první, jako dřív hromada u vsi
-    const stackKey = `${siteKey}|${(village.roads ?? []).length}`;
+    const stackKey = `${siteKey}|${(village.roads ?? []).length}|${JSON.stringify(stones)}`;
     const live = new Set<number>();
     const hits: LogPileHit[] = [];
     const dwellingIds = new Set(village.dwellings.map((d) => d.id));
