@@ -143,6 +143,7 @@ import type {
   RoadGrade,
 } from '../types';
 import { copyGrid } from '../placement/square-grid';
+import { jewelleryOf } from '../trade/jewellery';
 import { pileLogs, treesToFell, woodFellingCost, woodLogs } from '../forest/wood';
 
 // Souhrn vsi pro panel hráče a scénu – jen čte stav, nic nemění.
@@ -466,6 +467,8 @@ export interface WaresView {
   coins?: number;
   /** Zlato vsi v celých gramech, jen kladné (gold.md – Pravidla 2). */
   goldG?: number;
+  /** Použitelná kapacita šperkaře v celých gramech, jen kladná (gold.md – Pravidla 4). */
+  jewelleryG?: number;
   /** Zbroj vsi po kusech, jen druhy s kladným počtem; chybí = žádná. */
   arms?: Partial<Record<ArmsGood, number>>;
 }
@@ -876,6 +879,7 @@ function waresView(state: VillageState): WaresView | null {
   const w = state.wares;
   const coins = Math.floor(state.coins ?? 0);
   const goldG = Math.floor(state.gold ?? 0);
+  const jewelleryG = Math.floor(jewelleryOf(state));
   const arms: Partial<Record<ArmsGood, number>> = {};
   for (const good of ARMS_GOODS) {
     const n = Math.floor(state.arms?.[good] ?? 0);
@@ -893,6 +897,7 @@ function waresView(state: VillageState): WaresView | null {
     ...(small > 0 ? { smallHides: small } : {}),
     ...(coins > 0 ? { coins } : {}),
     ...(goldG > 0 ? { goldG } : {}),
+    ...(jewelleryG > 0 ? { jewelleryG } : {}),
     ...(hasArms ? { arms } : {}),
   };
 }

@@ -4,7 +4,9 @@ import { length2, type Landscape } from '../../landscape';
 import { goldPlacers } from '../core/premium-effects';
 import { distanceFactor } from '../fields/fields';
 import { villageRoadWalk, type Walk } from '../paths/walking';
-import { MINT, PANNING } from '../rules/rules-gold';
+import { GOLD, JEWELLER, MINT, PANNING } from '../rules/rules-gold';
+import { addGood } from '../trade/trade';
+import { jewelleryMaterialG } from '../trade/jewellery';
 import type { Craft, Workshop, WorkshopActivity } from '../types/types-crafts';
 import type { Dwelling, VillageState } from '../types';
 import type { WorkshopLabor } from './crafts';
@@ -163,4 +165,52 @@ export function workPanner(
   delete dwelling.workshop!.placer;
   const exhaustedLeft = placers.filter((_, index) => placerLeftG(state, index) > 0).length;
   return { activity: 'producing', pannedG, site, exhaustedLeft };
+}
+
+// --- šperkař a mincovna (gold.md – Pravidla 4 a 5) ---------------------------------------------
+
+/** Zbytek pod touto mezí je jen šum desetinných čísel – zlato `n − ε` se ještě razí jako `n`. */
+const EPSILON = 1e-9;
+
+/**
+ * Šperkař zpracovává kov vsi (gold.md – Pravidla 4): práce dílny × praxe × `JEWELLER.gPerManDay`,
+ * nejvýš co do kovu vsi (`jewelleryMaterialG`) ještě chybí. Zlato ani mince se nemění – roste
+ * jen `jewelleryG`. Bez kovu `no-gold`, kapacita na kovu `resting`.
+ */
+export function workJeweller(
+  state: VillageState,
+  labor: Pick<WorkshopLabor, 'craft' | 'skill'>,
+): { activity: WorkshopActivity; wroughtG: number } {
+  const material = jewelleryMaterialG(state);
+  if (material <= 0) return { activity: 'no-gold', wroughtG: 0 };
+  const stored = state.jewelleryG ?? 0;
+  const room = material - stored;
+  if (room <= EPSILON) return { activity: 'resting', wroughtG: 0 };
+  const wroughtG = Math.min(labor.craft * labor.skill * JEWELLER.gPerManDay, room);
+  if (wroughtG <= 0) return { activity: 'producing', wroughtG: 0 };
+  state.jewelleryG = stored + wroughtG;
+  return { activity: 'producing', wroughtG };
+}
+
+/**
+ * Mincíř razí zlato na mince (gold.md – Pravidla 5): práce dílny × praxe × `MINT.gPerManDay`,
+ * nejvýš celé gramy zlata ve vsi; gram zlata = `GOLD.coinGrams` na minci, jen celé mince. Zlato se
+ * odečte a mince přičtou přes `addGood`, součet zlato + mince × `coinGrams` se nemění. Méně než
+ * gram zlata – `no-gold`.
+ */
+export function workMinter(
+  state: VillageState,
+  labor: Pick<WorkshopLabor, 'craft' | 'skill'>,
+  day: number,
+): { activity: WorkshopActivity; mintedCoins: number } {
+  const coins = Math.floor(
+    Math.min((state.gold ?? 0) + EPSILON, labor.craft * labor.skill * MINT.gPerManDay) /
+      GOLD.coinGrams,
+  );
+  if (!((state.gold ?? 0) + EPSILON >= GOLD.coinGrams))
+    return { activity: 'no-gold', mintedCoins: 0 };
+  if (coins <= 0) return { activity: 'producing', mintedCoins: 0 };
+  addGood(state, 'gold', -coins * GOLD.coinGrams, day);
+  addGood(state, 'coins', coins, day);
+  return { activity: 'producing', mintedCoins: coins };
 }

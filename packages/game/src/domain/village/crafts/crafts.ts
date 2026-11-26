@@ -62,6 +62,8 @@ import type {
 } from '../types';
 import { harvestHandsDay } from '../fields/harvest-hands';
 import { orderTargets } from '../trade/craft-orders';
+import { jewelleryMaterialG } from '../trade/jewellery';
+import { GOLD } from '../rules/rules-gold';
 import {
   basketManDaysPerKg,
   craftHands,
@@ -101,7 +103,14 @@ import {
 } from './charcoal';
 import { findCampSite, findKilnSite } from './kiln-site';
 import { goldPlacers } from '../core/premium-effects';
-import { inPanningSeason, pannerPlacer, pannerWalk, workPanner } from './gold-crafts';
+import {
+  inPanningSeason,
+  pannerPlacer,
+  pannerWalk,
+  workJeweller,
+  workMinter,
+  workPanner,
+} from './gold-crafts';
 import type { CampSiteFinder } from './burner-camp';
 import { villageRoadWalk } from '../paths/walking';
 import {
@@ -554,9 +563,15 @@ export function restingCrafters(
       else if (pannerPlacer(state, d, day, placers, walk) === null) resting.set(d.id, 'no-placer');
     }
   }
-  // šperkař a mincíř (plán 6): zatím bez práce v dílně – domácnost pracuje se vsí (Úloha 5)
-  for (const craft of ['jeweller', 'minter'] as const) {
-    for (const d of occupiedWorkshops(state, craft)) resting.set(d.id, 'resting');
+  // šperkař (gold.md – Pravidla 4): bez kovu `no-gold`, kapacita na kovu `resting`
+  for (const d of occupiedWorkshops(state, 'jeweller')) {
+    const material = jewelleryMaterialG(state);
+    if (material <= 0) resting.set(d.id, 'no-gold');
+    else if ((state.jewelleryG ?? 0) >= material - 1e-9) resting.set(d.id, 'resting');
+  }
+  // mincíř (gold.md – Pravidla 5): méně než gram zlata – `no-gold`
+  for (const d of occupiedWorkshops(state, 'minter')) {
+    if (Math.floor((state.gold ?? 0) + 1e-9) < GOLD.coinGrams) resting.set(d.id, 'no-gold');
   }
   for (const d of occupiedWorkshops(state, 'potter')) {
     const workshop = d.workshop!;
@@ -1435,12 +1450,6 @@ export function workCrafts(
       const labor = workshopLabor(state, day, dwelling.id, coverage.pottery, productivity);
       burnt += smithForgeCharcoalKg([{ labor: forgeLabor(labor) }]);
     }
-    // šperkař a mincíř (plán 6): zatím bez práce v dílně, domácnost pracuje se vsí – nikdy větev
-    // hrnčíře (práci přidá Úloha 5)
-    if (workshop.craft === 'jeweller' || workshop.craft === 'minter') {
-      workshop.activity = 'resting';
-      continue;
-    }
     if (free) {
       // výrobků je dost (nebo chybí vstup) – domácnost dnes pracuje se vsí (crafts.md); s uhlířem
       // nese uhlí na tyči z práce vsi (simulate-work-people.ts) – podíl je u dílny uhlíře
@@ -1448,6 +1457,24 @@ export function workCrafts(
       continue;
     }
     const labor = workshopLabor(state, day, dwelling.id, coverage.pottery, productivity);
+    if (workshop.craft === 'jeweller' || workshop.craft === 'minter') {
+      // šperkař a mincíř (gold.md – Pravidla 4 a 5) – nikdy větev hrnčíře
+      const activity =
+        workshop.craft === 'jeweller'
+          ? workJeweller(state, labor).activity
+          : workMinter(state, labor, day).activity;
+      workshop.activity = activity;
+      days.push({
+        dwellingId: dwelling.id,
+        craft: workshop.craft,
+        domestic: labor.dailyMin,
+        felling: 0,
+        fellingTrees: [],
+        making: activity === 'producing' ? labor.craft : 0,
+        producedKg: 0,
+      });
+      continue;
+    }
     if (workshop.craft === 'panner') {
       // rýžovník na náplavu (gold.md – Pravidla 1 a 2) – nikdy větev hrnčíře
       const pan = workPanner(

@@ -454,6 +454,7 @@ export {
 } from './trade/craft-orders';
 export { legacyNeighbourName } from './trade/legacy-neighbours';
 export * from './trade/trade';
+export * from './trade/jewellery';
 // dobytek v obchodu – příchod a odchod dobytka (`addCattle`, `removeCattle`) jsou kroky obchodu
 export { boughtOxTrainedDay, cattleForSale, withCattleKinds } from './trade/cattle-trade';
 // koně v obchodu (horses.md – Nákup a prodej) – příchod a odchod koní (`addHorses`,
