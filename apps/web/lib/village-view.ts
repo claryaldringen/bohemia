@@ -175,6 +175,7 @@ export function chronicle(state: VillageState, name: string): VillageView['chron
             direction: event.direction,
             ...(event.villageName !== undefined ? { villageName: event.villageName } : {}),
             ...(event.returned ? { returned: true as const } : {}),
+            ...(event.female ? { female: true as const } : {}),
           }
         : {}),
       // sňatky se skutečným sousedem (plán 3): jméno vsi pro upozornění

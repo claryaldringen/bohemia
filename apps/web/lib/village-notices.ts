@@ -669,9 +669,10 @@ const CHRONICLE_NOTICES: Partial<
 
 /** Krátký řádek „Přišla rodina ze severu“ (trade.md – Výměna lidí). */
 function newcomerNotice(group: NewcomerGroup, entry: ChronicleEntry): VillageNotice {
+  const texts = (entry.female && NEWCOMER_TEXTS[group].female) || NEWCOMER_TEXTS[group];
   // vrácení lidé mají vlastní upozornění, ne „Přišla rodina“ (plán 3, bod 13)
   if (entry.returned) {
-    return { kind: `newcomer-back-${group}`, tone: 'info', text: NEWCOMER_TEXTS[group].backNotice };
+    return { kind: `newcomer-back-${group}`, tone: 'info', text: texts.backNotice };
   }
   const from =
     entry.villageName !== undefined
@@ -682,7 +683,7 @@ function newcomerNotice(group: NewcomerGroup, entry: ChronicleEntry): VillageNot
   return {
     kind: `newcomer-${group}`,
     tone: 'info',
-    text: `${NEWCOMER_TEXTS[group].notice}${from}`,
+    text: `${texts.notice}${from}`,
   };
 }
 

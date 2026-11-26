@@ -37,6 +37,11 @@ describe('jednotky zboží obchodu', () => {
     expect(goodsNames(MERCHANTS.goods)).toBe('meče, kroužkové košile a helmy');
     expect(goodsNames({ honey: 2, wax: 0 })).toBe('med');
     expect(goodsNames({})).toBe('');
+    // otroci ve 4. pádě (plán 5, bod 6)
+    expect(goodsNames({ honey: 100, wax: 24, furs: 60, slaves: 10 })).toBe(
+      'med, vosk, kožešiny a otroky',
+    );
+    expect(goodsText({ slaves: 2 })).toBe('2 ks otroků');
   });
 
   it('kg a kusy zůstávají', () => {
@@ -49,6 +54,7 @@ describe('jednotky zboží obchodu', () => {
     expect(TRADE_GOOD_NAMES.slaves).toEqual({
       name: 'Otroci',
       genitive: 'otroků',
+      accusative: 'otroky',
       unit: 'ks',
       icon: 'slave',
     });
@@ -57,6 +63,12 @@ describe('jednotky zboží obchodu', () => {
       chronicle: 'přišel otrok',
       back: 'se vrátil prodaný otrok',
       backNotice: 'Vrátil se prodaný otrok',
+      female: {
+        notice: 'Přišla otrokyně',
+        chronicle: 'přišla otrokyně',
+        back: 'se vrátila prodaná otrokyně',
+        backNotice: 'Vrátila se prodaná otrokyně',
+      },
     });
   });
 

@@ -652,6 +652,35 @@ describe('newNotices – porážka a spřežení (diet.md, oxen.md)', () => {
     ]);
   });
 
+  it('otrokyně – upozornění v ženském rodě', () => {
+    const slave = (
+      fields: Partial<VillageView['chronicle'][number]>,
+    ): VillageView['chronicle'][number] => ({
+      day: 1002,
+      kind: 'newcomer',
+      group: 'slave',
+      direction: 'N',
+      dateLabel: '',
+      text: '',
+      ...fields,
+    });
+    const after = view({
+      dayIndex: 1003,
+      chronicle: [
+        slave({ day: 1003, female: true, returned: true }),
+        slave({ female: true, villageName: 'Lhota' }),
+      ],
+    });
+    expect(newNotices(view({ dayIndex: 1000 }), after).map((n) => n.text)).toEqual([
+      'Přišla otrokyně z Lhoty',
+      'Vrátila se prodaná otrokyně',
+    ]);
+    const male = view({ dayIndex: 1003, chronicle: [slave({})] });
+    expect(newNotices(view({ dayIndex: 1000 }), male).map((n) => n.text)).toEqual([
+      'Přišel otrok ze severu',
+    ]);
+  });
+
   it('lidé od souseda – fakt, odkud přišli (trade.md – Výměna lidí)', () => {
     const newcomer = (
       day: number,

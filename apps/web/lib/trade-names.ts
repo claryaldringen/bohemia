@@ -27,7 +27,7 @@ export type TradeUnit = 'kg' | 'ks' | 'm³';
  */
 export const TRADE_GOOD_NAMES: Record<
   TradeGood,
-  { name: string; genitive: string; unit: TradeUnit; icon: string }
+  { name: string; genitive: string; accusative?: string; unit: TradeUnit; icon: string }
 > = {
   grain: { name: 'Obilí', genitive: 'obilí', unit: 'kg', icon: 'food' },
   meat: { name: 'Maso', genitive: 'masa', unit: 'kg', icon: 'meat' },
@@ -88,7 +88,7 @@ export const TRADE_GOOD_NAMES: Record<
   helmets: { name: 'Helmy', genitive: 'helem', unit: 'ks', icon: 'helmet' },
   coins: { name: 'Mince', genitive: 'mincí', unit: 'ks', icon: 'coin' },
   // otroci po jednom (markets.md – Rozhodnutí plánu 5, bod 6)
-  slaves: { name: 'Otroci', genitive: 'otroků', unit: 'ks', icon: 'slave' },
+  slaves: { name: 'Otroci', genitive: 'otroků', accusative: 'otroky', unit: 'ks', icon: 'slave' },
   // lidé na trhu po skupinách (markets.md – Rozhodnutí plánu 3, bod 10) – ikony jako výměna lidí
   families: {
     name: 'Rodiny – muž, žena a jejich děti',
@@ -172,7 +172,14 @@ export function peopleText(
  */
 export const NEWCOMER_TEXTS: Record<
   NewcomerGroup,
-  { notice: string; chronicle: string; back: string; backNotice: string }
+  {
+    notice: string;
+    chronicle: string;
+    back: string;
+    backNotice: string;
+    /** Ženské znění (jen otrokyně) – kronika i upozornění ho berou u `female`. */
+    female?: { notice: string; chronicle: string; back: string; backNotice: string };
+  }
 > = {
   family: {
     notice: 'Přišla rodina',
@@ -198,6 +205,12 @@ export const NEWCOMER_TEXTS: Record<
     chronicle: 'přišel otrok',
     back: 'se vrátil prodaný otrok',
     backNotice: 'Vrátil se prodaný otrok',
+    female: {
+      notice: 'Přišla otrokyně',
+      chronicle: 'přišla otrokyně',
+      back: 'se vrátila prodaná otrokyně',
+      backNotice: 'Vrátila se prodaná otrokyně',
+    },
   },
 };
 
@@ -218,13 +231,16 @@ export function coinsText(
 
 /**
  * Jména zboží s kladným množstvím ve výčtu malými písmeny, bez počtů („med, vosk a kožešiny“) – co
- * cizí kupci kupují a prodávají (markets.md – Rozhodnutí plánu 4, bod 5); u jejich zboží je 1. a 4. pád
- * stejný.
+ * cizí kupci kupují a prodávají (markets.md – Rozhodnutí plánu 4, bod 5); u zboží bez `accusative` je 1. a 4. pád
+ * stejný (otroci jsou „otroky“).
  */
 export function goodsNames(goods: TradeGoods): string {
   const names = (Object.entries(goods) as [TradeGood, number][])
     .filter(([, amount]) => amount > 0)
-    .map(([good]) => TRADE_GOOD_NAMES[good].name.toLowerCase());
+    .map(([good]) => {
+      const names = TRADE_GOOD_NAMES[good];
+      return names.accusative ?? names.name.toLowerCase();
+    });
   return names.length <= 1
     ? (names[0] ?? '')
     : `${names.slice(0, -1).join(', ')} a ${names[names.length - 1]}`;

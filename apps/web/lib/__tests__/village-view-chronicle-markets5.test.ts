@@ -17,3 +17,30 @@ describe('kronika – odvedení z tažení', () => {
     expect(led(0, 5)).toBe('Z tažení přivedli 5 křesťanů.');
   });
 });
+
+describe('kronika – otrokyně od souseda', () => {
+  const newcomer = (extra: Record<string, unknown>): string =>
+    text({
+      kind: 'newcomer',
+      group: 'slave',
+      direction: 'N',
+      people: 1,
+      dwellingId: 1,
+      villageName: 'Lhota',
+      ...extra,
+    });
+
+  it('ženský rod u female, mužský bez něj', () => {
+    expect(newcomer({ female: true })).toBe('Do vsi přišla otrokyně z Lhoty.');
+    expect(newcomer({ female: true, returned: true })).toBe(
+      'Do vsi se vrátila prodaná otrokyně z Lhoty.',
+    );
+    expect(newcomer({})).toBe('Do vsi přišel otrok z Lhoty.');
+  });
+
+  it('prázdné jméno vsi (cizí správce) – „ze sousední vsi“', () => {
+    expect(newcomer({ female: true, villageName: '' })).toBe(
+      'Do vsi přišla otrokyně ze sousední vsi.',
+    );
+  });
+});

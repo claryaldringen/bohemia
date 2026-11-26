@@ -733,6 +733,8 @@ export interface VillageView {
     groom?: true;
     /** Lidé z `newcomer` jsou vrácení – ves je prodala a zpět se vrátili. */
     returned?: true;
+    /** Otrokyně z `newcomer` – věty v ženském rodě. */
+    female?: true;
     /** Co ves koupila u souseda (`crafts-bought` – crafts.md, Nákup u sousedů). */
     products?: CraftProduct[];
     /** Vůz, který ves koupila u souseda (`crafts-bought` – crafts.md, Nákup u sousedů, Vozy). */

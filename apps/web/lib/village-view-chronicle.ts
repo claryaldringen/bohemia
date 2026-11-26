@@ -1080,8 +1080,9 @@ function newcomerText(
   returned: boolean,
   villageName?: string,
   coins?: number,
+  female = false,
 ): string {
-  const texts0 = NEWCOMER_TEXTS[group];
+  const texts0 = (female && NEWCOMER_TEXTS[group].female) || NEWCOMER_TEXTS[group];
   // lidé ze skutečného souseda (plán 3, bod 14): „Do vsi přišla rodina z Lhoty.“; s měšcem výpravy
   // zaniklé vsi „… a 17 mincí.“ (preflight plánu 4, M14)
   if (villageName !== undefined) {
@@ -1089,7 +1090,7 @@ function newcomerText(
     return `Do vsi ${returned ? texts0.back : texts0.chronicle} ${fromVillage(villageName)}${purse}.`;
   }
   const from = DIRECTION_NAMES[direction].from;
-  const texts = NEWCOMER_TEXTS[group];
+  const texts = texts0;
   const lead = `${from.charAt(0).toUpperCase()}${from.slice(1)} ${returned ? texts.back : texts.chronicle}`;
   if (group !== 'family') return `${lead}.`;
   return `${lead} – ${formatInteger(people)} ${plural(people, 'člověk', 'lidé', 'lidí')}.`;
@@ -1727,6 +1728,7 @@ export function chronicleText(event: ChronicleEvent, villageName: string, seed?:
         event.returned === true,
         event.villageName,
         event.coins,
+        event.female === true,
       );
     case 'stranded-coins':
       // měšec výpravy zaniklé vsi bez lidí (preflight plánu 4, M14)
