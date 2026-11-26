@@ -26,7 +26,7 @@
 ## Global Constraints
 
 - **Předpoklad:** plán 4 je sloučený ve `feat/landscape`. Musí platit (`grep -rnw <jméno> packages apps`): `applyCampaignReturn`, `settleLed`, `rehomePeople`, `emigrantGroups`, `leavingGroups`, `takePeople`, `sendPeople`, `settlePeople`, `restorePeople`, `receiveStranded`, `removePeople`, `departLeavers`, `marketTripPeople`, `marketStance`, `peopleOffer`, `keepLabor`, `coinPhase`, `coinClearing`, `merchantsArrive`, `affordableWants`, `setArmsOrder`, `reduceArmsOrder`, `orderArms`, `stewardMarketStep`, `isChristian`, `conversionDay`, `ennobleBlock`, `maskVillageNames`, `NEWCOMER_TEXTS`, `goodsNames`, `scenePersons`, `marketPreview`, `parseMarketPeopleInput`, `coinsOfWorld`, `VILLAGE_MIGRATIONS`. A nesmí existovat: `slave`, `sellableSlaves`, `slavesForSale`, `enslaveLed`, `led-settled`, `offerSlaves`. Jinak Úlohu 1 nezačínat a ozvat se. Práce běží ve větvi `feat/markets-5` z `feat/landscape`.
-- **Úlohy 3a a 6a čekají na Martinovu odpověď na Otázku 1** (výběr otroků na prodej a jejich rezervace – pravidla hry mění jen Martin). Úlohy 1 a 2 smějí běžet hned; všechno ostatní stojí na Úloze 3a (Rozhodnutí 13). Plán je psaný podle doporučené odpovědi; co se při jiné odpovědi změní, píše Otázka 1 a Úlohy 3a a 6a.
+- **Otázka 1 je rozhodnutá** (Martin 26. 11. 2026: „Moc to řešíš. Otroci nejsou rodina, ale zboží“ – Martinova rozhodnutí, bod 7): každý otrok se prodává sám, jak je plán napsaný. Úlohy 3a a 6a smějí běžet; všechno za Úlohou 2 stojí na Úloze 3a (Rozhodnutí 13).
 - **Mimo plán 5:** zlato, šperkař a mincovna (plán 6, `gold.md`), účinek zbroje v boji, další zboží kupců, prodej zajatých mužů rodu a šlechticů (návrh Clauda „zatím ne“ – Oznámit 1), prodej a nákup otroků správcem (návrh Clauda „zatím ne“ – Oznámit 6), útěk, výkup a propuštění otroka, štěstí otroků, zvláštní zásilka otroků mezi vlastními vsemi (otrok jde jako muž, žena nebo rodina – Rozhodnutí 6).
 - **Nikdo nevznikne ani nezmizí.** Člověk je vždy na jednom místě: ve vsi, v nákladu výpravy, na trhu (i u kupců v `boughtPeople` do jejich odjezdu), ve výsledku na cestě, nebo s vojskem. Ze světa jinak než smrtí odchází jediný druh lidí – **otroci koupení cizími kupci** (odjedou s nimi, Rozhodnutí 7). Přijaté ztráty jsou jen ty z dřívějších plánů (zánik obou konců pošty, odvedení do vsi bez obydlí).
 - **Mince jen podle plánu 4** (Martin 25. 11. 2026: „Mince utrácí jen vojvoda/správce“): za otroky platí kupci, výpravy hráče a výpravy správce, které mince vezou. Ves (hostitel) za mince otroky nekupuje, vesničané ani správce otroky nekupují. Mince za prodané otroky přibudou tomu, kdo prodal.
@@ -60,6 +60,7 @@ Z `markets.md` – Martinova rozhodnutí (22. 11. 2026) doslova; Pravidla 6 a 7 
 4. **Pravidla 6 a 7** (návrh Clauda, schválený s celým návrhem 22. 11. 2026 („Ano“)): kupci kupují i pohanské zajatce; děti otroka narozené ve vsi jsou svobodné; pokřtěný otrok zůstává otrokem, ale prodat ho už nejde – prodat smí jen pohana; víra je víra člověka (`Person`), ne vsi – Rozhodnutí 3 a 5.
 5. **Správce** (Martin 22. 11. 2026 u lovu): „Správce je vlastně NPC hráč, takže by měl mít možnost dělat téměř vše, co skutečný hráč“ – Rozhodnutí 8 se od toho zatím odchyluje (Oznámit 6).
 6. Z války: odvedení se ve vsi vítěze usadí jako lidé (war.md – Ztráty, Martin 18. 10. 2026) a šlechtice je cílem „spíš zajmout než zabít, protože za něj může požadovat výkupné“ (Martin 2. 11. 2026) – Rozhodnutí 1 a 4, Oznámit 1. Z plánu 4: „Mince utrácí jen vojvoda/správce“, „Hráč zadá počet“ a „Pokud se lidéí někam stěhují, berou si úplně vše“ (Martin 25. 11. 2026) – Rozhodnutí 4, 8 a 9, Oznámit 5.
+7. **Rodina otroka (26. 11. 2026):** Claude se zeptal: „Z nájezdu přivedeš pohanskou rodinu: muže, ženu a dvě malé děti (3 a 5 let) – všichni čtyři jsou tvoji otroci. Za rok se jim ve vsi narodí další dítě, to je svobodné. Když pak ženu pošleš prodat kupcům, co se stane s mužem a dětmi?“ (možnosti: každý se prodává sám – doporučení; matka i s malými dětmi; celá rodina spolu; každý sám, děti až od 16). Martin: „Moc to řešíš. Otroci nejsou rodina, ale zboží“ – každý otrok se prodává sám, i malé dítě; prodej rozvede manželství jako smrt (Rozhodnutí 6).
 
 ## Co hra už zná (ověřeno `grep -rnw` 26. 11. 2026)
 
@@ -82,7 +83,7 @@ Z `markets.md` – Martinova rozhodnutí (22. 11. 2026) doslova; Pravidla 6 a 7 
 6. **Otroci jako zboží** `slaves` – kus = jeden člověk:
    - hodnota 360 kg obilí (24 mincí) jako svobodný dospělý (Rozhodnutí plánu 3, bod 4), nese 0 (jdou po svých),
    - prodat jde otrok-pohan (`canBeSold` – ne muž rodu ani šlechtic), který je doma (`isAway` ne) a není manželkou muže rodu (`keptByLine`); `sellableSlaves` je řadí od nejnižšího id (kdo přišel dřív, jde dřív),
-   - **každý se prodává sám** – manžel a děti s ním neodcházejí a i malé dítě-otrok jde prodat samo za cenu dospělého (24 mincí; v plánu 3 dítě samo nikdy neodcházelo); domácnost bez dospělého se přestěhuje jako po smrti (population.md – Rozpad domácnosti). Platí doporučená odpověď na Otázku 1; jiná odpověď mění jen výběr (Úloha 3a) a rezervaci (Úloha 6a) – co přesně, píše Otázka 1,
+   - **každý se prodává sám** – manžel a děti s ním neodcházejí a i malé dítě-otrok jde prodat samo za cenu dospělého (24 mincí; v plánu 3 dítě samo nikdy neodcházelo); domácnost bez dospělého se přestěhuje jako po smrti (population.md – Rozpad domácnosti). Martin 26. 11. 2026: „Moc to řešíš. Otroci nejsou rodina, ale zboží“ (Martinova rozhodnutí, bod 7),
    - **prodej rozvede manželství jako smrt:** otrok odchází prodat sám a bez manžela – `sendPeople` u skupin `slaves` smaže v kopii `spouseId`, jehož manžel ve skupině není (vzor `departLeavers`), manžel ve vsi ovdoví (`removePeople`) a smí se znovu oženit; neprodaný se vrátí bez manžela (`restorePeople` i `receiveStranded` vracejí tuto kopii), prodaný se u kupující vsi usadí bez manžela (`rehomePeople`). Obnovit sňatek po návratu se nebere – partner se mezitím smí znovu oženit,
    - `emigrantGroups` bere napřed otroky, pak rodiny, muže a ženy ze zbytku; `PEOPLE_GOODS` = `['slaves', 'families', 'men', 'women']`, takže postupné `takePeople` vybere totéž. „Otroci napřed“ mění oznámené „rodiny napřed“ plánu 3 (markets.md – Rozhodnutí plánu 3, bod 10; Oznámit 3),
    - otrok smí odejít i jako svobodný muž, žena nebo rodina (výměna, zásilka, výprava) – příznak si nese.
@@ -206,7 +207,7 @@ export function enslaveLed(p: Person): void;
 
 ### Task 3a: Otroci jako zboží – výběr, zásoba a výprava (Opus)
 
-**Čeká na Martinovu odpověď na Otázku 1** (Předpoklad). Ženatý otrok, který odchází prodat sám (manželství), je Úloha 4 – přípravky této úlohy mají otroky neženaté.
+**Otázka 1 rozhodnutá** (Martin 26. 11. 2026 – každý se prodává sám). Ženatý otrok, který odchází prodat sám (manželství), je Úloha 4 – přípravky této úlohy mají otroky neženaté.
 
 **Files:**
 
@@ -351,7 +352,7 @@ export interface Emigrants {
 
 ### Task 6a: Prodej otroků ve vlastní vsi – nabídka, rezervace a správce (Opus)
 
-**Čeká na Martinovu odpověď na Otázku 1** (rezervace – Předpoklad).
+**Otázka 1 rozhodnutá** (Martin 26. 11. 2026 – každý se prodává sám).
 
 **Files:**
 
@@ -552,12 +553,14 @@ export async function offerSlaves(input: unknown): Promise<VillageActionResult>;
 
 ## Otázky na Martina
 
+Žádné otevřené. Otázka 1 je rozhodnutá (Martinova rozhodnutí, bod 7); původní znění plánu pro úplnost:
+
 1. **Rodina otroka.** „Z nájezdu na pohanskou ves přivedeš matku se dvěma malými dětmi (tři a pět let) a jejím mužem – všichni čtyři jsou tvoji otroci. Za rok se jí ve vsi narodí další dítě, to je svobodné. Když pak matku pošleš prodat kupcům, co s mužem a dětmi? Doporučuji: každý otrok se prodává sám. Muž zůstane ve vsi jako vdovec a smí se znovu oženit, děti zůstanou u něj (prodáš-li oba rodiče, ujme se dětí příbuzný nebo jiná domácnost jako sirotků). Když se matka na trhu neprodá, vrátí se domů už bez muže – manželství skončilo prodejem, jako by zemřela. Starší dvě děti můžeš prodat i samotné, i to tříleté – kupci za ně dají 24 mincí jako za dospělého; dítě narozené ve vsi prodat nejde. Jiné možnosti: matka jde prodat i s malými dětmi, nebo celá rodina i s mužem (kupci zaplatí za každého zvlášť); nebo se dítě samo prodá až od 16 let.“ (Plán je psaný podle doporučení. Jiná odpověď mění jen výběr v Úloze 3a a rezervaci v Úloze 6a: „i s malými dětmi“ – prodává se skupina, otrok od 16 let a jeho děti-otroci pod 16 let z jeho domu, kus zůstane jeden člověk a skupina zabere tolik kusů, kolik má lidí, rezervace bere celé skupiny; „i s mužem“ – navíc manželé-otroci tvoří jednu skupinu a jejich manželství zůstane; „od 16 let“ – `sellableSlaves` navíc věk od 16 let, rezervace beze změny. Kde manžel ve vsi zůstává, prodej rozvede manželství v každé možnosti.)
 
 ## Rizika plánu
 
 - **Pořadí nákupu kupců** (Oznámit 4): kupci mají měšec 60 mincí a kupují od prodávajících po řadě (hostitel, pak výpravy podle příjezdu), u každého napřed med, vosk a kožešiny – kde hostitel nebo dřívější výprava nabízí med, otroci pozdější výpravy se prodají pomalu, a obráceně otroci hostitele nebo dřívější výpravy zaberou měšec dřív než med pozdějších; změnilo by to jen jiné pořadí nebo větší měšec, a to by změnilo i ověřená čísla plánu 4.
-- **Prodej po jednom rozbíjí rodiny a manželství** (Otázka 1, Rozhodnutí 6): domácnost bez dospělého se přestěhuje podle dnešního pravidla rozpadu domácnosti – test Úlohy 3a hlídá, že dítě ve vsi zůstane; manželství hlídá test Úlohy 4 a denní invariant Úlohy 9. Dokud Martin na Otázku 1 neodpoví, stojí Úlohy 3a a 6a a s nimi všechno za Úlohou 2.
+- **Prodej po jednom rozbíjí rodiny a manželství** (Otázka 1, Rozhodnutí 6): domácnost bez dospělého se přestěhuje podle dnešního pravidla rozpadu domácnosti – test Úlohy 3a hlídá, že dítě ve vsi zůstane; manželství hlídá test Úlohy 4 a denní invariant Úlohy 9. Martin 26. 11. 2026: „Moc to řešíš. Otroci nejsou rodina, ale zboží“.
 - **Kde TypeScript mlčí:** nový druh v `PeopleGood` a `NewcomerGroup` ukáže vyčerpávající `Record` a `switch`, ale volitelné `TradePeople.slaves` ne – místa, která skládají lidi výslovně z rodin, mužů a žen (`marketTripPeople`, `peopleOf`, `tradePeopleCount`, náhled výpravy ve webu), vyjmenovávají Úlohy 3a a 8a; chybějící `slaves` je 0, nikdy `undefined` v součtu.
 - **Rezervace otroků z nabídky** se musí spočítat jednou z celé vsi a předat všem fázím tržního dne i výpravě správce – přepočet ze vsi zmenšené o odešlé (postupné `takePeople`, `coinPhase` po zápočtu) by vybral jiné lidi než nabídka; hlídají testy Úlohy 6a.
 - **Správce a NPC vsi otroky neprodávají** (Oznámit 6): otroky jde koupit jen od vsí, jejichž hráč je nabídne – na stezce mezi vsemi správců a NPC rodů se otroci skoro neobjeví. Prodej správcem by bylo nové pravidlo (kdy a kolik) a nová úloha, kdyby ho Martin chtěl.
