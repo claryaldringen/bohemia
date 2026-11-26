@@ -714,6 +714,9 @@ export interface VillageView {
     day: number;
     kind: ChronicleEvent['kind'];
     kg?: number;
+    /** Odvedení z tažení (`led-settled` – markets.md, Rozhodnutí plánu 5): otroci a svobodní. */
+    slaves?: number;
+    free?: number;
     /** U pádu a opravy stavby (`structure-fell`, `structure-repaired`) která stavba. */
     structure?: AbandonedStructure;
     /** Kolik kusů kterého druhu se porazilo navíc (`emergency-slaughter` – diet.md). */

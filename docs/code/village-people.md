@@ -26,6 +26,16 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   dcera, sourozenec), jinak do domu s nejvíc místy – jen kam se vejde bez přeplnění, jinak zůstane doma (Martin; samotné děti jdou
   i do přeplněného).
 
+- **Otroci** ([markets.md](../design/markets.md) – Pravidla 7, Rozhodnutí plánu 5; Martin 22. 11. 2026:
+  „Od zajetí bude prostě vedený jako otrok“; `people/slaves.ts`): `Person.slave` (chybí = svobodný) –
+  odvedený pohan od usazení ve vsi vítěze (`enslaveLed` ze `settleLed` v `war/raid-apply.ts`,
+  war.md – Výsledky nájezdu a kořist); křesťan zůstane svobodný. Příznak je **trvalý** (křest ho
+  neruší – `conversionDay` mění jen `faith`), děti ho nedědí (`populationDay` dává dítěti jen víru)
+  a `rehomePeople` ho nese s člověkem. `isSlave`, `canBeSold` (otrok, ne křesťan, ne `line`, ne
+  `noble` – prodat jde jen pohana). „Led“ (odvedený), ne „captive“ – captive je zajatec k výkupnému
+  (`away.kind 'captive'`). Kronika `led-settled` (`slaves`, `free`) a upozornění „Z tažení přivedli
+  otroky / křesťany“.
+
 - **Osídlení obydlí** (`households.ts`; population.md – Nové obydlí, kinship.md – Domácnosti): nové
   obydlí po dokončení (`settleNewDwelling`) a prázdné v kroku 6 (`occupyEmptyDwellings`) osídlí
   **rodina ženatého syna** (muž, žena, jejich svobodné děti – `familiesOf` / `leavingFamilies`)

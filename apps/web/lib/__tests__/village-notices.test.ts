@@ -1095,6 +1095,32 @@ describe('kupci přijeli (markets.md – Rozhodnutí plánu 4, bod 5)', () => {
   });
 });
 
+describe('odvedení z tažení (markets.md – Rozhodnutí plánu 5, bod 1)', () => {
+  const after = (slaves: number, free: number): VillageView =>
+    view({
+      dayIndex: 1003,
+      chronicle: [{ day: 1002, kind: 'led-settled', slaves, free, dateLabel: '', text: '' }],
+    });
+
+  it('otroci s ikonou otroka, jen křesťané bez ikony', () => {
+    expect(newNotices(view({ dayIndex: 1000 }), after(2, 1))).toEqual([
+      {
+        kind: 'led-settled',
+        tone: 'info',
+        text: 'Z tažení přivedli otroky',
+        icon: '/icons/resources/slave.png',
+      },
+    ]);
+    expect(newNotices(view({ dayIndex: 1000 }), after(0, 2))).toEqual([
+      {
+        kind: 'led-settled',
+        tone: 'info',
+        text: 'Z tažení přivedli křesťany',
+      },
+    ]);
+  });
+});
+
 describe('nákup u sousedů (crafts.md)', () => {
   it('vesničané koupili výrobky u souseda – krátký fakt z kroniky', () => {
     const after = view({

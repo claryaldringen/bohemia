@@ -1608,6 +1608,11 @@ co se stalo, a pošle to do schránek vsí na **následující den** (rozhodnut�
 - **`line-man-fell`**: padlý muž rodu útočníka (`raidTick` po `syncMembers`) hned do domovské vsi –
   smrt se jménem a id (nástupnictví vsi `dynastyDay`, nástupnictví hráče z `death.personId`), bez
   pohřbu (padlí útočníci zůstanou na cizí mapě).
+- **Odvedení pohané jsou otroci** (markets.md – Rozhodnutí plánu 5, bod 1): `settleLed` (z
+  `applyCampaignReturn`) volá na každém usazeném `enslaveLed` (`people/slaves.ts` – pohan dostane
+  `Person.slave`, křesťan zůstane svobodný; snímek s `slave` si příznak nese) a vrací počty
+  `{ slaves, free }` jen za ty, kdo dostali dům; `applyCampaignReturn` je zapíše do kroniky
+  `led-settled`, jen když je součet > 0 (ves bez obydlí nic). Podrobnosti: village-people.md – Otroci.
 - **Kronika obou rodů**: napadená ves z `applyRaidResult`, ves shromaždiště událostí `chronicle`
   se stejným zápisem (`raidChronicle`). Jména vsí `CampaignVillage.name` a `CampaignState.ambush`
   plní `plan-campaign.ts` / `launch-campaign.ts`; text `raidText` v `village-view-chronicle.ts`

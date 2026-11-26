@@ -1512,6 +1512,8 @@ export function chronicleText(event: ChronicleEvent, villageName: string, seed?:
       return `Lidé vyrazili na ${DIRECTION_NAMES[event.direction].name} – na místo nové vsi dorazí ${formatGameDate(dateOfDayIndex(event.arrivalDay))}.`;
     case 'harvest':
       return `${HARVEST_NAMES[event.crop ?? 'any']}: ${formatInteger(event.kg)} kg ${HARVEST_GOODS[event.crop ?? 'any']}.${stockSentence(event.crop === 'legume' ? 'Luštěniny' : 'Obilí', event.stock)}`;
+    case 'led-settled':
+      return ledSettledText(event);
     case 'linen-short':
       return `Lnu je na oděv málo – vytrhali ${formatInteger(event.kg)} kg z ${formatInteger(event.neededKg)} kg, které lidé potřebují.`;
     case 'apple-harvest':
@@ -1829,6 +1831,25 @@ export const HARVEST_GOODS: Record<Crop | 'any', string> = {
   flax: 'lnu',
   any: 'obilí',
 };
+
+/**
+ * Odvedení z tažení (markets.md – Rozhodnutí plánu 5, bod 1 a 11): otroci a svobodní křesťané ve
+ * 4. pádě, obecný mužský rod i u žen; nulová část se vynechá.
+ */
+function ledSettledText(event: Extract<ChronicleEvent, { kind: 'led-settled' }>): string {
+  const parts: string[] = [];
+  if (event.slaves > 0) {
+    parts.push(
+      `${formatInteger(event.slaves)} ${plural(event.slaves, 'otroka', 'otroky', 'otroků')}`,
+    );
+  }
+  if (event.free > 0) {
+    parts.push(
+      `${formatInteger(event.free)} ${plural(event.free, 'křesťana', 'křesťany', 'křesťanů')}`,
+    );
+  }
+  return `Z tažení přivedli ${parts.join(' a ')}.`;
+}
 
 /** Věta kroniky o ročních Odvodech: „Ctibor odvedl pánu Bořivoji 100 z 150 kg obilí.“ */
 function levyLine(event: Extract<ChronicleEvent, { kind: 'levy' }>): string {
