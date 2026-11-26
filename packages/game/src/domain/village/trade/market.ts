@@ -60,6 +60,7 @@ import {
   isPeopleGood,
   onlyGoods,
   withoutCoins,
+  withoutMoney,
 } from './goods';
 import { addHorses, takeHorses } from './horse-trade';
 import { clearMarket, partyTotals, totalGoods } from './market-clearing';
@@ -688,14 +689,14 @@ function priceTotals(
   level: number,
   slavesOnMarket: boolean,
 ): { offered: TradeGoods; wanted: TradeGoods } {
-  const offered = totalGoods([stance.offer, ...visitors.map((v) => withoutCoins(v.goods))]);
+  const offered = totalGoods([stance.offer, ...visitors.map((v) => withoutMoney(v.goods))]);
   const forSale = TRADE_GOODS.filter((good) => (offered[good] ?? 0) > 0);
   const lists = visitors.map((v) => merchantWants(v, slavesOnMarket));
   const demand = visitors.map((v, i) => {
     const list = lists[i] ?? v.wants;
     return v.merchant
       ? onlyGoods(affordableWants({ ...v, wants: list }, prices, level), forSale)
-      : withoutCoins(list);
+      : withoutMoney(list);
   });
   const wanted = totalGoods([stance.wants, craftWants, ...demand]);
   if (visitors.some((v) => !v.merchant)) return { offered, wanted };
@@ -778,9 +779,9 @@ export function marketDay(state: VillageState, day: number): ChronicleEvent[] {
       },
       ...visitors.map((v) => ({
         key: v.key,
-        offer: withoutCoins(v.goods),
+        offer: withoutMoney(v.goods),
         // strop V = min(nabídka, seznam) – kupec bez otroků v den, kdy je nikdo nenabízí
-        wants: withoutCoins(merchantWants(v, slavesOnMarket)),
+        wants: withoutMoney(merchantWants(v, slavesOnMarket)),
       })),
     ],
     prices,

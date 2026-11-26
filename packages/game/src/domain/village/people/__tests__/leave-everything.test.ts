@@ -132,6 +132,9 @@ function richVillage(): VillageState {
   };
   // mince a zbroj (markets.md – Rozhodnutí plánu 4, bod 1 a 7)
   s.coins = 37;
+  // zlato a kapacita šperkaře (gold.md – Pravidla 2 a 4)
+  s.gold = 40.5;
+  s.jewelleryG = 20;
   s.arms = { swords: 3, helmets: 2 };
   s.hay = { kg: 900, mowing: null, mowCapacityKg: 5000, straw: { kg: 150, yearKg: 400 } };
   s.livestock = {

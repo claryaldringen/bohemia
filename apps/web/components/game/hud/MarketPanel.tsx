@@ -59,7 +59,7 @@ const PHASES: Record<MarketTripPhase, { label: string; icon: string }> = {
  * a m³ po jedné. Poslední krok nahoru doplní do zásoby (`Stepper` má `max`), dolů jde k nule.
  */
 const stepOf = (good: TradeGood): number =>
-  good === COIN_GOOD ? 10 : TRADE_GOOD_NAMES[good].unit === 'kg' ? 100 : 1;
+  good === COIN_GOOD || good === 'gold' ? 10 : TRADE_GOOD_NAMES[good].unit === 'kg' ? 100 : 1;
 
 /** Ikona zboží s popiskem názvu. */
 function GoodIcon({ good, size = 20 }: { good: TradeGood; size?: number }): ReactElement {

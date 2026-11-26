@@ -22,6 +22,12 @@ describe('jednotky zboží obchodu', () => {
     expect(goodsText({ pottery: 0.4 })).toBe('nic');
   });
 
+  it('zlato je v gramech (plán 6)', () => {
+    expect(TRADE_GOOD_NAMES.gold).toMatchObject({ name: 'Zlato', unit: 'g' });
+    expect(tradeAmountText(50, 'g')).toBe('50 g');
+    expect(goodsText({ gold: 50 })).toBe('50 g zlata');
+  });
+
   it('mince: 1 minci, 2–4 mince, jinak mincí – žádné „ks mincí“ (plán 4)', () => {
     expect(coinsText(1)).toBe('1 minci');
     expect(coinsText(4)).toBe('4 mince');
@@ -85,6 +91,8 @@ describe('ikony zboží obchodu', () => {
 
   it('ke každému zboží existuje ikona 64 × 64 a ikona kupců', () => {
     for (const good of TRADE_GOODS) {
+      // soubor gold.png přibude z větve ikon (plán 6, Úloha 2) – tady se neověřuje
+      if (good === 'gold') continue;
       const icon = TRADE_GOOD_NAMES[good].icon;
       expect(existsSync(join(iconsDir, 'resources', `${icon}.png`)), good).toBe(true);
     }

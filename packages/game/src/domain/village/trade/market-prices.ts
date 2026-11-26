@@ -3,9 +3,9 @@
 // posune podle poptávky a nabídky; trh si pamatuje poslední cenu (`MarketPrices`). Za mince se platí
 // cena × hladina trhu (`coinPriceOf`), kterou po mincovní fázi posunou mince proti zboží
 // (`nextLevel` – Rozhodnutí plánu 4, bod 3); zápočet na hladině nezávisí.
-import { MARKET, TRADE_GOOD_VALUES } from '../rules';
+import { GOLD, MARKET, TRADE_GOOD_VALUES } from '../rules';
 import type { MarketPrices, TradeGood, TradeGoods } from '../types';
-import { COIN_GOOD, TRADE_GOODS } from './goods';
+import { COIN_GOOD, GOLD_GOOD, TRADE_GOODS } from './goods';
 
 /**
  * Technická mez, ne pravidlo: cena je nejvýš tolikrát výchozí. Nahoru jsou ceny bez meze (Martin
@@ -25,12 +25,18 @@ export function priceOf(prices: MarketPrices | undefined, good: TradeGood): numb
   return prices?.[good] ?? initialPrice(good);
 }
 
+/** Pevná cena gramu zlata v mincích (1 ÷ `GOLD.coinGrams`) – nezávisí na trhu ani hladině. */
+export function goldCoinPrice(): number {
+  return 1 / GOLD.coinGrams;
+}
+
 /** Cena zboží na trhu v mincích: relativní cena × hladina trhu (Rozhodnutí plánu 4, bod 3). */
 export function coinPriceOf(
   prices: MarketPrices | undefined,
   level: number,
   good: TradeGood,
 ): number {
+  if (good === GOLD_GOOD) return goldCoinPrice();
   return priceOf(prices, good) * level;
 }
 
@@ -69,7 +75,7 @@ export function nextPrices(
 ): MarketPrices {
   const next: MarketPrices = { ...prices };
   for (const good of TRADE_GOODS) {
-    if (good === COIN_GOOD) continue;
+    if (good === COIN_GOOD || good === GOLD_GOOD) continue;
     // uložená cena mimo meze (starší stav pod dnem) se vrátí na ně
     if (next[good] !== undefined) next[good] = boundedPrice(good, next[good]);
     const demand = Math.max(0, wanted[good] ?? 0);

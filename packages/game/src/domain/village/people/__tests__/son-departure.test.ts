@@ -137,6 +137,16 @@ describe('poměrná část vsi (sonShare)', () => {
     expect(share.personIds).not.toContain(40);
   });
 
+  it('odchod syna nechá zlato a kapacitu šperkaře v mateřské vsi (gold.md – Pravidla 2)', () => {
+    const s = lordVillage();
+    s.gold = 40.5;
+    s.jewelleryG = 20;
+    const son = departWithSon(s, DAY, 30, { villageName: 'Lhota' });
+    expect(son.settlers).not.toHaveProperty('gold');
+    expect(son.settlers.whole).toBeUndefined();
+    expect(son.state).toMatchObject({ gold: 40.5, jewelleryG: 20 });
+  });
+
   it('správce zapíná jen odchod syna – i přes cestu na novou mapu, ne stěhování vojvody', () => {
     const journey = { direction: 'N' as const, departedDay: DAY, arrivalDay: DAY + 2 };
     const son = departWithSon(lordVillage(), DAY, 30, { villageName: 'Lhota' });

@@ -71,6 +71,7 @@ export type TradeGood =
   | 'wax'
   | ArmsGood
   | 'coins'
+  | 'gold'
   | PeopleGood;
 
 /** Množství zboží (jen uvedené druhy, kg nebo kusy podle druhu). */

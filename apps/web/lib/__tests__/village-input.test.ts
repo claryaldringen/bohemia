@@ -431,7 +431,7 @@ describe('vstup výpravy na trh', () => {
     expect(parseMarketExpeditionInput({ ...ok, give: { grain: -1 } })).toBeNull();
     expect(parseMarketExpeditionInput({ ...ok, give: { cows: 1.5 } })).toBeNull();
     expect(parseMarketExpeditionInput({ ...ok, wants: { grain: 10.5 } })).toBeNull();
-    expect(parseMarketExpeditionInput({ ...ok, give: { gold: 5 } })).toBeNull();
+    expect(parseMarketExpeditionInput({ ...ok, give: { silver: 5 } })).toBeNull();
     expect(parseMarketExpeditionInput({ ...ok, give: { grain: NaN } })).toBeNull();
     expect(parseMarketExpeditionInput({ ...ok, stayDays: 1.5 })).toBeNull();
     expect(parseMarketExpeditionInput({ ...ok, stayDays: -1 })).toBeNull();

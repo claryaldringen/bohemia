@@ -298,6 +298,27 @@ describe('nová ves z osadníků', () => {
   });
 });
 
+describe('zlato při odchodu (gold.md – Pravidla 2 a 4)', () => {
+  it('odchod celé vsi: osadníci nesou zlato i kapacitu šperkaře, stará ves je nemá', () => {
+    const s = twoHouseholds();
+    s.gold = 40.5;
+    s.jewelleryG = 20;
+    const { state, settlers } = departVillage(s, DAY, [1, sonHome(s)], 'E');
+    expect(settlers.whole?.stocks).toMatchObject({ gold: 40.5, jewelleryG: 20 });
+    expect(state).not.toHaveProperty('gold');
+    expect(state).not.toHaveProperty('jewelleryG');
+  });
+
+  it('odchod jedné domácnosti nechá zlato i kapacitu ve staré vsi', () => {
+    const s = twoHouseholds();
+    s.gold = 40.5;
+    s.jewelleryG = 20;
+    const { state, settlers } = departVillage(s, DAY, [sonHome(s)]);
+    expect(settlers.whole).toBeUndefined();
+    expect(state).toMatchObject({ gold: 40.5, jewelleryG: 20 });
+  });
+});
+
 describe('vůz s voly při odchodu (migration.md – Vůz při odchodu)', () => {
   /** Ohrada volů se `trained` vycvičenými voly a rádlem, vozy `carts`. */
   function withDraft(s: VillageState, trained: number, carts: CartKind[]): VillageState {

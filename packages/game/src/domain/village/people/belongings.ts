@@ -27,6 +27,8 @@ export const CARRIED_STOCKS = [
   'crafts',
   'wares',
   'coins',
+  'gold',
+  'jewelleryG',
   'arms',
   'hay',
   'sheaves',

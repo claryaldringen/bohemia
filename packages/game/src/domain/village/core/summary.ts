@@ -464,6 +464,8 @@ export interface WaresView {
   smallHides?: number;
   /** Mince vsi (celé kusy, jen kladné; markets.md – Rozhodnutí plánu 4, bod 12); chybí = žádné. */
   coins?: number;
+  /** Zlato vsi v celých gramech, jen kladné (gold.md – Pravidla 2). */
+  goldG?: number;
   /** Zbroj vsi po kusech, jen druhy s kladným počtem; chybí = žádná. */
   arms?: Partial<Record<ArmsGood, number>>;
 }
@@ -873,13 +875,14 @@ export function constructionsStalled(
 function waresView(state: VillageState): WaresView | null {
   const w = state.wares;
   const coins = Math.floor(state.coins ?? 0);
+  const goldG = Math.floor(state.gold ?? 0);
   const arms: Partial<Record<ArmsGood, number>> = {};
   for (const good of ARMS_GOODS) {
     const n = Math.floor(state.arms?.[good] ?? 0);
     if (n > 0) arms[good] = n;
   }
   const hasArms = Object.keys(arms).length > 0;
-  if (!w && coins <= 0 && !hasArms) return null;
+  if (!w && coins <= 0 && goldG <= 0 && !hasArms) return null;
   const small = Math.floor(w?.smallHides ?? 0);
   return {
     hides: w ? Math.floor(hidesOnHand(state)) : 0,
@@ -889,6 +892,7 @@ function waresView(state: VillageState): WaresView | null {
     waxKg: w ? Math.floor(w.waxKg) : 0,
     ...(small > 0 ? { smallHides: small } : {}),
     ...(coins > 0 ? { coins } : {}),
+    ...(goldG > 0 ? { goldG } : {}),
     ...(hasArms ? { arms } : {}),
   };
 }

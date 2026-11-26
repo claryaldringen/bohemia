@@ -603,6 +603,18 @@ day, order, target, { by?, seedKg?, alone?, service?, kin?, people? })` (mutuje 
   bere odchod celé vsi jako ostatní zásoby (`CARRIED_STOCKS` v `belongings.ts`). Zbroj je zatím jen
   zboží, účinek v boji bude až vlastní mechanikou (war.md – Výzbroj).
 
+- **Zlato** (plán 6, issue #13; rešerše `research/2026-11-26-gold.md`; čísla v `rules/rules-gold.ts`
+  – `GOLD`, `PANNING`, `JEWELLER`, `MINT`): `TradeGood` += `gold` (`GOLD_GOOD`) v `TRADE_GOODS`
+  za kamenem a v `PIECE_GOODS` – na trhu celé gramy. Stav: `VillageState.gold` (gramy i se zlomky
+  z rýžování), `jewelleryG` (kapacita výhody šperkaře, ne zboží) a `goldPanned` (vyrýžováno z náplavů),
+  chybí = nic. `villageGoodStock` čte `gold` po celých gramech, `addGood` přičte i zlomek a zbytek pod
+  `EPSILON` (i záporný šum) pole smaže. Cena gramu je pevná, `goldCoinPrice()` (1 ÷ `GOLD.coinGrams`);
+  `coinPriceOf(…, 'gold')` ji vrací bez ohledu na trh a hladinu, `nextPrices` zlato přeskočí jako
+  mince. `TRADE_GOOD_VALUES.gold` má `carryKg` 0 (nosiče nepřidá). `withoutMoney` (bez mincí i zlata)
+  platí v ceně dne a zápočtu (`priceTotals`, `clearMarket`); mincovní fáze a `coinPhaseStock` dál
+  `withoutCoins` – zlato v nich je. `WaresView.goldG` (celé gramy, jen kladné). Odchod celé vsi nese
+  `gold` a `jewelleryG` (`CARRIED_STOCKS`), odchod syna ne.
+
 - **Cizí kupci – plán** (markets.md – Rozhodnutí plánu 4, bod 5; `trade/merchant-plan.ts`, čísla
   `MERCHANTS` v `rules-merchants.ts`): kupec je tržní den ve vsi u stezky, ne karavana posouvaná
   světem – příjezdy jsou čistá funkce zastávek vsi (`MerchantStop` – seed světa a spojení, místo na

@@ -461,6 +461,12 @@ export interface VillageState {
   wares?: WaresState;
   /** Mince vsi – celé kusy (markets.md – Rozhodnutí plánu 4, bod 1); chybí = žádné. */
   coins?: number;
+  /** Zlato vsi (g, i zlomky z rýžování; gold.md – Pravidla 2); chybí = žádné. */
+  gold?: number;
+  /** Šperkařovo zpracované zlato (g) – kapacita výhody, ne zboží (gold.md – Pravidla 4); chybí = 0. */
+  jewelleryG?: number;
+  /** Vyrýžováno z náplavů (g; index = pořadí `goldPlacers`); chybí = nic. */
+  goldPanned?: number[];
   /** Zbroj vsi po kusech (bod 7, jen zboží – účinek v boji až vlastní mechanikou, war.md – Výzbroj); chybí = žádná. */
   arms?: Partial<Record<ArmsGood, number>>;
   /**
