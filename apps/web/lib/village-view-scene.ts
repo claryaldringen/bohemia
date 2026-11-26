@@ -1,6 +1,8 @@
 // Sestavení dat scény vsi, rozdělení práce dne a data pro kontrolu umístění.
 
 import { sceneChurches } from './church-view';
+import { pileCorners, stoneStackSite } from './scene/log-pile-layout';
+import { stackRadius } from './scene/stone-pile-layout';
 import {
   SceneThreshingFloor,
   type ScenePlot,
@@ -337,13 +339,36 @@ export function sceneVillage(
       },
     ];
   });
-  const stoneStacks = (state.stoneStacks ?? []).map((stack) => ({
-    id: stack.id,
-    x: stack.x,
-    z: stack.z,
-    m3: stack.m3,
-    ...(stack.road ? { road: { ...stack.road } } : {}),
-  }));
+  // hromady kamene na volném místě u kotvy jako klády (`stoneStackSite`, scene.md – Hromady
+  // kamene): místo se počítá jen tady – kreslí ho scéna a míří k němu nosiči i vůz s kamenem
+  const stoneScene = { dwellings: [...built, ...sites], fields, cemeteries, roads };
+  const stoneLayer = state.stoneStacks?.length ? obstaclesOf(landscape) : null;
+  const stoneTaken: ReturnType<typeof pileCorners>[] = [];
+  const stoneStacks = (state.stoneStacks ?? []).map((stack) => {
+    const radius = stackRadius(stack.m3);
+    const site =
+      stoneLayer && radius > 0
+        ? stoneStackSite(
+            landscape,
+            stoneScene,
+            stoneLayer,
+            obstacles,
+            stack,
+            radius,
+            null,
+            stoneTaken,
+          )
+        : null;
+    if (site) stoneTaken.push(pileCorners(site));
+    return {
+      id: stack.id,
+      x: stack.x,
+      z: stack.z,
+      m3: stack.m3,
+      ...(stack.road ? { road: { ...stack.road } } : {}),
+      site: site ? { x: site.x, z: site.z, rotation: site.rotation } : null,
+    };
+  });
   const quarries = sceneQuarries(state, landscape);
   const churches = sceneChurches(state);
   const penned = pens.reduce((sum, pen) => sum + pen.cows, 0);

@@ -12,7 +12,8 @@ type Point = { x: number; z: number };
  * Kam se kámen lomu u bodu `from` pro stavbu `construction` nosí: k hromadě kamene u kostela
  * (`stoneHeapAt`), k nejbližšímu bodu obvodu hradby, jejíž stavba láme
  * (`SceneFortification.constructions`), jinak k hromadě kamení u dvorce (zásoba – nejbližší hromada
- * u cesty, bez ní dvorec, bez dvorce `center`). Bod a poloměr hromady (m); bez místa null.
+ * u cesty – na místě, kde ji kreslí scéna, `site` –, bez ní dvorec, bez dvorce `center`). Bod
+ * a poloměr hromady (m); bez místa null.
  */
 export function stoneDestination(
   village: Pick<SceneVillage, 'churches' | 'forts' | 'stoneStacks' | 'home'>,
@@ -37,7 +38,11 @@ export function stoneDestination(
     const d = Math.hypot(s.x - manor.x, s.z - manor.z);
     if (d < bestD) {
       bestD = d;
-      best = { at: { x: s.x, z: s.z }, r: stackRadius(s.m3) };
+      // k hromadě, jak leží ve scéně (`site`); nekreslí-li se, ke kotvě jako dřív
+      best = {
+        at: s.site ? { x: s.site.x, z: s.site.z } : { x: s.x, z: s.z },
+        r: stackRadius(s.m3),
+      };
     }
   }
   return best ?? { at: { x: manor.x, z: manor.z }, r: 0 };

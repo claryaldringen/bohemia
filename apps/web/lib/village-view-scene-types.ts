@@ -281,6 +281,12 @@ export interface SceneVillage {
     m3: number;
     /** Bod osy cesty, u které hromada leží (`StoneStack.road`); chybí = bez cesty. */
     road?: { x: number; z: number };
+    /**
+     * Volné místo, kde hromada leží ve scéně (`stoneStackSite` – jako klády): kreslí ji tam
+     * `StonePiles` a míří tam nosiči i vůz s kamenem (`stoneDestination`). null = místo není,
+     * hromada se nekreslí (nosiči a vůz míří ke kotvě `x`, `z`); chybí = u kotvy.
+     */
+    site?: { x: number; z: number; rotation: number } | null;
   }[];
   /**
    * Lomy na skalních výchozech (fortifications.md – Kámen): id výchozu, střed a natočení značky;
