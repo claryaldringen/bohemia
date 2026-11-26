@@ -4,8 +4,11 @@
 import type { CartDrive, CartKind } from './types-roads';
 import type { Direction8 } from './types-state';
 
-/** Řemeslo dílny (crafts.md): hrnčíř, kovář, uhlíř, tesař (wagons.md – Tesař). */
-export type Craft = 'potter' | 'smith' | 'burner' | 'carpenter';
+/**
+ * Řemeslo dílny (crafts.md): hrnčíř, kovář, uhlíř, tesař (wagons.md – Tesař); dílny zlata (plán 6):
+ * rýžovník, šperkař a mincíř.
+ */
+export type Craft = 'potter' | 'smith' | 'burner' | 'carpenter' | 'panner' | 'jeweller' | 'minter';
 /**
  * Co dílna dělala poslední odsimulovaný den (crafts.md – Co hráč vidí): vyrábí, kácí dřevo na
  * uhlí nebo palivo, čeká na uhlí (kovář), čeká na dřevo (uhlíř a hrnčíř – není co kácet), nemá
@@ -33,6 +36,10 @@ export type WorkshopActivity =
   | 'no-charcoal'
   /** Kovář nemá rudu a není kde ji kopat (crafts.md – Uhlí a ruda kováře). */
   | 'no-ore'
+  /** Rýžovník nemá náplav, kde by rýžoval (plán 6). */
+  | 'no-placer'
+  /** Šperkař nebo mincíř nemá zlato (plán 6). */
+  | 'no-gold'
   /**
    * Kovář (a synové) kope rudu na rudišti, hrnčíř hlínu na hliništi (crafts.md – Uhlí a ruda
    * kováře, Hlína hrnčíře).

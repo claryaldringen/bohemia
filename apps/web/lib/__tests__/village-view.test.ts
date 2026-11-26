@@ -706,6 +706,75 @@ describe('buildVillageView', () => {
           },
         },
       },
+      // dílny zlata (plán 6): rýžovník jako zemnice s přirážkou, šperkař a mincíř jako kovář
+      panner: {
+        laborManDays: 78,
+        perHa: false,
+        perSquare: false,
+        upfront: [{ resource: 'wood', amount: 9, missing: 9 }],
+        blocked: null,
+        affordable: false,
+        variants: {
+          vypleteny: {
+            laborManDays: 278,
+            upfront: [{ resource: 'wood', amount: 16, missing: 16 }],
+            blocked: 'Od roku 750',
+            affordable: false,
+          },
+          srub: {
+            laborManDays: 318,
+            upfront: [{ resource: 'wood', amount: 30, missing: 30 }],
+            blocked: 'Od roku 800',
+            affordable: false,
+          },
+        },
+      },
+      // šperkař
+      jeweller: {
+        laborManDays: 286,
+        perHa: false,
+        perSquare: false,
+        upfront: [{ resource: 'wood', amount: 23, missing: 23 }],
+        blocked: null,
+        affordable: false,
+        variants: {
+          vypleteny: {
+            laborManDays: 326,
+            upfront: [{ resource: 'wood', amount: 19, missing: 19 }],
+            blocked: 'Od roku 750',
+            affordable: false,
+          },
+          srub: {
+            laborManDays: 366,
+            upfront: [{ resource: 'wood', amount: 33, missing: 33 }],
+            blocked: 'Od roku 800',
+            affordable: false,
+          },
+        },
+      },
+      // mincíř
+      minter: {
+        laborManDays: 286,
+        perHa: false,
+        perSquare: false,
+        upfront: [{ resource: 'wood', amount: 23, missing: 23 }],
+        blocked: null,
+        affordable: false,
+        variants: {
+          vypleteny: {
+            laborManDays: 326,
+            upfront: [{ resource: 'wood', amount: 19, missing: 19 }],
+            blocked: 'Od roku 750',
+            affordable: false,
+          },
+          srub: {
+            laborManDays: 366,
+            upfront: [{ resource: 'wood', amount: 33, missing: 33 }],
+            blocked: 'Od roku 800',
+            affordable: false,
+          },
+        },
+      },
       // ohrada s přístřeškem (oxen.md) – 40 čd a 6 stromů předem, osadníci ne
       pen: {
         laborManDays: 40,

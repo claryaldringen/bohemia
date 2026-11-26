@@ -1720,7 +1720,7 @@ function leaveDetails(view: VillageView, ids: readonly number[]): SelectionLeave
 function workshopDetails(view: VillageView, dwellingId: number): SelectionWorkshop | null {
   const workshop = view.crafts.workshops.find((w) => w.dwellingId === dwellingId);
   if (!workshop) return null;
-  const { stock } = CRAFT_LOOKS[workshop.craft].product;
+  const stock = CRAFT_LOOKS[workshop.craft].product?.stock;
   // kovář má v zásobě hřivny – pokrytí nástroji ukáže řádek vybavení (production-chains.md)
   const coverage =
     workshop.craft === 'potter'
@@ -1734,7 +1734,7 @@ function workshopDetails(view: VillageView, dwellingId: number): SelectionWorksh
     activity: workshop.activity,
     laborPerDay: workshop.laborPerDay,
     outputPerDayKg: workshop.outputPerDayKg,
-    stockKg: view.crafts.stocks[stock] ?? 0,
+    stockKg: stock ? (view.crafts.stocks[stock] ?? 0) : 0,
     coverage,
     kiln: workshop.kilns.find((k) => k.stage !== 'draw') ?? workshop.kilns[0] ?? null,
     kilns: workshop.kilns,

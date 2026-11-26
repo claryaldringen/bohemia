@@ -61,6 +61,9 @@ const CRAFT_WORK: Record<Craft, string> = {
   potter: 'točí hrnce',
   burner: 'pálí uhlí',
   carpenter: 'tesá',
+  panner: 'rýžuje zlato',
+  jeweller: 'dělá šperky',
+  minter: 'razí mince',
 };
 
 const CRAFT_SITES: Record<Craft, string> = {
@@ -68,6 +71,9 @@ const CRAFT_SITES: Record<Craft, string> = {
   potter: 'staví hrnčířskou dílnu',
   burner: 'staví uhlířovu zemnici',
   carpenter: 'staví tesařskou dílnu',
+  panner: 'staví rýžovníkovu zemnici',
+  jeweller: 'staví šperkařskou dílnu',
+  minter: 'staví mincovnu',
 };
 
 const KILN_WORK: Record<KilnStage, string> = {

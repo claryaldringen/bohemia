@@ -70,7 +70,7 @@ export const CHRONICLE_LENGTH = 8;
  */
 export const CRAFT_LOOKS: Record<
   Craft,
-  { icon: string; product: { icon: string; name: string; stock: keyof CraftStocks } }
+  { icon: string; product?: { icon: string; name: string; stock: keyof CraftStocks } }
 > = {
   potter: { icon: 'hrncir', product: { icon: 'pottery', name: 'Keramika', stock: 'potteryKg' } },
   // production-chains.md – Kovář: v zásobě hřivny, nástroje jsou vybavení domácností
@@ -81,6 +81,10 @@ export const CRAFT_LOOKS: Record<
     icon: 'tesar',
     product: { icon: 'wood-tools', name: 'Dřevěné nářadí', stock: 'woodToolsKg' },
   },
+  // plán 6: dílny zlata výrobek v `CraftStocks` nemají (zlato a šperky jsou jinde ve stavu)
+  panner: { icon: 'ryzovnik' },
+  jeweller: { icon: 'sperkar' },
+  minter: { icon: 'mincovna' },
 };
 
 /** Názvy obydlí v 1. a 4. pádě. */
@@ -107,6 +111,9 @@ const ESTATE_TITLES: Record<
   potter: { man: 'hrnčíř', wife: 'hrnčířka', genitive: 'hrnčíře' },
   carpenter: { man: 'tesař', wife: 'tesařova žena', genitive: 'tesaře' },
   burner: { man: 'uhlíř', wife: 'uhlířova žena', genitive: 'uhlíře' },
+  panner: { man: 'rýžovník', wife: 'rýžovníkova žena', genitive: 'rýžovníka' },
+  jeweller: { man: 'šperkař', wife: 'šperkařova žena', genitive: 'šperkaře' },
+  minter: { man: 'mincíř', wife: 'mincířova žena', genitive: 'mincíře' },
   priest: { man: 'kněz', wife: 'žena kněze', genitive: 'kněze' },
   builder: { man: 'stavbyvedoucí', wife: 'žena stavbyvedoucího', genitive: 'stavbyvedoucího' },
   limeBurner: { man: 'vápeník', wife: 'žena vápeníka', genitive: 'vápeníka' },
@@ -122,6 +129,9 @@ const HEADS_PLURAL: Partial<Record<ChronicleEstate['title'], readonly [string, s
   potter: ['hrnčíři', 'hrnčířů'],
   carpenter: ['tesaři', 'tesařů'],
   burner: ['uhlíři', 'uhlířů'],
+  panner: ['rýžovníci', 'rýžovníků'],
+  jeweller: ['šperkaři', 'šperkařů'],
+  minter: ['mincíři', 'mincířů'],
 };
 
 /** Příbuzný hlavy domácnosti – muž a žena („syn sedláka“, „matka vojvody“). */
@@ -491,6 +501,9 @@ const WORKSHOP_FINISHED: Record<Craft, string> = {
   smith: 'Dostavěli kovárnu s výhní.',
   burner: 'Dostavěli uhlířovu zemnici s milířem.',
   carpenter: 'Dostavěli tesařskou dílnu s přístřeškem.',
+  panner: 'Dostavěli rýžovníkovu zemnici.',
+  jeweller: 'Dostavěli šperkařskou dílnu.',
+  minter: 'Dostavěli mincovnu.',
 };
 
 /** Druh ohrady ve 4. pádě množného čísla – „ohrada pro ovce“ (Martin 14. 11. 2026). */
@@ -758,6 +771,9 @@ const WORKSHOP_INSTRUMENTAL: Record<Craft, RoadEndForms> = {
   potter: { word: 'hrnčířskou dílnou', feminine: true, from: 'od hrnčířské dílny' },
   carpenter: { word: 'tesařskou dílnou', feminine: true, from: 'od tesařské dílny' },
   burner: { word: 'uhlířovou zemnicí', feminine: true, from: 'od uhlířovy zemnice' },
+  panner: { word: 'rýžovníkovou zemnicí', feminine: true, from: 'od rýžovníkovy zemnice' },
+  jeweller: { word: 'šperkařskou dílnou', feminine: true, from: 'od šperkařské dílny' },
+  minter: { word: 'mincovnou', feminine: true, from: 'od mincovny' },
 };
 
 /** Konec cesty: 7. pád a rod („mezi dvorcem a kovárnou“), odkud („od kovárny“, „z rozcestí“). */

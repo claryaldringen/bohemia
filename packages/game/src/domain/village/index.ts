@@ -273,6 +273,8 @@ export * from './crafts/charcoal';
 // zemnice uhlíře u milíře (workshops.md – Uhlíř – zemnice u milíře)
 export * from './crafts/burner-camp';
 export * from './crafts/smith-supply';
+// dílny zlata (plán 6 – gold.md)
+export * from './crafts/gold-crafts';
 // odnos uhlí na tyči (workshops.md – Uhlíř – odnos uhlí na tyči) – den volá simulate-work
 export * from './crafts/charcoal-pole';
 // výrobky řemeslníků jen od vlastních řemeslníků; nákup u sousedů uložený na cestě doběhne

@@ -108,8 +108,16 @@ describe('ceny nadzemní dílny (workshops.md – Rozhodnutí 2)', () => {
     const costs = workshopCosts('smith', 'srub');
     expect(costs.smith.upfront).toEqual({ wood: 33 });
     expect(costs.potter).toEqual(BUILD_COSTS.potter);
-    expect(WORKSHOP_SIDE_M).toEqual({ potter: 3.2, smith: 3.2, carpenter: 3.2, burner: 2 });
-    expect(CRAFTS).toHaveLength(4);
+    expect(WORKSHOP_SIDE_M).toEqual({
+      potter: 3.2,
+      smith: 3.2,
+      carpenter: 3.2,
+      burner: 2,
+      panner: 2,
+      jeweller: 3.2,
+      minter: 3.2,
+    });
+    expect(CRAFTS).toHaveLength(7);
   });
 });
 

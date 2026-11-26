@@ -155,3 +155,14 @@ describe('rozdělaný vůz u tesaře (villagers.md – Fáze činností, Tesař;
     expect(workshopSmokes(dwelling(carpenterVillage(0), 70).workshop!)).toBe(false);
   });
 });
+
+describe('dílny zlata v pohledu (plán 6 – kouř)', () => {
+  it('rýžovník při práci nekouří, šperkař a mincovna ano (výheň, pec)', () => {
+    const s = yardVillage('idle', 'idle');
+    const smokes = (craft: 'panner' | 'jeweller' | 'minter'): boolean =>
+      workshopSmokes({ ...dwelling(s, 50).workshop!, craft, activity: 'producing' });
+    expect(smokes('panner')).toBe(false);
+    expect(smokes('jeweller')).toBe(true);
+    expect(smokes('minter')).toBe(true);
+  });
+});

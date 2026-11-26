@@ -75,6 +75,9 @@ const CRAFT_FORMS: Record<Craft, { wife: string; son: string; daughter: string }
   potter: { wife: 'Hrnčířova žena', son: 'Hrnčířův syn', daughter: 'Hrnčířova dcera' },
   burner: { wife: 'Uhlířova žena', son: 'Uhlířův syn', daughter: 'Uhlířova dcera' },
   carpenter: { wife: 'Tesařova žena', son: 'Tesařův syn', daughter: 'Tesařova dcera' },
+  panner: { wife: 'Rýžovníkova žena', son: 'Rýžovníkův syn', daughter: 'Rýžovníkova dcera' },
+  jeweller: { wife: 'Šperkařova žena', son: 'Šperkařův syn', daughter: 'Šperkařova dcera' },
+  minter: { wife: 'Mincířova žena', son: 'Mincířův syn', daughter: 'Mincířova dcera' },
 };
 
 /** Mistr huti a kněz ve 2. pádě (žena kameníka, syn kněze) – názvy oborů ze `MASON_CRAFT_LABELS`. */
@@ -124,6 +127,18 @@ export const ROLE_NAMES: Record<PersonRole, string> = {
   'carpenter-wife': CRAFT_FORMS.carpenter.wife,
   'carpenter-son': CRAFT_FORMS.carpenter.son,
   'carpenter-daughter': CRAFT_FORMS.carpenter.daughter,
+  panner: CRAFT_NAMES.panner,
+  'panner-wife': CRAFT_FORMS.panner.wife,
+  'panner-son': CRAFT_FORMS.panner.son,
+  'panner-daughter': CRAFT_FORMS.panner.daughter,
+  jeweller: CRAFT_NAMES.jeweller,
+  'jeweller-wife': CRAFT_FORMS.jeweller.wife,
+  'jeweller-son': CRAFT_FORMS.jeweller.son,
+  'jeweller-daughter': CRAFT_FORMS.jeweller.daughter,
+  minter: CRAFT_NAMES.minter,
+  'minter-wife': CRAFT_FORMS.minter.wife,
+  'minter-son': CRAFT_FORMS.minter.son,
+  'minter-daughter': CRAFT_FORMS.minter.daughter,
   builder: MASON_CRAFT_LABELS.builder.name,
   'builder-wife': MASTER_FORMS.builder.wife,
   'builder-son': MASTER_FORMS.builder.son,

@@ -34,6 +34,9 @@ export const ENOUGH: Record<Craft, string> = {
   smith: 'Nástrojů ve vybavení a hřiven',
   potter: 'Keramiky',
   carpenter: 'Vozů a nářadí',
+  panner: 'Zlata',
+  jeweller: 'Šperků',
+  minter: 'Mincí',
 };
 
 export function activityLook(workshop: SelectionWorkshop): {
@@ -42,7 +45,8 @@ export function activityLook(workshop: SelectionWorkshop): {
   value: string;
   stalled: boolean;
 } {
-  const product = CRAFT_LOOKS[workshop.craft].product;
+  // dílny zlata výrobek v zásobách nemají – ikona zlata (plán 6)
+  const product = CRAFT_LOOKS[workshop.craft].product ?? { icon: 'gold', name: 'Zlato' };
   const perDay = `${formatDecimal(workshop.outputPerDayKg, 1)} kg/den`;
   const kiln = workshop.kiln;
   const percent = kiln ? formatPercent(kiln.progress) : '–';
@@ -121,6 +125,13 @@ export function activityLook(workshop: SelectionWorkshop): {
       value: formatDecimal(workshop.iron?.barsKg ?? 0, 1),
     },
     'no-charcoal': { icon: 'charcoal', name: 'Čeká na uhlí – zatím pomáhá vsi', value: '0' },
+    // plán 6: rýžovník nemá náplav, šperkař a mincíř zlato
+    'no-placer': {
+      icon: 'gold',
+      name: 'Nemá náplav, kde by rýžoval zlato – zatím pomáhá vsi',
+      value: '0',
+    },
+    'no-gold': { icon: 'gold', name: 'Nemá zlato – zatím pomáhá vsi', value: '0' },
     'no-ore': {
       icon: 'ore',
       name: 'Nemá rudu – v okolí není mokřina ani potok, kde ji kopat; zatím pomáhá vsi',
@@ -328,7 +339,8 @@ export function WorkshopRow({
   onSelectTarget?: ((target: VillageTarget) => void) | undefined;
 }): ReactElement {
   const activity = activityLook(workshop);
-  const product = CRAFT_LOOKS[workshop.craft].product;
+  // dílny zlata výrobek v zásobách nemají – ikona zlata (plán 6)
+  const product = CRAFT_LOOKS[workshop.craft].product ?? { icon: 'gold', name: 'Zlato' };
   return (
     <div
       data-testid="selection-workshop"
@@ -406,6 +418,9 @@ export const CRAFTSMAN: Record<Craft, string> = {
   smith: 'kovář',
   potter: 'hrnčíř',
   carpenter: 'tesař',
+  panner: 'rýžovník',
+  jeweller: 'šperkař',
+  minter: 'mincíř',
 };
 
 /** Roky praxe česky – „1,4 roku“, „5 let“. */

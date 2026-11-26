@@ -100,6 +100,7 @@ import {
   type KilnWork,
 } from './charcoal';
 import { findCampSite, findKilnSite } from './kiln-site';
+import { GOLD_CRAFTS } from './gold-crafts';
 import type { CampSiteFinder } from './burner-camp';
 import { villageRoadWalk } from '../paths/walking';
 import {
@@ -143,6 +144,9 @@ export const CRAFT_NAMES: Readonly<Record<Craft, string>> = {
   smith: 'Kovář',
   burner: 'Uhlíř',
   carpenter: 'Tesař',
+  panner: 'Rýžovník',
+  jeweller: 'Šperkař',
+  minter: 'Mincíř',
 };
 
 /** Zásoby výrobků řemeslníků (vsi uložené před řemesly 0). */
@@ -532,6 +536,10 @@ export function restingCrafters(
     ) {
       resting.set(d.id, 'no-ore');
     }
+  }
+  // dílny zlata (plán 6): zatím bez práce v dílně – domácnost pracuje se vsí (Úlohy 4 a 5)
+  for (const craft of GOLD_CRAFTS) {
+    for (const d of occupiedWorkshops(state, craft)) resting.set(d.id, 'resting');
   }
   for (const d of occupiedWorkshops(state, 'potter')) {
     const workshop = d.workshop!;
@@ -1403,6 +1411,12 @@ export function workCrafts(
     if (hasBurner && free === 'no-charcoal' && workshop.craft === 'smith') {
       const labor = workshopLabor(state, day, dwelling.id, coverage.pottery, productivity);
       burnt += smithForgeCharcoalKg([{ labor: forgeLabor(labor) }]);
+    }
+    // dílny zlata (plán 6): zatím bez práce v dílně, domácnost pracuje se vsí – nikdy větev hrnčíře
+    // (práci rýžovníka, šperkaře a mincíře přidají Úlohy 4 a 5)
+    if (GOLD_CRAFTS.includes(workshop.craft)) {
+      workshop.activity = 'resting';
+      continue;
     }
     if (free) {
       // výrobků je dost (nebo chybí vstup) – domácnost dnes pracuje se vsí (crafts.md); s uhlířem

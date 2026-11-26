@@ -500,7 +500,7 @@ export function WORKSHOP_VARIANTS(
     {
       id: CRAFT_BASE[craft] as BuildableDwellingType,
       icon: `build/${model}`,
-      name: craft === 'burner' ? 'Zemnice' : 'Polozemnice',
+      name: CRAFT_BASE[craft] === 'zemnice' ? 'Zemnice' : 'Polozemnice',
     },
     { id: 'vypleteny', icon: `build/${model}-vypleteny`, name: 'Vypletená' },
     { id: 'srub', icon: `build/${model}-srub`, name: 'Roubená' },
@@ -534,6 +534,9 @@ const WORKSHOP_ICONS: Readonly<Record<Craft, string>> = {
   smith: 'kovar',
   burner: 'uhlir',
   carpenter: 'tesar',
+  panner: 'ryzovnik',
+  jeweller: 'sperkar',
+  minter: 'mincovna',
 };
 
 const workshop = (

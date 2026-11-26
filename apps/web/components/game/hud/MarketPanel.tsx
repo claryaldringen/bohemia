@@ -44,6 +44,9 @@ const CRAFT_ICONS: Record<Craft, { name: string; icon: string }> = {
   smith: { name: 'Kovář', icon: 'kovar' },
   burner: { name: 'Uhlíř', icon: 'uhlir' },
   carpenter: { name: 'Tesař', icon: 'tesar' },
+  panner: { name: 'Rýžovník', icon: 'ryzovnik' },
+  jeweller: { name: 'Šperkař', icon: 'sperkar' },
+  minter: { name: 'Mincíř', icon: 'mincovna' },
 };
 
 /** Fáze výpravy: popisek a ikona. */

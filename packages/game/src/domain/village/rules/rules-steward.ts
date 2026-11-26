@@ -6,7 +6,13 @@ import { TRADE } from './rules-trade';
 import { FIELD_GUARD } from './rules-wildlife';
 
 import type { StewardMode } from '../steward/steward';
-import type { TradeGood } from '../types';
+import type { Craft, TradeGood } from '../types';
+
+/**
+ * Řemesla, se kterými počítá správce (slot dílny plánu, `workshopValue`) – dnešní čtyři; dílny zlata
+ * nestaví (Rozhodnutí plánu 6, bod 10).
+ */
+export const STEWARD_CRAFTS: readonly Craft[] = ['burner', 'potter', 'smith', 'carpenter'];
 
 /**
  * Rozmístění – mapa hodnot krajiny, plán sídla a výpočetní rozpočet (steward.md – Rozmístění

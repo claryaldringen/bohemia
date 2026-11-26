@@ -43,6 +43,9 @@ describe('dílny ve scéně (crafts.md)', () => {
       smith: 'kovar',
       burner: 'uhlir',
       carpenter: 'tesar',
+      panner: 'uhlir',
+      jeweller: 'kovar',
+      minter: 'kovar',
     });
     for (const model of Object.values(CRAFT_MODEL)) {
       expect(CONSTRUCTION_PHASES[model].length).toBeGreaterThan(0);

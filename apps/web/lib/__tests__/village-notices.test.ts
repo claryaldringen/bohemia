@@ -155,6 +155,9 @@ const view = (overrides: Partial<VillageView> = {}): VillageView => ({
     smith: workshop(286),
     burner: workshop(78),
     carpenter: workshop(286),
+    panner: workshop(78),
+    jeweller: workshop(286),
+    minter: workshop(286),
     pen: {
       laborManDays: 40,
       perHa: false,

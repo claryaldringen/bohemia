@@ -858,6 +858,10 @@ export function workshopValue(
       // ves už kováře má (bez uhlí stojí): uhlíř nese práci jedné domácnosti, ne dvou
       return smithSaved - (hasCraft(state, 'smith') ? 1 : 2) * familyLoss;
     case 'carpenter':
+    // dílny zlata správce nestaví (plán 6 – Rozhodnutí 10)
+    case 'panner':
+    case 'jeweller':
+    case 'minter':
       return 0;
   }
 }
