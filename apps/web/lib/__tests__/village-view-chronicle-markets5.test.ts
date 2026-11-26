@@ -8,12 +8,12 @@ const text = (event: Record<string, unknown>): string =>
   chronicleText({ day: 100, ...event } as unknown as ChronicleEvent, 'Vlkov', 7);
 
 describe('kronika – příjezd kupců, kteří kupují i otroky', () => {
-  it('seznam kupců z pravidel: otroci ve 4. pádě na konci výčtu', () => {
+  it('zápis plánu 5 (bez zlata – seznam z pravidel s ním hlídá kronika plánu 6): otroci ve 4. pádě na konci', () => {
     expect(
       text({
         kind: 'merchants-arrived',
         sells: MERCHANTS.goods,
-        buys: MERCHANTS.wants,
+        buys: { honey: 100, wax: 24, furs: 60, slaves: 10 },
         coins: MERCHANTS.coins,
       }),
     ).toBe(

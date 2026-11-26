@@ -1,9 +1,24 @@
-// Kronika plánu 6 (gold.md – Pravidla 1): rýžovník vyrýžoval náplav – kolik náplavů se zlatem
-// zbývá, poslední náplav vlastní větou (žádná „0“).
+// Kronika plánu 6 (gold.md – Pravidla 1 a 2): rýžovník vyrýžoval náplav – kolik náplavů se zlatem
+// zbývá, poslední náplav vlastní větou (žádná „0“); kupci kupují i zlato.
 import { describe, expect, it } from 'vitest';
-import type { ChronicleEvent, VillageState } from '@bohemia/game';
+import { MERCHANTS, type ChronicleEvent, type VillageState } from '@bohemia/game';
 import { chronicle } from '../village-view';
 import { chronicleText } from '../village-view-chronicle';
+
+describe('kronika – příjezd kupců, kteří kupují i zlato (Rozhodnutí plánu 6, bod 8)', () => {
+  it('seznam kupců z pravidel: zlato první, otroci ve 4. pádě na konci', () => {
+    const event = {
+      day: 100,
+      kind: 'merchants-arrived',
+      sells: MERCHANTS.goods,
+      buys: MERCHANTS.wants,
+      coins: MERCHANTS.coins,
+    } as unknown as ChronicleEvent;
+    expect(chronicleText(event, 'Vlkov')).toBe(
+      'Přijeli kupci z daleka – prodávají meče, kroužkové košile a helmy, kupují zlato, med, vosk, kožešiny a otroky.',
+    );
+  });
+});
 
 const exhausted = (left: number): ChronicleEvent => ({ day: 100, kind: 'placer-exhausted', left });
 

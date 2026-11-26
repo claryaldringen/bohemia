@@ -165,7 +165,8 @@ describe('cizí kupci ve dvorci (markets.md – Rozhodnutí plánu 4, bod 12)', 
     );
   const days = (html: string): string | undefined =>
     /data-testid="manor-merchants"[^>]*>([^<]*)</.exec(html)?.[1];
-  const trade = 'kupují med, vosk, kožešiny a otroky, prodávají meče, kroužkové košile a helmy';
+  const trade =
+    'kupují zlato, med, vosk, kožešiny a otroky, prodávají meče, kroužkové košile a helmy';
 
   it('ikona kupců s počtem dní do příjezdu, slova jen v popisku', () => {
     const html = render(22);

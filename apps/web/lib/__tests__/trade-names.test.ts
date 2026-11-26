@@ -39,7 +39,8 @@ describe('jednotky zboží obchodu', () => {
   });
 
   it('jména zboží ve výčtu malými písmeny, bez počtů a bez nul (kupci, plán 4)', () => {
-    expect(goodsNames(MERCHANTS.wants)).toBe('med, vosk, kožešiny a otroky');
+    // od plánu 6 kupci kupují i zlato – první v pořadí
+    expect(goodsNames(MERCHANTS.wants)).toBe('zlato, med, vosk, kožešiny a otroky');
     expect(goodsNames(MERCHANTS.goods)).toBe('meče, kroužkové košile a helmy');
     expect(goodsNames({ honey: 2, wax: 0 })).toBe('med');
     expect(goodsNames({})).toBe('');
