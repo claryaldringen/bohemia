@@ -51,6 +51,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `hay-slaughter`, upozornění „Chybí seno – porazili …“. Zimní úhyn je zrušen (kronika
   `herd-starved` jen ze starších vsí). Náhrada párů k rádlům (`oxenTraining` – `pairsShort`, `pairsOxen`) platí
   i po rozpadu páru, když ves má rádlo (`villageArds`). Ves sama nekupuje ani neprodává.
+- **Voli bez ohrady a seno** (migration.md – Co si vezmou; oprava 26. 11. 2026): `hayFedOxen(state)` (oxen.ts) = `villageOxen` + `looseOxen` – s ním krmí `feedHay`, počítá se rezerva sena v `hayShortSlaughter` / `horsesHaySlaughter` a pokrytí koní. 1. 3. `penDay` → `winterEndOxen` počítá pokrytí i s volnými voly: pod polovinu přídělu uhynou nejmladší (i voli bez ohrady mají `ox-died` – bez `penId`, vycvičení a telata zvlášť; `farmInput` počítá `oxen` přes `hayFedOxen`, takže plán zimních stád a pastva s nimi počítají), ostatní dostanou `weak`; ves bez ohrad ho spustí také. Test `loose-oxen-hay.test.ts`.
 - **Zima bez sena – pastva, sláma a chovné jádro** (diet.md a oxen.md – Zima bez sena; Martin 10. 11. 2026, čísla návrh Clauda): seč srpem `HAY_WORK_PER_HA` 46 / 40 čd/ha (rules-livestock.ts
   – 2× `HARVEST_WORK_PER_HA`). **Sníh:** `snowDaysAhead(day, days, winter)` a `snowDaysOfYear`
   (snow.ts – tabulka `snowLies` po dnech roku a zimách, přestupný rok jako scéna);

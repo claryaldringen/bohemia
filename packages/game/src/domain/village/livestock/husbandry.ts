@@ -68,6 +68,7 @@ import {
 import {
   ableTeams,
   lastingOxen,
+  hayFedOxen,
   looseOxenDay,
   oxenComing,
   penDay,
@@ -329,7 +330,8 @@ function farmInput(
   const coming = cowsComing(state);
   return {
     // i voli a krávy, které výprava teprve přivede (trade.md – Dobytek ve třech druzích)
-    oxen: villageOxen(state) + oxenComing(state),
+    // i voli bez ohrady žerou seno a pasou se jako voli v ohradě (oprava 26. 11. 2026)
+    oxen: hayFedOxen(state) + oxenComing(state),
     ...(coming > 0 ? { cowsComing: coming } : {}),
     // stádo jen na seno, které ves stihne posekat (oxen.md – Stáda podle práce na seč)
     ...(mowKg !== undefined ? { mowKg } : {}),
@@ -451,7 +453,7 @@ export function husbandryDay(
   // a koně (horses.md – Krmení) – seno mají po volech a před stádem
   const horsesKg = horsesHayToday(state, day);
   const horsesCoverage =
-    winterEnd && horsesKg > 0 ? horsesHayCoverage(state, villageOxen(state), horsesKg) : 1;
+    winterEnd && horsesKg > 0 ? horsesHayCoverage(state, hayFedOxen(state), horsesKg) : 1;
   const events = penDay(state, day, winterEnd, toolCoverage);
   events.unshift(...predation);
   if (horsesCoverage < 1) events.push(...horsesWinterEnd(state, day, horsesCoverage));
@@ -542,8 +544,8 @@ export function husbandryDay(
     // seno do konce března nevystačí – ves hned porazí kusy, na které nezbude, ať zvířata
     // nehladoví (oxen.md – Co nejvíc sena a co největší stáda; dřív zimní úhyn 1. 3.)
     // koně napřed – kusy, které by 1. 3. uhynuly, se snědí a stádo počítá s menší dávkou koní
-    events.push(...horsesHaySlaughter(state, day, villageOxen(state), horsesHayToday(state, day)));
-    const short = hayShortSlaughter(state, day, villageOxen(state), horsesHayToday(state, day), {
+    events.push(...horsesHaySlaughter(state, day, hayFedOxen(state), horsesHayToday(state, day)));
+    const short = hayShortSlaughter(state, day, hayFedOxen(state), horsesHayToday(state, day), {
       cow: oxenRenewalCows(state),
       sheep: woolSheep(state, day),
     });
@@ -551,7 +553,7 @@ export function husbandryDay(
     // krávy, ovce a kozy jen ve sněhu – jinak se pasou v lese a na úhorech (diet.md – Zima bez sena)
     feedHay(
       state,
-      villageOxen(state),
+      hayFedOxen(state),
       livestock.herds,
       horsesHayToday(state, day),
       herdsOnSnow(state, day),

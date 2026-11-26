@@ -1353,7 +1353,11 @@ plní `manorView` (`stanceOf`), volba jde přes server action `setDefenseStance`
 - **Cizí správce**: `maskVillageNames(state, allowed)` (`lib/mask-village-names.ts`, volá
   `shownToActor` v `lib/village.ts` při skládání pohledu i stránky kroniky) nahradí prázdným jménem
   jména vsí, které `marketOverview` s `actorId` správci neukáže – záznamy kroniky plánu 3 (i starší bez
-  `villageId`), zakázky, `shoeing.asked` a cíle výprav na trh. Klient jména nedostane. Use-case
+  `villageId`), zakázky, `shoeing.asked` a cíle výprav na trh. Starší druhy bez `villageId`
+  (`lord-sent`, `shipment-sent`, `shipment-received`, `people-away`, `guests-came`, `refuge-left`
+  a `to` u `iron-trip`) maskuje vždy – nelze ověřit, čí ves je; věty pak říkají „do jiné vsi“
+  (vojvoda), „do sousední vsi“ / „ze sousední vsi“, zásilky a útěk do hradiště jméno vynechají.
+  Klient jména nedostane. Use-case
   `collect` (`application/market.ts`) správci vynechá i zprávy (`news`) o ostatních vsích držitele.
 - **Testy**: `village-view-chronicle-markets3.test.ts`, `village-notices.test.ts`, `horse-view.test.ts`,
   `product-order.test.ts`, `mask-village-names.test.ts`, `market-view.test.ts`, `village-name-cases.test.ts`,

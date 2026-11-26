@@ -608,7 +608,7 @@ const CHRONICLE_NOTICES: Partial<
   'iron-trip': (entry) => ({
     kind: 'iron-trip',
     tone: 'info',
-    text: `${capitalize(ironTripWho(entry.son === true, entry.porters ?? 0, entry.byCart === true))} pro kování k vozu do vsi ${entry.place ?? ''}${
+    text: `${capitalize(ironTripWho(entry.son === true, entry.porters ?? 0, entry.byCart === true))} pro kování k vozu ${entry.place ? `do vsi ${entry.place}` : 'do sousední vsi'}${
       entry.direction ? ` (${DIRECTION_NAMES[entry.direction].name})` : ''
     }`,
   }),

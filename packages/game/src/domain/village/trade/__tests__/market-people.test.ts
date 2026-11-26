@@ -227,14 +227,23 @@ describe('lidé na trhu (markets.md – Rozhodnutí plánu 3, bod 10)', () => {
     const back = { key: 'market:h:1', people: [man], coins: 17, from };
     const events = receiveStranded(m, D + 2, back);
     expect(m.coins).toBe(20);
-    // lidé jako dosud – usadil se jeden muž ze západu a mince kroniku nepřidaly
+    // lidé jako dosud – usadil se jeden muž ze západu, mince jsou v jeho zápisu (preflight M14)
     expect(m.people).toHaveLength(count + 1);
     expect(events).toEqual([
-      expect.objectContaining({ kind: 'newcomer', group: 'man', people: 1 }),
+      expect.objectContaining({ kind: 'newcomer', group: 'man', people: 1, coins: 17 }),
     ]);
     expect(back).toEqual({ key: 'market:h:1', people: [man], coins: 17, from });
 
-    // jen mince (výsledek bez lidí nemá směr) – ves bez mincí je dostane
+    // jen mince s výpravou – zápis jen o mincích
+    const purse = familyHome();
+    expect(
+      receiveStranded(purse, D + 2, { key: 'market:h:1', people: [], coins: 17, from }),
+    ).toEqual([
+      { day: D + 2, kind: 'stranded-coins', coins: 17, villageName: 'Vlkov', villageId: 'h' },
+    ]);
+    expect(purse.coins).toBe(17);
+
+    // jen mince bez výpravy (starší výsledek bez `origin`) – ves bez mincí je dostane
     const only = familyHome();
     expect(
       receiveStranded(only, D + 2, { key: 'market:h:1', people: [], coins: 17, from: undefined }),

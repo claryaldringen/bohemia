@@ -96,6 +96,14 @@ export function villageOxen(state: Pick<VillageState, 'pens'>): number {
 }
 
 /**
+ * Voli, kteří žerou seno: voli vsi i voli bez ohrady (`looseOxen` – migration.md, Co si vezmou;
+ * opraveno 26. 11. 2026, dřív je nová ves krmila zadarmo).
+ */
+export function hayFedOxen(state: Pick<VillageState, 'pens' | 'looseOxen'>): number {
+  return villageOxen(state) + (state.looseOxen?.length ?? 0);
+}
+
+/**
  * Voli, které ves koupila u sousedů a výprava je teprve přivede (trade.md – Dobytek ve třech
  * druzích) – mladí i vycvičení; počítají se do volů, se kterými ves při výcviku počítá, a do míst
  * ohrad volů.
@@ -396,7 +404,11 @@ export function penDay(
   const pens = oxPens(state);
   if (pens.length === 0 || villageOxen(state) === 0) {
     finishSeasonByHoe(state, day, toolCoverage);
-    return [];
+    // voli bez ohrady na konci zimy jako voli v ohradách (migration.md)
+    if (!winterEnd || (state.looseOxen?.length ?? 0) === 0) return [];
+    const events: ChronicleEvent[] = [];
+    winterEndOxen(state, day, pens, events);
+    return events;
   }
   const events: ChronicleEvent[] = [];
   if (winterEnd) winterEndOxen(state, day, pens, events);
@@ -427,7 +439,7 @@ function winterEndOxen(
   pens: readonly Pen[],
   events: ChronicleEvent[],
 ): void {
-  const total = villageOxen(state);
+  const total = hayFedOxen(state);
   const coverage = oxenHayCoverage(state, total);
   let weak = coverage;
   if (coverage < HAY.deathBelowCoverage - EPSILON) {
@@ -435,9 +447,11 @@ function winterEndOxen(
     let deaths = total - survivors;
     weak = survivors > 0 ? Math.min(1, (total * coverage) / survivors) : 1;
     // nejmladší napřed (pozdější den vycvičení), při shodě ohrada s vyšším id
-    const order = pens
-      .flatMap((pen) => oxenToEdit(pen).map((ox) => ({ pen, ox })))
-      .sort((a, b) => b.ox.trainedDay - a.ox.trainedDay || b.pen.id - a.pen.id);
+    // voli bez ohrady (pen = null) mají ohrady nejnižší přednost před nejmladšími stejného dne
+    const order: { pen: Pen | null; ox: Ox }[] = [
+      ...pens.flatMap((pen) => oxenToEdit(pen).map((ox) => ({ pen, ox }))),
+      ...(state.looseOxen ?? []).map((ox) => ({ pen: null, ox })),
+    ].sort((a, b) => b.ox.trainedDay - a.ox.trainedDay || (b.pen?.id ?? -1) - (a.pen?.id ?? -1));
     const dead = new Set<Ox>();
     for (const { ox } of order) {
       if (deaths <= 0) break;
@@ -462,13 +476,22 @@ function winterEndOxen(
       if (calves > 0)
         events.push({ day, kind: 'ox-died', penId: pen.id, training: true, oxen: calves });
     }
+    if (state.looseOxen) {
+      // voli bez ohrady: zápis bez `penId`, vycvičení a telata zvlášť jako v ohradách
+      const died = state.looseOxen.filter((ox) => dead.has(ox));
+      const calves = died.filter((ox) => !isTrained(ox, day)).length;
+      if (died.length - calves > 0)
+        events.push({ day, kind: 'ox-died', training: false, oxen: died.length - calves });
+      if (calves > 0) events.push({ day, kind: 'ox-died', training: true, oxen: calves });
+      state.looseOxen = state.looseOxen.filter((ox) => !dead.has(ox));
+      if (state.looseOxen.length === 0) delete state.looseOxen;
+    }
   }
   // slabí voli orají na jaře pomaleji – nekope se, co nezorají, se nezaseje (oxen.md – Jen rádlo)
-  for (const pen of pens) {
-    for (const ox of oxenToEdit(pen)) {
-      if (weak < 1 - EPSILON) ox.weak = weak;
-      else delete ox.weak;
-    }
+  const everyOx = [...pens.flatMap((pen) => oxenToEdit(pen)), ...(state.looseOxen ?? [])];
+  for (const ox of everyOx) {
+    if (weak < 1 - EPSILON) ox.weak = weak;
+    else delete ox.weak;
   }
 }
 

@@ -107,14 +107,28 @@ export function openTripKeys(state: Pick<VillageState, 'trade' | 'outbox'>): str
 
 /**
  * Zapamatuje si zprávu na pivo o jiné vsi (mutuje stav; markets.md – Pravidla 8): jedna na ves,
- * novější `report.day` vyhrává – při stejném dni pozdější zpráva. Uloží kopii.
+ * novější `report.day` vyhrává – při stejném dni pozdější zpráva. Uloží kopii. Ceny a hladinu trhu
+ * (`prices`, `level`) nesou jen výsledky výprav (Rozhodnutí plánu 4, bod 3): novější zpráva bez cen
+ * (hosté na trhu, kovář, sňatek) známé ceny a hladinu nepřepíše, starší zpráva s cenami je doplní,
+ * jen když ves žádné nezná (preflight plánu 4, M15).
  */
 export function rememberNews(state: VillageState, news: VillageNews): void {
   const list = (state.news ??= []);
   const i = list.findIndex((n) => n.villageId === news.villageId);
   const old = list[i];
-  if (old === undefined) list.push(structuredClone(news));
-  else if (news.report.day >= old.report.day) list[i] = structuredClone(news);
+  if (old === undefined) {
+    list.push(structuredClone(news));
+  } else if (news.report.day >= old.report.day) {
+    const next = structuredClone(news);
+    if (next.prices === undefined && old.prices !== undefined) {
+      next.prices = old.prices;
+      if (old.level !== undefined) next.level = old.level;
+    }
+    list[i] = next;
+  } else if (old.prices === undefined && news.prices !== undefined) {
+    old.prices = structuredClone(news.prices);
+    if (news.level !== undefined) old.level = news.level;
+  }
 }
 
 /** Kopie zboží jen s kladnými položkami v pořadí `TRADE_GOODS`. */
@@ -576,8 +590,9 @@ function coinPhase(
  * zprávou o hostiteli, cenami trhu, hladinou (jen ≠ 1; Rozhodnutí plánu 4, bod 3) a zakázkami, které
  * hostitel zapsal (`recordOrders` – co hostitel po dnešním zápočtu ještě shání je `hostWants`), jde
  * do odchozí schránky k domovské vsi na den návratu – den po posledním tržním dni + dny cesty.
- * Výsledek s lidmi nese i výpravu, jak ji hostitel viděl (`origin` – Rozhodnutí plánu 3, bod 13):
- * zanikne-li domovská ves, pošta s ním vrátí lidi hostiteli (`stranded-people`). Cizí kupec domov
+ * Výsledek s lidmi nebo s mincemi v měšci nese i výpravu, jak ji hostitel viděl (`origin` –
+ * Rozhodnutí plánu 3, bod 13): zanikne-li domovská ves, pošta s ním vrátí lidi a mince hostiteli
+ * (`stranded-people`) a kronika hostitele ví, odkud přišly (preflight plánu 4, M14). Cizí kupec domov
  * nemá (Rozhodnutí plánu 4, bod 5) – odjede bez zakázek a bez pošty a jeho měšec, neprodaná zbroj
  * i koupené zboží odejdou ze světa.
  */
@@ -609,7 +624,7 @@ function departVisitors(
           prices: market.prices,
           ...(market.level !== undefined && market.level !== 1 ? { level: market.level } : {}),
           ...(hasGoods(ordered) ? { ordered } : {}),
-          ...(people > 0 && direction !== undefined
+          ...((people > 0 || (visitor.goods.coins ?? 0) > 0) && direction !== undefined
             ? {
                 origin: {
                   villageId: visitor.fromVillageId,

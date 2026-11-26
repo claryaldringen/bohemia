@@ -1079,11 +1079,14 @@ function newcomerText(
   people: number,
   returned: boolean,
   villageName?: string,
+  coins?: number,
 ): string {
   const texts0 = NEWCOMER_TEXTS[group];
-  // lidé ze skutečného souseda (plán 3, bod 14): „Do vsi přišla rodina z Lhoty.“
+  // lidé ze skutečného souseda (plán 3, bod 14): „Do vsi přišla rodina z Lhoty.“; s měšcem výpravy
+  // zaniklé vsi „… a 17 mincí.“ (preflight plánu 4, M14)
   if (villageName !== undefined) {
-    return `Do vsi ${returned ? texts0.back : texts0.chronicle} ${fromVillage(villageName)}.`;
+    const purse = coins ? ` a ${coinsText(coins, 'nominative')}` : '';
+    return `Do vsi ${returned ? texts0.back : texts0.chronicle} ${fromVillage(villageName)}${purse}.`;
   }
   const from = DIRECTION_NAMES[direction].from;
   const texts = NEWCOMER_TEXTS[group];
@@ -1293,10 +1296,13 @@ export function chronicleText(event: ChronicleEvent, villageName: string, seed?:
       return event.name === undefined
         ? 'Ves má nového vojvodu.'
         : `Vojvodou se stal ${event.name}.`;
-    case 'lord-sent':
+    case 'lord-sent': {
+      // prázdné jméno – cizí správce (mask-village-names.ts)
+      const where = event.villageName === '' ? 'do jiné vsi' : `do vsi ${event.villageName}`;
       return event.name === undefined
-        ? `Muž rodu odešel vládnout do vsi ${event.villageName}.`
-        : `${event.name} odešel vládnout do vsi ${event.villageName}.`;
+        ? `Muž rodu odešel vládnout ${where}.`
+        : `${event.name} odešel vládnout ${where}.`;
+    }
     case 'shipment-sent':
       if (event.purpose === 'domain-food') {
         return `Jídlo pro ves${event.villageName === '' ? '' : ` ${event.villageName}`}: ${shipmentText(event.goods)}.`;
@@ -1309,10 +1315,10 @@ export function chronicleText(event: ChronicleEvent, villageName: string, seed?:
         return `Jídlo${event.villageName === '' ? '' : ` ze vsi ${event.villageName}`}: ${shipmentText(event.goods)}${cattle > 0 ? ', dobytek poražen' : ''}.`;
       }
       return event.returned
-        ? `Zásilka se vrátila ze vsi ${event.villageName} – ${shipmentText(event.goods)}.`
+        ? `Zásilka se vrátila${event.villageName === '' ? '' : ` ze vsi ${event.villageName}`} – ${shipmentText(event.goods)}.`
         : `Zásilka ${event.villageName === '' ? '' : `ze vsi ${event.villageName} `}dorazila – ${shipmentText(event.goods)}.`;
     case 'people-away':
-      return `${peopleCountText(event.people)} ${plural(event.people, 'odešel', 'odešli', 'odešlo')} ${AWAY_TEXTS[event.away]} do vsi ${event.villageName} – doma ${plural(event.people, 'bude', 'budou', 'bude')} nejpozději ${formatGameDate(dateOfDayIndex(event.untilDay))}.`;
+      return `${peopleCountText(event.people)} ${plural(event.people, 'odešel', 'odešli', 'odešlo')} ${AWAY_TEXTS[event.away]} ${event.villageName === '' ? 'do sousední vsi' : `do vsi ${event.villageName}`} – doma ${plural(event.people, 'bude', 'budou', 'bude')} nejpozději ${formatGameDate(dateOfDayIndex(event.untilDay))}.`;
     case 'people-back':
       // uprchlíky vrátil správce (war.md – Varování, poslové a útěk do hradiště; návrh Clauda)
       if (event.steward) return 'Správce vrátil lidi domů.';
@@ -1321,9 +1327,9 @@ export function chronicleText(event: ChronicleEvent, villageName: string, seed?:
       }
       return `${peopleCountText(event.people)} se ${plural(event.people, 'vrátil', 'vrátili', 'vrátilo')} domů ${AWAY_BACK_TEXTS[event.away]}.`;
     case 'guests-came':
-      return `Ze vsi ${event.villageName} ${plural(event.people, 'přišel', 'přišli', 'přišlo')} ${peopleCountText(event.people).toLowerCase()} ${AWAY_TEXTS[event.away]}.`;
+      return `${event.villageName === '' ? 'Ze sousední vsi' : `Ze vsi ${event.villageName}`} ${plural(event.people, 'přišel', 'přišli', 'přišlo')} ${peopleCountText(event.people).toLowerCase()} ${AWAY_TEXTS[event.away]}.`;
     case 'refuge-left':
-      return event.villageName === undefined
+      return event.villageName === undefined || event.villageName === ''
         ? 'Lidé odešli do hradiště.'
         : `Lidé odešli do hradiště ${event.villageName}.`;
     case 'refuge-hidden':
@@ -1472,7 +1478,7 @@ export function chronicleText(event: ChronicleEvent, villageName: string, seed?:
     case 'cart-made':
       return `Tesař vyrobil ${CART_NAMES[event.cart].toLowerCase()}.`;
     case 'iron-trip':
-      return `Ves nemá kováře – ${ironTripWho(event.son, event.porters ?? 0, event.byCart === true)} pro kování k vozu do vsi ${event.to}.`;
+      return `Ves nemá kováře – ${ironTripWho(event.son, event.porters ?? 0, event.byCart === true)} pro kování k vozu ${event.to === '' ? 'do sousední vsi' : `do vsi ${event.to}`}.`;
     case 'iron-brought':
       return `${event.son ? 'Syn tesaře přinesl' : 'Tesař přinesl'} kování k vozu.`;
     case 'cart-worn-out':
@@ -1718,7 +1724,11 @@ export function chronicleText(event: ChronicleEvent, villageName: string, seed?:
         event.people,
         event.returned === true,
         event.villageName,
+        event.coins,
       );
+    case 'stranded-coins':
+      // měšec výpravy zaniklé vsi bez lidí (preflight plánu 4, M14)
+      return `Do vsi ${plural(event.coins, 'přišla', 'přišly', 'přišlo')} ${coinsText(event.coins, 'nominative')} ${fromVillage(event.villageName)}.`;
     case 'structure-fell':
       return STRUCTURE_FELL_TEXTS[event.structure];
     case 'structure-overgrown':

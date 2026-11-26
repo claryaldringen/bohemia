@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { foundVillage, type VillageState } from '@bohemia/game';
 import { maskVillageNames } from '../mask-village-names';
 import { chronicle } from '../village-view';
+import { chronicleText } from '../village-view-chronicle';
 import { productOrder } from '../village-view-crafts';
 import { marketTripViews } from '../market-view';
 
@@ -121,5 +122,51 @@ describe('maskVillageNames – cizí správce', () => {
     expect(masked.trade!.expeditions[0]!.market!.name).toBe('');
     // vstupní stav se nemění
     expect(state.trade!.expeditions[0]!.market!.name).toBe('Dolní');
+  });
+
+  it('starší druhy se jménem vsi bez id (vojvoda, zásilky, lidé, hosté, útěk, kování) se maskují', () => {
+    const state = village();
+    const goods = {
+      grainKg: 10,
+      hayKg: 0,
+      logs: 0,
+      cattle: { cows: 0, youngOxen: 0, trainedOxen: 0 },
+      horses: 0,
+      people: { families: 0, men: 0, women: 0 },
+    };
+    state.chronicle = [
+      { day: DAY - 1, kind: 'lord-sent', villageName: 'Dolní', name: 'Bořivoj' },
+      { day: DAY, kind: 'lord-sent', villageName: 'Dolní' },
+      { day: DAY, kind: 'shipment-sent', villageName: 'Dolní', goods },
+      { day: DAY, kind: 'shipment-received', villageName: 'Dolní', goods },
+      { day: DAY, kind: 'shipment-received', villageName: 'Dolní', goods, returned: true },
+      {
+        day: DAY,
+        kind: 'people-away',
+        away: 'labor',
+        people: 2,
+        villageName: 'Dolní',
+        untilDay: DAY,
+      },
+      { day: DAY, kind: 'guests-came', away: 'labor', people: 2, villageName: 'Dolní' },
+      { day: DAY, kind: 'refuge-left', people: 2, villageName: 'Dolní' },
+      { day: DAY, kind: 'iron-trip', cart: 'two-wheel', to: 'Dolní', son: false, direction: 'N' },
+    ];
+    const masked = maskVillageNames(state, allowed);
+    // pohled kroniky ukáže jen posledních pár záznamů – věty přímo
+    const texts = masked.chronicle.map((e) => chronicleText(e, 'Vlkov'));
+    expect(texts.filter((t) => t.includes('Dolní'))).toEqual([]);
+    // věta bez díry po jméně
+    expect(texts.filter((t) => /(do|ze|Ze) vsi [ .–]| \./.test(t))).toEqual([]);
+    expect(texts).toContain('Bořivoj odešel vládnout do jiné vsi.');
+    expect(texts).toContain('Muž rodu odešel vládnout do jiné vsi.');
+    expect(texts).toContain('Lidé odešli do hradiště.');
+    expect(texts.some((t) => t.startsWith('Ze sousední vsi přišli'))).toBe(true);
+    expect(texts.some((t) => t.includes('na robotu do sousední vsi'))).toBe(true);
+    expect(texts.some((t) => t.endsWith('pro kování k vozu do sousední vsi.'))).toBe(true);
+    // upozornění na kování dostane ze zamaskované kroniky prázdné místo
+    expect(chronicle(masked, 'Vlkov').find((e) => e.kind === 'iron-trip')!.place).toBe('');
+    // vstup se nezměnil
+    expect(state.chronicle[0]).toMatchObject({ villageName: 'Dolní' });
   });
 });
