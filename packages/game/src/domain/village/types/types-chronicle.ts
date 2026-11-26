@@ -613,7 +613,7 @@ export type ChronicleEvent = { day: number } & (
    * Přes zimu chybělo přes polovinu sena – voli (`training` – telata ve výcviku) uhynuli
    * (`oxen` – kolik; chybí = spřežení se rozpadlo ve vsích uložených dřív).
    */
-  | { kind: 'ox-died'; penId: number; training: boolean; oxen?: number }
+  | { kind: 'ox-died'; penId?: number; training: boolean; oxen?: number }
   /** Koně uhynuli 1. 3. pro nedostatek sena (horses.md – Krmení) – jen když je porážka (`horse-retired` s důvodem `hay`) nestihla. */
   | { kind: 'horse-starved'; penId: number; horses: number }
   /** Klisny ohrady porodily 1. 5. hříbata (horses.md – Chov; `foals` – kolik). */

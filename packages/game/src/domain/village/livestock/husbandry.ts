@@ -330,7 +330,8 @@ function farmInput(
   const coming = cowsComing(state);
   return {
     // i voli a krávy, které výprava teprve přivede (trade.md – Dobytek ve třech druzích)
-    oxen: villageOxen(state) + oxenComing(state),
+    // i voli bez ohrady žerou seno a pasou se jako voli v ohradě (oprava 26. 11. 2026)
+    oxen: hayFedOxen(state) + oxenComing(state),
     ...(coming > 0 ? { cowsComing: coming } : {}),
     // stádo jen na seno, které ves stihne posekat (oxen.md – Stáda podle práce na seč)
     ...(mowKg !== undefined ? { mowKg } : {}),

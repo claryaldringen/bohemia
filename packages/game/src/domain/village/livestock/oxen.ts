@@ -477,6 +477,12 @@ function winterEndOxen(
         events.push({ day, kind: 'ox-died', penId: pen.id, training: true, oxen: calves });
     }
     if (state.looseOxen) {
+      // voli bez ohrady: zápis bez `penId`, vycvičení a telata zvlášť jako v ohradách
+      const died = state.looseOxen.filter((ox) => dead.has(ox));
+      const calves = died.filter((ox) => !isTrained(ox, day)).length;
+      if (died.length - calves > 0)
+        events.push({ day, kind: 'ox-died', training: false, oxen: died.length - calves });
+      if (calves > 0) events.push({ day, kind: 'ox-died', training: true, oxen: calves });
       state.looseOxen = state.looseOxen.filter((ox) => !dead.has(ox));
       if (state.looseOxen.length === 0) delete state.looseOxen;
     }
