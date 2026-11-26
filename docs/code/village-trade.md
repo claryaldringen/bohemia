@@ -635,7 +635,8 @@ day, order, target, { by?, seedKg?, alone?, service?, kin?, people? })` (mutuje 
     `merchantVisits(merchantStops, day, day)` založí návštěvníka trhu (trh vznikne, chybí-li):
     `MarketVisitor` s `merchant: true`, klíčem průjezdu, pořadím příjezdu za výpravami dne, pobytem na
     den, bez domovské vsi (`fromVillageId` a `fromName` prázdné), nákladem `MERCHANTS.goods` a měšcem
-    `MERCHANTS.coins` v `goods.coins`, seznamem `MERCHANTS.wants` (kopie). Dva průjezdy téhož dne
+    `MERCHANTS.coins` v `goods.coins`, seznamem `MERCHANTS.wants` (kopie – med, vosk, kožešiny
+    a otroci). Dva průjezdy téhož dne
     (křižovatka) jsou dva kupci, každý se svým měšcem; klíč, který na trhu už stojí, se znovu
     nezaloží. Poznámka v `market.arrivals` bez jména a vsi se značkou `merchants` a druhy zbroje
     (posledních `MARKET.report.traders` jako u výprav) a kronika `merchants-arrived` (`sells`, `buys`,
@@ -644,8 +645,20 @@ day, order, target, { by?, seedKg?, alone?, service?, kin?, people? })` (mutuje 
     kroniku simulace nečte, takže zápis nezávisí na kouscích dopočtu ani na jejím zkrácení. Upozornění
     „Kupci přijeli“ chodí ve webu za každý příjezd – z `market.arrivals`, ne z kroniky (web-ui.md –
     Mince, kupci a zbroj v rozhraní).
-  - **Obchod:** kupec je strana zápočtu (zbroj za med, vosk a kožešiny) i mincovní fáze – v ní kupuje
-    první, podle celého seznamu a za svůj měšec.
+  - **Obchod:** kupec je strana zápočtu (zbroj za med, vosk, kožešiny a otroky) i mincovní fáze – v ní
+    kupuje první, podle celého seznamu a za svůj měšec.
+  - **Otroci** (markets.md – Rozhodnutí plánu 5, bod 7; `MERCHANTS.wants.slaves` = 10 za průjezd):
+    kupec kupuje otroky za mince i zápočtem (zbroj za otroky; z měšce 60 mincí dva po 24). Pořadí
+    nákupu se nemění: v mincovní fázi jde kupec od prodávajících v pořadí stran (hostitel, pak výpravy
+    podle příjezdu) a u každého v pořadí `TRADE_GOODS` (med, vosk a kožešiny před otroky) – otroky
+    dřívější výpravy tedy koupí dřív než med pozdější. Koupení otroci jdou do `boughtPeople` kupce
+    a odjedou s ním ze světa (`departVisitors`, i z trhu zaniklé vsi – `merchantsLeave`) – jediný
+    odchod lidí ze světa kromě smrti; neprodaný otrok se vrátí s výpravou domů (poštou jako lidé
+    plánu 3). **V den, kdy na trhu nikdo otroky nenabízí** (`slavesOnMarket` v `marketDay` – hostitel
+    podle `stance.offer.slaves`, výpravy z nákladu), seznam kupce otroky nemá (`merchantWants`)
+    v ceně dne (`priceTotals` – `affordableWants` i zboží dne jen s kupci), ve stropu V zápočtu
+    (`clearMarket`) ani v mincovní fázi (`coinPhase` – seznamy stran, C a W hladiny), takže trh je bit
+    po bitu jako po plánu 4 (srovnání dvou klonů v `market-merchants-slaves.test.ts`).
   - **Ceny dne** (`priceTotals` v `market.ts` – S a D pro `nextPrices`; návrh Clauda): poptávka kupce
     se počítá jen u zboží, které je ten den na trhu ke koupi (S > 0, každý den, i s výpravami) – bez
     nabídky cenou nehne, jako W = 0 hladinou –, a jen do výše měšce ráno:

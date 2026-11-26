@@ -168,7 +168,7 @@ test('kupci u stezky – den příjezdu, upozornění a objednávka zbroje', asy
   await expect(merchants).toHaveText(/^1[12]$/, { timeout: 30_000 });
   const inDays = Number((await merchants.textContent()) ?? '');
   // popisek je skrytý, dokud na ikonu hráč nenajede (`getByRole` by ho nenašel)
-  const trade = 'kupují med, vosk a kožešiny, prodávají meče, kroužkové košile a helmy';
+  const trade = 'kupují med, vosk, kožešiny a otroky, prodávají meče, kroužkové košile a helmy';
   const tooltip = panel.locator('[role="tooltip"]');
   await expect(tooltip.filter({ hasText: 'Kupci' })).toHaveText(
     new RegExp(`^Kupci přijedou za (${inDays}|${inDays - 1}) (dní|den) – ${trade}$`),

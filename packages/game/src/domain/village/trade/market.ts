@@ -517,6 +517,22 @@ function payCoins(
 }
 
 /**
+ * Seznam návštěvníka, jak vstupuje do tržního dne (markets.md – Rozhodnutí plánu 5, bod 7): cizí
+ * kupec v den, kdy na trhu nikdo otroky nenabízí (`slavesOnMarket` – hostitel podle
+ * `stance.offer.slaves`, výpravy z nákladu), otroky neshání – zápočet (strop V), cena dne, hladina
+ * ani mincovní fáze je nepočítají a trh je bit po bitu jako po plánu 4. Výpravy a kupci v den
+ * s otroky mají celý seznam (`visitor.wants`), jinak kopie bez otroků.
+ */
+function merchantWants(visitor: MarketVisitor, slavesOnMarket: boolean): TradeGoods {
+  if (!visitor.merchant || slavesOnMarket || visitor.wants.slaves === undefined) {
+    return visitor.wants;
+  }
+  const wants = { ...visitor.wants };
+  delete wants.slaves;
+  return wants;
+}
+
+/**
  * Mincovní fáze tržního dne (mutuje stav; markets.md – Rozhodnutí plánu 4, body 2–4 a 15): co
  * výpravám po zápočtech na seznamu zbylo, koupí za mince, které vezou (`coinClearing` za ceny dne
  * a hladinu trhu), obchody se vyrovnají jako zápočet (`settleTrades`) a mince přejdou (`payCoins`).
@@ -529,7 +545,9 @@ function payCoins(
  * postupný), aby kupující nezaplatil lidi, které nedostane. Hladinu posune `nextLevel`; hladina 1 ve
  * stavu není. Bez kupujícího s mincemi – výpravy nebo kupce, který něco shání, nebo vsi s objednanou
  * zbrojí v den kupců – se fáze nespustí (null, stav se nezmění); mince v zásobě vsi ji samy
- * nespustí. Co hostitel prodal a koupil, je i s mincemi.
+ * nespustí. Kupci kupují i otroky – v den bez otroků (`slavesOnMarket`) jejich seznam otroky nemá
+ * (`merchantWants`), takže fáze ani hladina (C a W) nejsou jiné než po plánu 4. Co hostitel prodal
+ * a koupil, je i s mincemi.
  */
 function coinPhase(
   state: VillageState,
@@ -537,10 +555,11 @@ function coinPhase(
   market: VillageMarket,
   visitors: readonly MarketVisitor[],
   hostOffer: TradeGoods,
+  slavesOnMarket: boolean,
 ): PhaseTrades | null {
   // výprava vesničanů mince jen vydělá, nekoupí nic (Martin 25. 11. 2026) – nemá seznam
   const wantsOf = (v: MarketVisitor): TradeGoods =>
-    v.by === 'villagers' ? {} : withoutCoins(v.wants);
+    v.by === 'villagers' ? {} : withoutCoins(merchantWants(v, slavesOnMarket));
   const spends = (v: MarketVisitor): boolean =>
     (v.goods[COIN_GOOD] ?? 0) > 0 && hasGoods(wantsOf(v));
   const buyer = armsBuyer(state, day, visitors);
@@ -594,7 +613,8 @@ function coinPhase(
  * Rozhodnutí plánu 3, bod 13): zanikne-li domovská ves, pošta s ním vrátí lidi a mince hostiteli
  * (`stranded-people`) a kronika hostitele ví, odkud přišly (preflight plánu 4, M14). Cizí kupec domov
  * nemá (Rozhodnutí plánu 4, bod 5) – odjede bez zakázek a bez pošty a jeho měšec, neprodaná zbroj
- * i koupené zboží odejdou ze světa.
+ * i koupené zboží odejdou ze světa, i koupení otroci (`boughtPeople` – jediný odchod lidí ze světa
+ * kromě smrti, Rozhodnutí plánu 5, bod 7).
  */
 function departVisitors(
   state: VillageState,
@@ -647,7 +667,9 @@ function departVisitors(
  * - kupec shání jen to, co je na trhu ke koupi (S > 0), nejvýš kolik koupí za měšec
  *   (`affordableWants`) – bez nabídky cenou nehne, jako W = 0 hladinou;
  * - není-li na trhu žádná výprava, počítá se jen zboží, které kupci vezou nebo shánějí, a ostatní
- *   ceny stojí – průjezd kupců nezdraží, co hostitel shání, ani nezlevní, co nabízí a kupci nechtějí.
+ *   ceny stojí – průjezd kupců nezdraží, co hostitel shání, ani nezlevní, co nabízí a kupci nechtějí;
+ * - v den bez otroků (`slavesOnMarket`) seznam kupce otroky nemá (`merchantWants` – Rozhodnutí
+ *   plánu 5, bod 7).
  * S aspoň jednou výpravou se hýbou všechny ceny (Martin 23. 11. 2026: „Nechat bez stropu“).
  */
 function priceTotals(
@@ -656,15 +678,21 @@ function priceTotals(
   visitors: readonly MarketVisitor[],
   prices: MarketPrices,
   level: number,
+  slavesOnMarket: boolean,
 ): { offered: TradeGoods; wanted: TradeGoods } {
   const offered = totalGoods([stance.offer, ...visitors.map((v) => withoutCoins(v.goods))]);
   const forSale = TRADE_GOODS.filter((good) => (offered[good] ?? 0) > 0);
-  const demandOf = (v: MarketVisitor): TradeGoods =>
-    v.merchant ? onlyGoods(affordableWants(v, prices, level), forSale) : withoutCoins(v.wants);
-  const wanted = totalGoods([stance.wants, craftWants, ...visitors.map(demandOf)]);
+  const lists = visitors.map((v) => merchantWants(v, slavesOnMarket));
+  const demand = visitors.map((v, i) => {
+    const list = lists[i] ?? v.wants;
+    return v.merchant
+      ? onlyGoods(affordableWants({ ...v, wants: list }, prices, level), forSale)
+      : withoutCoins(list);
+  });
+  const wanted = totalGoods([stance.wants, craftWants, ...demand]);
   if (visitors.some((v) => !v.merchant)) return { offered, wanted };
   const traded = TRADE_GOODS.filter((good) =>
-    visitors.some((v) => (v.goods[good] ?? 0) > 0 || (v.wants[good] ?? 0) > 0),
+    visitors.some((v, i) => (v.goods[good] ?? 0) > 0 || (lists[i]?.[good] ?? 0) > 0),
   );
   return { offered: onlyGoods(offered, traded), wanted: onlyGoods(wanted, traded) };
 }
@@ -680,6 +708,9 @@ function priceTotals(
  * 3. mincovní fáze (`coinPhase` – Rozhodnutí plánu 4, body 2 a 15) – výprava nebo cizí kupec, který
  *    veze mince, za ně koupí, co mu na seznamu zbylo; hostitel jen prodává a koupí jedině zbroj
  *    objednanou u kupců. Bez mincí k útratě se přeskočí.
+ * Kupci kupují i otroky (Rozhodnutí plánu 5, bod 7); v den, kdy na trhu nikdo otroky nenabízí
+ * (hostitel podle `stance.offer.slaves`, výpravy z nákladu), seznam kupců otroky nemá ve fázích ani
+ * v ceně dne (`merchantWants`) – trh je bit po bitu jako po plánu 4.
  * Zápočty mince nevidí (`withoutCoins` – Rozhodnutí plánu 4, bod 1). Obchody se po každé fázi
  * vyrovnají (`settleTrades`), ceny se posunou podle původních nabídek a seznamů dne (`priceTotals`,
  * `nextPrices` – v den jen s kupci jen ceny jejich zboží), kupci na rušném trhu zůstanou další
@@ -703,8 +734,18 @@ export function marketDay(state: VillageState, day: number): ChronicleEvent[] {
   const level = market.level ?? 1;
   const stance = marketStance(state, day);
   const craft = craftStance(state, stance, visitors, prices);
+  // nabízí dnes někdo otroky? Bez nich kupci otroky neshánějí ve všech fázích (`merchantWants`)
+  const slavesOnMarket =
+    (stance.offer.slaves ?? 0) > 0 || visitors.some((v) => (v.goods.slaves ?? 0) > 0);
   // nabídky, seznamy a měšce kupců dne napřed – zápočty a mincovní fáze je mění
-  const { offered, wanted } = priceTotals(stance, craft?.wants ?? {}, visitors, prices, level);
+  const { offered, wanted } = priceTotals(
+    stance,
+    craft?.wants ?? {},
+    visitors,
+    prices,
+    level,
+    slavesOnMarket,
+  );
   const first = craft
     ? settleTrades(state, day, visitors, clearMarket(craftParties(HOST, craft, visitors), prices))
     : null;
@@ -718,7 +759,8 @@ export function marketDay(state: VillageState, day: number): ChronicleEvent[] {
       ...visitors.map((v) => ({
         key: v.key,
         offer: withoutCoins(v.goods),
-        wants: withoutCoins(v.wants),
+        // strop V = min(nabídka, seznam) – kupec bez otroků v den, kdy je nikdo nenabízí
+        wants: withoutCoins(merchantWants(v, slavesOnMarket)),
       })),
     ],
     prices,
@@ -731,7 +773,14 @@ export function marketDay(state: VillageState, day: number): ChronicleEvent[] {
       }
     : second;
   // ještě za ceny dne – ceny trhu se posunou až po všech fázích
-  const third = coinPhase(state, day, market, visitors, goodsLeft(stance.offer, barter.sold));
+  const third = coinPhase(
+    state,
+    day,
+    market,
+    visitors,
+    goodsLeft(stance.offer, barter.sold),
+    slavesOnMarket,
+  );
   market.prices = nextPrices(prices, offered, wanted);
   const host = third
     ? {

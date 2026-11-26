@@ -1,10 +1,26 @@
-// Kronika plánu 5 (markets.md – Rozhodnutí plánu 5, bod 1 a 11): odvedení z tažení – otroci a křesťané.
+// Kronika plánu 5 (markets.md – Rozhodnutí plánu 5, body 1, 7 a 11): odvedení z tažení – otroci
+// a křesťané, kupci kupují otroky.
 import { describe, expect, it } from 'vitest';
-import type { ChronicleEvent } from '@bohemia/game';
+import { MERCHANTS, type ChronicleEvent } from '@bohemia/game';
 import { chronicleText } from '../village-view-chronicle';
 
 const text = (event: Record<string, unknown>): string =>
   chronicleText({ day: 100, ...event } as unknown as ChronicleEvent, 'Vlkov', 7);
+
+describe('kronika – příjezd kupců, kteří kupují i otroky', () => {
+  it('seznam kupců z pravidel: otroci ve 4. pádě na konci výčtu', () => {
+    expect(
+      text({
+        kind: 'merchants-arrived',
+        sells: MERCHANTS.goods,
+        buys: MERCHANTS.wants,
+        coins: MERCHANTS.coins,
+      }),
+    ).toBe(
+      'Přijeli kupci z daleka – prodávají meče, kroužkové košile a helmy, kupují med, vosk, kožešiny a otroky.',
+    );
+  });
+});
 
 describe('kronika – odvedení z tažení', () => {
   it('otroci a křesťané v 4. pádě, nulová část se vynechá', () => {
