@@ -97,6 +97,7 @@ describe('vylepšení vsi ve dvorci', () => {
             merchantsDay: null,
             arms: [],
             merchantsArrived: null,
+            slaveSale: null,
           },
           stance: 'flee',
           huntDenied: null,
@@ -122,6 +123,7 @@ describe('vylepšení vsi ve dvorci', () => {
         merchantsDay: null,
         arms: [],
         merchantsArrived: null,
+        slaveSale: null,
       },
       stance: 'flee' as const,
       huntDenied: null,
@@ -156,6 +158,7 @@ describe('cizí kupci ve dvorci (markets.md – Rozhodnutí plánu 4, bod 12)', 
             merchantsDay,
             arms: [],
             merchantsArrived: null,
+            slaveSale: null,
           },
         }}
       />,
@@ -210,6 +213,7 @@ describe('tlačítko lovu ve dvorci', () => {
             merchantsDay: null,
             arms: [],
             merchantsArrived: null,
+            slaveSale: null,
           },
         }}
         onDeclareHunt={async () => null}
@@ -290,6 +294,7 @@ describe('otroci ve dvorci (markets.md – Pravidla 7)', () => {
             merchantsDay: null,
             arms: [],
             merchantsArrived: null,
+            slaveSale: null,
           },
         }}
       />,

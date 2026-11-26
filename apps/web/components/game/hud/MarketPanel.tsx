@@ -22,6 +22,7 @@ import { marketPreview, type MarketTripPhase } from '@/lib/market-view';
 import { TRADE_GOOD_NAMES } from '@/lib/trade-names';
 import { formatCoinPrice, formatInteger, plural } from '@/lib/village-format';
 import { ArmsOrder } from './ArmsOrder';
+import { SlaveSale } from './SlaveSale';
 import { Dialog } from './Dialog';
 import { useRightDenied } from './rights';
 import { Stepper } from './Stepper';
@@ -340,7 +341,8 @@ function without(goods: TradeGoods, good: TradeGood, value: number): TradeGoods 
  * Panel Trh: `villages` je přehled ze serveru (`null` – načítá se), `market` vstup náhledu a výpravy
  * na cestě z pohledu dvorce, `onSend` pošle výpravu a vrátí důvod odmítnutí serveru (nebo null),
  * `onPeople` se zeptá serveru na lidi na prodej pro vybrané počty (`marketTripPeople`), `onOrderArms`
- * objedná zbroj u cizích kupců (počet kusů, 0 = nic) a vrátí důvod odmítnutí.
+ * objedná zbroj u cizích kupců (počet kusů, 0 = nic) a vrátí důvod odmítnutí, `onOfferSlaves` nabídne
+ * otroky na trhu vsi (počet, 0 = nic; vrátí důvod odmítnutí).
  */
 export function MarketPanel({
   villages,
@@ -349,6 +351,7 @@ export function MarketPanel({
   onSend,
   onPeople,
   onOrderArms,
+  onOfferSlaves,
   onClose,
 }: {
   villages: MarketVillage[] | null;
@@ -358,6 +361,7 @@ export function MarketPanel({
   onSend: (targetVillageId: string, order: MarketOrder) => Promise<string | null>;
   onPeople: (people: TradePeople) => Promise<MarketPeopleAnswer>;
   onOrderArms: (good: ArmsGood, amount: number) => Promise<string | null>;
+  onOfferSlaves: (count: number) => Promise<string | null>;
   onClose: () => void;
 }): ReactElement {
   const denied = useRightDenied('trade');
@@ -415,6 +419,7 @@ export function MarketPanel({
     >
       <div className="flex flex-col gap-2 text-[#ecdfc4]">
         <ArmsOrder market={market} onOrder={onOrderArms} />
+        <SlaveSale slaveSale={market.slaveSale} onOffer={onOfferSlaves} />
         {error && (
           <p data-testid="market-overview-error" className="font-semibold text-red-400">
             {error}

@@ -1394,6 +1394,20 @@ plní `manorView` (`stanceOf`), volba jde přes server action `setDefenseStance`
   změnu nic nepřepíše), pak zase počet ze serveru. Důvod odmítnutí ukáže sekce v `market-arms-error`
   (zmizí s další změnou); `VillageCommands.orderArms` ho navíc ohlásí řádkem nahoře (`reported`) jako
   ostatní akce nad vsí.
+- **Prodej otroků** (markets.md – Rozhodnutí plánu 5, bod 8) – `SlaveSale` (`hud/SlaveSale.tsx`) v panelu Trh
+  vlastní vsi pod zbrojí, jen s ne-null `VillageManor.market.slaveSale` (`{ stock, forSale, price }`:
+  `stock` = `market.stock.slaves` z téhož průchodu `marketField`, `forSale` = `slavesForSale`, `price` =
+  `coinPriceOf(…, 'slaves')`; null, když není zásoba ani nabídka). Ikona otroka s počtem, cena v mincích a
+  `Stepper` od 0 do max(`stock`, `forSale`) s hodnotou `forSale` (`market-slaves`; nabídka nad zásobou po
+  pokřtění otroka zůstane vidět a jde snížit); popisek „Otroci na prodej – ves je prodá kupcům a výpravám na
+  svém trhu za cenu dne“. Chování jako `ArmsOrder` (pořadí odpovědí, důvod v `market-slaves-error`, bez
+  práva `trade` zašedlé); `VillageCommands.offerSlaves` → akce `offerSlaves`. Cenu a kdo jde prodat počítá
+  server, web jen zobrazuje.
+- **Otroci v náhledu výpravy** – `peopleIn` a klíč dotazu v `useMarketPeople` berou i `give.slaves`
+  (jen s otroky se do dotazu přidá `slaves`); `parseMarketPeopleInput` přijme volitelné celé nezáporné
+  `slaves` (jinak null). `marketPreview` bere zásobu otroků a volné dospělé z odpovědi `marketTripPeople`
+  (odcházející otroci nenesou; odpověď bez otroků zásobu otroků nepřepíše), takže náhled neodmítne platnou
+  výpravu ani nepustí tu, kterou server odmítne (`MARKET_NO_PEOPLE`).
 - **Upozornění** „Kupci přijeli“ s ikonou kupců (`VillageNotice.icon`, `lib/village-notices.ts`): za každý
   příjezd – `merchantsArrived` je novější než v minulém pohledu.
 - **Kronika** (`lib/village-view-chronicle.ts`): `merchants-arrived` „Přijeli kupci z daleka – prodávají …,

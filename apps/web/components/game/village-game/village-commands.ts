@@ -19,6 +19,7 @@ import {
   inviteLodge,
   inviteMaster,
   leaveVillage,
+  offerSlaves as offerSlavesAction,
   orderArms as orderArmsAction,
   orderStoneQuarrying,
   plantRoadApples,
@@ -95,6 +96,8 @@ export interface VillageCommands {
    * 0 = nic; důvod odepření vrátí česky, panel ho ukáže u sekce zbroje.
    */
   orderArms: (good: ArmsGood, amount: number) => Promise<string | null>;
+  /** Nabídka otroků na trhu vlastní vsi (počet, 0 = nic); vrací důvod odmítnutí, nebo null. */
+  offerSlaves: (count: number) => Promise<string | null>;
   /** Obsluhy panelu výběru. */
   selection: SelectionCommands;
 }
@@ -324,11 +327,19 @@ export function villageCommands({
       : Promise.resolve(null);
   };
 
+  const offerSlaves = (count: number): Promise<string | null> => {
+    const villageId = viewRef.current?.id;
+    return villageId
+      ? runAction(() => offerSlavesAction({ villageId, count })).then(reported)
+      : Promise.resolve(null);
+  };
+
   return {
     rename,
     toggleSteward,
     sendMarket,
     orderArms,
+    offerSlaves,
     ennoble,
     choosePlayerDeparture: choosePlayerDepartureFromPanel,
     selection,

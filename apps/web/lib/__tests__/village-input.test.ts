@@ -448,6 +448,19 @@ describe('vstup lidí na prodej pro náhled výpravy (plán 3, Úloha 11)', () =
     expect(parseMarketPeopleInput(ok)).toEqual({ families: 1, men: 0, women: 3 });
   });
 
+  it('otroci jsou volitelné celé nezáporné číslo (plán 5)', () => {
+    expect(parseMarketPeopleInput({ ...ok, slaves: 2 })).toEqual({
+      families: 1,
+      men: 0,
+      women: 3,
+      slaves: 2,
+    });
+    expect(parseMarketPeopleInput(ok)).not.toHaveProperty('slaves');
+    expect(parseMarketPeopleInput({ ...ok, slaves: 1.5 })).toBeNull();
+    expect(parseMarketPeopleInput({ ...ok, slaves: -1 })).toBeNull();
+    expect(parseMarketPeopleInput({ ...ok, slaves: '2' })).toBeNull();
+  });
+
   it('odmítne chybějící, záporné a necelé počty i špatný tvar', () => {
     expect(parseMarketPeopleInput({ ...ok, men: undefined })).toBeNull();
     expect(parseMarketPeopleInput({ ...ok, families: -1 })).toBeNull();

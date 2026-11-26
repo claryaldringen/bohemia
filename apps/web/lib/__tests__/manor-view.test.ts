@@ -360,3 +360,24 @@ describe('otroci ve dvorci (markets.md – Pravidla 7)', () => {
     expect(manorView(s, DAY)!.slaves).toEqual({ all: 3, baptized: 1 });
   });
 });
+
+describe('prodej otroků v pohledu dvorce (markets.md – Rozhodnutí plánu 5, bod 8)', () => {
+  it('ves se 2 prodejními otroky a nabídkou 1 bez trhu: počty a cena dne', () => {
+    const s = village();
+    s.people.push(
+      person(600, 25, 'male', { slave: true }),
+      person(601, 22, 'female', { slave: true }),
+    );
+    s.slavesForSale = 1;
+    const { market } = manorView(s, DAY)!;
+    expect(market.slaveSale).toEqual({ stock: 2, forSale: 1, price: 24 });
+    expect(market.slaveSale!.stock).toBe(market.stock.slaves);
+  });
+
+  it('nabídka nad zásobou zůstane vidět; ves bez otroků a nabídky nemá nic', () => {
+    const s = village();
+    expect(manorView(s, DAY)!.market.slaveSale).toBeNull();
+    s.slavesForSale = 3;
+    expect(manorView(s, DAY)!.market.slaveSale).toEqual({ stock: 0, forSale: 3, price: 24 });
+  });
+});

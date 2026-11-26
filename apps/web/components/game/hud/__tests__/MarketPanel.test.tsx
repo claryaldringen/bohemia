@@ -43,6 +43,7 @@ const market = (over: Partial<VillageManor['market']> = {}): VillageManor['marke
   merchantsDay: null,
   arms: [],
   merchantsArrived: null,
+  slaveSale: null,
   ...over,
 });
 
@@ -55,6 +56,7 @@ interface MountProps {
   onSend?: (id: string, order: MarketOrder) => Promise<string | null>;
   onPeople?: (people: TradePeople) => Promise<MarketPeopleAnswer>;
   onOrderArms?: (good: ArmsGood, amount: number) => Promise<string | null>;
+  onOfferSlaves?: (count: number) => Promise<string | null>;
   rights?: VillageRightsView | null;
 }
 
@@ -73,6 +75,7 @@ async function render(props: MountProps): Promise<void> {
           onSend={props.onSend ?? (() => Promise.resolve(null))}
           onPeople={props.onPeople ?? allLeave}
           onOrderArms={props.onOrderArms ?? (() => Promise.resolve(null))}
+          onOfferSlaves={props.onOfferSlaves ?? (() => Promise.resolve(null))}
           onClose={() => undefined}
         />
       </RightsProvider>,
@@ -711,5 +714,82 @@ describe('výpravy na cestě', () => {
   it('bez výprav nic', async () => {
     const host = await mount({});
     expect(byId(host, 'market-trip')).toBeNull();
+  });
+});
+
+describe('prodej otroků ve vlastní vsi (plán 5 – Rozhodnutí 8)', () => {
+  const sale = (over: Partial<NonNullable<VillageManor['market']['slaveSale']>> = {}) =>
+    ({ stock: 2, forSale: 0, price: 24, ...over }) as VillageManor['market']['slaveSale'];
+
+  it('sekce je jen s ne-null prodejem; ikona, počet, cena v mincích, popisek', async () => {
+    const host = await mount({ market: market() });
+    expect(byId(host, 'market-slaves')).toBeNull();
+    await render({ market: market({ slaveSale: sale() }) });
+    const section = byId(host, 'market-slaves')!;
+    expect(section.querySelector('img[src="/icons/resources/slave.png"]')).not.toBeNull();
+    expect(section.querySelector('img[src="/icons/resources/coin.png"]')).not.toBeNull();
+    expect(byId(host, 'market-slaves-stock')!.textContent).toBe('2');
+    expect(section.textContent).toContain('24');
+    expect(section.querySelector('[role="tooltip"]')!.textContent).toBe(
+      'Otroci na prodej – ves je prodá kupcům a výpravám na svém trhu za cenu dne',
+    );
+  });
+
+  it('Stepper na 2 pošle offerSlaves(2); víc než zásoba nejde', async () => {
+    // odpověď serveru nepřijde – ukazuje se naklikaný počet
+    const onOfferSlaves = vi.fn(() => new Promise<string | null>(() => undefined));
+    const host = await mount({ market: market({ slaveSale: sale() }), onOfferSlaves });
+    await click(byId(host, 'market-slaves-plus'));
+    await click(byId(host, 'market-slaves-plus'));
+    expect(onOfferSlaves).toHaveBeenLastCalledWith(2);
+    await render({ market: market({ slaveSale: sale({ forSale: 2 }) }), onOfferSlaves });
+    expect((byId(host, 'market-slaves-plus') as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('nabídka 3 nad zásobou 2 je vidět a jde snížit', async () => {
+    const onOfferSlaves = vi.fn(() => new Promise<string | null>(() => undefined));
+    const host = await mount({
+      market: market({ slaveSale: sale({ forSale: 3 }) }),
+      onOfferSlaves,
+    });
+    expect(byId(host, 'market-slaves-count')!.textContent).toBe('3');
+    await click(byId(host, 'market-slaves-minus'));
+    expect(onOfferSlaves).toHaveBeenLastCalledWith(2);
+    // strop je nabídka (3), ne zásoba – zpět nahoru jde
+    expect((byId(host, 'market-slaves-plus') as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it('důvod odmítnutí je u sekce; bez práva obchodu je zašedlá', async () => {
+    const host = await mount({
+      market: market({ slaveSale: sale() }),
+      onOfferSlaves: () => Promise.resolve('Nelze.'),
+    });
+    await click(byId(host, 'market-slaves-plus'));
+    expect(byId(host, 'market-slaves-error')!.textContent).toBe('Nelze.');
+  });
+
+  it('bez práva obchodu je sekce zašedlá s důvodem a nic neposílá', async () => {
+    const onOfferSlaves = vi.fn(() => Promise.resolve(null));
+    const host = await mount({
+      market: market({ slaveSale: sale({ forSale: 1 }) }),
+      onOfferSlaves,
+      rights: { allowed: [], reason: 'Rozhoduje Bořivoj.' },
+    });
+    expect((byId(host, 'market-slaves-plus') as HTMLButtonElement).disabled).toBe(true);
+    expect((byId(host, 'market-slaves-minus') as HTMLButtonElement).disabled).toBe(true);
+    expect(
+      byId(host, 'market-slaves')!.querySelector('[data-testid="rights-reason"]')!.textContent,
+    ).toBe('Rozhoduje Bořivoj.');
+    await click(byId(host, 'market-slaves-plus'));
+    expect(onOfferSlaves).not.toHaveBeenCalled();
+  });
+
+  it('otroci v „Dáš“ s počtem 2', async () => {
+    const host = await mount({ market: market({ stock: { slaves: 2 } }) });
+    const give = byId(host, 'market-give-slaves')!;
+    expect(give.querySelector('img[src="/icons/resources/slave.png"]')).not.toBeNull();
+    await click(byId(host, 'market-give-slaves-plus'));
+    await click(byId(host, 'market-give-slaves-plus'));
+    expect(byId(host, 'market-give-slaves-count')!.textContent).toBe('2');
   });
 });

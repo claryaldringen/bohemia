@@ -624,8 +624,11 @@ export function parseMarketExpeditionInput(
 export function parseMarketPeopleInput(value: unknown): TradePeople | null {
   if (!isRecord(value)) return null;
   const count = (n: unknown): n is number => Number.isInteger(n) && (n as number) >= 0;
-  const { families, men, women } = value;
-  return count(families) && count(men) && count(women) ? { families, men, women } : null;
+  const { families, men, women, slaves } = value;
+  if (!count(families) || !count(men) || !count(women)) return null;
+  // otroci (plán 5) jsou volitelní – chybí = bez pole; jinak celé nezáporné číslo
+  if (slaves === undefined) return { families, men, women };
+  return count(slaves) ? { families, men, women, slaves } : null;
 }
 
 /**

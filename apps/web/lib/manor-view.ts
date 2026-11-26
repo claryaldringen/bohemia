@@ -104,6 +104,12 @@ export interface VillageManor {
     arms: { good: ArmsGood; price: number; ordered: number }[];
     /** Den posledního příjezdu kupců (z `market.arrivals`); null = zatím žádný. */
     merchantsArrived: number | null;
+    /**
+     * Prodej otroků vlastní vsi (markets.md – Rozhodnutí plánu 5, bod 8): `stock` = prodejní otroci
+     * (`stock.slaves`), `forSale` = nabízený počet (může být nad zásobou), `price` = cena dne v
+     * mincích; null, když není zásoba ani nabídka.
+     */
+    slaveSale: { stock: number; forSale: number; price: number } | null;
   };
 }
 
@@ -134,8 +140,18 @@ function merchantsField(
 function marketField(state: VillageState, day: number): VillageManor['market'] {
   const stock: TradeGoods = {};
   for (const good of TRADE_GOODS) stock[good] = villageGoodStock(state, good, day);
+  const slaves = stock.slaves ?? 0;
+  const forSale = state.slavesForSale ?? 0;
   return {
     stock,
+    slaveSale:
+      slaves === 0 && forSale === 0
+        ? null
+        : {
+            stock: slaves,
+            forSale,
+            price: coinPriceOf(state.market?.prices, state.market?.level ?? 1, 'slaves'),
+          },
     homeCarts: tradeHomeCarts(state).map((c) => c.kind),
     oxenHome: oxenHome(state, day),
     adults: marketFreeAdults(state, day),
