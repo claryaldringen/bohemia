@@ -176,29 +176,48 @@ test('válka dvou hráčů: A přepadne B, B uteče do lesa i s dobytkem, kronik
 
   // vojsko A stojí u vsi B a po nájezdu jde domů okrajem mapy B: ves A proto na volném políčku vedle
   // B, kam z toho místa vojsko přejde (`crossesTo`) – hustý les je neprůchodný a okrajem se jde jen
-  // tam, kde mapy navazují (plán 2026-11-16-dense-forest – Rozhodnutí 8); oblast vsi B mívá přechod
-  // jen na některé straně. Rovná trasa světa k vsi A jinou stranou by návrat zasekla hned po nájezdu
+  // tam, kde mapy navazují (plán 2026-11-16-dense-forest – Rozhodnutí 8); z jednoho místa u vsi B
+  // přechod často nevede na žádnou stranu, proto se zkouší víc míst kolem obydlí. Rovná trasa světa k vsi A jinou stranou by návrat zasekla hned po nájezdu
   // a tažení by skončilo dřív, než scéna B vojsko ukáže (uvízlý návrat – zpráva Úlohy 8, Otázka 1).
   // Vzdálenost vsí test nepotřebuje – zpáteční cestu zkracuje sám.
-  const at = { x: spotsB.dwelling.x + 40, z: spotsB.dwelling.z };
   const occupied = await query<{ grid_x: number; grid_y: number }>(
     `SELECT grid_x, grid_y FROM settlement WHERE archived_at IS NULL AND grid_x IS NOT NULL`,
     [],
   );
   const mapB = { cell: placeB.cell, landscape: seatB.landscape, state: stateB };
-  const sideA = [
+  const freeSides = [
     { x: -1, y: 0 },
     { x: 1, y: 0 },
     { x: 0, y: -1 },
     { x: 0, y: 1 },
   ]
     .map((d) => ({ x: placeB.cell.x + d.x, y: placeB.cell.y + d.y }))
-    .find(
-      (cell) =>
-        !occupied.some((r) => r.grid_x === cell.x && r.grid_y === cell.y) &&
-        crossesTo(mapB, at, { cell, landscape: seatA.landscape, state: stateA }),
+    .filter((cell) => !occupied.some((r) => r.grid_x === cell.x && r.grid_y === cell.y));
+  // místo, kde vojsko stojí, se zkouší v několika vzdálenostech a směrech od obydlí B (zemnice,
+  // les nebo voda kolem jednoho bodu často cestu k okraji zavřou) – bere se první dvojice
+  // (bod, strana), kde vojsko přejde; první bod je původní (+40 m na ose x)
+  const spotsAt: { x: number; z: number }[] = [];
+  for (const r of [40, 25, 60, 80, 15, 110]) {
+    for (let k = 0; k < 8; k++) {
+      const ang = (k * Math.PI) / 4;
+      spotsAt.push({
+        x: spotsB.dwelling.x + Math.round(r * Math.cos(ang)),
+        z: spotsB.dwelling.z + Math.round(r * Math.sin(ang)),
+      });
+    }
+  }
+  let at = spotsAt[0]!;
+  let sideA: { x: number; y: number } | undefined;
+  for (const spot of spotsAt) {
+    sideA = freeSides.find((cell) =>
+      crossesTo(mapB, spot, { cell, landscape: seatA.landscape, state: stateA }),
     );
-  if (!sideA) throw new Error('Mapa A nenavazuje na mapu B z žádné volné strany.');
+    if (sideA) {
+      at = spot;
+      break;
+    }
+  }
+  if (!sideA) throw new Error('Mapa A nenavazuje na mapu B z žádné volné strany ani bodu.');
   await query(`UPDATE settlement SET grid_x = $2, grid_y = $3 WHERE id = $1`, [
     seatA.settlementId,
     sideA.x,
