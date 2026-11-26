@@ -110,8 +110,8 @@ když ves přeroste, co ji mapa uživí (Martin) – a stará ves zůstane.
   dvoukolák, nejmladší vůz; voli s nejdelší zbývající službou (`leavingCart` v `carts.ts`). S vozem
   **unesou víc jídla** – navíc náklad vozu (dvoukolák 400 kg, čtyřkolák 800 kg), pořád nejvýš
   poměrný díl zásob vsi. V nové
-  vsi je vůz její; voli čekají **bez ohrady** (`VillageState.looseOxen` – seno nežerou, `feedHay` je nepočítá; viz
-  Otevřené) a s **hotovou ohradou volů** do ní přejdou (do míst všech ohrad volů; kdo mezitím
+  vsi je vůz její; voli čekají **bez ohrady** (`VillageState.looseOxen` – seno žerou jako voli v ohradě a 1. 3. při nedostatku sena
+  uhynou nebo zeslábnou stejně; opraveno 26. 11. 2026) a s **hotovou ohradou volů** do ní přejdou (do míst všech ohrad volů; kdo mezitím
   doslouží, jde na maso). Vůz bez ohrady volů nejezdí (nemá odkud). Ves na cestě vůz a voly nese
   s sebou. Popisek tlačítek odchodu ukáže vůz (ikona vozu a druh); u celé vsi počet zvířat a vozů
   a řádek „Celá ves – berou si úplně vše“.
@@ -319,9 +319,7 @@ když ves přeroste, co ji mapa uživí (Martin) – a stará ves zůstane.
 
 ### Otevřené po fázích 3 a 4
 
-- **Chyba, ne pravidlo:** voli bez ohrady (`looseOxen`) seno nežerou – `feedHay` je nepočítá –, takže
-  nová ves je krmí zadarmo, dokud nemá ohradu volů. Dřívější věta „žerou seno jako voli v ohradě“
-  nebyla pravda; správně mají seno žrát (koně bez ohrady ho žerou).
+- **Voli bez ohrady a seno (opraveno 26. 11. 2026):** voli bez ohrady (`looseOxen`) dřív seno nežrali – `feedHay` je nepočítal –, takže je nová ves krmila zadarmo. Teď žerou stejnou denní dávku jako voli v ohradě (`hayFedOxen`), počítají se do rezervy sena při porážce stád a 1. 3. při nedostatku sena uhynou (nejmladší napřed) nebo zeslábnou jako voli v ohradě.
 - **Hromady klád a kamene při odchodu celé vsi:** zda je osadníci berou s sebou, Martin ještě nerozhodl – dnes zůstávají ve staré vsi (hromady se nedají odnést, viz Co si vezmou). Plán 4 obchodu (26. 11. 2026) k tomu mince a zbroj přidal mezi zásoby, které odchod celé vsi bere.
 - **Nová ves na stezce** (plán 4 obchodu, 26. 11. 2026): syn i hráč smějí založit ves na mapě se stezkou bez řeky, kam jezdí cizí kupci ([obchod](markets.md), Rozhodnutí plánu 4, bod 11).
 - Celá ves při odchodu nevyráží, dokud je výprava na trhu (návrh Clauda; precedens expeditions.md –

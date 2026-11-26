@@ -361,8 +361,8 @@ export interface VillageState {
   /**
    * Voli bez ohrady (migration.md – Vůz při odchodu, Co si vezmou): přišli s osadníky do vsi, která
    * ještě nemá ohradu volů – hotové ohrady volů s místem je přijmou (`looseOxenDay`: do všech podle
-   * id, kolik se vejde; kdo doslouží, jde na maso). Seno žádné nežerou (`feedHay` je nepočítá),
-   * dokud nejsou v ohradě. Chybí = žádní.
+   * id, kolik se vejde; kdo doslouží, jde na maso). Seno žerou jako voli v ohradě (`hayFedOxen`;
+   * opraveno 26. 11. 2026) a 1. 3. při nedostatku sena uhynou nebo zeslábnou stejně. Chybí = žádní.
    */
   looseOxen?: Ox[];
   /**
