@@ -43,18 +43,65 @@ function isNamed(event: ChronicleEvent): event is Named {
 }
 
 /**
+ * Starší druhy kroniky se jménem vsi bez `villageId` (vojvoda do jiné vsi rodu, zásilky, lidé na
+ * čas, hosté, útěk do hradiště) – nelze ověřit, čí ves je, jméno se maskuje vždy. Kování vozů
+ * (`iron-trip`) nese jméno v `to`.
+ */
+type OldNamed = Extract<
+  ChronicleEvent,
+  {
+    kind:
+      | 'lord-sent'
+      | 'shipment-sent'
+      | 'shipment-received'
+      | 'people-away'
+      | 'guests-came'
+      | 'refuge-left';
+  }
+>;
+
+const OLD_NAMED_KINDS: ReadonlySet<ChronicleEvent['kind']> = new Set<OldNamed['kind']>([
+  'lord-sent',
+  'shipment-sent',
+  'shipment-received',
+  'people-away',
+  'guests-came',
+  'refuge-left',
+]);
+
+function isOldNamed(event: ChronicleEvent): event is OldNamed {
+  return OLD_NAMED_KINDS.has(event.kind);
+}
+
+/** Záznam kroniky se jménem vsi, které cizí správce nesmí vidět, prázdným; jinak týž záznam. */
+function maskedEvent(
+  event: ChronicleEvent,
+  hidden: (id: string | undefined) => boolean,
+): ChronicleEvent {
+  if (event.kind === 'iron-trip') return event.to === '' ? event : { ...event, to: '' };
+  if (isOldNamed(event)) {
+    return event.villageName === undefined || event.villageName === ''
+      ? event
+      : { ...event, villageName: '' };
+  }
+  if (!isNamed(event) || event.villageName === '' || !hidden(event.villageId)) return event;
+  return { ...event, villageName: '' };
+}
+
+/**
  * Stav vsi s prázdnými jmény vsí, které `allowed` neobsahuje: jméno záznamu kroniky (výpravy,
- * sňatky, lidé, kovář, zakázky), zakázky (`orders`), čekajícího dotazu na kováře
- * (`shoeing.asked`) a cíle výprav na trh. Záznam se jménem bez `villageId` (starší než plán 3) se
- * maskuje také – nelze ověřit, čí je. Vstup se nemění, bez nutnosti maskování vrátí týž stav.
+ * sňatky, lidé, kovář, zakázky; starší druhy – vojvoda do jiné vsi, zásilky, lidé na čas, hosté,
+ * útěk, kování vozů), zakázky (`orders`), čekajícího dotazu na kováře (`shoeing.asked`) a cíle
+ * výprav na trh. Záznam se jménem bez `villageId` (starší než plán 3) se maskuje také – nelze
+ * ověřit, čí je. Vstup se nemění, bez nutnosti maskování vrátí týž stav.
  */
 export function maskVillageNames(state: VillageState, allowed: ReadonlySet<string>): VillageState {
   const hidden = (id: string | undefined): boolean => id === undefined || !allowed.has(id);
   let changed = false;
   const chronicle = state.chronicle.map((event) => {
-    if (!isNamed(event) || event.villageName === '' || !hidden(event.villageId)) return event;
-    changed = true;
-    return { ...event, villageName: '' };
+    const masked = maskedEvent(event, hidden);
+    if (masked !== event) changed = true;
+    return masked;
   });
   const orders = state.orders?.map((order) => {
     if (order.name === '' || !hidden(order.villageId)) return order;
