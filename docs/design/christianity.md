@@ -82,6 +82,8 @@ trojpolí, ale stojí ho vedlejší manželky a nespokojenost pohanů, když jim
   manželky už nepřibudou. Elita hradiště ([hradiště](hillfort.md) – Elita) pak nerozlišuje
   manželky – rozdíl zmizí. Propuštěná s dětmi odchází z přeplněného dvorce jako vdova po
   vojvodovi (návrh Clauda).
+- **Propuštěná vedlejší manželka, která je otrokyně** (pohanka odvedená vojskem – [obchod](markets.md), Rozhodnutí
+  plánu 5), zůstává otrokyní: je běžná vesničanka, ale po křtu rodu je zase na prodej, dokud je pohanka (návrh Clauda).
 - **Vsi rodu:** křest platí ve všech vsích rodu a ves založená rodem po křtu je pokřtěná (osadníci
   ho přinesou i z cesty). Ves, kterou za hráče řídí NPC rod, se řídí křtem toho NPC rodu; po jeho
   konci zase křtem rodu hráče (návrh Clauda). Ves, která přejde k jinému rodu (odúmrť, postoupení,
@@ -113,6 +115,9 @@ trojpolí, ale stojí ho vedlejší manželky a nespokojenost pohanů, když jim
   se pokřtít – **0,5 % bez kostela, 3 % s kostelem ve vsi**, obojí × (1 + podíl křesťanů
   ve vsi). Ves s kostelem se obrátí zhruba za 2–3 generace, bez kostela prakticky vůbec.
   Obracet se začne jen ve vsích rodu, který je pokřtěný.
+- **Pokřtěný otrok zůstává otrokem, ale prodat ho nejde** – prodat smí hráč jen pohana (Pravidla 7 v [obchodu](markets.md);
+  Martin 22. 11. 2026: „Křesťany do lze usídlit ve vlastní vesnici, ale nelze je prodat“). Ve vsích nepokřtěného rodu se
+  otroci nepokřtí nikdy (návrh Clauda).
 - **Štěstí** ([štěstí](happiness.md)) – Martin, 10. 11. 2026: „Vzpoury zatím nemáme definované.
   Ať se sníží štěstí. To se bude průměrovat. Křesťané s kostelem budou spokojenější, pohané bez
   posvátných míst budou nespokojení. Jak bude přibývat křesťanů, nespokojenost časem odejde.

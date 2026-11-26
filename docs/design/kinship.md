@@ -81,6 +81,9 @@ dědictví, sňatky a nástupnictví potřebují vědět, kdo je čí. Postavy v
   svobodného (údaj `singles` v okolí – sňatek se nehledá naslepo); partner přijde sám (bez dětí), žena k muži, ženich k vdově,
   a ve své vsi „se vdala pryč“ / „přiženil se pryč“. Vdova, dědička a žena z domu bez mužů se pryč nevdává, rod nepřichází o muže.
 - **Z okolí (dřívější stav):** ves se sňatky z okolí nepočítala – lidé se berou mezi sebou (Martin 22. 11. 2026: „…dokud bude vesnice bez spojení s okolím, ať se lidé berou mezi sebou…“ – [sousední vsi](neighbours.md), Martinova rozhodnutí, Sňatky; markets.md – Pravidla 1); sňatky se skutečnými sousedy přijdou s plánem 3. Dřívější pravidla jsou v [historii](history/kinship-history.md).
+- **Prodej otroka rozvede manželství jako smrt** ([obchod](markets.md) – Rozhodnutí plánu 5, bod 4; Martin 26. 11. 2026:
+  „Moc to řešíš. Otroci nejsou rodina, ale zboží“): manžel ve vsi ovdoví a smí se znovu oženit, neprodaný se vrátí bez manžela
+  (návrh Clauda). Otrokyně, která se vdá do sousední vsi, je tam dál otrokyní.
 - **Muži rodu vojvody** (návrh issue #9, Martin 24. 10. 2026) smějí mít víc manželek; první je
   hlavní a podle pravidel výš. Další (vedlejší) dřív přicházely jen z okolí, takže od 23. 11. 2026
   nepřibývají a vedlejší manželky mají jen zakladatelé ([vojvodova rodina](lord.md) – Manželky,

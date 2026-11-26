@@ -596,7 +596,9 @@ o evakuaci (defaultní nastavení).“
   rod spícímu hráči nájezd nevyhladí. **Na tažení padnout i být zajat smí.** „Posledním“ je muž,
   jehož smrtí by rod skončil ([vojvodova rodina](lord.md) – Konec rodu).
 - **Odvedení** (vzdaní) jdou s vojskem a ve vsi vítěze přibudou jako lidé – usadí se do volných
-  míst, nebo založí domácnost, až bude dům (Martin 18. 10.; rešerše 6 – Hedčané).
+  míst, nebo založí domácnost, až bude dům (Martin 18. 10.; rešerše 6 – Hedčané). **Odvedení pohané
+  jsou otroci** ([obchod](markets.md) – Rozhodnutí plánu 5, bod 1; Pravidla 7): kupci je kupují a hráč smí
+  prodat; odvedený křesťan se usadí svobodný.
 
 ## Kořist
 
@@ -985,7 +987,9 @@ Z 18. 10. beze změny: skupina domů 40 m, dohled 150 m, nosnost 25 kg, ochota a
 - **Zbraně, štíty a zbroj** jako věci – „Reálné věci budeme řešit někdy později vlastní mechanikou“
   (Martin 2. 11. 2026).
 - **Družina** – vycvičení vesničané v dvorci, živení z dávek (rešerše 4 – Ibrahim).
-- Pálení vsí a polí; prodej zajatců kupcům (rešerše 6); útěk a výměna zajatců; sňatek jako mír.
+- Pálení vsí a polí; útěk a výměna zajatců; sňatek jako mír.
+- **Prodej odvedených kupcům je hotový** (plán 5 obchodu, 26. 11. 2026 – [obchod](markets.md), Rozhodnutí plánu 5). **Zajatý muž rodu ani šlechtic se kupcům zatím neprodává** (návrh Clauda): zůstává ke
+  výkupnému (Martin 2. 11. 2026: šlechtice je cílem „spíš zajmout než zabít, protože za něj může požadovat výkupné“); prodej zajatce by byla další volba u zajatce s dalším plánem války.
 - Noc a menší dohled v boji; vesničané na lovu vysoké zvěře.
 
 ## Navazuje

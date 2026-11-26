@@ -1,7 +1,7 @@
 # Obchod – trhy, kupci a mince (issue #11)
 
 Stav: **schváleno** – Martin 22. 11. 2026 na otázku „Schvaluješ oba návrhy a takové pořadí?“ (obchod s trhy a mincemi, zlato a klenoty; šest plánů: konec smyšlených sousedů, trh bez mincí, vesničané a správce na trhu, kupci a mince, otroci, zlato): „Ano“. Co řekl Martin, je u bodu s datem; ostatní je návrh
-Clauda. **Plán 1 (konec smyšlených sousedů) hotový 23. 11. 2026** (větev `feat/markets-1`, issue #11) – viz Rozhodnutí plánu 1. **Plán 2 (trh bez mincí) hotový 23. 11. 2026** (větev `feat/markets-2`, issue #11) – viz Rozhodnutí plánu 2. **Plán 3 (vesničané, správce, zakázky, lidé a sňatky se skutečnými sousedy) hotový 24. 11. 2026** (větev `feat/markets-3`, issue #11) – viz Rozhodnutí plánu 3. **Plán 4 (kupci a mince) hotový 26. 11. 2026** (větev `feat/markets-4`, issue #11) – viz Rozhodnutí plánu 4. Nahrazuje obchod se smyšlenými sousedy ([obchod](trade.md) – Sousedé, varianta a) a navazuje na rozpracovaný
+Clauda. **Plán 1 (konec smyšlených sousedů) hotový 23. 11. 2026** (větev `feat/markets-1`, issue #11) – viz Rozhodnutí plánu 1. **Plán 2 (trh bez mincí) hotový 23. 11. 2026** (větev `feat/markets-2`, issue #11) – viz Rozhodnutí plánu 2. **Plán 3 (vesničané, správce, zakázky, lidé a sňatky se skutečnými sousedy) hotový 24. 11. 2026** (větev `feat/markets-3`, issue #11) – viz Rozhodnutí plánu 3. **Plán 4 (kupci a mince) hotový 26. 11. 2026** (větev `feat/markets-4`, issue #11) – viz Rozhodnutí plánu 4. **Plán 5 (otroci) hotový 26. 11. 2026** (větev `feat/markets-5`, issue #11) – viz Rozhodnutí plánu 5. Nahrazuje obchod se smyšlenými sousedy ([obchod](trade.md) – Sousedé, varianta a) a navazuje na rozpracovaný
 návrh [sousedních vsí](neighbours.md), jehož body 2–8 Martin odložil právě do této kapitoly.
 
 ## Proč
@@ -224,6 +224,43 @@ Plán 4 přivedl na trh mince a cizí kupce na dálkových stezkách: mince jako
 
 **Otázky na Martina:** žádné otevřené.
 
+## Rozhodnutí plánu 5 (návrh Clauda, 26. 11. 2026)
+
+Plán 5 přivedl na trh otroky: příznak odvedeného pohana, otroky jako zboží (každý se prodává sám), nákup cizími kupci, prodej ve vlastní vsi nabídkou počtu, rozhraní a test světa. Rozhodnutí níž jsou **návrh Clauda**, kromě odpovědí Martina; co hráč pocítí a mění dřívější pravidla, je Martinovi oznámené (konec oddílu).
+
+**Martinova rozhodnutí k plánu 5:**
+
+- **Rodina otroka (26. 11. 2026).** Claude se zeptal: „Z nájezdu přivedeš pohanskou rodinu: muže, ženu a dvě malé děti (3 a 5 let) – všichni čtyři jsou tvoji otroci. Za rok se jim ve vsi narodí další dítě, to je svobodné. Když pak ženu pošleš prodat kupcům, co se stane s mužem a dětmi?“ (možnosti: každý se prodává sám – doporučení; matka i s malými dětmi; celá rodina spolu; každý sám, děti až od 16). Martin: **„Moc to řešíš. Otroci nejsou rodina, ale zboží“** – každý otrok se prodává sám, i malé dítě (bod 6).
+- Dřívější Martinova slova k plánu 5 jsou v oddílu Martinova rozhodnutí (22. 11. 2026: koho smí ves prodat, „Kdykoliv“, co kupci kupují) a u války (18. 10. a 2. 11. 2026: odvedení, výkupné); „Hráč zadá počet“ a „berou si úplně vše“ jsou z 25. 11. 2026 (plán 4).
+
+**Rozhodnutí plánu (návrh Clauda):**
+
+1. **Otrokem je odvedený pohan** (`Person.slave`) od chvíle, kdy ho vojsko přivede do vsi (`settleLed`); na cestě je kořist tažení. Zajatí muži rodu a šlechtici (`Prisoner`) otroky nejsou a kupcům se zatím neprodávají. Odvedený křesťan se usadí jako dřív, bez příznaku.
+2. **Pokřtěný otrok zůstává otrokem, ale prodat ho nejde** (`canBeSold` – ne křesťan, muž rodu ani šlechtic); obrácení příznak nemaže.
+3. **Otrok ve vsi je vesničan:** pracuje, jí, bydlí, žení se, rodí, stěhuje se s ostatními a příznak si nese všude (sňatek do sousední vsi, odchod, výprava). Děti narozené ve vsi jsou svobodné.
+4. **Otroci jako zboží `slaves`:** kus je jeden člověk, hodnota 360 kg obilí (24 mincí), nic nenesou. Prodat jde otrok-pohan, který je doma a není manželkou muže rodu; od nejnižšího id (kdo přišel dřív). **Každý se prodává sám** (Martin 26. 11. 2026) a prodej rozvede manželství jako smrt; `emigrantGroups` bere otroky napřed a `PEOPLE_GOODS` začíná `slaves`.
+5. **Kupci:** `MERCHANTS.wants.slaves` = 10 za průjezd; kupují za mince z měšce i zápočtem (zbroj za otroky). V mincovní fázi kupují od prodávajících po řadě (hostitel, pak výpravy podle příjezdu) a u každého v pořadí `TRADE_GOODS` – med, vosk a kožešiny před otroky. Koupení otroci odjedou s kupci ze světa. V den bez nabízených otroků je trh bit po bitu jako po plánu 4.
+6. **Prodej hráče:** výpravou (otroci v „Dáš“) i ve vlastní vsi nabídkou `VillageState.slavesForSale` (počet, vzor `armsOrder`). Otroci z nabídky jsou rezervovaní – jedna množina spočtená jednou z celé vsi platí pro nabídku, prodej, mincovní fázi i výpravu správce.
+7. **Správce otroky neprodává ani nekupuje**, nabídku nezadává ani nepřepisuje; ves správce a NPC rodu je proto kupcům nenabídne (Oznámit 7).
+8. **Pošta a zaniklé vsi** beze změny plánu 3: prodaný otrok se u kupující vsi usadí jako otrok s novým id, neprodaný se vrátí s původním id a bez manžela; zanikne-li ves kupujícího, jde otrok zpět k hostiteli.
+9. **Rozhraní:** odznak „Otrok“ v panelu osoby, počet otroků v panelu dvorce, otroci v „Dáš“ a „Dostaneš“ panelu Trh a prodej ve vlastní vsi; ikona otroka se liší od ikony zajatce. **Kronika:** zápis `led-settled` a upozornění v obecném mužském rodě, bez nul.
+10. **Převod stavu žádný:** nová pole jsou volitelná; odvedení usazení před plánem 5 zůstávají svobodní.
+11. **Pořadí úloh:** 1 příznak, 2 ikona, 3a–3b zboží, 4 mezi vsemi a manželství, 5 kupci, 6a–6b prodej ve vlastní vsi, 7 web, 8a–8b náhled výpravy, panel Trh a e2e, 9 test světa a Vlkov, 10 návrhy (rozhodnutí 1–13 plánu `docs/superpowers/plans/2026-11-26-markets-5-slaves.md`).
+
+**Oznámit Martinovi** (návrhy Clauda, které mění pravidla):
+
+1. **Otrokem je odvedený pohan**, od chvíle, kdy ho vojsko přivede do vsi (na cestě je kořist tažení). Odvedení, kteří se usadili před plánem 5, zůstávají svobodní – nejde je poznat (body 1 a 12). **Zajatý muž rodu ani šlechtic se kupcům zatím neprodává:** zůstává ve dvorci k výkupnému a dál ho jde držet, propustit nebo popravit – šlechtice je cílem „spíš zajmout než zabít, protože za něj může požadovat výkupné“ (Martin 2. 11. 2026). Prodej zajatce kupcům by šel přidat později jako další volba u zajatce, s dalším plánem války.
+2. **Otrok žije jako ostatní vesničané:** pracuje, jí, bydlí, žení se, rodí, může se pokřtít a stěhuje se s ostatními; neutíká a štěstí nemění. Příznak si nese všude: otrokyně, která se vdá do sousední vsi, je tam dál otrokyní a nový pán ji smí prodat (vlastní ves ji ztratí jako každou nevěstu); otroci brání ves a jdou do odvodů jako vesničané; propuštěná vedlejší manželka – pohanka a otrokyně – je po křtu rodu zase na prodej; ve vsích nepokřtěného rodu se otroci nepokřtí nikdy (obrácení jen u pokřtěného rodu); povýšený otrok (vojvoda NPC rodu) zůstane otrokem, ale prodat ho nejde (bod 4).
+3. **Otroci se prodávají po jednom**, od toho, kdo do vsi přišel nejdřív; manžel ani děti s ním neodcházejí a i malé dítě-otrok jde prodat samo za cenu dospělého (Martin 26. 11. 2026: „Moc to řešíš. Otroci nejsou rodina, ale zboží“). **Prodej rozvede manželství jako smrt:** manžel ve vsi ovdoví a smí se znovu oženit, neprodaný se vrátí bez manžela. Neprodá se muž rodu, šlechtic, manželka muže rodu ani kdo je zrovna pryč. Na trhu jdou otroci napřed – mění to oznámené „rodiny napřed“ plánu 3 (bod 6).
+4. **Otrok stojí na trhu 360 kg obilí (24 mincí)** jako svobodný dospělý. Kupci jich shánějí až 10 za průjezd, ale z měšce 60 mincí za výchozí cenu koupí dva. Kupují od prodávajících po řadě – hostitel, pak výpravy podle příjezdu – a u každého napřed med, vosk a kožešiny (body 6 a 7).
+5. **Pořadí nákupu kupců:** otroky kupují až po medu, vosku a kožešinách, takže ves, která má i med, prodá otroky pomalu. Z výsledků plánu 5 (Co se ověří): ves T prodala oba otroky až třetí a čtvrtý den kupců a Vlkov s uměle přidanou zastávkou až po dvou letech (v letech 919–920 kupci utratili celý měšec za med, vosk a kožešiny). Změnilo by to jen jiné pořadí zboží nebo větší měšec, a to by změnilo i ověřená čísla plánu 4.
+6. **Prodej ve vlastní vsi nabídkou počtu** (podle Martinova „Hráč zadá počet“ u zbroje, 25. 11. 2026): v panelu Trh hráč nastaví, kolik otroků ves prodá – jako počet mečů objednaných u kupců –, a v den kupců je ves prodá za mince; kdo se neprodá, počká na další kupce. Do jiné vsi je pošle výpravou jako ostatní zboží. Otroci z nabídky se odečtou od lidí, které ves nabízí sama, a jako muž, žena ani rodina se na trhu vsi neprodají. Ves sama otroky nekupuje, vesničané také ne (body 7 a 8).
+7. **Správce otroky zatím neprodává ani nekupuje** – otroci v jeho vsi pracují jako ostatní (bod 8). Nabídka otroků ani objednávka zbroje se zapnutím správce nemění: platí dál, správce je nepřepisuje. Je to odchylka od Martinova „Správce je vlastně NPC hráč, takže by měl mít možnost dělat téměř vše, co skutečný hráč“ (22. 11. 2026): kdy by měl otroky prodat kupcům, je pravidlo, které Martin nedal. Důsledek: otroky jde na trhu koupit jen od vsí, jejichž hráč je sám nabídne – ves správce ani NPC rodu je nenabídne nikdy, takže vojvoda u stezky, který podle Martina „nakupuje všechny tyto komodity od okolních vsí“, otroky od vsí správců nekoupí.
+8. **Otrok smí odejít i jako svobodný muž, žena nebo rodina** (výprava, zásilka) – i tam zůstane otrokem (bod 6).
+9. **Kupci otroky odvezou ze světa** – jediný odchod lidí ze světa kromě smrti. V den, kdy na trhu otroci nejsou, se trh chová přesně jako dosud (bod 7).
+
+**Otázky na Martina:** žádné otevřené. Otázka rodiny otroka je rozhodnutá (Martin 26. 11. 2026, výše).
+
 ## Co se ověří
 
 - Vlkov 10 let bez smyšlených sousedů (bez obchodu, sňatky ve vsi): přežije a roste? Když ne, ozvat se Martinovi.
@@ -286,4 +323,4 @@ Plán 4 přivedl na trh mince a cizí kupce na dálkových stezkách: mince jako
 Model ceny (o kolik se posune, meze), oběh mincí mezi vsemi, kterými se dopočítávají zvlášť (schránka vsi), plán cest
 kupců, rozhraní (přehled vsí, panel výpravy, trh), převod stavu, pořadí úloh.
 
-**Splněno:** plán 4 splnil vše výše (Co se ověří – dvě vsi a kupci, přepočet Vlkova); zbývá jen otevřené jmenované v Rozhodnutích plánu 4.
+**Splněno:** plán 4 splnil vše výše (Co se ověří – dvě vsi a kupci, přepočet Vlkova); zbývá jen otevřené jmenované v Rozhodnutích plánu 4. Plán 5 splnil otroky (Co se ověří – dvě vsi, otroci a kupci, přepočet Vlkova); zbývá plán 6 (zlato).
