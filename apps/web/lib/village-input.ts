@@ -640,6 +640,17 @@ export function parseArmsOrderInput(value: unknown): { good: ArmsGood; amount: n
   return { good, amount: amount as number };
 }
 
+/**
+ * Vstup nabídky otroků `{ count }` (markets.md – Rozhodnutí plánu 5, bod 8): celý nezáporný počet
+ * (0 = nic), jinak null. Kdo jde prodat, určuje jádro.
+ */
+export function parseSlaveOfferInput(value: unknown): { count: number } | null {
+  if (!isRecord(value)) return null;
+  const { count } = value;
+  if (!Number.isInteger(count) || (count as number) < 0) return null;
+  return { count: count as number };
+}
+
 /** Vstup nastavení postoje vsi `{ stance }` (war.md – Obránci), jinak null. */
 export function parseSetDefenseStanceInput(value: unknown): { stance: 'defend' | 'flee' } | null {
   if (!isRecord(value)) return null;

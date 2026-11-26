@@ -123,6 +123,8 @@ export const ACTION_RIGHTS = {
   sendMarketExpedition: 'trade',
   // objednávka zbroje u cizích kupců (markets.md – Rozhodnutí plánu 4, bod 15) – obchod vsi
   orderArms: 'trade',
+  // nabídka otroků na trhu vlastní vsi (markets.md – Rozhodnutí plánu 5, bod 8) – obchod vsi
+  offerSlaves: 'trade',
   // vojsko a tažení (war.md) – jen držitel vlastní vsi; správce cizí vsi válčit nesmí
   planCampaign: 'war',
   launchCampaign: 'war',

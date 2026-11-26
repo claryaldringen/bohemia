@@ -3,6 +3,7 @@
 import {
   marketOverviewForPlayer,
   marketPeopleForPlayer,
+  offerSlavesForPlayer,
   orderArmsForPlayer,
   sendMarketExpeditionForPlayer,
   type VillageActionResult,
@@ -11,6 +12,7 @@ import {
   parseArmsOrderInput,
   parseMarketExpeditionInput,
   parseMarketPeopleInput,
+  parseSlaveOfferInput,
   villageIdOf,
 } from '@/lib/village-input';
 import type { MarketTripPeople, MarketVillage } from '@bohemia/game';
@@ -59,4 +61,12 @@ export async function sendMarketExpedition(input: unknown): Promise<VillageActio
  */
 export async function orderArms(input: unknown): Promise<VillageActionResult> {
   return villageAction(input, parseArmsOrderInput, orderArmsForPlayer);
+}
+
+/**
+ * Nabídka otroků na trhu vlastní vsi (markets.md – Rozhodnutí plánu 5, bod 8): `{ villageId, count }`
+ * – kolik otroků má ves nabízet, 0 = nic.
+ */
+export async function offerSlaves(input: unknown): Promise<VillageActionResult> {
+  return villageAction(input, parseSlaveOfferInput, offerSlavesForPlayer);
 }

@@ -27,6 +27,7 @@ import {
   parseArmsOrderInput,
   parseMarketExpeditionInput,
   parseMarketPeopleInput,
+  parseSlaveOfferInput,
 } from '../village-input';
 
 describe('ověření vstupu server actions vsi', () => {
@@ -496,5 +497,16 @@ describe('vstup objednávky zbroje u cizích kupců (plán 4, Úloha 6)', () => 
     expect(parseArmsOrderInput(null)).toBeNull();
     expect(parseArmsOrderInput([ok])).toBeNull();
     expect(parseArmsOrderInput('swords')).toBeNull();
+  });
+});
+
+describe('vstup nabídky otroků (plán 5, Úloha 6b)', () => {
+  it('převede celý nezáporný počet, jinak null', () => {
+    expect(parseSlaveOfferInput({ villageId: 'v', count: 2 })).toEqual({ count: 2 });
+    expect(parseSlaveOfferInput({ count: 0 })).toEqual({ count: 0 });
+    for (const count of ['2', -1, 1.5, NaN, null, undefined]) {
+      expect(parseSlaveOfferInput({ villageId: 'v', count })).toBeNull();
+    }
+    expect(parseSlaveOfferInput(null)).toBeNull();
   });
 });

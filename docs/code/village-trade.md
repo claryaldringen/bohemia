@@ -1011,7 +1011,10 @@ laborHa`) → chybí ceil(dospělí × (landHa ÷ laborHa − 1)) dospělých, r
     správce otroky nebere (village-steward.md – Správce na trhu). Nabídka se odchodem celé vsi
     nepřenáší (jako `armsOrder`). Testy: `slaves-sale.test.ts` (kupci, rezervace v zápočtu,
     mincovní fázi a celý den), `market-stance.test.ts`, `vassalage/__tests__/spare.test.ts`
-    (`peopleOffer`, `keepLabor`), `steward-market.test.ts`.
+    (`peopleOffer`, `keepLabor`), `steward-market.test.ts`. Akce hráče: use-case `offerSlaves`
+    (`application/slaves.ts`, `updateLivingVillage`, bez podmínky na správce – nabídku správce nemění),
+    právo `trade` (`ACTION_RIGHTS.offerSlaves`), web `offerSlavesForPlayer` (`lib/village.ts`) a server
+    action `offerSlaves` (`actions/market.ts`, vstup `{ villageId, count }` ověří `parseSlaveOfferInput`).
 
 Počasí kraje mění hodnotu zboží od 1. 11. – [village-disasters.md](village-disasters.md#kraj-kolem-vsi-hodnota-zboží-a-zvěř-p4).
 
