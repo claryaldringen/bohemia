@@ -2,11 +2,16 @@ import type { Material } from '@babylonjs/core/Materials/material';
 import { PBRMaterial } from '@babylonjs/core/Materials/PBR/pbrMaterial';
 import type { Mesh } from '@babylonjs/core/Meshes/mesh';
 import type { Scene } from '@babylonjs/core/scene';
+import type { Landscape, ObstacleChanges, ObstacleLayer, Point } from '@bohemia/game';
 import type { SceneVillage } from '../village-view';
+import { pileCorners, stoneStackSite, type LogPileSite } from './log-pile-layout';
 import { applyGammaFog } from './gamma-fog';
 import { instanceMatrices, loadModelParts, setStaticInstances } from './instanced-model';
 import { applySeasonSnow } from './season-materials';
-import { stoneLayout, type PileSpot, type StoneLayout } from './stone-pile-layout';
+import { stackRadius, stoneLayout, type PileSpot, type StoneLayout } from './stone-pile-layout';
+
+/** Po kolika pokácených stromech se místa hromad hledají znovu (jako klády – `LogPile`). */
+const RETRY_REMOVED = 12;
 
 // Hromady kamení u cest a lomy – plochy u skal (fortifications.md – Hradby a obrana, Kámen; Lom
 // jako plocha u skal): díly `stone-pile-a/b` ze `siege.glb` v instancích – na ploše lomu hromádky
@@ -27,10 +32,14 @@ export class StonePiles {
   private disposed = false;
   private signature = '';
   private layout: StoneLayout = { a: [], b: [] };
+  /** Volná místa hromad podle id – při dalším hledání zůstane předchozí, je-li volné. */
+  private sites = new Map<number, LogPileSite | null>();
 
   constructor(
     private readonly scene: Scene,
     private readonly options: {
+      landscape: Landscape;
+      layer: ObstacleLayer;
       groundHeight: (worldX: number, worldZ: number) => number;
       addShadowCaster: (mesh: Mesh) => void;
       /** Model se načetl – scéna se má překreslit. */
@@ -38,12 +47,53 @@ export class StonePiles {
     },
   ) {}
 
-  /** Hromady a lomy podle vsi; vrátí true, když se kreslení změnilo. */
-  update(village: Pick<SceneVillage, 'stoneStacks' | 'quarries'>): boolean {
-    const signature = JSON.stringify([village.stoneStacks ?? [], village.quarries ?? []]);
+  /**
+   * Hromady a lomy podle vsi; vrátí true, když se kreslení změnilo. Hromada leží na volném místě
+   * u své kotvy jako klády (`stoneStackSite`) – mimo staveniště, pole, cesty, vodu a půdorysy
+   * `occupied` (hromady klád); bez volného místa se nekreslí.
+   */
+  update(
+    village: SceneVillage,
+    changes: ObstacleChanges,
+    occupied: readonly (readonly Point[])[] = [],
+  ): boolean {
+    const signature = JSON.stringify([
+      village.stoneStacks ?? [],
+      village.quarries ?? [],
+      village.dwellings.map((d) => [d.id, d.position.x, d.position.z]),
+      village.fields.map((f) => f.parts.length),
+      (village.cemeteries ?? []).map((c) => c.squares.length),
+      (village.roads ?? []).length,
+      occupied,
+      Math.floor(changes.removed.length / RETRY_REMOVED),
+    ]);
     if (signature === this.signature) return false;
     this.signature = signature;
-    this.layout = stoneLayout(village);
+    const { landscape, layer, groundHeight } = this.options;
+    const sites = new Map<number, LogPileSite | null>();
+    const taken: (readonly Point[])[] = [...occupied];
+    for (const stack of village.stoneStacks ?? []) {
+      const radius = stackRadius(stack.m3);
+      const previous = this.sites.get(stack.id) ?? null;
+      const site =
+        radius > 0
+          ? stoneStackSite(
+              landscape,
+              village,
+              layer,
+              changes,
+              stack,
+              radius,
+              previous,
+              taken,
+              groundHeight,
+            )
+          : null;
+      sites.set(stack.id, site);
+      if (site) taken.push(pileCorners(site));
+    }
+    this.sites = sites;
+    this.layout = stoneLayout(village, sites);
     const empty = this.layout.a.length === 0 && this.layout.b.length === 0;
     if (!this.parts && !empty) void this.load();
     return this.apply();

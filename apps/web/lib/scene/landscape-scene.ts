@@ -476,6 +476,8 @@ export class LandscapeScene {
     // hromady kamení u cest a lomy na výchozech (fortifications.md – Kámen)
     this.stonePiles?.dispose();
     this.stonePiles = new StonePiles(this.scene, {
+      landscape,
+      layer: obstacles,
       groundHeight,
       addShadowCaster: (mesh) => this.casters.add(mesh),
       onAsyncChange: () => {
@@ -1372,7 +1374,9 @@ export class LandscapeScene {
         ) ?? false)
       : false;
     const logPiles = this.logPile?.update(this.villageState, changes) ?? false;
-    const stonePiles = this.stonePiles?.update(this.villageState) ?? false;
+    // hromady kamene na volném místě jako klády – mimo půdorysy hromad klád
+    const logHits = this.logPile?.pickable().map((hit) => hit.corners) ?? [];
+    const stonePiles = this.stonePiles?.update(this.villageState, changes, logHits) ?? false;
     const piles = logPiles || stonePiles;
     const slash = this.clearingSlash?.update(this.villageState) ?? false;
     const fires = this.updateClearingFires();

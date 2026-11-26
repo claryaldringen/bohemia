@@ -218,7 +218,15 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   `selection/log-pile.tsx` – ikona dřeva a počet klád, rámeček z půdorysu);
   předchozí volné místo zůstane (hromada neskáče) a místo se nehledá znovu při každém pokáceném
   stromu – hromadě bez místa jen po každých `RETRY_REMOVED` pokácených; hromady se navzájem
-  nepřekrývají (`pileCorners` ostatních jde do `isFree`). Dým `slashPlumes` má přednost hořících
+  nepřekrývají (`pileCorners` ostatních jde do `isFree`). **Hromady kamene** (`StonePiles`,
+  `stone-piles.ts`; návrh Clauda) leží na volném místě stejným hledáním jako klády –
+  `stoneStackSite` (společné `stackSite` s `logStackSite`; půdorys `LogPileSite.size` – čtverec
+  kolem kruhu dílů `stackRadius`): kotva u cesty (`road` ze `StoneStack`) napřed, jinak po
+  kružnicích do STACK_REACH_M, mimo staveniště a obydlí, díly polí, hřbitovy, cesty, vodu a stojící
+  stromy, mimo hromady klád (`LogPile.pickable()` → `occupied`) i sebe navzájem; platí pro kámen
+  z lomu, obchodu i přinesený celou vsí (migration.md – Co si vezmou). Bez volného místa se hromada
+  nekreslí (`stoneLayout` s mapou míst); předchozí volné místo zůstane, nové hledání při změně vsi
+  nebo po `RETRY_REMOVED` pokácených stromech. Dým `slashPlumes` má přednost hořících
   čtverců před doutnajícími; `burnCrew` jde jen k hromadám za čarou práce (`burnHeaps`);
   `setWorldClock` přestaví ohně i bez změny vsi a `ClearingFireRenderer.animate` v taktu nealokuje.
 

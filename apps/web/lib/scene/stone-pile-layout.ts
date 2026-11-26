@@ -118,9 +118,16 @@ export function stackRadius(m3: number): number {
 }
 
 /** Hromady kamení u cest a lomy vsi jako díly modelu. */
-export function stoneLayout(village: Pick<SceneVillage, 'stoneStacks' | 'quarries'>): StoneLayout {
+export function stoneLayout(
+  village: Pick<SceneVillage, 'stoneStacks' | 'quarries'>,
+  /** Volná místa hromad podle id (`stoneStackSite`); hromada bez místa se nekreslí. Bez mapy u kotvy. */
+  sites?: ReadonlyMap<number, { x: number; z: number } | null>,
+): StoneLayout {
   const out: StoneLayout = { a: [], b: [] };
-  for (const stack of village.stoneStacks ?? []) {
+  for (const anchor of village.stoneStacks ?? []) {
+    const at = sites ? sites.get(anchor.id) : anchor;
+    if (!at) continue;
+    const stack = { ...anchor, x: at.x, z: at.z };
     const pieces = stackPieces(stack.m3);
     const cols = Math.min(3, pieces.length);
     const rows = Math.ceil(pieces.length / 3);

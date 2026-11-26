@@ -46,3 +46,16 @@ describe('rozložení hromad kamení', () => {
     expect(layout.b.every((p) => p.z === 0)).toBe(true);
   });
 });
+
+describe('hromady kamení na volném místě (stoneLayout se mapou míst)', () => {
+  it('díly leží kolem nalezeného místa; hromada bez místa se nekreslí', () => {
+    const village = { stoneStacks: [{ id: 1, x: 0, z: 0, m3: 4 }] };
+    const at = stoneLayout(village, new Map([[1, { x: 10, z: 5 }]]));
+    const spots = [...at.a, ...at.b];
+    expect(spots).toHaveLength(2);
+    const cx = spots.reduce((sum, p) => sum + p.x, 0) / spots.length;
+    const cz = spots.reduce((sum, p) => sum + p.z, 0) / spots.length;
+    expect([cx, cz]).toEqual([10, 5]);
+    expect(stoneLayout(village, new Map([[1, null]]))).toEqual({ a: [], b: [] });
+  });
+});

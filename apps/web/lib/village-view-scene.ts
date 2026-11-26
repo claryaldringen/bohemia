@@ -342,6 +342,7 @@ export function sceneVillage(
     x: stack.x,
     z: stack.z,
     m3: stack.m3,
+    ...(stack.road ? { road: { ...stack.road } } : {}),
   }));
   const quarries = sceneQuarries(state, landscape);
   const churches = sceneChurches(state);

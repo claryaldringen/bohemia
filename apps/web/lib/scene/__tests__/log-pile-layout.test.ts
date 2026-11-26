@@ -24,7 +24,9 @@ import {
   logStackSite,
   pileWidth,
   siteRelief,
+  stoneStackSite,
 } from '../log-pile-layout';
+import { stackRadius } from '../stone-pile-layout';
 
 const SIZE = 32;
 /** Krajina 32 × 32 políček po 15 m se středem v počátku; les ve sloupcích x ≥ 24 (svět ≥ 120 m). */
@@ -374,5 +376,81 @@ describe('logStackSite – hromada leží na rovince (Martin 14. 11. 2026: „b�
       () => 3,
     )!;
     expect(Math.hypot(level.x - anchor.x, level.z - anchor.z)).toBeLessThanOrEqual(2.5 * 1.5);
+  });
+});
+
+describe('stoneStackSite – hromada kamene na volném místě jako klády (návrh Clauda)', () => {
+  /** Políčko (x, y) ve světě: od rohu do rohu. */
+  const tile = (x: number, z: number): string =>
+    `${Math.floor((x + 240) / 15)},${Math.floor((z + 240) / 15)}`;
+  // voda na políčku 15,16 (svět x −15…0, z 0…15) – západně od staveniště
+  const surface = Uint8Array.from(landscape.surface);
+  surface[16 * SIZE + 15] = SURFACE_CODES.water;
+  const wet: Landscape = { ...landscape, surface };
+  /** Staveniště první zemnice uprostřed políčka 16,16, pole na 17,16, cesta jižně (z = −3). */
+  const site = { ...dwelling(5, 7.5, 7.5), built: false, progress: 0 };
+  const village = {
+    dwellings: [site],
+    fields: [
+      {
+        id: 1,
+        parts: [{ cell: { x: 17, y: 16 }, x: 22.5, z: 7.5, size: 15, stage: 'founding' as const }],
+      },
+    ],
+    roads: [
+      {
+        id: 1,
+        points: [
+          { x: -40, z: -3 },
+          { x: 40, z: -3 },
+        ],
+      },
+    ],
+  } as unknown as SceneVillage;
+  const anchor = { x: 7.5, z: 7.5 };
+  const radius = stackRadius(4);
+  const square = (s: { x: number; z: number; rotation: number }) =>
+    rectangleCorners(s.x, s.z, 2 * radius, 2 * radius, s.rotation);
+
+  it('kámen u staveniště nové vsi: mimo staveniště, pole, cestu a vodu; stejný vstup, stejné místo', () => {
+    const found = stoneStackSite(wet, village, empty, NO_OBSTACLE_CHANGES, anchor, radius)!;
+    expect(found).not.toBeNull();
+    expect(Math.hypot(found.x - anchor.x, found.z - anchor.z)).toBeLessThanOrEqual(STACK_REACH_M);
+    const corners = square(found);
+    const clearing = dwellingClearing('zemnice', site.position, dwellingShape(site));
+    expect(polygonsOverlap(corners, clearing)).toBe(false);
+    for (const [x, z] of [...corners, [found.x, found.z] as const]) {
+      expect(['17,16', '15,16']).not.toContain(tile(x, z));
+    }
+    // cesta: celý půdorys na jedné straně osy a aspoň 3 m od ní
+    expect(corners.every(([, z]) => Math.abs(z + 3) >= 3)).toBe(true);
+    expect(new Set(corners.map(([, z]) => z > -3)).size).toBe(1);
+    expect(stoneStackSite(wet, village, empty, NO_OBSTACLE_CHANGES, anchor, radius)).toEqual(found);
+  });
+
+  it('obsazený půdorys (hromada klád) přeskočí; bez volného místa null', () => {
+    const first = stoneStackSite(wet, village, empty, NO_OBSTACLE_CHANGES, anchor, radius)!;
+    const taken = [square(first)];
+    const next = stoneStackSite(
+      wet,
+      village,
+      empty,
+      NO_OBSTACLE_CHANGES,
+      anchor,
+      radius,
+      null,
+      taken,
+    )!;
+    expect(polygonsOverlap(square(next), taken[0]!)).toBe(false);
+    // volné předchozí místo zůstane
+    expect(stoneStackSite(wet, village, empty, NO_OBSTACLE_CHANGES, anchor, radius, first)).toEqual(
+      first,
+    );
+    // všude kolem voda – hromada místo nemá
+    const sea: Landscape = {
+      ...landscape,
+      surface: new Uint8Array(SIZE * SIZE).fill(SURFACE_CODES.water),
+    };
+    expect(stoneStackSite(sea, village, empty, NO_OBSTACLE_CHANGES, anchor, radius)).toBeNull();
   });
 });
