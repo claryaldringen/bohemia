@@ -322,6 +322,8 @@ když ves přeroste, co ji mapa uživí (Martin) – a stará ves zůstane.
 - **Chyba, ne pravidlo:** voli bez ohrady (`looseOxen`) seno nežerou – `feedHay` je nepočítá –, takže
   nová ves je krmí zadarmo, dokud nemá ohradu volů. Dřívější věta „žerou seno jako voli v ohradě“
   nebyla pravda; správně mají seno žrát (koně bez ohrady ho žerou).
+- **Hromady klád a kamene při odchodu celé vsi:** zda je osadníci berou s sebou, Martin ještě nerozhodl – dnes zůstávají ve staré vsi (hromady se nedají odnést, viz Co si vezmou). Plán 4 obchodu (26. 11. 2026) k tomu mince a zbroj přidal mezi zásoby, které odchod celé vsi bere.
+- **Nová ves na stezce** (plán 4 obchodu, 26. 11. 2026): syn i hráč smějí založit ves na mapě se stezkou bez řeky, kam jezdí cizí kupci ([obchod](markets.md), Rozhodnutí plánu 4, bod 11).
 - Celá ves při odchodu nevyráží, dokud je výprava na trhu (návrh Clauda; precedens expeditions.md –
   „Kdo je na výpravě, ze vsi neodejde“) – zboží trhu by jinak propadlo staré vsi.
 - Přesun zásob a lidí mezi vlastními vsemi a obchod s nimi (dnes ne-cíl).

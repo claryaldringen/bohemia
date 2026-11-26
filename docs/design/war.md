@@ -183,7 +183,7 @@ přítomný hráč velí obraně sám; mřížka map s přechodem okrajem.
   přijdou ke **shromaždišti**, velí jim vůdce; na tažení jedí z jeho zásob, ve vsi je živí ves,
   kde slouží (návrh Clauda).
 - **Výzbroj** – Martin 2. 11. 2026: „**Zatím jen koeficient. Reálné věci budeme řešit někdy
-  později vlastní mechanikou**“ – co muži mají, vystihuje **kovárna** (Síla).
+  později vlastní mechanikou**“ – co muži mají, vystihuje **kovárna** (Síla). Meče, kroužkové košile a helmy od cizích kupců (plán 4 obchodu, 26. 11. 2026 – [obchod](markets.md), Rozhodnutí plánu 4, bod 7) jsou zatím **jen zboží** bez účinku v boji; jejich užití přijde vlastní mechanikou s tímto návrhem.
 - **Doma:** ves bez mužů ztratí jejich práci úměrně (Martin 18. 10.).
 
 ## Velení a příprava tažení

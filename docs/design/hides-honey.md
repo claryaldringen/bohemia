@@ -112,6 +112,7 @@ jsou to kalorie jako každé jiné.“
 
 - Nové zboží ves má, proto ho smí měnit na trhu (markets.md; smyšlení sousedé zanikli 23. 11. 2026).
   Ceny v obchodní stupnici – určí implementace podle dnešních cen surovin.
+- **Kupci na stezkách** (plán 4 obchodu, 26. 11. 2026 – markets.md, Rozhodnutí plánu 4, body 5 a 6) kupují med, vosk a kožešiny nad vlastní potřebu vsi za mince: ves nabízí celý vosk, kožešiny nad roční potřebu domácností a med nad roční příděl, a to jen s obilím nad dva roky zásob (jinak je med jídlo). Tím je nabízí i v zápočtu ostatním vsím.
 - Dávky vazalů v novém zboží později.
 
 ## Ve scéně

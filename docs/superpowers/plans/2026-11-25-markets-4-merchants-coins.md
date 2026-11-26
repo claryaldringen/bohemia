@@ -914,6 +914,9 @@ export function sonCellNear(
 11. **Při odchodu části lidí nebo syna zůstávají mince a zbroj v mateřské vsi**, kde se žije dál; odejdou-li všichni, berou si úplně vše (Martin 25. 11. 2026; Rozhodnutí 9).
 12. **Správce nakládá roční výpravu od nejdražšího zboží na kg** (dosud v pořadí zboží, takže ji celou zaplnilo obilí) a seznam zkrátí na to, co lidé a vozy unesou domů – jinak by NPC vsi kupcům na stezce nikdy nepřivezly med, vosk ani kožešiny (Rozhodnutí 4).
 13. **V den, kdy na trhu nikdo kromě kupců nestojí, se hýbou jen ceny zboží kupců, a kupci zdražují jen to, co je na trhu ke koupi** (návrh Clauda; Rozhodnutí 3).
+14. **Výsledek ověření cen zbroje (26. 11. 2026, úloha 15):** ves T u stezky s medem, voskem a kožešinami koupila objednaný meč druhý den kupců (6. 6. 523) za 120 mincí, hladina za tři roky nejvýš 1,09; Vlkov s uměle přidanou zastávkou (kupcům skoro nic neprodá) má po 10 letech 1 085 mincí a hladinu 2,9 – meč tam stojí ≈ 350 mincí. Hladina roste hlavně tam, kam kupci vozí mince a nemají co koupit (Rozhodnutí 3 – záměr, inflace). Vlkov neleží na stezce – kupce uvidí až vsi synů na mapách stezek (bod 8).
+15. **Výprava vesničanů v mincovní fázi** smí své zbytky prodat za mince (jdou domů), ale nekoupí nic; kupec na trhu zaniklé nebo opuštěné vsi odjede se vším; kronika ohlásí příjezd kupců jen poprvé v herním roce (upozornění za každý den); úklid pošty maže řádek jen když je výprava u odesílatele vyřízená (`VillageDigest.openTrips`), `stranded-people` nikdy; ves na cestě není v okolí vsí a výprava, jejíž příjezd hostitel přeskočil, se vrátí domů se vším (oprava chyby plánu 3); mince ve výpravě po 10.
+16. **Odchod celé vsi** (oprava `fix/leave-everything`, 25. 11. 2026) odejde až po návratu výpravy z trhu; zůstanou stavby, pole, sad, hřbitov a hromady klád a kamene (zda brát i klády a kámen, Martin nevyjádřil – migration.md, Otevřené).
 
 ## Otázky na Martina
 
