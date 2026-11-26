@@ -302,14 +302,15 @@ describe('otroci ve dvorci (markets.md – Pravidla 7)', () => {
   const count = (html: string): string | undefined =>
     /data-testid="manor-slaves"[^>]*>([^<]*)</.exec(html)?.[1];
 
-  it('ikona s počtem a popiskem, český plurál pokřtěných', () => {
+  it('ikona s počtem a popiskem, český plurál pokřtěných („ho“ jen u jednoho)', () => {
     const html = render({ all: 3, baptized: 1 });
     expect(html).toContain('/icons/resources/slave.png');
     expect(count(html)).toBe('3');
-    expect(html).toContain('>Otroci – 3, z toho 1 pokřtěný – prodat je nejde<');
+    expect(html).toContain('>Otroci – 3, z toho 1 pokřtěný – prodat ho nejde<');
     expect(render({ all: 5, baptized: 2 })).toContain(
       'Otroci – 5, z toho 2 pokřtění – prodat je nejde',
     );
+    expect(render({ all: 5, baptized: 4 })).toContain('z toho 4 pokřtění – prodat je nejde');
     expect(render({ all: 9, baptized: 5 })).toContain('z toho 5 pokřtěných – prodat je nejde');
     expect(render({ all: 4, baptized: 0 })).toContain('>Otroci – 4<');
   });

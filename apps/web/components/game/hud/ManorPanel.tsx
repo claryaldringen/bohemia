@@ -198,7 +198,7 @@ function SlavesStat({ slaves }: { slaves: { all: number; baptized: number } }): 
   const { all, baptized } = slaves;
   const name =
     baptized > 0
-      ? `Otroci – ${all}, z toho ${baptized} ${plural(baptized, 'pokřtěný', 'pokřtění', 'pokřtěných')} – prodat je nejde`
+      ? `Otroci – ${all}, z toho ${baptized} ${plural(baptized, 'pokřtěný', 'pokřtění', 'pokřtěných')} – prodat ${baptized === 1 ? 'ho' : 'je'} nejde`
       : `Otroci – ${all}`;
   return (
     <Stat icon="slave" name={name} testId="manor-slaves">

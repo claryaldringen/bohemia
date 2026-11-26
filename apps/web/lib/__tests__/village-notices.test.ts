@@ -1135,12 +1135,20 @@ describe('odvedení z tažení (markets.md – Rozhodnutí plánu 5, bod 1)', ()
       chronicle: [{ day: 1002, kind: 'led-settled', slaves, free, dateLabel: '', text: '' }],
     });
 
-  it('otroci s ikonou otroka, jen křesťané bez ikony', () => {
-    expect(newNotices(view({ dayIndex: 1000 }), after(2, 1))).toEqual([
+  it('otroci s ikonou otroka (i s křesťany celá věta), jen křesťané bez ikony', () => {
+    expect(newNotices(view({ dayIndex: 1000 }), after(2, 0))).toEqual([
       {
         kind: 'led-settled',
         tone: 'info',
         text: 'Z tažení přivedli otroky',
+        icon: '/icons/resources/slave.png',
+      },
+    ]);
+    expect(newNotices(view({ dayIndex: 1000 }), after(2, 1))).toEqual([
+      {
+        kind: 'led-settled',
+        tone: 'info',
+        text: 'Z tažení přivedli otroky a křesťany',
         icon: '/icons/resources/slave.png',
       },
     ]);

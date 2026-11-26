@@ -257,7 +257,7 @@ test('otroci – počet ve dvorci, prodej v panelu Trh a nastavení po obnovení
   const panel = await openManor(page, spots.dwelling);
   await expect(panel.getByTestId('manor-slaves')).toHaveText('2', { timeout: 30_000 });
   await expect(panel.locator('[role="tooltip"]').filter({ hasText: 'Otroci' })).toHaveText(
-    'Otroci – 2, z toho 1 pokřtěný – prodat je nejde',
+    'Otroci – 2, z toho 1 pokřtěný – prodat ho nejde',
   );
 
   await panel.getByTestId('manor-market').click();

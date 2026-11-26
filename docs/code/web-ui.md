@@ -1616,7 +1616,7 @@ jsou v `lib/premium-view.ts` (`PREMIUM_TEXTS`, `premiumIntroNotice`); portréty 
   (pokřtěný má i `christian`), panel osoby ukáže odznak `selection-person-slave` s ikonou `slave` a popiskem
   „Otrok“ / „Otrok – pokřtěný, prodat ho nejde“. Dvorec: `VillageManor.slaves { all, baptized }` (`slavesField`
   v `manor-view.ts`, jeden průchod lidmi, bez otroků chybí) a `SlavesStat` v `ManorUpgrades` (`manor-slaves`,
-  popisek „Otroci – 5, z toho 2 pokřtění – prodat je nejde“). Kronika a upozornění jdou `goodsText` a `NEWCOMER_TEXTS`.
+  popisek „Otroci – 5, z toho 2 pokřtění – prodat je nejde“, u jednoho „prodat ho nejde“). Kronika a upozornění jdou `goodsText` a `NEWCOMER_TEXTS`.
 - **Štěstí:** popisek v liště `HappinessTooltip` (`hud/TopBar.tsx`) – pod „Štěstí“ řádek „Křesťané
   N %“ (kříž víry, `happiness-christians`) a „Pohané – zničená posvátná místa −N“ (ikona háje,
   `happiness-desecration`), každý jen nad nulou (`VillageHappiness.christianShare` / `desecration`

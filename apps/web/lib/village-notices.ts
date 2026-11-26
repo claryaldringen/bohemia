@@ -111,7 +111,7 @@ export type NoticeKind =
   | 'trade-returned'
   /** Výprava na trh se vrátila (markets.md – Pravidla 3). */
   | 'market-returned'
-  /** Z tažení přivedli otroky nebo křesťany (markets.md – Rozhodnutí plánu 5, bod 1). */
+  /** Z tažení přivedli otroky, křesťany, nebo obojí (markets.md – Rozhodnutí plánu 5, bod 1). */
   | 'led-settled'
   /** Na trh vlastní vsi přijeli cizí kupci – za každý příjezd (markets.md – Rozhodnutí plánu 4, bod 5). */
   | 'merchants-arrived'
@@ -606,13 +606,14 @@ const CHRONICLE_NOTICES: Partial<
     tone: 'info',
     text: 'Výprava se vrátila z trhu',
   }),
-  // odvedení z tažení – otroci (s ikonou otroka) nebo svobodní křesťané (markets.md – plán 5, bod 1)
+  // odvedení z tažení – otroci (s ikonou otroka), svobodní křesťané, nebo obojí (markets.md – plán 5,
+  // bod 1)
   'led-settled': (entry) =>
     (entry.slaves ?? 0) > 0
       ? {
           kind: 'led-settled',
           tone: 'info',
-          text: 'Z tažení přivedli otroky',
+          text: `Z tažení přivedli otroky${(entry.free ?? 0) > 0 ? ' a křesťany' : ''}`,
           icon: '/icons/resources/slave.png',
         }
       : { kind: 'led-settled', tone: 'info', text: 'Z tažení přivedli křesťany' },
