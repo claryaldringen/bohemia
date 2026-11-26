@@ -391,6 +391,35 @@ describe('mincovní fáze – lidé a zakázky', () => {
     expect(s.people.length).toBe(h.people.length - offer.men! - offer.women!);
   });
 
+  it('rezervovaný svobodný otrok se v mincovní fázi nenabídne jako muž ani žena (kupující ho nezaplatí)', () => {
+    const base = spareLaborVillage();
+    const dwellingId = base.people.find((p) => p.sex === 'male')!.dwellingId;
+    const withSlaves = structuredClone(base);
+    // dva svobodní dospělí otroci-pohané ve stejném domě, oba v nabídce hráče (rezervovaní)
+    const bornDay = D - Math.ceil(25.5 * 365.25);
+    withSlaves.people.push(
+      { id: 900, bornDay, dwellingId, sex: 'male', slave: true },
+      { id: 901, bornDay, dwellingId, sex: 'female', slave: true },
+    );
+    withSlaves.slavesForSale = 2;
+    const run = (village: VillageState): { paid: number | undefined; result: MarketResult } => {
+      const s = structuredClone(village);
+      // výprava za obilí koupí jednoho z otroků v zápočtu, pak mincemi muže a ženy
+      joinMarket(s, D, trip('market:b:1', { grain: 600 }, { slaves: 1 }));
+      joinMarket(s, D, trip('market:a:1', { coins: 1_000 }, { men: 9, women: 9 }));
+      marketDay(s, D);
+      const result = resultOf(s, 'market:a:1');
+      return { paid: result.coinsPaid, result };
+    };
+    const without = run(base);
+    const reserved = run(withSlaves);
+    // nabídka mužů a žen i platba jsou stejné jako bez otroků – otroci jsou stranou
+    expect(marketStance(withSlaves, D).offer.men).toBe(marketStance(base, D).offer.men);
+    expect(reserved.result.bought.men).toBe(without.result.bought.men);
+    expect(reserved.result.bought.women).toBe(without.result.bought.women);
+    expect(reserved.paid).toBe(without.paid);
+  });
+
   it('nákup za mince zmenší zakázku vsi výpravy', () => {
     const s = potteryVillage();
     const order: CraftOrder = {

@@ -198,8 +198,9 @@ export function slaveFamilyHome(parts: number): VillageState {
 
 /**
  * Denní invariant manželství (markets.md – Rozhodnutí plánu 5, bod 6; Úlohy 4 a 9): id lidí vsi,
- * jejichž `spouseId` nemíří na člověka ve vsi nebo není vzájemné. Výjimkou je vedlejší manželka muže
- * rodu – u muže `line` je `spouseId` jeho hlavní manželka (lord.md – Manželky). Prázdné = vše v pořádku.
+ * jejichž `spouseId` nemíří na člověka ve vsi nebo není vzájemné. Výjimkou je jen vedlejší manželka muže
+ * rodu: muž `line`, jehož `spouseId` míří na jinou (hlavní) manželku (lord.md – Manželky). Prázdné = vše
+ * v pořádku.
  */
 export function oneSidedSpouses(state: Pick<VillageState, 'people'>): number[] {
   const byId = new Map(state.people.map((p) => [p.id, p]));
@@ -209,7 +210,12 @@ export function oneSidedSpouses(state: Pick<VillageState, 'people'>): number[] {
       const spouse = byId.get(p.spouseId);
       if (spouse === undefined) return true;
       if (spouse.spouseId === p.id) return false;
-      return !(p.sex === 'female' && spouse.sex === 'male' && spouse.line === true);
+      const secondary =
+        p.sex === 'female' &&
+        spouse.sex === 'male' &&
+        spouse.line === true &&
+        spouse.spouseId !== undefined;
+      return !secondary;
     })
     .map((p) => p.id);
 }

@@ -472,6 +472,73 @@ describe('prodej otroka rozvede manželství jako smrt (markets.md – Rozhodnut
     expect(oneSidedSpouses(h)).toEqual([]);
   });
 
+  it('oneSidedSpouses: výjimka jen pro vedlejší manželku, jiné jednostranné manželství najde', () => {
+    const s = slaveHome();
+    // vedlejší manželka 13 (otrokyně) muže rodu 1, jehož hlavní manželka je 19 – v pořádku
+    const main = (id: number): Person => ({
+      id,
+      bornDay: D - Math.ceil(30.5 * 365.25),
+      dwellingId: person(s, 1)!.dwellingId,
+      sex: 'female',
+      spouseId: 1,
+    });
+    s.people.push(main(19));
+    person(s, 1)!.spouseId = 19;
+    expect(oneSidedSpouses(s)).toEqual([]);
+    // žena se `spouseId` na muže rodu bez hlavní manželky, ten míří na nikoho
+    delete person(s, 1)!.spouseId;
+    expect(oneSidedSpouses(s)).toEqual([13, 19]);
+    // žena se `spouseId` na muže bez `line`, který ukazuje jinam
+    const t = slaveHome();
+    t.people.push(main(20));
+    person(t, 20)!.spouseId = 15;
+    expect(oneSidedSpouses(t)).toEqual([20]);
+  });
+
+  it('prodej vedlejší manželky: vrátí se bez manžela, hlavní manželství zůstane vzájemné', () => {
+    const h = slaveHome();
+    h.people.push({
+      id: 19,
+      bornDay: D - Math.ceil(30.5 * 365.25),
+      dwellingId: person(h, 1)!.dwellingId,
+      sex: 'female',
+      spouseId: 1,
+    });
+    person(h, 1)!.spouseId = 19;
+    expect(oneSidedSpouses(h)).toEqual([]);
+    const wife = person(h, 13)!;
+    const sold = sendPeople(
+      h,
+      [{ kind: 'slave', dwellingId: wife.dwellingId, people: [wife] }],
+      'E',
+    );
+    expect(sold[0]!.people[0]).not.toHaveProperty('spouseId');
+    expect(person(h, 1)!.spouseId).toBe(19);
+    expect(oneSidedSpouses(h)).toEqual([]);
+    receiveStranded(h, D + 3, {
+      key: 'k',
+      people: [],
+      own: sold.map((g) => ({ ...g, fromHost: true as const })),
+      from: { villageId: 'c', villageName: 'Dubí', direction: 'E' },
+    });
+    expect(person(h, 13)).toMatchObject({ slave: true });
+    expect(person(h, 13)).not.toHaveProperty('spouseId');
+    expect(oneSidedSpouses(h)).toEqual([]);
+  });
+
+  it('sendPeople: muž ze skupiny `men` si `spouseId` mimo skupinu podrží (mazání je jen u otroků)', () => {
+    const s = familyHome();
+    // muž z rodiny (62 ∞ 63) odchází sám jako skupina `men` – žena 63 ve skupině není
+    const husband = person(s, 62)!;
+    const sent = sendPeople(
+      s,
+      [{ kind: 'man', dwellingId: husband.dwellingId, people: [husband] }],
+      'E',
+    );
+    expect(sent[0]!.good).toBe('men');
+    expect(sent[0]!.people[0]!.spouseId).toBe(63);
+  });
+
   it('rodina a svobodní beze změny: manželé v rodině si `spouseId` nechají', () => {
     const s = familyHome();
     const groups = emigrantGroups(s, D, { ...NO_PEOPLE, families: 1, men: 1 });
