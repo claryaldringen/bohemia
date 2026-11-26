@@ -213,10 +213,10 @@ describe('leaveVillage – celá ves bere úplně vše (migration.md – Co si v
     if (!left.ok) throw new Error(left.reason);
     const old = left.from.state;
     const onTheWay = left.to.state;
-    // ve staré vsi nezbylo nic než stavby a hromada klád
-    expect(old).toMatchObject({ abandonedDay: today, storesKg: 0, cheeseKg: 0 });
-    expect(old.woodLogs).toBe(before.woodLogs);
-    expect(old.logStacks).toEqual(before.logStacks);
+    // ve staré vsi nezbylo nic než stavby – ani klády (Martin 26. 11. 2026)
+    expect(old).toMatchObject({ abandonedDay: today, storesKg: 0, cheeseKg: 0, woodLogs: 0 });
+    expect(old.logStacks).toBeUndefined();
+    expect(onTheWay.logStacks).toBeUndefined();
     expect(old.crafts).toBeUndefined();
     expect(old.wares).toBeUndefined();
     expect(old.carts).toBeUndefined();
@@ -235,6 +235,7 @@ describe('leaveVillage – celá ves bere úplně vše (migration.md – Co si v
       'hay',
       'looseOxen',
       'carts',
+      'woodLogs',
     ] as const) {
       expect([key, onTheWay[key]]).toEqual([key, before[key]]);
     }
@@ -767,5 +768,111 @@ describe('leaveVillage – mince a zbroj (markets.md – Rozhodnutí plánu 4, b
       expect(state).not.toHaveProperty('arms');
     }
     expect(await coinsOfWorld(deps)).toBe(40);
+  });
+});
+
+describe('leaveVillage – klády a kámen (migration.md – Co si vezmou; Martin 26. 11. 2026)', () => {
+  /** 30 klád a 4 m³ kamene na hromadách ve vsi – jedna hromada klád u cesty. */
+  function heaps(deps: { villages: InMemoryVillages }, villageId: string): void {
+    deps.villages.edit(villageId, (state) => {
+      state.woodLogs = 30;
+      state.logStacks = [
+        { id: 9001, fieldId: 0, x: 20, z: 20, logs: 12 },
+        { id: 9002, fieldId: 0, x: 40, z: 30, road: { x: 40, z: 28 }, logs: 18 },
+      ];
+      state.stoneM3 = 4;
+      state.stoneStacks = [{ id: 1, x: 22, z: 24, m3: 4 }];
+      state.nextStoneStackId = 2;
+    });
+  }
+
+  /** Klády a kámen stavu: klády, hromady klád, kámen, hromady kamene. */
+  const heapsOf = (s: VillageState): unknown[] => [
+    s.woodLogs ?? 0,
+    s.logStacks,
+    s.stoneM3 ?? 0,
+    s.stoneStacks,
+  ];
+
+  it.each(['hráč (settleJourney)', 'správce (stewardArrival)'] as const)(
+    'odejdou všichni a ves založí %s: klády a kámen jdou s nimi a v nové vsi leží na hromadách',
+    async (founder) => {
+      const { deps, villageId, sonHome } = await player();
+      heaps(deps, villageId);
+      const left = await leaveVillage(deps, {
+        playerId: PLAYER,
+        villageId,
+        today: TODAY + 1,
+        dwellingIds: [1, sonHome],
+        destination: { kind: 'map', direction: 'E' },
+      });
+      if (!left.ok) throw new Error(left.reason);
+      expect(heapsOf(left.from.state)).toEqual([0, undefined, 0, undefined]);
+      // na cestě je nesou lidé – bez hromad (ani po načtení s krajinou nové mapy); do odchodu
+      // klády hnily ve vsi
+      const carried = heapsOf(left.to.state);
+      expect(carried[0]).toBeCloseTo(30, 1);
+      expect(carried.slice(1)).toEqual([undefined, 4, undefined]);
+      const arrival = left.to.state.journey!.arrivalDay;
+      const base = { playerId: PLAYER, villageId: left.to.id };
+      if (founder.startsWith('správce')) {
+        const on = await setSteward(deps, { ...base, today: TODAY + 1, landscape, on: true });
+        expect(on.ok).toBe(true);
+        await loadVillage(deps, { villageId: left.to.id, today: arrival, landscape });
+      } else {
+        const waiting = await loadVillage(deps, {
+          villageId: left.to.id,
+          today: arrival,
+          landscape,
+        });
+        expect(heapsOf(waiting!.state)).toEqual(carried);
+        const settled = await settleJourney(deps, { ...base, today: arrival, dwelling: at(0, 0) });
+        if (!settled.ok) throw new Error(settled.reason);
+      }
+      const fresh = (await deps.villages.find(left.to.id))!.state;
+      expect(isVillageTravelling(fresh)).toBe(false);
+      const site = fresh.constructions.find((c) => c.kind === 'dwelling')!;
+      // první zemnice vzala celé klády z hromady (forest.md – Stavby a kácení), nic nekácí
+      expect(site.wood).toMatchObject({ fromPile: 7, fell: [] });
+      // klády hromad = zásoba vsi; s kládami zemnice 30 (bez kácení na vyklízené ploše) – den
+      // založení už klády hnijí ve vsi
+      const stacked = (fresh.logStacks ?? []).reduce((sum, st) => sum + st.logs, 0);
+      expect(stacked).toBeCloseTo(fresh.woodLogs ?? 0, 9);
+      expect((fresh.woodLogs ?? 0) + site.wood!.fromPile).toBeCloseTo(30, 1);
+      expect(fresh.stoneM3).toBe(4);
+      expect(fresh.stoneStacks).toHaveLength(1);
+      expect(fresh.stoneStacks![0]!.m3).toBe(4);
+      const stored = (await deps.villages.find(villageId))!.state;
+      expect(heapsOf(stored)).toEqual([0, undefined, 0, undefined]);
+    },
+  );
+
+  it('odejde část domácností nebo syn: klády a kámen zůstanou celé ve staré vsi', async () => {
+    for (const lord of [false, true]) {
+      const { deps, villageId, sonHome, sonId } = await lordPlayer();
+      heaps(deps, villageId);
+      const left = await leaveVillage(deps, {
+        playerId: PLAYER,
+        villageId,
+        today: TODAY + 1,
+        ...(lord ? { sonId } : { dwellingIds: [sonHome] }),
+        destination: { kind: 'map', direction: 'N' },
+      });
+      if (!left.ok) throw new Error(left.reason);
+      const old = left.from.state;
+      expect(old.woodLogs).toBeCloseTo(30, 1);
+      expect(old.logStacks!.map((st) => st.id)).toEqual([9001, 9002]);
+      expect([old.stoneM3, old.stoneStacks]).toEqual([4, [{ id: 1, x: 22, z: 24, m3: 4 }]]);
+      expect(heapsOf(left.to.state)).toEqual([0, undefined, 0, undefined]);
+      const settled = await settleJourney(deps, {
+        playerId: PLAYER,
+        villageId: left.to.id,
+        today: left.to.state.journey!.arrivalDay,
+        dwelling: at(0, 0),
+      });
+      if (!settled.ok) throw new Error(settled.reason);
+      expect(settled.village.state.stoneM3 ?? 0).toBe(0);
+      expect(settled.village.state.stoneStacks).toBeUndefined();
+    }
   });
 });

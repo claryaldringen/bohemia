@@ -40,7 +40,7 @@ import { orchardPlantingCost, villageOrchards } from '../buildings/orchard';
 import { copyPlot } from '../buildings/plots';
 import type { Walk } from '../paths/walking';
 import { ageGroup } from '../people/people';
-import { addCarriedStocks } from '../people/belongings';
+import { addCarriedStocks, addHeaps } from '../people/belongings';
 import {
   faithOfSettlers,
   settlersCarts,
@@ -767,8 +767,10 @@ function settlersBelongings(
   // ve vsi
   const horses = settlersHorses(settlers);
   if (horses.length > 0) state.looseHorses = horses.map((h) => ({ ...h, id: state.nextId++ }));
-  // celá ves přinesla úplně vše (migration.md – Co si vezmou)
+  // celá ves přinesla úplně vše (migration.md – Co si vezmou); klády a kámen na hromadu u prvního
+  // staveniště – před dřevem první zemnice, ta bere nejdřív celé klády z hromady (forest.md)
   if (settlers.whole) addCarriedStocks(state, settlers.whole.stocks);
+  if (settlers.whole?.heaps) addHeaps(state, settlers.whole.heaps);
   // kronika nové vsi vedené synem vojvody: „Vojvodou je Bořivoj“ (lord.md – Dělení vsi, Nová ves)
   if (settlers.lordId !== undefined && state.dynasty?.lordId === settlers.lordId) {
     const lord = people.find((p) => p.id === settlers.lordId);

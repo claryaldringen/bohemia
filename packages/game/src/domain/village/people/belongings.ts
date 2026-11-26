@@ -1,15 +1,20 @@
 import { cloneData } from '../core/clone';
 import { villageCarts } from '../crafts/carts';
+import { addLogs, woodLogs } from '../forest/wood';
+import { addStone, stoneOnHand } from '../fortification/state/stone';
 import { horseKind, villageHorses } from '../livestock/horses';
 import { isTrained, oxenToEdit, villageOxen, villagePens } from '../livestock/oxen';
 import { penSpecies } from '../livestock/pens';
 import type { Cart, HayState, Horse, Ox, VillageState, WaresState } from '../types';
 
 // Co si odnese celá ves (migration.md – Co si vezmou; Martin 25. 11. 2026: „Pokud se lidéí někam
-// stěhují, berou si úplně vše.“): zásoby a vybavení, voli, koně a vozy – jídlo a osivo počítá
-// departure.ts. Zásoby jsou jeden seznam `CARRIED_STOCKS`: nové zboží vsi (mince, zbroj) stačí
-// přidat do něj, osadníci ho pak nesou přes celou cestu až do nové vsi. Co nejde odnést, zůstane
-// (návrh Clauda): stavby, pole, hromady klád a kamene, surovina u dílen a v milířích, med v brtích.
+// stěhují, berou si úplně vše.“): zásoby a vybavení, voli, koně, vozy, klády a kámen (Martin
+// 26. 11. 2026: „ok“) – jídlo a osivo počítá departure.ts. Zásoby jsou jeden seznam
+// `CARRIED_STOCKS`: nové zboží vsi (mince, zbroj) stačí přidat do něj, osadníci ho pak nesou přes
+// celou cestu až do nové vsi. Klády a kámen jdou bez hromad (`takeHeaps`) – místa hromad patří staré
+// vsi; v nové vsi se složí jako klády a kámen, které přišly odjinud (`addHeaps`). Co nejde odnést,
+// zůstane (návrh Clauda): stavby i s materiálem, který už mají, pole, surovina u dílen a v milířích,
+// med v brtích.
 
 /**
  * Zásoby a vybavení vsi, které si celá ves odnese – části stavu mimo jídlo a osivo (`Settlers.food`,
@@ -107,6 +112,53 @@ export function carriedStocksOf(state: VillageState): CarriedStocks {
 /** Přinesené zásoby a vybavení do stavu nové vsi (mutuje stav; zásoby zkopíruje). */
 export function addCarriedStocks(state: VillageState, stocks: CarriedStocks): void {
   Object.assign(state, cloneData(stocks));
+}
+
+/** Klády a kámen celé vsi bez hromad (Martin 26. 11. 2026); chybí = nic. */
+export interface CarriedHeaps {
+  /** Klády (`woodLogs` – hnijí, proto i neceločíselné). */
+  logs?: number;
+  /** Kámen v m³ (`stoneM3`). */
+  stoneM3?: number;
+}
+
+/** Volné klády a kámen vsi – celá zásoba bez ohledu na hromady (kopie, stav se nemění). */
+export function heapsOf(state: Pick<VillageState, 'woodLogs' | 'stoneM3'>): CarriedHeaps {
+  const logs = woodLogs(state);
+  const stoneM3 = stoneOnHand(state);
+  return { ...(logs > 0 ? { logs } : {}), ...(stoneM3 > 0 ? { stoneM3 } : {}) };
+}
+
+/**
+ * Celá ves vezme volné klády a kámen (mutuje stav): hromady ve staré vsi zmizí. Stavby si materiál,
+ * který už mají (dřevo a kámen rozestavěných staveb), nechají – odchází jen volná zásoba.
+ */
+export function takeHeaps(state: VillageState): CarriedHeaps {
+  const heaps = heapsOf(state);
+  if (state.woodLogs !== undefined) state.woodLogs = 0;
+  delete state.logStacks;
+  delete state.stoneM3;
+  delete state.stoneStacks;
+  return heaps;
+}
+
+/**
+ * Klády a kámen na cestě nesou lidé – ve vsi na cestě bez hromad (mutuje stav). Ves na cestě se
+ * nesimuluje, takže klády na cestě nehnijí – jako ostatní zásoby osadníků.
+ */
+export function carryHeaps(state: VillageState, heaps: CarriedHeaps): void {
+  if (heaps.logs) state.woodLogs = heaps.logs;
+  if (heaps.stoneM3) state.stoneM3 = heaps.stoneM3;
+}
+
+/**
+ * Přinesené klády a kámen do nové vsi (mutuje stav): hromada klád a hromada kamene tam, kam se
+ * skládá, co přišlo odjinud (`addLogs`, `addStone` bez místa – u cesty nejblíž dvorci, bez něj
+ * u prvního staveniště obydlí; volné místo pro klády dohledá scéna).
+ */
+export function addHeaps(state: VillageState, heaps: CarriedHeaps): void {
+  addLogs(state, heaps.logs ?? 0, null);
+  addStone(state, heaps.stoneM3 ?? 0, null);
 }
 
 /** Kolik volů ves má – v ohradách i bez ohrady, i telata ve výcviku. */

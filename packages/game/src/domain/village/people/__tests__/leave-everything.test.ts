@@ -12,6 +12,9 @@ import { TRADE_GOODS, isHorseGood, isLivestockGood, isPeopleGood } from '../../t
 import { addGood, villageGoodStock } from '../../trade/trade';
 import type { Horse, Ox, Pen, PenSpecies, Person, VillageState } from '../../types';
 import { withBuiltFirstDwelling } from '../../__tests__/village-fixtures';
+import { logArrivalPoint, logPilePlace } from '../../forest/log-piles';
+import { woodLogs } from '../../forest/wood';
+import { stoneOnHand } from '../../fortification/state/stone';
 import { CARRIED_STOCKS, takeCarriedStocks } from '../belongings';
 import {
   departVillage,
@@ -30,9 +33,9 @@ import { withPeopleNames } from '../people-names';
 import { ageGroup } from '../people';
 
 // Odchod celé vsi bere úplně vše (migration.md – Co si vezmou; Martin 25. 11. 2026: „Pokud se lidéí
-// někam stěhují, berou si úplně vše.“): zásoby, vybavení, stáda, voli, koně a vozy jdou s lidmi, ve
-// staré vsi zůstane jen to, co nejde odnést (stavby, pole, hromady klád a kamene). Nic nezmizí
-// a nic nevznikne.
+// někam stěhují, berou si úplně vše.“): zásoby, vybavení, stáda, voli, koně, vozy, klády a kámen
+// (Martin 26. 11. 2026: „ok“) jdou s lidmi, ve staré vsi zůstane jen to, co nejde odnést (stavby,
+// pole). Nic nezmizí a nic nevznikne.
 
 const DAY = dayIndexOf({ year: 600, month: 4, day: 10 });
 const YEAR = 365.25;
@@ -319,15 +322,15 @@ describe('odchod celé vsi (migration.md – Co si vezmou)', () => {
     expect(whole.crafts).toMatchObject({ ironBarsKg: 18.5, bloomKg: 6 });
   });
 
-  it('ve staré vsi zůstanou stavby, pole a hromady klád a kamene; jámy jsou prázdné', () => {
+  it('ve staré vsi zůstanou stavby a pole – klády ani kámen ne; jámy jsou prázdné', () => {
     const s = richVillage();
     const { state: old } = departVillage(s, DAY, households(s), 'E');
     expect(old.dwellings).toEqual(s.dwellings);
     expect(old.parts).toEqual(s.parts);
-    expect(old.woodLogs).toBe(14);
-    expect(old.logStacks).toEqual(s.logStacks);
-    expect(old.stoneM3).toBe(3);
-    expect(old.stoneStacks).toEqual(s.stoneStacks);
+    expect(woodLogs(old)).toBe(0);
+    expect(old.logStacks).toBeUndefined();
+    expect(stoneOnHand(old)).toBe(0);
+    expect(old.stoneStacks).toBeUndefined();
     expect(old.pens!.map((p) => p.id)).toEqual([900, 901, 902, 903]);
     // ohrada koní bez koní nedostane zdarma další (`withHorsePenStock` – prázdné pole)
     expect(old.pens![2]!.horses).toEqual([]);
@@ -393,6 +396,15 @@ describe('odchod celé vsi (migration.md – Co si vezmou)', () => {
     expect(fresh.crafts).toBeUndefined();
     expect(fresh.toolEquipmentKg).toBeUndefined();
     expect(fresh.slaughterMeatKg).toBe(0);
+    // klády a kámen zůstanou ve vsi, kde se žije dál (Martin 26. 11. 2026 – jen celá ves)
+    expect(old.woodLogs).toBe(14);
+    expect(old.logStacks).toEqual(s.logStacks);
+    expect(old.stoneM3).toBe(3);
+    expect(old.stoneStacks).toEqual(s.stoneStacks);
+    expect(woodLogs(fresh)).toBe(0);
+    expect(fresh.logStacks).toBeUndefined();
+    expect(stoneOnHand(fresh)).toBe(0);
+    expect(fresh.stoneStacks).toBeUndefined();
   });
 
   it('ves na cestě z doby před opravou zůstane, jak je – nic se nepřidá', () => {
@@ -545,13 +557,12 @@ describe('zásoby k odnesení – jeden seznam (CARRIED_STOCKS)', () => {
     const { state: old, settlers } = departVillage(s, DAY, households(s));
     const fresh = settle(settlers, DAY);
     for (const good of goods) {
-      // hromady klád a kamene nejde odnést
-      const heap = good === 'logs' || good === 'stone';
-      const left = villageGoodStock(old, good, DAY);
-      expect([good, left]).toEqual([good, heap ? before.get(good) : 0]);
+      expect([good, villageGoodStock(old, good, DAY)]).toEqual([good, 0]);
       // zvířata bez ohrady na trh nejdou – ta hlídá součet výš
-      if (heap || isLivestockGood(good)) continue;
-      expect([good, villageGoodStock(fresh, good, DAY)]).toEqual([good, before.get(good)]);
+      if (isLivestockGood(good)) continue;
+      // klády: první zemnice nové vsi je vzala z hromady (forest.md – nejdřív celé klády z hromady)
+      const built = good === 'logs' ? fresh.constructions[0]!.wood!.fromPile : 0;
+      expect([good, villageGoodStock(fresh, good, DAY) + built]).toEqual([good, before.get(good)]);
     }
   });
 
@@ -638,6 +649,74 @@ describe('ves na útěku odejde celá', () => {
   });
 });
 
+/** Bohatá ves s 30 kládami a 4 m³ kamene na hromadách – jedna z hromad u cesty. */
+function heapVillage(): VillageState {
+  const s = richVillage();
+  s.woodLogs = 30;
+  s.logStacks = [
+    { id: 960, fieldId: 0, x: 5, z: 5, logs: 12 },
+    { id: 961, fieldId: 0, x: 80, z: 30, road: { x: 80, z: 28 }, logs: 18 },
+  ];
+  s.stoneM3 = 4;
+  s.stoneStacks = [
+    { id: 1, x: 9, z: 9, m3: 1.5 },
+    { id: 2, x: 82, z: 31, road: { x: 82, z: 28 }, m3: 2.5 },
+  ];
+  s.nextStoneStackId = 3;
+  return s;
+}
+
+/** Klády nové vsi i s těmi, které z hromady vzala první zemnice. */
+const logsWithSite = (v: VillageState): number =>
+  woodLogs(v) + v.constructions.reduce((sum, c) => sum + (c.wood?.fromPile ?? 0), 0);
+
+/** Hromady nové vsi leží, kam se skládá, co přišlo odjinud – u prvního staveniště (bez cest). */
+function expectHeapsAtArrival(fresh: VillageState): void {
+  const place = logPilePlace(fresh, logArrivalPoint(fresh));
+  const site = fresh.constructions[0]!.position!;
+  expect(place).toEqual({ x: site.x, z: site.z });
+  expect(fresh.logStacks).toEqual([{ id: expect.any(Number), fieldId: 0, ...place, logs: 23 }]);
+  expect(fresh.stoneStacks).toEqual([{ id: 1, ...place, m3: 4 }]);
+}
+
+describe('klády a kámen celé vsi (migration.md – Co si vezmou; Martin 26. 11. 2026)', () => {
+  it('odejdou s lidmi: stará ves nemá nic, nová hromadu klád a kamene u prvního staveniště', () => {
+    const s = heapVillage();
+    const { state: old, settlers } = departVillage(s, DAY, households(s), 'E');
+    expect([woodLogs(old), old.logStacks, stoneOnHand(old), old.stoneStacks]).toEqual([
+      0,
+      undefined,
+      0,
+      undefined,
+    ]);
+    const fresh = settle(settlers);
+    // první zemnice vzala celé klády z hromady (forest.md – Stavby a kácení), nic se nekácí
+    expect(fresh.constructions[0]!.wood).toMatchObject({ fromPile: 7, fell: [] });
+    expect(logsWithSite(fresh)).toBe(30);
+    expect(stoneOnHand(fresh)).toBe(4);
+    expectHeapsAtArrival(fresh);
+  });
+
+  it('na cestě je nesou lidé bez hromad a nehnijí; po příjezdu totéž', () => {
+    const s = heapVillage();
+    const { settlers } = departVillage(s, DAY, households(s), 'E');
+    const travelling = travellingVillage(settlers, 42, DAY, ON_THE_WAY);
+    const carried = (v: VillageState): unknown[] => [
+      v.woodLogs,
+      v.logStacks,
+      v.stoneM3,
+      v.stoneStacks,
+    ];
+    expect(carried(travelling)).toEqual([30, undefined, 4, undefined]);
+    const there = advanceVillage(travelling, DAY + 2, null);
+    expect(carried(there)).toEqual([30, undefined, 4, undefined]);
+    const fresh = settle(settlersOf(there));
+    expect(logsWithSite(fresh)).toBe(30);
+    expect(stoneOnHand(fresh)).toBe(4);
+    expectHeapsAtArrival(fresh);
+  });
+});
+
 describe('pojistka zásob – nic ve vsi nezůstane bez rozhodnutí', () => {
   it('každá část stavu bohaté vsi je odnesená, řešená jinde, nebo výslovně zůstává', () => {
     // ve vsi zůstává, protože to nejde odnést (návrh Clauda – belongings.ts)
@@ -645,10 +724,6 @@ describe('pojistka zásob – nic ve vsi nezůstane bez rozhodnutí', () => {
       'dwellings',
       'constructions',
       'fields',
-      'woodLogs',
-      'logStacks',
-      'stoneM3',
-      'stoneStacks',
       'grainPits',
       'grainPitWork',
       'chronicle',
@@ -668,8 +743,13 @@ describe('pojistka zásob – nic ve vsi nezůstane bez rozhodnutí', () => {
       'manorId',
       'armsCapped',
     ];
-    // řeší departure.ts jinde – lidé, jídlo, osivo, stáda, zvířata, vozy
+    // řeší departure.ts jinde – lidé, jídlo, osivo, stáda, zvířata, vozy; klády a kámen bez hromad
+    // (`takeHeaps` v belongings.ts – Martin 26. 11. 2026)
     const handled = [
+      'woodLogs',
+      'logStacks',
+      'stoneM3',
+      'stoneStacks',
       'people',
       'dynasty',
       'storesKg',

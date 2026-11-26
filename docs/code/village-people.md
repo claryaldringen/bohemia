@@ -428,13 +428,18 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   bez meze nosnosti (`wholeStores`: rezerva osiva a k ní osivo na první osev, i `refuge.hidden`),
   stáda, voli (`takeAllOxen` – i bez ohrady a telata) a `Settlers.whole` (`WholeVillageLoad`): zásoby
   a vybavení, vozy (`takeAllCarts`), koně (`takeAllHorses`, kůň vůdce první), zásoba uzeného z porážky
-  a lhůta osiva zakladatelů. **Seznam zásob a vybavení je jediný – `CARRIED_STOCKS` v `belongings.ts`**
+  a lhůta osiva zakladatelů, volné klády a kámen bez hromad (`WholeVillageLoad.heaps` – Martin 26. 11. 2026: `takeHeaps` je vezme a hromady staré vsi zmizí, `carryHeaps` je dá vsi na cestě jako
+  `woodLogs` / `stoneM3` bez hromad – převod `withRoadLogPiles` ves na cestě přeskočí –, `heapsOf`
+  je z ní přečte a `addHeaps` je v nové vsi složí přes `addLogs` / `addStone` bez místa jako dovezené
+  zboží: u cesty nejblíž dvorci, bez cesty u staveniště první zemnice (`logArrivalPoint`; návrh
+  Clauda) – před dřevem první zemnice, ta bere nejdřív celé klády z hromady). **Seznam zásob
+  a vybavení je jediný – `CARRIED_STOCKS` v `belongings.ts`**
   (nástroje, rádla, zboží řemesel `crafts`, `wares`, seno a sláma, snopy): `takeCarriedStocks` je
   vezme, `carriedStocksOf` přečte z vsi na cestě, `addCarriedStocks` dá do nové vsi; nové zboží vsi
   (nová část `VillageState`) stačí přidat do seznamu, co z části nejde odnést, do `SPLITS` (brtě,
   výnosy seče). Ve staré vsi nezbude zásoba: jámy vyprázdní `drawGrainPits`, ohrady zůstanou prázdné
-  (`horses: []` – bez koní zdarma z `withHorsePenStock`), hromady klád a kamene a surovina u dílen
-  zůstanou. Ves na cestě nese vše ve svém stavu s příznakem `journey.whole` (bez něj – i ves
+  (`horses: []` – bez koní zdarma z `withHorsePenStock`), surovina u dílen a materiál rozestavěných
+  staveb zůstanou. Ves na cestě nese vše ve svém stavu s příznakem `journey.whole` (bez něj – i ves
   z doby před 25. 11. 2026 – `settlersOf` nic nepřidá); náhled `wholeVillagePreview`
   (`VillageLeave.all`), vozy a koně osadníků `settlersCarts` / `settlersHorses`. Stará ves dostane
   `abandonedDay` + kronika

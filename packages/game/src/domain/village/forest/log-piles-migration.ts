@@ -19,6 +19,8 @@ const LOOSE_EPSILON = 1e-9;
  * převodu klády bez hromady nezbývají; ves bez nich vrací beze změny.
  */
 export function withRoadLogPiles(state: VillageState, landscape: Landscape): VillageState {
+  // ves na cestě nese klády celé vsi bez hromady – hromada vznikne až v nové vsi (`addHeaps`)
+  if (state.journey) return state;
   const loose = pileLogs(state);
   if (loose <= LOOSE_EPSILON) return state;
   const next = structuredClone(state);
