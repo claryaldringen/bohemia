@@ -34,7 +34,12 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   a `rehomePeople` ho nese s člověkem. `isSlave`, `canBeSold` (otrok, ne křesťan, ne `line`, ne
   `noble` – prodat jde jen pohana). „Led“ (odvedený), ne „captive“ – captive je zajatec k výkupnému
   (`away.kind 'captive'`). Kronika `led-settled` (`slaves`, `free`) a upozornění „Z tažení přivedli
-  otroky / křesťany“.
+  otroky / křesťany“. **Prodej rozvede manželství jako smrt** (Rozhodnutí plánu 5, bod 6;
+  Martin 26. 11. 2026: „Otroci nejsou rodina, ale zboží“): otrok jde na trh sám a bez manžela
+  (`sendPeople` – kopie bez `spouseId`), manžel ve vsi ovdoví (`removePeople`) a smí se znovu
+  oženit, neprodaný se vrátí svobodný (village-trade.md – Otroci na trhu). Odchod celé vsi a ves
+  syna berou otroky jako ostatní lidi (`departLeavers` – manžel mezi osadníky zůstane, příznak jde
+  s nimi).
 
 - **Osídlení obydlí** (`households.ts`; population.md – Nové obydlí, kinship.md – Domácnosti): nové
   obydlí po dokončení (`settleNewDwelling`) a prázdné v kroku 6 (`occupyEmptyDwellings`) osídlí

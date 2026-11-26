@@ -88,7 +88,11 @@ export function withoutGroups(state: VillageState, groups: readonly EmigrantGrou
  * Vybrané skupiny `groups` odejdou ze vsi (mutuje stav): `removePeople` – v rodokmenu zůstanou
  * jako odešlí ve směru `direction` (`emigrants`, dokud ve vsi žije jejich rodič, sourozenec nebo
  * dítě; neznámý směr – výprava uložená před směrem cesty – je nezapíše). Vrací kopie záznamů osob
- * s id vsi a vazbami, po skupinách jako zboží.
+ * s id vsi a vazbami, po skupinách jako zboží. Prodej otroka rozvede manželství jako smrt
+ * (markets.md – Rozhodnutí plánu 5, bod 6; vzor `departLeavers`): kopie ve skupině `slave` je bez
+ * `spouseId`, jehož manžel ve skupině není, a manžel ve vsi ovdoví (`removePeople`) – neprodaný se
+ * vrátí (`restorePeople`, i ze zaniklé vsi – `receiveStranded`) a prodaný usadí bez manžela. Rodiny
+ * a svobodní beze změny.
  */
 export function sendPeople(
   state: VillageState,
@@ -97,6 +101,13 @@ export function sendPeople(
 ): MarketPerson[] {
   if (groups.length === 0) return [];
   const out = groups.map((g) => ({ good: GROUP_GOOD[g.kind], people: structuredClone(g.people) }));
+  for (const group of out) {
+    if (group.good !== 'slaves') continue;
+    const inGroup = new Set(group.people.map((p) => p.id));
+    for (const p of group.people) {
+      if (p.spouseId !== undefined && !inGroup.has(p.spouseId)) delete p.spouseId;
+    }
+  }
   const ids = out.flatMap((g) => g.people.map((p) => p.id));
   const emigrated = new Map<number, Direction8>();
   if (direction !== undefined) for (const id of ids) emigrated.set(id, direction);

@@ -955,7 +955,22 @@ laborHa`) → chybí ceil(dospělí × (landHa ÷ laborHa − 1)) dospělých, r
   `applyMarketResult`, `checkMarketTrip`). Příchod a návrat otrokyně nese v zápisu `newcomer`
   `female` (`settlePeople`, `receiveStranded`). Web: `TRADE_GOOD_NAMES.slaves` (ikona
   `resources/slave.png`), `NEWCOMER_TEXTS.slave`, upozornění `newcomer-slave` a
-  `newcomer-back-slave`; náhled výpravy s otroky ve webu a manželství otroka při prodeji zatím ne.
+  `newcomer-back-slave`; náhled výpravy s otroky ve webu zatím ne.
+  - **Manželství, pošta a zaniklé vsi** (Rozhodnutí plánu 5, body 6 a 9): prodej rozvede
+    manželství jako smrt – `sendPeople` u skupin `slave` smaže v kopii záznamu `spouseId`, jehož
+    manžel ve skupině není (vzor `departLeavers`), a manžel ve vsi ovdoví týmž `removePeople`;
+    rodiny a svobodní beze změny (trh bez otroků bit po bitu). Neprodaný se vrátí bez manžela
+    (`restorePeople` v `applyMarketResult`, otrok hostitele ze zaniklé vsi kupujícího
+    `receiveStranded` → `restorePeople`), prodaný se usadí bez manžela (`rehomePeople`). Obnovit
+    sňatek po návratu se nebere – oba se smějí oženit a vdát znovu (vzájemně, krokem sňatků).
+    Jednostranné `spouseId` by `populationDay` (`fatherOf`) vzalo jako vedlejší manželku – rodila
+    by s bývalým mužem i v jiném domě – a `isSingle` by ji ke sňatku nepustilo. Jinak nic nového:
+    otroci jdou cestami lidí plánu 3 celí – výprava, nákup výpravou za mince od jiné výpravy, pošta,
+    návrat a `stranded-people` (koupený od výpravy se u hostitele usadí s novým id, vlastní
+    s `fromHost` s původním) – a s osadníky odchodu celé vsi i vsi syna (`departLeavers`, manžel
+    mezi osadníky zůstane). Testy: `market-slaves.test.ts` (vsi A, B a C, pošta po každém dni,
+    denní invariant `oneSidedSpouses` v `market-fixtures.ts` – vedlejší manželky mužů rodu
+    vynechá), `departure.test.ts`, `son-departure.test.ts` a kodek `village-state-codec.test.ts`.
 
 Počasí kraje mění hodnotu zboží od 1. 11. – [village-disasters.md](village-disasters.md#kraj-kolem-vsi-hodnota-zboží-a-zvěř-p4).
 
