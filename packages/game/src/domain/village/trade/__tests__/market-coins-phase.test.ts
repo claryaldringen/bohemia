@@ -10,8 +10,17 @@ import { joinMarket, marketDay, marketResult, marketResultRef } from '../market'
 import { coinClearing, type CoinParty } from '../market-coins';
 import { marketStance } from '../market-stance';
 import { applyMarketResult, departMarketInPlace } from '../market-trip';
+import { toolNeedKg } from '../../crafts/iron';
 import { addGood } from '../trade';
-import { D, homeVillage, marketVillage, report, sownPart, target } from './market-fixtures';
+import {
+  D,
+  homeVillage,
+  marketVillage,
+  report,
+  sownPart,
+  target,
+  withWorkshop,
+} from './market-fixtures';
 
 // Mincovní fáze tržního dne v hostiteli (markets.md – Rozhodnutí plánu 4, body 2–4, opravné kolo):
 // vesničané mince neutrácejí a invarianty fáze, které chytají mutace – pořadí plateb, hostitel
@@ -121,6 +130,78 @@ describe('mincovní fáze – vesničané mince neutrácejí (Martin 25. 11. 202
     const plainBody = plain.outbox!.at(-1)!.body;
     if (plainBody.kind !== 'market-arrive') throw new Error('Příjezd chybí.');
     expect(plainBody.arrival).not.toHaveProperty('by');
+  });
+});
+
+describe('mincovní fáze – zakázka vesničanů má přednost před prodejem za mince (návrh Clauda)', () => {
+  /** Hostitel s přebytkem 1 000 kg obilí a kovářem (`smith`), který nástroje nemá na prodej. */
+  function smithHost(smith = true): VillageState {
+    const s = marketVillage(-1_000);
+    if (smith) withWorkshop(s, 'smith', 700, { oreKg: 500 });
+    s.crafts = { charcoalKg: 5_000, potteryKg: 0, ironBarsKg: 200 };
+    s.toolEquipmentKg = toolNeedKg(s, D);
+    s.nearby = undefined;
+    return s;
+  }
+
+  /**
+   * Trh: výprava `market:v:1` (vesničané, s `by` undefined hráč) přiveze 300 kg obilí a shání
+   * `wants`; s `buyer` za ní stojí hráčova výprava se 400 mincemi, která shání obilí.
+   */
+  function heldDay(
+    by: MarketArrival['by'],
+    wants: MarketArrival['wants'],
+    { buyer = true, smith = true } = {},
+  ): VillageState {
+    const s = smithHost(smith);
+    joinMarket(s, D, trip('market:v:1', { grain: 300 }, wants, by ? { by } : {}));
+    if (buyer) joinMarket(s, D, trip('market:p:1', { coins: 400 }, { grain: 20_000 }));
+    marketDay(s, D);
+    return s;
+  }
+
+  it('vesničané na nástroje obilí za mince neprodají a kovář zakázku zapíše', () => {
+    const s = heldDay('villagers', { tools: 10 });
+    const v = resultOf(s, 'market:v:1');
+    expect(v.sold).toEqual({});
+    expect(v.unsold).toEqual({ grain: 300 });
+    expect(v.ordered).toEqual({ tools: 10 });
+    expect(v).not.toHaveProperty('coinsGot');
+    expect(s.market?.orders).toEqual([
+      { villageId: 'v', name: 'Vlkov', good: 'tools', amount: 10, day: D },
+    ]);
+    // hráč koupí jen obilí hostitele (1 000 kg za 67 mincí)
+    expect(resultOf(s, 'market:p:1').bought).toEqual({ grain: 1_000 });
+    expect(s.coins).toBe(67);
+  });
+
+  it('bez kupujícího s mincemi vyjde zakázka stejně', () => {
+    const v = resultOf(heldDay('villagers', { tools: 10 }, { buyer: false }), 'market:v:1');
+    expect(v.sold).toEqual({});
+    expect(v.unsold).toEqual({ grain: 300 });
+    expect(v.ordered).toEqual({ tools: 10 });
+  });
+
+  it.each([
+    ['bez výrobku na seznamu', { cows: 2 }, true],
+    ['u hostitele bez kováře (zakázku nevezme)', { tools: 10 }, false],
+  ] as const)('vesničané %s obilí za mince prodají jako dosud', (_, wants, smith) => {
+    const s = heldDay('villagers', wants, { smith });
+    const v = resultOf(s, 'market:v:1');
+    expect(v.sold).toEqual({ grain: 300 });
+    expect(v.unsold).toEqual({ coins: 20 });
+    expect(v).not.toHaveProperty('ordered');
+    expect(s.market).not.toHaveProperty('orders');
+    expect(resultOf(s, 'market:p:1').bought).toEqual({ grain: 1_300 });
+  });
+
+  it('výprava hráče obilí za mince prodá a zakázku zapíše jako dosud', () => {
+    const s = heldDay(undefined, { tools: 10 });
+    const v = resultOf(s, 'market:v:1');
+    expect(v.sold).toEqual({ grain: 300 });
+    expect(v.unsold).toEqual({ coins: 20 });
+    expect(v.ordered).toEqual({ tools: 10 });
+    expect(resultOf(s, 'market:p:1').bought).toEqual({ grain: 1_300 });
   });
 });
 

@@ -2,7 +2,7 @@ import { and, asc, eq, inArray, sql, type SQL } from 'drizzle-orm';
 import {
   isCurrentDigest,
   nearbyRefresh,
-  trailStops,
+  settlementMerchantStops,
   type MerchantStop,
   type VillageDigestRecord,
   type VillageRecord,
@@ -200,11 +200,8 @@ export function createVillageRepository(db: Database, worldSeed: number): Villag
         .where(eq(settlement.id, settlementId))
         .limit(1);
       if (!row) return null;
-      // krajina je z uloženého výřezu, ne z políčka (world-skeleton.md – Uložení): mapa bez stezky ve
-      // výřezu kupce nemá, i když jejím políčkem stezka kostry vede; odříznutá ves políčko nemá
-      const trails = row.skeleton?.trails ?? [];
-      if (row.x === null || row.y === null || trails.length === 0) return [];
-      return trailStops(worldSeed, { x: row.x, y: row.y });
+      const cell = row.x === null || row.y === null ? null : { x: row.x, y: row.y };
+      return settlementMerchantStops(worldSeed, cell, row.skeleton);
     },
 
     async listBySettlement(settlementId): Promise<VillageRecord[]> {

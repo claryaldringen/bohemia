@@ -41,7 +41,13 @@ import type {
   VillageState,
 } from '../types';
 import { armsBuyer, reduceArmsOrder } from './arms-order';
-import { craftParties, craftStance, recordOrders, reduceOrder } from './craft-orders';
+import {
+  coinPhaseStock,
+  craftParties,
+  craftStance,
+  recordOrders,
+  reduceOrder,
+} from './craft-orders';
 import {
   CART_GOODS,
   COIN_GOOD,
@@ -500,9 +506,11 @@ function payCoins(
  * Mincovní fáze tržního dne (mutuje stav; markets.md – Rozhodnutí plánu 4, body 2–4 a 15): co
  * výpravám po zápočtech na seznamu zbylo, koupí za mince, které vezou (`coinClearing` za ceny dne
  * a hladinu trhu), obchody se vyrovnají jako zápočet (`settleTrades`) a mince přejdou (`payCoins`).
- * Hostitel prodává, co mu z nabídky zbylo (`hostOffer`), a za mince koupí jedině zbroj, kterou si
- * u kupců objednal hráč (`armsBuyer`; o koupenou se objednávka zmenší – `reduceArmsOrder`), nic
- * podle výpočtu potřeby (Martin 25. 11. 2026: „Mince utrácí jen vojvoda/správce“). Lidí nabídne
+ * Výprava prodává, co veze (`coinPhaseStock` – vesničané, kteří ještě shánějí výrobek dílny, si
+ * nechají obilí a luštěniny na zakázku). Hostitel prodává, co mu z nabídky zbylo (`hostOffer`), a za
+ * mince koupí jedině zbroj, kterou si u kupců objednal hráč (`armsBuyer`; o koupenou se objednávka
+ * zmenší – `reduceArmsOrder`), nic podle výpočtu potřeby (Martin 25. 11. 2026: „Mince utrácí jen
+ * vojvoda/správce“). Lidí nabídne
  * nejvýš tolik skupin, kolik jich po zápočtech doopravdy odejde (`leavingGroups` – výběr je
  * postupný), aby kupující nezaplatil lidi, které nedostane. Hladinu posune `nextLevel`; hladina 1 ve
  * stavu není. Bez kupujícího s mincemi – výpravy nebo kupce, který něco shání, nebo vsi s objednanou
@@ -537,7 +545,8 @@ function coinPhase(
       ...visitors.map((v) => ({
         key: v.key,
         coins: v.goods[COIN_GOOD] ?? 0,
-        stock: withoutCoins(v.goods),
+        // vesničané si obilí a luštěniny na zakázku nechají (`coinPhaseStock`, návrh Clauda)
+        stock: coinPhaseStock(state, v),
         wants: wantsOf(v),
         ...(v.merchant ? { merchant: true as const } : {}),
       })),

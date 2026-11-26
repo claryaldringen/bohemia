@@ -228,7 +228,10 @@ export interface MarketVisitor {
    * déle (`extendMerchants`) a odjede bez pošty (`departVisitors`). Chybí = výprava.
    */
   merchant?: true;
-  /** Kdo výpravu poslal (`MarketArrival.by`); chybí = hráč nebo správce jako dosud. */
+  /**
+   * Kdo výpravu poslal (`MarketArrival.by` – vesničané, správce `steward`, kovář, ves partnera);
+   * chybí = hráč (nebo příjezd z doby před příznakem).
+   */
   by?: TripBy;
   /**
    * Mince, které na tomto trhu zaplatila a dostala (součty za všechny tržní dny, `payCoins`;

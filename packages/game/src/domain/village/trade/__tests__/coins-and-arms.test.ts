@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { MARKET, TRADE_GOOD_VALUES } from '../../rules';
-import { ARMS_GOODS, COIN_GOOD, isArmsGood, isPieceGood, withoutCoins } from '../goods';
+import { ARMS_GOODS, COIN_GOOD, isPieceGood, withoutCoins } from '../goods';
 import { initialPrice } from '../market-prices';
 import {
   MARKET_BAD_ORDER,
@@ -23,11 +23,10 @@ describe('ceny a druhy', () => {
     expect(TRADE_GOOD_VALUES.coins.carryKg).toBe(0);
   });
 
-  it('mince a zbroj jsou kusové zboží; zbroj pozná `isArmsGood`', () => {
+  it('mince a zbroj jsou kusové zboží; zbroj jsou meče, kroužkové košile a helmy', () => {
     for (const good of [COIN_GOOD, ...ARMS_GOODS]) expect(isPieceGood(good), good).toBe(true);
-    expect(ARMS_GOODS.every(isArmsGood)).toBe(true);
-    expect(isArmsGood('coins')).toBe(false);
-    expect(isArmsGood('wax')).toBe(false);
+    expect(ARMS_GOODS).toEqual(['swords', 'mailShirts', 'helmets']);
+    expect(ARMS_GOODS).not.toContain(COIN_GOOD);
   });
 
   it('withoutCoins vyřadí mince a nuly', () => {

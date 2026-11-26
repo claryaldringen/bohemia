@@ -1,4 +1,4 @@
-import { trailStops } from '../../domain/world';
+import { settlementMerchantStops } from '../../domain/world';
 import type { VillageRepository } from '../villages';
 import type { InMemorySettlements } from './in-memory-settlements';
 
@@ -14,8 +14,6 @@ export function merchantStopsFromSkeleton(
     await Promise.resolve();
     const settlement = settlements.settlements.find((s) => s.id === settlementId);
     if (!settlement) return null;
-    const trails = settlement.skeleton?.trails ?? [];
-    if (settlement.worldCell === null || trails.length === 0) return [];
-    return trailStops(worldSeed, settlement.worldCell);
+    return settlementMerchantStops(worldSeed, settlement.worldCell, settlement.skeleton ?? null);
   };
 }

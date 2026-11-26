@@ -19,11 +19,6 @@ import type {
 /** Zbroj v obchodu v pořadí panelu (markets.md – Rozhodnutí plánu 4, bod 7). */
 export const ARMS_GOODS: readonly ArmsGood[] = ['swords', 'mailShirts', 'helmets'];
 
-/** Je zboží zbroj (meče, kroužkové košile, helmy)? */
-export function isArmsGood(good: TradeGood): good is ArmsGood {
-  return (ARMS_GOODS as readonly string[]).includes(good);
-}
-
 /** Mince jako zboží (markets.md – Rozhodnutí plánu 4, bod 1): kusy, celé. */
 export const COIN_GOOD = 'coins' as const;
 

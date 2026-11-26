@@ -9,6 +9,11 @@ export {
 } from './drainage';
 export { riverPortAt, sideTowards, trailPortAt } from './ports';
 export { trailEdgeExists, trailNode, trailSides } from './trails';
-export { type TrailConnection, trailPath, trailStops } from './trail-stops';
+export {
+  settlementMerchantStops,
+  type TrailConnection,
+  trailPath,
+  trailStops,
+} from './trail-stops';
 export { isDry, isTrailOnly, riverCrossings, type SeatSlot, seatSlot } from './sites';
 export { skeletonSlice } from './slice';

@@ -98,8 +98,10 @@ function basketOf(buyer: Ledger, seller: Ledger, price: (good: TradeGood) => num
 /**
  * Mince proti zboží na začátku fáze (Rozhodnutí plánu 4, bod 3). Kupující = strana s mincemi
  * a hodnotou seznamu nad 0: C = Σ min(mince, hodnota seznamu) – seznam strany `fromMerchants` jen
- * do zboží, které kupci na trhu dnes mají (objednat 50 mečů při 2 u kupců = objednat 2) –, W = Σ přes zboží min(součet seznamů
- * kupujících, součet nabídek všech stran) × cena.
+ * do zboží, které kupci na trhu dnes mají (objednat 50 mečů při 2 u kupců = objednat 2) –, W = Σ přes
+ * zboží (O + min(součet ostatních seznamů kupujících, součet nabídek všech stran − O)) × cena, kde
+ * O = min(součet seznamů stran `fromMerchants`, součet nabídek kupců) – objednaná zbroj se kupuje
+ * jen od kupců, takže meče výprav hladinu kvůli objednávce nesníží.
  */
 function coinsAgainstGoods(
   parties: readonly CoinParty[],
@@ -116,14 +118,18 @@ function coinsAgainstGoods(
       return sum + count * price(good);
     }, 0);
   const buyers = parties.filter((p) => p.coins > 0 && listWorth(p) > 0);
-  const wants = buyers.map((p) => p.wants);
+  const orders = buyers.filter((p) => p.fromMerchants).map((p) => p.wants);
+  const wants = buyers.filter((p) => !p.fromMerchants).map((p) => p.wants);
   const stocks = parties.map((p) => p.stock);
+  // kolik zboží se dnes za mince opravdu dá koupit: objednávka jen z nabídky kupců, ostatní
+  // seznamy z toho, co z nabídek všech stran zbude – kus kupce se nepočítá dvakrát
+  const matched = (good: TradeGood): number => {
+    const ordered = Math.min(sumOf(orders, good), sumOf(merchantStocks, good));
+    return ordered + Math.min(sumOf(wants, good), sumOf(stocks, good) - ordered);
+  };
   return {
     available: buyers.reduce((sum, p) => sum + Math.min(p.coins, listWorth(p)), 0),
-    sought: SOLD_FOR_COINS.reduce(
-      (sum, good) => sum + Math.min(sumOf(wants, good), sumOf(stocks, good)) * price(good),
-      0,
-    ),
+    sought: SOLD_FOR_COINS.reduce((sum, good) => sum + matched(good) * price(good), 0),
   };
 }
 

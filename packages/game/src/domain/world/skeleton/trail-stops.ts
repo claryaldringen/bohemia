@@ -1,4 +1,5 @@
 import { deriveSeed } from '../../landscape/random';
+import type { SkeletonSlice } from '../../landscape/skeleton/types';
 import type { GridCell } from '../../village/people/world-grid';
 import type { MerchantStop } from '../../village/types';
 import { SKELETON } from './rules-skeleton';
@@ -70,4 +71,19 @@ export function trailStops(worldSeed: number, cell: GridCell): MerchantStop[] {
     }
   }
   return stops.sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
+}
+
+/**
+ * Zastávky kupců sídla (markets.md – Rozhodnutí plánu 4, bod 5): krajina je z uloženého výřezu, ne
+ * z políčka (world-skeleton.md – Uložení), takže mapa bez výřezu `skeleton` nebo bez stezky v něm
+ * kupce nemá, i když jejím políčkem stezka kostry vede; odříznuté sídlo bez políčka světa (`cell`
+ * null) také ne. Jinak `trailStops` políčka.
+ */
+export function settlementMerchantStops(
+  worldSeed: number,
+  cell: GridCell | null,
+  skeleton: SkeletonSlice | null,
+): MerchantStop[] {
+  if (cell === null || skeleton === null || skeleton.trails.length === 0) return [];
+  return trailStops(worldSeed, cell);
 }

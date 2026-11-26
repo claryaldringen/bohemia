@@ -22,10 +22,11 @@ import {
   reduceArmsOrder,
   setArmsOrder,
 } from '../arms-order';
-import { ARMS_GOODS, COIN_GOOD, TRADE_GOODS, isArmsGood, isPieceGood } from '../goods';
+import { ARMS_GOODS, COIN_GOOD, TRADE_GOODS, isPieceGood } from '../goods';
 import { joinMarket, marketDay, marketResultRef } from '../market';
 import { totalGoods } from '../market-clearing';
 import { coinClearing, type CoinClearing, type CoinParty } from '../market-coins';
+import { nextLevel } from '../market-prices';
 import { marketStance } from '../market-stance';
 import { merchantVisits, nextMerchantVisit } from '../merchant-plan';
 import { merchantsArrive } from '../merchants';
@@ -730,6 +731,30 @@ describe('kupující jen od kupců (coinClearing, fromMerchants)', () => {
     expect(level(50, null)).toBe(0);
   });
 
+  it('W počítá objednávku jen proti zbroji kupců, ne proti mečům výprav', () => {
+    /** Hostitel objedná 2 meče, kupec má 1, výprava `a` prodává 2; `b` s mincemi shání `wanted`. */
+    const sought = (wanted: number | null): CoinClearing =>
+      coinClearing(
+        [
+          party('host', { coins: 500, wants: { swords: 2 }, fromMerchants: true }),
+          party('kupec', { stock: { swords: 1 }, merchant: true }),
+          party('a', { stock: { swords: 2 } }),
+          ...(wanted === null ? [] : [party('b', { coins: 1_000, wants: { swords: wanted } })]),
+        ],
+        {},
+        1,
+      );
+    // jen hostitel: koupit smí 1 meč od kupce – C = W = 120, hladina se nehne
+    const own = sought(null);
+    expect(own.available).toBeCloseTo(120, 9);
+    expect(own.sought).toBeCloseTo(120, 9);
+    expect(nextLevel(1.5, own.available, own.sought)).toBe(1.5);
+    expect(own.trades).toEqual([{ seller: 'kupec', buyer: 'host', good: 'swords', amount: 1 }]);
+    // výprava `b` chce 3 meče: hostitel 1 od kupce, `b` zbylé 2 od výpravy – meč kupce dvakrát ne
+    expect(sought(3).sought).toBeCloseTo(3 * 120, 9);
+    expect(sought(1).sought).toBeCloseTo(2 * 120, 9);
+  });
+
   it('60 náhodných trhů: hostitel kupuje jen zbroj a jen od kupců, měšec celý a ≥ 0', () => {
     const rnd = createRandom(5);
     const int = (from: number, to: number): number =>
@@ -765,7 +790,7 @@ describe('kupující jen od kupců (coinClearing, fromMerchants)', () => {
       const level = rnd.next() < 0.4 ? 1 : 1 + 2 * rnd.next();
       const c = coinClearing(parties, {}, level);
       for (const t of c.trades.filter((x) => x.buyer === 'host')) {
-        expect(isArmsGood(t.good)).toBe(true);
+        expect(ARMS_GOODS).toContain(t.good);
         expect(Number.isInteger(t.amount)).toBe(true);
         expect(merchantKeys).toContain(t.seller);
         bought += t.amount;

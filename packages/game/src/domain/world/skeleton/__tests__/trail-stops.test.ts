@@ -9,8 +9,10 @@ import {
   trailNode,
   trailPath,
   trailSides,
+  settlementMerchantStops,
   trailStops,
 } from '..';
+import type { SkeletonSlice } from '../../../landscape/skeleton/types';
 
 // Zastávky na dálkových stezkách (markets.md – Rozhodnutí plánu 4, bod 5): cesta spojení uzlů po
 // políčkách a pořadí políčka na ní. Jen čte graf kostry (world-skeleton.md – Stezky – síť uzlů).
@@ -182,5 +184,32 @@ describe('zastávky políčka (trailStops)', () => {
     expect(trailStops(20270101, cell)).toEqual([]);
     expect(trailNode(7, { x: -2, y: 0 })).toEqual({ x: -26, y: 14 });
     expect(trailStops(7, { x: -26, y: 14 })).toEqual([]);
+  });
+});
+
+describe('zastávky kupců sídla (settlementMerchantStops)', () => {
+  /** Křižovatka (7, 14) světa 20270101 – zastávky tří spojení (test výš). */
+  const cell = { x: 7, y: 14 };
+  const slice = (trails: SkeletonSlice['trails']): SkeletonSlice => ({
+    world: 1,
+    rivers: [],
+    trails,
+  });
+  const withTrail = slice([{ side: 'N', at: 256 }]);
+
+  it('výřez se stezkou: zastávky políčka (`trailStops`)', () => {
+    const stops = settlementMerchantStops(20270101, cell, withTrail);
+    expect(stops.length).toBeGreaterThan(0);
+    expect(stops).toEqual(trailStops(20270101, cell));
+  });
+
+  it('bez stezky ve výřezu kupci nejsou, i když políčkem stezka kostry vede', () => {
+    expect(trailStops(20270101, cell).length).toBeGreaterThan(0);
+    expect(settlementMerchantStops(20270101, cell, null)).toEqual([]);
+    expect(settlementMerchantStops(20270101, cell, slice([]))).toEqual([]);
+  });
+
+  it('odříznuté sídlo bez políčka světa kupce nemá', () => {
+    expect(settlementMerchantStops(20270101, null, withTrail)).toEqual([]);
   });
 });

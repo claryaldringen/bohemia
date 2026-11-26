@@ -115,9 +115,9 @@ export interface VillageRepository {
   weatherSeedOf(settlementId: string): Promise<number | null>;
   /**
    * Zastávky dálkových stezek mapy (sídla), na které ves stojí (markets.md – Rozhodnutí plánu 4,
-   * bod 5): `trailStops` z uloženého výřezu sídla, mapa bez stezky → []; neznámé sídlo → null. Ptá se
-   * jen ves, která je ještě nemá (`updateVillage`). Chybí (testy jádra, kalibrace) – zastávky se
-   * nezjišťují. Nesou seed stezky, klientovi se nikdy neposílají.
+   * bod 5): `settlementMerchantStops` z uloženého výřezu sídla, mapa bez stezky → []; neznámé sídlo →
+   * null. Ptá se jen ves, která je ještě nemá (`updateVillage`). Chybí (testy jádra, kalibrace) –
+   * zastávky se nezjišťují. Nesou seed stezky, klientovi se nikdy neposílají.
    */
   readonly merchantStopsOf?: (settlementId: string) => Promise<readonly MerchantStop[] | null>;
   /**

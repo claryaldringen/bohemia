@@ -196,8 +196,10 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
     pod cenou, kupující přeplatí nejvýš minci); utržené mince smí prodávající týž den utratit, je-li
     mezi kupujícími za ním. Měšec nikdy neklesne pod 0 a součet plateb je nula. Výsledek
     `CoinClearing`: `trades` (`MarketTrade`), `payments`, `available` (C = Σ min(mince, hodnota
-    seznamu) kupujících, kteří mají mince i seznam) a `sought` (W = Σ přes zboží min(součet seznamů
-    kupujících, součet nabídek všech stran) × cena) – obojí ze začátku fáze. Prahy zaokrouhlení jsou
+    seznamu) kupujících, kteří mají mince i seznam) a `sought` (W = Σ přes zboží (O + min(součet
+    ostatních seznamů kupujících, součet nabídek všech stran − O)) × cena, O = min(seznamy
+    `fromMerchants`, nabídky kupců) – objednávka zbroje jen proti zbroji kupců) – obojí ze začátku
+    fáze. Prahy zaokrouhlení jsou
     technické meze, ne pravidla. V mincovní fázi je „kupec“ jen cizí kupec, kdo nakupuje, je
     „kupující“.
 
@@ -299,8 +301,12 @@ ves>:<id výpravy>`, `stayDays`, `travelDays`, zboží `goods` – koně i tady 
     `market.level` posune
     `nextLevel`, hladina 1 ze stavu zmizí. Výprava vesničanů (`MarketArrival.by` = `villagers`,
     přes `departMarketInPlace` až do `MarketVisitor.by`) v mincovní fázi jen prodává – má
-    `wants: {}`, mince jdou domů (Martin 25. 11. 2026: „Mince utrácí jen vojvoda/správce“); výprava
-    bez `by` je hráčova či správcova jako dosud.
+    `wants: {}`, mince jdou domů (Martin 25. 11. 2026: „Mince utrácí jen vojvoda/správce“). Dokud
+    má na seznamu výrobek dílny, na který hostitel zakázku vezme (pracuje řemeslník, výprava ho tu
+    nevyzvedla hotový), obilí a luštěniny za mince neprodá (`coinPhaseStock`, návrh Clauda) – nechá si
+    je na zakázku, kterou při odjezdu zapíše `recordOrders` (mincemi vesničané platit nesmějí);
+    ostatní zbytky (krávy, hřivny…) za mince prodá. Výprava hráče `by` nemá, správcova nese
+    `steward` – obě kupují i prodávají za mince jako dosud.
   - **Odjezd:** návštěvník s `lastDay ≤ day` odjede (`departVisitors`) – do odchozí schránky
     `VillageState.outbox` (`VillageMail` { `villageId`, `day`, `ref`, `body` } – tvar nové události
     schránky; cizí kupec domov nemá a nic neposílá – Cizí kupci ve vsi níž) jde
@@ -583,7 +589,7 @@ day, order, target, { by?, seedKg?, alone?, service?, kin?, people? })` (mutuje 
   z `goodsText`.
 
 - **Mince a zbroj** (markets.md – Rozhodnutí plánu 4, body 1 a 7): `TradeGood` += `ArmsGood`
-  (`swords`, `mailShirts`, `helmets`; `ARMS_GOODS`, `isArmsGood`) a `coins` (`COIN_GOOD`), obojí
+  (`swords`, `mailShirts`, `helmets`; `ARMS_GOODS`) a `coins` (`COIN_GOOD`), obojí
   v `TRADE_GOODS` a `PIECE_GOODS` za voskem před lidmi – celé kusy. Stav vsi: `VillageState.coins`
   a `arms` (chybí = nic). `villageGoodStock` je čte po celých kusech, `addGood` je nikdy nedá pod 0
   a nulu ze stavu smaže (i prázdné `arms`). Hodnoty v `TRADE_GOOD_VALUES`: mince
@@ -662,7 +668,9 @@ day, order, target, { by?, seedKg?, alone?, service?, kin?, people? })` (mutuje 
     `marketStance`, `nextPrices`, zakázek ani výhledů správce – jen do C a W hladiny; v C se
     seznam kupujícího s `fromMerchants` počítá nejvýš do zboží, které kupci na trhu dnes mají (po
     druzích min(objednáno, u kupců) × cena), takže objednat 50 mečů při 2 u kupců hladinu nezvedne
-    víc než objednat 2 (`coinsAgainstGoods`). Akce hráče: use-case `orderArms` (`application/arms-order.ts`,
+    víc než objednat 2, a ve W jen proti zbroji kupců – meče, které na trhu prodává výprava (hostitel
+    je od ní koupit nesmí), hladinu kvůli objednávce nesníží; ostatní seznamy se počítají proti tomu,
+    co z nabídek zbude, takže kus kupce se nepočítá dvakrát (`coinsAgainstGoods`). Akce hráče: use-case `orderArms` (`application/arms-order.ts`,
     `updateLivingVillage` – neživá ves dostane dosavadní důvod), právo `trade` (`ACTION_RIGHTS`, má ho
     i správce cizí vsi), web `orderArmsForPlayer` (`lib/village.ts`) a server action `orderArms`
     (`actions/market.ts`, vstup `{ villageId, good, amount }` ověří `parseArmsOrderInput`). Zadává se
