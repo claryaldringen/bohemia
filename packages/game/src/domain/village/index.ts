@@ -508,7 +508,6 @@ export {
   offeredSlaveIds,
   sellableSlaves,
   setSlavesForSale,
-  slavesOffered,
 } from './trade/slaves';
 // jabloně u cest – kroky simulace (práce a dokončení výsadby) zůstávají uvnitř
 export {

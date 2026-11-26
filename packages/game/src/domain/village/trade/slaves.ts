@@ -25,7 +25,7 @@ export const SLAVES_BAD_COUNT = 'Počet otroků musí být celé nezáporné č�
  * Nabídka otroků na trhu vlastní vsi (markets.md – Rozhodnutí plánu 5, bod 8; vzor `setArmsOrder` –
  * Martin 25. 11. 2026 u zbroje: „Hráč zadá počet“): zapíše počet (mutuje stav), 0 pole smaže,
  * necelé nebo záporné odmítne. Na počet otroků se neomezuje – nabízí se min(nabídka, zásoba)
- * (`slavesOffered`), zbytek čeká.
+ * (`offeredSlaveIds`), zbytek čeká.
  */
 export function setSlavesForSale(
   state: VillageState,
@@ -43,11 +43,6 @@ export function reduceSlavesForSale(state: VillageState, sold: number): void {
   const rest = state.slavesForSale - sold;
   if (rest > 0) state.slavesForSale = rest;
   else delete state.slavesForSale;
-}
-
-/** Kolik otroků ves dnes nabízí: min(`slavesForSale`, `sellableSlaves`); bez nabídky 0. */
-export function slavesOffered(state: VillageState, day: number): number {
-  return offeredSlaveIds(state, day).size;
 }
 
 /** Žádní rezervovaní otroci – ves bez nabídky (`emigrantGroups` bez `reserved`). */

@@ -92,9 +92,16 @@ function nextFamily(state: VillageState, day: number): EmigrantGroup | undefined
 /**
  * První svobodný muž (`sex` male) nebo žena 16–44 let, které ves smí dát: ne dědic domu
  * (`unmarriedHeir`), ne vdova s malými dětmi (`isSingle`), a jen když v domě zůstane někdo, kdo
- * domácnost udrží. Muž rodu ne (`keptByLine`). V domě od nejstaršího.
+ * domácnost udrží. Muž rodu ne (`keptByLine`). V domě od nejstaršího. Manžel otroka z nabídky
+ * (`reserved`) není svobodný – ve `state` výběru otrok chybí, ale manželství trvá (ženatý bez
+ * manžela neodchází – markets.md – Rozhodnutí plánu 3, bod 10, a plánu 5, bod 8).
  */
-function nextSingle(state: VillageState, day: number, sex: Sex): EmigrantGroup | undefined {
+function nextSingle(
+  state: VillageState,
+  day: number,
+  sex: Sex,
+  reserved: ReadonlySet<number>,
+): EmigrantGroup | undefined {
   const kept = keptByLine(state);
   for (const dwelling of givingDwellings(state)) {
     const members = occupants(state, dwelling.id);
@@ -107,6 +114,7 @@ function nextSingle(state: VillageState, day: number, sex: Sex): EmigrantGroup |
           !kept(p) &&
           !isAway(p, day) &&
           isFertile(p, day) &&
+          !(p.spouseId !== undefined && reserved.has(p.spouseId)) &&
           isSingle(state, p, day),
       )
       .sort(byAge);
@@ -142,7 +150,11 @@ export interface Emigrants {
  * méně. Bez otroků ve `want` se prodejní otroci nehledají a výběr je týž jako před plánem 5.
  * `reserved` – otroci z nabídky vsi (`offeredSlaveIds`, markets.md – Rozhodnutí plánu 5, bod 8):
  * otroci se berou dál napřed ze `sellableSlaves` (rezervovaní jsou mezi nimi první), rodiny, muži
- * a ženy z vsi bez otroků výběru i bez rezervovaných. Chybí = prázdná, výběr beze změny.
+ * a ženy z vsi bez otroků výběru i bez rezervovaných; manžel rezervovaného otroka svobodný není
+ * (`nextSingle`), ani když se otrok týmž výběrem prodává (nabídka hostitele a jeho prodej se
+ * vybírají jedním voláním). Manžel jiného otroka prodaného výběrem svobodný je – postupné
+ * `takePeople` z něj napřed udělá vdovce, takže výběr i odchod souhlasí. Chybí = prázdná, výběr
+ * beze změny.
  */
 export function emigrantGroups(
   state: VillageState,
@@ -173,8 +185,8 @@ export function emigrantGroups(
     return out;
   };
   const families = take(want.families, () => nextFamily(rest, day));
-  const men = take(want.men, () => nextSingle(rest, day, 'male'));
-  const women = take(want.women, () => nextSingle(rest, day, 'female'));
+  const men = take(want.men, () => nextSingle(rest, day, 'male', reserved));
+  const women = take(want.women, () => nextSingle(rest, day, 'female', reserved));
   return { slaves, families, men, women };
 }
 

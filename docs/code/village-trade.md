@@ -988,12 +988,15 @@ laborHa`) → chybí ceil(dospělí × (landHa ÷ laborHa − 1)) dospělých, r
     Martinova „Hráč zadá počet“ u zbroje, 25. 11. 2026; `trade/slaves.ts`, vzor Objednávka zbroje):
     `VillageState.slavesForSale` (celé, chybí = žádní) zapíše `setSlavesForSale` (0 pole smaže,
     necelé nebo záporné odmítne – `SLAVES_BAD_COUNT`; na počet otroků se neomezuje). Ves nabízí
-    `slavesOffered` = min(nabídka, `sellableSlaves`) – pokřtěný mezi zadáním a trhem se nepočítá,
+    min(nabídka, `sellableSlaves`) – pokřtěný mezi zadáním a trhem se nepočítá,
     nabídka vyšší než zásoba čeká. **Rezervace** `offeredSlaveIds` = id prvních `slavesForSale`
     ze `sellableSlaves` (bez nabídky prázdná `NO_RESERVED`, prodejní otroci se nehledají) se počítá
     **jednou z celé vsi** a předává dál beze změny: `emigrantGroups(…, reserved)` bere otroky dál
     napřed ze `sellableSlaves` (rezervovaní jsou mezi nimi první), rodiny, muže a ženy z vsi bez
-    otroků výběru i bez rezervovaných; totéž `leavingGroups`, `takePeople`, `marketTripPeople`
+    otroků výběru i bez rezervovaných – manžel rezervovaného otroka přitom svobodný není
+    (`nextSingle` – ženatý bez manžela neodchází), ani když se otrok týmž výběrem prodává; manžel
+    jiného otroka prodaného výběrem svobodný je (postupné `takePeople` z něj napřed udělá vdovce);
+    totéž `leavingGroups`, `takePeople`, `marketTripPeople`
     a `planMarketTrip` s volitelným `reserved` (chybí = výběr beze změny). Přepočet ze vsi zmenšené
     o odešlé (postupné `takePeople`, `settleTrades` mincovní fáze po zápočtu) by rezervoval jiné lidi.
     Nabídka hostitele (`marketStance(state, day, reserved = offeredSlaveIds(…))`): volní lidé

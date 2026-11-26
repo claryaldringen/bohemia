@@ -2,17 +2,28 @@ import { describe, expect, it } from 'vitest';
 import { advanceVillage } from '../../core/simulate';
 import type { MarketArrival, MarketVisitor, MerchantStop, Person, VillageState } from '../../types';
 import { joinMarket, marketDay } from '../market';
-import { leavingGroups } from '../market-people';
+import { leavingGroups, restorePeople, sendPeople } from '../market-people';
 import { marketStance } from '../market-stance';
+import { departMarketInPlace } from '../market-trip';
 import { nextMerchantVisit } from '../merchant-plan';
+import { emigrantList } from '../people-trade';
 import {
   SLAVES_BAD_COUNT,
   offeredSlaveIds,
   reduceSlavesForSale,
   setSlavesForSale,
-  slavesOffered,
 } from '../slaves';
-import { D, report, slaveHome, sownPart } from './market-fixtures';
+import {
+  D,
+  FAMILY_HOUSE,
+  SON_HOUSE,
+  oneSidedSpouses,
+  report,
+  slaveFamilyHome,
+  slaveHome,
+  sownPart,
+  target,
+} from './market-fixtures';
 
 // Prodej otroků ve vlastní vsi (markets.md – Rozhodnutí plánu 5, bod 8 – návrh Clauda podle
 // Martinova „Hráč zadá počet“ u zbroje, 25. 11. 2026): hráč nastaví nabídku `slavesForSale`, ves
@@ -123,7 +134,6 @@ function goneFromWorld(s: VillageState, ids: readonly number[]): void {
 describe('nabídka otroků ve vlastní vsi (markets.md – Rozhodnutí plánu 5, bod 8)', () => {
   it('setSlavesForSale: celé nezáporné číslo, 0 pole smaže; nabízí se min(nabídka, zásoba)', () => {
     const s = slaves();
-    expect(slavesOffered(s, D)).toBe(0);
     expect(offeredSlaveIds(s, D).size).toBe(0);
     for (const bad of [1.5, -1, Number.NaN]) {
       expect(setSlavesForSale(s, bad)).toEqual({ ok: false, reason: SLAVES_BAD_COUNT });
@@ -133,7 +143,6 @@ describe('nabídka otroků ve vlastní vsi (markets.md – Rozhodnutí plánu 5,
     expect(s.slavesForSale).toBe(2);
     expect([...offeredSlaveIds(s, D)]).toEqual([10, 12]);
     expect(setSlavesForSale(s, 5)).toEqual({ ok: true });
-    expect(slavesOffered(s, D)).toBe(3);
     expect([...offeredSlaveIds(s, D)]).toEqual([10, 12, 14]);
     expect(setSlavesForSale(s, 0)).toEqual({ ok: true });
     expect(s).not.toHaveProperty('slavesForSale');
@@ -172,7 +181,7 @@ describe('nabídka otroků ve vlastní vsi (markets.md – Rozhodnutí plánu 5,
     expect(m.slavesForSale).toBe(1);
     goneFromWorld(m, [10, 12]);
     expect(m.people.find((p) => p.id === 14)).toMatchObject({ slave: true });
-    expect(slavesOffered(m, DAY + 1)).toBe(1);
+    expect([...offeredSlaveIds(m, DAY + 1)]).toEqual([14]);
   });
 
   it('otrok pokřtěný mezi zadáním a dnem kupců se neprodá – prodají se další dva', () => {
@@ -238,5 +247,96 @@ describe('rezervace otroků z nabídky na trhu vsi (Rozhodnutí plánu 5, bod 8)
     expect(boughtIds(visitorOf(h, 'market:b:1'))).toEqual([['men', [14]]]);
     expect(h.people.some((p) => p.id === 12)).toBe(true);
     expect(h.slavesForSale).toBe(1);
+  });
+});
+
+describe('manžel otroka z nabídky není svobodný (Rozhodnutí plánu 5, bod 8; plán 3, bod 10)', () => {
+  /**
+   * `slaveFamilyHome(2)` s nabídkou 1 otroka – rezervace {90}: otrok 90 a otrokyně 91 jsou manželé
+   * (odvedený pohanský pár) v přeplněném domě rodiny 500, svobodná žena 92 (20) bydlí v domě 501
+   * u ženatého syna 66. Vdaná 91 jako žena neodejde, i když její muž je z nabídky – jde 92.
+   */
+  function couple(): VillageState {
+    const s = slaveFamilyHome(2);
+    for (const [id, spouseId] of [
+      [90, 91],
+      [91, 90],
+    ] as const) {
+      Object.assign(
+        s.people.find((p) => p.id === id)!,
+        { spouseId, dwellingId: FAMILY_HOUSE },
+      );
+    }
+    s.people.push({
+      id: 92,
+      bornDay: D - Math.ceil(20.5 * 365.25),
+      dwellingId: SON_HOUSE,
+      sex: 'female',
+    });
+    expect(setSlavesForSale(s, 1)).toEqual({ ok: true });
+    expect([...offeredSlaveIds(s, D)]).toEqual([90]);
+    return s;
+  }
+
+  /** Id všech lidí skupin v pořadí výběru. */
+  const flat = (groups: readonly { people: readonly Person[] }[]): number[] =>
+    groups.flatMap((g) => g.people.map((p) => p.id));
+
+  /** Manželé 90 a 91 jsou doma a vzájemně, nikdo jiný bez manžela. */
+  function coupleHome(s: VillageState): void {
+    expect(oneSidedSpouses(s)).toEqual([]);
+    expect(s.people.filter((p) => p.id === 90 || p.id === 91).map((p) => p.spouseId)).toEqual([
+      91, 90,
+    ]);
+  }
+
+  it('nabídka hostitele: otrok 90 a jako žena 92, ne vdaná 91', () => {
+    const s = couple();
+    const reserved = offeredSlaveIds(s, D);
+    const offer = marketStance(s, D, reserved).offer;
+    expect(offer).toEqual({ fourWheelCarts: 1, slaves: 1, families: 1, women: 1 });
+    expect(
+      leavingGroups(s, D, offer, reserved).women.map((g) => g.people.map((p) => p.id)),
+    ).toEqual([[92]]);
+  });
+
+  it('výprava správce s 1 ženou vezme 92 – po návratu žádné jednostranné manželství', () => {
+    const s = couple();
+    const reserved = offeredSlaveIds(s, D);
+    const sent = departMarketInPlace(
+      s,
+      D,
+      { give: { women: 1 }, wants: { grain: 100 }, stayDays: 1 },
+      target,
+      { by: 'steward', reserved },
+    );
+    if (!sent.ok) throw new Error(sent.reason);
+    const body = s.outbox![0]!.body as { kind: 'market-arrive'; arrival: MarketArrival };
+    const people = body.arrival.people ?? [];
+    expect(people.map((g) => [g.good, flat([g])])).toEqual([['women', [92]]]);
+    coupleHome(s);
+    restorePeople(s, people);
+    coupleHome(s);
+    expect(s.people.some((p) => p.id === 92)).toBe(true);
+  });
+
+  it('leavingGroups + sendPeople + restorePeople: odejde a vrátí se 92, manželé zůstanou', () => {
+    const s = couple();
+    const leaving = emigrantList(leavingGroups(s, D, { women: 1 }, offeredSlaveIds(s, D)));
+    expect(flat(leaving)).toEqual([92]);
+    const out = sendPeople(s, leaving, 'E');
+    coupleHome(s);
+    restorePeople(s, out);
+    coupleHome(s);
+  });
+
+  it('trh vsi – zápočet i mincovní fáze: výprava koupí 1 ženu – 92, ne vdaná 91', () => {
+    for (const goods of [{ grain: 400 }, { coins: 30 }]) {
+      const h = couple();
+      joinMarket(h, D, trip(goods, { women: 1 }));
+      marketDay(h, D);
+      expect(boughtIds(visitorOf(h)), JSON.stringify(goods)).toEqual([['women', [92]]]);
+      coupleHome(h);
+    }
   });
 });
