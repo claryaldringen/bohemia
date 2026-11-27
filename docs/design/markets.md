@@ -276,11 +276,15 @@ a čísla měšce v plánech 5 a 6):
 2. **Kupec koupí všechno ze svého seznamu, co je na trhu** – za průjezd nejvýš zlato 1 000 g, med 100 kg, vosk 24 kg,
    kožešiny 60 a otroci 10; seznam se nemění, je jedinou mezí nákupu.
 3. **Cena dne:** kupec shání celý svůj seznam toho, co je na trhu. Je-li zboží na trhu míň, než kupci shánějí, jeho cena
-   v den kupců roste o `MARKET.priceStep` denně jako dřív – jen ji už nezastaví prázdný měšec.
+   v den kupců roste o `MARKET.priceStep` denně jako dřív – zastaví ji poptávka kupců, která s cenou klesá (bod 6).
 4. **Kupci hladinou nehýbou:** jejich mince ani seznam se do hladiny nepočítají (měšec bez dna by ji hnal nahoru bez
    konce). Hladinu hýbou mince výprav a hostitele jako dřív; mince od kupců zdraží trh, až je ves utratí.
 5. **Převod stavu žádný:** kupec, který na trhu stojí se starým měšcem 60 mincí, ho už nepoužije a mince mu zaniknou
    s odjezdem.
+6. **Zákon nabídky a poptávky:** Martin 27. 11. 2026 k ceně, která s měšcem bez dna rostla bez konce: „Tam musí přece
+   fungovat zákon nabídky a poptávky“. Kupec chce za průjezd nejvýš seznam × výchozí cena ÷ cena trhu (bez toho, co už
+   koupil) – za výchozí cenu celý seznam, za dvojnásobnou polovinu; cena se zastaví, kde kupci chtějí právě tolik, kolik
+   je na trhu, a s větší nabídkou klesá. Zlato má pevnou cenu, kupec ho vykoupí až 1 000 g za průjezd (návrh Clauda).
 
 ## Co se ověří
 

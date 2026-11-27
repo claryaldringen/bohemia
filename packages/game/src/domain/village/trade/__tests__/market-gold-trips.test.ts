@@ -165,7 +165,7 @@ describe('kapacita na trhu a doma (joinMarket, marketResult, applyMarketResult)'
       jewelleryG: 10,
     });
     expect(result.unsold.coins).toBe(4);
-    expect(result.unsold.gold).toBeCloseTo(0.4, 9); // 10 − 9,6 bez zaokrouhlení
+    expect(result.unsold.gold).toBe(0.4); // 10 − 9,6 na setiny gramu (`roundGold`)
     expect(visitor.jewelleryG).toBe(10);
     // hostitel: 50 − 4 za zlato + 30 za nástroje, zlato 9,6 g, jeho kapacita nevznikla
     expect([host.coins, host.gold, host.jewelleryG]).toEqual([76, 9.6, undefined]);

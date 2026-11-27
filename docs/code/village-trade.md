@@ -746,11 +746,23 @@ day, order, target, { by?, seedKg?, alone?, service?, kin?, people? })` (mutuje 
     „Kupci přijeli“ chodí ve webu za každý příjezd – z `market.arrivals`, ne z kroniky (web-ui.md –
     Mince, kupci a zbroj v rozhraní).
   - **Obchod:** kupec je strana zápočtu (zbroj za med, vosk, kožešiny a otroky) i mincovní fáze – v ní
-    kupuje první a podle celého seznamu. **Měšec bez dna** (markets.md – Měšec kupců bez dna; Martin 27. 11. 2026: „Kupcům neomezuj měšec.“): kupec mince nedrží – v `coinPhase` má strana kupce
-    `coins: Infinity` jen v paměti fáze, takže koupí ze seznamu všechno, co je na trhu (mezí je jen
-    seznam za průjezd, který nákupy ubývá, a nabídka). `payCoins` kupci nic nepřipíše ani neubere:
+    kupuje první, podle své poptávky za ceny dne (Poptávka kupce níž). **Měšec bez dna** (markets.md –
+    Měšec kupců bez dna; Martin 27. 11. 2026: „Kupcům neomezuj měšec.“): kupec mince nedrží – v `coinPhase`
+    má strana kupce `coins: Infinity` jen v paměti fáze, takže koupí všechno, co je na trhu, až do své
+    poptávky (mezí je poptávka a nabídka, ne mince). `payCoins` kupci nic nepřipíše ani neubere:
     jeho platbou mince vznikají, platbou jemu (objednaná zbroj, meč výpravě) zanikají. Kupec ze
     starého stavu s `goods.coins` je nepoužije a zaniknou s jeho odjezdem (převod stavu žádný).
+  - **Poptávka kupce** (markets.md – Měšec kupců bez dna, bod 6; Martin 27. 11. 2026: „Tam musí přece
+    fungovat zákon nabídky a poptávky“): `merchantDemand(wants, bought, prices)` v `trade/merchants.ts`
+    – u zboží s cenou trhu P (`priceOf`, bez hladiny) a výchozí cenou P0 (`initialPrice`) chce kupec
+    nejvýš seznam × P0 ÷ P bez toho, co za průjezd už koupil (`bought`), a nejvýš zbytek seznamu
+    (`wants`); seznam průjezdu je `wants` + `bought` (z příjezdu `MERCHANTS.wants`, stav nic nového
+    nenese). Za výchozí cenu celý seznam, za dvojnásobnou polovinu, za pětinásobnou pětinu – hodnota
+    poptávky v cenách trhu je u každého zboží stálá (seznam × P0). Zlato (pevná cena) chce celý zbytek
+    seznamu, až 1 000 g za průjezd. Poptávku za ceny dne (ceny ráno, `nextPrices` je posune až po všech
+    fázích) dává `merchantWants` v `market.ts` všem fázím – ceně dne (`priceTotals`), stropu V zápočtu
+    (`clearMarket`) i seznamu strany kupce v `coinPhase` –, takže kupec za den nekoupí víc, než za cenu
+    dne chce, a co koupil v zápočtu nebo v dřívějším dni průjezdu, poptávce ubere.
   - **Zlato** (gold.md – Rozhodnutí plánu 6, bod 8; `MERCHANTS.wants.gold` = 1 000 g za průjezd):
     kupec kupuje zlato jen za mince, 2,4 g za minci po celých mincích (cena pevná – Zlato výš), od prodávajících
     v pořadí stran a u každého v pořadí `TRADE_GOODS` (zlato před medem) – za průjezd nejvýš 1 000 g.
@@ -772,9 +784,12 @@ day, order, target, { by?, seedKg?, alone?, service?, kin?, people? })` (mutuje 
     po bitu jako po plánu 4 (srovnání dvou klonů v `market-merchants-slaves.test.ts`).
   - **Ceny dne** (`priceTotals` v `market.ts` – S a D pro `nextPrices`; návrh Clauda): poptávka kupce
     se počítá jen u zboží, které je ten den na trhu ke koupi (S > 0, každý den, i s výpravami) – bez
-    nabídky cenou nehne –, a to celý seznam ráno (měšec bez dna poptávku neomezí – Měšec kupců bez
-    dna, bod 3). Je-li zboží na trhu míň, než kupci shánějí, cena v den kupců roste o `priceStep`
-    podle (D − S) / (D + S) každý průjezd (20 kg medu na průjezd → × 1,067). **V den, kdy na trhu kromě
+    nabídky cenou nehne –, a to poptávka ráno za ceny dne (`merchantWants` – Poptávka kupce výš;
+    Měšec kupců bez dna, body 3 a 6). Je-li zboží na trhu míň, než kupci za cenu dne chtějí, cena
+    v den kupců roste o `priceStep` podle (D − S) / (D + S) každý průjezd, až se zastaví, kde D = S:
+    ves s 20 kg medu na průjezd proti seznamu 100 kg má med za pětinásobek výchozí ceny (po 30 letech
+    4,98 ×; s celým seznamem by rostl o 6,7 % každý průjezd, za 30 let ≈ 2 300 ×), ves, která nabízí
+    aspoň celý seznam, za výchozí cenu. **V den, kdy na trhu kromě
     hostitele není žádná výprava** (jen kupci; kovář souseda a doprovod partnera výprava nejsou), se
     hýbou jen ceny zboží, které kupci vezou nebo shánějí: poptávka hostitele nic nezdraží (nástroje by
     jinak za 10 let čtyř průjezdů do roka zdražily 45×) a jeho nabídka, o kterou kupci nestojí, nic

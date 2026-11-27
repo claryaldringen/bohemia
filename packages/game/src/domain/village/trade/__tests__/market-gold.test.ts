@@ -224,8 +224,8 @@ describe('tržní den – zlato u kupců a výměna u hostitele (marketDay)', ()
     // 100 g ÷ 2,4 = 41 celých mincí = 98,4 g; zbylých 1,6 g je pod minci a zůstane ve vsi
     expect(merchant.bought).toEqual({ gold: 98.4 });
     expect(merchant.goods).not.toHaveProperty('coins');
-    expect(merchant.wants.gold).toBeCloseTo(901.6, 9);
-    expect(s.gold).toBeCloseTo(1.6, 9);
+    expect(merchant.wants.gold).toBe(901.6);
+    expect(s.gold).toBe(1.6);
     expect(s.coins).toBe(41);
     expect(heldOf(chronicle)).toEqual({ sold: { gold: 98.4 }, bought: { coins: 41 } });
     expect(s.market).not.toHaveProperty('level');

@@ -16,10 +16,10 @@ import type {
 import { yearlyNeed } from '../../wares/hides';
 import { TRADE_GOODS } from '../goods';
 import { joinMarket, marketDay, marketResultRef } from '../market';
-import { coinPriceOf } from '../market-prices';
+import { coinPriceOf, initialPrice, priceOf } from '../market-prices';
 import { marketStance } from '../market-stance';
 import { nextMerchantVisit } from '../merchant-plan';
-import { merchantsArrive } from '../merchants';
+import { merchantDemand, merchantsArrive } from '../merchants';
 import { D, marketVillage, report } from './market-fixtures';
 
 // Měšec kupců bez dna (markets.md – Měšec kupců bez dna, body 1–5; Martin 27. 11. 2026: „Kupcům
@@ -167,7 +167,7 @@ describe('měšec kupců bez dna – nákup (markets.md – Měšec kupců bez d
     expect(merchant.bought).toEqual(bought);
     // na seznamu zbude jen zlato pod minci (1 000 − 998,4 g)
     expect(Object.keys(merchant.wants)).toEqual(['gold']);
-    expect(merchant.wants.gold).toBeCloseTo(1.6, 9);
+    expect(merchant.wants.gold).toBe(1.6);
     expect(merchant.boughtPeople?.flatMap((g) => g.people)).toHaveLength(10);
     // jedna platba za celý košík od hostitele – součet hodnot v cenách dne nahoru
     const pay = Math.ceil(worth(bought) - 1e-9);
@@ -305,16 +305,27 @@ describe('měšec kupců bez dna – hladina (bod 4)', () => {
   });
 });
 
-describe('měšec kupců bez dna – cena dne (bod 3)', () => {
-  it('zboží, kterého je na trhu míň než na seznamu kupců, zdraží podle celého seznamu', () => {
+describe('měšec kupců bez dna – cena dne (body 3 a 6)', () => {
+  it('za výchozí cenu shánějí kupci celý seznam – zboží, kterého je na trhu míň, zdraží', () => {
     const s = host({ honey: 50, slaves: 3 });
-    s.market = { prices: { honey: 2 }, visitors: [], nextOrder: 1, arrivals: [] };
     merchantsArrive(s, DAY);
     marketDay(s, DAY);
     // med: kupec shání 100 kg, na trhu je 50; otroci: shání 10, na trhu jsou 3
-    expect(s.market.prices.honey).toBeCloseTo(stepped(2, LIST.honey!, 50), 12);
-    expect(s.market.prices.slaves).toBeCloseTo(stepped(price('slaves'), LIST.slaves!, 3), 12);
-    expect(s.market.prices.honey).toBeGreaterThan(2);
+    const prices = s.market!.prices;
+    expect(prices.honey).toBeCloseTo(stepped(price('honey'), LIST.honey!, 50), 12);
+    expect(prices.slaves).toBeCloseTo(stepped(price('slaves'), LIST.slaves!, 3), 12);
+    expect(prices.honey).toBeGreaterThan(price('honey'));
+  });
+
+  it('za drahé zboží chtějí kupci méně – med za třicetinásobek výchozí ceny zlevní', () => {
+    const s = host({ honey: 50 });
+    s.market = { prices: { honey: 2 }, visitors: [], nextOrder: 1, arrivals: [] };
+    merchantsArrive(s, DAY);
+    marketDay(s, DAY);
+    // 2 mince za kg je 30 × výchozí cena – kupec chce 100 ÷ 30 = 3,33 kg, na trhu je 50
+    const wanted = (LIST.honey! * price('honey')) / 2;
+    expect(s.market.prices.honey).toBeCloseTo(stepped(2, wanted, 50), 12);
+    expect(s.market.prices.honey).toBeLessThan(2);
   });
 
   it('zboží, které nikdo nenabízí, kupci cenou nehnou', () => {
@@ -325,5 +336,94 @@ describe('měšec kupců bez dna – cena dne (bod 3)', () => {
     expect(s.market.prices.furs).toBe(3);
     expect(s.market.prices).not.toHaveProperty('wax');
     expect(s.market.prices).not.toHaveProperty('slaves');
+  });
+});
+
+describe('zákon nabídky a poptávky – kupec chce tím méně, čím je zboží dražší (bod 6)', () => {
+  /** Výchozí cena medu P0 (`initialPrice`). */
+  const P0 = initialPrice('honey');
+
+  /** Poptávka kupce po medu za cenu `ratio` × P0 se zbytkem seznamu `left` a koupeným `had`. */
+  function honeyDemand(ratio: number, left = 100, had = 0): number | undefined {
+    return merchantDemand({ honey: left }, had > 0 ? { honey: had } : {}, { honey: ratio * P0 })
+      .honey;
+  }
+
+  /**
+   * Cena medu po každém z `passes` průjezdů kupců, při kterých ves nabízí `honey` kg medu nad
+   * potřebu – ceny trhu se přenášejí z průjezdu na průjezd (30 let = 120 průjezdů po 4 za rok).
+   */
+  function honeyPrices(honey: number, passes: number, from: MarketPrices = {}): number[] {
+    const base = host({ honey });
+    const out: number[] = [];
+    let prices = from;
+    for (let i = 0; i < passes; i++) {
+      const s = structuredClone(base);
+      s.market = { prices: { ...prices }, visitors: [], nextOrder: 1, arrivals: [] };
+      merchantsArrive(s, DAY);
+      marketDay(s, DAY);
+      prices = s.market.prices;
+      out.push(priceOf(prices, 'honey'));
+    }
+    return out;
+  }
+
+  it('za výchozí cenu celý seznam, za dvojnásobnou polovinu, za pětinásobnou pětinu', () => {
+    expect(honeyDemand(1)).toBe(100);
+    expect(honeyDemand(2)).toBe(50);
+    expect(honeyDemand(5)).toBeCloseTo(20, 12);
+    // po nákupu 20 kg za průjezd: 100 × ½ − 20 = 30
+    expect(honeyDemand(2, 80, 20)).toBe(30);
+    // nejvýš zbytek seznamu; kdo za průjezd koupil víc, než za cenu chce, nechce nic
+    expect(honeyDemand(1, 30, 70)).toBe(30);
+    expect(honeyDemand(4, 50, 50)).toBeUndefined();
+    // otroci stejně jako med: 10 za dvojnásobek výchozí ceny (4 mince) je 5
+    expect(merchantDemand({ slaves: 10 }, {}, { slaves: 8 })).toEqual({ slaves: 5 });
+  });
+
+  it('zlato má pevnou cenu – poptávka po něm se cenou nemění', () => {
+    expect(merchantDemand({ gold: 1_000, honey: 100 }, {}, { honey: 5 * P0 }).gold).toBe(1_000);
+    expect(merchantDemand({ gold: 500 }, { gold: 500 }, {})).toEqual({ gold: 500 });
+    // kupec vykoupí zlato i za drahý med: 416 celých mincí = 998,4 g, na seznamu zbude 1,6 g
+    const s = host({ honey: 80, gold: 1_200 });
+    s.market = { prices: { honey: 4 * P0 }, visitors: [], nextOrder: 1, arrivals: [] };
+    merchantsArrive(s, DAY);
+    const merchant = merchantOf(s);
+    marketDay(s, DAY);
+    expect(merchant.bought).toEqual({ gold: 998.4, honey: 25 });
+    expect(merchant.wants.gold).toBe(1.6);
+  });
+
+  it('při čtyřnásobku výchozí ceny koupí kupec nejvýš 25 kg medu, i když je na trhu 80 kg', () => {
+    const s = host({ honey: 80 });
+    s.market = { prices: { honey: 4 * P0 }, visitors: [], nextOrder: 1, arrivals: [] };
+    merchantsArrive(s, DAY);
+    const merchant = merchantOf(s);
+    const chronicle = marketDay(s, DAY);
+    expect(merchant.bought).toEqual({ honey: 25 });
+    expect(merchant.wants.honey).toBe(75);
+    expect(heldOf(chronicle)).toEqual({
+      sold: { honey: 25 },
+      bought: { coins: Math.ceil(25 * 4 * P0 - 1e-9) },
+    });
+    // cena dne: kupec chce 25 kg, na trhu je 80 – med zlevní
+    expect(s.market.prices.honey).toBeCloseTo(stepped(4 * P0, 25, 80), 12);
+  });
+
+  it('rovnováha: ves nabízí každý průjezd 20 kg medu – cena se zastaví u pětinásobku výchozí', () => {
+    // s měšcem bez dna a celým seznamem by cena rostla o 6,7 % každý průjezd bez konce (≈ 2 300 ×)
+    const prices = honeyPrices(20, 120);
+    expect(Math.max(...prices)).toBeLessThanOrEqual(5.1 * P0);
+    const [before, last] = prices.slice(-2) as [number, number];
+    expect(last).toBeGreaterThan(4.9 * P0);
+    expect(Math.abs(last - before) / before).toBeLessThan(1e-3);
+  });
+
+  it('ves s nabídkou aspoň 100 kg medu má cenu medu výchozí – drahý med zlevní až na ni', () => {
+    expect(honeyPrices(100, 8)).toEqual(Array.from({ length: 8 }, () => P0));
+    const falling = honeyPrices(150, 120, { honey: 5 * P0 });
+    expect(falling.at(-1)).toBe(P0);
+    // klesá průjezd po průjezdu, nikdy pod výchozí
+    expect(falling.every((p, i) => p >= P0 && (i === 0 || p <= falling[i - 1]!))).toBe(true);
   });
 });

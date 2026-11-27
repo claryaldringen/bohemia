@@ -5,16 +5,54 @@
 // v market.ts). Zbroj vznikne jen jeho příjezdem; co mu zbude a co koupil, zanikne jen jeho odjezdem
 // – i z trhu vsi, která zanikla (`merchantsLeave`). Mince kupec nedrží: platí z měšce bez dna, takže
 // jeho platbou mince vznikají a platbou jemu zanikají (markets.md – Měšec kupců bez dna, bod 1;
-// `coinPhase` a `payCoins` v market.ts). Koupení otroci (`boughtPeople`) odjedou s ním ze světa –
+// `coinPhase` a `payCoins` v market.ts) – za drahé zboží ale chce méně (`merchantDemand`, bod 6:
+// zákon nabídky a poptávky). Koupení otroci (`boughtPeople`) odjedou s ním ze světa –
 // jediný odchod lidí ze světa kromě smrti (markets.md – Rozhodnutí plánu 5, bod 7).
 // Příjezd i pobyt (mutují stav jako kroky dne) počítá jen ze stavu vsi a dne, takže výsledek
 // nezávisí na kouscích dopočtu.
 import { dateOfDayIndex } from '../../calendar';
 import { MARKET, MERCHANTS } from '../rules';
 import { newMarket } from './coin-rate';
-import type { ChronicleEvent, TradeGoods, VillageMarket, VillageState } from '../types';
-import { TRADE_GOODS } from './goods';
+import type {
+  ChronicleEvent,
+  MarketPrices,
+  TradeGoods,
+  VillageMarket,
+  VillageState,
+} from '../types';
+import { COIN_GOOD, GOLD_GOOD, TRADE_GOODS } from './goods';
 import { merchantVisits } from './merchant-plan';
+import { initialPrice, priceOf } from './market-prices';
+
+/**
+ * Poptávka cizího kupce za ceny trhu `prices` (markets.md – Měšec kupců bez dna, bod 6 – návrh
+ * Clauda k Martinovu „zákonu nabídky a poptávky“, 27. 11. 2026): kupec platí z měšce bez dna, ale za
+ * drahé zboží chce méně. U zboží s cenou trhu P (bez hladiny, `priceOf`) a výchozí cenou P0
+ * (`initialPrice`) chce nejvýš seznam × P0 ÷ P bez toho, co za průjezd už koupil (`bought`), a nejvýš
+ * to, co mu ze seznamu zbývá (`wants`) – za výchozí cenu celý seznam, za dvojnásobnou polovinu.
+ * Seznam průjezdu je zbytek seznamu a koupené (`MERCHANTS.wants` z příjezdu – stav nic dalšího
+ * nenese). Zlato má pevnou cenu (`goldCoinPrice`) a mince cenu nemají – chce jich celý zbytek
+ * seznamu. Cena trhu se tak zastaví, kde kupci chtějí právě tolik, kolik je na trhu, a s větší
+ * nabídkou klesá (`nextPrices`). Čistá funkce, vstup nemění; jen kladné položky v pořadí `TRADE_GOODS`.
+ */
+export function merchantDemand(
+  wants: TradeGoods,
+  bought: TradeGoods,
+  prices: MarketPrices | undefined,
+): TradeGoods {
+  const demand: TradeGoods = {};
+  for (const good of TRADE_GOODS) {
+    const left = wants[good] ?? 0;
+    if (!(left > 0)) continue;
+    const had = bought[good] ?? 0;
+    // cena pod výchozí není (`nextPrices`) – za výchozí celý zbytek, bez šumu dělení
+    const ratio =
+      good === GOLD_GOOD || good === COIN_GOOD ? 1 : initialPrice(good) / priceOf(prices, good);
+    const amount = ratio >= 1 ? left : Math.min(left, (left + had) * ratio - had);
+    if (amount > 0) demand[good] = amount;
+  }
+  return demand;
+}
 
 /**
  * Cizí kupci, kteří dnes přijeli (mutuje stav – krok dne po událostech schránky a před tržním dnem):

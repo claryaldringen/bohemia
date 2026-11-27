@@ -6,9 +6,10 @@
  * po stezce několikrát do roka a v každé vsi u stezky se zastaví na den, kde je víc obchodníků déle,
  * Martin 22. 11. 2026: „Ano. Postupně to povede ke vzniku trhových vsí a měst na kupeckých stezkách“).
  * - Měšec kupce je bez dna (Martin 27. 11. 2026: „Kupcům neomezuj měšec.“ – markets.md, Měšec kupců
- *   bez dna, body 1 a 2): kupec mince nedrží a za průjezd koupí všechno ze seznamu, co je na trhu –
- *   seznam je jedinou mezí nákupu. Klát dá ročně ≈ 6 kg medu a 0,4 kg vosku (`HIVES`), kožešin je
- *   v malé vsi ≈ 20 ročně.
+ *   bez dna, body 1 a 2): kupec mince nedrží a za průjezd koupí ze seznamu, co je na trhu – za drahé
+ *   zboží méně (bod 6, Martin 27. 11. 2026: „Tam musí přece fungovat zákon nabídky a poptávky“): nejvýš
+ *   seznam × výchozí cena ÷ cena trhu bez koupeného (`merchantDemand`), zlato celý seznam. Klát dá
+ *   ročně ≈ 6 kg medu a 0,4 kg vosku (`HIVES`), kožešin je v malé vsi ≈ 20 ročně.
  * - Seznam je trochu větší než přebytek jedné vsi, kupci ho tedy zdražují; při výchozích cenách mají
  *   med, vosk a kožešiny hodnotu 20 mincí (med ≈ 6,7, vosk 8, kožešiny ≈ 5,3) – právě cenu meče.
  * - Otroci (markets.md – Rozhodnutí plánu 5, bod 7; návrh Clauda): 10 za průjezd po 4 mincích –
@@ -32,9 +33,9 @@ export const MERCHANTS = {
   /** Co kupec prodává (kusy). */
   goods: { swords: 2, mailShirts: 1, helmets: 2 },
   /**
-   * Co kupec za průjezd shání (zlato g, med a vosk kg, kožešiny a otroci kusy) – koupí všechno, co
-   * z toho na trhu je (markets.md – Měšec kupců bez dna, bod 2); otroci markets.md – Rozhodnutí
-   * plánu 5, bod 7, zlato gold.md – Rozhodnutí plánu 6, bod 8.
+   * Co kupec za průjezd shání (zlato g, med a vosk kg, kožešiny a otroci kusy) za výchozí ceny – za
+   * dražší méně (`merchantDemand`; markets.md – Měšec kupců bez dna, body 2 a 6); otroci markets.md –
+   * Rozhodnutí plánu 5, bod 7, zlato gold.md – Rozhodnutí plánu 6, bod 8.
    */
   wants: { gold: 1_000, honey: 100, wax: 24, furs: 60, slaves: 10 },
   /** Od kolika výprav na trhu kupci zůstanou další den. */
