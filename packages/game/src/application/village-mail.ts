@@ -101,7 +101,9 @@ function goldOf(result: MarketResult): number {
  */
 function carriesMoney(mail: VillageMail): boolean {
   if (mail.body.kind !== 'market-result') return false;
-  return (mail.body.result.unsold.coins ?? 0) > 0 || goldOf(mail.body.result) > 0;
+  // starší výsledky `unsold` nemusí mít – stejná ochrana jako v `goldOf`
+  const unsold = mail.body.result.unsold as MarketResult['unsold'] | undefined;
+  return (unsold?.coins ?? 0) > 0 || goldOf(mail.body.result) > 0;
 }
 
 /** Výsledek, který se se zaniklou domovskou vsí nesmí zahodit celý – nese lidi, mince nebo zlato. */

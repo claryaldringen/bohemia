@@ -9,8 +9,10 @@ import type { StewardMode } from '../steward/steward';
 import type { Craft, TradeGood } from '../types';
 
 /**
- * Řemesla, se kterými počítá správce (slot dílny plánu, `workshopValue`) – dnešní čtyři; dílny zlata
- * nestaví (Rozhodnutí plánu 6, bod 10).
+ * Řemesla, se kterými počítá správce při kontrole umístění slotu dílny plánu (`slotChecks`,
+ * `steward-plan.ts`) – dnešní čtyři; dílny zlata nestaví (Rozhodnutí plánu 6, bod 10). Výběr řemesla
+ * při stavbě (`workshopStep` v `steward.ts`) má vlastní výčet týchž čtyř v pořadí rozhodujícím při
+ * shodě hodnot; `workshopValue` dílnám zlata dává 0.
  */
 export const STEWARD_CRAFTS: readonly Craft[] = ['burner', 'potter', 'smith', 'carpenter'];
 

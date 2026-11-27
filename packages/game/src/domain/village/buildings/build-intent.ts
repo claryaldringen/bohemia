@@ -610,7 +610,7 @@ function buildWorkshop(
   place: () => PlacementVillage,
 ): BuildResult {
   if (!CRAFTS.includes(intent.craft)) return { ok: false, reason: UNKNOWN_CRAFT };
-  // zámek dílny zlata (gold.md – Pravidla 1, 3, 5): bez náplavu, vyrýžováno, mincovna před rokem 950
+  // zámek dílny zlata (gold.md – Pravidla 1 a 3): bez náplavu, vyrýžováno, mincovna před rokem 950
   const locked = workshopBlocked(state, day, landscape, intent.craft);
   if (locked !== null) return { ok: false, reason: locked };
   // nadzemní dílna až od roku své varianty (workshops.md) – i když hráč obejde zašedlé tlačítko

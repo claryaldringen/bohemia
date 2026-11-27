@@ -1010,7 +1010,7 @@ export function startWorkshop(
 ): VillageState {
   validateActionDay(state, day);
   if (!CRAFTS.includes(craft)) throw new RangeError('Neznámé řemeslo.');
-  // mincovna až od roku 950 (gold.md – Pravidla 5) – i bez krajiny
+  // mincovna až od roku 950 (gold.md – Pravidla 3) – i bez krajiny
   if (craft === 'minter' && dateOfDayIndex(day).year < MINT.fromYear)
     throw new RangeError(MINT_YEAR);
   if (houseType !== undefined && !isHouseType(houseType)) {

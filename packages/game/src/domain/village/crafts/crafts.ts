@@ -567,11 +567,11 @@ export function restingCrafters(
   for (const d of occupiedWorkshops(state, 'jeweller')) {
     const material = jewelleryMaterialG(state);
     if (material <= 0) resting.set(d.id, 'no-gold');
-    else if ((state.jewelleryG ?? 0) >= material - 1e-9) resting.set(d.id, 'resting');
+    else if ((state.jewelleryG ?? 0) >= material - EPSILON) resting.set(d.id, 'resting');
   }
-  // mincíř (gold.md – Pravidla 5): méně než gram zlata – `no-gold`
+  // mincíř (gold.md – Pravidla 3): méně než gram zlata – `no-gold`
   for (const d of occupiedWorkshops(state, 'minter')) {
-    if (Math.floor((state.gold ?? 0) + 1e-9) < GOLD.coinGrams) resting.set(d.id, 'no-gold');
+    if (Math.floor((state.gold ?? 0) + EPSILON) < GOLD.coinGrams) resting.set(d.id, 'no-gold');
   }
   for (const d of occupiedWorkshops(state, 'potter')) {
     const workshop = d.workshop!;
@@ -1458,7 +1458,7 @@ export function workCrafts(
     }
     const labor = workshopLabor(state, day, dwelling.id, coverage.pottery, productivity);
     if (workshop.craft === 'jeweller' || workshop.craft === 'minter') {
-      // šperkař a mincíř (gold.md – Pravidla 4 a 5) – nikdy větev hrnčíře
+      // šperkař a mincíř (gold.md – Pravidla 3 a 4) – nikdy větev hrnčíře
       const activity =
         workshop.craft === 'jeweller'
           ? workJeweller(state, labor).activity

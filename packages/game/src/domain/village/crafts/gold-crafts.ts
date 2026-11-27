@@ -1,4 +1,4 @@
-// Dílny zlata (plán 6, issue #13; gold.md – Pravidla 2, 4, 5): rýžovník, šperkař a mincíř.
+// Dílny zlata (plán 6, issue #13; gold.md – Pravidla 1–4): rýžovník, šperkař a mincíř.
 import { dateOfDayIndex } from '../../calendar';
 import { length2, type Landscape } from '../../landscape';
 import { goldPlacers } from '../core/premium-effects';
@@ -11,17 +11,20 @@ import type { Craft, Workshop, WorkshopActivity } from '../types/types-crafts';
 import type { Dwelling, VillageState } from '../types';
 import type { WorkshopLabor } from './crafts';
 
-/** Zbytek náplavu pod touto mezí (g) je jen šum desetinných čísel – dobere se týž den. */
-const DUST_G = 1e-9;
+/**
+ * Zbytek pod touto mezí je jen šum desetinných čísel – zbytek náplavu (g) se dobere týž den,
+ * zlato `n − ε` se ještě razí jako `n`.
+ */
+const EPSILON = 1e-9;
 
 /** Dílny zlata – správce je nestaví a nepočítá s nimi (Rozhodnutí plánu 6, bod 10). */
 export const GOLD_CRAFTS: readonly Craft[] = ['panner', 'jeweller', 'minter'];
 
 /** Rýžovník nejde postavit na krajině bez zlatonosného náplavu (gold.md – Pravidla 1). */
 export const PANNER_NO_PLACER = 'Bez zlatonosného náplavu';
-/** Všechny náplavy krajiny jsou vyrýžované (gold.md – Pravidla 3). */
+/** Všechny náplavy krajiny jsou vyrýžované (gold.md – Pravidla 1). */
 export const PANNER_PLACERS_EMPTY = 'Náplavy jsou vyrýžované';
-/** Mincovna až od 1. 1. `MINT.fromYear` (gold.md – Pravidla 5). */
+/** Mincovna až od 1. 1. `MINT.fromYear` (gold.md – Pravidla 3). */
 export const MINT_YEAR = `Od roku ${MINT.fromYear}`;
 
 /** Zbývá na náplavu `index` (g) – `PANNING.placerG` − `goldPanned[index]`, nejméně 0. */
@@ -154,7 +157,7 @@ export function workPanner(
   const left = placerLeftG(state, placer.index);
   const output = (labor.craft * labor.skill * PANNING.gPerManDay) / distanceFactor(placer.walkM);
   if (output <= 0) return { activity: 'producing', pannedG: 0, site: null };
-  const pannedG = left - output <= DUST_G ? left : output;
+  const pannedG = left - output <= EPSILON ? left : output;
   state.gold = (state.gold ?? 0) + pannedG;
   const panned = (state.goldPanned ??= []);
   while (panned.length <= placer.index) panned.push(0);
@@ -167,10 +170,7 @@ export function workPanner(
   return { activity: 'producing', pannedG, site, exhaustedLeft };
 }
 
-// --- šperkař a mincovna (gold.md – Pravidla 4 a 5) ---------------------------------------------
-
-/** Zbytek pod touto mezí je jen šum desetinných čísel – zlato `n − ε` se ještě razí jako `n`. */
-const EPSILON = 1e-9;
+// --- šperkař a mincovna (gold.md – Pravidla 3 a 4) ---------------------------------------------
 
 /**
  * Šperkař zpracovává kov vsi (gold.md – Pravidla 4): práce dílny × praxe × `JEWELLER.gPerManDay`,
@@ -193,7 +193,7 @@ export function workJeweller(
 }
 
 /**
- * Mincíř razí zlato na mince (gold.md – Pravidla 5): práce dílny × praxe × `MINT.gPerManDay`,
+ * Mincíř razí zlato na mince (gold.md – Pravidla 3): práce dílny × praxe × `MINT.gPerManDay`,
  * nejvýš celé gramy zlata ve vsi; gram zlata = `GOLD.coinGrams` na minci, jen celé mince. Zlato se
  * odečte a mince přičtou přes `addGood`, součet zlato + mince × `coinGrams` se nemění. Méně než
  * gram zlata – `no-gold`.

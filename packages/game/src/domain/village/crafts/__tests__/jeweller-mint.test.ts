@@ -10,7 +10,7 @@ import { withBuiltFirstDwelling } from '../../__tests__/village-fixtures';
 import { newWorkshop, restingCrafters } from '../crafts';
 import { workJeweller, workMinter } from '../gold-crafts';
 
-// Šperkař a mincovna (plán 6, úloha 5; gold.md – Pravidla 4 a 5).
+// Šperkař a mincovna (plán 6, úloha 5; gold.md – Pravidla 3 a 4).
 
 const DAY = dayIndexOf({ year: 950, month: 1, day: 1 });
 const WORKSHOP_ID = 50;

@@ -86,7 +86,7 @@ export const TRADE_GOOD_VALUES = {
   mailShirts: { valueKg: 7200, carryKg: 12 },
   helmets: { valueKg: 3600, carryKg: 1.5 },
   coins: { valueKg: MARKET.grainKgPerCoin, carryKg: 0 },
-  // zlato (gold.md – Pravidla 1; rešerše 2026-11-26-gold.md): gram stojí tolik co mince, nic neváží
+  // zlato (gold.md – Pravidla 2; rešerše 2026-11-26-gold.md): gram stojí tolik co mince, nic neváží
   // jako mince – správce plní náklad do meze, zlato nepřidá nosiče
   gold: { valueKg: MARKET.grainKgPerCoin / GOLD.coinGrams, carryKg: 0 },
   // lidé na trhu za kus (markets.md – Rozhodnutí plánu 3, bod 4): svobodný muž nebo žena 360 –

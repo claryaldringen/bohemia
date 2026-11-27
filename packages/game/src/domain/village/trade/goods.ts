@@ -22,7 +22,7 @@ export const ARMS_GOODS: readonly ArmsGood[] = ['swords', 'mailShirts', 'helmets
 /** Mince jako zboží (markets.md – Rozhodnutí plánu 4, bod 1): kusy, celé. */
 export const COIN_GOOD = 'coins' as const;
 
-/** Zlato jako zboží (gold.md – Pravidla 1): gramy, na trhu celé. */
+/** Zlato jako zboží (gold.md – Pravidla 2): gramy, na trhu celé. */
 export const GOLD_GOOD = 'gold' as const;
 
 /** Druhy dobytka v obchodu v pořadí panelu (trade.md – Dobytek ve třech druzích). */
