@@ -92,8 +92,6 @@ describe('ikony zboží obchodu', () => {
 
   it('ke každému zboží existuje ikona 64 × 64 a ikona kupců', () => {
     for (const good of TRADE_GOODS) {
-      // soubor gold.png přibude z větve ikon (plán 6, Úloha 2) – tady se neověřuje
-      if (good === 'gold') continue;
       const icon = TRADE_GOOD_NAMES[good].icon;
       expect(existsSync(join(iconsDir, 'resources', `${icon}.png`)), good).toBe(true);
     }

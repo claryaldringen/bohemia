@@ -155,6 +155,8 @@ export interface SelectionWorkshop {
   iron?: NonNullable<VillageView['crafts']['workshops'][number]['iron']> & { coverage: number };
   /** Hrnčíř: hlína a hliniště (crafts.md – Hlína hrnčíře); jinak chybí. */
   clay?: NonNullable<VillageView['crafts']['workshops'][number]['clay']>;
+  /** Dílny zlata (rýžovník, šperkař, mincovna – gold.md). */
+  gold?: NonNullable<VillageView['crafts']['workshops'][number]['gold']>;
 }
 
 /**
@@ -1743,6 +1745,7 @@ function workshopDetails(view: VillageView, dwellingId: number): SelectionWorksh
     ...(workshop.ore ? { ore: workshop.ore } : {}),
     ...(workshop.iron ? { iron: { ...workshop.iron, coverage: view.crafts.coverage.tools } } : {}),
     ...(workshop.clay ? { clay: workshop.clay } : {}),
+    ...(workshop.gold ? { gold: workshop.gold } : {}),
     carpenter: carpenter
       ? {
           carts: view.crafts.carts,

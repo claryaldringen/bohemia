@@ -319,6 +319,56 @@ export function SmithOreStats({
   );
 }
 
+/**
+ * Dílny zlata (gold.md): rýžovník – náplavy se zlatem, zbytek současného náplavu a cesta k němu;
+ * šperkař – výhoda a kov; mincovna – zlato ve vsi. Čísla s ikonami, slova v popiscích.
+ */
+export function GoldWorkshopStats({
+  gold,
+}: {
+  gold: NonNullable<SelectionWorkshop['gold']>;
+}): ReactElement {
+  if (gold.craft === 'panner') {
+    return (
+      <>
+        <Stat
+          icon="gold"
+          name={`Náplavy se zlatem – v současném zbývá ${formatInteger(gold.leftG)} g`}
+          testId="selection-workshop-placers"
+        >
+          {gold.placersLeft}
+        </Stat>
+        {gold.walkM > 0 && (
+          <Stat icon="walk" name="Cesta k náplavu (m)" testId="selection-workshop-placer-walk">
+            {`${formatInteger(gold.walkM / 100)} m`}
+          </Stat>
+        )}
+      </>
+    );
+  }
+  if (gold.craft === 'jeweller') {
+    return (
+      <>
+        <Stat
+          icon="jewellery"
+          name="Šperky – zlato a mince za 1,5násobek, ještě pro tolik gramů"
+          testId="selection-workshop-wrought"
+        >
+          {formatInteger(gold.wroughtG)}
+        </Stat>
+        <Stat icon="gold" name="Kov vsi – zlato a mince (g)" testId="selection-workshop-material">
+          {formatInteger(gold.materialG)}
+        </Stat>
+      </>
+    );
+  }
+  return (
+    <Stat icon="gold" name="Zlato ve vsi k ražbě (g)" testId="selection-workshop-mint-gold">
+      {formatInteger(gold.goldG)}
+    </Stat>
+  );
+}
+
 /** Fáze milíře pro hráče (crafts.md – Milíř u skácených buků). */
 export const KILN_STAGE_NAMES: Record<SelectionWorkshop['kilns'][number]['stage'], string> = {
   wood: 'kácí a připravuje buky',
@@ -399,6 +449,7 @@ export function WorkshopRow({
       {workshop.iron && <SmithIronStats iron={workshop.iron} />}
       {workshop.ore && <SmithOreStats ore={workshop.ore} />}
       {workshop.clay && <PotterClayStats clay={workshop.clay} />}
+      {workshop.gold && <GoldWorkshopStats gold={workshop.gold} />}
       {workshop.craft === 'burner' && workshop.toPlant > 0 && workshop.activity !== 'planting' && (
         <Stat
           icon="labor"

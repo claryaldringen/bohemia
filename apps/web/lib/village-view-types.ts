@@ -373,6 +373,11 @@ export interface VillageWorkshop {
    * zbývá) a hromada u jámy; bez údaje dílna jiného řemesla.
    */
   clay?: VillageSummary['crafts']['workshops'][number]['clay'];
+  /**
+   * Dílny zlata (gold.md): rýžovník { náplavy se zlatem, zbytek náplavu (g), chůze (cm) }, šperkař
+   * { výhoda, kov (g) }, mincovna { zlato (g) }; bez údaje dílna jiného řemesla.
+   */
+  gold?: NonNullable<VillageSummary['crafts']['workshops'][number]['gold']>;
 }
 
 /** Vůz vsi pro lištu a panel (wagons.md – Vůz): druh, stav 0–1 a jestli je s výpravou pryč. */

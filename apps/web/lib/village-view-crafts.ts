@@ -401,6 +401,7 @@ export function craftsView(state: VillageState, summary: VillageSummary): Villag
             },
           }
         : {}),
+      ...(w.gold ? { gold: w.gold } : {}),
       ...(w.clay
         ? {
             clay: {
