@@ -86,6 +86,48 @@ s hornictvím (premium-landscapes.md).
     (mince světa 505 proti 447). Hladina T roste i bez mincovny – mince přicházejí i z výměny zlata a výpravy G je nosí
     na trh –, mincovna ten růst zrychlí. Na konci 15 + 19 lidí (bez mincovny 15 + 17), nikdo hladem.
 
+- **Přepočet Vlkova po plánu 6** (Vlkov nemá zlatonosný potok ani dílny zlata). **Ověřeno 27. 11. 2026** (živý stav
+  z databáze `bohemia` – jen čtení, 10 let po dnech od 4. 1. 920, sonda plánů 1–5; návrh Clauda): stav po plánu 6
+  (`feat/gold-6`) je **bit po bitu týž** jako na `feat/landscape` – shodný otisk celého stavu všech 3 653 dní i konečný
+  stav, i plán a stavby správce (Vlkov řídí správce); kodek bez rozdílu (30 kontrol – tytéž bajty obou částí stavu
+  a převod tam a zpět beze změny), chyby ani `NaN` nejsou. Druhý běh s uměle přidanou zastávkou kupců (jedna zastávka
+  se seedem jako v plánech 4 a 5) a objednávkou jednoho meče, jednou bez šperkaře a jednou s obydlenou dílnou šperkaře
+  u dvorce (vyučený muž 35 let jako v testu světa). V roce 920 kupci projeli čtyřikrát, pokaždé s měšcem 60 mincí:
+
+  | Kupci a objednávka meče | Meč koupen                | Zaplaceno (cena dne) | Mince předtím | Kapacita šperkaře předtím |
+  | ----------------------- | ------------------------- | -------------------- | ------------- | ------------------------- |
+  | bez šperkaře            | 16. 5. 920 (2. den kupců) | 120 (120)            | 60            | –                         |
+  | se šperkařem            | 16. 5. 920 (2. den kupců) | 90 (120)             | 60            | 60 g                      |
+  - **Kdy:** v obou bězích týž den – druhý den kupců, kdy ves měla 60 mincí z prvního průjezdu a týž den utržila za med
+    a kožešiny dalších 60. Šperkař nákup neuspíšil: první den kupců (1. 2. 920) ves předem neměla nic a i s plnou
+    kapacitou šperkaře by na meč potřebovala aspoň 80 mincí.
+  - **Za kolik:** se šperkařem o 30 mincí méně – o čtvrtinu, ne o třetinu. Použitelná kapacita šperkaře nepřeroste kov
+    vsi (Pravidla 4) a před tím dnem měla ves jen 60 mincí: s výhodou 1,5× platilo jen těch 60 (za 90) a zbylých 30 ves
+    zaplatila 1:1 z mincí utržených týž den, které šperkař ještě nezpracoval.
+  - **Dál:** šperkař zpracuje 1,5 g za den, takže jeho kapacita drží krok s mincemi, které ves pomalu hromadí (na konci
+    roku je skoro rovna mincím vsi):
+
+  | Rok (31. 12.) | Bez šperkaře: lidé (rod) | Mince | Hladina | Se šperkařem: lidé (rod) | Mince | Kapacita šperkaře g | Hladina |
+  | ------------- | ------------------------ | ----- | ------- | ------------------------ | ----- | ------------------- | ------- |
+  | 920           | 26 (8)                   | 120   | 1       | 26 (7)                   | 150   | 126                 | 1       |
+  | 921           | 22 (6)                   | 360   | 1       | 24 (6)                   | 386   | 367                 | 1       |
+  | 922           | 25 (7)                   | 481   | 1,17    | 27 (6)                   | 506   | 506                 | 1,17    |
+  | 923           | 26 (8)                   | 502   | 1,35    | 29 (7)                   | 562   | 562                 | 1,51    |
+  | 924           | 28 (8)                   | 535   | 1,66    | 31 (9)                   | 603   | 603                 | 1,67    |
+  | 925           | 29 (7)                   | 591   | 1,94    | 30 (9)                   | 657   | 657                 | 1,80    |
+  | 926           | 31 (8)                   | 657   | 2,23    | 31 (9)                   | 709   | 709                 | 1,96    |
+  | 927           | 31 (8)                   | 721   | 2,38    | 32 (10)                  | 778   | 758                 | 2,07    |
+  | 928           | 31 (9)                   | 927   | 2,38    | 32 (10)                  | 867   | 835                 | 2,33    |
+  | 929           | 34 (9)                   | 1 006 | 2,48    | 32 (10)                  | 950   | 916                 | 2,42    |
+
+  Lidé a rod bez šperkaře jsou tytéž jako bez kupců (kupcům ves prodá jen přebytek medu, vosku a kožešin). Se
+  šperkařem má ves muže navíc a běh se dál liší jiným průběhem náhody vsi (sňatky, porody, rod) – i jinými tržbami
+  (za 10 let 1 040 mincí proti 1 126). Nikdo hladem. Běh bez šperkaře má i na `feat/landscape` (plán 5) tatáž čísla
+  a týž konečný stav – liší se jen zápis příjezdu kupců, který po plánu 6 jmenuje i zlato (kupci vykupují 1 000 g).
+  Poslední den běhu (4. 1. 930) se šperkař ve 45 letech přestěhoval do dvorce – domácnost bez nikoho mezi 16 a 44 lety
+  se rozpadne ([kinship.md](kinship.md) – Rozpad domácnosti) a dílna pak stojí prázdná, jako dílna rýžovníka po sňatku
+  v testu světa.
+
 ## Nechává se na stavitele
 
 Čísla (zlato za den, vyčerpání náplavu, kapacita šperkaře, stavba mincovny) s rešerší, rozhraní (ikony, panel dílny),
