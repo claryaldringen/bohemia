@@ -240,6 +240,11 @@ export interface MarketVisitor {
    */
   coinsPaid?: number;
   coinsGot?: number;
+  /**
+   * Kapacita šperkaře, kterou výprava veze (g; gold.md – Pravidla 4): v mincovní fázi s ní prodá
+   * zlato dráž a mincemi zaplatí víc, spotřebovaná ubude (`coinPhase`). Chybí = žádná.
+   */
+  jewelleryG?: number;
 }
 
 /**

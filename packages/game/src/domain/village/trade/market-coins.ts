@@ -8,7 +8,10 @@
 // v kg se dělí, kus je celý, mince přejdou celé a součet plateb přes všechny strany je nula. Zlato
 // (gold.md – Pravidla 2; Rozhodnutí plánu 6, body 2 a 3) stojí vždy minci za gram, kupují ho kupci
 // a výpravy podle seznamu a hostitel ho nekupcům vymění za své mince (`exchangesGold`); do C a W
-// hladiny nepatří – kov za kov není poptávka po zboží. Čistá funkce, vstup nemění.
+// hladiny nepatří – kov za kov není poptávka po zboží. Šperkař (gold.md – Pravidla 4; Rozhodnutí
+// plánu 6, bod 5) prodávajícímu zdraží zlato a kupujícímu zlevní platbu za ostatní zboží, objednanou
+// zbroj hostitel doplatí zlatem (bod 3). Čistá funkce, vstup nemění.
+import { JEWELLER } from '../rules';
 import type { MarketPrices, MarketTrade, TradeGood, TradeGoods } from '../types';
 import { COIN_GOOD, GOLD_GOOD, TRADE_GOODS, isPieceGood } from './goods';
 import { coinPriceOf } from './market-prices';
@@ -41,6 +44,13 @@ export interface CoinParty {
   fromMerchants?: true;
   /** Hostitel: zlato nekupců vymění 1:1 za mince ze svého měšce, po vlastním seznamu od kupců. */
   exchangesGold?: true;
+  /** Kapacita šperkaře strany (g): zlato prodá dráž, mince i zlato platí víc (gold.md – Pravidla 4). */
+  jewelleryG?: number;
+  /**
+   * Celé gramy zlata, kterými strana doplatí po mincích, gram za minci – jen hostitel v kole zbroje.
+   * Platí se z nabídky `stock.gold`: co strana zlata prodá, tím už neplatí.
+   */
+  goldPurse?: number;
 }
 
 /** Celé mince od kupujícího k prodávajícímu za dvojici a den. */
@@ -60,6 +70,8 @@ export interface CoinClearing {
    */
   available: number;
   sought: number;
+  /** Kolik kapacity šperkaře každá strana spotřebovala (g; klíč strany), jen kladné; nikdo – chybí. */
+  jewelleryUsed?: Readonly<Record<string, number>>;
 }
 
 /** Zboží, které se za mince prodává – všechno kromě mincí, v pořadí `TRADE_GOODS`. */
@@ -71,53 +83,130 @@ const SOLD_FOR_COINS: readonly TradeGood[] = TRADE_GOODS.filter((good) => good !
  */
 const LEVEL_GOODS: readonly TradeGood[] = SOLD_FOR_COINS.filter((good) => good !== GOLD_GOOD);
 
-/** Strana během fáze: měšec, co ještě prodá a co ještě shání (kopie – vstup se nemění). */
+/**
+ * Strana během fáze: měšec, zlato k doplacení, zbývající a spotřebovaná kapacita šperkaře, co ještě
+ * prodá a co ještě shání (kopie – vstup se nemění).
+ */
 interface Ledger {
   key: string;
   merchant: boolean;
   fromMerchants: boolean;
   exchangesGold: boolean;
   purse: number;
+  goldPurse: number;
+  jewellery: number;
+  used: number;
   stock: TradeGoods;
   wants: TradeGoods;
 }
 
-/** Nákup dvojice: zboží v pořadí `TRADE_GOODS` a součet hodnot v mincích. */
+/**
+ * Nákup dvojice: zboží v pořadí `TRADE_GOODS`, součet hodnot v mincích (`bill`, zlato za cenu
+ * dvojice), z něj účet za zlato a za ostatní zboží a gramy zlata za cenu se šperkařem prodávajícího.
+ */
 interface Basket {
   goods: { good: TradeGood; amount: number }[];
   bill: number;
+  goldBill: number;
+  otherBill: number;
+  dearG: number;
+}
+
+/** Prázdný nákup. */
+function emptyBasket(): Basket {
+  return { goods: [], bill: 0, goldBill: 0, otherBill: 0, dearG: 0 };
 }
 
 /**
- * Co kupující koupí od prodávajícího: u každého zboží min(chce, má, zbývající měšec ÷ cena), kus jen
- * celý. Nic nemění – nákup pod minci se zruší celý.
+ * Kolik mincí zaplatí kupující s kapacitou `budget` za zboží (ne zlato) v hodnotě `bill` (gold.md –
+ * Pravidla 4; Rozhodnutí plánu 6, bod 5): prvních `budget` mincí platí za `JEWELLER.factor`, zbytek
+ * 1:1 – mince váží gram (`GOLD.coinGrams`), kapacita v gramech je tedy i v mincích. `used` – kolik
+ * kapacity platba spotřebuje, min(mince, `budget`).
+ */
+export function jewelledPayment(bill: number, budget: number): { coins: number; used: number } {
+  const coins =
+    bill <= JEWELLER.factor * budget
+      ? bill / JEWELLER.factor
+      : bill - (JEWELLER.factor - 1) * budget;
+  return { coins, used: Math.min(coins, budget) };
+}
+
+/** Hodnota zboží (ne zlata), kterou `coins` mincí zaplatí kupující s kapacitou `budget`. */
+function jewelledWorth(coins: number, budget: number): number {
+  return coins + (JEWELLER.factor - 1) * Math.min(coins, budget);
+}
+
+/**
+ * Gramy zlata za `coins` mincí od prodávajícího s kapacitou `dear` (g): prvních `dear` gramů za
+ * `JEWELLER.factor` × `unit`, další za `unit` (cena zlata).
+ */
+function goldForCoins(coins: number, unit: number, dear: number): number {
+  const high = JEWELLER.factor * unit;
+  return coins <= high * dear ? coins / high : dear + (coins - high * dear) / unit;
+}
+
+/** Měšec kupujícího i se zlatem k doplacení – nejvýš, co mu zlata v nabídce zbylo. */
+function meansOf(ledger: Ledger): number {
+  return ledger.purse + Math.min(ledger.goldPurse, ledger.stock[GOLD_GOOD] ?? 0);
+}
+
+/**
+ * Co kupující koupí od prodávajícího: u každého zboží min(chce, má, kolik se vejde do měšce), kus
+ * jen celý. Bez šperkaře se vejde zbývající měšec ÷ cena. Šperkař prodávajícího zdraží zlato –
+ * prvních tolik gramů, kolik mu zbývá kapacity, stojí `JEWELLER.factor` × cenu (kupující se
+ * `exchangesGold` platí vždy cenu zlata). Kupující se šperkařem platí zlato bez výhody a ostatní
+ * zboží `jewelledPayment` – platba za košík (účet za zlato + `jewelledPayment(ostatní).coins`) tak
+ * měšec nikdy nepřeroste, ať je zlato v pořadí zboží kdekoli: zboží mimo zlato se vejde do
+ * `jewelledWorth(měšec − účet za zlato)`, zlato do mincí, které zbudou po platbě za ostatní zboží.
+ * Nic nemění – nákup pod minci se zruší celý.
  */
 function basketOf(buyer: Ledger, seller: Ledger, price: (good: TradeGood) => number): Basket {
-  const basket: Basket = { goods: [], bill: 0 };
+  const basket = emptyBasket();
+  const means = meansOf(buyer);
+  const dear = buyer.exchangesGold ? 0 : seller.jewellery;
   for (const good of SOLD_FOR_COINS) {
     const unit = price(good);
+    const gold = good === GOLD_GOOD;
+    // kolik se zboží vejde do měšce
+    let room: number;
+    if (buyer.jewellery > 0 && gold) {
+      room = means - jewelledPayment(basket.otherBill, buyer.jewellery).coins;
+    } else if (buyer.jewellery > 0) {
+      room = jewelledWorth(means - basket.goldBill, buyer.jewellery) - basket.otherBill;
+    } else {
+      room = means - basket.bill;
+    }
     const most = Math.min(
       buyer.wants[good] ?? 0,
       seller.stock[good] ?? 0,
-      (buyer.purse - basket.bill) / unit,
+      gold && dear > 0 ? goldForCoins(room, unit, dear) : room / unit,
     );
     const amount = isPieceGood(good) ? Math.floor(most + NOISE) : most;
     if (!(amount > NOISE_KG)) continue;
     basket.goods.push({ good, amount });
-    basket.bill += amount * unit;
+    if (gold) {
+      basket.dearG = Math.min(amount, dear);
+      const value = basket.dearG * JEWELLER.factor * unit + (amount - basket.dearG) * unit;
+      basket.bill += value;
+      basket.goldBill += value;
+    } else {
+      basket.bill += amount * unit;
+      basket.otherBill += amount * unit;
+    }
   }
   return basket;
 }
 
 /**
  * Výměna hostitele (Rozhodnutí plánu 6, bod 3): celé gramy zlata prodávajícího za cenu `unit`
- * (gram za minci), nejvýš za zbývající měšec – seznam ani jiné zboží nehraje roli. Nic nemění.
+ * (gram za minci), nejvýš za zbývající měšec – seznam, jiné zboží ani šperkař nehrají roli (kov za
+ * kov). Nic nemění.
  */
 function exchangeOf(buyer: Ledger, seller: Ledger, unit: number): Basket {
   const amount = Math.floor(Math.min(seller.stock[GOLD_GOOD] ?? 0, buyer.purse / unit) + NOISE);
-  return amount > 0
-    ? { goods: [{ good: GOLD_GOOD, amount }], bill: amount * unit }
-    : { goods: [], bill: 0 };
+  if (!(amount > 0)) return emptyBasket();
+  const bill = amount * unit;
+  return { goods: [{ good: GOLD_GOOD, amount }], bill, goldBill: bill, otherBill: 0, dearG: 0 };
 }
 
 /**
@@ -166,7 +255,9 @@ function coinsAgainstGoods(
  * zbrojí (`fromMerchants`, bod 15) jen od kupců a po svém seznamu vymění zlato nekupců za mince, co
  * mu zbyly (`exchangesGold` – Rozhodnutí plánu 6, bod 3), než přijdou na řadu výpravy. Utržené mince
  * smí prodávající týž den utratit, je-li v pořadí kupujících za kupujícím. Obchody i platby jsou
- * v pořadí nákupů, takže žádný měšec neklesne pod 0 ani cestou.
+ * v pořadí nákupů, takže žádný měšec neklesne pod 0 ani cestou. Kapacita šperkaře strany
+ * (`jewelleryG`) je jedna pro celou fázi – prodej zlata i placení (gold.md – Pravidla 4); kolik jí
+ * která strana spotřebovala, vrací `jewelleryUsed`.
  */
 export function coinClearing(
   parties: readonly CoinParty[],
@@ -182,33 +273,57 @@ export function coinClearing(
     fromMerchants: party.fromMerchants === true,
     exchangesGold: party.exchangesGold === true,
     purse: party.coins,
+    goldPurse: party.goldPurse ?? 0,
+    jewellery: party.jewelleryG ?? 0,
+    used: 0,
     stock: { ...party.stock },
     wants: { ...party.wants },
   }));
   const trades: MarketTrade[] = [];
   const payments: CoinPayment[] = [];
-  /** Nákup dvojice (mutuje strany); `listed` – ze seznamu kupujícího, výměna zlata na něm není. */
-  const settle = (
-    buyer: Ledger,
-    seller: Ledger,
-    { goods, bill }: Basket,
-    listed: boolean,
-  ): void => {
+  /** Ubere straně kapacitu šperkaře (mutuje). */
+  const spend = (ledger: Ledger, grams: number): void => {
+    if (!(grams > 0)) return;
+    ledger.jewellery -= grams;
+    ledger.used += grams;
+  };
+  /**
+   * Nákup dvojice (mutuje strany); `listed` – ze seznamu kupujícího, výměna zlata na něm není.
+   * Platba je celé číslo mincí nahoru – kupující se šperkařem platí zlato bez výhody a ostatní zboží
+   * `jewelledPayment`. Napřed mince, zbytek celými gramy zlata (`goldPurse`), které prodávající
+   * odveze jako koupené. Kapacitu prodávajícího ubere zlato prodané dráž, kupujícího kov, který za
+   * zboží mimo zlato opravdu odešel (i s přeplatkem do celé mince), nejvýš co mu jí zbývá.
+   */
+  const settle = (buyer: Ledger, seller: Ledger, basket: Basket, listed: boolean): void => {
+    const { goods, bill, goldBill, otherBill, dearG } = basket;
     if (bill < 1 - NOISE) return;
-    // měšec je celý a účet se do něj vejde – min jen proti šumu, aby neklesl pod 0
-    const coins = Math.min(buyer.purse, Math.ceil(bill - NOISE));
-    buyer.purse -= coins;
-    seller.purse += coins;
-    payments.push({ buyer: buyer.key, seller: seller.key, coins });
+    const due =
+      buyer.jewellery > 0 ? goldBill + jewelledPayment(otherBill, buyer.jewellery).coins : bill;
+    // měšec je celý a košík se do něj vejde (`basketOf`) – min jen proti šumu, aby neklesl pod 0
+    const paid = Math.min(meansOf(buyer), Math.ceil(due - NOISE));
+    const coins = Math.min(buyer.purse, paid);
+    if (coins > 0) {
+      buyer.purse -= coins;
+      seller.purse += coins;
+      payments.push({ buyer: buyer.key, seller: seller.key, coins });
+    }
     for (const { good, amount } of goods) {
       if (listed) buyer.wants[good] = (buyer.wants[good] ?? 0) - amount;
       seller.stock[good] = (seller.stock[good] ?? 0) - amount;
       trades.push({ seller: seller.key, buyer: buyer.key, good, amount });
     }
+    const goldPaid = paid - coins;
+    if (goldPaid > 0) {
+      buyer.goldPurse -= goldPaid;
+      buyer.stock[GOLD_GOOD] = (buyer.stock[GOLD_GOOD] ?? 0) - goldPaid;
+      trades.push({ seller: buyer.key, buyer: seller.key, good: GOLD_GOOD, amount: goldPaid });
+    }
+    spend(seller, dearG);
+    if (otherBill > 0) spend(buyer, Math.min(buyer.jewellery, paid - goldBill));
   };
   const buyers = [...ledgers.filter((l) => l.merchant), ...ledgers.filter((l) => !l.merchant)];
   for (const buyer of buyers) {
-    if (buyer.purse < 1 - NOISE) continue; // měšec pod minci nic nekoupí
+    if (meansOf(buyer) < 1 - NOISE) continue; // měšec pod minci nic nekoupí
     for (const seller of ledgers) {
       if (seller === buyer || (buyer.fromMerchants && !seller.merchant)) continue;
       settle(buyer, seller, basketOf(buyer, seller, price), true);
@@ -220,5 +335,13 @@ export function coinClearing(
       }
     }
   }
-  return { trades, payments, ...coinsAgainstGoods(parties, price) };
+  const used = ledgers.filter((l) => l.used > 0);
+  return {
+    trades,
+    payments,
+    ...coinsAgainstGoods(parties, price),
+    ...(used.length > 0
+      ? { jewelleryUsed: Object.fromEntries(used.map((l) => [l.key, l.used])) }
+      : {}),
+  };
 }

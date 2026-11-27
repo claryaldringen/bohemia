@@ -16,11 +16,11 @@ export function jewelleryOf(state: Pick<VillageState, 'gold' | 'coins' | 'jewell
   return Math.max(0, Math.min(state.jewelleryG ?? 0, jewelleryMaterialG(state)));
 }
 
-/** Ubere kapacitu (mutuje stav); nula pole smaže. */
-export function useJewellery(state: VillageState, grams: number): void {
-  const next = (state.jewelleryG ?? 0) - grams;
-  if (next > EPSILON) state.jewelleryG = next;
-  else delete state.jewelleryG;
+/** Ubere kapacitu vsi nebo výpravy na trhu (mutuje); nula pole smaže. */
+export function useJewellery(holder: Pick<VillageState, 'jewelleryG'>, grams: number): void {
+  const next = (holder.jewelleryG ?? 0) - grams;
+  if (next > EPSILON) holder.jewelleryG = next;
+  else delete holder.jewelleryG;
 }
 
 /** Přidá kapacitu (návrat výpravy; mutuje stav), nejvýš do kovu vsi. */
