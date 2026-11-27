@@ -185,6 +185,8 @@ Rozhodnutí níž jsou **návrh Clauda** k provedení (mění Rozhodnutí 1 a ku
 7. **Rýžovník a náplav** v gramech beze změny (1 g za člověkoden = 37,5 kg obilí).
 8. **Mince v „Dáš“ po jedné** (dřív po deseti – mince je šestkrát cennější).
 
+**Ověřeno 27. 11. 2026 – přepočet Vlkova** (živý stav z databáze `bohemia` – jen čtení, 10 let po dnech od 15. 10. 920, 3 652 dní; návrh Clauda): Vlkov nemá trh vsi, zprávy o trzích, obchodní výpravy ani výsledky výprav ve schránce – žádnou cenu v mincích, takže ho převod `coin-rate` nemění a značku `coinKg` nedostane. Stav po minci 90 kg obilí (`feat/coins-web`) je proto **bit po bitu týž** jako na `feat/landscape` – shodný otisk celého stavu i každé jeho části všech 3 652 dní, konečný stav (31 lidí, z toho 9 z rodu; 17 narození, 12 úmrtí, nikdo hladem) i plán a stavby správce (Vlkov řídí správce). Kodek bez rozdílu: bajty z databáze dekódované a znovu zakódované jsou tytéž a 30 kontrol dává v obou stromech tytéž bajty obou částí stavu a převod tam a zpět beze změny; chyby, `NaN` ani `Infinity` nejsou.
+
 ## Otevřené / Pro Martina
 
 Pravidla plánu 6 nechávají otevřené jen dvě obecná pravidla mimo plán, která se při testech ukázala (úlohy 13a a 13b), plán je nemění:
