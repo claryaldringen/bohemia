@@ -64,6 +64,7 @@ obchodníkům se do hry dostanou mince - obchodníci jimi budou platit za zbož�
   cena nahoru nemá mez, kód se nemění.
 - **Otrok:** na otázku, zda jde zajatého pohana prodat jen hned po odvedení, nebo kdykoli, dokud je pohan: „Kdykoliv. Od
   zajetí bude prostě vedený jako otrok“.
+- **Měšec kupců:** po shrnutí plánu 6 (kupec za průjezd koupí nejvýš 60 g zlata, protože má měšec 60 mincí) Martin 27. 11. 2026: „Kupcům neomezuj měšec.“ – viz Měšec kupců bez dna níž.
 - Z návrhu [sousedních vsí](neighbours.md) (22. 11. 2026): sousedé jsou skutečné vsi – vsi rodu vzniklé odchodem syna
   při přelidnění i vsi jiných hráčů; ves bez spojení s okolím neobchoduje a lidé se berou mezi sebou, se sousedy je na
   náhodě, ze které dostupné vsi přijde ženich nebo nevěsta; „Řemeslníkovi je jedno, kdo mu platí za výrobky“.
@@ -195,7 +196,7 @@ Plán 4 přivedl na trh mince a cizí kupce na dálkových stezkách: mince jako
 2. **Mincovní fáze tržního dne** jde až po zápočtech řemeslníků a trhu, které zůstávají beze změny. Nemá-li mince k útratě nikdo, nespustí se a trh je bit po bitu jako v plánu 2. Platba za dvojici je celé číslo mincí (zaokrouhleno nahoru), prodávající neprodá pod cenou. **Hostitel prodá za mince všechno, co nabízí** (i bez toho, co shání) – oznámeno Martinovi.
 3. **Cena v mincích = relativní cena trhu × cenová hladina.** Hladina (od 1 nahoru bez meze – spodní a horní cena podle Martina 23. 11. 2026) se po mincovní fázi posune nejvýš o `MARKET.priceStep` podle poměru mincí k útratě a hodnoty zboží, které by za ně kupující chtěli a které na trhu je; **nehýbe se, není-li na trhu nic z toho, co kupující shánějí**. Cena zboží a hladina se hýbou zvlášť, v mincích tak cena za tržní den vzroste nejvýš o 21 %. V den, kdy kromě hostitele nestojí na trhu žádná výprava, se hýbou jen ceny zboží, které kupci vezou nebo shánějí, a poptávka kupců zdražuje jen zboží, které je ten den na trhu ke koupi; dny s výpravou beze změny. Z objednávky zbroje se do hladiny počítá nejvýš zbroj, kterou kupci ten den opravdu mají. Technická mez ceny 1e9 × výchozí je proti `Infinity`, ne pravidlo.
 4. **Mince utrácí jen hráč a správce** (Martin 25. 11. 2026). Hráč výpravou (co neutratí, přiveze zpět) a objednávkou zbroje; správce obilí v nouzi napřed mincemi a roční výpravou 15. 11., kterou nakládá od nejdražšího zboží na kg (`STEWARD.grainPayment` s mincemi první) a seznam zkrátí na to, co lidé a vozy unesou domů. Vesničané ani trh vsi mince neutratí – ves je hromadí. Výprava vesničanů v mincovní fázi smí své zbytky prodat za mince (jdou domů), ale nekoupí nic. Na zbroj se nic neodkládá. Oznámeno Martinovi.
-5. **Cizí kupci jsou tržní den ve vsi u stezky**, čistá funkce seedu světa, spojení stezky a roku – ne putující karavana. `MERCHANTS.passesPerYear` = 4 průjezdy za rok a spojení, měšec 60 mincí, zboží 2 meče, 1 kroužková košile a 2 helmy, seznam 100 kg medu, 24 kg vosku a 60 kožešin, pobyt den, při 3 výpravách na trhu (`busyVisitors`) další den, nejvýš 3 dny (`maxStayDays` – pravidlo hry, Martin strop nejmenoval). Kupci jsou strana zápočtu i mincovní fáze; při odjezdu měšec i zboží zmizí ze světa (kupci jsou cizí, domov nemají). Kupec na trhu zaniklé nebo opuštěné vsi odjede se vším, co má. Mince vznikají jen příjezdem kupce a zanikají jeho odjezdem. Kronika ohlásí příjezd jen poprvé v herním roce, upozornění „Kupci přijeli“ přijde za každý den příjezdu.
+5. **Cizí kupci jsou tržní den ve vsi u stezky**, čistá funkce seedu světa, spojení stezky a roku – ne putující karavana. `MERCHANTS.passesPerYear` = 4 průjezdy za rok a spojení, měšec 60 mincí (od 27. 11. 2026 bez dna – Měšec kupců bez dna níž), zboží 2 meče, 1 kroužková košile a 2 helmy, seznam 100 kg medu, 24 kg vosku a 60 kožešin, pobyt den, při 3 výpravách na trhu (`busyVisitors`) další den, nejvýš 3 dny (`maxStayDays` – pravidlo hry, Martin strop nejmenoval). Kupci jsou strana zápočtu i mincovní fáze; při odjezdu měšec i zboží zmizí ze světa (kupci jsou cizí, domov nemají). Kupec na trhu zaniklé nebo opuštěné vsi odjede se vším, co má. Mince vznikají jen příjezdem kupce a zanikají jeho odjezdem. Kronika ohlásí příjezd jen poprvé v herním roce, upozornění „Kupci přijeli“ přijde za každý den příjezdu.
 6. **Hostitel nabízí med, vosk a kožešiny nad vlastní potřebu** (plán 2 je vynechal) – i v zápočtu ostatním vsím. Vosk celý, kožešiny nad roční potřebu domácností, med nad roční příděl a jen s obilím nad dva roky zásob (hides-honey.md – Obchod).
 7. **Meče, kroužkové košile a helmy jsou jen zboží** (`VillageState.arms`), účinek v boji přijde s válkou vlastní mechanikou (Martin 2. 11. 2026, war.md – Výzbroj). Ceny podle Lex Ribuaria 40, 11 (meč 3 solidy, helma 6, byrnie 12; vůl 2 solidy = 1 200 kg obilí): meč 1 800 kg (120 mincí), helma 3 600 kg (240), kroužková košile 7 200 kg (480) – zdroj v [rešerši](research/2026-10-18-trade-values.md).
 8. **Co kdo ví:** ves u stezky ví den příštích kupců a řekne ho každému, kdo přijde „na pivo“; zpráva obchodníků zahrnuje i kupce (bez jména vsi). Hladinu cíle nese zpráva o vsi s cenami.
@@ -261,6 +262,23 @@ Plán 5 přivedl na trh otroky: příznak odvedeného pohana, otroky jako zbož�
 9. **Kupci otroky odvezou ze světa** – jediný odchod lidí ze světa kromě smrti. V den, kdy na trhu otroci nejsou, se trh chová přesně jako dosud (bod 7).
 
 **Otázky na Martina:** žádné otevřené. Otázka rodiny otroka je rozhodnutá (Martin 26. 11. 2026, výše).
+
+## Měšec kupců bez dna (27. 11. 2026)
+
+Martin 27. 11. 2026: „Kupcům neomezuj měšec.“ Rozhodnutí níž jsou **návrh Clauda** (mění Rozhodnutí plánu 4, bod 5,
+a čísla měšce v plánech 5 a 6):
+
+1. **Kupec mince nedrží.** Za nákup platí z měšce bez dna, mince za prodanou zbroj u něj hned zaniknou – jako dřív při
+   odjezdu (kupci jsou cizí). Mince tak vznikají jen platbou kupce a zanikají jen platbou kupci; stav vsi ani trhu kupci
+   žádné mince nepřipíše (bez dna se do stavu zapsat nedá).
+2. **Kupec koupí všechno ze svého seznamu, co je na trhu** – za průjezd nejvýš zlato 1 000 g, med 100 kg, vosk 24 kg,
+   kožešiny 60 a otroci 10; seznam se nemění, je jedinou mezí nákupu.
+3. **Cena dne:** kupec shání celý svůj seznam toho, co je na trhu. Je-li zboží na trhu míň, než kupci shánějí, jeho cena
+   v den kupců roste o `MARKET.priceStep` denně jako dřív – jen ji už nezastaví prázdný měšec.
+4. **Kupci hladinou nehýbou:** jejich mince ani seznam se do hladiny nepočítají (měšec bez dna by ji hnal nahoru bez
+   konce). Hladinu hýbou mince výprav a hostitele jako dřív; mince od kupců zdraží trh, až je ves utratí.
+5. **Převod stavu žádný:** kupec, který na trhu stojí se starým měšcem 60 mincí, ho už nepoužije a mince mu zaniknou
+   s odjezdem.
 
 ## Co se ověří
 

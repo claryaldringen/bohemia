@@ -139,7 +139,7 @@ Plán 6 přinesl zlato: zboží `gold`, tři dílny (rýžovník, šperkař, min
 5. **Šperkař:** zpracuje 1,5 g zlata nebo mincí za člověkoden vyučeného do kapacity výhody `JEWELLER.factor` = 1,5 (se šperkařem je prodej zlata o polovinu dráž (1,5 mince za gram) a platba mincemi o třetinu levnější), nejvýš do kovu vsi; šperky nejsou zboží (Martin). Požár beze změny.
 6. **Šperkař na výpravě:** výprava veze kapacitu `min(šperky, mince + zlato v nákladu)`, použije ji a nepoužitou přiveze zpět.
 7. **Mincovna od roku 950** (Martin): razí všechno zlato vsi, **200 g na člověkoden** vyučeného, gram za minci.
-8. **Kupci:** `wants` = zlato 1 000 g, med, vosk, kožešiny, otroci; měšec 60 mincí se nemění.
+8. **Kupci:** `wants` = zlato 1 000 g, med, vosk, kožešiny, otroci; měšec 60 mincí se nemění. **Od 27. 11. 2026 má kupec měšec bez dna** (Martin: „Kupcům neomezuj měšec.“ – [markets.md](markets.md), Měšec kupců bez dna): za průjezd vykoupí až 1 000 g zlata.
 9. **Pošta a odchod:** zlato jde z výsledku pro zaniklou ves hostiteli jako mince; odchod celé vsi bere zlato i kapacitu šperkaře („berou si úplně vše“, Martin 25. 11. 2026), syn a část lidí je nechají.
 10. **Správce** platí obilí v nouzi zlatem až nakonec, na roční výpravu přidá zlato, chybí-li mince; dílny zlata nestaví (`workshopValue` dá 0).
 11. **Rozhraní a scéna** jako 0 A.D.: tři tlačítka dílen (zkratky 3–5), zlato a šperky ve dvorci, zlato v panelu Trh; dílny zlata používají dnešní modely.
@@ -159,7 +159,7 @@ Plán 6 přinesl zlato: zboží `gold`, tři dílny (rýžovník, šperkař, min
 1. **Mince váží gram:** gram zlata je jedna mince, tedy 15 kg obilí; zlato je ve hře zhruba dvanáctkrát levnější než ve skutečnosti (Rozhodnutí 1).
 2. **Rýžovník rýžuje od dubna do října** gram zlata denně (učeň půl gramu; herní číslo); náplav má 1,5 kg a nedoplňuje se, mapa 4,5–9 kg se vyrýžuje za 15–30 let, pak dílna stojí (Rozhodnutí 4).
 3. **Zlato se mění za mince, ne za zboží:** na trhu stojí minci za gram, kupují ho kupci, výpravy a **každá ves, která má mince** (Martin 22. 11. 2026: „s kýmkoliv, kdo ty mince má“). Je to kov za kov, „Mince utrácí jen vojvoda/správce“ (25. 11. 2026) dál platí pro zboží; objednanou zbroj hostitel kupcům doplatí i zlatem. Kde nikdo nemá mince (do roku 950 skoro všude mimo stezky), zlato nic nekoupí (Rozhodnutí 3).
-4. **Kupci kupují zlato první**, ale měšec 60 mincí se nemění – za průjezd koupí nejvýš 60 g zlata, šperků 40 g; hlavní odbyt je výměna ve vsích s mincemi a od roku 950 mincovna (Rozhodnutí 8).
+4. **Kupci kupují zlato první**, ale měšec 60 mincí se nemění – za průjezd koupí nejvýš 60 g zlata, šperků 40 g; hlavní odbyt je výměna ve vsích s mincemi a od roku 950 mincovna (Rozhodnutí 8). Martin 27. 11. 2026: „Kupcům neomezuj měšec.“ – od té doby kupec za průjezd vykoupí až 1 000 g zlata.
 5. **Šperkař zpracuje 1,5 g denně** do kapacity výhody; prodávající dostane o třetinu mincí méně, než je cena; kapacita platí i na výpravách a nepřeroste kov vsi (Rozhodnutí 5 a 6).
 6. **Mincovna od roku 950 razí všechno zlato vsi** (200 g denně); vlastní mince zvedají ceny tam, kde je ves utratí (Rozhodnutí 7).
 7. **Dílny zlata vypadají jako dnešní dílny** (rýžovník jako zemnice uhlíře, šperkař a mincovna jako kovárna); vlastní modely až na pokyn (Rozhodnutí 11).
@@ -178,6 +178,8 @@ Pravidla plánu 6 nechávají otevřené jen dvě obecná pravidla mimo plán, k
 - **Osamělý řemeslník po rozpadu domácnosti** (≥ 45 let) dílnu opustí (`dissolveHouseholds`, [kinship.md](kinship.md) – Rozpad domácnosti). V přepočtu Vlkova to potkalo šperkaře ve 45 letech.
 
 Rozhodnout je na Martinovi; třeba dílna zůstane obsazená jiným mužem nebo se řemeslník nestěhuje. Do rozhodnutí platí současné chování.
+
+- **Váha mince a cena zlata.** Martin 27. 11. 2026: „Dej průměrnou hmotnost mince 2.4g.“ a k Rozhodnutí 1: „Zlato ve hře koupí asi 12× méně obilí než ve skutečnosti - proč jsi to takhle udělal?“ Podle „1:1 váhově“ by mince 2,4 g dala gramu zlata 0,42 mince (6 kg obilí, proti skutečnosti zhruba 29× méně); se zlatem dvanáctkrát dražším než stříbro mincí by gram zlata stál právě 5 mincí (75 kg obilí). Čeká na Martinovo rozhodnutí, do té doby platí `GOLD.coinGrams` = 1.
 
 ## Nechává se na stavitele
 
