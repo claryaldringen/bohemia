@@ -706,6 +706,22 @@ describe('populationDay – řemeslník zůstává v dílně (Martin 27. 11. 202
     ]);
   });
 
+  it('vdova s chlapcem 13 se z dílny přestěhuje, se 14letým (AGE.adult – řemeslník) zůstane', () => {
+    const withBoy = (years: number): VillageState => {
+      const state = craftsmanVillage();
+      state.people = state.people.filter((p) => p.id !== 3);
+      state.people.push(
+        { ...ofAge(4, 50, 2, day), sex: 'female' },
+        { ...ofAge(5, years, 2, day), sex: 'male', motherId: 4 },
+      );
+      return state;
+    };
+    expect(merged(populationDay(withBoy(13), day, 1))).toEqual([
+      { day, kind: 'household-merged', fromDwellingId: 2, toDwellingId: 1 },
+    ]);
+    expect(merged(populationDay(withBoy(14), day, 1))).toEqual([]);
+  });
+
   it('osamělý starý muž v obyčejném domě jde k synovi jako dnes', () => {
     const state = craftsmanVillage();
     delete state.dwellings[1]!.workshop;

@@ -25,8 +25,9 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   (`householdBreaksUp` v `people.ts`; osamělý 16–44 zůstává), rozpadlá jde k příbuzným (syn,
   dcera, sourozenec), jinak do domu s nejvíc místy – jen kam se vejde bez přeplnění, jinak zůstane doma (Martin; samotné děti jdou
   i do přeplněného). **Dílna se nerozpadá, dokud v ní žije řemeslník** (`dissolveHouseholds`
-  v `population.ts`; `isCraftsman` v `people.ts` – muž od 14 let, kdo není žena jako v `craftHands`,
-  i starší bez práce; řemeslník je nejstarší z nich, `craftsmanOf`; Martin 27. 11. 2026): osamělý
+  v `population.ts`; `isCraftsman` v `people.ts` – muž od 14 let (`AGE.adult`; 13letý chlapec dílnu
+  neudrží), kdo není žena jako v `craftHands`, i starší bez práce; řemeslník je nejstarší z nich,
+  při shodě data narození nižší id, dílna bez muže řemeslníka nemá – `craftsmanOf`; Martin 27. 11. 2026): osamělý
   řemeslník ve stáří v dílně zůstane, dokud žije; vdova po něm nebo jen děti se starší se přestěhují
   jako jinde. Ostatní kontroly rozpadu (`householdBreaksUp` u odchodu rodin, lidí k sousedům
   a sňatků se sousedy) beze změny.
@@ -54,7 +55,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   prázdný dům nejdřív rodina z nejvíc přeplněného domu, v něm od nejstaršího muže);
   dům drží jeden dědic – nejstarší ženatý syn s rodiči, v domě bez ženatého syna vdova s vlastními dětmi, jinak nejstarší ženatý muž; ostatní ženatí se oddělí (i muž bez rodičů v domě vedle dědice). Co zůstane prázdné,
   osídlí **svobodný nejstarší syn – jen z plného domu** (`loneSonOf`, Martin – „nejstarší dítě může
-  odejít“, „ať prázdný dům obsadí i plná domácnost“; od 16 let, bez ženatého dědice a s neplodnou matkou zůstává nejstarší a jde druhý; bez syna jiný svobodný muž od 16 let bez rodičů v domě, ne otec dětí z domu – `lodgerOf`).
+  odejít“, „ať prázdný dům obsadí i plná domácnost“; od 16 let, bez ženatého dědice a s neplodnou matkou zůstává nejstarší a jde druhý; bez syna jiný svobodný muž od 16 let bez rodičů v domě, ne otec dětí z domu – `lodgerOf`). Řemeslník dílny (`craftsmanOf`) neodchází ani jako svobodný syn – jde další v pořadí (dva svobodní bratři bez rodičů: mladší; Martin 27. 11. 2026).
   Dcery odcházejí sňatkem. Ne z domácnosti, jejíž zbytek by se rozpadl, a jen kdo nový dům udrží
   (rodina i svobodný muž s někým 16–44 – starší pár by se v novém domě rozpadl, vrátil a odešel
   znovu: stěhování tam a zpět, kalibrace 19. 10. 2026). **Chátrá jen prázdné

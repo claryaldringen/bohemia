@@ -2,13 +2,15 @@ import { describe, expect, it } from 'vitest';
 import {
   ageGroup,
   ageYears,
+  craftsmanOf,
   foodNeedPerDay,
   isAdult,
   isFertile,
   laborPerDay,
   occupants,
 } from '../people';
-import type { Person, VillageState } from '../../types';
+import { newWorkshop } from '../../crafts/crafts';
+import type { Dwelling, Person, VillageState } from '../../types';
 
 const YEAR = 365.25;
 const person = (id: number, dwellingId = 1, bornDay = 0): Person => ({ id, bornDay, dwellingId });
@@ -71,5 +73,37 @@ describe('obyvatelé obydlí', () => {
     const state = { people: [person(5, 2), person(3, 1), person(1, 1), person(2, 2)] };
     expect(occupants(state as VillageState, 1).map((p) => p.id)).toEqual([1, 3]);
     expect(occupants(state as VillageState, 9)).toEqual([]);
+  });
+});
+
+describe('řemeslník dílny – craftsmanOf (Martin 27. 11. 2026)', () => {
+  const day = atAge(60);
+  const man = (id: number, years: number, dwellingId = 1): Person => ({
+    ...person(id, dwellingId, day - atAge(years)),
+    sex: 'male',
+  });
+  const home = (id: number): Dwelling => ({
+    id,
+    type: 'zemnice',
+    builtDay: 0,
+    condition: 1,
+    position: { x: 0, z: 0, rotation: 0 },
+  });
+  /** Dílna 1 a obyčejný dům 2. */
+  const state = (people: Person[]): Pick<VillageState, 'dwellings' | 'people'> => ({
+    people,
+    dwellings: [{ ...home(1), workshop: newWorkshop('potter') }, home(2)],
+  });
+
+  it('nejstarší muž dílny, při shodě data narození nižší id; jen v dílně', () => {
+    expect(craftsmanOf(state([man(5, 30), man(3, 30), man(4, 20)]), 1, day)?.id).toBe(3);
+    expect(craftsmanOf(state([man(5, 30, 2)]), 2, day)).toBeUndefined();
+  });
+
+  it('dílna bez muže nemá řemeslníka; chlapec od 14 let (AGE.adult) ano, 13letý ne', () => {
+    const widow: Person = { ...person(1, 1, day - atAge(50)), sex: 'female' };
+    expect(craftsmanOf(state([widow]), 1, day)).toBeUndefined();
+    expect(craftsmanOf(state([widow, man(2, 13)]), 1, day)).toBeUndefined();
+    expect(craftsmanOf(state([widow, man(2, 14)]), 1, day)?.id).toBe(2);
   });
 });

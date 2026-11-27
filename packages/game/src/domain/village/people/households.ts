@@ -28,6 +28,7 @@ import {
   ageGroup,
   ageYears,
   canBear,
+  craftsmanOf,
   holdsHousehold,
   householdBreaksUp,
   occupants,
@@ -68,7 +69,8 @@ export function householdHead(
  * či dědičkou, která drží dům (`weddingHome`) – jednou, pak je ženatý; sestra ani matka si ho
  * nevezme (blízcí příbuzní). Dědic zůstává: když v domě ještě není ženatý syn a rodiče už jsou
  * neplodní (žádná matka synů v domě nemůže rodit), zůstává nejstarší syn a odejít smí druhý
- * nejstarší (Martin). Jen když se zbytek domácnosti nerozpadne; jinak undefined.
+ * nejstarší (Martin). Řemeslník dílny (`craftsmanOf`) neodchází – odejít smí další v pořadí. Jen
+ * když se zbytek domácnosti nerozpadne; jinak undefined.
  */
 export function loneSonOf(
   state: VillageState,
@@ -77,11 +79,16 @@ export function loneSonOf(
 ): Person | undefined {
   if (!isFull(state, dwelling.id, day)) return undefined;
   const members = occupants(state, dwelling.id);
+  // řemeslník – nejstarší muž dílny – dílnu neopustí ani jako svobodný syn (kinship.md – Řemeslník
+  // zůstává v dílně; Martin 27. 11. 2026), odejít smí další v pořadí
+  const craftsman = craftsmanOf(state, dwelling.id, day);
   const unmarried = unmarriedSons(members, day);
+  const sons = (unmarriedHeir(members, day) ? unmarried.slice(1) : unmarried).filter(
+    (m) => m.id !== craftsman?.id,
+  );
   // bez svobodného syna smí odejít i jiný svobodný muž od 16 let bez rodičů v domě (Martin,
   // 19. 10. 2026 – přeplněný dům ve Vlkově, ve vsi prázdná polozemnice); ne otec dětí z domu
-  const candidate =
-    (unmarriedHeir(members, day) ? unmarried[1] : unmarried[0]) ?? lodgerOf(members, day);
+  const candidate = sons[0] ?? lodgerOf(members, day, craftsman);
   // sám dům udrží jen člověk 16–44 – starší by se v novém domě rozpadl a vrátil (tam a zpět)
   if (!candidate || !holdsHousehold(candidate, day)) return undefined;
   // svobodný muž rodu z dvorce sám neodchází – cvičí, dokud se neožení (lord.md – Synové po sňatku)
@@ -92,12 +99,18 @@ export function loneSonOf(
 
 /**
  * Nejstarší svobodný muž od 16 let domácnosti `members`, který v ní nemá rodiče (starší vsi mají
- * rodiče neznámé, bratranci, synovci) a není otcem nikoho z ní; jinak undefined.
+ * rodiče neznámé, bratranci, synovci), není otcem nikoho z ní ani řemeslníkem dílny (`craftsman`);
+ * jinak undefined.
  */
-function lodgerOf(members: readonly Person[], day: number): Person | undefined {
+function lodgerOf(
+  members: readonly Person[],
+  day: number,
+  craftsman: Person | undefined,
+): Person | undefined {
   return members
     .filter(
       (m) =>
+        m.id !== craftsman?.id &&
         m.sex === 'male' &&
         !parentHere(m, members) &&
         unmarriedHere(m, members) &&

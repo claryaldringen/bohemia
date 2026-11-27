@@ -1,14 +1,13 @@
 // Sňatky (kinship.md – Sňatky; Martin, 18. 10. 2026: „Pojďme na příbuzenství a pohlaví“;
-// 19. 10. 2026: „Vdova by se měla snažit co nejdříve
-// vdát, ideálně ve vesnici. Obecně by měla být pravidla nastavena tak, aby se populace co nejvíce
-// rozrůstala.“). Berou se jen svobodný muž a svobodná žena; žena se
-// stěhuje k muži i s vlastními dětmi, jen když drží dům a muž ne, přižení se muž k ní – kromě
-// řemeslníka, ten se z dílny nestěhuje (Martin 27. 11. 2026, kinship.md – Řemeslník zůstává
-// v dílně). Kdo ve vsi
-// nemá s kým se vzít, zůstane ve vsi bez okolí svobodný (markets.md – Pravidla 1; Martin 22. 11.
-// 2026: „dokud bude vesnice bez spojení s okolím, ať se lidé berou mezi sebou“); ves s okolím se
-// ptá skutečných sousedních vsí (`kin-match.ts` – markets.md, Rozhodnutí plánu 3, bod 11). Krok
-// simulace `arrangeMarriages` stav mění, ostatní funkce jen čtou.
+// 19. 10. 2026: „Vdova by se měla snažit co nejdříve vdát, ideálně ve vesnici. Obecně by měla být
+// pravidla nastavena tak, aby se populace co nejvíce rozrůstala.“). Berou se jen svobodný muž
+// a svobodná žena; žena se stěhuje k muži i s vlastními dětmi, jen když drží dům a muž ne, přižení
+// se muž k ní – kromě řemeslníka, ten se z dílny nestěhuje (Martin 27. 11. 2026, kinship.md –
+// Řemeslník zůstává v dílně). Kdo ve vsi nemá s kým se vzít, zůstane ve vsi bez okolí svobodný
+// (markets.md – Pravidla 1; Martin 22. 11. 2026: „dokud bude vesnice bez spojení s okolím, ať se
+// lidé berou mezi sebou“); ves s okolím se ptá skutečných sousedních vsí (`kin-match.ts` –
+// markets.md, Rozhodnutí plánu 3, bod 11). Krok simulace `arrangeMarriages` stav mění, ostatní
+// funkce jen čtou.
 import { createRandom, deriveSeed } from '../../landscape/random';
 import { holdsManor } from './dynasty';
 import { ageGapYears } from './kinship';
