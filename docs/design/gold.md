@@ -200,6 +200,8 @@ Pravidla plánu 6 nechávají otevřené jen dvě obecná pravidla mimo plán, k
 
 Rozhodnout je na Martinovi; třeba dílna zůstane obsazená jiným mužem nebo se řemeslník nestěhuje. Do rozhodnutí platí současné chování.
 
+**Rozhodnuto 27. 11. 2026** (Martin: „ano“ – [kinship.md](kinship.md), Řemeslník zůstává v dílně): řemeslník zůstane ve své dílně, dokud žije, a žena se přestěhuje k němu; osamělý řemeslník ve stáří dílnu neopustí. Výjimka je dvorec vojvody – drží-li ho nevěsta za malého vojvodu, řemeslník jde do dvorce („Dvorec má přednost“). Rýžovník z testu světa (vdova byla matka malého vojvody) se tedy do dvorce stěhuje dál.
+
 ## Nechává se na stavitele
 
 Čísla (zlato za den, vyčerpání náplavu, kapacita šperkaře, stavba mincovny) s rešerší, rozhraní (ikony, panel dílny),
