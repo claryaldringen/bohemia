@@ -403,7 +403,7 @@ describe('trh s cizími kupci a mincemi po tři roky (markets.md – Co se ově�
       // součet mincí světa: mění se jen platbami kupců (+) a platbami kupcům (−)
       sides.forEach(store);
       const next = await coinsOfWorld({ villages });
-      expect(next - coins, `den ${day - start}`).toBe(-toMerchants);
+      expect(next - coins, `den ${day - start}`).toBe(0 - toMerchants);
       coins = next;
 
       for (const side of sides) {

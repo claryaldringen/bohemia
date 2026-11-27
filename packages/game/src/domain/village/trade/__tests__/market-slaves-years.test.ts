@@ -509,7 +509,7 @@ describe('trh s otroky a cizími kupci po tři roky (markets.md – Co se ověř
       // součet mincí světa: mění se jen platbami kupců (+) a platbami kupcům (−)
       sides.forEach(store);
       const next = await coinsOfWorld({ villages });
-      expect(next - coins, at).toBe(-toMerchants);
+      expect(next - coins, at).toBe(0 - toMerchants);
       coins = next;
 
       // lidé: kdo zmizel ze světa, zemřel (kronika), odešel ze světa podle dřívějších plánů (ves
