@@ -169,6 +169,15 @@ export function householdBreaksUp(members: readonly Person[], day: number): bool
   return members.length > 0 && !members.some((p) => holdsHousehold(p, day));
 }
 
+/**
+ * Řemeslník dílny (kinship.md – Řemeslník zůstává v dílně; Martin 27. 11. 2026: „ano“): muž, jak
+ * ho bere řemeslo (`craftHands` – kdo není žena), který už není dítě – řemeslo dělá od AGE.adult
+ * (`laborPerDay`). Stáří ho z dílny nevyžene: starší je řemeslníkem dál, i když už nepracuje.
+ */
+export function isCraftsman(person: Person, day: number): boolean {
+  return person.sex !== 'female' && ageGroup(person, day) !== 'child';
+}
+
 /** Obyvatelé obydlí seřazení podle id. */
 export function occupants(state: VillageState, dwellingId: number): Person[] {
   return state.people.filter((p) => p.dwellingId === dwellingId).sort((a, b) => a.id - b.id);

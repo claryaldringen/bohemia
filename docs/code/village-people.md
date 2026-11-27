@@ -24,7 +24,11 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   Martin 25. 10. 2026). **Domácnost drží člověk 16–44**
   (`householdBreaksUp` v `people.ts`; osamělý 16–44 zůstává), rozpadlá jde k příbuzným (syn,
   dcera, sourozenec), jinak do domu s nejvíc místy – jen kam se vejde bez přeplnění, jinak zůstane doma (Martin; samotné děti jdou
-  i do přeplněného).
+  i do přeplněného). **Dílna se nerozpadá, dokud v ní žije řemeslník** (`dissolveHouseholds`
+  v `population.ts`; `isCraftsman` v `people.ts` – muž od 14 let, kdo není žena jako v `craftHands`,
+  i starší bez práce; Martin 27. 11. 2026): osamělý řemeslník ve stáří v dílně zůstane, dokud žije;
+  vdova po něm nebo jen děti se starší se přestěhují jako jinde. Ostatní kontroly rozpadu
+  (`householdBreaksUp` u odchodu rodin, lidí k sousedům a sňatků se sousedy) beze změny.
 
 - **Otroci** ([markets.md](../design/markets.md) – Pravidla 7, Rozhodnutí plánu 5; Martin 22. 11. 2026:
   „Od zajetí bude prostě vedený jako otrok“; `people/slaves.ts`): `Person.slave` (chybí = svobodný) –
@@ -285,7 +289,10 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   věkem (`bestMatch`), rozdíl do `MARRIAGE.maxAgeGapYears` (s vdovou či vdovcem
   `maxAgeGapWidowedYears` 20). Kam (`weddingHome`): **žena k muži**, i do přeplněného domu; drží-li
   dům ona a on ne (`holdsHome` – po jeho odchodu s dětmi do 16 by doma nezůstal nikdo 16–44), **on
-  k ní**; drží-li oba, kde bude méně těsno, při shodě žena. Stěhuje se i s vlastními dětmi do 16
+  k ní**; drží-li oba, kde bude méně těsno, při shodě žena. **Bydlí-li ženich v dílně** (obydlí
+  s `workshop`), žena jde k němu, i když drží svůj dům – řemeslník zůstává v dílně (kinship.md;
+  Martin 27. 11. 2026: „ano“); dvorec vojvody (`holdsManor` ženicha nebo nevěsty) má přednost
+  („Dvorec má přednost“), pořadí: stejný dům, dvorec, dílna, zbytek. Stěhuje se i s vlastními dětmi do 16
   (`dependants`); nevěsta dostane `nextBirthFrom` (9 měsíců – `startMarriage`). Kdo ve vsi bez
   okolí nemá s kým, zůstane svobodný: nikdo nepřijde ani se nevdá pryč (Martin 22. 11. 2026: „dokud
   bude vesnice bez spojení s okolím, ať se lidé berou mezi sebou“; markets.md – Pravidla 1); ves
