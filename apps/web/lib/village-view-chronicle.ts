@@ -1089,6 +1089,19 @@ const MASON_CRAFT_TEXT: Record<MasonCraft, string> = {
   plasterer: 'štukatér',
 };
 
+/** Mince a zlato vráceného kovu – „17 mincí“, „40 g zlata“, obojí „17 mincí a 40 g zlata“; nic = ''. */
+function moneyText(
+  coins: number | undefined,
+  gold: number | undefined,
+  grammaticalCase: 'nominative',
+): string {
+  const parts = [
+    ...(coins ? [coinsText(coins, grammaticalCase)] : []),
+    ...(gold ? [`${formatInteger(gold)} g zlata`] : []),
+  ];
+  return parts.length === 0 ? '' : ` a ${parts.join(' a ')}`;
+}
+
 function newcomerText(
   direction: Direction8,
   group: NewcomerGroup,
@@ -1097,12 +1110,13 @@ function newcomerText(
   villageName?: string,
   coins?: number,
   female = false,
+  gold?: number,
 ): string {
   const texts = (female && NEWCOMER_TEXTS[group].female) || NEWCOMER_TEXTS[group];
   // lidé ze skutečného souseda (plán 3, bod 14): „Do vsi přišla rodina z Lhoty.“; s měšcem výpravy
   // zaniklé vsi „… a 17 mincí.“ (preflight plánu 4, M14)
   if (villageName !== undefined) {
-    const purse = coins ? ` a ${coinsText(coins, 'nominative')}` : '';
+    const purse = moneyText(coins, gold, 'nominative');
     return `Do vsi ${returned ? texts.back : texts.chronicle} ${fromVillage(villageName)}${purse}.`;
   }
   const from = DIRECTION_NAMES[direction].from;
@@ -1749,9 +1763,21 @@ export function chronicleText(event: ChronicleEvent, villageName: string, seed?:
         event.villageName,
         event.coins,
         event.female === true,
+        event.gold,
       );
     case 'stranded-coins':
       // měšec výpravy zaniklé vsi bez lidí (preflight plánu 4, M14)
+      if (event.coins <= 0) {
+        // jen zlato (plán 6, bod 9) – žádná „0 mincí“
+        const gold = formatInteger(event.gold ?? 0);
+        return event.villageName === ''
+          ? `Ze sousední vsi se vrátilo ${gold} g zlata.`
+          : `Ze zaniklé vsi ${event.villageName} se vrátilo ${gold} g zlata.`;
+      }
+      if (event.gold) {
+        const purse = `${coinsText(event.coins, 'nominative')} a ${formatInteger(event.gold)} g zlata`;
+        return `Do vsi ${plural(event.coins, 'přišla', 'přišly', 'přišlo')} ${purse} ${fromVillage(event.villageName)}.`;
+      }
       return `Do vsi ${plural(event.coins, 'přišla', 'přišly', 'přišlo')} ${coinsText(event.coins, 'nominative')} ${fromVillage(event.villageName)}.`;
     case 'structure-fell':
       return STRUCTURE_FELL_TEXTS[event.structure];

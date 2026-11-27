@@ -85,16 +85,28 @@ function carriesPeople(mail: VillageMail): boolean {
 }
 
 /**
- * Nese zpráva mince domů – výsledek trhu s měšcem výpravy `unsold.coins` (markets.md – Rozhodnutí
- * plánu 4, bod 9)?
+ * Zlato výsledku domů – neprodané (`unsold.gold`) i koupené (`bought.gold`; zaniklá domovská ves
+ * ho nevezme, peníze nemizí – návrh Clauda, plán 6, bod 9). Poškozený řádek bez `unsold`/`bought`
+ * (schránka je JSON) = 0.
  */
-function carriesCoins(mail: VillageMail): boolean {
-  return mail.body.kind === 'market-result' && (mail.body.result.unsold.coins ?? 0) > 0;
+function goldOf(result: MarketResult): number {
+  const unsold = (result.unsold as MarketResult['unsold'] | undefined)?.gold ?? 0;
+  const bought = (result.bought as MarketResult['bought'] | undefined)?.gold ?? 0;
+  return unsold + bought;
 }
 
-/** Výsledek, který se se zaniklou domovskou vsí nesmí zahodit celý – nese lidi nebo mince. */
+/**
+ * Nese zpráva kov domů – výsledek trhu s měšcem výpravy `unsold.coins` (markets.md – Rozhodnutí
+ * plánu 4, bod 9) nebo se zlatem (plán 6, bod 9)?
+ */
+function carriesMoney(mail: VillageMail): boolean {
+  if (mail.body.kind !== 'market-result') return false;
+  return (mail.body.result.unsold.coins ?? 0) > 0 || goldOf(mail.body.result) > 0;
+}
+
+/** Výsledek, který se se zaniklou domovskou vsí nesmí zahodit celý – nese lidi, mince nebo zlato. */
 function mustReturn(mail: VillageMail): boolean {
-  return carriesPeople(mail) || carriesCoins(mail);
+  return carriesPeople(mail) || carriesMoney(mail);
 }
 
 /** Zpráva bez nákladu (markets.md – Rozhodnutí plánu 3, bod 13) – do zaniklé vsi se zahodí. */
@@ -108,7 +120,8 @@ function isQuery(mail: VillageMail): boolean {
  * zpět k hostiteli `hostId` (Rozhodnutí plánu 3, bod 13, a plánu 4, bod 9): zpráva
  * `stranded-people` s `ref` `<ref výsledku>:back` – skupiny, které hostitel prodal sám (`fromHost`),
  * v `own` (vrátí se s původními id), ostatní (`people`, koupení od jiné výpravy) v `people` (usadí
- * se s novými id), `coins` = měšec výpravy při odjezdu (`unsold.coins`), `from` = `origin` výsledku.
+ * se s novými id), `coins` = měšec výpravy při odjezdu (`unsold.coins`), `gold` = zlato výsledku
+ * (`unsold.gold + bought.gold`, plán 6, bod 9), `from` = `origin` výsledku.
  * Zboží výsledku se zahodí. Krok 1 pošty i úloha světa `returnStrandedPeople` skládají tutéž zprávu
  * – druhý zápis téhož `ref` se zahodí.
  */
@@ -117,6 +130,7 @@ function strandedMail(hostId: string, ref: string, day: number, result: MarketRe
   const own = newcomers.filter((g) => g.fromHost === true);
   // poškozený řádek bez `unsold` (schránka je JSON) nesmí shazovat úlohu světa každou minutu
   const coins = (result.unsold as MarketResult['unsold'] | undefined)?.coins ?? 0;
+  const gold = goldOf(result);
   return {
     villageId: hostId,
     day,
@@ -127,6 +141,7 @@ function strandedMail(hostId: string, ref: string, day: number, result: MarketRe
       people: [...(result.people ?? []), ...newcomers.filter((g) => g.fromHost !== true)],
       ...(own.length > 0 ? { own } : {}),
       ...(coins > 0 ? { coins } : {}),
+      ...(gold > 0 ? { gold } : {}),
       from: result.origin,
     },
   };

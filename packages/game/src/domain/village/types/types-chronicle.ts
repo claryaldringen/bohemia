@@ -877,14 +877,17 @@ export type ChronicleEvent = { day: number } & (
       villageId?: string;
       returned?: true;
       coins?: number;
+      /** Zlato (g) zaniklé vsi, které přišlo s lidmi (plán 6, bod 9); chybí – žádné. */
+      gold?: number;
       /** Otrokyně (skupina `slave` se ženou) – věta v ženském rodě (vzor `birth`); jinak chybí. */
       female?: true;
     }
   /**
    * Měšec výpravy z vsi `villageName` (`villageId`), jejíž domovská ves zanikla, přišel do vsi bez
-   * lidí – `coins` mincí (`stranded-people`; Rozhodnutí plánu 4, bod 9 – preflight M14).
+   * lidí – `coins` mincí (`stranded-people`; Rozhodnutí plánu 4, bod 9 – preflight M14) a `gold` g
+   * zlata (plán 6, bod 9); `coins` smí být 0 (věta pak mince vynechá).
    */
-  | { kind: 'stranded-coins'; coins: number; villageName: string; villageId: string }
+  | { kind: 'stranded-coins'; coins: number; gold?: number; villageName: string; villageId: string }
   /**
    * Opuštěná stavba, ke které léta nikdo nechodil, se rozpadla (abandonment.md): modla padla,
    * svatyně se rozpadla, plot hřbitova se rozpadl, ohrada se rozpadla – id stavby.

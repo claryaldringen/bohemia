@@ -50,3 +50,38 @@ describe('kronika – vyrýžovaný náplav', () => {
     ]);
   });
 });
+
+describe('kronika – zlato ze zaniklé vsi (Rozhodnutí plánu 6, bod 9)', () => {
+  const text = (event: Record<string, unknown>, name = 'Vlkov'): string =>
+    chronicleText({ day: 100, ...event } as unknown as ChronicleEvent, name);
+
+  it('jen zlato – bez „0 mincí“; s mincemi obojí; cizí správce vidí sousední ves', () => {
+    const base = { kind: 'stranded-coins', villageName: 'Lhota', villageId: 'h' };
+    expect(text({ ...base, coins: 0, gold: 40 })).toBe(
+      'Ze zaniklé vsi Lhota se vrátilo 40 g zlata.',
+    );
+    expect(text({ ...base, coins: 10, gold: 40 })).toBe(
+      'Do vsi přišlo 10 mincí a 40 g zlata z Lhoty.',
+    );
+    expect(text({ ...base, coins: 17 })).toBe('Do vsi přišlo 17 mincí z Lhoty.');
+    expect(text({ ...base, coins: 0, gold: 40, villageName: '' })).toBe(
+      'Ze sousední vsi se vrátilo 40 g zlata.',
+    );
+  });
+
+  it('zlato s lidmi v zápisu newcomer', () => {
+    expect(
+      text({
+        kind: 'newcomer',
+        direction: 'W',
+        group: 'family',
+        people: 4,
+        dwellingId: 3,
+        villageName: 'Lhota',
+        villageId: 'h',
+        returned: true,
+        gold: 40,
+      }),
+    ).toBe('Do vsi se vrátila prodaná rodina z Lhoty a 40 g zlata.');
+  });
+});

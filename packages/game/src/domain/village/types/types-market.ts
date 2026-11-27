@@ -465,6 +465,8 @@ export type MarketMailBody =
       people: MarketPerson[];
       own?: MarketPerson[];
       coins?: number;
+      /** Zlato (g) výsledku: neprodané i koupené (`unsold.gold + bought.gold`); chybí = žádné. */
+      gold?: number;
       from: MarketResult['origin'];
     };
 

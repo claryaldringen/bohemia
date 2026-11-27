@@ -371,6 +371,31 @@ describe('výsledky trhu s lidmi nebo mincemi ve schránkách zaniklých vsí (m
     expect(await inbox.pending(liveId, -1, DAY + 365)).toHaveLength(1);
   });
 
+  it('strandedResults: i výsledek jen se zlatem – neprodaným i koupeným – ve spící vsi (plán 6)', async () => {
+    const post = (key: string, day: number, unsold: object, bought: object) =>
+      inbox.post({
+        villageId,
+        day,
+        ref: `${key}:out`,
+        body: {
+          kind: 'market-result',
+          result: { key, sold: {}, bought, unsold, horses: [] },
+        } as NewVillageEvent['body'],
+      });
+    await post('market:g:1', DAY + 3, { gold: 40 }, {});
+    await post('market:g:2', DAY + 4, {}, { pottery: 5, gold: 26 });
+    await post('market:g:3', DAY + 5, { gold: 0 }, { gold: 0, pottery: 5 });
+    await post('market:g:4', DAY + 6, { gold: 'x' }, { gold: null });
+    const lhota = (await villages.find(villageId))!;
+    const dead = { ...lhota.state, extinctDay: lhota.state.lastDay };
+    expect(await villages.save(villageId, dead, lhota.version)).not.toBeNull();
+    const stranded = await inbox.strandedResults();
+    expect(stranded.map((e) => e.body.kind === 'market-result' && e.body.result.key)).toEqual([
+      'market:g:1',
+      'market:g:2',
+    ]);
+  });
+
   it('strandedResults: i výsledek s vlastními neprodanými lidmi (`people`, ne `newcomers`)', async () => {
     const own = (key: string, day: number, people: unknown[]): NewVillageEvent =>
       ({

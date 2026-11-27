@@ -23,7 +23,7 @@ import type {
   TradePeople,
   VillageState,
 } from '../types';
-import { COIN_GOOD, PEOPLE_GROUP } from './goods';
+import { COIN_GOOD, GOLD_GOOD, PEOPLE_GROUP } from './goods';
 import {
   NO_PEOPLE,
   emigrantGroups,
@@ -221,7 +221,9 @@ export function restorePeople(state: VillageState, groups: readonly MarketPerson
  * - `people` – ostatní (vlastní lidé výpravy, koupení od jiné výpravy – id jiné vsi) se usadí jako
  *   příchozí z domovské vsi výpravy (`settlePeople` s `from` – kronika `newcomer`);
  * - `coins` – měšec výpravy přibude do zásoby vsi; chybí = žádné. S `from` jsou mince v prvním
- *   zápisu `newcomer` (`coins`), bez lidí zápis `stranded-coins` (preflight plánu 4, M14).
+ *   zápisu `newcomer` (`coins`), bez lidí zápis `stranded-coins` (preflight plánu 4, M14);
+ * - `gold` – zlato výsledku (neprodané i koupené, plán 6, bod 9) stejně jako mince (`gold` v zápisu;
+ *   jen zlato = `stranded-coins` s `coins` 0).
  * Bez `from` (starší výsledek bez mincí v `origin`, nebo bez směru cesty – nemá nastat) bez směru
  * a kroniky. Nikdo nevznikne ani nezmizí; vstupní skupiny nemění.
  */
@@ -233,10 +235,12 @@ export function receiveStranded(
     people: readonly MarketPerson[];
     own?: readonly MarketPerson[];
     coins?: number;
+    gold?: number;
     from: MarketResult['origin'];
   },
 ): ChronicleEvent[] {
   if (back.coins) addGood(state, COIN_GOOD, back.coins, day);
+  if (back.gold) addGood(state, GOLD_GOOD, back.gold, day);
   const taken = new Set(state.people.map((p) => p.id));
   const own: MarketPerson[] = [];
   const settle: MarketPerson[] = [...back.people];
@@ -269,16 +273,21 @@ export function receiveStranded(
     });
   }
   events.push(...settlePeople(state, day, settle, back.from ?? { villageId: '', villageName: '' }));
-  if (back.coins && back.from !== undefined) {
+  if ((back.coins || back.gold) && back.from !== undefined) {
     const first = events.findIndex((e) => e.kind === 'newcomer');
     const event = events[first];
     if (event?.kind === 'newcomer') {
-      events[first] = { ...event, coins: back.coins };
+      events[first] = {
+        ...event,
+        ...(back.coins ? { coins: back.coins } : {}),
+        ...(back.gold ? { gold: back.gold } : {}),
+      };
     } else {
       events.push({
         day,
         kind: 'stranded-coins',
-        coins: back.coins,
+        coins: back.coins ?? 0,
+        ...(back.gold ? { gold: back.gold } : {}),
         villageName: back.from.villageName,
         villageId: back.from.villageId,
       });

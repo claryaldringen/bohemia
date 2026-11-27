@@ -63,7 +63,7 @@ function dayBound(day: number): number {
  * smaže použité snímky okolí a zprávy bez nákladu (`body ->> 'kind'` v `PRUNED_INBOX_KINDS`) po
  * indexu vsi a dne, verzi nezvedá. `settledMail` / `dropSettledMail` čtou a mažou vyřízené příjezdy
  * a výsledky výprav (`SETTLED_MAIL_KINDS`; čtení po indexu vsi a dne, mazání po id) – verzi také nezvedají.
- * `strandedResults` / `dropStranded` čtou a mažou výsledky trhu s lidmi nebo mincemi ve schránkách
+ * `strandedResults` / `dropStranded` čtou a mažou výsledky trhu s lidmi, mincemi nebo zlatem ve schránkách
  * zaniklých vsí (`asleep` nebo sídlo v archivu) – verzi také nezvedají.
  */
 export function createInboxRepository(db: Database): VillageInbox {
@@ -200,6 +200,8 @@ export function createInboxRepository(db: Database): VillageInbox {
               nonEmpty(sql`${resultJson}->'people'`),
               nonEmpty(sql`${resultJson}->'newcomers'`),
               positive(sql`${resultJson}->'unsold'->'coins'`),
+              positive(sql`${resultJson}->'unsold'->'gold'`),
+              positive(sql`${resultJson}->'bought'->'gold'`),
             ),
             deadVillage,
           ),

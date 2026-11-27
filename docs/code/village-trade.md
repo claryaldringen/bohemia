@@ -419,8 +419,7 @@ day, order, target, { by?, seedKg?, alone?, service?, kin?, people? })` (mutuje 
     seznam a ten, který volní lidé neunesou, odmítne kontrola (`MARKET_NO_PEOPLE`) i náhled; plná
     posádka s mincemi vyjede. Neprodané zboží se do cesty zpět nepočítá jako dosud (Rozhodnutí
     plánu 2, bod 2).
-  - **Zlato a kapacita šperkaře** (gold.md – Pravidla 4; Rozhodnutí plánu 6, body 6 a 9; Martin
-    22. 11. 2026: „I mezi vesnicemi“): zlato jede v nákladu jako mince (`give.gold` – celé gramy,
+  - **Zlato a kapacita šperkaře** (gold.md – Pravidla 4; Rozhodnutí plánu 6, body 6 a 9; Martin 22. 11. 2026: „I mezi vesnicemi“): zlato jede v nákladu jako mince (`give.gold` – celé gramy,
     ubude vsi, co zbude, je v `unsold`). Výprava hráče a správce si veze kapacitu šperkaře
     `tripJewelleryG(state, give, by)` = min(`jewelleryOf`, mince × `GOLD.coinGrams` + gramy zlata
     v nákladu), výprava vesničanů nic (mince neutrácí). `departPlanned` ji spočítá ze vsi **před**
@@ -485,7 +484,7 @@ day, order, target, { by?, seedKg?, alone?, service?, kin?, people? })` (mutuje 
       stavu – `awaitedTrip`; opakované doručení po pádu mezi zápisem a smazáním z `outbox`), se
       zahodí – lidé by se zdvojili. Výsledek bez lidí a mincí beze změny (zmizelé vsi se zahodí,
       spící zapíše).
-    - **Mince** (Rozhodnutí plánu 4, bod 9): výsledek s `unsold.coins` > 0 (`carriesCoins`) jde pro
+    - **Mince** (Rozhodnutí plánu 4, bod 9): výsledek s `unsold.coins` > 0 (`carriesMoney`) jde pro
       zaniklou domovskou ves zpět hostiteli stejně jako lidé a s nimi v jedné zprávě –
       `stranded-people` s `coins` (celé mince, měšec výpravy při odjezdu; chybí = žádné), i bez lidí
       (`from` = `origin` výsledku – nese ho i výsledek jen s mincemi). Hostitel je dostane do zásoby
@@ -493,10 +492,17 @@ day, order, target, { by?, seedKg?, alone?, service?, kin?, people? })` (mutuje 
       Zboží výsledku, i koupená zbroj, se zahodí. Použitý výsledek, zaniklý hostitel, domov zaniklý
       s výsledkem ve schránce a souběh řeší totéž pravidlo jako u lidí – mince nevzniknou ani se
       neztratí, kromě jediné přijaté ztráty (oba konce mrtvé).
+    - **Zlato** (plán 6, bod 9; návrh Clauda: koupené zlato by se jinak ze světa ztratilo – peníze
+      nemizí): výsledek se zlatem jde stejnou cestou jako mince – `stranded-people.gold` =
+      `unsold.gold + bought.gold` (`goldOf`, celé gramy – zlato je `PIECE_GOODS`; i výsledek jen
+      s koupeným zlatem, `strandedResults` ho vrátí v paměti i v SQL). `receiveStranded` ho přičte
+      (`addGood`) a zapíše (`newcomer.gold`, bez lidí `stranded-coins` s `coins` 0 a `gold` –
+      „Ze zaniklé vsi Lhota se vrátilo 40 g zlata.“, bez „0 mincí“; cizímu správci „Ze sousední vsi“).
+      Ostatní koupené zboží se zahazuje jako dosud.
     - **Domov zanikl, když už výsledek ležel v jeho schránce** (hostitel doručuje hned po dávce, takže
       výsledek je ve schránce domova většinou dávno před svým dnem): úloha světa
       `returnStrandedPeople` (worker, `runWorldTasks` 1× za minutu; návrh Clauda: nikdo nesmí
-      zmizet) vezme výsledky s lidmi nebo mincemi ve schránkách zaniklých vsí (`inbox.strandedResults`
+      zmizet) vezme výsledky s lidmi, mincemi nebo zlatem ve schránkách zaniklých vsí (`inbox.strandedResults`
       – ves spí nebo má sídlo v archivu) a nepoužité (výprava je ještě ve stavu vsi – `awaitedTrip`,
       hostitel je její cíl) pošle hostiteli jako `stranded-people` – tentýž `strandedMail` i `ref`
       jako krok 1, takže se zpráva nezdvojí ani při souběhu webu a workeru. Zanikl-li i hostitel
