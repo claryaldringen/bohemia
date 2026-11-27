@@ -310,12 +310,14 @@ describe('mincovní fáze – nákup za mince (markets.md – Rozhodnutí plánu
         expect(coins).toBeLessThan(value + 1);
       }
 
-      // zboží: kus celý, nikdo neprodá víc, než má, ani nekoupí víc, než chce
+      // zboží: kus celý, zlato na setiny gramu (po celých mincích – gold.md, Mince 2,4 g, bod 4),
+      // nikdo neprodá víc, než má, ani nekoupí víc, než chce
       for (const { seller, buyer, good, amount } of c.trades) {
         expect(seller).not.toBe(buyer);
         expect(good).not.toBe(COIN_GOOD);
         expect(amount).toBeGreaterThan(0);
-        if (isPieceGood(good)) expect(Number.isInteger(amount)).toBe(true);
+        if (good === 'gold') expect(Math.round(amount * 100) / 100).toBe(amount);
+        else if (isPieceGood(good)) expect(Number.isInteger(amount)).toBe(true);
       }
       for (const p of parties) {
         for (const good of TRADE_GOODS) {

@@ -4,15 +4,21 @@
 /**
  * markets.md – Rozhodnutí plánu 2, bod 3 (návrh Clauda; markets.md – Pravidla 4 nechává „o kolik
  * se posune, meze“ na staviteli): cena je v mincích za kg, kus nebo m³.
- * - Výchozí cena = hodnota zboží v kg obilí (`TRADE_GOOD_VALUES`) ÷ `grainKgPerCoin` – 15 kg obilí
- *   za minci. Rešerše research/2026-10-18-trade-values.md: Frankfurt 794 – žito 3 denáry za modius
- *   ≈ 37–49 kg, tedy ≈ 12–16 kg za denár; Ibráhím ibn Jákúb – za minci jídlo na měsíc.
+ * - Výchozí cena = hodnota zboží v kg obilí (`TRADE_GOOD_VALUES`) ÷ `grainKgPerCoin` – 90 kg obilí
+ *   za minci (Martin 27. 11. 2026: „1 mince = 2.4g zlata = 90 kg obilí“; gold.md – Mince 2,4 g
+ *   zlata za 90 kg obilí, bod 1; markets.md – Hodnota mince). Dřív 15 kg podle stříbrného denáru
+ *   (rešerše research/2026-10-18-trade-values.md: Frankfurt 794 – žito 3 denáry za modius ≈ 37–49 kg,
+ *   tedy ≈ 12–16 kg za denár) – herní mince je teď zlatá a průměrná, ne denár.
+ * - `legacyGrainKgPerCoin` – kurz do 27. 11. 2026 (15 kg za minci); jen pro převod cen, které si trh
+ *   nebo ves pamatují bez kurzu (`VillageMarket.coinKg` chybí – převod `coin-rate`, gold.md – Mince
+ *   2,4 g, bod 3), ne pravidlo hry.
  * - Po každém tržním dni P' = P × (1 + `priceStep` × (D − S) / (D + S)), D = kolik se zboží žádalo,
  *   S = kolik se ho nabízelo: za den nejvýš ±10 %, dno je výchozí cena (Martin 23. 11. 2026, markets.md – Martinova rozhodnutí, Spodní cena), nahoru bez meze (Horní cena); zboží bez
  *   nabídky i poptávky cenu nemění.
  */
 export const MARKET = {
-  grainKgPerCoin: 15,
+  grainKgPerCoin: 90,
+  legacyGrainKgPerCoin: 15,
   priceStep: 0.1,
   /**
    * Zpráva na pivo (markets.md – Pravidla 8, Rozhodnutí plánu 2, bod 7): lidé a domy se hlásí

@@ -112,10 +112,12 @@ export const TRADE_GOODS: readonly TradeGood[] = [
 ];
 
 /**
- * Kusové zboží v pořadí panelu – dobytek, koně, klády, vozy, kámen (m³), kůže, kožešiny, zbroj,
- * mince a lidé
- * (jednotky jako `TRADE_GOOD_NAMES` ve webu: kusy a m³); ostatní zboží je v kg. Na trhu se prodává
- * jen po celých kusech, kg se dělí libovolně (markets.md – Rozhodnutí plánu 2, bod 4).
+ * Kusové zboží v pořadí panelu – dobytek, koně, klády, vozy, kámen (m³), zlato (g), kůže, kožešiny,
+ * zbroj, mince a lidé (jednotky jako `TRADE_GOOD_NAMES` ve webu: kusy, m³ a g); ostatní zboží je v kg.
+ * Na trhu se prodává jen po celých kusech, kg se dělí libovolně (markets.md – Rozhodnutí plánu 2,
+ * bod 4). Zlato je kusové tam, kde ho zadává hráč a nakládá správce – výprava veze celé gramy; za
+ * mince se ale mění po celých mincích (2,4 g, od šperkaře 1,6 g – gold.md, Mince 2,4 g zlata za
+ * 90 kg obilí, bod 4), takže zásoba i obchod mají zlomky gramu na setiny (`coinClearing`, `roundGold`).
  */
 export const PIECE_GOODS: readonly TradeGood[] = [
   ...CATTLE_GOODS,

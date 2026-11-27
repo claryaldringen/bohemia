@@ -11,7 +11,7 @@ import { emigrantList } from '../trade/people-trade';
 import { offeredSlaveIds } from '../trade/slaves';
 import { nearbyTarget } from '../trade/nearby';
 import { villageGoodStock } from '../trade/trade';
-import { goldCoinPrice } from '../trade/market-prices';
+import { coinsGold, goldCoins } from '../trade/market-prices';
 import { priceKg } from '../trade/villager-trips';
 import { COIN_GOOD, GOLD_GOOD, TRADE_GOODS, isPieceGood } from '../trade/goods';
 import type { CartKind, NearbyVillage, TradeGood, TradeGoods, VillageState } from '../types';
@@ -91,6 +91,19 @@ function grainPayment(
     if (unit <= EPSILON) continue;
     const reserve = good === 'logs' ? constructionLogsLeft(state) : 0;
     const have = Math.max(0, villageGoodStock(state, good, day) - reserve);
+    if (good === GOLD_GOOD) {
+      // zlato po celých mincích (gold.md – Mince 2,4 g zlata za 90 kg obilí, bod 4): hostitel ho
+      // vymění 2,4 g za minci, výprava veze celé gramy – na mince, které ještě chybí
+      const coinKg = priceKg(state, villageId, COIN_GOOD);
+      const coins = Math.min(
+        goldCoins(Math.floor(have + EPSILON)),
+        Math.ceil((dueKg - creditKg) / coinKg - EPSILON),
+      );
+      if (coins <= 0) continue;
+      give[good] = Math.ceil(coinsGold(coins) - EPSILON);
+      creditKg += coins * coinKg;
+      continue;
+    }
     const need = (dueKg - creditKg) / unit;
     const n = isPieceGood(good)
       ? Math.min(Math.floor(have + EPSILON), Math.ceil(need - EPSILON))
@@ -199,8 +212,9 @@ export function stewardMarketStep(state: VillageState, ctx: NeedContext): boolea
 /**
  * Čím roční výprava platí seznam `wants` ve vsi `villageId` (Rozhodnutí plánu 4, bod 4 a plánu 6,
  * bod 8): hodnota seznamu za ceny cíle (`priceKg`) v celých mincích nahoru – šum z půlení (`fitToCrew`)
- * minci nepřidá. Napřed mince, nejvýš co ves dnes má; chybí-li, zbytek v celých gramech zlata
- * (gram = `goldCoinPrice` mince u cíle), nejvýš co ves má. Mince ani zlato neváží – nosiče nepřidají.
+ * minci nepřidá. Napřed mince, nejvýš co ves dnes má; chybí-li, zbytek zlatem po 2,4 g za minci
+ * (`coinsGold` – gold.md, Mince 2,4 g zlata za 90 kg obilí, bod 4) v celých gramech nahoru, nejvýš
+ * celé gramy, které ves má. Mince ani zlato neváží – nosiče nepřidají.
  */
 function moneyFor(
   state: VillageState,
@@ -219,8 +233,8 @@ function moneyFor(
   const rest = due - coins;
   if (rest > 0) {
     const gold = Math.min(
-      villageGoodStock(state, GOLD_GOOD, day),
-      Math.ceil(rest / goldCoinPrice()),
+      Math.floor(villageGoodStock(state, GOLD_GOOD, day) + EPSILON),
+      Math.ceil(coinsGold(rest) - EPSILON),
     );
     if (gold > 0) money[GOLD_GOOD] = gold;
   }

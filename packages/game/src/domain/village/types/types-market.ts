@@ -308,6 +308,12 @@ export interface VillageMarket {
   /** Ceny trhu po posledním tržním dni; chybí = výchozí cena. */
   prices: MarketPrices;
   /**
+   * Kurz cen `prices` v kg obilí za minci (`MARKET.grainKgPerCoin`; gold.md – Mince 2,4 g zlata za
+   * 90 kg obilí, bod 3) – trh ho má od založení (`newMarket`). Chybí = ceny z doby 15 kg za minci,
+   * převod `coin-rate` je přepočte (`withCoinRate`).
+   */
+  coinKg?: number;
+  /**
    * Hladina trhu (markets.md – Rozhodnutí plánu 4, bod 3): kolik mincí proti zboží na trhu je – cena
    * v mincích = cena × hladina (`coinPriceOf`), posune ji jen mincovní fáze (`nextLevel`). Nejméně 1;
    * chybí = 1.
@@ -362,6 +368,11 @@ export interface MarketResult {
   report?: VillageReport;
   /** Ceny trhu v den odjezdu. */
   prices?: MarketPrices;
+  /**
+   * Kurz `prices` (kg obilí za minci, `VillageMarket.coinKg`); chybí = 15 kg za minci – starší
+   * výsledek se přepočte při návratu (`newsPricesOf`).
+   */
+  coinKg?: number;
   /** Hladina trhu v den odjezdu (`VillageMarket.level`); chybí = 1. */
   level?: number;
   /** Hostitel zanikl – výprava se vrátila se vším, co drží. */
@@ -491,6 +502,11 @@ export interface VillageNews {
   name: string;
   report: VillageReport;
   prices?: MarketPrices;
+  /**
+   * Kurz `prices` (kg obilí za minci, `VillageMarket.coinKg`) – jde s cenami; chybí u cen = 15 kg za
+   * minci, převod `coin-rate` je přepočte.
+   */
+  coinKg?: number;
   /** Hladina trhu (`MarketResult.level`; Rozhodnutí plánu 4, bod 3); chybí = 1. */
   level?: number;
 }

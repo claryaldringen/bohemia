@@ -2,13 +2,17 @@
 // zpracovává kov vsi – `VillageState.jewelleryG` je počet gramů, na který výhoda ještě platí.
 import { GOLD } from '../rules/rules-gold';
 import type { VillageState } from '../types';
+import { roundGold } from './market-prices';
 
 /** Zbytek pod touto mezí je jen šum desetinných čísel (jako v `trade.ts`). */
 const EPSILON = 1e-9;
 
-/** Kov vsi pro šperkaře (g): celé gramy zlata + mince × `GOLD.coinGrams`. */
+/**
+ * Kov vsi pro šperkaře (g; gold.md – Mince 2,4 g zlata za 90 kg obilí, bod 6): zlato i se zlomkem pod
+ * minci + celé mince × `GOLD.coinGrams` (2,4 g), na setiny.
+ */
 export function jewelleryMaterialG(state: Pick<VillageState, 'gold' | 'coins'>): number {
-  return Math.floor((state.gold ?? 0) + EPSILON) + Math.floor(state.coins ?? 0) * GOLD.coinGrams;
+  return roundGold((state.gold ?? 0) + Math.floor(state.coins ?? 0) * GOLD.coinGrams);
 }
 
 /** Použitelná kapacita výhody (g): min(`jewelleryG`, kov vsi). */

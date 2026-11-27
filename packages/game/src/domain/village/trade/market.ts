@@ -69,7 +69,8 @@ import { jewelleryOf, useJewellery } from './jewellery';
 import { clearMarket, partyTotals, totalGoods } from './market-clearing';
 import { coinClearing, type CoinParty, type CoinPayment } from './market-coins';
 import { leavingGroups, sendPeople, settlePeople } from './market-people';
-import { nextLevel, nextPrices } from './market-prices';
+import { goldCoins, nextLevel, nextPrices } from './market-prices';
+import { newMarket } from './coin-rate';
 import { marketStance } from './market-stance';
 import { offeredSlaveIds, reduceSlavesForSale } from './slaves';
 import { extendMerchants } from './merchants';
@@ -125,14 +126,17 @@ export function rememberNews(state: VillageState, news: VillageNews): void {
     list.push(structuredClone(news));
   } else if (news.report.day >= old.report.day) {
     const next = structuredClone(news);
+    // ceny jdou s hladinou a kurzem (`coinKg` – gold.md, Mince 2,4 g, bod 3)
     if (next.prices === undefined && old.prices !== undefined) {
       next.prices = old.prices;
       if (old.level !== undefined) next.level = old.level;
+      if (old.coinKg !== undefined) next.coinKg = old.coinKg;
     }
     list[i] = next;
   } else if (old.prices === undefined && news.prices !== undefined) {
     old.prices = structuredClone(news.prices);
     if (news.level !== undefined) old.level = news.level;
+    if (news.coinKg !== undefined) old.coinKg = news.coinKg;
   }
 }
 
@@ -186,7 +190,7 @@ export function joinMarket(
     (state.market?.visitors.some((v) => v.key === arrival.key) ?? false) ||
     (state.outbox?.some((mail) => mail.ref === marketResultRef(arrival.key)) ?? false);
   if (known) return [];
-  const market = (state.market ??= { prices: {}, visitors: [], nextOrder: 1, arrivals: [] });
+  const market = (state.market ??= newMarket());
   const pieceCounts: TradeGoods = {};
   for (const good of HORSE_GOODS) {
     pieceCounts[good] = arrival.horses.filter((h) => h.good === good).length;
@@ -282,6 +286,8 @@ export function marketResult(
     ...(visitor?.coinsGot ? { coinsGot: visitor.coinsGot } : {}),
     ...((from.jewelleryG ?? 0) > 0 ? { jewelleryG: from.jewelleryG } : {}),
     ...extra,
+    // ceny trhu v dnešním kurzu (gold.md – Mince 2,4 g, bod 3)
+    ...(extra.prices ? { coinKg: MARKET.grainKgPerCoin } : {}),
   });
 }
 
@@ -599,18 +605,19 @@ function coinPhase(
   }));
   const spends = guests.some((p) => p.coins > 0 && hasGoods(p.wants));
   const buyer = armsBuyer(state, day, visitors);
-  // přespolní výprava (ne kupec) nabízí aspoň gram zlata – hostitel ho vymění za mince vsi
-  // (Rozhodnutí plánu 6, bod 3); fáze se spustí i jen kvůli výměně
-  const exchanges = guests.some((p) => !p.merchant && (p.stock[GOLD_GOOD] ?? 0) >= 1);
+  // přespolní výprava (ne kupec) nabízí zlato aspoň za minci (2,4 g) – hostitel ho vymění za mince
+  // vsi (Rozhodnutí plánu 6, bod 3; Mince 2,4 g, bod 4); fáze se spustí i jen kvůli výměně
+  const exchanges = guests.some((p) => !p.merchant && goldCoins(p.stock[GOLD_GOOD] ?? 0) >= 1);
   const hostCoins = villageGoodStock(state, COIN_GOOD, day);
-  // objednanou zbroj ves zaplatí mincemi i zlatem (Rozhodnutí plánu 6, bod 3)
-  const armsMeans = buyer ? buyer.coins + (buyer.goldPurse ?? 0) : 0;
+  // objednanou zbroj ves zaplatí mincemi i zlatem po celých mincích (Rozhodnutí plánu 6, bod 3)
+  const armsMeans = buyer ? buyer.coins + goldCoins(buyer.goldPurse ?? 0) : 0;
   if (!(armsMeans > 0) && !spends && !(exchanges && hostCoins > 0)) return null;
   const leaving = leavingGroups(state, day, hostOffer, reserved);
   const people: TradeGoods = {};
   for (const good of PEOPLE_GOODS) people[good] = leaving[good].length;
   const level = market.level ?? 1;
-  // zlato vsi v celých gramech – hostitel ho nabízí jen v mincovní fázi (zlomek zůstane ve vsi)
+  // zlato vsi i se zlomkem – hostitel ho nabízí jen v mincovní fázi, po celých mincích (zbytek pod
+  // minci zůstane ve vsi – Mince 2,4 g, bod 4)
   const hostGold = villageGoodStock(state, GOLD_GOOD, day);
   // kapacita šperkaře vsi – jedna pro prodej zlata kupcům i zbroj
   const jewelleryG = jewelleryOf(state);

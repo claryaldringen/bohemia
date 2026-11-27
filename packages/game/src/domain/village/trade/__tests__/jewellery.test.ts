@@ -24,10 +24,11 @@ const village = (
 };
 
 describe('kapacita šperkaře', () => {
-  it('kov = celé gramy zlata + mince; použitelná kapacita nepřeroste kov', () => {
+  it('kov = zlato i se zlomkem + mince po 2,4 g; použitelná kapacita nepřeroste kov', () => {
     const s = village(10.6, 5, 20);
-    expect(jewelleryMaterialG(s)).toBe(15);
-    expect(jewelleryOf(s)).toBe(15);
+    expect(jewelleryMaterialG(s)).toBe(22.6);
+    expect(jewelleryOf(s)).toBe(20);
+    expect(jewelleryOf(village(10.6, 5, 30))).toBe(22.6);
     expect(jewelleryOf(village(10.6, 5))).toBe(0);
   });
 
@@ -43,7 +44,9 @@ describe('kapacita šperkaře', () => {
   it('addJewellery přidá nejvýš do kovu vsi', () => {
     const s = village(10.6, 5, 10);
     addJewellery(s, 8);
-    expect(s.jewelleryG).toBe(15);
+    expect(s.jewelleryG).toBe(18);
+    addJewellery(s, 8);
+    expect(s.jewelleryG).toBe(22.6);
     const t = village(0, 0);
     addJewellery(t, 8);
     expect(t.jewelleryG).toBeUndefined();
@@ -51,7 +54,7 @@ describe('kapacita šperkaře', () => {
 
   it('pohled vsi nese jewelleryG jako jewelleryOf v celých gramech', () => {
     const s = village(10, 5, 30);
-    expect(summarizeVillage(s, DAY).wares?.jewelleryG).toBe(15);
+    expect(summarizeVillage(s, DAY).wares?.jewelleryG).toBe(22);
     expect(summarizeVillage(village(10, 5), DAY).wares?.jewelleryG).toBeUndefined();
   });
 });

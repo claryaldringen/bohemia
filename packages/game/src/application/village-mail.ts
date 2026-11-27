@@ -4,6 +4,7 @@ import {
   marketArrivalRef,
   marketResult,
   marketResultRef,
+  roundGold,
   type MarketArrival,
   type MarketResult,
   type MarketTrip,
@@ -92,7 +93,8 @@ function carriesPeople(mail: VillageMail): boolean {
 function goldOf(result: MarketResult): number {
   const unsold = (result.unsold as MarketResult['unsold'] | undefined)?.gold ?? 0;
   const bought = (result.bought as MarketResult['bought'] | undefined)?.gold ?? 0;
-  return unsold + bought;
+  // gramy i se zlomkem pod minci (gold.md – Mince 2,4 g, bod 4), na setiny – nic nezmizí
+  return roundGold(unsold + bought);
 }
 
 /**

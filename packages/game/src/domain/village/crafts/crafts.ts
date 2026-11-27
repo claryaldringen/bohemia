@@ -569,9 +569,9 @@ export function restingCrafters(
     if (material <= 0) resting.set(d.id, 'no-gold');
     else if ((state.jewelleryG ?? 0) >= material - EPSILON) resting.set(d.id, 'resting');
   }
-  // mincíř (gold.md – Pravidla 3): méně než gram zlata – `no-gold`
+  // mincíř (gold.md – Pravidla 3; Mince 2,4 g, bod 5): méně zlata než na minci – `no-gold`
   for (const d of occupiedWorkshops(state, 'minter')) {
-    if (Math.floor((state.gold ?? 0) + EPSILON) < GOLD.coinGrams) resting.set(d.id, 'no-gold');
+    if ((state.gold ?? 0) + EPSILON < GOLD.coinGrams) resting.set(d.id, 'no-gold');
   }
   for (const d of occupiedWorkshops(state, 'potter')) {
     const workshop = d.workshop!;

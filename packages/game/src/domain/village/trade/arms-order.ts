@@ -1,7 +1,7 @@
 // Objednávka zbroje u cizích kupců ve vlastní vsi (markets.md – Rozhodnutí plánu 4, bod 15; Martin
 // 25. 11. 2026: „Hráč zadá počet“, podrobnosti návrh Clauda). Hráč zadá, kolik mečů, kroužkových
 // košil a helem chce (`setArmsOrder`); v mincovní fázi dne kupců (`coinPhase` v market.ts) je ves
-// koupí za své mince (a celé gramy zlata – gold.md, Rozhodnutí plánu 6, bod 3) jako kupující
+// koupí za své mince (a zlato po 2,4 g za minci – gold.md, Rozhodnutí plánu 6, bod 3) jako kupující
 // `armsBuyer` – jen od kupců, po kusech, dokud na ně má. O koupené
 // se objednávka zmenší (`reduceArmsOrder`), zbytek čeká na další kupce. Přání zbroje nepatří do
 // zápočtu, `marketStance`, `nextPrices` ani do výhledů správce. Nic jiného ves za mince nekoupí
@@ -35,8 +35,9 @@ export function setArmsOrder(
 }
 
 /**
- * Hostitel jako kupující mincovní fáze: mince vsi (i nula – utržit je smí týž den), celé gramy zlata
- * vsi, kterými po mincích doplatí (`goldPurse`, gram za minci – Rozhodnutí plánu 6, bod 3), kapacita
+ * Hostitel jako kupující mincovní fáze: mince vsi (i nula – utržit je smí týž den), zlato vsi,
+ * kterým po mincích doplatí (`goldPurse` – po celých mincích, 2,4 g za minci; Rozhodnutí plánu 6,
+ * bod 3, gold.md – Mince 2,4 g, bod 4), kapacita
  * šperkaře (`jewelleryOf` – gold.md, Pravidla 4) a objednaná zbroj, jen od cizích kupců. Zlato
  * a kapacita jen kladné. Null = nic neobjednal, nebo na trhu žádný kupec nestojí (`visitors`).
  */

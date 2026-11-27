@@ -10,13 +10,14 @@
  *   seznam je jedinou mezí nákupu. Klát dá ročně ≈ 6 kg medu a 0,4 kg vosku (`HIVES`), kožešin je
  *   v malé vsi ≈ 20 ročně.
  * - Seznam je trochu větší než přebytek jedné vsi, kupci ho tedy zdražují; při výchozích cenách mají
- *   med, vosk a kožešiny hodnotu 120 mincí (med 40, vosk 48, kožešiny 32) – právě cenu meče.
- * - Otroci (markets.md – Rozhodnutí plánu 5, bod 7; návrh Clauda): 10 za průjezd po 24 mincích –
+ *   med, vosk a kožešiny hodnotu 20 mincí (med ≈ 6,7, vosk 8, kožešiny ≈ 5,3) – právě cenu meče.
+ * - Otroci (markets.md – Rozhodnutí plánu 5, bod 7; návrh Clauda): 10 za průjezd po 4 mincích –
  *   kupec je zaplatí mincemi, nebo je vezme zápočtem za zbroj.
  * - Zlato (gold.md – Pravidla 2 a 5; Rozhodnutí plánu 6, bod 8 – návrh Clauda; rešerše
  *   2026-11-26-gold.md – herní číslo, pramen není): 1 000 g za průjezd; na seznamu první jako
  *   v Martinově výčtu (22. 11. 2026: „Cizí kupci nakupují zlato, šperky …, med, vosk, kožešiny
- *   a otroky“). Gram stojí vždy minci a zlato není v zápočtu, ceně dne ani v hladině – trh bez zlata
+ *   a otroky“). Mince stojí vždy 2,4 g zlata (`GOLD.coinGrams`, po celých mincích) a zlato není
+ *   v zápočtu, ceně dne ani v hladině – trh bez zlata
  *   je jako po plánu 5.
  */
 export const MERCHANTS = {

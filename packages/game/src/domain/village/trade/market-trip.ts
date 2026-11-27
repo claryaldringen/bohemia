@@ -57,6 +57,7 @@ import { reservedSeedKg } from '../fields/seed';
 import { rememberOrders } from './craft-orders';
 import { addHorses, takeHorses } from './horse-trade';
 import { addJewellery, jewelleryOf, useJewellery } from './jewellery';
+import { newsPricesOf } from './coin-rate';
 import { marketArrivalRef, rememberNews } from './market';
 import {
   leavingGroups,
@@ -506,7 +507,7 @@ interface DepartOptions {
 /**
  * Kapacita šperkaře, kterou si výprava veze (g; gold.md – Pravidla 4; Rozhodnutí plánu 6, bod 6):
  * nejvýš použitelná kapacita vsi (`jewelleryOf`) a nejvýš kov v nákladu – mince × `GOLD.coinGrams`
- * + gramy zlata. Počítá se ze vsi před odchodem nákladu (po něm by `jewelleryOf` kov už neviděla).
+ * (2,4 g) + gramy zlata. Počítá se ze vsi před odchodem nákladu (po něm by `jewelleryOf` kov už neviděla).
  * Výprava vesničanů nic (mince neutrácí – Martin 25. 11. 2026: „Mince utrácí jen vojvoda/správce“).
  */
 export function tripJewelleryG(state: VillageState, give: TradeGoods, by?: TripBy): number {
@@ -728,7 +729,8 @@ export function applyMarketResult(
       villageId: trip.villageId,
       name: trip.name,
       report: result.report,
-      ...(result.prices ? { prices: result.prices } : {}),
+      // ceny v dnešním kurzu – i ze starší schránky (gold.md – Mince 2,4 g, bod 3)
+      ...newsPricesOf(result),
       ...(result.level !== undefined ? { level: result.level } : {}),
     });
   }

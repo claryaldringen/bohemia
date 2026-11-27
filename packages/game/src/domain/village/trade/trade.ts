@@ -12,6 +12,7 @@ import { charcoalStockKg, takeCharcoal } from '../crafts/charcoal';
 import { toolEquipmentKg } from '../crafts/iron';
 import { ageGroup } from '../people/people';
 import { addCattle, cattleForSale, removeCattle } from './cattle-trade';
+import { roundGold } from './market-prices';
 import { NO_PEOPLE, emigrantGroups, newcomerProfiles, settleNewcomers } from './people-trade';
 import { addHorses, horsesForSale, removeHorses } from './horse-trade';
 import { logArrivalPoint } from '../forest/log-piles';
@@ -143,7 +144,9 @@ export function villageGoodStock(
       // kožešiny z lovu a ovčí dohromady
       return Math.floor((state.wares?.sheepFurs ?? 0) + (state.wares?.wildFurs ?? 0) + EPSILON);
     case 'gold':
-      return Math.floor((state.gold ?? 0) + EPSILON);
+      // gramy i se zlomkem pod minci (gold.md – Mince 2,4 g, bod 4) – za mince se mění po celých
+      // mincích (`coinClearing`), na výpravu je hráč i správce dávají v celých gramech
+      return roundGold(state.gold ?? 0);
     case 'coins':
       return Math.floor((state.coins ?? 0) + EPSILON);
     case 'swords':
@@ -293,8 +296,9 @@ export function addGood(state: VillageState, good: TradeGood, amount: number, da
       return;
     }
     case 'gold': {
-      // gramy i se zlomky z rýžování; pod `EPSILON` (i záporný šum) pole zmizí, nikdy záporné
-      const next = (state.gold ?? 0) + amount;
+      // gramy i se zlomky z rýžování a pod minci, na setiny (`roundGold`); pod `EPSILON` (i záporný
+      // šum) pole zmizí, nikdy záporné
+      const next = roundGold((state.gold ?? 0) + amount);
       if (next > EPSILON) state.gold = next;
       else delete state.gold;
       return;

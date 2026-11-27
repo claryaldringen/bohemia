@@ -412,12 +412,13 @@ describe('vesničané na trhu – mince neutrácejí (Rozhodnutí plánu 4, bod 
     expectSameWithCoins(seedHome(200), SEP1);
   });
 
-  it('cena mince u cíle je kurz ÷ hladina jeho trhu ze zprávy; bez zprávy a bez hladiny 15 kg', () => {
+  it('cena mince u cíle je kurz ÷ hladina jeho trhu ze zprávy; bez zprávy a bez hladiny 90 kg', () => {
     const s = villagers();
     expect(priceKg(s, 'm', 'coins')).toBe(MARKET.grainKgPerCoin);
     expect(priceKg(s, 'neznámá', 'coins')).toBe(MARKET.grainKgPerCoin);
     s.news![0] = { ...s.news![0]!, level: 2.5, prices: { grain: 0.2, tools: 5 } };
-    expect(priceKg(s, 'm', 'coins')).toBe(6);
+    // 90 kg ÷ hladina 2,5
+    expect(priceKg(s, 'm', 'coins')).toBe(36);
     expect(priceKg(s, 'neznámá', 'coins')).toBe(MARKET.grainKgPerCoin);
     // ceny zboží na hladině nezávisí
     expect(priceKg(s, 'm', 'grain')).toBe(0.2 * MARKET.grainKgPerCoin);

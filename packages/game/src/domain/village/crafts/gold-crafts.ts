@@ -7,6 +7,7 @@ import { villageRoadWalk, type Walk } from '../paths/walking';
 import { GOLD, JEWELLER, MINT, PANNING } from '../rules/rules-gold';
 import { addGood } from '../trade/trade';
 import { jewelleryMaterialG } from '../trade/jewellery';
+import { roundGold } from '../trade/market-prices';
 import type { Craft, Workshop, WorkshopActivity } from '../types/types-crafts';
 import type { Dwelling, VillageState } from '../types';
 import type { WorkshopLabor } from './crafts';
@@ -157,11 +158,12 @@ export function workPanner(
   const left = placerLeftG(state, placer.index);
   const output = (labor.craft * labor.skill * PANNING.gPerManDay) / distanceFactor(placer.walkM);
   if (output <= 0) return { activity: 'producing', pannedG: 0, site: null };
-  const pannedG = left - output <= EPSILON ? left : output;
-  state.gold = (state.gold ?? 0) + pannedG;
+  // gramy na setiny (`roundGold` – gold.md, Mince 2,4 g, bod 4): zlato vsi i náplav bez šumu
+  const pannedG = roundGold(left - output <= EPSILON ? left : output);
+  state.gold = roundGold((state.gold ?? 0) + pannedG);
   const panned = (state.goldPanned ??= []);
   while (panned.length <= placer.index) panned.push(0);
-  panned[placer.index] = panned[placer.index]! + pannedG;
+  panned[placer.index] = roundGold(panned[placer.index]! + pannedG);
   const site = placers[placer.index]!;
   if (placerLeftG(state, placer.index) > 0) return { activity: 'producing', pannedG, site };
   // náplav je vyrýžovaný a neobnovuje se – další den rýžovník jde k dalšímu
@@ -193,10 +195,11 @@ export function workJeweller(
 }
 
 /**
- * Mincíř razí zlato na mince (gold.md – Pravidla 3): práce dílny × praxe × `MINT.gPerManDay`,
- * nejvýš celé gramy zlata ve vsi; gram zlata = `GOLD.coinGrams` na minci, jen celé mince. Zlato se
- * odečte a mince přičtou přes `addGood`, součet zlato + mince × `coinGrams` se nemění. Méně než
- * gram zlata – `no-gold`.
+ * Mincíř razí zlato na mince (gold.md – Pravidla 3; Mince 2,4 g zlata za 90 kg obilí, bod 5): práce
+ * dílny × praxe × `MINT.gPerManDay` gramů, nejvýš zlato ve vsi; mince váží `GOLD.coinGrams` (2,4 g),
+ * razí se jen celé – 200 g je 83 mincí, zbytek zlata počká. Zlato se odečte a mince přičtou přes
+ * `addGood` (gramy na setiny), součet zlato + mince × `coinGrams` se nemění. Méně zlata než na
+ * minci – `no-gold`.
  */
 export function workMinter(
   state: VillageState,

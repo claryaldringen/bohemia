@@ -11,6 +11,7 @@
 // nezávisí na kouscích dopočtu.
 import { dateOfDayIndex } from '../../calendar';
 import { MARKET, MERCHANTS } from '../rules';
+import { newMarket } from './coin-rate';
 import type { ChronicleEvent, TradeGoods, VillageMarket, VillageState } from '../types';
 import { TRADE_GOODS } from './goods';
 import { merchantVisits } from './merchant-plan';
@@ -29,7 +30,7 @@ export function merchantsArrive(state: VillageState, day: number): ChronicleEven
   const events: ChronicleEvent[] = [];
   for (const { key } of merchantVisits(state.merchantStops ?? [], day, day)) {
     if (state.market?.visitors.some((v) => v.key === key)) continue;
-    const market = (state.market ??= { prices: {}, visitors: [], nextOrder: 1, arrivals: [] });
+    const market = (state.market ??= newMarket());
     const sells: TradeGoods = { ...MERCHANTS.goods };
     const buys: TradeGoods = { ...MERCHANTS.wants };
     market.visitors.push({

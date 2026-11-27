@@ -392,7 +392,15 @@ export { landscapeTrailLines } from './trade/premium-route';
 export * from './trade/goods';
 // trh – ceny v mincovní míře a zápočet tržního dne (markets.md – Rozhodnutí plánu 2, body 3 a 4),
 // cena v mincích s hladinou trhu (Rozhodnutí plánu 4, bod 3)
-export { coinPriceOf, initialPrice, nextPrices, priceOf } from './trade/market-prices';
+export {
+  coinPriceOf,
+  coinsGold,
+  goldCoins,
+  initialPrice,
+  nextPrices,
+  priceOf,
+  roundGold,
+} from './trade/market-prices';
 export { clearMarket, partyTotals } from './trade/market-clearing';
 export { marketStance } from './trade/market-stance';
 export { roughCount, villageReport } from './trade/village-report';

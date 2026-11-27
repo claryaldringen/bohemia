@@ -79,15 +79,16 @@ export const TRADE_GOOD_VALUES = {
   hides: { valueKg: 20, carryKg: 5 },
   furs: { valueKg: 8, carryKg: 1 },
   // zbroj a mince (markets.md – Rozhodnutí plánu 4, body 1 a 7; cena zbroje podle Couplandu a Lex
-  // Ribuaria 40, 11, v kg obilí; návrh Clauda): meč 1 800 (120 mincí), kroužková košile 7 200
-  // (480), helma 3 600 (240); mince stojí `MARKET.grainKgPerCoin` a stejně jako dobytek, vozy
+  // Ribuaria 40, 11, v kg obilí; návrh Clauda): meč 1 800 (20 mincí po 90 kg), kroužková košile
+  // 7 200 (80), helma 3 600 (40); mince stojí `MARKET.grainKgPerCoin` a stejně jako dobytek, vozy
   // a lidé nepřidají nosiče
   swords: { valueKg: 1800, carryKg: 1.5 },
   mailShirts: { valueKg: 7200, carryKg: 12 },
   helmets: { valueKg: 3600, carryKg: 1.5 },
   coins: { valueKg: MARKET.grainKgPerCoin, carryKg: 0 },
-  // zlato (gold.md – Pravidla 2; rešerše 2026-11-26-gold.md): gram stojí tolik co mince, nic neváží
-  // jako mince – správce plní náklad do meze, zlato nepřidá nosiče
+  // zlato (gold.md – Pravidla 2 a Mince 2,4 g, bod 1; rešerše 2026-11-26-gold.md): gram stojí
+  // 1 ÷ `GOLD.coinGrams` mince, tedy 37,5 kg obilí; nic neváží jako mince – správce plní náklad do
+  // meze, zlato nepřidá nosiče
   gold: { valueKg: MARKET.grainKgPerCoin / GOLD.coinGrams, carryKg: 0 },
   // lidé na trhu za kus (markets.md – Rozhodnutí plánu 3, bod 4): svobodný muž nebo žena 360 –
   // obnovené číslo dřívější výměny lidí („dospělý 360 kg obilí“, trade.md – Výměna lidí, Martin
