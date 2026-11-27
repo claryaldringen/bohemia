@@ -114,3 +114,8 @@ export function formatYearsShort(years: number | null): string {
   if (years > 100) return '>100';
   return `~${formatInteger(years)}`;
 }
+
+/** Násobek s desetinnou čárkou bez zbytečné nuly („1,5“, „2“) – pro „1,5násobek“. */
+export function formatFactor(factor: number): string {
+  return String(factor).replace('.', ',');
+}

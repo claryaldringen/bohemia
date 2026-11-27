@@ -28,6 +28,10 @@ export const CRAFT_MODEL: Readonly<Record<Craft, WorkshopModel>> = {
   smith: 'kovar',
   burner: 'uhlir',
   carpenter: 'tesar',
+  // plán 6: vlastní modely dílen zlata až později (Oznámit 7) – dočasně modely uhlíře a kováře
+  panner: 'uhlir',
+  jeweller: 'kovar',
+  minter: 'kovar',
 };
 
 /** Model přístřešku nadzemní dílny (workshops.md – Ve scéně): „pristresek-<model dílny>“. */

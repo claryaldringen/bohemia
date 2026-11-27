@@ -14,6 +14,7 @@ import {
 import type { VillageCraftSource, VillageCrafts } from './village-view-types';
 import {
   craftSources,
+  GOLD_CRAFTS,
   CARPENTRY,
   CRAFT_PRODUCTION,
   carpenterWorkFactor,
@@ -72,8 +73,15 @@ type Workshop = NonNullable<VillageState['dwellings'][number]['workshop']>;
  * (production-chains.md – Kovář); uhlíř topí jen v milíři – ten je samostatná stavba (`sceneKilns`).
  */
 export function workshopSmokes(workshop: Workshop): boolean {
-  // tesař netopí – dílna nekouří (wagons.md)
-  if (workshop.craft === 'carpenter' || workshop.craft === 'burner') return false;
+  // tesař netopí – dílna nekouří (wagons.md); rýžovník taky ne, šperkař (výheň) a mincovna (pec)
+  // kouří při práci jako kovárna (plán 6)
+  if (
+    workshop.craft === 'carpenter' ||
+    workshop.craft === 'burner' ||
+    workshop.craft === 'panner'
+  ) {
+    return false;
+  }
   if (workshop.craft === 'smith' && SMITH_TASK[workshop.activity] !== undefined) return true;
   return workshop.activity === 'producing';
 }
@@ -140,6 +148,10 @@ export function craftYard(
     const treading = w.activity === 'producing' && clay > 0;
     if (clay === 0 && !treading) return null;
     return { clay, ...(treading ? { treading: true as const } : {}) };
+  }
+  // šperkař a mincíř při výrobě kují jako kovář (plán 6) – bez zásob houby a hřiven
+  if (w.craft === 'jeweller' || w.craft === 'minter') {
+    return w.activity === 'producing' ? { task: 'forge' } : null;
   }
   if (w.craft !== 'smith') return null;
   const task = SMITH_TASK[w.activity];
@@ -301,6 +313,8 @@ function workshopOutputKg(craft: Craft, labor: number, coverage: CraftCoverage):
     return labor / (CARPENTRY.woodToolsManDaysPerKg * carpenterWorkFactor(coverage.tools));
   }
   if (craft === 'burner') return labor * CRAFT_PRODUCTION.charcoalKgPerManDay;
+  // dílny zlata nevyrábějí kg zásoby řemeslníků (plán 6) – gramy ukáže panel později
+  if (GOLD_CRAFTS.includes(craft)) return 0;
   if (craft === 'smith') return labor / CRAFT_PRODUCTION.toolManDaysPerKg;
   return labor / CRAFT_PRODUCTION.potteryManDaysPerKg;
 }
@@ -392,6 +406,7 @@ export function craftsView(state: VillageState, summary: VillageSummary): Villag
             },
           }
         : {}),
+      ...(w.gold ? { gold: w.gold } : {}),
       ...(w.clay
         ? {
             clay: {

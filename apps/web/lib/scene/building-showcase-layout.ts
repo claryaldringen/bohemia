@@ -212,6 +212,9 @@ const CRAFT_LABELS: Readonly<Record<Craft, string>> = {
   smith: 'Kovář',
   carpenter: 'Tesař',
   burner: 'Uhlíř',
+  panner: 'Rýžovník',
+  jeweller: 'Šperkař',
+  minter: 'Mincíř',
 };
 
 /** Vypletená nebo roubená dílna řemesla: dům toho typu a vedle přístřešek (nahoře `shed`). */

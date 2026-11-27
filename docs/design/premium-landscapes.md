@@ -147,6 +147,8 @@ většina zatím nemá mechaniku: „Všechny, nerovnost přijmout“): hra při
 ostrého spuštění; hráč na typu bez mechaniky do jejího příchodu výhodu nemá a nic se mu nevrací.
 Kalibrace počítá s plánem, kdy mechanika přijde (Kalibrace).
 
+**Zlatonosný potok – rýžování je hotové (plán 6, 27. 11. 2026; [gold.md](gold.md)):** rýžovník vybírá 1 500 g z každého z 3–6 náplavů, tj. 4,5–9 kg zlata na mapu, a vyrýžovaný náplav zůstane v krajině (návrh Clauda). Čísla (1 g za člověkoden, 1 500 g na náplav) jsou herní, ne měření; křivka „málo kovu, ale brzy“ a vyrovnání výhody typu s ostatními se nastaví při pozdější kalibraci (měření na víc vsích se nedělá).
+
 **Nové suroviny:** obchod jen se surovinami, které má i ves (Martin 19. 10. 2026; dnes trh a kupci – markets.md). Zlato, sůl, med, vosk, kožešiny a kámen přijdou **až s mechanikou svého
 typu** – do té doby jsou jen v krajině (otevřená otázka, jestli to Martin takto chce).
 
@@ -271,7 +273,7 @@ v práci teprve změří. **Louka do 600 m** = louka do 600 m od místa pro vesn
 
 ## Otevřené otázky
 
-- Nové suroviny (zlato, sůl, med, kožešiny) – přijdou až s mechanikou, platí do té doby „jen
+- Nové suroviny (sůl, med, kožešiny; zlato má od plánu 6 rýžování – gold.md) – přijdou až s mechanikou, platí do té doby „jen
   společné suroviny“?
 - ~~Sdílená mřížka světa a kde začíná nový hráč~~ – hotové (vassalage.md, newcomers.md); otázky
   ke kostře jsou v [world-skeleton.md](world-skeleton.md) – Otevřené otázky.

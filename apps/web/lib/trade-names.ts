@@ -19,7 +19,7 @@ export const DIRECTION_NAMES: Record<
 };
 
 /** Jednotka zboží v obchodu – kilogramy, kusy, nebo krychlové metry (kámen). */
-export type TradeUnit = 'kg' | 'ks' | 'm³';
+export type TradeUnit = 'kg' | 'ks' | 'm³' | 'g';
 
 /**
  * Zboží – název, jednotka (kg, kusy nebo m³) a ikona v `public/icons/resources/`; 2. pád množného
@@ -87,6 +87,7 @@ export const TRADE_GOOD_NAMES: Record<
   },
   helmets: { name: 'Helmy', genitive: 'helem', unit: 'ks', icon: 'helmet' },
   coins: { name: 'Mince', genitive: 'mincí', unit: 'ks', icon: 'coin' },
+  gold: { name: 'Zlato', genitive: 'zlata', unit: 'g', icon: 'gold' },
   // otroci po jednom (markets.md – Rozhodnutí plánu 5, bod 6)
   slaves: { name: 'Otroci', genitive: 'otroků', accusative: 'otroky', unit: 'ks', icon: 'slave' },
   // lidé na trhu po skupinách (markets.md – Rozhodnutí plánu 3, bod 10) – ikony jako výměna lidí
@@ -134,6 +135,7 @@ export function tradeAmountText(n: number, unit: TradeUnit | PeopleKind): string
   switch (unit) {
     case 'kg':
     case 'm³':
+    case 'g':
       return `${count} ${unit}`;
     case 'ks':
       return `${count} ${plural(n, 'kus', 'kusy', 'kusů')}`;

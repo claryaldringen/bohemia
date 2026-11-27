@@ -741,8 +741,14 @@ export function tripJewelleryG(state: VillageState, give: TradeGoods, by?: TripB
 7. **Dílny zlata zatím vypadají jako dnešní dílny:** rýžovník jako uhlířova zemnice, šperkař a mincovna jako kovárna (liší se ikonou a panelem); rýžovník při práci stojí u náplavu. Vlastní modely by byly další úloha, až je Martin bude chtít (Rozhodnutí 11).
 8. **Správce platí i zlatem – až nakonec:** obilí v nouzi platí napřed mincemi a zbožím jako dnes (hřivny, keramika, uhlí, klády), zlatem jen zbytek – u hostitele bez mincí by zlato obilí nekoupilo; na roční výpravu přidá zlato, chybí-li mince. Dílny zlata sám nestaví – zatím neumí spočítat, co mu dílna zlata vynese (`workshopValue` jí dá 0), to přijde později; šperkař a mincovna v jeho vsi pracují samy (Rozhodnutí 10).
 9. **Zlato je mezi vsemi jako mince:** jde jen poštou; zanikne-li ves, které výprava nese zlato, dostane ho hostitel; odejde-li celá ves, bere si zlato i šperky, syn a část lidí je nechají (Rozhodnutí 9).
+10. **Hostitel zaniklé domovské vsi dostane všechno zlato výpravy** (`unsold.gold + bought.gold`) – peníze nemizí (návrh Clauda z provádění).
+11. **Kapacita kupujícího se šperkařem** = kov, který za zboží opravdu odešel, včetně zaokrouhlení na celou minci.
+12. **Hladina trhu se počítá jen z mincí:** platí-li ves zbroj zlatem, může hladina klesnout.
+13. **Mincovna 200 g denně je opatrné číslo** (rešerše ≈ 100 ks za hodinu z jiné doby, bez přípravy střížků) – dá se zvýšit.
 
 ## Otázky na Martina
+
+Z provádění (obecná pravidla mimo plán 6, úlohy 13a a 13b; `gold.md` – Otevřené / Pro Martina): řemeslník, který si vezme vdovu držící dvorec, se přestěhuje do dvorce a dílna zůstane prázdná (`weddingHome`); osamělý řemeslník po rozpadu domácnosti (≥ 45 let) dílnu opustí (`dissolveHouseholds`).
 
 Žádné otevřené. Všechna pravidla, která plán potřebuje, má `gold.md` (Martinova rozhodnutí 22. 11. 2026 a schválená Pravidla 1–5); čísla a podrobnosti, které návrh nechává na staviteli, rozhoduje plán jako návrh Clauda a oznamuje je výše. Odchylka, kterou by Martin mohl chtít jinak, je bod Oznámit 3 (ves svými mincemi zlato vymění) – vyplývá z jeho „s kýmkoliv, kdo ty mince má“.
 

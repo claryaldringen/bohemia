@@ -22,6 +22,9 @@ export const ARMS_GOODS: readonly ArmsGood[] = ['swords', 'mailShirts', 'helmets
 /** Mince jako zboží (markets.md – Rozhodnutí plánu 4, bod 1): kusy, celé. */
 export const COIN_GOOD = 'coins' as const;
 
+/** Zlato jako zboží (gold.md – Pravidla 2): gramy, na trhu celé. */
+export const GOLD_GOOD = 'gold' as const;
+
 /** Druhy dobytka v obchodu v pořadí panelu (trade.md – Dobytek ve třech druzích). */
 export const CATTLE_GOODS: readonly CattleGood[] = ['cows', 'youngOxen', 'trainedOxen'];
 
@@ -98,6 +101,7 @@ export const TRADE_GOODS: readonly TradeGood[] = [
   'ironBars',
   'charcoal',
   'stone',
+  GOLD_GOOD,
   'honey',
   'hides',
   'furs',
@@ -119,12 +123,23 @@ export const PIECE_GOODS: readonly TradeGood[] = [
   'logs',
   ...CART_GOODS,
   'stone',
+  GOLD_GOOD,
   'hides',
   'furs',
   ...ARMS_GOODS,
   COIN_GOOD,
   ...PEOPLE_GOODS,
 ];
+
+/** Kopie zboží bez mincí a zlata – cena dne a zápočet (Rozhodnutí plánu 6, bod 2). */
+export function withoutMoney(goods: TradeGoods): TradeGoods {
+  const out: TradeGoods = {};
+  for (const good of TRADE_GOODS) {
+    const amount = goods[good] ?? 0;
+    if (good !== COIN_GOOD && good !== GOLD_GOOD && amount > 0) out[good] = amount;
+  }
+  return out;
+}
 
 /** Kopie zboží bez mincí, jen kladné položky v pořadí `TRADE_GOODS`. */
 export function withoutCoins(goods: TradeGoods): TradeGoods {

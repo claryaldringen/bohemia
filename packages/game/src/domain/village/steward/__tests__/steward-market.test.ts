@@ -20,7 +20,7 @@ import { withBuiltFirstDwelling } from '../../__tests__/village-fixtures';
 import { joinMarket, marketDay } from '../../trade/market';
 import { marketStance } from '../../trade/market-stance';
 import { applyMarketResult, marketFreeAdults } from '../../trade/market-trip';
-import { villagerTripsDay } from '../../trade/villager-trips';
+import { priceKg, villagerTripsDay } from '../../trade/villager-trips';
 import {
   D,
   NOV15,
@@ -815,4 +815,122 @@ describe('správce – roční výprava s mincemi, drahé zboží napřed (Rozho
     expect(yearly.give.coins).toBeGreaterThan(0);
     expect(coinsOf(whole)).toBe(30);
   });
+});
+
+// Zlato až po mincích a zboží (gold.md – Rozhodnutí plánu 6, bod 8 – návrh Clauda; Martin
+// 22. 11. 2026: „Zlato lze měnt za mince s kýmkoliv, kdo ty mince má“).
+
+describe('správce – zlato po mincích a zboží (plán 6)', () => {
+  const DAY = at(603, 11, 15);
+
+  it('cena zlata u cíle = cena mince: hladina 2 dá 7,5 kg obilí za gram, bez zprávy 15', () => {
+    const s = stewarded();
+    s.news = [{ villageId: 'm', name: 'Lhota', report, level: 2 }];
+    expect(priceKg(s, 'm', 'gold')).toBe(7.5);
+    expect(priceKg(s, 'm', 'gold')).toBe(priceKg(s, 'm', 'coins'));
+    expect(priceKg(s, 'neznámá', 'gold')).toBe(MARKET.grainKgPerCoin);
+  });
+
+  it('obilí v nouzi: 0 mincí, 100 g zlata a hřivny – napřed hřivny, zlato jen zbytek ceny', () => {
+    const s = stewarded();
+    s.crafts = { charcoalKg: 0, potteryKg: 0, ironBarsKg: 5 };
+    s.gold = 100;
+    expect(stewardGrainStep(s, ctxOf(s, D), 400)).toBe(true);
+    // 5 hřiven = 225 kg obilí, zbylých 175 kg = ⌈175 ÷ 15⌉ = 12 g zlata
+    expect(stewardTrips(s)[0]!.give).toEqual({ ironBars: 5, gold: 12 });
+    expect(s.gold).toBe(88);
+  });
+
+  it('ves bez zlata platí jako dosud', () => {
+    const s = stewarded();
+    s.crafts = { charcoalKg: 0, potteryKg: 0, ironBarsKg: 5 };
+    expect(stewardGrainStep(s, ctxOf(s, D), 400)).toBe(true);
+    expect(stewardTrips(s)[0]!.give).toEqual({ ironBars: 5 });
+    expect(stewardTrips(s)[0]!.market!.wants).toEqual({ grain: 225 });
+    expect(s.gold).toBeUndefined();
+  });
+
+  it('mince se zlatu nepletou: 20 mincí napřed, zlato až na zbytek', () => {
+    const s = stewarded();
+    s.crafts = { charcoalKg: 0, potteryKg: 0, ironBarsKg: 0 };
+    s.coins = 20;
+    s.gold = 100;
+    expect(stewardGrainStep(s, ctxOf(s, D), 400)).toBe(true);
+    // 20 mincí = 300 kg obilí, zbylých 100 kg = ⌈100 ÷ 15⌉ = 7 g zlata
+    expect(stewardTrips(s)[0]!.give).toEqual({ coins: 20, gold: 7 });
+    expect(s.gold).toBe(93);
+  });
+
+  it('hladová ves bez mincí v okolí: zboží koupí obilí, zlato se vrátí a hostiteli nezůstane', () => {
+    const h = stewarded();
+    h.crafts = { charcoalKg: 0, potteryKg: 100, ironBarsKg: 0 };
+    h.gold = 100;
+    const m = marketVillage(-1_000);
+    expect(stewardGrainStep(h, ctxOf(h, D), 400)).toBe(true);
+    const sent = h.outbox!.at(-1)!;
+    if (sent.body.kind !== 'market-arrive') throw new Error('Příjezd k hostiteli chybí.');
+    joinMarket(m, sent.day, sent.body.arrival);
+    marketDay(m, sent.day);
+    const back = m.outbox!.at(-1)!;
+    if (back.body.kind !== 'market-result') throw new Error('Výsledek trhu chybí.');
+    applyMarketResult(h, back.day, back.body.result);
+    // hostitel nemá mince – zlato neměnil, obilí šlo za keramiku (100 kg × 3 = 300 kg obilí)
+    expect(back.body.result.bought.grain ?? 0).toBeGreaterThan(200);
+    expect(h.gold ?? 0).toBe(100);
+    expect(m.gold ?? 0).toBe(0);
+    expect(stewardTrips(h)).toEqual([]);
+  });
+
+  it('roční výprava: 8 mincí a 100 g zlata na seznam za 20 mincí – 8 mincí a 12 g zlata', () => {
+    const s = settled12();
+    s.storesKg -= 300;
+    s.coins = 8;
+    s.gold = 100;
+    expect(stewardMarketStep(s, ctxOf(s, DAY))).toBe(true);
+    const trip = stewardTrips(s)[0]!;
+    expect(trip.give).toEqual({ coins: 8, gold: 12 });
+    expect(trip.porters).toBe(12);
+    expect(s.gold).toBe(88);
+    // bez zlata totéž s týmiž nosiči
+    const plain = settled12();
+    plain.storesKg -= 300;
+    plain.coins = 8;
+    expect(stewardMarketStep(plain, ctxOf(plain, DAY))).toBe(true);
+    expect(stewardTrips(plain)[0]!.give).toEqual({ coins: 8 });
+    expect(stewardTrips(plain)[0]!.porters).toBe(trip.porters);
+  });
+
+  it('roční výprava: hladina 2 – seznam za 40 mincí, zlato dorovná po mincích', () => {
+    const s = settled12();
+    s.storesKg -= 300;
+    s.coins = 10;
+    s.gold = 100;
+    s.news = [{ villageId: 'b', name: 'Bořov', report, level: 2 }];
+    expect(stewardMarketStep(s, ctxOf(s, DAY))).toBe(true);
+    expect(stewardTrips(s)[0]!.give).toEqual({ coins: 10, gold: 30 });
+  });
+
+  /** Ves bez vozu s 12 volnými dospělými, které nic nechybí (jako `settled` výš). */
+  function settled12(): VillageState {
+    const s = stewarded([A, B], DAY);
+    s.carts = [];
+    const manor = s.people.filter((p) => p.dwellingId === s.manorId);
+    const dwellingId = s.people.find((p) => p.dwellingId !== s.manorId)!.dwellingId;
+    s.people = [
+      ...manor.slice(0, 12),
+      ...Array.from({ length: 8 }, (_, i): Person => ({
+        id: 20 + i,
+        bornDay: DAY - Math.ceil((26 + i) * 365.25),
+        dwellingId,
+        sex: i % 2 === 0 ? 'male' : 'female',
+      })),
+    ];
+    s.livestock!.herds.cow = Math.ceil(breedingCows(s) + oxenCalvesWanted(s, DAY));
+    const { potteryKg, woodToolsKg } = craftTargets(s, DAY);
+    s.crafts = { charcoalKg: 0, potteryKg, ironBarsKg: 0, woodToolsKg };
+    s.toolEquipmentKg = toolNeedKg(s, DAY);
+    s.storesKg = 0;
+    s.storesKg = marketStance(s, DAY).wants.grain!;
+    return s;
+  }
 });

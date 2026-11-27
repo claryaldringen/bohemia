@@ -373,6 +373,11 @@ export interface VillageWorkshop {
    * zbývá) a hromada u jámy; bez údaje dílna jiného řemesla.
    */
   clay?: VillageSummary['crafts']['workshops'][number]['clay'];
+  /**
+   * Dílny zlata (gold.md): rýžovník { náplavy se zlatem, zbytek náplavu (g), chůze (m), sezóna }, šperkař
+   * { výhoda, kov (g), násobek }, mincovna { zlato (g) }; bez údaje dílna jiného řemesla.
+   */
+  gold?: NonNullable<VillageSummary['crafts']['workshops'][number]['gold']>;
 }
 
 /** Vůz vsi pro lištu a panel (wagons.md – Vůz): druh, stav 0–1 a jestli je s výpravou pryč. */
@@ -749,6 +754,8 @@ export interface VillageView {
     byCart?: true;
     /** Kolik volů se vycvičilo, dosloužilo nebo uhynulo (oxen.md – Voli po kusech). */
     oxen?: number;
+    /** Kolik náplavů se zlatem zbývá, když rýžovník vyrýžoval náplav (`placer-exhausted`). */
+    left?: number;
     /** Kolik koní se narodilo, dosloužilo nebo uhynulo (horses.md – Chov, Krmení). */
     horses?: number;
     /** Proč kůň šel na maso (horses.md – Chov, Krmení). */

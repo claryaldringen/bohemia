@@ -143,6 +143,10 @@ import type {
   RoadGrade,
 } from '../types';
 import { copyGrid } from '../placement/square-grid';
+import { jewelleryMaterialG, jewelleryOf } from '../trade/jewellery';
+import { placerLeftG } from '../crafts/gold-crafts';
+import { JEWELLER, PANNING } from '../rules/rules-gold';
+import { goldPlacers } from './premium-effects';
 import { pileLogs, treesToFell, woodFellingCost, woodLogs } from '../forest/wood';
 
 // Souhrn vsi pro panel hráče a scénu – jen čte stav, nic nemění.
@@ -280,6 +284,12 @@ export interface WorkshopSummary {
   iron: SmithIronSummary | null;
   /** Hrnčíř (crafts.md – Hlína hrnčíře): zásoba hlíny, hliniště a hromada u jámy; jinak null. */
   clay: PotterClaySummary | null;
+  /**
+   * Dílny zlata (gold.md – Pravidla 1–4): rýžovník – kolik náplavů ještě má zlato, zbytek současného
+   * náplavu a chůze k němu (celé); šperkař – vyrobená výhoda a kov; mincovna – zlato ve vsi;
+   * ostatní dílny null.
+   */
+  gold: GoldWorkshopSummary | null;
   /**
    * Uhlíř: jeho milíře (crafts.md – Milíř u skácených buků, Rovnováha uhlíř – kovář) v pořadí, jak
    * je začal; ostatní dílny prázdné.
@@ -464,6 +474,12 @@ export interface WaresView {
   smallHides?: number;
   /** Mince vsi (celé kusy, jen kladné; markets.md – Rozhodnutí plánu 4, bod 12); chybí = žádné. */
   coins?: number;
+  /** Zlato vsi v celých gramech, jen kladné (gold.md – Pravidla 2). */
+  goldG?: number;
+  /** Použitelná kapacita šperkaře v celých gramech, jen kladná (gold.md – Pravidla 4). */
+  jewelleryG?: number;
+  /** Násobek šperkaře (`JEWELLER.factor`) k popisku kapacity; je s `jewelleryG`. */
+  jewelleryFactor?: number;
   /** Zbroj vsi po kusech, jen druhy s kladným počtem; chybí = žádná. */
   arms?: Partial<Record<ArmsGood, number>>;
 }
@@ -873,13 +889,15 @@ export function constructionsStalled(
 function waresView(state: VillageState): WaresView | null {
   const w = state.wares;
   const coins = Math.floor(state.coins ?? 0);
+  const goldG = Math.floor(state.gold ?? 0);
+  const jewelleryG = Math.floor(jewelleryOf(state));
   const arms: Partial<Record<ArmsGood, number>> = {};
   for (const good of ARMS_GOODS) {
     const n = Math.floor(state.arms?.[good] ?? 0);
     if (n > 0) arms[good] = n;
   }
   const hasArms = Object.keys(arms).length > 0;
-  if (!w && coins <= 0 && !hasArms) return null;
+  if (!w && coins <= 0 && goldG <= 0 && !hasArms) return null;
   const small = Math.floor(w?.smallHides ?? 0);
   return {
     hides: w ? Math.floor(hidesOnHand(state)) : 0,
@@ -889,8 +907,54 @@ function waresView(state: VillageState): WaresView | null {
     waxKg: w ? Math.floor(w.waxKg) : 0,
     ...(small > 0 ? { smallHides: small } : {}),
     ...(coins > 0 ? { coins } : {}),
+    ...(goldG > 0 ? { goldG } : {}),
+    ...(jewelleryG > 0 ? { jewelleryG, jewelleryFactor: JEWELLER.factor } : {}),
     ...(hasArms ? { arms } : {}),
   };
+}
+
+/** Údaje dílen zlata pro panel (gramy celé) – rýžovník, šperkař, mincovna. */
+export type GoldWorkshopSummary =
+  | {
+      craft: 'panner';
+      placersLeft: number;
+      leftG: number;
+      /** Cesta k náplavu v metrech. */
+      walkM: number;
+      /** Sezóna rýžování (měsíce `PANNING.months`, 1–12) pro popisek mimo sezónu. */
+      season: { from: number; to: number };
+    }
+  | { craft: 'jeweller'; wroughtG: number; materialG: number; factor: number }
+  | { craft: 'minter'; goldG: number };
+
+function goldWorkshopSummary(
+  state: VillageState,
+  workshop: Workshop,
+  landscape: Landscape | null,
+): GoldWorkshopSummary | null {
+  if (workshop.craft === 'panner') {
+    const count = goldPlacers(landscape).length;
+    let placersLeft = 0;
+    for (let i = 0; i < count; i++) if (placerLeftG(state, i) > 0) placersLeft++;
+    const placer = workshop.placer;
+    return {
+      craft: 'panner',
+      placersLeft,
+      leftG: placer ? Math.floor(placerLeftG(state, placer.index)) : 0,
+      walkM: placer ? Math.round(placer.walkM) : 0,
+      season: { ...PANNING.months },
+    };
+  }
+  if (workshop.craft === 'jeweller') {
+    return {
+      craft: 'jeweller',
+      wroughtG: Math.floor(jewelleryOf(state)),
+      materialG: jewelleryMaterialG(state),
+      factor: JEWELLER.factor,
+    };
+  }
+  if (workshop.craft === 'minter') return { craft: 'minter', goldG: Math.floor(state.gold ?? 0) };
+  return null;
 }
 
 /**
@@ -963,7 +1027,7 @@ export function summarizeVillage(
       premiumSacredHappiness(landscape),
     ),
     sacred: sacredSummary(state, day, obstacles),
-    crafts: craftsSummary(state, day),
+    crafts: craftsSummary(state, day, landscape),
   };
 }
 
@@ -981,7 +1045,11 @@ export function workshopActivity(
 }
 
 /** Řemesla vsi: zásoby, potřeba a pokrytí, dílny s tím, co dělají (crafts.md – Co hráč vidí). */
-function craftsSummary(state: VillageState, day: number): CraftsSummary {
+function craftsSummary(
+  state: VillageState,
+  day: number,
+  landscape: Landscape | null,
+): CraftsSummary {
   const coverage = craftCoverage(state, day);
   const away = cartsAway(state);
   const productivity = happinessLaborFactor(villageHappiness(state));
@@ -1016,6 +1084,7 @@ function craftsSummary(state: VillageState, day: number): CraftsSummary {
             workshop.craft === 'potter'
               ? potterClaySummary(d, haulCartsToday(state, day, false) > 0)
               : null,
+          gold: goldWorkshopSummary(state, workshop, landscape),
           kilns: workshopKilns(workshop).map((k) => kilnSummary(d, k)),
           toPlant: workshop.toPlant?.length ?? 0,
           skill: craftSkillSummary(state, d.id, day),

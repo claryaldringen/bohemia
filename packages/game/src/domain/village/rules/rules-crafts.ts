@@ -15,6 +15,10 @@ export const CRAFT_BASE: Readonly<Record<Craft, DwellingType>> = {
   smith: 'polozemnice',
   burner: 'zemnice',
   carpenter: 'polozemnice',
+  // plán 6: rýžovník na zemnici (jako uhlíř, ale s přirážkou), šperkař a mincíř na polozemnici
+  panner: 'zemnice',
+  jeweller: 'polozemnice',
+  minter: 'polozemnice',
 };
 const WORKSHOP_EXTRA = 0.3;
 /** Přirážka dílny řemesla k základnímu obydlí (uhlíř bez přirážky – milíř staví u dávky). */
@@ -25,7 +29,15 @@ export function workshopExtra(craft: Craft): number {
  * Pořadí řemesel – nabídka staveb a výroba dne (uhlíř první, jeho uhlí může kovář hned použít;
  * tesař poslední – jeho pomoc stavbám se rozdělí už před stavbami dne).
  */
-export const CRAFTS: readonly Craft[] = ['burner', 'potter', 'smith', 'carpenter'];
+export const CRAFTS: readonly Craft[] = [
+  'burner',
+  'panner',
+  'potter',
+  'smith',
+  'jeweller',
+  'minter',
+  'carpenter',
+];
 // crafts.md – Výroba: uhlíř 10 kg uhlí za člověkoden, ze stromu 120 kg; kovář 1 kg nástrojů za
 // 10 člověkodní a 50 kg uhlí; hrnčíř 1 kg keramiky za člověkoden a 1 strom paliva na 500 kg.
 // Ruda a hlína dál od vody: +1 % za 10 m nad 100 m od dílny k potoku (DISTANCE jako u polí).
@@ -269,6 +281,10 @@ export const WORKSHOP_PORCH_M: Readonly<Record<Craft, number>> = {
   burner: 0,
   // wagons.md – Tesař: předsazená střecha jako u hrnčíře a kováře (pod ní kozlíky a rozdělaný vůz)
   carpenter: 3.2,
+  // plán 6: rýžovník bez přístřešku (zemnice), šperkař a mincíř s přístřeškem jako kovář
+  panner: 0,
+  jeweller: 3.2,
+  minter: 3.2,
 };
 // crafts.md – Účinek, orchard.md: jablka v nádobách vydrží do 1. 5. místo 1. 3. – s plným pokrytím
 // nádobami; při částečném se den zkažení posouvá poměrně (pokrytí × dny od 1. 3. do 1. 5.)
@@ -282,6 +298,9 @@ export const WORKSHOP_SIDE_M: Readonly<Record<Craft, number>> = {
   smith: 3.2,
   carpenter: 3.2,
   burner: 2,
+  panner: 2,
+  jeweller: 3.2,
+  minter: 3.2,
 };
 
 /** Je typ obydlí nadzemní dům dílny (vypletený nebo roubený)? Pravidla sem nemohou z buildings. */

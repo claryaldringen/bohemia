@@ -574,6 +574,8 @@ describe('souhrn řemesel pro panel (crafts.md – Co hráč vidí)', () => {
         // kovář z doby před učením řemesla je vyučený (crafts.md – Učení řemesla)
         skill: { share: 1, years: 5, apprentices: [] },
         carpenter: null,
+        // kovárna není dílna zlata (gold.md – Pravidla 1, 4 a 5)
+        gold: null,
       },
     ]);
     expect(crafts.carts).toEqual([]);

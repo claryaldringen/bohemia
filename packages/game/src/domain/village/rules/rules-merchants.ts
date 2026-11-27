@@ -11,6 +11,11 @@
  *   med, vosk a kožešiny hodnotu 120 mincí (med 40, vosk 48, kožešiny 32) – právě cenu meče.
  * - Otroci (markets.md – Rozhodnutí plánu 5, bod 7; návrh Clauda): 10 za průjezd po 24 mincích –
  *   z měšce koupí kupec dva, s mincemi za prodanou zbroj víc, nebo je vezme zápočtem za zbroj.
+ * - Zlato (gold.md – Pravidla 2 a 5; Rozhodnutí plánu 6, bod 8 – návrh Clauda; rešerše
+ *   2026-11-26-gold.md – herní číslo, pramen není): 1 000 g – víc, než kupec zaplatí, takže vykoupí,
+ *   kolik mu měšec dovolí (60 mincí = 60 g); na seznamu první jako v Martinově výčtu (22. 11. 2026:
+ *   „Cizí kupci nakupují zlato, šperky …, med, vosk, kožešiny a otroky“). Gram stojí vždy minci
+ *   a zlato není v zápočtu, ceně dne ani v hladině – trh bez zlata je jako po plánu 5.
  */
 export const MERCHANTS = {
   /** Průjezdů spojení stezky za rok – jednou za roční období. */
@@ -26,10 +31,10 @@ export const MERCHANTS = {
   /** Co kupec prodává (kusy). */
   goods: { swords: 2, mailShirts: 1, helmets: 2 },
   /**
-   * Co kupec shání (med a vosk kg, kožešiny a otroci kusy); otroci markets.md – Rozhodnutí plánu 5,
-   * bod 7.
+   * Co kupec shání (zlato g, med a vosk kg, kožešiny a otroci kusy); otroci markets.md – Rozhodnutí
+   * plánu 5, bod 7, zlato gold.md – Rozhodnutí plánu 6, bod 8.
    */
-  wants: { honey: 100, wax: 24, furs: 60, slaves: 10 },
+  wants: { gold: 1_000, honey: 100, wax: 24, furs: 60, slaves: 10 },
   /** Od kolika výprav na trhu kupci zůstanou další den. */
   busyVisitors: 3,
   /** Nejvýš dní na jednom trhu – pravidlo hry (návrh Clauda – Oznámit, bod 5), ne technická mez. */

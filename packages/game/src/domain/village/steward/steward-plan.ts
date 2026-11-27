@@ -24,11 +24,10 @@ import { checkThreshingFloorPlacement } from '../placement/placement-sacred';
 import type { PlacementVillage } from '../placement/placement-types';
 import { placementVillageOf, villageDwellingPositions } from '../placement/placement-village';
 import { DWELLING_CLEARING_M } from '../rules/rules-buildings';
-import { CRAFTS } from '../rules/rules-crafts';
 import { FIELD_LIMITS, FOOD_NEED_KG_PER_YEAR } from '../rules/rules-fields';
 import { PEN_PLACES_PER_SQUARE } from '../rules/rules-livestock';
 import { CEMETERY_DISTANCE_M } from '../rules/rules-people';
-import { STEWARD } from '../rules/rules-steward';
+import { STEWARD, STEWARD_CRAFTS } from '../rules/rules-steward';
 import {
   dwellingSiteValue,
   fieldCells,
@@ -911,7 +910,7 @@ function slotCheckInput(
 
 /** Kontrol umístění na jeden slot druhu – dílna se ověří pro každé řemeslo. */
 function slotChecks(kind: StewardSlotKind): number {
-  return kind === 'workshop' ? CRAFTS.length : 1;
+  return kind === 'workshop' ? STEWARD_CRAFTS.length : 1;
 }
 
 /**
@@ -928,7 +927,7 @@ function slotFits(input: SlotCheckInput, kind: StewardSlotKind, tile: number): b
     case 'dwelling':
       return checkDwellingPlacement(landscape, village, DWELLING, at(), obstacles).ok;
     case 'workshop':
-      return CRAFTS.every(
+      return STEWARD_CRAFTS.every(
         (craft) => checkWorkshopPlacement(landscape, village, craft, at(), obstacles).ok,
       );
     case 'threshing-floor':

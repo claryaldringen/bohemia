@@ -165,15 +165,13 @@ function goneFromWorld(home: VillageState, states: readonly VillageState[]): voi
 }
 
 describe('cizí kupci kupují otroky (markets.md – Rozhodnutí plánu 5, bod 7)', () => {
-  it('seznam kupce a zápis příjezdu mají otroky (MERCHANTS.wants)', () => {
-    expect(MERCHANTS.wants).toEqual({ honey: 100, wax: 24, furs: 60, slaves: 10 });
+  it('seznam kupce a zápis příjezdu mají otroky (MERCHANTS.wants; od plánu 6 i zlato)', () => {
+    const list = { gold: 1_000, honey: 100, wax: 24, furs: 60, slaves: 10 };
+    expect(MERCHANTS.wants).toEqual(list);
     const s = host();
     const [arrived] = merchantsArrive(s, DAY);
-    expect(arrived).toMatchObject({
-      kind: 'merchants-arrived',
-      buys: { honey: 100, wax: 24, furs: 60, slaves: 10 },
-    });
-    expect(merchantOf(s).wants).toEqual({ honey: 100, wax: 24, furs: 60, slaves: 10 });
+    expect(arrived).toMatchObject({ kind: 'merchants-arrived', buys: list });
+    expect(merchantOf(s).wants).toEqual(list);
   });
 
   it('výprava se 3 otroky: kupci koupí 2 za 48 mincí, třetí se vrátí domů s původním id', () => {
@@ -219,7 +217,7 @@ describe('cizí kupci kupují otroky (markets.md – Rozhodnutí plánu 5, bod 7
     expect(merchant.boughtPeople!.flatMap((g) => g.people.map((p) => p.id))).toEqual([
       21, 22, 23, 24, 25,
     ]);
-    expect(merchant.wants).toEqual({ honey: 100, wax: 24, furs: 60, slaves: 5 });
+    expect(merchant.wants).toEqual({ gold: 1_000, honey: 100, wax: 24, furs: 60, slaves: 5 });
   });
 
   it('pořadí prodávajících: kupci kupují od výprav v pořadí příjezdu, u každé v pořadí zboží', () => {

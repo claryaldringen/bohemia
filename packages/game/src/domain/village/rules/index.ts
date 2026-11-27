@@ -21,4 +21,5 @@ export * from './rules-merchants';
 export * from './rules-lord';
 export * from './rules-names';
 export * from './rules-premium';
+export * from './rules-gold';
 export * from './rules-wares';

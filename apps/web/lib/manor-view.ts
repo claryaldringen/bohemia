@@ -7,10 +7,12 @@ import {
   huntDenied,
   isChristian,
   isSlave,
+  jewelleryOf,
   HUNT_DENIED_TEXT,
   lordFamily,
   marketFreeAdults,
   nextMerchantVisit,
+  JEWELLER,
   oxenHome,
   tradeHomeCarts,
   TRADE_GOODS,
@@ -98,6 +100,18 @@ export interface VillageManor {
      */
     merchantsDay: number | null;
     /**
+     * Cena gramu zlata v mincích (`coinPriceOf` – pevná, gold.md – Pravidla 2; nezávisí na hladině
+     * trhu); web ji jen ukazuje.
+     */
+    goldPrice: number;
+    /**
+     * Kapacita šperkaře vsi (`jewelleryOf`, celé gramy; gold.md – Pravidla 4): na tolik gramů kovu
+     * ještě platí výhoda 1,5×; chybí, je-li 0.
+     */
+    jewelleryG?: number;
+    /** Násobek šperkaře (`JEWELLER.factor`) k popiskům; je s `jewelleryG`. */
+    jewelleryFactor?: number;
+    /**
      * Zbroj k objednání u kupců (Rozhodnutí plánu 4, bod 15) – cena dne v mincích a objednaný počet,
      * v pořadí `ARMS_GOODS`; jen u vsi se zastávkou kupců, jinak prázdné.
      */
@@ -142,6 +156,7 @@ function marketField(state: VillageState, day: number): VillageManor['market'] {
   for (const good of TRADE_GOODS) stock[good] = villageGoodStock(state, good, day);
   const slaves = stock.slaves ?? 0;
   const forSale = state.slavesForSale ?? 0;
+  const jewelleryG = Math.floor(jewelleryOf(state));
   return {
     stock,
     slaveSale:
@@ -157,6 +172,8 @@ function marketField(state: VillageState, day: number): VillageManor['market'] {
     adults: marketFreeAdults(state, day),
     day,
     trips: marketTripViews(state, day),
+    goldPrice: coinPriceOf(state.market?.prices, state.market?.level ?? 1, 'gold'),
+    ...(jewelleryG > 0 ? { jewelleryG, jewelleryFactor: JEWELLER.factor } : {}),
     ...merchantsField(state, day),
   };
 }

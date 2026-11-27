@@ -65,7 +65,9 @@ vzhůru – zdražení u sousedů) a zboží a kupci obchodu (trade.md, markets.
 denár s křížem a perlovcem, za ním menší), sword (meč úhlopříčně a vedle něj pochva), mail-shirt
 (kroužková košile), helmet (kónická helma spangenhelm), merchants (muž vede na provaze koně
 s barevnými balíky) a slave (otrok – vesničan se železným obojkem, z jehož oka mu po hrudi visí řetěz;
-ruce volně, na rozdíl od zajatce `war/captive` – markets.md, plán 5).
+ruce volně, na rozdíl od zajatce `war/captive` – markets.md, plán 5) a zlato a šperk (plán 6) – gold
+(kupka zlatých zrnek a před ní nuget) a jewellery (zlatý prsten s granátem a granulací); ikony dílen
+zlata (rýžovník, šperkař, mincovna) z nich skládá `tools/blender/gold_badges.py`.
 (128 × 128 PNG) – `premium/` portréty 19 typů prémiové krajiny (premium-landscapes.md – Co hráč
 vidí; klíč = typ, např. `iron-ore`): kruh krajiny s výškovým polem, na něm prvek typu – zlatá žíla
 ve skalnatém hřbetu, náplav se zlatem, řeka s molem a člunem, černozem s mandelemi, brod pod
@@ -6357,6 +6359,106 @@ RESOURCES.update({
     "helmet": icon_helmet,
     "merchants": icon_merchants,
     "slave": icon_slave,
+})
+
+
+GOLD = (1.0, 0.7, 0.2)  # zlato obou ikon plánu 6 – syté žluté, aby se i na 24 px nepletlo se stříbrem
+
+
+def warm_world():
+    """Teplé okolí – zlato se v něm zrcadlí žlutě, ne olivově jako v modravém nebi ostatních ikon."""
+    bg = next(n for n in bpy.context.scene.world.node_tree.nodes if n.type == "BACKGROUND")
+    bg.inputs["Color"].default_value = (0.95, 0.8, 0.55, 1)
+    bg.inputs["Strength"].default_value = 0.5
+
+
+def gold_lump(bm, centre, size, rng, rough=0.22, subdiv=2):
+    """Zrnko nebo valoun zlata: oblé, zploštělé a hrbolaté – zlato z náplavu je omleté vodou."""
+    first = len(bm.verts)
+    bmesh.ops.create_icosphere(bm, subdivisions=subdiv, radius=1.0)
+    bm.verts.ensure_lookup_table()
+    turn = Euler((rng.uniform(-0.3, 0.3), rng.uniform(-0.3, 0.3), rng.uniform(0, 2 * math.pi))).to_matrix()
+    off = Vector((rng.uniform(0, 50), rng.uniform(0, 50), rng.uniform(0, 50)))
+    for v in list(bm.verts)[first:]:
+        k = 1.0 + rough * noise.noise(v.co * 1.6 + off) + rough * 0.45 * noise.noise(v.co * 4.2 + off)
+        v.co = Vector(centre) + turn @ Vector((v.co.x * size[0], v.co.y * size[1], v.co.z * size[2])) * k
+
+
+def icon_gold():
+    """Zlato (plán 6, issue #13): kupka zlatých zrnek z rýžování a před ní velký hrbolatý valoun – nuget."""
+    rng = random.Random(13)
+    core, grains, nugget = bmesh.new(), bmesh.new(), bmesh.new()
+    rad, top = 0.7, 0.8  # poloměr a výška kupky
+
+    def height(r):
+        return top * max(0.0, 1.0 - (r / rad) ** 1.3)
+
+    # jádro kupky pod zrnky – mezery mezi nimi nejsou průhledné
+    revolve(core, [(0.0, rad * 0.92)] + [(height(rad * t) * 0.9, rad * t * 0.92) for t in (0.75, 0.5, 0.25)]
+            + [(top * 0.9, 0.0)], 32, cap_bottom=True)
+    for _ in range(230):
+        r, a = rad * math.sqrt(rng.random()), rng.uniform(0, 2 * math.pi)
+        s = rng.uniform(0.05, 0.085)
+        gold_lump(grains, (math.cos(a) * r, math.sin(a) * r, height(r) + s * 0.1), (s, s * 0.8, s * 0.55), rng)
+    for _ in range(9):  # rozsypaná zrnka kolem kupky
+        r, a = rad * rng.uniform(1.02, 1.3), rng.uniform(0, 2 * math.pi)
+        s = rng.uniform(0.045, 0.07)
+        gold_lump(grains, (math.cos(a) * r, math.sin(a) * r, s * 0.5), (s, s * 0.8, s * 0.55), rng)
+    gold_lump(nugget, (0.36, -0.6, 0.2), (0.34, 0.27, 0.25), rng, rough=0.42, subdiv=3)
+    shine = plain_metal("gold", GOLD, 0.3, 0.75)
+    objs = [to_obj(core, "core", plain_metal("gold-core", tuple(c * 0.8 for c in GOLD), 0.4, 0.6)),
+            to_obj(grains, "grains", shine, smooth=False),
+            to_obj(nugget, "nugget", shine, smooth=False)]  # ploškový jako zrnka – třpytí se, nesplyne
+    warm_world()
+    sun(az=-45, el=45, strength=4.0, color=(1.0, 0.93, 0.82))
+    sun(az=150, el=25, strength=2.0, color=(0.8, 0.88, 1.0))
+    camera(world_points(objs), az=0, el=32, margin=1.03)
+    return True
+
+
+def icon_jewellery():
+    """Šperk (plán 6, issue #13): zlatý prsten s červeným granátem v kalíšku a se zrnky granulace
+    kolem něj (velkomoravské zlatnictví) – na první pohled jiný než hladký bronzový prsten `ring`
+    manželských párů."""
+    band, bezel, beads, gem = (bmesh.new() for _ in range(4))
+    seg, big = 96, 1.0
+    # obroučka kolem osy Y s oválným průřezem, nahoře kalíšek s kamenem (+Z)
+    loops = [[band.verts.new((math.cos(2 * math.pi * i / seg) * (big + math.cos(t) * 0.1), math.sin(t) * 0.16,
+                              math.sin(2 * math.pi * i / seg) * (big + math.cos(t) * 0.1))) for i in range(seg)]
+             for t in (2 * math.pi * k / 16 for k in range(16))]
+    for lo, hi in zip(loops, loops[1:] + loops[:1]):
+        for i in range(seg):
+            j = (i + 1) % seg
+            band.faces.new((lo[i], lo[j], hi[j], hi[i]))
+    bmesh.ops.recalc_face_normals(band, faces=band.faces)
+    z = big + 0.04
+    revolve(bezel, [(z - 0.12, 0.16), (z + 0.03, 0.27), (z + 0.19, 0.31), (z + 0.22, 0.29), (z + 0.21, 0.255)], 48,
+            cap_bottom=True)
+    blob(gem, ((0.0, 0.0, z + 0.2), (0, 0, 0)), (0.27, 0.27, 0.22), 32, 16)
+    for i in range(14):
+        a = 2 * math.pi * (i + 0.5) / 14
+        blob(beads, ((math.cos(a) * 0.335, math.sin(a) * 0.335, z + 0.08), (0, 0, 0)), (0.05, 0.05, 0.05), 10, 6)
+    for side in (-1, 1):  # trojice zrnek na ramenou obroučky
+        for da, dy in ((0.4, 0.0), (0.5, -0.07), (0.5, 0.07)):
+            p = Vector((math.sin(side * da) * (big + 0.1), dy, math.cos(side * da) * (big + 0.1)))
+            blob(beads, (p, (0, 0, 0)), (0.042, 0.042, 0.042), 10, 6)
+    shine = plain_metal("gold", GOLD, 0.26, 0.8)
+    garnet = mat("garnet", (0.55, 0.01, 0.03), 0.06)
+    next(x for x in garnet.node_tree.nodes if x.type == "BSDF_PRINCIPLED").inputs["Coat Weight"].default_value = 1.0
+    objs = [to_obj(band, "band", shine), to_obj(bezel, "bezel", shine), to_obj(beads, "beads", shine),
+            to_obj(gem, "gem", garnet)]
+    move(objs, rot=(math.radians(16), 0, math.radians(48)))
+    warm_world()
+    hud_light(az=-45, el=42, strength=3.6)
+    sun(az=60, el=12, strength=1.2, color=(0.8, 0.88, 1.0))  # odlesk na hraně obroučky a kamene
+    camera(world_points(objs), az=0, el=14, margin=1.03)
+    return True
+
+
+# zlato a šperky (plán 6, issue #13) – `resources/<klíč>.png`; odznaky dílen zlata skládá `gold_badges.py`
+RESOURCES.update({
+    "gold": icon_gold,
+    "jewellery": icon_jewellery,
 })
 
 

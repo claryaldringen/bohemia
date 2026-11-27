@@ -1012,6 +1012,54 @@ describe('oběh mincí (markets.md – Rozhodnutí plánu 4, bod 9)', () => {
     expect(w.state(w.m).people).toHaveLength(people + 1);
   });
 
+  it.each(['vymřela', 'opuštěná', 'sídlo v archivu', 'chybí'] as const)(
+    'H %s s výsledkem se zlatem (40 g neprodaných, 26 g koupených): hostitel M dostane 66 g jednou zprávou',
+    async (how) => {
+      const w = await coinWorld();
+      const key = await bought(w);
+      const origin = { villageId: w.h, villageName: 'Vlkov', direction: 'W' as const };
+      w.villages.edit(w.m, (s) => {
+        const { body } = s.outbox![0]!;
+        if (body.kind !== 'market-result') throw new Error('Výsledek chybí.');
+        body.result.unsold.gold = 40;
+        body.result.bought.gold = 26;
+        body.result.origin = origin;
+      });
+      await end(w, w.h, how);
+      expect(await deliverVillageMail(w.deps, w.m)).toBe(1);
+      const back = (await inboxOf(w, w.m)).filter((e) => e.body.kind === 'stranded-people');
+      expect(back.map((e) => e.body)).toEqual([
+        { kind: 'stranded-people', key, people: [], coins: 17, gold: 66, from: origin },
+      ]);
+      expect(await deliverVillageMail(w.deps, w.m)).toBe(0);
+      expect(await returnStrandedPeople(w.deps)).toBe(0);
+      await w.load(w.m, D + 2);
+      expect(w.state(w.m).gold).toBe(66);
+      expect(w.state(w.m).coins).toBe(30);
+      await w.load(w.m, D + 10);
+      expect(w.state(w.m).gold).toBe(66);
+    },
+  );
+
+  it('H zanikla s výsledkem jen s koupeným zlatem (nic neprodaného): úloha světa ho vrátí M', async () => {
+    const w = await coinWorld();
+    const key = await bought(w);
+    expect(await deliverVillageMail(w.deps, w.m)).toBe(1);
+    expect(await resultsOf(w, w.h)).toHaveLength(1);
+    // M ve schránce zaniklé H nemá mince ani zlato v `unsold`, jen 26 g koupených
+    const event = w.villages.inbox.events.find((e) => e.body.kind === 'market-result');
+    if (event?.body.kind !== 'market-result') throw new Error('Výsledek chybí.');
+    event.body.result.unsold = {};
+    event.body.result.bought = { pottery: 65, gold: 26 };
+    await end(w, w.h, 'vymřela');
+    expect(await w.villages.inbox.strandedResults()).toHaveLength(1);
+    expect(await returnStrandedPeople(w.deps)).toBe(1);
+    const back = (await inboxOf(w, w.m)).filter((e) => e.body.kind === 'stranded-people');
+    expect(back.map((e) => e.body)).toEqual([
+      expect.objectContaining({ kind: 'stranded-people', key, people: [], gold: 26 }),
+    ]);
+  });
+
   it('zanikly obě vsi: mince výsledku zaniknou – jediná přijatá ztráta', async () => {
     const w = await coinWorld();
     await bought(w);

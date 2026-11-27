@@ -8,6 +8,7 @@ import {
   type MarketOrder,
   type MarketPerson,
   type MarketTrip,
+  type TradeGoods,
   type VillageEventBody,
   type VillageState,
 } from '../../domain/village';
@@ -274,55 +275,73 @@ export async function peopleOfWorld(world: MarketWorld): Promise<number> {
   return n;
 }
 
+/** Kov, který mezi vsemi obíhá jako peníze: mince (kusy) a zlato (g; gold.md – Pravidla 2). */
+type Metal = 'coins' | 'gold';
+
 /**
- * Mince zprávy výpravy a stupeň její cesty: příjezd 0, výsledek 3, mince zpět hostiteli 5 (na trhu
- * hostitele stojí výprava se stupněm 2); použitá zpráva je o stupeň dál a mince už nenese.
+ * Kov v nákladu výpravy nebo kupce (`goods` – na trhu, v příjezdu, ve výsledku `unsold`) a v tom,
+ * co na trhu koupil (`bought`): mince jsou jen v měšci (do `bought` se nepíšou – `payCoins`),
+ * zlato i koupené.
  */
-function coinCargoOf(body: VillageEventBody): { key: string; stage: number; coins: number } | null {
+function metalOf(metal: Metal, goods: TradeGoods, bought?: TradeGoods): number {
+  return (goods[metal] ?? 0) + (metal === 'gold' ? (bought?.gold ?? 0) : 0);
+}
+
+/**
+ * Kov zprávy výpravy a stupeň její cesty: příjezd 0, výsledek 3, kov zpět hostiteli 5 (na trhu
+ * hostitele stojí výprava se stupněm 2); použitá zpráva je o stupeň dál a kov už nenese.
+ */
+function metalCargoOf(
+  metal: Metal,
+  body: VillageEventBody,
+): { key: string; stage: number; amount: number } | null {
   switch (body.kind) {
     case 'market-arrive':
-      return { key: body.arrival.key, stage: 0, coins: body.arrival.goods.coins ?? 0 };
-    case 'market-result':
-      return { key: body.result.key, stage: 3, coins: body.result.unsold.coins ?? 0 };
+      return { key: body.arrival.key, stage: 0, amount: metalOf(metal, body.arrival.goods) };
+    case 'market-result': {
+      const { key, unsold, bought } = body.result;
+      return { key, stage: 3, amount: metalOf(metal, unsold, bought) };
+    }
     case 'stranded-people':
-      return { key: body.key, stage: 5, coins: body.coins ?? 0 };
+      return { key: body.key, stage: 5, amount: body[metal] ?? 0 };
     default:
       return null;
   }
 }
 
 /**
- * Mince světa (markets.md – Rozhodnutí plánu 4, bod 9 – nikde nevzniknou ani nezmizí): v zásobách
- * všech vsí (i vsí na cestě), u osadníků ve schránkách odchodů správce, v nákladu výprav (odchozí
- * schránky, trhy hostitelů, nepoužité události schránek) a v měšcích cizích kupců na trzích všech
- * vsí mimo archiv – ze vsi, která zanikla, musí kupec odjet (`endVillage`), archivovanou ves (Začít
- * znovu) nikdo nedopočítá a kupec v ní zůstane jen jako záznam. Každá výprava se počítá jednou tam, kam její mince došly nejdál: zpráva v odchozí schránce
- * i ve schránce cíle (doručená, ještě nesmazaná) ani záznam na trhu zaniklého hostitele, odkud už
- * výprava vrátila výsledek, součet nezdvojí. `trade.expeditions[].give` není místo mincí – je to
- * jen záznam výpravy, který ve stavu zůstává až do výsledku (výprava bez něj je vyřízená).
+ * Kov světa `metal` – součet pro `coinsOfWorld` a `goldOfWorld`: v zásobách všech vsí (i vsí na
+ * cestě), u osadníků ve schránkách odchodů správce, v nákladu výprav (odchozí schránky, trhy
+ * hostitelů, nepoužité události schránek) a u cizích kupců na trzích všech vsí mimo archiv – ze
+ * vsi, která zanikla, musí kupec odjet (`endVillage`), archivovanou ves (Začít znovu) nikdo
+ * nedopočítá a kupec v ní zůstane jen jako záznam. Každá výprava se počítá jednou tam, kam její kov
+ * došel nejdál: zpráva v odchozí schránce i ve schránce cíle (doručená, ještě nesmazaná) ani záznam
+ * na trhu zaniklého hostitele, odkud už výprava vrátila výsledek, součet nezdvojí.
+ * `trade.expeditions[].give` není místo kovu – je to jen záznam výpravy, který ve stavu zůstává až
+ * do výsledku (výprava bez něj je vyřízená).
  */
-export async function coinsOfWorld(world: Pick<MarketWorld, 'villages'>): Promise<number> {
+async function metalOfWorld(world: Pick<MarketWorld, 'villages'>, metal: Metal): Promise<number> {
   const { records, inbox } = world.villages;
   const archived = new Set(await world.villages.archivedOf([...records.keys()]));
   let n = 0;
-  const trips = new Map<string, { stage: number; coins: number }>();
-  const put = (key: string, stage: number, coins: number): void => {
-    if ((trips.get(key)?.stage ?? -1) < stage) trips.set(key, { stage, coins });
+  const trips = new Map<string, { stage: number; amount: number }>();
+  const put = (key: string, stage: number, amount: number): void => {
+    if ((trips.get(key)?.stage ?? -1) < stage) trips.set(key, { stage, amount });
   };
   const add = (body: VillageEventBody, used: boolean): void => {
-    const cargo = coinCargoOf(body);
-    if (cargo) put(cargo.key, cargo.stage + Number(used), used ? 0 : cargo.coins);
+    const cargo = metalCargoOf(metal, body);
+    if (cargo) put(cargo.key, cargo.stage + Number(used), used ? 0 : cargo.amount);
   };
   for (const [id, { state }] of records) {
-    n += state.coins ?? 0;
+    n += state[metal] ?? 0;
     for (const departure of state.steward?.departures ?? []) {
-      if (departure.villageId === undefined) n += departure.settlers?.whole?.stocks.coins ?? 0;
+      if (departure.villageId === undefined) n += departure.settlers?.whole?.stocks[metal] ?? 0;
     }
     for (const mail of state.outbox ?? []) add(mail.body, false);
     for (const visitor of state.market?.visitors ?? []) {
-      const coins = visitor.goods.coins ?? 0;
-      if (!visitor.merchant) put(visitor.key, 2, coins);
-      else if (!archived.has(id)) n += coins;
+      const amount = metalOf(metal, visitor.goods, visitor.bought);
+      if (!visitor.merchant) put(visitor.key, 2, amount);
+      else if (!archived.has(id)) n += amount;
     }
   }
   for (const event of inbox.events) {
@@ -330,13 +349,31 @@ export async function coinsOfWorld(world: Pick<MarketWorld, 'villages'>): Promis
     // vymřelá ves použila události jen do dne vymření – dny po něm nesimuluje
     if (state) add(event.body, event.day <= (state.extinctDay ?? state.lastDay));
   }
-  for (const [key, { stage, coins }] of trips) {
-    // výpravu, kterou domov už nečeká, vyřídil výsledek – starší záznamy o ní mince nenesou
+  for (const [key, { stage, amount }] of trips) {
+    // výpravu, kterou domov už nečeká, vyřídil výsledek – starší záznamy o ní kov nenesou
     const home = records.get(key.split(':')[1]!)?.state;
     const awaited = !home || home.trade?.expeditions.some((e) => e.market?.key === key);
-    if (stage >= 5 || awaited) n += coins;
+    if (stage >= 5 || awaited) n += amount;
   }
   return n;
+}
+
+/**
+ * Mince světa (markets.md – Rozhodnutí plánu 4, bod 9 – nikde nevzniknou ani nezmizí; `metalOfWorld`):
+ * ve vsích, u osadníků, v nákladu výprav a v měšcích cizích kupců.
+ */
+export function coinsOfWorld(world: Pick<MarketWorld, 'villages'>): Promise<number> {
+  return metalOfWorld(world, 'coins');
+}
+
+/**
+ * Zlato světa v gramech (gold.md – Pravidla 2; Rozhodnutí plánu 6, body 3 a 9; `metalOfWorld`): ve
+ * vsích, u osadníků, v nákladu výprav (neprodané i koupené), ve výsledcích na cestě, ve zlatě zpět
+ * hostiteli a u cizích kupců – koupené nebo za zbroj – do jejich odjezdu. Vzniká jen rýžováním,
+ * zaniká ražbou a odjezdem kupců.
+ */
+export function goldOfWorld(world: Pick<MarketWorld, 'villages'>): Promise<number> {
+  return metalOfWorld(world, 'gold');
 }
 
 /** Porody minus úmrtí v kronikách H a M po dni `after`. */

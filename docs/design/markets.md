@@ -1,7 +1,7 @@
 # Obchod – trhy, kupci a mince (issue #11)
 
 Stav: **schváleno** – Martin 22. 11. 2026 na otázku „Schvaluješ oba návrhy a takové pořadí?“ (obchod s trhy a mincemi, zlato a klenoty; šest plánů: konec smyšlených sousedů, trh bez mincí, vesničané a správce na trhu, kupci a mince, otroci, zlato): „Ano“. Co řekl Martin, je u bodu s datem; ostatní je návrh
-Clauda. **Plán 1 (konec smyšlených sousedů) hotový 23. 11. 2026** (větev `feat/markets-1`, issue #11) – viz Rozhodnutí plánu 1. **Plán 2 (trh bez mincí) hotový 23. 11. 2026** (větev `feat/markets-2`, issue #11) – viz Rozhodnutí plánu 2. **Plán 3 (vesničané, správce, zakázky, lidé a sňatky se skutečnými sousedy) hotový 24. 11. 2026** (větev `feat/markets-3`, issue #11) – viz Rozhodnutí plánu 3. **Plán 4 (kupci a mince) hotový 26. 11. 2026** (větev `feat/markets-4`, issue #11) – viz Rozhodnutí plánu 4. **Plán 5 (otroci) hotový 26. 11. 2026** (větev `feat/markets-5`, issue #11) – viz Rozhodnutí plánu 5. Nahrazuje obchod se smyšlenými sousedy ([obchod](trade.md) – Sousedé, varianta a) a navazuje na rozpracovaný
+Clauda. **Plán 1 (konec smyšlených sousedů) hotový 23. 11. 2026** (větev `feat/markets-1`, issue #11) – viz Rozhodnutí plánu 1. **Plán 2 (trh bez mincí) hotový 23. 11. 2026** (větev `feat/markets-2`, issue #11) – viz Rozhodnutí plánu 2. **Plán 3 (vesničané, správce, zakázky, lidé a sňatky se skutečnými sousedy) hotový 24. 11. 2026** (větev `feat/markets-3`, issue #11) – viz Rozhodnutí plánu 3. **Plán 4 (kupci a mince) hotový 26. 11. 2026** (větev `feat/markets-4`, issue #11) – viz Rozhodnutí plánu 4. **Plán 5 (otroci) hotový 26. 11. 2026** (větev `feat/markets-5`, issue #11) – viz Rozhodnutí plánu 5. **Plán 6 (zlato a klenoty) hotový 27. 11. 2026** (větev `feat/gold-6`, issue #13) – viz [gold.md](gold.md), Rozhodnutí plánu 6. Nahrazuje obchod se smyšlenými sousedy ([obchod](trade.md) – Sousedé, varianta a) a navazuje na rozpracovaný
 návrh [sousedních vsí](neighbours.md), jehož body 2–8 Martin odložil právě do této kapitoly.
 
 ## Proč
@@ -104,8 +104,9 @@ obchodníkům se do hry dostanou mince - obchodníci jimi budou platit za zbož�
 6. **Cizí kupci:** karavany jezdí po dálkových obchodních stezkách kostry světa (world-skeleton.md) několikrát do roka;
    v každé vsi u stezky stojí den, kde se schází víc obchodníků, déle (Martin). Na mapách podél stezky smějí vznikat vsi
    synů i dalších hráčů (Martin „ok“). Kupec je tržní den ve vsi u stezky podle plánu, který je čistá funkce seedu světa,
-   úseku stezky a roku (návrh Clauda) – ne putující karavana, kterou by svět posouval. Kupují zlato (přes šperkaře dráž – gold.md),
-   med, vosk, kožešiny a pohanské zajatce; prodávají meče, kroužkové košile a helmy (Martin); platí a berou mince.
+   úseku stezky a roku (návrh Clauda) – ne putující karavana, kterou by svět posouval. Kupují zlato (přes šperkaře dráž – gold.md; po plánu 6
+   první v seznamu, 1 000 g, měšec 60 mincí se nemění), med, vosk, kožešiny a pohanské zajatce; prodávají meče, kroužkové košile a helmy (Martin); platí a berou mince.
+   **Zlato (plán 6, návrh Clauda – [gold.md](gold.md), Rozhodnutí plánu 6):** zlato se na trhu mění za mince 1:1 i s hostitelem, který mince má (kov za kov, ne útrata); objednanou zbroj hostitel kupcům doplatí napřed mincemi, pak i zlatem; hladina se počítá jen z mincí.
 7. **Otroci:** zajatý pohan je od zajetí veden jako otrok a prodat ho jde kdykoli (Martin); zajatého křesťana jde usadit
    ve vlastní vsi, prodat ne (Martin). Děti otroka narozené ve vsi jsou svobodné; pokřtěný otrok zůstává otrokem, ale
    prodat ho už nejde – prodat smí jen pohana (návrh Clauda). Víra je víra člověka (`Person`), ne vsi.
@@ -323,4 +324,4 @@ Plán 5 přivedl na trh otroky: příznak odvedeného pohana, otroky jako zbož�
 Model ceny (o kolik se posune, meze), oběh mincí mezi vsemi, kterými se dopočítávají zvlášť (schránka vsi), plán cest
 kupců, rozhraní (přehled vsí, panel výpravy, trh), převod stavu, pořadí úloh.
 
-**Splněno:** plán 4 splnil vše výše (Co se ověří – dvě vsi a kupci, přepočet Vlkova); zbývá jen otevřené jmenované v Rozhodnutích plánu 4. Plán 5 splnil otroky (Co se ověří – dvě vsi, otroci a kupci, přepočet Vlkova); zbývá plán 6 (zlato).
+**Splněno:** plán 4 splnil vše výše (Co se ověří – dvě vsi a kupci, přepočet Vlkova); zbývá jen otevřené jmenované v Rozhodnutích plánu 4. Plán 5 splnil otroky (Co se ověří – dvě vsi, otroci a kupci, přepočet Vlkova); Plán 6 splnil zlato (Co se ověří v [gold.md](gold.md) – dvě vsi, zlato a kupci, přepočet Vlkova; Rozhodnutí plánu 6).

@@ -12,7 +12,7 @@ export const PRUNED_INBOX_KINDS = ['nearby', 'kin-ask', 'smith-ask', 'order-read
 
 /**
  * Druhy zpráv výprav na trh, jejichž vyřízené řádky maže úklid `pruneSettledMail` – příjezd a výsledek.
- * Lidé a mince zpět hostiteli (`stranded-people`) mezi nimi nejsou a nesmějí být: jejich `ref` je jediná
+ * Lidé, mince a zlato zpět hostiteli (`stranded-people`) mezi nimi nejsou a nesmějí být: jejich `ref` je jediná
  * ochrana proti druhému vrácení.
  */
 export const SETTLED_MAIL_KINDS = ['market-arrive', 'market-result'] as const;
@@ -75,7 +75,7 @@ export interface VillageInbox {
   dropSettledMail(villageId: string, eventIds: readonly string[]): Promise<number>;
   /**
    * Výsledky trhu s lidmi (`market-result` s `people` nebo `newcomers`) nebo mincemi
-   * (`unsold.coins` > 0) ve schránkách zaniklých vsí – ves spí (vymřela, opuštěná), nebo má sídlo
+   * (`unsold.coins` > 0) nebo zlatem (`unsold.gold` + `bought.gold` > 0) ve schránkách zaniklých vsí – ves spí (vymřela, opuštěná), nebo má sídlo
    * v archivu (Začít znovu) –, použité i nepoužité (rozliší je stav vsi), seřazené podle dne
    * a `seq`. Pro úlohu světa `returnStrandedPeople`.
    */

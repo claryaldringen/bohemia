@@ -65,6 +65,16 @@ describe('kodek stavu vsi', () => {
     ]);
   });
 
+  it('zlato, kapacita šperkaře a vyrýžované gramy jdou kodekem beze změny (gold.md)', () => {
+    const state = village();
+    state.gold = 12.75;
+    state.jewelleryG = 20;
+    state.goldPanned = [12.5, 0, 1500];
+    const back = roundTrip(state);
+    expect(JSON.stringify(back)).toBe(JSON.stringify(state));
+    expect(back).toMatchObject({ gold: 12.75, jewelleryG: 20, goldPanned: [12.5, 0, 1500] });
+  });
+
   it('zem nese jen klíče země a vyjmenované podklíče – i o dvě úrovně níž', () => {
     const state = asState({
       parts: [1],

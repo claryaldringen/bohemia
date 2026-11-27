@@ -347,8 +347,8 @@ const church = (
 });
 
 /**
- * `KeyboardEvent.code` zkratky: písmeno `KeyX`, číslice `Digit1` (nadzemní dům) a `Digit2` (vypletený
- * dům) – písmena jsou obsazená.
+ * `KeyboardEvent.code` zkratky: písmeno `KeyX`, číslice `Digit1` (nadzemní dům), `Digit2` (vypletený
+ * dům) a `Digit3`–`Digit5` (dílny zlata) – písmena jsou obsazená.
  */
 const hotkeyCode = (label: string): string =>
   /^\d$/.test(label) ? `Digit${label}` : `Key${label}`;
@@ -500,7 +500,7 @@ export function WORKSHOP_VARIANTS(
     {
       id: CRAFT_BASE[craft] as BuildableDwellingType,
       icon: `build/${model}`,
-      name: craft === 'burner' ? 'Zemnice' : 'Polozemnice',
+      name: CRAFT_BASE[craft] === 'zemnice' ? 'Zemnice' : 'Polozemnice',
     },
     { id: 'vypleteny', icon: `build/${model}-vypleteny`, name: 'Vypletená' },
     { id: 'srub', icon: `build/${model}-srub`, name: 'Roubená' },
@@ -534,6 +534,9 @@ const WORKSHOP_ICONS: Readonly<Record<Craft, string>> = {
   smith: 'kovar',
   burner: 'uhlir',
   carpenter: 'tesar',
+  panner: 'ryzovnik',
+  jeweller: 'sperkar',
+  minter: 'mincovna',
 };
 
 const workshop = (
@@ -545,7 +548,7 @@ const workshop = (
   kind: craft,
   name,
   icon,
-  hotkey: `Key${hotkeyLabel}`,
+  hotkey: hotkeyCode(hotkeyLabel),
   hotkeyLabel,
   placement: 'workshop',
   craft,
@@ -1026,6 +1029,10 @@ export const BUILD_ITEMS: readonly BuildItem[] = [
   workshop('burner', 'Uhlíř', 'uhlir', 'H'),
   // wagons.md – tesař: vozy, dřevěné nářadí a pomoc stavbám
   workshop('carpenter', 'Tesař', 'tesar', 'T'),
+  // gold.md – dílny zlata; zkratky 3–5 (písmena jsou obsazená, návrh Clauda)
+  workshop('panner', 'Rýžovník', 'ryzovnik', '3'),
+  workshop('jeweller', 'Šperkař', 'sperkar', '4'),
+  workshop('minter', 'Mincovna', 'mincovna', '5'),
   {
     // oxen.md – Ohrady podle druhu: čtverce jako hřbitov (nejvýš 4), tlačítko je rozcestník druhů
     kind: 'pen',

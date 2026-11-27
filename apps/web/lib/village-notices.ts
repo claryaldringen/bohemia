@@ -61,6 +61,12 @@ export type NoticeKind =
   | 'carpenter-no-wood'
   | 'cart-made'
   | 'cart-worn-out'
+  /**
+   * Rýžovník vyrýžoval náplav, `placers-exhausted` – poslední (gold.md – Pravidla 1); zvlášť, ať
+   * varování nezakryje dřívější zpráva téhož druhu.
+   */
+  | 'placer-exhausted'
+  | 'placers-exhausted'
   /** Ves nemá kováře – tesař šel pro kování k vozu, přinesl ho (wagons.md – Kování vozů). */
   | 'iron-trip'
   | 'iron-brought'
@@ -185,7 +191,7 @@ export interface VillageNotice {
   /** info = zpráva, warn = problém. */
   tone: 'info' | 'warn';
   text: string;
-  /** Ikona před textem řádku (jen kupci); jinak žádná. */
+  /** Ikona před textem řádku (kupci, otroci, vyrýžovaný náplav); jinak žádná. */
   icon?: string;
 }
 
@@ -620,6 +626,21 @@ const CHRONICLE_NOTICES: Partial<
   // vozy od tesaře (wagons.md – Vůz)
   'cart-made': () => ({ kind: 'cart-made', tone: 'info', text: 'Tesař vyrobil vůz' }),
   'cart-worn-out': () => ({ kind: 'cart-worn-out', tone: 'warn', text: 'Vůz dosloužil' }),
+  // rýžovník vyrýžoval náplav (gold.md – Pravidla 1); poslední – zlato na mapě došlo
+  'placer-exhausted': (entry) =>
+    (entry.left ?? 0) > 0
+      ? {
+          kind: 'placer-exhausted',
+          tone: 'info',
+          text: 'Náplav je vyrýžovaný',
+          icon: '/icons/resources/gold.png',
+        }
+      : {
+          kind: 'placers-exhausted',
+          tone: 'warn',
+          text: 'Náplavy jsou vyrýžované',
+          icon: '/icons/resources/gold.png',
+        },
   // kování vozů (wagons.md) – jen fakt: kdo šel a kam, kdo přinesl
   'iron-trip': (entry) => ({
     kind: 'iron-trip',

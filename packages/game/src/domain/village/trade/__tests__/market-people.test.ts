@@ -271,6 +271,49 @@ describe('lidé na trhu (markets.md – Rozhodnutí plánu 3, bod 10)', () => {
     expect(none).toStrictEqual(familyHome());
   });
 
+  it('receiveStranded: zlato výsledku přibude do zásoby vsi; jen zlato = zápis `stranded-coins` bez mincí (plán 6)', () => {
+    const from = { villageId: 'h', villageName: 'Vlkov', direction: 'W' as const };
+    const gold = familyHome();
+    gold.gold = 4;
+    expect(receiveStranded(gold, D + 2, { key: 'market:h:1', people: [], gold: 66, from })).toEqual(
+      [
+        {
+          day: D + 2,
+          kind: 'stranded-coins',
+          coins: 0,
+          gold: 66,
+          villageName: 'Vlkov',
+          villageId: 'h',
+        },
+      ],
+    );
+    expect(gold.gold).toBe(70);
+    expect(gold.coins ?? 0).toBe(0);
+
+    // mince i zlato s lidmi – obojí v prvním zápisu `newcomer`
+    const both = familyHome();
+    const man: MarketPerson = {
+      good: 'men',
+      people: [{ id: 5, bornDay: D - 9_000, dwellingId: 3, sex: 'male' }],
+    };
+    const events = receiveStranded(both, D + 2, {
+      key: 'market:h:1',
+      people: [man],
+      coins: 10,
+      gold: 40,
+      from,
+    });
+    expect([both.coins, both.gold]).toEqual([10, 40]);
+    expect(events).toEqual([expect.objectContaining({ kind: 'newcomer', coins: 10, gold: 40 })]);
+
+    // bez `from` zlato přibude, kronika nic
+    const only = familyHome();
+    expect(
+      receiveStranded(only, D + 2, { key: 'market:h:1', people: [], gold: 5, from: undefined }),
+    ).toEqual([]);
+    expect(only.gold).toBe(5);
+  });
+
   it('peopleWanted: půdy 12 ha, práce 8 ha, 10 dospělých → chybí 5 dospělých → 3 rodiny', () => {
     const s = familyHome();
     const outlook = { ...stewardOutlook(s, D, craftCoverage(s, D)), landHa: 12, laborHa: 8 };

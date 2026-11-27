@@ -155,6 +155,9 @@ const view = (overrides: Partial<VillageView> = {}): VillageView => ({
     smith: workshop(286),
     burner: workshop(78),
     carpenter: workshop(286),
+    panner: workshop(78),
+    jeweller: workshop(286),
+    minter: workshop(286),
     pen: {
       laborManDays: 40,
       perHa: false,
@@ -1052,6 +1055,46 @@ describe('tesař a vozy (wagons.md)', () => {
       { kind: 'cart-worn-out', tone: 'warn', text: 'Vůz dosloužil' },
       { kind: 'cart-made', tone: 'info', text: 'Tesař vyrobil vůz' },
     ]);
+  });
+});
+
+describe('rýžování (gold.md – Pravidla 1)', () => {
+  const entry = (day: number, left: number): VillageView['chronicle'][number] => ({
+    day,
+    kind: 'placer-exhausted',
+    left,
+    dateLabel: '',
+    text: '',
+  });
+
+  it('vyrýžovaný náplav – zpráva s ikonou zlata, poslední – varování; žádná „0“', () => {
+    const one = newNotices(
+      view({ dayIndex: 1000 }),
+      view({ dayIndex: 1003, chronicle: [entry(1002, 2)] }),
+    );
+    expect(one).toEqual([
+      {
+        kind: 'placer-exhausted',
+        tone: 'info',
+        text: 'Náplav je vyrýžovaný',
+        icon: '/icons/resources/gold.png',
+      },
+    ]);
+    // předposlední a poslední náplav v jednom kroku – varování dřívější zpráva nezakryje
+    const last = newNotices(
+      view({ dayIndex: 1000 }),
+      view({ dayIndex: 1003, chronicle: [entry(1002, 0), entry(1001, 1)] }),
+    );
+    expect(last).toEqual([
+      { ...one[0], kind: 'placer-exhausted' },
+      {
+        kind: 'placers-exhausted',
+        tone: 'warn',
+        text: 'Náplavy jsou vyrýžované',
+        icon: '/icons/resources/gold.png',
+      },
+    ]);
+    for (const n of [...one, ...last]) expect(n.text).not.toMatch(/\d/);
   });
 });
 

@@ -70,7 +70,7 @@ export const CHRONICLE_LENGTH = 8;
  */
 export const CRAFT_LOOKS: Record<
   Craft,
-  { icon: string; product: { icon: string; name: string; stock: keyof CraftStocks } }
+  { icon: string; product?: { icon: string; name: string; stock: keyof CraftStocks } }
 > = {
   potter: { icon: 'hrncir', product: { icon: 'pottery', name: 'Keramika', stock: 'potteryKg' } },
   // production-chains.md – Kovář: v zásobě hřivny, nástroje jsou vybavení domácností
@@ -81,6 +81,10 @@ export const CRAFT_LOOKS: Record<
     icon: 'tesar',
     product: { icon: 'wood-tools', name: 'Dřevěné nářadí', stock: 'woodToolsKg' },
   },
+  // plán 6: dílny zlata výrobek v `CraftStocks` nemají (zlato a šperky jsou jinde ve stavu)
+  panner: { icon: 'ryzovnik' },
+  jeweller: { icon: 'sperkar' },
+  minter: { icon: 'mincovna' },
 };
 
 /** Názvy obydlí v 1. a 4. pádě. */
@@ -107,6 +111,9 @@ const ESTATE_TITLES: Record<
   potter: { man: 'hrnčíř', wife: 'hrnčířka', genitive: 'hrnčíře' },
   carpenter: { man: 'tesař', wife: 'tesařova žena', genitive: 'tesaře' },
   burner: { man: 'uhlíř', wife: 'uhlířova žena', genitive: 'uhlíře' },
+  panner: { man: 'rýžovník', wife: 'rýžovníkova žena', genitive: 'rýžovníka' },
+  jeweller: { man: 'šperkař', wife: 'šperkařova žena', genitive: 'šperkaře' },
+  minter: { man: 'mincíř', wife: 'mincířova žena', genitive: 'mincíře' },
   priest: { man: 'kněz', wife: 'žena kněze', genitive: 'kněze' },
   builder: { man: 'stavbyvedoucí', wife: 'žena stavbyvedoucího', genitive: 'stavbyvedoucího' },
   limeBurner: { man: 'vápeník', wife: 'žena vápeníka', genitive: 'vápeníka' },
@@ -122,6 +129,9 @@ const HEADS_PLURAL: Partial<Record<ChronicleEstate['title'], readonly [string, s
   potter: ['hrnčíři', 'hrnčířů'],
   carpenter: ['tesaři', 'tesařů'],
   burner: ['uhlíři', 'uhlířů'],
+  panner: ['rýžovníci', 'rýžovníků'],
+  jeweller: ['šperkaři', 'šperkařů'],
+  minter: ['mincíři', 'mincířů'],
 };
 
 /** Příbuzný hlavy domácnosti – muž a žena („syn sedláka“, „matka vojvody“). */
@@ -491,6 +501,9 @@ const WORKSHOP_FINISHED: Record<Craft, string> = {
   smith: 'Dostavěli kovárnu s výhní.',
   burner: 'Dostavěli uhlířovu zemnici s milířem.',
   carpenter: 'Dostavěli tesařskou dílnu s přístřeškem.',
+  panner: 'Dostavěli rýžovníkovu zemnici.',
+  jeweller: 'Dostavěli šperkařskou dílnu.',
+  minter: 'Dostavěli mincovnu.',
 };
 
 /** Druh ohrady ve 4. pádě množného čísla – „ohrada pro ovce“ (Martin 14. 11. 2026). */
@@ -758,6 +771,9 @@ const WORKSHOP_INSTRUMENTAL: Record<Craft, RoadEndForms> = {
   potter: { word: 'hrnčířskou dílnou', feminine: true, from: 'od hrnčířské dílny' },
   carpenter: { word: 'tesařskou dílnou', feminine: true, from: 'od tesařské dílny' },
   burner: { word: 'uhlířovou zemnicí', feminine: true, from: 'od uhlířovy zemnice' },
+  panner: { word: 'rýžovníkovou zemnicí', feminine: true, from: 'od rýžovníkovy zemnice' },
+  jeweller: { word: 'šperkařskou dílnou', feminine: true, from: 'od šperkařské dílny' },
+  minter: { word: 'mincovnou', feminine: true, from: 'od mincovny' },
 };
 
 /** Konec cesty: 7. pád a rod („mezi dvorcem a kovárnou“), odkud („od kovárny“, „z rozcestí“). */
@@ -1073,6 +1089,19 @@ const MASON_CRAFT_TEXT: Record<MasonCraft, string> = {
   plasterer: 'štukatér',
 };
 
+/** Mince a zlato vráceného kovu – „17 mincí“, „40 g zlata“, obojí „17 mincí a 40 g zlata“; nic = ''. */
+function moneyText(
+  coins: number | undefined,
+  gold: number | undefined,
+  grammaticalCase: 'nominative',
+): string {
+  const parts = [
+    ...(coins ? [coinsText(coins, grammaticalCase)] : []),
+    ...(gold ? [`${formatInteger(gold)} g zlata`] : []),
+  ];
+  return parts.length === 0 ? '' : ` a ${parts.join(' a ')}`;
+}
+
 function newcomerText(
   direction: Direction8,
   group: NewcomerGroup,
@@ -1081,12 +1110,13 @@ function newcomerText(
   villageName?: string,
   coins?: number,
   female = false,
+  gold?: number,
 ): string {
   const texts = (female && NEWCOMER_TEXTS[group].female) || NEWCOMER_TEXTS[group];
   // lidé ze skutečného souseda (plán 3, bod 14): „Do vsi přišla rodina z Lhoty.“; s měšcem výpravy
   // zaniklé vsi „… a 17 mincí.“ (preflight plánu 4, M14)
   if (villageName !== undefined) {
-    const purse = coins ? ` a ${coinsText(coins, 'nominative')}` : '';
+    const purse = moneyText(coins, gold, 'nominative');
     return `Do vsi ${returned ? texts.back : texts.chronicle} ${fromVillage(villageName)}${purse}.`;
   }
   const from = DIRECTION_NAMES[direction].from;
@@ -1477,6 +1507,11 @@ export function chronicleText(event: ChronicleEvent, villageName: string, seed?:
       return finishedText(event);
     case 'cart-made':
       return `Tesař vyrobil ${CART_NAMES[event.cart].toLowerCase()}.`;
+    // rýžovník vyrýžoval náplav (gold.md – Pravidla 1) – bez „0“, poslední náplav vlastní větou
+    case 'placer-exhausted':
+      return event.left > 0
+        ? `Rýžovník vyrýžoval náplav. Zlato zbývá na ${formatInteger(event.left)} ${plural(event.left, 'náplavu', 'náplavech', 'náplavech')}.`
+        : 'Rýžovník vyrýžoval poslední náplav.';
     case 'iron-trip':
       return `Ves nemá kováře – ${ironTripWho(event.son, event.porters ?? 0, event.byCart === true)} pro kování k vozu ${event.to === '' ? 'do sousední vsi' : `do vsi ${event.to}`}.`;
     case 'iron-brought':
@@ -1728,9 +1763,21 @@ export function chronicleText(event: ChronicleEvent, villageName: string, seed?:
         event.villageName,
         event.coins,
         event.female === true,
+        event.gold,
       );
     case 'stranded-coins':
       // měšec výpravy zaniklé vsi bez lidí (preflight plánu 4, M14)
+      if (event.coins <= 0) {
+        // jen zlato (plán 6, bod 9) – žádná „0 mincí“
+        const gold = formatInteger(event.gold ?? 0);
+        return event.villageName === ''
+          ? `Ze sousední vsi se vrátilo ${gold} g zlata.`
+          : `Ze zaniklé vsi ${event.villageName} se vrátilo ${gold} g zlata.`;
+      }
+      if (event.gold) {
+        const purse = `${coinsText(event.coins, 'nominative')} a ${formatInteger(event.gold)} g zlata`;
+        return `Do vsi ${plural(event.coins, 'přišla', 'přišly', 'přišlo')} ${purse} ${fromVillage(event.villageName)}.`;
+      }
       return `Do vsi ${plural(event.coins, 'přišla', 'přišly', 'přišlo')} ${coinsText(event.coins, 'nominative')} ${fromVillage(event.villageName)}.`;
     case 'structure-fell':
       return STRUCTURE_FELL_TEXTS[event.structure];

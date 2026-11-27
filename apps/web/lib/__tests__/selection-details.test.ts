@@ -392,6 +392,20 @@ describe('selectionDetails', () => {
     });
   });
 
+  it('dílna zlata nemá zásobu výrobku ani pokrytí (plán 6)', () => {
+    const gold = {
+      ...view,
+      crafts: {
+        ...view.crafts,
+        workshops: view.crafts.workshops.map((w) => ({ ...w, craft: 'jeweller' as const })),
+      },
+    };
+    const details = selectionDetails(gold, scene, { kind: 'dwelling', id: 2 });
+    expect(details).toMatchObject({
+      workshop: { craft: 'jeweller', stockKg: 0, coverage: null },
+    });
+  });
+
   it('dílna bez vstupů nedokupuje u souseda (markets.md – Pravidla 1)', () => {
     const sources = [{ product: 'toolsKg' as const, own: false }];
     const withSources = { ...view, crafts: { ...view.crafts, sources } };

@@ -502,6 +502,16 @@ píšťala, buben) stojí v prostoru postavy (natáčí se s ní) i v klipu 0 A.
   uhlíř podle stavu milíře štípe na špalku (`split`), zahrnuje (`hoe`), hlídá (`idle`), vytahuje
   uhlí hráběmi (`rake`) a sype do koše (`fruit`). Rekvizity jsou propy postav – viz Rekvizity
   fází činností.
+- **Dílny zlata** (plán 6, gold.md – Pravidla 2, 4, 5; vlastní modely až později – Oznámit 7):
+  `CRAFT_MODEL` dává rýžovníku model uhlíře, šperkaři a mincíři model kováře (nadzemní varianty
+  mají přístřešek `pristresek-uhlir` / `pristresek-kovar`). **Rýžovník** jde za dne k náplavu,
+  kde rýžoval (`WorkshopDay.pan`) – `laborReport` mu dá podíl `ore` s cílem `{ kind: 'ore',
+id: dílna, x, z }` na místě náplavu (jako kovář rudu, jen místo `craft` v dílně), postava stojí
+  u něj s motykou (`oreDiggers` – bez jámy kolem místa) a panel říká „rýžuje zlato“
+  (`personActivity` rozliší rýžovníka podle řemesla dílny z id v cíli). **Šperkař a mincíř** při
+  výrobě (`producing`) dostanou z `craftYard` úkol `forge` bez zásob houby a hřiven a ve fázích
+  (`planPhases` ve `villager-plan-phases.ts`) mají roli `forge` jako kovář při kování; kouří
+  `workshopSmokes`.
 - **Hrnčíř**: mělká **jáma s hlínou** před přístřeškem vpravo (`CLAY_PIT`) – val vykopané země
   a hladina hlíny podle stupně (prázdná jáma tmavé dno; kreslí se jen s hlínou nebo šlapáním).
   Když hrnčíř vyrábí, jeden šlape hlínu – pomalu tam a zpět napříč jámou (`treadingLine`, klip

@@ -445,6 +445,10 @@ function workshopShares(book: ShareBook, w: WorkshopDay): void {
       };
       book.add('craft', target, k.making);
     }
+  } else if (w.pan) {
+    // rýžovník (gold.md – Pravidla 2): celý den u náplavu, kde rýžoval – scéna ho pošle k náplavu
+    // jako kováře ke kopání rudy (ne do dílny); věky se neuvádějí, jde muž domácnosti
+    book.add('ore', { kind: 'ore', id: w.dwellingId, x: w.pan.x, z: w.pan.z }, w.making);
   } else {
     book.add('craft', place, w.making);
   }

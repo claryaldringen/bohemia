@@ -20,7 +20,7 @@ import { formatDayMonth, formatGameDate } from '@/lib/game-date';
 import type { VillageManor } from '@/lib/manor-view';
 import { marketPreview, type MarketTripPhase } from '@/lib/market-view';
 import { TRADE_GOOD_NAMES } from '@/lib/trade-names';
-import { formatCoinPrice, formatInteger, plural } from '@/lib/village-format';
+import { formatCoinPrice, formatFactor, formatInteger, plural } from '@/lib/village-format';
 import { ArmsOrder } from './ArmsOrder';
 import { SlaveSale } from './SlaveSale';
 import { Dialog } from './Dialog';
@@ -44,6 +44,9 @@ const CRAFT_ICONS: Record<Craft, { name: string; icon: string }> = {
   smith: { name: 'Kovář', icon: 'kovar' },
   burner: { name: 'Uhlíř', icon: 'uhlir' },
   carpenter: { name: 'Tesař', icon: 'tesar' },
+  panner: { name: 'Rýžovník', icon: 'ryzovnik' },
+  jeweller: { name: 'Šperkař', icon: 'sperkar' },
+  minter: { name: 'Mincíř', icon: 'mincovna' },
 };
 
 /** Fáze výpravy: popisek a ikona. */
@@ -59,7 +62,7 @@ const PHASES: Record<MarketTripPhase, { label: string; icon: string }> = {
  * a m³ po jedné. Poslední krok nahoru doplní do zásoby (`Stepper` má `max`), dolů jde k nule.
  */
 const stepOf = (good: TradeGood): number =>
-  good === COIN_GOOD ? 10 : TRADE_GOOD_NAMES[good].unit === 'kg' ? 100 : 1;
+  good === COIN_GOOD || good === 'gold' ? 10 : TRADE_GOOD_NAMES[good].unit === 'kg' ? 100 : 1;
 
 /** Ikona zboží s popiskem názvu. */
 function GoodIcon({ good, size = 20 }: { good: TradeGood; size?: number }): ReactElement {
@@ -272,24 +275,44 @@ function VillageRow({
   );
 }
 
-/** Řádek zboží sloupce: ikona (název v popisku), číslo, +/−. */
+/** Cena bez zbytečné desetinné nuly („1“, ne „1,0“). */
+const priceText = (price: number): string =>
+  Number.isInteger(price) ? formatInteger(price) : formatCoinPrice(price);
+
+/** Dovětek popisku: kolik gramů kovu ještě platí výhoda šperkaře. */
+const jewelleryLeft = (g: number): string => `ještě pro ${formatInteger(g)} g`;
+
+/** Řádek zboží sloupce: ikona (název v popisku), číslo, +/−; zlato i s cenou, mince s výhodou šperkaře. */
 function GoodRow({
   side,
   good,
   value,
   max,
   onChange,
+  goldPrice,
+  jewelleryG,
+  jewelleryFactor,
 }: {
   side: Side;
   good: TradeGood;
   value: number;
   max: number;
   onChange: (value: number) => void;
+  goldPrice?: number;
+  jewelleryG?: number;
+  jewelleryFactor?: number;
 }): ReactElement {
   const { name, unit, icon } = TRADE_GOOD_NAMES[good];
+  const jeweller = jewelleryG !== undefined && jewelleryG > 0 && jewelleryFactor !== undefined;
+  const tip =
+    good === COIN_GOOD
+      ? jeweller
+        ? `Se šperkařem platí ${formatFactor(jewelleryFactor)}násobek – ${jewelleryLeft(jewelleryG)}`
+        : name
+      : `${name} (${unit})`;
   return (
     <div data-testid={`market-${side}-${good}`} className="flex items-center gap-1.5">
-      <Tooltip content={good === COIN_GOOD ? name : `${name} (${unit})`} placement="above">
+      <Tooltip content={tip} placement="above">
         <img
           src={`/icons/resources/${icon}.png`}
           alt=""
@@ -306,6 +329,27 @@ function GoodRow({
         label={name}
         onChange={onChange}
       />
+      {good === 'gold' && goldPrice !== undefined && (
+        <span data-testid="market-gold-price">
+          <Tooltip
+            content={
+              <span className="block max-w-52">
+                {`Zlato – ${priceText(goldPrice)} ${plural(goldPrice, 'mince', 'mince', 'mincí')} za gram, vždy` +
+                  // výhodu má jen prodej zlata (Dáš); nákup zlata od vsi bez ní (gold.md – Pravidla 4)
+                  (jeweller && side === 'give'
+                    ? `, se šperkařem ${priceText(goldPrice * jewelleryFactor)} mince za gram – ${jewelleryLeft(jewelleryG)}`
+                    : '')}
+              </span>
+            }
+            placement="above"
+          >
+            <span className="flex items-center gap-1 text-xs tabular-nums" tabIndex={0}>
+              {priceText(goldPrice)}
+              <img src="/icons/resources/coin.png" alt="" width={14} height={14} />
+            </span>
+          </Tooltip>
+        </span>
+      )}
     </div>
   );
 }
@@ -445,6 +489,9 @@ export function MarketPanel({
                 good={g}
                 value={give[g] ?? 0}
                 max={market.stock[g] ?? 0}
+                goldPrice={market.goldPrice}
+                jewelleryG={market.jewelleryG}
+                jewelleryFactor={market.jewelleryFactor}
                 onChange={(v) => edit(() => setGive((cur) => without(cur, g, v)))}
               />
             ))}
@@ -458,6 +505,9 @@ export function MarketPanel({
                 good={g}
                 value={wants[g] ?? 0}
                 max={Number.MAX_SAFE_INTEGER}
+                goldPrice={market.goldPrice}
+                jewelleryG={market.jewelleryG}
+                jewelleryFactor={market.jewelleryFactor}
                 onChange={(v) => edit(() => setWants((cur) => without(cur, g, v)))}
               />
             ))}

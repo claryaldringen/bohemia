@@ -79,3 +79,24 @@ describe('WaresStock – mince a zbroj (plán 4)', () => {
     expect(render({ ...none, coins: 0, arms: { swords: 0 } })).toBe('');
   });
 });
+
+describe('WaresStock – zlato a šperky (plán 6)', () => {
+  it('zlato a šperky celé gramy s popisky a ikonami', () => {
+    const html = render({ ...wares, goldG: 84.9, jewelleryG: 30, jewelleryFactor: 1.5 });
+    expect(text(html, 'wares-gold')).toBe('84');
+    expect(text(html, 'wares-jewellery')).toBe('30');
+    expect(html).toContain('/icons/resources/gold.png');
+    expect(html).toContain('/icons/resources/jewellery.png');
+    expect(html).toContain('>Zlato – 84 g<');
+    expect(html).toContain('>Šperky – zlato a mince za 1,5násobek, ještě pro 30 g<');
+  });
+
+  it('ves jen se zlatem ukáže jen zlato, bez zlata žádný řádek', () => {
+    const zero = { hides: 0, furs: 0, sheepFurs: 0, honeyKg: 0, waxKg: 0 };
+    const only = render({ ...zero, goldG: 12 });
+    expect(text(only, 'wares-gold')).toBe('12');
+    expect(only).not.toContain('wares-jewellery');
+    expect(render(wares)).not.toContain('wares-gold');
+    expect(render({ ...wares, goldG: 0, jewelleryG: 0 })).not.toContain('wares-jewellery');
+  });
+});

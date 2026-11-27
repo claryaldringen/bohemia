@@ -41,6 +41,7 @@ const market = (over: Partial<VillageManor['market']> = {}): VillageManor['marke
   day: 10,
   trips: [],
   merchantsDay: null,
+  goldPrice: 1,
   arms: [],
   merchantsArrived: null,
   slaveSale: null,
@@ -286,6 +287,54 @@ describe('nové zboží a lidé (plán 3, Úloha 11)', () => {
     await click(byId(host, 'market-give-coins-minus'));
     expect(countOf()).toBe('0');
     expect(byId(host, 'market-give-swords')!.textContent).toContain('Meče (ks)');
+  });
+
+  it('zlato: v obou seznamech po deseti, cena 1 s popiskem; šperkař zvedá cenu a mince', async () => {
+    const host = await mount({ market: market({ stock: { grain: 1000, gold: 25, coins: 12 } }) });
+    const give = byId(host, 'market-give-gold')!;
+    const want = byId(host, 'market-want-gold')!;
+    expect(give.textContent).toContain('Zlato (g)');
+    expect(want).not.toBeNull();
+    await click(byId(host, 'market-give-gold-plus'));
+    expect(byId(host, 'market-give-gold-count')!.textContent).toBe('10');
+    await click(byId(host, 'market-want-gold-plus'));
+    expect(byId(host, 'market-want-gold-count')!.textContent).toBe('10');
+    const price = byId(host, 'market-gold-price')!;
+    expect(price.textContent).toContain('1');
+    expect(price.querySelector('[role="tooltip"]')!.textContent).toBe(
+      'Zlato – 1 mince za gram, vždy',
+    );
+    // bez šperkaře u mincí popisek jen název
+    expect(byId(host, 'market-give-coins')!.querySelector('[role="tooltip"]')!.textContent).toBe(
+      'Mince',
+    );
+  });
+
+  it('se šperkařem: popisek ceny zlata i mincí říká 1,5násobek a kolik gramů ještě platí', async () => {
+    const host = await mount({
+      market: market({
+        stock: { grain: 1000, gold: 25, coins: 12 },
+        jewelleryG: 30,
+        jewelleryFactor: 1.5,
+      }),
+    });
+    // „Dáš“ (prodej zlata) výhodu má, „Dostaneš“ (nákup zlata) ne
+    expect(
+      byId(host, 'market-give-gold')!.querySelector('[role="tooltip"]')!.textContent,
+    ).toContain('Zlato (g)');
+    expect(
+      byId(host, 'market-give-gold')!.querySelector(
+        '[data-testid="market-gold-price"] [role="tooltip"]',
+      )!.textContent,
+    ).toBe('Zlato – 1 mince za gram, vždy, se šperkařem 1,5 mince za gram – ještě pro 30 g');
+    expect(
+      byId(host, 'market-want-gold')!.querySelector(
+        '[data-testid="market-gold-price"] [role="tooltip"]',
+      )!.textContent,
+    ).toBe('Zlato – 1 mince za gram, vždy');
+    expect(byId(host, 'market-give-coins')!.querySelector('[role="tooltip"]')!.textContent).toBe(
+      'Se šperkařem platí 1,5násobek – ještě pro 30 g',
+    );
   });
 
   it('zpráva ukáže kováře jako kováře, ne obchodníka s hřivnami', async () => {

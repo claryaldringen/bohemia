@@ -95,6 +95,7 @@ describe('vylepšení vsi ve dvorci', () => {
             day: 0,
             trips: [],
             merchantsDay: null,
+            goldPrice: 1,
             arms: [],
             merchantsArrived: null,
             slaveSale: null,
@@ -121,6 +122,7 @@ describe('vylepšení vsi ve dvorci', () => {
         day: 0,
         trips: [],
         merchantsDay: null,
+        goldPrice: 1,
         arms: [],
         merchantsArrived: null,
         slaveSale: null,
@@ -156,6 +158,7 @@ describe('cizí kupci ve dvorci (markets.md – Rozhodnutí plánu 4, bod 12)', 
             day: 10,
             trips: [],
             merchantsDay,
+            goldPrice: 1,
             arms: [],
             merchantsArrived: null,
             slaveSale: null,
@@ -165,7 +168,8 @@ describe('cizí kupci ve dvorci (markets.md – Rozhodnutí plánu 4, bod 12)', 
     );
   const days = (html: string): string | undefined =>
     /data-testid="manor-merchants"[^>]*>([^<]*)</.exec(html)?.[1];
-  const trade = 'kupují med, vosk, kožešiny a otroky, prodávají meče, kroužkové košile a helmy';
+  const trade =
+    'kupují zlato, med, vosk, kožešiny a otroky, prodávají meče, kroužkové košile a helmy';
 
   it('ikona kupců s počtem dní do příjezdu, slova jen v popisku', () => {
     const html = render(22);
@@ -211,6 +215,7 @@ describe('tlačítko lovu ve dvorci', () => {
             day: 0,
             trips: [],
             merchantsDay: null,
+            goldPrice: 1,
             arms: [],
             merchantsArrived: null,
             slaveSale: null,
@@ -292,6 +297,7 @@ describe('otroci ve dvorci (markets.md – Pravidla 7)', () => {
             day: 10,
             trips: [],
             merchantsDay: null,
+            goldPrice: 1,
             arms: [],
             merchantsArrived: null,
             slaveSale: null,

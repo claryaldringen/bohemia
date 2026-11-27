@@ -539,6 +539,20 @@ describe('buildVillageView', () => {
     });
   });
 
+  it('dílny zlata: zámky z domény – rýžovník bez náplavu, mincovna do roku 949, šperkař volný', () => {
+    const last949 = dayIndexOf({ year: 949, month: 12, day: 31 });
+    const first950 = dayIndexOf({ year: 950, month: 1, day: 1 });
+    const before = buildVillageView(record(), landscape, last949).build;
+    expect(before.panner.blocked).toBe('Bez zlatonosného náplavu');
+    expect(before.minter.blocked).toBe('Od roku 950');
+    expect(before.minter.variants?.vypleteny?.blocked).toBe('Od roku 950');
+    expect(before.minter.variants?.srub?.blocked).toBe('Od roku 950');
+    expect(before.jeweller.blocked).toBeNull();
+    const after = buildVillageView(record(), landscape, first950).build;
+    expect(after.minter.blocked).toBeNull();
+    expect(after.minter.variants?.srub?.blocked).toBeNull();
+  });
+
   it('čerstvá ves: lidé, zásoby, stavba zemnice zakladatelů a pole', () => {
     const free = (
       laborManDays: number,
@@ -702,6 +716,75 @@ describe('buildVillageView', () => {
             laborManDays: 366,
             upfront: [{ resource: 'wood', amount: 33, missing: 33 }],
             blocked: 'Od roku 800',
+            affordable: false,
+          },
+        },
+      },
+      // dílny zlata (plán 6): rýžovník jako zemnice s přirážkou, šperkař a mincíř jako kovář
+      panner: {
+        laborManDays: 78,
+        perHa: false,
+        perSquare: false,
+        upfront: [{ resource: 'wood', amount: 9, missing: 9 }],
+        blocked: 'Bez zlatonosného náplavu',
+        affordable: false,
+        variants: {
+          vypleteny: {
+            laborManDays: 278,
+            upfront: [{ resource: 'wood', amount: 16, missing: 16 }],
+            blocked: 'Bez zlatonosného náplavu',
+            affordable: false,
+          },
+          srub: {
+            laborManDays: 318,
+            upfront: [{ resource: 'wood', amount: 30, missing: 30 }],
+            blocked: 'Bez zlatonosného náplavu',
+            affordable: false,
+          },
+        },
+      },
+      // šperkař
+      jeweller: {
+        laborManDays: 286,
+        perHa: false,
+        perSquare: false,
+        upfront: [{ resource: 'wood', amount: 23, missing: 23 }],
+        blocked: null,
+        affordable: false,
+        variants: {
+          vypleteny: {
+            laborManDays: 326,
+            upfront: [{ resource: 'wood', amount: 19, missing: 19 }],
+            blocked: 'Od roku 750',
+            affordable: false,
+          },
+          srub: {
+            laborManDays: 366,
+            upfront: [{ resource: 'wood', amount: 33, missing: 33 }],
+            blocked: 'Od roku 800',
+            affordable: false,
+          },
+        },
+      },
+      // mincíř
+      minter: {
+        laborManDays: 286,
+        perHa: false,
+        perSquare: false,
+        upfront: [{ resource: 'wood', amount: 23, missing: 23 }],
+        blocked: 'Od roku 950',
+        affordable: false,
+        variants: {
+          vypleteny: {
+            laborManDays: 326,
+            upfront: [{ resource: 'wood', amount: 19, missing: 19 }],
+            blocked: 'Od roku 950',
+            affordable: false,
+          },
+          srub: {
+            laborManDays: 366,
+            upfront: [{ resource: 'wood', amount: 33, missing: 33 }],
+            blocked: 'Od roku 950',
             affordable: false,
           },
         },

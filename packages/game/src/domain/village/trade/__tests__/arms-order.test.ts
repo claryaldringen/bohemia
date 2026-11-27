@@ -206,6 +206,23 @@ describe('hostitel jako kupující (armsBuyer)', () => {
     expect(armsBuyer(s, DAY, s.market!.visitors)).toMatchObject({ coins: 0, fromMerchants: true });
   });
 
+  it('dá i celé gramy zlata k doplacení a kapacitu šperkaře – nejvýš kov vsi (plán 6)', () => {
+    const s = host(40, { swords: 1 });
+    s.gold = 100.7;
+    s.jewelleryG = 30;
+    merchant(s, {});
+    expect(armsBuyer(s, DAY, s.market!.visitors)).toStrictEqual({
+      coins: 40,
+      goldPurse: 100,
+      jewelleryG: 30,
+      wants: { swords: 1 },
+      fromMerchants: true,
+    });
+    // kapacita nad kov (100 g + 40 mincí) se nepoužije
+    s.jewelleryG = 500;
+    expect(armsBuyer(s, DAY, s.market!.visitors)).toMatchObject({ jewelleryG: 140 });
+  });
+
   it('bez objednávky, nebo bez kupce na trhu null', () => {
     const none = host(500);
     merchant(none, { swords: 2, coins: 60 });

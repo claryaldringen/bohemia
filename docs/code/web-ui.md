@@ -439,7 +439,7 @@ villageId)`. Z levných otisků (`stampsOf` – `last_day`, `asleep`) se dopočt
   (pak je mřížka zamčená), nad stavbou stejného druhu se malování chytí její mřížky (`gridAt`,
   drží ji i mimo ni – rozšíření), vybraná stavba dá mřížku hned (`PlacementMode.squares.grid`);
   natočená mřížka má čtverec pod kurzorem ve středu políčka. Ctrl ve výběru obydlí platí i jako Cmd; Ctrl / Shift + klik na cestu či
-  pole vybraná obydlí nezruší; Ctrl + A při umisťování nic nevybere. Zkratky staveb Z zemnice, X polozemnice, 2 vypletený dům (od roku 750), 1 srub (číslice `Digit2` a `Digit1` – písmena jsou obsazená; `hotkeyCode`; do roku 800 zašedlý s důvodem „Od roku 800“ – `VillageView.build.srub.blocked` z `dwellingYearReason` v `buildOptions`, log-house.md – Dům), C pole, V hřbitov, B sad,
+  pole vybraná obydlí nezruší; Ctrl + A při umisťování nic nevybere. Zkratky staveb Z zemnice, X polozemnice, 2 vypletený dům (od roku 750), 1 srub (číslice `Digit2` a `Digit1` – písmena jsou obsazená; `hotkeyCode`; do roku 800 zašedlý s důvodem „Od roku 800“ – `VillageView.build.srub.blocked` z `dwellingYearReason` v `buildOptions`, log-house.md – Dům), dílny zlata 3 rýžovník, 4 šperkař, 5 mincovna (`Digit3`–`Digit5` přes `hotkeyCode` v `workshop()`; zašedlé s důvodem z `workshopBlocked` – `buildOptions` i `workshopVariants`: „Bez zlatonosného náplavu“, „Náplavy jsou vyrýžované“, „Od roku 950“ i u vypletené a roubené varianty), C pole, V hřbitov, B sad,
   N modla, M svatyně, K humno, O ohrada, panely J Kronika a U Upozornění (`lib/panel-keys.ts`) (modla, svatyně a humno se umisťují půdorysem jako obydlí – `PlacementMode`
   `sacred` a `threshing-floor`; ohrada po čtvercích – O i tlačítko otevřou v mřížce rozcestník druhů zvířat (ovce,
   kozy, prasata, skot, spřežení – bez zkratek), nad ohradou téhož druhu se chytí její mřížky). V otevřené nabídce hry žádná klávesa hry neběží – F10 nebo Esc ji zavře (Tab jen
@@ -1372,11 +1372,12 @@ plní `manorView` (`stanceOf`), volba jde přes server action `setDefenseStance`
   v `lib/manor-view.ts`): `merchantsDay` – den příštího příjezdu kupců (dnešek jen v den příjezdu; null =
   ves bez stezky), `arms` – zbroj s cenou dne v mincích (`coinPriceOf` s hladinou trhu) a objednaným počtem
   (jen u vsi se zastávkou kupců, jinak prázdné), `merchantsArrived` – den posledního příjezdu.
+- **Zlato a dílny zlata (gold.md, plán 6)** – `WaresStock` ukáže před mincemi `wares-gold` (ikona `gold`, celé gramy `WaresView.goldG`, popisek „Zlato – 84 g“) a `wares-jewellery` (ikona `jewellery`, `WaresView.jewelleryG`, popisek „Šperky – zlato a mince za 1,5násobek, ještě pro 30 g“), jen kladné. Údaje dílen počítá jádro (`summary.ts` – `goldWorkshopSummary`, typ `GoldWorkshopSummary`: rýžovník `{ placersLeft, leftG, walkM }`, šperkař `{ wroughtG, materialG }`, mincovna `{ goldG }`), `craftsView` je předá v `VillageWorkshop.gold` a `workshopDetails` v `SelectionWorkshop.gold`; panel `GoldWorkshopStats` (`selection/crafts.tsx`, vzor `SmithOreStats`) je ukáže ikonami s čísly (`selection-workshop-placers`, `-placer-walk`, `-wrought`, `-material`, `-mint-gold`). Testy `lib/__tests__/village-view-crafts.test.ts`, `GoldWorkshopStats.test.tsx`, `WaresStock.test.tsx`.
 - **Zásoby dvorce** – `WaresStock` (`selection/wares.tsx`): mince a každý druh zbroje ikonou s celým
   číslem (`wares-coins`, `wares-<zbroj>`; popisek jméno zboží), při nule nic; ves jen s mincemi ukáže jen
   je. Horní lišta beze změny.
 - **Kupci ve dvorci** – `MerchantsStat` v `ManorUpgrades` (`hud/ManorPanel.tsx`): ikona `merchants` a počet
-  dní do příjezdu (`manor-merchants`), popisek „Kupci přijedou za 12 dní – kupují med, vosk a kožešiny,
+  dní do příjezdu (`manor-merchants`), popisek „Kupci přijedou za 12 dní – kupují zlato, med, vosk, kožešiny a otroky,
   prodávají meče, kroužkové košile a helmy“ (zboží z `MERCHANTS` přes `goodsNames` v
   `lib/trade-names.ts`), v den příjezdu „Kupci jsou dnes ve vsi – …“; ves bez stezky nic.
 - **Panel Trh** (`hud/MarketPanel.tsx`): ceny ve zprávě jsou v mincích i s hladinou (`PricesLine` –
@@ -1408,6 +1409,19 @@ plní `manorView` (`stanceOf`), volba jde přes server action `setDefenseStance`
   `slaves` (jinak null). `marketPreview` bere zásobu otroků a volné dospělé z odpovědi `marketTripPeople`
   (odcházející otroci nenesou; odpověď bez otroků zásobu otroků nepřepíše), takže náhled neodmítne platnou
   výpravu ani nepustí tu, kterou server odmítne (`MARKET_NO_PEOPLE`).
+- **Zlato v panelu Trh** (gold.md – Pravidla 3 a 4; plán 6, Úloha 10) – zlato má řádek v „Dáš“ (nejvýš
+  `villageGoodStock`) i v „Dostaneš“, krok po 10 g (`stepOf`). `marketField` (`lib/manor-view.ts`) dává
+  pohledu `market.goldPrice` (`coinPriceOf(…, 'gold')` – pevně 1 mince za gram, bez hladiny) a
+  `market.jewelleryG` (`Math.floor(jewelleryOf(state))`, jen > 0, jinak pole chybí). `GoodRow` ukáže u zlata
+  cenu s ikonou mince (`market-gold-price`) a popiskem „Zlato – 1 mince za gram, vždy“, se šperkařem
+  „…, se šperkařem 1,5 mince za gram – ještě pro 30 g“ (`JEWELLER.factor`); u mincí v „Dáš“ je popisek
+  „Se šperkařem platí 1,5násobek – ještě pro 30 g“. Náhled výpravy (`marketPreview`) zlato nijak zvlášť
+  nepočítá – bere zásobu `stock.gold` a `checkMarketTrip`, takže nosiče a důvod odmítnutí má jako server.
+  Testy: `market-view.test.ts`, `MarketPanel.test.tsx`. E2e `e2e/gold.spec.ts`: nabídka staveb – rýžovník
+  „Bez zlatonosného náplavu“ (jen když krajina sídla není `gold-stream`), mincovna „Od roku 950“ (svět
+  e2e začíná rokem 500), šperkař bez zámku; ves s `gold: 84` a `jewelleryG: 30` ukáže `wares-gold` „84“
+  a `wares-jewellery` „30“ a panel Trh má zlato v „Dáš“ s krokem 10 (`market-give-gold-plus`). Počet
+  tlačítek nabídky staveb v `village.spec.ts` je 16 (tři dílny zlata).
 - **Upozornění** „Kupci přijeli“ s ikonou kupců (`VillageNotice.icon`, `lib/village-notices.ts`): za každý
   příjezd – `merchantsArrived` je novější než v minulém pohledu.
 - **Kronika** (`lib/village-view-chronicle.ts`): `merchants-arrived` „Přijeli kupci z daleka – prodávají …,
