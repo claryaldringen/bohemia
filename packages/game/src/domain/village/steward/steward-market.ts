@@ -11,8 +11,9 @@ import { emigrantList } from '../trade/people-trade';
 import { offeredSlaveIds } from '../trade/slaves';
 import { nearbyTarget } from '../trade/nearby';
 import { villageGoodStock } from '../trade/trade';
+import { goldCoinPrice } from '../trade/market-prices';
 import { priceKg } from '../trade/villager-trips';
-import { COIN_GOOD, TRADE_GOODS, isPieceGood } from '../trade/goods';
+import { COIN_GOOD, GOLD_GOOD, TRADE_GOODS, isPieceGood } from '../trade/goods';
 import type { CartKind, NearbyVillage, TradeGood, TradeGoods, VillageState } from '../types';
 import type { NeedContext } from './steward-needs';
 import { isStewardOn } from './steward-state';
@@ -153,8 +154,8 @@ export function stewardGrainStep(state: VillageState, ctx: NeedContext, shortKg:
  * `cells`, pak `villageId`), ať správce okolí pozná; jen shání-li ves něco. Návrh Clauda (Martin
  * 22. 11. 2026: „Správce je vlastně NPC hráč, takže by měl mít možnost dělat téměř vše, co skutečný
  * hráč“; pravidlo 9 – správce sestavuje výpravy jako hráč). Seznam zkrátí na to, co lidé a vozy
- * unesou domů, náklad na to, co unesou tam (`fitToCrew`), a přidá mince na seznam (`coinsFor` –
- * Rozhodnutí plánu 4, bod 4; nic neváží, nosiče nepřidají). Bez paměti navíc. Vrací, jestli vyrazil.
+ * unesou domů, náklad na to, co unesou tam (`fitToCrew`), a přidá mince na seznam, chybí-li, i zlato (`moneyFor` –
+ * Rozhodnutí plánu 4, bod 4 a plánu 6, bod 8; nic neváží, nosiče nepřidají). Bez paměti navíc. Vrací, jestli vyrazil.
  * Otroky správce zatím neprodává ani nekupuje (markets.md – Rozhodnutí plánu 5, bod 8 – návrh
  * Clauda): z nabídky vsi je vyřadí a otroci z nabídky hráče (`offeredSlaveIds`, spočtená jednou
  * před výpravou) zůstanou doma – jako rodina, muž ani žena neodejdou (`leavingGroups`
@@ -184,8 +185,7 @@ export function stewardMarketStep(state: VillageState, ctx: NeedContext): boolea
   const village = villages[date.year % villages.length]!;
   const target = nearbyTarget(state, village.villageId);
   if (!target) return false;
-  const coins = coinsFor(state, day, village.villageId, wants);
-  if (coins > 0) give[COIN_GOOD] = coins;
+  Object.assign(give, moneyFor(state, day, village.villageId, wants));
   const sent = departMarketInPlace(
     state,
     day,
@@ -197,17 +197,34 @@ export function stewardMarketStep(state: VillageState, ctx: NeedContext): boolea
 }
 
 /**
- * Kolik mincí roční výprava veze na seznam `wants` ve vsi `villageId` (Rozhodnutí plánu 4, bod 4):
- * hodnota seznamu za ceny cíle (`priceKg`) v celých mincích nahoru – šum z půlení (`fitToCrew`) minci
- * nepřidá –, nejvýš co ves dnes má.
+ * Čím roční výprava platí seznam `wants` ve vsi `villageId` (Rozhodnutí plánu 4, bod 4 a plánu 6,
+ * bod 8): hodnota seznamu za ceny cíle (`priceKg`) v celých mincích nahoru – šum z půlení (`fitToCrew`)
+ * minci nepřidá. Napřed mince, nejvýš co ves dnes má; chybí-li, zbytek v celých gramech zlata
+ * (gram = `goldCoinPrice` mince u cíle), nejvýš co ves má. Mince ani zlato neváží – nosiče nepřidají.
  */
-function coinsFor(state: VillageState, day: number, villageId: string, wants: TradeGoods): number {
+function moneyFor(
+  state: VillageState,
+  day: number,
+  villageId: string,
+  wants: TradeGoods,
+): TradeGoods {
   const dueKg = TRADE_GOODS.reduce(
     (sum, good) => sum + (wants[good] ?? 0) * priceKg(state, villageId, good),
     0,
   );
-  const coins = Math.ceil(dueKg / priceKg(state, villageId, COIN_GOOD) - NOISE_KG);
-  return Math.min(villageGoodStock(state, COIN_GOOD, day), coins);
+  const due = Math.ceil(dueKg / priceKg(state, villageId, COIN_GOOD) - NOISE_KG);
+  const money: TradeGoods = {};
+  const coins = Math.min(villageGoodStock(state, COIN_GOOD, day), due);
+  if (coins > 0) money[COIN_GOOD] = coins;
+  const rest = due - coins;
+  if (rest > 0) {
+    const gold = Math.min(
+      villageGoodStock(state, GOLD_GOOD, day),
+      Math.ceil(rest / goldCoinPrice()),
+    );
+    if (gold > 0) money[GOLD_GOOD] = gold;
+  }
+  return money;
 }
 
 /**

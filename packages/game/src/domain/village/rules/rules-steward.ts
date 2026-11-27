@@ -328,9 +328,18 @@ export const STEWARD = {
    * plánu 4, bod 4; Martin 25. 11. 2026: „Mince utrácí jen vojvoda/správce“), pak zboží, které ves
    * nejí a bez kterého hospodaří (jako nákup osiva – jídlem ani dobytkem neplatí), napřed s nejvyšší
    * hodnotou na kg nákladu, ať je výprava nejmenší (mince nic neváží, hřivny 45, keramika 3, uhlí
-   * 0,5, klády 0,4 kg obilí na kg).
+   * 0,5, klády 0,4 kg obilí na kg). Zlato až nakonec, na zbytek ceny (gold.md – Rozhodnutí plánu 6,
+   * bod 8 – návrh Clauda): výměna zlata za mince potřebuje mince hostitele, a kdyby zlato platilo hned
+   * po mincích, výprava u hostitele bez mincí obilí nedostala.
    */
-  grainPayment: ['coins', 'ironBars', 'pottery', 'charcoal', 'logs'] as readonly TradeGood[],
+  grainPayment: [
+    'coins',
+    'ironBars',
+    'pottery',
+    'charcoal',
+    'logs',
+    'gold',
+  ] as readonly TradeGood[],
   /**
    * Krok 2a – Lov v nouzi: zvěř škodí, když škoda na polích letos nebo loni dosáhne tohoto podílu
    * roční potřeby obilí z pole – stejný práh jako noční hlídka dílu (`FIELD_GUARD.night.threat`).
