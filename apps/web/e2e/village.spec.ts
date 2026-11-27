@@ -155,9 +155,9 @@ test('nový hráč založí ves umístěním zemnice, přejmenuje ji a vybere ze
   await found(page, spots.dwelling);
   const name = page.getByTestId('village-name');
   await expect(name).toHaveText(suggestVillageName(s.seed));
-  // 13 tlačítek (modla a svatyně jsou jedno – Posvátná místa): nový rod ještě není pokřtěný, takže
+  // 16 tlačítek (tři dílny zlata – plán 6; modla a svatyně jsou jedno – Posvátná místa): nový rod ještě není pokřtěný, takže
   // oba kostely okruhu huti v nabídce vůbec nejsou (Martin 14. 11. 2026 – kostel až po křtu rodu)
-  await expect(grid.getByRole('button')).toHaveCount(13);
+  await expect(grid.getByRole('button')).toHaveCount(16);
   // Obydlí ani dílny lidi k osídlení nechtějí (demolition.md) – stavba stojí jen dřevo a stromy
   // krajina má. Hřbitov, sad, modla, svatyně ani ohrada lidi nechtějí taky. Lom je v nabídce
   // vždy (fortifications.md – Kámen; bez dřeva předem) – jde jen u skal, a když krajina skalní

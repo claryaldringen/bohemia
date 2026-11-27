@@ -1417,7 +1417,11 @@ plní `manorView` (`stanceOf`), volba jde přes server action `setDefenseStance`
   „…, se šperkařem 1,5 mince za gram – ještě pro 30 g“ (`JEWELLER.factor`); u mincí v „Dáš“ je popisek
   „Se šperkařem platí 1,5násobek – ještě pro 30 g“. Náhled výpravy (`marketPreview`) zlato nijak zvlášť
   nepočítá – bere zásobu `stock.gold` a `checkMarketTrip`, takže nosiče a důvod odmítnutí má jako server.
-  Testy: `market-view.test.ts`, `MarketPanel.test.tsx`.
+  Testy: `market-view.test.ts`, `MarketPanel.test.tsx`. E2e `e2e/gold.spec.ts`: nabídka staveb – rýžovník
+  „Bez zlatonosného náplavu“ (jen když krajina sídla není `gold-stream`), mincovna „Od roku 950“ (svět
+  e2e začíná rokem 500), šperkař bez zámku; ves s `gold: 84` a `jewelleryG: 30` ukáže `wares-gold` „84“
+  a `wares-jewellery` „30“ a panel Trh má zlato v „Dáš“ s krokem 10 (`market-give-gold-plus`). Počet
+  tlačítek nabídky staveb v `village.spec.ts` je 16 (tři dílny zlata).
 - **Upozornění** „Kupci přijeli“ s ikonou kupců (`VillageNotice.icon`, `lib/village-notices.ts`): za každý
   příjezd – `merchantsArrived` je novější než v minulém pohledu.
 - **Kronika** (`lib/village-view-chronicle.ts`): `merchants-arrived` „Přijeli kupci z daleka – prodávají …,
