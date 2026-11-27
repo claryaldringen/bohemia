@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { dayIndexOf } from '../../../calendar';
 import { foundVillage } from '../../core/actions';
+import { newWorkshop } from '../../crafts/crafts';
 import { secondaryWifeFamilies } from '../dynasty-housing';
 import { familiesOf } from '../households';
 import { removePeople } from '../kinship';
@@ -215,6 +216,17 @@ describe('dvorec po nástupu (lord.md – Nástupnictví, Synové po sňatku)', 
     const f = lordFamily(s, DAY + 1);
     expect(f.household.map((p) => p.id)).toEqual([11]);
     expect(f.others.map((p) => p.id)).toEqual([50]);
+  });
+
+  it('rýžovník si vezme matku nezletilého vojvody – dvorec má přednost před dílnou (Martin 27. 11. 2026)', () => {
+    const s = tracked([son(20, 10, 11)], [20]);
+    s.dwellings[1]!.workshop = newWorkshop('panner');
+    s.people.push({ id: 50, bornDay: DAY - 30 * 366, dwellingId: 2, sex: 'male' });
+    removePeople(s, new Set([10]));
+    succeedLord(s, DAY + 1);
+    const mother = s.people.find((p) => p.id === 11)!;
+    const groom = s.people.find((p) => p.id === 50)!;
+    expect(weddingHome(s, DAY + 1, groom, mother)).toEqual({ mover: groom, dwellingId: 1 });
   });
 
   it('vojvoda se nepřižení k vdově, která drží dům – nevěsta jde do dvorce', () => {

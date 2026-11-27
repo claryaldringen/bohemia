@@ -24,7 +24,13 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   Martin 25. 10. 2026). **Domácnost drží člověk 16–44**
   (`householdBreaksUp` v `people.ts`; osamělý 16–44 zůstává), rozpadlá jde k příbuzným (syn,
   dcera, sourozenec), jinak do domu s nejvíc místy – jen kam se vejde bez přeplnění, jinak zůstane doma (Martin; samotné děti jdou
-  i do přeplněného).
+  i do přeplněného). **Dílna se nerozpadá, dokud v ní žije řemeslník** (`dissolveHouseholds`
+  v `population.ts`; `isCraftsman` v `people.ts` – muž od 14 let (`AGE.adult`; 13letý chlapec dílnu
+  neudrží), kdo není žena jako v `craftHands`, i starší bez práce; řemeslník je nejstarší z nich,
+  při shodě data narození nižší id, dílna bez muže řemeslníka nemá – `craftsmanOf`; Martin 27. 11. 2026): osamělý
+  řemeslník ve stáří v dílně zůstane, dokud žije; vdova po něm nebo jen děti se starší se přestěhují
+  jako jinde. Ostatní kontroly rozpadu (`householdBreaksUp` u odchodu rodin, lidí k sousedům
+  a sňatků se sousedy) beze změny.
 
 - **Otroci** ([markets.md](../design/markets.md) – Pravidla 7, Rozhodnutí plánu 5; Martin 22. 11. 2026:
   „Od zajetí bude prostě vedený jako otrok“; `people/slaves.ts`): `Person.slave` (chybí = svobodný) –
@@ -49,7 +55,7 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   prázdný dům nejdřív rodina z nejvíc přeplněného domu, v něm od nejstaršího muže);
   dům drží jeden dědic – nejstarší ženatý syn s rodiči, v domě bez ženatého syna vdova s vlastními dětmi, jinak nejstarší ženatý muž; ostatní ženatí se oddělí (i muž bez rodičů v domě vedle dědice). Co zůstane prázdné,
   osídlí **svobodný nejstarší syn – jen z plného domu** (`loneSonOf`, Martin – „nejstarší dítě může
-  odejít“, „ať prázdný dům obsadí i plná domácnost“; od 16 let, bez ženatého dědice a s neplodnou matkou zůstává nejstarší a jde druhý; bez syna jiný svobodný muž od 16 let bez rodičů v domě, ne otec dětí z domu – `lodgerOf`).
+  odejít“, „ať prázdný dům obsadí i plná domácnost“; od 16 let, bez ženatého dědice a s neplodnou matkou zůstává nejstarší a jde druhý; bez syna jiný svobodný muž od 16 let bez rodičů v domě, ne otec dětí z domu – `lodgerOf`). Řemeslník dílny (`craftsmanOf`) neodchází ani jako svobodný syn – jde další v pořadí (dva svobodní bratři bez rodičů: mladší; Martin 27. 11. 2026).
   Dcery odcházejí sňatkem. Ne z domácnosti, jejíž zbytek by se rozpadl, a jen kdo nový dům udrží
   (rodina i svobodný muž s někým 16–44 – starší pár by se v novém domě rozpadl, vrátil a odešel
   znovu: stěhování tam a zpět, kalibrace 19. 10. 2026). **Chátrá jen prázdné
@@ -285,7 +291,12 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   věkem (`bestMatch`), rozdíl do `MARRIAGE.maxAgeGapYears` (s vdovou či vdovcem
   `maxAgeGapWidowedYears` 20). Kam (`weddingHome`): **žena k muži**, i do přeplněného domu; drží-li
   dům ona a on ne (`holdsHome` – po jeho odchodu s dětmi do 16 by doma nezůstal nikdo 16–44), **on
-  k ní**; drží-li oba, kde bude méně těsno, při shodě žena. Stěhuje se i s vlastními dětmi do 16
+  k ní**; drží-li oba, kde bude méně těsno, při shodě žena. **Je-li ženich řemeslník** – nejstarší
+  muž dílny (`craftsmanOf` v `people.ts`; po jeho smrti nejstarší muž, který v dílně zbyl) –, žena
+  jde k němu, i když drží svůj dům; jeho synové se řídí pravidly výš, aby se dílna nepřeplnila
+  (kinship.md – Řemeslník zůstává v dílně; Martin 27. 11. 2026: „ano“). Dvorec vojvody
+  (`holdsManor` ženicha nebo nevěsty) má přednost („Dvorec má přednost“), pořadí: stejný dům,
+  dvorec, řemeslník, zbytek. Stěhuje se i s vlastními dětmi do 16
   (`dependants`); nevěsta dostane `nextBirthFrom` (9 měsíců – `startMarriage`). Kdo ve vsi bez
   okolí nemá s kým, zůstane svobodný: nikdo nepřijde ani se nevdá pryč (Martin 22. 11. 2026: „dokud
   bude vesnice bez spojení s okolím, ať se lidé berou mezi sebou“; markets.md – Pravidla 1); ves
@@ -337,7 +348,8 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
     `…:ask`. Hledající odpověď neeviduje.
   - **Kdo přijde** (`kinCandidates(state, day)` – v pořadí id): svobodný doma (`isAway` ne – kdo je
     pryč, z vsi neodejde), muž od 18, bez protějšku ve vsi, ne muž rodu ani jeho žena
-    (`keptByLine`), žena ne `favouredBride` (vdova, dědička ani žena z domu bez mužů se pryč
+    (`keptByLine`), ne řemeslník (`craftsmanOf` – vezme si jen nevěstu, která přijde k němu; jeho
+    synové ano), žena ne `favouredBride` (vdova, dědička ani žena z domu bez mužů se pryč
     nevdává), bez dětí do 16 (`dependants` – jde sám), domácnost se jeho odchodem nerozpadne
     (`householdBreaksUp`). `answerKinAsk` (větev schránky `kin-ask`, ráno před vlastními sňatky):
     ves bez `nearby.self` nic; zpráva o hledající vsi do `news`; partner (`kinPartner` – opačné

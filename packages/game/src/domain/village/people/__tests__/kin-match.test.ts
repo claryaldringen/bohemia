@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createRandom, deriveSeed } from '../../../landscape/random';
 import { advanceVillage } from '../../core/simulate';
+import { newWorkshop } from '../../crafts/crafts';
 import { BIRTH_SPACING, MARRIAGE } from '../../rules';
 import { joinMarket } from '../../trade/market';
 import { newcomerHome } from '../../trade/people-trade';
@@ -253,6 +254,17 @@ describe('svobodní pro okolí – kinCandidates, kinSingles', () => {
     ]);
     expect(kinCandidates(s, DAY).map((p) => p.id)).toEqual([3]);
     expect(kinSingles(s, DAY)).toEqual([{ sex: 'female', ageFrom: 20 }]);
+  });
+
+  it('řemeslník – nejstarší muž dílny – se pryč nepřižení, jeho syn ano (Martin 27. 11. 2026)', () => {
+    // rýžovník 40 (vdovec) se synem 20 v dílně 1
+    const s = folk([
+      { id: 1, age: 40, sex: 'male' },
+      { id: 2, age: 20, sex: 'male', father: 1 },
+    ]);
+    s.dwellings[0]!.workshop = newWorkshop('panner');
+    expect(kinCandidates(s, DAY).map((p) => p.id)).toEqual([2]);
+    expect(kinSingles(s, DAY)).toEqual([{ sex: 'male', ageFrom: 20 }]);
   });
 });
 

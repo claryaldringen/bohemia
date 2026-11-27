@@ -10,6 +10,7 @@ import {
   populationDay,
   starvationDeathChance,
 } from '../population';
+import { newWorkshop } from '../../crafts/crafts';
 import { ageYears } from '../people';
 import { BIRTH_SPACING, START_AGES, STARVATION, maritalFertility } from '../../rules';
 import type { ChronicleEvent, Dwelling, Person, VillageState } from '../../types';
@@ -657,5 +658,75 @@ describe('populationDay', () => {
     const state = startVillage(2);
     populationDay(state, FOUNDED, 1);
     expect(ageYears(state.people[0]?.bornDay ?? 0, FOUNDED)).toBe(25);
+  });
+});
+
+describe('populationDay – řemeslník zůstává v dílně (Martin 27. 11. 2026, kinship.md – Rozpad domácnosti)', () => {
+  const day = FOUNDED + 5 * YEAR; // hájení: nikdo dospělý neumře
+  const merged = (events: ChronicleEvent[]): ChronicleEvent[] =>
+    events.filter((e) => e.kind === 'household-merged');
+  /** Zemnice 1 s mladým párem (4 volná místa), v dílně 2 sám řemeslník 50. */
+  const craftsmanVillage = (): VillageState =>
+    village(
+      1,
+      [
+        { ...ofAge(1, 30, 1, day), sex: 'male', spouseId: 2, fatherId: 3 },
+        { ...ofAge(2, 28, 1, day), sex: 'female', spouseId: 1 },
+        { ...ofAge(3, 50, 2, day), sex: 'male' },
+      ],
+      [dwelling(1), { ...dwelling(2), workshop: newWorkshop('potter') }],
+    );
+
+  it('osamělý starý řemeslník v dílně zůstane, dokud žije', () => {
+    const state = craftsmanVillage();
+    expect(merged(populationDay(state, day, 1))).toEqual([]);
+    expect(state.people.find((p) => p.id === 3)?.dwellingId).toBe(2);
+  });
+
+  it('řemeslník se ženou ve stáří zůstanou; po jeho smrti se vdova přestěhuje jako dnes', () => {
+    const state = craftsmanVillage();
+    state.people.find((p) => p.id === 3)!.spouseId = 4;
+    state.people.push({ ...ofAge(4, 48, 2, day), sex: 'female', spouseId: 3 });
+    expect(merged(populationDay(state, day, 1))).toEqual([]);
+    state.people = state.people.filter((p) => p.id !== 3);
+    expect(merged(populationDay(state, day + 1, 1))).toEqual([
+      { day: day + 1, kind: 'household-merged', fromDwellingId: 2, toDwellingId: 1 },
+    ]);
+  });
+
+  it('chlapec řemeslníkem není – babička s vnukem 10 se z dílny přestěhuje jako dnes', () => {
+    const state = craftsmanVillage();
+    state.people = state.people.filter((p) => p.id !== 3);
+    state.people.push(
+      { ...ofAge(4, 60, 2, day), sex: 'female' },
+      { ...ofAge(5, 10, 2, day), sex: 'male', fatherId: 1 },
+    );
+    expect(merged(populationDay(state, day, 1))).toEqual([
+      { day, kind: 'household-merged', fromDwellingId: 2, toDwellingId: 1 },
+    ]);
+  });
+
+  it('vdova s chlapcem 13 se z dílny přestěhuje, se 14letým (AGE.adult – řemeslník) zůstane', () => {
+    const withBoy = (years: number): VillageState => {
+      const state = craftsmanVillage();
+      state.people = state.people.filter((p) => p.id !== 3);
+      state.people.push(
+        { ...ofAge(4, 50, 2, day), sex: 'female' },
+        { ...ofAge(5, years, 2, day), sex: 'male', motherId: 4 },
+      );
+      return state;
+    };
+    expect(merged(populationDay(withBoy(13), day, 1))).toEqual([
+      { day, kind: 'household-merged', fromDwellingId: 2, toDwellingId: 1 },
+    ]);
+    expect(merged(populationDay(withBoy(14), day, 1))).toEqual([]);
+  });
+
+  it('osamělý starý muž v obyčejném domě jde k synovi jako dnes', () => {
+    const state = craftsmanVillage();
+    delete state.dwellings[1]!.workshop;
+    expect(merged(populationDay(state, day, 1))).toEqual([
+      { day, kind: 'household-merged', fromDwellingId: 2, toDwellingId: 1 },
+    ]);
   });
 });

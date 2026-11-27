@@ -5,7 +5,15 @@ import { bury, hygieneDeathFactor, villageHygiene } from '../buildings/cemetery'
 import { isOvercrowded } from '../buildings/dwellings';
 import { isDynastyTracked, isLineMan, markNewborn } from './dynasty';
 import { removePeople } from './kinship';
-import { ageGroup, ageYears, canBear, canFather, householdBreaksUp, occupants } from './people';
+import {
+  ageGroup,
+  ageYears,
+  canBear,
+  canFather,
+  householdBreaksUp,
+  isCraftsman,
+  occupants,
+} from './people';
 import { isChristian } from './faith';
 import {
   ADULT_DEATHS_PER_YEAR,
@@ -266,14 +274,18 @@ function dissolveTarget(
  * Rozpadlé domácnosti (nikdo 16–44 – `householdBreaksUp`) se přestěhují k příbuzným, jinak do
  * obydlí s nejvíc volnými místy (`dissolveTarget`); obydlí podle id. Když by kdekoli přeplnily
  * dům, zůstanou ve svém – dům udrží i jediný obyvatel, dokud nezemře, pomáhají mu sousedé
- * (Martin, 19. 10. 2026); obydlený dům nechátrá.
+ * (Martin, 19. 10. 2026); obydlený dům nechátrá. Dílna se nerozpadá, dokud v ní žije řemeslník
+ * (`isCraftsman`) – ve stáří ji neopustí, ani sám (kinship.md – Rozpad domácnosti; Martin
+ * 27. 11. 2026: „ano“).
  */
 function dissolveHouseholds(state: VillageState, day: number): ChronicleEvent[] {
   const events: ChronicleEvent[] = [];
   const ids = state.dwellings.map((d) => d.id).sort((a, b) => a - b);
+  const workshops = new Set(state.dwellings.filter((d) => d.workshop).map((d) => d.id));
   for (const fromId of ids) {
     const members = occupants(state, fromId);
     if (!householdBreaksUp(members, day)) continue;
+    if (workshops.has(fromId) && members.some((p) => isCraftsman(p, day))) continue;
     const target = dissolveTarget(state, day, members, fromId);
     if (target === null) continue;
     for (const p of state.people) {

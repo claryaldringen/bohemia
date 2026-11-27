@@ -1,16 +1,17 @@
 // Sňatky (kinship.md – Sňatky; Martin, 18. 10. 2026: „Pojďme na příbuzenství a pohlaví“;
-// 19. 10. 2026: „Vdova by se měla snažit co nejdříve
-// vdát, ideálně ve vesnici. Obecně by měla být pravidla nastavena tak, aby se populace co nejvíce
-// rozrůstala.“). Berou se jen svobodný muž a svobodná žena; žena se
-// stěhuje k muži i s vlastními dětmi, jen když drží dům a muž ne, přižení se muž k ní. Kdo ve vsi
-// nemá s kým se vzít, zůstane ve vsi bez okolí svobodný (markets.md – Pravidla 1; Martin 22. 11.
-// 2026: „dokud bude vesnice bez spojení s okolím, ať se lidé berou mezi sebou“); ves s okolím se
-// ptá skutečných sousedních vsí (`kin-match.ts` – markets.md, Rozhodnutí plánu 3, bod 11). Krok
-// simulace `arrangeMarriages` stav mění, ostatní funkce jen čtou.
+// 19. 10. 2026: „Vdova by se měla snažit co nejdříve vdát, ideálně ve vesnici. Obecně by měla být
+// pravidla nastavena tak, aby se populace co nejvíce rozrůstala.“). Berou se jen svobodný muž
+// a svobodná žena; žena se stěhuje k muži i s vlastními dětmi, jen když drží dům a muž ne, přižení
+// se muž k ní – kromě řemeslníka, ten se z dílny nestěhuje (Martin 27. 11. 2026, kinship.md –
+// Řemeslník zůstává v dílně). Kdo ve vsi nemá s kým se vzít, zůstane ve vsi bez okolí svobodný
+// (markets.md – Pravidla 1; Martin 22. 11. 2026: „dokud bude vesnice bez spojení s okolím, ať se
+// lidé berou mezi sebou“); ves s okolím se ptá skutečných sousedních vsí (`kin-match.ts` –
+// markets.md, Rozhodnutí plánu 3, bod 11). Krok simulace `arrangeMarriages` stav mění, ostatní
+// funkce jen čtou.
 import { createRandom, deriveSeed } from '../../landscape/random';
 import { holdsManor } from './dynasty';
 import { ageGapYears } from './kinship';
-import { ageYears, holdsHousehold, isFertile, occupants } from './people';
+import { ageYears, craftsmanOf, holdsHousehold, isFertile, occupants } from './people';
 import { AGE, BIRTH_SPACING, DWELLINGS, MARRIAGE, MARRIAGE_STORES } from '../rules';
 import type { ChronicleEvent, Person, VillageState } from '../types';
 
@@ -116,8 +117,11 @@ export function holdsHome(state: VillageState, p: Person, day: number): boolean 
  * a on ne, přižení se on k ní (`holdsHome`). Drží-li dům oba, stěhuje se ten, u koho bude po
  * svatbě méně těsno (lidé nad kapacitu), při shodě žena (návrh Clauda – jinak by vdova s pěti
  * dětmi odešla z polozemnice do zemnice a polozemnice zůstala prázdná). Kdo se stěhuje, vezme
- * s sebou vlastní děti mladší 16 let (`dependants`). Ze stejného domu se nikdo nestěhuje. Null –
- * nový domov ještě nestojí (zakladatelé na staveništi první zemnice).
+ * s sebou vlastní děti mladší 16 let (`dependants`). Ze stejného domu se nikdo nestěhuje.
+ * Řemeslník – nejstarší muž dílny (`craftsmanOf`) – se nestěhuje, žena přijde k němu, i když drží
+ * svůj dům; jeho synové se řídí pravidly výš a dvorec vojvody má přednost (kinship.md – Řemeslník
+ * zůstává v dílně; Martin 27. 11. 2026: „ano“, „Dvorec má přednost“). Null – nový domov ještě
+ * nestojí (zakladatelé na staveništi první zemnice).
  */
 export function weddingHome(
   state: VillageState,
@@ -129,6 +133,9 @@ export function weddingHome(
   // dvorec drží vojvoda, za nezletilého jeho matka – druhý se stěhuje k nim (lord.md – Nástupnictví)
   if (holdsManor(state, groom, day)) return { mover: bride, dwellingId: groom.dwellingId };
   if (holdsManor(state, bride, day)) return { mover: groom, dwellingId: bride.dwellingId };
+  if (craftsmanOf(state, groom.dwellingId, day)?.id === groom.id) {
+    return { mover: bride, dwellingId: groom.dwellingId };
+  }
   const brideHolds = holdsHome(state, bride, day);
   const groomHolds = holdsHome(state, groom, day);
   const groomMoves =

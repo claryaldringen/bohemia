@@ -6,6 +6,7 @@ import {
   loneSonOf,
   waitingHouseholds,
 } from '../households';
+import { newWorkshop } from '../../crafts/crafts';
 import type { Person, VillageState } from '../../types';
 import { DAY, type KinSpec, couple, dwelling, kin, village } from '../../__tests__/kin-fixtures';
 
@@ -225,6 +226,38 @@ describe('svobodný syn smí odejít sám', () => {
     expect(loneSonOf(young, young.dwellings[0]!, DAY)).toBeUndefined();
     const daughters = crowded(40, [child(20, 19, 'female')]);
     expect(loneSonOf(daughters, daughters.dwellings[0]!, DAY)).toBeUndefined();
+  });
+
+  it('z plné dílny řemeslník neodejde – svobodní bratři 30 a 22 bez rodičů, odejde mladší (Martin 27. 11. 2026)', () => {
+    // bratři 30 (řemeslník – nejstarší muž dílny) a 22, sestra 40 se třemi dětmi = 6 lidí v zemnici
+    const s = build(
+      [
+        { id: 30, age: 30, sex: 'male' },
+        { id: 31, age: 22, sex: 'male' },
+        { id: 32, age: 40, sex: 'female' },
+        { id: 40, age: 10, sex: 'male', mother: 32, father: 90 },
+        { id: 41, age: 8, sex: 'female', mother: 32, father: 90 },
+        { id: 42, age: 6, sex: 'female', mother: 32, father: 90 },
+      ],
+      [{ ...dwelling(1), workshop: newWorkshop('potter') }],
+    );
+    expect(loneSonOf(s, s.dwellings[0]!, DAY)?.id).toBe(31);
+    // v obyčejném domě odejde starší jako dřív
+    delete s.dwellings[0]!.workshop;
+    expect(loneSonOf(s, s.dwellings[0]!, DAY)?.id).toBe(30);
+  });
+
+  it('z plné dílny vdovy neodejde nejstarší syn – je řemeslník, odejde druhý', () => {
+    const s = build(
+      [
+        { id: 11, age: 40, sex: 'female' },
+        child(20, 22, 'male'),
+        child(21, 19, 'male'),
+        ...[50, 51, 52].map((id) => child(id, 5, 'female')),
+      ],
+      [{ ...dwelling(1), workshop: newWorkshop('potter') }],
+    );
+    expect(loneSonOf(s, s.dwellings[0]!, DAY)?.id).toBe(21);
   });
 });
 

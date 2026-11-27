@@ -8,6 +8,7 @@ import {
   weddingChancePerDay,
   weddingHome,
 } from '../marriage';
+import { craftHouseholds, newWorkshop } from '../../crafts/crafts';
 import { MARRIAGE_STORES } from '../../rules';
 import type { ChronicleEvent, VillageState } from '../../types';
 import { DAY, couple, dwelling, kin, village } from '../../__tests__/kin-fixtures';
@@ -421,5 +422,101 @@ describe('sňatky čekají na zásoby (kinship.md; Martin 27. 10. 2026)', () => 
     const s = pair(7);
     s.people.push(kin({ id: 8, age: 21, sex: 'female', home: 2 }));
     expect(arrangeMarriages(s, DAY, () => 0)).toEqual([]);
+  });
+});
+
+describe('řemeslník zůstává v dílně (Martin 27. 11. 2026, kinship.md – Sňatky)', () => {
+  /**
+   * Rýžovník 30 sám v dílně 1; vdova 30 drží zemnici 2 – děti 8 a 5 a tchán 62, který po ní
+   * v domě zbude.
+   */
+  const pannerAndWidow = (): VillageState =>
+    village(
+      [
+        kin({ id: 1, age: 30, sex: 'male', home: 1 }),
+        kin({ id: 2, age: 30, sex: 'female', home: 2 }),
+        kin({ id: 3, age: 8, sex: 'male', home: 2, mother: 2, father: 90 }),
+        kin({ id: 4, age: 5, sex: 'female', home: 2, mother: 2, father: 90 }),
+        kin({ id: 5, age: 62, sex: 'male', home: 2 }),
+      ],
+      [{ ...dwelling(1), workshop: newWorkshop('panner') }, dwelling(2)],
+    );
+
+  it('vdova, která drží dům, jde i s dětmi do 16 let do dílny – dílna dál pracuje', () => {
+    const s = pannerAndWidow();
+    expect(holdsHome(s, person(s, 2), DAY)).toBe(true);
+    expect(holdsHome(s, person(s, 1), DAY)).toBe(false);
+    expect(weddingHome(s, DAY, person(s, 1), person(s, 2))).toEqual({
+      mover: person(s, 2),
+      dwellingId: 1,
+    });
+    expect(arrangeMarriages(s, DAY)).toEqual([
+      {
+        day: DAY,
+        kind: 'marriage',
+        fromDwellingId: 2,
+        toDwellingId: 1,
+        widow: true,
+        groomId: 1,
+        brideId: 2,
+        groomFromDwellingId: 1,
+        brideFromDwellingId: 2,
+      },
+    ]);
+    expect(occupants(s, 1).map((p) => p.id)).toEqual([1, 2, 3, 4]);
+    // její dům zůstane tomu, kdo v něm zbyl
+    expect(occupants(s, 2).map((p) => p.id)).toEqual([5]);
+    expect([...craftHouseholds(s)]).toEqual([1]);
+  });
+
+  it('dům vdovy bez nikoho dalšího zůstane prázdný', () => {
+    const s = pannerAndWidow();
+    s.people = s.people.filter((p) => p.id !== 5);
+    arrangeMarriages(s, DAY);
+    expect(occupants(s, 1).map((p) => p.id)).toEqual([1, 2, 3, 4]);
+    expect(occupants(s, 2)).toEqual([]);
+  });
+
+  /** Rýžovník 44 se ženou 40 a synem 22 v dílně 1; vdova 30 s dětmi 8 a 5 drží zemnici 2. */
+  const pannerFamily = (): VillageState =>
+    village(
+      [
+        ...couple({ id: 7, age: 44, home: 1 }, { id: 8, age: 40, home: 1 }).map((k) => kin(k)),
+        kin({ id: 6, age: 22, sex: 'male', home: 1, father: 7, mother: 8 }),
+        kin({ id: 2, age: 30, sex: 'female', home: 2 }),
+        kin({ id: 3, age: 8, sex: 'male', home: 2, mother: 2, father: 90 }),
+        kin({ id: 4, age: 5, sex: 'female', home: 2, mother: 2, father: 90 }),
+      ],
+      [{ ...dwelling(1), workshop: newWorkshop('panner') }, dwelling(2)],
+    );
+
+  it('syn řemeslníka se k vdově, která drží dům, přižení – otec zůstane v dílně a dílna pracuje', () => {
+    const s = pannerFamily();
+    expect(weddingHome(s, DAY, person(s, 6), person(s, 2))).toEqual({
+      mover: person(s, 6),
+      dwellingId: 2,
+    });
+    arrangeMarriages(s, DAY);
+    expect(occupants(s, 1).map((p) => p.id)).toEqual([7, 8]);
+    expect(occupants(s, 2).map((p) => p.id)).toEqual([2, 3, 4, 6]);
+    expect([...craftHouseholds(s)]).toEqual([1]);
+  });
+
+  it('po smrti otce je řemeslníkem syn – při svatbě se nestěhuje, vdova jde k němu', () => {
+    const s = pannerFamily();
+    s.people = s.people.filter((p) => p.id !== 7);
+    expect(weddingHome(s, DAY, person(s, 6), person(s, 2))).toEqual({
+      mover: person(s, 2),
+      dwellingId: 1,
+    });
+  });
+
+  it('ženich z obyčejného domu se k vdově, která drží dům, přižení dál', () => {
+    const s = pannerAndWidow();
+    delete s.dwellings[0]!.workshop;
+    expect(weddingHome(s, DAY, person(s, 1), person(s, 2))).toEqual({
+      mover: person(s, 1),
+      dwellingId: 2,
+    });
   });
 });
