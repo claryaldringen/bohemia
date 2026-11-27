@@ -286,6 +286,11 @@ a čísla měšce v plánech 5 a 6):
    fungovat zákon nabídky a poptávky“. Kupec chce za průjezd nejvýš seznam × výchozí cena ÷ cena trhu (bez toho, co už
    koupil) – za výchozí cenu celý seznam, za dvojnásobnou polovinu; cena se zastaví, kde kupci chtějí právě tolik, kolik
    je na trhu, a s větší nabídkou klesá. Zlato má pevnou cenu, kupec ho vykoupí až 1 000 g za průjezd (návrh Clauda).
+   Na otázku Clauda, zda kupce udělat šetrnější (jediný otrok by u stezky vyšel na 40 mincí, 5 kožešin na 12× výchozí
+   ceny), Martin 27. 11. 2026: „Tak ono na té stezce bude víc hráčů a ti si budou konkurovat ne? Pokud na celé stezce
+   bude jen jeden jediný otrok, tak je v pořádku že je drahý“ – poptávka zůstává. Kupec má seznam v každé vsi na stezce
+   zvlášť (Rozhodnutí plánu 4, bod 5), konkurují si tedy prodávající na jednom trhu – hostitel a výpravy, které tam
+   zboží přivezou.
 
 ## Co se ověří
 
