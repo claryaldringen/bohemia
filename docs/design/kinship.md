@@ -74,10 +74,11 @@ dědictví, sňatky a nástupnictví potřebují vědět, kdo je čí. Postavy v
 - **Řemeslník zůstává v dílně** (27. 11. 2026): Claude se zeptal: „Když si rýžovník vezme vdovu, která drží dvorec,
   odstěhuje se do dvorce a jeho dílna zůstane prázdná. Totéž se stane osamělému řemeslníkovi, kterému se ve stáří
   rozpadne domácnost. Má řemeslník zůstat ve své dílně, dokud žije, a žena se přestěhovat k němu? Doporučuji ano.“
-  Martin: „ano“. Muž, který bydlí v dílně, se svatbou nestěhuje – žena přijde k němu, i když drží svůj dům. Výjimka je
-  dvorec vojvody: na otázku Clauda, zda se má matka malého vojvody, která za něj drží dvorec, přestěhovat k řemeslníkovi
-  do dílny (dvorec by zůstal prázdný), Martin zvolil možnost „Dvorec má přednost“ – řemeslník jde do dvorce a dílna
-  zůstane prázdná.
+  Martin: „ano“. Řemeslník – nejstarší muž dílny – se svatbou nestěhuje, ani do sousední vsi: žena přijde k němu, i když
+  drží svůj dům (jeho synové se řídí pravidly výš, aby dílna zůstala volná – návrh Clauda). Výjimka je dvorec
+  vojvody: na otázku Clauda, zda se má matka malého vojvody, která za něj drží dvorec, přestěhovat k řemeslníkovi do
+  dílny (dvorec by zůstal prázdný), Martin zvolil možnost „Dvorec má přednost“ – řemeslník jde do dvorce a dílna zůstane
+  prázdná.
 - **Se skutečnými sousedy** (plán 3 obchodu, 24. 11. 2026; [markets.md](markets.md) – Rozhodnutí plánu 3, bod 11).
   Martin 22. 11. 2026: „se sousedy je na náhodě, ze které dostupně vsi ženich nebo nevěsta bude“; 23. 11. 2026 na
   otázku „Má si i svobodná žena, která nedrží dům, hledat ženicha v sousední vsi sama, nebo se jen vdá pryč, když se

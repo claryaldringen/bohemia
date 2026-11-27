@@ -178,6 +178,28 @@ export function isCraftsman(person: Person, day: number): boolean {
   return person.sex !== 'female' && ageGroup(person, day) !== 'child';
 }
 
+/**
+ * Řemeslník dílny `dwellingId` – nejstarší z jejích mužů (`isCraftsman`), při shodě data narození
+ * nižší id; jeho synové řemeslníky nejsou. Po jeho smrti je řemeslníkem nejstarší muž, který
+ * v dílně zbyl. Obydlí bez dílny nebo dílna bez muže – nikdo (kinship.md – Řemeslník zůstává
+ * v dílně).
+ */
+export function craftsmanOf(
+  state: Pick<VillageState, 'dwellings' | 'people'>,
+  dwellingId: number,
+  day: number,
+): Person | undefined {
+  if (!state.dwellings.some((d) => d.id === dwellingId && d.workshop)) return undefined;
+  let head: Person | undefined;
+  for (const p of state.people) {
+    if (p.dwellingId !== dwellingId || !isCraftsman(p, day)) continue;
+    if (!head || p.bornDay < head.bornDay || (p.bornDay === head.bornDay && p.id < head.id)) {
+      head = p;
+    }
+  }
+  return head;
+}
+
 /** Obyvatelé obydlí seřazení podle id. */
 export function occupants(state: VillageState, dwellingId: number): Person[] {
   return state.people.filter((p) => p.dwellingId === dwellingId).sort((a, b) => a.id - b.id);

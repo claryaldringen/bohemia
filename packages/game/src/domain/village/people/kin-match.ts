@@ -26,7 +26,7 @@ import {
   startMarriage,
   weddingChancePerDay,
 } from './marriage';
-import { ageYears, householdBreaksUp, isAway, occupants } from './people';
+import { ageYears, craftsmanOf, householdBreaksUp, isAway, occupants } from './people';
 import { OPPOSITE } from './world-grid';
 import { LORD, MARKET, MARRIAGE } from '../rules';
 import { rememberNews } from '../trade/market';
@@ -57,10 +57,12 @@ const SINGLES_AGE_BAND = 5;
 /**
  * Kdo z vsi by šel za partnerem odjinud (Rozhodnutí plánu 3, bod 11 – Kdo přijde), v pořadí id:
  * svobodný (`isSingle`) doma (ne pryč – `isAway`; kdo je pryč, z vsi neodejde), muž od
- * `MARRIAGE.neighbours.fromAge`, ne muž rodu ani jeho žena (`keptByLine`), žena ne vdova, dědička
- * ani žena z domu bez mužů (`favouredBride` – ty se pryč nevdávají), bez vlastních dětí do 16 let
- * (`dependants` – partner jde vždy sám), jen když se domácnost jeho odchodem nerozpadne
- * (`householdBreaksUp` zbytku) a bez protějšku ve vsi (`bestMatch` – ves nebere svým).
+ * `MARRIAGE.neighbours.fromAge`, ne muž rodu ani jeho žena (`keptByLine`), ne řemeslník – nejstarší
+ * muž dílny (`craftsmanOf`; vezme si jen nevěstu, která přijde k němu – kinship.md, Řemeslník
+ * zůstává v dílně), žena ne vdova, dědička ani žena z domu bez mužů (`favouredBride` – ty se pryč
+ * nevdávají), bez vlastních dětí do 16 let (`dependants` – partner jde vždy sám), jen když se
+ * domácnost jeho odchodem nerozpadne (`householdBreaksUp` zbytku) a bez protějšku ve vsi
+ * (`bestMatch` – ves nebere svým).
  */
 export function kinCandidates(state: VillageState, day: number): Person[] {
   const list = singles(state, day);
@@ -73,6 +75,7 @@ export function kinCandidates(state: VillageState, day: number): Person[] {
         !isAway(p, day) &&
         (p.sex === 'female' || ageYears(p.bornDay, day) >= MARRIAGE.neighbours.fromAge) &&
         !kept(p) &&
+        craftsmanOf(state, p.dwellingId, day)?.id !== p.id &&
         !(p.sex === 'female' && favouredBride(state, p, day, parents)) &&
         dependants(state, p, day).length === 0 &&
         !householdBreaksUp(
