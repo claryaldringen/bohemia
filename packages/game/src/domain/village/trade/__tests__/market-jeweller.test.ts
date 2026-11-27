@@ -12,6 +12,7 @@ import type {
   TradeGoods,
   VillageState,
 } from '../../types';
+import { isPieceGood } from '../goods';
 import { joinMarket, marketDay, marketResultRef } from '../market';
 import { coinClearing, jewelledPayment, type CoinParty } from '../market-coins';
 import { coinPriceOf, roundGold } from '../market-prices';
@@ -186,7 +187,7 @@ describe('mincovní fáze se šperkařem (coinClearing, hladina 1)', () => {
     expect(c.jewelleryUsed).toEqual({ e: 96 });
   });
 
-  it('smíšený košík: nástroje za 40 (26,67 mince) a zlato jen za 73 mincí (175,2 g) – celý měšec 100', () => {
+  it('smíšený košík: nástroje za 39 (26 mincí) a zlato za 73 mincí (175,2 g) – 99 mincí dolů', () => {
     const c = coinClearing(
       [
         party('host', { stock: { tools: 20, gold: 300 } }),
@@ -195,13 +196,15 @@ describe('mincovní fáze se šperkařem (coinClearing, hladina 1)', () => {
       TOOLS,
       1,
     );
+    // nástroje 20 kg za 40 = 26,67 mince, na zlato zbude 73,33 → 73 celých; 73 + 26,67 = 99,67 – za
+    // celé mince dolů 99 (gold.md – Mince 2,4 g, bod 9): nástroje jen za 26 mincí = 39 (19,5 kg), zlato
+    // bez výhody, kapacitu ubere kov za nástroje (99 − 73) × 2,4 g
     expect(c.trades).toEqual([
-      { seller: 'host', buyer: 'e', good: 'tools', amount: 20 },
+      { seller: 'host', buyer: 'e', good: 'tools', amount: expect.closeTo(19.5, 9) },
       { seller: 'host', buyer: 'e', good: 'gold', amount: 175.2 },
     ]);
-    // 73 + 26,67 nahoru = 100 – zlato bez výhody, kapacitu ubere kov za nástroje (100 − 73) × 2,4 g
-    expect(c.payments).toEqual([{ buyer: 'e', seller: 'host', coins: 100 }]);
-    expect(c.jewelleryUsed).toEqual({ e: 64.8 });
+    expect(c.payments).toEqual([{ buyer: 'e', seller: 'host', coins: 99 }]);
+    expect(c.jewelleryUsed).toEqual({ e: 62.4 });
   });
 
   it('smíšený košík od šperkaře: zlato platí kupující dráž i se svou kapacitou', () => {
@@ -214,12 +217,13 @@ describe('mincovní fáze se šperkařem (coinClearing, hladina 1)', () => {
       1,
     );
     // na zlato zbude 73,33 mince → 73 celých: 30 g po 1,6 g (18,75) a 130,2 g po 2,4 g (54,25)
+    // nástroje jako výš za celé mince dolů: 26 mincí = 19,5 kg, platba 99
     expect(c.trades).toEqual([
-      { seller: 'host', buyer: 'e', good: 'tools', amount: 20 },
+      { seller: 'host', buyer: 'e', good: 'tools', amount: expect.closeTo(19.5, 9) },
       { seller: 'host', buyer: 'e', good: 'gold', amount: 160.2 },
     ]);
-    expect(c.payments).toEqual([{ buyer: 'e', seller: 'host', coins: 100 }]);
-    expect(c.jewelleryUsed).toEqual({ host: 30, e: 64.8 });
+    expect(c.payments).toEqual([{ buyer: 'e', seller: 'host', coins: 99 }]);
+    expect(c.jewelleryUsed).toEqual({ host: 30, e: 62.4 });
   });
 
   it('výměna u hostitele je bez výhody v obou směrech: 72 g za 30 mincí', () => {
@@ -447,6 +451,15 @@ describe('mincovní fáze se šperkařem (coinClearing, hladina 1)', () => {
       // pojistka proti šumu podplacení neschová, přeplatí se nejvýš do celé mince
       expect(paid).toBeGreaterThanOrEqual(due - 1e-6);
       expect(paid).toBeLessThan(due + 1);
+      // zboží v kg za celé mince dolů (gold.md – Mince 2,4 g, bod 9): nad účet zaplatí kupující jen
+      // za kusy a zlato, které samy stojí přes celé mince
+      const pieceBill = c.trades
+        .filter((t) => t.good !== 'gold' && isPieceGood(t.good))
+        .reduce((sum, t) => sum + t.amount * coinPriceOf({}, level, t.good), 0);
+      if (pieceBill < otherBill - 1e-6) {
+        const pieces = goldBill + jewelledPayment(pieceBill, buyerJ).coins;
+        expect(paid).toBeLessThan(Math.max(due, Math.ceil(pieces - 1e-6)) + 1e-6);
+      }
       expect(c.jewelleryUsed?.a ?? 0).toBeCloseTo(dearG, 9);
       // kupující: aspoň kapacita, kterou účet potřeboval, nejvýš kov za zboží mimo zlato (mince po
       // 2,4 g) a kapacita

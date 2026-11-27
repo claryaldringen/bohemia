@@ -408,30 +408,31 @@ describe('zakázka při odjezdu výpravy (Rozhodnutí plánu 3, bod 6)', () => {
   });
 
   it('co kovář má, koupí výprava za mince, zakázku na zbytek zapíše, dokud jí mince zbývají', () => {
-    // 2 kg nástrojů nad potřebu po 2/3 mince (platí se 2 mince nahoru), na zbylých 8 kg má výprava ještě 12 mincí
-    const m = smithVillage(2);
+    // 3 kg nástrojů nad potřebu po 2/3 mince = 2 mince, na zbylých 7 kg má výprava ještě 12 mincí
+    // (2 kg za 1,33 by za celé mince dolů vzaly jen 1,5 kg – gold.md, Mince 2,4 g, bod 9)
+    const m = smithVillage(3);
     joinMarket(m, D, arrival({ goods: { coins: 14 } }));
     marketDay(m, D);
     const result = resultOf(m, 'market:h:1');
-    expect(result.bought).toEqual({ tools: 2 });
-    expect(result.ordered).toEqual({ tools: 8 });
-    expect(m.market!.orders).toEqual([order('h', 8, D)]);
+    expect(result.bought).toEqual({ tools: 3 });
+    expect(result.ordered).toEqual({ tools: 7 });
+    expect(m.market!.orders).toEqual([order('h', 7, D)]);
     expect(result.unsold).toEqual({ coins: 12 });
     expect(m.coins).toBe(2);
     // mince utracené – na zbytek už nemá čím zaplatit
-    const spent = smithVillage(2);
+    const spent = smithVillage(3);
     joinMarket(spent, D, arrival({ goods: { coins: 2 } }));
     marketDay(spent, D);
-    expect(resultOf(spent, 'market:h:1').bought).toEqual({ tools: 2 });
+    expect(resultOf(spent, 'market:h:1').bought).toEqual({ tools: 3 });
     expect(resultOf(spent, 'market:h:1').ordered).toBeUndefined();
     expect(spent.market!.orders).toBeUndefined();
     expect(spent.coins).toBe(2);
     // koupila celý seznam – mince navíc zakázku nezaloží
     const full = smithVillage(12);
-    joinMarket(full, D, arrival({ goods: { coins: 60 } }));
+    joinMarket(full, D, arrival({ goods: { coins: 60 }, wants: { tools: 9 } }));
     marketDay(full, D);
-    expect(resultOf(full, 'market:h:1').bought).toEqual({ tools: 10 });
-    expect(resultOf(full, 'market:h:1').unsold).toEqual({ coins: 53 }); // 60 − 7 (10 kg × 2/3 nahoru)
+    expect(resultOf(full, 'market:h:1').bought).toEqual({ tools: 9 });
+    expect(resultOf(full, 'market:h:1').unsold).toEqual({ coins: 54 }); // 60 − 6 (9 kg × 2/3)
     expect(full.market!.orders).toBeUndefined();
   });
 

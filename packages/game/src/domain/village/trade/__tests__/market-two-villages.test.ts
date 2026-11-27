@@ -91,7 +91,8 @@ describe('výprava na trh mezi dvěma vsemi (markets.md – Co se ověří, bod 
     h.coins = 20;
     const m = marketVillage();
     m.crafts = { charcoalKg: 0, potteryKg: 500 };
-    // kráva za 600 kg obilí zápočtem, 75 kg keramiky za 2,5 mince (1/30 mince za kg), platí se 3
+    // kráva za 600 kg obilí zápočtem, 75 kg keramiky za 2,5 mince (1/30 mince za kg) – za celé mince
+    // dolů 2 mince = 60 kg (gold.md – Mince 2,4 g, bod 9)
     const sent = departMarket(
       h,
       D,
@@ -109,11 +110,11 @@ describe('výprava na trh mezi dvěma vsemi (markets.md – Co se ověří, bod 
     type Held = Extract<ChronicleEvent, { kind: 'market-held' }>;
     const held = m1.chronicle.find((e): e is Held => e.kind === 'market-held')!;
     // zaplacené mince má hostitel, zbytek měšce jde domů – do `sold` a `bought` se nepřičítají
-    expect(result).toMatchObject({ coinsPaid: 3, unsold: { coins: 17 } });
+    expect(result).toMatchObject({ coinsPaid: 2, unsold: { coins: 18 } });
     expect(result).not.toHaveProperty('coinsGot');
-    expect(result.bought).toEqual({ cows: 1, pottery: 75 });
+    expect(result.bought).toEqual({ cows: 1, pottery: expect.closeTo(60, 9) });
     expect(Object.keys(result.sold)).toEqual(['grain']);
-    expect(m1.coins).toBe(3);
+    expect(m1.coins).toBe(2);
     expect(m1.coins! + result.unsold.coins!).toBe(20);
     expect(held.sold).toEqual(result.bought);
     expect(held.bought.coins).toBe(result.coinsPaid);
@@ -121,9 +122,9 @@ describe('výprava na trh mezi dvěma vsemi (markets.md – Co se ověří, bod 
     const h1 = advanceVillage(withoutOutbox(sent.state), D + 2, null, null, asEvents(m1.outbox!));
     type Returned = Extract<ChronicleEvent, { kind: 'market-returned' }>;
     const back = h1.chronicle.find((e): e is Returned => e.kind === 'market-returned')!;
-    expect(h1.coins).toBe(17);
-    expect(back.sold).toStrictEqual({ grain: result.sold.grain!, coins: 3 });
-    expect(back.bought).toStrictEqual({ cows: 1, pottery: 75 });
+    expect(h1.coins).toBe(18);
+    expect(back.sold).toStrictEqual({ grain: result.sold.grain!, coins: 2 });
+    expect(back.bought).toStrictEqual({ cows: 1, pottery: result.bought.pottery! });
     expect(back.unsold).not.toHaveProperty('coins');
     // dopočet obou vsí po kouscích dá týž stav
     const mParts = advanceVillage(

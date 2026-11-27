@@ -3,9 +3,11 @@
 // Dvojice po dvojici – kupují napřed cizí kupci z měšce bez dna (markets.md – Měšec kupců bez dna;
 // mince od nich se tak týž den dostanou k ostatním), pak ostatní strany, od prodávajících v pořadí stran (hostitel, pak přespolní podle příjezdu –
 // Martin: „napřed zboží hostitelské vsi a pak přespolních“), zboží v pořadí `TRADE_GOODS` za cenu ×
-// hladinu trhu (`coinPriceOf`). Platba dvojice je celé číslo mincí – součet hodnot nahoru, takže
-// nikdo neprodá pod cenou a kupující přeplatí nejvýš minci; součet pod minci se neobchoduje. Zboží
-// v kg se dělí, kus je celý, mince přejdou celé a součet plateb přes všechny strany je nula. Zlato
+// hladinu trhu (`coinPriceOf`). Platba dvojice je celé číslo mincí – cizí kupec platí součet hodnot
+// nahoru (ve prospěch vsi), ostatní vezmou zboží v kg jen do celých mincí dolů (gold.md – Mince
+// 2,4 g, bod 9 – `wholeCoinsDown`) a nahoru platí jen za kusy; nikdo neprodá pod cenou a kupující
+// přeplatí nejvýš minci, součet pod minci se neobchoduje. Zboží v kg se dělí, kus je celý, mince
+// přejdou celé a součet plateb přes všechny strany je nula. Zlato
 // (gold.md – Pravidla 2; Rozhodnutí plánu 6, body 2 a 3) stojí vždy 2,4 g za minci (`goldCoinPrice`)
 // a mění se jen po celých mincích (Mince 2,4 g zlata za 90 kg obilí, bod 4): za k mincí 2,4·k g, od
 // šperkaře prodávajícího 1,6·k g, zbytek pod minci zůstane prodávajícímu a platba za zlato je vždy
@@ -179,7 +181,8 @@ function meansOf(ledger: Ledger): number {
  * zboží `jewelledPayment` – platba za košík (účet za zlato + `jewelledPayment(ostatní).coins`) tak
  * měšec nikdy nepřeroste, ať je zlato v pořadí zboží kdekoli: zboží mimo zlato se vejde do
  * `jewelledWorth(měšec − účet za zlato)`, zlato do mincí, které zbudou po platbě za ostatní zboží.
- * Nic nemění – nákup pod minci se zruší celý.
+ * Kupující, který není kupec, vezme zboží v kg jen do celých mincí dolů (`wholeCoinsDown`). Nic
+ * nemění – nákup pod minci se zruší celý.
  */
 function basketOf(buyer: Ledger, seller: Ledger, price: (good: TradeGood) => number): Basket {
   const basket = emptyBasket();
@@ -216,7 +219,52 @@ function basketOf(buyer: Ledger, seller: Ledger, price: (good: TradeGood) => num
     basket.bill += amount * unit;
     basket.otherBill += amount * unit;
   }
-  return basket;
+  return buyer.merchant ? basket : wholeCoinsDown(basket, buyer, price);
+}
+
+/**
+ * Košík kupujícího, který není kupec (výprava, správce, hostitel), po celých mincích dolů (gold.md –
+ * Mince 2,4 g zlata za 90 kg obilí, bod 9): zaplatí celé mince dolů z platby za košík a zboží v kg
+ * ubere od konce košíku, ať je ty mince pokryjí – nikdo nepřeplatí až minci (90 kg obilí). Kusy
+ * a zlato se nedělí: stojí-li samy přes celé mince, platí se za ně nahoru jako dřív a zboží v kg se
+ * vejde do přeplatku celé. Šperkař kupujícího platí ostatní zboží i tady `jewelledPayment` (kg, které
+ * mince pokryjí, `jewelledWorth`). Platba pod minci – nic. Cizí kupec platí dál nahoru (ve prospěch
+ * vsi). Nic nemění.
+ */
+function wholeCoinsDown(basket: Basket, buyer: Ledger, price: (good: TradeGood) => number): Basket {
+  const payment = (bill: number): number =>
+    buyer.jewellery > 0 ? jewelledPayment(bill, buyer.jewellery).coins : bill;
+  const inKg = (good: TradeGood): boolean => !isPieceGood(good);
+  const value = (goods: Basket['goods'], only: (good: TradeGood) => boolean): number =>
+    goods.reduce(
+      (sum, { good, amount }) =>
+        good !== GOLD_GOOD && only(good) ? sum + amount * price(good) : sum,
+      0,
+    );
+  const kgBill = value(basket.goods, inKg);
+  if (!(kgBill > 0)) return basket;
+  const pieceBill = value(basket.goods, (good) => !inKg(good));
+  // celé mince dolů – ale kusy a zlato samy nahoru, ty se nedělí
+  const coins = Math.max(
+    Math.floor(basket.goldBill + payment(basket.otherBill) + NOISE),
+    Math.ceil(basket.goldBill + payment(pieceBill) - NOISE),
+  );
+  const paysOther = coins - basket.goldBill;
+  const covers = buyer.jewellery > 0 ? jewelledWorth(paysOther, buyer.jewellery) : paysOther;
+  let excess = kgBill - (covers - pieceBill);
+  if (!(excess > NOISE)) return basket;
+  const goods = basket.goods.map((item) => ({ ...item }));
+  for (let i = goods.length - 1; i >= 0 && excess > NOISE; i--) {
+    const item = goods[i]!;
+    if (!inKg(item.good)) continue;
+    const unit = price(item.good);
+    const cut = Math.min(excess, item.amount * unit);
+    item.amount -= cut / unit;
+    excess -= cut;
+  }
+  const kept = goods.filter(({ good, amount }) => !inKg(good) || amount > NOISE_KG);
+  const otherBill = value(kept, () => true);
+  return { ...basket, goods: kept, bill: basket.goldBill + otherBill, otherBill };
 }
 
 /**
@@ -320,7 +368,8 @@ export function coinClearing(
   };
   /**
    * Nákup dvojice (mutuje strany); `listed` – ze seznamu kupujícího, výměna zlata na něm není.
-   * Platba je celé číslo mincí nahoru – kupující se šperkařem platí zlato bez výhody a ostatní zboží
+   * Platba je celé číslo mincí nahoru (košík kupujícího, který není kupec, je už po celých mincích
+   * dolů – `wholeCoinsDown`) – kupující se šperkařem platí zlato bez výhody a ostatní zboží
    * `jewelledPayment`. Napřed mince, zbytek zlatem (`goldPurse`) po 2,4 g za minci (`coinsGold`),
    * které prodávající odveze jako koupené. Kapacitu prodávajícího ubere zlato prodané dráž,
    * kupujícího kov, který za zboží mimo zlato opravdu odešel (i s přeplatkem do celé mince, mince po

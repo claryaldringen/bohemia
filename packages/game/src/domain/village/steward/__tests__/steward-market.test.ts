@@ -412,7 +412,8 @@ describe('správce – obilí v nouzi za mince (Rozhodnutí plánu 4, bod 4)', (
   });
 
   for (const [host, spareKg, boughtKg, spent] of [
-    ['s obilím nad pojistkou prodá 400 kg za 5 mincí', 1_000, 400, 5],
+    // 400 kg za 4,44 – za celé mince dolů 4 mince = 360 kg (gold.md – Mince 2,4 g, bod 9)
+    ['s obilím nad pojistkou prodá 360 kg za 4 mince', 1_000, 360, 4],
     ['bez obilí neprodá nic a mince přijdou domů', -3_000, 0, 0],
   ] as const) {
     it(`na trhu: hostitel ${host}; mince ani obilí nevzniknou ani nezmizí`, () => {
@@ -771,14 +772,15 @@ describe('správce – roční výprava s mincemi, drahé zboží napřed (Rozho
     const back = m.outbox!.at(-1)!;
     if (back.body.kind !== 'market-result') throw new Error('Výsledek trhu chybí.');
     const { result } = back.body;
-    // hostitel prodá 4 kg nástrojů za 240 kg = 2,67 → 3 mince, zbylé 4 se vrátí
-    expect(result).toMatchObject({ unsold: { coins: 4 }, ordered: { tools: 6 } });
-    expect(result.bought).toEqual({ tools: 4 });
+    // hostitel má 4 kg nástrojů nad potřebu za 240 kg = 2,67 mince – za celé mince dolů 2 mince = 3 kg
+    // (gold.md – Mince 2,4 g, bod 9), zbylých 1 kg (0,67) je pod minci; 5 mincí se vrátí
+    expect(result).toMatchObject({ unsold: { coins: 5 }, ordered: { tools: 7 } });
+    expect(result.bought).toEqual({ tools: expect.closeTo(3, 9) });
     applyMarketResult(s, back.day, result);
-    expect([s.coins, m.coins]).toEqual([97, 3]);
+    expect([s.coins, m.coins]).toEqual([98, 2]);
     expect(s.toolEquipmentKg! + m.toolEquipmentKg!).toBeCloseTo(tools, 9);
-    expect(m.market!.orders).toMatchObject([{ villageId: 'h', good: 'tools', amount: 6 }]);
-    expect(s.orders).toMatchObject([{ villageId: 'b', good: 'tools', amount: 6, status: 'open' }]);
+    expect(m.market!.orders).toMatchObject([{ villageId: 'h', good: 'tools', amount: 7 }]);
+    expect(s.orders).toMatchObject([{ villageId: 'b', good: 'tools', amount: 7, status: 'open' }]);
   });
 
   it('po kouscích stejně jako vcelku přes 15. 11. – mince i schránka', { timeout: 120_000 }, () => {

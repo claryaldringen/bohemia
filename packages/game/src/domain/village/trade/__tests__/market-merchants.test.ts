@@ -466,21 +466,28 @@ describe('tržní den s kupci (marketDay)', () => {
     const merchant = merchantOf(s);
     expect(allCoins(s)).toBe(0);
     expect(marketDay(s, DAY)).toEqual([
-      { day: DAY, kind: 'market-held', sold: { pottery: 50 }, bought: { coins: 2 } },
+      {
+        day: DAY,
+        kind: 'market-held',
+        sold: { pottery: expect.closeTo(30, 9) },
+        bought: { coins: 1 },
+      },
     ]);
-    // kožešiny 3 mince od kupce (2,67 nahoru), výprava za 2 z nich keramiku (50 kg po 1/30 = 1,67)
+    // kožešiny 3 mince od kupce (2,67 nahoru – kupec platí nahoru), výprava za 1 z nich keramiku: 50 kg
+    // po 1/30 = 1,67, za celé mince dolů 1 mince = 30 kg (gold.md – Mince 2,4 g, bod 9)
     expect(merchant.goods).not.toHaveProperty('coins');
-    expect(visitorOf(s, 'market:a:1').goods).toEqual({ coins: 1 });
-    expect(s.coins).toBe(2);
+    expect(visitorOf(s, 'market:a:1').goods).toEqual({ coins: 2 });
+    expect(s.coins).toBe(1);
     // odjel kupec – zbroj s ním; mince vznikly jen jeho platbou za kožešiny
     expect(allCoins(s)).toBe(3);
     expect(s).not.toHaveProperty('arms');
-    expect(s.crafts.potteryKg).toBe(450);
+    expect(s.crafts.potteryKg).toBeCloseTo(470, 9);
+    // druhý den: zbylých 20 kg (0,67 mince) je pod minci – nekoupí se
     marketDay(s, DAY + 1);
     expect(resultOf(s, 'market:a:1')).toMatchObject({
       sold: { furs: 30 },
-      bought: { pottery: 50 },
-      unsold: { coins: 1 },
+      bought: { pottery: expect.closeTo(30, 9) },
+      unsold: { coins: 2 },
     });
     expect(allCoins(s)).toBe(3);
   });
@@ -1145,7 +1152,7 @@ describe('kupci v dopočtu vsi (advanceVillage)', () => {
     const kinds = after.chronicle.map((e) => e.kind);
     expect(kinds.indexOf('market-arrived')).toBeLessThan(kinds.indexOf('merchants-arrived'));
     expect(kinds.indexOf('merchants-arrived')).toBeLessThan(kinds.indexOf('market-held'));
-    expect(after.coins).toBe(2); // 50 kg keramiky po 1/30 = 1,67 nahoru
+    expect(after.coins).toBe(1); // 50 kg keramiky po 1/30 = 1,67 – za celé mince dolů 1 (30 kg)
   });
 
   it('přijedou v každý den plánu, i když na trhu jinak nikdo není', () => {
@@ -1223,7 +1230,7 @@ describe('kupci v dopočtu vsi (advanceVillage)', () => {
   it('ves na suché mapě s výpravami obchoduje beze změny', () => {
     const event = arriveEvent(trip('market:a:1', { coins: 50 }, { grain: 300 }), DAY);
     const without = advanceVillage(bareHost(), DAY + 90, null, null, [event]);
-    expect(without.coins).toBe(4); // 300 kg obilí ÷ 90 = 3,33 nahoru
+    expect(without.coins).toBe(3); // 300 kg obilí ÷ 90 = 3,33 – za celé mince dolů 3 (270 kg)
     const dry = { ...bareHost(), merchantStops: [] };
     expect(advanceVillage(dry, DAY + 90, null, null, [event])).toStrictEqual({
       ...without,

@@ -744,7 +744,8 @@ describe('trh ve vsi hostitele – mincovní fáze (markets.md – Rozhodnutí p
     expect(cows.livestock!.herds.cow).toBe(3);
     expect(cows.coins).toBe(27);
 
-    // nástroje: 30 kg nad potřebu, 10 kg koupí obilím zápočet řemeslníků, 20 kg je za 13,33 → 14 mincí
+    // nástroje: 30 kg nad potřebu, 10 kg koupí obilím zápočet řemeslníků, 20 kg je za 13,33 – za celé
+    // mince dolů 13 mincí = 19,5 kg (gold.md – Mince 2,4 g, bod 9)
     const tools = marketVillage();
     withWorkshop(tools, 'smith', 700, { oreKg: 500 });
     tools.crafts = { charcoalKg: 5_000, potteryKg: 0 };
@@ -754,9 +755,9 @@ describe('trh ve vsi hostitele – mincovní fáze (markets.md – Rozhodnutí p
     joinMarket(tools, D, coinTrip(500, { tools: 100 }, { key: 'market:b:1' }));
     marketDay(tools, D);
     expect(resultOf(tools, 'market:a:1').sold.grain).toBeCloseTo(600, 6);
-    expect(resultOf(tools, 'market:b:1').bought.tools).toBeCloseTo(20, 6);
-    expect(resultOf(tools, 'market:b:1').unsold).toEqual({ coins: 486 });
-    expect(tools.coins).toBe(14);
+    expect(resultOf(tools, 'market:b:1').bought.tools).toBeCloseTo(19.5, 6);
+    expect(resultOf(tools, 'market:b:1').unsold).toEqual({ coins: 487 });
+    expect(tools.coins).toBe(13);
   });
 
   it('zápočet mince nevidí, ani když je výprava má na seznamu', () => {
@@ -1067,15 +1068,16 @@ describe('hladina trhu ve výsledku a ve zprávě (markets.md – Rozhodnutí pl
     joinMarket(m, D + 1, body.arrival);
     marketDay(m, D + 1);
     const result = resultOf(m, sent.trip.key);
-    // 300 kg za 3,33 → 4 mince; C = 10, W = 300 ÷ 90 = 3,33 → hladina × (1 + 0,1 × 6,67 ÷ 13,33)
-    expect(m.coins).toBe(4);
-    expect(result.unsold).toEqual({ coins: 6 });
+    // 300 kg za 3,33 – za celé mince dolů 3 mince = 270 kg; C = 10, W = 300 ÷ 90 = 3,33 (ze začátku
+    // fáze) → hladina × (1 + 0,1 × 6,67 ÷ 13,33)
+    expect(m.coins).toBe(3);
+    expect(result.unsold).toEqual({ coins: 7 });
     expect(result.level).toBeCloseTo(1.05, 6);
     expect(result.level).toBe(m.market!.level);
 
     const home = structuredClone(sent.state);
     applyMarketResult(home, D + 2, result);
-    expect(home.coins).toBe(6);
+    expect(home.coins).toBe(7);
     expect(home.news).toEqual([
       {
         villageId: 'm',
@@ -1131,24 +1133,25 @@ describe('výprava hráče s mincemi – cesta tam a zpět (Rozhodnutí plánu 4
     return { result, home };
   }
 
-  it('400 mincí, seznam 800 kg obilí: koupí právě 800 kg za 9 mincí, 391 přijde domů', () => {
-    const order: MarketOrder = { give: { coins: 400 }, wants: { grain: 800 }, stayDays: 1 };
+  it('400 mincí, seznam 810 kg obilí: koupí právě 810 kg za 9 mincí, 391 přijde domů', () => {
+    const order: MarketOrder = { give: { coins: 400 }, wants: { grain: 810 }, stayDays: 1 };
     const { sent, arriving } = sendTrip(400, order);
     // při odjezdu mince ubyly vsi a jsou jen v nákladu
     expect(sent).not.toHaveProperty('coins');
     expect(arriving.goods).toEqual({ coins: 400 });
-    expect(arriving.wants).toEqual({ grain: 800 });
+    expect(arriving.wants).toEqual({ grain: 810 });
 
     const m = grainVillage(6_000);
     expect(marketStance(m, D + 1).offer.grain).toBe(6_000);
     const hostStores = m.storesKg;
     const { result, home } = tradeAndReturn(sent, arriving, m);
-    // přebytku je 6 000 kg a mincí na 36 000 kg – koupí se jen seznam; 800 ÷ 90 = 8,89 → 9 mincí
-    expect(hostStores - m.storesKg).toBeCloseTo(800, 9);
+    // přebytku je 6 000 kg a mincí na 36 000 kg – koupí se jen seznam; 810 ÷ 90 = 9 mincí (seznam
+    // 800 kg = 8,89 by za celé mince dolů vzal 720 kg za 8 – gold.md, Mince 2,4 g, bod 9)
+    expect(hostStores - m.storesKg).toBeCloseTo(810, 9);
     expect(m.coins).toBe(9);
-    expect(result).toMatchObject({ sold: {}, bought: { grain: 800 }, unsold: { coins: 391 } });
+    expect(result).toMatchObject({ sold: {}, bought: { grain: 810 }, unsold: { coins: 391 } });
     expect(home.coins).toBe(391);
-    expect(home.storesKg - sent.storesKg).toBeCloseTo(800, 9);
+    expect(home.storesKg - sent.storesKg).toBeCloseTo(810, 9);
   });
 
   it('za výpravu se neplatí podruhé ze zásoby vsi: 5 mincí koupí 450 kg, doma zůstane 495', () => {
@@ -1197,7 +1200,7 @@ describe('výprava hráče s mincemi – cesta tam a zpět (Rozhodnutí plánu 4
   });
 
   it('kousky dopočtu: obě vsi po dnech = vcelku a mincí je v součtu pořád 400', () => {
-    const order: MarketOrder = { give: { coins: 400 }, wants: { grain: 800 }, stayDays: 2 };
+    const order: MarketOrder = { give: { coins: 400 }, wants: { grain: 810 }, stayDays: 2 };
     const { sent } = sendTrip(400, order);
     // uložení do DB a načtení mezi kousky
     const stored = (s: VillageState): VillageState => JSON.parse(JSON.stringify(s)) as VillageState;
@@ -1221,7 +1224,7 @@ describe('výprava hráče s mincemi – cesta tam a zpět (Rozhodnutí plánu 4
     expect(byDays(start, D + 4, back)).toEqual(stored(home));
     expect(home.coins).toBe(391);
     expect(home.chronicle.find((e) => e.kind === 'market-returned')).toMatchObject({
-      bought: { grain: 800 },
+      bought: { grain: 810 },
     });
   });
 });

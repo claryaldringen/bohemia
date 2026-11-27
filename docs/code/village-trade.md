@@ -200,7 +200,15 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
     seznam se tím nezmenší), než přijdou na řadu výpravy (Zlato níž). Součet hodnot dvojice pod
     1 minci se zruší celý, jinak platba
     `CoinPayment` { `buyer`, `seller`, `coins` } = součet nahoru na celé mince (prodávající neprodá
-    pod cenou, kupující přeplatí nejvýš minci); utržené mince smí prodávající týž den utratit, je-li
+    pod cenou, kupující přeplatí nejvýš minci). **Zboží v kg za celé mince dolů** (gold.md – Mince
+    2,4 g zlata za 90 kg obilí, bod 9; `wholeCoinsDown`): kupující, který není kupec (výprava,
+    správce, hostitel), zaplatí z platby za košík celé mince dolů a zboží v kg se mu ubere od konce
+    košíku, ať je ty mince pokryjí – 100 kg obilí (1,11 mince) je 90 kg za 1 minci, 50 kg nic. Kusy
+    a zlato se nedělí: stojí-li samy přes celé mince, platí se za ně nahoru a kg se vejdou do
+    přeplatku celé (kráva 6,67 + 20 kg obilí = 7 mincí). Šperkař kupujícího platí i tady
+    `jewelledPayment` (kg, které mince pokryjí, `jewelledWorth`); cizí kupec platí dál nahoru – ve
+    prospěch vsi. Mince na seznam nahoru (`moneyFor` správce v `steward-market.ts`) tak stačí i na
+    dalšího prodávajícího – za kg nikdo nepřeplatí. Utržené mince smí prodávající týž den utratit, je-li
     mezi kupujícími za ním. Měšec nikdy neklesne pod 0 a součet plateb je nula. Výsledek
     `CoinClearing`: `trades` (`MarketTrade`), `payments`, `available` (C = Σ min(mince, hodnota
     seznamu) kupujících, kteří mají mince i seznam) a `sought` (W = Σ přes zboží (O + min(součet
@@ -689,7 +697,8 @@ day, order, target, { by?, seedKg?, alone?, service?, kin?, people? })` (mutuje 
     bez výhody. Rozpočet košíku nezávisí na pořadí zboží: zboží mimo zlato se vejde do
     `jewelledWorth(měšec − účet za zlato)`, zlato do mincí, které zbudou po platbě
     `jewelledPayment(ostatní zboží)` – platba za košík tak měšec nikdy nepřeroste a pojistka
-    `Math.min` v `settle` jen tlumí šum. Platba dvojice je nahoru na celou minci, prodávající dostane,
+    `Math.min` v `settle` jen tlumí šum. Platba dvojice je nahoru na celou minci (kdo není kupec, platí za
+    zboží v kg celé mince dolů – `wholeCoinsDown` výš), prodávající dostane,
     co kupující zaplatil. Kapacitu prodávajícího ubere zlato prodané dráž, kupujícího kov, který za
     zboží mimo zlato opravdu odešel ((platba − účet za zlato) × 2,4 g, i s přeplatkem do celé mince, nejvýš
     kapacita) – uložená kapacita vsi tak placením kov nepřeroste. Kapacita strany je jedna pro celou

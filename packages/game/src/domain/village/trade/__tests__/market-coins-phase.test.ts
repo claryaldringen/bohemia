@@ -174,9 +174,9 @@ describe('mincovní fáze – zakázka vesničanů má přednost před prodejem 
     expect(s.market?.orders).toEqual([
       { villageId: 'v', name: 'Vlkov', good: 'tools', amount: 10, day: D },
     ]);
-    // hráč koupí jen obilí hostitele (1 000 kg za 11,1 → 12 mincí)
-    expect(resultOf(s, 'market:p:1').bought).toEqual({ grain: 1_000 });
-    expect(s.coins).toBe(12);
+    // hráč koupí jen obilí hostitele (1 000 kg za 11,1 – za celé mince dolů 11 mincí = 990 kg)
+    expect(resultOf(s, 'market:p:1').bought).toEqual({ grain: 990 });
+    expect(s.coins).toBe(11);
   });
 
   it('bez kupujícího s mincemi vyjde zakázka stejně', () => {
@@ -196,7 +196,7 @@ describe('mincovní fáze – zakázka vesničanů má přednost před prodejem 
     expect(v.unsold).toEqual({ coins: 20 });
     expect(v).not.toHaveProperty('ordered');
     expect(s.market).not.toHaveProperty('orders');
-    expect(resultOf(s, 'market:p:1').bought).toEqual({ grain: 2_800 });
+    expect(resultOf(s, 'market:p:1').bought).toEqual({ grain: 2_790 }); // 990 od hostitele
   });
 
   it('výprava hráče obilí za mince prodá a zakázku zapíše jako dosud', () => {
@@ -205,7 +205,7 @@ describe('mincovní fáze – zakázka vesničanů má přednost před prodejem 
     expect(v.sold).toEqual({ grain: 1_800 });
     expect(v.unsold).toEqual({ coins: 20 });
     expect(v.ordered).toEqual({ tools: 10 });
-    expect(resultOf(s, 'market:p:1').bought).toEqual({ grain: 2_800 });
+    expect(resultOf(s, 'market:p:1').bought).toEqual({ grain: 2_790 }); // 990 od hostitele
   });
 });
 
