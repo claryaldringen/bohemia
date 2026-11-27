@@ -14,6 +14,7 @@ import {
 import type { VillageCraftSource, VillageCrafts } from './village-view-types';
 import {
   craftSources,
+  GOLD_CRAFTS,
   CARPENTRY,
   CRAFT_PRODUCTION,
   carpenterWorkFactor,
@@ -313,7 +314,7 @@ function workshopOutputKg(craft: Craft, labor: number, coverage: CraftCoverage):
   }
   if (craft === 'burner') return labor * CRAFT_PRODUCTION.charcoalKgPerManDay;
   // dílny zlata nevyrábějí kg zásoby řemeslníků (plán 6) – gramy ukáže panel později
-  if (craft === 'panner' || craft === 'jeweller' || craft === 'minter') return 0;
+  if (GOLD_CRAFTS.includes(craft)) return 0;
   if (craft === 'smith') return labor / CRAFT_PRODUCTION.toolManDaysPerKg;
   return labor / CRAFT_PRODUCTION.potteryManDaysPerKg;
 }

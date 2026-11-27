@@ -302,10 +302,12 @@ describe('zlato a šperkař v pohledu trhu (plán 6, Úloha 10)', () => {
   it('kapacita šperkaře: 30 g při 40 mincích; bez kovu nebo bez kapacity pole chybí', () => {
     const s = village();
     expect(manorView(s, DAY)!.market).not.toHaveProperty('jewelleryG');
+    expect(manorView(s, DAY)!.market).not.toHaveProperty('jewelleryFactor');
     s.jewelleryG = 30;
     expect(manorView(s, DAY)!.market).not.toHaveProperty('jewelleryG');
     s.coins = 40;
     expect(manorView(s, DAY)!.market.jewelleryG).toBe(30);
+    expect(manorView(s, DAY)!.market.jewelleryFactor).toBe(1.5);
     s.coins = 10;
     expect(manorView(s, DAY)!.market.jewelleryG).toBe(10);
   });

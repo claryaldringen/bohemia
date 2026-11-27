@@ -5,7 +5,6 @@ import {
   coinPriceOf,
   dateOfDayIndex,
   COIN_GOOD,
-  JEWELLER,
   MARKET,
   TRADE_GOODS,
   type ArmsGood,
@@ -21,7 +20,7 @@ import { formatDayMonth, formatGameDate } from '@/lib/game-date';
 import type { VillageManor } from '@/lib/manor-view';
 import { marketPreview, type MarketTripPhase } from '@/lib/market-view';
 import { TRADE_GOOD_NAMES } from '@/lib/trade-names';
-import { formatCoinPrice, formatInteger, plural } from '@/lib/village-format';
+import { formatCoinPrice, formatFactor, formatInteger, plural } from '@/lib/village-format';
 import { ArmsOrder } from './ArmsOrder';
 import { SlaveSale } from './SlaveSale';
 import { Dialog } from './Dialog';
@@ -276,9 +275,6 @@ function VillageRow({
   );
 }
 
-/** Násobek šperkaře s desetinnou čárkou („1,5“). */
-const JEWELLER_FACTOR = String(JEWELLER.factor).replace('.', ',');
-
 /** Cena bez zbytečné desetinné nuly („1“, ne „1,0“). */
 const priceText = (price: number): string =>
   Number.isInteger(price) ? formatInteger(price) : formatCoinPrice(price);
@@ -295,6 +291,7 @@ function GoodRow({
   onChange,
   goldPrice,
   jewelleryG,
+  jewelleryFactor,
 }: {
   side: Side;
   good: TradeGood;
@@ -303,13 +300,14 @@ function GoodRow({
   onChange: (value: number) => void;
   goldPrice?: number;
   jewelleryG?: number;
+  jewelleryFactor?: number;
 }): ReactElement {
   const { name, unit, icon } = TRADE_GOOD_NAMES[good];
-  const jeweller = jewelleryG !== undefined && jewelleryG > 0;
+  const jeweller = jewelleryG !== undefined && jewelleryG > 0 && jewelleryFactor !== undefined;
   const tip =
     good === COIN_GOOD
       ? jeweller
-        ? `Se šperkařem platí ${JEWELLER_FACTOR}násobek – ${jewelleryLeft(jewelleryG)}`
+        ? `Se šperkařem platí ${formatFactor(jewelleryFactor)}násobek – ${jewelleryLeft(jewelleryG)}`
         : name
       : `${name} (${unit})`;
   return (
@@ -337,8 +335,9 @@ function GoodRow({
             content={
               <span className="block max-w-52">
                 {`Zlato – ${priceText(goldPrice)} ${plural(goldPrice, 'mince', 'mince', 'mincí')} za gram, vždy` +
-                  (jeweller
-                    ? `, se šperkařem ${priceText(goldPrice * JEWELLER.factor)} mince za gram – ${jewelleryLeft(jewelleryG)}`
+                  // výhodu má jen prodej zlata (Dáš); nákup zlata od vsi bez ní (gold.md – Pravidla 4)
+                  (jeweller && side === 'give'
+                    ? `, se šperkařem ${priceText(goldPrice * jewelleryFactor)} mince za gram – ${jewelleryLeft(jewelleryG)}`
                     : '')}
               </span>
             }
@@ -492,6 +491,7 @@ export function MarketPanel({
                 max={market.stock[g] ?? 0}
                 goldPrice={market.goldPrice}
                 jewelleryG={market.jewelleryG}
+                jewelleryFactor={market.jewelleryFactor}
                 onChange={(v) => edit(() => setGive((cur) => without(cur, g, v)))}
               />
             ))}
@@ -507,6 +507,7 @@ export function MarketPanel({
                 max={Number.MAX_SAFE_INTEGER}
                 goldPrice={market.goldPrice}
                 jewelleryG={market.jewelleryG}
+                jewelleryFactor={market.jewelleryFactor}
                 onChange={(v) => edit(() => setWants((cur) => without(cur, g, v)))}
               />
             ))}

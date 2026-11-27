@@ -12,6 +12,7 @@ import {
   lordFamily,
   marketFreeAdults,
   nextMerchantVisit,
+  JEWELLER,
   oxenHome,
   tradeHomeCarts,
   TRADE_GOODS,
@@ -99,7 +100,7 @@ export interface VillageManor {
      */
     merchantsDay: number | null;
     /**
-     * Cena gramu zlata v mincích (`coinPriceOf` – pevná, gold.md – Pravidla 3; nezávisí na hladině
+     * Cena gramu zlata v mincích (`coinPriceOf` – pevná, gold.md – Pravidla 2; nezávisí na hladině
      * trhu); web ji jen ukazuje.
      */
     goldPrice: number;
@@ -108,6 +109,8 @@ export interface VillageManor {
      * ještě platí výhoda 1,5×; chybí, je-li 0.
      */
     jewelleryG?: number;
+    /** Násobek šperkaře (`JEWELLER.factor`) k popiskům; je s `jewelleryG`. */
+    jewelleryFactor?: number;
     /**
      * Zbroj k objednání u kupců (Rozhodnutí plánu 4, bod 15) – cena dne v mincích a objednaný počet,
      * v pořadí `ARMS_GOODS`; jen u vsi se zastávkou kupců, jinak prázdné.
@@ -170,7 +173,7 @@ function marketField(state: VillageState, day: number): VillageManor['market'] {
     day,
     trips: marketTripViews(state, day),
     goldPrice: coinPriceOf(state.market?.prices, state.market?.level ?? 1, 'gold'),
-    ...(jewelleryG > 0 ? { jewelleryG } : {}),
+    ...(jewelleryG > 0 ? { jewelleryG, jewelleryFactor: JEWELLER.factor } : {}),
     ...merchantsField(state, day),
   };
 }

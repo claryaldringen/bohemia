@@ -145,6 +145,7 @@ import type {
 import { copyGrid } from '../placement/square-grid';
 import { jewelleryMaterialG, jewelleryOf } from '../trade/jewellery';
 import { placerLeftG } from '../crafts/gold-crafts';
+import { JEWELLER, PANNING } from '../rules/rules-gold';
 import { goldPlacers } from './premium-effects';
 import { pileLogs, treesToFell, woodFellingCost, woodLogs } from '../forest/wood';
 
@@ -477,6 +478,8 @@ export interface WaresView {
   goldG?: number;
   /** Použitelná kapacita šperkaře v celých gramech, jen kladná (gold.md – Pravidla 4). */
   jewelleryG?: number;
+  /** Násobek šperkaře (`JEWELLER.factor`) k popisku kapacity; je s `jewelleryG`. */
+  jewelleryFactor?: number;
   /** Zbroj vsi po kusech, jen druhy s kladným počtem; chybí = žádná. */
   arms?: Partial<Record<ArmsGood, number>>;
 }
@@ -905,15 +908,23 @@ function waresView(state: VillageState): WaresView | null {
     ...(small > 0 ? { smallHides: small } : {}),
     ...(coins > 0 ? { coins } : {}),
     ...(goldG > 0 ? { goldG } : {}),
-    ...(jewelleryG > 0 ? { jewelleryG } : {}),
+    ...(jewelleryG > 0 ? { jewelleryG, jewelleryFactor: JEWELLER.factor } : {}),
     ...(hasArms ? { arms } : {}),
   };
 }
 
 /** Údaje dílen zlata pro panel (gramy celé) – rýžovník, šperkař, mincovna. */
 export type GoldWorkshopSummary =
-  | { craft: 'panner'; placersLeft: number; leftG: number; walkM: number }
-  | { craft: 'jeweller'; wroughtG: number; materialG: number }
+  | {
+      craft: 'panner';
+      placersLeft: number;
+      leftG: number;
+      /** Cesta k náplavu v metrech. */
+      walkM: number;
+      /** Sezóna rýžování (měsíce `PANNING.months`, 1–12) pro popisek mimo sezónu. */
+      season: { from: number; to: number };
+    }
+  | { craft: 'jeweller'; wroughtG: number; materialG: number; factor: number }
   | { craft: 'minter'; goldG: number };
 
 function goldWorkshopSummary(
@@ -931,6 +942,7 @@ function goldWorkshopSummary(
       placersLeft,
       leftG: placer ? Math.floor(placerLeftG(state, placer.index)) : 0,
       walkM: placer ? Math.round(placer.walkM) : 0,
+      season: { ...PANNING.months },
     };
   }
   if (workshop.craft === 'jeweller') {
@@ -938,6 +950,7 @@ function goldWorkshopSummary(
       craft: 'jeweller',
       wroughtG: Math.floor(jewelleryOf(state)),
       materialG: jewelleryMaterialG(state),
+      factor: JEWELLER.factor,
     };
   }
   if (workshop.craft === 'minter') return { craft: 'minter', goldG: Math.floor(state.gold ?? 0) };

@@ -56,12 +56,18 @@ describe('craftsView – dílny zlata', () => {
       placersLeft: count - 1,
       leftG: 1200,
       walkM: 240,
+      season: { from: 4, to: 10 },
     });
   });
 
   it('šperkař: výhoda a kov', () => {
     const s = withWorkshop('jeweller', { gold: 20, coins: 40, jewelleryG: 30 });
-    expect(gold(s)).toEqual({ craft: 'jeweller', wroughtG: 30, materialG: 20 + 40 * 1 });
+    expect(gold(s)).toEqual({
+      craft: 'jeweller',
+      wroughtG: 30,
+      materialG: 20 + 40 * 1,
+      factor: 1.5,
+    });
   });
 
   it('mincovna: celé gramy zlata; ostatní dílny bez údaje', () => {

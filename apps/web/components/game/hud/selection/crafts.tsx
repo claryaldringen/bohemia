@@ -9,7 +9,14 @@ import {
 } from '@/lib/selection-details';
 import { DIRECTION_NAMES } from '@/lib/trade-names';
 import { inVillage } from '@/lib/village-name-cases';
-import { formatDecimal, formatInteger, formatPercent, plural } from '@/lib/village-format';
+import { monthGenitive } from '@/lib/game-date';
+import {
+  formatDecimal,
+  formatFactor,
+  formatInteger,
+  formatPercent,
+  plural,
+} from '@/lib/village-format';
 import {
   CRAFT_LOOKS,
   PRODUCT_ICONS,
@@ -28,6 +35,13 @@ import { Stat, Bar, ROW, Flag } from './parts';
  * Co dílna dělá – ikona (výrobek, dřevo, uhlí, lidé) s červeným tónem, když stojí, a popisek
  * v tooltipu; u výroby kolik kg za den.
  */
+/** Co dělají dílny zlata při práci (nemají výrobek v kg). */
+const GOLD_WORK: Partial<Record<Craft, string>> = {
+  panner: 'Rýžuje zlato',
+  jeweller: 'Dělá šperky',
+  minter: 'Razí mince',
+};
+
 /** Čeho má ves dost, když řemeslník pomáhá vsi (2. pád). */
 export const ENOUGH: Record<Craft, string> = {
   burner: 'Uhlí',
@@ -45,8 +59,7 @@ export function activityLook(workshop: SelectionWorkshop): {
   value: string;
   stalled: boolean;
 } {
-  // dílny zlata výrobek v zásobách nemají – ikona zlata (plán 6)
-  const product = CRAFT_LOOKS[workshop.craft].product ?? { icon: 'gold', name: 'Zlato' };
+  const product = CRAFT_LOOKS[workshop.craft].product;
   const perDay = `${formatDecimal(workshop.outputPerDayKg, 1)} kg/den`;
   const kiln = workshop.kiln;
   const percent = kiln ? formatPercent(kiln.progress) : '–';
@@ -70,11 +83,14 @@ export function activityLook(workshop: SelectionWorkshop): {
             name: `Vyrábí vůz – ${CART_NAMES[making.kind].toLowerCase()}`,
             value: formatPercent(making.progress),
           }
-        : {
-            icon: product.icon,
-            name: `Vyrábí – ${product.name.toLowerCase()}`,
-            value: perDay,
-          },
+        : !product
+          ? // dílny zlata výrobek v zásobách (kg) nemají – říká se, co řemeslník dělá (plán 6)
+            { icon: 'gold', name: GOLD_WORK[workshop.craft] ?? 'Pracuje', value: '–' }
+          : {
+              icon: product.icon,
+              name: `Vyrábí – ${product.name.toLowerCase()}`,
+              value: perDay,
+            },
     helping: {
       icon: 'labor',
       name: 'Pomáhá se stavbami – dřevěné části opracuje rychleji (pokrytí dřevěné práce)',
@@ -107,7 +123,10 @@ export function activityLook(workshop: SelectionWorkshop): {
           }
         : {
             icon: 'people',
-            name: `${ENOUGH[workshop.craft]} je dost na rok – pomáhá vsi na poli a se stavbami`,
+            name:
+              workshop.craft === 'panner' && workshop.gold?.craft === 'panner'
+                ? `Rýžuje se od ${monthGenitive(workshop.gold.season.from)} do ${monthGenitive(workshop.gold.season.to)} – zatím pomáhá vsi na poli a se stavbami`
+                : `${ENOUGH[workshop.craft]} je dost na rok – pomáhá vsi na poli a se stavbami`,
             value: '–',
           },
     // řetěz kovárny (production-chains.md – Kovář): tavba a překování houby na hřivny
@@ -340,7 +359,7 @@ export function GoldWorkshopStats({
         </Stat>
         {gold.walkM > 0 && (
           <Stat icon="walk" name="Cesta k náplavu (m)" testId="selection-workshop-placer-walk">
-            {`${formatInteger(gold.walkM / 100)} m`}
+            {`${formatInteger(gold.walkM)} m`}
           </Stat>
         )}
       </>
@@ -351,7 +370,7 @@ export function GoldWorkshopStats({
       <>
         <Stat
           icon="jewellery"
-          name="Šperky – zlato a mince za 1,5násobek, ještě pro tolik gramů"
+          name={`Šperky – zlato a mince za ${formatFactor(gold.factor)}násobek, ještě pro ${formatInteger(gold.wroughtG)} g`}
           testId="selection-workshop-wrought"
         >
           {formatInteger(gold.wroughtG)}
@@ -389,8 +408,7 @@ export function WorkshopRow({
   onSelectTarget?: ((target: VillageTarget) => void) | undefined;
 }): ReactElement {
   const activity = activityLook(workshop);
-  // dílny zlata výrobek v zásobách nemají – ikona zlata (plán 6)
-  const product = CRAFT_LOOKS[workshop.craft].product ?? { icon: 'gold', name: 'Zlato' };
+  const product = CRAFT_LOOKS[workshop.craft].product;
   return (
     <div
       data-testid="selection-workshop"
@@ -406,7 +424,7 @@ export function WorkshopRow({
       <SkillStats craft={workshop.craft} skill={workshop.skill} />
       {/* Zásoba jen u uhlíře (uhlí) a kováře (hřivny); keramiku a dřevěné nářadí si řeší každá
           domácnost sama, nikde se neukazují (Martin 24. 10. 2026) */}
-      {(workshop.craft === 'burner' || workshop.craft === 'smith') && (
+      {product && (workshop.craft === 'burner' || workshop.craft === 'smith') && (
         <Stat
           icon={product.icon}
           name={

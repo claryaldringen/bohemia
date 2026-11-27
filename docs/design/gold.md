@@ -136,7 +136,7 @@ Plán 6 přinesl zlato: zboží `gold`, tři dílny (rýžovník, šperkař, min
 2. **Zlato je zboží `gold`** v `TRADE_GOODS` před medem (Martinovo pořadí); cena je pevná, 1 mince za gram na každém trhu; do zápočtu ani do hladiny trhu nepatří (výměna je kov za kov, ne poptávka po zboží).
 3. **Výměna s kýmkoli, kdo mince má** (Martin): zlato kupují cizí kupci, výpravy, které ho mají v „Dostaneš“, a hostitel svými mincemi 1:1, po kupcích a po objednané zbroji. Zbroj hostitel kupcům doplatí napřed mincemi, pak celými gramy zlata. Kde nikdo nemá mince, zlato nic nekoupí.
 4. **Rýžovník:** jen duben–říjen, 1 g na člověkoden vyučeného (učeň půl gramu; herní číslo, ne měření), na nejbližším dosažitelném náplavu s **1 500 g** (nedoplňuje se); mapa se 3–6 náplavy má 4,5–9 kg, rýžovník se synem ji vyrýžuje za 15–30 let. Bez náplavu se zlatem se dílna nepostaví.
-5. **Šperkař:** zpracuje 1,5 g zlata nebo mincí za člověkoden vyučeného do kapacity výhody `JEWELLER.factor` = 1,5 (prodej zlata kupujícímu i platba mincemi o třetinu levnější), nejvýš do kovu vsi; šperky nejsou zboží (Martin). Požár beze změny.
+5. **Šperkař:** zpracuje 1,5 g zlata nebo mincí za člověkoden vyučeného do kapacity výhody `JEWELLER.factor` = 1,5 (se šperkařem je prodej zlata o polovinu dráž (1,5 mince za gram) a platba mincemi o třetinu levnější), nejvýš do kovu vsi; šperky nejsou zboží (Martin). Požár beze změny.
 6. **Šperkař na výpravě:** výprava veze kapacitu `min(šperky, mince + zlato v nákladu)`, použije ji a nepoužitou přiveze zpět.
 7. **Mincovna od roku 950** (Martin): razí všechno zlato vsi, **200 g na člověkoden** vyučeného, gram za minci.
 8. **Kupci:** `wants` = zlato 1 000 g, med, vosk, kožešiny, otroci; měšec 60 mincí se nemění.

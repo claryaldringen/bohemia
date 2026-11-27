@@ -374,8 +374,8 @@ export interface VillageWorkshop {
    */
   clay?: VillageSummary['crafts']['workshops'][number]['clay'];
   /**
-   * Dílny zlata (gold.md): rýžovník { náplavy se zlatem, zbytek náplavu (g), chůze (cm) }, šperkař
-   * { výhoda, kov (g) }, mincovna { zlato (g) }; bez údaje dílna jiného řemesla.
+   * Dílny zlata (gold.md): rýžovník { náplavy se zlatem, zbytek náplavu (g), chůze (m), sezóna }, šperkař
+   * { výhoda, kov (g), násobek }, mincovna { zlato (g) }; bez údaje dílna jiného řemesla.
    */
   gold?: NonNullable<VillageSummary['crafts']['workshops'][number]['gold']>;
 }

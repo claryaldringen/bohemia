@@ -312,11 +312,26 @@ describe('nové zboží a lidé (plán 3, Úloha 11)', () => {
 
   it('se šperkařem: popisek ceny zlata i mincí říká 1,5násobek a kolik gramů ještě platí', async () => {
     const host = await mount({
-      market: market({ stock: { grain: 1000, gold: 25, coins: 12 }, jewelleryG: 30 }),
+      market: market({
+        stock: { grain: 1000, gold: 25, coins: 12 },
+        jewelleryG: 30,
+        jewelleryFactor: 1.5,
+      }),
     });
-    expect(byId(host, 'market-gold-price')!.querySelector('[role="tooltip"]')!.textContent).toBe(
-      'Zlato – 1 mince za gram, vždy, se šperkařem 1,5 mince za gram – ještě pro 30 g',
-    );
+    // „Dáš“ (prodej zlata) výhodu má, „Dostaneš“ (nákup zlata) ne
+    expect(
+      byId(host, 'market-give-gold')!.querySelector('[role="tooltip"]')!.textContent,
+    ).toContain('Zlato (g)');
+    expect(
+      byId(host, 'market-give-gold')!.querySelector(
+        '[data-testid="market-gold-price"] [role="tooltip"]',
+      )!.textContent,
+    ).toBe('Zlato – 1 mince za gram, vždy, se šperkařem 1,5 mince za gram – ještě pro 30 g');
+    expect(
+      byId(host, 'market-want-gold')!.querySelector(
+        '[data-testid="market-gold-price"] [role="tooltip"]',
+      )!.textContent,
+    ).toBe('Zlato – 1 mince za gram, vždy');
     expect(byId(host, 'market-give-coins')!.querySelector('[role="tooltip"]')!.textContent).toBe(
       'Se šperkařem platí 1,5násobek – ještě pro 30 g',
     );

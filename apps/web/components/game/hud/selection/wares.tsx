@@ -5,7 +5,7 @@
 import { type ReactElement } from 'react';
 import { ARMS_GOODS, COIN_GOOD, type WaresView } from '@bohemia/game';
 import { TRADE_GOOD_NAMES } from '@/lib/trade-names';
-import { formatInteger } from '@/lib/village-format';
+import { formatFactor, formatInteger } from '@/lib/village-format';
 import { ROW, Stat } from './parts';
 
 const goodLook = (good: keyof typeof TRADE_GOOD_NAMES): { icon: string; name: string } => ({
@@ -30,6 +30,7 @@ export function WaresStock({ wares }: { wares: WaresView | null }): ReactElement
     arms = {},
     goldG = 0,
     jewelleryG = 0,
+    jewelleryFactor,
   } = wares;
   const anyWares = hides + furs + honeyKg + waxKg > 0;
   const pieces = [
@@ -43,7 +44,7 @@ export function WaresStock({ wares }: { wares: WaresView | null }): ReactElement
       id: 'jewellery',
       icon: 'jewellery',
       count: Math.floor(jewelleryG),
-      name: `Šperky – zlato a mince za 1,5násobek, ještě pro ${Math.floor(jewelleryG)} g`,
+      name: `Šperky – zlato a mince za ${jewelleryFactor === undefined ? '' : formatFactor(jewelleryFactor)}násobek, ještě pro ${Math.floor(jewelleryG)} g`,
     },
     { id: COIN_GOOD, count: coins, ...goodLook(COIN_GOOD) },
     ...ARMS_GOODS.map((good) => ({ id: good, count: arms[good] ?? 0, ...goodLook(good) })),

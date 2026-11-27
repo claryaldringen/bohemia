@@ -82,7 +82,7 @@ describe('WaresStock – mince a zbroj (plán 4)', () => {
 
 describe('WaresStock – zlato a šperky (plán 6)', () => {
   it('zlato a šperky celé gramy s popisky a ikonami', () => {
-    const html = render({ ...wares, goldG: 84.9, jewelleryG: 30 });
+    const html = render({ ...wares, goldG: 84.9, jewelleryG: 30, jewelleryFactor: 1.5 });
     expect(text(html, 'wares-gold')).toBe('84');
     expect(text(html, 'wares-jewellery')).toBe('30');
     expect(html).toContain('/icons/resources/gold.png');
