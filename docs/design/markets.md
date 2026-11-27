@@ -273,10 +273,11 @@ a čísla měšce v plánech 5 a 6):
 1. **Kupec mince nedrží.** Za nákup platí z měšce bez dna, mince za prodanou zbroj u něj hned zaniknou – jako dřív při
    odjezdu (kupci jsou cizí). Mince tak vznikají jen platbou kupce a zanikají jen platbou kupci; stav vsi ani trhu kupci
    žádné mince nepřipíše (bez dna se do stavu zapsat nedá).
-2. **Kupec koupí všechno ze svého seznamu, co je na trhu** – za průjezd nejvýš zlato 1 000 g, med 100 kg, vosk 24 kg,
-   kožešiny 60 a otroci 10; seznam se nemění, je jedinou mezí nákupu.
-3. **Cena dne:** kupec shání celý svůj seznam toho, co je na trhu. Je-li zboží na trhu míň, než kupci shánějí, jeho cena
-   v den kupců roste o `MARKET.priceStep` denně jako dřív – zastaví ji poptávka kupců, která s cenou klesá (bod 6).
+2. **Peníze nákup neomezí** – kupec koupí ze svého seznamu, co je na trhu, kolik při ceně dne chce (bod 6); za průjezd
+   nejvýš zlato 1 000 g, med 100 kg, vosk 24 kg, kožešiny 60 a otroci 10 (seznam se nemění).
+3. **Cena dne:** kupec shání, kolik při ceně dne chce (bod 6), z toho, co je na trhu. Je-li zboží na trhu míň, než kupci
+   shánějí, jeho cena v den kupců roste o `MARKET.priceStep` denně jako dřív – zastaví ji poptávka kupců, která s cenou
+   klesá.
 4. **Kupci hladinou nehýbou:** jejich mince ani seznam se do hladiny nepočítají (měšec bez dna by ji hnal nahoru bez
    konce). Hladinu hýbou mince výprav a hostitele jako dřív; mince od kupců zdraží trh, až je ves utratí.
 5. **Převod stavu žádný:** kupec, který na trhu stojí se starým měšcem 60 mincí, ho už nepoužije a mince mu zaniknou
