@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createRandom } from '../../../landscape/random';
-import { JEWELLER } from '../../rules';
+import { GOLD, JEWELLER } from '../../rules';
 import type {
   ArmsGood,
   ChronicleEvent,
@@ -14,7 +14,7 @@ import type {
 } from '../../types';
 import { joinMarket, marketDay, marketResultRef } from '../market';
 import { coinClearing, jewelledPayment, type CoinParty } from '../market-coins';
-import { coinPriceOf } from '../market-prices';
+import { coinPriceOf, roundGold } from '../market-prices';
 import { marketStance } from '../market-stance';
 import { nextMerchantVisit } from '../merchant-plan';
 import { merchantsArrive } from '../merchants';
@@ -23,7 +23,8 @@ import { D, marketVillage, report } from './market-fixtures';
 // Šperkař v mincovní fázi (gold.md – Pravidla 4; Rozhodnutí plánu 6, body 3 a 5): kdo má kapacitu
 // šperkaře, prodá prvních tolik gramů zlata za 1,5násobek a mincemi zaplatí zboží (ne zlato) jako
 // 1,5násobkem; nad kapacitu 1:1. Výměna u hostitele je bez výhody. Objednanou zbroj hostitel kupcům
-// doplatí po mincích celými gramy svého zlata. Ceny testu: nástroje 2 mince za kg, meč 120 mincí.
+// doplatí po mincích celými gramy svého zlata. Mince váží 2,4 g (Mince 2,4 g, body 4–6): kapacita je v gramech, zlato jde jen po celých mincích.
+// Ceny testu: nástroje 2 mince za kg, meč 20 mincí.
 
 const STOP: MerchantStop = { key: '0,0,E', seed: 7, index: 0, length: 1 };
 /** První příjezd kupců po D. */
@@ -368,27 +369,30 @@ describe('mincovní fáze se šperkařem (coinClearing, hladina 1)', () => {
       );
       const grams = c.trades.reduce((sum, t) => sum + t.amount, 0);
       const coins = c.payments.reduce((sum, p) => sum + p.coins, 0);
-      seller.gold -= grams;
-      buyer.gold += grams;
+      seller.gold = roundGold(seller.gold - grams);
+      buyer.gold = roundGold(buyer.gold + grams);
       seller.coins += coins;
       buyer.coins -= coins;
       for (const holder of [seller, buyer]) holder.jewelleryG -= c.jewelleryUsed?.[holder.key] ?? 0;
     };
-    const holdings = (): number[] => [a.coins, a.gold, b.coins, b.gold];
+    const holdings = (): number[] => [a.coins, a.gold, b.coins, b.gold].map(roundGold);
     const seen: number[][] = [];
     for (let day = 0; day < 6; day++) {
       if (day % 2 === 0) round(a, b);
       else round(b, a);
-      expect([a.coins + b.coins, a.gold + b.gold]).toEqual([200, 100]);
+      expect([a.coins + b.coins, roundGold(a.gold + b.gold)]).toEqual([200, 100]);
       seen.push(holdings());
     }
-    // A prodá 50 g po 1,5 a 50 g po 1 (125), B vrátí 83 g za 125 (83 po 1,5), A zpět 83 g za 83,
-    // B 17 g po 1,5 a 57 g po 1 (83); kapacita nákupem zlata neubývá, prodejem ano
+    // Mince = 2,4 g, se šperkařem 1,5 mince za 2,4 g (0,625 mince za gram). 1. A prodá 100 g: 50 g po
+    // 0,625 (31,25 mince) a zbytek po 1/2,4; celých mincí je 52 (31,25 + 20,75) = 50 + 49,8 = 99,8 g.
+    // 2. B (kapacita 100 g) vrací za 52 mincí 83,2 g po 0,625. 3. A bez kapacity: 83,4 g, B koupí 34
+    // celých mincí = 81,6 g. 4. B s kapacitou 16,8 g: A za 34 mincí koupí 16,8 g za 10,5 mince a
+    // zbylých 23,5 mince po 2,4 g (56,4 g) = 73,2 g; kapacita nákupem zlata neubývá, prodejem ano
     expect(seen.slice(0, 4)).toEqual([
-      [125, 0, 75, 100],
-      [0, 83, 200, 17],
-      [83, 0, 117, 100],
-      [0, 74, 200, 26],
+      [52, 0.2, 148, 99.8],
+      [0, 83.4, 200, 16.6],
+      [34, 1.8, 166, 98.2],
+      [0, 75, 200, 25],
     ]);
     expect([a.jewelleryG, b.jewelleryG]).toEqual([0, 0]);
     // bez kapacity jde zlato 1:1 – další kolo nikomu nic nepřidá
@@ -428,9 +432,13 @@ describe('mincovní fáze se šperkařem (coinClearing, hladina 1)', () => {
         continue;
       }
       const goldG = c.trades.find((t) => t.good === 'gold')?.amount ?? 0;
-      expect(Number.isInteger(goldG)).toBe(true);
+      expect(goldG).toBe(roundGold(goldG)); // gramy na setiny
       const dearG = Math.min(goldG, sellerJ);
-      const goldBill = dearG * JEWELLER.factor + (goldG - dearG);
+      // účet za zlato v mincích: gram stojí 1 ÷ 2,4 mince, ve šperkaři 1,5krát víc; zlato se platí
+      // po celých mincích, z gramů na setiny vyjde celé číslo bez setiny mince
+      const rawGoldBill = (dearG * JEWELLER.factor + (goldG - dearG)) / GOLD.coinGrams;
+      const goldBill = Math.round(rawGoldBill);
+      expect(Math.abs(rawGoldBill - goldBill)).toBeLessThan(0.01);
       const otherBill = c.trades
         .filter((t) => t.good !== 'gold')
         .reduce((sum, t) => sum + t.amount * coinPriceOf({}, level, t.good), 0);
@@ -440,10 +448,11 @@ describe('mincovní fáze se šperkařem (coinClearing, hladina 1)', () => {
       expect(paid).toBeGreaterThanOrEqual(due - 1e-6);
       expect(paid).toBeLessThan(due + 1);
       expect(c.jewelleryUsed?.a ?? 0).toBeCloseTo(dearG, 9);
-      // kupující: aspoň kapacita, kterou účet potřeboval, nejvýš kov za zboží mimo zlato a kapacita
+      // kupující: aspoň kapacita, kterou účet potřeboval, nejvýš kov za zboží mimo zlato (mince po
+      // 2,4 g) a kapacita
       const used = c.jewelleryUsed?.b ?? 0;
       expect(used).toBeGreaterThanOrEqual(bill.used - 1e-9);
-      expect(used).toBeLessThanOrEqual(Math.min(buyerJ, paid - goldBill) + 1e-9);
+      expect(used).toBeLessThanOrEqual(Math.min(buyerJ, (paid - goldBill) * GOLD.coinGrams) + 1e-9);
       if (used > 0 || dearG > 0) jewelled++;
     }
     expect(jewelled).toBeGreaterThan(100);
@@ -451,18 +460,18 @@ describe('mincovní fáze se šperkařem (coinClearing, hladina 1)', () => {
 });
 
 describe('tržní den se šperkařem (marketDay)', () => {
-  it('hostitel se 100 g a kapacitou 30: kupec koupí všech 100 g za 115 mincí (30 g dráž)', () => {
+  it('hostitel se 100 g a kapacitou 30: kupec koupí 97,8 g za 47 mincí (30 g dráž)', () => {
     const s = host({ gold: 100, jewelleryG: 30 });
     merchantsArrive(s, DAY);
     const merchant = merchantOf(s);
     const chronicle = marketDay(s, DAY);
-    expect(merchant.bought).toEqual({ gold: 100 });
-    const coins = 30 * JEWELLER.factor + 70;
-    expect([s.gold ?? 0, s.coins, s.jewelleryG]).toEqual([0, coins, undefined]);
-    expect(heldOf(chronicle)).toEqual({ sold: { gold: 100 }, bought: { coins } });
+    // 30 g po 1,5 ÷ 2,4 = 18,75 mince + 70 g ÷ 2,4 = 29,17 → 47 celých mincí za 30 + 67,8 = 97,8 g
+    expect(merchant.bought).toEqual({ gold: 97.8 });
+    expect([s.gold, s.coins, s.jewelleryG]).toEqual([2.2, 47, undefined]);
+    expect(heldOf(chronicle)).toEqual({ sold: { gold: 97.8 }, bought: { coins: 47 } });
   });
 
-  it('objednaný meč (120) se 100 mincemi a kapacitou 60: zaplatí 90, zbude 10 mincí', () => {
+  it('objednaný meč (20) se 100 mincemi a kapacitou 60: zaplatí 14, zbude 86 mincí', () => {
     const s = host({ coins: 100, jewelleryG: 60, armsOrder: { swords: 1 } });
     merchantsArrive(s, DAY);
     const merchant = merchantOf(s);
@@ -470,23 +479,24 @@ describe('tržní den se šperkařem (marketDay)', () => {
     const chronicle = marketDay(s, DAY);
     // mince za meč u kupce zanikly (měšec bez dna)
     expect(merchant.goods).toEqual({});
+    // 20 ÷ 1,5 = 13,33 → 14 celých mincí; kapacita ubude o 14 × 2,4 = 33,6 g ze 60
     expect([s.coins, s.jewelleryG, s.arms, s.armsOrder]).toEqual([
-      10,
-      undefined,
+      86,
+      26.4,
       { swords: 1 },
       undefined,
     ]);
-    expect(heldOf(chronicle)).toEqual({ sold: { coins: 90 }, bought: { swords: 1 } });
+    expect(heldOf(chronicle)).toEqual({ sold: { coins: 14 }, bought: { swords: 1 } });
   });
 
   it.each([
-    // mince, zlato, kapacita → mince kupci, zlato kupci, zlato vsi
-    [0, 130, 0, 0, 120, 10],
-    [40, 100, 0, 40, 80, 20],
-    [0, 100, 60, 0, 90, 10],
+    // mince, zlato, kapacita → mince kupci, zlato kupci, zlato vsi, kapacita vsi
+    [0, 130, 0, 0, 48, 82, undefined],
+    [8, 100, 0, 8, 28.8, 71.2, undefined],
+    [0, 100, 60, 0, 33.6, 66.4, 26.4],
   ])(
     'zbroj zlatem: %s mincí, %s g a kapacita %s → kupci %s mincí a %s g, vsi zbude %s g',
-    (coins, gold, jewelleryG, paidCoins, paidGold, goldLeft) => {
+    (coins, gold, jewelleryG, paidCoins, paidGold, goldLeft, jewelleryLeft) => {
       const s = host({ coins, gold, jewelleryG, armsOrder: { swords: 1 } });
       merchantsArrive(s, DAY);
       const merchant = merchantOf(s);
@@ -494,7 +504,9 @@ describe('tržní den se šperkařem (marketDay)', () => {
       merchant.wants = {}; // zlato vsi nekoupí – zbroj ves doplatí zlatem
       const chronicle = marketDay(s, DAY);
       expect([s.arms, s.armsOrder]).toEqual([{ swords: 1 }, undefined]);
-      expect([s.coins, s.gold, s.jewelleryG]).toEqual([undefined, goldLeft, undefined]);
+      // meč za 20 mincí: napřed mince, zbytek celé mince ze zlata po 2,4 g; se šperkařem 20 ÷ 1,5 →
+      // 14 mincí = 33,6 g
+      expect([s.coins, s.gold, s.jewelleryG]).toEqual([undefined, goldLeft, jewelleryLeft]);
       // mince u kupce zanikly (měšec bez dna), zlato odveze
       expect(merchant.goods).toEqual({});
       expect(merchant.bought).toEqual({ gold: paidGold });
@@ -502,33 +514,34 @@ describe('tržní den se šperkařem (marketDay)', () => {
         sold: { gold: paidGold, ...(paidCoins > 0 ? { coins: paidCoins } : {}) },
         bought: { swords: 1 },
       });
-      // kov jen přešel – co ves dala, dostal kupec
-      expect(paidCoins + paidGold + goldLeft).toBe(coins + gold);
+      // kov jen přešel (mince po 2,4 g) – co ves dala, dostal kupec
+      expect(paidCoins * GOLD.coinGrams + paidGold + goldLeft).toBeCloseTo(
+        coins * GOLD.coinGrams + gold,
+        9,
+      );
     },
   );
 
-  it('po zbroji se šperkařem vymění hostitel zlato výpravy jen za zbylých 10 mincí', () => {
-    const s = host({ coins: 100, jewelleryG: 60, armsOrder: { swords: 1 } });
+  it('po zbroji se šperkařem vymění hostitel zlato výpravy jen za zbylé 4 mince', () => {
+    const s = host({ coins: 18, jewelleryG: 60, armsOrder: { swords: 1 } });
     joinMarket(s, DAY, trip('market:e:1', { gold: 50 }));
     merchantsArrive(s, DAY);
     merchantOf(s).goods = { swords: 1 };
     merchantOf(s).wants = {}; // zlato výpravy nekoupí – vymění ho hostitel
     const chronicle = marketDay(s, DAY);
     const e = resultOf(s, 'market:e:1');
-    expect(e).toMatchObject({ sold: { gold: 10 }, bought: {}, coinsGot: 10 });
-    expect(e.unsold).toEqual({ gold: 40, coins: 10 });
-    expect([s.coins, s.gold, s.jewelleryG, s.arms]).toEqual([
-      undefined,
-      10,
-      undefined,
-      { swords: 1 },
-    ]);
-    expect(heldOf(chronicle)).toEqual({ sold: { coins: 100 }, bought: { swords: 1, gold: 10 } });
+    // meč: 14 mincí (20 ÷ 1,5, kapacita ubude o 33,6 g), zbývají 4 mince = 9,6 g zlata výpravy
+    expect(e).toMatchObject({ sold: { gold: 9.6 }, bought: {}, coinsGot: 4 });
+    expect(e.unsold).toEqual({ gold: 40.4, coins: 4 });
+    expect([s.coins, s.gold, s.jewelleryG, s.arms]).toEqual([undefined, 9.6, 26.4, { swords: 1 }]);
+    expect(heldOf(chronicle)).toEqual({ sold: { coins: 18 }, bought: { swords: 1, gold: 9.6 } });
   });
 
   it.each([
-    [{ gold: 10, coins: 30 }, 30, { coins: 45 }, 15, 20],
-    [{ gold: 50 }, 20, { coins: 60 }, 60, undefined],
+    // 9,6 g po 0,625 mince = 6 mincí; kapacita 30 − 9,6 = 20,4 g
+    [{ gold: 9.6, coins: 30 }, 30, { coins: 36 }, 6, 20.4],
+    // 20 g po 0,625 (12,5 mince) + 30 g ÷ 2,4 (12,5) = 25 mincí
+    [{ gold: 50 }, 20, { coins: 25 }, 25, undefined],
   ])(
     'kapacita výpravy: náklad %o s kapacitou %s → domů %o, utrženo %s, kapacita %s',
     (goods, jewelleryG, unsold, coinsGot, left) => {
@@ -540,7 +553,7 @@ describe('tržní den se šperkařem (marketDay)', () => {
       marketDay(s, DAY);
       expect(resultOf(s, 'market:e:1')).toMatchObject({ sold: { gold: goods.gold }, coinsGot });
       expect(resultOf(s, 'market:e:1').unsold).toEqual(unsold);
-      expect(e.jewelleryG).toBe(left);
+      if (left !== undefined) expect(e.jewelleryG).toBeCloseTo(left, 9);
       if (left === undefined) expect(e).not.toHaveProperty('jewelleryG');
     },
   );

@@ -168,7 +168,7 @@ describe('objednávka zbroje (orderArms)', () => {
     expect(await load(w.villages, w.id, NEXT_VISIT - 1)).not.toHaveProperty('arms');
     const later = await load(w.villages, w.id, NEXT_VISIT);
     expect(later.arms).toStrictEqual({ swords: 2 });
-    expect(later.coins).toBe(260);
+    expect(later.coins).toBe(460); // 500 − 2 meče po 20
     expect(later).not.toHaveProperty('armsOrder');
   });
 

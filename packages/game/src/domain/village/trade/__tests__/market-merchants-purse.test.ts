@@ -160,11 +160,14 @@ describe('měšec kupců bez dna – nákup (markets.md – Měšec kupců bez d
     const merchant = merchantOf(s);
     expect(merchant.goods).toEqual(MERCHANTS.goods);
     const chronicle = marketDay(s, DAY);
-    // seznam za průjezd: zlato 1 000 g, med 100 kg, vosk 24 kg, kožešiny 60 a otroci 10
-    const bought = { gold: 1_000, honey: 100, wax: 24, furs: 60, slaves: 10 };
-    expect(LIST).toEqual(bought);
+    // seznam za průjezd: zlato 1 000 g, med 100 kg, vosk 24 kg, kožešiny 60 a otroci 10; zlato jen
+    // po celých mincích: 1 000 ÷ 2,4 = 416,67 → 416 mincí = 998,4 g
+    const bought = { gold: 998.4, honey: 100, wax: 24, furs: 60, slaves: 10 };
+    expect({ ...LIST, gold: 998.4 }).toEqual(bought);
     expect(merchant.bought).toEqual(bought);
-    expect(merchant.wants).toEqual({});
+    // na seznamu zbude jen zlato pod minci (1 000 − 998,4 g)
+    expect(Object.keys(merchant.wants)).toEqual(['gold']);
+    expect(merchant.wants.gold).toBeCloseTo(1.6, 9);
     expect(merchant.boughtPeople?.flatMap((g) => g.people)).toHaveLength(10);
     // jedna platba za celý košík od hostitele – součet hodnot v cenách dne nahoru
     const pay = Math.ceil(worth(bought) - 1e-9);
@@ -172,7 +175,7 @@ describe('měšec kupců bez dna – nákup (markets.md – Měšec kupců bez d
     expect(pay).toBeGreaterThan(60);
     expect(heldOf(chronicle)).toEqual({ sold: bought, bought: { coins: pay } });
     expect(s.coins).toBe(pay);
-    expect(s.gold).toBe(200);
+    expect(s.gold).toBeCloseTo(201.6, 9); // 1 200 − 998,4
     expect(s.slavesForSale).toBe(2);
     expect(s.people.filter((p) => p.slave)).toHaveLength(2);
   });
@@ -191,7 +194,7 @@ describe('měšec kupců bez dna – nákup (markets.md – Měšec kupců bez d
     // stav uložený před 27. 11. 2026 – kupec přijel s měšcem 60 mincí
     merchant.goods.coins = 60;
     const chronicle = marketDay(s, DAY);
-    const bought = { gold: 1_000, honey: 100, wax: 24, furs: 60 };
+    const bought = { gold: 998.4, honey: 100, wax: 24, furs: 60 }; // zlato po celých mincích
     expect(merchant.bought).toEqual(bought);
     // měšec ze stavu nikdo nepoužil: za meč ho hostitel nedoplnil a kupec z něj neplatil
     expect(merchant.goods).toEqual({
@@ -246,7 +249,8 @@ describe('měšec kupců bez dna – stav a součet mincí (bod 1)', () => {
     const chronicle = marketDay(s, DAY);
     // kupec platí hostiteli za zlato a med a výpravě A za kožešiny, hostitel mu platí za meč a B
     // za helmu
-    const sold = { gold: 1_000, honey: 100 };
+    const sold = { gold: 998.4, honey: 100 }; // 416 celých mincí ze zlata
+
     const earned = Math.ceil(worth(sold) - 1e-9);
     const furs = Math.ceil(30 * price('furs') - 1e-9);
     const sword = Math.ceil(price('swords') - 1e-9);

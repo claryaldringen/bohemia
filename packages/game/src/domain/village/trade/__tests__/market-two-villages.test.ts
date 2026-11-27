@@ -82,7 +82,7 @@ describe('výprava na trh mezi dvěma vsemi (markets.md – Co se ověří, bod 
     expect(back).toMatchObject({ sold: result.sold, bought: { cows: 1 }, unsold: result.unsold });
     expect(h1.trade!.expeditions.filter((e) => e.kind === 'market')).toEqual([]);
     // cena krávy zůstala na dně – nabídka převýšila poptávku, ale pod výchozí cenu nejde
-    expect(m1.market!.prices.cows!).toBe(40);
+    expect(m1.market!.prices.cows!).toBeCloseTo(20 / 3, 12); // 600 kg ÷ 90 kg za minci
     expect(h1.news![0]).toMatchObject({ villageId: 'm', prices: m1.market!.prices });
   });
 
@@ -91,7 +91,7 @@ describe('výprava na trh mezi dvěma vsemi (markets.md – Co se ověří, bod 
     h.coins = 20;
     const m = marketVillage();
     m.crafts = { charcoalKg: 0, potteryKg: 500 };
-    // kráva za 600 kg obilí zápočtem, 75 kg keramiky za 15 mincí (0,2 mince za kg)
+    // kráva za 600 kg obilí zápočtem, 75 kg keramiky za 2,5 mince (1/30 mince za kg), platí se 3
     const sent = departMarket(
       h,
       D,
@@ -109,11 +109,11 @@ describe('výprava na trh mezi dvěma vsemi (markets.md – Co se ověří, bod 
     type Held = Extract<ChronicleEvent, { kind: 'market-held' }>;
     const held = m1.chronicle.find((e): e is Held => e.kind === 'market-held')!;
     // zaplacené mince má hostitel, zbytek měšce jde domů – do `sold` a `bought` se nepřičítají
-    expect(result).toMatchObject({ coinsPaid: 15, unsold: { coins: 5 } });
+    expect(result).toMatchObject({ coinsPaid: 3, unsold: { coins: 17 } });
     expect(result).not.toHaveProperty('coinsGot');
     expect(result.bought).toEqual({ cows: 1, pottery: 75 });
     expect(Object.keys(result.sold)).toEqual(['grain']);
-    expect(m1.coins).toBe(15);
+    expect(m1.coins).toBe(3);
     expect(m1.coins! + result.unsold.coins!).toBe(20);
     expect(held.sold).toEqual(result.bought);
     expect(held.bought.coins).toBe(result.coinsPaid);
@@ -121,8 +121,8 @@ describe('výprava na trh mezi dvěma vsemi (markets.md – Co se ověří, bod 
     const h1 = advanceVillage(withoutOutbox(sent.state), D + 2, null, null, asEvents(m1.outbox!));
     type Returned = Extract<ChronicleEvent, { kind: 'market-returned' }>;
     const back = h1.chronicle.find((e): e is Returned => e.kind === 'market-returned')!;
-    expect(h1.coins).toBe(5);
-    expect(back.sold).toStrictEqual({ grain: result.sold.grain!, coins: 15 });
+    expect(h1.coins).toBe(17);
+    expect(back.sold).toStrictEqual({ grain: result.sold.grain!, coins: 3 });
     expect(back.bought).toStrictEqual({ cows: 1, pottery: 75 });
     expect(back.unsold).not.toHaveProperty('coins');
     // dopočet obou vsí po kouscích dá týž stav
@@ -181,7 +181,7 @@ describe('výprava na trh mezi dvěma vsemi (markets.md – Co se ověří, bod 
 
   // Výrobky dílen (markets.md – Rozhodnutí plánu 3, body 4 a 5): ves bez kováře koupí nástroje
   // u kováře souseda za obilí. Bilance proti téže vsi bez trhu (vsi mezi kroky žijí).
-  it('nástroje za obilí: H bez kováře koupí 10 kg od M s kovářem, 4 mince za kg proti 1 ÷ 15', () => {
+  it('nástroje za obilí: H bez kováře koupí 10 kg od M s kovářem, 2/3 mince za kg proti 1 ÷ 90', () => {
     const h = homeVillage();
     h.toolEquipmentKg = toolNeedKg(h, D) - 10;
     const m = marketVillage();
@@ -203,11 +203,11 @@ describe('výprava na trh mezi dvěma vsemi (markets.md – Co se ověří, bod 
     const mAlone = advanceVillage(m, D + 1, null, null);
     const out = m1.outbox!.find((x) => x.ref === marketResultRef(sent.trip.key))!;
     const result = (out.body as { result: MarketResult }).result;
-    // 10 kg × 4 mince = 40 mincí = 600 kg obilí × 1 ÷ 15; zbylých 300 kg se vrátí
+    // 10 kg × 2/3 mince = 6,67 mince = 600 kg obilí × 1 ÷ 90; zbylých 300 kg se vrátí
     expect(result.bought).toEqual({ tools: 10 });
     expect(result.sold.grain).toBeCloseTo(600, 6);
     expect(result.unsold.grain).toBeCloseTo(300, 6);
-    expect(m1.market!.prices.tools).toBe(4);
+    expect(m1.market!.prices.tools).toBeCloseTo(2 / 3, 12);
     // M prodal nástroje a koupil přesně obilí, které H prodala
     type Held = Extract<ChronicleEvent, { kind: 'market-held' }>;
     const held = m1.chronicle.find((e): e is Held => e.kind === 'market-held')!;

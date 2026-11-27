@@ -185,15 +185,15 @@ describe('cizí kupci kupují otroky (markets.md – Rozhodnutí plánu 5, bod 7
     expect(merchantOf(s).wants).toEqual(list);
   });
 
-  it('výprava se 3 otroky: kupec, který shání 2, je koupí za 48 mincí, třetí se vrátí domů', () => {
+  it('výprava se 3 otroky: kupec, který shání 2, je koupí za 8 mincí, třetí se vrátí domů', () => {
     const { home, key, arrive } = slaveTrip(1);
     const m = advanceVillage(twoSlavesHost(), DAY, null, null, arrive);
     const result = resultOf(m, key);
     expect([result.sold, result.bought, result.unsold, result.coinsGot]).toEqual([
       { slaves: 2 },
       {},
-      { slaves: 1, coins: 48 },
-      48,
+      { slaves: 1, coins: 8 },
+      8,
     ]);
     expect(result.people!.map((g) => [g.good, g.people.map((p) => p.id)])).toEqual([
       ['slaves', [14]],
@@ -201,18 +201,18 @@ describe('cizí kupci kupují otroky (markets.md – Rozhodnutí plánu 5, bod 7
     // kupci odjeli – prodaní nejsou v žádné vsi, nákladu ani poště
     expect(m.market!.visitors).toEqual([]);
     goneFromWorld(home, [m]);
-    // domů: třetí s původním id a 48 mincí
+    // domů: třetí s původním id a 8 mincí
     const back = advanceVillage(home, DAY + 1, null, null, asEvents(m.outbox!));
     const third = person(slavesHome(), 14)!;
     expect(person(back, 14)).toMatchObject({ slave: true, bornDay: third.bornDay, sex: 'male' });
     expect(traces([back, withoutOutbox(m)], third)).toEqual([
       expect.stringMatching(/^ves 0\.people\[\d+\]$/),
     ]);
-    expect(back.coins).toBe(48);
+    expect(back.coins).toBe(8);
     goneFromWorld(back, [withoutOutbox(m)]);
   });
 
-  it('zápočet: výprava s 5 otroky dostane meč (120 = 5 × 24), mince se nehnou', () => {
+  it('zápočet: výprava s 5 otroky dostane meč (20 = 5 × 4), mince se nehnou', () => {
     const s = host();
     joinMarket(s, DAY, trip('market:a:1', {}, { swords: 1 }, [21, 22, 23, 24, 25]));
     merchantsArrive(s, DAY);
@@ -232,7 +232,7 @@ describe('cizí kupci kupují otroky (markets.md – Rozhodnutí plánu 5, bod 7
   });
 
   it('pořadí prodávajících: kupci kupují od výprav v pořadí příjezdu, u každé v pořadí zboží', () => {
-    // E1 se 100 kg medu přijela první – med za 40 mincí, na otroky E2 zbude 20 < 24
+    // E1 se 100 kg medu přijela první – med za 7 mincí (100 kg ÷ 15 ≈ 6,67 nahoru), pak otroci E2
     const s = host();
     joinMarket(s, DAY, trip('market:a:1', { honey: 100 }, {}));
     joinMarket(s, DAY, trip('market:b:1', {}, {}, [31, 32]));
@@ -241,15 +241,15 @@ describe('cizí kupci kupují otroky (markets.md – Rozhodnutí plánu 5, bod 7
     marketDay(s, DAY);
     expect([resultOf(s, 'market:a:1').sold, resultOf(s, 'market:a:1').unsold]).toEqual([
       { honey: 100 },
-      { coins: 40 },
+      { coins: 7 },
     ]);
     // měšec bez dna: kupec koupí od obou všechno ze seznamu – napřed med E1, pak otroky E2
     expect([resultOf(s, 'market:b:1').sold, resultOf(s, 'market:b:1').unsold]).toEqual([
       { slaves: 2 },
-      { coins: 48 },
+      { coins: 8 },
     ]);
     expect([first.goods, first.bought]).toEqual([MERCHANTS.goods, { honey: 100, slaves: 2 }]);
-    // obráceně: E1 se 2 otroky – otroci za 48 mincí, med E2 za 40
+    // obráceně: E1 se 2 otroky – otroci za 8 mincí, med E2 za 7
     const t = host();
     joinMarket(t, DAY, trip('market:a:1', {}, {}, [31, 32]));
     joinMarket(t, DAY, trip('market:b:1', { honey: 100 }, {}));
@@ -258,10 +258,10 @@ describe('cizí kupci kupují otroky (markets.md – Rozhodnutí plánu 5, bod 7
     marketDay(t, DAY);
     expect([resultOf(t, 'market:a:1').sold, resultOf(t, 'market:a:1').unsold]).toEqual([
       { slaves: 2 },
-      { coins: 48 },
+      { coins: 8 },
     ]);
     expect(resultOf(t, 'market:b:1').sold).toEqual({ honey: 100 });
-    expect(resultOf(t, 'market:b:1').unsold).toEqual({ coins: 40 });
+    expect(resultOf(t, 'market:b:1').unsold).toEqual({ coins: 7 });
     expect(second.goods).toEqual(MERCHANTS.goods); // mince kupec nedrží
     expect(second.boughtPeople!.flatMap((g) => g.people.map((p) => p.id))).toEqual([31, 32]);
   });
@@ -294,7 +294,7 @@ describe('cizí kupci kupují otroky (markets.md – Rozhodnutí plánu 5, bod 7
     const back = advanceVillage(home, DAY + 4, null, null, [returned]);
     const third = person(slavesHome(), 14)!;
     expect(person(back, 14)).toMatchObject({ slave: true, bornDay: third.bornDay });
-    expect(back.coins).toBe(48);
+    expect(back.coins).toBe(8);
     goneFromWorld(back, [gone]);
     type Returned = Extract<ChronicleEvent, { kind: 'market-returned' }>;
     const chronicle = back.chronicle.find((e): e is Returned => e.kind === 'market-returned');

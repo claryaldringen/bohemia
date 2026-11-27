@@ -419,7 +419,7 @@ describe('sendMarketExpedition', () => {
     expect(await w.villages.inbox.pending(w.ids.m, D - 6, TOTAL_GAME_DAYS)).toEqual([]);
   });
 
-  it('výprava se 400 mincemi: 200 kg obilí za 14 mincí, 386 se vrátí domů', async () => {
+  it('výprava se 400 mincemi: 200 kg obilí za 3 mince, 397 se vrátí domů', async () => {
     const w = await world({ home: coinsHome() });
     await setState(w, w.ids.m, () => {
       const host = marketVillage(0);
@@ -441,13 +441,13 @@ describe('sendMarketExpedition', () => {
       return (await w.villages.find(villageId))!.state;
     };
     const host = await load(w.ids.m, D + 1);
-    expect(host.coins).toBe(14);
+    expect(host.coins).toBe(3); // 200 kg ÷ 90 = 2,22 nahoru
     expect(host.chronicle.find((e) => e.kind === 'market-held')).toMatchObject({
       sold: { grain: 200 },
-      bought: { coins: 14 },
+      bought: { coins: 3 },
     });
     const back = await load(w.ids.h, D + 2);
-    expect(back.coins).toBe(386);
+    expect(back.coins).toBe(397);
     expect(back.chronicle.find((e) => e.kind === 'market-returned')).toMatchObject({
       bought: { grain: 200 },
       sold: {},
