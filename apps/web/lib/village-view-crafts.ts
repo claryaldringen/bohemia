@@ -148,6 +148,10 @@ export function craftYard(
     if (clay === 0 && !treading) return null;
     return { clay, ...(treading ? { treading: true as const } : {}) };
   }
+  // šperkař a mincíř při výrobě kují jako kovář (plán 6) – bez zásob houby a hřiven
+  if (w.craft === 'jeweller' || w.craft === 'minter') {
+    return w.activity === 'producing' ? { task: 'forge' } : null;
+  }
   if (w.craft !== 'smith') return null;
   const task = SMITH_TASK[w.activity];
   const share = Math.max(1, smithies);

@@ -91,6 +91,19 @@ describe('dvůr dílny v pohledu na ves (production-chains.md – Kovář)', () 
     expect(workshopSmokes(dwelling(idle, 50).workshop!)).toBe(false);
   });
 
+  it('šperkař a mincíř při výrobě kují (výheň), jindy bez dvora; rýžovník bez dvora (plán 6)', () => {
+    for (const craft of ['jeweller', 'minter'] as const) {
+      const s = yardVillage('idle', 'idle');
+      dwelling(s, 50).workshop = { craft, felling: null, fuelKg: 0, activity: 'producing' };
+      expect(craftYard(s, dwelling(s, 50), DAY, 1), craft).toEqual({ task: 'forge' });
+      dwelling(s, 50).workshop!.activity = 'no-gold';
+      expect(craftYard(s, dwelling(s, 50), DAY, 1), craft).toBeNull();
+    }
+    const s = yardVillage('idle', 'idle');
+    dwelling(s, 50).workshop = { craft: 'panner', felling: null, fuelKg: 0, activity: 'producing' };
+    expect(craftYard(s, dwelling(s, 50), DAY, 1)).toBeNull();
+  });
+
   it('hrnčíř – hlína v jámě po stupních, šlape jen když vyrábí', () => {
     const s = yardVillage('idle', 'producing', 80);
     expect(craftYard(s, dwelling(s, 60), DAY, 1)).toEqual({ clay: 2, treading: true });

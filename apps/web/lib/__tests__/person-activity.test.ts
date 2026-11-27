@@ -97,6 +97,42 @@ describe('personActivity – co postava dělá', () => {
     );
   });
 
+  it('rýžovník u náplavu rýžuje zlato, kovář u rudiště kope rudu (plán 6)', () => {
+    const village: SceneVillage = {
+      ...VILLAGE,
+      dwellings: [
+        ...VILLAGE.dwellings,
+        {
+          id: 33,
+          type: 'polozemnice',
+          craft: 'panner',
+          position: { x: 40, z: 0, rotation: 0 },
+          built: true,
+          progress: 1,
+        },
+        {
+          id: 34,
+          type: 'polozemnice',
+          craft: 'smith',
+          position: { x: 50, z: 0, rotation: 0 },
+          built: true,
+          progress: 1,
+        },
+      ],
+    };
+    const dig = (id: number): string =>
+      personActivity(
+        state({
+          kind: 'share',
+          activity: 'ore',
+          target: { kind: 'ore', id, x: 120, z: -60 },
+        }),
+        village,
+      );
+    expect(dig(33)).toBe('rýžuje zlato');
+    expect(dig(34)).toBe('kope rudu');
+  });
+
   it('podkoní u jízdy říká úsek, ne „stará se o koně“ (D82)', () => {
     const groom: PersonJob = {
       kind: 'share',

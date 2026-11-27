@@ -460,7 +460,10 @@ function shareText(
       if (t.kind === 'trees') return 'nakládá klády na vůz';
       return 'nakládá vůz';
     case 'ore':
-      return 'kope rudu';
+      // rýžovník u náplavu (plán 6) – ve sdíleném podílu „ore“ jde o domácnost dílny podle id
+      return t.kind === 'ore' && village.dwellings.find((d) => d.id === t.id)?.craft === 'panner'
+        ? 'rýžuje zlato'
+        : 'kope rudu';
     case 'clay':
       return 'kope hlínu';
     case 'quarry':

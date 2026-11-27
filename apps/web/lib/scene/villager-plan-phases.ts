@@ -120,6 +120,12 @@ export function planPhases(
     const house = ctx.houses.find((h) => h.id === t.id);
     if (house?.craft === 'burner') return kilnRole(ctx, undefined, house.id);
     // při tavbě i měchař (syn 10–13) – pomáhá prát a pražit rudu
+    // šperkař a mincíř (plán 6) pracují u výhně a pece jako kovář při kování
+    if (house?.craft === 'jeweller' || house?.craft === 'minter') {
+      if (house.yard?.task !== 'forge') return null;
+      const places = dropOf(f, at);
+      return { role: 'forge', ...(places ? { places } : {}) };
+    }
     if (house?.craft === 'smith') {
       const task = house.yard?.task;
       if (task === 'smelt') return { role: 'smelt' };

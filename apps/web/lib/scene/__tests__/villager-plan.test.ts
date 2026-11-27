@@ -29,6 +29,7 @@ import {
   planFunerals,
   planWeddings,
   planVillagers,
+  planVillagersWithCrew,
   walkRoute,
   type PlannedVillager,
   type VillagerGround,
@@ -1292,6 +1293,57 @@ describe('kovárna a hrnčíř – tavba, měchař, překování, šlapání hl�
     const pose = at(smith!, 5);
     expect(near(pose, anvil.x, anvil.z)).toBeLessThan(0.3);
     expect(pose.clip).toBe('build');
+  });
+
+  it('šperkař a mincíř při výrobě kují jako kovář – role výhně, ne obecná práce dílny', () => {
+    for (const craft of ['smith', 'jeweller', 'minter'] as const) {
+      const base = yardVillage([crafting(32, 1)], {});
+      const v: SceneVillage = {
+        ...base,
+        dwellings: [
+          ...base.dwellings,
+          {
+            ...house(32, 55, -20, 0, true, 'polozemnice'),
+            craft,
+            yard: { task: 'forge' as const },
+          },
+        ],
+        labor: {
+          ...base.labor!,
+          persons: [{ id: 7001, age: 30, sex: 'male', home: 32, role: craft }],
+        },
+      };
+      const { people, tasks } = planVillagersWithCrew(v, GROUND, { seed: 3, herds: 0 });
+      const worker = people.find((p) => p.key.startsWith('craft:dwelling-32:'));
+      expect(worker, craft).toBeDefined();
+      expect(tasks.get(worker!.person!)?.role, craft).toBe('forge');
+    }
+  });
+
+  it('rýžovník jde k náplavu – stojí u něj s motykou, ne v dílně (plán 6)', () => {
+    const PLACER = { x: 120, z: -60 };
+    const base = village([
+      {
+        activity: 'ore',
+        target: { kind: 'ore', id: 33, x: PLACER.x, z: PLACER.z },
+        manDays: 1,
+        ages: [30],
+      },
+    ]);
+    const v: SceneVillage = {
+      ...base,
+      dwellings: [
+        ...base.dwellings,
+        { ...house(33, 55, -20, 0, true, 'polozemnice'), craft: 'panner' as const },
+      ],
+    };
+    const diggers = planVillagers(v, GROUND, { seed: 5, herds: 0 }).filter((p) =>
+      p.key.startsWith('ore:'),
+    );
+    expect(diggers.length).toBe(1);
+    const pose = at(diggers[0]!, 5);
+    expect(pose.clip).toBe('hoe');
+    expect(Math.hypot(pose.x - PLACER.x, pose.z - PLACER.z)).toBeLessThan(4);
   });
 
   it('hrnčíř šlape hlínu v jámě – chodí tam a zpět a z jámy nevyjde', () => {

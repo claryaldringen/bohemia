@@ -223,6 +223,22 @@ describe('rýžování – krajina se zlatonosným potokem (seed 11)', () => {
     expect(s.gold).toBeCloseTo(PANNING.placerG - 1_499.9, 9);
   });
 
+  it('rozdělení práce dne: rýžovník jde k náplavu jako podíl „ore“, ne do dílny (scéna)', () => {
+    const start = pannerVillage(at(4, 30), FROM);
+    const after = advanceVillage(start, at(5, 2), null, gold);
+    const shares = after.labor?.shares ?? [];
+    const pan = shares.find((x) => x.activity === 'ore');
+    const place = placers.find((p) => pan?.target.kind === 'ore' && pan.target.x === p.x);
+    expect(pan?.target).toEqual({ kind: 'ore', id: PANNER, x: place!.x, z: place!.z });
+    expect(pan!.manDays).toBeGreaterThan(0);
+    // výroba rýžovníka není práce v dílně
+    expect(
+      shares.some(
+        (x) => x.activity === 'craft' && x.target.kind === 'dwelling' && x.target.id === PANNER,
+      ),
+    ).toBe(false);
+  });
+
   it('ves po dnech: každý náplav vyčerpaný jednou, kronika left n−1…0, pak no-placer; po kouscích = vcelku', () => {
     const start = pannerVillage(at(3, 30), FROM);
     start.goldPanned = placers.map(() => 1_499.9);
