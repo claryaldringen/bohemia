@@ -291,3 +291,46 @@ describe('náhled výpravy s otroky = kontrola jádra (plán 5, Úloha 8a)', () 
     expect(marketPreview(order, view.market, target.cells, people).reason).toBeNull();
   });
 });
+
+describe('zlato a šperkař v pohledu trhu (plán 6, Úloha 10)', () => {
+  it('cena zlata je pevná: 1 mince za gram i s hladinou 2,3', () => {
+    const s = village();
+    s.market = { prices: {}, level: 2.3 } as NonNullable<VillageState['market']>;
+    expect(manorView(s, DAY)!.market.goldPrice).toBe(1);
+  });
+
+  it('kapacita šperkaře: 30 g při 40 mincích; bez kovu nebo bez kapacity pole chybí', () => {
+    const s = village();
+    expect(manorView(s, DAY)!.market).not.toHaveProperty('jewelleryG');
+    s.jewelleryG = 30;
+    expect(manorView(s, DAY)!.market).not.toHaveProperty('jewelleryG');
+    s.coins = 40;
+    expect(manorView(s, DAY)!.market.jewelleryG).toBe(30);
+    s.coins = 10;
+    expect(manorView(s, DAY)!.market.jewelleryG).toBe(10);
+  });
+
+  it('náhled výpravy se 200 g zlata má tytéž nosiče jako planMarketTrip', () => {
+    const s = village();
+    s.gold = 300;
+    const view = manorView(s, DAY)!;
+    const order: MarketOrder = { give: { gold: 200 }, wants: {}, stayDays: 1 };
+    const preview = marketPreview(order, view.market, 2, null);
+    expect(preview.reason).toBeNull();
+    expect(view.market.stock.gold).toBe(300);
+    const target: MarketTarget = {
+      villageId: 'v-2',
+      name: 'Lhota',
+      cells: 2,
+      firstStep: 'E',
+      homeVillageId: 'h',
+      homeName: 'Vlkov',
+    };
+    const plan = planMarketTrip(s, DAY, order, target);
+    expect(plan.ok).toBe(true);
+    if (plan.ok) {
+      expect(preview.porters).toBe(plan.porters);
+      expect(preview.carts).toBe(plan.cartIds.length);
+    }
+  });
+});

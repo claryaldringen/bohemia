@@ -91,6 +91,7 @@ describe('lov a psi na dvorci', () => {
         day: 0,
         trips: [],
         merchantsDay: null,
+        goldPrice: 1,
         arms: [],
         merchantsArrived: null,
         slaveSale: null,

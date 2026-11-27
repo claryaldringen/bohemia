@@ -1409,6 +1409,15 @@ plní `manorView` (`stanceOf`), volba jde přes server action `setDefenseStance`
   `slaves` (jinak null). `marketPreview` bere zásobu otroků a volné dospělé z odpovědi `marketTripPeople`
   (odcházející otroci nenesou; odpověď bez otroků zásobu otroků nepřepíše), takže náhled neodmítne platnou
   výpravu ani nepustí tu, kterou server odmítne (`MARKET_NO_PEOPLE`).
+- **Zlato v panelu Trh** (gold.md – Pravidla 3 a 4; plán 6, Úloha 10) – zlato má řádek v „Dáš“ (nejvýš
+  `villageGoodStock`) i v „Dostaneš“, krok po 10 g (`stepOf`). `marketField` (`lib/manor-view.ts`) dává
+  pohledu `market.goldPrice` (`coinPriceOf(…, 'gold')` – pevně 1 mince za gram, bez hladiny) a
+  `market.jewelleryG` (`Math.floor(jewelleryOf(state))`, jen > 0, jinak pole chybí). `GoodRow` ukáže u zlata
+  cenu s ikonou mince (`market-gold-price`) a popiskem „Zlato – 1 mince za gram, vždy“, se šperkařem
+  „…, se šperkařem 1,5 mince za gram – ještě pro 30 g“ (`JEWELLER.factor`); u mincí v „Dáš“ je popisek
+  „Se šperkařem platí 1,5násobek – ještě pro 30 g“. Náhled výpravy (`marketPreview`) zlato nijak zvlášť
+  nepočítá – bere zásobu `stock.gold` a `checkMarketTrip`, takže nosiče a důvod odmítnutí má jako server.
+  Testy: `market-view.test.ts`, `MarketPanel.test.tsx`.
 - **Upozornění** „Kupci přijeli“ s ikonou kupců (`VillageNotice.icon`, `lib/village-notices.ts`): za každý
   příjezd – `merchantsArrived` je novější než v minulém pohledu.
 - **Kronika** (`lib/village-view-chronicle.ts`): `merchants-arrived` „Přijeli kupci z daleka – prodávají …,
