@@ -660,7 +660,8 @@ async function runWorld(world: World, mint: boolean): Promise<RunSummary> {
     const want = plan.get(day);
     if (want) {
       const s = g.state;
-      const goldG = villageGoodStock(s, GOLD_GOOD, day);
+      // hráč dává zlato na výpravu v celých gramech (zásoba má setiny – gold.md, Mince 2,4 g, bod 4)
+      const goldG = Math.floor(villageGoodStock(s, GOLD_GOOD, day));
       const coinsG = villageGoodStock(s, COIN_GOOD, day);
       const give: TradeGoods = {
         ...(want === 'swords' && goldG > 0 ? { [GOLD_GOOD]: goldG } : {}),

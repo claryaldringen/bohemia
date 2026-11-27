@@ -106,14 +106,17 @@ function heldOf(
 }
 
 describe('platba se šperkařem (jewelledPayment)', () => {
+  // kapacita v gramech, mince do ní po 2,4 g (gold.md – Mince 2,4 g zlata za 90 kg obilí, bod 6):
+  // 240 g = 100 mincí, 144 g = 60, 96 g = 40
   it.each([
-    [40, 100, 40 / 1.5, 40 / 1.5],
-    [90, 60, 60, 60],
-    [100, 40, 80, 40],
-    [120, 60, 90, 60],
+    [40, 240, 40 / 1.5, (40 / 1.5) * 2.4],
+    [90, 144, 60, 144],
+    [100, 96, 80, 96],
+    [120, 144, 90, 144],
     [50, 0, 50, 0],
     [0, 30, 0, 0],
-  ])('účet %s s kapacitou %s: %s mincí, kapacita %s', (bill, budget, coins, used) => {
+    [10, 1.5, 10 - 0.5 * 0.625, 1.5],
+  ])('účet %s s kapacitou %s g: %s mincí, kapacita %s g', (bill, budget, coins, used) => {
     const paid = jewelledPayment(bill, budget);
     expect(paid.coins).toBeCloseTo(coins, 12);
     expect(paid.used).toBeCloseTo(used, 12);
@@ -125,7 +128,7 @@ describe('platba se šperkařem (jewelledPayment)', () => {
 });
 
 describe('mincovní fáze se šperkařem (coinClearing, hladina 1)', () => {
-  it('E s 50 g a kapacitou 20 prodá kupci 20 g za 30 a 30 g za 30: 60 mincí za 50 g', () => {
+  it('E s 50 g a kapacitou 20 prodá kupci 20 g po 1,6 g (12,5) a 30 g po 2,4 g (12,5): 25 mincí', () => {
     const c = coinClearing(
       [
         party('host'),
@@ -136,111 +139,111 @@ describe('mincovní fáze se šperkařem (coinClearing, hladina 1)', () => {
       1,
     );
     expect(c.trades).toEqual([{ seller: 'e', buyer: 'kupec', good: 'gold', amount: 50 }]);
-    expect(c.payments).toEqual([{ buyer: 'kupec', seller: 'e', coins: 60 }]);
+    expect(c.payments).toEqual([{ buyer: 'kupec', seller: 'e', coins: 25 }]);
     expect(c.jewelleryUsed).toEqual({ e: 20 });
   });
 
-  it('hostitel se 100 g a kapacitou 30: kupec s měšcem 60 koupí 45 g (30 po 1,5, 15 po 1)', () => {
+  it('hostitel se 100 g a kapacitou 30: kupec s měšcem 30 koupí 57 g (30 g za 18,75, 27 g za 11,25)', () => {
     const c = coinClearing(
       [
         party('host', { stock: { gold: 100 }, jewelleryG: 30 }),
-        party('kupec', { coins: 60, wants: { gold: 1_000 }, merchant: true }),
+        party('kupec', { coins: 30, wants: { gold: 1_000 }, merchant: true }),
       ],
       {},
       1,
     );
-    expect(c.trades).toEqual([{ seller: 'host', buyer: 'kupec', good: 'gold', amount: 45 }]);
-    expect(c.payments).toEqual([{ buyer: 'kupec', seller: 'host', coins: 60 }]);
+    expect(c.trades).toEqual([{ seller: 'host', buyer: 'kupec', good: 'gold', amount: 57 }]);
+    expect(c.payments).toEqual([{ buyer: 'kupec', seller: 'host', coins: 30 }]);
     expect(c.jewelleryUsed).toEqual({ host: 30 });
   });
 
-  it('E se 100 mincemi a kapacitou 40 zaplatí 50 kg nástrojů (100) 80 mincemi', () => {
+  it('E se 100 mincemi a kapacitou 96 g (40 mincí) zaplatí 50 kg nástrojů (100) 80 mincemi', () => {
     const c = coinClearing(
       [
         party('host', { stock: { tools: 50 } }),
-        party('e', { coins: 100, wants: { tools: 50 }, jewelleryG: 40 }),
+        party('e', { coins: 100, wants: { tools: 50 }, jewelleryG: 96 }),
       ],
       TOOLS,
       1,
     );
     expect(c.trades).toEqual([{ seller: 'host', buyer: 'e', good: 'tools', amount: 50 }]);
     expect(c.payments).toEqual([{ buyer: 'e', seller: 'host', coins: 80 }]);
-    expect(c.jewelleryUsed).toEqual({ e: 40 });
+    expect(c.jewelleryUsed).toEqual({ e: 96 });
   });
 
-  it('kapacita zvětší, co se do měšce vejde: 100 mincí a kapacita 40 koupí 60 kg (120)', () => {
+  it('kapacita zvětší, co se do měšce vejde: 100 mincí a kapacita 96 g koupí 60 kg (120)', () => {
     const c = coinClearing(
       [
         party('host', { stock: { tools: 80 } }),
-        party('e', { coins: 100, wants: { tools: 80 }, jewelleryG: 40 }),
+        party('e', { coins: 100, wants: { tools: 80 }, jewelleryG: 96 }),
       ],
       TOOLS,
       1,
     );
     expect(c.trades).toEqual([{ seller: 'host', buyer: 'e', good: 'tools', amount: 60 }]);
     expect(c.payments).toEqual([{ buyer: 'e', seller: 'host', coins: 100 }]);
-    expect(c.jewelleryUsed).toEqual({ e: 40 });
+    expect(c.jewelleryUsed).toEqual({ e: 96 });
   });
 
-  it('smíšený košík: nástroje za 40 (26,67 mince) a zlata jen 73 g – zaplatí celý měšec 100', () => {
+  it('smíšený košík: nástroje za 40 (26,67 mince) a zlato jen za 73 mincí (175,2 g) – celý měšec 100', () => {
     const c = coinClearing(
       [
-        party('host', { stock: { tools: 20, gold: 100 } }),
-        party('e', { coins: 100, wants: { tools: 20, gold: 100 }, jewelleryG: 100 }),
+        party('host', { stock: { tools: 20, gold: 300 } }),
+        party('e', { coins: 100, wants: { tools: 20, gold: 300 }, jewelleryG: 100 }),
       ],
       TOOLS,
       1,
     );
     expect(c.trades).toEqual([
       { seller: 'host', buyer: 'e', good: 'tools', amount: 20 },
-      { seller: 'host', buyer: 'e', good: 'gold', amount: 73 },
+      { seller: 'host', buyer: 'e', good: 'gold', amount: 175.2 },
     ]);
-    // 73 + 26,67 nahoru = 100 – zlato bez výhody, kapacitu ubere kov za nástroje (100 − 73)
+    // 73 + 26,67 nahoru = 100 – zlato bez výhody, kapacitu ubere kov za nástroje (100 − 73) × 2,4 g
     expect(c.payments).toEqual([{ buyer: 'e', seller: 'host', coins: 100 }]);
-    expect(c.jewelleryUsed).toEqual({ e: 27 });
+    expect(c.jewelleryUsed).toEqual({ e: 64.8 });
   });
 
   it('smíšený košík od šperkaře: zlato platí kupující dráž i se svou kapacitou', () => {
     const c = coinClearing(
       [
-        party('host', { stock: { tools: 20, gold: 100 }, jewelleryG: 30 }),
-        party('e', { coins: 100, wants: { tools: 20, gold: 100 }, jewelleryG: 100 }),
+        party('host', { stock: { tools: 20, gold: 300 }, jewelleryG: 30 }),
+        party('e', { coins: 100, wants: { tools: 20, gold: 300 }, jewelleryG: 100 }),
       ],
       TOOLS,
       1,
     );
-    // na zlato zbude 73,33 mince: 30 g po 1,5 (45) a 28 g po 1 – účet za zlato 73
+    // na zlato zbude 73,33 mince → 73 celých: 30 g po 1,6 g (18,75) a 130,2 g po 2,4 g (54,25)
     expect(c.trades).toEqual([
       { seller: 'host', buyer: 'e', good: 'tools', amount: 20 },
-      { seller: 'host', buyer: 'e', good: 'gold', amount: 58 },
+      { seller: 'host', buyer: 'e', good: 'gold', amount: 160.2 },
     ]);
     expect(c.payments).toEqual([{ buyer: 'e', seller: 'host', coins: 100 }]);
-    expect(c.jewelleryUsed).toEqual({ host: 30, e: 27 });
+    expect(c.jewelleryUsed).toEqual({ host: 30, e: 64.8 });
   });
 
-  it('výměna u hostitele je bez výhody v obou směrech: 30 g za 30 mincí', () => {
+  it('výměna u hostitele je bez výhody v obou směrech: 72 g za 30 mincí', () => {
     const c = coinClearing(
       [
         party('host', { coins: 50, exchangesGold: true, jewelleryG: 40 }),
-        party('e', { stock: { gold: 30 }, jewelleryG: 20 }),
+        party('e', { stock: { gold: 72 }, jewelleryG: 20 }),
       ],
       {},
       1,
     );
-    expect(c.trades).toEqual([{ seller: 'e', buyer: 'host', good: 'gold', amount: 30 }]);
+    expect(c.trades).toEqual([{ seller: 'e', buyer: 'host', good: 'gold', amount: 72 }]);
     expect(c.payments).toEqual([{ buyer: 'host', seller: 'e', coins: 30 }]);
     expect(c).not.toHaveProperty('jewelleryUsed');
   });
 
   it('bez kapacity, nebo když ji nikdo nepoužije, `jewelleryUsed` chybí', () => {
     const parties = [
-      party('host', { stock: { gold: 100 } }),
+      party('host', { stock: { gold: 200 } }),
       party('e', { stock: { gold: 50 }, jewelleryG: 20 }),
       party('kupec', { coins: 60, wants: { gold: 1_000 }, merchant: true }),
     ];
     const c = coinClearing(parties, {}, 1);
-    // kupec utratí měšec u hostitele (bez šperkaře) dřív, než přijde na řadu E
-    expect(c.trades).toEqual([{ seller: 'host', buyer: 'kupec', good: 'gold', amount: 60 }]);
+    // kupec utratí měšec u hostitele (bez šperkaře) dřív, než přijde na řadu E – 60 × 2,4 g
+    expect(c.trades).toEqual([{ seller: 'host', buyer: 'kupec', good: 'gold', amount: 144 }]);
     expect(c).not.toHaveProperty('jewelleryUsed');
     expect(coinClearing(parties.slice(0, 1), {}, 1)).not.toHaveProperty('jewelleryUsed');
   });
@@ -258,42 +261,42 @@ describe('mincovní fáze se šperkařem (coinClearing, hladina 1)', () => {
       });
     const seller = party('kupec', { stock: { swords: 1 }, merchant: true });
 
-    it('0 mincí a 130 g: meč zaplatí 120 g, kupec je odveze jako koupené', () => {
-      const c = coinClearing([arms(0, 130), seller], {}, 1);
+    it('0 mincí a 50 g: meč (20) zaplatí 48 g po 2,4 g za minci, kupec je odveze jako koupené', () => {
+      const c = coinClearing([arms(0, 50), seller], {}, 1);
       expect(c.trades).toEqual([
         { seller: 'kupec', buyer: 'host', good: 'swords', amount: 1 },
-        { seller: 'host', buyer: 'kupec', good: 'gold', amount: 120 },
+        { seller: 'host', buyer: 'kupec', good: 'gold', amount: 48 },
       ]);
       expect(c.payments).toEqual([]);
       expect(c).not.toHaveProperty('jewelleryUsed');
     });
 
-    it('napřed mince: 40 mincí a 100 g zaplatí 40 mincí a 80 g', () => {
-      const c = coinClearing([arms(40, 100), seller], {}, 1);
+    it('napřed mince: 8 mincí a 30 g zaplatí 8 mincí a 28,8 g (12 mincí)', () => {
+      const c = coinClearing([arms(8, 30), seller], {}, 1);
       expect(c.trades).toEqual([
         { seller: 'kupec', buyer: 'host', good: 'swords', amount: 1 },
-        { seller: 'host', buyer: 'kupec', good: 'gold', amount: 80 },
+        { seller: 'host', buyer: 'kupec', good: 'gold', amount: 28.8 },
       ]);
-      expect(c.payments).toEqual([{ buyer: 'host', seller: 'kupec', coins: 40 }]);
+      expect(c.payments).toEqual([{ buyer: 'host', seller: 'kupec', coins: 8 }]);
     });
 
-    it('se šperkařem (kapacita 60) zaplatí 100 g zlata za meč jen 90 g', () => {
-      const c = coinClearing([arms(0, 100, { jewelleryG: 60 }), seller], {}, 1);
+    it('se šperkařem (kapacita 24 g = 10 mincí) zaplatí meč (20) jen 15 mincemi – 36 g', () => {
+      const c = coinClearing([arms(0, 50, { jewelleryG: 24 }), seller], {}, 1);
       expect(c.trades).toEqual([
         { seller: 'kupec', buyer: 'host', good: 'swords', amount: 1 },
-        { seller: 'host', buyer: 'kupec', good: 'gold', amount: 90 },
+        { seller: 'host', buyer: 'kupec', good: 'gold', amount: 36 },
       ]);
       expect(c.payments).toEqual([]);
-      expect(c.jewelleryUsed).toEqual({ host: 60 });
+      expect(c.jewelleryUsed).toEqual({ host: 24 });
     });
 
-    it('zlatem prodaným kupci už neplatí: ze 130 g prodá 60 g, meč doplatí jen zbylými 10 g', () => {
+    it('zlatem prodaným kupci už neplatí: ze 130 g prodá 60 g, na třetí meč nemá – dva doplatí 36 g', () => {
       const c = coinClearing(
         [
-          arms(50, 130, { wants: { swords: 2 } }),
+          arms(0, 130, { wants: { swords: 3 } }),
           party('kupec', {
-            coins: 60,
-            stock: { swords: 2 },
+            coins: 25,
+            stock: { swords: 3 },
             wants: { gold: 1_000 },
             merchant: true,
           }),
@@ -301,15 +304,15 @@ describe('mincovní fáze se šperkařem (coinClearing, hladina 1)', () => {
         {},
         1,
       );
-      // hostitel má 110 mincí a 70 g – na druhý meč (240) nemá
+      // hostitel má 25 mincí a 70 g (29 mincí) – na třetí meč (60) nemá; s celými 130 g by měl
       expect(c.trades).toEqual([
         { seller: 'host', buyer: 'kupec', good: 'gold', amount: 60 },
-        { seller: 'kupec', buyer: 'host', good: 'swords', amount: 1 },
-        { seller: 'host', buyer: 'kupec', good: 'gold', amount: 10 },
+        { seller: 'kupec', buyer: 'host', good: 'swords', amount: 2 },
+        { seller: 'host', buyer: 'kupec', good: 'gold', amount: 36 },
       ]);
       expect(c.payments).toEqual([
-        { buyer: 'kupec', seller: 'host', coins: 60 },
-        { buyer: 'host', seller: 'kupec', coins: 110 },
+        { buyer: 'kupec', seller: 'host', coins: 25 },
+        { buyer: 'host', seller: 'kupec', coins: 25 },
       ]);
     });
 
@@ -318,7 +321,7 @@ describe('mincovní fáze se šperkařem (coinClearing, hladina 1)', () => {
         [
           arms(60, 100, { jewelleryG: 30 }),
           party('kupec', {
-            coins: 60,
+            coins: 20,
             stock: { swords: 1 },
             wants: { gold: 1_000 },
             merchant: true,
@@ -327,13 +330,14 @@ describe('mincovní fáze se šperkařem (coinClearing, hladina 1)', () => {
         {},
         1,
       );
+      // 30 g dráž za 18,75 mince a 3 g za 1,25 – kapacita je pryč, meč (20) za 20
       expect(c.trades).toEqual([
-        { seller: 'host', buyer: 'kupec', good: 'gold', amount: 45 },
+        { seller: 'host', buyer: 'kupec', good: 'gold', amount: 33 },
         { seller: 'kupec', buyer: 'host', good: 'swords', amount: 1 },
       ]);
       expect(c.payments).toEqual([
-        { buyer: 'kupec', seller: 'host', coins: 60 },
-        { buyer: 'host', seller: 'kupec', coins: 120 },
+        { buyer: 'kupec', seller: 'host', coins: 20 },
+        { buyer: 'host', seller: 'kupec', coins: 20 },
       ]);
       expect(c.jewelleryUsed).toEqual({ host: 30 });
     });
