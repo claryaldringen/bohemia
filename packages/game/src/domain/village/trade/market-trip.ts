@@ -11,7 +11,8 @@
 // ze vsi jako tytéž osoby (`takePeople`), nosiči nejsou a s výsledkem se vrátí neprodaní
 // (`restorePeople`) a přijdou koupení (`settlePeople`). Mince výpravy (Rozhodnutí plánu 4, bod 4) jsou
 // jen ty v nákladu: při odjezdu ubydou vsi, na trhu se platí z nich a co neutratí, vrátí se domů
-// v `unsold` – ze zásoby vsi se za výpravu podruhé neplatí.
+// v `unsold` – ze zásoby vsi se za výpravu podruhé neplatí. Kapacita šperkaře (gold.md – Pravidla 4;
+// Rozhodnutí plánu 6, bod 6) jde s kovem v nákladu (`tripJewelleryG`) a nepoužitá se vrátí s výsledkem.
 import { TOTAL_GAME_DAYS } from '../../calendar';
 import { cloneState } from '../core/clone';
 import { cartOxen, cartsWithOxen, tradeHomeCarts } from '../crafts/carts';
@@ -19,7 +20,7 @@ import { ironTripHelpers } from '../crafts/cart-iron';
 import { purchaseTravelers } from '../crafts/craft-buying';
 import { oxenHome } from '../livestock/oxen';
 import { awayFromWork, isAdult } from '../people/people';
-import { CARTS, MARKET, TRADE, TRADE_GOOD_VALUES } from '../rules';
+import { CARTS, GOLD, MARKET, TRADE, TRADE_GOOD_VALUES } from '../rules';
 import type {
   CartKind,
   ChronicleEvent,
@@ -40,6 +41,7 @@ import type {
 import {
   CART_GOODS,
   COIN_GOOD,
+  GOLD_GOOD,
   HORSE_GOODS,
   PEOPLE_GOODS,
   TRADE_GOODS,
@@ -54,6 +56,7 @@ import {
 import { reservedSeedKg } from '../fields/seed';
 import { rememberOrders } from './craft-orders';
 import { addHorses, takeHorses } from './horse-trade';
+import { addJewellery, jewelleryOf, useJewellery } from './jewellery';
 import { marketArrivalRef, rememberNews } from './market';
 import {
   leavingGroups,
@@ -462,8 +465,9 @@ export function departMarket(
  * `cartIds`, dny 2 × cesta + pobyt, práce nosiči × dny, kam a kdy domů – `market`, s voly pro
  * koupené vozy `oxen`, kdo ji poslal – `by`), klíč `market:<domovská ves>:<id>`. Do odchozí
  * schránky jde příjezd k hostiteli na den příjezdu (se zprávou na pivo o domovské vsi a směrem
- * `firstStep`) a do kroniky `market-departed` s hostitelem (`villageId`) a `by`. Den jde
- * parametrem – `lastDay` se nemění.
+ * `firstStep`) a do kroniky `market-departed` s hostitelem (`villageId`) a `by`. Kapacita šperkaře
+ * k mincím a zlatu v nákladu (`tripJewelleryG`) ubude ve vsi a jede v příjezdu (`jewelleryG`). Den
+ * jde parametrem – `lastDay` se nemění.
  * `seedKg` – kolik obilí ze seznamu je osivo (výprava vesničanů za osivem, `MarketTrip.seedKg`).
  * Kovář souseda (Rozhodnutí plánu 3, bod 9): `alone` – jde sám bez nosičů a vozů
  * (`planMarketTrip`), `service` – příjezd nese službu, kvůli které jde (`MarketArrival.service`).
@@ -499,6 +503,18 @@ interface DepartOptions {
   reserved?: ReadonlySet<number>;
 }
 
+/**
+ * Kapacita šperkaře, kterou si výprava veze (g; gold.md – Pravidla 4; Rozhodnutí plánu 6, bod 6):
+ * nejvýš použitelná kapacita vsi (`jewelleryOf`) a nejvýš kov v nákladu – mince × `GOLD.coinGrams`
+ * + gramy zlata. Počítá se ze vsi před odchodem nákladu (po něm by `jewelleryOf` kov už neviděla).
+ * Výprava vesničanů nic (mince neutrácí – Martin 25. 11. 2026: „Mince utrácí jen vojvoda/správce“).
+ */
+export function tripJewelleryG(state: VillageState, give: TradeGoods, by?: TripBy): number {
+  if (by === 'villagers') return 0;
+  const metal = (give[COIN_GOOD] ?? 0) * GOLD.coinGrams + (give[GOLD_GOOD] ?? 0);
+  return Math.max(0, Math.min(jewelleryOf(state), metal));
+}
+
 /** Odchod výpravy, kterou `planMarketTrip` schválil (mutuje stav) – viz `departMarketInPlace`. */
 function departPlanned(
   next: VillageState,
@@ -512,6 +528,10 @@ function departPlanned(
   const report = villageReport(next, day);
   const give = positiveGoods(order.give);
   const wants = positiveGoods(order.wants);
+  // kapacita šperkaře jde s kovem v nákladu – ze vsi před jeho odchodem, ve vsi ubude (uložená
+  // tak smí kov vsi přerůst, dokud se výprava nevrátí – doma ji ořízne `addJewellery`)
+  const jewelleryG = tripJewelleryG(next, give, by);
+  if (jewelleryG > 0) useJewellery(next, jewelleryG);
   const horses: MarketHorse[] = [];
   const carts: MarketCart[] = [];
   const people: MarketPerson[] = [];
@@ -600,6 +620,7 @@ function departPlanned(
         ...(service ? { service: { ...service } } : {}),
         ...(kin ? { kin: { ...kin } } : {}),
         ...(by ? { by } : {}),
+        ...(jewelleryG > 0 ? { jewelleryG } : {}),
       },
     },
   });
@@ -643,7 +664,9 @@ export function marketTripsDay(state: VillageState, day: number): void {
  * Vrací zápis kroniky `market-returned` s hostitelem (`villageId`) a tím, kdo výpravu poslal (`by`);
  * bez záznamu výpravy s prázdným jménem vsi a bez obojího; za ním `newcomer` koupených lidí. Mince
  * (Rozhodnutí plánu 4, bod 9): ves dostane měšec výpravy (`unsold.coins`), v kronice jsou zaplacené
- * v `sold.coins` a přijaté v `bought.coins`, vrácené mezi neprodaným zbožím nejsou.
+ * v `sold.coins` a přijaté v `bought.coins`, vrácené mezi neprodaným zbožím nejsou. Nepoužitá
+ * kapacita šperkaře (`jewelleryG`; gold.md – Pravidla 4) přibude až po vráceném a koupeném zboží
+ * (`addJewellery` – uloženou ořízne na kov vsi, který už výprava přivezla).
  */
 export function applyMarketResult(
   state: VillageState,
@@ -669,6 +692,9 @@ export function applyMarketResult(
     }
   }
   if (seedKg > 0) state.reservedSeedKg = reservedBefore + seedKg;
+  // kapacita šperkaře až po kovu, který výprava přivezla – jinak by ji ořízl kov bez něj
+  const jewelleryG = result.jewelleryG ?? 0;
+  if (jewelleryG > 0) addJewellery(state, jewelleryG);
   // vozy se stářím; kus bez záznamu stáří (výsledek uložený dřív) přijde nový
   const carts = result.carts ?? [];
   addMarketCarts(state, carts);

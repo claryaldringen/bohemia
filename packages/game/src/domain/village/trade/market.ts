@@ -218,6 +218,8 @@ export function joinMarket(
     ...(arrival.service ? { service: { ...arrival.service } } : {}),
     ...(arrival.kin ? { kin: { ...arrival.kin } } : {}),
     ...(arrival.by ? { by: arrival.by } : {}),
+    // kapacita šperkaře, kterou výprava veze (gold.md – Pravidla 4) – použije ji mincovní fáze
+    ...((arrival.jewelleryG ?? 0) > 0 ? { jewelleryG: arrival.jewelleryG } : {}),
   };
   market.visitors.push(visitor);
   market.arrivals.push({
@@ -253,7 +255,9 @@ export function joinMarket(
  * hostitel). Návštěvník: co prodal a koupil, `unsold` = co mu zbylo (i mince v měšci), koně domů =
  * neprodaní a koupení, lidé – neprodaní vlastní (`people`) a koupení (`newcomers`), zaplacené
  * a přijaté mince (`coinsPaid`, `coinsGot` – Rozhodnutí plánu 4, bod 9; jen kladné). Nepoužitý
- * příjezd: nic neprodal ani nekoupil, domů jde vše, co vezl, i lidé. Kopie.
+ * příjezd: nic neprodal ani nekoupil, domů jde vše, co vezl, i lidé. Obojí nese nepoužitou kapacitu
+ * šperkaře (`jewelleryG`, jen kladnou – gold.md, Rozhodnutí plánu 6, bod 6), i výsledek `returned`.
+ * Kopie.
  */
 export function marketResult(
   from: MarketVisitor | MarketArrival,
@@ -276,6 +280,7 @@ export function marketResult(
     ...(newcomers.length > 0 ? { newcomers } : {}),
     ...(visitor?.coinsPaid ? { coinsPaid: visitor.coinsPaid } : {}),
     ...(visitor?.coinsGot ? { coinsGot: visitor.coinsGot } : {}),
+    ...((from.jewelleryG ?? 0) > 0 ? { jewelleryG: from.jewelleryG } : {}),
     ...extra,
   });
 }
@@ -647,9 +652,10 @@ function coinPhase(
  * zprávou o hostiteli, cenami trhu, hladinou (jen ≠ 1; Rozhodnutí plánu 4, bod 3) a zakázkami, které
  * hostitel zapsal (`recordOrders` – co hostitel po dnešním zápočtu ještě shání je `hostWants`), jde
  * do odchozí schránky k domovské vsi na den návratu – den po posledním tržním dni + dny cesty.
- * Výsledek s lidmi nebo s mincemi v měšci nese i výpravu, jak ji hostitel viděl (`origin` –
- * Rozhodnutí plánu 3, bod 13): zanikne-li domovská ves, pošta s ním vrátí lidi a mince hostiteli
- * (`stranded-people`) a kronika hostitele ví, odkud přišly (preflight plánu 4, M14). Cizí kupec domov
+ * Výsledek s lidmi, s mincemi v měšci nebo se zlatem (neprodaným i koupeným – gold.md, Rozhodnutí
+ * plánu 6, bod 9) nese i výpravu, jak ji hostitel viděl (`origin` – Rozhodnutí plánu 3, bod 13):
+ * zanikne-li domovská ves, pošta s ním vrátí lidi a mince hostiteli (`stranded-people`) a kronika
+ * hostitele ví, odkud přišly (preflight plánu 4, M14). Cizí kupec domov
  * nemá (Rozhodnutí plánu 4, bod 5) – odjede bez zakázek a bez pošty a jeho měšec, neprodaná zbroj
  * i koupené zboží odejdou ze světa, i koupení otroci (`boughtPeople` – jediný odchod lidí ze světa
  * kromě smrti, Rozhodnutí plánu 5, bod 7).
@@ -671,6 +677,11 @@ function departVisitors(
     const ordered = recordOrders(state, day, visitor, hostWants);
     const direction = homeward(visitor);
     const people = (visitor.people?.length ?? 0) + (visitor.boughtPeople?.length ?? 0);
+    // kov domů – měšec a zlato v nákladu i koupené (zlato je mezi vsemi jako mince)
+    const money =
+      (visitor.goods[COIN_GOOD] ?? 0) +
+      (visitor.goods[GOLD_GOOD] ?? 0) +
+      (visitor.bought[GOLD_GOOD] ?? 0);
     outbox.push({
       villageId: visitor.fromVillageId,
       day: day + 1 + visitor.travelDays,
@@ -682,7 +693,7 @@ function departVisitors(
           prices: market.prices,
           ...(market.level !== undefined && market.level !== 1 ? { level: market.level } : {}),
           ...(hasGoods(ordered) ? { ordered } : {}),
-          ...((people > 0 || (visitor.goods.coins ?? 0) > 0) && direction !== undefined
+          ...((people > 0 || money > 0) && direction !== undefined
             ? {
                 origin: {
                   villageId: visitor.fromVillageId,

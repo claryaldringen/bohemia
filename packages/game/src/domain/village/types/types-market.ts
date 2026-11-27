@@ -160,6 +160,11 @@ export interface MarketArrival {
    * Chybí = hráč (nebo příjezd z doby před příznakem).
    */
   by?: TripBy;
+  /**
+   * Kapacita šperkaře, kterou si výprava veze (g; gold.md – Pravidla 4, Rozhodnutí plánu 6, bod 6 –
+   * `tripJewelleryG`): nejvýš kov v nákladu, ve vsi o ni ubylo. Chybí = žádná (i výprava vesničanů).
+   */
+  jewelleryG?: number;
 }
 
 /**
@@ -241,8 +246,9 @@ export interface MarketVisitor {
   coinsPaid?: number;
   coinsGot?: number;
   /**
-   * Kapacita šperkaře, kterou výprava veze (g; gold.md – Pravidla 4): v mincovní fázi s ní prodá
-   * zlato dráž a mincemi zaplatí víc, spotřebovaná ubude (`coinPhase`). Chybí = žádná.
+   * Kapacita šperkaře, kterou výprava veze (g; gold.md – Pravidla 4; z příjezdu – `joinMarket`):
+   * v mincovní fázi s ní prodá zlato dráž a mincemi zaplatí víc, spotřebovaná ubude (`coinPhase`),
+   * zbytek jde domů ve výsledku (`MarketResult.jewelleryG`). Chybí = žádná.
    */
   jewelleryG?: number;
 }
@@ -367,8 +373,9 @@ export interface MarketResult {
   /**
    * Výprava, jak ji viděl hostitel – domovská ves, její jméno a směr od hostitele k ní
    * (`OPPOSITE[visitor.firstStep]`; markets.md – Rozhodnutí plánu 3, bod 13). Jen u výsledku
-   * s lidmi: zanikne-li domovská ves, jdou lidé zpět k hostiteli (`stranded-people`) a kdo se u něj
-   * usadí, přišel odtud. Chybí = výsledek bez lidí, nebo výprava bez směru cesty.
+   * s lidmi, mincemi nebo zlatem (neprodaným i koupeným – gold.md, Rozhodnutí plánu 6, bod 9):
+   * zanikne-li domovská ves, jdou lidé zpět k hostiteli (`stranded-people`) a kdo se u něj usadí,
+   * přišel odtud. Chybí = výsledek bez nich, nebo výprava bez směru cesty.
    */
   origin?: { villageId: string; villageName: string; direction: Direction8 };
   /**
@@ -378,6 +385,13 @@ export interface MarketResult {
    */
   coinsPaid?: number;
   coinsGot?: number;
+  /**
+   * Nepoužitá kapacita šperkaře výpravy (g; `MarketVisitor.jewelleryG` při odjezdu, u nepoužitého
+   * příjezdu `MarketArrival.jewelleryG`; jen kladná) – doma ji `addJewellery` přičte až po zboží
+   * a uloženou ořízne na kov vsi. Zboží to není: se zaniklou domovskou vsí zanikne (Rozhodnutí plánu
+   * 6, bod 6). Chybí = žádná.
+   */
+  jewelleryG?: number;
 }
 
 /**

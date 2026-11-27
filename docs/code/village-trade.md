@@ -419,6 +419,22 @@ day, order, target, { by?, seedKg?, alone?, service?, kin?, people? })` (mutuje 
     seznam a ten, který volní lidé neunesou, odmítne kontrola (`MARKET_NO_PEOPLE`) i náhled; plná
     posádka s mincemi vyjede. Neprodané zboží se do cesty zpět nepočítá jako dosud (Rozhodnutí
     plánu 2, bod 2).
+  - **Zlato a kapacita šperkaře** (gold.md – Pravidla 4; Rozhodnutí plánu 6, body 6 a 9; Martin
+    22. 11. 2026: „I mezi vesnicemi“): zlato jede v nákladu jako mince (`give.gold` – celé gramy,
+    ubude vsi, co zbude, je v `unsold`). Výprava hráče a správce si veze kapacitu šperkaře
+    `tripJewelleryG(state, give, by)` = min(`jewelleryOf`, mince × `GOLD.coinGrams` + gramy zlata
+    v nákladu), výprava vesničanů nic (mince neutrácí). `departPlanned` ji spočítá ze vsi **před**
+    odchodem nákladu (po něm by `jewelleryOf` vyšla 0), ve vsi ji ubere (`useJewellery` – uložená
+    kapacita tak smí kov vsi přerůst, dokud se výprava nevrátí; použitelná je dál nejvýš kov)
+    a zapíše `MarketArrival.jewelleryG` (jen kladnou). `joinMarket` ji předá do
+    `MarketVisitor.jewelleryG`, mincovní fáze ji použije a ubere (Zlato – Šperkař v mincovní fázi
+    níž), `marketResult` vrátí zbytek v `MarketResult.jewelleryG` (jen kladný; i výsledek `returned`
+    nepoužitého příjezdu nebo výpravy, která stála na trhu zaniklého hostitele) a `applyMarketResult`
+    ho přičte `addJewellery` až po vráceném a koupeném zboží – uloženou kapacitu ořízne na kov, který
+    ves po návratu má (výprava, která koupila zlato od šperkaře, si kapacitu nechá celou, i když jí
+    kovu ubylo – ořízne se až doma). Výsledek bez kapacity uloženou kapacitu nemění. Zaniklá domovská
+    ves kapacitu nedostane – zboží to není. Výsledek se zlatem (neprodaným i koupeným) nese `origin`
+    jako výsledek s mincemi (`departVisitors`). Testy `market-gold-trips.test.ts`.
   - **Pryč v pevné dny** (Rozhodnutí 2 – termín trhu je pevný): `expeditionLaborNeed` /
     `workExpeditions` berou nosiče výpravy na trh jen ve dnech `startedDay` … `returnDay` − 1,
     mimo ně nic, i když vsi chyběli dospělí; výprava nemá podíl po stezce. Voli pro koupené vozy
@@ -658,7 +674,8 @@ day, order, target, { by?, seedKg?, alone?, service?, kin?, people? })` (mutuje 
     kapacita) – uložená kapacita vsi tak placením kov nepřeroste. Kapacita strany je jedna pro celou
     fázi: hostitel ji napřed použije na zlato, které mu koupí kupci, zbytek na zbroj. Dvě strany se
     šperkaři, které si zlato prodávají dokola, nevydělají obě – mince i zlato se jen přesouvají (co
-    jedna získá, druhá ztratí) a výhoda každé končí s její kapacitou.
+    jedna získá, druhá ztratí) a výhoda každé končí s její kapacitou. Kapacitu výpravy přiveze
+    příjezd a zbytek jde domů ve výsledku (Výprava na trh – Zlato a kapacita šperkaře výš).
   - **Zbroj zlatem** (Rozhodnutí plánu 6, bod 3; `armsBuyer`): hostitel s objednávkou dostane
     `goldPurse` = celé gramy zlata vsi a kapacitu `jewelleryOf`; zbroj kupcům platí
     `jewelledPayment(účet, j)` kovu – napřed mince, zbytek celými gramy zlata z nabídky (co už
@@ -1011,8 +1028,9 @@ laborHa`) → chybí ceil(dospělí × (landHa ÷ laborHa − 1)) dospělých, r
   kronika `newcomer`). Dřívější párování podle `emigrants` (týž id a `bornDay`) je pryč: osadníci
   si nesou id mateřské vsi a nová ves čísluje hned za nimi, takže cizí skupina mohla převzít id
   emigranta nebo předka hostitele a v řetězu člověk zmizel (kontrola úlohy 10, Important 1). Bez
-  `from` bez směru a kroniky. Výsledek s lidmi nebo s mincemi v měšci nese `origin` (domovská ves,
-  jméno a směr od hostitele k ní – `departVisitors`), bez obojího ho nemá. Mince zprávy (`coins` –
+  `from` bez směru a kroniky. Výsledek s lidmi, s mincemi v měšci nebo se zlatem (neprodaným
+  i koupeným – plán 6) nese `origin` (domovská ves, jméno a směr od hostitele k ní –
+  `departVisitors`), bez nich ho nemá. Mince zprávy (`coins` –
   Rozhodnutí plánu 4, bod 9) `receiveStranded` přičte do zásoby vsi (`addGood`) a s `from` je
   zapíše (preflight plánu 4, M14): do prvního zápisu `newcomer` (`coins` – „Do vsi se vrátila
   prodaná rodina z Lhoty a 17 mincí.“), bez lidí zápis `stranded-coins` („Do vsi přišlo 17 mincí
