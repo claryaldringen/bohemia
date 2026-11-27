@@ -5,29 +5,30 @@ import { TRADE_GOODS } from '../goods';
 import { coinPriceOf, initialPrice, nextLevel, nextPrices, priceOf } from '../market-prices';
 
 describe('ceny trhu v mincovní míře (markets.md – Rozhodnutí plánu 2, bod 3)', () => {
-  it('výchozí cena je hodnota zboží v kg obilí ÷ 15 kg obilí za minci', () => {
-    expect(MARKET.grainKgPerCoin).toBe(15);
-    expect(initialPrice('cows')).toBe(40);
-    expect(initialPrice('grain')).toBeCloseTo(1 / 15, 12);
+  it('výchozí cena je hodnota zboží v kg obilí ÷ 90 kg obilí za minci', () => {
+    expect(MARKET.grainKgPerCoin).toBe(90);
+    // kráva 600 kg obilí ÷ 90 = 20/3 mince, kg obilí 1/90 mince
+    expect(initialPrice('cows')).toBeCloseTo(20 / 3, 12);
+    expect(initialPrice('grain')).toBeCloseTo(1 / 90, 12);
     for (const good of TRADE_GOODS) {
-      expect(initialPrice(good)).toBeCloseTo(TRADE_GOOD_VALUES[good].valueKg / 15, 12);
+      expect(initialPrice(good)).toBeCloseTo(TRADE_GOOD_VALUES[good].valueKg / 90, 12);
     }
   });
 
   it('trh si pamatuje cenu zboží, které na něm bylo – ostatní mají výchozí', () => {
-    expect(priceOf(undefined, 'cows')).toBe(40);
-    expect(priceOf({}, 'cows')).toBe(40);
-    expect(priceOf({ cows: 50 }, 'cows')).toBe(50);
-    expect(priceOf({ cows: 50 }, 'logs')).toBeCloseTo(40 / 15, 12);
+    expect(priceOf(undefined, 'cows')).toBeCloseTo(20 / 3, 12);
+    expect(priceOf({}, 'cows')).toBeCloseTo(20 / 3, 12);
+    expect(priceOf({ cows: 8 }, 'cows')).toBe(8);
+    expect(priceOf({ cows: 8 }, 'logs')).toBeCloseTo(initialPrice('logs'), 12);
   });
 
   it('po tržním dni se cena posune o 10 % × (poptávka − nabídka) / (poptávka + nabídka)', () => {
     expect(MARKET.priceStep).toBe(0.1);
-    expect(nextPrices({}, { cows: 2 }, { cows: 6 }).cows).toBeCloseTo(42, 9); // 40 × (1 + 0,1 × 4/8)
-    expect(nextPrices({ cows: 50 }, { cows: 3 }, {}).cows).toBeCloseTo(45, 9);
-    expect(nextPrices({}, {}, { cows: 1 }).cows).toBeCloseTo(44, 9);
+    expect(nextPrices({}, { cows: 2 }, { cows: 6 }).cows).toBeCloseTo((20 / 3) * 1.05, 9); // × (1 + 0,1 × 4/8)
+    expect(nextPrices({ cows: 8 }, { cows: 3 }, {}).cows).toBeCloseTo(7.2, 9); // 8 × 0,9
+    expect(nextPrices({}, {}, { cows: 1 }).cows).toBeCloseTo((20 / 3) * 1.1, 9);
     // posune se zapamatovaná cena, ne výchozí
-    expect(nextPrices({ cows: 50 }, {}, { cows: 1 }).cows).toBeCloseTo(55, 9);
+    expect(nextPrices({ cows: 8 }, {}, { cows: 1 }).cows).toBeCloseTo(8.8, 9);
   });
 
   it('zboží bez nabídky i poptávky cenu nemění; nové ceny jsou nový objekt', () => {
@@ -45,57 +46,58 @@ describe('ceny trhu v mincovní míře (markets.md – Rozhodnutí plánu 2, bod
     for (let i = 0; i < 200; i++) glut = nextPrices(glut, { logs: 20 }, {});
     expect(glut.logs).toBe(initialPrice('logs'));
     // cena nad dnem klesá po krocích, ale ne pod dno
-    let high: MarketPrices = { cows: 60 };
+    let high: MarketPrices = { cows: 10 };
     high = nextPrices(high, { cows: 3 }, {});
-    expect(high.cows).toBeCloseTo(54, 9);
+    expect(high.cows).toBeCloseTo(9, 9);
     for (let i = 0; i < 200; i++) high = nextPrices(high, { cows: 3 }, {});
-    expect(high.cows).toBe(40);
+    expect(high.cows).toBe(initialPrice('cows'));
   });
 
   it('s poptávkou cena nad dnem roste jako dosud', () => {
     let p: MarketPrices = {};
     for (let i = 0; i < 3; i++) p = nextPrices(p, {}, { cows: 1 });
-    expect(p.cows).toBeCloseTo(40 * 1.1 ** 3, 9);
+    expect(p.cows).toBeCloseTo((20 / 3) * 1.1 ** 3, 9);
   });
 
   it('starší stav s cenou pod dnem se při dalším tržním dni zvedne na dno', () => {
-    expect(nextPrices({ cows: 10 }, {}, {}).cows).toBe(40);
-    expect(nextPrices({ cows: 10 }, { cows: 3 }, {}).cows).toBe(40);
-    expect(nextPrices({ cows: 10 }, {}, { cows: 1 }).cows).toBeCloseTo(44, 9);
+    expect(nextPrices({ cows: 1 }, {}, {}).cows).toBeCloseTo(20 / 3, 12);
+    expect(nextPrices({ cows: 1 }, { cows: 3 }, {}).cows).toBeCloseTo(20 / 3, 12);
+    expect(nextPrices({ cows: 1 }, {}, { cows: 1 }).cows).toBeCloseTo((20 / 3) * 1.1, 9);
   });
 
   it('technická mez: cena nejvýš 1e9 × výchozí – dál neroste, klesat smí', () => {
     // poptávka bez nabídky po 218 tržních dnech: 1,1^218 ≈ 1,06e9
+    const CAP = 1e9 * initialPrice('cows'); // 20e9 ÷ 3
     let p: MarketPrices = {};
     for (let i = 0; i < 217; i++) p = nextPrices(p, {}, { cows: 1, grain: 1 });
-    expect(p.cows).toBeCloseTo(40 * 1.1 ** 217, -3);
-    expect(p.cows!).toBeLessThan(40e9);
+    expect(p.cows).toBeCloseTo((20 / 3) * 1.1 ** 217, -3);
+    expect(p.cows!).toBeLessThan(CAP);
     for (let i = 0; i < 100; i++) p = nextPrices(p, {}, { cows: 1, grain: 1 });
-    // násobek výchozí ceny, každé zboží podle své
-    expect(p).toEqual({ cows: 40e9, grain: 1e9 * initialPrice('grain') });
-    expect(nextPrices({ cows: 40e9 }, {}, { cows: 1 }).cows).toBe(40e9);
-    expect(nextPrices({ cows: 40e9 }, { cows: 1 }, { cows: 1 }).cows).toBe(40e9);
-    expect(nextPrices({ cows: 40e9 }, { cows: 1 }, {}).cows).toBeCloseTo(36e9, 0);
+    // násobek výchozí ceny, každé zboží podle své (kráva 20/3 mince)
+    expect(p).toEqual({ cows: CAP, grain: 1e9 * initialPrice('grain') });
+    expect(nextPrices({ cows: CAP }, {}, { cows: 1 }).cows).toBe(CAP);
+    expect(nextPrices({ cows: CAP }, { cows: 1 }, { cows: 1 }).cows).toBe(CAP);
+    expect(nextPrices({ cows: CAP }, { cows: 1 }, {}).cows).toBeCloseTo(0.9 * CAP, -2);
     // těsně pod mezí roste jen k ní
-    expect(nextPrices({ cows: 39e9 }, {}, { cows: 1 }).cows).toBe(40e9);
-    expect(nextPrices({ cows: 30e9 }, {}, { cows: 1 }).cows).toBeCloseTo(33e9, 0);
+    expect(nextPrices({ cows: 0.975 * CAP }, {}, { cows: 1 }).cows).toBe(CAP);
+    expect(nextPrices({ cows: 0.75 * CAP }, {}, { cows: 1 }).cows).toBeCloseTo(0.825 * CAP, -2);
   });
 
   it('technická mez: cena se nikdy nestane nekonečnem, které by JSON uložil jako null', () => {
     const huge: MarketPrices = { cows: Number.MAX_VALUE, honey: Number.MAX_VALUE };
     expect(Number.MAX_VALUE * (1 + MARKET.priceStep)).toBe(Infinity);
     const next = nextPrices(huge, {}, { cows: 1 });
-    expect(next).toEqual({ cows: 40e9, honey: 1e9 * initialPrice('honey') });
+    expect(next).toEqual({ cows: 1e9 * initialPrice('cows'), honey: 1e9 * initialPrice('honey') });
     expect(JSON.parse(JSON.stringify(next))).toEqual(next);
   });
 });
 
 describe('cena v mincích a hladina trhu (markets.md – Rozhodnutí plánu 4, bod 3)', () => {
   it('cena v mincích je cena zboží × hladina', () => {
-    expect(coinPriceOf({}, 2, 'furs')).toBeCloseTo(16 / 15, 12);
-    expect(coinPriceOf(undefined, 1, 'cows')).toBe(40);
-    expect(coinPriceOf({ cows: 50 }, 1.5, 'cows')).toBe(75);
-    expect(coinPriceOf({ cows: 50 }, 1.5, 'grain')).toBeCloseTo(0.1, 12);
+    expect(coinPriceOf({}, 2, 'furs')).toBeCloseTo(16 / 90, 12);
+    expect(coinPriceOf(undefined, 1, 'cows')).toBeCloseTo(20 / 3, 12);
+    expect(coinPriceOf({ cows: 8 }, 1.5, 'cows')).toBe(12);
+    expect(coinPriceOf({ cows: 8 }, 1.5, 'grain')).toBeCloseTo(1.5 / 90, 12);
   });
 
   it('hladina po mincovní fázi: × (1 + 10 % × (C − W) / (C + W)), nejméně 1', () => {

@@ -29,9 +29,9 @@ import { villageReport } from '../village-report';
 // dnech, pošta mezi nimi po každém dni jako události schránky (vzor market-neighbours-years). S třikrát
 // do roka pošle výpravu hráče (`departMarket` s kontrolami `checkMarketTrip`) na den kupců v T
 // s medem, voskem, kožešinami a mincemi pro meč. Pomalý test (`packages/game/slow-tests.ts`).
-// Měšec kupce při odjezdu ve stavu vidět není (kupec obvykle přijede a odjede týž den) – test ho
-// skládá z měšců na trhu ráno, příjezdů (`MERCHANTS.coins`) a mincí, které dnes kupcům daly vsi
-// a výpravy (`market-held` hostitele, `coinsPaid` a `coinsGot` výprav na trhu a ve výsledku).
+// Kupci mince nedrží (měšec bez dna – markets.md, Měšec kupců bez dna): mince světa se mění jen o to,
+// co kupcům vsi a výpravy daly a co od nich dostaly (`market-held` hostitele, `coinsPaid`
+// a `coinsGot` výprav na trhu a ve výsledku).
 
 const DAYS = 3 * YEAR;
 const REFRESH = 30;
@@ -314,10 +314,10 @@ describe('trh s cizími kupci a mincemi po tři roky (markets.md – Co se ově�
       // mince, které dnes kupci dostali od vsí a výprav (záporně: dali jim) – kupec obchoduje jen
       // na trhu T, takže je to celý tok mincí mezi kupci a světem
       const toMerchants = flow[COIN_GOOD] ?? 0;
-      const departedPurse = before.coins + MERCHANTS.coins * arrived + toMerchants - after.coins;
+      // měšec bez dna (markets.md – Měšec kupců bez dna, bod 1): kupci mince nedrží – co jim svět dal,
+      // zaniklo, co od nich dostal, vzniklo
+      expect([before.coins, after.coins], `den ${day - start}`).toEqual([0, 0]);
       if (merchantsToday === 0) expect(toMerchants, `den ${day - start}`).toBe(0);
-      expect(departedPurse, `den ${day - start}`).toBeGreaterThanOrEqual(0);
-      if (after.merchants === merchantsToday) expect(departedPurse, `den ${day - start}`).toBe(0);
 
       // zboží: mezi vsemi a výpravami se jen přesouvá; kupcům odchází med, vosk a kožešiny, od
       // nich přichází zbroj
@@ -400,10 +400,10 @@ describe('trh s cizími kupci a mincemi po tři roky (markets.md – Co se ově�
         tripLog.push({ date: dateOfDayIndex(day), ...tradesOf(result) });
       }
 
-      // součet mincí světa: mění se jen příjezdem kupce (+ měšec) a jeho odjezdem (− měšec)
+      // součet mincí světa: mění se jen platbami kupců (+) a platbami kupcům (−)
       sides.forEach(store);
       const next = await coinsOfWorld({ villages });
-      expect(next - coins, `den ${day - start}`).toBe(MERCHANTS.coins * arrived - departedPurse);
+      expect(next - coins, `den ${day - start}`).toBe(0 - toMerchants);
       coins = next;
 
       for (const side of sides) {

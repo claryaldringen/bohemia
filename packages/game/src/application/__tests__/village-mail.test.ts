@@ -762,8 +762,8 @@ describe('pošta plánu 3 – zaniklé vsi (markets.md – Rozhodnutí plánu 3,
 });
 
 describe('oběh mincí (markets.md – Rozhodnutí plánu 4, bod 9)', () => {
-  /** Za 30 mincí 65 kg keramiky – ves M ji prodá za 13 (0,2 mince za kg), 17 se vrátí. */
-  const POTTERY: MarketOrder = { give: { coins: 30 }, wants: { pottery: 65 }, stayDays: 1 };
+  /** Za 30 mincí 390 kg keramiky – ves M ji prodá za 13 (1/30 mince za kg), 17 se vrátí. */
+  const POTTERY: MarketOrder = { give: { coins: 30 }, wants: { pottery: 390 }, stayDays: 1 };
 
   /** H s 30 mincemi, M s 500 kg keramiky a bez poptávky po obilí – prodává jen za mince. */
   async function coinWorld(): Promise<MarketWorld> {
@@ -774,14 +774,14 @@ describe('oběh mincí (markets.md – Rozhodnutí plánu 4, bod 9)', () => {
     return marketWorld({ home, host });
   }
 
-  /** Výprava H nakoupila v M – výsledek se 17 mincemi a 65 kg keramiky je v odchozí schránce M. */
+  /** Výprava H nakoupila v M – výsledek se 17 mincemi a 390 kg keramiky je v odchozí schránce M. */
   async function bought(w: MarketWorld): Promise<string> {
     const trip = await w.depart(POTTERY);
     await deliverVillageMail(w.deps, w.h);
     await w.load(w.m, D + 1);
     const { body } = w.state(w.m).outbox![0]!;
     if (body.kind !== 'market-result') throw new Error('Výsledek chybí.');
-    expect(body.result).toMatchObject({ bought: { pottery: 65 }, unsold: { coins: 17 } });
+    expect(body.result).toMatchObject({ bought: { pottery: 390 }, unsold: { coins: 17 } });
     expect(w.state(w.m).coins).toBe(13);
     return trip.key;
   }
@@ -822,14 +822,14 @@ describe('oběh mincí (markets.md – Rozhodnutí plánu 4, bod 9)', () => {
     expect(w.state(w.h).coins).toBe(17);
     expect(await coinsOfWorld(w)).toBe(30);
     const [back] = returnedOf(w.state(w.h));
-    expect(back).toMatchObject({ day: D + 2, sold: { coins: 13 }, bought: { pottery: 65 } });
+    expect(back).toMatchObject({ day: D + 2, sold: { coins: 13 }, bought: { pottery: 390 } });
     expect(back!.sold).toStrictEqual({ coins: 13 });
-    expect(back!.bought).toStrictEqual({ pottery: 65 });
+    expect(back!.bought).toStrictEqual({ pottery: 390 });
     expect(back!.unsold).toStrictEqual({});
     // prodaná keramika stála právě tolik, kolik mincí hostitel dostal
     type Held = Extract<ChronicleEvent, { kind: 'market-held' }>;
     const held = w.state(w.m).chronicle.find((e): e is Held => e.kind === 'market-held');
-    expect(held).toMatchObject({ sold: { pottery: 65 }, bought: { coins: 13 } });
+    expect(held).toMatchObject({ sold: { pottery: 390 }, bought: { coins: 13 } });
     // podruhé nic
     for (const id of [w.h, w.m]) expect(await deliverVillageMail(w.deps, id)).toBe(0);
     expect(await coinsOfWorld(w)).toBe(30);
@@ -851,13 +851,13 @@ describe('oběh mincí (markets.md – Rozhodnutí plánu 4, bod 9)', () => {
 
   it('H prodá kožešiny jiné výpravě za 12 mincí: H +12 a v kronice 12, součet světa beze změny', async () => {
     const home = homeVillage();
-    home.wares = { hides: 0, sheepFurs: 22, wildFurs: 0, honeyKg: 0, waxKg: 0 };
+    home.wares = { hides: 0, sheepFurs: 132, wildFurs: 0, honeyKg: 0, waxKg: 0 };
     const w = await marketWorld({ home, host: marketVillage(0) });
     const buyer = homeVillage();
     buyer.coins = 40;
     const x = await thirdVillage(w, buyer);
-    await w.depart({ give: { furs: 22 }, wants: {}, stayDays: 1 });
-    await w.depart({ give: { coins: 40 }, wants: { furs: 22 }, stayDays: 1 }, x, 'W');
+    await w.depart({ give: { furs: 132 }, wants: {}, stayDays: 1 });
+    await w.depart({ give: { coins: 40 }, wants: { furs: 132 }, stayDays: 1 }, x, 'W');
     const round = async (): Promise<void> => expect(await coinsOfWorld(w)).toBe(40);
     await round();
     for (const id of [w.h, x]) {
@@ -872,20 +872,20 @@ describe('oběh mincí (markets.md – Rozhodnutí plánu 4, bod 9)', () => {
       await w.load(id, D + 2);
       await round();
     }
-    // 22 kožešin × 8 ÷ 15 = 11,73 → 12 celých mincí; ves M sama za mince nekoupila nic
+    // 132 kožešin × 4 ÷ 45 = 11,73 → 12 celých mincí; ves M sama za mince nekoupila nic
     expect(w.state(w.h).coins).toBe(12);
     expect(w.state(w.m)).not.toHaveProperty('coins');
     expect(w.state(x).coins).toBe(28);
     const [sale] = returnedOf(w.state(w.h));
     expect([sale!.sold, sale!.bought, sale!.unsold]).toStrictEqual([
-      { furs: 22 },
+      { furs: 132 },
       { coins: 12 },
       {},
     ]);
     const [purchase] = returnedOf(w.state(x));
     expect([purchase!.sold, purchase!.bought, purchase!.unsold]).toStrictEqual([
       { coins: 12 },
-      { furs: 22 },
+      { furs: 132 },
       {},
     ]);
   });
@@ -946,7 +946,7 @@ describe('oběh mincí (markets.md – Rozhodnutí plánu 4, bod 9)', () => {
     await w.load(w.h, D + 6);
     expect([w.state(w.h).coins, w.state(w.m).coins]).toEqual([17, 13]);
     const [back] = returnedOf(w.state(w.h));
-    expect(back).toMatchObject({ returned: true, bought: { pottery: 65 } });
+    expect(back).toMatchObject({ returned: true, bought: { pottery: 390 } });
     expect([back!.sold, back!.unsold]).toStrictEqual([{ coins: 13 }, {}]);
     expect(await coinsOfWorld(w)).toBe(30);
   });
@@ -1050,7 +1050,7 @@ describe('oběh mincí (markets.md – Rozhodnutí plánu 4, bod 9)', () => {
     const event = w.villages.inbox.events.find((e) => e.body.kind === 'market-result');
     if (event?.body.kind !== 'market-result') throw new Error('Výsledek chybí.');
     event.body.result.unsold = {};
-    event.body.result.bought = { pottery: 65, gold: 26 };
+    event.body.result.bought = { pottery: 390, gold: 26 };
     await end(w, w.h, 'vymřela');
     expect(await w.villages.inbox.strandedResults()).toHaveLength(1);
     expect(await returnStrandedPeople(w.deps)).toBe(1);

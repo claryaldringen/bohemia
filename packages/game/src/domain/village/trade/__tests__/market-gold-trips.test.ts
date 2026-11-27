@@ -19,12 +19,12 @@ import { D, homeVillage, marketVillage, target } from './market-fixtures';
 // Výprava vesničanů kapacitu nebere (mince neutrácí). Výsledek se zlatem nese `origin` jako výsledek
 // s mincemi. Ceny testu: nástroje 5 mincí za kg.
 
-/** Vlkov (H) s 30 mincemi, 10 g zlata a uloženou kapacitou 50 g – kovu je jen 40 g. */
+/** Vlkov (H) s 30 mincemi, 10 g zlata a uloženou kapacitou 100 g – kovu je jen 82 g (30 × 2,4 + 10). */
 function jewelledHome(): VillageState {
   const s = homeVillage();
   s.coins = 30;
   s.gold = 10;
-  s.jewelleryG = 50;
+  s.jewelleryG = 100;
   return s;
 }
 
@@ -89,21 +89,22 @@ function marketTrip(
 }
 
 describe('kapacita na cestu (tripJewelleryG, odjezd)', () => {
-  it('ves s kapacitou 50 a kovem 40 pošle 30 mincí a 10 g: příjezd nese 40, ve vsi zbude 10', () => {
+  it('ves s kapacitou 100 a kovem 82 pošle 30 mincí a 10 g: příjezd nese 82, ve vsi zbude 18', () => {
     const s = jewelledHome();
-    expect(tripJewelleryG(s, ORDER.give)).toBe(40);
+    expect(tripJewelleryG(s, ORDER.give)).toBe(82);
     const { arrival } = depart(s);
-    expect(arrival.jewelleryG).toBe(40);
+    expect(arrival.jewelleryG).toBe(82);
     expect(arrival.goods).toEqual({ coins: 30, gold: 10 });
     // uložená kapacita kov přeroste jen po odjezdu výpravy s kovem – použitelná je 0
-    expect([s.coins, s.gold, s.jewelleryG, jewelleryOf(s)]).toEqual([undefined, undefined, 10, 0]);
+    expect([s.coins, s.gold, s.jewelleryG, jewelleryOf(s)]).toEqual([undefined, undefined, 18, 0]);
   });
 
-  it('nejvýš kov v nákladu: 10 mincí ze 30 vezou kapacitu 10, ve vsi zbude 40 na 30 g kovu', () => {
+  it('nejvýš kov v nákladu: 10 mincí ze 30 vezou kapacitu 24, ve vsi zbude 76 na 58 g kovu', () => {
     const s = jewelledHome();
     const { arrival } = depart(s, { give: { coins: 10 }, wants: {}, stayDays: 1 });
-    expect(arrival.jewelleryG).toBe(10);
-    expect([s.coins, s.gold, s.jewelleryG, jewelleryOf(s)]).toEqual([20, 10, 40, 30]);
+    // 10 mincí × 2,4 g = 24 g; ve vsi 20 mincí (48 g) + 10 g = 58 g kovu
+    expect(arrival.jewelleryG).toBe(24);
+    expect([s.coins, s.gold, s.jewelleryG, jewelleryOf(s)]).toEqual([20, 10, 76, 58]);
   });
 
   it('nejvýš použitelná kapacita vsi: kapacita 25 na 40 g kovu odjede celá, ve vsi nic', () => {
@@ -116,9 +117,9 @@ describe('kapacita na cestu (tripJewelleryG, odjezd)', () => {
 
   it('správce si kapacitu veze jako hráč', () => {
     const s = jewelledHome();
-    expect(tripJewelleryG(s, ORDER.give, 'steward')).toBe(40);
-    expect(depart(s, ORDER, 'steward').arrival.jewelleryG).toBe(40);
-    expect(s.jewelleryG).toBe(10);
+    expect(tripJewelleryG(s, ORDER.give, 'steward')).toBe(82);
+    expect(depart(s, ORDER, 'steward').arrival.jewelleryG).toBe(82);
+    expect(s.jewelleryG).toBe(18);
   });
 
   it('výprava vesničanů kapacitu nenese – celá zůstane ve vsi', () => {
@@ -127,7 +128,7 @@ describe('kapacita na cestu (tripJewelleryG, odjezd)', () => {
     const { arrival } = depart(s, ORDER, 'villagers');
     expect(arrival).not.toHaveProperty('jewelleryG');
     expect(arrival.goods).toEqual({ coins: 30, gold: 10 });
-    expect(s.jewelleryG).toBe(50);
+    expect(s.jewelleryG).toBe(100);
   });
 
   it('bez kovu v nákladu nebo bez šperkaře odjezd jako dřív – příjezd bez pole', () => {
@@ -139,7 +140,7 @@ describe('kapacita na cestu (tripJewelleryG, odjezd)', () => {
     const withJeweller = depart(s, grain);
     expect(withJeweller).toEqual(depart(plain, grain));
     expect(withJeweller.arrival).not.toHaveProperty('jewelleryG');
-    expect(s.jewelleryG).toBe(50);
+    expect(s.jewelleryG).toBe(100);
     delete s.jewelleryG;
     expect(s).toEqual(plain);
     // ani s kovem bez šperkaře
@@ -151,35 +152,34 @@ describe('kapacita na cestu (tripJewelleryG, odjezd)', () => {
 });
 
 describe('kapacita na trhu a doma (joinMarket, marketResult, applyMarketResult)', () => {
-  it('za 45 mincí nástrojů zaplatí 30 (kapacita 40 → 10), zlato vymění 1:1; doma 10 + 10 na kov 10', () => {
+  it('za 45 mincí nástrojů zaplatí 30 (kapacita 82 → 10), zlato vymění po mincích; doma 18 + 10 na kov 10', () => {
     const home = jewelledHome();
     const { result, day, host, visitor } = marketTrip(home, ORDER, toolHost);
+    // hostitel vymění 10 g po celých mincích: 4 mince za 9,6 g, 0,4 g zůstane výpravě; 34 mincí
+    // zaplatí nástroje 45 mincí se šperkařem: 45 ÷ 1,5 = 30 mincí (kapacita ubyde o 72 g z 82)
     expect(result).toMatchObject({
-      sold: { gold: 10 },
+      sold: { gold: 9.6 },
       bought: { tools: 9 },
       coinsPaid: 30,
-      coinsGot: 10,
+      coinsGot: 4,
       jewelleryG: 10,
     });
-    expect(result.unsold).toEqual({ coins: 10 });
+    expect(result.unsold.coins).toBe(4);
+    expect(result.unsold.gold).toBe(0.4); // 10 − 9,6 na setiny gramu (`roundGold`)
     expect(visitor.jewelleryG).toBe(10);
-    // hostitel: 50 − 10 za zlato + 30 za nástroje, zlato 10 g, jeho kapacita nevznikla
-    expect([host.coins, host.gold, host.jewelleryG]).toEqual([70, 10, undefined]);
-    // doma napřed zboží (10 mincí), pak kapacita: uložených 10 + vrácených 10 ořízne kov 10
+    // hostitel: 50 − 4 za zlato + 30 za nástroje, zlato 9,6 g, jeho kapacita nevznikla
+    expect([host.coins, host.gold, host.jewelleryG]).toEqual([76, 9.6, undefined]);
+    // doma napřed zboží (4 mince, 0,4 g), pak kapacita: uložených 18 + vrácených 10 ořízne kov
+    // 4 × 2,4 + 0,4 = 10 g
     applyMarketResult(home, day, result);
-    expect([home.coins, home.gold, home.jewelleryG, jewelleryOf(home)]).toEqual([
-      10,
-      undefined,
-      10,
-      10,
-    ]);
+    expect([home.coins, home.gold, home.jewelleryG, jewelleryOf(home)]).toEqual([4, 0.4, 10, 10]);
   });
 
   it('příjezd kapacitu předá výpravě na trhu, příjezd bez ní výpravu bez pole', () => {
     const { arrival, day } = depart(jewelledHome());
     const host = toolHost(day);
     joinMarket(host, day, arrival);
-    expect(visitorOf(host, arrival.key).jewelleryG).toBe(40);
+    expect(visitorOf(host, arrival.key).jewelleryG).toBe(82);
     const bare = jewelledHome();
     delete bare.jewelleryG;
     const plain = depart(bare);
@@ -187,15 +187,15 @@ describe('kapacita na trhu a doma (joinMarket, marketResult, applyMarketResult)'
     expect(visitorOf(host, 'market:h:99')).not.toHaveProperty('jewelleryG');
   });
 
-  it('hostitel zanikl před příjezdem (returned): kapacita 40 se vrátí celá', () => {
+  it('hostitel zanikl před příjezdem (returned): kapacita 82 se vrátí celá', () => {
     const home = jewelledHome();
     const { arrival } = depart(home);
     const result = marketResult(arrival, { returned: true });
-    expect(result).toMatchObject({ returned: true, jewelleryG: 40 });
+    expect(result).toMatchObject({ returned: true, jewelleryG: 82 });
     expect(result.unsold).toEqual({ coins: 30, gold: 10 });
     applyMarketResult(home, D + 2, result);
-    // uložených 10 + 40 = 50 ořízne kov 40 – jako před odjezdem použitelných 40
-    expect([home.coins, home.gold, home.jewelleryG, jewelleryOf(home)]).toEqual([30, 10, 40, 40]);
+    // uložených 18 + 82 = 100 ořízne kov 82 – jako před odjezdem použitelných 82
+    expect([home.coins, home.gold, home.jewelleryG, jewelleryOf(home)]).toEqual([30, 10, 82, 82]);
   });
 
   it('hostitel zanikl, když výprava stála na trhu: vrátí se kapacita, kterou drží', () => {
@@ -212,32 +212,38 @@ describe('kapacita na trhu a doma (joinMarket, marketResult, applyMarketResult)'
   it('výprava koupí zlato od šperkaře: kapacitu si nechá, doma ji addJewellery ořízne na kov', () => {
     const home = homeVillage();
     home.coins = 40;
-    home.jewelleryG = 40;
-    const order: MarketOrder = { give: { coins: 40 }, wants: { gold: 40 }, stayDays: 1 };
+    home.jewelleryG = 96; // kov 40 mincí × 2,4 g
+    const order: MarketOrder = { give: { coins: 40 }, wants: { gold: 100 }, stayDays: 1 };
     const { result, day, host } = marketTrip(home, order, (d) => {
       const s = hostOn(d);
       s.gold = 100;
       s.jewelleryG = 30;
       return s;
     });
-    // 26 g po 1,5 za 39 mincí (27. gram by stál 41) – nákup zlata kapacitu kupujícího nebere
-    expect(result).toMatchObject({ bought: { gold: 26 }, coinsPaid: 39, jewelleryG: 40 });
-    expect(result.unsold).toEqual({ coins: 1 });
-    expect([host.coins, host.gold, host.jewelleryG]).toEqual([39, 74, 4]);
+    // za 40 mincí: 30 g po 1,5 (18,75 mince) + zbylých 21,25 mince po 2,4 g = 81 g – nákup zlata
+    // kapacitu kupujícího nebere (96 g se vrátí celá), šperkaři ubyde 30 g
+    expect(result).toMatchObject({ bought: { gold: 81 }, coinsPaid: 40, jewelleryG: 96 });
+    expect(result.unsold).toEqual({});
+    expect([host.coins, host.gold, host.jewelleryG]).toEqual([40, 19, undefined]);
     expect(home).not.toHaveProperty('jewelleryG');
     applyMarketResult(home, day, result);
-    // kov doma 1 mince + 26 g – kapacita 40 se ořízne na 27
-    expect([home.coins, home.gold, home.jewelleryG, jewelleryOf(home)]).toEqual([1, 26, 27, 27]);
+    // kov doma jen 81 g zlata (šperkař prodával dráž) – kapacita 96 se ořízne na 81
+    expect([home.coins, home.gold, home.jewelleryG, jewelleryOf(home)]).toEqual([
+      undefined,
+      81,
+      81,
+      81,
+    ]);
   });
 
   it('výsledek bez kapacity uloženou kapacitu vsi nemění (ani když přeroste kov)', () => {
     const home = jewelledHome();
     const { arrival } = depart(home, ORDER, 'villagers');
-    expect(home.jewelleryG).toBe(50);
+    expect(home.jewelleryG).toBe(100);
     const result = marketResult({ ...arrival, goods: {} }, { returned: true });
     expect(result).not.toHaveProperty('jewelleryG');
     applyMarketResult(home, D + 2, result);
-    expect([home.coins, home.gold, home.jewelleryG]).toEqual([undefined, undefined, 50]);
+    expect([home.coins, home.gold, home.jewelleryG]).toEqual([undefined, undefined, 100]);
   });
 });
 
@@ -255,13 +261,14 @@ describe('výsledek se zlatem nese origin (departVisitors)', () => {
   it('jen s koupeným zlatem – za všechny mince', () => {
     const home = homeVillage();
     home.coins = 10;
-    const order: MarketOrder = { give: { coins: 10 }, wants: { gold: 10 }, stayDays: 1 };
+    const order: MarketOrder = { give: { coins: 10 }, wants: { gold: 24 }, stayDays: 1 };
     const { result } = marketTrip(home, order, (d) => {
       const s = hostOn(d);
-      s.gold = 20;
+      s.gold = 30;
       return s;
     });
-    expect(result).toMatchObject({ bought: { gold: 10 }, unsold: {}, coinsPaid: 10 });
+    // 10 mincí × 2,4 g = 24 g
+    expect(result).toMatchObject({ bought: { gold: 24 }, unsold: {}, coinsPaid: 10 });
     expect(result.origin).toEqual(ORIGIN);
   });
 

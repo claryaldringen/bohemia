@@ -14,11 +14,11 @@ import { D, homeVillage, target } from './market-fixtures';
 // Mince a zbroj jako zboží (markets.md – Rozhodnutí plánu 4, body 1 a 7).
 
 describe('ceny a druhy', () => {
-  it('výchozí ceny: mince 1, meč 120, helma 240, kroužková košile 480', () => {
+  it('výchozí ceny: mince 1, meč 20, helma 40, kroužková košile 80 (po 90 kg obilí)', () => {
     expect(initialPrice('coins')).toBe(1);
-    expect(initialPrice('swords')).toBe(120);
-    expect(initialPrice('helmets')).toBe(240);
-    expect(initialPrice('mailShirts')).toBe(480);
+    expect(initialPrice('swords')).toBe(20);
+    expect(initialPrice('helmets')).toBe(40);
+    expect(initialPrice('mailShirts')).toBe(80);
     expect(TRADE_GOOD_VALUES.coins.valueKg).toBe(MARKET.grainKgPerCoin);
     expect(TRADE_GOOD_VALUES.coins.carryKg).toBe(0);
   });

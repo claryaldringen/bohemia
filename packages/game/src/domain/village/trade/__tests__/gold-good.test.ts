@@ -16,8 +16,9 @@ function withGold(gold: number): VillageState {
 }
 
 describe('zásoba zlata ve vsi', () => {
-  it('trh vidí celé gramy, zlomek zůstává ve stavu', () => {
-    expect(villageGoodStock(withGold(12.7), 'gold', D)).toBe(12);
+  it('trh vidí zlato i se zlomkem pod minci, na setiny (gold.md – Mince 2,4 g, bod 4)', () => {
+    expect(villageGoodStock(withGold(12.7), 'gold', D)).toBe(12.7);
+    expect(villageGoodStock(withGold(12.70004), 'gold', D)).toBe(12.7);
     expect(villageGoodStock(homeVillage(), 'gold', D)).toBe(0);
   });
 
@@ -53,11 +54,11 @@ describe('zásoba zlata ve vsi', () => {
 });
 
 describe('cena a druh zlata', () => {
-  it('gram zlata stojí minci při jakékoli hladině a ceně na trhu', () => {
+  it('gram zlata stojí 1 ÷ 2,4 mince při jakékoli hladině a ceně na trhu', () => {
     expect(goldCoinPrice()).toBe(1 / GOLD.coinGrams);
-    expect(coinPriceOf({ gold: 7 }, 2.5, 'gold')).toBe(1);
-    expect(coinPriceOf(undefined, 9, 'gold')).toBe(1);
-    expect(initialPrice('gold')).toBe(1);
+    expect(coinPriceOf({ gold: 7 }, 2.5, 'gold')).toBe(1 / 2.4);
+    expect(coinPriceOf(undefined, 9, 'gold')).toBe(1 / 2.4);
+    expect(initialPrice('gold')).toBeCloseTo(1 / 2.4, 12);
   });
 
   it('nextPrices zlato přeskočí jako mince', () => {

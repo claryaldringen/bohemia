@@ -1,20 +1,25 @@
 // Mincovní fáze tržního dne (markets.md – Rozhodnutí plánu 4, body 2 a 3 – návrh Clauda): co
 // zápočty (market-clearing.ts) nechaly neuspokojené, smí koupit za mince, kdo je má k útratě.
-// Dvojice po dvojici – kupují napřed cizí kupci (jejich mince se tak týž den dostanou k ostatním),
-// pak ostatní strany, od prodávajících v pořadí stran (hostitel, pak přespolní podle příjezdu –
+// Dvojice po dvojici – kupují napřed cizí kupci z měšce bez dna (markets.md – Měšec kupců bez dna;
+// mince od nich se tak týž den dostanou k ostatním), pak ostatní strany, od prodávajících v pořadí stran (hostitel, pak přespolní podle příjezdu –
 // Martin: „napřed zboží hostitelské vsi a pak přespolních“), zboží v pořadí `TRADE_GOODS` za cenu ×
-// hladinu trhu (`coinPriceOf`). Platba dvojice je celé číslo mincí – součet hodnot nahoru, takže
-// nikdo neprodá pod cenou a kupující přeplatí nejvýš minci; součet pod minci se neobchoduje. Zboží
-// v kg se dělí, kus je celý, mince přejdou celé a součet plateb přes všechny strany je nula. Zlato
-// (gold.md – Pravidla 2; Rozhodnutí plánu 6, body 2 a 3) stojí vždy minci za gram, kupují ho kupci
+// hladinu trhu (`coinPriceOf`). Platba dvojice je celé číslo mincí – cizí kupec platí součet hodnot
+// nahoru (ve prospěch vsi), ostatní vezmou zboží v kg jen do celých mincí dolů (gold.md – Mince
+// 2,4 g, bod 9 – `wholeCoinsDown`) a nahoru platí jen za kusy; nikdo neprodá pod cenou a kupující
+// přeplatí nejvýš minci, součet pod minci se neobchoduje. Zboží v kg se dělí, kus je celý, mince
+// přejdou celé a součet plateb přes všechny strany je nula. Zlato
+// (gold.md – Pravidla 2; Rozhodnutí plánu 6, body 2 a 3) stojí vždy 2,4 g za minci (`goldCoinPrice`)
+// a mění se jen po celých mincích (Mince 2,4 g zlata za 90 kg obilí, bod 4): za k mincí 2,4·k g, od
+// šperkaře prodávajícího 1,6·k g, zbytek pod minci zůstane prodávajícímu a platba za zlato je vždy
+// celé číslo mincí – zaokrouhlení nahoru u ostatního zboží minci za zlato nepřidá. Kupují ho kupci
 // a výpravy podle seznamu a hostitel ho nekupcům vymění za své mince (`exchangesGold`); do C a W
 // hladiny nepatří – kov za kov není poptávka po zboží. Šperkař (gold.md – Pravidla 4; Rozhodnutí
 // plánu 6, bod 5) prodávajícímu zdraží zlato a kupujícímu zlevní platbu za ostatní zboží, objednanou
 // zbroj hostitel doplatí zlatem (bod 3). Čistá funkce, vstup nemění.
-import { JEWELLER } from '../rules';
+import { GOLD, JEWELLER } from '../rules';
 import type { MarketPrices, MarketTrade, TradeGood, TradeGoods } from '../types';
 import { COIN_GOOD, GOLD_GOOD, TRADE_GOODS, isPieceGood } from './goods';
-import { coinPriceOf } from './market-prices';
+import { coinPriceOf, coinsGold, goldCoins, roundGold } from './market-prices';
 
 /**
  * Technická mez, ne pravidlo: šum plovoucí čárky – kusy a mince se zaokrouhlují s touto vůlí, takže
@@ -32,23 +37,30 @@ export interface CoinParty {
   key: string;
   /**
    * Mince k útratě – celé; hostitel je má jen s objednanou zbrojí (bod 15) nebo s výměnou zlata
-   * (`exchangesGold`), jinak 0 – jen prodává.
+   * (`exchangesGold`), jinak 0 – jen prodává. Cizí kupec platí z měšce bez dna (`Infinity` – jen
+   * v paměti fáze, ve stavu kupec mince nemá; markets.md – Měšec kupců bez dna, bod 1).
    */
   coins: number;
   /** Co strana prodává (bez mincí) a co po zápočtu shání (bez mincí). */
   stock: TradeGoods;
   wants: TradeGoods;
-  /** Cizí kupec – kupuje první (Rozhodnutí plánu 4, bod 2). */
+  /**
+   * Cizí kupec – kupuje první (Rozhodnutí plánu 4, bod 2) a do hladiny nepatří (Měšec kupců bez dna,
+   * bod 4).
+   */
   merchant?: true;
   /** Seznam strany se kupuje jen od cizích kupců (objednaná zbroj hostitele – bod 15). */
   fromMerchants?: true;
-  /** Hostitel: zlato nekupců vymění 1:1 za mince ze svého měšce, po vlastním seznamu od kupců. */
+  /**
+   * Hostitel: zlato nekupců vymění za mince ze svého měšce (2,4 g za minci, po celých mincích), po
+   * vlastním seznamu od kupců.
+   */
   exchangesGold?: true;
   /** Kapacita šperkaře strany (g): zlato prodá dráž, mince i zlato platí víc (gold.md – Pravidla 4). */
   jewelleryG?: number;
   /**
-   * Celé gramy zlata, kterými strana doplatí po mincích, gram za minci – jen hostitel v kole zbroje.
-   * Platí se z nabídky `stock.gold`: co strana zlata prodá, tím už neplatí.
+   * Zlato (g), kterým strana doplatí po mincích – po celých mincích, 2,4 g za minci (`coinsGold`);
+   * jen hostitel v kole zbroje. Platí se z nabídky `stock.gold`: co strana zlata prodá, tím už neplatí.
    */
   goldPurse?: number;
 }
@@ -118,22 +130,22 @@ function emptyBasket(): Basket {
 }
 
 /**
- * Kolik mincí zaplatí kupující s kapacitou `budget` za zboží (ne zlato) v hodnotě `bill` (gold.md –
- * Pravidla 4; Rozhodnutí plánu 6, bod 5): prvních `budget` mincí platí za `JEWELLER.factor`, zbytek
- * 1:1 – mince váží gram (`GOLD.coinGrams`), kapacita v gramech je tedy i v mincích. `used` – kolik
- * kapacity platba spotřebuje, min(mince, `budget`).
+ * Kolik mincí zaplatí kupující s kapacitou `budget` (g) za zboží (ne zlato) v hodnotě `bill` (gold.md –
+ * Pravidla 4; Rozhodnutí plánu 6, bod 5; Mince 2,4 g, bod 6): mince do kapacity počítá po
+ * `GOLD.coinGrams` gramech – prvních `budget` ÷ 2,4 mincí platí za `JEWELLER.factor`, zbytek 1:1
+ * (kapacita 1,5 g = 0,625 mince). `used` – kolik kapacity (g) platba spotřebuje, min(mince × 2,4,
+ * `budget`).
  */
 export function jewelledPayment(bill: number, budget: number): { coins: number; used: number } {
+  const cap = budget / GOLD.coinGrams;
   const coins =
-    bill <= JEWELLER.factor * budget
-      ? bill / JEWELLER.factor
-      : bill - (JEWELLER.factor - 1) * budget;
-  return { coins, used: Math.min(coins, budget) };
+    bill <= JEWELLER.factor * cap ? bill / JEWELLER.factor : bill - (JEWELLER.factor - 1) * cap;
+  return { coins, used: Math.min(coins * GOLD.coinGrams, budget) };
 }
 
-/** Hodnota zboží (ne zlata), kterou `coins` mincí zaplatí kupující s kapacitou `budget`. */
+/** Hodnota zboží (ne zlata), kterou `coins` mincí zaplatí kupující s kapacitou `budget` (g). */
 function jewelledWorth(coins: number, budget: number): number {
-  return coins + (JEWELLER.factor - 1) * Math.min(coins, budget);
+  return coins + (JEWELLER.factor - 1) * Math.min(coins, budget / GOLD.coinGrams);
 }
 
 /**
@@ -145,20 +157,32 @@ function goldForCoins(coins: number, unit: number, dear: number): number {
   return coins <= high * dear ? coins / high : dear + (coins - high * dear) / unit;
 }
 
-/** Měšec kupujícího i se zlatem k doplacení – nejvýš, co mu zlata v nabídce zbylo. */
+/** Hodnota `grams` gramů zlata v mincích od prodávajícího s kapacitou `dear` (g) – obrácené `goldForCoins`. */
+function goldWorth(grams: number, unit: number, dear: number): number {
+  const high = Math.min(grams, dear);
+  return high * JEWELLER.factor * unit + (grams - high) * unit;
+}
+
+/**
+ * Měšec kupujícího i se zlatem k doplacení – celé mince, na které stačí zlato, které mu v nabídce
+ * zbylo (`goldCoins`).
+ */
 function meansOf(ledger: Ledger): number {
-  return ledger.purse + Math.min(ledger.goldPurse, ledger.stock[GOLD_GOOD] ?? 0);
+  const gold = Math.min(ledger.goldPurse, ledger.stock[GOLD_GOOD] ?? 0);
+  return ledger.purse + (gold > 0 ? goldCoins(gold) : 0);
 }
 
 /**
  * Co kupující koupí od prodávajícího: u každého zboží min(chce, má, kolik se vejde do měšce), kus
- * jen celý. Bez šperkaře se vejde zbývající měšec ÷ cena. Šperkař prodávajícího zdraží zlato –
+ * jen celý, zlato po celých mincích (gramy na setiny, `coinsGold`) – účet za zlato je celé číslo
+ * mincí. Bez šperkaře se vejde zbývající měšec ÷ cena. Šperkař prodávajícího zdraží zlato –
  * prvních tolik gramů, kolik mu zbývá kapacity, stojí `JEWELLER.factor` × cenu (kupující se
  * `exchangesGold` platí vždy cenu zlata). Kupující se šperkařem platí zlato bez výhody a ostatní
  * zboží `jewelledPayment` – platba za košík (účet za zlato + `jewelledPayment(ostatní).coins`) tak
  * měšec nikdy nepřeroste, ať je zlato v pořadí zboží kdekoli: zboží mimo zlato se vejde do
  * `jewelledWorth(měšec − účet za zlato)`, zlato do mincí, které zbudou po platbě za ostatní zboží.
- * Nic nemění – nákup pod minci se zruší celý.
+ * Kupující, který není kupec, vezme zboží v kg jen do celých mincí dolů (`wholeCoinsDown`). Nic
+ * nemění – nákup pod minci se zruší celý.
  */
 function basketOf(buyer: Ledger, seller: Ledger, price: (good: TradeGood) => number): Basket {
   const basket = emptyBasket();
@@ -176,47 +200,102 @@ function basketOf(buyer: Ledger, seller: Ledger, price: (good: TradeGood) => num
     } else {
       room = means - basket.bill;
     }
-    const most = Math.min(
-      buyer.wants[good] ?? 0,
-      seller.stock[good] ?? 0,
-      gold && dear > 0 ? goldForCoins(room, unit, dear) : room / unit,
-    );
-    const amount = isPieceGood(good) ? Math.floor(most + NOISE) : most;
+    const most = Math.min(buyer.wants[good] ?? 0, seller.stock[good] ?? 0);
+    if (gold) {
+      // celé mince, na které stačí měšec i zlato (Mince 2,4 g, bod 4) – zbytek pod minci zůstane
+      const coins = Math.floor(Math.min(room, goldWorth(most, unit, dear)) + NOISE);
+      if (!(coins > 0)) continue;
+      const amount = Math.min(most, roundGold(goldForCoins(coins, unit, dear)));
+      basket.goods.push({ good, amount });
+      basket.dearG = Math.min(amount, dear);
+      basket.bill += coins;
+      basket.goldBill += coins;
+      continue;
+    }
+    const fits = Math.min(most, room / unit);
+    const amount = isPieceGood(good) ? Math.floor(fits + NOISE) : fits;
     if (!(amount > NOISE_KG)) continue;
     basket.goods.push({ good, amount });
-    if (gold) {
-      basket.dearG = Math.min(amount, dear);
-      const value = basket.dearG * JEWELLER.factor * unit + (amount - basket.dearG) * unit;
-      basket.bill += value;
-      basket.goldBill += value;
-    } else {
-      basket.bill += amount * unit;
-      basket.otherBill += amount * unit;
-    }
+    basket.bill += amount * unit;
+    basket.otherBill += amount * unit;
   }
-  return basket;
+  return buyer.merchant ? basket : wholeCoinsDown(basket, buyer, price);
 }
 
 /**
- * Výměna hostitele (Rozhodnutí plánu 6, bod 3): celé gramy zlata prodávajícího za cenu `unit`
- * (gram za minci), nejvýš za zbývající měšec – seznam, jiné zboží ani šperkař nehrají roli (kov za
- * kov). Nic nemění.
+ * Košík kupujícího, který není kupec (výprava, správce, hostitel), po celých mincích dolů (gold.md –
+ * Mince 2,4 g zlata za 90 kg obilí, bod 9): zaplatí celé mince dolů z platby za košík a zboží v kg
+ * ubere od konce košíku, ať je ty mince pokryjí – nikdo nepřeplatí až minci (90 kg obilí). Kusy
+ * a zlato se nedělí: stojí-li samy přes celé mince, platí se za ně nahoru jako dřív a zboží v kg se
+ * vejde do přeplatku celé. Šperkař kupujícího platí ostatní zboží i tady `jewelledPayment` (kg, které
+ * mince pokryjí, `jewelledWorth`). Platba pod minci – nic. Cizí kupec platí dál nahoru (ve prospěch
+ * vsi). Nic nemění.
+ */
+function wholeCoinsDown(basket: Basket, buyer: Ledger, price: (good: TradeGood) => number): Basket {
+  const payment = (bill: number): number =>
+    buyer.jewellery > 0 ? jewelledPayment(bill, buyer.jewellery).coins : bill;
+  const inKg = (good: TradeGood): boolean => !isPieceGood(good);
+  const value = (goods: Basket['goods'], only: (good: TradeGood) => boolean): number =>
+    goods.reduce(
+      (sum, { good, amount }) =>
+        good !== GOLD_GOOD && only(good) ? sum + amount * price(good) : sum,
+      0,
+    );
+  const kgBill = value(basket.goods, inKg);
+  if (!(kgBill > 0)) return basket;
+  const pieceBill = value(basket.goods, (good) => !inKg(good));
+  // celé mince dolů – ale kusy a zlato samy nahoru, ty se nedělí
+  const coins = Math.max(
+    Math.floor(basket.goldBill + payment(basket.otherBill) + NOISE),
+    Math.ceil(basket.goldBill + payment(pieceBill) - NOISE),
+  );
+  const paysOther = coins - basket.goldBill;
+  const covers = buyer.jewellery > 0 ? jewelledWorth(paysOther, buyer.jewellery) : paysOther;
+  let excess = kgBill - (covers - pieceBill);
+  if (!(excess > NOISE)) return basket;
+  const goods = basket.goods.map((item) => ({ ...item }));
+  for (let i = goods.length - 1; i >= 0 && excess > NOISE; i--) {
+    const item = goods[i]!;
+    if (!inKg(item.good)) continue;
+    const unit = price(item.good);
+    const cut = Math.min(excess, item.amount * unit);
+    item.amount -= cut / unit;
+    excess -= cut;
+  }
+  const kept = goods.filter(({ good, amount }) => !inKg(good) || amount > NOISE_KG);
+  const otherBill = value(kept, () => true);
+  return { ...basket, goods: kept, bill: basket.goldBill + otherBill, otherBill };
+}
+
+/**
+ * Výměna hostitele (Rozhodnutí plánu 6, bod 3; Mince 2,4 g, bod 4): zlato prodávajícího za cenu
+ * `unit` (2,4 g za minci) po celých mincích, nejvýš za zbývající měšec – seznam, jiné zboží ani
+ * šperkař nehrají roli (kov za kov); zbytek pod minci zůstane prodávajícímu. Nic nemění.
  */
 function exchangeOf(buyer: Ledger, seller: Ledger, unit: number): Basket {
-  const amount = Math.floor(Math.min(seller.stock[GOLD_GOOD] ?? 0, buyer.purse / unit) + NOISE);
-  if (!(amount > 0)) return emptyBasket();
-  const bill = amount * unit;
-  return { goods: [{ good: GOLD_GOOD, amount }], bill, goldBill: bill, otherBill: 0, dearG: 0 };
+  const stock = seller.stock[GOLD_GOOD] ?? 0;
+  const coins = Math.floor(Math.min(stock * unit, buyer.purse) + NOISE);
+  if (!(coins > 0)) return emptyBasket();
+  const amount = Math.min(stock, roundGold(coins / unit));
+  return {
+    goods: [{ good: GOLD_GOOD, amount }],
+    bill: coins,
+    goldBill: coins,
+    otherBill: 0,
+    dearG: 0,
+  };
 }
 
 /**
  * Mince proti zboží na začátku fáze (Rozhodnutí plánu 4, bod 3), bez zlata (`LEVEL_GOODS` –
- * Rozhodnutí plánu 6, bod 2). Kupující = strana s mincemi
- * a hodnotou seznamu nad 0: C = Σ min(mince, hodnota seznamu) – seznam strany `fromMerchants` jen
- * do zboží, které kupci na trhu dnes mají (objednat 50 mečů při 2 u kupců = objednat 2) –, W = Σ přes
- * zboží (O + min(součet ostatních seznamů kupujících, součet nabídek všech stran − O)) × cena, kde
- * O = min(součet seznamů stran `fromMerchants`, součet nabídek kupců) – objednaná zbroj se kupuje
- * jen od kupců, takže meče výprav hladinu kvůli objednávce nesníží.
+ * Rozhodnutí plánu 6, bod 2). Kupující = strana s mincemi a hodnotou seznamu nad 0 kromě cizích
+ * kupců – jejich měšec bez dna ani seznam se nepočítají, jinak by hladinu hnali nahoru bez konce
+ * (markets.md – Měšec kupců bez dna, bod 4); jejich zboží v nabídce zůstává. C = Σ min(mince,
+ * hodnota seznamu) – seznam strany `fromMerchants` jen do zboží, které kupci na trhu dnes mají
+ * (objednat 50 mečů při 2 u kupců = objednat 2) –, W = Σ přes zboží (O + min(součet ostatních seznamů
+ * kupujících, součet nabídek všech stran − O)) × cena, kde O = min(součet seznamů stran
+ * `fromMerchants`, součet nabídek kupců) – objednaná zbroj se kupuje jen od kupců, takže meče výprav
+ * hladinu kvůli objednávce nesníží.
  */
 function coinsAgainstGoods(
   parties: readonly CoinParty[],
@@ -232,7 +311,7 @@ function coinsAgainstGoods(
       const count = p.fromMerchants ? Math.min(wanted, sumOf(merchantStocks, good)) : wanted;
       return sum + count * price(good);
     }, 0);
-  const buyers = parties.filter((p) => p.coins > 0 && listWorth(p) > 0);
+  const buyers = parties.filter((p) => !p.merchant && p.coins > 0 && listWorth(p) > 0);
   const orders = buyers.filter((p) => p.fromMerchants).map((p) => p.wants);
   const wants = buyers.filter((p) => !p.fromMerchants).map((p) => p.wants);
   const stocks = parties.map((p) => p.stock);
@@ -289,10 +368,12 @@ export function coinClearing(
   };
   /**
    * Nákup dvojice (mutuje strany); `listed` – ze seznamu kupujícího, výměna zlata na něm není.
-   * Platba je celé číslo mincí nahoru – kupující se šperkařem platí zlato bez výhody a ostatní zboží
-   * `jewelledPayment`. Napřed mince, zbytek celými gramy zlata (`goldPurse`), které prodávající
-   * odveze jako koupené. Kapacitu prodávajícího ubere zlato prodané dráž, kupujícího kov, který za
-   * zboží mimo zlato opravdu odešel (i s přeplatkem do celé mince), nejvýš co mu jí zbývá.
+   * Platba je celé číslo mincí nahoru (košík kupujícího, který není kupec, je už po celých mincích
+   * dolů – `wholeCoinsDown`) – kupující se šperkařem platí zlato bez výhody a ostatní zboží
+   * `jewelledPayment`. Napřed mince, zbytek zlatem (`goldPurse`) po 2,4 g za minci (`coinsGold`),
+   * které prodávající odveze jako koupené. Kapacitu prodávajícího ubere zlato prodané dráž,
+   * kupujícího kov, který za zboží mimo zlato opravdu odešel (i s přeplatkem do celé mince, mince po
+   * `GOLD.coinGrams` g), nejvýš co mu jí zbývá.
    */
   const settle = (buyer: Ledger, seller: Ledger, basket: Basket, listed: boolean): void => {
     const { goods, bill, goldBill, otherBill, dearG } = basket;
@@ -312,14 +393,19 @@ export function coinClearing(
       seller.stock[good] = (seller.stock[good] ?? 0) - amount;
       trades.push({ seller: seller.key, buyer: buyer.key, good, amount });
     }
+    // doplatek zlatem – celé mince po 2,4 g (`meansOf` je na ně spočítal)
     const goldPaid = paid - coins;
     if (goldPaid > 0) {
-      buyer.goldPurse -= goldPaid;
-      buyer.stock[GOLD_GOOD] = (buyer.stock[GOLD_GOOD] ?? 0) - goldPaid;
-      trades.push({ seller: buyer.key, buyer: seller.key, good: GOLD_GOOD, amount: goldPaid });
+      const grams = Math.min(buyer.stock[GOLD_GOOD] ?? 0, coinsGold(goldPaid));
+      buyer.goldPurse -= grams;
+      buyer.stock[GOLD_GOOD] = (buyer.stock[GOLD_GOOD] ?? 0) - grams;
+      trades.push({ seller: buyer.key, buyer: seller.key, good: GOLD_GOOD, amount: grams });
     }
     spend(seller, dearG);
-    if (otherBill > 0) spend(buyer, Math.min(buyer.jewellery, paid - goldBill));
+    if (otherBill > 0) {
+      // kov na setiny (`roundGold`) – 3 × 2,4 g je jinak 7,199999999999999
+      spend(buyer, Math.min(buyer.jewellery, roundGold((paid - goldBill) * GOLD.coinGrams)));
+    }
   };
   const buyers = [...ledgers.filter((l) => l.merchant), ...ledgers.filter((l) => !l.merchant)];
   for (const buyer of buyers) {

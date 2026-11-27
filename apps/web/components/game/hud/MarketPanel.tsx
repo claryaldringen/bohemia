@@ -20,7 +20,13 @@ import { formatDayMonth, formatGameDate } from '@/lib/game-date';
 import type { VillageManor } from '@/lib/manor-view';
 import { marketPreview, type MarketTripPhase } from '@/lib/market-view';
 import { TRADE_GOOD_NAMES } from '@/lib/trade-names';
-import { formatCoinPrice, formatFactor, formatInteger, plural } from '@/lib/village-format';
+import {
+  formatCoinPrice,
+  formatFactor,
+  formatGrams,
+  formatInteger,
+  plural,
+} from '@/lib/village-format';
 import { ArmsOrder } from './ArmsOrder';
 import { SlaveSale } from './SlaveSale';
 import { Dialog } from './Dialog';
@@ -58,11 +64,12 @@ const PHASES: Record<MarketTripPhase, { label: string; icon: string }> = {
 };
 
 /**
- * Krok výběru: po 100 kg, mince po deseti (meč stojí 120 – po jedné by to bylo 120 kliknutí), kusy
- * a m³ po jedné. Poslední krok nahoru doplní do zásoby (`Stepper` má `max`), dolů jde k nule.
+ * Krok výběru: po 100 kg, zlato po deseti gramech, mince po jedné (mince je 90 kg obilí, meč stojí
+ * 20 – gold.md, Mince 2,4 g, bod 8), kusy a m³ po jedné. Poslední krok nahoru doplní do zásoby
+ * (`Stepper` má `max`), dolů jde k nule.
  */
 const stepOf = (good: TradeGood): number =>
-  good === COIN_GOOD || good === 'gold' ? 10 : TRADE_GOOD_NAMES[good].unit === 'kg' ? 100 : 1;
+  good === 'gold' ? 10 : good === COIN_GOOD ? 1 : TRADE_GOOD_NAMES[good].unit === 'kg' ? 100 : 1;
 
 /** Ikona zboží s popiskem názvu. */
 function GoodIcon({ good, size = 20 }: { good: TradeGood; size?: number }): ReactElement {
@@ -275,12 +282,8 @@ function VillageRow({
   );
 }
 
-/** Cena bez zbytečné desetinné nuly („1“, ne „1,0“). */
-const priceText = (price: number): string =>
-  Number.isInteger(price) ? formatInteger(price) : formatCoinPrice(price);
-
 /** Dovětek popisku: kolik gramů kovu ještě platí výhoda šperkaře. */
-const jewelleryLeft = (g: number): string => `ještě pro ${formatInteger(g)} g`;
+const jewelleryLeft = (g: number): string => `ještě pro ${formatGrams(g)} g`;
 
 /** Řádek zboží sloupce: ikona (název v popisku), číslo, +/−; zlato i s cenou, mince s výhodou šperkaře. */
 function GoodRow({
@@ -289,7 +292,7 @@ function GoodRow({
   value,
   max,
   onChange,
-  goldPrice,
+  coinGrams,
   jewelleryG,
   jewelleryFactor,
 }: {
@@ -298,7 +301,7 @@ function GoodRow({
   value: number;
   max: number;
   onChange: (value: number) => void;
-  goldPrice?: number;
+  coinGrams?: number;
   jewelleryG?: number;
   jewelleryFactor?: number;
 }): ReactElement {
@@ -329,22 +332,22 @@ function GoodRow({
         label={name}
         onChange={onChange}
       />
-      {good === 'gold' && goldPrice !== undefined && (
+      {good === 'gold' && coinGrams !== undefined && (
         <span data-testid="market-gold-price">
           <Tooltip
             content={
               <span className="block max-w-52">
-                {`Zlato – ${priceText(goldPrice)} ${plural(goldPrice, 'mince', 'mince', 'mincí')} za gram, vždy` +
+                {`Zlato – ${formatGrams(coinGrams)} g za minci, vždy` +
                   // výhodu má jen prodej zlata (Dáš); nákup zlata od vsi bez ní (gold.md – Pravidla 4)
                   (jeweller && side === 'give'
-                    ? `, se šperkařem ${priceText(goldPrice * jewelleryFactor)} mince za gram – ${jewelleryLeft(jewelleryG)}`
+                    ? `, se šperkařem ${formatGrams(coinGrams / jewelleryFactor)} g za minci – ${jewelleryLeft(jewelleryG)}`
                     : '')}
               </span>
             }
             placement="above"
           >
             <span className="flex items-center gap-1 text-xs tabular-nums" tabIndex={0}>
-              {priceText(goldPrice)}
+              {formatGrams(coinGrams)} g
               <img src="/icons/resources/coin.png" alt="" width={14} height={14} />
             </span>
           </Tooltip>
@@ -425,7 +428,10 @@ export function MarketPanel({
       ? marketPreview(order, market, target.cells, people.status === 'ready' ? people.people : null)
       : null;
   const showPreview = preview !== null && (hasGoods(give) || hasGoods(wants));
-  const stocked = TRADE_GOODS.filter((g) => (market.stock[g] ?? 0) > 0);
+  // zlato dává hráč po celých gramech – zlomek gramu ze zásoby se nenabízí
+  const giveMax = (g: TradeGood): number =>
+    g === 'gold' ? Math.floor(market.stock[g] ?? 0) : (market.stock[g] ?? 0);
+  const stocked = TRADE_GOODS.filter((g) => giveMax(g) > 0);
 
   const edit = (apply: () => void): void => {
     setServerError(null);
@@ -488,8 +494,8 @@ export function MarketPanel({
                 side="give"
                 good={g}
                 value={give[g] ?? 0}
-                max={market.stock[g] ?? 0}
-                goldPrice={market.goldPrice}
+                max={giveMax(g)}
+                coinGrams={market.coinGrams}
                 jewelleryG={market.jewelleryG}
                 jewelleryFactor={market.jewelleryFactor}
                 onChange={(v) => edit(() => setGive((cur) => without(cur, g, v)))}
@@ -505,7 +511,7 @@ export function MarketPanel({
                 good={g}
                 value={wants[g] ?? 0}
                 max={Number.MAX_SAFE_INTEGER}
-                goldPrice={market.goldPrice}
+                coinGrams={market.coinGrams}
                 jewelleryG={market.jewelleryG}
                 jewelleryFactor={market.jewelleryFactor}
                 onChange={(v) => edit(() => setWants((cur) => without(cur, g, v)))}

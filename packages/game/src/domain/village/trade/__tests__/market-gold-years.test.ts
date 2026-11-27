@@ -562,16 +562,15 @@ async function runWorld(world: World, mint: boolean): Promise<RunSummary> {
     // jen na trhu T, takže je to celý tok mezi kupci a světem
     const coinsToMerchants = flow[COIN_GOOD] ?? 0;
     const goldToMerchants = flow[GOLD_GOOD] ?? 0;
-    const departedPurse = before.coins + MERCHANTS.coins * arrived + coinsToMerchants - after.coins;
+    // měšec bez dna (markets.md – Měšec kupců bez dna, bod 1): kupci mince nedrží
+    expect([before.coins, after.coins], label).toEqual([0, 0]);
     const departedGold = before.gold + goldToMerchants - after.gold;
     if (merchantsToday === 0) {
       expect(coinsToMerchants, label).toBe(0);
       expect(goldToMerchants, label).toBe(0);
     }
-    expect(departedPurse, label).toBeGreaterThanOrEqual(0);
     expect(departedGold, label).toBeGreaterThanOrEqual(-EPS);
     if (after.merchants === merchantsToday) {
-      expect(departedPurse, label).toBe(0);
       expect(Math.abs(departedGold), label).toBeLessThan(EPS);
     }
     stats.toMerchants += departedGold;
@@ -661,7 +660,8 @@ async function runWorld(world: World, mint: boolean): Promise<RunSummary> {
     const want = plan.get(day);
     if (want) {
       const s = g.state;
-      const goldG = villageGoodStock(s, GOLD_GOOD, day);
+      // hráč dává zlato na výpravu v celých gramech (zásoba má setiny – gold.md, Mince 2,4 g, bod 4)
+      const goldG = Math.floor(villageGoodStock(s, GOLD_GOOD, day));
       const coinsG = villageGoodStock(s, COIN_GOOD, day);
       const give: TradeGoods = {
         ...(want === 'swords' && goldG > 0 ? { [GOLD_GOOD]: goldG } : {}),
@@ -735,7 +735,7 @@ async function runWorld(world: World, mint: boolean): Promise<RunSummary> {
     const goldNext = await goldOfWorld({ villages });
     const coinsNext = await coinsOfWorld({ villages });
     expect(goldNext - gold, label).toBeCloseTo(panned - minted * GOLD.coinGrams - departedGold, 6);
-    expect(coinsNext - coins, label).toBe(MERCHANTS.coins * arrived - departedPurse + minted);
+    expect(coinsNext - coins, label).toBe(-coinsToMerchants + minted);
     gold = goldNext;
     coins = coinsNext;
 

@@ -31,7 +31,7 @@ import {
 // z nabídky jsou rezervovaní – jako rodina, muž ani žena se na trhu vsi nevyberou (podle id).
 
 const STOP: MerchantStop = { key: '0,0,E', seed: 7, index: 0, length: 1 };
-/** První příjezd kupců po D (60 mincí v měšci, otrok za 24). */
+/** První příjezd kupců po D (otrok za 4, kupec koupí až 10). */
 const DAY = nextMerchantVisit([STOP], D)!.day;
 
 /** Vlkov s otroky (`slaveHome`) – otrok 12 doma: na prodej 10, 12 a 14 (od nejnižšího id). */
@@ -161,27 +161,26 @@ describe('nabídka otroků ve vlastní vsi (markets.md – Rozhodnutí plánu 5,
     expect(s).not.toHaveProperty('slavesForSale');
   });
 
-  it('v den kupců prodá 2 otroky z nabídky za 48 mincí – nabídka zmizí, prodaní odjeli s kupci', () => {
+  it('v den kupců prodá 2 otroky z nabídky za 8 mincí – nabídka zmizí, prodaní odjeli s kupci', () => {
     const s = merchantsHost(2);
     expect(marketStance(s, DAY).offer).toEqual({ slaves: 2 });
     const m = advanceVillage(s, DAY, null, null, []);
-    expect(m.coins).toBe((s.coins ?? 0) + 48);
+    expect(m.coins).toBe((s.coins ?? 0) + 8);
     expect(m).not.toHaveProperty('slavesForSale');
     expect(m.chronicle!.filter((e) => e.day === DAY && e.kind === 'market-held')).toEqual([
-      { day: DAY, kind: 'market-held', sold: { slaves: 2 }, bought: { coins: 48 } },
+      { day: DAY, kind: 'market-held', sold: { slaves: 2 }, bought: { coins: 8 } },
     ]);
     expect(m.market?.visitors ?? []).toEqual([]);
     goneFromWorld(m, [10, 12]);
     expect(m.people.some((p) => p.id === 14)).toBe(true);
   });
 
-  it('nabídka 3, kupci koupí 2 (60 mincí): zbude slavesForSale 1, třetí otrok zůstane doma', () => {
-    const m = advanceVillage(merchantsHost(3), DAY, null, null, []);
-    expect(m.coins).toBe(48);
-    expect(m.slavesForSale).toBe(1);
-    goneFromWorld(m, [10, 12]);
-    expect(m.people.find((p) => p.id === 14)).toMatchObject({ slave: true });
-    expect([...offeredSlaveIds(m, DAY + 1)]).toEqual([14]);
+  it('nabídka 5 a 3 prodejní otroci: kupci koupí všechny 3 (12 mincí), zbytek nabídky 2 čeká', () => {
+    const m = advanceVillage(merchantsHost(5), DAY, null, null, []);
+    expect(m.coins).toBe(12);
+    expect(m.slavesForSale).toBe(2);
+    goneFromWorld(m, [10, 12, 14]);
+    expect([...offeredSlaveIds(m, DAY + 1)]).toEqual([]);
   });
 
   it('otrok pokřtěný mezi zadáním a dnem kupců se neprodá – prodají se další dva', () => {
@@ -189,7 +188,7 @@ describe('nabídka otroků ve vlastní vsi (markets.md – Rozhodnutí plánu 5,
     s.people.find((p) => p.id === 10)!.faith = 'christian';
     expect([...offeredSlaveIds(s, DAY)]).toEqual([12, 14]);
     const m = advanceVillage(s, DAY, null, null, []);
-    expect(m.coins).toBe(48);
+    expect(m.coins).toBe(8);
     expect(m).not.toHaveProperty('slavesForSale');
     goneFromWorld(m, [12, 14]);
     expect(m.people.find((p) => p.id === 10)).toMatchObject({ slave: true, faith: 'christian' });
@@ -220,15 +219,15 @@ describe('rezervace otroků z nabídky na trhu vsi (Rozhodnutí plánu 5, bod 8)
     expect(h.slavesForSale).toBe(2);
   });
 
-  it('mincovní fáze: výprava koupí za 24 mincí 1 muže – také 11, ne otrok z nabídky', () => {
+  it('mincovní fáze: výprava koupí za 4 mince 1 muže – také 11, ne otrok z nabídky', () => {
     const h = reservationHost();
     setSlavesForSale(h, 2);
     joinMarket(h, D, trip({ coins: 30 }, { men: 1 }));
     marketDay(h, D);
     const visitor = visitorOf(h);
-    expect([visitor.bought, visitor.goods]).toEqual([{ men: 1 }, { coins: 6 }]);
+    expect([visitor.bought, visitor.goods]).toEqual([{ men: 1 }, { coins: 26 }]);
     expect(boughtIds(visitor)).toEqual([['men', [11]]]);
-    expect(h.coins).toBe(24);
+    expect(h.coins).toBe(4);
     expect(h.people.filter((p) => p.id === 10 || p.id === 12).map((p) => p.id)).toEqual([10, 12]);
     expect(h.slavesForSale).toBe(2);
   });

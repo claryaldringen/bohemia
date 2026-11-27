@@ -424,10 +424,10 @@ describe('trh s otroky a cizími kupci po tři roky (markets.md – Co se ověř
       // mince, které dnes kupci dostali od vsí a výprav (záporně: dali jim) – kupec obchoduje jen
       // na trhu T, takže je to celý tok mincí mezi kupci a světem
       const toMerchants = flow[COIN_GOOD] ?? 0;
-      const departedPurse = before.coins + MERCHANTS.coins * arrived + toMerchants - after.coins;
+      // měšec bez dna (markets.md – Měšec kupců bez dna, bod 1): kupci mince nedrží – co jim svět dal,
+      // zaniklo, co od nich dostal, vzniklo
+      expect([before.coins, after.coins], at).toEqual([0, 0]);
       if (merchantsToday === 0) expect(toMerchants, at).toBe(0);
-      expect(departedPurse, at).toBeGreaterThanOrEqual(0);
-      if (after.merchants === merchantsToday) expect(departedPurse, at).toBe(0);
 
       // zboží: mezi vsemi a výpravami se jen přesouvá; kupcům odchází, co shánějí (i otroci), od
       // nich přichází jen zbroj
@@ -506,10 +506,10 @@ describe('trh s otroky a cizími kupci po tři roky (markets.md – Co se ověř
         });
       }
 
-      // součet mincí světa: mění se jen příjezdem kupce (+ měšec) a jeho odjezdem (− měšec)
+      // součet mincí světa: mění se jen platbami kupců (+) a platbami kupcům (−)
       sides.forEach(store);
       const next = await coinsOfWorld({ villages });
-      expect(next - coins, at).toBe(MERCHANTS.coins * arrived - departedPurse);
+      expect(next - coins, at).toBe(0 - toMerchants);
       coins = next;
 
       // lidé: kdo zmizel ze světa, zemřel (kronika), odešel ze světa podle dřívějších plánů (ves

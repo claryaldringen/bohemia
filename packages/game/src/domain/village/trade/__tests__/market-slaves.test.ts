@@ -256,7 +256,7 @@ function slaveMarket(
 }
 
 describe('otroci mezi vsemi – trh, pošta a zaniklé vsi (markets.md – Rozhodnutí plánu 5, bod 9)', () => {
-  it('C koupí od výpravy A otrokyni za 24 mincí; druhý otrok se vrátí do A; nikdo nezmizí', () => {
+  it('C koupí od výpravy A otrokyni za 4 mince; druhý otrok se vrátí do A; nikdo nezmizí', () => {
     const a = slaveHome();
     const people = a.people.length + marketVillage().people.length + homeVillage().people.length;
     const { world, keyA, keyC } = slaveMarket(a, marketVillage(), { give: { slaves: 2 } });
@@ -273,23 +273,23 @@ describe('otroci mezi vsemi – trh, pošta a zaniklé vsi (markets.md – Rozho
     expect(fromA).toMatchObject({
       sold: { slaves: 1 },
       bought: {},
-      unsold: { slaves: 1, coins: 24 },
-      coinsGot: 24,
+      unsold: { slaves: 1, coins: 4 },
+      coinsGot: 4,
     });
     expect(fromA.people!.map((g) => [g.good, g.people.map((p) => p.id)])).toEqual([
       ['slaves', [14]],
     ]);
     const fromC = resultOf(world, keyC);
-    expect(fromC).toMatchObject({ bought: { slaves: 1 }, unsold: { coins: 6 }, coinsPaid: 24 });
+    expect(fromC).toMatchObject({ bought: { slaves: 1 }, unsold: { coins: 26 }, coinsPaid: 4 });
     expect(fromC.newcomers).toEqual([
       { good: 'slaves', people: [expect.objectContaining({ id: 10, slave: true })] },
     ]);
-    // C: otrokyně s novým id (za `nextId` C před trhem), kronika s Lhotou; z 30 mincí zbylo 6
+    // C: otrokyně s novým id (za `nextId` C před trhem), kronika s Lhotou; z 30 mincí zbylo 26
     const bought = c.state.people.filter((p) => p.id >= cNext && p.slave === true);
     expect(bought).toEqual([
       expect.objectContaining({ sex: 'female', bornDay: person(a, 10)!.bornDay, origin: 'W' }),
     ]);
-    expect(c.state.coins).toBe(6);
+    expect(c.state.coins).toBe(26);
     expect(c.state.chronicle).toContainEqual(
       expect.objectContaining({
         kind: 'newcomer',
@@ -301,15 +301,15 @@ describe('otroci mezi vsemi – trh, pošta a zaniklé vsi (markets.md – Rozho
         female: true,
       }),
     );
-    // A: neprodaný otrok zpět s původním id, prodaná pryč, 24 mincí
+    // A: neprodaný otrok zpět s původním id, prodaná pryč, 4 mince
     expect(person(h.state, 14)).toMatchObject({ slave: true, bornDay: person(a, 14)!.bornDay });
     expect(person(h.state, 10)).toBeUndefined();
-    expect(h.state.coins).toBe(24);
+    expect(h.state.coins).toBe(4);
     type Returned = Extract<ChronicleEvent, { kind: 'market-returned' }>;
     const back = h.state.chronicle.find((e): e is Returned => e.kind === 'market-returned')!;
     expect(back).toMatchObject({
       sold: { slaves: 1 },
-      bought: { coins: 24 },
+      bought: { coins: 4 },
       unsold: { slaves: 1 },
     });
     // B: otroci jen prošli – nikdo nový
@@ -357,7 +357,7 @@ describe('otroci mezi vsemi – trh, pošta a zaniklé vsi (markets.md – Rozho
     expect(back?.body).toMatchObject({
       kind: 'stranded-people',
       people: [{ good: 'slaves', people: [expect.objectContaining({ id: 10 })] }],
-      coins: 6,
+      coins: 26,
     });
     expect(back?.body).not.toHaveProperty('own');
     // otrokyně z výpravy A je u B cizí – nové id, ne návrat (`fromHost` nemá)
@@ -371,7 +371,7 @@ describe('otroci mezi vsemi – trh, pošta a zaniklé vsi (markets.md – Rozho
       villageName: 'Dubí',
       villageId: 'c',
       female: true,
-      coins: 6,
+      coins: 26,
     });
     expect(newcomer).not.toHaveProperty('returned');
   });

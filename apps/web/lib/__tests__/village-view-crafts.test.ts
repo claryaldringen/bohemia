@@ -65,13 +65,13 @@ describe('craftsView – dílny zlata', () => {
     expect(gold(s)).toEqual({
       craft: 'jeweller',
       wroughtG: 30,
-      materialG: 20 + 40 * 1,
+      materialG: 20 + 40 * 2.4,
       factor: 1.5,
     });
   });
 
-  it('mincovna: celé gramy zlata; ostatní dílny bez údaje', () => {
-    expect(gold(withWorkshop('minter', { gold: 7.9 }))).toEqual({ craft: 'minter', goldG: 7 });
+  it('mincovna: zlato na setiny; ostatní dílny bez údaje', () => {
+    expect(gold(withWorkshop('minter', { gold: 7.9 }))).toEqual({ craft: 'minter', goldG: 7.9 });
     expect(gold(withWorkshop('smith'))).toBeUndefined();
   });
 });

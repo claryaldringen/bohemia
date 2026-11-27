@@ -161,9 +161,10 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
   funkce `trade/market-prices.ts` a `trade/market-clearing.ts`, typy `types-market.ts`, čísla
   `MARKET` v `rules-market.ts`). **Ceny** `MarketPrices` (mince za kg, kus nebo m³; chybí =
   výchozí): `initialPrice` = hodnota v kg obilí (`TRADE_GOOD_VALUES`) ÷ `MARKET.grainKgPerCoin`
-  (15 kg obilí za minci – kráva 40 mincí), `priceOf` zapamatovaná nebo výchozí; `nextPrices` ze
+  (90 kg obilí za minci – Martin 27. 11. 2026: „1 mince = 2.4g zlata = 90 kg obilí“; kráva 6⅔
+  mince, meč 20), `priceOf` zapamatovaná nebo výchozí; `nextPrices` ze
   součtů nabídek S a seznamů D tržního dne P × (1 + `MARKET.priceStep` × (D − S) / (D + S)) – za
-  den nejvýš ±10 %, **dno = `initialPrice`** (Martin 23. 11. 2026 – nikdo neprodá pod výchozí hodnotou, nahoru volně; uložená cena pod dnem se při dalším tržním dni zvedne na dno; výchozí cena nezávisí na počasí kraje, takže žádné zdražení; zápočet se nemění), nahoře jen technická mez 1e9 × výchozí (`MAX_PRICE_RATIO` – bez ní by cena po tisících tržních dnů přerostla do `Infinity`, v JSON `null`, a dopočet po kouscích by se rozešel), zboží bez nabídky i poptávky beze změny (nový objekt). **Zápočet**
+  den nejvýš ±10 %, **dno = `initialPrice`** (Martin 23. 11. 2026 – nikdo neprodá pod výchozí hodnotou, nahoru volně; uložená cena pod dnem se při dalším tržním dni zvedne na dno; výchozí cena nezávisí na počasí kraje, takže žádné zdražení; zápočet se nemění), nahoře jen technická mez 1e9 × výchozí (`MAX_PRICE_RATIO` – bez ní by cena po tisících tržních dnů přerostla do `Infinity`, v JSON `null`, a dopočet po kouscích by se rozešel), zboží bez nabídky i poptávky beze změny (nový objekt). **Kurz cen** (gold.md – Mince 2,4 g zlata za 90 kg obilí, bod 3; `trade/coin-rate.ts`): trh vsi, zpráva o trhu a výsledek výpravy nesou u cen kurz `coinKg` (kg obilí za minci) – trh ho má od založení (`newMarket` – `merchantsArrive`, `joinMarket`), výsledek ho dostane s cenami (`marketResult`), zpráva ho nese s cenami a hladinou (`rememberNews`). Převod `coin-rate` (`withCoinRate`, konec `VILLAGE_MIGRATIONS`) ceny bez dnešního kurzu jednou přepočte z `MARKET.legacyGrainKgPerCoin` (15 kg) – ÷ 6 – a značku doplní; hladina a počty mincí zůstanou, ves bez trhu a bez zpráv s cenami vrátí týž objekt (zlatý otisk vsi se nemění). Výsledek výpravy ze starší schránky bez kurzu přepočte `newsPricesOf` při návratu (`applyMarketResult`). Testy `coin-rate.test.ts`. **Zápočet**
   `clearMarket(parties, prices)`: strany `MarketParty` (`key`, nabídka `offer`, seznam `wants`)
   v pořadí hostitel, pak výpravy podle příjezdu; každá prodá přesně za tolik, za kolik koupí, kus
   jen celý (`PIECE_GOODS` / `isPieceGood` v `goods.ts` – dobytek, koně, klády, vozy, kámen, kůže,
@@ -189,17 +190,25 @@ Mapa kódu – podrobnosti k mechanikám (přesunuto z CLAUDE.md 21. 10. 2026). 
     Rozhodnutí plánu 4, body 2 a 3): strany `CoinParty` (`key`, celé mince `coins`, prodej `stock`
     a seznam `wants` bez mincí, `merchant` – cizí kupec, `fromMerchants` – seznam se kupuje jen od
     kupců: zbroj, kterou si hostitel objednal, `exchangesGold` – hostitel mění zlato za mince,
-    `jewelleryG` – kapacita šperkaře, `goldPurse` – celé gramy zlata z nabídky, kterými hostitel
-    zbroj doplatí po mincích; obojí Zlato – Šperkař v mincovní fázi níž)
+    `jewelleryG` – kapacita šperkaře, `goldPurse` – zlato z nabídky, kterým hostitel zbroj doplatí
+    po mincích, 2,4 g za minci; obojí Zlato – Šperkař v mincovní fázi níž)
     v pořadí hostitel, pak přespolní podle
     příjezdu – v něm prodávají. Kupují napřed kupci, pak ostatní, v témže pořadí; u dvojice po zboží
     v pořadí `TRADE_GOODS` min(chce, má, zbývající měšec ÷ cena), kus jen celý, zlomek v kg do 1 mg
     (`NOISE_KG`) se přeskočí. Strana s `exchangesGold` po svém seznamu ještě vymění zlato nekupců
-    (`exchangeOf` – od výprav v pořadí stran jen zlato, celé gramy za cenu zlata, nejvýš za měšec;
+    (`exchangeOf` – od výprav v pořadí stran jen zlato, po celých mincích za cenu zlata, nejvýš za měšec;
     seznam se tím nezmenší), než přijdou na řadu výpravy (Zlato níž). Součet hodnot dvojice pod
     1 minci se zruší celý, jinak platba
     `CoinPayment` { `buyer`, `seller`, `coins` } = součet nahoru na celé mince (prodávající neprodá
-    pod cenou, kupující přeplatí nejvýš minci); utržené mince smí prodávající týž den utratit, je-li
+    pod cenou, kupující přeplatí nejvýš minci). **Zboží v kg za celé mince dolů** (gold.md – Mince
+    2,4 g zlata za 90 kg obilí, bod 9; `wholeCoinsDown`): kupující, který není kupec (výprava,
+    správce, hostitel), zaplatí z platby za košík celé mince dolů a zboží v kg se mu ubere od konce
+    košíku, ať je ty mince pokryjí – 100 kg obilí (1,11 mince) je 90 kg za 1 minci, 50 kg nic. Kusy
+    a zlato se nedělí: stojí-li samy přes celé mince, platí se za ně nahoru a kg se vejdou do
+    přeplatku celé (kráva 6,67 + 20 kg obilí = 7 mincí). Šperkař kupujícího platí i tady
+    `jewelledPayment` (kg, které mince pokryjí, `jewelledWorth`); cizí kupec platí dál nahoru – ve
+    prospěch vsi. Mince na seznam nahoru (`moneyFor` správce v `steward-market.ts`) tak stačí i na
+    dalšího prodávajícího – za kg nikdo nepřeplatí. Utržené mince smí prodávající týž den utratit, je-li
     mezi kupujícími za ním. Měšec nikdy neklesne pod 0 a součet plateb je nula. Výsledek
     `CoinClearing`: `trades` (`MarketTrade`), `payments`, `available` (C = Σ min(mince, hodnota
     seznamu) kupujících, kteří mají mince i seznam) a `sought` (W = Σ přes zboží (O + min(součet
@@ -299,17 +308,22 @@ ves>:<id výpravy>`, `stayDays`, `travelDays`, zboží `goods` – koně i tady 
   - **Mincovní fáze** `coinPhase` (Rozhodnutí plánu 4, body 2–4 a 15; mutuje): spustí se, jen když
     nějaký návštěvník veze mince (`goods.coins`) a něco mu na seznamu zbylo, nebo má ves mince
     a objednanou zbroj v den kupců (`armsBuyer` – Cizí kupci ve vsi níž, Objednávka zbroje), nebo
-    má ves mince a přespolní výprava (ne kupec) nabízí aspoň gram zlata (výměna – Zlato níž) – mince
-    v zásobě vsi ji samy nespustí a trh bez mincí je bit po bitu jako dřív. Strany `coinClearing`:
+    má ves mince a přespolní výprava (ne kupec) nabízí zlato aspoň za minci (výměna – Zlato níž) – mince
+    v zásobě vsi ji samy nespustí a trh bez mincí je bit po bitu jako dřív. Cizí kupec (měšec bez dna,
+    poptávka po zlatě skoro vždy) ji spustí, jen když je na trhu něco z jeho poptávky – v nabídce
+    hostitele (lidé nejvýš z nabídky), ve zlatě vsi (`hostGold`) nebo v nákladu ostatních stran; den
+    kupců bez toho vrátí prázdný výsledek jako dřívější fáze naprázdno (výkon – součty dne
+    v `marketDay` i stav bit po bitu stejně, testy `market-merchants-purse.test.ts`). Strany `coinClearing`:
     hostitel (bez objednávky 0 mincí a prázdný seznam – jen prodává, s objednávkou mince vsi, zlato
     k doplacení `goldPurse` a objednaná zbroj, nic jiného za mince nekoupí; s výměnou mince vsi
     a `exchangesGold`; kapacita šperkaře vsi `jewelleryOf`; `stock` =
-    nabídka bez prodaného v obou zápočtech a zlato vsi v celých gramech `hostGold`, lidí nejvýš tolik
+    nabídka bez prodaného v obou zápočtech a zlato vsi i se zlomkem `hostGold`, lidí nejvýš tolik
     skupin, kolik jich po zápočtech doopravdy odejde –
     `leavingGroups`) a návštěvníci (`goods` a `wants` bez mincí, `merchant` – cizí kupec, kupuje
     první, `jewelleryG` – kapacita šperkaře výpravy `MarketVisitor.jewelleryG`). Objednanou zbroj
     spustí fázi i samo zlato vsi (mince + `goldPurse` > 0). Spotřebovanou kapacitu (`jewelleryUsed`)
-    po fázi ubere `useJewellery` vsi i výpravě (nula pole smaže).
+    po fázi ubere `useJewellery` vsi i výpravě (bez šumu plovoucí čárky – `withoutNoise`, nula pole
+    smaže); spotřebu kupujícího (mince × 2,4 g) i kov výpravy (`tripJewelleryG`) zaokrouhlí `roundGold`.
     Obchody vyrovná `settleTrades` (koně, vozy a lidé po kusech jako v zápočtu, zakázky
     `reduceOrder`), mince přesune `payCoins` – u návštěvníka jen `goods.coins` (ne `sold` / `bought`,
     domů jdou v `unsold`; součty zaplacených a přijatých `MarketVisitor.coinsPaid` a `coinsGot` jsou
@@ -422,7 +436,7 @@ day, order, target, { by?, seedKg?, alone?, service?, kin?, people? })` (mutuje 
   - **Zlato a kapacita šperkaře** (gold.md – Pravidla 4; Rozhodnutí plánu 6, body 6 a 9; Martin 22. 11. 2026: „I mezi vesnicemi“): zlato jede v nákladu jako mince (`give.gold` – celé gramy,
     ubude vsi, co zbude, je v `unsold`). Výprava hráče a správce si veze kapacitu šperkaře
     `tripJewelleryG(state, give, by)` = min(`jewelleryOf`, mince × `GOLD.coinGrams` + gramy zlata
-    v nákladu), výprava vesničanů nic (mince neutrácí). `departPlanned` ji spočítá ze vsi **před**
+    v nákladu na setiny – `roundGold`, ne 7,199999999999999 g za 3 mince), výprava vesničanů nic (mince neutrácí). `departPlanned` ji spočítá ze vsi **před**
     odchodem nákladu (po něm by `jewelleryOf` vyšla 0), ve vsi ji ubere (`useJewellery` – uložená
     kapacita tak smí kov vsi přerůst, dokud se výprava nevrátí; použitelná je dál nejvýš kov)
     a zapíše `MarketArrival.jewelleryG` (jen kladnou). `joinMarket` ji předá do
@@ -494,7 +508,7 @@ day, order, target, { by?, seedKg?, alone?, service?, kin?, people? })` (mutuje 
       neztratí, kromě jediné přijaté ztráty (oba konce mrtvé).
     - **Zlato** (plán 6, bod 9; návrh Clauda: koupené zlato by se jinak ze světa ztratilo – peníze
       nemizí): výsledek se zlatem jde stejnou cestou jako mince – `stranded-people.gold` =
-      `unsold.gold + bought.gold` (`goldOf`, celé gramy – zlato je `PIECE_GOODS`; i výsledek jen
+      `unsold.gold + bought.gold` (`goldOf`, gramy na setiny – i zlomek pod minci; i výsledek jen
       s koupeným zlatem, `strandedResults` ho vrátí v paměti i v SQL). `receiveStranded` ho přičte
       (`addGood`) a zapíše (`newcomer.gold`, bez lidí `stranded-coins` s `coins` 0 a `gold` –
       „Ze zaniklé vsi Lhota se vrátilo 40 g zlata.“, bez „0 mincí“; cizímu správci „Ze sousední vsi“).
@@ -636,7 +650,7 @@ day, order, target, { by?, seedKg?, alone?, service?, kin?, people? })` (mutuje 
   a `arms` (chybí = nic). `villageGoodStock` je čte po celých kusech, `addGood` je nikdy nedá pod 0
   a nulu ze stavu smaže (i prázdné `arms`). Hodnoty v `TRADE_GOOD_VALUES`: mince
   `MARKET.grainKgPerCoin` a `carryKg` 0 (nosiče nepřidají), meč 1 800, kroužková košile 7 200,
-  helma 3 600 kg obilí (nosnost 1,5, 12 a 1,5 kg). `withoutCoins` vrátí zboží bez mincí – v zápočtu
+  helma 3 600 kg obilí (20, 80 a 40 mincí; nosnost 1,5, 12 a 1,5 kg). `withoutCoins` vrátí zboží bez mincí – v zápočtu
   nejsou, platí se jimi v mincovní fázi (Trh – ceny a zápočet, Trh ve vsi výš); `MarketPanel` je do
   „Dostaneš“ nenabízí a kontrola výpravy je tam odmítne (Výprava na trh výš – Mince). Mince a zbroj
   bere odchod celé vsi jako ostatní zásoby (`CARRIED_STOCKS` v `belongings.ts`). Zbroj je zatím jen
@@ -645,49 +659,62 @@ day, order, target, { by?, seedKg?, alone?, service?, kin?, people? })` (mutuje 
 
 - **Zlato** (plán 6, issue #13; rešerše `research/2026-11-26-gold.md`; čísla v `rules/rules-gold.ts`
   – `GOLD`, `PANNING`, `JEWELLER`, `MINT`): `TradeGood` += `gold` (`GOLD_GOOD`) v `TRADE_GOODS`
-  za kamenem a v `PIECE_GOODS` – na trhu celé gramy. Stav: `VillageState.gold` (gramy i se zlomky
-  z rýžování), `jewelleryG` (kapacita výhody šperkaře, ne zboží) a `goldPanned` (vyrýžováno z náplavů),
-  chybí = nic. `villageGoodStock` čte `gold` po celých gramech, `addGood` přičte i zlomek a zbytek pod
+  za kamenem a v `PIECE_GOODS` – hráč a správce ho na výpravu dávají v celých gramech
+  (`goodsShapeOk`, `fitToCrew`), za mince se ale mění po celých mincích (níž). **Mince = 2,4 g zlata
+  = 90 kg obilí** (gold.md – Mince 2,4 g zlata za 90 kg obilí; `GOLD.coinGrams` = 2,4,
+  `MARKET.grainKgPerCoin` = 90, gram = 37,5 kg obilí). Stav: `VillageState.gold` (gramy na setiny –
+  zlomky z rýžování a zbytky pod minci), `jewelleryG` (kapacita výhody šperkaře, ne zboží)
+  a `goldPanned` (vyrýžováno z náplavů), chybí = nic. Gramy zaokrouhluje na setiny jediná funkce
+  `roundGold` (`market-prices.ts`) – `addGood`, `villageGoodStock`, rýžování, obchody, `goldOf` pošty;
+  šum plovoucí čárky se nehromadí. `goldCoins(g)` = celé mince, které zlato stojí, `coinsGold(k)` =
+  gramy za k mincí. `villageGoodStock` čte `gold` i se zlomkem, `addGood` přičte i zlomek a zbytek pod
   `EPSILON` (i záporný šum) pole smaže. Cena gramu je pevná, `goldCoinPrice()` (1 ÷ `GOLD.coinGrams`);
   `coinPriceOf(…, 'gold')` ji vrací bez ohledu na trh a hladinu, `nextPrices` zlato přeskočí jako
   mince. `TRADE_GOOD_VALUES.gold` má `carryKg` 0 (nosiče nepřidá). `withoutMoney` (bez mincí i zlata)
   platí v ceně dne a zápočtu (`priceTotals`, `clearMarket`); mincovní fáze a `coinPhaseStock` dál
-  `withoutCoins` – zlato v nich je. `WaresView.goldG` (celé gramy, jen kladné). Odchod celé vsi nese
+  `withoutCoins` – zlato v nich je. `WaresView.goldG` (setiny – `roundGold`, jen kladné; rozhraní ukáže desetiny – `formatGrams` – a zlato až od 0,05 g, Mince, kupci a zbroj v rozhraní ve `web-ui.md`). Odchod celé vsi nese
   `gold` a `jewelleryG` (`CARRIED_STOCKS`), odchod syna ne.
   - **Zlato za mince v mincovní fázi** (gold.md – Pravidla 2; Rozhodnutí plánu 6, body 2, 3 a 8;
     Martin 22. 11. 2026: „Zlato lze měnt za mince s kýmkoliv, kdo ty mince má“): zlato se mění jen
-    za mince, gram za minci, a jen v mincovní fázi – zápočet ho nevidí, takže kde nikdo nemá mince,
+    za mince, **po celých mincích** (Mince 2,4 g, bod 4: za k mincí 2,4·k g, od šperkaře
+    prodávajícího 1,6·k g; `basketOf` spočte celé mince `floor(min(měšec, goldWorth(zlato)))`, gramy
+    `goldForCoins` na setiny – účet za zlato je celé číslo, zaokrouhlení nahoru u ostatního zboží minci
+    za zlato nepřidá; zbytek pod minci zůstane prodávajícímu), a jen v mincovní fázi – zápočet ho
+    nevidí, takže kde nikdo nemá mince,
     nic nekoupí. Kupují ho cizí kupci (`MERCHANTS.wants.gold` – Cizí kupci ve vsi níž), výpravy, které
     ho mají na seznamu, a **hostitel výměnou** (`coinPhase` výš): nabízí-li přespolní výprava (ne
-    kupec) aspoň gram, má hostitel mince vsi a `exchangesGold` a v `coinClearing` po svém seznamu
-    (objednaná zbroj od kupců) vymění zlato výprav v pořadí stran za mince, co mu zbyly – celé gramy,
-    nejvýš za měšec; zbytek zlata jde s výpravou domů a utržené mince výprava týž den utratí, je-li
+    kupec) zlato aspoň za minci (`goldCoins` ≥ 1), má hostitel mince vsi a `exchangesGold`
+    a v `coinClearing` po svém seznamu (objednaná zbroj od kupců) vymění zlato výprav v pořadí stran za
+    mince, co mu zbyly – celé mince po 2,4 g (`exchangeOf`), nejvýš za měšec; zbytek zlata jde s výpravou domů a utržené mince výprava týž den utratí, je-li
     kupující (výpravy kupují po hostiteli). Výměna je kov za kov, ne útrata (Martin 25. 11. 2026:
-    „Mince utrácí jen vojvoda/správce“ platí pro zboží). Hostitel sám nabízí své zlato v celých
-    gramech (`hostGold`), zlomek zůstane ve vsi. Do C a W hladiny zlato nepatří (`LEVEL_GOODS`), takže
-    den jen se zlatem hladinu nehne. Mince ani zlato nevzniknou ani nezmizí – jen přejdou 1:1;
-    ze světa odejde jen zlato, které odvezou kupci. Testy `market-gold.test.ts`.
+    „Mince utrácí jen vojvoda/správce“ platí pro zboží). Hostitel sám nabízí všechno své zlato
+    (`hostGold`), zbytek pod minci zůstane ve vsi. Do C a W hladiny zlato nepatří (`LEVEL_GOODS`), takže
+    den jen se zlatem hladinu nehne. Mince ani zlato nevzniknou ani nezmizí – jen přejdou, 2,4 g za
+    minci (nikdo nedostane méně zlata, než zaplatil: mince × 2,4, se šperkařem × 1,6);
+    ze světa odejde jen zlato, které odvezou kupci. Testy `market-gold.test.ts`, `coin-weight.test.ts`.
   - **Šperkař v mincovní fázi** (gold.md – Pravidla 4; Rozhodnutí plánu 6, body 3 a 5; Martin 22. 11.
     2026: „Na obě strany stejně“; `trade/market-coins.ts`): strana s kapacitou `jewelleryG` (g)
-    prodá prvních tolik gramů zlata za `JEWELLER.factor` × `goldCoinPrice()` (1,5 mince), zbytek za
+    prodá prvních tolik gramů zlata za `JEWELLER.factor` × `goldCoinPrice()` (1,6 g za minci), zbytek za
     cenu zlata – kupuje-li strana s `exchangesGold` (výměna u hostitele), vždy za cenu zlata.
-    Zboží kromě zlata platí kupující s kapacitou `jewelledPayment(bill, j)`: účet do 1,5 j stojí
-    účet ÷ 1,5 mincí, nad ním účet − 0,5 j (mince váží gram, `GOLD.coinGrams`). Zlato v košíku platí
+    Zboží kromě zlata platí kupující s kapacitou `jewelledPayment(bill, j)`: mince do kapacity počítá
+    po `GOLD.coinGrams` (2,4 g; Mince 2,4 g, bod 6 – kapacita 1,5 g = 0,625 mince), účet do 1,5 × j ÷ 2,4
+    stojí účet ÷ 1,5 mincí, nad ním účet − 0,5 × j ÷ 2,4; spotřebuje min(mince × 2,4, j) g. Zlato v košíku platí
     bez výhody. Rozpočet košíku nezávisí na pořadí zboží: zboží mimo zlato se vejde do
     `jewelledWorth(měšec − účet za zlato)`, zlato do mincí, které zbudou po platbě
     `jewelledPayment(ostatní zboží)` – platba za košík tak měšec nikdy nepřeroste a pojistka
-    `Math.min` v `settle` jen tlumí šum. Platba dvojice je nahoru na celou minci, prodávající dostane,
+    `Math.min` v `settle` jen tlumí šum. Platba dvojice je nahoru na celou minci (kdo není kupec, platí za
+    zboží v kg celé mince dolů – `wholeCoinsDown` výš), prodávající dostane,
     co kupující zaplatil. Kapacitu prodávajícího ubere zlato prodané dráž, kupujícího kov, který za
-    zboží mimo zlato opravdu odešel (platba − účet za zlato, i s přeplatkem do celé mince, nejvýš
+    zboží mimo zlato opravdu odešel ((platba − účet za zlato) × 2,4 g, i s přeplatkem do celé mince, nejvýš
     kapacita) – uložená kapacita vsi tak placením kov nepřeroste. Kapacita strany je jedna pro celou
     fázi: hostitel ji napřed použije na zlato, které mu koupí kupci, zbytek na zbroj. Dvě strany se
     šperkaři, které si zlato prodávají dokola, nevydělají obě – mince i zlato se jen přesouvají (co
     jedna získá, druhá ztratí) a výhoda každé končí s její kapacitou. Kapacitu výpravy přiveze
     příjezd a zbytek jde domů ve výsledku (Výprava na trh – Zlato a kapacita šperkaře výš).
   - **Zbroj zlatem** (Rozhodnutí plánu 6, bod 3; `armsBuyer`): hostitel s objednávkou dostane
-    `goldPurse` = celé gramy zlata vsi a kapacitu `jewelleryOf`; zbroj kupcům platí
-    `jewelledPayment(účet, j)` kovu – napřed mince, zbytek celými gramy zlata z nabídky (co už
-    prodal kupcům, tím neplatí), gram za minci. Zlato jde do obchodů jako prodej hostitele kupci
+    `goldPurse` = zlato vsi (i se zlomkem) a kapacitu `jewelleryOf`; zbroj kupcům platí
+    `jewelledPayment(účet, j)` kovu – napřed mince, zbytek zlatem z nabídky po celých mincích, 2,4 g
+    za minci (`meansOf` – `goldCoins`, `settle` – `coinsGold`; co už prodal kupcům, tím neplatí). Zlato jde do obchodů jako prodej hostitele kupci
     (`market-held` – `sold.gold`) a kupec ho odveze jako koupené. Výměna zlata výprav jde až potom se
     zbylými mincemi. C a W hladiny počítají dál jen mince. Testy `market-jeweller.test.ts`.
 
@@ -722,29 +749,43 @@ day, order, target, { by?, seedKg?, alone?, service?, kin?, people? })` (mutuje 
     (village-core.md – Pořadí práce dne), takže kupec obchoduje už v den příjezdu. Za každý příjezd
     `merchantVisits(merchantStops, day, day)` založí návštěvníka trhu (trh vznikne, chybí-li):
     `MarketVisitor` s `merchant: true`, klíčem průjezdu, pořadím příjezdu za výpravami dne, pobytem na
-    den, bez domovské vsi (`fromVillageId` a `fromName` prázdné), nákladem `MERCHANTS.goods` a měšcem
-    `MERCHANTS.coins` v `goods.coins`, seznamem `MERCHANTS.wants` (kopie – zlato, med, vosk,
-    kožešiny a otroci). Dva průjezdy téhož dne
-    (křižovatka) jsou dva kupci, každý se svým měšcem; klíč, který na trhu už stojí, se znovu
+    den, bez domovské vsi (`fromVillageId` a `fromName` prázdné), nákladem `MERCHANTS.goods` bez mincí
+    a seznamem `MERCHANTS.wants` (kopie – zlato, med, vosk, kožešiny a otroci). Dva průjezdy téhož dne
+    (křižovatka) jsou dva kupci, každý se svým seznamem; klíč, který na trhu už stojí, se znovu
     nezaloží. Poznámka v `market.arrivals` bez jména a vsi se značkou `merchants` a druhy zbroje
-    (posledních `MARKET.report.traders` jako u výprav) a kronika `merchants-arrived` (`sells`, `buys`,
-    `coins`) – jen první příjezd v herním roce (návrh Clauda: na křižovatce by 16 příjezdů do roka
+    (posledních `MARKET.report.traders` jako u výprav) a kronika `merchants-arrived` (`sells`, `buys`;
+    zápisy před 27. 11. 2026 mají navíc `coins`, které nic nečte) – jen první příjezd v herním roce (návrh Clauda: na křižovatce by 16 příjezdů do roka
     kroniku zaplnilo). Rok posledního zápisu drží `VillageMarket.merchantsYear` (chybí = žádný);
     kroniku simulace nečte, takže zápis nezávisí na kouscích dopočtu ani na jejím zkrácení. Upozornění
     „Kupci přijeli“ chodí ve webu za každý příjezd – z `market.arrivals`, ne z kroniky (web-ui.md –
     Mince, kupci a zbroj v rozhraní).
   - **Obchod:** kupec je strana zápočtu (zbroj za med, vosk, kožešiny a otroky) i mincovní fáze – v ní
-    kupuje první, podle celého seznamu a za svůj měšec.
-  - **Zlato** (gold.md – Rozhodnutí plánu 6, bod 8; `MERCHANTS.wants.gold` = 1 000 g – vykoupí, kolik
-    zaplatí): kupec kupuje zlato jen za mince, gram za minci (cena pevná – Zlato výš), od
-    prodávajících v pořadí stran a u každého v pořadí `TRADE_GOODS` (zlato před medem); měšec 60
-    mincí se nemění, za průjezd tedy koupí nejvýš 60 g. Koupené zlato odjede s ním ze světa. V den bez
-    zlata na trhu je trh bit po bitu jako po plánu 5: zlato není v zápočtu (`withoutMoney`), v ceně
-    dne (`affordableWants` počítá každé zboží zvlášť a poptávka je jen u zboží na trhu) ani v C a W
+    kupuje první, podle své poptávky za ceny dne (Poptávka kupce níž). **Měšec bez dna** (markets.md –
+    Měšec kupců bez dna; Martin 27. 11. 2026: „Kupcům neomezuj měšec.“): kupec mince nedrží – v `coinPhase`
+    má strana kupce `coins: Infinity` jen v paměti fáze, takže koupí všechno, co je na trhu, až do své
+    poptávky (mezí je poptávka a nabídka, ne mince). `payCoins` kupci nic nepřipíše ani neubere:
+    jeho platbou mince vznikají, platbou jemu (objednaná zbroj, meč výpravě) zanikají. Kupec ze
+    starého stavu s `goods.coins` je nepoužije a zaniknou s jeho odjezdem (převod stavu žádný).
+  - **Poptávka kupce** (markets.md – Měšec kupců bez dna, bod 6; Martin 27. 11. 2026: „Tam musí přece
+    fungovat zákon nabídky a poptávky“): `merchantDemand(wants, bought, prices)` v `trade/merchants.ts`
+    – u zboží s cenou trhu P (`priceOf`, bez hladiny) a výchozí cenou P0 (`initialPrice`) chce kupec
+    nejvýš seznam × P0 ÷ P bez toho, co za průjezd už koupil (`bought`), a nejvýš zbytek seznamu
+    (`wants`); seznam průjezdu je `wants` + `bought` (z příjezdu `MERCHANTS.wants`, stav nic nového
+    nenese). Za výchozí cenu celý seznam, za dvojnásobnou polovinu, za pětinásobnou pětinu – hodnota
+    poptávky v cenách trhu je u každého zboží stálá (seznam × P0). Zlato (pevná cena) chce celý zbytek
+    seznamu, až 1 000 g za průjezd. Poptávku za ceny dne (ceny ráno, `nextPrices` je posune až po všech
+    fázích) dává `merchantWants` v `market.ts` všem fázím – ceně dne (`priceTotals`), stropu V zápočtu
+    (`clearMarket`) i seznamu strany kupce v `coinPhase` –, takže kupec za den nekoupí víc, než za cenu
+    dne chce, a co koupil v zápočtu nebo v dřívějším dni průjezdu, poptávce ubere.
+  - **Zlato** (gold.md – Rozhodnutí plánu 6, bod 8; `MERCHANTS.wants.gold` = 1 000 g za průjezd):
+    kupec kupuje zlato jen za mince, 2,4 g za minci po celých mincích (cena pevná – Zlato výš), od prodávajících
+    v pořadí stran a u každého v pořadí `TRADE_GOODS` (zlato před medem) – za průjezd nejvýš 1 000 g.
+    Koupené zlato odjede s ním ze světa. V den bez zlata na trhu je trh bit po bitu jako po plánu 5:
+    zlato není v zápočtu (`withoutMoney`), v ceně dne (`nextPrices` ho nehýbe) ani v C a W
     hladiny (`LEVEL_GOODS`) – seznam se zlatem změní jen uložené `wants` a větu příjezdu kupců
     (srovnání dvou klonů v `market-gold.test.ts`).
   - **Otroci** (markets.md – Rozhodnutí plánu 5, bod 7; `MERCHANTS.wants.slaves` = 10 za průjezd):
-    kupec kupuje otroky za mince i zápočtem (zbroj za otroky; z měšce 60 mincí dva po 24). Pořadí
+    kupec kupuje otroky za mince i zápočtem (zbroj za otroky; po 4 mincích). Pořadí
     nákupu se nemění: v mincovní fázi jde kupec od prodávajících v pořadí stran (hostitel, pak výpravy
     podle příjezdu) a u každého v pořadí `TRADE_GOODS` (med, vosk a kožešiny před otroky) – otroky
     dřívější výpravy tedy koupí dřív než med pozdější. Koupení otroci jdou do `boughtPeople` kupce
@@ -752,15 +793,17 @@ day, order, target, { by?, seedKg?, alone?, service?, kin?, people? })` (mutuje 
     odchod lidí ze světa kromě smrti; neprodaný otrok se vrátí s výpravou domů (poštou jako lidé
     plánu 3). **V den, kdy na trhu nikdo otroky nenabízí** (`slavesOnMarket` v `marketDay` – hostitel
     podle `stance.offer.slaves`, výpravy z nákladu), seznam kupce otroky nemá (`merchantWants`)
-    v ceně dne (`priceTotals` – `affordableWants` i zboží dne jen s kupci), ve stropu V zápočtu
+    v ceně dne (`priceTotals` – poptávka kupce i zboží dne jen s kupci), ve stropu V zápočtu
     (`clearMarket`) ani v mincovní fázi (`coinPhase` – seznamy stran, C a W hladiny), takže trh je bit
     po bitu jako po plánu 4 (srovnání dvou klonů v `market-merchants-slaves.test.ts`).
   - **Ceny dne** (`priceTotals` v `market.ts` – S a D pro `nextPrices`; návrh Clauda): poptávka kupce
     se počítá jen u zboží, které je ten den na trhu ke koupi (S > 0, každý den, i s výpravami) – bez
-    nabídky cenou nehne, jako W = 0 hladinou –, a jen do výše měšce ráno:
-    `affordableWants(visitor, prices, level)`, u každého zboží seznamu nejvýš ⌊měšec ÷ `coinPriceOf`⌋
-    celých jednotek, nic chybí. Cena tak s nabídkou roste (D > S), dokud kupec za měšec nekoupí právě
-    to, co je na trhu (20 kg medu na průjezd → 3 mince za kg i s hladinou). **V den, kdy na trhu kromě
+    nabídky cenou nehne –, a to poptávka ráno za ceny dne (`merchantWants` – Poptávka kupce výš;
+    Měšec kupců bez dna, body 3 a 6). Je-li zboží na trhu míň, než kupci za cenu dne chtějí, cena
+    v den kupců roste o `priceStep` podle (D − S) / (D + S) každý průjezd, až se zastaví, kde D = S:
+    ves s 20 kg medu na průjezd proti seznamu 100 kg má med za pětinásobek výchozí ceny (po 30 letech
+    4,98 ×; s celým seznamem by rostl o 6,7 % každý průjezd, za 30 let ≈ 2 300 ×), ves, která nabízí
+    aspoň celý seznam, za výchozí cenu. **V den, kdy na trhu kromě
     hostitele není žádná výprava** (jen kupci; kovář souseda a doprovod partnera výprava nejsou), se
     hýbou jen ceny zboží, které kupci vezou nebo shánějí: poptávka hostitele nic nezdraží (nástroje by
     jinak za 10 let čtyř průjezdů do roka zdražily 45×) a jeho nabídka, o kterou kupci nestojí, nic
@@ -771,15 +814,17 @@ day, order, target, { by?, seedKg?, alone?, service?, kin?, people? })` (mutuje 
     položku smaže, prázdná ze stavu zmizí) – jen ve vsi se zastávkou (`merchantStops` neprázdné, jinak
     `ARMS_NO_MERCHANTS`) a jen celý nezáporný počet (`ARMS_BAD_ORDER`). V mincovní fázi dne kupců je
     hostitel kupující `armsBuyer(state, day, visitors)`: mince vsi (i nula – mince, které týž den od
-    kupců utržil, utratit smí, kupci kupují před ním), celé gramy zlata k doplacení `goldPurse`
+    kupců utržil, utratit smí, kupci kupují před ním), zlato k doplacení `goldPurse` (2,4 g za minci)
     a kapacita šperkaře `jewelleryG` (jen kladné – Zlato – Zbroj zlatem výš) a objednaná zbroj
     s `fromMerchants` – od výprav ji nekoupí; bez objednávky nebo bez kupce na trhu null.
     Kupuje za cenu dne × hladinu, od kupců
     v pořadí příjezdu, u každého v pořadí `ARMS_GOODS` po kusech, dokud na ně má a kupec je veze;
-    koupené přibude do `VillageState.arms`, platba do měšce kupce a odjede s ním, v kronice
+    koupené přibude do `VillageState.arms`, platba u kupce zanikne (měšec bez dna), v kronice
     `market-held` je `bought.swords` a `sold.coins`. Po fázi `reduceArmsOrder(state, bought)`
     objednávku o koupené zmenší, zbytek čeká na další kupce. Přání zbroje nepatří do zápočtů,
-    `marketStance`, `nextPrices`, zakázek ani výhledů správce – jen do C a W hladiny; v C se
+    `marketStance`, `nextPrices`, zakázek ani výhledů správce – jen do C a W hladiny (kupci sami do
+    C ani W nepatří – jejich měšec bez dna a seznam by hladinu hnaly nahoru bez konce, Měšec kupců bez
+    dna, bod 4; jejich zbroj v nabídce zůstává); v C se
     seznam kupujícího s `fromMerchants` počítá nejvýš do zboží, které kupci na trhu dnes mají (po
     druzích min(objednáno, u kupců) × cena), takže objednat 50 mečů při 2 u kupců hladinu nezvedne
     víc než objednat 2, a ve W jen proti zbroji kupců – meče, které na trhu prodává výprava (hostitel
@@ -795,8 +840,9 @@ day, order, target, { by?, seedKg?, alone?, service?, kin?, people? })` (mutuje 
     končí, zůstane další den, když je na trhu aspoň `MERCHANTS.busyVisitors` výprav (bez kupců, kováře
     souseda a doprovodu partnera), nejvýš `MERCHANTS.maxStayDays` dní.
   - **Odjezd:** `departVisitors` kupce odebere bez zakázek (`recordOrders`) a bez zprávy do odchozí
-    schránky – měšec, neprodaná zbroj a koupené zboží odejdou ze světa. Jen příjezdem kupců mince
-    a zbroj vznikají a jen jejich odjezdem zanikají. Do spící vsi (`isVillageDormant`) nepřijedou.
+    schránky – neprodaná zbroj a koupené zboží odejdou ze světa (mince kupec nemá). Zbroj vzniká jen
+    příjezdem kupců a zaniká jejich odjezdem; mince vznikají jen platbou kupce a zanikají jen platbou
+    kupci. Do spící vsi (`isVillageDormant`) nepřijedou.
   - **Zaniklá ves** (Rozhodnutí plánu 4, bod 9; návrh Clauda): vymře-li, odejdou-li z ní všichni, nebo
     vymře-li rod, když na trhu stojí kupci, odjedou se vším jako při obvyklém odjezdu
     (`merchantsLeave`) – ve `visitors` nezůstanou a osadníci si z nich nic nevezmou. Dělá to
@@ -1047,7 +1093,7 @@ laborHa`) → chybí ceil(dospělí × (landHa ÷ laborHa − 1)) dospělých, r
 - **Otroci na trhu** (markets.md – Rozhodnutí plánu 5, bod 6; Martin 26. 11. 2026: „Moc to
   řešíš. Otroci nejsou rodina, ale zboží“; `trade/slaves.ts`): `PeopleGood` += `slaves` – kus je
   jeden otrok, manžel ani děti s ním neodcházejí a i malé dítě-otrok jde samo za cenu dospělého
-  (`TRADE_GOOD_VALUES.slaves` 360 kg obilí = 24 mincí, nese 0). `PEOPLE_GOODS` = otroci, rodiny,
+  (`TRADE_GOOD_VALUES.slaves` 360 kg obilí = 4 mince, nese 0). `PEOPLE_GOODS` = otroci, rodiny,
   muži, ženy (otroci napřed, tedy i v `TRADE_GOODS` a `PIECE_GOODS`); skupina `NewcomerGroup`
   `slave` (`PEOPLE_GROUP.slaves`, `GROUP_GOOD.slave`). Prodat jde `sellableSlaves(state, day)` –
   jeden průchod lidmi bez simulace: `canBeSold` (otrok-pohan, ne `line` ani `noble`), doma (ne

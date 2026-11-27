@@ -41,7 +41,7 @@ const market = (over: Partial<VillageManor['market']> = {}): VillageManor['marke
   day: 10,
   trips: [],
   merchantsDay: null,
-  goldPrice: 1,
+  coinGrams: 2.4,
   arms: [],
   merchantsArrived: null,
   slaveSale: null,
@@ -272,25 +272,24 @@ describe('nové zboží a lidé (plán 3, Úloha 11)', () => {
     for (const good of ['swords', 'mailShirts', 'helmets']) {
       expect(byId(host, `market-want-${good}`)).not.toBeNull();
     }
-    // mince po deseti, nejvýš kolik ves má; popisek je jen „Mince“ (kusů se u mincí neříká)
+    // mince po jedné, nejvýš kolik ves má; popisek je jen „Mince“ (kusů se u mincí neříká)
     const coins = byId(host, 'market-give-coins')!;
     expect(coins.querySelector('[role="tooltip"]')!.textContent).toBe('Mince');
     expect(coins.querySelector('img[src="/icons/resources/coin.png"]')).not.toBeNull();
     const countOf = (): string => byId(host, 'market-give-coins-count')!.textContent;
     await click(byId(host, 'market-give-coins-plus'));
-    expect(countOf()).toBe('10');
-    // poslední krok nahoru doplní do zásoby (12), dolů jde k nule
+    expect(countOf()).toBe('1');
     await click(byId(host, 'market-give-coins-plus'));
-    expect(countOf()).toBe('12');
-    await click(byId(host, 'market-give-coins-minus'));
     expect(countOf()).toBe('2');
+    await click(byId(host, 'market-give-coins-minus'));
+    expect(countOf()).toBe('1');
     await click(byId(host, 'market-give-coins-minus'));
     expect(countOf()).toBe('0');
     expect(byId(host, 'market-give-swords')!.textContent).toContain('Meče (ks)');
   });
 
-  it('zlato: v obou seznamech po deseti, cena 1 s popiskem; šperkař zvedá cenu a mince', async () => {
-    const host = await mount({ market: market({ stock: { grain: 1000, gold: 25, coins: 12 } }) });
+  it('zlato: v obou seznamech po deseti, 2,4 g za minci s popiskem; šperkař zvedá cenu a mince', async () => {
+    const host = await mount({ market: market({ stock: { grain: 1000, gold: 25.6, coins: 12 } }) });
     const give = byId(host, 'market-give-gold')!;
     const want = byId(host, 'market-want-gold')!;
     expect(give.textContent).toContain('Zlato (g)');
@@ -299,10 +298,14 @@ describe('nové zboží a lidé (plán 3, Úloha 11)', () => {
     expect(byId(host, 'market-give-gold-count')!.textContent).toBe('10');
     await click(byId(host, 'market-want-gold-plus'));
     expect(byId(host, 'market-want-gold-count')!.textContent).toBe('10');
+    // poslední krok nahoru doplní do zásoby, zlomek gramu se nenabízí (25,6 g → 25)
+    await click(byId(host, 'market-give-gold-plus'));
+    await click(byId(host, 'market-give-gold-plus'));
+    expect(byId(host, 'market-give-gold-count')!.textContent).toBe('25');
     const price = byId(host, 'market-gold-price')!;
-    expect(price.textContent).toContain('1');
+    expect(price.textContent).toContain('2,4');
     expect(price.querySelector('[role="tooltip"]')!.textContent).toBe(
-      'Zlato – 1 mince za gram, vždy',
+      'Zlato – 2,4 g za minci, vždy',
     );
     // bez šperkaře u mincí popisek jen název
     expect(byId(host, 'market-give-coins')!.querySelector('[role="tooltip"]')!.textContent).toBe(
@@ -326,12 +329,12 @@ describe('nové zboží a lidé (plán 3, Úloha 11)', () => {
       byId(host, 'market-give-gold')!.querySelector(
         '[data-testid="market-gold-price"] [role="tooltip"]',
       )!.textContent,
-    ).toBe('Zlato – 1 mince za gram, vždy, se šperkařem 1,5 mince za gram – ještě pro 30 g');
+    ).toBe('Zlato – 2,4 g za minci, vždy, se šperkařem 1,6 g za minci – ještě pro 30 g');
     expect(
       byId(host, 'market-want-gold')!.querySelector(
         '[data-testid="market-gold-price"] [role="tooltip"]',
       )!.textContent,
-    ).toBe('Zlato – 1 mince za gram, vždy');
+    ).toBe('Zlato – 2,4 g za minci, vždy');
     expect(byId(host, 'market-give-coins')!.querySelector('[role="tooltip"]')!.textContent).toBe(
       'Se šperkařem platí 1,5násobek – ještě pro 30 g',
     );
@@ -570,9 +573,9 @@ describe('zbroj od kupců ve vlastní vsi (plán 4 – Rozhodnutí 15)', () => {
   const arms = (
     ordered: Partial<Record<ArmsGood, number>> = {},
   ): VillageManor['market']['arms'] => [
-    { good: 'swords', price: 120, ordered: ordered.swords ?? 0 },
-    { good: 'mailShirts', price: 480, ordered: ordered.mailShirts ?? 0 },
-    { good: 'helmets', price: 252.5, ordered: ordered.helmets ?? 0 },
+    { good: 'swords', price: 20, ordered: ordered.swords ?? 0 },
+    { good: 'mailShirts', price: 80, ordered: ordered.mailShirts ?? 0 },
+    { good: 'helmets', price: 42, ordered: ordered.helmets ?? 0 },
   ];
   const merchantsDay = dayIndexOf({ year: 500, month: 8, day: 12 });
   const atTrail = (
@@ -617,14 +620,14 @@ describe('zbroj od kupců ve vlastní vsi (plán 4 – Rozhodnutí 15)', () => {
     const swords = item(host, 'swords');
     expect(swords.querySelector('img[src="/icons/resources/sword.png"]')).not.toBeNull();
     expect(swords.querySelector('img[src="/icons/resources/coin.png"]')).not.toBeNull();
-    expect(swords.textContent).toContain('120');
+    expect(swords.textContent).toContain('20');
     expect(count(host, 'swords')).toBe('2');
     const tooltip = (good: ArmsGood): string | null | undefined =>
       item(host, good).querySelector('[role="tooltip"]')?.textContent;
     expect(tooltip('swords')).toBe('Meče – ves je koupí od kupců za své mince');
     expect(tooltip('mailShirts')).toBe('Kroužkové košile – ves je koupí od kupců za své mince');
     expect(tooltip('helmets')).toBe('Helmy – ves je koupí od kupců za své mince');
-    expect(item(host, 'helmets').textContent).toContain('253');
+    expect(item(host, 'helmets').textContent).toContain('42');
     expect(count(host, 'mailShirts')).toBe('0');
     expect(minus(host, 'mailShirts').disabled).toBe(true);
     const date = byId(host, 'market-arms-date')!;

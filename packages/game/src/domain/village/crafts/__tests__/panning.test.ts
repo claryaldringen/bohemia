@@ -115,9 +115,10 @@ describe('rýžování – náplavy předané přímo (bez krajiny – chůze vz
     expect(next.site).toEqual({ x: 300, z: 0 });
     expect(panner(s).workshop!.placer).toEqual({ index: 1, walkM: 300 });
     expect(distanceFactor(300)).toBeCloseTo(1.2, 12);
-    expect(next.pannedG).toBeCloseTo(1 / distanceFactor(300), 12);
-    expect(s.goldPanned).toEqual([1_500, next.pannedG]);
-    expect(s.gold).toBeCloseTo(0.5 + 1 / 1.2, 12);
+    // gramy na setiny (gold.md – Mince 2,4 g, bod 4): 1 ÷ 1,2 = 0,833… → 0,83 g
+    expect(next.pannedG).toBe(0.83);
+    expect(s.goldPanned).toEqual([1_500, 0.83]);
+    expect(s.gold).toBe(1.33);
   });
 
   it('oba náplavy vyčerpané: no-placer, nic navíc; součet goldPanned = přírůstek zlata', () => {

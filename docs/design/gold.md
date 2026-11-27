@@ -35,6 +35,7 @@ s hornictvím (premium-landscapes.md).
    vyčerpá (zásoba v krajině – premium-landscapes.md, velikost naleziště), určí rešerše (čísla v `rules`).
 2. **Zlato** je zboží (zásoba vsi v gramech nebo kg) a **mění se za mince pevně 1:1 váhově s kýmkoli, kdo mince má**
    (Martin) – na trhu i s kupci; jeho cena v mincích je tedy vždy 1:1 (zlato je mezi vsemi jako peníze – návrh Clauda).
+   Od 27. 11. 2026 váží mince 2,4 g, za minci jsou tedy 2,4 g zlata (Mince 2,4 g zlata za 90 kg obilí níž).
 3. **Mincovna** (od roku 950 – Martin): stavba ve vsi, která ze zlata razí mince 1:1 váhově; práce a stavba podle rešerše.
    Vlastní mince přibydou do oběhu – víc mincí, inflace (markets.md – mince jako zboží).
 4. **Šperkař** – řemeslník s dílnou a učněm: šperky nejsou zboží (Martin). Když ves platí zlatem nebo mincemi, šperkař
@@ -132,14 +133,14 @@ s hornictvím (premium-landscapes.md).
 
 Plán 6 přinesl zlato: zboží `gold`, tři dílny (rýžovník, šperkař, mincovna), zlato v mincovní fázi trhu, kapacitu šperkaře na výpravách, poštu a odchod, správce, rozhraní, scénu, test světa a přepočet Vlkova. Rozhodnutí níž jsou **návrh Clauda**, kromě slov Martina z 22. 11. 2026 (oddíl Martinova rozhodnutí) a z 25. 11. 2026 ([obchod](markets.md) – „Mince utrácí jen vojvoda/správce“, „berou si úplně vše“); jejich plné znění je v plánu `docs/superpowers/plans/2026-11-26-gold-6-panning-jeweller-mint.md`.
 
-1. **Mince váží gram** (`GOLD.coinGrams` = 1): 1 g zlata = 1 mince = 15 kg obilí, `carryKg: 0` jako mince. Herní mince odpovídá pražskému denáru kolem roku 965 (≈ 1 g). Podle Martinova „1:1 váhově“ je zlato proti skutečnosti zhruba dvanáctkrát levnější.
+1. **Mince váží gram** (`GOLD.coinGrams` = 1): 1 g zlata = 1 mince = 15 kg obilí, `carryKg: 0` jako mince. Herní mince odpovídá pražskému denáru kolem roku 965 (≈ 1 g). Podle Martinova „1:1 váhově“ je zlato proti skutečnosti zhruba dvanáctkrát levnější. **Od 27. 11. 2026 mince váží 2,4 g zlata a má hodnotu 90 kg obilí** (Martin – Mince 2,4 g zlata za 90 kg obilí níž).
 2. **Zlato je zboží `gold`** v `TRADE_GOODS` před medem (Martinovo pořadí); cena je pevná, 1 mince za gram na každém trhu; do zápočtu ani do hladiny trhu nepatří (výměna je kov za kov, ne poptávka po zboží).
 3. **Výměna s kýmkoli, kdo mince má** (Martin): zlato kupují cizí kupci, výpravy, které ho mají v „Dostaneš“, a hostitel svými mincemi 1:1, po kupcích a po objednané zbroji. Zbroj hostitel kupcům doplatí napřed mincemi, pak celými gramy zlata. Kde nikdo nemá mince, zlato nic nekoupí.
 4. **Rýžovník:** jen duben–říjen, 1 g na člověkoden vyučeného (učeň půl gramu; herní číslo, ne měření), na nejbližším dosažitelném náplavu s **1 500 g** (nedoplňuje se); mapa se 3–6 náplavy má 4,5–9 kg, rýžovník se synem ji vyrýžuje za 15–30 let. Bez náplavu se zlatem se dílna nepostaví.
 5. **Šperkař:** zpracuje 1,5 g zlata nebo mincí za člověkoden vyučeného do kapacity výhody `JEWELLER.factor` = 1,5 (se šperkařem je prodej zlata o polovinu dráž (1,5 mince za gram) a platba mincemi o třetinu levnější), nejvýš do kovu vsi; šperky nejsou zboží (Martin). Požár beze změny.
 6. **Šperkař na výpravě:** výprava veze kapacitu `min(šperky, mince + zlato v nákladu)`, použije ji a nepoužitou přiveze zpět.
 7. **Mincovna od roku 950** (Martin): razí všechno zlato vsi, **200 g na člověkoden** vyučeného, gram za minci.
-8. **Kupci:** `wants` = zlato 1 000 g, med, vosk, kožešiny, otroci; měšec 60 mincí se nemění.
+8. **Kupci:** `wants` = zlato 1 000 g, med, vosk, kožešiny, otroci; měšec 60 mincí se nemění. **Od 27. 11. 2026 má kupec měšec bez dna** (Martin: „Kupcům neomezuj měšec.“ – [markets.md](markets.md), Měšec kupců bez dna): za průjezd vykoupí až 1 000 g zlata.
 9. **Pošta a odchod:** zlato jde z výsledku pro zaniklou ves hostiteli jako mince; odchod celé vsi bere zlato i kapacitu šperkaře („berou si úplně vše“, Martin 25. 11. 2026), syn a část lidí je nechají.
 10. **Správce** platí obilí v nouzi zlatem až nakonec, na roční výpravu přidá zlato, chybí-li mince; dílny zlata nestaví (`workshopValue` dá 0).
 11. **Rozhraní a scéna** jako 0 A.D.: tři tlačítka dílen (zkratky 3–5), zlato a šperky ve dvorci, zlato v panelu Trh; dílny zlata používají dnešní modely.
@@ -156,10 +157,10 @@ Plán 6 přinesl zlato: zboží `gold`, tři dílny (rýžovník, šperkař, min
 
 ### Oznámit Martinovi (návrhy Clauda, které mění pravidla)
 
-1. **Mince váží gram:** gram zlata je jedna mince, tedy 15 kg obilí; zlato je ve hře zhruba dvanáctkrát levnější než ve skutečnosti (Rozhodnutí 1).
+1. **Mince váží gram:** gram zlata je jedna mince, tedy 15 kg obilí; zlato je ve hře zhruba dvanáctkrát levnější než ve skutečnosti (Rozhodnutí 1). Martin 27. 11. 2026 rozhodl: „1 mince = 2.4g zlata = 90 kg obilí“ (Mince 2,4 g zlata za 90 kg obilí níž).
 2. **Rýžovník rýžuje od dubna do října** gram zlata denně (učeň půl gramu; herní číslo); náplav má 1,5 kg a nedoplňuje se, mapa 4,5–9 kg se vyrýžuje za 15–30 let, pak dílna stojí (Rozhodnutí 4).
 3. **Zlato se mění za mince, ne za zboží:** na trhu stojí minci za gram, kupují ho kupci, výpravy a **každá ves, která má mince** (Martin 22. 11. 2026: „s kýmkoliv, kdo ty mince má“). Je to kov za kov, „Mince utrácí jen vojvoda/správce“ (25. 11. 2026) dál platí pro zboží; objednanou zbroj hostitel kupcům doplatí i zlatem. Kde nikdo nemá mince (do roku 950 skoro všude mimo stezky), zlato nic nekoupí (Rozhodnutí 3).
-4. **Kupci kupují zlato první**, ale měšec 60 mincí se nemění – za průjezd koupí nejvýš 60 g zlata, šperků 40 g; hlavní odbyt je výměna ve vsích s mincemi a od roku 950 mincovna (Rozhodnutí 8).
+4. **Kupci kupují zlato první**, ale měšec 60 mincí se nemění – za průjezd koupí nejvýš 60 g zlata, šperků 40 g; hlavní odbyt je výměna ve vsích s mincemi a od roku 950 mincovna (Rozhodnutí 8). Martin 27. 11. 2026: „Kupcům neomezuj měšec.“ – od té doby kupec za průjezd vykoupí až 1 000 g zlata.
 5. **Šperkař zpracuje 1,5 g denně** do kapacity výhody; prodávající dostane o třetinu mincí méně, než je cena; kapacita platí i na výpravách a nepřeroste kov vsi (Rozhodnutí 5 a 6).
 6. **Mincovna od roku 950 razí všechno zlato vsi** (200 g denně); vlastní mince zvedají ceny tam, kde je ves utratí (Rozhodnutí 7).
 7. **Dílny zlata vypadají jako dnešní dílny** (rýžovník jako zemnice uhlíře, šperkař a mincovna jako kovárna); vlastní modely až na pokyn (Rozhodnutí 11).
@@ -169,6 +170,26 @@ Plán 6 přinesl zlato: zboží `gold`, tři dílny (rýžovník, šperkař, min
 11. **Kapacita šperkaře kupujícího** = kov, který za zboží opravdu odešel, včetně zaokrouhlení na celou minci.
 12. **Hladina trhu se počítá jen z mincí** – platí-li ves zbroj zlatem, může hladina klesnout.
 13. **Mincovna 200 g denně je opatrné číslo** (rešerše ≈ 100 ks za hodinu z jiné doby, bez přípravy střížků); lze zvýšit.
+
+## Mince 2,4 g zlata za 90 kg obilí (27. 11. 2026)
+
+Martin 27. 11. 2026: „Dej průměrnou hmotnost mince 2.4g.“ K Rozhodnutí 1 se zeptal: „Zlato ve hře koupí asi 12× méně obilí než ve skutečnosti - proč jsi to takhle udělal?“ Claude odpověděl, že to vzniklo spojením ceny mince z obchodu (15 kg obilí podle stříbrného denáru) s „1:1 váhově“ a mincí o váze denáru – zlato bylo ve skutečnosti asi 12× dražší než stříbro – a že se měl zeptat. Martin: „Ok, ty mince byly velmi různorodé, my z toho tedy uděláme prmůěr - jedna mince bude mít těch 2.4g a hdnotu jako 2.4g krát 6 zlata“; na upřesňující otázku Clauda „Kolik zlata má mít hodnotu jedna taková mince?“: „1 mince = 2.4g zlata = 90 kg obilí“.
+
+Rozhodnutí níž jsou **návrh Clauda** k provedení (mění Rozhodnutí 1 a kurz mince v [obchodu](markets.md)):
+
+1. **Mince = 2,4 g zlata = 90 kg obilí** (`GOLD.coinGrams` = 2,4, `MARKET.grainKgPerCoin` = 90 – Martin). Gram zlata má hodnotu 37,5 kg obilí; proti skutečnosti (asi 150–180 kg) je zlato zhruba čtyřikrát levnější. „1:1 váhově“ platí dál.
+2. **Ceny v mincích jsou šestkrát nižší** – meč 20 mincí, kroužková košile 80, helma 40, otrok 4 mince; zápočet (zboží za zboží) se nemění.
+3. **Převod stavu:** ceny, které si trhy a vsi pamatují (v mincích), se jednou vydělí šesti. Počty mincí ve vsích, na výpravách ani v poště se nepřevádějí – mince je mince.
+4. **Zlato za mince jen po celých mincích:** za minci 2,4 g zlata, od šperkaře prodávajícího 1,6 g (o polovinu dráž); zbytek pod jednu minci zůstane prodávajícímu a nikdo nepřeplatí zaokrouhlením. Zásoba zlata tak smí mít zlomky gramu, rozhraní je ukáže na desetiny.
+5. **Mincovna** razí celé mince: 200 g za člověkoden = 83 mincí, zbytek zlata počká.
+6. **Šperkař** zpracuje dál 1,5 g kovu za člověkoden; mince do toho počítá po 2,4 g.
+7. **Rýžovník a náplav** v gramech beze změny (1 g za člověkoden = 37,5 kg obilí).
+8. **Mince v „Dáš“ po jedné** (dřív po deseti – mince je šestkrát cennější).
+9. **Zboží v kg za celé mince dolů:** výprava, správce i hostitel, kteří platí mincemi, vezmou jen tolik kg, kolik celé
+   mince pokryjí – nikdo nepřeplatí až minci (90 kg obilí) zaokrouhlením nahoru. Kusy a platby kupců vsi zůstávají
+   nahoru (u kupců ve prospěch vsi); nákup pod jednu minci se dál nekoná – drobnosti řeší zápočet.
+
+**Ověřeno 27. 11. 2026 – přepočet Vlkova** (živý stav z databáze `bohemia` – jen čtení, 10 let po dnech od 15. 10. 920, 3 652 dní; návrh Clauda): Vlkov nemá trh vsi, zprávy o trzích, obchodní výpravy ani výsledky výprav ve schránce – žádnou cenu v mincích, takže ho převod `coin-rate` nemění a značku `coinKg` nedostane. Stav po minci 90 kg obilí (`feat/coins-web`) je proto **bit po bitu týž** jako na `feat/landscape` – shodný otisk celého stavu i každé jeho části všech 3 652 dní, konečný stav (31 lidí, z toho 9 z rodu; 17 narození, 12 úmrtí, nikdo hladem) i plán a stavby správce (Vlkov řídí správce). Kodek bez rozdílu: bajty z databáze dekódované a znovu zakódované jsou tytéž a 30 kontrol dává v obou stromech tytéž bajty obou částí stavu a převod tam a zpět beze změny; chyby, `NaN` ani `Infinity` nejsou.
 
 ## Otevřené / Pro Martina
 

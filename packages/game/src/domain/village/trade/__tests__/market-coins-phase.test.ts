@@ -78,11 +78,14 @@ function spareLaborVillage(): VillageState {
 }
 
 describe('mincovní fáze – vesničané mince neutrácejí (Martin 25. 11. 2026)', () => {
-  /** Hráčova výprava s 40 mincemi, která chce obilí, přijede první a vesničané druzí. */
+  /**
+   * Hráčova výprava s 40 mincemi, která chce obilí (3 600 kg = 40 mincí po 90 kg), přijede první
+   * a vesničané druzí.
+   */
   function withVillagers(by?: MarketArrival['by']): VillageState {
     const s = potteryVillage();
-    joinMarket(s, D, trip('market:p:1', { coins: 40 }, { grain: 600 }));
-    joinMarket(s, D, trip('market:v:1', { grain: 600 }, { pottery: 30 }, by ? { by } : {}));
+    joinMarket(s, D, trip('market:p:1', { coins: 40 }, { grain: 3_600 }));
+    joinMarket(s, D, trip('market:v:1', { grain: 3_600 }, { pottery: 180 }, by ? { by } : {}));
     return s;
   }
 
@@ -90,10 +93,10 @@ describe('mincovní fáze – vesničané mince neutrácejí (Martin 25. 11. 202
     const s = withVillagers('villagers');
     marketDay(s, D);
     const v = resultOf(s, 'market:v:1');
-    expect(v.sold).toEqual({ grain: 600 });
+    expect(v.sold).toEqual({ grain: 3_600 });
     expect(v.bought).toEqual({});
     expect(v.unsold).toEqual({ coins: 40 });
-    expect(resultOf(s, 'market:p:1').bought).toEqual({ grain: 600 });
+    expect(resultOf(s, 'market:p:1').bought).toEqual({ grain: 3_600 });
     expect(s).not.toHaveProperty('coins');
   });
 
@@ -103,8 +106,9 @@ describe('mincovní fáze – vesničané mince neutrácejí (Martin 25. 11. 202
       const s = withVillagers(by);
       marketDay(s, D);
       const v = resultOf(s, 'market:v:1');
-      expect(v.sold).toEqual({ grain: 600 });
-      expect(v.bought).toEqual({ pottery: 30 });
+      // 180 kg keramiky po 3/90 mince = 6 mincí ze 40
+      expect(v.sold).toEqual({ grain: 3_600 });
+      expect(v.bought).toEqual({ pottery: 180 });
       expect(v.unsold).toEqual({ coins: 34 });
       expect(s.coins).toBe(6);
     },
@@ -145,7 +149,7 @@ describe('mincovní fáze – zakázka vesničanů má přednost před prodejem 
   }
 
   /**
-   * Trh: výprava `market:v:1` (vesničané, s `by` undefined hráč) přiveze 300 kg obilí a shání
+   * Trh: výprava `market:v:1` (vesničané, s `by` undefined hráč) přiveze 1 800 kg obilí a shání
    * `wants`; s `buyer` za ní stojí hráčova výprava se 400 mincemi, která shání obilí.
    */
   function heldDay(
@@ -154,7 +158,7 @@ describe('mincovní fáze – zakázka vesničanů má přednost před prodejem 
     { buyer = true, smith = true } = {},
   ): VillageState {
     const s = smithHost(smith);
-    joinMarket(s, D, trip('market:v:1', { grain: 300 }, wants, by ? { by } : {}));
+    joinMarket(s, D, trip('market:v:1', { grain: 1_800 }, wants, by ? { by } : {}));
     if (buyer) joinMarket(s, D, trip('market:p:1', { coins: 400 }, { grain: 20_000 }));
     marketDay(s, D);
     return s;
@@ -164,21 +168,21 @@ describe('mincovní fáze – zakázka vesničanů má přednost před prodejem 
     const s = heldDay('villagers', { tools: 10 });
     const v = resultOf(s, 'market:v:1');
     expect(v.sold).toEqual({});
-    expect(v.unsold).toEqual({ grain: 300 });
+    expect(v.unsold).toEqual({ grain: 1_800 });
     expect(v.ordered).toEqual({ tools: 10 });
     expect(v).not.toHaveProperty('coinsGot');
     expect(s.market?.orders).toEqual([
       { villageId: 'v', name: 'Vlkov', good: 'tools', amount: 10, day: D },
     ]);
-    // hráč koupí jen obilí hostitele (1 000 kg za 67 mincí)
-    expect(resultOf(s, 'market:p:1').bought).toEqual({ grain: 1_000 });
-    expect(s.coins).toBe(67);
+    // hráč koupí jen obilí hostitele (1 000 kg za 11,1 – za celé mince dolů 11 mincí = 990 kg)
+    expect(resultOf(s, 'market:p:1').bought).toEqual({ grain: 990 });
+    expect(s.coins).toBe(11);
   });
 
   it('bez kupujícího s mincemi vyjde zakázka stejně', () => {
     const v = resultOf(heldDay('villagers', { tools: 10 }, { buyer: false }), 'market:v:1');
     expect(v.sold).toEqual({});
-    expect(v.unsold).toEqual({ grain: 300 });
+    expect(v.unsold).toEqual({ grain: 1_800 });
     expect(v.ordered).toEqual({ tools: 10 });
   });
 
@@ -188,48 +192,51 @@ describe('mincovní fáze – zakázka vesničanů má přednost před prodejem 
   ] as const)('vesničané %s obilí za mince prodají jako dosud', (_, wants, smith) => {
     const s = heldDay('villagers', wants, { smith });
     const v = resultOf(s, 'market:v:1');
-    expect(v.sold).toEqual({ grain: 300 });
+    expect(v.sold).toEqual({ grain: 1_800 });
     expect(v.unsold).toEqual({ coins: 20 });
     expect(v).not.toHaveProperty('ordered');
     expect(s.market).not.toHaveProperty('orders');
-    expect(resultOf(s, 'market:p:1').bought).toEqual({ grain: 1_300 });
+    expect(resultOf(s, 'market:p:1').bought).toEqual({ grain: 2_790 }); // 990 od hostitele
   });
 
   it('výprava hráče obilí za mince prodá a zakázku zapíše jako dosud', () => {
     const s = heldDay(undefined, { tools: 10 });
     const v = resultOf(s, 'market:v:1');
-    expect(v.sold).toEqual({ grain: 300 });
+    expect(v.sold).toEqual({ grain: 1_800 });
     expect(v.unsold).toEqual({ coins: 20 });
     expect(v.ordered).toEqual({ tools: 10 });
-    expect(resultOf(s, 'market:p:1').bought).toEqual({ grain: 1_300 });
+    expect(resultOf(s, 'market:p:1').bought).toEqual({ grain: 2_790 }); // 990 od hostitele
   });
 });
 
 describe('mincovní fáze – invarianty na trhu hostitele', () => {
-  it('platby jdou v pořadí nákupů: kupec 28 mincí → výprava (0) → hostitel; nic nevznikne', () => {
+  it('platby jdou v pořadí nákupů: kupec → výprava (0) → hostitel; mince vzniknou jen platbou kupce', () => {
     const s = potteryVillage();
     // výprava nemá mince jinde než od kupce, který od ní koupí kožešiny a ona za ně keramiku
-    joinMarket(s, D, trip('market:a:1', { furs: 30 }, { pottery: 50 }, { stayDays: 2 }));
-    joinMarket(s, D, trip('market:k:1', { coins: 28 }, { furs: 30 }, { stayDays: 2 }));
+    // 180 kožešin po 4/45 = 16 mincí od kupce, 300 kg keramiky po 1/30 = 10 mincí hostiteli
+    joinMarket(s, D, trip('market:a:1', { furs: 180 }, { pottery: 300 }, { stayDays: 2 }));
+    joinMarket(s, D, trip('market:k:1', {}, { furs: 180 }, { stayDays: 2 }));
     visitorOf(s, 'market:k:1').merchant = true;
     marketDay(s, D);
-    expect(visitorOf(s, 'market:k:1').goods).toEqual({ coins: 12 });
+    // kupec platí z měšce bez dna (markets.md – Měšec kupců bez dna) – mince nedrží
+    expect(visitorOf(s, 'market:k:1').goods).toEqual({});
     expect(visitorOf(s, 'market:a:1').goods).toEqual({ coins: 6 });
-    expect(visitorOf(s, 'market:a:1').bought).toEqual({ pottery: 50 });
+    expect(visitorOf(s, 'market:a:1').bought).toEqual({ pottery: 300 });
     expect(s.coins).toBe(10);
-    expect(s.coins! + 12 + 6).toBe(28);
+    // 16 mincí za kožešiny – jinak nic nevzniklo ani nezmizelo
+    expect(s.coins! + 6).toBe(16);
   });
 
-  it('hostitel za mince nekupuje ani za mince, které ten den utržil: 54 mincí a kráva odjede', () => {
+  it('hostitel za mince nekupuje ani za mince, které ten den utržil: 9 mincí a kráva odjede', () => {
     const s = homeVillage();
     addGood(s, 'logs', 20, D);
     expect(marketStance(s, D).wants.cows).toBeGreaterThan(0);
-    // 20 klád za 53,3 → 54 mincí od kupce; kráva se z nich nekoupí
+    // 20 klád za 8,9 → 9 mincí od kupce; kráva (6,7 mince) se z nich nekoupí
     joinMarket(s, D, trip('market:a:1', { cows: 1 }, {}, { stayDays: 1 }));
     joinMarket(s, D, trip('market:k:1', { coins: 60 }, { logs: 20 }));
     visitorOf(s, 'market:k:1').merchant = true;
     marketDay(s, D);
-    expect(s.coins).toBe(54);
+    expect(s.coins).toBe(9);
     expect(resultOf(s, 'market:a:1')).toMatchObject({ sold: {}, unsold: { cows: 1 } });
   });
 });
@@ -237,12 +244,16 @@ describe('mincovní fáze – invarianty na trhu hostitele', () => {
 describe('součty mincí výpravy – coinsPaid a coinsGot (Rozhodnutí plánu 4, bod 9)', () => {
   it('za všechny tržní dny, u výpravy i ve výsledku; měšec je jen v nákladu', () => {
     const s = potteryVillage();
-    joinMarket(s, D, trip('market:a:1', { furs: 30 }, { pottery: 50 }, { stayDays: 3 }));
-    joinMarket(s, D, trip('market:b:1', { coins: 28 }, { furs: 30, pottery: 10 }, { stayDays: 2 }));
+    joinMarket(s, D, trip('market:a:1', { furs: 180 }, { pottery: 300 }, { stayDays: 3 }));
+    joinMarket(
+      s,
+      D,
+      trip('market:b:1', { coins: 28 }, { furs: 180, pottery: 60 }, { stayDays: 2 }),
+    );
     const a = visitorOf(s, 'market:a:1');
     const b = visitorOf(s, 'market:b:1');
     marketDay(s, D);
-    // b koupí 10 kg keramiky od hostitele za 2 a 30 kožešin od a za 16; a přišla na řadu bez mincí
+    // b koupí 60 kg keramiky od hostitele za 2 a 180 kožešin od a za 16; a přišla na řadu bez mincí
     expect([a.coinsPaid, a.coinsGot, a.goods]).toEqual([undefined, 16, { coins: 16 }]);
     expect([b.coinsPaid, b.coinsGot, b.goods]).toEqual([18, undefined, { coins: 10 }]);
     expect(a).not.toHaveProperty('coinsPaid');
@@ -257,18 +268,18 @@ describe('součty mincí výpravy – coinsPaid a coinsGot (Rozhodnutí plánu 4
     const aResult = resultOf(s, 'market:a:1');
     expect(aResult).toMatchObject({ coinsPaid: 10, coinsGot: 16, unsold: { coins: 6 } });
     // do prodaného a koupeného mince nepatří – připsaly by se podruhé
-    expect([aResult.sold, aResult.bought]).toEqual([{ furs: 30 }, { pottery: 50 }]);
-    expect([bResult.sold, bResult.bought]).toEqual([{}, { furs: 30, pottery: 10 }]);
+    expect([aResult.sold, aResult.bought]).toEqual([{ furs: 180 }, { pottery: 300 }]);
+    expect([bResult.sold, bResult.bought]).toEqual([{}, { furs: 180, pottery: 60 }]);
     expect(s.coins).toBe(12);
   });
 
   it('další platby téhož dne se sčítají – dva prodávající, dva kupující', () => {
     const s = potteryVillage();
-    joinMarket(s, D, trip('market:a:1', { furs: 30 }, {}));
-    joinMarket(s, D, trip('market:b:1', { coins: 10 }, { furs: 15 }));
-    joinMarket(s, D, trip('market:c:1', { coins: 10 }, { furs: 15, pottery: 5 }));
+    joinMarket(s, D, trip('market:a:1', { furs: 180 }, {}));
+    joinMarket(s, D, trip('market:b:1', { coins: 10 }, { furs: 90 }));
+    joinMarket(s, D, trip('market:c:1', { coins: 10 }, { furs: 90, pottery: 30 }));
     marketDay(s, D);
-    // 15 kožešin po 8/15 mince = 8 mincí od každé; c ještě 5 kg keramiky za minci
+    // 90 kožešin po 4/45 mince = 8 mincí od každé; c ještě 30 kg keramiky za minci
     expect(resultOf(s, 'market:a:1')).toMatchObject({ coinsGot: 16, unsold: { coins: 16 } });
     expect(resultOf(s, 'market:b:1')).toMatchObject({ coinsPaid: 8, unsold: { coins: 2 } });
     expect(resultOf(s, 'market:c:1')).toMatchObject({ coinsPaid: 9, unsold: { coins: 1 } });
@@ -341,19 +352,19 @@ describe('mincovní fáze – coinClearing', () => {
       [
         party('host'),
         party('k', { merchant: true, coins: 5, stock: { swords: 2 } }),
-        party('a', { coins: 130, wants: { swords: 1 } }),
+        party('a', { coins: 30, wants: { swords: 1 } }),
       ],
       {},
       1,
     );
     expect(c.trades).toEqual([{ seller: 'k', buyer: 'a', good: 'swords', amount: 1 }]);
-    expect(c.payments).toEqual([{ buyer: 'a', seller: 'k', coins: 120 }]);
+    expect(c.payments).toEqual([{ buyer: 'a', seller: 'k', coins: 20 }]);
   });
 
-  it('účet těsně pod minci šumem plovoucí čárky se neruší: obilí při hladině 1,042857', () => {
+  it('účet těsně pod minci šumem plovoucí čárky se neruší: obilí při hladině 1,15', () => {
     // hladina, při které `kg × cena` vyjde v plovoucí čárce těsně pod 1 (nalezeno hledáním)
-    const level = 1.0001;
-    const price = (1 / 15) * level;
+    const level = 1.15;
+    const price = (1 / 90) * level;
     const kg = 1 / price;
     expect(kg * price).toBeLessThan(1);
     const c = coinClearing(

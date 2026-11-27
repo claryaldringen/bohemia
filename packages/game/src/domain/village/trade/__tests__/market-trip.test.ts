@@ -3,6 +3,7 @@ import { TOTAL_GAME_DAYS } from '../../../calendar';
 import { cartsAway, villageCarts } from '../../crafts/carts';
 import { oxenHome } from '../../livestock/oxen';
 import type { MarketOrder, MarketResult, TradeGoods, VillageState } from '../../types';
+import { MARKET } from '../../rules';
 import {
   MARKET_NO_OXEN,
   MARKET_NO_PEOPLE,
@@ -203,7 +204,8 @@ describe('výprava na trh – odchod a návrat (Rozhodnutí plánu 2, body 2 a 6
       unsold: {},
       horses: [],
       report,
-      prices: { cows: 38 },
+      prices: { cows: 6.5 },
+      coinKg: MARKET.grainKgPerCoin,
     };
     const back = structuredClone(after);
     expect(applyMarketResult(back, D + 2, res)).toEqual([
@@ -211,7 +213,16 @@ describe('výprava na trh – odchod a návrat (Rozhodnutí plánu 2, body 2 a 6
     ]);
     expect(back.livestock!.herds.cow - after.livestock!.herds.cow).toBe(1);
     expect(back.trade!.expeditions.some((x) => x.market?.key === key)).toBe(false);
-    expect(back.news).toEqual([{ villageId: 'm', name: 'Lhota', report, prices: { cows: 38 } }]);
+    // zpráva o trhu nese kurz, ve kterém ceny zapsala (výsledek bez `coinKg` by se přepočetl ÷ 6)
+    expect(back.news).toEqual([
+      {
+        villageId: 'm',
+        name: 'Lhota',
+        report,
+        prices: { cows: 6.5 },
+        coinKg: MARKET.grainKgPerCoin,
+      },
+    ]);
     // záznam výpravy chybí – zboží přibude i tak
     const orphan = structuredClone(h);
     applyMarketResult(orphan, D + 2, res);

@@ -419,7 +419,7 @@ describe('sendMarketExpedition', () => {
     expect(await w.villages.inbox.pending(w.ids.m, D - 6, TOTAL_GAME_DAYS)).toEqual([]);
   });
 
-  it('výprava se 400 mincemi: 200 kg obilí za 14 mincí, 386 se vrátí domů', async () => {
+  it('výprava se 400 mincemi a seznamem 200 kg obilí: 180 kg za 2 mince, 398 se vrátí domů', async () => {
     const w = await world({ home: coinsHome() });
     await setState(w, w.ids.m, () => {
       const host = marketVillage(0);
@@ -441,23 +441,24 @@ describe('sendMarketExpedition', () => {
       return (await w.villages.find(villageId))!.state;
     };
     const host = await load(w.ids.m, D + 1);
-    expect(host.coins).toBe(14);
+    // 200 kg ÷ 90 = 2,22 – za celé mince dolů 2 mince = 180 kg (gold.md – Mince 2,4 g, bod 9)
+    expect(host.coins).toBe(2);
     expect(host.chronicle.find((e) => e.kind === 'market-held')).toMatchObject({
-      sold: { grain: 200 },
-      bought: { coins: 14 },
+      sold: { grain: expect.closeTo(180, 6) },
+      bought: { coins: 2 },
     });
     const back = await load(w.ids.h, D + 2);
-    expect(back.coins).toBe(386);
+    expect(back.coins).toBe(398);
     expect(back.chronicle.find((e) => e.kind === 'market-returned')).toMatchObject({
-      bought: { grain: 200 },
+      bought: { grain: expect.closeTo(180, 6) },
       sold: {},
     });
     expect(back.trade!.expeditions.filter((e) => e.kind === 'market')).toEqual([]);
-    // přibylo 200 kg proti téže vsi, které výprava nic nepřivezla (sýpka z nich den ztratila zlomek)
+    // přibylo 180 kg proti téže vsi, které výprava nic nepřivezla (sýpka z nich den ztratila zlomek)
     const other = await world({ home: structuredClone(left) });
     await loadVillage(other.deps, { villageId: other.ids.h, today: D + 2, landscape });
     const without = (await other.villages.find(other.ids.h))!.state;
-    expect(back.storesKg - without.storesKg).toBeCloseTo(200, 0);
+    expect(back.storesKg - without.storesKg).toBeCloseTo(180, 0);
   });
 
   it('správce cizí vsi utratí její mince u souseda, do vsí držitele je nepošle', async () => {

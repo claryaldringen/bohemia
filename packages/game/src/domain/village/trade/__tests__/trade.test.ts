@@ -129,8 +129,8 @@ describe('nástroje a dřevěné nářadí (markets.md – Rozhodnutí plánu 3,
   it('hodnota 60 a 2 kg obilí za kg, nese se kg za kg; v kg hned za keramikou', () => {
     expect(TRADE_GOOD_VALUES.tools).toEqual({ valueKg: 60, carryKg: 1 });
     expect(TRADE_GOOD_VALUES.woodTools).toEqual({ valueKg: 2, carryKg: 1 });
-    // 60 ÷ 15 = 4 mince za kg nástrojů
-    expect(initialPrice('tools')).toBe(4);
+    // 60 ÷ 90 = 2/3 mince za kg nástrojů
+    expect(initialPrice('tools')).toBeCloseTo(2 / 3, 12);
     const i = TRADE_GOODS.indexOf('pottery');
     // za dřevěným nářadím vozy (Rozhodnutí plánu 3, bod 4 – vozy na trhu níž), pak hřivny
     expect(TRADE_GOODS.slice(i, i + 3)).toEqual(['pottery', 'tools', 'woodTools']);

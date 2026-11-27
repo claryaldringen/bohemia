@@ -293,13 +293,13 @@ describe('náhled výpravy s otroky = kontrola jádra (plán 5, Úloha 8a)', () 
 });
 
 describe('zlato a šperkař v pohledu trhu (plán 6, Úloha 10)', () => {
-  it('cena zlata je pevná: 1 mince za gram i s hladinou 2,3', () => {
+  it('váha zlata za minci je pevná: 2,4 g i s hladinou 2,3', () => {
     const s = village();
     s.market = { prices: {}, level: 2.3 } as NonNullable<VillageState['market']>;
-    expect(manorView(s, DAY)!.market.goldPrice).toBe(1);
+    expect(manorView(s, DAY)!.market.coinGrams).toBe(2.4);
   });
 
-  it('kapacita šperkaře: 30 g při 40 mincích; bez kovu nebo bez kapacity pole chybí', () => {
+  it('kapacita šperkaře: 30 g při 40 mincích (96 g kovu); bez kovu nebo bez kapacity pole chybí', () => {
     const s = village();
     expect(manorView(s, DAY)!.market).not.toHaveProperty('jewelleryG');
     expect(manorView(s, DAY)!.market).not.toHaveProperty('jewelleryFactor');
@@ -308,8 +308,8 @@ describe('zlato a šperkař v pohledu trhu (plán 6, Úloha 10)', () => {
     s.coins = 40;
     expect(manorView(s, DAY)!.market.jewelleryG).toBe(30);
     expect(manorView(s, DAY)!.market.jewelleryFactor).toBe(1.5);
-    s.coins = 10;
-    expect(manorView(s, DAY)!.market.jewelleryG).toBe(10);
+    s.coins = 10; // 24 g kovu
+    expect(manorView(s, DAY)!.market.jewelleryG).toBe(24);
   });
 
   it('náhled výpravy se 200 g zlata má tytéž nosiče jako planMarketTrip', () => {

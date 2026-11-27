@@ -389,8 +389,9 @@ describe('zastávky kupců (`merchant-stops` – markets.md, Rozhodnutí plánu 
   /** Ves po všech ostatních převodech, bez zastávek. */
   const loaded = (): VillageState => migrateVillage(founded(), load);
 
-  it('je poslední v seznamu a běží jen při načtení', () => {
-    const last = VILLAGE_MIGRATIONS.at(-1)!;
+  it('je předposlední v seznamu (za ním jen kurz mince `coin-rate`) a běží jen při načtení', () => {
+    expect(VILLAGE_MIGRATIONS.at(-1)?.id).toBe('coin-rate');
+    const last = VILLAGE_MIGRATIONS.at(-2)!;
     expect(last).toMatchObject({ id: 'merchant-stops', since: '2026-11-25', loadOnly: true });
     const s = loaded();
     expect(migrateVillage(s, advance)).toBe(s);

@@ -44,8 +44,8 @@ const activity = (s: VillageState, day = DAY): string | undefined =>
   restingCrafters(s, day, NO_CRAFTS).get(WORKSHOP_ID);
 
 describe('šperkař', () => {
-  it('zpracuje 1,5 g denně do kovu vsi, pak odpočívá', () => {
-    const s = village('jeweller', 10, 5);
+  it('zpracuje 1,5 g denně do kovu vsi (3 g zlata + 5 mincí po 2,4 g), pak odpočívá', () => {
+    const s = village('jeweller', 3, 5);
     expect(workJeweller(s, LABOR)).toMatchObject({ activity: 'producing', wroughtG: 1.5 });
     expect(s.jewelleryG).toBe(1.5);
     for (let d = 2; d <= 10; d++) workJeweller(s, LABOR);
@@ -56,7 +56,7 @@ describe('šperkař', () => {
   });
 
   it('nepřekročí kov vsi ani poslední částí dne', () => {
-    const s = village('jeweller', 10, 5);
+    const s = village('jeweller', 3, 5);
     s.jewelleryG = 14;
     expect(workJeweller(s, LABOR)).toMatchObject({ activity: 'producing', wroughtG: 1 });
     expect(s.jewelleryG).toBe(15);
@@ -68,38 +68,51 @@ describe('šperkař', () => {
   });
 
   it('s kovem a bez zpracovaného zlata pracuje', () => {
-    expect(activity(village('jeweller', 10, 5))).toBeUndefined();
+    expect(activity(village('jeweller', 3, 5))).toBeUndefined();
+  });
+
+  it('kov vsi: mince po 2,4 g a zlato i se zlomkem pod minci', () => {
+    expect(jewelleryMaterialG({ coins: 5 })).toBe(12);
+    expect(jewelleryMaterialG({ gold: 0.8, coins: 5 })).toBe(12.8);
   });
 });
 
 describe('mincovna', () => {
-  it('razí po celých gramech, kov vsi se nemění', () => {
+  it('razí celé mince: 200 g za člověkoden = 83 mincí, 0,8 g zbude', () => {
+    const s = village('minter', 200);
+    expect(workMinter(s, LABOR, DAY)).toMatchObject({ activity: 'producing', mintedCoins: 83 });
+    expect(s.coins).toBe(83);
+    expect(s.gold).toBe(0.8);
+    expect((s.gold ?? 0) + (s.coins ?? 0) * GOLD.coinGrams).toBeCloseTo(200, 2);
+    expect(activity(s, DAY + 1)).toBe('no-gold');
+  });
+
+  it('po dnech: zbytek zlata počká, kov vsi se nemění', () => {
     const s = village('minter', 450.6);
     const total = (): number => (s.gold ?? 0) + (s.coins ?? 0) * GOLD.coinGrams;
-    const sum = total();
-    expect(workMinter(s, LABOR, DAY)).toMatchObject({ activity: 'producing', mintedCoins: 200 });
-    expect(s.coins).toBe(200);
-    expect(s.gold).toBeCloseTo(250.6, 9);
-    expect(jewelleryMaterialG(s)).toBe(450);
-    expect(workMinter(s, LABOR, DAY + 1).mintedCoins).toBe(200);
-    expect(s.gold).toBeCloseTo(50.6, 9);
-    expect(workMinter(s, LABOR, DAY + 2).mintedCoins).toBe(50);
-    expect(s.coins).toBe(450);
-    expect(s.gold).toBeCloseTo(0.6, 9);
-    expect(total()).toBeCloseTo(sum, 9);
-    expect(jewelleryMaterialG(s)).toBe(450);
+    expect(workMinter(s, LABOR, DAY).mintedCoins).toBe(83);
+    expect(s.gold).toBe(251.4);
+    expect(workMinter(s, LABOR, DAY + 1).mintedCoins).toBe(83);
+    expect(s.gold).toBe(52.2);
+    expect(workMinter(s, LABOR, DAY + 2).mintedCoins).toBe(21);
+    expect(s.coins).toBe(187);
+    expect(s.gold).toBe(1.8);
+    expect(total()).toBeCloseTo(450.6, 2);
+    expect(jewelleryMaterialG(s)).toBeCloseTo(450.6, 2);
     expect(activity(s, DAY + 3)).toBe('no-gold');
     expect(workMinter(s, LABOR, DAY + 3)).toMatchObject({ activity: 'no-gold', mintedCoins: 0 });
   });
 
-  it('zlato těsně pod gramem se vyrazí a pole zmizí, nikdy záporné', () => {
-    const s = village('minter', 0.9999999999);
+  it('zlato těsně pod 2,4 g se vyrazí a pole zmizí, nikdy záporné', () => {
+    const s = village('minter', 2.3999999999);
     expect(workMinter(s, LABOR, DAY).mintedCoins).toBe(1);
     expect(s.coins).toBe(1);
     expect('gold' in s).toBe(false);
   });
 
-  it('méně než gram zlata: no-gold', () => {
-    expect(activity(village('minter', 0.5))).toBe('no-gold');
+  it('s 2,4 g i 2,5 g pracuje, méně než na minci (2,3 g): no-gold', () => {
+    expect(activity(village('minter', 2.4))).toBeUndefined();
+    expect(activity(village('minter', 2.5))).toBeUndefined();
+    expect(activity(village('minter', 2.3))).toBe('no-gold');
   });
 });

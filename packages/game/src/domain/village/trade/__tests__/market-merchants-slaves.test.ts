@@ -38,6 +38,17 @@ const STOP: MerchantStop = { key: '0,0,E', seed: 7, index: 0, length: 1 };
 /** První příjezd kupců po D. */
 const DAY = nextMerchantVisit([STOP], D)!.day;
 
+/**
+ * Lhota (M) s kupcem, který už stojí na trhu a ze seznamu shání jen 2 otroky (měšec je bez dna –
+ * markets.md, Měšec kupců bez dna; třetí otrok se tak neprodá).
+ */
+function twoSlavesHost(): VillageState {
+  const s = host();
+  merchantsArrive(s, DAY);
+  merchantOf(s).wants.slaves = 2;
+  return s;
+}
+
 /** Lhota (M) u stezky, dopočítaná do dne před příjezdem kupců – nic nenabízí (vzor `host` plánu 4). */
 function host(): VillageState {
   const s = marketVillage(0);
@@ -174,15 +185,15 @@ describe('cizí kupci kupují otroky (markets.md – Rozhodnutí plánu 5, bod 7
     expect(merchantOf(s).wants).toEqual(list);
   });
 
-  it('výprava se 3 otroky: kupci koupí 2 za 48 mincí, třetí se vrátí domů s původním id', () => {
+  it('výprava se 3 otroky: kupec, který shání 2, je koupí za 8 mincí, třetí se vrátí domů', () => {
     const { home, key, arrive } = slaveTrip(1);
-    const m = advanceVillage(host(), DAY, null, null, arrive);
+    const m = advanceVillage(twoSlavesHost(), DAY, null, null, arrive);
     const result = resultOf(m, key);
     expect([result.sold, result.bought, result.unsold, result.coinsGot]).toEqual([
       { slaves: 2 },
       {},
-      { slaves: 1, coins: 48 },
-      48,
+      { slaves: 1, coins: 8 },
+      8,
     ]);
     expect(result.people!.map((g) => [g.good, g.people.map((p) => p.id)])).toEqual([
       ['slaves', [14]],
@@ -190,18 +201,18 @@ describe('cizí kupci kupují otroky (markets.md – Rozhodnutí plánu 5, bod 7
     // kupci odjeli – prodaní nejsou v žádné vsi, nákladu ani poště
     expect(m.market!.visitors).toEqual([]);
     goneFromWorld(home, [m]);
-    // domů: třetí s původním id a 48 mincí
+    // domů: třetí s původním id a 8 mincí
     const back = advanceVillage(home, DAY + 1, null, null, asEvents(m.outbox!));
     const third = person(slavesHome(), 14)!;
     expect(person(back, 14)).toMatchObject({ slave: true, bornDay: third.bornDay, sex: 'male' });
     expect(traces([back, withoutOutbox(m)], third)).toEqual([
       expect.stringMatching(/^ves 0\.people\[\d+\]$/),
     ]);
-    expect(back.coins).toBe(48);
+    expect(back.coins).toBe(8);
     goneFromWorld(back, [withoutOutbox(m)]);
   });
 
-  it('zápočet: výprava s 5 otroky dostane meč (120 = 5 × 24), mince se nehnou', () => {
+  it('zápočet: výprava s 5 otroky dostane meč (20 = 5 × 4), mince se nehnou', () => {
     const s = host();
     joinMarket(s, DAY, trip('market:a:1', {}, { swords: 1 }, [21, 22, 23, 24, 25]));
     merchantsArrive(s, DAY);
@@ -211,7 +222,7 @@ describe('cizí kupci kupují otroky (markets.md – Rozhodnutí plánu 5, bod 7
     expect([result.sold, result.bought, result.unsold]).toEqual([{ slaves: 5 }, { swords: 1 }, {}]);
     expect(result).not.toHaveProperty('coinsGot');
     expect(result).not.toHaveProperty('coinsPaid');
-    expect(merchant.goods).toEqual({ swords: 1, mailShirts: 1, helmets: 2, coins: 60 });
+    expect(merchant.goods).toEqual({ swords: 1, mailShirts: 1, helmets: 2 });
     expect(merchant.sold).toEqual({ swords: 1 });
     expect(merchant.bought).toEqual({ slaves: 5 });
     expect(merchant.boughtPeople!.flatMap((g) => g.people.map((p) => p.id))).toEqual([
@@ -221,7 +232,7 @@ describe('cizí kupci kupují otroky (markets.md – Rozhodnutí plánu 5, bod 7
   });
 
   it('pořadí prodávajících: kupci kupují od výprav v pořadí příjezdu, u každé v pořadí zboží', () => {
-    // E1 se 100 kg medu přijela první – med za 40 mincí, na otroky E2 zbude 20 < 24
+    // E1 se 100 kg medu přijela první – med za 7 mincí (100 kg ÷ 15 ≈ 6,67 nahoru), pak otroci E2
     const s = host();
     joinMarket(s, DAY, trip('market:a:1', { honey: 100 }, {}));
     joinMarket(s, DAY, trip('market:b:1', {}, {}, [31, 32]));
@@ -230,14 +241,15 @@ describe('cizí kupci kupují otroky (markets.md – Rozhodnutí plánu 5, bod 7
     marketDay(s, DAY);
     expect([resultOf(s, 'market:a:1').sold, resultOf(s, 'market:a:1').unsold]).toEqual([
       { honey: 100 },
-      { coins: 40 },
+      { coins: 7 },
     ]);
+    // měšec bez dna: kupec koupí od obou všechno ze seznamu – napřed med E1, pak otroky E2
     expect([resultOf(s, 'market:b:1').sold, resultOf(s, 'market:b:1').unsold]).toEqual([
-      {},
       { slaves: 2 },
+      { coins: 8 },
     ]);
-    expect([first.goods.coins, first.bought]).toEqual([20, { honey: 100 }]);
-    // obráceně: E1 se 2 otroky – otroci za 48 mincí, za zbylých 12 30 kg medu E2
+    expect([first.goods, first.bought]).toEqual([MERCHANTS.goods, { honey: 100, slaves: 2 }]);
+    // obráceně: E1 se 2 otroky – otroci za 8 mincí, med E2 za 7
     const t = host();
     joinMarket(t, DAY, trip('market:a:1', {}, {}, [31, 32]));
     joinMarket(t, DAY, trip('market:b:1', { honey: 100 }, {}));
@@ -246,11 +258,11 @@ describe('cizí kupci kupují otroky (markets.md – Rozhodnutí plánu 5, bod 7
     marketDay(t, DAY);
     expect([resultOf(t, 'market:a:1').sold, resultOf(t, 'market:a:1').unsold]).toEqual([
       { slaves: 2 },
-      { coins: 48 },
+      { coins: 8 },
     ]);
-    expect(resultOf(t, 'market:b:1').sold).toEqual({ honey: expect.closeTo(30, 6) });
-    expect(resultOf(t, 'market:b:1').unsold).toEqual({ honey: expect.closeTo(70, 6), coins: 12 });
-    expect(second.goods).toEqual(MERCHANTS.goods); // měšec prázdný – mince z nákladu zmizely
+    expect(resultOf(t, 'market:b:1').sold).toEqual({ honey: 100 });
+    expect(resultOf(t, 'market:b:1').unsold).toEqual({ coins: 7 });
+    expect(second.goods).toEqual(MERCHANTS.goods); // mince kupec nedrží
     expect(second.boughtPeople!.flatMap((g) => g.people.map((p) => p.id))).toEqual([31, 32]);
   });
 
@@ -260,11 +272,11 @@ describe('cizí kupci kupují otroky (markets.md – Rozhodnutí plánu 5, bod 7
     const beer = [1, 2, 3].map((i) =>
       arriveEvent(trip(`market:p${i}:1`, {}, {}), DAY, arrive.length + i),
     );
-    const before = advanceVillage(host(), DAY, null, null, [...arrive, ...beer]);
+    const before = advanceVillage(twoSlavesHost(), DAY, null, null, [...arrive, ...beer]);
     const merchant = merchantOf(before);
     expect(merchant.lastDay).toBe(DAY + 1);
     expect(merchant.boughtPeople!.map((g) => g.people.map((p) => p.id))).toEqual([[10], [12]]);
-    expect(merchant.goods.coins).toBe(12);
+    expect(merchant.goods).not.toHaveProperty('coins');
     const gone = abandonForLineEnd(before, DAY);
     expect(gone.abandonedDay).toBe(DAY);
     // kupci odjeli i s otroky – nejsou v žádném stavu ani poště; výprava A stojí na trhu dál
@@ -282,7 +294,7 @@ describe('cizí kupci kupují otroky (markets.md – Rozhodnutí plánu 5, bod 7
     const back = advanceVillage(home, DAY + 4, null, null, [returned]);
     const third = person(slavesHome(), 14)!;
     expect(person(back, 14)).toMatchObject({ slave: true, bornDay: third.bornDay });
-    expect(back.coins).toBe(48);
+    expect(back.coins).toBe(8);
     goneFromWorld(back, [gone]);
     type Returned = Extract<ChronicleEvent, { kind: 'market-returned' }>;
     const chronicle = back.chronicle.find((e): e is Returned => e.kind === 'market-returned');
@@ -334,18 +346,16 @@ describe('den bez otroků: trh bit po bitu jako po plánu 4 (Rozhodnutí plánu 
     expect([s.coins, s.storesKg]).toEqual([plan4.coins, plan4.storesKg]);
   });
 
-  it('trhy srovnání obchodují a hýbou hladinou', () => {
+  it('trhy srovnání obchodují; hladina stojí, kupci ji nehýbou', () => {
     const levels = MARKETS.slice(0, 2).map(([, arrivals]) => {
       const s = host();
       for (const arrival of arrivals) joinMarket(s, DAY, arrival);
       merchantsArrive(s, DAY);
-      merchantOf(s).goods.coins = 200;
       marketDay(s, DAY);
       expect(resultOf(s, 'market:b:1').bought).toEqual({ helmets: 1 });
       return s.market!.level;
     });
-    // zápočet: C = W = 240 (helma) – hladina stojí; nákup kupce: C = 120 + 240 > W
-    expect(levels[0]).toBeUndefined();
-    expect(levels[1]).toBeGreaterThan(1);
+    // helma: C = W = 240 – hladina stojí; kupci do ní nepatří (Měšec kupců bez dna, bod 4)
+    expect(levels).toEqual([undefined, undefined]);
   });
 });

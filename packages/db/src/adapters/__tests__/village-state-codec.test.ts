@@ -75,6 +75,31 @@ describe('kodek stavu vsi', () => {
     expect(back).toMatchObject({ gold: 12.75, jewelleryG: 20, goldPanned: [12.5, 0, 1500] });
   });
 
+  it('kurz cen `coinKg` trhu a zpráv o trzích jde kodekem beze změny (gold.md – Mince 2,4 g, bod 3)', () => {
+    const state = village();
+    state.market = {
+      prices: { swords: 25 },
+      coinKg: 90,
+      level: 2,
+      visitors: [],
+      nextOrder: 1,
+      arrivals: [],
+    };
+    state.news = [
+      {
+        villageId: 'm',
+        name: 'Lhota',
+        report: { day: DAY, people: 10, houses: 2, crafts: [], traders: [] },
+        prices: { swords: 22 },
+        coinKg: 90,
+      },
+    ];
+    const back = roundTrip(state);
+    expect(JSON.stringify(back)).toBe(JSON.stringify(state));
+    expect(back.market?.coinKg).toBe(90);
+    expect(back.news?.[0]?.coinKg).toBe(90);
+  });
+
   it('zem nese jen klíče země a vyjmenované podklíče – i o dvě úrovně níž', () => {
     const state = asState({
       parts: [1],

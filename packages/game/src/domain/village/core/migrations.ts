@@ -6,6 +6,7 @@ import { withoutTrampledParts } from '../crafts/cart-jobs';
 import { withoutSameMapVillages } from '../crafts/cart-iron';
 import { needsFourWheelReach, withFourWheelReach } from '../crafts/carts';
 import { withCattleKinds } from '../trade/cattle-trade';
+import { withCoinRate } from '../trade/coin-rate';
 import { cloneState } from './clone';
 import { withCraftSkill } from '../crafts/craft-skill';
 import { withDynasty } from '../people/dynasty';
@@ -267,6 +268,9 @@ export const VILLAGE_MIGRATIONS: readonly VillageMigration[] = [
     loadOnly: true,
     run: (s, ctx) => withMerchantStops(s, ctx.merchantStops ?? null),
   },
+  // mince 90 kg obilí (gold.md – Mince 2,4 g zlata za 90 kg obilí, bod 3) – ceny v mincích, které si
+  // trh vsi a zprávy o trzích pamatují, se jednou vydělí šesti; počty mincí zůstanou
+  { id: 'coin-rate', since: '2026-11-27', run: withCoinRate },
 ];
 
 /** Pole stavu lovu, která nesl kalendářní lov rodu a lov navíc (hunting.md – Pravidla 1). */

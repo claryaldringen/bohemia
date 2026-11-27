@@ -81,13 +81,13 @@ describe('WaresStock – mince a zbroj (plán 4)', () => {
 });
 
 describe('WaresStock – zlato a šperky (plán 6)', () => {
-  it('zlato a šperky celé gramy s popisky a ikonami', () => {
+  it('zlato a šperky na desetiny gramu (celé bez desetin) s popisky a ikonami', () => {
     const html = render({ ...wares, goldG: 84.9, jewelleryG: 30, jewelleryFactor: 1.5 });
-    expect(text(html, 'wares-gold')).toBe('84');
+    expect(text(html, 'wares-gold')).toBe('84,9');
     expect(text(html, 'wares-jewellery')).toBe('30');
     expect(html).toContain('/icons/resources/gold.png');
     expect(html).toContain('/icons/resources/jewellery.png');
-    expect(html).toContain('>Zlato – 84 g<');
+    expect(html).toContain('>Zlato – 84,9 g<');
     expect(html).toContain('>Šperky – zlato a mince za 1,5násobek, ještě pro 30 g<');
   });
 
@@ -98,5 +98,14 @@ describe('WaresStock – zlato a šperky (plán 6)', () => {
     expect(only).not.toContain('wares-jewellery');
     expect(render(wares)).not.toContain('wares-gold');
     expect(render({ ...wares, goldG: 0, jewelleryG: 0 })).not.toContain('wares-jewellery');
+  });
+
+  it('zlato a šperky pod 0,05 g se neukážou – na desetiny by to bylo „Zlato – 0 g“', () => {
+    const zero = { hides: 0, furs: 0, sheepFurs: 0, honeyKg: 0, waxKg: 0 };
+    expect(render({ ...zero, goldG: 0.04, jewelleryG: 0.04, jewelleryFactor: 1.5 })).toBe('');
+    const tenth = render({ ...zero, goldG: 0.05, jewelleryG: 0.05, jewelleryFactor: 1.5 });
+    expect(text(tenth, 'wares-gold')).toBe('0,1');
+    expect(text(tenth, 'wares-jewellery')).toBe('0,1');
+    expect(tenth).toContain('>Zlato – 0,1 g<');
   });
 });

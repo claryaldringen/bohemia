@@ -11,7 +11,7 @@ import { emigrantList } from '../trade/people-trade';
 import { offeredSlaveIds } from '../trade/slaves';
 import { nearbyTarget } from '../trade/nearby';
 import { villageGoodStock } from '../trade/trade';
-import { goldCoinPrice } from '../trade/market-prices';
+import { coinsGold, goldCoins } from '../trade/market-prices';
 import { priceKg } from '../trade/villager-trips';
 import { COIN_GOOD, GOLD_GOOD, TRADE_GOODS, isPieceGood } from '../trade/goods';
 import type { CartKind, NearbyVillage, TradeGood, TradeGoods, VillageState } from '../types';
@@ -91,6 +91,19 @@ function grainPayment(
     if (unit <= EPSILON) continue;
     const reserve = good === 'logs' ? constructionLogsLeft(state) : 0;
     const have = Math.max(0, villageGoodStock(state, good, day) - reserve);
+    if (good === GOLD_GOOD) {
+      // zlato po celých mincích (gold.md – Mince 2,4 g zlata za 90 kg obilí, bod 4): hostitel ho
+      // vymění 2,4 g za minci, výprava veze celé gramy – na mince, které ještě chybí
+      const coinKg = priceKg(state, villageId, COIN_GOOD);
+      const coins = Math.min(
+        goldCoins(Math.floor(have + EPSILON)),
+        Math.ceil((dueKg - creditKg) / coinKg - EPSILON),
+      );
+      if (coins <= 0) continue;
+      give[good] = Math.ceil(coinsGold(coins) - EPSILON);
+      creditKg += coins * coinKg;
+      continue;
+    }
     const need = (dueKg - creditKg) / unit;
     const n = isPieceGood(good)
       ? Math.min(Math.floor(have + EPSILON), Math.ceil(need - EPSILON))
@@ -103,11 +116,66 @@ function grainPayment(
 }
 
 /**
+ * Seznam `wants`, který výprava platí jen penězi, s hodnotou na celé mince za ceny cíle (`priceKg`;
+ * gold.md – Mince 2,4 g zlata za 90 kg obilí, bod 9): za zboží v kg platí celé mince dolů
+ * (`wholeCoinsDown` na trhu), proto správce zadá seznam nahoru na celé mince (`up` – přidá poslednímu
+ * zboží v kg v pořadí `TRADE_GOODS`), dostane aspoň, co ves potřebuje, a nepřeplatí; dolů (ubere
+ * zboží v kg od konce jako trh), když víc neunese – tolik by mu trh stejně dal. Kusy se nedělí;
+ * stojí-li samy přes celé mince, vejdou se kg do přeplatku. 400 kg obilí (4,44 mince) je nahoru
+ * 450 kg, dolů 360 kg. Stav nemění.
+ */
+function wholeCoinList(
+  state: VillageState,
+  villageId: string,
+  wants: TradeGoods,
+  up: boolean,
+): TradeGoods {
+  const coinKg = priceKg(state, villageId, COIN_GOOD);
+  const unit = (good: TradeGood): number => priceKg(state, villageId, good) / coinKg;
+  const goods = TRADE_GOODS.filter((good) => good !== COIN_GOOD && (wants[good] ?? 0) > 0);
+  const kg = goods.filter((good) => !isPieceGood(good));
+  const worth = (list: readonly TradeGood[]): number =>
+    list.reduce((sum, good) => sum + (wants[good] ?? 0) * unit(good), 0);
+  const total = worth(goods);
+  const pieces = worth(goods.filter((good) => isPieceGood(good)));
+  const whole = up ? Math.ceil(total - EPSILON) : Math.floor(total + EPSILON);
+  let change = Math.max(whole, Math.ceil(pieces - EPSILON)) - total;
+  // bez zboží v kg, hodnota už celá, nebo se kg vejdou do přeplatku za kusy
+  if (kg.length === 0 || Math.abs(change) <= EPSILON || (!up && change > 0)) return wants;
+  const out: TradeGoods = { ...wants };
+  if (change > 0) {
+    const last = kg[kg.length - 1]!;
+    out[last] = (out[last] ?? 0) + change / unit(last);
+    return out;
+  }
+  for (let i = kg.length - 1; i >= 0 && change < -EPSILON; i--) {
+    const good = kg[i]!;
+    const value = (out[good] ?? 0) * unit(good);
+    const cut = Math.min(value, -change);
+    out[good] = (value - cut) / unit(good);
+    change += cut;
+    if (!((out[good] ?? 0) > NOISE_KG)) delete out[good];
+  }
+  return out;
+}
+
+/**
+ * Platí výprava jen penězi – mincemi a zlatem, které hostitel vymění za celé mince? Jen tehdy kupuje
+ * celý seznam za mince; se zbožím jde zbytek zápočtem a mince platí celé (jejich kg je na celé mince).
+ */
+function paysOnlyMoney(give: TradeGoods): boolean {
+  const goods = Object.keys(give);
+  return goods.length > 0 && goods.every((good) => good === COIN_GOOD || good === GOLD_GOOD);
+}
+
+/**
  * Krok 2a (mutuje stav; Rozhodnutí plánu 3, bod 8): obilí v nouzi – chybí-li zásoby do příští
  * sklizně aspoň `STEWARD.grainMinKg` (`shortKg`) a nic správcova není na cestě, pošle výpravu do
  * vsi `stewardGrainTarget`. Platí zbožím `STEWARD.grainPayment`; nosičů nejvýš
  * `max(1, floor(dospělí × grainPorterShare))` a nejvýš volných (`marketFreeAdults`) – nevejde-li se
- * výprava, zmenší nákup úměrně, nejvýš `FIT_TRIES`×. Vrací, jestli vyrazila.
+ * výprava, zmenší nákup úměrně, nejvýš `FIT_TRIES`×. Platí-li jen penězi (`paysOnlyMoney`), je seznam
+ * na celé mince (`wholeCoinList`): nahoru, při zmenšení dolů na celé mince, které se vejdou. Vrací,
+ * jestli vyrazila.
  */
 export function stewardGrainStep(state: VillageState, ctx: NeedContext, shortKg: number): boolean {
   if (!isStewardOn(state) || shortKg < STEWARD.grainMinKg) return false;
@@ -126,10 +194,16 @@ export function stewardGrainStep(state: VillageState, ctx: NeedContext, shortKg:
   const oxen = oxenHome(state, day);
   const grainPrice = priceKg(state, village.villageId, 'grain');
   let want = Math.ceil(shortKg - EPSILON);
+  // za kg se platí celé mince dolů – seznam placený mincemi je na celé mince nahoru (400 kg → 450 kg)
+  if (paysOnlyMoney(grainPayment(state, day, village.villageId, want * grainPrice).give)) {
+    want = wholeCoinList(state, village.villageId, { grain: want }, true).grain ?? want;
+  }
   for (let i = 0; i < FIT_TRIES; i++) {
     if (want < STEWARD.grainMinKg) return false;
     const pay = grainPayment(state, day, village.villageId, want * grainPrice);
-    const grainKg = Math.min(want, Math.floor(pay.creditKg / grainPrice + EPSILON));
+    // kryje-li platba celý seznam, zůstane (i po celých mincích), jinak celé kg, které kryje
+    const coveredKg = pay.creditKg / grainPrice;
+    const grainKg = coveredKg >= want - EPSILON ? want : Math.floor(coveredKg + EPSILON);
     if (grainKg < STEWARD.grainMinKg) return false;
     const wants: TradeGoods = { grain: grainKg };
     const crew = marketCrew(pay.give, wants, tripCarts(homeCarts, oxen, pay.give, wants));
@@ -143,7 +217,10 @@ export function stewardGrainStep(state: VillageState, ctx: NeedContext, shortKg:
       );
       return sent.ok;
     }
-    want = Math.floor((grainKg * maxPorters) / crew.porters);
+    const fit = Math.floor((grainKg * maxPorters) / crew.porters);
+    want = paysOnlyMoney(pay.give)
+      ? (wholeCoinList(state, village.villageId, { grain: fit }, false).grain ?? 0)
+      : fit;
   }
   return false;
 }
@@ -178,13 +255,19 @@ export function stewardMarketStep(state: VillageState, ctx: NeedContext): boolea
   // bod 10; stejně počítá `planMarketTrip`)
   const staying = withoutGroups(state, emigrantList(leavingGroups(state, day, offer, reserved)));
   const adults = marketFreeAdults(staying, day);
-  const wants = fitToCrew(stance.wants, {}, carts, adults);
+  const fitted = fitToCrew(stance.wants, {}, carts, adults);
   // seznam jen ze šumu, nebo ho nemá kdo nést
-  if (Object.keys(wants).length === 0) return false;
-  const give = fitToCrew(offer, wants, carts, adults);
+  if (Object.keys(fitted).length === 0) return false;
   const village = villages[date.year % villages.length]!;
   const target = nearbyTarget(state, village.villageId);
   if (!target) return false;
+  // platí-li výprava jen penězi (nic ze zboží neveze), zboží v kg na celé mince (`wholeCoinWants`)
+  const goods = fitToCrew(offer, fitted, carts, adults);
+  const coined =
+    Object.keys(goods).length === 0 &&
+    paysOnlyMoney(moneyFor(state, day, village.villageId, fitted));
+  const wants = coined ? wholeCoinWants(state, village.villageId, fitted, carts, adults) : fitted;
+  const give = coined ? fitToCrew(offer, wants, carts, adults) : goods;
   Object.assign(give, moneyFor(state, day, village.villageId, wants));
   const sent = departMarketInPlace(
     state,
@@ -199,8 +282,9 @@ export function stewardMarketStep(state: VillageState, ctx: NeedContext): boolea
 /**
  * Čím roční výprava platí seznam `wants` ve vsi `villageId` (Rozhodnutí plánu 4, bod 4 a plánu 6,
  * bod 8): hodnota seznamu za ceny cíle (`priceKg`) v celých mincích nahoru – šum z půlení (`fitToCrew`)
- * minci nepřidá. Napřed mince, nejvýš co ves dnes má; chybí-li, zbytek v celých gramech zlata
- * (gram = `goldCoinPrice` mince u cíle), nejvýš co ves má. Mince ani zlato neváží – nosiče nepřidají.
+ * minci nepřidá. Napřed mince, nejvýš co ves dnes má; chybí-li, zbytek zlatem po 2,4 g za minci
+ * (`coinsGold` – gold.md, Mince 2,4 g zlata za 90 kg obilí, bod 4) v celých gramech nahoru, nejvýš
+ * celé gramy, které ves má. Mince ani zlato neváží – nosiče nepřidají.
  */
 function moneyFor(
   state: VillageState,
@@ -219,8 +303,8 @@ function moneyFor(
   const rest = due - coins;
   if (rest > 0) {
     const gold = Math.min(
-      villageGoodStock(state, GOLD_GOOD, day),
-      Math.ceil(rest / goldCoinPrice()),
+      Math.floor(villageGoodStock(state, GOLD_GOOD, day) + EPSILON),
+      Math.ceil(coinsGold(rest) - EPSILON),
     );
     if (gold > 0) money[GOLD_GOOD] = gold;
   }
@@ -238,6 +322,23 @@ export function constructionLogsLeft(state: Pick<VillageState, 'constructions'>)
     if (c.wood) logs += Math.max(0, c.wood.fell.length - c.wood.felled);
   }
   return logs;
+}
+
+/**
+ * Seznam roční výpravy, která platí jen penězi, na celé mince (`wholeCoinList`): nahoru, unesou-li to
+ * volní lidé a vozy (`marketCrew` jako ve `fitToCrew`), jinak dolů. Stav nemění.
+ */
+function wholeCoinWants(
+  state: VillageState,
+  villageId: string,
+  wants: TradeGoods,
+  carts: { homeCarts: readonly CartKind[]; oxen: number },
+  adults: number,
+): TradeGoods {
+  const more = wholeCoinList(state, villageId, wants, true);
+  const fits =
+    marketCrew(more, {}, tripCarts(carts.homeCarts, carts.oxen, more, {})).porters <= adults;
+  return fits ? more : wholeCoinList(state, villageId, wants, false);
 }
 
 /**

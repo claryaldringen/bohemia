@@ -1,13 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { createRandom } from '../../../landscape/random';
-import type { MarketPrices, TradeGoods } from '../../types';
+import type { MarketPrices, TradeGood, TradeGoods } from '../../types';
 import { COIN_GOOD, TRADE_GOODS, isPieceGood } from '../goods';
 import { coinClearing, type CoinClearing, type CoinParty } from '../market-coins';
 import { coinPriceOf, initialPrice, nextLevel } from '../market-prices';
 
 // Mincovní fáze tržního dne (markets.md – Rozhodnutí plánu 4, body 2 a 3): co zápočty nechaly
 // neuspokojené, koupí za mince, kdo je má – celé mince, celé kusy, součet plateb nula. Výchozí ceny
-// v mincích: obilí 1/15 za kg, kráva 40, kožešina 8/15, muž 24. „Kupec“ je cizí kupec (`merchant`).
+// v mincích (90 kg obilí za minci): obilí 1/90 za kg, kráva 20/3, kožešina 4/45, muž 4. „Kupec“ je
+// cizí kupec (`merchant`).
 
 /** Strana mincovní fáze – bez mincí, zboží i seznamu, dokud je `fields` nedoplní. */
 function party(key: string, fields: Partial<CoinParty> = {}): CoinParty {
@@ -22,52 +23,54 @@ function purse(clearing: CoinClearing, p: CoinParty): number {
   );
 }
 
-/** Hodnota zboží obchodů dvojice za ceny dne a hladinu (mince). */
+/** Hodnota zboží obchodů dvojice za ceny dne a hladinu (mince); `only` – jen toto zboží. */
 function worth(
   clearing: CoinClearing,
   buyer: string,
   seller: string,
   prices: MarketPrices,
   level: number,
+  only: (good: TradeGood) => boolean = () => true,
 ): number {
   return clearing.trades
-    .filter((t) => t.buyer === buyer && t.seller === seller)
+    .filter((t) => t.buyer === buyer && t.seller === seller && only(t.good))
     .reduce((sum, t) => sum + t.amount * coinPriceOf(prices, level, t.good), 0);
 }
 
 describe('mincovní fáze – nákup za mince (markets.md – Rozhodnutí plánu 4, bod 2)', () => {
-  it('300 kg obilí za 20 mincí, výpravě s 50 zbude 30', () => {
-    const host = party('host', { stock: { grain: 1000 } });
-    const trip = party('a', { coins: 50, wants: { grain: 300 } });
+  it('1 800 kg obilí za 20 mincí, výpravě s 50 zbude 30', () => {
+    const host = party('host', { stock: { grain: 6000 } });
+    const trip = party('a', { coins: 50, wants: { grain: 1800 } });
     const c = coinClearing([host, trip], {}, 1);
-    expect(c.trades).toEqual([{ seller: 'host', buyer: 'a', good: 'grain', amount: 300 }]);
+    expect(c.trades).toEqual([{ seller: 'host', buyer: 'a', good: 'grain', amount: 1800 }]);
     expect(c.payments).toEqual([{ buyer: 'a', seller: 'host', coins: 20 }]);
     expect(purse(c, trip)).toBe(30);
     expect(purse(c, host)).toBe(20);
   });
 
-  it('na víc, než má v měšci, výprava nekoupí: 7 mincí je 105 kg obilí', () => {
+  it('na víc, než má v měšci, výprava nekoupí: 7 mincí je 630 kg obilí', () => {
     const c = coinClearing(
-      [party('host', { stock: { grain: 1000 } }), party('a', { coins: 7, wants: { grain: 300 } })],
+      [party('host', { stock: { grain: 6000 } }), party('a', { coins: 7, wants: { grain: 1800 } })],
       {},
       1,
     );
     expect(c.trades).toEqual([
-      { seller: 'host', buyer: 'a', good: 'grain', amount: expect.closeTo(105, 9) },
+      { seller: 'host', buyer: 'a', good: 'grain', amount: expect.closeTo(630, 9) },
     ]);
     expect(c.payments).toEqual([{ buyer: 'a', seller: 'host', coins: 7 }]);
   });
 
-  it('kus jen celý a platba nahoru na celou minci: kupec za 10 mincí 18 kožešin (9,6)', () => {
+  it('kus jen celý a platba nahoru na celou minci: kupec za 10 mincí 112 kožešin (9,96)', () => {
+    // 10 ÷ (8/90) = 112,5 kusu → 112 celých; 112 × 8/90 = 9,96 mince → platba 10
     const c = coinClearing(
       [
-        party('host', { stock: { furs: 30 } }),
-        party('kupec', { coins: 10, wants: { furs: 60 }, merchant: true }),
+        party('host', { stock: { furs: 300 } }),
+        party('kupec', { coins: 10, wants: { furs: 600 }, merchant: true }),
       ],
       {},
       1,
     );
-    expect(c.trades).toEqual([{ seller: 'host', buyer: 'kupec', good: 'furs', amount: 18 }]);
+    expect(c.trades).toEqual([{ seller: 'host', buyer: 'kupec', good: 'furs', amount: 112 }]);
     expect(c.payments).toEqual([{ buyer: 'kupec', seller: 'host', coins: 10 }]);
   });
 
@@ -84,23 +87,24 @@ describe('mincovní fáze – nákup za mince (markets.md – Rozhodnutí plánu
       ['host', 'a', 'families', 1],
       ['host', 'a', 'men', 1],
     ]);
-    // klisna 106,67 + 4 klády 10,67 + dvoukolák 21,33 + rodina 48 + muž 24 = 210,67 → 211
-    expect(c.payments).toEqual([{ buyer: 'a', seller: 'host', coins: 211 }]);
-    expect(purse(c, trip)).toBe(289);
+    // klisna 17,78 + 4 klády 1,78 + dvoukolák 3,56 + rodina 8 + muž 4 = 35,11 → 36
+    expect(c.payments).toEqual([{ buyer: 'a', seller: 'host', coins: 36 }]);
+    expect(purse(c, trip)).toBe(464);
   });
 
-  it('prodává napřed hostitel, pak výpravy podle příjezdu: 10 kožešin za 6 a 26 za 14 mincí', () => {
-    const host = party('host', { stock: { furs: 10 } });
-    const trip = party('a', { stock: { furs: 30 } });
-    const merchant = party('kupec', { coins: 20, wants: { furs: 60 }, merchant: true });
+  it('prodává napřed hostitel, pak výpravy podle příjezdu: 100 kožešin za 9 a 123 za 11 mincí', () => {
+    // hostitel 100 × 8/90 = 8,89 → 9 mincí; kupci zbývá 11 mincí = 123,75 → 123 kožešin (10,93 → 11)
+    const host = party('host', { stock: { furs: 100 } });
+    const trip = party('a', { stock: { furs: 300 } });
+    const merchant = party('kupec', { coins: 20, wants: { furs: 600 }, merchant: true });
     const c = coinClearing([host, trip, merchant], {}, 1);
     expect(c.trades).toEqual([
-      { seller: 'host', buyer: 'kupec', good: 'furs', amount: 10 },
-      { seller: 'a', buyer: 'kupec', good: 'furs', amount: 26 },
+      { seller: 'host', buyer: 'kupec', good: 'furs', amount: 100 },
+      { seller: 'a', buyer: 'kupec', good: 'furs', amount: 123 },
     ]);
     expect(c.payments).toEqual([
-      { buyer: 'kupec', seller: 'host', coins: 6 },
-      { buyer: 'kupec', seller: 'a', coins: 14 },
+      { buyer: 'kupec', seller: 'host', coins: 9 },
+      { buyer: 'kupec', seller: 'a', coins: 11 },
     ]);
     expect(purse(c, merchant)).toBe(0);
   });
@@ -115,10 +119,12 @@ describe('mincovní fáze – nákup za mince (markets.md – Rozhodnutí plánu
         {},
         1,
       );
+    // 11 kožešin stojí 0,98 mince – pod minci; 12 kožešin 1,07 – platí se 2
     expect(buy(1)).toMatchObject({ trades: [], payments: [] });
-    expect(buy(2).payments).toEqual([{ buyer: 'kupec', seller: 'host', coins: 2 }]);
+    expect(buy(11)).toMatchObject({ trades: [], payments: [] });
+    expect(buy(12).payments).toEqual([{ buyer: 'kupec', seller: 'host', coins: 2 }]);
     const grain = coinClearing(
-      [party('host', { stock: { grain: 15 } }), party('a', { coins: 1, wants: { grain: 15 } })],
+      [party('host', { stock: { grain: 90 } }), party('a', { coins: 1, wants: { grain: 90 } })],
       {},
       1,
     );
@@ -126,42 +132,46 @@ describe('mincovní fáze – nákup za mince (markets.md – Rozhodnutí plánu
   });
 
   it('pod minci u jednoho prodávajícího: kupující jde k dalšímu a zboží nezmizí', () => {
-    const merchant = party('kupec', { coins: 10, wants: { furs: 3 }, merchant: true });
+    // hostitelových 11 kožešin stojí 0,98 mince, 36 od výpravy 3,2 → 4 mince
+    const merchant = party('kupec', { coins: 10, wants: { furs: 36 }, merchant: true });
     const c = coinClearing(
-      [party('host', { stock: { furs: 1 } }), party('a', { stock: { furs: 3 } }), merchant],
+      [party('host', { stock: { furs: 11 } }), party('a', { stock: { furs: 36 } }), merchant],
       {},
       1,
     );
-    expect(c.trades).toEqual([{ seller: 'a', buyer: 'kupec', good: 'furs', amount: 3 }]);
-    expect(c.payments).toEqual([{ buyer: 'kupec', seller: 'a', coins: 2 }]);
+    expect(c.trades).toEqual([{ seller: 'a', buyer: 'kupec', good: 'furs', amount: 36 }]);
+    expect(c.payments).toEqual([{ buyer: 'kupec', seller: 'a', coins: 4 }]);
   });
 
-  it('cena je cena × hladina: s hladinou 2 stojí 300 kg 40 mincí a za 30 mincí je 225 kg', () => {
+  it('cena je cena × hladina: s hladinou 2 stojí 1 800 kg 40 mincí a za 30 mincí je 1 350 kg', () => {
     const buy = (coins: number): CoinClearing =>
       coinClearing(
-        [party('host', { stock: { grain: 1000 } }), party('a', { coins, wants: { grain: 300 } })],
+        [party('host', { stock: { grain: 6000 } }), party('a', { coins, wants: { grain: 1800 } })],
         {},
         2,
       );
     expect(buy(50).payments).toEqual([{ buyer: 'a', seller: 'host', coins: 40 }]);
-    expect(buy(50).trades[0]!.amount).toBe(300);
+    expect(buy(50).trades[0]!.amount).toBe(1800);
     expect(buy(30).payments).toEqual([{ buyer: 'a', seller: 'host', coins: 30 }]);
-    expect(buy(30).trades[0]!.amount).toBeCloseTo(225, 9);
+    expect(buy(30).trades[0]!.amount).toBeCloseTo(1350, 9);
   });
 
   it('ceny trhu platí i za mince: obilí za dvojnásobek', () => {
     const c = coinClearing(
-      [party('host', { stock: { grain: 1000 } }), party('a', { coins: 50, wants: { grain: 300 } })],
-      { grain: 2 / 15 },
+      [
+        party('host', { stock: { grain: 6000 } }),
+        party('a', { coins: 50, wants: { grain: 1800 } }),
+      ],
+      { grain: 2 / 90 },
       1,
     );
     expect(c.payments).toEqual([{ buyer: 'a', seller: 'host', coins: 40 }]);
   });
 
   it('kupec kupuje první, i když přijel později – mince se týž den dostanou k výpravě', () => {
-    const host = party('host', { stock: { grain: 1000 } });
-    const trip = party('a', { stock: { furs: 100 }, wants: { grain: 75 } });
-    const merchant = party('kupec', { coins: 60, wants: { furs: 60 }, merchant: true });
+    const host = party('host', { stock: { grain: 6000 } });
+    const trip = party('a', { stock: { furs: 600 }, wants: { grain: 450 } });
+    const merchant = party('kupec', { coins: 60, wants: { furs: 360 }, merchant: true });
     const c = coinClearing([host, trip, merchant], {}, 1);
     expect(c.payments).toEqual([
       { buyer: 'kupec', seller: 'a', coins: 32 },
@@ -180,10 +190,10 @@ describe('mincovní fáze – nákup za mince (markets.md – Rozhodnutí plánu
 
   it('dva kupci kupují v pořadí příjezdu, výprava až po nich', () => {
     const parties = [
-      party('host', { stock: { grain: 450 } }),
-      party('a', { coins: 50, wants: { grain: 300 } }),
-      party('k1', { coins: 10, wants: { grain: 900 }, merchant: true }),
-      party('k2', { coins: 15, wants: { grain: 900 }, merchant: true }),
+      party('host', { stock: { grain: 2700 } }),
+      party('a', { coins: 50, wants: { grain: 1800 } }),
+      party('k1', { coins: 10, wants: { grain: 5400 }, merchant: true }),
+      party('k2', { coins: 15, wants: { grain: 5400 }, merchant: true }),
     ];
     expect(coinClearing(parties, {}, 1).payments).toEqual([
       { buyer: 'k1', seller: 'host', coins: 10 },
@@ -195,8 +205,8 @@ describe('mincovní fáze – nákup za mince (markets.md – Rozhodnutí plánu
   it('zboží v kg pod 1 mg se neobchoduje a mince se za mince neprodávají', () => {
     const c = coinClearing(
       [
-        party('host', { stock: { grain: 1000, pottery: 1e-7, coins: 40 } }),
-        party('a', { coins: 50, wants: { grain: 300, pottery: 5, coins: 10 } }),
+        party('host', { stock: { grain: 6000, pottery: 1e-7, coins: 40 } }),
+        party('a', { coins: 50, wants: { grain: 1800, pottery: 5, coins: 10 } }),
       ],
       {},
       1,
@@ -208,27 +218,27 @@ describe('mincovní fáze – nákup za mince (markets.md – Rozhodnutí plánu
   it('šum plovoucí čárky nezvedne platbu ani neubere kus', () => {
     const buy = (coins: number, goods: TradeGoods): CoinClearing =>
       coinClearing([party('host', { stock: goods }), party('a', { coins, wants: goods })], {}, 1.1);
-    // 50 kg × 0,22 vyjde 11,000000000000002 – 11 mincí, ne 12
-    expect(50 * coinPriceOf({}, 1.1, 'meat')).toBeGreaterThan(11);
-    expect(buy(50, { meat: 50 }).payments).toEqual([{ buyer: 'a', seller: 'host', coins: 11 }]);
-    // 176 ÷ 58,67 vyjde 2,9999999999999996 – tři hříbata, ne dvě
-    expect(176 / coinPriceOf({}, 1.1, 'foals')).toBeLessThan(3);
-    expect(buy(176, { foals: 3 }).trades).toEqual([
-      { seller: 'host', buyer: 'a', good: 'foals', amount: 3 },
+    // 45 hříbat × 9,7778 vyjde 440,00000000000006 – 440 mincí, ne 441
+    expect(45 * coinPriceOf({}, 1.1, 'foals')).toBeGreaterThan(440);
+    expect(buy(500, { foals: 45 }).payments).toEqual([{ buyer: 'a', seller: 'host', coins: 440 }]);
+    // 264 ÷ 9,7778 vyjde 26,999999999999996 – 27 hříbat, ne 26
+    expect(264 / coinPriceOf({}, 1.1, 'foals')).toBeLessThan(27);
+    expect(buy(264, { foals: 27 }).trades).toEqual([
+      { seller: 'host', buyer: 'a', good: 'foals', amount: 27 },
     ]);
-    expect(buy(176, { foals: 3 }).payments).toEqual([{ buyer: 'a', seller: 'host', coins: 176 }]);
+    expect(buy(264, { foals: 27 }).payments).toEqual([{ buyer: 'a', seller: 'host', coins: 264 }]);
   });
 
-  it('měšec neklesne pod 0 ani o šum ceny: tři košile za 1440 mincí, i když účet vyjde o vlas víc', () => {
-    const price = 480 * (1 + 1e-11);
-    expect(3 * price).toBeGreaterThan(1440 + 1e-9);
-    const trip = party('a', { coins: 1440, wants: { mailShirts: 3 } });
+  it('měšec neklesne pod 0 ani o šum ceny: tři košile za 240 mincí, i když účet vyjde o vlas víc', () => {
+    const price = 80 * (1 + 1e-11);
+    expect(3 * price).toBeGreaterThan(240 + 1e-9);
+    const trip = party('a', { coins: 240, wants: { mailShirts: 3 } });
     const c = coinClearing(
       [party('host', { stock: { mailShirts: 3 } }), trip],
       { mailShirts: price },
       1,
     );
-    expect(c.payments).toEqual([{ buyer: 'a', seller: 'host', coins: 1440 }]);
+    expect(c.payments).toEqual([{ buyer: 'a', seller: 'host', coins: 240 }]);
     expect(purse(c, trip)).toBe(0);
   });
 
@@ -266,7 +276,7 @@ describe('mincovní fáze – nákup za mince (markets.md – Rozhodnutí plánu
         ...Array.from({ length: trips + merchants }, (_, i) => {
           const merchant = i >= trips ? { merchant: true as const } : {};
           return party(`v${i}`, {
-            coins: rnd.next() < 0.3 ? 0 : int(0, 500),
+            coins: rnd.next() < 0.3 ? 0 : int(0, 3000),
             stock: goodsOf(int(0, 500)),
             wants: goodsOf(int(0, 500)),
             ...merchant,
@@ -308,14 +318,23 @@ describe('mincovní fáze – nákup za mince (markets.md – Rozhodnutí plánu
         expect(value).toBeGreaterThan(1 - 1e-6);
         expect(coins).toBeGreaterThan(value - 1e-6);
         expect(coins).toBeLessThan(value + 1);
+        // zboží v kg za celé mince dolů (gold.md – Mince 2,4 g, bod 9): kdo není kupec, za kg
+        // nepřeplatí – nad hodnotu zaplatí jen za kusy, které samy stojí přes celé mince
+        const merchant = parties.find((p) => p.key === buyer)?.merchant === true;
+        const pieces = worth(c, buyer, seller, prices, level, isPieceGood);
+        if (!merchant && pieces < value - 1e-6) {
+          expect(coins).toBeLessThan(Math.max(value, Math.ceil(pieces - 1e-6)) + 1e-6);
+        }
       }
 
-      // zboží: kus celý, nikdo neprodá víc, než má, ani nekoupí víc, než chce
+      // zboží: kus celý, zlato na setiny gramu (po celých mincích – gold.md, Mince 2,4 g, bod 4),
+      // nikdo neprodá víc, než má, ani nekoupí víc, než chce
       for (const { seller, buyer, good, amount } of c.trades) {
         expect(seller).not.toBe(buyer);
         expect(good).not.toBe(COIN_GOOD);
         expect(amount).toBeGreaterThan(0);
-        if (isPieceGood(good)) expect(Number.isInteger(amount)).toBe(true);
+        if (good === 'gold') expect(Math.round(amount * 100) / 100).toBe(amount);
+        else if (isPieceGood(good)) expect(Number.isInteger(amount)).toBe(true);
       }
       for (const p of parties) {
         for (const good of TRADE_GOODS) {
@@ -337,10 +356,7 @@ describe('mincovní fáze – nákup za mince (markets.md – Rozhodnutí plánu
 describe('mince a zboží na trhu (markets.md – Rozhodnutí plánu 4, bod 3)', () => {
   it('C je měšec nejvýš do hodnoty seznamu, W chtěné zboží, které na trhu je', () => {
     const c = coinClearing(
-      [
-        party('host', { stock: { furs: 20 } }),
-        party('kupec', { coins: 60, wants: { furs: 60 }, merchant: true }),
-      ],
+      [party('host', { stock: { furs: 120 } }), party('e', { coins: 60, wants: { furs: 360 } })],
       {},
       1,
     );
@@ -350,13 +366,13 @@ describe('mince a zboží na trhu (markets.md – Rozhodnutí plánu 4, bod 3)',
   });
 
   it('počítá se z měšců, seznamů a nabídek na začátku fáze, za cenu × hladinu', () => {
-    // výprava bez mincí má seznam, ale kupujícím se stane až z mincí kupce – do C a W nepatří;
+    // výprava bez mincí má seznam, ale mince by dostala až od výpravy E – do C a W nepatří;
     // výprava s mincemi bez seznamu také ne
     const parties = [
-      party('host', { stock: { grain: 1000 } }),
-      party('a', { stock: { furs: 100 }, wants: { grain: 75 } }),
+      party('host', { stock: { grain: 6000 } }),
+      party('a', { stock: { furs: 600 }, wants: { grain: 450 } }),
       party('b', { coins: 40 }),
-      party('kupec', { coins: 60, wants: { furs: 60 }, merchant: true }),
+      party('e', { coins: 60, wants: { furs: 360 } }),
     ];
     const c = coinClearing(parties, {}, 1);
     expect(c.available).toBeCloseTo(32, 9);
@@ -369,30 +385,172 @@ describe('mince a zboží na trhu (markets.md – Rozhodnutí plánu 4, bod 3)',
   it('seznamy kupujících a nabídky všech stran se sčítají po zboží', () => {
     const c = coinClearing(
       [
-        party('host', { stock: { furs: 10, grain: 150 } }),
-        party('a', { coins: 5, stock: { furs: 30 }, wants: { grain: 300 } }),
-        party('k1', { coins: 100, wants: { furs: 60 }, merchant: true }),
-        party('k2', { coins: 4, wants: { furs: 15, honey: 10 }, merchant: true }),
+        party('host', { stock: { furs: 60, grain: 900 } }),
+        party('a', { coins: 5, stock: { furs: 180 }, wants: { grain: 1800 } }),
+        party('e1', { coins: 100, wants: { furs: 360 } }),
+        party('e2', { coins: 4, wants: { furs: 90, honey: 60 } }),
       ],
       {},
       1,
     );
-    // C = min(5, 20) + min(100, 32) + min(4, 12); W = kožešiny min(75, 40) × 8/15 + obilí 150 ÷ 15
+    // C = min(5, 20) + min(100, 32) + min(4, 12); W = kožešiny min(450, 240) × 8/90 + obilí 900 ÷ 90
     expect(c.available).toBeCloseTo(5 + 32 + 4, 9);
-    expect(c.sought).toBeCloseTo((40 * 8) / 15 + 10, 9);
+    expect(c.sought).toBeCloseTo((240 * 8) / 90 + 10, 9);
   });
 
-  it('na trhu není nic z toho, co kupec shání: W = 0 a hladina se nehne', () => {
+  it('na trhu není nic z toho, co výprava shání: W = 0 a hladina se nehne', () => {
     const c = coinClearing(
-      [
-        party('host', { stock: { grain: 1000 } }),
-        party('kupec', { coins: 60, wants: { furs: 60 }, merchant: true }),
-      ],
+      [party('host', { stock: { grain: 6000 } }), party('e', { coins: 60, wants: { furs: 360 } })],
       {},
       1.5,
     );
     expect(c).toMatchObject({ trades: [], payments: [], sought: 0 });
     expect(c.available).toBeCloseTo(48, 9);
     expect(nextLevel(1.5, c.available, c.sought)).toBe(1.5);
+  });
+
+  it('kupec s měšcem bez dna do C ani W nepatří – jeho zboží v nabídce zůstává', () => {
+    // markets.md – Měšec kupců bez dna, bod 4: hladinu hýbou jen mince hostitele (objednaná zbroj)
+    const c = coinClearing(
+      [
+        party('host', {
+          coins: 500,
+          stock: { furs: 120 },
+          wants: { swords: 1 },
+          fromMerchants: true,
+        }),
+        party('kupec', {
+          coins: Infinity,
+          stock: { swords: 2 },
+          wants: { furs: 360 },
+          merchant: true,
+        }),
+      ],
+      {},
+      1,
+    );
+    expect(c.trades).toEqual([
+      { seller: 'host', buyer: 'kupec', good: 'furs', amount: 120 },
+      { seller: 'kupec', buyer: 'host', good: 'swords', amount: 1 },
+    ]);
+    expect(c.payments).toEqual([
+      { buyer: 'kupec', seller: 'host', coins: 11 },
+      { buyer: 'host', seller: 'kupec', coins: 20 },
+    ]);
+    // C = hostitel min(500, 20), W = meč z nabídky kupce
+    expect([c.available, c.sought]).toEqual([20, 20]);
+    const alone = coinClearing(
+      [
+        party('host', { stock: { furs: 120 } }),
+        party('kupec', { coins: Infinity, wants: { furs: 360 }, merchant: true }),
+      ],
+      {},
+      1,
+    );
+    expect([alone.available, alone.sought]).toEqual([0, 0]);
+  });
+});
+
+describe('zboží v kg za celé mince dolů (gold.md – Mince 2,4 g zlata za 90 kg obilí, bod 9)', () => {
+  /** Hostitel se 6 000 kg obilí a pěti krávami, výprava s měšcem `coins` a seznamem `wants`. */
+  const buy = (coins: number, wants: TradeGoods, fields: Partial<CoinParty> = {}): CoinClearing =>
+    coinClearing(
+      [party('host', { stock: { grain: 6000, cows: 5 } }), party('a', { coins, wants, ...fields })],
+      {},
+      1,
+    );
+
+  it('výprava za 100 kg obilí (1,11 mince) zaplatí 1 minci a vezme 90 kg', () => {
+    const trip = party('a', { coins: 5, wants: { grain: 100 } });
+    const c = buy(5, { grain: 100 });
+    expect(c.trades).toEqual([
+      { seller: 'host', buyer: 'a', good: 'grain', amount: expect.closeTo(90, 9) },
+    ]);
+    expect(c.payments).toEqual([{ buyer: 'a', seller: 'host', coins: 1 }]);
+    // mince a zboží sedí: 4 mince zbudou, hostitel má minci za 90 kg – nic nepřeplaceno
+    expect(purse(c, trip)).toBe(4);
+    expect(worth(c, 'a', 'host', {}, 1)).toBeCloseTo(1, 9);
+  });
+
+  it('50 kg obilí (0,56 mince) za celé mince dolů nekoupí – nákup pod minci se nekoná', () => {
+    expect(buy(5, { grain: 50 })).toMatchObject({ trades: [], payments: [] });
+  });
+
+  it('košík obilí a krávy: kusy se nedělí, obilí jen do celých mincí', () => {
+    // kráva 6,67 + 100 kg obilí 1,11 = 7,78 → 7 mincí: kráva celá a obilí za 0,33 mince = 30 kg
+    const c = buy(20, { grain: 100, cows: 1 });
+    expect(c.trades).toEqual([
+      { seller: 'host', buyer: 'a', good: 'grain', amount: expect.closeTo(30, 9) },
+      { seller: 'host', buyer: 'a', good: 'cows', amount: 1 },
+    ]);
+    expect(c.payments).toEqual([{ buyer: 'a', seller: 'host', coins: 7 }]);
+    // kráva 6,67 + 20 kg obilí 0,22 = 6,89: za krávu samu je platba nahoru 7 – obilí se vejde celé
+    const whole = buy(20, { grain: 20, cows: 1 });
+    expect(whole.trades.map((t) => [t.good, t.amount])).toEqual([
+      ['grain', 20],
+      ['cows', 1],
+    ]);
+    expect(whole.payments).toEqual([{ buyer: 'a', seller: 'host', coins: 7 }]);
+  });
+
+  it('kupec dál platí nahoru – ve prospěch vsi: 100 kg obilí za 2 mince', () => {
+    const c = coinClearing(
+      [
+        party('host', { stock: { grain: 6000 } }),
+        party('kupec', { coins: 10, wants: { grain: 100 }, merchant: true }),
+      ],
+      {},
+      1,
+    );
+    expect(c.trades).toEqual([{ seller: 'host', buyer: 'kupec', good: 'grain', amount: 100 }]);
+    expect(c.payments).toEqual([{ buyer: 'kupec', seller: 'host', coins: 2 }]);
+  });
+
+  it('mince na seznam nahoru stačí i na dalšího prodávajícího: 180 kg za 2 mince od dvou', () => {
+    // hostitel má 100 kg (1,11 mince): za 1 minci 90 kg, druhou minci dostane výprava B za 90 kg
+    const c = coinClearing(
+      [
+        party('host', { stock: { grain: 100 } }),
+        party('b', { stock: { grain: 100 } }),
+        party('a', { coins: 2, wants: { grain: 180 } }),
+      ],
+      {},
+      1,
+    );
+    expect(c.trades).toEqual([
+      { seller: 'host', buyer: 'a', good: 'grain', amount: expect.closeTo(90, 9) },
+      { seller: 'b', buyer: 'a', good: 'grain', amount: expect.closeTo(90, 9) },
+    ]);
+    expect(c.payments).toEqual([
+      { buyer: 'a', seller: 'host', coins: 1 },
+      { buyer: 'a', seller: 'b', coins: 1 },
+    ]);
+  });
+
+  it('se šperkařem kupujícího platí dolů a kapacitu ubere mince, která opravdu odešla', () => {
+    // kapacita 2,4 g = 1 mince za 1,5: 200 kg obilí (2,22) by stálo 1,72 mince → 1 mince = 135 kg
+    const c = buy(5, { grain: 200 }, { jewelleryG: 2.4 });
+    expect(c.trades).toEqual([
+      { seller: 'host', buyer: 'a', good: 'grain', amount: expect.closeTo(135, 9) },
+    ]);
+    expect(c.payments).toEqual([{ buyer: 'a', seller: 'host', coins: 1 }]);
+    expect(c.jewelleryUsed).toEqual({ a: 2.4 });
+  });
+
+  it('zlato zůstává po celých mincích: 100 kg obilí a zlato za 3 mince – 3 mince a 7,2 g', () => {
+    const c = coinClearing(
+      [
+        party('host', { stock: { grain: 6000, gold: 50 } }),
+        party('a', { coins: 10, wants: { grain: 100, gold: 7.2 } }),
+      ],
+      {},
+      1,
+    );
+    // obilí 1,11 + zlato 3 mince = 4,11 → 4 mince: zlato celé, obilí za 1 minci = 90 kg
+    expect(c.trades).toEqual([
+      { seller: 'host', buyer: 'a', good: 'grain', amount: expect.closeTo(90, 9) },
+      { seller: 'host', buyer: 'a', good: 'gold', amount: 7.2 },
+    ]);
+    expect(c.payments).toEqual([{ buyer: 'a', seller: 'host', coins: 4 }]);
   });
 });

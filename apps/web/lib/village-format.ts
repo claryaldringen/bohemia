@@ -16,6 +16,17 @@ export function formatDecimal(value: number, decimals: number): string {
 }
 
 /**
+ * Gramy zlata na jedno desetinné místo – necelé „0,2“, „12,4“, celé bez desetin („13“, „1 500“);
+ * zásoba má setiny, rozhraní ukazuje desetiny (gold.md – Mince 2,4 g, bod 4).
+ */
+export function formatGrams(grams: number): string {
+  const tenths = Math.round(grams * 10) / 10;
+  if (Number.isInteger(tenths)) return formatInteger(tenths);
+  const [whole = '0', frac = ''] = tenths.toFixed(1).split('.');
+  return `${formatInteger(Number(whole))},${frac}`;
+}
+
+/**
  * Cena v mincích – pod 10 dvě platné číslice („0,13“, „0,88“, „1,0“, „4,2“; i 0,999 a 1,04 jsou
  * „1,0“), od 10 celé číslo („120“, „1 200“).
  */

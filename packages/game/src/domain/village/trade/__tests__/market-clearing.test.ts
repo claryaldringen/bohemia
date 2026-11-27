@@ -93,13 +93,13 @@ describe('zápočet tržního dne (markets.md – Pravidla 5, Rozhodnutí plánu
   });
 
   it('ceny dne rozhodují: dražší kráva se vymění za víc obilí', () => {
-    const prices: MarketPrices = { cows: 50 };
+    const prices: MarketPrices = { cows: 8 }; // dražší než výchozí 20/3
     const market = clearMarket(
       [party('A', { cows: 1 }, { grain: 2000 }), party('B', { grain: 2000 }, { cows: 1 })],
       prices,
     );
     expect(partyTotals(market, 'A').sold).toEqual({ cows: 1 });
-    expect(partyTotals(market, 'A').bought.grain).toBeCloseTo(750, 6); // 50 mincí × 15 kg
+    expect(partyTotals(market, 'A').bought.grain).toBeCloseTo(720, 6); // 8 mincí × 90 kg
   });
 
   it('kupující koupí jen od strany svého kruhu – dvě dvojice se vymění obě (návrh Clauda)', () => {

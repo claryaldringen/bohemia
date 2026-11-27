@@ -165,8 +165,8 @@ describe('otroci jako zboží (markets.md – Rozhodnutí plánu 5, bod 6)', () 
     });
   });
 
-  it('cena a tvar: 24 mincí jako svobodný dospělý; peopleOf bez otroků beze změny', () => {
-    expect(initialPrice('slaves')).toBe(24);
+  it('cena a tvar: 4 mince (360 kg ÷ 90) jako svobodný dospělý; peopleOf bez otroků beze změny', () => {
+    expect(initialPrice('slaves')).toBe(4);
     expect(initialPrice('slaves')).toBe(initialPrice('men'));
     expect(peopleOf({ men: 1 })).toStrictEqual({ families: 0, men: 1, women: 0 });
     expect(peopleOf({ men: 1, slaves: 1.5 })).toStrictEqual({ families: 0, men: 1, women: 0 });

@@ -30,6 +30,34 @@ export function goldCoinPrice(): number {
   return 1 / GOLD.coinGrams;
 }
 
+/**
+ * Technická mez, ne pravidlo: šum plovoucí čárky u celých mincí ze zlata – 4,8 g ÷ 2,4 g jsou dvě
+ * mince, i když dělení vyjde 1,999….
+ */
+const COIN_NOISE = 1e-9;
+
+/**
+ * Gramy zlata na setiny gramu (gold.md – Mince 2,4 g zlata za 90 kg obilí, bod 4) – jediné místo,
+ * které zlato zaokrouhluje: zásoba vsi (`addGood`), rýžování, mince ze zlata a obchody. Šum plovoucí
+ * čárky (2,4 + 2,4 + 2,4 = 7,199…) se tak nehromadí; setina gramu je pod rozlišením hry.
+ */
+export function roundGold(grams: number): number {
+  return Math.round(grams * 100) / 100;
+}
+
+/**
+ * Kolik celých mincí zlato `grams` stojí za pevnou cenu (`goldCoinPrice`; bod 4): zlato se za mince
+ * mění jen po celých mincích, zbytek pod minci zůstane prodávajícímu. Nikdy záporné.
+ */
+export function goldCoins(grams: number): number {
+  return Math.max(0, Math.floor(grams * goldCoinPrice() + COIN_NOISE));
+}
+
+/** Gramy zlata za `coins` celých mincí – 2,4 g za minci (`goldCoinPrice`), na setiny. */
+export function coinsGold(coins: number): number {
+  return roundGold(coins / goldCoinPrice());
+}
+
 /** Cena zboží na trhu v mincích: relativní cena × hladina trhu (Rozhodnutí plánu 4, bod 3). */
 export function coinPriceOf(
   prices: MarketPrices | undefined,

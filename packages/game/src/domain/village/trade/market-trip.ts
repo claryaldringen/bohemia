@@ -57,6 +57,7 @@ import { reservedSeedKg } from '../fields/seed';
 import { rememberOrders } from './craft-orders';
 import { addHorses, takeHorses } from './horse-trade';
 import { addJewellery, jewelleryOf, useJewellery } from './jewellery';
+import { newsPricesOf } from './coin-rate';
 import { marketArrivalRef, rememberNews } from './market';
 import {
   leavingGroups,
@@ -65,6 +66,7 @@ import {
   takePeople,
   withoutGroups,
 } from './market-people';
+import { roundGold } from './market-prices';
 import { emigrantList } from './people-trade';
 import { addGood, addMarketCarts, expeditionLaborNeed, takeCarts, villageGoodStock } from './trade';
 import { villageReport } from './village-report';
@@ -506,12 +508,13 @@ interface DepartOptions {
 /**
  * Kapacita šperkaře, kterou si výprava veze (g; gold.md – Pravidla 4; Rozhodnutí plánu 6, bod 6):
  * nejvýš použitelná kapacita vsi (`jewelleryOf`) a nejvýš kov v nákladu – mince × `GOLD.coinGrams`
- * + gramy zlata. Počítá se ze vsi před odchodem nákladu (po něm by `jewelleryOf` kov už neviděla).
+ * (2,4 g) + gramy zlata. Počítá se ze vsi před odchodem nákladu (po něm by `jewelleryOf` kov už neviděla).
  * Výprava vesničanů nic (mince neutrácí – Martin 25. 11. 2026: „Mince utrácí jen vojvoda/správce“).
  */
 export function tripJewelleryG(state: VillageState, give: TradeGoods, by?: TripBy): number {
   if (by === 'villagers') return 0;
-  const metal = (give[COIN_GOOD] ?? 0) * GOLD.coinGrams + (give[GOLD_GOOD] ?? 0);
+  // na setiny (`roundGold`) – 3 × 2,4 g je jinak 7,199999999999999
+  const metal = roundGold((give[COIN_GOOD] ?? 0) * GOLD.coinGrams + (give[GOLD_GOOD] ?? 0));
   return Math.max(0, Math.min(jewelleryOf(state), metal));
 }
 
@@ -728,7 +731,8 @@ export function applyMarketResult(
       villageId: trip.villageId,
       name: trip.name,
       report: result.report,
-      ...(result.prices ? { prices: result.prices } : {}),
+      // ceny v dnešním kurzu – i ze starší schránky (gold.md – Mince 2,4 g, bod 3)
+      ...newsPricesOf(result),
       ...(result.level !== undefined ? { level: result.level } : {}),
     });
   }
