@@ -604,7 +604,9 @@ day, order, target, { by?, seedKg?, alone?, service?, kin?, people? })` (mutuje 
     `neighbours` – okolí obou vsí, `askBride` – dotaz do schránky M, `thirdVillage` – třetí ves na
     východ od M, `coinsOfWorld` – mince světa: zásoby vsí, náklad každé výpravy tam, kam došel
     nejdál, osadníci ve schránkách odchodů správce a kupci na trzích vsí mimo archiv (ze vsi, která
-    zanikla, kupec odjede – `endVillage`); `trade.expeditions[].give` ne – je to jen záznam výpravy). Mince a zbroj při odchodu celé vsi,
+    zanikla, kupec odjede – `endVillage`); `trade.expeditions[].give` ne – je to jen záznam výpravy;
+    `goldOfWorld` – zlato světa týmž výpočtem `metalOfWorld`, u výprav a kupců i koupené zlato,
+    test světa `market-gold-years.test.ts`). Mince a zbroj při odchodu celé vsi,
     části lidí a syna: `leave-village.test.ts`. `receiveStranded` v jádru:
     `trade/__tests__/market-people.test.ts` (i sonda kontroly – cizí skupina se shodou emigranta
     a kolizním id); `fromHost`: `market-people-budget.test.ts`; `origin` výsledku:

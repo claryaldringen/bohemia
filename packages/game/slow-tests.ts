@@ -17,4 +17,6 @@ export const SLOW_TESTS: readonly string[] = [
   'src/domain/village/trade/__tests__/market-merchants-years.test.ts',
   // trh s otroky a kupci po tři roky (otroci jen s kupci ze světa, mince, nabídka, po kouscích)
   'src/domain/village/trade/__tests__/market-slaves-years.test.ts',
+  // zlato po tři roky (rýžovník, šperkař, mincovna od 950, kupci; kontrolní běh bez mincovny)
+  'src/domain/village/trade/__tests__/market-gold-years.test.ts',
 ];
