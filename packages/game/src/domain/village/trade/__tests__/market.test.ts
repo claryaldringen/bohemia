@@ -833,14 +833,18 @@ describe('trh ve vsi hostitele – mincovní fáze (markets.md – Rozhodnutí p
   it('cizí kupec (`merchant`) kupuje první, i když přijel později', () => {
     const s = grainVillage(300);
     joinMarket(s, D, coinTrip(50, { grain: 300 }, { key: 'market:a:1', stayDays: 2 }));
-    joinMarket(s, D, coinTrip(15, { grain: 900 }, { key: 'market:k:1', stayDays: 2 }));
-    visitorOf(s, 'market:k:1').merchant = true;
+    joinMarket(s, D, coinTrip(15, { grain: 225 }, { key: 'market:k:1', stayDays: 2 }));
+    // kupec platí z měšce bez dna (markets.md – Měšec kupců bez dna) – mince nedrží, shání 225 kg
+    const merchant = visitorOf(s, 'market:k:1');
+    merchant.merchant = true;
+    delete merchant.goods.coins;
     marketDay(s, D);
     expect(visitorOf(s, 'market:k:1').bought.grain).toBeCloseTo(225, 6);
     expect(visitorOf(s, 'market:k:1').goods).toEqual({});
     expect(visitorOf(s, 'market:a:1').bought.grain).toBeCloseTo(75, 6);
     expect(visitorOf(s, 'market:a:1').goods).toEqual({ coins: 45 });
     expect(s.coins).toBe(20);
+    // 15 mincí za obilí kupce vzniklo
     expect(allCoins(s)).toBe(65);
   });
 

@@ -14,7 +14,6 @@ describe('kronika – příjezd kupců, kteří kupují i otroky', () => {
         kind: 'merchants-arrived',
         sells: MERCHANTS.goods,
         buys: { honey: 100, wax: 24, furs: 60, slaves: 10 },
-        coins: MERCHANTS.coins,
       }),
     ).toBe(
       'Přijeli kupci z daleka – prodávají meče, kroužkové košile a helmy, kupují med, vosk, kožešiny a otroky.',

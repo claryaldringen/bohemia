@@ -1,7 +1,7 @@
 // Mincovní fáze tržního dne (markets.md – Rozhodnutí plánu 4, body 2 a 3 – návrh Clauda): co
 // zápočty (market-clearing.ts) nechaly neuspokojené, smí koupit za mince, kdo je má k útratě.
-// Dvojice po dvojici – kupují napřed cizí kupci (jejich mince se tak týž den dostanou k ostatním),
-// pak ostatní strany, od prodávajících v pořadí stran (hostitel, pak přespolní podle příjezdu –
+// Dvojice po dvojici – kupují napřed cizí kupci z měšce bez dna (markets.md – Měšec kupců bez dna;
+// mince od nich se tak týž den dostanou k ostatním), pak ostatní strany, od prodávajících v pořadí stran (hostitel, pak přespolní podle příjezdu –
 // Martin: „napřed zboží hostitelské vsi a pak přespolních“), zboží v pořadí `TRADE_GOODS` za cenu ×
 // hladinu trhu (`coinPriceOf`). Platba dvojice je celé číslo mincí – součet hodnot nahoru, takže
 // nikdo neprodá pod cenou a kupující přeplatí nejvýš minci; součet pod minci se neobchoduje. Zboží
@@ -32,13 +32,17 @@ export interface CoinParty {
   key: string;
   /**
    * Mince k útratě – celé; hostitel je má jen s objednanou zbrojí (bod 15) nebo s výměnou zlata
-   * (`exchangesGold`), jinak 0 – jen prodává.
+   * (`exchangesGold`), jinak 0 – jen prodává. Cizí kupec platí z měšce bez dna (`Infinity` – jen
+   * v paměti fáze, ve stavu kupec mince nemá; markets.md – Měšec kupců bez dna, bod 1).
    */
   coins: number;
   /** Co strana prodává (bez mincí) a co po zápočtu shání (bez mincí). */
   stock: TradeGoods;
   wants: TradeGoods;
-  /** Cizí kupec – kupuje první (Rozhodnutí plánu 4, bod 2). */
+  /**
+   * Cizí kupec – kupuje první (Rozhodnutí plánu 4, bod 2) a do hladiny nepatří (Měšec kupců bez dna,
+   * bod 4).
+   */
   merchant?: true;
   /** Seznam strany se kupuje jen od cizích kupců (objednaná zbroj hostitele – bod 15). */
   fromMerchants?: true;
@@ -211,12 +215,14 @@ function exchangeOf(buyer: Ledger, seller: Ledger, unit: number): Basket {
 
 /**
  * Mince proti zboží na začátku fáze (Rozhodnutí plánu 4, bod 3), bez zlata (`LEVEL_GOODS` –
- * Rozhodnutí plánu 6, bod 2). Kupující = strana s mincemi
- * a hodnotou seznamu nad 0: C = Σ min(mince, hodnota seznamu) – seznam strany `fromMerchants` jen
- * do zboží, které kupci na trhu dnes mají (objednat 50 mečů při 2 u kupců = objednat 2) –, W = Σ přes
- * zboží (O + min(součet ostatních seznamů kupujících, součet nabídek všech stran − O)) × cena, kde
- * O = min(součet seznamů stran `fromMerchants`, součet nabídek kupců) – objednaná zbroj se kupuje
- * jen od kupců, takže meče výprav hladinu kvůli objednávce nesníží.
+ * Rozhodnutí plánu 6, bod 2). Kupující = strana s mincemi a hodnotou seznamu nad 0 kromě cizích
+ * kupců – jejich měšec bez dna ani seznam se nepočítají, jinak by hladinu hnali nahoru bez konce
+ * (markets.md – Měšec kupců bez dna, bod 4); jejich zboží v nabídce zůstává. C = Σ min(mince,
+ * hodnota seznamu) – seznam strany `fromMerchants` jen do zboží, které kupci na trhu dnes mají
+ * (objednat 50 mečů při 2 u kupců = objednat 2) –, W = Σ přes zboží (O + min(součet ostatních seznamů
+ * kupujících, součet nabídek všech stran − O)) × cena, kde O = min(součet seznamů stran
+ * `fromMerchants`, součet nabídek kupců) – objednaná zbroj se kupuje jen od kupců, takže meče výprav
+ * hladinu kvůli objednávce nesníží.
  */
 function coinsAgainstGoods(
   parties: readonly CoinParty[],
@@ -232,7 +238,7 @@ function coinsAgainstGoods(
       const count = p.fromMerchants ? Math.min(wanted, sumOf(merchantStocks, good)) : wanted;
       return sum + count * price(good);
     }, 0);
-  const buyers = parties.filter((p) => p.coins > 0 && listWorth(p) > 0);
+  const buyers = parties.filter((p) => !p.merchant && p.coins > 0 && listWorth(p) > 0);
   const orders = buyers.filter((p) => p.fromMerchants).map((p) => p.wants);
   const wants = buyers.filter((p) => !p.fromMerchants).map((p) => p.wants);
   const stocks = parties.map((p) => p.stock);

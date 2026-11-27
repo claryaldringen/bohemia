@@ -229,8 +229,9 @@ export interface MarketVisitor {
   kin?: MarketKin;
   /**
    * Cizí kupec, ne výprava z jiné vsi (markets.md – Rozhodnutí plánu 4, body 2 a 5) – nemá domovskou
-   * ves (`fromVillageId` a `fromName` prázdné), v mincovní fázi kupuje první, na rušném trhu zůstane
-   * déle (`extendMerchants`) a odjede bez pošty (`departVisitors`). Chybí = výprava.
+   * ves (`fromVillageId` a `fromName` prázdné), v mincovní fázi kupuje první z měšce bez dna – mince
+   * v `goods` nemá (markets.md – Měšec kupců bez dna, bod 1) –, na rušném trhu zůstane déle
+   * (`extendMerchants`) a odjede bez pošty (`departVisitors`). Chybí = výprava.
    */
   merchant?: true;
   /**

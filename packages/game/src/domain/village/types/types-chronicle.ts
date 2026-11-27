@@ -760,11 +760,12 @@ export type ChronicleEvent = { day: number } & (
       smith?: true;
     }
   /**
-   * Na trh vsi u stezky přijeli cizí kupci (markets.md – Rozhodnutí plánu 4, bod 5) – co prodávají,
-   * co shánějí a kolik mincí mají v měšci; odkud jsou, hra neví. Jen první příjezd v herním roce
-   * (`VillageMarket.merchantsYear`).
+   * Na trh vsi u stezky přijeli cizí kupci (markets.md – Rozhodnutí plánu 4, bod 5) – co prodávají
+   * a co shánějí; odkud jsou, hra neví. Jen první příjezd v herním roce
+   * (`VillageMarket.merchantsYear`). Měšec kupců je bez dna (Měšec kupců bez dna, bod 1) – zápisy
+   * před 27. 11. 2026 mají navíc pole `coins` (60), které nic nečte.
    */
-  | { kind: 'merchants-arrived'; sells: TradeGoods; buys: TradeGoods; coins: number }
+  | { kind: 'merchants-arrived'; sells: TradeGoods; buys: TradeGoods }
   /** Tržní den – co ves na svém trhu prodala a koupila (markets.md – Pravidla 3 a 5). */
   | { kind: 'market-held'; sold: TradeGoods; bought: TradeGoods }
   /**

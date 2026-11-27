@@ -209,17 +209,17 @@ describe('mincovní fáze – zlato za mince (coinClearing, hladina 1)', () => {
 });
 
 describe('tržní den – zlato u kupců a výměna u hostitele (marketDay)', () => {
-  it('hostitel se 100 g, kupec s měšcem 60: kupec koupí 60 g za 60 mincí, vsi zbude 40 g', () => {
+  it('hostitel se 100 g: kupec s měšcem bez dna koupí všech 100 g za 100 mincí', () => {
     const s = host({ gold: 100 });
     merchantsArrive(s, DAY);
     const merchant = merchantOf(s);
-    expect(merchant.goods.coins).toBe(60);
+    expect(merchant.goods).not.toHaveProperty('coins');
     const chronicle = marketDay(s, DAY);
-    expect(merchant.bought).toEqual({ gold: 60 });
-    expect(merchant.goods.coins).toBeUndefined();
-    expect(merchant.wants.gold).toBe(940);
-    expect([s.gold, s.coins]).toEqual([40, 60]);
-    expect(heldOf(chronicle)).toEqual({ sold: { gold: 60 }, bought: { coins: 60 } });
+    expect(merchant.bought).toEqual({ gold: 100 });
+    expect(merchant.goods).not.toHaveProperty('coins');
+    expect(merchant.wants.gold).toBe(900);
+    expect([s.gold ?? 0, s.coins]).toEqual([0, 100]);
+    expect(heldOf(chronicle)).toEqual({ sold: { gold: 100 }, bought: { coins: 100 } });
     expect(s.market).not.toHaveProperty('level');
   });
 
@@ -229,7 +229,7 @@ describe('tržní den – zlato u kupců a výměna u hostitele (marketDay)', ()
     const merchant = merchantOf(s);
     marketDay(s, DAY);
     expect(merchant.bought).toEqual({ gold: 40 });
-    expect(merchant.goods.coins).toBe(20);
+    expect(merchant.goods).not.toHaveProperty('coins');
     expect(s.gold).toBeCloseTo(0.75, 9);
     expect(s.coins).toBe(40);
   });
@@ -239,9 +239,11 @@ describe('tržní den – zlato u kupců a výměna u hostitele (marketDay)', ()
     joinMarket(s, DAY, trip('market:e:1', { gold: 100 }));
     merchantsArrive(s, DAY);
     const merchant = merchantOf(s);
-    merchant.goods = { swords: 2 }; // prázdný měšec
+    merchant.goods = { swords: 2 };
+    merchant.wants = {}; // zlato výpravy nekoupí – vymění ho hostitel
     const chronicle = marketDay(s, DAY);
-    expect(merchant.goods).toEqual({ swords: 1, coins: 120 });
+    // mince za meč u kupce zanikly (měšec bez dna)
+    expect(merchant.goods).toEqual({ swords: 1 });
     expect(merchant.bought).toEqual({});
     const e = resultOf(s, 'market:e:1');
     expect(e).toMatchObject({ sold: { gold: 30 }, bought: {}, coinsGot: 30 });
@@ -253,8 +255,8 @@ describe('tržní den – zlato u kupců a výměna u hostitele (marketDay)', ()
       undefined,
     ]);
     expect(heldOf(chronicle)).toEqual({ sold: { coins: 150 }, bought: { swords: 1, gold: 30 } });
-    // mince i zlato se jen přesunuly – 150 mincí a 100 g před i po
-    expect((s.coins ?? 0) + (merchant.goods.coins ?? 0) + (e.unsold.coins ?? 0)).toBe(150);
+    // zlato se jen přesunulo (100 g před i po); mince: 150 − 120 za meč, které u kupce zanikly
+    expect((s.coins ?? 0) + (e.unsold.coins ?? 0)).toBe(150 - 120);
     expect((s.gold ?? 0) + (e.unsold.gold ?? 0)).toBe(100);
     // C = W = meč za 120 – hladina stojí
     expect(s.market).not.toHaveProperty('level');
@@ -370,16 +372,15 @@ describe('trh bez zlata: bit po bitu jako po plánu 5 (Rozhodnutí plánu 6, bod
     },
   );
 
-  it('trhy srovnání obchodují a hýbou hladinou', () => {
+  it('trhy srovnání obchodují; hladina stojí, kupci ji nehýbou', () => {
     const levels = MARKETS.slice(0, 3).map(([, arrivals, fields]) => {
       const s = goldListMarket(arrivals, fields);
       marketDay(s, DAY);
       return s.market!.level;
     });
-    // zápočet: C = W = 240 (helma) – hladina stojí; nákupy kupce a zbroj: C > W
-    expect(levels[0]).toBeUndefined();
-    expect(levels[1]).toBeGreaterThan(1);
-    expect(levels[2]).toBeGreaterThan(1);
+    // helma i objednaný meč: C = W (240 a 120) – hladina stojí; kupci do ní nepatří (Měšec kupců bez
+    // dna, bod 4)
+    expect(levels).toEqual([undefined, undefined, undefined]);
   });
 });
 

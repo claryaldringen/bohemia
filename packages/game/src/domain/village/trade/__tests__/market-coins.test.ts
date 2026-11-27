@@ -337,10 +337,7 @@ describe('mincovní fáze – nákup za mince (markets.md – Rozhodnutí plánu
 describe('mince a zboží na trhu (markets.md – Rozhodnutí plánu 4, bod 3)', () => {
   it('C je měšec nejvýš do hodnoty seznamu, W chtěné zboží, které na trhu je', () => {
     const c = coinClearing(
-      [
-        party('host', { stock: { furs: 20 } }),
-        party('kupec', { coins: 60, wants: { furs: 60 }, merchant: true }),
-      ],
+      [party('host', { stock: { furs: 20 } }), party('e', { coins: 60, wants: { furs: 60 } })],
       {},
       1,
     );
@@ -350,13 +347,13 @@ describe('mince a zboží na trhu (markets.md – Rozhodnutí plánu 4, bod 3)',
   });
 
   it('počítá se z měšců, seznamů a nabídek na začátku fáze, za cenu × hladinu', () => {
-    // výprava bez mincí má seznam, ale kupujícím se stane až z mincí kupce – do C a W nepatří;
+    // výprava bez mincí má seznam, ale mince by dostala až od výpravy E – do C a W nepatří;
     // výprava s mincemi bez seznamu také ne
     const parties = [
       party('host', { stock: { grain: 1000 } }),
       party('a', { stock: { furs: 100 }, wants: { grain: 75 } }),
       party('b', { coins: 40 }),
-      party('kupec', { coins: 60, wants: { furs: 60 }, merchant: true }),
+      party('e', { coins: 60, wants: { furs: 60 } }),
     ];
     const c = coinClearing(parties, {}, 1);
     expect(c.available).toBeCloseTo(32, 9);
@@ -371,8 +368,8 @@ describe('mince a zboží na trhu (markets.md – Rozhodnutí plánu 4, bod 3)',
       [
         party('host', { stock: { furs: 10, grain: 150 } }),
         party('a', { coins: 5, stock: { furs: 30 }, wants: { grain: 300 } }),
-        party('k1', { coins: 100, wants: { furs: 60 }, merchant: true }),
-        party('k2', { coins: 4, wants: { furs: 15, honey: 10 }, merchant: true }),
+        party('e1', { coins: 100, wants: { furs: 60 } }),
+        party('e2', { coins: 4, wants: { furs: 15, honey: 10 } }),
       ],
       {},
       1,
@@ -382,17 +379,55 @@ describe('mince a zboží na trhu (markets.md – Rozhodnutí plánu 4, bod 3)',
     expect(c.sought).toBeCloseTo((40 * 8) / 15 + 10, 9);
   });
 
-  it('na trhu není nic z toho, co kupec shání: W = 0 a hladina se nehne', () => {
+  it('na trhu není nic z toho, co výprava shání: W = 0 a hladina se nehne', () => {
     const c = coinClearing(
-      [
-        party('host', { stock: { grain: 1000 } }),
-        party('kupec', { coins: 60, wants: { furs: 60 }, merchant: true }),
-      ],
+      [party('host', { stock: { grain: 1000 } }), party('e', { coins: 60, wants: { furs: 60 } })],
       {},
       1.5,
     );
     expect(c).toMatchObject({ trades: [], payments: [], sought: 0 });
     expect(c.available).toBeCloseTo(48, 9);
     expect(nextLevel(1.5, c.available, c.sought)).toBe(1.5);
+  });
+
+  it('kupec s měšcem bez dna do C ani W nepatří – jeho zboží v nabídce zůstává', () => {
+    // markets.md – Měšec kupců bez dna, bod 4: hladinu hýbou jen mince hostitele (objednaná zbroj)
+    const c = coinClearing(
+      [
+        party('host', {
+          coins: 500,
+          stock: { furs: 20 },
+          wants: { swords: 1 },
+          fromMerchants: true,
+        }),
+        party('kupec', {
+          coins: Infinity,
+          stock: { swords: 2 },
+          wants: { furs: 60 },
+          merchant: true,
+        }),
+      ],
+      {},
+      1,
+    );
+    expect(c.trades).toEqual([
+      { seller: 'host', buyer: 'kupec', good: 'furs', amount: 20 },
+      { seller: 'kupec', buyer: 'host', good: 'swords', amount: 1 },
+    ]);
+    expect(c.payments).toEqual([
+      { buyer: 'kupec', seller: 'host', coins: 11 },
+      { buyer: 'host', seller: 'kupec', coins: 120 },
+    ]);
+    // C = hostitel min(500, 120), W = meč z nabídky kupce
+    expect([c.available, c.sought]).toEqual([120, 120]);
+    const alone = coinClearing(
+      [
+        party('host', { stock: { furs: 20 } }),
+        party('kupec', { coins: Infinity, wants: { furs: 60 }, merchant: true }),
+      ],
+      {},
+      1,
+    );
+    expect([alone.available, alone.sought]).toEqual([0, 0]);
   });
 });

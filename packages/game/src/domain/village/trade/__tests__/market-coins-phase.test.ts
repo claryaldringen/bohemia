@@ -206,18 +206,20 @@ describe('mincovní fáze – zakázka vesničanů má přednost před prodejem 
 });
 
 describe('mincovní fáze – invarianty na trhu hostitele', () => {
-  it('platby jdou v pořadí nákupů: kupec 28 mincí → výprava (0) → hostitel; nic nevznikne', () => {
+  it('platby jdou v pořadí nákupů: kupec → výprava (0) → hostitel; mince vzniknou jen platbou kupce', () => {
     const s = potteryVillage();
     // výprava nemá mince jinde než od kupce, který od ní koupí kožešiny a ona za ně keramiku
     joinMarket(s, D, trip('market:a:1', { furs: 30 }, { pottery: 50 }, { stayDays: 2 }));
-    joinMarket(s, D, trip('market:k:1', { coins: 28 }, { furs: 30 }, { stayDays: 2 }));
+    joinMarket(s, D, trip('market:k:1', {}, { furs: 30 }, { stayDays: 2 }));
     visitorOf(s, 'market:k:1').merchant = true;
     marketDay(s, D);
-    expect(visitorOf(s, 'market:k:1').goods).toEqual({ coins: 12 });
+    // kupec platí z měšce bez dna (markets.md – Měšec kupců bez dna) – mince nedrží
+    expect(visitorOf(s, 'market:k:1').goods).toEqual({});
     expect(visitorOf(s, 'market:a:1').goods).toEqual({ coins: 6 });
     expect(visitorOf(s, 'market:a:1').bought).toEqual({ pottery: 50 });
     expect(s.coins).toBe(10);
-    expect(s.coins! + 12 + 6).toBe(28);
+    // 16 mincí za kožešiny – jinak nic nevzniklo ani nezmizelo
+    expect(s.coins! + 6).toBe(16);
   });
 
   it('hostitel za mince nekupuje ani za mince, které ten den utržil: 54 mincí a kráva odjede', () => {

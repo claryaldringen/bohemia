@@ -12,7 +12,6 @@ describe('kronika – příjezd kupců, kteří kupují i zlato (Rozhodnutí pl�
       kind: 'merchants-arrived',
       sells: MERCHANTS.goods,
       buys: MERCHANTS.wants,
-      coins: MERCHANTS.coins,
     } as unknown as ChronicleEvent;
     expect(chronicleText(event, 'Vlkov')).toBe(
       'Přijeli kupci z daleka – prodávají meče, kroužkové košile a helmy, kupují zlato, med, vosk, kožešiny a otroky.',

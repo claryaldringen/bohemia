@@ -722,29 +722,31 @@ day, order, target, { by?, seedKg?, alone?, service?, kin?, people? })` (mutuje 
     (village-core.md – Pořadí práce dne), takže kupec obchoduje už v den příjezdu. Za každý příjezd
     `merchantVisits(merchantStops, day, day)` založí návštěvníka trhu (trh vznikne, chybí-li):
     `MarketVisitor` s `merchant: true`, klíčem průjezdu, pořadím příjezdu za výpravami dne, pobytem na
-    den, bez domovské vsi (`fromVillageId` a `fromName` prázdné), nákladem `MERCHANTS.goods` a měšcem
-    `MERCHANTS.coins` v `goods.coins`, seznamem `MERCHANTS.wants` (kopie – zlato, med, vosk,
-    kožešiny a otroci). Dva průjezdy téhož dne
-    (křižovatka) jsou dva kupci, každý se svým měšcem; klíč, který na trhu už stojí, se znovu
+    den, bez domovské vsi (`fromVillageId` a `fromName` prázdné), nákladem `MERCHANTS.goods` bez mincí
+    a seznamem `MERCHANTS.wants` (kopie – zlato, med, vosk, kožešiny a otroci). Dva průjezdy téhož dne
+    (křižovatka) jsou dva kupci, každý se svým seznamem; klíč, který na trhu už stojí, se znovu
     nezaloží. Poznámka v `market.arrivals` bez jména a vsi se značkou `merchants` a druhy zbroje
-    (posledních `MARKET.report.traders` jako u výprav) a kronika `merchants-arrived` (`sells`, `buys`,
-    `coins`) – jen první příjezd v herním roce (návrh Clauda: na křižovatce by 16 příjezdů do roka
+    (posledních `MARKET.report.traders` jako u výprav) a kronika `merchants-arrived` (`sells`, `buys`;
+    zápisy před 27. 11. 2026 mají navíc `coins`, které nic nečte) – jen první příjezd v herním roce (návrh Clauda: na křižovatce by 16 příjezdů do roka
     kroniku zaplnilo). Rok posledního zápisu drží `VillageMarket.merchantsYear` (chybí = žádný);
     kroniku simulace nečte, takže zápis nezávisí na kouscích dopočtu ani na jejím zkrácení. Upozornění
     „Kupci přijeli“ chodí ve webu za každý příjezd – z `market.arrivals`, ne z kroniky (web-ui.md –
     Mince, kupci a zbroj v rozhraní).
   - **Obchod:** kupec je strana zápočtu (zbroj za med, vosk, kožešiny a otroky) i mincovní fáze – v ní
-    kupuje první, podle celého seznamu a za svůj měšec.
-  - **Zlato** (gold.md – Rozhodnutí plánu 6, bod 8; `MERCHANTS.wants.gold` = 1 000 g – vykoupí, kolik
-    zaplatí): kupec kupuje zlato jen za mince, gram za minci (cena pevná – Zlato výš), od
-    prodávajících v pořadí stran a u každého v pořadí `TRADE_GOODS` (zlato před medem); měšec 60
-    mincí se nemění, za průjezd tedy koupí nejvýš 60 g. Koupené zlato odjede s ním ze světa. V den bez
-    zlata na trhu je trh bit po bitu jako po plánu 5: zlato není v zápočtu (`withoutMoney`), v ceně
-    dne (`affordableWants` počítá každé zboží zvlášť a poptávka je jen u zboží na trhu) ani v C a W
+    kupuje první a podle celého seznamu. **Měšec bez dna** (markets.md – Měšec kupců bez dna; Martin 27. 11. 2026: „Kupcům neomezuj měšec.“): kupec mince nedrží – v `coinPhase` má strana kupce
+    `coins: Infinity` jen v paměti fáze, takže koupí ze seznamu všechno, co je na trhu (mezí je jen
+    seznam za průjezd, který nákupy ubývá, a nabídka). `payCoins` kupci nic nepřipíše ani neubere:
+    jeho platbou mince vznikají, platbou jemu (objednaná zbroj, meč výpravě) zanikají. Kupec ze
+    starého stavu s `goods.coins` je nepoužije a zaniknou s jeho odjezdem (převod stavu žádný).
+  - **Zlato** (gold.md – Rozhodnutí plánu 6, bod 8; `MERCHANTS.wants.gold` = 1 000 g za průjezd):
+    kupec kupuje zlato jen za mince, gram za minci (cena pevná – Zlato výš), od prodávajících
+    v pořadí stran a u každého v pořadí `TRADE_GOODS` (zlato před medem) – za průjezd nejvýš 1 000 g.
+    Koupené zlato odjede s ním ze světa. V den bez zlata na trhu je trh bit po bitu jako po plánu 5:
+    zlato není v zápočtu (`withoutMoney`), v ceně dne (`nextPrices` ho nehýbe) ani v C a W
     hladiny (`LEVEL_GOODS`) – seznam se zlatem změní jen uložené `wants` a větu příjezdu kupců
     (srovnání dvou klonů v `market-gold.test.ts`).
   - **Otroci** (markets.md – Rozhodnutí plánu 5, bod 7; `MERCHANTS.wants.slaves` = 10 za průjezd):
-    kupec kupuje otroky za mince i zápočtem (zbroj za otroky; z měšce 60 mincí dva po 24). Pořadí
+    kupec kupuje otroky za mince i zápočtem (zbroj za otroky; po 24 mincích). Pořadí
     nákupu se nemění: v mincovní fázi jde kupec od prodávajících v pořadí stran (hostitel, pak výpravy
     podle příjezdu) a u každého v pořadí `TRADE_GOODS` (med, vosk a kožešiny před otroky) – otroky
     dřívější výpravy tedy koupí dřív než med pozdější. Koupení otroci jdou do `boughtPeople` kupce
@@ -752,15 +754,14 @@ day, order, target, { by?, seedKg?, alone?, service?, kin?, people? })` (mutuje 
     odchod lidí ze světa kromě smrti; neprodaný otrok se vrátí s výpravou domů (poštou jako lidé
     plánu 3). **V den, kdy na trhu nikdo otroky nenabízí** (`slavesOnMarket` v `marketDay` – hostitel
     podle `stance.offer.slaves`, výpravy z nákladu), seznam kupce otroky nemá (`merchantWants`)
-    v ceně dne (`priceTotals` – `affordableWants` i zboží dne jen s kupci), ve stropu V zápočtu
+    v ceně dne (`priceTotals` – poptávka kupce i zboží dne jen s kupci), ve stropu V zápočtu
     (`clearMarket`) ani v mincovní fázi (`coinPhase` – seznamy stran, C a W hladiny), takže trh je bit
     po bitu jako po plánu 4 (srovnání dvou klonů v `market-merchants-slaves.test.ts`).
   - **Ceny dne** (`priceTotals` v `market.ts` – S a D pro `nextPrices`; návrh Clauda): poptávka kupce
     se počítá jen u zboží, které je ten den na trhu ke koupi (S > 0, každý den, i s výpravami) – bez
-    nabídky cenou nehne, jako W = 0 hladinou –, a jen do výše měšce ráno:
-    `affordableWants(visitor, prices, level)`, u každého zboží seznamu nejvýš ⌊měšec ÷ `coinPriceOf`⌋
-    celých jednotek, nic chybí. Cena tak s nabídkou roste (D > S), dokud kupec za měšec nekoupí právě
-    to, co je na trhu (20 kg medu na průjezd → 3 mince za kg i s hladinou). **V den, kdy na trhu kromě
+    nabídky cenou nehne –, a to celý seznam ráno (měšec bez dna poptávku neomezí – Měšec kupců bez
+    dna, bod 3). Je-li zboží na trhu míň, než kupci shánějí, cena v den kupců roste o `priceStep`
+    podle (D − S) / (D + S) každý průjezd (20 kg medu na průjezd → × 1,067). **V den, kdy na trhu kromě
     hostitele není žádná výprava** (jen kupci; kovář souseda a doprovod partnera výprava nejsou), se
     hýbou jen ceny zboží, které kupci vezou nebo shánějí: poptávka hostitele nic nezdraží (nástroje by
     jinak za 10 let čtyř průjezdů do roka zdražily 45×) a jeho nabídka, o kterou kupci nestojí, nic
@@ -776,10 +777,12 @@ day, order, target, { by?, seedKg?, alone?, service?, kin?, people? })` (mutuje 
     s `fromMerchants` – od výprav ji nekoupí; bez objednávky nebo bez kupce na trhu null.
     Kupuje za cenu dne × hladinu, od kupců
     v pořadí příjezdu, u každého v pořadí `ARMS_GOODS` po kusech, dokud na ně má a kupec je veze;
-    koupené přibude do `VillageState.arms`, platba do měšce kupce a odjede s ním, v kronice
+    koupené přibude do `VillageState.arms`, platba u kupce zanikne (měšec bez dna), v kronice
     `market-held` je `bought.swords` a `sold.coins`. Po fázi `reduceArmsOrder(state, bought)`
     objednávku o koupené zmenší, zbytek čeká na další kupce. Přání zbroje nepatří do zápočtů,
-    `marketStance`, `nextPrices`, zakázek ani výhledů správce – jen do C a W hladiny; v C se
+    `marketStance`, `nextPrices`, zakázek ani výhledů správce – jen do C a W hladiny (kupci sami do
+    C ani W nepatří – jejich měšec bez dna a seznam by hladinu hnaly nahoru bez konce, Měšec kupců bez
+    dna, bod 4; jejich zbroj v nabídce zůstává); v C se
     seznam kupujícího s `fromMerchants` počítá nejvýš do zboží, které kupci na trhu dnes mají (po
     druzích min(objednáno, u kupců) × cena), takže objednat 50 mečů při 2 u kupců hladinu nezvedne
     víc než objednat 2, a ve W jen proti zbroji kupců – meče, které na trhu prodává výprava (hostitel
@@ -795,8 +798,9 @@ day, order, target, { by?, seedKg?, alone?, service?, kin?, people? })` (mutuje 
     končí, zůstane další den, když je na trhu aspoň `MERCHANTS.busyVisitors` výprav (bez kupců, kováře
     souseda a doprovodu partnera), nejvýš `MERCHANTS.maxStayDays` dní.
   - **Odjezd:** `departVisitors` kupce odebere bez zakázek (`recordOrders`) a bez zprávy do odchozí
-    schránky – měšec, neprodaná zbroj a koupené zboží odejdou ze světa. Jen příjezdem kupců mince
-    a zbroj vznikají a jen jejich odjezdem zanikají. Do spící vsi (`isVillageDormant`) nepřijedou.
+    schránky – neprodaná zbroj a koupené zboží odejdou ze světa (mince kupec nemá). Zbroj vzniká jen
+    příjezdem kupců a zaniká jejich odjezdem; mince vznikají jen platbou kupce a zanikají jen platbou
+    kupci. Do spící vsi (`isVillageDormant`) nepřijedou.
   - **Zaniklá ves** (Rozhodnutí plánu 4, bod 9; návrh Clauda): vymře-li, odejdou-li z ní všichni, nebo
     vymře-li rod, když na trhu stojí kupci, odjedou se vším jako při obvyklém odjezdu
     (`merchantsLeave`) – ve `visitors` nezůstanou a osadníci si z nich nic nevezmou. Dělá to
