@@ -79,6 +79,7 @@ Od roku 750 (vypletená) a 800 (roubená) jde dílnu postavit i nadzemní – vi
   podél nenatahuje – jen se posune se štítem (jako šíje), napříč je široký jako dům; místa
   řemeslníků i dým pod ním jdou s ním. Milíř uhlíře je samostatná stavba a variantu nemá (návrh
   Clauda).
+- **Dílny zlata** (plán 6, issue #13): rýžovník (zemnice jako uhlíř), šperkař a mincovna (polozemnice jako kovář; mincovna od roku 950) jsou řemesla s dílnou a učněm jako ostatní; pravidla, čísla a Martinova slova jsou v [gold.md](gold.md) (Pravidla, Rozhodnutí plánu 6). Zatím mají dnešní modely dílen (návrh Clauda).
 
 ## Práce a jídlo
 

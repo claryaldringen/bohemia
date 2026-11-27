@@ -122,6 +122,7 @@ na který se později přidávají další prvky (černozem, naleziště kovů, 
   - **Zlatonosný potok:** 3–6 náplavů zlatonosného písku na vnitřní straně nejostřejších oblouků
     potoka (stočení aspoň 0,6 rad na ± 40 m), 3 m za okrajem vody, aspoň 150 m od sebe a 200 m od
     vsi; prvek náplav s obrysem čočky podél břehu (30 × 10 m). Krajina zůstane průměrná.
+    Od plánu 6 se náplavy rýžují ([gold.md](gold.md)); vyrýžovaný náplav **zůstává v krajině** (vrstva se nemění, ubývá jen zlato ve stavu vsi – `goldPanned`).
   - **Solný pramen:** slanisko na rovné louce u potoka (6 m od vody) do 700 m od vsi (aspoň 200 m,
     nejraději kolem 450 m, raději na straně vsi) – mimo pole a les vsi: mokrá louka u vody, kde se
     pole nezakládá. Krajina zůstane průměrná.

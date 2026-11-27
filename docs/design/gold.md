@@ -1,6 +1,6 @@
 # Zlato a klenoty – rýžování, šperkař, mincovna (issue #13)
 
-Stav: **schváleno** – Martin 22. 11. 2026 na otázku „Schvaluješ oba návrhy a takové pořadí?“ (obchod s trhy a mincemi, zlato a klenoty; šest plánů: konec smyšlených sousedů, trh bez mincí, vesničané a správce na trhu, kupci a mince, otroci, zlato): „Ano“. Co řekl Martin, je u bodu s datem; ostatní je návrh
+Stav: **schváleno, plán 6 hotový 27. 11. 2026** (větev `feat/gold-6`, issue #13; Rozhodnutí plánu 6 níž) – Martin 22. 11. 2026 na otázku „Schvaluješ oba návrhy a takové pořadí?“ (obchod s trhy a mincemi, zlato a klenoty; šest plánů: konec smyšlených sousedů, trh bez mincí, vesničané a správce na trhu, kupci a mince, otroci, zlato): „Ano“. Co řekl Martin, je u bodu s datem; ostatní je návrh
 Clauda. Stojí na mincích z [obchodu](markets.md) a na prémiové krajině Zlatonosný potok
 ([prémiové krajiny](premium-landscapes.md), [krajina](landscape.md) – 3–6 náplavů zlatonosného písku).
 
@@ -43,7 +43,7 @@ s hornictvím (premium-landscapes.md).
    výroba šperku je náročná a dlouho trvá): výhoda platí jen pro tolik zlata, kolik šperkař za dobu práce zpracuje –
    šperkařovo zpracované zlato přibývá jeho prací (rešerše: kolik gramů za den), platba nebo prodej s výhodou ho ubírá;
    nad to se platí zlatem 1:1.
-5. **Kupci** vykupují zlato (s šperkařem dráž) a platí mincemi (markets.md). **Stav po plánu 4 obchodu (26. 11. 2026):** mince už obíhají – přicházejí s cizími kupci na stezkách a ves je hromadí a utrácí hráč a správce (markets.md – Rozhodnutí plánu 4); kupci zatím kupují jen med, vosk a kožešiny, **za zlato je neplatí** – zlato, šperkař a mincovna jsou plán 6.
+5. **Kupci** vykupují zlato (s šperkařem dráž) a platí mincemi (markets.md). **Stav po plánu 4 obchodu (26. 11. 2026):** mince už obíhají – přicházejí s cizími kupci na stezkách a ves je hromadí a utrácí hráč a správce (markets.md – Rozhodnutí plánu 4); po plánu 6 kupují i zlato (1 000 g, první v seznamu; měšec 60 mincí zůstal) a platí za ně mincemi; zlato, šperkař a mincovna jsou plán 6 (Rozhodnutí plánu 6).
 
 ## Co se ověří
 
@@ -127,6 +127,57 @@ s hornictvím (premium-landscapes.md).
   Poslední den běhu (4. 1. 930) se šperkař ve 45 letech přestěhoval do dvorce – domácnost bez nikoho mezi 16 a 44 lety
   se rozpadne ([kinship.md](kinship.md) – Rozpad domácnosti) a dílna pak stojí prázdná, jako dílna rýžovníka po sňatku
   v testu světa.
+
+## Rozhodnutí plánu 6 (návrh Clauda, 26. 11. 2026)
+
+Plán 6 přinesl zlato: zboží `gold`, tři dílny (rýžovník, šperkař, mincovna), zlato v mincovní fázi trhu, kapacitu šperkaře na výpravách, poštu a odchod, správce, rozhraní, scénu, test světa a přepočet Vlkova. Rozhodnutí níž jsou **návrh Clauda**, kromě slov Martina z 22. 11. 2026 (oddíl Martinova rozhodnutí) a z 25. 11. 2026 ([obchod](markets.md) – „Mince utrácí jen vojvoda/správce“, „berou si úplně vše“); jejich plné znění je v plánu `docs/superpowers/plans/2026-11-26-gold-6-panning-jeweller-mint.md`.
+
+1. **Mince váží gram** (`GOLD.coinGrams` = 1): 1 g zlata = 1 mince = 15 kg obilí, `carryKg: 0` jako mince. Herní mince odpovídá pražskému denáru kolem roku 965 (≈ 1 g). Podle Martinova „1:1 váhově“ je zlato proti skutečnosti zhruba dvanáctkrát levnější.
+2. **Zlato je zboží `gold`** v `TRADE_GOODS` před medem (Martinovo pořadí); cena je pevná, 1 mince za gram na každém trhu; do zápočtu ani do hladiny trhu nepatří (výměna je kov za kov, ne poptávka po zboží).
+3. **Výměna s kýmkoli, kdo mince má** (Martin): zlato kupují cizí kupci, výpravy, které ho mají v „Dostaneš“, a hostitel svými mincemi 1:1, po kupcích a po objednané zbroji. Zbroj hostitel kupcům doplatí napřed mincemi, pak celými gramy zlata. Kde nikdo nemá mince, zlato nic nekoupí.
+4. **Rýžovník:** jen duben–říjen, 1 g na člověkoden vyučeného (učeň půl gramu; herní číslo, ne měření), na nejbližším dosažitelném náplavu s **1 500 g** (nedoplňuje se); mapa se 3–6 náplavy má 4,5–9 kg, rýžovník se synem ji vyrýžuje za 15–30 let. Bez náplavu se zlatem se dílna nepostaví.
+5. **Šperkař:** zpracuje 1,5 g zlata nebo mincí za člověkoden vyučeného do kapacity výhody `JEWELLER.factor` = 1,5 (prodej zlata kupujícímu i platba mincemi o třetinu levnější), nejvýš do kovu vsi; šperky nejsou zboží (Martin). Požár beze změny.
+6. **Šperkař na výpravě:** výprava veze kapacitu `min(šperky, mince + zlato v nákladu)`, použije ji a nepoužitou přiveze zpět.
+7. **Mincovna od roku 950** (Martin): razí všechno zlato vsi, **200 g na člověkoden** vyučeného, gram za minci.
+8. **Kupci:** `wants` = zlato 1 000 g, med, vosk, kožešiny, otroci; měšec 60 mincí se nemění.
+9. **Pošta a odchod:** zlato jde z výsledku pro zaniklou ves hostiteli jako mince; odchod celé vsi bere zlato i kapacitu šperkaře („berou si úplně vše“, Martin 25. 11. 2026), syn a část lidí je nechají.
+10. **Správce** platí obilí v nouzi zlatem až nakonec, na roční výpravu přidá zlato, chybí-li mince; dílny zlata nestaví (`workshopValue` dá 0).
+11. **Rozhraní a scéna** jako 0 A.D.: tři tlačítka dílen (zkratky 3–5), zlato a šperky ve dvorci, zlato v panelu Trh; dílny zlata používají dnešní modely.
+12. **Kronika:** nový zápis `placer-exhausted`, ostatní dnešní zápisy s novým zbožím.
+13. **Převod stavu žádný** – nová pole jsou volitelná.
+14. **Pořadí úloh** 1a–14 podle plánu.
+
+**Doplněno z provádění (návrh Clauda):**
+
+- **Zaniklá domovská ves výpravy:** hostitel dostane zlato výpravy `unsold.gold + bought.gold` – peníze nemizí.
+- **Kapacita kupujícího se šperkařem** = kov, který za zboží opravdu odešel, včetně zaokrouhlení na celou minci.
+- **Hladina trhu se počítá jen z mincí:** platí-li ves zbroj zlatem, může hladina klesnout.
+- **MINT 200 g denně je opatrné číslo:** rešerše dává ≈ 100 ks za hodinu z jiné doby, bez přípravy střížků.
+
+### Oznámit Martinovi (návrhy Clauda, které mění pravidla)
+
+1. **Mince váží gram:** gram zlata je jedna mince, tedy 15 kg obilí; zlato je ve hře zhruba dvanáctkrát levnější než ve skutečnosti (Rozhodnutí 1).
+2. **Rýžovník rýžuje od dubna do října** gram zlata denně (učeň půl gramu; herní číslo); náplav má 1,5 kg a nedoplňuje se, mapa 4,5–9 kg se vyrýžuje za 15–30 let, pak dílna stojí (Rozhodnutí 4).
+3. **Zlato se mění za mince, ne za zboží:** na trhu stojí minci za gram, kupují ho kupci, výpravy a **každá ves, která má mince** (Martin 22. 11. 2026: „s kýmkoliv, kdo ty mince má“). Je to kov za kov, „Mince utrácí jen vojvoda/správce“ (25. 11. 2026) dál platí pro zboží; objednanou zbroj hostitel kupcům doplatí i zlatem. Kde nikdo nemá mince (do roku 950 skoro všude mimo stezky), zlato nic nekoupí (Rozhodnutí 3).
+4. **Kupci kupují zlato první**, ale měšec 60 mincí se nemění – za průjezd koupí nejvýš 60 g zlata, šperků 40 g; hlavní odbyt je výměna ve vsích s mincemi a od roku 950 mincovna (Rozhodnutí 8).
+5. **Šperkař zpracuje 1,5 g denně** do kapacity výhody; prodávající dostane o třetinu mincí méně, než je cena; kapacita platí i na výpravách a nepřeroste kov vsi (Rozhodnutí 5 a 6).
+6. **Mincovna od roku 950 razí všechno zlato vsi** (200 g denně); vlastní mince zvedají ceny tam, kde je ves utratí (Rozhodnutí 7).
+7. **Dílny zlata vypadají jako dnešní dílny** (rýžovník jako zemnice uhlíře, šperkař a mincovna jako kovárna); vlastní modely až na pokyn (Rozhodnutí 11).
+8. **Správce platí i zlatem až nakonec** a dílny zlata nestaví (Rozhodnutí 10).
+9. **Zlato je mezi vsemi jako mince:** jde jen poštou, zanikne-li ves, dostane ho hostitel i s koupeným zlatem výpravy; odejde-li celá ves, bere si zlato i šperky (Rozhodnutí 9).
+10. **Hostitel zaniklé vsi dostane všechno zlato výpravy** (`unsold.gold + bought.gold`), peníze nemizí.
+11. **Kapacita šperkaře kupujícího** = kov, který za zboží opravdu odešel, včetně zaokrouhlení na celou minci.
+12. **Hladina trhu se počítá jen z mincí** – platí-li ves zbroj zlatem, může hladina klesnout.
+13. **Mincovna 200 g denně je opatrné číslo** (rešerše ≈ 100 ks za hodinu z jiné doby, bez přípravy střížků); lze zvýšit.
+
+## Otevřené / Pro Martina
+
+Pravidla plánu 6 nechávají otevřené jen dvě obecná pravidla mimo plán, která se při testech ukázala (úlohy 13a a 13b), plán je nemění:
+
+- **Řemeslník, který si vezme vdovu držící dvorec**, se přestěhuje do dvorce (`weddingHome`, [kinship.md](kinship.md) – Sňatky) a jeho dílna zůstane prázdná. V testu světa to potkalo rýžovníka 2. 11. 950.
+- **Osamělý řemeslník po rozpadu domácnosti** (≥ 45 let) dílnu opustí (`dissolveHouseholds`, [kinship.md](kinship.md) – Rozpad domácnosti). V přepočtu Vlkova to potkalo šperkaře ve 45 letech.
+
+Rozhodnout je na Martinovi; třeba dílna zůstane obsazená jiným mužem nebo se řemeslník nestěhuje. Do rozhodnutí platí současné chování.
 
 ## Nechává se na stavitele
 

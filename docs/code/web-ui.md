@@ -1377,7 +1377,7 @@ plní `manorView` (`stanceOf`), volba jde přes server action `setDefenseStance`
   číslem (`wares-coins`, `wares-<zbroj>`; popisek jméno zboží), při nule nic; ves jen s mincemi ukáže jen
   je. Horní lišta beze změny.
 - **Kupci ve dvorci** – `MerchantsStat` v `ManorUpgrades` (`hud/ManorPanel.tsx`): ikona `merchants` a počet
-  dní do příjezdu (`manor-merchants`), popisek „Kupci přijedou za 12 dní – kupují med, vosk a kožešiny,
+  dní do příjezdu (`manor-merchants`), popisek „Kupci přijedou za 12 dní – kupují zlato, med, vosk, kožešiny a otroky,
   prodávají meče, kroužkové košile a helmy“ (zboží z `MERCHANTS` přes `goodsNames` v
   `lib/trade-names.ts`), v den příjezdu „Kupci jsou dnes ve vsi – …“; ves bez stezky nic.
 - **Panel Trh** (`hud/MarketPanel.tsx`): ceny ve zprávě jsou v mincích i s hladinou (`PricesLine` –
