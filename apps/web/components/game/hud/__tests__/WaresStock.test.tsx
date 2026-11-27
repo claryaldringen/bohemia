@@ -81,13 +81,13 @@ describe('WaresStock – mince a zbroj (plán 4)', () => {
 });
 
 describe('WaresStock – zlato a šperky (plán 6)', () => {
-  it('zlato a šperky celé gramy s popisky a ikonami', () => {
+  it('zlato a šperky na desetiny gramu (celé bez desetin) s popisky a ikonami', () => {
     const html = render({ ...wares, goldG: 84.9, jewelleryG: 30, jewelleryFactor: 1.5 });
-    expect(text(html, 'wares-gold')).toBe('84');
+    expect(text(html, 'wares-gold')).toBe('84,9');
     expect(text(html, 'wares-jewellery')).toBe('30');
     expect(html).toContain('/icons/resources/gold.png');
     expect(html).toContain('/icons/resources/jewellery.png');
-    expect(html).toContain('>Zlato – 84 g<');
+    expect(html).toContain('>Zlato – 84,9 g<');
     expect(html).toContain('>Šperky – zlato a mince za 1,5násobek, ještě pro 30 g<');
   });
 

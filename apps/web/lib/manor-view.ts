@@ -12,8 +12,10 @@ import {
   lordFamily,
   marketFreeAdults,
   nextMerchantVisit,
+  GOLD,
   JEWELLER,
   oxenHome,
+  roundGold,
   tradeHomeCarts,
   TRADE_GOODS,
   villageGoodStock,
@@ -100,12 +102,12 @@ export interface VillageManor {
      */
     merchantsDay: number | null;
     /**
-     * Cena gramu zlata v mincích (`coinPriceOf` – pevná, gold.md – Pravidla 2; nezávisí na hladině
-     * trhu); web ji jen ukazuje.
+     * Váha zlata za minci v gramech (`GOLD.coinGrams` – pevná, gold.md – Mince 2,4 g, bod 1; nezávisí
+     * na hladině trhu); web ji jen ukazuje, se šperkařem ji vydělí jeho násobkem.
      */
-    goldPrice: number;
+    coinGrams: number;
     /**
-     * Kapacita šperkaře vsi (`jewelleryOf`, celé gramy; gold.md – Pravidla 4): na tolik gramů kovu
+     * Kapacita šperkaře vsi (`jewelleryOf`, gramy na setiny; gold.md – Pravidla 4): na tolik gramů kovu
      * ještě platí výhoda 1,5×; chybí, je-li 0.
      */
     jewelleryG?: number;
@@ -156,7 +158,7 @@ function marketField(state: VillageState, day: number): VillageManor['market'] {
   for (const good of TRADE_GOODS) stock[good] = villageGoodStock(state, good, day);
   const slaves = stock.slaves ?? 0;
   const forSale = state.slavesForSale ?? 0;
-  const jewelleryG = Math.floor(jewelleryOf(state));
+  const jewelleryG = roundGold(jewelleryOf(state));
   return {
     stock,
     slaveSale:
@@ -172,7 +174,7 @@ function marketField(state: VillageState, day: number): VillageManor['market'] {
     adults: marketFreeAdults(state, day),
     day,
     trips: marketTripViews(state, day),
-    goldPrice: coinPriceOf(state.market?.prices, state.market?.level ?? 1, 'gold'),
+    coinGrams: GOLD.coinGrams,
     ...(jewelleryG > 0 ? { jewelleryG, jewelleryFactor: JEWELLER.factor } : {}),
     ...merchantsField(state, day),
   };

@@ -75,7 +75,9 @@ test('dílny zlata – zámky rýžovníka a mincovny, šperkař dostupný', asy
   await expect(jeweller).toBeEnabled();
 });
 
-test('zlato ve dvorci a v panelu Trh – zásoby a krok po deseti gramech', async ({ page }) => {
+test('zlato ve dvorci a v panelu Trh – zásoby, krok po deseti gramech a 2,4 g za minci', async ({
+  page,
+}) => {
   const { seat: s } = await newPlayer(page, 'zlato-trh');
   const spots = villageSpots(s.landscape);
   await found(page, spots.dwelling);
@@ -84,7 +86,7 @@ test('zlato ve dvorci a v panelu Trh – zásoby a krok po deseti gramech', asyn
     ...st,
     storesKg: 3000,
     coins: 50,
-    gold: 84,
+    gold: 84.5,
     jewelleryG: 30,
     // mapa bez stezky (sídlo testu může mít prémiovou krajinu se stezkou)
     merchantStops: [],
@@ -95,7 +97,7 @@ test('zlato ve dvorci a v panelu Trh – zásoby a krok po deseti gramech', asyn
   await pollVillage(page);
 
   const panel = await openManor(page, spots.dwelling);
-  await expect(panel.getByTestId('wares-gold')).toHaveText('84');
+  await expect(panel.getByTestId('wares-gold')).toHaveText('84,5');
   await expect(panel.getByTestId('wares-jewellery')).toHaveText('30');
 
   await panel.getByTestId('manor-market').click();
@@ -106,7 +108,7 @@ test('zlato ve dvorci a v panelu Trh – zásoby a krok po deseti gramech', asyn
   await row.getByRole('button', { name: 'Lhota' }).click();
   await expect(market.getByTestId('market-report')).toBeVisible();
 
-  // zlato je v „Dáš“ s krokem 10 g; cena za gram se šperkařem je u řádku
+  // zlato je v „Dáš“ s krokem 10 g; váha zlata za minci je u řádku
   await expect(market.getByTestId('market-give-gold')).toBeVisible();
   await market.getByTestId('market-give-gold-plus').click();
   await expect(market.getByTestId('market-give-gold-count')).toHaveText('10');
@@ -114,7 +116,10 @@ test('zlato ve dvorci a v panelu Trh – zásoby a krok po deseti gramech', asyn
   await expect(market.getByTestId('market-give-gold-count')).toHaveText('20');
   await expect(
     market.getByTestId('market-give-gold').getByTestId('market-gold-price'),
-  ).toBeVisible();
+  ).toContainText('2,4 g');
+  // zlomek gramu (84,5) se nenabízí – nahoře celých 84 g
+  for (let i = 0; i < 7; i++) await market.getByTestId('market-give-gold-plus').click();
+  await expect(market.getByTestId('market-give-gold-count')).toHaveText('84');
   // zlato jde i koupit
   await expect(market.getByTestId('market-want-gold')).toBeVisible();
 });

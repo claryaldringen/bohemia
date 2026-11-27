@@ -60,7 +60,14 @@ import {
   withVillagersOf,
 } from './village-name-cases';
 
-import { formatAnimals, formatCells, formatHa, formatInteger, plural } from './village-format';
+import {
+  formatAnimals,
+  formatCells,
+  formatGrams,
+  formatHa,
+  formatInteger,
+  plural,
+} from './village-format';
 
 export const CHRONICLE_LENGTH = 8;
 
@@ -1097,7 +1104,7 @@ function moneyText(
 ): string {
   const parts = [
     ...(coins ? [coinsText(coins, grammaticalCase)] : []),
-    ...(gold ? [`${formatInteger(gold)} g zlata`] : []),
+    ...(gold ? [`${formatGrams(gold)} g zlata`] : []),
   ];
   return parts.length === 0 ? '' : ` a ${parts.join(' a ')}`;
 }
@@ -1769,13 +1776,13 @@ export function chronicleText(event: ChronicleEvent, villageName: string, seed?:
       // měšec výpravy zaniklé vsi bez lidí (preflight plánu 4, M14)
       if (event.coins <= 0) {
         // jen zlato (plán 6, bod 9) – žádná „0 mincí“
-        const gold = formatInteger(event.gold ?? 0);
+        const gold = formatGrams(event.gold ?? 0);
         return event.villageName === ''
           ? `Ze sousední vsi se vrátilo ${gold} g zlata.`
           : `Ze zaniklé vsi ${event.villageName} se vrátilo ${gold} g zlata.`;
       }
       if (event.gold) {
-        const purse = `${coinsText(event.coins, 'nominative')} a ${formatInteger(event.gold)} g zlata`;
+        const purse = `${coinsText(event.coins, 'nominative')} a ${formatGrams(event.gold)} g zlata`;
         return `Do vsi ${plural(event.coins, 'přišla', 'přišly', 'přišlo')} ${purse} ${fromVillage(event.villageName)}.`;
       }
       return `Do vsi ${plural(event.coins, 'přišla', 'přišly', 'přišlo')} ${coinsText(event.coins, 'nominative')} ${fromVillage(event.villageName)}.`;

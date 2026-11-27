@@ -23,12 +23,14 @@ describe('GoldWorkshopStats', () => {
   });
 
   it('šperkař: výhoda a kov; mincovna: zlato', () => {
-    const j = render({ craft: 'jeweller', wroughtG: 30, materialG: 140, factor: 1.5 });
+    const j = render({ craft: 'jeweller', wroughtG: 30, materialG: 140.4, factor: 1.5 });
     expect(j).toContain('Šperky – zlato a mince za 1,5násobek, ještě pro 30 g');
     expect(text(j, 'selection-workshop-wrought')).toBe('30');
-    expect(text(j, 'selection-workshop-material')).toBe('140');
+    expect(text(j, 'selection-workshop-material')).toBe('140,4');
     const other = render({ craft: 'jeweller', wroughtG: 30, materialG: 140, factor: 2 });
     expect(other).toContain('za 2násobek');
-    expect(text(render({ craft: 'minter', goldG: 9 }), 'selection-workshop-mint-gold')).toBe('9');
+    expect(text(render({ craft: 'minter', goldG: 9.2 }), 'selection-workshop-mint-gold')).toBe(
+      '9,2',
+    );
   });
 });

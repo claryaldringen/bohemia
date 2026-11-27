@@ -13,6 +13,7 @@ import { monthGenitive } from '@/lib/game-date';
 import {
   formatDecimal,
   formatFactor,
+  formatGrams,
   formatInteger,
   formatPercent,
   plural,
@@ -352,7 +353,7 @@ export function GoldWorkshopStats({
       <>
         <Stat
           icon="gold"
-          name={`Náplavy se zlatem – v současném zbývá ${formatInteger(gold.leftG)} g`}
+          name={`Náplavy se zlatem – v současném zbývá ${formatGrams(gold.leftG)} g`}
           testId="selection-workshop-placers"
         >
           {gold.placersLeft}
@@ -370,20 +371,20 @@ export function GoldWorkshopStats({
       <>
         <Stat
           icon="jewellery"
-          name={`Šperky – zlato a mince za ${formatFactor(gold.factor)}násobek, ještě pro ${formatInteger(gold.wroughtG)} g`}
+          name={`Šperky – zlato a mince za ${formatFactor(gold.factor)}násobek, ještě pro ${formatGrams(gold.wroughtG)} g`}
           testId="selection-workshop-wrought"
         >
-          {formatInteger(gold.wroughtG)}
+          {formatGrams(gold.wroughtG)}
         </Stat>
         <Stat icon="gold" name="Kov vsi – zlato a mince (g)" testId="selection-workshop-material">
-          {formatInteger(gold.materialG)}
+          {formatGrams(gold.materialG)}
         </Stat>
       </>
     );
   }
   return (
     <Stat icon="gold" name="Zlato ve vsi k ražbě (g)" testId="selection-workshop-mint-gold">
-      {formatInteger(gold.goldG)}
+      {formatGrams(gold.goldG)}
     </Stat>
   );
 }

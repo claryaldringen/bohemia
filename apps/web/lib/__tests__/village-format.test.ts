@@ -5,6 +5,7 @@ import {
   formatCells,
   formatHa,
   formatCoinPrice,
+  formatGrams,
   formatInteger,
   formatLaborPerDay,
   formatManDays,
@@ -96,5 +97,16 @@ describe('místo na hřbitově', () => {
     expect(formatYearsShort(0)).toBe('0');
     expect(formatYearsShort(250)).toBe('>100');
     expect(formatYearsShort(null)).toBe('–');
+  });
+});
+
+describe('gramy zlata na desetiny', () => {
+  it('necelé na jedno desetinné místo, celé bez desetin', () => {
+    expect(formatGrams(0.2)).toBe('0,2');
+    expect(formatGrams(12.4)).toBe('12,4');
+    expect(formatGrams(12.96)).toBe('13');
+    expect(formatGrams(13)).toBe('13');
+    expect(formatGrams(1500)).toBe('1 500');
+    expect(formatGrams(1234.5)).toBe('1 234,5');
   });
 });

@@ -1382,7 +1382,7 @@ plní `manorView` (`stanceOf`), volba jde přes server action `setDefenseStance`
   `lib/trade-names.ts`), v den příjezdu „Kupci jsou dnes ve vsi – …“; ves bez stezky nic.
 - **Panel Trh** (`hud/MarketPanel.tsx`): ceny ve zprávě jsou v mincích i s hladinou (`PricesLine` –
   `coinPriceOf(prices, level, good)` jádra, `VillageNews.level`, chybí = 1; `formatCoinPrice`), mince jsou
-  v „Dáš“ (popisek „Mince“), v „Dostaneš“ ne. Obchodník s příznakem `merchants` je „Kupci“ s ikonou (příznak
+  v „Dáš“ (popisek „Mince“, krok po jedné – mince je 90 kg obilí, meč stojí 20), v „Dostaneš“ ne. Obchodník s příznakem `merchants` je „Kupci“ s ikonou (příznak
   se testuje před prázdným jménem – „Sousední ves“) a nad obchodníky je den příštích kupců
   (`market-report-merchants`, „Kupci přijedou 12. 8.“, `formatDayMonth`) z `VillageReport.merchants`; den,
   který od zprávy už minul, se neukáže.
@@ -1410,16 +1410,19 @@ plní `manorView` (`stanceOf`), volba jde přes server action `setDefenseStance`
   (odcházející otroci nenesou; odpověď bez otroků zásobu otroků nepřepíše), takže náhled neodmítne platnou
   výpravu ani nepustí tu, kterou server odmítne (`MARKET_NO_PEOPLE`).
 - **Zlato v panelu Trh** (gold.md – Pravidla 3 a 4; plán 6, Úloha 10) – zlato má řádek v „Dáš“ (nejvýš
-  `villageGoodStock`) i v „Dostaneš“, krok po 10 g (`stepOf`). `marketField` (`lib/manor-view.ts`) dává
-  pohledu `market.goldPrice` (`coinPriceOf(…, 'gold')` – pevně 1 mince za gram, bez hladiny) a
-  `market.jewelleryG` (`Math.floor(jewelleryOf(state))`, jen > 0, jinak pole chybí). `GoodRow` ukáže u zlata
-  cenu s ikonou mince (`market-gold-price`) a popiskem „Zlato – 1 mince za gram, vždy“, se šperkařem
-  „…, se šperkařem 1,5 mince za gram – ještě pro 30 g“ (`JEWELLER.factor`); u mincí v „Dáš“ je popisek
+  `villageGoodStock`) i v „Dostaneš“, krok po 10 g (`stepOf`), maximum v „Dáš“ celé gramy
+  (`giveMax` – zásoba má setiny). `marketField` (`lib/manor-view.ts`) dává pohledu `market.coinGrams`
+  (`GOLD.coinGrams` – pevně 2,4 g za minci, bez hladiny) a `market.jewelleryG` (`roundGold(jewelleryOf(state))`,
+  jen > 0, jinak pole chybí). `GoodRow` ukáže u zlata váhu s ikonou mince (`market-gold-price`) a popiskem
+  „Zlato – 2,4 g za minci, vždy“, se šperkařem „…, se šperkařem 1,6 g za minci – ještě pro 30 g“
+  (`coinGrams / JEWELLER.factor`); gramy zlata ve dvorci, v dílnách, v kronice a v řádcích obchodu ukazuje
+  `formatGrams` (`village-format.ts`: necelé na desetinu „12,4 g“, celé bez desetin; `summary.ts` posílá
+  setiny); u mincí v „Dáš“ je popisek
   „Se šperkařem platí 1,5násobek – ještě pro 30 g“. Náhled výpravy (`marketPreview`) zlato nijak zvlášť
   nepočítá – bere zásobu `stock.gold` a `checkMarketTrip`, takže nosiče a důvod odmítnutí má jako server.
   Testy: `market-view.test.ts`, `MarketPanel.test.tsx`. E2e `e2e/gold.spec.ts`: nabídka staveb – rýžovník
   „Bez zlatonosného náplavu“ (jen když krajina sídla není `gold-stream`), mincovna „Od roku 950“ (svět
-  e2e začíná rokem 500), šperkař bez zámku; ves s `gold: 84` a `jewelleryG: 30` ukáže `wares-gold` „84“
+  e2e začíná rokem 500), šperkař bez zámku; ves s `gold: 84.5` a `jewelleryG: 30` ukáže `wares-gold` „84,5“
   a `wares-jewellery` „30“ a panel Trh má zlato v „Dáš“ s krokem 10 (`market-give-gold-plus`). Počet
   tlačítek nabídky staveb v `village.spec.ts` je 16 (tři dílny zlata).
 - **Upozornění** „Kupci přijeli“ s ikonou kupců (`VillageNotice.icon`, `lib/village-notices.ts`): za každý

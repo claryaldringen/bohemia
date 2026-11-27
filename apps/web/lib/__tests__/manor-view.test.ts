@@ -289,9 +289,9 @@ describe('kupci a zbroj v pohledu na dvorec (markets.md – Rozhodnutí plánu 4
     expect(manor.market.merchantsDay).toBe(next.day);
     expect(manor.market.merchantsDay).toBeGreaterThanOrEqual(DAY);
     expect(manor.market.arms).toEqual([
-      { good: 'swords', price: 120, ordered: 2 },
-      { good: 'mailShirts', price: 480, ordered: 0 },
-      { good: 'helmets', price: 240, ordered: 0 },
+      { good: 'swords', price: 20, ordered: 2 },
+      { good: 'mailShirts', price: 80, ordered: 0 },
+      { good: 'helmets', price: 40, ordered: 0 },
     ]);
     expect(manor.market.merchantsArrived).toBeNull();
     // hladina trhu a poslední příjezd kupců
@@ -307,7 +307,7 @@ describe('kupci a zbroj v pohledu na dvorec (markets.md – Rozhodnutí plánu 4
       level: 1.5,
     };
     const leveled = manorView(s, DAY)!.market;
-    expect(leveled.arms[0]!.price).toBe(180);
+    expect(leveled.arms[0]!.price).toBe(30);
     expect(leveled.merchantsArrived).toBe(DAY - 5);
   });
 
@@ -370,7 +370,7 @@ describe('prodej otroků v pohledu dvorce (markets.md – Rozhodnutí plánu 5, 
     );
     s.slavesForSale = 1;
     const { market } = manorView(s, DAY)!;
-    expect(market.slaveSale).toEqual({ stock: 2, forSale: 1, price: 24 });
+    expect(market.slaveSale).toEqual({ stock: 2, forSale: 1, price: 4 });
     expect(market.slaveSale!.stock).toBe(market.stock.slaves);
   });
 
@@ -378,6 +378,6 @@ describe('prodej otroků v pohledu dvorce (markets.md – Rozhodnutí plánu 5, 
     const s = village();
     expect(manorView(s, DAY)!.market.slaveSale).toBeNull();
     s.slavesForSale = 3;
-    expect(manorView(s, DAY)!.market.slaveSale).toEqual({ stock: 0, forSale: 3, price: 24 });
+    expect(manorView(s, DAY)!.market.slaveSale).toEqual({ stock: 0, forSale: 3, price: 4 });
   });
 });

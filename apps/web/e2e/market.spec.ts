@@ -106,9 +106,9 @@ test('trh – výprava z dvorce do vlastní vsi na sousední mapě', async ({ pa
   await market.getByTestId('market-give-men-plus').click();
   await expect(market.getByTestId('market-give-men')).toContainText('1');
   // mince jsou v „Dáš“ s počtem, v „Dostaneš“ ne; bez stezky ani sekce zbroje
-  // mince po deseti
+  // mince po jedné
   await market.getByTestId('market-give-coins-plus').click();
-  await expect(market.getByTestId('market-give-coins-count')).toHaveText('10');
+  await expect(market.getByTestId('market-give-coins-count')).toHaveText('1');
   await expect(market.getByTestId('market-want-coins')).toHaveCount(0);
   await expect(market.getByTestId('market-arms')).toHaveCount(0);
   await market.getByTestId('market-give-grain-plus').click();
@@ -126,9 +126,9 @@ test('trh – výprava z dvorce do vlastní vsi na sousední mapě', async ({ pa
   expect(trip?.market?.stayDays).toBe(1);
   // kronika: výprava hráče s muži na prodej, text beze změny („Výprava vyrazila na trh do vsi …“)
   const departed = home.chronicle.find((e) => e.kind === 'market-departed');
-  expect(departed).toMatchObject({ villageName: 'Lhota', give: { men: 1, grain: 100, coins: 10 } });
+  expect(departed).toMatchObject({ villageName: 'Lhota', give: { men: 1, grain: 100, coins: 1 } });
   // mince ubyly vsi při odjezdu a jedou s výpravou
-  expect(home.coins).toBe(40);
+  expect(home.coins).toBe(49);
   const mail = await query<{ ref: string }>(
     `SELECT ref FROM village_inbox
       WHERE village_id = $1 AND body->>'kind' = 'market-arrive' AND ref LIKE 'market:%:in'`,
@@ -144,7 +144,7 @@ test('trh – výprava z dvorce do vlastní vsi na sousední mapě', async ({ pa
     .getByTestId('chronicle-panel')
     .locator('[data-testid="chronicle-entry"][data-kind="market-departed"]');
   await expect(entry).toContainText('Výprava vyrazila na trh do vsi Lhota', { timeout: 30_000 });
-  await expect(entry).toContainText('10 mincí');
+  await expect(entry).toContainText('1 minci');
 });
 
 test('kupci u stezky – den příjezdu, upozornění a objednávka zbroje', async ({ page }) => {
@@ -201,7 +201,7 @@ test('kupci u stezky – den příjezdu, upozornění a objednávka zbroje', asy
   await panel.getByTestId('manor-market').click();
   const market = page.getByTestId('market-panel');
   await expect(market.getByTestId('market-arms')).toBeVisible();
-  await expect(market.getByTestId('market-arms-swords')).toContainText('120');
+  await expect(market.getByTestId('market-arms-swords')).toContainText('20');
   await market.getByTestId('market-arms-swords-plus').click();
   await expect(market.getByTestId('market-arms-swords-count')).toHaveText('1');
   await expect

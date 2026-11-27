@@ -1,7 +1,7 @@
 // Názvy pro dvorec vojvody, zemské stezky a obchod (docs/design/trade.md) – směry, zboží a jeho
 // ikony. Čistý modul, smí i do prohlížeče.
 import type { Direction8, NewcomerGroup, TradeGood, TradeGoods, TradePeople } from '@bohemia/game';
-import { formatInteger } from './village-format';
+import { formatGrams, formatInteger } from './village-format';
 
 /** Směry – zkratka, název, šipka a „odkud“ (sever nahoře, +z). */
 export const DIRECTION_NAMES: Record<
@@ -135,8 +135,9 @@ export function tradeAmountText(n: number, unit: TradeUnit | PeopleKind): string
   switch (unit) {
     case 'kg':
     case 'm³':
-    case 'g':
       return `${count} ${unit}`;
+    case 'g':
+      return `${formatGrams(n)} g`;
     case 'ks':
       return `${count} ${plural(n, 'kus', 'kusy', 'kusů')}`;
     case 'family':
