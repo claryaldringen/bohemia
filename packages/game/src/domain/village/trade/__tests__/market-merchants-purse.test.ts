@@ -274,6 +274,48 @@ describe('měšec kupců bez dna – stav a součet mincí (bod 1)', () => {
   });
 });
 
+describe('mincovní fáze s kupci jen se zbožím z jejich poptávky (výkon – výsledek týž)', () => {
+  it('den kupců bez zboží z jejich poptávky nic nemění', () => {
+    // obilí nad pojistkou kupci nechtějí; zlato, med, vosk, kožešiny ani otroky ves nemá
+    const s = host();
+    merchantsArrive(s, DAY);
+    s.market!.level = 1.5;
+    const merchant = merchantOf(s);
+    const goods = structuredClone(merchant.goods);
+    const before = structuredClone({
+      coins: s.coins,
+      gold: s.gold,
+      wares: s.wares,
+      storesKg: s.storesKg,
+    });
+    const chronicle = marketDay(s, DAY);
+    expect(heldOf(chronicle)).toBeNull();
+    expect(merchant.bought).toEqual({});
+    expect(merchant.goods).toEqual(goods);
+    expect(s.market!.level).toBe(1.5);
+    expect({ coins: s.coins, gold: s.gold, wares: s.wares, storesKg: s.storesKg }).toEqual(before);
+  });
+
+  it('se zbožím z poptávky obchoduje jako dřív – jen zlato vsi, jen náklad výpravy bez mincí', () => {
+    // 24 g zlata vsi = 10 mincí; v nabídce hostitele (zápočtu) zlato není
+    const gold = host({ gold: 24 });
+    merchantsArrive(gold, DAY);
+    expect(heldOf(marketDay(gold, DAY))).toEqual({ sold: { gold: 24 }, bought: { coins: 10 } });
+    expect(gold.coins).toBe(10);
+    // kožešiny výpravy: 30 × 4/45 = 2,67 – kupec platí nahoru 3 mince
+    const cargo = host();
+    merchantsArrive(cargo, DAY);
+    joinMarket(cargo, DAY, trip('market:a:1', { furs: 30 }, {}));
+    const merchant = merchantOf(cargo);
+    marketDay(cargo, DAY);
+    expect(resultOf(cargo, 'market:a:1')).toMatchObject({
+      sold: { furs: 30 },
+      unsold: { coins: 3 },
+    });
+    expect(merchant.bought).toEqual({ furs: 30 });
+  });
+});
+
 describe('měšec kupců bez dna – hladina (bod 4)', () => {
   /** Trh vsi s hladinou `level` ještě před příjezdem kupců. */
   function withLevel(s: VillageState, level: number): VillageState {

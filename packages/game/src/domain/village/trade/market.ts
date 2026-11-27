@@ -10,7 +10,8 @@
 // Měšec kupců bez dna, poptávka kupce `merchantDemand` bod 6);
 // hostitel v ní jen prodává a koupí jedině zbroj,
 // kterou si u kupců objednal hráč (arms-order.ts – bod 15), a zlato přespolních výprav vymění za své
-// mince 1:1 (gold.md – Rozhodnutí plánu 6, bod 3). Cizí kupci (merchants.ts – bod 5) jsou
+// mince – 2,4 g za minci, po celých mincích (gold.md – Rozhodnutí plánu 6, bod 3; Mince 2,4 g,
+// bod 4). Cizí kupci (merchants.ts – bod 5) jsou
 // návštěvníci bez domovské vsi a odjíždějí bez pošty. Kovář souseda (výprava se službou kování) kuje
 // hned po příjezdu a do zápočtu nevstupuje (livestock/smith-visit.ts – Rozhodnutí plánu 3, bod 9).
 // Lidé jdou zápočtem jako kusy, ale po skupinách jako skuteční lidé: prodaní hostitelem odejdou
@@ -574,20 +575,24 @@ function merchantWants(
  * bod 6) – platí z měšce bez dna (`Infinity` jen ve straně fáze, ve stavu mince nemá; body 1 a 2).
  * Výprava prodává, co veze (`coinPhaseStock` – vesničané, kteří ještě shánějí výrobek dílny, si
  * nechají obilí a luštěniny na zakázku). Hostitel prodává, co mu z nabídky zbylo (`hostOffer`), a své
- * zlato v celých gramech (`hostGold`); za mince koupí jedině zbroj, kterou si u kupců objednal hráč
+ * zlato – zásobu na setiny gramu po celých mincích, 2,4 g za minci (`hostGold`; zbytek pod minci
+ * zůstane ve vsi); za mince koupí jedině zbroj, kterou si u kupců objednal hráč
  * (`armsBuyer`; o koupenou se objednávka zmenší – `reduceArmsOrder`), nic podle výpočtu potřeby
- * (Martin 25. 11. 2026: „Mince utrácí jen vojvoda/správce“) – po mincích ji kupcům doplatí celými
- * gramy zlata vsi (`goldPurse`). Zlato, které nabízí přespolní výprava,
- * po zbroji vymění za mince vsi 1:1 (`exchangesGold`) – kov za kov, ne útrata (Martin 22. 11. 2026:
+ * (Martin 25. 11. 2026: „Mince utrácí jen vojvoda/správce“) – po mincích ji kupcům doplatí zlatem vsi
+ * po celých mincích, 2,4 g za minci (`goldPurse`). Zlato, které nabízí přespolní výprava, po zbroji
+ * vymění za mince vsi – 2,4 g za minci, po celých mincích (`exchangesGold`) – kov za kov, ne útrata
+ * (Martin 22. 11. 2026:
  * „Zlato lze měnt za mince s kýmkoliv, kdo ty mince má“; gold.md – Rozhodnutí plánu 6, bod 3).
  * Šperkař (gold.md – Pravidla 4): hostitel má kapacitu vsi (`jewelleryOf`), výpravy svou
  * (`MarketVisitor.jewelleryG`); spotřebovaná ubude ve vsi (`useJewellery`) i výpravě.
  * Lidí nabídne
  * nejvýš tolik skupin, kolik jich po zápočtech doopravdy odejde (`leavingGroups` – výběr je
  * postupný), aby kupující nezaplatil lidi, které nedostane. Hladinu posune `nextLevel`; hladina 1 ve
- * stavu není. Bez kupujícího s mincemi – výpravy nebo kupce, který něco shání, vsi s objednanou
- * zbrojí v den kupců, nebo vsi s mincemi, které přespolní výprava nabízí aspoň gram zlata – se fáze
- * nespustí (null, stav se nezmění); mince v zásobě vsi ji samy nespustí, objednanou zbroj spustí
+ * stavu není. Bez kupujícího s mincemi – výpravy nebo kupce, který něco shání (kupec jen to, co je na
+ * trhu – jinak by fázi spouštěl každý den kupců naprázdno), vsi s objednanou zbrojí v den kupců, nebo
+ * vsi s mincemi, které přespolní výprava nabízí zlato aspoň za minci (2,4 g) – se fáze nespustí (null,
+ * stav se nezmění; den kupců bez jejich zboží vrátí prázdný výsledek jako dřívější fáze naprázdno);
+ * mince v zásobě vsi ji samy nespustí, objednanou zbroj spustí
  * i samo zlato vsi. Kupci kupují i otroky – v den bez otroků (`slavesOnMarket`) jejich seznam otroky
  * nemá (`merchantWants`), takže fáze ani hladina (C a W) nejsou jiné než po plánu 4. Co hostitel
  * prodal a koupil, je i s mincemi. Rezervace otroků z nabídky (`reserved`) je ze začátku dne –
@@ -616,7 +621,21 @@ function coinPhase(
     ...(v.merchant ? { merchant: true as const } : {}),
     ...(v.jewelleryG ? { jewelleryG: v.jewelleryG } : {}),
   }));
-  const spends = guests.some((p) => p.coins > 0 && hasGoods(p.wants));
+  // zlato vsi i se zlomkem – hostitel ho nabízí jen v mincovní fázi, po celých mincích (zbytek pod
+  // minci zůstane ve vsi – Mince 2,4 g, bod 4)
+  const hostGold = villageGoodStock(state, GOLD_GOOD, day);
+  // kdo má mince a něco shání; kupec (měšec bez dna a poptávka po zlatě skoro vždy) fázi spustí, jen
+  // když je na trhu něco z jeho poptávky – v nabídce hostitele (lidé nejvýš z nabídky), v jeho zlatě
+  // nebo v nákladu ostatních stran; jinak by běžela každý den kupců naprázdno
+  const ready = guests.filter((p) => p.coins > 0 && hasGoods(p.wants));
+  const offers = [{ ...hostOffer, [GOLD_GOOD]: hostGold }, ...guests.map((p) => p.stock)];
+  const onMarket = (p: CoinParty): boolean =>
+    TRADE_GOODS.some(
+      (good) =>
+        (p.wants[good] ?? 0) > 0 &&
+        offers.some((stock) => stock !== p.stock && (stock[good] ?? 0) > 0),
+    );
+  const spends = ready.some((p) => !p.merchant || onMarket(p));
   const buyer = armsBuyer(state, day, visitors);
   // přespolní výprava (ne kupec) nabízí zlato aspoň za minci (2,4 g) – hostitel ho vymění za mince
   // vsi (Rozhodnutí plánu 6, bod 3; Mince 2,4 g, bod 4); fáze se spustí i jen kvůli výměně
@@ -624,14 +643,15 @@ function coinPhase(
   const hostCoins = villageGoodStock(state, COIN_GOOD, day);
   // objednanou zbroj ves zaplatí mincemi i zlatem po celých mincích (Rozhodnutí plánu 6, bod 3)
   const armsMeans = buyer ? buyer.coins + goldCoins(buyer.goldPurse ?? 0) : 0;
-  if (!(armsMeans > 0) && !spends && !(exchanges && hostCoins > 0)) return null;
+  if (!(armsMeans > 0) && !spends && !(exchanges && hostCoins > 0)) {
+    // den kupců bez zboží z jejich poptávky: nikdo nic nekoupí – prázdný výsledek jako fáze naprázdno
+    // dřív, ať součty dne v `marketDay` (`totalGoods`) vyjdou bit po bitu stejně
+    return ready.length > 0 ? { sold: {}, bought: {}, events: [] } : null;
+  }
   const leaving = leavingGroups(state, day, hostOffer, reserved);
   const people: TradeGoods = {};
   for (const good of PEOPLE_GOODS) people[good] = leaving[good].length;
   const level = market.level ?? 1;
-  // zlato vsi i se zlomkem – hostitel ho nabízí jen v mincovní fázi, po celých mincích (zbytek pod
-  // minci zůstane ve vsi – Mince 2,4 g, bod 4)
-  const hostGold = villageGoodStock(state, GOLD_GOOD, day);
   // kapacita šperkaře vsi – jedna pro prodej zlata kupcům i zbroj
   const jewelleryG = jewelleryOf(state);
   const { trades, payments, available, sought, jewelleryUsed } = coinClearing(

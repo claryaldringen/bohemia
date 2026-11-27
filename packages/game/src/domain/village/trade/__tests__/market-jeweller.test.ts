@@ -240,6 +240,20 @@ describe('mincovní fáze se šperkařem (coinClearing, hladina 1)', () => {
     expect(c).not.toHaveProperty('jewelleryUsed');
   });
 
+  it('spotřebovaná kapacita je na setiny: 3 mince za nástroje ubere 7,2 g, ne 7,199999999999999', () => {
+    // 2,25 kg nástrojů za 4,5 – se šperkařem 3 mince; 3 × 2,4 = 7,199999999999999
+    const c = coinClearing(
+      [
+        party('host', { stock: { tools: 10 } }),
+        party('e', { coins: 10, wants: { tools: 2.25 }, jewelleryG: 20 }),
+      ],
+      TOOLS,
+      1,
+    );
+    expect(c.payments).toEqual([{ buyer: 'e', seller: 'host', coins: 3 }]);
+    expect(c.jewelleryUsed).toEqual({ e: 7.2 });
+  });
+
   it('bez kapacity, nebo když ji nikdo nepoužije, `jewelleryUsed` chybí', () => {
     const parties = [
       party('host', { stock: { gold: 200 } }),

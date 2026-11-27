@@ -99,4 +99,13 @@ describe('WaresStock – zlato a šperky (plán 6)', () => {
     expect(render(wares)).not.toContain('wares-gold');
     expect(render({ ...wares, goldG: 0, jewelleryG: 0 })).not.toContain('wares-jewellery');
   });
+
+  it('zlato a šperky pod 0,05 g se neukážou – na desetiny by to bylo „Zlato – 0 g“', () => {
+    const zero = { hides: 0, furs: 0, sheepFurs: 0, honeyKg: 0, waxKg: 0 };
+    expect(render({ ...zero, goldG: 0.04, jewelleryG: 0.04, jewelleryFactor: 1.5 })).toBe('');
+    const tenth = render({ ...zero, goldG: 0.05, jewelleryG: 0.05, jewelleryFactor: 1.5 });
+    expect(text(tenth, 'wares-gold')).toBe('0,1');
+    expect(text(tenth, 'wares-jewellery')).toBe('0,1');
+    expect(tenth).toContain('>Zlato – 0,1 g<');
+  });
 });

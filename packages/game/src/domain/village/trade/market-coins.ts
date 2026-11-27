@@ -403,7 +403,8 @@ export function coinClearing(
     }
     spend(seller, dearG);
     if (otherBill > 0) {
-      spend(buyer, Math.min(buyer.jewellery, (paid - goldBill) * GOLD.coinGrams));
+      // kov na setiny (`roundGold`) – 3 × 2,4 g je jinak 7,199999999999999
+      spend(buyer, Math.min(buyer.jewellery, roundGold((paid - goldBill) * GOLD.coinGrams)));
     }
   };
   const buyers = [...ledgers.filter((l) => l.merchant), ...ledgers.filter((l) => !l.merchant)];

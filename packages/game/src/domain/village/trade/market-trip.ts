@@ -66,6 +66,7 @@ import {
   takePeople,
   withoutGroups,
 } from './market-people';
+import { roundGold } from './market-prices';
 import { emigrantList } from './people-trade';
 import { addGood, addMarketCarts, expeditionLaborNeed, takeCarts, villageGoodStock } from './trade';
 import { villageReport } from './village-report';
@@ -512,7 +513,8 @@ interface DepartOptions {
  */
 export function tripJewelleryG(state: VillageState, give: TradeGoods, by?: TripBy): number {
   if (by === 'villagers') return 0;
-  const metal = (give[COIN_GOOD] ?? 0) * GOLD.coinGrams + (give[GOLD_GOOD] ?? 0);
+  // na setiny (`roundGold`) – 3 × 2,4 g je jinak 7,199999999999999
+  const metal = roundGold((give[COIN_GOOD] ?? 0) * GOLD.coinGrams + (give[GOLD_GOOD] ?? 0));
   return Math.max(0, Math.min(jewelleryOf(state), metal));
 }
 

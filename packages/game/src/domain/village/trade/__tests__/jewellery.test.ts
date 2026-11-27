@@ -4,6 +4,7 @@ import { foundVillage } from '../../core/actions';
 import { summarizeVillage } from '../../core/summary';
 import { withBuiltFirstDwelling } from '../../__tests__/village-fixtures';
 import { addJewellery, jewelleryMaterialG, jewelleryOf, useJewellery } from '../jewellery';
+import { tripJewelleryG } from '../market-trip';
 
 // Kapacita šperkaře (plán 6, úloha 5; gold.md – Pravidla 4): kov vsi = celé gramy zlata + mince.
 
@@ -50,6 +51,22 @@ describe('kapacita šperkaře', () => {
     const t = village(0, 0);
     addJewellery(t, 8);
     expect(t.jewelleryG).toBeUndefined();
+  });
+
+  it('kapacita na setiny – šum plovoucí čárky se do jewelleryG nezapíše', () => {
+    // 7,2 − 2,4 = 4,800000000000001 a 2,4 + 4,8 = 7,199999999999999
+    const used = village(0, 3, 7.2);
+    useJewellery(used, 2.4);
+    expect(used.jewelleryG).toBe(4.8);
+    const added = village(0, 3, 2.4);
+    addJewellery(added, 4.8);
+    expect(added.jewelleryG).toBe(7.2);
+    // výprava se 3 mincemi veze kov 3 × 2,4 g = 7,2 g, ne 7,199999999999999
+    expect(tripJewelleryG(village(0, 3, 20), { coins: 3 })).toBe(7.2);
+    // zlomek pod setinu z práce šperkaře není šum – zůstane (kapacita ubude nejvýš o kov, který odešel)
+    const worked = village(0, 20, 33.60174);
+    useJewellery(worked, 33.6);
+    expect(worked.jewelleryG).toBeCloseTo(0.00174, 12);
   });
 
   it('pohled vsi nese jewelleryG jako jewelleryOf v celých gramech', () => {

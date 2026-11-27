@@ -390,8 +390,18 @@ describe('tržní den s kupci (marketDay)', () => {
   });
 
   it('zápočtem vymění výprava plný náklad za 20 mincí za meč – mince se nehnou', () => {
+    // předpoklad testu: náklad má hodnotu právě jednoho meče – po změně cen by níž selhal nesrozumitelně
+    const cargo: TradeGoods = { honey: 100, wax: 24, furs: 60 };
+    const cargoWorth = TRADE_GOODS.reduce(
+      (sum, good) => sum + (cargo[good] ?? 0) * coinPriceOf({}, 1, good),
+      0,
+    );
+    expect(cargoWorth, 'hodnota nákladu (med, vosk, kožešiny) = cena meče').toBeCloseTo(
+      coinPriceOf({}, 1, 'swords'),
+      9,
+    );
     const s = host();
-    joinMarket(s, DAY, trip('market:a:1', { honey: 100, wax: 24, furs: 60 }, { swords: 1 }));
+    joinMarket(s, DAY, trip('market:a:1', cargo, { swords: 1 }));
     merchantsArrive(s, DAY);
     const merchant = merchantOf(s);
     marketDay(s, DAY);

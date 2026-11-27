@@ -309,7 +309,11 @@ ves>:<id výpravy>`, `stayDays`, `travelDays`, zboží `goods` – koně i tady 
     nějaký návštěvník veze mince (`goods.coins`) a něco mu na seznamu zbylo, nebo má ves mince
     a objednanou zbroj v den kupců (`armsBuyer` – Cizí kupci ve vsi níž, Objednávka zbroje), nebo
     má ves mince a přespolní výprava (ne kupec) nabízí zlato aspoň za minci (výměna – Zlato níž) – mince
-    v zásobě vsi ji samy nespustí a trh bez mincí je bit po bitu jako dřív. Strany `coinClearing`:
+    v zásobě vsi ji samy nespustí a trh bez mincí je bit po bitu jako dřív. Cizí kupec (měšec bez dna,
+    poptávka po zlatě skoro vždy) ji spustí, jen když je na trhu něco z jeho poptávky – v nabídce
+    hostitele (lidé nejvýš z nabídky), ve zlatě vsi (`hostGold`) nebo v nákladu ostatních stran; den
+    kupců bez toho vrátí prázdný výsledek jako dřívější fáze naprázdno (výkon – součty dne
+    v `marketDay` i stav bit po bitu stejně, testy `market-merchants-purse.test.ts`). Strany `coinClearing`:
     hostitel (bez objednávky 0 mincí a prázdný seznam – jen prodává, s objednávkou mince vsi, zlato
     k doplacení `goldPurse` a objednaná zbroj, nic jiného za mince nekoupí; s výměnou mince vsi
     a `exchangesGold`; kapacita šperkaře vsi `jewelleryOf`; `stock` =
@@ -318,7 +322,8 @@ ves>:<id výpravy>`, `stayDays`, `travelDays`, zboží `goods` – koně i tady 
     `leavingGroups`) a návštěvníci (`goods` a `wants` bez mincí, `merchant` – cizí kupec, kupuje
     první, `jewelleryG` – kapacita šperkaře výpravy `MarketVisitor.jewelleryG`). Objednanou zbroj
     spustí fázi i samo zlato vsi (mince + `goldPurse` > 0). Spotřebovanou kapacitu (`jewelleryUsed`)
-    po fázi ubere `useJewellery` vsi i výpravě (nula pole smaže).
+    po fázi ubere `useJewellery` vsi i výpravě (bez šumu plovoucí čárky – `withoutNoise`, nula pole
+    smaže); spotřebu kupujícího (mince × 2,4 g) i kov výpravy (`tripJewelleryG`) zaokrouhlí `roundGold`.
     Obchody vyrovná `settleTrades` (koně, vozy a lidé po kusech jako v zápočtu, zakázky
     `reduceOrder`), mince přesune `payCoins` – u návštěvníka jen `goods.coins` (ne `sold` / `bought`,
     domů jdou v `unsold`; součty zaplacených a přijatých `MarketVisitor.coinsPaid` a `coinsGot` jsou
@@ -431,7 +436,7 @@ day, order, target, { by?, seedKg?, alone?, service?, kin?, people? })` (mutuje 
   - **Zlato a kapacita šperkaře** (gold.md – Pravidla 4; Rozhodnutí plánu 6, body 6 a 9; Martin 22. 11. 2026: „I mezi vesnicemi“): zlato jede v nákladu jako mince (`give.gold` – celé gramy,
     ubude vsi, co zbude, je v `unsold`). Výprava hráče a správce si veze kapacitu šperkaře
     `tripJewelleryG(state, give, by)` = min(`jewelleryOf`, mince × `GOLD.coinGrams` + gramy zlata
-    v nákladu), výprava vesničanů nic (mince neutrácí). `departPlanned` ji spočítá ze vsi **před**
+    v nákladu na setiny – `roundGold`, ne 7,199999999999999 g za 3 mince), výprava vesničanů nic (mince neutrácí). `departPlanned` ji spočítá ze vsi **před**
     odchodem nákladu (po něm by `jewelleryOf` vyšla 0), ve vsi ji ubere (`useJewellery` – uložená
     kapacita tak smí kov vsi přerůst, dokud se výprava nevrátí; použitelná je dál nejvýš kov)
     a zapíše `MarketArrival.jewelleryG` (jen kladnou). `joinMarket` ji předá do
@@ -667,7 +672,7 @@ day, order, target, { by?, seedKg?, alone?, service?, kin?, people? })` (mutuje 
   `coinPriceOf(…, 'gold')` ji vrací bez ohledu na trh a hladinu, `nextPrices` zlato přeskočí jako
   mince. `TRADE_GOOD_VALUES.gold` má `carryKg` 0 (nosiče nepřidá). `withoutMoney` (bez mincí i zlata)
   platí v ceně dne a zápočtu (`priceTotals`, `clearMarket`); mincovní fáze a `coinPhaseStock` dál
-  `withoutCoins` – zlato v nich je. `WaresView.goldG` (celé gramy, jen kladné – desetiny dodá rozhraní). Odchod celé vsi nese
+  `withoutCoins` – zlato v nich je. `WaresView.goldG` (setiny – `roundGold`, jen kladné; rozhraní ukáže desetiny – `formatGrams` – a zlato až od 0,05 g, Mince, kupci a zbroj v rozhraní ve `web-ui.md`). Odchod celé vsi nese
   `gold` a `jewelleryG` (`CARRIED_STOCKS`), odchod syna ne.
   - **Zlato za mince v mincovní fázi** (gold.md – Pravidla 2; Rozhodnutí plánu 6, body 2, 3 a 8;
     Martin 22. 11. 2026: „Zlato lze měnt za mince s kýmkoliv, kdo ty mince má“): zlato se mění jen
